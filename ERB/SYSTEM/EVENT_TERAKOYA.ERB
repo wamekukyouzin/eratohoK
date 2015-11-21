@@ -1,0 +1,659 @@
+﻿;-------------------------------------------------
+;寺子屋の判定
+;LOCAL:20 寺子屋イベントの判定
+;LOCAL:21 寺子屋イベントの対象となる児童
+;LOCAL:22 寺子屋に通っている児童の人数(予算計算用)
+;-------------------------------------------------
+@EVENT_TERAKOYA
+;寺子屋に通っている児童がいるかチェック
+LOCAL:20 = 0
+LOCAL:22 = 0
+FOR LOCAL:21, 0, CHARANUM
+IF CFLAG:(LOCAL:21):寺子屋 == 1 && CFLAG:(LOCAL:21):1 == CFLAG:MASTER:1 && !CFLAG:(LOCAL:21):12 && !CFLAG:(LOCAL:21):9
+	LOCAL:20 = 1
+	LOCAL:22 ++
+ENDIF
+NEXT
+;寺子屋通いが一人でも居る
+IF LOCAL:20 == 1
+	PRINTL
+	;寺子屋が攻撃を受けている
+	IF TMP_IS_STAY_ENEMY_UNIT(GET_CITYNUMBER("寺子屋"))
+		PRINTFORML 寺子屋が攻撃を受けています
+		PRINTFORML 危険を避けるため、児童達を安全な場所に疎開させました
+		FOR LOCAL:21, 0, CHARANUM
+		SIF CFLAG:(LOCAL:21):寺子屋 == 1
+			CFLAG:(LOCAL:21):寺子屋 = 0
+		NEXT
+		LOCAL:20 = 0
+	;寺子屋が制圧されてしまった
+	ELSEIF CITY_OWNER:GET_CITYNUMBER("寺子屋") != CFLAG:MASTER:1
+		PRINTFORML 寺子屋が敵に征圧されました
+		PRINTFORML 児童達を安全な場所に疎開させます
+		FOR LOCAL:21, 0, CHARANUM
+		SIF CFLAG:(LOCAL:21):寺子屋 == 1
+			CFLAG:(LOCAL:21):寺子屋 = 0
+		NEXT
+		LOCAL:20 = 0
+	;けーねが戦死した、処刑された
+	ELSEIF CFLAG:(NAME_TO_CHARA("慧音")):12 == 2
+		PRINTFORML 愛すべき%ANAME(NAME_TO_CHARA("慧音"))%先生との突然の別れに
+		PRINTFORML 寺子屋の児童達は悲しみにくれています…
+		FOR LOCAL:21, 0, CHARANUM
+		SIF CFLAG:(LOCAL:21):寺子屋 == 1
+			CFLAG:(LOCAL:21):寺子屋 = 0
+		NEXT
+		LOCAL:20 = 0
+	;けーねが産休または怪我療養中
+	ELSEIF CFLAG:(NAME_TO_CHARA("慧音")):16 == 1 || CFLAG:(NAME_TO_CHARA("慧音")):16 == 2
+		PRINTFORML 療養中の%ANAME(NAME_TO_CHARA("慧音"))%先生を心配し
+		PRINTFORML 寺子屋の児童達が病室に集まっています
+		FOR LOCAL:21, 0, CHARANUM
+		SIF CFLAG:(LOCAL:21):寺子屋 == 1
+			CFLAG:(LOCAL:21):寺子屋 = 0
+		NEXT
+		LOCAL:20 = 0
+	;けーねが捕虜
+	ELSEIF CFLAG:(NAME_TO_CHARA("慧音")):9 > 0
+		PRINTFORML %ANAME(NAME_TO_CHARA("慧音"))%先生が敵軍の手に落ちたという知らせに寺子屋の児童達は憤り
+		PRINTFORML 幼いながらも「自分達の手で助け出して見せる」と意気込んでいます
+		FOR LOCAL:21, 0, CHARANUM
+		SIF CFLAG:(LOCAL:21):寺子屋 == 1
+			CFLAG:(LOCAL:21):寺子屋 = 0
+		NEXT
+		LOCAL:20 = 0
+	;全てクリアしたら寺子屋開始
+	ELSE
+		SETCOLOR COLOR_CAUTION
+		PRINTFORMW 寺子屋で%ANAME(NAME_TO_CHARA("慧音"))%先生による児童教育が行われている
+		PRINTL
+		RESETCOLOR
+		FOR LOCAL:21, 0, CHARANUM
+		;教育方針・なし
+		SIF CFLAG:(LOCAL:21):寺子屋 == 1 && !CFLAG:(LOCAL:21):教育方針
+			CALL EVENT_TERAKOYA0(LOCAL:21)
+		;教育方針・武
+		SIF CFLAG:(LOCAL:21):寺子屋 == 1 && CFLAG:(LOCAL:21):教育方針 == 10
+			CALL EVENT_TERAKOYA1(LOCAL:21)
+		;教育方針・知
+		SIF CFLAG:(LOCAL:21):寺子屋 == 1 && CFLAG:(LOCAL:21):教育方針 == 11
+			CALL EVENT_TERAKOYA2(LOCAL:21)
+		;教育方針・政
+		SIF CFLAG:(LOCAL:21):寺子屋 == 1 && CFLAG:(LOCAL:21):教育方針 == 12
+			CALL EVENT_TERAKOYA3(LOCAL:21)
+		;教育方針・歌
+		SIF CFLAG:(LOCAL:21):寺子屋 == 1 && CFLAG:(LOCAL:21):教育方針 == 13
+			CALL EVENT_TERAKOYA4(LOCAL:21)
+		;教育方針・料
+		SIF CFLAG:(LOCAL:21):寺子屋 == 1 && CFLAG:(LOCAL:21):教育方針 == 14
+			CALL EVENT_TERAKOYA5(LOCAL:21)
+		NEXT
+
+		;けーねてんてーが親愛、親友、隷属、崩壊のいずれか
+		SIF TALENT:(NAME_TO_CHARA("慧音")):親愛 || TALENT:(NAME_TO_CHARA("慧音")):親友 || TALENT:(NAME_TO_CHARA("慧音")):隷属 || TALENT:(NAME_TO_CHARA("慧音")):崩壊
+			CALL EVENT_TERAKOYA_MINDCHECK
+
+		;予算から人数分差し引く
+		LOCAL:22 = LOCAL:22 * 500
+		IF FLAG:102 >= LOCAL:22
+			FLAG:102 -= LOCAL:22
+		;予算が足りなかったら
+		ELSEIF FLAG:102 < LOCAL:22
+			;CONFIG:87で児童虐待が許可されていないなら全ての児童が寺子屋から追い出される
+			IF !CONFIG:87
+				SETCOLOR COLOR_CAUTION
+				PRINTFORML 寺子屋の予算が尽きました
+				PRINTFORML 全ての児童が寺子屋に通えなくなります
+				RESETCOLOR
+				PRINTL
+				FOR LOCAL:21, 0, CHARANUM
+				SIF CFLAG:(LOCAL:21):寺子屋 == 1
+					CFLAG:(LOCAL:21):寺子屋 = 0
+				NEXT
+				LOCAL:20 = 0
+			;許可されているなら予算なしでも教育してもらえるが……
+			ELSEIF CONFIG:87 == 1
+				CALL EVENT_TERAKOYA_ABUSE
+			ENDIF
+			FLAG:102 = 0
+		ENDIF
+	ENDIF
+ENDIF
+
+;-------------------------------------------------
+;各教育方針に対応したイベント
+;-------------------------------------------------
+;■教育方針が未設定の生徒
+@EVENT_TERAKOYA0(ARG:0)
+IF TALENT:(ARG:0):崩壊 || TALENT:(ARG:0):虚ろ
+	PRINTFORML %ANAME(ARG:0)%は虚ろな瞳を泳がせながら授業を聞いている
+ELSE
+	IF RAND:4
+		IF TALENT:(ARG:0):サボり魔
+			PRINTFORML %ANAME(NAME_TO_CHARA("慧音"))%先生は%ANAME(ARG:0)%のサボりを見逃さない！
+			PRINTFORML %ANAME(ARG:0)%『グワァーーッ！！』
+		ELSE
+			PRINTFORML %ANAME(ARG:0)%はまじめに授業を受けている…
+		ENDIF
+	ELSE
+		SELECTCASE RAND:4
+			CASE 0
+				PRINTFORML %ANAME(ARG:0)%は正座のし過ぎで足が痺れている…
+			CASE 1
+				PRINTFORML %ANAME(ARG:0)%はこっそりカンニングしている…
+			CASE 2
+				PRINTFORML %ANAME(ARG:0)%は退屈そうに筆を持て遊んでいる…
+			CASEELSE
+				PRINTFORML %ANAME(ARG:0)%は%ANAME(NAME_TO_CHARA("慧音"))%先生のお尻ばかり見ている…
+		ENDSELECT
+	ENDIF
+ENDIF
+
+
+IF CFLAG:ARG:28 <= 2
+	CFLAG:(ARG:0):(10 + 120) += POWER(2, 5 - CFLAG:(ARG:0):(10 + 100))
+	CFLAG:(ARG:0):(10 + 100) += 1
+	CFLAG:(ARG:0):(11 + 120) += POWER(2, 5 - CFLAG:(ARG:0):(11 + 100))
+	CFLAG:(ARG:0):(11 + 100) += 1
+	CFLAG:(ARG:0):(12 + 120) += POWER(2, 5 - CFLAG:(ARG:0):(12 + 100))
+	CFLAG:(ARG:0):(12 + 100) += 1
+	CFLAG:(ARG:0):(13 + 120) += POWER(2, 5 - CFLAG:(ARG:0):(13 + 100))
+	CFLAG:(ARG:0):(13 + 100) += 1
+	CFLAG:(ARG:0):(14 + 120) += POWER(2, 5 - CFLAG:(ARG:0):(14 + 100))
+	CFLAG:(ARG:0):(14 + 100) += 1
+ELSEIF CFLAG:ARG:28 <= 6
+	;成長度と選択回数を一回ずつ加算
+	CFLAG:(ARG:0):(10 + 130) += (150 + ABL:(MASTER):武闘) / POWER(2, CFLAG:(ARG:0):(10 + 110))
+	CFLAG:(ARG:0):(10 + 110) += 1
+	CFLAG:(ARG:0):(11 + 130) += (150 + ABL:(MASTER):知略) / POWER(2, CFLAG:(ARG:0):(11 + 110))
+	CFLAG:(ARG:0):(11 + 110) += 1
+	CFLAG:(ARG:0):(12 + 130) += (150 + ABL:(MASTER):政治) / POWER(2, CFLAG:(ARG:0):(12 + 110))
+	CFLAG:(ARG:0):(12 + 110) += 1
+	CFLAG:(ARG:0):(13 + 130) += (150 + ABL:(MASTER):歌唱) / POWER(2, CFLAG:(ARG:0):(13 + 110))
+	CFLAG:(ARG:0):(13 + 110) += 1
+	CFLAG:(ARG:0):(14 + 130) += (150 + ABL:(MASTER):料理) / POWER(2, CFLAG:(ARG:0):(14 + 110))
+	CFLAG:(ARG:0):(14 + 110) += 1
+ELSEIF CFLAG:ARG:28 <= 21
+	;ある程度育ったので「訓練」として判定
+	EXP:(ARG:0):武闘経験値 += 1
+	EXP:(ARG:0):知略経験値 += 1
+	EXP:(ARG:0):政治経験値 += 1
+	EXP:(ARG:0):歌唱経験値 += 1
+	EXP:(ARG:0):料理経験値 += 1
+	CALL TRAIN_AUTO_ABLUP(ARG:0, 0)
+ENDIF
+PRINTL
+
+;■教育方針が武闘の生徒
+@EVENT_TERAKOYA1(ARG:0)
+IF TALENT:(ARG:0):崩壊 || TALENT:(ARG:0):虚ろ
+	PRINTFORML %ANAME(ARG:0)%は虚ろな瞳を泳がせながら木刀の先を見つめている
+ELSE
+	IF RAND:4
+		IF TALENT:(ARG:0):サボり魔
+			PRINTFORML %ANAME(NAME_TO_CHARA("慧音"))%先生の無慈悲な一撃が%ANAME(ARG:0)%のサボりを粉砕する！
+			PRINTFORML %ANAME(ARG:0)%『アバーーッ！！』
+		ELSE
+			PRINTFORML %ANAME(ARG:0)%は額に汗して武術訓練に励んでいる…
+		ENDIF
+	ELSE
+		SELECTCASE RAND:4
+			CASE 0
+				PRINTFORML %ANAME(ARG:0)%は明らかに自分のサイズにあっていない武器に振り回されている…
+			CASE 1
+				PRINTFORML %ANAME(ARG:0)%は手の平に出来た肉刺を涙目になりながら潰している…
+			CASE 2
+				PRINTFORML %ANAME(ARG:0)%はすりむいた膝小僧に染みる消毒液に泣きそうだ…
+			CASEELSE
+				PRINTFORML %ANAME(ARG:0)%は%ANAME(NAME_TO_CHARA("慧音"))%先生直々に手解きされたい等と妄想している…
+		ENDSELECT
+	ENDIF
+ENDIF
+
+IF CFLAG:ARG:28 <= 2
+	FOR LOCAL,0,3
+		;成長度を加算
+		CFLAG:(ARG:0):(10 + 120) += POWER(2, 5 - CFLAG:(ARG:0):(10 + 100))
+		;選択回数を加算
+		CFLAG:(ARG:0):(10 + 100) ++
+	NEXT
+ELSEIF CFLAG:ARG:28 <= 6
+	FOR LOCAL,0,3
+		;成長度を加算
+		CFLAG:(ARG:0):(10 + 130) += (150 + ABL:(MASTER):武闘) / POWER(2, CFLAG:(ARG:0):(10 + 110))
+		;選択回数を加算
+		CFLAG:(ARG:0):(10 + 110) ++
+	NEXT
+ELSEIF CFLAG:ARG:28 <= 21
+	;ある程度育ったので「訓練」として判定
+	EXP:(ARG:0):武闘経験値 += 5
+	CALL TRAIN_AUTO_ABLUP(ARG:0, 0)
+ENDIF
+PRINTL
+
+;■教育方針が知略の生徒
+@EVENT_TERAKOYA2(ARG:0)
+IF TALENT:(ARG:0):崩壊 || TALENT:(ARG:0):虚ろ
+	PRINTFORML %ANAME(ARG:0)%は虚ろな瞳を泳がせながら兵法の書を読んでいる…
+ELSE
+	IF RAND:4
+		IF TALENT:(ARG:0):サボり魔
+			PRINTFORML %ANAME(NAME_TO_CHARA("慧音"))%先生は%ANAME(ARG:0)%が「ゲーム理論」の表紙を被せた「ゲーム攻略本」を持ってきた事を断罪する！
+			PRINTFORML %ANAME(ARG:0)%『サヨナラーーッ！(爆発四散)』
+		ELSE
+			PRINTFORML %ANAME(ARG:0)%は脳内で高度な戦術理論を展開している…
+		ENDIF
+	ELSE
+		SELECTCASE RAND:4
+			CASE 0
+				PRINTFORML %ANAME(ARG:0)%は…
+			CASE 1
+				PRINTFORML %ANAME(ARG:0)%は手の平に出来た肉刺を涙目になりながら潰している…
+			CASE 2
+				PRINTFORML %ANAME(ARG:0)%はすりむいた膝小僧に染みる消毒液に泣きそうだ…
+			CASEELSE
+				PRINTFORML %ANAME(ARG:0)%は%ANAME(NAME_TO_CHARA("慧音"))%先生直々に手解きされたい等と妄想している…
+		ENDSELECT
+	ENDIF
+ENDIF
+
+IF CFLAG:ARG:28 <= 2
+	FOR LOCAL,0,3
+		;成長度を加算
+		CFLAG:(ARG:0):(11 + 120) += POWER(2, 5 - CFLAG:(ARG:0):(11 + 100))
+		;選択回数を加算
+		CFLAG:(ARG:0):(11 + 100) ++
+	NEXT
+ELSEIF CFLAG:ARG:28 <= 6
+	FOR LOCAL,0,3
+		;成長度を加算
+		CFLAG:(ARG:0):(11 + 130) += (150 + ABL:(MASTER):知略) / POWER(2, CFLAG:(ARG:0):(11 + 110))
+		;選択回数を加算
+		CFLAG:(ARG:0):(11 + 110) ++
+	NEXT
+ELSEIF CFLAG:ARG:28 <= 21
+	;ある程度育ったので「訓練」として判定
+	EXP:(ARG:0):知略経験値 += 5
+	CALL TRAIN_AUTO_ABLUP(ARG:0, 0)
+ENDIF
+PRINTL
+
+;■教育方針が政治の生徒
+@EVENT_TERAKOYA3(ARG:0)
+IF TALENT:(ARG:0):崩壊 || TALENT:(ARG:0):虚ろ
+	PRINTFORML %ANAME(ARG:0)%は虚ろな瞳を泳がせながら政治学について書き記している…
+ELSE
+	IF RAND:4
+		IF TALENT:(ARG:0):サボり魔
+			PRINTFORML %ANAME(NAME_TO_CHARA("慧音"))%先生は%ANAME(ARG:0)%の「サボタージュとアナキズムが社会に与えるメリット」という作文を本人の口に詰め込んだ！
+			PRINTFORML %ANAME(ARG:0)%『ンッンンンーーーーッ！！！』
+		ELSE
+			PRINTFORML %ANAME(ARG:0)%は政治哲学についての高度な質問を%ANAME(NAME_TO_CHARA("慧音"))%先生にぶつけている
+		ENDIF
+	ELSE
+		SELECTCASE RAND:4
+			CASE 0
+				PRINTFORML %ANAME(ARG:0)%は幻想郷に政治システムが本当に必要なのか疑問を感じている…
+			CASE 1
+				PRINTFORML %ANAME(ARG:0)%は政治よりソーセージの方が好みのようだ…
+			CASE 2
+				PRINTFORML %ANAME(ARG:0)%は政治学の教科書の影で早弁を貪っている…
+			CASEELSE
+				PRINTFORML %ANAME(ARG:0)%は絶対君主制の頂点に立って%ANAME(NAME_TO_CHARA("慧音"))%を娶るつもりのようだ…
+		ENDSELECT
+	ENDIF
+ENDIF
+
+IF CFLAG:ARG:28 <= 2
+	FOR LOCAL,0,3
+		;成長度を加算
+		CFLAG:(ARG:0):(12 + 120) += POWER(2, 5 - CFLAG:(ARG:0):(12 + 100))
+		;選択回数を加算
+		CFLAG:(ARG:0):(12 + 100) ++
+	NEXT
+ELSEIF CFLAG:ARG:28 <= 6
+	FOR LOCAL,0,3
+		;成長度を加算
+		CFLAG:(ARG:0):(12 + 130) += (150 + ABL:(MASTER):政治) / POWER(2, CFLAG:(ARG:0):(12 + 110))
+		;選択回数を加算
+		CFLAG:(ARG:0):(12 + 110) ++
+	NEXT
+ELSEIF CFLAG:ARG:28 <= 21
+	;ある程度育ったので「訓練」として判定
+	EXP:(ARG:0):政治経験値 += 5
+	CALL TRAIN_AUTO_ABLUP(ARG:0, 0)
+ENDIF
+PRINTL
+
+;■教育方針が歌唱の生徒
+@EVENT_TERAKOYA4(ARG:0)
+IF TALENT:(ARG:0):崩壊 || TALENT:(ARG:0):虚ろ
+	PRINTFORML 誰も居ない教室から、聞く者のいない%ANAME(ARG:0)%の歌声が寂しげに響いている…
+ELSE
+	IF RAND:4
+		IF TALENT:(ARG:0):サボり魔
+			PRINTFORML %ANAME(NAME_TO_CHARA("慧音"))%先生は歌唱練習をサボる%ANAME(ARG:0)%の口パクを見逃さない！
+			PRINTFORML %ANAME(NAME_TO_CHARA("慧音"))%先生『ハイクを読め、カイシャクしてやる』
+		ELSE
+			PRINTFORML %ANAME(ARG:0)%はアイドルに必要な全ての素養を学ぼうとしている…
+		ENDIF
+	ELSE
+		SELECTCASE RAND:4
+			CASE 0
+				PRINTFORML %ANAME(ARG:0)%は「どんぐりころころ」を熱唱している…
+			CASE 1
+				PRINTFORML %ANAME(ARG:0)%の音痴が人里全土に響き渡っている…
+			CASE 2
+				PRINTFORML %ANAME(ARG:0)%は歌詞を間違えて涙目になっている…
+			CASEELSE
+				PRINTFORML %ANAME(ARG:0)%は歌は歌でも%ANAME(NAME_TO_CHARA("慧音"))%先生の甘い声を聞きたがっている…
+		ENDSELECT
+	ENDIF
+ENDIF
+
+IF CFLAG:ARG:28 <= 2
+	FOR LOCAL,0,3
+		;成長度を加算
+		CFLAG:(ARG:0):(13 + 120) += POWER(2, 5 - CFLAG:(ARG:0):(13 + 100))
+		;選択回数を加算
+		CFLAG:(ARG:0):(13 + 100) ++
+	NEXT
+ELSEIF CFLAG:ARG:28 <= 6
+	FOR LOCAL,0,3
+		;成長度を加算
+		CFLAG:(ARG:0):(13 + 130) += (150 + ABL:(MASTER):歌唱) / POWER(2, CFLAG:(ARG:0):(13 + 110))
+		;選択回数を加算
+		CFLAG:(ARG:0):(13 + 110) ++
+	NEXT
+ELSEIF CFLAG:ARG:28 <= 21
+	;ある程度育ったので「訓練」として判定
+	EXP:(ARG:0):歌唱経験値 += 5
+	CALL TRAIN_AUTO_ABLUP(ARG:0, 0)
+ENDIF
+PRINTL
+
+;■教育方針が料理の生徒
+@EVENT_TERAKOYA5(ARG:0)
+IF TALENT:(ARG:0):崩壊 || TALENT:(ARG:0):虚ろ
+	PRINTFORML %ANAME(ARG:0)%は虚ろな瞳を泳がせながら包丁の刃先を見つめている…
+ELSE
+	IF RAND:4
+		IF TALENT:(ARG:0):サボり魔
+			PRINTFORML %ANAME(NAME_TO_CHARA("慧音"))%先生は%ANAME(ARG:0)%が料理の自主教材として持ってきたレトルトカレーをボイルし、本人の頭にぶっ掛けた！
+			PRINTFORML %ANAME(NAME_TO_CHARA("慧音"))%先生『そぉい！』
+		ELSE
+			PRINTFORML %ANAME(ARG:0)%は料理に愛情を込めるにはどうしたらいいか、頬を染めながら%ANAME(ARG:0)%に質問している…
+		ENDIF
+	ELSE
+		SELECTCASE RAND:4
+			CASE 0
+				PRINTFORML %ANAME(ARG:0)%はお握りを握り損なった…
+			CASE 1
+				PRINTFORML %ANAME(ARG:0)%の炒めていたチャーハンが爆発した…
+			CASE 2
+				PRINTFORML %ANAME(ARG:0)%は火傷した指を涙目になりながらしゃぶっている…
+			CASEELSE
+				PRINTFORML %ANAME(ARG:0)%は教材のナスと%ANAME(NAME_TO_CHARA("慧音"))%を交互に見ながらいやらしい笑みを浮かべている…
+		ENDSELECT
+	ENDIF
+ENDIF
+
+IF CFLAG:ARG:28 <= 2
+	FOR LOCAL,0,3
+		;成長度を加算
+		CFLAG:(ARG:0):(14 + 120) += POWER(2, 5 - CFLAG:(ARG:0):(14 + 100))
+		;選択回数を加算
+		CFLAG:(ARG:0):(14 + 100) ++
+	NEXT
+ELSEIF CFLAG:ARG:28 <= 2
+	FOR LOCAL,0,3
+		;成長度を加算
+		CFLAG:(ARG:0):(14 + 130) += (150 + ABL:(MASTER):料理) / POWER(2, CFLAG:(ARG:0):(14 + 110))
+		;選択回数を加算
+		CFLAG:(ARG:0):(14 + 110) ++
+	NEXT
+ELSEIF CFLAG:ARG:28 <= 21
+	;ある程度育ったので「訓練」として判定
+	EXP:(ARG:0):料理経験値 += 5
+	CALL TRAIN_AUTO_ABLUP(ARG:0, 0)
+ENDIF
+PRINTL
+
+;-------------------------------------------------
+;激おこワーハクタクによる児童虐待が社会問題に
+;-------------------------------------------------
+;■「助けてママー！」じゃないんだよ、お前がママになるんだよ！(工事中)
+@EVENT_TERAKOYA_ABUSE
+SETCOLOR COLOR_CAUTION
+PRINTFORMW 寺子屋の予算不足により%ANAME(NAME_TO_CHARA("慧音"))%先生の堪忍袋の尾がブチギレたようだ…
+RESETCOLOR
+PRINTL
+;寺子屋参加者から生贄を一人選抜
+LOCAL:21 = 0
+LOCAL:22 = 0
+FOR LOCAL:21, 0, CHARANUM
+	;寺子屋で授業を受けている生徒の数を計算
+	IF CFLAG:(LOCAL:21):寺子屋 == 1 && CFLAG:(LOCAL:21):1 == CFLAG:MASTER:1 && CFLAG:(LOCAL:21):12 == 0 && CFLAG:(LOCAL:21):9 == 0
+		LOCAL:22 ++
+	ENDIF
+NEXT
+
+IF LOCAL:22 >= 1
+	;ランダムにターゲットを設定
+	LOCAL:23 = RAND:(LOCAL:22)
+	FOR LOCAL:21, 0, CHARANUM
+		IF CFLAG:(LOCAL:21):寺子屋 == 1 && CFLAG:(LOCAL:21):1 == CFLAG:MASTER:1 && CFLAG:(LOCAL:21):12 == 0 && CFLAG:(LOCAL:21):9 == 0
+			LOCAL:23 --
+			IF LOCAL:23 < 0
+			LOCAL:24 = LOCAL:21
+				BREAK
+			ENDIF
+		ENDIF
+	NEXT
+ENDIF
+
+SELECTCASE RAND:3
+	CASE 0
+		PRINTFORML %ANAME(NAME_TO_CHARA("慧音"))%先生は%ANAME(LOCAL:24)%に少し早い保健体育を教えるつもりだ！
+		PRINTFORML %ANAME(NAME_TO_CHARA("慧音"))%先生は%ANAME(LOCAL:24)%を保健室に呼び出すと服の胸元を肌蹴させ、寝台に横になる様に命じた
+		PRINTFORML 性知識に乏しい%ANAME(LOCAL:24)%はわけもわからず、ただ恐怖に震えながら従う事しかできない
+		PRINTFORML 『女の子の体の仕組みについて教えてやる！』
+		PRINTFORML %ANAME(NAME_TO_CHARA("慧音"))%先生はそう言って%ANAME(LOCAL:24)%の上に圧し掛かり、その幼い体を貪り始めた
+		PRINTFORML %ANAME(NAME_TO_CHARA("慧音"))%先生が出て行った後、寝台に縛り付けられた%ANAME(LOCAL:24)%の瞳からは、完全に輝きが消えていた…
+		PRINTL
+	CASE 1
+		PRINTFORML %ANAME(NAME_TO_CHARA("慧音"))%先生は性績の悪い%ANAME(LOCAL:24)%を居残りさせるつもりだ！
+		PRINTFORML 放課後誰も居なくなった寺子屋で、%ANAME(NAME_TO_CHARA("慧音"))%先生は%ANAME(LOCAL:24)%を自分の膝の上に座らせ
+		PRINTFORML 長すぎる作文を延々と書かせながら、バックからその幼い体を貪り続けた
+		PRINTFORML 『作文を書き上げなければ、親御さんにお前の成績の悪さを相談する！』と脅迫され
+		PRINTFORML %ANAME(LOCAL:24)%は脅え、成す術もなく、体を好き勝手されている
+		PRINTFORML %ANAME(LOCAL:24)%の涙や%ANAME(NAME_TO_CHARA("慧音"))%先生のイロイロな液体で湿った作文は、とても判読できるものではなかった…
+		PRINTL
+	CASEELSE
+		PRINTFORML %ANAME(NAME_TO_CHARA("慧音"))%先生は%ANAME(LOCAL:24)%を今日のターゲットに決めたようだ！
+		PRINTFORML %ANAME(NAME_TO_CHARA("慧音"))%先生は厠に向かった%ANAME(LOCAL:24)%の後を尾けると
+		PRINTFORML 誰も居ないのを見計らって背後から%ANAME(LOCAL:24)%の肩を掴み、無言のまま一番奥の掃除用具入れに連れ込んだ
+		PRINTFORML 数分の間、用具要れからは激しい物音とくぐもった悲鳴が響き、それが収まると
+		PRINTFORML 顔を艶々にし服の乱れを整える%ANAME(NAME_TO_CHARA("慧音"))%先生の後に続いて
+		PRINTFORML ボロボロにされ泣きじゃくる%ANAME(LOCAL:24)%が出て行った
+		PRINTL
+ENDSELECT
+
+LOCAL:0 = 3000
+
+IF TALENT:(LOCAL:24):処女 && VAGINA(LOCAL:24)
+	IF TALENT:(LOCAL:24):処女 == 1
+		;処女を奪った相手をけーねにする
+		CFLAG:(LOCAL:24):41 = GET_ID(NAME_TO_CHARA("慧音"))
+		SETCOLOR COLOR_CAUTION
+		PRINTFORML %ANAME(LOCAL:24)%は<処女>を失った…
+		RESETCOLOR
+		LOCAL:0 += 3000
+	ELSE
+		LOCAL:0 += 1500
+	ENDIF
+	TALENT:(LOCAL:24):処女 = 0
+ENDIF
+
+IF TALENT:(LOCAL:24):童貞 && PENIS(LOCAL:24)
+	IF TALENT:(LOCAL:24):童貞 == 1
+		;童貞を奪った相手をけーねにする
+		CFLAG:(LOCAL:24):40 = GET_ID(NAME_TO_CHARA("慧音"))
+		SETCOLOR COLOR_CAUTION
+		PRINTFORML %ANAME(LOCAL:24)%は<童貞>を失った…
+		RESETCOLOR
+		LOCAL:0 += 3000
+	ELSE
+		LOCAL:0 += 1500
+	ENDIF
+	TALENT:(LOCAL:24):童貞 = 0
+ENDIF
+
+IF TALENT:(LOCAL:24):キス未経験
+	SETCOLOR COLOR_CAUTION
+	PRINTFORML %ANAME(LOCAL:24)%は<キス未経験>を失った…
+	RESETCOLOR
+	LOCAL:0 += 1000
+ENDIF
+
+;ファーストキス喪失
+CALL KISS_COMMON(LOCAL:24, NAME_TO_CHARA("慧音"), 3, 0, 1)
+
+SELECTCASE ABL:(LOCAL:24):欲望
+	CASE 0
+		TIMES LOCAL:0, 1.00
+	CASE 1
+		TIMES LOCAL:0, 0.70
+	CASE 2
+		TIMES LOCAL:0, 0.50
+	CASE 3
+		TIMES LOCAL:0, 0.35
+	CASE 4
+		TIMES LOCAL:0, 0.20
+	CASEELSE
+		LOCAL:0 = LOCAL:0 / (ABL:(LOCAL:24):欲望 + 1)
+ENDSELECT
+
+;絶頂経験による補正(20で1/2、100で1/10、2000で1/20、50000で1/60)
+IF EXP:(LOCAL:24):絶頂経験 < 20
+	LOCAL:0 = LOCAL:0 * (40 - EXP:(LOCAL:24):絶頂経験) / 40
+ELSEIF EXP:(LOCAL:24):絶頂経験 < 100
+	LOCAL:0 = LOCAL:0 * (120 - EXP:(LOCAL:24):絶頂経験) / 200
+ELSEIF EXP:(LOCAL:24):絶頂経験 < 2000
+	LOCAL:0 = LOCAL:0 * (3900 - EXP:(LOCAL:24):絶頂経験) / 38000
+ELSE
+	LOCAL:0 = LOCAL:0 * (74000 - MIN(EXP:(LOCAL:24):絶頂経験, 50000)) / 1440000
+ENDIF
+
+CFLAG:(LOCAL:24):30 = LOCAL:0
+CFLAG:(LOCAL:24):31 = LOCAL:0
+CFLAG:(LOCAL:24):32 = LOCAL:0
+
+;絶頂回数の計算
+LOCAL:1 = 0
+LOCAL:1 += MAX(ABL:(LOCAL:24):Ｃ感 - 1, 0)
+LOCAL:1 += MAX(ABL:(LOCAL:24):Ｖ感 - 1, 0) * 3
+LOCAL:1 += MAX(ABL:(LOCAL:24):Ａ感 - 1, 0) * 3
+LOCAL:1 += MAX(ABL:(LOCAL:24):Ｂ感 - 1, 0)
+LOCAL:1 += MAX(ABL:(LOCAL:24):Ｍ感 - 1, 0) / 2
+LOCAL:1 = LOCAL:1 * (ABL:(LOCAL:24):欲望 + 2) / 2
+
+PRINTL 
+
+;経験値は性処理より低い
+IF !VAGINA(LOCAL:24)
+	EXP:(LOCAL:24):Ｃ感経験値 += ABL:(LOCAL:24):Ｃ感
+	EXP:(LOCAL:24):Ａ感経験値 += ABL:(LOCAL:24):Ａ感 + 5
+ELSE
+	EXP:(LOCAL:24):Ｃ感経験値 += ABL:(LOCAL:24):Ｃ感
+	EXP:(LOCAL:24):Ｖ感経験値 += ABL:(LOCAL:24):Ｖ感 + 5
+	EXP:(LOCAL:24):Ａ感経験値 += ABL:(LOCAL:24):Ａ感 + 5
+ENDIF
+
+EXP:(LOCAL:24):Ｂ感経験値 += ABL:(LOCAL:24):Ｂ感 + RAND:3
+EXP:(LOCAL:24):Ｍ感経験値 += ABL:(LOCAL:24):Ｍ感 + RAND:3
+EXP:(LOCAL:24):欲望経験値 += ABL:(LOCAL:24):欲望 + (LOCAL:1 / 2)
+EXP:(LOCAL:24):奉仕経験値 += ABL:(LOCAL:24):奉仕 + RAND:3
+EXP:(LOCAL:24):性交経験値 += ABL:(LOCAL:24):性交 + RAND:3
+
+
+
+;ただしトラウマ経験はがっつり入る
+EXP:(LOCAL:24):トラウマ経験 += 16
+
+IF IS_MALE(LOCAL:24) && IS_MALE(NAME_TO_CHARA("慧音"))
+	EXP:(LOCAL:24):ＢＬ経験値 += 5
+	EXP:(NAME_TO_CHARA("慧音")):ＢＬ経験値 += 5
+ENDIF
+IF !IS_MALE(LOCAL:24) && !IS_MALE(NAME_TO_CHARA("慧音"))
+	EXP:(LOCAL:24):レズ経験値 += 5
+	EXP:(NAME_TO_CHARA("慧音")):レズ経験値 += 5
+ENDIF
+
+;EXP:(LOCAL:24):精愛経験値 += ABL:(LOCAL:24):精愛 + RAND:3
+
+EXP:(LOCAL:24):キス経験 += 2 + RAND:6
+EXP:(NAME_TO_CHARA("慧音")):キス経験 += 2 + RAND:6
+EXP:(LOCAL:24):絶頂経験 += LOCAL:1
+
+CALL TRAIN_AUTO_ABLUP(LOCAL:24)
+
+;流石に中出しはやらない
+;FOR LOCAL:0, 440, 480
+;	TCVAR:(LOCAL:24):(LOCAL:0) = 0
+;NEXT
+;CALL RECORD_INJECTION(LOCAL:24, -1, ABL:(LOCAL:24):精愛)
+;CALL CHECK_PREGNANT(LOCAL:24)
+;-------------------------------------------------
+;けーねてんてーの素質にあわせて児童達の好感度、従属度の変化(工事中)
+;-------------------------------------------------
+@EVENT_TERAKOYA_MINDCHECK
+;[崩壊]ならメッセージのみ
+IF TALENT:(NAME_TO_CHARA("慧音")):崩壊
+	PRINTFORML %ANAME(NAME_TO_CHARA("慧音"))%先生は輝きの消えた瞳で虚空を見つめ、ただ無言で黒板に書き取り分を書き殴っている
+	PRINTFORMW 白墨の乾いた音と、児童たちが墨を刷る音だけが、静かな教室に響き渡る…
+;[親愛][親友]のどちらかなら好感度上昇
+ELSEIF TALENT:(NAME_TO_CHARA("慧音")):親愛 || TALENT:(NAME_TO_CHARA("慧音")):親友
+	PRINTFORML %ANAME(NAME_TO_CHARA("慧音"))%先生は授業の合間を見つけては、愛しい%ANAME(MASTER)%との惚気話を挟んでモネモネ体を捻り赤面している
+	PRINTFORMW そんな%ANAME(NAME_TO_CHARA("慧音"))%先生の様に生徒達は食傷気味のようだ…
+	FOR LOCAL:21, 0, CHARANUM
+		IF CFLAG:(LOCAL:21):寺子屋 == 1
+			CFLAG:(LOCAL:21):好感度 += 20
+			CFLAG:(LOCAL:21):依存度 += 5
+		ENDIF
+	NEXT
+;[隷属]なら従属上昇
+ELSEIF TALENT:(NAME_TO_CHARA("慧音")):隷属
+	PRINTFORM %ANAME(NAME_TO_CHARA("慧音"))%先生は未来の幻想郷を担う子供達に
+		SELECTCASE RAND:4
+			CASE 0
+				PRINTFORM 「親愛する指導者%ANAME(MASTER)%」
+			CASE 1
+				PRINTFORM 「幻想郷統一の象徴%ANAME(MASTER)%」
+			CASE 2
+				PRINTFORM 「全人妖の偉大なる先駆者%ANAME(MASTER)%」
+			CASEELSE
+				PRINTFORM 「百戦百勝の鋼鉄の霊将%ANAME(MASTER)%」
+		ENDSELECT
+		SELECTCASE RAND:4
+			CASE 0
+				PRINTFORML 様にどうすれば恩返しできるのか
+			CASE 1
+				PRINTFORML 閣下が常勝である確信を
+			CASE 2
+				PRINTFORML 様の理想の為に我々が何をすべきなのか
+			CASEELSE
+				PRINTFORML 閣下の武勇伝の数々について
+		ENDSELECT
+	PRINTFORML まるで熱病のような恍惚とした表情で熱弁している
+	PRINTFORMW 児童達は疑う事もせず、%ANAME(NAME_TO_CHARA("慧音"))%先生の授業を鵜呑みにしている…
+	FOR LOCAL:21, 0, CHARANUM
+		IF CFLAG:(LOCAL:21):寺子屋 == 1
+			CFLAG:(LOCAL:21):従属度 += 20
+			CFLAG:(LOCAL:21):依存度 += 5
+		ENDIF
+	NEXT
+ENDIF
+
+
+

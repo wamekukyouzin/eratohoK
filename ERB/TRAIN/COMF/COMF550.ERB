@@ -1,0 +1,207 @@
+﻿;性の知識を教える
+
+;-------------------------------------------------
+;コマンド名称
+;-------------------------------------------------
+@COM_NAME550
+RESULTS:0 = 性の知識を教える
+RESULTS:1 = 性の知識を教えさせられる
+RESULTS:2 = 性の知識を教えてもらう
+RESULTS:3 = 性の知識を教えられる
+RESULTS:4 = 性の知識を教えさせる
+RESULTS:5 = 性の知識を教える
+
+;-------------------------------------------------
+;選択可否判定
+;-------------------------------------------------
+@COM_ABLE550
+;共通部分
+CALL COM_ABLE_COMMON(550)
+SIF RESULT == 0
+	RETURN 0
+;子育て中、外来逆調教は不可
+SIF !GROUPMATCH(FLAG:12, 0, 1, 2, 5, 6)
+	RETURN 0
+;プレイヤーは最大で1人まで
+SIF MPLY_NUM <= 0 || MPLY_NUM > 1
+	RETURN 0
+;ターゲットは最大で1人まで
+SIF MTAR_NUM <= 0 || MTAR_NUM > 1
+	RETURN 0
+;プレイヤーが行動不能なら不可
+SIF !IS_PLAYABLE(MPLY:0)
+	RETURN 0
+;プレイヤーの口が塞がっているなら不可
+SIF IS_M_HOLD(MPLY:0)
+	RETURN 0
+;プレイヤーの性知識がLv1以上かつターゲットの性知識がLv0でないと不可
+SIF ABL:(MPLY:0):性知識 < 1 || ABL:(MTAR:0):性知識 != 0
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;メイン処理
+;-------------------------------------------------
+@COM550
+SOURCE:(MTAR:0):歓楽 = 20
+
+;親密に応じた歓楽のソース追加
+CALL ADD_SOURCE_KANRAKU(MTAR:0, 150)
+
+;主導権に応じたソースの追加
+CALL ADD_SOURCE_INITIATIVE_N(MTAR:0, 80, 80)
+
+EXP:(MTAR:0):性知識経験値 += 100
+
+;主導度変化基準値
+TFLAG:49 = 2
+
+;倒錯度変化基準値
+TFLAG:50 = 0
+
+RETURN 1
+
+;-------------------------------------------------
+;固有の実行判定
+;-------------------------------------------------
+@COM_ORDER_PLAYER550(ARG:0)
+;実行値の設定
+TCVAR:(ARG:0):25 = 55
+
+CALL COM_ORDER_BASE(ARG:0)
+
+IF TALENT:(ARG:0):反抗的
+	CALL COM_ORDER_ELEMENT(ARG:0, "反抗的", -5)
+ENDIF
+IF TALENT:(ARG:0):プライド高い
+	CALL COM_ORDER_ELEMENT(ARG:0, "プライド高い", -5)
+ENDIF
+IF TALENT:(ARG:0):自制心
+	CALL COM_ORDER_ELEMENT(ARG:0, "自制心", -4)
+ENDIF
+IF TALENT:(ARG:0):無関心
+	CALL COM_ORDER_ELEMENT(ARG:0, "無関心", -4)
+ENDIF
+IF TALENT:(ARG:0):好奇心
+	CALL COM_ORDER_ELEMENT(ARG:0, "好奇心", 7)
+ENDIF
+IF TALENT:(ARG:0):保守的
+	CALL COM_ORDER_ELEMENT(ARG:0, "保守的", -5)
+ENDIF
+IF TALENT:(ARG:0):孤高
+	CALL COM_ORDER_ELEMENT(ARG:0, "孤高", -(10 * KOKOU_RATE(MTAR:0) / 100))
+ENDIF
+IF TALENT:(ARG:0):恥じらい
+	CALL COM_ORDER_ELEMENT(ARG:0, "恥じらい", -10)
+ENDIF
+IF TALENT:(ARG:0):恥薄い
+	CALL COM_ORDER_ELEMENT(ARG:0, "恥薄い", 8)
+ENDIF
+IF TALENT:(ARG:0):快感に素直
+	CALL COM_ORDER_ELEMENT(ARG:0, "快感に素直", 8)
+ENDIF
+IF TALENT:(ARG:0):快感の否定
+	CALL COM_ORDER_ELEMENT(ARG:0, "快感の否定", -20)
+ENDIF
+IF TALENT:(ARG:0):淫乱
+	CALL COM_ORDER_ELEMENT(ARG:0, "淫乱", 10)
+ENDIF
+
+IF IS_SAMESEX(MPLY:0, ARG:0)
+	CALL COM_ORDER_ELEMENT(ARG:0, "同性", 35)
+ENDIF
+
+IF TALENT:(ARG:0):親愛
+	CALL COM_ORDER_ELEMENT(ARG:0, "親愛", 25)
+ELSEIF TALENT:(ARG:0):恋慕
+	CALL COM_ORDER_ELEMENT(ARG:0, "恋慕", 10)
+ENDIF
+
+IF TALENT:(ARG:0):恋人
+	CALL COM_ORDER_ELEMENT(ARG:0, "恋人", 20)
+ELSEIF TALENT:(ARG:0):親友
+	CALL COM_ORDER_ELEMENT(ARG:0, "親友", 20)
+ENDIF
+
+IF TALENT:(ARG:0):隷属
+	CALL COM_ORDER_ELEMENT(ARG:0, "隷属", 25)
+ELSEIF TALENT:(ARG:0):服従
+	CALL COM_ORDER_ELEMENT(ARG:0, "服従", 10)
+ENDIF
+
+IF TALENT:(ARG:0):烙印
+	CALL COM_ORDER_ELEMENT(ARG:0, "烙印", 20)
+ENDIF
+
+CALL COM_ORDER_ELEMENT(ARG:0, "合意", 15)
+
+IF TALENT:(ARG:0):プライド高い
+	LOCAL:0 = 4
+ELSEIF TALENT:(ARG:0):プライド低い
+	LOCAL:0 = 1
+ELSE
+	LOCAL:0 = 2
+ENDIF
+IF MARK:(ARG:0):既成事実 >= 1
+	CALL COM_ORDER_ELEMENT(ARG:0, @"既成事実Lv{MARK:(ARG:0):既成事実}", MARK:(ARG:0):既成事実 * 3 * LOCAL:0)
+ENDIF
+
+IF TALENT:MASTER:魅惑
+	CALL COM_ORDER_ELEMENT(ARG:0, "主人公の魅惑", 6)
+ENDIF
+IF TALENT:MASTER:謎の魅力
+	CALL COM_ORDER_ELEMENT(ARG:0, "主人公の謎の魅力", 6)
+ENDIF
+
+IF PALAM:(ARG:0):酔い >= 150
+	CALL COM_ORDER_ELEMENT(ARG:0, "酔い", PALAM:(ARG:0):酔い / 150)
+ENDIF
+
+RETURN 1
+
+;-------------------------------------------------
+;地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE550
+;プレイヤーが主人公側
+IF MPLY:0 == MASTER
+	;主導権が主人公側
+	IF IS_INITIATIVE(MASTER)
+		PRINTFORML %ANAME(MPLY:0)%は%ANAME(MTAR:0)%に性の知識を説いた
+		PRINTFORMW %ANAME(MTAR:0)%は%ANAME(MPLY:0)%の話す内容を興味深そうに聴いている…
+	;主導権が相手側
+	ELSE
+		PRINTFORML %ANAME(MTAR:0)%は%ANAME(MPLY:0)%に大人の知識を教えてくれるようにせがんだ
+		PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%に聞かれるままに性の知識を教えた…
+	ENDIF
+	PRINTL 
+	PRINTFORMW %ANAME(MTAR:0)%は正しい性の知識を身につけたようだ
+
+;プレイヤーが相手側
+ELSE
+	;主導権が主人公側
+	IF IS_INITIATIVE(MASTER)
+		PRINTFORML %ANAME(MTAR:0)%は%ANAME(MPLY:0)%に大人の知識を教えてくれるようにせがんだ
+		IF TALENT:(MPLY:0):小悪魔 || TALENT:(MPLY:0):恥薄い
+			PRINTFORMW %ANAME(MTAR:0)%は得意気に微笑むと、%ANAME(MTAR:0)%にたっぷりと性の知識を教え込んだ…
+		ELSEIF TALENT:(MPLY:0):恥じらい
+			PRINTFORMW %ANAME(MTAR:0)%は顔を真っ赤にしながらも、%ANAME(MTAR:0)%に性の知識を語り始めた…
+		ELSE
+			PRINTFORMW %ANAME(MTAR:0)%は困ったような表情を浮かべながらも、%ANAME(MTAR:0)%に性の知識を説いた…
+		ENDIF
+	;主導権が相手側
+	ELSE
+		IF FLAG:50
+			PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%に実践も交えてじっくりと性の知識を教えた…
+		ELSE
+			PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%に性の知識を教え込んだ
+		ENDIF
+	ENDIF
+	PRINTL 
+	PRINTFORMW %ANAME(MTAR:0)%は正しい性の知識を身につけた
+ENDIF
+
+;--------------------------------------------------------
+;地の文(パラメータ・刻印変動後)
+;--------------------------------------------------------
+@COM_TEXT_LAST550

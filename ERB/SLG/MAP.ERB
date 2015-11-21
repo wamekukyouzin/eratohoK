@@ -1,0 +1,304 @@
+﻿;マップ関係
+
+;-------------------------------------------------
+;全都市の描画色をリセットする関数
+;-------------------------------------------------
+@RESET_CITY_COLOR
+VARSET CITY_COLOR, GETDEFCOLOR()
+
+;-------------------------------------------------
+;全都市の描画色を勢力の色にセットする関数
+;-------------------------------------------------
+@SET_CITY_COLOR_COUNTRY
+FOR LOCAL:0, 0, MAX_CITY
+	CITY_COLOR:(LOCAL:0) = COUNTRY_COLOR:(CITY_OWNER:(LOCAL:0))
+NEXT
+
+;-------------------------------------------------
+;兵の存在する中継地点に色を付ける関数
+;-------------------------------------------------
+@SET_CITY_COLOR_UNIT
+FOR LOCAL:0, 0, MAX_CITY
+	IF CITY_TYPE:(LOCAL:0) == 1 && IS_STAY_UNIT(LOCAL:0) == 1
+		CITY_COLOR:(LOCAL:0) = COLOR_CAUTION
+	ELSEIF CITY_TYPE:(LOCAL:0) == 1 && IS_STAY_UNIT(LOCAL:0) == 2
+		CITY_COLOR:(LOCAL:0) = COLOR_ALERT
+	ENDIF
+NEXT
+
+;-------------------------------------------------
+;全都市の描画色を自勢力:青、敵勢力:赤にセットする関数
+;-------------------------------------------------
+@SET_CITY_COLOR_RELATION
+FOR LOCAL:0, 0, MAX_CITY
+	IF COUNTRY_BOSS:(CITY_OWNER:(LOCAL:0)) <= 0
+		CITY_COLOR:(LOCAL:0) = GETDEFCOLOR()
+	ELSEIF CITY_OWNER:(LOCAL:0) == CFLAG:MASTER:1
+		CITY_COLOR:(LOCAL:0) = 0x8080FF
+	ELSEIF CITY_OWNER:(LOCAL:0) == CFLAG:MASTER:1
+		CITY_COLOR:(LOCAL:0) = 0xFF0000
+	ENDIF
+NEXT
+
+;-------------------------------------------------
+;都市名をボタンとして描画する関数 ARG:0=都市番号
+;-------------------------------------------------
+@DRAWCITY_BUTTON(ARG:0)
+SETCOLOR CITY_COLOR:(ARG:0)
+FOR LOCAL:0,0,10
+	;解散ではUNIT_POSITIONをゼロクリアしてないので、兵数でも判断する
+	SIF UNIT_POSITION:(CFLAG:MASTER:1):(LOCAL:0) == ARG:0 && UNIT_SOLDIER:(CFLAG:MASTER:1):(LOCAL:0) != 0
+		FONTBOLD
+NEXT
+PRINTBUTTON GET_CITYNAME_BUTTON(ARG:0), ARG:0 + 1000
+RESETCOLOR
+FONTREGULAR
+;-------------------------------------------------
+;戦略フェイズのメニューコマンドを表示する関数 ARG:0は行数
+;-------------------------------------------------
+@PRINT_SLG_MENU(ARG:0)
+;観戦モードなら特殊メニュー
+IF FLAG:1
+	SELECTCASE ARG:0
+		CASE 0
+			CALL PRINTBUTTON_CENTER(" 0[  勢力情報]", 0, 7)
+		CASE 18
+			IF FLAG:28
+				PRINT 　　　　　　　
+			ELSE
+				CALL PRINTBUTTON_CENTER("99[ターン進行]", 99, 7)
+			ENDIF
+		CASE 21
+			CALL PRINTBUTTON_CENTER("60[      設定]", 60, 7)
+		CASE 22
+			CALL PRINTBUTTON_CENTER("70[    セーブ]", 70, 7)
+		CASE 23
+			CALL PRINTBUTTON_CENTER("80[    ロード]", 80, 7)
+		CASEELSE
+			PRINT 　　　　　　　
+	ENDSELECT
+
+;放浪中なら特殊メニュー
+ELSEIF CFLAG:MASTER:1 == 0
+	SELECTCASE ARG:0
+		CASE 0
+			CALL PRINTBUTTON_CENTER(" 0[  仕官する]", 0, 7)
+		CASE 1
+			CALL PRINTBUTTON_CENTER(" 1[    旗揚げ]", 1, 7)
+		CASE 5
+			CALL PRINTBUTTON_CENTER(" 5[  勢力情報]", 5, 7)
+		CASE 18
+			IF FLAG:28
+				CALL PRINTBUTTON_CENTER("50[次の周回へ]", 50, 7)
+			ELSE
+				CALL PRINTBUTTON_CENTER("99[  行動終了]", 99, 7)
+			ENDIF
+		CASE 21
+			CALL PRINTBUTTON_CENTER("60[      設定]", 60, 7)
+		CASE 22
+			CALL PRINTBUTTON_CENTER("70[    セーブ]", 70, 7)
+		CASE 23
+			CALL PRINTBUTTON_CENTER("80[    ロード]", 80, 7)
+		CASEELSE
+			PRINT 　　　　　　　
+	ENDSELECT
+
+ELSE
+	SELECTCASE ARG:0
+		CASE 0
+			CALL PRINTBUTTON_CENTER(" 0[  部隊編成]", 0, 7, CONFIG:302 == 0)
+		CASE 1
+			CALL PRINTBUTTON_CENTER(" 1[  防衛解除]", 1, 7, CONFIG:302 == 0)
+		CASE 3
+			CALL PRINTBUTTON_CENTER(" 2[      外交]", 2, 7, !COUNTRY_IS_CLOSED:(CFLAG:MASTER:1))
+		CASE 5
+			CALL PRINTBUTTON_CENTER(" 5[  勢力情報]", 5, 7)
+		CASE 7
+			CALL PRINTBUTTON_CENTER(" 6[  政策変更]", 6, 7, CONFIG:302 == 0)
+		CASE 8
+			PRINT   現在:
+			SELECTCASE COUNTRY_POLICY:(CFLAG:MASTER:1)
+				CASE 0
+					SETCOLOR 0x60E060
+					PRINT 経済   
+				CASE 1
+					SETCOLOR 0xA0A040
+					PRINT 徴兵   
+				CASE 2
+					SETCOLOR 0xA060FF
+					PRINT 防衛   
+				CASEELSE
+					SETCOLOR 0xBBBBBB
+					PRINT -------
+			ENDSELECT
+			RESETCOLOR
+
+		CASE 9
+			SELECTCASE COUNTRY_POLICY:(CFLAG:MASTER:1)
+				CASE 0
+					PRINTFORM   経済成長x1.5
+				CASE 1
+					PRINTFORM   徴兵効率x1.2
+				CASE 2
+					PRINTFORM   防衛倍率x1.5
+				CASEELSE
+					PRINTFORM   <AI専用政策>
+			ENDSELECT
+		CASE 11
+			CALL PRINTBUTTON_CENTER(" 7[  特別訓練]", 7,  7, MONEY > 10000)
+		CASE 12
+			CALL PRINTBUTTON_CENTER(" 8[  臨時徴兵]", 8, 7)
+		CASE 13
+			CALL PRINTBUTTON_CENTER("10[      独立]", 10, 7, FLAG:25 & (1 << 3))
+		CASE 14
+			CALL PRINTBUTTON_CENTER("11[クーデター]", 11, 7, FLAG:25 & (1 << 4))
+		CASE 16
+			CALL PRINTBUTTON_CENTER("20[オート設定]", 20, 7)
+		CASE 17
+			PRINT   現在:
+			IF CONFIG:302 == 0
+				PRINT 手動   
+			ELSE
+				SETCOLOR 0xFF8040
+				PRINT 自動   
+				RESETCOLOR
+			ENDIF
+		CASE 18
+			CALL PRINTBUTTON_CENTER("50[  野に下る]", 50, 7, CFLAG:MASTER:1 && GET_COUNTRY_BOSS(CFLAG:MASTER:1) != MASTER) 
+		CASE 22
+			CALL PRINTBUTTON_CENTER("99[  行動終了]", 99, 7)
+		CASE 23
+			CALL PRINTBUTTON_CENTER("60[      設定]", 60, 7)
+		CASE 24
+			CALL PRINTBUTTON_CENTER("70[    セーブ]", 70, 7)
+		CASE 25
+			CALL PRINTBUTTON_CENTER("80[    ロード]", 80, 7)
+		CASEELSE
+			PRINT 　　　　　　　
+	ENDSELECT
+ENDIF
+PRINT ┃
+
+;-------------------------------------------------
+;全都市数を返す関数
+;-------------------------------------------------
+@GET_CITY_NUM()
+#FUNCTION
+RETURNF CITY_NUM
+
+;-------------------------------------------------
+;都市名を取得する関数 ボタン用 ARG:0=都市番号
+;-------------------------------------------------
+@GET_CITYNAME_BUTTON(ARG:0)
+#FUNCTIONS
+SIF ARG:0 < 0 || ARG:0 >= MAX_CITY
+	RETURNF "無名"
+RETURNF CITY_NAME_SHORT:(ARG:0)
+
+;-------------------------------------------------
+;都市名を取得する関数 ARG:0=都市番号
+;-------------------------------------------------
+@GET_CITYNAME(ARG:0)
+#FUNCTIONS
+SIF ARG:0 < 0 || ARG:0 >= MAX_CITY
+	RETURNF "無名"	
+SIF CITY_TYPE:(ARG:0) == 1
+	RETURNF "●"
+RETURNF CITY_NAME:(ARG:0)
+
+;-------------------------------------------------
+;都市名から番号を取得する関数 REGISTER_ROOTやCITY_OWNERでの糖衣化用。ARGS:0=都市名
+;-------------------------------------------------
+@GET_CITYNUMBER(ARGS:0)
+#FUNCTION
+FOR LOCAL:0, 0, MAX_CITY
+SIF ARGS:0 == CITY_NAME:(LOCAL:0)
+	RETURNF LOCAL:0
+NEXT
+
+RETURNF 0
+;-------------------------------------------------
+;中継地点の名称を取得する関数 ARG:0=都市番号
+;-------------------------------------------------
+@GET_RELAYNAME(ARG:0)
+#FUNCTIONS
+SIF ARG:0 < 0 || ARG:0 >= MAX_CITY
+	RETURNF "無名"	
+RETURNF CITY_NAME:(ARG:0)
+
+;-------------------------------------------------
+;ルートの登録を行う関数
+;ARG:0　登録元　ARG:1~10 登録先
+;なお既に登録されていたら無視する
+;-------------------------------------------------
+@REGISTER_ROOT(ARG:0, ARG:1 = -99, ARG:2 = -99, ARG:3 = -99, ARG:4 = -99, ARG:5 = -99, ARG:6 = -99, ARG:7 = -99, ARG:8 = -99, ARG:9 = -99, ARG:10 = -99)
+;接続先についてカウントアップを行う
+FOR LOCAL:0, 1, 10
+	;-99だった場合無視
+	IF ARG:(LOCAL:0) == -99
+		BREAK
+	ENDIF
+	;接続元のCITY_ROOTの0~10についてカウントアップを行う
+	FOR LOCAL:1, 0, 10
+		;フェイルセーフ。既に該当地域が登録されているならBREAK。
+		IF CITY_ROOT:(ARG:0):(LOCAL:1) == ARG:(LOCAL:0)
+			BREAK
+		;ARG:0のCITY_ROOTのうち、LOCAL:1番目が空であれば登録する
+		ELSEIF CITY_ROOT:(ARG:0):(LOCAL:1) == 0
+			CITY_ROOT:(ARG:0):(LOCAL:1) = ARG:(LOCAL:0)
+			;接続先にも接続元を登録しておく
+			FOR LOCAL:3, 0, 10
+				;フェイルセーフ。REGISTER_ROOTを通して操作する限りありえないとは思うが。
+				IF CITY_ROOT:(ARG:(LOCAL:0)):(LOCAL:3) == ARG:0
+					DEBUGPRINTFORML @REGISTER_ROOT:{ARG:(LOCAL:0)}→{ARG:0}が登録済み
+					BREAK
+				ELSEIF CITY_ROOT:(ARG:(LOCAL:0)):(LOCAL:3) == 0
+					CITY_ROOT:(ARG:(LOCAL:0)):(LOCAL:3) = ARG:0
+					BREAK
+				ENDIF
+			NEXT
+			BREAK
+		ENDIF
+	NEXT
+NEXT
+
+;----------------------------------------------------------------------------------------------
+;以下ラッパ
+;----------------------------------------------------------------------------------------------
+
+;-------------------------------------------------
+;都市タイプの設定
+;-------------------------------------------------
+@SET_CITY_TYPE
+	TRYCALLFORM SET_CITY_TYPE_%MAPID%
+
+;-------------------------------------------------
+;ルートの設定
+;-------------------------------------------------
+@SET_MAP_ROOT
+	TRYCALLFORM SET_MAP_ROOT_%MAPID%
+	
+;-------------------------------------------------
+;マップの準備
+;-------------------------------------------------
+@MAPSETUP(ARG:0 = 0)
+SIF ARG:0 == 0 && MAPREADY == 1
+	RETURN
+CALL SET_MAP_ROOT
+CALL SET_CITY_TYPE
+TRYCALLFORM SET_CITY_NUM_%MAPID%
+TRYCALLFORM SET_SHORTCITYNAME_%MAPID%
+TRYCALLFORM SET_CITYNAME_%MAPID%
+MAPREADY = 1
+
+;-------------------------------------------------
+;経済や防衛などの初期化
+;-------------------------------------------------
+@MAP_INIT
+TRYCALLFORM MAP_INIT_%MAPID%
+
+;-------------------------------------------------
+;マップの描画 ARG:0に1を指定すると軍事画面用のボタンを生成
+;-------------------------------------------------
+@DRAWMAP(ARG:0 = 0)
+TRYCALLFORM DRAWMAP_%MAPID%, ARG:0

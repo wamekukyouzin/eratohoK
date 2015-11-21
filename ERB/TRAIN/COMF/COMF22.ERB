@@ -1,0 +1,292 @@
+﻿;双頭バイブ
+
+;-------------------------------------------------
+;コマンド名称
+;-------------------------------------------------
+@COM_NAME22
+LOCALS:0 = 双頭バイブ
+
+RESULTS:0 = %LOCALS:0%を使う
+RESULTS:1 = %LOCALS:0%を使わされる
+RESULTS:2 = %LOCALS:0%を使わせる
+RESULTS:3 = %LOCALS:0%を使われる
+RESULTS:4 = %LOCALS:0%を使わせる
+RESULTS:5 = %LOCALS:0%見せつけ
+
+;-------------------------------------------------
+;選択可否判定
+;-------------------------------------------------
+@COM_ABLE22
+;共通部分
+CALL COM_ABLE_COMMON(22)
+SIF RESULT == 0
+	RETURN 0
+;プレイヤーは最大で1人まで
+SIF MPLY_NUM <= 0 || MPLY_NUM > 1
+	RETURN 0
+;ターゲットは最大で1人まで
+SIF MTAR_NUM <= 0 || MTAR_NUM > 1
+	RETURN 0
+;プレイヤーとターゲットが共に行動不能なら不可
+SIF !IS_PLAYABLE(MPLY:0) && !IS_PLAYABLE(MTAR:0)
+	RETURN 0
+;双頭バイブが必要
+SIF !ITEM:双頭バイブ && !ITEM:A_双頭バイブ
+	RETURN 0
+;プレイヤーにＶがないなら不可
+SIF !VAGINA(MPLY:0)
+	RETURN 0
+;ターゲットにＶがないなら不可
+SIF !VAGINA(MTAR:0)
+	RETURN 0
+;プレイヤーのＶが埋まっているなら不可
+SIF IS_V_HOLD(MPLY:0)
+	RETURN 0
+;ターゲットのＶが埋まっているなら不可
+SIF IS_V_HOLD(MTAR:0)
+	RETURN 0
+;プレイヤーが顔面騎乗中なら不可
+SIF IS_RIDE(MPLY:0)
+	RETURN 0
+;ターゲットが顔面騎乗中なら不可
+SIF IS_RIDE(MTAR:0)
+	RETURN 0
+;プレイヤーとターゲットが共に拘束中なら不可
+SIF IS_BIND(MPLY:0) && IS_BIND(MTAR:0)
+	RETURN 0
+;相互に双頭バイブで結合中かどうかのフラグを取得
+LOCAL:2 = (SEARCH_EQUIP(22, MPLY:0, MTAR:0) >= 0) || (SEARCH_EQUIP(22, MTAR:0, MPLY:0) >= 0)
+;プレイヤーが双頭バイブ除く挿入状態なら不可
+SIF IS_INSERT_SINGLE(MTAR:0, "全") && !LOCAL:2
+	RETURN 0
+;ターゲットが双頭バイブ除く挿入状態なら不可
+SIF IS_INSERT_SINGLE(MTAR:0, "全") && !LOCAL:2
+	RETURN 0
+;プレイヤーとターゲットが相互にキス中なら不可
+SIF SEARCH_EQUIP(20, MPLY:(LOCAL:0), MTAR:(LOCAL:1)) >= 0 || SEARCH_EQUIP(20, MTAR:(LOCAL:1), MPLY:(LOCAL:0)) >= 0
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;メイン処理
+;-------------------------------------------------
+@COM22
+;実行判定
+CALL COM_ORDER_COMMON
+SIF RESULT == 0
+	RETURN 0
+
+;逆方向からのMEQUIPを解除
+FOR LOCAL:0, 0, MPLY_NUM
+	FOR LOCAL:1, 0, MTAR_NUM
+		CALL RELEASE_EQUIP_EX(22, MTAR:(LOCAL:1), MPLY:(LOCAL:0))
+	NEXT
+NEXT
+
+;●プレイヤーについて処理
+DOWNBASE:(MPLY:0):体力 += 140
+
+EXP:(MPLY:0):性技経験値 += 1
+EXP:(MPLY:0):性交経験値 += 1
+
+SOURCE:(MPLY:0):快Ｖ = SENSE_SEX_TARGET(MTAR:0, MPLY:0, 1400)
+SOURCE:(MPLY:0):接触 = 100
+SOURCE:(MPLY:0):性行動 = 360
+
+;性交系の共通処理
+CALL COM_COMMON_SEX_V(MPLY:0, MTAR:0)
+
+;主導権に応じた優越・屈従のソース追加
+CALL ADD_SOURCE_INITIATIVE_U(MPLY:0, 50, 50)
+
+;奉仕経験値を得られるコマンドのフラグ
+TCVAR:(MPLY:0):4 = 1
+
+;射精箇所と対象をセット
+CALL STACK_SPERM(MPLY:0, MTAR:0, 0)
+
+;●ターゲットについて処理
+DOWNBASE:(MTAR:0):体力 += 140
+
+SOURCE:(MTAR:0):快Ｖ = SENSE_SEX_TARGET(MPLY:0, MTAR:0, 1400)
+SOURCE:(MTAR:0):接触 = 80
+SOURCE:(MTAR:0):性行動 = 360
+
+;性交系の共通処理
+CALL COM_COMMON_SEX_V(MTAR:0, MPLY:0)
+
+;主導権に応じた優越・屈従のソース追加
+CALL ADD_SOURCE_INITIATIVE_U(MTAR:0, 50, 50)
+
+;奉仕経験値を得られるコマンドのフラグ
+TCVAR:(MTAR:0):4 = 1
+
+;射精箇所と対象をセット
+CALL STACK_SPERM(MTAR:0, MPLY:0, 0)
+
+;主導度変化基準値
+TFLAG:49 = 2
+
+;倒錯度変化基準値
+TFLAG:50 = 0
+
+;レズ・ＢＬ経験基準値
+TFLAG:51 = 7
+
+RETURN 1
+
+;-------------------------------------------------
+;継続コマンドかどうかを設定
+;-------------------------------------------------
+@COM_IS_EQUIP22
+RETURN 1
+
+;-------------------------------------------------
+;継続状態の処理
+;-------------------------------------------------
+@COM_EQUIP22(ARG:0)
+LOCAL:2 = MEQUIP_PLAYER:(ARG:0):0
+LOCAL:3 = MEQUIP_TARGET:(ARG:0):0
+
+;ソースを退避
+CALL PUTOUT_SOURCE(LOCAL:2)
+CALL PUTOUT_SOURCE(LOCAL:3)
+
+DOWNBASE:(LOCAL:2):体力 += 20
+
+EXP:(LOCAL:2):性技経験値 += 1
+EXP:(LOCAL:2):性交経験値 += 1
+
+SOURCE:(LOCAL:2):快Ｖ += SENSE_SEX_TARGET(LOCAL:3, LOCAL:2, 700)
+SOURCE:(LOCAL:2):露出 += 100
+SOURCE:(LOCAL:2):性行動 += 120
+
+;性交系の共通処理
+CALL COM_COMMON_SEX_V(LOCAL:2, LOCAL:3)
+
+;奉仕経験値を得られるコマンドのフラグ
+TCVAR:(LOCAL:2):4 = 1
+
+;倒錯度変化基準値
+TCVAR:(LOCAL:2):50 -= 1
+
+;射精箇所と対象をセット
+CALL STACK_SPERM(LOCAL:2, LOCAL:3, 0, 0)
+
+DOWNBASE:(LOCAL:3):体力 += 20
+
+EXP:(LOCAL:3):性技経験値 += 1
+EXP:(LOCAL:3):性交経験値 += 1
+
+SOURCE:(LOCAL:3):快Ｖ += SENSE_SEX_TARGET(LOCAL:2, LOCAL:3, 700)
+SOURCE:(LOCAL:3):露出 += 100
+SOURCE:(LOCAL:3):性行動 += 120
+
+;性交系の共通処理
+CALL COM_COMMON_SEX_V(LOCAL:3, LOCAL:2)
+
+;奉仕経験値を得られるコマンドのフラグ
+TCVAR:(LOCAL:3):4 = 1
+
+;倒錯度変化基準値
+TCVAR:(LOCAL:3):50 -= 1
+
+;射精箇所と対象をセット
+CALL STACK_SPERM(LOCAL:3, LOCAL:2, 0, 0)
+
+;退避したソースを加算
+CALL SUM_SOURCE(LOCAL:2)
+CALL SUM_SOURCE(LOCAL:3)
+
+;-------------------------------------------------
+;継続中の表示
+;-------------------------------------------------
+@EQUIP_MESSAGE22(ARG:0)
+RESULTS = %EQUIP_PLAYER_ANAME(ARG:0)%と%EQUIP_TARGET_ANAME(ARG:0)%が双頭バイブで結合中
+
+;-------------------------------------------------
+;継続中の地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE_EQUIP22(ARG:0)
+PRINTFORML %EQUIP_TARGET_ANAME(ARG:0)%と%EQUIP_PLAYER_ANAME(ARG:0)%は双頭バイブで繋がったまま腰を動かしている…
+
+;-------------------------------------------------
+;継続を解除したときの地の文
+;-------------------------------------------------
+@COM_TEXT_RELEASE_EQUIP22(ARG:0)
+PRINTFORMW %EQUIP_PLAYER_ANAME(ARG:0)%と%EQUIP_TARGET_ANAME(ARG:0)%は双頭バイブを引き抜いた…
+
+;-------------------------------------------------
+;固有の実行判定
+;-------------------------------------------------
+@COM_ORDER_PLAYER22(ARG:0)
+CALL COM_ORDER_COMMON21(ARG:0)
+RETURN 1
+
+@COM_ORDER_TARGET22(ARG:0)
+CALL COM_ORDER_COMMON21(ARG:0)
+RETURN 1
+
+@COM_ORDER_COMMON22(ARG:0)
+;実行値の設定
+TCVAR:(ARG:0):25 = 95
+
+;膣性交共通
+CALL COM_ORDER_VSEX_V(ARG:0, 1)
+RETURN 1
+
+;-------------------------------------------------
+;地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE22
+;継続中
+IF SEARCH_EQUIP_IC(22, MPLY:0, MTAR:0) >= 0
+	SELECTCASE GET_COM_INITIATIVE()
+		;プレイヤーに主導権
+		CASE 0
+			PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%と双頭バイブで結合したまま、さらに腰を揺り動かし%ANAME(MTAR:0)%を責め立て%TARGET_STR("た", "てきた")%…
+		;ターゲットに主導権
+		CASE 1
+			PRINTFORML %ANAME(MTAR:0)%は%ANAME(MPLY:0)%に足を絡めながら、さらに激しく腰を振るよう%ANAME(MPLY:0)%に要求した
+			PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%と双頭バイブで結合したまま、さらに腰を揺り動かし%ANAME(MTAR:0)%に奉仕した…
+		;第三者に主導権
+		CASEELSE
+			PRINTFORML %ANAME(TFLAG:45)%は、双頭バイブで繋がり合う%ANAME(MPLY:0)%と%ANAME(MTAR:0)%に、もっと激しく腰を動かすように命令した
+			PRINTFORMW %ANAME(MPLY:0)%と%ANAME(MTAR:0)%は言われるままさらに腰を揺り動かし、お互いの膣内をバイブで掻き回した…
+	ENDSELECT
+
+ELSE
+	SELECTCASE GET_COM_INITIATIVE()
+		;プレイヤーに主導権
+		CASE 0
+			IF TALENT:(MPLY:0):処女 == 1
+				PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%と双頭バイブで結合すると、破瓜の痛みに耐えながら必死に腰を振って%ANAME(MTAR:0)%を責め立て%TARGET_STR("た", "てきた")%…
+			ELSEIF ABL:(MPLY:0):Ｖ感 <= 1 && MPLY:0 == MASTER
+				PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%と双頭バイブで結合すると、腰を振って%ANAME(MTAR:0)%を責め立て%TARGET_STR("た", "てきた")%…
+			ELSEIF ABL:(MPLY:0):Ｖ感 <= 1
+				PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%と双頭バイブで結合すると、苦しそうにしながらも必死に腰を振って%ANAME(MTAR:0)%を責め立て%TARGET_STR("た", "てきた")%…
+			ELSE
+				PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%と双頭バイブで結合し、激しく腰を振って自らも快楽を貪りながら%ANAME(MTAR:0)%を責め立て%TARGET_STR("た", "てきた")%…
+			ENDIF
+		;ターゲットに主導権
+		CASE 1
+			PRINTFORML %ANAME(MTAR:0)%は%ANAME(MPLY:0)%に、互いの膣に双頭バイブを挿入して腰を振るように要求した
+			IF TALENT:(MPLY:0):処女 == 1
+				PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%と双頭バイブで結合すると、破瓜の痛みに耐えながら必死に腰を振って%ANAME(MTAR:0)%に奉仕した…
+			ELSEIF ABL:(MPLY:0):Ｖ感 <= 1 && MPLY:0 == MASTER
+				PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%と双頭バイブで結合すると、腰を振って%ANAME(MTAR:0)%に奉仕した…
+			ELSEIF ABL:(MPLY:0):Ｖ感 <= 1
+				PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%と双頭バイブで結合すると、苦しそうにしながらも必死に腰を振って%ANAME(MTAR:0)%に奉仕した…
+			ELSE
+				PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%と双頭バイブで結合すると、激しく腰を振って自らも快楽を貪りながら%ANAME(MTAR:0)%に奉仕した…
+			ENDIF
+		;第三者に主導権
+		CASEELSE
+			PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%と%ANAME(MTAR:0)%に双頭バイブで繋がり合うように命令した
+			IF TALENT:(MPLY:0):処女 == 1
+				PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%と双頭バイブで結合すると、破瓜の痛みに耐えながら必死に腰を振った…
+			ELSE
+				PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%と双頭バイブで結合し、お互いに腰を振って快感を高め合った…
+			ENDIF
+	ENDSELECT
+ENDIF

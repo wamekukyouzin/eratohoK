@@ -1,0 +1,187 @@
+﻿;統計情報に関する処理
+
+;-------------------------------------------------
+;統計情報を生で出力する。デバッグ用。
+;-------------------------------------------------
+@STATS_OUTPUT_RAW
+DRAWLINE
+;読み書き位置
+PRINTFORML STATS_TIME = {STATS_TIME}
+PRINTFORML STATS_STOPPED = {STATS_STOPPED}
+
+;君主ID配列
+FOR LOCAL:0, 0, STATS_COUNTRIES
+	PRINTFORM {STATS_BOSS_ID_LIST:(LOCAL:0)},
+NEXT
+PRINTL
+;経済力データ
+FOR LOCAL:0, 0, STATS_DURATION
+	FOR LOCAL:1, 0, STATS_COUNTRIES
+		PRINTFORM {STATS_GDP:(LOCAL:1):(LOCAL:0)},
+	NEXT
+	PRINTL
+NEXT
+DRAWLINE
+
+;-------------------------------------------------
+;統計情報を整形して出力する。
+;グラフ化の方法が思いつかなかったので、せめてエクセルに貼れる形式で。
+;呼び出しは CALL STATS_OUTPUT(STATS_GDP) というように、表示するデータを引数にとる。
+;-------------------------------------------------
+@STATS_OUTPUT(DATA_ARR)
+#DIM REF DATA_ARR,0,0
+#DIM COUNTRY_COUNT
+
+IF STATS_STOPPED
+	PRINTL 統計関係の処理が停止されています。
+	RETURN
+ENDIF
+
+DRAWLINE
+
+;出力する勢力数をカウントする
+COUNTRY_COUNT = 0
+FOR LOCAL:0, 1, STATS_COUNTRIES
+	IF STATS_BOSS_ID_LIST:(LOCAL:0) <= 0
+		BREAK
+	ENDIF
+	COUNTRY_COUNT++
+NEXT
+
+;勢力名を出力(1列目は期数なので飛ばす)
+PRINT  ,
+FOR LOCAL:0, 1, 1 + COUNTRY_COUNT
+	;ID_TO_CHARAの影響がよく分かってないまま書いてるので
+	;もしかしたらココでNAME:(-1)になるかもしれない
+	PRINTFORM %NAME:( ID_TO_CHARA( STATS_BOSS_ID_LIST:(LOCAL:0) ) )%,
+NEXT
+PRINTL
+
+;データを記録期間1周ぶん出力
+FOR LOCAL:1, 0, STATS_DURATION
+	;ゼロ期以前なら出力しない
+	IF DATA_ARR:0:(STATS_TIME) < 1
+		CALL STATS_TIME_PLUS
+		CONTINUE
+	ENDIF
+	FOR LOCAL:0, 0, COUNTRY_COUNT + 1
+		PRINTFORM {DATA_ARR:(LOCAL:0):(STATS_TIME)},
+	NEXT
+	PRINTL
+	CALL STATS_TIME_PLUS
+NEXT
+
+;-------------------------------------------------
+;統計情報の記憶
+;毎期終了時に呼び出す。
+;-------------------------------------------------
+@STATS_SAVE
+#DIM POS
+
+IF STATS_STOPPED
+	RETURN
+ENDIF
+
+;書き込み先の1行の準備処理
+CALL STATS_SAVE_PREPROCESS(STATS_GDP)
+CALL STATS_SAVE_PREPROCESS(STATS_ARMY)
+CALL STATS_SAVE_PREPROCESS(STATS_WEALTH)
+
+;どの列に書き込むか探す
+FOR LOCAL:0, 1, MAX_COUNTRY
+	;勢力がなければCONTINUE
+	SIF !IS_COUNTRY(LOCAL:0)
+		CONTINUE
+	;君主ID配列に検索をかける
+	POS = FINDELEMENT(STATS_BOSS_ID_LIST, COUNTRY_BOSS:(LOCAL:0), 1, VARSIZE("STATS_BOSS_ID_LIST"))
+
+	;見つからなかったら君主ID配列への新規登録を試みる
+	IF POS < 0
+		POS = STATS_ENLIST_BOSS_ID(COUNTRY_BOSS:(LOCAL:0))
+		;それでも書き込み先が得られないならCONTINUE
+		IF POS < 0
+			CONTINUE
+		ENDIF
+;		DEBUGPRINTFORML 【統計追加】 %NAME:ID_TO_CHARA(COUNTRY_BOSS:(LOCAL:0))%
+	ENDIF
+	;統計データの書き込み
+	STATS_GDP:(POS):(STATS_TIME) = GET_SUM_ECONOMY(LOCAL:0)
+	STATS_ARMY:(POS):(STATS_TIME) = GET_SUM_SOLDIER(LOCAL:0)
+	STATS_WEALTH:(POS):(STATS_TIME) = MONEY:(LOCAL:0)
+NEXT
+;書き込み先の行を1つ進める
+CALL STATS_TIME_PLUS
+
+;-------------------------------------------------
+;統計情報を書き込む前処理
+;-------------------------------------------------
+@STATS_SAVE_PREPROCESS(ARR)
+#DIM REF ARR,0,0
+;行頭に期数を記録
+ARR:0:(STATS_TIME) = DAY+1
+;行の残りをゼロで埋める
+FOR LOCAL:0, 1, STATS_COUNTRIES
+	ARR:(LOCAL:0):(STATS_TIME) = 0
+NEXT
+
+;-------------------------------------------------
+;[各勢力の君主のIDの配列]の空きを探して(ARG:0)を登録する
+;0番要素は期数の記録に使うので触らない。
+;成功したらその位置を、失敗したら-1を返す
+;-------------------------------------------------
+@STATS_ENLIST_BOSS_ID(ARG:0)
+#FUNCTION
+FOR LOCAL:0, 1, STATS_COUNTRIES
+	IF STATS_BOSS_ID_LIST:(LOCAL:0) <= 0
+		STATS_BOSS_ID_LIST:(LOCAL:0) = ARG:0
+		RETURNF LOCAL:0
+	ENDIF
+NEXT
+RETURNF -1
+
+;-------------------------------------------------
+;読み書き先の移動
+;-------------------------------------------------
+@STATS_TIME_PLUS(ARG:0 = 1)
+STATS_TIME += ARG:0
+;範囲の上に出た
+IF STATS_TIME >= STATS_DURATION
+	STATS_TIME %= STATS_DURATION
+ENDIF
+;範囲の下に出た
+WHILE STATS_TIME < 0
+	STATS_TIME += STATS_DURATION
+WEND
+
+;------------------------------------------------
+;条約関係の出力
+;------------------------------------------------
+@TREATY_OUTPUT(ARG:0)
+
+SELECTCASE ARG:0
+CASE 0
+	PRINTL 【期間】　【対象】
+	FOR LOCAL:0, 0, MAX_TREATY_C
+		SIF !TREATY_C_TERM:(LOCAL:0)
+			CONTINUE
+		PRINTFORM {TREATY_C_TERM:(LOCAL:0), 8, RIGHT}　
+		FOR LOCAL:1, 0, MAX_TREATY_COUNTRY
+			SIF TREATY_C_COUNTRY:(LOCAL:0):(LOCAL:1) >= 1
+			PRINTFORM %NAME:ID_TO_CHARA(COUNTRY_BOSS:(TREATY_C_COUNTRY:(LOCAL:0):(LOCAL:1)))%　
+		NEXT
+		PRINTL
+	NEXT
+CASE 1
+	PRINTL 【期間】　【対象】
+	FOR LOCAL:0, 0, MAX_TREATY_A
+		SIF !TREATY_A_TERM:(LOCAL:0)
+			CONTINUE
+		PRINTFORM {TREATY_A_TERM:(LOCAL:0), 8, RIGHT}　
+		FOR LOCAL:1, 0, MAX_TREATY_COUNTRY
+			SIF TREATY_A_COUNTRY:(LOCAL:0):(LOCAL:1) >= 1
+			PRINTFORM %NAME:ID_TO_CHARA(COUNTRY_BOSS:(TREATY_A_COUNTRY:(LOCAL:0):(LOCAL:1)))%　
+		NEXT
+		PRINTL
+	NEXT
+
+ENDSELECT

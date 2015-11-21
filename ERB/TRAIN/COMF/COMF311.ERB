@@ -1,0 +1,113 @@
+﻿;蜂蜜水
+
+;-------------------------------------------------
+;コマンド名称
+;-------------------------------------------------
+@COM_NAME311
+RESULTS:0 = 蜂蜜水を渡す
+RESULTS:1 = 蜂蜜水を渡す
+
+;-------------------------------------------------
+;選択可否判定
+;-------------------------------------------------
+@COM_ABLE311
+;共通部分
+CALL COM_ABLE_COMMON(311)
+SIF RESULT == 0
+	RETURN 0
+;捕虜会話では不可
+SIF FLAG:12 == 6
+	RETURN 0
+;主人公がプレイヤーのとき限定
+SIF MPLY:0 != MASTER
+	RETURN 0
+;蜂蜜水を持っている必要がある
+SIF !ITEM:蜂蜜水
+	RETURN 0
+;キス中は不可
+SIF IS_EQUIP(MPLY:0, 342)
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;メイン処理
+;-------------------------------------------------
+@COM311
+;蜂蜜水を一つ減らす
+ITEM:蜂蜜水 --
+
+;コマンドの成否をTFLAG:18にセット
+CALL JUDGE_COM_RESULT(MTAR:0, 15, 5)
+
+;●ターゲット側の処理
+LOCAL:0 = 200
+
+IF TALENT:(MTAR:0):酒豪
+	TIMES LOCAL:0, 0.75
+ENDIF
+
+IF TALENT:(MTAR:0):幼児 || TALENT:(MTAR:0):幼稚
+	TIMES LOCAL:0, 1.50
+	;絶対に失敗しない
+	TFLAG:18 = MAX(TFLAG:18, 0)
+ENDIF
+
+;固定で獲得するソース
+SOURCE:(MTAR:0):歓楽 = LOCAL:0 / 3
+
+;親密に応じた歓楽のソース追加
+CALL ADD_SOURCE_KANRAKU(MTAR:0, LOCAL:0)
+
+;主導権に応じたソースの追加
+CALL ADD_SOURCE_INITIATIVE_N(MPLY:0, 50, 50)
+CALL ADD_SOURCE_INITIATIVE_N(MTAR:0, 50, 50)
+
+;絶頂・尿意限界によるおもらしの設定が有効の場合
+IF CONFIG:90 == 1
+	IF TCVAR:(MTAR:0):54 < 2900
+		;尿残量を増やす
+		TCVAR:(MTAR:0):54 += MIN(400, 2900 - TCVAR:(MTAR:0):54)
+	ENDIF
+	;蜂蜜水による尿意の加算基本値を追加
+	TCVAR:(MTAR:0):64 += 2
+ENDIF
+
+;失敗
+IF TFLAG:18 == -1
+	TIMES SOURCE:(MTAR:0):歓楽, 0.50
+	SOURCE:(MTAR:0):不満 += 200
+	TFLAG:37 -= 5
+;成功
+ELSEIF TFLAG:18 == 0
+	TFLAG:37 += 2
+;大成功
+ELSE
+	TIMES SOURCE:(MTAR:0):歓楽, 2.00
+	TFLAG:37 += 10
+ENDIF
+
+;主導度変化基準値
+TFLAG:49 = 2
+
+;倒錯度変化基準値
+TFLAG:50 = -1
+
+RETURN 1
+
+;-------------------------------------------------
+;地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE311
+PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%に蜂蜜水をプレゼントした
+IF TFLAG:18 == 1
+	PRINTFORML 思いのほか喜んでもらえたようだ…
+ELSEIF TFLAG:18 == -1
+	PRINTFORML あまり甘いものを飲む気分ではなかったようだ…
+ENDIF
+
+;--------------------------------------------------------
+;地の文(パラメータ・刻印変動後)
+;--------------------------------------------------------
+@COM_TEXT_LAST311
+;日常コマンドに共通の地の文
+CALL COM_TEXT_LAST_LIFE

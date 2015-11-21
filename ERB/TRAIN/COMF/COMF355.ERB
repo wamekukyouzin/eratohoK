@@ -1,0 +1,242 @@
+﻿;泳ぐ
+
+;-------------------------------------------------
+;コマンド名称
+;-------------------------------------------------
+@COM_NAME355
+RESULTS:0 = 一緒に泳ぐ
+RESULTS:1 = 一緒に泳がされる
+
+;-------------------------------------------------
+;選択可否判定
+;-------------------------------------------------
+@COM_ABLE355
+;共通部分
+CALL COM_ABLE_COMMON(355)
+SIF RESULT == 0
+	RETURN 0
+;主人公がプレイヤーのとき限定
+SIF MPLY:0 != MASTER
+	RETURN 0
+;川辺でのデート中限定
+SIF GET_PLACENAME(TFLAG:54) != "川辺"
+	RETURN 0
+;怪我なら不可
+SIF CFLAG:(MTAR:0):16 == 3
+	RETURN 0
+;キス中は不可
+SIF IS_EQUIP(MPLY:0, 342)
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;メイン処理
+;-------------------------------------------------
+@COM355
+;実行判定
+CALL COM_ORDER_COMMON
+SIF RESULT == 0
+	RETURN 0
+
+;成否の判定は武闘と適性のみで行う
+;LOCAL:1,3は成功率、LOCAL:2,4が大成功率
+;１人でも溺れると失敗、２人とも上手く泳げると大成功
+LOCAL:5 = ABL:(MPLY:0):武闘 + (GROWTYPE_RATE(MPLY:0, "武闘") - 100) / 4
+LOCAL:6 = ABL:(MTAR:0):武闘 + (GROWTYPE_RATE(MTAR:0, "武闘") - 100) / 4
+
+SELECTCASE LOCAL:5
+CASE IS < 30
+	LOCAL:1 = LOCAL:5 * 5 / 3
+	LOCAL:2 = 0
+CASE IS < 50
+	LOCAL:1 = (LOCAL:5 - 30) * 3 / 2 + 50
+	LOCAL:2 = LOCAL:5 - 30
+CASE IS < 70
+	LOCAL:1 = LOCAL:5 + 30
+	LOCAL:2 = LOCAL:5 - 30
+CASE IS < 100
+	LOCAL:1 = 100
+	LOCAL:2 = LOCAL:5 * 60 / 100
+CASEELSE
+	LOCAL:1 = 100
+	LOCAL:2 = 60
+ENDSELECT
+
+SELECTCASE LOCAL:6
+CASE IS < 30
+	LOCAL:1 = LOCAL:5 * 5 / 3
+	LOCAL:2 = 0
+CASE IS < 50
+	LOCAL:1 = (LOCAL:5 - 30) * 3 / 2 + 50
+	LOCAL:2 = LOCAL:5 - 30
+CASE IS < 70
+	LOCAL:1 = LOCAL:5 + 30
+	LOCAL:2 = LOCAL:5 - 30
+CASE IS < 100
+	LOCAL:1 = 100
+	LOCAL:2 = LOCAL:5 * 60 / 100
+CASEELSE
+	LOCAL:1 = 100
+	LOCAL:2 = 60
+ENDSELECT
+
+SIF LOCAL:1 <= RAND:100
+	TFLAG:17 += 1
+SIF LOCAL:3 <= RAND:100
+	TFLAG:17 += 2
+
+IF TFLAG:17 >= 1
+	TFLAG:18 = -1
+ELSEIF LOCAL:2 > RAND:100 && LOCAL:4 > RAND:100
+	TFLAG:18 = 1
+ELSE
+	TFLAG:18 = 0
+ENDIF
+
+;●プレイヤー側の処理
+;固定で獲得するソース
+SOURCE:(MPLY:0):歓楽 = 20
+
+;親密に応じた歓楽のソース追加
+CALL ADD_SOURCE_KANRAKU(MPLY:0, 180)
+SOURCE:(MPLY:0):歓楽 = MAX(SOURCE:(MPLY:0):歓楽, 0)
+
+IF TALENT:(MPLY:0):臆病
+	TIMES SOURCE:(MPLY:0):歓楽, 0.90
+ENDIF
+IF TALENT:(MPLY:0):大人しい
+	TIMES SOURCE:(MPLY:0):歓楽, 0.90
+ENDIF
+IF TALENT:(MPLY:0):恥じらい
+	TIMES SOURCE:(MPLY:0):歓楽, 0.90
+ENDIF
+
+EXP:(MPLY:0):武闘経験値 += (ABL:(MPLY:0):武闘 < 30 ? 2 # 1) + TFLAG:18
+
+;主導権に応じたソースの追加
+CALL ADD_SOURCE_INITIATIVE_N(MPLY:0, 100, 100)
+
+;●ターゲット側の処理
+;固定で獲得するソース
+SOURCE:(MTAR:0):歓楽 = 20
+
+;親密に応じた歓楽のソース追加
+CALL ADD_SOURCE_KANRAKU(MTAR:0, 180)
+SOURCE:(MTAR:0):歓楽 = MAX(SOURCE:(MTAR:0):歓楽, 0)
+
+IF TALENT:(MTAR:0):臆病
+	TIMES SOURCE:(MTAR:0):歓楽, 0.90
+ENDIF
+IF TALENT:(MTAR:0):大人しい
+	TIMES SOURCE:(MTAR:0):歓楽, 0.90
+ENDIF
+IF TALENT:(MTAR:0):恥じらい
+	TIMES SOURCE:(MTAR:0):歓楽, 0.90
+ENDIF
+
+EXP:(MTAR:0):武闘経験値 += (ABL:(MTAR:0):武闘 < 30 ? 2 # 1) + TFLAG:18
+
+;同性
+IF IS_SAMESEX(MPLY:0, MTAR:0)
+	SOURCE:(MPLY:0):露出 = 5
+	SOURCE:(MTAR:0):露出 = 5
+;異性
+ELSE
+	SOURCE:(MPLY:0):露出 = 20
+	SOURCE:(MTAR:0):露出 = 20
+ENDIF
+
+;主導権に応じたソースの追加
+CALL ADD_SOURCE_INITIATIVE_N(MTAR:0, 100, 100)
+
+;失敗
+IF TFLAG:18 == -1
+	TIMES SOURCE:(MPLY:0):歓楽, 0.10
+	TIMES SOURCE:(MTAR:0):歓楽, 0.10
+	SOURCE:(MPLY:0):不満 += 500
+	SOURCE:(MTAR:0):不満 += 500
+	TFLAG:37 -= 5
+;成功
+ELSEIF TFLAG:18 == 0
+
+;大成功
+ELSE
+	TIMES SOURCE:(MPLY:0):歓楽, 2.00
+	TIMES SOURCE:(MTAR:0):歓楽, 2.00
+	TFLAG:37 += 5
+ENDIF
+
+;主導度変化基準値
+TFLAG:49 = 3
+
+;倒錯度変化基準値
+TFLAG:50 = -1
+
+RETURN 1
+
+;-------------------------------------------------
+;固有の実行判定(プレイヤー側)
+;-------------------------------------------------
+@COM_ORDER_PLAYER355(ARG:0)
+;実行値の設定
+TCVAR:(ARG:0):25 = 30
+
+;共通部分
+CALL COM_ORDER(ARG:0)
+
+;好感度
+IF CFLAG:(ARG:0):2 < 300
+	IF CFLAG:(ARG:0):2 < 50
+		LOCAL:0 = -30
+	ELSEIF CFLAG:(ARG:0):2 < 150
+		LOCAL:0 = -15
+	ELSE
+		LOCAL:0 = -5
+	ENDIF
+	CALL COM_ORDER_ELEMENT(ARG:0, @"好感度不足", LOCAL:0)
+ELSE
+	LOCAL:0 = CFLAG:(ARG:0):2 / 75
+	CALL COM_ORDER_ELEMENT(ARG:0, @"好感度", LOCAL:0)
+ENDIF
+
+IF TALENT:(ARG:0):臆病
+	CALL COM_ORDER_ELEMENT(ARG:0, "臆病", -3)
+ENDIF
+IF TALENT:(ARG:0):大人しい
+	CALL COM_ORDER_ELEMENT(ARG:0, "大人しい", -2)
+ENDIF
+IF TALENT:(ARG:0):恥じらい
+	CALL COM_ORDER_ELEMENT(ARG:0, "恥じらい", -3)
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE355
+;主導権が主人公側
+IF IS_INITIATIVE(MASTER)
+	PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%と一緒に川で泳ぐことにした
+;主導権が相手側
+ELSE
+	PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%に誘われ、一緒に川で泳ぐことになった
+ENDIF
+
+IF TFLAG:18 == 1
+	PRINTFORML 二人とも上手く泳ぐことができて、%ANAME(MTAR:0)%は満足そうだ…
+ELSEIF TFLAG:18 == -1
+	IF TFLAG:17 == 1
+		PRINTFORML %ANAME(MPLY:0)%は溺れて流されてしまった…
+	ELSEIF TFLAG:17 == 2
+		PRINTFORML %ANAME(MTAR:0)%は溺れて流されてしまった…
+	ELSE
+		PRINTFORML 二人で仲良く溺れてしまった…
+	ENDIF
+ENDIF
+
+;-------------------------------------------------
+;地の文(パラメータ・刻印変動後)
+;-------------------------------------------------
+@COM_TEXT_LAST355
+;日常コマンドに共通の地の文
+CALL COM_TEXT_LAST_LIFE

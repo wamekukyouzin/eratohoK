@@ -1,0 +1,263 @@
+﻿;調教終了時のイベント、特に素質関連
+
+;-------------------------------------------------
+;恋慕等の取得
+;-------------------------------------------------
+@TALENT_CHECK(ARG:0)
+
+;第三者への恋慕喪失判定
+;[霖之助に恋慕]の消去 ;[タチ役に恋慕]の消去
+CALL TALENT_CHECK_OTHERSLOVE_LOST(ARG:0)
+
+;[虚ろ]の取得
+IF !TALENT:(ARG:0):虚ろ && CFLAG:(ARG:0):崩壊 >= 1000 + MAX(MAXBASE:(ARG:0):精神力, 1000)
+	PRINTL 
+	CALL KOJO_EVENT(ARG:0, 78)
+	SETCOLOR COLOR_CAUTION
+	PRINTFORMW %ANAME(ARG:0)%は<虚ろ>を得た
+	RESETCOLOR
+	TALENT:(ARG:0):虚ろ = 1
+
+;[虚ろ]の回復
+ELSEIF TALENT:(ARG:0):虚ろ && CFLAG:(ARG:0):崩壊 < -500 + MAX(MAXBASE:(ARG:0):精神力, 1000)
+	PRINTL 
+	PRINTFORMW %ANAME(ARG:0)%の様子が変わった…
+	PRINTFORML 疲弊していた%ANAME(ARG:0)%の心はどうにか平常に戻ったようだ
+	SETCOLOR COLOR_CAUTION
+	PRINTFORMW %ANAME(ARG:0)%は<虚ろ>を失った
+	RESETCOLOR
+	TALENT:(ARG:0):虚ろ = 0
+ENDIF
+
+;[崩壊]の取得
+IF !TALENT:(ARG:0):崩壊 && CFLAG:(ARG:0):崩壊 >= 3500 + MAX(MAXBASE:(ARG:0):精神力, 1000)
+	PRINTL 
+	CALL KOJO_EVENT(ARG:0, 79)
+	SETCOLOR COLOR_CAUTION
+	PRINTFORMW %ANAME(ARG:0)%は<崩壊>を得た
+	RESETCOLOR
+	TALENT:(ARG:0):崩壊 = 1
+ENDIF
+
+
+;[虚ろ]がない場合
+IF !TALENT:(ARG:0):虚ろ
+	;【恋慕】好感度1500以上、依存度300以上、異性 or 両刀 or 恋人
+	;【親友】好感度1500以上、依存度300以上、恋慕の条件を満たさない
+	;【親愛】好感度10000以上、依存度3000以上、奉仕5以上、恋慕
+	;【服従】従属度1500以上、依存度300以上
+	;【隷属】従属度10000以上、依存度3000以上、奉仕5以上、服従
+	;【淫乱】欲望8以上、自慰3以上、露出5以上、感覚合計＋射精が20以上、絶頂経験500以上
+	IF !TALENT:(ARG:0):服従
+		IF !TALENT:(ARG:0):恋慕 && CFLAG:(ARG:0):2 >= 1500 && CFLAG:(ARG:0):3 >= 300 && ( CFLAG:(ARG:0):2 > CFLAG:(ARG:0):4 ) ;従属度より好感度が高いこと
+			IF (!IS_SAMESEX(MASTER, ARG:0) || TALENT:(ARG:0):両刀 || TALENT:(ARG:0):恋人)
+				IF !TALENT:(ARG:0):霖之助に恋慕 && !TALENT:(ARG:0):藍に恋慕
+					PRINTL 
+					CALL KOJO_EVENT(ARG:0, 60)
+					SETCOLOR COLOR_CAUTION
+					IF TALENT:(ARG:0):親友
+						PRINTFORMW %ANAME(ARG:0)%は<親友>を失い<恋慕>を得た
+					ELSE
+						PRINTFORMW %ANAME(ARG:0)%は<恋慕>を得た
+					ENDIF
+					RESETCOLOR
+					TALENT:(ARG:0):恋慕 = 1
+					TALENT:(ARG:0):親友 = 0
+					;堕とした人数＋１
+					FLAG:30 += 1
+				ENDIF
+			ELSEIF !TALENT:(ARG:0):親友
+				PRINTL 
+				CALL KOJO_EVENT(ARG:0, 61)
+				SETCOLOR COLOR_CAUTION
+				PRINTFORMW %ANAME(ARG:0)%は<親友>を得た
+				RESETCOLOR
+				TALENT:(ARG:0):親友 = 1
+			ENDIF
+		ENDIF
+
+		IF !TALENT:(ARG:0):親愛 && !TALENT:(ARG:0):霖之助に恋慕 && !TALENT:(ARG:0):藍に恋慕 && CFLAG:(ARG:0):2 >= 10000 && CFLAG:(ARG:0):3 >= 3000 && ABL:(ARG:0):奉仕 >= 5 && TALENT:(ARG:0):恋慕
+			PRINTL 
+			CALL KOJO_EVENT(ARG:0, 62)
+			SETCOLOR COLOR_CAUTION
+			PRINTFORMW %ANAME(ARG:0)%は<親愛>を得た
+			RESETCOLOR
+			TALENT:(ARG:0):親愛 = 1
+		ENDIF
+	ENDIF
+
+	IF !TALENT:(ARG:0):恋慕 && !TALENT:(ARG:0):霖之助に恋慕 && !TALENT:(ARG:0):藍に恋慕 && !TALENT:(ARG:0):親友
+		IF !TALENT:(ARG:0):服従 && CFLAG:(ARG:0):4 >= 1500 && CFLAG:(ARG:0):3 >= 300 && !TALENT:(ARG:0):恋慕 && !TALENT:(ARG:0):親友
+			PRINTL 
+			CALL KOJO_EVENT(ARG:0, 63)
+			SETCOLOR COLOR_CAUTION
+			PRINTFORMW %ANAME(ARG:0)%は<服従>を得た
+			RESETCOLOR
+			TALENT:(ARG:0):服従 = 1
+			;堕とした人数＋１
+			FLAG:30 += 1
+		ENDIF
+
+		IF !TALENT:(ARG:0):隷属 && !TALENT:(ARG:0):霖之助に恋慕 && !TALENT:(ARG:0):藍に恋慕 && CFLAG:(ARG:0):4 >= 10000 && CFLAG:(ARG:0):3 >= 3000 && ABL:(ARG:0):奉仕 >= 5 && TALENT:(ARG:0):服従
+			PRINTL 
+			CALL KOJO_EVENT(ARG:0, 64)
+			SETCOLOR COLOR_CAUTION
+			PRINTFORMW %ANAME(ARG:0)%は<隷属>を得た
+			RESETCOLOR
+			TALENT:(ARG:0):隷属 = 1
+		ENDIF
+	ENDIF
+
+	LOCAL:0 = ABL:(ARG:0):Ｃ感 + ABL:(ARG:0):Ｖ感 + ABL:(ARG:0):Ａ感 + ABL:(ARG:0):Ｂ感 + ABL:(ARG:0):Ｍ感 + ABL:(ARG:0):射精
+	IF !TALENT:(ARG:0):淫乱 && ABL:(ARG:0):欲望 >= 8 && ABL:(ARG:0):自慰 >= 3 && ABL:(ARG:0):露出 >= 5 && LOCAL:0 >= 20 && EXP:(ARG:0):絶頂経験 >= 500
+		PRINTL 
+		CALL KOJO_EVENT(ARG:0, 65)
+		SETCOLOR COLOR_CAUTION
+		PRINTFORMW %ANAME(ARG:0)%は<淫乱>を得た
+		RESETCOLOR
+		TALENT:(ARG:0):淫乱 = 1
+	ENDIF
+ENDIF
+
+;堕とした人数が5人以上で、謎の魅力が付く
+IF !TALENT:MASTER:謎の魅力 && FLAG:30 >= 5
+	PRINTL 
+	SETCOLOR COLOR_CAUTION
+	PRINTFORMW %ANAME(MASTER)%は<謎の魅力>を身につけた
+	RESETCOLOR
+	TALENT:MASTER:謎の魅力 = 1
+ENDIF
+
+;酔い累積値が150000以上で酒豪が付く	下戸の場合は下戸を失う
+IF !TALENT:(ARG:0):酒豪 && CFLAG:(ARG:0):67 >= 150000
+	CFLAG:(ARG:0):67 = 0 
+	PRINTL 
+	CALL KOJO_EVENT(ARG:0, 74)
+	SETCOLOR COLOR_CAUTION
+	IF TALENT:(ARG:0):下戸
+		PRINTFORMW %ANAME(ARG:0)%は<下戸>を失った
+		TALENT:(ARG:0):下戸 = 0
+	ELSE
+		PRINTFORMW %ANAME(ARG:0)%は<酒豪>を得た
+		TALENT:(ARG:0):酒豪 = 1
+	ENDIF
+	RESETCOLOR
+ENDIF
+
+;おもらし経験30以上でおもらし癖
+IF !TALENT:(ARG:0):おもらし癖 && EXP:(ARG:0):おもらし経験 >= 50
+	PRINTL 
+	CALL KOJO_EVENT(ARG:0, 76)
+	SETCOLOR COLOR_CAUTION
+	PRINTFORMW %ANAME(ARG:0)%は<おもらし癖>を得た
+	RESETCOLOR
+	TALENT:(ARG:0):おもらし癖 = 1
+ENDIF
+
+;部位特化素質＆サドマゾは欲望Lv5ごとに1つ習得可能
+LOCAL:2 = 1
+SIF TALENT:(ARG:0):サド
+	LOCAL:2 += 1
+SIF TALENT:(ARG:0):マゾ
+	LOCAL:2 += 1
+SIF TALENT:(ARG:0):淫核
+	LOCAL:2 += 1
+SIF TALENT:(ARG:0):淫壷
+	LOCAL:2 += 1
+SIF TALENT:(ARG:0):尻穴狂い
+	LOCAL:2 += 1
+SIF TALENT:(ARG:0):淫乳
+	LOCAL:2 += 1
+SIF TALENT:(ARG:0):蕩唇
+	LOCAL:2 += 1
+SIF TALENT:(ARG:0):射精狂い
+	LOCAL:2 += 1
+
+IF ABL:(ARG:0):欲望 >= LOCAL:2 * 5
+	CALL TALENT_CHECK_PART(ARG:0)
+ENDIF
+
+;-------------------------------------------------
+;部位特化素質＆サドマゾの取得処理
+;一回の調教で取得できる素質は１つのみ
+;-------------------------------------------------
+@TALENT_CHECK_PART(ARG:0)
+;[サド] 奉仕8以上、性技8以上、ウフフ主導度1000以上、倒錯度800以上で、今回の主人公の絶頂回数が30以上
+IF !TALENT:(ARG:0):サド && ABL:(ARG:0):奉仕 >= 8 && ABL:(ARG:0):性技 >= 8 && ABL:(ARG:0):主導度Ｕ >= 1000 && ABL:(ARG:0):倒錯度 >= 800 && SUM_EX(MASTER) >= 30
+	PRINTFORMW %ANAME(ARG:0)%の様子がおかしい…
+	PRINTFORML %ANAME(ARG:0)%は%ANAME(MASTER)%を性的に虐めることに強い快感を覚えるようになった…
+	CALL KOJO_EVENT(ARG:0, 71)
+	SETCOLOR COLOR_CAUTION
+	PRINTFORMW %ANAME(ARG:0)%は<サド>を得た
+	RESETCOLOR
+	TALENT:(ARG:0):サド = 1
+
+;[マゾ] ウフフ主導度-1000以下、倒錯度800以上、緊縛経験50以上、苦痛快楽経験200以上、今回の絶頂回数が100以上
+ELSEIF !TALENT:(ARG:0):マゾ && ABL:(ARG:0):主導度Ｕ <= -1000 && ABL:(ARG:0):倒錯度 >= 800 && EXP:(ARG:0):緊縛経験 >= 50 && EXP:(ARG:0):苦痛快楽経験 >= 200 && SUM_EX(ARG:0) >= 100
+	PRINTFORMW %ANAME(ARG:0)%の様子がおかしい…
+	PRINTFORML %ANAME(ARG:0)%はすっかり虐められる快感の虜になってしまったようだ…
+	CALL KOJO_EVENT(ARG:0, 72)
+	SETCOLOR COLOR_CAUTION
+	PRINTFORMW %ANAME(ARG:0)%は<マゾ>を得た
+	RESETCOLOR
+	TALENT:(ARG:0):マゾ = 1
+
+;[淫核] 竿なし、Ｃ感覚11以上、倒錯度100未満、今回のＣ絶頂回数が50以上
+ELSEIF !TALENT:(ARG:0):淫核 && !PENIS(ARG:0) && ABL:(ARG:0):Ｃ感 >= 11 && ABL:(ARG:0):倒錯度 < 100 && EX:(ARG:0):Ｃ絶頂 >= 50
+	PRINTFORMW %ANAME(ARG:0)%の様子がおかしい…
+	PRINTFORML %ANAME(ARG:0)%はクリトリスのもたらす雌の快楽にすっかり溺れてしまったようだ…
+	CALL KOJO_EVENT(ARG:0, 66)
+	SETCOLOR COLOR_CAUTION
+	PRINTFORMW %ANAME(ARG:0)%は<淫核>を得た
+	RESETCOLOR
+	TALENT:(ARG:0):淫核 = 1
+
+;[淫壷] Ｖ感覚8以上且つ、性交8以上且つ、Ｖ拡張経験20以上、もしくはＶ感覚16以上且つ、性交10以上、今回のＶ絶頂回数が50以上
+ELSEIF !TALENT:(ARG:0):淫壷 && ((ABL:(ARG:0):Ｖ感 >= 8 && ABL:(ARG:0):性交 >= 8 && EXP:(ARG:0):Ｖ拡張経験 >= 20) || (ABL:(ARG:0):Ｖ感 >= 16 && ABL:(ARG:0):性交 >= 10)) && EX:(ARG:0):Ｖ絶頂 >= 50
+	PRINTFORMW %ANAME(ARG:0)%の様子がおかしい…
+	PRINTFORML %ANAME(ARG:0)%の淫らな蜜壷は、常に男のモノを求めて疼くようになってしまった…
+	CALL KOJO_EVENT(ARG:0, 67)
+	SETCOLOR COLOR_CAUTION
+	PRINTFORMW %ANAME(ARG:0)%は<淫壷>を得た
+	RESETCOLOR
+	TALENT:(ARG:0):淫壷 = 1
+
+;[尻穴狂い] Ａ感覚8以上且つ、Ａ拡張経験100以上、もしくはＡ感覚16以上、倒錯度800以上、今回のＡ絶頂回数が50以上
+ELSEIF !TALENT:(ARG:0):尻穴狂い && ((ABL:(ARG:0):Ａ感 >= 8 && EXP:(ARG:0):Ａ拡張経験 >= 100) || ABL:(ARG:0):Ａ感 >= 16) && ABL:(ARG:0):倒錯度 >= 800 && EX:(ARG:0):Ａ絶頂 >= 50
+	PRINTFORMW %ANAME(ARG:0)%の様子がおかしい…
+	PRINTFORML %ANAME(ARG:0)%の尻穴はすっかり快楽を得るための淫らな器官に変わってしまった…
+	CALL KOJO_EVENT(ARG:0, 68)
+	SETCOLOR COLOR_CAUTION
+	PRINTFORMW %ANAME(ARG:0)%は<尻穴狂い>を得た
+	RESETCOLOR
+	TALENT:(ARG:0):尻穴狂い = 1
+
+;[淫乳] Ｂ感覚11以上、倒錯度100未満、今回のＢ絶頂回数が50以上
+ELSEIF !TALENT:(ARG:0):淫乳 && ABL:(ARG:0):Ｂ感 >= 11 && ABL:(ARG:0):倒錯度 < 100 && EX:(ARG:0):Ｂ絶頂 >= 50
+	PRINTFORMW %ANAME(ARG:0)%の様子がおかしい…
+	PRINTFORML %ANAME(ARG:0)%の胸はわずかの刺激でも声を上げてしまうほど淫らに開発され尽くしてしまった…
+	CALL KOJO_EVENT(ARG:0, 69)
+	PRINTFORMW %ANAME(ARG:0)%は<淫乳>を得た
+	RESETCOLOR
+	TALENT:(ARG:0):淫乳 = 1
+
+;[蕩唇] Ｍ感覚8以上、キス経験200以上、口淫経験100以上、今回のＭ絶頂回数が50以上
+ELSEIF !TALENT:(ARG:0):蕩唇 && ABL:(ARG:0):Ｍ感 >= 8 && EXP:(ARG:0):キス経験 >= 200 && EXP:(ARG:0):口淫経験 >= 100 && EX:(ARG:0):Ｍ絶頂 >= 50
+	PRINTFORMW %ANAME(ARG:0)%の様子がおかしい…
+	PRINTFORML %ANAME(ARG:0)%の口は下の口と同様の、性的快楽を感じるための雌の性器へと変わってしまった…
+	CALL KOJO_EVENT(ARG:0, 70)
+	SETCOLOR COLOR_CAUTION
+	PRINTFORMW %ANAME(ARG:0)%は<蕩唇>を得た
+	RESETCOLOR
+	TALENT:(ARG:0):蕩唇 = 1
+
+;[射精狂い] 竿あり、Ｃ感覚3以上、射精8以上、今回の射精回数が30以上
+ELSEIF !TALENT:(ARG:0):射精狂い && PENIS(ARG:0) && ABL:(ARG:0):Ｃ感 >= 3 && ABL:(ARG:0):射精 >= 8 && EX:(ARG:0):射精 >= 30
+	PRINTFORMW %ANAME(ARG:0)%の様子がおかしい…
+	PRINTFORML %ANAME(ARG:0)%の肉竿は何度精を放っても次の射精を待ちわびて疼くようになってしまった…
+	CALL KOJO_EVENT(ARG:0, 73)
+	SETCOLOR COLOR_CAUTION
+	PRINTFORMW %ANAME(ARG:0)%は<射精狂い>を得た
+	RESETCOLOR
+	TALENT:(ARG:0):射精狂い = 1
+ENDIF

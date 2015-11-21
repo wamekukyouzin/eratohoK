@@ -1,0 +1,232 @@
+﻿;平手打ち
+
+;-------------------------------------------------
+;コマンド名称
+;-------------------------------------------------
+@COM_NAME89
+LOCALS:0 = 平手打ち
+
+RESULTS:0 = %LOCALS:0%する
+RESULTS:1 = %LOCALS:0%させられる
+RESULTS:2 = %LOCALS:0%させる
+RESULTS:3 = %LOCALS:0%される
+RESULTS:4 = %LOCALS:0%させる
+RESULTS:5 = %LOCALS:0%見せつけ
+
+;-------------------------------------------------
+;選択可否判定
+;-------------------------------------------------
+@COM_ABLE89
+;共通部分
+CALL COM_ABLE_COMMON(89)
+SIF RESULT == 0
+	RETURN 0
+;プレイヤーは最大で1人まで
+SIF MPLY_NUM <= 0 || MPLY_NUM > 1
+	RETURN 0
+;ターゲットは最大で1人まで
+SIF MTAR_NUM <= 0 || MTAR_NUM > 1
+	RETURN 0
+;プレイヤーが行動不能・拘束中なら不可
+SIF !IS_PLAYABLE(MPLY:0) || IS_BIND(MPLY:0)
+	RETURN 0
+;プレイヤーがＶかＡに挿入されているなら不可
+SIF IS_INSERT_SINGLE(MPLY:0, "ＶＡ")
+	RETURN 0
+;プレイヤーが顔面騎乗されているなら不可
+SIF IS_RIDDEN(MPLY:0)
+	RETURN 0
+;プレイヤーがクンニ・フェラ・パイズリ・足舐め・亀頭フェラ中なら不可
+SIF IS_EQUIP_PLAYER(MPLY:0, 1, 11, 12, 104, 107)
+	RETURN 0
+;プレイヤーがＶフィスト・Ａフィストされているなら不可
+SIF IS_EQUIP_TARGET(MPLY:0, 87, 88)
+	RETURN 0
+;プレイヤーがキス・貝合わせ・双頭バイブ中なら不可
+SIF IS_EQUIP(MPLY:0, 20, 21, 22)
+	RETURN 0
+;プレイヤーが挿入中なら挿入対象以外には不可
+SIF IS_INSERT_SINGLE(MPLY:0, "全") && IS_INSERT_MUTUAL(MPLY:0, MTAR:0) == 0
+	RETURN 0
+;ターゲットが顔面騎乗されているなら不可
+SIF IS_RIDDEN(MTAR:0)
+	RETURN 0
+;ターゲットがキス中なら不可
+SIF IS_EQUIP(MTAR:0, 20)
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;メイン処理
+;-------------------------------------------------
+@COM89
+;実行判定
+CALL COM_ORDER_COMMON
+SIF RESULT == 0
+	RETURN 0
+
+;●プレイヤーについて処理
+SOURCE:(MPLY:0):嗜虐 = 150
+SOURCE:(MPLY:0):逸脱 = 50
+SOURCE:(MPLY:0):接触 = 30
+
+;主導権に応じた優越・屈従のソース追加
+CALL ADD_SOURCE_INITIATIVE_U(MPLY:0, 150, 40)
+
+;●ターゲットについて処理
+SOURCE:(MTAR:0):苦痛 = 60 + MIN(ABL:(MPLY:0):武闘, 90) * 2
+SOURCE:(MTAR:0):逸脱 = 50
+SOURCE:(MTAR:0):接触 = 30
+
+;主導権に応じた優越・屈従のソース追加
+CALL ADD_SOURCE_INITIATIVE_U(LOCAL:1, 0, 100)
+
+IF TALENT:(MPLY:0):サド
+	TIMES SOURCE:(MTAR:0):苦痛, 1.50
+ENDIF
+
+;ターゲットが気絶している場合
+IF TCVAR:(MTAR:0):52
+	SOURCE:(MTAR:0):気絶回復 = 300
+ENDIF
+
+;主導度変化基準値
+TFLAG:49 = 2
+
+;倒錯度変化基準値
+TFLAG:50 = 1
+
+;レズ・ＢＬ経験基準値
+TFLAG:51 = 0
+
+RETURN 1
+
+;-------------------------------------------------
+;固有の実行判定
+;-------------------------------------------------
+@COM_ORDER_PLAYER89(ARG:0)
+;実行値の設定
+TCVAR:(ARG:0):25 = 90
+
+;共通部分
+CALL COM_ORDER(ARG:0)
+
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲望Lv{ABL:(ARG:0):欲望}", ABL:(ARG:0):欲望 * 1)
+
+LOCAL:0 = GET_PALAMLV(PALAM:(ARG:0):欲情)
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲情Lv{LOCAL:0}", MIN(LOCAL:0 * 1, 10))
+
+IF TALENT:(ARG:0):大人しい
+	CALL COM_ORDER_ELEMENT(ARG:0, "大人しい", -3)
+ENDIF
+IF TALENT:(ARG:0):恥じらい
+	CALL COM_ORDER_ELEMENT(ARG:0, "恥じらい", -2)
+ENDIF
+IF TALENT:(ARG:0):献身的
+	CALL COM_ORDER_ELEMENT(ARG:0, "献身的", 3)
+ENDIF
+IF TALENT:(ARG:0):Ｓ気質
+	CALL COM_ORDER_ELEMENT(ARG:0, "Ｓ気質", 6)
+ENDIF
+
+IF TALENT:(ARG:0):サド
+	CALL COM_ORDER_ELEMENT(ARG:0, "サド", 40)
+ELSE
+	IF ABL:(ARG:0):主導度Ｕ >= 500
+		CALL COM_ORDER_ELEMENT(ARG:0, "主導度", 15)
+	ELSEIF ABL:(ARG:0):主導度Ｕ >= 300
+		CALL COM_ORDER_ELEMENT(ARG:0, "主導度", 10)
+	ELSEIF ABL:(ARG:0):主導度Ｕ >= 100
+		CALL COM_ORDER_ELEMENT(ARG:0, "主導度", 5)
+	ELSEIF ABL:(ARG:0):主導度Ｕ > -100
+		CALL COM_ORDER_ELEMENT(ARG:0, "主導度", 0)
+	ELSE
+		CALL COM_ORDER_ELEMENT(ARG:0, "主導度", -5)
+	ENDIF
+
+	IF ABL:(ARG:0):倒錯度 >= 800
+		CALL COM_ORDER_ELEMENT(ARG:0, "倒錯度", 20)
+	ELSEIF ABL:(ARG:0):倒錯度 >= 500
+		CALL COM_ORDER_ELEMENT(ARG:0, "倒錯度", 15)
+	ELSEIF ABL:(ARG:0):倒錯度 >= 300
+		CALL COM_ORDER_ELEMENT(ARG:0, "倒錯度", 10)
+	ELSEIF ABL:(ARG:0):倒錯度 >= 100
+		CALL COM_ORDER_ELEMENT(ARG:0, "倒錯度", 5)
+	ELSE
+		CALL COM_ORDER_ELEMENT(ARG:0, "倒錯度", 0)
+	ENDIF
+ENDIF
+
+RETURN 1
+
+;-------------------------------------------------
+;地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE89
+IF TCVAR:(MPLY:0):52
+	LOCALS:1 = 失神して意識のない
+ELSE
+	LOCALS:1 = 
+ENDIF
+
+SELECTCASE GET_COM_INITIATIVE()
+	;プレイヤーに主導権
+	CASE 0
+		IF MPLY:0 == MASTER
+			PRINTFORMW %ANAME(MPLY:0)%は%LOCALS:1%%ANAME(MTAR:0)%の頬を平手で強く叩い%TARGET_STR("た", "てきた")%…
+		ELSEIF TALENT:(MPLY:0):サド || TALENT:(MPLY:0):Ｓ気質
+			PRINTFORMW %ANAME(MPLY:0)%は嗜虐的な笑みを浮かべながら、%LOCALS:1%%ANAME(MTAR:0)%の頬を平手で思い切り張り叩い%TARGET_STR("た", "てきた")%…
+		ELSE
+			PRINTFORMW %ANAME(MPLY:0)%は%LOCALS:1%%ANAME(MTAR:0)%の頬を平手で叩い%TARGET_STR("た", "てきた")%…
+		ENDIF
+	;ターゲットに主導権
+	CASE 1
+		PRINTFORML %ANAME(MTAR:0)%は%ANAME(MPLY:0)%に対して、自分の頬を叩くように命令した
+		IF MPLY:0 == MASTER
+			PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%に言われるまま、%ANAME(MTAR:0)%の頬を平手で叩いた…
+		ELSEIF TALENT:(MPLY:0):サド || TALENT:(MPLY:0):Ｓ気質
+			PRINTFORMW %ANAME(MPLY:0)%は呆れたように%ANAME(MTAR:0)%を見ると、%ANAME(MTAR:0)%の頬を思い切り張り叩い%TARGET_STR("た", "てきた")%…
+		ELSE
+			PRINTFORMW %ANAME(MPLY:0)%は困惑しながらも、言われた通りに%ANAME(MTAR:0)%の頬を平手で叩いた…
+		ENDIF
+	;第三者に主導権
+	CASEELSE
+		PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に対して、%ANAME(MTAR:0)%の頬を叩くように命令した
+		PRINTFORMW %ANAME(MPLY:0)%は言われるまま、%LOCALS:1%%ANAME(MTAR:0)%の頬を平手で叩いた…
+ENDSELECT
+
+;--------------------------------------------------------
+;地の文(パラメータ・刻印変動後)
+;--------------------------------------------------------
+@COM_TEXT_LAST89
+FOR LOCAL:0, 0, MTAR_NUM
+	LOCAL:1 = MTAR:(LOCAL:0)
+	IF LOCAL:1 != MASTER && IS_PLAYABLE(LOCAL:1)
+		LOCAL:2 = CUP:(MTAR:0):怖主
+		LOCAL:3 = CUP:(MTAR:0):怒主
+
+		IF TALENT:(LOCAL:1):マゾ
+			PRINTFORML %ANAME(LOCAL:1)%は与えられた苦痛と屈辱に興奮したのか、恍惚とした表情で息を荒らげている
+		ELSEIF ABL:(LOCAL:1):主導度Ｕ <= -100 && ABL:(LOCAL:1):倒錯度 >= 300
+			PRINTFORML %ANAME(LOCAL:1)%は痛みに頬を押さえながらも、どこか恍惚とした表情を浮かべている
+		ELSEIF LOCAL:2 >= 1500
+			PRINTFORML %ANAME(LOCAL:1)%は痛みと恐怖のあまり体を竦ませ震えている
+		ELSEIF LOCAL:2 >= 500
+			IF LOCAL:3 >= 200 && !IS_INITIATIVE(MTAR:(LOCAL:0))
+				PRINTFORML %ANAME(LOCAL:1)%は涙目になりながらも、怒りの篭った瞳で%ANAME(MPLY:0)%を睨みつけた
+			ELSEIF LOCAL:3 >= 50 && !IS_INITIATIVE(MTAR:(LOCAL:0))
+				PRINTFORML %ANAME(LOCAL:1)%は涙目になりながら%ANAME(MPLY:0)%を睨んだ
+			ELSE
+				PRINTFORML %ANAME(LOCAL:1)%は涙目になりながら痛みに耐えている
+			ENDIF
+		ELSE
+			IF LOCAL:3 >= 200 && !IS_INITIATIVE(MTAR:(LOCAL:0))
+				PRINTFORML %ANAME(LOCAL:1)%は怒りの篭った瞳で%ANAME(MPLY:0)%を睨みつけた
+			ELSEIF LOCAL:3 >= 50 && !IS_INITIATIVE(MTAR:(LOCAL:0))
+				PRINTFORML %ANAME(LOCAL:1)%は%ANAME(MPLY:0)%を睨みつけた
+			ELSE
+				PRINTFORML %ANAME(LOCAL:1)%は頬を張られる痛みに小さく呻いた
+			ENDIF
+		ENDIF
+	ENDIF
+NEXT

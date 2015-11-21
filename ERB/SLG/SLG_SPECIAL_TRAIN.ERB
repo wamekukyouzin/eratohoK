@@ -1,0 +1,198 @@
+﻿@SLG_SPECIAL_TRAIN()
+#DIM 対象キャラ, 1
+#DIM 対象項目, 1
+#DIM 取得経験値, 1
+;ページ数の計算
+LOCAL:20 = 0
+FOR LOCAL:0, 0, CHARANUM
+	;マスターと所属勢力が同じキャラのみカウント
+	IF CFLAG:(LOCAL:0):1 == CFLAG:MASTER:1 && TMP_IS_FREE:(LOCAL:0):0 == 0
+		LOCAL:20 ++
+	ENDIF
+NEXT
+LOCAL:20 = (LOCAL:20 - 1) / 40 + 1
+LOCAL:21 = 1
+
+;IS_FREEを作成しておく
+CALL TMP_CREATE_IS_FREE_MAP
+
+$SHOW_LOOP2
+
+LOCAL:4 = 0
+LOCAL:6 = 0
+LOCAL:7 = 0
+LOCAL:8 = 0
+LOCAL:9 = 0
+DRAWLINE
+PRINTFORML 金10000を消費し、配下に訓練を受けさせることができます
+PRINTFORML 訓練を行うとターンが消費されます
+PRINTFORML 誰を訓練しますか？
+PRINTFORML 現在の金:{MONEY}
+DRAWLINE
+PRINTFORM %TOSTR_SPACE(22)%  武/ 知/ 政/ 妖/ 歌/ 料 %TOSTR_SPACE(29)%  武/ 知/ 政/ 妖/ 歌/ 料
+PRINTL 
+LOCAL:25 = 13
+LOCAL:1 = 0
+LOCAL:22 = 0
+LOCAL:23 = (LOCAL:21 - 1) * 40
+LOCAL:24 = LOCAL:21 * 40
+FOR LOCAL:0, 0, CHARANUM
+	;マスターと所属勢力が同じキャラのみ（マスターを除く）
+	IF LOCAL:0 != MASTER && CFLAG:(LOCAL:0):1 == CFLAG:MASTER:1 && TMP_IS_FREE:(LOCAL:0):0 == 0
+		IF LOCAL:22 >= LOCAL:23 && LOCAL:22 < LOCAL:24
+			IF LOCAL:1 % 2 != 0
+				PRINT 　　　
+			ELSEIF LOCAL:1 >= 1
+				PRINTL 
+				LOCAL:25 ++
+			ENDIF
+			LOCALS:0 = {GET_ID(LOCAL:0) + 99, 4}[%ANAME(LOCAL:0), 17, RIGHT% {ABL:(LOCAL:0):武闘, 3}/{ABL:(LOCAL:0):知略, 3}/
+			LOCALS:0 += @"{ABL:(LOCAL:0):政治, 3}/{ABL:(LOCAL:0):妖術, 3}/{ABL:(LOCAL:0):歌唱, 3}/{ABL:(LOCAL:0):料理, 3} ]"
+			PRINTBUTTON LOCALS:0, GET_ID(LOCAL:0) + 99
+			RESETCOLOR
+			LOCAL:1 ++
+		ENDIF
+		LOCAL:22 ++
+	ENDIF
+NEXT
+PRINTL 
+DRAWLINE
+
+IF LOCAL:20 >= 2
+	LOCAL:25 += 2
+	IF LOCAL:21 > 1
+		PRINT [  8] 前のページ            
+	ELSE
+		PRINT                             
+	ENDIF
+	LOCALS:0 = page{LOCAL:21}/{LOCAL:20}
+	PRINTPLAINFORM %LOCALS:0, 28, LEFT%
+	IF LOCAL:21 < LOCAL:20
+		PRINT [  9] 後のページ
+	ENDIF
+	PRINTL 
+	DRAWLINE
+ENDIF
+PRINTL [  0] 戻る
+PRINTL 
+
+REDRAW 0
+
+$INPUT_LOOP
+INPUT
+
+IF RESULT == 8 && LOCAL:21 > 1
+	LOCAL:21 --
+	CLEARLINE LOCAL:25
+	GOTO SHOW_LOOP2
+ELSEIF RESULT == 9 && LOCAL:21 < LOCAL:20
+	LOCAL:21 ++
+	CLEARLINE LOCAL:25
+	GOTO SHOW_LOOP2
+ELSEIF RESULT == 0
+	RETURN
+ENDIF
+対象キャラ = ID_TO_CHARA(RESULT-99)
+;範囲外、存在しないキャラはダメ
+IF 対象キャラ == -1
+	CLEARLINE LOCAL:25
+	GOTO SHOW_LOOP2
+;選択条件を満たしていない、そのターン会うとかした、TMP_IS_FREEが勃っているとだめ
+ELSEIF CFLAG:MASTER:1 != CFLAG:(対象キャラ):1 || TMP_IS_FREE:(対象キャラ):0 != 0
+	CLEARLINE LOCAL:25
+	GOTO SHOW_LOOP2
+ELSE
+	DRAWLINE
+	PRINTFORML %ANAME(対象キャラ)%のどの能力を訓練しますか？
+	DRAWLINE
+	PRINTBUTTONLC @"[1] 武闘 - {ABL:(対象キャラ):武闘}", 50
+	PRINTL 
+	PRINTBUTTONLC @"[2] 知略 - {ABL:(対象キャラ):知略}", 51
+	PRINTL 
+	PRINTBUTTONLC @"[3] 政治 - {ABL:(対象キャラ):政治}", 52
+	PRINTL 
+	PRINTBUTTONLC @"[4] 歌唱 - {ABL:(対象キャラ):歌唱}", 60
+	PRINTL 
+	PRINTBUTTONLC @"[5] 料理 - {ABL:(対象キャラ):料理}", 61
+	PRINTL 
+	IF TALENT:(対象キャラ):妖術知識
+		PRINTBUTTONLC @"[6] 妖術 - {ABL:(対象キャラ):妖術}", 53
+		PRINTL
+	ENDIF
+	DRAWLINE
+	PRINTBUTTONLC "[0] 戻る", 0
+	PRINTL 
+	$INPUT_LOOP2
+	INPUT
+	IF RESULT == 0
+		GOTO SHOW_LOOP2
+	ELSEIF RESULT != 50 && RESULT != 51 && RESULT != 52  && RESULT != 53 && RESULT != 60 && RESULT != 61
+		GOTO INPUT_LOOP2
+	ELSE
+		対象項目 = RESULT
+		LOCAL:1 = ABL:(対象キャラ):(対象項目)
+		SELECTCASE 対象項目
+			;三能力
+			CASE 50 TO 52
+				LOCAL:2 = ABL:(対象キャラ):武闘 + ABL:(対象キャラ):知略 + ABL:(対象キャラ):政治
+				取得経験値 = 80 * (300 - LOCAL:2) / 300
+				;選択した項目が高いと取得経験値は下がる
+				SELECTCASE LOCAL:1
+					CASE IS < 50
+					CASE IS < 70
+						取得経験値 = 取得経験値 * 80 / 100
+					CASE IS < 80
+						取得経験値 = 取得経験値 * 60 / 100
+					CASEELSE
+						取得経験値 = 取得経験値 * 30 / 100
+				ENDSELECT
+			;歌唱と料理
+			CASE 60 TO 61
+				LOCAL:2 = ABL:(対象キャラ):歌唱 + ABL:(対象キャラ):料理
+				取得経験値 = 60 * (200 - LOCAL:2) / 200
+				;三能力に比べ、下方修正がきつい(50越えたら発動するため）
+				SELECTCASE LOCAL:1
+					CASE IS < 20
+					CASE IS < 40
+						取得経験値 = 取得経験値 * 70 / 100
+					CASE IS < 50
+						取得経験値 = 取得経験値 * 50 / 100
+					CASEELSE
+						取得経験値 = 取得経験値 * 30 / 100
+				ENDSELECT
+			CASE 53
+				取得経験値 = RAND(500, 1000)
+				SELECTCASE LOCAL:1
+					CASE IS < 20
+					CASE IS < 40
+						取得経験値 = 取得経験値 * 70 / 100
+					CASE IS < 50
+						取得経験値 = 取得経験値 * 50 / 100
+					CASEELSE
+						取得経験値 = 取得経験値 * 30 / 100
+				ENDSELECT
+		ENDSELECT
+		取得経験値 = MAX(取得経験値, 5)
+		SELECTCASE 対象項目
+			CASE 50
+				EXP:(対象キャラ):武闘経験値 += 取得経験値
+			CASE 51
+				EXP:(対象キャラ):知略経験値 += 取得経験値
+			CASE 52
+				EXP:(対象キャラ):政治経験値 += 取得経験値
+			CASE 53
+				EXP:(対象キャラ):妖術経験値 += 取得経験値
+			CASE 60
+				EXP:(対象キャラ):歌唱経験値 += 取得経験値
+			CASE 61
+				EXP:(対象キャラ):料理経験値 += 取得経験値
+		ENDSELECT
+		PRINTFORML 訓練を行った！
+		CALL TRAIN_AUTO_ABLUP(対象キャラ)
+		MONEY -= 10000
+		PRINTFORMW %ANAME(対象キャラ)%はいい汗をかいたようだ……
+	ENDIF
+	PRINTFORML
+	DRAWLINE
+	BEGIN TURNEND
+ENDIF

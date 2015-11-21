@@ -1,0 +1,2295 @@
+﻿;基本的な関数をまとめる
+
+;-------------------------------------------------
+;キャラ加入時の共通設定
+;-------------------------------------------------
+@NEWCHARA_INIT(ARG:0)
+;キャラIDを設定(1から始まる)
+FLAG:998 ++
+CFLAG:(ARG:0):81 = FLAG:998
+
+;主導度・倒錯度の初期設定
+CALL INIT_TENDENCY(ARG:0)
+
+;初期値記録フラグを立てる
+CFLAG:(ARG:0):5 = 1
+
+;キス未経験でないならキス経験を不明として記録
+IF !TALENT:(ARG:0):キス未経験 && CFLAG:(ARG:0):61 == 0
+	CFLAG:(ARG:0):60 = -1
+	CFLAG:(ARG:0):61 = -1
+ENDIF
+
+;初期化に必要な変数を記録
+FOR LOCAL:0, 0, VARSIZE("BASE")
+	INI_MAXBASE:(ARG:0):(LOCAL:0) = MAXBASE:(ARG:0):(LOCAL:0)
+NEXT
+FOR LOCAL:0, 0, VARSIZE("TALENT")
+	INI_TALENT:(ARG:0):(LOCAL:0) = TALENT:(ARG:0):(LOCAL:0)
+NEXT
+FOR LOCAL:0, 0, VARSIZE("ABL")
+	INI_ABL:(ARG:0):(LOCAL:0) = ABL:(ARG:0):(LOCAL:0)
+NEXT
+FOR LOCAL:0, 0, VARSIZE("EXP")
+	INI_EXP:(ARG:0):(LOCAL:0) = EXP:(ARG:0):(LOCAL:0)
+NEXT
+
+;汎用キャラなら口上パターンを設定
+IF NO:(ARG:0) > 200 || NO:(ARG:0) < 2000
+	CALL SET_KOJO_PATTERN(ARG:0)
+ENDIF
+
+;-------------------------------------------------
+;キャラARG:0を削除する関数
+;-------------------------------------------------
+@DELETE_CHARA(ARG:0)
+;固定キャラの場合
+IF NO:(ARG:0) < 201
+	;削除は禁止。エラーメッセージを出力
+	THROW 固定キャラを削除することはできません(キャラ番号={ARG:0})
+
+;ランダムキャラ(汎用)の場合
+ELSEIF NO:(ARG:0) < 401
+	;キャラARG:0より後ろのNOを持つキャラのNOを詰める
+	FOR LOCAL:0, 0, CHARANUM
+		IF NO:(LOCAL:0) > NO:(ARG:0) && NO:(LOCAL:0) < 401
+			NO:(LOCAL:0) --
+		ENDIF
+	NEXT
+	;ランダムキャラのNO割り振り用変数を一つ戻す
+	FLAG:8 --
+
+;ランダムキャラ(子供)の場合
+ELSEIF NO:(ARG:0) < 901
+	;キャラARG:0より後ろのNOを持つキャラのNOを詰める
+	FOR LOCAL:0, 0, CHARANUM
+		IF NO:(LOCAL:0) > NO:(ARG:0) && NO:(LOCAL:0) < 901
+			NO:(LOCAL:0) --
+		ENDIF
+	NEXT
+	;子供のNO割り振り用変数を一つ戻す
+	FLAG:9 --
+
+;イベントキャラの場合
+ELSE
+	;固有の処理は不要
+ENDIF
+IF FLAG:料理長 == ARG:0
+	PRINTFORML %ANAME(ARG:0)%は料理長に指定されていたので、解任しました
+	FLAG:料理長 = 0
+ENDIF
+;キャラの削除
+DELCHARA ARG:0
+
+;REL_LIKE、REL_HATEの修正
+FOR LOCAL:0, 0, CHARANUM
+	FOR LOCAL:1, ARG:0, CHARANUM
+		REL_LIKE:(LOCAL:0):(LOCAL:1) = REL_LIKE:(LOCAL:0):(LOCAL:1 + 1)
+		REL_HATE:(LOCAL:0):(LOCAL:1) = REL_HATE:(LOCAL:0):(LOCAL:1 + 1)
+	NEXT
+	REL_LIKE:(LOCAL:0):CHARANUM = 0
+	REL_HATE:(LOCAL:0):CHARANUM = 0
+NEXT
+
+;-------------------------------------------------
+;キャラARG:0とARG:1のキャラ番号を入れ替える関数(必要な変数も追随させる)
+;-------------------------------------------------
+@SWAP_CHARA(ARG:0, ARG:1)
+SWAPCHARA ARG:0, ARG:1
+
+;REL_LIKE、REL_HATEの修正
+FOR LOCAL:0, 0, CHARANUM
+	SWAP REL_LIKE:(LOCAL:0):(ARG:0), REL_LIKE:(LOCAL:0):(ARG:1)
+	SWAP REL_HATE:(LOCAL:0):(ARG:0), REL_HATE:(LOCAL:0):(ARG:1)
+NEXT
+
+;-------------------------------------------------
+;キャラをNO順に並べ替える関数(必要な変数も追随させる)
+;-------------------------------------------------
+@SORT_CHARA_NO
+FOR LOCAL:0, 1, CHARANUM
+	FOR LOCAL:1, LOCAL:0, 0, -1
+		IF NO:(LOCAL:1 - 1) > NO:(LOCAL:1)
+			CALL SWAP_CHARA(LOCAL:1 - 1, LOCAL:1)
+		ELSE
+			BREAK
+		ENDIF
+	NEXT
+NEXT
+
+;-------------------------------------------------
+;キャラARG:0を初期状態に戻す関数(初期値が記録されていない場合、再生成を試みる)
+;固定キャラに使用した場合、後でADDITIONAL_CHARA_SETTING関数を呼び出すこと
+;-------------------------------------------------
+@INITIALIZE_CHARA(ARG:0)
+LOCAL:5 = CFLAG:(ARG:0):5
+
+;初期値が記録されておらず、CSVも存在しない場合
+IF !LOCAL:5 && !EXISTCSV(NO:(ARG:0))
+	;初期化しない(できない)
+	RETURN
+ENDIF
+
+;初期化しないCFLAGを退避
+LOCAL:9 = 0
+IF CFLAG:(ARG:0):16 == 4
+	LOCAL:9 = 1
+ENDIF
+LOCAL:10 = CFLAG:(ARG:0):20
+LOCAL:11 = CFLAG:(ARG:0):21
+LOCAL:12 = CFLAG:(ARG:0):24
+LOCAL:13 = CFLAG:(ARG:0):28
+LOCAL:14 = CFLAG:(ARG:0):81
+LOCAL:15 = CFLAG:(ARG:0):50
+LOCAL:16 = CFLAG:(ARG:0):51
+LOCAL:17 = CFLAG:(ARG:0):52
+LOCAL:18 = CFLAG:(ARG:0):53
+LOCAL:19 = CFLAG:(ARG:0):54
+
+;CFLAG, MARK, PALAMを全て0に
+FOR LOCAL:0, 0, VARSIZE("CFLAG")
+	CFLAG:(ARG:0):(LOCAL:0) = 0
+NEXT
+FOR LOCAL:0, 0, VARSIZE("MARK")
+	MARK:(ARG:0):(LOCAL:0) = 0
+NEXT
+FOR LOCAL:0, 0, VARSIZE("PALAM")
+	PALAM:(ARG:0):(LOCAL:0) = 0
+NEXT
+
+;REL_LIKE、REL_HATEを初期化
+FOR LOCAL:0, 0, CHARANUM
+	REL_LIKE:(ARG:0):(LOCAL:0) = 0
+	REL_HATE:(ARG:0):(LOCAL:0) = 0
+	REL_LIKE:(LOCAL:0):(ARG:0) = 0
+	REL_HATE:(LOCAL:0):(ARG:0) = 0
+NEXT
+
+;初期化しないCFLAGを再設定
+IF LOCAL:9
+	CFLAG:(ARG:0):16 = 4
+ENDIF
+CFLAG:(ARG:0):20 = LOCAL:10
+CFLAG:(ARG:0):21 = LOCAL:11
+CFLAG:(ARG:0):24 = LOCAL:12
+CFLAG:(ARG:0):28 = LOCAL:13
+CFLAG:(ARG:0):81 = LOCAL:14
+CFLAG:(ARG:0):50 = LOCAL:15
+CFLAG:(ARG:0):51 = LOCAL:16
+CFLAG:(ARG:0):52 = LOCAL:17
+CFLAG:(ARG:0):53 = LOCAL:18
+CFLAG:(ARG:0):54 = LOCAL:19
+
+;初期値が記録されている場合
+IF LOCAL:5
+	;MAXBASE, TALENT, ABL, EXPを初期値に戻す
+	FOR LOCAL:0, 0, VARSIZE("BASE")
+		MAXBASE:(ARG:0):(LOCAL:0) = INI_MAXBASE:(ARG:0):(LOCAL:0)
+		BASE:(ARG:0):(LOCAL:0) = MAXBASE:(ARG:0):(LOCAL:0)
+	NEXT
+	FOR LOCAL:0, 0, VARSIZE("TALENT")
+		TALENT:(ARG:0):(LOCAL:0) = INI_TALENT:(ARG:0):(LOCAL:0)
+	NEXT
+	FOR LOCAL:0, 0, VARSIZE("ABL")
+		ABL:(ARG:0):(LOCAL:0) = INI_ABL:(ARG:0):(LOCAL:0)
+	NEXT
+	FOR LOCAL:0, 0, VARSIZE("EXP")
+		EXP:(ARG:0):(LOCAL:0) = INI_EXP:(ARG:0):(LOCAL:0)
+	NEXT
+
+;初期値が記録されていない場合
+ELSE
+	;MAXBASE, TALENT, ABL, EXPをCSVファイルから読み込む
+	FOR LOCAL:0, 0, VARSIZE("BASE")
+		MAXBASE:(ARG:0):(LOCAL:0) = CSVBASE(NO:(ARG:0), LOCAL:0)
+		BASE:(ARG:0):(LOCAL:0) = MAXBASE:(ARG:0):(LOCAL:0)
+	NEXT
+	FOR LOCAL:0, 0, VARSIZE("TALENT")
+		TALENT:(ARG:0):(LOCAL:0) = CSVTALENT(NO:(ARG:0), LOCAL:0)
+	NEXT
+	FOR LOCAL:0, 0, VARSIZE("ABL")
+		ABL:(ARG:0):(LOCAL:0) = CSVABL(NO:(ARG:0), LOCAL:0)
+	NEXT
+	FOR LOCAL:0, 0, VARSIZE("EXP")
+		EXP:(ARG:0):(LOCAL:0) = CSVEXP(NO:(ARG:0), LOCAL:0)
+	NEXT
+
+	;主導度・倒錯度の初期設定
+	CALL INIT_TENDENCY(ARG:0)
+
+	;初期値記録フラグを立てる
+	CFLAG:(ARG:0):5 = 1
+
+	;初期化に必要な変数を記録
+	FOR LOCAL:0, 0, VARSIZE("BASE")
+		INI_MAXBASE:(ARG:0):(LOCAL:0) = MAXBASE:(ARG:0):(LOCAL:0)
+	NEXT
+	FOR LOCAL:0, 0, VARSIZE("TALENT")
+		INI_TALENT:(ARG:0):(LOCAL:0) = TALENT:(ARG:0):(LOCAL:0)
+	NEXT
+	FOR LOCAL:0, 0, VARSIZE("ABL")
+		INI_ABL:(ARG:0):(LOCAL:0) = ABL:(ARG:0):(LOCAL:0)
+	NEXT
+	FOR LOCAL:0, 0, VARSIZE("EXP")
+		INI_EXP:(ARG:0):(LOCAL:0) = EXP:(ARG:0):(LOCAL:0)
+	NEXT
+ENDIF
+
+;-------------------------------------------------
+;TALENTの初期値を現在の値に設定する関数
+;-------------------------------------------------
+@SET_INI_TALENT(ARG:0, ARGS:1)
+LOCAL:0 = NAME_TO_NUM("TALENT", ARGS:1)
+INI_TALENT:(ARG:0):(LOCAL:0) = TALENT:(ARG:0):(LOCAL:0)
+
+;-------------------------------------------------
+;ABLの初期値を現在の値に設定する関数
+;-------------------------------------------------
+@SET_INI_ABL(ARG:0, ARGS:1)
+LOCAL:0 = NAME_TO_NUM("ABL", ARGS:1)
+INI_ABL:(ARG:0):(LOCAL:0) = ABL:(ARG:0):(LOCAL:0)
+
+;-------------------------------------------------
+;ARG:0番のキャラについて、真名が許されていれば真名を、そうでないなら性名を返す関数
+;引数を省略するとエラーになる
+;-------------------------------------------------
+@ANAME(ARG:0 = -999)
+#FUNCTIONS
+IF ARG:0 == -999
+	THROW 関数@ANAMEに引数が設定されていません
+ENDIF
+IF CFLAG:(ARG:0):8 || ARG:0 == MASTER
+	RETURNF @"%NAME:(ARG:0)%"
+ENDIF
+RETURNF @"%NAME:(ARG:0)%"
+
+;-------------------------------------------------
+;ARG:0番のキャラについて、「姓名」の形の文字列を返す関数
+;引数を省略するとエラーになる
+;-------------------------------------------------
+@NAME_DOUBLE(ARG:0 = -999)
+#FUNCTIONS
+IF ARG:0 == -999
+	THROW 関数@NAME_DOUBLEに引数が設定されていません
+ENDIF
+IF CALLNAME:(ARG:0) == NAME:(ARG:0)
+	RETURNF @"%NAME:(ARG:0)%"
+ENDIF
+RETURNF @"%NAME:(ARG:0)%"
+
+;-------------------------------------------------
+;ARG:0番のキャラについて、「姓+名」の形の文字列を返す関数
+;(恋姫では字も表示する仕様でしたが、Kに字はないので削除）
+;姓名字が設定されていなければNAMEまたはCALLNAMEを返す
+;-------------------------------------------------
+@NAME_FORMAL(ARG:0)
+#FUNCTIONS
+LOCALS:0 = %CSTR:(ARG:0):0%%CSTR:(ARG:0):1%
+IF LOCALS:0 == ""
+	LOCALS:0 = %NAME:(ARG:0)%
+ENDIF
+IF LOCALS:0 == ""
+	LOCALS:0 = %CALLNAME:(ARG:0)%
+ENDIF
+RETURNF LOCALS:0
+
+;-------------------------------------------------
+;ARG:0番のキャラのIDを取得する関数
+;-------------------------------------------------
+@GET_ID(ARG:0)
+#FUNCTION
+IF ARG:0 < 0 || ARG:0 >= CHARANUM
+	RETURNF 0
+ENDIF
+RETURNF CFLAG:(ARG:0):81
+
+;-------------------------------------------------
+;CSV登録番号を元にキャラ番号を返す関数
+;-------------------------------------------------
+@NO_TO_CHARA(ARG:0)
+#FUNCTION
+FOR LOCAL:0, 0, CHARANUM
+	IF NO:(LOCAL:0) == ARG:0
+		RETURNF LOCAL:0
+	ENDIF
+NEXT
+RETURNF -1
+
+;-------------------------------------------------
+;IDを元にキャラ番号を返す関数
+;-------------------------------------------------
+@ID_TO_CHARA(ARG:0)
+#FUNCTION
+IF ARG:0 >= 1
+	FOR LOCAL:0, 0, CHARANUM
+		IF GET_ID(LOCAL:0) == ARG:0
+			RETURNF LOCAL:0
+		ENDIF
+	NEXT
+ENDIF
+RETURNF -1
+
+;-------------------------------------------------
+;名前(CSTR:99)を元にキャラ番号を返す関数
+;-------------------------------------------------
+@NAME_TO_CHARA(ARGS:0)
+#FUNCTION
+FOR LOCAL:0, 0, CHARANUM
+	IF CSTR:(LOCAL:0):99 == ARGS:0
+		RETURNF LOCAL:0
+	ENDIF
+NEXT
+RETURNF -1
+
+;-------------------------------------------------
+;ARG:0番のキャラがターゲットかどうかを返す関数
+;-------------------------------------------------
+@IS_MTAR(ARG:0)
+#FUNCTION
+FOR LOCAL:0, 0, MTAR_NUM
+	IF MTAR:(LOCAL:0) == ARG:0
+		RETURNF 1
+	ENDIF
+NEXT
+RETURNF 0
+
+;-------------------------------------------------
+;ARG:0番のキャラをターゲットに追加する関数
+;既にターゲットとなっているキャラを指定してもエラーにならない
+;-------------------------------------------------
+@ADD_MTAR(ARG:0)
+IF ARG:0 < 0 || ARG:0 >= CHARANUM || IS_MTAR(ARG:0)
+	RETURN 0
+ENDIF
+
+;キャラ番号の若い順に並べ替える
+MTAR_NUM ++
+LOCAL:1 = MTAR_NUM - 1
+FOR LOCAL:0, 0, MTAR_NUM
+	IF ARG:0 < MTAR:(LOCAL:0)
+		FOR LOCAL:1, 1, MTAR_NUM - LOCAL:0
+			MTAR:(MTAR_NUM - LOCAL:1) = MTAR:(MTAR_NUM - LOCAL:1 - 1)
+		NEXT
+		LOCAL:1 = LOCAL:0
+		BREAK
+	ENDIF
+NEXT
+MTAR:(LOCAL:1) = ARG:0
+RETURN 1
+
+;-------------------------------------------------
+;ARG:0番のキャラをターゲットから削除する関数
+;ターゲットでないキャラを指定してもエラーにならない
+;-------------------------------------------------
+@DEL_MTAR(ARG:0)
+IF ARG:0 < 0 || ARG:0 >= CHARANUM
+	RETURN 0
+ENDIF
+
+FOR LOCAL:0, 0, MTAR_NUM
+	IF MTAR:(LOCAL:0) == ARG:0
+		FOR LOCAL:1, LOCAL:0, MTAR_NUM - 1
+			MTAR:(LOCAL:1) = MTAR:(LOCAL:1 + 1)
+		NEXT
+		MTAR:(MTAR_NUM - 1) = -1
+		MTAR_NUM --
+		RETURN 1
+	ENDIF
+NEXT
+
+RETURN 0
+
+;-------------------------------------------------
+;全てのターゲットを解除する関数
+;-------------------------------------------------
+@CLEAR_MTAR
+VARSET MTAR, -1
+MTAR_NUM = 0
+
+;-------------------------------------------------
+;ARG:0番のキャラがプレイヤーかどうかを返す関数
+;-------------------------------------------------
+@IS_MPLY(ARG:0)
+#FUNCTION
+FOR LOCAL:0, 0, MPLY_NUM
+	IF MPLY:(LOCAL:0) == ARG:0
+		RETURNF 1
+	ENDIF
+NEXT
+RETURNF 0
+
+;-------------------------------------------------
+;ARG:0番のキャラをプレイヤーに追加する関数
+;既にプレイヤーとなっているキャラを指定してもエラーにならない
+;-------------------------------------------------
+@ADD_MPLY(ARG:0)
+IF ARG:0 < 0 || ARG:0 >= CHARANUM || IS_MPLY(ARG:0)
+	RETURN 0
+ENDIF
+
+;キャラ番号の若い順に並べ替える
+MPLY_NUM ++
+LOCAL:1 = MPLY_NUM - 1
+FOR LOCAL:0, 0, MPLY_NUM
+	IF ARG:0 < MPLY:(LOCAL:0)
+		FOR LOCAL:1, 1, MPLY_NUM - LOCAL:0
+			MPLY:(MPLY_NUM - LOCAL:1) = MPLY:(MPLY_NUM - LOCAL:1 - 1)
+		NEXT
+		LOCAL:1 = LOCAL:0
+		BREAK
+	ENDIF
+NEXT
+MPLY:(LOCAL:1) = ARG:0
+RETURN 1
+
+;-------------------------------------------------
+;ARG:0番のキャラをプレイヤーから削除する関数
+;プレイヤーでないキャラを指定してもエラーにならない
+;-------------------------------------------------
+@DEL_MPLY(ARG:0)
+IF ARG:0 < 0 || ARG:0 >= CHARANUM
+	RETURN 0
+ENDIF
+
+FOR LOCAL:0, 0, MPLY_NUM
+	IF MPLY:(LOCAL:0) == ARG:0
+		FOR LOCAL:1, LOCAL:0, MPLY_NUM - 1
+			MPLY:(LOCAL:1) = MPLY:(LOCAL:1 + 1)
+		NEXT
+		MPLY:(MPLY_NUM - 1) = -1
+		MPLY_NUM --
+		RETURN 1
+	ENDIF
+NEXT
+
+RETURN 0
+
+;-------------------------------------------------
+;全てのプレイヤーを解除する関数
+;-------------------------------------------------
+@CLEAR_MPLY
+VARSET MPLY, -1
+MPLY_NUM = 0
+
+;-------------------------------------------------
+;そのARG:0番のキャラが担当してる説得相手のキャラ番号を返す関数
+;居なかったら-1を返す
+;「説得させる」などで使用します
+;-------------------------------------------------
+@SETTOKU_CHARA(ARG:0)
+#FUNCTION
+FOR LOCAL:0, 0, CHARANUM
+	IF CFLAG:(LOCAL:0):74 == GET_ID(ARG:0)
+		RETURNF LOCAL:0
+	ENDIF
+NEXT
+RETURNF -1
+
+;-------------------------------------------------
+;指定個数の半角スペースを文字列として返す関数
+;-------------------------------------------------
+@TOSTR_SPACE(ARG:0)
+#FUNCTIONS
+LOCALS:0 = 
+FOR LOCAL:0, 0, ARG:0
+	LOCALS:0 += " "
+NEXT
+RETURNF LOCALS:0
+
+;-------------------------------------------------
+;文字列ARGS:0をARG:1回繰り返した文字列を返す関数
+;-------------------------------------------------
+@TOSTR_REPEAT(ARGS:0, ARG:1)
+#FUNCTIONS
+LOCALS:0 = 
+FOR LOCAL:0, 0, ARG:1
+	LOCALS:0 += ARGS:0
+NEXT
+RETURNF LOCALS:0
+
+;-------------------------------------------------
+;ARG:0の桁数を返す関数
+;-------------------------------------------------
+@GET_DIGIT(ARG:0)
+#FUNCTION
+LOCAL:1 = ABS(ARG:0)
+LOCAL:2 = 0
+FOR LOCAL:0, 0, 100
+	IF LOCAL:1 < 1000
+		BREAK
+	ENDIF
+	LOCAL:1 /= 10000
+	LOCAL:2 += 4
+NEXT
+IF LOCAL:1 >= 100
+	LOCAL:2 += 3
+ELSEIF LOCAL:1 >= 10
+	LOCAL:2 += 2
+ELSEIF LOCAL:1 > 0
+	LOCAL:2 += 1
+ENDIF
+RETURNF MAX(1, LOCAL:2)
+
+;-------------------------------------------------
+;規定文字数(全角ARG:2字)の幅でセンタリングしたボタンを作成する関数
+;ARG:3に0を設定するとボタンが無効(灰色)、ARG:4に1を設定するとボタンが無効(水色)、優先度はARG:3＞ARG:4
+;-------------------------------------------------
+@PRINTBUTTON_CENTER(ARGS:0, ARG:1, ARG:2, ARG:3 = 1, ARG:4 = 0)
+LOCAL:0 = ARG:2 - STRLENS(ARGS:0) / 2
+
+PRINTPLAINFORM %TOSTR_SPACE(LOCAL:0)%
+IF !ARG:3
+	SETCOLOR COLOR_UNSELECTABLE
+	PRINTPLAINFORM %ARGS:0%
+	RESETCOLOR
+ELSEIF ARG:4
+	SETCOLOR COLOR_CYAN
+	PRINTPLAINFORM %ARGS:0%
+	RESETCOLOR
+ELSE
+	PRINTBUTTON @"%ARGS:0%", ARG:1
+ENDIF
+PRINTPLAINFORM %TOSTR_SPACE(LOCAL:0)%
+
+;-------------------------------------------------
+;特殊な機能を持つボタンを作成する関数
+;ARG:2に0を設定するとボタンが無効(灰色)、ARG:3に1を設定するとボタンが無効(水色)、優先度はARG:3＞ARG:4
+;-------------------------------------------------
+@PRINTBUTTON_EX(ARGS:0, ARG:1, ARG:2 = 1, ARG:3 = 0)
+IF !ARG:2
+	SETCOLOR 0x606060
+	PRINTPLAINFORM %ARGS:0%
+	RESETCOLOR
+ELSEIF ARG:3
+	SETCOLOR 0x00FFFF
+	PRINTPLAINFORM %ARGS:0%
+	RESETCOLOR
+ELSE
+	PRINTBUTTON @"%ARGS:0%", ARG:1
+ENDIF
+
+;-------------------------------------------------
+;特殊な機能を持つボタンを作成する関数 最後に改行を行う
+;ARG:2に0を設定するとボタンが無効(灰色)、ARG:3に1を設定するとボタンが無効(水色)、優先度はARG:3＞ARG:4
+;-------------------------------------------------
+@PRINTBUTTON_EXL(ARGS:0, ARG:1, ARG:2 = 1, ARG:3 = 0)
+CALL PRINTBUTTON_EX(ARGS:0, ARG:1, ARG:2, ARG:3)
+PRINTL 
+
+;-------------------------------------------------
+;パラメータ量ARG:0に対するパラメータのLvを返す関数
+;※組み込みのGETPALAMLVとは別物
+;-------------------------------------------------
+@GET_PALAMLV(ARG:0)
+#FUNCTION
+LOCAL:1 = 25
+FOR LOCAL:0, 1, 26
+	IF ARG:0 < PALAMLV:(LOCAL:0)
+		LOCAL:1 = LOCAL:0 - 1
+		BREAK
+	ENDIF
+NEXT
+RETURNF LOCAL:1
+
+;-------------------------------------------------
+;各変数の名称を元に、定義番号を返す関数
+;ARGS:0 = TALENT/ABL/PALAM/EXPのいずれか  ARGS:1 = 定義された変数の名称
+;-------------------------------------------------
+@NAME_TO_NUM(ARGS:0, ARGS:1)
+#FUNCTION
+IF ARGS:0 == "TALENT"
+	FOR LOCAL:0, 0, VARSIZE("TALENT")
+		IF TALENTNAME:(LOCAL:0) == ARGS:1
+			RETURNF LOCAL:0
+		ENDIF
+	NEXT
+	THROW "@NAME_TO_NUMのキー%ARGS:0%で使用された名称%ARGS:1%は未定義です"
+ELSEIF ARGS:0 == "ABL"
+	FOR LOCAL:0, 0, VARSIZE("ABL")
+		IF ABLNAME:(LOCAL:0) == ARGS:1
+			RETURNF LOCAL:0
+		ENDIF
+	NEXT
+	THROW "@NAME_TO_NUMのキー%ARGS:0%で使用された名称%ARGS:1%は未定義です"
+ELSEIF ARGS:0 == "PALAM"
+	FOR LOCAL:0, 0, VARSIZE("PALAM")
+		IF PALAMNAME:(LOCAL:0) == ARGS:1
+			RETURNF LOCAL:0
+		ENDIF
+	NEXT
+	THROW "@NAME_TO_NUMのキー%ARGS:0%で使用された名称%ARGS:1%は未定義です"
+ELSEIF ARGS:0 == "EXP"
+	FOR LOCAL:0, 0, VARSIZE("EXP")
+		IF EXPNAME:(LOCAL:0) == ARGS:1
+			RETURNF LOCAL:0
+		ENDIF
+	NEXT
+	THROW "@NAME_TO_NUMのキー%ARGS:0%で使用された名称%ARGS:1%は未定義です"
+ENDIF
+THROW "@NAME_TO_NUMのキー%ARGS:0%を解釈出来ません"
+
+;-------------------------------------------------
+;整数ARG:0の下からARG:1番目に小数点を打ち、その値を文字列として返す関数
+;-------------------------------------------------
+@DECIMAL_STRING(ARG:0, ARG:1)
+#FUNCTIONS
+IF ARG:1 <= 0
+	THROW "@DECIMAL_STRINGの二番目の引数に0以下の値が指定されました({ARG:1})"
+ENDIF
+
+LOCAL:4 = ARG:0
+
+LOCAL:2 = POWER(10, ARG:1)
+LOCAL:3 = LOCAL:4 / LOCAL:2
+LOCAL:4 = LOCAL:4 - LOCAL:3 * LOCAL:2
+LOCALS:0 = {LOCAL:3}.
+
+FOR LOCAL:0, ARG:1 - 1, 0, -1
+	LOCAL:2 = POWER(10, LOCAL:0)
+	LOCAL:3 = LOCAL:4 / LOCAL:2
+	LOCAL:4 = LOCAL:4 - LOCAL:3 * LOCAL:2
+	LOCALS:0 = %LOCALS:0%{LOCAL:3}
+NEXT
+LOCALS:0 = %LOCALS:0%{LOCAL:4}
+RETURNF LOCALS:0
+
+;-------------------------------------------------
+;与えられた数字の符号を文字列として返す
+;-------------------------------------------------
+@TOSTR_SIGN(ARG:0)
+#FUNCTIONS
+IF ARG:0 >= 0
+	RETURNF "+"
+ENDIF
+RETURNF "-"
+
+;-------------------------------------------------
+;ARG:0(左辺)とARG:1(右辺)を比較し、不等号を文字列として返す
+;-------------------------------------------------
+@TOSTR_COMPARE(ARG:0, ARG:1)
+#FUNCTIONS
+IF ARG:0 > ARG:1
+	RETURNF ">"
+ELSEIF ARG:0 < ARG:1
+	RETURNF "<"
+ENDIF
+RETURNF "="
+
+;-------------------------------------------------
+;数値ARG:0をKMGT単位の近似値に直し、その文字列を返す関数
+;ARG:1に最大文字数を入れる
+;-------------------------------------------------
+@TOSTR_KMGT(ARG:0, ARG:1)
+#FUNCTIONS
+;ARG:1に5未満の数は指定できない
+ARG:1 = MAX(5, ARG:1)
+
+LOCAL:2 = GET_DIGIT(ARG:0)
+IF LOCAL:2 <= ARG:1
+	RETURNF @"{ARG:0}"
+ENDIF
+
+LOCAL:1 = ARG:0
+FOR LOCAL:0, 0, 5
+	LOCAL:2 -= 3
+	LOCAL:1 /= 1000
+	IF LOCAL:2 <= ARG:1 - 1
+		SELECTCASE LOCAL:0
+			CASE 0
+				LOCALS:0 = k
+			CASE 1
+				LOCALS:0 = M
+			CASE 2
+				LOCALS:0 = G
+			CASE 3
+				LOCALS:0 = T
+			CASEELSE
+				;2^63 ≒ 920京 = 9200P = 9.2E
+				;Emueraの64ビット整数でもペタまでで十分
+				LOCALS:0 = P
+		ENDSELECT
+		BREAK
+	ENDIF
+NEXT
+RETURNF @"{LOCAL:1}%LOCALS:0%"
+
+;-----------------------------------------------
+;体力気力を0～最大値の範囲に収める関数
+;-----------------------------------------------
+@LIFE_LIMIT
+FOR LOCAL:0, 0, CHARANUM
+	BASE:(LOCAL:0):体力 = LIMIT(BASE:(LOCAL:0):体力, 0, MAXBASE:(LOCAL:0):体力)
+	BASE:(LOCAL:0):気力 = LIMIT(BASE:(LOCAL:0):気力, 0, MAXBASE:(LOCAL:0):気力)
+NEXT
+
+;-------------------------------------------------------------------------------
+;カラーバーの表示関数(PANCTIONから移動)
+;引数はBARとほぼ一緒 + ARGSで描写文字の変更が可能(指定しない場合はBARと同じ仕様)
+;ARG:3はバーの色(0xFFFFFF形式で指定),ARG:4はバーの背景色(0xFFFFFF形式で指定)
+;-------------------------------------------------------------------------------
+@PRINT_COLORBAR(ARG, ARG:1, ARG:2, ARGS = "*", ARGS:1 = ".", ARG:3, ARG:4)
+#LOCALSIZE 5
+VARSET LOCAL
+LOCAL:1 = ARG * ARG:2 / ARG:1
+LOCAL:2 = GETCOLOR()
+FOR LOCAL, 1, ARG:2 + 1
+	IF LOCAL:1 >= LOCAL
+		IF !LOCAL:3
+			SETCOLOR ARG:3
+			LOCAL:3 = 1
+		ENDIF
+		PRINTFORM %ARGS%
+	ELSE
+		IF !LOCAL:4
+			SETCOLOR ARG:4
+			LOCAL:4 = 1
+		ENDIF
+		PRINTFORM %ARGS:1%
+	ENDIF
+NEXT
+SETCOLOR LOCAL:2
+
+;-------------------------------------------------
+;角度(ARG:0)°に対応するCOSの1000倍の値を返す関数
+;-------------------------------------------------
+@CALC_COS(ARG:0)
+#FUNCTION
+LOCAL:0  = 184320
+LOCAL:1  = 108810
+LOCAL:2  =  57492
+LOCAL:3  =  29184
+LOCAL:4  =  14649
+LOCAL:5  =   7331
+LOCAL:6  =   3667
+LOCAL:7  =   1833
+LOCAL:8  =    917
+LOCAL:9  =    458
+LOCAL:10 =    229
+LOCAL:11 =    115
+LOCAL:20 =   6745
+
+LOCAL:29 = ABS(180 - ABS(ARG:0) % 360)
+LOCAL:30 = ABS(90 - LOCAL:29) * (1 << 12)
+LOCAL:31 = LOCAL:0
+LOCAL:25 = 1 << 12
+LOCAL:26 = 1 << 12
+LOCAL:27 = 1 << 11
+FOR LOCAL:21, 1, 12
+	IF LOCAL:31 >= LOCAL:30
+		LOCAL:31 -= LOCAL:(LOCAL:21)
+		LOCAL:23 = LOCAL:25 + ((LOCAL:27 * LOCAL:26) >> 12)
+		LOCAL:24 = LOCAL:26 - ((LOCAL:27 * LOCAL:25) >> 12)
+	ELSE
+		LOCAL:31 += LOCAL:(LOCAL:21)
+		LOCAL:23 = LOCAL:25 - ((LOCAL:27 * LOCAL:26) >> 12)
+		LOCAL:24 = LOCAL:26 + ((LOCAL:27 * LOCAL:25) >> 12)
+	ENDIF
+	LOCAL:25 = LOCAL:23
+	LOCAL:26 = LOCAL:24
+	LOCAL:27 >>= 1
+NEXT
+IF LOCAL:29 >= 90
+	LOCAL:28 = 1
+ELSE
+	LOCAL:28 = -1
+ENDIF
+RETURNF (LOCAL:24 * 1000 + (LOCAL:20 >> 1)) / LOCAL:20 * LOCAL:28
+
+;-------------------------------------------------
+;角度(ARG:0)°に対応するSINの1000倍の値を返す関数
+;-------------------------------------------------
+@CALC_SIN(ARG:0)
+#FUNCTION
+RETURNF CALC_COS(ARG:0 - 90)
+
+;-------------------------------------------------
+;RGBカラーから色相(0～359)を取得する関数
+;-------------------------------------------------
+@RGB_TO_H(ARG:0)
+#FUNCTION
+LOCAL:0 = (ARG:0 >> 16) & 0xFF
+LOCAL:1 = (ARG:0 >> 8) & 0xFF
+LOCAL:2 = ARG:0 & 0xFF
+LOCAL:3 = MAX(LOCAL:0, LOCAL:1, LOCAL:2)
+LOCAL:4 = MIN(LOCAL:0, LOCAL:1, LOCAL:2)
+LOCAL:5 = LOCAL:3 - LOCAL:4
+
+IF LOCAL:5 <= 0
+	LOCAL:6 = 0
+ELSEIF LOCAL:0 == LOCAL:3
+	LOCAL:6 = 60 * (LOCAL:1 - LOCAL:2) / LOCAL:5
+ELSEIF LOCAL:1 == LOCAL:3
+	LOCAL:6 = 60 * (LOCAL:2 - LOCAL:0) / LOCAL:5 + 120
+ELSE
+	LOCAL:6 = 60 * (LOCAL:0 - LOCAL:1) / LOCAL:5 + 240
+ENDIF
+IF LOCAL:6 < 0
+	LOCAL:6 += 360
+ENDIF
+RETURNF LOCAL:6
+
+;-------------------------------------------------
+;RGBカラーから彩度(0～100)を取得する関数
+;-------------------------------------------------
+@RGB_TO_S(ARG:0)
+#FUNCTION
+LOCAL:0 = (ARG:0 >> 16) & 0xFF
+LOCAL:1 = (ARG:0 >> 8) & 0xFF
+LOCAL:2 = ARG:0 & 0xFF
+LOCAL:3 = MAX(LOCAL:0, LOCAL:1, LOCAL:2)
+LOCAL:4 = LOCAL:3 - MIN(LOCAL:0, LOCAL:1, LOCAL:2)
+IF LOCAL:3 <= 0
+	RETURNF 0
+ENDIF
+RETURNF LOCAL:4 * 100 / LOCAL:3
+
+;-------------------------------------------------
+;RGBカラーから明度(0～100)を取得する関数
+;-------------------------------------------------
+@RGB_TO_V(ARG:0)
+#FUNCTION
+LOCAL:0 = (ARG:0 >> 16) & 0xFF
+LOCAL:1 = (ARG:0 >> 8) & 0xFF
+LOCAL:2 = ARG:0 & 0xFF
+RETURNF MAX(LOCAL:0, LOCAL:1, LOCAL:2) * 100 / 255
+
+;-------------------------------------------------
+;HSVカラーをRGBカラーに変換する関数
+;ARG:0=色相(0～359)
+;ARG:1=彩度(0～100)
+;ARG:2=明度(0～100)
+;-------------------------------------------------
+@HSV_TO_RGB(ARG:0, ARG:1, ARG:2)
+#FUNCTION
+IF ARG:0 >= 0 && ARG:0 <= 359 && ARG:1 >= 0 && ARG:1 <= 100 && ARG:2 >= 0 && ARG:2 <= 100
+	IF ARG:1 == 0
+		LOCAL:5 = ARG:2 * 255 / 100
+		RETURNF (LOCAL:5 << 16) + (LOCAL:5 << 8) + LOCAL:5
+	ELSE
+		LOCAL:0 = ARG:0 / 60
+		LOCAL:1 = ARG:0 % 60
+		LOCAL:2 = ARG:2 * (6000 - 60 * ARG:1) * 255 / 600000
+		LOCAL:3 = ARG:2 * (6000 - LOCAL:1 * ARG:1) * 255 / 600000
+		LOCAL:4 = ARG:2 * (6000 - (60 - LOCAL:1) * ARG:1) * 255 / 600000
+		LOCAL:5 = ARG:2 * 255 / 100
+		SELECTCASE LOCAL:0
+			CASE 0
+				RETURNF (LOCAL:5 << 16) + (LOCAL:4 << 8) + LOCAL:2
+			CASE 1
+				RETURNF (LOCAL:3 << 16) + (LOCAL:5 << 8) + LOCAL:2
+			CASE 2
+				RETURNF (LOCAL:2 << 16) + (LOCAL:5 << 8) + LOCAL:4
+			CASE 3
+				RETURNF (LOCAL:2 << 16) + (LOCAL:3 << 8) + LOCAL:5
+			CASE 4
+				RETURNF (LOCAL:4 << 16) + (LOCAL:2 << 8) + LOCAL:5
+			CASE 5
+				RETURNF (LOCAL:5 << 16) + (LOCAL:2 << 8) + LOCAL:3
+		ENDSELECT
+	ENDIF
+ENDIF
+RETURNF 0x000000
+
+;-------------------------------------------------
+;ARG:0番のキャラの絶頂回数(EX)の合計を返す関数
+;ARG:1は射精、ARG:2は噴乳を数えるかどうかのフラグ
+;-------------------------------------------------
+@SUM_EX(ARG:0, ARG:1 = 1, ARG:2 = 1)
+#FUNCTION
+LOCAL:1 = 0
+LOCAL:1 += EX:(ARG:0):Ｃ絶頂
+LOCAL:1 += EX:(ARG:0):Ｖ絶頂
+LOCAL:1 += EX:(ARG:0):Ａ絶頂
+LOCAL:1 += EX:(ARG:0):Ｂ絶頂
+LOCAL:1 += EX:(ARG:0):Ｍ絶頂
+IF ARG:1
+	LOCAL:1 += EX:(ARG:0):射精
+ENDIF
+IF ARG:2
+	LOCAL:1 += EX:(ARG:0):噴乳
+ENDIF
+RETURNF LOCAL:1
+
+;-------------------------------------------------
+;ARG:0番のキャラの今回の絶頂回数(NOWEX)の合計を返す関数
+;ARG:1は射精、ARG:2は噴乳を数えるかどうかのフラグ
+;-------------------------------------------------
+@SUM_NOWEX(ARG:0, ARG:1 = 1, ARG:2 = 1)
+#FUNCTION
+LOCAL:1 = 0
+LOCAL:1 += NOWEX:(ARG:0):Ｃ絶頂
+LOCAL:1 += NOWEX:(ARG:0):Ｖ絶頂
+LOCAL:1 += NOWEX:(ARG:0):Ａ絶頂
+LOCAL:1 += NOWEX:(ARG:0):Ｂ絶頂
+LOCAL:1 += NOWEX:(ARG:0):Ｍ絶頂
+IF ARG:1
+	LOCAL:1 += NOWEX:(ARG:0):射精
+ENDIF
+IF ARG:2
+	LOCAL:1 += NOWEX:(ARG:0):噴乳
+ENDIF
+RETURNF LOCAL:1
+
+;-------------------------------------------------
+;ARG:0番のキャラの快感系CUPの合計値を返す関数(ＣＶＡＢＭ＋射精)
+;-------------------------------------------------
+@CUP_SENSE(ARG:0)
+#FUNCTION
+RETURNF CUP:(ARG:0):快Ｃ + CUP:(ARG:0):快Ｖ + CUP:(ARG:0):快Ａ + CUP:(ARG:0):快Ｂ + CUP:(ARG:0):快Ｍ + CUP:(ARG:0):射精
+
+;-------------------------------------------------
+;ARG:0番のキャラに関して、現在の機嫌の名称を返す関数
+;-------------------------------------------------
+@TOSTR_EMOTION(ARG:0)
+#FUNCTIONS
+;各感情パラメータのうち、最も大きい値を持つものをLOCAL:0に代入
+LOCAL:1 = PALAM:(ARG:0):怒主 + PALAM:(ARG:0):怒外
+LOCAL:2 = PALAM:(ARG:0):哀主 + PALAM:(ARG:0):哀外
+LOCAL:3 = PALAM:(ARG:0):怖主 + PALAM:(ARG:0):怖外
+LOCAL:0 = MAX(LOCAL:1, LOCAL:2, LOCAL:3)
+
+IF TALENT:(ARG:0):崩壊
+	RETURNF "壊"
+ELSEIF TALENT:(ARG:0):虚ろ
+	RETURNF "虚"
+ELSEIF LOCAL:0 < 100
+	IF LOCAL:0 < -5000
+		RETURNF "幸"
+	ELSEIF LOCAL:0 < -500
+		RETURNF "悦"
+	ELSEIF LOCAL:0 < -100
+		RETURNF "良"
+	ELSE
+		RETURNF "平"
+	ENDIF
+ELSEIF LOCAL:0 == LOCAL:1
+	IF LOCAL:0 >= 5000
+		RETURNF "恨"
+	ELSEIF LOCAL:0 >= 500
+		RETURNF "怒"
+	ELSE
+		RETURNF "憤"
+	ENDIF
+ELSEIF LOCAL:0 == LOCAL:2
+	IF LOCAL:0 >= 5000
+		RETURNF "鬱"
+	ELSEIF LOCAL:0 >= 500
+		RETURNF "悲"
+	ELSE
+		RETURNF "憂"
+	ENDIF
+ELSE
+	IF LOCAL:0 >= 5000
+		RETURNF "狂"
+	ELSEIF LOCAL:0 >= 500
+		RETURNF "恐"
+	ELSE
+		RETURNF "怯"
+	ENDIF
+ENDIF
+
+;-------------------------------------------------
+;ARG:0番のキャラに関して、現在の機嫌の描画色を返す関数
+;-------------------------------------------------
+@GETCOLOR_EMOTION(ARG:0)
+#FUNCTION
+;各感情パラメータのうち、最も大きい値を持つものをLOCAL:0に代入
+LOCAL:1 = PALAM:(ARG:0):怒主 + PALAM:(ARG:0):怒外
+LOCAL:2 = PALAM:(ARG:0):哀主 + PALAM:(ARG:0):哀外
+LOCAL:3 = PALAM:(ARG:0):怖主 + PALAM:(ARG:0):怖外
+LOCAL:0 = MAX(LOCAL:1, LOCAL:2, LOCAL:3)
+
+IF TALENT:(ARG:0):崩壊
+	RETURNF 0xC0C0C0
+ELSEIF TALENT:(ARG:0):虚ろ
+	RETURNF 0x808080
+ELSEIF LOCAL:0 < 100
+	IF LOCAL:0 < -5000
+		RETURNF COLOR_CAUTION
+	ELSEIF LOCAL:0 < -500
+		RETURNF 0x80FF00
+	ELSEIF LOCAL:0 < -100
+		RETURNF 0x00FF00
+	ELSE
+		RETURNF 0xC0C0C0
+	ENDIF
+ELSEIF LOCAL:0 == LOCAL:1
+	IF LOCAL:0 >= 5000
+		RETURNF 0x800040
+	ELSEIF LOCAL:0 >= 500
+		RETURNF COLOR_ALERT
+	ELSE
+		RETURNF 0xFF8000
+	ENDIF
+ELSEIF LOCAL:0 == LOCAL:2
+	IF LOCAL:0 >= 5000
+		RETURNF 0x0000C0
+	ELSEIF LOCAL:0 >= 500
+		RETURNF 0x0000FF
+	ELSE
+		RETURNF 0x0040FF
+	ENDIF
+ELSE
+	IF LOCAL:0 >= 5000
+		RETURNF 0x00FFFF
+	ELSEIF LOCAL:0 >= 500
+		RETURNF 0x008080
+	ELSE
+		RETURNF 0x008000
+	ENDIF
+ENDIF
+
+;-------------------------------------------------
+;ARG:0番のキャラに竿があるかどうかを返す関数
+;-------------------------------------------------
+@PENIS(ARG:0)
+#FUNCTION
+RETURNF TALENT:(ARG:0):性別 != 1
+
+;-------------------------------------------------
+;ARG:0番のキャラにＶがあるかどうかを返す関数
+;-------------------------------------------------
+@VAGINA(ARG:0)
+#FUNCTION
+RETURNF GROUPMATCH(TALENT:(ARG:0):性別, 1, 2, 3, 5)
+
+@VIRGIN(ARG:0)
+#FUNCTION
+RETURNF TALENT:(ARG:0):処女
+
+;-------------------------------------------------
+;ARG:0番のキャラがベースとして男扱いなら1を返す関数
+;-------------------------------------------------
+@IS_MALE(ARG:0)
+#FUNCTION
+RETURNF GROUPMATCH(TALENT:(ARG:0):性別, 0, 3, 4, 5)
+
+;-------------------------------------------------
+;ARG:0番のキャラがベースとして女扱いなら1を返す関数
+;-------------------------------------------------
+@IS_FEMALE(ARG:0)
+#FUNCTION
+RETURNF !IS_MALE(ARG:0)
+
+;-------------------------------------------------
+;ARG:0番のキャラとARG:1番のキャラが同性かどうかを返す関数
+;-------------------------------------------------
+@IS_SAMESEX(ARG:0, ARG:1)
+#FUNCTION
+RETURNF IS_MALE(ARG:0) == IS_MALE(ARG:1)
+
+;-------------------------------------------------
+;ARG:0番のキャラが恋慕系をもっているなら1を返す関数
+;-------------------------------------------------
+@IS_LOVER(ARG:0)
+#FUNCTION
+IF TALENT:(ARG:0):恋慕 || TALENT:(ARG:0):親愛 || TALENT:(ARG:0):恋人
+	RETURNF 1
+ELSE
+	RETURNF 0
+ENDIF
+
+;-------------------------------------------------
+;ARG:0番のキャラが服従系をもっているか烙印なら1を返す関数
+;-------------------------------------------------
+@IS_SLAVE(ARG:0)
+#FUNCTION
+IF TALENT:(ARG:0):服従 || TALENT:(ARG:0):隷属 || TALENT:(ARG:0):烙印
+	RETURNF 1
+ELSE
+	RETURNF 0
+ENDIF
+;-------------------------------------------------
+;ARG:0番のキャラが巨乳か爆乳なら1を返す関数
+;-------------------------------------------------
+@IS_BOIN(ARG:0)
+#FUNCTION
+IF TALENT:(ARG:0):巨乳 || TALENT:(ARG:0):爆乳
+	RETURNF 1
+ELSE
+	RETURNF 0
+ENDIF
+
+;-------------------------------------------------
+;ARG:0番のキャラの指定部位に指定の汚れがあるかどうかを返す
+;ARGS:1 = 部位名称、ARGS:2～6 = 汚れ名称
+;-------------------------------------------------
+@GET_STAIN(ARG:0, ARGS:1, ARGS:2, ARGS:3 = "", ARGS:4 = "", ARGS:5 = "", ARGS:6 = "")
+#FUNCTION
+IF ARGS:1 == "口"
+	LOCAL:0 = 0
+ELSEIF ARGS:1 == "手"
+	LOCAL:0 = 1
+ELSEIF ARGS:1 == "Ｐ"
+	LOCAL:0 = 2
+ELSEIF ARGS:1 == "Ｖ"
+	LOCAL:0 = 3
+ELSEIF ARGS:1 == "Ａ"
+	LOCAL:0 = 4
+ELSEIF ARGS:1 == "Ｂ"
+	LOCAL:0 = 5
+ELSE
+	THROW "@GET_STAINに指定された部位名称%ARGS:1%は解釈出来ません"
+ENDIF
+
+LOCAL:3 = 0
+FOR LOCAL:2, 2, 7
+	IF LOCAL:2 > 2 && ARGS:(LOCAL:2) != ""
+		BREAK
+	ELSEIF ARGS:(LOCAL:2) == "Ｖ"
+		LOCAL:1 = 0
+	ELSEIF ARGS:(LOCAL:2) == "Ｐ"
+		LOCAL:1 = 1
+	ELSEIF ARGS:(LOCAL:2) == "精"
+		LOCAL:1 = 2
+	ELSEIF ARGS:(LOCAL:2) == "Ａ"
+		LOCAL:1 = 3
+	ELSEIF ARGS:(LOCAL:2) == "乳"
+		LOCAL:1 = 4
+	ELSE
+		THROW "@GET_STAINに指定された汚れ名称%ARGS:(LOCAL:2)%は解釈出来ません"
+	ENDIF
+	LOCAL:3 |= (STAIN:(ARG:0):(LOCAL:0) & (1 << LOCAL:1))
+NEXT
+
+RETURNF LOCAL:3 != 0
+
+;-------------------------------------------------
+;性別の値ARG:0を文字列として返す
+;-------------------------------------------------
+@TOSTR_SEX(ARG:0)
+#FUNCTIONS
+SELECTCASE ARG:0
+	CASE 0
+		RETURNF "男性"
+	CASE 1
+		RETURNF "女性"
+	CASE 2
+		RETURNF "女双"
+	CASE 3
+		RETURNF "男双"
+	CASE 4
+		RETURNF "男の娘"
+	CASE 5
+		RETURNF "男娘双"
+ENDSELECT
+RETURNF "不明"
+
+;-------------------------------------------------
+;ARG:0番のキャラの三人称を文字列として返す
+;-------------------------------------------------
+@TOSTR_THIRD(ARG:0)
+#FUNCTIONS
+IF IS_MALE(ARG:0)
+	RETURNF "彼"
+ENDIF
+RETURNF "彼女"
+
+;-------------------------------------------------
+;バストサイズの数値を文字列に直す
+;-2:絶壁～2:爆乳
+;-------------------------------------------------
+@TOSTR_BUSTSIZE(ARG:0)
+#FUNCTIONS
+ARG:0 = MAX(-2, MIN(2, ARG:0))
+SELECTCASE ARG:0
+	CASE -2
+		RETURNF "絶壁"
+	CASE -1
+		RETURNF "貧乳"
+	CASE 1
+		RETURNF "巨乳"
+	CASE 2
+		RETURNF "爆乳"
+ENDSELECT
+RETURNF "並乳"
+
+;-------------------------------------------------
+;キャラARG:0のバストサイズを数値に変換する
+;-2:絶壁～2:爆乳
+;-------------------------------------------------
+@GET_BUSTSIZE_NUM(ARG:0)
+#FUNCTION
+IF IS_MALE(ARG:0)
+	RETURNF -2
+ELSEIF TALENT:(ARG:0):絶壁
+	RETURNF -2
+ELSEIF TALENT:(ARG:0):貧乳
+	RETURNF -1
+ELSEIF TALENT:(ARG:0):巨乳
+	RETURNF 1
+ELSEIF TALENT:(ARG:0):爆乳
+	RETURNF 2
+ENDIF
+RETURNF 0
+
+;-------------------------------------------------
+;能力の成長型を文字列に直す
+;-------------------------------------------------
+@TOSTR_GROWTYPE(ARG:0)
+#FUNCTIONS
+SELECTCASE ARG:0
+	CASE 0
+		RETURNF "万能"
+	CASE 1
+		RETURNF "知将"
+	CASE 2
+		RETURNF "学士"
+	CASE 3
+		RETURNF "両道"
+	CASE 4
+		RETURNF "武官"
+	CASE 5
+		RETURNF "軍師"
+	CASE 6
+		RETURNF "文官"
+	CASE 7
+		RETURNF "芸能"
+	CASE 8
+		RETURNF "料理"
+ENDSELECT
+RETURNF "不明"
+
+;別バージョン
+@TOSTR_GROWTYPE_B(ARG:0)
+#FUNCTIONS
+SELECTCASE ARG:0
+	CASE 0
+		RETURNF "武闘・知略・政治"
+	CASE 1
+		RETURNF "武闘・知略"
+	CASE 2
+		RETURNF "知略・政治"
+	CASE 3
+		RETURNF "武闘・政治"
+	CASE 4
+		RETURNF "武闘"
+	CASE 5
+		RETURNF "知略"
+	CASE 6
+		RETURNF "政治"
+	CASE 7
+		RETURNF "歌唱"
+	CASE 8
+		RETURNF "料理"
+ENDSELECT
+RETURNF ""
+
+;-------------------------------------------------
+;性格タイプを文字列に直す
+;-------------------------------------------------
+@TOSTR_CHARATYPE(ARG:0)
+#FUNCTIONS
+SELECTCASE ARG:0
+	CASE 1
+		RETURNF "冷静/清廉"
+	CASE 2
+		RETURNF "豪気/清廉"
+	CASE 3
+		RETURNF "冷静/利己"
+	CASE 4
+		RETURNF "豪気/利己"
+ENDSELECT
+RETURNF "----/----"
+
+;-------------------------------------------------
+;髪の長さの値ARG:0に対応する文字列を返す
+;-------------------------------------------------
+@TOSTR_HAIR_LENGTH(ARG:0)
+#FUNCTIONS
+IF ARG:0 < 2
+	RETURNF "不明"
+ELSEIF ARG:0 < 25
+	RETURNF "スキンヘッド"
+ELSEIF ARG:0 < 175
+	RETURNF "超ショート"
+ELSEIF ARG:0 < 275
+	RETURNF "ショート"
+ELSEIF ARG:0 < 475
+	RETURNF "ミドル"
+ELSEIF ARG:0 < 675
+	RETURNF "ロング"
+ENDIF
+RETURNF "超ロング"
+
+;-------------------------------------------------
+;髪色をグラデーションで表示する関数 ARG:0=髪色(16進数表記)
+;表示する文字列の長さは半角10文字
+;-------------------------------------------------
+@PRINT_HAIR_COLOR(ARG:0)
+IF ARG:0 == 0
+	PRINT 不明      
+	RETURN
+ENDIF
+
+LOCAL:10 = RGB_TO_H(ARG:0)
+LOCAL:11 = RGB_TO_S(ARG:0)
+LOCAL:12 = RGB_TO_V(ARG:0) - 8
+IF LOCAL:11 < 12
+	LOCAL:11 *= 2
+ELSE
+	LOCAL:11 += 12
+ENDIF
+FOR LOCAL:0, 0, 10
+	SETCOLOR HSV_TO_RGB(LOCAL:10, LIMIT(LOCAL:11, 0, 100), LIMIT(LOCAL:12, 0, 100))
+	PRINTFORM %UNICODE(0x2587)%
+	IF LOCAL:11 >= 24
+		LOCAL:11 += 2
+	ELSEIF LOCAL:11 >= 12
+		LOCAL:11 += 1
+	ENDIF
+	LOCAL:12 -= 3
+NEXT
+RESETCOLOR
+
+;-------------------------------------------------
+;ARG:0番のキャラの成長型による補正倍率を返す ARGS:1=能力名称
+;-------------------------------------------------
+@GROWTYPE_RATE(ARG:0, ARGS:1)
+#FUNCTION
+LOCAL:0 = TALENT:(ARG:0):成長型
+IF ARGS:1 == "武闘"
+	SELECTCASE LOCAL:0
+		CASE 0
+			RETURNF 100
+		CASE 1
+			RETURNF 110
+		CASE 2
+			RETURNF 80
+		CASE 3
+			RETURNF 110
+		CASE 4
+			RETURNF 140
+		CASE 5
+			RETURNF 80
+		CASE 6
+			RETURNF 80
+		CASE 7
+			RETURNF 90
+		CASE 8
+			RETURNF 90
+	ENDSELECT
+ELSEIF ARGS:1 == "知略"
+	SELECTCASE LOCAL:0
+		CASE 0
+			RETURNF 100
+		CASE 1
+			RETURNF 110
+		CASE 2
+			RETURNF 110
+		CASE 3
+			RETURNF 80
+		CASE 4
+			RETURNF 80
+		CASE 5
+			RETURNF 140
+		CASE 6
+			RETURNF 80
+		CASE 7
+			RETURNF 90
+		CASE 8
+			RETURNF 90
+	ENDSELECT
+ELSEIF ARGS:1 == "政治"
+	SELECTCASE LOCAL:0
+		CASE 0
+			RETURNF 100
+		CASE 1
+			RETURNF 80
+		CASE 2
+			RETURNF 110
+		CASE 3
+			RETURNF 110
+		CASE 4
+			RETURNF 80
+		CASE 5
+			RETURNF 80
+		CASE 6
+			RETURNF 140
+		CASE 7
+			RETURNF 90
+		CASE 8
+			RETURNF 90
+	ENDSELECT
+ELSEIF ARGS:1 == "歌唱"
+	SELECTCASE LOCAL:0
+		CASE 0
+			RETURNF 100
+		CASE 7
+			RETURNF 140
+		CASEELSE
+			RETURNF 80
+	ENDSELECT
+ELSEIF ARGS:1 == "料理"
+	SELECTCASE LOCAL:0
+		CASE 8
+			RETURNF 160
+		CASEELSE
+			RETURNF 100
+	ENDSELECT
+ENDIF
+RETURNF 100
+
+;-------------------------------------------------
+;キスの共通処理
+;キャラARG:0がキャラARG:1の部位ARG:2にキス
+;ARG:0、ARG:1に負の値を指定すると、その値をIDとみなして記録。-1=不明 -10=触手 -11=誰とも知らぬ兵士 -12=外来人 -13 ホフゴブリン
+;ARG:2に指定する部位番号:0=唇 1=ペニス 2=膣 3=アナル 4=足 20=触手
+;既成事実を取得させるならARG:3に1を、そうでないなら0を設定する
+;メッセージを表示するならARG:4に1を、非表示なら0を設定する
+;◆◆キス経験は自動では入らないため注意◆◆
+;-------------------------------------------------
+@KISS_COMMON(ARG:0, ARG:1, ARG:2, ARG:3 = -1, ARG:4 = -1)
+IF ARG:3 == -1
+	THROW 関数@KISS_COMMONの第4引数の値({ARG:3})が不正です
+ENDIF
+IF ARG:4 == -1
+	THROW 関数@KISS_COMMONの第5引数の値({ARG:4})が不正です
+ENDIF
+
+IF ARG:0 >= 0
+	LOCAL:5 = GET_ID(ARG:0)
+ELSE
+	LOCAL:5 = ARG:0
+ENDIF
+
+IF ARG:1 >= 0
+	LOCAL:6 = GET_ID(ARG:1)
+ELSE
+	LOCAL:6 = ARG:1
+ENDIF
+
+LOCAL:4 = 0
+IF ARG:2 == 0
+	IF ARG:0 >= 0
+		IF TALENT:(ARG:0):キス未経験
+			IF ARG:4
+				SETCOLOR COLOR_CAUTION
+				PRINTFORMW %ANAME(ARG:0)%は<キス未経験>を失った…
+				RESETCOLOR
+			ENDIF
+			LOCAL:4 += 1
+			TALENT:(ARG:0):キス未経験 = 0
+			;初キスの相手を記録
+			CFLAG:(ARG:0):60 = LOCAL:6
+		ENDIF
+	ENDIF
+
+	IF ARG:1 >= 0
+		IF TALENT:(ARG:1):キス未経験
+			IF ARG:4
+				SETCOLOR COLOR_CAUTION
+				PRINTFORMW %ANAME(ARG:1)%は<キス未経験>を失った…
+				RESETCOLOR
+			ENDIF
+			LOCAL:4 += 2
+			TALENT:(ARG:1):キス未経験 = 0
+			;初キスの相手を記録
+			CFLAG:(ARG:1):60 = LOCAL:5
+		ENDIF
+	ENDIF
+
+	IF ARG:3 && ARG:0 >= 0 && ARG:1 >= 0
+		;既成事実Lv1に相当
+		CALL SET_COUPLE_STEP(ARG:0, ARG:4)
+		CALL SET_COUPLE_STEP(ARG:1, ARG:4)
+	ENDIF
+ENDIF
+
+IF ARG:0 >= 0 && CFLAG:(ARG:0):61 == 0
+	CFLAG:(ARG:0):61 = LOCAL:6
+	CFLAG:(ARG:0):62 = ARG:2
+	IF CONFIG:10 == 1 && ARG:4
+		IF ARG:2 == 0 && LOCAL:4 == 3 && ARG:1 >= 0
+			PRINTFORMW %ANAME(ARG:0)%と%ANAME(ARG:1)%は互いの唇に初めてのキスをした…
+		ELSE
+			SELECTCASE ARG:1
+				CASE -10
+					LOCALS:0 = 触手の
+				CASE -11
+					LOCALS:0 = 誰とも知らぬ兵士の
+				CASE -12
+					LOCALS:0 = 外来人の
+				CASE -13
+					LOCALS:0 = ホフゴブリンの
+				CASE -16
+					LOCALS:0 = 野盗の
+				CASE -17
+					LOCALS:0 = 金貸しの客の
+				CASEELSE
+					IF ARG:1 >= 0
+						LOCALS:0 = %ANAME(ARG:1)%の
+					ELSE
+						LOCALS:0 = 
+					ENDIF
+			ENDSELECT
+			PRINTFORMW %ANAME(ARG:0)%は%LOCALS:0%%GET_KISS_PART_NAME(ARG:2)%に初めてのキスをした…
+		ENDIF
+	ENDIF
+ENDIF
+
+IF ARG:1 >= 0 && CFLAG:(ARG:1):61 == 0 && ARG:2 == 0
+	CFLAG:(ARG:1):61 = LOCAL:5
+	CFLAG:(ARG:1):62 = 0
+	IF CONFIG:10 == 1 && ARG:4
+		IF ARG:2 == 0 && LOCAL:4 == 2
+			SELECTCASE ARG:0
+				CASE -10
+					LOCALS:0 = 触手の
+				CASE -11
+					LOCALS:0 = 誰とも知らぬ兵士の
+				CASE -12
+					LOCALS:0 = 外来人の
+				CASE -13
+					LOCALS:0 = ホフゴブリンの
+				CASE -16
+					LOCALS:0 = 野盗の
+				CASE -17
+					LOCALS:0 = 金貸しの客の
+				CASEELSE
+					IF ARG:0 >= 0
+						LOCALS:0 = %ANAME(ARG:0)%の
+					ELSE
+						LOCALS:0 = 
+					ENDIF
+			ENDSELECT
+			PRINTFORMW %ANAME(ARG:1)%は%LOCALS:0%唇に初めてのキスをした…
+		ENDIF
+	ENDIF
+ENDIF
+
+;-------------------------------------------------
+;童貞喪失の共通処理
+;キャラARG:0がキャラARG:1で童貞喪失
+;ARG:0、ARG:1に負の値を指定すると、その値をIDとみなして記録。-1=不明 -10=触手 -11=誰とも知らぬ兵士 -12=外来人
+;-------------------------------------------------
+@DOUTEI_COMMON(ARG:0, ARG:1)
+
+IF ARG:1 >= 0
+	LOCAL:6 = GET_ID(ARG:1)
+ELSE
+	LOCAL:6 = ARG:1
+ENDIF
+
+IF TALENT:(ARG:0):童貞 == 1
+	SETCOLOR COLOR_CAUTION
+	PRINTFORML 童貞喪失(%ANAME(ARG:0)%)
+	RESETCOLOR
+	CFLAG:(ARG:0):40 = LOCAL:6
+ENDIF
+TALENT:(ARG:0):童貞 = 0
+
+;-------------------------------------------------
+;処女喪失の共通処理
+;キャラARG:0がキャラARG:1で処女喪失
+;ARG:0、ARG:1に負の値を指定すると、その値をIDとみなして記録。-1=不明 -10=触手 -11=誰とも知らぬ兵士 -12=外来人
+
+;-------------------------------------------------
+@VIRGIN_COMMON(ARG:0, ARG:1)
+
+IF ARG:1 >= 0
+	LOCAL:6 = GET_ID(ARG:1)
+ELSE
+	LOCAL:6 = ARG:1
+ENDIF
+IF TALENT:(ARG:0):処女 == 1
+	SETCOLOR COLOR_CAUTION
+	PRINTFORML 処女喪失(%ANAME(ARG:0)%)
+	RESETCOLOR
+	CFLAG:(ARG:0):41 = LOCAL:6
+ENDIF
+TALENT:(ARG:0):処女 = 0
+
+;-------------------------------------------------
+;処女喪失相手を記録（拡張形式）
+;ARG:0  対照
+;ARG:1- 詳細は資料
+;-------------------------------------------------
+@SET_CHERRY_POPPER(ARG:0, ARG:1=0, ARG:2=0, ARG:3=0, ARG:4=0)
+LOCAL:20   = 0
+LOCAL:20  |= 1p63
+IF ARG:1 >= 0
+	LOCAL:6 = GET_ID(ARG:1)
+ELSE
+	LOCAL:6 = ARG:1
+ENDIF
+LOCAL:20 |= F64TO16(LOCAL:6)
+LOCAL:20 |= ((F64TO8(ARG:2)) << 16)
+LOCAL:20 |= ((F64TO8(ARG:3)) << 24)
+LOCAL:20 |= ((F64TO8(ARG:4)) << 32)
+SIF TALENT:(ARG:0):処女 == 1
+CFLAG:(ARG:0):41 = LOCAL:20
+
+;-------------------------------------------------
+;処女喪失情報が新形式か
+;-------------------------------------------------
+@NEW_CFLAG41(ARG:0)
+#FUNCTION
+SIF GETBIT(CFLAG:(ARG:0):41, 63) && !GETBIT(CFLAG:(ARG:0):41, 62)
+	RETURNF 1
+RETURNF 0
+
+;-------------------------------------------------
+;ファーストキスの部位名称を取得する関数
+;-------------------------------------------------
+@GET_KISS_PART_NAME(ARG:0)
+#FUNCTIONS
+SELECTCASE ARG:0
+	CASE 0
+		RETURNF "唇"
+	CASE 1
+		RETURNF "ペニス"
+	CASE 2
+		RETURNF "秘唇"
+	CASE 3
+		RETURNF "尻穴"
+	CASE 4
+		RETURNF "足"
+	CASE 20
+		RETURNF "触手"
+ENDSELECT
+THROW 関数@GET_KISS_PART_NAMEの引数の値({ARG:0})が不正です
+RETURNF ""
+
+;-------------------------------------------------
+;ID(ARG:0)の値から名称を取得する 負の値の特殊名称に対応
+;-------------------------------------------------
+@ID_TO_SP_NAME(ARG:0)
+#FUNCTIONS
+SELECTCASE ARG:0
+	CASE 0
+		RETURNF "不明"
+	CASE -1
+		RETURNF "不明"
+	CASE -10
+		RETURNF "触手"
+	CASE -11
+		RETURNF "誰とも知らぬ兵士"
+	CASE -12
+		RETURNF "外来人"
+	CASE -13
+		RETURNF "ホフゴブリン"
+	CASE -14
+		RETURNF "犬"
+	CASE -15
+		RETURNF "豚"
+	CASE -16
+		RETURNF "野盗"
+	CASE -17
+		RETURNF "金貸しの客"
+ENDSELECT
+
+LOCAL:0 = ID_TO_CHARA(ARG:0)
+IF LOCAL:0 >= 0
+	RETURNF NAME_DOUBLE(LOCAL:0)
+ENDIF
+RETURNF ""
+
+;-------------------------------------------------
+;ARG:0の烙印を除く陥落素質を全て消去する関数 ARG:1はメッセージを表示するかどうかのフラグ
+;ARG:2に1を指定すると、タチ役関係の素質を対象外にする
+;-------------------------------------------------
+@LOSE_RELATION_TALENT(ARG:0, ARG:1 = 1, ARG:2 = 0)
+IF ARG:1
+	LOCALS:0 = 
+	SIF TALENT:(ARG:0):恋慕
+		LOCALS:0 = %LOCALS:0%<恋慕>
+	SIF TALENT:(ARG:0):親愛
+		LOCALS:0 = %LOCALS:0%<親愛>
+	SIF TALENT:(ARG:0):服従
+		LOCALS:0 = %LOCALS:0%<服従>
+	SIF TALENT:(ARG:0):隷属
+		LOCALS:0 = %LOCALS:0%<隷属>
+	SIF TALENT:(ARG:0):親友
+		LOCALS:0 = %LOCALS:0%<親友>
+	SIF TALENT:(ARG:0):恋人
+		LOCALS:0 = %LOCALS:0%<恋人>
+	SIF TALENT:(ARG:0):霖之助に恋慕
+		LOCALS:0 = %LOCALS:0%<霖之助に恋慕>
+	SIF TALENT:(ARG:0):霖之助の恋人
+		LOCALS:0 = %LOCALS:0%<霖之助の恋人>
+	IF !ARG:2
+	;タチ役をCONFIG:88で設定
+		SIF TALENT:(ARG:0):藍に恋慕
+			LOCALS:0 = %LOCALS:0%<%ANAME(CONFIG:88)%に恋慕>
+		SIF TALENT:(ARG:0):藍の恋人
+			LOCALS:0 = %LOCALS:0%<%ANAME(CONFIG:88)%の恋人>
+	ENDIF
+
+	IF LOCALS:0 != ""
+		SETCOLOR COLOR_CAUTION
+		PRINTFORML %NAME:(ARG:0)%は%LOCALS:0%を失った…
+		RESETCOLOR
+	ENDIF
+ENDIF
+
+TALENT:(ARG:0):恋慕 = 0
+TALENT:(ARG:0):親愛 = 0
+TALENT:(ARG:0):服従 = 0
+TALENT:(ARG:0):隷属 = 0
+TALENT:(ARG:0):親友 = 0
+TALENT:(ARG:0):恋人 = 0
+TALENT:(ARG:0):霖之助に恋慕 = 0
+TALENT:(ARG:0):霖之助の恋人 = 0
+IF !ARG:2
+	TALENT:(ARG:0):藍に恋慕 = 0
+	TALENT:(ARG:0):藍の恋人 = 0
+ENDIF
+
+;-------------------------------------------------
+;経験値を加算し、その旨を表示する関数(ARG:0=キャラ番号、ARGS:1=EXPNAME、ARG:2=加算する経験量)
+;-------------------------------------------------
+@PRINT_ADD_EXP(ARG:0, ARGS:1, ARG:2)
+IF ARG:2 >= 1
+	LOCAL:0 = NAME_TO_NUM("EXP", ARGS:1)
+	PRINTFORML %ARGS:1%＋{ARG:2}
+	EXP:(ARG:0):(LOCAL:0) += ARG:2
+ENDIF
+
+;-------------------------
+;指定された値の中から等確率でランダムな値を選び出し返す関数
+;※ただし0は指定できないため注意
+;-------------------------
+@RANDOM_ARRAY(ARG:0, ARG:1, ARG:2, ARG:3, ARG:4, ARG:5, ARG:6, ARG:7, ARG:8, ARG:9)
+#FUNCTION
+LOCAL:1 = 0
+FOR LOCAL:0, 0, 10
+	IF ARG:(LOCAL:0) != 0
+		LOCAL:1 ++
+	ENDIF
+NEXT
+IF LOCAL:1 == 0
+	RETURNF 0
+ENDIF
+RETURNF ARG:(RAND:(LOCAL:1))
+
+;-------------------------
+;選択式のボタンを描画する関数
+;ARGS:0=表示する文字列、ARG:1=ボタンの番号、ARG:2=選択されているか否か
+;-------------------------
+@PRINT_SELECT_BUTTON(ARGS:0, ARG:1, ARG:2)
+IF ARG:2
+	SETCOLOR 0x00FFFF
+	PRINTPLAINFORM %ARGS:0%
+	RESETCOLOR
+ELSE
+	PRINTBUTTON ARGS:0, ARG:1
+ENDIF
+
+;-------------------------------------------------
+;はい／いいえ の選択肢を表示し入力結果を返す関数
+;引数 0=肯定選択肢の文字列、1=否定選択肢の文字列
+;戻り値 0=はい、1=いいえ
+;-------------------------------------------------
+@ASK_YN(ARGS:0 = "は  い", ARGS:1 = "いいえ")
+CURRENTREDRAW
+LOCAL:0 = RESULT
+REDRAW 0
+PRINTBUTTON @" 0[%ARGS:0%]", 0
+PRINTL 
+PRINTBUTTON @" 1[%ARGS:1%]", 1
+PRINTL 
+$INPUT_LOOP
+INPUT
+IF RESULT != 0 && RESULT != 1
+	CLEARLINE 1
+	GOTO INPUT_LOOP
+ENDIF
+REDRAW LOCAL:0
+RETURN RESULT
+
+;-------------------------------------------------
+;選択肢を表示し入力結果を返す関数
+;引数にセリフを指定。最大5個まで
+;戻り値は選択した選択肢の番号
+;-------------------------------------------------
+@ASK_MULTI(ARGS:0, ARGS:1, ARGS:2, ARGS:3, ARGS:4)
+CURRENTREDRAW
+LOCAL:0 = RESULT
+REDRAW 0
+FOR LOCAL:0, 0, 5
+	IF ARGS:(LOCAL:0) != ""
+		PRINTBUTTON @"{LOCAL:0, 2, RIGHT}[%ARGS:(LOCAL:0)%]", LOCAL:0
+		PRINTL 
+	ENDIF
+NEXT
+$INPUT_LOOP
+INPUT
+IF RESULT < 0 || RESULT > 4 || ARGS:RESULT == ""
+	CLEARLINE 1
+	GOTO INPUT_LOOP
+ENDIF
+REDRAW LOCAL:0
+RETURN RESULT
+
+;-------------------------------------------------
+;選択肢を表示し入力結果を返す関数 条件を満たさない選択肢をグレー表示にして無効にすることが可能
+;引数にセリフと条件(0で無効、非0で有効)を指定。最大5個まで
+;戻り値は選択した選択肢の番号
+;-------------------------------------------------
+@ASK_MULTI_JUDGE(ARGS:0, ARG:0, ARGS:1, ARG:1, ARGS:2, ARG:2, ARGS:3, ARG:3, ARGS:4, ARG:4)
+CURRENTREDRAW
+LOCAL:0 = RESULT
+REDRAW 0
+FOR LOCAL:0, 0, 5
+	IF ARGS:(LOCAL:0) != ""
+		IF ARG:(LOCAL:0)
+			PRINTBUTTON @"{LOCAL:0, 2, RIGHT}[%ARGS:(LOCAL:0)%]", LOCAL:0
+		ELSE
+			SETCOLOR 0x606060
+			PRINTPLAINFORM {LOCAL:0, 2, RIGHT}[%ARGS:(LOCAL:0)%]
+			RESETCOLOR
+		ENDIF
+		PRINTL 
+	ENDIF
+NEXT
+$INPUT_LOOP
+INPUT
+IF RESULT < 0 || RESULT > 4 || ARGS:RESULT == "" || !ARG:RESULT
+	CLEARLINE 1
+	GOTO INPUT_LOOP
+ENDIF
+REDRAW LOCAL:0
+RETURN RESULT
+
+
+;-------------------------------------------------
+;服装名表示
+;コスプレパッチで追加した関数
+;ARG:0　表示する服装名(IDが引数として使われる)
+;-------------------------------------------------
+@CLOTHE_NAME, ARG:0
+#FUNCTIONS
+
+SELECTCASE ARG:0
+	CASE 0
+		LOCALS = 普段着
+	CASE 1
+		LOCALS = メイド服
+	CASE 2
+		LOCALS = 踊り子衣装
+	CASE 3
+		LOCALS = 巫女装束
+	CASE 4
+		LOCALS = 執事服
+	CASE 5
+		LOCALS = 吟遊詩人服
+	CASE 6
+		LOCALS = 陰陽師装束
+ENDSELECT
+
+RETURNF LOCALS
+
+;-------------------------------------------------
+;ARG:0の性別に応じてカラーをセットする
+;-------------------------------------------------
+@SETCOLORBYSEX(ARG:0)
+SELECTCASE TALENT:(ARG:0):性別
+	CASE 1
+		SETCOLOR COLOR_SEX_FEMALE
+	CASE 0
+		SETCOLOR COLOR_SEX_MALE
+	CASE 2
+		SETCOLOR COLOR_SEX_FEMALE_HERM
+	CASE 3
+		SETCOLOR COLOR_SEX_MALE_HERM
+	CASE 4
+		SETCOLOR COLOR_SEX_TRAP
+	CASE 5
+		SETCOLOR COLOR_SEX_TRAP_HERM
+	CASEELSE
+		SETCOLOR COLOR_SEX_UNKNOWN
+ENDSELECT
+
+;-------------------------------------------------
+;シチュエーションに応じた数のダッシュを繰り返し表示する
+;ARG:0 シチュエーション
+;ARG:1 真で改行あり
+;-------------------------------------------------
+@REPEAT_DASH(ARG:0, ARG:1 = 1)
+	LOCAL:0 = 0
+	SELECTCASE ARG:0
+		CASE 0
+			;通常のショップ等
+			LOCAL:0 = 84
+			SIF CONFIG:13 != 1
+			LOCAL:0 = 90
+	ENDSELECT
+
+	IF ARG:1
+		PRINTFORML %TOSTR_REPEAT("-", LOCAL:0)%
+	ELSE
+		PRINTFORM %TOSTR_REPEAT("-", LOCAL:0)%
+	ENDIF
+
+;-------------------------------------------------
+;ARG:0番のキャラのボタン＋情報をシンプルに表示する関数
+;ARG:1に1を設定すると選択様ボタンになる([]→{})  このときARG:2に1を設定すると水色表示になる
+;ボタンの選択番号は NO + ARG:3 になる
+;ARG:4は@CHECK_SELECTABLEの返り値に対応
+;-------------------------------------------------
+@PRINT_PARTNER_DATA(ARG:0, ARG:1 = 0, ARG:2 = 0, ARG:3 = 100, ARG:4 = 1)
+IF CONFIG:13 == 0
+	PRINT  
+	CALL PRINT_RESTMARK(ARG:0)
+ENDIF
+
+IF ARG:1
+	LOCALS:0 = \{
+	LOCALS:1 = \}
+ELSE
+	LOCALS:0 = [
+	LOCALS:1 = ]
+ENDIF
+
+SIF ARG:1 && ARG:2
+		SETCOLOR COLOR_CYAN
+
+IF ARG:4 == 1
+	CALL PRINTBUTTON_CENTER(@"{NO:(ARG:0) + ARG:3, 5, RIGHT}%LOCALS:0%%NAME_DOUBLE(ARG:0), 16, LEFT%%LOCALS:1%", NO:(ARG:0) + ARG:3, 0)
+ELSEIF ARG:4 == 2
+	CALL PRINTBUTTON_CENTER(@"{NO:(ARG:0) + ARG:3, 5, RIGHT}%LOCALS:0%%NAME_DOUBLE(ARG:0), 16, LEFT%%LOCALS:1%", NO:(ARG:0) + ARG:3, 0, 0)
+ENDIF
+
+RESETCOLOR
+
+SIF ARG:4 <= 0
+	RETURN 0
+
+CALL IS_KOJO(NO:(ARG:0))
+IF RESULT
+	PRINT *
+ELSE
+	PRINT  
+ENDIF
+
+CALL PRINT_SEX(ARG:0, 1, 0, 2)
+
+IF ARG:0 == MASTER
+	PRINT   
+ELSEIF NO:(ARG:0) < 201
+	SETCOLOR 0xDAF13C
+	PRINT 固
+ELSEIF NO:(ARG:0) < 401
+	SETCOLOR 0x41f1f1
+	PRINT 汎
+ELSEIF NO:(ARG:0) < 1000
+	SETCOLOR 0x88ee22
+	PRINT 子
+ELSE
+	SETCOLOR 0xe27c44
+	PRINT 特
+ENDIF
+RESETCOLOR
+
+IF CFLAG:(ARG:0):寺子屋 == 1
+	SETCOLOR 0x97f8e8
+	PRINT 寺
+ELSEIF ARG:0 == MASTER
+	PRINT   
+ELSEIF CFLAG:(ARG:0):1 == CFLAG:MASTER:1
+	SETCOLOR 0x97f8e8
+	PRINT 自
+ELSEIF CFLAG:(ARG:0):1 != 0
+	SETCOLOR 0x28cc28
+	PRINT 他
+ELSE
+	SETCOLOR 0x808080
+	PRINT 無
+ENDIF
+RESETCOLOR
+PRINT  
+
+IF CONFIG:13 == 2
+	CALL PRINT_RESTMARK(ARG:0)
+	PRINT  
+ENDIF
+	
+IF ARG:0 == MASTER
+	PRINT   
+ELSEIF CFLAG:(ARG:0):9
+	IF CFLAG:(ARG:0):9 == CFLAG:MASTER:1
+		IF CFLAG:(ARG:0):29 == 0
+			SETCOLOR 0x4434E5
+			PRINT 監
+		ELSE
+			SETCOLOR 0xA39ED7
+			PRINT 軟
+		ENDIF
+	ELSE
+		SETCOLOR 0xdf0000
+		PRINT 囚
+	ENDIF
+ELSEIF CFLAG:(ARG:0):59
+	IF CFLAG:(ARG:0):42 == 2
+		SETCOLOR COLOR_SEX_FEMALE
+		PRINT 虜
+	ELSE
+		SETCOLOR 0x489200
+		PRINT 脅
+	ENDIF
+ELSEIF CFLAG:(ARG:0):17
+	SETCOLOR 0xD0D0D0
+	PRINT 会
+ELSE
+	SETCOLOR 0x404040
+	PRINT 会
+ENDIF
+RESETCOLOR
+PRINT  
+
+IF TALENT:(ARG:0):研究用奴隷の烙印
+	SETCOLOR 0x0000A0
+	PRINT 外
+ELSEIF TALENT:(ARG:0):ゴブリンの性奴隷
+	SETCOLOR 0x2B5C1B
+	PRINT ゴ
+ELSEIF TALENT:(ARG:0):霖之助に恋慕 && CONFIG:70
+	SETCOLOR 0x4040FF
+	PRINT 慕
+ELSEIF TALENT:(ARG:0):藍に恋慕 && CONFIG:71
+	SETCOLOR 0xA040D0
+	PRINT 慕
+ELSEIF TALENT:(ARG:0):親愛
+	SETCOLOR 0xF5CE13
+	PRINT 愛
+ELSEIF TALENT:(ARG:0):恋慕
+	SETCOLOR 0xFF4080
+	PRINT 慕
+ELSEIF TALENT:(ARG:0):親友
+	SETCOLOR 0xFF8000
+	PRINT 友
+ELSEIF TALENT:(ARG:0):隷属
+	SETCOLOR 0x00FFFF
+	PRINT 隷
+ELSEIF TALENT:(ARG:0):服従
+	SETCOLOR 0x00D0D0
+	PRINT 酔
+ELSE
+	PRINT   
+ENDIF
+RESETCOLOR
+
+IF TALENT:(ARG:0):霖之助の恋人 && CONFIG:70
+	SETCOLOR 0x4040FF
+	PRINT 恋
+ELSEIF TALENT:(ARG:0):藍の恋人 && CONFIG:71
+	SETCOLOR 0xA040D0
+	PRINT 恋
+ELSEIF TALENT:(ARG:0):正妻
+	SETCOLOR 0xF5CE13
+	PRINT 妻
+ELSEIF TALENT:(ARG:0):恋人
+	SETCOLOR 0xFF80C0
+	PRINT 恋
+ELSEIF TALENT:(ARG:0):烙印
+	SETCOLOR 0x00FF80
+	PRINT 印
+ELSE
+	PRINT   
+ENDIF
+RESETCOLOR
+PRINT  
+
+IF CFLAG:(ARG:0):16 == 1
+	SETCOLOR 0xFFC0C0
+	PRINTPLAIN 臨
+ELSEIF CFLAG:(ARG:0):16 == 2
+	SETCOLOR 0xFFC0C0
+	PRINTPLAIN 育
+ELSEIF CFLAG:(ARG:0):16 == 3
+	SETCOLOR COLOR_ALERT
+	PRINTPLAIN 傷
+ELSEIF CFLAG:(ARG:0):16 == 4
+	SETCOLOR 0x00FF00
+	PRINTPLAIN 幼
+ELSE
+	PRINTPLAIN   
+ENDIF
+RESETCOLOR
+
+;-------------------------------------------------
+;ARG:0番のキャラのボタン＋ARG:1番に対する好感度情報をシンプルに表示する関数
+;ARG:2に1を設定すると選択様ボタンになる([]→{})  このときARG:3に1を設定すると水色表示になる
+;ボタンの選択番号は NO + ARG:4 になる
+;ARG:5は@CHECK_SELECTABLEの返り値に対応
+;-------------------------------------------------
+@PRINT_KOUKANDO_DATA(ARG:0, ARG:1, ARG:2 = 0, ARG:3 = 0, ARG:4 = 100, ARG:5 = 1)
+IF ARG:2
+	LOCALS:0 = \{
+	LOCALS:1 = \}
+ELSE
+	LOCALS:0 = [
+	LOCALS:1 = ]
+ENDIF
+
+SIF ARG:2 && ARG:3
+		SETCOLOR COLOR_CYAN
+
+IF ARG:5 == 1
+	CALL PRINTBUTTON_CENTER(@"{NO:(ARG:0) + ARG:4, 5, RIGHT}%LOCALS:0%%NAME_DOUBLE(ARG:0), 16, LEFT%%LOCALS:1%", NO:(ARG:0) + ARG:4, 0)
+ELSEIF ARG:5 == 2
+	CALL PRINTBUTTON_CENTER(@"{NO:(ARG:0) + ARG:4, 5, RIGHT}%LOCALS:0%%NAME_DOUBLE(ARG:0), 16, LEFT%%LOCALS:1%", NO:(ARG:0) + ARG:4, 0, 0)
+ENDIF
+
+RESETCOLOR
+
+SIF ARG:5 <= 0
+	RETURN 0
+
+CALL IS_KOJO(NO:(ARG:0))
+IF RESULT
+	PRINT *
+ELSE
+	PRINT  
+ENDIF
+
+IF ARG:1 == -1
+	PRINTFORM 好      /嫌      
+ELSE
+;	PRINTFORM 好:
+;	SETCOLOR COLOR_SEX_FEMALE
+;	PRINTFORM {REL_LIKE:(ARG:0):(ARG:1), 4, RIGHT}
+;	RESETCOLOR
+;	PRINTFORM  / 嫌:
+;	SETCOLOR COLOR_SEX_MALE
+;	PRINTFORM {REL_HATE:(ARG:0):(ARG:1), 4, RIGHT}
+;	RESETCOLOR
+	LOCAL:0 = REL_LIKE:(ARG:0):(ARG:1)
+	LOCAL:1 = REL_HATE:(ARG:0):(ARG:1)
+	PRINTFORM 好
+	IF LOCAL:0 <= 750
+		CALL PRINT_COLORBAR(LOCAL:0, 750, 6, UNICODE(0x2585), UNICODE(0x2585), 0x800040)
+	ELSE
+		CALL PRINT_COLORBAR(LOCAL:0 - 750, 750, 6, UNICODE(0x2585), UNICODE(0x2585), COLOR_SEX_FEMALE, 0x800040)
+	ENDIF
+	PRINTFORM /嫌
+	IF LOCAL:1 <= 750
+		CALL PRINT_COLORBAR(LOCAL:1, 750, 6, UNICODE(0x2585), UNICODE(0x2585), 0x400080)
+	ELSE
+		CALL PRINT_COLORBAR(LOCAL:1 - 750, 750, 6, UNICODE(0x2585), UNICODE(0x2585), COLOR_SEX_MALE, 0x400080)
+	ENDIF
+ENDIF
+;-------------------------------------------------
+;済マークを表示
+;-------------------------------------------------
+@PRINT_RESTMARK(ARG:0)
+LOCAL = GETCOLOR()
+IF ARG:0 == MASTER
+	PRINT   
+	RETURN
+ELSEIF CFLAG:(ARG:0):91
+	IF CFLAG:(ARG:0):93 == 1
+		SETCOLOR COLOR_SEX_FEMALE
+	ELSEIF CFLAG:(ARG:0):93 ==2
+		SETCOLOR COLOR_SEX_MALE
+	ELSE
+		SETCOLOR 0xD0D0D0
+	ENDIF
+	
+ELSE
+	SETCOLOR 0x404040
+ENDIF
+PRINT 済
+SETCOLOR LOCAL
+
+
+;emueraの仕様らしきもの
+;64以上のビットシフトは第一オペランドをそのまま返す
+;左シフトは論理
+;右シフトは算術
+
+@GETMULTIBITFROM(ARG:0, ARG:1, ARG:2)
+#FUNCTION
+;いらない部分を削る
+ARG:0 = ARG:0 << ( 64-(ARG:1+ARG:2) )
+
+;左端ビットを記憶
+LOCAL:1 = GETBIT(ARG:0, 63)
+
+;左端ビットを0に
+ARG:0 &= ~(1p63)
+
+;右シフト
+ARG:0 = ARG:0 >> (64 - ARG:2)
+
+;左端ビットを戻す
+ARG:0 |= LOCAL:1 << (ARG:2 - 1)
+
+RETURNF ARG:0
+
+@F64TO16(ARG:0)
+#FUNCTION
+SIF ARG:0 >= 0
+	RETURNF ARG:0
+RETURNF GETMULTIBITFROM(~(ABS(ARG:0)), 0, 16) + 1
+
+@F16TO64(ARG:0)
+#FUNCTION
+SIF !GETBIT(ARG:0,15)
+	RETURNF ARG:0
+ARG:0 = GETMULTIBITFROM(~(ARG:0 - 1),0 , 16)
+SIF ARG:0 == 0
+	RETURNF -(1 << 16)
+RETURNF -(ARG:0)
+
+@F64TO8(ARG:0)
+#FUNCTION
+SIF ARG:0 >= 0
+	RETURNF ARG:0
+RETURNF GETMULTIBITFROM(~(ABS(ARG:0)), 0, 8) + 1
+
+@F8TO64(ARG:0)
+#FUNCTION
+SIF !GETBIT(ARG:0,7)
+	RETURNF ARG:0
+ARG:0 = GETMULTIBITFROM(~(ARG:0 - 1),0 , 8)
+SIF ARG:0 == 0
+	RETURNF -(1 << 8)
+RETURNF -(ARG:0)
+
+@ERROR(ARGS)
+#FUNCTION
+SETCOLOR COLOR_ALERT
+PRINTL
+PRINTFORML エラー:%ARGS%
+ASSERT 0
+RETURNF 0
+
+;キャラをCSVから追加する際に必要な処理をまとめたもの
+;返り値にキャラの番号を返す　IDがほしかったらGET_IDすること
+@ADD_CHARA_FROM_CSV(CSVNO)
+#DIM CSVNO
+;キャラをCSVから読みだしてから初期設定をする
+ADDCHARA CSVNO
+;初期設定
+CALL NEWCHARA_INIT(CHARANUM - 1)
+RETURN CHARANUM - 1
+
+;ランダムキャラ、子供以外で同じシナリオ中で同じデータが複数人が出てくるなどでCSVから生成することができないキャラを追加する際
+;そのキャラの種別であいているNOを取得するための関数
+;ARG:0 ;危険！　使わないこと 引継ぎ可能であるかと思ってた
+	;1:そのキャラがシナリオ終了後引き継ぐことができる と思っていた
+@GET_EMPTY_NO(ARG:0 = 0)
+#FUNCTION
+;範囲の最低値を入れる
+IF ARG:0 == 1
+	LOCAL:1 = 1100
+ELSE
+	LOCAL:1 = 2100
+ENDIF
+FOR LOCAL:0, 0, CHARANUM
+	;範囲内でより大きい数字を見つけたらその数字より1大きい数字を入れる
+	;条件式を分かりやすくするためにあえて不必要な条件を追加する
+	SIF NO:(LOCAL:0) >= LOCAL:1 && (ARG:0 == 1 && NO:(LOCAL:0) < 2000 || ARG:0 != 1)
+		LOCAL:1 = NO:(LOCAL:0) + 1
+NEXT
+RETURNF LOCAL:1
+
+;ランダムキャラを追加するためのひな形を用意する関数　になるかと思ってた
+;ARG:0 危険！使わないこと
+@ADD_VOID_CHARA(ARG:0 = 0)
+ADDVOIDCHARA
+NO:(CHARANUM - 1) = GET_EMPTY_NO(ARG:0)
+RETURN CHARANUM - 1
+

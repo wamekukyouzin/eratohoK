@@ -1,0 +1,157 @@
+﻿;服屋に入る
+
+;-------------------------------------------------
+;コマンド名称
+;-------------------------------------------------
+@COM_NAME350
+RESULTS:0 = 服屋に誘う
+RESULTS:1 = 服屋に付き合う
+
+;-------------------------------------------------
+;選択可否判定
+;-------------------------------------------------
+@COM_ABLE350
+;共通部分
+CALL COM_ABLE_COMMON(350)
+SIF RESULT == 0
+	RETURN 0
+;主人公がプレイヤーのとき限定
+SIF MPLY:0 != MASTER
+	RETURN 0
+;城下町でのデート中限定
+SIF GET_PLACENAME(TFLAG:54) != "城下町"
+	RETURN 0
+;怪我なら不可
+SIF CFLAG:(MTAR:0):16 == 3
+	RETURN 0
+;キス中は不可
+SIF IS_EQUIP(MPLY:0, 342)
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;メイン処理
+;-------------------------------------------------
+@COM350
+;実行判定
+CALL COM_ORDER_COMMON
+IF RESULT == 0
+	RETURN 0
+ENDIF
+
+;成否の判定なし
+TFLAG:18 = 0
+
+PRINTFORMW %ANAME(MPLY:0)%と%ANAME(MTAR:0)%は服屋に入った…
+
+$SELECT_LOOP
+
+DRAWLINE
+PRINTFORML ●服の購入(所持金:{MONEY})
+PRINTL   [0] チャイナ服    ( 5000)
+PRINTL   [1] メイド服      (20000)
+PRINTL   [2] セーラー服    (20000)
+PRINTL   [3] ボンデージ    (20000)
+PRINTL   [4] ゴシックドレス(40000)
+PRINTL   [5] ホワイトドレス(80000)
+PRINTL   [6] 和服          (40000)
+DRAWLINE
+PRINTL   [9] 見るだけ
+
+REDRAW 0
+
+$INPUT_LOOP
+INPUT
+
+LOCAL:4 = RESULT
+
+SELECTCASE LOCAL:4
+	CASE 0
+		IF MONEY < 5000
+			PRINTW お金が足りません
+			CLEARLINE 2
+			GOTO INPUT_LOOP
+		ENDIF
+
+		MONEY -= 5000
+
+		;素質によるボーナス
+		LOCAL:5 = 100
+		LOCAL:5 += (TALENT:(MTAR:0):好奇心 != 0) * 20
+		LOCAL:5 += (TALENT:(MTAR:0):大人しい != 0) * 20
+		LOCAL:5 += (TALENT:(MTAR:0):幼稚 != 0) * 50
+		LOCAL:5 += (TALENT:(MTAR:0):プライド高い != 0) * -40
+		LOCAL:5 += (TALENT:(MTAR:0):無関心 != 0) * -30
+		LOCAL:5 += (TALENT:(MTAR:0):感情乏しい != 0) * -20
+		LOCAL:5 = LIMIT(LOCAL:5, 0, 200)
+
+		SOURCE:(MTAR:0):歓楽 = 150 * LOCAL:5 / 100
+		;親密に応じた歓楽のソース追加
+		CALL ADD_SOURCE_KANRAKU(MTAR:0, 220 * LOCAL:5 / 100)
+		SOURCE:(MTAR:0):歓楽 = MAX(SOURCE:(MTAR:0):歓楽, 0)
+
+	CASEELSE
+		CLEARLINE 1
+		GOTO INPUT_LOOP
+ENDSELECT
+
+REDRAW 1
+
+TFLAG:17 = LOCAL:4
+
+
+;主導度変化基準値
+TFLAG:49 = 2
+
+;倒錯度変化基準値
+TFLAG:50 = 0
+
+RETURN 1
+
+;-------------------------------------------------
+;固有の実行判定(プレイヤー側)
+;-------------------------------------------------
+@COM_ORDER_PLAYER350(ARG:0)
+;実行値の設定
+TCVAR:(ARG:0):25 = 30
+
+;共通部分
+CALL COM_ORDER(ARG:0)
+
+;好感度
+IF CFLAG:(ARG:0):2 < 300
+	IF CFLAG:(ARG:0):2 < 50
+		LOCAL:0 = -12
+	ELSEIF CFLAG:(ARG:0):2 < 150
+		LOCAL:0 = -8
+	ELSE
+		LOCAL:0 = -4
+	ENDIF
+	CALL COM_ORDER_ELEMENT(ARG:0, @"好感度不足", LOCAL:0)
+ELSE
+	LOCAL:0 = CFLAG:(ARG:0):2 / 75
+	CALL COM_ORDER_ELEMENT(ARG:0, @"好感度", LOCAL:0)
+ENDIF
+
+IF TALENT:(ARG:0):臆病
+	CALL COM_ORDER_ELEMENT(ARG:0, "臆病", -3)
+ENDIF
+IF TALENT:(ARG:0):大人しい
+	CALL COM_ORDER_ELEMENT(ARG:0, "大人しい", -2)
+ENDIF
+IF TALENT:(ARG:0):恥じらい
+	CALL COM_ORDER_ELEMENT(ARG:0, "恥じらい", -3)
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE350
+
+;-------------------------------------------------
+;地の文(パラメータ・刻印変動後)
+;-------------------------------------------------
+@COM_TEXT_LAST350
+;日常コマンドに共通の地の文
+CALL COM_TEXT_LAST_LIFE

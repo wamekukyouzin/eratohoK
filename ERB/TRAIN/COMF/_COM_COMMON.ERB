@@ -1,0 +1,686 @@
+﻿;コマンド関係の共通関数をまとめる
+
+;-------------------------------------------------
+;主人公がターゲットならARGS:1を、それ以外ならARGS:0を返す関数
+;-------------------------------------------------
+@TARGET_STR(ARGS:0, ARGS:1)
+#FUNCTIONS
+IF IS_MTAR(MASTER)
+	RETURNF ARGS:1
+ENDIF
+RETURNF ARGS:0
+
+;-------------------------------------------------
+;主人公がプレイヤーならARGS:1を、それ以外ならARGS:0を返す関数
+;-------------------------------------------------
+@PLAYER_STR(ARGS:0, ARGS:1)
+#FUNCTIONS
+IF IS_MPLY(MASTER)
+	RETURNF ARGS:1
+ENDIF
+RETURNF ARGS:0
+
+;-------------------------------------------------
+;キャラARG:0が挿入状態にあるかどうかを判定する関数
+;ARGS:1……"全"、"Ｐ"、"Ｖ"、"Ａ"、"ＶＡ" のいずれかを指定する
+;指定の挿入状態なら1、それ以外なら0を返す
+;-------------------------------------------------
+@IS_INSERT_SINGLE(ARG:0, ARGS:1)
+#FUNCTION
+IF ARGS:1 == "全" || ARGS:1 == "Ｐ"
+	IF IS_EQUIP_PLAYER(ARG:0, 30, 31, 32, 33, 34, 35, 36, 57, 58)
+		RETURNF 1
+	ENDIF
+	IF IS_EQUIP_PLAYER(ARG:0, 40, 41, 42, 43, 44, 45, 46, 108, 109)
+		RETURNF 1
+	ENDIF
+ENDIF
+
+IF ARGS:1 == "全" || ARGS:1 == "Ｖ" || ARGS:1 == "ＶＡ"
+	IF IS_EQUIP_TARGET(ARG:0, 30, 31, 32, 33, 34, 35, 36, 57, 92, 95)
+		RETURNF 1
+	ENDIF
+	;貝合わせ・双頭バイブもＶ挿入として扱う
+	IF IS_EQUIP(ARG:0, 21, 22)
+		RETURNF 1
+	ENDIF
+ENDIF
+
+IF ARGS:1 == "全" || ARGS:1 == "Ａ" || ARGS:1 == "ＶＡ"
+	IF IS_EQUIP_TARGET(ARG:0, 40, 41, 42, 43, 44, 45, 46, 58, 93, 96)
+		RETURNF 1
+	ENDIF
+ENDIF
+
+RETURNF 0
+
+;-------------------------------------------------
+;キャラARG:0とキャラARG:1が相互に挿入状態にあるかを返す関数
+;戻り値
+;	0=挿入していない
+;	1=ARG:0がARG:1のＶに挿入
+;	2=ARG:0がARG:1のＡに挿入
+;	3=ARG:1がARG:0のＶに挿入
+;	4=ARG:1がARG:0のＡに挿入
+;	5=貝合わせ・双頭バイブによる結合
+;-------------------------------------------------
+@IS_INSERT_MUTUAL(ARG:0, ARG:1)
+#FUNCTION
+FOR LOCAL:0, 0, MEQUIP_NUM
+	IF GROUPMATCH(MEQUIP:(LOCAL:0), 30, 31, 32, 33, 34, 35, 36, 57)
+		FOR LOCAL:1, 0, MEQUIP_PLAYER_NUM:(LOCAL:0)
+			IF MEQUIP_PLAYER:(LOCAL:0):(LOCAL:1) == ARG:0
+				FOR LOCAL:2, 0, MEQUIP_TARGET_NUM:(LOCAL:0)
+					IF MEQUIP_TARGET:(LOCAL:0):(LOCAL:2) == ARG:1
+						RETURNF 1
+					ENDIF
+				NEXT
+			ENDIF
+			IF MEQUIP_PLAYER:(LOCAL:0):(LOCAL:1) == ARG:1
+				FOR LOCAL:2, 0, MEQUIP_TARGET_NUM:(LOCAL:0)
+					IF MEQUIP_TARGET:(LOCAL:0):(LOCAL:2) == ARG:0
+						RETURNF 3
+					ENDIF
+				NEXT
+			ENDIF
+		NEXT
+	ENDIF
+	IF GROUPMATCH(MEQUIP:(LOCAL:0), 40, 41, 42, 43, 44, 45, 46, 58)
+		FOR LOCAL:1, 0, MEQUIP_PLAYER_NUM:(LOCAL:0)
+			IF MEQUIP_PLAYER:(LOCAL:0):(LOCAL:1) == ARG:0
+				FOR LOCAL:2, 0, MEQUIP_TARGET_NUM:(LOCAL:0)
+					IF MEQUIP_TARGET:(LOCAL:0):(LOCAL:2) == ARG:1
+						RETURNF 2
+					ENDIF
+				NEXT
+			ENDIF
+			IF MEQUIP_PLAYER:(LOCAL:0):(LOCAL:1) == ARG:1
+				FOR LOCAL:2, 0, MEQUIP_TARGET_NUM:(LOCAL:0)
+					IF MEQUIP_TARGET:(LOCAL:0):(LOCAL:2) == ARG:0
+						RETURNF 4
+					ENDIF
+				NEXT
+			ENDIF
+		NEXT
+	ENDIF
+	IF GROUPMATCH(MEQUIP:(LOCAL:0), 21, 22)
+		FOR LOCAL:1, 0, MEQUIP_PLAYER_NUM:(LOCAL:0)
+			IF MEQUIP_PLAYER:(LOCAL:0):(LOCAL:1) == ARG:0
+				FOR LOCAL:2, 0, MEQUIP_TARGET_NUM:(LOCAL:0)
+					IF MEQUIP_TARGET:(LOCAL:0):(LOCAL:2) == ARG:1
+						RETURNF 5
+					ENDIF
+				NEXT
+			ENDIF
+			IF MEQUIP_PLAYER:(LOCAL:0):(LOCAL:1) == ARG:1
+				FOR LOCAL:2, 0, MEQUIP_TARGET_NUM:(LOCAL:0)
+					IF MEQUIP_TARGET:(LOCAL:0):(LOCAL:2) == ARG:0
+						RETURNF 5
+					ENDIF
+				NEXT
+			ENDIF
+		NEXT
+	ENDIF
+NEXT
+RETURNF 0
+
+;-------------------------------------------------
+;ARG:0番のキャラについて、指定の挿入状態を解除する  ※挿入相手のフラグも自動的に探索して解除する
+;ARGS:1……"全"、"Ｐ"、"Ｖ"、"Ａ" のいずれかを指定する
+;-------------------------------------------------
+@CLEAR_INSERT_FLAG(ARG:0, ARGS:1)
+IF ARGS:1 == "全" || ARGS:1 == "Ｐ"
+	LOCAL:5 = MEQUIP_NUM
+	FOR LOCAL:0, 0, LOCAL:5
+		IF GROUPMATCH(MEQUIP:(LOCAL:0), 30, 31, 32, 33, 34, 35, 36, 40, 41, 42, 43, 44, 45, 46, 58, 57, 108, 109)
+			FOR LOCAL:1, 0, MEQUIP_PLAYER_NUM:(LOCAL:0)
+				IF MEQUIP_PLAYER:(LOCAL:0):(LOCAL:1) == ARG:0
+					CALL RELEASE_EQUIP(LOCAL:0, 1, 0)
+					LOCAL:5 --
+					LOCAL:0 --
+					BREAK
+				ENDIF
+			NEXT
+		ENDIF
+	NEXT
+ENDIF
+
+IF (ARGS:1 == "全" || ARGS:1 == "Ｖ")
+	LOCAL:5 = MEQUIP_NUM
+	FOR LOCAL:0, 0, LOCAL:5
+		IF GROUPMATCH(MEQUIP:(LOCAL:0), 30, 31, 32, 33, 34, 35, 36, 57, 92, 95, 108)
+			FOR LOCAL:1, 0, MEQUIP_TARGET_NUM:(LOCAL:0)
+				IF MEQUIP_TARGET:(LOCAL:0):(LOCAL:1) == ARG:0
+					CALL RELEASE_EQUIP(LOCAL:0, 1, 0)
+					LOCAL:5 --
+					LOCAL:0 --
+					BREAK
+				ENDIF
+			NEXT
+		ENDIF
+	NEXT
+	FOR LOCAL:0, 0, LOCAL:5
+		IF GROUPMATCH(MEQUIP:(LOCAL:0), 21, 22)
+			LOCAL:6 = 0
+			FOR LOCAL:1, 0, MEQUIP_PLAYER_NUM:(LOCAL:0)
+				IF MEQUIP_PLAYER:(LOCAL:0):(LOCAL:1) == ARG:0
+					CALL RELEASE_EQUIP(LOCAL:0, 1, 0)
+					LOCAL:6 = 1
+					LOCAL:5 --
+					LOCAL:0 --
+					BREAK
+				ENDIF
+			NEXT
+			IF !LOCAL:6
+				FOR LOCAL:1, 0, MEQUIP_TARGET_NUM:(LOCAL:0)
+					IF MEQUIP_TARGET:(LOCAL:0):(LOCAL:1) == ARG:0
+						CALL RELEASE_EQUIP(LOCAL:0, 1, 0)
+						LOCAL:5 --
+						LOCAL:0 --
+						BREAK
+					ENDIF
+				NEXT
+			ENDIF
+		ENDIF
+	NEXT
+ENDIF
+
+IF (ARGS:1 == "全" || ARGS:1 == "Ａ")
+	LOCAL:5 = MEQUIP_NUM
+	FOR LOCAL:0, 0, LOCAL:5
+		IF GROUPMATCH(MEQUIP:(LOCAL:0), 40, 41, 42, 43, 44, 45, 46, 58, 93, 96, 109)
+			FOR LOCAL:1, 0, MEQUIP_TARGET_NUM:(LOCAL:0)
+				IF MEQUIP_TARGET:(LOCAL:0):(LOCAL:1) == ARG:0
+					CALL RELEASE_EQUIP(LOCAL:0, 1, 0)
+					LOCAL:5 --
+					LOCAL:0 --
+					BREAK
+				ENDIF
+			NEXT
+		ENDIF
+	NEXT
+ENDIF
+
+;-------------------------------------------------
+;キャラARG:0からキャラARG:1に挿入しているとき、その体位を返す
+;1=正常位 2=後背位 3=対面座位 4=背面座位 5=騎乗位 6=背面騎乗位 20=双頭バイブ・貝合わせ
+;-------------------------------------------------
+@GET_SEX_POSITION(ARG:0, ARG:1)
+#FUNCTION
+FOR LOCAL:0, 0, MEQUIP_NUM
+	LOCAL:5 = 0
+	IF GROUPMATCH(MEQUIP:(LOCAL:0), 30, 40)
+		LOCAL:5 = 1
+	ELSEIF GROUPMATCH(MEQUIP:(LOCAL:0), 31, 41)
+		LOCAL:5 = 2
+	ELSEIF GROUPMATCH(MEQUIP:(LOCAL:0), 32, 42)
+		LOCAL:5 = 3
+	ELSEIF GROUPMATCH(MEQUIP:(LOCAL:0), 33, 43)
+		LOCAL:5 = 4
+	ELSEIF GROUPMATCH(MEQUIP:(LOCAL:0), 34, 44)
+		LOCAL:5 = 5
+	ELSEIF GROUPMATCH(MEQUIP:(LOCAL:0), 35, 45)
+		LOCAL:5 = 6
+	ELSEIF GROUPMATCH(MEQUIP:(LOCAL:0), 21, 22)
+		LOCAL:5 = 20
+	ENDIF
+
+	IF LOCAL:5
+		FOR LOCAL:1, 0, MEQUIP_PLAYER_NUM:(LOCAL:0)
+			IF MEQUIP_PLAYER:(LOCAL:0):(LOCAL:1) == ARG:0
+				FOR LOCAL:2, 0, MEQUIP_TARGET_NUM:(LOCAL:0)
+					IF MEQUIP_TARGET:(LOCAL:0):(LOCAL:2) == ARG:1
+						RETURNF LOCAL:5
+					ENDIF
+				NEXT
+				BREAK
+			ENDIF
+		NEXT
+	ENDIF
+NEXT
+RETURNF 0
+
+;-------------------------------------------------
+;キャラARG:0が指定の挿入状態のとき、その体位を返す
+;ARGS:1に"Ｐ"、"Ｖ"、"Ａ"のいずれかを指定
+;1=正常位 2=後背位 3=対面座位 4=背面座位 5=騎乗位 6=背面騎乗位 20=双頭バイブ・貝合わせ
+;-------------------------------------------------
+@GET_SEX_POSITION_SINGLE(ARG:0, ARGS:1)
+#FUNCTION
+IF ARGS:1 == "Ｐ"
+	FOR LOCAL:0, 0, MEQUIP_NUM
+		LOCAL:5 = 0
+		IF GROUPMATCH(MEQUIP:(LOCAL:0), 30, 40)
+			LOCAL:5 = 1
+		ELSEIF GROUPMATCH(MEQUIP:(LOCAL:0), 31, 41)
+			LOCAL:5 = 2
+		ELSEIF GROUPMATCH(MEQUIP:(LOCAL:0), 32, 42)
+			LOCAL:5 = 3
+		ELSEIF GROUPMATCH(MEQUIP:(LOCAL:0), 33, 43)
+			LOCAL:5 = 4
+		ELSEIF GROUPMATCH(MEQUIP:(LOCAL:0), 34, 44)
+			LOCAL:5 = 5
+		ELSEIF GROUPMATCH(MEQUIP:(LOCAL:0), 35, 45)
+			LOCAL:5 = 6
+		ELSEIF GROUPMATCH(MEQUIP:(LOCAL:0), 21, 22)
+			LOCAL:5 = 20
+		ENDIF
+		IF LOCAL:5
+			FOR LOCAL:1, 0, MEQUIP_PLAYER_NUM:(LOCAL:0)
+				IF MEQUIP_PLAYER:(LOCAL:0):(LOCAL:1) == ARG:0
+					RETURNF LOCAL:5
+				ENDIF
+			NEXT
+		ENDIF
+	NEXT
+ELSEIF ARGS:1 == "Ｖ"
+	FOR LOCAL:0, 0, MEQUIP_NUM
+		LOCAL:5 = 0
+		IF GROUPMATCH(MEQUIP:(LOCAL:0), 30)
+			LOCAL:5 = 1
+		ELSEIF GROUPMATCH(MEQUIP:(LOCAL:0), 31)
+			LOCAL:5 = 2
+		ELSEIF GROUPMATCH(MEQUIP:(LOCAL:0), 32)
+			LOCAL:5 = 3
+		ELSEIF GROUPMATCH(MEQUIP:(LOCAL:0), 33)
+			LOCAL:5 = 4
+		ELSEIF GROUPMATCH(MEQUIP:(LOCAL:0), 34)
+			LOCAL:5 = 5
+		ELSEIF GROUPMATCH(MEQUIP:(LOCAL:0), 35)
+			LOCAL:5 = 6
+		ELSEIF GROUPMATCH(MEQUIP:(LOCAL:0), 21, 22)
+			LOCAL:5 = 20
+		ENDIF
+		IF LOCAL:5
+			FOR LOCAL:1, 0, MEQUIP_TARGET_NUM:(LOCAL:0)
+				IF MEQUIP_TARGET:(LOCAL:0):(LOCAL:1) == ARG:0
+					RETURNF LOCAL:5
+				ENDIF
+			NEXT
+		ENDIF
+	NEXT
+ELSEIF ARGS:1 == "Ａ"
+	FOR LOCAL:0, 0, MEQUIP_NUM
+		LOCAL:5 = 0
+		IF GROUPMATCH(MEQUIP:(LOCAL:0), 40)
+			LOCAL:5 = 1
+		ELSEIF GROUPMATCH(MEQUIP:(LOCAL:0), 41)
+			LOCAL:5 = 2
+		ELSEIF GROUPMATCH(MEQUIP:(LOCAL:0), 42)
+			LOCAL:5 = 3
+		ELSEIF GROUPMATCH(MEQUIP:(LOCAL:0), 43)
+			LOCAL:5 = 4
+		ELSEIF GROUPMATCH(MEQUIP:(LOCAL:0), 44)
+			LOCAL:5 = 5
+		ELSEIF GROUPMATCH(MEQUIP:(LOCAL:0), 45)
+			LOCAL:5 = 6
+		ENDIF
+		IF LOCAL:5
+			FOR LOCAL:1, 0, MEQUIP_TARGET_NUM:(LOCAL:0)
+				IF MEQUIP_TARGET:(LOCAL:0):(LOCAL:1) == ARG:0
+					RETURNF LOCAL:5
+				ENDIF
+			NEXT
+		ENDIF
+	NEXT
+ENDIF
+RETURNF 0
+
+;-------------------------------------------------
+;キャラARG:0が主体的なコマンド実行が可能かどうかを返す関数
+;具体的には体力切れ・気力切れ・酔い限界・不機嫌による離脱で0を返す
+;-------------------------------------------------
+@IS_PLAYABLE(ARG:0)
+#FUNCTION
+IF TCVAR:(ARG:0):51 || TCVAR:(ARG:0):52 || TCVAR:(ARG:0):53
+	RETURNF 0
+ENDIF
+RETURNF 1
+
+;-------------------------------------------------
+;キャラARG:0にペニスがあれば「ペニス」、なければ「張り型」を返す文字関数
+;返す文字列を指定することも可能
+;-------------------------------------------------
+@BAR_NAME(ARG:0, ARGS:1 = "ペニス", ARGS:2 = "張り型")
+#FUNCTIONS
+IF PENIS(ARG:0)
+	RETURNF ARGS:1
+ENDIF
+RETURNF ARGS:2
+
+;-------------------------------------------------
+;射精対象のキャラと部位をスタックする関数
+;ARG:0=射精元のキャラ番号、ARG:1=射精先のキャラ番号、ARG:2=射精部位(※資料フォルダの変数表を参照)、ARG:3=上書きするかどうか
+;なお膣射・腸射を指定すると他の射精箇所が全てリセットされ、そのコマンド中は以後の上書きも禁止される
+;-------------------------------------------------
+@STACK_SPERM(ARG:0, ARG:1, ARG:2, ARG:3 = 1)
+;既に膣射・腸射先が指定されていれば戻る
+FOR LOCAL:0, 0, 20
+	IF GROUPMATCH(TCVAR:(ARG:0):(LOCAL:0 + 420), 1, 2)
+		RETURN
+	ENDIF
+NEXT
+
+;上書きしない場合、既に射精箇所が設定されていたら戻る
+IF !ARG:3
+	FOR LOCAL:0, 0, 20
+		IF TCVAR:(ARG:0):(LOCAL:0 + 400) != -1
+			RETURN
+		ENDIF
+	NEXT
+ENDIF
+
+;もしARG:2が膣orアナルなら今までの指定をリセットして新たに上書き
+IF ARG:2 == 1 || ARG:2 == 2
+	FOR LOCAL:0, 0, 20
+		TCVAR:(ARG:0):(LOCAL:0 + 400) = -1
+		TCVAR:(ARG:0):(LOCAL:0 + 420) = 0
+	NEXT
+	TCVAR:(ARG:0):400 = ARG:1
+	TCVAR:(ARG:0):420 = ARG:2
+
+ELSE
+	FOR LOCAL:0, 0, 20
+		IF GROUPMATCH(TCVAR:(ARG:0):(LOCAL:0 + 400), -1, ARG:1)
+			TCVAR:(ARG:0):(LOCAL:0 + 400) = ARG:1
+			TCVAR:(ARG:0):(LOCAL:0 + 420) = ARG:2
+			BREAK
+		ENDIF
+	NEXT
+ENDIF
+
+;-------------------------------------------------
+;キャラARG:0について、射精対象に関する設定を強制的にクリアする関数
+;-------------------------------------------------
+@RESET_STACK_SPERM(ARG:0)
+FOR LOCAL:0, 0, 20
+	TCVAR:(ARG:0):(LOCAL:0 + 400) = -1
+	TCVAR:(ARG:0):(LOCAL:0 + 420) = 0
+NEXT
+
+;-------------------------------------------------
+;主導権がプレイヤー側なら0、ターゲット側なら1、両方なら2、どちらにもなければ3を返す関数
+;-------------------------------------------------
+@GET_COM_INITIATIVE
+#FUNCTION
+IF IS_MPLY(TFLAG:45)
+	RETURNF 0
+ELSEIF IS_MTAR(TFLAG:45)
+	RETURNF 1
+ENDIF
+RETURNF 3
+
+;-------------------------------------------------
+;キャラARG:0が主導権を持っていれば1を、それ以外なら0を返す関数
+;-------------------------------------------------
+@IS_INITIATIVE(ARG:0)
+#FUNCTION
+IF TFLAG:45 == ARG:0
+	RETURNF 1
+ENDIF
+
+IF (IS_MPLY(TFLAG:45) && IS_MPLY(ARG:0)) || (IS_MTAR(TFLAG:45) && IS_MTAR(ARG:0))
+	RETURNF 1
+ENDIF
+
+RETURNF 0
+
+;-------------------------------------------------
+;キャラARG:0が主導権を握る設定になっているなら2を、成り行きなら1を、それ以外なら0を返す関数
+;-------------------------------------------------
+@IS_INITIATIVE_SETTING(ARG:0)
+#FUNCTION
+IF FLAG:10 == -1
+	RETURNF 1
+ENDIF
+
+IF FLAG:10 == ARG:0
+	RETURNF 2
+ENDIF
+
+IF (IS_MPLY(FLAG:10) && IS_MPLY(ARG:0)) || (IS_MTAR(FLAG:10) && IS_MTAR(ARG:0))
+	RETURNF 2
+ENDIF
+
+RETURNF 0
+
+;-------------------------------------------------
+;<恋人>取得
+;-------------------------------------------------
+@GET_LOVERS(ARG:0)
+SETCOLOR COLOR_CAUTION
+PRINTFORMW %ANAME(ARG:0)%と<恋人>になりました
+RESETCOLOR
+
+TALENT:(ARG:0):恋人 = 1
+FLAG:48 += 1
+
+;既成事実Lv2に相当
+CALL SET_COUPLE_STEP(ARG:0, 2)
+
+;-------------------------------------------------
+;ARG:0番のキャラの、主人公との相対的な主導権基準値を返す
+;-------------------------------------------------
+@GET_INITIATIVE_RATE(ARG:0)
+#FUNCTION
+LOCAL:0 = GET_INITIATIVE_VALUE(ARG:0)
+LOCAL:1 = GET_INITIATIVE_VALUE(MASTER)
+RETURNF LOCAL:0 - LOCAL:1
+
+;-------------------------------------------------
+;ARG:0番のキャラの主導権基準値を返す関数
+;-------------------------------------------------
+@GET_INITIATIVE_VALUE(ARG:0)
+#FUNCTION
+;ウフフ中はウフフ主導度
+IF FLAG:50
+	LOCAL:0 = ABL:(ARG:0):主導度Ｕ
+;非ウフフ中は日常主導度
+ELSE
+	LOCAL:0 = ABL:(ARG:0):主導度Ｎ
+ENDIF
+
+LOCAL:0 = (ABS(LOCAL:0) / 20) * SIGN(LOCAL:0) + 50
+
+RETURNF LIMIT(LOCAL:0, 0, 100)
+
+;-------------------------------------------------
+;コマンドの成否をTFLAG:18にセットする関数
+;ARG:0=キャラ番号、ARG:1=大成功基本確率、ARG:2=失敗基本確率
+;-------------------------------------------------
+@JUDGE_COM_RESULT(ARG:0, ARG:1, ARG:2)
+LOCAL:0 = 0
+
+;機嫌の影響
+SELECTCASE TOSTR_EMOTION(ARG:0)
+	CASE "幸"
+		LOCAL:0 += 30
+	CASE "悦"
+		LOCAL:0 += 15
+	CASE "良"
+		LOCAL:0 += 5
+	CASE "恨"
+		LOCAL:0 -= 50
+	CASE "怒"
+		LOCAL:0 -= 20
+	CASE "憤"
+		LOCAL:0 -= 8
+	CASE "鬱"
+		LOCAL:0 -= 40
+	CASE "悲"
+		LOCAL:0 -= 10
+	CASE "憂"
+		LOCAL:0 -= 5
+	CASE "狂"
+		LOCAL:0 -= 40
+	CASE "恐"
+		LOCAL:0 -= 10
+	CASE "怯"
+		LOCAL:0 -= 5
+ENDSELECT
+
+SIF TALENT:(ARG:0):反抗的
+	LOCAL:0 -= 5
+
+SIF TALENT:(ARG:0):気丈
+	LOCAL:0 -= 5
+
+SIF TALENT:(ARG:0):素直
+	LOCAL:0 += 5
+
+SIF TALENT:(ARG:0):プライド高い
+	LOCAL:0 -= 15
+
+SIF TALENT:(ARG:0):プライド低い
+	LOCAL:0 += 5
+
+SIF TALENT:(ARG:0):目立ちたがり
+	LOCAL:0 += 2
+
+SIF TALENT:(ARG:0):抑圧
+	LOCAL:0 -= 10
+
+SIF TALENT:(ARG:0):孤高
+	LOCAL:0 -= 10
+
+SIF TALENT:(ARG:0):男嫌い && IS_MALE(MASTER)
+	LOCAL:0 -= 7
+
+SIF TALENT:(ARG:0):女嫌い && IS_FEMALE(MASTER)
+	LOCAL:0 -= 7
+
+SIF TALENT:MASTER:魅惑
+	LOCAL:0 += 6
+
+SIF TALENT:MASTER:謎の魅力
+	LOCAL:0 += 6
+
+;好感度
+LOCAL:0 += CFLAG:(ARG:0):2 / 50
+
+;依存度
+LOCAL:0 += CFLAG:(ARG:0):3 / 150
+
+SIF TALENT:(ARG:0):親愛
+	LOCAL:0 += 40
+
+SIF TALENT:(ARG:0):恋慕
+	LOCAL:0 += 20
+
+SIF TALENT:(ARG:0):親友
+	LOCAL:0 += 20
+
+SIF TALENT:(ARG:0):恋人
+	LOCAL:0 += 20
+
+SIF TALENT:(ARG:0):隷属
+	LOCAL:0 += 30
+
+SIF TALENT:(ARG:0):服従
+	LOCAL:0 += 10
+
+LOCAL:0 = LIMIT(LOCAL:0, 0, 100)
+
+LOCAL:2 = RAND:1000
+
+;大成功
+IF LOCAL:2 < ARG:1 * 10 + LOCAL:0 / 2 + (TFLAG:6 != 0) * 50
+	TFLAG:18 = 1
+;失敗(失敗率の下限は0.5%)
+ELSEIF 999 - LOCAL:2 < MAX(5, ARG:2 * 10 - LOCAL:0 - (TFLAG:6 != 0) * 30)
+	TFLAG:18 = -1
+ELSE
+	TFLAG:18 = 0
+ENDIF
+
+;--------------------------------------------------------
+;日常コマンドに共通の地の文(パラメータ・刻印変動後)
+;--------------------------------------------------------
+@COM_TEXT_LAST_LIFE
+;主人公がプレイヤー
+IF MPLY:0 == MASTER
+	LOCAL:1 = MTAR:0
+	LOCAL:2 = MPLY:0
+;主人公がターゲット
+ELSE
+	LOCAL:1 = MPLY:0
+	LOCAL:2 = MTAR:0
+ENDIF
+
+LOCAL:0 = CFLAG:(LOCAL:1):2 + TCVAR:(LOCAL:1):70
+
+IF TALENT:(LOCAL:1):恋慕 && TALENT:(LOCAL:1):ツンデレ
+	IF RAND:2
+		PRINTFORML %ANAME(LOCAL:1)%は%ANAME(LOCAL:2)%を不機嫌そうな様子で睨みつけている…
+	ELSE
+		PRINTFORML %ANAME(LOCAL:1)%は%ANAME(LOCAL:2)%に文句を言っている…
+	ENDIF
+ELSEIF LOCAL:0 < 150
+	IF COM_TEXT_IS_CAUTION(LOCAL:1)
+		PRINTFORML %ANAME(LOCAL:1)%はこちらの様子を警戒している
+	ELSE
+		PRINTFORML %ANAME(LOCAL:1)%はまだまだぎこちない様子だ
+	ENDIF
+ELSEIF LOCAL:0 < 300
+	IF COM_TEXT_IS_CAUTION(LOCAL:1)
+		PRINTFORML 少しは打ち解けてきたようだが、%ANAME(LOCAL:1)%はまだこちらに気を許すつもりは無いようだ
+	ELSE
+		PRINTFORML %ANAME(LOCAL:1)%とも少しは打ち解けてきたようだ
+	ENDIF
+ELSEIF LOCAL:0 < 500
+	IF COM_TEXT_IS_CAUTION(LOCAL:1)
+		PRINTFORML %ANAME(LOCAL:1)%はこちらの事を信用する気になったようだ
+	ELSE
+		PRINTFORML %ANAME(LOCAL:1)%は%ANAME(LOCAL:2)%と一緒に居る事を楽しんでいるようだ
+	ENDIF
+ELSEIF LOCAL:0 < 700
+	IF CFLAG:(LOCAL:1):2 < 300
+		PRINTFORML %ANAME(LOCAL:1)%は楽しそうな様子で%ANAME(LOCAL:2)%に笑いかけた
+	ELSE
+		PRINTFORML %ANAME(LOCAL:1)%は少しずつ%ANAME(LOCAL:2)%に好意を寄せてきたようだ
+	ENDIF
+ELSEIF CFLAG:(LOCAL:1):2 < 500
+	PRINTFORML %ANAME(LOCAL:1)%はとても上機嫌な様子で%ANAME(LOCAL:2)%をことを見つめている
+ELSEIF LOCAL:0 < 1000
+	PRINTFORML %ANAME(LOCAL:1)%はかなり%ANAME(LOCAL:2)%の事を気に入っているようだ
+ELSE
+	IF TALENT:(LOCAL:1):服従
+		IF RAND:2
+			PRINTFORML %ANAME(LOCAL:1)%は%ANAME(LOCAL:2)%に陶酔するような視線を向けている
+		ELSE
+			PRINTFORML %ANAME(LOCAL:1)%は%ANAME(LOCAL:2)%の反応を不安そうに伺っている…
+		ENDIF
+	ELSEIF !IS_SAMESEX(LOCAL:1, LOCAL:2) || TALENT:(LOCAL:1):両刀
+		IF TALENT:(LOCAL:1):恋慕 && !TALENT:(LOCAL:1):恋人 && !TALENT:(LOCAL:1):烙印
+			IF RAND:2
+				PRINTFORML %ANAME(LOCAL:1)%は%ANAME(LOCAL:2)%をうっとりとした表情で見つめている…
+			ELSE
+				PRINTFORML %ANAME(LOCAL:1)%は%ANAME(LOCAL:2)%に穏やかな視線を向けている…
+			ENDIF
+		ELSE
+			IF RAND:2
+				PRINTFORML %ANAME(LOCAL:1)%は%ANAME(LOCAL:2)%に愛情の篭った眼差しを向けている
+			ELSE
+				PRINTFORML %ANAME(LOCAL:1)%は%ANAME(LOCAL:2)%に嬉しそうに微笑んでいる
+			ENDIF
+		ENDIF
+	ELSE
+		IF RAND:2
+			PRINTFORML %ANAME(LOCAL:1)%は%ANAME(LOCAL:2)%とずっとこうしていたいと思っているようだ
+		ELSE
+			PRINTFORML %ANAME(LOCAL:1)%は%ANAME(LOCAL:2)%に楽しそうに笑い掛けた…
+		ENDIF
+	ENDIF
+ENDIF
+
+;--------------------------------------------------------
+;COM_TEXT用 警戒心を持ちやすい性格かどうかを判定
+;--------------------------------------------------------
+@COM_TEXT_IS_CAUTION(ARG:0)
+#FUNCTION
+IF TALENT:(ARG:0):反抗的 || TALENT:(ARG:0):プライド高い || TALENT:(ARG:0):生意気 || TALENT:(ARG:0):孤高
+	RETURNF 1
+ELSEIF (TALENT:(ARG:0):男嫌い && IS_MALE(MASTER)) || (TALENT:(ARG:0):女嫌い && IS_FEMALE(MASTER))
+	RETURNF 1
+ENDIF
+RETURNF 0

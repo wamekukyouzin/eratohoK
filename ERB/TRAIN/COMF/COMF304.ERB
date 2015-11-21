@@ -1,0 +1,115 @@
+﻿;警邏
+
+;-------------------------------------------------
+;コマンド名称
+;-------------------------------------------------
+@COM_NAME304
+RESULTS:0 = 警邏に出掛ける
+RESULTS:1 = 警邏に連れ出される
+
+;-------------------------------------------------
+;選択可否判定
+;-------------------------------------------------
+@COM_ABLE304
+;共通部分
+CALL COM_ABLE_COMMON(304)
+SIF RESULT == 0
+	RETURN 0
+;捕虜会話では不可
+SIF FLAG:12 == 6
+	RETURN 0
+;主人公がプレイヤーのとき限定
+SIF MPLY:0 != MASTER
+	RETURN 0
+;デート中は無理
+SIF TFLAG:54
+	RETURN 0
+;臨月、育児、怪我なら不可
+SIF CFLAG:(MTAR:0):16 == 1 || CFLAG:(MTAR:0):16 == 2 || CFLAG:(MTAR:0):16 == 3
+	RETURN 0
+;捕虜なら不可
+SIF CFLAG:(MTAR:0):9
+	RETURN 0
+;キス中は不可
+SIF IS_EQUIP(MPLY:0, 342)
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;メイン処理
+;-------------------------------------------------
+@COM304
+;コマンドの成否をTFLAG:18にセット
+CALL JUDGE_COM_RESULT(MTAR:0, 5, 5)
+
+;固定で獲得するソース
+SOURCE:(MTAR:0):歓楽 = 20
+
+;親密に応じた歓楽のソース追加
+CALL ADD_SOURCE_KANRAKU(MTAR:0, 160)
+
+;このターンの経済成長パワー追加値
+LOCAL:0 = (ABL:(MPLY:0):武闘 + ABL:(MTAR:0):武闘 + ABL:(MPLY:0):政治 + ABL:(MTAR:0):政治 + 200) * 25
+
+;このターンの兵数増強パワー追加値
+LOCAL:1 = (ABL:(MPLY:0):武闘 + ABL:(MTAR:0):武闘 + ABL:(MPLY:0):政治 + ABL:(MTAR:0):政治 + 200) * 2 / 5
+
+;主導権に応じたソースの追加
+CALL ADD_SOURCE_INITIATIVE_N(MPLY:0, 100, 100)
+CALL ADD_SOURCE_INITIATIVE_N(MTAR:0, 100, 100)
+
+;ターゲットがサボり魔なら効果減少
+IF TALENT:(MTAR:0):サボり魔
+	TIMES SOURCE:(MTAR:0):歓楽, 0.80
+	SOURCE:(MTAR:0):反感 = 70 - SOURCE:(MTAR:0):歓楽 / 3
+ENDIF
+
+;失敗
+IF TFLAG:18 == -1
+	TIMES SOURCE:(MTAR:0):歓楽, 0.20
+	SOURCE:(MTAR:0):不満 += 300
+	TIMES LOCAL:0, 0.20
+	TIMES LOCAL:1, 0.20
+;成功
+ELSEIF TFLAG:18 == 0
+;大成功
+ELSE
+	TIMES SOURCE:(MTAR:0):歓楽, 2.00
+	TIMES LOCAL:0, 2.00
+	TIMES LOCAL:1, 2.00
+ENDIF
+
+FLAG:42 += LOCAL:0
+FLAG:43 += LOCAL:1
+
+;主導度変化基準値
+TFLAG:49 = 2
+
+;倒錯度変化基準値
+TFLAG:50 = -1
+
+RETURN 1
+
+;-------------------------------------------------
+;地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE304
+;主導権が主人公側
+IF IS_INITIATIVE(MASTER)
+	PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%と街の見回りを行った
+ELSE
+	PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%に引きずられるようにして街の見回りへと出掛けた
+ENDIF
+
+IF TFLAG:18 == 1
+	PRINTFORML なんだかデートしているような雰囲気だ…
+ELSEIF TFLAG:18 == -1
+	PRINTFORML ……いざこざに巻き込まれて散々な目に会った
+ENDIF
+
+;--------------------------------------------------------
+;地の文(パラメータ・刻印変動後)
+;--------------------------------------------------------
+@COM_TEXT_LAST304
+;日常コマンドに共通の地の文
+CALL COM_TEXT_LAST_LIFE

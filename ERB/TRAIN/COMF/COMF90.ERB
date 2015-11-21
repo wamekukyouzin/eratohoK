@@ -1,0 +1,367 @@
+﻿;イラマチオ
+
+;-------------------------------------------------
+;コマンド名称
+;-------------------------------------------------
+@COM_NAME90
+;挿入中
+IF IS_INSERT_SINGLE(MPLY:0, "Ｐ")
+	LOCALS:0 = お掃除イラマ
+ELSE
+	LOCALS:0 = イラマチオ
+ENDIF
+
+RESULTS:0 = %LOCALS:0%する
+RESULTS:1 = %LOCALS:0%させられる
+RESULTS:2 = %LOCALS:0%させる
+RESULTS:3 = %LOCALS:0%される
+RESULTS:4 = %LOCALS:0%させる
+RESULTS:5 = %LOCALS:0%見せつけ
+
+;-------------------------------------------------
+;選択可否判定
+;-------------------------------------------------
+@COM_ABLE90
+;共通部分
+CALL COM_ABLE_COMMON(90)
+SIF RESULT == 0
+	RETURN 0
+;プレイヤーは最大で1人まで
+SIF MPLY_NUM <= 0 || MPLY_NUM > 1
+	RETURN 0
+;ターゲットは最大で1人まで
+SIF MTAR_NUM <= 0 || MTAR_NUM > 1
+	RETURN 0
+;プレイヤーに竿がなく、ペニスバンド装着中でもないと不可
+SIF !PENIS(MPLY:0) && !TCVAR:(MPLY:0):61
+	RETURN 0
+;プレイヤーが行動不能なら不可
+SIF !IS_PLAYABLE(MPLY:0)
+	RETURN 0
+;プレイヤーが拘束中なら不可
+SIF IS_BIND(MPLY:0)
+	RETURN 0
+;プレイヤーが顔面騎乗されているなら不可
+SIF IS_RIDDEN(MPLY:0)
+	RETURN 0
+;ターゲットからプレイヤーに挿入中なら不可
+SIF GROUPMATCH(IS_INSERT_MUTUAL(MTAR:0, MPLY:0), 1, 2)
+	RETURN 0
+;ターゲットが顔面騎乗されている、キス中、口枷装着中なら不可
+SIF IS_RIDDEN(MTAR:0) || IS_EQUIP(MTAR:0, 20) || IS_EQUIP_TARGET(MTAR:0, 86)
+	RETURN 0
+;プレイヤー以外のキャラがターゲットにイラマ中なら不可
+SIF SEARCH_EQUIP(90, -1, MTAR:0) >= 0 && SEARCH_EQUIP(90, MPLY:0, MTAR:0) == -1
+	RETURN 0
+;プレイヤー以外のキャラがターゲットにフェラさせているなら不可
+SIF SEARCH_EQUIP(11, MTAR:0, -1) >= 0 && SEARCH_EQUIP(11, MTAR:0, MPLY:0) == -1
+	RETURN 0
+;ターゲットが胸愛撫・足舐め中なら不可
+SIF IS_EQUIP_PLAYER(MTAR:0, 1, 104)
+	RETURN 0
+;プレイヤーからターゲットに足舐め中なら不可
+SIF SEARCH_EQUIP(104, MPLY:0, MTAR:0) >= 0
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;快Ｍソースの倍率を取得する関数 ARG:0=PLAYERのキャラ番号
+;-------------------------------------------------
+@COM90_RATE_M(ARG:0)
+#FUNCTION
+LOCAL:5 = 1000
+SELECTCASE ABL:(ARG:0):奉仕
+	CASE 0
+		TIMES LOCAL:5, 0.25
+		;TIMES SOURCE:(LOCAL:2):不潔, 4.00
+	CASE 1
+		TIMES LOCAL:5, 0.50
+		;TIMES SOURCE:(LOCAL:2):不潔, 2.50
+	CASE 2
+		TIMES LOCAL:5, 0.60
+		;TIMES SOURCE:(LOCAL:2):不潔, 1.50
+	CASE 3
+		TIMES LOCAL:5, 0.80
+		;TIMES SOURCE:(LOCAL:2):不潔, 1.00
+	CASE 4
+		TIMES LOCAL:5, 1.00
+		;TIMES SOURCE:(LOCAL:2):不潔, 0.50
+	CASEELSE
+		LOCAL:5 = LOCAL:5 * (100 + (ABL:(ARG:0):奉仕 - 5) * 3) / 100
+		;TIMES SOURCE:(LOCAL:2):不潔, 0.10
+ENDSELECT
+
+SELECTCASE ABL:(ARG:0):性技
+	CASE 0
+		TIMES LOCAL:5, 1.00
+	CASE 1
+		TIMES LOCAL:5, 1.10
+	CASE 2
+		TIMES LOCAL:5, 1.20
+	CASE 3
+		TIMES LOCAL:5, 1.30
+	CASE 4
+		TIMES LOCAL:5, 1.40
+	CASEELSE
+		LOCAL:5 = LOCAL:5 * ((ABL:(ARG:0):性技 - 5) * 2 + 150) / 100
+ENDSELECT
+
+RETURNF LOCAL:5
+
+;-------------------------------------------------
+;メイン処理
+;-------------------------------------------------
+@COM90
+;実行判定
+CALL COM_ORDER_COMMON
+SIF RESULT == 0
+	RETURN 0
+
+;プレイヤーの挿入状態を解除
+CALL CLEAR_INSERT_FLAG(MPLY:0, "Ｐ")
+
+;プレイヤーに対するフェラを解除
+CALL RELEASE_EQUIP_EX(11, -1, MPLY:0)
+
+;ターゲットのクンニを解除
+CALL RELEASE_EQUIP(SEARCH_EQUIP(2, MTAR:0, -1), 1, 0)
+
+;対Ｐ奉仕系コマンドの継続フラグを解除
+CALL RELEASE_SERVE_P
+
+;●プレイヤーについて判定
+SOURCE:(MPLY:0):接触 = 50
+SOURCE:(MPLY:0):嗜虐 = 50
+SOURCE:(MPLY:0):逸脱 = 50
+SOURCE:(MPLY:0):性行動 = 180
+
+LOCAL:2 = SENSE_HOUSHI_P(MTAR:0, MPLY:0, 600)
+IF TALENT:(MTAR:0):舌使い
+	TIMES LOCAL:2, 1.50
+ENDIF
+
+SOURCE:(MPLY:0):快Ｐ += SENSE_HOUSHI_P(MPLY:0, MPLY:0, 800) + LOCAL:2
+
+;主導権に応じた優越・受動のソース追加
+CALL ADD_SOURCE_INITIATIVE_U(MPLY:0, 160, 60)
+
+;射精箇所と対象をセット
+CALL STACK_SPERM(MPLY:0, MTAR:0, 4)
+
+;●ターゲットについて判定
+EXP:(MTAR:0):性技経験値 += 1
+EXP:(MTAR:0):口淫経験 += 1
+
+SOURCE:(MTAR:0):奉仕 = SERVE_HOUSHI(MTAR:0, 100)
+SOURCE:(MTAR:0):接触 = 50
+SOURCE:(MTAR:0):快Ｍ = 300 * COM90_RATE_M(MTAR:0) / 1000
+SOURCE:(MTAR:0):逸脱 = 100
+SOURCE:(MTAR:0):苦痛 = 130 + MIN(ABL:(MPLY:0):武闘, 90) / 2
+SOURCE:(MTAR:0):性行動 = 300
+
+;主導権に応じた優越・受動のソース追加
+CALL ADD_SOURCE_INITIATIVE_U(MTAR:0, 50, 150)
+
+;奉仕経験値を得られるコマンドのフラグ
+TCVAR:(MTAR:0):4 = 1
+
+;ペニスへのキス
+IF PENIS(MPLY:0)
+	CALL KISS_COMMON(MTAR:0, MPLY:0, 1, 0, 1)
+ENDIF
+
+;主導度変化基準値
+TFLAG:49 = 3
+
+;倒錯度変化基準値
+TFLAG:50 = 3
+
+;レズ・ＢＬ経験基準値
+TFLAG:51 = 7
+
+RETURN 1
+
+;-------------------------------------------------
+;継続コマンドかどうかを設定
+;-------------------------------------------------
+@COM_IS_EQUIP90
+RETURN 1
+
+;-------------------------------------------------
+;継続状態の処理
+;-------------------------------------------------
+@COM_EQUIP90(ARG:0)
+LOCAL:2 = MEQUIP_PLAYER:(ARG:0):0
+LOCAL:3 = MEQUIP_TARGET:(ARG:0):0
+
+;●プレイヤーについて判定
+SOURCE:(LOCAL:2):接触 += 25
+SOURCE:(LOCAL:2):嗜虐 += 25
+SOURCE:(LOCAL:2):性行動 += 60
+
+LOCAL:4 = SENSE_HOUSHI_P(LOCAL:3, LOCAL:2, 200)
+IF TALENT:(LOCAL:3):舌使い
+	TIMES LOCAL:4, 1.50
+ENDIF
+
+SOURCE:(LOCAL:2):快Ｐ += SENSE_HOUSHI_P(LOCAL:2, LOCAL:2, 250) + LOCAL:4
+
+;射精箇所と対象をセット
+CALL STACK_SPERM(LOCAL:2, LOCAL:3, 4)
+
+;●ターゲットについて判定
+EXP:(LOCAL:3):性技経験値 += 1
+EXP:(LOCAL:3):口淫経験 += 1
+
+SOURCE:(LOCAL:3):奉仕 += SERVE_HOUSHI(LOCAL:3, 30)
+SOURCE:(LOCAL:3):接触 += 25
+SOURCE:(LOCAL:3):快Ｍ += 100 * COM90_RATE_M(LOCAL:3) / 1000
+SOURCE:(LOCAL:3):逸脱 += 50
+SOURCE:(LOCAL:3):苦痛 += 65 + MIN(ABL:(LOCAL:2):武闘, 90) / 4
+SOURCE:(LOCAL:3):性行動 += 100
+
+;奉仕経験値を得られるコマンドのフラグ
+TCVAR:(LOCAL:3):4 = 1
+
+;-------------------------------------------------
+;継続中の表示
+;-------------------------------------------------
+@EQUIP_MESSAGE90(ARG:0)
+RESULTS = %EQUIP_PLAYER_ANAME(ARG:0)%が%EQUIP_TARGET_ANAME(ARG:0)%にイラマチオ中
+
+;-------------------------------------------------
+;継続中の地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE_EQUIP90(ARG:0)
+PRINTFORML %EQUIP_PLAYER_ANAME(ARG:0)%が%EQUIP_TARGET_ANAME(ARG:0)%の口内を%BAR_NAME(MEQUIP_PLAYER:(ARG:0):0)%で蹂躙している…
+
+;-------------------------------------------------
+;継続を解除したときの地の文
+;-------------------------------------------------
+@COM_TEXT_RELEASE_EQUIP90(ARG:0)
+PRINTFORMW %EQUIP_PLAYER_ANAME(ARG:0)%は%EQUIP_TARGET_ANAME(ARG:0)%の口から%BAR_NAME(MEQUIP_PLAYER:(ARG:0):0)%を引き抜いた
+
+;-------------------------------------------------
+;固有の実行判定
+;-------------------------------------------------
+@COM_ORDER_PLAYER90(ARG:0)
+;実行値の設定
+TCVAR:(ARG:0):25 = 100
+
+;共通部分
+CALL COM_ORDER(ARG:0)
+
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲望Lv{ABL:(ARG:0):欲望}", ABL:(ARG:0):欲望 * 4)
+
+LOCAL:0 = GET_PALAMLV(PALAM:(ARG:0):欲情)
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲情Lv{LOCAL:0}", MIN(LOCAL:0 * 1, 10))
+
+IF TALENT:(ARG:0):大人しい
+	CALL COM_ORDER_ELEMENT(ARG:0, "大人しい", -3)
+ENDIF
+IF TALENT:(ARG:0):恥じらい
+	CALL COM_ORDER_ELEMENT(ARG:0, "恥じらい", -2)
+ENDIF
+IF TALENT:(ARG:0):献身的
+	CALL COM_ORDER_ELEMENT(ARG:0, "献身的", 3)
+ENDIF
+IF TALENT:(ARG:0):Ｓ気質
+	CALL COM_ORDER_ELEMENT(ARG:0, "Ｓ気質", 6)
+ENDIF
+
+IF TALENT:(ARG:0):サド
+	CALL COM_ORDER_ELEMENT(ARG:0, "サド", 15)
+ELSE
+	IF ABL:(ARG:0):主導度Ｕ >= 500
+		CALL COM_ORDER_ELEMENT(ARG:0, "主導度", 15)
+	ELSEIF ABL:(ARG:0):主導度Ｕ >= 300
+		CALL COM_ORDER_ELEMENT(ARG:0, "主導度", 10)
+	ELSEIF ABL:(ARG:0):主導度Ｕ >= 100
+		CALL COM_ORDER_ELEMENT(ARG:0, "主導度", 5)
+	ELSEIF ABL:(ARG:0):主導度Ｕ > -100
+		CALL COM_ORDER_ELEMENT(ARG:0, "主導度", 0)
+	ELSE
+		CALL COM_ORDER_ELEMENT(ARG:0, "主導度", -5)
+	ENDIF
+
+	IF ABL:(ARG:0):倒錯度 >= 800
+		CALL COM_ORDER_ELEMENT(ARG:0, "倒錯度", 20)
+	ELSEIF ABL:(ARG:0):倒錯度 >= 500
+		CALL COM_ORDER_ELEMENT(ARG:0, "倒錯度", 15)
+	ELSEIF ABL:(ARG:0):倒錯度 >= 300
+		CALL COM_ORDER_ELEMENT(ARG:0, "倒錯度", 10)
+	ELSEIF ABL:(ARG:0):倒錯度 >= 100
+		CALL COM_ORDER_ELEMENT(ARG:0, "倒錯度", 5)
+	ELSE
+		CALL COM_ORDER_ELEMENT(ARG:0, "倒錯度", 0)
+	ENDIF
+ENDIF
+
+RETURN 1
+
+;-------------------------------------------------
+;地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE90
+IF TALENT:(MTAR:0):小柄体型
+	LOCALS:0 = 小さな口
+ELSE
+	LOCALS:0 = 口
+ENDIF
+
+;自前の竿
+IF PENIS(MPLY:0)
+	SELECTCASE GET_COM_INITIATIVE()
+		;プレイヤーに主導権
+		CASE 0
+			PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%の%LOCALS:0%に竿を押し込み、喉奥を突い%TARGET_STR("た", "てきた")%…
+		;ターゲットに主導権
+		CASE 1
+			PRINTFORML %ANAME(MTAR:0)%は%ANAME(MPLY:0)%のペニスの前で口を開けると、その口を使ってオナニーするように%ANAME(MPLY:0)%に命じた
+			PRINTFORMW %ANAME(MPLY:0)%は言われるまま%ANAME(MTAR:0)%の%LOCALS:0%に竿を突き入れ、必死に腰を振った…
+		;第三者に主導権
+		CASEELSE
+			PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に対して、%ANAME(MTAR:0)%の口にペニスを突き入れて犯すように命令した
+			PRINTFORMW %ANAME(MPLY:0)%は言われるまま%ANAME(MTAR:0)%の%LOCALS:0%に竿を突き入れ、激しく腰を振った…
+	ENDSELECT
+
+;ペニスバンド
+ELSE
+	SELECTCASE GET_COM_INITIATIVE()
+		;プレイヤーに主導権
+		CASE 0
+			PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%の%LOCALS:0%に張り型を押し込み、喉奥を突い%TARGET_STR("た", "てきた")%…
+		;ターゲットに主導権
+		CASE 1
+			PRINTFORML %ANAME(MTAR:0)%は%ANAME(MPLY:0)%に、装着した張り型で%ANAME(MTAR:0)%の口内を犯すように命じた
+			PRINTFORMW %ANAME(MPLY:0)%は言われるまま%ANAME(MTAR:0)%の%LOCALS:0%に張り型を突き入れ、腰を振って喉奥を突いた…
+		;第三者に主導権
+		CASEELSE
+			PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に対して、%ANAME(MTAR:0)%の口に張り型を突き入れて犯すように命令した
+			PRINTFORMW %ANAME(MPLY:0)%は言われるまま%ANAME(MTAR:0)%の%LOCALS:0%に張り型を突き入れ、腰を振って喉奥を突いた…
+	ENDSELECT
+ENDIF
+
+;--------------------------------------------------------
+;地の文(パラメータ・刻印変動後)
+;--------------------------------------------------------
+@COM_TEXT_LAST90
+FOR LOCAL:0, 0, MPLY_NUM
+	LOCAL:1 = MPLY:(LOCAL:0)
+
+	IF LOCAL:1 != MASTER && !CFLAG:(LOCAL:1):64
+		LOCAL:2 = CUP:(LOCAL:1):射精 + CUP:(LOCAL:1):快Ｃ
+
+		IF LOCAL:2 < 1000
+			PRINTFORML %ANAME(LOCAL:1)%はひたすら淡々と腰を振って、%ANAME(MTAR:0)%の口に%BAR_NAME(MPLY:0)%を打ち付けている
+		ELSEIF LOCAL:2 < 3000
+			PRINTFORML %ANAME(LOCAL:1)%は時折気持ち良さそうに声を上げながら、%ANAME(MTAR:0)%の口に%BAR_NAME(MPLY:0)%を打ち付けている
+		ELSEIF LOCAL:2 < 6000
+			PRINTFORML %ANAME(LOCAL:1)%は気持ち良さそうな声を出しながら、腰を振って%ANAME(MTAR:0)%の口の感触を味わっている
+		ELSEIF LOCAL:2 < 10000
+			PRINTFORML %ANAME(LOCAL:1)%は気持ち良さそうに喘ぎながら、快感に突き動かされるように腰を打ち付けて%ANAME(MTAR:0)%の口の感触を味わっている
+		ELSE
+			PRINTFORML %ANAME(LOCAL:1)%は快感のあまり表情を蕩けさせながら、獣の様に腰を打ち付けて%ANAME(MTAR:0)%の口マンコを堪能している
+		ENDIF
+	ENDIF
+NEXT

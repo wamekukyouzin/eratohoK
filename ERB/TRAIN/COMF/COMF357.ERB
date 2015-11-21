@@ -1,0 +1,124 @@
+﻿;狩りをする
+
+;-------------------------------------------------
+;コマンド名称
+;-------------------------------------------------
+@COM_NAME357
+RESULTS:0 = 狩りに誘う
+RESULTS:1 = 狩りに付き合う
+
+;-------------------------------------------------
+;選択可否判定
+;-------------------------------------------------
+@COM_ABLE357
+;共通部分
+CALL COM_ABLE_COMMON(357)
+SIF RESULT == 0
+	RETURN 0
+;主人公がプレイヤーのとき限定
+SIF MPLY:0 != MASTER
+	RETURN 0
+;森林でのデート中限定
+SIF GET_PLACENAME(TFLAG:54) != "森林"
+	RETURN 0
+;怪我なら不可
+SIF CFLAG:(MTAR:0):16 == 3
+	RETURN 0
+;キス中は不可
+SIF IS_EQUIP(MPLY:0, 342)
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;メイン処理
+;-------------------------------------------------
+@COM357
+;コマンドの成否をTFLAG:18にセット
+CALL JUDGE_COM_RESULT(MTAR:0, 5, 5)
+
+;武闘の合計値に応じた確率で成功・失敗が切り替わる
+LOCAL:0 = ABL:(MPLY:0):武闘 + ABL:(MTAR:0):武闘
+IF TFLAG:18 == -1 && RAND:160 < LOCAL:0
+	TFLAG:18 = 0
+ELSEIF TFLAG:18 == 0 && RAND:1000 >= LOCAL:0 * 2 + 800
+	TFLAG:18 = -1
+ENDIF
+
+;成長型による倍率を取得
+LOCAL:0 = GROWTYPE_RATE(MTAR:0, "武闘")
+LOCAL:1 = 120 + (LOCAL:0 - 100) * 5 / 2
+LOCAL:2 = 120 + (LOCAL:0 - 100) * 3 / 2
+
+SOURCE:(MTAR:0):歓楽 = 20 * LOCAL:1 / 100
+
+;適性がなく好感度・従属度が低いと恐怖と反感のソースを得る
+IF LOCAL:0 < 100
+	SOURCE:(MTAR:0):歓楽 = 0
+	SOURCE:(MTAR:0):恐怖 = MAX(0, 100 - MAX(CFLAG:(MTAR:0):2, CFLAG:(MTAR:0):4) * 100 / 800)
+	SOURCE:(MTAR:0):不安 = MAX(0, 200 - MAX(CFLAG:(MTAR:0):2, CFLAG:(MTAR:0):4) * 200 / 500)
+ENDIF
+
+;親密に応じた歓楽のソース追加
+CALL ADD_SOURCE_KANRAKU(MTAR:0, LOCAL:2)
+
+;親密に応じた愛情のソース追加
+CALL ADD_SOURCE_AIZYOU(MPLY:0, 30)
+CALL ADD_SOURCE_AIZYOU(MTAR:0, 30)
+
+;主導権に応じたソースの追加
+CALL ADD_SOURCE_INITIATIVE_N(MPLY:0, 100, 100)
+CALL ADD_SOURCE_INITIATIVE_N(MTAR:0, 100, 100)
+
+;失敗
+IF TFLAG:18 == -1
+	TIMES SOURCE:(MTAR:0):歓楽, 0.20
+	TIMES SOURCE:(MTAR:0):愛情, 0.20
+	TIMES SOURCE:(MTAR:0):不安, 1.50
+	SOURCE:(MTAR:0):不満 += 300
+
+;成功
+ELSEIF TFLAG:18 == 0
+
+;大成功
+ELSE
+	TIMES SOURCE:(MTAR:0):歓楽, 2.00
+	TIMES SOURCE:(MTAR:0):愛情, 2.00
+	TIMES SOURCE:(MTAR:0):不安, 0.50
+ENDIF
+
+;主導度変化基準値
+TFLAG:49 = 2
+
+;倒錯度変化基準値
+TFLAG:50 = 0
+
+RETURN 1
+
+;-------------------------------------------------
+;地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE357
+;主導権が主人公側
+IF IS_INITIATIVE(MASTER)
+	PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%と一緒に狩りをすることにした
+;主導権が相手側
+ELSE
+	PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%に誘われ、一緒に狩りをすることになった
+ENDIF
+
+IF TFLAG:18 == 1
+	PRINTFORML 大きな獲物を捕えて%ANAME(MTAR:0)%は誇らしげにしている…
+ELSEIF TFLAG:18 == -1
+	IF RAND:2 == 0 && ABL:(MPLY:0):武闘 < 50 && ABL:(MTAR:0):武闘 < 50
+		PRINTFORML ……逆に獣に追われて散々な目に合ってしまった
+	ELSE
+		PRINTFORML ……さっぱり獲物が取れなかった
+	ENDIF
+ENDIF
+
+;-------------------------------------------------
+;地の文(パラメータ・刻印変動後)
+;-------------------------------------------------
+@COM_TEXT_LAST357
+;日常コマンドに共通の地の文
+CALL COM_TEXT_LAST_LIFE

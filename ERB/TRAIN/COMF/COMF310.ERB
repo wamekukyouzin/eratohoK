@@ -1,0 +1,229 @@
+﻿;酒を飲む
+
+;-------------------------------------------------
+;コマンド名称
+;-------------------------------------------------
+@COM_NAME310
+RESULTS:0 = 酒に付き合わせる
+RESULTS:1 = 酒に付き合わされる
+
+;-------------------------------------------------
+;選択可否判定
+;-------------------------------------------------
+@COM_ABLE310
+;共通部分
+CALL COM_ABLE_COMMON(310)
+SIF RESULT == 0
+	RETURN 0
+;捕虜会話では不可
+SIF FLAG:12 == 6
+	RETURN 0
+;主人公がプレイヤーのとき限定
+SIF MPLY:0 != MASTER
+	RETURN 0
+;酒類を持っている必要がある
+SIF !(ITEM:濁り酒 || ITEM:清酒 || ITEM:葡萄酒 || ITEM:麦酒 || ITEM:醸造酒 || ITEM:果実酒 || ITEM:日本酒 || ITEM:蒸留酒)
+	RETURN 0
+;キス中は不可
+SIF IS_EQUIP(MPLY:0, 342)
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;メイン処理
+;-------------------------------------------------
+@COM310
+;コマンドの成否をTFLAG:18にセット
+CALL JUDGE_COM_RESULT(MTAR:0, 15, 5)
+
+;酒の選択
+PRINTFORML どの酒を勧めますか？
+
+SIF ITEM:濁り酒
+	PRINTL [1] 濁り酒
+SIF ITEM:清酒
+	PRINTL [2] 清酒
+SIF ITEM:葡萄酒
+	PRINTL [3] 葡萄酒
+SIF ITEM:麦酒
+	PRINTL [4] 麦酒
+SIF ITEM:醸造酒
+	PRINTL [5] 醸造酒
+SIF ITEM:果実酒
+	PRINTL [6] 果実酒
+SIF ITEM:日本酒
+	PRINTL [7] 日本酒
+SIF ITEM:蒸留酒
+	PRINTL [8] 蒸留酒
+PRINTL [0] キャンセル
+
+$INPUT_LOOP_DRINK
+INPUT
+
+IF RESULT == 1 && ITEM:濁り酒
+	ITEM:濁り酒 --
+	SOURCE:(MPLY:0):酔い追加 = 600
+	SOURCE:(MTAR:0):酔い追加 = 600
+	IF TALENT:(MTAR:0):酒豪
+		LOCAL:0 = 220
+	ELSEIF TALENT:(MTAR:0):幼児 || TALENT:(MTAR:0):幼稚
+		LOCAL:0 = 120
+		TFLAG:18 = -1
+	ELSE
+		LOCAL:0 = 190
+	ENDIF
+	FLAG:20 = 1
+ELSEIF RESULT == 2 && ITEM:清酒
+	ITEM:清酒 --
+	SOURCE:(MPLY:0):酔い追加 = 1200
+	SOURCE:(MTAR:0):酔い追加 = 1200
+	IF TALENT:(MTAR:0):酒豪
+		LOCAL:0 = 280
+	ELSEIF TALENT:(MTAR:0):幼児 || TALENT:(MTAR:0):幼稚
+		LOCAL:0 = 120
+		TFLAG:18 = -1
+	ELSE
+		LOCAL:0 = 240
+	ENDIF
+	FLAG:20 = 2
+ELSEIF RESULT == 3 && ITEM:葡萄酒
+	ITEM:葡萄酒 --
+	SOURCE:(MPLY:0):酔い追加 = 800
+	SOURCE:(MTAR:0):酔い追加 = 800
+	IF TALENT:(MTAR:0):酒豪
+		LOCAL:0 = 320
+	ELSEIF TALENT:(MTAR:0):幼児 || TALENT:(MTAR:0):幼稚
+		LOCAL:0 = 260
+	ELSE
+		LOCAL:0 = 320
+	ENDIF
+	FLAG:20 = 3
+ELSEIF RESULT == 4 && ITEM:麦酒
+	ITEM:麦酒 --
+	SOURCE:(MPLY:0):酔い追加 = 1000
+	SOURCE:(MTAR:0):酔い追加 = 1000
+	IF TALENT:(MTAR:0):酒豪
+		LOCAL:0 = 320
+	ELSEIF TALENT:(MTAR:0):幼児 || TALENT:(MTAR:0):幼稚
+		LOCAL:0 = 120
+		TFLAG:18 = -1
+	ELSE
+		LOCAL:0 = 270
+	ENDIF
+	FLAG:20 = 4
+ELSEIF RESULT == 5 && ITEM:醸造酒
+	ITEM:醸造酒 --
+	SOURCE:(MPLY:0):酔い追加 = 1800
+	SOURCE:(MTAR:0):酔い追加 = 1800
+	IF TALENT:(MTAR:0):酒豪
+		LOCAL:0 = 360
+	ELSEIF TALENT:(MTAR:0):幼児 || TALENT:(MTAR:0):幼稚
+		LOCAL:0 = 100
+		TFLAG:18 = -1
+	ELSE
+		LOCAL:0 = 300
+	ENDIF
+	FLAG:20 = 5
+ELSEIF RESULT == 6 && ITEM:果実酒
+	ITEM:果実酒 --
+	SOURCE:(MPLY:0):酔い追加 = 1200
+	SOURCE:(MTAR:0):酔い追加 = 1200
+	IF TALENT:(MTAR:0):酒豪
+		LOCAL:0 = 360
+	ELSEIF TALENT:(MTAR:0):幼児 || TALENT:(MTAR:0):幼稚
+		LOCAL:0 = 260
+	ELSE
+		LOCAL:0 = 400
+	ENDIF
+	FLAG:20 = 6
+ELSEIF RESULT == 7 && ITEM:日本酒
+	ITEM:日本酒 --
+	SOURCE:(MPLY:0):酔い追加 = 3000
+	SOURCE:(MTAR:0):酔い追加 = 3000
+	IF TALENT:(MTAR:0):酒豪
+		LOCAL:0 = 500
+		TFLAG:18 = 1
+	ELSEIF TALENT:(MTAR:0):幼児 || TALENT:(MTAR:0):幼稚
+		LOCAL:0 = 100
+		TFLAG:18 = -1
+	ELSE
+		LOCAL:0 = 360
+	ENDIF
+	FLAG:20 = 7
+ELSEIF RESULT == 8 && ITEM:蒸留酒
+	ITEM:蒸留酒 --
+	SOURCE:(MPLY:0):酔い追加 = 8000
+	SOURCE:(MTAR:0):酔い追加 = 8000
+	IF TALENT:(MTAR:0):酒豪
+		LOCAL:0 = 500
+		TFLAG:18 = 1
+	ELSE
+		LOCAL:0 = 50
+		TFLAG:18 = -1
+	ENDIF
+	FLAG:20 = 8
+ELSEIF RESULT == 0
+	RETURN 0
+ELSE
+	CLEARLINE 1
+	GOTO INPUT_LOOP_DRINK
+ENDIF
+
+;●ターゲット側の処理
+;固定で獲得するソース
+SOURCE:(MTAR:0):歓楽 = LOCAL:0 / 3
+
+;親密に応じた歓楽のソース追加
+CALL ADD_SOURCE_KANRAKU(MTAR:0, LOCAL:0)
+
+;主導権に応じたソースの追加
+CALL ADD_SOURCE_INITIATIVE_N(MPLY:0, 50, 50)
+CALL ADD_SOURCE_INITIATIVE_N(MTAR:0, 50, 50)
+
+;失敗
+IF TFLAG:18 == -1
+	TIMES SOURCE:(MTAR:0):歓楽, 0.50
+	SOURCE:(MTAR:0):不満 += 200
+	TFLAG:37 -= 5
+;成功
+ELSEIF TFLAG:18 == 0
+	TFLAG:37 += 2
+;大成功
+ELSE
+	TIMES SOURCE:(MTAR:0):歓楽, 2.00
+	TFLAG:37 += 10
+ENDIF
+
+;主導度変化基準値
+TFLAG:49 = 2
+
+;倒錯度変化基準値
+TFLAG:50 = -1
+
+RETURN 1
+
+;-------------------------------------------------
+;地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE310
+PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%と酒を飲み交わした
+IF TFLAG:18 == 1
+	IF GROUPMATCH(FLAG:20, 3, 4, 5, 6, 7, 8)
+		PRINTFORML %ANAME(MTAR:0)%は珍しい酒を飲めて上機嫌だ…
+	ELSE
+		PRINTFORML いい感じに酔いが回り、いつも以上に話が盛り上がった…
+	ENDIF
+ELSEIF TFLAG:18 == -1
+	IF GROUPMATCH(FLAG:20, 7, 8)
+		PRINTFORML ……%ANAME(MTAR:0)%はあまりの度数の強さにむせてしまい、激しく咳き込んだ
+	ELSE
+		PRINTFORML %ANAME(MTAR:0)%の口には合わなかったようだ…
+	ENDIF
+ENDIF
+
+;--------------------------------------------------------
+;地の文(パラメータ・刻印変動後)
+;--------------------------------------------------------
+@COM_TEXT_LAST310
+;日常コマンドに共通の地の文
+CALL COM_TEXT_LAST_LIFE

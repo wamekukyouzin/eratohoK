@@ -1,0 +1,97 @@
+﻿;移動
+
+;-------------------------------------------------
+;コマンド名称
+;-------------------------------------------------
+@COM_NAME391
+RESULTS:0 = 場所を変える
+RESULTS:1 = 場所を変える
+
+;-------------------------------------------------
+;選択可否判定
+;-------------------------------------------------
+@COM_ABLE391
+;共通部分
+CALL COM_ABLE_COMMON(391)
+SIF RESULT == 0
+	RETURN 0
+;主人公がプレイヤーのとき限定
+SIF MPLY:0 != MASTER
+	RETURN 0
+;デート中限定
+SIF !TFLAG:54
+	RETURN 0
+;キス中は不可
+SIF IS_EQUIP(MPLY:0, 342)
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;メイン処理
+;-------------------------------------------------
+@COM391
+LOCAL:8 = TFLAG:54
+
+;TFLAG:17にデートの種類を設定
+;0=通常、1=パートナーが勝手に決定、2=パートナーの行きたいデート先、3=パートナーが行きたいデート先以外
+TFLAG:17 = 0
+
+;相手が行きたいデート先を取得
+CALL PARTNER_SELECT_DATE
+LOCAL:0 = RESULT
+
+;主導権ポイント計算
+LOCAL:2 = GET_INITIATIVE_RATE(MTAR:0)
+
+LOCAL:1 = 0
+IF LOCAL:2 >= 50
+	LOCAL:1 = MIN(50, LOCAL:2 / 4)
+ENDIF
+
+;相手の主導権ポイントが極端に高い＆パートナーに主導権があると、たまにデートの行き先を勝手に決定される
+IF LOCAL:1 > RAND:100 && TFLAG:45 == 1
+	PRINTFORMW %ANAME(MTAR:0)%の行きたいところに連れて行かれた…
+	TFLAG:54 = LOCAL:0
+	TFLAG:17 = 1
+ELSE
+	;デート先の選択
+	CALL SELECT_DATE_PLACE
+	IF RESULT == 0
+		;キャンセルした場合コマンドを中止
+		RETURN 0
+	ENDIF
+	TFLAG:54 = RESULT
+ENDIF
+
+;行き先に応じた処理
+CALL DATE_START_BYPLACE
+
+;主導権に応じたソースの追加
+CALL ADD_SOURCE_INITIATIVE_N(MPLY:0, 100, 100)
+CALL ADD_SOURCE_INITIATIVE_N(MTAR:0, 100, 100)
+
+;主導度変化基準値
+TFLAG:49 = 2
+
+;倒錯度変化基準値
+TFLAG:50 = -1
+
+RETURN 1
+
+;-------------------------------------------------
+;地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE391
+;主導権が主人公側
+IF IS_INITIATIVE(MASTER)
+	PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%を連れて%GET_PLACENAME(TFLAG:54)%へと向かいました
+ELSE
+	PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%に先導されるようにして%GET_PLACENAME(TFLAG:54)%へと向かいました
+ENDIF
+
+;--------------------------------------------------------
+;地の文(パラメータ・刻印変動後)
+;--------------------------------------------------------
+@COM_TEXT_LAST391
+;日常コマンドに共通の地の文
+CALL COM_TEXT_LAST_LIFE

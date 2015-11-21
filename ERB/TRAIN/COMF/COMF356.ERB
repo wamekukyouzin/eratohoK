@@ -1,0 +1,178 @@
+﻿;花冠を作る
+
+;-------------------------------------------------
+;コマンド名称
+;-------------------------------------------------
+@COM_NAME356
+RESULTS:0 = 花冠をプレゼントする
+RESULTS:1 = 花冠を作らされる
+RESULTS:2 = 花冠を作ってもらう
+RESULTS:3 = 花冠をプレゼントされる
+
+;-------------------------------------------------
+;選択可否判定
+;-------------------------------------------------
+@COM_ABLE356
+;共通部分
+CALL COM_ABLE_COMMON(356)
+SIF RESULT == 0
+	RETURN 0
+;主人公以外が実行する場合、好感度が300以上必要
+SIF MPLY:0 != MASTER && CFLAG:(MPLY:0):2 < 300
+	RETURN 0
+;花畑でのデート中限定
+SIF GET_PLACENAME(TFLAG:54) != "花畑"
+	RETURN 0
+;怪我なら不可
+SIF CFLAG:(MTAR:0):16 == 3
+	RETURN 0
+;キス中は不可
+SIF IS_EQUIP(MPLY:0, 342)
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;メイン処理
+;-------------------------------------------------
+@COM356
+IF MPLY:0 == MASTER
+	;コマンドの成否をTFLAG:18にセット
+	CALL JUDGE_COM_RESULT(MTAR:0, 5, 5)
+ELSE
+	;コマンドの成否をTFLAG:18にセット
+	CALL JUDGE_COM_RESULT(MPLY:0, 5, 5)
+ENDIF
+
+;固定で入るソース
+SOURCE:(MPLY:0):接触 = 80
+SOURCE:(MTAR:0):接触 = 80
+
+;親密に応じた歓楽のソース追加
+SOURCE:(MPLY:0):歓楽 = 10
+SOURCE:(MTAR:0):歓楽 = 10
+CALL ADD_SOURCE_KANRAKU(MPLY:0, 180)
+CALL ADD_SOURCE_KANRAKU(MTAR:0, 180)
+SOURCE:(MPLY:0):歓楽 = MAX(SOURCE:(MPLY:0):歓楽, 0)
+SOURCE:(MTAR:0):歓楽 = MAX(SOURCE:(MTAR:0):歓楽, 0)
+
+;親密に応じた愛情のソース追加
+CALL ADD_SOURCE_AIZYOU(MPLY:0, 60)
+CALL ADD_SOURCE_AIZYOU(MTAR:0, 60)
+
+;ターゲットが子供なら歓楽が多めに
+IF TALENT:(MTAR:0):幼児 || TALENT:(MTAR:0):幼稚
+	TIMES SOURCE:(MTAR:0):歓楽, 1.20
+	TIMES SOURCE:(MTAR:0):愛情, 0.70
+;ターゲットが男性・男双なら効果減少
+ELSEIF GROUPMATCH(TALENT:(MTAR:0):性別, 0, 3)
+	TIMES SOURCE:(MTAR:0):歓楽, 0.80
+	TIMES SOURCE:(MTAR:0):愛情, 0.80
+ENDIF
+
+;主導権に応じたソースの追加
+CALL ADD_SOURCE_INITIATIVE_N(MPLY:0, 50, 50)
+CALL ADD_SOURCE_INITIATIVE_N(MTAR:0, 50, 50)
+
+;失敗
+IF TFLAG:18 == -1
+	TIMES SOURCE:(MPLY:0):歓楽, 0.20
+	TIMES SOURCE:(MPLY:0):愛情, 0.20
+	TIMES SOURCE:(MTAR:0):歓楽, 0.20
+	TIMES SOURCE:(MTAR:0):愛情, 0.20
+	SOURCE:(MPLY:0):不満 += 500
+	SOURCE:(MTAR:0):不満 += 500
+	TFLAG:37 -= 5
+
+;成功
+ELSEIF TFLAG:18 == 0
+
+;大成功
+ELSE
+	TIMES SOURCE:(MPLY:0):歓楽, 2.00
+	TIMES SOURCE:(MPLY:0):愛情, 2.00
+	TIMES SOURCE:(MTAR:0):歓楽, 2.00
+	TIMES SOURCE:(MTAR:0):愛情, 2.00
+	TFLAG:37 += 5
+ENDIF
+
+;主導度変化基準値
+TFLAG:49 = 2
+
+;倒錯度変化基準値
+TFLAG:50 = -2
+
+RETURN 1
+
+;-------------------------------------------------
+;地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE356
+;プレイヤーが主人公側
+IF MPLY:0 == MASTER
+	;主導権が主人公側
+	IF IS_INITIATIVE(MASTER)
+		PRINTFORMW %ANAME(MPLY:0)%は近くに生えている花を使って花冠を作り、%ANAME(MTAR:0)%の頭に被せた
+	;主導権が相手側
+	ELSE
+		PRINTFORMW %ANAME(MTAR:0)%は%ANAME(MPLY:0)%に花冠を作らせ、それをプレゼントさせた
+	ENDIF
+
+	IF TFLAG:18 == 1
+		IF TALENT:(MTAR:0):幼児 || TALENT:(MTAR:0):幼稚
+			PRINTFORML %ANAME(MTAR:0)%は花冠を頭に乗せたまま嬉しそうにはしゃぎ回った…
+		ELSEIF GROUPMATCH(TALENT:(MTAR:0):性別, 0, 3)
+			PRINTFORML %ANAME(MTAR:0)%は顔を赤くしながら、おずおずと似合うかどうか聞いてきた…
+		ELSE
+			PRINTFORML %ANAME(MTAR:0)%は顔を赤くしながらも、嬉しそうに微笑んだ…
+		ENDIF
+	ELSEIF TFLAG:18 == 0
+		IF TALENT:(MTAR:0):幼児 || TALENT:(MTAR:0):幼稚
+			PRINTFORML 花冠を受け取った%ANAME(MTAR:0)%は機嫌よさそうに微笑んだ…
+		ELSEIF GROUPMATCH(TALENT:(MTAR:0):性別, 0, 3)
+			PRINTFORML 花冠を受け取った%ANAME(MTAR:0)%は苦笑いしている…
+		ELSE
+			PRINTFORML %ANAME(MTAR:0)%は少し照れながらも、%ANAME(MPLY:0)%に似合うかどうか聞いてきた…
+		ENDIF
+	ELSEIF TFLAG:18 == -1
+		IF TALENT:(MTAR:0):幼児 || TALENT:(MTAR:0):幼稚 || TFLAG:45 == 1
+			PRINTFORML ……だが、%ANAME(MTAR:0)%は気に入らなかったのか受け取った花冠を突き返した
+		ELSEIF GROUPMATCH(TALENT:(MTAR:0):性別, 0, 3)
+			PRINTFORML %ANAME(MTAR:0)%は馬鹿にされたように感じたらしく、花冠を払いのけてしまった…
+		ELSE
+			PRINTFORML %ANAME(MTAR:0)%は下心でもあると思ったのか、%ANAME(MPLY:0)%に疑いの視線を向けている…
+		ENDIF
+	ENDIF
+
+;プレイヤーが相手側
+ELSE
+	;主導権が主人公側
+	IF IS_INITIATIVE(MASTER)
+		PRINTFORMW %ANAME(MTAR:0)%は%ANAME(MPLY:0)%に近くに生えている花を使って花冠を作るように要求した
+
+		IF TFLAG:18 == 1
+			PRINTFORML %ANAME(MPLY:0)%は快く承諾すると、丁寧に花冠を作って%ANAME(MTAR:0)%の頭に乗せた
+			PRINTFORML %ANAME(MPLY:0)%はよく似合っていると言って楽しそうに微笑んだ…
+		ELSEIF TFLAG:18 == 0
+			PRINTFORML %ANAME(MPLY:0)%は快く承諾すると、丁寧に花冠を作って%ANAME(MTAR:0)%の頭に乗せた…
+		ELSEIF TFLAG:18 == -1
+			PRINTFORML ……だが、%ANAME(MTAR:0)%に取り合ってもらえなかった
+		ENDIF
+
+	;主導権が相手側
+	ELSE
+		PRINTFORMW %ANAME(MPLY:0)%は近くに生えている花を使って花冠を作り、%ANAME(MTAR:0)%の頭に被せた
+
+		IF TFLAG:18 == 1
+			PRINTFORML %ANAME(MPLY:0)%はよく似合っていると言って楽しそうに微笑んだ…
+		ELSEIF TFLAG:18 == -1
+			PRINTFORML しかし出来が良くなかったのか、%ANAME(MPLY:0)%はイマイチという表情だ…
+		ENDIF
+	ENDIF
+ENDIF
+
+;-------------------------------------------------
+;地の文(パラメータ・刻印変動後)
+;-------------------------------------------------
+@COM_TEXT_LAST356
+;日常コマンドに共通の地の文
+CALL COM_TEXT_LAST_LIFE

@@ -1,0 +1,1594 @@
+﻿;調教関連のシステム関数を管理
+
+;-------------------------------------------------
+;調教開始時の処理
+;-------------------------------------------------
+@EVENTTRAIN
+#PRI
+;調教に参加している人数を数える
+TFLAG:44 = 0
+FOR LOCAL:0, 0, CHARANUM
+	IF CFLAG:(LOCAL:0):6
+		TFLAG:44 ++
+	ENDIF
+NEXT
+
+;機嫌パラメータに退避しておいた値を代入
+FOR LOCAL:0, 0, CHARANUM
+	FOR LOCAL:1, 0, 10
+		PALAM:(LOCAL:0):(LOCAL:1 + 10) = CFLAG:(LOCAL:0):(LOCAL:1 + 190)
+	NEXT
+NEXT
+
+;「会いに行く」モード
+IF FLAG:12 == 0
+	FOR LOCAL:0, 0, CHARANUM
+		;ツンデレ＆恋慕＆非恋人の場合
+		IF TALENT:(LOCAL:0):ツンデレ && TALENT:(LOCAL:0):恋慕 && !TALENT:(LOCAL:0):恋人
+			;最初から怒・哀の感情が高めの状態に
+			PALAM:(LOCAL:0):怒主 = MAX(PALAM:(LOCAL:0):怒主, 300 + RAND:100)
+			PALAM:(LOCAL:0):哀主 = MAX(PALAM:(LOCAL:0):哀主, 300 + RAND:100)
+		ENDIF
+	NEXT
+ENDIF
+
+IF FLAG:12 == 2 && CFLAG:(FLAG:19):59 && TFLAG:44 == 1
+	IF ABL:(FLAG:19):欲望 >= 3 && ABL:(FLAG:19):性知識 >= 3 && (ABL:(FLAG:19):主導度Ｕ >= 300 || TALENT:(FLAG:19):サド)
+		PRINTFORMW ………………
+		PRINTFORMW これはどういうことだろうか？
+		PRINTFORMW 気付けば、%ANAME(FLAG:19)%に完全に主導権を奪われ、縄で縛り上げられてしまっている
+		PRINTFORMW ひょっとすると、調教する相手を間違えたかもしれない…
+		FLAG:12 = 5
+		FLAG:19 = -1
+	ENDIF
+ENDIF
+
+;時間の設定
+IF FLAG:12 == 0
+	;臨月
+	IF CFLAG:(MTAR:0):16 == 1
+		TFLAG:56 = 3
+	;育児中
+	ELSEIF CFLAG:(MTAR:0):16 == 2
+		TFLAG:56 = 3
+	;怪我
+	ELSEIF CFLAG:(MTAR:0):16 == 3
+		TFLAG:56 = 3
+	ELSE
+		TFLAG:56 = 7
+	ENDIF
+ELSEIF FLAG:12 == 3
+	TFLAG:56 = 5
+ELSEIF FLAG:12 == 6
+	TFLAG:56 = 7
+ELSEIF FLAG:50
+	TFLAG:56 = 20
+	SIF FLAG:70
+		TFLAG:56 = 10
+ENDIF
+
+;情報表示モードのリセット
+FLAG:11 = 0
+
+;捕虜調教・子育てなら常に主人公が主導権を握る
+IF GROUPMATCH(FLAG:12, 2, 3)
+	FLAG:10 = MASTER
+;それ以外なら通常は「成り行き」で開始
+ELSE
+	FLAG:10 = -1
+ENDIF
+
+;EQUIPの初期化
+CALL INITIALIZE_EQUIP()
+
+;捕虜逆調教なら縛られた状態からスタート
+IF FLAG:12 == 4 || FLAG:12 == 5
+	CALL CLEAR_MPLY
+	CALL CLEAR_MTAR
+	FOR LOCAL:0, 0, CHARANUM
+		IF CFLAG:(LOCAL:0):6 && LOCAL:0 != MASTER
+			CALL ADD_MPLY(LOCAL:0)
+		ENDIF
+	NEXT
+	CALL ADD_MTAR(MASTER)
+	CALL SET_EQUIP(85, 1)
+ENDIF
+
+;元士官からの逆調教は、既に出来上がった状態からスタート
+IF FLAG:29 == 1
+	FLAG:29 = 0
+	FOR LOCAL:0, 0, CHARANUM
+		IF CFLAG:(LOCAL:0):6
+			PALAM:(LOCAL:0):潤滑 = 30000
+			PALAM:(LOCAL:0):欲情 = 30000
+		ENDIF
+	NEXT
+ENDIF
+
+;プレイヤーとターゲットをクリア
+CALL CLEAR_MPLY
+CALL CLEAR_MTAR
+
+;主人公をプレイヤーに設定
+CALL ADD_MPLY(MASTER)
+
+;参加人数が1人ならターゲットを固定
+IF TFLAG:44 == 1
+	FOR LOCAL:0, 0, CHARANUM
+		IF CFLAG:(LOCAL:0):6
+			CALL ADD_MTAR(LOCAL:0)
+			BREAK
+		ENDIF
+	NEXT
+ENDIF
+
+;尿残量と屁残量をリセット
+CVARSET TCVAR, 54, 1000
+CVARSET TCVAR, 55, 1000
+
+PLAYER = -1
+TARGET = -1
+TFLAG:31 = -1
+
+;-------------------------------------------------
+;コマンド実行前の処理
+;-------------------------------------------------
+@EVENTCOM
+#PRI
+FOR LOCAL:0, 0, 20
+	CVARSET TCVAR, LOCAL:0, 0
+NEXT
+FOR LOCAL:0, 400, 420
+	CVARSET TCVAR, LOCAL:0, -1
+NEXT
+FOR LOCAL:0, 420, 440
+	CVARSET TCVAR, LOCAL:0, 0
+NEXT
+CVARSET TCVAR, 24, -10000
+CVARSET TCVAR, 25, 10000
+CVARSET TCVAR, 50, 0
+TFLAG:3 = 0
+TFLAG:5 = 0
+TFLAG:17 = 0
+TFLAG:18 = 0
+TFLAG:49 = 0
+TFLAG:50 = 0
+TFLAG:51 = 0
+TFLAG:52 = 0
+TFLAG:53 = 0
+TFLAG:58 = 0
+TFLAG:302 = 0
+
+;地の文カットフラグをOFF
+VARSET MEQUIP_CUT, 0
+
+;現在のEXPを保存
+FOR LOCAL:0, 0, CHARANUM
+	IF CFLAG:(LOCAL:0):6 || LOCAL:0 == MASTER
+		FOR LOCAL:1, 0, 100
+			TCVAR:(LOCAL:0):(LOCAL:1 + 100) = EXP:(LOCAL:0):(LOCAL:1)
+		NEXT
+	ENDIF
+NEXT
+
+;●主導権判定
+;プレイヤーの中に行動不能のキャラがいれば、全てのプレイヤーは主導権を取れない
+LOCAL:5 = 0
+FOR LOCAL:0, 0, MPLY_NUM
+	IF !IS_PLAYABLE(MPLY:(LOCAL:0))
+		LOCAL:5 = 1
+		BREAK
+	ENDIF
+NEXT
+
+;ターゲットの中に行動不能のキャラがいれば、全てのターゲットは主導権を取れない
+LOCAL:6 = 0
+FOR LOCAL:0, 0, MTAR_NUM
+	IF !IS_PLAYABLE(MTAR:(LOCAL:0))
+		LOCAL:6 = 1
+		BREAK
+	ENDIF
+NEXT
+;コマンド「脅す」は必ずプレイヤーが主導権を握る
+IF SELECTCOM == 80
+	LOCAL:6 = 1
+ENDIF
+
+;主導権を握ることが可能なキャラをLOCAL:50以降に記録
+LOCAL:40 = 0
+IF !LOCAL:5
+	FOR LOCAL:0, 0, MPLY_NUM
+		LOCAL:1 = MPLY:(LOCAL:0)
+		CALL CHECK_COM_KNOWLEDGE(LOCAL:1, SELECTCOM)
+		IF RESULT
+			LOCAL:(LOCAL:40 + 50) = LOCAL:1
+			LOCAL:40 ++
+		ENDIF
+	NEXT
+ENDIF
+IF !LOCAL:6
+	FOR LOCAL:0, 0, MTAR_NUM
+		LOCAL:1 = MTAR:(LOCAL:0)
+		CALL CHECK_COM_KNOWLEDGE(LOCAL:1, SELECTCOM)
+		IF RESULT
+			LOCAL:(LOCAL:40 + 50) = LOCAL:1
+			LOCAL:40 ++
+		ENDIF
+	NEXT
+ENDIF
+
+;主導度が最大のキャラの主導度を求める
+LOCAL:41 = -9999
+FOR LOCAL:0, 0, LOCAL:40
+	LOCAL:1 = LOCAL:(LOCAL:0 + 50)
+	IF LOCAL:1 == MASTER
+		LOCAL:41 = MAX(LOCAL:41, 0)
+	ELSEIF FLAG:50
+		LOCAL:41 = MAX(LOCAL:41, ABL:(LOCAL:1):主導度Ｕ)
+	ELSE
+		LOCAL:41 = MAX(LOCAL:41, ABL:(LOCAL:1):主導度Ｎ)
+	ENDIF
+NEXT
+
+;主導度の大きさに応じてランダムに主導権を持つキャラを決定
+LOCAL:42 = 0
+FOR LOCAL:0, 0, LOCAL:40
+	LOCAL:1 = LOCAL:(LOCAL:0 + 50)
+	IF LOCAL:1 == MASTER
+		LOCAL:42 += MAX(-LOCAL:41 + 800, 0)
+	ELSEIF FLAG:50
+		LOCAL:42 += MAX(ABL:(LOCAL:1):主導度Ｕ - LOCAL:41 + 800, 0)
+	ELSE
+		LOCAL:42 += MAX(ABL:(LOCAL:1):主導度Ｎ - LOCAL:41 + 800, 0)
+	ENDIF
+NEXT
+IF LOCAL:42 <= 0
+	TFLAG:45 = MASTER
+ELSE
+	LOCAL:43 = RAND:(LOCAL:42)
+	FOR LOCAL:0, 0, LOCAL:40
+		LOCAL:1 = LOCAL:(LOCAL:0 + 50)
+		IF LOCAL:1 == MASTER
+			LOCAL:43 -= MAX(-LOCAL:41 + 800, 0)
+		ELSEIF FLAG:50
+			LOCAL:43 -= MAX(ABL:(LOCAL:1):主導度Ｕ - LOCAL:41 + 800, 0)
+		ELSE
+			LOCAL:43 -= MAX(ABL:(LOCAL:1):主導度Ｎ - LOCAL:41 + 800, 0)
+		ENDIF
+		IF LOCAL:43 < 0
+			TFLAG:45 = LOCAL:1
+			BREAK
+		ENDIF
+	NEXT
+ENDIF
+;主導権を持つキャラが設定されていない場合は以上で決定
+
+;主導権を持つキャラが設定されているなら、基本的にそのキャラに主導権を持たせる
+;ただし、上で決定された仮の主導権者との主導度に大きな差があると、その差に応じた確率で主導権を奪われる
+
+IF TFLAG:0 && FLAG:10 >= 0
+	;おまかせフラグが立っているなら主導権奪取は起こらない
+	TFLAG:45 = FLAG:10
+
+ELSEIF FLAG:10 >= 0 && FLAG:10 != TFLAG:45 && !(IS_MPLY(FLAG:10) && IS_MPLY(TFLAG:45)) && !(IS_MTAR(FLAG:10) && IS_MTAR(TFLAG:45))
+	IF FLAG:50
+		IF FLAG:10 == MASTER
+			LOCAL:9 = 0
+		ELSE
+			LOCAL:9 = ABL:(FLAG:10):主導度Ｕ
+		ENDIF
+		IF TFLAG:45 == MASTER
+			LOCAL:7 = -LOCAL:9 - 300
+		ELSE
+			LOCAL:7 = ABL:(TFLAG:45):主導度Ｕ - LOCAL:9 - 300
+		ENDIF
+	ELSE
+		IF FLAG:10 == MASTER
+			LOCAL:9 = 0
+		ELSE
+			LOCAL:9 = ABL:(FLAG:10):主導度Ｎ
+		ENDIF
+		IF TFLAG:45 == MASTER
+			LOCAL:7 = -LOCAL:9 - 300
+		ELSE
+			LOCAL:7 = ABL:(TFLAG:45):主導度Ｎ - LOCAL:9 - 300
+		ENDIF
+	ENDIF
+
+	IF LOCAL:7 < 0
+		TFLAG:45 = FLAG:10
+	ELSE
+		LOCAL:8 = MIN(LOCAL:7 * SQRT(LOCAL:7 * 10000) * 70 / 18520 + 500, 8500)
+		IF RAND:10000 >= LOCAL:8
+			TFLAG:45 = FLAG:10
+		ELSE
+			IF FLAG:10 == MASTER
+				PRINTFORMW %ANAME(FLAG:10)%が主導権を握っていたはずが、気が付くと%ANAME(TFLAG:45)%に主導権を奪われていた…
+			ELSEIF TFLAG:45 == MASTER
+				PRINTFORMW %ANAME(FLAG:10)%に主導権を握らせていたはずが、気が付くと%ANAME(TFLAG:45)%が主導権を握ってしまっていた…
+			ELSE
+				PRINTFORMW %ANAME(FLAG:10)%が主導権を握っていたはずだが、いつの間にか%ANAME(TFLAG:45)%が主導権を奪っていた…
+			ENDIF
+		ENDIF
+	ENDIF
+ENDIF
+
+;主導権が「成り行き」の場合のメッセージ
+IF FLAG:10 == -1
+	LOCAL:1 = 0
+	FOR LOCAL:0, 0, CHARANUM
+		IF LOCAL:0 == MASTER || CFLAG:(LOCAL:0):6
+			IF IS_PLAYABLE(LOCAL:0)
+				IF IS_MPLY(LOCAL:0)
+					LOCAL:1 |= 1
+				ELSEIF IS_MTAR(LOCAL:0)
+					LOCAL:1 |= 2
+				ELSE
+					LOCAL:1 |= 4
+				ENDIF
+			ENDIF
+		ENDIF
+	NEXT
+	;主導権が自明の場合には表示しない
+;	IF LOCAL:1 != 1 && LOCAL:1 != 2
+;		PRINTFORML %ANAME(MASTER)%は主導権をその場の雰囲気に任せた
+;		PRINTL 
+;	ENDIF
+ENDIF
+
+;コマンド名称の表示
+LOCALS:0 = 
+VARSET RESULTS, ""
+TRYCALLFORM COM_NAME{SELECTCOM}
+IF IS_MPLY(MASTER)
+	IF IS_INITIATIVE(MASTER)
+		LOCALS:0 = %RESULTS:0%
+	ELSE
+		LOCALS:0 = %RESULTS:1%
+	ENDIF
+ELSEIF IS_MTAR(MASTER)
+	IF IS_INITIATIVE(MASTER)
+		LOCALS:0 = %RESULTS:2%
+	ELSE
+		LOCALS:0 = %RESULTS:3%
+	ENDIF
+ELSE
+	IF IS_INITIATIVE(MASTER)
+		LOCALS:0 = %RESULTS:4%
+	ELSE
+		LOCALS:0 = %RESULTS:5%
+	ENDIF
+ENDIF
+IF LOCALS:0 == ""
+	LOCALS:0 = %TRAINNAME:SELECTCOM%
+ENDIF
+PRINTFORML <<%LOCALS:0%>>
+;PRINTFORML <<%LOCALS:0%>>   主導権:%ANAME(TFLAG:45)%
+
+;今回のコマンド名称を保存
+SELECTCOM_NAME = %RESULTS%
+
+;実行タイプの設定
+IF IS_MPLY(MASTER)
+	SELECTCOM_TYPE = 0
+ELSEIF IS_MTAR(MASTER)
+	SELECTCOM_TYPE = 1
+ELSE
+	SELECTCOM_TYPE = 2
+ENDIF
+
+;-------------------------------------------------
+;コマンド実行後の処理
+;-------------------------------------------------
+@EVENTCOMEND
+#PRI
+VARSET LOCAL, 0
+
+;コマンドの実行済みフラグをONにする
+FOR LOCAL:0, 0, MPLY_NUM
+	CALL SET_COM_FIRST_FLAG(MPLY:(LOCAL:0))
+NEXT
+FOR LOCAL:0, 0, MTAR_NUM
+	CALL SET_COM_FIRST_FLAG(MTAR:(LOCAL:0))
+NEXT
+
+;実行したコマンドの知識を獲得
+FOR LOCAL:0, 0, CHARANUM
+	;調教に参加していても、行動不能だと獲得できない
+	IF (LOCAL:0 == MASTER || CFLAG:(LOCAL:0):6) && IS_PLAYABLE(LOCAL:0)
+		CALL SET_COM_KNOWLEDGE(LOCAL:0, SELECTCOM)
+	ENDIF
+NEXT
+
+;今回のコマンドを前回のコマンドと置き換え
+PREVCOM = SELECTCOM
+PREVCOM_NAME = %SELECTCOM_NAME%
+PREVCOM_TYPE = SELECTCOM_TYPE
+
+;時間経過
+TFLAG:55 ++
+IF TFLAG:57 > 0
+	TFLAG:57 ++
+ENDIF
+
+;継続状態の継続ターンを加算
+FOR LOCAL:0, 0, MAX_MEQUIP
+	IF MEQUIP:(LOCAL:0) >= 0
+		MEQUIP_TURN:(LOCAL:0) ++
+	ENDIF
+NEXT
+
+;子育てモードならコマンドの実行回数を記録
+IF FLAG:12 == 3
+	CFLAG:(MTAR:0):27 ++
+ENDIF
+
+IF GROUPMATCH(FLAG:12, 2, 4, 5)
+	LOCALS:0 = 調教
+ELSEIF FLAG:50
+	LOCALS:0 = 夜伽
+ELSE
+	LOCALS:0 = 行動
+ENDIF
+
+;強制終了フラグが立っている場合は調教を中断
+IF TFLAG:38
+	BEGIN AFTERTRAIN
+	RETURN
+ENDIF
+
+;主人公が行動不能(逆調教除く)
+IF !GROUPMATCH(FLAG:12, 4, 5) && !IS_PLAYABLE(MASTER)
+	;ウフフ中は継続判定
+	IF FLAG:50
+		FOR LOCAL:0, 0, CHARANUM
+			IF LOCAL:0 != MASTER && CFLAG:(LOCAL:0):6 && (ABL:(LOCAL:0):主導度Ｕ >= 500 || ABL:(LOCAL:0):欲望 >= 10)
+				;行動可能でウフフ主導度300以上または欲望10以上のキャラが1人以上入れば継続
+				LOCAL:20 ++
+				IF !IS_AUTOSELECT(LOCAL:0)
+					LOCAL:21 ++
+				ENDIF
+			ENDIF
+		NEXT
+	ENDIF
+	IF LOCAL:20 <= 0
+		WAIT
+		PRINTL
+		PRINTFORMW （%ANAME(MASTER)%が行動不能であるため、%LOCALS:0%を終了します）
+		BEGIN AFTERTRAIN
+		RETURN
+	ELSEIF LOCAL:21 == LOCAL:20
+		WAIT
+		PRINTL
+		PRINTFORMW （%LOCALS:0%は終了しました）
+		BEGIN AFTERTRAIN
+		RETURN
+	ENDIF
+ENDIF
+
+;逆調教で行動可能な調教者がいなければ終了
+IF GROUPMATCH(FLAG:12, 4, 5)
+	LOCAL:10 = 0
+	FOR LOCAL:0, 0, CHARANUM
+		IF IS_AUTOSELECT(LOCAL:0)
+			LOCAL:10 ++
+		ENDIF
+	NEXT
+	IF LOCAL:10 <= 0
+		WAIT
+		PRINTL
+		PRINTFORMW （行動可能な調教者がいないため、%LOCALS:0%を終了します）
+		BEGIN AFTERTRAIN
+	ENDIF
+ENDIF
+
+LOCAL:2 = 1
+LOCAL:3 = 0
+FOR LOCAL:0, 0, CHARANUM
+	IF CFLAG:(LOCAL:0):6
+		IF !TCVAR:(LOCAL:0):53
+			LOCAL:2 = 0
+		ENDIF
+		LOCAL:3 ++
+	ENDIF
+NEXT
+
+;調教参加者全員が行動不能
+IF LOCAL:2 && !TFLAG:8
+	WAIT
+	PRINTL
+
+	;調教参加者が１人のとき
+	IF LOCAL:3 == 1
+		FOR LOCAL:0, 0, CHARANUM
+			IF CFLAG:(LOCAL:0):6
+				IF TCVAR:(LOCAL:0):53 == 1
+					IF TFLAG:54 == 1
+						PRINTFORML すっかり酔い潰れた%ANAME(LOCAL:0)%は%ANAME(MASTER)%にもたれかかって眠っている
+					ELSEIF TFLAG:54
+						PRINTFORML すっかり酔い潰れた%ANAME(LOCAL:0)%は地面に大の字に横になって眠っている
+					ELSE
+						PRINTFORML すっかり酔い潰れた%ANAME(LOCAL:0)%は床の上で大の字に横になって眠っている
+					ENDIF
+					PRINTFORML この分では、ちょっとやそっとでは目を覚まさないだろう…
+					IF ABL:MASTER:性知識 <= 1
+						RESULT = 0
+					ELSEIF TFLAG:54
+						CALL ASK_YN("連れて帰る", "イタズラする")
+					ELSE
+						CALL ASK_YN("寝かせて帰る", "イタズラする")
+					ENDIF
+
+					IF RESULT == 0
+						IF TFLAG:54
+							IF ABL:(MASTER):武闘 >= 60
+								PRINTFORMW %ANAME(MASTER)%は%ANAME(LOCAL:0)%を担ぎ上げると、%ANAME(LOCAL:0)%を背負ったまま帰路についた…
+							ELSE
+								PRINTFORMW %ANAME(MASTER)%は%ANAME(LOCAL:0)%を引きずるようにしながら、どうにか宮殿まで辿り着いた…
+							ENDIF
+						ELSE
+							PRINTFORMW %ANAME(MASTER)%は%ANAME(LOCAL:0)%を寝台に寝かせ、部屋を後にした…
+						ENDIF
+						PRINTFORMW (%ANAME(LOCAL:0)%が行動不能であるため、%LOCALS:0%を終了します)
+
+					;睡姦実行
+					ELSE
+						;イベント口上の表示
+						CALL KOJO_EVENT(LOCAL:0, 110)
+						;睡姦中フラグをＯＮ
+						TFLAG:8 = 1
+						;ウフフフラグをＯＮ
+						FLAG:50 = 1
+						;時間を再設定
+						TFLAG:55 = 0
+						TFLAG:56 = 15
+						;タブ設定をリセット
+						TFLAG:7 = 0
+					ENDIF
+
+				ELSEIF GROUPMATCH(TCVAR:(LOCAL:0):53, 3, 4)
+					PRINTFORMW (%ANAME(LOCAL:0)%に追い返されてしまったため、%LOCALS:0%を終了します)
+				ELSEIF GROUPMATCH(TCVAR:(LOCAL:0):53, 5, 6)
+					PRINTFORMW (%ANAME(LOCAL:0)%が帰ってしまったため、%LOCALS:0%を終了します)
+				ELSE
+					PRINTFORMW (%ANAME(LOCAL:0)%が行動不能であるため、%LOCALS:0%を終了します)
+				ENDIF
+				BREAK
+			ENDIF
+		NEXT
+	;調教参加者が２人以上のとき
+	ELSE
+		PRINTFORMW （行動可能なキャラがいないため、%LOCALS:0%を終了します）
+	ENDIF
+
+	IF !TFLAG:8
+		BEGIN AFTERTRAIN
+		RETURN
+	ENDIF
+ENDIF
+
+;時間切れ
+IF TFLAG:55 >= TFLAG:56
+	CALL TRAIN_EXIT(0)
+	RETURN
+ENDIF
+
+;おまかせ中
+IF TFLAG:0
+	;おまかせ時の自動EQUIP解除
+	CALL AUTO_EQUIP_RELEASE
+ENDIF
+
+;主人公が行動不能かつ調教が継続した場合
+IF !TFLAG:2 && LOCAL:20
+	FOR LOCAL:0, 0, CHARANUM
+		IF LOCAL:0 != MASTER && CFLAG:(LOCAL:0):6 && IS_AUTOSELECT(LOCAL:0) && (ABL:(LOCAL:0):主導度Ｕ >= 500 || ABL:(LOCAL:0):欲望 >= 10)
+			TFLAG:2 = 1
+			IF LOCAL:20 >= 2
+				LOCALS:0 = たち
+			ELSE
+				LOCALS:0 = 
+			ENDIF
+			IF BASE:MASTER:気力 <= 0
+				LOCALS:1 = 気絶して意識のない
+			ELSE
+				LOCALS:1 = 疲れ果てて動けない
+			ENDIF
+
+			WAIT
+			PRINTL 
+			IF LOCAL:20 == 1
+				IF BASE:MASTER:気力 <= 0
+					CALL KOJO_EVENT(LOCAL:0, 111)
+				ELSE
+					CALL KOJO_EVENT(LOCAL:0, 112)
+				ENDIF
+			ENDIF
+			IF ABL:(LOCAL:0):主導度Ｕ >= 500
+				PRINTFORMW %ANAME(LOCAL:0)%%LOCALS:0%は嗜虐的な表情を浮かべると、%LOCALS:1%%ANAME(MASTER)%の体を弄び始めた
+			ELSE
+				PRINTFORMW %ANAME(LOCAL:0)%%LOCALS:0%は性欲を抑えることができず、%LOCALS:1%%ANAME(MASTER)%の体を弄び始めた
+			ENDIF
+			BREAK
+		ENDIF
+	NEXT
+
+;逆調教で主人公が疲労・失神状態になった場合
+ELSEIF !TFLAG:2 && GROUPMATCH(FLAG:12, 4, 5) && !IS_PLAYABLE(MASTER)
+	TFLAG:2 = 1
+	LOCAL:1 = 0
+	FOR LOCAL:0, 0, CHARANUM
+		IF CFLAG:(LOCAL:0):6 && IS_PLAYABLE(LOCAL:0)
+			LOCAL:1 ++
+			LOCAL:2 = LOCAL:0
+		ENDIF
+	NEXT
+	IF LOCAL:1 == 1
+		IF BASE:MASTER:気力 <= 0
+			CALL KOJO_EVENT(LOCAL:2, 111)
+		ELSE
+			CALL KOJO_EVENT(LOCAL:2, 112)
+		ENDIF
+	ENDIF
+ENDIF
+
+;-------------------------------------------------
+;調教終了時の共通処理  時間切れならARG:0に0を、コマンドによる終了なら1を指定する
+;-------------------------------------------------
+@TRAIN_EXIT(ARG:0)
+;EQUIPの初期化
+CALL INITIALIZE_EQUIP()
+
+;子育てモード
+IF FLAG:12 == 3
+	PRINTL 
+	PRINTFORMW (そろそろ日が暮れます。今日はここまでにしてゆっくり過ごすことにしました)
+	BEGIN AFTERTRAIN
+
+ELSEIF FLAG:12 == 4 || FLAG:12 == 5
+	PRINTL 
+	PRINTFORMW (どうやら今日の調教は終了したようです…)
+	BEGIN AFTERTRAIN
+
+;ウフフモードの場合
+ELSEIF FLAG:50
+	;睡姦中
+	IF TFLAG:8
+		PRINTL 
+		PRINTFORMW (目を覚まされるとまずいため、後始末をして早めに帰ることにしました)
+
+		;主人公がターゲット側の場合、ターゲットとプレイヤーを入れ替えておく
+		;(MTAR:0が必ず会いに行った相手を指すようにしておく)
+		IF MTAR:0 == MASTER
+			SWAP MTAR:0, MPLY:0
+		ENDIF
+		;真名を許すイベント
+		CALL AFTER_ALLOW_NAME
+
+	;主人公が行動不能
+	ELSEIF TFLAG:2
+		PRINTL 
+		PRINTFORMW (さすがに夜も更けてきたため、なんとか解放してもらえました)
+	;デート中
+	ELSEIF TFLAG:54
+		PRINTL 
+		PRINTFORMW (もう夜も遅い時間です。今日はここまでにして帰ることにしました)
+	ELSEIF FLAG:70
+		PRINTL 
+		PRINTFORMW (これ以上留まるのは危険です。今日はここまでにして逃げることにしました)
+	ELSE
+		PRINTL 
+		PRINTFORMW (もう夜も更ける時間帯です。今日はここまでにして眠ることにしました)
+	ENDIF
+	BEGIN AFTERTRAIN
+
+;コマンドによる行動終了
+ELSEIF ARG:0
+	PRINTFORMW （%LOCALS:0%%ANAME(MTAR:0)%と一旦別れました）
+	BEGIN AFTERTRAIN
+
+ELSE
+	;主人公がターゲット側の場合、ターゲットとプレイヤーを入れ替えておく
+	;(MTAR:0が必ず会いに行った相手を指すようにしておく)
+	IF MTAR:0 == MASTER
+		SWAP MTAR:0, MPLY:0
+	ENDIF
+
+	;真名を許すイベント
+	CALL AFTER_ALLOW_NAME
+
+	WAIT
+	DRAWLINE
+	PRINTFORMW そろそろ遅い時間になってきました…
+	PRINTL 
+
+	PRINTPLAIN   
+	PRINTBUTTON "0[このまま別れる]", 0
+	PRINTPLAIN     
+	IF GET_PLACENAME(TFLAG:54) == "城下町"
+		IF (IS_FEMALE(MASTER) && IS_MALE(MTAR:0)) || (GROUPMATCH(TALENT:MASTER:性別, 4, 5) && GROUPMATCH(TALENT:(MTAR:0):性別, 0, 3) && TALENT:(MTAR:0):恋人)
+			PRINTBUTTON "1[宿に連れ込む(宿代は相手持ち)]", 1
+		ELSE
+			PRINTBUTTON "1[宿に連れ込む(所持金－2000)]", 1
+		ENDIF
+	ELSEIF GET_PLACENAME(TFLAG:54) == "温泉"
+		PRINTBUTTON "1[抱き寄せる]", 1
+	ELSE
+		PRINTBUTTON "1[押し倒す]", 1
+	ENDIF
+	PRINTPLAIN     
+	PRINTBUTTON "2[誘惑する]", 2
+	PRINTL 
+
+	$INPUT_LOOP
+	INPUT
+
+	LOCAL:1 = 0
+	LOCAL:2 = RESULT
+
+	;このまま別れる
+	IF LOCAL:2 == 0
+		;ムードが60以上で通常または育児中なら押し倒し／おねだりの判定
+		IF TFLAG:37 >= 60 && ARG:0 == 0 && GROUPMATCH(CFLAG:(MTAR:0):16, 0, 2)
+			;押し倒し／おねだり判定
+			CALL PUSH_OVER
+			;押し倒された場合
+			IF RESULT == 1
+				;ウフフフラグをＯＮ
+				FLAG:50 = 1
+				;時間を再設定
+				TFLAG:55 = 0
+				TFLAG:56 = 20
+				;タブ設定をリセット
+				TFLAG:7 = 0
+				;主導権を相手側に渡す
+				FLAG:10 = MTAR:0
+				;既成事実Lv3に相当
+				CALL SET_COUPLE_STEP(MTAR:0, 3)
+			;おねだりされた場合
+			ELSEIF RESULT == 2
+				CALL ASK_YN("抱く", "おあずけ")
+				IF RESULT == 0
+					LOCAL:1 = 1
+				ELSE
+					TCVAR:(MTAR:0):27 = 1
+					CALL KOJO_EVENT(MTAR:0, 103)
+					PRINTFORMW （%LOCALS:0%%ANAME(MTAR:0)%と一旦別れました）
+					BEGIN AFTERTRAIN
+				ENDIF
+			;押し倒し／おねだりが発生せず、捕虜会話でない場合
+			ELSEIF FLAG:12 != 6
+				;相手からのキス・告白の判定
+				CALL CHECK_EXIT_ACTION
+			ENDIF
+		ENDIF
+	ENDIF
+
+	;押し倒す
+	IF LOCAL:2 == 1
+		;押し倒した時の判定
+		CALL JUDGE_PUSHDOWN
+		IF RESULT
+			LOCAL:1 = 2
+		ENDIF
+	ENDIF
+
+	;誘惑する
+	IF LOCAL:2 == 2
+		IF VAGINA(MASTER) && PENIS(MTAR:0)
+			IF TALENT:MASTER:貧乳 || TALENT:MASTER:絶壁
+				PRINTFORMW %ANAME(MASTER)%は体を擦り付けて%ANAME(MTAR:0)%を誘惑した…
+			ELSE
+				PRINTFORMW %ANAME(MASTER)%は胸を押し付けて%ANAME(MTAR:0)%を誘惑した…
+			ENDIF
+		ELSE
+			PRINTFORMW %ANAME(MASTER)%は%ANAME(MTAR:0)%の体を焦らすようにまさぐって誘惑した…
+		ENDIF
+		;誘惑した時の判定
+		CALL JUDGE_PUSHDOWN2
+		IF RESULT
+			LOCAL:1 = 3
+		ENDIF
+	ENDIF
+
+	;ウフフ突入の場合
+	IF LOCAL:1
+		IF LOCAL:1 == 3
+			IF GET_PLACENAME(TFLAG:54) == "城下町"
+				PRINTFORMW すっかりその気になった%ANAME(MTAR:0)%は、%ANAME(MASTER)%を城下町の宿へと連れ込んだ…
+			ELSEIF GET_PLACENAME(TFLAG:54) == "温泉"
+				PRINTFORMW すっかりその気になった%ANAME(MTAR:0)%は、息を荒らげて%ANAME(MASTER)%の体に抱きついた
+			ELSE
+				PRINTFORMW すっかりその気になった%ANAME(MTAR:0)%は、息を荒らげて%ANAME(MASTER)%を押し倒した
+			ENDIF
+		ELSE
+			IF GET_PLACENAME(TFLAG:54) == "城下町"
+				PRINTFORMW %ANAME(MASTER)%と%ANAME(MTAR:0)%は城下町の宿へと入った…
+			ELSEIF GET_PLACENAME(TFLAG:54) == "温泉"
+				PRINTFORMW %ANAME(MASTER)%は%ANAME(MTAR:0)%を抱き寄せた
+			ELSE
+				PRINTFORMW %ANAME(MASTER)%は%ANAME(MTAR:0)%を押し倒した
+			ENDIF
+		ENDIF
+		;このターン合意えっち
+		CFLAG:(MTAR:0):93 = 1
+		;ウフフフラグをＯＮ
+		FLAG:50 = 1
+		;時間を再設定
+		TFLAG:55 = 0
+		TFLAG:56 = 20
+		;タブ設定をリセット
+		TFLAG:7 = 0
+		;既成事実Lv3に相当
+		CALL SET_COUPLE_STEP(MTAR:0, 3)
+	ENDIF
+
+	;ウフフモードに入らないなら終了
+	IF !FLAG:50
+		PRINTFORMW （%LOCALS:0%%ANAME(MTAR:0)%と一旦別れました）
+		BEGIN AFTERTRAIN
+	ENDIF
+ENDIF
+
+;-------------------------------------------------
+;真名を許すイベント
+;-------------------------------------------------
+@AFTER_ALLOW_NAME
+;ターゲットが複数いる場合は戻る
+IF MTAR_NUM != 1
+	RETURN 0
+ENDIF
+
+;既に真名を許してもらった場合、真名が定義されていない場合は戻る
+IF CFLAG:(MTAR:0):8 || CALLNAME:(MTAR:0) == "" || CALLNAME:(MTAR:0) == NAME:(MTAR:0)
+	RETURN 0
+ENDIF
+
+;好感度500以上
+IF CFLAG:(MTAR:0):2 < 500
+	RETURN 0
+ENDIF
+
+PRINTL 
+DRAWLINE
+
+;睡姦を行った場合
+IF TFLAG:8
+	PRINTFORMW 後日、%ANAME(MASTER)%は%NAME:(MTAR:0)%からの呼び出しを受けた…
+ENDIF
+
+;口上独自のイベント
+CALL KOJO_EVENT(MTAR:0, 10)
+
+;真名許可フラグ
+CFLAG:(MTAR:0):8 = 1
+
+PRINTL 
+SETCOLOR COLOR_CAUTION
+PRINTFORML %NAME:(MTAR:0)%から真名「%CALLNAME:(MTAR:0)%」を許されました
+RESETCOLOR
+DRAWLINE
+WAIT
+RETURN 1
+
+;-------------------------------------------------
+;押し倒した時の判定
+;-------------------------------------------------
+@JUDGE_PUSHDOWN
+;ターゲットが複数いる場合は戻る
+IF MTAR_NUM != 1
+	RETURN 0
+ENDIF
+
+;●実行値の計算
+CVARSET TCVAR, 24, -10000
+CVARSET TCVAR, 25, 10000
+
+;実行値の設定
+TCVAR:(MTAR:0):25 = 100
+
+CALL COM_ORDER(MTAR:0)
+
+CALL COM_ORDER_ELEMENT(MTAR:0, "欲情", GET_PALAMLV(PALAM:(MTAR:0):欲情))
+IF VAGINA(MTAR:0)
+	CALL COM_ORDER_ELEMENT(MTAR:0, "潤滑", GET_PALAMLV(PALAM:(MTAR:0):潤滑))
+ENDIF
+CALL COM_ORDER_ELEMENT(MTAR:0, "欲望", ABL:(MTAR:0):欲望 * 4)
+CALL COM_ORDER_ELEMENT(MTAR:0, "奉仕", ABL:(MTAR:0):奉仕 * 2)
+
+IF TALENT:(MTAR:0):貞操観念
+	CALL COM_ORDER_ELEMENT(MTAR:0, "貞操観念", -10)
+ENDIF
+
+IF TALENT:(MTAR:0):貞操無頓着
+	CALL COM_ORDER_ELEMENT(MTAR:0, "貞操無頓着", 10)
+ENDIF
+
+IF TALENT:(MTAR:0):恥じらい
+	CALL COM_ORDER_ELEMENT(MTAR:0, "恥じらい", -6)
+ENDIF
+
+IF TALENT:(MTAR:0):恥薄い
+	CALL COM_ORDER_ELEMENT(MTAR:0, "恥薄い", 3)
+ENDIF
+
+IF TALENT:(MTAR:0):快感に素直
+	CALL COM_ORDER_ELEMENT(MTAR:0, "快感に素直", 5)
+ENDIF
+
+IF TALENT:(MTAR:0):快感の否定
+	CALL COM_ORDER_ELEMENT(MTAR:0, "快感の否定", -5)
+ENDIF
+
+IF TALENT:(MTAR:0):一線越えない
+	CALL COM_ORDER_ELEMENT(MTAR:0, "一線越えない", -15)
+ENDIF
+
+IF TALENT:(MTAR:0):恋慕
+	CALL COM_ORDER_ELEMENT(MTAR:0, "恋慕", 12)
+ENDIF
+
+IF TALENT:(MTAR:0):親友
+	CALL COM_ORDER_ELEMENT(MTAR:0, "親友", 6)
+ENDIF
+
+IF TALENT:(MTAR:0):親愛
+	CALL COM_ORDER_ELEMENT(MTAR:0, "親愛", 20)
+ENDIF
+
+IF TALENT:(MTAR:0):恋人
+	CALL COM_ORDER_ELEMENT(MTAR:0, "恋人", 6)
+ENDIF
+
+IF TALENT:(MTAR:0):キス未経験
+	CALL COM_ORDER_ELEMENT(MTAR:0, "キス未経験", -5)
+ENDIF
+
+;ムードボーナス
+IF TFLAG:37 < 60
+	CALL COM_ORDER_ELEMENT(MTAR:0, "ムード", 0)
+ELSE
+	CALL COM_ORDER_ELEMENT(MTAR:0, "ムード", 5 + TFLAG:37 / 30)
+ENDIF
+
+;好感度
+IF CFLAG:(MTAR:0):2 < 700
+	IF CFLAG:(MTAR:0):2 < 300
+		LOCAL:0 = -20
+	ELSEIF CFLAG:(MTAR:0):2 < 500
+		LOCAL:0 = -10
+	ELSE
+		LOCAL:0 = -5
+	ENDIF
+	CALL COM_ORDER_ELEMENT(MTAR:0, "好感度不足", LOCAL:0)
+ENDIF
+
+;第三者　○○に恋慕に関する処理
+CALL JUDGE_PUSHDOWN_SUB
+
+;性知識
+IF ABL:(MTAR:0):性知識 == 0
+	CALL COM_ORDER_ELEMENT(MTAR:0, "性知識なし", 80)
+ENDIF
+
+;合意
+IF TALENT:(MTAR:0):合意
+	CALL COM_ORDER_ELEMENT(MTAR:0, "合意", 10)
+ENDIF
+
+;判定結果を表示
+PRINTFORMW  = {TCVAR:(MTAR:0):24} %TOSTR_COMPARE(TCVAR:(MTAR:0):24, TCVAR:(MTAR:0):25)% 実行値{TCVAR:(MTAR:0):25}
+
+;実行判定
+IF TCVAR:(MTAR:0):24 >= TCVAR:(MTAR:0):25
+	;既に[合意]済み
+	IF TALENT:(MTAR:0):合意
+		CALL KOJO_EVENT(MTAR:0, 7)
+
+	;酔いによる補正を除いても成功
+	ELSEIF TCVAR:(MTAR:0):24 - PALAM:(MTAR:0):酔い / 150 >= 100
+		TFLAG:48 = 0
+		CALL KOJO_EVENT(MTAR:0, 5)
+		PRINTFORMW %ANAME(MTAR:0)%の<合意>を得た
+		TALENT:(MTAR:0):合意 = 1
+
+	;酔った勢いで成功
+	ELSE
+		TFLAG:48 = 1
+		CALL KOJO_EVENT(MTAR:0, 4)
+	ENDIF
+	RETURN 1
+
+;失敗
+ELSE
+	CALL KOJO_EVENT(MTAR:0, 6)
+	IF !TALENT:(MTAR:0):合意 && !TALENT:(MTAR:0):恋慕 && !TALENT:(MTAR:0):親友
+		PRINTFORMW %ANAME(MTAR:0)%の好感度が100下がりました
+		CFLAG:(MTAR:0):2 -= 100
+	ENDIF
+	RETURN 0
+ENDIF
+
+;-------------------------------------------------
+;誘惑した時の判定
+;-------------------------------------------------
+@JUDGE_PUSHDOWN2
+;ターゲットが複数いる場合は戻る
+IF MTAR_NUM != 1
+	RETURN 0
+ENDIF
+
+;●実行値の計算
+CVARSET TCVAR, 24, -10000
+CVARSET TCVAR, 25, 10000
+
+;実行値の設定
+TCVAR:(MTAR:0):25 = 110
+
+CALL COM_ORDER(MTAR:0)
+
+CALL COM_ORDER_ELEMENT(MTAR:0, "欲情", GET_PALAMLV(PALAM:(MTAR:0):欲情) * 2)
+IF VAGINA(MTAR:0)
+	CALL COM_ORDER_ELEMENT(MTAR:0, "潤滑", GET_PALAMLV(PALAM:(MTAR:0):潤滑))
+ENDIF
+CALL COM_ORDER_ELEMENT(MTAR:0, "欲望", ABL:(MTAR:0):欲望 * 5)
+CALL COM_ORDER_ELEMENT(MTAR:0, "奉仕", ABL:(MTAR:0):奉仕 * 1)
+
+IF TALENT:(MTAR:0):貞操観念
+	CALL COM_ORDER_ELEMENT(MTAR:0, "貞操観念", -10)
+ENDIF
+
+IF TALENT:(MTAR:0):貞操無頓着
+	CALL COM_ORDER_ELEMENT(MTAR:0, "貞操無頓着", 10)
+ENDIF
+
+IF TALENT:(MTAR:0):大人しい
+	CALL COM_ORDER_ELEMENT(MTAR:0, "大人しい", -8)
+ENDIF
+
+IF TALENT:(MTAR:0):恥じらい
+	CALL COM_ORDER_ELEMENT(MTAR:0, "恥じらい", -8)
+ENDIF
+
+IF TALENT:(MTAR:0):恥薄い
+	CALL COM_ORDER_ELEMENT(MTAR:0, "恥薄い", 3)
+ENDIF
+
+IF TALENT:(MTAR:0):一線越えない
+	CALL COM_ORDER_ELEMENT(MTAR:0, "一線越えない", -15)
+ENDIF
+
+IF TALENT:(MTAR:0):快感に素直
+	CALL COM_ORDER_ELEMENT(MTAR:0, "快感に素直", 12)
+ENDIF
+
+IF TALENT:(MTAR:0):快感の否定
+	CALL COM_ORDER_ELEMENT(MTAR:0, "快感の否定", -10)
+ENDIF
+
+IF TALENT:(MTAR:0):保守的
+	CALL COM_ORDER_ELEMENT(MTAR:0, "保守的", -4)
+ENDIF
+
+IF TALENT:(MTAR:0):自制心
+	CALL COM_ORDER_ELEMENT(MTAR:0, "自制心", -10)
+ENDIF
+
+IF TALENT:(MTAR:0):恋慕
+	CALL COM_ORDER_ELEMENT(MTAR:0, "恋慕", 12)
+ENDIF
+
+IF TALENT:(MTAR:0):親友
+	CALL COM_ORDER_ELEMENT(MTAR:0, "親友", 6)
+ENDIF
+
+IF TALENT:(MTAR:0):親愛
+	CALL COM_ORDER_ELEMENT(MTAR:0, "親愛", 20)
+ENDIF
+
+IF TALENT:(MTAR:0):恋人
+	CALL COM_ORDER_ELEMENT(MTAR:0, "恋人", 6)
+ENDIF
+
+IF TALENT:(MTAR:0):キス未経験
+	CALL COM_ORDER_ELEMENT(MTAR:0, "キス未経験", -5)
+ENDIF
+
+IF PENIS(MTAR:0) && VAGINA(MPLY:0)
+	CALL COM_ORDER_ELEMENT(MTAR:0, "性別", 20)
+ENDIF
+
+;ムードボーナス
+IF TFLAG:37 < 60
+	CALL COM_ORDER_ELEMENT(MTAR:0, "ムード", 0)
+ELSE
+	CALL COM_ORDER_ELEMENT(MTAR:0, "ムード", 5 + TFLAG:37 / 30)
+ENDIF
+
+;好感度
+IF CFLAG:(MTAR:0):2 < 700
+	IF CFLAG:(MTAR:0):2 < 300
+		LOCAL:0 = -20
+	ELSEIF CFLAG:(MTAR:0):2 < 500
+		LOCAL:0 = -10
+	ELSE
+		LOCAL:0 = -5
+	ENDIF
+	CALL COM_ORDER_ELEMENT(MTAR:0, "好感度不足", LOCAL:0)
+ENDIF
+
+IF CONFIG:70 == 1
+	IF TALENT:(MTAR:0):霖之助に恋慕
+		CALL COM_ORDER_ELEMENT(MTAR:0, "霖之助に恋慕", -35)
+	ENDIF
+
+	IF TALENT:(MTAR:0):霖之助の恋人
+		IF TALENT:(MTAR:0):貞操観念
+			CALL COM_ORDER_ELEMENT(MTAR:0, "霖之助の恋人／貞操観念", -35)
+		ELSEIF TALENT:(MTAR:0):貞操無頓着
+			CALL COM_ORDER_ELEMENT(MTAR:0, "霖之助の恋人／貞操無頓着", -10)
+		ELSE
+			CALL COM_ORDER_ELEMENT(MTAR:0, "霖之助の恋人", -20)
+		ENDIF
+	ENDIF
+ENDIF
+
+IF CONFIG:71
+	;タチ役をCONFIG:88で設定
+	IF TALENT:(MTAR:0):藍に恋慕
+		CALL COM_ORDER_ELEMENT(MTAR:0, ANAME(CONFIG:88) + "に恋慕", -35)
+	ENDIF
+
+	IF TALENT:(MTAR:0):藍の恋人
+		IF TALENT:(MTAR:0):貞操観念
+			CALL COM_ORDER_ELEMENT(MTAR:0, ANAME(CONFIG:88) + "の恋人／貞操観念", -35)
+		ELSEIF TALENT:(MTAR:0):貞操無頓着
+			CALL COM_ORDER_ELEMENT(MTAR:0, ANAME(CONFIG:88) + "の恋人／貞操無頓着", -10)
+		ELSE
+			CALL COM_ORDER_ELEMENT(MTAR:0, ANAME(CONFIG:88) + "の恋人", -20)
+		ENDIF
+	ENDIF
+ENDIF
+
+;性知識
+IF ABL:(MTAR:0):性知識 == 0
+	CALL COM_ORDER_ELEMENT(MTAR:0, "性知識なし", -80)
+ENDIF
+
+;合意
+IF TALENT:(MTAR:0):合意
+	CALL COM_ORDER_ELEMENT(MTAR:0, "合意", 10)
+ENDIF
+
+;判定結果を表示
+PRINTFORMW  = {TCVAR:(MTAR:0):24} %TOSTR_COMPARE(TCVAR:(MTAR:0):24, TCVAR:(MTAR:0):25)% 実行値{TCVAR:(MTAR:0):25}
+
+;実行判定
+IF TCVAR:(MTAR:0):24 >= TCVAR:(MTAR:0):25
+	;既に[合意]済み
+	IF TALENT:(MTAR:0):合意
+		CALL KOJO_EVENT(MTAR:0, 107)
+
+	;酔いによる補正を除いても成功
+	ELSEIF TCVAR:(MTAR:0):24 - PALAM:(MTAR:0):酔い / 150 >= 100
+		TFLAG:48 = 0
+		CALL KOJO_EVENT(MTAR:0, 105)
+		PRINTFORMW %ANAME(MTAR:0)%の<合意>を得た
+		TALENT:(MTAR:0):合意 = 1
+
+	;酔った勢いで成功
+	ELSE
+		TFLAG:48 = 1
+		CALL KOJO_EVENT(MTAR:0, 104)
+	ENDIF
+	RETURN 1
+
+;失敗
+ELSE
+	CALL KOJO_EVENT(MTAR:0, 106)
+	IF !TALENT:(MTAR:0):合意 && !TALENT:(MTAR:0):恋慕 && !TALENT:(MTAR:0):親友
+		PRINTFORMW %ANAME(MTAR:0)%の好感度が50下がりました
+		CFLAG:(MTAR:0):2 -= 50
+	ENDIF
+	RETURN 0
+ENDIF
+
+;-------------------------------------------------
+;押し倒され／おねだり判定(戻り値:0=何もしない、1=押し倒し、2=おねだり)
+;-------------------------------------------------
+@PUSH_OVER
+;既にウフフ中なら戻る
+IF FLAG:50
+	RETURN 0
+ENDIF
+
+;最低でも[恋慕][恋人][服従][烙印]のいずれかが必要
+IF !TALENT:(MTAR:0):恋慕 && !TALENT:(MTAR:0):恋人 && !TALENT:(MTAR:0):服従 && !TALENT:(MTAR:0):烙印
+	RETURN 0
+ENDIF
+
+;性知識Lv1以上が必要
+IF ABL:(MTAR:0):性知識 < 1
+	RETURN 0
+ENDIF
+
+;霖之助に恋慕 or 霖之助の恋人なら戻る
+IF TALENT:(MTAR:0):霖之助に恋慕 || TALENT:(MTAR:0):霖之助の恋人
+	RETURN
+ENDIF
+
+;●実行値の計算
+CVARSET TCVAR, 24, -10000
+CVARSET TCVAR, 25, 10000
+
+;◆↓表示スキップここから↓◆
+SKIPDISP 1
+
+CALL COM_ORDER(MTAR:0)
+
+CALL COM_ORDER_ELEMENT(MTAR:0, "欲情", GET_PALAMLV(PALAM:(MTAR:0):欲情))
+CALL COM_ORDER_ELEMENT(MTAR:0, "潤滑", GET_PALAMLV(PALAM:(MTAR:0):潤滑))
+CALL COM_ORDER_ELEMENT(MTAR:0, "欲望", ABL:(MTAR:0):欲望 * 4)
+
+SIF TALENT:(MTAR:0):臆病
+	CALL COM_ORDER_ELEMENT(MTAR:0, "臆病", -6)
+SIF TALENT:(MTAR:0):反抗的
+	CALL COM_ORDER_ELEMENT(MTAR:0, "反抗的", -5)
+SIF TALENT:(MTAR:0):大人しい
+	CALL COM_ORDER_ELEMENT(MTAR:0, "大人しい", -10)
+SIF TALENT:(MTAR:0):プライド高い
+	CALL COM_ORDER_ELEMENT(MTAR:0, "プライド高い", -6)
+SIF TALENT:(MTAR:0):ツンデレ
+	CALL COM_ORDER_ELEMENT(MTAR:0, "ツンデレ", 15)
+SIF TALENT:(MTAR:0):自制心
+	CALL COM_ORDER_ELEMENT(MTAR:0, "自制心", -15)
+SIF TALENT:(MTAR:0):無関心
+	CALL COM_ORDER_ELEMENT(MTAR:0, "無関心", -15)
+SIF TALENT:(MTAR:0):感情乏しい
+	CALL COM_ORDER_ELEMENT(MTAR:0, "感情乏しい", -15)
+SIF TALENT:(MTAR:0):楽観的
+	CALL COM_ORDER_ELEMENT(MTAR:0, "楽観的", 5)
+SIF TALENT:(MTAR:0):悲観的
+	CALL COM_ORDER_ELEMENT(MTAR:0, "悲観的", -5)
+SIF TALENT:(MTAR:0):一線越えない
+	CALL COM_ORDER_ELEMENT(MTAR:0, "一線越えない", -20)
+SIF TALENT:(MTAR:0):貞操観念
+	CALL COM_ORDER_ELEMENT(MTAR:0, "貞操観念", -10)
+SIF TALENT:(MTAR:0):貞操無頓着
+	CALL COM_ORDER_ELEMENT(MTAR:0, "貞操無頓着", 10)
+SIF TALENT:(MTAR:0):孤高
+	CALL COM_ORDER_ELEMENT(MTAR:0, "孤高", -10)
+SIF TALENT:(MTAR:0):抑圧
+	CALL COM_ORDER_ELEMENT(MTAR:0, "抑圧", -25)
+SIF TALENT:(MTAR:0):解放
+	CALL COM_ORDER_ELEMENT(MTAR:0, "解放", 10)
+SIF TALENT:(MTAR:0):恥じらい
+	CALL COM_ORDER_ELEMENT(MTAR:0, "恥じらい", -12)
+SIF TALENT:(MTAR:0):恥薄い
+	CALL COM_ORDER_ELEMENT(MTAR:0, "恥薄い", 4)
+SIF TALENT:(MTAR:0):恋慕
+	CALL COM_ORDER_ELEMENT(MTAR:0, "恋慕", 12)
+SIF TALENT:(MTAR:0):親愛
+	CALL COM_ORDER_ELEMENT(MTAR:0, "親愛", 20)
+SIF TALENT:(MTAR:0):恋人
+	CALL COM_ORDER_ELEMENT(MTAR:0, "恋人", 6)
+SIF TALENT:(MTAR:0):キス未経験
+	CALL COM_ORDER_ELEMENT(MTAR:0, "キス未経験", -15)
+
+;ムードボーナス
+IF TFLAG:37 < 60
+	CALL COM_ORDER_ELEMENT(MTAR:0, "ムード", 0)
+ELSE
+	CALL COM_ORDER_ELEMENT(MTAR:0, "ムード", 5 + TFLAG:37 / 30)
+ENDIF
+
+CALL COM_ORDER_ELEMENT(MTAR:0, "好感度", CFLAG:(MTAR:0):2 / 500)
+CALL COM_ORDER_ELEMENT(MTAR:0, "依存度", CFLAG:(MTAR:0):3 / 500)
+
+IF TALENT:(MTAR:0):合意
+	;二回目以降は条件が厳しくなる
+	TCVAR:(MTAR:0):25 = 240 + RAND:200
+ELSE
+	TCVAR:(MTAR:0):25 = 220
+ENDIF
+
+;判定結果を表示
+PRINTFORMW  = {TCVAR:(MTAR:0):24} %TOSTR_COMPARE(TCVAR:(MTAR:0):24, TCVAR:(MTAR:0):25)% 実行値{TCVAR:(MTAR:0):25}
+
+;◆↑表示スキップここまで↑◆
+SKIPDISP 0
+
+;主人公の主導権ポイントが低ければ押し倒し
+IF GET_INITIATIVE_RATE(MTAR:0) > 0
+	;酔い補正を除いても成功
+	IF TCVAR:(MTAR:0):24 - PALAM:(MTAR:0):酔い / 150 >= TCVAR:(MTAR:0):25
+		;酔った勢いフラグOFF
+		TFLAG:48 = 0
+
+		IF TALENT:(MTAR:0):合意
+			;口上表示
+			CALL KOJO_EVENT(MTAR:0, 24)
+
+		;合意なし
+		ELSE
+			;口上表示
+			CALL KOJO_EVENT(MTAR:0, 22)
+
+			TALENT:(MTAR:0):合意 = 1
+			PRINTFORMW %ANAME(MTAR:0)%の<合意>を得た
+		ENDIF
+		RETURN 1
+
+	;酔った勢い
+	ELSEIF TCVAR:(MTAR:0):24 >= TCVAR:(MTAR:0):25
+		;酔った勢いフラグON
+		TFLAG:48 = 1
+
+		;合意あり
+		IF TALENT:(MTAR:0):152
+			;口上表示
+			CALL KOJO_EVENT(MTAR:0, 25)
+
+		;合意なし
+		ELSE
+			;口上表示
+			CALL KOJO_EVENT(MTAR:0, 23)
+		ENDIF
+		RETURN 1
+	ENDIF
+
+;主人公の主導権ポイントが高ければおねだり
+ELSE
+	;酔い補正を除いても成功
+	IF TCVAR:(MTAR:0):24 - PALAM:(MTAR:0):酔い / 150 >= TCVAR:(MTAR:0):25
+		;酔った勢いフラグOFF
+		TFLAG:48 = 0
+
+		IF TALENT:(MTAR:0):合意
+			;口上表示
+			CALL KOJO_EVENT(MTAR:0, 28)
+
+		;合意なし
+		ELSE
+			;口上表示
+			CALL KOJO_EVENT(MTAR:0, 26)
+
+			TALENT:(MTAR:0):合意 = 1
+			PRINTFORMW %ANAME(MTAR:0)%の<合意>を得た
+		ENDIF
+		RETURN 2
+
+	;酔った勢い
+	ELSEIF TCVAR:(MTAR:0):24 >= TCVAR:(MTAR:0):25
+		;酔った勢いフラグON
+		TFLAG:48 = 1
+
+		;合意あり
+		IF TALENT:(MTAR:0):152
+			;口上表示
+			CALL KOJO_EVENT(MTAR:0, 29)
+
+		;合意なし
+		ELSE
+			;口上表示
+			CALL KOJO_EVENT(MTAR:0, 27)
+		ENDIF
+		RETURN 2
+	ENDIF
+ENDIF
+
+RETURN 0
+
+;-------------------------------------------------
+;別れるときのキスや告白の判定
+;-------------------------------------------------
+@CHECK_EXIT_ACTION
+;ムードが60未満なら戻る
+IF TFLAG:37 < 60
+	RETURN
+ENDIF
+
+;同性かつ両刀でなければ戻る
+IF IS_SAMESEX(MPLY:0, MTAR:0) && !TALENT:(MTAR:0):両刀
+	RETURN
+ENDIF
+
+;既に恋人 or 烙印なら戻る
+IF TALENT:(MTAR:0):恋人 || TALENT:(MTAR:0):服従
+	RETURN
+ENDIF
+
+;霖之助に恋慕 or 霖之助の恋人なら戻る
+IF TALENT:(MTAR:0):霖之助に恋慕 || TALENT:(MTAR:0):霖之助の恋人
+	RETURN
+ENDIF
+
+;●実行値の計算
+CVARSET TCVAR, 24, -10000
+CVARSET TCVAR, 25, 10000
+
+;◆↓表示スキップここから↓◆
+SKIPDISP 1
+
+CALL COM_ORDER_BASE(MTAR:0)
+
+CALL COM_ORDER_ELEMENT(MTAR:0, "追加好感度補正", CFLAG:(MTAR:0):2 / 50)
+
+SIF TALENT:(MTAR:0):臆病
+	CALL COM_ORDER_ELEMENT(MTAR:0, "臆病", -12)
+SIF TALENT:(MTAR:0):反抗的
+	CALL COM_ORDER_ELEMENT(MTAR:0, "反抗的", -15)
+SIF TALENT:(MTAR:0):気丈
+	CALL COM_ORDER_ELEMENT(MTAR:0, "気丈", 6)
+SIF TALENT:(MTAR:0):素直
+	CALL COM_ORDER_ELEMENT(MTAR:0, "素直", 5)
+SIF TALENT:(MTAR:0):大人しい
+	CALL COM_ORDER_ELEMENT(MTAR:0, "大人しい", -10)
+SIF TALENT:(MTAR:0):プライド高い
+	CALL COM_ORDER_ELEMENT(MTAR:0, "プライド高い", -10)
+SIF TALENT:(MTAR:0):ツンデレ
+	CALL COM_ORDER_ELEMENT(MTAR:0, "ツンデレ", -25)
+SIF TALENT:(MTAR:0):自制心
+	CALL COM_ORDER_ELEMENT(MTAR:0, "自制心", -7)
+SIF TALENT:(MTAR:0):無関心
+	CALL COM_ORDER_ELEMENT(MTAR:0, "無関心", -20)
+SIF TALENT:(MTAR:0):感情乏しい
+	CALL COM_ORDER_ELEMENT(MTAR:0, "感情乏しい", -20)
+SIF TALENT:(MTAR:0):楽観的
+	CALL COM_ORDER_ELEMENT(MTAR:0, "楽観的", 15)
+SIF TALENT:(MTAR:0):悲観的
+	CALL COM_ORDER_ELEMENT(MTAR:0, "悲観的", -20)
+SIF TALENT:(MTAR:0):一線越えない
+	CALL COM_ORDER_ELEMENT(MTAR:0, "一線越えない", -20)
+SIF TALENT:(MTAR:0):目立ちたがり
+	CALL COM_ORDER_ELEMENT(MTAR:0, "目立ちたがり", 10)
+SIF TALENT:(MTAR:0):貞操観念
+	CALL COM_ORDER_ELEMENT(MTAR:0, "貞操観念", -10)
+SIF TALENT:(MTAR:0):貞操無頓着
+	CALL COM_ORDER_ELEMENT(MTAR:0, "貞操無頓着", 10)
+SIF TALENT:(MTAR:0):孤高
+	CALL COM_ORDER_ELEMENT(MTAR:0, "孤高", -15)
+SIF TALENT:(MTAR:0):抑圧
+	CALL COM_ORDER_ELEMENT(MTAR:0, "抑圧", -25)
+SIF TALENT:(MTAR:0):解放
+	CALL COM_ORDER_ELEMENT(MTAR:0, "解放", 12)
+SIF TALENT:(MTAR:0):恥じらい
+	CALL COM_ORDER_ELEMENT(MTAR:0, "恥じらい", -12)
+SIF TALENT:(MTAR:0):恥薄い
+	CALL COM_ORDER_ELEMENT(MTAR:0, "恥薄い", 4)
+SIF TALENT:(MTAR:0):恋慕
+	CALL COM_ORDER_ELEMENT(MTAR:0, "恋慕", 30)
+SIF TALENT:(MTAR:0):親愛
+	CALL COM_ORDER_ELEMENT(MTAR:0, "親愛", 30)
+SIF TALENT:(MTAR:0):キス未経験
+	CALL COM_ORDER_ELEMENT(MTAR:0, "キス未経験", -10)
+
+IF CFLAG:(MTAR:0):9 == CFLAG:MASTER:1
+	CALL COM_ORDER_ELEMENT(MTAR:0, "捕虜", -50)
+ENDIF
+
+CALL COM_ORDER_ELEMENT(MTAR:0, "主導権基準値", GET_INITIATIVE_RATE(MTAR:0))
+
+IF TFLAG:37 < 10
+	LOCAL:0 = -20
+ELSEIF TFLAG:37 < 30
+	LOCAL:0 = -15
+ELSEIF TFLAG:37 < 50
+	LOCAL:0 = 0
+ELSEIF TFLAG:37 < 100
+	LOCAL:0 = (TFLAG:37 - 50) / 10
+ELSE
+	LOCAL:0 = MIN(10, (TFLAG:37 - 100) / 50 + 5)
+ENDIF
+CALL COM_ORDER_ELEMENT(MTAR:0, "ムード", LOCAL:0)
+
+IF PALAM:(MTAR:0):酔い >= 150
+	CALL COM_ORDER_ELEMENT(MTAR:0, "酔い", PALAM:(MTAR:0):酔い / 150)
+ENDIF
+
+;振られた回数の影響
+LOCAL:0 = CFLAG:(MTAR:0):44 * 50
+SIF TALENT:(MTAR:0):楽観的
+	TIMES LOCAL:0, 0.50
+SIF TALENT:(MTAR:0):悲観的
+	TIMES LOCAL:0, 2.50
+SIF TALENT:(MTAR:0):臆病
+	TIMES LOCAL:0, 1.80
+SIF TALENT:(MTAR:0):気丈
+	TIMES LOCAL:0, 1.50
+SIF TALENT:(MTAR:0):恥じらい
+	TIMES LOCAL:0, 1.50
+SIF TALENT:(MTAR:0):恥薄い
+	TIMES LOCAL:0, 0.80
+SIF TALENT:(MTAR:0):大人しい
+	TIMES LOCAL:0, 1.30
+SIF TALENT:(MTAR:0):自制心
+	TIMES LOCAL:0, 1.50
+SIF TALENT:(MTAR:0):無関心
+	TIMES LOCAL:0, 1.50
+SIF TALENT:(MTAR:0):感情乏しい
+	TIMES LOCAL:0, 1.50
+SIF TALENT:(MTAR:0):一線越えない
+	TIMES LOCAL:0, 1.50
+SIF TALENT:(MTAR:0):目立ちたがり
+	TIMES LOCAL:0, 0.80
+SIF TALENT:(MTAR:0):解放
+	TIMES LOCAL:0, 0.60
+SIF TALENT:(MTAR:0):抑圧
+	TIMES LOCAL:0, 1.80
+SIF TALENT:(MTAR:0):献身的
+	TIMES LOCAL:0, 1.40
+SIF TALENT:(MTAR:0):小悪魔
+	TIMES LOCAL:0, 0.80
+CALL COM_ORDER_ELEMENT(MTAR:0, "失恋回数", -LOCAL:0)
+
+;告白の実行値を設定
+TCVAR:(MTAR:0):25 = 190
+
+;判定結果を表示
+PRINTFORMW  = {TCVAR:(MTAR:0):24} %TOSTR_COMPARE(TCVAR:(MTAR:0):24, TCVAR:(MTAR:0):25)% 実行値{TCVAR:(MTAR:0):25}
+
+;◆↑表示スキップここまで↑◆
+SKIPDISP 0
+
+;●告白判定
+;最低でも恋慕が必要、霖之助・タチ役への恋慕があれば発生しない
+IF TALENT:(MTAR:0):恋慕 && !TALENT:(MTAR:0):霖之助に恋慕 && !TALENT:(MTAR:0):藍に恋慕
+	;判定成功
+	IF TCVAR:(MTAR:0):24 >= TCVAR:(MTAR:0):25
+		;口上表示
+		CALL KOJO_EVENT(MTAR:0, 21)
+
+		;了承した場合
+		IF TFLAG:4
+			;キスの共通処理
+			CALL KISS_COMMON(MTAR:0, MPLY:0, 0, 0, 1)
+			EXP:(MTAR:0):キス経験 += 1
+			EXP:(MPLY:0):キス経験 += 1
+
+			;恋人になる処理
+			CALL GET_LOVERS(MTAR:0)
+
+			SOURCE:(MTAR:0):歓喜 += 3000
+
+		;断った場合
+		ELSE
+			;主人公に振られた回数を加算
+			CFLAG:(MTAR:0):44 ++
+
+			SOURCE:(MTAR:0):反感 += 600
+			SOURCE:(MTAR:0):悲哀 += 6000
+		ENDIF
+	ENDIF
+ENDIF
+
+;◆↓表示スキップここから↓◆
+SKIPDISP 1
+
+;キスの実行値を設定
+TCVAR:(MTAR:0):25 = 120
+
+;判定結果を表示
+PRINTFORMW  = {TCVAR:(MTAR:0):24} %TOSTR_COMPARE(TCVAR:(MTAR:0):24, TCVAR:(MTAR:0):25)% 実行値{TCVAR:(MTAR:0):25}
+
+;◆↑表示スキップここまで↑◆
+SKIPDISP 0
+
+;●ファーストキス判定
+;最低でも好感度800が必要、少なくとも一方がキス未経験、霖之助・タチ役への恋慕があれば発生しない
+IF CFLAG:(MTAR:0):2 >= 800 && (TALENT:(MTAR:0):キス未経験 || TALENT:(MPLY:0):キス未経験) && !TALENT:(MTAR:0):霖之助に恋慕 && !TALENT:(MTAR:0):藍に恋慕
+	;判定成功
+	IF TCVAR:(MTAR:0):24 >= TCVAR:(MTAR:0):25
+		;口上表示
+		CALL KOJO_EVENT(MTAR:0, 20)
+
+		;キスの共通処理
+		CALL KISS_COMMON(MTAR:0, MPLY:0, 0, 1, 1)
+		EXP:(MTAR:0):キス経験 += 1
+		EXP:(MPLY:0):キス経験 += 1
+
+		SOURCE:(MTAR:0):歓喜 += 500
+	ENDIF
+ENDIF
+
+RETURN

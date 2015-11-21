@@ -1,0 +1,361 @@
+﻿;調教終了時の処理／イベント
+
+;-------------------------------------------------
+;調教終了
+;-------------------------------------------------
+@EVENTEND
+#LATER
+;体力気力を0～最大値の範囲に収める
+CALL LIFE_LIMIT
+
+;初対面のキャラの対面済みフラグをＯＮ
+FOR LOCAL:0, 0, CHARANUM
+	SIF CFLAG:(LOCAL:0):6 && LOCAL:0 != MASTER && !CFLAG:(LOCAL:0):17
+		CFLAG:(LOCAL:0):17 = 1
+NEXT
+
+;調教参加者同士の印象値が改善される
+FOR LOCAL:0, 0, CHARANUM
+	;一応主人公の値も弄る
+	IF LOCAL:0 == MASTER || CFLAG:(LOCAL:0):6
+		FOR LOCAL:1, 0, CHARANUM
+			IF LOCAL:0 != LOCAL:1 && (LOCAL:1 == MASTER || CFLAG:(LOCAL:1):6)
+				CALL TRAIN_CHANGE_RELATION(LOCAL:0, LOCAL:1)
+			ENDIF
+		NEXT
+	ENDIF
+NEXT
+
+;現在の酔いを酔い合計値に加算
+FOR LOCAL:0, 0, CHARANUM
+	SIF CFLAG:(LOCAL:0):6 && NO:(LOCAL:0) <= 999 || LOCAL:0 == MASTER
+		CFLAG:(LOCAL:0):67 += PALAM:(LOCAL:0):酔い
+NEXT
+
+;非ウフフ限定
+IF !FLAG:50
+	FOR LOCAL:0, 0, CHARANUM
+		IF CFLAG:(LOCAL:0):6 && NO:(LOCAL:0) <= 999
+			;調教後自慰のチェック
+			CALL AFTER_SELF_CHECK(LOCAL:0)
+		ENDIF
+	NEXT
+ENDIF
+
+FOR LOCAL:0, 0, CHARANUM
+	IF CFLAG:(LOCAL:0):6 && NO:(LOCAL:0) <= 999
+		;素質変化に関する処理(恋慕の取得など)
+		CALL TALENT_CHECK(LOCAL:0)
+	ENDIF
+NEXT
+
+FOR LOCAL:0, 0, CHARANUM
+	IF (LOCAL:0 == MASTER || CFLAG:(LOCAL:0):6) && NO:(LOCAL:0) <= 999
+		;妊娠判定
+		CALL CHECK_PREGNANT(LOCAL:0)
+	ENDIF
+NEXT
+
+FOR LOCAL:0, 0, CHARANUM
+	IF TALENT:(LOCAL:0):触手妊娠 || TALENT:(LOCAL:0):Ａ触手妊娠
+		;部隊の所属を解除
+		CALL FORCE_FREE(LOCAL:0)
+
+		IF RESULT && IS_PREGNANT_MSG(LOCAL:0)
+			SETCOLOR COLOR_CAUTION
+			PRINTFORMW 触手の子を宿した%ANAME(LOCAL:0)%は部隊から外れました
+			RESETCOLOR
+		ENDIF
+	ENDIF
+NEXT
+IF CONFIG:42
+	FOR LOCAL:0, 0, CHARANUM
+		CALL 性癖一括変更(LOCAL,3000)
+		CALL 性癖一括変更(LOCAL,5000)
+		CALL 性癖一括変更(LOCAL,7000)
+	NEXT
+ENDIF
+;追加アイテムの削除
+FOR LOCAL:0, 500, 999
+	ITEM:(LOCAL:0) = 0
+NEXT
+;プレイヤーとターゲットをクリア
+CALL CLEAR_MPLY
+CALL CLEAR_MTAR
+BEGIN TURNEND
+
+;-------------------------------------------------
+;調教後自慰のチェック
+;-------------------------------------------------
+@AFTER_SELF_CHECK(ARG:0)
+;カットフラグが立っていたらリターン
+;SIF CFLAG:98 & 2
+;	RETURN 0
+
+;特殊状態フラグが立っていれば戻る
+SIF CFLAG:(ARG:0):16
+	RETURN 0
+
+;虚ろ・崩壊なら戻る
+SIF TALENT:(ARG:0):虚ろ || TALENT:(ARG:0):崩壊
+	RETURN 0
+
+;自慰または触手オナニーの知識が必要
+LOCAL:0 = 0
+CALL CHECK_COM_KNOWLEDGE(ARG:0, 100)
+LOCAL:0 += RESULT
+CALL CHECK_COM_KNOWLEDGE(ARG:0, 211)
+LOCAL:0 += RESULT
+SIF !LOCAL:0
+	RETURN 0
+
+;おねだりフラグが立っていれば100%(条件判定をスルー)
+IF !TCVAR:(ARG:0):27
+	;最低でも欲情が3以上必要
+	SIF PALAM:(ARG:0):欲情 < PALAMLV:3
+		RETURN 0
+
+	;機嫌がある程度良いとき限定
+	LOCALS:0 = %TOSTR_EMOTION(ARG:0)%
+	SIF !GROUPMATCH(LOCALS:0, "幸", "悦", "良", "平")
+		RETURN 0
+
+	;体力・気力がゼロ、もしくは少ないなら行わない
+	SIF BASE:(ARG:0):体力 <= 500 || BASE:(ARG:0):気力 <= 500
+		RETURN 0
+ENDIF
+
+;●自慰するかどうかの判定＆回数の計算
+CALL CALC_SELF_PARAMETER(ARG:0, 1)
+LOCAL:2 = RESULT:0
+LOCAL:3 = RESULT:1
+LOCAL:4 = RESULT:2
+
+;自慰の実行判定を満たさなければ戻る
+SIF !LOCAL:2
+	RETURN 0
+
+;メッセージの共通部分
+DRAWLINE
+PRINTFORM %ANAME(MASTER)%と別れた後、
+
+SIF TCVAR:(ARG:0):27
+	PRINTFORM おあずけを食らった
+
+PRINTFORM %ANAME(ARG:0)%は劣情を抑えきれず、
+
+;ＣＢオナニー
+IF LOCAL:3 == 0
+	IF PENIS(ARG:0)
+		PRINTFORML 自らの指で反り立った肉棒を慰めた…
+	ELSE
+		PRINTFORML 自らの指で火照った体を慰めた…
+	ENDIF
+
+	;口上の表示
+	CALL KOJO_EVENT(ARG:0, 100)
+
+	;経験の加算と表示
+	IF PENIS(ARG:0)
+		CALL PRINT_ADD_EXP(ARG:0, "Ｃ感経験値", LOCAL:4 * 8 / 5)
+		CALL PRINT_ADD_EXP(ARG:0, "Ｂ感経験値", LOCAL:4 * 5)
+		CALL PRINT_ADD_EXP(ARG:0, "自慰経験値", LOCAL:4)
+		CALL PRINT_ADD_EXP(ARG:0, "射精経験値", LOCAL:4 / 2 + 1)
+		CALL PRINT_ADD_EXP(ARG:0, "絶頂経験", LOCAL:4)
+	ELSE
+		CALL PRINT_ADD_EXP(ARG:0, "Ｃ感経験値", LOCAL:4 * 8)
+		CALL PRINT_ADD_EXP(ARG:0, "Ｂ感経験値", LOCAL:4 * 5)
+		CALL PRINT_ADD_EXP(ARG:0, "自慰経験値", LOCAL:4)
+		CALL PRINT_ADD_EXP(ARG:0, "絶頂経験", LOCAL:4)
+	ENDIF
+
+;アナニー
+ELSE
+	PRINTFORML 自らの尻穴に指を挿れて快感を貪った…
+
+	;口上の表示
+	CALL KOJO_EVENT(ARG:0, 101)
+
+	;経験の加算と表示
+	IF PENIS(ARG:0)
+		CALL PRINT_ADD_EXP(ARG:0, "Ａ感経験値", LOCAL:4 * 10)
+		CALL PRINT_ADD_EXP(ARG:0, "自慰経験値", LOCAL:4)
+		CALL PRINT_ADD_EXP(ARG:0, "射精経験値", LOCAL:4 / 3)
+		CALL PRINT_ADD_EXP(ARG:0, "絶頂経験", LOCAL:4)
+	ELSE
+		CALL PRINT_ADD_EXP(ARG:0, "Ａ感経験値", LOCAL:4 * 10)
+		CALL PRINT_ADD_EXP(ARG:0, "自慰経験値", LOCAL:4)
+		CALL PRINT_ADD_EXP(ARG:0, "絶頂経験", LOCAL:4)
+	ENDIF
+ENDIF
+
+;能力上昇判定
+CALL TRAIN_AUTO_ABLUP(ARG:0)
+WAIT
+
+;-------------------------------------------------
+;自慰の判定(RESULT:0)、種類(RESULT:1)、回数(RESULT:2)を返す関数
+;自慰の種類は  0:ＣＢオナニー  1:アナニー
+;ARG:1が1だとPALAMなどの調教時の一時変数を考慮する
+;-------------------------------------------------
+@CALC_SELF_PARAMETER(ARG:0, ARG:1)
+#DIM 自慰実行度 ;(LOCAL:2)
+#DIM ＣＢ傾向 ;(LOCAL:3)
+#DIM Ａ傾向 ;(LOCAL:4)
+
+自慰実行度 = ABL:(ARG:0):自慰 * 7 + ABL:(ARG:0):欲望 * 4
+IF ARG:1
+	;ムード(TFLAG:37)を影響させる　※暫定的にムード20以下～70以上で0％～100％倍率
+	自慰実行度 = 自慰実行度 * LIMIT(TFLAG:37 - 20 ,0 ,50) / 50
+	;でもムラっとしたら関係ないよね　てことで欲情ゲージには倍率されない
+	自慰実行度 += GET_PALAMLV(PALAM:(ARG:0):欲情) * 4
+ELSE
+	自慰実行度 += 20
+ENDIF
+
+ＣＢ傾向 = ABL:(ARG:0):Ｃ感 * 2 + ABL:(ARG:0):Ｂ感
+Ａ傾向 = ABL:(ARG:0):Ａ感 * 3
+
+SIF TALENT:(ARG:0):自慰しやすい
+	自慰実行度 += 11
+
+SIF TALENT:(ARG:0):快感に素直
+	自慰実行度 += 5
+
+SIF TALENT:(ARG:0):快感の否定
+	自慰実行度 -= 14
+
+;服従じゃ増えない　隷属で恋慕と同じレベル
+SIF TALENT:(ARG:0):恋慕 || TALENT:(ARG:0):隷属
+	自慰実行度 += 5
+
+;満たされてるので自慰の傾向が減るイメージ
+SIF TALENT:(ARG:0):親愛
+	自慰実行度 -= 7
+
+SIF TALENT:(ARG:0):淫乱
+	自慰実行度 += 7
+	
+SIF TALENT:(ARG:0):淫核
+	ＣＢ傾向 += 6
+
+SIF TALENT:(ARG:0):淫乳
+	ＣＢ傾向 += 4
+
+SIF TALENT:(ARG:0):尻穴狂い
+	Ａ傾向 += 8
+
+LOCAL:5 = (自慰実行度 + MAX(ＣＢ傾向, Ａ傾向)) * 10
+
+IF LOCAL:5 > 0
+	IF ARG:1
+		;これどうせ自慰発生する非ウフフだと体力気力減ることほぼ無いんだし意味なくない？
+		LOCAL:5 = LOCAL:5 * BASE:(ARG:0):体力 * BASE:(ARG:0):気力 / (MAXBASE:(ARG:0):体力 * MAXBASE:(ARG:0):気力)
+	ELSE
+		TIMES LOCAL:5, 0.75
+	ENDIF
+ENDIF
+
+;おねだりフラグが立っていれば強制的に判定値をクリアするように補正
+IF TCVAR:(ARG:0):27
+	;ここでMAXする意味がいまいちわからない（一応ハードルの底上げと合わせて最低値を+50の250とする）
+	LOCAL:5 = MAX(LOCAL:5 + 100, 250)
+ENDIF
+
+;実行値不足なら判定OFF
+;恋慕・隷属の加算を増やした分、ハードルも底上げしました（250 + 5 * 10 → 300）
+IF LOCAL:5 < 300
+	RESULT:0 = 0
+ELSE
+	RESULT:0 = 1
+ENDIF
+
+;種類の判定
+RESULT:1 = (ＣＢ傾向 < Ａ傾向)
+
+;回数の計算(上限は30回)
+LOCAL:6 = MIN(SQRT(MAX(LOCAL:5 - 240, 0) / 10), 30)
+RESULT:2 = MAX(LOCAL:6 - RAND:(LOCAL:6 / 5 + 2), 1)
+
+RETURN RESULT:0
+
+;-------------------------------------------------
+;搾乳した母乳の売却
+;-------------------------------------------------
+;母乳を売却する関数
+;   ARG:0 売るキャラのキャラ番号
+@SELL_MILK(ARG:0)
+#DIM MILK_AMOUNT
+#DIM VALUE
+MILK_AMOUNT = CALC_MILK_VALUE(ARG:0)
+IF MILK_AMOUNT > 0
+	VALUE = CALC_MILK_VALUE(ARG:0, MILK_AMOUNT)
+	PRINTFORML 搾乳器を使って%ANAME(ARG:0)%から{MILK_AMOUNT}ccの母乳を搾り出した。
+	PRINTFORML %ANAME(ARG:0)%の母乳には{VALUE}の買値が付いた。
+	MONEY += VALUE
+	PRINTFORML 所持金 {VALUE}増加
+	WAIT
+ENDIF
+
+;-------------------------------------------------
+;調教後のキャラ間印象値改善処理
+;-------------------------------------------------
+;(ARG:0)の(ARG:1)に対する印象を調教内容次第で改善する
+;※MASTERに対する好感度・従属度や第三者への親密度とは違う
+;機嫌が良いほど好印象値が上昇、欲情・酔いが高いほど悪印象値が減少
+;主に閨の乱交が効果的
+;誰が誰にどうしたなどはめんどくさすぎて考慮してない
+;なお今のとこ悪化するようなことはない（やってもいいけどバランスが難しいと思われ）
+@TRAIN_CHANGE_RELATION(ARG:0, ARG:1)
+#DIM 好印象増加値
+#DIM 悪印象減少値
+
+;好印象増加値：機嫌からざっくり代入します
+SELECTCASE TOSTR_EMOTION(ARG:0)
+	CASE "幸"
+		好印象増加値 = 16
+	CASE "悦"
+		好印象増加値 = 8
+	CASE "良"
+		好印象増加値 = 4
+	CASE "平"
+		好印象増加値 = 2
+ENDSELECT
+
+;悪印象減少値：そのまま欲情Lvと酔いLvを足す（計0～19ぐらい？）
+悪印象減少値 = GET_PALAMLV(PALAM:(ARG:0):欲情) + GET_PALAMLV(PALAM:(ARG:0):酔い)
+
+;主人公自身の変動はとりあえずどっちも10
+IF ARG:0 == MASTER
+	好印象増加値 = 10
+	悪印象減少値 = 10
+ENDIF
+
+;相手の素質で変動
+;※操作キャラによってはめっちゃ楽になるので無くてもいいかも
+IF TALENT:(ARG:1):天の御遣い
+	好印象増加値 += 2
+	悪印象減少値 += 2
+ENDIF
+IF TALENT:(ARG:1):魅惑
+	好印象増加値 += 1
+ENDIF
+IF TALENT:(ARG:1):謎の魅力
+	好印象増加値 += 1
+	悪印象減少値 += 1
+ENDIF
+IF TALENT:(ARG:1):人気
+	好印象増加値 += 1
+	悪印象減少値 += 1
+ENDIF
+IF TALENT:(ARG:1):小悪魔
+	好印象増加値 += 1
+ENDIF
+
+;閨・子育てなら効果は（とりあえず）4倍
+IF FLAG:12 == 1 || FLAG:12 == 3
+	好印象増加値 = 好印象増加値 * 4
+	悪印象減少値 = 悪印象減少値 * 4
+ENDIF
+
+CALL CHANGE_RELATION_O_TO_O(ARG:0, ARG:1, 好印象増加値, -(悪印象減少値))

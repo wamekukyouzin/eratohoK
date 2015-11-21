@@ -1,0 +1,403 @@
+﻿;SLG関数の中でも、特に高速化用の特殊変数
+;状況次第で意図した結果が得られないことも多いため、取り扱いは控えるのが無難
+
+;-------------------------------------------------
+;現在の国家関係マップを作成する関数
+;-------------------------------------------------
+@TMP_CREATE_RELATION_MAP
+VARSET TMP_COUNTRY_RELATION:(LOCAL:0):0, 0
+FOR LOCAL:0, 1, MAX_COUNTRY
+	IF IS_COUNTRY(LOCAL:0)
+		TMP_COUNTRY_RELATION:(LOCAL:0):(LOCAL:0) = 5
+		FOR LOCAL:1, LOCAL:0 + 1, MAX_COUNTRY
+			IF IS_COUNTRY(LOCAL:1)
+				CALL CHECK_COUNTRY_RELATION(LOCAL:0, LOCAL:1)
+				TMP_COUNTRY_RELATION:(LOCAL:0):(LOCAL:1) = RESULT:0
+				TMP_COUNTRY_RELATION:(LOCAL:1):(LOCAL:0) = RESULT:0
+				TMP_COUNTRY_RELATION_TERM:(LOCAL:0):(LOCAL:1) = RESULT:1
+				TMP_COUNTRY_RELATION_TERM:(LOCAL:1):(LOCAL:0) = RESULT:1
+			ENDIF
+		NEXT
+	ENDIF
+NEXT
+
+;-------------------------------------------------
+;現在の部隊マップを作成する関数
+;-------------------------------------------------
+@TMP_CREATE_UNIT_MAP
+VARSET TMP_UNIT_ONCITY_CNT:(LOCAL:0):0, 0
+VARSET TMP_UNIT_ONCITY_NUM:(LOCAL:0):0, 0
+
+FOR LOCAL:0, 1, MAX_COUNTRY
+	IF IS_COUNTRY(LOCAL:0)
+		FOR LOCAL:1, 0, 10
+			IF UNIT_SOLDIER:(LOCAL:0):(LOCAL:1) > 0
+				LOCAL:3 = UNIT_POSITION:(LOCAL:0):(LOCAL:1)
+				FOR LOCAL:2, 0, 20
+					IF TMP_UNIT_ONCITY_CNT:(LOCAL:3):(LOCAL:2) == 0
+						TMP_UNIT_ONCITY_CNT:(LOCAL:3):(LOCAL:2) = LOCAL:0
+						TMP_UNIT_ONCITY_NUM:(LOCAL:3):(LOCAL:2) = LOCAL:1
+						BREAK
+					ENDIF
+				NEXT
+			ENDIF
+		NEXT
+	ENDIF
+NEXT
+
+;-------------------------------------------------
+;君主のキャラ番号と略名マップを作成する関数
+;-------------------------------------------------
+@TMP_CREATE_COUNTRY_BOSS_MAP
+VARSET TMP_COUNTRY_BOSS_NUMBER, -1
+VARSET TMP_COUNTRY_BOSS_NAME_SHORT, ""
+FOR LOCAL:0, 0, MAX_COUNTRY
+	IF COUNTRY_BOSS:(LOCAL:0) >= 1 && COUNTRY_EVENT_ID:(LOCAL:0) != COUNTRY_BANDIT
+		TMP_COUNTRY_BOSS_NUMBER:(LOCAL:0) = ID_TO_CHARA(COUNTRY_BOSS:(LOCAL:0))
+		SUBSTRING NAME:(TMP_COUNTRY_BOSS_NUMBER:(LOCAL:0)), 0, 4
+		TMP_COUNTRY_BOSS_NAME_SHORT:(LOCAL:0) = %RESULTS:0%
+	ENDIF
+NEXT
+
+;-------------------------------------------------
+;国家同士の隣接関係マップを作成する関数
+;LOCAL 0:起点となる都市 , 1:起点都市側のCITY_ROOT参照用カウンタ
+;      2:起点都市に隣接する中継点のCITY_ROOT参照用カウンタ
+;      5:参照先の都市番号 , 6:起点都市に隣接する中継点に隣接する都市の番号
+;-------------------------------------------------
+@TMP_CREATE_COUNTRY_NEIBORING_MAP
+VARSET TMP_COUNTRY_IS_NEIBORING, 0
+FOR LOCAL:0 , 1 , MAX_CITY
+	;中継点ではなく中立都市でもない
+	IF CITY_TYPE:(LOCAL:0) == 0 && CITY_OWNER:(LOCAL:0)
+		FOR LOCAL:1 , 0 , 10
+			;CITY_ROOTから隣接している都市を参照
+			LOCAL:5 = CITY_ROOT:(LOCAL:0):(LOCAL:1)
+			;中継点ではなく中立都市でもない
+			IF CITY_TYPE:(LOCAL:5) == 0 && CITY_OWNER:(LOCAL:5)
+			;両都市の支配勢力が異なる
+				IF CITY_OWNER:(LOCAL:0) != CITY_OWNER:(LOCAL:5)
+					;起点側の勢力から見て対象都市の支配勢力との隣接フラグだけを立てる
+					TMP_COUNTRY_IS_NEIBORING:(CITY_OWNER:(LOCAL:0)):(CITY_OWNER:(LOCAL:5)) = 1
+;					DEBUGPRINTFORML 接続 {LOCAL:0} , {LOCAL:5}
+				ENDIF
+			;中継点であれば更にループを展開
+			ELSEIF CITY_TYPE:(LOCAL:5) == 1
+				FOR LOCAL:2 , 0 , 10
+					;CITY_ROOTから隣接している都市を参照
+					LOCAL:6 = CITY_ROOT:(LOCAL:5):(LOCAL:2)
+					;中継点ではなく中立都市でもない
+					IF CITY_TYPE:(LOCAL:6) == 0 && CITY_OWNER:(LOCAL:6)
+					;両都市の支配勢力が異なる
+						IF CITY_OWNER:(LOCAL:0) != CITY_OWNER:(LOCAL:6)
+							;起点側の勢力から見て対象都市の支配勢力との隣接フラグだけを立てる
+							TMP_COUNTRY_IS_NEIBORING:(CITY_OWNER:(LOCAL:0)):(CITY_OWNER:(LOCAL:6)) = 1
+;							DEBUGPRINTFORML 中継 {LOCAL:0} , {LOCAL:6}
+						ENDIF
+					ENDIF
+				NEXT
+			ENDIF
+		NEXT
+	ENDIF
+NEXT
+
+;幻想郷春の都市総当り方式。IS_ROOTが複数の中継点に対応しだしたらこちらのほうが安全に運用できます
+;変更点は最初に勢力別で回すのではなく、別勢力でつながっている都市があれば両都市の支配勢力を見て処理をする感じです
+;起点となる都市
+;FOR LOCAL:0 , 1 , MAX_CITY
+;	;中継点ではなく中立都市でもない
+;	IF CITY_TYPE:(LOCAL:0) == 0 && CITY_OWNER:(LOCAL:0)
+;		;隣接を確認する都市
+;		FOR LOCAL:1 , 1 , MAX_CITY
+;			;中継点ではなく中立都市でもない
+;			IF CITY_TYPE:(LOCAL:0) == 0 && CITY_OWNER:(LOCAL:1)
+;			;両都市の支配勢力が異なり、かつ２都市が接続している
+;				IF CITY_OWNER:(LOCAL:0) != CITY_OWNER:(LOCAL:1) && IS_ROOT(LOCAL:0, LOCAL:1)
+;					;起点側の勢力から見て対象都市の支配勢力との隣接フラグだけを立てる
+;					TMP_COUNTRY_IS_NEIBORING:(CITY_OWNER:(LOCAL:0)):(CITY_OWNER:(LOCAL:1)) = 1
+;				ENDIF
+;			ENDIF
+;		NEXT
+;	ENDIF
+;NEXT
+
+;-------------------------------------------------
+;連合による討伐対象のマップを作成する関数
+;-------------------------------------------------
+@TMP_CREATE_UNION_TARGET_MAP
+VARSET TMP_COUNTRY_UNION_TARGET, -1
+FOR LOCAL:0, 0, MAX_COUNTRY
+	IF COUNTRY_BOSS:(LOCAL:0) >= 1
+		TMP_COUNTRY_UNION_TARGET:(LOCAL:0) = GET_UNION_TARGET(LOCAL:0)
+	ENDIF
+NEXT
+
+;-------------------------------------------------
+;ARG:0番の都市上に敵勢力部隊が存在するかどうかを判定する関数
+;-------------------------------------------------
+@TMP_IS_STAY_ENEMY_UNIT(ARG:0)
+#FUNCTION
+IF ARG:0 < 0 || ARG:0 >= 100
+	RETURNF 0
+ENDIF
+
+FOR LOCAL:0, 0, 20
+	IF TMP_UNIT_ONCITY_CNT:(ARG:0):(LOCAL:0) > 0 && TMP_COUNTRY_RELATION:(CITY_OWNER:(ARG:0)):(TMP_UNIT_ONCITY_CNT:(ARG:0):(LOCAL:0)) == 0
+		RETURNF 1
+	ENDIF
+NEXT
+RETURNF 0
+
+;-------------------------------------------------
+;士官の部隊所属マップを作成する関数(0=フリー、1=遊撃、2=防衛、-1=その他特殊状態)
+;-------------------------------------------------
+@TMP_CREATE_IS_FREE_MAP
+CVARSET TMP_IS_FREE, 0, 0
+
+FOR LOCAL:0, 0, CHARANUM
+	;捕虜／臨月・育児／放浪・死亡／ケガ／クールタイムなど
+	IF CFLAG:(LOCAL:0):9 || CFLAG:(LOCAL:0):16 || CFLAG:(LOCAL:0):12 != 0 || TALENT:(LOCAL:0):触手妊娠 || TALENT:(LOCAL:0):Ａ触手妊娠 || SLG_COOLTIME:(LOCAL:0):0 || (FLAG:料理長 && LOCAL:0 == FLAG:料理長)
+		TMP_IS_FREE:(LOCAL:0):0 = -1
+	ELSE
+		TMP_IS_FREE:(LOCAL:0):0 = 0
+	ENDIF
+NEXT
+FOR LOCAL:0, 0, MAX_CITY
+	FOR LOCAL:1, 0, 2
+		LOCAL:2 = GET_CITY_COMMANDER(LOCAL:0, LOCAL:1)
+		IF LOCAL:2 >= 0
+			TMP_IS_FREE:(LOCAL:2):0 = 1
+		ENDIF
+	NEXT
+NEXT
+FOR LOCAL:0, 0, MAX_COUNTRY
+	IF IS_COUNTRY(LOCAL:0)
+		FOR LOCAL:1, 0, 10
+			IF UNIT_SOLDIER:(LOCAL:0):(LOCAL:1) > 0
+				FOR LOCAL:2, 0, 3
+					LOCAL:3 = GET_UNIT_COMMANDER(LOCAL:0, LOCAL:1, LOCAL:2)
+					IF LOCAL:3 >= 0
+						TMP_IS_FREE:(LOCAL:3):0 = 1
+					ENDIF
+				NEXT
+			ENDIF
+		NEXT
+	ENDIF
+NEXT
+
+;-------------------------------------------------
+;ARG:0番の勢力について、政治パワーの合計値を返す関数
+;直前に TMP_CREATE_IS_FREE_MAP 関数の呼び出しが必要
+;-------------------------------------------------
+@TMP_GET_POLITICS_POWER(ARG:0)
+#FUNCTION
+LOCAL:1 = 0
+FOR LOCAL:0, 0, CHARANUM
+	IF CFLAG:(LOCAL:0):1 == ARG:0 && TMP_IS_FREE:(LOCAL:0):0 == 0 && ABL:(LOCAL:0):政治 >= 50
+		LOCAL:1 += ABL_POWER_X(ABL:(LOCAL:0):政治, LOCAL:0)
+	ENDIF
+NEXT
+RETURNF LOCAL:1
+
+;-------------------------------------------------
+;ARG:0番の勢力について、料理パワーの合計値を返す関数
+;直前に TMP_CREATE_IS_FREE_MAP 関数の呼び出しが必要
+;-------------------------------------------------
+@TMP_GET_COOKING_POWER(ARG:0)
+#FUNCTION
+LOCAL:1 = 0
+FOR LOCAL:0, 0, CHARANUM
+	IF CFLAG:(LOCAL:0):1 == ARG:0 && TMP_IS_FREE:(LOCAL:0):0 == 0 && ABL:(LOCAL:0):料理 >= 50
+		LOCAL:1 += ABL_POWER_X(ABL:(LOCAL:0):料理, LOCAL:0)
+	ENDIF
+NEXT
+RETURNF LOCAL:1
+
+;-------------------------------------------------
+;●戦線の計算についてのメモ
+;-------------------------------------------------
+;	新たに都市Ａを攻略した場合
+;		Ａが敵都市と隣接していれば戦線＋1
+;	Ａが隣接する自軍の都市について
+;		敵都市と隣接していなければ戦線－1
+
+;	都市Ａを奪われた場合
+;		Ａが敵都市と隣接していれば戦線－1
+;	Ａが隣接する自軍の都市について
+;		敵都市と隣接していなければ戦線＋1
+
+;	※敵都市……自軍・無所属・Ａ以外の都市
+
+;-------------------------------------------------
+;ARG:0番の勢力がARG:1番の都市を獲得した場合に増減する戦線の数を返す
+;-------------------------------------------------
+@TMP_CHANGE_LINE_ONGET(ARG:0, ARG:1)
+#FUNCTION
+LOCAL:10 = 0
+
+;隣接都市のリストを作成
+LOCAL:9 = 0
+FOR LOCAL:0, 0, 10
+	LOCAL:3 = CITY_ROOT:(ARG:1):(LOCAL:0)
+	IF LOCAL:3 > 0
+		;都市の場合
+		IF CITY_TYPE:(LOCAL:3) == 0
+			LOCAL:(LOCAL:9 + 20) = LOCAL:3
+			LOCAL:9 ++
+		;中継地点の場合
+		ELSE
+			;もう一段階ルート探索
+			FOR LOCAL:1, 0, 10
+				LOCAL:4 = CITY_ROOT:(LOCAL:3):(LOCAL:1)
+				IF LOCAL:4 > 0 && LOCAL:4 != ARG:1
+					LOCAL:(LOCAL:9 + 20) = LOCAL:4
+					LOCAL:9 ++
+				ENDIF
+			NEXT
+		ENDIF
+	ENDIF
+NEXT
+
+;●都市ARG:1が敵都市と隣接していれば戦線＋1
+FOR LOCAL:0, 0, LOCAL:9
+	LOCAL:3 = CITY_OWNER:(LOCAL:(LOCAL:0 + 20))
+	;無所属都市は無害なものとみなして、期限付き同盟以下の関係の勢力は敵とみなして判定
+	IF LOCAL:3 != 0 && TMP_COUNTRY_RELATION:(ARG:0):(LOCAL:3) <= 3
+		;戦線を＋1
+		LOCAL:10 ++
+		BREAK
+	ENDIF
+NEXT
+
+;●隣接する自軍の都市について、他の敵都市と隣接していなければ戦線－1
+FOR LOCAL:0, 0, LOCAL:9
+	LOCAL:3 = LOCAL:(LOCAL:0 + 20)
+	LOCAL:4 = CITY_OWNER:(LOCAL:3)
+	IF LOCAL:4 == ARG:0
+		;隣接する自軍の都市１つにつき、戦線を－1する
+		LOCAL:10 --
+		FOR LOCAL:1, 0, 10
+			LOCAL:5 = CITY_ROOT:(LOCAL:3):(LOCAL:1)
+			IF LOCAL:5 > 0 && LOCAL:5 != ARG:1
+				;都市の場合
+				IF CITY_TYPE:(LOCAL:5) == 0
+					LOCAL:6 = CITY_OWNER:(LOCAL:5)
+					IF LOCAL:6 != 0 && TMP_COUNTRY_RELATION:(ARG:0):(LOCAL:6) <= 3
+						;他の敵都市と隣接していれば、事前に減らした分をキャンセルするために戦線を＋1
+						LOCAL:10 ++
+						BREAK
+					ENDIF
+				;中継地点の場合
+				ELSE
+					LOCAL:11 = 0
+					;もう一段階ルート探索
+					FOR LOCAL:2, 0, 10
+						LOCAL:6 = CITY_ROOT:(LOCAL:5):(LOCAL:2)
+						IF LOCAL:6 > 0 && LOCAL:6 != LOCAL:3 && LOCAL:6 != ARG:1
+							LOCAL:7 = CITY_OWNER:(LOCAL:6)
+							IF LOCAL:7 != 0 && TMP_COUNTRY_RELATION:(ARG:0):(LOCAL:7) <= 3
+								;他の敵都市と隣接していれば、事前に減らした分をキャンセルするために戦線を＋1
+								LOCAL:10 ++
+								LOCAL:11 = 1
+								BREAK
+							ENDIF
+						ENDIF
+					NEXT
+					;二重ループから抜けるためのフラグ管理
+					IF LOCAL:11
+						BREAK
+					ENDIF
+				ENDIF
+			ENDIF
+		NEXT
+	ENDIF
+NEXT
+
+RETURNF LOCAL:10
+
+;-------------------------------------------------
+;ARG:0番の勢力がARG:1番の都市を失った場合に増減する戦線の数を返す
+;-------------------------------------------------
+@TMP_CHANGE_LINE_ONLOSE(ARG:0, ARG:1)
+#FUNCTION
+LOCAL:10 = 0
+
+;隣接都市のリストを作成
+LOCAL:9 = 0
+FOR LOCAL:0, 0, 10
+	LOCAL:3 = CITY_ROOT:(ARG:1):(LOCAL:0)
+	IF LOCAL:3 > 0
+		;都市の場合
+		IF CITY_TYPE:(LOCAL:3) == 0
+			LOCAL:(LOCAL:9 + 20) = LOCAL:3
+			LOCAL:9 ++
+		;中継地点の場合
+		ELSE
+			;もう一段階ルート探索
+			FOR LOCAL:1, 0, 10
+				LOCAL:4 = CITY_ROOT:(LOCAL:3):(LOCAL:1)
+				IF LOCAL:4 > 0 && LOCAL:4 != ARG:1
+					LOCAL:(LOCAL:9 + 20) = LOCAL:4
+					LOCAL:9 ++
+				ENDIF
+			NEXT
+		ENDIF
+	ENDIF
+NEXT
+
+;●都市ARG:1が敵都市と隣接していれば戦線－1
+FOR LOCAL:0, 0, LOCAL:9
+	LOCAL:3 = CITY_OWNER:(LOCAL:(LOCAL:0 + 20))
+	;無所属都市は無害なものとみなして、期限付き同盟以下の関係の勢力は敵とみなして判定
+	IF LOCAL:3 != 0 && TMP_COUNTRY_RELATION:(ARG:0):(LOCAL:3) <= 3
+		;戦線を－1
+		LOCAL:10 --
+		BREAK
+	ENDIF
+NEXT
+
+;●隣接する自軍の都市について、他の敵都市と隣接していなければ戦線＋1
+FOR LOCAL:0, 0, LOCAL:9
+	LOCAL:3 = LOCAL:(LOCAL:0 + 20)
+	LOCAL:4 = CITY_OWNER:(LOCAL:3)
+	IF LOCAL:4 == ARG:0
+		;隣接する自軍の都市１つにつき、戦線を＋1する
+		LOCAL:10 ++
+		FOR LOCAL:1, 0, 10
+			LOCAL:5 = CITY_ROOT:(LOCAL:3):(LOCAL:1)
+			IF LOCAL:5 > 0 && LOCAL:5 != ARG:1
+				;都市の場合
+				IF CITY_TYPE:(LOCAL:5) == 0
+					LOCAL:6 = CITY_OWNER:(LOCAL:5)
+					IF LOCAL:6 != 0 && TMP_COUNTRY_RELATION:(ARG:0):(LOCAL:6) <= 3
+						;他の敵都市と隣接していれば、事前に減らした分をキャンセルするために戦線を－1
+						LOCAL:10 --
+						BREAK
+					ENDIF
+				;中継地点の場合
+				ELSE
+					LOCAL:11 = 0
+					;もう一段階ルート探索
+					FOR LOCAL:2, 0, 10
+						LOCAL:6 = CITY_ROOT:(LOCAL:5):(LOCAL:2)
+						IF LOCAL:6 > 0 && LOCAL:6 != LOCAL:3 && LOCAL:6 != ARG:1
+							LOCAL:7 = CITY_OWNER:(LOCAL:6)
+							IF LOCAL:7 != 0 && TMP_COUNTRY_RELATION:(ARG:0):(LOCAL:7) <= 3
+								;他の敵都市と隣接していれば、事前に減らした分をキャンセルするために戦線を－1
+								LOCAL:10 --
+								LOCAL:11 = 1
+								BREAK
+							ENDIF
+						ENDIF
+					NEXT
+					;二重ループから抜けるためのフラグ管理
+					IF LOCAL:11
+						BREAK
+					ENDIF
+				ENDIF
+			ENDIF
+		NEXT
+	ENDIF
+NEXT
+
+RETURNF LOCAL:10

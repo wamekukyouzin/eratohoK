@@ -1,0 +1,491 @@
+﻿;拠点フェイズにおけるショップ画面の処理
+;「婚姻の儀」「触手部屋」などの各メニューの処理を行う
+
+;-------------------------------------------------
+;キャラARG:0について、素質<正妻>が<夫>と表示される条件を満たしているかどうか判定
+;-------------------------------------------------
+@IS_HUSBAND(ARG:0)
+#FUNCTION
+IF GROUPMATCH(TALENT:MASTER:性別, 1, 2) && GROUPMATCH(TALENT:(ARG:0):性別, 0, 3, 4, 5)
+	RETURNF 1
+ELSEIF GROUPMATCH(TALENT:MASTER:性別, 4, 5) && GROUPMATCH(TALENT:(ARG:0):性別, 0, 3)
+	RETURNF 1
+ENDIF
+RETURNF 0
+
+;-------------------------------------------------
+;婚姻の儀
+;-------------------------------------------------
+@WEDDING(ARG:0)
+IF MONEY < 300000
+	PRINTFORMW 所持金が不足しています
+	RETURN
+ENDIF
+
+IF IS_HUSBAND(ARG:0)
+	LOCALS:0 = 夫
+ELSE
+	LOCALS:0 = 正妻
+ENDIF
+
+PRINTFORML %ANAME(ARG:0)%を%LOCALS:0%として迎えます
+PRINTL よろしいですか？
+CALL ASK_YN
+IF RESULT == 1
+	RETURN
+ENDIF
+
+TALENT:(ARG:0):正妻 = 1
+MONEY -= 300000
+
+;口上の表示
+CALL KOJO_EVENT(ARG:0, 90)
+
+PRINTL 
+CUSTOMDRAWLINE *-
+PRINTL 婚姻の儀
+CUSTOMDRAWLINE *-
+WAIT
+PRINTFORMW 式の当日、多くの観衆に祝福されながら、%ANAME(MASTER)%は%ANAME(ARG:0)%を%LOCALS:0%として迎えることを宣言した
+
+;口上の表示
+CALL KOJO_EVENT(ARG:0, 91)
+
+PRINTL 
+SETCOLOR COLOR_CAUTION
+PRINTFORMW %ANAME(ARG:0)%が%ANAME(MASTER)%の%LOCALS:0%となりました
+RESETCOLOR
+PRINTL 
+PRINTL 
+
+;-------------------------------------------------
+;触手部屋の処理
+;-------------------------------------------------
+@SHOP_SYOKUSYU
+;触手部屋の管理が可能なキャラの数を数える
+LOCAL:9 = 0
+FOR LOCAL:0, 0, CHARANUM
+	IF IS_SYOKUSYU_MANAGE(LOCAL:0)
+		LOCAL:9 ++
+	ENDIF
+NEXT
+
+;ページ数を計算
+LOCAL:12 = 30
+LOCAL:10 = MAX((LOCAL:9 - 1) / LOCAL:12 + 1, 1)
+LOCAL:11 = 1
+
+$SHOW_LOOP1
+
+DRAWLINE
+PRINTL 触手部屋
+DRAWLINE
+
+PRINTL ●管理者の設定
+PRINTL     触手部屋の管理を行うには  <妖術知識>・性知識Lv5以上・主人公以外なら触手Lv5以上  が必要です
+PRINTL     触手部屋の管理を行うと、毎ターン若干の妖術経験値と触手経験値を得られます
+IF FLAG:35 == -1
+	PRINTFORML     現在の管理者はいません
+ELSEIF IS_SYOKUSYU_MANAGE(FLAG:35)
+	PRINTFORML     現在の管理者は %ANAME(FLAG:35)% です
+ELSE
+	PRINTFORML     現在の管理者は %ANAME(FLAG:35)% ですが、現在は管理不能です
+ENDIF
+
+DRAWLINE
+
+$SHOW_LOOP2
+
+;キャラリストの表示
+LOCAL:13 = 0
+LOCAL:14 = 0
+LOCAL:15 = (LOCAL:11 - 1) * LOCAL:12
+LOCAL:16 = LOCAL:11 * LOCAL:12
+LOCAL:20 = 3
+FOR LOCAL:0, 0, CHARANUM
+	IF IS_SYOKUSYU_MANAGE(LOCAL:0)
+		IF LOCAL:13 >= LOCAL:15 && LOCAL:13 < LOCAL:16
+			IF LOCAL:14 % 2 != 0
+				PRINT     
+			ELSEIF LOCAL:14 >= 1
+				PRINTL 
+				LOCAL:20 ++
+			ENDIF
+			PRINT     
+			IF LOCAL:0 == FLAG:35
+				SETCOLOR 0x00FFFF
+			ENDIF
+			PRINTBUTTON @"{NO:(LOCAL:0) + 100, 3}[%NAME_DOUBLE(LOCAL:0), 14, LEFT%]  妖Lv{ABL:(LOCAL:0):妖術, 3, RIGHT}", NO:(LOCAL:0) + 100
+			RESETCOLOR
+			LOCAL:14 ++
+		ENDIF
+		LOCAL:13 ++
+	ENDIF
+NEXT
+IF LOCAL:14 >= 1
+	PRINTL 
+	LOCAL:20 ++
+ENDIF
+
+IF LOCAL:10 >= 2
+	LOCAL:20 += 2
+	DRAWLINE
+	PRINT      
+	IF LOCAL:11 >= 2
+		PRINTBUTTON "54[前のページ    ]", 54
+	ELSE
+		SETCOLOR 0x606060
+		PRINTPLAINFORM 54[前のページ    ]
+		RESETCOLOR
+	ENDIF
+	PRINTPLAINFORM %TOSTR_SPACE(10)%
+	LOCALS:0 = page{LOCAL:11}/{LOCAL:10}
+	PRINTPLAINFORM %LOCALS:0, 14, LEFT%
+	IF LOCAL:11 < LOCAL:10
+		PRINTBUTTON "56[次のページ    ]", 56
+	ELSE
+		SETCOLOR 0x606060
+		PRINTPLAINFORM 56[次のページ    ]
+		RESETCOLOR
+	ENDIF
+	PRINTL 
+ENDIF
+
+DRAWLINE
+PRINT      
+PRINTBUTTON " 0[戻る]", 0
+
+REDRAW 0
+
+$INPUT_LOOP
+INPUT
+
+IF RESULT == 0
+	REDRAW 1
+	RETURN -1
+ELSEIF RESULT == 54 && LOCAL:11 >= 2
+	LOCAL:11 --
+	CLEARLINE LOCAL:20
+	GOTO SHOW_LOOP2
+ELSEIF RESULT == 56 && LOCAL:11 < LOCAL:10
+	LOCAL:11 ++
+	CLEARLINE LOCAL:20
+	GOTO SHOW_LOOP2
+ELSE
+	LOCAL:5 = NO_TO_CHARA(RESULT - 100)
+
+	IF LOCAL:5 >= 0 && IS_SYOKUSYU_MANAGE(LOCAL:5)
+		REDRAW 1
+		IF LOCAL:5 == FLAG:35
+			PRINTFORMW %ANAME(LOCAL:5)%を触手部屋の管理者から外しました
+			FLAG:35 = -1
+		ELSE
+			PRINTFORMW %ANAME(LOCAL:5)%を触手部屋の管理者に設定しました
+			FLAG:35 = LOCAL:5
+		ENDIF
+		GOTO SHOW_LOOP1
+	ENDIF
+ENDIF
+CLEARLINE 1
+GOTO INPUT_LOOP
+
+;-------------------------------------------------
+;キャラARG:0が触手部屋を管理可能であるかどうかを判定する関数
+;-------------------------------------------------
+@IS_SYOKUSYU_MANAGE(ARG:0)
+#FUNCTION
+IF CFLAG:(ARG:0):1 == CFLAG:MASTER:1 && CFLAG:(ARG:0):9 == 0
+	IF TALENT:(ARG:0):妖術知識 && ABL:(ARG:0):性知識 >= 5 && (ARG:0 == MASTER || ABL:(ARG:0):触手 >= 5)
+		RETURNF 1
+	ENDIF
+ENDIF
+RETURNF 0
+
+;-------------------------------------------------
+;労働
+;-------------------------------------------------
+@SHOP_LIFE_WORK
+#DIM 結果, 1
+#DIM 内容, 1
+#DIM 報酬, 1
+DRAWLINE
+PRINTFORML 行動回数と体力を消費し、お金を稼ぐことができます
+PRINTFORML 職種次第では、そのほかの恩恵も得られるでしょう
+PRINTFORML どうやってお金を稼ぎますか？
+DRAWLINE
+PRINTBUTTON "[1] - 鉱山労働", 1
+PRINTL   鉱山で働いて稼ぎます。実入りは多いですが、その他の恩恵はありません。
+PRINTBUTTON "[2] - 土木工事", 2
+PRINTL   土木工事を手伝います。経済がちょっと成長します。
+PRINTBUTTON "[3] - 軍事広報", 3
+PRINTL   軍の宣伝活動の手伝いをします。兵数がちょっと増えます。
+PRINTBUTTON "[4] - 娼婦", 4
+PRINTL       娼婦として働きます。収入は多いです。
+DRAWLINE
+PRINTBUTTON "[0] - 戻る", 0
+$INPUT_LOOP
+INPUT
+
+内容 = RESULT
+;0だったら戻す
+IF 内容 == 0
+	RETURN 0
+ENDIF
+
+BASE:MASTER:体力 = MAX(BASE:MASTER:体力 - RAND(800, 1000), 0)
+
+SELECTCASE RAND:100
+	CASE 0 TO 19
+		結果 = 0
+	CASE 20 TO 79
+		結果 = 1
+	CASEELSE
+		結果 = 2
+ENDSELECT
+
+IF BASE:MASTER:体力 <= 0 || RAND:100 < SHOP_WORK_COUNT
+	LOCAL = RAND:3 + 1
+	SETCOLOR COLOR_ALERT
+	PRINTFORMW うわぁっ！！
+	RESETCOLOR
+	PRINTFORMW     ・
+	PRINTFORMW     ・
+	PRINTFORMW     ・
+	PRINTFORMW 仕事中に大失敗し、ケガをしてしまった
+	SETCOLOR COLOR_ALERT
+	PRINTFORMW %ANAME(MASTER)%に{LOCAL}ターンのクールタイムが課せられた
+	RESETCOLOR
+	SLG_COOLTIME:MASTER:0 += LOCAL
+	SHOP_TIME += 1
+	RESULT = 0
+	BEGIN TURNEND
+ENDIF
+
+SELECTCASE 内容
+	CASE 1
+		PRINTFORML %ANAME(MASTER)%は鉱山で働いた……
+		報酬 = (1500+ RAND:(LIMIT(DAY / 10, 1, 10) * 300)) / (SHOP_WORK_COUNT + 1)
+	CASE 2
+		PRINTFORML %ANAME(MASTER)%は土木工事を手伝った……
+		報酬 = (1000+ RAND:(LIMIT(DAY / 10, 1, 10) * 300)) / (SHOP_WORK_COUNT + 1)
+	CASE 3
+		PRINTFORML %ANAME(MASTER)%は軍事広報を手伝った……
+		報酬 = (1000+ RAND:(LIMIT(DAY / 10, 1, 10) * 300)) / (SHOP_WORK_COUNT + 1)
+	CASE 4
+		PRINTFORML %ANAME(MASTER)%は娼館で働いた……
+		報酬 = (2000+ RAND:(LIMIT(DAY / 10, 1, 10) * 300)) / (SHOP_WORK_COUNT + 1)
+	CASEELSE
+		GOTO INPUT_LOOP
+ENDSELECT
+
+SELECTCASE 結果
+	CASE 0
+		PRINTFORML どうもうまくできなかった……
+		TIMES 報酬, 0.70
+	CASE 2
+		PRINTFORML 中々うまくできた……
+		TIMES 報酬, 1.30
+ENDSELECT
+報酬 += RAND:500
+
+PRINTFORML 金{報酬}を得た
+
+MONEY += 報酬
+
+SELECTCASE 内容
+	CASE 2
+		LOCAL:1 = (3000 + RAND:5000) / (SHOP_WORK_COUNT + 1)
+		CALL FISHER_YATES_SHAFFLE(MAX_CITY)
+		FOR LOCAL, 0, MAX_CITY
+			IF CITY_OWNER:(SHAFFLE_ARRAY:LOCAL) == CFLAG:MASTER:1 && CITY_ECONOMY:(SHAFFLE_ARRAY:LOCAL) < CITY_ECONOMY_LIMIT:(SHAFFLE_ARRAY:LOCAL)
+				LOCAL:1 = MIN(LOCAL:1, CITY_ECONOMY_LIMIT:(SHAFFLE_ARRAY:LOCAL) - CITY_ECONOMY:(SHAFFLE_ARRAY:LOCAL))
+				CITY_ECONOMY:(SHAFFLE_ARRAY:LOCAL) += LOCAL:1
+				PRINTFORML %GET_CITYNAME(SHAFFLE_ARRAY:LOCAL)%の経済が{LOCAL:1 / 100}成長した
+				BREAK
+			ENDIF
+		NEXT
+	CASE 3
+		LOCAL:1 = (300 + RAND:300 + RAND:(MAX(DAY / 5, 1) * 200)) / (SHOP_WORK_COUNT + 1)
+		COUNTRY_SOLDIER:(CFLAG:MASTER:1) += LOCAL:1
+		PRINTFORML 兵が{LOCAL:1}人増えた
+	CASE 4
+		IF TALENT:MASTER:処女 && VAGINA(MASTER)
+			IF TALENT:MASTER:処女 == 1
+				;処女を奪った相手を不明にする
+				CFLAG:MASTER:41 = -1
+				SETCOLOR COLOR_CAUTION
+				PRINTFORML %ANAME(MASTER)%は<処女>を失った…
+				RESETCOLOR
+				LOCAL:0 += 3000
+			ELSE
+				LOCAL:0 += 1500
+			ENDIF
+			TALENT:MASTER:処女 = 0
+		ENDIF
+
+		IF TALENT:MASTER:キス未経験
+			SETCOLOR COLOR_CAUTION
+			PRINTFORML %ANAME(MASTER)%は<キス未経験>を失った…
+			RESETCOLOR
+			LOCAL:0 += 1000
+		ENDIF
+
+		;ペニスへのキス
+		CALL KISS_COMMON(MASTER, -1, 1, 0, 0)
+
+		;唇へのキス
+		CALL KISS_COMMON(MASTER, -1, 0, 0, 0)
+
+		SELECTCASE ABL:MASTER:欲望
+			CASE 0
+				TIMES LOCAL:0, 1.00
+			CASE 1
+				TIMES LOCAL:0, 0.70
+			CASE 2
+				TIMES LOCAL:0, 0.50
+			CASE 3
+				TIMES LOCAL:0, 0.35
+			CASE 4
+				TIMES LOCAL:0, 0.20
+			CASEELSE
+				LOCAL:0 = LOCAL:0 / (ABL:MASTER:欲望 + 1)
+		ENDSELECT
+
+		;絶頂経験による補正(20で1/2、100で1/10、2000で1/20、50000で1/60)
+		IF EXP:MASTER:絶頂経験 < 20
+			LOCAL:0 = LOCAL:0 * (40 - EXP:MASTER:絶頂経験) / 40
+		ELSEIF EXP:MASTER:絶頂経験 < 100
+			LOCAL:0 = LOCAL:0 * (120 - EXP:MASTER:絶頂経験) / 200
+		ELSEIF EXP:MASTER:絶頂経験 < 2000
+			LOCAL:0 = LOCAL:0 * (3900 - EXP:MASTER:絶頂経験) / 38000
+		ELSE
+			LOCAL:0 = LOCAL:0 * (74000 - MIN(EXP:MASTER:絶頂経験, 50000)) / 1440000
+		ENDIF
+		;絶頂回数の計算
+		LOCAL:1 = 0
+		LOCAL:1 += MAX(ABL:MASTER:Ｃ感 - 1, 0)
+		LOCAL:1 += MAX(ABL:MASTER:Ｖ感 - 1, 0) * 3
+		LOCAL:1 += MAX(ABL:MASTER:Ａ感 - 1, 0) * 3
+		LOCAL:1 += MAX(ABL:MASTER:Ｂ感 - 1, 0)
+		LOCAL:1 += MAX(ABL:MASTER:Ｍ感 - 1, 0) / 2
+		LOCAL:1 = LOCAL:1 * (ABL:MASTER:欲望 + 2) / 2
+
+		PRINTL 
+
+		;経験値は性処理より低い
+		IF !VAGINA(MASTER)
+			EXP:MASTER:Ｃ感経験値 += ABL:MASTER:Ｃ感
+			EXP:MASTER:Ａ感経験値 += ABL:MASTER:Ａ感 + 5
+		ELSE
+			EXP:MASTER:Ｃ感経験値 += ABL:MASTER:Ｃ感
+			EXP:MASTER:Ｖ感経験値 += ABL:MASTER:Ｖ感 + 5
+			EXP:MASTER:Ａ感経験値 += ABL:MASTER:Ａ感 + 5
+		ENDIF
+
+		EXP:MASTER:Ｂ感経験値 += ABL:MASTER:Ｂ感 + RAND:3
+		EXP:MASTER:Ｍ感経験値 += ABL:MASTER:Ｍ感 + RAND:3
+		EXP:MASTER:欲望経験値 += ABL:MASTER:欲望 + (LOCAL:1 / 2)
+		EXP:MASTER:奉仕経験値 += ABL:MASTER:奉仕 + RAND:3
+		EXP:MASTER:性交経験値 += ABL:MASTER:性交 + RAND:3
+ENDSELECT
+PRINTFORMW 
+SHOP_TIME += 1
+SHOP_WORK_COUNT += 1
+RESULT = 0
+BEGIN TURNEND
+;-------------------------------------------------
+;寺子屋予算の処理
+;-------------------------------------------------
+@SHOP_TERAKOYA
+;寺子屋予算
+DRAWLINE
+PRINTL 寺子屋予算
+DRAWLINE
+
+PRINTL ●寺子屋への追加予算
+PRINTL     寺子屋へ予算を追加する事で、複数の子供を一度に教育する事ができます
+PRINTFORM     現在の資金:{MONEY}  現在の寺子屋予算:{FLAG:102}
+;あなた軍所属の寺子屋通い児童の人数を数える
+LOCAL:3 = 0
+FOR LOCAL:2, 0, CHARANUM
+SIF CFLAG:(LOCAL:2):寺子屋 == 1 && CFLAG:(LOCAL:2):1 == CFLAG:MASTER:1 && !CFLAG:(LOCAL:2):12 && !CFLAG:(LOCAL:2):9
+	LOCAL:3 += 1
+NEXT
+PRINTFORML   今期消費予算:{LOCAL:3}人×500
+PRINTFORML     ★★追加したい額を入力してください(0で「戻る」-1以下で「減らす」)★★
+DRAWLINE
+	$INPUT_LOOP
+	INPUT
+	IF RESULT == 0
+		RETURN 0
+	ELSEIF RESULT <= -1
+		LOCAL:1 = RESULT
+		PRINTFORM 金
+		SETCOLOR COLOR_CAUTION
+		PRINTFORM {LOCAL:1}
+		RESETCOLOR
+		PRINTFORM を寺子屋予算から削減します
+		PRINTFORM 削減後の寺子屋予算は
+		IF FLAG:102 >= (LOCAL:1) * -1
+			SETCOLOR COLOR_CAUTION
+			PRINTFORM {FLAG:102 + LOCAL:1}
+			RESETCOLOR
+			PRINTFORML です。
+			PRINTFORML よろしいですか？
+			CALL ASK_YN
+			IF RESULT == 0
+				PRINTFORML 寺子屋の予算を減らしました！
+				FLAG:102 += LOCAL:1
+				MONEY -= LOCAL:1
+			ELSE
+				GOTO INPUT_LOOP
+			ENDIF
+			RETURN 0
+		ELSEIF FLAG:102 < (LOCAL:1) * -1
+			SETCOLOR COLOR_CAUTION
+			PRINTFORM 0
+			RESETCOLOR
+			PRINTFORML です。
+			PRINTFORML よろしいですか？
+			CALL ASK_YN
+			IF RESULT == 0
+				PRINTFORML 寺子屋の予算を全て徴収しました！
+				MONEY += FLAG:102
+				FLAG:102 = 0
+			ELSE
+				GOTO INPUT_LOOP
+			ENDIF
+			RETURN 0
+		ENDIF
+	ELSEIF MONEY >= LOCAL:1
+		LOCAL:1 = RESULT
+		PRINTFORM 金
+		SETCOLOR COLOR_CAUTION
+		PRINTFORM {LOCAL:1}
+		RESETCOLOR
+		PRINTFORM を寺子予算として当てます。
+		PRINTFORM 追加後の寺子屋予算は
+		SETCOLOR COLOR_CAUTION
+		PRINTFORM {FLAG:102 + LOCAL:1}
+		RESETCOLOR
+		PRINTFORML です。
+		PRINTFORML よろしいですか？
+		CALL ASK_YN
+		IF RESULT == 0
+			PRINTFORML 寺子屋に予算を追加しました！
+			FLAG:102 += LOCAL:1
+			MONEY -= LOCAL:1
+		ELSE
+			GOTO INPUT_LOOP
+		ENDIF
+		RETURN 0
+	ELSEIF MONEY < LOCAL:1
+		LOCAL:1 = RESULT
+		PRINTFORML 必要資金は{LOCAL:1}ですが、そんなに資金がありません。
+		GOTO INPUT_LOOP
+	ENDIF
+
+DRAWLINE
+PRINT      
+PRINTBUTTON " 0[戻る]", 0
+

@@ -1,0 +1,197 @@
+﻿;料理
+
+;-------------------------------------------------
+;コマンド名称
+;-------------------------------------------------
+@COM_NAME306
+IF CFLAG:(MTAR:0):46 == 5
+	RESULTS:0 = 料理に付き合わせる＋
+	RESULTS:1 = 料理に付き合わされる＋
+ELSE
+	RESULTS:0 = 料理に付き合わせる
+	RESULTS:1 = 料理に付き合わされる
+ENDIF
+
+;-------------------------------------------------
+;選択可否判定
+;-------------------------------------------------
+@COM_ABLE306
+;共通部分
+CALL COM_ABLE_COMMON(306)
+SIF RESULT == 0
+	RETURN 0
+;捕虜会話では不可
+SIF FLAG:12 == 6
+	RETURN 0
+;主人公がプレイヤーのとき限定
+SIF MPLY:0 != MASTER
+	RETURN 0
+;デート中は無理
+SIF TFLAG:54
+	RETURN 0
+;臨月or怪我なら不可
+SIF CFLAG:(MTAR:0):16 == 1 || CFLAG:(MTAR:0):16 == 3
+	RETURN 0
+;キス中は不可
+SIF IS_EQUIP(MPLY:0, 342)
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;メイン処理
+;-------------------------------------------------
+@COM306
+IF ABL:(MPLY:0):料理 < 0 || ABL:(MTAR:0):料理 < 0
+	;コマンドの成否をTFLAG:18にセット
+	CALL JUDGE_COM_RESULT(MTAR:0, 5, 50)
+ELSE
+	;コマンドの成否をTFLAG:18にセット
+	CALL JUDGE_COM_RESULT(MTAR:0, 5, 5)
+ENDIF
+
+;成長型による倍率を取得
+LOCAL:0 = GROWTYPE_RATE(MTAR:0, "料理")
+LOCAL:1 = 100 + (LOCAL:0 - 100) * 5 / 2
+LOCAL:2 = 100 + (LOCAL:0 - 100) * 3 / 2
+
+;本の効果あり
+IF CFLAG:(MTAR:0):46 == 5
+	LOCAL:1 += 100 
+	LOCAL:2 += 40
+ENDIF
+
+SOURCE:(MTAR:0):歓楽 = 20 * LOCAL:1 / 100
+
+;適性がなく好感度・従属度が低いと反感のソースを得る
+IF LOCAL:0 < 100
+	SOURCE:(MTAR:0):歓楽 = 0
+	SOURCE:(MTAR:0):反感 = MAX(0, 100 - MAX(CFLAG:(MTAR:0):2, CFLAG:(MTAR:0):4) * 100 / 300)
+ENDIF
+
+;親密に応じた歓楽のソース追加
+CALL ADD_SOURCE_KANRAKU(MTAR:0, LOCAL:2 /2)
+
+;主導権に応じたソースの追加
+CALL ADD_SOURCE_INITIATIVE_N(MPLY:0, 100, 100)
+CALL ADD_SOURCE_INITIATIVE_N(MTAR:0, 100, 100)
+
+;ターゲットがサボり魔なら効果減少
+IF TALENT:(MTAR:0):サボり魔
+	TIMES SOURCE:(MTAR:0):歓楽, 0.80
+	SOURCE:(MTAR:0):反感 = 70 - SOURCE:(MTAR:0):歓楽 / 3
+ENDIF
+
+;失敗
+IF TFLAG:18 == -1
+	TIMES SOURCE:(MTAR:0):歓楽, 0.20
+	TIMES SOURCE:(MTAR:0):反感, 1.50
+	SOURCE:(MTAR:0):不満 += 300
+;	LOCAL:2 = 1
+;成功
+ELSEIF TFLAG:18 == 0
+;	LOCAL:2 = 1
+;大成功
+ELSE
+	TIMES SOURCE:(MTAR:0):歓楽, 2.00
+	TIMES SOURCE:(MTAR:0):反感, 0.50
+;	LOCAL:2 = 2
+ENDIF
+
+;;;;;;;;;;;;EXP弄り
+LOCAL:10 = 320	;固定倍率　１０００なら訓練一回通常成功で　経験値 ０～９ が入る感じ
+LOCAL:11 = 0	;成功判定に応じた乱数 MPLY/MTAR共通　	;６０以上でreturnに MIN 1 を加える
+LOCAL:12 = 0	;MPLY　訓練の効率　訓練相手の指導効果*自身能力高い場合抑制
+LOCAL:13 = 0	;MPLY　獲得経験値*100 
+LOCAL:16 = 0	;LOCAL:12のMTAR用
+LOCAL:17 = 0	;LOCAL:13のMTAR用
+;失敗	効果 70(%)最大の乱数
+IF TFLAG:18 == -1
+	LOCAL:11 = RAND:36 + RAND:36 
+;成功	効果 100(%)最大の乱数
+ELSEIF TFLAG:18 == 0
+	LOCAL:11 = RAND:51 + RAND:51
+;大成功 固定60 + 乱数 90
+ELSE
+	LOCAL:11 = 60 + RAND:46 + RAND:46
+ENDIF
+;本の効果あり
+IF CFLAG:(MTAR:0):46 == 5
+	LOCAL:11 *= 2
+ENDIF
+
+; MPLYの訓練結果
+LOCAL:12 = EXP_TRAIN_SLG(MPLY:0, MTAR:0, 61)
+LOCAL:13 = LOCAL:10 * LOCAL:11 * LOCAL:12 / 10000	;獲得経験*100
+; MTARの訓練結果
+LOCAL:16 = EXP_TRAIN_SLG(MTAR:0, MPLY:0, 61)
+LOCAL:17 = LOCAL:10 * LOCAL:11 * LOCAL:16 / 10000	;獲得経験*100
+
+IF LOCAL:11 >= 50	;判定値（本含む）以上で最低保証１
+	LOCAL:13 = MAX(LOCAL:13 , 100)
+	LOCAL:17 = MAX(LOCAL:17 , 100)
+ENDIF
+EXP:(MPLY:0):料理経験値 += LOCAL:13 / 100
+EXP:(MTAR:0):料理経験値 += LOCAL:17 / 100
+;PRINTFORML %NAME:(MPLY:0),16,RIGHT% 能力{ABL:(MPLY:0):61,3,RIGHT}  基本 {LOCAL:10,3,RIGHT} 判定 {LOCAL:11,3,RIGHT}(本含) 効率 {LOCAL:12,3,RIGHT} = EXP {LOCAL:10 * LOCAL:11 * LOCAL:12 / 10000 ,3,RIGHT} ／100
+;PRINTFORML %NAME:(MTAR:0),16,RIGHT% 能力{ABL:(MTAR:0):61,3,RIGHT}  基本 {LOCAL:10,3,RIGHT} 判定 {LOCAL:11,3,RIGHT}(本含) 効率 {LOCAL:16,3,RIGHT} = EXP {LOCAL:10 * LOCAL:11 * LOCAL:16 / 10000 ,3,RIGHT} ／100
+
+
+;精神力の強化
+IF MAXBASE:(MTAR:0):精神力 < 3000 || (MAXBASE:(MTAR:0):精神力 < 3500 && RAND:5 == 0)
+	MAXBASE:(MTAR:0):精神力 = MIN(MAXBASE:(MTAR:0):精神力 + 2, 3500)
+ENDIF
+
+;気力の強化
+IF MAXBASE:(MTAR:0):気力 < 1600
+	MAXBASE:(MTAR:0):気力 += 2
+ELSEIF MAXBASE:(MTAR:0):気力 < 2000 && RAND:2 == 0
+	MAXBASE:(MTAR:0):気力 += 2
+ELSEIF MAXBASE:(MTAR:0):気力 < 2500 && RAND:6 == 0
+	MAXBASE:(MTAR:0):気力 += 1
+ENDIF
+
+;主導度変化基準値
+TFLAG:49 = 2
+
+;倒錯度変化基準値
+TFLAG:50 = -1
+
+RETURN 1
+
+;-------------------------------------------------
+;地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE306
+;主導権が主人公側
+IF IS_INITIATIVE(MASTER)
+	PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%と一緒に料理を作った
+ELSE
+	PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%と一緒に料理を作ることになった
+ENDIF
+
+IF ABL:(MPLY:0):料理 < 0 || ABL:(MTAR:0):料理 < 0
+	IF TFLAG:18 == 1
+		PRINTFORML どうにか人間でも食べられる物に仕上がった…
+	ELSEIF TFLAG:18 == -1
+		IF RAND:2 == 0
+			PRINTFORML ……臭いだけで気絶しそうなシロモノが完成した
+		ELSE
+			PRINTFORML ……皿の中に何やら怪しく蠢いているものが見える
+		ENDIF
+	ELSE
+		PRINTFORML 精神修行だと思えば食べられなくもない……と思う
+	ENDIF
+ELSE
+	IF TFLAG:18 == 1
+		PRINTFORML 思った以上に美味しく仕上がった…
+	ELSEIF TFLAG:18 == -1
+		PRINTFORML ……見事な失敗作が出来上がった
+	ENDIF
+ENDIF
+
+;--------------------------------------------------------
+;地の文(パラメータ・刻印変動後)
+;--------------------------------------------------------
+@COM_TEXT_LAST306
+;日常コマンドに共通の地の文
+CALL COM_TEXT_LAST_LIFE

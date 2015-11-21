@@ -1,0 +1,1271 @@
+﻿;外交で相手に要求をした場合の処理
+;(ただし「降伏勧告」は DIPLOMACY_EACH.ERB)
+
+;-------------------------------------------------
+;要求時の共通処理
+;ARG:1に1を渡すと、服従系素質を持つキャラに対して判定をスキップ
+;要求が通った場合1、通らなかった場合0、処理をキャンセルした場合は-1を返す
+;-------------------------------------------------
+@DIPLOMACY_REQUEST_COMMON(ARG:0, ARG:1 = 0)
+LOCAL:4 = GET_COUNTRY_BOSS(CFLAG:MASTER:1)
+LOCAL:5 = GET_COUNTRY_BOSS(ARG:0)
+
+;●武力による脅しが通るかどうかを判定
+LOCAL:10 = 0
+
+;勢力同士の隣接関係マップを作成
+CALL TMP_CREATE_COUNTRY_NEIBORING_MAP
+
+LOCAL:6 = GET_SUM_ECONOMY(CFLAG:MASTER:1)
+LOCAL:7 = GET_SUM_ECONOMY(ARG:0)
+
+LOCAL:8 = 0
+FOR LOCAL:0, 1, MAX_COUNTRY
+	SIF TMP_COUNTRY_IS_NEIBORING:(CFLAG:MASTER:1):(LOCAL:0)
+		LOCAL:8 += GET_SUM_ECONOMY(LOCAL:0)
+NEXT
+
+;※条件は降伏勧告と同じ
+LOCAL:10 = DIPLOMACY_REQUEST_CHECK(CFLAG:MASTER:1, ARG:0)
+
+;既に要求を飲んだことがあり、前回と同様の方法が通用する場合
+IF (LOCAL:10 && CFLAG:(LOCAL:5):42 == 1) || ((CFLAG:(LOCAL:5):42 == 2 && (TALENT:(LOCAL:5):烙印 || TALENT:(LOCAL:5):服従 || TALENT:(LOCAL:5):隷属 || (TALENT:(LOCAL:5):マゾ && TALENT:(LOCAL:5):恋慕))))
+	IF (CFLAG:(LOCAL:5):42 == 2) || (TALENT:(LOCAL:5):烙印 || TALENT:(LOCAL:5):服従 || TALENT:(LOCAL:5):隷属 || (TALENT:(LOCAL:5):マゾ && TALENT:(LOCAL:5):恋慕))
+		PRINTFORMW %NAME:(LOCAL:5)%は困ったように瞳を彷徨わせながらも、媚びるような声で%ANAME(MASTER)%の要求を受け入れた
+		CALL DIPLOMACY_REQUEST_GOHOUBI(ARG:0)
+	ELSEIF TALENT:(LOCAL:5):反抗的 || TALENT:(LOCAL:5):生意気 || TALENT:(LOCAL:5):プライド高い
+		PRINTFORMW %NAME:(LOCAL:5)%は%ANAME(MASTER)%を恨めしそうに睨みながら、怒気の篭った声で要求を受け入れた
+	ELSE
+		PRINTFORMW %NAME:(LOCAL:5)%は悲痛な表情を浮かべると、疲れたような声で%ANAME(MASTER)%の要求を受け入れた
+	ENDIF
+	RETURN 1
+	DIPLOMACY_REQUEST_SUCCESS_COUNT ++
+
+ELSEIF ARG:1 && (TALENT:(LOCAL:5):烙印 || TALENT:(LOCAL:5):服従 || TALENT:(LOCAL:5):隷属 || (TALENT:(LOCAL:5):マゾ && TALENT:(LOCAL:5):恋慕))
+	IF TALENT:(LOCAL:5):烙印
+		PRINTFORMW 既に%ANAME(MASTER)%に烙印を刻み付けられ所有物となった%NAME:(LOCAL:5)%は、断ることも出来ず頷いた
+		PRINTFORMW ……心なしか嬉しそうに見える
+		CFLAG:(LOCAL:5):42 = 2
+		CALL DIPLOMACY_REQUEST_GOHOUBI(ARG:0)
+	ELSE
+		PRINTFORMW 既に%ANAME(MASTER)%に陶酔しきった%NAME:(LOCAL:5)%は、目を逸らしながらも頷いた
+		PRINTFORMW ……心なしか嬉しそうに見える
+		CFLAG:(LOCAL:5):42 = 2
+		CALL DIPLOMACY_REQUEST_GOHOUBI(ARG:0)
+	ENDIF
+	DIPLOMACY_REQUEST_SUCCESS_COUNT ++
+	RETURN 1
+
+;要求を飲んだことがない or 前回の方法が通用しない場合
+ELSE
+	IF ARG:1 && TALENT:(LOCAL:5):恋慕
+		PRINTFORML %NAME:(LOCAL:5)%は一瞬迷うように瞳を彷徨わせたが、
+		PRINTFORMW すぐに我に返ったように首を振って、そんなこと出来るわけがないと断った
+	ELSEIF TALENT:(LOCAL:5):反抗的 || TALENT:(LOCAL:5):生意気 || TALENT:(LOCAL:5):プライド高い
+		PRINTFORMW ……だが、%NAME:(LOCAL:5)%は何の冗談かと笑い飛ばした
+	ELSE
+		PRINTFORMW ……だが、%NAME:(LOCAL:5)%はそんなこと出来るわけがないと強い口調で断った
+	ENDIF
+
+	IF TALENT:(LOCAL:5):烙印 || TALENT:(LOCAL:5):服従 || TALENT:(LOCAL:5):隷属 || (TALENT:(LOCAL:5):マゾ && TALENT:(LOCAL:5):恋慕)
+		CALL ASK_MULTI("武力を背景に脅す", "快楽で言うことを聞かせる", "諦める…")
+	ELSE
+		CALL ASK_MULTI("武力を背景に脅す", "諦める…")
+		SIF RESULT == 1
+			RESULT = 2
+	ENDIF
+
+	;武力で脅す
+	IF RESULT == 0
+		IF LOCAL:10
+			PRINTFORMW %ANAME(MASTER)%は露骨に両国の武力の差をチラつかせながら交渉した
+			IF TALENT:(LOCAL:5):反抗的 || TALENT:(LOCAL:5):生意気 || TALENT:(LOCAL:5):プライド高い
+				PRINTFORMW %NAME:(LOCAL:5)%は%ANAME(MASTER)%の言葉に明らかに苛立っているが、圧倒的な戦力差を前に反論できずにいる
+				PRINTFORMW ……やがて、%NAME:(LOCAL:5)%は怒りを押し殺した声で、要求に従うことを約束した
+			ELSE
+				PRINTFORMW %NAME:(LOCAL:5)%は%ANAME(MASTER)%の脅しも同然の言葉の前に、苦しげな表情で押し黙っている
+				PRINTFORMW ……やがて、%NAME:(LOCAL:5)%は諦めたようにして、%ANAME(MASTER)%の要求に従うことを約束した
+			ENDIF
+
+			;関係悪化
+			CALL CHANGE_RELATION_C_TO_C(ARG:0, CFLAG:MASTER:1, -100, 150)
+
+			;性的な要求なら周囲からの評判も悪化
+			IF ARG:1
+				FOR LOCAL:0, 1, MAX_COUNTRY
+					SIF IS_COUNTRY(LOCAL:0) && LOCAL:0 != CFLAG:MASTER:1
+						CALL CHANGE_RELATION_C_TO_C(ARG:0, CFLAG:MASTER:1, -100, 50)
+				NEXT
+			ENDIF
+
+			CFLAG:(LOCAL:5):42 = 1
+			DIPLOMACY_REQUEST_SUCCESS_COUNT ++
+			RETURN 1
+
+		ELSE
+			IF TALENT:(LOCAL:5):反抗的 || TALENT:(LOCAL:5):生意気 || TALENT:(LOCAL:5):プライド高い
+				PRINTFORMW %ANAME(MASTER)%は両国の武力の差を熱心に語りかけたが、%NAME:(LOCAL:5)%は聞く耳を持たなかった…
+			ELSE
+				PRINTFORMW %ANAME(MASTER)%は両国の武力の差を熱心に語りかけたが、%NAME:(LOCAL:5)%に冷静に反論され話が進まなかった…
+			ENDIF
+
+			RETURN 0
+		ENDIF
+
+	;快楽で言うことを聞かせる
+	ELSEIF RESULT == 1
+		;口上の表示
+		PRINTFORMW %ANAME(MASTER)%は%NAME:(LOCAL:5)%に人払いをするように求めた
+		PRINTFORMW ………………
+		PRINTFORML %ANAME(MASTER)%は%NAME:(LOCAL:5)%の体を焦らすような手付きで愛撫しながら、
+		PRINTFORMW 要求を飲んだらご褒美にたっぷり虐めてやると%NAME:(LOCAL:5)%の耳元で囁いた
+		PRINTL 
+
+		;●実行値の計算
+		CVARSET TCVAR, 24, -10000
+		CVARSET TCVAR, 25, 10000
+
+		;実行値の設定
+		TCVAR:(LOCAL:5):25 = 120
+
+		LOCAL:2 = 0
+		IF CFLAG:(LOCAL:5):4 < 1500
+			LOCAL:2 = MAX(CFLAG:(LOCAL:5):4 / 100, 0)
+		ELSE
+			LOCAL:2 = MIN((CFLAG:(LOCAL:5):4 - 1500) / 500 + 15, 200)
+		ENDIF
+		CALL COM_ORDER_ELEMENT(LOCAL:5, "従属度", LOCAL:2)
+
+		LOCAL:2 = 0
+		IF CFLAG:(LOCAL:5):3 < 1500
+			LOCAL:2 = MAX(CFLAG:(LOCAL:5):3 / 100, 0)
+		ELSE
+			LOCAL:2 = MIN((CFLAG:(LOCAL:5):3 - 1500) / 500 + 15, 200)
+		ENDIF
+		CALL COM_ORDER_ELEMENT(LOCAL:5, "依存度", LOCAL:2)
+
+		IF TALENT:(LOCAL:5):隷属
+			CALL COM_ORDER_ELEMENT(LOCAL:5, "隷属", 50)
+		ELSEIF TALENT:(LOCAL:5):服従
+			CALL COM_ORDER_ELEMENT(LOCAL:5, "服従", 25)
+		ENDIF
+
+		SIF TALENT:(LOCAL:5):烙印
+			CALL COM_ORDER_ELEMENT(LOCAL:5, "烙印", 15)
+
+		IF TALENT:(LOCAL:5):親愛
+			CALL COM_ORDER_ELEMENT(LOCAL:5, "親愛", 20)
+		ELSEIF TALENT:(LOCAL:5):恋慕
+			CALL COM_ORDER_ELEMENT(LOCAL:5, "恋慕", 10)
+		ENDIF
+
+		SIF TALENT:(LOCAL:5):マゾ
+			CALL COM_ORDER_ELEMENT(LOCAL:5, "マゾ", 20)
+
+		CALL COM_ORDER_ELEMENT(LOCAL:5, "欲望", ABL:(LOCAL:5):欲望 * 2)
+
+		SIF TALENT:(LOCAL:5):臆病
+			CALL COM_ORDER_ELEMENT(LOCAL:5, "臆病", 8)
+		SIF TALENT:(LOCAL:5):反抗的
+			CALL COM_ORDER_ELEMENT(LOCAL:5, "反抗的", -5)
+		SIF TALENT:(LOCAL:5):気丈
+			CALL COM_ORDER_ELEMENT(LOCAL:5, "気丈", -10)
+		SIF TALENT:(LOCAL:5):素直
+			CALL COM_ORDER_ELEMENT(LOCAL:5, "素直", 5)
+		SIF TALENT:(LOCAL:5):プライド高い
+			CALL COM_ORDER_ELEMENT(LOCAL:5, "プライド高い", -15)
+		SIF TALENT:(LOCAL:5):生意気
+			CALL COM_ORDER_ELEMENT(LOCAL:5, "生意気", -5)
+		SIF TALENT:(LOCAL:5):プライド低い
+			CALL COM_ORDER_ELEMENT(LOCAL:5, "プライド低い", 10)
+		SIF TALENT:(LOCAL:5):自制心
+			CALL COM_ORDER_ELEMENT(LOCAL:5, "自制心", -15)
+		SIF TALENT:(LOCAL:5):一線越えない
+			CALL COM_ORDER_ELEMENT(LOCAL:5, "一線越えない", -10)
+
+		;判定結果を表示
+		PRINTFORMW  = {TCVAR:(LOCAL:5):24} %TOSTR_COMPARE(TCVAR:(LOCAL:5):24, TCVAR:(LOCAL:5):25)% 実行値{TCVAR:(LOCAL:5):25}
+
+		;実行判定
+		IF TCVAR:(LOCAL:5):24 >= TCVAR:(LOCAL:5):25
+			PRINTFORMW ………………
+			PRINTFORML しばらく愛撫を続けると、%NAME:(LOCAL:5)%はすっかり陶酔した表情になり、
+			PRINTFORMW 媚びるような態度で%ANAME(MASTER)%の要求を飲むことを約束した
+			CFLAG:(LOCAL:5):42 = 2
+			DIPLOMACY_REQUEST_SUCCESS_COUNT ++
+			RETURN 2
+		ELSE
+			PRINTFORML だが、いくら%ANAME(MASTER)%の頼みでもそれだけは応えることが出来ないと、
+			PRINTFORMW %NAME:(LOCAL:5)%は申し訳なさそうに目を伏せて拒んだ
+			RETURN 0
+		ENDIF
+	ENDIF
+ENDIF
+
+;諦める
+RETURN -1
+
+;-------------------------------------------------
+;要求を飲んだ時のご褒美
+;-------------------------------------------------
+@DIPLOMACY_REQUEST_PRIZE(ARG:0)
+#DIM TRAIN_LIST, 20
+
+LOCAL:4 = GET_COUNTRY_BOSS(CFLAG:MASTER:1)
+LOCAL:5 = GET_COUNTRY_BOSS(ARG:0)
+
+PRINTL 
+PRINTFORMW ………………
+PRINTFORMW %NAME:(LOCAL:5)%は期待するような瞳で%ANAME(MASTER)%を見つめている…
+
+VARSET LOCALS, "", 0, 20
+VARSET TRAIN_LIST, -1
+
+SIF VAGINA(LOCAL:5) && !TALENT:(LOCAL:5):処女 && (PENIS(MASTER) || ITEM:ペニスバンド)
+	LOCALS:0 = 雌穴を犯してやる
+
+SIF PENIS(MASTER) || ITEM:ペニスバンド
+	LOCALS:1 = 尻穴を犯してやる
+
+;IF PENIS(MASTER)
+;	LOCALS:2 = 口を犯してやる
+;ENDIF
+
+;IF PENIS(LOCAL:5)
+;	LOCALS:3 = 足で虐めてやる
+;ENDIF
+
+;IF VAGINA(MASTER)
+;	LOCALS:4 = 聖水をプレゼントする
+;ENDIF
+
+SIF (!VAGINA(LOCAL:5) || (ITEM:クリキャップ && ITEM:バイブ && !TALENT:(LOCAL:5):処女)) && ITEM:ニプルキャップ && ITEM:アナルバイブ && ITEM:縄
+	LOCALS:5 = 全身に責め具を付けて観察してやる
+
+;IF VAGINA(LOCAL:5) && !TALENT:(LOCAL:5):処女 && (PENIS(MASTER) || ITEM:ペニスバンド)
+;	LOCALS:6 = キスハメしてやる
+;ENDIF
+
+;IF VAGINA(MASTER) && !TALENT:(MASTER):処女 && (PENIS(LOCAL:5) || ITEM:ペニスバンド)
+;	LOCALS:7 = キスハメさせてやる
+;ENDIF
+
+LOCALS:19 = 奴隷の分際で生意気だ……放置！
+
+LOCAL:2 = 0
+FOR LOCAL:0, 0, 20
+	IF LOCALS:(LOCAL:0) != ""
+		PRINTBUTTON @"{LOCAL:2, 3}[%LOCALS:(LOCAL:0)%]", LOCAL:2
+		PRINTL 
+		TRAIN_LIST:(LOCAL:2) = LOCAL:0
+		LOCAL:2 ++
+	ENDIF
+NEXT
+
+$INPUT_LOOP
+INPUT
+
+IF !INRANGE(RESULT, 0, 19) || TRAIN_LIST:RESULT == -1
+	GOTO INPUT_LOOP
+ENDIF
+
+SELECTCASE TRAIN_LIST:RESULT
+	;雌穴を犯してやる
+	CASE 0
+		PRINTFORMW %ANAME(LOCAL:5)%は%ANAME(MASTER)%を閨に案内した…
+		PRINTFORML %ANAME(MASTER)%が早速%ANAME(LOCAL:5)%の服を脱がせると、犯される想像で欲情してしまったのか、
+		PRINTFORMW %ANAME(LOCAL:5)%のアソコはお漏らしでもしたのではないかと思うほどグショグショに濡れていた
+		CALL ASK_MULTI("素直な良い子だ……気持よくしてやる", "節操のない悪い子だ……犯しながら尻を叩く")
+		IF RESULT == 0
+			PRINTFORMW %ANAME(MASTER)%は%ANAME(LOCAL:5)%を四つん這いにさせると、間髪入れずに後ろから覆い被さって%BAR_NAME(MASTER)%を挿入した
+			PRINTFORML 欲情しきった%ANAME(LOCAL:5)%は挿入の衝撃だけで達してしまいガクガクと体を震わせるが、
+			PRINTFORMW %ANAME(MASTER)%はお構いなしに、%ANAME(LOCAL:5)%の膣の締め付けを楽しみながら乱暴に腰を打ち付ける
+			PRINTFORML 快感で狂ったように吠える%ANAME(LOCAL:5)%の声が外に漏れないように、手で無理やり%ANAME(LOCAL:5)%の口を押さえながら、
+			IF PENIS(MASTER)
+				PRINTFORMW %ANAME(MASTER)%は%ANAME(LOCAL:5)%の子宮口にペニスを押し当て、衝動に任せて大量の子種を注ぎ込んだ
+				PRINTFORMW %ANAME(MASTER)%はその後も、精力の続く限り%ANAME(LOCAL:5)%を犯し尽くした…
+			ELSE
+				PRINTFORMW %ANAME(MASTER)%は%ANAME(LOCAL:5)%の子宮口を張り型で何度も小突いてやった
+				PRINTFORMW %ANAME(LOCAL:5)%は寝台にぶしゃぶしゃと愛液をまき散らしながら、絶え間ない強烈な絶頂に悶え狂った…
+			ENDIF
+			PRINTFORMW ………………
+			PRINTFORML 幸せそうなアヘ顔を晒しながら快感の余韻にビクビクと震える%ANAME(LOCAL:5)%をその場に残し、
+			PRINTFORMW %ANAME(MASTER)%はその場を後にした…
+
+			IF PENIS(MASTER)
+				LOCAL:20 = ROUND_MAX(MASTER) * 8 / 10
+			ELSE
+				LOCAL:20 = 15
+			ENDIF
+			LOCAL:21 = GET_EVENT_ABL_POWER(ABL:(LOCAL:5):Ｖ感)
+			LOCAL:22 = GET_EVENT_ABL_POWER(ABL:(LOCAL:5):欲望)
+			PRINTFORML <%ANAME(MASTER)%>
+			IF PENIS(MASTER)
+				CALL PRINT_ADD_EXP(MASTER, "性技経験値", LOCAL:20 * 2 / 3)
+				CALL PRINT_ADD_EXP(MASTER, "射精経験値", LOCAL:20)
+				CALL PRINT_ADD_EXP(MASTER, "絶頂経験", LOCAL:20)
+			ELSE
+				CALL PRINT_ADD_EXP(MASTER, "性技経験値", LOCAL:20 * 2 / 3)
+			ENDIF
+			CALL TRAIN_AUTO_ABLUP(MASTER)
+			PRINTL 
+			PRINTFORML <%ANAME(LOCAL:5)%>
+			CFLAG:(LOCAL:5):4 += 300
+			CFLAG:(LOCAL:5):3 += 300
+			PRINTL 従属度＋300
+			PRINTL 依存度＋300
+			CALL PRINT_ADD_EXP(LOCAL:5, "Ｖ感経験値", LOCAL:20 * LOCAL:21 / 10)
+			CALL PRINT_ADD_EXP(LOCAL:5, "欲望経験値", LOCAL:20 * LOCAL:22 / 20)
+			CALL PRINT_ADD_EXP(LOCAL:5, "性技経験値", LOCAL:20 * 2 / 3)
+			CALL PRINT_ADD_EXP(LOCAL:5, "奉仕経験値", LOCAL:20 * 2)
+			CALL PRINT_ADD_EXP(LOCAL:5, "性交経験値", LOCAL:20 * 2 / 3)
+			CALL EVENT_NIGHT_SEX_SAMESEX_EXP(LOCAL:5, MASTER, LOCAL:20 * 2)
+			SIF PENIS(MASTER)
+				CALL PRINT_ADD_EXP(LOCAL:5, "精愛経験値", LOCAL:20)
+			SIF PENIS(LOCAL:5)
+				CALL PRINT_ADD_EXP(LOCAL:5, "射精経験値", LOCAL:20 * LOCAL:21/ 80)
+			CALL PRINT_ADD_EXP(LOCAL:5, "絶頂経験", LOCAL:20 * LOCAL:21 / 20)
+			CALL TRAIN_AUTO_ABLUP(LOCAL:5)
+			WAIT
+
+		ELSE
+			PRINTFORMW %ANAME(MASTER)%は%ANAME(LOCAL:5)%を四つん這いにさせると、勝手に発情して濡らしたことを叱責しながら、全力で尻を叩いた
+			PRINTFORMW %ANAME(LOCAL:5)%は痛みに悲鳴を上げるが、その表情はどこか嬉しそうで、とても反省しているようには見えない
+			PRINTFORMW そこで%ANAME(MASTER)%は%ANAME(LOCAL:5)%に反省を促すべく、発情してヒクヒクと疼く節操なしの雌穴に%BAR_NAME(MASTER)%を突き入れた
+			PRINTFORML だが、%ANAME(LOCAL:5)%は挿入の衝撃だけでイってしまい、
+			PRINTFORMW 反省するどころか気持ち良さそうな声を上げて快感に震えている
+			PRINTFORML %ANAME(MASTER)%は挿れられただけでイってしまった%ANAME(LOCAL:5)%を激しく罵りながら、
+			PRINTFORMW 何度となく尻を叩いて悪い雌犬への躾を行った
+			PRINTFORMW ………………
+			PRINTFORML やがて、真っ赤になった尻を情けなくビクンビクンと跳ね上げる%ANAME(LOCAL:5)%をその場に残し、
+			PRINTFORMW %ANAME(MASTER)%はその場を後にした…
+
+			LOCAL:20 = PENIS(MASTER) ? ROUND_MAX(MASTER) * 5 / 10 # 10
+			LOCAL:21 = GET_EVENT_ABL_POWER(ABL:(LOCAL:5):Ｖ感)
+			LOCAL:22 = GET_EVENT_ABL_POWER(ABL:(LOCAL:5):欲望)
+			PRINTFORML <%ANAME(MASTER)%>
+			IF PENIS(MASTER)
+				CALL PRINT_ADD_EXP(MASTER, "性技経験値", LOCAL:20 * 2 / 3)
+				CALL PRINT_ADD_EXP(MASTER, "射精経験値", LOCAL:20)
+				CALL PRINT_ADD_EXP(MASTER, "絶頂経験", LOCAL:20)
+			ELSE
+				CALL PRINT_ADD_EXP(MASTER, "性技経験値", LOCAL:20 * 2 / 3)
+			ENDIF
+			CALL TRAIN_AUTO_ABLUP(MASTER)
+			PRINTL 
+			PRINTFORML <%ANAME(LOCAL:5)%>
+			CFLAG:(LOCAL:5):4 += 500
+			CFLAG:(LOCAL:5):3 += 100
+			PRINTL 従属度＋500
+			PRINTL 依存度＋100
+			CALL PRINT_ADD_EXP(LOCAL:5, "Ｖ感経験値", LOCAL:20 * LOCAL:21 / 10)
+			CALL PRINT_ADD_EXP(LOCAL:5, "欲望経験値", LOCAL:20 * LOCAL:22 / 20)
+			CALL PRINT_ADD_EXP(LOCAL:5, "性技経験値", LOCAL:20 * 2 / 3)
+			CALL PRINT_ADD_EXP(LOCAL:5, "奉仕経験値", LOCAL:20 * 2)
+			CALL PRINT_ADD_EXP(LOCAL:5, "性交経験値", LOCAL:20 * 2 / 3)
+			CALL EVENT_NIGHT_SEX_SAMESEX_EXP(LOCAL:5, MASTER, LOCAL:20 * 2)
+			SIF PENIS(MASTER)
+				CALL PRINT_ADD_EXP(LOCAL:5, "精愛経験値", LOCAL:20)
+			SIF PENIS(LOCAL:5)
+				CALL PRINT_ADD_EXP(LOCAL:5, "射精経験値", LOCAL:20 * LOCAL:21/ 80)
+			CALL PRINT_ADD_EXP(LOCAL:5, "絶頂経験", LOCAL:20 * LOCAL:21 / 20)
+			CALL PRINT_ADD_EXP(LOCAL:5, "苦痛快楽経験", LOCAL:20 * 5)
+			CALL TRAIN_AUTO_ABLUP(LOCAL:5)
+			WAIT
+		ENDIF
+
+	;尻穴を犯してやる
+	CASE 1
+		PRINTFORMW %ANAME(LOCAL:5)%は%ANAME(MASTER)%を閨に案内した…
+		PRINTFORML %ANAME(MASTER)%が早速%ANAME(LOCAL:5)%の服を脱がせると、
+		PRINTFORMW すっかり発情しきった%ANAME(LOCAL:5)%は自ら寝台の上に四つん這いになり、こちらに尻を向けておねだりした
+		IF PENIS(LOCAL:5)
+			PRINTFORML %ANAME(MASTER)%は%ANAME(LOCAL:5)%の尻穴にたっぷりとローションを塗り付けると、
+			PRINTFORMW %ANAME(LOCAL:5)%の後ろから覆い被さり、要求を飲んだご褒美としてその尻穴に%BAR_NAME(MASTER)%を突き入れてやった
+			PRINTFORML 欲情しきった%ANAME(LOCAL:5)%は挿入の衝撃だけで軽く達してしまい、ガクガクと体を震わせるが、
+			PRINTFORMW %ANAME(MASTER)%はお構いなしに、%ANAME(LOCAL:5)%の尻穴へと乱暴に腰を打ち付け続ける
+			IF PENIS(MASTER)
+				PRINTFORML ほどなくして%ANAME(LOCAL:5)%の体が一際大きく震えると、その竿からどぷっとトコロテン精液が漏れ出し、
+				PRINTFORMW 同時に%ANAME(MASTER)%のペニスを咥え込んだ尻穴がきゅぅっと強く締まる
+				PRINTFORML %ANAME(MASTER)%が感極まって%ANAME(LOCAL:5)%の尻穴に大量の精液を注ぎ込んでやると、
+				PRINTFORMW %ANAME(LOCAL:5)%は快感に悶え狂いながら嬉しそうに尻穴をヒクつかせた…
+				PRINTFORMW ………………
+				PRINTFORML 二人分の白濁でドロドロになりながら快感の余韻に浸る%ANAME(LOCAL:5)%をその場に残し、
+				PRINTFORMW %ANAME(MASTER)%はその場を後にした…
+			ELSE
+				PRINTFORML ほどなくして%ANAME(LOCAL:5)%の体が一際大きく震えると、
+				PRINTFORMW 全く触れられていない竿からどぷっとトコロテン精液が漏れ出し、寝台をべっとりと汚していった
+				PRINTFORMW 精を漏らしながら快感に悶え狂う%ANAME(LOCAL:5)%の尻穴をさらに突いてやると、
+				PRINTFORMW %ANAME(LOCAL:5)%は獣のように呻き、面白いようにビクビクと体を跳ねさせた…
+				PRINTFORMW ………………
+				PRINTFORML 自分自身の白濁に濡れた寝台の上で快感の余韻に浸る%ANAME(LOCAL:5)%をその場に残し、
+				PRINTFORMW %ANAME(MASTER)%はその場を後にした…
+			ENDIF
+		ELSE
+			PRINTFORML %ANAME(MASTER)%は%ANAME(LOCAL:5)%の尻穴にたっぷりとローションを塗り付けると、
+			PRINTFORMW %ANAME(LOCAL:5)%の後ろから覆い被さり、要求を飲んだご褒美としてその尻穴に%BAR_NAME(MASTER)%を突き入れてやった
+			PRINTFORML 欲情しきった%ANAME(LOCAL:5)%は挿入の衝撃だけで達してしまい、はしたなく体を震わせるが、
+			PRINTFORMW %ANAME(MASTER)%はお構いなしに、%ANAME(LOCAL:5)%の尻穴へと乱暴に腰を打ち付け続ける
+			IF PENIS(MASTER)
+				PRINTFORML %ANAME(MASTER)%が尻穴を突くたび、それを迎え入れる%ANAME(LOCAL:5)%の腸壁がきゅぅきゅぅと締まり、
+				PRINTFORMW さらにワレメからは節操無くダラダラと垂れ落ちる愛液が寝台に無数のシミを作っていく
+				PRINTFORML やがて感極まった%ANAME(MASTER)%が%ANAME(LOCAL:5)%の尻穴に大量の精液を注ぎ込んでやると、
+				PRINTFORMW %ANAME(LOCAL:5)%は快感に悶え狂いながら嬉しそうに尻穴をヒクつかせた…
+			ELSE
+				PRINTFORML %ANAME(MASTER)%が尻穴を突くたびに%ANAME(LOCAL:5)%は獣のような鳴き声を上げ、
+				PRINTFORMW さらにワレメから節操無くダラダラと愛液を垂れ流して寝台を濡らしてしまう
+				PRINTFORML 尻穴で気持ち良くなってしまう変態雌犬にお仕置きをするべく、
+				PRINTFORML %ANAME(MASTER)%が腰を押し付け%ANAME(LOCAL:5)%の腸内をグリグリとかき回してやると、
+				PRINTFORMW %ANAME(LOCAL:5)%はあまりの快感に海老反りになり、雌唇からぷしゃりと潮を吹いた…
+			ENDIF
+			PRINTFORMW ………………
+			PRINTFORML すっかり開きっぱなしになった尻穴を晒して幸せそうに快感の余韻に浸る%ANAME(LOCAL:5)%をその場に残し、
+			PRINTFORMW %ANAME(MASTER)%はその場を後にした…
+		ENDIF
+
+		LOCAL:20 =PENIS(MASTER) ? ROUND_MAX(MASTER) * 8 / 10 # 15
+		LOCAL:21 = GET_EVENT_ABL_POWER(ABL:(LOCAL:5):Ａ感)
+		LOCAL:22 = GET_EVENT_ABL_POWER(ABL:(LOCAL:5):欲望)
+		PRINTFORML <%ANAME(MASTER)%>
+		IF PENIS(MASTER)
+			CALL PRINT_ADD_EXP(MASTER, "性技経験値", LOCAL:20 * 2 / 3)
+			CALL PRINT_ADD_EXP(MASTER, "射精経験値", LOCAL:20)
+			CALL PRINT_ADD_EXP(MASTER, "絶頂経験", LOCAL:20)
+		ELSE
+			CALL PRINT_ADD_EXP(MASTER, "性技経験値", LOCAL:20 * 2 / 3)
+		ENDIF
+		CALL TRAIN_AUTO_ABLUP(MASTER)
+		PRINTL 
+		PRINTFORML <%ANAME(LOCAL:5)%>
+		CFLAG:(LOCAL:5):4 += 400
+		CFLAG:(LOCAL:5):3 += 200
+		PRINTL 従属度＋400
+		PRINTL 依存度＋200
+		CALL PRINT_ADD_EXP(LOCAL:5, "Ａ感経験値", LOCAL:20 * LOCAL:21 / 10)
+		CALL PRINT_ADD_EXP(LOCAL:5, "欲望経験値", LOCAL:20 * LOCAL:22 / 20)
+		CALL PRINT_ADD_EXP(LOCAL:5, "性技経験値", LOCAL:20 * 2 / 3)
+		CALL PRINT_ADD_EXP(LOCAL:5, "奉仕経験値", LOCAL:20 * 2)
+		CALL PRINT_ADD_EXP(LOCAL:5, "性交経験値", LOCAL:20 * 2 / 3)
+		CALL EVENT_NIGHT_SEX_SAMESEX_EXP(LOCAL:5, MASTER, LOCAL:20 * 2)
+		SIF PENIS(MASTER)
+			CALL PRINT_ADD_EXP(LOCAL:5, "精愛経験値", LOCAL:20)
+		SIF PENIS(LOCAL:5)
+			CALL PRINT_ADD_EXP(LOCAL:5, "射精経験値", LOCAL:20 * LOCAL:21/ 80)
+		CALL PRINT_ADD_EXP(LOCAL:5, "絶頂経験", LOCAL:20 * LOCAL:21 / 20)
+		CALL TRAIN_AUTO_ABLUP(LOCAL:5)
+		WAIT
+
+	;全身に責め具を付けて観察してやる
+	CASE 5
+		PRINTFORMW %ANAME(LOCAL:5)%は%ANAME(MASTER)%を閨に案内した…
+		IF !VAGINA(LOCAL:5)
+			PRINTFORML %ANAME(MASTER)%が早速%ANAME(LOCAL:5)%の服を脱がせると、虐められる妄想で欲情してしまったのか、
+			PRINTFORMW %ANAME(LOCAL:5)%のペニスはすっかり固く反り立ち、刺激を求めてヒクヒクと震えている
+			PRINTFORML %ANAME(MASTER)%は裸になった%ANAME(LOCAL:5)%をチングリ返しの姿勢で寝台に寝かせると、
+			PRINTFORMW 手首と足首を縄で寝台に固定し、恥ずかしい体勢のまま身動きを取れないようにした
+			PRINTFORML その姿勢のまま尻穴にアナルバイブをねじ込み、さらに乳首にニプルキャップを取り付けてやると、
+			PRINTFORMW %ANAME(LOCAL:5)%は２点からの快楽刺激に女のような声で喘いだ
+			PRINTFORML しばらくそのままの状態で放置してやると、やがて積み重なる快感に%ANAME(LOCAL:5)%が体をピクピクと震えさせ、
+			PRINTFORMW ついに一際背を大きく反らしてドライオーガズムに達した
+			PRINTFORMW だが、責め具は一切の手心を加えず、絶頂で敏感になった体を刺激し続ける
+			PRINTFORML %ANAME(LOCAL:5)%は何度も甘い声を上げながら絶頂し、やがて尻穴への刺激で吹き出したトコロテン精液が、
+			PRINTFORMW %ANAME(LOCAL:5)%の顔にびしゃりと降り掛かった
+			PRINTFORMW ………………
+			PRINTFORML 自分自身の白濁にまみれたまま気絶する%ANAME(LOCAL:5)%をそのまま放置して、
+			PRINTFORMW %ANAME(MASTER)%はその場を後にした…
+		ELSEIF !PENIS(LOCAL:5)
+			PRINTFORML %ANAME(MASTER)%が早速%ANAME(LOCAL:5)%の服を脱がせると、虐められる妄想で欲情してしまったのか、
+			PRINTFORMW %ANAME(LOCAL:5)%のアソコはお漏らしでもしたのではないかと思うほどグショグショに濡れていた
+			PRINTFORML %ANAME(MASTER)%はまず裸になった%ANAME(LOCAL:5)%をマングリ返しの姿勢で寝台に寝かせると、
+			PRINTFORMW 手首と足首を縄で寝台に固定し、恥ずかしい体勢のまま身動きを取れないようにした
+			PRINTFORML その姿勢のまま、%ANAME(MASTER)%は秘唇と尻穴の両方にバイブをねじ込み、
+			PRINTFORMW さらにクリと乳首に振動するキャップを取り付けてやる
+			PRINTFORML 全身のあらゆる性感帯を道具で責め立てられた%ANAME(LOCAL:5)%は、
+			PRINTFORMW 耐えることすら許されず、あっという間に絶頂に押し上げられてガクガクと体を震わせた
+			PRINTFORMW だが、責め具は一切の手心を加えず、絶頂で敏感になった体を刺激し続ける
+			PRINTFORML あまりの快感に、%ANAME(LOCAL:5)%はわけのわからない声を上げながら背を反らし、
+			PRINTFORMW 膣壁とバイブの隙間からぷしゃりと勢い良く潮を吹き出した
+			PRINTFORMW ………………
+			PRINTFORML 快感ですっかり緩みきった表情のまま気絶する%ANAME(LOCAL:5)%をそのまま放置して、
+			PRINTFORMW %ANAME(MASTER)%はその場を後にした…
+		ELSE
+			PRINTFORML %ANAME(MASTER)%が早速%ANAME(LOCAL:5)%の服を脱がせると、虐められる妄想で欲情してしまったのか、
+			PRINTFORMW %ANAME(LOCAL:5)%のペニスはすっかり固く反り立ち、刺激を求めてヒクヒクと震えている
+			PRINTFORML %ANAME(MASTER)%はまず裸になった%ANAME(LOCAL:5)%をマングリ返しの姿勢で寝台に寝かせると、
+			PRINTFORMW 手首と足首を縄で寝台に固定し、恥ずかしい体勢のまま身動きを取れないようにした
+			PRINTFORML その姿勢のまま、%ANAME(MASTER)%は秘唇と尻穴の両方にバイブをねじ込み、
+			PRINTFORMW さらにクリと乳首に振動するキャップを取り付けてやる
+			PRINTFORML 全身のあらゆる性感帯を道具で責め立てられた%ANAME(LOCAL:5)%は、
+			PRINTFORMW 耐えることすら許されず、あっという間に絶頂に押し上げられてガクガクと体を震わせた
+			PRINTFORMW だが、責め具は一切の手心を加えず、絶頂で敏感になった体を刺激し続ける
+			PRINTFORML あまりの快感に、%ANAME(LOCAL:5)%はわけのわからない声を上げてアヘりながら、
+			PRINTFORMW ペニスから滝のように精液を吹き出して自分自身の顔にビシャビシャと振り掛けた
+			PRINTFORMW ………………
+			PRINTFORML 大量の白濁にまみれたまま気絶する%ANAME(LOCAL:5)%をそのまま放置して、
+			PRINTFORMW %ANAME(MASTER)%はその場を後にした…
+		ENDIF
+
+		LOCAL:20 = 15
+		LOCAL:21 = GET_EVENT_ABL_POWER(ABL:(LOCAL:5):Ａ感) + GET_EVENT_ABL_POWER(ABL:(LOCAL:5):Ｂ感)
+		IF VAGINA(LOCAL:5)
+			LOCAL:21 += GET_EVENT_ABL_POWER(ABL:(LOCAL:5):Ｃ感) + GET_EVENT_ABL_POWER(ABL:(LOCAL:5):Ｖ感)
+		ENDIF
+		LOCAL:22 = GET_EVENT_ABL_POWER(ABL:(LOCAL:5):欲望)
+		PRINTFORML <%ANAME(LOCAL:5)%>
+		CFLAG:(LOCAL:5):4 += 300
+		CFLAG:(LOCAL:5):3 += 300
+		PRINTL 従属度＋300
+		PRINTL 依存度＋300
+		IF VAGINA(LOCAL:5)
+			CALL PRINT_ADD_EXP(LOCAL:5, "Ｃ感経験値", LOCAL:20 * GET_EVENT_ABL_POWER(ABL:(LOCAL:5):Ｃ感) / 10)
+			CALL PRINT_ADD_EXP(LOCAL:5, "Ｖ感経験値", LOCAL:20 * GET_EVENT_ABL_POWER(ABL:(LOCAL:5):Ｖ感) / 8)
+		ENDIF
+		CALL PRINT_ADD_EXP(LOCAL:5, "Ａ感経験値", LOCAL:20 * GET_EVENT_ABL_POWER(ABL:(LOCAL:5):Ａ感) / 8)
+		CALL PRINT_ADD_EXP(LOCAL:5, "Ｂ感経験値", LOCAL:20 * GET_EVENT_ABL_POWER(ABL:(LOCAL:5):Ｂ感) / 10)
+		CALL PRINT_ADD_EXP(LOCAL:5, "欲望経験値", LOCAL:20 * LOCAL:22 / 20)
+		SIF PENIS(LOCAL:5)
+			CALL PRINT_ADD_EXP(LOCAL:5, "射精経験値", LOCAL:20 * LOCAL:21 / 120)
+		CALL PRINT_ADD_EXP(LOCAL:5, "絶頂経験", LOCAL:20 * LOCAL:21 / 40)
+		CALL TRAIN_AUTO_ABLUP(LOCAL:5)
+		WAIT
+
+	;奴隷の分際で生意気だ……放置！
+	CASE 19
+		;自慰または触手オナニーの知識の有無を判定
+		LOCAL:0 = 0
+		CALL CHECK_COM_KNOWLEDGE(LOCAL:5, 100)
+		LOCAL:0 += RESULT
+		CALL CHECK_COM_KNOWLEDGE(LOCAL:5, 211)
+		LOCAL:0 += RESULT
+
+		PRINTFORMW %ANAME(MASTER)%は%ANAME(LOCAL:5)%の期待の篭った視線を無視し、何もせずにその場を後にした
+		PRINTFORML 既に虐められる妄想で発情しきっていた%ANAME(LOCAL:5)%は期待を裏切られ、
+		IF !LOCAL:0
+			PRINTFORMW 悶々とした気分のまま一日を過ごした…
+			PRINTFORML <%ANAME(LOCAL:5)%>
+			CFLAG:(LOCAL:5):3 -= 300
+			PRINTL 依存度－300
+		ELSE
+			PRINTFORMW %ANAME(MASTER)%が帰った後で一人、欲情に火照る体を慰めた…
+			PRINTFORML <%ANAME(LOCAL:5)%>
+			CFLAG:(LOCAL:5):3 -= 300
+			PRINTL 依存度－300
+
+			;自慰の種類と回数の決定
+			CALL CALC_SELF_PARAMETER(LOCAL:5, 0)
+			LOCAL:10 = RESULT:1
+			LOCAL:11 = RESULT:2
+
+			;ＣＢオナニー
+			IF LOCAL:10 == 0
+				;経験の加算と表示
+				IF PENIS(LOCAL:5)
+					CALL PRINT_ADD_EXP(LOCAL:5, "Ｃ感経験値", LOCAL:11 * 8 / 5)
+					CALL PRINT_ADD_EXP(LOCAL:5, "Ｂ感経験値", LOCAL:11 * 5)
+					CALL PRINT_ADD_EXP(LOCAL:5, "自慰経験値", LOCAL:11)
+					CALL PRINT_ADD_EXP(LOCAL:5, "射精経験値", LOCAL:11 / 2 + 1)
+					CALL PRINT_ADD_EXP(LOCAL:5, "絶頂経験", LOCAL:11)
+				ELSE
+					CALL PRINT_ADD_EXP(LOCAL:5, "Ｃ感経験値", LOCAL:11 * 8)
+					CALL PRINT_ADD_EXP(LOCAL:5, "Ｂ感経験値", LOCAL:11 * 5)
+					CALL PRINT_ADD_EXP(LOCAL:5, "自慰経験値", LOCAL:11)
+					CALL PRINT_ADD_EXP(LOCAL:5, "絶頂経験", LOCAL:11)
+				ENDIF
+			;アナニー
+			ELSE
+				;経験の加算と表示
+				IF PENIS(LOCAL:5)
+					CALL PRINT_ADD_EXP(LOCAL:5, "Ａ感経験値", LOCAL:11 * 10)
+					CALL PRINT_ADD_EXP(LOCAL:5, "自慰経験値", LOCAL:11)
+					CALL PRINT_ADD_EXP(LOCAL:5, "射精経験値", LOCAL:11 / 3)
+					CALL PRINT_ADD_EXP(LOCAL:5, "絶頂経験", LOCAL:11)
+				ELSE
+					CALL PRINT_ADD_EXP(LOCAL:5, "Ａ感経験値", LOCAL:11 * 10)
+					CALL PRINT_ADD_EXP(LOCAL:5, "自慰経験値", LOCAL:11)
+					CALL PRINT_ADD_EXP(LOCAL:5, "絶頂経験", LOCAL:11)
+				ENDIF
+			ENDIF
+			CALL TRAIN_AUTO_ABLUP(LOCAL:5)
+		ENDIF
+		WAIT
+ENDSELECT
+
+;-------------------------------------------------
+;2回目以降の要求を飲んだ時のご褒美
+;-------------------------------------------------
+@DIPLOMACY_REQUEST_GOHOUBI(ARG:0)
+	;ご褒美の処理
+	$INPUT_GOHOUBI
+	PRINTFORML [0] ご褒美に虐めてほしいか？と尋ねる
+	PRINTFORML [1] 何もしない
+	INPUT
+	IF RESULT == 0
+		CALL DIPLOMACY_REQUEST_PRIZE(ARG:0)
+	ELSEIF RESULT == 1
+
+	ENDIF
+
+;-------------------------------------------------
+;兵を要求する
+;-------------------------------------------------
+@DIPLOMACY_REQUEST_SOLDIER(ARG:0)
+LOCAL:4 = GET_COUNTRY_BOSS(CFLAG:MASTER:1)
+LOCAL:5 = GET_COUNTRY_BOSS(ARG:0)
+
+PRINTFORMW %ANAME(MASTER)%は%NAME:(LOCAL:5)%に対して、兵を寄越せと要求した
+
+CALL DIPLOMACY_REQUEST_COMMON(ARG:0)
+LOCAL:2 = RESULT
+SIF LOCAL:2 <= 0
+	RETURN 0
+
+LOCAL:11 = MIN(GET_SUM_ECONOMY(ARG:0) * 8 / 1000, GET_SUM_SOLDIER(ARG:0) * 2 / 3)
+
+;相手から自国にLOCAL:11だけ兵を移動
+CALL SHIFT_SOLDIER(ARG:0, CFLAG:MASTER:1, LOCAL:11)
+
+PRINTFORMW %NAME:(LOCAL:5)%は%NAME:(LOCAL:4)%に兵{LOCAL:11}を「提供」した…
+
+;快楽で言うことを聞かせた場合、ご褒美の処理
+SIF LOCAL:2 == 2
+	CALL DIPLOMACY_REQUEST_PRIZE(ARG:0)
+
+RETURN 1
+
+;-------------------------------------------------
+;経済力を要求する
+;-------------------------------------------------
+@DIPLOMACY_REQUEST_ECONOMY(ARG:0)
+LOCAL:4 = GET_COUNTRY_BOSS(CFLAG:MASTER:1)
+LOCAL:5 = GET_COUNTRY_BOSS(ARG:0)
+
+PRINTFORMW %ANAME(MASTER)%は%NAME:(LOCAL:5)%に対して、経済力を寄越せと要求した
+
+CALL DIPLOMACY_REQUEST_COMMON(ARG:0)
+LOCAL:2 = RESULT
+SIF LOCAL:2 <= 0
+	RETURN 0
+
+LOCAL:11 = GET_SUM_ECONOMY(ARG:0) / 20 / 100 * 100
+
+;相手から自国にLOCAL:11だけ経済力を移動
+CALL SHIFT_ECONOMY(ARG:0, CFLAG:MASTER:1, LOCAL:11)
+
+PRINTFORMW %NAME:(LOCAL:5)%は%NAME:(LOCAL:4)%に経済力{LOCAL:11 / 100}を「提供」した…
+
+;快楽で言うことを聞かせた場合、ご褒美の処理
+SIF LOCAL:2 == 2
+	CALL DIPLOMACY_REQUEST_PRIZE(ARG:0)
+
+RETURN 1
+
+;-------------------------------------------------
+;人質を要求する
+;-------------------------------------------------
+@DIPLOMACY_REQUEST_PRISONER(ARG:0)
+LOCAL:4 = GET_COUNTRY_BOSS(CFLAG:MASTER:1)
+LOCAL:5 = GET_COUNTRY_BOSS(ARG:0)
+
+PRINTFORMW %ANAME(MASTER)%は%NAME:(LOCAL:5)%に対して、人質をよこせと要求した
+
+CALL DIPLOMACY_REQUEST_COMMON(ARG:0)
+LOCAL:2 = RESULT
+SIF LOCAL:2 <= 0
+	RETURN 0
+
+;ページ数を計算
+LOCAL:12 = (24 - LOCAL:20) * 2
+LOCAL:10 = 0
+FOR LOCAL:0, 0, CHARANUM
+	SIF CFLAG:(LOCAL:0):1 == ARG:0 && CFLAG:(LOCAL:0):9 == 0 && LOCAL:0 != LOCAL:5
+		LOCAL:10 ++
+NEXT
+LOCAL:10 = MAX((LOCAL:10 - 1) / LOCAL:12 + 1, 1)
+LOCAL:11 = 1
+
+$SHOW_LOOP1
+
+DRAWLINE
+PRINTL 捕虜にするキャラを選んで下さい
+DRAWLINE
+
+$SHOW_LOOP2
+
+;キャラリストの表示
+LOCAL:13 = 0
+LOCAL:14 = 0
+LOCAL:15 = (LOCAL:11 - 1) * LOCAL:12
+LOCAL:16 = LOCAL:11 * LOCAL:12
+LOCAL:17 = 0
+FOR LOCAL:0, 0, CHARANUM
+	IF CFLAG:(LOCAL:0):1 == ARG:0 && CFLAG:(LOCAL:0):9 == 0 && LOCAL:0 != LOCAL:5
+		IF LOCAL:13 >= LOCAL:15 && LOCAL:13 < LOCAL:16
+			IF LOCAL:14 % 2 != 0
+				PRINTPLAIN 　
+			ELSEIF LOCAL:14 >= 1
+				PRINTL 
+				LOCAL:17 ++
+			ENDIF
+			CALL PRINT_PARTNER_DATA(LOCAL:0)
+			LOCAL:14 ++
+		ENDIF
+		LOCAL:13 ++
+	ENDIF
+NEXT
+IF LOCAL:14 >= 1
+	PRINTL 
+	LOCAL:17 ++
+ENDIF
+
+IF LOCAL:10 >= 2
+	LOCAL:17 += 2
+	DRAWLINE
+	PRINTPLAIN   
+	IF LOCAL:11 >= 2
+		PRINTBUTTON "54[前のページ]", 54
+	ELSE
+		SETCOLOR 0x606060
+		PRINTPLAIN 54[前のページ]
+		RESETCOLOR
+	ENDIF
+	PRINTFORM           page{LOCAL:11, 2, RIGHT}/{LOCAL:10, 2, LEFT}         
+	IF LOCAL:11 < LOCAL:10
+		PRINTBUTTON "56[次のページ]", 56
+	ELSE
+		SETCOLOR 0x606060
+		PRINTPLAIN 56[次のページ]
+		RESETCOLOR
+	ENDIF
+	PRINTL 
+ENDIF
+
+DRAWLINE
+PRINT    
+PRINTBUTTON "0[キャンセル]", 0
+PRINTL 
+
+REDRAW 0
+
+$INPUT_LOOP
+INPUT
+
+IF RESULT == 0
+	REDRAW 1
+	RETURN 0
+ELSEIF RESULT == 54
+	LOCAL:11 = MAX(LOCAL:11 - 1, 1)
+	CLEARLINE LOCAL:17 + 3
+	GOTO SHOW_LOOP2
+ELSEIF RESULT == 56
+	LOCAL:11 = MIN(LOCAL:11 + 1, LOCAL:10)
+	CLEARLINE LOCAL:17 + 3
+	GOTO SHOW_LOOP2
+ELSE
+	LOCAL:30 = NO_TO_CHARA(RESULT - 100)
+	IF LOCAL:30 >= 0 && CFLAG:(LOCAL:30):1 == ARG:0 && CFLAG:(LOCAL:30):9 == 0 && LOCAL:30 != LOCAL:5
+		DRAWLINE
+		CALL SHOW_INFO(LOCAL:30)
+		DRAWLINE
+		PRINTL このキャラを我が国の捕虜として連れて行きますか？
+		CALL ASK_YN()
+		IF RESULT == 0
+			CFLAG:(LOCAL:30):9 = CFLAG:MASTER:1
+			;部隊に含まれているなら取り除く
+			FOR LOCAL, 0, MAX_UNIT
+				FOR LOCAL:1 , 0, 3
+					SIF LOCAL:30 == GET_UNIT_COMMANDER(ARG:0, LOCAL, LOCAL:1)
+						CALL CLEAR_UNIT_COMMANDER(ARG:0, LOCAL, LOCAL:1)
+				NEXT
+			NEXT
+			;都市の守将でも取り除く
+			FOR LOCAL, 0, MAX_CITY
+				FOR LOCAL:1, 0, 2
+					SIF LOCAL:30 == GET_CITY_COMMANDER(LOCAL, LOCAL:1)
+						CALL CLEAR_CITY_COMMANDER(LOCAL, LOCAL:1)
+				NEXT
+			NEXT
+			REDRAW 1
+			;快楽で言うことを聞かせた場合、ご褒美の処理
+			SIF LOCAL:2 == 2
+				CALL DIPLOMACY_REQUEST_PRIZE(ARG:0)
+
+			RETURN 1
+		ELSE
+			REDRAW 1
+			GOTO SHOW_LOOP1
+		ENDIF
+	ENDIF
+ENDIF
+CLEARLINE 1
+GOTO INPUT_LOOP
+
+;-------------------------------------------------
+;人質の解放を要求する
+;-------------------------------------------------
+@DIPLOMACY_REQUEST_RELEASE(ARG:0)
+LOCAL:4 = GET_COUNTRY_BOSS(CFLAG:MASTER:1)
+LOCAL:5 = GET_COUNTRY_BOSS(ARG:0)
+
+PRINTFORMW %ANAME(MASTER)%は%NAME:(LOCAL:5)%に対して、無条件で人質を解放するよう要求した
+
+CALL DIPLOMACY_REQUEST_COMMON(ARG:0)
+LOCAL:2 = RESULT
+SIF LOCAL:2 <= 0
+	RETURN 0
+
+PRINTFORML %NAME:(LOCAL:5)%は囚えていた我が国の捕虜を全員解放した…
+SETCOLOR COLOR_CAUTION
+FOR LOCAL:0, 0, CHARANUM
+	IF CFLAG:(LOCAL:0):1 == CFLAG:MASTER:1 && CFLAG:(LOCAL:0):9 == ARG:0
+		CFLAG:(LOCAL:0):9 = 0
+		PRINTFORML %ANAME(LOCAL:0)%は解放されました
+	ENDIF
+NEXT
+WAIT
+
+;快楽で言うことを聞かせた場合、ご褒美の処理
+SIF LOCAL:2 == 2
+	CALL DIPLOMACY_REQUEST_PRIZE(ARG:0)
+
+RETURN 1
+
+;-------------------------------------------------
+;調教する
+;-------------------------------------------------
+@DIPLOMACY_REQUEST_TRAIN(ARG:0)
+LOCAL:4 = GET_COUNTRY_BOSS(CFLAG:MASTER:1)
+LOCAL:5 = GET_COUNTRY_BOSS(ARG:0)
+
+PRINTFORMW %ANAME(MASTER)%は%NAME:(LOCAL:5)%に対して、体を好きにさせろと要求した
+
+CALL DIPLOMACY_REQUEST_COMMON(ARG:0, 1)
+LOCAL:2 = RESULT
+SIF LOCAL:2 <= 0
+	RETURN 0
+
+SETCOLOR COLOR_CAUTION
+PRINTFORML %NAME:(LOCAL:5)%が「捕虜の調教」メニューから調教可能になりました
+RESETCOLOR
+PRINTFORMW (条件を満たしている間は常に調教可能になります)
+CFLAG:(LOCAL:5):59 = 1
+
+;-------------------------------------------------
+;外交による調教要求フラグの解除判定
+;-------------------------------------------------
+@CHECK_DIPLOMACY_TRAIN_FLAG
+;各国の君主のキャラ番号・略名マップを作成
+CALL TMP_CREATE_COUNTRY_BOSS_MAP
+
+FOR LOCAL:0, 0, CHARANUM
+	IF CFLAG:(LOCAL:0):59
+		;君主でなければ解除
+		LOCAL:2 = -1
+		FOR LOCAL:1, 1, MAX_COUNTRY
+			IF LOCAL:0 == TMP_COUNTRY_BOSS_NUMBER:(LOCAL:1) && LOCAL:1 != CFLAG:MASTER:1
+				LOCAL:2 = LOCAL:1
+				BREAK
+			ENDIF
+		NEXT
+		IF LOCAL:2 == -1
+			CFLAG:(LOCAL:0):59 = 0
+			PRINTL 
+			SETCOLOR COLOR_CAUTION
+			PRINTFORMW %ANAME(LOCAL:0)%が君主ではなくなったため、「捕虜の調教」の調教対象から外れました…
+			RESETCOLOR
+			CONTINUE
+		ENDIF
+
+		IF !IS_COUNTRY(CFLAG:MASTER:1)
+			CFLAG:(LOCAL:0):59 = 0
+			PRINTL
+			SETCOLOR COLOR_CAUTION
+			PRINTFORMW %ANAME(LOCAL:0)%はあなたが勢力からいなくなったため、「捕虜の調教」の調教対象から外れました…
+			RESETCOLOR
+			CONTINUE
+		ENDIF
+
+		LOCAL:3 = 0
+		LOCAL:4 = 0
+
+		;【条件A】強要が可能である
+		;勢力同士の隣接関係マップを作成
+		CALL TMP_CREATE_COUNTRY_NEIBORING_MAP
+		;強要時より基礎判定値は下げています
+		SIF DIPLOMACY_REQUEST_CHECK(CFLAG:MASTER:1, LOCAL:2, 15 + FLAG:99)
+			LOCAL:3 = 1
+
+		;【条件B】特定の素質を持っている
+		SIF TALENT:(LOCAL:0):烙印 || TALENT:(LOCAL:0):服従 || TALENT:(LOCAL:0):隷属 || (TALENT:(LOCAL:0):マゾ && TALENT:(LOCAL:0):恋慕)
+			LOCAL:4 = 1
+
+		;【条件A】【条件B】のいずれも満たさず2ターン以降経過しているなら解除
+		IF !LOCAL:3 && !LOCAL:4 && CFLAG:(LOCAL:0):59 > 2
+			CFLAG:(LOCAL:0):59 = 0
+			PRINTL 
+			PRINTFORML %ANAME(LOCAL:0)%はこれ以上%ANAME(MASTER)%に体を許すつもりはないと通告してきた…
+			SETCOLOR COLOR_CAUTION
+			PRINTFORMW %ANAME(LOCAL:0)%が「捕虜の調教」の調教対象から外れました…
+			RESETCOLOR
+			CONTINUE
+		ENDIF
+		
+		SIF CFLAG:(LOCAL:0):59
+			CFLAG:(LOCAL:0):59 ++
+	ENDIF
+NEXT
+
+;-------------------------------------------------
+;キャラARG:0が射精できる最大回数を取得
+;-------------------------------------------------
+@ROUND_MAX(ARG:0)
+#FUNCTION
+;●射精による体力の消耗量を計算
+;体力消費の基本値
+LOCAL:2 = 50000
+
+;射精Lvによる補正
+SELECTCASE ABL:(ARG:0):射精
+	CASE 0
+		TIMES LOCAL:2, 1.00
+	CASE 1
+		TIMES LOCAL:2, 0.80
+	CASE 2
+		TIMES LOCAL:2, 0.60
+	CASE 3
+		TIMES LOCAL:2, 0.45
+	CASE 4
+		TIMES LOCAL:2, 0.30
+	CASEELSE
+		LOCAL:2 = LOCAL:2 / (MIN(ABL:(ARG:0):射精 - 5, 55) + 5)
+ENDSELECT
+
+;欲望Lvによる補正
+IF ABL:(ARG:0):欲望 < 5
+	LOCAL:2 = LOCAL:2 * (30 - ABL:(ARG:0):欲望) / 30
+ELSE
+	LOCAL:2 = LOCAL:2 * (130 - MIN(ABL:(ARG:0):欲望, 30)) / 150
+ENDIF
+
+LOCAL:3 = MAXBASE:(ARG:0):体力 * 100 / MAX(LOCAL:2, 1)
+LOCAL:3 = MIN(LOCAL:3, TALENT:(ARG:0):絶倫 ? 40 # 20)
+
+RETURNF LOCAL:3
+
+;----------------------------------
+;ARG:0勢力がARG:1勢力に行った要求が通るかの判定
+;「(経済比)と(周辺国との経済比)の高い方」「兵力比」「トップ＋上位２名の政治パワー（トップ以外は好感度ブースト無し）」「要求を受けた側の感情値」で判定
+;判定値をARG:2にて指定可能に。
+;※事前に TMP_CREATE_COUNTRY_NEIBORING_MAP 関数による隣接関係マップの作成が必要
+;----------------------------------
+@DIPLOMACY_REQUEST_CHECK(ARG:0, ARG:1, ARG:2 = 15)
+#FUNCTION
+#DIM ECONOMY, 3
+#DIM ECONOMY_BORDER, 3
+#DIM ARMY, 3
+#DIM POLITICS, 3
+#DIM POLITICS_SELF, 3
+#DIM POLITICS_TARGET, 3
+#DIM POWER_BALANCE, 5
+#DIM BOSS, 2
+#DIM RELATIONS
+
+VARSET ECONOMY, 0
+VARSET ARMY, 0
+VARSET POLITICS_SELF, 0
+VARSET POLITICS_TARGET, 0
+VARSET ECONOMY_BORDER, 0
+VARSET POWER_BALANCE, 0
+
+IF !LOCAL:2
+	LOCAL:1 = RAND:(ARG:2 * 10 + 1)
+	LOCAL:2 ++
+ENDIF
+
+;各カテゴリのパワー比の計算処理
+;両勢力の経済力と比を計算
+ECONOMY:1 = GET_SUM_ECONOMY(ARG:0), GET_SUM_ECONOMY(ARG:1)
+ECONOMY:0 = ECONOMY:1 * 10 / ECONOMY:2
+
+;周辺国との経済比を計算
+FOR COUNT:1, 1, MAX_COUNTRY
+	IF TMP_COUNTRY_IS_NEIBORING:(ARG:0):(COUNT:1)
+		ECONOMY_BORDER:1 += GET_SUM_ECONOMY(COUNT:1)
+		ECONOMY_BORDER:2 ++
+	ENDIF
+NEXT
+
+;要求を突きつけた相手と隣接しており、自勢力が２勢力以上と隣接していれば周辺国との経済比を算出
+SIF ECONOMY_BORDER:1 && TMP_COUNTRY_IS_NEIBORING:(ARG:0):(ARG:1) && ECONOMY_BORDER:2 > 1
+	ECONOMY_BORDER:0 = ECONOMY:1 * 10 / ECONOMY_BORDER:1
+
+;両勢力の兵数とその比を計算
+ARMY:1 = GET_SUM_SOLDIER(ARG:0), GET_SUM_SOLDIER(ARG:1)
+ARMY:0 = ARMY:1 * 10 / ARMY:2
+
+BOSS:0 = GET_COUNTRY_BOSS(ARG:0), GET_COUNTRY_BOSS(ARG:1)
+
+;勢力内でパワーの高い二人をそれぞれ探す（実際にいるのはパワーだけなので）
+;相手君主との感情値で補正がかかるように（好意によって50～200%,敵意で25～100%が重複してかかる）
+;対象勢力に所属し君主でなければ勢力ごとの能力配列POLITICS_X:2（最後尾）に上書きし、
+;降順でソート（先頭に高い数値が入り最後尾が一番低くなる）
+FOR COUNT:1, 0, CHARANUM
+	SIF !IS_FREE(COUNT:1)
+		CONTINUE
+	;遊撃中もしくは特殊状態のキャラは除外
+	IF CFLAG:(COUNT:1):1 == ARG:0 && BOSS:0 != COUNT:1
+		;政治力の計算、ただし能力に感情値の補正が直接作用する
+		POLITICS_SELF:2 = ABL_POWER(ABL:(COUNT:1):政治 * (REL_LIKE:(COUNT:1):(BOSS:1) / 10 + 50) * (100 * REL_HATE:(COUNT:1):(BOSS:1) / 20) / 10000)
+;		POLITICS_SELF:2 = ABL_POWER(MAX(ABL:(COUNT:1):政治, ABL:(COUNT:1):武闘, ABL:(COUNT:1):知略))
+		ARRAYSORT POLITICS_SELF, BACK
+	ELSEIF CFLAG:(COUNT:1):1 == ARG:1 && BOSS:1 != COUNT:1
+		;政治力の計算、ただし能力に感情値の補正が直接作用する
+		POLITICS_TARGET:2 = ABL_POWER(ABL:(COUNT:1):政治 * (REL_LIKE:(COUNT:1):(BOSS:0) / 10 + 50) * (100 - REL_HATE:(COUNT:1):(BOSS:0) / 20) / 10000)
+;		POLITICS_TARGET:2 = ABL_POWER(MAX(ABL:(COUNT:1):政治, ABL:(COUNT:1):武闘, ABL:(COUNT:1):知略))
+		ARRAYSORT POLITICS_TARGET, BACK
+	ENDIF
+NEXT
+;POLITICS_X:2にそれぞれの勢力の君主のパワーを入れる(君主間の感情値は判定要素として扱うので補正にかけない)
+POLITICS_SELF:2 = ABL_POWER_X(ABL:(BOSS:0):政治, BOSS:0)
+POLITICS_TARGET:2 = ABL_POWER_X(ABL:(BOSS:1):政治, BOSS:1)
+;POLITICS_SELF:2 = ABL_POWER_X(ABL:(BOSS:0):政治 * (REL_LIKE:(BOSS:0):(BOSS:1) / 10 + 50) * (100 - REL_HATE:(BOSS:0):(BOSS:1) / 20) / 10000, BOSS:0)
+;POLITICS_TARGET:2 = ABL_POWER_X(ABL:(BOSS:1):政治 * (REL_LIKE:(BOSS:1):(BOSS:0) / 10 + 50) * (100 - REL_HATE:(BOSS:1):(BOSS:0) / 20) / 10000, BOSS:1)
+;POLITICS_SELF:2 = ABL_POWER_X(MAX(ABL:GET_COUNTRY_BOSS(ARG:0):政治, ABL:GET_COUNTRY_BOSS(ARG:0):武闘, ABL:GET_COUNTRY_BOSS(ARG:0):知略), GET_COUNTRY_BOSS(ARG:0))
+;POLITICS_TARGET:2 = ABL_POWER_X(MAX(ABL:GET_COUNTRY_BOSS(ARG:1):政治, ABL:GET_COUNTRY_BOSS(ARG:1):武闘, ABL:GET_COUNTRY_BOSS(ARG:1):知略), GET_COUNTRY_BOSS(ARG:1))
+
+;RELATIONS = REL_LIKE:(BOSS:1):(BOSS:0) - REL_HATE:(BOSS:1):(BOSS:0)
+
+DEBUGPRINTFORML 【戦力】：{POLITICS_SELF:0} / {POLITICS_SELF:1} / {POLITICS_SELF:2}
+DEBUGPRINTFORML 【戦力】：{POLITICS_TARGET:0} / {POLITICS_TARGET:1} / {POLITICS_TARGET:2}
+
+POLITICS:1 =  SUMARRAY(POLITICS_SELF)
+POLITICS:2 =  SUMARRAY(POLITICS_TARGET)
+POLITICS:0 = POLITICS:1 * 10 / POLITICS:2
+
+;カテゴリごとに判定（比は割で算出される）
+;なお、相手のほうが規模が大きければ印象が悪くなるのは当然
+;二国間の経済比
+SELECTCASE ECONOMY:0
+CASE 0
+	POWER_BALANCE:1 = -3
+CASE IS < 30
+CASE IS < 50
+	POWER_BALANCE:1 = 1
+CASE IS < 100
+	POWER_BALANCE:1 = 2
+CASE IS < 150
+	POWER_BALANCE:1 = 4
+CASE IS < 200
+	POWER_BALANCE:1 = 7
+CASE IS >= 200 
+	POWER_BALANCE:1 = 10
+CASEELSE
+ENDSELECT
+
+;周辺国と要求国との経済比、二国間との経済比によるものと良い方を使用
+SELECTCASE ECONOMY_BORDER:0
+CASE 0
+	POWER_BALANCE:1 = MAX(POWER_BALANCE:1, -3)
+CASE IS < 15
+	POWER_BALANCE:1 = MAX(POWER_BALANCE:1, 0)
+CASE IS < 25
+	POWER_BALANCE:1 = MAX(POWER_BALANCE:1, 1)
+CASE IS < 50
+	POWER_BALANCE:1 = MAX(POWER_BALANCE:1, 2)
+CASE IS < 75
+	POWER_BALANCE:1 = MAX(POWER_BALANCE:1, 4)
+CASE IS < 100
+	POWER_BALANCE:1 = MAX(POWER_BALANCE:1, 7)
+CASE IS >= 100 
+	POWER_BALANCE:1 = MAX(POWER_BALANCE:1, 10)
+CASEELSE
+ENDSELECT
+
+;兵力比
+SELECTCASE ARMY:0
+CASE 0
+	POWER_BALANCE:2 = -3
+CASE IS < 20
+CASE IS < 40
+	POWER_BALANCE:2 = 1
+CASE IS < 60
+	POWER_BALANCE:2 = 2
+CASE IS < 80
+	POWER_BALANCE:2 = 4
+CASE IS < 100
+	POWER_BALANCE:2 = 7
+CASE IS >= 100
+	POWER_BALANCE:2 = 10
+CASEELSE
+ENDSELECT
+
+;政治力比
+SELECTCASE POLITICS:0
+CASE 0
+	POWER_BALANCE:3 = -3
+CASE IS < 25
+CASE IS < 60
+	POWER_BALANCE:3 = 1
+CASE IS < 120
+	POWER_BALANCE:3 = 2
+CASE IS < 200
+	POWER_BALANCE:3 = 4
+CASE IS < 300
+	POWER_BALANCE:3 = 7
+CASE IS >= 500
+	POWER_BALANCE:3 = 10
+CASEELSE
+ENDSELECT
+
+;感情値
+;SELECTCASE RELATIONS
+;CASE IS < -500
+;	POWER_BALANCE:3 = -3
+;CASE IS < -200
+;CASE IS < 0
+;	POWER_BALANCE:3 = 1
+;CASE IS < 300
+;	POWER_BALANCE:3 = 2
+;CASE IS < 500
+;	POWER_BALANCE:3 = 4
+;CASE IS < 800
+;	POWER_BALANCE:3 = 7
+;CASE IS >= 800
+;	POWER_BALANCE:3 = 10
+;CASEELSE
+;ENDSELECT
+
+POWER_BALANCE:0 = SUMARRAY(POWER_BALANCE)
+
+;DEBUGPRINTFORML 【経済比】{POWER_BALANCE:1}, 【戦力比】{POWER_BALANCE:2}, 【能力比】{POWER_BALANCE:3}
+;DEBUGPRINTFORML 【外交要求判定】%NAME:(BOSS:0)%→%NAME:(BOSS:1)%：判定値{POWER_BALANCE:0}/難易度{MAX(ARG:2, 2)}
+DEBUGPRINTFORML 【外交要求判定】%NAME:(BOSS:0)%→%NAME:(BOSS:1)%：判定値{POWER_BALANCE:0}/難易度{MAX(ARG:2, 2)}
+
+
+
+LOCAL:0 = LOCAL:1 % (ARG:2 + 1)
+LOCAL:1 = RAND:(10 * ARG:2 + 1)
+
+RETURNF LOCAL:0 < POWER_BALANCE
+
+
+
+;ARG:0勢力の強要行為に対する反発効果の処理
+;軽:好意減少及び敵意増大
+;小:条約／連合破棄（相手側の敵意で判定）、一時的外交停止
+;中:一時的外交停止
+;大:反連合の成立
+;返り値 0:お咎め無し, 1-15:有罪、何らかのペナルティが発生, -1:冤罪が判明したので無罪放免
+@DIPLOMACY_BACKFIRE(ARG:0)
+;上から順に
+;返り値用のペナルティ処理計測値、勢力トップのキャラ番号、勢力のAIタイプ、ループ処理用のカウンタ
+;同盟／停戦／連合の破棄を決めた勢力
+;
+#DIM RES_PENALTY
+#DIM BOSS_CHARA, 2
+#DIM HATE, 2
+#DIM BOSS_AI, 2
+#DIM LOOP_COUNT, 3
+#DIM HATE_A, MAX_COUNTRY
+#DIM HATE_C, MAX_COUNTRY
+#DIM HATE_U, MAX_COUNTRY
+
+;DIPLOMACY_HATE:(ARG:0)
+;範囲外、チャンネルが閉じている勢力は冤罪のため釈放
+SIF !INRANGE(ARG:0, 1, MAX_COUNTRY) || COUNTRY_IS_CLOSED:(ARG:0)
+	RETURN -1
+VARSET RES_PENALTY
+VARSET BOSS_CHARA
+VARSET HATE
+VARSET LOOP_COUNT
+VARSET HATE_A
+VARSET HATE_C
+VARSET HATE_U
+
+;大賞勢力の基礎情報を取得
+BOSS_CHARA:0 = GET_COUNTRY_BOSS(ARG:0)
+BOSS_AI:0 = COUNTRY_AI_TYPE:(ARG:0)
+
+;軽ペナルティ:好感度減少及び敵対値増大
+IF DIPLOMACY_HATE:(ARG:0):0 >= DIPLOMACY_HATE:(ARG:0):1 + 10
+	SETCOLOR COLOR_ALERT
+	PRINTFORMW 度重なる他勢力への要求により、%ANAME(BOSS_CHARA:0)%を警戒する動きが各国で出ているようです！
+	PRINTFORMW %ANAME(BOSS_CHARA:0)%と他国との関係が悪化しました
+	RESETCOLOR
+	FOR LOOP_COUNT:0, 0, MAX_COUNTRY
+		IF IS_COUNTRY(LOCAL:0) && LOOP_COUNT:0 != ARG:0 && !COUNTRY_IS_CLOSED:(LOOP_COUNT:0)
+			BOSS_AI:1 = COUNTRY_AI_TYPE:(LOOP_COUNT:0)
+			HATE:0 = -1 * RAND(DIPLOMACY_HATE:(ARG:0):1 * 5, DIPLOMACY_HATE:(ARG:0):1 * 10) * AI_RELATION:(BOSS_AI:1):(BOSS_AI:0) / 100
+			HATE:1 = RAND(DIPLOMACY_HATE:(ARG:0):1 * 5, DIPLOMACY_HATE:(ARG:0):1 * 10) * 100 / AI_RELATION:(BOSS_AI:1):(BOSS_AI:0)
+			CALL CHANGE_RELATION_C_TO_C(LOOP_COUNT:0, ARG:0, HATE:0, HATE:1)
+		ENDIF
+	NEXT
+	RES_PENALTY += 1
+	DIPLOMACY_HATE:(ARG:0):1 = DIPLOMACY_HATE:(ARG:0):0 + 10
+ENDIF
+;小ペナルティ:相手の持つ敵対値に応じて条約強制破棄／連合からの排除の実施
+IF DIPLOMACY_HATE:(ARG:0):0 >= DIPLOMACY_HATE:(ARG:0):2 + 20
+	SETCOLOR COLOR_ALERT
+	PRINTFORMW 度重なる他勢力への圧力により、%ANAME(BOSS_CHARA:0)%に反発する動きが各勢力で出ているようです！
+	;破棄をする勢力のチェック
+
+	;面倒なので同盟停戦連合一括処理(ぉ
+	FOR LOOP_COUNT:0, 0, MAX(MAX_TREATY_A, MAX_TREATY_C, MAX_TREATY_U)
+		;同盟のチェック
+		IF LOOP_COUNT:0 < MAX_TREATY_A
+			FOR LOOP_COUNT:1, 0, MAX_TREATY_COUNTRY
+				IF TREATY_A_COUNTRY:(LOOP_COUNT:0):(LOOP_COUNT:1)
+					;参加国リストに問題の勢力が存在すれば該当する同盟を参加国のチェックを行う
+					IF TREATY_A_COUNTRY:(LOOP_COUNT:0):(LOOP_COUNT:1) == ARG:0
+						FOR LOOP_COUNT:2, 0, MAX_TREATY_COUNTRY
+						NEXT
+					ENDIF
+				ELSE
+					BREAK
+				ENDIF
+			NEXT
+		ENDIF
+		;停戦条約のチェック
+		IF LOOP_COUNT:0 < MAX_TREATY_C
+			FOR LOOP_COUNT:1, 0, MAX_TREATY_COUNTRY
+				IF TREATY_C_COUNTRY:(LOOP_COUNT:0):(LOOP_COUNT:1)
+				ELSE
+					BREAK
+				ENDIF
+			NEXT
+		ENDIF
+		;連合のチェック
+		IF LOOP_COUNT:0 < MAX_TREATY_U
+			FOR LOOP_COUNT:1, 0, MAX_TREATY_COUNTRY
+				IF TREATY_U_COUNTRY:(LOOP_COUNT:0):(LOOP_COUNT:1)
+				ELSE
+					BREAK
+				ENDIF
+			NEXT
+		ENDIF
+	NEXT
+	RESETCOLOR
+
+	RES_PENALTY += 2
+	DIPLOMACY_HATE:(ARG:0):2 = DIPLOMACY_HATE:(ARG:0):0 + 20
+ENDIF
+;中ペナルティ:一時的な外交停止
+IF DIPLOMACY_HATE:(ARG:0):0 >= DIPLOMACY_HATE:(ARG:0):3 + 40
+	PRINTFORMW %ANAME(BOSS_CHARA:0)%との外交を拒否する動きが各国にあるようです
+	;大体ペナルティ発動回数ターンだけ他勢力と外交ができなくなる
+	COUNTRY_NOTDIPLOMACY_TERM:(ARG:0) += DIPLOMACY_HATE:(ARG:0):0 * (80 + RAND:21 + RAND:21) / (100 * 40)
+	RES_PENALTY += 4
+	DIPLOMACY_HATE:(ARG:0):3 = DIPLOMACY_HATE:(ARG:0):0 + 40
+	SETCOLOR COLOR_ALERT
+
+ENDIF
+;大ペナルティ:一定以上の敵対値をもつ勢力が連合を組む（これにより他の連合は全てリセットされる）
+IF DIPLOMACY_HATE:(ARG:0):0 >= DIPLOMACY_HATE:(ARG:0):4 + 60
+	PRINTFORMW %ANAME(BOSS_CHARA:0)%の横暴な外交姿勢に対し他国の我慢は限界を超えてしまいました！
+
+	RES_PENALTY += 8
+	DIPLOMACY_HATE:(ARG:0):4 = DIPLOMACY_HATE:(ARG:0):0 + 60
+	SETCOLOR COLOR_ALERT
+
+ENDIF
+
+RETURN RES_PENALTY

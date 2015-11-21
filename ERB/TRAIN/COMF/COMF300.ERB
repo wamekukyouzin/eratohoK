@@ -1,0 +1,204 @@
+﻿;会話
+
+;-------------------------------------------------
+;コマンド名称
+;-------------------------------------------------
+@COM_NAME300
+RESULTS:0 = 会話する
+RESULTS:1 = 話を聞かされる
+
+;-------------------------------------------------
+;選択可否判定
+;-------------------------------------------------
+@COM_ABLE300
+;共通部分
+CALL COM_ABLE_COMMON(300)
+SIF RESULT == 0
+	RETURN 0
+;主人公がプレイヤーのとき限定
+SIF MPLY:0 != MASTER
+	RETURN 0
+;キス中は不可
+SIF IS_EQUIP(MPLY:0, 342)
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;メイン処理
+;-------------------------------------------------
+@COM300
+LOCAL:0 = 0
+LOCAL:1 = 0
+
+;印象値がベースとなります
+LOCAL:0 += REL_LIKE:(MTAR:0):(MPLY:0) / 20
+LOCAL:1 += REL_HATE:(MTAR:0):(MPLY:0) / 20
+;抑圧・孤高によるLOCAL:0の減衰削りました（極端な結果になるので）
+SIF TALENT:(MTAR:0):抑圧
+	LOCAL:1 += YOKUATSU_RATE(MTAR:0) / 3
+SIF TALENT:(MTAR:0):孤高
+	LOCAL:1 += KOKOU_RATE(MTAR:0) / 3
+;好感度条件最良時LOCAL:0 = 25 LOCAL:1 = 5が大成功率ちょうど良い塩梅と思われます（今のところ）
+;最悪時はLOCAL:0 = 0 LOCAL:1 = 80となりますが、これでも初見話しかけて紫や依姫に斬りかかられることは稀なようです（今のところ）
+;ただし会話はほとんど通用しません　外交で嫌われたせいです　酒を飲ませましょう
+LOCAL:0 = LIMIT(LOCAL:0, 0, 25)
+LOCAL:1 = LIMIT(LOCAL:1, 5, 80)
+
+;コマンドの成否をTFLAG:18にセット
+CALL JUDGE_COM_RESULT(MTAR:0, LOCAL:0, LOCAL:1)
+
+;●プレイヤー側の処理
+;固定で獲得するソース
+SOURCE:(MPLY:0):歓楽 = 30
+
+;親密に応じた歓楽のソース追加
+CALL ADD_SOURCE_KANRAKU(MPLY:0, 140)
+
+;主導権に応じたソースの追加
+CALL ADD_SOURCE_INITIATIVE_N(MPLY:0, 50, 50)
+
+;●ターゲット側の処理
+;固定で獲得するソース
+SOURCE:(MTAR:0):歓楽 = 30
+
+;親密に応じた歓楽のソース追加
+CALL ADD_SOURCE_KANRAKU(MTAR:0, 140)
+
+;主導権に応じたソースの追加
+CALL ADD_SOURCE_INITIATIVE_N(MTAR:0, 50, 50)
+
+;相手の機嫌によって効果が変化
+LOCAL:2 = MAX(PALAM:(MTAR:0):怒外, PALAM:(MTAR:0):哀外, PALAM:(MTAR:0):怖外)
+LOCAL:3 = MAX(PALAM:(MTAR:0):怒主, PALAM:(MTAR:0):哀主, PALAM:(MTAR:0):怖主)
+IF LOCAL:2 >= 100
+;	;<孤高> or <抑圧> があり依存度が300未満の場合
+;	IF (TALENT:(MTAR:0):孤高 || TALENT:(MTAR:0):抑圧) && CFLAG:(MTAR:0):3 < 300
+;		;必ず失敗
+;		TFLAG:18 = -1
+;		;地の文用にフラグを設定
+;		TFLAG:17 = 4
+	IF LOCAL:2 > LOCAL:3
+		IF LOCAL:2 == PALAM:(MTAR:0):怒外
+			;愚痴を聴く
+			SOURCE:(MTAR:0):優越 += 50
+			TIMES SOURCE:(MTAR:0):歓楽, 2.00
+			SOURCE:(MTAR:0):解消 += MIN(LOCAL:2, 400)
+			;地の文用にフラグを設定
+			TFLAG:17 = 1
+		ELSE
+			;話を聴く
+			SOURCE:(MTAR:0):愛情 += 30
+			CALL ADD_SOURCE_AIZYOU(MTAR:0, 50)
+			SOURCE:(MTAR:0):解消 += MIN(LOCAL:2, 400)
+			;地の文用にフラグを設定
+			TFLAG:17 = 2
+		ENDIF
+		;必ず成功
+		IF TFLAG:18 == -1
+			TFLAG:18 = 0
+		ENDIF
+	ELSE
+		;必ず失敗
+		TFLAG:18 = -1
+		;地の文用にフラグを設定
+		TFLAG:17 = 3
+		SIF (TALENT:(MTAR:0):孤高 || TALENT:(MTAR:0):抑圧)
+			TFLAG:17 = 4
+	ENDIF
+ENDIF
+
+;失敗
+IF TFLAG:18 == -1
+	TIMES SOURCE:(MTAR:0):歓楽, 0.20
+	SOURCE:(MTAR:0):不満 += 300
+	TFLAG:37 -= 5
+;成功
+ELSEIF TFLAG:18 == 0
+	TFLAG:37 += 2
+;大成功
+ELSE
+	TIMES SOURCE:(MTAR:0):歓楽, 2.00
+	TFLAG:37 += 10
+ENDIF
+
+;主導度変化基準値
+TFLAG:49 = 2
+
+;倒錯度変化基準値
+TFLAG:50 = -1
+
+RETURN 1
+
+;-------------------------------------------------
+;地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE300
+IF TFLAG:17 == 1
+	;主導権が主人公側
+	IF IS_INITIATIVE(MASTER)
+		PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%の愚痴を聴いてやった
+		PRINTFORML %ANAME(MTAR:0)%の怒りは少しおさまったようだ…
+	;主導権が相手側
+	ELSE
+		PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%に延々と愚痴を聞かされた
+		PRINTFORML %ANAME(MTAR:0)%の怒りは少しおさまったようだ…
+	ENDIF
+ELSEIF TFLAG:17 == 2
+	;主導権が主人公側
+	IF IS_INITIATIVE(MASTER)
+		PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%の悩みを聴くことにした
+		PRINTFORML %ANAME(MTAR:0)%の心は少し落ち着いたようだ…
+	;主導権が相手側
+	ELSE
+		PRINTFORMW %ANAME(MTAR:0)%は%ANAME(MPLY:0)%に悩みを打ち明けた
+		PRINTFORML %ANAME(MTAR:0)%の心は少し落ち着いたようだ…
+	ENDIF
+ELSEIF TFLAG:17 == 3
+	PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%の話を聞こうとしたが、断られてしまった
+	PRINTFORML 会話が途切れると気まずい空気が流れた…
+ELSEIF TFLAG:17 == 4
+	PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%の話を聞こうとしたが、断られてしまった
+	PRINTFORML 会話が途切れると気まずい空気が流れた…
+ELSE
+	PRINTFORM %ANAME(MPLY:0)%は%ANAME(MTAR:0)%と
+	IF TALENT:(MTAR:0):恋人
+		IF RAND:5 == 0
+			PRINTFORM 指先を絡ませながら
+		ELSEIF RAND:4 == 0
+			PRINTFORM 隣りあって
+		ELSEIF RAND:3 == 0
+			PRINTFORM 少し照れながら
+		ELSEIF RAND:2 == 0
+			PRINTFORM じゃれ合いながら
+		ELSE
+			PRINTFORM 微笑みを交わしながら
+		ENDIF
+	ELSE
+		IF RAND:6 == 0
+			PRINTFORM 世間
+		ELSEIF RAND:5 == 0
+			PRINTFORM とりとめのない
+		ELSEIF RAND:4 == 0
+			PRINTFORM 下らない
+		ELSEIF RAND:3 == 0
+			PRINTFORM たわいない
+		ELSEIF RAND:2 == 0
+			PRINTFORM 取るに足らない
+		ELSE
+			PRINTFORM 少し
+		ENDIF
+	ENDIF
+	PRINTFORMW 話をした
+	IF TFLAG:18 == 1
+		PRINTFORML 楽しい時間が流れた…
+	ELSEIF TFLAG:18 == -1
+		PRINTFORML 会話が途切れると気まずい空気が流れた…
+	ENDIF
+ENDIF
+
+;--------------------------------------------------------
+;地の文(パラメータ・刻印変動後)
+;--------------------------------------------------------
+@COM_TEXT_LAST300
+;日常コマンドに共通の地の文
+CALL COM_TEXT_LAST_LIFE

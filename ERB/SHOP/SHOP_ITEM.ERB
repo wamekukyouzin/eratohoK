@@ -1,0 +1,822 @@
+﻿;ショップ画面のアイテム関連の処理
+
+;-------------------------------------------------
+;アイテム
+;-------------------------------------------------
+@SHOP_ITEM
+#DIM IS_GISHI
+
+;[技師]持ちが主人公勢力に存在するかどうかを判定
+IS_GISHI = 0
+FOR LOCAL:0, 0, CHARANUM
+	IF TALENT:(LOCAL:0):技師 && CFLAG:(LOCAL:0):1 == CFLAG:MASTER:1
+		IS_GISHI = 1
+		BREAK
+	ENDIF
+NEXT
+
+DRAWLINE
+PRINTL ★★アイテムの購入・開発を行います★★
+DRAWLINE
+
+PRINTFORML 所持金:{MONEY}
+
+;所持アイテム表示
+PRINT 【所持アイテム】
+LOCAL:1 = 999
+FOR LOCAL:0, 100, 300
+	IF ITEM:(LOCAL:0) >= 1
+		LOCALS:0 = %ITEMNAME:(LOCAL:0)%
+		IF ITEM:(LOCAL:0) >= 2
+			LOCALS:0 = %LOCALS:0%×{ITEM:(LOCAL:0)}
+		ENDIF
+		LOCAL:1 += STRLENS(LOCALS:0) + 2
+		IF LOCAL:1 > 70
+			LOCAL:1 = 0
+			PRINTL 
+			PRINT 　　
+		ENDIF
+		PRINTFORM %LOCALS:0%　
+	ENDIF
+NEXT
+PRINTL 
+IF LOCAL:1 == 999
+	PRINTL 　　なし
+ENDIF
+
+PRINTL 【購入】
+PRINT 　　
+LOCAL:1 = 0
+FOR LOCAL:0, 100, 300
+	IF ITEMNAME:(LOCAL:0) != "" && ITEMSALES:(LOCAL:0)
+		IF LOCAL:1 > 0 && LOCAL:1 % 3 == 0
+			PRINTL 
+			PRINT 　　
+		ENDIF
+		LOCAL:1 ++
+		CALL GET_PRICE(LOCAL:0)
+		PRINTFORM [{LOCAL:0}] %ITEMNAME:(LOCAL:0), 12, LEFT%{RESULT, 7}  
+	ENDIF
+NEXT
+PRINTL 
+
+PRINT 【開発】
+IF IS_GISHI
+	SETCOLOR 0x00FF00
+	PRINT ※[技師]効果あり
+	RESETCOLOR
+ENDIF
+PRINTL 
+
+FOR LOCAL:0, 200, 300
+	IF ITEMNAME:(LOCAL:0) != "" && ITEM:(LOCAL:0) == 0 && !ITEMSALES:(LOCAL:0) && ITEMTIME:(LOCAL:0) == 0
+		RESULT = 1
+		TRYCALLFORM ITEM_ABLE{LOCAL:0}
+		IF RESULT
+			PRINTFORM 　　[{LOCAL:0}] %ITEMNAME:(LOCAL:0), 14, LEFT%…… 開発費:{ITEMPRICE:(LOCAL:0), 7}
+			IF IS_GISHI
+				SETCOLOR 0x00FF00
+				PRINTFORM →{ITEMPRICE:(LOCAL:0) * 75 / 100, 7}
+				RESETCOLOR
+			ENDIF
+			PRINTFORM  開発期間:{ITEMTERM:(LOCAL:0), 2}
+			IF IS_GISHI
+				SETCOLOR 0x00FF00
+				PRINTFORM →{ITEMTERM:(LOCAL:0) / 2 + 1, 2}
+				RESETCOLOR
+			ENDIF
+			PRINTL 
+		ENDIF
+	ENDIF
+NEXT
+DRAWLINE
+PRINT 　　[999] 戻る
+
+REDRAW 0
+
+$INPUT_LOOP
+INPUT
+
+IF RESULT == 999
+	REDRAW 1
+	RETURN
+ELSEIF RESULT >= 100 && RESULT < 300 && ITEMNAME:RESULT != ""
+	LOCAL:2 = RESULT
+
+	IF ITEMSALES:(LOCAL:2)
+		CALL GET_PRICE(LOCAL:2)
+		LOCAL:3 = RESULT
+
+		;アイテムの種別を判定
+		IF (LOCAL:2 >= 150 && LOCAL:2 < 200) || (LOCAL:2 >= 250 && LOCAL:2 < 280)
+			LOCAL:5 = 1
+		ELSE
+			LOCAL:5 = 0
+		ENDIF
+
+		;アイテムの説明を表示し、購入の入力処理を行う
+		CALL ITEM_EXPLANATION(LOCAL:2, LOCAL:3, LOCAL:5)
+		LOCAL:4 = RESULT
+
+		;購入個数が0なら戻る
+		IF LOCAL:4 == 0
+			RESTART
+		ENDIF
+
+		;購入アイテム
+		IF LOCAL:2 < 150
+			IF ITEMNAME:(LOCAL:2) == "太平要術の書"
+				CALL SELECT_ITEM_USER(LOCAL:2)
+				IF !RESULT
+					RESTART
+				ENDIF
+				ITEM:(LOCAL:2) ++
+				ITEMSALES:(LOCAL:2) = 0
+			ELSEIF ITEMNAME:(LOCAL:2) == "淫技大全"
+				CALL SELECT_ITEM_USER(LOCAL:2)
+				IF !RESULT
+					RESTART
+				ENDIF
+			ELSE
+				PRINTFORMW %ITEMNAME:(LOCAL:2)%を購入しました
+				ITEM:(LOCAL:2) ++
+				ITEMSALES:(LOCAL:2) = 0
+			ENDIF
+			MONEY -= LOCAL:3
+			RESTART
+		;購入アイテム(消耗品)
+		ELSEIF LOCAL:2 < 200 || (LOCAL:2 >= 250 && LOCAL:2 < 280)
+			PRINTFORMW %ITEMNAME:(LOCAL:2)%を{LOCAL:4}個購入しました
+			MONEY -= LOCAL:3 * LOCAL:4
+			ITEM:(LOCAL:2) += LOCAL:4
+			RESTART
+		;購入アイテム(その場使用)
+		ELSEIF LOCAL:2 >= 280 && LOCAL:2 < 300
+			CALL SELECT_ITEM_USER(LOCAL:2)
+			IF RESULT
+				MONEY -= LOCAL:3
+			ENDIF
+			RESTART
+		ENDIF
+
+	;開発アイテム
+	ELSEIF ITEM:(LOCAL:2) == 0 && ITEMTIME:(LOCAL:2) == 0
+		RESULT = 1
+		TRYCALLFORM ITEM_ABLE{LOCAL:2}
+		IF RESULT
+			LOCAL:3 = ITEMPRICE:(LOCAL:2)
+			IF IS_GISHI
+				TIMES LOCAL:3, 0.75
+			ENDIF
+
+			;アイテムの説明を表示し、購入の入力処理を行う
+			CALL ITEM_EXPLANATION(LOCAL:2, LOCAL:3, 2)
+			LOCAL:4 = RESULT
+
+			;購入個数が0なら戻る
+			IF LOCAL:4 == 0
+				RESTART
+			ENDIF
+
+			PRINTFORMW %ITEMNAME:(LOCAL:2)%の開発を開始しました
+			IF IS_GISHI
+				ITEMTIME:(LOCAL:2) = ITEMTERM:(LOCAL:2) / 2 + 1
+			ELSE
+				ITEMTIME:(LOCAL:2) = 1
+			ENDIF
+			MONEY -= LOCAL:3
+			RESTART
+		ENDIF
+	ENDIF
+ENDIF
+
+CLEARLINE 1
+REUSELASTLINE 
+REDRAW 2
+GOTO INPUT_LOOP
+
+;-------------------------------------------------
+;アイテムの説明を表示し、購入の入力処理を行う
+;ARG:0=アイテム番号 ARG:1=アイテムの値段 ARG:2=アイテムのタイプ(0=単品 1=消耗品 2=開発)
+;戻り値として購入個数を返す
+;-------------------------------------------------
+@ITEM_EXPLANATION(ARG:0, ARG:1, ARG:2)
+DRAWLINE
+PRINTFORM 【%ITEMNAME:(ARG:0)%】  
+IF ARG:2 == 2
+	PRINTFORML 開発費:{ARG:1}
+ELSE
+	PRINTFORML 価格:{ARG:1}
+ENDIF
+TRYCALLFORM ITEM_EXPLANATION{ARG:0}
+DRAWLINE
+
+SELECTCASE ARG:2
+	CASE 0
+		CALL ASK_MULTI_JUDGE("このアイテムを購入する", MONEY >= ARG:1, "戻る", 1)
+		LOCAL:0 = (RESULT == 0)
+	CASE 1
+		IF MONEY >= ARG:1
+			PRINTL 購入する数を入力して下さい(0以下でキャンセル)
+			LOCAL:2 = 0
+			FOR LOCAL:0, 1, 10
+				IF MONEY < LOCAL:0 * ARG:1 || ITEM:(ARG:0) + LOCAL:0 > 99
+					BREAK
+				ENDIF
+				IF !LOCAL:2
+					LOCAL:2 = 1
+					PRINT  
+				ENDIF
+				PRINTFORM [{LOCAL:0, 2}]
+			NEXT
+			IF LOCAL:2
+				PRINTL 
+			ENDIF
+			LOCAL:2 = 0
+			FOR LOCAL:0, 1, 10
+				IF MONEY < LOCAL:0 * 10 * ARG:1 || ITEM:(ARG:0) + LOCAL:0 * 10 > 99
+					BREAK
+				ENDIF
+				IF !LOCAL:2
+					LOCAL:2 = 1
+					PRINT  
+				ENDIF
+				PRINTFORM [{LOCAL:0 * 10, 2}]
+			NEXT
+			IF LOCAL:2
+				PRINTL 
+			ENDIF
+		ELSE
+			SETCOLOR 0x606060
+			PRINTL 所持金不足により購入不可
+			RESETCOLOR
+		ENDIF
+		PRINTBUTTON "0[戻る]", 0
+		PRINTL 
+		$INPUT_LOOP_NUM
+		INPUT
+		IF ITEM:(ARG:0) + RESULT > 99
+			CLEARLINE 1
+			REUSELASTLINE アイテムの数が99個を超えています
+			GOTO INPUT_LOOP_NUM
+		ELSEIF RESULT * ARG:1 > MONEY
+			CLEARLINE 1
+			REUSELASTLINE 所持金が不足しています
+			GOTO INPUT_LOOP_NUM
+		ENDIF
+		LOCAL:0 = MAX(RESULT, 0)
+	CASE 2
+		CALL ASK_MULTI_JUDGE("このアイテムを開発する", MONEY >= ARG:1, "戻る", 1)
+		LOCAL:0 = (RESULT == 0)
+ENDSELECT
+
+RETURN LOCAL:0
+
+;-------------------------------------------------
+;その場使用アイテムの対象キャラを選択 ARG:0=アイテム番号
+;-------------------------------------------------
+@SELECT_ITEM_USER(ARG:0)
+;全員の調教参加フラグをクリア
+CVARSET CFLAG, 6, 0
+
+;アイテムを使用可能なキャラの数を数える
+LOCAL:5 = 0
+FOR LOCAL:0, 0, CHARANUM
+	RESULT = 0
+	TRYCALLFORM IS_ITEM_USE{ARG:0}(LOCAL:0)
+	IF RESULT
+		LOCAL:5 ++
+	ENDIF
+NEXT
+
+;ページ数の計算
+LOCAL:10 = (LOCAL:5 - 1) / 44 + 1
+LOCAL:11 = 1
+
+DRAWLINE
+PRINTFORML %ITEMNAME:(ARG:0)%を誰に使用しますか？
+DRAWLINE
+
+$SHOW_LOOP
+
+;キャラリストの表示
+LOCAL:12 = (LOCAL:11 - 1) * 44
+LOCAL:13 = LOCAL:11* 44
+LOCAL:14 = 0
+LOCAL:15 = 0
+LOCAL:16 = 4
+FOR LOCAL:0, 0, CHARANUM
+	RESULT = 0
+	TRYCALLFORM IS_ITEM_USE{ARG:0}(LOCAL:0)
+	IF RESULT
+		IF LOCAL:14 >= LOCAL:12 && LOCAL:14 < LOCAL:13
+			IF LOCAL:15 % 2 != 0
+				PRINTPLAIN 　
+			ELSEIF LOCAL:15 >= 1
+				PRINTL 
+				LOCAL:16 ++
+			ENDIF
+			CALL PRINT_PARTNER_DATA(LOCAL:0)
+			LOCAL:15 ++
+		ENDIF
+		LOCAL:14 ++
+	ENDIF
+NEXT
+PRINTL 
+DRAWLINE
+
+IF LOCAL:10 >= 2
+	LOCAL:16 += 2
+	IF LOCAL:11 > 1
+		PRINT [  8] 前のページ            
+	ELSE
+		PRINT                             
+	ENDIF
+	LOCALS:0 = page{LOCAL:11}/{LOCAL:10}
+	PRINTPLAINFORM %LOCALS:0, 28, LEFT%
+	IF LOCAL:11 < LOCAL:10
+		PRINT [  9] 後のページ
+	ENDIF
+	PRINTL 
+	DRAWLINE
+ENDIF
+
+PRINTL [  0] 戻る
+
+REDRAW 0
+
+$INPUT_LOOP
+INPUT
+
+IF RESULT == 0
+	REDRAW 1
+	RETURN 0
+ELSEIF RESULT == 8
+	LOCAL:11 --
+	IF LOCAL:11 < 0
+		LOCAL:11 = LOCAL:10
+	ENDIF
+	CLEARLINE LOCAL:16
+	GOTO SHOW_LOOP
+ELSEIF RESULT == 9
+	LOCAL:11 ++
+	IF LOCAL:11 > LOCAL:10
+		LOCAL:11 = 0
+	ENDIF
+	CLEARLINE LOCAL:16
+	GOTO SHOW_LOOP
+ELSE
+	LOCAL:20 = RESULT - 100
+	LOCAL:21 = NO_TO_CHARA(LOCAL:20)
+	IF LOCAL:21 >= 0
+		RESULT = 0
+		TRYCALLFORM IS_ITEM_USE{ARG:0}(LOCAL:21)
+		IF RESULT
+			CALLFORM ITEM_EFFECT{ARG:0}(LOCAL:21)
+			REDRAW 1
+			RETURN 1
+		ENDIF
+	ENDIF
+	CLEARLINE 1
+	GOTO INPUT_LOOP
+ENDIF
+
+;-------------------------------------------------
+;アイテム開発イベント
+;-------------------------------------------------
+@ITEM_DEVELOPMENT
+FOR LOCAL:0, 200, 300
+	IF ITEMTIME:(LOCAL:0) >= 1
+		IF ITEMTIME:(LOCAL:0) >= ITEMTERM:(LOCAL:0)
+			ITEMTIME:(LOCAL:0) = 0
+			IF LOCAL:0 < 280
+				ITEM:(LOCAL:0) ++
+			ENDIF
+			IF LOCAL:0 >= 250
+				ITEMSALES:(LOCAL:0) = 1
+			ENDIF
+			PRINTL 
+			SETCOLOR COLOR_CAUTION
+			PRINTFORMW 『%ITEMNAME:(LOCAL:0)%』が完成しました！
+			RESETCOLOR
+			PRINTL 
+		ELSE
+			ITEMTIME:(LOCAL:0) ++
+		ENDIF
+	ENDIF
+NEXT
+
+;-------------------------------------------------
+;アイテムの開発期間を設定(ニューゲーム・ロード時に呼び出される)
+;-------------------------------------------------
+@SET_ITEMTERM
+ITEMTERM:200 = 3
+ITEMTERM:201 = 5
+ITEMTERM:202 = 6
+ITEMTERM:203 = 3
+ITEMTERM:204 = 4
+ITEMTERM:206 = 5
+ITEMTERM:207 = 5
+ITEMTERM:208 = 2
+ITEMTERM:209 = 4
+ITEMTERM:210 = 6
+ITEMTERM:240 = 3
+ITEMTERM:241 = 3
+ITEMTERM:242 = 3
+ITEMTERM:243 = 1
+ITEMTERM:244 = 1
+ITEMTERM:245 = 1
+ITEMTERM:250 = 6
+ITEMTERM:251 = 5
+ITEMTERM:252 = 16
+ITEMTERM:253 = 25
+ITEMTERM:260 = 3
+ITEMTERM:261 = 3
+ITEMTERM:262 = 4
+ITEMTERM:280 = 3
+ITEMTERM:281 = 4
+ITEMTERM:282 = 3
+ITEMTERM:283 = 4
+ITEMTERM:284 = 8
+
+;-------------------------------------------------
+;ARG:0番のアイテムの真の購入価格を取得
+;-------------------------------------------------
+@GET_PRICE(ARG:0)
+RESULT = ITEMPRICE:(ARG:0)
+TRYCALLFORM GET_PRICE{ARG:0}
+RETURN RESULT
+
+;-------------------------------------------------
+;アイテムの購入価格
+;-------------------------------------------------
+;メイド服
+@GET_PRICE240
+RETURN 50000
+;踊り子衣装
+@GET_PRICE240
+RETURN 50000
+;巫女装束
+@GET_PRICE240
+RETURN 50000
+
+;●醸造酒
+@GET_PRICE250
+RETURN 8000
+
+;●果実酒
+@GET_PRICE251
+RETURN 10000
+
+;●日本酒
+@GET_PRICE252
+RETURN 20000
+
+;●蒸留酒
+@GET_PRICE253
+RETURN 38000
+
+;●媚薬
+@GET_PRICE260
+RETURN 3000
+
+;●排卵誘発剤
+@GET_PRICE261
+RETURN 3000
+
+;●絶倫丸
+@GET_PRICE262
+RETURN 5000
+
+;●ふたなり薬
+@GET_PRICE280
+RETURN 40000
+
+;●性転換薬
+@GET_PRICE281
+RETURN 60000
+
+;●岩神ノ秘薬
+@GET_PRICE282
+RETURN 50000
+
+;●獣変化の秘薬
+@GET_PRICE283
+RETURN 40000
+
+;●再生の秘薬
+@GET_PRICE284
+RETURN 300000
+
+;-------------------------------------------------
+;アイテムの開発条件
+;-------------------------------------------------
+;●アナルバイブ
+@ITEM_ABLE202
+;バイブを開発済み
+IF ITEM:バイブ >= 1
+	RETURN 1
+ENDIF
+RETURN 0
+
+;●クリキャップ
+@ITEM_ABLE206
+;ローターを開発済み
+IF ITEM:ローター >= 1
+	RETURN 1
+ENDIF
+RETURN 0
+
+;●ニプルキャップ
+@ITEM_ABLE207
+;ローターを開発済み
+IF ITEM:ローター >= 1
+	RETURN 1
+ENDIF
+RETURN 0
+
+;●双頭バイブ
+@ITEM_ABLE208
+;ペニスバンドを開発済み
+IF ITEM:ペニスバンド >= 1
+	RETURN 1
+ENDIF
+RETURN 0
+
+;●触手部屋
+@ITEM_ABLE210
+;触手部屋の管理が可能なキャラが必要
+FOR LOCAL:0, 0, CHARANUM
+	IF CFLAG:(LOCAL:0):1 == CFLAG:MASTER:1 && CFLAG:(LOCAL:0):9 == 0 && TALENT:(LOCAL:0):妖術知識 && (ABL:(LOCAL:0):触手 >= 5 || LOCAL:0 == MASTER)
+		RETURN 1
+	ENDIF
+NEXT
+RETURN 0
+
+;●執事服
+@ITEM_ABLE243
+;メイド服を開発済み
+IF ITEM:メイド服 >= 1
+	RETURN 1
+ENDIF
+RETURN 0
+
+;●吟遊詩人服
+@ITEM_ABLE244
+;踊り子衣装を開発済み
+IF ITEM:踊り子衣装 >= 1
+	RETURN 1
+ENDIF
+RETURN 0
+
+;●陰陽師装束
+@ITEM_ABLE245
+;巫女装束を開発済み
+IF ITEM:巫女装束 >= 1
+	RETURN 1
+ENDIF
+RETURN 0
+
+;●果実酒
+@ITEM_ABLE251
+;醸造酒を開発済み
+IF ITEMSALES:醸造酒
+	RETURN 1
+ENDIF
+RETURN 0
+
+;●蒸留酒
+@ITEM_ABLE253
+;醸造酒を開発済み
+IF ITEMSALES:醸造酒
+	RETURN 1
+ENDIF
+RETURN 0
+
+;●絶倫丸
+@ITEM_ABLE262
+;媚薬を開発済み
+IF ITEMSALES:媚薬
+	RETURN 1
+ENDIF
+RETURN 0
+
+;●ふたなり薬
+@ITEM_ABLE280
+;太平淫術の書を持っている
+IF ITEM:太平淫術の書
+	RETURN 1
+ENDIF
+RETURN 0
+
+;●性転換薬
+@ITEM_ABLE281
+;太平淫術の書を持っている
+IF ITEM:太平淫術の書
+	RETURN 1
+ENDIF
+RETURN 0
+
+;●岩神ノ秘薬
+@ITEM_ABLE282
+;太平淫術の書を持っている
+IF ITEM:太平淫術の書
+	RETURN 1
+ENDIF
+RETURN 0
+
+;●獣変化の秘薬
+@ITEM_ABLE283
+;太平淫術の書を持っている
+IF ITEM:太平淫術の書
+	RETURN 1
+ENDIF
+RETURN 0
+
+;●再生の秘薬
+@ITEM_ABLE284
+;ふたなり、性転換、獣変化のうち２つ以上を開発済み
+IF (ITEMSALES:ふたなり薬 != 0) + (ITEMSALES:性転換薬 != 0) + (ITEMSALES:獣変化の秘薬 != 0) >= 2
+	RETURN 1
+ENDIF
+RETURN 0
+
+;-------------------------------------------------
+;アイテムの使用条件
+;-------------------------------------------------
+;●ふたなり薬
+@IS_ITEM_USE280(ARG:0)
+IF (CFLAG:(ARG:0):1 == CFLAG:MASTER:1 && CFLAG:(ARG:0):9 == 0) || CFLAG:(ARG:0):9 == CFLAG:MASTER:1
+	RETURN 1
+ENDIF
+RETURN 0
+
+;●性転換薬
+@IS_ITEM_USE281(ARG:0)
+IF (CFLAG:(ARG:0):1 == CFLAG:MASTER:1 && CFLAG:(ARG:0):9 == 0) || CFLAG:(ARG:0):9 == CFLAG:MASTER:1
+	RETURN 1
+ENDIF
+RETURN 0
+
+;●岩神ノ秘薬
+@IS_ITEM_USE282(ARG:0)
+IF (CFLAG:(ARG:0):1 == CFLAG:MASTER:1 && CFLAG:(ARG:0):9 == 0) || CFLAG:(ARG:0):9 == CFLAG:MASTER:1
+	IF GROUPMATCH(TALENT:(ARG:0):性別, 0, 4) && !TALENT:(ARG:0):孕み可能
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 0
+
+;●獣変化の秘薬
+@IS_ITEM_USE283(ARG:0)
+IF (CFLAG:(ARG:0):1 == CFLAG:MASTER:1 && CFLAG:(ARG:0):9 == 0) || CFLAG:(ARG:0):9 == CFLAG:MASTER:1
+	IF CFLAG:(ARG:0):49 || (!TALENT:(ARG:0):動物耳 && !TALENT:(ARG:0):しっぽ)
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 0
+
+;●再生の秘薬
+@IS_ITEM_USE284(ARG:0)
+IF (CFLAG:(ARG:0):1 == CFLAG:MASTER:1 && CFLAG:(ARG:0):9 == 0) || CFLAG:(ARG:0):9 == CFLAG:MASTER:1
+	RETURN 1
+ENDIF
+RETURN 0
+
+;●太平要術の書
+@IS_ITEM_USE141(ARG:0)
+IF (CFLAG:(ARG:0):1 == CFLAG:MASTER:1 && CFLAG:(ARG:0):9 == 0) || CFLAG:(ARG:0):9 == CFLAG:MASTER:1
+	IF !TALENT:(ARG:0):妖術知識
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 0
+
+;●淫技大全
+@IS_ITEM_USE142(ARG:0)
+IF (CFLAG:(ARG:0):1 == CFLAG:MASTER:1 && CFLAG:(ARG:0):9 == 0) || CFLAG:(ARG:0):9 == CFLAG:MASTER:1
+	IF ABL:(ARG:0):性知識 == 4 && ABL:(ARG:0):性技 >= 6
+		RETURN 1
+	ENDIF
+ENDIF
+RETURN 0
+
+;-------------------------------------------------
+;その場使用アイテムの効果
+;-------------------------------------------------
+;●ふたなり薬
+@ITEM_EFFECT280(ARG:0)
+SELECTCASE TALENT:(ARG:0):性別
+	CASE 0
+		TALENT:(ARG:0):性別 = 3
+		PRINTFORMW %ANAME(ARG:0)%をふたなりにしました
+	CASE 1
+		TALENT:(ARG:0):性別 = 2
+		PRINTFORMW %ANAME(ARG:0)%をふたなりにしました
+	CASE 2
+		TALENT:(ARG:0):性別 = 1
+		PRINTFORMW %ANAME(ARG:0)%を女性にしました
+	CASE 3
+		TALENT:(ARG:0):性別 = 0
+		PRINTFORMW %ANAME(ARG:0)%を男性にしました
+	CASE 4
+		TALENT:(ARG:0):性別 = 5
+		PRINTFORMW %ANAME(ARG:0)%をふたなりにしました
+	CASE 5
+		TALENT:(ARG:0):性別 = 4
+		PRINTFORMW %ANAME(ARG:0)%を男の娘にしました
+ENDSELECT
+
+;●性転換薬
+@ITEM_EFFECT281(ARG:0)
+SELECTCASE TALENT:(ARG:0):性別
+	CASE 0
+		TALENT:(ARG:0):性別 = 1
+		PRINTFORMW %ANAME(ARG:0)%を女性にしました
+	CASE 1
+		IF CFLAG:(ARG:0):66
+			TALENT:(ARG:0):性別 = 4
+			PRINTFORMW %ANAME(ARG:0)%を男の娘にしました
+			CFLAG:(ARG:0):66 = 0
+		ELSE
+			TALENT:(ARG:0):性別 = 0
+			PRINTFORMW %ANAME(ARG:0)%を男性にしました
+		ENDIF
+	CASE 2
+		IF CFLAG:(ARG:0):66
+			TALENT:(ARG:0):性別 = 5
+			PRINTFORMW %ANAME(ARG:0)%を男の娘ふたなりにしました
+			CFLAG:(ARG:0):66 = 0
+		ELSE
+			TALENT:(ARG:0):性別 = 3
+			PRINTFORMW %ANAME(ARG:0)%を男ふたなりにしました
+		ENDIF
+	CASE 3
+		TALENT:(ARG:0):性別 = 2
+		PRINTFORMW %ANAME(ARG:0)%を女ふたなりにしました
+	CASE 4
+		TALENT:(ARG:0):性別 = 1
+		PRINTFORMW %ANAME(ARG:0)%を女性にしました
+		;元男の娘フラグ
+		CFLAG:(ARG:0):66 = 1
+	CASE 5
+		TALENT:(ARG:0):性別 = 2
+		PRINTFORMW %ANAME(ARG:0)%を女ふたなりにしました
+		;元男の娘フラグ
+		CFLAG:(ARG:0):66 = 1
+ENDSELECT
+
+;●岩神ノ秘薬
+@ITEM_EFFECT282(ARG:0)
+TALENT:(ARG:0):孕み可能 = 1
+PRINTFORMW %ANAME(ARG:0)%はお尻の穴で孕めるようになりました
+
+;●獣変化の秘薬
+@ITEM_EFFECT283(ARG:0)
+IF CFLAG:(ARG:0):49
+	TALENT:(ARG:0):動物耳 = 0
+	TALENT:(ARG:0):しっぽ = 0
+	CFLAG:(ARG:0):49 = 0
+	PRINTFORMW %ANAME(ARG:0)%は<動物耳><しっぽ>を失いました
+ELSE
+	TALENT:(ARG:0):動物耳 = 1
+	TALENT:(ARG:0):しっぽ = 1
+	CFLAG:(ARG:0):49 = 1
+	PRINTFORMW %ANAME(ARG:0)%は<動物耳><しっぽ>を得ました
+ENDIF
+
+;●再生の秘薬
+@ITEM_EFFECT284(ARG:0)
+PRINTFORML %ANAME(ARG:0)%の全ての性感帯の感度がLv0に戻りました
+FOR LOCAL:0, 0, 5
+	ABL:(ARG:0):(LOCAL:0) = 0
+	EXP:(ARG:0):(LOCAL:0) = 0
+NEXT
+IF TALENT:(ARG:0):処女 != 1
+	TALENT:(ARG:0):処女 = 1
+	CFLAG:(ARG:0):41 = 0
+	PRINTFORML %ANAME(ARG:0)%の<処女>が再生されました
+ENDIF
+IF TALENT:(ARG:0):烙印
+	TALENT:(ARG:0):烙印 = 0
+	PRINTFORML %ANAME(ARG:0)%の体から<烙印>が消えました
+ENDIF
+IF TALENT:(ARG:0):研究用奴隷の烙印
+	TALENT:(ARG:0):研究用奴隷の烙印 = 0
+	PRINTFORML %ANAME(ARG:0)%の体から<研究用奴隷の烙印>が消えました
+ENDIF
+IF TALENT:(ARG:0):ゴブリンの性奴隷
+	TALENT:(ARG:0):ゴブリンの性奴隷 = 0
+	PRINTFORML %ANAME(ARG:0)%は<ゴブリンの性奴隷>ではなくなりました
+ENDIF
+WAIT
+
+;●太平要術の書
+@ITEM_EFFECT141(ARG:0)
+TALENT:(ARG:0):妖術知識 = 1
+PRINTFORMW %ANAME(ARG:0)%が<妖術知識>を身につけました
+
+;●淫技大全
+@ITEM_EFFECT142(ARG:0)
+ABL:(ARG:0):性知識 = 5
+PRINTFORMW %ANAME(ARG:0)%の性知識が上昇しました(Lv5)

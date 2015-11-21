@@ -1,0 +1,297 @@
+﻿@TRAIN_BY_LENDER(ARG:0)
+VARSET LOCAL
+;好感度と従属度を失っていく
+CFLAG:(ARG:0):好感度 = MAX(CFLAG:(ARG:0):好感度 - MAX(CFLAG:(ARG:0):好感度 * 9 / 10, 200) , 0)
+CFLAG:(ARG:0):従属度 = MAX(CFLAG:(ARG:0):従属度 - MAX(CFLAG:(ARG:0):従属度 * 9 / 10, 200) , 0)
+LOCAL:3 = 0
+LOCAL:3 += MAX(ABL:(ARG:0):Ｃ感 - 1, 0)
+LOCAL:3 += MAX(ABL:(ARG:0):Ｖ感 - 1, 0) * 3
+LOCAL:3 += MAX(ABL:(ARG:0):Ａ感 - 1, 0) * 3
+LOCAL:3 += MAX(ABL:(ARG:0):Ｂ感 - 1, 0)
+LOCAL:3 += MAX(ABL:(ARG:0):Ｍ感 - 1, 0) / 2
+LOCAL:3 = LOCAL:3 * (ABL:(ARG:0):欲望 + 2) / 2
+IF PENIS(ARG:0)
+	EXP:(ARG:0):Ｃ感経験値 += ABL:(ARG:0):Ｃ感 + 1 + RAND:3
+	EXP:(ARG:0):Ａ感経験値 += ABL:(ARG:0):Ａ感 * 30 + 20 + RAND:16
+ELSE
+	EXP:(ARG:0):Ｃ感経験値 += ABL:(ARG:0):Ｃ感 * 5 + 5 + RAND:11
+	EXP:(ARG:0):Ｖ感経験値 += ABL:(ARG:0):Ｖ感 * 20 + 15 + RAND:11
+	EXP:(ARG:0):Ａ感経験値 += ABL:(ARG:0):Ａ感 * 20 + 15 + RAND:11
+ENDIF
+EXP:(ARG:0):Ｂ感経験値 += ABL:(ARG:0):Ｂ感 * 4 + 4 + RAND:9
+EXP:(ARG:0):Ｍ感経験値 += ABL:(ARG:0):Ｍ感 * 4 + 4 + RAND:9
+EXP:(ARG:0):欲望経験値 += ABL:(ARG:0):欲望 * 3 + 2 + LOCAL:3 + RAND:7
+EXP:(ARG:0):奉仕経験値 += ABL:(ARG:0):奉仕 * 2 + 5 + RAND:11
+EXP:(ARG:0):性交経験値 += ABL:(ARG:0):性交 * 5 + 15 + RAND:11
+EXP:(ARG:0):性技経験値 += ABL:(ARG:0):性技 + 2 + RAND:4
+IF IS_MALE(ARG:0)
+	EXP:(ARG:0):ＢＬ経験値 += 25 + RAND:11
+ENDIF
+EXP:(ARG:0):精愛経験値 += ABL:(ARG:0):精愛 * 10 + 30 + RAND:21
+IF PENIS(ARG:0)
+	EXP:(ARG:0):射精経験値 += ABL:(ARG:0):射精 * 10 + 30 + RAND:21
+ENDIF
+EXP:(ARG:0):キス経験 += 2 + RAND:8
+EXP:(ARG:0):口淫経験 += 3 + RAND:10
+EXP:(ARG:0):絶頂経験 += LOCAL:3 * (60 + RAND:81) / 100
+;中出しと妊娠判定
+IF CONFIG:1 == 0 && (VAGINA(ARG:0) || TALENT:(ARG:0):孕み可能)
+	FOR LOCAL:1, 440, 480
+		TCVAR:(ARG:0):(LOCAL:1) = 0
+	NEXT
+	CALL RECORD_INJECTION(ARG:0, -17, 3)
+	CALL CHECK_PREGNANT(ARG:0)
+ENDIF
+;メッセージ表示
+IF CONFIG:80
+	CALL LENDER_TRAIN_MSG(ARG:0)
+ENDIF
+;能力上昇はメッセージ表示後
+CALL TRAIN_AUTO_ABLUP(ARG:0)
+;処女とキス未経験を失う
+IF TALENT:(ARG:0):キス未経験
+	IF RAND:4
+		;ペニスへのキス
+		CALL KISS_COMMON(ARG:0, -17, 1, 0, 0)
+	ENDIF
+	;唇へのキス
+	CALL KISS_COMMON(ARG:0, -17, 0, 0, 0)
+	SETCOLOR COLOR_CAUTION
+	PRINTFORML %ANAME(ARG:0)%は<キス未経験>を失った…
+	RESETCOLOR
+ENDIF
+IF TALENT:(ARG:0):処女 && VAGINA(ARG:0)
+	SETCOLOR COLOR_CAUTION
+	PRINTFORML %ANAME(ARG:0)%は<処女>を失った…
+	RESETCOLOR
+	;処女を捧げた相手を金貸しに設定
+	CFLAG:(ARG:0):41 = -17
+	TALENT:(ARG:0):処女 = 0
+ENDIF
+
+
+
+@LENDER_TRAIN_MSG(ARG:0)
+#DIM 返済額
+DRAWLINE
+SELECTCASE RAND:31
+	CASE 0
+		PRINTFORML %ANAME(ARG:0)%は金貸しの営む娼館で客をとらされている
+		PRINTFORML 今日の客は太った中年男だ
+		PRINTFORML 見た目は不快ながら、男のテクニックは大したもので、%ANAME(ARG:0)%は何度もイカされてしまう
+		PRINTFORML 男は%ANAME(ARG:0)%に覆い被さると、体重の乗ったピストンで何度も何度も子宮を小突いた
+		PRINTFORML 膣内に放たれる精液の熱さに、%ANAME(ARG:0)%は恥も外聞もなくヨガり狂った……
+	CASE 1
+		PRINTFORML %ANAME(ARG:0)%は金貸しの営む娼館で客をとらされている
+		PRINTFORML 今日の客は見るからにそれと分かるチンピラだ
+		PRINTFORML チンピラは横柄な態度で、彼女に奉仕をさせている
+		PRINTFORML そして、自らへりくだった言葉を吐き、性交をねだるよう強要させた
+		PRINTFORML %ANAME(ARG:0)%は屈辱を感じながらも、男の性技の前に何度も絶頂してしまった……
+	CASE 2
+		PRINTFORML %ANAME(ARG:0)%は金貸しの営む娼館で客をとらされている
+		PRINTFORML 今日の客は一見なんということはない青年だ
+		PRINTFORML 青年はベッドの上で腰を振りながら、%ANAME(ARG:0)%に何度も愛をささやいた
+		PRINTFORML 偽りの愛だとは分かっているが、女の本能が、それを信じそうになってしまう
+		PRINTFORML 彼が膣内に種を吐き出すと、%ANAME(ARG:0)%はその熱さに激しく絶頂した……
+	CASE 3
+		PRINTFORML %ANAME(ARG:0)%は金貸しの営む娼館で客をとらされている
+		PRINTFORML 今日の客はなんと、年端もいかぬ少年だ
+		PRINTFORML %ANAME(ARG:0)%は戸惑いながらも、少年をリードしてやる
+		PRINTFORML 初めて触れる女体の美しさにどぎまぎとしながらも、彼も一生懸命それについていった
+		PRINTFORML やがて彼が%ANAME(ARG:0)%の膣内で果てると、彼女は何か満たされた思いになり、心の底から絶頂した……
+	CASE 4
+		PRINTFORML %ANAME(ARG:0)%は金貸しの営む娼館で客をとらされている
+		PRINTFORML 今日の客は、見るからにそれとわかる浮浪者だ
+		PRINTFORML 部屋に入るなり、時間が勿体ないだろうと、彼は口での奉仕を強要してきた
+		PRINTFORML 汚れたペニスを口で掃除させると、前戯もそこそこに%ANAME(ARG:0)%の淫裂へ挿入した
+		PRINTFORML 結局彼は時間いっぱいまで、何度も何度も%ANAME(ARG:0)%に小汚い種を植え付けた……
+	CASE 5
+		PRINTFORML %ANAME(ARG:0)%は金貸しの営む娼館で客をとらされている
+		PRINTFORML 今日の客は、一見すると柔和な紳士だった
+		PRINTFORML ところが彼は、部屋に入るなりサディスティックな笑みを浮かべ、%ANAME(ARG:0)%を縛り上げた
+		PRINTFORML そして鞭や蝋燭、口枷に目隠しに針、そして張型などを用い、%ANAME(ARG:0)%を責めていった
+		PRINTFORML 最後には容赦のないピストンを受け、%ANAME(ARG:0)%は被虐の悦びを覚えながら乱れ悶えた……
+	CASE 6
+		PRINTFORML %ANAME(ARG:0)%は金貸しの営む娼館で客をとらされている
+		PRINTFORML 今日の客は、がっしりした身体をもつ精悍な青年だ。ペニスも立派なもので、男の理想型といったところだ
+		PRINTFORML 見ているだけで身体が疼くのを感じ、%ANAME(ARG:0)%は娼婦らしく、彼に淫らなサービスを行った
+		PRINTFORML 彼もまた、%ANAME(ARG:0)%の肉体に非常に満足し、何度も何度も熱く濃い精を放った
+		PRINTFORML 彼のテクニックにすっかり魅了された%ANAME(ARG:0)%は、個人的な連絡先を教え、立ち去る彼を見送った……
+	CASE 7
+		PRINTFORML %ANAME(ARG:0)%は金貸しの営む娼館で客をとらされている
+		PRINTFORML 今日の客は、何の変哲もない普通の男性だ
+		PRINTFORML それでも、部屋に焚きしめられた香や、あらかじめ飲まされた薬が、%ANAME(ARG:0)%の気分を高める
+		PRINTFORML 可も不可もない肉棒に、%ANAME(ARG:0)%は熱心な奉仕を行っていく
+		PRINTFORML 彼が%ANAME(ARG:0)%の膣内で果てると、%ANAME(ARG:0)%は感極まってあられもない声をあげた……
+	CASE 8
+		PRINTFORML %ANAME(ARG:0)%は金貸しの営む娼館で客をとらされている
+		PRINTFORML 今日の彼女は、店の表で通行人を呼び込む仕事を割り当てられた
+		PRINTFORML %ANAME(ARG:0)%の美しさに、道行く男達は簡単に話を聞いてくれる
+		PRINTFORML 少し乳房や陰部を強調するようなポーズをとってやると、もうこちらの言いなりも同然だ
+		PRINTFORML %ANAME(ARG:0)%はそのままその男と店に戻り、客と娼婦としての熱い一夜を過ごした……
+	CASE 9
+		PRINTFORML %ANAME(ARG:0)%は金貸しの営む娼館で客をとらされている
+		PRINTFORML なんと三人の客が、集団で彼女を買ったようだ
+		PRINTFORML 彼らは%ANAME(ARG:0)%の身体を好き放題に弄り、快楽を引き出していく
+		PRINTFORML そして口と両穴に一物を突き立て、ずごずごとピストンを繰り返した 
+		PRINTFORML 彼らが満足して部屋を後にする頃には、%ANAME(ARG:0)%はあらゆる穴から白濁を零れさせていた……
+	CASE 10
+		PRINTFORML %ANAME(ARG:0)%は金貸しの営む酒場で、給仕として働かされている
+		PRINTFORML 制服はあきらかに普通のモノではない。乳房は剥き出しで、スカートも丈が短すぎる
+		PRINTFORML 酒に酔った客達は、給仕をしている%ANAME(ARG:0)%の身体に手を伸ばす
+		PRINTFORML 逆らうことも許されず、%ANAME(ARG:0)%はただされるがままにされてしまう
+		PRINTFORML 最終的に%ANAME(ARG:0)%は、興奮した客によって皆の見ている前で犯されてしまった……
+	CASE 11
+		PRINTFORML %ANAME(ARG:0)%は金貸しの営む酒場で、給仕として働かされている
+		PRINTFORML 酒に酔った一人の客が、%ANAME(ARG:0)%の身体を弄び始める
+		PRINTFORML 逆らうことも許されず、%ANAME(ARG:0)%はそのテクニックに腰砕けになってしまう
+		PRINTFORML 客はそのまま%ANAME(ARG:0)%を手洗いに連れ込むと、濡れた穴でたっぷりと愉しんだ……
+		PRINTFORML 解放されるころには、彼女の雌穴からは白濁がどろどろと溢れていた……
+	CASE 12
+		PRINTFORML %ANAME(ARG:0)%は金貸しの営む酒場で、給仕として働かされている
+		PRINTFORML 客の一人が%ANAME(ARG:0)%を横に座らせ、酒を勧めてきた
+		PRINTFORML %ANAME(ARG:0)%は結局、潰れるまで客の相手をさせられた
+		PRINTFORML その後、客は潰れた%ANAME(ARG:0)%を部屋に運び込み、意識のない彼女の肉体で散々愉しんだ
+		PRINTFORML 目覚めた彼女が最初に目にしたのは、あちこち白濁にまみれた自らの肉体だった……
+	CASE 13
+		PRINTFORML %ANAME(ARG:0)%は金貸しの営む酒場で、踊り子として働かされている
+		PRINTFORML 身につけているのは恥部を強調し肌を露出するような、派手で卑猥な衣装だ
+		PRINTFORML 観客達は%ANAME(ARG:0)%に好色な視線を向け、ニヤニヤと笑っている
+		PRINTFORML 恥ずかしいことであるはずだというのに、%ANAME(ARG:0)%は身体が熱くなるのを感じている
+		PRINTFORML そのあと%ANAME(ARG:0)%は、彼女を気に入った観客に買われ、娼婦として奉仕したようだ……
+	CASE 14
+		PRINTFORML %ANAME(ARG:0)%は金貸しの営む酒場で、踊り子として働かされている
+		PRINTFORML 今日の演目はいささか過激で、ステージの上でのオナニーショーだ
+		PRINTFORML 恥ずかしがりながら身体を弄る%ANAME(ARG:0)%に、観客は野卑な言葉を投げつける
+		PRINTFORML 快楽の高まりに合わせて指の動きは激しくなり、%ANAME(ARG:0)%は激しく絶頂した
+		PRINTFORML その後%ANAME(ARG:0)%は、彼女を気に入った観客に買われ、娼婦として奉仕したようだ……
+	CASE 15
+		PRINTFORML %ANAME(ARG:0)%は金貸しの営む酒場で、給仕として働かされている
+		PRINTFORML 酔っ払った客が陰茎を露出し、彼女に口での奉仕をもとめてきた
+		PRINTFORML その肉棒のあまりのたくましさに、%ANAME(ARG:0)%は断り切れなかった
+		PRINTFORML %ANAME(ARG:0)%はテーブルの下で彼に口奉仕をし、彼が精を吐き出すと、音を立てて全て呑み込んだ
+		PRINTFORML 熱心な奉仕を気に入った客は、そのまま%ANAME(ARG:0)%を買い、熱い夜を過ごしたようだ……
+	CASE 16
+		PRINTFORML %ANAME(ARG:0)%は金貸しに個人的な奉仕を強要されている
+		PRINTFORML %ANAME(ARG:0)%は彼の一物をその口や乳房で悦ばしている
+		PRINTFORML 彼が小さく呻くと、熱く粘っこい濁液が口腔にたっぷりと吐き出された
+		PRINTFORML そのあまりに熱さにむせる%ANAME(ARG:0)%を、金貸しはベッドに押し倒す
+		PRINTFORML そしてその肉体で、たっぷりと愉しんだ……
+	CASE 17
+		PRINTFORML %ANAME(ARG:0)%は金貸しに個人的な奉仕を強要されている
+		PRINTFORML 金貸しは%ANAME(ARG:0)%に媚薬を飲ませ、その身体で愉しんでいる
+		PRINTFORML 薬による興奮と逞しい肉棒、そして巧みなピストンによって、%ANAME(ARG:0)%はただ喘がされている
+		PRINTFORML 金貸しが射精すると、%ANAME(ARG:0)%はその鮮烈な快楽に、一際高い声をあげ絶頂した
+		PRINTFORML コトが終わる頃には、%ANAME(ARG:0)%の雌穴はどろどろと白いものを零していた……
+	CASE 18
+		PRINTFORML %ANAME(ARG:0)%は金貸しの部下達に貸し与えられたようだ
+		PRINTFORML たまの「上玉」を好きなだけ愉しもうと、部下達は%ANAME(ARG:0)%と休みなく交わっている
+		PRINTFORML 口も、両穴もふさがれ、%ANAME(ARG:0)%は目を白黒させ快楽に悶えている
+		PRINTFORML びゅるびゅると注がれる白濁が、彼女を激しく絶頂させる……
+		PRINTFORML 解放される頃には、%ANAME(ARG:0)%の穴からは止めどなく白いものがこぼれ落ちていた……
+	CASE 19
+		PRINTFORML %ANAME(ARG:0)%は金貸しの部下に貸し与えられたようだ
+		PRINTFORML 部下とはいうが、ほとんどチンピラのようなものだ。彼は%ANAME(ARG:0)%の服を乱暴に脱がせ、押し倒した
+		PRINTFORML その愛撫はひどく乱暴なものだが、技術は的確なもので、%ANAME(ARG:0)%は快感を押さえられない
+		PRINTFORML %ANAME(ARG:0)%が何度も絶頂を迎えた後、彼はその硬く太いペニスで、彼女のことを貫いた
+		PRINTFORML ただ切なくヨガることしかできなくなった%ANAME(ARG:0)%に、彼は何度も子種を吐き出した……
+	CASE 20
+		PRINTFORML %ANAME(ARG:0)%は金貸しから与えられた仕事でヘマをしてしまったようだ
+		PRINTFORML 怒った金貸しによって、%ANAME(ARG:0)%は「便器」の仕事をさせられている
+		PRINTFORML ろくに金も持っていない浮浪者たちが彼女のいる「便女」を訪れては、彼女で「排泄」していく
+		PRINTFORML 嫌だとは思っているのに、貫かれる快感に、%ANAME(ARG:0)%は快楽を押さえられない
+		PRINTFORML 解放されたころには、%ANAME(ARG:0)%の全身は白濁まみれになっていた……
+	CASE 21
+		PRINTFORML %ANAME(ARG:0)%は金貸しの営む娼館で客をとらされている
+		PRINTFORML 現れたのは、なんと見目麗しい女性だった
+		PRINTFORML 何より驚くべきは、その股座に、雄々しいペニスが生えていたことだろう
+		PRINTFORML 目を疑う%ANAME(ARG:0)%だったが、逞しいペニスの前には、女の本能を押さえられなかった
+		PRINTFORML %ANAME(ARG:0)%は彼女に積極的に奉仕し、女の穴でその精を受け止めた……
+	CASE 22
+		PRINTFORML %ANAME(ARG:0)%は金貸しに仕事の特訓を受けさせられている
+		PRINTFORML 娼婦としての特訓、つまりは金貸しとの性行為だ
+		PRINTFORML 金貸しは%ANAME(ARG:0)%を乱暴にベッドに押し倒し、彼女を貫いた
+		PRINTFORML そりたつ怒張が出入りするたび、%ANAME(ARG:0)%は目を白黒して嬌声を上げる
+		PRINTFORML 熱い精液が胎内に注がれると、%ANAME(ARG:0)%は背を反らして激しく絶頂した……
+	CASE 23
+		PRINTFORML %ANAME(ARG:0)%は金貸しの営む娼館で働かされている
+		PRINTFORML ベッドに寝転がった客の上で、%ANAME(ARG:0)%は腰を振っている
+		PRINTFORML 美しい肢体が淫らにくねり、彼女の口からは艶やかな声が零れる
+		PRINTFORML 男が下から腰を突き上げると、%ANAME(ARG:0)%はあられもない声をあげてヨガる
+		PRINTFORML 白濁が膣内に注がれると、%ANAME(ARG:0)%は一際高い声をあげて絶頂を迎えた……
+	CASE 24
+		PRINTFORML %ANAME(ARG:0)%は金貸しの営む娼館で働かされている
+		PRINTFORML ベッドに腰掛けた男に、%ANAME(ARG:0)%は口で奉仕をしている
+		PRINTFORML 彼女が口を離す頃には、男のモノは天を指しそそり勃っていた
+		PRINTFORML %ANAME(ARG:0)%はベッドの上で横になると、自らの指で秘唇を割り開く
+		PRINTFORML 男が挿入し、激しく挿入すると、%ANAME(ARG:0)%はそれに合わせて腰をくねらせた……
+	CASE 25
+		PRINTFORML %ANAME(ARG:0)%は金貸しに個人的に奉仕させられている
+		PRINTFORML 壁に手をつき、尻を突き出した%ANAME(ARG:0)%の雌穴に、金貸しは何度も腰を打ち付ける
+		PRINTFORML ぱぁん、ぱぁんと室内に小気味良い音が響き、そのたびに艶やかな嬌声があがる
+		PRINTFORML 金貸しの男が不意打ちのように射精すると、%ANAME(ARG:0)%は背を弓なりに反らして絶頂に至った
+		PRINTFORML 快楽に崩れ落ちる%ANAME(ARG:0)%だが、男はその腰を抱え上げ、なおも抽送を続けていく……
+	CASE 26
+		PRINTFORML %ANAME(ARG:0)%は金貸しの上客に奉仕している
+		PRINTFORML 豪奢なベッドの上で、淫らな衣装を着た%ANAME(ARG:0)%が、男におねだりをしている
+		PRINTFORML 興奮した様子で男が%ANAME(ARG:0)%を押し倒すと、%ANAME(ARG:0)%は媚びた言葉を並べて彼をさらに誘った
+		PRINTFORML ねじ込まれる一物の快楽に、%ANAME(ARG:0)%は何度も絶頂する
+		PRINTFORML 男が満足するころには、%ANAME(ARG:0)%の雌穴からは白いものがどろどろと零れていた……
+	CASE 27
+		PRINTFORML %ANAME(ARG:0)%は金貸しの営む娼館で働かされている
+		PRINTFORML 今日の客は、ベッドの上に四つん這いにさせた彼女の尻穴で愉しんでいる
+		PRINTFORML 彼女の菊の門に、雄々しいモノが何度も何度も出入りする
+		PRINTFORML その灼けるような快楽に、%ANAME(ARG:0)%はシーツを掴み歯を食いしばって悶えるしかできない
+		PRINTFORML 男が彼女の肛内に射精すると、%ANAME(ARG:0)%は激しく絶頂した……
+	CASE 28
+		PRINTFORML %ANAME(ARG:0)%は金貸しの上客に奉仕している
+		PRINTFORML 豪奢なベッドの上で、淫らな衣装を着た%ANAME(ARG:0)%が腰をくねらせている
+		PRINTFORML 男の上に跨がり、そのペニスを自らの雌穴で悦ばせているのだ
+		PRINTFORML 男が下から腰を突き上げると、%ANAME(ARG:0)%はたまらないというような甘い声を上げる
+		PRINTFORML 白濁が膣内に注がれると、%ANAME(ARG:0)%ははしたない声をあげてヨガり狂った……
+	CASE 29
+		PRINTFORML %ANAME(ARG:0)%は金貸しに個人的な奉仕を強要されている
+		PRINTFORML 避妊を望む%ANAME(ARG:0)%の声を無視し、金貸しは彼女を押し倒した
+		PRINTFORML 抵抗する力も、激しい抽送が与えてくる快楽の前にはあっという間に萎えてしまう
+		PRINTFORML 金貸しのテクニックは、確実に%ANAME(ARG:0)%の雌の本能を刺激し、目覚めさせていく
+		PRINTFORML やがて男が射精しそうになると、%ANAME(ARG:0)%は妊娠するリスクのことも忘れ、あられもなく膣内射精をねだった……
+	CASE 30
+		PRINTFORML %ANAME(ARG:0)%は金貸しに個人的な奉仕を強要されている
+		PRINTFORML 男にたっぷりと焦らされたことで、%ANAME(ARG:0)%の官能はもはや我慢ならないほど高まっていた
+		PRINTFORML 自ら秘裂を割り開き挿入をねだる%ANAME(ARG:0)%に、彼は自らの雄々しいモノを見せつける
+		PRINTFORML そして深々と%ANAME(ARG:0)%に挿入すると、激しいピストンを繰り出し始めた……
+		PRINTFORML 蕩けた声で%ANAME(ARG:0)%が膣内射精をねだると、男は彼女の望むとおり、膣内に精を吐き出した……
+ENDSELECT
+
+返済額 = ABL:(ARG:0):Ｃ感 + ABL:(ARG:0):Ｖ感 + ABL:(ARG:0):Ａ感 + ABL:(ARG:0):Ｂ感 + ABL:(ARG:0):Ｍ感 + (ABL:(ARG:0):欲望 * 3 / 2) + (ABL:(ARG:0):性技 * 2) + ABL:(ARG:0):性交 + ABL:(ARG:0):奉仕
+返済額 *= 1000
+返済額 += RAND(0, DVAR:4 / 10)
+返済額 = RAND(MIN(返済額, DVAR:4 / 10 - 1), DVAR:4 / 10)
+
+DVAR:2 = MAX(0, DVAR:2 - 返済額)
+
+PRINTFORML
+PRINTFORM %ANAME(ARG:0)%は、金
+SETCOLOR COLOR_CAUTION
+PRINTFORM {返済額}
+RESETCOLOR
+PRINTFORML を返済したようだ
+PRINTFORM 残り返済額は
+SETCOLOR COLOR_CAUTION
+PRINTFORM {DVAR:2}
+RESETCOLOR
+PRINTFORML だ……
+
+IF IS_LOVER(ARG:0) && CFLAG:(ARG:0):好感度 <= 1500
+	SETCOLOR COLOR_ALERT
+	PRINTFORML %ANAME(ARG:0)%の中で、%ANAME(MASTER)%への愛情よりも、娼婦としての生活の楽しさが上回った
+	RESETCOLOR
+	CALL LOSE_RELATION_TALENT(ARG:0)
+ENDIF
+IF IS_SLAVE(ARG:0) && CFLAG:(ARG:0):従属度 <= 1500
+	SETCOLOR COLOR_ALERT
+	PRINTFORML %ANAME(ARG:0)%の中で、%ANAME(MASTER)%への忠誠よりも、娼婦としての生活の楽しさが上回った
+	RESETCOLOR
+	CALL LOSE_RELATION_TALENT(ARG:0)
+	TALENT:(ARG:0):烙印 = 0
+ENDIF

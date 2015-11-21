@@ -1,0 +1,479 @@
+﻿;---------------------------
+;会談にて女を用意した場合
+;---------------------------
+@DIPLOMACY_TALK_SEX(ARG:0)
+#DIMS プレイ内容
+#DIM 提供先
+#DIM 提供元
+#DIM 満足度
+LOCAL:20 = 0
+FOR LOCAL:0, 0, CHARANUM
+	;マスターと所属勢力が同じキャラのみカウント
+	IF CFLAG:(LOCAL:0):1 == CFLAG:MASTER:1
+		LOCAL:20 ++
+	ENDIF
+NEXT
+LOCAL:20 = (LOCAL:20 - 1) / 40 + 1
+LOCAL:21 = 1
+CALL TMP_CREATE_IS_FREE_MAP
+
+$SHOW_LOOP2
+LOCAL:4 = 0
+LOCAL:6 = 0
+LOCAL:7 = 0
+LOCAL:8 = 0
+LOCAL:9 = 0
+DRAWLINE
+PRINTFORML %ANAME(MASTER)%は「楽しみ」を提供することにした
+PRINTFORML することをするわけだから、性知識の足りない者は提供すらできない
+PRINTFORML %ANAME(MASTER)%が命じれば他人に身体を開くくらい屈服している必要もある
+PRINTFORML 「モノ」のある相手に未通女を送れば、処女を喪失することもあるのは忘れてはいけない
+PRINTFORML 条件を満たす者の中で、性に貪欲で、技術に長け、奉仕の精神のある者を送るのが良いだろう
+PRINTFORML もっとも、向こうが何をさせるかによって必要な技術は変わるから、一概にはいえないが……
+PRINTFORML さて、誰にすべきか……
+DRAWLINE
+PRINTFORM %TOSTR_SPACE(21)%  欲/ 技/ 奉/ 交/  %TOSTR_SPACE(23)%  欲/ 技/ 奉/ 交/
+PRINTL 
+LOCAL:25 = 15
+LOCAL:1 = 0
+LOCAL:22 = 0
+LOCAL:23 = (LOCAL:21 - 1) * 40
+LOCAL:24 = LOCAL:21 * 40
+FOR LOCAL:0, 0, CHARANUM
+	;所属勢力が同じキャラのみ（君主を除く　ただしプレイヤーが君主ならok）。性知識は3以上必要 マスター以外はIS_SLAVEないとダメ
+	IF TALK_CAN_GIVE_SEX(LOCAL:0)
+		IF LOCAL:22 >= LOCAL:23 && LOCAL:22 < LOCAL:24
+			IF LOCAL:1 % 2 != 0
+				PRINT 　　
+			ELSEIF LOCAL:1 >= 1
+				PRINTL 
+				LOCAL:25 ++
+			ENDIF
+			LOCALS:0 = {GET_ID(LOCAL:0) + 99, 4}[%ANAME(LOCAL:0), 16, RIGHT% {ABL:(LOCAL:0):欲望, 3}/{ABL:(LOCAL:0):性技, 3}/
+			LOCALS:0 += @"{ABL:(LOCAL:0):奉仕, 3}/{ABL:(LOCAL:0):性交, 3}]"
+			;条件を満たしていても、「会いに行く」したかIS_FREEが立ってるとダメ（灰色表示）
+			IF CFLAG:(LOCAL:0):91 || TMP_IS_FREE:(LOCAL:0):0 != 0
+				SETCOLOR COLOR_UNSELECTABLE
+				PRINTPLAINFORM %LOCALS:0%
+				RESETCOLOR
+			ELSE
+				PRINTBUTTON LOCALS:0, GET_ID(LOCAL:0) + 99
+			ENDIF
+			LOCAL:1 ++
+		ENDIF
+		LOCAL:22 ++
+	ENDIF
+NEXT
+PRINTL 
+DRAWLINE
+IF LOCAL:20 >= 2
+	LOCAL:25 += 2
+	IF LOCAL:21 > 1
+		PRINT [  8] 前のページ            
+	ELSE
+		PRINT                             
+	ENDIF
+	LOCALS:0 = page{LOCAL:21}/{LOCAL:20}
+	PRINTPLAINFORM %LOCALS:0, 28, LEFT%
+	IF LOCAL:21 < LOCAL:20
+		PRINT [  9] 後のページ
+	ENDIF
+	PRINTL 
+	DRAWLINE
+ENDIF
+PRINTL [  0] 戻る
+PRINTL 
+
+REDRAW 0
+$INPUT_LOOP
+INPUT
+
+IF RESULT == 8 && LOCAL:21 > 1
+	LOCAL:21 --
+	CLEARLINE LOCAL:25
+	GOTO SHOW_LOOP2
+ELSEIF RESULT == 9 && LOCAL:21 < LOCAL:20
+	LOCAL:21 ++
+	CLEARLINE LOCAL:25
+	GOTO SHOW_LOOP2
+ELSEIF RESULT == 0
+	RETURN -1
+ENDIF
+
+
+提供元 = ID_TO_CHARA(RESULT-99)
+;範囲外、存在しないキャラはダメ
+IF 提供元 == -1
+	CLEARLINE LOCAL:25
+	GOTO SHOW_LOOP2
+;選択条件を満たしていない、そのターン会うとかした、TMP_IS_FREEが勃っているとだめ
+ELSEIF !TALK_CAN_GIVE_SEX(提供元) || CFLAG:提供元:91 || TMP_IS_FREE:提供元:0 != 0
+	CLEARLINE LOCAL:25
+	GOTO SHOW_LOOP2
+ELSE
+	提供先 = ARG:0
+	PRINTFORML %ANAME(提供元)%を%ANAME(提供先)%に提供することにした……
+	PRINTFORML ・
+	PRINTFORML ・
+	PRINTFORML ・
+	;両方ふたの場合、なんか色々し始める
+	IF VAGINA(提供先) && PENIS(提供先) && VAGINA(提供元) && PENIS(提供元)
+		SELECTCASE RAND:4
+			CASE 0
+				プレイ内容 = 相互フェラ
+			CASE 1
+				プレイ内容 = 交互挿入
+			CASE 2
+				プレイ内容 = 交互アナルセックス
+			CASE 3
+				プレイ内容 = 乱交
+		ENDSELECT
+	;君主ふた、提供Ｐもち（上でふたははじかれるので男）
+	ELSEIF PENIS(提供先) && VAGINA(提供先) && PENIS(提供元)
+		SELECTCASE RAND:7
+			CASE 0
+				プレイ内容 = フェラさせる
+			CASE 1
+				プレイ内容 = フェラする
+			CASE 2
+				プレイ内容 = 正常位させる
+			CASE 3
+				プレイ内容 = 後背位させる
+			CASE 4
+				プレイ内容 = 騎乗位する
+			CASE 5
+				プレイ内容 = アナルセックスさせる
+			CASE 6
+				プレイ内容 = アナルセックスする
+		ENDSELECT
+	;君主Ｐもち(ふたか男）、提供Ｖもち（君主ふたなら女、君主男ならふたか女）の場合、Ｖを犯す
+	ELSEIF PENIS(提供先) && VAGINA(提供元)
+		SELECTCASE RAND:6
+			CASE 0
+				プレイ内容 = フェラさせる
+			CASE 1
+				プレイ内容 = 正常位する
+			CASE 2
+				プレイ内容 = 後背する
+			CASE 3
+				プレイ内容 = 騎乗位させる
+			CASE 4
+				プレイ内容 = アナルセックスする
+			CASE 5
+				プレイ内容 = 兵士にくれてやる
+		ENDSELECT
+	;君主Ｖ（女）、提供Ｐもち（おとこかふた）の場合、Pで楽しませる
+	ELSEIF VAGINA(提供先) && PENIS(提供元)
+		SELECTCASE RAND:5
+			CASE 0
+				プレイ内容 = フェラする
+			CASE 1
+				プレイ内容 = 正常位させる
+			CASE 2
+				プレイ内容 = 後背位させる
+			CASE 3
+				プレイ内容 = 騎乗位する
+			CASE 4
+				プレイ内容 = アナルセックスさせる
+		ENDSELECT
+	;君主Ｖのみ（女）　提供Ｖのみ（女）の場合、レズプレイ
+	ELSEIF VAGINA(提供先) && VAGINA(提供元)
+		SELECTCASE RAND:3
+			CASE 0
+				プレイ内容 = クンニさせる
+			CASE 1
+				プレイ内容 = 貝合わせ
+			CASE 2
+				プレイ内容 = キスさせる
+		ENDSELECT
+	ELSE
+	;男男　興味ないから汎用
+		プレイ内容 = 汎用
+	ENDIF
+	満足度 = ABL:提供元:欲望 + (ABL:提供元:性技  * 15 / 10) + ABL:提供元:奉仕 + (ABL:提供元:性交 * 13 / 10) + ABL:提供先:欲望 + 10
+	SELECTCASE プレイ内容
+		CASE "相互フェラ"
+			PRINTFORML %ANAME(提供先)%はさっそく、%ANAME(提供元)%の服を脱がせ、自らも服を脱いだ
+			PRINTFORML 二人の股座にある逸物は、快楽への期待で早くもいきり勃っている……
+			PRINTFORML %ANAME(提供先)%は自らの逸物を%ANAME(提供元)%のソレに押しつけ、軽く腰を動かす
+			PRINTFORML 二人のペニスからは、既に先走りがとろとろと零れている……
+			PRINTFORML やがて%ANAME(提供先)%は%ANAME(提供元)%を仰向けにさせると、その上に互い違いに覆い被さった
+			PRINTFORML そして%ANAME(提供元)%に奉仕させながら、自らも%ANAME(提供元)%のペニスをしゃぶりたてた……
+			CALL KISS_COMMON(提供元, 提供先, 1, 0, 1)
+			CALL KISS_COMMON(提供先, 提供元, 1, 0, 1)
+			PRINTFORML 行為は二人が何度も射精し、互いの顔面が互いの汁まみれになるまで続いた……
+			満足度 += ABL:提供元:性技 + ABL:提供元:奉仕 + ABL:提供元:Ｃ感 + ABL:提供元:射精
+			満足度 += ABL:提供先:欲望 + ABL:提供先:Ｃ感 + ABL:提供先:射精
+		CASE "交互挿入"
+			PRINTFORML %ANAME(提供先)%はさっそく、%ANAME(提供元)%の服を脱がせ、自らも服を脱いだ
+			PRINTFORML 二人の股座にある逸物は、快楽への期待で早くもいきり勃っている……
+			PRINTFORML %ANAME(提供先)%は自らの逸物を%ANAME(提供元)%のソレに押しつけ、軽く腰を動かす
+			PRINTFORML 二人のペニスからは、既に先走りがとろとろと零れている……
+			PRINTFORML 続いて%ANAME(提供先)%は、%ANAME(提供元)%を四つん這いにさせ、後ろからその雌穴を貫いた
+			CALL DOUTEI_COMMON(提供先, 提供元)
+			CALL VIRGIN_COMMON(提供元, 提供先)
+			PRINTFORML やがて%ANAME(提供先)%は、%ANAME(提供元)%の膣内にたっぷりと射精した
+			PRINTFORML そして今度は自ら%ANAME(提供元)%に尻を向け、性交をねだった。
+			PRINTFORML 膣内射精で欲望に火の付いた%ANAME(提供元)%が、その誘惑に逆らえるはずもなかった……
+			CALL DOUTEI_COMMON(提供元, 提供先)
+			CALL VIRGIN_COMMON(提供先, 提供元)
+			PRINTFORML 行為が終わる頃には、互いの身体は真っ白になっていた……
+			CALL RECORD_INJECTION(提供元, GET_ID(提供先), 5)
+			CALL RECORD_INJECTION(提供先, GET_ID(提供元), 5)
+			CALL CHECK_PREGNANT(提供元)
+			CALL CHECK_PREGNANT(提供先)
+			満足度 += ABL:提供元:欲望 + ABL:提供元:性交 + ABL:提供元:性技
+			満足度 += ABL:提供先:欲望 + ABL:提供先:Ｃ感 + ABL:提供先:射精 + ABL:提供先:Ｖ感
+		CASE "交互アナルセックス"
+			PRINTFORML %ANAME(提供先)%はさっそく、%ANAME(提供元)%の服を脱がせ、自らも服を脱いだ
+			PRINTFORML 二人の股座にある逸物は、快楽への期待で早くもいきり勃っている……
+			PRINTFORML %ANAME(提供先)%は自らの逸物を%ANAME(提供元)%のソレに押しつけ、軽く腰を動かす
+			PRINTFORML 二人のペニスからは、既に先走りがとろとろと零れている……
+			PRINTFORML 続いて%ANAME(提供先)%は、%ANAME(提供元)%を四つん這いにさせ、後ろからその尻穴を貫いた
+			CALL DOUTEI_COMMON(提供先, 提供元)
+			PRINTFORML やがて%ANAME(提供先)%は、%ANAME(提供元)%の肛内にたっぷりと射精した
+			PRINTFORML そして今度は自ら%ANAME(提供元)%に尻を向け、肛交をねだった。
+			PRINTFORML 肛内射精で欲望に火の付いた%ANAME(提供元)%が、その誘惑に逆らえるはずもなかった……
+			CALL DOUTEI_COMMON(提供元, 提供先)
+			PRINTFORML 行為が終わる頃には、互いの身体は真っ白になっていた……
+			満足度 += ABL:提供元:欲望 + ABL:提供元:性交 + ABL:提供元:性技 + ABL:提供元:Ａ感
+			満足度 += ABL:提供先:欲望 + ABL:提供先:Ｃ感 + ABL:提供先:射精 + ABL:提供先:Ａ感
+		CASE "乱交"
+			PRINTFORML %ANAME(提供先)%はさっそく、%ANAME(提供元)%の服を脱がせ、自らも服を脱いだ
+			PRINTFORML 二人の股座にある逸物は、快楽への期待で早くもいきり勃っている……
+			PRINTFORML %ANAME(提供先)%は自らの逸物を%ANAME(提供元)%のソレに押しつけ、軽く腰を動かす
+			PRINTFORML 二人のペニスからは、既に先走りがとろとろと零れている……
+			PRINTFORML 不意に、%ANAME(提供先)%はぱんぱんと手を叩いた
+			PRINTFORML すると、淫らな衣装を纏った男女がぞろぞろと部屋に入ってきた。%ANAME(提供先)%が囲っているのだという
+			PRINTFORML 彼ら・彼女らも交え、二人は延々、文字通り精魂尽き果てるまで何度も、誰とでも交わった……
+			CALL KISS_COMMON(提供元, -11, 1, 0, 1)
+			CALL KISS_COMMON(提供先, -11, 1, 0, 1)
+			CALL DOUTEI_COMMON(提供先, -11)
+			CALL VIRGIN_COMMON(提供元, -11)
+			CALL DOUTEI_COMMON(提供元, -11)
+			CALL VIRGIN_COMMON(提供先, -11)
+			CALL RECORD_INJECTION(提供元, GET_ID(提供先), 5)
+			CALL RECORD_INJECTION(提供先, GET_ID(提供元), 5)
+			CALL CHECK_PREGNANT(提供元)
+			CALL CHECK_PREGNANT(提供先)
+			満足度 += ABL:提供元:欲望 + ABL:提供元:奉仕 + ABL:提供元:性交 + ABL:提供元:性技 + ABL:提供元:Ｖ感 + ABL:提供元:Ａ感
+			満足度 += ABL:提供先:欲望 + ABL:提供先:Ｃ感 + ABL:提供先:射精 + ABL:提供元:Ｖ感 + ABL:提供先:Ａ感
+		CASE "フェラさせる"
+			PRINTFORML %ANAME(提供先)%はさっそく、%ANAME(提供元)%の服を脱がせ、自らも服を脱いだ
+			PRINTFORML %ANAME(提供先)%の股座にある逸物は、快楽への期待で早くもいきり勃っている……
+			PRINTFORML %ANAME(提供先)%は%ANAME(提供元)%を跪かせると、自らの逸物を%ANAME(提供元)%の頬に押しつける
+			PRINTFORML 何をせよと言われているか察した%ANAME(提供元)%は、早速%ANAME(提供先)%のペニスに奉仕を始めた……
+			CALL KISS_COMMON(提供元, 提供先, 1, 0, 1)
+			PRINTFORML やがて%ANAME(提供先)%は低くうめき、%ANAME(提供元)%の口内にねっとりとした種を吐き散らした
+			PRINTFORML %ANAME(提供元)%は自らの陰部を弄くりながら、音を立ててそれを飲み干した……
+			満足度 += ABL:提供元:欲望 + ABL:提供元:性技 + ABL:提供元:奉仕
+			満足度 += ABL:提供先:欲望 + ABL:提供先:Ｃ感 + ABL:提供先:射精
+		CASE "フェラする"
+			PRINTFORML %ANAME(提供先)%はさっそく、%ANAME(提供元)%の服を脱がせ、自らも服を脱いだ
+			PRINTFORML %ANAME(提供元)%の股座にある逸物は、快楽への期待で早くもいきり勃っている……
+			PRINTFORML これは期待できそうだと、%ANAME(提供先)%は舌なめずりした
+			PRINTFORML %ANAME(提供先)%は%ANAME(提供元)%を座らせるとその元へ跪く
+			PRINTFORML %ANAME(提供元)%が気を利かせてわずかに脚を開くと、%ANAME(提供先)%は早速ソレにしゃぶりついた……
+			CALL KISS_COMMON(提供先, 提供元, 1, 0, 1)
+			PRINTFORML やがて%ANAME(提供元)%は低くうめき、%ANAME(提供先)%の口内にねっとりとした種を吐き散らした
+			PRINTFORML %ANAME(提供先)%は自らの陰部を弄くりながら、音を立ててそれを飲み干した……
+			満足度 += ABL:提供元:欲望 + ABL:提供元:Ｃ感 + ABL:提供元:射精
+			満足度 += ABL:提供先:欲望 + ABL:提供先:奉仕 + ABL:提供先:精愛
+		CASE "正常位させる"
+			PRINTFORML %ANAME(提供先)%はさっそく、%ANAME(提供元)%の服を脱がせ、自らも服を脱いだ
+			PRINTFORML %ANAME(提供元)%の股座にある逸物は、快楽への期待で早くもいきり勃っている……
+			PRINTFORML これは期待できそうだと、%ANAME(提供先)%は舌なめずりした
+			PRINTFORML %ANAME(提供先)%は床に仰向けになり脚を広げると、自ら指で陰部を割り開いた
+			PRINTFORML %ANAME(提供元)%は命じられるがまま、%ANAME(提供先)%に挿入した……
+			CALL DOUTEI_COMMON(提供元, 提供先)
+			CALL VIRGIN_COMMON(提供先, 提供元)
+			PRINTFORML やがて%ANAME(提供元)%が限界を迎えると、%ANAME(提供先)%はそのまま膣内で射精させた……
+			PRINTFORML ペニスを引き抜かれた淫裂からは、白い者がどろりとこぼれ落ちている……
+			CALL RECORD_INJECTION(提供先, GET_ID(提供元), 5)
+			CALL CHECK_PREGNANT(提供先)
+			満足度 += ABL:提供元:欲望 + ABL:提供元:性交 + ABL:提供元:性技
+			満足度 += ABL:提供先:欲望 + ABL:提供先:精愛  + ABL:提供先:Ｖ感
+		CASE "後背位させる"
+			PRINTFORML %ANAME(提供先)%はさっそく、%ANAME(提供元)%の服を脱がせ、自らも服を脱いだ
+			PRINTFORML %ANAME(提供元)%の股座にある逸物は、快楽への期待で早くもいきり勃っている……
+			PRINTFORML これは期待できそうだと、%ANAME(提供先)%は舌なめずりした
+			PRINTFORML %ANAME(提供先)%は床に四つん這いになり%ANAME(提供元)%に尻を向け、自ら指で陰部を割り開いた
+			PRINTFORML %ANAME(提供元)%は命じられるがまま、%ANAME(提供先)%に挿入した……
+			CALL DOUTEI_COMMON(提供元, 提供先)
+			CALL VIRGIN_COMMON(提供先, 提供元)
+			CALL RECORD_INJECTION(提供先, GET_ID(提供元), 5)
+			CALL CHECK_PREGNANT(提供先)
+			PRINTFORML やがて%ANAME(提供元)%が限界を迎えると、%ANAME(提供先)%はそのまま膣内で射精させた……
+			PRINTFORML ペニスを引き抜かれた淫裂からは、白いものがどろりとこぼれ落ちている……
+			満足度 += ABL:提供元:欲望 + ABL:提供元:性交 + ABL:提供元:性技
+			満足度 += ABL:提供先:欲望 + ABL:提供先:精愛  + ABL:提供先:Ｖ感
+		CASE "騎乗位する"
+			PRINTFORML %ANAME(提供先)%はさっそく、%ANAME(提供元)%の服を脱がせ、自らも服を脱いだ
+			PRINTFORML %ANAME(提供元)%の股座にある逸物は、快楽への期待で早くもいきり勃っている……
+			PRINTFORML これは期待できそうだと、%ANAME(提供先)%は舌なめずりした
+			PRINTFORML %ANAME(提供先)%は%ANAME(提供元)%を仰向けにし、その上にまたがった
+			PRINTFORML そしてそのまま腰を下ろし、自らペニスを挿入した……
+			CALL DOUTEI_COMMON(提供元, 提供先)
+			CALL VIRGIN_COMMON(提供先, 提供元)
+			CALL RECORD_INJECTION(提供先, GET_ID(提供元), 5)
+			CALL CHECK_PREGNANT(提供先)
+			PRINTFORML やがて%ANAME(提供元)%が限界を迎えると、%ANAME(提供先)%はそのまま膣内で射精させた……
+			PRINTFORML ペニスを引き抜かれた淫裂からは、白いものがどろりとこぼれ落ちている……
+			満足度 += ABL:提供元:奉仕 + ABL:提供元:性交 + ABL:提供元:性技
+			満足度 += ABL:提供先:欲望 + ABL:提供先:奉仕  + ABL:提供先:Ｖ感
+		CASE "アナルセックスさせる"
+			PRINTFORML %ANAME(提供先)%はさっそく、%ANAME(提供元)%の服を脱がせ、自らも服を脱いだ
+			PRINTFORML %ANAME(提供元)%の股座にある逸物は、快楽への期待で早くもいきり勃っている……
+			PRINTFORML これは期待できそうだと、%ANAME(提供先)%は舌なめずりした
+			PRINTFORML %ANAME(提供先)%は床に四つん這いになり%ANAME(提供元)%に尻を向け、自ら指で肛門を割り開いた
+			PRINTFORML %ANAME(提供元)%は命じられるがまま、%ANAME(提供先)%の尻穴に挿入した……
+			CALL DOUTEI_COMMON(提供元, 提供先)
+			PRINTFORML やがて%ANAME(提供元)%が限界を迎えると、%ANAME(提供先)%はそのまま肛内で射精させた……
+			PRINTFORML ペニスを引き抜かれた菊穴からは、白いものがどろりとこぼれ落ちている……
+			満足度 += ABL:提供元:欲望 + ABL:提供元:性交 + ABL:提供元:性技
+			満足度 += ABL:提供先:欲望 + ABL:提供先:精愛  + ABL:提供先:Ａ感
+		CASE "アナルセックスする"
+			PRINTFORML %ANAME(提供先)%はさっそく、%ANAME(提供元)%の服を脱がせ、自らも服を脱いだ
+			PRINTFORML %ANAME(提供先)%の股座にある逸物は、快楽への期待で早くもいきり勃っている……
+			PRINTFORML %ANAME(提供先)%は%ANAME(提供元)%を四つん這いにさせ、尻を向けさせた
+			IF RAND:2
+				PRINTFORML %ANAME(提供元)%は自ら尻穴を割り開き、%ANAME(提供先)%を誘った
+			ELSE
+				PRINTFORML %ANAME(提供先)%に命じられ、%ANAME(提供元)%は尻穴を割り開いて誘った
+			ENDIF
+			PRINTFORML %ANAME(提供先)%はそのまま、剛直を%ANAME(提供元)%の尻穴にねじ込んだ……
+			CALL DOUTEI_COMMON(提供先, 提供元)
+			PRINTFORML やがて%ANAME(提供先)%は限界を迎え、そのまま%ANAME(提供元)%の肛内で射精した……
+			PRINTFORML ペニスを引き抜かれた菊穴からは、白いものがどろりとこぼれ落ちている……
+			満足度 += ABL:提供元:欲望 + ABL:提供元:性交 + ABL:提供元:Ａ感
+			満足度 += ABL:提供先:欲望 + ABL:提供先:Ｃ感 + ABL:提供先:射精
+		CASE "正常位する"
+			PRINTFORML %ANAME(提供先)%はさっそく、%ANAME(提供元)%の服を脱がせ、自らも服を脱いだ
+			PRINTFORML %ANAME(提供先)%の股座にある逸物は、快楽への期待で早くもいきり勃っている……
+			PRINTFORML %ANAME(提供先)%は%ANAME(提供元)%を仰向けにさせ、脚を開かせた
+			IF RAND:2
+				PRINTFORML %ANAME(提供元)%は自ら秘部を割り開き、%ANAME(提供先)%を誘った
+			ELSE
+				PRINTFORML %ANAME(提供先)%に命じられ、%ANAME(提供先)%は秘部を割り開いて誘った
+			ENDIF
+			PRINTFORML %ANAME(提供先)%はそのまま、剛直を%ANAME(提供元)%のにねじ込んだ……
+			CALL DOUTEI_COMMON(提供先, 提供元)
+			CALL VIRGIN_COMMON(提供元, 提供先)
+			PRINTFORML やがて%ANAME(提供先)%は限界を迎え、そのまま%ANAME(提供元)%の膣内で射精した……
+			PRINTFORML ペニスを引き抜かれた秘裂からは、白いものがどろりとこぼれ落ちている……
+			満足度 += ABL:提供元:欲望 + ABL:提供元:性交 + ABL:提供元:Ｖ感
+			満足度 += ABL:提供先:欲望 + ABL:提供先:Ｃ感 + ABL:提供先:射精
+			CALL RECORD_INJECTION(提供元, GET_ID(提供先), 5)
+			CALL CHECK_PREGNANT(提供元)
+		CASE "後背位する"
+			PRINTFORML %ANAME(提供先)%はさっそく、%ANAME(提供元)%の服を脱がせ、自らも服を脱いだ
+			PRINTFORML %ANAME(提供先)%の股座にある逸物は、快楽への期待で早くもいきり勃っている……
+			PRINTFORML %ANAME(提供先)%は%ANAME(提供元)%を四つん這いにさせ、尻を向けさせた
+			IF RAND:2
+				PRINTFORML %ANAME(提供元)%は自ら秘部を割り開き、%ANAME(提供先)%を誘った
+			ELSE
+				PRINTFORML %ANAME(提供先)%に命じられ、%ANAME(提供先)%は秘部を割り開いて誘った
+			ENDIF
+			PRINTFORML %ANAME(提供先)%はそのまま、剛直を%ANAME(提供元)%のにねじ込んだ……
+			CALL DOUTEI_COMMON(提供先, 提供元)
+			CALL VIRGIN_COMMON(提供元, 提供先)
+			PRINTFORML やがて%ANAME(提供先)%は限界を迎え、そのまま%ANAME(提供元)%の膣内で射精した……
+			PRINTFORML ペニスを引き抜かれた秘裂からは、白いものがどろりとこぼれ落ちている……
+			満足度 += ABL:提供元:欲望 + ABL:提供元:性交 + ABL:提供元:Ｖ感
+			満足度 += ABL:提供先:欲望 + ABL:提供先:Ｃ感 + ABL:提供先:射精
+			CALL RECORD_INJECTION(提供元, GET_ID(提供先), 5)
+			CALL CHECK_PREGNANT(提供元)
+		CASE "騎乗位させる"
+			PRINTFORML %ANAME(提供先)%はさっそく、%ANAME(提供元)%の服を脱がせ、自らも服を脱いだ
+			PRINTFORML %ANAME(提供先)%の股座にある逸物は、快楽への期待で早くもいきり勃っている……
+			PRINTFORML %ANAME(提供先)%は仰向けになり、%ANAME(提供元)%をその上にまたがらせた
+			IF RAND:2
+				PRINTFORML %ANAME(提供元)%は自ら腰を下ろし、ペニスを挿入した……
+			ELSE
+				PRINTFORML %ANAME(提供先)%に命じられ、%ANAME(提供先)%は腰を下ろし、ペニスを挿入した……
+			ENDIF
+			CALL DOUTEI_COMMON(提供先, 提供元)
+			CALL VIRGIN_COMMON(提供元, 提供先)
+			PRINTFORML やがて%ANAME(提供先)%は限界を迎え、そのまま%ANAME(提供元)%の膣内で射精した……
+			PRINTFORML ペニスを引き抜かれた秘裂からは、白いものがどろりとこぼれ落ちている……
+			満足度 += ABL:提供元:奉仕 + ABL:提供元:性交 + ABL:提供元:Ｖ感
+			満足度 += ABL:提供先:欲望 + ABL:提供先:Ｃ感 + ABL:提供先:射精
+			CALL RECORD_INJECTION(提供元, GET_ID(提供先), 5)
+			CALL CHECK_PREGNANT(提供元)
+		CASE "兵士にくれてやる"
+			PRINTFORML %ANAME(提供先)%はさっそく、%ANAME(提供元)%の服を脱がせ、自らも服を脱いだ
+			PRINTFORML %ANAME(提供先)%の股座にある逸物は、快楽への期待で早くもいきり勃っている……
+			PRINTFORML 不意に、%ANAME(提供先)%はぱんぱんと手を叩いた
+			PRINTFORML すると、屈強な兵士達がぞろぞろとなだれ込んできた
+			PRINTFORML そのまま、%ANAME(提供元)%は、慰安として兵士達に提供されてしまった……
+			CALL VIRGIN_COMMON(提供元, -11)
+			PRINTFORML やがてコトが終わると、そこには全身あらゆる穴から種を零す%ANAME(提供元)%と、
+			PRINTFORML %ANAME(提供元)%の痴態を肴に何度も自慰をし、ぐったりと疲れた%ANAME(提供先)%が残されていた
+			満足度 += ABL:提供元:欲望 + ABL:提供元:性技 + ABL:提供元:奉仕 + ABL:提供元:性交 + ABL:提供元:Ｖ感 + ABL:提供元:Ａ感
+			CALL RECORD_INJECTION(提供元, -11, 8)
+			CALL CHECK_PREGNANT(提供元)
+		CASE "クンニさせる"
+			PRINTFORML %ANAME(提供先)%はさっそく、%ANAME(提供元)%の服を脱がせ、自らも服を脱いだ
+			PRINTFORML 二人の秘裂は、快楽への期待で既にとろとろになっている……
+			PRINTFORML %ANAME(提供先)%は%ANAME(提供元)%を跪かせると、自らは椅子に座りわずかに脚を開く
+			PRINTFORML 何をせよと言われているか察した%ANAME(提供元)%は、早速%ANAME(提供先)%の秘裂に奉仕を始めた……
+			CALL KISS_COMMON(提供元, 提供先, 2, 0, 1)
+			満足度 += ABL:提供元:欲望 + ABL:提供元:性技 + ABL:提供元:奉仕
+			満足度 += ABL:提供先:欲望 + ABL:提供先:Ｃ感 + ABL:提供先:レズ
+		CASE "貝合わせ"
+			PRINTFORML %ANAME(提供先)%はさっそく、%ANAME(提供元)%の服を脱がせ、自らも服を脱いだ
+			PRINTFORML 二人の秘裂は、快楽への期待で既にとろとろになっている……
+			PRINTFORML %ANAME(提供先)%は%ANAME(提供元)%に脚を開かせると、濡れそぼつ秘部を重ね合わせた
+			PRINTFORML そしてそのまま脚を絡め合い、裂け目を擦り合わせ、互いに何度も絶頂させあった……
+			満足度 += ABL:提供元:欲望 + ABL:提供元:性技 + ABL:提供元:奉仕
+			満足度 += ABL:提供先:欲望 + ABL:提供先:Ｃ感 + ABL:提供先:レズ
+		CASE "キスさせる"
+			PRINTFORML %ANAME(提供先)%はさっそく、%ANAME(提供元)%の服を脱がせ、自らも服を脱いだ
+			PRINTFORML 二人の秘裂は、快楽への期待で既にとろとろになっている……
+			IF RAND:2
+				PRINTFORML %ANAME(提供先)%は%ANAME(提供元)%と肌を重ね、濃厚な口づけを交わした……
+			ELSE
+				PRINTFORML %ANAME(提供先)%は%ANAME(提供元)%に命じ、濃厚な口づけを交わした……
+			ENDIF
+			CALL KISS_COMMON(提供元, 提供先, 0, 0, 1)
+			CALL KISS_COMMON(提供先, 提供元, 0, 0, 1)
+			満足度 += ABL:提供元:欲望 + ABL:提供元:性技 + ABL:提供元:奉仕 + ABL:提供元:レズ
+			満足度 += ABL:提供先:欲望 + ABL:提供先:性技 + ABL:提供先:奉仕 + ABL:提供先:レズ
+		CASE "汎用"
+			PRINTFORML %ANAME(提供先)%は%ANAME(提供元)%の身体で楽しんだようだ……
+			満足度 += ABL:提供元:欲望 + ABL:提供元:性技 + ABL:提供元:奉仕 + ABL:提供元:性交
+			満足度 += ABL:提供先:欲望 + ABL:提供先:性技 + ABL:提供先:奉仕 + ABL:提供先:性交
+	ENDSELECT
+	満足度 += RAND:10
+	SIF TALENT:提供元:淫乱
+		満足度 += 5
+	SIF TALENT:提供元:淫核
+		満足度 += 5
+	SIF TALENT:提供元:淫壷
+		満足度 += 5
+	SIF TALENT:提供元:尻穴狂い
+		満足度 += 5
+	SIF TALENT:提供元:淫乳
+		満足度 += 5
+	SIF TALENT:提供元:蕩唇
+		満足度 += 5
+	SIF TALENT:提供元:サド
+		満足度 += 5
+	SIF TALENT:提供元:マゾ
+		満足度 += 5
+	SIF TALENT:提供元:射精狂い
+		満足度 += 5
+	PRINTFORML
+	PRINTFORML 満足度:{満足度}
+	PRINTFORML
+	SLG_COOLTIME:提供元:0 = 1
+	RETURN 満足度
+ENDIF
+
+@TALK_CAN_GIVE_SEX(ARG:0)
+#FUNCTION
+IF (ARG:0 != GET_COUNTRY_BOSS(CFLAG:MASTER:1) || MASTER ==GET_COUNTRY_BOSS(CFLAG:MASTER:1)) && CFLAG:(ARG:0):1 == CFLAG:MASTER:1 && ABL:(ARG:0):性知識 >= 3 && (ARG:0 == MASTER || IS_SLAVE(ARG:0))
+RETURNF 1
+ELSE
+RETURNF 0
+ENDIF

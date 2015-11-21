@@ -1,0 +1,131 @@
+﻿;ショップ画面の処理(共通)
+
+;-------------------------------------------------
+;ショップ画面開始時の処理
+;-------------------------------------------------
+@EVENTSHOP
+;オートセーブ判定
+TFLAG:99 = 1
+
+;情報表示対象の都市を初期化
+SHOWN_CITY = -1
+
+;ページ番号を初期化
+FLAG:6 = 1
+
+;デッドエンディングなら戻る
+IF FLAG:27 == 9999
+	BEGIN TITLE
+ENDIF
+
+;-------------------------------------------------
+;ショップ画面の表示処理
+;-------------------------------------------------
+@SHOW_SHOP
+;オートセーブ判定を解除
+TFLAG:99 = 0
+
+;コマンドの選択可否判定フラグをクリア
+FLAG:25 = 0
+
+;所持金の上限設定
+MONEY = LIMIT(MONEY, 0, 9999999999999)
+
+;国家関係マップの作成
+CALL TMP_CREATE_RELATION_MAP
+
+;士官の部隊所属マップを作成
+CALL TMP_CREATE_IS_FREE_MAP
+
+DRAWLINE
+IF CFLAG:MASTER:9 && FLAG:28
+	PRINTFORM 第XX期  
+ELSE
+	PRINTFORM 第{DAY + 1}期  
+ENDIF
+IF TIME == 0
+	PRINTL ～拠点フェイズ～
+ELSE
+	PRINTL ～戦略フェイズ～
+ENDIF
+DRAWLINE
+
+;拠点フェイズ
+IF TIME == 0
+	IF CFLAG:MASTER:9 == 0
+		CALL SHOW_SHOP_LIFE_A
+	ELSE
+		CALL SHOW_SHOP_LIFE_B
+	ENDIF
+;戦略フェイズ
+ELSE
+	CALL SHOW_SHOP_SLG
+ENDIF
+
+REDRAW 0
+
+;-------------------------------------------------
+;ショップ画面の入力処理
+;-------------------------------------------------
+@USERSHOP
+LOCAL:0 = RESULT
+
+REDRAW 1
+
+;拠点フェイズ
+IF TIME == 0
+	IF CFLAG:MASTER:9 == 0
+		CALL USERSHOP_LIFE_A(LOCAL:0)
+	ELSE
+		CALL USERSHOP_LIFE_B(LOCAL:0)
+	ENDIF
+;戦略フェイズ
+ELSE
+	CALL USERSHOP_SLG(LOCAL:0)
+ENDIF
+
+;処理を行わなかった場合
+IF !RESULT
+	REDRAW 0
+	CLEARLINE FLAG:24
+ENDIF
+
+;-------------------------------------------------
+;ショップ画面で0～99が入力されたときのダミー処理
+;-------------------------------------------------
+@EVENTBUY
+ITEM:BOUGHT = 0
+LOCAL:0 = BOUGHT
+
+REDRAW 1
+
+;拠点フェイズ
+IF TIME == 0
+	IF CFLAG:MASTER:9 == 0
+		CALL EVENTBUY_LIFE_A(LOCAL:0)
+	ELSE
+		CALL EVENTBUY_LIFE_B(LOCAL:0)
+	ENDIF
+;戦略フェイズ
+ELSE
+	CALL EVENTBUY_SLG(LOCAL:0)
+ENDIF
+
+;処理を行わなかった場合
+IF !RESULT
+	;コンフィグ
+	IF LOCAL:0 == 60
+		CALL SHOW_CONFIG
+	;セーブ
+	ELSEIF LOCAL:0 == 70
+		SAVEGAME
+	;ロード
+	ELSEIF LOCAL:0 == 80
+		LOADGAME
+	ELSE
+		REDRAW 0
+		CLEARLINE FLAG:24
+	ENDIF
+ENDIF
+
+RETURN

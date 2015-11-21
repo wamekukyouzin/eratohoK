@@ -1,0 +1,646 @@
+﻿;-------------------------------------------------
+;コマンドを実行できるか判定する関数(ARG:0はキャラ番号)
+;各コマンドのCOM_ORDERを呼び出し、成功なら1を、失敗なら0を返す
+;-------------------------------------------------
+@COM_ORDER_COMMON
+;おまかせフラグが立っているなら無視
+IF TFLAG:0
+	RETURN 1
+ENDIF
+
+LOCAL:2 = 1
+FOR LOCAL:0, 0, MPLY_NUM
+	LOCAL:1 = MPLY:(LOCAL:0)
+
+	IF LOCAL:1 != MASTER
+		RESULT = 0
+		;各コマンドの固有実行判定
+		TRYCALLFORM COM_ORDER_PLAYER{SELECTCOM}(LOCAL:1)
+		IF RESULT
+			;判定結果を表示
+			PRINTFORMW  = {TCVAR:(LOCAL:1):24} %TOSTR_COMPARE(TCVAR:(LOCAL:1):24, TCVAR:(LOCAL:1):25)% 実行値{TCVAR:(LOCAL:1):25}
+
+			;実行できない場合
+			IF TCVAR:(LOCAL:1):24 < TCVAR:(LOCAL:1):25
+				;実行判定失敗口上呼び出し
+				CALL KOJO_EVENT(LOCAL:1, 150)
+				LOCAL:2 = 0
+			ENDIF
+		ENDIF
+	ENDIF
+NEXT
+
+FOR LOCAL:0, 0, MTAR_NUM
+	LOCAL:1 = MTAR:(LOCAL:0)
+
+	IF LOCAL:1 != MASTER
+		RESULT = 0
+		;各コマンドの固有実行判定
+		TRYCALLFORM COM_ORDER_TARGET{SELECTCOM}(LOCAL:1)
+		IF RESULT
+			;判定結果を表示
+			PRINTFORMW  = {TCVAR:(LOCAL:1):24} %TOSTR_COMPARE(TCVAR:(LOCAL:1):24, TCVAR:(LOCAL:1):25)% 実行値{TCVAR:(LOCAL:1):25}
+
+			;実行できない場合
+			IF TCVAR:(LOCAL:1):24 < TCVAR:(LOCAL:1):25
+				;実行判定失敗口上呼び出し
+				CALL KOJO_EVENT(LOCAL:1, 150)
+				LOCAL:2 = 0
+			ENDIF
+		ENDIF
+	ENDIF
+NEXT
+RETURN LOCAL:2
+
+;-------------------------------------------------
+;COM_ORDER用の表示＆判定値加算
+;ARG:0=キャラ番号、ARGS:1=表示する文字列、ARG:2=加算する判定値
+;-------------------------------------------------
+@COM_ORDER_ELEMENT(ARG:0, ARGS:1, ARG:2)
+IF TCVAR:(ARG:0):24 == -10000
+	TCVAR:(ARG:0):24 = 0
+ELSE
+	PRINT  + 
+ENDIF
+PRINTFORM %ARGS:1%({ARG:2})
+TCVAR:(ARG:0):24 += ARG:2
+
+;-------------------------------------------------
+;汎用的なコマンドの実行判定(判定値はTFLAG:46で返す)
+;非常に基本的な要素(好感度・依存度・従属度・機嫌)のみ
+;ARG:0=キャラ番号
+;-------------------------------------------------
+@COM_ORDER_BASE(ARG:0)
+IF CFLAG:(ARG:0):2 >= 50000
+	LOCAL:0 = (CFLAG:(ARG:0):2 - 50000) / 10000 + 120
+ELSEIF CFLAG:(ARG:0):2 >= 10000
+	LOCAL:0 = (CFLAG:(ARG:0):2 - 10000) / 2000 + 100
+ELSEIF CFLAG:(ARG:0):2 >= 3000
+	LOCAL:0 = (CFLAG:(ARG:0):2 - 3000) / 350 + 80
+ELSEIF CFLAG:(ARG:0):2 >= 1500
+	LOCAL:0 = (CFLAG:(ARG:0):2 - 1500) / 75 + 60
+ELSE
+	LOCAL:0 = MAX(CFLAG:(ARG:0):2 / 25, 0)
+ENDIF
+
+IF CFLAG:(ARG:0):3 >= 50000
+	LOCAL:1 = (CFLAG:(ARG:0):3 - 50000) / 20000 + 60
+ELSEIF CFLAG:(ARG:0):3 >= 10000
+	LOCAL:1 = (CFLAG:(ARG:0):3 - 10000) / 4000 + 50
+ELSEIF CFLAG:(ARG:0):3 >= 3000
+	LOCAL:1 = (CFLAG:(ARG:0):3 - 3000) / 700 + 40
+ELSEIF CFLAG:(ARG:0):3 >= 1500
+	LOCAL:1 = (CFLAG:(ARG:0):3 - 1500) / 150 + 30
+ELSE
+	LOCAL:1 = MAX(CFLAG:(ARG:0):3 / 50, 0)
+ENDIF
+
+IF CFLAG:(ARG:0):4 >= 50000
+	LOCAL:2 = (CFLAG:(ARG:0):4 - 50000) / 10000 + 120
+ELSEIF CFLAG:(ARG:0):4 >= 10000
+	LOCAL:2 = (CFLAG:(ARG:0):4 - 10000) / 2000 + 100
+ELSEIF CFLAG:(ARG:0):4 >= 3000
+	LOCAL:2 = (CFLAG:(ARG:0):4 - 3000) / 350 + 80
+ELSEIF CFLAG:(ARG:0):4 >= 1500
+	LOCAL:2 = (CFLAG:(ARG:0):4 - 1500) / 75 + 60
+ELSE
+	LOCAL:2 = MAX(CFLAG:(ARG:0):4 / 25, 0)
+ENDIF
+
+IF LOCAL:0 > LOCAL:2
+	LOCAL:0 = LOCAL:0 + LOCAL:2 / 3
+ELSE
+	LOCAL:0 = LOCAL:2 + LOCAL:0 / 3
+ENDIF
+
+CALL COM_ORDER_ELEMENT(ARG:0, "好感度・従属度", LOCAL:0)
+CALL COM_ORDER_ELEMENT(ARG:0, "依存度", LOCAL:1)
+
+;機嫌の影響
+LOCAL:0 = 0
+SELECTCASE TOSTR_EMOTION(ARG:0)
+	CASE "幸"
+		LOCAL:0 = 15
+	CASE "悦"
+		LOCAL:0 = 10
+	CASE "良"
+		LOCAL:0 = 5
+	CASE "恨"
+		IF TALENT:(ARG:0):子供人質
+			LOCAL:0 = -35
+		ELSE
+			LOCAL:0 = -50
+		ENDIF
+	CASE "怒"
+		IF TALENT:(ARG:0):子供人質
+			LOCAL:0 = -14
+		ELSE
+			LOCAL:0 = -20
+		ENDIF
+	CASE "憤"
+		IF TALENT:(ARG:0):子供人質
+			LOCAL:0 = -7
+		ELSE
+			LOCAL:0 = -10
+		ENDIF
+	CASE "鬱"
+		LOCAL:0 = -15
+	CASE "悲"
+		LOCAL:0 = -10
+	CASE "憂"
+		LOCAL:0 = -5
+	CASE "狂"
+		LOCAL:0 = 30
+	CASE "恐"
+		LOCAL:0 = 20
+	CASE "怯"
+		LOCAL:0 = 8
+ENDSELECT
+CALL COM_ORDER_ELEMENT(ARG:0, @"機嫌<%TOSTR_EMOTION(ARG:0)%>", LOCAL:0)
+
+;-------------------------------------------------
+;汎用的なコマンドの実行判定(判定値はTFLAG:46で返す)
+;ARG:0=キャラ番号
+;-------------------------------------------------
+@COM_ORDER(ARG:0)
+;好感度・依存度・従属度・機嫌の考慮
+CALL COM_ORDER_BASE(ARG:0)
+
+IF TALENT:(ARG:0):反抗的
+	IF TALENT:(ARG:0):子供人質
+		CALL COM_ORDER_ELEMENT(ARG:0, "反抗的", -4)
+	ELSE
+		CALL COM_ORDER_ELEMENT(ARG:0, "反抗的", -5)
+	ENDIF
+ENDIF
+IF TALENT:(ARG:0):気丈
+	IF TALENT:(ARG:0):子供人質
+		CALL COM_ORDER_ELEMENT(ARG:0, "気丈", -4)
+	ELSE
+		CALL COM_ORDER_ELEMENT(ARG:0, "気丈", -5)
+	ENDIF
+ENDIF
+IF TALENT:(ARG:0):素直
+	CALL COM_ORDER_ELEMENT(ARG:0, "素直", 5)
+ENDIF
+IF TALENT:(ARG:0):プライド高い
+	IF TALENT:(ARG:0):子供人質
+		CALL COM_ORDER_ELEMENT(ARG:0, "プライド高い", -11)
+	ELSE
+		CALL COM_ORDER_ELEMENT(ARG:0, "プライド高い", -15)
+	ENDIF
+ENDIF
+IF TALENT:(ARG:0):プライド低い
+	CALL COM_ORDER_ELEMENT(ARG:0, "プライド低い", 5)
+ENDIF
+IF TALENT:(ARG:0):好奇心
+	CALL COM_ORDER_ELEMENT(ARG:0, "好奇心", 5)
+ENDIF
+IF TALENT:(ARG:0):保守的
+	;ウフフ中
+	IF FLAG:50
+		IF TALENT:(ARG:0):子供人質
+			CALL COM_ORDER_ELEMENT(ARG:0, "保守的", -7)
+		ELSE
+			CALL COM_ORDER_ELEMENT(ARG:0, "保守的", -10)
+		ENDIF
+	ELSE
+		CALL COM_ORDER_ELEMENT(ARG:0, "保守的", -5)
+	ENDIF
+ENDIF
+IF TALENT:(ARG:0):目立ちたがり
+	CALL COM_ORDER_ELEMENT(ARG:0, "目立ちたがり", 2)
+ENDIF
+IF TALENT:(ARG:0):孤高
+	CALL COM_ORDER_ELEMENT(ARG:0, "孤高", -(20 * KOKOU_RATE(ARG:0) / 100))
+ENDIF
+IF TALENT:(ARG:0):淫乱 && FLAG:50
+	CALL COM_ORDER_ELEMENT(ARG:0, "淫乱", 5)
+ENDIF
+
+IF TALENT:(ARG:0):親愛
+	CALL COM_ORDER_ELEMENT(ARG:0, "親愛", 30)
+ELSEIF TALENT:(ARG:0):恋慕
+	CALL COM_ORDER_ELEMENT(ARG:0, "恋慕", 15)
+ELSEIF TALENT:(ARG:0):親友
+	CALL COM_ORDER_ELEMENT(ARG:0, "親友", 15)
+ENDIF
+
+IF TALENT:(ARG:0):恋人
+	CALL COM_ORDER_ELEMENT(ARG:0, "恋人", 10)
+ENDIF
+
+IF TALENT:(ARG:0):隷属
+	CALL COM_ORDER_ELEMENT(ARG:0, "隷属", 30)
+ELSEIF TALENT:(ARG:0):服従
+	CALL COM_ORDER_ELEMENT(ARG:0, "服従", 15)
+ENDIF
+
+IF TALENT:(ARG:0):烙印
+	CALL COM_ORDER_ELEMENT(ARG:0, "烙印", 10)
+ENDIF
+
+IF TALENT:(ARG:0):プライド高い
+	LOCAL:0 = 4
+	SIF TALENT:(ARG:0):子供人質
+		LOCAL:0 -= 1
+ELSEIF TALENT:(ARG:0):プライド低い
+	LOCAL:0 = 1
+ELSE
+	LOCAL:0 = 2
+ENDIF
+
+IF MARK:(ARG:0):既成事実 >= 1
+	CALL COM_ORDER_ELEMENT(ARG:0, @"既成事実Lv{MARK:(ARG:0):既成事実}", MARK:(ARG:0):既成事実 * 3 * LOCAL:0)
+ENDIF
+
+;同性
+IF IS_SAMESEX(MASTER, ARG:0)
+	;ウフフ中
+	IF FLAG:50
+		IF !TALENT:(ARG:0):両刀
+			CALL COM_ORDER_ELEMENT(ARG:0, "同性", -5)
+		ENDIF
+	ELSE
+		CALL COM_ORDER_ELEMENT(ARG:0, "同性", 5)
+	ENDIF
+
+	;男性
+	IF IS_MALE(ARG:0)
+		CALL COM_ORDER_ELEMENT(ARG:0, @"ＢＬLv{ABL:(ARG:0):ＢＬ}", ABL:(ARG:0):ＢＬ * 3)
+	;女性
+	ELSE
+		CALL COM_ORDER_ELEMENT(ARG:0, @"レズLv{ABL:(ARG:0):レズ}", ABL:(ARG:0):レズ * 3)
+	ENDIF
+ENDIF
+
+IF TALENT:MASTER:魅惑
+	CALL COM_ORDER_ELEMENT(ARG:0, "主人公の魅惑", 6)
+ENDIF
+IF TALENT:MASTER:謎の魅力
+	CALL COM_ORDER_ELEMENT(ARG:0, "主人公の謎の魅力", 6)
+ENDIF
+
+IF PALAM:(ARG:0):酔い >= 150
+	CALL COM_ORDER_ELEMENT(ARG:0, "酔い", PALAM:(ARG:0):酔い / 150)
+ENDIF
+
+IF MAXBASE:(ARG:0):精神力 > 0 
+	LOCAL:0 = BASE:(ARG:0):精神力 * 100 / MAXBASE:(ARG:0):精神力
+	IF LOCAL:0 < 0
+		CALL COM_ORDER_ELEMENT(ARG:0, "精神力低下", 60)
+	ELSEIF LOCAL:0 <= 50
+		CALL COM_ORDER_ELEMENT(ARG:0, "精神力低下", 50)
+	ELSEIF LOCAL:0 <= 75
+		CALL COM_ORDER_ELEMENT(ARG:0, "精神力低下", 25)
+	ENDIF
+ENDIF
+;-------------------------------------------------
+;膣性交の実行判定(Ｐ側)
+;-------------------------------------------------
+@COM_ORDER_VSEX_P(ARG:0)
+;共通部分
+CALL COM_ORDER(ARG:0)
+
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲望Lv{ABL:(ARG:0):欲望}", ABL:(ARG:0):欲望 * 4)
+CALL COM_ORDER_ELEMENT(ARG:0, @"Ｃ感Lv{ABL:(ARG:0):Ｖ感}", ABL:(ARG:0):Ｃ感 * 1)
+CALL COM_ORDER_ELEMENT(ARG:0, @"奉仕Lv{ABL:(ARG:0):奉仕}", ABL:(ARG:0):奉仕 * 2)
+CALL COM_ORDER_ELEMENT(ARG:0, @"性交Lv{ABL:(ARG:0):性交}", ABL:(ARG:0):性交 * 5)
+
+LOCAL:0 = GET_PALAMLV(PALAM:(ARG:0):欲情)
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲情Lv{LOCAL:0}", MIN(LOCAL:0 * 2, 20))
+
+IF TALENT:(ARG:0):恥じらい
+	IF TALENT:(ARG:0):子供人質
+		CALL COM_ORDER_ELEMENT(ARG:0, "恥じらい", -1)
+	ELSE
+		CALL COM_ORDER_ELEMENT(ARG:0, "恥じらい", -2)
+	ENDIF
+ENDIF
+IF TALENT:(ARG:0):快感の否定
+	IF TALENT:(ARG:0):子供人質
+		CALL COM_ORDER_ELEMENT(ARG:0, "快感の否定", -4)
+	ELSE
+		CALL COM_ORDER_ELEMENT(ARG:0, "快感の否定", -5)
+	ENDIF
+ENDIF
+IF TALENT:(ARG:0):女嫌い
+	IF TALENT:(ARG:0):子供人質
+		CALL COM_ORDER_ELEMENT(ARG:0, "女嫌い", -5)
+	ELSE
+		CALL COM_ORDER_ELEMENT(ARG:0, "女嫌い", -7)
+	ENDIF
+ENDIF
+IF TALENT:(ARG:0):童貞
+	IF TALENT:(ARG:0):子供人質
+		CALL COM_ORDER_ELEMENT(ARG:0, "童貞", -4)
+	ELSE
+		CALL COM_ORDER_ELEMENT(ARG:0, "童貞", -5)
+	ENDIF
+ENDIF
+IF TALENT:(ARG:0):一線越えない
+	IF TALENT:(ARG:0):童貞
+		IF TALENT:(ARG:0):子供人質
+			CALL COM_ORDER_ELEMENT(ARG:0, "一線越えない", -14)
+		ELSE
+			CALL COM_ORDER_ELEMENT(ARG:0, "一線越えない", -20)
+		ENDIF
+	ELSE
+		IF TALENT:(ARG:0):子供人質
+			CALL COM_ORDER_ELEMENT(ARG:0, "一線越えない", -7)
+		ELSE
+			CALL COM_ORDER_ELEMENT(ARG:0, "一線越えない", -10)
+		ENDIF
+	ENDIF
+ENDIF
+
+IF TCVAR:(ARG:0):60
+	CALL COM_ORDER_ELEMENT(ARG:0, "媚薬", 6)
+ENDIF
+
+;汚れの判定
+;IF !TALENT:(ARG:0):汚れ無視
+;	LOCAL:0 = 0
+;	;愛液の汚れ
+;	SIF STAIN:PLAYER:2 & 1
+;		LOCAL:0 += 1
+;	;精液の汚れ
+;	SIF STAIN:PLAYER:2 & 4
+;		LOCAL:0 += 3
+;	;アナルの汚れ
+;	SIF STAIN:PLAYER:2 & 8
+;		LOCAL:0 += 7
+;	SIF STAIN:PLAYER:2 & 16
+;		LOCAL:0 += 15
+;	SIF TALENT:(ARG:0):汚臭鈍感
+;		LOCAL:0 /= 3
+;	SIF TALENT:(ARG:0):汚臭敏感
+;		LOCAL:0 *= 2
+
+	;汚れ影響が小さい
+;	LOCAL:0 /= 3
+
+	;汚れあり
+;	IF LOCAL:0 > 0
+;		CALL COM_ORDER_ELEMENT(ARG:0, "汚れあり", -LOCAL:0)
+;	ENDIF
+;ENDIF
+
+;合意
+IF !TALENT:(ARG:0):合意
+	IF TALENT:(ARG:0):子供人質
+		CALL COM_ORDER_ELEMENT(ARG:0, "合意なし", -14)
+	ELSE
+		CALL COM_ORDER_ELEMENT(ARG:0, "合意なし", -20)
+	ENDIF
+ENDIF
+
+;-------------------------------------------------
+;膣性交の実行判定(Ｖ側) ※双頭バイブのときはARG:1に1を設定
+;-------------------------------------------------
+@COM_ORDER_VSEX_V(ARG:0, ARG:1 = 0)
+;共通部分
+CALL COM_ORDER(ARG:0)
+
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲望Lv{ABL:(ARG:0):欲望}", ABL:(ARG:0):欲望 * 3)
+CALL COM_ORDER_ELEMENT(ARG:0, @"Ｖ感Lv{ABL:(ARG:0):Ｖ感}", ABL:(ARG:0):Ｖ感 * 2)
+CALL COM_ORDER_ELEMENT(ARG:0, @"奉仕Lv{ABL:(ARG:0):奉仕}", ABL:(ARG:0):奉仕 * 3)
+CALL COM_ORDER_ELEMENT(ARG:0, @"性交Lv{ABL:(ARG:0):性交}", ABL:(ARG:0):性交 * 5)
+
+IF PALAM:(ARG:0):潤滑 < PALAMLV:5
+	IF TALENT:(ARG:0):子供人質
+		CALL COM_ORDER_ELEMENT(ARG:0, "潤滑不足", -4)
+	ELSE
+		CALL COM_ORDER_ELEMENT(ARG:0, "潤滑不足", -5)
+	ENDIF
+ENDIF
+
+LOCAL:0 = GET_PALAMLV(PALAM:(ARG:0):欲情)
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲情Lv{LOCAL:0}", MIN(LOCAL:0 * 2, 20))
+
+IF TALENT:(ARG:0):恥じらい
+	CALL COM_ORDER_ELEMENT(ARG:0, "恥じらい", -2)
+ENDIF
+IF TALENT:(ARG:0):快感の否定
+	IF TALENT:(ARG:0):子供人質
+		CALL COM_ORDER_ELEMENT(ARG:0, "快感の否定", -4)
+	ELSE
+		CALL COM_ORDER_ELEMENT(ARG:0, "快感の否定", -5)
+	ENDIF
+ENDIF
+IF ARG:1
+	IF TALENT:(ARG:0):女嫌い
+		IF TALENT:(ARG:0):子供人質
+			CALL COM_ORDER_ELEMENT(ARG:0, "女嫌い", -5)
+		ELSE
+			CALL COM_ORDER_ELEMENT(ARG:0, "女嫌い", -7)
+		ENDIF
+	ENDIF
+ELSE
+	IF TALENT:(ARG:0):男嫌い
+		IF TALENT:(ARG:0):子供人質
+			CALL COM_ORDER_ELEMENT(ARG:0, "男嫌い", -5)
+		ELSE
+			CALL COM_ORDER_ELEMENT(ARG:0, "男嫌い", -7)
+		ENDIF
+	ENDIF
+ENDIF
+IF TALENT:(ARG:0):処女
+	CALL COM_ORDER_ELEMENT(ARG:0, "処女", -20)
+ENDIF
+IF TALENT:(ARG:0):一線越えない
+	IF TALENT:(ARG:0):処女
+		CALL COM_ORDER_ELEMENT(ARG:0, "一線越えない", -20)
+	ELSE
+		IF TALENT:(ARG:0):子供人質
+			CALL COM_ORDER_ELEMENT(ARG:0, "一線越えない", -7)
+		ELSE
+			CALL COM_ORDER_ELEMENT(ARG:0, "一線越えない", -10)
+		ENDIF
+	ENDIF
+ENDIF
+
+IF TCVAR:(ARG:0):60
+	CALL COM_ORDER_ELEMENT(ARG:0, "媚薬", 6)
+ENDIF
+
+;汚れの判定
+;IF !TALENT:(ARG:0):汚れ無視
+;	LOCAL:0 = 0
+;	;愛液の汚れ
+;	SIF STAIN:PLAYER:2 & 1
+;		LOCAL:0 += 1
+;	;精液の汚れ
+;	SIF STAIN:PLAYER:2 & 4
+;		LOCAL:0 += 3
+;	;アナルの汚れ
+;	SIF STAIN:PLAYER:2 & 8
+;		LOCAL:0 += 7
+;	SIF STAIN:PLAYER:2 & 16
+;		LOCAL:0 += 15
+;	SIF TALENT:(ARG:0):汚臭鈍感
+;		LOCAL:0 /= 3
+;	SIF TALENT:(ARG:0):汚臭敏感
+;		LOCAL:0 *= 2
+
+	;汚れ影響が小さい
+;	LOCAL:0 /= 3
+
+	;汚れあり
+;	IF LOCAL:0 > 0
+;		CALL COM_ORDER_ELEMENT(ARG:0, "汚れあり", -LOCAL:0)
+;	ENDIF
+;ENDIF
+
+;合意
+IF !TALENT:(ARG:0):合意
+	CALL COM_ORDER_ELEMENT(ARG:0, "合意なし", -20)
+ENDIF
+
+;-------------------------------------------------
+;アナルセックスの実行判定(Ｐ側)
+;-------------------------------------------------
+@COM_ORDER_ASEX_P(ARG:0)
+;共通部分
+CALL COM_ORDER(ARG:0)
+
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲望Lv{ABL:(ARG:0):欲望}", ABL:(ARG:0):欲望 * 4)
+CALL COM_ORDER_ELEMENT(ARG:0, @"Ｃ感Lv{ABL:(ARG:0):Ｖ感}", ABL:(ARG:0):Ｃ感 * 1)
+CALL COM_ORDER_ELEMENT(ARG:0, @"奉仕Lv{ABL:(ARG:0):奉仕}", ABL:(ARG:0):奉仕 * 2)
+CALL COM_ORDER_ELEMENT(ARG:0, @"性交Lv{ABL:(ARG:0):性交}", ABL:(ARG:0):性交 * 5)
+
+LOCAL:0 = GET_PALAMLV(PALAM:(ARG:0):欲情)
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲情Lv{LOCAL:0}", MIN(LOCAL:0 * 2, 20))
+
+IF TALENT:(ARG:0):恥じらい
+	IF TALENT:(ARG:0):子供人質
+		CALL COM_ORDER_ELEMENT(ARG:0, "恥じらい", -1)
+	ELSE
+		CALL COM_ORDER_ELEMENT(ARG:0, "恥じらい", -2)
+	ENDIF
+ENDIF
+IF TALENT:(ARG:0):快感の否定
+	IF TALENT:(ARG:0):子供人質
+		CALL COM_ORDER_ELEMENT(ARG:0, "快感の否定", -4)
+	ELSE
+		CALL COM_ORDER_ELEMENT(ARG:0, "快感の否定", -5)
+	ENDIF
+ENDIF
+IF TALENT:(ARG:0):童貞
+	IF TALENT:(ARG:0):子供人質
+		CALL COM_ORDER_ELEMENT(ARG:0, "童貞", -4)
+	ELSE
+		CALL COM_ORDER_ELEMENT(ARG:0, "童貞", -5)
+	ENDIF
+ENDIF
+IF TALENT:(ARG:0):一線越えない
+	IF TALENT:(ARG:0):童貞
+		IF TALENT:(ARG:0):子供人質
+			CALL COM_ORDER_ELEMENT(ARG:0, "一線越えない", -14)
+		ELSE
+			CALL COM_ORDER_ELEMENT(ARG:0, "一線越えない", -20)
+		ENDIF
+
+	ELSE
+		IF TALENT:(ARG:0):子供人質
+			CALL COM_ORDER_ELEMENT(ARG:0, "一線越えない", -7)
+		ELSE
+			CALL COM_ORDER_ELEMENT(ARG:0, "一線越えない", -10)
+		ENDIF
+	ENDIF
+ENDIF
+
+IF TCVAR:(ARG:0):60
+	CALL COM_ORDER_ELEMENT(ARG:0, "媚薬", 6)
+ENDIF
+
+;汚れの判定
+;IF !TALENT:(ARG:0):汚れ無視
+;	LOCAL:0 = 0
+;	;愛液の汚れ
+;	SIF STAIN:PLAYER:2 & 1
+;		LOCAL:0 += 1
+;	;精液の汚れ
+;	SIF STAIN:PLAYER:2 & 4
+;		LOCAL:0 += 3
+;	;アナルの汚れ
+;	SIF STAIN:PLAYER:2 & 8
+;		LOCAL:0 += 7
+;	SIF STAIN:PLAYER:2 & 16
+;		LOCAL:0 += 15
+;	SIF TALENT:(ARG:0):汚臭鈍感
+;		LOCAL:0 /= 3
+;	SIF TALENT:(ARG:0):汚臭敏感
+;		LOCAL:0 *= 2
+
+	;汚れ影響が小さい
+;	LOCAL:0 /= 3
+
+	;汚れあり
+;	IF LOCAL:0 > 0
+;		CALL COM_ORDER_ELEMENT(ARG:0, "汚れあり", -LOCAL:0)
+;	ENDIF
+;ENDIF
+
+;合意
+IF !TALENT:(ARG:0):合意
+	CALL COM_ORDER_ELEMENT(ARG:0, "合意なし", -20)
+ENDIF
+
+;-------------------------------------------------
+;アナルセックスの実行判定(Ａ側)
+;-------------------------------------------------
+@COM_ORDER_ASEX_A(ARG:0)
+;共通部分
+CALL COM_ORDER(ARG:0)
+
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲望Lv{ABL:(ARG:0):欲望}", ABL:(ARG:0):欲望 * 3)
+CALL COM_ORDER_ELEMENT(ARG:0, @"Ａ感Lv{ABL:(ARG:0):Ａ感}", ABL:(ARG:0):Ａ感 * 3)
+CALL COM_ORDER_ELEMENT(ARG:0, @"奉仕Lv{ABL:(ARG:0):奉仕}", ABL:(ARG:0):奉仕 * 3)
+CALL COM_ORDER_ELEMENT(ARG:0, @"性交Lv{ABL:(ARG:0):性交}", ABL:(ARG:0):性交 * 4)
+
+IF PALAM:(ARG:0):潤滑 < PALAMLV:5
+	IF TALENT:(ARG:0):子供人質
+		CALL COM_ORDER_ELEMENT(ARG:0, "潤滑不足", -4)
+	ELSE
+		CALL COM_ORDER_ELEMENT(ARG:0, "潤滑不足", -5)
+	ENDIF
+ENDIF
+
+LOCAL:0 = GET_PALAMLV(PALAM:(ARG:0):欲情)
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲情Lv{LOCAL:0}", MIN(LOCAL:0 * 2, 20))
+
+IF TALENT:(ARG:0):恥じらい
+	IF TALENT:(ARG:0):子供人質
+		CALL COM_ORDER_ELEMENT(ARG:0, "恥じらい", -1)
+	ELSE
+		CALL COM_ORDER_ELEMENT(ARG:0, "恥じらい", -2)
+	ENDIF
+ENDIF
+IF TALENT:(ARG:0):快感の否定
+	IF TALENT:(ARG:0):子供人質
+		CALL COM_ORDER_ELEMENT(ARG:0, "快感の否定", -4)
+	ELSE
+		CALL COM_ORDER_ELEMENT(ARG:0, "快感の否定", -5)
+	ENDIF
+ENDIF
+IF TALENT:(ARG:0):一線越えない
+	IF TALENT:(ARG:0):子供人質
+		CALL COM_ORDER_ELEMENT(ARG:0, "一線越えない", -4)
+	ELSE
+		CALL COM_ORDER_ELEMENT(ARG:0, "一線越えない", -5)
+	ENDIF
+ENDIF
+
+IF TCVAR:(ARG:0):60
+	CALL COM_ORDER_ELEMENT(ARG:0, "媚薬", 6)
+ENDIF
+
+;合意
+IF !TALENT:(ARG:0):合意
+	IF TALENT:(ARG:0):子供人質
+		CALL COM_ORDER_ELEMENT(ARG:0, "合意なし", -14)
+	ELSE
+		CALL COM_ORDER_ELEMENT(ARG:0, "合意なし", -20)
+	ENDIF
+ENDIF

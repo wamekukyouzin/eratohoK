@@ -1,0 +1,579 @@
+﻿;二人で出掛ける
+
+;-------------------------------------------------
+;コマンド名称
+;-------------------------------------------------
+@COM_NAME390
+RESULTS:0 = 外に誘う
+RESULTS:1 = 外に誘われる
+
+;-------------------------------------------------
+;選択可否判定
+;-------------------------------------------------
+@COM_ABLE390
+;共通部分
+CALL COM_ABLE_COMMON(390)
+SIF RESULT == 0
+	RETURN 0
+;捕虜会話では不可
+SIF FLAG:12 == 6
+	RETURN 0
+;主人公がプレイヤーのとき限定
+SIF MPLY:0 != MASTER
+	RETURN 0
+;既にデート中なら選択不可
+SIF TFLAG:54
+	RETURN 0
+;既に出掛けた後なら不可
+SIF TFLAG:57 > 0
+	RETURN 0
+;臨月、育児、怪我なら不可
+SIF CFLAG:(MTAR:0):16 == 1 || CFLAG:(MTAR:0):16 == 2 || CFLAG:(MTAR:0):16 == 3
+	RETURN 0
+;キス中は不可
+SIF IS_EQUIP(MPLY:0, 342)
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;メイン処理
+;-------------------------------------------------
+@COM390
+;実行できるかの判定
+CALL COM_ORDER_COMMON
+IF RESULT == 0
+	RETURN 0
+ENDIF
+
+;TFLAG:17にデートの種類を設定
+;0=通常、1=パートナーが勝手に決定、2=パートナーの行きたいデート先、3=パートナーが行きたいデート先以外
+TFLAG:17 = 0
+
+;相手が行きたいデート先を取得
+CALL PARTNER_SELECT_DATE
+LOCAL:0 = RESULT
+
+;主導権ポイント計算
+LOCAL:2 = GET_INITIATIVE_RATE(MTAR:0)
+
+;相手の主導権ポイントが極端に高い＆パートナーに主導権があると、たまにデートの行き先を勝手に決定される
+IF LOCAL:2 >= 40 && MIN(50, LOCAL:2 / 2) > RAND:100 && TFLAG:45 == 1
+	;相手が握る
+	PRINTFORMW %ANAME(MTAR:0)%の行きたいところに連れて行かれた…
+	;強制的に大成功になる
+	TFLAG:18 = 1
+	TFLAG:54 = LOCAL:0
+	TFLAG:17 = 1
+
+ELSE
+	;1/10の確率でパートナーに行きたいデート先あり。選んだデート先が同じ場合ボーナス追加
+	IF RAND:10 == 0
+		PRINTFORMW %ANAME(MTAR:0)%は%GET_PLACENAME(LOCAL:0)%に行きたいようだ…
+	ELSE
+		;パートナーに行きたいデート先がない場合LOCAL:0をクリア
+		LOCAL:0 = 0
+	ENDIF
+
+	;デート先の選択
+	CALL SELECT_DATE_PLACE
+	IF RESULT == 0
+		;キャンセルした場合コマンドを中止
+		RETURN 0
+	ENDIF
+	TFLAG:54 = RESULT
+
+	;相手に行きたい場所の希望がない場合
+	IF LOCAL:0 == 0
+		;コマンドの成否をTFLAG:18にセット
+		CALL JUDGE_COM_RESULT(MTAR:0, 5, 5)
+
+	;相手の行きたい場所を選択した場合
+	ELSEIF TFLAG:54 == LOCAL:0
+		;強制的に大成功になる
+		TFLAG:18 = 1
+		TFLAG:17 = 2
+
+	;相手の行きたい場所と異なる場所を選択した場合
+	ELSE
+		;コマンドの成否をTFLAG:18にセット(通常より厳しい)
+		CALL JUDGE_COM_RESULT(MTAR:0, 0, 50)
+		TFLAG:17 = 3
+	ENDIF
+ENDIF
+
+;好感度に応じた歓楽のソース追加
+CALL ADD_SOURCE_KANRAKU(MTAR:0, 120)
+
+LOCAL:1 = 0
+IF TALENT:(MTAR:0):親愛
+	TIMES SOURCE:(MTAR:0):歓楽, 1.20
+	SOURCE:(MTAR:0):接触 += 100
+	LOCAL:1 += 40
+ENDIF
+
+IF TALENT:(MTAR:0):恋慕
+	TIMES SOURCE:(MTAR:0):歓楽, 1.20
+	SOURCE:(MTAR:0):接触 += 50
+	LOCAL:1 += 30
+ENDIF
+
+IF TALENT:(MTAR:0):恋人
+	TIMES SOURCE:(MTAR:0):歓楽, 1.10
+	SOURCE:(MTAR:0):接触 += 100
+	LOCAL:1 += 30
+ELSEIF CFLAG:(MTAR:0):2 > 800
+	SOURCE:(MTAR:0):接触 += 50
+ENDIF
+
+;親密に応じた愛情のソース追加
+CALL ADD_SOURCE_AIZYOU(MTAR:0, LOCAL:1)
+
+;主導権に応じたソースの追加
+CALL ADD_SOURCE_INITIATIVE_N(MPLY:0, 100, 100)
+CALL ADD_SOURCE_INITIATIVE_N(MTAR:0, 100, 100)
+
+;失敗
+IF TFLAG:18 == -1
+	TIMES SOURCE:(MTAR:0):歓楽, 0.20
+	TIMES SOURCE:(MTAR:0):愛情, 0.20
+	TIMES SOURCE:(MTAR:0):接触, 0.20
+	SOURCE:(MTAR:0):不満 += 500
+	TFLAG:37 -= 5
+;成功
+ELSEIF TFLAG:18 == 0
+
+;大成功
+ELSE
+	TIMES SOURCE:(MTAR:0):歓楽, 2.00
+	TIMES SOURCE:(MTAR:0):愛情, 2.00
+	TIMES SOURCE:(MTAR:0):接触, 2.00
+ENDIF
+
+EXP:(MPLY:0):デート経験 += 1
+EXP:(MTAR:0):デート経験 += 1
+
+;行き先に応じた処理
+CALL DATE_START_BYPLACE
+
+;時間を追加
+TFLAG:56 += 3
+
+;経過時間のカウント開始
+TFLAG:57 ++
+
+;主導度変化基準値
+TFLAG:49 = 3
+
+;倒錯度変化基準値
+TFLAG:50 = -1
+
+RETURN 1
+
+;-------------------------------------------------
+;固有の実行判定
+;-------------------------------------------------
+@COM_ORDER_PLAYER390(ARG:0)
+CALL COM_ORDER_COMMON390(ARG:0)
+RETURN 1
+
+@COM_ORDER_TARGET390(ARG:0)
+CALL COM_ORDER_COMMON390(ARG:0)
+RETURN 1
+
+@COM_ORDER_COMMON390(ARG:0)
+;実行値の設定
+TCVAR:(ARG:0):25 = 20
+
+;共通部分
+CALL COM_ORDER(ARG:0)
+
+IF TALENT:(ARG:0):恥じらい
+	CALL COM_ORDER_ELEMENT(ARG:0, "恥じらい", -5)
+ENDIF
+IF TALENT:(ARG:0):献身的
+	CALL COM_ORDER_ELEMENT(ARG:0, "献身的", 3)
+ENDIF
+IF TALENT:(ARG:0):サボり魔
+	CALL COM_ORDER_ELEMENT(ARG:0, "サボり魔", 10)
+ENDIF
+IF IS_MALE(MASTER)
+	IF TALENT:(ARG:0):男嫌い
+		CALL COM_ORDER_ELEMENT(ARG:0, "男嫌い", -7)
+	ENDIF
+ELSE
+	IF TALENT:(ARG:0):女嫌い
+		CALL COM_ORDER_ELEMENT(ARG:0, "女嫌い", -7)
+	ENDIF
+ENDIF
+
+;好感度
+LOCAL:0 = 0
+IF CFLAG:(ARG:0):2 < 300
+	IF CFLAG:(ARG:0):2 < 100
+		LOCAL:0 = -12
+	ELSEIF CFLAG:(ARG:0):2 < 200
+		LOCAL:0 = -8
+	ELSE
+		LOCAL:0 = -4
+	ENDIF
+	CALL COM_ORDER_ELEMENT(ARG:0, @"好感度不足", LOCAL:0)
+ELSE
+	LOCAL:0 = CFLAG:(ARG:0):2 / 75
+	CALL COM_ORDER_ELEMENT(ARG:0, @"好感度", LOCAL:0)
+ENDIF
+
+;-------------------------------------------------
+;地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE390
+;主導権が主人公側
+IF IS_INITIATIVE(MASTER)
+	PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%を連れて%GET_PLACENAME(TFLAG:54)%へと向かいました
+ELSE
+	PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%に先導されるようにして%GET_PLACENAME(TFLAG:54)%へと向かいました
+ENDIF
+
+IF TFLAG:18 == 1
+	PRINTFORML %ANAME(MTAR:0)%は、%ANAME(MPLY:0)%と出掛けるのを楽しみにしているようだ…
+ELSEIF TFLAG:18 == -1
+	PRINTFORML どうやら、%ANAME(MTAR:0)%はあまり乗り気ではないようだ…
+ENDIF
+
+;--------------------------------------------------------
+;地の文(パラメータ・刻印変動後)
+;--------------------------------------------------------
+@COM_TEXT_LAST390
+;日常コマンドに共通の地の文
+CALL COM_TEXT_LAST_LIFE
+
+;---------------------------------------------------------
+;パートナーの行きたいデート先の決定
+;---------------------------------------------------------
+@PARTNER_SELECT_DATE
+;選択可能なデート先のリストを作成
+LOCAL:1 = 0
+FOR LOCAL:0, 1, 50
+	IF GET_PLACENAME(LOCAL:0) != "" && LOCAL:0 != TFLAG:54
+		;場所ごとの条件判定
+		TRYCCALLFORM DATE_PLACE_ABLE{LOCAL:0}
+			IF !RESULT
+				CONTINUE
+			ENDIF
+		CATCH
+		ENDCATCH
+
+		LOCAL:(LOCAL:1 + 10) = LOCAL:0
+		LOCAL:1 ++
+	ENDIF
+NEXT
+
+;リストからランダムなものを選んで返す
+RETURN LOCAL:(RAND:(LOCAL:1) + 10)
+
+;※最終的には、キャラごとの好きな場所(CSVで設定)を出やすくする
+
+;---------------------------------------------------------
+;行き先決定
+;---------------------------------------------------------
+@SELECT_DATE_PLACE
+;表示処理
+PRINTL どこに向かいますか？
+
+LOCAL:1 = 0
+FOR LOCAL:0, 1, 20
+	;場所名が未定義、または現在のデート場所と同じなら表示しない
+	IF GET_PLACENAME(LOCAL:0) == "" || TFLAG:54 == LOCAL:0
+		CONTINUE
+	ENDIF
+
+	;場所ごとの条件判定
+	TRYCCALLFORM DATE_PLACE_ABLE{LOCAL:0}
+		IF !RESULT
+			CONTINUE
+		ENDIF
+	CATCH
+	ENDCATCH
+
+	;改行処理
+	IF LOCAL:1 > 0 && LOCAL:1 % 3 == 0
+		PRINTL 
+	ENDIF
+	LOCAL:1 += 1
+
+	PRINTFORM [{LOCAL:0, 3}] %GET_PLACENAME(LOCAL:0), 16, LEFT%
+NEXT
+PRINTL 
+PRINTL [100] やっぱりやめる
+
+$INPUT_LOOP0
+INPUT
+
+IF RESULT == 100
+	RETURN 0
+
+ELSEIF RESULT >= 0 && RESULT < 20
+	LOCAL:5 = RESULT
+
+	;場所名が空白でなく、現在のデート場所と異なる
+	IF GET_PLACENAME(LOCAL:5) != "" && LOCAL:5 != TFLAG:54
+		;場所ごとの条件判定
+		TRYCCALLFORM DATE_PLACE_ABLE{LOCAL:5}
+			IF !RESULT
+				GOTO INPUT_LOOP0
+			ENDIF
+		CATCH
+		ENDCATCH
+
+		RETURN LOCAL:5
+	ENDIF
+ENDIF
+
+GOTO INPUT_LOOP0
+
+;---------------------------------------------------------
+;デート中の補正
+;---------------------------------------------------------
+@EQUIP_DATE(ARG:0)
+;好感度に応じた歓楽のソース追加
+CALL ADD_SOURCE_KANRAKU(ARG:0, 60)
+
+IF TALENT:(ARG:0):サボり魔
+	TIMES SOURCE:(ARG:0):歓楽, 1.15
+	TIMES SOURCE:(ARG:0):反感, 0.80
+	TIMES SOURCE:(ARG:0):不安, 0.80
+ENDIF
+
+LOCAL:1 = 0
+IF TALENT:(ARG:0):親愛
+	SOURCE:(ARG:0):接触 += 40
+	LOCAL:1 += 20
+ENDIF
+
+IF TALENT:(ARG:0):恋慕
+	SOURCE:(ARG:0):接触 += 20
+	LOCAL:1 += 20
+ENDIF
+
+IF TALENT:(ARG:0):恋人
+	SOURCE:(ARG:0):接触 += 40
+	LOCAL:1 += 20
+ELSEIF CFLAG:(ARG:0):2 > 800
+	SOURCE:(ARG:0):接触 += 20
+ENDIF
+
+;親密に応じた愛情のソース追加
+CALL ADD_SOURCE_AIZYOU(ARG:0, LOCAL:1)
+
+;主導権に応じた優越・受動のソース追加
+;CALL ADD_SOURCE_INITIATIVE(ARG:0, 100)
+
+;行き先に応じた補正
+CALL DATE_EQUIP_BYPLACE(ARG:0)
+
+EXP:(ARG:0):デート経験 += 1
+EXP:(ARG:0):デート経験 += 1
+
+;---------------------------------------------------------
+;ARG:0番に対応する場所名の取得
+;---------------------------------------------------------
+@GET_PLACENAME(ARG:0)
+#FUNCTIONS
+SELECTCASE ARG:0
+	CASE 1
+		IF FLAG:50
+			RETURNF "城下町(宿)"
+		ELSE
+			RETURNF "城下町"
+		ENDIF
+	CASE 2
+		RETURNF "川辺"
+	CASE 3
+		RETURNF "花畑"
+	CASE 4
+		RETURNF "森林"
+	CASE 7
+		RETURNF "温泉"
+ENDSELECT
+RETURNF ""
+
+;---------------------------------------------------------
+;ARG:0番に対応する場所の地面の名称を取得(射精時の地の文に使用)
+;---------------------------------------------------------
+@GET_GROUND_NAME(ARG:0)
+#FUNCTIONS
+SELECTCASE ARG:0
+	CASE 2
+		RETURNF "地面"
+	CASE 3
+		RETURNF "地面"
+	CASE 4
+		RETURNF "地面"
+	CASE 7
+		RETURNF "床"
+	CASE 50
+		RETURNF "床"
+	CASEELSE
+		RETURNF "寝台"
+ENDSELECT
+
+;---------------------------------------------------------
+;場所固有のデート開始時の処理
+;---------------------------------------------------------
+@DATE_START_BYPLACE
+;川辺
+IF TFLAG:54 == 2
+;温泉
+ELSEIF TFLAG:54 == 7
+ENDIF
+
+;---------------------------------------------------------
+;場所固有のデート中の補正
+;---------------------------------------------------------
+@DATE_EQUIP_BYPLACE(ARG:0)
+;城下町
+IF TFLAG:54 == 1
+	TIMES SOURCE:(ARG:0):歓楽, 1.20
+	;ウフフ中
+	IF FLAG:50
+		TIMES SOURCE:(ARG:0):愛情, 1.20
+	ENDIF
+
+;川辺
+ELSEIF TFLAG:54 == 2
+	TIMES SOURCE:(ARG:0):歓楽, 1.07
+	;ウフフ中
+	IF FLAG:50
+		TIMES SOURCE:(ARG:0):露出, 1.20
+		SOURCE:(ARG:0):露出 += 100
+	ELSE
+		;同性
+		IF IS_SAMESEX(MASTER, ARG:0)
+			SOURCE:(ARG:0):露出 += 5
+		;異性
+		ELSE
+			SOURCE:(ARG:0):露出 += 20
+		ENDIF
+	ENDIF
+	;ムードの上昇
+	TFLAG:37 += 1
+
+;花畑
+ELSEIF TFLAG:54 == 3
+	;ウフフ中
+	IF FLAG:50
+		TIMES SOURCE:(ARG:0):露出, 1.30
+		SOURCE:(ARG:0):露出 += 150
+	ENDIF
+	;ムードの上昇
+	TFLAG:37 += RAND:2 + 2
+
+;森林
+ELSEIF TFLAG:54 == 4
+	;ウフフ中
+	IF FLAG:50
+		TIMES SOURCE:(ARG:0):露出, 1.10
+		SOURCE:(ARG:0):露出 += 80
+	ENDIF
+	;ムードの上昇
+	TFLAG:37 += 1
+
+;温泉
+ELSEIF TFLAG:54 == 7
+	;毎ターン汚れリセット
+	STAIN:(ARG:0):0 = 0
+	STAIN:(ARG:0):1 = 0
+	STAIN:(ARG:0):2 = 2
+	STAIN:(ARG:0):3 = 1
+	STAIN:(ARG:0):4 = 8
+	STAIN:(ARG:0):5 = 0
+
+	;ウフフ中
+	IF FLAG:50
+		TIMES SOURCE:(ARG:0):露出, 1.30
+		SOURCE:(ARG:0):露出 += 150
+	ELSE
+		;同性
+		IF IS_SAMESEX(MASTER, ARG:0)
+			SOURCE:(ARG:0):露出 += 30
+		;異性
+		ELSE
+			SOURCE:(ARG:0):露出 += 100
+		ENDIF
+	ENDIF
+ENDIF
+
+;---------------------------------------------------------
+;デート場所によるパラメータ上昇の補正(快感系)
+;SOURCE計算中に呼び出される
+;---------------------------------------------------------
+@UP_DATE_CHECK1(ARG:0)
+;城下町
+IF TFLAG:54 == 1
+;川辺
+ELSEIF TFLAG:54 == 2
+;花畑
+ELSEIF TFLAG:54 == 3
+;森林
+ELSEIF TFLAG:54 == 4
+;温泉
+ELSEIF TFLAG:54 == 7
+ENDIF
+
+;---------------------------------------------------------
+;デート場所によるパラメータ上昇の補正(快感系以外)
+;SOURCE計算中に呼び出される
+;---------------------------------------------------------
+@UP_DATE_CHECK2(ARG:0)
+;城下町
+IF TFLAG:54 == 1
+	IF PALAM:(ARG:0):哀主 >= 0
+		TIMES PALAM:(ARG:0):哀主, 0.90
+	ENDIF
+
+;川辺
+ELSEIF TFLAG:54 == 2
+	IF PALAM:(ARG:0):怒主 >= 0
+		TIMES PALAM:(ARG:0):怒主, 0.90
+	ENDIF
+	IF PALAM:(ARG:0):怖主 >= 0
+		TIMES PALAM:(ARG:0):怖主, 1.10
+	ENDIF
+
+;花畑
+ELSEIF TFLAG:54 == 3
+	IF PALAM:(ARG:0):怒主 >= 0
+		TIMES PALAM:(ARG:0):怒主, 0.90
+	ENDIF
+	IF PALAM:(ARG:0):哀主 >= 0
+		TIMES PALAM:(ARG:0):哀主, 0.85
+	ENDIF
+
+;森林
+ELSEIF TFLAG:54 == 4
+	IF PALAM:(ARG:0):怒主 >= 0
+		TIMES PALAM:(ARG:0):怒主, 0.70
+	ENDIF
+	IF PALAM:(ARG:0):怖主 >= 0
+		TIMES PALAM:(ARG:0):怖主, 1.30
+	ENDIF
+
+;温泉
+ELSEIF TFLAG:54 == 7
+	IF PALAM:(ARG:0):怒主 >= 0
+		TIMES PALAM:(ARG:0):怒主, 0.80
+	ENDIF
+	IF PALAM:(ARG:0):哀主 >= 0
+		TIMES PALAM:(ARG:0):哀主, 0.85
+	ENDIF
+ENDIF
+
+;---------------------------------------------------------
+;デート場所が選択可能かどうかを判定する関数群
+;---------------------------------------------------------
+;温泉
+@DATE_PLACE_ABLE7
+;同性で好感度500以上、または合意
+IF TALENT:(MTAR:0):合意 || (CFLAG:(MTAR:0):2 >= 500 && IS_SAMESEX(MPLY:0, MTAR:0))
+	RETURN 1
+ENDIF
+RETURN 0

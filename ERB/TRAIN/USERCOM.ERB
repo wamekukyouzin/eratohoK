@@ -1,0 +1,898 @@
+﻿;調教コマンドの基幹部分とそれに関連する処理
+
+;-------------------------------------------------
+;実行可能なコマンドの記録
+;-------------------------------------------------
+@CREATE_COMABLE_LIST
+#DIM COM_START
+#DIM COM_END
+
+;子育てモードは500～599
+IF FLAG:12 == 3
+	COM_START = 500
+	COM_END = 599
+;ウフフ中は0～299
+ELSEIF FLAG:50
+	COM_START = 0
+	COM_END = 300
+;非ウフフ中は300～499
+ELSE
+	COM_START = 300
+	COM_END = 500
+ENDIF
+
+;リストのクリア
+VARSET COM_LIST, -1
+
+LOCAL:1 = 0
+;モード別のコマンドを走査
+FOR LOCAL:0, COM_START, COM_END
+	;コマンドの名称が定義されている場合
+	IF TRAINNAME:(LOCAL:0) != ""
+		;実行可能かどうかを判定
+		CALL CHECK_COMABLE(LOCAL:0)
+		IF RESULT
+			;COM_LISTに実行可能コマンドを記録
+			COM_LIST:(LOCAL:1) = LOCAL:0
+		ENDIF
+		;リストの記録位置を一つ進める
+		LOCAL:1 ++
+	ENDIF
+NEXT
+;共通コマンドを走査
+FOR LOCAL:0, 550, 600
+	;コマンドの名称が定義されている場合
+	IF TRAINNAME:(LOCAL:0) != ""
+		;実行可能かどうかを判定
+		CALL CHECK_COMABLE(LOCAL:0)
+		IF RESULT
+			;COM_LISTに実行可能コマンドを記録
+			COM_LIST:(LOCAL:1) = LOCAL:0
+		ENDIF
+		;リストの記録位置を一つ進める
+		LOCAL:1 ++
+	ENDIF
+NEXT
+
+;-------------------------------------------------
+;コマンドARG:0が実行可能ならCOM_LISTに記録する
+;-------------------------------------------------
+@CHECK_COMABLE(ARG:0)
+;TRAINNAMEが定義されていないなら無視
+IF TRAINNAME:(ARG:0) != ""
+	;コマンドフィルタ
+	IF !COM_FILTER:(ARG:0)
+		;実行可否を判定
+		COM_ENABLE = 1
+		TRYCALLFORM COM_ABLE{ARG:0}
+		COM_ENABLE = 0
+		RETURN RESULT
+	ENDIF
+ENDIF
+RETURN 0
+
+;-------------------------------------------------
+;調教コマンドの表示＆実行可能コマンドの記録
+;-------------------------------------------------
+@SHOW_COMMAND
+;実行可能なコマンドの記録
+CALL CREATE_COMABLE_LIST
+
+PRINTL ◇コマンド◇
+
+;逆調教または主人公が行動不能
+IF GROUPMATCH(FLAG:12, 4, 5) || !IS_PLAYABLE(MASTER)
+	PRINTPLAINFORM %TOSTR_SPACE(14)%
+	PRINTBUTTON @"0[なすがまま]", 0
+	PRINTL 
+
+	RETURN
+ENDIF
+
+;非ウフフ中で最終ターンならコマンド種別のタブを「特殊」で固定
+IF !FLAG:50 && TFLAG:55 == TFLAG:56
+	TFLAG:7 = 6
+ENDIF
+
+;プレイヤー・ターゲットの一覧を文字列として記録
+LOCALS:0 = 
+LOCALS:1 = 
+LOCALS:2 = 
+FOR LOCAL:0, 0, MPLY_NUM
+	IF LOCAL:0 >= 1
+		LOCALS:0 += @"・%ANAME(MPLY:(LOCAL:0))%"
+	ELSE
+		LOCALS:0 += @"%ANAME(MPLY:(LOCAL:0))%"
+	ENDIF
+NEXT
+IF LOCALS:0 == ""
+	LOCALS:0 = ----
+ENDIF
+FOR LOCAL:0, 0, MTAR_NUM
+	IF LOCAL:0 >= 1
+		LOCALS:1 += @"・%ANAME(MTAR:(LOCAL:0))%"
+	ELSE
+		LOCALS:1 += @"%ANAME(MTAR:(LOCAL:0))%"
+	ENDIF
+NEXT
+IF LOCALS:1 == ""
+	LOCALS:1 = ----
+ENDIF
+
+IF FLAG:50 && (TFLAG:7 != 5 || IS_EQUIP_PLAYER(MPLY:0, 200)) && TFLAG:7 != 6
+	PRINT     
+	IF IS_MPLY(MASTER)
+		IF FLAG:10 < 0 || IS_MPLY(FLAG:10)
+			PRINTFORML 「%LOCALS:0%」が「%LOCALS:1%」に――
+		ELSEIF IS_MTAR(FLAG:10)
+			PRINTFORML 「%LOCALS:0%」が「%LOCALS:1%」の命令で――
+		ELSE
+			PRINTFORML 「%ANAME(FLAG:10)%」の命令で「%LOCALS:0%」が「%LOCALS:1%」に――
+		ENDIF
+	ELSEIF IS_MTAR(MASTER)
+		IF FLAG:10 < 0 || IS_MTAR(FLAG:10)
+			PRINTFORML 「%LOCALS:1%」が「%LOCALS:0%」に命令して――
+		ELSEIF IS_MPLY(FLAG:10)
+			PRINTFORML 「%LOCALS:1%」が「%LOCALS:0%」に――
+		ELSE
+			PRINTFORML 「%ANAME(FLAG:10)%」の命令で「%LOCALS:0%」が「%LOCALS:1%」に――
+		ENDIF
+	ELSE
+		IF FLAG:10 < 0 || IS_MPLY(FLAG:10)
+			PRINTFORML 「%LOCALS:0%」が「%LOCALS:1%」に――
+		ELSEIF IS_MTAR(FLAG:10)
+			PRINTFORML 「%LOCALS:0%」が「%LOCALS:1%」の命令で――
+		ELSE
+			PRINTFORML 「%ANAME(FLAG:10)%」の命令で「%LOCALS:0%」が「%LOCALS:1%」に――
+		ENDIF
+	ENDIF
+ENDIF
+
+LOCAL:2 = 0
+FOR LOCAL:0, 0, 1000
+	;LOCAL:1に実行可能なコマンドの番号を取得
+	LOCAL:1 = COM_LIST:(LOCAL:0)
+
+	IF LOCAL:1 >= 0
+		;コマンドがどのタブに含まれるかを取得
+		RESULT = 0
+		TRYCALLFORM COM_CATEGORY{LOCAL:1}
+
+		;現在選択されているタブに対応するコマンドのみを表示
+		IF RESULT == TFLAG:7
+			;コマンド名称の取得
+			FOR LOCAL:3, 0, 6
+				RESULTS:(LOCAL:3) = 
+			NEXT
+			TRYCALLFORM COM_NAME{LOCAL:1}
+
+			;改行処理
+			IF LOCAL:2 >= 1 && LOCAL:2 % 2 == 0
+				PRINTL 
+			ENDIF
+			LOCAL:2 ++
+
+			;主導権に応じて表示するメッセージを変更
+			IF IS_MPLY(MASTER)
+				IF FLAG:10 < 0 || IS_MPLY(FLAG:10)
+					LOCALS:1 = %RESULTS:0%
+				ELSEIF IS_MTAR(FLAG:10)
+					LOCALS:1 = %RESULTS:1%
+				ELSE
+					LOCALS:1 = %RESULTS:0%
+				ENDIF
+			ELSEIF IS_MTAR(MASTER)
+				IF FLAG:10 < 0 || IS_MTAR(FLAG:10)
+					LOCALS:1 = %RESULTS:2%
+				ELSEIF IS_MPLY(FLAG:10)
+					LOCALS:1 = %RESULTS:3%
+				ELSE
+					LOCALS:1 = %RESULTS:0%
+				ENDIF
+			ELSE
+				IF FLAG:10 < 0 || IS_MPLY(FLAG:10)
+					LOCALS:1 = %RESULTS:0%
+				ELSEIF IS_MTAR(FLAG:10)
+					LOCALS:1 = %RESULTS:1%
+				ELSE
+					LOCALS:1 = %RESULTS:0%
+				ENDIF
+			ENDIF
+
+			;コマンドの継続タイプを取得
+			RESULT = 0
+			TRYCALLFORM COM_IS_EQUIP{LOCAL:1}
+			LOCAL:4 = RESULT
+
+			IF LOCALS:1 != ""
+				PRINTPLAINFORM %LOCALS:1, 28, RIGHT% 
+				IF LOCAL:4 == 2
+					SETCOLOR 0x606060
+					PRINTPLAINFORM    [----]
+					RESETCOLOR
+				ELSEIF FLAG:12 == 3 || TFLAG:7 == 6
+					PRINTBUTTON @"{LOCAL:0, 3}[実行]", LOCAL:0
+				ELSE
+					PRINTBUTTON @"{LOCAL:0, 3}[単発]", LOCAL:0
+				ENDIF
+				IF !(FLAG:12 == 3 || TFLAG:7 == 6)
+					PRINTPLAIN  
+					IF LOCAL:4 == 0
+						SETCOLOR 0x606060
+						PRINTPLAINFORM    [----]
+						RESETCOLOR
+					ELSE
+						PRINTBUTTON @"{LOCAL:0 + 200, 3}[継続]", LOCAL:0 + 200
+					ENDIF
+				ENDIF
+			ELSE
+				SETCOLOR 0x606060
+				PRINTPLAINFORM %TOSTR_REPEAT("-", 10), 28, RIGHT%    [----]    [----]
+				RESETCOLOR
+			ENDIF
+		ENDIF
+	ENDIF
+NEXT
+PRINTL 
+
+CUSTOMDRAWLINE -
+PRINTPLAIN             
+
+IF FLAG:50
+	CALL PRINT_SELECT_BUTTON("800{愛撫}", 800, TFLAG:7 == 0)
+	PRINTPLAIN  
+	CALL PRINT_SELECT_BUTTON("801{性交}", 801, TFLAG:7 == 1)
+	PRINTPLAIN  
+	CALL PRINT_SELECT_BUTTON("802{道具}", 802, TFLAG:7 == 2)
+	PRINTPLAIN  
+	CALL PRINT_SELECT_BUTTON("803{ＳＭ}", 803, TFLAG:7 == 3)
+	PRINTPLAIN  
+	CALL PRINT_SELECT_BUTTON("804{羞恥}", 804, TFLAG:7 == 4)
+	PRINTPLAIN  
+	CALL PRINT_SELECT_BUTTON("805{触手}", 805, TFLAG:7 == 5)
+	PRINTPLAIN  
+	CALL PRINT_SELECT_BUTTON("806{特殊}", 806, TFLAG:7 == 6)
+ELSEIF TFLAG:55 == TFLAG:56
+	CALL PRINT_SELECT_BUTTON("806{特殊}", 806, TFLAG:7 == 6)
+	PRINTPLAIN  
+ELSEIF FLAG:12 == 0
+	CALL PRINT_SELECT_BUTTON("800{交流}", 800, TFLAG:7 == 0)
+	PRINTPLAIN  
+	CALL PRINT_SELECT_BUTTON("801{訓練／内政}", 801, TFLAG:7 == 1)
+	PRINTPLAIN  
+	CALL PRINT_SELECT_BUTTON("806{特殊}", 806, TFLAG:7 == 6)
+	PRINTPLAIN  
+ELSEIF FLAG:12 == 6
+	CALL PRINT_SELECT_BUTTON("800{交流}", 800, TFLAG:7 == 0)
+	PRINTPLAIN  
+	CALL PRINT_SELECT_BUTTON("806{特殊}", 806, TFLAG:7 == 6)
+	PRINTPLAIN  
+ENDIF
+PRINTL 
+
+;-------------------------------------------------
+;調教画面における「対象キャラの選択」欄の表示
+;-------------------------------------------------
+@SHOW_MTAR_SELECTOR
+LOCAL:1 = 0
+LOCAL:2 = 0
+FOR LOCAL:0, 0, CHARANUM
+	IF CFLAG:(LOCAL:0):6 || LOCAL:0 == MASTER
+		;捕虜調教のメインターゲットは後回し
+		IF FLAG:12 == 2 && LOCAL:0 == FLAG:19
+			LOCAL:2 = LOCAL:1
+		ELSE
+			CALL SHOW_MTAR_INFO(LOCAL:0, LOCAL:1)
+		ENDIF
+		LOCAL:1 ++
+	ENDIF
+NEXT
+
+IF FLAG:12 == 2
+	PRINTFORML %TOSTR_SPACE(7)%%TOSTR_REPEAT("-", 85)%
+	;捕虜調教のメインターゲットについて処理
+	FOR LOCAL:0, 0, CHARANUM
+		IF LOCAL:0 == FLAG:19
+			CALL SHOW_MTAR_INFO(LOCAL:0, LOCAL:2)
+		ENDIF
+	NEXT
+ENDIF
+
+;-------------------------------------------------
+;調教画面におけるキャラARG:0の情報表示
+;-------------------------------------------------
+@SHOW_MTAR_INFO(ARG:0, ARG:1)
+SETCOLOR COLOR_CAUTION
+IF TCVAR:(ARG:0):53 == 1
+	IF TCVAR:(ARG:0):51
+		PRINT <眠/疲> 
+	ELSE
+		PRINT <睡眠> 
+	ENDIF
+ELSEIF TCVAR:(ARG:0):51
+	IF TCVAR:(ARG:0):52
+		PRINT <疲/失>
+	ELSE
+		PRINT <疲労> 
+	ENDIF
+ELSEIF TCVAR:(ARG:0):52
+	PRINT <失神> 
+ELSE
+	PRINT        
+ENDIF
+RESETCOLOR
+
+LOCALS:0 = [＋]
+IF IS_MPLY(ARG:0)
+	LOCALS:0 = [－]
+	SETCOLOR 0xFF8000
+ENDIF
+
+LOCALS:1 = [＋]
+IF IS_MTAR(ARG:0)
+	LOCALS:1 = [－]
+	SETCOLOR 0x00FFFF
+ENDIF
+
+IF !GROUPMATCH(TCVAR:(ARG:0):53, 0, 1)
+	SETCOLOR 0x606060
+ENDIF
+
+PRINTFORM %ANAME(ARG:0), 16, RIGHT%
+RESETCOLOR
+
+IF !GROUPMATCH(FLAG:12, 4, 5)
+	PRINT  
+	IF (FLAG:12 == 2 && ARG:0 == FLAG:19) || TCVAR:(ARG:0):51 || TCVAR:(ARG:0):52 || TCVAR:(ARG:0):53
+		PRINTPLAIN [×]
+	ELSEIF FLAG:10 == ARG:0
+		PRINTBUTTON "[★]", ARG:1 + 2100
+	ELSE
+		PRINTBUTTON "[  ]", ARG:1 + 2100
+	ENDIF
+	PRINT  
+
+	IF TFLAG:44 >= 2
+		IF !GROUPMATCH(TCVAR:(ARG:0):53, 0, 1)
+			SETCOLOR 0x606060
+			PRINTPLAINFORM %LOCALS:0%[⇔]%LOCALS:1%[⇔]
+			RESETCOLOR
+		ELSE
+			PRINTBUTTON LOCALS:0, ARG:1 + 2000
+			PRINTBUTTON "[⇔]", ARG:1 + 2020
+			PRINTBUTTON LOCALS:1, ARG:1 + 2040
+			PRINTBUTTON "[⇔]", ARG:1 + 2060
+		ENDIF
+	ELSE
+		IF IS_MPLY(ARG:0)
+			PRINT <実行>
+		ELSEIF IS_MTAR(ARG:0)
+			PRINT <対象>
+		ENDIF
+	ENDIF
+ENDIF
+PRINTBUTTON "[情報]", ARG:1 + 2080
+CALL PRINT_SHORT_PALAM1(ARG:0, 0, "Ｃ")
+CALL PRINT_SHORT_PALAM1(ARG:0, 1, "Ｖ", VAGINA(ARG:0))
+CALL PRINT_SHORT_PALAM1(ARG:0, 2, "Ａ")
+CALL PRINT_SHORT_PALAM1(ARG:0, 3, "Ｂ")
+CALL PRINT_SHORT_PALAM1(ARG:0, 4, "Ｍ")
+CALL PRINT_SHORT_PALAM1(ARG:0, 5, "精", PENIS(ARG:0))
+CALL PRINT_SHORT_PALAM1(ARG:0, 6, "乳", TALENT:(ARG:0):母乳体質)
+CALL PRINT_SHORT_PALAM2(ARG:0, 40, "潤")
+
+;マスター以外
+IF ARG:0 != MASTER && NO:(ARG:0) <= 999
+	CALL PRINT_SHORT_PALAM2(ARG:0, 20, "欲")
+	CALL PRINT_SHORT_EMOTION(ARG:0)
+ELSE
+	PRINT ---  --  
+ENDIF
+;「会いに行く」のとき限定
+IF FLAG:12 == 0
+	CALL PRINT_SHORT_DRUNK(ARG:0)
+	;非ウフフ時のみ
+	IF !FLAG:50
+		CALL PRINT_SHORT_BOOK(ARG:0)
+	ENDIF
+ENDIF
+;ウフフ中のみ
+IF FLAG:50
+	CALL PRINT_SHORT_BASE1(ARG:0, 0, "体")
+	CALL PRINT_SHORT_BASE2(ARG:0, 1, "気")
+	PRINT  
+	LOCALS:0 = 
+	IF TCVAR:(ARG:0):61
+		LOCALS:0 += "竿"
+	ENDIF
+	IF TCVAR:(ARG:0):62
+		LOCALS:0 += "尿"
+	ENDIF
+	IF TCVAR:(ARG:0):60
+		LOCALS:0 += "薬"
+	ENDIF
+	IF TCVAR:(ARG:0):65
+		LOCALS:0 += "排"
+	ENDIF
+	IF TCVAR:(ARG:0):66
+		LOCALS:0 += "絶"
+	ENDIF
+	IF STRLENS(LOCALS:0) >= 5
+		SUBSTRING LOCALS:0, 0, 4
+		LOCALS:0 = %RESULTS:0%\+
+	ENDIF
+	PRINTFORM %LOCALS:0%
+ENDIF
+;「捕虜の調教」のとき限定 メインターゲットに精神力ゲージを表示
+IF FLAG:12 == 2 && ARG:0 == FLAG:19
+	PRINTL 
+	PRINT                     精神力 
+	CALL PRINT_SHORT_MIND(ARG:0)
+ENDIF
+PRINTL 
+
+;-------------------------------------------------
+;短縮版パラメータ情報の表示(快感系)
+;ARG:0はキャラ番号、ARG:1はPALAM番号、ARGS:2は短縮名、ARG:3が0ならグレー表示
+;-------------------------------------------------
+@PRINT_SHORT_PALAM1(ARG:0, ARG:1, ARGS:2, ARG:3 = 1)
+IF !ARG:3
+	SETCOLOR 0x404040
+ENDIF
+PRINTFORM %ARGS:2%
+LOCAL:0 = GET_PALAMLV(PALAM:(ARG:0):(ARG:1))
+SETCOLOR 0xFF00FF
+FOR LOCAL:1, 0, 2
+	IF LOCAL:0 >= LOCAL:1 + 5
+		PRINTFORM %UNICODE(0x2665)%
+	ELSEIF LOCAL:0 >= LOCAL:1 + 3
+		PRINTFORM %UNICODE(0x2661)%
+	ELSEIF LOCAL:0 >= LOCAL:1 + 1
+		PRINT -
+	ELSE
+		PRINT  
+	ENDIF
+NEXT
+RESETCOLOR
+
+;-------------------------------------------------
+;短縮版パラメータ情報の表示(快感系以外)
+;ARG:0はキャラ番号、ARG:1はPALAM番号、ARGS:2は短縮名
+;-------------------------------------------------
+@PRINT_SHORT_PALAM2(ARG:0, ARG:1, ARGS:2)
+PRINTFORM %ARGS:2%
+LOCAL:0 = GET_PALAMLV(PALAM:(ARG:0):(ARG:1))
+IF LOCAL:0 >= 20
+	SETCOLOR 0xFF8000
+ELSEIF LOCAL:0 >= 10
+	SETCOLOR COLOR_CAUTION
+ELSE
+	SETCOLOR 0x00FF00
+ENDIF
+PRINTFORM {LOCAL:0, 2, LEFT}
+RESETCOLOR 
+
+;-------------------------------------------------
+;短縮版パラメータ情報の表示(感情)
+;ARG:0はキャラ番号
+;-------------------------------------------------
+@PRINT_SHORT_EMOTION(ARG:0)
+;外来に陥落したキャラによる逆調教の場合、
+IF FLAG:12 == 4
+	SETCOLOR 0xA000A0
+	PRINTFORM  堕  
+	RESETCOLOR
+ELSE
+	SETCOLOR GETCOLOR_EMOTION(ARG:0)
+	PRINTFORM  %TOSTR_EMOTION(ARG:0)%  
+	RESETCOLOR
+ENDIF
+
+;-------------------------------------------------
+;短縮版パラメータ情報の表示(酔い)
+;ARG:0はキャラ番号
+;-------------------------------------------------
+@PRINT_SHORT_DRUNK(ARG:0)
+PRINT  
+IF PALAM:(ARG:0):酔い <= 0
+	PRINT 平
+ELSEIF PALAM:(ARG:0):酔い <= 500
+	SETCOLOR 0xA08080
+	PRINT 微
+ELSEIF PALAM:(ARG:0):酔い <= 1500
+	SETCOLOR 0xD0A0A0
+	PRINT 浅
+ELSEIF PALAM:(ARG:0):酔い <= 3000
+	SETCOLOR 0xFFC0C0
+	PRINT 中
+ELSEIF PALAM:(ARG:0):酔い <= 6000
+	SETCOLOR 0xD08000
+	PRINT 深
+ELSE
+	SETCOLOR 0x804000
+	PRINT 泥
+ENDIF
+RESETCOLOR
+PRINT   
+
+;-------------------------------------------------
+;短縮版パラメータ情報の表示(本の効果)
+;ARG:0はキャラ番号
+;-------------------------------------------------
+@PRINT_SHORT_BOOK(ARG:0)
+SETCOLOR 0xFF6000
+SELECTCASE CFLAG:(ARG:0):46
+	CASE 1
+		PRINT 武＋
+	CASE 2
+		PRINT 知＋
+	CASE 3
+		PRINT 政＋
+	CASE 4
+		PRINT 歌＋
+	CASE 5
+		PRINT 料＋
+ENDSELECT
+RESETCOLOR
+
+;-------------------------------------------------
+;短縮版の精神力情報の表示
+;ARG:0はキャラ番号
+;-------------------------------------------------
+@PRINT_SHORT_MIND(ARG:0)
+IF MAXBASE:(ARG:0):精神力 > 0
+	LOCAL:0 = BASE:(ARG:0):精神力 * 100 / MAXBASE:(ARG:0):精神力
+ELSE
+	LOCAL:0 = 100
+ENDIF
+
+;CALL PRINT_SLIDER(-1000, MAXBASE:(LOCAL:0):精神力, BASE:(LOCAL:0):精神力, 44, 0x4128cc, 0xcb1267)
+
+IF LOCAL:0 < 0
+	LOCAL:1 = 0xA0A0A0
+ELSEIF LOCAL:0 <= 50
+	LOCAL:1 = COLOR_CAUTION
+ELSEIF LOCAL:0 <= 75
+	LOCAL:1 = 0x00FF00
+ELSE
+	LOCAL:1 = 0x00FFFF
+ENDIF
+
+CALL PRINT_COLORBAR(BASE:(ARG:0):精神力, MAXBASE:(ARG:0):精神力, 43, UNICODE(0x2585), UNICODE(0x2585), LOCAL:1, 0x404040)
+PRINT  
+
+SETCOLOR LOCAL:1
+
+IF LOCAL:0 < 0
+	PRINT 絶望
+ELSEIF LOCAL:0 <= 50
+	PRINT 屈服
+ELSEIF LOCAL:0 <= 75
+	PRINT 消耗
+ELSE
+	PRINT 平常
+ENDIF
+RESETCOLOR
+PRINT  
+
+;-------------------------------------------------
+;短縮版BASE情報の表示(体力)
+;ARG:0はキャラ番号、ARG:1はBASE番号、ARGS:2は短縮名
+;-------------------------------------------------
+@PRINT_SHORT_BASE1(ARG:0, ARG:1, ARGS:2)
+;PRINTFORM %ARGS:2%:
+PRINT  
+LOCAL:0 = MAX((BASE:(ARG:0):(ARG:1) - 500),1) * 100 / MAX((MAXBASE:(ARG:0):(ARG:1) - 500),1)
+IF LOCAL:0 >= 70
+	SETCOLOR 0x8080FF
+	PRINT 多 
+ELSEIF LOCAL:0 >= 30
+	SETCOLOR 0x40FF40
+	PRINT 普 
+ELSEIF BASE:(ARG:0):(ARG:1) >= 500
+	SETCOLOR 0xD0D000
+	PRINT 少 
+ELSEIF BASE:(ARG:0):(ARG:1) > 0
+	SETCOLOR 0xD08000
+	PRINT 疲 
+ELSE
+	SETCOLOR 0x808080
+	PRINT 無 
+ENDIF
+RESETCOLOR
+PRINT  
+
+;-------------------------------------------------
+;短縮版BASE情報の表示(気力)
+;ARG:0はキャラ番号、ARG:1はBASE番号、ARGS:2は短縮名
+;-------------------------------------------------
+@PRINT_SHORT_BASE2(ARG:0, ARG:1, ARGS:2)
+;PRINTFORM %ARGS:2%:
+PRINT  
+LOCAL:0 = (BASE:(ARG:0):(ARG:1) - 300) * 100 / (MAXBASE:(ARG:0):(ARG:1) - 300)
+IF LOCAL:0 >= 70
+	SETCOLOR 0x8080FF
+	PRINT 多
+ELSEIF LOCAL:0 >= 30
+	SETCOLOR 0x40FF40
+	PRINT 普
+ELSEIF BASE:(ARG:0):(ARG:1) >= 300
+	SETCOLOR 0xD0D000
+	PRINT 少
+ELSEIF BASE:(ARG:0):(ARG:1) > 0
+	SETCOLOR 0xD08000
+	PRINT 朦
+ELSE
+	SETCOLOR 0x808080
+	PRINT 失
+ENDIF
+RESETCOLOR
+PRINT  
+
+;---------------------------------------------------------
+;実行判定を呼び出してコマンドごとにチェックする処理
+;TRYCCALLFORMを使うので式中関数にはできない
+;---------------------------------------------------------
+@PRE_COMORDER, ARG
+;[323]髪を梳いて貰うコマンドだけは途中でINPUTあるので処理しない。
+SIF ARG == 323
+	RETURN 0
+
+TFLAG:46 = -10000
+TRYCCALLFORM COM_ORDER_{ARG}
+	;実行できない場合
+	IF TFLAG:46 < TFLAG:47
+		RETURN 1
+	;実行できる場合
+	ELSE
+		RETURN 0
+	ENDIF
+CATCH
+	;元々実行判定のないコマンドの場合
+	RETURN 0
+ENDCATCH
+
+;-------------------------------------------------
+;独自コマンドの表示処理
+;-------------------------------------------------
+@SHOW_USERCOM
+
+;-------------------------------------------------
+;独自コマンドの入力処理
+;-------------------------------------------------
+@USERCOM
+;プレイヤー追加・解除
+IF RESULT >= 2000 && RESULT < 2020 && TFLAG:44 >= 2
+	LOCAL:1 = 0
+	FOR LOCAL:0, 0, CHARANUM
+		IF CFLAG:(LOCAL:0):6 || LOCAL:0 == MASTER
+ 			IF RESULT - 2000 == LOCAL:1 && !TCVAR:(LOCAL:0):53
+				IF IS_MPLY(LOCAL:0)
+					CALL DEL_MPLY(LOCAL:0)
+				ELSE
+					CALL ADD_MPLY(LOCAL:0)
+					CALL DEL_MTAR(LOCAL:0)
+				ENDIF
+				RETURN 1
+			ENDIF
+			LOCAL:1 ++
+		ENDIF
+	NEXT
+	RETURN 0
+
+;プレイヤー切り替え
+ELSEIF RESULT >= 2020 && RESULT < 2040 && TFLAG:44 >= 2
+	LOCAL:1 = 0
+	FOR LOCAL:0, 0, CHARANUM
+		IF CFLAG:(LOCAL:0):6 || LOCAL:0 == MASTER
+			IF RESULT - 2020 == LOCAL:1 && !TCVAR:(LOCAL:0):53
+				CALL CLEAR_MPLY
+				CALL ADD_MPLY(LOCAL:0)
+				CALL DEL_MTAR(LOCAL:0)
+				RETURN 1
+			ENDIF
+			LOCAL:1 ++
+		ENDIF
+	NEXT
+	RETURN 0
+
+;ターゲット追加・解除
+ELSEIF RESULT >= 2040 && RESULT < 2060 && TFLAG:44 >= 2
+	LOCAL:1 = 0
+	FOR LOCAL:0, 0, CHARANUM
+		IF CFLAG:(LOCAL:0):6 || LOCAL:0 == MASTER
+			IF RESULT - 2040 == LOCAL:1 && !TCVAR:(LOCAL:0):53
+				IF IS_MTAR(LOCAL:0)
+					CALL DEL_MTAR(LOCAL:0)
+				ELSE
+					CALL ADD_MTAR(LOCAL:0)
+					CALL DEL_MPLY(LOCAL:0)
+				ENDIF
+				RETURN 1
+			ENDIF
+			LOCAL:1 ++
+		ENDIF
+	NEXT
+	RETURN 0
+
+;ターゲット切り替え
+ELSEIF RESULT >= 2060 && RESULT < 2080 && TFLAG:44 >= 2
+	LOCAL:1 = 0
+	FOR LOCAL:0, 0, CHARANUM
+		IF CFLAG:(LOCAL:0):6 || LOCAL:0 == MASTER
+			IF RESULT - 2060 == LOCAL:1 && !TCVAR:(LOCAL:0):53
+				CALL CLEAR_MTAR
+				CALL ADD_MTAR(LOCAL:0)
+				CALL DEL_MPLY(LOCAL:0)
+				RETURN 1
+			ENDIF
+			LOCAL:1 ++
+		ENDIF
+	NEXT
+	RETURN 0
+
+;情報
+ELSEIF RESULT >= 2080 && RESULT < 2100
+	LOCAL:1 = 0
+	FOR LOCAL:0, 0, CHARANUM
+		IF CFLAG:(LOCAL:0):6 || LOCAL:0 == MASTER
+			IF RESULT - 2080 == LOCAL:1
+				;情報表示モードのリセットは行わない
+				$SHOW_LOOP_INFO
+
+				;主人公なら性癖設定画面の表示を禁止
+				IF LOCAL:0 == MASTER && FLAG:11 == 1
+					FLAG:11 = 0
+				ENDIF
+
+				DRAWLINE
+				CALL SHOW_INFO(LOCAL:0)
+				DRAWLINE
+				CALL SELECTED_SHOWDATA(LOCAL:0)
+				IF RESULT == 1
+					GOTO SHOW_LOOP_INFO
+				ENDIF
+				RETURN 1
+			ENDIF
+			LOCAL:1 ++
+		ENDIF
+	NEXT
+	RETURN 0
+
+;主導権切り替え
+ELSEIF RESULT >= 2100 && RESULT < 2120
+	LOCAL:1 = 0
+	LOCAL:2 = RESULT - 2100
+	FOR LOCAL:0, 0, CHARANUM
+		IF CFLAG:(LOCAL:0):6 || LOCAL:0 == MASTER
+			IF LOCAL:1 == LOCAL:2 && !TCVAR:(LOCAL:0):51 && !TCVAR:(LOCAL:0):52 && !TCVAR:(LOCAL:0):53
+				;捕虜調教のメインターゲットは主導権を持てない
+				IF !(FLAG:12 == 2 && LOCAL:0 == FLAG:19)
+					IF FLAG:10 == LOCAL:0
+						FLAG:10 = -1
+					ELSE
+						FLAG:10 = LOCAL:0
+					ENDIF
+					;実行可能なコマンドの記録
+					CALL CREATE_COMABLE_LIST
+					RETURN 1
+				ENDIF
+			ENDIF
+			LOCAL:1 ++
+		ENDIF
+	NEXT
+	RETURN 0
+
+;行動側反転
+ELSEIF RESULT == 900 && GROUPMATCH(FLAG:12, 0, 1, 2, 6)
+	FOR LOCAL:0, 0, MPLY_NUM
+		LOCAL:(LOCAL:0 + 20) = MPLY:(LOCAL:0)
+	NEXT
+	FOR LOCAL:0, 0, MTAR_NUM
+		LOCAL:(LOCAL:0 + 40) = MTAR:(LOCAL:0)
+	NEXT
+	LOCAL:10 = MPLY_NUM
+	LOCAL:11 = MTAR_NUM
+	CALL CLEAR_MPLY
+	CALL CLEAR_MTAR
+	FOR LOCAL:0, 0, LOCAL:10
+		CALL ADD_MTAR(LOCAL:(LOCAL:0 + 20))
+	NEXT
+	FOR LOCAL:0, 0, LOCAL:11
+		CALL ADD_MPLY(LOCAL:(LOCAL:0 + 40))
+	NEXT
+	RETURN 1
+
+;EQUIP解除
+ELSEIF RESULT >= 1000 && RESULT <= 1049
+	REDRAW 0
+	CLEARLINE 1
+	REDRAW 1
+	CALL RELEASE_EQUIP(RESULT - 1000)
+
+;行動終了
+ELSEIF RESULT == 999
+	;逆調教・主人公が行動不能のときは自分の意志で終了できない
+	IF GROUPMATCH(FLAG:12, 4, 5) || !IS_PLAYABLE(MASTER)
+		RETURN 0
+	;捕虜調教
+	ELSEIF FLAG:12 == 2
+		PRINTFORMW （調教を終了します）
+		BEGIN AFTERTRAIN
+	;ウフフ中
+	ELSEIF FLAG:50
+		PRINTFORMW （夜伽を終了します）
+		BEGIN AFTERTRAIN
+	ELSE
+		CALL TRAIN_EXIT(1)
+	ENDIF
+	RETURN 1
+
+;★デバッグ
+ELSEIF RESULT >= 90000 && RESULT < 90099
+	LOCAL:0 = RESULT - 90000
+	IF SOURCENAME:(LOCAL:0) != ""
+		PRINTFORML %SOURCENAME:(LOCAL:0)%のソースを与えて空のコマンドを実行します
+		PRINTFORML ソース量を指定して下さい(1～10000)
+		INPUT
+		LOCAL:1 = RESULT
+		IF LOCAL:1 > 0 && LOCAL:1 <= 10000
+			DOTRAIN 900
+			SOURCE:(MTAR:0):(LOCAL:0) += LOCAL:1
+		ENDIF
+	ENDIF
+
+;タブ設定
+ELSEIF RESULT >= 800 && RESULT <= 806
+	IF FLAG:50 || (FLAG:12 == 0 && GROUPMATCH(RESULT, 800, 801, 806)) || (FLAG:12 == 3 && GROUPMATCH(RESULT, 800)) || (FLAG:12 == 6 && GROUPMATCH(RESULT, 800, 806))
+		TFLAG:7 = RESULT - 800
+	ENDIF
+
+;逆調教・行動不能時の「なすがまま」
+ELSEIF RESULT == 0 && (GROUPMATCH(FLAG:12, 4, 5) || !IS_PLAYABLE(MASTER))
+	;おまかせフラグON
+	TFLAG:0 = 1
+	TFLAG:45 = 1
+	CALL COM_AUTOSELECT
+
+;コマンド及び独自ユーティリティ実行
+ELSEIF RESULT >= 0 && RESULT < 800
+	LOCAL:0 = -1
+	;主人公主導、単発
+	IF RESULT < 200
+		LOCAL:0 = RESULT
+		TFLAG:1 = 1
+	;	TFLAG:45 = 0
+	;主人公主導、継続
+	ELSEIF RESULT < 400
+		LOCAL:0 = RESULT - 200
+		TFLAG:1 = 0
+	;	TFLAG:45 = 0
+	;相手主導、単発
+	;ELSEIF RESULT < 600 && GROUPMATCH(FLAG:12, 0, 1, 6)
+	;	LOCAL:0 = RESULT - 400
+	;	TFLAG:1 = 1
+	;	TFLAG:45 = 1
+	;相手主導、継続
+	;ELSEIF RESULT < 800 && GROUPMATCH(FLAG:12, 0, 1, 6)
+	;	LOCAL:0 = RESULT - 600
+	;	TFLAG:1 = 0
+	;	TFLAG:45 = 1
+	ENDIF
+
+	IF LOCAL:0 >= 0 && COM_LIST:(LOCAL:0) >= 0
+		;「なすがまま」「おまかせする」
+		IF GROUPMATCH(COM_LIST:(LOCAL:0), 290, 291)
+			;おまかせフラグON
+			TFLAG:0 = 1
+			TFLAG:45 = 1
+			CALL COM_AUTOSELECT
+		ELSE
+			;おまかせフラグOFF
+			TFLAG:0 = 0
+			DOTRAIN COM_LIST:(LOCAL:0)
+		ENDIF
+	ENDIF
+ENDIF
+
+RETURN 0

@@ -1,0 +1,373 @@
+﻿;-------------------------------------------------
+;時間経過イベント
+;-------------------------------------------------
+@EVENTTURNEND
+#PRI
+;拠点フェイズ
+IF TIME == 0
+	IF SHOP_TIME >= CALC_SHOP_TIME() || CFLAG:MASTER:9
+		CALL TURNEND_LIFE
+	ELSE
+		IF FLAG:料理長
+			LOCAL = FLAG:料理長
+			IF LOCAL != 0 && !CFLAG:(LOCAL):9 && CFLAG:(LOCAL):1 == CFLAG:MASTER:1
+				BASE:MASTER:体力 = MIN(BASE:MASTER:体力 + (ABL:LOCAL:料理 / 10 * 100 + RAND:100), MAXBASE:MASTER:体力)
+				BASE:MASTER:気力 = MIN(BASE:MASTER:気力 + (ABL:LOCAL:料理 / 10 * 100 + RAND:100), MAXBASE:MASTER:気力)
+				PRINTFORML %ANAME(LOCAL)%の料理で、体力と気力が回復しました
+			ELSE
+				SETCOLOR COLOR_CAUTION
+				PRINTFORML 料理長が国内にいない（捕虜になっている、国外に追放された）ため、その恩恵をうけられません
+				PRINTFORMW !料理長を解除しました!
+				RESETCOLOR
+				FLAG:料理長 = 0
+			ENDIF
+		ENDIF
+		BEGIN SHOP
+	ENDIF
+;戦略フェイズ
+ELSE
+	CALL TURNEND_POLITICS
+ENDIF
+
+;強制逆調教フラグが立っているなら即時調教モードに入る
+;タチ役をCONFIG:88で設定
+IF FLAG:31
+	FLAG:31 = 0
+	CFLAG:(CONFIG:88):6 = 1
+	FLAG:50 = 1
+	FLAG:12 = 5
+	ITEM:A_鞭 = 1
+	ITEM:A_縄 = 1
+	ITEM:A_バイブ = 1
+	ITEM:A_アナルバイブ = 1
+	ITEM:A_ペニスバンド = 1
+	CALL START_TRAIN_COMMON
+	BEGIN TRAIN
+ELSE
+	;一応謎勢力にあなたが存在することが無いようにおまじない
+	SIF CFLAG:MASTER:1 == 0 && CFLAG:MASTER:9 == 0
+		TIME = 1
+	BEGIN SHOP
+ENDIF
+
+;-------------------------------------------------
+;拠点フェイズ終了時の処理
+;-------------------------------------------------
+@TURNEND_LIFE
+SHOP_TIME = 0
+SHOP_WORK_COUNT = 0
+;夜に起こるイベント(夜這いなど)
+CALL EVENT_NIGHT
+
+;デイリーイベント
+CALL EVENT_DAILY
+
+IF CONFIG:7 == 0
+	;捕虜の扱いを設定
+	CALL SETSTATE_PRISONER
+ELSE
+	;捕虜の人数をカウント
+	LOCAL:5 = 0
+	FOR LOCAL:0, 0, CHARANUM
+		IF LOCAL:0 != MASTER && CFLAG:(LOCAL:0):9 != 0 && CFLAG:(LOCAL:0):9 == CFLAG:MASTER:1 && CFLAG:(LOCAL:0):29 == 0
+			LOCAL:5 ++
+		ENDIF
+	NEXT
+	;捕虜が一人でもいればラインを引く
+	IF LOCAL:5 >= 1
+		DRAWLINE
+	ENDIF
+ENDIF
+
+;説得イベント
+CALL EVENT_SETTOKU
+
+;捕虜の扱いに対応したイベント
+CALL EVENT_PRISONER
+
+;口上呼び出し
+FOR LOCAL:0, 0, CHARANUM
+	;主人公と同一勢力の仕官で、捕虜でない
+	IF CFLAG:(LOCAL:0):1 != 0 && LOCAL:0 != MASTER && CFLAG:(LOCAL:0):1 == CFLAG:MASTER:1 && CFLAG:(LOCAL:0):9 == 0
+		CALL KOJO_EVENT(LOCAL:0, 30)
+	ENDIF
+NEXT
+
+;統一後の場合
+IF FLAG:28
+	;一期終了時の処理
+	CALL TURNEND_COMMON
+
+	;ターンを進める
+	DAY ++
+
+;捕虜の場合
+ELSEIF CFLAG:MASTER:9 != 0
+	;強制的に自動行動
+	LOCAL:0 = CONFIG:302
+	CONFIG:302 = 1
+
+	DRAWLINE
+	DRAWLINE
+
+	;戦略フェイズの処理
+	CALL SLG_TURNEND
+
+	;自動行動の設定を元に戻す
+	CONFIG:302 = LOCAL:0
+
+	;一期終了時の処理
+	CALL TURNEND_COMMON
+
+	;ターンを進める
+	DAY ++
+
+ELSE
+	;戦略フェイズへ進む
+	TIME = 1
+ENDIF
+
+;-------------------------------------------------
+;戦略フェイズ終了時の処理
+;-------------------------------------------------
+@TURNEND_POLITICS
+;戦闘関係の処理
+CALL SLG_TURNEND
+
+;デッドエンディングなら戻る
+IF FLAG:27 == 9999
+	RETURN
+ENDIF
+
+
+;一期終了時の処理
+CALL TURNEND_COMMON
+
+;時間を進める
+DAY ++
+IF (CFLAG:MASTER:1 == 0 && CFLAG:MASTER:9 == 0) || FLAG:1
+	TIME = 1
+ELSE
+	TIME = 0
+ENDIF
+
+;-------------------------------------------------
+;一期終了時の処理
+;統一前なら戦略フェイズ終了後、統一後なら拠点フェイズ終了後に呼ばれる
+;-------------------------------------------------
+@TURNEND_COMMON
+VARSET LOCAL, 0
+
+;口上呼び出し
+FOR LOCAL:0, 0, CHARANUM
+	IF CFLAG:(LOCAL:0):1 == CFLAG:MASTER:1 && LOCAL:0 != MASTER
+		CALL KOJO_EVENT(LOCAL:0, 31)
+	ENDIF
+NEXT
+
+IF CFLAG:MASTER:1 <= 0
+	WAIT
+;給料の支給(観戦中・捕虜のときはスキップ)
+ELSEIF CFLAG:MASTER:9 == 0
+	DRAWLINE
+	LOCAL:0 = GET_SUM_ECONOMY(CFLAG:MASTER:1) * (ABL:MASTER:武闘 + ABL:MASTER:知略 + ABL:MASTER:政治 + 100) / 40000
+	MONEY += LOCAL:0
+	PRINTFORML %CALLNAME:MASTER%に今期分の俸給が支払われました
+	PRINTFORML <都市の経済規模×(%CALLNAME:MASTER%の能力合計＋100)÷400>
+	PRINTFORMW 所持金＋{LOCAL:0}
+ENDIF
+
+;各勢力都市の経済規模変動及び税収処理
+CALL VARY_ECONOMY
+CALL GAIN_COUNTRY_TAX
+
+;経済成長・兵数増強の補正値をクリア
+FLAG:42 = 0
+FLAG:43 = 0
+
+
+FOR LOCAL:0, 0, CHARANUM
+	;全員の体力・気力を最大まで回復
+	BASE:(LOCAL:0):0 = MAXBASE:(LOCAL:0):0
+	BASE:(LOCAL:0):1 = MAXBASE:(LOCAL:0):1
+
+	;衣装を着ている場合、経験値を2+10-衣装嗜好レベル分だけ増加させる
+	IF CFLAG:(LOCAL:0):92
+		EXP:(LOCAL:0):衣装嗜好経験値 += 2 + (10 - ABL:(LOCAL:0):衣装嗜好)
+		;能力の自動レベルアップ関数を呼ぶ
+		CALL TRAIN_AUTO_ABLUP(LOCAL:0)
+	ENDIF
+
+	;このターン～系フラグを折る
+	CFLAG:(LOCAL:0):91 = 0
+	CFLAG:(LOCAL:0):93 = 0
+	
+	;同じ勢力で共に過ごした期数を加算
+	IF LOCAL:0 != MASTER && CFLAG:(LOCAL:0):1 != 0 && CFLAG:(LOCAL:0):1 == CFLAG:MASTER:1
+		CFLAG:(LOCAL:0):77 ++
+	ENDIF
+
+	;本の効果の残りターンを減らす
+	CFLAG:(LOCAL:0):47 = MAX(CFLAG:(LOCAL:0):47 - 1, 0)
+	IF CFLAG:(LOCAL:0):47 == 0
+		CFLAG:(LOCAL:0):46 = 0
+	ENDIF
+
+	;特定勢力に所属していて捕虜でない
+	IF CFLAG:(LOCAL:0):1 != 0 && CFLAG:(LOCAL:0):9 == 0
+		FOR LOCAL:1, 0, CHARANUM
+			;同一勢力に所属するキャラの間で好感度を上昇させ、敵対度を減少させる
+			IF LOCAL:1 != LOCAL:0 && CFLAG:(LOCAL:1):1 == CFLAG:(LOCAL:0):1 && CFLAG:(LOCAL:1):9 == 0
+				LOCAL:3 = 5
+				IF TALENT:(LOCAL:1):謎の魅力
+					LOCAL:3 = 10
+				ENDIF
+				;自然に上がる好感度は1000まで
+				IF REL_LIKE:(LOCAL:0):(LOCAL:1) < 1000
+					REL_LIKE:(LOCAL:0):(LOCAL:1) = MIN(REL_LIKE:(LOCAL:0):(LOCAL:1) + LOCAL:3, 1000)
+				ENDIF
+				REL_HATE:(LOCAL:0):(LOCAL:1) = MAX(REL_HATE:(LOCAL:0):(LOCAL:1) - LOCAL:3, 0)
+			ENDIF
+		NEXT
+	ENDIF
+
+	;捕虜の場合
+	IF CFLAG:(LOCAL:0):9 != 0 && CFLAG:(LOCAL:0):9 == CFLAG:MASTER:1
+		;捕虜の機嫌変化
+		CALL PRISONER_CHANGE_EMOTION(LOCAL:0)
+
+	;被育児状態の子供の場合
+	ELSEIF CFLAG:(LOCAL:0):16 == 4
+		;機嫌は変動しない
+
+	;捕虜でなく、被育児状態の子供でもない場合
+	ELSEIF CFLAG:(LOCAL:0):16 != 4
+		;現在の機嫌を減衰させる
+		TIMES PALAM:(LOCAL:0):怒外, 0.60
+		TIMES PALAM:(LOCAL:0):哀外, 0.60
+		TIMES PALAM:(LOCAL:0):怖外, 0.60
+		TIMES PALAM:(LOCAL:0):怒主, 0.05
+		TIMES PALAM:(LOCAL:0):哀主, 0.05
+		TIMES PALAM:(LOCAL:0):怖主, 0.05
+
+		;●外的要因による機嫌にランダム値を加える
+		;<抑圧>持ちは機嫌が変動しない
+		IF !TALENT:(LOCAL:0):抑圧
+			;怪我をしている場合
+			IF CFLAG:(LOCAL:0):16 == 3
+				IF RAND:2 == 0
+					PALAM:(LOCAL:0):怒外 += RAND:1001
+				ELSE
+					PALAM:(LOCAL:0):怒外 += RAND:301
+				ENDIF
+				IF RAND:2 == 0
+					PALAM:(LOCAL:0):哀外 += RAND:1001
+				ELSE
+					PALAM:(LOCAL:0):哀外 += RAND:301
+				ENDIF
+
+			ELSE
+				IF RAND:15 == 0
+					PALAM:(LOCAL:0):怒外 += RAND:2001 - 1000
+				ELSE
+					PALAM:(LOCAL:0):怒外 += RAND:601 - 300
+				ENDIF
+				IF RAND:15 == 0
+					PALAM:(LOCAL:0):哀外 += RAND:2001 - 1000
+				ELSE
+					PALAM:(LOCAL:0):哀外 += RAND:601 - 300
+				ENDIF
+			ENDIF
+		ENDIF
+	ENDIF
+
+	;捕虜の収監によるRELATIONの変化
+	SIF CFLAG:(LOCAL:0):9 != 0
+		CALL PRISONER_CHANGE_RELATION(LOCAL:0)
+
+	;精神力の回復
+	BASE:(LOCAL:0):精神力 = MIN(BASE:(LOCAL:0):精神力 + MAXBASE:(LOCAL:0):精神力 / 3, MAXBASE:(LOCAL:0):精神力)
+
+	;崩壊値の減少
+	IF !TALENT:(LOCAL:0):崩壊
+		CFLAG:(LOCAL:0):崩壊 -= 300 + (MAXBASE:(LOCAL:0):精神力 / 10)
+	ENDIF
+	CFLAG:(LOCAL:0):崩壊 = LIMIT(CFLAG:(LOCAL:0):崩壊, 0, 10000)
+
+	;超成長力があればランダムに能力経験値獲得(主人公は除外)
+	IF TALENT:(LOCAL:0):超成長力 && LOCAL:0 != MASTER
+		FOR LOCAL:1, 0, 4
+			IF RAND:4 == 0
+				LOCAL:2 = RAND:2 + 60
+			ELSE
+				LOCAL:2 = RAND:3 + 50
+			ENDIF
+			IF ABL:(LOCAL:0):(LOCAL:2) < 90
+				EXP:(LOCAL:0):(LOCAL:2 + 20) ++
+			ENDIF
+		NEXT
+		CALL TRAIN_AUTO_ABLUP(LOCAL:0, 1)
+	ENDIF
+
+	;恋慕などの素質変化の処理(一回目)
+	CALL TALENT_CHECK(LOCAL:0)
+
+	;子供の成長度を加算
+	CFLAG:(LOCAL:0):28 = MIN(CFLAG:(LOCAL:0):28 + 1, 999999)
+
+	;浮気禁止フラグの解除判定
+	IF CFLAG:(LOCAL:0):63 && !(TALENT:(LOCAL:0):恋慕 || TALENT:(LOCAL:0):服従)
+		CFLAG:(LOCAL:0):63 = 0
+	ENDIF
+NEXT
+
+;触手部屋の管理者に経験値を加算
+IF ITEM:触手部屋 && FLAG:35 >= 0 && IS_SYOKUSYU_MANAGE(FLAG:35)
+	EXP:(FLAG:35):触手経験値 += 2
+	EXP:(FLAG:35):妖術経験値 += 2
+	CALL TRAIN_AUTO_ABLUP(FLAG:35, 1)
+ENDIF
+
+;外交による調教要求フラグの解除判定
+CALL CHECK_DIPLOMACY_TRAIN_FLAG
+
+;朝のイベント
+CALL EVENT_MORNING
+
+;アイテム開発イベント
+CALL ITEM_DEVELOPMENT
+
+;妊娠出産関連の処理(触手)
+CALL TURNEND_PREGNANT_CHECK_SYOKUSYU
+
+;妊娠出産関連の処理(一般)
+CALL TURNEND_PREGNANT_CHECK
+
+;特殊な朝イベント
+CALL EVENT_MORNING_SP
+
+;第三者調教の処理
+;霖之助・タチ役関係のイベント
+CALL EVENT_OTHERSLOVE_COMMON
+
+FOR LOCAL:0, 0, CHARANUM
+	;恋慕などの素質変化の処理(二回目)
+	CALL TALENT_CHECK(LOCAL:0)
+NEXT
+
+;子育てモードのコマンド実行回数をクリア
+CVARSET CFLAG, 27, 0
+
+;捕虜用変数のクリア
+CVARSET CFLAG, 30, 0
+CVARSET CFLAG, 31, 0
+CVARSET CFLAG, 32, 0
+
+;各子育てコマンドの選択回数をクリア
+FOR LOCAL:0, 110, 130
+	CVARSET CFLAG, LOCAL:0, 0
+NEXT
+
+;登用コマンドの実行済みフラグをクリア
+FLAG:17 = 0
+

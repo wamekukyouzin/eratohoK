@@ -1,0 +1,361 @@
+﻿;SLG部分に使用する変数を定義(全般的に使用する変数は VARIABLE.ERH へ)
+
+;-------------------------------------------------
+;■定数
+;-------------------------------------------------
+;都市の最大数
+#DIM CONST MAX_CITY = 150
+
+;勢力の最大数
+#DIM CONST MAX_COUNTRY = 35
+
+;各勢力が持つ部隊の最大数
+#DIM CONST MAX_UNIT = 10
+
+;各部隊につける武将の最大数
+;全部がきちんと定数化されてる保証はないからこれだけを変更しても武将の最大数を増やせたりしないよ 定数関係は全部同じだよ
+#DIM CONST MAX_UNIT_COMMANDER = 3
+
+;各都市につける武将の最大数
+#DIM CONST MAX_CITY_COMMANDER = 2
+
+;同盟条約の最大数
+#DIM CONST MAX_TREATY_A = 70
+
+;連合の最大数
+#DIM CONST MAX_TREATY_U = 20
+
+;停戦条約の最大数
+#DIM CONST MAX_TREATY_C = 70
+
+;条約に含まれる国家の最大数
+#DIM CONST MAX_TREATY_COUNTRY = 35
+
+;シナリオの最大数
+#DIM CONST SCENARIO_NUMBER = 20
+
+;野盗の勢力番号(擬似的な場所)
+#DIM CONST COUNTRY_BANDIT = 9998
+
+;-------------------------------------------------
+;■システムに関する変数
+;-------------------------------------------------
+;情報表示の対象となっている都市
+#DIM SHOWN_CITY
+
+;ショップで消す行数の基本
+#DIM CONST LINES_SHOP_SLG = 32
+
+;開始からの外交・編成禁止期間
+#DIM CONST SLG_PP = 5, 7, 10
+
+;使用するマップ
+#DIMS SAVEDATA MAPID = "DEFAULT"
+
+;現在のシナリオID
+#DIMS SAVEDATA SCENARIOID = ""
+
+;マップ準備済み
+#DIM MAPREADY = 0
+
+;シナリオのIDと選択用数値
+#DIMS SCENARIO_ID,     SCENARIO_NUMBER
+#DIM  SCENARIO_SELECT, SCENARIO_NUMBER
+
+;-------------------------------------------------
+;■都市に関する変数 ※0番の都市は未定義で固定
+;-------------------------------------------------
+;都市から直接繋がる他の都市・中継点を設定する変数
+#DIM CITY_ROOT, MAX_CITY, 10
+
+;都市のタイプ 0=都市 1=中継点
+#DIM CITY_TYPE, MAX_CITY
+
+;都市の経済規模(内部数値・表示の100倍の値)
+#DIM SAVEDATA CITY_ECONOMY, MAX_CITY
+
+;都市の経済規模の上限値(内部数値・表示の100倍の値)
+#DIM SAVEDATA CITY_ECONOMY_LIMIT, MAX_CITY
+
+;都市の防衛兵力
+#DIM SAVEDATA CITY_SOLDIER, MAX_CITY
+
+;都市の防御倍率(内部数値・表示の100倍の値)
+#DIM SAVEDATA CITY_GUARD, MAX_CITY
+
+;都市を所持する勢力
+#DIM SAVEDATA CITY_OWNER, MAX_CITY
+
+;都市の守将ID(16bitずつ2人まで)
+#DIM SAVEDATA CITY_COMMANDER, MAX_CITY
+
+;都市のカラー設定(一時的なもの)
+#DIM CITY_COLOR, MAX_CITY
+
+;都市がこのターンまでに継続的に攻撃を受けた回数
+#DIM CITY_IS_ATTACKED, MAX_CITY
+
+;都市が直前までのターンに継続して攻撃を受けた回数。1ターン攻撃されなければリセット
+#DIM PAST_CITY_IS_ATTACKED, MAX_CITY
+;都市の名前
+#DIMS CITY_NAME, MAX_CITY
+#DIMS CITY_NAME_SHORT, MAX_CITY
+
+;都市（非抜け道）の数
+#DIM CITY_NUM
+
+;-------------------------------------------------
+;■勢力に関する変数 ※0番の勢力は無所属で固定
+;-------------------------------------------------
+;頭首のキャラID(勢力の存在判定にも使用)
+#DIM SAVEDATA COUNTRY_BOSS, MAX_COUNTRY
+
+;勢力のカラー
+#DIM SAVEDATA COUNTRY_COLOR, MAX_COUNTRY
+
+;勢力の政策
+#DIM SAVEDATA COUNTRY_POLICY, MAX_COUNTRY
+
+;遊撃兵力
+#DIM SAVEDATA COUNTRY_SOLDIER, MAX_COUNTRY
+
+;連合の討伐対象にならない期間
+#DIM SAVEDATA COUNTRY_NOTARGET_TERM, MAX_COUNTRY
+
+;防衛部隊を作成したことを示すフラグ
+#DIM IS_PROTECTED
+
+;外交禁止フラグ。このフラグを立てると互いに一切の外交が不可能になる
+;放浪状態での士官も不可。統一後のエンディングメッセージも表示されない
+#DIM SAVEDATA COUNTRY_IS_CLOSED, MAX_COUNTRY
+
+;イベント国家の識別フラグ
+#DIM SAVEDATA COUNTRY_EVENT_ID, MAX_COUNTRY
+
+;部隊兵力
+#DIM SAVEDATA UNIT_SOLDIER, MAX_COUNTRY, MAX_UNIT
+
+;部隊の所在都市番号
+#DIM SAVEDATA UNIT_POSITION, MAX_COUNTRY, MAX_UNIT
+
+;部隊の移動目標都市番号
+#DIM SAVEDATA UNIT_TARGET, MAX_COUNTRY, MAX_UNIT
+
+;部隊の将ID(16bitずつ3人まで)
+#DIM SAVEDATA UNIT_COMMANDER, MAX_COUNTRY, MAX_UNIT
+
+;部隊が強制解散されるまでの期間
+#DIM SAVEDATA UNIT_BREAK_TERM, MAX_COUNTRY, MAX_UNIT
+
+;部隊の連戦カウント
+#DIM SAVEDATA UNIT_TIRED_COUNT, MAX_COUNTRY, MAX_UNIT
+
+;部隊の都市占領フラグ
+#DIM SAVEDATA UNIT_CAPTURE_CITY, MAX_COUNTRY, MAX_UNIT
+
+;対象国家を選択するための一時的なフラグ
+#DIM COUNTRY_IS_SELECTED, MAX_COUNTRY
+
+;連合に参加する予定の勢力の記録用
+#DIM COUNTRY_IS_UNION, MAX_COUNTRY
+
+;各国家の同盟候補勢力の記録用
+#DIM COUNTRY_PROSPECT_A, MAX_COUNTRY, MAX_COUNTRY
+
+;各国家の停戦候補勢力の記録用
+#DIM COUNTRY_PROSPECT_C, MAX_COUNTRY, MAX_COUNTRY
+
+;同盟成否判定。成否の理由と必要な要求の重さも記録
+;0=不成立、1=無条件、2=要求(軽)、3=要求(中)、4=要求(重)、5=無条件(友好)、6=不成立(非隣接)
+#DIM COUNTRY_REQUEST_RATE_A, MAX_COUNTRY, MAX_COUNTRY
+
+;停戦成否判定。成否の理由と必要な要求の重さも記録
+;0=不成立、1=無条件、2=要求(軽)、3=要求(中)、4=要求(重)、5=無条件(友好)、6=不成立(非隣接)
+#DIM COUNTRY_REQUEST_RATE_C, MAX_COUNTRY, MAX_COUNTRY
+
+;主人公友好系コマンド実行フラグ
+#DIM SAVEDATA DONE_DIPLOMACY_FRIENDSHIP, MAX_COUNTRY
+
+;主人公要求系コマンド実行フラグ
+#DIM SAVEDATA DONE_DIPLOMACY_REQUEST, MAX_COUNTRY
+
+;部隊がその期に既に戦闘を行ったかどうかのフラグ
+#DIM UNIT_FBATTLE, MAX_COUNTRY, MAX_UNIT
+
+;-------------------------------------------------
+;■条約に関する変数
+;-------------------------------------------------
+;同盟参加国
+#DIM SAVEDATA TREATY_A_COUNTRY, MAX_TREATY_A, MAX_TREATY_COUNTRY
+
+;同盟期限(9999で無期限同盟扱い)
+#DIM SAVEDATA TREATY_A_TERM, MAX_TREATY_A
+
+;連合参加国
+#DIM SAVEDATA TREATY_U_COUNTRY, MAX_TREATY_U, MAX_TREATY_COUNTRY
+
+;連合期限
+#DIM SAVEDATA TREATY_U_TERM, MAX_TREATY_U
+
+;連合の討伐対象
+#DIM SAVEDATA TREATY_U_TARGET, MAX_TREATY_U
+
+;停戦条約参加国
+#DIM SAVEDATA TREATY_C_COUNTRY, MAX_TREATY_C, MAX_TREATY_COUNTRY
+
+;停戦期限(9999で無期限扱い)
+#DIM SAVEDATA TREATY_C_TERM, MAX_TREATY_C
+
+;外交チャンネル封鎖期間
+#DIM SAVEDATA COUNTRY_NOTDIPLOMACY_TERM, MAX_COUNTRY
+
+;-------------------------------------------------
+;■シナリオ専用の変数
+;-------------------------------------------------
+;当然ながら、２つ以上のシナリオが同時進行することはないので各シナリオで共通する変数を使う
+;周回時にリセットされる
+#DIM SAVEDATA SCVAR, 1000
+
+;-------------------------------------------------
+;■戦闘計算に関する変数
+;-------------------------------------------------
+;上から順にダメージ値、兵数、攻撃、防御、知略、妖術、遊撃部隊かどうかのフラグ、勢力名称
+#DIM BATTLE_DMG, 2
+#DIM BATTLE_SOL, 2
+#DIM BATTLE_ATC, 2
+#DIM BATTLE_DEF, 2
+#DIM BATTLE_INT, 2
+#DIM BATTLE_MAG, 2
+#DIM BATTLE_F_UNIT, 2
+#DIMS BATTLE_NAME, 2
+
+;上から順に与割合ダメージ(%)、与被害倍率(%)、被害軽減率(%)
+#DIM BATTLE_RATE_DMG, 2
+#DIM BATTLE_RATE_ATC, 2
+#DIM BATTLE_RATE_GRD, 2
+
+;被害軽減率(最後に適用、割合ダメージも軽減)
+#DIM BATTLE_RATE_GRD_B, 2
+
+;-------------------------------------------------
+;■AIに関する変数
+;-------------------------------------------------
+;部隊に配置する将の組み合わせ候補
+#DIM UNIT_COMMANDER_LIST, MAX_UNIT, MAX_UNIT_COMMANDER
+
+;作成可能な部隊のうち能力が最強となる将の組み合わせ
+#DIM UNIT_COMMANDER_BEST, MAX_UNIT_COMMANDER
+
+;将を分散配置した場合に作成可能な部隊の数
+#DIM UNIT_CREATE_MAX
+
+;AIタイプ 0=通常 1=好戦 2=防衛 3=外交 4=内政
+#DIM SAVEDATA COUNTRY_AI_TYPE, MAX_COUNTRY
+
+#DIM CONST AI_通常 = 0
+#DIM CONST AI_好戦 = 1
+#DIM CONST AI_防衛 = 2
+#DIM CONST AI_外交 = 3
+#DIM CONST AI_内政 = 4
+#DIM CONST AI_外来 = 5
+#DIM CONST AI_ホフゴブリン = 6
+;攻撃対象とする都市のリスト
+#DIM AI_TARGET_CITY, MAX_CITY
+;攻撃対象とする都市へ部隊を送る出発点のリスト
+#DIM AI_DEPARTURE_POINT, MAX_CITY
+;攻撃対象を取ったときに変わる戦線の数
+#DIM AI_LINE_ONGET, MAX_CITY
+;攻撃対象候補上位10
+#DIM AI_TARGET_PROPOSED, 10
+;出兵するための兵数の最低条件
+#DIM CONST 最低出兵数_通常 = 1500
+#DIM CONST 最低出兵数_好戦 = 1000
+#DIM CONST 最低出兵数_防衛 = 1500
+#DIM CONST 最低出兵数_外交 = 2000
+#DIM CONST 最低出兵数_内政 = 1500
+#DIM CONST 最低出兵数_外来 = 100000
+#DIM CONST 最低出兵数_ホフ = 2000
+
+;AI同士の相性、外交で利用
+#DIM AI_RELATION, 7, 7
+
+;AIの感情値による各種判断の閾値
+#DIM AI_RELATION_BORDER, 7, 9
+
+;AI毎の重要視する能力の重さ（比較時の倍率）及び政治が突出したキャラを引き止める割合（単独でこの値以上を占めているキャラは除外）
+#DIM AI_PRIORITY, 10, 3
+#DIM AI_POLITICAL_LIMIT, 10
+
+;AI毎の沸点（相手のAIタイプを参照する点に注意）
+#DIM AI_DECIDE_LIKE, 7
+#DIM AI_DECIDE_HATE, 7
+
+;AIの外交行動
+#DIM AI_ACTION, 7, 3
+
+;AIの侵攻判断と編成する兵数に関する配列
+#DIM AI_ARMY_PROPERTY,7 ,8
+#DIM AI_DEPLOY_PROPERTY,7 ,8
+
+;AIによる緊急動員
+#DIM AI_DEPLOY, 7, 5
+;-------------------------------------------------
+;■会談に関する変数
+;-------------------------------------------------
+;会話内容の選択リスト
+#DIM TALK_LIST, 100
+;次に記録する配列番号
+#DIM TALK_ADDRESS
+
+;相手君主のアクションを示す文
+#DIMS TALK_ACTION
+
+;選択肢の文
+#DIMS TALK_SELECT, 3
+
+;各選択肢の好感度上昇量
+#DIM TALK_UP_LIKE, 3
+
+;各選択肢の敵対値上昇量
+#DIM TALK_UP_HATE, 3
+
+;交渉における反感値、強要行為などによって加算（勢力ごとに設定し、ペナルティの前回適用値も記録予定）
+#DIM SAVEDATA DIPLOMACY_HATE, MAX_COUNTRY, 5
+
+;上のは製作中なので現状こっちを仕様（ぉ
+#DIM SAVEDATA DIPLOMACY_REQUEST_SUCCESS_COUNT
+
+;-------------------------------------------------
+;■高速化用のマッピング変数
+;-------------------------------------------------
+;国家間の関係を展開して記録する変数
+#DIM TMP_COUNTRY_RELATION, MAX_COUNTRY, MAX_COUNTRY
+
+;国家関係において最も優先度の高い関係の継続期間を記録する変数
+#DIM TMP_COUNTRY_RELATION_TERM, MAX_COUNTRY, MAX_COUNTRY
+
+;国家同士が隣接しているかどうかを記録するフラグ
+#DIM TMP_COUNTRY_IS_NEIBORING, MAX_COUNTRY, MAX_COUNTRY
+
+;各君主のキャラ番号を記録する変数
+#DIM TMP_COUNTRY_BOSS_NUMBER, MAX_COUNTRY
+
+;各君主の名前の最初の２文字を記録する変数
+#DIMS TMP_COUNTRY_BOSS_NAME_SHORT, MAX_COUNTRY
+
+;各国家の連合による討伐対象を記録する変数
+#DIM TMP_COUNTRY_UNION_TARGET, MAX_COUNTRY
+
+;各都市上にいる部隊の勢力を記録する変数
+#DIM TMP_UNIT_ONCITY_CNT, MAX_CITY, 20
+
+;各都市上にいる部隊の番号を記録する変数
+#DIM TMP_UNIT_ONCITY_NUM, MAX_CITY, 20
+
+;士官が部隊に所属しているかどうかを記録する変数(0=フリー、1=遊撃、2=防衛、-1=その他特殊状態)
+#DIM CHARADATA TMP_IS_FREE, 1
+
+;-------------------------------------------------
+;■個人に関する変数
+;-------------------------------------------------
+#DIM SAVEDATA CHARADATA SLG_COOLTIME

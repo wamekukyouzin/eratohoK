@@ -1,0 +1,232 @@
+﻿;猥談
+
+;-------------------------------------------------
+;コマンド名称
+;-------------------------------------------------
+@COM_NAME307
+RESULTS:0 = エッチな話を振る
+RESULTS:1 = エッチな話を振られる
+
+;-------------------------------------------------
+;選択可否判定
+;-------------------------------------------------
+@COM_ABLE307
+;共通部分
+CALL COM_ABLE_COMMON(307)
+SIF RESULT == 0
+	RETURN 0
+;主人公がプレイヤーのとき限定
+SIF MPLY:0 != MASTER
+	RETURN 0
+;キス中は不可
+SIF IS_EQUIP(MPLY:0, 342)
+	RETURN 0
+;プレイヤーとターゲットの性知識が共にLv1以上ないと不可
+SIF ABL:(MPLY:0):性知識 < 1 || ABL:(MTAR:0):性知識 < 1
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;メイン処理
+;-------------------------------------------------
+@COM307
+;実行値の計算
+CALL COM_ORDER_307(MTAR:0)
+LOCAL:5 = RESULT
+
+;成功
+IF LOCAL:5 >= 0
+	TFLAG:17 = 1
+
+	SOURCE:(MTAR:0):歓楽 = 20 + MIN(LOCAL:5 / 2, 30)
+	;親密に応じた歓楽のソース追加
+	CALL ADD_SOURCE_KANRAKU(MTAR:0, 100 + MIN(LOCAL:5 / 3, 60))
+	SOURCE:(MTAR:0):感応 = 50 + MIN(LOCAL:5, 100)
+
+	;ムードの増加
+	TFLAG:37 += 4 + MIN(LOCAL:5 / 10, 16)
+
+	;主導権に応じたソースの追加
+	CALL ADD_SOURCE_INITIATIVE_N(MTAR:0, 50, 50)
+
+	LOCAL:2 = 10
+	IF TALENT:(MPLY:0):好奇心
+		TIMES LOCAL:2, 1.50
+	ENDIF
+	IF TALENT:(MPLY:0):習得早い
+		TIMES LOCAL:2, 1.50
+	ENDIF
+	IF TALENT:(MPLY:0):習得遅い
+		TIMES LOCAL:2, 0.80
+	ENDIF
+
+	LOCAL:3 = 10
+	IF TALENT:(MTAR:0):好奇心
+		TIMES LOCAL:2, 1.50
+	ENDIF
+	IF TALENT:(MTAR:0):習得早い
+		TIMES LOCAL:2, 1.50
+	ENDIF
+	IF TALENT:(MTAR:0):習得遅い
+		TIMES LOCAL:2, 0.80
+	ENDIF
+
+	IF ABL:(MPLY:0):性知識 <= 2
+		EXP:(MPLY:0):性知識経験値 += LOCAL:2 / ABL:(MPLY:0):性知識
+	ENDIF
+	IF ABL:(MTAR:0):性知識 <= 2
+		EXP:(MTAR:0):性知識経験値 += LOCAL:3 / ABL:(MPLY:0):性知識
+	ENDIF
+
+;失敗
+ELSE
+	TFLAG:17 = 0
+
+	SOURCE:(MTAR:0):反感 = 150 + LIMIT(-LOCAL:5 * 5, 0, 600)
+ENDIF
+
+;主導度変化基準値
+TFLAG:49 = 2
+
+;倒錯度変化基準値
+TFLAG:50 = 1
+
+RETURN 1
+
+;-------------------------------------------------
+;成否判定
+;-------------------------------------------------
+@COM_ORDER_307(ARG:0)
+CVARSET TCVAR, 24, -10000
+CVARSET TCVAR, 25, 10000
+
+TCVAR:(ARG:0):25 = 80
+
+CALL COM_ORDER_BASE(ARG:0)
+
+IF TALENT:(ARG:0):反抗的
+	CALL COM_ORDER_ELEMENT(ARG:0, "反抗的", -5)
+ENDIF
+IF TALENT:(ARG:0):プライド高い
+	CALL COM_ORDER_ELEMENT(ARG:0, "プライド高い", -15)
+ENDIF
+IF TALENT:(ARG:0):プライド低い
+	CALL COM_ORDER_ELEMENT(ARG:0, "プライド低い", 5)
+ENDIF
+IF TALENT:(ARG:0):自制心
+	CALL COM_ORDER_ELEMENT(ARG:0, "自制心", -8)
+ENDIF
+IF TALENT:(ARG:0):無関心
+	CALL COM_ORDER_ELEMENT(ARG:0, "無関心", -6)
+ENDIF
+IF TALENT:(ARG:0):好奇心
+	CALL COM_ORDER_ELEMENT(ARG:0, "好奇心", 15)
+ENDIF
+IF TALENT:(ARG:0):保守的
+	CALL COM_ORDER_ELEMENT(ARG:0, "保守的", -10)
+ENDIF
+IF TALENT:(ARG:0):抑圧
+	CALL COM_ORDER_ELEMENT(ARG:0, "抑圧", -10)
+ENDIF
+IF TALENT:(ARG:0):孤高
+	CALL COM_ORDER_ELEMENT(ARG:0, "孤高", -(20 * KOKOU_RATE(ARG:0) / 100))
+ENDIF
+IF TALENT:(ARG:0):恥じらい
+	CALL COM_ORDER_ELEMENT(ARG:0, "恥じらい", -10)
+ENDIF
+IF TALENT:(ARG:0):恥薄い
+	CALL COM_ORDER_ELEMENT(ARG:0, "恥薄い", 8)
+ENDIF
+IF TALENT:(ARG:0):快感に素直
+	CALL COM_ORDER_ELEMENT(ARG:0, "快感に素直", 10)
+ENDIF
+IF TALENT:(ARG:0):快感の否定
+	CALL COM_ORDER_ELEMENT(ARG:0, "快感の否定", -35)
+ENDIF
+IF TALENT:(ARG:0):淫乱
+	CALL COM_ORDER_ELEMENT(ARG:0, "淫乱", 20)
+ENDIF
+
+IF IS_SAMESEX(MPLY:0, ARG:0)
+	CALL COM_ORDER_ELEMENT(ARG:0, "同性", 50)
+ELSE
+	IF TALENT:(ARG:0):一線越えない
+		CALL COM_ORDER_ELEMENT(ARG:0, "一線越えない", -15)
+	ENDIF
+ENDIF
+
+IF TALENT:(ARG:0):親愛
+	CALL COM_ORDER_ELEMENT(ARG:0, "親愛", 25)
+ELSEIF TALENT:(ARG:0):恋慕
+	CALL COM_ORDER_ELEMENT(ARG:0, "恋慕", 10)
+ENDIF
+
+IF TALENT:(ARG:0):恋人
+	CALL COM_ORDER_ELEMENT(ARG:0, "恋人", 20)
+ELSEIF TALENT:(ARG:0):親友
+	CALL COM_ORDER_ELEMENT(ARG:0, "親友", 20)
+ENDIF
+
+IF TALENT:(ARG:0):隷属
+	CALL COM_ORDER_ELEMENT(ARG:0, "隷属", 25)
+ELSEIF TALENT:(ARG:0):服従
+	CALL COM_ORDER_ELEMENT(ARG:0, "服従", 10)
+ENDIF
+
+IF TALENT:(ARG:0):烙印
+	CALL COM_ORDER_ELEMENT(ARG:0, "烙印", 20)
+ENDIF
+
+CALL COM_ORDER_ELEMENT(ARG:0, "合意", 15)
+
+IF TALENT:(ARG:0):プライド高い
+	LOCAL:0 = 4
+ELSEIF TALENT:(ARG:0):プライド低い
+	LOCAL:0 = 1
+ELSE
+	LOCAL:0 = 2
+ENDIF
+IF MARK:(ARG:0):既成事実 >= 1
+	CALL COM_ORDER_ELEMENT(ARG:0, @"既成事実Lv{MARK:(ARG:0):既成事実}", MARK:(ARG:0):既成事実 * 3 * LOCAL:0)
+ENDIF
+
+IF TALENT:MASTER:魅惑
+	CALL COM_ORDER_ELEMENT(ARG:0, "主人公の魅惑", 6)
+ENDIF
+IF TALENT:MASTER:謎の魅力
+	CALL COM_ORDER_ELEMENT(ARG:0, "主人公の謎の魅力", 6)
+ENDIF
+
+IF PALAM:(ARG:0):酔い >= 150
+	CALL COM_ORDER_ELEMENT(ARG:0, "酔い", PALAM:(ARG:0):酔い / 150)
+ENDIF
+
+;判定結果を表示
+PRINTFORMW  = {TCVAR:(ARG:0):24} %TOSTR_COMPARE(TCVAR:(ARG:0):24, TCVAR:(ARG:0):25)% 実行値{TCVAR:(ARG:0):25}
+
+RETURN TCVAR:(ARG:0):24 - TCVAR:(ARG:0):25
+
+;-------------------------------------------------
+;地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE307
+;成功
+IF TFLAG:17
+	;主導権が主人公側
+	IF IS_INITIATIVE(MASTER)
+		PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%とエッチな話で盛り上がった…
+	;主導権が相手側
+	ELSE
+		PRINTFORMW %ANAME(MTAR:0)%は%ANAME(MPLY:0)%にエッチな話題を振ってからかった…
+	ENDIF
+;失敗
+ELSE
+	PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%にエッチな話題を振ったが、%ANAME(MTAR:0)%に白い目で見られてしまった…
+ENDIF
+
+;--------------------------------------------------------
+;地の文(パラメータ・刻印変動後)
+;--------------------------------------------------------
+@COM_TEXT_LAST307
+;日常コマンドに共通の地の文
+CALL COM_TEXT_LAST_LIFE

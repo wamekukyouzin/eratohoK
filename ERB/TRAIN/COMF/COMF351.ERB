@@ -1,0 +1,204 @@
+﻿;食事
+
+;-------------------------------------------------
+;コマンド名称
+;-------------------------------------------------
+@COM_NAME351
+;主人公が女性で相手が男性
+IF IS_FEMALE(MPLY:0) && IS_MALE(MTAR:0)
+	RESULTS:0 = 食事を奢ってもらう
+	RESULTS:1 = 食事に誘われる
+ELSE
+	RESULTS:0 = 食事に誘う(金-1000)
+	RESULTS:1 = 食事を奢らされる(金-1000)
+ENDIF
+
+;-------------------------------------------------
+;選択可否判定
+;-------------------------------------------------
+@COM_ABLE351
+;共通部分
+CALL COM_ABLE_COMMON(351)
+SIF RESULT == 0
+	RETURN 0
+;主人公がプレイヤーのとき限定
+SIF MPLY:0 != MASTER
+	RETURN 0
+;城下町でのデート中限定
+SIF GET_PLACENAME(TFLAG:54) != "城下町"
+	RETURN 0
+;怪我なら不可
+SIF CFLAG:(MTAR:0):16 == 3
+	RETURN 0
+;キス中は不可
+SIF IS_EQUIP(MPLY:0, 342)
+	RETURN 0
+;主人公が女性で相手が男性 or 所持金が1000以上のいずれかを満たす必要がある
+SIF !((IS_FEMALE(MPLY:0) && IS_MALE(MTAR:0)) || MONEY >= 1000)
+	RETURN 0
+;既に食事を実行済みなら不可
+SIF TFLAG:6
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;メイン処理
+;-------------------------------------------------
+@COM351
+;実行判定
+CALL COM_ORDER_COMMON
+IF RESULT == 0
+	RETURN 0
+ENDIF
+
+;実行済みフラグをON
+TFLAG:6 = 1
+
+IF MPLY:0 == MASTER
+	;コマンドの成否をTFLAG:18にセット
+	CALL JUDGE_COM_RESULT(MTAR:0, 5, 10)
+	LOCAL:1 = MTAR:0
+ELSE
+	;コマンドの成否をTFLAG:18にセット
+	CALL JUDGE_COM_RESULT(MPLY:0, 5, 10)
+	LOCAL:1 = MPLY:0
+ENDIF
+
+;●プレイヤー側の処理
+;固定で獲得するソース
+SOURCE:(MPLY:0):歓楽 = 80
+
+;親密に応じた歓楽のソース追加
+CALL ADD_SOURCE_KANRAKU(MPLY:0, 200)
+SOURCE:(MPLY:0):歓楽 = MAX(SOURCE:(MPLY:0):歓楽, 0)
+
+;主導権に応じたソースの追加
+CALL ADD_SOURCE_INITIATIVE_N(MPLY:0, 50, 50)
+
+;●ターゲット側の処理
+;固定で獲得するソース
+SOURCE:(MTAR:0):歓楽 = 80
+
+;親密に応じた歓楽のソース追加
+CALL ADD_SOURCE_KANRAKU(MTAR:0, 200)
+SOURCE:(MTAR:0):歓楽 = MAX(SOURCE:(MTAR:0):歓楽, 0)
+
+;主導権に応じたソースの追加
+CALL ADD_SOURCE_INITIATIVE_N(MTAR:0, 50, 50)
+
+;主人公が女性で相手が男性
+IF IS_FEMALE(MPLY:0) && IS_MALE(MTAR:0)
+	;料金は相手持ち
+ELSE
+	MONEY -= 1000
+ENDIF
+
+;失敗
+IF TFLAG:18 == -1
+	TIMES SOURCE:(MPLY:0):歓楽, 0.10
+	TIMES SOURCE:(MTAR:0):歓楽, 0.10
+	TFLAG:37 -= 5
+;成功
+ELSEIF TFLAG:18 == 0
+
+;大成功
+ELSE
+	TIMES SOURCE:(MPLY:0):歓楽, 2.00
+	TIMES SOURCE:(MTAR:0):歓楽, 2.00
+	TFLAG:37 += 5
+ENDIF
+
+;主導度変化基準値
+TFLAG:49 = 2
+
+;倒錯度変化基準値
+TFLAG:50 = 0
+
+RETURN 1
+
+;-------------------------------------------------
+;固有の実行判定(プレイヤー側)
+;-------------------------------------------------
+@COM_ORDER_PLAYER351(ARG:0)
+;実行値の設定
+TCVAR:(ARG:0):25 = 30
+
+;共通部分
+CALL COM_ORDER(ARG:0)
+
+;好感度
+IF CFLAG:(ARG:0):2 < 300
+	IF CFLAG:(ARG:0):2 < 50
+		LOCAL:0 = -12
+	ELSEIF CFLAG:(ARG:0):2 < 150
+		LOCAL:0 = -8
+	ELSE
+		LOCAL:0 = -4
+	ENDIF
+	CALL COM_ORDER_ELEMENT(ARG:0, @"好感度不足", LOCAL:0)
+ELSE
+	LOCAL:0 = CFLAG:(ARG:0):2 / 75
+	CALL COM_ORDER_ELEMENT(ARG:0, @"好感度", LOCAL:0)
+ENDIF
+
+IF TALENT:(ARG:0):臆病
+	CALL COM_ORDER_ELEMENT(ARG:0, "臆病", -3)
+ENDIF
+IF TALENT:(ARG:0):大人しい
+	CALL COM_ORDER_ELEMENT(ARG:0, "大人しい", -2)
+ENDIF
+IF TALENT:(ARG:0):恥じらい
+	CALL COM_ORDER_ELEMENT(ARG:0, "恥じらい", -3)
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE351
+;主人公が女性で相手が男性
+IF IS_FEMALE(MPLY:0) && IS_MALE(MTAR:0)
+	;主導権が主人公側
+	IF IS_INITIATIVE(MASTER)
+		PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%に食事を奢らせた
+	;主導権が相手側
+	ELSE
+		PRINTFORMW %ANAME(MTAR:0)%は%ANAME(MPLY:0)%を食事に誘った
+	ENDIF
+
+	IF TFLAG:18 == 1
+		PRINTFORML あまりの美味しさに%ANAME(MPLY:0)%と%ANAME(MTAR:0)%は舌鼓を打った
+	ELSEIF TFLAG:18 == 0
+		PRINTFORML %ANAME(MPLY:0)%と%ANAME(MTAR:0)%は楽しく歓談しながら食事を取った
+	ELSEIF TFLAG:18 == -1
+		PRINTFORML ……もうこの店に来ることはないだろう
+	ENDIF
+
+ELSE
+	;主導権が主人公側
+	IF IS_INITIATIVE(MASTER)
+		PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%を食事に誘った(所持金:{MONEY + 1000}→{MONEY})
+	;主導権が相手側
+	ELSE
+		PRINTFORMW %ANAME(MTAR:0)%は%ANAME(MPLY:0)%に食事を奢らせた(所持金:{MONEY + 1000}→{MONEY})
+	ENDIF
+
+	IF TFLAG:18 == 1
+		PRINTFORML 思った以上に%ANAME(MTAR:0)%に気に入ってもらえたようだ
+	ELSEIF TFLAG:18 == 0
+		PRINTFORML %ANAME(MPLY:0)%と%ANAME(MTAR:0)%は楽しく歓談しながら食事を取った
+	ELSEIF TFLAG:18 == -1
+		PRINTFORML ……もうこの店に来ることはないだろう
+	ENDIF
+ENDIF
+
+SETCOLOR COLOR_CAUTION
+PRINTFORML 以降のコマンド成功率が少しだけ上昇しました
+RESETCOLOR
+
+;-------------------------------------------------
+;地の文(パラメータ・刻印変動後)
+;-------------------------------------------------
+@COM_TEXT_LAST351
+;日常コマンドに共通の地の文
+CALL COM_TEXT_LAST_LIFE

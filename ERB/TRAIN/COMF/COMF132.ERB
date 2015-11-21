@@ -1,0 +1,318 @@
+﻿;口内放尿
+
+;-------------------------------------------------
+;コマンド名称
+;-------------------------------------------------
+@COM_NAME132
+IF IS_RIDE(MPLY:0)
+	LOCALS:0 = 顔騎口内放尿
+ELSE
+	LOCALS:0 = 口内放尿
+ENDIF
+
+RESULTS:0 = %LOCALS:0%する
+RESULTS:1 = %LOCALS:0%させられる
+RESULTS:2 = %LOCALS:0%させる
+RESULTS:3 = %LOCALS:0%される
+RESULTS:4 = %LOCALS:0%させる
+RESULTS:5 = %LOCALS:0%見せつけ
+
+;-------------------------------------------------
+;選択可否判定
+;-------------------------------------------------
+@COM_ABLE132
+;共通部分
+CALL COM_ABLE_COMMON(132)
+SIF RESULT == 0
+	RETURN 0
+;プレイヤーは最大で1人まで
+SIF MPLY_NUM <= 0 || MPLY_NUM > 1
+	RETURN 0
+;ターゲットは最大で1人まで
+SIF MTAR_NUM <= 0 || MTAR_NUM > 1
+	RETURN 0
+;プレイヤーが行動不能なら不可
+SIF !IS_PLAYABLE(MPLY:0)
+	RETURN 0
+;プレイヤーの尿残量が十分でないなら不可
+SIF TCVAR:(MPLY:0):54 < 1000
+	RETURN 0
+;プレイヤーが顔面騎乗中で、プレイヤーに竿があるまたはターゲット以外のキャラに跨ってるなら不可
+SIF IS_RIDE(MPLY:0) && (PENIS(MPLY:0) || !IS_RIDE(MPLY:0, MTAR:0))
+	RETURN 0
+;プレイヤーに竿がなく、ターゲット以外のキャラにクンニされているなら不可
+SIF !PENIS(MPLY:0) && IS_EQUIP_TARGET(MPLY:0, 1) && SEARCH_EQUIP(1, MPLY:0, MTAR:0) < 0
+	RETURN 0
+;プレイヤーがターゲット以外のキャラにフェラされているなら不可
+SIF IS_EQUIP_TARGET(MPLY:0, 11) && SEARCH_EQUIP(11, MPLY:0, MTAR:0) < 0
+	RETURN 0
+;プレイヤーがターゲット以外のキャラにパイズリされているなら不可
+SIF IS_EQUIP_TARGET(MPLY:0, 12) && SEARCH_EQUIP(12, MPLY:0, MTAR:0) < 0
+	RETURN 0
+;プレイヤーがターゲット以外のキャラに亀頭フェラされているなら不可
+SIF IS_EQUIP_TARGET(MPLY:0, 107) && SEARCH_EQUIP(107, MPLY:0, MTAR:0) < 0
+	RETURN 0
+;プレイヤーが素股・尻コキ・電気按摩・触手オナホされているなら不可
+SIF IS_EQUIP_TARGET(MPLY:0, 13, 15, 103, 205)
+	RETURN 0
+;プレイヤーが挿入中なら不可
+SIF IS_INSERT_SINGLE(MPLY:0, "全") || IS_EQUIP(MPLY:0, 21, 22)
+	RETURN 0
+;ターゲットがキス中、足舐め中、またはプレイヤー以外に顔面騎乗されているなら不可
+SIF IS_EQUIP(MTAR:0, 20) || IS_EQUIP_PLAYER(MTAR:0, 104) || (IS_RIDDEN(MTAR:0) && !IS_RIDDEN(MTAR:0, MPLY:0))
+	RETURN 0
+;ターゲットが口枷装着中なら不可
+SIF IS_EQUIP_TARGET(MTAR:0, 86)
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;メイン処理
+;-------------------------------------------------
+@COM132
+;実行判定
+CALL COM_ORDER_COMMON
+SIF RESULT == 0
+	RETURN 0
+
+;全プレイヤーについて処理
+FOR LOCAL:0, 0, MPLY_NUM
+	LOCAL:2 = MPLY:(LOCAL:0)
+
+	EXP:(LOCAL:2):排泄経験値 += 1
+
+	LOCAL:3 = 800
+	LOCAL:4 = 300
+
+	SELECTCASE ABL:(LOCAL:2):排泄
+		CASE 0
+			TIMES LOCAL:3, 0.00
+			TIMES LOCAL:4, 1.00
+		CASE 1
+			TIMES LOCAL:3, 0.10
+			TIMES LOCAL:4, 0.60
+		CASE 2
+			TIMES LOCAL:3, 0.20
+			TIMES LOCAL:4, 0.25
+		CASE 3
+			TIMES LOCAL:3, 0.40
+			TIMES LOCAL:4, 0.05
+		CASE 4
+			TIMES LOCAL:3, 0.70
+			TIMES LOCAL:4, 0.00
+		CASEELSE
+			LOCAL:3 = LOCAL:3 * (100 + (ABL:(LOCAL:2):排泄 - 5) * 2) / 100
+			LOCAL:4 = 0
+	ENDSELECT
+
+	SOURCE:(LOCAL:2):露出 = 1200
+	SOURCE:(LOCAL:2):逸脱 = 800
+	SOURCE:(LOCAL:2):性行動 = 150
+	SOURCE:(LOCAL:2):中毒充足 = LOCAL:3
+	SOURCE:(LOCAL:2):反感 = LOCAL:4
+
+	;プレイヤーに主導権がある場合
+	IF IS_INITIATIVE(LOCAL:2)
+		SOURCE:(LOCAL:2):嗜虐 = 300
+	ENDIF
+
+	;主導権に応じた優越・屈従のソース追加
+	CALL ADD_SOURCE_INITIATIVE_U(LOCAL:2, 120, 150)
+
+	;尿残量を0にする
+	TCVAR:(LOCAL:2):54 = 0
+NEXT
+
+;主導権の所在を取得
+LOCAL:11 = GET_COM_INITIATIVE()
+
+;全ターゲットについて処理
+FOR LOCAL:0, 0, MTAR_NUM
+	LOCAL:1 = MTAR:(LOCAL:0)
+
+	SOURCE:(LOCAL:1):性行動 = 90
+
+	;ターゲットに主導権
+	IF LOCAL:11 == 1 || LOCAL:11 == 2
+		SOURCE:(LOCAL:1):嗜虐 = 150
+		SOURCE:(LOCAL:1):逸脱 = 700
+	;ターゲットに主導権がない
+	ELSE
+		SOURCE:(LOCAL:1):逸脱 = 1000
+		SOURCE:(LOCAL:1):恐怖 = MAX(200 - 50 * ABL:(LOCAL:1):欲望, 0)
+	ENDIF
+
+	;ターゲットが気絶している場合
+	IF TCVAR:(LOCAL:1):52
+		SOURCE:(LOCAL:1):気絶回復 = 500
+	ENDIF
+
+	;主導権に応じた優越・屈従のソース追加
+	CALL ADD_SOURCE_INITIATIVE_U(LOCAL:1, 130, 170)
+NEXT
+
+;主導度変化基準値
+TFLAG:49 = 4
+
+;倒錯度変化基準値
+TFLAG:50 = 6
+
+;レズ・ＢＬ経験基準値
+TFLAG:51 = 4
+
+RETURN 1
+
+;-------------------------------------------------
+;継続コマンドかどうかを設定
+;-------------------------------------------------
+@COM_IS_EQUIP132
+RETURN 0
+
+;-------------------------------------------------
+;固有の実行判定
+;-------------------------------------------------
+@COM_ORDER_PLAYER132(ARG:0)
+;実行値の設定
+TCVAR:(ARG:0):25 = 105
+
+;共通部分
+CALL COM_ORDER(ARG:0)
+
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲望Lv{ABL:(ARG:0):欲望}", ABL:(ARG:0):欲望 * 2)
+CALL COM_ORDER_ELEMENT(ARG:0, @"露出Lv{ABL:(ARG:0):露出}", ABL:(ARG:0):露出 * 4)
+CALL COM_ORDER_ELEMENT(ARG:0, @"排泄Lv{ABL:(ARG:0):排泄}", ABL:(ARG:0):排泄 * 7)
+
+LOCAL:0 = GET_PALAMLV(PALAM:(ARG:0):欲情)
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲情Lv{LOCAL:0}", MIN(LOCAL:0 * 1, 10))
+
+IF TALENT:(ARG:0):恥じらい
+	CALL COM_ORDER_ELEMENT(ARG:0, "恥じらい", -12)
+ENDIF
+IF TALENT:(ARG:0):恥薄い
+	CALL COM_ORDER_ELEMENT(ARG:0, "恥薄い", 8)
+ENDIF
+IF TALENT:(ARG:0):自制心
+	CALL COM_ORDER_ELEMENT(ARG:0, "自制心", -6)
+ENDIF
+IF TALENT:(ARG:0):目立ちたがり
+	CALL COM_ORDER_ELEMENT(ARG:0, "目立ちたがり", 6)
+ENDIF
+IF TALENT:(ARG:0):倒錯的
+	CALL COM_ORDER_ELEMENT(ARG:0, "倒錯的", 8)
+ENDIF
+
+IF !TALENT:(ARG:0):合意
+	CALL COM_ORDER_ELEMENT(ARG:0, "合意なし", -10)
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE132
+;プレイヤーが顔面騎乗中で竿がない場合
+IF !PENIS(MPLY:0) && IS_RIDE(MPLY:0)
+	SELECTCASE GET_COM_INITIATIVE()
+		;プレイヤーに主導権
+		CASE 0
+			PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%の顔に跨ったまま口に秘唇を押し付けると、%ANAME(MTAR:0)%の口の中へと放尿し%TARGET_STR("た", "てきた")%…
+		;ターゲットに主導権
+		CASE 1
+			PRINTFORMW %ANAME(MTAR:0)%は顔の上に跨った%ANAME(MPLY:0)%の秘唇にむしゃぶりつき、そのまま口の中へと放尿させた…
+		;第三者に主導権
+		CASEELSE
+			PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に対して、%ANAME(MTAR:0)%の口の中に放尿するように命令した
+			PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%の顔に跨ったまま口に秘唇を押し付けると、%ANAME(MTAR:0)%の口の中へと放尿した…
+	ENDSELECT
+
+;プレイヤーがフェラ・亀頭フェラされている場合
+ELSEIF IS_EQUIP_TARGET(MPLY:0, 11, 107)
+	SELECTCASE GET_COM_INITIATIVE()
+		;プレイヤーに主導権
+		CASE 0
+			PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%にペニスを咥えさせたまま、%ANAME(MTAR:0)%の口の中へと放尿し%TARGET_STR("た", "てきた")%…
+		;ターゲットに主導権
+		CASE 1
+			PRINTFORML %ANAME(MTAR:0)%は%ANAME(MPLY:0)%のペニスを舐め上げながら、%ANAME(MPLY:0)%に口の中へと放尿するように命令した
+			PRINTFORMW %ANAME(MPLY:0)%は言われるまま、%ANAME(MTAR:0)%の口の中へと尿を注ぎ込んだ…
+		;第三者に主導権
+		CASEELSE
+			PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に対して、%ANAME(MTAR:0)%の口の中に放尿するように命令した
+			PRINTFORMW %ANAME(MPLY:0)%は言われるまま、%ANAME(MTAR:0)%の口の中へと尿を注ぎ込んだ…
+	ENDSELECT
+
+;それ以外
+ELSE
+	;プレイヤーに竿がある場合
+	IF PENIS(MPLY:0)
+		SELECTCASE GET_COM_INITIATIVE()
+			;プレイヤーに主導権
+			CASE 0
+				PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%の口にペニスを突き入れると、%ANAME(MTAR:0)%の口の中へと放尿し%TARGET_STR("た", "てきた")%…
+			;ターゲットに主導権
+			CASE 1
+				PRINTFORML %ANAME(MTAR:0)%は%ANAME(MPLY:0)%に口の中へと放尿するように命令し、%ANAME(MPLY:0)%のペニスを咥え込んだ
+				PRINTFORMW %ANAME(MPLY:0)%は言われるまま、%ANAME(MTAR:0)%の口の中へと尿を注ぎ込んだ…
+			;第三者に主導権
+			CASEELSE
+				PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に対して、%ANAME(MTAR:0)%の口の中に放尿するように命令した
+				PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%の口にペニスを突き入れると、%ANAME(MTAR:0)%の口の中へと放尿した…
+		ENDSELECT
+
+	;プレイヤーに竿がない場合
+	ELSE
+		SELECTCASE GET_COM_INITIATIVE()
+			;プレイヤーに主導権
+			CASE 0
+				PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%の口に秘唇を押し付けると、%ANAME(MTAR:0)%の口の中へと放尿し%TARGET_STR("た", "てきた")%…
+			;ターゲットに主導権
+			CASE 1
+				PRINTFORML %ANAME(MTAR:0)%は%ANAME(MPLY:0)%に口の中へと放尿するように命令し、%ANAME(MPLY:0)%の秘唇にむしゃぶりついた
+				PRINTFORMW %ANAME(MPLY:0)%は言われるまま、%ANAME(MTAR:0)%の口の中へと放尿した…
+			;第三者に主導権
+			CASEELSE
+				PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に対して、%ANAME(MTAR:0)%の口の中に放尿するように命令した
+				PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%の口に秘唇を押し付けると、%ANAME(MTAR:0)%の口の中へと放尿した…
+		ENDSELECT
+	ENDIF
+ENDIF
+
+;--------------------------------------------------------
+;地の文(パラメータ・刻印変動後)
+;--------------------------------------------------------
+@COM_TEXT_LAST132
+FOR LOCAL:0, 0, MPLY_NUM
+	LOCAL:1 = MPLY:(LOCAL:0)
+
+	IF LOCAL:1 != MASTER && !TCVAR:(MTAR:0):52
+		IF ABL:(LOCAL:1):排泄 >= 2
+			IF IS_INITIATIVE(LOCAL:1) && (ABL:(LOCAL:1):主導度Ｕ >= 300 || TALENT:(LOCAL:1):サド)
+				PRINTFORMW %ANAME(LOCAL:1)%は排尿の解放感に浸りながら、満足そうに笑みを浮かべた
+			ELSE
+				PRINTFORMW %ANAME(LOCAL:1)%は見られながら放尿する解放感に恍惚とした表情を浮かべている
+			ENDIF
+		ELSEIF ABL:(LOCAL:1):排泄 >= 1
+			PRINTFORMW %ANAME(LOCAL:1)%は羞恥に顔を赤らめながらも、排尿の解放感にぶるりと震えた
+		ELSE
+			PRINTFORMW %ANAME(LOCAL:1)%は放尿しながら顔を赤らめて恥ずかしそうにしている
+		ENDIF
+	ENDIF
+NEXT
+FOR LOCAL:0, 0, MTAR_NUM
+	LOCAL:1 = MTAR:(LOCAL:0)
+	LOCAL:2 = CUP:(LOCAL:1):怒主 + CUP:(LOCAL:1):哀主
+
+	IF LOCAL:1 != MASTER && !TCVAR:(MTAR:0):52
+		IF LOCAL:2 < 0 && CUP:(LOCAL:1):欲情 >= 3000
+			PRINTFORMW %ANAME(LOCAL:1)%は吐き出された尿を全て飲み込むと、掃除するかのように尿道を強く吸い上げた
+		ELSEIF LOCAL:2 < 0 && CUP:(LOCAL:1):欲情 >= 500
+			PRINTFORMW %ANAME(LOCAL:1)%は口内に注ぎ込まれた尿をゴクゴクと音を立てて飲み込んだ
+		ELSEIF LOCAL:2 < 0
+			PRINTFORMW %ANAME(LOCAL:1)%は口内に注ぎ込まれた尿でむせ返りながらも、
+		ELSEIF IS_INITIATIVE(LOCAL:1)
+			PRINTFORMW %ANAME(LOCAL:1)%は口内に注ぎ込まれた尿を吐き出し、%ANAME(MPLY:0)%を睨んだ
+		ELSE
+			PRINTFORMW %ANAME(LOCAL:1)%は口内に注ぎ込まれた尿を吐き出そうと、激しくえづいた
+		ENDIF
+	ENDIF
+NEXT

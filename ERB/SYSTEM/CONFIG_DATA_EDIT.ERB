@@ -1,0 +1,2039 @@
+﻿;コンフィグから行う強制データ操作
+
+;-------------------------------------------------
+;データ操作
+;-------------------------------------------------
+@CONFIG_DATA_EDIT
+DRAWLINE
+PRINTL 行う操作を選択して下さい
+SETCOLOR 0xD0A080
+PRINTL   ◎操作によっては重篤な不具合が発生する場合があります
+PRINTL   ◎濫用するとゲームの楽しみを損なう恐れがあります
+PRINTL   以上を理解した上でご利用下さい
+RESETCOLOR
+DRAWLINE
+
+PRINTBUTTON " 0[キャラデータの個別書き換え]", 0
+PRINTL 
+PRINTBUTTON " 1[キャラデータの一括書き換え]", 1
+PRINTL 
+PRINTBUTTON " 2[所持金の追加]", 2
+PRINTL 
+PRINTBUTTON " 3[勢力図の変更]", 3
+PRINTL 
+PRINTBUTTON " 4[全アイテム販売開始&追加]", 4
+PRINTL
+PRINTBUTTON " 5[時期設定]", 5
+PRINTL
+PRINTBUTTON " 6[各国との関係設定]", 6
+PRINTL
+DRAWLINE
+PRINTBUTTON " 9[戻る]", 9
+PRINTL 
+
+REDRAW 0
+
+$INPUT_LOOP
+INPUT
+
+IF RESULT == 9
+	REDRAW 1
+	RETURN
+ELSEIF RESULT == 0
+	REDRAW 1
+	CALL CONFIG_DATA_EDIT_CHARA
+ELSEIF RESULT == 1
+	REDRAW 1
+	CALL CONFIG_DATA_EDIT_CHARA_ALL
+ELSEIF RESULT == 2
+	REDRAW 1
+	PRINTFORML 追加する所持金の額を入力して下さい(現在:{MONEY})
+	INPUT
+	MONEY = LIMIT(MONEY + RESULT, 0, 9999999999999)
+ELSEIF RESULT == 3
+	CALL CONFIG_DATA_EDIT_SLG
+ELSEIF RESULT == 4
+	REDRAW 1
+	PRINTFORML 購入可能な全アイテムを販売開始し、かつ追加しておきました
+	FOR LOCAL, 0, 499
+		IF ITEMNAME:LOCAL != ""
+			SELECTCASE LOCAL
+				CASE 140, 141, 142
+					ITEMSALES:LOCAL = 1
+					ITEMTERM:LOCAL = 0
+				CASE 100 TO 149
+					ITEMSALES:LOCAL = 0
+					ITEM:LOCAL = 1
+					ITEMTERM:LOCAL = 0
+				CASE 150 TO 199
+					ITEMSALES:LOCAL = 1
+					ITEM:LOCAL = 99
+					ITEMTERM:LOCAL = 0
+				CASE 200 TO 249
+					ITEMSALES:LOCAL = 0
+					ITEM:LOCAL = 1
+					ITEMTERM:LOCAL = 0
+				CASE 250 TO 279
+					ITEMSALES:LOCAL = 1
+					ITEM:LOCAL = 99
+					ITEMTERM:LOCAL = 0
+				CASE IS >= 280
+					ITEMSALES:LOCAL = 1
+					ITEMTERM:LOCAL = 0
+			ENDSELECT
+		ENDIF
+	NEXT
+ELSEIF RESULT == 5
+	REDRAW 1
+		PRINTFORML 第何期にしますか？(現在:{DAY})
+		PRINTFORML 0以下入力でキャンセルできます
+		INPUT
+		IF RESULT <= 0
+			PRINTFORML キャンセルしました
+		ELSE
+			PRINTFORML {RESULT}期にしました
+			DAY = RESULT
+		ENDIF
+ELSEIF RESULT == 6
+	VARSET LOCAL
+	VARSET LOCALS
+	$DEPLOMACY_LOOP
+	DRAWLINE
+	PRINTL 関係設定を行う勢力を選択して下さい
+	DRAWLINE
+	PRINTL                     【関係】【友好度／敵対度】  【印象】  【囚えている捕虜】        【囚われている捕虜】
+
+	;他勢力一覧の表示
+	FOR LOCAL:0, 1, MAX_COUNTRY
+		;野盗はそもそも表示させない
+		IF IS_COUNTRY(LOCAL:0) && LOCAL:0 != CFLAG:MASTER:1 && COUNTRY_EVENT_ID:(LOCAL:0) != COUNTRY_BANDIT
+			LOCALS:0 = {LOCAL:0, 2}[%NAME:GET_COUNTRY_BOSS(LOCAL:0)%]
+			;外交禁止フラグが立っているならグレー表示
+			IF COUNTRY_IS_CLOSED:(LOCAL:0)
+				SETCOLOR 0x606060
+				PRINTPLAINFORM %LOCALS:0, 22, LEFT%
+				RESETCOLOR
+			ELSE
+				PRINTBUTTON @"%LOCALS:0, 22, LEFT%", LOCAL:0
+			ENDIF
+
+			CALL TMP_SETCOLOR_COUNTRY_RELATION(CFLAG:MASTER:1, LOCAL:0)
+			PRINTFORM %TMP_TOSTR_COUNTRY_RELATION(CFLAG:MASTER:1, LOCAL:0, 0), 9, LEFT%
+			RESETCOLOR
+			LOCAL:4 = GET_COUNTRY_BOSS(CFLAG:MASTER:1)
+			LOCAL:5 = GET_COUNTRY_BOSS(LOCAL:0)
+	;		PRINTFORM 
+			PRINTFORM {REL_LIKE:(LOCAL:5):(LOCAL:4), 5, RIGHT}
+			PRINT 　
+			PRINTFORM {REL_HATE:(LOCAL:5):(LOCAL:4), 5, RIGHT}
+			PRINT        
+
+			CALL TMP_PRINT_COUNTRY_RELATION2(LOCAL:5, LOCAL:4)
+			PRINT      
+
+			;囚えている捕虜の表示
+			LOCALS:1 = 
+			FOR LOCAL:1, 0, CHARANUM
+				IF CFLAG:(LOCAL:1):1 == LOCAL:0 && CFLAG:(LOCAL:1):9 == CFLAG:MASTER:1
+					IF LOCALS:1 == ""
+						LOCALS:1 = %NAME:(LOCAL:1)%
+					ELSE
+						IF STRLENS(@"%LOCALS:1%、%NAME:(LOCAL:1)%") >= 24
+							LOCALS:1 = %LOCALS:1%、他
+							BREAK
+						ELSE
+							LOCALS:1 = %LOCALS:1%、%NAME:(LOCAL:1)%
+						ENDIF
+					ENDIF
+				ENDIF
+			NEXT
+			SETCOLOR 0xFF8020
+			PRINTFORM %LOCALS:1, 26, LEFT%
+			RESETCOLOR
+
+			;囚えられている捕虜の表示
+			LOCALS:1 = 
+			FOR LOCAL:1, 0, CHARANUM
+				IF CFLAG:(LOCAL:1):1 == CFLAG:MASTER:1 && CFLAG:(LOCAL:1):9 == LOCAL:0
+					IF LOCALS:1 == ""
+						LOCALS:1 = %NAME:(LOCAL:1)%
+					ELSE
+						IF STRLENS(@"%LOCALS:1%、%NAME:(LOCAL:1)%") >= 24
+							LOCALS:1 = %LOCALS:1%、他
+							BREAK
+						ELSE
+							LOCALS:1 = %LOCALS:1%、%NAME:(LOCAL:1)%
+						ENDIF
+					ENDIF
+				ENDIF
+			NEXT
+			SETCOLOR 0x40FFFF
+			PRINTFORM %LOCALS:1, 26, LEFT%
+			RESETCOLOR
+			PRINTL 
+		ENDIF
+	NEXT
+	DRAWLINE
+	PRINTBUTTON "98[一括]", 98
+	PRINTL
+	PRINTBUTTON "99[戻る]", 99
+	PRINTL 
+	REDRAW 0
+
+	$INPUT_LOOP2
+	INPUT
+
+	IF RESULT >= 1 && RESULT < MAX_COUNTRY && RESULT != CFLAG:MASTER:1 && IS_COUNTRY(RESULT) && !COUNTRY_IS_CLOSED:RESULT
+		LOCAL:1 = RESULT
+		REDRAW 1
+		PRINTFORML 友好度をいくらにしますか？(負の数で現状維持、最大値1500)
+		INPUT
+		IF RESULT < 0
+		ELSE
+			REL_LIKE:(GET_COUNTRY_BOSS(LOCAL:1)):(GET_COUNTRY_BOSS(CFLAG:MASTER:1)) = MIN(RESULT, 1500)
+		ENDIF
+		PRINTFORML 敵対度をいくらにしますか？(負の数で現状維持、最大値1500)
+		INPUT
+		IF RESULT < 0
+		ELSE
+			REL_HATE:(GET_COUNTRY_BOSS(LOCAL:1)):(GET_COUNTRY_BOSS(CFLAG:MASTER:1)) = MIN(RESULT, 1500)
+		ENDIF
+		PRINTFORMW 設定しました
+		GOTO DEPLOMACY_LOOP
+	ELSEIF RESULT == 98
+		REDRAW 1
+		PRINTFORML 友好度をいくらにしますか？(負の数で現状維持、最大値1500)
+		INPUT
+		IF RESULT < 0
+		ELSE
+			FOR LOCAL, 0, MAX_COUNTRY
+				IF IS_COUNTRY(LOCAL) && !COUNTRY_IS_CLOSED:LOCAL && LOCAL != CFLAG:MASTER:1
+					REL_LIKE:(GET_COUNTRY_BOSS(LOCAL)):(GET_COUNTRY_BOSS(CFLAG:MASTER:1)) = MIN(RESULT, 1500)
+				ENDIF
+			NEXT
+		ENDIF
+		PRINTFORML 敵対度をいくらにしますか？(負の数で現状維持、最大値1500)
+		INPUT
+		IF RESULT < 0
+		ELSE
+			FOR LOCAL, 0, MAX_COUNTRY
+				IF IS_COUNTRY(LOCAL) && !COUNTRY_IS_CLOSED:LOCAL && LOCAL != CFLAG:MASTER:1
+					REL_HATE:(GET_COUNTRY_BOSS(LOCAL)):(GET_COUNTRY_BOSS(CFLAG:MASTER:1)) = MIN(RESULT, 1500)
+				ENDIF
+			NEXT
+		ENDIF
+		PRINTFORMW 設定しました
+		GOTO DEPLOMACY_LOOP
+	ELSEIF RESULT != 99
+		CLEARLINE 1
+		GOTO INPUT_LOOP2
+	ENDIF
+	REDRAW 1
+	RESTART
+ELSE
+	CLEARLINE 1
+	GOTO INPUT_LOOP
+ENDIF
+RESTART
+
+;-------------------------------------------------
+;キャラデータの書き換え
+;-------------------------------------------------
+@CONFIG_DATA_EDIT_CHARA_ALL
+DRAWLINE
+PRINTFORML キャラデータの変更(一括)    ※主人公は変更の適用外です
+DRAWLINE
+
+LOCALS:0 = 全員に陥落素質を付ける
+PRINTFORM    %LOCALS:0, 24, RIGHT% 
+PRINTBUTTON " 100[  恋慕]", 100
+PRINTBUTTON " 101[  親愛]", 101
+PRINTBUTTON " 102[  恋人]", 102
+PRINTL 
+PRINTFORM %TOSTR_SPACE(28)%
+PRINTBUTTON " 103[  服従]", 103
+PRINTBUTTON " 104[  隷属]", 104
+PRINTBUTTON " 105[  烙印]", 105
+PRINTBUTTON " 106[  合意]", 106
+PRINTL 
+
+LOCALS:0 = 全員の性別を変更
+PRINTFORM    %LOCALS:0, 24, RIGHT% 
+PRINTBUTTON " 110[  男性]", 110
+PRINTBUTTON " 111[  女性]", 111
+PRINTBUTTON " 112[  女双]", 112
+PRINTL 
+PRINTFORM %TOSTR_SPACE(28)%
+PRINTBUTTON " 113[  男双]", 113
+PRINTBUTTON " 114[男の娘]", 114
+PRINTBUTTON " 115[男の娘双]", 115
+PRINTL 
+
+LOCALS:0 = 全員の性経験を変更
+PRINTFORM    %LOCALS:0, 24, RIGHT% 
+PRINTBUTTON " 120[  処女]", 120
+PRINTBUTTON " 121[非処女]", 121
+PRINTBUTTON " 122[  童貞]", 122
+PRINTBUTTON " 123[非童貞]", 123
+PRINTL 
+
+LOCALS:0 = 全員を捕虜にする
+PRINTFORM    %LOCALS:0, 24, RIGHT% 
+PRINTBUTTON " 130[他国の士官のみ]", 130
+PRINTBUTTON " 131[全ての士官]", 131
+PRINTL 
+PRINTL 
+
+LOCALS:0 = 全員の好感度を変更
+PRINTFORM    %LOCALS:0, 24, RIGHT% 
+PRINTBUTTON " 200[  固定]", 200
+PRINTBUTTON " 201[  以上]", 201
+PRINTBUTTON " 202[  以下]", 202
+PRINTL 
+
+LOCALS:0 = 全員の従属度を変更
+PRINTFORM    %LOCALS:0, 24, RIGHT% 
+PRINTBUTTON " 210[  固定]", 210
+PRINTBUTTON " 211[  以上]", 211
+PRINTBUTTON " 212[  以下]", 212
+PRINTL 
+
+LOCALS:0 = 全員の依存度を変更
+PRINTFORM    %LOCALS:0, 24, RIGHT% 
+PRINTBUTTON " 220[  固定]", 220
+PRINTBUTTON " 221[  以上]", 221
+PRINTBUTTON " 222[  以下]", 222
+PRINTL 
+PRINTL 
+
+LOCALS:0 = 全員に素質を追加
+PRINTFORM    %LOCALS:0, 24, RIGHT% 
+PRINTBUTTON " 300[名称指定]", 300
+PRINTBUTTON " 301[番号指定]", 301
+PRINTL 
+
+LOCALS:0 = 全員の素質を削除
+PRINTFORM    %LOCALS:0, 24, RIGHT% 
+PRINTBUTTON " 310[名称指定]", 310
+PRINTBUTTON " 311[番号指定]", 311
+PRINTL 
+
+LOCALS:0 = 全員の能力値を変更
+PRINTFORM    %LOCALS:0, 24, RIGHT% 
+PRINT  名称指定→
+PRINTBUTTON " 320[  固定]", 320
+PRINTBUTTON " 321[  以上]", 321
+PRINTBUTTON " 322[  以下]", 322
+PRINTL 
+PRINTFORM %TOSTR_SPACE(29)%番号指定→
+PRINTBUTTON " 330[  固定]", 330
+PRINTBUTTON " 331[  以上]", 331
+PRINTBUTTON " 332[  以下]", 332
+PRINTL 
+PRINTL 
+
+LOCALS:0 = 全員の対面状態を変更
+PRINTFORM    %LOCALS:0, 24, RIGHT% 
+PRINTBUTTON " 400[初対面]", 400
+PRINTBUTTON " 401[対面済み]", 401
+PRINTL 
+
+DRAWLINE
+PRINTBUTTON " 999[戻る]", 999
+PRINTL 
+
+REDRAW 0
+
+$INPUT_LOOP
+INPUT
+
+IF RESULT == 999
+	REDRAW 1
+	RETURN
+ELSEIF RESULT == 100
+	PRINTFORML 主人公を除く全てのキャラに[恋慕]を付け、好感度を1500、依存度を300にします
+	PRINTFORML 現在の好感度・依存度がこれ以上の場合は、その値が維持されます
+	PRINTFORML また、全てのキャラについて、初対面状態が解除されます
+	CALL ASK_YN("実行", "キャンセル")
+	IF RESULT == 0
+		FOR LOCAL:0, 0, CHARANUM
+			IF LOCAL:0 != MASTER
+				TALENT:(LOCAL:0):服従 = 0
+				TALENT:(LOCAL:0):隷属 = 0
+				TALENT:(LOCAL:0):親友 = 0
+				TALENT:(LOCAL:0):恋慕 = 1
+				CFLAG:(LOCAL:0):2 = MAX(CFLAG:(LOCAL:0):2, 1500)
+				CFLAG:(LOCAL:0):3 = MAX(CFLAG:(LOCAL:0):3, 300)
+				CFLAG:(LOCAL:0):8 = 1
+				CFLAG:(LOCAL:0):17 = 1
+			ENDIF
+		NEXT
+	ENDIF
+ELSEIF RESULT == 101
+	PRINTFORML 主人公を除く全てのキャラに[親愛]を付け、好感度を10000、依存度を3000にします
+	PRINTFORML 現在の好感度・依存度がこれ以上の場合は、その値が維持されます
+	PRINTFORML また、全てのキャラについて、初対面状態が解除されます
+	CALL ASK_YN("実行", "キャンセル")
+	IF RESULT == 0
+		FOR LOCAL:0, 0, CHARANUM
+			IF LOCAL:0 != MASTER
+				TALENT:(LOCAL:0):服従 = 0
+				TALENT:(LOCAL:0):隷属 = 0
+				TALENT:(LOCAL:0):親友 = 0
+				TALENT:(LOCAL:0):恋慕 = 1
+				TALENT:(LOCAL:0):親愛 = 1
+				CFLAG:(LOCAL:0):2 = MAX(CFLAG:(LOCAL:0):2, 10000)
+				CFLAG:(LOCAL:0):3 = MAX(CFLAG:(LOCAL:0):3, 3000)
+				CFLAG:(LOCAL:0):8 = 1
+				CFLAG:(LOCAL:0):17 = 1
+			ENDIF
+		NEXT
+	ENDIF
+ELSEIF RESULT == 102
+	PRINTFORML 主人公を除く全てのキャラに[恋人]を付けます
+	PRINTFORML また、全てのキャラについて、初対面状態が解除されます
+	CALL ASK_YN("実行", "キャンセル")
+	IF RESULT == 0
+		FOR LOCAL:0, 0, CHARANUM
+			IF LOCAL:0 != MASTER
+				TALENT:(LOCAL:0):烙印 = 0
+				TALENT:(LOCAL:0):恋人 = 1
+				CFLAG:(LOCAL:0):8 = 1
+				CFLAG:(LOCAL:0):17 = 1
+			ENDIF
+		NEXT
+	ENDIF
+ELSEIF RESULT == 103
+	PRINTFORML 主人公を除く全てのキャラに[服従]を付け、従属度を1500、依存度を300にします
+	PRINTFORML 現在の従属度・依存度がこれ以上の場合は、その値が維持されます
+	PRINTFORML また、全てのキャラについて、初対面状態が解除されます
+	CALL ASK_YN("実行", "キャンセル")
+	IF RESULT == 0
+		FOR LOCAL:0, 0, CHARANUM
+			IF LOCAL:0 != MASTER
+				TALENT:(LOCAL:0):恋慕 = 0
+				TALENT:(LOCAL:0):親愛 = 0
+				TALENT:(LOCAL:0):親友 = 0
+				TALENT:(LOCAL:0):服従 = 1
+				CFLAG:(LOCAL:0):4 = MAX(CFLAG:(LOCAL:0):4, 1500)
+				CFLAG:(LOCAL:0):3 = MAX(CFLAG:(LOCAL:0):3, 300)
+				CFLAG:(LOCAL:0):8 = 1
+				CFLAG:(LOCAL:0):17 = 1
+			ENDIF
+		NEXT
+	ENDIF
+ELSEIF RESULT == 104
+	PRINTFORML 主人公を除く全てのキャラに[隷属]を付け、従属度を10000、依存度を3000にします
+	PRINTFORML 現在の従属度・依存度がこれ以上の場合は、その値が維持されます
+	PRINTFORML また、全てのキャラについて、初対面状態が解除されます
+	CALL ASK_YN("実行", "キャンセル")
+	IF RESULT == 0
+		FOR LOCAL:0, 0, CHARANUM
+			IF LOCAL:0 != MASTER
+				TALENT:(LOCAL:0):恋慕 = 0
+				TALENT:(LOCAL:0):親愛 = 0
+				TALENT:(LOCAL:0):親友 = 0
+				TALENT:(LOCAL:0):服従 = 1
+				TALENT:(LOCAL:0):隷属 = 1
+				CFLAG:(LOCAL:0):4 = MAX(CFLAG:(LOCAL:0):4, 10000)
+				CFLAG:(LOCAL:0):3 = MAX(CFLAG:(LOCAL:0):3, 3000)
+				CFLAG:(LOCAL:0):8 = 1
+				CFLAG:(LOCAL:0):17 = 1
+			ENDIF
+		NEXT
+	ENDIF
+ELSEIF RESULT == 105
+	PRINTFORML 主人公を除く全てのキャラに[烙印]を付けます
+	PRINTFORML また、全てのキャラについて、初対面状態が解除されます
+	CALL ASK_YN("実行", "キャンセル")
+	IF RESULT == 0
+		FOR LOCAL:0, 0, CHARANUM
+			IF LOCAL:0 != MASTER
+				TALENT:(LOCAL:0):恋人 = 0
+				TALENT:(LOCAL:0):烙印 = 1
+				CFLAG:(LOCAL:0):8 = 1
+				CFLAG:(LOCAL:0):17 = 1
+			ENDIF
+		NEXT
+	ENDIF
+ELSEIF RESULT == 106
+	PRINTFORML 主人公を除く全てのキャラに[合意]を付けます
+	PRINTFORML また、全てのキャラについて、初対面状態が解除されます
+	CALL ASK_YN("実行", "キャンセル")
+	IF RESULT == 0
+		FOR LOCAL:0, 0, CHARANUM
+			IF LOCAL:0 != MASTER
+				TALENT:(LOCAL:0):合意 = 1
+				CFLAG:(LOCAL:0):17 = 1
+			ENDIF
+		NEXT
+	ENDIF
+ELSEIF RESULT == 110
+	PRINTFORML 主人公を除く全てのキャラを男性にします
+	CALL ASK_YN("実行", "キャンセル")
+	IF RESULT == 0
+		FOR LOCAL:0, 0, CHARANUM
+			IF LOCAL:0 != MASTER
+				TALENT:(LOCAL:0):性別 = 0
+			ENDIF
+		NEXT
+	ENDIF
+ELSEIF RESULT == 111
+	PRINTFORML 主人公を除く全てのキャラを女性にします
+	CALL ASK_YN("実行", "キャンセル")
+	IF RESULT == 0
+		FOR LOCAL:0, 0, CHARANUM
+			IF LOCAL:0 != MASTER
+				TALENT:(LOCAL:0):性別 = 1
+			ENDIF
+		NEXT
+	ENDIF
+ELSEIF RESULT == 112
+	PRINTFORML 主人公を除く全てのキャラを女性(ふたなり)にします
+	CALL ASK_YN("実行", "キャンセル")
+	IF RESULT == 0
+		FOR LOCAL:0, 0, CHARANUM
+			IF LOCAL:0 != MASTER
+				TALENT:(LOCAL:0):性別 = 2
+			ENDIF
+		NEXT
+	ENDIF
+ELSEIF RESULT == 113
+	PRINTFORML 主人公を除く全てのキャラを男性(ふたなり)にします
+	CALL ASK_YN("実行", "キャンセル")
+	IF RESULT == 0
+		FOR LOCAL:0, 0, CHARANUM
+			IF LOCAL:0 != MASTER
+				TALENT:(LOCAL:0):性別 = 3
+			ENDIF
+		NEXT
+	ENDIF
+ELSEIF RESULT == 114
+	PRINTFORML 主人公を除く全てのキャラを男の娘にします
+	CALL ASK_YN("実行", "キャンセル")
+	IF RESULT == 0
+		FOR LOCAL:0, 0, CHARANUM
+			IF LOCAL:0 != MASTER
+				TALENT:(LOCAL:0):性別 = 4
+			ENDIF
+		NEXT
+	ENDIF
+ELSEIF RESULT == 115
+	PRINTFORML 主人公を除く全てのキャラを男の娘(ふたなり)にします
+	CALL ASK_YN("実行", "キャンセル")
+	IF RESULT == 0
+		FOR LOCAL:0, 0, CHARANUM
+			IF LOCAL:0 != MASTER
+				TALENT:(LOCAL:0):性別 = 5
+			ENDIF
+		NEXT
+	ENDIF
+ELSEIF RESULT == 120
+	PRINTFORML 主人公を除く全てのキャラを処女にします(感度や経験は変更されません)
+	CALL ASK_YN("実行", "キャンセル")
+	IF RESULT == 0
+		FOR LOCAL:0, 0, CHARANUM
+			IF LOCAL:0 != MASTER
+				TALENT:(LOCAL:0):処女 = 1
+				CFLAG:(LOCAL:0):41 = 0
+			ENDIF
+		NEXT
+	ENDIF
+ELSEIF RESULT == 121
+	PRINTFORML 主人公を除く全てのキャラを非処女にします
+	CALL ASK_YN("実行", "キャンセル")
+	IF RESULT == 0
+		FOR LOCAL:0, 0, CHARANUM
+			IF LOCAL:0 != MASTER
+				TALENT:(LOCAL:0):処女 = 0
+				CFLAG:(LOCAL:0):41 = -1
+			ENDIF
+		NEXT
+	ENDIF
+ELSEIF RESULT == 122
+	PRINTFORML 主人公を除く全てのキャラを童貞にします(感度や経験は変更されません)
+	CALL ASK_YN("実行", "キャンセル")
+	IF RESULT == 0
+		FOR LOCAL:0, 0, CHARANUM
+			IF LOCAL:0 != MASTER
+				TALENT:(LOCAL:0):童貞 = 1
+				CFLAG:(LOCAL:0):40 = 0
+			ENDIF
+		NEXT
+	ENDIF
+ELSEIF RESULT == 123
+	PRINTFORML 主人公を除く全てのキャラを非童貞にします
+	CALL ASK_YN("実行", "キャンセル")
+	IF RESULT == 0
+		FOR LOCAL:0, 0, CHARANUM
+			IF LOCAL:0 != MASTER
+				TALENT:(LOCAL:0):童貞 = 0
+				CFLAG:(LOCAL:0):40 = -1
+			ENDIF
+		NEXT
+	ENDIF
+ELSEIF RESULT == 130
+	PRINTFORML 主人公と別の勢力に所属する、君主以外の全てのキャラを捕虜にします
+	CALL ASK_YN("実行", "キャンセル")
+	IF RESULT == 0
+		FOR LOCAL:0, 0, CHARANUM
+			IF LOCAL:0 != MASTER && !GROUPMATCH(CFLAG:(LOCAL:0):1, 0, CFLAG:MASTER:1) && GET_COUNTRY_FROM_BOSS_ID(GET_ID(LOCAL:0)) == -1
+				CFLAG:(LOCAL:0):9 = CFLAG:MASTER:1
+			ENDIF
+		NEXT
+	ENDIF
+ELSEIF RESULT == 131
+	PRINTFORML 主人公と各勢力の君主を除く、全てのキャラを捕虜にします
+	CALL ASK_YN("実行", "キャンセル")
+	IF RESULT == 0
+		FOR LOCAL:0, 0, CHARANUM
+			IF LOCAL:0 != MASTER && CFLAG:(LOCAL:0):1 != 0 && GET_COUNTRY_FROM_BOSS_ID(GET_ID(LOCAL:0)) == -1
+				CFLAG:(LOCAL:0):9 = CFLAG:MASTER:1
+			ENDIF
+		NEXT
+	ENDIF
+ELSEIF RESULT == 200
+	PRINTFORML 全てのキャラの好感度を、指定した値に変更します
+	PRINTFORML 指定できる値は -1000～999999999999 で、範囲外の値はキャンセル扱いになります
+	PRINTFORML 指定する値を入力して下さい
+	INPUT
+	IF RESULT >= -1000 && RESULT <= 999999999999
+		FOR LOCAL:0, 0, CHARANUM
+			IF LOCAL:0 != MASTER
+				CFLAG:(LOCAL:0):2 = RESULT
+			ENDIF
+		NEXT
+	ENDIF
+ELSEIF RESULT == 201
+	PRINTFORML 全てのキャラの好感度を、指定した値に変更します
+	PRINTFORML ただし、元の好感度が指定した値より大きい場合、元の値が維持されます
+	PRINTFORML 指定できる値は -1000～999999999999 で、範囲外の値はキャンセル扱いになります
+	PRINTFORML 指定する値を入力して下さい
+	INPUT
+	IF RESULT >= -1000 && RESULT <= 999999999999
+		FOR LOCAL:0, 0, CHARANUM
+			IF LOCAL:0 != MASTER
+				CFLAG:(LOCAL:0):2 = MAX(CFLAG:(LOCAL:0):2, RESULT)
+			ENDIF
+		NEXT
+	ENDIF
+ELSEIF RESULT == 202
+	PRINTFORML 全てのキャラの好感度を、指定した値に変更します
+	PRINTFORML ただし、元の好感度が指定した値より小さい場合、元の値が維持されます
+	PRINTFORML 指定できる値は -1000～999999999999 で、範囲外の値はキャンセル扱いになります
+	PRINTFORML 指定する値を入力して下さい
+	INPUT
+	IF RESULT >= -1000 && RESULT <= 999999999999
+		FOR LOCAL:0, 0, CHARANUM
+			IF LOCAL:0 != MASTER
+				CFLAG:(LOCAL:0):2 = MIN(CFLAG:(LOCAL:0):2, RESULT)
+			ENDIF
+		NEXT
+	ENDIF
+ELSEIF RESULT == 210
+	PRINTFORML 全てのキャラの従属度を、指定した値に変更します
+	PRINTFORML 指定できる値は -1000～999999999999 で、範囲外の値はキャンセル扱いになります
+	PRINTFORML 指定する値を入力して下さい
+	INPUT
+	IF RESULT >= -1000 && RESULT <= 999999999999
+		FOR LOCAL:0, 0, CHARANUM
+			IF LOCAL:0 != MASTER
+				CFLAG:(LOCAL:0):4 = RESULT
+			ENDIF
+		NEXT
+	ENDIF
+ELSEIF RESULT == 211
+	PRINTFORML 全てのキャラの従属度を、指定した値に変更します
+	PRINTFORML ただし、元の好感度が指定した値より大きい場合、元の値が維持されます
+	PRINTFORML 指定できる値は -1000～999999999999 で、範囲外の値はキャンセル扱いになります
+	PRINTFORML 指定する値を入力して下さい
+	INPUT
+	IF RESULT >= -1000 && RESULT <= 999999999999
+		FOR LOCAL:0, 0, CHARANUM
+			IF LOCAL:0 != MASTER
+				CFLAG:(LOCAL:0):4= MAX(CFLAG:(LOCAL:0):4, RESULT)
+			ENDIF
+		NEXT
+	ENDIF
+ELSEIF RESULT == 212
+	PRINTFORML 全てのキャラの従属度を、指定した値に変更します
+	PRINTFORML ただし、元の好感度が指定した値より小さい場合、元の値が維持されます
+	PRINTFORML 指定できる値は -1000～999999999999 で、範囲外の値はキャンセル扱いになります
+	PRINTFORML 指定する値を入力して下さい
+	INPUT
+	IF RESULT >= -1000 && RESULT <= 999999999999
+		FOR LOCAL:0, 0, CHARANUM
+			IF LOCAL:0 != MASTER
+				CFLAG:(LOCAL:0):4 = MIN(CFLAG:(LOCAL:0):4, RESULT)
+			ENDIF
+		NEXT
+	ENDIF
+
+
+ELSEIF RESULT == 220
+	PRINTFORML 全てのキャラの依存度を、指定した値に変更します
+	PRINTFORML 指定できる値は -1000～999999999999 で、範囲外の値はキャンセル扱いになります
+	PRINTFORML 指定する値を入力して下さい
+	INPUT
+	IF RESULT >= -1000 && RESULT <= 999999999999
+		FOR LOCAL:0, 0, CHARANUM
+			IF LOCAL:0 != MASTER
+				CFLAG:(LOCAL:0):3 = RESULT
+			ENDIF
+		NEXT
+	ENDIF
+ELSEIF RESULT == 221
+	PRINTFORML 全てのキャラの依存度を、指定した値に変更します
+	PRINTFORML ただし、元の好感度が指定した値より大きい場合、元の値が維持されます
+	PRINTFORML 指定できる値は -1000～999999999999 で、範囲外の値はキャンセル扱いになります
+	PRINTFORML 指定する値を入力して下さい
+	INPUT
+	IF RESULT >= -1000 && RESULT <= 999999999999
+		FOR LOCAL:0, 0, CHARANUM
+			IF LOCAL:0 != MASTER
+				CFLAG:(LOCAL:0):3 = MAX(CFLAG:(LOCAL:0):3, RESULT)
+			ENDIF
+		NEXT
+	ENDIF
+ELSEIF RESULT == 222
+	PRINTFORML 全てのキャラの依存度を、指定した値に変更します
+	PRINTFORML ただし、元の好感度が指定した値より小さい場合、元の値が維持されます
+	PRINTFORML 指定できる値は -1000～999999999999 で、範囲外の値はキャンセル扱いになります
+	PRINTFORML 指定する値を入力して下さい
+	INPUT
+	IF RESULT >= -1000 && RESULT <= 999999999999
+		FOR LOCAL:0, 0, CHARANUM
+			IF LOCAL:0 != MASTER
+				CFLAG:(LOCAL:0):3 = MIN(CFLAG:(LOCAL:0):3, RESULT)
+			ENDIF
+		NEXT
+	ENDIF
+	
+;素質の追加
+ELSEIF RESULT == 300 || RESULT == 301
+	LOCAL:5 = -1
+	IF RESULT == 300
+		PRINTFORML 追加する素質の名称を入力して下さい(完全一致)
+		INPUTS
+		IF RESULTS != ""
+			FOR LOCAL:0, 0, 1000
+				IF TALENTNAME:(LOCAL:0) == RESULTS
+					LOCAL:5 = LOCAL:0
+					BREAK
+				ENDIF
+			NEXT
+		ENDIF
+		IF LOCAL:5 == -1 && RESULTS != ""
+			PRINTFORMW 「%RESULTS%」と一致する名称の素質は存在しません
+		ENDIF
+	ELSE
+		PRINTFORML 追加する素質の番号を入力して下さい
+		INPUT
+		IF RESULT >= 0 && RESULT <= 999 && TALENTNAME:RESULT != ""
+			LOCAL:5 = RESULT
+		ENDIF
+		IF LOCAL:5 == -1
+			PRINTFORMW その番号の素質は定義されていません
+		ENDIF
+	ENDIF
+	IF LOCAL:5 >= 0
+		IF IS_CONTROLABLE_TALENT(LOCAL:5)
+			FOR LOCAL:0, 0, CHARANUM
+				IF LOCAL:0 != MASTER
+					TALENT:(LOCAL:0):(LOCAL:5) = 1
+				ENDIF
+			NEXT
+			PRINTFORMW 全てのキャラに「%TALENTNAME:(LOCAL:5)%」を追加しました
+		ELSE
+			PRINTFORMW 素質「%TALENTNAME:(LOCAL:5)%」を直接操作することは出来ません
+		ENDIF
+	ENDIF
+
+;素質の削除
+ELSEIF RESULT == 310 || RESULT == 311
+	LOCAL:5 = -1
+	IF RESULT == 310
+		PRINTFORML 削除する素質の名称を入力して下さい(完全一致)
+		INPUTS
+		IF RESULTS != ""
+			FOR LOCAL:0, 0, 1000
+				IF TALENTNAME:(LOCAL:0) == RESULTS
+					LOCAL:5 = LOCAL:0
+					BREAK
+				ENDIF
+			NEXT
+		ENDIF
+		IF LOCAL:5 == -1 && RESULTS != ""
+			PRINTFORMW 「%RESULTS%」と一致する名称の素質は存在しません
+		ENDIF
+	ELSE
+		PRINTFORML 削除する素質の番号を入力して下さい
+		INPUT
+		IF RESULT >= 0 && RESULT <= 999 && TALENTNAME:RESULT != ""
+			LOCAL:5 = RESULT
+		ENDIF
+		IF LOCAL:5 == -1
+			PRINTFORMW その番号の素質は定義されていません
+		ENDIF
+	ENDIF
+	IF LOCAL:5 >= 0
+		IF IS_CONTROLABLE_TALENT(LOCAL:5)
+			FOR LOCAL:0, 0, CHARANUM
+				IF LOCAL:0 != MASTER
+					TALENT:(LOCAL:0):(LOCAL:5) = 0
+				ENDIF
+			NEXT
+			PRINTFORMW 全てのキャラから「%TALENTNAME:(LOCAL:5)%」を削除しました
+		ELSE
+			PRINTFORMW 素質「%TALENTNAME:(LOCAL:5)%」を直接操作することは出来ません
+		ENDIF
+	ENDIF
+
+ELSEIF GROUPMATCH(RESULT, 320, 321, 322, 330, 331, 332)
+	LOCAL:5 = -1
+	LOCAL:6 = RESULT % 10
+	IF RESULT < 330
+		PRINTFORML 追加する能力の名称を入力して下さい(完全一致)
+		INPUTS
+		IF RESULTS != ""
+			FOR LOCAL:0, 0, 100
+				IF ABLNAME:(LOCAL:0) == RESULTS
+					LOCAL:5 = LOCAL:0
+					BREAK
+				ENDIF
+			NEXT
+		ENDIF
+		IF LOCAL:5 == -1 && RESULTS != ""
+			PRINTFORMW 「%RESULTS%」と一致する名称の能力は存在しません
+		ENDIF
+	ELSE
+		PRINTFORML 追加する能力の番号を入力して下さい
+		INPUT
+		IF RESULT >= 0 && RESULT <= 99 && ABLNAME:RESULT != ""
+			LOCAL:5 = RESULT
+		ENDIF
+		IF LOCAL:5 == -1
+			PRINTFORMW その番号の能力は定義されていません
+		ENDIF
+	ENDIF
+	IF LOCAL:5 >= 0
+		IF LOCAL:6 == 1
+			PRINTFORML 「%ABLNAME:(LOCAL:5)%」の値を入力して下さい({ABL_MIN:(LOCAL:5)}～{ABL_MAX:(LOCAL:5)})
+			PRINTFORML 現在の値が入力した値よりも大きい場合、現在の値が維持されます
+			PRINTFORML 範囲外の値を入力した場合、キャンセル扱いになります
+			INPUT
+			IF RESULT >= ABL_MIN:(LOCAL:5) && RESULT <= ABL_MAX:(LOCAL:5)
+				FOR LOCAL:0, 0, CHARANUM
+					IF LOCAL:0 != MASTER
+						ABL:(LOCAL:0):(LOCAL:5) = MAX(ABL:(LOCAL:0):(LOCAL:5), RESULT)
+					ENDIF
+				NEXT
+			ENDIF
+			PRINTFORMW 全てのキャラの「%ABLNAME:(LOCAL:5)%」を{RESULT}以上に設定しました
+		ELSEIF LOCAL:6 == 2
+			PRINTFORML 「%ABLNAME:(LOCAL:5)%」の値を入力して下さい({ABL_MIN:(LOCAL:5)}～{ABL_MAX:(LOCAL:5)})
+			PRINTFORML 現在の値が入力した値よりも小さい場合、現在の値が維持されます
+			PRINTFORML 範囲外の値を入力した場合、キャンセル扱いになります
+			INPUT
+			IF RESULT >= ABL_MIN:(LOCAL:5) && RESULT <= ABL_MAX:(LOCAL:5)
+				FOR LOCAL:0, 0, CHARANUM
+					IF LOCAL:0 != MASTER
+						ABL:(LOCAL:0):(LOCAL:5) = MIN(ABL:(LOCAL:0):(LOCAL:5), RESULT)
+					ENDIF
+				NEXT
+			ENDIF
+			PRINTFORMW 全てのキャラの「%ABLNAME:(LOCAL:5)%」を{RESULT}以下に設定しました
+		ELSE
+			PRINTFORML 「%ABLNAME:(LOCAL:5)%」の値を入力して下さい({ABL_MIN:(LOCAL:5)}～{ABL_MAX:(LOCAL:5)})
+			PRINTFORML 範囲外の値を入力した場合、キャンセル扱いになります
+			INPUT
+			IF RESULT >= ABL_MIN:(LOCAL:5) && RESULT <= ABL_MAX:(LOCAL:5)
+				FOR LOCAL:0, 0, CHARANUM
+					IF LOCAL:0 != MASTER
+						ABL:(LOCAL:0):(LOCAL:5) = RESULT
+					ENDIF
+				NEXT
+			ENDIF
+			PRINTFORMW 全てのキャラの「%ABLNAME:(LOCAL:5)%」を{RESULT}に設定しました
+		ENDIF
+	ENDIF
+
+ELSEIF RESULT == 400
+	PRINTFORML 全てのキャラを初対面の状態に戻します
+	CALL ASK_MULTI("実行(フラグのみリセット)", "実行(フラグ・好感度・従属度・依存度・陥落素質をリセット)", "キャンセル")
+	IF RESULT == 0
+		FOR LOCAL:0, 0, CHARANUM
+			IF LOCAL:0 != MASTER
+				CFLAG:(LOCAL:0):17 = 0
+			ENDIF
+		NEXT
+	ELSEIF RESULT == 1
+		FOR LOCAL:0, 0, CHARANUM
+			IF LOCAL:0 != MASTER
+				CFLAG:(LOCAL:0):17 = 0
+				CFLAG:(LOCAL:0):2 = 0
+				CFLAG:(LOCAL:0):3 = 0
+				CFLAG:(LOCAL:0):4 = 0
+				TALENT:(LOCAL:0):恋慕 = 0
+				TALENT:(LOCAL:0):親愛 = 0
+				TALENT:(LOCAL:0):親友 = 0
+				TALENT:(LOCAL:0):恋人 = 0
+				TALENT:(LOCAL:0):服従 = 0
+				TALENT:(LOCAL:0):隷属 = 0
+				TALENT:(LOCAL:0):烙印 = 0
+				TALENT:(LOCAL:0):合意 = 0
+			ENDIF
+		NEXT
+	ENDIF
+ELSEIF RESULT == 401
+	PRINTFORML 全てのキャラと面識がある状態にします
+	CALL ASK_MULTI("実行", "キャンセル")
+	IF RESULT == 0
+		FOR LOCAL:0, 0, CHARANUM
+			IF LOCAL:0 != MASTER
+				CFLAG:(LOCAL:0):17 = 1
+			ENDIF
+		NEXT
+	ENDIF
+ELSE
+	CLEARLINE 1
+	GOTO INPUT_LOOP
+ENDIF
+RESTART
+
+;-------------------------------------------------
+;素質が全員一括のデータ操作で変更可能かどうかを調べる関数
+;-------------------------------------------------
+@IS_CONTROLABLE_TALENT(ARG:0)
+#FUNCTION
+SIF ARG:0 <= 9 || ARG:0 >= 300
+	RETURNF 0
+SIF GROUPMATCH(TALENTNAME:(ARG:0), "霖之助に恋慕", "霖之助の恋人", "藍に恋慕", "藍の恋人")
+	RETURNF 0
+SIF GROUPMATCH(TALENTNAME:(ARG:0), "妊娠", "育児中", "触手妊娠", "Ａ触手妊娠")
+	RETURNF 0
+SIF GROUPMATCH(TALENTNAME:(ARG:0), "絶壁", "貧乳", "巨乳", "爆乳")
+	RETURNF 0
+RETURNF 1
+
+;-------------------------------------------------
+;キャラデータの書き換え
+;-------------------------------------------------
+@CONFIG_DATA_EDIT_CHARA
+DRAWLINE
+PRINTL 操作するキャラを選択して下さい
+DRAWLINE
+
+LOCAL:10 = (CHARANUM - 1) / 44 + 1
+LOCAL:11 = 1
+
+$SHOW_LOOP
+
+LOCAL:12 = (LOCAL:11 - 1) * 44
+LOCAL:13 = LOCAL:11 * 44
+LOCAL:14 = 0
+LOCAL:15 = 0
+LOCAL:16 = 0
+FOR LOCAL:0, 0, CHARANUM
+	IF LOCAL:14 >= LOCAL:12 && LOCAL:14 < LOCAL:13
+		IF LOCAL:15 >= 1
+			IF LOCAL:15 % 2 == 0 
+				PRINTL 
+				LOCAL:16 ++
+			ELSE
+				PRINTPLAIN   
+			ENDIF
+		ENDIF
+		CALL PRINT_PARTNER_DATA(LOCAL:0)
+		LOCAL:15 ++
+	ENDIF
+	LOCAL:14 ++
+NEXT
+FOR LOCAL:0, 0, 22 - LOCAL:16
+	PRINTL 
+	LOCAL:16 ++
+NEXT
+
+DRAWLINE
+IF LOCAL:10 >= 2
+	LOCAL:16 += 2
+	PRINTBUTTON "    1[前のページ]", 1
+	PRINTPLAIN     
+	PRINTBUTTON "    2[次のページ]", 2
+	PRINTL 
+	DRAWLINE
+ENDIF
+PRINTBUTTON "    0[戻る]", 0
+PRINTL 
+
+LOCAL:16 += 3
+
+REDRAW 0
+
+$INPUT_LOOP
+INPUT
+
+IF RESULT == 0
+	REDRAW 1
+	RETURN
+ELSEIF RESULT == 1 && LOCAL:10 >= 2
+	LOCAL:11 -= 1
+	IF LOCAL:11 < 1
+		LOCAL:11 = LOCAL:10
+	ENDIF
+	CLEARLINE LOCAL:16
+	GOTO SHOW_LOOP
+ELSEIF RESULT == 2 && LOCAL:10 >= 2
+	LOCAL:11 += 1
+	IF LOCAL:11 > LOCAL:10
+		LOCAL:11 = 1
+	ENDIF
+	CLEARLINE LOCAL:16
+	GOTO SHOW_LOOP
+ELSE
+	LOCAL:5 = NO_TO_CHARA(RESULT - 100)
+	IF LOCAL:5 < 0
+		CLEARLINE 1
+		GOTO INPUT_LOOP
+	ENDIF
+ENDIF
+
+CALL CONFIG_DATA_EDIT_CHARA_UI(LOCAL:5)
+
+RESTART
+
+;-------------------------------------------------
+;キャラクタ変数の操作(UI) ARG:0はキャラクタ番号
+;-------------------------------------------------
+@CONFIG_DATA_EDIT_CHARA_UI(ARG:0)
+;設定する内容
+#DIM MODE = 0
+
+;素質のページ
+#DIM PAGE = 1
+#DIM MAX_PAGE = 0
+
+;髪のHSVカラー
+#DIM HAIR_HSV, 3
+
+;TALENTNAMEの一時保存用
+#DIMS TN
+
+;君主かどうかのフラグ
+#DIM F_COUNTRY_BOSS
+
+$SHOW_LOOP0
+
+;君主かどうかをチェック
+F_COUNTRY_BOSS = (GET_COUNTRY_FROM_BOSS_ID(GET_ID(ARG:0)) != -1)
+
+;髪色のHSV値を計算
+IF TALENT:(ARG:0):302 != 0
+	HAIR_HSV:0 = RGB_TO_H(TALENT:(ARG:0):302)
+	HAIR_HSV:1 = RGB_TO_S(TALENT:(ARG:0):302)
+	HAIR_HSV:2 = RGB_TO_V(TALENT:(ARG:0):302)
+ELSE
+	VARSET HAIR_HSV, 0
+ENDIF
+
+$SHOW_LOOP1
+
+DRAWLINE
+PRINTFORM No.{NO:(ARG:0)}  %NAME_DOUBLE(ARG:0)%    キャラクタ番号={ARG:0, 3, LEFT}  
+PRINTBUTTON "1999[名前の変更]", 1999
+PRINTL 
+DRAWLINE
+
+SELECTCASE MODE
+	;●ABL設定タブの表示
+	CASE 0
+		;行数管理用。改行のたびに加算
+		LOCAL:4 = 0
+
+		FOR LOCAL:0, 0, 3
+			PRINTFORM %BASENAME:(LOCAL:0), 8%最大値:{MAXBASE:(ARG:0):(LOCAL:0), 4} --
+			PRINTBUTTON @"{LOCAL:0 + 700}[入力]", LOCAL:0 + 700
+			PRINTL 
+			LOCAL:4 ++
+		NEXT
+		PRINTL 
+
+		LOCAL:3 = 0
+		FOR LOCAL:0, 0, 100
+			LOCALS:0 = %ABLNAME:(LOCAL:0)%
+			IF LOCALS:0 != ""
+				IF LOCAL:3 % 3 == 0
+					IF LOCAL:3 >= 1
+						PRINTL 
+						LOCAL:4 ++
+					ENDIF
+					PRINT     
+				ELSE
+					PRINT    
+				ENDIF
+				PRINTFORM %ABLNAME:(LOCAL:0), 10%:{ABL:(ARG:0):(LOCAL:0), 4} -- 
+				PRINTBUTTON @"{LOCAL:0, 2}[入力]", LOCAL:0
+				LOCAL:3 ++
+			ENDIF
+		NEXT
+		PRINTL 
+
+		FOR LOCAL:0, LOCAL:4, 16
+			PRINTL 
+		NEXT
+
+	;●TALENT設定タブの表示
+	CASE 1
+		;最大ページ数の計算
+		LOCAL:3 = 0
+		FOR LOCAL:0, 3, 300
+			TN = %TALENTNAME:(LOCAL:0)%
+			IF TN != ""
+				;非表示素質のスキップ
+				IF GROUPMATCH(TN, "絶壁", "貧乳", "巨乳", "爆乳")
+					CONTINUE
+				ELSEIF LOCAL:0 >= 150 && LOCAL:0 <= 179 && !GROUPMATCH(TN, "合意", "母性")
+					CONTINUE
+				ELSEIF LOCAL:0 >= 295 && LOCAL:0 <= 299
+					CONTINUE
+				ENDIF
+				LOCAL:3 ++
+			ENDIF
+		NEXT
+		MAX_PAGE = (LOCAL:3 - 1) / 44 + 1
+		;ページが範囲外なら修正
+		IF PAGE >= 1
+			PAGE = (PAGE - 1) % MAX_PAGE + 1
+		ELSE
+			PAGE = MAX_PAGE - (-PAGE) % MAX_PAGE
+		ENDIF
+
+		LOCAL:3 = 0
+		LOCAL:4 = 0
+		LOCAL:5 = 0
+		FOR LOCAL:0, 3, 300
+			TN = %TALENTNAME:(LOCAL:0)%
+			IF TN != ""
+				;非表示素質のスキップ
+				IF GROUPMATCH(TN, "キス未経験", "絶壁", "貧乳", "巨乳", "爆乳")
+					CONTINUE
+				ELSEIF LOCAL:0 >= 150 && LOCAL:0 <= 179 && !GROUPMATCH(TN, "合意", "母性")
+					CONTINUE
+				ELSEIF LOCAL:0 >= 295 && LOCAL:0 <= 299
+					CONTINUE
+				ENDIF
+
+				IF LOCAL:3 >= (PAGE - 1) * 44 && LOCAL:3 < PAGE * 44
+					;改行判定
+					IF LOCAL:5 % 4 == 0
+						IF LOCAL:5 >= 1
+							PRINTL 
+						ENDIF
+						PRINT   
+						LOCAL:4 ++
+					ENDIF
+					LOCAL:5 ++
+					IF TALENT:(ARG:0):(LOCAL:0)
+						SETCOLOR 0x00FFFF
+					ENDIF
+					PRINTBUTTON @"{LOCAL:0, 3}\{%TN, 14%\}", LOCAL:0
+					RESETCOLOR
+					PRINT    
+				ENDIF
+				LOCAL:3 ++
+			ENDIF
+		NEXT
+		FOR LOCAL:0, LOCAL:4, 11
+			PRINTL 
+		NEXT
+
+		PRINTL 
+		PRINT   
+		PRINTBUTTON "901[前のページ]", 901
+		PRINT   
+		PRINTBUTTON "902[次のページ]", 902
+		PRINTL 
+		DRAWLINE
+		LOCAL:0 = TALENT:(ARG:0):300
+		LOCALS:0 = (%TOSTR_GROWTYPE_B(LOCAL:0)%に適性)
+		PRINTFORM    成長型:%TOSTR_GROWTYPE(LOCAL:0)%%LOCALS:0, 25, LEFT%
+		PRINTBUTTON "300[変更]", 300
+		PRINTL 
+		PRINTFORM      髪色:
+		CALL PRINT_HAIR_COLOR(TALENT:(ARG:0):302)
+		PRINTFORM %TOSTR_SPACE(19)%
+		PRINTBUTTON "310[ランダム]", 310
+		PRINT  
+		IF INI_TALENT:(ARG:0):302 != 0
+			PRINTBUTTON "318[初期化]", 318
+		ELSE
+			SETCOLOR 0x606060
+			PRINTPLAIN 318[初期化]
+			RESETCOLOR
+		ENDIF
+		IF TALENT:(ARG:0):302 != 0
+			PRINT  
+			PRINTBUTTON "319[不明にする]", 319
+		ENDIF
+		PRINTL 
+		IF TALENT:(ARG:0):302 != 0
+			PRINT           
+			PRINTBUTTON "311[色相+10]", 311
+			PRINT  
+			PRINTBUTTON "312[色相-10]", 312
+			PRINT  
+			PRINTBUTTON "313[彩度+5]", 313
+			PRINT  
+			PRINTBUTTON "314[彩度-5]", 314
+			PRINT  
+			PRINTBUTTON "315[明度+5]", 315
+			PRINT  
+			PRINTBUTTON "316[明度-5]", 316
+			PRINT  
+		ENDIF
+		PRINTL 
+		LOCALS:0 = %TOSTR_HAIR_LENGTH(TALENT:(ARG:0):303)%({TALENT:(ARG:0):303})
+		PRINTFORM  髪の長さ:%LOCALS:0, 29, LEFT%
+		PRINTBUTTON "320[ランダム]", 320
+		PRINT  
+		PRINTBUTTON "321[直接入力]", 321
+		PRINTL 
+		PRINTL  ※髪色・髪の長さはコンフィグの「外見に関する詳細の表示」がONのときのみ表示
+
+	;●EXP設定タブの表示
+	CASE 2
+		LOCAL:3 = 0
+		LOCAL:4 = 0
+		FOR LOCAL:0, 40, 60
+			LOCALS:0 = %EXPNAME:(LOCAL:0)%
+			IF LOCALS:0 != ""
+				IF LOCAL:3 % 2 == 0
+					IF LOCAL:3 >= 1
+						PRINTL 
+						LOCAL:4 ++
+					ENDIF
+					PRINT     
+				ELSE
+					PRINT    
+				ENDIF
+				PRINTFORM %EXPNAME:(LOCAL:0), 14%:{EXP:(ARG:0):(LOCAL:0), 4} -- 
+				PRINTBUTTON @"{LOCAL:0, 2}[入力]", LOCAL:0
+				LOCAL:3 ++
+			ENDIF
+		NEXT
+		PRINTL 
+		DRAWLINE
+
+		PRINT     童貞 --
+		CALL PRINTBUTTON_EX("80{童貞] ", 80, 1, TALENT:(ARG:0):童貞 == 1)
+		CALL PRINTBUTTON_EX("81{非童貞] ", 81, 1, TALENT:(ARG:0):童貞 == 0)
+		CALL PRINTBUTTON_EX("82{無自覚非童貞] ", 82, 1, TALENT:(ARG:0):童貞 == 2)
+		PRINTL 
+		PRINT     処女 --
+		CALL PRINTBUTTON_EX("90{処女] ", 90, 1, TALENT:(ARG:0):処女 == 1)
+		CALL PRINTBUTTON_EX("91{非処女] ", 91, 1, TALENT:(ARG:0):処女 == 0)
+		CALL PRINTBUTTON_EX("92{無自覚非処女] ", 92, 1, TALENT:(ARG:0):処女 == 2)
+		PRINTL 
+		PRINTL 
+
+		PRINTPLAIN           
+		IF !TALENT:(ARG:0):キス未経験 || CFLAG:(ARG:0):61 != 0
+			PRINTBUTTON "100[キスに関する経験を全て初期化]", 100
+		ELSE
+			SETCOLOR 0x606060
+			PRINTPLAIN 100[キスに関する経験を全て初期化]
+			RESETCOLOR
+			PRINT   ※キスに関する経験はありません
+		ENDIF
+		PRINTL 
+		PRINTPLAIN           
+		PRINTBUTTON "101[全ウフフコマンドの実行回数を100以上にする]", 101
+		PRINTL 
+
+		FOR LOCAL:0, LOCAL:4, 11
+			PRINTL 
+		NEXT
+
+	;●その他設定タブの表示
+	CASEELSE
+		PRINT     性別 -- 
+		CALL PRINTBUTTON_EX("10{  男性} ", 10, 1, TALENT:(ARG:0):性別 == 0)
+		CALL PRINTBUTTON_EX("11{  女性} ", 11, 1, TALENT:(ARG:0):性別 == 1)
+		CALL PRINTBUTTON_EX("12{  女双} ", 12, 1, TALENT:(ARG:0):性別 == 2)
+		CALL PRINTBUTTON_EX("13{  男双} ", 13, 1, TALENT:(ARG:0):性別 == 3)
+		CALL PRINTBUTTON_EX("14{男の娘} ", 14, 1, TALENT:(ARG:0):性別 == 4)
+		CALL PRINTBUTTON_EX("15{男娘双} ", 15, 1, TALENT:(ARG:0):性別 == 5)
+		PRINTL 
+
+		PRINT   バスト -- 
+		LOCAL:0 = TALENT:(ARG:0):絶壁 || TALENT:(ARG:0):貧乳 || TALENT:(ARG:0):巨乳 || TALENT:(ARG:0):爆乳
+		CALL PRINTBUTTON_EX("20{  絶壁} ", 20, 1, TALENT:(ARG:0):絶壁)
+		CALL PRINTBUTTON_EX("21{  貧乳} ", 21, 1, TALENT:(ARG:0):貧乳)
+		CALL PRINTBUTTON_EX("22{  並乳} ", 22, 1, !LOCAL:0)
+		CALL PRINTBUTTON_EX("23{  巨乳} ", 23, 1, TALENT:(ARG:0):巨乳)
+		CALL PRINTBUTTON_EX("24{  爆乳} ", 24, 1, TALENT:(ARG:0):爆乳)
+		PRINT ※女性・ふたなりのみ適用
+		PRINTL 
+
+		PRINT     対面 -- 
+		CALL PRINTBUTTON_EX("30{初対面} ", 30, 1, !CFLAG:(ARG:0):17)
+		CALL PRINTBUTTON_EX("31{対面済み} ", 31, 1, CFLAG:(ARG:0):17)
+		PRINTL 
+
+		PRINTL 
+
+		PRINT     所属 -- 
+		IF CFLAG:(ARG:0):1 == 0
+			IF CFLAG:(ARG:0):12 == 2
+				PRINTFORM 無所属(死亡)          
+			ELSEIF CFLAG:(ARG:0):12 == 1
+				PRINTFORM 無所属(放浪)          
+			ELSE
+				PRINTFORM 無所属(未登場)        
+			ENDIF
+		ELSE
+			PRINTFORM %NAME_DOUBLE(GET_COUNTRY_BOSS(CFLAG:(ARG:0):1)), 22, LEFT%
+		ENDIF
+		IF F_COUNTRY_BOSS
+			SETCOLOR 0x606060
+			PRINTPLAIN ※君主は変更不可※
+			RESETCOLOR
+		ELSE
+			CALL PRINTBUTTON_EX("50[  変更] ", 50)
+		ENDIF
+		PRINTL 
+
+		IF CFLAG:(ARG:0):12 != 2
+			PRINT     捕虜 -- 
+			IF CFLAG:(ARG:0):9 == 0
+				PRINT なし                  
+			ELSE
+				PRINTFORM %NAME_DOUBLE(GET_COUNTRY_BOSS(CFLAG:(ARG:0):9)), 22, LEFT%
+			ENDIF
+			IF F_COUNTRY_BOSS
+				SETCOLOR 0x606060
+				PRINTPLAIN ※君主は変更不可※
+				RESETCOLOR
+			ELSE
+				CALL PRINTBUTTON_EX("60[  変更] ", 60)
+			ENDIF
+		ENDIF
+		PRINTL 
+
+		IF CFLAG:(ARG:0):12 != 2 && CFLAG:(ARG:0):9
+			PRINT 捕虜状況 -- 
+			CALL PRINTBUTTON_EX("61{  監禁} ", 61, 1, CFLAG:(ARG:0):9 && CFLAG:(ARG:0):29 == 0)
+			CALL PRINTBUTTON_EX("62{  軟禁} ", 62, 1, CFLAG:(ARG:0):9 && CFLAG:(ARG:0):29 == 1)
+		ENDIF
+		PRINTL 
+
+		PRINT   好感度 -- 
+		PRINTFORM {CFLAG:(ARG:0):2, 22, LEFT}
+		CALL PRINTBUTTON_EX("70[  入力] ", 70)
+		PRINTL 
+
+		PRINT   依存度 -- 
+		PRINTFORM {CFLAG:(ARG:0):3, 22, LEFT}
+		CALL PRINTBUTTON_EX("71[  入力] ", 71)
+		PRINTL 
+
+		PRINT   従属度 -- 
+		PRINTFORM {CFLAG:(ARG:0):4, 22, LEFT}
+		CALL PRINTBUTTON_EX("72[  入力] ", 72)
+		PRINTL 
+		PRINTL 
+
+		IF ARG:0 != MASTER
+			PRINTL   ◇特殊な素質の設定◇  ※好感度、依存度、従属度やその他素質が条件に合うように変更されます
+			PRINT           現在所持: 
+			LOCALS:0 = 
+			SIF TALENT:(ARG:0):親愛
+				LOCALS:0 += "親愛／"
+			SIF TALENT:(ARG:0):恋慕
+				LOCALS:0 += "恋慕／"
+			SIF TALENT:(ARG:0):親友
+				LOCALS:0 += "親友／"
+			SIF TALENT:(ARG:0):隷属
+				LOCALS:0 += "隷属／"
+			SIF TALENT:(ARG:0):服従
+				LOCALS:0 += "服従／"
+			SIF TALENT:(ARG:0):恋人
+				LOCALS:0 += "恋人／"
+			SIF TALENT:(ARG:0):烙印
+				LOCALS:0 += "烙印／"
+			SIF TALENT:(ARG:0):虚ろ
+				LOCALS:0 += "虚ろ／"
+			SIF TALENT:(ARG:0):崩壊
+				LOCALS:0 += "崩壊／"
+			SIF TALENT:(ARG:0):合意
+				LOCALS:0 += "合意／"
+			IF LOCALS:0 == ""
+				RESULTS = 
+			ELSE
+				SUBSTRING LOCALS:0, 0, STRLENS(LOCALS:0) - 2
+			ENDIF
+			PRINTFORML %RESULTS%
+
+			PRINTPLAIN           
+			IF !TALENT:(ARG:0):恋人
+				PRINTBUTTON "100[恋人を付ける]", 100
+			ELSE
+				PRINTBUTTON "100[恋人を消去  ]", 100
+			ENDIF
+			PRINTPLAIN     
+			IF !TALENT:(ARG:0):恋慕
+				PRINTBUTTON "101[恋慕を付ける]", 101
+			ELSE
+				PRINTBUTTON "101[恋慕を消去  ]", 101
+			ENDIF
+			PRINTPLAIN     
+			IF !TALENT:(ARG:0):親愛
+				PRINTBUTTON "102[親愛を付ける]", 102
+			ELSE
+				PRINTBUTTON "102[親愛を消去  ]", 102
+			ENDIF
+			PRINTL 
+
+			PRINTPLAIN           
+			IF !TALENT:(ARG:0):親友
+				IF !IS_SAMESEX(MASTER, ARG:0) || TALENT:(ARG:0):両刀
+					SETCOLOR 0x606060
+					PRINTPLAIN 103[親友を付ける]
+					RESETCOLOR
+				ELSE
+					PRINTBUTTON "103[親友を付ける]", 103
+				ENDIF
+				PRINTPLAIN  ※主人公と同性で<両刀>を持たない場合に限る
+			ELSE
+				PRINTBUTTON "103[親友を消去  ]", 103
+			ENDIF
+			PRINTL 
+
+			PRINTPLAIN           
+			IF !TALENT:(ARG:0):烙印
+				PRINTBUTTON "110[烙印を付ける]", 110
+			ELSE
+				PRINTBUTTON "110[烙印を消去  ]", 110
+			ENDIF
+			PRINTPLAIN     
+			IF !TALENT:(ARG:0):服従
+				PRINTBUTTON "111[服従を付ける]", 111
+			ELSE
+				PRINTBUTTON "111[服従を消去  ]", 111
+			ENDIF
+			PRINTPLAIN     
+			IF !TALENT:(ARG:0):隷属
+				PRINTBUTTON "112[隷属を付ける]", 112
+			ELSE
+				PRINTBUTTON "112[隷属を消去  ]", 112
+			ENDIF
+			PRINTL 
+
+			PRINTPLAIN           
+			IF !TALENT:(ARG:0):虚ろ
+				PRINTBUTTON "120[虚ろを付ける]", 120
+			ELSE
+				PRINTBUTTON "120[虚ろを消去  ]", 120
+			ENDIF
+			PRINTPLAIN     
+			IF !TALENT:(ARG:0):崩壊
+				PRINTBUTTON "121[崩壊を付ける]", 121
+			ELSE
+				PRINTBUTTON "121[崩壊を消去  ]", 121
+			ENDIF
+			PRINTL 
+
+			PRINTPLAIN           
+			IF !TALENT:(ARG:0):合意
+				PRINTBUTTON "130[合意を付ける]", 130
+			ELSE
+				PRINTBUTTON "130[合意を消去  ]", 130
+			ENDIF
+			PRINTL 
+
+		ELSE
+			FOR LOCAL:0, 0, 7
+				PRINTL 
+			NEXT
+		ENDIF
+ENDSELECT
+
+DRAWLINE
+CALL PRINTBUTTON_EX("2000[能力設定]", 2000, 1, MODE == 0)
+PRINT     
+CALL PRINTBUTTON_EX("2001[素質設定]", 2001, 1, MODE == 1)
+PRINT     
+CALL PRINTBUTTON_EX("2002[経験設定]", 2002, 1, MODE == 2)
+PRINT     
+CALL PRINTBUTTON_EX("2003[  その他]", 2003, 1, MODE == 3)
+PRINTL
+DRAWLINE
+PRINTBUTTON "3001[←前のキャラ]", 3001
+PRINT     
+PRINTBUTTON "3002[次のキャラ→]", 3002
+PRINTL 
+DRAWLINE
+PRINTBUTTON "9999[戻る]", 9999
+PRINTL 
+
+REDRAW 0
+
+$INPUT_LOOP
+INPUT
+
+IF RESULT == 9999
+	REDRAW 1
+	RETURN
+
+ELSEIF RESULT == 1999
+	CALL CONFIG_NAME_CHANGE(ARG:0)
+	GOTO SHOW_LOOP0
+
+ELSEIF RESULT == 3001
+	ARG:0 --
+	IF ARG:0 < 0
+		ARG:0 = CHARANUM - 1
+	ENDIF
+	CLEARLINE 28
+	GOTO SHOW_LOOP0
+
+ELSEIF RESULT == 3002
+	ARG:0 ++
+	IF ARG:0 >= CHARANUM
+		ARG:0 = 0
+	ENDIF
+	CLEARLINE 28
+	GOTO SHOW_LOOP0
+
+ELSEIF RESULT == 2000
+	MODE = 0
+
+ELSEIF RESULT == 2001
+	MODE = 1
+
+ELSEIF RESULT == 2002
+	MODE = 2
+
+ELSEIF RESULT == 2003
+	MODE = 3
+
+;能力設定
+ELSEIF MODE == 0
+	IF RESULT >= 0 && RESULT < 100 && ABLNAME:(RESULT) != ""
+		LOCAL:0 = RESULT
+		PRINTFORML %ABLNAME:(LOCAL:0)% の値を入力して下さい({ABL_MIN:(LOCAL:0)}～{ABL_MAX:(LOCAL:0)})
+		INPUT
+		ABL:(ARG:0):(LOCAL:0) = LIMIT(RESULT, ABL_MIN:(LOCAL:0), ABL_MAX:(LOCAL:0))
+		GOTO SHOW_LOOP1
+	ELSEIF RESULT >= 700 && RESULT <= 702
+		LOCAL:0 = RESULT - 700
+		PRINTFORML %BASENAME:(LOCAL:0)% の最大値を入力して下さい(500～5000)
+		INPUT
+		MAXBASE:(ARG:0):(LOCAL:0) = LIMIT(RESULT, 500, 5000)
+		GOTO SHOW_LOOP1
+	ENDIF
+
+;素質設定
+ELSEIF MODE == 1
+	IF RESULT == 901
+		PAGE --
+	ELSEIF RESULT == 902
+		PAGE ++
+	ELSEIF RESULT == 300
+		TALENT:(ARG:0):300 ++
+		IF TALENT:(ARG:0):300 >= 9
+			TALENT:(ARG:0):300 = 0
+		ENDIF
+	ELSEIF RESULT == 310
+		HAIR_HSV:0 = RAND:360
+		HAIR_HSV:1 = RAND:93
+		HAIR_HSV:2 = RAND:68 + 30
+		TALENT:(ARG:0):302 = HSV_TO_RGB(HAIR_HSV:0, HAIR_HSV:1, HAIR_HSV:2)
+	ELSEIF RESULT == 318 && INI_TALENT:(ARG:0):302 != 0
+		TALENT:(ARG:0):302 = INI_TALENT:(ARG:0):302
+		VARSET HAIR_HSV, 0
+	ELSEIF RESULT == 319 && TALENT:(ARG:0):302 != 0
+		TALENT:(ARG:0):302 = 0
+		VARSET HAIR_HSV, 0
+	ELSEIF RESULT == 311 && TALENT:(ARG:0):302 != 0
+		HAIR_HSV:0 += 10
+		IF HAIR_HSV:0 >= 360
+			HAIR_HSV:0 -= 360
+		ENDIF
+		TALENT:(ARG:0):302 = HSV_TO_RGB(HAIR_HSV:0, HAIR_HSV:1, HAIR_HSV:2)
+	ELSEIF RESULT == 312 && TALENT:(ARG:0):302 != 0
+		HAIR_HSV:0 -= 10
+		IF HAIR_HSV:0 < 0
+			HAIR_HSV:0 += 360
+		ENDIF
+		TALENT:(ARG:0):302 = HSV_TO_RGB(HAIR_HSV:0, HAIR_HSV:1, HAIR_HSV:2)
+	ELSEIF RESULT == 313 && TALENT:(ARG:0):302 != 0
+		HAIR_HSV:1 = LIMIT(HAIR_HSV:1 + 5, 0, 95)
+		TALENT:(ARG:0):302 = HSV_TO_RGB(HAIR_HSV:0, HAIR_HSV:1, HAIR_HSV:2)
+	ELSEIF RESULT == 314 && TALENT:(ARG:0):302 != 0
+		HAIR_HSV:1 = LIMIT(HAIR_HSV:1 - 5, 0, 95)
+		TALENT:(ARG:0):302 = HSV_TO_RGB(HAIR_HSV:0, HAIR_HSV:1, HAIR_HSV:2)
+	ELSEIF RESULT == 315 && TALENT:(ARG:0):302 != 0
+		HAIR_HSV:2 = LIMIT(HAIR_HSV:2 + 5, 30, 100)
+		TALENT:(ARG:0):302 = HSV_TO_RGB(HAIR_HSV:0, HAIR_HSV:1, HAIR_HSV:2)
+	ELSEIF RESULT == 316 && TALENT:(ARG:0):302 != 0
+		HAIR_HSV:2 = LIMIT(HAIR_HSV:2 - 5, 30, 100)
+		TALENT:(ARG:0):302 = HSV_TO_RGB(HAIR_HSV:0, HAIR_HSV:1, HAIR_HSV:2)
+	ELSEIF RESULT == 320
+		TALENT:(ARG:0):303 = RAND:990 + 10
+	ELSEIF RESULT == 321
+		DRAWLINE
+		PRINTL 髪の長さを数値で入力して下さい
+		PRINTL ------長さの表記------
+		PRINTL   2～ 24 スキンヘッド
+		PRINTL  25～174 超ショート
+		PRINTL 175～274 ショート
+		PRINTL 275～474 ミドル
+		PRINTL 475～674 ロング
+		PRINTL 675～999 超ロング
+		INPUT
+		TALENT:(ARG:0):303 = LIMIT(RESULT, 2, 999)
+		GOTO SHOW_LOOP1
+	ELSEIF RESULT >= 3 && RESULT < 300 && TALENTNAME:RESULT != ""
+		IF !GROUPMATCH(TALENTNAME:RESULT, "キス未経験", "絶壁", "貧乳", "巨乳", "爆乳")
+			IF RESULT < 150 || RESULT > 179 || GROUPMATCH(TALENTNAME:RESULT, "合意", "母性")
+				IF RESULT < 295 || RESULT > 299
+					TALENT:(ARG:0):RESULT = !TALENT:(ARG:0):RESULT
+				ENDIF
+			ENDIF
+		ENDIF
+	ENDIF
+;経験設定
+ELSEIF MODE == 2
+	IF RESULT >= 40 && RESULT < 60 && EXPNAME:(RESULT) != ""
+		LOCAL:0 = RESULT
+		PRINTFORML %EXPNAME:(LOCAL:0)% の値を入力して下さい
+		INPUT
+		EXP:(ARG:0):(LOCAL:0) = MAX(RESULT, 0)
+		GOTO SHOW_LOOP1
+	ELSEIF RESULT == 80
+		TALENT:(ARG:0):童貞 = 1
+	ELSEIF RESULT == 81
+		TALENT:(ARG:0):童貞 = 0
+	ELSEIF RESULT == 82
+		TALENT:(ARG:0):童貞 = 2
+	ELSEIF RESULT == 90
+		TALENT:(ARG:0):処女 = 1
+	ELSEIF RESULT == 91
+		TALENT:(ARG:0):処女 = 0
+	ELSEIF RESULT == 92
+		TALENT:(ARG:0):処女 = 2
+	ELSEIF RESULT == 100
+		TALENT:(ARG:0):キス未経験 = 1
+		EXP:(ARG:0):キス経験 = 0
+		EXP:(ARG:0):口淫経験 = 0
+		CFLAG:(ARG:0):60 = 0
+		CFLAG:(ARG:0):61 = 0
+		CFLAG:(ARG:0):62 = 0
+	ELSEIF RESULT == 101
+		PRINTL 全てのコマンドの実行回数を100にします
+		PRINTL 既に100を超えているものについては現在の値が維持されます
+		PRINTL 主に性癖設定での好みLvを自由に変更するために使います
+		CALL ASK_YN("実行", "キャンセル")
+		IF RESULT == 0
+			FOR LOCAL:0, 0, 900
+				COM_EXP:(ARG:0):(LOCAL:0) = MAX(COM_EXP:(ARG:0):(LOCAL:0), 1000)
+			NEXT
+		ENDIF
+	ENDIF
+;その他
+ELSE
+	IF RESULT >= 10 && RESULT <= 15
+		TALENT:(ARG:0):性別 = RESULT - 10
+	ELSEIF RESULT >= 20 && RESULT <= 24
+		TALENT:(ARG:0):絶壁 = 0
+		TALENT:(ARG:0):貧乳 = 0
+		TALENT:(ARG:0):巨乳 = 0
+		TALENT:(ARG:0):爆乳 = 0
+		SELECTCASE RESULT - 20
+			CASE 0
+				TALENT:(ARG:0):絶壁 = 1
+			CASE 1
+				TALENT:(ARG:0):貧乳 = 1
+			CASE 3
+				TALENT:(ARG:0):巨乳 = 1
+			CASE 4
+				TALENT:(ARG:0):爆乳 = 1
+		ENDSELECT
+	ELSEIF RESULT == 30
+		CFLAG:(ARG:0):17 = 0
+	ELSEIF RESULT == 31
+		CFLAG:(ARG:0):17 = 1
+	ELSEIF RESULT == 40 && !(CALLNAME:(ARG:0) == "" || CALLNAME:(ARG:0) == NAME:(ARG:0))
+		CFLAG:(ARG:0):8 = 0
+	ELSEIF RESULT == 41 && !(CALLNAME:(ARG:0) == "" || CALLNAME:(ARG:0) == NAME:(ARG:0))
+		CFLAG:(ARG:0):8 = 1
+	ELSEIF RESULT == 50
+		IF F_COUNTRY_BOSS
+			CFLAG:(ARG:0):12 = 0
+		ELSE
+			IF CFLAG:(ARG:0):1 == 0 && CFLAG:(ARG:0):12 == 0
+				CFLAG:(ARG:0):12 = 1
+			ELSEIF CFLAG:(ARG:0):1 == 0 && CFLAG:(ARG:0):12 == 1
+				CFLAG:(ARG:0):12 = 2
+			ELSE
+				CFLAG:(ARG:0):12 = 0
+				LOCAL:1 = 1
+				FOR LOCAL:0, CFLAG:(ARG:0):1 + 1, MAX_COUNTRY
+					IF IS_COUNTRY(LOCAL:0)
+						CFLAG:(ARG:0):1 = LOCAL:0
+						LOCAL:1 = 0
+						BREAK
+					ENDIF
+				NEXT
+				IF LOCAL:1
+					CFLAG:(ARG:0):1 = 0
+				ENDIF
+			ENDIF
+		ENDIF
+	ELSEIF RESULT == 60
+		LOCAL:1 = 1
+		IF !F_COUNTRY_BOSS
+			FOR LOCAL:0, CFLAG:(ARG:0):9 + 1, MAX_COUNTRY
+				IF IS_COUNTRY(LOCAL:0)
+					CFLAG:(ARG:0):9 = LOCAL:0
+					LOCAL:1 = 0
+					BREAK
+				ENDIF
+			NEXT
+		ENDIF
+		IF LOCAL:1
+			CFLAG:(ARG:0):9 = 0
+			CFLAG:(ARG:0):29 = 0
+		ENDIF
+	ELSEIF RESULT == 61 && CFLAG:(ARG:0):9 >= 1
+		CFLAG:(ARG:0):29 = 0
+	ELSEIF RESULT == 62 && CFLAG:(ARG:0):9 >= 1
+		CFLAG:(ARG:0):29 = 1
+	ELSEIF RESULT == 70
+		PRINTL 好感度の値を入力して下さい(-1000～999999999999)
+		INPUT
+		CFLAG:(ARG:0):2 = LIMIT(RESULT, -1000, 999999999999)
+		GOTO SHOW_LOOP1
+	ELSEIF RESULT == 71
+		PRINTL 依存度の値を入力して下さい(-1000～999999999999)
+		INPUT
+		CFLAG:(ARG:0):3 = LIMIT(RESULT, -1000, 999999999999)
+		GOTO SHOW_LOOP1
+	ELSEIF RESULT == 72
+		PRINTL 従属度の値を入力して下さい(-1000～999999999999)
+		INPUT
+		CFLAG:(ARG:0):4 = LIMIT(RESULT, -1000, 999999999999)
+		GOTO SHOW_LOOP1
+	ELSEIF RESULT == 100 && ARG:0 != MASTER
+		IF TALENT:(ARG:0):恋人
+			TALENT:(ARG:0):恋人 = 0
+		ELSE
+			TALENT:(ARG:0):恋人 = 1
+			TALENT:(ARG:0):烙印 = 0
+		ENDIF
+	ELSEIF RESULT == 101 && ARG:0 != MASTER
+		IF TALENT:(ARG:0):恋慕
+			TALENT:(ARG:0):恋慕 = 0
+			TALENT:(ARG:0):親愛 = 0
+		ELSE
+			TALENT:(ARG:0):恋慕 = 1
+			TALENT:(ARG:0):服従 = 0
+			TALENT:(ARG:0):隷属 = 0
+			TALENT:(ARG:0):親友 = 0
+			CFLAG:(ARG:0):2 = MAX(CFLAG:(ARG:0):2, 1500)
+			CFLAG:(ARG:0):3 = MAX(CFLAG:(ARG:0):3, 300)
+		ENDIF
+	ELSEIF RESULT == 102 && ARG:0 != MASTER
+		IF TALENT:(ARG:0):親愛
+			TALENT:(ARG:0):親愛 = 0
+		ELSE
+			TALENT:(ARG:0):恋慕 = 1
+			TALENT:(ARG:0):親愛 = 1
+			TALENT:(ARG:0):服従 = 0
+			TALENT:(ARG:0):隷属 = 0
+			TALENT:(ARG:0):親友 = 0
+			CFLAG:(ARG:0):2 = MAX(CFLAG:(ARG:0):2, 10000)
+			CFLAG:(ARG:0):3 = MAX(CFLAG:(ARG:0):3, 3000)
+		ENDIF
+	ELSEIF RESULT == 103 && ARG:0 != MASTER
+		IF TALENT:(ARG:0):親友
+			TALENT:(ARG:0):親友 = 0
+		ELSEIF IS_SAMESEX(MASTER, ARG:0) && !TALENT:(ARG:0):両刀
+			TALENT:(ARG:0):恋慕 = 0
+			TALENT:(ARG:0):親友 = 1
+			TALENT:(ARG:0):服従 = 0
+			TALENT:(ARG:0):隷属 = 0
+			CFLAG:(ARG:0):2 = MAX(CFLAG:(ARG:0):2, 1500)
+			CFLAG:(ARG:0):3 = MAX(CFLAG:(ARG:0):3, 300)
+		ENDIF
+	ELSEIF RESULT == 110 && ARG:0 != MASTER
+		IF TALENT:(ARG:0):烙印
+			TALENT:(ARG:0):烙印 = 0
+		ELSEIF !IS_SAMESEX(MASTER, ARG:0) || TALENT:(ARG:0):両刀 || TALENT:(ARG:0):恋人
+			TALENT:(ARG:0):烙印 = 1
+			TALENT:(ARG:0):恋人 = 0
+		ENDIF
+	ELSEIF RESULT == 111 && ARG:0 != MASTER
+		IF TALENT:(ARG:0):服従
+			TALENT:(ARG:0):服従 = 0
+			TALENT:(ARG:0):隷属 = 0
+		ELSE
+			TALENT:(ARG:0):服従 = 1
+			TALENT:(ARG:0):恋慕 = 0
+			TALENT:(ARG:0):親愛 = 0
+			TALENT:(ARG:0):親友 = 0
+			CFLAG:(ARG:0):4 = MAX(CFLAG:(ARG:0):4, 1500)
+			CFLAG:(ARG:0):3 = MAX(CFLAG:(ARG:0):3, 300)
+		ENDIF
+	ELSEIF RESULT == 112 && ARG:0 != MASTER
+		IF TALENT:(ARG:0):隷属
+			TALENT:(ARG:0):隷属 = 0
+		ELSE
+			TALENT:(ARG:0):服従 = 1
+			TALENT:(ARG:0):隷属 = 1
+			TALENT:(ARG:0):恋慕 = 0
+			TALENT:(ARG:0):親愛 = 0
+			TALENT:(ARG:0):親友 = 0
+			CFLAG:(ARG:0):4 = MAX(CFLAG:(ARG:0):4, 10000)
+			CFLAG:(ARG:0):3 = MAX(CFLAG:(ARG:0):3, 3000)
+		ENDIF
+	ELSEIF RESULT == 120 && ARG:0 != MASTER
+		IF TALENT:(ARG:0):虚ろ
+			TALENT:(ARG:0):虚ろ = 0
+			TALENT:(ARG:0):崩壊 = 0
+			CFLAG:(ARG:0):崩壊 = 0
+		ELSE
+			TALENT:(ARG:0):虚ろ = 1
+			CFLAG:(ARG:0):崩壊 = 1000 + MAX(MAXBASE:(ARG:0):精神力, 1000)
+		ENDIF
+	ELSEIF RESULT == 121 && ARG:0 != MASTER
+		IF TALENT:(ARG:0):崩壊
+			TALENT:(ARG:0):崩壊 = 0
+			CFLAG:(ARG:0):崩壊 = 1000 + MAX(MAXBASE:(ARG:0):精神力, 1000)
+		ELSE
+			TALENT:(ARG:0):虚ろ = 1
+			TALENT:(ARG:0):崩壊 = 1
+			CFLAG:(ARG:0):崩壊 = 3500 + MAX(MAXBASE:(ARG:0):精神力, 1000)
+		ENDIF
+	ELSEIF RESULT == 130
+		TALENT:(ARG:0):合意 = !TALENT:(ARG:0):合意
+	ENDIF
+ENDIF
+CLEARLINE 28
+GOTO SHOW_LOOP1
+
+;-------------------------------------------------
+;名前の変更処理
+;-------------------------------------------------
+@CONFIG_NAME_CHANGE(ARG:0)
+#DIMS SAVE_NAME, 20
+
+FOR LOCAL:0, 0, 8
+	SAVE_NAME:(LOCAL:0) = %CSTR:(ARG:0):(LOCAL:0)%
+NEXT
+SAVE_NAME:8 = %NAME:(ARG:0)%
+SAVE_NAME:9 = %CALLNAME:(ARG:0)%
+
+$SHOW_LOOP1
+
+DRAWLINE
+PRINTL 名前の変更
+DRAWLINE
+
+$SHOW_LOOP2
+
+PRINTFORM   基本名  %NAME:(ARG:0), 12, LEFT%
+PRINTBUTTON " 100[入力]", 100
+PRINTBUTTON " 101[消去]", 101
+PRINTBUTTON " 102[姓名から設定]", 102
+PRINTL 
+PRINTFORM   (読み)  %CSTR:(ARG:0):3, 12, LEFT%
+PRINTBUTTON " 110[入力]", 110
+PRINTBUTTON " 111[消去]", 111
+PRINTL 
+PRINTL 
+
+PRINTFORM   姓      %CSTR:(ARG:0):0, 12, LEFT%
+PRINTBUTTON " 120[入力]", 120
+PRINTBUTTON " 121[消去]", 121
+PRINTBUTTON " 122[ランダム(漢字)]", 122
+PRINTL 
+PRINTFORM   (読み)  %CSTR:(ARG:0):5, 12, LEFT%
+PRINTBUTTON " 130[入力]", 130
+PRINTBUTTON " 131[消去]", 131
+PRINTL 
+PRINTL 
+
+PRINTFORM   名      %CSTR:(ARG:0):1, 12, LEFT%
+PRINTBUTTON " 140[入力]", 140
+PRINTBUTTON " 141[消去]", 141
+PRINTBUTTON " 142[ランダム(漢字)]", 142
+PRINTBUTTON " 143[ランダム(カナ)]", 143
+PRINTBUTTON " 144[ランダム(日本名)]", 144
+PRINTL 
+PRINTFORM   (読み)  %CSTR:(ARG:0):6, 12, LEFT%
+PRINTBUTTON " 150[入力]", 150
+PRINTBUTTON " 151[消去]", 151
+PRINTL 
+PRINTL 
+
+PRINTFORM   字      %CSTR:(ARG:0):2, 12, LEFT%
+PRINTBUTTON " 160[入力]", 160
+PRINTBUTTON " 161[消去]", 161
+PRINTBUTTON " 162[ランダム(漢字)]", 162
+PRINTL 
+PRINTFORM   (読み)  %CSTR:(ARG:0):7, 12, LEFT%
+PRINTBUTTON " 170[入力]", 170
+PRINTBUTTON " 171[消去]", 171
+PRINTL 
+PRINTL 
+
+PRINTFORM   呼び名  %CALLNAME:(ARG:0), 12, LEFT%
+PRINTBUTTON " 180[入力]", 180
+PRINTBUTTON " 181[消去]", 181
+PRINTBUTTON " 182[ランダム(漢字)]", 182
+PRINTL 
+PRINTFORM   (読み)  %CSTR:(ARG:0):4, 12, LEFT%
+PRINTBUTTON " 190[入力]", 190
+PRINTBUTTON " 191[消去]", 191
+PRINTL 
+
+DRAWLINE
+PRINT  
+PRINTBUTTON " 999[決定]", 999
+PRINTPLAIN            
+PRINTBUTTON " 800[キャンセル]", 800
+PRINTL 
+
+REDRAW 0
+
+$INPUT_LOOP
+INPUT
+
+IF RESULT == 999
+	REDRAW 1
+	RETURN
+ELSEIF RESULT == 800
+	FOR LOCAL:0, 0, 8
+		CSTR:(ARG:0):(LOCAL:0) = %SAVE_NAME:(LOCAL:0)%
+	NEXT
+	NAME:(ARG:0) = %SAVE_NAME:8%
+	CALLNAME:(ARG:0) = %SAVE_NAME:9%
+	REDRAW 1
+	RETURN
+ELSEIF RESULT == 100
+	REDRAW 1
+	INPUTS
+	NAME:(ARG:0) = %RESULTS%
+	GOTO SHOW_LOOP1
+ELSEIF RESULT == 101
+	NAME:(ARG:0) = 
+ELSEIF RESULT == 102
+	NAME:(ARG:0) = %CSTR:(ARG:0):0%%CSTR:(ARG:0):1%
+	CSTR:(ARG:0):3 = %CSTR:(ARG:0):5%%CSTR:(ARG:0):6%
+ELSEIF RESULT == 110
+	REDRAW 1
+	INPUTS
+	CSTR:(ARG:0):3 = %RESULTS%
+	GOTO SHOW_LOOP1
+ELSEIF RESULT == 111
+	CSTR:(ARG:0):3 = 
+ELSEIF RESULT == 120
+	REDRAW 1
+	INPUTS
+	CSTR:(ARG:0):0 = %RESULTS%
+	GOTO SHOW_LOOP1
+ELSEIF RESULT == 121
+	CSTR:(ARG:0):0 = 
+ELSEIF RESULT == 122
+	CALL GENERATE_FAMILY_NAME
+	CSTR:(ARG:0):0 = %RESULTS:0%
+	CSTR:(ARG:0):5 = %RESULTS:1%
+ELSEIF RESULT == 130
+	REDRAW 1
+	INPUTS
+	CSTR:(ARG:0):5 = %RESULTS%
+	GOTO SHOW_LOOP1
+ELSEIF RESULT == 131
+	CSTR:(ARG:0):5 = 
+ELSEIF RESULT == 140
+	REDRAW 1
+	INPUTS
+	CSTR:(ARG:0):1 = %RESULTS%
+	GOTO SHOW_LOOP1
+ELSEIF RESULT == 141
+	CSTR:(ARG:0):1 = 
+ELSEIF RESULT == 142
+	CALL GENERATE_FIRST_NAME
+	CSTR:(ARG:0):1 = %RESULTS:0%
+	CSTR:(ARG:0):6 = %RESULTS:1%
+ELSEIF RESULT == 143
+	IF IS_MALE(ARG:0)
+		CALL GENERATE_FIRST_NAME_KM
+	ELSE
+		CALL GENERATE_FIRST_NAME_KF
+	ENDIF
+	CSTR:(ARG:0):1 = %RESULTS:0%
+	CSTR:(ARG:0):6 = 
+ELSEIF RESULT == 144
+	IF IS_MALE(ARG:0)
+		CALL GENERATE_FIRST_NAME_JM
+	ELSE
+		CALL GENERATE_FIRST_NAME_JF
+	ENDIF
+	CSTR:(ARG:0):1 = %RESULTS:0%
+	CSTR:(ARG:0):6 = %RESULTS:1%
+ELSEIF RESULT == 150
+	REDRAW 1
+	INPUTS
+	CSTR:(ARG:0):6 = %RESULTS%
+	GOTO SHOW_LOOP1
+ELSEIF RESULT == 151
+	CSTR:(ARG:0):6 = 
+ELSEIF RESULT == 160
+	REDRAW 1
+	INPUTS
+	CSTR:(ARG:0):2 = %RESULTS%
+	GOTO SHOW_LOOP1
+ELSEIF RESULT == 161
+	CSTR:(ARG:0):2 = 
+ELSEIF RESULT == 162
+	CALL GENERATE_MIDDLE_NAME
+	CSTR:(ARG:0):2 = %RESULTS:0%
+	CSTR:(ARG:0):7 = %RESULTS:1%
+ELSEIF RESULT == 170
+	REDRAW 1
+	INPUTS
+	CSTR:(ARG:0):7 = %RESULTS%
+	GOTO SHOW_LOOP1
+ELSEIF RESULT == 171
+	CSTR:(ARG:0):7 = 
+ELSEIF RESULT == 180
+	REDRAW 1
+	INPUTS
+	CALLNAME:(ARG:0) = %RESULTS%
+	GOTO SHOW_LOOP1
+ELSEIF RESULT == 181
+	CALLNAME:(ARG:0) = 
+ELSEIF RESULT == 182
+	IF IS_MALE(ARG:0)
+		CALL GENERATE_TRUE_NAME_M
+	ELSE
+		CALL GENERATE_TRUE_NAME_F
+	ENDIF
+	CALLNAME:(ARG:0) = %RESULTS:0%
+	CSTR:(ARG:0):4 = %RESULTS:1%
+ELSEIF RESULT == 190
+	REDRAW 1
+	INPUTS
+	CSTR:(ARG:0):4 = %RESULTS%
+	GOTO SHOW_LOOP1
+ELSEIF RESULT == 191
+	CSTR:(ARG:0):4 = 
+ELSE
+	CLEARLINE 1
+	GOTO INPUT_LOOP
+ENDIF
+CLEARLINE 17
+GOTO SHOW_LOOP2

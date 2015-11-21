@@ -1,0 +1,908 @@
+﻿;逆調教時のショップ画面処理
+
+;-------------------------------------------------
+;拠点フェイズのメニューコマンドを表示する関数 ARG:0は行数
+;-------------------------------------------------
+@PRINT_LIFE_MENU_B(ARG:0)
+SELECTCASE ARG:0
+	CASE 0
+		CALL PRINTBUTTON_CENTER(" 0[……………]", 0, 6)
+	;CASE 2
+	;	CALL PRINTBUTTON_CENTER(" 1{様子を見る}", 1, 6, 1, FLAG:7 == 1030)
+	CASE 7
+		CALL PRINTBUTTON_CENTER(" 5{  能力表示}", 5, 6, 1, FLAG:7 == 1021)
+	CASE 20
+		IF FLAG:28
+			CALL PRINTBUTTON_CENTER("50[次の周回へ]", 50, 6)
+		ELSE
+			PRINT 　　　　　　　
+		ENDIF
+	CASE 23
+		CALL PRINTBUTTON_CENTER("60[      設定]", 60, 7)
+	CASE 24
+		CALL PRINTBUTTON_CENTER("70[    セーブ]", 70, 7)
+	CASE 25
+		CALL PRINTBUTTON_CENTER("80[    ロード]", 80, 7)
+	CASEELSE
+		PRINT 　　　　　　　
+ENDSELECT
+RESETCOLOR
+PRINT ┃
+
+;-------------------------------------------------
+;ショップ画面の表示処理(拠点フェイズ・投獄中)
+;-------------------------------------------------
+@SHOW_SHOP_LIFE_B
+;無効な入力時に消去する時の行数
+FLAG:24 = 30
+
+VARSET LOCAL, 0
+
+;キャラクタ表示順のリストを作成
+CALL CREATE_SELECOTR_SORT_LIST
+
+;全員の調教参加フラグをクリア
+CVARSET CFLAG, 6, 0
+
+;各コマンドが実行不能ならメニューの選択状態を解除する
+IF GROUPMATCH(FLAG:7, 1000, 1001, 1002, 1010, 1011, 1020)
+	FLAG:7 = 0
+ENDIF
+
+;様子を見る
+IF FLAG:7 == 1030
+	CALL PRINT_LIFE_MENU_B(0)
+	PRINTFORML ★★様子を見たいキャラを選択して下さい★★
+	CALL PRINT_LIFE_MENU_B(1)
+	PRINTFORML %TOSTR_REPEAT("-", 70)%
+	LOCAL:20 = 2
+;能力表示
+ELSEIF FLAG:7 == 1021
+	CALL PRINT_LIFE_MENU_B(0)
+	PRINTFORML ★★能力を表示するキャラを選択して下さい★★
+	CALL PRINT_LIFE_MENU_B(1)
+	PRINTFORML %TOSTR_REPEAT("-", 70)%
+	CALL PRINT_LIFE_MENU_B(2)
+	CALL PRINT_PARTNER_DATA(MASTER)
+	PRINTL 
+	LOCAL:20 = 3
+ELSE
+	LOCAL:20 = 0
+ENDIF
+
+;ページ数を計算
+LOCAL:12 = (24 - LOCAL:20) * 2
+LOCAL:10 = 0
+FOR LOCAL:0, 0, CHARANUM
+	;選択可能な条件を満たしているかどうかを判定
+	RESULT = 0
+	TRYCALLFORM CHECK_SELECTABLE{FLAG:7}(LOCAL:0)
+	IF RESULT
+		LOCAL:10 ++
+	ENDIF
+NEXT
+LOCAL:10 = MAX((LOCAL:10 - 1) / LOCAL:12 + 1, 1)
+
+;ページ数を範囲に収める
+IF FLAG:6 <= 0
+	FLAG:6 = LOCAL:10 - ((-FLAG:6) % LOCAL:10)
+ELSEIF FLAG:6 >= LOCAL:10 + 1
+	FLAG:6 = (FLAG:6 + 1) % LOCAL:10 + 1
+ENDIF
+LOCAL:11 = FLAG:6
+
+;キャラリストの表示
+LOCAL:13 = 0
+LOCAL:14 = 0
+LOCAL:15 = (LOCAL:11 - 1) * LOCAL:12
+LOCAL:16 = LOCAL:11 * LOCAL:12
+FOR LOCAL:0, 0, CHARANUM
+	LOCAL:5 = SHOP_CHARA_LIST:(LOCAL:0)
+	;選択可能な条件を満たしているかどうかを判定
+	RESULT = 0
+	TRYCALLFORM CHECK_SELECTABLE{FLAG:7}(LOCAL:5)
+	IF RESULT
+		IF LOCAL:13 >= LOCAL:15 && LOCAL:13 < LOCAL:16
+			IF LOCAL:14 % 2 != 0
+				PRINTPLAIN 　
+			ELSE
+				IF LOCAL:14 >= 1
+					PRINTL 
+				ENDIF
+				CALL PRINT_LIFE_MENU_B(LOCAL:20)
+				LOCAL:20 ++
+			ENDIF
+			CALL PRINT_PARTNER_DATA(LOCAL:5, LOCAL:21)
+			LOCAL:14 ++
+		ENDIF
+		LOCAL:13 ++
+	ENDIF
+NEXT
+IF LOCAL:14 >= 1
+	PRINTL 
+ENDIF
+
+IF LOCAL:20 < 26
+	FOR LOCAL:0, LOCAL:20, 26
+		CALL PRINT_LIFE_MENU_B(LOCAL:0)
+		IF LOCAL:0 == 24
+			PRINTFORM %TOSTR_REPEAT("-", 70)%
+		ELSEIF LOCAL:0 == 25
+			PRINT   
+			IF LOCAL:10 >= 2
+				PRINTBUTTON "54[前のページ    ]", 54
+			ELSE
+				SETCOLOR 0x606060
+				PRINTPLAINFORM 54[前のページ    ]
+				RESETCOLOR
+			ENDIF
+			PRINTPLAINFORM %TOSTR_SPACE(10)%
+			LOCALS:0 = page{LOCAL:11}/{LOCAL:10}
+			PRINTPLAINFORM %LOCALS:0, 14, LEFT%
+			IF LOCAL:10 >= 2
+				PRINTBUTTON "56[次のページ    ]", 56
+			ELSE
+				SETCOLOR 0x606060
+				PRINTPLAINFORM 56[次のページ    ]
+				RESETCOLOR
+			ENDIF
+		ENDIF
+		PRINTL 
+	NEXT
+ENDIF
+
+;-------------------------------------------------
+;ショップ画面の入力処理(拠点フェイズ・投獄中 0～99)
+;ARG:0に入力した値が入る
+;処理を行った場合は1を、行わなかった場合は0を返すこと
+;-------------------------------------------------
+@EVENTBUY_LIFE_B(ARG:0)
+;会いに行く
+IF ARG:0 == 0
+	CALL TRAIN_IN_PRISON
+	IF RESULT == 0
+		RESULT = 1
+		BEGIN TURNEND
+	ENDIF
+;様子を見る
+;ELSEIF ARG:0 == 1
+;	FLAG:7 = 1030
+;	FLAG:6 = 1
+;	RETURN 0
+;能力表示
+ELSEIF ARG:0 == 5
+	FLAG:7 = 1021
+	FLAG:6 = 1
+	RETURN 0
+;次の周回へ
+ELSEIF ARG:0 == 50 && FLAG:28
+	CALL GO_NEXT_LOOP
+;前のページ
+ELSEIF ARG:0 == 54
+	FLAG:6 --
+	RETURN 0
+;次のページ
+ELSEIF ARG:0 == 56
+	FLAG:6 ++
+	RETURN 0
+ELSE
+	RETURN 0
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;ショップ画面の入力処理(拠点フェイズ・投獄中 100～)
+;ARG:0に入力した値が入る
+;処理を行った場合は1を、行わなかった場合は0を返すこと
+;-------------------------------------------------
+@USERSHOP_LIFE_B(ARG:0)
+CALL USERSHOP_LIFE_CHARA1(NO_TO_CHARA(ARG:0 - 100))
+IF !RESULT
+	RETURN 0
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;主人公が投獄中のときの逆調教イベント
+;0を返すと調教開始せずにターンエンド
+;-------------------------------------------------
+@TRAIN_IN_PRISON
+#DIM CHARA_LIST, 1000
+
+;外来勢力の番号を取得(ID:299)
+LOCAL:5 = GET_COUNTRY_FROM_ID(299)
+;同じくゴブリンも
+LOCAL:6 = GET_COUNTRY_FROM_ID(300)
+
+;外来調教の場合
+IF LOCAL:5 >= 1 && CFLAG:MASTER:9 == LOCAL:5
+	;外来人による主人公以外のキャラへの自動調教
+	IF FLAG:28
+		CALL TRAIN_BY_GAIRAI
+	ENDIF
+
+	IF !FLAG:14
+		FLAG:14 = 1
+		IF !VAGINA(MASTER) && GAIRAI_SEX_VS(MASTER) != 1
+			DRAWLINE
+			PRINTFORMW 外来人は%ANAME(MASTER)%に、男娼にされたいか、女にされて犯されたいか聞いてきた
+			CALL ASK_YN("女にされるなんて御免だ！(男娼化)", "いっそ女にされた方がマシだ…(女性化)")
+			IF RESULT == 0
+				PRINTFORMW 外来人は%ANAME(MASTER)%の返事を聞くと、%ANAME(MASTER)%を取り押さえ裸に剥き、縄で拘束した
+				PRINTFORMW どうやら男であろうと本気で犯すつもりのようだ…
+			ELSE
+				PRINTFORMW 外来人は%ANAME(MASTER)%の返事を聞くと、%ANAME(MASTER)%の口に何かを押し込んで無理やり飲ませた
+				PRINTFORMW すると突然意識が遠くなっていく…
+				PRINTFORMW ………………
+				PRINTFORMW ……
+				PRINTFORMW しばらくして目を覚ますと、%ANAME(MASTER)%は体に違和感を覚えた
+				PRINTFORMW 股間にはあるべきものがなく、胸にも重みを感じる
+				PRINTFORMW どうやら本当に女性の体になってしまったようだ
+				PRINTFORMW 周りを取り囲む外来人たちの下卑た視線が肌に突き刺さり、思わず%ANAME(MASTER)%は身震いした…
+				IF TALENT:MASTER:性別 == 4
+					;元男の娘フラグ
+					CFLAG:MASTER:66 = 1
+				ENDIF
+				TALENT:MASTER:性別 = 1
+			ENDIF
+		ENDIF
+	ENDIF
+
+	;全員の調教参加フラグを解除
+	CVARSET CFLAG, 6, 0
+
+	LOCAL:10 = 0
+	;4回目以降、1/5の確率で外来に寝返った顔見知りのキャラが調教者になる
+	IF FLAG:23 >= 4 && RAND:5 == 0
+		LOCAL:1 = 0
+		FOR LOCAL:0, 0, CHARANUM
+			IF CFLAG:(LOCAL:0):17 && NO:(LOCAL:0) < 2000 && CFLAG:(LOCAL:0):1 == CFLAG:MASTER:9
+				LOCAL:1 ++
+			ENDIF
+		NEXT
+		VARSET LOCAL, -1, 20, 30
+		LOCAL:3 = RAND:4 + 3
+		FOR LOCAL:2, 0, LOCAL:3
+			IF LOCAL:1 >= 1
+				LOCAL:4 = RAND:(LOCAL:1)
+				FOR LOCAL:0, 0, CHARANUM
+					IF CFLAG:(LOCAL:0):17 && NO:(LOCAL:0) < 2000 && CFLAG:(LOCAL:0):1 == CFLAG:MASTER:9 && !CFLAG:(LOCAL:0):6
+						LOCAL:4 --
+						IF LOCAL:4 < 0
+							LOCAL:(LOCAL:2 + 20) = LOCAL:0
+							CFLAG:(LOCAL:0):6 = 1
+							LOCAL:1 --
+							LOCAL:10 = 1
+							BREAK
+						ENDIF
+					ENDIF
+				NEXT
+			ENDIF
+		NEXT
+	ENDIF
+	IF LOCAL:10
+		LOCALS:0 = 
+		LOCAL:2 = 0
+		LOCAL:3 = 0
+		FOR LOCAL:0, 20, 30
+			IF LOCAL:(LOCAL:0) >= 0
+				IF LOCAL:0 != 20
+					LOCALS:0 = %LOCALS:0%、
+				ENDIF
+				LOCALS:0 = %LOCALS:0%%ANAME(LOCAL:(LOCAL:0))%
+				LOCAL:2 ++
+				LOCAL:3 |= TALENT:(LOCAL:(LOCAL:0)):性別
+			ELSE
+				BREAK
+			ENDIF
+		NEXT
+		DRAWLINE
+		PRINTFORML 調教の時間が近づくと、%ANAME(MASTER)%はいつものように調教部屋で拘束され、
+		PRINTFORMW あとは男達に汚されるのを待つのみとなった
+		IF LOCAL:2 == 1
+			PRINTFORMW しかし、やってきたのは外来人ではなく、良く見知った相手だった
+			PRINTFORMW %LOCALS:0%…
+			PRINTFORMW かつての面影は既になく、どこか虚ろで生気のない瞳をしている
+			IF LOCAL:3 == 0
+				PRINTFORMW 事前にたっぷりと犯されてきたのだろう、その尻穴からは大量の精液が滴り落ちている
+				IF PENIS(MASTER)
+					PRINTFORMW 性欲に満ちた視線は、%ANAME(MASTER)%ではなく、%ANAME(MASTER)%のいきり立った男根に注がれていた…
+				ELSE
+					PRINTFORMW 性欲に満ちた視線は、%ANAME(MASTER)%ではなく、%ANAME(MASTER)%のカラダに対して注がれていた…
+				ENDIF
+			ELSE
+				PRINTFORMW 事前にたっぷりと犯されてきたのだろう、両方の穴は既に愛液と精液でドロドロに濡れている
+				IF PENIS(MASTER)
+					PRINTFORMW 性欲に満ちた視線は、%ANAME(MASTER)%ではなく、%ANAME(MASTER)%のいきり立った男根に注がれていた…
+				ELSE
+					PRINTFORMW 性欲に満ちた視線は、%ANAME(MASTER)%ではなく、%ANAME(MASTER)%のカラダに対して注がれていた…
+				ENDIF
+			ENDIF
+		ELSE
+			PRINTFORMW しかし、やってきたのは外来人ではなく、良く見知った面々だった
+			PRINTFORMW %LOCALS:0%…
+			PRINTFORMW かつての面影は既になく、皆どこか虚ろで生気のない瞳をしている
+			IF LOCAL:3 == 0
+				PRINTFORMW 事前にたっぷりと犯されてきたのだろう、皆例外なく全身が精液でドロドロに汚れていて、酷い有様だ
+				IF PENIS(MASTER)
+					PRINTFORMW 性欲に満ちた彼らの視線は、%ANAME(MASTER)%ではなく、%ANAME(MASTER)%のいきり立った男根に注がれていた…
+				ELSE
+					PRINTFORMW 性欲に満ちた彼らの視線は、%ANAME(MASTER)%ではなく、%ANAME(MASTER)%のカラダに対して注がれていた…
+				ENDIF
+			ELSE
+				PRINTFORMW 事前にたっぷりと犯されてきたのだろう、両方の穴は既に愛液と精液でドロドロに濡れている
+				IF PENIS(MASTER)
+					PRINTFORMW 性欲に満ちた彼女たちの視線は、%ANAME(MASTER)%ではなく、%ANAME(MASTER)%のいきり立った男根に注がれていた…
+				ELSE
+					PRINTFORMW 性欲に満ちた彼女たちの視線は、%ANAME(MASTER)%ではなく、%ANAME(MASTER)%のカラダに対して注がれていた…
+				ENDIF
+			ENDIF
+		ENDIF
+		FLAG:29 = 1
+
+	ELSEIF !LOCAL:10
+		LOCAL:2 = 0
+		FOR LOCAL:0, 0, CHARANUM
+			IF TALENT:(LOCAL:0):外来人 && LOCAL:2 < 5
+				CFLAG:(LOCAL:0):6 = 1
+				CFLAG:(LOCAL:0):2 = 2000
+				CFLAG:(LOCAL:0):3 = 0
+				CFLAG:(LOCAL:0):4 = 0
+				CFLAG:(LOCAL:0):64 = 1
+				CFLAG:(LOCAL:0):65 = 1
+				ABL:(LOCAL:0):欲望 = 5
+				ABL:(LOCAL:0):奉仕 = 5
+				ABL:(LOCAL:0):性技 = 10
+				ABL:(LOCAL:0):主導度Ｕ = 600
+				ABL:(LOCAL:0):倒錯度 = 600
+				TALENT:(LOCAL:0):性別 = GAIRAI_SEX_VS(MASTER)
+				TALENT:(LOCAL:0):快感に素直 = 1
+				TALENT:(LOCAL:0):絶倫 = 1
+				IF !PENIS(LOCAL:0) && PENIS(MASTER)
+					ABL:(LOCAL:0):性交 = 0
+					ABL:(LOCAL:0):Ｖ感 = 4
+					TALENT:(LOCAL:0):濡れやすい = 1
+					EXP:(LOCAL:0):♀♂性交回数 = 500
+					EXP:(LOCAL:0):絶頂経験 = 3000
+				ELSE
+					ABL:(LOCAL:0):性交 = 15
+					EXP:(LOCAL:0):♂♀性交回数 = 500
+					EXP:(LOCAL:0):♂Ａ性交回数 = 500
+					EXP:(LOCAL:0):絶頂経験 = 3000
+					IF PENIS(LOCAL:0)
+						ABL:(LOCAL:0):射精 = 3000
+					ENDIF
+				ENDIF
+				FOR LOCAL:1, 0, 900
+					COM_EXP:(LOCAL:0):(LOCAL:1) = 1000
+				NEXT
+				LOCAL:2 ++
+			ENDIF
+		NEXT
+	ENDIF
+
+	;逆調教モード
+	FLAG:12 = 4
+	;ウフフモード
+	FLAG:50 = 1
+	;アイテムを一通り追加
+	ITEM:A_ローター = 1
+	ITEM:A_バイブ = 1
+	ITEM:A_アナルバイブ = 1
+	ITEM:A_ペニスバンド = 1
+	ITEM:A_オナホール = 1
+	ITEM:A_クリキャップ = 1
+	ITEM:A_ニプルキャップ = 1
+	ITEM:A_針 = 1
+	ITEM:A_鞭 = 1
+	ITEM:A_媚薬 = 99
+		SIF !RAND:3
+			ITEM:A_犬 = 1
+		SIF !RAND:8
+			ITEM:A_豚 = 1
+	IF GAIRAI_SEX_VS(MASTER) != 1 || !PENIS(MASTER)
+		ITEM:A_ローション = 99
+		ITEM:A_ペニスバンド = 1
+	ENDIF
+
+	;回数をカウント
+	FLAG:23 ++
+	;解放カウンタをリセット
+	CFLAG:MASTER:43 = 0
+
+	;行動開始時の共通処理
+	CALL START_TRAIN_COMMON
+	RETURN 1
+
+;ゴブリン調教の場合
+ELSEIF LOCAL:6 >= 1 && CFLAG:MASTER:9 == LOCAL:6
+	;ゴブリンによる主人公以外のキャラへの自動調教
+	IF FLAG:28
+		CALL TRAIN_BY_GOBLINS
+	ENDIF
+	IF !FLAG:14
+		FLAG:14 = 1
+		IF !VAGINA(MASTER)
+			DRAWLINE
+			PRINTFORMW ホフゴブリンは%ANAME(MASTER)%に、男娼にされたいか、女にされて犯されたいか聞いてきた
+			CALL ASK_YN("女にされるなんて御免だ！(男娼化)", "いっそ女にされた方がマシだ…(女性化)")
+			IF RESULT == 0
+				PRINTFORMW 外来人は%ANAME(MASTER)%の返事を聞くと、%ANAME(MASTER)%を取り押さえ裸に剥き、縄で拘束した
+				PRINTFORMW どうやら男であろうと本気で犯すつもりのようだ…
+			ELSE
+				PRINTFORMW 外来人は%ANAME(MASTER)%の返事を聞くと、%ANAME(MASTER)%の口に何かを押し込んで無理やり飲ませた
+				PRINTFORMW すると突然意識が遠くなっていく…
+				PRINTFORMW ………………
+				PRINTFORMW ……
+				PRINTFORMW しばらくして目を覚ますと、%ANAME(MASTER)%は体に違和感を覚えた
+				PRINTFORMW 股間にはあるべきものがなく、胸にも重みを感じる
+				PRINTFORMW どうやら本当に女性の体になってしまったようだ
+				PRINTFORMW 周りを取り囲む外来人たちの下卑た視線が肌に突き刺さり、思わず%ANAME(MASTER)%は身震いした…
+				IF TALENT:MASTER:性別 == 4
+					;元男の娘フラグ
+					CFLAG:MASTER:66 = 1
+				ENDIF
+				TALENT:MASTER:性別 = 1
+			ENDIF
+		ENDIF
+	ENDIF
+	IF FLAG:23 > 0 && FLAG:23 % 4 == 0
+		PRINTFORML 調教の時間が近づくと、%ANAME(MASTER)%はいつものように調教部屋で拘束され、
+		PRINTFORMW あとは男達に汚されるのを待つのみとなった
+		PRINTFORML やってきたホフゴブリンは、どうだ、そろそろ俺達の奴隷になる気になったか、と尋ねた
+		PRINTFORMW 奴隷になることを認めれば、ある程度の行動の自由はくれてやるぞ、と……
+		PRINTFORML このまま拒否し続けても、こいつらは自分を汚し続けるだろう
+		PRINTFORML 首を縦に振れば、いくらかは楽になれるのかもしれない
+		PRINTFORMW どうするべきだろうか……
+		CALL ASK_YN("諦めて受け入れる（奴隷化)", "こんなやつらの奴隷なんてごめんだ")
+		IF RESULT == 0
+			PRINTFORML %ANAME(MASTER)%が頷くと、ホフゴブリンはニヤリと笑った
+			IF IS_MALE(MASTER)
+				PRINTFORMW そしてそのペニスに、二度と消えない焼き印を刻んだ……
+			ELSE
+				PRINTFORMW そしてその乳房に、二度と消えない焼き印を刻んだ……
+			ENDIF
+			PRINTFORMW さらにその首に、家畜用の首輪が嵌められた
+			SETCOLOR COLOR_CAUTION
+			PRINTFORMW %ANAME(MASTER)%はホフゴブリンの性奴隷となりました
+			RESETCOLOR
+			TALENT:MASTER:ゴブリンの性奴隷 = 1
+			CFLAG:MASTER:1 = GET_COUNTRY_FROM_ID(300)
+			CFLAG:MASTER:9 = 0
+			FOR LOCAL:0, 0, CHARANUM
+				IF TALENT:(LOCAL:0):ホフゴブリン
+					TALENT:(LOCAL:0):合意 = 1
+					CFLAG:(LOCAL:0):2 = MAX(CFLAG:(LOCAL:0):2, 500)
+					CFLAG:(LOCAL:0):3 = MAX(CFLAG:(LOCAL:0):3, 500)
+				ENDIF
+			NEXT
+			RETURN
+		ELSE
+			PRINTFORML そうかよと、%ANAME(MASTER)%の拒否を特に気にした風でもなくホフゴブリンは受け止める
+			PRINTFORML ならもっと犯して、自分の立場ってのを教えてやらなくちゃなぁと、その顔は下卑た笑みを浮かべた……
+			PRINTFORMW 彼らはそのまま、%ANAME(MASTER)%に群がっていく……
+		ENDIF
+	ENDIF
+	;全員の調教参加フラグを解除
+	CVARSET CFLAG, 6, 0
+
+	LOCAL:10 = 0
+	;1/3の確率でゴブリンに寝返った顔見知りのキャラが調教者になる　ただしマスターが男なら確実に来る
+	IF IS_MALE(MASTER) || RAND:3 
+		LOCAL:1 = 0
+		FOR LOCAL:0, 0, CHARANUM
+			IF CFLAG:(LOCAL:0):17 && NO:(LOCAL:0) < 2000 && CFLAG:(LOCAL:0):1 == CFLAG:MASTER:9
+				LOCAL:1 ++
+			ENDIF
+		NEXT
+		VARSET LOCAL, -1, 20, 30
+		LOCAL:3 = RAND:4 + 3
+		FOR LOCAL:2, 0, LOCAL:3
+			IF LOCAL:1 >= 1
+				LOCAL:4 = RAND:(LOCAL:1)
+				FOR LOCAL:0, 0, CHARANUM
+					IF CFLAG:(LOCAL:0):17 && NO:(LOCAL:0) < 2000 && CFLAG:(LOCAL:0):1 == CFLAG:MASTER:9 && !CFLAG:(LOCAL:0):6
+						LOCAL:4 --
+						IF LOCAL:4 < 0
+							LOCAL:(LOCAL:2 + 20) = LOCAL:0
+							CFLAG:(LOCAL:0):6 = 1
+							LOCAL:1 --
+							LOCAL:10 = 1
+							BREAK
+						ENDIF
+					ENDIF
+				NEXT
+			ENDIF
+		NEXT
+	ENDIF
+	IF LOCAL:10
+		LOCALS:0 = 
+		LOCAL:2 = 0
+		LOCAL:3 = 0
+		FOR LOCAL:0, 20, 30
+			IF LOCAL:(LOCAL:0) >= 0
+				IF LOCAL:0 != 20
+					LOCALS:0 = %LOCALS:0%、
+				ENDIF
+				LOCALS:0 = %LOCALS:0%%ANAME(LOCAL:(LOCAL:0))%
+				LOCAL:2 ++
+				LOCAL:3 |= TALENT:(LOCAL:(LOCAL:0)):性別
+			ELSE
+				BREAK
+			ENDIF
+		NEXT
+		DRAWLINE
+		PRINTFORML 調教の時間が近づくと、%ANAME(MASTER)%はいつものように調教部屋で拘束され、
+		PRINTFORMW あとは男達に汚されるのを待つのみとなった
+		IF LOCAL:2 == 1
+			PRINTFORMW やってきたホフゴブリンは、%ANAME(MASTER)%が良く見知った相手を連れてきていた
+			PRINTFORMW %LOCALS:0%…
+			PRINTFORMW 首には家畜用の首輪がかけられ、乳房には痛々しいピアス、下腹に「奴隷」の文字とハートの焼き印が押されている
+			PRINTFORMW 惨めな姿なのだろうが、幸せそうな表情を浮かべている。その瞳がどこか虚ろなことさえのぞけば
+			IF LOCAL:3 == 0
+				PRINTFORMW 事前にたっぷりと犯されてきたのだろう、その尻穴からは大量の精液が滴り落ちている
+				IF PENIS(MASTER)
+					PRINTFORMW 性欲に満ちた視線は、%ANAME(MASTER)%ではなく、%ANAME(MASTER)%のいきり立った男根に注がれていた…
+					PRINTFORMW 「今の主人」のモノと比べたのだろう、どこか物足りなげでもあった……
+				ELSE
+					PRINTFORMW 性欲に満ちた視線は、%ANAME(MASTER)%ではなく、%ANAME(MASTER)%のカラダに対して注がれていた…
+				ENDIF
+			ELSE
+				PRINTFORMW 事前にたっぷりと犯されてきたのだろう、顔も乳房も両方の穴も、既に愛液と精液でドロドロに濡れている
+				IF PENIS(MASTER)
+					PRINTFORMW 性欲に満ちた視線は、%ANAME(MASTER)%ではなく、%ANAME(MASTER)%のいきり立った男根に注がれていた…
+					PRINTFORMW 「今の主人」のモノと比べたのだろう、どこか物足りなげでもあった……
+				ELSE
+					PRINTFORMW 性欲に満ちた視線は、%ANAME(MASTER)%ではなく、%ANAME(MASTER)%のカラダに対して注がれていた…
+				ENDIF
+			ENDIF
+			PRINTFORMW ホフゴブリンはニヤニヤとしながら、俺たちの奴隷をお前にも使わせてやるよと言った
+			PRINTFORMW かつて彼女が%ANAME(MASTER)%と知り合い「だった」ことを、どうやら掴んでいるようだ……
+		ELSE
+			PRINTFORMW やってきたホフゴブリンは、%ANAME(MASTER)%が良く見知った面々を連れてきていた
+			PRINTFORMW %LOCALS:0%…
+			PRINTFORMW 首には家畜用の首輪がかけられ、乳房には痛々しいピアス、下腹に「奴隷」の文字とハートの焼き印が押されている
+			PRINTFORMW 惨めな姿なのだろうが、みな幸せそうな表情を浮かべている。その瞳がどこか虚ろなことさえのぞけば……
+			IF LOCAL:3 == 0
+				PRINTFORMW 事前にたっぷりと犯されてきたのだろう、皆例外なく全身が精液でドロドロに汚れていて、酷い有様だ
+				IF PENIS(MASTER)
+					PRINTFORMW 性欲に満ちた彼らの視線は、%ANAME(MASTER)%ではなく、%ANAME(MASTER)%のいきり立った男根に注がれていた…
+					PRINTFORMW 「今の主人」のモノと比べたのだろう、どこか物足りなげでもあった……
+				ELSE
+					PRINTFORMW 性欲に満ちた彼らの視線は、%ANAME(MASTER)%ではなく、%ANAME(MASTER)%のカラダに対して注がれていた…
+				ENDIF
+			ELSE
+				PRINTFORMW 事前にたっぷりと犯されてきたのだろう、顔も乳房も両方の穴も、既に愛液と精液でドロドロに濡れている
+				IF PENIS(MASTER)
+					PRINTFORMW 性欲に満ちた彼女たちの視線は、%ANAME(MASTER)%ではなく、%ANAME(MASTER)%のいきり立った男根に注がれていた…
+					PRINTFORMW 「今の主人」のモノと比べたのだろう、どこか物足りなげでもあった……
+				ELSE
+					PRINTFORMW 性欲に満ちた彼女たちの視線は、%ANAME(MASTER)%ではなく、%ANAME(MASTER)%のカラダに対して注がれていた…
+				ENDIF
+			ENDIF
+		ENDIF
+		LOCAL:3 = LOCAL:2
+		FOR LOCAL:0, 0, CHARANUM
+			IF TALENT:(LOCAL:0):ホフゴブリン && LOCAL:3 < 7 && LOCAL: 3 < LOCAL:2 + 3
+				CFLAG:(LOCAL:0):6 = 1
+				CFLAG:(LOCAL:0):2 = 2000
+				CFLAG:(LOCAL:0):3 = 0
+				CFLAG:(LOCAL:0):4 = 0
+				CFLAG:(LOCAL:0):64 = 1
+				CFLAG:(LOCAL:0):65 = 1
+				ABL:(LOCAL:0):欲望 = 5
+				ABL:(LOCAL:0):奉仕 = 5
+				ABL:(LOCAL:0):性技 = 10
+				ABL:(LOCAL:0):主導度Ｕ = 600
+				ABL:(LOCAL:0):倒錯度 = 600
+				TALENT:(LOCAL:0):快感に素直 = 1
+				TALENT:(LOCAL:0):絶倫 = 1
+				IF !PENIS(LOCAL:0) && PENIS(MASTER)
+					ABL:(LOCAL:0):性交 = 0
+					ABL:(LOCAL:0):Ｖ感 = 4
+					TALENT:(LOCAL:0):濡れやすい = 1
+					EXP:(LOCAL:0):♀♂性交回数 = 500
+					EXP:(LOCAL:0):絶頂経験 = 3000
+				ELSE
+					ABL:(LOCAL:0):性交 = 15
+					EXP:(LOCAL:0):♂♀性交回数 = 500
+					EXP:(LOCAL:0):♂Ａ性交回数 = 500
+					EXP:(LOCAL:0):絶頂経験 = 3000
+					IF PENIS(LOCAL:0)
+						ABL:(LOCAL:0):射精 = 3000
+					ENDIF
+				ENDIF
+				FOR LOCAL:1, 0, 900
+					COM_EXP:(LOCAL:0):(LOCAL:1) = 1000
+				NEXT
+				LOCAL:3 ++
+			ENDIF
+		NEXT
+		FLAG:29 = 1
+
+	ELSEIF !LOCAL:10
+		LOCAL:2 = 0
+		FOR LOCAL:0, 0, CHARANUM
+			IF TALENT:(LOCAL:0):ホフゴブリン && LOCAL:2 < 6
+				CFLAG:(LOCAL:0):6 = 1
+				CFLAG:(LOCAL:0):2 = 2000
+				CFLAG:(LOCAL:0):3 = 0
+				CFLAG:(LOCAL:0):4 = 0
+				CFLAG:(LOCAL:0):64 = 1
+				CFLAG:(LOCAL:0):65 = 1
+				ABL:(LOCAL:0):欲望 = 5
+				ABL:(LOCAL:0):奉仕 = 5
+				ABL:(LOCAL:0):性技 = 10
+				ABL:(LOCAL:0):主導度Ｕ = 600
+				ABL:(LOCAL:0):倒錯度 = 600
+				TALENT:(LOCAL:0):快感に素直 = 1
+				TALENT:(LOCAL:0):絶倫 = 1
+				IF !PENIS(LOCAL:0) && PENIS(MASTER)
+					ABL:(LOCAL:0):性交 = 0
+					ABL:(LOCAL:0):Ｖ感 = 4
+					TALENT:(LOCAL:0):濡れやすい = 1
+					EXP:(LOCAL:0):♀♂性交回数 = 500
+					EXP:(LOCAL:0):絶頂経験 = 3000
+				ELSE
+					ABL:(LOCAL:0):性交 = 15
+					EXP:(LOCAL:0):♂♀性交回数 = 500
+					EXP:(LOCAL:0):♂Ａ性交回数 = 500
+					EXP:(LOCAL:0):絶頂経験 = 3000
+					IF PENIS(LOCAL:0)
+						ABL:(LOCAL:0):射精 = 3000
+					ENDIF
+				ENDIF
+				FOR LOCAL:1, 0, 900
+					COM_EXP:(LOCAL:0):(LOCAL:1) = 1000
+				NEXT
+				LOCAL:2 ++
+			ENDIF
+		NEXT
+	ENDIF
+
+	;逆調教モード
+	FLAG:12 = 4
+	;ウフフモード
+	FLAG:50 = 1
+	;アイテムを一通り追加
+	ITEM:A_ローター = 1
+	ITEM:A_バイブ = 1
+	ITEM:A_アナルバイブ = 1
+	ITEM:A_ペニスバンド = 1
+	ITEM:A_オナホール = 1
+	ITEM:A_クリキャップ = 1
+	ITEM:A_ニプルキャップ = 1
+	ITEM:A_針 = 1
+	ITEM:A_鞭 = 1
+	ITEM:A_媚薬 = 99
+	ITEM:A_排卵誘発剤 = 99
+		SIF !RAND:5
+			ITEM:A_犬 = 1
+		SIF !RAND:8
+			ITEM:A_豚 = 1
+	;回数をカウント
+	FLAG:23 ++
+	;解放カウンタをリセット
+	CFLAG:MASTER:43 = 0
+
+	;行動開始時の共通処理
+	CALL START_TRAIN_COMMON
+	RETURN 1
+;外来以外の捕虜の場合
+ELSE
+	;全員の調教参加フラグを解除
+	CVARSET CFLAG, 6, 0
+
+	LOCAL:10 = -1
+	LOCAL:11 = 0
+	CALL SELECT_REV_TRAINER()
+	LOCAL:10 = RESULT:0
+	LOCAL:11 = RESULT:1
+
+	;FLAG:46に記録されたIDからメイン調教者のキャラ番号を取得
+	LOCAL:12 = ID_TO_CHARA(FLAG:46)
+	IF LOCAL:12 >= 0 && CFLAG:(LOCAL:12):1 == CFLAG:MASTER:9 && CFLAG:(LOCAL:12):9 == 0 && GROUPMATCH(CFLAG:(LOCAL:12):16, 0, 2)
+		;メイン調教者を調教に参加させる
+		CFLAG:(LOCAL:12):6 = 1
+		LOCAL:10 = LOCAL:12
+		LOCAL:11 ++
+	ENDIF
+
+	IF CFLAG:MASTER:18 >= 7
+		IF LOCAL:10 >= 0 && CFLAG:MASTER:18 == 7
+			LOCALS:0 = 
+			IF LOCAL:11 >= 2
+				LOCALS:0 = たち
+			ENDIF
+			DRAWLINE
+			PRINTFORML %ANAME(LOCAL:10)%%LOCALS:0%はすっかり大きくなった%ANAME(MASTER)%のお腹を見て、
+			PRINTFORMW 子供が産まれるまで調教を見送ることに決めたようだ
+			PRINTFORMW %ANAME(LOCAL:10)%%LOCALS:0%は%ANAME(MASTER)%に、元気な子を産むように言い聞かせて帰っていった…
+
+		ELSE
+			DRAWLINE
+			PRINTFORMW %ANAME(MASTER)%は牢屋の中で日々を過ごした…
+		ENDIF
+		;解放カウンタをリセット
+		CFLAG:MASTER:43 = 0
+
+	;参加者が一人以上いれば逆調教を開始
+	ELSEIF LOCAL:10 >= 0
+		IF FLAG:47 == 0
+			LOCALS:0 = 
+			IF LOCAL:11 >= 2
+				LOCALS:0 = たち
+			ENDIF
+			DRAWLINE
+			PRINTFORMW %ANAME(MASTER)%の牢屋の前に、%ANAME(LOCAL:10)%%LOCALS:0%がやって来た
+			PRINTFORMW %ANAME(LOCAL:10)%%LOCALS:0%は%ANAME(MASTER)%に対し、%ANAME(MASTER)%が仕官する気になるまで調教すると宣言してきた…
+			;説得してからの期間を0にする
+			FLAG:32 = 0
+		ENDIF
+
+		;捕虜逆調教モード
+		FLAG:12 = 5
+		;ウフフモード
+		FLAG:50 = 1
+		;回数をカウント
+		FLAG:47 ++
+		;説得してからの期間を増加
+		FLAG:32 ++
+		;解放カウンタをリセット
+		CFLAG:MASTER:43 = 0
+		;アイテムを一通り追加
+		ITEM:A_ローター = 1
+		ITEM:A_バイブ = 1
+		ITEM:A_アナルバイブ = 1
+		ITEM:A_ペニスバンド = 1
+		ITEM:A_オナホール = 1
+		ITEM:A_クリキャップ = 1
+		ITEM:A_ニプルキャップ = 1
+		ITEM:A_鞭 = 1
+		ITEM:A_ローション = 99
+		SIF !RAND:7
+			ITEM:A_犬 = 1
+		SIF !RAND:10
+			ITEM:A_豚 = 1
+		;行動開始時の共通処理
+		CALL START_TRAIN_COMMON
+		RETURN 1
+
+	ELSE
+		IF RAND:3 == 0
+			;恋慕または服従のキャラがいれば時々やってくる
+			LOCAL:11 = 0
+			FOR LOCAL:0, 0, CHARANUM
+				IF LOCAL:0 != MASTER && CFLAG:(LOCAL:0):1 == CFLAG:MASTER:9 && CFLAG:(LOCAL:0):9 == 0 && GROUPMATCH(CFLAG:(LOCAL:0):16, 0, 2) && (TALENT:(LOCAL:0):恋慕 || TALENT:(LOCAL:0):服従)
+					CHARA_LIST:(LOCAL:11) = LOCAL:0
+					LOCAL:11 ++
+				ENDIF
+			NEXT
+			IF LOCAL:11 >= 1
+				LOCAL:12 = CHARA_LIST:(RAND:(LOCAL:11))
+				CFLAG:(LOCAL:12):6 = 1
+				LOCAL:10 = 1
+
+				DRAWLINE
+				PRINTFORMW %ANAME(MASTER)%の牢屋の前に、%ANAME(LOCAL:12)%がやって来た
+				PRINTFORMW %ANAME(LOCAL:12)%は%ANAME(MASTER)%の牢を空け中に入ると、少し話がしたいと言ってきた…
+
+				;捕虜会話モード
+				FLAG:12 = 6
+				;非ウフフモード
+				FLAG:50 = 0
+				;行動開始時の共通処理
+				CALL START_TRAIN_COMMON
+				RETURN 1
+			ENDIF
+		ENDIF
+
+		DRAWLINE
+		PRINTFORMW %ANAME(MASTER)%は牢屋の中で日々を過ごした…
+	ENDIF
+ENDIF
+SHOP_TIME = CALC_SHOP_TIME()
+RETURN 0
+
+;-------------------------------------------------
+;様子を見る ARG:0=対象のキャラ番号
+;-------------------------------------------------
+@SHOP_WATCH_OTHERS(ARG:0)
+;SHOW_INFOの初期画面を基本情報にする
+FLAG:11 = 0
+
+$SHOW_LOOP_INFO_A
+
+;対象キャラの情報を表示
+DRAWLINE
+CALL SHOW_INFO(ARG:0)
+DRAWLINE
+
+PRINTFORML %ANAME(ARG:0)%の様子を見ますか？
+CALL ASK_YN
+IF RESULT == 0
+	CALL GAIRAIS_TRAIN_MSG(ARG:0)
+	WAIT
+	;IF CFLAG:(ARG:0):9 == 0
+	;	SELECTCASE RAND:2
+	;		CASE 0
+	;			PRINTFORML %ANAME(ARG:0)%は外来人たちに前と後ろの穴を次から次へと犯され、
+	;			PRINTFORMW 大量の子種を注ぎ込まれている…
+	;			PRINTFORML %ANAME(ARG:0)%は蕩けた表情で快感に身を委ねながら、
+	;			PRINTFORMW 待っている外来人のペニスを自ら手でシゴいて奉仕している…
+	;	ENDSELECT
+	;ELSEIF CFLAG:(ARG:0):3 <= -200
+	;	SELECTCASE RAND:2
+	;		CASE 0
+	;			PRINTFORML %ANAME(ARG:0)%は外来人たちに前と後ろの穴を次から次へと犯され、
+	;			PRINTFORMW 容赦なく子種を注ぎ込まれている…
+	;			PRINTFORML %ANAME(ARG:0)%は必死に陵辱を耐えているが、
+	;			PRINTFORMW その声には快感の色が混じっている…
+	;	ENDSELECT
+	;ELSEIF CFLAG:(ARG:0):3 < 1500 || TALENT:(ARG:0):2 < 1500
+	;	SELECTCASE RAND:2
+	;		CASE 0
+	;			PRINTFORML %ANAME(ARG:0)%は外来人たちに前と後ろの穴を次から次へと犯され、
+	;			PRINTFORMW 容赦なく子種を注ぎ込まれている…
+	;			PRINTFORML %ANAME(ARG:0)%はひたすら屈辱に耐えながら
+	;			PRINTFORMW 延々と陵辱を受け続けている…
+	;	ENDSELECT
+	;ELSE
+	;	SELECTCASE RAND:2
+	;		CASE 0
+	;			PRINTFORML %ANAME(ARG:0)%は外来人たちに前と後ろの穴を次から次へと犯され、
+	;			PRINTFORMW 容赦なく子種を注ぎ込まれている…
+	;			PRINTFORML %ANAME(ARG:0)%は%ANAME(MASTER)%の名を呼びながら、
+	;			PRINTFORMW 延々と続く陵辱に耐え忍んでいる…
+	;		CASE 1
+	;			PRINTFORML %ANAME(ARG:0)%は外来人たちに前と後ろの穴を次から次へと犯され、
+	;			PRINTFORMW 容赦なく子種を注ぎ込まれている…
+	;			PRINTFORML %ANAME(ARG:0)%は%ANAME(MASTER)%の名を呼びながら、
+	;			PRINTFORMW 延々と続く陵辱に耐え忍んでいる…
+	;	ENDSELECT
+	;ENDIF
+
+	;逆調教の開始
+	CALL TRAIN_IN_PRISON
+ENDIF
+
+RETURN 1
+
+@SELECT_REV_TRAINER()
+#DIM LCOUNT, 3
+#DIM 人数, 1
+#DIM 候補者, 10
+#DIM 調教人数, 1
+#DIM メイン, 1
+VARSET 人数, 0
+VARSET 候補者, -1
+VARSET 調教人数, 0
+VARSET LOCAL, -1
+
+FOR LCOUNT, 0, CHARANUM
+	IF GET_ID(LCOUNT) != FLAG:46 && CFLAG:(LCOUNT):1 == CFLAG:MASTER:9 && CFLAG:(LCOUNT):9 == 0 && GROUPMATCH(CFLAG:(LCOUNT):16, 0, 2) && CFLAG:(LCOUNT):2 >= 500 && ABL:(LCOUNT):性知識 >= 2
+		LOCAL:(人数) = CFLAG:(LCOUNT):好感度
+		人数 ++
+	ENDIF
+NEXT
+ARRAYSORT LOCAL, BACK
+FOR LCOUNT, 0, 10
+	FOR LCOUNT:1, 0, CHARANUM
+		IF CFLAG:(LCOUNT:1):好感度 == LOCAL:(LCOUNT) && FINDELEMENT(候補者, LCOUNT:1) == -1
+			候補者:(LCOUNT) = LCOUNT:1
+			BREAK
+		ENDIF
+	NEXT
+NEXT
+CALL FISHER_YATES_SHAFFLE(10)
+FOR LCOUNT, 0, 10
+	IF 候補者:(SHAFFLE_ARRAY:LCOUNT) != -1
+		CFLAG:(候補者:(SHAFFLE_ARRAY:LCOUNT)):6 = 1
+		SIF 調教人数 == 0
+			メイン = 候補者:(SHAFFLE_ARRAY:LCOUNT)
+		調教人数 ++
+	ENDIF
+	SIF 調教人数 == 4
+		BREAK
+NEXT
+RETURN メイン, 調教人数

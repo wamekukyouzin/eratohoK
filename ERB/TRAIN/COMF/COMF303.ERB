@@ -1,0 +1,236 @@
+﻿;政務
+
+;-------------------------------------------------
+;コマンド名称
+;-------------------------------------------------
+@COM_NAME303
+IF CFLAG:(MTAR:0):46 == 3
+	RESULTS:0 = 学問を学ぶ
+	RESULTS:1 = 学問に付き合う
+ELSE
+	RESULTS:0 = 政務を行う
+	RESULTS:1 = 政務を手伝わされる
+ENDIF
+
+;-------------------------------------------------
+;選択可否判定
+;-------------------------------------------------
+@COM_ABLE303
+;共通部分
+CALL COM_ABLE_COMMON(303)
+SIF RESULT == 0
+	RETURN 0
+;捕虜会話では不可
+SIF FLAG:12 == 6
+	RETURN 0
+;主人公がプレイヤーのとき限定
+SIF MPLY:0 != MASTER
+	RETURN 0
+;デート中は無理
+SIF TFLAG:54
+	RETURN 0
+;臨月or怪我なら不可
+SIF CFLAG:(MTAR:0):16 == 1 || CFLAG:(MTAR:0):16 == 3
+	RETURN 0
+;捕虜なら不可
+SIF CFLAG:(MTAR:0):9
+	RETURN 0
+;キス中は不可
+SIF IS_EQUIP(MPLY:0, 342)
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;メイン処理
+;-------------------------------------------------
+@COM303
+;コマンドの成否をTFLAG:18にセット
+CALL JUDGE_COM_RESULT(MTAR:0, 5, 5)
+
+;成長型による倍率を取得
+LOCAL:0 = GROWTYPE_RATE(MTAR:0, "政治")
+;本の効果あり
+IF CFLAG:(MTAR:0):46 == 3
+	;知略の適正がより高ければそちらを使用
+	LOCAL:0 = MAX(GROWTYPE_RATE(MTAR:0, "知略"), LOCAL:0)
+ENDIF
+LOCAL:1 = 100 + (LOCAL:0 - 100) * 5 / 2
+LOCAL:2 = 100 + (LOCAL:0 - 100) * 3 / 2
+
+SOURCE:(MTAR:0):歓楽 = 20 * LOCAL:1 / 100
+
+;適性がなく好感度・従属度が低いと反感のソースを得る
+IF LOCAL:0 < 100
+	SOURCE:(MTAR:0):歓楽 = 0
+	SOURCE:(MTAR:0):反感 = MAX(0, 300 - MAX(CFLAG:(MTAR:0):2, CFLAG:(MTAR:0):4) * 300 / 500)
+ENDIF
+
+;親密に応じた歓楽のソース追加
+CALL ADD_SOURCE_KANRAKU(MTAR:0, LOCAL:2 /2)
+
+;本の効果があるときは内政効果を得られない
+IF CFLAG:(MTAR:0):46 != 3
+	;このターンの経済成長パワー追加値
+	LOCAL:3 = (ABL:(MPLY:0):政治 + ABL:(MTAR:0):政治 + 100) * 50
+ENDIF
+
+;主導権に応じたソースの追加
+CALL ADD_SOURCE_INITIATIVE_N(MPLY:0, 100, 100)
+CALL ADD_SOURCE_INITIATIVE_N(MTAR:0, 100, 100)
+
+;ターゲットがサボり魔なら効果減少
+IF TALENT:(MTAR:0):サボり魔
+	TIMES SOURCE:(MTAR:0):歓楽, 0.80
+	SOURCE:(MTAR:0):反感 = 70 - SOURCE:(MTAR:0):歓楽 / 3
+ENDIF
+
+;失敗
+IF TFLAG:18 == -1
+	TIMES SOURCE:(MTAR:0):歓楽, 0.20
+	TIMES SOURCE:(MTAR:0):反感, 1.50
+	SOURCE:(MTAR:0):不満 += 300
+;	LOCAL:2 = 1
+	TIMES LOCAL:3, 0.20
+;成功
+ELSEIF TFLAG:18 == 0
+;	LOCAL:2 = 1
+;大成功
+ELSE
+	TIMES SOURCE:(MTAR:0):歓楽, 2.00
+	TIMES SOURCE:(MTAR:0):反感, 0.50
+;	LOCAL:2 = 2
+	TIMES LOCAL:3, 2.00
+ENDIF
+
+;;;;;;;;;;;;EXP弄り
+LOCAL:10 = 320	;固定倍率　１０００なら訓練一回通常成功で　経験値 ０～９ が入る感じ
+LOCAL:11 = 0	;成功判定に応じた乱数 MPLY/MTAR共通　	;６０以上でreturnに MIN 1 を加える
+LOCAL:12 = 0	;MPLY　訓練の効率　訓練相手の指導効果*自身能力高い場合抑制
+LOCAL:13 = 0	;MPLY　獲得経験値*100 
+LOCAL:16 = 0	;LOCAL:12のMTAR用
+LOCAL:17 = 0	;LOCAL:13のMTAR用
+;失敗	効果 70(%)最大の乱数
+IF TFLAG:18 == -1
+	LOCAL:11 = RAND:36 + RAND:36 
+;成功	効果 100(%)最大の乱数
+ELSEIF TFLAG:18 == 0
+	LOCAL:11 = RAND:51 + RAND:51
+;大成功 固定60 + 乱数 90
+ELSE
+	LOCAL:11 = 60 + RAND:46 + RAND:46
+ENDIF
+;本の効果ありの場合は知略経験も得る
+IF CFLAG:(MTAR:0):46 == 3
+	; MPLYの訓練結果 知略
+	LOCAL:12 = EXP_TRAIN_SLG(MPLY:0, MTAR:0, 51 )
+	LOCAL:13 = LOCAL:10 * LOCAL:11 * LOCAL:12 / 10000	;獲得経験*100
+	; MTARの訓練結果 知略
+	LOCAL:16 = EXP_TRAIN_SLG(MTAR:0, MPLY:0, 51)
+	LOCAL:17 = LOCAL:10 * LOCAL:11 * LOCAL:16 / 10000	;獲得経験*100
+	
+	SOURCE:(MTAR:0):屈従 /= 2
+	SOURCE:(MTAR:0):優越 /= 2
+	
+	IF LOCAL:11 >= 50	;判定値（ほんなし）以上で最低保証１
+		LOCAL:13 = MAX(LOCAL:13 , 100)
+		LOCAL:17 = MAX(LOCAL:17 , 100)
+	ENDIF
+	
+	EXP:(MPLY:0):知略経験値 += LOCAL:13 / 100
+	EXP:(MTAR:0):知略経験値 += LOCAL:17 / 100
+
+	LOCAL:11 *= 2	;本の効果
+ENDIF
+
+; MPLYの訓練結果 政治
+LOCAL:12 = EXP_TRAIN_SLG(MPLY:0, MTAR:0, 52)
+LOCAL:13 = LOCAL:10 * LOCAL:11 * LOCAL:12 / 10000	;獲得経験*100
+; MTARの訓練結果 政治
+LOCAL:16 = EXP_TRAIN_SLG(MTAR:0, MPLY:0, 52)
+LOCAL:17 = LOCAL:10 * LOCAL:11 * LOCAL:16 / 10000	;獲得経験*100
+
+IF LOCAL:11 >= 50	;判定値（本含む）以上で最低保証１
+	LOCAL:13 = MAX(LOCAL:13 , 100)
+	LOCAL:17 = MAX(LOCAL:17 , 100)
+ENDIF
+EXP:(MPLY:0):政治経験値 += LOCAL:13 / 100
+EXP:(MTAR:0):政治経験値 += LOCAL:17 / 100
+;PRINTFORML %NAME:(MPLY:0),16,RIGHT% 能力{ABL:(MPLY:0):52,3,RIGHT}  基本 {LOCAL:10,3,RIGHT} 判定 {LOCAL:11,3,RIGHT}(本含) 効率 {LOCAL:12,3,RIGHT} = EXP {LOCAL:10 * LOCAL:11 * LOCAL:12 / 10000 ,3,RIGHT} ／100
+;PRINTFORML %NAME:(MTAR:0),16,RIGHT% 能力{ABL:(MTAR:0):52,3,RIGHT}  基本 {LOCAL:10,3,RIGHT} 判定 {LOCAL:11,3,RIGHT}(本含) 効率 {LOCAL:16,3,RIGHT} = EXP {LOCAL:10 * LOCAL:11 * LOCAL:16 / 10000 ,3,RIGHT} ／100
+
+
+;精神力の強化
+IF MAXBASE:(MTAR:0):精神力 < 3000 || (MAXBASE:(MTAR:0):精神力 < 3500 && RAND:5 == 0)
+	MAXBASE:(MTAR:0):精神力 = MIN(MAXBASE:(MTAR:0):精神力 + 3, 3500)
+ENDIF
+
+;気力の強化
+IF MAXBASE:(MTAR:0):気力 < 1600
+	MAXBASE:(MTAR:0):気力 += 1
+ELSEIF MAXBASE:(MTAR:0):気力 < 2000 && RAND:2 == 0
+	MAXBASE:(MTAR:0):気力 += 1
+ELSEIF MAXBASE:(MTAR:0):気力 < 2500 && RAND:6 == 0
+	MAXBASE:(MTAR:0):気力 += 1
+ENDIF
+
+FLAG:42 += LOCAL:3
+
+;主導度変化基準値
+TFLAG:49 = 2
+
+;倒錯度変化基準値
+TFLAG:50 = -1
+
+RETURN 1
+
+;-------------------------------------------------
+;地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE303
+;本の効果あり(学問)
+IF CFLAG:(MTAR:0):46 == 3
+	;主導権が主人公側
+	IF IS_INITIATIVE(MASTER)
+		PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%と教養を学ぶことにした
+	ELSE
+		;相手より政治が10以上劣っている
+		IF ABL:(MPLY:0):政治 + 10 <= ABL:(MTAR:0):政治
+			PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%に指導されながら教養を学んだ
+		ELSE
+			PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%に促され、一緒に教養を学ぶことにした
+		ENDIF
+	ENDIF
+
+	IF TFLAG:18 == 1
+		PRINTFORML 思っていた以上に勉強が捗った…
+	ELSEIF TFLAG:18 == -1
+		PRINTFORML 難しすぎてさっぱりわからなかった…
+	ENDIF
+
+;本の効果なし(内政)
+ELSE
+	;主導権が主人公側
+	IF IS_INITIATIVE(MASTER)
+		PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%と政務を片付けることにした
+	ELSE
+		;相手より政治が10以上劣っている
+		IF ABL:(MPLY:0):政治 + 10 <= ABL:(MTAR:0):政治
+			PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%に指導されながら政務を手伝わされた
+		ELSE
+			PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%の政務を手伝わされた
+		ENDIF
+	ENDIF
+
+	IF TFLAG:18 == 1
+		PRINTFORML 思ったよりも早く片付いた…
+	ELSEIF TFLAG:18 == -1
+		PRINTFORML いつも以上に疲れた気がする…
+	ENDIF
+ENDIF
+
+;--------------------------------------------------------
+;地の文(パラメータ・刻印変動後)
+;--------------------------------------------------------
+@COM_TEXT_LAST303
+;日常コマンドに共通の地の文
+CALL COM_TEXT_LAST_LIFE

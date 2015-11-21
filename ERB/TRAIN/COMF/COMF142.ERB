@@ -1,0 +1,265 @@
+﻿;浣腸＆プラグ
+
+;-------------------------------------------------
+;コマンド名称
+;-------------------------------------------------
+@COM_NAME142
+LOCALS:0 = 浣腸＆プラグ
+
+RESULTS:0 = %LOCALS:0%する
+RESULTS:1 = %LOCALS:0%させられる
+RESULTS:2 = %LOCALS:0%させる
+RESULTS:3 = %LOCALS:0%される
+RESULTS:4 = %LOCALS:0%させる
+RESULTS:5 = %LOCALS:0%見せつけ
+
+;-------------------------------------------------
+;選択可否判定
+;-------------------------------------------------
+@COM_ABLE142
+;共通部分
+CALL COM_ABLE_COMMON(142)
+SIF RESULT == 0
+	RETURN 0
+;プレイヤーは最大で1人まで
+SIF MPLY_NUM <= 0 || MPLY_NUM > 1
+	RETURN 0
+;ターゲットは最大で1人まで
+SIF MTAR_NUM <= 0 || MTAR_NUM > 1
+	RETURN 0
+;プレイヤーが行動不能なら不可
+SIF !IS_PLAYABLE(MPLY:0)
+	RETURN 0
+;浣腸が必要
+SIF ITEM:浣腸 <= 0 && ITEM:A_浣腸 <= 0
+	RETURN 0
+;プレイヤーが拘束中なら不可
+SIF IS_BIND(MPLY:0)
+	RETURN 0
+;ターゲットからプレイヤーに挿入中で体位が後背位・背面座位なら不可
+SIF GROUPMATCH(GET_SEX_POSITION(MTAR:0, MPLY:0), 2, 4)
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;メイン処理
+;-------------------------------------------------
+@COM142
+;実行判定
+CALL COM_ORDER_COMMON
+SIF RESULT == 0
+	RETURN 0
+
+;主導権の所在を取得
+LOCAL:11 = GET_COM_INITIATIVE()
+
+;●プレイヤー側の処理
+SOURCE:(MPLY:0):性行動 = 90
+
+;プレイヤーに主導権
+IF LOCAL:11 == 0 || LOCAL:11 == 2
+	SOURCE:(MPLY:0):嗜虐 = 200
+	SOURCE:(MPLY:0):逸脱 = 300
+;プレイヤーに主導権がない
+ELSE
+	SOURCE:(MPLY:0):逸脱 = 600
+	SOURCE:(MPLY:0):恐怖 = MAX(150 - 40 * ABL:(MPLY:0):欲望, 0)
+ENDIF
+
+;主導権に応じた優越・屈従のソース追加
+CALL ADD_SOURCE_INITIATIVE_U(MPLY:0, 100, 80)
+
+;●ターゲット側の処理
+LOCAL:3 = 1000
+LOCAL:4 = 600
+
+SELECTCASE ABL:(MTAR:0):排泄
+	CASE 0
+		TIMES LOCAL:3, 0.00
+		TIMES LOCAL:4, 1.00
+	CASE 1
+		TIMES LOCAL:3, 0.10
+		TIMES LOCAL:4, 0.60
+	CASE 2
+		TIMES LOCAL:3, 0.20
+		TIMES LOCAL:4, 0.25
+	CASE 3
+		TIMES LOCAL:3, 0.40
+		TIMES LOCAL:4, 0.05
+	CASE 4
+		TIMES LOCAL:3, 0.70
+		TIMES LOCAL:4, 0.00
+	CASEELSE
+		LOCAL:3 = LOCAL:3 * (100 + (ABL:(MTAR:0):排泄 - 5) * 2) / 100
+		LOCAL:4 = 0
+ENDSELECT
+
+SOURCE:(MTAR:0):露出 = 1400
+SOURCE:(MTAR:0):逸脱 = 600
+SOURCE:(MTAR:0):中毒充足 = LOCAL:3
+SOURCE:(MTAR:0):反感 = LOCAL:4
+SOURCE:(MTAR:0):性行動 = 150
+
+;主導権に応じた優越・屈従のソース追加
+CALL ADD_SOURCE_INITIATIVE_U(MTAR:0, 80, 170)
+
+;屁残量をゼロにする
+TCVAR:(MTAR:0):55 = 0
+
+;主導度変化基準値
+TFLAG:49 = 1
+
+;倒錯度変化基準値
+TFLAG:50 = 6
+
+;レズ・ＢＬ経験基準値
+TFLAG:51 = 0
+
+RETURN 1
+
+;-------------------------------------------------
+;継続コマンドかどうかを設定
+;-------------------------------------------------
+@COM_IS_EQUIP142
+;継続コマンドかつフィルタリング不可
+RETURN 2
+
+;-------------------------------------------------
+;継続状態の処理
+;-------------------------------------------------
+@COM_EQUIP142(ARG:0)
+LOCAL:3 = MEQUIP_TARGET:(ARG:0):0
+
+LOCAL:5 = 500
+LOCAL:6 = 300
+
+SELECTCASE ABL:(LOCAL:3):排泄
+	CASE 0
+		TIMES LOCAL:5, 0.00
+		TIMES LOCAL:6, 1.00
+	CASE 1
+		TIMES LOCAL:5, 0.10
+		TIMES LOCAL:6, 0.60
+	CASE 2
+		TIMES LOCAL:5, 0.20
+		TIMES LOCAL:6, 0.25
+	CASE 3
+		TIMES LOCAL:5, 0.40
+		TIMES LOCAL:6, 0.05
+	CASE 4
+		TIMES LOCAL:5, 0.70
+		TIMES LOCAL:6, 0.00
+	CASEELSE
+		LOCAL:5 = LOCAL:5 * (100 + (ABL:(MTAR:0):排泄 - 5) * 2) / 100
+		LOCAL:6 = 0
+ENDSELECT
+
+SOURCE:(LOCAL:3):苦痛 += 80
+SOURCE:(LOCAL:3):逸脱 += 200
+SOURCE:(LOCAL:3):中毒充足 += LOCAL:5
+SOURCE:(LOCAL:3):反感 += LOCAL:6
+
+IF TALENT:(LOCAL:3):マゾ
+	SOURCE:(LOCAL:3):中毒充足 += 300
+ENDIF
+
+;倒錯度変化
+TCVAR:(LOCAL:3):50 += 4
+
+;-------------------------------------------------
+;継続中の表示
+;-------------------------------------------------
+@EQUIP_MESSAGE142(ARG:0)
+RESULTS = %EQUIP_TARGET_ANAME(ARG:0)%のアナルにプラグを挿入中
+
+;-------------------------------------------------
+;継続中の地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE_EQUIP142(ARG:0)
+PRINTFORML %EQUIP_TARGET_ANAME(ARG:0)%はプラグで肛門をせき止められ、苦しそうにしている…
+
+;-------------------------------------------------
+;継続を解除したときの地の文
+;-------------------------------------------------
+@COM_TEXT_RELEASE_EQUIP142(ARG:0)
+LOCAL:0 = MEQUIP_TARGET:(ARG:0):0
+
+PRINTFORMW %ANAME(LOCAL:0)%の肛門からプラグを引き抜いた
+
+;イベント口上の表示
+CALL KOJO_EVENT(LOCAL:0, 151)
+
+PRINTL 
+PRINTFORML %ANAME(LOCAL:0), 8%:排泄経験値+2
+
+EXP:(LOCAL:0):排泄経験値 += 2
+CALL TRAIN_AUTO_ABLUP(LOCAL:0)
+WAIT
+
+;-------------------------------------------------
+;固有の実行判定(プレイヤー側)
+;-------------------------------------------------
+@COM_ORDER_PLAYER142(ARG:0)
+;実行値の設定
+TCVAR:(ARG:0):25 = 90
+
+;共通部分
+CALL COM_ORDER(ARG:0)
+
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲望Lv{ABL:(ARG:0):欲望}", ABL:(ARG:0):欲望 * 2)
+CALL COM_ORDER_ELEMENT(ARG:0, @"露出Lv{ABL:(ARG:0):露出}", ABL:(ARG:0):露出 * 2)
+CALL COM_ORDER_ELEMENT(ARG:0, @"排泄Lv{ABL:(ARG:0):排泄}", ABL:(ARG:0):排泄 * 6)
+
+LOCAL:0 = GET_PALAMLV(PALAM:(ARG:0):欲情)
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲情Lv{LOCAL:0}", MIN(LOCAL:0 * 1, 10))
+
+IF TALENT:(ARG:0):倒錯的
+	CALL COM_ORDER_ELEMENT(ARG:0, "倒錯的", 8)
+ENDIF
+IF TALENT:(ARG:0):保守的
+	CALL COM_ORDER_ELEMENT(ARG:0, "保守的", -8)
+ENDIF
+
+IF !TALENT:(ARG:0):合意
+	CALL COM_ORDER_ELEMENT(ARG:0, "合意なし", -10)
+ENDIF
+
+RETURN 1
+
+;-------------------------------------------------
+;地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE142
+SELECTCASE GET_COM_INITIATIVE()
+	;プレイヤーに主導権
+	CASE 0
+		PRINTFORML %ANAME(MPLY:0)%は%ANAME(MTAR:0)%のアナルに浣腸液を注入し%TARGET_STR("た", "てきた")%
+		PRINTFORMW さらに%ANAME(MPLY:0)%は%ANAME(MTAR:0)%の尻穴にプラグで栓をした…
+	;ターゲットに主導権
+	CASE 1
+		PRINTFORML %ANAME(MTAR:0)%は%ANAME(MPLY:0)%に尻を向けて、浣腸するように要求した
+		PRINTFORMW %ANAME(MPLY:0)%は言われるまま浣腸液を%ANAME(MTAR:0)%のアナルに注入し、肛門にプラグで栓をした…
+	;第三者に主導権
+	CASEELSE
+		PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に対して、%ANAME(MTAR:0)%に浣腸してプラグを差すように命令した
+		PRINTFORMW %ANAME(MPLY:0)%は言われるまま浣腸液を%ANAME(MTAR:0)%のアナルに注入し、肛門にプラグで栓をした…
+ENDSELECT
+
+;--------------------------------------------------------
+;地の文(パラメータ・刻印変動後)
+;--------------------------------------------------------
+@COM_TEXT_LAST142
+FOR LOCAL:0, 0, MTAR_NUM
+	LOCAL:1 = MTAR:(LOCAL:0)
+	LOCAL:2 = CUP:(LOCAL:1):怒主
+
+	IF LOCAL:1 != MASTER && !TCVAR:(MTAR:0):52
+		IF ABL:(LOCAL:1):排泄 >= 2
+			PRINTFORMW %ANAME(LOCAL:1)%は排泄の解放感を求めて、媚びるような視線で%ANAME(MPLY:0)%を見つめている
+		ELSEIF LOCAL:2 < 100
+			PRINTFORMW %ANAME(LOCAL:1)%はプラグで肛門をせき止められ、苦悶の表情を浮かべている
+		ELSE
+			PRINTFORMW %ANAME(LOCAL:1)%は苦しそうに腹を押さえながら、恨めしそうに%ANAME(MPLY:0)%を睨んでいる
+		ENDIF
+	ENDIF
+NEXT

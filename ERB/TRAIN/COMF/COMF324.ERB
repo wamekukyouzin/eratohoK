@@ -1,0 +1,227 @@
+﻿;甘い言葉
+
+;-------------------------------------------------
+;コマンド名称
+;-------------------------------------------------
+@COM_NAME324
+RESULTS:0 = 甘い言葉をかける
+RESULTS:1 = 甘い言葉をねだられる
+RESULTS:2 = 甘い言葉をねだる
+RESULTS:3 = 甘い言葉を囁かれる
+
+;-------------------------------------------------
+;選択可否判定
+;-------------------------------------------------
+@COM_ABLE324
+;共通部分
+CALL COM_ABLE_COMMON(324)
+SIF RESULT == 0
+	RETURN 0
+;主人公以外が実行する場合、好感度が1500以上必要
+SIF MPLY:0 != MASTER && CFLAG:(MPLY:0):2 < 1500
+	RETURN 0
+;怪我なら不可
+SIF CFLAG:(MTAR:0):16 == 3
+	RETURN 0
+;キス中は不可
+SIF IS_EQUIP(MPLY:0, 342)
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;メイン処理
+;-------------------------------------------------
+@COM324
+;実行判定
+CALL COM_ORDER_COMMON
+IF RESULT == 0
+	RETURN 0
+ENDIF
+
+IF MPLY:0 == MASTER
+	;コマンドの成否をTFLAG:18にセット
+	CALL JUDGE_COM_RESULT(MTAR:0, 5, 10)
+ELSE
+	;コマンドの成否をTFLAG:18にセット
+	CALL JUDGE_COM_RESULT(MPLY:0, 5, 10)
+ENDIF
+
+;好感度500未満なら確実に失敗
+IF MPLY:0 == MASTER && CFLAG:(MTAR:0):2 < 500
+	TFLAG:18 = -1
+ENDIF
+
+;主導権に応じた優越・受動のソース追加
+CALL ADD_SOURCE_INITIATIVE_N(MPLY:0, 70, 70)
+CALL ADD_SOURCE_INITIATIVE_N(MTAR:0, 70, 70)
+
+;親密に応じた歓楽のソース追加
+SOURCE:(MPLY:0):歓楽 = -50
+SOURCE:(MTAR:0):歓楽 = -50
+CALL ADD_SOURCE_KANRAKU(MPLY:0, 90)
+CALL ADD_SOURCE_KANRAKU(MTAR:0, 90)
+SOURCE:(MPLY:0):歓楽 = MAX(SOURCE:(MPLY:0):歓楽, 0)
+SOURCE:(MTAR:0):歓楽 = MAX(SOURCE:(MTAR:0):歓楽, 0)
+
+;親密に応じた愛情のソース追加
+CALL ADD_SOURCE_AIZYOU(MPLY:0, 150)
+CALL ADD_SOURCE_AIZYOU(MTAR:0, 150)
+
+;失敗
+IF TFLAG:18 == -1
+	TIMES SOURCE:(MPLY:0):歓楽, 0.10
+	TIMES SOURCE:(MPLY:0):優越, 0.50
+	TIMES SOURCE:(MPLY:0):愛情, 0.10
+	TIMES SOURCE:(MTAR:0):歓楽, 0.10
+	TIMES SOURCE:(MTAR:0):優越, 0.50
+	TIMES SOURCE:(MTAR:0):愛情, 0.10
+	SOURCE:(MPLY:0):反感 += 100
+	SOURCE:(MTAR:0):反感 += 100
+	SOURCE:(MPLY:0):不満 += 800
+	SOURCE:(MTAR:0):不満 += 800
+	TFLAG:37 -= 8
+;成功
+ELSEIF TFLAG:18 == 0
+
+;大成功
+ELSE
+	TIMES SOURCE:(MPLY:0):歓楽, 2.00
+	TIMES SOURCE:(MPLY:0):優越, 2.00
+	TIMES SOURCE:(MPLY:0):愛情, 2.00
+	TIMES SOURCE:(MTAR:0):歓楽, 2.00
+	TIMES SOURCE:(MTAR:0):優越, 2.00
+	TIMES SOURCE:(MTAR:0):愛情, 2.00
+	TFLAG:37 += 8
+ENDIF
+
+;主導度変化基準値
+TFLAG:49 = 3
+
+;倒錯度変化基準値
+TFLAG:50 = -1
+
+RETURN 1
+
+;-------------------------------------------------
+;固有の実行判定(プレイヤー側)
+;-------------------------------------------------
+@COM_ORDER_PLAYER324(ARG:0)
+;実行値の設定
+TCVAR:(ARG:0):25 = 40
+
+;共通部分
+CALL COM_ORDER(ARG:0)
+
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲望Lv{ABL:(ARG:0):欲望}", ABL:(ARG:0):欲望 * 1)
+CALL COM_ORDER_ELEMENT(ARG:0, @"奉仕Lv{ABL:(ARG:0):奉仕}", ABL:(ARG:0):奉仕 * 2)
+
+;好感度
+LOCAL:0 = CFLAG:(ARG:0):2 / 75
+CALL COM_ORDER_ELEMENT(ARG:0, @"好感度", LOCAL:0)
+
+IF TALENT:(ARG:0):恥薄い
+	CALL COM_ORDER_ELEMENT(ARG:0, "恥薄い", 4)
+ENDIF
+IF TALENT:(ARG:0):恥じらい
+	CALL COM_ORDER_ELEMENT(ARG:0, "恥じらい", -6)
+ENDIF
+IF TALENT:(ARG:0):献身的
+	CALL COM_ORDER_ELEMENT(ARG:0, "献身的", 2)
+ENDIF
+IF TFLAG:54
+	CALL COM_ORDER_ELEMENT(ARG:0, "デート中", 7)
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE324
+;プレイヤーが主人公側
+IF MPLY:0 == MASTER
+	;主導権が主人公側
+	IF IS_INITIATIVE(MASTER)
+		PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%に歯の浮くような甘い言葉を掛けた
+
+		IF TFLAG:18 == 1
+			IF TALENT:(MTAR:0):反抗的 || TALENT:(MTAR:0):生意気 || TALENT:(MTAR:0):保守的
+				PRINTFORML %ANAME(MTAR:0)%は%ANAME(MPLY:0)%の言葉を冷たい態度で受け流したが、嬉しさを隠せず時折笑みをこぼしている…
+			ELSE
+				IF GROUPMATCH(TALENT:(MTAR:0):性別, 0, 3)
+					PRINTFORML %ANAME(MTAR:0)%は顔を真っ赤にしながらも、幸せそうに%ANAME(MPLY:0)%を抱きしめた…
+				ELSE
+					PRINTFORML %ANAME(MTAR:0)%は顔を真っ赤にしながらも、幸せそうに%ANAME(MPLY:0)%に抱きついた…
+				ENDIF
+			ENDIF
+		ELSEIF TFLAG:18 == 0
+			IF TALENT:(MTAR:0):反抗的 || TALENT:(MTAR:0):生意気 || TALENT:(MTAR:0):保守的
+				PRINTFORML %ANAME(MTAR:0)%は突然何を言っているのかと%ANAME(MPLY:0)%を罵ったが、その表情は満更でもなさそうだ…
+			ELSE
+				PRINTFORML %ANAME(MTAR:0)%は突然の言葉に、顔を真っ赤にして慌てている…
+			ENDIF
+		ELSEIF TFLAG:18 == -1
+			IF TALENT:(MTAR:0):反抗的 || TALENT:(MTAR:0):生意気 || TALENT:(MTAR:0):保守的
+				PRINTFORML %ANAME(MTAR:0)%は汚物を見るかのような目で%ANAME(MPLY:0)%を見た…
+			ELSE
+				PRINTFORML だが、%ANAME(MTAR:0)%に盛大に引かれてしまった…
+			ENDIF
+		ENDIF
+	;主導権が相手側
+	ELSE
+		PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%の求めに応じて、思いつく限りの甘い言葉を掛けた
+
+		IF TFLAG:18 == 1
+			IF TALENT:(MTAR:0):反抗的 || TALENT:(MTAR:0):生意気 || TALENT:(MTAR:0):保守的
+				PRINTFORML %ANAME(MTAR:0)%は冷静を装っているが、すっかり顔を真っ赤にして、胸の高鳴りを隠せずにいる…
+			ELSE
+				PRINTFORML %ANAME(MTAR:0)%は予想以上にドキドキしてしまったらしく、顔を真っ赤にして%ANAME(MPLY:0)%を見つめた…
+			ENDIF
+		ELSEIF TFLAG:18 == 0
+			IF TALENT:(MTAR:0):反抗的 || TALENT:(MTAR:0):生意気 || TALENT:(MTAR:0):保守的
+				PRINTFORML %ANAME(MTAR:0)%に一応は満足してもらえたようだ…
+			ELSE
+				PRINTFORML どうやら%ANAME(MTAR:0)%は満足したらしく、%ANAME(MPLY:0)%に向けて微笑んだ…
+			ENDIF
+		ELSEIF TFLAG:18 == -1
+			IF TALENT:(MTAR:0):反抗的 || TALENT:(MTAR:0):生意気 || TALENT:(MTAR:0):保守的
+				PRINTFORML %ANAME(MTAR:0)%はもっとマトモなことは言えないのかと%ANAME(MPLY:0)%を罵った…
+			ELSE
+				PRINTFORML だが、%ANAME(MTAR:0)%は反応に困って目を逸らしてしまった…
+			ENDIF
+		ENDIF
+	ENDIF
+
+
+;プレイヤーが相手側
+ELSE
+	;主導権が主人公側
+	IF IS_INITIATIVE(MASTER)
+		PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%の求めに応じて、思いつく限りの甘いセリフを掛けてきた
+
+		IF TFLAG:18 == 1
+			PRINTFORML %ANAME(MTAR:0)%が%ANAME(MPLY:0)%を褒めると、%ANAME(MTAR:0)%は幸せそうに微笑んだ…
+		ELSEIF TFLAG:18 == 0
+			PRINTFORML %ANAME(MPLY:0)%は恥ずかしさのあまり顔を真っ赤にしている…
+		ELSEIF TFLAG:18 == -1
+			PRINTFORML だが、%ANAME(MPLY:0)%は恥ずかしさのあまり黙りこんでしまった…
+		ENDIF
+	;主導権が相手側
+	ELSE
+		PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%に歯の浮くような甘い言葉を掛けてきた
+
+		IF TFLAG:18 == 1
+			PRINTFORML %ANAME(MTAR:0)%と%ANAME(MPLY:0)%は雰囲気に流されるまま、お互いをじっと見つめ合った…
+		ELSEIF TFLAG:18 == 0
+			PRINTFORML %ANAME(MPLY:0)%は%ANAME(MTAR:0)%の反応を見て楽しんでいる…
+		ELSEIF TFLAG:18 == -1
+			PRINTFORML %ANAME(MPLY:0)%は%ANAME(MTAR:0)%の反応が薄いことに拗ねてしまった…
+		ENDIF
+	ENDIF
+ENDIF
+
+;-------------------------------------------------
+;地の文(パラメータ・刻印変動後)
+;-------------------------------------------------
+@COM_TEXT_LAST324
+;日常コマンドに共通の地の文
+;CALL COM_TEXT_LAST_LIFE

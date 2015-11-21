@@ -1,0 +1,541 @@
+﻿;口上に関する処理
+
+;--------------------------------------------------
+;キャラARG:0の口上ナンバーを返す
+;固定キャラ……NOがそのまま返る
+;汎用キャラ……口上パターン番号が返る
+;--------------------------------------------------
+@KOJO_NO(ARG:0)
+#FUNCTION
+IF NO:(ARG:0) <= 200 || NO:(ARG:0) >= 2000
+	RETURNF NO:(ARG:0)
+ENDIF
+IF CFLAG:(ARG:0):50 >= 1000 && CFLAG:(ARG:0):50 <= 1999
+	RETURNF CFLAG:(ARG:0):50
+ENDIF
+RETURNF 999
+
+;--------------------------------------------------
+;状況に応じた付加文字列を返す
+;ARG:0に1を設定すると、分岐が細かくなる
+;--------------------------------------------------
+@KOJO_STATE(ARG:0 = 0)
+#FUNCTIONS
+IF ARG:0
+	;会いに行く
+	IF FLAG:12 == 0
+		RETURNF "A1"
+	;閨に呼ぶ
+	ELSEIF FLAG:12 == 1
+		RETURNF "A2"
+	;子育て
+	ELSEIF FLAG:12 == 3
+		RETURNF "A3"
+	;捕虜会話
+	ELSEIF FLAG:12 == 6
+		RETURNF "A4"
+	;捕虜の調教
+	ELSEIF FLAG:12 == 2
+		RETURNF "B"
+	;捕虜逆調教(通常)
+	ELSEIF FLAG:12 == 5
+		RETURNF "C"
+	;捕虜逆調教(外来)
+	ELSEIF FLAG:12 == 4
+		RETURNF "D"
+	ENDIF
+ELSE
+	;会いに行く・閨に呼ぶ・子育て・捕虜会話
+	IF GROUPMATCH(FLAG:12, 0, 1, 3, 6)
+		RETURNF "A"
+	;捕虜の調教
+	ELSEIF FLAG:12 == 2
+		RETURNF "B"
+	;捕虜逆調教(通常)
+	ELSEIF FLAG:12 == 5
+		RETURNF "C"
+	;捕虜逆調教(外来)
+	ELSEIF FLAG:12 == 4
+		RETURNF "D"
+	ENDIF
+ENDIF
+
+RETURNF "X"
+
+;--------------------------------------------------
+;口上の存在判定  口上が存在すれば1を、存在しなければ0を返す
+;ARG:0にはキャラのNOを指定する
+;--------------------------------------------------
+@IS_KOJO(ARG:0)
+;イベントキャラは口上を表示しない
+IF ARG:0 >= 2000
+	RETURN 0
+ENDIF
+
+;口上を表示しない設定なら常に0を返す
+IF (ARG:0 <= 100 && CONFIG:40 == 1) || (ARG:0 >= 101 && CONFIG:41 == 1)
+	RETURN 0
+ENDIF
+
+TRYCCALLFORM KOJO_EXIST_K{ARG:0}
+	RETURN 1
+CATCH
+ENDCATCH
+RETURN 0
+
+;--------------------------------------------------
+;調教開始時の口上
+;--------------------------------------------------
+@EVENTTRAIN
+;現在のターゲットを記録
+LOCAL:0 = TARGET
+
+;相手が一人の場合のみ口上呼び出し(捕虜調教の場合は人数制限を無視してメインターゲットの口上を表示)
+IF TFLAG:44 == 1 || FLAG:12 == 2
+	FOR LOCAL:0, 0, CHARANUM
+		;調教参加フラグが立っていれば口上呼び出し(捕虜調教の場合はメインターゲットのみ)
+		IF CFLAG:(LOCAL:0):6 && (FLAG:12 != 2 || LOCAL:0 == FLAG:19)
+			TARGET = LOCAL:0
+			LOCAL:5 = KOJO_NO(TARGET)
+
+			CALL IS_KOJO(LOCAL:5)
+			IF RESULT
+				TRYCALLFORM KOJO_TRAIN_START_K{LOCAL:5}
+				TRYCALLFORM KOJO_TRAIN_START_%KOJO_STATE(1)%_K{LOCAL:5}
+			ENDIF
+		ENDIF
+	NEXT
+ENDIF
+
+;ターゲットを戻す
+TARGET = LOCAL:0
+
+;--------------------------------------------------
+;調教終了時の口上
+;--------------------------------------------------
+@EVENTEND
+;現在のターゲットを記録
+LOCAL:0 = TARGET
+
+;相手が一人の場合のみ口上呼び出し(捕虜調教の場合は人数制限を無視してメインターゲットの口上を表示)
+IF TFLAG:44 == 1 || FLAG:12 == 2
+	FOR LOCAL:0, 0, CHARANUM
+		;調教参加フラグが立っていれば口上呼び出し(捕虜調教の場合はメインターゲットのみ)
+		IF CFLAG:(LOCAL:0):6 && (FLAG:12 != 2 || LOCAL:0 == FLAG:19)
+			TARGET = LOCAL:0
+			LOCAL:5 = KOJO_NO(TARGET)
+
+			CALL IS_KOJO(LOCAL:5)
+			IF RESULT
+				TRYCALLFORM KOJO_TRAIN_END_K{LOCAL:5}
+				TRYCALLFORM KOJO_TRAIN_END_%KOJO_STATE(1)%_K{LOCAL:5}
+			ENDIF
+		ENDIF
+	NEXT
+ENDIF
+
+;ターゲットを戻す
+TARGET = LOCAL:0
+
+;--------------------------------------------------
+;コマンド実行前の口上
+;戻り値に1を設定すると地の文がカットされる
+;--------------------------------------------------
+@KOJO_COM_BEFORE
+;現在のターゲットを記録
+LOCAL:0 = TARGET
+
+;戻り値のデフォルト値を0に設定
+LOCAL:1 = 0
+
+;主人公がプレイヤーの場合
+IF IS_MPLY(MASTER)
+	;ターゲットが一人の時限定
+	IF MTAR_NUM == 1
+		TARGET = MTAR:0
+
+		;失神・睡眠・離脱状態なら口上を非表示
+		IF !(TCVAR:52 || TCVAR:53)
+			LOCAL:5 = KOJO_NO(TARGET)
+
+			CALL IS_KOJO(LOCAL:5)
+			IF RESULT
+				RESULT = 0
+				TRYCALLFORM KOJO_COM_BEFORE_K{LOCAL:5}
+				LOCAL:1 |= RESULT
+				RESULT = 0
+				TRYCALLFORM KOJO_COM_BEFORE_TARGET_K{LOCAL:5}
+				LOCAL:1 |= RESULT
+				RESULT = 0
+				TRYCALLFORM KOJO_COM_BEFORE_%KOJO_STATE()%_K{LOCAL:5}
+				LOCAL:1 |= RESULT
+				RESULT = 0
+				TRYCALLFORM KOJO_COM_BEFORE_TARGET_%KOJO_STATE()%_K{LOCAL:5}
+				LOCAL:1 |= RESULT
+			ENDIF
+		ENDIF
+	ENDIF
+
+;主人公がターゲットの場合
+ELSEIF IS_MTAR(MASTER)
+	;プレイヤーが一人の時限定
+	IF MPLY_NUM == 1
+		TARGET = MPLY:0
+
+		;失神・睡眠・離脱状態なら口上を非表示
+		IF !(TCVAR:52 || TCVAR:53)
+			LOCAL:5 = KOJO_NO(TARGET)
+
+			CALL IS_KOJO(LOCAL:5)
+			IF RESULT
+				RESULT = 0
+				TRYCALLFORM KOJO_COM_BEFORE_K{LOCAL:5}
+				LOCAL:1 |= RESULT
+				RESULT = 0
+				TRYCALLFORM KOJO_COM_BEFORE_PLAYER_K{LOCAL:5}
+				LOCAL:1 |= RESULT
+				RESULT = 0
+				TRYCALLFORM KOJO_COM_BEFORE_%KOJO_STATE()%_K{LOCAL:5}
+				LOCAL:1 |= RESULT
+				RESULT = 0
+				TRYCALLFORM KOJO_COM_BEFORE_PLAYER_%KOJO_STATE()%_K{LOCAL:5}
+				LOCAL:1 |= RESULT
+			ENDIF
+		ENDIF
+	ENDIF
+ENDIF
+
+;ターゲットを戻す
+TARGET = LOCAL:0
+
+RETURN LOCAL:1
+
+;--------------------------------------------------
+;コマンド実行時の口上
+;--------------------------------------------------
+@KOJO_COM
+;現在のターゲットを記録
+LOCAL:0 = TARGET
+
+;戻り値のデフォルト値を0に設定
+LOCAL:1 = 0
+
+;主人公がプレイヤーの場合
+IF IS_MPLY(MASTER)
+	;ターゲットが一人の時限定
+	IF MTAR_NUM == 1
+		TARGET = MTAR:0
+
+		;失神・睡眠・離脱状態なら口上を非表示
+		IF !(TCVAR:52 || TCVAR:53)
+			LOCAL:5 = KOJO_NO(TARGET)
+
+			CALL IS_KOJO(LOCAL:5)
+			IF RESULT
+				RESULT = 0
+				TRYCALLFORM KOJO_COM_K{LOCAL:5}
+				LOCAL:1 |= RESULT
+				RESULT = 0
+				TRYCALLFORM KOJO_COM_TARGET_K{LOCAL:5}
+				LOCAL:1 |= RESULT
+				RESULT = 0
+				TRYCALLFORM KOJO_COM_%KOJO_STATE()%_K{LOCAL:5}
+				LOCAL:1 |= RESULT
+				RESULT = 0
+				TRYCALLFORM KOJO_COM_TARGET_%KOJO_STATE()%_K{LOCAL:5}
+				LOCAL:1 |= RESULT
+			ENDIF
+		ENDIF
+	ENDIF
+
+;主人公がターゲットの場合
+ELSEIF IS_MTAR(MASTER)
+	;プレイヤーが一人の時限定
+	IF MPLY_NUM == 1
+		TARGET = MPLY:0
+
+		;失神・睡眠・離脱状態なら口上を非表示
+		IF !(TCVAR:52 || TCVAR:53)
+			LOCAL:5 = KOJO_NO(TARGET)
+
+			CALL IS_KOJO(LOCAL:5)
+			IF RESULT
+				RESULT = 0
+				TRYCALLFORM KOJO_COM_K{LOCAL:5}
+				LOCAL:1 |= RESULT
+				RESULT = 0
+				TRYCALLFORM KOJO_COM_PLAYER_K{LOCAL:5}
+				LOCAL:1 |= RESULT
+				RESULT = 0
+				TRYCALLFORM KOJO_COM_%KOJO_STATE()%_K{LOCAL:5}
+				LOCAL:1 |= RESULT
+				RESULT = 0
+				TRYCALLFORM KOJO_COM_PLAYER_%KOJO_STATE()%_K{LOCAL:5}
+				LOCAL:1 |= RESULT
+			ENDIF
+		ENDIF
+	ENDIF
+ENDIF
+
+;ターゲットを戻す
+TARGET = LOCAL:0
+
+RETURN LOCAL:1
+
+;-------------------------------------------------
+;コマンド実行後の口上
+;パラメータの変化や絶頂の有無を参照可能
+;-------------------------------------------------
+@KOJO_COM_AFTER
+;現在のターゲットを記録
+LOCAL:0 = TARGET
+
+;戻り値のデフォルト値を0に設定
+LOCAL:1 = 0
+
+;主人公がプレイヤーの場合
+IF IS_MPLY(MASTER)
+	;ターゲットが一人の時限定
+	IF MTAR_NUM == 1
+		TARGET = MTAR:0
+
+		;失神・睡眠・離脱状態なら口上を非表示
+		IF !(TCVAR:52 || TCVAR:53)
+			LOCAL:5 = KOJO_NO(TARGET)
+
+			CALL IS_KOJO(LOCAL:5)
+			IF RESULT
+				RESULT = 0
+				TRYCALLFORM KOJO_COM_AFTER_K{LOCAL:5}
+				LOCAL:1 |= RESULT
+				RESULT = 0
+				TRYCALLFORM KOJO_COM_AFTER_TARGET_K{LOCAL:5}
+				LOCAL:1 |= RESULT
+				RESULT = 0
+				TRYCALLFORM KOJO_COM_AFTER_%KOJO_STATE()%_K{LOCAL:5}
+				LOCAL:1 |= RESULT
+				RESULT = 0
+				TRYCALLFORM KOJO_COM_AFTER_TARGET_%KOJO_STATE()%_K{LOCAL:5}
+				LOCAL:1 |= RESULT
+			ENDIF
+		ENDIF
+	ENDIF
+
+;主人公がターゲットの場合
+ELSEIF IS_MTAR(MASTER)
+	;プレイヤーが一人の時限定
+	IF MPLY_NUM == 1
+		TARGET = MPLY:0
+
+		;失神・睡眠・離脱状態なら口上を非表示
+		IF !(TCVAR:52 || TCVAR:53)
+			LOCAL:5 = KOJO_NO(TARGET)
+
+			CALL IS_KOJO(LOCAL:5)
+			IF RESULT
+				RESULT = 0
+				TRYCALLFORM KOJO_COM_AFTER_K{LOCAL:5}
+				LOCAL:1 |= RESULT
+				RESULT = 0
+				TRYCALLFORM KOJO_COM_AFTER_PLAYER_K{LOCAL:5}
+				LOCAL:1 |= RESULT
+				RESULT = 0
+				TRYCALLFORM KOJO_COM_AFTER_%KOJO_STATE()%_K{LOCAL:5}
+				LOCAL:1 |= RESULT
+				RESULT = 0
+				TRYCALLFORM KOJO_COM_AFTER_PLAYER_%KOJO_STATE()%_K{LOCAL:5}
+				LOCAL:1 |= RESULT
+			ENDIF
+		ENDIF
+	ENDIF
+ENDIF
+
+;ターゲットを戻す
+TARGET = LOCAL:0
+
+RETURN LOCAL:1
+
+;-------------------------------------------------
+;各種イベントの口上
+;対象となるキャラの番号をARG:0に代入
+;中身はARG:1に入れる数値で判定
+;-------------------------------------------------
+@KOJO_EVENT(ARG:0, ARG:1)
+;対象キャラが主人公なら表示せずに戻る
+IF ARG:0 == MASTER
+	RETURN
+ENDIF
+
+LOCAL:1 = 0
+
+;現在のターゲットを記録してからターゲットをARG:0に変更
+LOCAL:0 = TARGET
+TARGET = ARG:0
+LOCAL:5 = KOJO_NO(TARGET)
+
+CALL IS_KOJO(LOCAL:5)
+IF RESULT
+	RESULT = 0
+	TRYCALLFORM KOJO_EVENT_K{LOCAL:5}, ARG:1
+	IF RESULT
+		LOCAL:1 = 1
+	ENDIF
+ENDIF
+
+IF !LOCAL:1
+	;デフォルトメッセージ
+	CALL KOJO_EVENT_DEFAULT(ARG:1)
+ENDIF
+
+;ターゲットを元に戻す
+TARGET = LOCAL:0
+
+;-------------------------------------------------
+;単体エンディング口上
+;対象となるキャラの番号をARG:0に代入
+;-------------------------------------------------
+@KOJO_SINGLE_ENDING(ARG:0)
+LOCAL:1 = 0
+
+;現在のターゲットを記録してからターゲットをARG:0に変更
+LOCAL:0 = TARGET
+TARGET = ARG:0
+LOCAL:5 = KOJO_NO(TARGET)
+
+CALL IS_KOJO(LOCAL:5)
+IF RESULT
+	RESULT = 0
+	TRYCALLFORM KOJO_SINGLE_ENDING_K{LOCAL:5}
+	LOCAL:1 = RESULT
+ENDIF
+
+;ターゲットを元に戻す
+TARGET = LOCAL:0
+
+RETURN LOCAL:1
+
+;-------------------------------------------------
+;斬首エンディング口上
+;対象となるキャラの番号をARG:0に代入
+;-------------------------------------------------
+@KOJO_DEAD_ENDING(ARG:0)
+LOCAL:1 = 0
+
+;現在のターゲットを記録してからターゲットをARG:0に変更
+LOCAL:0 = TARGET
+TARGET = ARG:0
+LOCAL:5 = KOJO_NO(TARGET)
+
+CALL IS_KOJO(LOCAL:5)
+IF RESULT
+	RESULT = 0
+	TRYCALLFORM KOJO_DEAD_ENDING_K{LOCAL:5}
+	LOCAL:1 = RESULT
+ENDIF
+
+;ターゲットを元に戻す
+TARGET = LOCAL:0
+
+RETURN LOCAL:1
+
+;-------------------------------------------------
+;キャラARG:0のコマンド実行済みフラグをONにする(＝初回判定をOFF)
+;SELECTCOMとプレイヤー、ターゲット、主導権を元に自動で設定
+;-------------------------------------------------
+@SET_COM_FIRST_FLAG(ARG:0)
+LOCAL:0 = SELECTCOM
+IF LOCAL:0 < 0 || LOCAL:0 > 999
+	RETURN
+ENDIF
+
+;コマンド番号20～29は特殊判定(プレイヤー・ターゲットの区別がないため、両方のフラグを立てる)
+IF LOCAL:0 >= 20 && LOCAL:0 <= 29
+	IF !IS_MPLY(ARG:0) && !IS_MTAR(ARG:0)
+		;プレイヤーでもターゲットでもないときは無視
+		RETURN
+	ENDIF
+
+	IF IS_INITIATIVE(ARG:0)
+		LOCAL:0 += 2000
+	ELSE
+		LOCAL:0 += 0
+	ENDIF
+
+	LOCAL:1 = LOCAL:0 + 1000
+
+	LOCAL:2 = LOCAL:0 / 50 + 2000
+	LOCAL:3 = LOCAL:0 % 50
+	LOCAL:4 = LOCAL:1 / 50 + 2000
+	LOCAL:5 = LOCAL:1 % 50
+
+	;使用フラグ 2000～2079
+	CFLAG:(ARG:0):(LOCAL:2) |= (1 << LOCAL:3)
+	CFLAG:(ARG:0):(LOCAL:4) |= (1 << LOCAL:5)
+
+ELSE
+	IF IS_MPLY(ARG:0)
+		LOCAL:0 += 1000
+	ELSEIF IS_MTAR(ARG:0)
+		LOCAL:0 += 0
+	ELSE
+		;プレイヤーでもターゲットでもないときは無視
+		RETURN
+	ENDIF
+
+	IF IS_INITIATIVE(ARG:0)
+		LOCAL:0 += 2000
+	ELSE
+		LOCAL:0 += 0
+	ENDIF
+
+	LOCAL:1 = LOCAL:0 / 50 + 2000
+	LOCAL:2 = LOCAL:0 % 50
+
+	;使用フラグ 2000～2079
+	CFLAG:(ARG:0):(LOCAL:1) |= (1 << LOCAL:2)
+ENDIF
+
+;-------------------------------------------------
+;コマンドの初回判定
+;現在のTARGETの実行済みフラグを調べる
+;ARG:0に0を設定すると主導権別に、1を設定すると主導権によらずに判定する
+;-------------------------------------------------
+@IS_COM_FIRST(ARG:0 = 0)
+#FUNCTION
+LOCAL:0 = SELECTCOM
+IF LOCAL:0 < 0 || LOCAL:0 > 999
+	RETURNF 0
+ENDIF
+
+IF IS_MPLY(TARGET)
+	LOCAL:0 += 1000
+ELSEIF IS_MTAR(TARGET)
+	LOCAL:0 += 0
+ELSE
+	RETURNF 0
+ENDIF
+
+IF ARG:0
+	LOCAL:1 = LOCAL:0 / 50 + 2000
+	LOCAL:2 = LOCAL:0 / 50 + 2040
+	LOCAL:3 = LOCAL:0 % 50
+
+	IF (CFLAG:(LOCAL:1) & (1 << LOCAL:3)) || (CFLAG:(LOCAL:2) & (1 << LOCAL:3))
+		RETURNF 0
+	ENDIF
+
+ELSE
+	IF IS_INITIATIVE(TARGET)
+		LOCAL:0 += 2000
+	ELSE
+		LOCAL:0 += 0
+	ENDIF
+
+	LOCAL:1 = LOCAL:0 / 50 + 2000
+	LOCAL:2 = LOCAL:0 % 50
+
+	IF CFLAG:(LOCAL:1) & (1 << LOCAL:2)
+		RETURNF 0
+	ENDIF
+ENDIF
+RETURNF 1

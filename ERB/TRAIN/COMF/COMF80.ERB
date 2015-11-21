@@ -1,0 +1,232 @@
+﻿;脅す
+
+;-------------------------------------------------
+;コマンド名称
+;-------------------------------------------------
+@COM_NAME80
+RESULTS:0 = 脅す
+RESULTS:3 = 脅される
+
+;-------------------------------------------------
+;選択可否判定
+;-------------------------------------------------
+@COM_ABLE80
+;共通部分
+CALL COM_ABLE_COMMON(80)
+SIF RESULT == 0
+	RETURN 0
+;プレイヤーは最大で1人まで
+SIF MPLY_NUM <= 0 || MPLY_NUM > 1
+	RETURN 0
+;ターゲットは最大で1人まで
+SIF MTAR_NUM <= 0 || MTAR_NUM > 1
+	RETURN 0
+;プレイヤーが行動不能なら不可
+SIF !IS_PLAYABLE(MPLY:0)
+	RETURN 0
+;プレイヤーの口が塞がっているなら不可
+SIF IS_M_HOLD(MPLY:0)
+	RETURN 0
+;プレイヤーが拘束中なら不可
+SIF IS_BIND(MPLY:0)
+	RETURN 0
+;ターゲットが失神中・離脱中なら不可
+SIF TCVAR:(MTAR:0):52 || TCVAR:(MTAR:0):53
+	RETURN 0
+;プレイヤーに主導権がないなら不可
+SIF IS_INITIATIVE_SETTING(MPLY:0) == 0
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;メイン処理
+;-------------------------------------------------
+@COM80
+;実行判定
+CALL COM_ORDER_COMMON
+SIF RESULT == 0
+	RETURN 0
+
+;●プレイヤーについて処理
+SOURCE:(MPLY:0):嗜虐 = 100
+SOURCE:(MPLY:0):逸脱 = 50
+
+;主導権に応じた優越・屈従のソース追加
+CALL ADD_SOURCE_INITIATIVE_U(MPLY:0, 130, 0)
+
+;●ターゲットについて処理
+LOCAL:0 = EXP:(MTAR:0):トラウマ経験
+IF LOCAL:0 < 5
+	TFLAG:17 = 0
+	SOURCE:(MTAR:0):恐怖 = 50
+	SOURCE:(MTAR:0):不安 = 50
+	SOURCE:(MTAR:0):反感 = 500
+ELSEIF LOCAL:0 < 15
+	TFLAG:17 = 1
+	SOURCE:(MTAR:0):恐怖 = 200
+	SOURCE:(MTAR:0):不安 = 100
+	SOURCE:(MTAR:0):反感 = 250
+ELSEIF LOCAL:0 < 50
+	TFLAG:17 = 2
+	SOURCE:(MTAR:0):恐怖 = 400
+	SOURCE:(MTAR:0):不安 = 150
+	SOURCE:(MTAR:0):反感 = 100
+ELSE
+	TFLAG:17 = 3
+	SOURCE:(MTAR:0):恐怖 = 500
+	SOURCE:(MTAR:0):不安 = 200
+	SOURCE:(MTAR:0):反感 = 50
+ENDIF
+IF TALENT:(MTAR:0):マゾ
+	SOURCE:(MTAR:0):反感 = 0
+ENDIF
+
+SOURCE:(MTAR:0):逸脱 = 150
+
+;主導権に応じた優越・屈従のソース追加
+CALL ADD_SOURCE_INITIATIVE_U(MTAR:0, 0, 50)
+
+;主導度変化基準値
+TFLAG:49 = 3
+
+;倒錯度変化基準値
+TFLAG:50 = 2
+
+;レズ・ＢＬ経験基準値
+TFLAG:51 = 0
+
+RETURN 1
+
+;-------------------------------------------------
+;固有の実行判定
+;-------------------------------------------------
+@COM_ORDER_PLAYER80(ARG:0)
+;実行値の設定
+TCVAR:(ARG:0):25 = 90
+
+;共通部分
+CALL COM_ORDER(ARG:0)
+
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲望Lv{ABL:(ARG:0):欲望}", ABL:(ARG:0):欲望 * 1)
+
+LOCAL:0 = GET_PALAMLV(PALAM:(ARG:0):欲情)
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲情Lv{LOCAL:0}", MIN(LOCAL:0 * 1, 10))
+
+IF TALENT:(ARG:0):大人しい
+	CALL COM_ORDER_ELEMENT(ARG:0, "大人しい", -3)
+ENDIF
+IF TALENT:(ARG:0):恥じらい
+	CALL COM_ORDER_ELEMENT(ARG:0, "恥じらい", -2)
+ENDIF
+IF TALENT:(ARG:0):献身的
+	CALL COM_ORDER_ELEMENT(ARG:0, "献身的", 3)
+ENDIF
+IF TALENT:(ARG:0):Ｓ気質
+	CALL COM_ORDER_ELEMENT(ARG:0, "Ｓ気質", 6)
+ENDIF
+
+IF TALENT:(ARG:0):サド
+	CALL COM_ORDER_ELEMENT(ARG:0, "サド", 40)
+ELSE
+	IF ABL:(ARG:0):主導度Ｕ >= 500
+		CALL COM_ORDER_ELEMENT(ARG:0, "主導度", 15)
+	ELSEIF ABL:(ARG:0):主導度Ｕ >= 300
+		CALL COM_ORDER_ELEMENT(ARG:0, "主導度", 10)
+	ELSEIF ABL:(ARG:0):主導度Ｕ >= 100
+		CALL COM_ORDER_ELEMENT(ARG:0, "主導度", 5)
+	ELSEIF ABL:(ARG:0):主導度Ｕ > -100
+		CALL COM_ORDER_ELEMENT(ARG:0, "主導度", 0)
+	ELSE
+		CALL COM_ORDER_ELEMENT(ARG:0, "主導度", -5)
+	ENDIF
+
+	IF ABL:(ARG:0):倒錯度 >= 800
+		CALL COM_ORDER_ELEMENT(ARG:0, "倒錯度", 20)
+	ELSEIF ABL:(ARG:0):倒錯度 >= 500
+		CALL COM_ORDER_ELEMENT(ARG:0, "倒錯度", 15)
+	ELSEIF ABL:(ARG:0):倒錯度 >= 300
+		CALL COM_ORDER_ELEMENT(ARG:0, "倒錯度", 10)
+	ELSEIF ABL:(ARG:0):倒錯度 >= 100
+		CALL COM_ORDER_ELEMENT(ARG:0, "倒錯度", 5)
+	ELSE
+		CALL COM_ORDER_ELEMENT(ARG:0, "倒錯度", 0)
+	ENDIF
+ENDIF
+
+RETURN 1
+
+;-------------------------------------------------
+;地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE80
+PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%を言葉で脅した…
+
+;--------------------------------------------------------
+;地の文(パラメータ・刻印変動後)
+;--------------------------------------------------------
+@COM_TEXT_LAST80
+IF MTAR:0 != MASTER
+	LOCAL:2 = CUP:(MTAR:0):怖主
+	LOCAL:3 = CUP:(MTAR:0):怒主
+
+	SELECTCASE TFLAG:17
+		CASE 0
+			;捕虜調教のメインターゲット
+			IF FLAG:12 == 2 && MTAR:0 == FLAG:19
+				IF LOCAL:2 >= 500
+					PRINTFORML %ANAME(MTAR:0)%は反抗的な態度を取っているが、その体は微かに震えている
+				ELSE
+					PRINTFORML %ANAME(MTAR:0)%は不快感を露わにして%ANAME(MPLY:0)%を睨み返した
+				ENDIF
+			ELSE
+				PRINTFORML %ANAME(MTAR:0)%は%ANAME(MPLY:0)%の態度に戸惑っているようだ
+			ENDIF
+		CASE 1
+			;捕虜調教のメインターゲット
+			IF FLAG:12 == 2 && MTAR:0 == FLAG:19
+				IF LOCAL:2 >= 500
+					PRINTFORML %ANAME(MTAR:0)%は%ANAME(MPLY:0)%の言葉に、不安げに瞳を彷徨わせている
+				ELSE
+					PRINTFORML %ANAME(MTAR:0)%は気丈な瞳で%ANAME(MPLY:0)%を睨み返した
+				ENDIF
+			ELSE
+				IF TALENT:(MTAR:0):マゾ
+					PRINTFORML %ANAME(MTAR:0)%は%ANAME(MPLY:0)%の言葉に興奮を覚えているようだ
+				ELSE
+					PRINTFORML %ANAME(MTAR:0)%は%ANAME(MPLY:0)%の態度に戸惑っているようだ
+				ENDIF
+			ENDIF
+		CASE 2
+			;捕虜調教のメインターゲット
+			IF FLAG:12 == 2 && MTAR:0 == FLAG:19
+				IF LOCAL:2 >= 500
+					PRINTFORML %ANAME(MTAR:0)%は%ANAME(MPLY:0)%にされた行為を思い出し、ビクリと体を震わせた
+				ELSE
+					PRINTFORML %ANAME(MTAR:0)%は微かに震えながらも、気丈に%ANAME(MPLY:0)%を睨み返した
+				ENDIF
+			ELSE
+				IF TALENT:(MTAR:0):マゾ
+					PRINTFORML %ANAME(MTAR:0)%は%ANAME(MPLY:0)%の言葉に興奮を覚えているようだ
+				ELSE
+					PRINTFORML %ANAME(MTAR:0)%は%ANAME(MPLY:0)%の言葉に、思わずビクリと体を震わせた
+				ENDIF
+			ENDIF
+		CASE 3
+			;捕虜調教のメインターゲット
+			IF FLAG:12 == 2 && MTAR:0 == FLAG:19
+				IF LOCAL:2 >= 1500
+					PRINTFORML %ANAME(MTAR:0)%はガタガタと震えながら、なりふり構わず%ANAME(MPLY:0)%に許しを乞うている
+				ELSEIF LOCAL:2 >= 500
+					PRINTFORML %ANAME(MTAR:0)%は%ANAME(MPLY:0)%にされた行為を思い出し、ガタガタと体を震わせている
+				ELSE
+					PRINTFORML %ANAME(MTAR:0)%は微かに震えながらも、あくまでも気丈な態度で%ANAME(MPLY:0)%を睨んだ
+				ENDIF
+			ELSE
+				IF TALENT:(MTAR:0):マゾ
+					PRINTFORML %ANAME(MTAR:0)%は%ANAME(MPLY:0)%の言葉に興奮を覚えているようだ
+				ELSE
+					PRINTFORML %ANAME(MTAR:0)%は%ANAME(MPLY:0)%の言葉に、思わずビクリと体を震わせた
+				ENDIF
+			ENDIF
+	ENDSELECT
+ENDIF

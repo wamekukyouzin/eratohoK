@@ -1,0 +1,373 @@
+﻿;子供の誕生関連の処理
+
+;-------------------------
+;ARG:0を母親として子供を生成する
+;-------------------------
+@CREATE_CHILD(ARG:0)
+;ターゲットを退避
+LOCAL:0 = TARGET
+
+;キャラを追加
+ADDVOIDCHARA
+
+;作成したキャラをターゲットにする
+TARGET = CHARANUM - 1
+
+;NOの設定
+NO = FLAG:9 + 401
+FLAG:9 ++
+
+;父親・母親のIDを設定
+CFLAG:20 = CFLAG:(ARG:0):19
+CFLAG:21 = GET_ID(ARG:0)
+CFLAG:24 = CFLAG:(ARG:0):23
+
+;素質と能力の決定
+CALL CHILD_SETTING
+
+;初期設定(※素質決定後に行う)
+CALL NEWCHARA_INIT(TARGET)
+
+;ターゲットの再設定
+TARGET = LOCAL:0
+RETURN CHARANUM - 1
+
+;-------------------------
+;子供が生誕時の処理
+;-------------------------
+@CHILD_SETTING
+;両親の取得
+LOCAL:5 = ID_TO_CHARA(CFLAG:20)
+LOCAL:6 = ID_TO_CHARA(CFLAG:21)
+
+;固定の素質を付与
+TALENT:童貞 = 1
+TALENT:処女 = 1
+TALENT:キス未経験 = 1
+TALENT:幼児 = 1
+TALENT:小柄体型 = 1
+
+;設定された男性率に応じて性別を設定
+IF RAND:100 < CONFIG:4
+	TALENT:性別 = 0
+ELSE
+	TALENT:性別 = 1
+	TALENT:絶壁 = 1
+ENDIF
+
+;■BASE値の決定
+IF LOCAL:5 >= 0 && RAND:2
+	MAXBASE:体力 = MAXBASE:(LOCAL:5):体力 + (RAND:5 - 2) * 100
+ELSE
+	MAXBASE:体力 = MAXBASE:(LOCAL:6):体力 + (RAND:5 - 2) * 100
+ENDIF
+MAXBASE:体力 = LIMIT(MAXBASE:体力, 1200, 2500)
+
+IF LOCAL:5 >= 0 && RAND:2
+	MAXBASE:気力 = MAXBASE:(LOCAL:5):気力 + (RAND:5 - 2) * 100
+ELSE
+	MAXBASE:気力 = MAXBASE:(LOCAL:6):気力 + (RAND:5 - 2) * 100
+ENDIF
+MAXBASE:気力 = LIMIT(MAXBASE:気力, 1000, 2200)
+
+BASE:体力 = MAXBASE:体力
+BASE:気力 = MAXBASE:気力
+
+;精神力は仮設定
+MAXBASE:精神力 = 500
+BASE:精神力 = MAXBASE:精神力
+
+;■戦闘系能力と成長型の設定
+LOCAL:7 = RAND:5
+IF LOCAL:5 >= 0 && LOCAL:7 < 2
+	LOCAL:8 = LOCAL:5
+ELSEIF LOCAL:7 < 4
+	LOCAL:8 = LOCAL:6
+ELSE
+	LOCAL:8 = -1
+ENDIF
+
+IF LOCAL:8 >= 0
+	TALENT:成長型 = TALENT:(LOCAL:8):成長型
+
+	ABL:武闘 = RAND:8 + 1 + ABL:(LOCAL:8):武闘 / 10
+	ABL:知略 = RAND:8 + 1 + ABL:(LOCAL:8):知略 / 10
+	ABL:政治 = RAND:8 + 1 + ABL:(LOCAL:8):政治 / 10
+	ABL:歌唱 = RAND:21
+	ABL:料理 = MAX(RAND:11 - 5, 0)
+ELSE
+	TALENT:成長型 = RAND:9
+
+	ABL:武闘 = RAND:12 + 1
+	ABL:知略 = RAND:12 + 1
+	ABL:政治 = RAND:12 + 1
+	ABL:歌唱 = RAND:21
+	ABL:料理 = MAX(RAND:11 - 5, 0)
+ENDIF
+
+;■素質の決定
+;臆病、気丈
+CALL CHILD_TALENT_OPPOSE, LOCAL:5, LOCAL:6, 10, 12, 12, 12
+;反抗的、素直
+CALL CHILD_TALENT_OPPOSE, LOCAL:5, LOCAL:6, 11, 13, 20, 20
+;大人しい
+CALL CHILD_TALENT_SINGLE, LOCAL:5, LOCAL:6, 14, 7
+;プライド高い、プライド低い
+CALL CHILD_TALENT_OPPOSE, LOCAL:5, LOCAL:6, 15, 17, 12, 3
+;生意気(素直を持つなら確率低下)
+IF TALENT:素直
+	CALL CHILD_TALENT_SINGLE, LOCAL:5, LOCAL:6, 16, 3
+ELSE
+	CALL CHILD_TALENT_SINGLE, LOCAL:5, LOCAL:6, 16, 12
+ENDIF
+;ツンデレ(反抗的を持つキャラは高確率・素直と同居しない・遺伝によらず完全ランダム)
+IF TALENT:反抗的
+	CALL RCHARA_TALENT_SINGLE, 18, 23
+ELSEIF !TALENT:素直
+	CALL RCHARA_TALENT_SINGLE, 18, 5
+ENDIF
+;快感に素直、快感の否定
+CALL CHILD_TALENT_OPPOSE, LOCAL:5, LOCAL:6, 70, 71, 9, 5
+;自制心(快感に素直と同居しない)
+IF !TALENT:快感に素直
+	CALL CHILD_TALENT_SINGLE, LOCAL:5, LOCAL:6, 20, 7
+ENDIF
+;好奇心、保守的
+CALL CHILD_TALENT_OPPOSE, LOCAL:5, LOCAL:6, 23, 24, 13, 6
+;楽観的、悲観的
+CALL CHILD_TALENT_OPPOSE, LOCAL:5, LOCAL:6, 25, 26, 11, 7
+;一線越えない
+CALL CHILD_TALENT_SINGLE, LOCAL:5, LOCAL:6, 27, 6
+;目立ちたがり
+CALL CHILD_TALENT_SINGLE, LOCAL:5, LOCAL:6, 28, 9
+;貞操観念、貞操無頓着
+CALL CHILD_TALENT_OPPOSE, LOCAL:5, LOCAL:6, 30, 31, 10, 6
+;抑圧(一部素質と同居しない)
+IF !TALENT:生意気 && !TALENT:好奇心 && !TALENT:楽観的 && !TALENT:目立ちたがり && !TALENT:快感に素直
+	CALL CHILD_TALENT_SINGLE, LOCAL:5, LOCAL:6, 32, 6
+ENDIF
+;孤高(素直を持たないキャラ限定)
+IF !TALENT:素直
+	CALL CHILD_TALENT_SINGLE, LOCAL:5, LOCAL:6, 34, 6
+ENDIF
+;恥じらい、恥薄い(目立ちたがりを持つなら確率変動)
+IF TALENT:目立ちたがり
+	CALL CHILD_TALENT_OPPOSE, LOCAL:5, LOCAL:6, 35, 36, 3, 13
+ELSE
+	CALL CHILD_TALENT_OPPOSE, LOCAL:5, LOCAL:6, 35, 36, 13, 7
+ENDIF
+;無関心(一部素質と同居しない)
+IF !TALENT:好奇心 && !TALENT:目立ちたがり
+	CALL CHILD_TALENT_SINGLE, LOCAL:5, LOCAL:6, 21, 7
+ENDIF
+;感情乏しい(一部素質と同居しない)
+IF !TALENT:臆病 && !TALENT:生意気 && !TALENT:好奇心 && !TALENT:目立ちたがり && !TALENT:恥じらい
+	CALL CHILD_TALENT_SINGLE, LOCAL:5, LOCAL:6, 22, 8
+ENDIF
+;解放(同居しない素質多数)
+IF !TALENT:臆病 && !TALENT:ツンデレ && !TALENT:自制心 && !TALENT:感情乏しい && !TALENT:保守的 && !TALENT:悲観的
+	IF !TALENT:一線越えない && !TALENT:貞操観念 && !TALENT:抑圧 && !TALENT:孤高 && !TALENT:恥じらい && !TALENT:快感の否定
+		CALL CHILD_TALENT_SINGLE, 33, 12
+	ENDIF
+ENDIF
+;痛みに強い、痛みに弱い
+CALL CHILD_TALENT_OPPOSE, LOCAL:5, LOCAL:6, 41, 40, 5, 4
+;濡れやすい、濡れにくい
+CALL CHILD_TALENT_OPPOSE, LOCAL:5, LOCAL:6, 42, 43, 8, 5
+;習得早い、習得遅い
+CALL CHILD_TALENT_OPPOSE, LOCAL:5, LOCAL:6, 50, 51, 5, 4
+;舌使い
+CALL CHILD_TALENT_SINGLE, LOCAL:5, LOCAL:6, 52, 5
+;自慰しやすい
+CALL CHILD_TALENT_SINGLE, LOCAL:5, LOCAL:6, 60, 7
+;汚臭鈍感、汚臭敏感
+CALL CHILD_TALENT_OPPOSE, LOCAL:5, LOCAL:6, 61, 62, 8, 8
+;献身的
+CALL CHILD_TALENT_SINGLE, LOCAL:5, LOCAL:6, 63, 9
+;中毒しやすい
+CALL CHILD_TALENT_SINGLE, LOCAL:5, LOCAL:6, 72, 8
+;倒錯的
+CALL CHILD_TALENT_SINGLE, LOCAL:5, LOCAL:6, 80, 8
+;両刀(女性の方が確率高め)
+IF IS_MALE(TARGET)
+	CALL CHILD_TALENT_SINGLE, LOCAL:5, LOCAL:6, 81, 14
+ELSE
+	CALL CHILD_TALENT_SINGLE, LOCAL:5, LOCAL:6, 81, 8
+ENDIF
+;男嫌い、女嫌い(異性限定)
+IF IS_MALE(TARGET)
+	CALL CHILD_TALENT_SINGLE, LOCAL:5, LOCAL:6, 83, 9
+ELSE
+	CALL CHILD_TALENT_SINGLE, LOCAL:5, LOCAL:6, 82, 9
+ENDIF
+;Ｓ気質、Ｍ気質
+CALL CHILD_TALENT_OPPOSE, LOCAL:5, LOCAL:6, 84, 85, 8, 8
+;小悪魔(女性の方が確率高め)
+IF IS_MALE(TARGET)
+	CALL CHILD_TALENT_SINGLE, LOCAL:5, LOCAL:6, 86, 3
+ELSE
+	CALL CHILD_TALENT_SINGLE, LOCAL:5, LOCAL:6, 86, 10
+ENDIF
+;魅惑
+CALL CHILD_TALENT_SINGLE, LOCAL:5, LOCAL:6, 87, 8
+;謎の魅力
+CALL CHILD_TALENT_SINGLE, LOCAL:5, LOCAL:6, 88, 2
+;回復早い、回復遅い
+CALL CHILD_TALENT_OPPOSE, LOCAL:5, LOCAL:6, 111, 112, 5, 4
+;幼稚
+CALL CHILD_TALENT_SINGLE, LOCAL:5, LOCAL:6, 132, 6
+
+IF CFLAG:20 == -13
+	TALENT:ゴブリンの性奴隷 = 1
+ENDIF
+
+;成長後の[幼稚]を退避し、固定で幼稚を付与
+TALENT:成長後幼稚 = TALENT:幼稚
+TALENT:幼稚 = 1
+
+;■敏鈍感素質の決定(ランダム性高め)
+LOCAL:1 = RAND:100
+IF LOCAL:5 >= 0 && LOCAL:1 < 30
+	FOR LOCAL:0, 101, 111
+		TALENT:(LOCAL:0) = TALENT:(LOCAL:5):(LOCAL:0)
+	NEXT
+	IF LOCAL:1 < 8
+		LOCAL:2 = RAND:10 + 101
+		TALENT:(LOCAL:2) = 1
+	ELSEIF LOCAL:1 < 25
+		LOCAL:2 = RAND:10 + 101
+		TALENT:(LOCAL:2) = 0
+	ENDIF
+ELSEIF LOCAL:1 < 60
+	FOR LOCAL:0, 101, 111
+		TALENT:(LOCAL:0) = TALENT:(LOCAL:6):(LOCAL:0)
+	NEXT
+	IF LOCAL:1 < 38
+		LOCAL:2 = RAND:10 + 101
+		TALENT:(LOCAL:2) = 1
+	ELSEIF LOCAL:1 < 55
+		LOCAL:2 = RAND:10 + 101
+		TALENT:(LOCAL:2) = 0
+	ENDIF
+ELSE
+	;ランダムに敏鈍感素質を設定
+	CALL RANDOM_CHARA_SENSE
+ENDIF
+
+;■成長後の体型・バストサイズの決定
+;小柄体型(女性の方が確率高め)
+LOCAL:0 = 0
+IF TALENT:(LOCAL:6):小柄体型
+	IF LOCAL:5 < 0 || TALENT:(LOCAL:5):小柄体型
+		LOCAL:0 = 90
+	ELSE
+		LOCAL:0 = 55
+	ENDIF
+ELSEIF LOCAL:5 >= 0 && TALENT:(LOCAL:5):小柄体型
+	LOCAL:0 = 55
+ELSE
+	IF IS_MALE(TARGET)
+		LOCAL:0 = 7
+	ELSE
+		LOCAL:0 = 16
+	ENDIF
+ENDIF
+IF RAND:100 < LOCAL:0
+	TALENT:成長後体型 = 1
+ENDIF
+
+;両親の情報からバストサイズを設定
+LOCAL:0 = RAND:100
+IF LOCAL:5 >= 0 && LOCAL:0 < 25
+	IF CFLAG:(LOCAL:5):26 >= 1
+		TALENT:成長後バスト = CFLAG:(LOCAL:5):26 - 3
+	ELSE
+		TALENT:成長後バスト = GET_BUSTSIZE_NUM(LOCAL:5)
+	ENDIF
+ELSEIF LOCAL:0 < 50
+	IF CFLAG:(LOCAL:6):26 >= 1
+		TALENT:成長後バスト = CFLAG:(LOCAL:6):26 - 3
+	ELSE
+		TALENT:成長後バスト = GET_BUSTSIZE_NUM(LOCAL:6)
+	ENDIF
+ELSEIF LOCAL:5 >= 0 && LOCAL:0 < 75
+	IF CFLAG:(LOCAL:5):26 >= 1
+		TALENT:成長後バスト = LIMIT(CFLAG:(LOCAL:5):26 - 3 + RAND:3 - 1, -2, 2)
+	ELSE
+		TALENT:成長後バスト = LIMIT(GET_BUSTSIZE_NUM(LOCAL:5) + RAND:3 - 1, -2, 2)
+	ENDIF
+ELSE
+	IF CFLAG:(LOCAL:6):26 >= 1
+		TALENT:成長後バスト = LIMIT(CFLAG:(LOCAL:6):26 - 3 + RAND:3 - 1, -2, 2)
+	ELSE
+		TALENT:成長後バスト = LIMIT(GET_BUSTSIZE_NUM(LOCAL:6) + RAND:3 - 1, -2, 2)
+	ENDIF
+ENDIF
+
+;小柄体型なら爆乳禁止、巨乳率低下
+IF TALENT:成長後体型 == 1
+	IF TALENT:成長後バスト >= 1
+		IF RAND:2
+			TALENT:成長後バスト = 1
+		ELSE
+			TALENT:成長後バスト = 0
+		ENDIF
+	ENDIF
+ENDIF
+
+;両親の情報から性格を決定
+LOCAL:0 = RAND:100
+IF LOCAL:5 >= 0 && TALENT:(LOCAL:5):性格 != 0 && LOCAL:0 < 35
+	TALENT:性格 = TALENT:(LOCAL:5):性格
+ELSEIF TALENT:(LOCAL:6):性格 != 0 && LOCAL:0 < 70
+	TALENT:性格 = TALENT:(LOCAL:6):性格
+ELSE
+	;性格をランダムに決定
+	CALL SET_CHARACTER(TARGET)
+ENDIF
+
+;髪色・髪の長さの決定
+CALL SET_HAIR(TARGET)
+
+;-------------------------
+;子供に相反する２つの素質を付与するか決定する関数
+;引数 0:父親のキャラ番号 1:母親のキャラ番号 2:素質番号A 3:素質番号B 4:素質Aのランダム時の付加確率 5:素質Bのランダム時の付加確率
+;-------------------------
+@CHILD_TALENT_OPPOSE(ARG:0, ARG:1, ARG:2, ARG:3, ARG:4, ARG:5)
+;各40%で片親に依存
+IF RAND:10 < 8
+	IF ARG:0 >= 0 && RAND:2
+		TALENT:(ARG:2) = TALENT:(ARG:0):(ARG:2)
+		TALENT:(ARG:3) = TALENT:(ARG:0):(ARG:3)
+	ELSE
+		TALENT:(ARG:2) = TALENT:(ARG:1):(ARG:2)
+		TALENT:(ARG:3) = TALENT:(ARG:1):(ARG:3)
+	ENDIF
+;20%でランダム
+ELSE
+	LOCAL:0 = RAND:100
+	IF LOCAL:0 < ARG:4
+		TALENT:(ARG:2) = 1
+	ELSEIF 99 - LOCAL:0 < ARG:5
+		TALENT:(ARG:3) = 1
+	ENDIF
+ENDIF
+
+;-------------------------
+;子供に特定の素質を付与するか決定する関数
+;引数 0:父親のキャラ番号 1:母親のキャラ番号 2:素質番号 3:ランダム時の付加確率
+;-------------------------
+@CHILD_TALENT_SINGLE(ARG:0, ARG:1, ARG:2, ARG:3)
+;各40%で片親に依存
+IF RAND:10 < 8
+	IF ARG:0 >= 0 && RAND:2 == 0
+		TALENT:(ARG:2) = TALENT:(ARG:0):(ARG:2)
+	ELSE
+		TALENT:(ARG:2) = TALENT:(ARG:1):(ARG:2)
+	ENDIF
+;20%でランダム
+ELSE
+	IF RAND:100 < ARG:3
+		TALENT:(ARG:2) = 1
+	ENDIF
+ENDIF
