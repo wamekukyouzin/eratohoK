@@ -1,7 +1,8 @@
 ﻿@SLG_SPECIAL_TRAIN()
-#DIM 対象キャラ, 1
+#DIM 対象, 1
 #DIM 対象項目, 1
 #DIM 取得経験値, 1
+
 ;ページ数の計算
 LOCAL:20 = 0
 FOR LOCAL:0, 0, CHARANUM
@@ -24,21 +25,25 @@ LOCAL:7 = 0
 LOCAL:8 = 0
 LOCAL:9 = 0
 DRAWLINE
-PRINTFORML 金10000を消費し、配下に訓練を受けさせることができます
+PRINTFORM 金
+SETCOLOR COLOR("CAUTION")
+PRINTFORM 10000
+RESETCOLOR
+PRINTFORML を消費し、配下に訓練を受けさせることができます
 PRINTFORML 訓練を行うとターンが消費されます
 PRINTFORML 誰を訓練しますか？
 PRINTFORML 現在の金:{MONEY}
 DRAWLINE
-PRINTFORM %TOSTR_SPACE(22)%   武/  知/  政/  妖/  歌/  料 %TOSTR_SPACE(28)%   武/  知/  政/  妖/  歌/  料
+PRINTFORM %TOSTR_SPACE(22)%   武|  知|  政|  妖|  歌|  料 %TOSTR_SPACE(27)%   武|  知|  政|  妖|  歌|  料
 PRINTL 
-LOCAL:25 = 13
+LOCAL:25 = 12
 LOCAL:1 = 0
 LOCAL:22 = 0
 LOCAL:23 = (LOCAL:21 - 1) * 40
 LOCAL:24 = LOCAL:21 * 40
 FOR LOCAL:0, 0, CHARANUM
 	;マスターと所属勢力が同じキャラのみ（マスターを除く）
-	IF LOCAL:0 != MASTER && CFLAG:(LOCAL:0):1 == CFLAG:MASTER:1 && TMP_IS_FREE:(LOCAL:0):0 == 0
+	IF LOCAL:0 != MASTER && CFLAG:(LOCAL:0):1 == CFLAG:MASTER:1
 		IF LOCAL:22 >= LOCAL:23 && LOCAL:22 < LOCAL:24
 			IF LOCAL:1 % 2 != 0
 				PRINT 　　　
@@ -46,10 +51,27 @@ FOR LOCAL:0, 0, CHARANUM
 				PRINTL 
 				LOCAL:25 ++
 			ENDIF
-			LOCALS:0 = {NO:(LOCAL:0) + 99, 4}[%ANAME(LOCAL:0), 17, RIGHT% %PRINT_ALPHABET_RANK_F(0, ABL:LOCAL:武闘)%{ABL:(LOCAL:0):武闘, 3}/%PRINT_ALPHABET_RANK_F(0, ABL:LOCAL:知略)%{ABL:(LOCAL:0):知略, 3}/
-			LOCALS:0 += @"%PRINT_ALPHABET_RANK_F(0, ABL:LOCAL:政治)%{ABL:(LOCAL:0):政治, 3}/%PRINT_ALPHABET_RANK_F(1, ABL:LOCAL:妖術)%{ABL:(LOCAL:0):妖術, 3}/%PRINT_ALPHABET_RANK_F(2, ABL:LOCAL:歌唱)%{ABL:(LOCAL:0):歌唱, 3}/%PRINT_ALPHABET_RANK_F(2, ABL:LOCAL:料理)%{ABL:(LOCAL:0):料理, 3}]"
-
-			PRINTBUTTON LOCALS:0, GET_ID(LOCAL:0) + 99
+			IF TMP_IS_FREE:(LOCAL:0):0 == 0
+				PRINTFORM [{NO:(LOCAL:0) + 99, 3}]%ANAME(LOCAL:0), 16, RIGHT%
+				PRINTFORM   
+				CALL PRINT_ALPHABET_RANK(0, ABL:(LOCAL:0):武闘)
+				PRINTFORM {ABL:(LOCAL:0):武闘, 3}|
+				CALL PRINT_ALPHABET_RANK(0, ABL:(LOCAL:0):知略)
+				PRINTFORM {ABL:(LOCAL:0):知略, 3}|
+				CALL PRINT_ALPHABET_RANK(0, ABL:(LOCAL:0):政治)
+				PRINTFORM {ABL:(LOCAL:0):政治, 3}|
+				CALL PRINT_ALPHABET_RANK(2, ABL:(LOCAL:0):妖術)
+				PRINTFORM {ABL:(LOCAL:0):妖術, 3}|
+				CALL PRINT_ALPHABET_RANK(1, ABL:(LOCAL:0):歌唱)
+				PRINTFORM {ABL:(LOCAL:0):歌唱, 3}|
+				CALL PRINT_ALPHABET_RANK(1, ABL:(LOCAL:0):料理)
+				PRINTFORM {ABL:(LOCAL:0):料理, 3}
+			ELSE
+				LOCALS:0 = [{NO:(LOCAL:0) + 99, 3}]%ANAME(LOCAL:0), 16, RIGHT%  %PRINT_ALPHABET_RANK_F(0, ABL:LOCAL:武闘)%{ABL:(LOCAL:0):武闘, 3}|%PRINT_ALPHABET_RANK_F(0, ABL:LOCAL:知略)%{ABL:(LOCAL:0):知略, 3}|
+				LOCALS:0 += @"%PRINT_ALPHABET_RANK_F(0, ABL:LOCAL:政治)%{ABL:(LOCAL:0):政治, 3}|%PRINT_ALPHABET_RANK_F(1, ABL:LOCAL:妖術)%{ABL:(LOCAL:0):妖術, 3}|%PRINT_ALPHABET_RANK_F(2, ABL:LOCAL:歌唱)%{ABL:(LOCAL:0):歌唱, 3}|%PRINT_ALPHABET_RANK_F(2, ABL:LOCAL:料理)%{ABL:(LOCAL:0):料理, 3}"
+				SETCOLOR 0x606060
+				PRINTPLAINFORM %LOCALS:0%
+			ENDIF
 			RESETCOLOR
 			LOCAL:1 ++
 		ENDIF
@@ -93,35 +115,42 @@ ELSEIF RESULT == 9 && LOCAL:21 < LOCAL:20
 ELSEIF RESULT == 0
 	RETURN
 ENDIF
-対象キャラ = ID_TO_CHARA(RESULT-99)
-;範囲外、存在しないキャラはダメ
-IF 対象キャラ == -1
+対象 = RESULT - 99
+;存在しないキャラはダメ
+IF 対象 < 0 && 対象 > CHARANUM
 	CLEARLINE LOCAL:25
 	GOTO SHOW_LOOP2
 ;選択条件を満たしていない、そのターン会うとかした、TMP_IS_FREEが勃っているとだめ
-ELSEIF CFLAG:MASTER:1 != CFLAG:(対象キャラ):1 || TMP_IS_FREE:(対象キャラ):0 != 0
+ELSEIF CFLAG:MASTER:1 != CFLAG:(対象):1 || TMP_IS_FREE:(対象):0 != 0
 	CLEARLINE LOCAL:25
 	GOTO SHOW_LOOP2
 ELSE
 	DRAWLINE
-	PRINTFORML %ANAME(対象キャラ)%のどの能力を訓練しますか？
+	PRINTFORML %ANAME(対象)%のどの能力を訓練しますか？
 	DRAWLINE
-	PRINTBUTTONLC @"[1] 武闘 - {ABL:(対象キャラ):武闘}", 50
-	PRINTL 
-	PRINTBUTTONLC @"[2] 知略 - {ABL:(対象キャラ):知略}", 51
-	PRINTL 
-	PRINTBUTTONLC @"[3] 政治 - {ABL:(対象キャラ):政治}", 52
-	PRINTL 
-	PRINTBUTTONLC @"[4] 歌唱 - {ABL:(対象キャラ):歌唱}", 60
-	PRINTL 
-	PRINTBUTTONLC @"[5] 料理 - {ABL:(対象キャラ):料理}", 61
-	PRINTL 
-	IF TALENT:(対象キャラ):妖術知識
-		PRINTBUTTONLC @"[6] 妖術 - {ABL:(対象キャラ):妖術}", 53
-		PRINTL
+	PRINTFORM [50] 武闘 
+	CALL PRINT_ALPHABET_RANK(0, ABL:(対象):武闘)
+	PRINTFORML {ABL:(対象):武闘, 3, RIGHT}
+	PRINTFORM [51] 知略 
+	CALL PRINT_ALPHABET_RANK(0, ABL:(対象):知略)
+	PRINTFORML {ABL:(対象):知略, 3, RIGHT}
+	PRINTFORM [52] 政治 
+	CALL PRINT_ALPHABET_RANK(0, ABL:(対象):政治)
+	PRINTFORML {ABL:(対象):政治, 3, RIGHT}
+	IF TALENT:(対象):妖術知識
+		PRINTFORM [53] 妖術 
+		CALL PRINT_ALPHABET_RANK(2, ABL:(対象):妖術)
+		PRINTFORML {ABL:(対象):妖術, 3, RIGHT}
 	ENDIF
+	PRINTFORM [60] 歌唱 
+	CALL PRINT_ALPHABET_RANK(1, ABL:(対象):歌唱)
+	PRINTFORML {ABL:(対象):歌唱, 3, RIGHT}
+	PRINTFORM [60] 料理 
+	CALL PRINT_ALPHABET_RANK(1, ABL:(対象):料理)
+	PRINTFORML {ABL:(対象):料理, 3, RIGHT}
+	PRINTL 
 	DRAWLINE
-	PRINTBUTTONLC "[0] 戻る", 0
+	PRINTFORML [0] 戻る
 	PRINTL 
 	$INPUT_LOOP2
 	INPUT
@@ -129,14 +158,16 @@ ELSE
 		GOTO SHOW_LOOP2
 	ELSEIF RESULT != 50 && RESULT != 51 && RESULT != 52  && RESULT != 53 && RESULT != 60 && RESULT != 61
 		GOTO INPUT_LOOP2
+	ELSEIF RESULT == 53 && !TALENT:(対象):妖術知識
+		GOTO INPUT_LOOP2
 	ELSE
 		対象項目 = RESULT
-		LOCAL:1 = ABL:(対象キャラ):(対象項目)
+		LOCAL:1 = ABL:(対象):(対象項目)
 		SELECTCASE 対象項目
 			;三能力
 			CASE 50 TO 52
-				LOCAL:2 = ABL:(対象キャラ):武闘 + ABL:(対象キャラ):知略 + ABL:(対象キャラ):政治
-				取得経験値 = 80 * (300 - LOCAL:2) / 300
+				LOCAL:2 = ABL:(対象):武闘 + ABL:(対象):知略 + ABL:(対象):政治
+				取得経験値 = 100 * (300 - LOCAL:2) / 300
 				;選択した項目が高いと取得経験値は下がる
 				SELECTCASE LOCAL:1
 					CASE IS < 50
@@ -149,8 +180,8 @@ ELSE
 				ENDSELECT
 			;歌唱と料理
 			CASE 60 TO 61
-				LOCAL:2 = ABL:(対象キャラ):歌唱 + ABL:(対象キャラ):料理
-				取得経験値 = 60 * (200 - LOCAL:2) / 200
+				LOCAL:2 = ABL:(対象):歌唱 + ABL:(対象):料理
+				取得経験値 = 80 * (200 - LOCAL:2) / 200
 				;三能力に比べ、下方修正がきつい(50越えたら発動するため）
 				SELECTCASE LOCAL:1
 					CASE IS < 20
@@ -176,22 +207,22 @@ ELSE
 		取得経験値 = MAX(取得経験値, 5)
 		SELECTCASE 対象項目
 			CASE 50
-				EXP:(対象キャラ):武闘経験値 += 取得経験値
+				EXP:(対象):武闘経験値 += 取得経験値
 			CASE 51
-				EXP:(対象キャラ):知略経験値 += 取得経験値
+				EXP:(対象):知略経験値 += 取得経験値
 			CASE 52
-				EXP:(対象キャラ):政治経験値 += 取得経験値
+				EXP:(対象):政治経験値 += 取得経験値
 			CASE 53
-				EXP:(対象キャラ):妖術経験値 += 取得経験値
+				EXP:(対象):妖術経験値 += 取得経験値
 			CASE 60
-				EXP:(対象キャラ):歌唱経験値 += 取得経験値
+				EXP:(対象):歌唱経験値 += 取得経験値
 			CASE 61
-				EXP:(対象キャラ):料理経験値 += 取得経験値
+				EXP:(対象):料理経験値 += 取得経験値
 		ENDSELECT
 		PRINTFORML 訓練を行った！
-		CALL TRAIN_AUTO_ABLUP(対象キャラ)
+		CALL TRAIN_AUTO_ABLUP(対象)
 		MONEY -= 10000
-		PRINTFORMW %ANAME(対象キャラ)%はいい汗をかいたようだ……
+		PRINTFORMW %ANAME(対象)%はいい汗をかいたようだ……
 	ENDIF
 	PRINTFORML
 	DRAWLINE
