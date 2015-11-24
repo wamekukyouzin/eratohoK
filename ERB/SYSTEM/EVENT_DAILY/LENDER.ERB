@@ -14,7 +14,7 @@ VARSET 女いるフラグ
 VARSET 好感度ランキング, -1
 DRAWLINE
 ;借りていないパターン
-IF DVAR:1 == 0 && DVAR:2 == 0 && DVAR:4 == 0
+IF DVAR:金貸し期限 == 0 && DVAR:金貸し現在額 == 0 && DVAR:金貸し総額 == 0
 	;融資額と返済期限の計算
 	;融資額は現在資金の10% + 俸給 * 期限日分
 	;返済額はその2割増し
@@ -78,60 +78,60 @@ IF DVAR:1 == 0 && DVAR:2 == 0 && DVAR:4 == 0
 		RESETCOLOR
 		PRINTFORMW を手に入れた
 		MONEY += 融資額
-		DVAR:1 = 返済期限
-		DVAR:2 = 返済額
-		DVAR:4 = 返済額
+		DVAR:金貸し期限 = 返済期限
+		DVAR:金貸し現在額 = 返済額
+		DVAR:金貸し総額 = 返済額
 		RETURN
 	ELSE
 		GOTO INPUT_LOOP
 	ENDIF
 ;借りていて、返済期限がきたパターン
-ELSEIF DVAR:1 == 0 && DVAR:2 > 0 && DVAR:4 > 0
+ELSEIF DVAR:金貸し期限 == 0 && DVAR:金貸し現在額 > 0 && DVAR:金貸し総額 > 0
 	PRINTFORMW 今日は借りていた金の返済日だ
 	PRINTFORMW 予定の時刻きっかりに、男は現れた……
 	PRINTFORMW 「さて%ANAME(MASTER)%様。本日は返済日ですが、金のご用意はよろしいですかな？」
 	PRINTFORMW さて、どうしようか……
 	DRAWLINE
 	PRINTFORML 現在の金:{MONEY}
-	IF MONEY  >= DVAR:4
-		PRINTFORML [1] 金{DVAR:4}を返済する
+	IF MONEY  >= DVAR:金貸し総額
+		PRINTFORML [1] 金{DVAR:金貸し総額}を返済する
 	ELSE
 		SETCOLOR COLOR_UNSELECTABLE
-		PRINTPLAINFORM [1] 金{DVAR:4}が必要だが、そんなに持っていない 現在:{MONEY}
+		PRINTPLAINFORM [1] 金{DVAR:金貸し総額}が必要だが、そんなに持っていない 現在:{MONEY}
 		PRINTL
 		RESETCOLOR
 	ENDIF
 	PRINTFORML [2] 払えないと伝える
 	$INPUT_LOOP2
 	INPUT
-	IF RESULT == 1 && MONEY >= DVAR:4
-		IF MONEY >= DVAR:4 * 2
+	IF RESULT == 1 && MONEY >= DVAR:金貸し総額
+		IF MONEY >= DVAR:金貸し総額 * 2
 			PRINTFORMW 「おや、申し訳ない。返済額に手違いがございました」
 			PRINTFORM 「本当の返済額は金
 			SETCOLOR COLOR_CAUTION
-			PRINTFORM {DVAR:4 * 2}
+			PRINTFORM {DVAR:金貸し総額 * 2}
 			RESETCOLOR
 			PRINTFORMW ですな。まぁお持ちのようですから問題ありますまい？」
 			PRINTFORM 法外じゃないかという暇すら与えず、男は本当に金
 			SETCOLOR COLOR_CAUTION
-			PRINTFORM {DVAR:4 * 2}
+			PRINTFORM {DVAR:金貸し総額 * 2}
 			RESETCOLOR
 			PRINTFORMW をもっていってしまった……
-			MONEY -= DVAR:4 * 2
+			MONEY -= DVAR:金貸し総額 * 2
 		ELSE
 			PRINTFORMW 「ふむ。では確かに
 			PRINTFORMW 男に
 			SETCOLOR COLOR_CAUTION
-			PRINTFORM {DVAR:4}
+			PRINTFORM {DVAR:金貸し総額}
 			RESETCOLOR
 			PRINTFORMW を返済した……
 		ENDIF
 		PRINTFORMW 「では私はこれで。今後ともごひいきに」
 		PRINTFORMW 男はホクホクした顔で帰って行った……
-		DVAR:2 = 0
-		DVAR:4 = 0
+		DVAR:金貸し現在額 = 0
+		DVAR:金貸し総額 = 0
 		RETURN
-	ELSEIF RESULT == 1 && MONEY < DVAR:4
+	ELSEIF RESULT == 1 && MONEY < DVAR:金貸し総額
 		PRINTFORML そんなに金を持っていない……
 		GOTO INPUT_LOOP2
 	ELSEIF RESULT == 2
@@ -195,82 +195,82 @@ ELSEIF DVAR:1 == 0 && DVAR:2 > 0 && DVAR:4 > 0
 				PRINTFORMW 「なぁに、返済額分働いていただいたら解放いたしますから、ご心配なく……」
 			ENDIF
 			PRINTFORMW 男は%ANAME(担保)%を連れ、立ち去っていった……
-			DVAR:1 = -1
-			DVAR:3 = 担保
+			DVAR:金貸し期限 = -1
+			DVAR:金貸し娘 = 担保
 		ELSE
 			PRINTFORMW 「で、残りの金ですが……ふーむ、まあ、仕方がありませんな」
 			PRINTFORMW 「しかし、今後はこのようなことがないようにお願いしますよ」
 			PRINTFORMW 男は立ち去っていった……
-			DVAR:1 = 0
-			DVAR:2 = 0
-			DVAR:4 = 0
-			DVAR:3 = -1
+			DVAR:金貸し期限 = 0
+			DVAR:金貸し現在額 = 0
+			DVAR:金貸し総額 = 0
+			DVAR:金貸し娘 = -1
 		ENDIF
 	ELSE
 		GOTO INPUT_LOOP2
 	ENDIF
 ;返済失敗からの全額返済
-ELSEIF DVAR:1 == -1 && DVAR:2 <= 0
-	IF DVAR:3 != MASTER
-		PRINTFORMW 「やぁやぁ%ANAME(MASTER)%様。実は%ANAME(DVAR:3)%の件なのですがね」
-		PRINTFORMW 金貸しが尋ねてきた。どうやら借金のかたに預けた%ANAME(DVAR:3)%のことで話があるようだ……
-		IF ((IS_LOVER(DVAR:3) || IS_SLAVE(DVAR:3)) && RAND:3) || RAND:5
+ELSEIF DVAR:金貸し期限 == -1 && DVAR:金貸し現在額 <= 0
+	IF DVAR:金貸し娘 != MASTER
+		PRINTFORMW 「やぁやぁ%ANAME(MASTER)%様。実は%ANAME(DVAR:金貸し娘)%の件なのですがね」
+		PRINTFORMW 金貸しが尋ねてきた。どうやら借金のかたに預けた%ANAME(DVAR:金貸し娘)%のことで話があるようだ……
+		IF ((IS_LOVER(DVAR:金貸し娘) || IS_SLAVE(DVAR:金貸し娘)) && RAND:3) || RAND:5
 			PRINTFORMW 「実はめでたく返済額分の給料が貯まりましてな。ですから、連れてきた次第でして」
-			PRINTFORMW 男が手を叩くと、部屋の外から%ANAME(DVAR:3)%が入ってきた
+			PRINTFORMW 男が手を叩くと、部屋の外から%ANAME(DVAR:金貸し娘)%が入ってきた
 			PRINTFORMW だがその姿に、%ANAME(MASTER)%は目を疑った
 			SELECTCASE RAND:5
 				CASE 0
-					PRINTFORMW %ANAME(DVAR:3)%は、裸よりも淫らな薄手の衣装に身を包んでいた
+					PRINTFORMW %ANAME(DVAR:金貸し娘)%は、裸よりも淫らな薄手の衣装に身を包んでいた
 					PRINTFORMW 直前までたっぷり「働いて」いたのか、両穴からは愛液と精液がどろどろと零れている
-					PRINTFORMW それでもなお肉欲が疼いているのか、%ANAME(DVAR:3)%は己の陰部を指で掻き回している
+					PRINTFORMW それでもなお肉欲が疼いているのか、%ANAME(DVAR:金貸し娘)%は己の陰部を指で掻き回している
 					PRINTFORMW 零れる甘い溜息は次第に明確な嬌声になり、指の動きも激しくなる
-					PRINTFORMW そして%ANAME(DVAR:3)%は、背を反らし、%ANAME(MASTER)%の見ている前で激しく絶頂した
+					PRINTFORMW そして%ANAME(DVAR:金貸し娘)%は、背を反らし、%ANAME(MASTER)%の見ている前で激しく絶頂した
 				CASE 1
-					PRINTFORMW %ANAME(DVAR:3)%は、金貸しの側近の男と一緒に現れた
+					PRINTFORMW %ANAME(DVAR:金貸し娘)%は、金貸しの側近の男と一緒に現れた
 					PRINTFORMW ……その男に抱え上げられ、彼の肉棒を秘裂に咥え込みながら
-					PRINTFORMW 男が腰を突き上げると、%ANAME(DVAR:3)%は髪を振り乱してヨガる
-					PRINTFORMW 抽送は次第に激しくなり、男はとうとう%ANAME(DVAR:3)%の中に射精した
-					PRINTFORMW %ANAME(DVAR:3)%は艶やかな声を上げ、雌汁を噴きながら絶頂した
+					PRINTFORMW 男が腰を突き上げると、%ANAME(DVAR:金貸し娘)%は髪を振り乱してヨガる
+					PRINTFORMW 抽送は次第に激しくなり、男はとうとう%ANAME(DVAR:金貸し娘)%の中に射精した
+					PRINTFORMW %ANAME(DVAR:金貸し娘)%は艶やかな声を上げ、雌汁を噴きながら絶頂した
 				CASE 2
 					PRINTFORMW 「彼女は随分熱心でしたよ。ご覧になりますか？」
-					PRINTFORMW 金貸しはそう言うなり、%ANAME(DVAR:3)%に目配せした
-					PRINTFORMW すると%ANAME(DVAR:3)%は、%ANAME(MASTER)%が見ている前だというのに、彼のモノに口で奉仕を始めた
+					PRINTFORMW 金貸しはそう言うなり、%ANAME(DVAR:金貸し娘)%に目配せした
+					PRINTFORMW すると%ANAME(DVAR:金貸し娘)%は、%ANAME(MASTER)%が見ている前だというのに、彼のモノに口で奉仕を始めた
 					PRINTFORMW ぢゅるぢゅると音を立てペニスを啜る様は、ひどく熱の入った、熱心なものだった
-					PRINTFORMW やがて男が精を吐き出すと、%ANAME(DVAR:3)%はそれを零さず全て受け止め、ありがとうございましたと呟いた
+					PRINTFORMW やがて男が精を吐き出すと、%ANAME(DVAR:金貸し娘)%はそれを零さず全て受け止め、ありがとうございましたと呟いた
 				CASE 3
 					PRINTFORMW 「おやおや、仕事熱心すぎて、仕事着のままで来てしまいましたかな」
 					PRINTFORMW 金貸しが仕事着と呼んだそれは、とても仕事着とは呼べないようなものだった
 					PRINTFORMW 給仕の服のようではあるが、乳房は剥き出しで、スカートの丈も短く、秘裂をほとんど隠せていない
 					PRINTFORMW 「まあいいでしょう、それなら、仕事具合を%ANAME(MASTER)%様に見ていただけばよろしい」
-					PRINTFORMW 言うなり、男は%ANAME(MASTER)%の目の前で%ANAME(DVAR:3)%を押し倒し、犯し始めた
+					PRINTFORMW 言うなり、男は%ANAME(MASTER)%の目の前で%ANAME(DVAR:金貸し娘)%を押し倒し、犯し始めた
 					PRINTFORMW 男が呻き声をあげ、種を膣内に放つと、彼女は一際高い声をあげて悶えてみせた
 				CASE 4
 					PRINTFORMW 「彼女は実に忠実な従業員でしてな。ご覧になりますか」
-					PRINTFORMW 男が意味ありげに目配せすると、%ANAME(DVAR:3)%は深々と土下座した
+					PRINTFORMW 男が意味ありげに目配せすると、%ANAME(DVAR:金貸し娘)%は深々と土下座した
 					PRINTFORMW 「ククッ、そのままじっとしていろよォ」
 					PRINTFORMW そして男は、あろうことか彼女を、そのままの姿勢で犯し始めた
 					PRINTFORMW 激しいピストンの後、男は呻き、その膣内に種を放つ
-					PRINTFORMW %ANAME(DVAR:3)%はありがとうございましたと、恭しく礼の言葉まで述べて見せた
+					PRINTFORMW %ANAME(DVAR:金貸し娘)%はありがとうございましたと、恭しく礼の言葉まで述べて見せた
 			ENDSELECT
 			PRINTFORMW 我に返った%ANAME(MASTER)%が、これはどういうことだと問い詰めようとするころには、男は逃げてしまっていた……
 			SETCOLOR COLOR_CAUTION
-			PRINTFORMW %ANAME(DVAR:3)%が復帰しました
+			PRINTFORMW %ANAME(DVAR:金貸し娘)%が復帰しました
 			RESETCOLOR
 			SETCOLOR COLOR_ALERT
-			IF !TALENT:(DVAR:3):淫乱
-				PRINTFORML %ANAME(DVAR:3)%は＜淫乱＞を得た
+			IF !TALENT:(DVAR:金貸し娘):淫乱
+				PRINTFORML %ANAME(DVAR:金貸し娘)%は＜淫乱＞を得た
 			ENDIF
 			RESETCOLOR
-			CFLAG:(DVAR:3):従属度 = MAX(CFLAG:(DVAR:3):従属度, 500)
-			CFLAG:(DVAR:3):依存度 = MAX(CFLAG:(DVAR:3):依存度, 50)
-			TALENT:(DVAR:3):淫乱 = 1
-			DVAR:1 = 0
-			DVAR:2 = 0
-			DVAR:4 = 0
-			DVAR:3 = -1
+			CFLAG:(DVAR:金貸し娘):従属度 = MAX(CFLAG:(DVAR:金貸し娘):従属度, 500)
+			CFLAG:(DVAR:金貸し娘):依存度 = MAX(CFLAG:(DVAR:金貸し娘):依存度, 50)
+			TALENT:(DVAR:金貸し娘):淫乱 = 1
+			DVAR:金貸し期限 = 0
+			DVAR:金貸し現在額 = 0
+			DVAR:金貸し総額 = 0
+			DVAR:金貸し娘 = -1
 		ELSE
-			返済額 = RAND(100000, MIN(200000, DVAR:4))
-			PRINTFORMW 「実は%ANAME(DVAR:3)%のことですが、ひどいへまをしてしまいましてな」
+			返済額 = RAND(100000, MIN(200000, DVAR:金貸し総額))
+			PRINTFORMW 「実は%ANAME(DVAR:金貸し娘)%のことですが、ひどいへまをしてしまいましてな」
 			PRINTFORM 「新たに借金が金
 			SETCOLOR COLOR_CAUTION
 			PRINTFORM {返済額}
@@ -278,8 +278,8 @@ ELSEIF DVAR:1 == -1 && DVAR:2 <= 0
 			PRINTFORMW ほど生じましたので、もう少しお借りする旨をお伝えしにまいりました」
 			PRINTFORMW なんということだ、借金を返したつもりが、逆に増えてしまうとは
 			PRINTFORMW とはいえ、仕方のないことだ。%ANAME(MASTER)%は同意するしかなかった……
-			DVAR:2 = 返済額
-			DVAR:4 = 返済額
+			DVAR:金貸し現在額 = 返済額
+			DVAR:金貸し総額 = 返済額
 		ENDIF
 	ELSE
 		IF RAND:5
@@ -292,19 +292,19 @@ ELSEIF DVAR:1 == -1 && DVAR:2 <= 0
 			PRINTFORMW 金貸しの嘲笑を背中に受けながら、%ANAME(MASTER)%は彼の下から去った……
 			PRINTFORMW 身体が陵辱の快楽を求め、疼いてしまっている……
 			SETCOLOR COLOR_ALERT
-			IF !TALENT:(DVAR:3):淫乱
-				PRINTFORML %ANAME(DVAR:3)%は＜淫乱＞を得た
+			IF !TALENT:(DVAR:金貸し娘):淫乱
+				PRINTFORML %ANAME(DVAR:金貸し娘)%は＜淫乱＞を得た
 			ENDIF
 			RESETCOLOR
-			CFLAG:(DVAR:3):従属度 = MAX(CFLAG:(DVAR:3):従属度, 500)
-			CFLAG:(DVAR:3):依存度 = MAX(CFLAG:(DVAR:3):依存度, 50)
-			TALENT:(DVAR:3):淫乱 = 1
-			DVAR:1 = 0
-			DVAR:2 = 0
-			DVAR:4 = 0
-			DVAR:3 = -1
+			CFLAG:(DVAR:金貸し娘):従属度 = MAX(CFLAG:(DVAR:金貸し娘):従属度, 500)
+			CFLAG:(DVAR:金貸し娘):依存度 = MAX(CFLAG:(DVAR:金貸し娘):依存度, 50)
+			TALENT:(DVAR:金貸し娘):淫乱 = 1
+			DVAR:金貸し期限 = 0
+			DVAR:金貸し現在額 = 0
+			DVAR:金貸し総額 = 0
+			DVAR:金貸し娘 = -1
 		ELSE
-			返済額 = RAND(100000, MIN(200000, DVAR:4))
+			返済額 = RAND(100000, MIN(200000, DVAR:金貸し総額))
 			PRINTFORMW 「やってしまいましたなぁ、%ANAME(MASTER)%殿」
 			PRINTFORMW 仕事で大きなヘマをしてしまった%ANAME(MASTER)%は、金貸しに呼び出された
 			PRINTFORMW 「まあ、ヘマについては揉み消しましたが。火消しにばらまいた金は、払ってもらいますぞ？
@@ -313,8 +313,8 @@ ELSEIF DVAR:1 == -1 && DVAR:2 <= 0
 			PRINTFORM {返済額}
 			RESETCOLOR
 			PRINTFORMW が課せられた……
-			DVAR:2 = 返済額
-			DVAR:4 = 返済額
+			DVAR:金貸し現在額 = 返済額
+			DVAR:金貸し総額 = 返済額
 		ENDIF
 	ENDIF
 ENDIF
