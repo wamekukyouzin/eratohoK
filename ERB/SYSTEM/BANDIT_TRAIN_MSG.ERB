@@ -618,3 +618,403 @@ IF IS_FEMALE(ARG:0)
 	RESETCOLOR
 	PRINTW
 ENDIF
+
+@BANDIT_REQUIRE_RANSOM
+#DIM 対象
+#DIM 身代金
+#DIM LCOUNT
+#DIM 人数
+#DIM 野盗
+VARSET 対象, -1
+VARSET 身代金
+VARSET LOCAL, -1
+VARSET 人数, 0
+
+;捕まってたら駄目
+SIF CFLAG:MASTER:捕虜先 != 0
+	RETURN
+
+野盗 = GET_COUNTRY_FROM_ID(COUNTRY_BANDIT)
+;野盗勢力がなかったら、オープニングで野盗なしにしてるってことなのでやめる
+SIF 野盗 == -1
+	RETURN
+
+;野盗に所属している場合は飛ばす
+SIF CFLAG:MASTER:所属 == 野盗
+	RETURN 0
+	
+FOR LCOUNT, 1, CHARANUM
+	IF CFLAG:LCOUNT:所属 == CFLAG:MASTER:所属 && CFLAG:LCOUNT:9 == 野盗 && IS_FEMALE(LCOUNT)
+		LOCAL:人数 = LCOUNT
+		人数 ++
+	ENDIF
+NEXT
+IF 人数 > 0
+	CALL FISHER_YATES_SHAFFLE(人数)
+	対象 = LOCAL:(SHAFFLE_ARRAY:0)
+	PRINTFORML 解放:{CFLAG:対象:解放カウンタ}
+	IF CFLAG:対象:解放カウンタ * 5 > RAND:100
+		;身代金は各種能力合計の500倍かプレイヤーの給料3ターンぶんのうち高い方を採用
+		身代金 = ABL:対象:Ｃ感 + ABL:対象:Ｂ感 + ABL:対象:Ａ感 + ABL:対象:Ｖ感 + ABL:対象:Ｍ感 + ABL:対象:欲望 + ABL:対象:性技 + ABL:対象:奉仕 + ABL:対象:性交 + ABL:対象:露出 + ABL:対象:精愛
+		身代金 *= 500
+		身代金 = MAX(GET_SUM_ECONOMY(CFLAG:MASTER:1) * (ABL:MASTER:武闘 + ABL:MASTER:知略 + ABL:MASTER:政治 + 100) / 40000 * 3, 身代金)
+		;こっからテキスト
+		DRAWLINE
+		PRINTFORML %ANAME(MASTER)%が仕事をしていると、侍従が来客を告げた
+		PRINTFORML 使いだと名乗る男が来たのだそうだが、どこから来たのか言わないのだという
+		PRINTFORMW 怪訝に思った%ANAME(MASTER)%は、とりあえず会ってみることにした……
+		PRINTFORML
+		PRINTFORML
+		PRINTFORML
+		;初対面
+		IF DVAR:野盗身代金フラグ == 0
+			PRINTFORML 「へへへ、あんたが%ANAME(MASTER)%か」
+			PRINTFORMW 使いだと自称するのは、ごろつきじみた、明らかに真っ当ではない男だった
+		;前回払った
+		ELSEIF DVAR:野盗身代金フラグ == 1
+			PRINTFORML 「よう、また金ェ払ってもらいに来たぜ」
+			PRINTFORMW 部屋で待っていたのは、例の野盗の使いの男だった。にやにやと、下卑た笑みを浮かべている
+			PRINTFORML 「おっと、荒っぽい真似はナシだぜ。こっちには%ANAME(対象)%がいる。そうだろ？」
+			PRINTFORMW 非常に癪だが、その通りだ。%ANAME(MASTER)%は武器を収めざるを得なかった
+		;前回調教
+		ELSEIF DVAR:野盗身代金フラグ == 2
+			PRINTFORML 「よう、また来てやったぜ？　今度こそ金ェ払ったらどうだよ？」
+			PRINTFORMW 部屋で待っていたのは、例の野盗の使いの男だった。にやにやと、下卑た笑みを浮かべている
+			PRINTFORML 「おっと、荒っぽい真似はナシだぜ。こっちには%ANAME(対象)%がいる。そうだろ？」
+			PRINTFORMW 非常に癪だが、その通りだ。%ANAME(MASTER)%は武器を収めざるを得なかった
+		;前回身代わり
+		ELSEIF DVAR:野盗身代金フラグ == 3
+			PRINTFORML 「よう、まあた来てやったぜ」
+			PRINTFORMW 部屋で待っていたのは、例の野盗の使いの男だった。にやにやと、下卑た笑みを浮かべている
+			PRINTFORML 「へへへ、お前、中々『使い心地』も悪くなかったなぁ」
+			PRINTFORMW 「どうだ？　また俺らのとこに来ねぇか、可愛がってやるぜぇ？」
+			PRINTFORMW 野卑な視線が身体に這わされる。それだけで%ANAME(MASTER)%の身体はかつての陵辱を思い出し、熱を孕んでしまう……
+		ENDIF
+		SELECTCASE RAND:5
+			CASE 0
+				PRINTFORMW 何の用だ、こっちは暇ではない。冷淡に対応すると、男は気色の悪い猫撫で声をあげる
+				PRINTFORML 「おいおい、そんなこと言うなよなぁ。今日はお前に、いいもんを持ってきてやったんだ」
+				PRINTFORML 男が差し出したのは、一枚の写真だった
+				PRINTFORMW 怪訝に思いながら覗き込んだ%ANAME(MASTER)%は、目を疑った
+				PRINTFORML 行方不明になっていた%ANAME(対象)%が、虚ろな瞳で男のモノをしゃぶり、犯されている
+				PRINTFORMW %ANAME(対象)%がどのような扱いを受けてきたかは、想像にかたくなかった
+			CASE 1
+				PRINTFORMW 「それよりだ。この女ァ、見覚えねぇかよ？」
+				PRINTFORML 脚を開き椅子に座り込んだ男の下に、誰かが跪いている
+				PRINTFORML 響くねっとりとした水音からいって、男のモノをしゃぶらされているのだろう
+				PRINTFORMW 確かにその姿には見覚えがあった――%ANAME(対象)%だ！
+				PRINTFORML 「へへへ、最初は泣くわ喚くわブチ切れるわで大事だったがな、今じゃすっかり雌犬だ」
+				PRINTFORML 「おまけに具合もだいぶイイときてる……くっ、オラ射精すぞっ」
+				PRINTFORML 男が軽く腰を浮かすと、%ANAME(対象)%は喉を鳴らし、放たれる白濁を飲み干していく
+				PRINTFORMW 最後の最後まで一物に吸い付いてからモノを解放し、ご馳走様でしたと呟いた
+			CASE 2
+				PRINTFORML 「今日はよぉ、お前に見せたいものがあるんだよ」
+				PRINTFORML 男が手を鳴らすと、部屋の外から誰かが入ってくる
+				PRINTFORMW なんとそれは、野盗との戦いの最中に行方不明になった、%ANAME(対象)%ではないか！
+				PRINTFORML その姿は、見るも無惨なものになっていた
+				PRINTFORML 卑猥な落書きを施された全身は白濁にまみれ、首輪以外には何も身に着けさせてもらえていない
+				PRINTFORML 瞳は虚ろで、端から子種を垂れ流す唇から、ぶつぶつと、男根をねだる言葉を呟いている
+				PRINTFORML 無意識に快楽をもとめているのか、その手は白濁を垂れ流す両穴をぐちゅぐちゅと掻き回している
+				PRINTFORMW 彼女がどのようなことをされてきたか、想像にかたくなかった
+			CASE 3
+				PRINTFORML 「今日はよぉ、お前に見せたいものがあるんだよ」
+				PRINTFORML 男が手を鳴らすと、部屋の外から誰かが入ってくる
+				PRINTFORML なんとそれは、野盗との戦いの最中に行方不明になった、%ANAME(対象)%ではないか！
+				PRINTFORMW 身に纏った衣装は、ボディラインを強調するような、なんとも卑猥なものだった
+				PRINTFORML 「おう雌豚、さっさと準備しろ」
+				PRINTFORML 男が命じると、%ANAME(対象)%は文句一つ言うことなく、壁に手を突き尻を突き出す
+				PRINTFORMW たくし上げられたスカートの中に下着などなく、期待に濡れた秘部が剥き出しになっている
+				PRINTFORML 「へへへ、まったくたまんねぇなオラっ！」
+				PRINTFORML ろくな準備もなしに男がそこへ一物をねじ込むと、%ANAME(対象)%はたまらないという声を上げる
+				PRINTFORML そのまま抽送にあわせて自ら腰を振り、だらしのないアヘ顔を晒し続けた
+				PRINTFORMW 結局、行為が終わったのは、彼が三回も膣内射精した後のことだった
+			CASE 4
+				PRINTFORML 「今日はよぉ、お前に見せたいものがあるんだよ」
+				PRINTFORML 男が手を鳴らすと、部屋の外から誰かが入ってくる
+				PRINTFORML なんとそれは、野盗との戦いの最中に行方不明になった、%ANAME(対象)%ではないか！
+				PRINTFORMW 一糸まとわぬ裸身の乳房と秘部には、痛々しい金色のピアスがぶら下がっている
+				PRINTFORML 「ほれ、挨拶しろ」
+				PRINTFORML 男がそう呟くと、%ANAME(対象)%は床に頭をつけ、土下座してみせた
+				PRINTFORML そして、己がどのようなことをされてきたか、つぶさに報告し始めた
+				FOR LOCAL:0, 0, 4
+					PRINTDATA
+						DATAFORM 浮浪者相手に身を売って歩いたこと、
+						DATAFORM 娼館で客をとり、金を稼いだこと、
+						DATAFORM 男のモノを何本も受け入れ、悦ばせたこと、
+						DATAFORM 自分がペニス狂いの雌豚になり果てたこと、
+						DATAFORM ときには野良犬と交わりもしたこと、
+						DATAFORM もう何人に種付けされたか分からないこと、
+						DATAFORM もうセックスなしには生きていけないこと、
+						DATAFORM 彼らの家畜として飼育されたこと、
+						DATAFORM ストリップダンサーとして働いたこと、
+						DATAFORM 他の囚人の慰みものにされたこと、
+						DATAFORM 肉便器として何度も使ってもらったこと、
+						DATAFORM 彼ら専用のマゾ豚として生まれ変わったこと、
+						DATAFORM 今こうしている間もオナニーしたくて仕方ないこと、
+						DATAFORM アジトの近くを露出して歩いて回ったこと
+						DATAFORM 行きずりの男に声をかけ、抱いてもらったこと、
+						DATAFORM 彼らの一物がどれだけ素晴らしいか、
+						DATAFORM 彼らのセックスがどれほど最高か、
+						DATAFORM 自分にとってどれだけ便女が適任であったか、
+						DATAFORM セックスなしの生活にはもう戻れないこと、
+						DATAFORM 一夜を競売にかけられ、知らぬ男に抱かれたこと、
+						DATAFORM さまざまな道具屋薬物の実験対にされたこと
+						DATAFORM もはや「愛あるセックス」などでは満足できないこと、
+						DATAFORM 家畜として飼育されたこと、
+						DATAFORM 行きずりの男の一物をしゃぶって回らされたこと、
+						DATAFORM レイプされていないと子宮が疼いてしかたないこと、
+						DATAFORM 腕のように太いペニスが今も恋しくてしかたないこと、
+						DATAFORM 輪姦以外ではイけなくなってしまったこと
+						DATAFORM 奴隷としての自分の分際について、
+						DATAFORM 奴隷である自分を犯してくれる彼らがどれだけ素晴らしいか、
+						DATAFORM すぐ股を濡らしてしまう己の浅ましさ、
+						DATAFORM ときには彼らに厠として使ってもらったこと、
+						DATAFORM 二穴を抉られることがどれだけ気持ちいいか、
+						DATAFORM 自分は天性の性奴隷なのだということ、
+						DATAFORM 日頃受けている調教はどのようなものか
+						DATAFORM ペニスをしゃぶらせていただくときにどれほど幸せか、
+						DATAFORM 犯されることこそ女としての生きがいであるということ、
+						DATAFORM 今日もこの後この人に犯してもらうのだということ、
+						DATAFORM ここに来る前にも何発も膣内射精してもらったということ、
+						DATAFORM 今まで知らなかった菊穴での快楽について、
+						DATAFORM アナルをペニスでほじくられることがどれだけ気持ちよいか、
+						DATAFORM 自分の乳房は授乳でなくパイズリのためにあるということ、
+						DATAFORM 自分の口はチンポをしゃぶるためにあるということ、
+						DATAFORM 自分の髪はチンポを扱くためにあるのだということ、
+						DATAFORM 自分の膣は犯され、膣内射精されるためにあるのだということ、
+						DATAFORM 自分はいやらしい、淫らな雌犬にすぎないのだということ、
+					ENDDATA
+				NEXT
+				PRINTFORML などなど……
+				PRINTFORMW 聞くに堪えない話の連続に、%ANAME(MASTER)%は唇を噛みしめて堪えていた
+		ENDSELECT
+		PRINTFORML 「事情は察したろ？　コイツは俺らの肉便器になったってわけだ」
+		PRINTFORML 「でもいい加減ユルくなってきてなぁ、俺らも飽きてきたし、持ち主に返してやろうと思ったわけだ」
+		PRINTFORMW 男は平然と語っている。今すぐにでも斬りかかりたいのを、%ANAME(MASTER)%は懸命に抑えていた
+		PRINTFORM 「まあそういうわけだから、金
+		SETCOLOR COLOR("CAUTION")
+		PRINTFORM {身代金}
+		RESETCOLOR
+		PRINTFORMW で返してやるよ。どうだ？　悪くないだろうが？」
+		PRINTFORML なにが悪くないだ、ふざけるのもいい加減にしろ
+		PRINTFORMW しかし、ここでこの男の言うことを断れば、%ANAME(対象)%の身が危ないだろう
+		PRINTFORML さて、どうしたものか……
+		DRAWLINE
+		PRINTFORML 現在の金:{MONEY}
+		IF MONEY >= 身代金
+			PRINTL [0] 払う
+		ELSE
+			SETCOLOR COLOR_UNSELECTABLE
+			PRINTPLAINFORM [0] 金{身代金}が必要だが、そんなに持っていない
+			PRINTL 
+			RESETCOLOR
+		ENDIF
+		PRINTL [1] 払わない
+		SIF IS_FEMALE(MASTER) && GET_COUNTRY_BOSS(CFLAG:MASTER:所属) != MASTER
+			PRINTL [2] 代わりに自分が捕虜になる
+		$INPUT_LOOP
+		INPUT
+		;払う
+		IF RESULT == 0 && MONEY >= 身代金
+			PRINTFORML 「へへへ、毎度ありだな」
+			PRINTFORMW 「安心しな、%ANAME(対象)%は責任もって送り返してやるよ、ひゃひゃひゃ！
+			PRINTFORML 金を渡すと、男は早々に立ち去っていった
+			PRINTFORMW 部下の者に追跡させたが、巧妙に撒かれ、彼らのアジトを掴むには至らなかった……
+			CFLAG:対象:9 == 0
+			CFLAG:対象:解放カウンタ = 0
+			DVAR:野盗身代金フラグ = 1
+			PRINTFORML
+			IF RAND:100 < 80
+				SETCOLOR COLOR("CAUTION")
+				PRINTFORMW %ANAME(対象)%が戻ってきました
+				RESETCOLOR
+			ENDIF
+			DRAWLINE
+			CALL BANDIT_RELEASE_MSG(対象)
+		;自分が身代わり（分岐短いのでこっちを先に書く）
+		ELSEIF RESULT == 2 && IS_FEMALE(MASTER) && GET_COUNTRY_BOSS(CFLAG:MASTER:所属) != MASTER
+			IF 野盗身代金フラグ != 3
+				PRINTFORML 「は？　お前が？」
+				PRINTFORMW %ANAME(MASTER)%の答えは意外なものだったのだろう。彼はしばらくきょとんとしていた。
+				PRINTFORML 「ふーん？　なるほどお前が？　ふーん、ふーん、なるほどな、なるほどなるほど」
+				PRINTFORMW 下卑た視線が、身体を這う。
+				PRINTFORML 「いいぜ、どうせあの女には飽きてたし、新品が手に入るなら悪くはねぇ。……ヒヒヒ、壊れても知らねぇぞ？」
+				PRINTFORML 男は首を縦に振る。そして%ANAME(MASTER)%を縛り上げると、アジトまで連れて帰った……
+				PRINTFORMW 道中、幾度となく、彼に「使われ」てしまった……
+			ELSE
+				PRINTFORML 「へへへ、そうこなくちゃぁなァ？」
+				PRINTFORML 毅然とした態度をとらねばと思っても、身体が疼いてしかたない。%ANAME(MASTER)%は、己を差し出すことに同意してしまう
+				PRINTFORMW 仲間を助けるためではない。あくまで、自分が調教してもらうためにだ……
+				PRINTFORML 「いいぜ、お前、中々悪くなかったしな。ひひひ、たぁぁっぷり可愛がってやるぜ？　……まずは手始めに、ホレ、こいつだ」
+				PRINTFORML 男はニヤニヤと笑いながら、己の一物を露出させる
+				PRINTFORMW %ANAME(MASTER)%はあらがうこともできず、自らそれをしゃぶりはじめた……
+				PRINTFORMW %ANAME(MASTER)%の口や膣穴を何度も使った後、彼は%ANAME(MASTER)%を縛り上げ、己のアジトへと連れ去った……
+			ENDIF
+			DVAR:野盗身代金フラグ = 3
+			CFLAG:対象:9 = 0
+			CFLAG:対象:解放カウンタ = 0
+			CFLAG:MASTER:9 = 野盗
+		;払わない（見せしめレイプ）
+		ELSEIF RESULT == 1
+			PRINTFORML お前達に払う金などない、我々は我々自身の手で%ANAME(対象)%を救い出す。
+			PRINTFORMW 毅然として伝えると、男は冷笑した
+			PRINTFORML 「へっ、そうかよ、まぁ別にいいぜ？　それならそれで、こっちにも考えがあるってもんだ」
+			PRINTFORML じゃあなと吐き捨て、男は早々に立ち去っていった
+			PRINTFORMW 部下の者に追跡させたが、巧妙に撒かれ、彼らのアジトを掴むには至らなかった……
+			DVAR:野盗身代金フラグ = 2
+			CFLAG:対象:解放カウンタ = 0
+			IF RAND:100 < 15
+				DRAWLINE
+				PRINTFORML
+				SELECTCASE RAND:5
+					CASE 0
+						PRINTFORML 薄暗い部屋の中に、男どもの罵声と、女のヨガり声が響き渡っている
+						PRINTFORMW %ANAME(対象)%の身柄を利用して一儲けするアテが外れた彼らは、腹いせに%ANAME(対象)%を陵辱しているのだ
+						PRINTFORML 彼女の瞳は虚ろで、えへらえへらと笑っている。薬物を大量に盛られたらしい
+						PRINTFORMW その証拠に、排卵誘発剤や媚薬など、あらゆる種類の薬瓶がそこかしこに転がっている……
+						PRINTFORML 彼女の膣穴を貫いた男が呻き、ぶるりと震えた。その肉穴の中に、己の精を解き放ったのだ
+						PRINTFORML 肉棒が引き抜かれると、既に何十回と犯された雌穴からは、種がどろりとこぼれ落ちる
+						PRINTFORML それでもなお男達は満足していないらしく、すぐさま別の男が彼女の雌穴を犯し始めた
+						PRINTFORMW 貫かれる快楽に我を忘れて嬌声をあげる唇は、先ほど膣内射精したばかりのペニスの掃除のために使われ始めた……
+						PRINTFORML その後も、%ANAME(対象)%は数えられないほど射精された
+						PRINTFORML 執拗に、執拗に、%ANAME(MASTER)%のいけ好かない態度への腹いせとして、彼女を孕ませるつもりなのだ
+						PRINTFORML 彼女の太腿に刻まれた正の字は、もはや両手で数えても足りない個数になっている
+						PRINTFORML そしてまた、男が彼女に覆い被さり、彼女に種付けせんとする
+						PRINTFORML さらにその口に、追加の排卵誘発剤が注ぎ込まれる
+						PRINTFORMW 薬物の効能と快楽とで前後不覚に陥っている彼女は、ひたすら腰を振りたくり、中出しして、孕ませてと喚き続ける……
+					CASE 1
+						PRINTFORML 浮浪者どもの溜まり場に、女のヨガり声が響き渡っている
+						PRINTFORMW 野盗は%ANAME(対象)%を、浮浪者どもに格安で払い下げたのだ
+						PRINTFORML 女日照りの彼らは、我先にと%ANAME(対象)%に群がり、恥垢まみれのその棒を、高嶺の花へとねじ込んでいる
+						PRINTFORMW 酸鼻を極めるような陵辱風景だが、%ANAME(対象)%は嫌がり喚くどころか、自ら腰を振り、肉棒をねだっている
+						PRINTFORML 理由は、彼女の腕にいくつもできた注射跡のあざが物語っている
+						PRINTFORMW 今の彼女にとっては、鼻の曲がるような彼らの悪臭すら、快楽を後押しするスパイスにしかならないのだ
+						PRINTFORML そうしてまた、彼女の雌穴に、本日何十発目かの精液がぶちまけられる
+						PRINTFORMW 膣で、子宮で感じる熱さに、彼女は背を反らし、髪を振り乱してイき狂った
+						PRINTFORML 肉棒が淫口から引き抜かれると、黄ばんだ精液がでろぉおとこぼれ落ちる
+						PRINTFORML 孕まされたかもしれないというのに、彼女はそんなことなどおかまいなしに、己に膣内射精したばかりの肉棒を口で清めていく
+						PRINTFORMW その間にも、別の男が彼女の膣穴を、尻穴を、次から次へ犯し、体内から真っ白に汚していく……
+						PRINTFORMW 底辺の存在にちり紙程度の気安さで使われ、さらに罵声まで浴びせられながら、なおも彼女はアヘ顔をさらし、ヨガり続けた……
+					CASE 2
+						PRINTFORML 畜舎に、ウエディングドレスを着た女がいる
+						PRINTFORMW 野盗は、%ANAME(対象)%を豚と結婚させてやろうとしているのだ
+						PRINTFORMW 常軌を逸した発想だが、%ANAME(対象)%は泣きも喚きもしない。薬物により、何も分からなくされているのだ
+						PRINTFORML 純白のドレスに身を包んだお姫様は、そのまま豚のペニスに、生涯の愛を誓うキスをさせられた
+						PRINTFORML 今の彼女にとっては、肉棒であれば人のものであれ獣のものであれどうでもいい
+						PRINTFORMW むしろ口腔を満たす獣臭さに雌性を刺激され、彼女は普段よりさらに熱心に豚のモノに奉仕してみせる……
+						PRINTFORML ひとしきり口淫が終わると、彼女は自ら、ドレスのスカートをまくり上げ、四つん這いになって尻を高く掲げた
+						PRINTFORML 下着を着けておらず、秘裂が思い切りさらけ出される。そこは快楽への期待に、すでにどろどろに濡れていた
+						PRINTFORML %ANAME(対象)%が自ら秘裂を指で広げ、肉棒をねだる言葉を「旦那様」に述べると、豚は興奮して彼女にのしかかる
+						PRINTFORMW そしてそのドリルのようにねじくれたペニスでもって、%ANAME(対象)%の雌穴を一撃で貫いた
+						PRINTFORML 畜生に犯されているという事実すら、%ANAME(対象)%にとっては快楽を後押しするものでしかない
+						PRINTFORMW 彼女は激しくヨガり狂い、妻として夫の精を何度も受け止めていった……
+					CASE 3
+						PRINTFORMW 野盗は、%ANAME(対象)%を肉便器にしたようだ
+						PRINTFORML 壁に開いた穴に身体を通し、下半身だけ剥き出しにした状態で、彼女は放置されている
+						PRINTFORMW 次から次へと男がやってきては、さらけ出された彼女の女穴を、尻穴を犯しては、その中に子種を放っていく
+						PRINTFORML 会話がないどころか互いの顔すら分からない状態で、女として最も大切な場所を、オナホールやちり紙程度の感覚で使われている
+						PRINTFORMW それは尊厳もなにもあったものではない行為だというのに、%ANAME(対象)%は甘い声を上げ、抽送を受け止めている
+						PRINTFORML 事前に野盗どもに打たれた規定量の何倍もの薬品が、彼女から理性を奪い、チンポ狂いの雌穴に仕立て上げているのだ
+						PRINTFORML そしてまた、顔も知れぬ誰かが、彼女の中で下衆な欲望を解き放つ
+						PRINTFORMW 雑な方法で尊厳を踏みにじられてなお、%ANAME(対象)%は快楽に悶え、子宮に流れ込む熱さに何度も絶頂する
+						PRINTFORML 客が満足し、肉穴から棒を引き抜くと、文字通り数え切れないほど種付けされた膣口から、白いものがぼとぼとと零れる
+						PRINTFORMW それでもなお解放されることはなく、すぐに次の客が%ANAME(対象)%の下半身を使い、彼女は快楽に溺れる
+						PRINTFORMW 我に返ることは許されない。野盗が次から次へ、薬物を追加してくるのだから……
+					CASE 4
+						PRINTFORML %ANAME(対象)%が、野良犬と交わっている
+						PRINTFORMW 入念な訓練を受けながらも野性味を残したピストンは彼女を容赦なくヨガらせ、だらしのない喘ぎ声をあげさせている
+						PRINTFORML 野盗は、%ANAME(対象)%をどこかの富豪に売り払ったようだ
+						PRINTFORML しかし富豪からしてみれば、どこの馬の骨とも知らぬ女など、多少上玉であっても抱くつもりなどない
+						PRINTFORMW 彼はそもそも、ペットにあてがうために、%ANAME(対象)%を買ったのだ
+						PRINTFORML ペットのほうはといえば、新しい「嫁」を非常に気に入ったようだった
+						PRINTFORML 犬特有の形をしたペニスで、%ANAME(対象)%の雌穴を何度も抉っていく
+						PRINTFORMW %ANAME(対象)%も、尻穴から尻尾を生やした雌犬らしい格好で、雄からのたくましい抽送を何度も受け止め、ヨガっている
+						PRINTFORMW 二人はまさに似合いのつがいであり、交尾は毎日毎日、何時間、何十発分にもわたって続いた……
+				ENDSELECT
+				DRAWLINE
+				PRINTFORML
+				PRINTFORML
+				PRINTFORML
+				PRINTFORML
+				PRINTFORML 一部始終を記録した一連の写真が、後日、%ANAME(MASTER)%の下に届けられた
+				PRINTFORMW 添えられた手紙によると、「ぶっ壊れて」しまった%ANAME(対象)%は、どこかの野に放り出されたようだ……
+				SETCOLOR COLOR("ALERT")
+				PRINTFORMW %ANAME(対象)%が解放されましたが、行方知らずになりました
+				RESETCOLOR
+				CFLAG:対象:所属 = 0
+				CFLAG:対象:捕虜先 = 0
+				CFLAG:対象:特殊状態フラグ = 1
+				;好感度と従属度を失っていく
+				CFLAG:(対象):好感度 = MAX(CFLAG:(対象):好感度 - 3000 , 0)
+				CFLAG:(対象):従属度 = MAX(CFLAG:(対象):従属度 - 3000 , 0)
+				CFLAG:(対象):依存度 = MAX(CFLAG:(対象):依存度 - 3000 , 0)
+				LOCAL:3 += MAX(ABL:(対象):Ｃ感, 0)
+				LOCAL:3 += MAX(ABL:(対象):Ｖ感, 0) * 3
+				LOCAL:3 += MAX(ABL:(対象):Ａ感, 0) * 3
+				LOCAL:3 += MAX(ABL:(対象):Ｂ感, 0)
+				LOCAL:3 += MAX(ABL:(対象):Ｍ感, 0)
+				LOCAL:3 = LOCAL:3 * (ABL:(対象):欲望 + 2)
+				;すごい量の経験を得る
+				IF PENIS(対象)
+					EXP:(対象):Ｃ感経験値 += ABL:(対象):Ｃ感 + 30 + RAND:10
+					EXP:(対象):Ａ感経験値 += ABL:(対象):Ａ感 * 30 + 80 + RAND:30
+				ELSE
+					EXP:(対象):Ｃ感経験値 += ABL:(対象):Ｃ感 * 20 + 30 + RAND:20
+					EXP:(対象):Ｖ感経験値 += ABL:(対象):Ｖ感 * 60 + 80 + RAND:20
+					EXP:(対象):Ａ感経験値 += ABL:(対象):Ａ感 * 60 + 80 + RAND:20
+				ENDIF
+				EXP:(対象):Ｂ感経験値 += ABL:(対象):Ｂ感 * 20 + 20 + RAND:20
+				EXP:(対象):Ｍ感経験値 += ABL:(対象):Ｍ感 * 20 + 20 + RAND:20
+				EXP:(対象):欲望経験値 += ABL:(対象):欲望 * 15 + 20 + LOCAL:3 + RAND:15
+				EXP:(対象):奉仕経験値 += ABL:(対象):奉仕 * 10 + 20 + RAND:20
+				EXP:(対象):性交経験値 += ABL:(対象):性交 * 25 + 60 + RAND:20
+				EXP:(対象):性技経験値 += ABL:(対象):性技 + 25 + RAND:10
+				EXP:(対象):精愛経験値 += ABL:(対象):精愛 * 30 + 100 + RAND:30
+				IF PENIS(対象)
+					EXP:(対象):射精経験値 += ABL:(対象):射精 * 10 + 100 + RAND:50
+				ENDIF
+				EXP:(対象):キス経験 += 20 + RAND:15
+				EXP:(対象):口淫経験 += 30 + RAND:30
+				EXP:(対象):絶頂経験 += LOCAL:3 * (100 + RAND:200) / 100 + 30
+				;中出しと妊娠判定
+				IF CONFIG:1 == 0 && (VAGINA(対象) || TALENT:(対象):孕み可能)
+					FOR LOCAL:1, 440, 480
+						TCVAR:(対象):(LOCAL:1) = 0
+					NEXT
+					CALL RECORD_INJECTION(対象, -16, 100)
+					CALL CHECK_PREGNANT(対象)
+				ENDIF
+				;能力上昇メッセ
+				CALL TRAIN_AUTO_ABLUP(対象, 0)
+				;処女とキス未経験を失う
+				IF TALENT:(対象):キス未経験
+					IF RAND:4
+						;ペニスへのキス
+						CALL KISS_COMMON(対象, -16, 1, 0, 0)
+					ENDIF
+					;唇へのキス
+					CALL KISS_COMMON(対象, -16, 0, 0, 0)
+					SETCOLOR COLOR_CAUTION
+					PRINTFORML %ANAME(対象)%は<キス未経験>を失った…
+					RESETCOLOR
+				ENDIF
+				IF TALENT:(対象):処女 && VAGINA(対象)
+					SETCOLOR COLOR_CAUTION
+					PRINTFORML %ANAME(対象)%は<処女>を失った…
+					RESETCOLOR
+					;処女を捧げた相手を野盗に設定
+					CFLAG:(対象):41 = -16
+					TALENT:(対象):処女 = 0
+				ENDIF
+				SETCOLOR COLOR_ALERT
+				IF !TALENT:(対象):淫乱
+					PRINTFORML %ANAME(対象)%は＜淫乱＞を得た
+					TALENT:対象:淫乱 = 1
+				ENDIF
+				RESETCOLOR
+			ENDIF
+		ELSE
+			GOTO INPUT_LOOP
+		ENDIF
+	ENDIF
+ENDIF
