@@ -602,6 +602,7 @@ VARSET BATTLE_RATE_ATC, 0
 VARSET BATTLE_RATE_GRD, 0
 VARSET BATTLE_RATE_GRD_B, 0
 VARSET SCHEME_BASE, 3200
+VARSET BATTLE_FORCE_SCHEME, -1
 VARSET SCHEME_BASE, ABL_50_POWER
 
 ;優先して発動する特殊計略の処理
@@ -641,6 +642,13 @@ ELSE
 	ENDIF
 ENDIF
 
+;基本値に影響を与える素質発動処理はここに
+CALL BATTLE_BASE_SKILL(0, ARG:0, ARG:1)
+IF BATTLE_F_UNIT:1 == 1
+	CALL BATTLE_BASE_SKILL(1, ARG:2, ARG:3)
+ELSE
+	CALL BATTLE_BASE_SKILL(1, ARG:2, -1, 1)
+ENDIF
 ;★
 ;PRINTFORML 攻撃0={BATTLE_ATC:0, 8}   防御0={BATTLE_DEF:0, 8}
 ;PRINTFORMW 攻撃1={BATTLE_ATC:1, 8}   防御1={BATTLE_DEF:1, 8}
@@ -767,11 +775,13 @@ ELSEIF CITY_IS_ATTACKED:(ARG:2)
 
 ENDIF
 
-
-SKIPDISP LOCAL:5
-IF RAND:(BATTLE_INT:0 + BATTLE_INT:1) >= (SCHEME_BASE:0 + SCHEME_BASE:1)
-	;ARG:0勢力部隊の計略発動
-	IF RAND:(BATTLE_INT:0 + BATTLE_INT:1 - (SCHEME_BASE:0 + SCHEME_BASE:1)) < BATTLE_INT:0 - SCHEME_BASE:0
+IF RAND:(BATTLE_INT:0 + BATTLE_INT:1) >= (SCHEME_BASE:0 + SCHEME_BASE:1) || BATTLE_FORCE_SCHEME != -1
+	;BATTLE_FORCE_SCHEMEによる強制策略
+	IF BATTLE_FORCE_SCHEME == 0
+		CALL TRY_SCHEME(0, 1, ARG:0, ARG:1, ARG:2, ARG:3)
+	ELSEIF BATTLE_FORCE_SCHEME == 1
+		CALL TRY_SCHEME(1, 0, ARG:2, ARG:3, ARG:0, ARG:1)
+	ELSEIF RAND:(BATTLE_INT:0 + BATTLE_INT:1 - (SCHEME_BASE:0 + SCHEME_BASE:1)) < BATTLE_INT:0 - SCHEME_BASE:0
 		;計略の発動
 		CALL TRY_SCHEME(0, 1, ARG:0, ARG:1, ARG:2, ARG:3)
 	;ARG:2勢力部隊の計略発動
@@ -950,6 +960,113 @@ FOR LOCAL:0, 0, 3
 	ENDIF
 NEXT
 
+;-------------------------------------------------
+;優先して発動する特殊計略の処理
+;引数0～1には計算用変数の配列番号(0 or 1)を取る ARG:0=計略発動側 ARG:1=受動側
+;※都市フラグが勃っている防衛部隊とみなし、勢力を都市番号として使用
+;-------------------------------------------------
+@BATTLE_BASE_SKILL(発動側, 勢力, 部隊, 都市フラグ=0)
+#DIM 勢力
+#DIM 部隊
+#DIM 発動側
+#DIM 都市フラグ
+#DIM 武将, 3
+#DIM 受動側
+VARSET 武将, -1
+IF 発動側 == 0
+	受動側 = 1
+ELSE
+	受動側 = 0
+ENDIF
+IF !都市フラグ
+	FOR LOCAL:0, 0, 3
+		武将:(LOCAL) = GET_UNIT_COMMANDER(勢力, 部隊, LOCAL)
+	NEXT
+ELSE
+	FOR LOCAL:0, 0, 2
+		武将:(LOCAL) = GET_CITY_COMMANDER(勢力, LOCAL)
+	NEXT
+ENDIF
+
+SETCOLOR COLOR_CAUTION
+FOR LOCAL:0, 0, 3
+	IF 武将:LOCAL >= 0
+		IF TALENT:(武将:LOCAL):三種の神器 && 20 > RAND:100
+			SELECTCASE RAND:3
+				CASE 0
+					PRINTFORML %ANAME(武将:LOCAL)%の三種の神器・剣！
+					PRINTFORML 部隊の攻撃力が上昇する！
+					TIMES BATTLE_ATC:発動側, 1.3
+				CASE 1
+					PRINTFORML %ANAME(武将:LOCAL)%の三種の神器・玉！
+					PRINTFORML 部隊の防御力が上昇する！
+					TIMES BATTLE_DEF:発動側, 1.3
+				CASE 2
+					PRINTFORML %ANAME(武将:LOCAL)%の三種の神器・鏡！
+					PRINTFORML 部隊が割合ダメージを与える！
+					BATTLE_RATE_DMG:発動側 = 10
+			ENDSELECT
+		ENDIF
+		;策士。計略が発動する。
+		;相手のBATTLE_INTの1.3倍がこちらのBATTLE_INTより高い場合、そちらを利用する（反計を防止）
+		IF TALENT:(武将:LOCAL):策士 && 10 > RAND:100
+			PRINTFORML %ANAME(武将:LOCAL)%は策を張り巡らせる……！
+			BATTLE_INT:発動側 = MAX(BATTLE_INT:発動側, BATTLE_INT:受動側 * 13 / 10)
+			BATTLE_FORCE_SCHEME = 発動側
+		ENDIF
+		;明察。反計の確定発動。
+		;具体的には自軍のBATTLE_INTを敵軍の4倍にしつつ（反計の発動を確実にしつつ）、相手側にFORCE_SCHEMEを入れる
+		IF TALENT:(武将:LOCAL):明察 && 7 > RAND:100
+			PRINTFORML %ANAME(武将:LOCAL)%は敵部隊の計略を見透かした！
+			BATTLE_INT:発動側 = BATTLE_INT:受動側 * 4
+			BATTLE_FORCE_SCHEME = 受動側
+			
+		ENDIF
+		;ステゴロ。両軍割合ダメージ。一応自軍に有利。
+		IF TALENT:(武将:LOCAL):ステゴロ && 30 > RAND:100
+			PRINTFORML %ANAME(武将:LOCAL)%は大暴れしている！
+			BATTLE_RATE_DMG:発動側 += RAND(10,15)
+			BATTLE_RATE_DMG:受動側 += RAND(5,10)
+		ENDIF
+		;突貫。攻撃力が増えるが防御力が減る。
+		IF TALENT:(武将:LOCAL):突貫 && 10 > RAND:100
+			PRINTFORML %ANAME(武将:LOCAL)%は捨て身の陣をしいた！
+			TIMES BATTLE_ATC:発動側, 1.2
+			TIMES BATTLE_DEF:発動側, 0.7
+		ENDIF
+		;下克上等。彼我の実力を入れ替える。相手より弱ければ弱いほど発動率は高まる。
+		IF TALENT:(武将:LOCAL):下克上等 && BATTLE_F_UNIT:受動側
+			LOCAL:1 = 100 - (BATTLE_ATC:発動側 + BATTLE_DEF:発動側 + BATTLE_INT:発動側 + BATTLE_MAG:発動側 + BATTLE_SOL:発動側) * 100  / (BATTLE_ATC:受動側 + BATTLE_DEF:受動側 + BATTLE_INT:受動側 + BATTLE_MAG:受動側 + BATTLE_SOL:受動側)
+			IF LOCAL:1 > RAND:100
+				PRINTFORML %ANAME(武将:LOCAL)%の下克上等！
+				PRINTFORML 両者の実力が入れ替わる！
+				SWAP BATTLE_ATC:0, BATTLE_ATC:1
+				SWAP BATTLE_DEF:0, BATTLE_DEF:1
+				SWAP BATTLE_INT:0, BATTLE_INT:1
+				SWAP BATTLE_MAG:0, BATTLE_MAG:1
+			ENDIF
+		ENDIF
+		;魔力転換。攻撃力の2割を割合ダメージ基礎値とする。
+		IF TALENT:(武将:LOCAL):魔力転換 && 20 > RAND:100
+			PRINTFORML %ANAME(武将:LOCAL)%は攻撃力を魔力に転換した！
+			BATTLE_MAG:発動側 += BATTLE_ATC:発動側 * 2 / 10
+			BATTLE_ATC:発動側 = BATTLE_ATC:発動側 * 8 / 10
+		ENDIF
+		IF TALENT:(武将:LOCAL):バンドガール && 5 > RAND:100
+			PRINTFORML %ANAME(武将:LOCAL)%は楽器演奏で士気を高めた！
+			IF 都市フラグ
+				BATTLE_ATC:発動側 = MAX(BATTLE_ATC:発動側, ABL_50_POWER) * CITY_SUPPORT_LEVEL(勢力) / 1000
+				BATTLE_DEF:発動側 = MAX(BATTLE_DEF:発動側, ABL_50_POWER) * CITY_SUPPORT_LEVEL(勢力) / 1000
+				BATTLE_INT:発動側 = MAX(BATTLE_INT:発動側, ABL_50_POWER) * CITY_SUPPORT_LEVEL(勢力) / 1000
+			ELSE
+				BATTLE_ATC:発動側 = MAX(BATTLE_ATC:発動側, ABL_50_POWER) * UNIT_SUPPORT_LEVEL(勢力, 部隊) / 1000
+				BATTLE_DEF:発動側 = MAX(BATTLE_DEF:発動側, ABL_50_POWER) * UNIT_SUPPORT_LEVEL(勢力, 部隊) / 1000
+				BATTLE_INT:発動側 = MAX(BATTLE_INT:発動側, ABL_50_POWER) * UNIT_SUPPORT_LEVEL(勢力, 部隊) / 1000
+			ENDIF
+		ENDIF
+	ENDIF
+NEXT
+RESETCOLOR
 ;-------------------------------------------------
 ;計略の発動
 ;引数0～1には計算用変数の配列番号(0 or 1)を取る ARG:0=計略発動側 ARG:1=受動側
