@@ -925,37 +925,40 @@ NEXT
 FOR LOCAL:0, 0, 3
 	LOCAL:2 = 発動側:(LOCAL:0)
 	IF LOCAL:2 >= 0 && TALENT:(LOCAL:2):現代兵術
-		LOCAL:5 = 0
-		LOCAL:6 = -1
-		LOCAL:7 = -1
-		FOR LOCAL:0, 30, 33
-			LOCAL:4 = LOCAL:(LOCAL:0)
-			IF LOCAL:4 >= 0
-				LOCAL:5 ++
-			ENDIF
+		;LOCAL:3 = 対象部隊の人数
+		;LOCAL:4 = 変数「対象」に対し用いる添え字
+		;LOCAL:5 = 対象部隊の勢力番号
+		LOCAL:3 = 0
+		LOCAL:4 = -1
+		LOCAL:5 = -1
+		;部隊の人数をカウント
+		FOR LOCAL:1, 0, 3
+			SIF 対象側:(LOCAL:1) >= 0
+				LOCAL:3 ++
 		NEXT
-		IF LOCAL:5 >= 1
-			LOCAL:8 = RAND:(LOCAL:5)
-			LOCAL:6 = LOCAL:(LOCAL:8 + 30)
-
-			IF LOCAL:6 >= 0
+		;誰か武将がいれば発動処理に移行
+		IF LOCAL:3 >= 1
+			;誰をみるか決める
+			LOCAL:4 = RAND:3
+			;みる対象がいた場合
+			IF 対象側:(LOCAL:4) >= 0
+				;勢力番号取得
 				IF ARG:5 >= 0
-					LOCAL:4 = ARG:4
+					LOCAL:5 = ARG:4
 				ELSE
-					LOCAL:4 = CITY_OWNER:(ARG:4)
+					LOCAL:5 = CITY_OWNER:(ARG:4)
 				ENDIF
+				;発動
 				SETCOLOR 0xFF80C0
-				PRINTFORML %NAME:(LOCAL:2)%は%NAME:GET_COUNTRY_BOSS(LOCAL:4)%軍に桃色の霧を吹き掛けた
-				FOR LOCAL:0, 30, 33
-					LOCAL:4 = LOCAL:(LOCAL:0)
-					IF LOCAL:4 >= 0 && (LOCAL:4 == LOCAL:6 || TALENT:(LOCAL:6):研究用奴隷の烙印)
-						PRINTFORML %NAME:(LOCAL:4)%は力が抜けてしまった！
-						;パワーが1になるフラグ
-						CFLAG:(LOCAL:4):34 = 1
+				PRINTFORML %NAME(LOCAL:2)%は%NAME:GET_COUNTRY_BOSS(LOCAL:5)%軍に桃色の霧を吹きかけた
+				;発動回数を一度までに制限するため、外ループで使用しているLOCAL:0をここでも使う
+				FOR LOCAL:0, 0, 3
+					;対象である、または研究用奴隷の烙印を所持しているキャラについて、パワーが1になるフラグがたつ
+					IF LOCAL:0 == LOCAL:4 || TALENT:(LOCAL:0):研究用奴隷の烙印
+						PRINTFORML %NAME(対象:(LOCAL:0)%は力が抜けてしまった！
+						CFLAG:(対象側:(LOCAL:0)):34 = 1
 					ENDIF
 				NEXT
-				WAIT
-				RESETCOLOR
 			ENDIF
 		ENDIF
 	ENDIF
