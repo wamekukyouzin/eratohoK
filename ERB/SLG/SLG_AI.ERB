@@ -1718,27 +1718,37 @@ FOR LOCAL:2, 0, 10
 NEXT
 
 ;-------------------------------------------------
-;都市ARG:0に最適な守将を配置
+;都市ARG:0に最適な守将を配置。ARG:1を1にすると二人設定できる。
 ;※直前に @TMP_CREATE_IS_FREE_MAP 関数を呼び出してから使用すること
 ;-------------------------------------------------
-@SET_CITY_COMMANDER_BEST(ARG:0)
+@SET_CITY_COMMANDER_BEST(ARG:0, ARG:1 = 0)
+#DIM 勢力
+#DIM LCOUNT,2
+#DIM 最大
+VARSET LOCAL, __INT_MIN__
 ;都市を所有する勢力の番号を取得
-LOCAL:5 = CITY_OWNER:(ARG:0)
+勢力 = CITY_OWNER:(ARG:0)
 
-LOCAL:10 = -1
-LOCAL:11 = 0
-FOR LOCAL:0, 0, CHARANUM
-	IF CFLAG:(LOCAL:0):1 == LOCAL:5 && TMP_IS_FREE:(LOCAL:0):0 == 0
-		LOCAL:21 = MAX(ABL_POWER_X(ABL:(LOCAL:0):武闘, LOCAL:0) - ABL_50_POWER, 0)
-		LOCAL:22 = MAX(ABL_POWER_X(MIN(ABL:(LOCAL:0):知略, 110), LOCAL:0) - ABL_50_POWER, 0)
-		LOCAL:23 = MAX(ABL_POWER_X(ABL:(LOCAL:0):妖術, LOCAL:0) - ABL_50_POWER, 0)
-		LOCAL:24 = LOCAL:21 + LOCAL:22 / 8 + LOCAL:23
-		IF LOCAL:24 > LOCAL:11
-			LOCAL:11 = LOCAL:24
-			LOCAL:10 = LOCAL:0
-		ENDIF
+;勢力に所属してFREEな各キャラの能力を記録
+FOR LCOUNT, 0, CHARANUM
+	IF CFLAG:(LCOUNT):所属 == 勢力 && TMP_IS_FREE:(LCOUNT):0 == 0
+		;知略の重みは武闘・妖術の1/8
+		LOCAL:(LCOUNT) = MAX(ABL_POWER_X(ABL:(LCOUNT):武闘, LCOUNT) - ABL_50_POWER, 0) + MAX(ABL_POWER_X(MIN(ABL:(LCOUNT):知略, 110), LCOUNT) - ABL_50_POWER, 0) / 8 + MAX(ABL_POWER_X(ABL:(LCOUNT):妖術, LCOUNT) - ABL_50_POWER, 0)
 	ENDIF
 NEXT
-IF LOCAL:10 >= 0
-	CITY_COMMANDER:(ARG:0) = GET_ID(LOCAL:10)
-ENDIF
+
+;二人設定フラグが真なら2度回す
+FOR LCOUNT:0, 0, 1 + (ARG:1 == 1)
+	;LOCAL（記録した各キャラの能力）から、最大のものを探索
+	最大 = MAXARRAY(LOCAL, 0)
+	;最大のものが__INT_MIN__でなければ（その都市を所属している勢力に、IS_FREEなキャラが残っていれば）、そいつを登録
+	IF 最大 != __INT_MIN__
+		FOR LCOUNT:1, 0, CHARANUM
+			IF LOCAL:(LCOUNT:1) == 最大
+				CALL SET_CITY_COMMANDER(ARG:0, LCOUNT:0, LCOUNT:1)
+				LOCAL:(LCOUNT:1) = __INT_MIN__
+				BREAK
+			ENDIF
+		NEXT
+	ENDIF
+NEXT
