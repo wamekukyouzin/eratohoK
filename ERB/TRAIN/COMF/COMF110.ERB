@@ -1,0 +1,311 @@
+﻿;足を舐める
+
+;-------------------------------------------------
+;コマンド名称
+;-------------------------------------------------
+@COM_NAME110
+RESULTS:0 = 土下座する
+RESULTS:1 = 土下座させられる
+RESULTS:2 = 土下座させる
+RESULTS:3 = 土下座される
+RESULTS:4 = 土下座させる
+RESULTS:5 = 土下座見せつけ
+
+;-------------------------------------------------
+;選択可否判定
+;-------------------------------------------------
+@COM_ABLE110
+;共通部分
+CALL COM_ABLE_COMMON(110)
+SIF RESULT == 0
+	RETURN 0
+;プレイヤーは最大で5人まで
+SIF MPLY_NUM <= 0 || MPLY_NUM > 5
+	RETURN 0
+;ターゲットは最大で5人まで
+SIF MTAR_NUM <= 0 || MTAR_NUM > 5
+	RETURN 0
+;プレイヤーが行動不能なら不可
+SIF !IS_PLAYABLE(MPLY:0)
+	RETURN 0
+
+LOCAL:5 = 0
+LOCAL:6 = 0
+;全てのプレイヤーについて判定
+FOR LOCAL:0, 0, MPLY_NUM
+	;顔面騎乗されているなら不可
+	SIF IS_RIDDEN(MPLY:(LOCAL:0))
+		RETURN 0
+	;顔面騎乗しているなら不可
+	SIF IS_RIDDEN(MPLY:(LOCAL:0))
+		RETURN 0
+	;キス中、貝合中なら不可
+	SIF IS_EQUIP(MPLY:(LOCAL:0), 20, 21)
+		RETURN 0
+	;手コキ、脚コキ、素股, パイズリ、オナホコキ中なら不可
+	SIF IS_EQUIP_PLAYER(MPLY:(LOCAL:0), 10, 12, 14, 13, 17)
+		RETURN 0
+	;Ｖ挿入中かつ体位が後背位以外なら不可
+	SIF IS_INSERT_SINGLE(MPLY:(LOCAL:0), "Ｖ") && !GROUPMATCH(GET_SEX_POSITION_SINGLE(MTAR:0, "Ｖ"), 2)
+		RETURN 0
+	;Ａ挿入中かつ体位が後背位以外なら不可
+	SIF IS_INSERT_SINGLE(MPLY:(LOCAL:0), "Ａ") && !GROUPMATCH(GET_SEX_POSITION_SINGLE(MTAR:0, "Ａ"), 2)
+		RETURN 0
+	;拘束のチェック
+	SIF IS_BIND(MPLY:(LOCAL:0))
+		LOCAL:5 = 1
+NEXT
+;全てのターゲットについて判定
+FOR LOCAL:0, 0, MTAR_NUM
+	;顔面騎乗されているなら不可
+	SIF IS_RIDDEN(MTAR:(LOCAL:0))
+		RETURN 0
+	;挿入中なら不可
+	SIF IS_INSERT_SINGLE(MTAR:(LOCAL:0), "全")
+		RETURN 0
+	;キス中なら不可
+	SIF IS_EQUIP(MTAR:(LOCAL:0), 20)
+		RETURN 0
+	;拘束のチェック
+	SIF IS_BIND(MTAR:(LOCAL:0))
+		LOCAL:6 = 1
+NEXT
+;プレイヤーとターゲットが両方拘束されていれば不可
+SIF LOCAL:5 && LOCAL:6
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;メイン処理
+;-------------------------------------------------
+@COM110
+;実行判定
+CALL COM_ORDER_COMMON
+SIF RESULT == 0
+	RETURN 0
+
+
+;●全プレイヤーについて処理
+FOR LOCAL:0, 0, MPLY_NUM
+	LOCAL:2 = MPLY:(LOCAL:0)
+
+	DOWNBASE:(LOCAL:2):体力 += 50
+
+	SOURCE:(LOCAL:2):奉仕 = SERVE_HOUSHI(LOCAL:2, 150)
+	SOURCE:(LOCAL:2):逸脱 = 80
+	SOURCE:(LOCAL:2):接触 = 30
+
+	;奉仕経験値を得られるコマンドのフラグ
+	TCVAR:(MPLY:0):4 = 1
+
+	;主導権に応じた優越・屈従のソース追加
+	CALL ADD_SOURCE_INITIATIVE_U(LOCAL:2, 50, 200)
+NEXT
+
+;●全ターゲットについて処理
+FOR LOCAL:0, 0, MTAR_NUM
+	LOCAL:2 = MTAR:(LOCAL:0)
+
+	DOWNBASE:(LOCAL:2):体力 += 40
+
+	SOURCE:(LOCAL:2):嗜虐 = 50
+	SOURCE:(LOCAL:2):露出 = 30
+	SOURCE:(LOCAL:2):逸脱 = 20
+	SOURCE:(LOCAL:2):接触 = 30
+
+	;主導権に応じた優越・屈従のソース追加
+	CALL ADD_SOURCE_INITIATIVE_U(LOCAL:2, 160, 80)
+NEXT
+
+;主導度変化基準値
+TFLAG:49 = 3
+
+;倒錯度変化基準値
+TFLAG:50 = 2
+
+;レズ・ＢＬ経験基準値
+TFLAG:51 = 4
+
+RETURN 1
+
+;-------------------------------------------------
+;継続コマンドかどうかを設定
+;-------------------------------------------------
+@COM_IS_EQUIP110
+RETURN 1
+
+;-------------------------------------------------
+;継続状態の処理
+;-------------------------------------------------
+@COM_EQUIP110(ARG:0)
+;●全プレイヤーについて判定
+FOR LOCAL:0, 0, MEQUIP_PLAYER_NUM:(ARG:0)
+	LOCAL:2 = MEQUIP_PLAYER:(ARG:0):(LOCAL:0)
+
+	DOWNBASE:(LOCAL:2):体力 += 10
+
+	SOURCE:(LOCAL:2):奉仕 += SERVE_HOUSHI(LOCAL:2, 50)
+	SOURCE:(LOCAL:2):逸脱 += 40
+	SOURCE:(LOCAL:2):接触 += 15
+
+	;主導権に応じた優越・屈従のソース追加
+	CALL ADD_SOURCE_INITIATIVE_U(LOCAL:2, 10, 50)
+
+	;奉仕経験値を得られるコマンドのフラグ
+	TCVAR:(LOCAL:2):4 = 1
+
+	;倒錯度変化基準値
+	TCVAR:(LOCAL:2):50 += 3
+NEXT
+
+;●全ターゲットについて判定
+FOR LOCAL:0, 0, MEQUIP_TARGET_NUM:(ARG:0)
+	LOCAL:2 = MEQUIP_TARGET:(ARG:0):(LOCAL:0)
+
+	DOWNBASE:(LOCAL:2):体力 += 10
+
+	SOURCE:(LOCAL:2):嗜虐 += 30
+	SOURCE:(LOCAL:2):露出 += 15
+	SOURCE:(LOCAL:2):逸脱 += 10
+	SOURCE:(LOCAL:2):接触 += 15
+
+	;主導権に応じた優越・屈従のソース追加
+	CALL ADD_SOURCE_INITIATIVE_U(LOCAL:2, 80, 20)
+
+	;倒錯度変化基準値
+	TCVAR:(LOCAL:2):50 += 3
+NEXT
+
+;-------------------------------------------------
+;継続中の表示
+;-------------------------------------------------
+@EQUIP_MESSAGE110(ARG:0)
+RESULTS = %EQUIP_PLAYER_ANAME(ARG:0)%が土下座中
+
+;-------------------------------------------------
+;継続中の地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE_EQUIP110(ARG:0)
+LOCAL:2 = 1
+FOR LOCAL:0, 0, MEQUIP_TARGET_NUM:(ARG:0)
+	IF !IS_INITIATIVE(MEQUIP_TARGET:(ARG:0):(LOCAL:0))
+		LOCAL:2 = 0
+	ENDIF
+NEXT
+IF LOCAL:2
+	PRINTFORML %EQUIP_TARGET_ANAME(ARG:0)%が土下座している…
+ELSE
+	PRINTFORML %EQUIP_PLAYER_ANAME(ARG:0)%が土下座している…
+ENDIF
+
+;-------------------------------------------------
+;継続を解除したときの地の文
+;-------------------------------------------------
+@COM_TEXT_RELEASE_EQUIP110(ARG:0)
+
+;-------------------------------------------------
+;固有の実行判定
+;-------------------------------------------------
+@COM_ORDER_PLAYER110(ARG:0)
+;実行値の設定
+TCVAR:(ARG:0):25 = 100
+
+;共通部分
+CALL COM_ORDER(ARG:0)
+
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲望Lv{ABL:(ARG:0):欲望}", ABL:(ARG:0):欲望 * 1)
+CALL COM_ORDER_ELEMENT(ARG:0, @"奉仕Lv{ABL:(ARG:0):奉仕}", ABL:(ARG:0):奉仕 * 4)
+
+LOCAL:0 = GET_PALAMLV(PALAM:(ARG:0):欲情)
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲情Lv{LOCAL:0}", MIN(LOCAL:0 * 1, 10))
+
+IF TALENT:(ARG:0):恥じらい
+	CALL COM_ORDER_ELEMENT(ARG:0, "恥じらい", -2)
+ENDIF
+IF TALENT:(ARG:0):汚臭鈍感
+	CALL COM_ORDER_ELEMENT(ARG:0, "汚臭鈍感", 1)
+ENDIF
+IF TALENT:(ARG:0):汚臭敏感
+	CALL COM_ORDER_ELEMENT(ARG:0, "汚臭敏感", -4)
+ENDIF
+IF TALENT:(ARG:0):献身的
+	CALL COM_ORDER_ELEMENT(ARG:0, "献身的", 6)
+ENDIF
+
+
+RETURN 1
+
+;-------------------------------------------------
+;地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE110
+
+;プレイヤーが2人以上
+IF MPLY_NUM >= 2
+	LOCALS:0 = %ANAME(MPLY:0)%たち
+	LOCALS:2 = 並んで
+;プレイヤーが１人
+ELSE
+	LOCALS:0 = %ANAME(MPLY:0)%
+	LOCALS:2 = 
+ENDIF
+;ターゲットが2人以上
+IF MTAR_NUM >= 2
+	LOCALS:1 = %ANAME(MTAR:0)%
+;ターゲットが1人
+ELSE
+	LOCALS:1 = %ANAME(MTAR:0)%たち
+ENDIF
+
+SELECTCASE RAND:8
+	CASE 0
+		LOCALS:3 = 犯して下さいとねだりながら
+	CASE 1
+		LOCALS:3 = 奴隷にして下さいと懇願しながら
+	CASE 2
+		LOCALS:3 = 気持ちよくして下さいと言いながら
+	CASE 3
+		LOCALS:3 = 私はあなたの奴隷ですと宣言しながら
+	CASE 4
+		LOCALS:3 = おチンポを下さいとねだりながら
+	CASEELSE
+		LOCALS:3 = 
+ENDSELECT
+
+
+SELECTCASE GET_COM_INITIATIVE()
+	;プレイヤーに主導権
+	CASE 0
+		PRINTFORMW %LOCALS:0%は%LOCALS:1%の目の前で%LOCALS:2%、%LOCALS:3%土下座し%TARGET_STR("た", "てきた")%…
+	;ターゲットに主導権
+	CASE 1
+		IF MTAR_NUM == 1 && (TALENT:(MTAR:0):サド || ABL:(MTAR:0):主導度Ｕ >= 500)
+			PRINTFORMW %LOCALS:1%は嗜虐的な笑みを浮かべ%LOCALS:0%に命令し、%LOCALS:3%無理やり%LOCALS:2%土下座させ%PLAYER_STR("た", "てきた")%…
+		ELSEIF MTAR_NUM == 1 && ABL:(MTAR:0):主導度Ｕ < 100
+			PRINTFORMW %LOCALS:1%は少し緊張した様子で%LOCALS:0%に命令し、%LOCALS:3%%LOCALS:2%土下座させた…
+		ELSE
+			PRINTFORMW %LOCALS:1%は%LOCALS:0%に命令し、%LOCALS:3%無理やり%LOCALS:2%土下座させた…
+		ENDIF
+	;第三者に主導権
+	CASEELSE
+		PRINTFORML %ANAME(TFLAG:45)%は%LOCALS:0%に、%LOCALS:1%に%LOCALS:3%土下座するように命令した
+		PRINTFORMW %LOCALS:0%は言われるまま%LOCALS:2%%LOCALS:1%に頭を下げた…
+ENDSELECT
+
+@COM_TEXT_LAST110
+FOR LOCAL:0, 0, MPLY_NUM
+	LOCAL:1 = MPLY:(LOCAL:0)
+	SIF LOCAL:1 == MASTER
+		CONTINUE
+	IF TALENT:(LOCAL:1):肉便器
+		PRINTFORML 肉便器に成り下がった%ANAME(LOCAL:1)%は、土下座することに快楽を見いだしている…
+	ELSEIF IS_SLAVE(LOCAL:0)
+		PRINTFORML 屈服しきった%ANAME(LOCAL:1)%は、土下座することに悦びを見いだしている…
+	ELSEIF TALENT:(LOCAL:1):マゾ
+		PRINTFORML すっかり被虐が身についた%ANAME(LOCAL:1)%は、土下座することに快楽を見いだしている…
+	ELSEIF ABL:(LOCAL:1):主導度Ｕ <= -100 && ABL:(LOCAL:1):倒錯度 >= 300
+		PRINTFORML %ANAME(LOCAL:1)%は土下座に対し屈辱と、同時に快楽をも覚えつつあるようだ…
+	ELSE
+		PRINTFORML %ANAME(LOCAL:1)%は土下座することの屈辱に歯ぎしりしている…
+	ENDIF
+NEXT
