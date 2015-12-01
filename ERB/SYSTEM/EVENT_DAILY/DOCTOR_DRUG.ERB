@@ -1,0 +1,205 @@
+﻿@DOCTOR_DRUG
+;外界の医者による治療(15日目以降、1/20の確率で発生)
+IF DAY:0 >= 15 && 5 > RAND:100&& CFLAG:MASTER:1 != 0 && CFLAG:MASTER:9 == 0
+	;薬物依存もちの
+	LOCAL:2 = 0
+	FOR LOCAL:0, 0, CHARANUM
+		IF (CFLAG:(LOCAL:0):1 == CFLAG:MASTER:1 || CFLAG:(LOCAL:0):9 == CFLAG:MASTER:1) && (CFLAG:(LOCAL:0):薬物依存)
+			LOCAL:2 ++
+		ENDIF
+	NEXT
+
+	;[虚ろ][崩壊]のキャラがいる
+	IF LOCAL:2
+		DRAWLINE
+		SETCOLOR COLOR_CAUTION
+		PRINTFORMW 外界の医者が訪ねてきました
+		RESETCOLOR
+		PRINTFORMW 「よう」
+		PRINTFORMW 「クスリに手ェ出したやつがいるって聞いたから来た。俺は医者だ」
+		PRINTFORMW 「人生崩壊する前に、あんなもんとはさっさと縁を切っちまえ」
+		PRINTFORMW 「つまりアレだ、俺の治療法なら、薬への依存を断ち切ることができる」
+		PRINTFORMW 「まあ、未認可なやり方だがな。どうだ？」
+		PRINTL 
+		PRINTFORML ★★薬物に依存しつつあるキャラを１人だけ治療することができます★★
+		PRINTFORML ★★治療するキャラを選んで下さい（素質「薬物依存」もちは赤表示）★★
+		DRAWLINE
+
+		;全員の調教参加フラグをクリア
+		CVARSET CFLAG, 6, 0
+
+		;ページ数の計算
+		LOCAL:6 = (LOCAL:2 - 1) / 44 + 1
+		LOCAL:7 = 1
+
+		$SHOW_LOOP
+
+		;キャラリストの表示
+		LOCAL:8 = 0
+		LOCAL:9 = 0
+		LOCAL:10 = (LOCAL:7 - 1) * 44
+		LOCAL:11 = LOCAL:7 * 44
+		LOCAL:12 = 4
+		FOR LOCAL:0, 0, CHARANUM
+			IF (CFLAG:(LOCAL:0):1 == CFLAG:MASTER:1 || CFLAG:(LOCAL:0):9 == CFLAG:MASTER:1) && (CFLAG:(LOCAL:0):薬物依存)
+				IF LOCAL:8 >= LOCAL:10 && LOCAL:8 < LOCAL:11
+					IF LOCAL:9 % 2 != 0
+						PRINTPLAIN 　
+					ELSEIF LOCAL:9 >= 1
+						PRINTL 
+						LOCAL:12 ++
+					ENDIF
+					IF TALENT:(LOCAL:0):薬物依存
+						SETCOLOR COLOR("ALERT")
+					ENDIF
+					CALL PRINT_PARTNER_DATA(LOCAL:0)
+					RESETCOLOR
+					LOCAL:9 ++
+				ENDIF
+				LOCAL:8 ++
+			ENDIF
+		NEXT
+		PRINTL 
+		DRAWLINE
+
+		IF LOCAL:6 >= 2
+			LOCAL:12 += 2
+			IF LOCAL:7 > 1
+				PRINT [  8] 前のページ            
+			ELSE
+				PRINT                             
+			ENDIF
+			LOCALS:0 = page{LOCAL:7}/{LOCAL:6}
+			PRINTPLAINFORM %LOCALS:0, 28, LEFT%
+			IF LOCAL:7 < LOCAL:6
+				PRINT [  9] 後のページ
+			ENDIF
+			PRINTL 
+			DRAWLINE
+		ENDIF
+
+		PRINTL [  0] 治療しない
+
+		REDRAW 0
+
+		$INPUT_LOOP
+		INPUT
+
+		;治療しない
+		IF RESULT == 0
+			REDRAW 1
+			PRINTFORML %ANAME(MASTER)%は治療を断った
+			PRINTFORMW 「そうか。……まあ、仕方がないな」
+		;前のページ
+		ELSEIF RESULT == 8 && LOCAL:7 > 1
+			LOCAL:7 = MAX(1, LOCAL:7 - 1)
+			CLEARLINE LOCAL:12
+			GOTO SHOW_LOOP
+		;後のページ
+		ELSEIF RESULT == 9 && LOCAL:7 < LOCAL:6
+			LOCAL:7 = MIN(LOCAL:6, LOCAL:7 + 1)
+			CLEARLINE LOCAL:12
+			GOTO SHOW_LOOP
+		ELSE
+			LOCAL:5 = NO_TO_CHARA(RESULT - 100)
+			IF LOCAL:5 >= 0 && (CFLAG:(LOCAL:5):1 == CFLAG:MASTER:1 || CFLAG:(LOCAL:5):9 == CFLAG:MASTER:1) && (CFLAG:(LOCAL:5):薬物依存)
+				REDRAW 1
+				IF !IS_FEMALE(LOCAL:5) || 15 < RAND:100
+					PRINTFORMW 「%ANAME(LOCAL:5)%さんを治療するのか？　よし分かった」
+					PRINTFORMW 「少し外していてくれ。すぐ終わる」
+					PRINTFORML
+					PRINTFORML
+					PRINTFORML
+					SETCOLOR COLOR_CAUTION
+					IF TALENT:(LOCAL:5):薬物依存
+						PRINTFORMW %ANAME(LOCAL:5)%は<薬物依存>を失った
+					ELSE
+						PRINTFORMW %ANAME(LOCAL:5)%は薬物への依存心を断ち切った
+					ENDIF
+					RESETCOLOR
+					PRINTFORML
+					PRINTFORML
+					PRINTFORML
+					TALENT:(LOCAL:5):薬物依存 = 0
+					CFLAG:(LOCAL:5):薬物依存 = 0
+					PRINTFORMW 「これでもう大丈夫だ。……もう二度と手を出すなよ？」
+					PRINTFORMW 医者は立ち去っていった……
+				ELSE
+					PRINTFORMW 「%ANAME(LOCAL:5)%さんを治療するのか？　よし分かった」
+					PRINTFORMW 「少し外していてくれ。すぐ終わる」
+					PRINTFORMW 訝りながらも、%ANAME(MASTER)%は席を外した……
+					PRINTFORML
+					PRINTFORML
+					PRINTFORML
+					PRINTFORMW 「はんっ、まさかあんな簡単に騙されるとはな」
+					PRINTFORMW 医者と名乗っていた男は服を脱ぎ捨て、診察台の上で猛然と腰を振っている
+					PRINTFORMW その下では、治療を受けているはずの%ANAME(LOCAL:5)%が、同じく一糸まとわぬ姿で横たわっている
+					PRINTFORMW 激しく肉棒を出し入れされる秘部からは、既に何発と放たれた白濁が垂れ落ちている
+					PRINTFORMW たまらないといわんばかりの声をあげて喘ぐ%ANAME(LOCAL:5)%だが、その瞳はどこか虚ろだ
+					PRINTFORMW 「あんなんで騙せるんだから、チョロいもんだ……ウッ」
+					PRINTFORMW 男が呻き、%ANAME(LOCAL:5)%の一番深いところで精を解き放つと、%ANAME(LOCAL:5)%は自ら彼に抱きつきながら絶頂した
+					PRINTFORMW 「おお、可愛いなぁお前、締まりもいいし、俺専用の便器にしてやってもいいぞ？　そうしたら、クスリも打ち放題だ」
+					PRINTFORMW 「ほれ、追加のオクスリだ。コイツも効くぜ？」
+					PRINTFORMW いいながら、男は嬌声を垂れ流す%ANAME(LOCAL:5)%の舌の上に錠剤を載せた。%ANAME(LOCAL:5)%は従順にそれを呑み込む
+					PRINTFORMW 二人の回りには、使用済みの注射器や薬の箱が散乱している。%ANAME(LOCAL:5)%に打ち込まれた、覚醒剤や麻薬の類が……
+					PRINTFORMW 「っと、そろそろ時間切れだな。オラさっさと服着ろ。……おっと、その下着は寄越せ」
+					PRINTFORMW 「ククッ、ザーメンまみれのマンコ晒したまんま、お仲間とご対面しろよ」
+					PRINTFORMW 舐め腐った要求にも、%ANAME(LOCAL:5)%はふぬけた顔で頷く……
+					PRINTFORML
+					PRINTFORML
+					PRINTFORML
+					PRINTFORMW 「すまないが、%ANAME(LOCAL:5)%さんの治療は完全には終わらなかったんだ」
+					PRINTFORMW 医者にそう言われ、%ANAME(MASTER)%は落胆する。まあ、どだい難しい話なのだろうし、責めるのは酷だ
+					PRINTFORMW 「もし良かったら、今後も来させてもらう。%ANAME(LOCAL:5)%さんのことは無料で"治療"するよ」
+					PRINTFORMW 願ってもないことだ。%ANAME(MASTER)%はもちろんだと頷いた
+					PRINTFORMW 立ち去っていく医者に、%ANAME(LOCAL:5)%はやけに深々と頭を下げていた……
+					EXP:(LOCAL:5):Ｃ感経験値 += ABL:(LOCAL:5):Ｃ感 * 5 + 5 + RAND:11
+					EXP:(LOCAL:5):Ｖ感経験値 += ABL:(LOCAL:5):Ｖ感 * 20 + 15 + RAND:11
+					EXP:(LOCAL:5):Ｂ感経験値 += ABL:(LOCAL:5):Ｂ感 * 4 + 4 + RAND:9
+					EXP:(LOCAL:5):欲望経験値 += ABL:(LOCAL:5):欲望 * 3 + 2 + RAND:7
+					EXP:(LOCAL:5):奉仕経験値 += ABL:(LOCAL:5):奉仕 * 2 + 5 + RAND:11
+					EXP:(LOCAL:5):性交経験値 += ABL:(LOCAL:5):性交 * 5 + 15 + RAND:11
+					EXP:(LOCAL:5):性技経験値 += ABL:(LOCAL:5):性技 + 2 + RAND:4
+					EXP:(LOCAL:5):精愛経験値 += ABL:(LOCAL:5):精愛 * 10 + 30 + RAND:21
+					;中出しと妊娠判定
+					IF CONFIG:1 == 0 && (VAGINA(LOCAL:5) || TALENT:(LOCAL:5):孕み可能)
+						FOR LOCAL:1, 440, 480
+							TCVAR:(LOCAL:5):(LOCAL:1) = 0
+						NEXT
+						CALL RECORD_INJECTION(LOCAL:5, -1, 3)
+						CALL CHECK_PREGNANT(LOCAL:5)
+					ENDIF
+					;能力上昇はメッセージ表示後
+					CALL TRAIN_AUTO_ABLUP(LOCAL:5)
+					;処女とキス未経験を失う
+					IF TALENT:(LOCAL:5):キス未経験
+						IF RAND:4
+							;ペニスへのキス
+							CALL KISS_COMMON(LOCAL:5, -1, 1, 0, 0)
+						ENDIF
+						;唇へのキス
+						CALL KISS_COMMON(LOCAL:5, -1, 0, 0, 0)
+						SETCOLOR COLOR_CAUTION
+						PRINTFORML %ANAME(LOCAL:5)%は<キス未経験>を失った…
+						RESETCOLOR
+					ENDIF
+					IF TALENT:(LOCAL:5):処女 && VAGINA(LOCAL:5)
+						SETCOLOR COLOR_CAUTION
+						PRINTFORML %ANAME(LOCAL:5)%は<処女>を失った…
+						RESETCOLOR
+						;処女を捧げた相手を不明に設定
+						CFLAG:(LOCAL:5):41 = -1
+						TALENT:(LOCAL:5):処女 = 0
+					ENDIF
+					CFLAG:(LOCAL:5):薬物依存 += RAND(50, 100)
+					WAIT
+				ENDIF
+				DRAWLINE
+			ELSE
+				CLEARLINE 1
+				GOTO INPUT_LOOP
+			ENDIF
+		ENDIF
+	ENDIF
+ENDIF
+
