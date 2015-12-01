@@ -688,6 +688,186 @@ ELSEIF LOCAL:6 >= 1 && CFLAG:MASTER:9 == LOCAL:6
 	;行動開始時の共通処理
 	CALL START_TRAIN_COMMON
 	RETURN 1
+ELSEIF CFLAG:MASTER:9 == GET_COUNTRY_FROM_ID(COUNTRY_BANDIT)
+	;全員の調教参加フラグを解除
+	CVARSET CFLAG, 6, 0
+	LOCAL:10 = 0
+	;1/3の確率で野盗に捕らえられている顔見知りのキャラが調教者になる　ただしマスターが男なら確実に来る
+	IF IS_MALE(MASTER) || RAND:3 
+		LOCAL:1 = 0
+		FOR LOCAL:0, 0, CHARANUM
+			IF CFLAG:(LOCAL:0):17 && NO:(LOCAL:0) < 2000 && CFLAG:(LOCAL:0):9 == CFLAG:MASTER:9
+				LOCAL:1 ++
+			ENDIF
+		NEXT
+		VARSET LOCAL, -1, 20, 30
+		LOCAL:3 = RAND:4 + 3
+		FOR LOCAL:2, 0, LOCAL:3
+			IF LOCAL:1 >= 1
+				LOCAL:4 = RAND:(LOCAL:1)
+				FOR LOCAL:0, 0, CHARANUM
+					IF CFLAG:(LOCAL:0):17 && NO:(LOCAL:0) < 2000 && CFLAG:(LOCAL:0):9 == CFLAG:MASTER:9 && !CFLAG:(LOCAL:0):6
+						LOCAL:4 --
+						IF LOCAL:4 < 0
+							LOCAL:(LOCAL:2 + 20) = LOCAL:0
+							CFLAG:(LOCAL:0):6 = 1
+							LOCAL:1 --
+							LOCAL:10 = 1
+							BREAK
+						ENDIF
+					ENDIF
+				NEXT
+			ENDIF
+		NEXT
+	ENDIF
+	IF LOCAL:10
+		LOCALS:0 = 
+		LOCAL:2 = 0
+		LOCAL:3 = 0
+		FOR LOCAL:0, 20, 30
+			IF LOCAL:(LOCAL:0) >= 0
+				IF LOCAL:0 != 20
+					LOCALS:0 = %LOCALS:0%、
+				ENDIF
+				LOCALS:0 = %LOCALS:0%%ANAME(LOCAL:(LOCAL:0))%
+				LOCAL:2 ++
+				LOCAL:3 |= TALENT:(LOCAL:(LOCAL:0)):性別
+			ELSE
+				BREAK
+			ENDIF
+		NEXT
+		DRAWLINE
+		PRINTFORML 調教の時間が近づくと、%ANAME(MASTER)%はいつものように調教部屋で拘束され、
+		PRINTFORMW あとは男達に汚されるのを待つのみとなった
+		IF LOCAL:2 == 1
+			PRINTFORMW やってきた野盗は、%ANAME(MASTER)%が良く見知った相手を連れてきていた
+			PRINTFORMW それは、%LOCALS:0%だった
+			PRINTFORMW 無理矢理連れてこられたのだろう、目を赤くし、すすり泣いている
+			PRINTFORMW 嫌がる%LOCALS:0%の首輪を野盗は無理矢理引いている
+			IF LOCAL:3 == 0
+				PRINTFORMW 事前にたっぷりと犯されてきたのだろう、その尻穴からは大量の精液が滴り落ちている…
+			ELSE
+				PRINTFORMW 事前にたっぷりと犯されてきたのだろう、顔も乳房も両方の穴も、既に愛液と精液でドロドロに濡れている…
+			ENDIF
+			PRINTFORMW 野盗はニヤニヤとしながら、お前の知り合いをここでヤってやるよと言い始めた…
+		ELSE
+			PRINTFORMW やってきた野盗は、%ANAME(MASTER)%が良く見知った相手を連れてきていた
+			PRINTFORMW それは、%LOCALS:0%だった
+			PRINTFORMW 無理矢理連れてこられたのだろう、目を赤くし、すすり泣いている
+			PRINTFORMW 嫌がる皆の首輪を、野盗は無理矢理引いている
+			IF LOCAL:3 == 0
+				PRINTFORMW 事前にたっぷりと犯されてきたのだろう、誰もかれも尻穴から大量の精液が滴り落ちている…
+			ELSE
+				PRINTFORMW 事前にたっぷりと犯されてきたのだろう、みな顔も乳房も両方の穴も、既に愛液と精液でドロドロに濡れている…
+			ENDIF
+			PRINTFORMW 野盗はニヤニヤとしながら、お前の知り合いをここでヤってやるよと言い始めた…
+		ENDIF
+		LOCAL:3 = LOCAL:2
+		FOR LOCAL:0, 0, CHARANUM
+			IF CFLAG:(LOCAL:0):1 == GET_COUNTRY_FROM_ID(COUNTRY_BANDIT) && NO:(LOCAL:0) >= 2000 && LOCAL:3 < 7 && LOCAL: 3 < LOCAL:2 + 3
+				CFLAG:(LOCAL:0):6 = 1
+				CFLAG:(LOCAL:0):2 = 2000
+				CFLAG:(LOCAL:0):3 = 0
+				CFLAG:(LOCAL:0):4 = 0
+				CFLAG:(LOCAL:0):64 = 1
+				CFLAG:(LOCAL:0):65 = 1
+				ABL:(LOCAL:0):欲望 = 5
+				ABL:(LOCAL:0):奉仕 = 5
+				ABL:(LOCAL:0):性技 = 10
+				ABL:(LOCAL:0):主導度Ｕ = 600
+				ABL:(LOCAL:0):倒錯度 = 600
+				TALENT:(LOCAL:0):快感に素直 = 1
+				TALENT:(LOCAL:0):絶倫 = 1
+				IF !PENIS(LOCAL:0) && PENIS(MASTER)
+					ABL:(LOCAL:0):性交 = 0
+					ABL:(LOCAL:0):Ｖ感 = 4
+					TALENT:(LOCAL:0):濡れやすい = 1
+					EXP:(LOCAL:0):♀♂性交回数 = 500
+					EXP:(LOCAL:0):絶頂経験 = 3000
+				ELSE
+					ABL:(LOCAL:0):性交 = 15
+					EXP:(LOCAL:0):♂♀性交回数 = 500
+					EXP:(LOCAL:0):♂Ａ性交回数 = 500
+					EXP:(LOCAL:0):絶頂経験 = 3000
+					IF PENIS(LOCAL:0)
+						ABL:(LOCAL:0):射精 = 3000
+					ENDIF
+				ENDIF
+				FOR LOCAL:1, 0, 900
+					COM_EXP:(LOCAL:0):(LOCAL:1) = 1000
+				NEXT
+				LOCAL:3 ++
+			ENDIF
+		NEXT
+		FLAG:29 = 1
+	ELSEIF !LOCAL:10
+		LOCAL:2 = 0
+		FOR LOCAL:0, 0, CHARANUM
+			IF CFLAG:(LOCAL:0):1 == GET_COUNTRY_FROM_ID(COUNTRY_BANDIT) && NO:(LOCAL:0) > 2000 && LOCAL:2 < 6
+				CFLAG:(LOCAL:0):6 = 1
+				CFLAG:(LOCAL:0):2 = 2000
+				CFLAG:(LOCAL:0):3 = 0
+				CFLAG:(LOCAL:0):4 = 0
+				CFLAG:(LOCAL:0):64 = 1
+				CFLAG:(LOCAL:0):65 = 1
+				ABL:(LOCAL:0):欲望 = 5
+				ABL:(LOCAL:0):奉仕 = 5
+				ABL:(LOCAL:0):性技 = 10
+				ABL:(LOCAL:0):主導度Ｕ = 600
+				ABL:(LOCAL:0):倒錯度 = 600
+				TALENT:(LOCAL:0):快感に素直 = 1
+				TALENT:(LOCAL:0):絶倫 = 1
+				IF !PENIS(LOCAL:0) && PENIS(MASTER)
+					ABL:(LOCAL:0):性交 = 0
+					ABL:(LOCAL:0):Ｖ感 = 4
+					TALENT:(LOCAL:0):濡れやすい = 1
+					EXP:(LOCAL:0):♀♂性交回数 = 500
+					EXP:(LOCAL:0):絶頂経験 = 3000
+				ELSE
+					ABL:(LOCAL:0):性交 = 15
+					EXP:(LOCAL:0):♂♀性交回数 = 500
+					EXP:(LOCAL:0):♂Ａ性交回数 = 500
+					EXP:(LOCAL:0):絶頂経験 = 3000
+					IF PENIS(LOCAL:0)
+						ABL:(LOCAL:0):射精 = 3000
+					ENDIF
+				ENDIF
+				FOR LOCAL:1, 0, 900
+					COM_EXP:(LOCAL:0):(LOCAL:1) = 1000
+				NEXT
+				LOCAL:2 ++
+			ENDIF
+		NEXT
+	ENDIF
+
+	;逆調教モード
+	FLAG:12 = 4
+	;ウフフモード
+	FLAG:50 = 1
+	;アイテムを一通り追加
+	ITEM:A_ローター = 1
+	ITEM:A_バイブ = 1
+	ITEM:A_アナルバイブ = 1
+	ITEM:A_ペニスバンド = 1
+	ITEM:A_オナホール = 1
+	ITEM:A_クリキャップ = 1
+	ITEM:A_ニプルキャップ = 1
+	ITEM:A_針 = 1
+	ITEM:A_鞭 = 1
+	ITEM:A_媚薬 = 99
+	ITEM:A_排卵誘発剤 = 99
+	ITEM:A_麻薬 = 99
+	SIF !RAND:5
+		ITEM:A_犬 = 1
+	SIF !RAND:8
+		ITEM:A_豚 = 1
+	;回数をカウント
+	FLAG:23 ++
+	;解放カウンタをリセット
+	CFLAG:MASTER:43 = 0
+	;行動開始時の共通処理
+	CALL START_TRAIN_COMMON
+	RETURN 1
 ;外来以外の捕虜の場合
 ELSE
 	;全員の調教参加フラグを解除
