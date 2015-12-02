@@ -940,7 +940,7 @@ FOR LOCAL:0, 0, 3
 		IF LOCAL:3 >= 1
 			;誰をみるか決める
 			LOCAL:4 = RAND:3
-			;みる対象がいた場合
+			;みる対象がいた場合(フェイルセーフ)
 			IF 対象側:(LOCAL:4) >= 0
 				;勢力番号取得
 				IF ARG:5 >= 0
@@ -949,7 +949,7 @@ FOR LOCAL:0, 0, 3
 					LOCAL:5 = CITY_OWNER:(ARG:4)
 				ENDIF
 				;発動
-				SETCOLOR 0xFF80C0
+				SETCOLOR COLOR("桃")
 				PRINTFORML %NAME:(LOCAL:2)%は%NAME:GET_COUNTRY_BOSS(LOCAL:5)%軍に桃色の霧を吹きかけた
 				;発動回数を一度までに制限するため、外ループで使用しているLOCAL:0をここでも使う
 				FOR LOCAL:0, 0, 3
@@ -1120,12 +1120,12 @@ FOR LOCAL:0, 0, 3
 			BATTLE_RATE_DMG:受動側 += RAND(5,10)
 		ENDIF
 		;突貫。攻撃力が増えるが防御力が減る。
-		IF TALENT:(武将:LOCAL):突貫 && 10 > RAND:100
+		IF TALENT:(武将:LOCAL):突貫 && 15 > RAND:100
 			PRINTFORML %ANAME(武将:LOCAL)%は捨て身の陣をしいた！
 			TIMES BATTLE_ATC:発動側, 1.2
 			TIMES BATTLE_DEF:発動側, 0.7
 		ENDIF
-		;下克上等。相手より弱ければ弱いほど発動率は高まる。
+		;下克上等。相手より弱ければ弱いほど発動率は高まる。野戦部隊にのみ発動する。
 		IF TALENT:(武将:LOCAL):下克上等 && BATTLE_F_UNIT:受動側
 			LOCAL:1 = (100 - (BATTLE_ATC:発動側 + BATTLE_DEF:発動側 + BATTLE_INT:発動側 + BATTLE_MAG:発動側) * 100  / (BATTLE_ATC:受動側 + BATTLE_DEF:受動側 + BATTLE_INT:受動側 + BATTLE_MAG:受動側)) / 2
 			IF LOCAL:1 > RAND:100
@@ -1142,11 +1142,13 @@ FOR LOCAL:0, 0, 3
 			ENDIF
 		ENDIF
 		;魔力転換。攻撃力の2割を割合ダメージ基礎値とする。
-		IF TALENT:(武将:LOCAL):魔力転換 && 20 > RAND:100
+		IF TALENT:(武将:LOCAL):魔力転換 && 15 > RAND:100
 			PRINTFORML %ANAME(武将:LOCAL)%は攻撃力を魔力に転換した！
 			BATTLE_MAG:発動側 += BATTLE_ATC:発動側 * 2 / 10
 			BATTLE_ATC:発動側 = BATTLE_ATC:発動側 * 8 / 10
 		ENDIF
+		
+		;バンドガール。歌唱（料理も）の補正が二重にかかる。
 		IF TALENT:(武将:LOCAL):バンドガール && 5 > RAND:100
 			PRINTFORML %ANAME(武将:LOCAL)%は楽器演奏で士気を高めた！
 			IF 都市フラグ
