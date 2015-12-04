@@ -1,85 +1,37 @@
 ﻿@TRAIN_BY_LENDER(ARG:0)
-VARSET LOCAL
+#DIM 返済額
 
 ;返済期限が-1で、返済額が残ってるなら調教メッセージ
 IF !(DVAR:金貸し期限 == -1 && DVAR:金貸し現在額 > 0)
 	RETURN 0
 ENDIF
-
-;好感度と従属度を失っていく
-CFLAG:(ARG:0):好感度 = MAX(CFLAG:(ARG:0):好感度 - MAX(CFLAG:(ARG:0):好感度 * 9 / 10, 200) , 0)
-CFLAG:(ARG:0):従属度 = MAX(CFLAG:(ARG:0):従属度 - MAX(CFLAG:(ARG:0):従属度 * 9 / 10, 200) , 0)
-LOCAL:3 = 0
-LOCAL:3 += MAX(ABL:(ARG:0):Ｃ感 - 1, 0)
-LOCAL:3 += MAX(ABL:(ARG:0):Ｖ感 - 1, 0) * 3
-LOCAL:3 += MAX(ABL:(ARG:0):Ａ感 - 1, 0) * 3
-LOCAL:3 += MAX(ABL:(ARG:0):Ｂ感 - 1, 0)
-LOCAL:3 += MAX(ABL:(ARG:0):Ｍ感 - 1, 0) / 2
-LOCAL:3 = LOCAL:3 * (ABL:(ARG:0):欲望 + 2) / 2
-IF PENIS(ARG:0)
-	EXP:(ARG:0):Ｃ感経験値 += ABL:(ARG:0):Ｃ感 + 1 + RAND:3
-	EXP:(ARG:0):Ａ感経験値 += ABL:(ARG:0):Ａ感 * 30 + 20 + RAND:16
-ELSE
-	EXP:(ARG:0):Ｃ感経験値 += ABL:(ARG:0):Ｃ感 * 5 + 5 + RAND:11
-	EXP:(ARG:0):Ｖ感経験値 += ABL:(ARG:0):Ｖ感 * 20 + 15 + RAND:11
-	EXP:(ARG:0):Ａ感経験値 += ABL:(ARG:0):Ａ感 * 20 + 15 + RAND:11
-ENDIF
-EXP:(ARG:0):Ｂ感経験値 += ABL:(ARG:0):Ｂ感 * 4 + 4 + RAND:9
-EXP:(ARG:0):Ｍ感経験値 += ABL:(ARG:0):Ｍ感 * 4 + 4 + RAND:9
-EXP:(ARG:0):欲望経験値 += ABL:(ARG:0):欲望 * 3 + 2 + LOCAL:3 + RAND:7
-EXP:(ARG:0):奉仕経験値 += ABL:(ARG:0):奉仕 * 2 + 5 + RAND:11
-EXP:(ARG:0):性交経験値 += ABL:(ARG:0):性交 * 5 + 15 + RAND:11
-EXP:(ARG:0):性技経験値 += ABL:(ARG:0):性技 + 2 + RAND:4
-EXP:(ARG:0):輪姦経験 += 3 + RAND(2, 5)
-IF IS_MALE(ARG:0)
-	EXP:(ARG:0):ＢＬ経験値 += 25 + RAND:11
-ENDIF
-EXP:(ARG:0):精愛経験値 += ABL:(ARG:0):精愛 * 10 + 30 + RAND:21
-IF PENIS(ARG:0)
-	EXP:(ARG:0):射精経験値 += ABL:(ARG:0):射精 * 10 + 30 + RAND:21
-ENDIF
-EXP:(ARG:0):キス経験 += 2 + RAND:8
-EXP:(ARG:0):口淫経験 += 3 + RAND:10
-EXP:(ARG:0):絶頂経験 += LOCAL:3 * (60 + RAND:81) / 100
-;中出しと妊娠判定
-IF CONFIG:1 == 0 && (VAGINA(ARG:0) || TALENT:(ARG:0):孕み可能)
-	FOR LOCAL:1, 440, 480
-		TCVAR:(ARG:0):(LOCAL:1) = 0
-	NEXT
-	CALL RECORD_INJECTION(ARG:0, -17, 3)
-	CALL CHECK_PREGNANT(ARG:0)
-ENDIF
 ;メッセージ表示
 IF CONFIG:80
 	CALL LENDER_TRAIN_MSG(ARG:0)
 ENDIF
-;能力上昇はメッセージ表示後
-CALL TRAIN_AUTO_ABLUP(ARG:0)
-;処女とキス未経験を失う
-IF TALENT:(ARG:0):キス未経験
-	IF RAND:4
-		;ペニスへのキス
-		CALL KISS_COMMON(ARG:0, -17, 1, 0, 0)
-	ENDIF
-	;唇へのキス
-	CALL KISS_COMMON(ARG:0, -17, 0, 0, 0)
-	SETCOLOR COLOR("注意")
-	PRINTFORML %ANAME(ARG:0)%は<キス未経験>を失った…
-	RESETCOLOR
-ENDIF
-IF TALENT:(ARG:0):処女 && VAGINA(ARG:0)
-	SETCOLOR COLOR("注意")
-	PRINTFORML %ANAME(ARG:0)%は<処女>を失った…
-	RESETCOLOR
-	;処女を捧げた相手を金貸しに設定
-	CFLAG:(ARG:0):41 = -17
-	TALENT:(ARG:0):処女 = 0
-ENDIF
+CALL FORCE_FUCK(ARG:0, -17)
 
+返済額 = ABL:(ARG:0):Ｃ感 + ABL:(ARG:0):Ｖ感 + ABL:(ARG:0):Ａ感 + ABL:(ARG:0):Ｂ感 + ABL:(ARG:0):Ｍ感 + (ABL:(ARG:0):欲望 * 3 / 2) + (ABL:(ARG:0):性技 * 2) + ABL:(ARG:0):性交 + ABL:(ARG:0):奉仕
+返済額 *= 1000
+返済額 += RAND(0, DVAR:金貸し総額 / 10)
+返済額 = RAND(MIN(返済額, DVAR:金貸し総額 / 10 - 1), DVAR:金貸し総額 / 10)
 
+DVAR:金貸し現在額 = MAX(0, DVAR:金貸し現在額 - 返済額)
+
+PRINTFORML
+PRINTFORM %ANAME(ARG:0)%は、金
+SETCOLOR COLOR("注意")
+PRINTFORM {返済額}
+RESETCOLOR
+PRINTFORML を返済したようだ
+PRINTFORM 残り返済額は
+SETCOLOR COLOR("注意")
+PRINTFORM {DVAR:金貸し現在額}
+RESETCOLOR
+PRINTFORML だ……
+PRINTFORMW
 
 @LENDER_TRAIN_MSG(ARG:0)
-#DIM 返済額
 DRAWLINE
 SELECTCASE RAND:31
 	CASE 0
@@ -269,25 +221,6 @@ SELECTCASE RAND:31
 		PRINTFORML そして深々と%ANAME(ARG:0)%に挿入すると、激しいピストンを繰り出し始めた……
 		PRINTFORML 蕩けた声で%ANAME(ARG:0)%が膣内射精をねだると、男は彼女の望むとおり、膣内に精を吐き出した……
 ENDSELECT
-
-返済額 = ABL:(ARG:0):Ｃ感 + ABL:(ARG:0):Ｖ感 + ABL:(ARG:0):Ａ感 + ABL:(ARG:0):Ｂ感 + ABL:(ARG:0):Ｍ感 + (ABL:(ARG:0):欲望 * 3 / 2) + (ABL:(ARG:0):性技 * 2) + ABL:(ARG:0):性交 + ABL:(ARG:0):奉仕
-返済額 *= 1000
-返済額 += RAND(0, DVAR:金貸し総額 / 10)
-返済額 = RAND(MIN(返済額, DVAR:金貸し総額 / 10 - 1), DVAR:金貸し総額 / 10)
-
-DVAR:金貸し現在額 = MAX(0, DVAR:金貸し現在額 - 返済額)
-
-PRINTFORML
-PRINTFORM %ANAME(ARG:0)%は、金
-SETCOLOR COLOR("注意")
-PRINTFORM {返済額}
-RESETCOLOR
-PRINTFORML を返済したようだ
-PRINTFORM 残り返済額は
-SETCOLOR COLOR("注意")
-PRINTFORM {DVAR:金貸し現在額}
-RESETCOLOR
-PRINTFORML だ……
 
 IF IS_LOVER(ARG:0) && CFLAG:(ARG:0):好感度 <= 1500
 	SETCOLOR COLOR("警告")

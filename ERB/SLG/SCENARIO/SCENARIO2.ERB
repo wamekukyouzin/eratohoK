@@ -678,51 +678,6 @@ IF LOCAL:2 >= 1
 		IF (CFLAG:(LOCAL:0):1 == LOCAL:2 && !TALENT:(LOCAL:0):ホフゴブリン && CFLAG:(LOCAL:0):9 == 0) || (CFLAG:(LOCAL:0):9 == LOCAL:2 && LOCAL:0 != MASTER)
 			;捕虜解放カウンタを常に0にする
 			CFLAG:(LOCAL:0):43 = 0
-
-			;性処理と同等の経験を取得させる
-			LOCAL:3 = 0
-			LOCAL:3 += MAX(ABL:(LOCAL:0):Ｃ感 - 1, 0)
-			LOCAL:3 += MAX(ABL:(LOCAL:0):Ｖ感 - 1, 0) * 3
-			LOCAL:3 += MAX(ABL:(LOCAL:0):Ａ感 - 1, 0) * 3
-			LOCAL:3 += MAX(ABL:(LOCAL:0):Ｂ感 - 1, 0)
-			LOCAL:3 += MAX(ABL:(LOCAL:0):Ｍ感 - 1, 0) / 2
-			LOCAL:3 = LOCAL:3 * (ABL:(LOCAL:0):欲望 + 2) / 2
-
-			IF PENIS(LOCAL:0)
-				EXP:(LOCAL:0):Ｃ感経験値 += ABL:(LOCAL:0):Ｃ感 + 1 + RAND:3
-				EXP:(LOCAL:0):Ａ感経験値 += ABL:(LOCAL:0):Ａ感 * 30 + 20 + RAND:16
-			ELSE
-				EXP:(LOCAL:0):Ｃ感経験値 += ABL:(LOCAL:0):Ｃ感 * 5 + 5 + RAND:11
-				EXP:(LOCAL:0):Ｖ感経験値 += ABL:(LOCAL:0):Ｖ感 * 20 + 15 + RAND:11
-				EXP:(LOCAL:0):Ａ感経験値 += ABL:(LOCAL:0):Ａ感 * 20 + 15 + RAND:11
-			ENDIF
-			EXP:(LOCAL:0):Ｂ感経験値 += ABL:(LOCAL:0):Ｂ感 * 4 + 4 + RAND:9
-			EXP:(LOCAL:0):Ｍ感経験値 += ABL:(LOCAL:0):Ｍ感 * 4 + 4 + RAND:9
-			EXP:(LOCAL:0):欲望経験値 += ABL:(LOCAL:0):欲望 * 3 + 2 + LOCAL:3 + RAND:7
-			EXP:(LOCAL:0):奉仕経験値 += ABL:(LOCAL:0):奉仕 * 2 + 5 + RAND:11
-			EXP:(LOCAL:0):性交経験値 += ABL:(LOCAL:0):性交 * 5 + 15 + RAND:11
-			EXP:(LOCAL:0):性技経験値 += ABL:(LOCAL:0):性技 + 2 + RAND:4
-			IF IS_MALE(LOCAL:0)
-				EXP:(LOCAL:0):ＢＬ経験値 += 25 + RAND:11
-			ENDIF
-			EXP:(LOCAL:0):精愛経験値 += ABL:(LOCAL:0):精愛 * 10 + 30 + RAND:21
-			IF PENIS(LOCAL:0)
-				EXP:(LOCAL:0):射精経験値 += ABL:(LOCAL:0):射精 * 10 + 30 + RAND:21
-			ENDIF
-			EXP:(LOCAL:0):キス経験 += 2 + RAND:8
-			EXP:(LOCAL:0):口淫経験 += 3 + RAND:10
-			EXP:(LOCAL:0):絶頂経験 += LOCAL:3 * (60 + RAND:81) / 100
-			EXP:(LOCAL:0):輪姦経験 += 3 + RAND(2, MAX(3, MIN(8, ABL:(LOCAL:0):欲望)))
-			CALL TRAIN_AUTO_ABLUP
-			;中出しと妊娠判定
-			IF CONFIG:1 == 0 && (VAGINA(LOCAL:0) || TALENT:(LOCAL:0):孕み可能)
-				FOR LOCAL:1, 440, 480
-					TCVAR:(LOCAL:0):(LOCAL:1) = 0
-				NEXT
-				CALL RECORD_INJECTION(LOCAL:0, -13, 3)
-				CALL CHECK_PREGNANT(LOCAL:0)
-			ENDIF
-
 			;調教の様子を表示 【「ホフゴブリンの捕虜である」または(「所属していて捕虜でなくホフゴブリンでない」かつ『「性奴隷で1/5」「性奴隷でない」「マスターである」』) 】かつ「コンフィグ設定が全部または（マンコ持ちのみ設定かつ女性ふたなり）」
 			IF (CFLAG:(LOCAL:0):9 == LOCAL:2 || ((CFLAG:(LOCAL:0):1 == LOCAL:2 && !CFLAG:(LOCAL:0):9 && !TALENT:(LOCAL:0):ホフゴブリン) && ((TALENT:(LOCAL:0):ゴブリンの性奴隷 && !RAND:5) || !TALENT:(LOCAL:0):ゴブリンの性奴隷 || LOCAL:0 == MASTER))) && (CONFIG:80 == 2 || (CONFIG:80 == 1 && IS_FEMALE(LOCAL:0)))
 				IF LOCAL:9
@@ -733,6 +688,7 @@ IF LOCAL:2 >= 1
 				CALL GOBLINS_TRAIN_MSG(LOCAL:0)
 				WAIT
 			ENDIF
+			CALL FORCE_FUCK(LOCAL:0, -13)
 			;研究用奴隷の烙印を持っていると、依存度が強制的に最低値になる
 			IF TALENT:(LOCAL:0):ゴブリンの性奴隷
 				CFLAG:(LOCAL:0):3 = -1000
@@ -760,68 +716,50 @@ IF LOCAL:2 >= 1
 				ENDIF
 				
 			ENDIF
-
-			;処女とキス未経験を失う
-			IF TALENT:(LOCAL:0):キス未経験
-				IF RAND:4
-					;ペニスへのキス
-					CALL KISS_COMMON(LOCAL:0, -13, 1, 0, 0)
-				ENDIF
-				;唇へのキス
-				CALL KISS_COMMON(LOCAL:0, -13, 0, 0, 0)
-			ENDIF
-			IF TALENT:(LOCAL:0):処女 && VAGINA(LOCAL:0) && !TALENT:(LOCAL:0):ゴブリンの性奴隷
-				IF TALENT:(LOCAL:0):処女 == 1
-					;処女を捧げた相手をホフゴブリンに設定
-					CFLAG:(LOCAL:0):41 = -13
-				ENDIF
-				TALENT:(LOCAL:0):処女 = 0
-			ELSE
-				;依存度が-500未満、霖之助・藍への惚れ度が共に0になると寝返る
-				IF !TALENT:(LOCAL:0):ゴブリンの性奴隷 && CFLAG:(LOCAL:0):3 < -500 && CFLAG:(LOCAL:0):35 <= 0 && CFLAG:(LOCAL:0):38 <= 0
-					;調教の様子を表示
-					IF (CONFIG:80 == 2 || (CONFIG:80 == 1 && IS_FEMALE(LOCAL:0)))
-						PRINTFORML ・
-						PRINTFORML ・
-						PRINTFORML ・
-						PRINTFORMW ホフゴブリンたちの容赦ない陵辱で%ANAME(LOCAL:0)%の心は折れ、浅ましく快楽を求める奴隷へとなりはててしまった
-						PRINTFORMW もっと彼らに犯して「いただく」ため、一生を性奴隷として過ごすことに同意してしまった……
-						IF TALENT:(LOCAL:0):烙印
-							PRINTFORML %ANAME(LOCAL:0)%が%ANAME(MASTER)%専用であることを示す烙印の上から、
-							PRINTFORMW 新たに%ANAME(LOCAL:0)%がホフゴブリンの性奴隷となったことを示す入れ墨が施された
-							TALENT:(LOCAL:0):烙印 = 0
-						ELSE
-							PRINTFORMW %ANAME(LOCAL:0)%の体に、ホフゴブリンの性奴隷となったことを示す入れ墨が施された
-						ENDIF
-						SIF IS_LOVER(LOCAL:0)
-							PRINTFORMW %ANAME(LOCAL:0)%の頭の中から、かつて愛していた%ANAME(MASTER)%のことが、綺麗さっぱり消え失せた……
-						CALL LOSE_RELATION_TALENT(LOCAL:0, 1)
+			;依存度が-500未満、霖之助・藍への惚れ度が共に0になると寝返る
+			IF !TALENT:(LOCAL:0):ゴブリンの性奴隷 && CFLAG:(LOCAL:0):3 < -500 && CFLAG:(LOCAL:0):35 <= 0 && CFLAG:(LOCAL:0):38 <= 0
+				;調教の様子を表示
+				IF (CONFIG:80 == 2 || (CONFIG:80 == 1 && IS_FEMALE(LOCAL:0)))
+					PRINTFORML ・
+					PRINTFORML ・
+					PRINTFORML ・
+					PRINTFORMW ホフゴブリンたちの容赦ない陵辱で%ANAME(LOCAL:0)%の心は折れ、浅ましく快楽を求める奴隷へとなりはててしまった
+					PRINTFORMW もっと彼らに犯して「いただく」ため、一生を性奴隷として過ごすことに同意してしまった……
+					IF TALENT:(LOCAL:0):烙印
+						PRINTFORML %ANAME(LOCAL:0)%が%ANAME(MASTER)%専用であることを示す烙印の上から、
+						PRINTFORMW 新たに%ANAME(LOCAL:0)%がホフゴブリンの性奴隷となったことを示す入れ墨が施された
+						TALENT:(LOCAL:0):烙印 = 0
 					ELSE
-						CALL LOSE_RELATION_TALENT(LOCAL:0, 0)
+						PRINTFORMW %ANAME(LOCAL:0)%の体に、ホフゴブリンの性奴隷となったことを示す入れ墨が施された
 					ENDIF
-					SETCOLOR COLOR("注意")
-					PRINTFORMW %ANAME(LOCAL:0)%はホフゴブリンに寝返ってしまったようです…
-					RESETCOLOR
-					CFLAG:(LOCAL:0):1 = LOCAL:2
-					CFLAG:(LOCAL:0):9 = 0
-					TALENT:(LOCAL:0):ゴブリンの性奴隷 = 1
-				ELSEIF TALENT:(LOCAL:0):ゴブリンの性奴隷 && CFLAG:(LOCAL:0):9 == LOCAL:2
-					IF (CONFIG:80 == 2 || (CONFIG:80 == 1 && IS_FEMALE(LOCAL:0)))
-						PRINTFORML ・
-						PRINTFORML ・
-						PRINTFORML ・
-						PRINTFORMW ホフゴブリンたちの容赦ない陵辱で、%ANAME(LOCAL:0)%は奴隷としての己の分際を思い出した
-						PRINTFORMW 奴隷としての「仕事」をこなすため、%ANAME(LOCAL:0)%は再び彼らの下につくことにした……
-						CALL LOSE_RELATION_TALENT(LOCAL:0, 1)
-					ELSE
-						CALL LOSE_RELATION_TALENT(LOCAL:0, 0)
-					ENDIF
-					SETCOLOR COLOR("注意")
-					PRINTFORMW %ANAME(LOCAL:0)%はまたもホフゴブリンに寝返ってしまったようです…
-					RESETCOLOR
-					CFLAG:(LOCAL:0):1 = LOCAL:2
-					CFLAG:(LOCAL:0):9 = 0
+					SIF IS_LOVER(LOCAL:0)
+						PRINTFORMW %ANAME(LOCAL:0)%の頭の中から、かつて愛していた%ANAME(MASTER)%のことが、綺麗さっぱり消え失せた……
+					CALL LOSE_RELATION_TALENT(LOCAL:0, 1)
+				ELSE
+					CALL LOSE_RELATION_TALENT(LOCAL:0, 0)
 				ENDIF
+				SETCOLOR COLOR("注意")
+				PRINTFORMW %ANAME(LOCAL:0)%はホフゴブリンに寝返ってしまったようです…
+				RESETCOLOR
+				CFLAG:(LOCAL:0):1 = LOCAL:2
+				CFLAG:(LOCAL:0):9 = 0
+				TALENT:(LOCAL:0):ゴブリンの性奴隷 = 1
+			ELSEIF TALENT:(LOCAL:0):ゴブリンの性奴隷 && CFLAG:(LOCAL:0):9 == LOCAL:2
+				IF (CONFIG:80 == 2 || (CONFIG:80 == 1 && IS_FEMALE(LOCAL:0)))
+					PRINTFORML ・
+					PRINTFORML ・
+					PRINTFORML ・
+					PRINTFORMW ホフゴブリンたちの容赦ない陵辱で、%ANAME(LOCAL:0)%は奴隷としての己の分際を思い出した
+					PRINTFORMW 奴隷としての「仕事」をこなすため、%ANAME(LOCAL:0)%は再び彼らの下につくことにした……
+					CALL LOSE_RELATION_TALENT(LOCAL:0, 1)
+				ELSE
+					CALL LOSE_RELATION_TALENT(LOCAL:0, 0)
+				ENDIF
+				SETCOLOR COLOR("注意")
+				PRINTFORMW %ANAME(LOCAL:0)%はまたもホフゴブリンに寝返ってしまったようです…
+				RESETCOLOR
+				CFLAG:(LOCAL:0):1 = LOCAL:2
+				CFLAG:(LOCAL:0):9 = 0
 			ENDIF
 		ENDIF
 	NEXT

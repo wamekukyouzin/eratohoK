@@ -1,0 +1,76 @@
+﻿;-------------------------
+;性処理と同様の経験をさせる汎用関数FORCE_FUCK
+;対象は対象となるキャラ、IDには膣内射精したことにしたいキャラのIDを入力
+;-------------------------
+@FORCE_FUCK(対象, ID)
+#DIM 対象
+#DIM ID
+VARSET LOCAL
+;好感度と従属度を失っていく
+CFLAG:対象:好感度 = MAX(CFLAG:対象:好感度 - MAX(CFLAG:対象:好感度 / 10, 200) , 0)
+CFLAG:対象:従属度 = MAX(CFLAG:対象:従属度 - MAX(CFLAG:対象:従属度 / 10, 200) , 0)
+;性処理と同等の経験を取得させる
+LOCAL:1 = 0
+LOCAL:1 += MAX(ABL:対象:Ｃ感 - 1, 0)
+LOCAL:1 += MAX(ABL:対象:Ｖ感 - 1, 0) * 3
+LOCAL:1 += MAX(ABL:対象:Ａ感 - 1, 0) * 3
+LOCAL:1 += MAX(ABL:対象:Ｂ感 - 1, 0)
+LOCAL:1 += MAX(ABL:対象:Ｍ感 - 1, 0) / 2
+LOCAL:1 = LOCAL:1 * (ABL:対象:欲望 + 2) / 2
+	IF PENIS(対象)
+	EXP:対象:Ｃ感経験値 += ABL:対象:Ｃ感 + 1 + RAND:3
+	EXP:対象:Ａ感経験値 += ABL:対象:Ａ感 * 30 + 20 + RAND:16
+ELSE
+	EXP:対象:Ｃ感経験値 += ABL:対象:Ｃ感 * 5 + 5 + RAND:11
+	EXP:対象:Ｖ感経験値 += ABL:対象:Ｖ感 * 20 + 15 + RAND:11
+	EXP:対象:Ａ感経験値 += ABL:対象:Ａ感 * 20 + 15 + RAND:11
+	ENDIF
+EXP:対象:Ｂ感経験値 += ABL:対象:Ｂ感 * 4 + 4 + RAND:9
+EXP:対象:Ｍ感経験値 += ABL:対象:Ｍ感 * 4 + 4 + RAND:9
+EXP:対象:欲望経験値 += ABL:対象:欲望 * 3 + 2 + LOCAL:1 + RAND:7
+EXP:対象:奉仕経験値 += ABL:対象:奉仕 * 2 + 5 + RAND:11
+EXP:対象:性交経験値 += ABL:対象:性交 * 5 + 15 + RAND:11
+EXP:対象:性技経験値 += ABL:対象:性技 + 2 + RAND:4
+IF IS_MALE(対象)
+	EXP:対象:ＢＬ経験値 += 25 + RAND:11
+ENDIF
+EXP:対象:精愛経験値 += ABL:対象:精愛 * 10 + 30 + RAND:21
+IF PENIS(対象)
+	EXP:対象:射精経験値 += ABL:対象:射精 * 10 + 30 + RAND:21
+ENDIF
+EXP:対象:キス経験 += 2 + RAND:8
+EXP:対象:口淫経験 += 3 + RAND:10
+EXP:対象:絶頂経験 += LOCAL:1 * (60 + RAND:81) / 100
+EXP:対象:輪姦経験 += 3 + RAND(2, MAX(3, MIN(8, ABL:対象:欲望)))
+;中出しと妊娠判定
+IF CONFIG:1 == 0 && (VAGINA(対象) || TALENT:対象:孕み可能)
+	FOR LOCAL, 440, 480
+		TCVAR:対象:(LOCAL) = 0
+	NEXT
+	CALL RECORD_INJECTION(対象, ID, 3)
+	CALL CHECK_PREGNANT(対象)
+ENDIF
+;能力上昇メッセ
+CALL TRAIN_AUTO_ABLUP(対象, 0)
+;処女とキス未経験を失う
+IF TALENT:対象:キス未経験
+	IF RAND:4
+		;ペニスへのキス
+		CALL KISS_COMMON(対象, ID, 1, 0, 0)
+	ENDIF
+	;唇へのキス
+	CALL KISS_COMMON(対象, ID, 0, 0, 0)
+	SETCOLOR COLOR("注意")
+	PRINTFORML %ANAME(対象)%は<キス未経験>を失った…
+	RESETCOLOR
+ENDIF
+IF TALENT:対象:処女 && VAGINA(対象)
+	SETCOLOR COLOR("注意")
+	PRINTFORML %ANAME(対象)%は<処女>を失った…
+	RESETCOLOR
+	;処女を捧げた相手をIDに設定
+	CFLAG:対象:41 = ID
+	TALENT:対象:処女 = 0
+ENDIF
+
+
