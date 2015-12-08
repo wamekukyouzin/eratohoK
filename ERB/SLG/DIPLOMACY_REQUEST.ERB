@@ -29,10 +29,13 @@ NEXT
 LOCAL:10 = DIPLOMACY_REQUEST_CHECK(CFLAG:MASTER:1, ARG:0)
 
 ;既に要求を飲んだことがあり、前回と同様の方法が通用する場合
-IF (LOCAL:10 && CFLAG:(LOCAL:5):42 == 1) || ((CFLAG:(LOCAL:5):42 == 2 && (TALENT:(LOCAL:5):烙印 || TALENT:(LOCAL:5):服従 || TALENT:(LOCAL:5):隷属 || (TALENT:(LOCAL:5):マゾ && TALENT:(LOCAL:5):恋慕))))
+IF (LOCAL:10 && CFLAG:(LOCAL:5):42 == 1) || ((CFLAG:(LOCAL:5):42 == 2 && (TALENT:(LOCAL:5):烙印 || TALENT:(LOCAL:5):服従 || TALENT:(LOCAL:5):隷属 || (TALENT:(LOCAL:5):マゾ && TALENT:(LOCAL:5):恋慕)))) || (CFLAG:(LOCAL:5):42 == 3 && TALENT:(LOCAL:5):薬物依存)
 	IF (CFLAG:(LOCAL:5):42 == 2) || (TALENT:(LOCAL:5):烙印 || TALENT:(LOCAL:5):服従 || TALENT:(LOCAL:5):隷属 || (TALENT:(LOCAL:5):マゾ && TALENT:(LOCAL:5):恋慕))
 		PRINTFORMW %NAME:(LOCAL:5)%は困ったように瞳を彷徨わせながらも、媚びるような声で%ANAME(MASTER)%の要求を受け入れた
 		CALL DIPLOMACY_REQUEST_GOHOUBI(ARG:0)
+	ELSEIF CFLAG:(LOCAL:5):42 == 3 && TALENT:(LOCAL:5):薬物依存
+		PRINTFORMW %NAME:(LOCAL:5)%は虚ろな瞳で、従うから薬をくれるよう%ANAME(MASTER)%に訴えてきた
+		CALL DIPLOMACY_REQUEST_DRUG(ARG:0)
 	ELSEIF TALENT:(LOCAL:5):反抗的 || TALENT:(LOCAL:5):生意気 || TALENT:(LOCAL:5):プライド高い
 		PRINTFORMW %NAME:(LOCAL:5)%は%ANAME(MASTER)%を恨めしそうに睨みながら、怒気の篭った声で要求を受け入れた
 	ELSE
@@ -66,15 +69,21 @@ ELSE
 	ELSE
 		PRINTFORMW ……だが、%NAME:(LOCAL:5)%はそんなこと出来るわけがないと強い口調で断った
 	ENDIF
-
+	LOCAL:11 = 0
+	LOCAL:12 = 0
+	PRINTFORML [0] 武力を背景に脅す
 	IF TALENT:(LOCAL:5):烙印 || TALENT:(LOCAL:5):服従 || TALENT:(LOCAL:5):隷属 || (TALENT:(LOCAL:5):マゾ && TALENT:(LOCAL:5):恋慕)
-		CALL ASK_MULTI("武力を背景に脅す", "快楽で言うことを聞かせる", "諦める…")
-	ELSE
-		CALL ASK_MULTI("武力を背景に脅す", "諦める…")
-		SIF RESULT == 1
-			RESULT = 2
+		PRINTFORML [1] 快楽で言うことを聞かせる
+		LOCAL:11 = 1
 	ENDIF
-
+	IF TALENT:(LOCAL:5):薬物依存
+		PRINTFORML [2] 薬物で言うことを聞かせる
+		LOCAL:12 = 1
+	ENDIF
+	PRINTFORML [3] 諦める…
+	
+	$INPUT_LOOP
+	INPUT
 	;武力で脅す
 	IF RESULT == 0
 		IF LOCAL:10
@@ -113,7 +122,7 @@ ELSE
 		ENDIF
 
 	;快楽で言うことを聞かせる
-	ELSEIF RESULT == 1
+	ELSEIF RESULT == 1 && LOCAL:11
 		;口上の表示
 		PRINTFORMW %ANAME(MASTER)%は%NAME:(LOCAL:5)%に人払いをするように求めた
 		PRINTFORMW ………………
@@ -198,6 +207,22 @@ ELSE
 			PRINTFORML だが、いくら%ANAME(MASTER)%の頼みでもそれだけは応えることが出来ないと、
 			PRINTFORMW %NAME:(LOCAL:5)%は申し訳なさそうに目を伏せて拒んだ
 			RETURN 0
+		ENDIF
+	ELSEIF RESULT == 2 && LOCAL:12
+		;口上の表示
+		PRINTFORMW %ANAME(MASTER)%は%NAME:(LOCAL:5)%に人払いをするように求めた
+		PRINTFORMW ………………
+		PRINTFORML %ANAME(MASTER)%は%NAME:(LOCAL:5)%の眼前に錠剤をちらつかせながら、
+		PRINTFORMW 要求を飲んだらとびきりキくやつをくれてやると%NAME:(LOCAL:5)%の耳元で囁いた
+		PRINTL 
+		IF CFLAG:(LOCAL:5):薬物依存 >= REL_HATE:(LOCAL:5):(MASTER)
+			PRINTFORMW ………………
+			PRINTFORML 一にも二にもなく、要求に従うことに%NAME:(LOCAL:5)%は同意した
+			PRINTFORMW %ANAME(MASTER)%は褒美として、差し出された舌の上に錠剤を載せてやった……
+			CFLAG:(LOCAL:5):42 = 3
+			CFLAG:(LOCAL:5):薬物依存 += RAND(20, 50)
+			DIPLOMACY_REQUEST_SUCCESS_COUNT ++
+			RETURN 3
 		ENDIF
 	ENDIF
 ENDIF
@@ -329,6 +354,8 @@ SELECTCASE TRAIN_LIST:RESULT
 				CALL PRINT_ADD_EXP(LOCAL:5, "射精経験値", LOCAL:20 * LOCAL:21/ 80)
 			CALL PRINT_ADD_EXP(LOCAL:5, "絶頂経験", LOCAL:20 * LOCAL:21 / 20)
 			CALL TRAIN_AUTO_ABLUP(LOCAL:5)
+			CALL RECORD_INJECTION(LOCAL:5, GET_ID(MASTER), 5)
+			CALL CHECK_PREGNANT(LOCAL:5)
 			WAIT
 
 		ELSE
@@ -374,6 +401,8 @@ SELECTCASE TRAIN_LIST:RESULT
 			CALL PRINT_ADD_EXP(LOCAL:5, "絶頂経験", LOCAL:20 * LOCAL:21 / 20)
 			CALL PRINT_ADD_EXP(LOCAL:5, "苦痛快楽経験", LOCAL:20 * 5)
 			CALL TRAIN_AUTO_ABLUP(LOCAL:5)
+			CALL RECORD_INJECTION(LOCAL:5, GET_ID(MASTER), 5)
+			CALL CHECK_PREGNANT(LOCAL:5)
 			WAIT
 		ENDIF
 
@@ -730,6 +759,121 @@ SELECTCASE TRAIN_LIST:RESULT
 ENDSELECT
 
 ;-------------------------------------------------
+;要求を飲んだ時のご褒美（薬物）
+;-------------------------------------------------
+@DIPLOMACY_REQUEST_DRUG_USE(ARG:0)
+LOCAL:4 = GET_COUNTRY_BOSS(CFLAG:MASTER:1)
+LOCAL:5 = GET_COUNTRY_BOSS(ARG:0)
+
+SELECTCASE RAND:100
+	CASE IS > 60
+		PRINTFORMW %ANAME(MASTER)%はペニスを露出させると、その上に錠剤をのせた
+		PRINTFORML %ANAME(LOCAL:5)%は目の色を変え、蒸れた肉の棒にしゃぶりつく
+		PRINTFORMW そしてそのまま、ぢゅるぢゅると音を立ててしゃぶりたて始めた
+		PRINTFORML ぢゅぽ、ぐぽと、卑猥な水音が部屋中に響き渡る
+		PRINTFORMW %ANAME(LOCAL:5)%はもはや明らかに、薬のためだけにこのような行為をしているわけではなかった
+		PRINTFORML やがて%ANAME(MASTER)%が限界を迎え、その精を%ANAME(LOCAL:5)%の口内に放つと、
+		PRINTFORMW %ANAME(LOCAL:5)%は音を立ててそれを飲み下していった……
+		LOCAL:20 = ROUND_MAX(MASTER) * 8 / 10
+		LOCAL:21 = GET_EVENT_ABL_POWER(ABL:(LOCAL:5):性技)
+		LOCAL:22 = GET_EVENT_ABL_POWER(ABL:(LOCAL:5):欲望)
+		PRINTFORML <%ANAME(MASTER)%>
+		CALL PRINT_ADD_EXP(MASTER, "性技経験値", LOCAL:20 * 2 / 3)
+		CALL PRINT_ADD_EXP(MASTER, "射精経験値", LOCAL:20)
+		CALL PRINT_ADD_EXP(MASTER, "絶頂経験", LOCAL:20)
+		CALL TRAIN_AUTO_ABLUP(MASTER)
+		PRINTL 
+		PRINTFORML <%ANAME(LOCAL:5)%>
+		CALL PRINT_ADD_EXP(LOCAL:5, "欲望経験値", LOCAL:20 * LOCAL:22 / 20)
+		CALL PRINT_ADD_EXP(LOCAL:5, "性技経験値", LOCAL:20 * 2 / 3)
+		CALL PRINT_ADD_EXP(LOCAL:5, "奉仕経験値", LOCAL:20 * 2)
+		CALL PRINT_ADD_EXP(LOCAL:5, "精愛経験値", LOCAL:20)
+		CALL PRINT_ADD_EXP(LOCAL:5, "絶頂経験", LOCAL:20 * LOCAL:21 / 20)
+		CALL TRAIN_AUTO_ABLUP(LOCAL:5)
+		IF TALENT:(LOCAL:5):キス未経験
+			CALL KISS_COMMON(LOCAL:5, GET_ID(MASTER), 1, 0, 0)
+		ENDIF
+	CASEELSE
+		PRINTFORML %ANAME(MASTER)%は、トリップする%ANAME(LOCAL:5)%をベッドの上に押し倒した
+		PRINTFORML そして前戯もそこそこに、その濡れた穴にペニスを挿入した
+		PRINTFORMW 薬物の効果により、%ANAME(LOCAL:5)%は獣じみたヨガり声をあげて悶えた
+		SIF TALENT:(LOCAL:5):処女
+			PRINTFORML ぶぢりという音と共に、%ANAME(LOCAL:5)%の純潔は喪われたが、今の彼女にはそれすら快楽であるようだった
+		PRINTFORML 度を超した快楽に%ANAME(LOCAL:5)%の身体はガクガクと震えて絶頂している
+		PRINTFORMW だが、%ANAME(MASTER)%からしてみればそんなことは関係ない
+		PRINTFORMW %ANAME(MASTER)%は、くねる%ANAME(LOCAL:5)%の尻にひたすら腰を打ち付け、何度もその奥で射精してやった……
+		IF TALENT:(LOCAL:5):処女 && VAGINA(LOCAL:5)
+			SETCOLOR COLOR("注意")
+			PRINTFORML %ANAME(LOCAL:5)%は<処女>を失った…
+			RESETCOLOR
+			;処女を捧げた相手をMASTERに設定
+			CFLAG:(LOCAL:5):41 = GET_ID(MASTER)
+			TALENT:(LOCAL:5):処女 = 0
+		ENDIF
+		IF PENIS(MASTER)
+			LOCAL:20 = ROUND_MAX(MASTER) * 8 / 10
+		ELSE
+			LOCAL:20 = 15
+		ENDIF
+		LOCAL:21 = GET_EVENT_ABL_POWER(ABL:(LOCAL:5):Ｖ感)
+		LOCAL:22 = GET_EVENT_ABL_POWER(ABL:(LOCAL:5):欲望)
+		PRINTFORML <%ANAME(MASTER)%>
+		IF PENIS(MASTER)
+			CALL PRINT_ADD_EXP(MASTER, "性技経験値", LOCAL:20 * 2 / 3)
+			CALL PRINT_ADD_EXP(MASTER, "射精経験値", LOCAL:20)
+			CALL PRINT_ADD_EXP(MASTER, "絶頂経験", LOCAL:20)
+		ELSE
+			CALL PRINT_ADD_EXP(MASTER, "性技経験値", LOCAL:20 * 2 / 3)
+		ENDIF
+		CALL TRAIN_AUTO_ABLUP(MASTER)
+		PRINTL 
+		PRINTFORML <%ANAME(LOCAL:5)%>
+		CFLAG:(LOCAL:5):4 += 300
+		CFLAG:(LOCAL:5):3 += 300
+		PRINTL 従属度＋300
+		PRINTL 依存度＋300
+		CALL PRINT_ADD_EXP(LOCAL:5, "Ｖ感経験値", LOCAL:20 * LOCAL:21 / 10)
+		CALL PRINT_ADD_EXP(LOCAL:5, "欲望経験値", LOCAL:20 * LOCAL:22 / 20)
+		CALL PRINT_ADD_EXP(LOCAL:5, "性技経験値", LOCAL:20 * 2 / 3)
+		CALL PRINT_ADD_EXP(LOCAL:5, "奉仕経験値", LOCAL:20 * 2)
+		CALL PRINT_ADD_EXP(LOCAL:5, "性交経験値", LOCAL:20 * 2 / 3)
+		CALL EVENT_NIGHT_SEX_SAMESEX_EXP(LOCAL:5, MASTER, LOCAL:20 * 2)
+		SIF PENIS(MASTER)
+			CALL PRINT_ADD_EXP(LOCAL:5, "精愛経験値", LOCAL:20)
+		SIF PENIS(LOCAL:5)
+			CALL PRINT_ADD_EXP(LOCAL:5, "射精経験値", LOCAL:20 * LOCAL:21/ 80)
+		CALL PRINT_ADD_EXP(LOCAL:5, "絶頂経験", LOCAL:20 * LOCAL:21 / 20)
+		CALL TRAIN_AUTO_ABLUP(LOCAL:5)
+		CALL RECORD_INJECTION(LOCAL:5, GET_ID(MASTER), 5)
+		CALL CHECK_PREGNANT(LOCAL:5)
+		WAIT
+ENDSELECT
+
+;-------------------------------------------------
+;要求を飲んだ時のご褒美（薬物）
+;-------------------------------------------------
+@DIPLOMACY_REQUEST_DRUG(ARG:0)
+
+LOCAL:4 = GET_COUNTRY_BOSS(CFLAG:MASTER:1)
+LOCAL:5 = GET_COUNTRY_BOSS(ARG:0)
+
+CFLAG:(LOCAL:5):薬物依存 += RAND(20, 50)
+PRINTL 
+PRINTFORMW ………………
+PRINTFORMW %NAME:(LOCAL:5)%は期待するような瞳で%ANAME(MASTER)%を見つめている…
+PRINTFORMW 要求を受け入れた褒美に、差し出された舌の上に薬を載せてやった…
+PRINTFORML
+IF VAGINA(LOCAL:5) && PENIS(MASTER)
+	PRINTFORML トリップしている%NAME:(LOCAL:5)%を「使い」ますか？
+	PRINTFORML [0] 使う
+	PRINTFORML [1] やめておく
+	INPUT
+	IF RESULT == 0
+		CALL DIPLOMACY_REQUEST_DRUG_USE(ARG:0)
+	ELSE
+	ENDIF
+ENDIF
+;-------------------------------------------------
 ;2回目以降の要求を飲んだ時のご褒美
 ;-------------------------------------------------
 @DIPLOMACY_REQUEST_GOHOUBI(ARG:0)
@@ -768,7 +912,9 @@ PRINTFORMW %NAME:(LOCAL:5)%は%NAME:(LOCAL:4)%に兵{LOCAL:11}を「提供」し
 ;快楽で言うことを聞かせた場合、ご褒美の処理
 SIF LOCAL:2 == 2
 	CALL DIPLOMACY_REQUEST_PRIZE(ARG:0)
-
+;薬物で言うことを聞かせた場合、ドラッグの処理
+SIF LOCAL:2 == 3
+	CALL DIPLOMACY_REQUEST_DRUG(ARG:0)
 RETURN 1
 
 ;-------------------------------------------------
@@ -795,7 +941,9 @@ PRINTFORMW %NAME:(LOCAL:5)%は%NAME:(LOCAL:4)%に経済力{LOCAL:11 / 100}を「
 ;快楽で言うことを聞かせた場合、ご褒美の処理
 SIF LOCAL:2 == 2
 	CALL DIPLOMACY_REQUEST_PRIZE(ARG:0)
-
+;薬物で言うことを聞かせた場合、ドラッグの処理
+SIF LOCAL:2 == 3
+	CALL DIPLOMACY_REQUEST_DRUG(ARG:0)
 RETURN 1
 
 ;-------------------------------------------------
@@ -927,7 +1075,9 @@ ELSE
 			;快楽で言うことを聞かせた場合、ご褒美の処理
 			SIF LOCAL:2 == 2
 				CALL DIPLOMACY_REQUEST_PRIZE(ARG:0)
-
+			;薬物で言うことを聞かせた場合、ドラッグの処理
+			SIF LOCAL:2 == 3
+				CALL DIPLOMACY_REQUEST_DRUG(ARG:0)
 			RETURN 1
 		ELSE
 			REDRAW 1
@@ -965,7 +1115,9 @@ WAIT
 ;快楽で言うことを聞かせた場合、ご褒美の処理
 SIF LOCAL:2 == 2
 	CALL DIPLOMACY_REQUEST_PRIZE(ARG:0)
-
+;薬物で言うことを聞かせた場合、ドラッグの処理
+SIF LOCAL:2 == 3
+	CALL DIPLOMACY_REQUEST_DRUG(ARG:0)
 RETURN 1
 
 ;-------------------------------------------------
@@ -1033,8 +1185,11 @@ FOR LOCAL:0, 0, CHARANUM
 		SIF DIPLOMACY_REQUEST_CHECK(CFLAG:MASTER:1, LOCAL:2, 15 + FLAG:99)
 			LOCAL:3 = 1
 
-		;【条件B】特定の素質を持っている
-		SIF TALENT:(LOCAL:0):烙印 || TALENT:(LOCAL:0):服従 || TALENT:(LOCAL:0):隷属 || (TALENT:(LOCAL:0):マゾ && TALENT:(LOCAL:0):恋慕)
+		;【条件B】特定の素質を持っていて、快楽でいうことを聞かせた
+		SIF TALENT:(LOCAL:0):烙印 || TALENT:(LOCAL:0):服従 || TALENT:(LOCAL:0):隷属 || (TALENT:(LOCAL:0):マゾ && TALENT:(LOCAL:0):恋慕) && CFLAG:(LOCAL:0):42 == 2
+			LOCAL:4 = 1
+
+		SIF CFLAG:(LOCAL:0):薬物依存 >= REL_HATE:(LOCAL:0):(MASTER) && CFLAG:(LOCAL:0):43 == 3
 			LOCAL:4 = 1
 
 		;【条件A】【条件B】のいずれも満たさず2ターン以降経過しているなら解除
