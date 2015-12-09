@@ -1,0 +1,210 @@
+;反乱の構文を独立させました
+
+@DIPRO_INDIPENDENCE(ARGS:0)
+LOCAL:1 = FINDCHARA(CSTR:99, ARGS:0)
+
+;離反元君主のキャラ番号
+LOCAL:2 = GET_COUNTRY_BOSS(CFLAG:(LOCAL:1):1)
+;離反元国家の番号
+LOCAL:3 = CFLAG:(LOCAL:1):1
+;新しい勢力を取得
+LOCAL:4 = GET_NEW_COUNTRY()
+
+
+;国家色は関数にて自動決定
+
+CALL CHARA_DIPRO_COLOR(ARGS:0)
+LOCAL:10 = RESULT
+COUNTRY_COLOR:(LOCAL:4) = LOCAL:10
+
+
+
+
+;プレイヤーの態度をLOCAL:10に格納
+;出力 0:離反について出奔,1:元君主のもとに留まる,2:説得を行うも失敗
+LOCAL:10 = 1
+;プレイヤーが離反者の所属国家の君主でなく、かつ離反者の同僚である
+IF LOCAL:2 != MASTER && CFLAG:MASTER:1 == CFLAG:(LOCAL:1):1
+	;それなりに仲が良いと、一緒に来ないかと尋ねられる
+	;正邪用のセリフは用意してません。共通です。一応正体不明云々はぬえの時だけ表示されるはず
+	IF CFLAG:(LOCAL:1):2 >= 300
+		DRAWLINE
+		PRINTFORMW ある日、%ANAME(LOCAL:1)%に急に呼び出された
+		PRINTFORMW 人払いをした彼女の部屋で、%ANAME(LOCAL:1)%に告げられる
+		PRINTFORMW 「じつはさぁ……%ANAME(LOCAL:2)%のとこを出ようと思うんだよね」
+		PRINTFORMW 「つまり離反ってやつ。で、あんた見たところ使えそうだし、なんならウチに来ない？　って相談なんだけど。どう？」
+		PRINTFORMW 「迷うと思うんだけど、できればすぐ返事が欲しいんだよね……アンタが%ANAME(LOCAL:2)%にチクらないとも限らないし」
+		PRINTFORMW すぐに返事しろと言われても困る。だが%ANAME(LOCAL:1)%は、ともかく何かしら応えるまで返すつもりはないようだ……
+		$INPUT_LOOP_NUE_INVITATION
+		PRINTFORML [0] %ANAME(LOCAL:1)%につく
+		PRINTFORML [1] %ANAME(LOCAL:2)%側に残る
+		PRINTFORML [2] バカなことはやめろという
+		INPUT
+		IF RESULT == 0
+			CFLAG:MASTER:1 = LOCAL:4
+			PRINTFORMW 「くくっ、あんたならそう言ってくれると思ってたよ」
+			PRINTFORMW %ANAME(LOCAL:1)%は凶悪な笑みをにやりと浮かべてみせた。
+			PRINTFORMW 「じゃあ、いっちょやってやろうじゃないか。私とあんたで、この幻想郷を恐怖の底に沈めてやるのさ」
+			IF LOCAL:1 == NAME_TO_CHARA("ぬえ")
+				PRINTFORMW 「……正体不明の恐怖にね！　くくく！」
+			ENDIF
+			PRINTFORMW なんだかえらいことに首を突っ込んでしまった気がする。大丈夫だろうか……。
+			;ぬえちゃん強キャラだけどぶっちゃけ他に誰連れてこれるか次第だねこれね。
+			;チート級あなたが味方ならそりゃまぁ心強いけど、途中何回孕まされるか分かったもんじゃないね？？
+			LOCAL:10 = 0
+		ELSEIF RESULT == 1
+			PRINTFORMW %ANAME(LOCAL:2)%を裏切るわけにはいかない……そう告げると、%ANAME(LOCAL:1)%は露骨に失望した表情を浮かべた
+			PRINTFORMW 「……はあ。あっそ、じゃあとっとと出ていきな」
+			PRINTFORMW 「後悔しないことだね。私の国は、あんたんとこなんて一瞬で食い尽くすよ」
+			PRINTFORMW それっきり%ANAME(LOCAL:1)%はこちらに興味を失ったのか、そっぽを向いてしまった
+			PRINTFORMW ここで%ANAME(MASTER)%に危害を加えるつもりはないようだが、次に会うときは敵としてになるだろう……
+			PRINTL
+			LOCAL:10 = 1
+		ELSEIF RESULT == 2
+			PRINTFORMW バカなことはやめろ……
+			;何らかのあなたに対する陥落素質があれば思いとどまる
+			IF (IS_LOVER(LOCAL:1) || IS_SLAVE(LOCAL:1))
+				PRINTFORMW %ANAME(MASTER)%が必死に説得すると、%ANAME(LOCAL:1)%はため息をついた
+				PRINTFORMW 「……はあ。あんたにそんなこと言われちゃうなんてね」
+				PRINTFORMW 「まあ、分かったよ。あんたの言うことは断りたくないから。我慢してあげる」
+				PRINTFORMW 「……その代わり、私のこと、色々満足させてよね？」
+				PRINTFORMW どうやら%ANAME(LOCAL:1)%は離反をあきらめてくれたようだ……
+				RETURN
+			;なければd100が現在の好感度の1/10より大きければキレる
+			ELSEIF RAND:100 > CFLAG:(LOCAL:1):2 / 10
+				PRINTFORMW %ANAME(MASTER)%が必死に説得すると、%ANAME(LOCAL:1)%は逆上した
+				PRINTFORMW 「あ？　なんであんたにそんなこと言われなきゃいけないわけ？」
+				PRINTFORMW 「もういい。分かった。あんたは要らない。私が作る新しい国に、呑まれて消えちまえばいいんだ」
+				PRINTFORMW 「出て行け！　今すぐ私の前から消えなっ！」
+				PRINTFORMW そう言って怒りを収めることなく%ANAME(LOCAL:1)%はあなたを部屋から追い出した
+				PRINTFORMW 次に%ANAME(LOCAL:1)%と出会うのは戦場か、それとも……
+				PRINTL
+				LOCAL:10 = 2
+			;そうでなければ普通に別れる、なお台詞はコピペのままで終わらせたくなかったのでちょこちょこ変えてみた
+			ELSE
+				PRINTFORMW %ANAME(MASTER)%が必死に説得すると、%ANAME(LOCAL:1)%は嫌悪の表情を浮かべた
+				PRINTFORMW 「……はあ。こっちに付く気がないなら出てってくれないかい？」
+				PRINTFORMW 「あんたが%ANAME(LOCAL:2)%にご執心なのは分かったから、今のうちにあいつと乳繰り合っておきな」
+				PRINTFORMW 違う、そう反論しようとするよりも早く%ANAME(LOCAL:1)%は言葉を続けた
+				PRINTFORMW 「すぐに私の国が、色呆けしてるあんたもろともこの国を呑み込んでやるからな」
+				PRINTFORMW 怒りの表情を隠さない%ANAME(LOCAL:1)%の姿を背に、あなたは部屋から出て行った
+				PRINTFORMW %ANAME(MASTER)%と刃を交えるとき、お互いどのような顔をしているのだろうか……
+				PRINTL
+				LOCAL:10 = 1
+			ENDIF
+		ENDIF
+	ENDIF
+ENDIF
+DRAWLINE
+SETCOLOR COLOR_CAUTION
+PRINTFORMW ！%NAME_FORMAL(LOCAL:1)%が挙兵し、%NAME_FORMAL(LOCAL:2)%の勢力から独立しました！
+RESETCOLOR
+WAIT
+
+COUNTRY_BOSS:(LOCAL:4) = GET_ID(LOCAL:1)
+CFLAG:(LOCAL:1):1 = LOCAL:4
+	;離反元勢力の都市の守将を解除
+FOR LOCAL:0, 0, MAX_CITY
+	IF CITY_OWNER:(LOCAL:0) == LOCAL:3
+		CITY_COMMANDER:(LOCAL:0) = 0
+	ENDIF
+NEXT
+;DEBUGPRINTFORML DISARM:{LOCAL:3}
+;都市を二つかすめ取る
+;ただし、激おこであれば1/3（最低2都市）持っていく
+IF LOCAL:10 == 2
+	CALL STEAL_CITIES(LOCAL:3, LOCAL:4, MAX(GET_OWN_CITY(LOCAL:3) / 3 , 2))
+ELSE
+	CALL STEAL_CITIES(LOCAL:3, LOCAL:4, 2)
+ENDIF
+	;マミゾウは（ぬえの離反の時、離反元にいて、捕虜でなく、君主でもなければ）必ず奪う
+IF CFLAG:(NAME_TO_CHARA("マミゾウ")):1 == LOCAL:3 && CFLAG:(NAME_TO_CHARA("マミゾウ")):9 == 0 && LOCAL:2 != NAME_TO_CHARA("マミゾウ") && LOCAL:1 == NAME_TO_CHARA("ぬえ")
+	CFLAG:(NAME_TO_CHARA("マミゾウ")):1 = LOCAL:4
+ENDIF
+
+;離反元所属武将の一部をかすめ取る処理。
+;LOCAL 1:離反者 , 2:離反元勢力君主 , 3:離反元勢力 , 5:離反元の未陥落者数 , 6:離反元の陥落済人数（プレイヤーが離反元勢力にいなければ5に併合）
+;      7:離反元から引きぬく人数 , 10:離反勧誘の返答
+;
+LOCAL:5 = 0
+LOCAL:6 = 0
+;所属武将の数を調べる
+FOR LOCAL:0, 0, CHARANUM
+	;離反元所属で、捕虜でなく、プレイヤーでも離反者でも君主でないキャラ
+	IF CFLAG:(LOCAL:0):1 == LOCAL:3 && CFLAG:(LOCAL:0):9 == 0 && !GROUPMATCH(LOCAL:0 , MASTER , LOCAL:1 , LOCAL:2)
+	;DEBUGPRINTFORML CHARAMATCH:{LOCAL:0}
+		;恋慕系か隷属系でないなら組み込み、恋慕なら拉致、プレイヤーのいない勢力では組み込み
+		;(陥落済かつ「離反に同調」か「離反せず離反元に残る」)
+		IF (IS_LOVER(LOCAL:0) || IS_SLAVE(LOCAL:0)) && (!LOCAL:10 || (LOCAL:10 && CFLAG:MASTER:1 == LOCAL:3))
+			LOCAL:6 ++
+		ELSE
+			LOCAL:5 ++
+		ENDIF
+	ENDIF
+NEXT
+;DEBUGPRINTFORML PICK :{LOCAL:5}
+;DEBUGPRINTFORML STEAL:{LOCAL:6}
+
+;引き抜き・拉致対象武将が0より大きいなら、ループ回しながらランダムにもっていく
+;拉致は多くて1/3まで。ただしいずれも候補が一人以上いるなら最低一人は持っていく可能性がある
+IF LOCAL:5 > 0 || LOCAL:6 > 0
+	LOCAL:5 = LOCAL:5 ? MAX(LOCAL:5 / 3 , 1) # 0
+	;あなたが裏切るなら恋慕・隷属は全員付いてくる
+	IF LOCAL:10 == 1
+		LOCAL:6 = LOCAL:6 ? MAX(RAND:(LOCAL:6 + 1) / 3 , 1) # 0
+	;怒らせると陥落済の人を余分に拉致して行きます。これは後でおしおきですね
+	ELSEIF LOCAL:10 == 2
+		LOCAL:6 = LOCAL:6 ? MAX(RAND:(LOCAL:6 + 1) * 2 / 3 , 1) # 0
+	ENDIF
+	;LOCAL:7に引抜き及び拉致する人数を合計しておき、合計人数が75％以上（残選択数が25％以下）であればそこで諦める
+	LOCAL:7 = LOCAL:5 + LOCAL:6
+	;最大周回を5回に設定
+	LOCAL:11 = 5
+	WHILE (100 - ((LOCAL:5 + LOCAL:6) * 100 / LOCAL:7) < 75 && LOCAL:11 > 0)
+		;判定するキャラ順をシャッフル、再挑戦するたびに順番は変わります
+		CALL FISHER_YATES_SHAFFLE(CHARANUM)
+		FOR LOCAL:99, 0, CHARANUM
+			LOCAL:0 = SHAFFLE_ARRAY:(LOCAL:99)
+			;離反元所属で、捕虜でなく、プレイヤーでも離反者でも君主でないキャラ
+			IF CFLAG:(LOCAL:0):1 == LOCAL:3 && CFLAG:(LOCAL:0):9 == 0 && !GROUPMATCH(LOCAL:0 , MASTER , LOCAL:1 , LOCAL:2)
+				;陥落済かつ「離反に同調」か「離反せず離反元に残る」ではないなら1/2で引き抜かれる
+				IF !((IS_LOVER(LOCAL:0) || IS_SLAVE(LOCAL:0)) && (!LOCAL:10 || (LOCAL:10 && CFLAG:MASTER:1 == LOCAL:3))) && RAND:2 == 0  && LOCAL:5 > 0
+					CFLAG:(LOCAL:0):1 = LOCAL:4
+					LOCAL:5 --
+				;離反せず離反元に残るなら陥落済みキャラは1/2で拉致される
+				ELSEIF RAND:2 == 0 && (IS_LOVER(LOCAL:0) || IS_SLAVE(LOCAL:0)) && LOCAL:6 > 0 && INRANGE(LOCAL:10 , 1 , 2)
+					CFLAG:(LOCAL:0):9 = LOCAL:4
+					LOCAL:6 --
+				;離反に同調すれば陥落済キャラは同行
+				ELSEIF (IS_LOVER(LOCAL:0) || IS_SLAVE(LOCAL:0)) && LOCAL:6 > 0 && LOCAL:10 == 0
+					CFLAG:(LOCAL:0):1 = LOCAL:4
+					LOCAL:6 --
+				ENDIF
+			ENDIF
+		NEXT
+		LOCAL:11 --
+	WEND
+ENDIF
+	;離反元勢力の部隊を解散
+CALL CLEAR_ALL_UNIT(LOCAL:3)
+;仲はまぁ、悪くもなりますわな
+CALL CHANGE_RELATION_C_TO_C(LOCAL:3, LOCAL:4, -200, 600)
+CALL CHANGE_RELATION_C_TO_C(LOCAL:4, LOCAL:3, -200, 600)
+
+;反乱勢力の都市を表示
+FOR LOCAL:0, 0, MAX_CITY
+	IF CITY_OWNER:(LOCAL:0) == LOCAL:4
+		PRINTFORML %GET_CITYNAME(LOCAL:0)%が%ANAME(LOCAL:1)%の支配下におかれました
+	ENDIF
+NEXT
+;反乱勢力に流れた人材
+FOR LOCAL:0, 0, CHARANUM
+	IF CFLAG:(LOCAL:0):1 == LOCAL:4 && LOCAL:0 != LOCAL:1
+		PRINTFORML %ANAME(LOCAL:0)%が%ANAME(LOCAL:1)%の下につきました
+	ELSEIF CFLAG:(LOCAL:0):9 == LOCAL:4
+		SETCOLOR COLOR_CAUTION
+		;性処理用云々は消しました
+		PRINTFORML %ANAME(LOCAL:0)%が%ANAME(LOCAL:1)%に拉致されました
+		RESETCOLOR
+	ENDIF
+NEXT
