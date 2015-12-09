@@ -1,0 +1,272 @@
+﻿;おねだり
+
+;-------------------------------------------------
+;コマンド名称
+;-------------------------------------------------
+@COM_NAME111
+LOCALS:0 = おねだり
+RESULTS:0 = %LOCALS:0%する
+RESULTS:1 = %LOCALS:0%させられる
+RESULTS:2 = %LOCALS:0%させる
+RESULTS:3 = %LOCALS:0%される
+RESULTS:4 = %LOCALS:0%させる
+RESULTS:5 = %LOCALS:0%見せつけ
+
+;-------------------------------------------------
+;選択可否判定
+;-------------------------------------------------
+@COM_ABLE111
+;共通部分
+CALL COM_ABLE_COMMON(111)
+SIF RESULT == 0
+	RETURN 0
+;プレイヤーは最大で5人まで
+SIF MPLY_NUM <= 0 || MPLY_NUM > 5
+	RETURN 0
+;ターゲットは最大で5人まで
+SIF MTAR_NUM <= 0 || MTAR_NUM > 5
+	RETURN 0
+;プレイヤーが行動不能なら不可
+SIF !IS_PLAYABLE(MPLY:0)
+	RETURN 0
+
+;全てのプレイヤーについて判定
+FOR LOCAL:0, 0, MPLY_NUM
+	;顔面騎乗されているなら不可
+	SIF IS_RIDDEN(MPLY:(LOCAL:0))
+		RETURN 0
+	;顔面騎乗しているなら不可
+	SIF IS_RIDDEN(MPLY:(LOCAL:0))
+		RETURN 0
+	;キス中、貝合中なら不可
+	SIF IS_EQUIP(MPLY:(LOCAL:0), 20, 21, 22)
+		RETURN 0
+	;手コキ、脚コキ、フェラ、素股, パイズリ、オナホコキ中なら不可
+	SIF IS_EQUIP_PLAYER(MPLY:(LOCAL:0), 10, 11, 12, 14, 13, 17)
+		RETURN 0
+	;Ｖ挿入中なら不可
+	SIF IS_INSERT_SINGLE(MPLY:(LOCAL:0), "Ｖ")
+		RETURN 0
+	;Ａ挿入中なら不可
+	SIF IS_INSERT_SINGLE(MPLY:(LOCAL:0), "Ａ")
+		RETURN 0
+	;拘束されていたらダメ
+	SIF IS_BIND(MPLY:(LOCAL:0))
+		RETURN 0
+NEXT
+;全てのターゲットについて判定
+FOR LOCAL:0, 0, MTAR_NUM
+	;顔面騎乗されているなら不可
+	SIF IS_RIDDEN(MTAR:(LOCAL:0))
+		RETURN 0
+	;挿入中なら不可
+	SIF IS_INSERT_SINGLE(MTAR:(LOCAL:0), "全")
+		RETURN 0
+	;キス中なら不可
+	SIF IS_EQUIP(MTAR:(LOCAL:0), 20)
+		RETURN 0
+	;拘束されていたらダメ
+	SIF IS_BIND(MTAR:(LOCAL:0))
+		RETURN 0
+NEXT
+
+RETURN 1
+
+;-------------------------------------------------
+;メイン処理
+;-------------------------------------------------
+@COM111
+;実行判定
+CALL COM_ORDER_COMMON
+SIF RESULT == 0
+	RETURN 0
+
+
+;●全プレイヤーについて処理
+FOR LOCAL:0, 0, MPLY_NUM
+	LOCAL:2 = MPLY:(LOCAL:0)
+
+	DOWNBASE:(LOCAL:2):体力 += 40
+
+	SOURCE:(LOCAL:2):露出 = 50
+	SOURCE:(LOCAL:2):逸脱 = 40
+	SOURCE:(LOCAL:2):反感 = 20
+
+	;奉仕経験値を得られるコマンドのフラグ
+	TCVAR:(MPLY:0):4 = 1
+
+	;主導権に応じた優越・屈従のソース追加
+	CALL ADD_SOURCE_INITIATIVE_U(LOCAL:2, 50, 200)
+NEXT
+
+;●全ターゲットについて処理
+FOR LOCAL:0, 0, MTAR_NUM
+	LOCAL:2 = MTAR:(LOCAL:0)
+
+	DOWNBASE:(LOCAL:2):体力 += 40
+
+	SOURCE:(LOCAL:2):嗜虐 = 50
+	SOURCE:(LOCAL:2):露出 = 30
+	SOURCE:(LOCAL:2):逸脱 = 20
+	SOURCE:(LOCAL:2):接触 = 30
+
+	;主導権に応じた優越・屈従のソース追加
+	CALL ADD_SOURCE_INITIATIVE_U(LOCAL:2, 160, 80)
+NEXT
+
+;主導度変化基準値
+TFLAG:49 = 3
+
+;倒錯度変化基準値
+TFLAG:50 = 2
+
+;レズ・ＢＬ経験基準値
+TFLAG:51 = 4
+
+RETURN 1
+
+;-------------------------------------------------
+;継続コマンドかどうかを設定
+;-------------------------------------------------
+@COM_IS_EQUIP111
+RETURN 0
+
+;-------------------------------------------------
+;固有の実行判定
+;-------------------------------------------------
+@COM_ORDER_PLAYER111(ARG:0)
+;実行値の設定
+TCVAR:(ARG:0):25 = 100
+
+;共通部分
+CALL COM_ORDER(ARG:0)
+
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲望Lv{ABL:(ARG:0):欲望}", ABL:(ARG:0):欲望 * 2)
+CALL COM_ORDER_ELEMENT(ARG:0, @"奉仕Lv{ABL:(ARG:0):奉仕}", ABL:(ARG:0):奉仕 * 3)
+
+LOCAL:0 = GET_PALAMLV(PALAM:(ARG:0):欲情)
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲情Lv{LOCAL:0}", MIN(LOCAL:0 * 1, 10))
+
+IF TALENT:(ARG:0):恥じらい
+	CALL COM_ORDER_ELEMENT(ARG:0, "恥じらい", -4)
+ENDIF
+
+
+RETURN 1
+
+;-------------------------------------------------
+;地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE111
+
+;プレイヤーが2人以上
+IF MPLY_NUM >= 2
+	LOCALS:0 = %ANAME(MPLY:0)%たち
+;プレイヤーが１人
+ELSE
+	LOCALS:0 = %ANAME(MPLY:0)%
+ENDIF
+;ターゲットが2人以上
+IF MTAR_NUM >= 2
+	LOCALS:1 = %ANAME(MTAR:0)%たち
+;ターゲットが1人
+ELSE
+	LOCALS:1 = %ANAME(MTAR:0)%
+ENDIF
+
+SELECTCASE GET_COM_INITIATIVE()
+	CASE 0
+	CASE 1
+		IF MTAR_NUM == 1 && (TALENT:(MTAR:0):サド || ABL:(MTAR:0):主導度Ｕ >= 500)
+			PRINTFORMW %LOCALS:1%は嗜虐的な笑みを浮かべ%LOCALS:0%に命令し、%無理やり%おねだりさせ%PLAYER_STR("た", "てきた")%…
+		ELSEIF MTAR_NUM == 1 && ABL:(MTAR:0):主導度Ｕ < 100
+			PRINTFORMW %LOCALS:1%は少し緊張した様子で%LOCALS:0%に命令し、おねだりさせた…
+		ELSE
+			PRINTFORMW %LOCALS:1%は%LOCALS:0%に命令し、無理やりおねだりさせた…
+		ENDIF
+	;第三者に主導権
+	CASEELSE
+		PRINTFORML %ANAME(TFLAG:45)%は%LOCALS:0%に、%LOCALS:1%におねだりするように命令した
+ENDSELECT
+
+FOR LOCAL:0, 0, MPLY_NUM
+	PRINTFORM %ANAME(MPLY:(LOCAL:0))%は、
+	SELECTCASE RAND:7
+		CASE 0
+			PRINTFORM 仰向けの姿勢で両脚を広げ、
+		CASE 1
+			PRINTFORM 四つん這いの姿勢で尻を突き出し、
+		CASE 2
+			PRINTFORM 自ら\@ IS_FEMALE(MPLY:(LOCAL)) ? まんぐり返し# ちんぐり返し\@の姿勢をとり、
+		CASE 3
+			PRINTFORM 地に頭を擦りつけ土下座をしながら、
+		CASE 4
+			PRINTFORM 蹲踞の姿勢で股を広げ、
+		CASE 5
+			PRINTFORM 胸を強調する姿勢を取りながら、
+		CASE 6
+			PRINTFORM %LOCALS:1%に抱きつきながら、
+	ENDSELECT
+	SELECTCASE RAND:10
+		CASE 0
+			PRINTFORM \@ IS_FEMALE(MPLY:(LOCAL)) ? 秘唇を指で割り広げ、 # 勃起した肉棒を軽く揺らし、 \@
+		CASE 1
+			PRINTFORM 尻穴を指で割り広げ、
+		CASE 2
+			PRINTFORM \@ IS_FEMALE(MPLY:(LOCAL)) ? 秘裂に指を軽く出し入れし、 # 肉棒を軽く扱きあげ、 \@
+		CASE 3
+			PRINTFORM \@ PENIS(MPLY:(LOCAL)) ? 肉棒 # クリトリス \@を指先で弄くり、
+		CASE 4
+			PRINTFORM 菊座を指先で弄びながら、
+		CASE 5
+			PRINTFORM \@ IS_FEMALE(MPLY:(LOCAL)) ? 乳房を腕で寄せるようにし、 # 胸筋を強調して、 \@
+		CASE 6
+			PRINTFORM 乳首を指先で軽く弄り、
+		CASE 7
+			PRINTFORM 淫らに腰を揺らして、
+		CASE 8
+			PRINTFORM 肉棒をしゃぶるようなジェスチャーをし、
+		CASE 9
+			PRINTFORM 肉棒を扱くようなジェスチャーをし、
+	ENDSELECT
+	SELECTCASE RAND:9
+		CASE 0
+			PRINTFORM 犯して下さい
+		CASE 1
+			PRINTFORM おチンポを下さい
+		CASE 2
+			PRINTFORM 気持ちよくして下さい
+		CASE 3
+			PRINTFORM \@ IS_FEMALE(MPLY:(LOCAL)) ? 膣内に注いで下さい # 射精させて下さい \@
+		CASE 4
+			PRINTFORM \@ IS_FEMALE(MPLY:(LOCAL)) ? 種付けして下さい # ペニスをいじめて下さい \@
+		CASE 5
+			PRINTFORM 辱めて下さい
+		CASE 6
+			PRINTFORM 私を奴隷にしてください
+		CASE 7
+			PRINTFORM 私はあなたの性奴隷です
+		CASE 8
+			PRINTFORM セックス\@ IS_FEMALE(MPLY:(LOCAL)) ? して下さい # させて下さい \@
+	ENDSELECT
+	PRINTFORMW と言った……
+NEXT
+
+
+@COM_TEXT_LAST111
+FOR LOCAL:0, 0, MPLY_NUM
+	LOCAL:1 = MPLY:(LOCAL:0)
+	SIF LOCAL:1 == MASTER
+		CONTINUE
+	IF TALENT:(LOCAL:1):肉便器
+		PRINTFORML 肉便器に成り下がった%ANAME(LOCAL:1)%は、おねだりすることに快楽を見いだしている…
+	ELSEIF IS_SLAVE(LOCAL:0)
+		PRINTFORML 屈服しきった%ANAME(LOCAL:1)%は、おねだりすることに悦びを見いだしている…
+	ELSEIF TALENT:(LOCAL:1):マゾ
+		PRINTFORML すっかり被虐が身についた%ANAME(LOCAL:1)%は、おねだりすることに快楽を見いだしている…
+	ELSEIF ABL:(LOCAL:1):主導度Ｕ <= -100 && ABL:(LOCAL:1):倒錯度 >= 300
+		PRINTFORML %ANAME(LOCAL:1)%はおねだりに対し屈辱と、同時に快楽をも覚えつつあるようだ…
+	ELSE
+		PRINTFORML %ANAME(LOCAL:1)%はおねだりすることの屈辱に歯ぎしりしている…
+	ENDIF
+NEXT
