@@ -67,10 +67,7 @@ ELSEIF DVAR:薬売りフラグ == 3
 ENDIF
 DRAWLINE
 PRINTFORML 現在の金:{MONEY}
-PRINTL [0] 買ってみる
-PRINTL [1] やめておく
-PRINTL [2] うざいので斬る
-INPUT
+CALL ASK_MULTI_JUDGE("買ってみる", MONEY >= LOCAL:1, "やめておく", 1, "うざいので斬る")
 IF RESULT == 1
 	$DENIED
 	PRINTFORMW 当然、買うわけがない。どうせ詐欺に決まっているのだから
@@ -81,14 +78,7 @@ ELSEIF RESULT == 2
 	PRINTFORMW 「イヤーッ！」
 	PRINTFORMW 「アバーッ！」
 	PRINTFORMW ……つい勢いで斬ってしまった。まだ息があるようだがどうしてくれよう。
-	$LOOP_SYOBUN
-	PRINTL [0] 晒し首にする
-	PRINTL [1] 性奴隷にする
-	SIF ITEM:触手部屋 && FLAG:35 != -1
-		PRINTL [2] 触手のおやつにする
-	SIF PENIS(MASTER)
-		PRINTL [3] この男にも穴はあるんだよな……
-	INPUT
+	CALL ASK_MULTI_JUDGE("晒し首にする", 1, "性奴隷にする", 1, "触手のおやつにする", ITEM:触手部屋 && FLAG:35 != -1, "この男にも穴はあるんだよな……", PENIS(MASTER))
 	SELECTCASE RESULT
 		CASE 0
 			PRINTFORMW こんな男を生かしておく理由もあるまい。
@@ -103,32 +93,20 @@ ELSEIF RESULT == 2
 			COUNTRY_SOLDIER:(CFLAG:MASTER:1) += LOCAL:1 / 20
 
 		CASE 2
-			IF ITEM:触手部屋 && FLAG:35 != -1
-				PRINTFORMW %ANAME(MASTER)%は男を触手部屋に放り込んだ。
-				PRINTFORMW かわいい触手たちが腹を下さないか少し心配だったが杞憂だったようだ。
-				CALL PRINT_ADD_EXP(FLAG:35, "妖術経験値", LOCAL:1 / 1000)
-				CALL TRAIN_AUTO_ABLUP(FLAG:35)
-			ELSE
-				GOTO LOOP_SYOBUN
-			ENDIF
+			PRINTFORMW %ANAME(MASTER)%は男を触手部屋に放り込んだ。
+			PRINTFORMW かわいい触手たちが腹を下さないか少し心配だったが杞憂だったようだ。
+			CALL PRINT_ADD_EXP(FLAG:35, "妖術経験値", LOCAL:1 / 1000)
+			CALL TRAIN_AUTO_ABLUP(FLAG:35)
 		CASE 3
-			SIF !PENIS(MASTER)
-				GOTO LOOP_SYOBUN
 			PRINTFORMW 急にムラッときた%ANAME(MASTER)%は男で性欲処理することにした。
 			PRINTFORMW 男の穴は信じられないほど具合がよく、%ANAME(MASTER)%は男の体が冷たくなるまで何度も大変気持ちよく射精した。
-				CALL PRINT_ADD_EXP(MASTER, "性技経験値", LOCAL:1 / 10000)
-				CALL PRINT_ADD_EXP(MASTER, "射精経験値", LOCAL:1 / 5000)
-				CALL PRINT_ADD_EXP(MASTER, "絶頂経験", LOCAL:1 / 5000)
+			CALL PRINT_ADD_EXP(MASTER, "性技経験値", LOCAL:1 / 10000)
+			CALL PRINT_ADD_EXP(MASTER, "射精経験値", LOCAL:1 / 5000)
+			CALL PRINT_ADD_EXP(MASTER, "絶頂経験", LOCAL:1 / 5000)
 	ENDSELECT
-	RETURN -1
+	DVAR:薬売りフラグ = -1
 ELSE
-	IF MONEY < LOCAL:1
-		PRINTFORMW 買ってみようと思ったが、資金が足りなかった
-		PRINTFORMW 「……なんでい、金が足りねぇんじゃねぇか、貧乏人に用はないよ、消えちまいな！」
-		PRINTFORMW 男は唾を吐き、早々に出て行ってしまった……
-		DRAWLINE
-		RETURN 0
-	ELSEIF MONEY >= LOCAL:1 * 2
+IF MONEY >= LOCAL:1 * 2
 		PRINTFORM 「おっと、悪いけどこの薬は立った今値上げしたよ。今じゃ金
 		SETCOLOR COLOR("注意")
 		PRINTFORM {LOCAL:1 * 2}

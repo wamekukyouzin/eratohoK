@@ -56,11 +56,7 @@ IF DVAR:金貸し期限 == 0 && DVAR:金貸し現在額 == 0 && DVAR:金貸し�
 	PRINTFORMW さて、どうしようか……
 	DRAWLINE
 	PRINTFORML 現在の金:{MONEY}
-	PRINTFORML [0] 金{融資額}を借りる
-	PRINTFORML [1] やめておく
-	PRINTFORML [2] うざいので斬る
-	$INPUT_LOOP
-	INPUT
+	CALL ASK_MULTI(@"金{融資額}を借りる", "やめておく", "うざいので斬る")
 	IF RESULT == 1
 		PRINTFORMW 「ふむ。必要でないとおっしゃるなら、仕方ありますまい」
 		PRINTFORMW 「ではわたくしはこのへんで。また伺いますぞ」
@@ -122,8 +118,6 @@ IF DVAR:金貸し期限 == 0 && DVAR:金貸し現在額 == 0 && DVAR:金貸し�
 			PRINTFORMW 男は立ち去っていった……
 			RETURN
 		ENDIF
-	ELSE
-		GOTO INPUT_LOOP
 	ENDIF
 ;借りていて、返済期限がきたパターン
 ELSEIF DVAR:金貸し期限 == 0 && DVAR:金貸し現在額 > 0 && DVAR:金貸し総額 > 0
@@ -133,18 +127,8 @@ ELSEIF DVAR:金貸し期限 == 0 && DVAR:金貸し現在額 > 0 && DVAR:金貸�
 	PRINTFORMW さて、どうしようか……
 	DRAWLINE
 	PRINTFORML 現在の金:{MONEY}
-	IF MONEY  >= DVAR:金貸し総額
-		PRINTFORML [1] 金{DVAR:金貸し総額}を返済する
-	ELSE
-		SETCOLOR COLOR("選択不可")
-		PRINTPLAINFORM [1] 金{DVAR:金貸し総額}が必要だが、そんなに持っていない 現在:{MONEY}
-		PRINTL
-		RESETCOLOR
-	ENDIF
-	PRINTFORML [2] 払えないと伝える
-	$INPUT_LOOP2
-	INPUT
-	IF RESULT == 1 && MONEY >= DVAR:金貸し総額
+	CALL ASK_MULTI_JUDGE(@"金{DVAR:金貸し総額}を返済する", MONEY >= DVAR:金貸し総額, "払えないと伝える")
+	IF RESULT == 0 && MONEY >= DVAR:金貸し総額
 		IF MONEY >= DVAR:金貸し総額 * 2
 			PRINTFORMW 「おや、申し訳ない。返済額に手違いがございました」
 			PRINTFORM 「本当の返済額は金
@@ -171,10 +155,7 @@ ELSEIF DVAR:金貸し期限 == 0 && DVAR:金貸し現在額 > 0 && DVAR:金貸�
 		DVAR:金貸し現在額 = 0
 		DVAR:金貸し総額 = 0
 		RETURN
-	ELSEIF RESULT == 1 && MONEY < DVAR:金貸し総額
-		PRINTFORML そんなに金を持っていない……
-		GOTO INPUT_LOOP2
-	ELSEIF RESULT == 2
+	ELSEIF RESULT == 1
 		PRINTFORMW 実は返済できそうにない。申し訳ない。金はなるべく早く、必ず返す。%ANAME(MASTER)%は正直に伝えた
 		PRINTFORMW 「……ふーむ……。まあ、仕方ありますまい。返せないものは仕方ありませんからな」
 		PRINTFORMW こちらの誠意が伝わったようだ。%ANAME(MASTER)%は胸をなで下ろした
@@ -192,9 +173,7 @@ ELSEIF DVAR:金貸し期限 == 0 && DVAR:金貸し現在額 > 0 && DVAR:金貸�
 			PRINTFORMW どちらにせよ、選択の余地もないことだし……
 			IF IS_FEMALE(MASTER)
 				PRINTFORMW どうしようか？
-				PRINTFORML [0] %ANAME(担保)%を送り出す
-				PRINTFORML [1] 自分で働く
-				INPUT
+				CALL ASK_MULTI(@"%ANAME(担保)%を送り出す", "自分が代わりに働く")
 			ELSE
 				RESULT = 0
 			ENDIF
@@ -224,8 +203,6 @@ ELSEIF DVAR:金貸し期限 == 0 && DVAR:金貸し現在額 > 0 && DVAR:金貸�
 			DVAR:金貸し総額 = 0
 			DVAR:金貸し娘 = -1
 		ENDIF
-	ELSE
-		GOTO INPUT_LOOP2
 	ENDIF
 ;返済失敗からの全額返済
 ELSEIF DVAR:金貸し期限 == -1 && DVAR:金貸し現在額 <= 0

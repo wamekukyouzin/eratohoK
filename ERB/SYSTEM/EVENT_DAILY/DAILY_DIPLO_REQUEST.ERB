@@ -124,10 +124,7 @@ IF 結果国 != 野盗
 	PRINTFORML 断れば相手は心証を悪くするだろうし、それは%ANAME(MASTER)%の勢力の将来を危うくしかねない
 	PRINTFORMW かといって、そんな人質のような役目を%ANAME(結果キャラ)%に負わせられるだろうか……
 	DRAWLINE
-	PRINTFORML [0]%ANAME(結果キャラ)%を送り出す
-	PRINTFORML [1]そんなことはできないと断る
-	$INPUT_LOOP
-	INPUT
+	CALL ASK_MULTI(@"%ANAME(結果キャラ)%を送り出す", "断る")
 	IF RESULT == 0
 		PRINTFORMW ここは従うしかない。そう考えた%ANAME(MASTER)%は、%ANAME(結果キャラ)%を送り出すことにした……
 		PRINTFORMW 要求に従ったことで、%ANAME(結果君主)%は大いに気を良くしたようだ
@@ -139,10 +136,8 @@ IF 結果国 != 野盗
 		CFLAG:結果キャラ:従属度 /= 2
 	ELSEIF RESULT == 1
 		PRINTFORMW やはりそんなことはできない。そう伝え、%ANAME(結果君主)%の使いを送り返した
-		PRINTFORMW 要求を生意気にも断ってきたと、%ANAME(結果君主)%は腹をたてているようだ……
+		PRINTFORMW 要求を生意気にも断ってきたと、%ANAME(結果君主)%は立腹しているようだ……
 		CALL CHANGE_RELATION_C_TO_C(結果国, CFLAG:MASTER:所属, -300, 300)
-	ELSE
-		GOTO INPUT_LOOP
 	ENDIF
 	DVAR:士官要求カウンタ = 10
 ELSE
@@ -176,12 +171,7 @@ ELSE
 	PRINTFORML 断れば、相手が何らかの嫌がらせ――それも血も涙もないような――にでるのは確実だろう
 	PRINTFORMW かといって、こんな人を人とも思わない連中に%ANAME(結果キャラ)%を渡していいのだろうか……
 	DRAWLINE
-	PRINTFORML [0]%ANAME(結果キャラ)%を送り出す
-	PRINTFORML [1]刺激しないよう、丁重に断る
-	PRINTFORML
-	PRINTFORML [2]使いの者を斬り捨てる
-	$INPUT_LOOP2
-	INPUT
+	CALL ASK_MULTI("%ANAME(結果キャラ)%を送り出す", "刺激しないよう、丁重に断る", "使いの者を斬り捨てる")
 	IF RESULT == 0
 		PRINTFORMW ここは従うしかない。そう考えた%ANAME(MASTER)%は、%ANAME(結果キャラ)%を送り出すことにした……
 		PRINTFORMW 使いの者は、皆の見ている前で%ANAME(結果キャラ)%の服を剥ぎ取り、首輪と手足の枷を嵌め、鎖をひいて連れて行った……
@@ -207,8 +197,6 @@ ELSE
 		PRINTFORMW ……だが、これがどのような結果を招くか、%ANAME(MASTER)%は思い知ることとなる……
 		RESETCOLOR
 		DVAR:要求野盗斬り捨て = 結果キャラ
-	ELSE
-		GOTO INPUT_LOOP2
 	ENDIF
 	DVAR:士官要求カウンタ = 10
 ENDIF
@@ -325,28 +313,14 @@ IF 結果国 != 野盗
 	PRINTFORMW とはいえ、金は無限にあるわけではないし……
 	DRAWLINE
 	PRINTFORML 現在の資金:{MONEY}
-	IF MONEY >= 候補額
-		PRINTFORML [0]金{候補額}を援助する
-	ELSE
-		SETCOLOR COLOR("選択不可")
-		PRINTPLAINFORM [0]金{候補額}が必要だが、そんなに持っていない
-		RESETCOLOR
-	ENDIF
-	PRINTFORML [1]そんなことはできないと断る
-	$INPUT_LOOP
-	INPUT
-	IF RESULT == 0 && MONEY < 候補額
-		PRINTFORML 金{候補額}も持っていない……
-		GOTO INPUT_LOOP
-	ELSEIF RESULT == 0
+	CALL ASK_MULTI_JUDGE(@"金{候補額}を援助する", MONEY >= 候補額, "断る", 1)
+	IF RESULT == 0
 		PRINTFORMW まあ、援助してやるとしよう。%ANAME(MASTER)%は金{候補額}をくれてやることにした
 		PRINTFORMW 資金援助によって、%ANAME(結果君主)%は大いに気を良くしたようだ
 		CALL CHANGE_RELATION_C_TO_C(結果国, CFLAG:MASTER:所属, 300, -200)
 		MONEY -= 候補額
 	ELSEIF RESULT == 1
 		PRINTFORMW こっちにもそんな余裕はない。そう伝え、%ANAME(結果君主)%の使いを送り返した
-	ELSE
-		GOTO INPUT_LOOP
 	ENDIF
 	DVAR:士官要求カウンタ = 10
 ELSE
@@ -378,22 +352,8 @@ ELSE
 	PRINTFORML 断れば、相手が何らかの嫌がらせ――それも血も涙もないような――にでるのは確実だろう
 	PRINTFORMW かといって、周りに害を振りまくあんな連中に、金を渡していいものだろうか……
 	DRAWLINE
-	PRINTFORML 現在の資金:{MONEY}
-	IF MONEY >= 候補額
-		PRINTFORML [0]金{候補額}を援助する
-	ELSE
-		SETCOLOR COLOR("選択不可")
-		PRINTPLAINFORM [0]金{候補額}が必要だが、そんなに持っていない
-		RESETCOLOR
-	ENDIF
-	PRINTFORML [1]そんなことはできないと断る
-	PRINTFORML [2]使いの者を斬り捨てる
-	$INPUT_LOOP2
-	INPUT
-	IF RESULT == 0 && MONEY < 候補額
-		PRINTFORML 金{候補額}も持っていない……
-		GOTO INPUT_LOOP2
-	ELSEIF RESULT == 0
+	CALL ASK_MULTI_JUDGE(@"金{候補額}を援助する", MONEY >= 候補額, "刺激しないよう、丁重に断る", 1, "使いの者を斬り捨てる", 1)
+	IF RESULT == 0
 		PRINTFORMW まあ、援助してやるとしよう。%ANAME(MASTER)%は金{候補額}をくれてやることにした
 		PRINTFORMW 資金援助によって、%ANAME(結果君主)%は大いに気を良くしたようだ
 		CALL CHANGE_RELATION_C_TO_C(結果国, CFLAG:MASTER:所属, 300, -200)
@@ -432,8 +392,6 @@ ELSE
 		PRINTFORMW ……だが、これがどのような結果を招くか、%ANAME(MASTER)%は思い知ることとなる……
 		RESETCOLOR
 		DVAR:要求野盗斬り捨て = 結果キャラ
-	ELSE
-		GOTO INPUT_LOOP2
 	ENDIF
 	DVAR:資金援助要求カウンタ = 10
 ENDIF
