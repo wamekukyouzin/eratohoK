@@ -24,8 +24,8 @@ SIF RESULT == 0
 ;プレイヤーは最大で1人まで
 SIF MPLY_NUM <= 0 || MPLY_NUM > 1
 	RETURN 0
-;ターゲットは最大で1人まで
-SIF MTAR_NUM <= 0 || MTAR_NUM > 1
+;ターゲットは
+SIF MTAR_NUM <= 0
 	RETURN 0
 ;プレイヤーが行動不能なら不可
 SIF !IS_PLAYABLE(MPLY:0)
@@ -33,21 +33,31 @@ SIF !IS_PLAYABLE(MPLY:0)
 ;アナルバイブが必要
 SIF !ITEM:アナルバイブ && !ITEM:A_アナルバイブ
 	RETURN 0
-;ターゲットのＡが塞がっていれば不可
-SIF IS_A_HOLD(MTAR:0)
-	RETURN 0
-;プレイヤーが顔面騎乗されているなら不可
-SIF IS_RIDDEN(MPLY:0)
-	RETURN 0
-;プレイヤーが拘束中なら不可
-SIF IS_BIND(MPLY:0)
-	RETURN 0
-;ターゲットからプレイヤーに挿入中で体位が後背位・背面座位なら不可
-SIF GROUPMATCH(GET_SEX_POSITION(MTAR:0, MPLY:0), 2, 4)
-	RETURN 0
-;プレイヤーからターゲット／ターゲットからプレイヤーに電気按摩中なら不可
-SIF SEARCH_EQUIP_IC(103, MPLY:0, MTAR:0) >= 0
-	RETURN 0
+
+FOR LOCAL:0, 0, MTAR_NUM
+	;ターゲットのＡが塞がっていれば不可
+	SIF IS_A_HOLD(MTAR:(LOCAL:0))
+		RETURN 0
+	FOR LOCAL:1, 0, MPLY_NUM
+		;ターゲットからプレイヤーに挿入中で体位が後背位・背面座位なら不可
+		SIF GROUPMATCH(GET_SEX_POSITION(MTAR:(LOCAL:0), MPLY:(LOCAL:1)), 2, 4)
+			RETURN 0
+	NEXT
+NEXT
+
+FOR LOCAL:0, 0, MPLY_NUM
+	;プレイヤーが顔面騎乗されているなら不可
+	SIF IS_RIDDEN(MPLY:(LOCAL:0))
+		RETURN 0
+	;プレイヤーが拘束中なら不可
+	SIF IS_BIND(MPLY:(LOCAL:0))
+		RETURN 0
+	FOR LOCAL:1, 0, MTAR_NUM
+		;プレイヤーからターゲット／ターゲットからプレイヤーに電気按摩中なら不可
+		SIF SEARCH_EQUIP_IC(103, MPLY:(LOCAL:0), MTAR:(LOCAL:1)) >= 0
+			RETURN 0
+	NEXT
+NEXT
 RETURN 1
 
 ;-------------------------------------------------
@@ -74,27 +84,31 @@ CALL ADD_SOURCE_INITIATIVE_U(MPLY:0, 180, 20)
 ;奉仕経験値を得られるコマンドのフラグ
 TCVAR:(MPLY:0):4 = 1
 
-;●ターゲットについて処理
-DOWNBASE:(MTAR:0):体力 += 80
+FOR LOCAL:0, 0, MTAR_NUM
+	LOCAL:2 = MTAR:(LOCAL:0)
+	;●ターゲットについて処理
+	DOWNBASE:(LOCAL:2):体力 += 80
 
-SOURCE:(MTAR:0):露出 = 70
-SOURCE:(MTAR:0):逸脱 = 300
-SOURCE:(MTAR:0):接触 = 10
-SOURCE:(MTAR:0):性行動 = 150
-IF TALENT:(MPLY:0):技師
-	SOURCE:(MTAR:0):快Ａ = SENSE_HOUSHI(MPLY:0, MTAR:0, 1500)
-ELSE
-	SOURCE:(MTAR:0):快Ａ = SENSE_HOUSHI(MPLY:0, MTAR:0, 1000)
-ENDIF
+	SOURCE:(LOCAL:2):露出 = 70
+	SOURCE:(LOCAL:2):逸脱 = 300
+	SOURCE:(LOCAL:2):接触 = 10
+	SOURCE:(LOCAL:2):性行動 = 150
+	IF TALENT:(MPLY:0):技師
+		SOURCE:(LOCAL:2):快Ａ = SENSE_HOUSHI(MPLY:0, LOCAL:2, 1500)
+	ELSE
+		SOURCE:(LOCAL:2):快Ａ = SENSE_HOUSHI(MPLY:0, LOCAL:2, 1000)
+	ENDIF
 
-;主導権に応じた優越・屈従のソース追加
-CALL ADD_SOURCE_INITIATIVE_U(MTAR:0, 20, 100)
+	;主導権に応じた優越・屈従のソース追加
+	CALL ADD_SOURCE_INITIATIVE_U(LOCAL:2, 20, 100)
 
-;Ａバイブの共通処理
-CALL COM_COMMON62(MTAR:0)
+	;Ａバイブの共通処理
+	CALL COM_COMMON62(LOCAL:2)
 
-;射精箇所と対象をセット
-CALL STACK_SPERM(MTAR:0, MPLY:0, 0)
+	;射精箇所と対象をセット
+	CALL STACK_SPERM(MTAR:0, MPLY:0, 0)
+
+NEXT
 
 ;主導度変化基準値
 TFLAG:49 = 2
@@ -118,51 +132,55 @@ RETURN 1
 ;-------------------------------------------------
 @COM_EQUIP62(ARG:0)
 LOCAL:2 = MEQUIP_PLAYER:(ARG:0):0
-LOCAL:3 = MEQUIP_TARGET:(ARG:0):0
-
 ;ソースを退避
 CALL PUTOUT_SOURCE(LOCAL:2)
-CALL PUTOUT_SOURCE(LOCAL:3)
-
 SOURCE:(LOCAL:2):性行動 += 30
-
-IF TALENT:(LOCAL:2):技師
-	SOURCE:(LOCAL:3):快Ａ += SENSE_HOUSHI(LOCAL:2, LOCAL:3, 900)
-ELSE
-	SOURCE:(LOCAL:3):快Ａ += SENSE_HOUSHI(LOCAL:2, LOCAL:3, 600)
-ENDIF
-SOURCE:(LOCAL:3):露出 += 20
-SOURCE:(LOCAL:3):逸脱 += 200
-SOURCE:(LOCAL:3):性行動 += 50
-
-;倒錯度変化
-TCVAR:(LOCAL:3):50 += 3
-
-;バイブの共通処理
-CALL COM_COMMON62(LOCAL:3)
-
 ;退避したソースを加算
 CALL SUM_SOURCE(LOCAL:2)
-CALL SUM_SOURCE(LOCAL:3)
+
+FOR LOCAL:0, 0, MEQUIP_TARGET_NUM:(ARG:0)
+	LOCAL:3 = MEQUIP_TARGET:(ARG:0):(LOCAL:0)
+	CALL PUTOUT_SOURCE(LOCAL:3)
+
+	IF TALENT:(LOCAL:2):技師
+		SOURCE:(LOCAL:3):快Ａ += SENSE_HOUSHI(LOCAL:2, LOCAL:3, 900)
+	ELSE
+		SOURCE:(LOCAL:3):快Ａ += SENSE_HOUSHI(LOCAL:2, LOCAL:3, 600)
+	ENDIF
+	SOURCE:(LOCAL:3):露出 += 20
+	SOURCE:(LOCAL:3):逸脱 += 200
+	SOURCE:(LOCAL:3):性行動 += 50
+
+	;倒錯度変化
+	TCVAR:(LOCAL:3):50 += 3
+
+	;バイブの共通処理
+	CALL COM_COMMON62(LOCAL:3)
+
+	;退避したソースを加算
+	CALL SUM_SOURCE(LOCAL:3)
+NEXT
 
 ;-------------------------------------------------
 ;継続中の表示
 ;-------------------------------------------------
 @EQUIP_MESSAGE62(ARG:0)
-RESULTS = %EQUIP_TARGET_ANAME(ARG:0)%にアナルバイブを挿入中
+RESULTS = %EQUIP_TARGET_ANAME(ARG:0)%
+RESULTS += "にアナルバイブを挿入中"
 
 ;-------------------------------------------------
 ;継続中の地の文(前文)
 ;-------------------------------------------------
 @COM_TEXT_BEFORE_EQUIP62(ARG:0)
-PRINTFORML %EQUIP_TARGET_ANAME(ARG:0)%の尻穴でバイブが振動している…
+PRINTFORM %EQUIP_TARGET_ANAME(ARG:0)%
+PRINTFORML の尻穴でバイブが振動している…
 
 ;-------------------------------------------------
 ;継続を解除したときの地の文
 ;-------------------------------------------------
 @COM_TEXT_RELEASE_EQUIP62(ARG:0)
-PRINTFORMW %EQUIP_TARGET_ANAME(ARG:0)%の尻穴からバイブを引き抜いた
-
+PRINTFORM %EQUIP_TARGET_ANAME(ARG:0)%
+PRINTFORMW の尻穴からバイブを引き抜いた
 ;-------------------------------------------------
 ;固有の実行判定
 ;-------------------------------------------------
@@ -207,17 +225,23 @@ ELSE
 	LOCALS:0 = キツく閉じたアナル
 ENDIF
 
+IF MTAR_NUM >= 2
+	LOCALS:1 = %ANAME(MTAR:0)%たち
+ELSE
+	LOCALS:1 = %ANAME(MTAR:0)%
+ENDIF
+
 SELECTCASE GET_COM_INITIATIVE()
 	;プレイヤーに主導権
 	CASE 0
-		PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%の%LOCALS:0%に震える張り型を押し当て、奥へと押し込ん%TARGET_STR("だ", "できた")%…
+		PRINTFORMW %ANAME(MPLY:0)%は%LOCALS:1%の%LOCALS:0%に震える張り型を押し当て、奥へと押し込ん%TARGET_STR("だ", "できた")%…
 	;ターゲットに主導権
 	CASE 1
-		PRINTFORMW %ANAME(MTAR:0)%は%ANAME(MPLY:0)%にアナルバイブを握らせると、自身の%LOCALS:0%を貫かせた…
+		PRINTFORMW %LOCALS:1%は%ANAME(MPLY:0)%にアナルバイブを握らせると、自身の%LOCALS:0%を貫かせた…
 	;第三者に主導権
 	CASEELSE
-		PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に、バイブで%ANAME(MTAR:0)%の尻穴を責めるように命令した
-		PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%の%LOCALS:0%に震える張り型を押し当て、奥へと押し込んだ…
+		PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に、バイブで%LOCALS:1%の尻穴を責めるように命令した
+		PRINTFORMW %ANAME(MPLY:0)%は%LOCALS:1%の%LOCALS:0%に震える張り型を押し当て、奥へと押し込んだ…
 ENDSELECT
 
 ;--------------------------------------------------------
