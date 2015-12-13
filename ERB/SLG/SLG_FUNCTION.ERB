@@ -1615,3 +1615,133 @@ FOR LCOUNT, 0, MAX_COUNTRY
 	ENDIF
 NEXT
 PRINTW 
+
+;-------------------------------------------------
+;キャラリスト表示　誰かを選べばそのキャラ番号が、「やめる」を選ぶと-1が返る
+;ARG:0 消去する行数
+;-------------------------------------------------
+@SLG_CHARA_LIST(ARG:0 = 0)
+#DIM キャラ数
+#DIM ページ数
+#DIM ページ内キャラ
+#DIM 消去行
+#DIM 現在ページ
+#DIM 総キャラ
+#DIM 表示位置カウンタ
+#DIM 表示開始位置
+#DIM 表示終了位置
+#DIM 対象
+VARSET 対象
+VARSET キャラ数
+VARSET ページ数
+VARSET 現在ページ
+VARSET ページ内キャラ
+VARSET 消去行
+VARSET 表示位置カウンタ
+VARSET 総キャラ
+
+;ページ数の計算
+FOR LOCAL:0, 0, CHARANUM
+	SIF CFLAG:(LOCAL:0):所属 == CFLAG:MASTER:所属
+		キャラ数++
+NEXT
+ページ数 = (キャラ数 - 1) / 40 + 1
+現在ページ = 1
+CALL TMP_CREATE_IS_FREE_MAP
+
+$SHOW_LOOP2
+PRINTFORM %TOSTR_SPACE(22)%   武|  知|  政|  妖|  歌|  料 %TOSTR_SPACE(25)%   武|  知|  政|  妖|  歌|  料
+PRINTL 
+消去行 = ARG:0
+表示位置カウンタ = 0
+総キャラ = 0
+ページ内キャラ = 0
+表示開始位置 = (現在ページ - 1) * 40
+表示終了位置 = 現在ページ * 40
+
+
+FOR LOCAL:0, 0, CHARANUM
+	IF TALK_CAN_GIVE_SEX(LOCAL:0)
+		IF ページ内キャラ >= 表示開始位置 && ページ内キャラ < 表示終了位置
+			IF 表示位置カウンタ % 2 != 0
+				PRINT 　　
+			ELSEIF 表示位置カウンタ >= 1
+				PRINTL 
+				消去行 ++
+			ENDIF
+			IF TMP_IS_FREE:(LOCAL:0):0 == 0
+				PRINTFORM [{NO:(LOCAL:0) + 99, 3}]%ANAME(LOCAL:0), 16, RIGHT%
+				PRINTFORM   
+				CALL PRINT_ALPHABET_RANK(0, ABL:(LOCAL:0):武闘)
+				PRINTFORM {ABL:(LOCAL:0):武闘, 3}|
+				CALL PRINT_ALPHABET_RANK(0, ABL:(LOCAL:0):知略)
+				PRINTFORM {ABL:(LOCAL:0):知略, 3}|
+				CALL PRINT_ALPHABET_RANK(0, ABL:(LOCAL:0):政治)
+				PRINTFORM {ABL:(LOCAL:0):政治, 3}|
+				CALL PRINT_ALPHABET_RANK(1, ABL:(LOCAL:0):妖術)
+				PRINTFORM {ABL:(LOCAL:0):妖術, 3}|
+				CALL PRINT_ALPHABET_RANK(2, ABL:(LOCAL:0):歌唱)
+				PRINTFORM {ABL:(LOCAL:0):歌唱, 3}|
+				CALL PRINT_ALPHABET_RANK(2, ABL:(LOCAL:0):料理)
+				PRINTFORM {ABL:(LOCAL:0):料理, 3}
+			ELSE
+				LOCALS:0 = [{NO:(LOCAL:0) + 99, 3}]%ANAME(LOCAL:0), 16, RIGHT%  %PRINT_ALPHABET_RANK_F(0, ABL:LOCAL:武闘)%{ABL:(LOCAL:0):武闘, 3}|%PRINT_ALPHABET_RANK_F(0, ABL:LOCAL:知略)%{ABL:(LOCAL:0):知略, 3}|
+				LOCALS:0 += @"%PRINT_ALPHABET_RANK_F(0, ABL:LOCAL:政治)%{ABL:(LOCAL:0):政治, 3}|%PRINT_ALPHABET_RANK_F(1, ABL:LOCAL:妖術)%{ABL:(LOCAL:0):妖術, 3}|%PRINT_ALPHABET_RANK_F(2, ABL:LOCAL:歌唱)%{ABL:(LOCAL:0):歌唱, 3}|%PRINT_ALPHABET_RANK_F(2, ABL:LOCAL:料理)%{ABL:(LOCAL:0):料理, 3}"
+				SETCOLOR COLOR("選択不可")
+				PRINTPLAINFORM %LOCALS:0%
+				RESETCOLOR
+			ENDIF
+			表示位置カウンタ ++
+			ページ内キャラ ++ 
+		ENDIF
+	ENDIF
+NEXT
+
+PRINTL 
+DRAWLINE
+
+IF LOCAL:20 >= 2
+	LOCAL:25 += 2
+	IF LOCAL:21 > 1
+		PRINT [  8] 前のページ            
+	ELSE
+		PRINT                             
+	ENDIF
+	LOCALS:0 = page{LOCAL:21}/{LOCAL:20}
+	PRINTPLAINFORM %LOCALS:0, 28, LEFT%
+	IF LOCAL:21 < LOCAL:20
+		PRINT [  9] 後のページ
+	ENDIF
+	PRINTL 
+	DRAWLINE
+ENDIF
+PRINTL [  0] やっぱりやめる
+PRINTL 
+
+REDRAW 0
+
+消去行 += 6
+
+$INPUT_LOOP
+INPUT
+IF RESULT == 8 && 現在ページ > 1
+	現在ページ --
+	CLEARLINE 消去行
+	GOTO SHOW_LOOP2
+ELSEIF RESULT == 9 && 現在ページ < ページ数
+	現在ページ ++
+	CLEARLINE 消去行
+	GOTO SHOW_LOOP2
+ELSEIF RESULT == 0
+	RETURN -1
+ENDIF
+対象 = RESULT - 99
+IF 対象 > CHARANUM || 対象 < 0
+	CLEARLINE 消去行
+	GOTO SHOW_LOOP2
+ELSEIF CFLAG:MASTER:1 != CFLAG:(LOCAL:1):1 || TMP_IS_FREE:対象:0 != 0
+	CLEARLINE 消去行数
+	GOTO SHOW_LOOP2
+ENDIF
+
+RETURN 対象
