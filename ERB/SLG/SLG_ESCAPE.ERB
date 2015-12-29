@@ -421,24 +421,34 @@ ELSEIF ARG:1 == CFLAG:MASTER:1 && (TALENT:(ARG:2):恋慕 || TALENT:(ARG:2):服�
 
 ;上記の条件を満たさなければ逃走を試みる
 ELSE
+	;LOCAL:8は捕縛される確率
+	;君主なら基礎確率がない
+	IF ARG:2 == GET_COUNTRY_BOSS(ARG:0)
+		LOCAL:8 = 0
+	ELSE
+		LOCAL:8 = 10
+	ENDIF
+	;三能力が高いほど逃げられやすくなる
+	LOCAL:8 += (500 - (ABL:(ARG:2):武闘 * 2 + ABL:(ARG:2):知略 + ABL:(ARG:2):政治)) / 5
+
 	;部隊に所属していなければ逃走確率上昇
 	IF IS_FREE(ARG:2)
-		LOCAL:8 = 40
-	ELSE
-		LOCAL:8 = 20
+		LOCAL:8 -= 10
 	ENDIF
 
-	;君主なら逃走確率上昇
-	IF ARG:2 == GET_COUNTRY_BOSS(ARG:0)
-		LOCAL:8 += 20
-	ENDIF
-
-	;能力に応じて逃走確率上昇
-	LOCAL:8 += (ABL:(ARG:2):武闘 * 3 + ABL:(ARG:2):知略 * 2 + ABL:(ARG:2):政治) / 10
+	;ホフゴブは捕まらない
 	IF TALENT:(ARG:2):ホフゴブリン
-		LOCAL:8 = 100
+		LOCAL:8 = 0
+	ELSE
+		LOCAL:8 = LIMIT(LOCAL:8, 30, 90)
 	ENDIF
-	IF RAND:100 <= LOCAL:8
+
+	IF RAND:100 < LOCAL:8
+		IF ARG:1 == CFLAG:MASTER:1
+			CALL KOJO_EVENT(ARG:2, LOCAL:10)
+			PRINTFORML %NAME:(ARG:2)%を捕らえました
+		ENDIF
+	ELSE
 		PRINTFORML %NAME:(ARG:2)%は逃走したようです…
 		;状態フラグを逃走状態に
 		CFLAG:(ARG:2):12 = 1
@@ -446,11 +456,6 @@ ELSE
 		CFLAG:(ARG:2):13 = COUNTRY_BOSS:(ARG:1)
 		;旧君主のIDを保存
 		CFLAG:(ARG:2):14 = COUNTRY_BOSS:(ARG:0)
-	ELSE
-		IF ARG:1 == CFLAG:MASTER:1
-			CALL KOJO_EVENT(ARG:2, LOCAL:10)
-			PRINTFORML %NAME:(ARG:2)%を捕らえました
-		ENDIF
 	ENDIF
 ENDIF
 
