@@ -24,8 +24,8 @@ SIF RESULT == 0
 ;プレイヤーは最大で1人まで
 SIF MPLY_NUM <= 0 || MPLY_NUM > 1
 	RETURN 0
-;ターゲットは最大で1人まで
-SIF MTAR_NUM <= 0 || MTAR_NUM > 1
+;ターゲットは1人以上
+SIF MTAR_NUM <= 0
 	RETURN 0
 ;プレイヤーが行動不能なら不可
 SIF !IS_PLAYABLE(MPLY:0)
@@ -33,18 +33,20 @@ SIF !IS_PLAYABLE(MPLY:0)
 ;ローターが必要
 SIF !ITEM:ローター && !ITEM:A_ローター
 	RETURN 0
-;対象にＶが必要
-SIF !VAGINA(MTAR:0)
-	RETURN 0
 ;プレイヤーが顔面騎乗されているなら不可
 SIF IS_RIDDEN(MPLY:0)
 	RETURN 0
 ;プレイヤーが拘束中なら不可
 SIF IS_BIND(MPLY:0)
 	RETURN 0
-;ターゲットからプレイヤーに挿入中で体位が後背位・背面座位なら不可
-SIF GROUPMATCH(GET_SEX_POSITION(MTAR:0, MPLY:0), 2, 4)
-	RETURN 0
+FOR LOCAL, 0, MTAR_NUM
+	;対象にＶが必要
+	SIF !VAGINA(MTAR:LOCAL)
+		RETURN 0
+	;ターゲットからプレイヤーに挿入中で体位が後背位・背面座位なら不可
+	SIF GROUPMATCH(GET_SEX_POSITION(MTAR:LOCAL, MPLY:0), 2, 4)
+		RETURN 0
+NEXT
 RETURN 1
 
 ;-------------------------------------------------
@@ -70,25 +72,27 @@ CALL ADD_SOURCE_INITIATIVE_U(MPLY:0, 100, 20)
 
 ;奉仕経験値を得られるコマンドのフラグ
 TCVAR:(MPLY:0):4 = 1
+FOR LOCAL, 0, MTAR_NUM
+	LOCAL:2 = MTAR:LOCAL
+	;●ターゲットについて処理
+	DOWNBASE:(LOCAL:2):体力 += 80
 
-;●ターゲットについて処理
-DOWNBASE:(MTAR:0):体力 += 80
+	SOURCE:(LOCAL:2):露出 = 50
+	SOURCE:(LOCAL:2):逸脱 = 80
+	SOURCE:(LOCAL:2):接触 = 10
+	SOURCE:(LOCAL:2):快Ｃ = SENSE_HOUSHI(MPLY:0, LOCAL:2, 2300)
+	SOURCE:(LOCAL:2):性行動 = 180
 
-SOURCE:(MTAR:0):露出 = 50
-SOURCE:(MTAR:0):逸脱 = 80
-SOURCE:(MTAR:0):接触 = 10
-SOURCE:(MTAR:0):快Ｃ = SENSE_HOUSHI(MPLY:0, MTAR:0, 2300)
-SOURCE:(MTAR:0):性行動 = 180
+	;主導権に応じた優越・屈従のソース追加
+	CALL ADD_SOURCE_INITIATIVE_U(LOCAL:2, 50, 0)
 
-;主導権に応じた優越・屈従のソース追加
-CALL ADD_SOURCE_INITIATIVE_U(MTAR:0, 50, 0)
+	IF TALENT:(MPLY:0):技師
+		TIMES SOURCE:(LOCAL:2):快Ｃ, 1.50
+	ENDIF
 
-IF TALENT:(MPLY:0):技師
-	TIMES SOURCE:(MTAR:0):快Ｃ, 1.50
-ENDIF
-
-;射精箇所と対象をセット
-CALL STACK_SPERM(MTAR:0, MPLY:0, 0)
+	;射精箇所と対象をセット
+	CALL STACK_SPERM(LOCAL:2, MPLY:0, 0)
+NEXT
 
 ;主導度変化基準値
 TFLAG:49 = 1
@@ -137,50 +141,57 @@ RETURN 1
 ;地の文(前文)
 ;-------------------------------------------------
 @COM_TEXT_BEFORE60
+IF MTAR_NUM >= 2
+	LOCALS:1 = %ANAME(MTAR:0)%たち
+ELSE
+	LOCALS:1 = %ANAME(MTAR:0)%
+ENDIF
 SELECTCASE GET_COM_INITIATIVE()
 	;プレイヤーに主導権
 	CASE 0
-		PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%の秘唇に震えるローターを押し当て%TARGET_STR("た", "てきた")%…
+		PRINTFORMW %ANAME(MPLY:0)%は%LOCALS:1%の秘唇に震えるローターを押し当て%TARGET_STR("た", "てきた")%…
 	;ターゲットに主導権
 	CASE 1
-		PRINTFORMW %ANAME(MTAR:0)%は%ANAME(MPLY:0)%の手にローターを持たせると、それを自身のクリトリスに押し当てさせた…
+		PRINTFORMW %LOCALS:1%は%ANAME(MPLY:0)%の手にローターを持たせると、それを自身のクリトリスに押し当てさせた…
 	;第三者に主導権
 	CASEELSE
-		PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に、ローターを使って%ANAME(MTAR:0)%を責めるように命令した
-		PRINTFORMW %ANAME(MPLY:0)%は言われるまま%ANAME(MTAR:0)%の秘唇に震えるローターを押し当てた…
+		PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に、ローターを使って%LOCALS:1%を責めるように命令した
+		PRINTFORMW %ANAME(MPLY:0)%は言われるまま%LOCALS:1%の秘唇に震えるローターを押し当てた…
 ENDSELECT
 
 ;--------------------------------------------------------
 ;地の文(パラメータ・刻印変動後)
 ;--------------------------------------------------------
 @COM_TEXT_LAST60
-IF MTAR:0 != MASTER
-	LOCAL:2 = CUP:(MTAR:0):快Ｃ
+FOR LOCAL:0, 0, MTAR_NUM
+	IF MTAR:LOCAL != MASTER
+		LOCAL:2 = CUP:(MTAR:LOCAL):快Ｃ
 
-	IF LOCAL:2 < 300
-		PRINTFORML %ANAME(MTAR:0)%のそこはまだしっとりと閉じたままだ。快楽を感じるにはもう少しかかるかもしれない
-	ELSEIF LOCAL:2 < 1000
-		PRINTFORML %ANAME(MTAR:0)%はクリトリスへの刺激にじっと耐えているものの、確実に感じてきているようだ
-	ELSEIF LOCAL:2 < 3000
-		PRINTFORM 敏感な豆を丹念に弄られると感じるのか、%ANAME(MTAR:0)%は
-		IF TALENT:(MTAR:0):恥じらい
-			PRINTL 羞恥に頬を赤く染め手で自分の口を抑えて声が出るのをこらえている
-		ELSEIF TALENT:(MTAR:0):解放 || TALENT:(MTAR:0):快感に素直
-			PRINTL 熱い吐息を吐きながら快楽に身をゆだねている
-		ELSEIF TALENT:(MTAR:0):抑圧 || TALENT:(MTAR:0):孤高 || TALENT:(MTAR:0):快感の否定
-			PRINTL 快楽を否定するように首を振って耐えている
+		IF LOCAL:2 < 300
+			PRINTFORML %ANAME(MTAR:LOCAL)%のそこはまだしっとりと閉じたままだ。快楽を感じるにはもう少しかかるかもしれない
+		ELSEIF LOCAL:2 < 1000
+			PRINTFORML %ANAME(MTAR:LOCAL)%はクリトリスへの刺激にじっと耐えているものの、確実に感じてきているようだ
+		ELSEIF LOCAL:2 < 3000
+			PRINTFORM 敏感な豆を丹念に弄られると感じるのか、%ANAME(MTAR:LOCAL)%は
+			IF TALENT:(MTAR:LOCAL):恥じらい
+				PRINTL 羞恥に頬を赤く染め手で自分の口を抑えて声が出るのをこらえている
+			ELSEIF TALENT:(MTAR:LOCAL):解放 || TALENT:(MTAR:LOCAL):快感に素直
+				PRINTL 熱い吐息を吐きながら快楽に身をゆだねている
+			ELSEIF TALENT:(MTAR:LOCAL):抑圧 || TALENT:(MTAR:LOCAL):孤高 || TALENT:(MTAR:LOCAL):快感の否定
+				PRINTL 快楽を否定するように首を振って耐えている
+			ELSE
+				PRINTL 秘所から愛液を垂らしつつわずかに小さく吐息を漏らした
+			ENDIF
+		ELSEIF LOCAL:2 < 6000
+			PRINTFORML %ANAME(MTAR:LOCAL)%の小さな豆を震えるローターで擦り上げてやると%ANAME(MTAR:LOCAL)%は可愛らしい声を漏らしながらがくがくと身体を揺らした
+		ELSEIF LOCAL:2 < 10000
+			PRINTFORML %ANAME(MTAR:LOCAL)%は明らかな快楽の声をあげ、無意識にこちらの頭を手で押さえてさらにその部分を押し付けてきた
 		ELSE
-			PRINTL 秘所から愛液を垂らしつつわずかに小さく吐息を漏らした
-		ENDIF
-	ELSEIF LOCAL:2 < 6000
-		PRINTFORML %ANAME(MTAR:0)%の小さな豆を震えるローターで擦り上げてやると%ANAME(MTAR:0)%は可愛らしい声を漏らしながらがくがくと身体を揺らした
-	ELSEIF LOCAL:2 < 10000
-		PRINTFORML %ANAME(MTAR:0)%は明らかな快楽の声をあげ、無意識にこちらの頭を手で押さえてさらにその部分を押し付けてきた
-	ELSE
-		IF TALENT:(MTAR:0):Ｃ敏感
-			PRINTFORML %ANAME(MTAR:0)%は敏感なクリトリスへの責めに激しく身もだえし、あられも無い声を張り上げ続けた
-		ELSE
-			PRINTFORML %ANAME(MTAR:0)%はクリトリスへの刺激に激しい喘ぎ声を上げながら悶え続けた
+			IF TALENT:(MTAR:LOCAL):Ｃ敏感
+				PRINTFORML %ANAME(MTAR:LOCAL)%は敏感なクリトリスへの責めに激しく身もだえし、あられも無い声を張り上げ続けた
+			ELSE
+				PRINTFORML %ANAME(MTAR:LOCAL)%はクリトリスへの刺激に激しい喘ぎ声を上げながら悶え続けた
+			ENDIF
 		ENDIF
 	ENDIF
-ENDIF
+NEXT

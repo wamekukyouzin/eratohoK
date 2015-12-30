@@ -24,8 +24,8 @@ SIF RESULT == 0
 ;プレイヤーは最大で1人まで
 SIF MPLY_NUM <= 0 || MPLY_NUM > 1
 	RETURN 0
-;ターゲットは最大で1人まで
-SIF MTAR_NUM <= 0 || MTAR_NUM > 1
+;ターゲットは1人以上
+SIF MTAR_NUM <= 0
 	RETURN 0
 ;プレイヤーが行動不能なら不可
 SIF !IS_PLAYABLE(MPLY:0)
@@ -33,24 +33,28 @@ SIF !IS_PLAYABLE(MPLY:0)
 ;ニプルキャップが必要
 SIF !ITEM:ニプルキャップ && !ITEM:A_ニプルキャップ
 	RETURN 0
-;既に装着中なら不可
-SIF IS_EQUIP_TARGET(MTAR:0, 64)
-	RETURN 0
+
 ;プレイヤーが顔面騎乗されているなら不可
 SIF IS_RIDDEN(MPLY:0)
 	RETURN 0
 ;プレイヤーが拘束中なら不可
 SIF IS_BIND(MPLY:0)
 	RETURN 0
-;ターゲットからプレイヤーに挿入中で体位が後背位・背面座位なら不可
-SIF GROUPMATCH(GET_SEX_POSITION(MTAR:0, MPLY:0), 2, 4)
-	RETURN 0
+FOR LOCAL, 0, MTAR_NUM
+	;ターゲットからプレイヤーに挿入中で体位が後背位・背面座位なら不可
+	SIF GROUPMATCH(GET_SEX_POSITION(MTAR:LOCAL, MPLY:0), 2, 4)
+		RETURN 0
+	;既に装着中なら不可
+	SIF IS_EQUIP_TARGET(MTAR:LOCAL, 64)
+		RETURN 0
+	;プレイヤーからターゲットに尻コキ中なら不可
+	SIF SEARCH_EQUIP(15, MPLY:0, MTAR:LOCAL) >= 0
+		RETURN 0
+NEXT
 ;プレイヤーがクンニ・手コキ・フェラ・パイズリ・電気按摩中なら不可
 SIF IS_EQUIP_PLAYER(MPLY:0, 2, 10, 11, 12, 103)
 	RETURN 0
-;プレイヤーからターゲットに尻コキ中なら不可
-SIF SEARCH_EQUIP(15, MPLY:0, MTAR:0) >= 0
-	RETURN 0
+
 RETURN 1
 
 ;-------------------------------------------------
@@ -77,22 +81,25 @@ CALL ADD_SOURCE_INITIATIVE_U(MPLY:0, 150, 20)
 ;奉仕経験値を得られるコマンドのフラグ
 TCVAR:(MPLY:0):4 = 1
 
-;●ターゲットについて処理
-DOWNBASE:(MTAR:0):体力 += 60
+FOR LOCAL, 0, MTAR_NUM
+	LOCAL:2 = MTAR:LOCAL
+	;●ターゲットについて処理
+	DOWNBASE:(LOCAL:2):体力 += 60
 
-SOURCE:(MTAR:0):露出 = 50
-SOURCE:(MTAR:0):逸脱 = 120
-SOURCE:(MTAR:0):接触 = 10
-SOURCE:(MTAR:0):性行動 = 180
-IF TALENT:(MPLY:0):技師
-	SOURCE:(MTAR:0):快Ｂ = SENSE_HOUSHI(MPLY:0, MTAR:0, 900)
-ELSE
-	SOURCE:(MTAR:0):快Ｂ = SENSE_HOUSHI(MPLY:0, MTAR:0, 600)
-ENDIF
+	SOURCE:(LOCAL:2):露出 = 50
+	SOURCE:(LOCAL:2):逸脱 = 120
+	SOURCE:(LOCAL:2):接触 = 10
+	SOURCE:(LOCAL:2):性行動 = 180
+	IF TALENT:(MPLY:0):技師
+		SOURCE:(LOCAL:2):快Ｂ = SENSE_HOUSHI(MPLY:0, LOCAL:2, 900)
+	ELSE
+		SOURCE:(LOCAL:2):快Ｂ = SENSE_HOUSHI(MPLY:0, LOCAL:2, 600)
+	ENDIF
 
-;主導権に応じた優越・屈従のソース追加
-CALL ADD_SOURCE_INITIATIVE_U(MTAR:0, 50, 20)
+	;主導権に応じた優越・屈従のソース追加
+	CALL ADD_SOURCE_INITIATIVE_U(LOCAL:2, 50, 20)
 
+NEXT
 ;主導度変化基準値
 TFLAG:49 = 2
 
@@ -115,18 +122,19 @@ RETURN 1
 ;-------------------------------------------------
 @COM_EQUIP64(ARG:0)
 LOCAL:2 = MEQUIP_PLAYER:(ARG:0):0
-LOCAL:3 = MEQUIP_TARGET:(ARG:0):0
-
 SOURCE:(LOCAL:2):性行動 += 30
 
-IF TALENT:(LOCAL:2):技師
-	SOURCE:(LOCAL:3):快Ｂ += SENSE_HOUSHI(LOCAL:2, LOCAL:3, 600)
-ELSE
-	SOURCE:(LOCAL:3):快Ｂ += SENSE_HOUSHI(LOCAL:2, LOCAL:3, 400)
-ENDIF
-SOURCE:(LOCAL:3):露出 += 20
-SOURCE:(LOCAL:3):逸脱 += 50
-SOURCE:(LOCAL:3):性行動 += 60
+FOR LOCAL:0, 0, MEQUIP_TARGET_NUM:(ARG:0)
+	LOCAL:3 = MEQUIP_TARGET:(ARG:0):(LOCAL:0)
+	IF TALENT:(LOCAL:2):技師
+		SOURCE:(LOCAL:3):快Ｂ += SENSE_HOUSHI(LOCAL:2, LOCAL:3, 600)
+	ELSE
+		SOURCE:(LOCAL:3):快Ｂ += SENSE_HOUSHI(LOCAL:2, LOCAL:3, 400)
+	ENDIF
+	SOURCE:(LOCAL:3):露出 += 20
+	SOURCE:(LOCAL:3):逸脱 += 50
+	SOURCE:(LOCAL:3):性行動 += 60
+NEXT
 
 ;-------------------------------------------------
 ;継続中の表示
@@ -190,17 +198,23 @@ ELSE
 	LOCALS:0 = 乳首
 ENDIF
 
+IF MTAR_NUM >= 2
+	LOCALS:1 = %ANAME(MTAR:0)%たち
+ELSE
+	LOCALS:1 = %ANAME(MTAR:0)%
+ENDIF
+
 SELECTCASE GET_COM_INITIATIVE()
 	;プレイヤーに主導権
 	CASE 0
-		PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%の%LOCALS:0%に震えるキャップを取り付け%TARGET_STR("た", "てきた")%…
+		PRINTFORMW %ANAME(MPLY:0)%は%LOCALS:1%の%LOCALS:0%に震えるキャップを取り付け%TARGET_STR("た", "てきた")%…
 	;ターゲットに主導権
 	CASE 1
-		PRINTFORMW %ANAME(MTAR:0)%は%ANAME(MPLY:0)%にキャップを握らせ、自身の乳首に取り付けさせた…
+		PRINTFORMW %LOCALS:1%は%ANAME(MPLY:0)%にキャップを握らせ、自身の乳首に取り付けさせた…
 	;第三者に主導権
 	CASEELSE
-		PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に対して、%ANAME(MTAR:0)%にニプルキャップを取り付けるように命令した
-		PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%の%LOCALS:0%に震えるキャップを取り付けた…
+		PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に対して、%LOCALS:1%にニプルキャップを取り付けるように命令した
+		PRINTFORMW %ANAME(MPLY:0)%は%LOCALS:1%の%LOCALS:0%に震えるキャップを取り付けた…
 ENDSELECT
 
 ;--------------------------------------------------------
