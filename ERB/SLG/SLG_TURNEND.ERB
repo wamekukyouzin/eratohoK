@@ -536,25 +536,54 @@ IF CITY_SOLDIER:(ARG:2) <= 0
 	
 	;勢力の滅亡判定
 	IF IS_COUNTRY(LOCAL:6) && GET_OWN_CITY(LOCAL:6) <= 0
-		IF CFLAG:MASTER:1 == LOCAL:6 && CFLAG:(LOCAL:0):9 != 0
-			SETCOLOR COLOR("警告")
-			PRINTFORML %NAME:MASTER%の仕えていた%BATTLE_NAME:1%勢力は滅亡してしまいました…
+		IF COUNTRY_EVENT_ID:(LOCAL:6) == COUNTRY_BANDIT
+			IF CFLAG:MASTER:1 == LOCAL:6 && CFLAG:(LOCAL:0):9 != 0
+				SETCOLOR COLOR("警告")
+				PRINTFORMW %NAME:MASTER%の仕えていた%BATTLE_NAME:1%たちは、都市を全て失いました…
+				PRINTFORMW そのごたごたで、捕らえていた捕虜たちが全て逃げていってしまいました
+				PRINTFORMW ですが、%BATTLE_NAME:1%たちは滅亡したわけではありません
+				PRINTFORMW どこにでも湧くのが%BATTLE_NAME:1%、また蜂起すればよいのです…
+				RESETCOLOR
+			ELSE
+				SETCOLOR COLOR("注意")
+				PRINTFORMW %BATTLE_NAME:1%の奪った都市は全て取り返されました！
+				PRINTFORMW そのごたごたで、捕らえていた捕虜たちが全て解放されました
+				PRINTFORMW しかし、%BATTLE_NAME:1%たちは滅亡したわけではありません
+				PRINTFORMW どこにでも湧くのが%BATTLE_NAME:1%、根絶せしめるのは不可能です
+				RESETCOLOR
+			ENDIF
+			SETCOLOR COLOR("シアン")
+			PRINTFORMW %BATTLE_NAME:1%を撤退せしめた%ANAME(GET_COUNTRY_BOSS(ARG:0))%は、他の勢力から深く感謝されています…
 			RESETCOLOR
+			FOR LOCAL:0, 0, CHARANUM
+				SIF CFLAG:LOCAL:捕虜先 == LOCAL:6
+					CFLAG:LOCAL:捕虜先 = 0
+			NEXT
+			FOR LOCAL:0, 0, MAX_COUNTRY
+				SIF LOCAL != ARG:0 && LOCAL != LOCAL:6
+					CALL CHANGE_RELATION_C_TO_C(LOCAL, ARG:0, 500, -500)
+			NEXT
 		ELSE
-			SETCOLOR COLOR("警告")
-			PRINTFORML %BATTLE_NAME:1%勢力は滅亡しました
-			RESETCOLOR
+			IF CFLAG:MASTER:1 == LOCAL:6 && CFLAG:(LOCAL:0):9 != 0
+				SETCOLOR COLOR("警告")
+				PRINTFORML %NAME:MASTER%の仕えていた%BATTLE_NAME:1%勢力は滅亡してしまいました…
+				RESETCOLOR
+			ELSE
+				SETCOLOR COLOR("警告")
+				PRINTFORML %BATTLE_NAME:1%勢力は滅亡しました
+				RESETCOLOR
+			ENDIF
+
+			;敗将の処理
+			CALL LOSERS_ACTION(LOCAL:6, ARG:0)
+
+			IF ARG:0 == CFLAG:MASTER:1
+				LOCAL:9 = 1
+			ENDIF
+
+			;後始末
+			CALL DESTROY_COUNTRY(LOCAL:6)
 		ENDIF
-
-		;敗将の処理
-		CALL LOSERS_ACTION(LOCAL:6, ARG:0)
-
-		IF ARG:0 == CFLAG:MASTER:1
-			LOCAL:9 = 1
-		ENDIF
-
-		;後始末
-		CALL DESTROY_COUNTRY(LOCAL:6)
 	ENDIF
 
 ;都市が占拠されなかった場合
