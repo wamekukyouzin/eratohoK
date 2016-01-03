@@ -6,7 +6,7 @@ $SHOW_LOOP
 DRAWLINE
 PRINTFORM 金
 SETCOLOR COLOR("注意")
-PRINTFORM 10000
+PRINTFORM {CALC_SPECIAL_TRAIN_MONEY()}
 RESETCOLOR
 PRINTFORML を消費し、配下に訓練を受けさせることができます
 PRINTFORML 訓練を行うとターンが消費されます
@@ -32,14 +32,14 @@ ELSE
 	PRINTFORML {ABL:(対象):政治, 3, RIGHT}
 	IF TALENT:(対象):妖術知識
 		PRINTFORM [53] 妖術 
-		CALL PRINT_ALPHABET_RANK(2, ABL:(対象):妖術)
+		CALL PRINT_ALPHABET_RANK(1, ABL:(対象):妖術)
 		PRINTFORML {ABL:(対象):妖術, 3, RIGHT}
 	ENDIF
 	PRINTFORM [60] 歌唱 
-	CALL PRINT_ALPHABET_RANK(1, ABL:(対象):歌唱)
+	CALL PRINT_ALPHABET_RANK(2, ABL:(対象):歌唱)
 	PRINTFORML {ABL:(対象):歌唱, 3, RIGHT}
 	PRINTFORM [61] 料理 
-	CALL PRINT_ALPHABET_RANK(1, ABL:(対象):料理)
+	CALL PRINT_ALPHABET_RANK(2, ABL:(対象):料理)
 	PRINTFORML {ABL:(対象):料理, 3, RIGHT}
 	PRINTL 
 	DRAWLINE
@@ -60,30 +60,31 @@ ELSE
 			;三能力
 			CASE 50 TO 52
 				LOCAL:2 = ABL:(対象):武闘 + ABL:(対象):知略 + ABL:(対象):政治
-				取得経験値 = 100 * (300 - LOCAL:2) / 300
+				LOCAL:3 = LIMIT(CALC_SPECIAL_TRAIN_MONEY() / 200, 100, 200)
+				取得経験値 = LOCAL:3 * (300 - LOCAL:2) / 300
 				;選択した項目が高いと取得経験値は下がる
 				SELECTCASE LOCAL:1
 					CASE IS < 50
 					CASE IS < 70
-						取得経験値 = 取得経験値 * 80 / 100
+						取得経験値 = 取得経験値 * 70 / 100
 					CASE IS < 80
-						取得経験値 = 取得経験値 * 60 / 100
+						取得経験値 = 取得経験値 * 50 / 100
 					CASEELSE
 						取得経験値 = 取得経験値 * 30 / 100
 				ENDSELECT
 			;歌唱と料理
 			CASE 60 TO 61
 				LOCAL:2 = ABL:(対象):歌唱 + ABL:(対象):料理
-				取得経験値 = 80 * (200 - LOCAL:2) / 200
-				;三能力に比べ、下方修正がきつい(50越えたら発動するため）
+				LOCAL:3 = LIMIT(CALC_SPECIAL_TRAIN_MONEY() / 200, 100, 200)
+				取得経験値 = LOCAL:3 * (200 - LOCAL:2) / 200
 				SELECTCASE LOCAL:1
-					CASE IS < 20
-					CASE IS < 40
-						取得経験値 = 取得経験値 * 70 / 100
+					CASE IS < 30
 					CASE IS < 50
 						取得経験値 = 取得経験値 * 50 / 100
-					CASEELSE
+					CASE IS < 70
 						取得経験値 = 取得経験値 * 30 / 100
+					CASEELSE
+						取得経験値 = 取得経験値 * 20 / 100
 				ENDSELECT
 			CASE 53
 				取得経験値 = RAND(500, 1000)
@@ -114,10 +115,19 @@ ELSE
 		ENDSELECT
 		PRINTFORML 訓練を行った！
 		CALL TRAIN_AUTO_ABLUP(対象)
-		MONEY -= 10000
+		MONEY -= CALC_SPECIAL_TRAIN_MONEY()
 		PRINTFORMW %ANAME(対象)%はいい汗をかいたようだ……
 	ENDIF
 	PRINTFORML
 	DRAWLINE
-	BEGIN TURNEND
+	DONE_SPECIAL_TRAIN = 1
+	RETURN 0
 ENDIF
+
+@CALC_SPECIAL_TRAIN_MONEY()
+#FUNCTION
+LOCAL = 5000
+SIF IS_COUNTRY(CFLAG:MASTER:1)
+	LOCAL += MIN(GET_OWN_CITY(CFLAG:MASTER:1) * 200, 20000)
+LOCAL += MAX(DAY * 100, 15000)
+RETURNF LOCAL
