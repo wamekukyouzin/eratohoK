@@ -7,8 +7,11 @@
 VARSET LOCAL
 野盗番号 = GET_COUNTRY_FROM_ID(COUNTRY_BANDIT)
 FOR LOCAL:0, 0, CHARANUM
-	;野盗の捕虜であるか、「野党に所属していて、SPキャラでなく、1/5の確率または主人公」
-	IF CFLAG:LOCAL:9 == 野盗番号 || (CFLAG:LOCAL:所属 == 野盗番号 && NO:LOCAL < 2000 && (RAND:100 < 20 || LOCAL == MASTER))
+	;野盗の捕虜であるか、「野盗に所属していて、捕虜でないか野盗の捕虜で、SPキャラでなく、1/5の確率または主人公」
+	IF CFLAG:LOCAL:9 == 野盗番号 || (CFLAG:LOCAL:所属 == 野盗番号 && (!CFLAG:LOCAL:捕虜先 || CFLAG:LOCAL:捕虜先 == 野盗番号) && NO:LOCAL < 2000 && (RAND:100 < 20 || LOCAL == MASTER))
+		;条件を満たしても、野盗の士官スタートなら抜ける
+		SIF LOCAL == MASTER && BANDIT_START == 1
+			CONTINUE
 		IF !LOCAL:1
 			DRAWLINE
 			PRINTFORML 野盗に囚われた各国の仕官が陵辱されているようです……
@@ -19,7 +22,7 @@ FOR LOCAL:0, 0, CHARANUM
 		IF CONFIG:80
 			CALL BANDIT_TRAIN_MSG(LOCAL:0)
 		ENDIF
-		CALL FORCE_FUCK(LOCAL:0, -16)
+		CALL FORCE_FUCK(LOCAL:0, -16, GROUPMATCH(BANDIT_START, 1, 2))
 		;あまり長く捕らえられていると寝返る
 		IF CFLAG:LOCAL:所属 != 野盗番号 && CFLAG:LOCAL:捕虜先 == 野盗番号 && CFLAG:LOCAL:解放カウンタ >= 10
 			SETCOLOR COLOR("警告")
