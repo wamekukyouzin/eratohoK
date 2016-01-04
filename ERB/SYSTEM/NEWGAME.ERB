@@ -208,6 +208,10 @@ VARSET SCVAR, 0
 
 ;デイリーイベント変数をリセット
 VARSET DVAR, 0
+
+;野盗スタート変数をリセット
+VARSET BANDIT_START
+
 ;変数の初期化
 TARGET = -1
 ASSI = -1
@@ -414,15 +418,17 @@ LOCAL:10 = 0
 $SHOW_LOOP
 
 DRAWLINE
-PRINT ★★所属勢力を選択して下さい★★
+PRINT ★★所属勢力選択★★
 PRINTPLAIN   
 PRINTBUTTON "97[オプション設定]", 97
-PRINTPLAIN     
-PRINTBUTTON "98[放浪状態から開始]", 98
+PRINTPLAIN   
+PRINTBUTTON "98[放浪スタート]", 98
 IF FLAG:26 == 1
 	PRINTPLAIN   
-	PRINTBUTTON "99[観戦モードで開始]", 99
+	PRINTBUTTON "99[観戦モード]", 99
 ENDIF
+PRINTPLAIN   
+PRINTBUTTON "100[野盗で開始]", 100
 PRINTL 
 DRAWLINE
 CALL SET_CITY_COLOR_COUNTRY
@@ -472,6 +478,23 @@ ELSEIF RESULT == 99 && FLAG:26 == 1
 	FLAG:1 = 1
 	TIME = 1
 	PRINTFORMW 観戦モードで開始します
+	RETURN
+
+ELSEIF RESULT == 100
+	FLAG:3 = 0
+	PRINTFORMW 野盗勢力で開始します
+	PRINTFORMW 野盗の士官、あるいは野盗の奴隷、または野盗の捕虜
+	PRINTFORMW どれで開始しますか？
+	CALL ASK_MULTI("野盗の士官(ターン終わりに調教されない)", "野盗の奴隷(ターン終わりに調教される)", "野盗の捕虜(野盗の捕虜からスタート)")
+	SELECTCASE RESULT
+		CASE 0
+			PRINTFORMW 野盗の士官としてスタートします
+		CASE 1
+			PRINTFORMW 野盗の奴隷としてスタートします
+		CASE 2
+			PRINTFORMW 野盗の捕虜としてスタートします
+	ENDSELECT
+	BANDIT_START = RESULT + 1
 	RETURN
 
 ELSEIF RESULT >= 1000 && RESULT < 1000 + MAX_CITY
@@ -1727,8 +1750,11 @@ FOR LCOUNT, 0, 15
 
 NEXT
 
-
-
+IF BANDIT_START == 1 || BANDIT_START == 2
+	CFLAG:MASTER:所属 == LOCAL:4
+ELSEIF BANDIT_START == 3
+	CFLAG:MASTER:捕虜先 == LOCAL:4
+ENDIF
 ;-------------------------------------------------
 ;ランダムキャラを使用するかどうか選択
 ;-------------------------------------------------
@@ -1756,7 +1782,14 @@ ENDIF
 @SELECT_BANDIT
 DRAWLINE
 PRINTFORML シナリオに登場する野盗の強さを選んでください
-PRINTL [0] 映す価値無し(野盗なんて居なかった、イイネ？)
+IF !BANDIT_START
+	PRINTL [0] 映す価値無し(野盗なんて居なかった、イイネ？)
+ELSE
+	SETCOLOR COLOR("選択不可")
+	PRINTPLAINFORM [0] 野盗スタートを選択したので、野盗なし設定は選べません
+	RESETCOLOR
+	PRINTL
+ENDIF
 PRINTL [1] チンピラ級(標準)
 PRINTL [2] 兵士崩れ級(チンピラの1.4倍程度)
 PRINTL [3] 傭兵くずれ級(チンピラの2倍程度の強さ)
@@ -1766,7 +1799,10 @@ PRINTL [5] 陵辱エロ同人級(チンピラの4倍程度の強さ)
 $INPUT_LOOP_BANDIT
 INPUT
 
-SIF INRANGE(RESULT, 0, 5)
+SIF RESULT == 0 && !BANDIT_START
+	RETURN RESULT
+
+SIF INRANGE(RESULT, 1, 5)
 	RETURN RESULT
 CLEARLINE 1
 GOTO INPUT_LOOP_BANDIT
