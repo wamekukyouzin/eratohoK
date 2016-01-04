@@ -412,44 +412,77 @@ GOTO INPUT_LOOP
 ;臨時徴兵
 ;-------------------------------------------------
 @SLG_EXTRA_DRAFT()
+#DIM 雇用レート
+#DIM 解雇レート
+#DIM 入力値
+#DIM 兵数
+雇用レート = MIN((DAY - 5) / 10, 3)
+解雇レート = LIMIT((DAY - 5) / 15, 1, 10)
+兵数 = COUNTRY_SOLDIER:(CFLAG:MASTER:1)
 $SHOW_LOOP
-LOCAL = 3 + (MAX(DAY - 5, 0) / 10)
 DRAWLINE
 PRINTFORML 資金を消費して臨時に徴兵することができます
-PRINTFORML 何人雇いますか？(0以下を入力すると戻る)
-PRINTFORML 現在の資金:{MONEY}  レート:{LOCAL}/兵
-PRINTFORML 現在の兵数（防衛・部隊所属除く）:{COUNTRY_SOLDIER:(CFLAG:MASTER:1)}
+PRINTFORML 負数を入力すると解雇して資金を得ることもできます
+PRINTFORML 何人雇う/解雇しますか？(0を入力すると戻る)
+PRINTFORML 現在の資金:{MONEY}  雇用レート:{雇用レート}/兵  解雇レート:{解雇レート}/兵
+PRINTFORML 現在の兵数（防衛・部隊所属除く）:{兵数}
 DRAWLINE
 $INPUT_LOOP
 INPUT
-IF RESULT <= 0
+入力値 = RESULT
+IF 入力値 == 0
 	RETURN
-ELSEIF MONEY >= LOCAL * RESULT
-	LOCAL:1 = RESULT
+ELSEIF 入力値 > 0 && MONEY >= 雇用レート * 入力値
 	PRINTFORM 金
-	CALL COLORPRINTFORM(@"{LOCAL:1 * LOCAL}", COLOR("注意"))
+	CALL COLORPRINTFORM(@"{入力値 * 雇用レート}", COLOR("注意"))
 	PRINTFORM を消費し、
-	CALL COLORPRINTFORM(@"{LOCAL:1}", COLOR("注意"))
+	CALL COLORPRINTFORM(@"{入力値}", COLOR("注意"))
 	PRINTFORML の兵を雇います。
 	PRINTFORM 雇用後の資金は
-	CALL COLORPRINTFORM(@"{MONEY - LOCAL:1 * LOCAL}", COLOR("注意"))
+	CALL COLORPRINTFORM(@"{MONEY - 入力値 * 雇用レート}", COLOR("注意"))
 	PRINTFORML です。
 	PRINTFORML よろしいですか？
 	CALL ASK_YN
 	IF RESULT == 0
-		PRINTFORML 兵を{LOCAL:1}人雇いました！
-		PRINTFORML 兵数:{COUNTRY_SOLDIER:(CFLAG:MASTER:1)} → {COUNTRY_SOLDIER:(CFLAG:MASTER:1) + LOCAL:1}
-		PRINTFORMW 資金:{MONEY} → {MONEY - LOCAL:1 * LOCAL}
-		COUNTRY_SOLDIER:(CFLAG:MASTER:1) += LOCAL:1
-		MONEY -= LOCAL:1 * LOCAL
+		PRINTFORML 兵を{入力値}人雇いました！
+		PRINTFORML 兵数:{兵数} → {兵数 + 入力値}
+		PRINTFORMW 資金:{MONEY} → {MONEY - 入力値 * 雇用レート}
+		COUNTRY_SOLDIER:(CFLAG:MASTER:1) += 入力値
+		MONEY -= 入力値 * 雇用レート
 	ELSE
 		GOTO SHOW_LOOP
 	ENDIF
 	RETURN
-ELSE
-	LOCAL:1 = RESULT
-	PRINTFORML 必要資金は{LOCAL:1 * LOCAL}ですが、そんなに資金がありません。
+ELSEIF 入力値 < 0 && 入力値 * -1 <= 兵数
+	入力値 *= -1
+	PRINTFORM 兵
+	CALL COLORPRINTFORM(@"{入力値}", COLOR("注意"))
+	PRINTFORM を解雇し、
+	CALL COLORPRINTFORM(@"{入力値 * 解雇レート}", COLOR("注意"))
+	PRINTFORML の資金を得ます。
+	PRINTFORM 解雇後の資金は
+	CALL COLORPRINTFORM(@"{MONEY + 入力値 * 解雇レート}", COLOR("注意"))
+	PRINTFORML です。
+	PRINTFORML よろしいですか？
+	CALL ASK_YN
+	IF RESULT == 0
+		PRINTFORML 兵を{入力値}人解雇しました！
+		PRINTFORML 兵数:{兵数} → {兵数 - 入力値}
+		PRINTFORMW 資金:{MONEY} → {MONEY + 入力値 * 解雇レート}
+		COUNTRY_SOLDIER: (CFLAG:MASTER:1) -= 入力値
+		MONEY += 入力値 * 解雇レート
+	ELSE
+		GOTO SHOW_LOOP
+	ENDIF
+	RETURN
+ELSEIF 入力値 > 0 && MONEY < 雇用レート * 入力値
+	PRINTFORML 必要資金は{入力値 * 雇用レート}ですが、そんなに資金がありません
 	GOTO SHOW_LOOP
+ELSEIF 入力値 < 0 && 入力値 * -1 > 兵数
+	入力値 *= -1
+	PRINTFORML {入力値}解雇しようとしましたが、そんなに兵を持っていません
+	GOTO SHOW_LOOP
+ELSE
 ENDIF
 
 
