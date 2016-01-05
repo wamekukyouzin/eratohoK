@@ -1011,49 +1011,6 @@ FOR LOCAL:0, 0, 3
 	ENDIF
 NEXT
 
-;[現代兵術]による特殊計略
-FOR LOCAL:0, 0, 3
-	LOCAL:2 = 発動側:(LOCAL:0)
-	IF LOCAL:2 >= 0 && TALENT:(LOCAL:2):現代兵術
-		;LOCAL:3 = 対象部隊の人数
-		;LOCAL:4 = 変数「対象」に対し用いる添え字
-		;LOCAL:5 = 対象部隊の勢力番号
-		LOCAL:3 = 0
-		LOCAL:4 = -1
-		LOCAL:5 = -1
-		;部隊の人数をカウント
-		FOR LOCAL:1, 0, 3
-			SIF 対象側:(LOCAL:1) >= 0
-				LOCAL:3 ++
-		NEXT
-		;誰か武将がいれば発動処理に移行
-		IF LOCAL:3 >= 1
-			;誰をみるか決める
-			LOCAL:4 = RAND:3
-			;みる対象がいた場合(フェイルセーフ)
-			IF 対象側:(LOCAL:4) >= 0
-				;勢力番号取得
-				IF ARG:5 >= 0
-					LOCAL:5 = ARG:4
-				ELSE
-					LOCAL:5 = CITY_OWNER:(ARG:4)
-				ENDIF
-				;発動
-				SETCOLOR COLOR("桃")
-				PRINTFORML %NAME:(LOCAL:2)%は%NAME:GET_COUNTRY_BOSS(LOCAL:5)%軍に桃色の霧を吹きかけた
-				;発動回数を一度までに制限するため、外ループで使用しているLOCAL:0をここでも使う
-				FOR LOCAL:0, 0, 3
-					;対象である、または研究用奴隷の烙印を所持しているキャラについて、パワーが1になるフラグがたつ
-					IF LOCAL:0 == LOCAL:4 || TALENT:(LOCAL:0):研究用奴隷の烙印
-						PRINTFORML %NAME:(対象側:(LOCAL:0))%は力が抜けてしまった！
-						CFLAG:(対象側:(LOCAL:0)):34 = 1
-					ENDIF
-				NEXT
-			ENDIF
-		ENDIF
-	ENDIF
-NEXT
-
 FOR LOCAL:0, 0, 3
 	LOCAL:2 = 発動側:(LOCAL:0)
 	;暗殺。相手武将からランダムで1人部隊から取り除き、クールタイムを付与する。
@@ -1263,6 +1220,24 @@ FOR LOCAL:0, 0, 3
 			PRINTFORML %ANAME(武将:LOCAL)%は防衛に巧みな戦術を発揮した！
 			TIMES BATTLE_DEF:発動側 , 1.20
 			BATTLE_RATE_GRD:発動側 += 20
+		ENDIF
+	ENDIF
+NEXT
+
+FOR LOCAL:0, 0, 3
+	IF 武将:LOCAL >= 0
+		;現代兵術。敵部隊の自部隊より高い能力を、自部隊の能力以下にせしめる。1戦闘で1度のみ発動（複数回発動しても無駄だし）
+		IF TALENT:(武将:LOCAL):現代兵術 && 30 > RAND:100
+			SETCOLOR COLOR("桃")
+			PRINTFORML %ANAME:(武将:LOCAL)%は敵に怪しげな桃色の霧を吹きかける……！
+			SIF BATTLE_ATC:受動側 > BATTLE_ATC:発動側
+				BATTLE_ATC:受動側 = BATTLE_ATC:発動側 * 7 / 10
+			SIF BATTLE_DEF:受動側 > BATTLE_DEF:発動側
+				BATTLE_DEF:受動側 = BATTLE_DEF:発動側 * 7 / 10
+			SIF BATTLE_INT:受動側 > BATTLE_INT:発動側
+				BATTLE_INT:受動側 = BATTLE_INT:発動側 * 7 / 10
+			SETCOLOR COLOR("注意")
+			BREAK
 		ENDIF
 	ENDIF
 NEXT
