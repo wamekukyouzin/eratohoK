@@ -1,0 +1,45 @@
+﻿;--------------------------------------
+;外来勢力出現イベント
+;出現できたら1、できなければ0をかえす
+;都市 = 最初に奪う都市 指定しなければ野盗と同一の方式
+;メッセージフラグ = 汎用メッセージ表示フラグ　指定しなければ表示
+;--------------------------------------
+@GAIRAI_RISE(都市 = -1, メッセージフラグ = 1)
+#DIM 外来
+#DIM メッセージフラグ
+#DIM 都市
+
+;外来勢力を作成
+CALL GAIRAI_INIT()
+外来 = RESULT
+;作れなかったら戻す
+SIF 外来 == -1
+	RETURN 0
+
+;引数で奪う都市が指定されていなければ、BANDIT_RISE_SELECT_CITY()を流用
+IF 都市 < 0 || 都市 >= CITY_NUM
+	CALL BANDIT_RISE_SELECT_CITY()
+ELSE
+	都市 = ARG:0
+ENDIF
+;多分ないはずなんだけど、奪えなかったらもどす
+IF 都市 == -1
+	RETURN 0
+ENDIF
+
+CITY_OWNER(都市) = 外来
+CALL CLEAR_CITY_COMMANDER(都市, 0)
+CALL CLEAR_CITY_COMMANDER(都市, 1)
+
+IF メッセージフラグ
+	DRAWLINE
+	PRINTL 
+	SETCOLOR COLOR("警告")
+	PRINTFORMW 結界の外から突如、外来人が雪崩のように攻めこんできました！
+	PRINTFORMW 彼らの電撃的な作戦行動により、%CITY_NAME(都市)%が奪われました
+	PRINTFORMW これに伴い、幻想郷の各勢力が、異変解決の準備を始めたようです…
+	RESETCOLOR
+	DRAWLINE
+ENDIF
+
+RETURN 1
