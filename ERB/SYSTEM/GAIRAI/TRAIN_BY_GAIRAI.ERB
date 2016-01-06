@@ -8,9 +8,12 @@
 外来 = GET_COUNTRY_FROM_ID(COUNTRY_GAIRAI)
 LOCAL:9 = 1
 
+SIF 外来 == -1
+	RETURN -1
+
 FOR 対象, 0, CHARANUM
 	;外来勢力に寝返った士官／外来勢力の捕虜となった士官の扱い
-	IF (CFLAG:(対象):1 == 外来 || CFLAG:(対象):9 == 外来) && NO:(対象) < 2000
+	IF (CFLAG:対象:所属 == 外来 && !CFLAG:対象:捕虜先 || CFLAG:対象:9 == 外来) && NO:対象 < 2000
 		;捕虜解放カウンタを常に0にする
 		;性処理と同等の経験を取得させる
 		LOCAL:1 = 0
@@ -83,8 +86,8 @@ FOR 対象, 0, CHARANUM
 			WAIT
 		ENDIF
 		
-		;「本人もマスターも外来に所属しておらず依存度が-500未満」「外来所属でなく、マスターが外来所属で、10期経過」「外来所属でないが、研究用奴隷の烙印所持」で寝返る
-		IF (CFLAG:(対象):所属 != 外来 && CFLAG:MASTER:所属 != 外来 && CFLAG:(対象):3 < -500) || (CFLAG:(対象):所属 == 外来  && CFLAG:MASTER:所属 == 外来 && CFLAG:(対象):解放カウンタ >= 10) || (CFLAG:(対象):所属 != 外来 && TALENT:(対象):研究用奴隷の烙印)
+		;外来勢力に本人がおらず、「マスターも外来に所属しておらず依存度が-500未満」「マスターが外来所属で、10期経過」「本人が外来の性奴隷所持」で寝返る
+		IF CFLAG:対象:所属 != 外来 && ((CFLAG:対象:所属 != 外来 && CFLAG:MASTER:所属 != 外来 && CFLAG:対象:依存度 < -500) || (CFLAG:対象:所属 != 外来  && CFLAG:MASTER:所属 == 外来 && CFLAG:対象:解放カウンタ >= 10) || (TALENT:対象:研究用奴隷の烙印))
 			;調教の様子を表示
 			IF TRAIN_IS_SHOW_TEXT(対象)
 				PRINTFORML ・
@@ -108,7 +111,6 @@ FOR 対象, 0, CHARANUM
 						ENDIF
 						SIF IS_LOVER(対象)
 							PRINTFORMW 烙印の熱が冷めるころには%ANAME(対象)%の頭の中から、かつて愛していた%ANAME(MASTER)%のことが、綺麗さっぱり消え失せていた……
-						CALL LOSE_RELATION_TALENT(対象, TRAIN_IS_SHOW_TEXT(対象))
 					;MASTERが外来所属なら、仲間に加わる
 					ELSE
 						PRINTFORMW %ANAME(MASTER)%や外来人たちの度重なる研究により、浅ましく快楽を求める雌へとなりはてた%ANAME(対象)%は、己の本分を思い知った
@@ -119,9 +121,11 @@ FOR 対象, 0, CHARANUM
 			SETCOLOR COLOR("警告")
 			PRINTFORMW %ANAME(対象)%は外来勢力に寝返ったようです…
 			RESETCOLOR
-			CFLAG:(対象):1 = 外来
-			CFLAG:(対象):9 = 0
-			TALENT:(対象):研究用奴隷の烙印 = 1
+			CFLAG:対象:1 = 外来
+			CFLAG:対象:9 = 0
+			TALENT:対象:研究用奴隷の烙印 = 1
+			SIF CFLAG:MASTER:所属 != 外来
+				CALL LOSE_RELATION_TALENT(対象)
 		ENDIF
 	ENDIF
 NEXT
