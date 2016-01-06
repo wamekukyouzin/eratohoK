@@ -1,0 +1,92 @@
+﻿;-------------------------------------------------
+;ゴブリンによる調教
+;-------------------------------------------------
+@TRAIN_BY_GOBLIN
+#DIM ゴブリン
+#DIM 対象
+;IDからゴブリン勢力の番号を取得(ゴブリン勢力のIDは300)
+ゴブリン = GET_COUNTRY_FROM_ID(COUNTRY_GOBLIN)
+
+SIF ゴブリン == -1
+	RETURN -1
+
+LOCAL:9 = 1
+FOR 対象, 0, CHARANUM
+	;ゴブリン勢力所属で捕虜でないか、ゴブリン勢力の捕虜。SPキャラでない。
+	IF (CFLAG:対象:所属 == ゴブリン && !CFLAG:対象:捕虜先 || CFLAG:対象:9 == ゴブリン) && NO:対象 < 2000
+		;捕虜解放カウンタを常に0にする
+		CFLAG:対象:43 = 0
+		;調教の様子を表示
+		IF (CFLAG:(対象):捕虜先 == ゴブリン || (CFLAG:(対象):所属 == ゴブリン && NO:対象< 2000 && !RAND:3 && !CFLAG:対象:捕虜先)) && TRAIN_IS_SHOW_TEXT(対象)
+			IF LOCAL:9
+				LOCAL:9 = 0
+				DRAWLINE
+				PRINTW ホフゴブリンに捕らえられた士官が陵辱されているようです…
+			ENDIF
+			PRINTL 
+			CALL GOBLINS_TRAIN_MSG(対象)
+			WAIT
+		ENDIF
+		
+		CALL FORCE_FUCK(対象, -13)
+		
+		;MASTERがゴブリン所属なら、依存度低下を回避できる
+		IF CFLAG:MASTER:所属 != ゴブリン
+			;ホフゴブリンの性奴隷を持っていると、依存度が強制的に最低値になる
+			IF TALENT:(対象):ゴブリンの性奴隷
+				CFLAG:(対象):依存度 = MIN(CFLAG:(対象):依存度, -1000)
+			ELSE
+				;依存度の減少
+				SIF CFLAG:(対象):依存度 > -1000
+					CFLAG:(対象):依存度 = MAX(CFLAG:対象:依存度 - MAX(CFLAG:対象:依存度 / 10, 200) , -1000)
+			ENDIF
+		ENDIF
+		
+		;堕ちそうなら特殊メッセ
+		IF CFLAG:対象:依存度 <= -300 && !TALENT:対象:ゴブリンの性奴隷
+			SETCOLOR COLOR("警告")
+			PRINTFORML 度重なる陵辱で、%ANAME(対象)%はほとんど性奴隷に堕ちてしまっている……
+			PRINTFORML このまま助けがなければ、その心は本当に折れてしまうだろう
+			RESETCOLOR
+		ENDIF
+
+		;ゴブリン勢力に本人がおらず、「マスターもゴブリンに所属しておらず依存度が-500未満」「マスターがゴブリン所属で、10期経過」「本人がゴブリンの性奴隷所持」で寝返る
+		IF CFLAG:対象:所属 != ゴブリン && ((CFLAG:対象:所属 != ゴブリン && CFLAG:MASTER:所属 != ゴブリン && CFLAG:対象:依存度 < -500) || (CFLAG:対象:所属 != ゴブリン  && CFLAG:MASTER:所属 == ゴブリン && CFLAG:対象:解放カウンタ >= 10) || (TALENT:対象:ゴブリンの性奴隷))
+			;調教の様子を表示
+			IF TRAIN_IS_SHOW_TEXT(対象)
+				PRINTFORML ・
+				PRINTFORML ・
+				PRINTFORML ・
+				IF TALENT:対象:ゴブリンの性奴隷
+					PRINTFORMW ホフゴブリンたちの容赦ない陵辱で、%ANAME(対象)%は奴隷としての己の分際を思い出した
+					PRINTFORMW 奴隷としての「仕事」をこなすため、%ANAME(対象)%は再び彼らの下につくことにした……
+				ELSE
+					IF CFLAG:MASTER:所属 != ゴブリン
+						PRINTFORMW ホフゴブリンたちの容赦ない陵辱で%ANAME(対象)%の心は折れ、浅ましく快楽を求める奴隷へとなりはててしまった
+						PRINTFORMW もっと彼らに犯して「いただく」ため、一生を性奴隷として過ごすことに同意してしまった……
+						IF TALENT:対象:烙印
+							PRINTFORML %ANAME(対象)%が%ANAME(MASTER)%専用であることを示す烙印の上から、
+							PRINTFORMW 新たに%ANAME(対象)%がホフゴブリンの性奴隷となったことを示す入れ墨が施された
+							TALENT:対象:烙印 = 0
+						ELSE
+							PRINTFORMW %ANAME(対象)%の体に、ホフゴブリンの性奴隷となったことを示す入れ墨が施された
+						ENDIF
+						SIF IS_LOVER(対象)
+							PRINTFORMW %ANAME(対象)%の頭の中から、かつて愛していた%ANAME(MASTER)%のことが、綺麗さっぱり消え失せた……
+					ELSE
+						PRINTFORMW ホフゴブリンの陵辱と%ANAME(MASTER)%の努力で、%ANAME(対象)%は浅ましく快楽を求める奴隷へと成長した
+						PRINTFORMW もっと彼らに犯して「いただく」ため、一生を性奴隷として過ごすことに同意した……
+					ENDIF
+				ENDIF
+			ENDIF
+			SETCOLOR COLOR("注意")
+			PRINTFORMW %ANAME(対象)%はホフゴブリンに寝返ってしまったようです…
+			RESETCOLOR
+			CFLAG:対象:1 = ゴブリン
+			CFLAG:対象:9 = 0
+			TALENT:対象:ゴブリンの性奴隷 = 1
+			SIF CFLAG:MASTER:所属 != ゴブリン
+				CALL LOSE_RELATION_TALENT(対象)
+		ENDIF
+	ENDIF
+NEXT
