@@ -1,0 +1,231 @@
+﻿;--------------------------------------
+;外来勢力出現イベント
+;出現できたら1、できなければ0をかえす
+;都市 = 最初に奪う都市 指定しなければ野盗と同一の方式
+;メッセージフラグ = 汎用メッセージ表示フラグ　指定しなければ表示
+;--------------------------------------
+@GAIRAI_RISE(都市 = -1, メッセージフラグ = 1)
+#DIM 外来
+#DIM メッセージフラグ
+#DIM 都市
+
+;外来勢力を作成
+CALL GAIRAI_INIT()
+外来 = RESULT
+;作れなかったら戻す
+SIF 外来 == -1
+	RETURN 0
+
+;引数で奪う都市が指定されていなければ、BANDIT_RISE_SELECT_CITY()を流用
+IF 都市 < 0 || 都市 >= CITY_NUM
+	FOR LOCAL, 0, GAIRAI_RANK
+		CALL BANDIT_RISE_SELECT_CITY()
+		都市 = RESULT
+		;多分ないはずなんだけど、奪えなかったら諦め
+		IF 都市 == -1
+			CONTINUE
+		ENDIF
+		CITY_OWNER:(都市) = 外来
+		CALL CLEAR_CITY_COMMANDER(都市, 0)
+		CALL CLEAR_CITY_COMMANDER(都市, 1)
+	NEXT
+ELSE
+	CITY_OWNER:(ARG:0) = 外来
+	CALL CLEAR_CITY_COMMANDER(都市, 0)
+	CALL CLEAR_CITY_COMMANDER(都市, 1)	
+ENDIF
+
+
+IF メッセージフラグ
+	DRAWLINE
+	SETCOLOR COLOR("警告")
+	PRINTFORMW 結界の外から突如、外来人が雪崩のように攻めこんできました！
+	PRINTFORMW 彼らの電撃的な作戦行動により、%CITY_NAME:(都市)%\@ GET_OWN_CITY(外来) > 1 ? など # \@が奪われました
+	PRINTFORMW これに伴い、幻想郷の各勢力が異変解決の準備を始めたようです…
+	RESETCOLOR
+	DRAWLINE
+ENDIF
+
+RETURN 1
+
+;--------------------------------------
+;ターンエンド時の外来兵の処理
+;--------------------------------------
+@TURNEND_GAIRAI
+#DIM 外来
+
+SIF !DVAR:外来勢力出現済み
+	RETURN -1
+	
+;外来勢力の番号を取得(ID:299)
+外来 = GET_COUNTRY_FROM_ID(COUNTRY_GAIRAI)
+IF 外来 == -1
+	SETCOLOR COLOR("注意")
+	PRINTFORML 壊滅的な被害を受けた外来人は、結界の外に撤退していきました
+	PRINTFORML 幻想郷の勝利です！
+	RESETCOLOR
+	;外来人を削除する
+	LOCAL:1 = CHARANUM
+	FOR LOCAL:0, 0, LOCAL:1
+		LOCAL:2 = LOCAL:1 - LOCAL:0 - 1
+		IF TALENT:(LOCAL:2):外来人
+			CALL DELETE_CHARA(LOCAL:2)
+		ENDIF
+	NEXT
+	RETURN -1
+ENDIF
+
+;兵力の増える処理
+IF DAY % 3 == 0
+	LOCAL:0 = MAX(RAND:3000, 1000)
+	PRINTFORML 外来人につけば「実験」のおこぼれにあずかれると聞いた野良妖怪たちが、次々と寝返っているようです……
+	PRINTFORML 外来人軍の兵力が{LOCAL:0}増加した
+	COUNTRY_SOLDIER:(外来) += LOCAL:0
+ENDIF
+;5ターンに1回、ブレインコントロール
+CALL GAIRAI_BRAINCONTROL(DAY % 5 == 0)
+
+;調教処理
+CALL TRAIN_BY_GAIRAI
+
+;--------------------------------------
+;外来勢力の初期化処理
+;--------------------------------------
+@GAIRAI_INIT(ARG:0)
+#DIM LCOUNT
+VARSET LOCAL
+
+LOCAL:4 = GET_NEW_COUNTRY()
+;作れなかったらなしで
+IF LOCAL:4 == -1
+	RETURN -1
+ENDIF
+COUNTRY_COLOR:(LOCAL:4) = 0x483D8B
+COUNTRY_SOLDIER:(LOCAL:4) = 20000 + GAIRAI_RANK * 1000
+COUNTRY_AI_TYPE:(LOCAL:4) = AI_通常
+COUNTRY_EVENT_ID:(LOCAL:4) = COUNTRY_GAIRAI
+
+FOR LCOUNT, 0, 15
+	CALL ADD_VOID_CHARA()
+	LOCAL = RESULT
+	NAME:LOCAL = 外来人
+	CALLNAME:LOCAL = 外来人
+	MAXBASE:LOCAL:体力 = 3000
+	MAXBASE:LOCAL:気力 = 3000
+	MAXBASE:LOCAL:精神力 = 1500
+	BASE:LOCAL:体力 = MAXBASE:LOCAL:体力
+	BASE:LOCAL:気力 = MAXBASE:LOCAL:気力
+	BASE:LOCAL:精神力 = MAXBASE:LOCAL:精神力
+	ABL:LOCAL:Ｃ感 = 3
+	ABL:LOCAL:欲望 = 8
+	ABL:LOCAL:性技 = 3
+	ABL:LOCAL:性知識 = 5
+	ABL:LOCAL:奉仕 = 1
+	ABL:LOCAL:性交 = 10
+	ABL:LOCAL:射精 = 5
+	EXP:LOCAL:絶頂経験 = 500
+	ABL:LOCAL:武闘 = 40 + RAND:20 + 5 * GAIRAI_RANK
+	ABL:LOCAL:知略 = 40 + RAND:20 + 5 * GAIRAI_RANK
+	ABL:LOCAL:政治 = RAND(30, 60)
+	ABL:LOCAL:歌唱 = 10
+	ABL:LOCAL:料理 = 10
+	TALENT:LOCAL:両刀 = 1
+	TALENT:LOCAL:サド = 1
+	TALENT:LOCAL:絶倫 = 1
+	TALENT:LOCAL:現代兵術 = 1
+	TALENT:LOCAL:外来人 = 1
+	;所属を野盗勢力にする
+	CFLAG:LOCAL:1 = LOCAL:4
+	CALL NEWCHARA_INIT(LOCAL)
+	IF !LOCAL:3
+		LOCAL:3 = LOCAL
+		COUNTRY_BOSS:(LOCAL:4) = GET_ID(LOCAL:3)
+	ENDIF
+NEXT
+DVAR:外来勢力出現済み = 1
+
+RETURN LOCAL:4
+
+;--------------------------------------
+;外来人の侵攻イベントを実行するSLGイベント。
+;判定通ったら素のGAIRAI_RISEを呼ぶだけ。
+;25期以降、50期までに徐々に確率が高まっていく。既に発生していたらなし。
+;--------------------------------------
+@SLG_GAIRAI_RISE()
+SIF DVAR:外来勢力出現済み || !GAIRAI_RANK || !((DAY >= 25 && DAY - 25 > RAND:100) || DAY > 50)
+	RETURN -1
+
+CALL GAIRAI_RISE()
+
+
+;--------------------------------------
+;外来人によるブレインコントロールイベント
+;引数には発動条件を書く。書かなければ常時発動。
+;--------------------------------------
+@GAIRAI_BRAINCONTROL(条件 = 1)
+#DIM 外来
+#DIM 条件
+#DIM 候補, 1000
+#DIM 候補数
+#DIM 対象
+VARSET 候補, -1
+VARSET 候補数
+
+外来 = GET_COUNTRY_FROM_ID(COUNTRY_GAIRAI)
+
+;外来所属でなく、日数が5の倍数
+SIF 外来 == -1 || !条件
+RETURN -1
+
+FOR LOCAL, 0, CHARANUM
+	;SPキャラでない、MASTERでない、君主でない、捕虜でないか外来勢力の捕虜、外来人所属でない
+	IF NO:LOCAL < 2000 && LOCAL != MASTER && LOCAL != GET_COUNTRY_BOSS(CFLAG:LOCAL:所属) && (!CFLAG:LOCAL:捕虜先 || CFLAG:LOCAL:捕虜先 == 外来) && CFLAG:LOCAL:1 != 外来
+		候補:候補数 = LOCAL
+		候補数 ++
+	ENDIF
+NEXT
+
+SIF 候補数 <= 0
+	RETURN -1
+
+CALL FISHER_YATES_SHAFFLE(候補数)
+
+対象 = 候補:(SHAFFLE_ARRAY:0)
+
+SIF 対象 == -1
+	RETURN -1
+
+IF CFLAG:対象:捕虜先 == 外来
+	DRAWLINE
+	SETCOLOR COLOR("桃")
+	PRINTFORMW 外来人たちは実験と称し、怪しげなヘルメット型装置を%ANAME(対象)%に被せた……
+	PRINTFORMW 最初は暴れていた%ANAME(対象)%だが、外来人が装置の電源を入れると、途端に大人しくなる
+	PRINTFORML 装置の内では、彼らの作った洗脳用ムービー・音声が流れている
+	PRINTFORML さらに、装置から頭に流れされる微弱な電流が、%ANAME(対象)%の深層心理から書き換えていく
+	PRINTFORMW 自分は外来人たちの奴隷に過ぎないのだと
+	PRINTFORML %ANAME(対象)%の心が幸福感に満たされていく
+	PRINTFORMW こんなに幸せなのに、どうして逆らう必要があるだろう？
+	PRINTFORML ある程度経過を見た後、外来人たちは装置の洗脳映像に、オナニーせよという信号を混ぜ込んだ
+	PRINTFORMW 外来人の従順な研究対象と成り下がった%ANAME(対象)%は、何の疑問も抱かず、
+	PRINTFORMW ただ言われるがままに自らの秘部を激しく慰め始めた……
+	PRINTFORML
+	CALL COLORPRINTFORM(@"%ANAME(対象)%が外来人の奴隷となりました", COLOR("警告"), "W")
+	RESETCOLOR
+	TALENT:対象:研究用奴隷の烙印 ==1
+	CFLAG:対象:所属 = 外来
+	CFLAG:対象:捕虜先 = 0
+ELSE
+	DRAWLINE
+	SETCOLOR COLOR("桃")
+	PRINTFORML 外来人たちは大型の音響装置を野外に持ち出した
+	PRINTFORMW そして、そこから耳に聞こえない洗脳音波を大音量でながし始めた
+	PRINTFORMW たまたま近くにいた%ANAME(対象)%はそれをもろに聞いてしまい、音波の発生元へふらふらと近寄った……
+	PRINTFORML 虚ろな瞳で外来人の元に馳せ参じた%ANAME(対象)%は、檻に入るように言われる
+	PRINTFORMW 音波の影響下にある%ANAME(対象)%は、言われるがまま従った
+	PRINTFORMW 研究対象を確保できたと、外来人たちはそのまま%ANAME(対象)%を持ち帰った
+	PRINTFORMW %ANAME(対象)%が我にかえったころには、もう手遅れだった
+	PRINTFORML
+	CALL COLORPRINTFORM(@"%ANAME(対象)%が外来人に囚われました", COLOR("警告"), "W")
+	RESETCOLOR
+	CFLAG:対象:捕虜先 = 外来
+ENDIF

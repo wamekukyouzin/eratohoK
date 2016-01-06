@@ -13,15 +13,6 @@ PRINTFORMW 各勢力が様々な思惑を絡め、争いあう！
 PRINTFORMW だが目に見える勢力だけに囚われるな、水面下の動きにも気を払え！
 PRINTFORMW 君はこの戦いを生き残り、幻想郷の覇者となれるのか！
 PRINTL
-PRINTFORML 外来人が襲撃しにくるようにしますか？
-PRINTFORML 多分なエロを含みます。
-CALL ASK_YN
-IF RESULT == 0
-	PRINTFORMW 外来人の襲撃が起こります
-ELSE
-	PRINTFORMW 外来人はやってきません
-	SCVAR:0 = 2
-ENDIF
 
 ;ランダムキャラは選択に委ねる
 FLAG:4 = 0
@@ -565,14 +556,9 @@ CALL INIT_ALLIANCE_BY_NAME("神奈子", "さとり", 10)
 ;-------------------------------------------------
 ;定例イベント
 ;ターンエンド時に呼び出される
-;SCVAR:0 外来人侵攻済みフラグ
-;SCVAR:1 封獣ぬえ離反済みフラグ
-;SCVAR:2 謎の薬売り前回どれだったフラグ
+;SCVAR:0 封獣ぬえ離反済みフラグ
 ;-------------------------------------------------
 @SCENARIO_EVENT_1
-#DIM UNIFY
-
-
 
 ;封獣ぬえ・鬼人正邪離反イベント（それぞれ１回独立します）
 ;30期以降、封獣ぬえか鬼人正邪がプレイヤーでなく捕虜や放浪状態や死亡状態や外来勢力所属でもなく、かつその所属勢力が5つ以上の都市を得ているとき
@@ -582,9 +568,9 @@ CALL INIT_ALLIANCE_BY_NAME("神奈子", "さとり", 10)
 ;他の条件については頑張って解読してください（ぉ
 LOCAL:1 = 0
 ;正邪優先、ただし君主が針妙丸の時は起こらない
-IF !GETBIT(SCVAR:1,0) && REBELLION_FLAG("正邪", 30) && CFLAG:(NAME_TO_CHARA("正邪")):1 != GET_COUNTRY_FROM_ID(299) && GET_COUNTRY_BOSS(CFLAG:(NAME_TO_CHARA("正邪")):1) != FINDCHARA(CSTR:99, "針妙丸")
+IF !GETBIT(SCVAR:0,0) && REBELLION_FLAG("正邪", 30) && CFLAG:(NAME_TO_CHARA("正邪")):1 != GET_COUNTRY_FROM_ID(COUNTRY_GAIRAI) && GET_COUNTRY_BOSS(CFLAG:(NAME_TO_CHARA("正邪")):1) != FINDCHARA(CSTR:99, "針妙丸")
 	LOCAL:1 = FINDCHARA(CSTR:99, "正邪")
-ELSEIF !GETBIT(SCVAR:1,1) && REBELLION_FLAG("ぬえ", 30) && CFLAG:(NAME_TO_CHARA("ぬえ")):1 != GET_COUNTRY_FROM_ID(299)
+ELSEIF !GETBIT(SCVAR:0,1) && REBELLION_FLAG("ぬえ", 30) && CFLAG:(NAME_TO_CHARA("ぬえ")):1 != GET_COUNTRY_FROM_ID(COUNTRY_GAIRAI)
 	LOCAL:1 = FINDCHARA(CSTR:99, "ぬえ")
 ENDIF
 IF LOCAL:1 != 0
@@ -599,10 +585,10 @@ IF LOCAL:1 != 0
 	;勢力発生後に移動させたのは反乱かやらごとの一部設定をここで設定しやすいように。具体的には勢力カラーとか（イメージに合う色が思いつかないのでそのままにしておく）。
 	SELECTCASE LOCAL:1
 	CASE FINDCHARA(CSTR:99, "正邪")
-		SETBIT SCVAR:1 , 0
+		SETBIT SCVAR:0 , 0
 		COUNTRY_COLOR:(LOCAL:4) = 0xB40431
 	CASE FINDCHARA(CSTR:99, "ぬえ")
-		SETBIT SCVAR:1 , 1
+		SETBIT SCVAR:0 , 1
 		COUNTRY_COLOR:(LOCAL:4) = 0xB40431
 	ENDSELECT
 	;プレイヤーの態度をLOCAL:10に格納
@@ -804,371 +790,4 @@ IF LOCAL:1 != 0
 
 
 ENDIF
-
-
-
-;統一した国家の番号を取得
-UNIFY = GET_UNIFY_COUNTRY()
-
-;天下を統一した勢力が存在する場合
-IF SCVAR:0 == 0 && UNIFY >= 1
-	SCVAR:0 = 1
-	SCVAR:10 = UNIFY
-
-	;無所属の都市の統合
-	CALL UNIFY_FREE_CITY(UNIFY)
-
-	PRINTW ………………
-	PRINTW ……
-
-	LOCAL:3 = GET_COUNTRY_BOSS(UNIFY)
-	PRINTL 
-	SETCOLOR COLOR("注意")
-
-	IF UNIFY == CFLAG:MASTER:1
-		PRINTFORMW 結界の外から突如、数百万もの外来人が雪崩のように攻めこんできました！
-		PRINTFORMW 彼らの電撃的な作戦行動により、幻想郷の主要な施設が次々と制圧されてしまいました
-		PRINTFORMW 占領された地域の住民たちは、研究対象として捕らえられ、非道な「実験」を繰り返されているようです
-		PRINTFORML 奴らの暴虐を止めなければ、%NAME:(LOCAL:3)%様の統一が成らないばかりか、
-		PRINTFORMW 幻想郷は破壊しつくされてしまうでしょう…
-		PRINTL 
-		PRINTFORMW 我々の誇りに掛けて、この最後の戦いに勝利し、真の覇者となりましょう！
-	ELSE
-		PRINTFORMW 結界の外から突如、数百万もの外来人が雪崩のように攻めこんできました！
-		PRINTFORMW 彼らの電撃的な作戦行動により、幻想郷の主要な施設が次々と制圧されてしまいました
-		PRINTFORMW これに伴い、幻想郷のほぼ全てを手中に収めていた%NAME:(LOCAL:3)%が、異変解決の準備を始めたようです…
-	ENDIF
-	RESETCOLOR
-
-	;外来勢力の作成
-	ADDVOIDCHARA
-	NO:(CHARANUM - 1) = 2000
-	CALL NEWCHARA_INIT(CHARANUM - 1)
-	NAME:(CHARANUM - 1) = 外来人
-	CALLNAME:(CHARANUM - 1) = 外来人
-	LOCAL:0 = GET_NEW_COUNTRY()
-	COUNTRY_BOSS:(LOCAL:0) = GET_ID(CHARANUM - 1)
-	COUNTRY_COLOR:(LOCAL:0) = 0xFFFFFF
-	COUNTRY_SOLDIER:(LOCAL:0) = 1000000
-	;外来勢力のIDは299
-	COUNTRY_EVENT_ID:(LOCAL:0) = 299
-	FOR LOCAL:1, 0, 30
-		CALL ADD_GAIRAI_SOLDIER(LOCAL:0)
-	NEXT
-	CALL TAKEOVER_CITY_FROM_NAME("外来人", "天人の都")
-	CALL TAKEOVER_CITY_FROM_NAME("外来人", "桃園")
-	CALL TAKEOVER_CITY_FROM_NAME("外来人", "守矢神社")
-	CALL TAKEOVER_CITY_FROM_NAME("外来人", "是非曲直庁")
-	CALL TAKEOVER_CITY_FROM_NAME("外来人", "月の都")
-	CALL TAKEOVER_CITY_FROM_NAME("外来人", "博麗神社")
-	CALL TAKEOVER_CITY_FROM_NAME("外来人", "永遠亭")
-	CALL TAKEOVER_CITY_FROM_NAME("外来人", "白玉楼")
-	CALL TAKEOVER_CITY_FROM_NAME("外来人", "八雲屋敷")
-	CALL TAKEOVER_CITY_FROM_NAME("外来人", "紅魔館")
-	CALL TAKEOVER_CITY_FROM_NAME("外来人", "命蓮寺")
-	CALL TAKEOVER_CITY_FROM_NAME("外来人", "神霊廟")
-	CALL TAKEOVER_CITY_FROM_NAME("外来人", "地霊殿")
-
-	;外交禁止フラグを立てる
-	COUNTRY_IS_CLOSED:(LOCAL:0) = 1
-ENDIF
-
-;外来勢力の侵攻後
-IF SCVAR:0 == 1
-	;外来勢力の番号を取得(ID:299)
-	LOCAL:2 = GET_COUNTRY_FROM_ID(299)
-	IF DAY % 3 == 0 && LOCAL:2 != -1
-		LOCAL:0 = MAX(RAND:3000, 1000)
-		PRINTFORML 外来人につけば「実験」のおこぼれにあずかれると聞いた野良妖怪たちが、次々と寝返っているようです……
-		PRINTFORML 外来人軍の兵力が{LOCAL:0}増加した
-		COUNTRY_SOLDIER:(LOCAL:2) += LOCAL:0
-	ENDIF
-	IF LOCAL:2 <= 0 || GET_SUM_SOLDIER(LOCAL:2) < 300000
-		SCVAR:0 = 2
-
-		SETCOLOR COLOR("注意")
-		PRINTL 
-		IF SCVAR:10 == CFLAG:MASTER:1
-			PRINTFORML 壊滅的な被害を受けた外来人は結界の外へと撤退しました！
-			PRINTFORMW 我々の勝利です！
-		ELSE
-			PRINTFORMW 戦線を維持できなくなった外来人は幻想郷から撤退した模様です！
-		ENDIF
-		RESETCOLOR
-
-		IF CFLAG:MASTER:1 >= 1
-			LOCAL:1 = CFLAG:MASTER:1
-		ELSE
-			LOCAL:1 = 0
-		ENDIF
-		FOR LOCAL:0, 0, MAX_CITY
-			IF CITY_OWNER:(LOCAL:0) == LOCAL:2
-				CITY_OWNER:(LOCAL:0) = LOCAL:1
-			ENDIF
-		NEXT
-
-		;イベントキャラを全て削除
-		LOCAL:3 = CHARANUM
-		FOR LOCAL:0, 0, LOCAL:3
-			LOCAL:1 = LOCAL:3 - LOCAL:0 - 1
-			IF NO:(LOCAL:1) >= 2000
-				CALL DELETE_CHARA(LOCAL:1)
-			ENDIF
-		NEXT
-
-		FOR LOCAL:0, 0, CHARANUM
-			;外来勢力に寝返ったキャラの処理
-			IF CFLAG:(LOCAL:0):1 == LOCAL:2
-				;自国の捕虜なら無所属に
-				IF CFLAG:(LOCAL:0):9 != 0
-					CFLAG:(LOCAL:0):1 = 0
-				;それ以外なら放浪状態に
-				ELSE
-					CFLAG:(LOCAL:0):1 = 0
-					CFLAG:(LOCAL:0):12 = 1
-				ENDIF
-			;外来勢力に捕らえられてまだ寝返っていないキャラは、捕虜状態を解除
-			ELSEIF CFLAG:(LOCAL:0):9 == LOCAL:2
-				CFLAG:(LOCAL:0):9 = 0
-			ENDIF
-		NEXT
-
-		IF LOCAL:2 >= 1
-			;外来勢力を削除
-			CALL DESTROY_COUNTRY(LOCAL:2)
-		ENDIF
-	ENDIF
-ENDIF
-
-;外来勢力の侵攻後
-IF SCVAR:0 == 1
-	CALL TRAIN_BY_GAIRAI
-ENDIF
-
-;-------------------------------------------------
-;外来勢力による調教
-;-------------------------------------------------
-@TRAIN_BY_GAIRAI
-;IDから外来勢力の番号を取得(外来勢力のIDは299)
-LOCAL:2 = GET_COUNTRY_FROM_ID(299)
-IF LOCAL:2 >= 1
-	LOCAL:9 = 1
-	FOR LOCAL:0, 0, CHARANUM
-		;外来勢力に寝返った士官／外来勢力の捕虜となった士官の扱い
-		IF LOCAL:0 != MASTER && ((CFLAG:(LOCAL:0):1 == LOCAL:2 && NO:(LOCAL:0) < 2000) || CFLAG:(LOCAL:0):9 == LOCAL:2)
-			;捕虜解放カウンタを常に0にする
-			CFLAG:(LOCAL:0):43 = 0
-
-			;外来人に竿がある(女性でない)
-			IF GAIRAI_SEX_VS(LOCAL:0) != 1
-				;性処理と同等の経験を取得させる
-				LOCAL:3 = 0
-				LOCAL:3 += MAX(ABL:(LOCAL:0):Ｃ感 - 1, 0)
-				LOCAL:3 += MAX(ABL:(LOCAL:0):Ｖ感 - 1, 0) * 3
-				LOCAL:3 += MAX(ABL:(LOCAL:0):Ａ感 - 1, 0) * 3
-				LOCAL:3 += MAX(ABL:(LOCAL:0):Ｂ感 - 1, 0)
-				LOCAL:3 += MAX(ABL:(LOCAL:0):Ｍ感 - 1, 0) / 2
-				LOCAL:3 = LOCAL:3 * (ABL:(LOCAL:0):欲望 + 2) / 2
-
-				IF PENIS(LOCAL:0)
-					EXP:(LOCAL:0):Ｃ感経験値 += ABL:(LOCAL:0):Ｃ感 + 1 + RAND:3
-					EXP:(LOCAL:0):Ａ感経験値 += ABL:(LOCAL:0):Ａ感 * 30 + 20 + RAND:16
-				ELSE
-					EXP:(LOCAL:0):Ｃ感経験値 += ABL:(LOCAL:0):Ｃ感 * 5 + 5 + RAND:11
-					EXP:(LOCAL:0):Ｖ感経験値 += ABL:(LOCAL:0):Ｖ感 * 20 + 15 + RAND:11
-					EXP:(LOCAL:0):Ａ感経験値 += ABL:(LOCAL:0):Ａ感 * 20 + 15 + RAND:11
-				ENDIF
-				EXP:(LOCAL:0):Ｂ感経験値 += ABL:(LOCAL:0):Ｂ感 * 4 + 4 + RAND:9
-				EXP:(LOCAL:0):Ｍ感経験値 += ABL:(LOCAL:0):Ｍ感 * 4 + 4 + RAND:9
-				EXP:(LOCAL:0):欲望経験値 += ABL:(LOCAL:0):欲望 * 3 + 2 + LOCAL:3 + RAND:7
-				EXP:(LOCAL:0):奉仕経験値 += ABL:(LOCAL:0):奉仕 * 2 + 5 + RAND:11
-				EXP:(LOCAL:0):性交経験値 += ABL:(LOCAL:0):性交 * 5 + 15 + RAND:11
-				IF GROUPMATCH(GAIRAI_SEX_VS(LOCAL:0), 0, 3, 4, 5)
-					IF IS_MALE(LOCAL:0)
-						EXP:(LOCAL:0):ＢＬ経験値 += 25 + RAND:11
-					ENDIF
-				ELSE
-					IF IS_FEMALE(LOCAL:0)
-						EXP:(LOCAL:0):レズ経験値 += 25 + RAND:11
-					ENDIF
-				ENDIF
-				EXP:(LOCAL:0):精愛経験値 += ABL:(LOCAL:0):精愛 * 10 + 30 + RAND:21
-				IF PENIS(LOCAL:0)
-					EXP:(LOCAL:0):射精経験値 += ABL:(LOCAL:0):射精 * 10 + 30 + RAND:21
-				ENDIF
-				EXP:(LOCAL:0):キス経験 += 2 + RAND:8
-				EXP:(LOCAL:0):口淫経験 += 3 + RAND:10
-				EXP:(LOCAL:0):絶頂経験 += LOCAL:3 * (60 + RAND:81) / 100
-
-				CALL TRAIN_AUTO_ABLUP(LOCAL:0, 1)
-
-				;中出しと妊娠判定
-				IF CONFIG:1 == 0 && (VAGINA(LOCAL:0) || TALENT:(LOCAL:0):孕み可能)
-					FOR LOCAL:1, 440, 480
-						TCVAR:(LOCAL:0):(LOCAL:1) = 0
-					NEXT
-					CALL RECORD_INJECTION(LOCAL:0, -11, 6)
-					CALL CHECK_PREGNANT(LOCAL:0)
-				ENDIF
-
-			;外来人に竿がない(女性である)
-			ELSE
-				;一部の取得経験量が変化
-				LOCAL:3 = 0
-				LOCAL:3 += MAX(ABL:(LOCAL:0):Ｃ感 - 1, 0) * 2
-				LOCAL:3 += MAX(ABL:(LOCAL:0):Ｖ感 - 1, 0) * 2
-				LOCAL:3 += MAX(ABL:(LOCAL:0):Ａ感 - 1, 0) * 2
-				LOCAL:3 += MAX(ABL:(LOCAL:0):Ｂ感 - 1, 0) * 2
-				LOCAL:3 += MAX(ABL:(LOCAL:0):Ｍ感 - 1, 0) / 2
-				LOCAL:3 = LOCAL:3 * (ABL:(LOCAL:0):欲望 + 2) / 2
-
-				IF PENIS(LOCAL:0)
-					EXP:(LOCAL:0):Ｃ感経験値 += ABL:(LOCAL:0):Ｃ感 * 2 + 1 + RAND:3
-					EXP:(LOCAL:0):Ａ感経験値 += ABL:(LOCAL:0):Ａ感 * 20 + 15 + RAND:16
-				ELSE
-					EXP:(LOCAL:0):Ｃ感経験値 += ABL:(LOCAL:0):Ｃ感 * 10 + 10 + RAND:11
-					EXP:(LOCAL:0):Ｖ感経験値 += ABL:(LOCAL:0):Ｖ感 * 15 + 10 + RAND:11
-					EXP:(LOCAL:0):Ａ感経験値 += ABL:(LOCAL:0):Ａ感 * 15 + 10 + RAND:11
-				ENDIF
-				EXP:(LOCAL:0):Ｂ感経験値 += ABL:(LOCAL:0):Ｂ感 * 6 + 6 + RAND:9
-				EXP:(LOCAL:0):Ｍ感経験値 += ABL:(LOCAL:0):Ｍ感 * 4 + 4 + RAND:9
-				EXP:(LOCAL:0):欲望経験値 += ABL:(LOCAL:0):欲望 * 3 + 2 + LOCAL:3 + RAND:7
-				EXP:(LOCAL:0):奉仕経験値 += ABL:(LOCAL:0):奉仕 * 2 + 5 + RAND:11
-				EXP:(LOCAL:0):性交経験値 += ABL:(LOCAL:0):性交 * 2 + 4 + RAND:7
-				EXP:(LOCAL:0):輪姦経験 += 3 + RAND(2, MAX(3, MIN(8, ABL:(LOCAL:0):欲望)))
-				IF IS_FEMALE(LOCAL:0)
-					EXP:(LOCAL:0):レズ経験値 += 25 + RAND:11
-				ENDIF
-				IF PENIS(LOCAL:0)
-					EXP:(LOCAL:0):射精経験値 += ABL:(LOCAL:0):射精 * 15 + 35 + RAND:21
-				ENDIF
-				EXP:(LOCAL:0):キス経験 += 2 + RAND:16
-				EXP:(LOCAL:0):絶頂経験 += LOCAL:3 * (60 + RAND:81) / 100
-
-				CALL TRAIN_AUTO_ABLUP(LOCAL:0, 1)
-			ENDIF
-
-			;研究用奴隷の烙印を持っていると、依存度が強制的に最低値になる
-			IF TALENT:(LOCAL:0):研究用奴隷の烙印
-				CFLAG:(LOCAL:0):3 = -1000
-				CFLAG:(LOCAL:0):35 = 0
-				CFLAG:(LOCAL:0):38 = 0
-
-			;処女なら依存度の低下はなし
-			ELSEIF TALENT:(LOCAL:0):処女 != 1 || !VAGINA(LOCAL:0)
-				;依存度の減少
-				IF CFLAG:(LOCAL:0):3 > -1000
-					CFLAG:(LOCAL:0):3 = MAX(CFLAG:(LOCAL:0):3 - MAX(CFLAG:(LOCAL:0):3 / 5, 100), -1000)
-				ENDIF
-				;霖之助・藍への惚れ度の減少
-				IF CFLAG:(LOCAL:0):35 > 0
-					CFLAG:(LOCAL:0):35 = MAX(CFLAG:(LOCAL:0):35 - MAX(CFLAG:(LOCAL:0):35 / 30, 300), 0)
-				ENDIF
-				IF CFLAG:(LOCAL:0):38 > 0
-					CFLAG:(LOCAL:0):38 = MAX(CFLAG:(LOCAL:0):38 - MAX(CFLAG:(LOCAL:0):38 / 30, 300), 0)
-				ENDIF
-			ENDIF
-
-			;調教の様子を表示
-			IF (CFLAG:(LOCAL:0):9 == LOCAL:2 || (CFLAG:(LOCAL:0):1 == LOCAL:2 && !TALENT:(LOCAL:0):外来人 && !RAND:5 && CFLAG:(LOCAL:0):9 == 0)) && (CONFIG:80 == 2 || (CONFIG:80 == 1 && IS_FEMALE(LOCAL:0)))
-				IF LOCAL:9
-					LOCAL:9 = 0
-					PRINTW 外来勢力に捕らえられた士官が外来人に「研究」されているようです…
-				ENDIF
-				PRINTL 
-				CALL GAIRAIS_TRAIN_MSG(LOCAL:0)
-				WAIT
-			ENDIF
-
-			;処女とキス未経験を失う
-			IF TALENT:(LOCAL:0):キス未経験
-				IF RAND:4 == 0
-					;ペニスへのキス
-					CALL KISS_COMMON(LOCAL:0, -12, 1, 0, 0)
-				ENDIF
-				;唇へのキス
-				CALL KISS_COMMON(LOCAL:0, -12, 0, 0, 0)
-			ENDIF
-			IF TALENT:(LOCAL:0):処女 && VAGINA(LOCAL:0) && !TALENT:(LOCAL:0):研究用奴隷の烙印
-				IF TALENT:(LOCAL:0):処女 == 1
-					;処女を捧げた相手を外来人に設定
-					CFLAG:(LOCAL:0):41 = -12
-				ENDIF
-				TALENT:(LOCAL:0):処女 = 0
-			ELSE
-				;依存度が-500未満、霖之助・藍への惚れ度が共に0になると寝返る
-				IF CFLAG:(LOCAL:0):1 != LOCAL:2 && CFLAG:(LOCAL:0):3 < -500 && CFLAG:(LOCAL:0):35 <= 0 && CFLAG:(LOCAL:0):38 <= 0
-					IF !FLAG:28
-						;調教の様子を表示
-						IF (CONFIG:80 == 2 || (CONFIG:80 == 1 && IS_FEMALE(LOCAL:0))) && !TALENT:(LOCAL:0):研究用奴隷の烙印
-							PRINTFORML ・・・
-							PRINTFORML ・・
-							PRINTFORML ・
-							PRINTFORMW 外来人たちの度重なる研究により、浅ましく快楽を求める雌へとなりはてた%ANAME(LOCAL:0)%は、\@IS_LOVER(LOCAL:0) ? 愛して「いた」%ANAME(MASTER)% # 仲間 \@を裏切った
-							PRINTFORMW そして今後も研究してもらうために、研究用の奴隷となることに同意してしまった……
-							IF TALENT:(LOCAL:0):烙印
-								PRINTFORML %ANAME(LOCAL:0)%が%ANAME(MASTER)%専用であることを示す烙印の上から、
-								PRINTFORMW 新たに%ANAME(LOCAL:0)%が外来人の研究用奴隷となったことを示す烙印が焼き入れられた
-								TALENT:(LOCAL:0):烙印 = 0
-							ELSE
-								PRINTFORMW %ANAME(LOCAL:0)%の体に、外来人の研究用奴隷の証である烙印が焼き入れられた
-							ENDIF
-							SIF IS_LOVER(LOCAL:0)
-								PRINTFORMW 烙印の熱が冷めるころには%ANAME(LOCAL:0)%の頭の中から、かつて愛していた%ANAME(MASTER)%のことが、綺麗さっぱり消え失せていた……
-							CALL LOSE_RELATION_TALENT(LOCAL:0, 1)
-						ELSE
-							CALL LOSE_RELATION_TALENT(LOCAL:0, 0)
-						ENDIF
-						SETCOLOR COLOR("注意")
-						PRINTFORMW %ANAME(LOCAL:0)%は外来勢力に寝返ってしまったようです…
-						RESETCOLOR
-					ELSE
-						CALL LOSE_RELATION_TALENT(LOCAL:0, 0)
-					ENDIF
-					CFLAG:(LOCAL:0):1 = LOCAL:2
-					CFLAG:(LOCAL:0):9 = 0
-					TALENT:(LOCAL:0):研究用奴隷の烙印 = 1
-				ENDIF
-			ENDIF
-		ENDIF
-	NEXT
-ENDIF
-
-;-------------------------------------------------
-;新規にモブ外来人を作成し、ARG:0勢力に加える関数
-;-------------------------------------------------
-@ADD_GAIRAI_SOLDIER(ARG:0)
-CALL ADD_VOID_CHARA()
-LOCAL = RESULT
-NAME:LOCAL = 外来人
-CALLNAME:LOCAL = 外来人
-MAXBASE:LOCAL:体力 = 3000
-MAXBASE:LOCAL:気力 = 3000
-MAXBASE:LOCAL:精神力 = 1500
-BASE:LOCAL:体力 = MAXBASE:LOCAL:体力
-BASE:LOCAL:気力 = MAXBASE:LOCAL:気力
-BASE:LOCAL:精神力 = MAXBASE:LOCAL:精神力
-ABL:LOCAL:Ｃ感 = 3
-ABL:LOCAL:欲望 = 8
-ABL:LOCAL:性技 = 5
-ABL:LOCAL:性知識 = 4
-ABL:LOCAL:奉仕 = 5
-ABL:LOCAL:性交 = 5
-ABL:LOCAL:射精 = 10
-EXP:LOCAL:絶頂経験 = 500
-ABL:LOCAL:武闘 = 60
-ABL:LOCAL:知略 = 60
-ABL:LOCAL:政治 = 20
-ABL:LOCAL:歌唱 = 10
-ABL:LOCAL:料理 = 10
-ABL:LOCAL:ＢＬ = 5
-TALENT:LOCAL:両刀 = 1
-TALENT:LOCAL:サド = 1
-TALENT:LOCAL:現代兵術 = 1
-;外来人を識別するための非表示の素質
-TALENT:LOCAL:外来人 = 1
-CALL NEWCHARA_INIT(LOCAL)
-
-;所属を外来にする
-CFLAG:LOCAL:1 = ARG:0
 

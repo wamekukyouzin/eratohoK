@@ -2,9 +2,6 @@
 ;判定無視フラグは、ゲーム開始時に蜂起するとき用
 @BANDIT_RISE(判定無視 = 0)
 #DIM 野盗
-#DIM 勢力, MAX_COUNTRY
-#DIM 判定値, MAX_COUNTRY
-#DIM 都市, MAX_CITY
 #DIM 結果
 #DIM 判定無視
 #DIM 候補数
@@ -31,8 +28,47 @@ ENDIF
 
 $JUDGE_SKIPPED
 
+CALL BANDIT_RISE_SELECT_CITY()
+
+結果 = RESULT
+
+SIF 結果 == -1
+	RETURN -1
+
+;メッセージ表示
+DRAWLINE
+PRINTFORML
+CALL COLORPRINTFORM(@"野盗どもが%CITY_NAME:結果%を奪い、蜂起しました！", COLOR("警告"), "W")
+
+LOCAL:1 = CITY_OWNER:結果
+
+;奪った都市の所属武将を何人かかっぱらう（無所属都市でなければ）
+IF IS_COUNTRY(LOCAL:1)
+	FOR LOCAL, 0, CHARANUM
+		IF CFLAG:LOCAL:所属 == LOCAL:1 && !CFLAG:LOCAL:捕虜先 && GET_COUNTRY_BOSS(LOCAL:1) != LOCAL && !RAND:5
+			CALL COLORPRINTFORM(@"野盗は%ANAME(LOCAL)%を性奴隷として拉致しました", COLOR("警告"), "W")
+			CFLAG:LOCAL:捕虜先 = 野盗
+		ENDIF
+	NEXT
+ENDIF
+
+CITY_OWNER:結果 = 野盗
+COUNTRY_SOLDIER:野盗 += MIN(DAY * 100, 10000)
+
+DVAR:野盗蜂起カウンタ = 0
+
+;--------------------------------------
+;野盗蜂起イベントにおける、都市選択処理
+;--------------------------------------
+@BANDIT_RISE_SELECT_CITY
+#DIM 勢力, MAX_COUNTRY
+#DIM 判定値, MAX_COUNTRY
+#DIM 都市, MAX_CITY
+#DIM 結果
+#DIM 候補数
 VARSET 勢力
 VARSET 判定値
+VARSET 都市
 VARSET 候補数
 
 ;各勢力の都市数に基づいて判定値を算出
@@ -65,26 +101,4 @@ SIF 候補数 == 0
 
 CALL FISHER_YATES_SHAFFLE(候補数)
 
-結果 = 都市:(SHAFFLE_ARRAY:0)
-
-;メッセージ表示
-DRAWLINE
-PRINTFORML
-CALL COLORPRINTFORM(@"野盗どもが%CITY_NAME:結果%を奪い、蜂起しました！", COLOR("警告"), "W")
-
-LOCAL:1 = CITY_OWNER:結果
-
-;奪った都市の所属武将を何人かかっぱらう（無所属都市でなければ）
-IF IS_COUNTRY(LOCAL:1)
-	FOR LOCAL, 0, CHARANUM
-		IF CFLAG:LOCAL:所属 == LOCAL:1 && !CFLAG:LOCAL:捕虜先 && GET_COUNTRY_BOSS(LOCAL:1) != LOCAL && !RAND:5
-			CALL COLORPRINTFORM(@"野盗は%ANAME(LOCAL)%を性奴隷として拉致しました", COLOR("警告"), "W")
-			CFLAG:LOCAL:捕虜先 = 野盗
-		ENDIF
-	NEXT
-ENDIF
-
-CITY_OWNER:結果 = 野盗
-COUNTRY_SOLDIER:野盗 += MIN(DAY * 100, 10000)
-
-DVAR:野盗蜂起カウンタ = 0
+RETURN 都市:(SHAFFLE_ARRAY:0)
