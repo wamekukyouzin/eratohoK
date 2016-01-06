@@ -1,0 +1,158 @@
+﻿;--------------------------------------
+;ホフゴブリン出現イベント
+;出現できたら1、できなければ0をかえす
+;都市 = 最初に奪う都市 指定しなければ野盗と同一の方式
+;メッセージフラグ = 汎用メッセージ表示フラグ　指定しなければ表示
+;--------------------------------------
+@GOBLIN_RISE(都市 = -1, メッセージフラグ = 1)
+#DIM ゴブリン
+#DIM メッセージフラグ
+#DIM 都市
+
+;ホフゴブリン勢力を作成
+CALL GOBLIN_INIT()
+ゴブリン = RESULT
+;作れなかったら戻す
+SIF ゴブリン == -1
+	RETURN 0
+
+;引数で奪う都市が指定されていなければ、BANDIT_RISE_SELECT_CITY()を流用
+IF 都市 < 0 || 都市 >= CITY_NUM
+	FOR LOCAL, 0, GOBLIN_RANK
+		CALL BANDIT_RISE_SELECT_CITY()
+		都市 = RESULT
+		;多分ないはずなんだけど、奪えなかったら諦め
+		IF 都市 == -1
+			CONTINUE
+		ENDIF
+		CITY_OWNER:(都市) = ゴブリン
+		CALL CLEAR_CITY_COMMANDER(都市, 0)
+		CALL CLEAR_CITY_COMMANDER(都市, 1)
+	NEXT
+ELSE
+	CITY_OWNER:(ARG:0) = ゴブリン
+	CALL CLEAR_CITY_COMMANDER(都市, 0)
+	CALL CLEAR_CITY_COMMANDER(都市, 1)	
+ENDIF
+
+
+IF メッセージフラグ
+	DRAWLINE
+	SETCOLOR COLOR("警告")
+	PRINTFORMW 日頃から虐げられ、溜まっていたホフゴブリンたちの鬱憤が、とうとう爆発しました！
+	PRINTFORMW 彼らは反旗を翻し、%CITY_NAME:(都市)%\@ GET_OWN_CITY(ゴブリン) > 1 ? など # \@を占拠したようです
+	PRINTFORMW これに伴い、幻想郷の各勢力が異変解決の準備を始めたようです…
+	RESETCOLOR
+	DRAWLINE
+ENDIF
+
+RETURN 1
+
+;--------------------------------------
+;ターンエンド時のホフゴブリンの処理
+;--------------------------------------
+@TURNEND_GOBLIN
+#DIM ゴブリン
+
+IF !DVAR:ゴブリン出現済み
+	;ホフゴブリンの蜂起
+	CALL SLG_GOBLIN_RISE
+	RETURN -1
+ENDIF
+	
+;ホフゴブリンの番号を取得(ID:299)
+ゴブリン = GET_COUNTRY_FROM_ID(COUNTRY_GOBLIN)
+IF ゴブリン == -1
+	SETCOLOR COLOR("注意")
+	PRINTFORML 壊滅的な被害を受けたホフゴブリンは、ちりぢりに四散していきました
+	PRINTFORML 八雲紫が「めっ☆（滅っ）」したようなので、しばらくは大人しくしていることでしょう……
+	RESETCOLOR
+	;ホフゴブリンを削除する
+	LOCAL:1 = CHARANUM
+	FOR LOCAL:0, 0, LOCAL:1
+		LOCAL:2 = LOCAL:1 - LOCAL:0 - 1
+		IF TALENT:(LOCAL:2):ホフゴブリン
+			CALL DELETE_CHARA(LOCAL:2)
+		ENDIF
+	NEXT
+	RETURN -1
+ENDIF
+
+;兵力の増える処理
+IF DAY % 3 == 0
+	LOCAL:0 = MAX(RAND:3000, 1000)
+	PRINTFORML ホフゴブリンにつけばおこぼれにあずかれると聞いた野良妖怪たちが、次々と寝返っているようです……
+	PRINTFORML ホフゴブリンの兵力が{LOCAL:0}増加した
+	COUNTRY_SOLDIER:(ゴブリン) += LOCAL:0
+ENDIF
+
+;調教処理
+CALL TRAIN_BY_GOBLIN
+
+;--------------------------------------
+;ホフゴブリンの初期化処理
+;--------------------------------------
+@GOBLIN_INIT(ARG:0)
+#DIM LCOUNT
+VARSET LOCAL
+
+LOCAL:4 = GET_NEW_COUNTRY()
+;作れなかったらなしで
+IF LOCAL:4 == -1
+	RETURN -1
+ENDIF
+COUNTRY_COLOR:(LOCAL:4) = 0x2B5C1B
+COUNTRY_SOLDIER:(LOCAL:4) = 20000 + GOBLIN_RANK
+COUNTRY_AI_TYPE:(LOCAL:4) = AI_ホフゴブリン
+COUNTRY_EVENT_ID:(LOCAL:4) = COUNTRY_GOBLIN
+
+FOR LCOUNT, 0, 15
+	CALL ADD_VOID_CHARA()
+	LOCAL = RESULT
+	NAME:LOCAL = ホフゴブリン
+	CALLNAME:LOCAL = ホフゴブリン
+	MAXBASE:LOCAL:体力 = 3000
+	MAXBASE:LOCAL:気力 = 3000
+	MAXBASE:LOCAL:精神力 = 1500
+	BASE:LOCAL:体力 = MAXBASE:LOCAL:体力
+	BASE:LOCAL:気力 = MAXBASE:LOCAL:気力
+	BASE:LOCAL:精神力 = MAXBASE:LOCAL:精神力
+	ABL:LOCAL:Ｃ感 = 3
+	ABL:LOCAL:欲望 = 8
+	ABL:LOCAL:性技 = 3
+	ABL:LOCAL:性知識 = 5
+	ABL:LOCAL:奉仕 = 1
+	ABL:LOCAL:性交 = 10
+	ABL:LOCAL:射精 = 5
+	EXP:LOCAL:絶頂経験 = 500
+	ABL:LOCAL:武闘 = 40 + RAND:15 + 5 * GOBLIN_RANK
+	ABL:LOCAL:知略 = 35 + RAND:15 + 3 * GOBLIN_RANK
+	ABL:LOCAL:政治 = 30 + RAND:10 + 3 * GOBLIN_RANK
+	ABL:LOCAL:歌唱 = 10
+	ABL:LOCAL:料理 = 10
+	TALENT:LOCAL:両刀 = 1
+	TALENT:LOCAL:サド = 1
+	TALENT:LOCAL:絶倫 = 1
+	TALENT:LOCAL:ホフゴブリン = 1
+	;所属をホフゴブリンにする
+	CFLAG:LOCAL:1 = LOCAL:4
+	CALL NEWCHARA_INIT(LOCAL)
+	IF !LOCAL:3
+		LOCAL:3 = LOCAL
+		COUNTRY_BOSS:(LOCAL:4) = GET_ID(LOCAL:3)
+	ENDIF
+NEXT
+DVAR:ゴブリン出現済み = 1
+
+RETURN LOCAL:4
+
+;--------------------------------------
+;ホフゴブリンの侵攻イベントを実行するSLGイベント。
+;判定通ったら素のGOBLIN_RISEを呼ぶだけ。
+;25期以降、50期までに徐々に確率が高まっていく。既に発生していたらなし。
+;--------------------------------------
+@SLG_GOBLIN_RISE()
+SIF DVAR:ゴブリン出現済み || !GOBLIN_RANK || !((DAY >= 15 && DAY - 15 > RAND:100) || DAY >= 30)
+	RETURN -1
+
+CALL GOBLIN_RISE()
