@@ -14,7 +14,6 @@ SIF 外来 == -1
 FOR 対象, 0, CHARANUM
 	;外来勢力に寝返った士官／外来勢力の捕虜となった士官の扱い
 	IF (CFLAG:対象:所属 == 外来 && !CFLAG:対象:捕虜先 || CFLAG:対象:9 == 外来) && NO:対象 < 2000
-		;捕虜解放カウンタを常に0にする
 		;性処理と同等の経験を取得させる
 		LOCAL:1 = 0
 		LOCAL:1 += MAX(ABL:対象:Ｃ感 - 1, 0)
@@ -60,19 +59,6 @@ FOR 対象, 0, CHARANUM
 			CALL CHECK_PREGNANT(対象)
 		ENDIF
 
-		;MASTERが外来所属なら、依存度低下を回避できる
-		IF CFLAG:MASTER:所属 != 外来
-			;研究用奴隷の烙印を持っていると、依存度が強制的に最低値になる
-			IF TALENT:(対象):研究用奴隷の烙印
-				CFLAG:(対象):依存度 = MIN(CFLAG:(対象):依存度, -1000)
-			ELSE
-				;依存度の減少
-				IF CFLAG:(対象):依存度 > -1000
-					CFLAG:(対象):依存度 = MAX(CFLAG:対象:依存度 - MAX(CFLAG:対象:依存度 / 10, 200) , -1000)
-				ENDIF
-			ENDIF
-		ENDIF
-
 		;調教の様子を表示
 		IF (CFLAG:(対象):捕虜先 == 外来 || (CFLAG:(対象):所属 == 外来 && NO:(対象) < 2000 && !RAND:3 && !CFLAG:(対象):捕虜先)) && TRAIN_IS_SHOW_TEXT(対象)
 			IF LOCAL:9
@@ -86,8 +72,8 @@ FOR 対象, 0, CHARANUM
 			WAIT
 		ENDIF
 		
-		;外来勢力に本人がおらず、「マスターも外来に所属しておらず依存度が-500未満」「マスターが外来所属で、10期経過」「本人が外来の性奴隷所持」で寝返る
-		IF CFLAG:対象:所属 != 外来 && ((CFLAG:対象:所属 != 外来 && CFLAG:MASTER:所属 != 外来 && CFLAG:対象:依存度 < -500) || (CFLAG:対象:所属 != 外来  && CFLAG:MASTER:所属 == 外来 && CFLAG:対象:解放カウンタ >= 10) || (TALENT:対象:研究用奴隷の烙印))
+		;外来所属でなく、「解放カウンタが10以上」か「研究用奴隷の烙印所持」で寝返る
+		IF CFLAG:対象:所属 != 外来 && (CFLAG:対象:解放カウンタ >= 10 || TALENT:対象:研究用奴隷の烙印)
 			;調教の様子を表示
 			IF TRAIN_IS_SHOW_TEXT(対象)
 				PRINTFORML ・
