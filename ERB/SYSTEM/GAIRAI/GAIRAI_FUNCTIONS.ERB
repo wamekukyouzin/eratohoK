@@ -163,13 +163,38 @@ RETURN LOCAL:4
 ;--------------------------------------
 ;外来人の侵攻イベントを実行するSLGイベント。
 ;判定通ったら素のGAIRAI_RISEを呼ぶだけ。
-;25期以降、50期までに徐々に確率が高まっていく。既に発生していたらなし。
 ;--------------------------------------
 @SLG_GAIRAI_RISE()
-SIF DVAR:外来勢力出現済み || !GAIRAI_RANK || !((DAY >= 25 && DAY - 25 > RAND:100) || DAY >= 50)
+#DIM 結界
+#DIM 所有者
+
+;既に出現しているか、外来人なし設定なら発動しない
+SIF DVAR:外来勢力出現済み || !GAIRAI_RANK
 	RETURN -1
 
-CALL GAIRAI_RISE()
+;35期以降、確率判定をクリアしていること
+SIF !(DAY >= 35 && DAY - 25 > RAND:100)
+	RETURN -1
+
+;博麗大結界から蜂起しようとする
+結界 = GET_CITYNUMBER("博麗大結界")
+IF 結界 && GET_OWN_CITY(CITY_OWNER:(結界)) >= 5
+	所有者 = CITY_OWNER:(結界)
+	CALL GAIRAI_RISE(結界)
+	IF RESULT
+		IF IS_COUNTRY(所有者)
+			FOR LOCAL, 0, CHARANUM
+				IF CFLAG:LOCAL:所属 == 所有者 && GET_COUNTRY_BOSS(CFLAG:LOCAL:所属) != LOCAL && !CFLAG:LOCAL:捕虜先 && !RAND:4
+					CALL COLORPRINTFORM(@"%ANAME(LOCAL)%は研究サンプルとして拉致されました", COLOR("警告"), "W")
+					CFLAG:LOCAL:捕虜先 == CITY_OWNER:(結界)
+				ENDIF
+			NEXT
+		ENDIF
+	ENDIF
+;博麗大結界の存在しないマップなら素のGAIRAI_RISE
+ELSEIF 結界 == 0
+	CALL GAIRAI_RISE()
+ENDIF
 
 
 ;--------------------------------------
