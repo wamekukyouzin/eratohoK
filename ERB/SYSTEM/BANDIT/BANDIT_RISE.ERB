@@ -1,16 +1,10 @@
-﻿;野盗蜂起イベント
-;判定無視フラグは、ゲーム開始時に蜂起するとき用
-@BANDIT_RISE(判定無視 = 0)
+﻿;--------------------------------------
+;野盗蜂起イベント
+;--------------------------------------
+@SLG_BANDIT_RISE()
 #DIM 野盗
-#DIM 結果
-#DIM 判定無視
-#DIM 候補数
-野盗 = GET_COUNTRY_FROM_ID(COUNTRY_BANDIT)
 
-;野盗勢力が存在しない、野盗勢力が都市を持っている、まだ侵攻ができない、確率判定に失敗した場合は発生しない
-;ただし、判定無視フラグがあったらまるっと無視
-SIF 判定無視
-	GOTO JUDGE_SKIPPED
+野盗 = GET_COUNTRY_FROM_ID(COUNTRY_BANDIT)
 
 SIF 野盗 == -1
 	RETURN -1
@@ -26,7 +20,22 @@ IF RAND:1000 >= DVAR:野盗蜂起カウンタ * 5
 	RETURN -1
 ENDIF
 
-$JUDGE_SKIPPED
+CALL BANDIT_RISE()
+
+;--------------------------------------
+;野盗蜂起イベントの実装
+;--------------------------------------
+@BANDIT_RISE()
+#DIM 野盗
+#DIM 結果
+#DIM 判定無視
+#DIM 候補数
+野盗 = GET_COUNTRY_FROM_ID(COUNTRY_BANDIT)
+
+;野盗勢力場合は発生しない
+
+SIF 野盗 == -1
+	RETURN -1
 
 CALL BANDIT_RISE_SELECT_CITY()
 
@@ -52,7 +61,7 @@ IF IS_COUNTRY(LOCAL:1)
 	NEXT
 ENDIF
 
-CITY_OWNER:結果 = 野盗
+CALL TAKEOVER_CITY_FROM_NO(野盗, 都市)
 COUNTRY_SOLDIER:野盗 += MIN(DAY * 100, 10000)
 
 DVAR:野盗蜂起カウンタ = 0
@@ -102,3 +111,5 @@ SIF 候補数 == 0
 CALL FISHER_YATES_SHAFFLE(候補数)
 
 RETURN 都市:(SHAFFLE_ARRAY:0)
+
+
