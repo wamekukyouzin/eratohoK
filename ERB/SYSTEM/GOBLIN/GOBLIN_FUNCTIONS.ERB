@@ -162,7 +162,31 @@ RETURN LOCAL:4
 ;25期以降、50期までに徐々に確率が高まっていく。既に発生していたらなし。
 ;--------------------------------------
 @SLG_GOBLIN_RISE()
-SIF DVAR:ゴブリン出現済み || !GOBLIN_RANK || !((DAY >= 15 && DAY - 15 > RAND:100) || DAY >= 30)
+#DIM 紅魔館
+#DIM レミリア
+
+;既に出現しているか、外来人なし設定なら発動しない
+SIF DVAR:ゴブリン出現済み || !GOBLIN_RANK
 	RETURN -1
 
-CALL GOBLIN_RISE()
+;20期以降、確率判定をクリアしていること
+SIF !(DAY >= 20 && DAY - 10 > RAND:100)
+	RETURN -1
+
+レミリア = GET_COUNTRY_FROM_BOSS_NAME("レミリア")
+紅魔館 = GET_CITYNUMBER("紅魔館")
+;レミリアが君主やってて、紅魔館がマップに存在し、レミリアの都市数が4以上なら、紅魔館を占領する
+IF レミリア != -1 && 紅魔館 && GET_OWN_CITY(レミリア) >= 4
+	CALL GOBLIN_RISE(紅魔館)
+	IF RESULT
+		CALL COLORPRINTFORM(@"突然のことに動揺したレミリア勢力に、1ターンのクールタイムが付与されます！", COLOR("警告"), "W")
+		FOR LOCAL, 0, CHARANUM
+			SIF CFLAG:LOCAL:所属 == レミリア	
+				SLG_COOLTIME:LOCAL:0 = 1
+		NEXT
+		CALL CLEAR_ALL_UNIT(レミリア)
+	ENDIF
+;レミリアが君主でない、または紅魔館がないなら、ランダムに決めてしまえ
+ELSEIF (レミリア == -1 || !紅魔館)
+	CALL GOBLIN_RISE()
+ENDIF
