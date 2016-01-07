@@ -92,7 +92,8 @@ IF DVAR:ゴブリン出現済み == 1
 		PRINTFORML ホフゴブリンの兵力が{LOCAL:0}増加した
 		COUNTRY_SOLDIER:(ゴブリン) += LOCAL:0
 	ENDIF
-
+	;4ターンに1回、特別な徴兵
+	CALL GOBLIN_SPECIAL_REQRUITMENT(DAY % 4 == 0)
 	;調教処理
 	CALL TRAIN_BY_GOBLIN
 ENDIF
@@ -187,3 +188,104 @@ IF レミリア != -1 && 紅魔館 && GET_OWN_CITY(レミリア) >= 4
 ELSEIF (レミリア == -1 || !紅魔館)
 	CALL GOBLIN_RISE()
 ENDIF
+
+;--------------------------------------
+;ホフゴブリンの定期イベント。
+;陥落済みキャラを使って兵数を増やす
+;--------------------------------------
+@GOBLIN_SPECIAL_REQRUITMENT(条件 = 1)
+#DIM ゴブリン
+#DIM 条件
+#DIM 候補, 1000
+#DIM 候補数
+#DIM 対象
+VARSET 候補, -1
+VARSET 候補数
+
+ゴブリン = GET_COUNTRY_FROM_ID(COUNTRY_GOBLIN)
+
+;ゴブリン勢力があり、条件を満たしている
+SIF ゴブリン == -1 || !条件
+RETURN -1
+
+FOR LOCAL, 0, CHARANUM
+	;ゴブリン所属で、捕虜でなく、陥落済み
+	IF CFLAG:LOCAL:所属 == ゴブリン && !CFLAG:LOCAL:9 && IS_FEMALE(LOCAL) && TALENT:LOCAL:ゴブリンの性奴隷
+		候補:候補数 = LOCAL
+		候補数 ++
+	ENDIF
+NEXT
+
+SIF 候補数 < 1
+	RETURN -1
+
+CALL FISHER_YATES_SHAFFLE(候補数)
+
+対象 = 候補:(SHAFFLE_ARRAY:0)
+
+SIF 対象 == -1
+	RETURN -1
+
+DRAWLINE
+SETCOLOR COLOR("桃")
+PRINTFORML ホフゴブリンは%ANAME(対象)%を、兵士の募集活動に駆り出したようだ……
+PRINTFORML 
+SELECTCASE RAND:4
+	CASE 0
+		PRINTFORMW 彼らは近くの人里に繰り出した
+		PRINTFORML %ANAME(対象)%は彼らの一歩後ろを歩き、付き従っている
+		PRINTFORML ぱっと見は普段の彼女であり、いたって普通だった
+		PRINTFORMW ……その足取りは、%ANAME(対象)%にしては珍しいほどふらついていたが
+		PRINTFORML 彼らは里の中心、広場まで来ると、そこで里の男達をかき集めた
+		PRINTFORML 何事かと思った野次馬が人妖問わず集まり、広場はあっという間に埋まる
+		PRINTFORMW そこでホフゴブリンは、全員によく聞こえるよう、大声でスピーチを始めた
+		PRINTFORMW 俺たちに参加すればものすごくいいことがある。それを今日は見せてやる……
+		PRINTFORML ホフゴブリンが%ANAME(対象)%に目配せすると、彼女はおもむろに服を脱ぎ捨てた
+		PRINTFORML 突如として露わになる美しい肢体に、皆の目は釘付けになる
+		PRINTFORMW その下腹にはハートマークのタトゥーが刻まれ、両穴には太いバイブがねじ込まれていた
+		PRINTFORML この女は俺たちの奴隷だ。今日はコイツを連れてきたが、他にも女はいくらでもいる……
+		PRINTFORML %ANAME(対象)%に己の肉棒をしゃぶらせながら、ホフゴブリンたちは勧誘の言葉を並べたてる
+		PRINTFORMW やがてホフゴブリンは射精し、%ANAME(対象)%の顔にぶちまけると、%ANAME(対象)%を抱え、群衆の中に放り投げる
+		PRINTFORMW この女はサービスだ。好きにしていいぞ
+		PRINTFORMW ホフゴブリンがそう言うと、男達は目の色を変え、%ANAME(対象)%に群がった……
+	CASE 1
+		PRINTFORMW 彼らは近くの人里に繰り出した
+		PRINTFORML %ANAME(対象)%はリードつきの首輪を嵌められ、里の目抜き通りを歩かされている
+		PRINTFORML 口にはギャグボールを嵌められ、羽織っているのは肝心なところをまるで隠さない奴隷用ボンテージ
+		PRINTFORML 全身にはあちこちに卑猥な落書きが施され、乳房の先端や臍・秘部には痛々しいピアスが取り付けられている
+		PRINTFORMW 拠点を出る前に何度も「使われて」おり、全身べっとりと白いものにまみれている。特にその両穴は、でろでろと白濁を垂れ流す
+		PRINTFORML 腕には頑丈な枷が嵌められており、抵抗などできるはずもなかった
+		PRINTFORMW もっとも、ホフゴブリン"様"たちの忠実なしもべである%ANAME(対象)%に、そんな大それた考えはあるまいが……
+		PRINTFORML 里の男達は、練り歩く彼らをじっと眺めている
+		PRINTFORMW 正しくは、%ANAME(対象)%の淫らな姿を
+		PRINTFORMW ホフゴブリンはニヤニヤと笑いながら言う
+		PRINTFORML 俺たちの奴隷がそんなに気になるか、俺たちに参加すればコイツ以外にもヤり放題だ
+		PRINTFORMW 特別に今回は、お前らにコイツを好きにさせてやるよ……
+		PRINTFORMW ホフゴブリンがそう言うと、男達は目の色を変え、%ANAME(対象)%に群がった……
+	CASE 2
+		PRINTFORMW 彼らは%ANAME(対象)%を、他の奴隷と一緒に肉便器として提供した
+		PRINTFORMW 彼女らは屋外に設けられた「特設便所」にて、壁尻の状態で備え付けられた
+		PRINTFORML 人妖問わず、さまざまな男達が訪れては、%ANAME(対象)%の両穴を使っていく
+		PRINTFORML 自らモノを扱いてちり紙に射精するときの気軽さで、簡単に膣内射精していく
+		PRINTFORMW 使い捨てられる被虐と快楽に、%ANAME(対象)%は何度も激しく絶頂する……
+		PRINTFORMW やがてコトが終わるころには、%ANAME(対象)%の尻には両手に余る正の字が書き込まれていた
+		PRINTFORML 彼女の穴は大変評判がよかったらしい
+		PRINTFORMW %ANAME(対象)%はその「褒美」として、ホフゴブリン"様"たちのモノをたっぷりとしゃぶらせてもらった……
+	CASE 3
+		PRINTFORMW 彼らは%ANAME(対象)%を、他の奴隷と一緒に肉便器として提供した
+		PRINTFORML 彼女らは屋外に設けられた「特設便所」にて、グローリーホールをしたようだ
+		PRINTFORMW 人妖問わず、さまざまな男達が訪れては、壁越しにペニスを突き出してくる
+		PRINTFORML 太いもの、細いもの、逞しいものから恥垢を溜めたもの
+		PRINTFORML それら全てを、%ANAME(対象)%は顔を蕩かし、股を濡らしながら舐めしゃぶっていく
+		PRINTFORMW 官能の炎は%ANAME(対象)%の中で激しく燃え上がり、彼女は仕事中に何度も自慰をし、絶頂した
+		PRINTFORMW やがてコトが終わるころには、何度も白濁を受けた上半身に、白く汚れていないところはないほどになっていた
+		PRINTFORML 彼女の口技は大変評判がよかったらしい
+		PRINTFORMW %ANAME(対象)%はその「褒美」として、疼く身体をホフゴブリン"様"たちにたっぷりと使っていただいた……
+ENDSELECT
+PRINTFORML
+SETCOLOR COLOR("注意")
+LOCAL:0 = MAX(RAND:3000, 1000)
+PRINTFORML キャンペーンは好評だったようだ……
+PRINTFORMW ホフゴブリンの兵力が{LOCAL:0}増加した
+RESETCOLOR
+COUNTRY_SOLDIER:(ゴブリン) += LOCAL:0
