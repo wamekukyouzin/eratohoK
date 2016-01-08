@@ -1,0 +1,413 @@
+﻿;夜遊び
+@NIGHTLIFE
+#DIM 対象
+#DIM 候補, 1000
+#DIM 候補数
+#DIM 野盗
+#DIM ゴブリン
+#DIM 外来
+
+;5期以降、2%、MASTERが男
+;SIF !(DAY >= 5 && 2 > RAND:100 && IS_MALE(MASTER))
+;	RETURN -1
+
+野盗 = GET_COUNTRY_FROM_ID(COUNTRY_BANDIT)
+ゴブリン = GET_COUNTRY_FROM_ID(COUNTRY_GOBLIN)
+外来 = GET_COUNTRY_FROM_ID(COUNTRY_GAIRAI)
+
+
+;よくやる選出
+;FISHER_YATES_SHAFFLEの人は本当にべんりなもん作ってくれた
+
+FOR LOCAL, 0, CHARANUM
+	;対象が女
+	IF IS_FEMALE(LOCAL)
+		;自国所属かつ捕虜でない、かつ「恋慕か親愛か服従・隷属・烙印
+		IF CFLAG:LOCAL:所属 == CFLAG:MASTER:所属 && !CFLAG:LOCAL:捕虜先 && (IS_LOVER(LOCAL) || IS_SLAVE(LOCAL))
+			候補:候補数 = LOCAL
+			候補数 ++
+		;主人公が特殊勢力におらず、対象が特殊勢力に所属 + 陥落済み、かつ面識がある
+		ELSEIF !GROUPMATCH(CFLAG:MASTER:所属, ゴブリン, 野盗, 外来) && CFLAG:LOCAL:面識 && ((CFLAG:LOCAL:所属 == 野盗 && TALENT:LOCAL:野盗の肉便器) || (CFLAG:LOCAL:所属 == ゴブリン && TALENT:LOCAL:ゴブリンの性奴隷) || (CFLAG:LOCAL:所属 == 外来 && TALENT:LOCAL:研究用奴隷の烙印))
+			候補:候補数 = LOCAL
+			候補数 ++
+		ENDIF
+	ENDIF
+NEXT
+
+SIF 候補数 < 1
+	RETURN -1
+
+CALL FISHER_YATES_SHAFFLE(候補数)
+
+対象 = 候補:(SHAFFLE_ARRAY:0)
+
+DRAWLINE
+
+;恋慕パターン
+IF IS_LOVER(対象)
+	PRINTFORMW 仕事をしていると、%ANAME(対象)%が部屋に訪れてきた……
+	PRINTFORML たまには夜の散歩でもしないか、ということだそうだ
+	CALL ASK_MULTI("出歩いてみる", "いや仕事あるから……")
+	;お前マジそれはないわ
+	IF RESULT == 1
+		PRINTFORMW 悪いけど仕事がある……そう告げると、%ANAME(対象)%は残念そうに帰って行った
+		RETURN
+	ELSE
+		;なんだこの平和な分岐　オラこんなの書くのはじめてよ
+		PRINTFORMW %ANAME(対象)%を連れ、夜の街に繰り出した……
+		PRINTFORML 
+		SELECTCASE RAND:11
+			CASE 0
+				PRINTFORML %ANAME(MASTER)%は%ANAME(対象)%を、最近はやりのレストランに連れて行った
+				PRINTFORMW 料理に舌鼓を打ちながら、二人で楽しい時間を過ごした……
+			CASE 1
+				PRINTFORML %ANAME(MASTER)%は%ANAME(対象)%を、劇場に連れて行った
+				PRINTFORMW 人気の演劇を二人で楽しんだ……
+			CASE 2
+				PRINTFORML %ANAME(MASTER)%は%ANAME(対象)%に、買い物へ連れて行かれた
+				PRINTFORMW あれやこれやと話しながら、色々なものを見て回った……
+			CASE 3
+				PRINTFORML %ANAME(MASTER)%は%ANAME(対象)%を、星のよく見える丘に連れて行った
+				PRINTFORMW 二人で星を見ながら、ゆっくりとした時間を過ごした……
+			CASE 4
+				PRINTFORML %ANAME(MASTER)%は%ANAME(対象)%と一緒に、温泉に浸かりにいった
+				PRINTFORMW %ANAME(対象)%の湯上がり姿にどきりとしたりしつつ、リフレッシュした……
+			;1/10くらいの確率で花火大会って、どんだけ花火好きなのきみたち
+			CASE 5
+				PRINTFORML %ANAME(MASTER)%は%ANAME(対象)%と一緒に、花火大会を見に行った
+				PRINTFORMW 浴衣姿の%ANAME(対象)%にどきりとさせられた……
+			CASE 6
+				PRINTFORML %ANAME(MASTER)%は%ANAME(対象)%を、サーカスへ連れて行った
+				PRINTFORMW 二人で楽しい時間を過ごした……
+			CASE 7
+				PRINTFORML %ANAME(MASTER)%は%ANAME(対象)%を、バーへと連れて行った
+				PRINTFORMW 二人で大人な時間を過ごした……
+			CASE 8
+				PRINTFORML %ANAME(MASTER)%は%ANAME(対象)%と一緒に、弾幕ごっこを見に行った
+				PRINTFORMW 他の観客に混じって賭博しようとする%ANAME(対象)%を一生懸命止めた……
+			CASE 9
+				PRINTFORML %ANAME(対象)%が、行きつけの飲み屋へ連れていってくれた
+				PRINTFORMW ほろ酔いで頬を赤らめる%ANAME(対象)%がなんとも素敵だった……
+			CASE 10
+				PRINTFORML %ANAME(MASTER)%は%ANAME(対象)%と一緒に夜景を見に行った
+				PRINTFORMW %ANAME(対象)%の肩を抱きながら、二人の時間を過ごした……
+		ENDSELECT
+		;何あげりゃいいんだよこんなの
+		CFLAG:対象:好感度 += 200
+		CFLAG:対象:依存度 += 200
+	ENDIF
+ELSEIF IS_SLAVE(対象)
+	PRINTFORMW 仕事をしていると、%ANAME(対象)%が部屋に訪れてきた……
+	PRINTFORML 疼いて仕方ないので、自分を「夜遊び」に「使って」くれないかということだ……
+	CALL ASK_MULTI("使ってやる", "いや仕事あるから……")
+	IF RESULT == 1
+		PRINTFORMW 悪いけど仕事がある……そう告げると、%ANAME(対象)%は残念そうに帰って行った
+		RETURN
+	ELSE
+		PRINTFORMW %ANAME(対象)%を連れ、夜の街に繰り出した……
+		PRINTFORML 
+		SELECTCASE RAND:5
+			CASE 0
+				PRINTFORML %ANAME(MASTER)%は%ANAME(対象)%を路地裏に連れ込むと、服を脱ぐよう命令した
+				PRINTFORMW %ANAME(対象)%は躊躇いつつも、%ANAME(MASTER)%の言うことには逆らえず、その肌を夜風に晒す
+				PRINTFORML %ANAME(MASTER)%は強い口調で%ANAME(対象)%に命じ、誰が来るとも分からないこの場所で自慰をさせる
+				PRINTFORMW 見られるかもしれないという意識がお後押ししたのか、%ANAME(対象)%はいつも以上に激しく感じていたようだ
+				PRINTFORMW その後、%ANAME(MASTER)%は昂ぶる%ANAME(対象)%の身体を、たっぷりと味わってやった……
+				CALL FORCE_FUCK(対象, GET_ID(MASTER))
+			CASE 1
+				PRINTFORML %ANAME(MASTER)%と%ANAME(対象)%が歩いていると、浮浪者に出くわした
+				PRINTFORML いかにも女日照りで、欲望を溜めていそうな見た目をしている
+				PRINTFORML こいつに%ANAME(対象)%を抱かせるというのも面白いか……
+				CALL ASK_MULTI("浮浪者に抱かせる", "自分で使う")
+				IF RESULT == 0
+					PRINTFORMW 浮浪者に声をかけ、%ANAME(対象)%を差し出した
+					PRINTFORMW 男は大興奮で、嬉々として%ANAME(対象)%を己のねぐらに迎え入れた
+					PRINTFORMW そこらで拾ってきたのだろう布一枚隔てて、男の激しい息遣いと、%ANAME(対象)%の嬌声が聞こえてくる
+					PRINTFORMW コトが終わったら戻ってくるよう伝えると、%ANAME(MASTER)%はその場を後にした……
+					PRINTFORML
+					PRINTFORML しばらくして、%ANAME(対象)%は何事もなかったかのように戻ってきた
+					PRINTFORMW しかしその頬は上気し、下着を奪われた秘部から垂れる黄ばんだ精液が、太腿をつう、と伝っていた……
+					CALL FORCE_FUCK(対象, -1)
+				ELSE
+					PRINTFORMW 浮浪者に声をかけ、自分が%ANAME(対象)%を使うところを見ているよう伝えた
+					PRINTFORMW 彼女の身体を弄り、奉仕させ、そして穴を抉ってやると、男は血走った目でこちらを見つめてくる
+					PRINTFORMW その手は己の汚らしいモノをゴシゴシと扱き上げていた
+					PRINTFORMW %ANAME(MASTER)%が精を放ち、%ANAME(対象)%が絶頂すると同時に、彼もまた己のモノから黄ばんだ精子を吐き出した……
+					CALL FORCE_FUCK(対象, GET_ID(MASTER))
+				ENDIF
+			CASE 2
+				PRINTFORML %ANAME(MASTER)%は%ANAME(対象)%の服を全て奪った上で、治安の悪い地区を一人で歩かせた
+				PRINTFORML %ANAME(対象)%のような女がそのような場所を裸で歩いて、男どもが放っておくはずもない
+				PRINTFORML %ANAME(対象)%は早速、男どもに路地裏に連れ込まれそうになっている……
+				CALL ASK_MULTI("眺める", "追い払う")
+				IF RESULT == 0
+					PRINTFORML ……どうせこうなると踏んで送り出したのだ。別に構わない
+					PRINTFORML %ANAME(MASTER)%が遠巻きに眺めていると、やがて%ANAME(対象)%は本当に路地裏に連れ込まれてしまった
+					PRINTFORMW しばらくの後、獣のような嬌声が、路地の奥の方から反響して聞こえてきた……
+					PRINTFORML 
+					PRINTFORML しばらくして、%ANAME(MASTER)%は%ANAME(対象)%を回収しに行った
+					PRINTFORMW 全身白濁にまみれ、両穴からも子種をこぼす%ANAME(対象)%が、生ゴミの袋の山に放り捨てられていた……
+					CALL FORCE_FUCK(対象, -1)
+				ELSE
+					PRINTFORMW その場に乱入し、男達を追い払った
+					PRINTFORML 感謝する%ANAME(対象)%を、お前を使うのは自分だと言い、路地裏へ連れ込む
+					PRINTFORMW そしてそこで、たっぷりと%ANAME(対象)%を使ってやった……
+					PRINTFORMW 疲弊しぐったりとする%ANAME(対象)%は、どこか幸せそうだった
+					CALL FORCE_FUCK(対象, GET_ID(MASTER))
+				ENDIF
+			CASE 3
+				PRINTFORML %ANAME(MASTER)%は%ANAME(対象)%と酒を飲みに出かけた
+				PRINTFORML この店がいわゆるハプニングバーであることは黙っておいたが……
+				PRINTFORML ……スケベ親父が声をかけてきた。綺麗な女を連れている
+				PRINTFORML どうやらスワッピングに興味があるようだが……
+				CALL ASK_MULTI("自分も興味がある", "断る")
+				IF RESULT == 0
+					PRINTFORML 自分も興味がある……%ANAME(MASTER)%が許可を出すと、親父は早速%ANAME(対象)%の身体を弄り始める
+					PRINTFORML 最初は驚いていた%ANAME(対象)%だったが、親父のねちっこい指技に、すぐ顔を蕩かせ始めた
+					PRINTFORMW その一方で、%ANAME(MASTER)%も、親父の連れていた女をたっぷりと可愛がってやる
+					PRINTFORMW %ANAME(MASTER)%の目の前だということと、他の女に%ANAME(MASTER)%をとられているという嫉妬が、より彼女を昂ぶらせたようだ
+					PRINTFORMW その後、%ANAME(MASTER)%と親父はホテルの別々の部屋に相手のパートナーを連れ込み、普段と違うセックスをそれぞれ楽しんだ……
+					PRINTFORML
+					PRINTFORML 何事もなかったかのように、%ANAME(対象)%は戻ってきた
+					PRINTFORMW しかしその頬は上気し、たっぷりと膣内射精された精液が、太腿をつう、と伝っていた
+					PRINTFORMW ……どうやらずいぶん「楽しかった」らしい
+					PRINTFORMW またあのお店に連れて行って下さいと、%ANAME(対象)%は言ってきた
+					CALL FORCE_FUCK(対象, -1)
+				ELSE
+					PRINTFORMW 興味はないが……互いに自分のパートナーを可愛がることにしよう
+					PRINTFORMW 親父は少し残念そうだったが、それはそれでと納得した
+					PRINTFORML %ANAME(MASTER)%は早速、親父の目の前で%ANAME(対象)%を可愛がり始める
+					PRINTFORMW 親父の方も、自分が連れていた女の身体をまさぐり始めた……
+					PRINTFORMW その後%ANAME(対象)%と親父はホテルの別々の部屋に自分のパートナーを連れ込み、セックスを楽しんだ……
+					CALL FORCE_FUCK(対象, GET_ID(MASTER))
+				ENDIF
+			CASE 4
+				PRINTFORML %ANAME(MASTER)%は%ANAME(対象)%を連れ、夜の街に繰り出した
+				PRINTFORML ……スケベ親父が声をかけてきた
+				PRINTFORML どうやら%ANAME(対象)%に興味があるらしい
+				PRINTFORML 人の女を抱かせろとは、よくも堂々と言えたものだと感心はするが……
+				CALL ASK_MULTI("抱かせてやる", "断る")
+				IF RESULT == 0
+					PRINTFORMW それも面白いだろう。ことが終わったら戻ってくるよう%ANAME(対象)%に伝え、親父に許可を出してやる
+					PRINTFORML 我が物顔で%ANAME(対象)%の腰を抱き、尻を撫で回して歩きながら、親父は%ANAME(対象)%をホテルへ連れ込んだ
+					PRINTFORMW 二人がホテルに消えるのを眺めてから、%ANAME(MASTER)%は一人で帰った……
+					PRINTFORML
+					PRINTFORMW 何事もなかったかのように、%ANAME(対象)%は戻ってきた
+					PRINTFORML 湯浴みはしてきたようだが、その身体からは、隠しきれない情交の香りが――他の男の匂いが漂っている
+					PRINTFORMW それを上書きするように、%ANAME(MASTER)%は%ANAME(対象)%をたっぷりと使ってやった
+					PRINTFORMW あの親父と%ANAME(MASTER)%を比較しているのか、%ANAME(対象)%はいつもより激しく乱れてみせた……
+					CALL FORCE_FUCK(対象, -1)
+				ELSE
+					PRINTFORML 誰がお前のような冴えない奴に。きっぱりと断った
+					PRINTFORMW そこで指をくわえて見ていろと言い放ち、%ANAME(MASTER)%は%ANAME(対象)%をホテルに連れ込んだ……
+					PRINTFORMW ……誰があんな男にくれてやるか、%ANAME(対象)%は自分のものだ
+					PRINTFORMW それを確かめるように、そして%ANAME(対象)%本人にも教え込むように、激しく抱いた……
+					CALL FORCE_FUCK(対象, GET_ID(MASTER))
+				ENDIF
+		ENDSELECT
+		CFLAG:対象:従属度 += 200
+		CFLAG:対象:依存度 += 200
+	ENDIF
+;本命パート
+;部下任せにすると主人公がだいぶ屈折した性嗜好を見せるぞ　大丈夫かコイツ
+ELSEIF ((CFLAG:対象:所属 == 野盗 && TALENT:対象:野盗の肉便器) || (CFLAG:対象:所属 == ゴブリン && TALENT:対象:ゴブリンの性奴隷) || (CFLAG:対象:所属 == 外来 && TALENT:対象:研究用奴隷の烙印))
+	PRINTFORML 「%ANAME(MASTER)%さん、暇じゃないッスか？」
+	PRINTFORMW 「アレだったら遊びに行きません？　いいとこ知ってるんスよ」
+	PRINTFORML 仕事をしていたところ、部下が声をかけてきた
+	PRINTFORML こいつは自他共に認める女好きだ。そんな男のいう「いいとこ」だから、大抵女がらみだろうが……
+	CALL ASK_MULTI("付き合う", "一人でいってこい")
+	IF RESULT ==1
+		PRINTFORMW こっちは忙しいんだ、一人で行ってこい、そう伝えた
+		PRINTFORML 「え～っ、ノリ悪ぃなぁ」
+		PRINTFORMW 「まぁしょうがないっスよね、%ANAME(MASTER)%さん仕事ありますもんね」
+		PRINTFORMW 彼は残念そうに立ち去っていった……
+		RETURN
+	ELSE
+		PRINTFORML 「そうこなくっちゃ！　さ、行きましょ行きましょ」
+		PRINTFORMW 彼は早速、%ANAME(MASTER)%を夜の街へと連れ出した……
+		PRINTFORML
+		SELECTCASE RAND:4
+			CASE 0
+				PRINTFORMW 部下は%ANAME(MASTER)%を飲みに連れ出した
+				PRINTFORMW 「へへへ、よかったでしょあの店、おれの行きつけの飲み屋で」
+				PRINTFORML 二人で酒を楽しんだ後の帰路で、男が声をかけてくる
+				PRINTFORMW お前ら今暇か、暇なら俺の奴隷で遊ばないかというのだ
+				PRINTFORMW 男は女を連れていた……正しくは、リードで引いていた
+				PRINTFORML その女に、%ANAME(MASTER)%は見覚えがあった。というか知っている
+				PRINTFORMW それは行方知れずになっていた、%ANAME(対象)%だった
+				PRINTFORML ただ、それは%ANAME(MASTER)%の知る彼女ではなかった
+				PRINTFORML 胸や腰、尻のラインを強調するような卑猥な衣装を着ている
+				PRINTFORML 露わになった臍のあたりには、ハートマークの刻印が刻まれている
+				PRINTFORML 纏った雰囲気は、なにかしらのフェロモンでも撒いているかのように淫らだった
+				PRINTFORML 見ないと思ったら、どうやら性奴隷にされていたようだ
+				PRINTFORMW 彼女の方は、その過酷な生活でこちらのことをすっかり忘れてしまったのか、驚いた様子などは全く見せなかった
+				PRINTFORMW 「うおー……すげぇ女だ……おっさん、マジで言ってんの？」
+				PRINTFORML もちろん、と男は頷く。そうだよな？　と男が%ANAME(対象)%に言うと、彼女も頷いた
+				PRINTFORMW どうか私をお使いくださいませ、それが私の幸せですと、深々と頭を下げてみせる
+				PRINTFORMW 「どうしますか%ANAME(MASTER)%さん、あの子俺超好みなんスけど」
+				PRINTFORML 部下はひどく興奮している。自分一人でもこの女を抱くぞと、その目は語っている……
+				CALL ASK_MULTI(@"%ANAME(対象)%を使う", "部下に任せておく")
+				IF RESULT == 0
+					PRINTFORML この女は無価値な奴隷なのだ。知り合いかどうかなど、そこには関わらない
+					PRINTFORMW 使わせてくれるのなら、お言葉に甘えて使わせてもらうとしよう
+					PRINTFORMW ……むしろ、知り合いだからこそ、燃え上がるものがあるかもしれない……
+					PRINTFORMW 「っへへへ、いい女だなぁ、おい、名前なんて言うんだよ」
+					PRINTFORMW 彼女の答えた名前は偽名だったが、奴隷としての事情があるのだろう。知らない振りをしておいてやる
+					PRINTFORML 一方の部下はすっかりその気になっており、%ANAME(対象)%の乳房や尻を我が物顔で撫で回している
+					PRINTFORMW あの男にすっかり手なずけられているのか、%ANAME(対象)%はそれだけで顔を蕩かしてみせた
+					PRINTFORMW %ANAME(MASTER)%と部下は%ANAME(対象)%を近くの路地裏に連れ込み、そこでたっぷりと楽しんだ……
+					CALL FORCE_FUCK(対象, GET_ID(MASTER))
+				ELSE
+					PRINTFORML 流石に知り合いを、そんな風に使うのはキツい……
+					PRINTFORMW 自分は遠慮しておくと言うと、部下は信じられないという顔を浮かべた
+					PRINTFORML 「はァ！？　%ANAME(MASTER)%さんホモか何かなんですか！？」
+					PRINTFORMW 「……まぁいいや、それならそれで、俺だけでも楽しませてもらいますよ」
+					PRINTFORML 他人の奴隷を他人が使うことまで、止められはしない
+					PRINTFORMW 好きにしろと言ったが、彼はそもそもそのつもりだったようだ
+					PRINTFORMW 「へへ、いい女だなぁ、おい、名前なんて言うんだよ」
+					PRINTFORMW 彼女の答えた名前は偽名だったが、奴隷としての事情があるのだろう。知らない振りをしておいてやる
+					PRINTFORML 一方の部下はすっかりその気になっており、%ANAME(対象)%の乳房や尻を我が物顔で撫で回している
+					PRINTFORMW あの男にすっかり手なずけられているのか、%ANAME(対象)%はそれだけで顔を蕩かしてみせた
+					PRINTFORMW 「それじゃ、俺ぁちょっと楽しんできますんで、へへ……」
+					PRINTFORMW 部下は%ANAME(対象)%を近くの路地裏に連れ込み、そこでたっぷりと楽しんだようだ……
+					CALL FORCE_FUCK(対象, -11)
+				ENDIF
+			CASE 1
+				PRINTFORML 部下は%ANAME(MASTER)%を娼館に連れてきた
+				PRINTFORMW まさか上司をこんなところに連れてくるとは……と、少しばかり呆れる
+				PRINTFORMW 「あれこの子新人だ、へへ、結構可愛いなァ」
+				PRINTFORML 壁一面に張り出された娼婦の写真のうち一つを、部下は指さす
+				PRINTFORML そこに写った女に、%ANAME(MASTER)%は見覚えがある……行方知れずになっていた%ANAME(対象)%だ
+				PRINTFORMW 名前こそ源氏名になっていたが、間違いない、本人だ
+				PRINTFORML ただ、写真に写る彼女は、%ANAME(MASTER)%の記憶しているよりもはるかに淫らな雰囲気をまとっていた
+				PRINTFORMW ここで働き始める前に、何かあったことは間違いない……
+				PRINTFORMW 「うはっ！　どんなプレイもオッケーってすげぇな、こんなかわいこちゃんなのに」
+				PRINTFORMW 「この子どうスか%ANAME(MASTER)%さん、俺の勘が当たりだって告げてるんスよ」
+				PRINTFORMW 「%ANAME(MASTER)%さんが指名しないなら俺が指名しよっかなぁ、へへへ」
+				PRINTFORML 流石に知り合いと知っていて指名するのはいかがなものか。しかし、自分が買わなければ部下が買うだろう。誰かに抱かれることに変わりはない
+				PRINTFORML それに、彼女とて生きていくために春をひさいでいるのだろうし、ある程度覚悟しているのではないか
+				PRINTFORML それを他人事のような道徳感情で判断するくらいなら、いっそ買ってやったほうがいいのではないか……
+				CALL ASK_MULTI(@"%ANAME(対象)%を指名する", "部下に譲る")
+				IF RESULT == 0
+					PRINTFORMW 他の男に抱かれるくらいなら。そう思い、%ANAME(対象)%を指名することにした……
+					PRINTFORMW ……通された先にいたのは、間違いなく%ANAME(対象)%だった
+					PRINTFORML 透けるほど薄手の衣装を身に着けた彼女の身体は、%ANAME(MASTER)%の記憶にあるよりずっといやらしくなっていた
+					PRINTFORML その下腹には、ハートの刻印が刻まれている
+					PRINTFORMW ここで働くまでにどのような生活をしていたのか、行方不明となっていたことと併せて鑑みれば、想像に難くなかった
+					PRINTFORML 彼女は恭しく、娼婦らしい口上を述べてみせる。こちらのことは覚えていないようだった
+					PRINTFORMW それならそれで好都合と、%ANAME(MASTER)%は%ANAME(対象)%と、客と娼婦としての熱い一夜を過ごした
+					PRINTFORMW 激しく乱れる%ANAME(対象)%の様子と、彼女が知り合いであるという事実は、%ANAME(MASTER)%を大いに楽しませた……
+					CALL FORCE_FUCK(対象, GET_ID(MASTER))
+				ELSE
+					PRINTFORML 流石に知り合いはキツい……それが他人のそら似であっても
+					PRINTFORMW 自分は遠慮しておくと言うと、部下は信じられないという顔を浮かべた
+					PRINTFORML 「えーっ！　勿体ねぇ！　こんないい娘フツー買えないッスよ！？」
+					PRINTFORMW 「……あーまぁでも、良すぎて逆に地雷の香りはしますけどね。まぁ俺は指名しますけど」
+					PRINTFORML 他人が誰を指名するかまで止められはしない
+					PRINTFORMW 好きにしろと言ったが、彼はそもそもそのつもりだったようだ
+					PRINTFORMW 「へへ、楽しみだなぁ、へへへ、へへへへ」
+					PRINTFORML 部下はすっかりその気になっており、うきうきしながら指定された部屋へ向かっていった
+					PRINTFORMW %ANAME(MASTER)%も適当な女を指名し、部下の入った隣の部屋へ向かう
+					PRINTFORMW 彼が楽しんでいる部屋から聞こえてくる嬌声は、紛れもなく%ANAME(対象)%のそれだった
+					PRINTFORML あれは本当に、%ANAME(対象)%だったのだろうか。娼婦として、色々な男に買われているのだろうか
+					PRINTFORML 知り合いが、自分のすぐ側で、娼婦として男に抱かれている
+					PRINTFORMW そしてその横で、自分は脳天気に、一山いくらの娼婦など抱いている……その事実に、%ANAME(MASTER)%は激しく昂ぶり、何度も精を放った……
+					CALL FORCE_FUCK(対象, -11)
+				ENDIF
+			CASE 2
+				PRINTFORML 部下は%ANAME(MASTER)%を肉便器小屋に連れてきた
+				PRINTFORMW まさか上司をこんなところに連れてくるとは……大物というかなんというか、少しばかり呆れる
+				PRINTFORML 小屋の中には、下半身を剥き出しにした女たちが、壁尻の状態で並べられていた
+				PRINTFORMW それぞれ区別がつくよう、尻の少し上のところに、顔写真が貼られている。最も、それが本当に本人の写真かは分からないわけだが
+				PRINTFORMW 「あれこの子新人だ、へへ、結構可愛いなァ」
+				PRINTFORML 並べられた「便器」の一つに、彼は注目する
+				PRINTFORML 顔写真に写った女に、%ANAME(MASTER)%は見覚えがある……行方知れずになっていた%ANAME(対象)%だ
+				PRINTFORMW ただ、写真に写る彼女は、%ANAME(MASTER)%の記憶しているよりもはるかに淫らな雰囲気をまとっていた
+				PRINTFORMW 「っへぇー、いいケツしてんなぁ」
+				PRINTFORML 部下は当然のように、その尻を撫で回し、濡れた女性器に指を抜き差ししている
+				PRINTFORMW 彼のいうとおり、その尻は白く、丸く、他の便器より際立っていやらしい、男を誘うようなものだった
+				PRINTFORML 一方の%ANAME(MASTER)%は、ひどく混乱していた
+				PRINTFORML %ANAME(対象)%がどうしてこんなところに？　行方不明になっていたはずなのに
+				PRINTFORML もしかして、行方不明になっている間、ずっとこのようなところで働かされていたのだろうか
+				PRINTFORMW そうしたら、この小屋の経営者は、かなり黒いことに手を染めているのでは？
+				PRINTFORMW ……いやいや、この顔写真と下半身とは別人の可能性だってあるのだ
+				PRINTFORMW どこかから手に入れた写真が、たまたま%ANAME(対象)%のものだったという可能性だってあるではないか
+				PRINTFORML 「あー、この便器いいなぁ、これで抜こうかな」
+				PRINTFORMW 「あっ、%ANAME(MASTER)%さんが使いたいっていうんならお譲りするッスよ、もちろん」
+				PRINTFORML 部下はすっかり、%ANAME(対象)%とおぼしき下半身を使うつもりでいるようだ
+				PRINTFORML だが……彼を止めるということは、自分が%ANAME(対象)%を使うということになる
+				PRINTFORML いやいや待て、彼女はない可能性だってあるではないか……
+				CALL ASK_MULTI(@"%ANAME(対象)%らしき女を使う", "部下に譲る")
+				IF RESULT == 0
+					PRINTFORML %ANAME(対象)%ではない、あの写真はでたらめだ
+					PRINTFORML その上で、こんないい女は部下にはもったいない、自分が使う
+					PRINTFORMW そう己に言い訳し、部下を押しのけた
+					PRINTFORMW 「えー、残念だな。まぁいいや、じゃ、俺は別の便器にするんで……」
+					PRINTFORML わざわざ押しのけた手前、使わないというわけにもいかない
+					PRINTFORMW 混乱し、躊躇いつつも、%ANAME(MASTER)%は便器の濡れそぼつ肉穴にペニスを差し込み、使い始めた
+					PRINTFORMW その雌穴が素晴らしい名器だったこと、そして、それが知り合いかもしれないという事実が、%ANAME(MASTER)%を昂ぶらせる
+					PRINTFORMW %ANAME(MASTER)%はしまいには我を忘れ、その雌穴の中に何度も子種をぶちまけた……
+					CALL FORCE_FUCK(対象, GET_ID(MASTER))
+				ELSE
+					PRINTFORML もし本当に%ANAME(対象)%だったとして、それを使うなどということには堪えられない
+					PRINTFORMW 自分は遠慮しておくと言うと、部下は信じられないという顔を浮かべた
+					PRINTFORML 「えーっ！　勿体ねぇ！　こんないい便器なのに」
+					PRINTFORMW 「……まっ、俺としてはありがたいッスけどね。へへへ」
+					PRINTFORML 部下は下衣を下ろし、己のペニスを露出させる
+					PRINTFORMW そしてその濡れそぼつ雌穴に、遠慮なく肉棒を挿入した
+					PRINTFORML 「あ～ッ、なんだこれ、すっげぇ名器だッ、%ANAME(対象)%ちゃんだっけ？　やるじゃん、うっは」
+					PRINTFORMW 「こんなとこで便器してっからどんなクソマンコかと思ったら、うっは、すげぇすげぇ」
+					PRINTFORMW 部下は無我夢中になって腰を振りたくる。壁の向こうから聞こえてくる嬌声は、聞き覚えのあるものだった
+					PRINTFORMW まさか、本当にそうなのだろうか。%ANAME(対象)%が、部下のみならず他の男に便器として使われている……？
+					PRINTFORML そのような想像は、%ANAME(MASTER)%に昏い欲望を抱かせた
+					PRINTFORMW 部下の隣の便器を使いながら、その便器の具合によってというより、己の抱いた欲望によって、%ANAME(MASTER)%は何度も射精した……
+					CALL FORCE_FUCK(対象, -11)
+				ENDIF
+			CASE 3
+				PRINTFORMW 部下は%ANAME(MASTER)%を飲みに連れ出した
+				PRINTFORMW 「へへへ、よかったでしょあの店、おれの行きつけの飲み屋で」
+				PRINTFORML 二人で酒を楽しんだ後の帰路で、女が声をかけてくる
+				PRINTFORMW 良かったら私を買って下さいませんか、というのだ
+				PRINTFORML こんなところで立ちんぼとは、安い娼婦だ……だが、%ANAME(MASTER)%は立ち止まる
+				PRINTFORMW その女に、%ANAME(MASTER)%は見覚えがあった。というか知っている
+				PRINTFORML それは行方知れずになっていた、%ANAME(対象)%だった
+				PRINTFORML ただ、それは%ANAME(MASTER)%の知る彼女ではなかった
+				PRINTFORML 胸や腰、尻のラインを強調するような卑猥な衣装を着ている
+				PRINTFORML 露わになった臍のあたりには、ハートマークの刻印が刻まれている
+				PRINTFORML 纏った雰囲気は、なにかしらのフェロモンでも撒いているかのように淫らだった
+				PRINTFORMW 見ないと思ったら、こんなところで娼婦まがいのことをしているとは……
+				PRINTFORMW 彼女の方は、その過酷な生活でこちらのことをすっかり忘れてしまったのか、驚いた様子などは全く見せなかった
+				PRINTFORMW 「うおー……君超可愛いじゃん、マジで言ってんの？」
+				PRINTFORML 困惑する%ANAME(MASTER)%をよそに、部下は興味津々だった
+				PRINTFORMW 彼女は頷き、どうか私をお使いくださいませ、それが私の幸せですと、深々と頭を下げてみせる
+				PRINTFORMW 「どうしますか%ANAME(MASTER)%さん、あの子俺超好みなんスけど」
+				PRINTFORML 部下はひどく興奮している。自分一人でもこの女を買うと、その目は語っている……
+				CALL ASK_MULTI(@"%ANAME(対象)%を買う", "部下に任せておく")
+				IF RESULT == 0
+					PRINTFORML 今の彼女は街娼だ。知り合いかどうかなど、そこには関係がない
+					PRINTFORML 売るというのなら、買わせてもらうだけだ
+					PRINTFORMW ……むしろ、知り合いだからこそ、燃え上がるものがあるかもしれない……
+					PRINTFORMW 「っへへへ、いい女だなぁ、おい、名前なんて言うんだよ」
+					PRINTFORMW 彼女の答えた名前は偽名だったが、奴隷としての事情があるのだろう。知らない振りをしておいてやる
+					PRINTFORML 一方の部下はすっかりその気になっており、%ANAME(対象)%の乳房や尻を我が物顔で撫で回している
+					PRINTFORMW 日頃の生活によって開発されているのか、%ANAME(対象)%はそれだけで顔を蕩かしてみせた
+					PRINTFORMW %ANAME(MASTER)%と部下は%ANAME(対象)%を近くのホテルに連れ込み、そこでたっぷりと楽しんだ……
+					CALL FORCE_FUCK(対象, GET_ID(MASTER))
+				ELSE
+					PRINTFORML 流石に知り合いを買うのはキツい……
+					PRINTFORMW 自分は遠慮しておくと言うと、部下は信じられないという顔を浮かべた
+					PRINTFORML 「はァ！？　%ANAME(MASTER)%さんホモか何かなんですか！？」
+					PRINTFORMW 「……まぁいいや、それならそれで、俺だけでも楽しませてもらいますよ」
+					PRINTFORML いくら上司と部下とはいえ、性生活に口出しする権利はない
+					PRINTFORMW 好きにしろと言ったが、彼はそもそもそのつもりだったようだ
+					PRINTFORML 「へへ、いい女だなぁ、おい、名前なんて言うんだよ」
+					PRINTFORMW 彼女の答えた名前は偽名だったが、奴隷としての事情があるのだろう。知らない振りをしておいてやる
+					PRINTFORML 一方の部下はすっかりその気になっており、%ANAME(対象)%の乳房や尻を我が物顔で撫で回している
+					PRINTFORMW 日頃の生活によって開発されているのか、%ANAME(対象)%はそれだけで顔を蕩かしてみせた
+					PRINTFORMW 「それじゃ、俺ぁちょっと楽しんできますんで、へへ……」
+					PRINTFORMW 部下は%ANAME(対象)%を近くのホテルに連れ込み、そこでたっぷりと楽しんだようだ……
+					CALL FORCE_FUCK(対象, -11)
+				ENDIF
+		ENDSELECT
+	ENDIF
+ENDIF
