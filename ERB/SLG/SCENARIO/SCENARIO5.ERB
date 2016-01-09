@@ -12,15 +12,6 @@ PRINTFORMW 群雄割拠という名のぐちゃぐちゃ系シナリオ
 PRINTFORMW とりあえず細かく分けてみましたっていうだけのもの。
 PRINTFORMW 
 PRINTL
-PRINTFORML 外来人が襲撃しにくるようにしますか？
-PRINTFORML 多分なエロを含みます。
-CALL ASK_YN
-IF RESULT == 0
-	PRINTFORMW 外来人の襲撃が起こります
-ELSE
-	PRINTFORMW 外来人はやってきません
-	SCVAR:0 = 2
-ENDIF
 
 ;ランダムキャラは選択に委ねる
 FLAG:4 = 0
@@ -787,9 +778,9 @@ CALL INIT_ALLIANCE_BY_NAME("メディスン", "幽香", 20)
 ;30期以降、封獣ぬえか鬼人正邪がプレイヤーでなく捕虜や放浪状態や死亡状態や外来勢力所属でもなく、かつその所属勢力が5つ以上の都市を得ているとき
 LOCAL:1 = 0
 ;正邪優先、ただし君主が針妙丸の時は起こらない
-IF !GETBIT(SCVAR:1,0) && REBELLION_FLAG("正邪", 30) && CFLAG:(NAME_TO_CHARA("正邪")):1 != GET_COUNTRY_FROM_ID(299) && GET_COUNTRY_BOSS(CFLAG:(NAME_TO_CHARA("正邪")):1) != FINDCHARA(CSTR:99, "針妙丸")
+IF !GETBIT(SCVAR:1,0) && REBELLION_FLAG("正邪", 30) && CFLAG:(NAME_TO_CHARA("正邪")):1 != GET_COUNTRY_FROM_ID(COUNTRY_GAIRAI) && GET_COUNTRY_BOSS(CFLAG:(NAME_TO_CHARA("正邪")):1) != FINDCHARA(CSTR:99, "針妙丸")
 	LOCAL:1 = FINDCHARA(CSTR:99, "正邪")
-ELSEIF !GETBIT(SCVAR:1,1) && REBELLION_FLAG("ぬえ", 30) && CFLAG:(NAME_TO_CHARA("ぬえ")):1 != GET_COUNTRY_FROM_ID(299)
+ELSEIF !GETBIT(SCVAR:1,1) && REBELLION_FLAG("ぬえ", 30) && CFLAG:(NAME_TO_CHARA("ぬえ")):1 != GET_COUNTRY_FROM_ID(COUNTRY_GAIRAI)
 	LOCAL:1 = FINDCHARA(CSTR:99, "ぬえ")
 ENDIF
 IF LOCAL:1 != 0
@@ -994,7 +985,7 @@ IF LOCAL:1 != 0
 		WEND
 	ENDIF
 	;離反元勢力の部隊を解散
-	CALL CLEAR_ALL_UNIT(LOCAL:3)
+	CALL CLEAR_ALL_UNIT(LOCAL:3, 1)
 
 	;仲はまぁ、悪くもなりますわな
 	CALL CHANGE_RELATION_C_TO_C(LOCAL:3, LOCAL:4, -200, 600)
@@ -1020,145 +1011,3 @@ IF LOCAL:1 != 0
 
 
 ENDIF
-
-
-
-;統一した国家の番号を取得
-UNIFY = GET_UNIFY_COUNTRY()
-
-;天下を統一した勢力が存在する場合
-IF SCVAR:0 == 0 && UNIFY >= 1
-	SCVAR:0 = 1
-	SCVAR:10 = UNIFY
-
-	;無所属の都市の統合
-	CALL UNIFY_FREE_CITY(UNIFY)
-
-	PRINTW ………………
-	PRINTW ……
-
-	LOCAL:3 = GET_COUNTRY_BOSS(UNIFY)
-	PRINTL 
-	SETCOLOR COLOR("注意")
-
-	IF UNIFY == CFLAG:MASTER:1
-		PRINTFORMW 結界の外から突如、数百万もの外来人が雪崩のように攻めこんできました！
-		PRINTFORMW 彼らの電撃的な作戦行動により、幻想郷の主要な施設が次々と制圧されてしまいました
-		PRINTFORMW 占領された地域の住民たちは、研究対象として捕らえられ、非道な「実験」を繰り返されているようです
-		PRINTFORML 奴らの暴虐を止めなければ、%NAME:(LOCAL:3)%様の統一が成らないばかりか、
-		PRINTFORMW 幻想郷は破壊しつくされてしまうでしょう…
-		PRINTL 
-		PRINTFORMW 我々の誇りに掛けて、この最後の戦いに勝利し、真の覇者となりましょう！
-	ELSE
-		PRINTFORMW 結界の外から突如、数百万もの外来人が雪崩のように攻めこんできました！
-		PRINTFORMW 彼らの電撃的な作戦行動により、幻想郷の主要な施設が次々と制圧されてしまいました
-		PRINTFORMW これに伴い、幻想郷のほぼ全てを手中に収めていた%NAME:(LOCAL:3)%が、異変解決の準備を始めたようです…
-	ENDIF
-	RESETCOLOR
-
-	;外来勢力の作成
-	ADDVOIDCHARA
-	NO:(CHARANUM - 1) = 2000
-	CALL NEWCHARA_INIT(CHARANUM - 1)
-	NAME:(CHARANUM - 1) = 外来人
-	CALLNAME:(CHARANUM - 1) = 外来人
-	LOCAL:0 = GET_NEW_COUNTRY()
-	COUNTRY_BOSS:(LOCAL:0) = GET_ID(CHARANUM - 1)
-	COUNTRY_COLOR:(LOCAL:0) = 0x808080
-	COUNTRY_SOLDIER:(LOCAL:0) = 3000000
-	;外来勢力のIDは299
-	COUNTRY_EVENT_ID:(LOCAL:0) = 299
-	FOR LOCAL:1, 0, 30
-		CALL ADD_GAIRAI_SOLDIER(LOCAL:0)
-	NEXT
-	CALL TAKEOVER_CITY_FROM_NAME("外来人", "天人の都")
-	CALL TAKEOVER_CITY_FROM_NAME("外来人", "桃園")
-	CALL TAKEOVER_CITY_FROM_NAME("外来人", "守矢神社")
-	CALL TAKEOVER_CITY_FROM_NAME("外来人", "是非曲直庁")
-	CALL TAKEOVER_CITY_FROM_NAME("外来人", "月の都")
-	CALL TAKEOVER_CITY_FROM_NAME("外来人", "博麗神社")
-	CALL TAKEOVER_CITY_FROM_NAME("外来人", "永遠亭")
-	CALL TAKEOVER_CITY_FROM_NAME("外来人", "白玉楼")
-	CALL TAKEOVER_CITY_FROM_NAME("外来人", "八雲屋敷")
-	CALL TAKEOVER_CITY_FROM_NAME("外来人", "紅魔館")
-	CALL TAKEOVER_CITY_FROM_NAME("外来人", "命蓮寺")
-	CALL TAKEOVER_CITY_FROM_NAME("外来人", "神霊廟")
-	CALL TAKEOVER_CITY_FROM_NAME("外来人", "地霊殿")
-
-	;外交禁止フラグを立てる
-	COUNTRY_IS_CLOSED:(LOCAL:0) = 1
-ENDIF
-
-;外来勢力の侵攻後
-IF SCVAR:0 == 1
-	;外来勢力の番号を取得(ID:299)
-	LOCAL:2 = GET_COUNTRY_FROM_ID(299)
-	IF DAY % 3 == 0 && LOCAL:2 != -1
-		LOCAL:0 = MAX(RAND:3000, 1000)
-		PRINTFORML 外来人につけば「実験」のおこぼれにあずかれると聞いた野良妖怪たちが、次々と寝返っているようです……
-		PRINTFORML 外来人軍の兵力が{LOCAL:0}増加した
-		COUNTRY_SOLDIER:(LOCAL:2) += LOCAL:0
-	ENDIF
-	IF LOCAL:2 <= 0 || GET_SUM_SOLDIER(LOCAL:2) < 300000
-		SCVAR:0 = 2
-
-		SETCOLOR COLOR("注意")
-		PRINTL 
-		IF SCVAR:10 == CFLAG:MASTER:1
-			PRINTFORML 壊滅的な被害を受けた外来人は結界の外へと撤退しました！
-			PRINTFORMW 我々の勝利です！
-		ELSE
-			PRINTFORMW 壊滅的な被害を受けた外来人は結界の外へと撤退しました！
-		ENDIF
-		RESETCOLOR
-
-		IF CFLAG:MASTER:1 >= 1
-			LOCAL:1 = CFLAG:MASTER:1
-		ELSE
-			LOCAL:1 = 0
-		ENDIF
-		FOR LOCAL:0, 0, MAX_CITY
-			IF CITY_OWNER:(LOCAL:0) == LOCAL:2
-				CITY_OWNER:(LOCAL:0) = LOCAL:1
-			ENDIF
-		NEXT
-
-		;イベントキャラを全て削除
-		LOCAL:3 = CHARANUM
-		FOR LOCAL:0, 0, LOCAL:3
-			LOCAL:1 = LOCAL:3 - LOCAL:0 - 1
-			IF NO:(LOCAL:1) >= 2000
-				CALL DELETE_CHARA(LOCAL:1)
-			ENDIF
-		NEXT
-
-		FOR LOCAL:0, 0, CHARANUM
-			;外来勢力に寝返ったキャラの処理
-			IF CFLAG:(LOCAL:0):1 == LOCAL:2
-				;自国の捕虜なら無所属に
-				IF CFLAG:(LOCAL:0):9 != 0
-					CFLAG:(LOCAL:0):1 = 0
-				;それ以外なら放浪状態に
-				ELSE
-					CFLAG:(LOCAL:0):1 = 0
-					CFLAG:(LOCAL:0):12 = 1
-				ENDIF
-			;外来勢力に捕らえられてまだ寝返っていないキャラは、捕虜状態を解除
-			ELSEIF CFLAG:(LOCAL:0):9 == LOCAL:2
-				CFLAG:(LOCAL:0):9 = 0
-			ENDIF
-		NEXT
-
-		IF LOCAL:2 >= 1
-			;外来勢力を削除
-			CALL DESTROY_COUNTRY(LOCAL:2)
-		ENDIF
-	ENDIF
-ENDIF
-
-;外来勢力の侵攻後
-IF SCVAR:0 == 1
-	CALL TRAIN_BY_GAIRAI
-ENDIF
-
-

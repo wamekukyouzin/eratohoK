@@ -1,14 +1,11 @@
-﻿;野盗蜂起イベント
-@BANDIT_RISE
+﻿;--------------------------------------
+;野盗蜂起イベント
+;--------------------------------------
+@SLG_BANDIT_RISE()
 #DIM 野盗
-#DIM 勢力, MAX_COUNTRY
-#DIM 判定値, MAX_COUNTRY
-#DIM 都市, MAX_CITY
-#DIM 結果
-#DIM 候補数
+
 野盗 = GET_COUNTRY_FROM_ID(COUNTRY_BANDIT)
 
-;野盗勢力が存在しない、野盗勢力が都市を持っている、まだ侵攻ができない、確率判定に失敗した場合は発生しない
 SIF 野盗 == -1
 	RETURN -1
 
@@ -23,10 +20,71 @@ IF RAND:1000 >= DVAR:野盗蜂起カウンタ * 5
 	RETURN -1
 ENDIF
 
+CALL BANDIT_RISE()
+
+;--------------------------------------
+;野盗蜂起イベントの実装
+;--------------------------------------
+@BANDIT_RISE()
+#DIM 野盗
+#DIM 結果
+#DIM 判定無視
+#DIM 候補数
+VARSET LOCAL
+野盗 = GET_COUNTRY_FROM_ID(COUNTRY_BANDIT)
+
+;野盗勢力場合は発生しない
+
+SIF 野盗 == -1
+	RETURN -1
+
+CALL BANDIT_RISE_SELECT_CITY()
+
+結果 = RESULT
+
+SIF 結果 == -1
+	RETURN -1
+
+;メッセージ表示
+DRAWLINE
+PRINTFORML
+CALL COLORPRINTFORM(@"野盗どもが%CITY_NAME:結果%を奪い、蜂起しました！", COLOR("警告"), "W")
+
+LOCAL:1 = CITY_OWNER:結果
+
+;奪った都市の所属武将を何人かかっぱらう（無所属都市でなければ）
+IF IS_COUNTRY(LOCAL:1)
+	FOR LOCAL, 0, CHARANUM
+		SIF LOCAL:2 >= 4
+			BREAK
+		IF CFLAG:LOCAL:所属 == LOCAL:1 && !CFLAG:LOCAL:捕虜先 && IS_FEMALE(LOCAL) && GET_COUNTRY_BOSS(LOCAL:1) != LOCAL && !RAND:5
+			CALL COLORPRINTFORM(@"野盗は%ANAME(LOCAL)%を性奴隷として拉致しました", COLOR("警告"), "W")
+			LOCAL:2 ++
+			CFLAG:LOCAL:捕虜先 = 野盗
+		ENDIF
+	NEXT
+ENDIF
+
+CALL TAKEOVER_CITY_FROM_NO(野盗, 結果)
+COUNTRY_SOLDIER:野盗 += MIN(DAY * 100, 10000)
+COUNTRY_IS_CLOSED:野盗 = 0
+DVAR:野盗蜂起カウンタ = 0
+
+;--------------------------------------
+;野盗蜂起イベントにおける、都市選択処理
+;--------------------------------------
+@BANDIT_RISE_SELECT_CITY
+#DIM 勢力, MAX_COUNTRY
+#DIM 判定値, MAX_COUNTRY
+#DIM 都市, MAX_CITY
+#DIM 結果
+#DIM 候補数
 VARSET 勢力
 VARSET 判定値
+VARSET 都市
 VARSET 候補数
 
+;各勢力の都市数に基づいて判定値を算出
 FOR LOCAL, 0, MAX_COUNTRY
 	IF GET_OWN_CITY(LOCAL) > 1 || (LOCAL == 0 && GET_OWN_CITY(LOCAL) > 0)
 		勢力:候補数 = LOCAL
@@ -38,10 +96,12 @@ NEXT
 SIF 候補数 == 0
 	RETURN -1
 
+;都市数が多い勢力ほど狙われやすい
 結果 = 勢力:FINDELEMENT(判定値, MAXARRAY(判定値, 0, 候補数), 0, 候補数)
 
 VARSET 候補数
 
+;対象都市を選択
 FOR LOCAL, 1, CITY_NUM + 1
 	IF CITY_OWNER:LOCAL == 結果
 		都市:候補数 = LOCAL
@@ -54,23 +114,6 @@ SIF 候補数 == 0
 
 CALL FISHER_YATES_SHAFFLE(候補数)
 
-結果 = 都市:(SHAFFLE_ARRAY:0)
+RETURN 都市:(SHAFFLE_ARRAY:0)
 
-DRAWLINE
-PRINTFORML
-CALL COLORPRINTFORM(@"野盗どもが%CITY_NAME:結果%を奪い、蜂起しました！", COLOR("警告"), "W")
 
-LOCAL:1 = CITY_OWNER:結果
-IF IS_COUNTRY(LOCAL:1)
-	FOR LOCAL, 0, CHARANUM
-		IF CFLAG:LOCAL:所属 == LOCAL:1 && !CFLAG:LOCAL:捕虜先 && GET_COUNTRY_BOSS(LOCAL:1) != LOCAL && !RAND:5
-			CALL COLORPRINTFORM(@"野盗は%ANAME(LOCAL)%を性奴隷として拉致しました", COLOR("警告"), "W")
-			CFLAG:LOCAL:捕虜先 = 野盗
-		ENDIF
-	NEXT
-ENDIF
-
-CITY_OWNER:結果 = 野盗
-COUNTRY_SOLDIER:野盗 += MIN(DAY * 100, 10000)
-
-DVAR:野盗蜂起カウンタ = 0

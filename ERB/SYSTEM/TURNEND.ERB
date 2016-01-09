@@ -183,6 +183,12 @@ CALL EVENT_SETTOKU
 ;捕虜の扱いに対応したイベント
 CALL EVENT_PRISONER
 
+;捕虜でなければ、FLAG:14(捕虜調教初回済みフラグ）とFLAG:47（捕虜調教回数）を消す
+IF !CFLAG:MASTER:捕虜先
+	FLAG:14 = 0
+	FLAG:47 = 0
+ENDIF
+
 ;口上呼び出し
 FOR LOCAL:0, 0, CHARANUM
 	;主人公と同一勢力の仕官で、捕虜でない
@@ -190,6 +196,9 @@ FOR LOCAL:0, 0, CHARANUM
 		CALL KOJO_EVENT(LOCAL:0, 30)
 	ENDIF
 NEXT
+
+;奴隷市場の商品リストを更新
+CALL SLAVEMARKET_PREPARE_GOODS
 
 ;統一後の場合
 IF FLAG:28
@@ -311,7 +320,11 @@ FOR LOCAL:0, 0, CHARANUM
 	;このターン～系フラグを折る
 	CFLAG:(LOCAL:0):91 = 0
 	CFLAG:(LOCAL:0):93 = 0
-	
+
+	;捕虜でなく、所属が特殊勢力でないなら、調教カウンタを折る
+	SIF !CFLAG:LOCAL:捕虜先 && !GROUPMATCH(CFLAG:LOCAL:所属, GET_COUNTRY_FROM_ID(COUNTRY_GOBLIN), GET_COUNTRY_FROM_ID(COUNTRY_GAIRAI), GET_COUNTRY_FROM_ID(COUNTRY_BANDIT))
+		CFLAG:(LOCAL:0):調教カウンタ = 0
+		
 	;同じ勢力で共に過ごした期数を加算
 	IF LOCAL:0 != MASTER && CFLAG:(LOCAL:0):1 != 0 && CFLAG:(LOCAL:0):1 == CFLAG:MASTER:1
 		CFLAG:(LOCAL:0):77 ++

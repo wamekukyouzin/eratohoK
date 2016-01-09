@@ -115,7 +115,7 @@ FOR LOCAL:0, 0, CHARANUM
 			IF LOCAL:0 == FLAG:35
 				SETCOLOR COLOR("シアン")
 			ENDIF
-			PRINTBUTTON @"{NO:(LOCAL:0) + 100, 3}[%NAME_DOUBLE(LOCAL:0), 14, LEFT%]  妖Lv{ABL:(LOCAL:0):妖術, 3, RIGHT}", NO:(LOCAL:0) + 100
+			PRINTBUTTON @"{NO:(LOCAL:0) + 100, 3}[%ANAME(LOCAL:0), 14, LEFT%]  妖Lv{ABL:(LOCAL:0):妖術, 3, RIGHT}", NO:(LOCAL:0) + 100
 			RESETCOLOR
 			LOCAL:14 ++
 		ENDIF
@@ -214,13 +214,13 @@ PRINTFORML 職種次第では、そのほかの恩恵も得られるでしょう
 PRINTFORML どうやってお金を稼ぎますか？
 DRAWLINE
 PRINTBUTTON "[1] - 鉱山労働", 1
-PRINTL   鉱山で働いて稼ぎます。実入りは多いですが、その他の恩恵はありません。
+PRINTL   鉱山で働いて稼ぎます。実入りは多いですが、特に恩恵はありません。
 PRINTBUTTON "[2] - 土木工事", 2
-PRINTL   土木工事を手伝います。経済がちょっと成長します。
+PRINTL   土木工事を手伝います。経済が成長します。
 PRINTBUTTON "[3] - 軍事広報", 3
-PRINTL   軍の宣伝活動の手伝いをします。兵数がちょっと増えます。
+PRINTL   軍の宣伝活動の手伝いをします。収入は低いですが、兵数が増えます。
 PRINTBUTTON "[4] - 娼婦", 4
-PRINTL       娼婦として働きます。収入は多いです。
+PRINTL   娼婦として働きます。スケベな経験が増えます。
 DRAWLINE
 PRINTBUTTON "[0] - 戻る", 0
 $INPUT_LOOP
@@ -255,7 +255,7 @@ IF BASE:MASTER:体力 <= 0 || RAND:100 < SHOP_WORK_COUNT
 	SETCOLOR COLOR("警告")
 	PRINTFORMW %ANAME(MASTER)%に{LOCAL}ターンのクールタイムが課せられた
 	RESETCOLOR
-	SLG_COOLTIME:MASTER:0 += LOCAL
+	COOLTIME:MASTER:0 += LOCAL
 	SHOP_TIME += 1
 	RESULT = 0
 	BEGIN TURNEND
@@ -264,19 +264,26 @@ ENDIF
 SELECTCASE 内容
 	CASE 1
 		PRINTFORML %ANAME(MASTER)%は鉱山で働いた……
-		報酬 = (1500+ RAND:(LIMIT(DAY / 10, 1, 10) * 300)) / (SHOP_WORK_COUNT + 1)
+		報酬 = 2000
+		報酬 += RAND:(LIMIT(DAY / 5, 1, 10) * 300)
 	CASE 2
 		PRINTFORML %ANAME(MASTER)%は土木工事を手伝った……
-		報酬 = (1000+ RAND:(LIMIT(DAY / 10, 1, 10) * 300)) / (SHOP_WORK_COUNT + 1)
+		報酬 = 1000
+		報酬 += RAND:(LIMIT(DAY / 8, 1, 10) * 200)
 	CASE 3
 		PRINTFORML %ANAME(MASTER)%は軍事広報を手伝った……
-		報酬 = (1000+ RAND:(LIMIT(DAY / 10, 1, 10) * 300)) / (SHOP_WORK_COUNT + 1)
+		報酬 = 500
+		報酬 += RAND:(LIMIT(DAY / 10, 1, 10) * 100)
 	CASE 4
 		PRINTFORML %ANAME(MASTER)%は娼館で働いた……
-		報酬 = (2000+ RAND:(LIMIT(DAY / 10, 1, 10) * 300)) / (SHOP_WORK_COUNT + 1)
+		報酬 = 1000
+		報酬 += RAND:(LIMIT(DAY / 8, 1, 10) * 200)
 	CASEELSE
 		GOTO INPUT_LOOP
 ENDSELECT
+
+報酬 /= (SHOP_WORK_COUNT + 1)
+報酬 += RAND:500
 
 SELECTCASE 結果
 	CASE 0
@@ -286,7 +293,6 @@ SELECTCASE 結果
 		PRINTFORML 中々うまくできた……
 		TIMES 報酬, 1.30
 ENDSELECT
-報酬 += RAND:500
 
 PRINTFORML 金{報酬}を得た
 
@@ -305,7 +311,7 @@ SELECTCASE 内容
 			ENDIF
 		NEXT
 	CASE 3
-		LOCAL:1 = (300 + RAND:300 + RAND:(MAX(DAY / 5, 1) * 200)) / (SHOP_WORK_COUNT + 1)
+		LOCAL:1 = (300 + RAND:300 + RAND:(LIMIT(DAY / 5, 1, 25) * 200)) / (SHOP_WORK_COUNT + 1)
 		COUNTRY_SOLDIER:(CFLAG:MASTER:1) += LOCAL:1
 		PRINTFORML 兵が{LOCAL:1}人増えた
 	CASE 4

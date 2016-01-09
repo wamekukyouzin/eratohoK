@@ -5,11 +5,15 @@
 ;国家関係マップの作成(処理の高速化)
 CALL TMP_CREATE_RELATION_MAP
 
-;クールタイム減少処理
-FOR LOCAL:99, 0, CHARANUM
-	SLG_COOLTIME:(LOCAL:99):0 = MAX(SLG_COOLTIME:(LOCAL:99):0 - 1 , 0)
-NEXT
-
+;野盗は都市をもってたら外交できる
+LOCAL = GET_COUNTRY_FROM_ID(COUNTRY_BANDIT)
+IF LOCAL > 0 && GET_OWN_CITY(LOCAL) > 0
+	COUNTRY_IS_CLOSED:LOCAL = 0
+ELSEIF LOCAL > 0 && GET_OWN_CITY(LOCAL) == 0
+	;ここでフラグたてても、戦略ターン中に野盗が都市全ロスト→野盗対象の外交　でエラー落ちする
+	;ねんのため勃てておくが、信頼性はない
+	COUNTRY_IS_CLOSED:LOCAL = 1
+ENDIF
 
 ;自軍の部隊処理
 IF CFLAG:MASTER:1 >= 1
@@ -41,6 +45,9 @@ NEXT
 IF !FLAG:34
 	;同盟・連合の期限チェック
 	CALL TREATY_TURNEND
+	
+	;風説流布
+	CALL SPREAD_OF_RUMORS
 
 	;シナリオ固有のイベント
 	TRYCALLFORM SCENARIO_EVENT_%SCENARIOID%
@@ -48,13 +55,20 @@ IF !FLAG:34
 	;野盗による調教
 	CALL TRAIN_BY_BANDIT
 	
+	;外来人ターンエンド処理
+	CALL TURNEND_GAIRAI
+
+	;ホフゴブリンターンエンド処理
+	CALL TURNEND_GOBLIN
+
 	;ランダムな謀反処理
-	SIF !CONFIG:498
+	SIF !DCONFIG:DCON_ランダム謀反
 		CALL SLG_RANDOM_INDEPENDENCE
 	
 	;野盗の武装蜂起
-	SIF !CONFIG:441
-		CALL BANDIT_RISE
+	SIF !DCONFIG:DCON_野盗蜂起
+		CALL SLG_BANDIT_RISE
+	
 ENDIF
 
 ;解放カウンタに基づいて解放
@@ -63,7 +77,7 @@ CALL RELEASE_PRISONERS
 ;捕虜になったときの解放カウンタを加算
 ;ただし、外来人とホフゴブリンは自然解放しない
 FOR LOCAL:0, 0, CHARANUM
-	IF CFLAG:(LOCAL:0):9 && CFLAG:(LOCAL:0):9 != GET_COUNTRY_FROM_ID(299) && CFLAG:(LOCAL:0):9 != GET_COUNTRY_FROM_ID(300)
+	IF CFLAG:(LOCAL:0):9 && CFLAG:(LOCAL:0):9 != GET_COUNTRY_FROM_ID(COUNTRY_GAIRAI) && CFLAG:(LOCAL:0):9 != GET_COUNTRY_FROM_ID(300)
 		CFLAG:(LOCAL:0):43 ++
 	ELSE
 		CFLAG:(LOCAL:0):43 = 0
@@ -140,6 +154,14 @@ IF ARG:0 != CFLAG:MASTER:1 || CONFIG:302 == 1
 	;敵AIの行動
 	CALL AI_ACTION(ARG:0)
 ENDIF
+
+;クールタイム減少処理と、このターンに割り当てたフラグ削除処理
+FOR LCOUNT, 0, CHARANUM
+	IF CFLAG:LCOUNT:所属 == ARG:0
+		COOLTIME:LCOUNT:0 = MAX(COOLTIME:LCOUNT:0 - 1 , 0)
+		ASSIGNED_THIS_TURN:LCOUNT:0 = 0
+	ENDIF
+NEXT
 
 [IF_DEBUG]
 ;DEBUGPRINTFORM この時点で存在する部隊:
@@ -571,6 +593,8 @@ IF CITY_SOLDIER:(ARG:2) <= 0
 				SIF LOCAL != ARG:0 && LOCAL != LOCAL:6
 					CALL CHANGE_RELATION_C_TO_C(LOCAL, ARG:0, 500, -500)
 			NEXT
+			;外交禁止フラグを立てる
+			COUNTRY_IS_CLOSED:(LOCAL:6) = 1
 		ELSE
 			IF CFLAG:MASTER:1 == LOCAL:6 && CFLAG:(LOCAL:0):9 != 0
 				SETCOLOR COLOR("警告")
@@ -1004,49 +1028,6 @@ FOR LOCAL:0, 0, 3
 	ENDIF
 NEXT
 
-;[現代兵術]による特殊計略
-FOR LOCAL:0, 0, 3
-	LOCAL:2 = 発動側:(LOCAL:0)
-	IF LOCAL:2 >= 0 && TALENT:(LOCAL:2):現代兵術
-		;LOCAL:3 = 対象部隊の人数
-		;LOCAL:4 = 変数「対象」に対し用いる添え字
-		;LOCAL:5 = 対象部隊の勢力番号
-		LOCAL:3 = 0
-		LOCAL:4 = -1
-		LOCAL:5 = -1
-		;部隊の人数をカウント
-		FOR LOCAL:1, 0, 3
-			SIF 対象側:(LOCAL:1) >= 0
-				LOCAL:3 ++
-		NEXT
-		;誰か武将がいれば発動処理に移行
-		IF LOCAL:3 >= 1
-			;誰をみるか決める
-			LOCAL:4 = RAND:3
-			;みる対象がいた場合(フェイルセーフ)
-			IF 対象側:(LOCAL:4) >= 0
-				;勢力番号取得
-				IF ARG:5 >= 0
-					LOCAL:5 = ARG:4
-				ELSE
-					LOCAL:5 = CITY_OWNER:(ARG:4)
-				ENDIF
-				;発動
-				SETCOLOR COLOR("桃")
-				PRINTFORML %NAME:(LOCAL:2)%は%NAME:GET_COUNTRY_BOSS(LOCAL:5)%軍に桃色の霧を吹きかけた
-				;発動回数を一度までに制限するため、外ループで使用しているLOCAL:0をここでも使う
-				FOR LOCAL:0, 0, 3
-					;対象である、または研究用奴隷の烙印を所持しているキャラについて、パワーが1になるフラグがたつ
-					IF LOCAL:0 == LOCAL:4 || TALENT:(LOCAL:0):研究用奴隷の烙印
-						PRINTFORML %NAME:(対象側:(LOCAL:0))%は力が抜けてしまった！
-						CFLAG:(対象側:(LOCAL:0)):34 = 1
-					ENDIF
-				NEXT
-			ENDIF
-		ENDIF
-	ENDIF
-NEXT
-
 FOR LOCAL:0, 0, 3
 	LOCAL:2 = 発動側:(LOCAL:0)
 	;暗殺。相手武将からランダムで1人部隊から取り除き、クールタイムを付与する。
@@ -1075,13 +1056,13 @@ FOR LOCAL:0, 0, 3
 					LOCAL:5 = CITY_OWNER:(ARG:4)
 				ENDIF
 				LOCAL:6 = RAND(2, 5)
-				SETCOLOR COLOR("注意")
+				SETCOLOR COLOR("素質発動")
 				PRINTFORML %NAME:(LOCAL:2)%は%NAME:GET_COUNTRY_BOSS(LOCAL:5)%軍の%NAME:(対象側:(LOCAL:4))%を暗殺しにかかった！
 				PRINTFORML %NAME:(対象側:(LOCAL:4))%は負傷し部隊から外れ、{LOCAL:6}ターンのクールタイムを受けた！
 				RESETCOLOR
 				IF ARG:5 >= 0
 					CALL CLEAR_UNIT_COMMANDER(ARG:4, ARG:5, LOCAL:4)
-					SLG_COOLTIME:(対象側:(LOCAL:4)):0 = LOCAL:6
+					COOLTIME:(対象側:(LOCAL:4)):0 = LOCAL:6
 					BATTLE_SOL:(ARG:1) = UNIT_SOLDIER:(ARG:4):(ARG:5)
 					BATTLE_ATC:(ARG:1) = UNIT_ATTACK_LEVEL(ARG:4, ARG:5)
 					BATTLE_DEF:(ARG:1) = UNIT_DEFENSE_LEVEL(ARG:4, ARG:5)
@@ -1090,7 +1071,7 @@ FOR LOCAL:0, 0, 3
 					BATTLE_F_UNIT:(ARG:1) = 1
 				ELSE
 					CALL CLEAR_CITY_COMMANDER(ARG:4)
-					SLG_COOLTIME:(対象側:(LOCAL:4)):0 = LOCAL:6
+					COOLTIME:(対象側:(LOCAL:4)):0 = LOCAL:6
 					BATTLE_SOL:(ARG:1) = CITY_SOLDIER:(ARG:4)
 					BATTLE_ATC:(ARG:1) = CITY_ATTACK_LEVEL (ARG:4)
 					BATTLE_DEF:(ARG:1) = CITY_DEFENSE_LEVEL(ARG:4)
@@ -1111,25 +1092,64 @@ FOR LOCAL:0, 0, 3
 			LOCAL:5 = CITY_OWNER:(ARG:4)
 			LOCAL:6 = CITY_SOLDIER:(ARG:4) * LOCAL:6 / 100
 		ENDIF
-		SETCOLOR COLOR("注意")
+		SETCOLOR COLOR("素質発動")
 		PRINTFORML \@ GET_COUNTRY_BOSS(LOCAL:5) >= 0 ? %NAME:GET_COUNTRY_BOSS(LOCAL:5)% # 敵 \@軍の兵は、%NAME:(LOCAL:2)%の弁舌に騙され、次々と寝返っている！
 		IF ARG:5 >= 0
-			PRINTFORML %NAME:GET_COUNTRY_BOSS(LOCAL:5)%軍:{UNIT_SOLDIER:(ARG:4):(ARG:5)} → {UNIT_SOLDIER:(ARG:4):(ARG:5) - LOCAL:6}
+			PRINTFORML %NAME:GET_COUNTRY_BOSS(LOCAL:5), 10, RIGHT%軍:{UNIT_SOLDIER:(ARG:4):(ARG:5), 6, RIGHT} → {UNIT_SOLDIER:(ARG:4):(ARG:5) - LOCAL:6, 6, RIGHT}
 			UNIT_SOLDIER:(ARG:4):(ARG:5) -= LOCAL:6
 			BATTLE_SOL:(ARG:1) = UNIT_SOLDIER:(ARG:4):(ARG:5)
 		ELSE
-			PRINTFORML \@ GET_COUNTRY_BOSS(LOCAL:5) >= 0 ? %NAME:GET_COUNTRY_BOSS(LOCAL:5)% # 無所属 \@軍:{CITY_SOLDIER:(ARG:4)} → {CITY_SOLDIER:(ARG:4) - LOCAL:6}
+			PRINTFORML %@"\@ GET_COUNTRY_BOSS(LOCAL:5) >= 0 ? %NAME:GET_COUNTRY_BOSS(LOCAL:5)% # 無所属 \@", 10, RIGHT%軍:{CITY_SOLDIER:(ARG:4), 6, RIGHT} → {CITY_SOLDIER:(ARG:4) - LOCAL:6, 6, RIGHT}
 			CITY_SOLDIER:(ARG:4) -= LOCAL:6
 			BATTLE_SOL:(ARG:1) = CITY_SOLDIER:(ARG:4)
 		ENDIF
 		IF ARG:3 >= 0
-			PRINTFORML %NAME:GET_COUNTRY_BOSS(CFLAG:(LOCAL:2):所属)%軍:{UNIT_SOLDIER:(ARG:2):(ARG:3)} → {UNIT_SOLDIER:(ARG:2):(ARG:3) + LOCAL:6}
+			PRINTFORML %NAME:GET_COUNTRY_BOSS(CFLAG:(LOCAL:2):所属), 10, RIGHT%軍:{UNIT_SOLDIER:(ARG:2):(ARG:3), 6, RIGHT} → {UNIT_SOLDIER:(ARG:2):(ARG:3) + LOCAL:6, 6, RIGHT}
 			UNIT_SOLDIER:(ARG:2):(ARG:3) += LOCAL:6
 			BATTLE_SOL:(ARG:0) = UNIT_SOLDIER:(ARG:2):(ARG:3)
 		ELSE
-			PRINTFORML %NAME:GET_COUNTRY_BOSS(CFLAG:(LOCAL:2):所属)%軍:{CITY_SOLDIER:(ARG:2)} → {CITY_SOLDIER:(ARG:2) + LOCAL:6}
+			PRINTFORML %NAME:GET_COUNTRY_BOSS(CFLAG:(LOCAL:2):所属), 10, RIGHT%軍:{CITY_SOLDIER:(ARG:2), 6, RIGHT} → {CITY_SOLDIER:(ARG:2) + LOCAL:6, 6, RIGHT}
 			CITY_SOLDIER:(ARG:2) += LOCAL:6
 			BATTLE_SOL:(ARG:0) = CITY_SOLDIER:(ARG:2)
+		ENDIF
+	ENDIF
+NEXT
+
+FOR LOCAL:0, 0, 3
+	;野盗。特殊計略を発動させる。発動は1回の戦闘で1度のみで、発動率はBANDIT_RANKに依存する。
+	IF 発動側:LOCAL >= 0
+		IF TALENT:(発動側:LOCAL):野盗 && BANDIT_RANK * 10 > RAND:100
+			SETCOLOR COLOR("素質発動")
+			PRINTFORML %NAME:GET_COUNTRY_BOSS(CFLAG:(発動側:LOCAL):所属)%軍は、ゲリラ作戦で敵軍を困惑させている！
+			RESETCOLOR
+			BATTLE_RATE_DMG:(ARG:0) += 0
+			BATTLE_RATE_ATC:(ARG:0) += 30
+			BATTLE_RATE_GRD:(ARG:0) += 20
+			BREAK
+		ENDIF
+	ENDIF
+NEXT
+
+FOR LOCAL:0, 0, 3
+	IF 発動側:LOCAL >= 0
+		;ホフゴブリン。仲間を呼び、兵数を増やす。発動は1回の戦闘で1度のみで、来る数（そもそも来るのか？）はGOBLIN_RANKに依存する
+		IF TALENT:(発動側:LOCAL):ホフゴブリン
+			SETCOLOR COLOR("素質発動")
+			PRINTFORML %ANAME(発動側:LOCAL)%は仲間を呼んだ！
+			IF GOBLIN_RANK * 10 > RAND:100
+				LOCAL:6 = RAND(1000, MAX(1000 + GOBLIN_RANK * 1000))
+				PRINTFORML 援軍が現れた！
+				IF ARG:3 >= 0
+					UNIT_SOLDIER:(ARG:2):(ARG:3) += LOCAL:6
+					PRINTFORML %NAME:GET_COUNTRY_BOSS(CFLAG:(発動側:LOCAL):所属), 10, RIGHT%軍:{UNIT_SOLDIER:(ARG:2):(ARG:3), 6, RIGHT} → {UNIT_SOLDIER:(ARG:2):(ARG:3) + LOCAL:6, 6, RIGHT}
+				ELSE
+					CITY_SOLDIER:(ARG:2) += LOCAL:6
+					PRINTFORML %NAME:GET_COUNTRY_BOSS(CFLAG:(発動側:LOCAL):所属), 10, RIGHT%軍:{CITY_SOLDIER:(ARG:2), 6, RIGHT} → {CITY_SOLDIER:(ARG:2) + LOCAL:6, 6, RIGHT}
+				ENDIF
+			ELSE
+				PRINTFORML ……しかし誰も助けに来なかった！
+			ENDIF
+			BREAK
 		ENDIF
 	ENDIF
 NEXT
@@ -1162,7 +1182,7 @@ ELSE
 	NEXT
 ENDIF
 
-SETCOLOR COLOR("注意")
+SETCOLOR COLOR("素質発動")
 FOR LOCAL:0, 0, 3
 	IF 武将:LOCAL >= 0
 		IF TALENT:(武将:LOCAL):三種の神器 && 20 > RAND:100
@@ -1259,6 +1279,28 @@ FOR LOCAL:0, 0, 3
 		ENDIF
 	ENDIF
 NEXT
+
+FOR LOCAL:0, 0, 3
+	IF 武将:LOCAL >= 0
+		;外来人。敵部隊の自部隊より高い能力を、自部隊の能力以下にせしめる。発動判定は1回の戦闘で1度のみで、発動率はGAIRAI_RANKに依存する。
+		IF TALENT:(武将:LOCAL):外来人
+			;GAIRAI_RANKに応じて確率が上昇。
+			IF GAIRAI_RANK * 10 > RAND:100
+				SETCOLOR COLOR("桃")
+				PRINTFORML %ANAME(武将:LOCAL)%は敵に怪しげな桃色の霧を吹きかける……！
+				SIF BATTLE_ATC:受動側 > BATTLE_ATC:発動側
+					BATTLE_ATC:受動側 = BATTLE_ATC:発動側 * 7 / 10
+				SIF BATTLE_DEF:受動側 > BATTLE_DEF:発動側
+					BATTLE_DEF:受動側 = BATTLE_DEF:発動側 * 7 / 10
+				SIF BATTLE_INT:受動側 > BATTLE_INT:発動側
+					BATTLE_INT:受動側 = BATTLE_INT:発動側 * 7 / 10
+				SETCOLOR COLOR("素質発動")
+			ENDIF
+			BREAK
+		ENDIF
+	ENDIF
+NEXT
+
 RESETCOLOR
 ;-------------------------------------------------
 ;計略の発動
@@ -1678,17 +1720,6 @@ IF CONFIG:305 >= 1
 	NEXT
 ENDIF
 
-;勝利側が現代兵術持ちの場合の処理
-IS_GAIRAI = 0
-FOR LOCAL:0, 0, 3
-	IF COMMANDER_W:(LOCAL:0) >= 0 && TALENT:(COMMANDER_W:(LOCAL:0)):現代兵術
-		IS_GAIRAI = 1
-		BREAK
-	ENDIF
-NEXT
-
-
-
 FOR LOCAL:0, 0, 3
 	LOCAL:4 = COMMANDER_L:(LOCAL:0)
 	IF LOCAL:4 >= 0
@@ -1712,32 +1743,10 @@ FOR LOCAL:0, 0, 3
 				CAPTURE_RATE = MAX(CAPTURE_RATE, 5, 50)
 		ENDSELECT
 		IF TALENT:(LOCAL:4):早足 && RAND:3 && CAPTURE_RATE != 100
-			SETCOLOR COLOR("注意")
+			SETCOLOR COLOR("素質発動")
 			PRINTFORML %ANAME(LOCAL:4)%は早足を利用して逃げ回る！
 			RESETCOLOR
 			CAPTURE_RATE /= 2
-		ENDIF
-		;現代兵術を持っているなら100%(捕獲率が0のときは除く)
-		IF IS_GAIRAI && CONFIG:306 != 3
-			CAPTURE_RATE = 100
-		ENDIF
-		;勝利側が野盗なら3/4
-		IF ARG:1 >= 0 && ARG:3 >= 0 && COUNTRY_EVENT_ID:(ARG:0) == COUNTRY_BANDIT && CONFIG:306 != 3
-			SELECTCASE CONFIG:306
-				CASE 0
-					;素の値
-					CAPTURE_RATE = 60
-				CASE 1
-					;高い
-					CAPTURE_RATE = 80
-				CASE 2
-					CAPTURE_RATE = 100
-				CASE 3
-					CAPTURE_RATE = 0
-				CASE 4
-					;低い
-					CAPTURE_RATE = 30
-			ENDSELECT
 		ENDIF
 	ELSE
 		CAPTURE_RATE = 0
@@ -1755,21 +1764,16 @@ FOR LOCAL:0, 0, 3
 				PRINTFORML %NAME:(LOCAL:4)%は捕らえられた模様です
 			ENDIF
 
-			;外来勢力なら1/2で強制的に捕虜化
-			IF IS_GAIRAI && RAND:100 > 50
-				CFLAG:(LOCAL:4):9 = COUNTRY_W
-			ELSE
-				;捕虜の扱いを決定
-				CALL TREAT_PRISONER(COUNTRY_L, COUNTRY_W, LOCAL:4, 1)
-				;解放したなら自勢力に戻ってもらう
-				IF RESULT == 1
-					CFLAG:(LOCAL:4):12 = 0
-					CFLAG:(LOCAL:4):13 = 0
-					CFLAG:(LOCAL:4):14 = 0
-				;処刑したなら無所属に
-				ELSEIF RESULT == 3
-					CFLAG:(LOCAL:4):1 = 0
-				ENDIF
+			;捕虜の扱いを決定
+			CALL TREAT_PRISONER(COUNTRY_L, COUNTRY_W, LOCAL:4, 1)
+			;解放したなら自勢力に戻ってもらう
+			IF RESULT == 1
+				CFLAG:(LOCAL:4):12 = 0
+				CFLAG:(LOCAL:4):13 = 0
+				CFLAG:(LOCAL:4):14 = 0
+			;処刑したなら無所属に
+			ELSEIF RESULT == 3
+				CFLAG:(LOCAL:4):1 = 0
 			ENDIF
 
 		;逃走した場合
@@ -1783,27 +1787,27 @@ FOR LOCAL:0, 0, 3
 			ENDIF
 			;とりま25%の確率で負傷
 			IF !RAND:4
-				SLG_COOLTIME:(LOCAL:4):0 = RAND:3 + 2
+				COOLTIME:(LOCAL:4):0 = RAND:3 + 2
 				SETCOLOR COLOR("警告")
 				PRINTFORML 逃走中、%NAME:(LOCAL:4)%は負傷したようです
-				PRINTFORML 全治{SLG_COOLTIME:(LOCAL:4):0}ターンです
+				PRINTFORML 全治{COOLTIME:(LOCAL:4):0}ターンです
 				RESETCOLOR
 				LOCAL:5 = 0
 				;治療持ちが同じ勢力にいる場合は確率、本人が治療持ちの場合は確定で、負傷を軽減
 				FOR LOCAL:1, 0, CHARANUM
-					IF SLG_COOLTIME:(LOCAL:4):0 > 1 && (TALENT:(LOCAL:1):治療 && CFLAG:(LOCAL:1):1 == CFLAG:(LOCAL:4):1 && CFLAG:(LOCAL:1):9 == 0 && RAND:100 < 10) || (TALENT:(LOCAL:4):治療 && !LOCAL:5)
+					IF COOLTIME:(LOCAL:4):0 > 1 && (TALENT:(LOCAL:1):治療 && CFLAG:(LOCAL:1):1 == CFLAG:(LOCAL:4):1 && CFLAG:(LOCAL:1):9 == 0 && RAND:100 < 10) || (TALENT:(LOCAL:4):治療 && !LOCAL:5)
 						IF TALENT:(LOCAL:4):治療
-							SLG_COOLTIME:(LOCAL:4):0 = 1
+							COOLTIME:(LOCAL:4):0 = 1
 							LOCAL:5 = 1
-							SETCOLOR COLOR("注意")
+							SETCOLOR COLOR("素質発動")
 							PRINTFORML %NAME:(LOCAL:4)%は怪我を自ら治療しました
-							PRINTFORML 全治{SLG_COOLTIME:(LOCAL:4):0}ターンになりました
+							PRINTFORML 全治{COOLTIME:(LOCAL:4):0}ターンになりました
 							RESETCOLOR
 						ELSE
-							SLG_COOLTIME:(LOCAL:4):0 = MAX(1, SLG_COOLTIME:(LOCAL:4):0 - (RAND:2 + 1))
-							SETCOLOR COLOR("注意")
+							COOLTIME:(LOCAL:4):0 = MAX(1, COOLTIME:(LOCAL:4):0 - (RAND:2 + 1))
+							SETCOLOR COLOR("素質発動")
 							PRINTFORML %NAME:(LOCAL:1)%の治療により、%NAME:(LOCAL:4)%の怪我は軽く済みました
-							PRINTFORML 全治{SLG_COOLTIME:(LOCAL:4):0}ターンになりました
+							PRINTFORML 全治{COOLTIME:(LOCAL:4):0}ターンになりました
 							RESETCOLOR
 						ENDIF
 					ENDIF
@@ -2624,122 +2628,6 @@ FOR LOCAL:0, 0, CHARANUM
 	ENDIF
 NEXT
 
-;-------------------------------------------------
-;野盗の処理
-;-------------------------------------------------
-@BANDIT_TURNEND(ARG:0)
-#DIM 兵数
-#DIM 増加量
-#DIM 部隊番号
-#DIM 出兵先
-#DIM LCOUNT
-#DIM 中継点の数
-#DIM 接続都市所有者,2
-#DIM 解散フラグ
-#DIM 都市数, 3
-
-VARSET LOCAL
-VARSET 兵数
-VARSET 部隊番号
-VARSET 出兵先
-VARSET 中継点の数
-VARSET 解散フラグ
-VARSET 都市数
-
-;野盗湧かない期間中だとなにもせずにおわる
-SIF BANDIT_POP_SUSPENDED > 0
-	RETURN 0
-
-;DEBUGPRINTL 野盗ターンエンド
-;各勢力の支配都市数を元に徴兵数及び編成時の兵数を決定
-FOR LCOUNT, 1, MAX_COUNTRY
-	SIF !IS_COUNTRY(LCOUNT)
-		CONTINUE
-	都市数:0 = GET_OWN_CITY(LCOUNT)
-	ARRAYSORT 都市数, FORWARD
-NEXT
-;最大勢力の支配都市数と第2勢力の都市数の2倍を基準値として計算
-都市数:0 = 都市数:1 * 2 + 都市数:2
-
-;基準値の２乗の80から120%の徴兵、最大は最大兵数の5%（最大兵数はその時点での全都市の経済規模の1%）
-増加量 = MIN(POWER(都市数:0, 2) * (80 + RAND:41) / 100, SUMARRAY(CITY_ECONOMY) / 2000)
-COUNTRY_SOLDIER:(ARG:0) = MIN(SUMARRAY(CITY_ECONOMY) / 100, COUNTRY_SOLDIER:(ARG:0) + 増加量)
-
-DEBUGPRINTFORML 【野盗徴兵:{DAY, 3}】:{都市数:0}, {都市数:1}, {都市数:2} / {増加量}
-
-FOR LCOUNT, 0, MAX_UNIT
-	IF UNIT_SOLDIER:(ARG:0):LCOUNT > 0
-		接続都市所有者:0 = CITY_OWNER:(CITY_ROOT:(UNIT_POSITION:(ARG:0):LCOUNT):0)
-		接続都市所有者:1 = CITY_OWNER:(CITY_ROOT:(UNIT_POSITION:(ARG:0):LCOUNT):1)
-		;2都市の所有者が両方無所属勢力、ないし2都市の所有者が敵対関係にない(同盟とか、両方同じ国とか)場合は解散
-		IF (!IS_COUNTRY(接続都市所有者:0) && !IS_COUNTRY(接続都市所有者:1)) || CHECK_COUNTRY_RELATION_F(接続都市所有者:0, 接続都市所有者:1)
-			CALL CLEAR_UNIT(ARG:0, LCOUNT)
-			解散フラグ = 1
-		;そうでないなら兵数が増える
-		ELSE
-			TIMES UNIT_SOLDIER:(ARG:0):LCOUNT, 1.03
-			UNIT_SOLDIER:(ARG:0):LCOUNT = MIN(UNIT_SOLDIER:(ARG:0):LCOUNT, 10000)
-		ENDIF
-	ENDIF
-NEXT
-;DEBUGPRINTFORML 野盗全体:{COUNTRY_SOLDIER:(ARG:0)}
-;特定条件で出兵
-IF DAY % 3 == 0 || 解散フラグ
-	;空いている部隊を調べる
-	;空いていたら部隊作成
-	FOR LCOUNT, 0, MAX_UNIT
-		IF UNIT_SOLDIER:(ARG:0):LCOUNT == 0
-			部隊番号 = LCOUNT
-			兵数 = MIN(COUNTRY_SOLDIER:(ARG:0) / 2, POWER(都市数:0, 2) * RAND(70, 120) / 10)
-			DEBUGPRINTFORML 【野盗派兵:{DAY, 3}】:{兵数}
-			UNIT_SOLDIER:(ARG:0):LCOUNT = 兵数
-			COUNTRY_SOLDIER:(ARG:0)  -= 兵数
-			;DEBUGPRINTFORML 兵数予定：{兵数}
-			BREAK
-		ENDIF
-	NEXT
-	;出兵していたら、中継地点から適当にチョイス
-	;なおCITYは0番を空っぽにし、1から始める仕様。中継点を得る場合、ループは1から始めないといけない（それか、GET_CITY_NUMで得られる値に1を足さないといけない)
-	IF 兵数
-		FOR LCOUNT, 0, MAX_CITY
-			;DEBUGPRINTFORML 配置場所探索中
-			;接続先があることを、単に設定されていない場所と中継点との違いであるみなす
-			IF CITY_TYPE:LCOUNT == 1 && CITY_ROOT:(LCOUNT):0
-				;DEBUGPRINTFORML 接続先発見:{LCOUNT+GET_CITY_NUM()}
-				;中継点を見つけたら、その2都市の所有者を取得する。
-				接続都市所有者:0 = CITY_OWNER:(CITY_ROOT:(LCOUNT):0)
-				接続都市所有者:1 = CITY_OWNER:(CITY_ROOT:(LCOUNT):1)
-				;2都市の所有者が両方無所属勢力、ないし2都市の所有者が敵対関係にない(同盟とか、両方同じ国とか)場合は候補としない。
-				IF (!IS_COUNTRY(接続都市所有者:0) && !IS_COUNTRY(接続都市所有者:1)) || CHECK_COUNTRY_RELATION_F(接続都市所有者:0, 接続都市所有者:1)
-				ELSE
-					;DEBUGPRINTFORML LOCAL:{LCOUNT - GET_CITY_NUM() - 1}
-					LOCAL:(中継点の数) = LCOUNT
-					中継点の数 ++
-				ENDIF
-			ENDIF
-		NEXT
-		;中継点の数が0なら諦める
-		IF 中継点の数
-			CALL FISHER_YATES_SHAFFLE(中継点の数)
-			UNIT_POSITION:(ARG:0):部隊番号 = LOCAL:(SHAFFLE_ARRAY:0)
-			;士官が行動可能な状態にあるかどうかのリストを作成
-			CALL TMP_CREATE_IS_FREE_MAP
-			;部隊が最強となるような士官の組み合わせを得る
-			CALL CHECK_COMMANDER_BEST(ARG:0)
-			FOR LCOUNT, 0, 3
-				SIF UNIT_COMMANDER_BEST:(LCOUNT) >= 0
-					CALL SET_UNIT_COMMANDER(ARG:0, 部隊番号, LCOUNT, UNIT_COMMANDER_BEST:(LCOUNT))
-			NEXT
-			;DEBUGPRINTFORML LOCAL:SHAFFLE_ARRAY:0 {LOCAL:(SHAFFLE_ARRAY:0)}
-			;DEBUGPRINTFORML %CITY_NAME:(LOCAL:(SHAFFLE_ARRAY:0))%に出兵
-			;DEBUGPRINTFORML 兵数:{兵数}
-		ELSE
-			;DEBUGPRINTFORML 中継点なし。あきらめ
-			UNIT_SOLDIER:(ARG:0):部隊番号 = 0
-			COUNTRY_SOLDIER:(ARG:0) += 兵数
-		ENDIF
-	ENDIF
-ENDIF
 
 
 ;-------------------------------------------------

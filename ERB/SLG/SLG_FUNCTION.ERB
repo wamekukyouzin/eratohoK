@@ -59,7 +59,7 @@ RETURNF LOCAL:1
 @GET_OWN_CITY(ARG:0)
 #FUNCTION
 
-RETURNF MATCH(CITY_OWNER, ARG:0)
+RETURNF MATCH(CITY_OWNER, ARG:0, 1, CITY_NUM)
 ;-------------------------------------------------
 ;ARG:0番の勢力について、士官数を返す関数
 ;-------------------------------------------------
@@ -349,7 +349,7 @@ SIF TALENT:(ARG:0):触手妊娠 || TALENT:(ARG:0):Ａ触手妊娠
 	RETURNF 0
 
 ;その他のチェック
-SIF SLG_COOLTIME:(ARG:0):0 || (ARG:0 == GET_COOK()) || ARG:0 == ID_TO_CHARA(DVAR:金貸し娘)
+SIF COOLTIME:(ARG:0):0 || (ARG:0 == GET_COOK()) || ARG:0 == ID_TO_CHARA(DVAR:金貸し娘)
 	RETURNF 0
 
 LOCAL:2 = CFLAG:(ARG:0):1
@@ -1025,7 +1025,7 @@ ENDIF
 ;依存度逆転させて10倍したのを2＾(コンフィグ値^コンフィグ値)させ、烙印補正(+2000)を乗せてます
 ;大きく強化された場合、2^(2^2) = 2^4 = 16倍になるだけです。親愛つけたより少し弱いぐらいですから平気ですよ
 
-IF CONFIG:86 && TALENT:(ARG:1):研究用奴隷の烙印 && CFLAG:(ARG:1):1 == GET_COUNTRY_FROM_ID(299)
+IF CONFIG:86 && TALENT:(ARG:1):研究用奴隷の烙印 && CFLAG:(ARG:1):1 == GET_COUNTRY_FROM_ID(COUNTRY_GAIRAI)
 	LOCAL:10 = 1
 	LOCAL:0 += 2000 + ABS(CFLAG:(ARG:1):3) * 10 * POWER(2 , POWER(CONFIG:86 , CONFIG:86))
 ELSEIF CONFIG:86 && TALENT:(ARG:1):ゴブリンの性奴隷 && CFLAG:(ARG:1):1 == GET_COUNTRY_FROM_ID(300)
@@ -1232,17 +1232,20 @@ NEXT
 
 ;-------------------------------------------------
 ;ARG:0勢力のARG:1部隊を解散させる関数
+;ARG:2クールタイムつけないフラグ
 ;-------------------------------------------------
-@CLEAR_UNIT(ARG:0, ARG:1)
+@CLEAR_UNIT(ARG:0, ARG:1, ARG:2 = 0)
 LOCAL:1 = GET_UNIT_COMMANDER(ARG:0, ARG:1, 0)
 LOCAL:2 = GET_UNIT_COMMANDER(ARG:0, ARG:1, 1)
 LOCAL:3 = GET_UNIT_COMMANDER(ARG:0, ARG:1, 2)
 ;クールダウンの設定、負傷などして既に2ターン以上設定されていればそちらを残す
 ;なお、主人公の属しない勢力は都市を落とした部隊にクールダウンを与えず擬似的に継戦可能状態を与える
-FOR LOCAL:0, 1, 1 + MAX_UNIT_COMMANDER
-	SIF LOCAL:(LOCAL:0) >= 0
-		SLG_COOLTIME:(LOCAL:(LOCAL:0)):0 = MAX(SLG_COOLTIME:(LOCAL:(LOCAL:0)):0 , UNIT_CAPTURE_CITY:(ARG:0):(ARG:1) && ARG:0 != CFLAG:MASTER:1 ? 0 # 1)
-NEXT
+IF !ARG:2
+	FOR LOCAL:0, 1, 1 + MAX_UNIT_COMMANDER
+		SIF LOCAL:(LOCAL:0) >= 0
+			COOLTIME:(LOCAL:(LOCAL:0)):0 = MAX(COOLTIME:(LOCAL:(LOCAL:0)):0 , UNIT_CAPTURE_CITY:(ARG:0):(ARG:1) && ARG:0 != CFLAG:MASTER:1 ? 0 # 1)
+	NEXT
+ENDIF
 COUNTRY_SOLDIER:(ARG:0) += UNIT_SOLDIER:(ARG:0):(ARG:1)
 UNIT_SOLDIER:(ARG:0):(ARG:1) = 0
 UNIT_POSITION:(ARG:0):(ARG:1) = 0
@@ -1254,10 +1257,20 @@ UNIT_CAPTURE_CITY:(ARG:0):(ARG:1) = 0
 
 ;-------------------------------------------------
 ;ARG:0番の勢力の全部隊を解散させる関数
+;ARG:1クールタイムつけないフラグ
 ;-------------------------------------------------
-@CLEAR_ALL_UNIT(ARG:0)
+@CLEAR_ALL_UNIT(ARG:0, ARG:1 = 0)
 FOR LOCAL:0, 0, MAX_UNIT
-	CALL CLEAR_UNIT(ARG:0, LOCAL:0)
+	CALL CLEAR_UNIT(ARG:0, LOCAL:0, ARG:1)
+NEXT
+
+;-------------------------------------------------
+; ARG:0の勢力のARG:1番部隊がARG:2のクールタイム
+;-------------------------------------------------
+@SET_COMMANDER_COOLTIME(ARG:0, ARG:1, ARG:2=1)
+FOR LOCAL:0, 0, 3
+	SIF GET_UNIT_COMMANDER(ARG:0, ARG:1, LOCAL:0) >= 0
+		COOLTIME:(GET_UNIT_COMMANDER(ARG:0, ARG:1, LOCAL:0)):0 = ARG:2
 NEXT
 
 ;-------------------------------------------------
@@ -1369,8 +1382,10 @@ NEXT
 FOR LOCAL:0, 0, CHARANUM
 	IF CFLAG:(LOCAL:0):1 == ARG:0
 		CFLAG:(LOCAL:0):1 = 0
-		CFLAG:(LOCAL:0):9 = 0
-		CFLAG:(LOCAL:0):12 = 1
+		;CFLAG:(LOCAL:0):9 = 0
+		;捕虜になっていなければ、放浪させる
+		SIF !CFLAG:(LOCAL:0):9
+			CFLAG:(LOCAL:0):12 = 1
 		SIF TALENT:(LOCAL:0):借り物
 			TALENT:(LOCAL:0):借り物 = 0
 	ENDIF
@@ -1408,6 +1423,7 @@ NEXT
 ;解放カウンタに基づいて捕虜を解放する処理
 ;-------------------------------------------------
 @RELEASE_PRISONERS()
+#DIM 特殊捕虜先
 VARSET LOCAL
 DRAWLINE
 ;主人公が捕虜で監禁日数が4日以上ときのみ発生
@@ -1432,6 +1448,7 @@ IF CFLAG:MASTER:9 && CFLAG:MASTER:43 >= 5 && RAND:100 < (CFLAG:MASTER:43 - 5) * 
 	ENDIF
 ENDIF
 FOR LOCAL, 1, CHARANUM
+	特殊捕虜先 = (CFLAG:LOCAL:捕虜先 == GET_COUNTRY_FROM_ID(300) || CFLAG:LOCAL:捕虜先 == GET_COUNTRY_FROM_ID(COUNTRY_BANDIT) || CFLAG:LOCAL:捕虜先 == GET_COUNTRY_FROM_ID(COUNTRY_GAIRAI))
 	;もしその国が何らかの理由で滅んでいるのにまだ捕らえられていたら、強制的に解放する
 	IF CFLAG:LOCAL:捕虜先 && !IS_COUNTRY(CFLAG:LOCAL:捕虜先)
 		SETCOLOR COLOR("注意")
@@ -1442,7 +1459,7 @@ FOR LOCAL, 1, CHARANUM
 		ENDIF
 		RESETCOLOR
 	;通常の解放処理
-	ELSEIF LOCAL != MASTER && CFLAG:LOCAL:捕虜先 && CFLAG:LOCAL:捕虜先 != CFLAG:MASTER:1 && MIN((CFLAG:LOCAL:解放カウンタ - 5) * 5, 30) > RAND:100
+	ELSEIF LOCAL != MASTER && CFLAG:LOCAL:捕虜先 && CFLAG:LOCAL:捕虜先 != CFLAG:MASTER:1 && MIN((CFLAG:LOCAL:解放カウンタ - 5) * 5, 30) > RAND:100 && !特殊捕虜先
 		SETCOLOR COLOR("注意")
 		IF CFLAG:LOCAL:1
 			PRINTFORML %NAME:(GET_COUNTRY_BOSS(CFLAG:LOCAL:捕虜先))%に囚われていた%ANAME(LOCAL)%は\@ CFLAG:LOCAL:解放カウンタ >= 10 ? ようやく# \@解放され、%NAME:(GET_COUNTRY_BOSS(CFLAG:LOCAL:1))%のところに戻りました
@@ -1457,8 +1474,8 @@ FOR LOCAL, 1, CHARANUM
 		IF CFLAG:LOCAL:1 == CFLAG:MASTER:1 && LOCAL:1 == GET_COUNTRY_FROM_ID(COUNTRY_BANDIT)
 			CALL BANDIT_RELEASE_MSG(LOCAL)
 		ENDIF
-	;たまに脱走する
-	ELSEIF LOCAL != MASTER && CFLAG:LOCAL:捕虜先 && CFLAG:LOCAL:捕虜先 != CFLAG:MASTER:1 && (((CFLAG:LOCAL:捕虜先 == GET_COUNTRY_FROM_ID(300) || CFLAG:LOCAL:捕虜先 == GET_COUNTRY_FROM_ID(COUNTRY_BANDIT)) && 6 > RAND:100) || 3 > RAND:100)
+	;たまに脱走する。野盗、ホフゴブ、外来人なら率高め
+	ELSEIF LOCAL != MASTER && CFLAG:LOCAL:捕虜先 && CFLAG:LOCAL:捕虜先 != CFLAG:MASTER:1 && 特殊捕虜先 * 21 + 3 > RAND:100
 		;ただし自国の捕虜(現状下克上シナリオ専用)だと脱走先は放浪、または失敗
 		IF CFLAG:LOCAL:9 == CFLAG:LOCAL:1
 			;この場合脱走成功確率はさらに10分の1
@@ -1531,16 +1548,16 @@ FOR LCOUNTRY, 0, MAX_COUNTRY
 		FOR LUNIT, 0, MAX_UNIT
 			;部隊が存在し現在この都市の上にある
 			IF UNIT_SOLDIER:LCOUNTRY:LUNIT > 0 && UNIT_POSITION:LCOUNTRY:LUNIT == ARG:0
-				CALL CLEAR_UNIT(LCOUNTRY, LUNIT)
+				CALL CLEAR_UNIT(LCOUNTRY, LUNIT, 1)
 			ENDIF
 		NEXT
 	ENDIF
 NEXT
 ;その都市の守将と兵士は解散する
 SIF GET_CITY_COMMANDER(ARG:1, 0) >= 0
-	SLG_COOLTIME:GET_CITY_COMMANDER(ARG:1, 0):0 = 1
+	COOLTIME:GET_CITY_COMMANDER(ARG:1, 0):0 = 1
 SIF GET_CITY_COMMANDER(ARG:1, 1) >= 0
-	SLG_COOLTIME:GET_CITY_COMMANDER(ARG:1, 1):0 = 1
+	COOLTIME:GET_CITY_COMMANDER(ARG:1, 1):0 = 1
 CITY_COMMANDER:(ARG:1) = 0
 SIF IS_COUNTRY(CITY_OWNER:(ARG:1)) 
 	COUNTRY_SOLDIER:(CITY_OWNER:(ARG:1)) += MAX(CITY_SOLDIER:(ARG:1) - 500, 500)

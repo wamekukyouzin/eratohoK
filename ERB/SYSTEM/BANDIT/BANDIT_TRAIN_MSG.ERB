@@ -3,31 +3,55 @@
 ;SLG_TURNENDより呼ばれる
 ;-------------------------------------------------
 @TRAIN_BY_BANDIT()
-#DIM 野盗番号
+#DIM 野盗
 VARSET LOCAL
-野盗番号 = GET_COUNTRY_FROM_ID(COUNTRY_BANDIT)
+野盗 = GET_COUNTRY_FROM_ID(COUNTRY_BANDIT)
 FOR LOCAL:0, 0, CHARANUM
-	;野盗の捕虜であるか、「野党に所属していて、SPキャラでなく、1/5の確率または主人公」
-	IF CFLAG:LOCAL:9 == 野盗番号 || (CFLAG:LOCAL:所属 == 野盗番号 && NO:LOCAL < 2000 && (RAND:100 < 20 || LOCAL == MASTER))
-		IF !LOCAL:1
-			DRAWLINE
-			PRINTFORML 野盗に囚われた各国の仕官が陵辱されているようです……
-			PRINTFORML
-			LOCAL:1 = 1
-		ENDIF
-		;メッセ表示
-		IF CONFIG:80
+	IF (CFLAG:LOCAL:所属 == 野盗 && !CFLAG:LOCAL:捕虜先 || CFLAG:LOCAL:9 == 野盗) && NO:LOCAL < 2000
+		;調教の様子を表示
+		IF TRAIN_IS_SHOW_TEXT(LOCAL) && (!TALENT:LOCAL:野盗の肉便器 || (TALENT:LOCAL:野盗の肉便器 && CFLAG:LOCAL:所属 != 野盗) || (TALENT:LOCAL:野盗の肉便器 && !RAND:3))
+			;マスターは条件を満たしても野盗の士官スタートなら抜ける
+			SIF LOCAL == MASTER && BANDIT_START == 1
+				CONTINUE
+			IF !LOCAL:1
+				DRAWLINE
+				PRINTFORML 野盗に囚われた各国の仕官が陵辱されているようです……
+				PRINTFORML
+				LOCAL:1 = 1
+			ENDIF
+			CFLAG:(LOCAL:0):調教カウンタ ++
+			;メッセ表示
 			CALL BANDIT_TRAIN_MSG(LOCAL:0)
-		ENDIF
-		CALL FORCE_FUCK(LOCAL:0, -16)
-		;あまり長く捕らえられていると寝返る
-		IF CFLAG:LOCAL:所属 != 野盗番号 && CFLAG:LOCAL:捕虜先 == 野盗番号 && CFLAG:LOCAL:解放カウンタ >= 10
-			SETCOLOR COLOR("警告")
-			PRINTFORMW ……長きにわたる調教生活により、%ANAME(LOCAL)%の心は折れてしまったようだ
-			PRINTFORMW %ANAME(LOCAL)%は野盗の性奴隷となり、寝返った
-			RESETCOLOR
-			CFLAG:LOCAL:所属 = 野盗番号
-			CFLAG:LOCAL:捕虜先 = 0
+			WAIT
+			CALL FORCE_FUCK(LOCAL:0, -16, GROUPMATCH(BANDIT_START, 1, 2))
+			;あまり長く捕らえられていると寝返る
+			IF (CFLAG:LOCAL:調教カウンタ >= TRAIN_FALLEN_TERM:3 && !TALENT:LOCAL:野盗の肉便器) || (CFLAG:LOCAL:所属 != 野盗 && TALENT:LOCAL:野盗の肉便器)
+				SETCOLOR COLOR("警告")
+				IF !TALENT:(LOCAL):野盗の肉便器
+					PRINTFORMW ……長きにわたる調教生活により、%ANAME(LOCAL)%の心は折れてしまったようだ
+					PRINTFORMW %ANAME(LOCAL)%は野盗の肉便器となり、寝返った
+				ELSE
+					PRINTFORMW ……野盗の調教を受け、%ANAME(LOCAL)%は彼らの肉便器に過ぎない己の身分を思い出した
+					PRINTFORMW %ANAME(LOCAL)%は野盗の肉便器に復職した
+				ENDIF
+				RESETCOLOR
+				TALENT:LOCAL:野盗の肉便器 = 1
+				CFLAG:LOCAL:所属 = 野盗
+				CFLAG:LOCAL:捕虜先 = 0
+				IF IS_LOVER(LOCAL) && !GROUPMATCH(BANDIT_START, 1, 2)
+					SETCOLOR COLOR("警告")
+					PRINTFORML %ANAME(LOCAL)%の中で、%ANAME(MASTER)%への愛情よりも、野盗どもに使われる快楽が上回った
+					RESETCOLOR
+					CALL LOSE_RELATION_TALENT(LOCAL)
+				ENDIF
+				IF IS_SLAVE(LOCAL) && !GROUPMATCH(BANDIT_START, 1, 2)
+					SETCOLOR COLOR("警告")
+					PRINTFORML %ANAME(LOCAL)%の中で、%ANAME(MASTER)%への忠誠よりも、野盗どもに使われる快楽が上回った
+					RESETCOLOR
+					CALL LOSE_RELATION_TALENT(LOCAL)
+					TALENT:(LOCAL):烙印 = 0
+				ENDIF
+			ENDIF
 		ENDIF
 	ENDIF
 NEXT
@@ -43,7 +67,7 @@ NEXT
 @BANDIT_TRAIN_MSG(対象)
 #DIM 士官フラグ
 #DIM 対象
-IF CFLAG:対象:1 == GET_COUNTRY_FROM_ID(COUNTRY_BANDIT)
+IF TALENT:対象:野盗の肉便器 || CFLAG:対象:調教カウンタ >= TRAIN_FALLEN_TERM:2
 	士官フラグ = 1
 ELSE
 	士官フラグ = 0
@@ -664,19 +688,7 @@ IF VAGINA(対象)
 ELSE
 	PRINTFORML 野盗に囚われた%ANAME(対象)%が調教されているようだ……
 ENDIF
-IF IS_LOVER(対象) && CFLAG:(対象):好感度 <= 1500
-	SETCOLOR COLOR("警告")
-	PRINTFORML %ANAME(対象)%の中で、%ANAME(MASTER)%への愛情よりも、野盗どもに使われる快楽が上回った
-	RESETCOLOR
-	CALL LOSE_RELATION_TALENT(対象)
-ENDIF
-IF IS_SLAVE(対象) && CFLAG:(対象):従属度 <= 1500
-	SETCOLOR COLOR("警告")
-	PRINTFORML %ANAME(対象)%の中で、%ANAME(MASTER)%への忠誠よりも、野盗どもに使われる快楽が上回った
-	RESETCOLOR
-	CALL LOSE_RELATION_TALENT(対象)
-	TALENT:(対象):烙印 = 0
-ENDIF
+
 
 RETURN
 
