@@ -211,7 +211,7 @@ FOR LOCAL:0, 0, MAX_UNIT_COMMANDER
 	IF LOCAL:1 >= 0
 		SIF LOCAL:0 >= 1
 			LOCALS:0 += @"%ARGS:2%"
-		LOCALS:0 += @"%NAME:(LOCAL:1)%"
+		LOCALS:0 += @"%ANAME(LOCAL:1)%"
 	ENDIF
 NEXT
 RETURNF LOCALS:0
@@ -491,6 +491,30 @@ NEXT
 RETURNF 0
 
 ;-------------------------------------------------
+;ARG:0番の都市に存在する部隊を取得する関数(最大5勢力まで)
+;戻り値 0～4:勢力番号
+;-------------------------------------------------
+@GET_STAY_UNIT(ARG:0)
+SIF !INRANGE(ARG:0 , 1 , MAX_CITY)
+	RETURN -1
+
+VARSET LOCAL, -1, 10, 15
+LOCAL:2 = 10
+FOR LOCAL:0, 0, MAX_COUNTRY
+	IF IS_COUNTRY(LOCAL:0)
+		FOR LOCAL:1, 0, 10
+			IF UNIT_SOLDIER:(LOCAL:0):(LOCAL:1) > 0 && UNIT_POSITION:(LOCAL:0):(LOCAL:1) == ARG:0
+				LOCAL:(LOCAL:2) = LOCAL:0
+				LOCAL:2 ++
+				BREAK
+			ENDIF
+		NEXT
+	ENDIF
+NEXT
+RETURN LOCAL:10, LOCAL:11, LOCAL:12, LOCAL:13, LOCAL:14
+
+
+;-------------------------------------------------
 ;ARG:0番の都市に存在する他勢力部隊を取得する関数(最大5勢力まで)
 ;戻り値 0～4:勢力番号
 ;-------------------------------------------------
@@ -535,6 +559,26 @@ FOR LOCAL:0, 0, MAX_COUNTRY
 	ENDIF
 NEXT
 RETURNF 0
+
+;-------------------------------------------------
+;ARG:0番の都市に自軍の部隊が存在するかどうかだけを単純に返す関数
+;-------------------------------------------------
+@IS_STAY_MYUNIT(ARG:0)
+#FUNCTION
+SIF !INRANGE(ARG:0 , 1 , MAX_CITY)
+	RETURNF 0
+
+FOR LOCAL:0, 0, MAX_COUNTRY
+	IF IS_COUNTRY(LOCAL:0) && CFLAG:MASTER:所属 == LOCAL:0
+		FOR LOCAL:1, 0, 10
+			IF UNIT_SOLDIER:(LOCAL:0):(LOCAL:1) > 0 && UNIT_POSITION:(LOCAL:0):(LOCAL:1) == ARG:0
+				RETURNF 1
+			ENDIF
+		NEXT
+	ENDIF
+NEXT
+RETURNF 0
+
 
 ;-------------------------------------------------
 ;ARG:0番の都市がARG:1番の勢力と隣接しているかどうかを判定する関数
@@ -1578,61 +1622,6 @@ ENDIF
 
 ;統治権を委譲する
 CITY_OWNER:(ARG:1) = ARG:0
-
-
-;-------------------------------------------------
-;都市上に存在する部隊をリストで表示する関数 ARG:0=都市番号
-;-------------------------------------------------
-@SHOW_CITY_UNIT_LIST(ARG:0)
-#DIM LCOUNT,2
-VARSET LOCALS, ""
-FOR LCOUNT, 0, MAX_COUNTRY
-	IF IS_COUNTRY(LCOUNT)
-		FOR LCOUNT:1, 0, MAX_UNIT
-			IF UNIT_POSITION:(LCOUNT:0):(LCOUNT:1) == ARG:0 && UNIT_SOLDIER:(LCOUNT:0):(LCOUNT:1) >  0
-				SELECTCASE CHECK_COUNTRY_RELATION_F(CFLAG:MASTER:1, LCOUNT)
-					CASE 0
-						SETCOLOR COLOR("敵")
-						PRINT 敵 
-					CASE 1
-						SETCOLOR COLOR("停戦")
-						PRINT 停 
-					CASE 2
-						SETCOLOR COLOR("連合")
-						PRINT 連 
-					CASE 3
-						SETCOLOR COLOR("同盟")
-						PRINT 同 
-					CASE 4
-						SETCOLOR COLOR("永久同盟")
-						PRINT 永 
-					CASE 5
-						PRINT 自 
-				ENDSELECT
-				RESETCOLOR
-				SETCOLOR COUNTRY_COLOR:LCOUNT
-				PRINTFORM %ANAME(GET_COUNTRY_BOSS(LCOUNT:0)) + "軍", 9, LEFT% 
-				RESETCOLOR
-				PRINTFORM 人数:{UNIT_SOLDIER:(LCOUNT:0):(LCOUNT:1), 6, RIGHT} 
-				IF GET_UNIT_COMMANDER(LCOUNT, LCOUNT:1, 0) != -1
-					LOCALS '= "<"
-					LOCALS '= LOCALS + ANAME(GET_UNIT_COMMANDER(LCOUNT, LCOUNT:1, 0))
-					IF GET_UNIT_COMMANDER(LCOUNT, LCOUNT:1, 1) != -1
-						LOCALS '= LOCALS + ", "
-						LOCALS '= LOCALS + ANAME(GET_UNIT_COMMANDER(LCOUNT, LCOUNT:1, 1))
-					ENDIF
-					IF GET_UNIT_COMMANDER(LCOUNT, LCOUNT:1, 2) != -1
-						LOCALS '= LOCALS + ", "
-						LOCALS '= LOCALS + ANAME(GET_UNIT_COMMANDER(LCOUNT, LCOUNT:1, 2))
-					ENDIF
-					LOCALS '= LOCALS + ">"
-					PRINTFORML %LOCALS%
-				ENDIF
-			ENDIF
-		NEXT
-	ENDIF
-NEXT
-PRINTW 
 
 ;-------------------------------------------------
 ;キャラリスト表示　誰かを選べばそのキャラ番号が、「やめる」を選ぶと-1が返る

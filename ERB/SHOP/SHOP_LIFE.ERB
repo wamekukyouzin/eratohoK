@@ -240,6 +240,10 @@ ELSEIF FLAG:7 == 1015
 ELSEIF FLAG:7 == 1016
 	CALL LIFE_MENU_TEBIKI(1)
 	RETURN
+;料理長
+ELSEIF FLAG:7 == 1050
+	CALL LIFE_MENU_COOK()
+	RETURN
 ENDIF
 
 ;会いに行く
@@ -350,35 +354,6 @@ ELSEIF FLAG:7 == 1040
 	CALL PRINT_LIFE_MENU(1)
 	CALL REPEAT_DASH(0)
 	行数 = 2
-;料理長
-ELSEIF FLAG:7 == 1050
-	CALL PRINT_LIFE_MENU(0)
-	PRINTFORML ★★料理長にしたい自国キャラを選択して下さい★★
-	CALL PRINT_LIFE_MENU(1)
-	CALL REPEAT_DASH(0)
-	CALL PRINT_LIFE_MENU(2)
-	PRINTFORML 料理長は拠点フェイズの行動後に体力・気力を回復してくれます
-	CALL PRINT_LIFE_MENU(3)
-	PRINTFORML 回復量は料理長の料理の値に応じます。料理長は部隊への参加ができません
-	CALL PRINT_LIFE_MENU(4)
-	PRINTFORM 現在の料理長は
-	IF GET_COOK() != -1
-		FONTSTYLE 1
-		SETCOLOR COLOR("オレンジ")
-		PRINTFORM 　%ANAME(GET_COOK())%　
-		FONTSTYLE 0
-		RESETCOLOR
-		PRINTFORML です
-	ELSE
-		FONTSTYLE 1
-		PRINTFORML 　いません
-		FONTSTYLE 0
-	ENDIF
-	CALL PRINT_LIFE_MENU(5)
-	PRINTFORML 現在料理長になっているキャラを選択することで解除できます
-	CALL PRINT_LIFE_MENU(6)
-	CALL REPEAT_DASH(0)
-	行数 = 7
 ELSE
 	行数 = 0
 ENDIF
@@ -1097,6 +1072,126 @@ FOR LOCAL:0, 行数, 26
 	ENDIF
 	PRINTL 
 NEXT
+
+;-------------------------------------------------
+;「料理長」のメニュー表示
+;-------------------------------------------------
+@LIFE_MENU_COOK()
+#DIM 選択人数;(LOCAL:30)
+#DIM 行数;(LOCAL:20)
+#DIM 最大ページ数
+#DIM PRINTOPTION
+CALL PRINT_LIFE_MENU(0)
+PRINTFORML ★★料理長にしたい自国キャラを選択して下さい★★
+CALL PRINT_LIFE_MENU(1)
+CALL REPEAT_DASH(0)
+CALL PRINT_LIFE_MENU(2)
+PRINTFORML 料理長は拠点フェイズの行動後に体力・気力を回復してくれます
+CALL PRINT_LIFE_MENU(3)
+PRINTFORML 回復量は料理長の料理の値に応じます。料理長は部隊への参加ができません
+CALL PRINT_LIFE_MENU(4)
+PRINTFORM 現在の料理長は
+IF GET_COOK() != -1
+	FONTSTYLE 1
+	SETCOLOR COLOR("オレンジ")
+	PRINTFORM 　%ANAME(GET_COOK())%　
+	FONTSTYLE 0
+	RESETCOLOR
+	PRINTFORML です
+ELSE
+	FONTSTYLE 1
+	PRINTFORML 　いません
+	FONTSTYLE 0
+ENDIF
+CALL PRINT_LIFE_MENU(5)
+PRINTFORML 現在料理長になっているキャラを選択することで解除できます
+CALL PRINT_LIFE_MENU(6)
+CALL REPEAT_DASH(0)
+行数 = 7
+;ページ数を計算
+LOCAL:12 = (24 - 行数) * 3
+最大ページ数 = 0
+FOR LOCAL:0, 0, CHARANUM
+	;選択可能な条件を満たしているかどうかを判定
+	CALL CHECK_SELECTABLE(FLAG:7, LOCAL:0)
+	IF RESULT
+		最大ページ数 ++
+	ENDIF
+NEXT
+最大ページ数 = MAX((最大ページ数 - 1) / LOCAL:12 + 1, 1)
+
+;ページ数を範囲に収める
+FLAG:6 = (最大ページ数 - 1 + FLAG:6 % 最大ページ数) % 最大ページ数 + 1
+LOCAL:11 = FLAG:6
+
+;キャラリストの表示
+LOCAL:13 = 0
+LOCAL:14 = 0
+LOCAL:15 = (LOCAL:11 - 1) * LOCAL:12
+LOCAL:16 = LOCAL:11 * LOCAL:12
+FOR LOCAL:0, 0, CHARANUM
+	LOCAL:5 = SHOP_CHARA_LIST:(LOCAL:0)
+	;選択可能な条件を満たしているかどうかを判定
+	RESULT = 0
+	CALL CHECK_SELECTABLE(FLAG:7, LOCAL:5)
+	PRINTOPTION = RESULT
+	IF RESULT
+		IF LOCAL:13 >= LOCAL:15 && LOCAL:13 < LOCAL:16
+			IF LOCAL:14 % 3 != 0
+				PRINTPLAIN 　
+			ELSE
+				IF LOCAL:14 >= 2
+					PRINTL 
+				ENDIF
+				CALL PRINT_LIFE_MENU(行数)
+				行数 ++
+			ENDIF
+			IF PRINTOPTION == 1
+				PRINTBUTTON @"{NO:(LOCAL:5) + 100, 5, RIGHT}[%ANAME(LOCAL:5), 16, LEFT%]", NO:(LOCAL:5) + 100
+			ELSEIF PRINTOPTION == 2
+				PRINTBUTTON @"{NO:(LOCAL:5) + 100, 5, RIGHT}[%ANAME(LOCAL:5), 16, LEFT%]", NO:(LOCAL:5) + 100
+			ENDIF
+			PRINTFORM  
+			CALL PRINT_ALPHABET_RANK(2, ABL:(LOCAL:5):料理)
+			PRINTFORM  {ABL:(LOCAL:5):料理, 2, RIGHT} 
+			LOCAL:14 ++
+		ENDIF
+		LOCAL:13 ++
+	ENDIF
+NEXT
+IF LOCAL:14 >= 2
+	PRINTL 
+ENDIF
+
+IF 行数 < 26
+	FOR LOCAL:0, 行数, 26
+		CALL PRINT_LIFE_MENU(LOCAL:0)
+		IF LOCAL:0 == 24
+			CALL REPEAT_DASH(0, 0)
+		ELSEIF LOCAL:0 == 25
+			PRINT   
+			IF 最大ページ数 >= 2
+				PRINTBUTTON "54[前のページ    ]", 54
+			ELSE
+				SETCOLOR COLOR("選択不可")
+				PRINTPLAINFORM 54[前のページ    ]
+				RESETCOLOR
+			ENDIF
+			PRINTPLAINFORM %TOSTR_SPACE(10)%
+			LOCALS:0 = page{LOCAL:11}/{最大ページ数}
+			PRINTPLAINFORM %LOCALS:0, 14, LEFT%
+			IF 最大ページ数 >= 2
+				PRINTBUTTON "56[次のページ    ]", 56
+			ELSE
+				SETCOLOR COLOR("選択不可")
+				PRINTPLAINFORM 56[次のページ    ]
+				RESETCOLOR
+			ENDIF
+		ENDIF
+		PRINTL 
+	NEXT
+ENDIF
+
 ;-------------------------------------------------
 ;ショップ画面の入力処理(拠点フェイズ 0～99)
 ;ARG:0に入力した値が入る
@@ -2202,12 +2297,12 @@ ELSEIF FLAG:7 == 1050
 		PRINTFORMW %ANAME(ARG:0)%を料理長から解任しました
 		CALL SET_COOK(-1)
 	ELSE
+		FLAG:24 = 0
 		PRINTFORMW %ANAME(ARG:0)%を料理長に任命しました
 		PRINTFORMW %ANAME(ARG:0)%の料理の値に応じ、拠点フェイズの行動後、%ANAME(MASTER)%の体力が回復します
 		PRINTFORMW ただし、%ANAME(ARG:0)%が捕虜になると効果がなくなります
 		CALL SET_COOK(ARG:0)
 	ENDIF
-	FLAG:7 = 1000
 ;様子を見る(逆調教専用)
 ;ELSEIF FLAG:7 == 1030
 ;	CALL SHOP_WATCH_OTHERS(ARG:0)
