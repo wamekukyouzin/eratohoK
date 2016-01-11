@@ -173,10 +173,102 @@ TFLAG:51 = 4
 RETURN 1
 
 ;-------------------------------------------------
+;継続状態の処理
+;-------------------------------------------------
+@COM_EQUIP55(ARG:0)
+;実行判定
+CALL COM_ORDER_COMMON
+SIF RESULT == 0
+	RETURN 0
+
+;挿入関係を一時リセット
+
+FOR LOCAL:0, 0, MEQUIP_PLAYER_NUM:(ARG:0)
+	LOCAL:1 = MEQUIP_PLAYER:(ARG:0):(LOCAL:0)
+	DOWNBASE:(LOCAL:1):体力 += 50
+
+	;プレイヤーが行動不能または拘束中なら騎乗位挿入にする
+	LOCAL:6 = !IS_PLAYABLE(LOCAL:1) || IS_BIND(LOCAL:1)
+
+	;●プレイヤー側の処理
+	EXP:(LOCAL:1):性技経験値 += 2
+	EXP:(LOCAL:1):性交経験値 += 2
+
+	LOCAL:5 = 0
+	FOR LOCAL:2, 0, MEQUIP_TARGET_NUM:(ARG:0)
+		LOCAL:3 = MEQUIP_TARGET:(ARG:0):(LOCAL:2)
+		IF LOCAL:6
+			SOURCE:(LOCAL:1):快Ｐ = SENSE_SEX_TARGET_P(LOCAL:3, LOCAL:1, 1500)
+		ELSE
+			SOURCE:(LOCAL:1):快Ｐ = SENSE_SEX_PLAYER_P(LOCAL:3, LOCAL:1, 1500)
+		ENDIF
+
+		;性交系の共通処理
+		CALL COM_COMMON_SEX_P(LOCAL:1, LOCAL:3)
+
+		LOCAL:5 += SOURCE:(LOCAL:1):快Ｐ
+		SOURCE:(LOCAL:1):快Ｐ = 0
+	NEXT
+	SOURCE:(LOCAL:1):快Ｐ = LOCAL:5 / MEQUIP_PLAYER_NUM:(ARG:0)
+	SOURCE:(LOCAL:1):露出 += 100
+	SOURCE:(LOCAL:1):性行動 += 450
+
+	;主導権に応じた優越・屈従のソース追加
+	CALL ADD_SOURCE_INITIATIVE_U(LOCAL:1, 200, 100)
+
+	;奉仕経験値を得られるコマンドのフラグ
+	TCVAR:(LOCAL:1):4 = 1
+
+
+	;プレイヤーの射精先を強制リセット
+	CALL RESET_STACK_SPERM(LOCAL:1)
+
+	;完全ランダムに射精対象を選ぶ
+	CALL STACK_SPERM(LOCAL:1, MEQUIP_TARGET:(ARG:0):(RAND:(MEQUIP_TARGET_NUM:(ARG:0))), 1, 1)
+NEXT
+;体位フラグのセット
+;TCVAR:(MPLY:0):31 = 1
+;TCVAR:(MTAR:0):33 = 1
+
+;●ターゲット側の処理
+FOR LOCAL:1, 0,  MEQUIP_TARGET_NUM:(ARG:0)
+	LOCAL:2 =  MEQUIP_TARGET:(ARG:0):(LOCAL:1)
+	LOCAL:3 = MEQUIP_PLAYER:(ARG:0):(RAND:(MEQUIP_PLAYER_NUM:(ARG:0)))
+
+	EXP:(LOCAL:2):性技経験値 += 1
+	EXP:(LOCAL:2):性交経験値 += 1
+	EXP:(LOCAL:2):輪姦経験 += MEQUIP_PLAYER_NUM:(ARG:0) / 2
+	
+	IF LOCAL:6
+		SOURCE:(LOCAL:2):快Ｖ += SENSE_SEX_PLAYER(LOCAL:2, LOCAL:3, MAX(1200 - MTAR_NUM * 75, 600))
+	ELSE
+		SOURCE:(LOCAL:2):快Ｖ += SENSE_SEX_TARGET(LOCAL:2, LOCAL:3, MAX(1200 - MTAR_NUM * 75, 600))
+	ENDIF
+	SOURCE:(LOCAL:2):露出 += 400
+	SOURCE:(LOCAL:2):性行動 += 450
+
+	;性交系の共通処理
+	CALL COM_COMMON_SEX_V(LOCAL:2, LOCAL:3)
+
+	;主導権に応じた優越・屈従のソース追加
+	CALL ADD_SOURCE_INITIATIVE_U(LOCAL:2, 150, 100)
+
+	;奉仕経験値を得られるコマンドのフラグ
+	TCVAR:(LOCAL:2):4 = 1
+
+	;ターゲットのＶ⇔プレイヤーのＰの汚れが移動
+	;STAIN:(LOCAL:2):3 |= STAIN:(MPLY:0):2
+	;STAIN:(MPLY:0):2 |= STAIN:(LOCAL:2):3
+NEXT
+
+RETURN 1
+
+
+;-------------------------------------------------
 ;継続コマンドかどうかを設定
 ;-------------------------------------------------
 @COM_IS_EQUIP55
-RETURN 0
+RETURN 1
 
 ;-------------------------------------------------
 ;固有の実行判定(プレイヤー側)
@@ -188,6 +280,25 @@ TCVAR:(ARG:0):25 = 90
 ;膣性交共通
 CALL COM_ORDER_VSEX_P(ARG:0)
 RETURN 1
+
+;-------------------------------------------------
+;継続中の表示
+;-------------------------------------------------
+@EQUIP_MESSAGE55(ARG:0)
+RESULTS = %EQUIP_PLAYER_ANAME(ARG:0)%が%EQUIP_TARGET_ANAME(ARG:0)%に順番に挿入中
+
+;-------------------------------------------------
+;継続中の地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE_EQUIP55(ARG:0)
+PRINTFORML %EQUIP_PLAYER_ANAME(ARG:0)%は%EQUIP_TARGET_ANAME(ARG:0)%を順番に犯している……
+
+;-------------------------------------------------
+;継続を解除したときの地の文
+;-------------------------------------------------
+@COM_TEXT_RELEASE_EQUIP55(ARG:0)
+PRINTFORML %EQUIP_PLAYER_ANAME(ARG:0)%は%EQUIP_TARGET_ANAME(ARG:0)%から離れた
+
 
 ;-------------------------------------------------
 ;地の文(前文)
