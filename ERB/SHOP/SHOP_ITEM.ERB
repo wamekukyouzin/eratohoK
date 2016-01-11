@@ -157,11 +157,18 @@ ELSEIF RESULT >= 100 && RESULT < 300 && ITEMNAME:RESULT != ""
 			RESTART
 		;購入アイテム(その場使用)
 		ELSEIF LOCAL:2 >= 280 && LOCAL:2 < 300
-			CALL SELECT_ITEM_USER(LOCAL:2)
-			IF RESULT
+			IF ITEMNAME:(LOCAL:2) == "犬" || ITEMNAME:(LOCAL:2) == "豚"
+				PRINTFORMW %ITEMNAME:(LOCAL:2)%を購入しました
 				MONEY -= LOCAL:3
+				CALL ADD_ANIMAL(ITEMNAME:(LOCAL:2), CFLAG:MASTER:1)
+				RESTART
+			ELSE
+				CALL SELECT_ITEM_USER(LOCAL:2)
+				IF RESULT
+					MONEY -= LOCAL:3
+				ENDIF
+				RESTART
 			ENDIF
-			RESTART
 		ENDIF
 
 	;開発アイテム
@@ -689,6 +696,20 @@ RETURN 0
 IF (ITEMSALES:ふたなり薬 != 0) + (ITEMSALES:性転換薬 != 0) + (ITEMSALES:獣変化の秘薬 != 0) >= 2
 	RETURN 1
 ENDIF
+
+;犬と豚
+@ITEM_ABLE285
+;太平淫術の書を持っている
+IF ITEM:太平淫術の書
+	RETURN 1
+ENDIF
+RETURN 0
+
+@ITEM_ABLE286
+;太平淫術の書を持っている
+IF ITEM:太平淫術の書
+	RETURN 1
+ENDIF
 RETURN 0
 
 ;-------------------------------------------------
@@ -878,3 +899,48 @@ PRINTFORMW %ANAME(ARG:0)%が<妖術知識>を身につけました
 @ITEM_EFFECT142(ARG:0)
 ABL:(ARG:0):性知識 = 5
 PRINTFORMW %ANAME(ARG:0)%の性知識が上昇しました(Lv5)
+
+;-------------------------------------------------
+;犬と豚を追加する
+;-------------------------------------------------
+@ADD_ANIMAL(ARGS:0, ARG:0)
+CALL ADD_VOID_CHARA()
+LOCAL = RESULT
+NAME:LOCAL = %ARGS:0%
+CALLNAME:LOCAL = %ARGS:0%
+MAXBASE:LOCAL:体力 = 3000
+MAXBASE:LOCAL:気力 = 3000
+MAXBASE:LOCAL:精神力 = 1500
+
+BASE:LOCAL:体力 = MAXBASE:LOCAL:体力
+BASE:LOCAL:気力 = MAXBASE:LOCAL:気力
+BASE:LOCAL:精神力 = MAXBASE:LOCAL:精神力
+
+ABL:LOCAL:Ｃ感 = 5
+ABL:LOCAL:欲望 = 5
+ABL:LOCAL:性技 = 5
+ABL:LOCAL:性知識 = 5
+ABL:LOCAL:奉仕 = 0
+ABL:LOCAL:性交 = 10
+ABL:LOCAL:射精 = 5
+
+EXP:LOCAL:絶頂経験 = 300
+
+ABL:LOCAL:武闘 = 5
+ABL:LOCAL:知略 = 5
+ABL:LOCAL:政治 = 1
+ABL:LOCAL:歌唱 = 1
+ABL:LOCAL:料理 = 1
+TALENT:LOCAL:絶倫 = 1
+TALENT:(LOCAL:0):合意 = 1
+CFLAG:(LOCAL):従属度 = 1000
+CFLAG:(LOCAL):依存度 = 500
+CFLAG:(LOCAL:0):17 = 1
+CFLAG:(LOCAL):1 = ARG:0
+
+SELECTCASE ARGS:0
+	CASE "犬"
+		TALENT:LOCAL:犬 = 1
+	CASE "豚"
+		TALENT:LOCAL:豚 = 1
+ENDSELECT
