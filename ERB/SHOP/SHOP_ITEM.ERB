@@ -55,7 +55,14 @@ FOR LOCAL:0, 100, 300
 		ENDIF
 		LOCAL:1 ++
 		CALL GET_PRICE(LOCAL:0)
-		PRINTFORM [{LOCAL:0}] %ITEMNAME:(LOCAL:0), 12, LEFT%{RESULT, 7}  
+		;所持金不足 or 所持数オーバーで購入できない時は色を変える
+		IF MONEY < RESULT || ITEM:(LOCAL:0) >= 99
+			SETCOLOR COLOR("選択不可")
+			PRINTFORM [{LOCAL:0}] %ITEMNAME:(LOCAL:0), 12, LEFT%{RESULT, 7}  
+			RESETCOLOR
+		ELSE
+			PRINTFORM [{LOCAL:0}] %ITEMNAME:(LOCAL:0), 12, LEFT%{RESULT, 7}  
+		ENDIF
 	ENDIF
 NEXT
 PRINTL 
@@ -244,6 +251,19 @@ SELECTCASE ARG:2
 			IF LOCAL:2
 				PRINTL 
 			ENDIF
+			;限界まで購入ボタン
+			;有り金全部で買えるだけ買うといくつになるか計算
+			LOCAL:3 = MONEY / ARG:1
+			;元あった分と足したら所持限界をオーバーする場合、オーバー分を引く
+			IF ITEM:(ARG:0) + LOCAL:3 > 99
+				LOCAL:3 = LOCAL:3 - ( LOCAL:3 + ITEM:(ARG:0) - 99 )
+			ENDIF
+			;0でなければボタン表示
+			IF LOCAL:3 != 0
+				PRINTFORM  [{LOCAL:3, 2}]限界まで購入
+				PRINTL 
+			ENDIF
+		;所持金が値段より小さい場合
 		ELSE
 			SETCOLOR COLOR("選択不可")
 			PRINTL 所持金不足により購入不可
