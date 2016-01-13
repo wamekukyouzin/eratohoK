@@ -455,25 +455,54 @@ RETURNF -1
 
 ;--------------------------------------------------------
 ;ARG:0番の都市がARG:1の国から侵略できるかチェック
-;本当は全都市見ないでARG:0のROOTから調べていくべきだよね
 ;--------------------------------------------------------
 @IS_INVADABLE(ARG:0, ARG:1)
 #FUNCTION
 SIF !INRANGE(ARG:0 , 1 , MAX_CITY)
 	RETURNF 0
 
-FOR LOCAL:0, 0, MAX_CITY
-	; 条件
-	; LOCAL:0が中継地でない
-	; LOCAL:0がARG:0と隣接
-	; LOCAL:0が通行可能（LOCAL:0の支配国との関係が2以上）
-	; ARG:1がARG:0の支配国と敵対
+; 支配国と敵対してないとだめ
+SIF !(CITY_OWNER:(ARG:0) == 0 || CHECK_COUNTRY_RELATION_F(CITY_OWNER:(ARG:0),   ARG:1) <= 0)
+	RETURNF 0
+
+; 隣接都市を捜査
+FOR LOCAL:0, 0, 10
+	LOCAL:5 = CITY_ROOT:(ARG:0):(LOCAL:0)
 	
-	LOCAL:1 = CHECK_COUNTRY_RELATION_F(CITY_OWNER:(ARG:0),   ARG:1)
-	LOCAL:2 = CHECK_COUNTRY_RELATION_F(CITY_OWNER:(LOCAL:0), ARG:1)
-	SIF CITY_TYPE:(LOCAL:0) == 0 && IS_ROOT(ARG:0, LOCAL:0) && (LOCAL:1 <= 0 || CITY_OWNER:(ARG:0) == 0) && LOCAL:2 >= 2
-		RETURNF 1
+	SIF LOCAL:5 == 0
+		BREAK
+
+	IF CITY_TYPE:(LOCAL:5) == 0
+	; 都市の場合は通行可能であれば1
+		SIF IS_PASSABLE(LOCAL:5, ARG:1)
+			RETURNF 1
+	ELSE
+	; 中継地ならもう1段掘り下げ
+		FOR LOCAL:1, 0, 10
+			LOCAL:6 = CITY_ROOT:(LOCAL:5):(LOCAL:1)
+			SIF LOCAL:6 == 0
+				BREAK
+			
+			; 都市かつ通行可能であれば1
+			SIF CITY_TYPE:(LOCAL:6) == 0 && IS_PASSABLE(LOCAL:6, ARG:1)
+				RETURNF 1
+		NEXT
+	ENDIF
 NEXT
+
+RETURNF 0
+
+;--------------------------------------------------------
+;ARG:1の国がARG:0番の都市を通行可能かチェック
+;--------------------------------------------------------
+@IS_PASSABLE(ARG:0, ARG:1)
+#FUNCTION
+
+; 中継地でなく、支配国との関係が2以上
+IF CITY_TYPE:(ARG:0) == 0 && CHECK_COUNTRY_RELATION_F(CITY_OWNER:(ARG:0), ARG:1) >= 2
+	RETURNF 1
+ENDIF
+
 RETURNF 0
 
 ;-------------------------------------------------
@@ -620,7 +649,7 @@ RETURNF -1
 ;-------------------------------------------------
 @CHECK_COUNTRY_RELATION_F(ARG:0, ARG:1)
 #FUNCTION
-SIF ARG:0 == 0 || ARG:1 == 0
+SIF GROUPMATCH(0, ARG:0, ARG:1)
 	RETURNF 0
 
 SIF ARG:0 == ARG:1
@@ -628,6 +657,10 @@ SIF ARG:0 == ARG:1
 
 ;同盟の判定
 FOR LOCAL:0, 0, MAX_TREATY_A
+
+	SIF TREATY_A_TERM:(LOCAL:0) <= 0
+		CONTINUE
+
 	LOCAL:2 = 0
 	LOCAL:3 = 0
 	FOR LOCAL:1, 0, MAX_TREATY_COUNTRY
@@ -645,6 +678,9 @@ NEXT
 
 ;連合の判定
 FOR LOCAL:0, 0, MAX_TREATY_U
+	SIF TREATY_U_TERM:(LOCAL:0) <= 0
+		CONTINUE
+		
 	LOCAL:2 = 0
 	LOCAL:3 = 0
 	FOR LOCAL:1, 0, MAX_TREATY_COUNTRY
@@ -659,6 +695,9 @@ NEXT
 
 ;停戦の判定
 FOR LOCAL:0, 0, MAX_TREATY_C
+	SIF TREATY_C_TERM:(LOCAL:0) <= 0
+		CONTINUE
+		
 	LOCAL:2 = 0
 	LOCAL:3 = 0
 	FOR LOCAL:1, 0, MAX_TREATY_COUNTRY
@@ -689,6 +728,9 @@ SIF ARG:0 == ARG:1
 
 ;同盟の判定
 FOR LOCAL:0, 0, MAX_TREATY_A
+	SIF TREATY_A_TERM:(LOCAL:0) <= 0
+		CONTINUE
+		
 	LOCAL:2 = 0
 	LOCAL:3 = 0
 	FOR LOCAL:1, 0, MAX_TREATY_COUNTRY
@@ -708,6 +750,9 @@ NEXT
 
 ;連合の判定
 FOR LOCAL:0, 0, MAX_TREATY_U
+	SIF TREATY_U_TERM:(LOCAL:0) <= 0
+		CONTINUE
+		
 	LOCAL:2 = 0
 	LOCAL:3 = 0
 	FOR LOCAL:1, 0, MAX_TREATY_COUNTRY
@@ -724,6 +769,9 @@ NEXT
 
 ;停戦の判定
 FOR LOCAL:0, 0, MAX_TREATY_C
+	SIF TREATY_C_TERM:(LOCAL:0) <= 0
+		CONTINUE
+
 	LOCAL:2 = 0
 	LOCAL:3 = 0
 	FOR LOCAL:1, 0, MAX_TREATY_COUNTRY
