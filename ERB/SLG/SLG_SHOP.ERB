@@ -31,28 +31,49 @@ ENDIF
 ;ショップ画面の表示処理(戦略フェイズ)
 ;-------------------------------------------------
 @SHOW_SHOP_SLG
-;無効な入力時に消去する時の行数
-FLAG:24 = LINES_SHOP_SLG
-
 ;コマンドの選択可否判定
 CALL CHECK_SHOP_COMABLE_SLG
 
-;マップとコマンドボタンを表示
-CALL SET_CITY_COLOR_COUNTRY
-CALL SET_CITY_COLOR_UNIT
-CALL DRAWMAP(1)
-CALL RESET_CITY_COLOR
-DRAWLINE
+;無効な入力時に消去する時の行数
+FLAG:24 = LINES_SHOP_SLG
 
-;都市の情報を表示
-CALL SHOW_CITY_INFO(SHOWN_CITY)
+IF FLAG:200 == 2
+	CALL SHOW_CITY_ARMY()
+ELSE
+	;マップとコマンドボタンを表示
+	CALL SET_CITY_COLOR_COUNTRY
+	CALL SET_CITY_COLOR_UNIT
+	CALL DRAWMAP(1)
+	CALL RESET_CITY_COLOR
+	DRAWLINE
 
+	;都市の情報を表示
+	CALL SHOW_CITY_INFO(SHOWN_CITY)
+ENDIF
 ;-------------------------------------------------
 ;ショップ画面の入力処理(戦略フェイズ 0～99)
 ;ARG:0に入力した値が入る
 ;処理を行った場合は1を、行わなかった場合は0を返すこと
 ;-------------------------------------------------
 @EVENTBUY_SLG(ARG:0)
+
+IF FLAG:200 == 2
+	SELECTCASE ARG:0
+		CASE 54
+			CALL SHOW_CITY_ARMY(0,-1)
+			RETURN 0
+		CASE 56
+			CALL SHOW_CITY_ARMY(0, 1)
+			RETURN 0
+		CASE 44
+			CALL SHOW_CITY_ARMY(0,-2)
+			RETURN 0
+		CASE 66
+			CALL SHOW_CITY_ARMY(0, 2)
+			RETURN 0
+	ENDSELECT
+ENDIF
+
 ;観戦モード
 IF FLAG:1
 	;勢力情報
@@ -90,6 +111,21 @@ ELSEIF CFLAG:MASTER:1 == 0
 
 ;通常
 ELSE
+
+	;都市管理
+	IF ARG:0 == 2
+		IF FLAG:200 == 2
+			FLAG:200 = -1
+		ELSE
+			CALL SHOW_CITY_ARMY(1)
+			FLAG:201 = 0
+			FLAG:200 = 2
+		ENDIF
+		RETURN 0
+	ELSE
+		FLAG:200 = -1
+	ENDIF
+
 	;部隊編成
 	IF ARG:0 == 0 && CONFIG:302 == 0
 		IF DAY < SLG_PP:1
@@ -101,8 +137,12 @@ ELSE
 	ELSEIF ARG:0 == 1 && CONFIG:302 == 0
 		CALL MINIMIZE_GUARD
 	;外交
-	ELSEIF ARG:0 == 2 && !COUNTRY_IS_CLOSED:(CFLAG:MASTER:1)
+	ELSEIF ARG:0 == 3 && !COUNTRY_IS_CLOSED:(CFLAG:MASTER:1)
 		CALL DIPLOMACY
+	;都市管理
+	ELSEIF ARG:0 == 2
+		FLAG:200 = 2
+		RETURN 0
 	;勢力情報
 	ELSEIF ARG:0 == 5
 		CALL SHOW_COUNTRY_DATA
@@ -153,6 +193,7 @@ RETURN 1
 ;処理を行った場合は1を、行わなかった場合は0を返すこと
 ;-------------------------------------------------
 @USERSHOP_SLG(ARG:0)
+
 ;都市情報
 IF ARG:0 >= 1000 && ARG:0 < 1000 + MAX_CITY
 	SHOWN_CITY = ARG:0 - 1000
