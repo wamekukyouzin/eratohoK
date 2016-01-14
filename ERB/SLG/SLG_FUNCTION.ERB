@@ -59,7 +59,7 @@ RETURNF LOCAL:1
 @GET_OWN_CITY(ARG:0)
 #FUNCTION
 
-RETURNF MATCH(CITY_OWNER, ARG:0, 1, CITY_NUM)
+RETURNF MATCH(CITY_OWNER, ARG:0, 1, CITY_NUM + 1)
 ;-------------------------------------------------
 ;ARG:0番の勢力について、士官数を返す関数
 ;-------------------------------------------------
@@ -454,6 +454,78 @@ NEXT
 RETURNF -1
 
 ;--------------------------------------------------------
+;ARG:0番の都市のリスクをチェック
+; 6 現在敵部隊が存在する
+; 5 隣接する中継地に敵部隊を確認
+; 4 隣国が敵対（中継地なし）
+; 3 その他
+; 2 
+; 1 
+; 0 安全
+; 
+; TODO:隣国が停戦以上の関係であるが、その同盟国が攻め込んでくる関係
+;--------------------------------------------------------
+@GET_CITY_RISK(ARG:0)
+#FUNCTION
+#DIM RET
+#DIM OWNER1
+#DIM OWNER2
+RET = 0
+
+SIF !INRANGE(ARG:0 , 1 , MAX_CITY)
+	RETURNF 0
+
+OWNER1 = CITY_OWNER:(ARG:0)
+
+SIF IS_STAY_ENEMY_UNIT(ARG:0, OWNER1, 1) == 1
+	RETURNF 6
+
+; 隣接都市を走査
+FOR LOCAL:0, 0, 10
+	LOCAL:5 = CITY_ROOT:(ARG:0):(LOCAL:0)
+	
+	SIF LOCAL:5 == 0
+		BREAK
+
+	IF CITY_TYPE:(LOCAL:5) == 0
+	; 都市の場合
+		OWNER2 = CITY_OWNER:(LOCAL:5)
+		SELECTCASE TMP_COUNTRY_RELATION:OWNER1:OWNER2
+			CASE 0
+				RETURNF 4
+			CASE IS != 5
+				RET = 3
+		ENDSELECT
+	ELSE
+	; 中継地の場合
+		
+		; 敵部隊がいれば危険度5
+		IF IS_STAY_ENEMY_UNIT(LOCAL:5, OWNER1, 1) == 1
+			RETURNF 5
+		ENDIF
+
+		; そうでなければ隣の都市をチェック
+		FOR LOCAL:1, 0, 10
+			LOCAL:6 = CITY_ROOT:(LOCAL:5):(LOCAL:1)
+			
+			SIF LOCAL:6 == 0
+				BREAK
+			
+			OWNER2 = CITY_OWNER:(LOCAL:6)
+			
+			; 都市の場合
+			IF CITY_TYPE:(LOCAL:6) == 0
+				; 自国でなければ危険度3以上
+				SIF  TMP_COUNTRY_RELATION:OWNER1:OWNER2 != 5
+					RET = 3
+			ENDIF
+		NEXT
+	ENDIF
+NEXT
+
+RETURNF RET
+
+;--------------------------------------------------------
 ;ARG:0番の都市がARG:1の国から侵略できるかチェック
 ;--------------------------------------------------------
 @IS_INVADABLE(ARG:0, ARG:1)
@@ -465,7 +537,7 @@ SIF !INRANGE(ARG:0 , 1 , MAX_CITY)
 SIF !(CITY_OWNER:(ARG:0) == 0 || CHECK_COUNTRY_RELATION_F(CITY_OWNER:(ARG:0),   ARG:1) <= 0)
 	RETURNF 0
 
-; 隣接都市を捜査
+; 隣接都市を走査
 FOR LOCAL:0, 0, 10
 	LOCAL:5 = CITY_ROOT:(ARG:0):(LOCAL:0)
 	
@@ -589,6 +661,41 @@ FOR LOCAL:0, 0, MAX_COUNTRY
 NEXT
 RETURNF 0
 
+;------------------------------------------------------------
+;ARG:0番の都市に敵対部隊が存在するかどうかを返す関数
+;敵対国がいれば1 → 期限付き同盟以下がいれば2 → それ以外で0
+;ARG:2=1 で都市を持たない野盗は無視する
+;高速化テーブル使用
+;------------------------------------------------------------
+@IS_STAY_ENEMY_UNIT(ARG:0, ARG:1 = 0, ARG:2 = 0)
+#FUNCTION
+#DIM RET
+RET = 0
+LOCAL:20 = GET_COUNTRY_FROM_ID(COUNTRY_BANDIT)
+
+SIF ARG:1 == 0
+	ARG:1 = CFLAG:MASTER:1
+
+SIF !INRANGE(ARG:0 , 1 , MAX_CITY)
+	RETURNF 0
+
+FOR LOCAL, 0, 20
+	LOCAL:10 = TMP_UNIT_ONCITY_CNT:(ARG:0):(LOCAL:0)
+		SIF LOCAL:10 == 0
+			RETURNF 0
+	
+		SIF GET_OWN_CITY(LOCAL:20) <= 0 && LOCAL:10 == LOCAL:20 && ARG:2
+			CONTINUE
+			
+		SIF TMP_COUNTRY_RELATION:(ARG:1):(LOCAL:10) == 0
+			RETURNF 1
+			
+		SIF TMP_COUNTRY_RELATION:(ARG:1):(LOCAL:10) < 4
+			RET = 2
+NEXT
+
+RETURNF RET
+
 ;-------------------------------------------------
 ;ARG:0番の都市に自軍の部隊が存在するかどうかだけを単純に返す関数
 ;-------------------------------------------------
@@ -608,24 +715,6 @@ FOR LOCAL:0, 0, MAX_COUNTRY
 NEXT
 RETURNF 0
 
-;-------------------------------------------------
-;ARG:0番の都市に自軍以外の舞台が存在するかどうかだけを単純に返す関数
-;-------------------------------------------------
-@IS_STAY_OTHERUNIT(ARG:0)
-#FUNCTION
-SIF !INRANGE(ARG:0 , 1 , MAX_CITY)
-	RETURNF 0
-
-FOR LOCAL:0, 0, MAX_COUNTRY
-	IF IS_COUNTRY(LOCAL:0) && CFLAG:MASTER:所属 != LOCAL:0
-		FOR LOCAL:1, 0, 10
-			IF UNIT_SOLDIER:(LOCAL:0):(LOCAL:1) > 0 && UNIT_POSITION:(LOCAL:0):(LOCAL:1) == ARG:0
-				RETURNF 1
-			ENDIF
-		NEXT
-	ENDIF
-NEXT
-RETURNF 0
 
 ;-------------------------------------------------
 ;ARG:0番の都市がARG:1番の勢力と隣接しているかどうかを判定する関数
@@ -1818,3 +1907,23 @@ ELSEIF CFLAG:MASTER:1 != CFLAG:対象:1 || CFLAG:対象:捕虜先
 ENDIF
 
 RETURN 対象
+
+; 夜盗の状態
+; 0:沈静化
+; 1:出没中
+; 2:都市持ち
+@GET_BANDIT_STATE()
+#FUNCTION
+	LOCAL:10 = GET_COUNTRY_FROM_ID(COUNTRY_BANDIT)
+	SIF LOCAL:10 < 0
+		RETURNF 0
+		
+	IF GET_OWN_CITY(LOCAL:10) > 0
+		RETURNF 2
+	ELSE
+		FOR LOCAL, 0, 10
+			SIF UNIT_SOLDIER:(LOCAL:10):(LOCAL:0) > 0 && UNIT_POSITION > UNIT_SOLDIER:(LOCAL:10):(LOCAL:0) > 0
+				RETURNF 1
+		NEXT
+	ENDIF
+RETURNF 0
