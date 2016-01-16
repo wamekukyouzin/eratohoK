@@ -5,6 +5,15 @@
 #DIM ARR,10
 #DIM ARR2,10
 #DIM FROM
+#DIM 勢力
+#DIM 部隊攻撃
+#DIM 部隊知略
+#DIM 都市攻撃
+#DIM 都市知略
+VARSET 部隊攻撃
+VARSET 部隊知略
+VARSET 都市攻撃
+VARSET 都市知略
 CLEARLINE 1
 PRINTL 
 IF DAY < SLG_PP:1
@@ -21,13 +30,58 @@ ELSEIF IS_INVADABLE(ARG:0, CFLAG:MASTER:1)
 		WAIT
 		RETURN
 	ENDIF
+	勢力 = CITY_OWNER:(ARG:0)
+	IF IS_COUNTRY(CITY_OWNER:(ARG:0))
+		;部隊能力を計算
+		CALL TMP_CREATE_IS_FREE_MAP
+		LOCALS:0 = 
+		LOCAL:2 = 0
+		CALL CHECK_UNIT_COMMANDER_BEST(勢力)
+		FOR LOCAL, 0, 3
+			LOCAL:1 = UNIT_COMMANDER_BEST:LOCAL
+			IF LOCAL:1 >= 0
+				SIF LOCAL:2 != 0
+					LOCALS:0 = %LOCALS:0%・
+				LOCALS:0 = %LOCALS:0%%ANAME(LOCAL:1)%
+			ENDIF
+			LOCAL:2 ++
+		NEXT
+		SIF LOCALS:0 != ""
+			LOCALS:0 = <%LOCALS:0%>
+		部隊攻撃 = UNIT_ATTACK_LEVEL_VIRTUAL(勢力, UNIT_COMMANDER_BEST:0, UNIT_COMMANDER_BEST:1, UNIT_COMMANDER_BEST:2)
+		部隊知略 = UNIT_INTELLIGENCE_LEVEL_VIRTUAL(勢力, UNIT_COMMANDER_BEST:0, UNIT_COMMANDER_BEST:1, UNIT_COMMANDER_BEST:2)
+
+		;都市能力を計算
+		LOCALS:1 = 
+		LOCAL:2 = 0
+		CALL CHECK_CITY_COMMANDER_BEST(ARG:0, 1)
+		FOR LOCAL, 0, 2
+			LOCAL:1 = CITY_COMMANDER_BEST:LOCAL
+			IF LOCAL:1 >= 0
+				SIF LOCAL:2 != 0
+					LOCALS:1 = %LOCALS:1%・
+				LOCALS:1 = %LOCALS:1%%ANAME(LOCAL:1)%
+			ENDIF
+			LOCAL:2 ++
+		NEXT
+		SIF LOCALS:1 != ""
+			LOCALS:1 = <%LOCALS:1%>
+		都市攻撃 = CITY_ATTACK_LEVEL_VIRTUAL(ARG:0, CITY_COMMANDER_BEST:0, CITY_COMMANDER_BEST:1)
+		都市知略 = CITY_INTELLIGENCE_LEVEL_VIRTUAL(ARG:0, CITY_COMMANDER_BEST:0, CITY_COMMANDER_BEST:1)
+	ENDIF
 	
 	$INPUT_LOOP
 	DRAWLINE
 	PRINTL ●侵攻する部隊を選択してください
+	IF IS_COUNTRY(CITY_OWNER:(ARG:0))
+		PRINTFORML 現時点でありえる最強の部隊:%LOCALS:0, 32, LEFT% 武闘:%TOSTR_UNIT_POWER_SHORT(部隊攻撃), 6, LEFT%知略:%TOSTR_UNIT_POWER_SHORT(部隊知略)%
+		PRINTFORML 現時点でありえる最強の守将:%LOCALS:1, 32, LEFT% 武闘:%TOSTR_UNIT_POWER_SHORT(都市攻撃), 6, LEFT%知略:%TOSTR_UNIT_POWER_SHORT(都市知略)%
+	ENDIF
 	DRAWLINE
 	CALL LISTUP_FORCE(CFLAG:MASTER:1, "CHECK_FORCE_SELECTABLE_INVADE")
 	DRAWLINE
+	PRINTBUTTON "20[新規部隊]", 20
+	PRINTL
 	PRINTBUTTON " 0[    戻る]", 0
 	INPUT
 	LOCAL:10 = RESULT
@@ -135,6 +189,21 @@ ELSEIF IS_INVADABLE(ARG:0, CFLAG:MASTER:1)
 			GOTO INPUT_LOOP
 		ENDIF
 	ELSEIF LOCAL:10 == 0
+	ELSEIF LOCAL:10 == 20
+		LOCAL:1 = 0
+		FOR LOCAL:0, 0, MAX_UNIT
+			IF UNIT_SOLDIER:(CFLAG:MASTER:1):(LOCAL:0) <= 0
+				LOCAL:1 = 1
+				CALL CREATE_UNIT(CFLAG:MASTER:1, LOCAL:0)
+				BREAK
+			ENDIF
+		NEXT
+		IF !LOCAL:1
+			PRINTW これ以上部隊を編成することはできません
+		ENDIF
+		RESTART
+	ELSEIF 101 <= LOCAL:10 <= MAX_UNIT + 100
+		CALL UNIT_SETTING(CFLAG:MASTER:1, LOCAL:10 - 100)
 	ELSE
 		GOTO INPUT_LOOP
 	ENDIF
@@ -212,10 +281,12 @@ FOR LOCAL:0, 0, MAX_UNIT
 		LOCALS:0 += " "
 		IF RESULT > 0
 			PRINTBUTTON LOCALS:0, LOCAL:0 +1
+			PRINT 
+			PRINTBUTTON "[部隊編成]", LOCAL:0 + 100
 		ELSE
 			PRINTFORM %LOCALS:0%
 		ENDIF
-		CALL SHOW_UNIT_INFO(CFLAG:MASTER:1, LOCAL:0, 13)
+		CALL SHOW_UNIT_INFO(CFLAG:MASTER:1, LOCAL:0, 24)
 	ENDIF
 NEXT
 SETCOLOR LOCAL:20
@@ -282,3 +353,183 @@ FOR LOCAL:0, 0, 3
 	SIF GET_UNIT_COMMANDER(ARG:0, ARG:1, LOCAL:0) >= 0
 		COOLTIME:(GET_UNIT_COMMANDER(ARG:0, ARG:1, LOCAL:0)):0 = ARG:2
 NEXT
+
+
+
+;-------------------------------------------------
+;ARG:1, ARG:2, ARG:3のキャラからなるARG:0勢力の歌唱・料理補正値を返す関数(0.1%単位)
+;-------------------------------------------------
+@UNIT_SUPPORT_LEVEL_VIRTUAL(ARG:0, ARG:1, ARG:2, ARG:3)
+#FUNCTION
+LOCAL:3 = 0
+LOCAL:4 = 0
+FOR LOCAL:0, 1, 4
+	LOCAL:2 = ARG:(LOCAL:0)
+	IF LOCAL:2 >= 0
+		;能力が50未満だと切り捨てられる
+		;(コスプレパッチ追加分)メイド服や踊り子衣装の場合、能力+10分の恩恵を得られる
+		;(補正値は服装嗜好Lv×2)
+		
+		;踊り子衣装or吟遊詩人服
+		IF CFLAG:(LOCAL:2):92 == 2 || CFLAG:(LOCAL:2):92 == 5
+			LOCAL:3 += MAX(ABL_POWER_X(ABL:(LOCAL:2):歌唱+ABL:(LOCAL:2):衣装嗜好, LOCAL:2) - ABL_50_POWER, 0)
+		ELSE
+			LOCAL:3 += MAX(ABL_POWER_X(ABL:(LOCAL:2):歌唱, LOCAL:2) - ABL_50_POWER, 0)
+		ENDIF
+		
+		;メイド服or執事服
+		IF CFLAG:(LOCAL:2):92 == 1 || CFLAG:(LOCAL:2):92 == 4
+			LOCAL:4 += MAX(ABL_POWER_X(ABL:(LOCAL:2):料理+ABL:(LOCAL:2):衣装嗜好, LOCAL:2) - ABL_50_POWER, 0)
+		ELSE
+			LOCAL:4 += MAX(ABL_POWER_X(ABL:(LOCAL:2):料理, LOCAL:2) - ABL_50_POWER, 0)
+		ENDIF
+	ENDIF
+NEXT
+LOCAL:3 = 1000 + POWER_075(LOCAL:3) * 100 / 514 + POWER_075(LOCAL:4) * 100 / 514
+RETURNF LOCAL:3
+
+
+;-------------------------------------------------
+;ARG:1, ARG:2, ARG:3のキャラからなるARG:0勢力の部隊の攻撃力を計算
+;-------------------------------------------------
+@UNIT_ATTACK_LEVEL_VIRTUAL(ARG:0, ARG:1, ARG:2, ARG:3)
+#FUNCTION
+;将の補正
+LOCAL:3 = 0
+FOR LOCAL:0, 1, 4
+	LOCAL:2 = ARG:(LOCAL:0)
+	IF LOCAL:2 >= 0
+		LOCAL:3 += ABL_POWER_X(ABL:(LOCAL:2):武闘, LOCAL:2)
+		
+		;コスプレ衣装を着ている場合、0.9倍される
+		IF CFLAG:(LOCAL:2):92
+			LOCAL:3 = LOCAL:3 * 9 /10
+			;申し訳程度に衣装嗜好による補正がかかる(最大1.1倍)
+			LOCAL:3 = LOCAL:3 * (100+ABL:(LOCAL:2):衣装嗜好) / 100
+		ENDIF
+		
+		IF TALENT:(LOCAL:2):妖術知識
+			;巫女装束、陰陽師装束を着ている場合、妖術の補正が1.0倍～1.2倍される
+			;(衣装嗜好Lv×0.05倍)
+			IF CFLAG:(LOCAL:2):92 == 3 || CFLAG:(LOCAL:2):92 == 6
+				LOCAL:3 += ABL_POWER_X(ABL:(LOCAL:2):妖術 * (100 + ABL:(LOCAL:2):衣装嗜好 * 2) / 100, LOCAL:2) / 2
+			ELSE
+				LOCAL:3 += ABL_POWER_X(ABL:(LOCAL:2):妖術, LOCAL:2) / 2
+			ENDIF
+		ENDIF
+	ENDIF
+NEXT
+;歌唱による補正
+LOCAL:3 = MAX(LOCAL:3, ABL_50_POWER) * UNIT_SUPPORT_LEVEL_VIRTUAL(ARG:0, ARG:1) / 1000
+;防衛AIの場合85%
+IF ARG:0 != CFLAG:MASTER:1 && COUNTRY_AI_TYPE:(ARG:0) == AI_防衛
+	TIMES LOCAL:3, 0.85
+ENDIF
+RETURNF LOCAL:3 / 4 + 8800
+
+
+;-------------------------------------------------
+;ARG:0勢力ARG:1部隊の知略パワーを決定
+;-------------------------------------------------
+@UNIT_INTELLIGENCE_LEVEL_VIRTUAL(ARG:0, ARG:1, ARG:2, ARG:3)
+#FUNCTION
+;将の補正
+LOCAL:3 = 0
+FOR LOCAL:0, 1, 4
+	LOCAL:2 = ARG:(LOCAL:0)
+	IF LOCAL:2 >= 0
+		LOCAL:3 += ABL_POWER_X(ABL:(LOCAL:2):知略, LOCAL:2)
+	ENDIF
+NEXT
+;歌唱による補正
+LOCAL:3 = MAX(LOCAL:3, ABL_50_POWER) * UNIT_SUPPORT_LEVEL_VIRTUAL(ARG:0, ARG:1) / 1000
+RETURNF LOCAL:3
+
+
+;-------------------------------------------------
+;都市ARG:0にARG:1, ARG:2が守将として設定されたときの防衛部隊の歌唱・料理補正値を返す関数(0.1%単位)
+;-------------------------------------------------
+@CITY_SUPPORT_LEVEL_VIRTUAL(ARG:0, ARG:1, ARG:2)
+#FUNCTION
+LOCAL:3 = 0
+LOCAL:4 = 0
+FOR LOCAL:0, 1, 3
+	LOCAL:2 = ARG:(LOCAL:0)
+	IF LOCAL:2 >= 0
+		;能力が50未満だと切り捨てられる
+		;(コスプレパッチ追加分)メイド服や踊り子衣装の場合、能力+10分の恩恵を得られる
+		;(補正値は服装嗜好Lv×2)
+		
+		;踊り子衣装
+		IF CFLAG:(LOCAL:2):92 == 2 || CFLAG:(LOCAL:2):92 == 5
+			LOCAL:3 += MAX(ABL_POWER_X(ABL:(LOCAL:2):歌唱+ABL:(LOCAL:2):衣装嗜好, LOCAL:2) - ABL_50_POWER, 0)
+		ELSE
+			LOCAL:3 += MAX(ABL_POWER_X(ABL:(LOCAL:2):歌唱, LOCAL:2) - ABL_50_POWER, 0)
+		ENDIF
+		
+		;メイド服
+		IF CFLAG:(LOCAL:2):92 == 1 || CFLAG:(LOCAL:2):92 == 4
+			LOCAL:4 += MAX(ABL_POWER_X(ABL:(LOCAL:2):料理+ABL:(LOCAL:2):衣装嗜好, LOCAL:2) - ABL_50_POWER, 0)
+		ELSE
+			LOCAL:4 += MAX(ABL_POWER_X(ABL:(LOCAL:2):料理, LOCAL:2) - ABL_50_POWER, 0)
+		ENDIF
+	ENDIF
+NEXT
+LOCAL:3 = 1000 + POWER_075(LOCAL:3) * 100 / 514 + POWER_075(LOCAL:4) * 100 / 514
+RETURNF LOCAL:3
+
+;-------------------------------------------------
+;都市ARG:0にARG:1, ARG:2が守将として設定されたときの防衛部隊の攻撃能力を決定
+;-------------------------------------------------
+@CITY_ATTACK_LEVEL_VIRTUAL(ARG:0, ARG:1, ARG:2)
+#FUNCTION
+;将の補正
+LOCAL:3 = 0
+FOR LOCAL:0, 1, 3
+	LOCAL:2 = ARG:(LOCAL:0)
+	IF LOCAL:2 >= 0
+		LOCAL:3 += ABL_POWER_X(ABL:(LOCAL:2):武闘, LOCAL:2)
+		
+		;コスプレ衣装を着ている場合、0.9倍される
+		IF CFLAG:(LOCAL:2):92
+			LOCAL:3 = LOCAL:3 * 9 /10
+			;申し訳程度に衣装嗜好による補正がかかる(最大1.1倍)
+			LOCAL:3 = LOCAL:3 * (100+ABL:(LOCAL:2):衣装嗜好) / 100
+		ENDIF
+		
+		IF TALENT:(LOCAL:2):妖術知識
+			;巫女装束、陰陽師装束を着ている場合、妖術の補正が1.0倍～1.2倍される
+			;(衣装嗜好Lv×0.05倍)
+			IF CFLAG:(LOCAL:2):92 == 3 || CFLAG:(LOCAL:2):92 == 6
+				LOCAL:3 += ABL_POWER_X(ABL:(LOCAL:2):妖術*(100+ABL:(LOCAL:2):衣装嗜好*2)/100, LOCAL:2) / 2
+			ELSE
+				LOCAL:3 += ABL_POWER_X(ABL:(LOCAL:2):妖術, LOCAL:2) / 2
+			ENDIF
+		ENDIF
+	ENDIF
+NEXT
+;歌唱による補正
+LOCAL:3 = MAX(LOCAL:3, ABL_50_POWER) * CITY_SUPPORT_LEVEL_VIRTUAL(ARG:0) / 1000
+;防衛部隊では士官による攻撃力補正が1/4
+LOCAL:3 = LOCAL:3 / 16 + 9400
+;都市の防衛倍率による補正を掛ける
+RETURNF LOCAL:3 * ((CITY_GUARD_RATE(ARG:0) - 100) / 3 + 100) * 2 / 100
+
+;-------------------------------------------------
+;都市ARG:0にARG:1, ARG:2が守将として設定されたときの防衛部隊の知略パワーを決定
+;-------------------------------------------------
+@CITY_INTELLIGENCE_LEVEL_VIRTUAL(ARG:0, ARG:1, ARG:2)
+#FUNCTION
+;将の補正
+LOCAL:3 = 0
+FOR LOCAL:0, 1, 3
+	LOCAL:2 = ARG:(LOCAL:0)
+	IF LOCAL:2 >= 0
+		LOCAL:3 += ABL_POWER_X(ABL:(LOCAL:2):知略, LOCAL:2)
+	ENDIF
+NEXT
+;歌唱による補正
+LOCAL:3 = MAX(LOCAL:3, ABL_50_POWER) * CITY_SUPPORT_LEVEL_VIRTUAL(ARG:0) / 1000
+RETURNF LOCAL:3
+
+;--------------------------
