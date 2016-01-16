@@ -1,0 +1,207 @@
+﻿@REV_TRAIN_BANDIT
+#DIM 候補, 1000
+#DIM 候補数
+#DIM 参加者, 8
+#DIM 参加者数
+#DIM 野盗勢力
+#DIM ループ数
+VARSET 候補, -1
+VARSET 候補数
+VARSET 参加者, -1
+VARSET 参加者数
+
+野盗勢力 = GET_COUNTRY_FROM_ID(COUNTRY_BANDIT)
+;野盗による主人公以外のキャラへの自動調教
+IF FLAG:28
+	CALL TRAIN_BY_BANDIT
+ENDIF
+;初回
+IF !FLAG:14
+	FLAG:14 = 1
+	IF BANDIT_START == 1
+		PRINTFORMW 部屋にどやどやと入ってきた野盗たちは、%ANAME(MASTER)%の姿を見て爆笑した
+		PRINTFORMW なに自分の勢力にとっ捕まってるんだお前はと、口々に囃したてる
+		PRINTFORMW ひとしきり笑った後、野盗たちは%ANAME(MASTER)%の縄を解き、牢から出した……
+		CALL COLORPRINTFORM (@"%ANAME(MASTER)%は野盗に復帰しました", COLOR("注意"), "L")
+		CFLAG:MASTER:所属 = CFLAG:MASTER:捕虜先
+		CFLAG:MASTER:捕虜先 = 0
+		RETURN
+	ELSEIF BANDIT_START == 2
+		PRINTFORMW 部屋にどやどやと入ってきた野盗たちは、%ANAME(MASTER)%の姿を見てニヤニヤと笑う
+		PRINTFORMW 奴隷生活が忘れられなくて戻ってきちまったのかよ、と
+		PRINTFORMW どうやら、%ANAME(MASTER)%が奴隷になることを認めれば、牢から出すつもりでいるようだ……
+		PRINTFORML
+		CALL ASK_MULTI("再び奴隷になる", "犯されるのはもうごめんだ")
+		IF RESULT == 0
+			PRINTFORMW そう来なくっちゃなと笑い、野盗たちは%ANAME(MASTER)%の縄を解いた
+			PRINTFORMW じゃあ早速奴隷の仕事をしてもらおうかと、彼らは自らのペニスを露出させる
+			PRINTFORMW そして%ANAME(MASTER)%は、しばしの間、奴隷としての仕事に従事した……
+			CALL FORCE_FUCK(MASTER, -16)
+			CFLAG:MASTER:所属 = CFLAG:MASTER:捕虜先
+			CFLAG:MASTER:捕虜先 = 0
+			RETURN 1
+		ELSE
+			PRINTFORMW もうお前たちのいいなりになんてならない……%ANAME(MASTER)%は毅然と言う
+			PRINTFORMW 野盗たちはそれを笑い捨て、立場ってもんを教えてやるよと、%ANAME(MASTER)%に群がり始めた……
+		ENDIF
+	ENDIF
+ENDIF
+
+IF FLAG:47 != 0 && FLAG:47 % 4 == 0
+	PRINTFORMW 部屋にどやどやと入ってきた野盗たちは、%ANAME(MASTER)%の姿を見てニヤニヤと笑う
+	PRINTFORMW 奴隷根性が染みついたやつなら、出してやってもいいんだけどなー、などと言い出した……
+	PRINTFORMW どうやら、%ANAME(MASTER)%が奴隷になることを認めれば、牢から出すつもりでいるようだ……
+	PRINTFORML
+	CALL ASK_MULTI("奴隷になる", "犯されるのはもうごめんだ")
+	IF RESULT == 0
+		PRINTFORMW そう来なくっちゃなと笑い、野盗たちは%ANAME(MASTER)%の縄を解いた
+		PRINTFORMW じゃあ早速奴隷の仕事をしてもらおうかと、彼らは自らのペニスを露出させる
+		PRINTFORMW そして%ANAME(MASTER)%は、しばしの間、奴隷としての仕事に従事した……
+		CALL FORCE_FUCK(MASTER, -16)
+		CFLAG:MASTER:所属 = CFLAG:MASTER:捕虜先
+		CFLAG:MASTER:捕虜先 = 0
+		FOR LOCAL:0, 0, CHARANUM
+			IF TALENT:(LOCAL:0):外来人
+				TALENT:(LOCAL:0):合意 = 1
+				CFLAG:(LOCAL:0):2 = MAX(CFLAG:(LOCAL:0):2, 500)
+				CFLAG:(LOCAL:0):3 = MAX(CFLAG:(LOCAL:0):3, 500)
+			ENDIF
+		NEXT
+		RETURN 1
+	ELSE
+		PRINTFORMW だれがお前たちの奴隷になどと……%ANAME(MASTER)%は毅然と言う
+		PRINTFORMW 野盗たちはそれを笑い捨て、立場ってもんを教えてやるよと、%ANAME(MASTER)%に群がり始めた……
+	ENDIF
+ENDIF
+;全員の調教参加フラグを解除
+CVARSET CFLAG, 6, 0
+
+;1/3の確率で野盗に寝返ったキャラが調教者になる　ただしマスターが男なら確実に来る
+IF IS_MALE(MASTER) || RAND:3 
+	LOCAL:1 = 0
+	FOR LOCAL:0, 0, CHARANUM
+		IF CFLAG:(LOCAL:0):面識 && NO:(LOCAL:0) < 2000 && CFLAG:(LOCAL:0):所属 == CFLAG:MASTER:捕虜先 && TALENT:(LOCAL:0):野盗の肉便器 && !RAND:2
+			候補:候補数 = LOCAL:0
+			候補数 ++
+		ENDIF
+	NEXT
+	IF 候補数
+		CALL FISHER_YATES_SHAFFLE(候補数)
+		FOR LOCAL, 0, MIN(候補数, 4)
+			参加者:参加者数 = 候補:(SHAFFLE_ARRAY:(LOCAL:0))
+			CFLAG:(参加者:参加者数):6 = 1
+			参加者数 ++
+		NEXT
+		IF 参加者数
+			LOCALS:0 = 
+			FOR LOCAL:0, 0, 参加者数
+				IF LOCALS:0 == ""
+					LOCALS:0 = %ANAME(参加者:LOCAL)%
+				ELSE
+					LOCALS:0 = %LOCALS:0%、%ANAME(参加者:LOCAL)%
+				ENDIF
+			NEXT
+			DRAWLINE
+			PRINTFORML 調教の時間が近づくと、%ANAME(MASTER)%はいつものように調教部屋で拘束され、
+			PRINTFORMW あとは男達に汚されるのを待つのみとなった
+			IF 参加者数
+				PRINTFORMW やってきた野盗は、%ANAME(MASTER)%が良く見知った相手を連れてきていた
+				PRINTFORMW %LOCALS:0%…
+				PRINTFORMW 頑丈な首輪が嵌められている以外は皆一糸まとわぬ姿で、全身に卑猥な落書きを施されている
+				IF IS_FEMALE(参加者:0)
+					PRINTFORMW 事前にたっぷりと犯されてきたのだろう、顔も乳房も両穴も、既に愛液や精液でどろどろになっている……
+				ELSE
+					PRINTFORMW 事前にたっぷりと犯されてきたのだろう、あちこちを白濁で汚されている……
+				ENDIF
+				PRINTFORMW 首輪を野盗は強引に引っ張るが、%ANAME(参加者:0)%\@ 参加者数 > 1 ? たち # \@は嫌がるどころか、従順についていく……
+				PRINTFORMW 野盗はニヤニヤと笑いながら、お前の知り合いをここでヤってやるよと言い始めた…
+				PRINTFORMW これから行われることを、%ANAME(参加者:0)%\@ 参加者数 > 1 ? たち # \@は理解したのだろう。股を開き、腰をくねらせ、淫らな言葉で肉棒をねだり始めた……
+			ENDIF
+			FLAG:29 = 1
+		ENDIF
+	ENDIF
+ENDIF
+IF 参加者数
+	ループ数 = MIN(4, VARSIZE("参加者") - 参加者数)
+ELSE
+	ループ数 = 4
+ENDIF
+
+FOR LOCAL:0, 0, ループ数
+	;確率で犬豚が対象に
+	IF !RAND:8
+		FOR LOCAL:1, 0, CHARANUM
+			IF CFLAG:(LOCAL:1):所属 == 野盗勢力 && IS_ANIMAL(LOCAL:1) && !CFLAG:(LOCAL:1):6
+				参加者:参加者数 =  LOCAL:1
+				参加者数 ++
+				CFLAG:(LOCAL:1):6 = 1
+				BREAK
+			ENDIF
+		NEXT
+		CALL ADD_ANIMAL(@"\@ RAND:2 ? 犬 # 豚 \@", LOCAL:6)
+		CFLAG:(CHARANUM -1):6 = 1
+		参加者:参加者数 =  CHARANUM - 1
+		参加者数 ++
+	;普通に野盗を選出
+	ELSE
+		FOR LOCAL:1, 0, CHARANUM
+			IF TALENT:(LOCAL:1):野盗 && !CFLAG:(LOCAL:1):6 && CFLAG:(LOCAL:1):所属 == 野盗勢力
+				参加者:参加者数 =  LOCAL:1
+				参加者数 ++
+				CFLAG:(LOCAL:1):6 = 1
+				CFLAG:(LOCAL:1):64 = 1
+				CFLAG:(LOCAL:1):65 = 1
+				ABL:(LOCAL:1):欲望 = 5
+				ABL:(LOCAL:1):奉仕 = 5
+				ABL:(LOCAL:1):性技 = 10
+				ABL:(LOCAL:1):主導度Ｕ = 600
+				ABL:(LOCAL:1):倒錯度 = 600
+				TALENT:(LOCAL:1):快感に素直 = 1
+				TALENT:(LOCAL:1):絶倫 = 1
+				IF !PENIS(LOCAL:1) && PENIS(MASTER)
+					ABL:(LOCAL:1):性交 = 0
+					ABL:(LOCAL:1):Ｖ感 = 4
+					TALENT:(LOCAL:1):濡れやすい = 1
+					EXP:(LOCAL:1):♀♂性交回数 = 500
+					EXP:(LOCAL:1):絶頂経験 = 3000
+				ELSE
+					ABL:(LOCAL:1):性交 = 15
+					EXP:(LOCAL:1):♂♀性交回数 = 500
+					EXP:(LOCAL:1):♂Ａ性交回数 = 500
+					EXP:(LOCAL:1):絶頂経験 = 3000
+					IF PENIS(LOCAL:1)
+						ABL:(LOCAL:1):射精 = 3000
+					ENDIF
+				ENDIF
+				FOR LOCAL:2, 0, 900
+					COM_EXP:(LOCAL:1):(LOCAL:2) = 1000
+				NEXT
+				BREAK
+			ENDIF
+		NEXT
+	ENDIF
+NEXT
+
+FOR LOCAL:0, 0, 参加者数
+	CFLAG:(参加者:(LOCAL:0)):6 = 1
+NEXT
+;逆調教モード
+FLAG:12 = 4
+;ウフフモード
+FLAG:50 = 1
+;アイテムを一通り追加
+ITEM:A_ローター = 1
+ITEM:A_バイブ = 1
+ITEM:A_アナルバイブ = 1
+ITEM:A_ペニスバンド = 1
+ITEM:A_オナホール = 1
+ITEM:A_クリキャップ = 1
+ITEM:A_ニプルキャップ = 1
+ITEM:A_針 = 1
+ITEM:A_鞭 = 1
+ITEM:A_媚薬 = 99
+ITEM:A_排卵誘発剤 = 99
+;回数をカウント
+FLAG:47 ++
+;解放カウンタをリセット
+CFLAG:MASTER:43 = 0
