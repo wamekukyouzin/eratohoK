@@ -220,6 +220,7 @@ COM_CATEGORY:1101 = 5
 COM_CATEGORY:1102 = 5
 COM_CATEGORY:1104 = 5
 COM_CATEGORY:1110 = 5
+COM_CATEGORY:1111 = 5
 COM_CATEGORY:1130 = 5
 COM_CATEGORY:1131 = 5
 COM_CATEGORY:1132 = 5
@@ -297,23 +298,22 @@ IF TALENT:(LOCAL:5):ホフゴブリン || (IS_MALE(LOCAL:5) && TALENT:(LOCAL:5):
 				;マスターがまんこなら20％
 				IF VAGINA(MASTER) && !RAND:5
 					LOCAL:98 = MASTER
-					BREAK
+					GOTO CHOOSE_END
 				;マスターが処女なら100%
-				ELSEIF VIRGIN(MASTER)
+				ELSEIF VIRGIN(MASTER) && VAGINA(MASTER)
 					LOCAL:98 = MASTER
-					BREAK
+					GOTO CHOOSE_END
 				ELSE
 					LOCAL:97 = CHARA_LIST:(RAND:CHARA_LIST_MAX)
 					IF VAGINA(LOCAL:97)
 						LOCAL:98 = LOCAL:97
-						BREAK
+						GOTO CHOOSE_END
 					ENDIF
 				ENDIF
 				IF LOCAL:96 > 100
 					BREAK
 				ENDIF
 			WEND
-			BREAK
 		ENDIF
 	NEXT
 ;ふたなる
@@ -321,17 +321,18 @@ ELSEIF PENIS(LOCAL:5) && VAGINA(LOCAL:5)
 	;ランダム狙い
 	;マスターは33%
 	;処女でマスターにペニスがあるなら必ずマスター狙い（うっかり他人が破るの防止）
+	LOCAL:98 = MASTER
 	WHILE 1
 		LOCAL:96 ++
 		LOCAL:98 = CHARA_LIST:(RAND:CHARA_LIST_MAX)
 		IF VIRGIN(LOCAL:5) && PENIS(MASTER)
 			LOCAL:98 = MASTER
-			BREAK
+			GOTO CHOOSE_END
 		ENDIF
 		SIF !RAND:3
 			LOCAL:98 = MASTER
 		SIF LOCAL:98 != LOCAL:5
-			BREAK
+			GOTO CHOOSE_END
 	WEND
 ;チンポ
 ELSEIF PENIS(LOCAL:5)
@@ -345,23 +346,22 @@ ELSEIF PENIS(LOCAL:5)
 				;マスターが女なら33％
 				IF VAGINA(MASTER) && !RAND:3
 					LOCAL:98 = MASTER
-					BREAK
+					GOTO CHOOSE_END
 				;マスターが処女なら積極的に狙う
-				ELSEIF VIRGIN(MASTER)
+				ELSEIF VIRGIN(MASTER) && VAGINA(MASTER)
 					LOCAL:98 = MASTER
-					BREAK
+					GOTO CHOOSE_END
 				ELSE
 					LOCAL:97 = CHARA_LIST:(RAND:CHARA_LIST_MAX)
 					IF VAGINA(LOCAL:97)
 						LOCAL:98 = LOCAL:97
-						BREAK
+						GOTO CHOOSE_END
 					ENDIF
 				ENDIF
 				IF LOCAL:96 > 100
 					BREAK
 				ENDIF
 			WEND
-			BREAK
 		ENDIF
 	NEXT
 ;まんこ
@@ -399,7 +399,7 @@ ENDIF
 
 
 
-
+$CHOOSE_END
 
 
 ;●性交を行う場合に、どのコマンドを選ぶか事前に決定しておく
@@ -993,7 +993,8 @@ COM_PRIORITY:1104 += GET_INITIATIVE_U_RANK(LOCAL:5) * 2
 COM_PRIORITY:1104 += TALENT:(LOCAL:5):美脚 * 2
 ;土下座
 COM_PRIORITY:1110 += GET_INITIATIVE_U_RANK(LOCAL:5) * 2
-
+;おねだり
+COM_PRIORITY:1111 += GET_INITIATIVE_U_RANK(LOCAL:5) * 2
 
 ;スカ系は排泄Lv2以上が必要
 IF ABL:(LOCAL:5):排泄 >= 2
@@ -1211,6 +1212,23 @@ IF FLAG:12 == 5 && CONFIG:8 == 1
 	COM_PRIORITY:1211 = 0
 ENDIF
 
+;一部コマンドは性別でプライオリティを下げる
+IF IS_MALE(LOCAL:5)
+	COM_PRIORITY:11 /= 3
+	COM_PRIORITY:12 /= 3
+	COM_PRIORITY:13 /= 3
+	COM_PRIORITY:15 /= 3
+	COM_PRIORITY:106 /= 3
+	COM_PRIORITY:107 /= 3
+	COM_PRIORITY:110 /= 3
+	COM_PRIORITY:111 /= 3
+ENDIF
+
+
+
+
+
+
 ;ペニバン装着中ならペニバン装着を除外
 IF TCVAR:(LOCAL:5):61
 	COM_PRIORITY:50 = 0
@@ -1327,138 +1345,300 @@ FOR LOCAL:0, 0, 5
 					LOCAL:4 ++
 				ENDIF
 			NEXT
-
 			IF LOCAL:12 >= 0
+				;純粋な性別による判定とペニスがあるかの判定の二つを織り交ぜ、ふたなりの挙動に揺らぎをもたせる
+				IF RAND:2
+					IF IS_MALE(LOCAL:5) && IS_MALE(LOCAL:98) && IS_MALE(LOCAL:12)
+						LOCAL:30 = 0
+					ELSEIF IS_MALE(LOCAL:5) && IS_MALE(LOCAL:98) && IS_FEMALE(LOCAL:12)
+						LOCAL:30 = 1
+					ELSEIF IS_MALE(LOCAL:5) && IS_FEMALE(LOCAL:98) && IS_MALE(LOCAL:12)
+						LOCAL:30 = 2
+					ELSEIF IS_FEMALE(LOCAL:5) && IS_MALE(LOCAL:98) && IS_MALE(LOCAL:12)
+						LOCAL:30 = 3
+					ELSEIF IS_MALE(LOCAL:5) && IS_FEMALE(LOCAL:98) && IS_FEMALE(LOCAL:12)
+						LOCAL:30 = 4
+					ELSEIF IS_FEMALE(LOCAL:5) && IS_MALE(LOCAL:98) && IS_FEMALE(LOCAL:12)
+						LOCAL:30 = 5
+					ELSEIF IS_FEMALE(LOCAL:5) && IS_FEMALE(LOCAL:98) && IS_MALE(LOCAL:12)
+						LOCAL:30 = 6
+					ELSEIF IS_FEMALE(LOCAL:5) && IS_FEMALE(LOCAL:98) && IS_FEMALE(LOCAL:12)
+						LOCAL:30 = 7
+					ENDIF
+				ELSE
+					IF PENIS(LOCAL:5) && PENIS(LOCAL:98) && PENIS(LOCAL:12)
+						LOCAL:30 = 0
+					ELSEIF PENIS(LOCAL:5) && PENIS(LOCAL:98) && VAGINA(LOCAL:12)
+						LOCAL:30 = 1
+					ELSEIF PENIS(LOCAL:5) && VAGINA(LOCAL:98) && PENIS(LOCAL:12)
+						LOCAL:30 = 2
+					ELSEIF VAGINA(LOCAL:5) && PENIS(LOCAL:98) && PENIS(LOCAL:12)
+						LOCAL:30 = 3
+					ELSEIF PENIS(LOCAL:5) && VAGINA(LOCAL:98) && VAGINA(LOCAL:12)
+						LOCAL:30 = 4
+					ELSEIF VAGINA(LOCAL:5) && PENIS(LOCAL:98) && VAGINA(LOCAL:12)
+						LOCAL:30 = 5
+					ELSEIF VAGINA(LOCAL:5) && VAGINA(LOCAL:98) && PENIS(LOCAL:12)
+						LOCAL:30 = 6
+					ELSEIF VAGINA(LOCAL:5) && VAGINA(LOCAL:98) && VAGINA(LOCAL:12)
+						LOCAL:30 = 7
+					ENDIF
+				ENDIF
+
 				;プレイヤー／ターゲットを追加してコマンドが実行できるかチェック
 				IF LOCAL:9 < 1000
 					;愛撫系(胸愛撫など)
-					IF 0 <= LOCAL:9 && 9 <= LOCAL:9
-						;される側(LOCAL:98)と候補が同じ性別なら、される側に回る
-						IF IS_SAMESEX(LOCAL:98, LOCAL:12)
-							CALL ADD_MTAR(LOCAL:12)
-						ELSE
-							CALL ADD_MPLY(LOCAL:12)
-						ENDIF
+					IF 0 <= LOCAL:9 && LOCAL:9 <= 9
+						SELECTCASE LOCAL:30
+							;する側
+							CASE 0, 2, 5
+								CALL ADD_MPLY(LOCAL:12)
+							;される側
+							CASE 3
+								CALL ADD_MTAR(LOCAL:12)
+							;ランダム
+							CASEELSE
+								IF RAND:2
+									CALL ADD_MPLY(LOCAL:12)
+								ELSE
+									CALL ADD_MTAR(LOCAL:12)
+								ENDIF
+						ENDSELECT
 					;奉仕系
-					ELSEIF 10 <= LOCAL:9 && 19 <= LOCAL:9
-						;する側(LOCAL:5)と候補が同じ性別なら、する側に回る
-						IF IS_SAMESEX(LOCAL:5, LOCAL:12)
-							CALL ADD_MPLY(LOCAL:12)
-						ELSE
-							CALL ADD_MTAR(LOCAL:12)
-						ENDIF
+					ELSEIF 10 <= LOCAL:9 && LOCAL:9 <= 19
+						SELECTCASE LOCAL:30
+							;する側
+							CASE 0, 2, 5
+								CALL ADD_MPLY(LOCAL:12)
+							;される側
+							CASE 3
+								CALL ADD_MTAR(LOCAL:12)
+							;ランダム
+							CASEELSE
+								IF RAND:2
+									CALL ADD_MPLY(LOCAL:12)
+								ELSE
+									CALL ADD_MTAR(LOCAL:12)
+								ENDIF
+						ENDSELECT
 					;キス
 					ELSEIF GROUPMATCH(LOCAL:9, 20)
-						;する側と候補が同じ性別なら、する側に回る
-						IF IS_SAMESEX(LOCAL:5, LOCAL:1)
-							CALL ADD_MPLY(LOCAL:12)
-						ELSE
-							CALL ADD_MTAR(LOCAL:12)
-						ENDIF
+						SELECTCASE LOCAL:30
+							;する側
+							CASE 0, 2, 5
+								CALL ADD_MPLY(LOCAL:12)
+							;される側
+							CASE 3
+								CALL ADD_MTAR(LOCAL:12)
+							;ランダム
+							CASEELSE
+								IF RAND:2
+									CALL ADD_MPLY(LOCAL:12)
+								ELSE
+									CALL ADD_MTAR(LOCAL:12)
+								ENDIF
+						ENDSELECT
 					;順番挿入
 					ELSEIF GROUPMATCH(LOCAL:9, 55, 56)
-						;される側しか複数いないので、問答無用でする側
-						CALL ADD_MTAR(LOCAL:12)
+						;女なら問答無用でされる側
+						SIF IS_FEMALE(LOCAL:12)
+							CALL ADD_MTAR(LOCAL:12)
 					;代わる代わる挿入
 					ELSEIF GROUPMATCH(LOCAL:9, 57, 58)
-						;男か、チンポつきで1/3でする側
-						IF IS_MALE(LOCAL:1) || (PENIS(LOCAL:1) && !RAND:3)
-							CALL ADD_MPLY(LOCAL:12)
-						ELSE
-							CALL ADD_MTAR(LOCAL:12)
-						ENDIF
+						SELECTCASE LOCAL:30
+							;する側
+							CASE 0, 2, 3, 6
+								CALL ADD_MPLY(LOCAL:12)
+							;される側
+							CASE 1, 4, 5, 7
+								CALL ADD_MTAR(LOCAL:12)
+							;ランダム
+							CASEELSE
+								IF RAND:2
+									CALL ADD_MPLY(LOCAL:12)
+								ELSE
+									CALL ADD_MTAR(LOCAL:12)
+								ENDIF
+						ENDSELECT
 					;道具系
 					ELSEIF 60 <= LOCAL:9 && LOCAL:9 <= 79
-						;される側と同性ならされる側にまわる
-						IF IS_SAMESEX(LOCAL:98, LOCAL:12)
-							CALL ADD_MTAR(LOCAL:12)
-						ELSE
-							CALL ADD_MPLY(LOCAL:12)
-						ENDIF
+						SELECTCASE LOCAL:30
+							;する側
+							CASE 0, 2, 6
+								CALL ADD_MPLY(LOCAL:12)
+							;される側
+							CASE 3
+								CALL ADD_MTAR(LOCAL:12)
+							;ランダム
+							CASEELSE
+								IF RAND:2
+									CALL ADD_MPLY(LOCAL:12)
+								ELSE
+									CALL ADD_MTAR(LOCAL:12)
+								ENDIF
+						ENDSELECT
 					;ＳＭ
 					ELSEIF 80 <= LOCAL:9 && LOCAL:9 <= 99
-						;される側と同性ならたまにされる側にまわる
-						IF IS_SAMESEX(LOCAL:98, LOCAL:12) && !RAND:3
-							CALL ADD_MTAR(LOCAL:12)
-						ELSE
-							CALL ADD_MPLY(LOCAL:12)
-						ENDIF
+						SELECTCASE LOCAL:30
+							;する側
+							CASE 0, 2, 5
+								CALL ADD_MPLY(LOCAL:12)
+							;ランダム
+							CASEELSE
+								IF RAND:2
+									CALL ADD_MPLY(LOCAL:12)
+								ELSE
+									CALL ADD_MTAR(LOCAL:12)
+								ENDIF
+						ENDSELECT
 					;羞恥
 					ELSEIF 100 <= LOCAL:9 && LOCAL:9 <= 129
-						;される側と同性ならたまにされる側にまわる
-						IF IS_SAMESEX(LOCAL:98, LOCAL:12) && !RAND:3
-							CALL ADD_MTAR(LOCAL:12)
-						ELSE
-							CALL ADD_MPLY(LOCAL:12)
-						ENDIF
+						SELECTCASE LOCAL:30
+							;する側
+							CASE 0, 2, 5, 7
+								CALL ADD_MPLY(LOCAL:12)
+							;される側
+							CASE 3
+								CALL ADD_MTAR(LOCAL:12)
+							;ランダム
+							CASEELSE
+								IF RAND:2
+									CALL ADD_MPLY(LOCAL:12)
+								ELSE
+									CALL ADD_MTAR(LOCAL:12)
+								ENDIF
+						ENDSELECT
 					ELSE
 						CALL ADD_MPLY(LOCAL:12)
 					ENDIF
 				ELSEIF LOCAL:9 < 2000
 					;愛撫系(胸愛撫など)
 					IF 1000 <= LOCAL:9 && LOCAL:9 <= 1009
-						;する側(LOCAL:98)と候補が同じ性別なら、する側に回る
-						IF IS_SAMESEX(LOCAL:98, LOCAL:12)
-							CALL ADD_MPLY(LOCAL:12)
-						ELSE
-							CALL ADD_MTAR(LOCAL:12)
-						ENDIF
+						SELECTCASE LOCAL:30
+							;する側
+							CASE 1, 3
+								CALL ADD_MPLY(LOCAL:12)
+							;される側
+							CASE 0, 2, 5
+								CALL ADD_MTAR(LOCAL:12)
+							;ランダム
+							CASEELSE
+								IF RAND:2
+									CALL ADD_MPLY(LOCAL:12)
+								ELSE
+									CALL ADD_MTAR(LOCAL:12)
+								ENDIF
+						ENDSELECT
 					;奉仕系
-					ELSEIF 1010 <= LOCAL:9 && 1019 <= LOCAL:9
-						;する側(LOCAL:98)と候補が同じ性別なら、する側に回る
-						IF IS_SAMESEX(LOCAL:98, LOCAL:12)
-							CALL ADD_MPLY(LOCAL:12)
-						ELSE
-							CALL ADD_MTAR(LOCAL:12)
-						ENDIF
+					ELSEIF 1010 <= LOCAL:9 && LOCAL:9 <= 1019
+						SELECTCASE LOCAL:30
+							;する側
+							CASE 3
+								CALL ADD_MPLY(LOCAL:12)
+							;される側
+							CASE 0, 2, 5
+								CALL ADD_MTAR(LOCAL:12)
+							;ランダム
+							CASEELSE
+								IF RAND:2
+									CALL ADD_MPLY(LOCAL:12)
+								ELSE
+									CALL ADD_MTAR(LOCAL:12)
+								ENDIF
+						ENDSELECT
 					;キス
 					ELSEIF GROUPMATCH(LOCAL:9, 1020)
-						;する側(LOCAL:98)と候補が同じ性別なら、する側に回る
-						IF IS_SAMESEX(LOCAL:98, LOCAL:12)
-							CALL ADD_MPLY(LOCAL:12)
-						ELSE
-							CALL ADD_MTAR(LOCAL:12)
-						ENDIF
+						SELECTCASE LOCAL:30
+							;する側
+							CASE 3
+								CALL ADD_MPLY(LOCAL:12)
+							;される側
+							CASE 0, 2, 5
+								CALL ADD_MTAR(LOCAL:12)
+							;ランダム
+							CASEELSE
+								IF RAND:2
+									CALL ADD_MPLY(LOCAL:12)
+								ELSE
+									CALL ADD_MTAR(LOCAL:12)
+								ENDIF
+						ENDSELECT
 					;順番挿入
 					ELSEIF GROUPMATCH(LOCAL:9, 1055, 1056)
-						;され側しか複数いないので、問答無用でされる側
-						CALL ADD_MTAR(LOCAL:12)
+						;女なら問答無用でされる側
+						SIF IS_FEMALE(LOCAL:12)
+							CALL ADD_MTAR(LOCAL:12)
 					;代わる代わる挿入
 					ELSEIF GROUPMATCH(LOCAL:9, 1057, 1058)
-						;男か、チンポつきで1/3でする側
-						IF IS_MALE(LOCAL:12) || (PENIS(LOCAL:12) && !RAND:3)
-							CALL ADD_MPLY(LOCAL:12)
-						ELSE
-							CALL ADD_MTAR(LOCAL:12)
-						ENDIF
+						SELECTCASE LOCAL:30
+							;する側
+							CASE 3, 6
+								CALL ADD_MPLY(LOCAL:12)
+							;される側
+							CASE 0, 1, 2, 5
+								CALL ADD_MTAR(LOCAL:12)
+							;ランダム
+							CASEELSE
+								IF RAND:2
+									CALL ADD_MPLY(LOCAL:12)
+								ELSE
+									CALL ADD_MTAR(LOCAL:12)
+								ENDIF
+						ENDSELECT
 					;道具系
 					ELSEIF 1060 <= LOCAL:9 && LOCAL:9 <= 1079
-						;される側と同性ならされる側にまわる
-						IF IS_SAMESEX(LOCAL:5, LOCAL:12)
-							CALL ADD_MTAR(LOCAL:12)
-						ELSE
-							CALL ADD_MPLY(LOCAL:12)
-						ENDIF
+						SELECTCASE LOCAL:30
+							;する側
+							CASE 3, 6
+								CALL ADD_MPLY(LOCAL:12)
+							;される側
+							CASE 0, 2, 5
+								CALL ADD_MTAR(LOCAL:12)
+							;ランダム
+							CASEELSE
+								IF RAND:2
+									CALL ADD_MPLY(LOCAL:12)
+								ELSE
+									CALL ADD_MTAR(LOCAL:12)
+								ENDIF
+						ENDSELECT
 					;ＳＭ
 					ELSEIF 1080 <= LOCAL:9 && LOCAL:9 <= 1099
-						;される側と同性ならたまにされる側にまわる
-						IF IS_SAMESEX(LOCAL:5, LOCAL:12) && !RAND:3
-							CALL ADD_MTAR(LOCAL:12)
-						ELSE
-							CALL ADD_MPLY(LOCAL:12)
-						ENDIF
+						SELECTCASE LOCAL:30
+							;する側
+							CASE 3, 4, 6
+								CALL ADD_MPLY(LOCAL:12)
+							;される側
+							CASE 0, 2, 5 
+								CALL ADD_MTAR(LOCAL:12)
+							;ランダム
+							CASEELSE
+								IF RAND:2
+									CALL ADD_MPLY(LOCAL:12)
+								ELSE
+									CALL ADD_MTAR(LOCAL:12)
+								ENDIF
+						ENDSELECT
 					;羞恥
 					ELSEIF 1100 <= LOCAL:9 && LOCAL:9 <= 1129
-						;される側と同性ならたまにされる側にまわる
-						IF IS_SAMESEX(LOCAL:5, LOCAL:12) && !RAND:3
-							CALL ADD_MTAR(LOCAL:12)
-						ELSE
-							CALL ADD_MPLY(LOCAL:12)
-						ENDIF
+						SELECTCASE LOCAL:30
+							;する側
+							CASE 3, 4
+								CALL ADD_MPLY(LOCAL:12)
+							;される側
+							CASE 0, 2, 5
+								CALL ADD_MTAR(LOCAL:12)
+							;ランダム
+							CASEELSE
+								IF RAND:2
+									CALL ADD_MPLY(LOCAL:12)
+								ELSE
+									CALL ADD_MTAR(LOCAL:12)
+								ENDIF
+						ENDSELECT
 					ELSE
 						CALL ADD_MPLY(LOCAL:12)
 					ENDIF
-				ELSE
 				ENDIF
 
 				;コマンド判定フラグON
