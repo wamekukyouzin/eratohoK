@@ -9,7 +9,7 @@ LOCAL:0 = 0
 LOCALS:0 = %GET_PIERCE_NAME(ARG:1)%
 SIF !CAN_PIERCE(ARG:0, ARG:1)
 	RETURN LOCAL:0
-IF !GETBIT(TALENT:(ARG:0):ピアス穴, ARG:1)
+IF !IS_HOLED(ARG:0, ARG:1)
 	SIF ARG:2
 		CALL COLORPRINTFORM(@"%ANAME(ARG:0)%の%LOCALS:0%に穴が開けられた……", COLOR("注意"), "W")
 	LOCAL:0 ++
@@ -127,7 +127,7 @@ RETURNF 1
 
 ;---------------------------
 ;ARG:0番のキャラが、ARG:1番のビットにピアスをしているか
-;着けてれば2、穴のみなら1が戻る
+;着けてれば1が戻る
 ;---------------------------
 @IS_PIERCED(ARG:0, ARG:1)
 #FUNCTION
@@ -135,12 +135,23 @@ LOCAL:0 = 0
 ;範囲外なら不可
 SIF ARG:1 < 0 || ピアス_最大ビット < ARG:1
 	RETURNF 0
-SIF GETBIT(TALENT:(ARG:0):ピアス穴, ARG:1)
-	LOCAL:0 ++
 SIF GETBIT(TALENT:(ARG:0):ピアス, ARG:1)
 	LOCAL:0 ++
 RETURNF LOCAL:0
 
+;---------------------------
+;ARG:0番のキャラが、ARG:1番のビットにピアス穴をしているか
+;着けてれば1が戻る
+;---------------------------
+@IS_HOLED(ARG:0, ARG:1)
+#FUNCTION
+LOCAL:0 = 0
+;範囲外なら不可
+SIF ARG:1 < 0 || ピアス_最大ビット < ARG:1
+	RETURNF 0
+SIF GETBIT(TALENT:(ARG:0):ピアス穴, ARG:1)
+	LOCAL:0 ++
+RETURNF LOCAL:0
 
 ;---------------------------
 ;ARG:0番のキャラがつけているピアスと穴について、文字列で返す
@@ -176,12 +187,11 @@ IF !LOCAL:1
 ENDIF
 
 FOR LOCAL:0, 0, ピアス_最大ビット + 1
-	SELECTCASE IS_PIERCED(ARG:0, LOCAL:0)
-		CASE 2
-			CALL COLORPRINTFORM(@"%GET_PIERCE_NAME(LOCAL:0)%", GROUPMATCH(GET_PIERCE_NAME(LOCAL:0), "乳首", "ラビア", "クリトリス", "ペニス") ? COLOR("桃") # GETDEFCOLOR())  
-		CASE 1
-			CALL COLORPRINTFORM(@"%GET_PIERCE_NAME(LOCAL:0)%", COLOR("選択不可"))  
-	ENDSELECT
+	IF IS_PIERCED(ARG:0, LOCAL:0)
+		CALL COLORPRINTFORM(@"%GET_PIERCE_NAME(LOCAL:0)%", GROUPMATCH(GET_PIERCE_NAME(LOCAL:0), "乳首", "ラビア", "クリトリス", "ペニス") ? COLOR("桃") # GETDEFCOLOR())  
+	ELSEIF IS_HOLED(ARG:0, LOCAL:0)
+		CALL COLORPRINTFORM(@"%GET_PIERCE_NAME(LOCAL:0)%", COLOR("選択不可"))  
+	ENDIF
 NEXT
 
 ;---------------------------
