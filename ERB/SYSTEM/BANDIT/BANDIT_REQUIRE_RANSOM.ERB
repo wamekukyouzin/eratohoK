@@ -182,7 +182,7 @@ IF 人数 > 0
 		PRINTFORML さて、どうしたものか……
 		DRAWLINE
 		PRINTFORML 現在の金:{MONEY}
-		CALL ASK_MULTI_JUDGE("払う", MONEY >= 身代金, "払わない", 1, "代わりに自分が捕虜になる", IS_FEMALE(MASTER) && GET_COUNTRY_BOSS(CFLAG:MASTER:所属) != MASTER)
+		CALL ASK_MULTI_JUDGE("払う", MONEY >= 身代金, "払わない", 1, "代わりに自分が捕虜になる", IS_FEMALE(MASTER) && GET_COUNTRY_BOSS(CFLAG:MASTER:所属) != MASTER, "男を斬り捨てる", 1)
 		;払う
 		IF RESULT == 0 && MONEY >= 身代金
 			PRINTFORML 「へへへ、毎度ありだな」
@@ -224,16 +224,25 @@ IF 人数 > 0
 			CFLAG:対象:9 = 0
 			CFLAG:対象:解放カウンタ = 0
 			CFLAG:MASTER:9 = 野盗
-		;払わない（見せしめレイプ）
+		;払わない
 		ELSEIF RESULT == 1
 			PRINTFORML お前達に払う金などない、我々は我々自身の手で%ANAME(対象)%を救い出す。
 			PRINTFORMW 毅然として伝えると、男は冷笑した
 			PRINTFORML 「へっ、そうかよ、まぁ別にいいぜ？　それならそれで、こっちにも考えがあるってもんだ」
 			PRINTFORML じゃあなと吐き捨て、男は早々に立ち去っていった
 			PRINTFORMW 部下の者に追跡させたが、巧妙に撒かれ、彼らのアジトを掴むには至らなかった……
+		;斬り捨て
+		ELSEIF RESULT == 3
+			PRINTFORML やかましい。問答無用で使いを斬り捨てた
+			PRINTFORML 部下に死体を改めさせたが、彼らのアジトを掴むような手がかりは見つからなかった
+			PRINTFORMW この男はいくらでも替えのきく下っ端だろう。今後も似たようなことは起こりそうだ……
+		ENDIF
+		;払わないか斬り捨てた場合
+		IF GROUPMATCH(RESULT, 1, 3)
+			LOCAL:1 == RESULT
 			DVAR:野盗身代金フラグ = 2
 			CFLAG:対象:解放カウンタ = 0
-			IF RAND:100 < 25
+			IF RAND:100 < 25 || LOCAL:1 == 3
 				DRAWLINE
 				PRINTFORML
 				SETCOLOR COLOR("警告")
@@ -310,7 +319,18 @@ IF 人数 > 0
 						EXP:(対象):獣姦経験 += 20
 				ENDSELECT
 				DRAWLINE
-				PRINTFORML
+				IF LOCAL:1 == 3
+					PRINTFORML
+					PRINTFORML
+					PRINTFORML
+					FOR LOCAL, 0, 3
+						CALL SET_TATOO_RANDOM(対象, STR_FOR_TATOO(-1))
+						CALL SET_PIERCE_RANDOM(対象)
+					NEXT
+					PRINTFORML
+					PRINTFORML
+					PRINTFORML
+				ENDIF
 				PRINTFORML
 				PRINTFORML
 				PRINTFORML
