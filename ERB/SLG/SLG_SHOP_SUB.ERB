@@ -43,6 +43,8 @@ ENDIF
 DRAWLINE
 PRINTBUTTON "20[新規部隊]", 20
 PRINTL 
+PRINTBUTTON "30[最強編成除外設定]", 30
+PRINTL
 PRINTBUTTON " 0[    戻る]", 0
 PRINTL 
 
@@ -62,10 +64,11 @@ IF RESULT == 20
 		PRINTW これ以上部隊を編成することはできません
 	ENDIF
 	RESTART
-
+ELSEIF RESULT == 30
+	CALL EXCLUDE_BEST_COMMANDER
+	RESTART
 ELSEIF RESULT == 0
 	RETURN
-
 ELSEIF RESULT >= 1 && RESULT <= MAX_UNIT && UNIT_SOLDIER:(CFLAG:MASTER:1):(RESULT - 1) > 0 && UNIT_BREAK_TERM:(CFLAG:MASTER:1):(RESULT - 1) == 0
 	CALL UNIT_SETTING(CFLAG:MASTER:1, RESULT - 1)
 	RESTART
@@ -930,3 +933,102 @@ IF ARG:0 >= 70000
 ENDIF
 PRINTBUTTON "[経済力の20%]", ARG:0
 
+;-------------------------------------------------
+;最強設定から外すキャラを指定
+;-------------------------------------------------
+@EXCLUDE_BEST_COMMANDER
+#DIM 消去行
+#DIM 対象
+#DIM 表示位置
+#DIM 表示ページ
+#DIM 総ページ数
+#DIM キャラ数
+#DIM キャラカウンタ
+#DIM 表示開始位置
+#DIM 表示終了位置
+VARSET キャラ数
+FOR LOCAL, 0, CHARANUM
+	SIF CFLAG:(LOCAL:0):所属 == CFLAG:MASTER:所属
+		キャラ数 ++
+NEXT
+
+総ページ数 = (キャラ数 - 1) / 40 + 1
+表示ページ = 1
+
+
+DRAWLINE
+PRINTFORML 部隊編成・守将設定における「最強編成」から除外するキャラを設定できます
+PRINTFORML クリックでトグル・除外されたキャラは桃色表示されます
+DRAWLINE
+$SHOW_LOOP
+
+VARSET 消去行
+VARSET 表示位置
+VARSET キャラカウンタ
+表示開始位置 = (表示ページ - 1) * 40
+表示終了位置 = 表示ページ * 40
+
+FOR LOCAL:0, 0, CHARANUM
+	IF CFLAG:(LOCAL:0):所属 == CFLAG:MASTER:所属
+		IF 表示開始位置 <= キャラカウンタ && キャラカウンタ <= 表示終了位置
+			IF 表示位置 % 3 != 0
+				PRINT 　　
+			ELSEIF 表示位置 > 0
+				PRINTL
+				消去行 ++
+			ENDIF
+			IF CFLAG:(LOCAL:0):最強編成除外フラグ
+				SETCOLOR COLOR("桃")
+			ELSE
+				RESETCOLOR
+			ENDIF
+			PRINTFORM [{LOCAL:0 + 99, 4}]%ANAME(LOCAL:0), 16, RIGHT%
+			表示位置 ++
+		ENDIF
+		キャラカウンタ ++
+	ENDIF
+NEXT
+PRINTL
+DRAWLINE
+
+IF 総ページ数 >= 2
+	消去行 += 2
+	IF 表示ページ > 1
+		PRINT [  8] 前のページ            
+	ELSE
+		PRINT                             
+	ENDIF
+	LOCALS:0 = ページ{表示ページ}/{総ページ数}
+	PRINTPLAINFORM %LOCALS:0, 28, LEFT%
+	IF 表示ページ < 総ページ数
+		PRINT [  9] 後のページ
+	ENDIF
+	PRINTL 
+	DRAWLINE
+ENDIF
+
+PRINTL [ 0]これでよし
+REDRAW 0
+INPUT
+消去行 += 4
+IF RESULT == 8 && 表示ページ > 1
+	表示ページ --
+	CLEARLINE 消去行
+	GOTO SHOW_LOOP
+ELSEIF RESULT == 9 && 表示ページ < 総ページ数
+	表示ページ ++
+	CLEARLINE 消去行
+	GOTO SHOW_LOOP
+ELSEIF RESULT == 0
+	REDRAW 1
+	RETURN -1
+ENDIF
+対象 = RESULT - 99
+IF 対象 > CHARANUM || 対象 < 0 || CFLAG:対象:所属 != CFLAG:MASTER:所属
+	CLEARLINE 消去行
+	GOTO SHOW_LOOP
+ENDIF
+
+CFLAG:対象:最強編成除外フラグ = !CFLAG:対象:最強編成除外フラグ
+CLEARLINE 消去行
+GOTO SHOW_LOOP
