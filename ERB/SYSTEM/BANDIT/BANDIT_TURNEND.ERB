@@ -20,6 +20,14 @@ VARSET 中継点の数
 VARSET 解散フラグ
 VARSET 都市数
 
+;クールタイム減少処理と、このターンに割り当てたフラグ削除処理
+FOR LCOUNT, 0, CHARANUM
+	IF CFLAG:LCOUNT:所属 == ARG:0
+		COOLTIME:LCOUNT:0 = MAX(COOLTIME:LCOUNT:0 - 1 , 0)
+		ASSIGNED_THIS_TURN:LCOUNT:0 = 0
+	ENDIF
+NEXT
+
 ;野盗湧かない期間中だとなにもせずにおわる
 SIF BANDIT_POP_SUSPENDED > 0
 	RETURN 0
@@ -37,6 +45,10 @@ NEXT
 
 ;基準値の２乗の80から120%の徴兵、最大は最大兵数の5%（最大兵数はその時点での全都市の経済規模の1%）
 増加量 = MIN(POWER(都市数:0, 2) * (80 + RAND:41) / 100, SUMARRAY(CITY_ECONOMY) / 2000)
+増加量 *= BANDIT_RANK
+増加量 /= 2
+増加量 = 増加量 * (100 + (DAY / 10)) / 100
+
 COUNTRY_SOLDIER:(ARG:0) = MIN(SUMARRAY(CITY_ECONOMY) / 100, COUNTRY_SOLDIER:(ARG:0) + 増加量)
 
 DEBUGPRINTFORML 【野盗徴兵:{DAY, 3}】:{都市数:0}, {都市数:1}, {都市数:2} / {増加量}
