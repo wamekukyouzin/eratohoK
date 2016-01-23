@@ -27,10 +27,11 @@ CALL BANDIT_RISE()
 ;--------------------------------------
 @BANDIT_RISE()
 #DIM 野盗
-#DIM 結果
+#DIM 結果, 10
 #DIM 判定無視
 #DIM 候補数
 VARSET LOCAL
+VARSET 結果, -1
 野盗 = GET_COUNTRY_FROM_ID(COUNTRY_BANDIT)
 
 ;野盗勢力場合は発生しない
@@ -40,17 +41,22 @@ SIF 野盗 == -1
 
 CALL BANDIT_RISE_SELECT_CITY()
 
-結果 = RESULT
+FOR LOCAL, 0, VARSIZE("結果")
+	SIF RESULT:LOCAL == -1
+		BREAK
+	結果:LOCAL = RESULT:LOCAL
+NEXT
 
-SIF 結果 == -1
+SIF 結果:0 == -1
 	RETURN -1
 
 ;メッセージ表示
 DRAWLINE
 PRINTFORML
-CALL COLORPRINTFORM(@"野盗どもが%CITY_NAME:結果%を奪い、蜂起しました！", COLOR("警告"), "W")
-
-LOCAL:1 = CITY_OWNER:結果
+SETCOLOR COLOR("警告")
+PRINTFORMW 野盗が蜂起しました！
+RESETCOLOR
+LOCAL:1 = CITY_OWNER:(結果:0)
 
 ;奪った都市の所属武将を何人かかっぱらう（無所属都市でなければ）
 IF IS_COUNTRY(LOCAL:1)
@@ -65,7 +71,12 @@ IF IS_COUNTRY(LOCAL:1)
 	NEXT
 ENDIF
 
-CALL TAKEOVER_CITY_FROM_NO(野盗, 結果)
+FOR LOCAL, 0, BANDIT_RANK
+	SIF 結果:LOCAL == -1
+		BREAK
+	CALL COLORPRINTFORM(@"%CITY_NAME:(結果:LOCAL)%が奪われました", COLOR("警告") , "W")
+	CALL TAKEOVER_CITY_FROM_NO(野盗, 結果:LOCAL)
+NEXT
 COUNTRY_SOLDIER:野盗 += MIN(DAY * 100, 10000)
 COUNTRY_IS_CLOSED:野盗 = 0
 DVAR:野盗蜂起カウンタ = 0
