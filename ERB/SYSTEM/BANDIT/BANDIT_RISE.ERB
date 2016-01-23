@@ -77,13 +77,14 @@ DVAR:野盗蜂起カウンタ = 0
 #DIM 勢力, MAX_COUNTRY
 #DIM 判定値, MAX_COUNTRY
 #DIM 都市, MAX_CITY
-#DIM 結果
+#DIM 対象勢力
 #DIM 候補数
+#DIM 戻り値, 10
 VARSET 勢力
 VARSET 判定値
 VARSET 都市
 VARSET 候補数
-
+VARSET 戻り値, -1
 ;各勢力の都市数に基づいて判定値を算出
 FOR LOCAL, 0, MAX_COUNTRY
 	IF GET_OWN_CITY(LOCAL) > 1 || (LOCAL == 0 && GET_OWN_CITY(LOCAL) > 0)
@@ -97,13 +98,13 @@ SIF 候補数 == 0
 	RETURN -1
 
 ;都市数が多い勢力ほど狙われやすい
-結果 = 勢力:FINDELEMENT(判定値, MAXARRAY(判定値, 0, 候補数), 0, 候補数)
+対象勢力 = 勢力:FINDELEMENT(判定値, MAXARRAY(判定値, 0, 候補数), 0, 候補数)
 
 VARSET 候補数
 
 ;対象都市を選択
 FOR LOCAL, 1, CITY_NUM + 1
-	IF CITY_OWNER:LOCAL == 結果
+	IF CITY_OWNER:LOCAL == 対象勢力
 		都市:候補数 = LOCAL
 		候補数 ++
 	ENDIF
@@ -114,6 +115,12 @@ SIF 候補数 == 0
 
 CALL FISHER_YATES_SHAFFLE(候補数)
 
-RETURN 都市:(SHAFFLE_ARRAY:0)
+FOR LOCAL, 0, IS_COUNTRY(対象勢力) ? LIMIT(GET_OWN_CITY(対象勢力) / 5, 1, 10) # 1
+	SIF SHAFFLE_ARRAY:LOCAL == -1
+		BREAK
+	戻り値:(LOCAL) = 都市:(SHAFFLE_ARRAY:LOCAL)
+NEXT
+
+RETURN 戻り値:0, 戻り値:1, 戻り値:2, 戻り値:3, 戻り値:4, 戻り値:5, 戻り値:6, 戻り値:7, 戻り値:8, 戻り値:9
 
 
