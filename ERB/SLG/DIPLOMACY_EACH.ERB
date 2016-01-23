@@ -1422,9 +1422,15 @@ ELSEIF RESULT == 0 && LOCAL:40
 	LOCAL:54 = MAX(GET_SUM_SOLDIER(ARG:0) - GET_OWN_CITY(ARG:0) * 500, 0)
 	LOCAL:55 = MAX(GET_SUM_SOLDIER(CFLAG:MASTER:1) - GET_OWN_CITY(CFLAG:MASTER:1) * 500, 0)
 
-	;ただし、最大でも補填国の40%が限界
-	LOCAL:51 = MIN(ABS(LOCAL:39) * LOCAL:50 / 360000, (LOCAL:39 > 0 ? LOCAL:54 # LOCAL:55) * 40 / 100)
-
+	LOCAL:51 = ABS(LOCAL:39) * LOCAL:50 / 360000
+	
+	;ただし、自国が補填してもらう場合（解放点数が要求点数より大きい場合）、最大でも補填国の40%が限界
+	;そして、自国が補填する場合（要求点数が解放点数以上の場合）、算出した要求兵数と合計点数のうち、大きい方を採用
+	IF LOCAL:39 > 0
+		LOCAL:51 = MIN(LOCAL:51, LOCAL:54 * 40 / 100)
+	ELSE
+		LOCAL:51 = MAX(LOCAL:51, ABS(LOCAL:39))
+	ENDIF
 	IF LOCAL:39 == 0
 		PRINTFORML 選択した捕虜を解放します
 		CALL ASK_YN("決定", "キャンセル")
@@ -1492,8 +1498,15 @@ ELSEIF RESULT == 1 && LOCAL:40
 	LOCAL:53 = MAX(LOCAL:50 - GET_OWN_CITY(CFLAG:MASTER:1) * 50, 0)
 	LOCAL:54 = MAX(LOCAL:51 - GET_OWN_CITY(ARG:0) * 50, 0)
 
-	;ただし、供出国の20%が限界
-	LOCAL:52 = MIN(LOCAL:52, (LOCAL:39 > 0 ? LOCAL:53 # LOCAL:54) * 20 / 100)
+	LOCAL:52 = ABS(LOCAL:39) * LOCAL:50 / 360000
+	
+	;ただし、自国が補填してもらう場合（解放点数が要求点数より大きい場合）、最大でも補填国の20%が限界
+	;そして、自国が補填する場合（要求点数が解放点数以上の場合）、算出した要求経済力と合計点数の1/3のうち、大きい方を採用
+	IF LOCAL:39 > 0
+		LOCAL:52 = MIN(LOCAL:52, LOCAL:54 * 20 / 100)
+	ELSE
+		LOCAL:52 = MAX(LOCAL:52, ABS(LOCAL:39) / 3)
+	ENDIF
 
 	IF LOCAL:39 == 0
 		PRINTFORML 選択した捕虜を解放します
@@ -1667,7 +1680,7 @@ LOCAL:0 += ABL_POWER(ABL:(ARG:0):歌唱)
 LOCAL:0 += ABL_POWER(ABL:(ARG:0):料理)
 ;対象が特殊な勢力に捕らえられており、それが自国の捕らえている捕虜でない場合、価値は3倍に
 SIF CFLAG:MASTER:所属 != CFLAG:(ARG:0):捕虜先 && GROUPMATCH(CFLAG:(ARG:0):捕虜先, GET_COUNTRY_FROM_ID(COUNTRY_BANDIT), GET_COUNTRY_FROM_ID(COUNTRY_GAIRAI), GET_COUNTRY_FROM_ID(COUNTRY_GOBLIN))
-	LOCAL:0 *= 3
+	LOCAL:0 *= 5
 RETURNF POWER(MAX(REV_ABL_POWER(LOCAL:0) - 40, 10), 2)
 
 ;-------------------------------------------------
