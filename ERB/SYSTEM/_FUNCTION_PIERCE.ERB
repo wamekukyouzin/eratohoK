@@ -83,24 +83,27 @@ RETURN -1
 ;どこも空いてなかったら-1が戻ってくるので、その辺考えずに単純にGET_PIERCE_NAMEしないこと
 ;---------------------------
 @SET_PIERCE_RANDOM(ARG:0, ARG:1  = 1)
-LOCAL:1 = 0
+#DIM 空き部位, ピアス_最大ビット + 1
+#DIM 空き数
+VARSET 空き部位, -1
+VARSET 空き数
 FOR LOCAL, 0, ピアス_最大ビット + 1
-	IF !IS_PIERCED(ARG:0, LOCAL:0)
-		LOCAL:1 = 1
-		BREAK
+	IF CAN_PIERCE(ARG:0, LOCAL:0)
+		空き部位:空き数 = LOCAL:0
+		空き数 ++
 	ENDIF
 NEXT
 
 ;どこも空いてなかったら-1
-SIF !LOCAL:1
+SIF 空き数 == 0
 	RETURN -1
 
-WHILE 1
-	LOCAL = RAND:(ピアス_最大ビット + 1)
-	CALL SET_PIERCE(ARG:0, LOCAL, ARG:1)
-	SIF RESULT
-		RETURN LOCAL
-WEND
+LOCAL = 空き部位:(RAND:空き数)
+CALL SET_PIERCE(ARG:0, LOCAL, ARG:1)
+SIF RESULT
+	RETURN LOCAL
+;多分こないはず
+RETURN -1
 
 ;---------------------------
 ;ARG:0番のキャラが、ARG:1番のビットにピアスできるか
@@ -111,7 +114,7 @@ WEND
 SIF ARG:1 < 0 || ピアス_最大ビット < ARG:1
 	RETURNF 0
 ;装着済みなら不可
-SIF GETBIT(TALENT:(ARG:0):ピアス, ARG:1)
+SIF IS_PIERCED(ARG:0, ARG:1)
 	RETURNF 0
 ;ラビアピアスはヴァギナが必要
 SIF ARG:1 == ピアス_ラビア
