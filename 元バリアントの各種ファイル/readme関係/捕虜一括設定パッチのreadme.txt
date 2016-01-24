@@ -1,14 +1,14 @@
-�E���������
-�ߗ��̈��������肷���ʂŁA
-�S�Ă̕ߗ��̈������ꊇ�Őݒ�o����悤�ɁB
+﻿・やったこと
+捕虜の扱いを決定する場面で、
+全ての捕虜の扱いを一括で設定出来るように。
 
-�E�ҏW��
-era���P 20140319
+・編集元
+era恋姫 20140319
 
-�E�ҏW����
-�t�@�C�� EVENT_PRISONER.ERB �ɂ�����
-  �֐� @SETSTATE_PRISONER_SETALL ��V�K�쐬
-  �֐� @SETSTATE_PRISONER ��ҏW
+・編集部位
+ファイル EVENT_PRISONER.ERB において
+  関数 @SETSTATE_PRISONER_SETALL を新規作成
+  関数 @SETSTATE_PRISONER を編集
 
-�E���̃p�b�`��ERB�ɒǉ����ꂽ���ʂ̈����ɂ���
-era���P��ҏW������͎��R�Ɉ����ĉ������B
+・このパッチでERBに追加された部位の扱いについて
+era恋姫を編集する方は自由に扱って下さい。

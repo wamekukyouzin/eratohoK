@@ -1,109 +1,109 @@
-*************************************
-eratohoK�@Ver0.120�p
-�R�X�v���p�b�`
-���:toroiya
+﻿*************************************
+eratohoK　Ver0.120用
+コスプレパッチ
+作者:toroiya
 *************************************
 ---------------------------------------
-1.�T�v
-�@�L�����ɃR�X�v���ߑ��𒅂��Đ�����퓬���s�킹��p�b�`�ł�(�퓬���ʂł̗��v����)
+1.概要
+　キャラにコスプレ衣装を着せて生活や戦闘を行わせるパッチです(戦闘方面での利益が主)
 
-�@�R�X�v���ߑ��𒅂���ƁA���L�̂悤�ȃ����b�g���󂯂��܂�
+　コスプレ衣装を着せると、下記のようなメリットを受けられます
 
-�@�E�̏��Z�\,�����Z�\�̕␳�������Ȃ�(�ߑ��n�DLv�~2���������l���オ��܂��B�{��50�ȏ�Ȃ��ƈ�؂̌��ʂ������e�Z�\��30�ȏ�Ō��ʂ𔭊�����悤�ɂȂ�܂�)
-�@�E�d�p�Z�\�ɂ��U���E�퓬�Z�\�̕␳�������Ȃ�
-�@�E���m���̂̎m�C���㏸���A��ʂ������₷���Ȃ�
+　・歌唱技能,料理技能の補正が強くなる(衣装嗜好Lv×2分だけ数値が上がります。本来50以上ないと一切の効果が無い各技能が30以上で効果を発揮するようになります)
+　・妖術技能による攻撃・戦闘技能の補正が強くなる
+　・兵士自体の士気が上昇し、戦果をあげやすくなる
 
-�@�f�����b�g�͈ȉ��̒ʂ�ł�
-�@�E�������זł�����ꂽ�ۂɁA�G�ɕ߂܂�₷���Ȃ�
-�@�E�����Z�\�������Ⴍ�Ȃ�(���l��������킯�ł͂Ȃ��A�퓬���ɉ����␳��������)
+　デメリットは以下の通りです
+　・部隊が潰滅させられた際に、敵に捕まりやすくなる
+　・武闘技能が少し低くなる(実値が下がるわけではなく、戦闘中に下方補正がかかる)
 
-�@�܂��A�L�����̔\�͂Ɂu�ߑ��n�D�v���x�����V�݂���܂�
-�@�E�ߑ��n�D���x�����オ��ɂ�ߑ��␳�������Ȃ�܂�
-�@�E�ߑ��n�D���x�����グ��ɂ́A�L�����ɃR�X�v���ߑ��𒅂�����Łu��ɍs���v�R�}���h�ɂčs������K�v������܂�
-�@�E�ݒ�̓s����u�ߗ��̒����v��u聂ɌĂԁv�R�}���h�ł͈ߑ��n�D���x���͏オ��܂���(���炭�S���ł��邽��)
-�@�@�������A���̐i�s�ɂ���Ă��ߑ��n�D���x�����グ�邱�Ƃ��ł��܂�
-
-
-�@�ߑ��𒅂������邽�߂̏����͑��݂��܂���
-�@�������A�D���x���ˑ��x���Ⴂ���̓����b�g���f�����b�g�̕��������Ȃ邽�߁A�����߂ł��܂���
-�@��{�I�ɂ͑��Ӑ��̗v�f�ł�
-�@�����p�[�g�i�[��q���L�������琬����T��ɕ����𒅂��A�ߑ��n�D��b����^�p�𐄏����܂�
-
-----------------------------------------
-2.�K�p���@
-�@�ueratohoK�@Ver1.20�v�́uERB�v�ɁA���̃p�b�`�ɓ������ꂽ�uERB�v�t�H���_���㏑�����Ă�������
+　また、キャラの能力に「衣装嗜好」レベルが新設されます
+　・衣装嗜好レベルが上がるにつれ衣装補正が強くなります
+　・衣装嗜好レベルを上げるには、キャラにコスプレ衣装を着せた上で「会いに行く」コマンドにて行動する必要があります
+　・設定の都合上「捕虜の調教」や「閨に呼ぶ」コマンドでは衣装嗜好レベルは上がりません(恐らく全裸であるため)
+　　しかし、期の進行によっても衣装嗜好レベルを上げることができます
 
 
-
-
-�����ȉ��A�J������
+　衣装を着せかえるための条件は存在しません
+　しかし、好感度か依存度が低い内はメリットよりデメリットの方が強くなるため、お勧めできません
+　基本的には大器晩成の要素です
+　初期パートナーや子供キャラを育成する傍らに服装を着せ、衣装嗜好を鍛える運用を推奨します
 
 ----------------------------------------
-2.�g�p�����ϐ�
+2.適用方法
+　「eratohoK　Ver1.20」の「ERB」に、このパッチに同梱された「ERB」フォルダを上書きしてください
 
-�@�ȉ��̕ϐ����g�p���Ă��邽�߁A�g�p�ϐ�����������p�b�`�Ƃ̕��p�͂ł��܂���
-�@(�ԍ����蓖�Ă�ύX�����ꍇ�A���p�\(�ϐ��w��͖��̂ɂčs���Ă��邽��))
 
-�@ITEM
-�@�@240,���C�h��
-�@�@241,�x��q�ߑ�
-�@�@242,�ޏ�����
 
-�@EXP
-�@�@ 32,�ߑ��n�D�o���l
 
-�@ABL
-�@�@ 15,�ߑ��n�D
-
-�@CFLAG
-�@�@ 92,���ݒ��Ă���ߕ�(0�̓f�t�H���g(���i��)�A1:���C�h���A2:�x��q�ߑ��A3:�ޏ�����)
+↓↓以下、開発資料
 
 ----------------------------------------
-3.�ύX�����t�@�C��
+2.使用した変数
 
-�@�ȉ��̃t�@�C���ɂď�����ύX�A���邢�͉��M���Ă��܂�
-�@�ȉ��̃t�@�C���Ɏ�������Ă���p�b�`�Ƃ̕��p�͂ł��܂���
-�@(�Y�����鏈�����蓮�Œǉ�����ꍇ�A���p�\)
+　以下の変数を使用しているため、使用変数が競合するパッチとの併用はできません
+　(番号割り当てを変更した場合、併用可能(変数指定は名称にて行っているため))
 
-��csv�t�@�C���̕ύX
-�@�uItem.csv�v�ɕ�����ǉ�
-�@�uExp.csv�v�Ɉߑ��n�D�o���l��ǉ�
-�@�uAbl.csv�v�Ɉߑ��n�D��ǉ�
-�@(�uCFLAG.csv�v�͑��݂��Ȃ����ߕύX����)
+　ITEM
+　　240,メイド服
+　　241,踊り子衣装
+　　242,巫女装束
+
+　EXP
+　　 32,衣装嗜好経験値
+
+　ABL
+　　 15,衣装嗜好
+
+　CFLAG
+　　 92,現在着ている衣服(0はデフォルト(普段着)、1:メイド服、2:踊り子衣装、3:巫女装束)
+
+----------------------------------------
+3.変更したファイル
+
+　以下のファイルにて処理を変更、あるいは加筆しています
+　以下のファイルに手を加えているパッチとの併用はできません
+　(該当する処理を手動で追加する場合、併用可能)
+
+○csvファイルの変更
+　「Item.csv」に服装を追加
+　「Exp.csv」に衣装嗜好経験値を追加
+　「Abl.csv」に衣装嗜好を追加
+　(「CFLAG.csv」は存在しないため変更無し)
 
 
-���u�����Ă��镞�v�Ƃ����T�O�̒ǉ�
+○「今着ている服」という概念の追加
 
-�@�uSHOP_ITEM.ERB�v����@SET_ITEMTERM
-�@�@�@�e��ߑ��̊J�����Ԃ�ݒ�
-�@�uSHOW_INFO.ERB�v����@SHOW_INFO
-�@�@�@���Ă���ߕ��̏��\������
-�@�u_FUNCTION.ERB�v����@CLOTHE_NAME(�����֐�)��ǉ�
-�@�@�@�ߑ�����\������֐��A�����Ɏg���͈̂ߑ���ID�ł���
+　「SHOP_ITEM.ERB」内の@SET_ITEMTERM
+　　　各種衣装の開発期間を設定
+　「SHOW_INFO.ERB」内の@SHOW_INFO
+　　　着ている衣服の情報表示処理
+　「_FUNCTION.ERB」内に@CLOTHE_NAME(式中関数)を追加
+　　　衣装名を表示する関数、引数に使うのは衣装のIDである
 
-�@�uSHOP_LIFE.ERB�v����@SHOW_SHOP_LIFE_A�@@PRINT_LIFE_MENU�@@EVENTBUY_LIFE_A�@USERSHOP_LIFE_CHARA1
-�@�@�u����ւ���v�R�}���h������ǉ�(FLAG:7��1022���g�p)
+　「SHOP_LIFE.ERB」内の@SHOW_SHOP_LIFE_A　@PRINT_LIFE_MENU　@EVENTBUY_LIFE_A　USERSHOP_LIFE_CHARA1
+　　「服を替える」コマンド処理を追加(FLAG:7は1022を使用)
 
-�@�uSHOP_LIFE.ERB�v����@CHECK_SELECTABLE1022��ǉ�
-�@�@�u����ւ���v�R�}���h�ɂđI���\�ȃL������ݒ�
+　「SHOP_LIFE.ERB」内に@CHECK_SELECTABLE1022を追加
+　　「服を替える」コマンドにて選択可能なキャラを設定
 
-�����̋@�\�ʎ���(���ʂ̂���)
-�@�uSLG_TURNEND�v����@UNIT_SUPPORT_LEVEL�@@CITY_SUPPORT_LEVEL
-�@�@�ߑ��ɂ��̏��E�����Z�\�ւ̕␳����
-�@�uSLG_TURNEND�v����@CITY_ATTACK_LEVEL�@@CITY_DEFFENCE_LEVEL�@@UNIT_ATTACK_LEVEL�@@UNIT_DEFFENCE_LEVEL�@
-�@�@�d�p�Z�\�ł̍U���E�h�q�\�͕␳�ւ̈ߑ��ɂ��␳����
-�@�@�ߑ��ɂ��}�C�i�X�␳�A�ߑ��n�D�ɂ��v���X�␳
-�@�uSLG_TURNEND�v����@UNIT_BREAK_CAPTURE
-�@�@�����זŎ��̔�ߊl���␳
-�@�uSLG_TURNEND�v����@COUNTRY_ADD_SOLDIER�@@VARY_ECONOMY
-�@�@�̏��E�����Z�\�ւ̈ߑ��␳(����������̂ŁA�퓬�������͔���(�ő�+10))
+○服の機能面実装(効果のこと)
+　「SLG_TURNEND」内の@UNIT_SUPPORT_LEVEL　@CITY_SUPPORT_LEVEL
+　　衣装による歌唱・料理技能への補正処理
+　「SLG_TURNEND」内の@CITY_ATTACK_LEVEL　@CITY_DEFFENCE_LEVEL　@UNIT_ATTACK_LEVEL　@UNIT_DEFFENCE_LEVEL　
+　　妖術技能での攻撃・防衛能力補正への衣装による補正処理
+　　衣装によるマイナス補正、衣装嗜好によるプラス補正
+　「SLG_TURNEND」内の@UNIT_BREAK_CAPTURE
+　　部隊潰滅時の被捕獲率補正
+　「SLG_TURNEND」内の@COUNTRY_ADD_SOLDIER　@VARY_ECONOMY
+　　歌唱・料理技能への衣装補正(複利があるので、戦闘時より効力半減(最大+10))
 
-���u�ߑ��n�D�v�̋@�\(�o���l����ƃ��x���A�b�v����)
-�@�uABL.ERB�v����@TRAIN_AUTO_ABLUP
-�@�@�ߑ��n�D�̃��x���A�b�v����
-�@�uABL.ERB�v����@TRAIN_AUTO_ABLUP_CLOTHE��ǉ�
-�@�@�ߑ��n�D�̃��x���A�b�v����
-�@�uSOURCE.ERB�v����@SOURCE_CHECK
-�@�@�ߑ��n�D�o���l�̓��菈��
-�@�uTURNEND.ERB�v����@TURNEND_COMMON
-�@�@�^�[���i�s�ɂ��ߑ��n�D�o���l���菈���y�у��x���A�b�v����
+○「衣装嗜好」の機能(経験値入手とレベルアップ処理)
+　「ABL.ERB」内の@TRAIN_AUTO_ABLUP
+　　衣装嗜好のレベルアップ処理
+　「ABL.ERB」内に@TRAIN_AUTO_ABLUP_CLOTHEを追加
+　　衣装嗜好のレベルアップ処理
+　「SOURCE.ERB」内の@SOURCE_CHECK
+　　衣装嗜好経験値の入手処理
+　「TURNEND.ERB」内の@TURNEND_COMMON
+　　ターン進行による衣装嗜好経験値入手処理及びレベルアップ処理

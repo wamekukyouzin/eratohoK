@@ -145,7 +145,7 @@ FLAG:99 = MAX(FLAG:99 - MAX(6 - CONFIG:300, 0), 0)
 ;-------------------------------------------------
 @COUNTRY_TURNEND(ARG:0)
 #DIM LCOUNT, 3
-SETCOLOR COLOR("明灰色")
+SETCOLOR COUNTRY_COLOR:(ARG:0)
 PRINTFORML %NAME:GET_COUNTRY_BOSS(ARG:0)%軍行動中...
 RESETCOLOR
 
@@ -1691,8 +1691,8 @@ ENDSELECT
 ;逃走阻止率
 #DIM CAPTURE_RATE
 
-#DIM 武闘アップ
-#DIM 知略アップ
+#DIM アップ種類
+#DIM アップ量
 
 VARSET COMMANDER_W, -1
 VARSET COMMANDER_L, -1
@@ -1878,62 +1878,62 @@ FOR LOCAL:0, 0, 3
 	ENDIF
 NEXT
 FOR LOCAL,0, 3
-	IF COMMANDER_W:LOCAL > 0 && ABL:(COMMANDER_W:LOCAL):武闘 < 80 && ABL:(COMMANDER_W:LOCAL):知略 < 80
-		武闘アップ = 0
-		SELECTCASE ABL:(COMMANDER_W:LOCAL):武闘
+	LOCAL:1 = COMMANDER_W:LOCAL
+	IF LOCAL:1 > 0 && (ABL:(LOCAL:1):武闘 < 80 || ABL:(LOCAL:1):知略 < 80 || ABL:(LOCAL:1):政治 < 80 || ABL:(LOCAL:1):料理 < 60 || ABL:(LOCAL:1):歌唱 < 60)
+		アップ量 = 0
+		SELECTCASE RAND:100
 			CASE IS < 30
-				武闘アップ = RAND:4
-			CASE IS < 50
-				武闘アップ = RAND:3
-			CASE IS < 70
-				武闘アップ = RAND:2
+				アップ種類 = GETNUM(ABL, "武闘")
+			CASE IS < 60
+				アップ種類 = GETNUM(ABL, "知略")
+			CASE IS < 80
+				アップ種類 = GETNUM(ABL, "政治")
+			CASE IS < 90
+				アップ種類 = GETNUM(ABL, "歌唱")
 			CASEELSE
-				SIF !RAND:4
-					武闘アップ = 1
+				アップ種類 = GETNUM(ABL, "料理")
 		ENDSELECT
-		IF 武闘アップ
-			SIF TALENT:(COMMANDER_W:LOCAL):超成長力
-				武闘アップ += RAND:2
-			IF TALENT:(COMMANDER_W:LOCAL):努力家
+		SELECTCASE アップ種類
+			CASE GETNUM(ABL, "武闘"), GETNUM(ABL, "知略"), GETNUM(ABL, "政治")
+				SELECTCASE ABL:(LOCAL:1):アップ種類
+					CASE IS < 30
+						アップ量 = RAND(1, 3)
+					CASE IS < 50
+						アップ量 = RAND:3
+					CASE IS < 70
+						アップ量 = RAND:2
+					CASE IS < 80
+						SIF !RAND:4
+							アップ量 = 1
+				ENDSELECT
+			CASEELSE
+				SELECTCASE ABL:(LOCAL:1):アップ種類
+					CASE IS < 25
+						アップ量 = RAND(1, 2)
+					CASE IS < 40
+						アップ量 = RAND:3
+					CASE IS < 50
+						アップ量 = RAND:2
+					CASE IS < 60
+						SIF !RAND:4
+							アップ量 = 1
+				ENDSELECT
+		ENDSELECT
+		IF アップ量
+			SIF TALENT:(LOCAL:1):超成長力
+				アップ量 += RAND:2
+			IF TALENT:(LOCAL:1):努力家
 				SELECTCASE RAND:100
 					CASE IS < 70
-						武闘アップ += 1
+						アップ量 += 1
 					CASE IS < 85
-						武闘アップ += 2
+						アップ量 += 2
 				ENDSELECT
 			ENDIF
 			SETCOLOR COLOR("オレンジ")
-			PRINTFORML %NAME:(COMMANDER_W:LOCAL)%の武闘が{武闘アップ}上昇しました(現在:{ABL:(COMMANDER_W:LOCAL):武闘 + 武闘アップ})
+			PRINTFORML %NAME:(LOCAL:1)%の%ABLNAME:アップ種類%が{アップ量}上昇しました(現在:{ABL:(LOCAL:1):アップ種類 + アップ量})
 			RESETCOLOR
-			ABL:(COMMANDER_W:LOCAL):武闘 += 武闘アップ
-		ENDIF
-		知略アップ = 0
-		SELECTCASE ABL:(COMMANDER_W:LOCAL):知略
-			CASE IS < 30
-				知略アップ = RAND:4
-			CASE IS < 50
-				知略アップ = RAND:3
-			CASE IS < 70
-				知略アップ = RAND:2
-			CASEELSE
-				SIF !RAND:4
-					知略アップ = 1
-		ENDSELECT
-		IF TALENT:(COMMANDER_W:LOCAL):努力家
-			SELECTCASE RAND:100
-				CASE IS < 70
-					知略アップ += 1
-				CASE IS < 85
-					知略アップ += 2
-			ENDSELECT
-		ENDIF
-		IF 知略アップ
-			SIF TALENT:(COMMANDER_W:LOCAL):超成長力
-				知略アップ += RAND:2
-			SETCOLOR COLOR("オレンジ")
-			PRINTFORML %NAME:(COMMANDER_W:LOCAL)%の知略が{知略アップ}上昇しました(現在:{ABL:(COMMANDER_W:LOCAL):知略 + 知略アップ})
-			RESETCOLOR
-			ABL:(COMMANDER_W:LOCAL):知略 += 知略アップ
+			ABL:(LOCAL:1):アップ種類 += アップ量
 		ENDIF
 	ENDIF
 NEXT
