@@ -1,0 +1,305 @@
+﻿;足を舐める
+
+;-------------------------------------------------
+;コマンド名称
+;-------------------------------------------------
+@COM_NAME104
+RESULTS:0 = 足を舐める
+RESULTS:1 = 足を舐めさせられる
+RESULTS:2 = 足を舐めさせる
+RESULTS:3 = 足を舐められる
+RESULTS:4 = 足を舐めさせる
+RESULTS:5 = 足舐め見せつけ
+
+;-------------------------------------------------
+;選択可否判定
+;-------------------------------------------------
+@COM_ABLE104
+;共通部分
+CALL COM_ABLE_COMMON(104)
+SIF RESULT == 0
+	RETURN 0
+;プレイヤーは最大で2人まで
+SIF MPLY_NUM <= 0 || MPLY_NUM > 2
+	RETURN 0
+;ターゲットは最大で2人まで
+SIF MTAR_NUM <= 0 || MTAR_NUM > 2
+	RETURN 0
+;プレイヤーが行動不能なら不可
+SIF !IS_PLAYABLE(MPLY:0)
+	RETURN 0
+;2-2は無理
+SIF MPLY_NUM == 2 && MTAR_NUM == 2
+	RETURN 0
+
+LOCAL:5 = 0
+LOCAL:6 = 0
+;全てのプレイヤーについて判定
+FOR LOCAL:0, 0, MPLY_NUM
+	;顔面騎乗されているなら不可
+	SIF IS_RIDDEN(MPLY:(LOCAL:0))
+		RETURN 0
+	;口枷装着中なら不可
+	SIF IS_EQUIP_TARGET(MPLY:(LOCAL:0), 86)
+		RETURN 0
+	;キス中なら不可
+	SIF IS_EQUIP(MPLY:(LOCAL:0), 20)
+		RETURN 0
+	;フェラ・パイズリ・亀頭フェラ中なら不可
+	SIF IS_EQUIP_PLAYER(MPLY:(LOCAL:0), 11, 12, 107)
+		RETURN 0
+	;イラマ・触手口辱されているなら不可
+	SIF IS_EQUIP_TARGET(MPLY:(LOCAL:0), 90, 210)
+		RETURN 0
+	;拘束のチェック
+	SIF IS_BIND(MPLY:(LOCAL:0))
+		LOCAL:5 = 1
+	;全てのターゲットについて判定
+	FOR LOCAL:1, 0, MTAR_NUM
+		;ターゲットからプレイヤーに尻コキ中なら不可
+		SIF SEARCH_EQUIP(15, MTAR:(LOCAL:1), MPLY:(LOCAL:0)) >= 0
+			RETURN 0
+	NEXT
+NEXT
+;全てのターゲットについて判定
+FOR LOCAL:0, 0, MTAR_NUM
+	;顔面騎乗されているなら不可
+	SIF IS_RIDDEN(MTAR:(LOCAL:0))
+		RETURN 0
+	;挿入中なら不可
+	SIF IS_INSERT_SINGLE(MTAR:(LOCAL:0), "全")
+		RETURN 0
+	;キス中なら不可
+	SIF IS_EQUIP(MTAR:(LOCAL:0), 20)
+		RETURN 0
+	;拘束のチェック
+	SIF IS_BIND(MTAR:(LOCAL:0))
+		LOCAL:6 = 1
+NEXT
+;プレイヤーとターゲットが両方拘束されていれば不可
+SIF LOCAL:5 && LOCAL:6
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;メイン処理
+;-------------------------------------------------
+@COM104
+;実行判定
+CALL COM_ORDER_COMMON
+SIF RESULT == 0
+	RETURN 0
+
+;足コキ・電気按摩を解除
+FOR LOCAL:0, 0, MPLY_NUM
+	FOR LOCAL:1, 0, MTAR_NUM
+		CALL RELEASE_EQUIP_EX(14, MTAR:(LOCAL:1), MPLY:(LOCAL:0))
+		CALL RELEASE_EQUIP_EX(103, MTAR:(LOCAL:1), MPLY:(LOCAL:0))
+	NEXT
+NEXT
+
+;●全プレイヤーについて処理
+FOR LOCAL:0, 0, MPLY_NUM
+	LOCAL:2 = MPLY:(LOCAL:0)
+
+	DOWNBASE:(LOCAL:2):体力 += 80
+
+	SOURCE:(LOCAL:2):奉仕 = SERVE_HOUSHI(LOCAL:2, 150)
+	SOURCE:(LOCAL:2):逸脱 = 80
+	SOURCE:(LOCAL:2):接触 = 30
+	SOURCE:(LOCAL:2):不潔 = 20
+
+	;主導権に応じた優越・屈従のソース追加
+	CALL ADD_SOURCE_INITIATIVE_U(LOCAL:2, 50, 160)
+
+	;奉仕経験値を得られるコマンドのフラグ
+	TCVAR:(MPLY:0):4 = 1
+
+	;足へのキス
+	IF MTAR_NUM == 1
+		CALL KISS_COMMON(MPLY:0, MTAR:0, 4, 0, 1)
+	ELSE
+		CALL KISS_COMMON(MPLY:0, -1, 4, 0, 1)
+	ENDIF
+NEXT
+
+;●全ターゲットについて処理
+FOR LOCAL:0, 0, MTAR_NUM
+	LOCAL:2 = MTAR:(LOCAL:0)
+
+	DOWNBASE:(LOCAL:2):体力 += 40
+
+	SOURCE:(LOCAL:2):嗜虐 = 20
+	SOURCE:(LOCAL:2):露出 = 30
+	SOURCE:(LOCAL:2):逸脱 = 20
+	SOURCE:(LOCAL:2):接触 = 30
+
+	;主導権に応じた優越・屈従のソース追加
+	CALL ADD_SOURCE_INITIATIVE_U(LOCAL:2, 160, 80)
+NEXT
+
+;主導度変化基準値
+TFLAG:49 = 3
+
+;倒錯度変化基準値
+TFLAG:50 = 2
+
+;レズ・ＢＬ経験基準値
+TFLAG:51 = 4
+
+RETURN 1
+
+;-------------------------------------------------
+;継続コマンドかどうかを設定
+;-------------------------------------------------
+@COM_IS_EQUIP104
+RETURN 1
+
+;-------------------------------------------------
+;継続状態の処理
+;-------------------------------------------------
+@COM_EQUIP104(ARG:0)
+;●全プレイヤーについて判定
+FOR LOCAL:0, 0, MEQUIP_PLAYER_NUM:(ARG:0)
+	LOCAL:2 = MEQUIP_PLAYER:(ARG:0):(LOCAL:0)
+
+	DOWNBASE:(LOCAL:2):体力 += 10
+
+	SOURCE:(LOCAL:2):奉仕 += SERVE_HOUSHI(LOCAL:2, 50)
+	SOURCE:(LOCAL:2):逸脱 += 40
+	SOURCE:(LOCAL:2):接触 += 15
+	SOURCE:(LOCAL:2):不潔 += 10
+
+	;主導権に応じた優越・屈従のソース追加
+	CALL ADD_SOURCE_INITIATIVE_U(LOCAL:2, 10, 50)
+
+	;奉仕経験値を得られるコマンドのフラグ
+	TCVAR:(LOCAL:2):4 = 1
+
+	;倒錯度変化基準値
+	TCVAR:(LOCAL:2):50 += 3
+NEXT
+
+;●全ターゲットについて判定
+FOR LOCAL:0, 0, MEQUIP_TARGET_NUM:(ARG:0)
+	LOCAL:2 = MEQUIP_TARGET:(ARG:0):(LOCAL:0)
+
+	DOWNBASE:(LOCAL:2):体力 += 10
+
+	SOURCE:(LOCAL:2):嗜虐 += 10
+	SOURCE:(LOCAL:2):露出 += 15
+	SOURCE:(LOCAL:2):逸脱 += 10
+	SOURCE:(LOCAL:2):接触 += 15
+
+	;主導権に応じた優越・屈従のソース追加
+	CALL ADD_SOURCE_INITIATIVE_U(LOCAL:2, 80, 20)
+
+	;倒錯度変化基準値
+	TCVAR:(LOCAL:2):50 += 3
+NEXT
+
+;-------------------------------------------------
+;継続中の表示
+;-------------------------------------------------
+@EQUIP_MESSAGE104(ARG:0)
+RESULTS = %EQUIP_PLAYER_ANAME(ARG:0)%が%EQUIP_TARGET_ANAME(ARG:0)%に足舐め中
+
+;-------------------------------------------------
+;継続中の地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE_EQUIP104(ARG:0)
+LOCAL:2 = 1
+FOR LOCAL:0, 0, MEQUIP_TARGET_NUM:(ARG:0)
+	IF !IS_INITIATIVE(MEQUIP_TARGET:(ARG:0):(LOCAL:0))
+		LOCAL:2 = 0
+	ENDIF
+NEXT
+IF LOCAL:2
+	PRINTFORML %EQUIP_TARGET_ANAME(ARG:0)%が%EQUIP_PLAYER_ANAME(ARG:0)%に足を舐めさせている…
+ELSE
+	PRINTFORML %EQUIP_PLAYER_ANAME(ARG:0)%が%EQUIP_TARGET_ANAME(ARG:0)%の足を舐めている…
+ENDIF
+
+;-------------------------------------------------
+;継続を解除したときの地の文
+;-------------------------------------------------
+@COM_TEXT_RELEASE_EQUIP104(ARG:0)
+
+;-------------------------------------------------
+;固有の実行判定
+;-------------------------------------------------
+@COM_ORDER_PLAYER104(ARG:0)
+;実行値の設定
+TCVAR:(ARG:0):25 = 90
+
+;共通部分
+CALL COM_ORDER(ARG:0)
+
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲望Lv{ABL:(ARG:0):欲望}", ABL:(ARG:0):欲望 * 1)
+CALL COM_ORDER_ELEMENT(ARG:0, @"奉仕Lv{ABL:(ARG:0):奉仕}", ABL:(ARG:0):奉仕 * 4)
+
+LOCAL:0 = GET_PALAMLV(PALAM:(ARG:0):欲情)
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲情Lv{LOCAL:0}", MIN(LOCAL:0 * 1, 10))
+
+IF TALENT:(ARG:0):恥じらい
+	CALL COM_ORDER_ELEMENT(ARG:0, "恥じらい", -2)
+ENDIF
+IF TALENT:(ARG:0):汚臭鈍感
+	CALL COM_ORDER_ELEMENT(ARG:0, "汚臭鈍感", 1)
+ENDIF
+IF TALENT:(ARG:0):汚臭敏感
+	CALL COM_ORDER_ELEMENT(ARG:0, "汚臭敏感", -4)
+ENDIF
+IF TALENT:(ARG:0):献身的
+	CALL COM_ORDER_ELEMENT(ARG:0, "献身的", 6)
+ENDIF
+
+RETURN 1
+
+;-------------------------------------------------
+;地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE104
+;ターゲットが２人
+IF MTAR_NUM == 2
+	LOCALS:0 = %ANAME(MPLY:0)%
+	LOCALS:1 = %ANAME(MTAR:0)%と%ANAME(MTAR:1)%
+	LOCALS:2 = 交互に
+
+;ターゲットが１人
+ELSE
+	;プレイヤーが２人
+	IF MPLY_NUM == 2
+		LOCALS:0 = %ANAME(MPLY:0)%と%ANAME(MPLY:0)%
+		LOCALS:1 = %ANAME(MTAR:0)%
+		LOCALS:2 = 交互に
+	;プレイヤーが１人
+	ELSE
+		LOCALS:0 = %ANAME(MPLY:0)%
+		LOCALS:1 = %ANAME(MTAR:0)%
+		LOCALS:2 = 
+	ENDIF
+ENDIF
+IF TALENT:(MTAR:0):美脚
+	LOCALS:3 = すらりとした美しい
+ELSE
+	LOCALS:3 =
+ENDIF
+SELECTCASE GET_COM_INITIATIVE()
+	;プレイヤーに主導権
+	CASE 0
+		PRINTFORMW %LOCALS:0%は%LOCALS:1%の%LOCALS:3%足先を口に含み、%LOCALS:2%じゅるじゅると音を立てて舐めしゃぶっ%TARGET_STR("た", "てきた")%…
+	;ターゲットに主導権
+	CASE 1
+		IF MTAR_NUM == 1 && (TALENT:(MTAR:0):サド || ABL:(MTAR:0):主導度Ｕ >= 500)
+			PRINTFORMW %LOCALS:1%は嗜虐的な笑みを浮かべながら%LOCALS:0%の口に%LOCALS:3%足を押しこみ、無理やり舐めさせ%PLAYER_STR("た", "てきた")%…
+		ELSEIF MTAR_NUM == 1 && ABL:(MTAR:0):主導度Ｕ < 100
+			PRINTFORMW %LOCALS:1%は少し緊張した様子で%LOCALS:0%に%LOCALS:3%足を差し出すと、それを%LOCALS:2%舐めさせて奉仕させた…
+		ELSE
+			PRINTFORMW %LOCALS:1%は%LOCALS:0%に%LOCALS:3%足を向け、無理やり%LOCALS:2%舐めさせて奉仕させた…
+		ENDIF
+	;第三者に主導権
+	CASEELSE
+		PRINTFORML %ANAME(TFLAG:45)%は%LOCALS:0%に、%LOCALS:1%の%LOCALS:3%足を舐めるように命令した
+		PRINTFORMW %LOCALS:0%は言われるまま%LOCALS:1%の%LOCALS:3%足先に舌を這わせて舐め回した…
+ENDSELECT

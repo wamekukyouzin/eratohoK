@@ -4,14 +4,16 @@
 ;-------------------------------------------------
 @TRAIN_BY_BANDIT()
 #DIM 野盗
+#DIM 対象
 VARSET LOCAL
 野盗 = GET_COUNTRY_FROM_ID(COUNTRY_BANDIT)
 FOR LOCAL:0, 0, CHARANUM
-	IF (CFLAG:LOCAL:所属 == 野盗 && !CFLAG:LOCAL:捕虜先 || CFLAG:LOCAL:9 == 野盗) && NO:LOCAL < 2000
+	対象 = LOCAL:0
+	IF (CFLAG:対象:所属 == 野盗 && !CFLAG:対象:捕虜先 || CFLAG:対象:9 == 野盗) && NO:対象 < 2000
 		;調教の様子を表示
-		IF TRAIN_IS_SHOW_TEXT(LOCAL) && (!TALENT:LOCAL:野盗の肉便器 || (TALENT:LOCAL:野盗の肉便器 && CFLAG:LOCAL:所属 != 野盗) || (TALENT:LOCAL:野盗の肉便器 && !RAND:3))
+		IF TRAIN_IS_SHOW_TEXT(対象) && (!TALENT:対象:野盗の肉便器 || (TALENT:対象:野盗の肉便器 && CFLAG:対象:所属 != 野盗) || (TALENT:対象:野盗の肉便器 && !RAND:3))
 			;マスターは条件を満たしても野盗の士官スタートなら抜ける
-			SIF LOCAL == MASTER && BANDIT_START == 1
+			SIF 対象 == MASTER && BANDIT_START == 1
 				CONTINUE
 			IF !LOCAL:1
 				DRAWLINE
@@ -21,35 +23,59 @@ FOR LOCAL:0, 0, CHARANUM
 			ENDIF
 			CFLAG:(LOCAL:0):調教カウンタ ++
 			;メッセ表示
-			CALL BANDIT_TRAIN_MSG(LOCAL:0)
+			CALL BANDIT_TRAIN_MSG(対象)
 			WAIT
-			CALL FORCE_FUCK(LOCAL:0, -16, GROUPMATCH(BANDIT_START, 1, 2))
+			CALL FORCE_FUCK(対象, -16, GROUPMATCH(BANDIT_START, 1, 2))
 			;あまり長く捕らえられていると寝返る
-			IF (CFLAG:LOCAL:調教カウンタ >= TRAIN_FALLEN_TERM:3 && !TALENT:LOCAL:野盗の肉便器) || (CFLAG:LOCAL:所属 != 野盗 && TALENT:LOCAL:野盗の肉便器)
+			IF (CFLAG:対象:調教カウンタ >= TRAIN_FALLEN_TERM:3 && !TALENT:対象:野盗の肉便器) || (CFLAG:対象:所属 != 野盗 && TALENT:対象:野盗の肉便器)
 				SETCOLOR COLOR("警告")
-				IF !TALENT:(LOCAL):野盗の肉便器
-					PRINTFORMW ……長きにわたる調教生活により、%ANAME(LOCAL)%の心は折れてしまったようだ
-					PRINTFORMW %ANAME(LOCAL)%は野盗の肉便器となり、寝返った
+				IF !TALENT:対象:野盗の肉便器
+					PRINTFORMW ……長きにわたる調教生活により、%ANAME(対象)%の心は折れてしまったようだ
+					PRINTFORMW %ANAME(対象)%は野盗の肉便器となり、寝返った
 				ELSE
-					PRINTFORMW ……野盗の調教を受け、%ANAME(LOCAL)%は彼らの肉便器に過ぎない己の身分を思い出した
-					PRINTFORMW %ANAME(LOCAL)%は野盗の肉便器に復職した
+					PRINTFORMW ……野盗の調教を受け、%ANAME(対象)%は彼らの肉便器に過ぎない己の身分を思い出した
+					PRINTFORMW %ANAME(対象)%は野盗の肉便器に復職した
 				ENDIF
 				RESETCOLOR
-				TALENT:LOCAL:野盗の肉便器 = 1
-				CFLAG:LOCAL:所属 = 野盗
-				CFLAG:LOCAL:捕虜先 = 0
-				IF IS_LOVER(LOCAL) && !GROUPMATCH(BANDIT_START, 1, 2)
+				CALL KOJO_SPECIAL_FALLEN_EVENT(対象, COUNTRY_BANDIT)
+				TALENT:対象:野盗の肉便器 = 1
+				CFLAG:対象:所属 = 野盗
+				CFLAG:対象:捕虜先 = 0
+				$HUKUJU_LOOP
+				SELECTCASE RAND:10
+					CASE IS < 4
+						CALL SET_PIERCE_RANDOM(対象, 0)
+						SIF RESULT != -1
+							CALL COLORPRINTFORM(@"%ANAME(対象)%の%GET_PIERCE_NAME(RESULT)%に、服従の証のピアスが取り付けられた……", COLOR("桃"), "W")
+					CASE IS < 7
+						SIF IS_MALE(対象)
+							GOTO HUKUJU_LOOP
+						CALL SET_TATOO_RANDOM(対象, STR_FOR_TATOO(-1), 0)
+						SIF RESULT != -1
+							CALL COLORPRINTFORM(@"%ANAME(対象)%の%GET_TATOO_NAME(RESULT)%に、「%TATOO:対象:RESULT%」とタトゥーが刻まれた……", COLOR("桃"), "W")
+					CASEELSE
+						IF GET_INMOU(対象) >= 陰毛_標準
+						CALL COLORPRINTFORM(@"服従の証として、%ANAME(対象)%の陰毛はハート型に整えられた……", COLOR("桃"), "W")
+						TALENT:対象:陰毛目標値 = 陰毛_ハート型
+						TALENT:対象:陰毛現在値 = 陰毛_ハート型
+					ELSE
+						CALL COLORPRINTFORM(@"服従の証として、%ANAME(対象)%の陰毛は永久脱毛された……", COLOR("桃"), "W")
+						TALENT:対象:陰毛目標値 = 陰毛_パイパン
+						TALENT:対象:陰毛現在値 = 陰毛_パイパン
+					ENDIF
+				ENDSELECT
+				IF IS_LOVER(対象) && !GROUPMATCH(BANDIT_START, 1, 2)
 					SETCOLOR COLOR("警告")
-					PRINTFORML %ANAME(LOCAL)%の中で、%ANAME(MASTER)%への愛情よりも、野盗どもに使われる快楽が上回った
+					PRINTFORML %ANAME(対象)%の中で、%ANAME(MASTER)%への愛情よりも、野盗どもに使われる快楽が上回った
 					RESETCOLOR
 					CALL LOSE_RELATION_TALENT(LOCAL)
 				ENDIF
-				IF IS_SLAVE(LOCAL) && !GROUPMATCH(BANDIT_START, 1, 2)
+				IF IS_SLAVE(対象) && !GROUPMATCH(BANDIT_START, 1, 2)
 					SETCOLOR COLOR("警告")
-					PRINTFORML %ANAME(LOCAL)%の中で、%ANAME(MASTER)%への忠誠よりも、野盗どもに使われる快楽が上回った
+					PRINTFORML %ANAME(対象)%の中で、%ANAME(MASTER)%への忠誠よりも、野盗どもに使われる快楽が上回った
 					RESETCOLOR
-					CALL LOSE_RELATION_TALENT(LOCAL)
-					TALENT:(LOCAL):烙印 = 0
+					CALL LOSE_RELATION_TALENT(対象)
+					TALENT:対象:烙印 = 0
 				ENDIF
 			ENDIF
 		ENDIF
@@ -67,6 +93,7 @@ NEXT
 @BANDIT_TRAIN_MSG(対象)
 #DIM 士官フラグ
 #DIM 対象
+#DIM メッセージ
 IF TALENT:対象:野盗の肉便器 || CFLAG:対象:調教カウンタ >= TRAIN_FALLEN_TERM:2
 	士官フラグ = 1
 ELSE
@@ -74,7 +101,8 @@ ELSE
 ENDIF
 PRINTFORML
 IF VAGINA(対象)
-	SELECTCASE RAND:31
+	メッセージ = RAND:31
+	SELECTCASE メッセージ
 		CASE 0
 			IF 士官フラグ
 				PRINTFORML %ANAME(対象)%は野盗に命じられ、嬉々として服を脱いでいく
@@ -463,7 +491,7 @@ IF VAGINA(対象)
 					DATAFORM 【オナニー猿】
 					DATAFORM 【苗床】
 					DATAFORM 【慰み者】
-					DATAFORM 【迷宮の餌】
+					DATAFORM 【淫乱家畜女】
 					DATAFORM 【無　料】
 					DATAFORM 【色気違い】
 					DATAFORM 【ザーメン乞食】
@@ -610,29 +638,57 @@ IF VAGINA(対象)
 			IF 士官フラグ
 				PRINTFORML %ANAME(対象)%は自ら睡眠薬を飲み、眠っている
 				PRINTFORML 目を覚ました彼女は、己の目を疑った
-				PRINTFORML 乳房に、秘部に、素敵なピアスがぶら下がっているではないか
-				PRINTFORML 眠ってる間におしゃれにしてやったぜと、野盗共は下卑た笑みを浮かべる
-				PRINTFORML そして、感謝にうち震える%ANAME(対象)%を押さえつけ、施術費と称して彼女を何度も犯していった……
+				CALL SET_PIERCE_RANDOM(対象, 0)
+				IF RESULT != -1
+					PRINTFORML %GET_PIERCE_NAME(RESULT)%に、素敵なピアスがぶら下がっているではないか
+					PRINTFORML 眠ってる間におしゃれにしてやったぜと、野盗共は下卑た笑みを浮かべる
+					PRINTFORML そして、感謝にうち震える%ANAME(対象)%を押さえつけ、施術費と称して彼女を何度も犯していった……
+				ELSE
+					PRINTFORML 全身白濁にまみれ、キツい精の匂いを放ち、秘部と両穴からどろどろと子種を垂れ流しているではないか
+					PRINTFORML 便器の仕事は二十四時間三百六十五日。眠っている間も使われて当然、そういうことだ
+					PRINTFORML 使っていただいた感謝にうち震える%ANAME(対象)%を押さえつけ、野盗どもは彼女を何度も犯していった……
+				ENDIF
 			ELSE
 				PRINTFORML %ANAME(対象)%は野盗に睡眠薬を飲まされ、眠らされている
 				PRINTFORML 目を覚ました彼女は、己の目を疑った
-				PRINTFORML 乳房に、秘部に、痛々しいピアスがぶら下がっているではないか
-				PRINTFORML 眠ってる間におしゃれにしてやったぜと、野盗共は下卑た笑みを浮かべる
-				PRINTFORML そして、怒りに暴れる%ANAME(対象)%を押さえつけ、施術費と称して彼女を何度も犯していった……
+				CALL SET_PIERCE_RANDOM(対象, 0)
+				IF RESULT != -1
+					PRINTFORML %GET_PIERCE_NAME(RESULT)%に、痛々しいピアスがぶら下がっているではないか
+					PRINTFORML 眠ってる間におしゃれにしてやったぜと、野盗共は下卑た笑みを浮かべる
+					PRINTFORML そして、怒りに暴れる%ANAME(対象)%を押さえつけ、施術費と称して彼女を何度も犯していった……
+				ELSE
+					PRINTFORML 全身白濁にまみれ、キツい精の匂いを放ち、秘部と両穴からどろどろと子種を垂れ流しているではないか
+					PRINTFORML 眠っている間に何をされたかを悟り、%ANAME(対象)%は顔を青ざめさせる
+					PRINTFORML 怒りに暴れ始めた%ANAME(対象)%を押さえつけ、野盗どもは彼女を何度も犯していった……
+				ENDIF
 			ENDIF
 		CASE 27
 			IF 士官フラグ
 				PRINTFORML %ANAME(対象)%は自ら睡眠薬を飲み、眠っている
 				PRINTFORML 目を覚ました彼女は、己の目を疑った
-				PRINTFORML 下腹部に、「性奴隷」という、まさに%ANAME(対象)%を表す三文字が焼き入れられているではないか
-				PRINTFORML 眠ってる間におしゃれにしてやったぜと、野盗共は下卑た笑みを浮かべる
-				PRINTFORML そして、感謝にうち震える%ANAME(対象)%を押さえつけ、施術費と称して彼女を何度も犯していった……
+				CALL SET_TATOO_RANDOM(対象, STR_FOR_TATOO(-1), 0)
+				IF RESULT != -1
+					PRINTFORML %GET_TATOO_NAME(RESULT)%に、「%TATOO:対象:RESULT%」と、入れ墨が入れられているではないか
+					PRINTFORML 眠ってる間におしゃれにしてやったぜと、野盗共は下卑た笑みを浮かべる
+					PRINTFORML そして、感謝にうち震える%ANAME(対象)%を押さえつけ、施術費と称して彼女を何度も犯していった……
+				ELSE
+					PRINTFORML 全身白濁にまみれ、キツい精の匂いを放ち、秘部と両穴からどろどろと子種を垂れ流しているではないか
+					PRINTFORML 便器の仕事は二十四時間三百六十五日。眠っている間も使われて当然、そういうことだ
+					PRINTFORML 使っていただいた感謝にうち震える%ANAME(対象)%を押さえつけ、野盗どもは彼女を何度も犯していった……
+				ENDIF
 			ELSE
 				PRINTFORML %ANAME(対象)%は野盗に睡眠薬を飲まされ、眠らされている
 				PRINTFORML 目を覚ました彼女は、己の目を疑った
-				PRINTFORML 下腹部に、「性奴隷」の三文字が焼き入れられているではないか
-				PRINTFORML 眠ってる間におしゃれにしてやったぜと、野盗共は下卑た笑みを浮かべる
-				PRINTFORML そして、怒りに暴れる%ANAME(対象)%を押さえつけ、施術費と称して彼女を何度も犯していった……
+				CALL SET_TATOO_RANDOM(対象, STR_FOR_TATOO(-1), 0)
+				IF RESULT != -1
+					PRINTFORML %GET_TATOO_NAME(RESULT)%に、「%TATOO:対象:RESULT%」と、入れ墨が入れられているではないか
+					PRINTFORML 眠ってる間におしゃれにしてやったぜと、野盗共は下卑た笑みを浮かべる
+					PRINTFORML そして、怒りに暴れる%ANAME(対象)%を押さえつけ、施術費と称して彼女を何度も犯していった……
+				ELSE
+					PRINTFORML 全身白濁にまみれ、キツい精の匂いを放ち、秘部と両穴からどろどろと子種を垂れ流しているではないか
+					PRINTFORML 便器の仕事は二十四時間三百六十五日。眠っている間も使われて当然、そういうことだ
+					PRINTFORML 怒りに暴れる%ANAME(対象)%を押さえつけ、野盗どもは彼女を何度も犯していった……
+				ENDIF
 			ENDIF
 		CASE 28
 			IF 士官フラグ
@@ -686,8 +742,11 @@ IF VAGINA(対象)
 			CFLAG:(対象):薬物依存 += RAND(20, 50)
 	ENDSELECT
 ELSE
+	メッセージ = 0
 	PRINTFORML 野盗に囚われた%ANAME(対象)%が調教されているようだ……
 ENDIF
+
+CALL KOJO_SPECIAL_TRAIN_EVENT(対象, COUNTRY_BANDIT, メッセージ)
 
 
 RETURN

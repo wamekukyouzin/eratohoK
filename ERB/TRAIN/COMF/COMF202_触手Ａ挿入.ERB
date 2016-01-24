@@ -1,0 +1,492 @@
+﻿;触手Ａ挿入
+
+;-------------------------------------------------
+;コマンド名称
+;-------------------------------------------------
+@COM_NAME202
+LOCALS:0 = 触手Ａ挿入
+
+RESULTS:0 = %LOCALS:0%する
+RESULTS:1 = %LOCALS:0%させられる
+RESULTS:2 = %LOCALS:0%させる
+RESULTS:3 = %LOCALS:0%される
+RESULTS:4 = %LOCALS:0%させる
+RESULTS:5 = %LOCALS:0%見せつけ
+
+;-------------------------------------------------
+;選択可否判定
+;-------------------------------------------------
+@COM_ABLE202
+;共通部分
+CALL COM_ABLE_COMMON(202)
+SIF RESULT == 0
+	RETURN 0
+;プレイヤーは最大で1人まで
+SIF MPLY_NUM <= 0 || MPLY_NUM > 1
+	RETURN 0
+;ターゲットは1人以上
+SIF MTAR_NUM <= 0
+	RETURN 0
+;プレイヤーが行動不能なら不可
+SIF !IS_PLAYABLE(MPLY:0)
+	RETURN 0
+;プレイヤーが触手召喚中でないなら不可
+SIF !IS_EQUIP_PLAYER(MPLY:0, 200)
+	RETURN 0
+;プレイヤーが拘束中なら不可
+SIF IS_BIND(MPLY:0)
+	RETURN 0
+;全てのターゲットについて判定
+FOR LOCAL:0, 0, MTAR_NUM
+	;ターゲットのＡが塞がっているなら不可(プレイヤーからターゲットへの触手挿入中は可)
+	SIF IS_A_HOLD(MTAR:(LOCAL:0)) && SEARCH_EQUIP(202, MPLY:0, MTAR:(LOCAL:0)) == -1
+		RETURN 0
+NEXT
+RETURN 1
+
+;-------------------------------------------------
+;メイン処理
+;-------------------------------------------------
+@COM202
+;実行判定
+CALL COM_ORDER_COMMON
+SIF RESULT == 0
+	RETURN 0
+
+;●プレイヤーについて処理
+EXP:(MPLY:0):性技経験値 += 1
+EXP:(MPLY:0):妖術経験値 += 1
+EXP:(MPLY:0):触手経験値 += 1
+
+SOURCE:(MPLY:0):奉仕 = SERVE_HOUSHI(MPLY:0, 150)
+SOURCE:(MPLY:0):嗜虐 = 70
+SOURCE:(MPLY:0):逸脱 = 120
+SOURCE:(MPLY:0):触手 = 30
+SOURCE:(MPLY:0):性行動 = 90
+
+;主導権に応じた優越・屈従のソース追加
+CALL ADD_SOURCE_INITIATIVE_U(MPLY:0, 180, 30)
+
+;奉仕経験値を得られるコマンドのフラグ
+TCVAR:(MPLY:0):4 = 1
+
+;●全てのターゲットについて処理
+FOR LOCAL:0, 0, MTAR_NUM
+	LOCAL:2 = MTAR:(LOCAL:0)
+
+	EXP:(LOCAL:2):触手経験値 += 1
+
+	SOURCE:(LOCAL:2):快Ａ = SENSE_HOUSHI(MPLY:0, LOCAL:2, 1000 + ABL:(MPLY:0):妖術 * 8) + (TALENT:(LOCAL:2):苗床 * 500)
+	SOURCE:(LOCAL:2):逸脱 = 600 - (TALENT:(LOCAL:2):苗床 * 300)
+	SOURCE:(LOCAL:2):触手 = 600 + (TALENT:(LOCAL:2):苗床 * 300)
+	SOURCE:(LOCAL:2):性行動 = 150 + (TALENT:(LOCAL:2):苗床 * 75)
+
+	;主導権に応じた優越・屈従のソース追加
+	CALL ADD_SOURCE_INITIATIVE_U(LOCAL:2, 60, 110)
+
+	;共通処理
+	CALL COM_COMMON202(LOCAL:2)
+NEXT
+
+;主導度変化基準値
+TFLAG:49 = 2
+
+;倒錯度変化基準値
+TFLAG:50 = 6
+
+;レズ・ＢＬ経験基準値
+TFLAG:51 = 1
+
+RETURN 1
+
+;-------------------------------------------------
+;継続コマンドかどうかを設定
+;-------------------------------------------------
+@COM_IS_EQUIP202
+RETURN 1
+
+;-------------------------------------------------
+;継続状態の処理
+;-------------------------------------------------
+@COM_EQUIP202(ARG:0)
+LOCAL:2 = MEQUIP_PLAYER:(ARG:0):0
+
+SOURCE:(LOCAL:2):性行動 += 30
+
+;全てのターゲットについて判定
+FOR LOCAL:0, 0, MEQUIP_TARGET_NUM:(ARG:0)
+	LOCAL:3 = MEQUIP_TARGET:(ARG:0):(LOCAL:0)
+
+	;ソースを退避
+	CALL PUTOUT_SOURCE(LOCAL:3)
+
+	EXP:(LOCAL:3):触手経験値 += 1
+
+	SOURCE:(LOCAL:3):快Ａ += SENSE_HOUSHI(LOCAL:2, LOCAL:3, 800 + ABL:(LOCAL:2):妖術 * 6) + (TALENT:(LOCAL:3):苗床 * 400)
+	SOURCE:(LOCAL:3):逸脱 += 250 - (TALENT:(LOCAL:3):苗床 * 50)
+	SOURCE:(LOCAL:3):触手 += 300 + (TALENT:(LOCAL:3):苗床 * 150)
+	SOURCE:(LOCAL:3):性行動 += 50 + (TALENT:(LOCAL:3):苗床 * 50)
+	
+	
+	
+	SOURCE:(LOCAL:3):逸脱 += 250
+	SOURCE:(LOCAL:3):触手 += 300
+	SOURCE:(LOCAL:3):性行動 += 50
+
+	;倒錯度変化
+	TCVAR:(LOCAL:3):50 += 3
+
+	;共通処理
+	CALL COM_COMMON202(LOCAL:3)
+
+	;退避したソースを加算
+	CALL SUM_SOURCE(LOCAL:3)
+NEXT
+
+;-------------------------------------------------
+;継続中の表示
+;-------------------------------------------------
+@EQUIP_MESSAGE202(ARG:0)
+RESULTS = %EQUIP_TARGET_ANAME(ARG:0)%のアナルに%EQUIP_PLAYER_ANAME(ARG:0)%の触手を挿入中
+
+;-------------------------------------------------
+;継続中の地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE_EQUIP202(ARG:0)
+IF TALENT:(MTAR:0):Ａ敏感
+	PRINTFORM %EQUIP_PLAYER_ANAME(ARG:0)%の操る触手が%EQUIP_TARGET_ANAME(ARG:0)%の\@ RAND:2 ? 敏感な # ヒクつく \@アナル
+ELSE
+	PRINTFORM %EQUIP_PLAYER_ANAME(ARG:0)%の操る触手が%EQUIP_TARGET_ANAME(ARG:0)%のアナル
+ENDIF
+	SELECTCASE RAND:5
+	CASE 0
+		PRINTL を激しく突き上げている…
+	CASE 1
+		PRINTL を何度も責め続けている…
+	CASE 2
+		PRINTL をぐりぐりと刺激している…
+	CASE 3
+		PRINTL にゆっくりと突き入れている…
+	CASE 4
+		PRINTL を刺激するよう動き続けている…
+	ENDSELECT
+
+;-------------------------------------------------
+;継続を解除したときの地の文
+;-------------------------------------------------
+@COM_TEXT_RELEASE_EQUIP202(ARG:0)
+PRINTFORMW %EQUIP_PLAYER_ANAME(ARG:0)%は%EQUIP_TARGET_ANAME(ARG:0)%のアナルから触手を引き抜いた…
+
+;-------------------------------------------------
+;固有の実行判定
+;-------------------------------------------------
+@COM_ORDER_PLAYER202(ARG:0)
+;実行値の設定
+TCVAR:(ARG:0):25 = 130
+
+;共通部分
+CALL COM_ORDER(ARG:0)
+
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲望Lv{ABL:(ARG:0):欲望}", ABL:(ARG:0):欲望 * 2)
+CALL COM_ORDER_ELEMENT(ARG:0, @"奉仕Lv{ABL:(ARG:0):奉仕}", ABL:(ARG:0):奉仕 * 3)
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲望Lv{ABL:(ARG:0):触手}", ABL:(ARG:0):触手 * 6)
+
+LOCAL:0 = GET_PALAMLV(PALAM:(ARG:0):欲情)
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲情Lv{LOCAL:0}", MIN(LOCAL:0 * 1, 10))
+
+IF TALENT:(ARG:0):恥じらい
+	CALL COM_ORDER_ELEMENT(ARG:0, "恥じらい", -2)
+ENDIF
+IF TALENT:(ARG:0):好奇心
+	CALL COM_ORDER_ELEMENT(ARG:0, "好奇心", 2)
+ENDIF
+IF TALENT:(ARG:0):保守的
+	CALL COM_ORDER_ELEMENT(ARG:0, "保守的", -7)
+ENDIF
+IF TALENT:(ARG:0):献身的
+	CALL COM_ORDER_ELEMENT(ARG:0, "献身的", 4)
+ENDIF
+IF TALENT:(ARG:0):快感の否定
+	CALL COM_ORDER_ELEMENT(ARG:0, "快感の否定", -2)
+ENDIF
+
+IF TALENT:(ARG:0):サド || TALENT:(ARG:0):マゾ || ABL:(ARG:0):倒錯度 >= 800
+	CALL COM_ORDER_ELEMENT(ARG:0, "倒錯度", 32)
+ELSEIF ABL:(ARG:0):倒錯度 >= 500
+	CALL COM_ORDER_ELEMENT(ARG:0, "倒錯度", 24)
+ELSEIF ABL:(ARG:0):倒錯度 >= 300
+	CALL COM_ORDER_ELEMENT(ARG:0, "倒錯度", 16)
+ELSEIF ABL:(ARG:0):倒錯度 >= 100
+	CALL COM_ORDER_ELEMENT(ARG:0, "倒錯度", 8)
+ELSE
+	CALL COM_ORDER_ELEMENT(ARG:0, "倒錯度", 0)
+ENDIF
+
+IF !TALENT:(ARG:0):合意
+	CALL COM_ORDER_ELEMENT(ARG:0, "合意なし", -10)
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE202
+LOCAL:1 = 1
+FOR LOCAL:0, 0, MTAR_NUM
+	IF SEARCH_EQUIP(202, MPLY:0, MTAR:(LOCAL:0)) == -1
+		LOCAL:1 = 0
+	ENDIF
+NEXT
+
+;全員が既に触手Ａ挿入中なら分岐
+IF LOCAL:1
+	;継続中の地の文をカット
+	FOR LOCAL:0, 0, MTAR_NUM
+		LOCAL:2 = SEARCH_EQUIP(202, MPLY:0, MTAR:(LOCAL:0))
+		IF LOCAL:2 >= 0
+			MEQUIP_CUT:(LOCAL:2) = 1
+		ENDIF
+	NEXT
+
+	IF MTAR_NUM >= 3
+		LOCALS:1 = %ANAME(MTAR:0)%たち
+	ELSEIF MTAR_NUM == 2
+		LOCALS:1 = %ANAME(MTAR:0)%と%ANAME(MTAR:1)%
+	ELSE
+		LOCALS:1 = %ANAME(MTAR:0)%
+	ENDIF
+
+	SELECTCASE GET_COM_INITIATIVE()
+		;プレイヤーに主導権
+		CASE 0
+			SELECTCASE RAND:5
+			CASE 0
+				PRINTFORMW %ANAME(MPLY:0)%は%LOCALS:1%のアナルに挿入された触手をさらに激しく突き上げ%TARGET_STR("た", "てきた")%…
+			CASE 1
+				PRINTFORMW %ANAME(MPLY:0)%は%LOCALS:1%のアナルに挿入された触手を動かして何度も出入りを繰り返し%TARGET_STR("た", "てきた")%…
+			CASE 2
+				PRINTFORMW %ANAME(MPLY:0)%は%LOCALS:1%のアナルに挿入された触手をぐりぐりと回転させ%TARGET_STR("た", "てきた")%…
+			CASE 3
+				PRINTFORMW %ANAME(MPLY:0)%は%LOCALS:1%のアナルに挿入された触手を肉壁をなぞるようにゆっくりと突き入れ%TARGET_STR("た", "てきた")%…
+			CASE 4
+				PRINTFORMW %ANAME(MPLY:0)%は%LOCALS:1%のアナルに挿入された触手を細かく動かし、刺激するよう責め立て%TARGET_STR("た", "てきた")%…
+			ENDSELECT
+		;ターゲットに主導権
+		CASE 1
+			PRINTFORML %LOCALS:1%は%ANAME(MPLY:0)%に対し、アナルに入っている触手をもっと激しく動かすように命令した
+			PRINTFORMW %ANAME(MPLY:0)%は言われた通り、触手を蠢かせて%LOCALS:1%のアナルをかき回した…
+		;第三者に主導権
+		CASEELSE
+			PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に対して、%LOCALS:1%の膣に挿入された触手をもっと激しく動かすように命令した
+			PRINTFORMW %ANAME(MPLY:0)%は言われた通り、触手を蠢かせて%LOCALS:1%のアナルをかき回した…
+	ENDSELECT
+
+ELSE
+	IF MTAR_NUM >= 3
+		LOCALS:0 = 尻穴
+		LOCALS:1 = %ANAME(MTAR:0)%たち
+		LOCALS:2 = 次々と
+		LOCALS:3 = 全員の
+	ELSEIF MTAR_NUM == 2
+		LOCALS:0 = 尻穴
+		LOCALS:1 = %ANAME(MTAR:0)%と%ANAME(MTAR:1)%
+		LOCALS:2 = 
+		LOCALS:3 = 二人の
+	ELSE
+		IF ABL:(MTAR:0):Ａ感 >= 2
+			LOCALS:0 = ヒクつく
+		ELSE
+			LOCALS:0 = 未開発な
+		ENDIF
+		IF TALENT:(MTAR:0):小柄体型
+			LOCALS:0 = %LOCALS:0%可愛らしい尻穴
+		ELSE
+			LOCALS:0 = %LOCALS:0%尻穴
+		ENDIF
+
+		LOCALS:1 = %ANAME(MTAR:0)%
+		LOCALS:2 = 
+		LOCALS:3 = 自身の
+	ENDIF
+
+	SELECTCASE GET_COM_INITIATIVE()
+		;プレイヤーに主導権
+		CASE 0
+			SELECTCASE RAND:5
+			CASE 0
+				PRINTFORMW %ANAME(MPLY:0)%は%LOCALS:1%の%LOCALS:0%に%LOCALS:2%触手を挿入し、内部をかき混ぜるように蠢かせ%TARGET_STR("た", "てきた")%…
+			CASE 1
+				PRINTFORMW %ANAME(MPLY:0)%は%LOCALS:1%の%LOCALS:0%に%LOCALS:2%触手を挿入させ、何度も出入りを繰り返し%TARGET_STR("た", "てきた")%…
+			CASE 2
+				PRINTFORMW %ANAME(MPLY:0)%は%LOCALS:1%の%LOCALS:0%に%LOCALS:2%触手を挿入させ、ぐりぐりと回転させ%TARGET_STR("た", "てきた")%…
+			CASE 3
+				PRINTFORMW %ANAME(MPLY:0)%は%LOCALS:1%の%LOCALS:0%に%LOCALS:2%触手を挿入し、ゆっくりと突き入れ%TARGET_STR("た", "てきた")%…
+			CASE 4
+				PRINTFORMW %ANAME(MPLY:0)%は%LOCALS:1%の%LOCALS:0%に%LOCALS:2%触手を挿入させ、刺激するよう責め立て%TARGET_STR("た", "てきた")%…
+			ENDSELECT
+		;ターゲットに主導権
+		CASE 1
+			PRINTFORML %LOCALS:1%は%ANAME(MPLY:0)%に対し、触手を%LOCALS:3%アナルに挿入するように命令した
+			PRINTFORMW %ANAME(MPLY:0)%は%LOCALS:1%の%LOCALS:0%を触手で貫き、求められるまま前後に動かした…
+		;第三者に主導権
+		CASEELSE
+			PRINTFORML %LOCALS:1%は%ANAME(MPLY:0)%に対し、触手を%LOCALS:1%のアナルに挿入するように命令した
+			PRINTFORMW %ANAME(MPLY:0)%は%LOCALS:1%の%LOCALS:0%を触手で貫き、言われるまま前後に動かした…
+	ENDSELECT
+ENDIF
+
+;--------------------------------------------------------
+;地の文(パラメータ・刻印変動後)
+;--------------------------------------------------------
+@COM_TEXT_LAST202
+
+IF MTAR:0 != MASTER
+	LOCAL:2 = CUP:(MTAR:0):快Ａ
+
+		LOCALS:3 = %TOSTR_EMOTION(MTAR:0)%
+
+	IF TCVAR:(MTAR:0):52
+		;気絶中
+		PRINTL %ANAME(MTAR:0)%は触手に犯される度に大きく体を揺らし、アナルを穿つ度に小さく声を上げている
+	ELSEIF LOCAL:2 > 10000
+		;最大の時は感情によって反応が違う
+		SELECTCASE RAND:4
+		CASE 0
+			IF GROUPMATCH(LOCALS:3, "幸", "悦", "良", "平", "普")
+				PRINTFORML %ANAME(MTAR:0)%は菊穴を貪られる度に色っぽい淫声を上げている
+			ELSEIF GROUPMATCH(LOCALS:3, "恨", "怒", "憤", "狂")
+				PRINTFORML %ANAME(MTAR:0)%は菊穴を貪られる度に甲高い淫声を上げている
+			ELSEIF GROUPMATCH(LOCALS:3, "壊", "虚", "悲", "憂", "鬱", "恐", "怯")
+				PRINTFORML %ANAME(MTAR:0)%は菊穴を貪られる度にくぐもった淫声を上げている
+			ELSE
+				PRINTFORML %ANAME(MTAR:0)%は菊穴を貪られる度に甲高い淫声を上げている
+			ENDIF
+		CASE 1
+			IF GROUPMATCH(LOCALS:3, "幸", "悦", "良", "平", "普")
+				PRINTFORML %ANAME(MTAR:0)%は気持ち良さそうな顔をして触手のアナル責めを受け入れている
+			ELSEIF GROUPMATCH(LOCALS:3, "恨", "怒", "憤", "狂")
+				PRINTFORML %ANAME(MTAR:0)%は眉間を険しくしながらも触手のアナル責めを受け入れている
+			ELSEIF GROUPMATCH(LOCALS:3, "壊", "虚", "悲", "憂", "鬱", "恐", "怯")
+				PRINTFORML %ANAME(MTAR:0)%は黙って俯きながら触手のアナル責めを受け入れている
+			ELSE
+				PRINTFORML %ANAME(MTAR:0)%は黙って俯きながら触手のアナル責めを受け入れている
+			ENDIF
+		CASE 2
+			IF GROUPMATCH(LOCALS:3, "幸", "悦", "良", "平", "普")
+				PRINTFORML %ANAME(MTAR:0)%は更なる快楽をねだって触手を手で擦り上げている
+			ELSEIF GROUPMATCH(LOCALS:3, "恨", "怒", "憤", "狂")
+				PRINTFORML %ANAME(MTAR:0)%は乱暴する触手に仕返しをするように、強く手で擦り上げている
+			ELSEIF GROUPMATCH(LOCALS:3, "壊", "虚", "悲", "憂", "鬱", "恐", "怯")
+				PRINTFORML %ANAME(MTAR:0)%は衝動に突き動かされ、無意識に触手を手で擦り上げている
+			ELSE
+				PRINTFORML %ANAME(MTAR:0)%は何度も触手を手で擦り上げている
+			ENDIF
+		CASE 3
+			IF GROUPMATCH(LOCALS:3, "幸", "悦", "良", "平", "普")
+				PRINTFORML %ANAME(MTAR:0)%は背筋を伸ばしながら、気持ち良さそうに触手に犯されている
+			ELSEIF GROUPMATCH(LOCALS:3, "恨", "怒", "憤", "狂")
+				PRINTFORML %ANAME(MTAR:0)%は背筋を伸ばしながら、何かを叫びつつ触手に犯されている
+			ELSEIF GROUPMATCH(LOCALS:3, "壊", "虚", "悲", "憂", "鬱", "恐", "怯")
+				PRINTFORML %ANAME(MTAR:0)%は背筋を伸ばしながら、快楽で涙を零しつつ触手に犯されている
+			ELSE
+				PRINTFORML %ANAME(MTAR:0)%は背筋を伸ばしながら、深々と触手に犯されている
+			ENDIF
+		ENDSELECT
+	ELSEIF LOCAL:2 > 6000
+		SELECTCASE RAND:4
+		CASE 0
+		PRINTFORML %ANAME(MTAR:0)%は自ら身体を動かし、触手に菊穴を犯されている
+		CASE 1
+		PRINTFORML %ANAME(MTAR:0)%は力を抜いて触手のさせたいように身体を犯させている
+		CASE 2
+		PRINTFORML %ANAME(MTAR:0)%は抵抗する事も無く触手に犯されている
+		CASE 3
+		PRINTFORML %ANAME(MTAR:0)%は触手がアナルで動く度にに深い吐息を漏らしている
+		ENDSELECT
+	ELSEIF LOCAL:2 > 3000 && ABL:(MTAR:0):触手 >= 1 || LOCAL:2 > 300 && ABL:(MTAR:0):触手 >= 5
+		IF TALENT:(LOCAL:1):恥じらい || TALENT:(MTAR:0):抑圧 || TALENT:(MTAR:0):孤高 || TALENT:(MTAR:0):快感の否定
+			SELECTCASE RAND:4
+			CASE 0
+				PRINTFORML %ANAME(MTAR:0)%の顔は赤く染まっており、必死に声を噛み殺して責めから耐えている
+			CASE 1
+				PRINTFORML %ANAME(MTAR:0)%はアナルを犯される感覚に快楽を感じてしまっている自分を必死に否定している
+			CASE 2
+				PRINTFORML %ANAME(MTAR:0)%は震えながら触手のアナル責めを耐えようとしている
+			CASE 3
+				PRINTFORML %ANAME(MTAR:0)%は触手のアナル責めを涙目で耐えている
+			ENDSELECT
+		ELSE
+		SELECTCASE RAND:4
+		CASE 0
+			PRINTFORML %ANAME(MTAR:0)%の顔は赤く染まっており、喉奥から切ない声が度々漏れている
+		CASE 1
+			PRINTFORML %ANAME(MTAR:0)%はアナルを犯される感覚に快楽を見出し始めている
+		CASE 2
+			PRINTFORML %ANAME(MTAR:0)%は震えながら触手にアナルを犯されている
+		CASE 3
+			PRINTFORML %ANAME(MTAR:0)%は触手のアナル責めに耐えられず涙目で喘いでいる
+		ENDSELECT
+		ENDIF
+	ELSEIF LOCAL:2 > 300|| ABL:(MTAR:0):触手 >= 3
+		SELECTCASE RAND:4
+		CASE 0
+			PRINTFORML %ANAME(MTAR:0)%は触手の蠢く感覚に震えて声を上げている
+		CASE 1
+			PRINTFORML %ANAME(MTAR:0)%はきつい菊門を犯されて目に涙を浮かべている
+		CASE 2
+			PRINTFORML %ANAME(MTAR:0)%は触手にアナルを穿たれて濁音の篭った悲鳴を上げている
+		CASE 3
+			PRINTFORML %ANAME(MTAR:0)%は尻穴から侵食してくる触手に対して思わず声を上げた
+		ENDSELECT
+	ELSE
+		;触手に慣れたらここの下は表示されない
+	SELECTCASE RAND:4
+	CASE 0
+		PRINTFORML %ANAME(MTAR:0)%はアナルに突き入れられた触手から逃れようと暴れている
+	CASE 1
+		PRINTFORML %ANAME(MTAR:0)%はアナルに入り込んでくる触手を止めようと涙目で必死に抗っている
+	CASE 2
+		PRINTFORML %ANAME(MTAR:0)%は触手を尻穴に突き入れられ、耐えられず奇声を上げた
+	CASE 3
+		PRINTFORML %ANAME(MTAR:0)%はアナルに入り込んだ触手をどうにかしようと抵抗している
+	ENDSELECT
+	ENDIF
+ENDIF
+
+;--------------------------------------------------------
+;選択時と継続状態での共通処理
+;--------------------------------------------------------
+@COM_COMMON202(ARG:0)
+SELECTCASE ABL:(ARG:0):Ａ感
+	CASE 0
+		SOURCE:(ARG:0):苦痛 += 1800
+	CASE 1
+		SOURCE:(ARG:0):苦痛 += 750
+	CASE 2
+		SOURCE:(ARG:0):苦痛 += 300
+	CASE 3
+		SOURCE:(ARG:0):苦痛 += 120
+	CASE 4
+		SOURCE:(ARG:0):苦痛 += 45
+ENDSELECT
+
+IF PALAM:(ARG:0):潤滑 < PALAMLV:1
+	TIMES SOURCE:(ARG:0):快Ａ, 0.05
+	SOURCE:(ARG:0):苦痛 = SOURCE:(ARG:0):苦痛 * 3 + 1000
+ELSEIF PALAM:(ARG:0):潤滑 < PALAMLV:3
+	TIMES SOURCE:(ARG:0):快Ａ, 0.20
+	SOURCE:(ARG:0):苦痛 = SOURCE:(ARG:0):苦痛 * 3 / 2 + 300
+ELSEIF PALAM:(ARG:0):潤滑 < PALAMLV:5
+	TIMES SOURCE:(ARG:0):快Ａ, 0.60
+	TIMES SOURCE:(ARG:0):苦痛, 1.00
+ELSEIF PALAM:(ARG:0):潤滑 < PALAMLV:7
+	TIMES SOURCE:(ARG:0):快Ａ, 0.85
+	TIMES SOURCE:(ARG:0):苦痛, 0.70
+ELSE
+	TIMES SOURCE:(ARG:0):快Ａ, 1.00
+	TIMES SOURCE:(ARG:0):苦痛, 0.50
+ENDIF
+
+IF TALENT:(ARG:0):小柄体型
+	TIMES SOURCE:(ARG:0):苦痛, 1.50
+ENDIF

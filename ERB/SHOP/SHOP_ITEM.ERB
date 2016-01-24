@@ -55,7 +55,14 @@ FOR LOCAL:0, 100, 300
 		ENDIF
 		LOCAL:1 ++
 		CALL GET_PRICE(LOCAL:0)
-		PRINTFORM [{LOCAL:0}] %ITEMNAME:(LOCAL:0), 12, LEFT%{RESULT, 7}  
+		;所持金不足 or 所持数オーバーで購入できない時は色を変える
+		IF MONEY < RESULT || ITEM:(LOCAL:0) >= 99
+			SETCOLOR COLOR("選択不可")
+			PRINTFORM [{LOCAL:0}] %ITEMNAME:(LOCAL:0), 12, LEFT%{RESULT, 7}  
+			RESETCOLOR
+		ELSE
+			PRINTFORM [{LOCAL:0}] %ITEMNAME:(LOCAL:0), 12, LEFT%{RESULT, 7}  
+		ENDIF
 	ENDIF
 NEXT
 PRINTL 
@@ -130,8 +137,6 @@ ELSEIF RESULT >= 100 && RESULT < 300 && ITEMNAME:RESULT != ""
 				IF !RESULT
 					RESTART
 				ENDIF
-				ITEM:(LOCAL:2) ++
-				ITEMSALES:(LOCAL:2) = 0
 			ELSEIF ITEMNAME:(LOCAL:2) == "淫技大全"
 				CALL SELECT_ITEM_USER(LOCAL:2)
 				IF !RESULT
@@ -152,11 +157,18 @@ ELSEIF RESULT >= 100 && RESULT < 300 && ITEMNAME:RESULT != ""
 			RESTART
 		;購入アイテム(その場使用)
 		ELSEIF LOCAL:2 >= 280 && LOCAL:2 < 300
-			CALL SELECT_ITEM_USER(LOCAL:2)
-			IF RESULT
+			IF ITEMNAME:(LOCAL:2) == "犬" || ITEMNAME:(LOCAL:2) == "豚"
+				PRINTFORMW %ITEMNAME:(LOCAL:2)%を購入しました
 				MONEY -= LOCAL:3
+				CALL ADD_ANIMAL(ITEMNAME:(LOCAL:2), CFLAG:MASTER:1)
+				RESTART
+			ELSE
+				CALL SELECT_ITEM_USER(LOCAL:2)
+				IF RESULT
+					MONEY -= LOCAL:3
+				ENDIF
+				RESTART
 			ENDIF
-			RESTART
 		ENDIF
 
 	;開発アイテム
@@ -246,6 +258,19 @@ SELECTCASE ARG:2
 			IF LOCAL:2
 				PRINTL 
 			ENDIF
+			;限界まで購入ボタン
+			;有り金全部で買えるだけ買うといくつになるか計算
+			LOCAL:3 = MONEY / ARG:1
+			;元あった分と足したら所持限界をオーバーする場合、オーバー分を引く
+			IF ITEM:(ARG:0) + LOCAL:3 > 99
+				LOCAL:3 = LOCAL:3 - ( LOCAL:3 + ITEM:(ARG:0) - 99 )
+			ENDIF
+			;0でなければボタン表示
+			IF LOCAL:3 != 0
+				PRINTFORM  [{LOCAL:3, 2}]限界まで購入
+				PRINTL 
+			ENDIF
+		;所持金が値段より小さい場合
 		ELSE
 			SETCOLOR COLOR("選択不可")
 			PRINTL 所持金不足により購入不可
@@ -307,7 +332,7 @@ LOCAL:15 = 0
 LOCAL:16 = 4
 FOR LOCAL:0, 0, CHARANUM
 	RESULT = 0
-	TRYCALLFORM IS_ITEM_USE{ARG:0}(LOCAL:0)
+	TRYCALLFORM #{ARG:0}(LOCAL:0)
 	IF RESULT
 		IF LOCAL:14 >= LOCAL:12 && LOCAL:14 < LOCAL:13
 			IF LOCAL:15 % 2 != 0
@@ -422,6 +447,8 @@ ITEMTERM:209 = 4
 ITEMTERM:210 = 6
 ITEMTERM:211 = 8
 ITEMTERM:212 = 3
+ITEMTERM:213 = 5
+ITEMTERM:214 = 4
 ITEMTERM:240 = 3
 ITEMTERM:241 = 3
 ITEMTERM:242 = 3
@@ -436,11 +463,15 @@ ITEMTERM:260 = 3
 ITEMTERM:261 = 3
 ITEMTERM:262 = 4
 ITEMTERM:263 = 5
+ITEMTERM:264 = 5
 ITEMTERM:280 = 3
 ITEMTERM:281 = 4
 ITEMTERM:282 = 3
 ITEMTERM:283 = 4
 ITEMTERM:284 = 8
+ITEMTERM:285 = 6
+ITEMTERM:286 = 6
+ITEMTERM:287 = 6
 
 ;-------------------------------------------------
 ;ARG:0番のアイテムの真の購入価格を取得
@@ -495,6 +526,10 @@ RETURN 5000
 @GET_PRICE263
 RETURN 10000
 
+;●ピアス
+@GET_PRICE264
+RETURN 10000
+
 ;●ふたなり薬
 @GET_PRICE280
 RETURN 40000
@@ -515,6 +550,9 @@ RETURN 40000
 @GET_PRICE284
 RETURN 300000
 
+;永久脱毛剤
+@GET_PRICE287
+RETURN 50000
 ;-------------------------------------------------
 ;アイテムの開発条件
 ;-------------------------------------------------
@@ -576,6 +614,15 @@ IF ITEM:太平淫術の書
 ENDIF
 RETURN 0
 
+;●ニードルアンドインク
+@ITEM_ABLE213
+;太平淫術の書を持っている
+IF ITEM:太平淫術の書
+	RETURN 1
+ENDIF
+RETURN 0
+
+
 ;●執事服
 @ITEM_ABLE243
 ;メイド服を開発済み
@@ -632,6 +679,14 @@ IF ITEM:太平淫術の書
 ENDIF
 RETURN 0
 
+;●ピアス
+@ITEM_ABLE264
+;太平淫術の書を持っている
+IF ITEM:太平淫術の書
+	RETURN 1
+ENDIF
+RETURN 0
+
 
 ;●ふたなり薬
 @ITEM_ABLE280
@@ -671,6 +726,28 @@ RETURN 0
 IF (ITEMSALES:ふたなり薬 != 0) + (ITEMSALES:性転換薬 != 0) + (ITEMSALES:獣変化の秘薬 != 0) >= 2
 	RETURN 1
 ENDIF
+
+;犬と豚
+@ITEM_ABLE285
+;太平淫術の書を持っている
+IF ITEM:太平淫術の書
+	RETURN 1
+ENDIF
+RETURN 0
+
+@ITEM_ABLE286
+;太平淫術の書を持っている
+IF ITEM:太平淫術の書
+	RETURN 1
+ENDIF
+RETURN 0
+
+;永久脱毛剤
+@ITEM_ABLE287
+;ふたなり、性転換、獣変化のうち２つ以上を開発済み
+IF (ITEMSALES:ふたなり薬 != 0) + (ITEMSALES:性転換薬 != 0) + (ITEMSALES:獣変化の秘薬 != 0) >= 2
+	RETURN 1
+ENDIF
 RETURN 0
 
 ;-------------------------------------------------
@@ -685,7 +762,7 @@ RETURN 0
 
 ;●性転換薬
 @IS_ITEM_USE281(ARG:0)
-IF (CFLAG:(ARG:0):1 == CFLAG:MASTER:1 && CFLAG:(ARG:0):9 == 0) || CFLAG:(ARG:0):9 == CFLAG:MASTER:1
+IF !IS_ANIMAL(ARG:0) && ((CFLAG:(ARG:0):1 == CFLAG:MASTER:1 && CFLAG:(ARG:0):9 == 0) || CFLAG:(ARG:0):9 == CFLAG:MASTER:1)
 	RETURN 1
 ENDIF
 RETURN 0
@@ -733,6 +810,12 @@ IF (CFLAG:(ARG:0):1 == CFLAG:MASTER:1 && CFLAG:(ARG:0):9 == 0) || CFLAG:(ARG:0):
 ENDIF
 RETURN 0
 
+;●永久脱毛剤
+@IS_ITEM_USE287(ARG:0)
+SIF TALENT:(ARG:0):陰毛現在値 != 陰毛_パイパン
+	RETURN 1
+RETURN 0
+
 ;-------------------------------------------------
 ;その場使用アイテムの効果
 ;-------------------------------------------------
@@ -758,6 +841,8 @@ SELECTCASE TALENT:(ARG:0):性別
 		TALENT:(ARG:0):性別 = 4
 		PRINTFORMW %ANAME(ARG:0)%を男の娘にしました
 ENDSELECT
+;ピアス穴を塞ぐ
+CALL CLEAR_PIERCE_HOLE_SEX_CHANGE(ARG:0)
 
 ;●性転換薬
 @ITEM_EFFECT281(ARG:0)
@@ -797,6 +882,8 @@ SELECTCASE TALENT:(ARG:0):性別
 		;元男の娘フラグ
 		CFLAG:(ARG:0):66 = 1
 ENDSELECT
+;ピアス穴を塞ぐ
+CALL CLEAR_PIERCE_HOLE_SEX_CHANGE(ARG:0)
 
 ;●岩神ノ秘薬
 @ITEM_EFFECT282(ARG:0)
@@ -851,6 +938,13 @@ IF TALENT:(ARG:0):野盗の肉便器
 ENDIF
 WAIT
 
+;永久脱毛剤
+@ITEM_EFFECT287(ARG:0)
+PRINTFORML %ANAME(ARG:0)%の股間に永久脱毛剤を塗り込んだ
+PRINTFORML %ANAME(ARG:0)%は<パイパン>になった
+TALENT:(ARG:0):陰毛目標値 = 陰毛_パイパン
+TALENT:(ARG:0):陰毛現在値 = 陰毛_パイパン
+
 ;●太平要術の書
 @ITEM_EFFECT141(ARG:0)
 TALENT:(ARG:0):妖術知識 = 1
@@ -860,3 +954,50 @@ PRINTFORMW %ANAME(ARG:0)%が<妖術知識>を身につけました
 @ITEM_EFFECT142(ARG:0)
 ABL:(ARG:0):性知識 = 5
 PRINTFORMW %ANAME(ARG:0)%の性知識が上昇しました(Lv5)
+
+;-------------------------------------------------
+;犬と豚を追加する
+;-------------------------------------------------
+@ADD_ANIMAL(ARGS:0, ARG:0)
+CALL ADD_VOID_CHARA()
+LOCAL = RESULT
+NAME:LOCAL = %ARGS:0%
+CALLNAME:LOCAL = %ARGS:0%
+MAXBASE:LOCAL:体力 = 3000
+MAXBASE:LOCAL:気力 = 3000
+MAXBASE:LOCAL:精神力 = 1500
+
+BASE:LOCAL:体力 = MAXBASE:LOCAL:体力
+BASE:LOCAL:気力 = MAXBASE:LOCAL:気力
+BASE:LOCAL:精神力 = MAXBASE:LOCAL:精神力
+
+ABL:LOCAL:Ｃ感 = 5
+ABL:LOCAL:欲望 = 5
+ABL:LOCAL:性技 = 5
+ABL:LOCAL:性知識 = 5
+ABL:LOCAL:奉仕 = 0
+ABL:LOCAL:性交 = 10
+ABL:LOCAL:射精 = 5
+
+EXP:LOCAL:絶頂経験 = 300
+
+ABL:LOCAL:武闘 = 5
+ABL:LOCAL:知略 = 5
+ABL:LOCAL:政治 = 1
+ABL:LOCAL:歌唱 = 1
+ABL:LOCAL:料理 = 1
+TALENT:LOCAL:絶倫 = 1
+TALENT:(LOCAL:0):合意 = 1
+TALENT:LOCAL:陰毛現在値 = 陰毛_標準
+TALENT:LOCAL:陰毛目標値 = 陰毛_標準
+CFLAG:(LOCAL):従属度 = 1000
+CFLAG:(LOCAL):依存度 = 500
+CFLAG:(LOCAL:0):17 = 1
+CFLAG:(LOCAL):1 = ARG:0
+
+SELECTCASE ARGS:0
+	CASE "犬"
+		TALENT:LOCAL:犬 = 1
+	CASE "豚"
+		TALENT:LOCAL:豚 = 1
+ENDSELECT

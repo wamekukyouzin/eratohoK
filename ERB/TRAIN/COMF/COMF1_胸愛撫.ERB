@@ -1,0 +1,487 @@
+﻿;胸愛撫
+
+;-------------------------------------------------
+;コマンド名称
+;-------------------------------------------------
+@COM_NAME1
+IF IS_FEMALE(MTAR:0) || (MTAR_NUM == 2 && IS_FEMALE(MTAR:1))
+	LOCALS:1 = 胸愛撫
+ELSE
+	LOCALS:1 = 乳首責め
+ENDIF
+
+IF MTAR_NUM >= 2
+	LOCALS:0 = 同時%LOCALS:1%
+ELSE
+	LOCALS:0 = %LOCALS:1%
+ENDIF
+
+RESULTS:0 = %LOCALS:0%する
+RESULTS:1 = %LOCALS:0%させられる
+RESULTS:2 = %LOCALS:0%させる
+RESULTS:3 = %LOCALS:0%される
+RESULTS:4 = %LOCALS:0%させる
+RESULTS:5 = %LOCALS:0%見せつけ
+
+;-------------------------------------------------
+;選択可否判定
+;-------------------------------------------------
+@COM_ABLE1
+;共通部分
+CALL COM_ABLE_COMMON(1)
+SIF RESULT == 0
+	RETURN 0
+;プレイヤーは最大で2人まで
+SIF MPLY_NUM <= 0 || MPLY_NUM > 2
+	RETURN 0
+;ターゲットは最大で2人まで
+SIF MTAR_NUM <= 0 || MTAR_NUM > 2
+	RETURN 0
+;2-2は不可
+SIF MPLY_NUM == 2 && MTAR_NUM == 2
+	RETURN 0
+;全てのプレイヤーについて判定
+FOR LOCAL:0, 0, MPLY_NUM
+	;行動不能なら不可
+	SIF !IS_PLAYABLE(MPLY:(LOCAL:0))
+		RETURN 0
+	;顔面騎乗されているなら不可
+	SIF IS_RIDDEN(MPLY:(LOCAL:0))
+		RETURN 0
+	;拘束中なら不可
+	SIF IS_BIND(MPLY:(LOCAL:0))
+		RETURN 0
+	;クンニ・フェラ・パイズリ・電気按摩中は不可
+	SIF IS_EQUIP_PLAYER(MPLY:(LOCAL:0), 2, 11, 12, 103)
+		RETURN 0
+	;土下座しているなら不可
+	SIF IS_EQUIP_PLAYER(MPLY:(LOCAL:0), 110)
+		RETURN 0
+	;全てのターゲットについて判定
+	FOR LOCAL:1, 0, MTAR_NUM
+		;ターゲットからプレイヤーに挿入中で体位が後背位・背面座位・背面騎乗位なら不可
+		SIF GROUPMATCH(GET_SEX_POSITION(MTAR:(LOCAL:1), MPLY:(LOCAL:0)), 2, 4, 6)
+			RETURN 0
+		;プレイヤーからターゲットに尻コキなら不可
+		SIF SEARCH_EQUIP(15, MPLY:(LOCAL:0), MTAR:(LOCAL:1)) >= 0
+			RETURN 0
+		;ターゲットからプレイヤーに足舐め中なら不可
+		SIF SEARCH_EQUIP_IC(104, MTAR:(LOCAL:0), MTAR:(LOCAL:1)) >= 0
+			RETURN 0
+	NEXT
+NEXT
+;全てのターゲットについて判定
+FOR LOCAL:0, 0, MTAR_NUM
+	;顔面騎乗されているなら1人のみ
+	SIF IS_RIDDEN(MTAR:(LOCAL:0)) && MTAR_NUM >= 2
+		RETURN 0
+NEXT
+RETURN 1
+
+;-------------------------------------------------
+;メイン処理
+;-------------------------------------------------
+@COM1
+;実行判定
+CALL COM_ORDER_COMMON
+SIF RESULT == 0
+	RETURN 0
+
+;●人数補正の設定
+LOCAL:10 = 100
+
+SELECTCASE MPLY_NUM
+	CASE 2
+		TIMES LOCAL:10, 0.75
+ENDSELECT
+
+SELECTCASE MTAR_NUM
+	CASE 2
+		TIMES LOCAL:10, 0.75
+ENDSELECT
+
+;全プレイヤーについて処理
+FOR LOCAL:0, 0, MPLY_NUM
+	LOCAL:2 = MPLY:(LOCAL:0)
+
+	DOWNBASE:(LOCAL:2):体力 += 100
+
+	EXP:(LOCAL:2):性技経験値 += 1
+
+	SOURCE:(LOCAL:2):奉仕 = SERVE_HOUSHI(LOCAL:2, 200)
+	SOURCE:(LOCAL:2):接触 = 60
+	SOURCE:(LOCAL:2):性行動 = 90
+
+	;主導権に応じた優越・屈従のソース追加
+	CALL ADD_SOURCE_INITIATIVE_U(LOCAL:2, 100, 40)
+
+	;奉仕経験値を得られるコマンドのフラグ
+	TCVAR:(LOCAL:2):4 = 1
+
+	;全ターゲットに与える快感系ソースを計算
+	FOR LOCAL:1, 0, MTAR_NUM
+		LOCAL:3 = MTAR:(LOCAL:1)
+		SOURCE:(LOCAL:3):快Ｂ += SENSE_HOUSHI(LOCAL:2, LOCAL:3, 1200) * LOCAL:10 / 100
+
+		;射精箇所と対象をセット
+		CALL STACK_SPERM(LOCAL:3, LOCAL:2, 0)
+	NEXT
+NEXT
+
+;全ターゲットについて処理
+FOR LOCAL:0, 0, MTAR_NUM
+	LOCAL:1 = MTAR:(LOCAL:0)
+
+	DOWNBASE:(LOCAL:1):体力 += 60
+
+	SOURCE:(LOCAL:1):露出 = 100
+	SOURCE:(LOCAL:1):接触 = 60
+	SOURCE:(LOCAL:1):性行動 = 180
+
+	;奴隷のＢ⇔調教者の指の汚れが移動
+	;STAIN:(LOCAL:1):5 |= STAIN:PLAYER:1
+	;STAIN:PLAYER:1 |= STAIN:(LOCAL:1):5
+
+	;主導権に応じた優越・屈従のソース追加
+	CALL ADD_SOURCE_INITIATIVE_U(LOCAL:1, 80, 0)
+
+	;射精箇所と対象をセット
+	FOR LOCAL:2, 0, MPLY_NUM
+		LOCAL:3 = MPLY:(LOCAL:2)
+		CALL STACK_SPERM(LOCAL:3, LOCAL:1, 0)
+	NEXT
+NEXT
+
+;主導度変化基準値
+TFLAG:49 = 2
+
+;倒錯度変化基準値
+TFLAG:50 = -1
+
+;レズ・ＢＬ経験基準値
+TFLAG:51 = 5
+
+RETURN 1
+
+;-------------------------------------------------
+;継続コマンドかどうかを設定
+;-------------------------------------------------
+@COM_IS_EQUIP1
+RETURN 1
+
+;-------------------------------------------------
+;継続状態の処理
+;-------------------------------------------------
+@COM_EQUIP1(ARG:0)
+;●人数補正の設定
+LOCAL:10 = 100
+
+SELECTCASE MEQUIP_PLAYER_NUM:(ARG:0)
+	CASE 2
+		TIMES LOCAL:10, 0.75
+ENDSELECT
+
+SELECTCASE MEQUIP_TARGET_NUM:(ARG:0)
+	CASE 2
+		TIMES LOCAL:10, 0.75
+ENDSELECT
+
+;●全プレイヤーについて判定
+FOR LOCAL:0, 0, MEQUIP_PLAYER_NUM:(ARG:0)
+	LOCAL:2 = MEQUIP_PLAYER:(ARG:0):(LOCAL:0)
+
+	DOWNBASE:(LOCAL:2):体力 += 20
+
+	EXP:(LOCAL:2):性技経験値 += 1
+
+	SOURCE:(LOCAL:2):奉仕 += SERVE_HOUSHI(LOCAL:2, 60)
+	SOURCE:(LOCAL:2):接触 += 30
+	SOURCE:(LOCAL:2):性行動 += 30
+
+	;奉仕経験値を得られるコマンドのフラグ
+	TCVAR:(LOCAL:2):4 = 1
+
+	;全ターゲットに与える快感系ソースを計算
+	FOR LOCAL:1, 0, MEQUIP_TARGET_NUM:(ARG:0)
+		LOCAL:3 = MEQUIP_TARGET:(ARG:0):(LOCAL:1)
+		SOURCE:(LOCAL:3):快Ｂ += SENSE_HOUSHI(LOCAL:2, LOCAL:3, 400) * LOCAL:10 / 100
+
+		;射精箇所と対象をセット
+		CALL STACK_SPERM(LOCAL:3, LOCAL:2, 0)
+	NEXT
+
+	;倒錯度変化基準値
+	TCVAR:(LOCAL:2):50 -= 1
+NEXT
+
+;●全ターゲットについて判定
+FOR LOCAL:0, 0, MEQUIP_TARGET_NUM:(ARG:0)
+	LOCAL:2 = MEQUIP_TARGET:(ARG:0):(LOCAL:0)
+
+	DOWNBASE:(LOCAL:2):体力 += 10
+
+	SOURCE:(LOCAL:2):露出 += 50
+	SOURCE:(LOCAL:2):接触 += 30
+	SOURCE:(LOCAL:2):性行動 += 60
+
+	;射精箇所と対象をセット
+	FOR LOCAL:1, 0, MEQUIP_PLAYER_NUM:(ARG:0)
+		LOCAL:3 = MEQUIP_PLAYER:(ARG:0):(LOCAL:1)
+		CALL STACK_SPERM(LOCAL:3, LOCAL:2, 0, 0)
+	NEXT
+
+	;倒錯度変化基準値
+	TCVAR:(LOCAL:2):50 -= 1
+NEXT
+
+;-------------------------------------------------
+;継続中の表示
+;-------------------------------------------------
+@EQUIP_MESSAGE1(ARG:0)
+LOCAL:2 = 0
+FOR LOCAL:0, 0, MEQUIP_TARGET_NUM:(ARG:0)
+	IF IS_FEMALE(MEQUIP_TARGET:(ARG:0):(LOCAL:0))
+		LOCAL:2 = 1
+	ENDIF
+NEXT
+IF LOCAL:2
+	RESULTS = %EQUIP_PLAYER_ANAME(ARG:0)%が%EQUIP_TARGET_ANAME(ARG:0)%に胸愛撫中
+ELSE
+	RESULTS = %EQUIP_PLAYER_ANAME(ARG:0)%が%EQUIP_TARGET_ANAME(ARG:0)%に乳首責め中
+ENDIF
+
+;-------------------------------------------------
+;継続中の地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE_EQUIP1(ARG:0)
+LOCAL:2 = 0
+FOR LOCAL:0, 0, MEQUIP_TARGET_NUM:(ARG:0)
+	IF IS_FEMALE(MEQUIP_TARGET:(ARG:0):(LOCAL:0))
+		LOCAL:2 = 1
+	ENDIF
+NEXT
+IF LOCAL:2
+	PRINTFORML %EQUIP_PLAYER_ANAME(ARG:0)%が%EQUIP_TARGET_ANAME(ARG:0)%の胸を揉みしだいている…
+ELSE
+	PRINTFORML %EQUIP_PLAYER_ANAME(ARG:0)%が%EQUIP_TARGET_ANAME(ARG:0)%の乳首を弄り回している…
+ENDIF
+
+;-------------------------------------------------
+;継続を解除したときの地の文
+;-------------------------------------------------
+@COM_TEXT_RELEASE_EQUIP1(ARG:0)
+
+;-------------------------------------------------
+;固有の実行判定
+;-------------------------------------------------
+@COM_ORDER_PLAYER1(ARG:0)
+;実行値の設定
+TCVAR:(ARG:0):25 = 60
+
+;共通部分
+CALL COM_ORDER(ARG:0)
+
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲望Lv{ABL:(ARG:0):欲望}", ABL:(ARG:0):欲望 * 1)
+CALL COM_ORDER_ELEMENT(ARG:0, @"奉仕Lv{ABL:(ARG:0):奉仕}", ABL:(ARG:0):奉仕 * 4)
+
+LOCAL:0 = GET_PALAMLV(PALAM:(ARG:0):欲情)
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲情Lv{LOCAL:0}", MIN(LOCAL:0 * 1, 10))
+
+IF TALENT:(ARG:0):恥じらい
+	CALL COM_ORDER_ELEMENT(ARG:0, "恥じらい", -1)
+ENDIF
+IF TALENT:(ARG:0):献身的
+	CALL COM_ORDER_ELEMENT(ARG:0, "献身的", 6)
+ENDIF
+IF TALENT:(ARG:0):快感の否定
+	CALL COM_ORDER_ELEMENT(ARG:0, "快感の否定", -1)
+ENDIF
+
+;合意
+IF !TALENT:(ARG:0):合意
+	CALL COM_ORDER_ELEMENT(ARG:0, "合意なし", -10)
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE1
+;プレイヤーが２人
+IF MPLY_NUM == 2
+	LOCALS:0 = %ANAME(MPLY:0)%と%ANAME(MPLY:1)%
+;プレイヤーが１人
+ELSE
+	LOCALS:0 = %ANAME(MPLY:0)%
+ENDIF
+
+;ターゲットが２人
+IF MTAR_NUM == 2
+	LOCALS:1 = %ANAME(MTAR:0)%と%ANAME(MTAR:1)%
+;ターゲットが１人
+ELSE
+	LOCALS:1 = %ANAME(MTAR:0)%
+ENDIF
+
+IF MTAR_NUM == 2 && IS_PIERCED(MTAR:0, ピアス_乳首) && IS_PIERCED(MTAR:0, ピアス_乳首)
+	LOCALS:2 = ピアスの取り付けられた
+ELSEIF MTAR_NUM == 1 && IS_PIERCED(MTAR:0, ピアス_乳首)
+	LOCALS:2 = ピアスの取り付けられた
+ELSE
+	LOCALS:2 = 
+ENDIF
+
+;ターゲットが２人
+IF MTAR_NUM == 2
+	SELECTCASE GET_COM_INITIATIVE()
+		;プレイヤーに主導権
+		CASE 0
+			;片方が男性
+			IF IS_MALE(MTAR:0) || IS_MALE(MTAR:1)
+				PRINTFORMW %LOCALS:0%は%LOCALS:2%%LOCALS:1%の乳首を摘み上げ、二人同時に弄り回し%TARGET_STR("た", "てきた")%…
+			;二人とも貧乳以下
+			ELSEIF GET_BUSTSIZE_NUM(MTAR:0) <= -1 && GET_BUSTSIZE_NUM(MTAR:1) <= -1
+				PRINTFORMW %LOCALS:0%は%LOCALS:1%の薄い胸を、それぞれの手でじっくりと撫で回し%TARGET_STR("た", "てきた")%…
+			ELSE
+				PRINTFORMW %LOCALS:0%は%LOCALS:1%の、合わせて４つの%LOCALS:2%乳房をじっくりと揉みしだい%TARGET_STR("た", "てきた")%…
+			ENDIF
+		;ターゲットに主導権
+		CASE 1
+			;片方が男性
+			IF IS_MALE(MTAR:0) || IS_MALE(MTAR:1)
+				PRINTFORMW %LOCALS:1%は%LOCALS:2%それぞれの乳首を%LOCALS:0%に弄らせて、気持ち良くするように命令した…
+			;二人とも貧乳以下
+			ELSEIF GET_BUSTSIZE_NUM(MTAR:0) <= -1 && GET_BUSTSIZE_NUM(MTAR:1) <= -1
+				PRINTFORMW %LOCALS:1%は%LOCALS:2%それぞれの薄い胸を%LOCALS:0%に触らせて、気持ち良くするように命令した…
+			ELSE
+				PRINTFORMW %LOCALS:1%は%LOCALS:2%それぞれの乳房を%LOCALS:0%の手に押し付けると、揉みしだいて気持ち良くするように命令した…
+			ENDIF
+		;第三者に主導権
+		CASEELSE
+			PRINTFORML %ANAME(TFLAG:45)%は%LOCALS:0%に%LOCALS:2%%LOCALS:1%の胸を愛撫するように命令した
+			;片方が男性
+			IF IS_MALE(MTAR:0) || IS_MALE(MTAR:1)
+				PRINTFORMW %LOCALS:0%は%LOCALS:2%%LOCALS:1%の乳首を摘み上げ、二人同時に弄り回した…
+			;二人とも貧乳以下
+			ELSEIF GET_BUSTSIZE_NUM(MTAR:0) <= -1 && GET_BUSTSIZE_NUM(MTAR:1) <= -1
+				PRINTFORMW %LOCALS:0%は%LOCALS:2%%LOCALS:1%の薄い胸をそれぞれの手で撫で回した…
+			ELSE
+				PRINTFORMW %LOCALS:0%は%LOCALS:1%の、合わせて４つの%LOCALS:2%乳房を揉みしだいた…
+			ENDIF
+	ENDSELECT
+
+;ターゲットが１人
+ELSE
+	SELECTCASE GET_COM_INITIATIVE()
+		;プレイヤーに主導権
+		CASE 0
+			PRINTFORM %LOCALS:0%は%LOCALS:1%の%LOCALS:2%
+			IF IS_MALE(MTAR:0)
+				PRINTFORMW ぷっくりと膨らんだ乳首を指先で弄り回し%TARGET_STR("た", "てきた")%…
+			ELSE
+				IF TALENT:(MTAR:0):絶壁
+					PRINTFORMW まっ平らな胸をゆっくりと撫で回し%TARGET_STR("た", "てきた")%…
+				ELSEIF TALENT:(MTAR:0):貧乳
+					PRINTFORMW 小さな胸をじっくりと弄ん%TARGET_STR("だ", "できた")%…
+				ELSEIF TALENT:(MTAR:0):巨乳
+					PRINTFORMW 巨乳をじっくりと揉みしだい%TARGET_STR("た", "てきた")%…
+				ELSEIF TALENT:(MTAR:0):爆乳
+					PRINTFORMW 手から溢れるほど大きな胸をじっくりと揉みしだい%TARGET_STR("た", "てきた")%…
+				ELSE
+					PRINTFORMW 適度な大きさの胸をじっくりと揉みしだい%TARGET_STR("た", "てきた")%…
+				ENDIF
+			ENDIF
+		;ターゲットに主導権
+		CASE 1
+			IF IS_MALE(MTAR:0)
+				PRINTFORMW %LOCALS:1%は%LOCALS:2%乳首を%LOCALS:0%に弄らせて、気持ち良くするように命令した…
+			ELSE
+				PRINTFORM %LOCALS:1%は%LOCALS:0%の手に自身の%LOCALS:2%
+				IF TALENT:(MTAR:0):絶壁
+					PRINTFORMW まっ平らな胸を押し付けると、触って気持ち良くするように命令した…
+				ELSEIF TALENT:(MTAR:0):貧乳
+					PRINTFORMW 小さな胸を押し付けると、触って気持ち良くするように命令した…
+				ELSEIF TALENT:(MTAR:0):巨乳
+					PRINTFORMW 大きな胸を押し付けると、揉みしだいて気持ち良くするように命令した…
+				ELSEIF TALENT:(MTAR:0):爆乳
+					PRINTFORMW 手から溢れるほど大きな胸を押し付けると、揉みしだいて気持ち良くするように命令した…
+				ELSE
+					PRINTFORMW 胸を押し付けると、揉みしだいて気持ち良くするように命令した…
+				ENDIF
+			ENDIF
+		;第三者に主導権
+		CASEELSE
+			PRINTFORML %ANAME(TFLAG:45)%は%LOCALS:0%に%LOCALS:1%の胸を愛撫するように命令した
+			PRINTFORM %LOCALS:0%は%LOCALS:1%の%LOCALS:2%
+			IF IS_MALE(MTAR:0)
+				PRINTFORMW ぷっくりと膨らんだ乳首を指先で弄り回した…
+			ELSE
+				IF TALENT:(MTAR:0):絶壁
+					PRINTFORMW まっ平らな胸をゆっくりと撫で回した…
+				ELSEIF TALENT:(MTAR:0):貧乳
+					PRINTFORMW 小さな胸をじっくりと弄んだ…
+				ELSEIF TALENT:(MTAR:0):巨乳
+					PRINTFORMW 巨乳をじっくりと揉みしだいた…
+				ELSEIF TALENT:(MTAR:0):爆乳
+					PRINTFORMW 手から溢れるほど大きな胸をじっくりと揉みしだいた…
+				ELSE
+					PRINTFORMW 適度な大きさの胸をじっくりと揉みしだいた…
+				ENDIF
+			ENDIF
+	ENDSELECT
+ENDIF
+
+;--------------------------------------------------------
+;地の文(パラメータ・刻印変動後)
+;--------------------------------------------------------
+@COM_TEXT_LAST1
+FOR LOCAL:0, 0, MTAR_NUM
+	LOCAL:1 = MTAR:(LOCAL:0)
+
+	IF LOCAL:1 != MASTER
+		LOCAL:2 = CUP:(LOCAL:1):快Ｂ
+
+		IF IS_MALE(LOCAL:1)
+			IF TCVAR:(LOCAL:1):52
+				;気絶中
+				PRINTFORML 意識を失った%ANAME(LOCAL:1)%は乳首への刺激にビクリと小さく体を震わせた
+			ELSEIF LOCAL:2 < 300
+				PRINTFORML %ANAME(LOCAL:1)%はまだ乳首で快楽を感じれるまでには至っていないようだ
+			ELSEIF LOCAL:2 < 1000
+				PRINTFORML %ANAME(LOCAL:1)%は少しずつ快感を感じ始めているらしく、むず痒そうに体をよじった
+			ELSEIF LOCAL:2 < 3000
+				PRINTFORML %ANAME(LOCAL:1)%は乳首への刺激に感じているのか、熱い吐息を漏らし始めている
+			ELSEIF LOCAL:2 < 6000
+				PRINTFORML %ANAME(LOCAL:1)%は乳首への快感に表情を緩ませ、されるがままになっている
+			ELSEIF LOCAL:2 < 10000
+				PRINTFORML %ANAME(LOCAL:1)%は感じまくっており、乳首を弾かれるたびに激しく悶えている
+			ELSE
+				PRINTFORM %ANAME(LOCAL:1)%はすっかり乳首の快感の虜になり、乳首をこね回されると女のように身体を跳ねさせて悶えた
+			ENDIF
+		ELSE
+			IF TCVAR:(LOCAL:1):52
+				;気絶中
+				PRINTFORML 意識を失った%ANAME(LOCAL:1)%は胸への刺激にビクリと小さく体を震わせた
+			ELSEIF LOCAL:2 < 300
+				PRINTFORML %ANAME(LOCAL:1)%はまだ胸で快楽を感じれるまでには至っていないようだ
+			ELSEIF LOCAL:2 < 1000
+				PRINTFORML %ANAME(LOCAL:1)%は少しずつ快感を感じ始めているらしく、むず痒そうに体をよじった
+			ELSEIF LOCAL:2 < 3000
+				PRINTFORML %ANAME(LOCAL:1)%の胸を揉み続けてやると乳首は固くしこっていき、熱い吐息を漏らし始めている
+			ELSEIF LOCAL:2 < 6000
+				PRINTFORML %ANAME(LOCAL:1)%は胸への愛撫にトロンとした表情になってされるがままになっている
+			ELSEIF LOCAL:2 < 10000
+				PRINTFORML %ANAME(LOCAL:1)%は感じまくっており、胸への刺激だけで法悦を極めようとしている
+			ELSE
+				PRINTFORM %ANAME(LOCAL:1)%の胸を揉み続けてやるとそれだけで感じまくって身体を跳ねさせ、
+				IF TALENT:(LOCAL:1):巨乳
+					PRINTL 目の前でその巨乳を弾ませてこちらの目を楽しませてくれた
+				ELSEIF TALENT:(LOCAL:1):爆乳
+					PRINTL 目の前でその爆乳を大きく弾ませてこちらの目を楽しませてくれた
+				ELSE
+					PRINTL 緩んだ表情で快楽に身を任せた
+				ENDIF
+			ENDIF
+		ENDIF
+	ENDIF
+NEXT

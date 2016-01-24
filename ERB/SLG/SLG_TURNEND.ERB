@@ -145,7 +145,7 @@ FLAG:99 = MAX(FLAG:99 - MAX(6 - CONFIG:300, 0), 0)
 ;-------------------------------------------------
 @COUNTRY_TURNEND(ARG:0)
 #DIM LCOUNT, 3
-SETCOLOR COLOR("明灰色")
+SETCOLOR COUNTRY_COLOR:(ARG:0)
 PRINTFORML %NAME:GET_COUNTRY_BOSS(ARG:0)%軍行動中...
 RESETCOLOR
 
@@ -180,6 +180,7 @@ FOR LCOUNT:0, 0, MAX_UNIT
 		LOCAL:3 = UNIT_TARGET:(ARG:0):(LCOUNT:0)
 		IF LOCAL:3 > 0 && LOCAL:2 != LOCAL:3
 			;停戦中の都市が目標になっている場合
+
 			IF TMP_COUNTRY_RELATION:(ARG:0):(CITY_OWNER:(LOCAL:3)) == 1
 				UNIT_TARGET:(ARG:0):(LCOUNT:0) = 0
 			ELSE
@@ -198,6 +199,24 @@ FOR LCOUNT:0, 0, MAX_UNIT
 						NEXT
 					ENDIF
 				NEXT
+				;中継点を通る場合、部隊に疾風迅雷所持者がいれば、30%の確率で中継点をすっとばす
+				IF LOCAL:4 == 2
+					FOR LCOUNT:1, 0, MAX_UNIT_COMMANDER
+						LOCAL:6 = GET_UNIT_COMMANDER(ARG:0, LCOUNT:0, LCOUNT:1)
+						IF LOCAL:6 >= 0 && TALENT:(LOCAL:6):疾風迅雷 && 30 > RAND:100
+							SETCOLOR COLOR("素質発動")
+							PRINTFORML %ANAME(LOCAL:6)%は迅速な部隊行動を見せる！
+							PRINTFORML 一気に目的地に移動した！
+							RESETCOLOR
+							;LOCAL:5は折らなくていい気がするんだけど、一応
+							LOCAL:5 = 0
+							LOCAL:4 = 0
+							UNIT_POSITION:(ARG:0):(LCOUNT:0) = LOCAL:3
+							SIF ARG:0 == CFLAG:MASTER:1
+								UNIT_TARGET:(ARG:0):(LCOUNT:0) = 0
+						ENDIF
+					NEXT
+				ENDIF
 				IF !LOCAL:5	
 					;直通
 					IF LOCAL:4 == 1
@@ -506,11 +525,8 @@ IF LOCAL:5 >= 0 && GET_OWN_CITY(CITY_OWNER:(ARG:2)) == 1
 	SETCOLOR COLOR("シアン")
 	PRINTFORML %BATTLE_NAME:1%は%GET_CITYNAME(ARG:2)%防衛に全兵力を注いだ！
 	RESETCOLOR
-	CALL CLEAR_CITY_COMMANDER(ARG:0, 0)
-	CALL CLEAR_CITY_COMMANDER(ARG:0, 1)
-	CALL SET_CITY_COMMANDER_BEST(ARG:0, 1)
-	LOCAL:4 = GET_CITY_COMMANDER(ARG:0, 0)
-	LOCAL:5 = GET_CITY_COMMANDER(ARG:0, 1)
+	CALL TMP_CREATE_IS_FREE_MAP
+	CALL SET_CITY_COMMANDER_BEST(ARG:2, 1)
 	CITY_SOLDIER:(ARG:2) += COUNTRY_SOLDIER:(CITY_OWNER:(ARG:2))
 	COUNTRY_SOLDIER:(CITY_OWNER:(ARG:2)) = 0
 ENDIF
@@ -559,7 +575,7 @@ IF CITY_SOLDIER:(ARG:2) <= 0
 		MONEY:(ARG:0) += LOCAL:10 * 90 / 100
 	ENDIF
 	;DEBUGPRINTFORML {DAY,3}【略奪】\@LOCAL:6 ? %NAME:(GET_COUNTRY_BOSS(LOCAL:6))% # 無所属\@＞%NAME:(GET_COUNTRY_BOSS(ARG:0))%:{LOCAL:10}
-	IF CITY_OWNER:(ARG:2) == CFLAG:MASTER:1
+	IF CITY_OWNER:(ARG:2) == CFLAG:MASTER:1 && !FLAG:観戦モード
 		CALL COLORPRINTFORM(@"%BATTLE_NAME:0%軍に%GET_CITYNAME(ARG:2)%を奪われました！", COLOR("警告"), "W")
 	ELSEIF ARG:0 == CFLAG:MASTER:1
 		CALL COLORPRINTFORM(@"%GET_CITYNAME(ARG:2)%を占領しました！", COLOR("注意"), "W")
@@ -620,19 +636,19 @@ IF CITY_SOLDIER:(ARG:2) <= 0
 					CFLAG:LOCAL:捕虜先 = 0
 			NEXT
 			FOR LOCAL:0, 0, MAX_COUNTRY
-				SIF LOCAL != ARG:0 && LOCAL != LOCAL:6
-					CALL CHANGE_RELATION_C_TO_C(LOCAL, ARG:0, 500, -500)
+				SIF IS_COUNTRY(LOCAL) && LOCAL != ARG:0 && LOCAL != LOCAL:6
+					CALL CHANGE_RELATION_C_TO_C(LOCAL, ARG:0, (1500 - REL_LIKE:LOCAL:(ARG:0)) / 5, REL_HATE:LOCAL:(ARG:0) / 5)
 			NEXT
 			;外交禁止フラグを立てる
 			COUNTRY_IS_CLOSED:(LOCAL:6) = 1
 		ELSE
 			IF CFLAG:MASTER:1 == LOCAL:6 && CFLAG:(LOCAL:0):9 != 0
 				SETCOLOR COLOR("警告")
-				PRINTFORML %NAME:MASTER%の仕えていた%BATTLE_NAME:1%勢力は滅亡してしまいました…
+				PRINTFORMW %NAME:MASTER%の仕えていた%BATTLE_NAME:1%勢力は滅亡してしまいました…
 				RESETCOLOR
 			ELSE
 				SETCOLOR COLOR("警告")
-				PRINTFORML %BATTLE_NAME:1%勢力は滅亡しました
+				PRINTFORMW %BATTLE_NAME:1%勢力は滅亡しました
 				RESETCOLOR
 			ENDIF
 
@@ -1179,11 +1195,11 @@ FOR LOCAL:0, 0, 3
 				LOCAL:6 = RAND(1000, MAX(1000 + GOBLIN_RANK * 1000))
 				PRINTFORML 援軍が現れた！
 				IF ARG:3 >= 0
-					UNIT_SOLDIER:(ARG:2):(ARG:3) += LOCAL:6
 					PRINTFORML %NAME:GET_COUNTRY_BOSS(CFLAG:(発動側:LOCAL):所属), 10, RIGHT%軍:{UNIT_SOLDIER:(ARG:2):(ARG:3), 6, RIGHT} → {UNIT_SOLDIER:(ARG:2):(ARG:3) + LOCAL:6, 6, RIGHT}
+					UNIT_SOLDIER:(ARG:2):(ARG:3) += LOCAL:6
 				ELSE
-					CITY_SOLDIER:(ARG:2) += LOCAL:6
 					PRINTFORML %NAME:GET_COUNTRY_BOSS(CFLAG:(発動側:LOCAL):所属), 10, RIGHT%軍:{CITY_SOLDIER:(ARG:2), 6, RIGHT} → {CITY_SOLDIER:(ARG:2) + LOCAL:6, 6, RIGHT}
+					CITY_SOLDIER:(ARG:2) += LOCAL:6
 				ENDIF
 			ELSE
 				PRINTFORML ……しかし誰も助けに来なかった！
@@ -1675,8 +1691,8 @@ ENDSELECT
 ;逃走阻止率
 #DIM CAPTURE_RATE
 
-#DIM 武闘アップ
-#DIM 知略アップ
+#DIM アップ種類
+#DIM アップ量
 
 VARSET COMMANDER_W, -1
 VARSET COMMANDER_L, -1
@@ -1862,62 +1878,62 @@ FOR LOCAL:0, 0, 3
 	ENDIF
 NEXT
 FOR LOCAL,0, 3
-	IF COMMANDER_W:LOCAL > 0 && ABL:(COMMANDER_W:LOCAL):武闘 < 80 && ABL:(COMMANDER_W:LOCAL):知略 < 80
-		武闘アップ = 0
-		SELECTCASE ABL:(COMMANDER_W:LOCAL):武闘
+	LOCAL:1 = COMMANDER_W:LOCAL
+	IF LOCAL:1 > 0 && (ABL:(LOCAL:1):武闘 < 80 || ABL:(LOCAL:1):知略 < 80 || ABL:(LOCAL:1):政治 < 80 || ABL:(LOCAL:1):料理 < 60 || ABL:(LOCAL:1):歌唱 < 60)
+		アップ量 = 0
+		SELECTCASE RAND:100
 			CASE IS < 30
-				武闘アップ = RAND:4
-			CASE IS < 50
-				武闘アップ = RAND:3
-			CASE IS < 70
-				武闘アップ = RAND:2
+				アップ種類 = GETNUM(ABL, "武闘")
+			CASE IS < 60
+				アップ種類 = GETNUM(ABL, "知略")
+			CASE IS < 80
+				アップ種類 = GETNUM(ABL, "政治")
+			CASE IS < 90
+				アップ種類 = GETNUM(ABL, "歌唱")
 			CASEELSE
-				SIF !RAND:4
-					武闘アップ = 1
+				アップ種類 = GETNUM(ABL, "料理")
 		ENDSELECT
-		IF 武闘アップ
-			SIF TALENT:(COMMANDER_W:LOCAL):超成長力
-				武闘アップ += RAND:2
-			IF TALENT:(COMMANDER_W:LOCAL):努力家
+		SELECTCASE アップ種類
+			CASE GETNUM(ABL, "武闘"), GETNUM(ABL, "知略"), GETNUM(ABL, "政治")
+				SELECTCASE ABL:(LOCAL:1):アップ種類
+					CASE IS < 30
+						アップ量 = RAND(1, 3)
+					CASE IS < 50
+						アップ量 = RAND:3
+					CASE IS < 70
+						アップ量 = RAND:2
+					CASE IS < 80
+						SIF !RAND:4
+							アップ量 = 1
+				ENDSELECT
+			CASEELSE
+				SELECTCASE ABL:(LOCAL:1):アップ種類
+					CASE IS < 25
+						アップ量 = RAND(1, 2)
+					CASE IS < 40
+						アップ量 = RAND:3
+					CASE IS < 50
+						アップ量 = RAND:2
+					CASE IS < 60
+						SIF !RAND:4
+							アップ量 = 1
+				ENDSELECT
+		ENDSELECT
+		IF アップ量
+			SIF TALENT:(LOCAL:1):超成長力
+				アップ量 += RAND:2
+			IF TALENT:(LOCAL:1):努力家
 				SELECTCASE RAND:100
 					CASE IS < 70
-						武闘アップ += 1
+						アップ量 += 1
 					CASE IS < 85
-						武闘アップ += 2
+						アップ量 += 2
 				ENDSELECT
 			ENDIF
 			SETCOLOR COLOR("オレンジ")
-			PRINTFORML %NAME:(COMMANDER_W:LOCAL)%の武闘が{武闘アップ}上昇しました(現在:{ABL:(COMMANDER_W:LOCAL):武闘 + 武闘アップ})
+			PRINTFORML %NAME:(LOCAL:1)%の%ABLNAME:アップ種類%が{アップ量}上昇しました(現在:{ABL:(LOCAL:1):アップ種類 + アップ量})
 			RESETCOLOR
-			ABL:(COMMANDER_W:LOCAL):武闘 += 武闘アップ
-		ENDIF
-		知略アップ = 0
-		SELECTCASE ABL:(COMMANDER_W:LOCAL):知略
-			CASE IS < 30
-				知略アップ = RAND:4
-			CASE IS < 50
-				知略アップ = RAND:3
-			CASE IS < 70
-				知略アップ = RAND:2
-			CASEELSE
-				SIF !RAND:4
-					知略アップ = 1
-		ENDSELECT
-		IF TALENT:(COMMANDER_W:LOCAL):努力家
-			SELECTCASE RAND:100
-				CASE IS < 70
-					知略アップ += 1
-				CASE IS < 85
-					知略アップ += 2
-			ENDSELECT
-		ENDIF
-		IF 知略アップ
-			SIF TALENT:(COMMANDER_W:LOCAL):超成長力
-				知略アップ += RAND:2
-			SETCOLOR COLOR("オレンジ")
-			PRINTFORML %NAME:(COMMANDER_W:LOCAL)%の知略が{知略アップ}上昇しました(現在:{ABL:(COMMANDER_W:LOCAL):知略 + 知略アップ})
-			RESETCOLOR
-			ABL:(COMMANDER_W:LOCAL):知略 += 知略アップ
+			ABL:(LOCAL:1):アップ種類 += アップ量
 		ENDIF
 	ENDIF
 NEXT

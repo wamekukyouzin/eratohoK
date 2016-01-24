@@ -1,29 +1,29 @@
-20150518_era���P_�D�P�L�^��readme
+﻿20150518_era恋姫_妊娠記録のreadme
 
-�E�K�p���@
-���̂܂܏㏑�����ēK�p�ł��܂��B
-�\�͕\����"2[�D�P�L�^]"�{�^�����ǉ�����܂��B
-�����̃Z�[�u�f�[�^�͊m�F�p�ł��B��������ł��m�F�������B
-���̃L�����̋L�^���ꕔ�ςł�����ƒ��̃f�[�^���������Ă��邹���ł��B
+・適用方法
+そのまま上書きして適用できます。
+能力表示に"2[妊娠記録]"ボタンが追加されます。
+同梱のセーブデータは確認用です。桃香さんでご確認下さい。
+他のキャラの記録が一部変ですが作業中のデータが混じっているせいです。
 
-�E�ҏW��
-era���P 20150506
+・編集元
+era恋姫 20150506
 
-�E�ҏW�_
-CSV/VariableSize.csv : CSTR,100��130�ɂ���
-ERB/TRAIN/PREGNANT.ERB : 228�s�ڂɋL�^�̂��߂̊֐��Ăяo����ǉ�����
-ERB/TRAIN/PREGNANT_RECORD.ERB : �V�K�쐬�B�L�^�����̃��C������
-ERB/TRAIN/PREGNANT_RECORD.ERH : �V�K�쐬�B���Ŏg���ϐ����L�q
-ERB/SHOP/SHOP_LIFE.ERB : @SELECTED_SHOWDATA�̖`���ɕ\���؂�ւ��{�^����ǉ�
-ERB/SYSTEM/SHOW_INFO.ERB : @SHOW_INFO(ARG:0)�̖`���ɕ\���̌Ăяo����ǉ�
+・編集点
+CSV/VariableSize.csv : CSTR,100を130にした
+ERB/TRAIN/PREGNANT.ERB : 228行目に記録のための関数呼び出しを追加した
+ERB/TRAIN/PREGNANT_RECORD.ERB : 新規作成。記録処理のメイン部分
+ERB/TRAIN/PREGNANT_RECORD.ERH : 新規作成。↑で使う変数を記述
+ERB/SHOP/SHOP_LIFE.ERB : @SELECTED_SHOWDATAの冒頭に表示切り替えボタンを追加
+ERB/SYSTEM/SHOW_INFO.ERB : @SHOW_INFO(ARG:0)の冒頭に表示の呼び出しを追加
 
-�E����Ă邱��
-����L�������N�̎q������D�P�������̋L�^�����܂��B
-�L�^����^�C�~���O�͔D�P���o���ł��B
-���e�̖��O��CSTR�ɋL�^���ACFLAG�ɉ񐔂��L�^���Ă��܂��B
+・やってること
+あるキャラが誰の子を何回妊娠したかの記録を取ります。
+記録するタイミングは妊娠発覚時です。
+父親の名前をCSTRに記録し、CFLAGに回数を記録しています。
 
-CSTR��CFLAG�̎g�p�͈͂�ERH�Ŏw�肵�Ă��܂��B
-�b���CSTR:100-129�ACFLAG:250-279���g���悤�ɂ��Ă��܂��B
+CSTRとCFLAGの使用範囲はERHで指定しています。
+暫定でCSTR:100-129、CFLAG:250-279を使うようにしています。
 
-�E�t�@�C���̉��ϓ��͂����R�ɂǂ����B
+・ファイルの改変等はご自由にどうぞ。
 

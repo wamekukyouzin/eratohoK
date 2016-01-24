@@ -1,0 +1,144 @@
+﻿;---------------------------
+;ARG:0の陰毛目標値をARG:1に設定する関数
+;---------------------------
+@SET_INMOU_DEFAULT(ARG:0, ARG:1)
+SIF !INRANGE_INMOU(ARG:1)
+	RETURN 0
+TALENT:(ARG:0):陰毛目標値 = ARG:1
+RETURN 1
+
+;---------------------------
+;ARG:0の陰毛現在値を取得する
+;ハート型は標準に読み替えられる
+;---------------------------
+@GET_INMOU(ARG:0)
+#FUNCTION
+SIF TALENT:(ARG:0):陰毛現在値 == 陰毛_ハート型
+	RETURNF 陰毛_標準
+RETURNF TALENT:(ARG:0):陰毛現在値
+
+;---------------------------
+;ARG:0の陰毛現在値が目標値に向けて変化する関数
+;---------------------------
+@INMOU_GROW(ARG:0)
+#DIM 現在
+#DIM 目標
+
+;パイパンなら育たない
+SIF !IS_GROW_INMOU(ARG:0)
+	RETURN 0
+
+現在 = TALENT:(ARG:0):陰毛現在値
+目標 = TALENT:(ARG:0):陰毛目標値
+
+LOCAL:1 = 0
+
+;ハート型は標準相当
+IF 現在 == 陰毛_ハート型
+	現在 = 陰毛_標準
+ENDIF
+IF 目標 == 陰毛_ハート型
+	目標 = 陰毛_標準
+	LOCAL:1 = 1
+ENDIF
+
+;目標より少ない場合は1育つ
+IF 目標 - 現在 > 0 
+	現在 ++
+;目標より育っている場合は刈る
+ELSEIF 目標 - 現在 < 0
+	現在 = 目標
+ENDIF
+
+;ハート型の場合、標準相当になっていたら刈り揃える
+IF 目標 == 現在 && LOCAL:1 == 1
+	現在 = 陰毛_ハート型
+ENDIF
+
+TALENT:(ARG:0):陰毛現在値 = 現在
+RETURN 1
+
+;---------------------------
+;ARG:0の陰毛が成長するか
+;---------------------------
+@IS_GROW_INMOU(ARG:0)
+#FUNCTION
+RETURNF TALENT:(ARG:0):陰毛現在値 != -1
+
+
+;---------------------------
+;ARG:0に対応する陰毛の成長度合いを返す
+;---------------------------
+@GET_INMOU_NAME(ARG:0)
+#FUNCTIONS
+SELECTCASE ARG:0
+	CASE 陰毛_パイパン
+		RETURNF "パイパン"
+	CASE 陰毛_つるつる
+		RETURNF "つるつる"
+	CASE 陰毛_うっすら
+		RETURNF "うっすら"
+	CASE 陰毛_柔毛
+		RETURNF "柔毛"
+	CASE 陰毛_ふんわり
+		RETURNF "ふんわり"
+	CASE 陰毛_標準
+		RETURNF "標準"
+	CASE 陰毛_多め
+		RETURNF "多め"
+	CASE 陰毛_ふさふさ
+		RETURNF "ふさふさ"
+	CASE 陰毛_もっさり
+		RETURNF "もっさり"
+	CASE 陰毛_剛毛
+		RETURNF "剛毛"
+	CASE 陰毛_尻毛
+		RETURNF "尻まで毛まみれ"
+	CASE 陰毛_ハート型
+		RETURNF "ハート型"
+	CASEELSE
+		RETURNF "不明"
+ENDSELECT
+
+;---------------------------
+;与えられた引数の成長度合いが存在するか
+;---------------------------
+@INRANGE_INMOU(ARG:0)
+#FUNCTION
+RETURNF GET_INMOU_NAME(ARG:0) != "不明"
+
+
+;---------------------------
+;与えられたキャラの陰毛具合がどんなものか返す
+;-2 無毛 -1 薄め 0 標準 1 多め 2剛毛 3 ハート
+;---------------------------
+@GET_INMOU_LEVEL(ARG:0)
+#FUNCTION
+SELECTCASE TALENT:(ARG:0):陰毛現在値
+	CASE 陰毛_パイパン, 陰毛_つるつる
+		RETURNF -2
+	CASE 陰毛_うっすら, 陰毛_柔毛, 陰毛_ふんわり
+		RETURNF -1
+	CASE 陰毛_標準
+		RETURNF 0
+	CASE 陰毛_多め, 陰毛_ふさふさ, 陰毛_もっさり
+		RETURNF 1
+	CASE 陰毛_剛毛, 陰毛_尻毛
+		RETURNF 2
+	CASE 陰毛_ハート型
+		RETURNF 3
+ENDSELECT
+
+;---------------------------
+;陰毛がハート型かを単純に返す
+;---------------------------
+@IS_INMOU_HEART(ARG:0)
+#FUNCTION
+RETURNF TALENT:(ARG:0):陰毛現在値 == 陰毛_ハート型
+
+;---------------------------
+;陰毛の状態を画面に出力する
+;---------------------------
+@PRINT_INMOU(ARG:0)
+LOCALS:0 = %GET_INMOU_NAME(TALENT:(ARG:0):陰毛現在値)%
+CALL COLORPRINTFORM(@"%LOCALS:0%", LOCALS:0 == "ハート型" ? COLOR("桃") # GETDEFCOLOR())

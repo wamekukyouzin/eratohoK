@@ -78,8 +78,8 @@ VARSET 候補数
 
 ;キャラの選出
 FOR LOCAL, 0, CHARANUM
-	;MASTERではなく、MASTER所属勢力の君主でもなく、同じ国に所属。もし結果国が野盗なら女であること。
-	IF LOCAL != MASTER && LOCAL != GET_COUNTRY_BOSS(CFLAG:MASTER:所属) && CFLAG:(LOCAL):所属 == CFLAG:MASTER:所属 && !CFLAG:(LOCAL):9 && (結果国 != 野盗 || IS_FEMALE(LOCAL))
+	;MASTERではなく、MASTER所属勢力の君主でもなく、同じ国に所属。もし結果国が野盗なら女であること。動物はだめ。
+	IF LOCAL != MASTER && LOCAL != GET_COUNTRY_BOSS(CFLAG:MASTER:所属) && CFLAG:(LOCAL):所属 == CFLAG:MASTER:所属 && !CFLAG:(LOCAL):9 && (結果国 != 野盗 || IS_FEMALE(LOCAL)) && !IS_ANIMAL(LOCAL)
 		;0 ~ 「三能力の10倍と、好感度・従属度・依存度の1/10の総和」　の乱数を保存
 		候補キャラ:LOCAL = RAND(0, MAX((ABL:LOCAL:武闘 + ABL:LOCAL:知略 + ABL:LOCAL:政治) * 10 + (CFLAG:LOCAL:好感度 + CFLAG:LOCAL:従属度 + CFLAG:LOCAL:依存度) / 10, 1))
 		候補数 ++
@@ -285,8 +285,8 @@ IF 結果国 != 野盗
 	VARSET 候補数
 	;キャラの選出
 	FOR LOCAL, 0, CHARANUM
-		;結果国所属で、捕虜ではなく、首領ではない。かつ女である。
-		IF CFLAG:LOCAL:所属 == 結果国 && !CFLAG:(LOCAL):9 && LOCAL != GET_COUNTRY_BOSS(結果国) && IS_FEMALE(LOCAL)
+		;結果国所属で、捕虜ではなく、首領ではない。かつ女である。動物はだめ。
+		IF CFLAG:LOCAL:所属 == 結果国 && !CFLAG:(LOCAL):9 && LOCAL != GET_COUNTRY_BOSS(結果国) && IS_FEMALE(LOCAL) && !IS_ANIMAL(LOCAL)
 			;0 ~ 「三能力の10倍と、好感度・従属度・依存度の1/10の総和」　の乱数を保存
 			候補キャラ:LOCAL = RAND(0, MAX((ABL:LOCAL:武闘 + ABL:LOCAL:知略 + ABL:LOCAL:政治) * 10 + (CFLAG:LOCAL:好感度 + CFLAG:LOCAL:従属度 + CFLAG:LOCAL:依存度) / 10, 1))
 			候補数 ++
@@ -408,7 +408,7 @@ ELSE
 		;キャラの選出
 		FOR LOCAL, 0, CHARANUM
 			;MASTERではなく、MASTER所属勢力の君主でもなく、同じ国に所属。もし結果国が野盗なら女であること。
-			IF LOCAL != MASTER && LOCAL != GET_COUNTRY_BOSS(CFLAG:MASTER:所属) && CFLAG:(LOCAL):所属 == CFLAG:MASTER:所属 && !CFLAG:(LOCAL):9 && (結果国 != 野盗 || IS_FEMALE(LOCAL))
+			IF LOCAL != MASTER && LOCAL != GET_COUNTRY_BOSS(CFLAG:MASTER:所属) && CFLAG:(LOCAL):所属 == CFLAG:MASTER:所属 && !CFLAG:(LOCAL):9 && (結果国 != 野盗 || IS_FEMALE(LOCAL)) && !IS_ANIMAL(LOCAL)
 				;0 ~ 「三能力の10倍と、好感度・従属度・依存度の1/10の総和」　の乱数を保存
 				候補キャラ:LOCAL = RAND(0, MAX((ABL:LOCAL:武闘 + ABL:LOCAL:知略 + ABL:LOCAL:政治) * 10 + (CFLAG:LOCAL:好感度 + CFLAG:LOCAL:従属度 + CFLAG:LOCAL:依存度) / 10, 1))
 				候補数 ++
@@ -451,6 +451,14 @@ SIF 対象 == -1
 ;ないはずだけど、君主が見つからなかったら（対象の元所属国家が滅ぶかなにかしていたら）抜ける
 SIF 君主 == -1
 	RETURN 0
+
+;担保をとったときの所属国と今の所属が違っていたら、簡易イベントで済ませる
+IF CFLAG:MASTER:所属 != DVAR:資金援助担保
+	PRINTFORMW 資金援助のため貸し出されていた%ANAME(対象)%は、%ANAME(君主)%の元へ戻っていったそうだ……
+	CFLAG:対象:所属 = DVAR:資金援助担保
+	TALENT:対象:借り物 = 0
+	RETURN
+ENDIF
 
 DRAWLINE
 PRINTFORMW ……そろそろ%ANAME(対象)%の返却の期限だ

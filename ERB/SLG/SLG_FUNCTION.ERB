@@ -59,7 +59,7 @@ RETURNF LOCAL:1
 @GET_OWN_CITY(ARG:0)
 #FUNCTION
 
-RETURNF MATCH(CITY_OWNER, ARG:0, 1, CITY_NUM)
+RETURNF MATCH(CITY_OWNER, ARG:0, 1, CITY_NUM + 1)
 ;-------------------------------------------------
 ;ARG:0番の勢力について、士官数を返す関数
 ;-------------------------------------------------
@@ -345,7 +345,7 @@ SIF CFLAG:(ARG:0):9 || CFLAG:(ARG:0):16 || CFLAG:(ARG:0):12
 
 ;Kの追加要素に合わせて条件を増やす
 ;素質チェック
-SIF TALENT:(ARG:0):触手妊娠 || TALENT:(ARG:0):Ａ触手妊娠 
+SIF TALENT:(ARG:0):触手妊娠 || TALENT:(ARG:0):Ａ触手妊娠 || IS_ANIMAL(ARG:0)
 	RETURNF 0
 
 ;その他のチェック
@@ -454,26 +454,127 @@ NEXT
 RETURNF -1
 
 ;--------------------------------------------------------
+;ARG:0番の都市のリスクをチェック
+; 6 現在敵部隊が存在する
+; 5 隣接する中継地に敵部隊を確認
+; 4 隣国が敵対（中継地なし）
+; 3 その他
+; 2 
+; 1 
+; 0 安全
+; 
+; TODO:隣国が停戦以上の関係であるが、その同盟国が攻め込んでくる関係
+;--------------------------------------------------------
+@GET_CITY_RISK(ARG:0)
+#FUNCTION
+#DIM RET
+#DIM OWNER1
+#DIM OWNER2
+RET = 0
+
+SIF !INRANGE(ARG:0 , 1 , MAX_CITY)
+	RETURNF 0
+
+OWNER1 = CITY_OWNER:(ARG:0)
+
+SIF IS_STAY_ENEMY_UNIT(ARG:0, OWNER1, 1) == 1
+	RETURNF 6
+
+; 隣接都市を走査
+FOR LOCAL:0, 0, 10
+	LOCAL:5 = CITY_ROOT:(ARG:0):(LOCAL:0)
+	
+	SIF LOCAL:5 == 0
+		BREAK
+
+	IF CITY_TYPE:(LOCAL:5) == 0
+	; 都市の場合
+		OWNER2 = CITY_OWNER:(LOCAL:5)
+		SELECTCASE TMP_COUNTRY_RELATION:OWNER1:OWNER2
+			CASE 0
+				RETURNF 4
+			CASE IS != 5
+				RET = 3
+		ENDSELECT
+	ELSE
+	; 中継地の場合
+		
+		; 敵部隊がいれば危険度5
+		IF IS_STAY_ENEMY_UNIT(LOCAL:5, OWNER1, 1) == 1
+			RETURNF 5
+		ENDIF
+
+		; そうでなければ隣の都市をチェック
+		FOR LOCAL:1, 0, 10
+			LOCAL:6 = CITY_ROOT:(LOCAL:5):(LOCAL:1)
+			
+			SIF LOCAL:6 == 0
+				BREAK
+			
+			OWNER2 = CITY_OWNER:(LOCAL:6)
+			
+			; 都市の場合
+			IF CITY_TYPE:(LOCAL:6) == 0
+				; 自国でなければ危険度3以上
+				SIF  TMP_COUNTRY_RELATION:OWNER1:OWNER2 != 5
+					RET = 3
+			ENDIF
+		NEXT
+	ENDIF
+NEXT
+
+RETURNF RET
+
+;--------------------------------------------------------
 ;ARG:0番の都市がARG:1の国から侵略できるかチェック
-;本当は全都市見ないでARG:0のROOTから調べていくべきだよね
 ;--------------------------------------------------------
 @IS_INVADABLE(ARG:0, ARG:1)
 #FUNCTION
 SIF !INRANGE(ARG:0 , 1 , MAX_CITY)
 	RETURNF 0
 
-FOR LOCAL:0, 0, MAX_CITY
-	; 条件
-	; LOCAL:0が中継地でない
-	; LOCAL:0がARG:0と隣接
-	; LOCAL:0が通行可能（LOCAL:0の支配国との関係が2以上）
-	; ARG:1がARG:0の支配国と敵対
+; 支配国と敵対してないとだめ
+SIF !(CITY_OWNER:(ARG:0) == 0 || CHECK_COUNTRY_RELATION_F(CITY_OWNER:(ARG:0),   ARG:1) <= 0)
+	RETURNF 0
+
+; 隣接都市を走査
+FOR LOCAL:0, 0, 10
+	LOCAL:5 = CITY_ROOT:(ARG:0):(LOCAL:0)
 	
-	LOCAL:1 = CHECK_COUNTRY_RELATION_F(CITY_OWNER:(ARG:0),   ARG:1)
-	LOCAL:2 = CHECK_COUNTRY_RELATION_F(CITY_OWNER:(LOCAL:0), ARG:1)
-	SIF CITY_TYPE:(LOCAL:0) == 0 && IS_ROOT(ARG:0, LOCAL:0) && (LOCAL:1 <= 0 || CITY_OWNER:(ARG:0) == 0) && LOCAL:2 >= 2
-		RETURNF 1
+	SIF LOCAL:5 == 0
+		BREAK
+
+	IF CITY_TYPE:(LOCAL:5) == 0
+	; 都市の場合は通行可能であれば1
+		SIF IS_PASSABLE(LOCAL:5, ARG:1)
+			RETURNF 1
+	ELSE
+	; 中継地ならもう1段掘り下げ
+		FOR LOCAL:1, 0, 10
+			LOCAL:6 = CITY_ROOT:(LOCAL:5):(LOCAL:1)
+			SIF LOCAL:6 == 0
+				BREAK
+			
+			; 都市かつ通行可能であれば1
+			SIF CITY_TYPE:(LOCAL:6) == 0 && IS_PASSABLE(LOCAL:6, ARG:1)
+				RETURNF 1
+		NEXT
+	ENDIF
 NEXT
+
+RETURNF 0
+
+;--------------------------------------------------------
+;ARG:1の国がARG:0番の都市を通行可能かチェック
+;--------------------------------------------------------
+@IS_PASSABLE(ARG:0, ARG:1)
+#FUNCTION
+
+; 中継地でなく、支配国との関係が2以上
+IF CITY_TYPE:(ARG:0) == 0 && CHECK_COUNTRY_RELATION_F(CITY_OWNER:(ARG:0), ARG:1) >= 2
+	RETURNF 1
+ENDIF
+
 RETURNF 0
 
 ;-------------------------------------------------
@@ -539,26 +640,64 @@ RETURN LOCAL:10, LOCAL:11, LOCAL:12, LOCAL:13, LOCAL:14
 
 ;-------------------------------------------------
 ;ARG:0番の都市に部隊が存在するかどうかだけを単純に返す関数
+;野盗がいる場合は２を返す
 ;-------------------------------------------------
 @IS_STAY_UNIT(ARG:0)
 #FUNCTION
 SIF !INRANGE(ARG:0 , 1 , MAX_CITY)
 	RETURNF 0
 
+LOCAL:2 = 0
 FOR LOCAL:0, 0, MAX_COUNTRY
 	IF IS_COUNTRY(LOCAL:0)
 		FOR LOCAL:1, 0, 10
 			IF UNIT_SOLDIER:(LOCAL:0):(LOCAL:1) > 0 && UNIT_POSITION:(LOCAL:0):(LOCAL:1) == ARG:0
 				IF LOCAL:0 == GET_COUNTRY_FROM_ID(COUNTRY_BANDIT)
-					RETURNF 2
+					LOCAL:2 = 2
+					BREAK
 				ELSE
-					RETURNF 1
+					LOCAL:2 = 1
 				ENDIF
 			ENDIF
 		NEXT
 	ENDIF
 NEXT
-RETURNF 0
+RETURNF LOCAL:2
+
+;------------------------------------------------------------
+;ARG:0番の都市に敵対部隊が存在するかどうかを返す関数
+;敵対国がいれば1 → 期限付き同盟以下がいれば2 → それ以外で0
+;ARG:2=1 で都市を持たない野盗は無視する
+;高速化テーブル使用
+;------------------------------------------------------------
+@IS_STAY_ENEMY_UNIT(ARG:0, ARG:1 = 0, ARG:2 = 0)
+#FUNCTION
+#DIM RET
+RET = 0
+LOCAL:20 = GET_COUNTRY_FROM_ID(COUNTRY_BANDIT)
+
+SIF ARG:1 == 0
+	ARG:1 = CFLAG:MASTER:1
+
+SIF !INRANGE(ARG:0 , 1 , MAX_CITY)
+	RETURNF 0
+
+FOR LOCAL, 0, 20
+	LOCAL:10 = TMP_UNIT_ONCITY_CNT:(ARG:0):(LOCAL:0)
+		SIF LOCAL:10 == 0
+			RETURNF 0
+	
+		SIF GET_OWN_CITY(LOCAL:20) <= 0 && LOCAL:10 == LOCAL:20 && ARG:2
+			CONTINUE
+			
+		SIF TMP_COUNTRY_RELATION:(ARG:1):(LOCAL:10) == 0
+			RETURNF 1
+			
+		SIF TMP_COUNTRY_RELATION:(ARG:1):(LOCAL:10) < 4
+			RET = 2
+NEXT
+
+RETURNF RET
 
 ;-------------------------------------------------
 ;ARG:0番の都市に自軍の部隊が存在するかどうかだけを単純に返す関数
@@ -579,24 +718,6 @@ FOR LOCAL:0, 0, MAX_COUNTRY
 NEXT
 RETURNF 0
 
-;-------------------------------------------------
-;ARG:0番の都市に自軍以外の舞台が存在するかどうかだけを単純に返す関数
-;-------------------------------------------------
-@IS_STAY_OTHERUNIT(ARG:0)
-#FUNCTION
-SIF !INRANGE(ARG:0 , 1 , MAX_CITY)
-	RETURNF 0
-
-FOR LOCAL:0, 0, MAX_COUNTRY
-	IF IS_COUNTRY(LOCAL:0) && CFLAG:MASTER:所属 != LOCAL:0
-		FOR LOCAL:1, 0, 10
-			IF UNIT_SOLDIER:(LOCAL:0):(LOCAL:1) > 0 && UNIT_POSITION:(LOCAL:0):(LOCAL:1) == ARG:0
-				RETURNF 1
-			ENDIF
-		NEXT
-	ENDIF
-NEXT
-RETURNF 0
 
 ;-------------------------------------------------
 ;ARG:0番の都市がARG:1番の勢力と隣接しているかどうかを判定する関数
@@ -620,7 +741,7 @@ RETURNF -1
 ;-------------------------------------------------
 @CHECK_COUNTRY_RELATION_F(ARG:0, ARG:1)
 #FUNCTION
-SIF ARG:0 == 0 || ARG:1 == 0
+SIF GROUPMATCH(0, ARG:0, ARG:1)
 	RETURNF 0
 
 SIF ARG:0 == ARG:1
@@ -628,6 +749,10 @@ SIF ARG:0 == ARG:1
 
 ;同盟の判定
 FOR LOCAL:0, 0, MAX_TREATY_A
+
+	SIF TREATY_A_TERM:(LOCAL:0) <= 0
+		CONTINUE
+
 	LOCAL:2 = 0
 	LOCAL:3 = 0
 	FOR LOCAL:1, 0, MAX_TREATY_COUNTRY
@@ -645,6 +770,9 @@ NEXT
 
 ;連合の判定
 FOR LOCAL:0, 0, MAX_TREATY_U
+	SIF TREATY_U_TERM:(LOCAL:0) <= 0
+		CONTINUE
+		
 	LOCAL:2 = 0
 	LOCAL:3 = 0
 	FOR LOCAL:1, 0, MAX_TREATY_COUNTRY
@@ -659,6 +787,9 @@ NEXT
 
 ;停戦の判定
 FOR LOCAL:0, 0, MAX_TREATY_C
+	SIF TREATY_C_TERM:(LOCAL:0) <= 0
+		CONTINUE
+		
 	LOCAL:2 = 0
 	LOCAL:3 = 0
 	FOR LOCAL:1, 0, MAX_TREATY_COUNTRY
@@ -689,6 +820,9 @@ SIF ARG:0 == ARG:1
 
 ;同盟の判定
 FOR LOCAL:0, 0, MAX_TREATY_A
+	SIF TREATY_A_TERM:(LOCAL:0) <= 0
+		CONTINUE
+		
 	LOCAL:2 = 0
 	LOCAL:3 = 0
 	FOR LOCAL:1, 0, MAX_TREATY_COUNTRY
@@ -708,6 +842,9 @@ NEXT
 
 ;連合の判定
 FOR LOCAL:0, 0, MAX_TREATY_U
+	SIF TREATY_U_TERM:(LOCAL:0) <= 0
+		CONTINUE
+		
 	LOCAL:2 = 0
 	LOCAL:3 = 0
 	FOR LOCAL:1, 0, MAX_TREATY_COUNTRY
@@ -724,6 +861,9 @@ NEXT
 
 ;停戦の判定
 FOR LOCAL:0, 0, MAX_TREATY_C
+	SIF TREATY_C_TERM:(LOCAL:0) <= 0
+		CONTINUE
+
 	LOCAL:2 = 0
 	LOCAL:3 = 0
 	FOR LOCAL:1, 0, MAX_TREATY_COUNTRY
@@ -1056,9 +1196,6 @@ RETURNF LOCAL:1
 ;-------------------------------------------------
 @ABL_POWER_X(ARG:0, ARG:1)
 #FUNCTION
-;外来人の計略によりパワーが1になっている場合
-SIF CFLAG:(ARG:1):34
-	RETURNF 1
 
 ;コンフィグで能力補正が皆無の場合
 SIF CONFIG:309 == 2
@@ -1439,6 +1576,15 @@ FOR LOCAL:0, 0, MAX_TREATY_C
 	NEXT
 NEXT
 
+;イベントキャラを削除
+LOCAL:2 = CHARANUM
+FOR LOCAL:0, 0, LOCAL:2
+	LOCAL:1 = LOCAL:2 - LOCAL:0 - 1
+	IF CFLAG:(LOCAL:1):1 == ARG:0 && NO:(LOCAL:1) >= 2000
+		CALL DELETE_CHARA(LOCAL:1)
+	ENDIF
+NEXT
+
 ;士官を無所属にする
 ;その勢力が保持していた捕虜は帰す
 FOR LOCAL:0, 0, CHARANUM
@@ -1537,7 +1683,7 @@ FOR LOCAL, 1, CHARANUM
 			CALL BANDIT_RELEASE_MSG(LOCAL)
 		ENDIF
 	;たまに脱走する。野盗、ホフゴブ、外来人なら率高め
-	ELSEIF LOCAL != MASTER && CFLAG:LOCAL:捕虜先 && CFLAG:LOCAL:捕虜先 != CFLAG:MASTER:1 && 特殊捕虜先 * 21 + 3 > RAND:100
+	ELSEIF LOCAL != MASTER && CFLAG:LOCAL:捕虜先 && CFLAG:LOCAL:捕虜先 != CFLAG:MASTER:1 && 特殊捕虜先 * 17 + 3 > RAND:100
 		;ただし自国の捕虜(現状下克上シナリオ専用)だと脱走先は放浪、または失敗
 		IF CFLAG:LOCAL:9 == CFLAG:LOCAL:1
 			;この場合脱走成功確率はさらに10分の1
@@ -1646,51 +1792,41 @@ CITY_OWNER:(ARG:1) = ARG:0
 ;ARG:0 キャラ表示に使う判定式
 ;ARG:1 消去する行数
 ;-------------------------------------------------
-@SLG_CHARA_LIST(ARG:0, ARG:1 = 0)
-#DIM キャラ数
-#DIM ページ数
-#DIM ページ内キャラ
+@SLG_CHARA_LIST
 #DIM 消去行
-#DIM 現在ページ
-#DIM 総キャラ
-#DIM 表示位置カウンタ
+#DIM 対象
+#DIM 表示位置
+#DIM 表示ページ
+#DIM 総ページ数
+#DIM キャラ数
+#DIM キャラカウンタ
 #DIM 表示開始位置
 #DIM 表示終了位置
-#DIM 対象
-VARSET 対象
 VARSET キャラ数
-VARSET ページ数
-VARSET 現在ページ
-VARSET ページ内キャラ
-VARSET 消去行
-VARSET 表示位置カウンタ
-VARSET 総キャラ
-
-;ページ数の計算
-FOR LOCAL:0, 0, CHARANUM
+FOR LOCAL, 0, CHARANUM
 	SIF CFLAG:(LOCAL:0):所属 == CFLAG:MASTER:所属
-		キャラ数++
+		キャラ数 ++
 NEXT
-ページ数 = (キャラ数 - 1) / 40 + 1
-現在ページ = 1
+総ページ数 = (キャラ数 - 1) / 40 + 1
+表示ページ = 1
 
-$SHOW_LOOP2
-PRINTFORM %TOSTR_SPACE(23)%   武|  知|  政|  妖|  歌|  料 %TOSTR_SPACE(26)%   武|  知|  政|  妖|  歌|  料
-PRINTL 
-消去行 = ARG:1
-表示位置カウンタ = 0
-総キャラ = 0
-ページ内キャラ = 0
-表示開始位置 = (現在ページ - 1) * 40
-表示終了位置 = 現在ページ * 40
+PRINTFORML %TOSTR_SPACE(23)%   武|  知|  政|  妖|  歌|  料 %TOSTR_SPACE(26)%   武|  知|  政|  妖|  歌|  料
+
+$SHOW_LOOP
+
+VARSET 消去行
+VARSET 表示位置
+VARSET キャラカウンタ
+表示開始位置 = (表示ページ - 1) * 40
+表示終了位置 = 表示ページ * 40
 
 
 FOR LOCAL:0, 0, CHARANUM
-	IF CFLAG:(LOCAL:0):所属 == CFLAG:MASTER:所属 && ARG:0
-		IF ページ内キャラ >= 表示開始位置 && ページ内キャラ < 表示終了位置
-			IF 表示位置カウンタ % 2 != 0
+	IF CFLAG:(LOCAL:0):所属 == CFLAG:MASTER:所属
+		IF 表示開始位置 <= キャラカウンタ && キャラカウンタ < 表示終了位置
+			IF 表示位置 % 2 != 0
 				PRINT 　　
-			ELSEIF 表示位置カウンタ >= 1
+			ELSEIF 表示位置 > 0
 				PRINTL 
 				消去行 ++
 			ENDIF
@@ -1716,57 +1852,127 @@ FOR LOCAL:0, 0, CHARANUM
 				PRINTPLAINFORM %LOCALS:0%
 				RESETCOLOR
 			ENDIF
-			表示位置カウンタ ++
-			ページ内キャラ ++ 
+			表示位置 ++
 		ENDIF
+		キャラカウンタ ++
 	ENDIF
 NEXT
 
 PRINTL 
 DRAWLINE
 
-IF LOCAL:20 >= 2
-	LOCAL:25 += 2
-	IF LOCAL:21 > 1
+IF 総ページ数 >= 2
+	消去行 += 2
+	IF 表示ページ > 1
 		PRINT [  8] 前のページ            
 	ELSE
 		PRINT                             
 	ENDIF
-	LOCALS:0 = page{LOCAL:21}/{LOCAL:20}
+	LOCALS:0 = ページ{表示ページ}/{総ページ数}
 	PRINTPLAINFORM %LOCALS:0, 28, LEFT%
-	IF LOCAL:21 < LOCAL:20
+	IF 表示ページ < 総ページ数
 		PRINT [  9] 後のページ
 	ENDIF
 	PRINTL 
 	DRAWLINE
 ENDIF
+
 PRINTL [  0] やっぱりやめる
-PRINTL 
 
 REDRAW 0
 
-消去行 += 6
+消去行 += 4
 
 $INPUT_LOOP
 INPUT
-IF RESULT == 8 && 現在ページ > 1
-	現在ページ --
+IF RESULT == 8 && 表示ページ > 1
+	表示ページ --
 	CLEARLINE 消去行
-	GOTO SHOW_LOOP2
-ELSEIF RESULT == 9 && 現在ページ < ページ数
-	現在ページ ++
+	GOTO SHOW_LOOP
+ELSEIF RESULT == 9 && 表示ページ < 総ページ数
+	表示ページ ++
 	CLEARLINE 消去行
-	GOTO SHOW_LOOP2
+	GOTO SHOW_LOOP
 ELSEIF RESULT == 0
+	REDRAW 1
 	RETURN -1
 ENDIF
+
 対象 = RESULT - 99
 IF 対象 > CHARANUM || 対象 < 0
 	CLEARLINE 消去行
-	GOTO SHOW_LOOP2
-ELSEIF CFLAG:MASTER:1 != CFLAG:対象:1 || CFLAG:対象:捕虜先
+	GOTO SHOW_LOOP
+ELSEIF CFLAG:MASTER:所属 != CFLAG:対象:所属 || CFLAG:対象:捕虜先
 	CLEARLINE 消去行
-	GOTO SHOW_LOOP2
+	GOTO SHOW_LOOP
 ENDIF
 
 RETURN 対象
+
+; 夜盗の状態
+; 0:沈静化
+; 1:出没中
+; 2:都市持ち
+@GET_BANDIT_STATE()
+#FUNCTION
+	LOCAL:10 = GET_COUNTRY_FROM_ID(COUNTRY_BANDIT)
+	SIF LOCAL:10 < 0
+		RETURNF 0
+		
+	IF GET_OWN_CITY(LOCAL:10) > 0
+		RETURNF 2
+	ELSE
+		FOR LOCAL, 0, 10
+			SIF UNIT_SOLDIER:(LOCAL:10):(LOCAL:0) > 0 && UNIT_POSITION > UNIT_SOLDIER:(LOCAL:10):(LOCAL:0) && UNIT_SOLDIER:(LOCAL:10):(LOCAL:0) > 0
+				RETURNF 1
+		NEXT
+	ENDIF
+RETURNF 0
+
+;-------------------------------------------------
+;部隊能力に対する評価
+;-------------------------------------------------
+@TOSTR_UNIT_POWER(ARG:0)
+#FUNCTIONS
+IF ARG:0 <= ABL_50_POWER
+	RETURNF "最低"
+ELSEIF ARG:0 < 6400
+	RETURNF "烏合の衆"
+ELSEIF ARG:0 < 12800
+	RETURNF "弱兵"
+ELSEIF ARG:0 < 25600
+	RETURNF "正規兵"
+ELSEIF ARG:0 < 51200
+	RETURNF "強兵"
+ELSEIF ARG:0 < 102400
+	RETURNF "精鋭"
+ELSEIF ARG:0 < 204800
+	RETURNF "超一流"
+ELSEIF ARG:0 < 819200
+	RETURNF "天下無双"
+ENDIF
+RETURNF "神の領域"
+
+@TOSTR_UNIT_POWER_SHORT(ARG:0)
+#FUNCTIONS
+SELECTCASE TOSTR_UNIT_POWER(ARG:0)
+	CASE "最低"
+		RETURNF "最低"
+	CASE "烏合の衆"
+		RETURNF "烏合"
+	CASE "弱兵"
+		RETURNF "弱兵"
+	CASE "正規兵"
+		RETURNF "正規"
+	CASE "強兵"
+		RETURNF "強兵"
+	CASE "精鋭"
+		RETURNF "精鋭"
+	CASE "超一流"
+		RETURNF "一流"
+	CASE "天下無双"
+		RETURNF "無双"
+	CASEELSE
+		RETURNF "神域"
+ENDSELECT
+RETURNF "不明"

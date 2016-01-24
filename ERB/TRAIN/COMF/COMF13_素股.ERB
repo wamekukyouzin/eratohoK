@@ -1,0 +1,379 @@
+﻿;素股
+
+;-------------------------------------------------
+;コマンド名称
+;-------------------------------------------------
+@COM_NAME13
+IF !VAGINA(MPLY:0)
+	LOCALS:0 = 玉ズリ
+ELSE
+	LOCALS:0 = 素股
+ENDIF
+
+RESULTS:0 = %LOCALS:0%する
+RESULTS:1 = %LOCALS:0%させられる
+RESULTS:2 = %LOCALS:0%させる
+RESULTS:3 = %LOCALS:0%される
+RESULTS:4 = %LOCALS:0%させる
+RESULTS:5 = %LOCALS:0%見せつけ
+
+;-------------------------------------------------
+;選択可否判定
+;-------------------------------------------------
+@COM_ABLE13
+;共通部分
+CALL COM_ABLE_COMMON(13)
+SIF RESULT == 0
+	RETURN 0
+;プレイヤーは最大で1人まで
+SIF MPLY_NUM <= 0 || MPLY_NUM > 1
+	RETURN 0
+;ターゲットは最大で1人まで
+SIF MTAR_NUM <= 0 || MTAR_NUM > 1
+	RETURN 0
+;プレイヤー行動不能なら不可
+SIF !IS_PLAYABLE(MPLY:0)
+	RETURN 0
+;ターゲットに竿が必要
+SIF !PENIS(MTAR:0)
+	RETURN 0
+;挿入中は不可
+SIF IS_INSERT_SINGLE(MPLY:0, "全") || IS_INSERT_SINGLE(MTAR:0, "全")
+	RETURN 0
+;ターゲットが触手オナホされているなら不可
+SIF IS_EQUIP_TARGET(MTAR:0, 205)
+	RETURN 0
+;潤滑が高くないとダメ
+SIF PALAM:(MPLY:0):潤滑 < 1500
+	RETURN 0
+;バイブ挿入中はダメ
+SIF IS_EQUIP_TARGET(MPLY:0, 61) || IS_EQUIP_TARGET(MPLY:0, 62)
+	RETURN 0
+;プレイヤーが顔面騎乗されているなら不可
+SIF IS_RIDDEN(MPLY:0)
+	RETURN 0
+;プレイヤーが土下座しているなら不可
+SIF IS_EQUIP_PLAYER(MPLY:0, 110)
+	RETURN 0
+;プレイヤーが顔面騎乗中なら不可
+SIF IS_RIDE(MPLY:0)
+	RETURN 0
+;ターゲットが顔面騎乗中なら不可
+SIF IS_RIDE(MTAR:0)
+	RETURN 0
+;プレイヤー／ターゲットが足舐めする／されているなら不可
+SIF IS_EQUIP(MPLY:0, 104) || IS_EQUIP(MTAR:0, 104)
+	RETURN 0
+;プレイヤーが拘束中なら不可
+SIF IS_BIND(MPLY:0)
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;快Ｃソースの倍率を取得する関数 ARG:0=PLAYERのキャラ番号
+;-------------------------------------------------
+@COM13_RATE_C(ARG:0)
+#FUNCTION
+LOCAL:5 = 1000
+SELECTCASE ABL:(ARG:0):奉仕
+	CASE 0
+		TIMES LOCAL:5, 0.50
+	CASE 1
+		TIMES LOCAL:5, 0.80
+	CASE 2
+		TIMES LOCAL:5, 1.00
+	CASE 3
+		TIMES LOCAL:5, 1.20
+	CASE 4
+		TIMES LOCAL:5, 1.40
+	CASEELSE
+		LOCAL:5 = LOCAL:5 * ((ABL:(MPLY:0):奉仕 - 5) * 2 + 150) / 100
+ENDSELECT
+
+SELECTCASE ABL:(ARG:0):性技
+	CASE 0
+		TIMES LOCAL:5, 1.00
+	CASE 1
+		TIMES LOCAL:5, 1.10
+	CASE 2
+		TIMES LOCAL:5, 1.20
+	CASE 3
+		TIMES LOCAL:5, 1.30
+	CASE 4
+		TIMES LOCAL:5, 1.40
+	CASEELSE
+		LOCAL:5 = LOCAL:5 * ((ABL:(MPLY:0):性技 - 5) * 2 + 150) / 100
+ENDSELECT
+
+RETURNF LOCAL:5
+
+;-------------------------------------------------
+;素股
+;-------------------------------------------------
+@COM13
+;実行できるかの判定
+CALL COM_ORDER_COMMON
+SIF RESULT == 0
+	RETURN 0
+
+;対Ｐ奉仕系コマンドの継続フラグを解除
+CALL RELEASE_SERVE_P
+
+;●プレイヤーの潤滑に応じた快感倍率の設定
+IF PALAM:(MPLY:0):潤滑 < PALAMLV:5
+	LOCAL:10 = 500
+ELSEIF PALAM:(MPLY:0):潤滑 < PALAMLV:6
+	LOCAL:10 = 700
+ELSEIF PALAM:(MPLY:0):潤滑 < PALAMLV:7
+	LOCAL:10 = 800
+ELSEIF PALAM:(MPLY:0):潤滑 < PALAMLV:8
+	LOCAL:10 = 900
+ELSE
+	LOCAL:10 = 1000
+ENDIF
+
+;●プレイヤーについて処理
+DOWNBASE:(MPLY:0):体力 += 120
+
+EXP:(MPLY:0):性技経験値 += 1
+
+SOURCE:(MPLY:0):奉仕 = SERVE_HOUSHI(MPLY:0, 350)
+SOURCE:(MPLY:0):露出 = 50
+SOURCE:(MPLY:0):接触 = 100
+SOURCE:(MPLY:0):性行動 = 300
+IF VAGINA(MPLY:0)
+	SOURCE:(MPLY:0):快Ｃ = 500 * COM13_RATE_C(MPLY:0) / 1000 * LOCAL:10 / 1000
+ENDIF
+
+;主導権に応じた優越・屈従のソース追加
+CALL ADD_SOURCE_INITIATIVE_U(MPLY:0, 130, 100)
+
+;奉仕経験値を得られるコマンドのフラグ
+TCVAR:(MPLY:0):4 = 1
+
+;●ターゲットについて処理
+DOWNBASE:(MTAR:0):体力 += 60
+
+SOURCE:(MTAR:0):露出 = 50
+SOURCE:(MTAR:0):接触 = 100
+SOURCE:(MTAR:0):快Ｐ = SENSE_HOUSHI_P(MPLY:0, MTAR:0, 1400 * LOCAL:10 / 1000)
+SOURCE:(MTAR:0):性行動 = 180
+
+;主導権に応じた優越・受動のソース追加
+CALL ADD_SOURCE_INITIATIVE_U(MTAR:0, 130, 50)
+
+;奴隷のＶ⇔調教者のＰの汚れが移動
+;STAIN:(MTAR:0):3 |= STAIN:PLAYER:2
+;STAIN:PLAYER:2 |= STAIN:(MTAR:0):3
+
+;奉仕経験値を得られるコマンドのフラグ
+TCVAR:(MTAR:0):4 = 1
+
+;主導度変化基準値
+TFLAG:49 = 2
+
+;倒錯度変化基準値
+TFLAG:50 = 0
+
+;レズ・ＢＬ経験基準値
+TFLAG:51 = 7
+
+RETURN 1
+
+;-------------------------------------------------
+;継続コマンドかどうかを設定
+;-------------------------------------------------
+@COM_IS_EQUIP13
+RETURN 1
+
+;-------------------------------------------------
+;継続状態の処理
+;-------------------------------------------------
+@COM_EQUIP13(ARG:0)
+LOCAL:2 = MEQUIP_PLAYER:(ARG:0):0
+LOCAL:3 = MEQUIP_TARGET:(ARG:0):0
+
+;●プレイヤーの潤滑に応じた快感倍率の設定
+IF PALAM:(LOCAL:2):潤滑 < PALAMLV:5
+	LOCAL:10 = 500
+ELSEIF PALAM:(LOCAL:2):潤滑 < PALAMLV:6
+	LOCAL:10 = 700
+ELSEIF PALAM:(LOCAL:2):潤滑 < PALAMLV:7
+	LOCAL:10 = 800
+ELSEIF PALAM:(LOCAL:2):潤滑 < PALAMLV:8
+	LOCAL:10 = 900
+ELSE
+	LOCAL:10 = 1000
+ENDIF
+
+;●プレイヤーについて処理
+DOWNBASE:(LOCAL:2):体力 += 20
+
+EXP:(LOCAL:2):性技経験値 += 1
+
+SOURCE:(LOCAL:2):奉仕 += SERVE_HOUSHI(LOCAL:2, 130)
+SOURCE:(LOCAL:2):露出 += 25
+SOURCE:(LOCAL:2):接触 += 50
+SOURCE:(LOCAL:2):性行動 += 100
+IF VAGINA(LOCAL:2)
+	SOURCE:(LOCAL:2):快Ｃ += 250 * COM13_RATE_C(LOCAL:2) / 1000 * LOCAL:10 / 1000
+ENDIF
+
+;奉仕経験値を得られるコマンドのフラグ
+TCVAR:(LOCAL:2):4 = 1
+
+;●ターゲットについて処理
+DOWNBASE:(LOCAL:3):体力 += 10
+
+SOURCE:(LOCAL:3):露出 += 25
+SOURCE:(LOCAL:3):接触 += 50
+SOURCE:(LOCAL:3):性行動 += 60
+SOURCE:(LOCAL:3):快Ｐ += SENSE_HOUSHI_P(LOCAL:2, LOCAL:3, 450 * LOCAL:10 / 1000)
+
+;-------------------------------------------------
+;継続中の表示
+;-------------------------------------------------
+@EQUIP_MESSAGE13(ARG:0)
+RESULTS = %EQUIP_PLAYER_ANAME(ARG:0)%が%EQUIP_TARGET_ANAME(ARG:0)%に素股中
+
+;-------------------------------------------------
+;継続中の地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE_EQUIP13(ARG:0)
+PRINTFORML %EQUIP_PLAYER_ANAME(ARG:0)%が%EQUIP_TARGET_ANAME(ARG:0)%のペニスを股で挟んで擦り上げている…
+
+;-------------------------------------------------
+;継続を解除したときの地の文
+;-------------------------------------------------
+@COM_TEXT_RELEASE_EQUIP13(ARG:0)
+
+;-------------------------------------------------
+;固有の実行判定
+;-------------------------------------------------
+@COM_ORDER_PLAYER13(ARG:0)
+;実行値の設定
+TCVAR:(ARG:0):25 = 85
+
+;共通部分
+CALL COM_ORDER(ARG:0)
+
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲望Lv{ABL:(ARG:0):欲望}", ABL:(ARG:0):欲望 * 2)
+CALL COM_ORDER_ELEMENT(ARG:0, @"奉仕Lv{ABL:(ARG:0):奉仕}", ABL:(ARG:0):奉仕 * 4)
+CALL COM_ORDER_ELEMENT(ARG:0, @"精愛Lv{ABL:(ARG:0):精愛}", ABL:(ARG:0):精愛 * 1)
+
+LOCAL:0 = GET_PALAMLV(PALAM:(ARG:0):欲情)
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲情Lv{LOCAL:0}", MIN(LOCAL:0 * 2, 20))
+
+IF TALENT:(ARG:0):恥じらい
+	CALL COM_ORDER_ELEMENT(ARG:0, "恥じらい", -1)
+ENDIF
+IF TALENT:(ARG:0):献身的
+	CALL COM_ORDER_ELEMENT(ARG:0, "献身的", 6)
+ENDIF
+IF TALENT:(ARG:0):快感の否定
+	CALL COM_ORDER_ELEMENT(ARG:0, "快感の否定", -3)
+ENDIF
+IF TALENT:(ARG:0):男嫌い
+	CALL COM_ORDER_ELEMENT(ARG:0, "男嫌い", -12)
+ENDIF
+IF TCVAR:(ARG:0):60
+	CALL COM_ORDER_ELEMENT(ARG:0, "媚薬", 4)
+ENDIF
+
+;汚れの判定
+;IF !TALENT:(ARG:0):汚れ無視
+;	LOCAL:0 = 0
+;	;愛液の汚れ
+;	SIF STAIN:PLAYER:2 & 1
+;		LOCAL:0 += 1
+;	;精液の汚れ
+;	SIF STAIN:PLAYER:2 & 4
+;		LOCAL:0 += 3
+;	;アナルの汚れ
+;	SIF STAIN:PLAYER:2 & 8
+;		LOCAL:0 += 7
+;	SIF STAIN:PLAYER:2 & 16
+;		LOCAL:0 += 15
+;
+;	SIF TALENT:(ARG:0):汚臭鈍感
+;		LOCAL:0 /= 3
+;	SIF TALENT:(ARG:0):汚臭敏感
+;		LOCAL:0 *= 2
+;
+;	;汚れの影響が小さい
+;	LOCAL:0 /= 3
+;
+;	;汚れあり
+;	IF LOCAL:0 > 0
+;		CALL COM_ORDER_ELEMENT(ARG:0, "汚れあり", -LOCAL:0)
+;	ENDIF
+;ENDIF
+
+;合意
+IF !TALENT:(ARG:0):合意
+	CALL COM_ORDER_ELEMENT(ARG:0, "合意なし", -10)
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE13
+IF !VAGINA(MPLY:0)
+	LOCALS:0 = 玉袋
+ELSE
+	LOCALS:0 = ワレメ
+ENDIF
+IF IS_PIERCED(MPLY:0, ピアス_ラビア)
+	LOCALS:1 = ピアスの取り付けられた
+ELSE
+	LOCALS:1 = 
+ENDIF
+IF IS_PIERCED(MTAR:0, ピアス_ペニス)
+	LOCALS:2 = ピアスの取り付けられた
+ELSE
+	LOCALS:2 = 
+ENDIF
+SELECTCASE GET_COM_INITIATIVE()
+	;プレイヤーに主導権
+	CASE 0
+		PRINTFORM %ANAME(MPLY:0)%は%ANAME(MTAR:0)%の%LOCALS:2%ペニスを股に挟み込むと、
+		IF MPLY:0 != MASTER && TALENT:(MPLY:0):恋慕 && TALENT:(MPLY:0):淫乱 && PALAM:(MPLY:0):欲情 > PALAMLV:8
+			IF !VAGINA(MPLY:0)
+				PRINTFORMW 欲情で固くなった玉袋を押し付けながら、快楽を貪るように腰を振って竿を擦り上げ%TARGET_STR("た", "てきた")%…
+			ELSE
+				PRINTFORMW 欲情で熱く濡れた%LOCALS:1%秘唇を押し付けながら、快楽を貪るように腰を振って竿を擦り上げ%TARGET_STR("た", "てきた")%…
+			ENDIF
+		ELSEIF MPLY:0 != MASTER && (TALENT:(MPLY:0):恋慕 || TALENT:(MPLY:0):淫乱)
+			PRINTFORMW 肉棒の感触を楽しむように腰を振って%LOCALS:2%竿を擦り上げ%TARGET_STR("た", "てきた")%…
+		ELSE
+			IF !VAGINA(MPLY:0)
+				PRINTFORMW 玉袋を押し付けながら腰を振って%LOCALS:2%竿を擦り上げ%TARGET_STR("た", "てきた")%…
+			ELSE
+				PRINTFORMW %LOCALS:1%秘唇を押し付けながら腰を振って%LOCALS:2%竿を擦り上げ%TARGET_STR("た", "てきた")%…
+			ENDIF
+		ENDIF
+
+	;ターゲットに主導権
+	CASE 1
+		IF !VAGINA(MPLY:0)
+			PRINTFORMW %ANAME(MTAR:0)%は%ANAME(MPLY:0)%の股の間に%LOCALS:2%ペニスを挟みこむと、腰を振って%ANAME(MTAR:0)%の玉袋に肉棒を擦り付けた
+		ELSE
+			PRINTFORMW %ANAME(MTAR:0)%は%ANAME(MPLY:0)%の股の間に%LOCALS:2%ペニスを挟みこむと、腰を振って%ANAME(MTAR:0)%の%LOCALS:1S%秘唇に肉棒を擦り付けた
+		ENDIF
+
+	;第三者に主導権
+	CASEELSE
+		PRINTFORMW %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に対し、%ANAME(MTAR:0)%の%BAR_NAME(MTAR:0)%を股で挟んで擦るように命令した…
+		PRINTFORM %ANAME(MPLY:0)%は%ANAME(MTAR:0)%の%LOCALS:2%ペニスを股に挟み込み、
+		IF !VAGINA(MPLY:0)
+			PRINTFORMW 玉袋を押し付けながら腰を振って竿を擦り上げた…
+		ELSE
+			PRINTFORMW %LOCALS:1%秘唇を押し付けながら腰を振って竿を擦り上げた…
+		ENDIF
+ENDSELECT
+
+;--------------------------------------------------------
+;地の文(パラメータ・刻印変動後)
+;--------------------------------------------------------
+@COM_TEXT_LAST13

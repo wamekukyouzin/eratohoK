@@ -124,6 +124,10 @@ CALL RESET_CITY_COLOR
 ;ランダムキャラの名前候補リストを作成
 CALL CREATE_NAME_LIST
 
+;タトゥーのランダム入力内容リストを作成
+CALL CREATE_TATOO_LIST
+
+
 ;能力値の最小・最大を設定
 FOR LOCAL:0, 0, 50
 	ABL_MIN:(LOCAL:0) = 0
@@ -153,6 +157,8 @@ VARSET DIPLOMACY_REQUEST_SUCCESS_COUNT, 0
 ;タチ役に恋慕　等をCONFIG:88で設定用
 SIF CONFIG:88 == 0
 	CONFIG:88 = NAME_TO_CHARA("藍")
+
+CALL TMP_CREATE_UNIT_MAP
 
 ;-------------------------------------------------
 ;ニューゲーム時の初期化処理
@@ -1377,6 +1383,10 @@ FOR LOCAL:0, 0, 20
 	ENDIF
 NEXT
 PRINTL 
+PRINTFORM 陰毛:%GET_INMOU_NAME(MASTER_TALENT:(ARG:0):332), 12, LEFT%
+PRINTBUTTON "[変更]", 332
+
+PRINTL
 DRAWLINE
 
 PRINT □ 素質 □
@@ -1545,6 +1555,29 @@ ELSEIF RESULT == 321
 	PRINTL 675～999 超ロング
 	INPUT
 	MASTER_TALENT:(ARG:0):303 = LIMIT(RESULT, 2, 999)
+ELSEIF RESULT == 332
+	DRAWLINE
+	PRINTL 陰毛について数値で入力して下さい
+	PRINTL -1 パイパン（生えません。永久脱毛状態です）
+	PRINTL 0  つるつる（剃ったorまだ生えていないパイパンです）
+	PRINTL 1  うっすら
+	PRINTL 2  柔毛
+	PRINTL 3  ふんわり
+	PRINTL 4  標準
+	PRINTL 5  多め
+	PRINTL 6  ふさふさ
+	PRINTL 7  もっさり
+	PRINTL 8  剛毛
+	PRINTL 9  尻毛も生えるくらい
+	PRINTL 10 ハート型に整える
+	$INPUT_INMOU_LOOP
+	INPUT
+	IF -1 <= RESULT && RESULT <= 10
+		MASTER_TALENT:(ARG:0):332 = RESULT
+		MASTER_TALENT:(ARG:0):333 = RESULT
+	ELSE
+		GOTO INPUT_INMOU_LOOP
+	ENDIF
 ELSEIF RESULT >= 1 && RESULT < 300 && TALENTNAME:RESULT != ""
 	IF !GROUPMATCH(TALENTNAME:RESULT, "絶壁", "貧乳", "巨乳", "爆乳")
 		IF RESULT < 150 || GROUPMATCH(TALENTNAME:RESULT, "天の御遣い", "技師", "超成長力")
@@ -1555,7 +1588,7 @@ ELSE
 	CLEARLINE 1
 	GOTO INPUT_LOOP
 ENDIF
-CLEARLINE 29
+CLEARLINE 30
 GOTO SHOW_LOOP2
 
 ;-------------------------------------------------
@@ -1784,13 +1817,14 @@ FOR LCOUNT, 0, 15
 		ABL:LOCAL:武闘 = 30 + 4 * BANDIT_RANK + MAX(RAND:21 - 10, 0) + RAND:6 + RAND:11
 		ABL:LOCAL:知略 = 30 + 4 * BANDIT_RANK + MAX(RAND:21 - 10, 0) + RAND:6 + RAND:11
 	ENDSELECT
-	ABL:LOCAL:政治 = 5
+	ABL:LOCAL:政治 = 40 + RAND:5 * BANDIT_RANK
 	ABL:LOCAL:歌唱 = 10
 	ABL:LOCAL:料理 = 10
-	TALENT:LOCAL:両刀 = 1
 	TALENT:LOCAL:サド = 1
 	TALENT:LOCAL:絶倫 = 1
 	TALENT:LOCAL:野盗 = 1
+	TALENT:LOCAL:陰毛現在値 = 陰毛_標準
+	TALENT:LOCAL:陰毛目標値 = 陰毛_標準
 	;奴隷スタートなら好感度と合意と会ったことあるフラグを編集
 	IF BANDIT_START == 2
 		TALENT:LOCAL:合意 = 1

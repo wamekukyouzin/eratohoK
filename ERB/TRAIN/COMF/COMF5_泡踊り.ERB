@@ -1,0 +1,342 @@
+﻿;泡踊り
+
+;-------------------------------------------------
+;コマンド名称
+;-------------------------------------------------
+@COM_NAME5
+IF MPLY_NUM >= 2
+	LOCALS:0 = サンドイッチ泡踊り
+ELSE
+	LOCALS:0 = 泡踊り
+ENDIF
+
+RESULTS:0 = %LOCALS:0%する
+RESULTS:1 = %LOCALS:0%させられる
+RESULTS:2 = %LOCALS:0%させる
+RESULTS:3 = %LOCALS:0%される
+RESULTS:4 = %LOCALS:0%させる
+RESULTS:5 = %LOCALS:0%見せつけ
+
+;-------------------------------------------------
+;選択可否判定
+;-------------------------------------------------
+@COM_ABLE5
+;共通部分
+CALL COM_ABLE_COMMON(5)
+SIF RESULT == 0
+	RETURN 0
+;プレイヤーは最大で2人まで
+SIF MPLY_NUM <= 0 || MPLY_NUM > 2
+	RETURN 0
+;ターゲットは最大で1人まで
+SIF MTAR_NUM <= 0 || MTAR_NUM > 1
+	RETURN 0
+;ローションが必要
+SIF !ITEM:ローション && !ITEM:A_ローション
+	RETURN 0
+;温泉限定
+;SIF TFLAG:54 != 7
+;	RETURN 0
+;全てのプレイヤーについて判定
+FOR LOCAL:0, 0, MPLY_NUM
+	;行動不能なら不可
+	SIF !IS_PLAYABLE(MPLY:(LOCAL:0))
+		RETURN 0
+	;顔面騎乗中は不可
+	SIF IS_RIDE(MPLY:(LOCAL:0))
+		RETURN 0
+	;顔面騎乗されているなら不可
+	SIF IS_RIDDEN(MPLY:(LOCAL:0))
+		RETURN 0
+	;拘束中なら不可
+	SIF IS_BIND(MPLY:(LOCAL:0))
+		RETURN 0
+	;クンニ・フェラ・パイズリ・尻コキ・貝合わせ・双頭バイブ中は不可
+	SIF IS_EQUIP_PLAYER(MPLY:(LOCAL:0), 2, 11, 12, 15, 21, 22)
+		RETURN 0
+	;Ｖフィスト・Ａフィスト・自慰・電気按摩・足舐め・亀頭フェラ中は不可
+	SIF IS_EQUIP_PLAYER(MPLY:(LOCAL:0), 87, 88, 100, 103, 104, 107)
+		RETURN 0
+	;ターゲット以外のキャラに挿入中なら不可
+	SIF IS_INSERT_SINGLE(MPLY:(LOCAL:0)) && IS_INSERT_MUTUAL(MPLY:(LOCAL:0), MTAR:0) == 0
+		RETURN 0
+	;ターゲットからプレイヤーに挿入中で体位が後背位・背面座位・背面騎乗位なら不可
+	SIF GROUPMATCH(GET_SEX_POSITION(MTAR:(LOCAL:1), MPLY:(LOCAL:0)), 2, 4, 6)
+		RETURN 0
+	;土下座しているなら不可
+	SIF IS_EQUIP_PLAYER(MPLY:(LOCAL:0), 110)
+		RETURN 0
+NEXT
+;プレイヤーがターゲット以外のキャラに胸愛撫・指入れ・Ａ愛撫・泡踊り・手コキ・素股・足コキ・オナホコキ中は不可
+SIF IS_EQUIP_OTHERS(-1, 1, 3, 4, 5, 10, 13, 14, 16)
+	RETURN 0
+;ターゲットが顔面騎乗されているなら1人のみ
+SIF IS_RIDDEN(MTAR:(LOCAL:0)) && MTAR_NUM >= 2
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;メイン処理
+;-------------------------------------------------
+@COM5
+;実行判定
+CALL COM_ORDER_COMMON
+SIF RESULT == 0
+	RETURN 0
+
+;●人数補正の設定
+LOCAL:10 = 100
+
+SELECTCASE MPLY_NUM
+	CASE 2
+		TIMES LOCAL:10, 0.75
+ENDSELECT
+
+SELECTCASE MTAR_NUM
+	CASE 2
+		TIMES LOCAL:10, 0.75
+ENDSELECT
+
+;●全プレイヤーについて処理
+FOR LOCAL:0, 0, MPLY_NUM
+	LOCAL:2 = MPLY:(LOCAL:0)
+
+	EXP:(LOCAL:2):性技経験値 += 1
+
+	SOURCE:(LOCAL:2):奉仕 = SERVE_HOUSHI(LOCAL:2, 400)
+	SOURCE:(LOCAL:2):露出 = 50
+	SOURCE:(LOCAL:2):接触 = 250
+	SOURCE:(LOCAL:2):性行動 = 360
+
+	IF PENIS(LOCAL:2)
+		SOURCE:(LOCAL:2):快Ｐ += SENSE_HOUSHI_P(LOCAL:2, LOCAL:2, 600)
+	ELSE
+		SOURCE:(LOCAL:2):快Ｃ += SENSE_HOUSHI(LOCAL:2, LOCAL:2, 600)
+	ENDIF
+	SOURCE:(LOCAL:2):快Ｂ += SENSE_HOUSHI(LOCAL:2, LOCAL:2, 450)
+
+	;主導権に応じた優越・屈従のソース追加
+	CALL ADD_SOURCE_INITIATIVE_U(LOCAL:2, 120, 100)
+
+	;奉仕経験値を得られるコマンドのフラグ
+	TCVAR:(LOCAL:2):4 = 1
+NEXT
+
+;●ターゲットについて処理
+SOURCE:(MTAR:0):露出 = 50
+SOURCE:(MTAR:0):接触 = 250
+SOURCE:(MTAR:0):性行動 = 360
+
+;主導権に応じた優越・屈従のソース追加
+CALL ADD_SOURCE_INITIATIVE_U(MTAR:0, 120, 60)
+
+FOR LOCAL:0, 0, MPLY_NUM
+	LOCAL:1 = MPLY:(LOCAL:0)
+
+	IF PENIS(MTAR:0)
+		SOURCE:(MTAR:0):快Ｐ += SENSE_HOUSHI_P(LOCAL:1, MTAR:0, 1200) * LOCAL:10 / 100
+	ELSE
+		SOURCE:(MTAR:0):快Ｃ += SENSE_HOUSHI(LOCAL:1, MTAR:0, 1200) * LOCAL:10 / 100
+	ENDIF
+	SOURCE:(MTAR:0):快Ｂ += SENSE_HOUSHI(LOCAL:1, MTAR:0, 900) * LOCAL:10 / 100
+
+	;射精箇所と対象をセット
+	CALL STACK_SPERM(MTAR:0, LOCAL:1, 0)
+	CALL STACK_SPERM(LOCAL:1, MTAR:0, 0)
+NEXT
+
+;主導度変化基準値
+TFLAG:49 = 2
+
+;倒錯度変化基準値
+TFLAG:50 = 0
+
+;レズ・ＢＬ経験基準値
+TFLAG:51 = 8
+
+RETURN 1
+
+;-------------------------------------------------
+;継続コマンドかどうかを設定
+;-------------------------------------------------
+@COM_IS_EQUIP5
+RETURN 1
+
+;-------------------------------------------------
+;継続状態の処理
+;-------------------------------------------------
+@COM_EQUIP5(ARG:0)
+;●人数補正の設定
+LOCAL:10 = 100
+
+SELECTCASE MEQUIP_PLAYER_NUM:(ARG:0)
+	CASE 2
+		TIMES LOCAL:10, 0.75
+ENDSELECT
+
+;●全プレイヤーについて処理
+FOR LOCAL:0, 0, MEQUIP_PLAYER_NUM:(ARG:0)
+	LOCAL:2 = MEQUIP_PLAYER:(ARG:0):(LOCAL:0)
+
+	EXP:(LOCAL:2):性技経験値 += 1
+
+	SOURCE:(LOCAL:2):奉仕 += SERVE_HOUSHI(LOCAL:2, 100)
+	SOURCE:(LOCAL:2):露出 += 20
+	SOURCE:(LOCAL:2):接触 += 150
+	SOURCE:(LOCAL:2):性行動 += 120
+
+	IF PENIS(LOCAL:2)
+		SOURCE:(LOCAL:2):快Ｐ += SENSE_HOUSHI_P(LOCAL:2, LOCAL:2, 200)
+	ELSE
+		SOURCE:(LOCAL:2):快Ｃ += SENSE_HOUSHI(LOCAL:2, LOCAL:2, 200)
+	ENDIF
+	SOURCE:(LOCAL:2):快Ｂ += SENSE_HOUSHI(LOCAL:2, LOCAL:2, 150)
+
+	;奉仕経験値を得られるコマンドのフラグ
+	TCVAR:(LOCAL:2):4 = 1
+NEXT
+
+;●ターゲットについて処理
+LOCAL:2 = MEQUIP_TARGET:(ARG:0):0
+
+SOURCE:(LOCAL:2):露出 += 20
+SOURCE:(LOCAL:2):接触 += 150
+SOURCE:(LOCAL:2):性行動 += 120
+
+FOR LOCAL:0, 0, MEQUIP_PLAYER_NUM:(ARG:0)
+	LOCAL:1 = MEQUIP_PLAYER:(ARG:0):(LOCAL:0)
+
+	IF PENIS(LOCAL:2)
+		SOURCE:(LOCAL:2):快Ｐ += SENSE_HOUSHI_P(LOCAL:1, LOCAL:2, 400) * LOCAL:10 / 100
+	ELSE
+		SOURCE:(LOCAL:2):快Ｃ += SENSE_HOUSHI(LOCAL:1, LOCAL:2, 400) * LOCAL:10 / 100
+	ENDIF
+	SOURCE:(LOCAL:2):快Ｂ += SENSE_HOUSHI(LOCAL:1, LOCAL:2, 300) * LOCAL:10 / 100
+
+	;射精箇所と対象をセット
+	CALL STACK_SPERM(LOCAL:2, LOCAL:1, 0, 0)
+	CALL STACK_SPERM(LOCAL:1, LOCAL:2, 0, 0)
+NEXT
+
+;-------------------------------------------------
+;継続中の表示
+;-------------------------------------------------
+@EQUIP_MESSAGE5(ARG:0)
+RESULTS = %EQUIP_PLAYER_ANAME(ARG:0)%が%EQUIP_TARGET_ANAME(ARG:0)%に泡踊り中
+
+;-------------------------------------------------
+;継続中の地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE_EQUIP5(ARG:0)
+PRINTFORML %EQUIP_PLAYER_ANAME(ARG:0)%が%EQUIP_TARGET_ANAME(ARG:0)%に全身を擦りつけている…
+
+;-------------------------------------------------
+;継続を解除したときの地の文
+;-------------------------------------------------
+@COM_TEXT_RELEASE_EQUIP5(ARG:0)
+
+;-------------------------------------------------
+;固有の実行判定
+;-------------------------------------------------
+@COM_ORDER_PLAYER5(ARG:0)
+;実行値の設定
+TCVAR:(ARG:0):25 = 80
+
+;共通部分
+CALL COM_ORDER(ARG:0)
+
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲望Lv{ABL:(ARG:0):欲望}", ABL:(ARG:0):欲望 * 2)
+CALL COM_ORDER_ELEMENT(ARG:0, @"奉仕Lv{ABL:(ARG:0):奉仕}", ABL:(ARG:0):奉仕 * 4)
+
+LOCAL:0 = GET_PALAMLV(PALAM:(ARG:0):欲情)
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲情Lv{LOCAL:0}", MIN(LOCAL:0 * 1, 10))
+
+IF TALENT:(ARG:0):恥じらい
+	CALL COM_ORDER_ELEMENT(ARG:0, "恥じらい", -3)
+ENDIF
+IF TALENT:(ARG:0):献身的
+	CALL COM_ORDER_ELEMENT(ARG:0, "献身的", 6)
+ENDIF
+IF TALENT:(ARG:0):快感の否定
+	CALL COM_ORDER_ELEMENT(ARG:0, "快感の否定", -5)
+ENDIF
+
+;合意
+IF !TALENT:(ARG:0):合意
+	CALL COM_ORDER_ELEMENT(ARG:0, "合意なし", -10)
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE5
+;プレイヤーが２人
+IF MPLY_NUM == 2
+	IF GET_INMOU_LEVEL(MTAR:0) >= 1 && GET_INMOU_LEVEL(MTAR:1) >= 1
+		LOCALS:1 = 陰毛をたわしのように
+	ELSE
+		LOCALS:1 = 肌を
+	ENDIF
+	SELECTCASE GET_COM_INITIATIVE()
+		;プレイヤーに主導権
+		CASE 0
+			PRINTFORMW %ANAME(MPLY:0)%と%ANAME(MPLY:1)%は全身にローションを塗り付けると、%ANAME(MTAR:0)%の体を前後から挟み込み、%LOCALS:1%擦り付けて責め立て%TARGET_STR("た", "てきた")%…
+		;ターゲットに主導権
+		CASE 1
+			PRINTFORMW %ANAME(MTAR:0)%は%ANAME(MPLY:0)%と%ANAME(MPLY:1)%の全身にローションを塗り付けると、二人に前後から%LOCALS:1%擦り付けさせて奉仕させた…
+		;第三者に主導権
+		CASEELSE
+			PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%と%ANAME(MPLY:1)%の全身にローションを塗り付けると、%ANAME(MTAR:0)%に泡踊りするように命令した
+			PRINTFORMW %ANAME(MPLY:0)%と%ANAME(MPLY:1)%は%ANAME(MTAR:0)%の体を前後から挟み込み、ローションでヌメる%LOCALS:1%擦り付けた
+	ENDSELECT
+
+;プレイヤーが１人
+ELSE
+	IF GET_INMOU_LEVEL(MTAR:0) >= 1
+		LOCALS:1 = 陰毛をたわしのように
+	ELSE
+		LOCALS:1 = 肌を
+	ENDIF
+	SELECTCASE GET_COM_INITIATIVE()
+		;プレイヤーに主導権
+		CASE 0
+			PRINTFORMW %ANAME(MPLY:0)%は全身にローションを塗り付けると、%ANAME(MTAR:0)%の体に%LOCALS:1%擦り付けて責め立て%TARGET_STR("た", "てきた")%…
+		;ターゲットに主導権
+		CASE 1
+			PRINTFORMW %ANAME(MTAR:0)%は%ANAME(MPLY:0)%の全身にローションを塗り付けると、%LOCALS:1%擦り付けさせ泡踊りで奉仕させた…
+		;第三者に主導権
+		CASEELSE
+			PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%の全身にローションを塗り付けると、%ANAME(MTAR:0)%に泡踊りするように命令した
+			PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%の体に、ローションでヌメる%LOCALS:1%擦り付けた
+	ENDSELECT
+ENDIF
+
+;--------------------------------------------------------
+;地の文(パラメータ・刻印変動後)
+;--------------------------------------------------------
+@COM_TEXT_LAST5
+;FOR LOCAL:0, 0, MTAR_NUM
+;	LOCAL:1 = MTAR:(LOCAL:0)
+;
+;	IF LOCAL:1 != MASTER
+;		LOCAL:2 = CUP:(LOCAL:1):快Ｐ + CUP:(LOCAL:1):快Ｃ + CUP:(LOCAL:1):快Ｂ
+;
+;		IF TCVAR:(LOCAL:1):52
+;			;気絶中
+;			PRINTFORML %ANAME(LOCAL:1)%は意識を失ったままビクビクと体を震わせている
+;		ELSEIF LOCAL:2 < 300
+;			PRINTFORML %ANAME(LOCAL:1)%はまだ胸で快楽を感じれるまでには至っていないようだ
+;		ELSEIF LOCAL:2 < 1000
+;			PRINTFORML %ANAME(LOCAL:1)%は少しずつ快感を感じ始めているらしく、むず痒そうに体をよじった
+;		ELSEIF LOCAL:2 < 3000
+;			PRINTFORML %ANAME(LOCAL:1)%の胸を揉み続けてやると乳首は固くしこっていき、熱い吐息を漏らし始めている
+;		ELSEIF LOCAL:2 < 6000
+;			PRINTFORML %ANAME(LOCAL:1)%は胸への愛撫にトロンとした表情になってされるがままになっている
+;		ELSEIF LOCAL:2 < 10000
+;			PRINTFORML %ANAME(LOCAL:1)%は感じまくっており、胸への刺激だけで法悦を極めようとしている
+;		ELSE
+;			PRINTFORML 緩んだ表情で快楽に身を任せていた
+;		ENDIF
+;	ENDIF
+;NEXT

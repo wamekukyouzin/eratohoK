@@ -78,6 +78,16 @@ IF GET_COOK() == ARG:0
 	PRINTFORML %ANAME(ARG:0)%は料理長に指定されていたので、解任しました
 	CALL SET_COOK(-1)
 ENDIF
+
+;ＮＴＲを削除
+FOR LOCAL, 0, CHARANUM
+	IF TALENT:(LOCAL:0):ＮＴＲ && ID_TO_CHARA(CFLAG:(LOCAL:0):ＮＴＲキャラ) == ARG:0
+		TALENT:(LOCAL:0):ＮＴＲ = 0
+		CFLAG:(LOCAL:0):ＮＴＲキャラ = 0
+		CFLAG:(LOCAL:0):ＮＴＲ値 = 0
+	ENDIF
+NEXT
+
 ;キャラの削除
 DELCHARA ARG:0
 
@@ -234,6 +244,9 @@ ELSE
 		INI_EXP:(ARG:0):(LOCAL:0) = EXP:(ARG:0):(LOCAL:0)
 	NEXT
 ENDIF
+;タトゥーを消去
+;TALENTやCFLAGでないので、こうやって別途消去しないと後でこまる
+VARSET TATOO:(ARG:0), ""
 
 ;-------------------------------------------------
 ;TALENTの初期値を現在の値に設定する関数
@@ -556,6 +569,21 @@ ELSE
 	PRINTBUTTON @"%ARGS:0%", ARG:1
 ENDIF
 PRINTPLAINFORM %TOSTR_SPACE(LOCAL:0)%
+
+;-------------------------------------------------
+;項番つけてメニューボタン生成する関数 0~99まで対応
+;内部的にはPRINTBUTTON_CENTERを呼び出す.項番に対応するSHOP_AVAILを、PRINTBUTTON_CENTERのARG:3として渡す
+;ARG:1はPRINTBUTTON_CENTERのARG:2, ARG:2はARG:4に対応
+;-------------------------------------------------
+@PRINTBUTTON_SHOP(ARG:0, ARGS:0, ARG:1, ARG:2 = 0)
+SIF ARG:0 < 0 || 99 < ARG:0
+	THROW PRINTBUTTON_SHOPで生成できる項番は99までです。
+IF 0 <= ARG:0 && ARG:0 < 10
+	LOCALS:0 = %" " + TOSTR(ARG:0)%%ARGS:0%
+ELSE
+	LOCALS:0 = %TOSTR(ARG:0)%%ARGS:0%
+ENDIF
+CALL PRINTBUTTON_CENTER(LOCALS:0, ARG:0, ARG:1, SHOP_AVAIL:(ARG:0), ARG:2)
 
 ;-------------------------------------------------
 ;特殊な機能を持つボタンを作成する関数
@@ -1084,6 +1112,14 @@ RETURNF !IS_MALE(ARG:0)
 #FUNCTION
 RETURNF IS_MALE(ARG:0) == IS_MALE(ARG:1)
 
+;---------------------------
+;ARG:0番のキャラが動物系かどうかを返す関数
+;---------------------------
+@IS_ANIMAL(ARG:0)
+#FUNCTION
+RETURNF TALENT:(ARG:0):犬 || TALENT:(ARG:0):豚
+
+
 ;-------------------------------------------------
 ;ARG:0番のキャラが恋慕系をもっているなら1を返す関数
 ;-------------------------------------------------
@@ -1474,7 +1510,13 @@ ELSE
 ENDIF
 
 IF ARG:1 >= 0
-	LOCAL:6 = GET_ID(ARG:1)
+	IF TALENT:(ARG:1):犬
+		LOCAL:6 = -14
+	ELSEIF TALENT:(ARG:1):豚
+		LOCAL:6 = -15
+	ELSE
+		LOCAL:6 = GET_ID(ARG:1)
+	ENDIF
 ELSE
 	LOCAL:6 = ARG:1
 ENDIF
@@ -1598,7 +1640,13 @@ ENDIF
 @DOUTEI_COMMON(ARG:0, ARG:1)
 
 IF ARG:1 >= 0
-	LOCAL:6 = GET_ID(ARG:1)
+	IF TALENT:(ARG:1):犬
+		LOCAL:6 = -14
+	ELSEIF TALENT:(ARG:1):豚
+		LOCAL:6 = -15
+	ELSE
+		LOCAL:6 = GET_ID(ARG:1)
+	ENDIF
 ELSE
 	LOCAL:6 = ARG:1
 ENDIF
@@ -1620,7 +1668,13 @@ TALENT:(ARG:0):童貞 = 0
 @VIRGIN_COMMON(ARG:0, ARG:1)
 
 IF ARG:1 >= 0
-	LOCAL:6 = GET_ID(ARG:1)
+	IF TALENT:(ARG:1):犬
+		LOCAL:6 = -14
+	ELSEIF TALENT:(ARG:1):豚
+		LOCAL:6 = -15
+	ELSE
+		LOCAL:6 = GET_ID(ARG:1)
+	ENDIF
 ELSE
 	LOCAL:6 = ARG:1
 ENDIF
@@ -1641,7 +1695,13 @@ TALENT:(ARG:0):処女 = 0
 LOCAL:20   = 0
 LOCAL:20  |= 1p63
 IF ARG:1 >= 0
-	LOCAL:6 = GET_ID(ARG:1)
+	IF TALENT:(ARG:1):犬
+		LOCAL:6 = -14
+	ELSEIF TALENT:(ARG:1):豚
+		LOCAL:6 = -15
+	ELSE
+		LOCAL:6 = GET_ID(ARG:1)
+	ENDIF
 ELSE
 	LOCAL:6 = ARG:1
 ENDIF
@@ -2152,12 +2212,15 @@ RESETCOLOR
 PRINT  
 
 IF CFLAG:(ARG:0):16 == 1
-	SETCOLOR 0xFFC0C0
+	SETCOLOR COLOR("妊娠")
 	PRINTPLAIN 臨
+ELSEIF TALENT:(ARG:0):妊娠
+	SETCOLOR COLOR("妊娠")
+	PRINTPLAIN 妊
 ELSEIF CFLAG:(ARG:0):16 == 2
 	SETCOLOR 0xFFC0C0
 	PRINTPLAIN 育
-ELSEIF CFLAG:(ARG:0):16 == 3
+ELSEIF CFLAG:(ARG:0):16 == 3 || COOLTIME:(ARG:0):0
 	SETCOLOR COLOR("警告")
 	PRINTPLAIN 傷
 ELSEIF CFLAG:(ARG:0):16 == 4
@@ -2617,6 +2680,8 @@ SELECTCASE TOUPPER(ARGS)
 		RETURNF 0xA0A0A0
 	CASE "素質発動"
 		RETURNF 0xff6666
+	CASE "妊娠"
+		RETURNF 0xFFC0C0
 	CASEELSE
 		THROW @COLORで指定されていない色が指定されました。
 ENDSELECT

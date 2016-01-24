@@ -1,0 +1,222 @@
+﻿;---------------------------
+;ARG:0のARG:1ビットにピアスを通す関数
+;穴があいてなければ開ける
+;穴を開けて通したら2、通しただけなら1、無理なら0が返る
+;ARG:2はメッセージを表示するフラグ
+;---------------------------
+@SET_PIERCE(ARG:0, ARG:1, ARG:2 = 1)
+LOCAL:0 = 0
+LOCALS:0 = %GET_PIERCE_NAME(ARG:1)%
+SIF !CAN_PIERCE(ARG:0, ARG:1)
+	RETURN LOCAL:0
+IF !IS_HOLED(ARG:0, ARG:1)
+	SIF ARG:2
+		CALL COLORPRINTFORM(@"%ANAME(ARG:0)%の%LOCALS:0%に穴が開けられた……", COLOR("注意"), "W")
+	LOCAL:0 ++
+	SETBIT TALENT:(ARG:0):ピアス穴, ARG:1
+ENDIF
+SIF ARG:2
+	CALL COLORPRINTFORM(@"%ANAME(ARG:0)%の%LOCALS:0%にピアスが取り付けられた……", COLOR("注意"), "W")
+SETBIT TALENT:(ARG:0):ピアス, ARG:1
+LOCAL:0 ++
+RETURN LOCAL:0
+
+;---------------------------
+;ARG:0のARG:1ビットのピアスを外す関数
+;もちろん穴は消えない
+;外したら1、そもそも付いていなかったら0が返る
+;ARG:2はメッセージを表示するフラグ
+;---------------------------
+@REMOVE_PIERCE(ARG:0, ARG:1, ARG:2 = 1)
+IF IS_PIERCED(ARG:0, ARG:1)
+	SIF ARG:2
+		CALL COLORPRINTFORM(@"%ANAME(ARG:0)%の%GET_PIERCE_NAME(ARG:1)%からピアスを外した……", COLOR("注意"), "W")
+	CLEARBIT TALENT:(ARG:0):ピアス, ARG:1
+	RETURN 1
+ENDIF
+RETURN 0
+
+;---------------------------
+;ARG:0ビットに対応する装着部位の文字列を返す関数
+;---------------------------
+@GET_PIERCE_NAME(ARG:0)
+#FUNCTIONS
+SELECTCASE ARG:0
+	CASE ピアス_鼻
+		RETURNF "鼻"
+	CASE ピアス_耳
+		RETURNF "耳"
+	CASE ピアス_舌
+		RETURNF "舌"
+	CASE ピアス_乳首
+		RETURNF "乳首"
+	CASE ピアス_へそ
+		RETURNF "へそ"
+	CASE ピアス_クリトリス
+		RETURNF "クリトリス"
+	CASE ピアス_ラビア
+		RETURNF "ラビア"
+	CASE ピアス_ペニス
+		RETURNF "ペニス"
+	CASEELSE
+		RETURNF "不明"
+ENDSELECT
+
+;---------------------------
+;ARG:0に、ARG:2 ~ ARG:8番の優先順でピアスを通す関数
+;ARG:1を1にするとメッセージを表示。
+;一部だけ設定するとかいうこともできる
+;取り付けた場合は、取り付けたピアス穴の部位ビットが返る
+;---------------------------
+@SET_PIERCE_RANKED(ARG:0, ARG:1, ARG:2 = 99, ARG:3 = 99, ARG:4 = 99, ARG:5 = 99, ARG:6 = 99, ARG:7 = 99, ARG:8 = 99, ARG:9 = 99)
+FOR LOCAL:0, 2, ピアス_最大ビット + 3
+	CALL SET_PIERCE(ARG:0, ARG:(LOCAL:0), ARG:1)
+	SIF RESULT
+		RETURN ARG:(LOCAL:0)
+NEXT
+RETURN -1
+
+;---------------------------
+;ARG:0番のキャラの、ランダムな部位にピアスを取り付ける
+;ARG:1はメッセージ表示フラグ。0なら非表示。
+;戻り値は取り付けた部位ビット
+;どこも空いてなかったら-1が戻ってくるので、その辺考えずに単純にGET_PIERCE_NAMEしないこと
+;---------------------------
+@SET_PIERCE_RANDOM(ARG:0, ARG:1  = 1)
+LOCAL:1 = 0
+FOR LOCAL, 0, ピアス_最大ビット + 1
+	IF !IS_PIERCED(ARG:0, LOCAL:0)
+		LOCAL:1 = 1
+		BREAK
+	ENDIF
+NEXT
+
+;どこも空いてなかったら-1
+SIF !LOCAL:1
+	RETURN -1
+
+WHILE 1
+	LOCAL = RAND:(ピアス_最大ビット + 1)
+	CALL SET_PIERCE(ARG:0, LOCAL, ARG:1)
+	SIF RESULT
+		RETURN LOCAL
+WEND
+
+;---------------------------
+;ARG:0番のキャラが、ARG:1番のビットにピアスできるか
+;---------------------------
+@CAN_PIERCE(ARG:0, ARG:1)
+#FUNCTION
+;範囲外なら不可
+SIF ARG:1 < 0 || ピアス_最大ビット < ARG:1
+	RETURNF 0
+;装着済みなら不可
+SIF GETBIT(TALENT:(ARG:0):ピアス, ARG:1)
+	RETURNF 0
+;ラビアピアスはヴァギナが必要
+SIF ARG:1 == ピアス_ラビア
+	RETURNF VAGINA(ARG:0)
+;クリトリスはペニスがあってはならない
+SIF ARG:1 == ピアス_クリトリス
+	RETURNF !PENIS(ARG:0)
+;ペニスはチンポがなくてはならない
+SIF ARG:1 == ピアス_ペニス
+	RETURNF PENIS(ARG:0)
+;それ以外は通す
+RETURNF 1
+
+;---------------------------
+;ARG:0番のキャラが、ARG:1番のビットにピアスをしているか
+;着けてれば1が戻る
+;---------------------------
+@IS_PIERCED(ARG:0, ARG:1)
+#FUNCTION
+LOCAL:0 = 0
+;範囲外なら不可
+SIF ARG:1 < 0 || ピアス_最大ビット < ARG:1
+	RETURNF 0
+SIF GETBIT(TALENT:(ARG:0):ピアス, ARG:1)
+	LOCAL:0 ++
+RETURNF LOCAL:0
+
+;---------------------------
+;ARG:0番のキャラが、ARG:1番のビットにピアス穴をしているか
+;着けてれば1が戻る
+;---------------------------
+@IS_HOLED(ARG:0, ARG:1)
+#FUNCTION
+LOCAL:0 = 0
+;範囲外なら不可
+SIF ARG:1 < 0 || ピアス_最大ビット < ARG:1
+	RETURNF 0
+SIF GETBIT(TALENT:(ARG:0):ピアス穴, ARG:1)
+	LOCAL:0 ++
+RETURNF LOCAL:0
+
+;---------------------------
+;ARG:0番のキャラがつけているピアスと穴について、文字列で返す
+;---------------------------
+@TOSTR_PIERCE(ARG:0)
+#FUNCTIONS
+LOCALS:0 = 
+FOR LOCAL:0, 0, ピアス_最大ビット + 1
+	SELECTCASE IS_PIERCED(ARG:0, LOCAL:0)
+		CASE 2
+			LOCALS:0 = %LOCALS:0%%GET_PIERCE_NAME(LOCAL:0)% 
+		CASE 1
+			LOCALS:0 = %LOCALS:0%%GET_PIERCE_NAME(LOCAL:0)%(穴のみ) 
+	ENDSELECT
+NEXT
+RETURNF LOCALS:0
+
+;---------------------------
+;ARG:0番のキャラがつけているピアスと穴について、PRINTする
+;---------------------------
+@PRINT_PIERCE(ARG:0)
+LOCAL:1 = 0
+FOR LOCAL:0, 0, ピアス_最大ビット + 1
+	IF IS_PIERCED(ARG:0, LOCAL:0)
+		LOCAL:1 = 1
+		BREAK
+	ENDIF
+NEXT
+
+IF !LOCAL:1
+	PRINTFORM なし
+	RETURN
+ENDIF
+
+FOR LOCAL:0, 0, ピアス_最大ビット + 1
+	IF IS_PIERCED(ARG:0, LOCAL:0)
+		CALL COLORPRINTFORM(@"%GET_PIERCE_NAME(LOCAL:0)%", GROUPMATCH(GET_PIERCE_NAME(LOCAL:0), "乳首", "ラビア", "クリトリス", "ペニス") ? COLOR("桃") # GETDEFCOLOR())
+		PRINT  
+	ELSEIF IS_HOLED(ARG:0, LOCAL:0)
+		CALL COLORPRINTFORM(@"%GET_PIERCE_NAME(LOCAL:0)%(穴のみ)", COLOR("選択不可"))
+		PRINT  
+	ENDIF
+NEXT
+
+;---------------------------
+;対象キャラのピアス穴を塞ぐ
+;---------------------------
+@CLEAR_PIERCE_HOLE(ARG:0, ARG:1)
+IF GETBIT(TALENT:(ARG:0):ピアス穴, ARG:1)
+	CALL REMOVE_PIERCE(ARG:0, ARG:1)
+	CLEARBIT TALENT:(ARG:0):ピアス穴, ARG:1
+	RETURN 1
+ENDIF
+RETURN 0
+
+;---------------------------
+;対象キャラのペニスとクリトリスとラビアのピアス穴を塞ぐ
+;性転換したときに呼ぶ
+;---------------------------
+@CLEAR_PIERCE_HOLE_SEX_CHANGE(ARG:0)
+IF PENIS(ARG:0)
+	CALL CLEAR_PIERCE_HOLE(ARG:0, ピアス_クリトリス)
+ELSE
+	CALL CLEAR_PIERCE_HOLE(ARG:0, ピアス_ペニス)
+ENDIF
+IF !VAGINA(ARG:0)
+	CALL CLEAR_PIERCE_HOLE(ARG:0, ピアス_ラビア)
+ENDIF

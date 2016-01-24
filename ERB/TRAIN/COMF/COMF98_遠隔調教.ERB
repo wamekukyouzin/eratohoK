@@ -1,0 +1,738 @@
+﻿;遠隔調教
+
+;-------------------------------------------------
+;コマンド名称
+;-------------------------------------------------
+@COM_NAME98
+LOCALS:0  = 遠隔調教
+RESULTS:0 = %LOCALS:0%する
+RESULTS:1 = %LOCALS:0%させられる
+RESULTS:2 = %LOCALS:0%させる
+RESULTS:3 = %LOCALS:0%される
+RESULTS:4 = %LOCALS:0%させる
+RESULTS:5 = %LOCALS:0%見せつけ
+
+;-------------------------------------------------
+;選択可否判定
+;-------------------------------------------------
+@COM_ABLE98
+;共通部分
+CALL COM_ABLE_COMMON(98)
+SIF RESULT == 0
+	RETURN 0
+;プレイヤーは1人
+SIF MPLY_NUM != 1
+	RETURN 0
+;ターゲットも1人
+SIF MTAR_NUM != 1
+	RETURN 0
+;プレイヤーが行動不能なら不可
+SIF !IS_PLAYABLE(MPLY:0)
+	RETURN 0
+
+SIF ITEM:遠隔通信用スキマ == 0
+	RETURN 0
+
+LOCAL:5 = 0
+LOCAL:6 = 0
+;全てのプレイヤーについて判定
+FOR LOCAL:0, 0, MPLY_NUM
+	;顔面騎乗されているなら不可
+	SIF IS_RIDDEN(MPLY:(LOCAL:0))
+		RETURN 0
+	;顔面騎乗しているなら不可
+	SIF IS_RIDDEN(MPLY:(LOCAL:0))
+		RETURN 0
+	;キス中、貝合中なら不可
+	SIF IS_EQUIP(MPLY:(LOCAL:0), 20, 21)
+		RETURN 0
+	;手コキ、脚コキ、素股, パイズリ、オナホコキ中なら不可
+	SIF IS_EQUIP_PLAYER(MPLY:(LOCAL:0), 10, 12, 14, 13, 17)
+		RETURN 0
+	;挿入中なら不可
+	SIF IS_INSERT_SINGLE(MPLY:(LOCAL:0), "全")
+		RETURN 0
+	;拘束されているなら不可
+	SIF IS_BIND(MPLY:(LOCAL:0))
+		RETURN 0
+NEXT
+;全てのターゲットについて判定
+FOR LOCAL:0, 0, MTAR_NUM
+	;女のみ
+	SIF !IS_FEMALE(MTAR:(LOCAL:0))
+		RETURN 0
+	;顔面騎乗されているなら不可
+	SIF IS_RIDDEN(MTAR:(LOCAL:0))
+		RETURN 0
+NEXT
+RETURN 1
+
+;-------------------------------------------------
+;メイン処理
+;-------------------------------------------------
+@COM98
+;実行判定
+CALL COM_ORDER_COMMON
+SIF RESULT == 0
+	RETURN 0
+
+
+;●全プレイヤーについて処理
+FOR LOCAL:0, 0, MPLY_NUM
+	LOCAL:2 = MPLY:(LOCAL:0)
+
+	DOWNBASE:(LOCAL:2):体力 += 50
+
+	SOURCE:(LOCAL:2):嗜虐 = 50
+	SOURCE:(LOCAL:2):露出 = 30
+	SOURCE:(LOCAL:2):逸脱 = 20
+	SOURCE:(LOCAL:2):接触 = 30
+
+	;主導権に応じた優越・屈従のソース追加
+	CALL ADD_SOURCE_INITIATIVE_U(LOCAL:2, 50, 200)
+NEXT
+
+;●全ターゲットについて処理
+FOR LOCAL:0, 0, MTAR_NUM
+	LOCAL:2 = MTAR:(LOCAL:0)
+
+	DOWNBASE:(LOCAL:2):体力 += 200
+
+	SOURCE:(LOCAL:2):露出 = 1200
+	SOURCE:(LOCAL:2):逸脱 = 300
+	SOURCE:(LOCAL:2):不安 = 300
+	SOURCE:(LOCAL:2):性行動 = 240
+	SOURCE:(LOCAL:2):快Ｖ = SENSE_HOUSHI(MPLY:0, MTAR:0, 1500)
+	SOURCE:(LOCAL:2):快Ａ = SENSE_HOUSHI(MPLY:0, MTAR:0, 1500)
+
+	EXP:(LOCAL:2):精愛経験値 += 1
+	EXP:(LOCAL:2):露出経験値 += 3
+	
+	CALL RECORD_INJECTION(LOCAL:2, -1, 8)
+
+	;主導権に応じた優越・屈従のソース追加
+	CALL ADD_SOURCE_INITIATIVE_U(LOCAL:2, 160, 80)
+NEXT
+
+;主導度変化基準値
+TFLAG:49 = 3
+
+;倒錯度変化基準値
+TFLAG:50 = 2
+
+;レズ・ＢＬ経験基準値
+TFLAG:51 = 4
+
+RETURN 1
+
+;-------------------------------------------------
+;継続コマンドかどうかを設定
+;-------------------------------------------------
+@COM_IS_EQUIP98
+RETURN 0
+
+
+;-------------------------------------------------
+;固有の実行判定
+;-------------------------------------------------
+@COM_ORDER_PLAYER98(ARG:0)
+;実行値の設定
+TCVAR:(ARG:0):25 = 98
+
+;共通部分
+CALL COM_ORDER(ARG:0)
+
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲望Lv{ABL:(ARG:0):欲望}", ABL:(ARG:0):欲望 * 1)
+CALL COM_ORDER_ELEMENT(ARG:0, @"奉仕Lv{ABL:(ARG:0):奉仕}", ABL:(ARG:0):奉仕 * 4)
+
+LOCAL:0 = GET_PALAMLV(PALAM:(ARG:0):欲情)
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲情Lv{LOCAL:0}", MIN(LOCAL:0 * 1, 10))
+
+IF TALENT:(ARG:0):恥じらい
+	CALL COM_ORDER_ELEMENT(ARG:0, "恥じらい", -2)
+ENDIF
+IF TALENT:(ARG:0):汚臭鈍感
+	CALL COM_ORDER_ELEMENT(ARG:0, "汚臭鈍感", 1)
+ENDIF
+IF TALENT:(ARG:0):汚臭敏感
+	CALL COM_ORDER_ELEMENT(ARG:0, "汚臭敏感", -4)
+ENDIF
+IF TALENT:(ARG:0):献身的
+	CALL COM_ORDER_ELEMENT(ARG:0, "献身的", 6)
+ENDIF
+
+
+RETURN 1
+
+;-------------------------------------------------
+;地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE98
+#DIMS 場所
+#DIMS 内容
+#DIMS 相手
+;#DIMS 衣服
+LOCALS:0 = %ANAME(MPLY:0)%
+LOCALS:1 = %ANAME(MTAR:0)%
+
+;-----------選択肢表示-----------
+
+;PRINTFORML %LOCALS:1%に服を着せて送り出しますか？
+;PRINTFORML [0] 服を着せる
+;PRINTFORML [1] 服を着せない
+;$INPUT_LOOP
+;INPUT
+;IF RESULT == 0
+;	PRINTFORMW 服を着せることにしました
+;	衣服 = 着衣
+;ELSEIF RESULT == 1
+;	PRINTFORMW 服を着せないことにしました
+;	衣服 = 全裸
+;ELSE
+;	GOTO INPUT_LOOP
+;ENDIF
+;
+PRINTFORML
+PRINTFORML %LOCALS:1%をどこに送り出しますか？
+PRINTFORML [0] 歓楽街
+PRINTFORML [1] スラム
+PRINTFORML [2] 公衆便所
+PRINTFORML [3] 森林
+PRINTFORML [4] 水辺
+$INPUT_LOOP2
+INPUT
+IF RESULT == 0
+	PRINTFORMW 人でごった返す歓楽街へ送り出します
+	場所 = 歓楽街
+ELSEIF RESULT == 1
+	PRINTFORMW 治安の悪いスラムへ送り出します
+	場所 = スラム
+ELSEIF RESULT == 2
+	PRINTFORMW 薄汚い公衆便所に送り出します
+	場所 = 公衆便所
+ELSEIF RESULT == 3
+	PRINTFORMW 静かな森林へ送り出します
+	場所 = 森林
+ELSEIF RESULT == 4
+	場所 = 水辺
+	PRINTFORMW 遊泳地として人気の水辺へ送り出します
+ELSE
+	GOTO INPUT_LOOP2
+ENDIF
+
+PRINTFORML
+DRAWLINE
+PRINTFORML
+;-----------パターン選出-----------
+SELECTCASE 場所
+	CASE "歓楽街"
+		SELECTCASE RAND:100
+			CASE IS < 30
+				相手 = やくざ
+			CASE IS < 50
+				相手 = チンピラ
+			CASE IS < 70
+				相手 = 痴漢
+			CASE IS < 90
+				相手 = 老紳士
+			CASEELSE
+				相手 = 子供
+		ENDSELECT
+	CASE "スラム"
+		SELECTCASE RAND:100
+			CASE IS < 30
+				相手 = 暴漢
+			CASE IS < 70
+				相手 = 浮浪者
+			CASE IS < 90
+				相手 = 変質者
+			CASEELSE
+				相手 = 薬の売人
+		ENDSELECT
+	CASE "公衆便所"
+		SELECTCASE RAND:100
+			CASE IS < 100
+				相手 = 見知らぬ男
+		ENDSELECT
+	CASE "森林"
+		SELECTCASE RAND:100
+			CASE IS < 30
+				相手 = 野盗
+			CASE IS < 60
+				相手 = 野良妖怪
+			CASE IS < 80
+				相手 = 子供
+			CASEELSE
+				相手 = 犬
+		ENDSELECT
+	CASE "水辺"
+		SELECTCASE RAND:100
+			CASE IS < 60
+				相手 = チャラ男
+			CASEELSE
+				相手 = 痴漢
+		ENDSELECT
+ENDSELECT
+
+;-----------テキスト表示-----------
+
+SELECTCASE 場所
+	CASE "歓楽街"
+		PRINTFORMW %LOCALS:0%は%LOCALS:1%を歓楽街へ送り出した……
+		PRINTFORMW %LOCALS:1%の美しさは、雑踏のなかでも目立ったようだ
+		PRINTFORML
+		SELECTCASE 相手
+			CASE "やくざ", "チンピラ"
+				SELECTCASE RAND:2
+					;ホテル
+					CASE 0
+						PRINTFORMW %LOCALS:1%は%相手%に声をかけられたようだ
+						PRINTFORMW 肩に手を回され、%LOCALS:1%はなし崩し的に宿に連れ込まれた……
+						PRINTFORML 
+						SELECTCASE RAND:4
+							CASE 0
+								PRINTFORMW %相手%は早速%LOCALS:1%をベッドに押し倒し、激しく交わっている
+								PRINTFORMW その立派なモノによる雄々しい抽送は、%LOCALS:1%を雌に仕立て上げていく……
+							CASE 1
+								PRINTFORMW %相手%は%LOCALS:1%をねっとりとした腰遣いで責めている
+								PRINTFORMW その熟練のテクニックは、%LOCALS:1%の本能を綻ばせ、甘い声をあげさせる……
+							CASE 2
+								PRINTFORMW 一通りの行為が終わったのち、%LOCALS:1%は%相手%のモノを口で清めていった
+								PRINTFORMW 清め終わるころには、%相手%のモノはすっかり立派な姿を取り戻していた
+								PRINTFORMW 興奮した%相手%は%LOCALS:1%を押し倒し、第二試合を始めた……
+							CASE 3
+								PRINTFORMW %LOCALS:1%は%相手%に覆い被さられ、激しく突き上げられている
+								PRINTFORMW その野性的なピストンに、%LOCALS:1%の子宮はどんどん躾けられていく……
+						ENDSELECT
+						PRINTFORML
+						SELECTCASE RAND:4
+							CASE 0
+								PRINTFORMW %LOCALS:1%は%相手%と連絡先を交換した
+							CASE 1
+								PRINTFORMW %LOCALS:1%はシャワーを浴びて帰った
+							CASE 2
+								PRINTFORMW %LOCALS:1%は%相手%とまた会う約束を交わした
+							CASE 3
+								PRINTFORMW %相手%はベッドに倒れ込んだ%LOCALS:1%を放置して帰った
+						ENDSELECT
+					;路地裏
+					CASE 1
+						PRINTFORMW %LOCALS:1%は%相手%に声をかけられたようだ
+						PRINTFORMW 腕をひかれ、%LOCALS:1%は強引に路地裏に連れ込まれた……
+						PRINTFORML
+						SELECTCASE RAND:4
+							CASE 0
+								PRINTFORMW %相手%は%LOCALS:1%を、背面立位の姿勢で激しく犯している
+								PRINTFORMW 二人の結合部からは、白濁と愛の蜜の混じった汁が滴り、地面を濡らしていく……
+							CASE 1
+								PRINTFORMW %LOCALS:1%は%相手%の前に跪き、一物を激しくしゃぶりたてている
+								PRINTFORMW %相手%が射精すると、%LOCALS:1%は音を立てて白濁を飲み下していった
+								PRINTFORMW その後、奉仕の褒美に、%相手%は何度も%LOCALS:1%に種付けを行ったようだ
+							CASE 2
+								PRINTFORMW %相手%は%LOCALS:1%の口を塞ぎ、激しく犯している
+								PRINTFORMW その指の隙間から零れるのは、悲鳴ではなく甘い嬌声だ……
+							CASE 3
+								PRINTFORMW %LOCALS:1%を散々犯した後、%相手%はこの場で放尿するよう%LOCALS:1%に命じた
+								PRINTFORMW %LOCALS:1%は大きく脚を開き、%相手%に見えるよう、雌の臭いを放つ黄金水を放った……
+						ENDSELECT
+						PRINTFORML
+						SELECTCASE RAND:4
+							CASE 0
+								PRINTFORMW %相手%は股から白濁を垂れ流す%LOCALS:1%を撮影して帰った
+							CASE 1
+								PRINTFORMW %LOCALS:1%は路地裏のゴミの山に放り捨てられた
+							CASE 2
+								PRINTFORMW %LOCALS:1%は%相手%に恋人のように抱えられながら、路地裏からふらふらと出てきた
+							CASE 3
+								PRINTFORMW %相手%は路地裏のゴミの山に倒れ込んだ%LOCALS:1%を放置して帰った
+						ENDSELECT
+				ENDSELECT
+			CASE "老紳士"
+				PRINTFORMW %LOCALS:1%は%相手%に声をかけられたようだ
+				PRINTFORMW 巧みな話術にほだされ、%LOCALS:1%はなし崩し的に宿に連れ込まれた……
+				PRINTFORML 
+				SELECTCASE RAND:4
+						CASE 0
+							PRINTFORMW %相手%は%LOCALS:1%の首を絞めながら、激しく突き上げている
+							PRINTFORMW 酸欠による快楽は、%LOCALS:1%を新たな領域へと連れて行く……
+						CASE 1
+							PRINTFORMW %相手%は%LOCALS:1%を縄で縛り上げ、じっくりと責め立てている
+							PRINTFORMW その老獪なテクニックは、%LOCALS:1%のマゾヒズムを目覚めさせていく……
+						CASE 2
+							PRINTFORMW %相手%は%LOCALS:1%に尻穴を舐めさせている
+							PRINTFORMW 清め終わるころには、%相手%のモノはすっかり立派な姿を取り戻していた
+							PRINTFORMW 興奮した%相手%は%LOCALS:1%を押し倒し、犯し始めた……
+						CASE 3
+							PRINTFORMW %LOCALS:1%は%相手%に縛り上げられ、じっくりと焦らされている
+							PRINTFORMW 昂ぶりを抑えられなくなった%LOCALS:1%は、とうとう自ら快楽をねだった……
+					ENDSELECT
+					PRINTFORML
+					SELECTCASE RAND:4
+						CASE 0
+							PRINTFORMW %LOCALS:1%は%相手%と連絡先を交換した
+						CASE 1
+							PRINTFORMW %LOCALS:1%はシャワーを浴びて帰った
+						CASE 2
+							PRINTFORMW %LOCALS:1%は%相手%とまた会う約束を交わした
+						CASE 3
+							PRINTFORMW %相手%はベッドに倒れ込んだ%LOCALS:1%を放置して帰った
+					ENDSELECT
+			CASE "痴漢"
+				PRINTFORMW 雑踏の中で、%LOCALS:1%は%相手%に襲われたようだ
+				PRINTFORMW 身動きもろくに取れない人混みの中で、%LOCALS:1%はいいように弄ばれている……
+				PRINTFORML
+				SELECTCASE RAND:3
+					CASE 0
+						PRINTFORMW 人混みの中で、%LOCALS:1%は秘部に肉棒をねじ込まれてしまった
+						PRINTFORMW そしてそのまま、抵抗もできないまま白濁を注がれてしまった……
+					CASE 1
+						PRINTFORMW %LOCALS:1%が肉棒を引き抜くと、白濁がとろりとこぼれ落ちた
+						PRINTFORMW 大勢の人間のど真ん中で、%LOCALS:1%は%相手%に種付けされてしまった……
+					CASE 2
+						PRINTFORMW %相手%にたっぷり膣内射精された後、%LOCALS:1%は下着を奪われた
+						PRINTFORMW %LOCALS:1%は秘裂から子種を零しながら、歩いて帰った……
+					CASE 3
+						PRINTFORMW %相手%は%LOCALS:1%の身体を弄り、官能を否応なしに高めていく
+						PRINTFORMW 挿れて欲しいんだろう？　と耳元でささやかれ、%LOCALS:1%は恥も外聞もなく挿入をねだった……
+				ENDSELECT
+			CASE "子供"
+				PRINTFORMW %LOCALS:1%は迷子の%相手%と出くわした
+				PRINTFORMW %LOCALS:0%は%LOCALS:1%に、%相手%を誘惑させた……
+				PRINTFORML
+				SELECTCASE RAND:3
+					CASE 0
+						PRINTFORMW %LOCALS:1%は%相手%をホテルに連れ込んだようだ
+						PRINTFORMW %相手%を優しくリードしながら、%LOCALS:1%は己の膣内で射精させた……
+					CASE 1
+						PRINTFORMW %LOCALS:1%は%相手%をホテルに連れ込んだようだ
+						PRINTFORMW %相手%に未知の快楽を教え込みながら、%LOCALS:1%自身も絶頂に至った……
+					CASE 2
+						PRINTFORMW %LOCALS:1%は%相手%を路地裏に連れ込んだようだ
+						PRINTFORMW 恥ずかしがる%相手%をよそに、%LOCALS:1%はノリノリで行為を終えた……
+				ENDSELECT
+		ENDSELECT
+	CASE "スラム"
+		PRINTFORMW %LOCALS:0%は%LOCALS:1%を危険なスラムへ送り出した……
+		PRINTFORMW %LOCALS:1%の美しさは、物陰に潜む怪しげな連中の目をひいたようだ
+		PRINTFORML
+		SELECTCASE 相手
+			CASE "暴漢"
+				SELECTCASE RAND:2
+					CASE 0
+						PRINTFORMW %LOCALS:1%は複数の%相手%に襲いかかられた
+						PRINTFORMW 路地裏に逃げた%LOCALS:1%だが、袋小路に追い詰められてしまった……
+						PRINTFORML
+						SELECTCASE RAND:2
+							CASE 0
+								PRINTFORMW %相手%どもは%LOCALS:1%をレイプしている
+								PRINTFORMW 両穴を穿たれて絶頂する%LOCALS:1%を嘲笑いながら、%相手%は何度も白濁を注ぎ込んだ
+							CASE 1
+								PRINTFORMW %相手%どもは%LOCALS:1%を輪姦している
+								PRINTFORMW 膣穴をひたすらに抉る一方、喉奥を亀頭でごりごりと突いている……
+						ENDSELECT
+						PRINTFORML
+						SELECTCASE RAND:3
+							CASE 0
+								PRINTFORMW あらゆる穴から白濁を垂れ流す%LOCALS:1%を放置し、%相手%は立ち去った……
+							CASE 1
+								PRINTFORMW ゴミの山に%LOCALS:1%を放り捨て、%相手%たちは立ち去った……
+							CASE 2
+								PRINTFORMW 激しい陵辱の末に気絶した%LOCALS:1%に唾を吐きかけ、%相手%は立ち去った……
+						ENDSELECT
+					CASE 1
+						PRINTFORMW %LOCALS:1%は背後から%相手%に襲いかかられ、気を失ってしまった
+						PRINTFORMW %相手%は%LOCALS:1%を自らのねぐらに連れ込み、犯し始めた……
+						SELECTCASE RAND:3
+							CASE 0
+								PRINTFORMW %相手%は気絶している%LOCALS:1%の雌穴を犯している
+								PRINTFORMW %LOCALS:1%は意識のないまま、見知らぬ相手に種付けされてしまった……
+							CASE 1
+								PRINTFORMW %相手%は気絶している%LOCALS:1%の喉を犯している
+								PRINTFORMW 窒息のリスクもおかまいなしに喉奥に精を放つと、次は膣穴、尻穴を陵辱しはじめた……
+							CASE 2
+								PRINTFORMW 陵辱の途中で目を覚ました%LOCALS:1%だったが、無駄だった
+								PRINTFORMW 縄でがんじがらめに縛り上げられた%LOCALS:1%は、そのまま%相手%に犯されるしかなかった……
+						ENDSELECT
+						PRINTFORML
+						SELECTCASE RAND:2
+							CASE 0
+								PRINTFORMW 満足した%相手%は、道ばたに%LOCALS:1%を放り捨てた……
+							CASE 1
+								PRINTFORMW 満足した%相手%は、白濁まみれの%LOCALS:1%を路地裏に放置して帰った……
+						ENDSELECT
+				ENDSELECT
+			CASE "浮浪者"
+				SELECTCASE RAND:2
+					CASE 0
+						PRINTFORMW %LOCALS:1%は%相手%に目を付けられたようだ
+						PRINTFORMW 油断した%LOCALS:1%は、%相手%に強引に物陰へ連れ込まれた……
+						SELECTCASE RAND:3
+							CASE 0
+								PRINTFORMW %相手%は恥垢まみれの汚れたペニスを%LOCALS:1%の秘裂にねじ込んでいる
+								PRINTFORMW そして、薄汚い白濁が%LOCALS:1%の膣内にたっぷりと注ぎ込まれた……
+							CASE 1
+								PRINTFORMW %相手%は悪臭放つ薄汚いペニスを%LOCALS:1%の口にねじ込んでいる
+								PRINTFORMW 柔らかな唇の感触を楽しみながら、恥垢をこそげ落としていく……
+							CASE 2
+								PRINTFORMW %LOCALS:1%を組み敷いた%相手%は、%LOCALS:1%に覆い被さり強烈なピストンを繰り出している
+								PRINTFORMW 子宮まで貫くような抽送に、%LOCALS:1%は犯されているというのに圧倒的な快楽を覚えてしまっている……
+						ENDSELECT
+						PRINTFORML
+						SELECTCASE RAND:3
+							CASE 0
+								PRINTFORMW あらゆる穴から白濁を垂れ流す%LOCALS:1%を放置し、%相手%は立ち去った……
+							CASE 1
+								PRINTFORMW ゴミの山に%LOCALS:1%を放り捨て、%相手%たちは立ち去った……
+							CASE 2
+								PRINTFORMW 激しい陵辱の末に気絶した%LOCALS:1%に唾を吐きかけ、%相手%は立ち去った……
+						ENDSELECT
+					CASE 1
+						PRINTFORMW %LOCALS:1%は%相手%の溜まり場に迷い込んでしまった
+						PRINTFORMW %相手%が%LOCALS:1%のような「上玉」を逃すはずもなく、%LOCALS:1%はあっという間に群がられた……
+						PRINTFORML
+						SELECTCASE RAND:3
+							CASE 0
+								PRINTFORMW %LOCALS:1%は悪臭を放つペニスをあらゆる穴にねじ込まれている
+								PRINTFORMW その臭いにえづきながらも、性交の快楽に%LOCALS:1%は何度も絶頂し、子種を注がれた……
+							CASE 1
+								PRINTFORMW %LOCALS:1%は肉棒をその身体のあらゆるところに押しつけられている
+								PRINTFORMW 濃厚すぎる雄の臭いが、%LOCALS:1%の肌に染みついていく……
+							CASE 2
+								PRINTFORMW 一時間もすると、%LOCALS:1%の身体は精液で汚れていないところはないほどにされてしまっていた
+								PRINTFORMW それでもなお、女日照りの%相手%どもは満足することはなく、なおも%LOCALS:1%を犯し続ける……
+						ENDSELECT
+						PRINTFORML
+						SELECTCASE RAND:3
+							CASE 0
+								PRINTFORMW ようやく解放されたころには、%LOCALS:1%はあらゆる穴から白濁を垂れ流していた……
+							CASE 1
+								PRINTFORMW ようやく解放されたころには、%LOCALS:1%の身体には%相手%と同じような臭いが染みついていた……
+							CASE 2
+								PRINTFORMW 定期的に自分たちの性処理に来るという約束と引き換えに、%LOCALS:1%はようやく解放してもらった……
+						ENDSELECT
+				ENDSELECT
+			CASE "変質者"
+				PRINTFORMW %LOCALS:1%は%相手%に出くわしたようだ
+				PRINTFORMW %LOCALS:1%は%相手%の露出プレイに付き合わされたようだ……
+				PRINTFORML
+				SELECTCASE RAND:3
+					CASE 0
+						PRINTFORMW %LOCALS:1%は%相手%と一緒に路地裏で露出プレイに及んだようだ
+						PRINTFORMW 露出の快楽に昂ぶった二人は、興奮のままに青姦に至った……
+					CASE 1
+						PRINTFORMW %相手%に求められ、%LOCALS:1%は路地裏で自慰に及んだ
+						PRINTFORMW 興奮した%相手%に迫られ、%LOCALS:1%はなし崩し的に性交した……
+					CASE 2
+						PRINTFORMW 身体を縄で縛り、両穴にバイブを埋めた姿で、%LOCALS:1%はそこら中を歩き回った
+						PRINTFORMW 興奮した%相手%は、その途中で何度も%LOCALS:1%の穴を使った……
+				ENDSELECT
+				PRINTFORML
+				SELECTCASE RAND:3
+					CASE 0
+						PRINTFORMW 露出の快感を覚えた%LOCALS:1%は、また会う約束を取り付けたようだ
+					CASE 1
+						PRINTFORMW 露出の快感のさめやらぬ%LOCALS:1%は、その後もしばらく自慰にふけっていた
+					CASE 2
+						PRINTFORMW 自分のしていることが異常だと分かってはいても、%LOCALS:1%は行為にハマってしまったようだ
+				ENDSELECT
+			CASE "薬の売人"
+				PRINTFORMW %LOCALS:1%は%相手%に出くわしたようだ……
+				PRINTFORMW 疲れの取れる薬を処方してもらったようだ
+				PRINTFORML
+				SELECTCASE RAND:3
+					CASE 0
+						PRINTFORMW 薬をさっそく使ってみた%LOCALS:1%は、完全にトリップしてしまった
+						PRINTFORMW だらしない雌の顔をさらしてアヘる%LOCALS:1%を、%相手%は好き放題にしている……
+					CASE 1
+						PRINTFORMW 薬を使った%LOCALS:1%は発情を抑えられなくなり、%相手%に犯してくれるよう頼んだ
+						PRINTFORMW 思うつぼになった%相手%は、げたげた笑いながら%LOCALS:1%を何度も犯していった……
+					CASE 2
+						PRINTFORMW 薬を使った%LOCALS:1%は、たちまち眠り込んでしまった
+						PRINTFORMW 意識のない%LOCALS:1%の雌穴を、%相手%は好き放題に犯し始めた……
+				ENDSELECT
+				CFLAG:(MTAR:0):薬物依存 += RAND(10, 30)
+		ENDSELECT
+	CASE "公衆便所"
+		PRINTFORMW %LOCALS:1%は%場所%で肉便器になってきたようだ……
+		SIF TALENT:(MTAR:0):肉便器
+			PRINTFORMW 肉便器である%LOCALS:1%は、使って「いただける」悦びに身を震わせている……
+		PRINTFORML
+		SELECTCASE RAND:3
+			CASE 0
+				PRINTFORMW %相手%たちは便器に縛り付けられた%LOCALS:1%たちを、好き放題に使っている
+				PRINTFORMW 何度目かも分からぬ射精を受け、%LOCALS:1%はまたも絶頂した……
+			CASE 1
+				PRINTFORMW すえた臭いの漂う便所で、%LOCALS:1%は%相手%どもに好き放題に使われている
+				PRINTFORMW 雌穴、尻穴、乳房、口、髪に手に足と、全てペニスの処理に使われている……
+			CASE 2
+				PRINTFORMW %相手%たちに使われる%LOCALS:1%は、目を垂れ下げ、悦びを感じている
+				PRINTFORMW その口に何発目かの白濁が注がれると、%LOCALS:1%は音を立ててそれを啜った……
+		ENDSELECT
+		PRINTFORML
+		SELECTCASE RAND:3
+			CASE 0	
+				PRINTFORMW 「便所」の仕事を終えた%LOCALS:1%は、白濁を垂れ流す雌穴をぐちゅぐちゅと垂れ流している……
+			CASE 1
+				PRINTFORMW %相手%が立ち去った後も、%LOCALS:1%は虚ろな笑みを浮かべながら肉棒をねだっていた……
+			CASE 2
+				PRINTFORMW 全身白濁まみれになった%LOCALS:1%は、この上なく淫蕩な笑みを浮かべている……
+		ENDSELECT
+		EXP:(MTAR:0):輪姦経験 += RAND(3, 5)
+	CASE "森林"
+		PRINTFORMW %LOCALS:0%は%LOCALS:1%を森林に送り出した……
+		PRINTFORML
+		SELECTCASE 相手
+			CASE "野盗", "野良妖怪"
+				PRINTFORMW %LOCALS:1%は%相手%どもに出くわしたようだ
+				PRINTFORMW 逃げようとした%LOCALS:1%だが、数には敵わず、捕らえられてしまった……
+				PRINTFORML
+				SELECTCASE RAND:4
+					CASE 0	
+						PRINTFORMW 組み伏せられた%LOCALS:1%は、%相手%に好き放題に犯されている
+						PRINTFORMW 抵抗もむなしく、その膣に下衆の白濁が注がれてしまった……
+					CASE 1
+						PRINTFORMW 組み伏せられた%LOCALS:1%は暴れるが、%相手%どもはその手足を押さえつけ、組み敷く
+						PRINTFORMW 無駄な抵抗を嘲笑いながら、%相手%どもは%LOCALS:1%の身体を白く汚していく……
+					CASE 2
+						PRINTFORMW %相手%どものねぐらに連れ込まれた%LOCALS:1%は、%相手%一人一人の相手をさせられている
+						PRINTFORMW 激しい抽送のたび、%LOCALS:1%の雌穴からは既に何発と放たれている精液がぶぢゅぶぢゅと溢れ出している……
+					CASE 3
+						PRINTFORMW %相手%どもは%LOCALS:1%を取り囲み、我先にと犯している
+						PRINTFORMW %LOCALS:1%が朦朧とし、気を失おうとも、陵辱は終わることはなかった……
+				ENDSELECT
+				PRINTFORML
+				SELECTCASE RAND:3
+					CASE 0
+						PRINTFORMW 性処理に使われぼろぼろになった%LOCALS:1%は、そこらに放置された……
+					CASE 1
+						PRINTFORMW 何度も犯され白濁まみれの%LOCALS:1%は、そこらの茂みに放っておかれた……
+					CASE 2
+						PRINTFORMW 気を失った%LOCALS:1%に唾を吐き、%相手%は%LOCALS:1%をそこらに捨てていった……
+				ENDSELECT
+			CASE "子供"
+				PRINTFORMW %LOCALS:1%は迷子の%相手%に出会った
+				PRINTFORMW %LOCALS:0%は%LOCALS:1%に命じ、%相手%を誘惑させた……
+				PRINTFORML
+				SELECTCASE RAND:3
+					CASE 0
+						PRINTFORMW 茂みの陰で、%LOCALS:1%は%相手%と性交渉に及んでいる
+						PRINTFORMW 自ら腰を振りたくり、未熟な精を何度も搾り取った……
+					CASE 1
+						PRINTFORMW %相手%はその外見から想像もつかない巨根の持ち主だった
+						PRINTFORMW 雌穴をごりごりと押し広げられながら、%LOCALS:1%はヨガり狂い、何度も絶頂に導いた……
+					CASE 2
+						PRINTFORMW %LOCALS:1%は%相手%のモノを口で何度も搾り取っている
+						PRINTFORMW 若い精の味を散々堪能したあとで、今度は下の口で堪能した……
+				ENDSELECT
+				PRINTFORML
+				PRINTFORMW その後、%LOCALS:1%は%相手%を家まで送り届けてやった
+			CASE "犬"
+				PRINTFORMW %LOCALS:1%は%相手%に出くわした
+				PRINTFORMW 頭でも撫でてやるかと近寄った%LOCALS:1%だが、%相手%は興奮し、押し倒してきた……
+				PRINTFORML
+				SELECTCASE RAND:3
+					CASE 0
+						PRINTFORMW 押し倒した%LOCALS:1%を四つん這いにさせ、%相手%は後ろから犯している
+						PRINTFORMW 人のそれとは違う形状をしたペニスに、%LOCALS:1%は目を白黒させて喘いでいる……
+					CASE 1
+						PRINTFORMW %LOCALS:1%は後ろからがつがつと貫かれている
+						PRINTFORMW 畜生に犯されることに屈辱を覚えながらも、野性的なセックスに身体は屈してしまっている……
+					CASE 2
+						PRINTFORMW %LOCALS:1%は%相手%に膣内射精されている
+						PRINTFORMW 畜生の精液に汚されているというのに、女の身体は反応し、%LOCALS:1%はだらしなくヨガってしまう……
+				ENDSELECT
+				PRINTFORML
+				SELECTCASE RAND:3
+					CASE 0
+						PRINTFORMW 膣穴から白濁を垂れ流す%LOCALS:1%をよそに、%相手%はその場を立ち去った……
+					CASE 1
+						PRINTFORMW 満足した%相手%が肉穴からペニスを引き抜くと、征服の証がとろりとこぼれ落ちた……
+					CASE 2
+						PRINTFORMW 満足した%相手%は、呆然と横たわる%LOCALS:1%にマーキング代わりに尿をひっかけ、立ち去った……
+				ENDSELECT
+				EXP:(MTAR:0):獣姦経験 += RAND(3, 8)
+		ENDSELECT
+	CASE "水辺"
+		PRINTFORMW %LOCALS:0%は%LOCALS:1%を遊泳場として人気の水辺に送り出した……
+		PRINTFORMW %LOCALS:1%の美しさは、周囲の目を否応なしに引きつけたようだ……
+		PRINTFORML
+		SELECTCASE 相手
+			CASE "チャラ男"
+				PRINTFORMW %LOCALS:1%は%相手%に声をかけられたようだ
+				SELECTCASE RAND:2
+					CASE 0
+						PRINTFORMW 肩に手を回され、なし崩し的に岩陰に連れ込まれた……
+						PRINTFORML
+						SELECTCASE RAND:3
+							CASE 0
+								PRINTFORMW 岩に手をついた%LOCALS:1%は、後ろから%相手%にがつがつと突き上げられている
+								PRINTFORMW 冷たい水に半身浸かった中で、肉穴に熱い粘りが注ぎ込まれた……
+							CASE 1
+								PRINTFORMW %相手%は%LOCALS:1%の口を塞ぎ、激しく犯している
+								PRINTFORMW 指の隙間からは、隠しきれない甘い声がこぼれ落ちている……
+							CASE 2
+								PRINTFORMW 岩に腰掛けた%相手%の前に跪き、%LOCALS:1%はペニスにしゃぶりついている
+								PRINTFORMW すっかり硬くなったペニスで、%相手%は%LOCALS:1%を犯し始めた……
+						ENDSELECT
+						PRINTFORML
+						SELECTCASE RAND:3
+							CASE 0
+								PRINTFORMW 連絡先を交換し、%LOCALS:1%は%相手%と分かれた
+							CASE 1
+								PRINTFORMW %相手%がペニスを引き抜くと、白濁が雌穴から水面へとこぼれ落ちた……
+							CASE 2
+								PRINTFORMW 冷たい水で冷えてしまった身体を、二人は再びまぐわって暖めた……
+						ENDSELECT
+					CASE 1
+					;ホテル
+						PRINTFORMW 肩に手を回され、%LOCALS:1%はなし崩し的に宿に連れ込まれた……
+						PRINTFORML 
+						SELECTCASE RAND:4
+							CASE 0
+								PRINTFORMW %相手%は早速%LOCALS:1%をベッドに押し倒し、激しく交わっている
+								PRINTFORMW その立派なモノによる雄々しい抽送は、%LOCALS:1%を雌に仕立て上げていく……
+							CASE 1
+								PRINTFORMW %相手%は%LOCALS:1%をねっとりとした腰遣いで責めている
+								PRINTFORMW 若者特有の情熱的なテクニックは、%LOCALS:1%の本能を綻ばせ、甘い声をあげさせる……
+							CASE 2
+								PRINTFORMW 一通りの行為が終わったのち、%LOCALS:1%は%相手%のモノを口で清めていった
+								PRINTFORMW 清め終わるころには、%相手%のモノはすっかり立派な姿を取り戻していた
+								PRINTFORMW 興奮した%相手%は%LOCALS:1%を押し倒し、第二試合を始めた……
+							CASE 3
+								PRINTFORMW %LOCALS:1%は%相手%に覆い被さられ、激しく突き上げられている
+								PRINTFORMW その野性的なピストンに、%LOCALS:1%の子宮はどんどん躾けられていく……
+						ENDSELECT
+						PRINTFORML
+						SELECTCASE RAND:4
+							CASE 0
+								PRINTFORMW %LOCALS:1%は%相手%と連絡先を交換した
+							CASE 1
+								PRINTFORMW %LOCALS:1%はシャワーを浴びて帰った
+							CASE 2
+								PRINTFORMW %LOCALS:1%は%相手%とまた会う約束を交わした
+							CASE 3
+								PRINTFORMW %相手%はベッドに倒れ込んだ%LOCALS:1%を放置して帰った
+						ENDSELECT
+				ENDSELECT
+			CASE "痴漢"
+				PRINTFORMW 水着姿で泳いでいると、%LOCALS:1%は%相手%に襲われたようだ
+				PRINTFORMW 身動きもろくに取れない水中で、%LOCALS:1%はいいように弄ばれている……
+				PRINTFORML
+				SELECTCASE RAND:3
+					CASE 0
+						PRINTFORMW 水中で、%LOCALS:1%は秘部に肉棒をねじ込まれてしまった
+						PRINTFORMW 周囲に気取られないよう平静を装う%LOCALS:1%だが、水面下では肉穴をペニスが激しく犯している……
+					CASE 1
+						PRINTFORMW %LOCALS:1%が肉棒を引き抜くと、白濁がどろりと水中に流れ出していった
+						PRINTFORMW 大勢の人間のど真ん中で、%LOCALS:1%は%相手%に種付けされてしまった……
+					CASE 2
+						PRINTFORMW %相手%にたっぷり膣内射精された後、%LOCALS:1%は水着を奪われた
+						PRINTFORMW %LOCALS:1%は%LOCALS:0%が迎えに来るまで、水からあがることができなかった……
+					CASE 3
+						PRINTFORMW %相手%は%LOCALS:1%の身体を弄り、官能を否応なしに高めていく
+						PRINTFORMW 挿れて欲しいんだろう？　と耳元でささやかれ、%LOCALS:1%は恥も外聞もなく挿入をねだった……
+				ENDSELECT
+		ENDSELECT
+ENDSELECT
+PRINTFORML
+DRAWLINE
