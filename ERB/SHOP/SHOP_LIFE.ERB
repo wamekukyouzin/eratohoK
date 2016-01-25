@@ -50,9 +50,11 @@ SELECTCASE ARG:0
 	CASE 24
 		CALL PRINTBUTTON_SHOP(40, "{  能力表示}", 7,  FLAG:7 == 1040)
 	CASE 25
+		CALL PRINTBUTTON_SHOP(41, "{  関係一覧}", 7,  FLAG:7 == 1041)
+	CASE 26
 		CALL PRINTBUTTON_SHOP(50, "{  アイテム}", 7)
 	;項番50台は各メニュー内のボタンで使われてることがあるので注意
-	CASE 27
+	CASE 2
 		CALL PRINTBUTTON_SHOP(60, "{次の周回へ}", 7)
 	CASE 30
 		CALL PRINTBUTTON_SHOP(99, "{      休息}", 7)
@@ -231,6 +233,10 @@ ELSEIF FLAG:7 == 1003
 ;料理長
 ELSEIF FLAG:7 == 1026
 	CALL LIFE_MENU_COOK()
+	RETURN
+;関係一覧
+ELSEIF FLAG:7 == 1041
+	CALL LIFE_MENU_RELATION()
 	RETURN
 ENDIF
 
@@ -1394,6 +1400,133 @@ IF 行数 < LINES_SHOP_DRAW
 	NEXT
 ENDIF
 
+
+;-------------------------------------------------
+;「関係一覧」のメニュー表示
+;-------------------------------------------------
+@LIFE_MENU_RELATION()
+#DIM 選択人数;(LOCAL:30)
+#DIM 行数;(LOCAL:20)
+#DIM 最大ページ数
+#DIM PRINTOPTION
+CALL PRINT_LIFE_MENU(0)
+PRINTFORM ★★関係を表示するキャラを選択して下さい 現在:対象\@ FLAG:25 == 0 ? からの # への\@★★
+CALL PRINTBUTTON_SHOP(58, "[切り替え]", 10)
+PRINTL
+CALL PRINT_LIFE_MENU(1)
+CALL REPEAT_DASH(0)
+CALL PRINT_LIFE_MENU(2)
+PRINT    
+CALL PRINTBUTTON_CENTER(@"{NO:MASTER + 100, 5, RIGHT}[%ANAME(MASTER), 16, LEFT%]", NO:MASTER + 100, 0, 1, FLAG:23 == MASTER)
+PRINTFORM  
+IF FLAG:23 >= 0
+	IF FLAG:25 == 0
+		PRINTFORM 好:{REL_LIKE:(FLAG:23):MASTER, 4, RIGHT}
+		PRINTFORM 嫌:{REL_HATE:(FLAG:23):MASTER, 4, RIGHT}
+	ELSE
+		PRINTFORM 好:{REL_LIKE:MASTER:(FLAG:23), 4, RIGHT}
+		PRINTFORM 嫌:{REL_HATE:MASTER:(FLAG:23), 4, RIGHT}
+	ENDIF
+ELSE
+	PRINTFORM               
+ENDIF
+PRINTL
+行数 = 3
+;ページ数を計算
+LOCAL:12 = (LINES_SHOP_DRAW - 2 - 行数) * 3
+最大ページ数 = 0
+FOR LOCAL:0, 0, CHARANUM
+	;選択可能な条件を満たしているかどうかを判定
+	CALL CHECK_SELECTABLE(FLAG:7, LOCAL:0)
+	IF RESULT
+		最大ページ数 ++
+	ENDIF
+NEXT
+最大ページ数 = MAX((最大ページ数 - 1) / LOCAL:12 + 1, 1)
+
+;ページ数を範囲に収める
+FLAG:6 = (最大ページ数 - 1 + FLAG:6 % 最大ページ数) % 最大ページ数 + 1
+LOCAL:11 = FLAG:6
+
+;キャラリストの表示
+LOCAL:13 = 0
+LOCAL:14 = 0
+LOCAL:15 = (LOCAL:11 - 1) * LOCAL:12
+LOCAL:16 = LOCAL:11 * LOCAL:12
+FOR LOCAL:0, 0, CHARANUM
+	LOCAL:5 = SHOP_CHARA_LIST:(LOCAL:0)
+	;選択可能な条件を満たしているかどうかを判定
+	RESULT = 0
+	CALL CHECK_SELECTABLE(FLAG:7, LOCAL:5)
+	PRINTOPTION = RESULT
+	IF RESULT
+		IF LOCAL:13 >= LOCAL:15 && LOCAL:13 < LOCAL:16
+			IF LOCAL:14 % 2 != 0
+				PRINTPLAIN 　
+			ELSE
+				IF LOCAL:14 >= 1
+					PRINTL 
+				ENDIF
+				CALL PRINT_LIFE_MENU(行数)
+				行数 ++
+			ENDIF
+			PRINT    
+			IF PRINTOPTION == 1
+				CALL PRINTBUTTON_CENTER(@"{NO:(LOCAL:5) + 100, 5, RIGHT}[%ANAME(LOCAL:5), 16, LEFT%]", NO:(LOCAL:5) + 100, 0, 1, FLAG:23 == LOCAL:5)
+			ELSEIF PRINTOPTION == 2
+				CALL PRINTBUTTON_CENTER(@"{NO:(LOCAL:5) + 100, 5, RIGHT}[%ANAME(LOCAL:5), 16, LEFT%]", NO:(LOCAL:5) + 100, 0, 1, FLAG:23 == LOCAL:5)
+			ENDIF
+			PRINTFORM  
+			IF FLAG:23 >= 0
+				IF FLAG:25 == 0
+					PRINTFORM 好:{REL_LIKE:(FLAG:23):(LOCAL:5), 4, RIGHT}
+					PRINTFORM 嫌:{REL_HATE:(FLAG:23):(LOCAL:5), 4, RIGHT}
+				ELSE
+					PRINTFORM 好:{REL_LIKE:(LOCAL:5):(FLAG:23), 4, RIGHT}
+					PRINTFORM 嫌:{REL_HATE:(LOCAL:5):(FLAG:23), 4, RIGHT}
+				ENDIF
+			ELSE
+				PRINTFORM               
+			ENDIF
+			LOCAL:14 ++
+		ENDIF
+		LOCAL:13 ++
+	ENDIF
+NEXT
+IF LOCAL:14 >= 1
+	PRINTL 
+ENDIF
+
+IF 行数 < LINES_SHOP_DRAW
+	LOCAL:1 = 行数
+	FOR LOCAL:0, LOCAL:1, LINES_SHOP_DRAW
+		CALL PRINT_LIFE_MENU(LOCAL:0)
+		IF LOCAL:0 == LINES_SHOP_DRAW - 2
+			CALL REPEAT_DASH(0, 0)
+		ELSEIF LOCAL:0 == LINES_SHOP_DRAW - 1
+			PRINT   
+			IF 最大ページ数 >= 2
+				PRINTBUTTON "54[前のページ    ]", 54
+			ELSE
+				SETCOLOR COLOR("選択不可")
+				PRINTPLAINFORM 54[前のページ    ]
+				RESETCOLOR
+			ENDIF
+			PRINTPLAINFORM %TOSTR_SPACE(10)%
+			LOCALS:0 = page{LOCAL:11}/{最大ページ数}
+			PRINTPLAINFORM %LOCALS:0, 14, LEFT%
+			IF 最大ページ数 >= 2
+				PRINTBUTTON "56[次のページ    ]", 56
+			ELSE
+				SETCOLOR COLOR("選択不可")
+				PRINTPLAINFORM 56[次のページ    ]
+				RESETCOLOR
+			ENDIF
+		ENDIF
+		PRINTL 
+	NEXT
+ENDIF
+
 ;-------------------------------------------------
 ;ショップ画面の入力処理(拠点フェイズ 0～99)
 ;ARG:0に入力した値が入る
@@ -1495,6 +1628,14 @@ IF SHOP_AVAIL:(ARG:0)
 		FLAG:6 = 1
 		FLAG:70 = 0
 		RETURN 0
+	;関係一覧
+	ELSEIF ARG:0 == 41
+		FLAG:7 = 1041
+		FLAG:6 = 1
+		FLAG:23 = 0
+		FLAG:25 = 0
+		FLAG:70 = 0
+		RETURN 0
 	;(コスプレパッチ追加分)
 	;服を替える
 	ELSEIF ARG:0 == 25
@@ -1546,6 +1687,10 @@ IF SHOP_AVAIL:(ARG:0)
 		;選択軟禁者（被説得者）の選択を解除
 		FLAG:72 = 0
 		RETURN 0
+	;関係一覧の「への」「からの」切り替え
+	ELSEIF ARG:0 == 58 && FLAG:7 == 1041
+		FLAG:25 = !FLAG:25
+		RETURN 0
 	;前のページ
 	ELSEIF ARG:0 == 64
 		FLAG:13 --
@@ -1585,8 +1730,8 @@ IF ARG:0 < 0 || ARG:0 >= CHARANUM
 	RETURN 0
 ENDIF
 
-;能力表示と服をかえるのみ主人公を選択可能
-IF !((FLAG:7 == 1040 || FLAG:7 == 1025) && ARG:0 == MASTER)
+;能力表示と服をかえると関係一覧のみ主人公を選択可能
+IF !((FLAG:7 == 1040 || FLAG:7 == 1025 || FLAG:7 == 1041) && ARG:0 == MASTER)
 	;選択可能な条件を満たしていないキャラなら戻る
 	RESULT = 0
 	TRYCALLFORM CHECK_SELECTABLE(FLAG:7, ARG:0)
@@ -2681,6 +2826,9 @@ ELSEIF FLAG:7 == 1026
 		PRINTFORMW ただし、%ANAME(ARG:0)%が捕虜になると効果がなくなります
 		CALL SET_COOK(ARG:0)
 	ENDIF
+;関係一覧
+ELSEIF FLAG:7 == 1041
+	FLAG:23 = ARG:0
 ;様子を見る(逆調教専用)
 ;ELSEIF FLAG:7 == 1030
 ;	CALL SHOP_WATCH_OTHERS(ARG:0)
