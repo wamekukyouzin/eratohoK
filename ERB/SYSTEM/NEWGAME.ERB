@@ -342,10 +342,23 @@ ELSEIF LOCAL:10 == 1
 		ENDIF
 		CFLAG:MASTER:1 = FLAG:3
 	ENDIF
-	IF NAME_TO_CHARA("霖之助") != MASTER
-		;霖之助の扱いを設定
+	
+	;登録キャラの扱いを設定
+	FOR LOCAL:0, 0, 30
+		;体力が正なら登録キャラが存在すると判定（主人公は除外）
+		IF MASTER_MAXBASE:(LOCAL:0):0 > 0 && MASTER_ID != LOCAL:0
+			LOCAL:1 ++
+		ENDIF
+	NEXT
+	
+	SIF LOCAL:1 > 0
+		CALL SET_登録キャラ
+
+	LOCAL:1 = 0
+	
+	;霖之助の扱いを設定
+	SIF NAME_TO_CHARA("霖之助") != MASTER
 		CALL SET_霖之助
-	ENDIF
 
 	;引き継ぎキャラの所属を主人公勢力にする
 	FOR LOCAL:0, 0, CHARANUM
@@ -603,21 +616,21 @@ IF RESULT == 0
 
 ;登録キャラを選択
 ELSEIF RESULT >= 10 && RESULT <= 40 && MASTER_MAXBASE:(RESULT - 10):0 > 0
-	LOCAL:8 = RESULT - 10
-	CALL APPLY_MASTER_DATA(MASTER, LOCAL:8)
+	MASTER_ID = RESULT - 10
+	CALL APPLY_MASTER_DATA(MASTER, MASTER_ID)
 	LOCAL:6 = MASTER
 
 ;霖之助を選択
 ELSEIF RESULT == 99
 	LOCAL:6 = NAME_TO_CHARA("霖之助")
-	LOCAL:8 = -1
+	MASTER_ID = -1
 
 ;既存のキャラを選択
 ELSE
 	LOCAL:2 = NO_TO_CHARA(RESULT - 100)
 	IF LOCAL:2 >= 0 && CFLAG:(LOCAL:2):1 == FLAG:3
 		LOCAL:6 = LOCAL:2
-		LOCAL:8 = -1
+		MASTER_ID = -1
 	ELSE
 		GOTO INPUT_LOOP1
 	ENDIF
@@ -643,7 +656,7 @@ DRAWLINE
 CONFIG:6 = LOCAL:0
 
 PRINTBUTTON " 0[このキャラを主人公にして開始]", 0
-IF LOCAL:8 >= 0
+IF MASTER_ID >= 0
 	PRINT    
 	PRINTBUTTON " 1[修正]", 1
 	PRINT    
@@ -686,8 +699,8 @@ ELSEIF RESULT == 9
 	ENDIF
 	RESTART
 
-ELSEIF RESULT == 1 && LOCAL:8 >= 0
-	CALL CREATE_MASTER(LOCAL:8, 1)
+ELSEIF RESULT == 1 && MASTER_ID >= 0
+	CALL CREATE_MASTER(MASTER_ID, 1)
 	SAVEGLOBAL
 	RESTART
 
@@ -695,7 +708,7 @@ ELSEIF RESULT == 2 && LOCAL:8 >= 0
 	PRINTL 本当に削除してもよろしいですか？
 	CALL ASK_YN()
 	IF RESULT == 0
-		CALL DELETE_MASTER(LOCAL:8)
+		CALL DELETE_MASTER(MASTER_ID)
 		SAVEGLOBAL
 	ENDIF
 	RESTART
@@ -1623,6 +1636,183 @@ FOR LOCAL, 0, CHARANUM
 	REL_LIKE:(LOCAL):(ARG:0) = REL_LIKE_COPY
 	REL_HATE:(LOCAL):(ARG:0) = REL_HATE_COPY
 NEXT
+
+;-------------------------------------------------
+;登録キャラの扱いを設定する関数
+;-------------------------------------------------
+@SET_登録キャラ
+;勢力の数を数える
+LOCAL:2 = 0
+FOR LOCAL:0, 1, MAX_COUNTRY
+	IF IS_COUNTRY(LOCAL:0)
+		LOCAL:2 ++
+	ENDIF
+NEXT
+
+DRAWLINE
+PRINTL 選ばなかった登録キャラを登場させるかどうかを設定できます（現在は0人 or 全員）
+PRINTL [0] 登場させない
+PRINTL [1] 主人公勢力に組み込む
+IF LOCAL:2 >= 2
+	PRINTL [2] 主人公以外のランダムな勢力に組み込む
+	PRINTL [3] 選択した勢力に組み込む
+ELSE
+	SETCOLOR COLOR("選択不可")
+	PRINTPLAIN [2] 主人公以外のランダムな勢力に組み込む
+	PRINTL 
+	PRINTPLAIN [3] 選択した勢力に組み込む
+	PRINTL 
+	RESETCOLOR
+ENDIF
+
+$INPUT_LOOP_登録キャラ
+INPUT
+
+IF RESULT == 0
+	PRINTW 主人公以外の登録キャラは登場しません
+ELSEIF RESULT == 1
+	PRINTW 登録キャラを主人公勢力のキャラとして登場させます
+	;登録キャラの扱いを設定
+	FOR LOCAL:0, 0, 30
+		;体力が正なら登録キャラが存在すると判定（主人公は除外）
+		IF MASTER_MAXBASE:(LOCAL:0):0 > 0 && MASTER_ID != LOCAL:0
+			CALL ADD_VOID_CHARA()
+			LOCAL:1 = RESULT
+			CALL APPLY_MASTER_DATA(LOCAL:1, LOCAL:0)
+			CFLAG:(LOCAL:1):1 = CFLAG:MASTER:1
+			SIF CFLAG:MASTER:1 == 0
+				CFLAG:(LOCAL:1):12 = 1
+		ENDIF
+	NEXT
+
+ELSEIF RESULT == 2 && LOCAL:2 >= 2
+	PRINTW 登録キャラをランダムな勢力のキャラとして登場させます
+	;ランダムに勢力を選ぶ
+	;登録キャラの扱いを設定
+	FOR LOCAL:0, 0, 30
+		;体力が正なら登録キャラが存在すると判定（主人公は除外）
+		IF MASTER_MAXBASE:(LOCAL:0):0 > 0 && MASTER_ID != LOCAL:0
+			CALL ADD_VOID_CHARA()
+			LOCAL:1 = RESULT
+			CALL APPLY_MASTER_DATA(LOCAL:1, LOCAL:0)
+			LOCAL:3 = RAND:(LOCAL:2 - 1)
+			LOCAL:2 = 0
+			FOR LOCAL:4, 1, MAX_COUNTRY
+				IF IS_COUNTRY(LOCAL:4) && LOCAL:4 != CFLAG:MASTER:1
+					IF LOCAL:2 == LOCAL:3
+						;選んだ勢力に登録キャラを追加
+						CFLAG:(LOCAL:0):1 = LOCAL:0
+						BREAK
+					ENDIF
+					LOCAL:2 ++
+				ENDIF
+			NEXT
+		ENDIF
+	NEXT
+ELSEIF RESULT == 3 && LOCAL:2 >= 2
+	CALL SELECT_COUNTRY_登録キャラ
+ELSE
+	GOTO INPUT_LOOP_登録キャラ
+ENDIF
+
+;-------------------------------------------------
+;登録キャラを追加する勢力の選択
+;-------------------------------------------------
+@SELECT_COUNTRY_登録キャラ
+DRAWLINE
+PRINTL ★★登録キャラの所属勢力を選択して下さい★★
+DRAWLINE
+FOR LOCAL:0, 1, MAX_COUNTRY
+	IF COUNTRY_BOSS:(LOCAL:0) >= 1
+		LOCAL:2 = ID_TO_CHARA(COUNTRY_BOSS:(LOCAL:0))
+		PRINTFORM [{LOCAL:0 + 100, 3, RIGHT}] %NAME:(LOCAL:2)%
+		IF NAME:(LOCAL:2) != CALLNAME:(LOCAL:2)
+			PRINTFORM (%CALLNAME:(LOCAL:2)%)
+		ENDIF
+		PRINTL 
+	ENDIF
+NEXT
+DRAWLINE
+PRINTL [200] マップを見る
+
+$INPUT_LOOP
+INPUT
+
+IF RESULT == 200
+	DRAWLINE
+	CALL SET_CITY_COLOR_COUNTRY
+	CALL DRAWMAP
+	CALL RESET_CITY_COLOR
+	DRAWLINE
+	PRINTL 都市をクリックすることで、その勢力の情報を得ることができます
+	PRINTL [200] 戻る
+
+	REDRAW 0
+
+	$INPUT_LOOP_MAP
+	INPUT
+
+	IF RESULT == 200
+		REDRAW 1
+		RESTART
+	ELSEIF RESULT >= 1001 && RESULT < 1000 + MAX_CITY
+		LOCAL:2 = CITY_OWNER:(RESULT - 1000)
+		LOCAL:3 = ID_TO_CHARA(COUNTRY_BOSS:(LOCAL:2))
+		IF LOCAL:2 > 0
+			CLEARLINE 31
+			CALL SET_CITY_COLOR_COUNTRY
+			CALL DRAWMAP
+			CALL RESET_CITY_COLOR
+			DRAWLINE
+			PRINTPLAIN この都市は　
+			PRINTFORM [{LOCAL:2 + 100, 3, RIGHT}] %NAME:(LOCAL:3)%
+			PRINTPLAIN 　の勢力下にあります
+			PRINTL 
+			PRINTL [200] 戻る
+			GOTO INPUT_LOOP_MAP
+		ENDIF
+	ELSEIF RESULT >= 100 && RESULT < 200
+		LOCAL:6 = RESULT - 100
+		LOCAL:5 = ID_TO_CHARA(COUNTRY_BOSS:(LOCAL:6))
+		IF LOCAL:5 > 0
+			;登録キャラの扱いを設定
+			FOR LOCAL:0, 0, 30
+				;体力が正なら登録キャラが存在すると判定（主人公は除外）
+				IF MASTER_MAXBASE:(LOCAL:0):0 > 0 && MASTER_ID != LOCAL:0
+					CALL ADD_VOID_CHARA()
+					LOCAL:1 = RESULT
+					CALL APPLY_MASTER_DATA(LOCAL:1, LOCAL:0)
+					CFLAG:(LOCAL:1):1 = LOCAL:5
+				ENDIF
+			NEXT
+			PRINTFORMW 登録キャラを%NAME:(LOCAL:5)%勢力の士官として登場させます
+			REDRAW 1
+			RETURN
+		ENDIF
+	ENDIF
+	CLEARLINE 1
+	GOTO INPUT_LOOP_MAP
+
+ELSEIF RESULT >= 100 && RESULT < 200
+	LOCAL:6 = RESULT - 100
+	LOCAL:5 = ID_TO_CHARA(COUNTRY_BOSS:(LOCAL:6))
+	IF LOCAL:5 > 0
+		;登録キャラの扱いを設定
+		FOR LOCAL:0, 0, 30
+			;体力が正なら登録キャラが存在すると判定（主人公は除外）
+			IF MASTER_MAXBASE:(LOCAL:0):0 > 0 && MASTER_ID != LOCAL:0
+				CALL ADD_VOID_CHARA()
+				LOCAL:1 = RESULT
+				CALL APPLY_MASTER_DATA(LOCAL:1, LOCAL:0)
+				CFLAG:(LOCAL:1):1 = LOCAL:5
+			ENDIF
+		NEXT
+		PRINTFORMW 登録キャラを%NAME:(LOCAL:5)%勢力の士官として登場させます
+		RETURN
+	ENDIF
+ENDIF
+GOTO INPUT_LOOP
+
 ;-------------------------------------------------
 ;霖之助の扱いを設定する関数
 ;-------------------------------------------------
@@ -1659,6 +1849,8 @@ IF RESULT == 0
 ELSEIF RESULT == 1
 	PRINTW 霖之助を主人公勢力のキャラとして登場させます
 	CFLAG:NAME_TO_CHARA("霖之助"):1 = CFLAG:MASTER:1
+	SIF CFLAG:MASTER:1 == 0
+		CFLAG:NAME_TO_CHARA("霖之助"):12 = 1
 
 ELSEIF RESULT == 2 && LOCAL:2 >= 2
 	PRINTW 霖之助をランダムな勢力のキャラとして登場させます
