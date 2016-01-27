@@ -113,6 +113,22 @@ CITY_COMMANDER:(ARG:0) |= (LOCAL:0 << (16 * ARG:1))
 RETURN 1
 
 ;-------------------------------------------------
+;ARG:0番の都市について、空いてるとこの守将をARG:1番のキャラに設定する関数
+;設定できたらその位置が、できなければ-1が戻る
+;※ARG:2 …… 0=ARG:1をキャラ番号で設定  0以外=IDで設定
+;-------------------------------------------------
+@SET_CITY_COMMANDER_ANYWHERE(ARG:0, ARG:1, ARG:2 = 0)
+SIF !INRANGE_CITY(ARG:0)
+	RETURN -1
+IF GET_CITY_COMMANDER(ARG:0, 0) == -1
+	CALL SET_CITY_COMMANDER(ARG:0, 0, ARG:1)
+	RETURN 0
+ELSEIF GET_CITY_COMMANDER(ARG:0, 1) == -1
+	CALL SET_CITY_COMMANDER(ARG:0, 1, ARG:1)
+	RETURN 1
+ENDIF
+RETURN -1
+;-------------------------------------------------
 ;ARG:0番の都市について、ARG:1番目の守将をクリアする関数
 ;-------------------------------------------------
 @CLEAR_CITY_COMMANDER(ARG:0, ARG:1)
@@ -141,7 +157,22 @@ SELECTCASE ARG:1
 		CITY_COMMANDER:(ARG:0) = CITY_COMMANDER:(ARG:0) >> 16
 ENDSELECT
 
-
+;-------------------------------------------------
+;ARG:0番の都市について、ARG:1が守将なら外す
+;設定できたらその位置が、できなければ-1が戻る
+;※ARG:2 …… 0=ARG:1をキャラ番号で設定  0以外=IDで設定
+;-------------------------------------------------
+@CLEAR_CITY_COMMANDER_FIND(ARG:0, ARG:1, ARG:2 = 0)
+SIF !INRANGE_CITY(ARG:0)
+	RETURN -1
+IF GET_CITY_COMMANDER(ARG:0, 0) == ARG:1
+	CALL CLEAR_CITY_COMMANDER(ARG:0, 0)
+	RETURN 0
+ELSEIF GET_CITY_COMMANDER(ARG:0, 1) == ARG:1
+	CALL CLEAR_CITY_COMMANDER(ARG:0, 1)
+	RETURN 1
+ENDIF
+RETURN -1
 ;-------------------------------------------------
 ;ARG:0勢力のARG:1部隊について、ARG:2番目の将のキャラ番号を返す関数
 ;-------------------------------------------------
@@ -173,6 +204,22 @@ UNIT_COMMANDER:(ARG:0):(ARG:1) |= (LOCAL:0 << (16 * ARG:2))
 RETURN 1
 
 ;-------------------------------------------------
+;ARG:0勢力のARG:1部隊について、ARG:2番のキャラを空いてるとこに設定する関数
+;設定できたらその位置が、できなければ-1が戻る
+;※ARG:3 …… 0=ARG:2をキャラ番号で設定  0以外=IDで設定
+;-------------------------------------------------
+@SET_UNIT_COMMANDER_ANYWHERE(ARG:0, ARG:1, ARG:2, ARG:3 = 0)
+SIF !INRANGE_COUNTRY(ARG:0) || !INRANGE_UNIT(ARG:1)
+	RETURN 0
+FOR LOCAL, 0, 3
+	IF GET_UNIT_COMMANDER(ARG:0, ARG:1, LOCAL) == -1
+		CALL SET_UNIT_COMMANDER(ARG:0, ARG:1, LOCAL, ARG:2, ARG:3)
+		RETURN LOCAL
+	ENDIF
+NEXT
+RETURN -1
+
+;-------------------------------------------------
 ;ARG:0勢力のARG:1部隊について、ARG:2番目の将をクリアし、それ以降の将を念のため詰める関数
 ;-------------------------------------------------
 @CLEAR_UNIT_COMMANDER(ARG:0, ARG:1, ARG:2)
@@ -199,6 +246,20 @@ SELECTCASE ARG:2
 		NEXT
 ENDSELECT
 
+;-------------------------------------------------
+;ARG:0勢力のARG:1部隊について、ARG:2のキャラがいればクリアし、それ以降の将を念のため詰める関数
+;-------------------------------------------------
+@CLEAR_UNIT_COMMANDER_FIND(ARG:0, ARG:1, ARG:2)
+#DIM REM_UNIT_COMMANDER
+SIF !INRANGE_COUNTRY(ARG:0) || !INRANGE_UNIT(ARG:1)
+	RETURN 0
+FOR LOCAL, 0, CHARANUM
+	IF GET_UNIT_COMMANDER(ARG:0, ARG:1, LOCAL) == ARG:2
+		CALL CLEAR_UNIT_COMMANDER(ARG:0, ARG:1, LOCAL)
+		RETURN LOCAL
+	ENDIF
+NEXT
+RETURN -1
 
 ;-------------------------------------------------
 ;ARG:0勢力のARG:1部隊を指揮する将の名前(NAME)を返す関数 ARGS:2=複数の将がいる場合に間を区切る文字
