@@ -43,12 +43,22 @@ IF !FLAG:50
 ENDIF
 IF !FLAG:あてがうフラグ
 	FOR LOCAL:0, 0, CHARANUM
-		IF CFLAG:(LOCAL:0):6 && NO:(LOCAL:0) <= 999
+		IF (LOCAL == MASTER || CFLAG:(LOCAL:0):6) && NO:(LOCAL:0) <= 999
 			;素質変化に関する処理(恋慕の取得など)
 			CALL TALENT_CHECK(LOCAL:0)
 		ENDIF
 	NEXT
 ENDIF
+
+FOR LOCAL:0, 0, CHARANUM
+	IF LOCAL == MASTER || CFLAG:(LOCAL:0):6
+		;性的嗜好の変化
+		;あてがった場合はロックフラグを立てる
+		CALL CHECK_SEXUAL_PREFERENCE(LOCAL:0, LOCAL == MASTER && FLAG:あてがうフラグ)
+	ENDIF
+NEXT
+
+
 FOR LOCAL:0, 0, CHARANUM
 	IF (LOCAL:0 == MASTER || CFLAG:(LOCAL:0):6) && NO:(LOCAL:0) <= 999
 		;妊娠判定
@@ -152,10 +162,11 @@ IF FLAG:あてがうフラグ
 
 	FOR LOCAL, 0, 10
 		LOCAL:1 = TMP_参加者:LOCAL
+		;今回の調教で獲得した好感度やら依存度やらを、保存しといた好感度やらに加算する
 		IF TMP_参加者
-			CFLAG:(LOCAL:1):好感度 = TMP_好感度:LOCAL
-			CFLAG:(LOCAL:1):依存度 = TMP_依存度:LOCAL
-			CFLAG:(LOCAL:1):従属度 = TMP_従属度:LOCAL
+			CFLAG:(LOCAL:1):好感度 = CFLAG:(LOCAL:1):好感度 + TMP_好感度:LOCAL - 1000
+			CFLAG:(LOCAL:1):依存度 = CFLAG:(LOCAL:1):依存度 + TMP_依存度:LOCAL - 1000
+			CFLAG:(LOCAL:1):従属度 = CFLAG:(LOCAL:1):従属度 + TMP_従属度:LOCAL - 1000
 		ENDIF
 	NEXT
 	CFLAG:MASTER:好感度 -= CFLAG:MASTER:好感度 / 10

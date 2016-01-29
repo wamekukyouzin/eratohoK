@@ -38,7 +38,7 @@ NEXT
 
 FOR LOCAL, 0, MAX_COUNTRY
 	IF COUNTRY_EVENT_ID:LOCAL == COUNTRY_BANDIT && GET_OWN_CITY(LOCAL) == 0
-		CALL BANDIT_TURNEND(LOCAL)
+		CALL BANDIT_AI(LOCAL)
 	ENDIF
 NEXT
 
@@ -1695,7 +1695,8 @@ ENDSELECT
 ;逃走阻止率
 #DIM CAPTURE_RATE
 
-#DIM アップ種類
+#DIM アップ能力
+#DIM アップ経験値
 #DIM アップ量
 
 VARSET COMMANDER_W, -1
@@ -1883,61 +1884,77 @@ FOR LOCAL:0, 0, 3
 NEXT
 FOR LOCAL,0, 3
 	LOCAL:1 = COMMANDER_W:LOCAL
-	IF LOCAL:1 > 0 && (ABL:(LOCAL:1):武闘 < 80 || ABL:(LOCAL:1):知略 < 80 || ABL:(LOCAL:1):政治 < 80 || ABL:(LOCAL:1):料理 < 60 || ABL:(LOCAL:1):歌唱 < 60)
+	IF LOCAL:1 > 0
 		アップ量 = 0
 		SELECTCASE RAND:100
 			CASE IS < 30
-				アップ種類 = GETNUM(ABL, "武闘")
+				アップ能力 = GETNUM(ABL, "武闘")
+				アップ経験値 = GETNUM(EXP, "武闘経験値")
 			CASE IS < 60
-				アップ種類 = GETNUM(ABL, "知略")
+				アップ能力 = GETNUM(ABL, "知略")
+				アップ経験値 = GETNUM(EXP, "知略経験値")
 			CASE IS < 80
-				アップ種類 = GETNUM(ABL, "政治")
+				アップ能力 = GETNUM(ABL, "政治")
+				アップ経験値 = GETNUM(EXP, "政治経験値")
 			CASE IS < 90
-				アップ種類 = GETNUM(ABL, "歌唱")
+				アップ能力 = GETNUM(ABL, "歌唱")
+				アップ経験値 = GETNUM(EXP, "歌唱経験値")
 			CASEELSE
-				アップ種類 = GETNUM(ABL, "料理")
+				アップ能力 = GETNUM(ABL, "料理")
+				アップ経験値 = GETNUM(EXP, "料理経験値")
 		ENDSELECT
-		SELECTCASE アップ種類
-			CASE GETNUM(ABL, "武闘"), GETNUM(ABL, "知略"), GETNUM(ABL, "政治")
-				SELECTCASE ABL:(LOCAL:1):アップ種類
-					CASE IS < 30
-						アップ量 = RAND(1, 3)
-					CASE IS < 50
-						アップ量 = RAND:3
-					CASE IS < 70
-						アップ量 = RAND:2
-					CASE IS < 80
-						SIF !RAND:4
-							アップ量 = 1
+		IF TALENT:(LOCAL:1):妖術知識 && ABL:(LOCAL:1):妖術 < 50
+			アップ能力 = GETNUM(ABL, "妖術")
+			アップ経験値 = GETNUM(EXP, "妖術経験値")
+		ENDIF
+		SELECTCASE アップ能力
+			CASE GETNUM(ABL, "武闘"), GETNUM(ABL, "知略"), GETNUM(ABL, "政治"), GETNUM(ABL, "妖術")
+				LOCAL:2 = ABLUP_NEED_EXP_SLG_THREE(ABL:(LOCAL:1):アップ能力)
+				SELECTCASE ABL:(LOCAL:1):アップ能力
+					CASE IS >= ランク閾値_三能力_A
+						アップ量 = 0
+					CASE IS >= ランク閾値_三能力_B
+						アップ量 = RAND(0, LOCAL:2 / 2)
+					CASE IS >= ランク閾値_三能力_C
+						アップ量 = RAND(0, LOCAL:2)
+					CASE IS >= ランク閾値_三能力_F
+						アップ量 = RAND(0, LOCAL:2 * 2)
+					CASEELSE
+						アップ量 = RAND(LOCAL:2, LOCAL:2 * 3)
 				ENDSELECT
 			CASEELSE
-				SELECTCASE ABL:(LOCAL:1):アップ種類
-					CASE IS < 25
-						アップ量 = RAND(1, 2)
-					CASE IS < 40
-						アップ量 = RAND:3
-					CASE IS < 50
-						アップ量 = RAND:2
-					CASE IS < 60
-						SIF !RAND:4
-							アップ量 = 1
+				LOCAL:2 = ABLUP_NEED_EXP_SLG_TWO(ABL:(LOCAL:1):アップ能力)
+				SELECTCASE ABL:(LOCAL:1):アップ能力
+					CASE IS >= ランク閾値_料理歌唱_A
+						アップ量 = 0
+					CASE IS >= ランク閾値_料理歌唱_B
+						アップ量 = RAND(0, LOCAL:2 / 2)
+					CASE IS >= ランク閾値_料理歌唱_C
+						アップ量 = RAND(0, LOCAL:2)
+					CASE IS >= ランク閾値_料理歌唱_E
+						アップ量 = RAND(0, LOCAL:2 * 3 / 2)
+					CASEELSE
+						アップ量 = RAND(LOCAL:2 / 2, LOCAL:2 * 2)
 				ENDSELECT
 		ENDSELECT
+		;妖術の場合は必要経験値が三能力の20倍なので、とりま20倍で
+		SIF アップ能力 == GETNUM(ABL, "妖術")
+			アップ量 *= 20
 		IF アップ量
 			SIF TALENT:(LOCAL:1):超成長力
-				アップ量 += RAND:2
+				アップ量 += RAND(0, LOCAL:2)
 			IF TALENT:(LOCAL:1):努力家
 				SELECTCASE RAND:100
 					CASE IS < 70
-						アップ量 += 1
+						アップ量 += RAND(0, LOCAL:2 / 2)
 					CASE IS < 85
-						アップ量 += 2
+						アップ量 += RAND(LOCAL:2, LOCAL:2 * 2)
 				ENDSELECT
 			ENDIF
-			SETCOLOR COLOR("オレンジ")
-			PRINTFORML %NAME:(LOCAL:1)%の%ABLNAME:アップ種類%が{アップ量}上昇しました(現在:{ABL:(LOCAL:1):アップ種類 + アップ量})
-			RESETCOLOR
-			ABL:(LOCAL:1):アップ種類 += アップ量
+			;LOCAL:2には本来の必要経験値の100倍が入ってるので、100で割っとく
+			アップ量 /= 100
+			EXP:(LOCAL:1):アップ経験値 += アップ量
+			CALL TRAIN_AUTO_ABLUP(LOCAL:1)
 		ENDIF
 	ENDIF
 NEXT
