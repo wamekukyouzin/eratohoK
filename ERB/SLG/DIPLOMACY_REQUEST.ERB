@@ -25,8 +25,10 @@ FOR LOCAL:0, 1, MAX_COUNTRY
 		LOCAL:8 += GET_SUM_ECONOMY(LOCAL:0)
 NEXT
 
-;※条件は降伏勧告と同じ
-LOCAL:10 = DIPLOMACY_REQUEST_CHECK(CFLAG:MASTER:1, ARG:0)
+;※条件は降伏勧告より緩和、引数で要求内容辺り参照して変化できるようにしたいなぁ
+LOCAL:10 = DIPLOMACY_REQUEST_CHECK(CFLAG:MASTER:1, ARG:0, 10 + FLAG:99)
+;こっそりヘイト加算
+FLAG:99 ++
 
 ;既に要求を飲んだことがあり、前回と同様の方法が通用する場合
 IF (LOCAL:10 && CFLAG:(LOCAL:5):42 == 1) || ((CFLAG:(LOCAL:5):42 == 2 && (TALENT:(LOCAL:5):烙印 || TALENT:(LOCAL:5):服従 || TALENT:(LOCAL:5):隷属 || (TALENT:(LOCAL:5):マゾ && TALENT:(LOCAL:5):恋慕)))) || (CFLAG:(LOCAL:5):42 == 3 && TALENT:(LOCAL:5):薬物依存)
@@ -1439,29 +1441,29 @@ ENDSELECT
 
 POWER_BALANCE:0 = SUMARRAY(POWER_BALANCE)
 
+LOCAL:0 = ARG:0 == CFLAG:MASTER:1 ? ((CONFIG:300 + 1) * 5) # 10
+LOCAL:1 = ARG:2 * LOCAL:0 / 10
+
 ;DEBUGPRINTFORML 【経済比】{POWER_BALANCE:1}, 【戦力比】{POWER_BALANCE:2}, 【能力比】{POWER_BALANCE:3}
 ;DEBUGPRINTFORML 【外交要求判定】%NAME:(BOSS:0)%→%NAME:(BOSS:1)%：判定値{POWER_BALANCE:0}/難易度{MAX(ARG:2, 2)}
-DEBUGPRINTFORML 【外交要求判定】%NAME:(BOSS:0)%→%NAME:(BOSS:1)%：判定値{POWER_BALANCE:0}/難易度{MAX(ARG:2, 2)}
+DEBUGPRINTFORML 【外交要求判定】%NAME:(BOSS:0)%→%NAME:(BOSS:1)%：判定値:{POWER_BALANCE:0}/難易度:{LOCAL:1}
+
+RETURNF LOCAL:1 < RAND:POWER_BALANCE
 
 
-LOCAL:0 = ARG:0 == CFLAG:MASTER:1 ? ((CONFIG:300 + 1) * 5) # 10
-LOCAL:1 = RAND:(ARG:2 * LOCAL:0 / 10 + 1)
-
-RETURNF LOCAL:1 < POWER_BALANCE
-
-
-
+;-----------------------------------------------------------------------------------------------------
 ;ARG:0勢力の強要行為に対する反発効果の処理
 ;軽:好意減少及び敵意増大
 ;小:条約／連合破棄（相手側の敵意で判定）、一時的外交停止
 ;中:一時的外交停止
 ;大:反連合の成立
 ;返り値 0:お咎め無し, 1-15:有罪、何らかのペナルティが発生, -1:冤罪が判明したので無罪放免
+;-----------------------------------------------------------------------------------------------------
+
 @DIPLOMACY_BACKFIRE(ARG:0)
 ;上から順に
 ;返り値用のペナルティ処理計測値、勢力トップのキャラ番号、勢力のAIタイプ、ループ処理用のカウンタ
 ;同盟／停戦／連合の破棄を決めた勢力
-;
 #DIM RES_PENALTY
 #DIM BOSS_CHARA, 2
 #DIM HATE, 2
@@ -1504,6 +1506,7 @@ IF DIPLOMACY_HATE:(ARG:0):0 >= DIPLOMACY_HATE:(ARG:0):1 + 10
 	RES_PENALTY += 1
 	DIPLOMACY_HATE:(ARG:0):1 = DIPLOMACY_HATE:(ARG:0):0 + 10
 ENDIF
+
 ;小ペナルティ:相手の持つ敵対値に応じて条約強制破棄／連合からの排除の実施
 IF DIPLOMACY_HATE:(ARG:0):0 >= DIPLOMACY_HATE:(ARG:0):2 + 20
 	SETCOLOR COLOR("警告")
@@ -1550,6 +1553,7 @@ IF DIPLOMACY_HATE:(ARG:0):0 >= DIPLOMACY_HATE:(ARG:0):2 + 20
 	RES_PENALTY += 2
 	DIPLOMACY_HATE:(ARG:0):2 = DIPLOMACY_HATE:(ARG:0):0 + 20
 ENDIF
+
 ;中ペナルティ:一時的な外交停止
 IF DIPLOMACY_HATE:(ARG:0):0 >= DIPLOMACY_HATE:(ARG:0):3 + 40
 	PRINTFORMW %ANAME(BOSS_CHARA:0)%との外交を拒否する動きが各国にあるようです
@@ -1560,6 +1564,7 @@ IF DIPLOMACY_HATE:(ARG:0):0 >= DIPLOMACY_HATE:(ARG:0):3 + 40
 	SETCOLOR COLOR("警告")
 
 ENDIF
+
 ;大ペナルティ:一定以上の敵対値をもつ勢力が連合を組む（これにより他の連合は全てリセットされる）
 IF DIPLOMACY_HATE:(ARG:0):0 >= DIPLOMACY_HATE:(ARG:0):4 + 60
 	PRINTFORMW %ANAME(BOSS_CHARA:0)%の横暴な外交姿勢に対し他国の我慢は限界を超えてしまいました！
