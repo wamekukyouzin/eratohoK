@@ -1,0 +1,87 @@
+﻿@KOJO_DAILY_K87()
+
+;保護者
+CALL KOJO_DAILY_K87_HOGOSYA
+
+;----------------------------------
+;保護者
+;----------------------------------
+@KOJO_DAILY_K87_HOGOSYA
+#DIM マミゾウ
+#DIM 小傘
+#DIM 響子
+#DIM アップ能力
+
+;終わってたらやらない
+SIF KDVAR:マミゾウ:マミゾウ_保護者 == 1
+	RETURN -1
+
+マミゾウ = NAME_TO_CHARA("マミゾウ")
+小傘 = NAME_TO_CHARA("小傘")
+響子 =NAME_TO_CHARA("響子")
+
+;マミゾウがいないと駄目
+SIF マミゾウ == -1
+	RETURN -1
+
+;面識は作る
+SIF CFLAG:マミゾウ:面識 == 0
+	CFLAG:マミゾウ:面識 = 1
+
+
+;マミゾウが同一勢力所属で捕虜でなく死んでおらず、1.5%の確率
+SIF !(RAND:1000 < 15 && CFLAG:マミゾウ:所属 == CFLAG:MASTER:所属 && !CFLAG:マミゾウ:捕虜先 && CFLAG:マミゾウ:特殊状態フラグ != 2)
+	RETURN -1
+
+;響子と小傘も自勢力にいないとダメよ
+SIF (CFLAG:響子:所属 != CFLAG:MASTER:所属 || CFLAG:小傘:所属 != CFLAG:MASTER:所属)
+	RETURN -1
+
+;あぶねえ響子と小傘の捕虜とか判定するの忘れてアップするとこだった
+SIF !(CFLAG:響子:所属 == CFLAG:MASTER:所属 && !CFLAG:響子:捕虜先 && CFLAG:響子:特殊状態フラグ != 2)
+	RETURN -1
+SIF !(CFLAG:小傘:所属 == CFLAG:MASTER:所属 && !CFLAG:小傘:捕虜先 && CFLAG:小傘:特殊状態フラグ != 2)
+	RETURN -1
+
+DRAWLINE
+PRINTFORML ・
+PRINTFORML ・
+PRINTFORML ・
+PRINTFORML %ANAME(MASTER)%が散歩をしていると、%ANAME(マミゾウ)%達が庭先で楽しげな声をあげていた
+PRINTFORMW 『ぎゃ～て～ぎゃ～て～ぜ～む～と～ど～しゅ～！！！』
+PRINTFORMW 『ぎゃて……？　あの、正確にはなんて言ってるんでしょう？』
+PRINTFORMW 「ほっほ、小傘どの。大切なのは正確な言葉よりもその心を知ることじゃよ」
+PRINTFORMW 『つまり、どういう……？』
+PRINTFORMW 「考えるな、感じろ、ということじゃのう」
+PRINTFORMW 適当にはぐらかされた%ANAME(小傘)%は疑問符を打ち消せないでいたが、やがて考えるのをやめたのか、%ANAME(響子)%と一緒にぎゃてぎゃて言い始めた
+PRINTFORMW 「お主もどうかの。一緒に叫んでみんか？」
+PRINTFORMW 遠慮しておくと返答すると、%ANAME(マミゾウ)%は響子たちの方を見ながら話し始めた
+PRINTFORMW 「お主には2つばかり言っておかねばならん」
+PRINTFORMW 「まず生き残れ。それから、弱者を守ってやってくれ。これだけじゃ、簡単じゃろう？」
+CALL ASK_YN("やってみる", "前向きに検討します")
+IF RESULT == 0
+	PRINTFORMW 「うむ、それこそ人道というものじゃ」
+	PRINTFORMW 「お主には強くなってもらうぞい。そうすれば、儂も楽になるからのう」
+	SELECTCASE RAND:100
+		CASE IS < 40
+			アップ能力 = GETNUM(ABL, "武闘")
+		CASE IS < 60
+			アップ能力 = GETNUM(ABL, "知略")
+		CASE IS < 80
+			アップ能力 = GETNUM(ABL, "政治")
+		CASE IS < 90
+			アップ能力 = GETNUM(ABL, "料理")
+		CASEELSE
+			アップ能力 = GETNUM(ABL, "歌唱")
+	ENDSELECT
+	CALL COLORPRINTFORM(@"マミゾウの発破かけにより、%ANAME(MASTER)%の%ABLNAME:アップ能力%が1上昇した！", COLOR("注意"), "W")
+	ABL:MASTER:アップ能力 += 1
+	PRINTFORMW 「では、またの。儂はちびっ子の面倒を見なけりゃいかんでな」
+	PRINTFORMW %ANAME(マミゾウ)%に別れを告げ、%ANAME(MASTER)%は散歩に戻った……
+ELSE
+	PRINTFORMW 「ほほほ、お主もなかなか食わせ者かもしれんの」
+	PRINTFORMW 「ただ、人道から外れてもらっては困るぞい。なあ、人間様」
+	PRINTFORMW %ANAME(マミゾウ)%に別れを告げ、%ANAME(MASTER)%は散歩に戻った……
+ENDIF
+
+KDVAR:マミゾウ:マミゾウ_保護者 = 1
