@@ -11,11 +11,16 @@ CALL KOJO_DAILY_K10_INVITATION_FROM_REMILLIA
 レミリア = NAME_TO_CHARA("レミリア")
 紅魔館 = GET_CITYNUMBER("紅魔館")
 
-SIF レミリア == -1
+;レミリアと別勢力で、捕虜でなく、面識もない 5%
+SIF !(CHECK_KOJO_DAILY_HAPPEN(レミリア, 50, 0, 0, 0) && CFLAG:レミリア:特殊状態フラグ != 2)
 	RETURN -1
 
 ;一回きり
 SIF KDVAR:レミリア:レミリア_レミリアからの勧誘
+	RETURN -1
+
+;主人公は男であること
+SIF !IS_MALE(MASTER)
 	RETURN -1
 
 ;レミリアが君主であり、主人公が君主でない
@@ -25,20 +30,10 @@ SIF GET_COUNTRY_BOSS(CFLAG:レミリア:所属) != レミリア || GET_COUNTRY_B
 SIF 紅魔館 == -1
 	RETURN -1
 
-;レミリアと面識がなく、レミリア麾下ではなく、レミリアが捕虜でなく、死んでいない(捕虜と死亡については君主である限りセーフっぽいが） ５%
-SIF !(RAND:1000 < 50 && !CFLAG:レミリア:面識 && CFLAG:レミリア:所属 != CFLAG:MASTER:所属 && !CFLAG:レミリア:捕虜先 && CFLAG:レミリア:特殊状態フラグ != 2)
-	RETURN -1
-
-;主人公は男であること
-SIF !IS_MALE(MASTER)
-	RETURN -1
-
 ボス = GET_COUNTRY_BOSS(CFLAG:MASTER:所属)
 
-DRAWLINE
-PRINTFORML ・
-PRINTFORML ・
-PRINTFORML ・
+CALL KOJO_DAILY_START()
+
 PRINTFORML %ANAME(MASTER)%が仕事をしていると、部下が手紙を持ってきた
 PRINTFORM 差出人は
 CALL COLORPRINTFORM(@"%NAME_FORMAL(レミリア)%", COLOR("注意"))
@@ -48,7 +43,6 @@ PRINTFORML 君主ならまだしも、自分のような一介の士官を招い
 PRINTFORML 疑問でしかないが、紅魔館といえば立派なお屋敷だと聞くし、そこでのパーティといえば各勢力の有力者たちがそろい踏みとなるだろう
 PRINTFORMW 出席して顔を売っておくのもいいかもしれない……
 PRINTFORML さて、どうしようか……
-DRAWLINE
 PRINTFORML
 CALL ASK_YN("出席する", "やめておく")
 IF RESULT == 1
