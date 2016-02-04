@@ -15,24 +15,22 @@ CALL KOJO_DAILY_K64_JAILBREAK
 
 こいし = NAME_TO_CHARA("こいし")
 
-;こいしがいないと駄目
-SIF こいし == -1
+;こいしとMASTERが別勢力で、こいしが捕虜でなく、6%
+SIF !CHECK_KOJO_DAILY_HAPPEN(こいし, 60, 0, 0, -1)
+	RETURN -1
+
+;こいしが君主ではない
+SIF GET_COUNTRY_BOSS(CFLAG:こいし:所属) != こいし
 	RETURN -1
 
 ;おわってたら出ない
 SIF KDVAR:こいし:こいし_おやつ泥棒 == -1
 	RETURN -1
 
-;こいしとMASTERが別勢力で、こいしが捕虜でなく、生存していて、4.5%
-SIF !(RAND:1000 < 45 && !CFLAG:こいし:所属 != CFLAG:MASTER:所属 && !CFLAG:こいし:捕虜先 && CFLAG:こいし:特殊状態フラグ != 2)
-	RETURN -1
 
 判定値 = MIN(ABL:MASTER:知略 + KDVAR:こいし:こいし_おやつ泥棒 * 20, 40)
 
-DRAWLINE
-PRINTFORML ・
-PRINTFORML ・
-PRINTFORML ・
+CALL KOJO_DAILY_START
 ;判定をクリアしたらとっ捕まえる。
 IF KDVAR:こいし:こいし_おやつ泥棒 != 0 && (RAND:100 < 判定値 || KDVAR:こいし:こいし_おやつ泥棒 == 5)
 	PRINTFORML 静まりかえった夜の宮廷。そこに、怪しく動く影があった
@@ -48,7 +46,6 @@ IF KDVAR:こいし:こいし_おやつ泥棒 != 0 && (RAND:100 < 判定値 || KD
 	PRINTFORMW 「ねー、放してってばー。盗み食いしたのは謝るからー」
 	PRINTFORML こいしはじたばたと暴れている。ただのおやつ泥棒なら笑って許してやってもいいが……本当にいいのだろうか
 	PRINTFORML 彼女の能力が、%ANAME(GET_COUNTRY_BOSS(CFLAG:MASTER:所属))%に牙をむくことにならないだろうか……？
-	DRAWLINE
 	PRINTFORML
 	CALL ASK_YN("許してやる", "衛兵を呼ぶ")
 	IF RESULT == 0
@@ -100,18 +97,11 @@ ENDIF
 
 こいし = NAME_TO_CHARA("こいし")
 
-;こいしがいないと駄目
-SIF こいし == -1
-	RETURN -1
-
 ;こいしが捕まっていないと駄目
-SIF !(RAND:100 < 3 && CFLAG:こいし:捕虜先)
+SIF !CHECK_KOJO_DAILY_HAPPEN(こいし, 80, -1, 1, -1)
 	RETURN -1
 
-DRAWLINE
-PRINTFORML ・
-PRINTFORML ・
-PRINTFORML ・
+CALL KOJO_DAILY_START
 PRINTFORMW 「こんなとこ、薄暗くてじめじめしててつまんなーい。遊びに行っちゃお！」
 PRINTFORM 牢につながれていた
 CALL COLORPRINTFORM(@"%NAME_FORMAL(こいし)%", COLOR("注意"))

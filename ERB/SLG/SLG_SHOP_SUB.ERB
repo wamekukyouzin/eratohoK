@@ -1019,3 +1019,107 @@ ENDIF
 CFLAG:対象:最強編成除外フラグ = !CFLAG:対象:最強編成除外フラグ
 CLEARLINE 消去行
 GOTO SHOW_LOOP
+
+
+
+;-------------------------------------------------
+;訓練
+;-------------------------------------------------
+@SLG_TRAIN
+#DIM 訓練能力
+#DIM 訓練経験値
+#DIM アップ量
+DRAWLINE
+PRINTFORML 余暇を利用し、能力を鍛えます
+PRINTFORML 何を伸ばしますか？
+CALL ASK_MULTI_JUDGE("武闘", 1, "知略", 1, "政治", 1, "料理", 1, "歌唱", 1, "戻る", 1)
+SELECTCASE RESULT
+	CASE 0
+		訓練能力 = GETNUM(ABL, "武闘")
+		訓練経験値 = GETNUM(EXP, "武闘経験値")
+	CASE 1
+		訓練能力 = GETNUM(ABL, "知略")
+		訓練経験値 = GETNUM(EXP, "知略経験値")
+	CASE 2
+		訓練能力 = GETNUM(ABL, "政治")
+		訓練経験値 = GETNUM(EXP, "政治経験値")
+	CASE 3
+		訓練能力 = GETNUM(ABL, "料理")
+		訓練経験値 = GETNUM(EXP, "料理経験値")
+	CASE 4
+		訓練能力 = GETNUM(ABL, "歌唱")
+		訓練経験値 = GETNUM(EXP, "歌唱経験値")
+	CASE 5
+		RETURN 0
+ENDSELECT
+
+SELECTCASE 訓練能力
+	CASE GETNUM(ABL, "武闘"), GETNUM(ABL, "知略"), GETNUM(ABL, "政治"), GETNUM(ABL, "妖術")
+		LOCAL:2 = ABLUP_NEED_EXP_SLG_THREE(ABL:(LOCAL:1):訓練能力)
+		SELECTCASE ABL:(LOCAL:1):訓練能力
+			CASE IS >= ランク閾値_三能力_A
+				アップ量 = 10
+			CASE IS >= ランク閾値_三能力_B
+				アップ量 = RAND(0, LOCAL:2 / 2)
+			CASE IS >= ランク閾値_三能力_C
+				アップ量 = RAND(0, LOCAL:2)
+			CASE IS >= ランク閾値_三能力_F
+				アップ量 = RAND(0, LOCAL:2 * 2)
+			CASEELSE
+				アップ量 = RAND(LOCAL:2, LOCAL:2 * 2)
+		ENDSELECT
+	CASEELSE
+		LOCAL:2 = ABLUP_NEED_EXP_SLG_TWO(ABL:(LOCAL:1):アップ能力)
+		SELECTCASE ABL:(LOCAL:1):訓練能力
+			CASE IS >= ランク閾値_料理歌唱_A
+				アップ量 = 5
+			CASE IS >= ランク閾値_料理歌唱_B
+				アップ量 = RAND(0, LOCAL:2 / 3)
+			CASE IS >= ランク閾値_料理歌唱_C
+				アップ量 = RAND(0, LOCAL:2 / 2)
+			CASE IS >= ランク閾値_料理歌唱_E
+				アップ量 = RAND(0, LOCAL:2)
+			CASEELSE
+				アップ量 = RAND(LOCAL:2 / 2, LOCAL:2 * 2)
+		ENDSELECT
+ENDSELECT
+EXP:MASTER:訓練経験値 += アップ量 / 100
+CALL COLORPRINTFORM(@"%ABLNAME:(訓練能力)%の訓練を行った！", COLOR("注意"), "W")
+CALL PRINT_ADD_EXP(MASTER, EXPNAME:(訓練経験値), アップ量, 1)
+CALL TRAIN_AUTO_ABLUP(MASTER)
+RESULT = 1
+BEGIN TURNEND
+
+;-------------------------------------------------
+;謁見
+;-------------------------------------------------
+@SLG_AUDIENCE
+DRAWLINE
+PRINTFORML 各勢力の君主と謁見し、関係改善を狙います
+PRINTFORML 誰に謁見しますか？
+DRAWLINE
+FOR LOCAL, 0, MAX_COUNTRY
+	IF IS_COUNTRY(LOCAL) && !COUNTRY_IS_CLOSED:(LOCAL)
+		LOCAL:1 = GET_COUNTRY_BOSS(LOCAL)
+		PRINTFORM [{LOCAL, 2, RIGHT}] %ANAME(LOCAL:1), 16, LEFT%
+		PRINTFORM 好:{REL_LIKE:(LOCAL:1):MASTER, 6, LEFT}
+		PRINTFORML 嫌:{REL_HATE:(LOCAL:1):MASTER, 6, LEFT}
+	ENDIF
+NEXT
+DRAWLINE
+PRINTFORML [99] 戻る
+$INPUT_LOOP
+INPUT
+IF RESULT == 99
+	RETURN 0
+ELSEIF RESULT < 0 || MAX_COUNTRY < RESULT
+	GOTO INPUT_LOOP
+ELSEIF !IS_COUNTRY(RESULT) || COUNTRY_IS_CLOSED:RESULT
+	GOTO INPUT_LOOP
+ELSE
+	LOCAL = RESULT
+	CALL COLORPRINTFORM(@"%ANAME(GET_COUNTRY_BOSS(LOCAL))%に謁見しました", COLOR("注意"), "W")
+	CALL CHANGE_RELATION_C_TO_O(LOCAL, MASTER, RAND(10, 30), RAND(10, 30) * -1)
+	RESULT = 1
+	BEGIN TURNEND
+ENDIF

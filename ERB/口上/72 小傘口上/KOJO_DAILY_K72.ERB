@@ -1,0 +1,103 @@
+﻿@KOJO_DAILY_K72()
+
+;びっくり
+CALL KOJO_DAILY_K72_BIKKURI
+
+
+;----------------------------------
+;びっくり
+;----------------------------------
+@KOJO_DAILY_K72_BIKKURI
+#DIM 小傘
+#DIM 判定値
+
+小傘 = NAME_TO_CHARA("小傘")
+
+;小傘が同一勢力所属で捕虜でなく死んでいないなら、1.5%で発生
+;150日目以降は確率ダウン
+SIF !CHECK_KOJO_DAILY_HAPPEN(小傘, DAY < 150 ? 15 # 5, 1, 0)
+	RETURN -1
+
+;あなたが竿持ちじゃないと発生しない
+SIF !PENIS(MASTER)
+	RETURN -1
+
+;面識がないなら顔見知りになる
+SIF CFLAG:小傘:面識 == 0
+	CFLAG:小傘:面識 = 1
+
+CALL KOJO_DAILY_START
+PRINTFORMW %ANAME(MASTER)%が人気のない所を歩いていると、物陰から%ANAME(小傘)%が飛び出してきた
+PRINTFORMW 「ベロベロばぁ～！　どう？　びっくりした？」
+PRINTL
+CALL ASK_MULTI("ひえ～", "答えは沈黙", "驚きのあまり応戦", "なーにがベロベロばぁだ！そういうのは赤んぼにやるんだよオラッ孕め！")
+	SELECTCASE RESULT
+		CASE 0
+			PRINTFORMW 「やったぁ！　えへへ、驚いてくれてありがとう」
+			PRINTFORMW ニコニコと笑っている%ANAME(小傘)%を見ていると、すごくいいことをした気持ちになった……
+			CFLAG:小傘:好感度 += 30
+		CASE 1
+			PRINTFORMW %ANAME(MASTER)%は%ANAME(小傘)%など存在しないかのように完全に無視して歩き続けた
+			PRINTFORMW 「えっ、あっ、ちょっと待ってよ～」
+			PRINTFORMW 追ってきた%ANAME(小傘)%が後ろの方で転んだような音がした……
+		CASE 2
+			PRINTFORMW 「え"う"っ……え？　なんで？」
+			PRINTFORMW %ANAME(MASTER)%は無意識に%ANAME(小傘)%に平手打ちを放っていた
+			PRINTFORMW もし戦場のような、武器を持っている状況だったのなら迷うことなくそちらを使っていただろう
+			PRINTFORMW 「こっちがびっくりしちゃった……これがさでずむ？」
+			SOURCE:小傘:嗜虐 += 50
+			SOURCE:小傘:苦痛 += 50
+			SOURCE:小傘:逸脱 += 50
+		CASE 3	
+			PRINTFORMW 「えっ？　えっえっ？」
+			PRINTFORMW %ANAME(MASTER)%は無茶な理屈で子作りを開始した……
+				EXP:小傘:Ｃ感経験値 += ABL:小傘:Ｃ感 * 5 + 5 + RAND:11
+				EXP:小傘:Ｖ感経験値 += ABL:小傘:Ｖ感 * 20 + 15 + RAND:11
+				EXP:小傘:Ｂ感経験値 += ABL:小傘:Ｂ感 * 4 + 4 + RAND:9
+				EXP:小傘:欲望経験値 += ABL:小傘:欲望 * 3 + 2 + RAND:7
+				EXP:小傘:奉仕経験値 += ABL:小傘:奉仕 * 2 + 5 + RAND:11
+				EXP:小傘:性交経験値 += ABL:小傘:性交 * 5 + 15 + RAND:11
+				EXP:小傘:性技経験値 += ABL:小傘:性技 + 2 + RAND:4
+				EXP:小傘:精愛経験値 += ABL:小傘:精愛 * 10 + 30 + RAND:21
+				;中出しと妊娠判定
+				IF CONFIG:1 == 0 && (VAGINA(小傘) || TALENT:小傘:孕み可能)
+					FOR LOCAL:1, 440, 480
+						TCVAR:小傘:(LOCAL:1) = 0
+					NEXT
+					CALL RECORD_INJECTION(小傘, GET_ID(MASTER), 3)
+					CALL CHECK_PREGNANT(小傘)
+				ENDIF
+				;能力上昇はメッセージ表示後
+				CALL TRAIN_AUTO_ABLUP(小傘)
+				;処女とキス未経験を失う
+				IF TALENT:小傘:キス未経験
+					IF RAND:4
+						;ペニスへのキス
+						CALL KISS_COMMON(小傘, MASTER, 1, 0, 0)
+					ENDIF
+					;唇へのキス
+					CALL KISS_COMMON(小傘, MASTER, 0, 0, 0)
+					SETCOLOR COLOR("注意")
+					PRINTFORML %ANAME(小傘)%は<キス未経験>を失った…
+					RESETCOLOR
+				ENDIF
+				IF TALENT:小傘:処女 && VAGINA(小傘)
+					SETCOLOR COLOR("注意")
+					PRINTFORML %ANAME(小傘)%は<処女>を失った…
+					RESETCOLOR
+					;処女を捧げた相手を%ANAME(MASTER)%に設定
+					CFLAG:小傘:41 = GET_ID(MASTER)
+					TALENT:小傘:処女 = 0
+				ENDIF
+				IF TALENT:MASTER:童貞
+					CFLAG:MASTER:40 = GET_ID(小傘)
+					TALENT:MASTER:童貞 = 0
+				ENDIF
+				IF TALENT:MASTER:キス未経験
+					CALL KISS_COMMON(MASTER, 小傘, 0, 0, 0)
+					TALENT:MASTER:キス未経験 = 0
+				ENDIF
+			PRINTFORMW 四肢を放り出し、白濁にまみれた%ANAME(小傘)%を放置し、%ANAME(MASTER)%はスッキリした気持ちで着衣を正して歩き始めた
+			PRINTFORMW もしかすると、これで%ANAME(小傘)%も正しいターゲットにベロベロばぁできることだろう……
+;自分で書いといてなんだけど最低だと思う。意味も分からん。でもこういうの好き
+	ENDSELECT

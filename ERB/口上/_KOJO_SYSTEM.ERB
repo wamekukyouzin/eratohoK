@@ -659,7 +659,7 @@ SIF RESULT
 	TRYCALLFORM KOJO_NTR_TRAIN_K{ARG:0}(ARG:1, ARG:2)
 	
 ;-------------------------------------------------
-;デイリーイベント用の関数。ARG:0はキャラ番号。
+;口上デイリーイベント用の関数。ARG:0はキャラ番号。
 ;呼び出されたKOJO_DAILY_K内で新しく関数を作って、ええ感じにアレコレしてイベントを作って下さい。
 ;-------------------------------------------------	
 @KOJO_DAILY(ARG:0)
@@ -667,3 +667,78 @@ LOCAL:5 = KOJO_NO(ARG:0)
 CALL IS_KOJO(LOCAL:5)
 SIF RESULT
 	TRYCALLFORM KOJO_DAILY_K{ARG:0}()
+
+;-------------------------------------------------
+;ARG:0が口上デイリーイベントを実施できるかの簡易チェック関数。
+;細かな条件は自分で設定してね
+;ARG:1 「千分率での」確率
+;ARG:2 0 MASTERと別勢力である 1 MASTERと同一勢力である　-1 どちらでもよい
+;ARG:3 0 捕虜でない 1 捕虜である -1 どちらでもよい
+;ARG:4 0 面識がない 1 面識がある -1 どちらでもよい
+;-------------------------------------------------
+@CHECK_KOJO_DAILY_HAPPEN(ARG:0, ARG:1, ARG:2 = -1, ARG:3 = -1, ARG:4 = -1)
+#FUNCTION
+;範囲外はもちろんアウト
+SIF ARG:0 < 0 || CHARANUM < ARG:0
+	RETURNF 0
+;死んでたら駄目
+SIF CFLAG:(ARG:0):特殊状態フラグ == 2
+	RETURNF 0
+;確率判定
+SIF RAND:1000 >= ARG:1
+	RETURNF 0
+;所属判定
+SELECTCASE ARG:2
+	CASE -1
+	CASE 0
+		SIF CFLAG:(ARG:0):所属 == CFLAG:MASTER:所属
+			RETURNF 0
+	CASE 1
+		SIF CFLAG:(ARG:0):所属 != CFLAG:MASTER:所属
+			RETURNF 0
+	CASEELSE
+		RETURNF 0
+ENDSELECT
+;捕虜判定
+SELECTCASE ARG:3
+	CASE -1
+	CASE 0
+		SIF CFLAG:(ARG:0):捕虜先
+			RETURNF 0
+	CASE 1
+		SIF !CFLAG:(ARG:0):捕虜先
+			RETURNF 0
+	CASEELSE
+		RETURNF 0
+ENDSELECT
+;面識判定
+SELECTCASE ARG:4
+	CASE -1
+	CASE 0
+		SIF CFLAG:(ARG:0):面識
+			RETURNF 0
+	CASE 1
+		SIF !CFLAG:(ARG:0):面識
+			RETURNF 0
+	CASEELSE
+		RETURNF 0
+ENDSELECT
+RETURNF 1
+
+;-------------------------------------------------
+;口上デイリーイベント開始時の汎用演出。
+;-------------------------------------------------	
+@KOJO_DAILY_START()
+DRAWLINE
+PRINTFORML ・
+PRINTFORML ・
+PRINTFORML ・
+
+;-------------------------------------------------
+;通常のデイリーイベント用の関数。ARG:0はキャラ番号。ARG:1はイベントID(EVENT_DAILYフォルダ内のERHを参照)、ARG:2~4は各イベントで口上分岐に用いられるもの
+;-------------------------------------------------	
+@KOJO_EVENT_DAILY(ARG:0, ARG:1, ARG:2 = 0, ARG:3 = 0, ARG:4 = 0)
+LOCAL:5 = KOJO_NO(ARG:0)
+CALL IS_KOJO(LOCAL:5)
+SIF RESULT
+	TRYCALLFORM KOJO_EVENT_DAILY_K{ARG:0}(ARG:1, ARG:2, ARG,3, ARG:4)

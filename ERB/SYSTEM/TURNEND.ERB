@@ -126,21 +126,35 @@ IF DVAR:要求野盗斬り捨て
 	SWAPCHARA MASTER, DVAR:要求野盗斬り捨て
 	BEGIN TRAIN
 ENDIF
-
-;強制逆調教フラグが立っているなら即時調教モードに入る
-;タチ役をCONFIG:88で設定
-IF FLAG:31
+;
+;強制調教フラグが立っているなら即時調教モードに入る
+IF FLAG:31 == 1
 	FLAG:31 = 0
-	CFLAG:(CONFIG:88):6 = 1
+	FLAG:調教モード = 1
 	FLAG:50 = 1
-	FLAG:12 = 5
-	ITEM:A_鞭 = 1
-	ITEM:A_縄 = 1
-	ITEM:A_バイブ = 1
-	ITEM:A_アナルバイブ = 1
-	ITEM:A_ペニスバンド = 1
+	;時間の処理をしないと、「拠点フェイズの終了時にここに到達、調教→調教終了でSLGフェイズのターンエンドが呼ばれ、次期の拠点フェイズに飛ぶ」みたいな挙動になる
+	IF TIME == 0
+		DAY --
+		SIF !FLAG:28
+			TIME = 1
+	ELSEIF TIME == 1
+		TIME = 0
+		SHOP_TIME = CALC_SHOP_TIME()
+	ENDIF
 	CALL START_TRAIN_COMMON
-	BEGIN TRAIN
+ELSEIF FLAG:31 == 2
+	FLAG:31 = 0
+	FLAG:調教モード = 5
+	FLAG:50 = 1
+	IF TIME == 0
+		DAY --
+		SIF !FLAG:28
+			TIME = 1
+	ELSEIF TIME == 1
+		TIME = 0
+		SHOP_TIME = CALC_SHOP_TIME()
+	ENDIF
+	CALL START_TRAIN_COMMON
 ELSE
 	;一応謎勢力にあなたが存在することが無いようにおまじない
 	SIF CFLAG:MASTER:1 == 0 && CFLAG:MASTER:9 == 0
@@ -156,9 +170,6 @@ SHOP_TIME = 0
 SHOP_WORK_COUNT = 0
 ;夜に起こるイベント(夜這いなど)
 CALL EVENT_NIGHT
-
-;デイリーイベント
-CALL EVENT_DAILY
 
 IF CONFIG:7 == 0
 	;捕虜の扱いを設定
@@ -199,6 +210,9 @@ NEXT
 
 ;奴隷市場の商品リストを更新
 CALL SLAVEMARKET_PREPARE_GOODS
+
+;デイリーイベント
+CALL EVENT_DAILY
 
 ;統一後の場合
 IF FLAG:28

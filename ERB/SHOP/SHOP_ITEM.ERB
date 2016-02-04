@@ -58,15 +58,15 @@ FOR LOCAL:0, 100, 300
 		;所持金不足 or 所持数オーバーで購入できない時は色を変える
 		IF MONEY < RESULT || ITEM:(LOCAL:0) >= 99
 			SETCOLOR COLOR("選択不可")
-			PRINTFORM [{LOCAL:0}] %ITEMNAME:(LOCAL:0), 12, LEFT%{RESULT, 7}  
+			PRINTFORM [{LOCAL:0}] %ITEMNAME:(LOCAL:0), 20, LEFT%{RESULT, 7}  
 			RESETCOLOR
 		ELSE
-			PRINTFORM [{LOCAL:0}] %ITEMNAME:(LOCAL:0), 12, LEFT%{RESULT, 7}  
+			PRINTFORM [{LOCAL:0}] %ITEMNAME:(LOCAL:0), 20, LEFT%{RESULT, 7}  
 		ENDIF
 	ENDIF
 NEXT
 PRINTL 
-
+DRAWLINE
 PRINT 【開発】
 IF IS_GISHI
 	SETCOLOR COLOR("緑")
@@ -97,6 +97,28 @@ FOR LOCAL:0, 200, 300
 	ENDIF
 NEXT
 DRAWLINE
+PRINTL 【破棄】
+PRINT 　　
+LOCAL:1 = 0
+FOR LOCAL:0, 500, 900
+	LOCAL:2 = LOCAL:0 - 500
+	IF ITEMNAME:(LOCAL:2) != "" && ITEM:(LOCAL:2) > 0
+		LOCALS:0 = %ITEMNAME:(LOCAL:2)%
+		IF ITEM:(LOCAL:2) >= 2
+			LOCALS:0 = %LOCALS:0%×{ITEM:(LOCAL:2)}
+		ENDIF
+		IF LOCAL:1 > 0 && LOCAL:1 % 3 == 0
+			PRINTL 
+			PRINT 　　
+		ENDIF
+		LOCAL:1 ++
+		CALL GET_PRICE(LOCAL:2)
+		PRINTFORM [{LOCAL:0}] %LOCALS:0, 20, LEFT%{RESULT, 7}  
+	ENDIF
+NEXT
+PRINTL
+DRAWLINE
+
 PRINT 　　[999] 戻る
 
 REDRAW 0
@@ -199,6 +221,29 @@ ELSEIF RESULT >= 100 && RESULT < 300 && ITEMNAME:RESULT != ""
 			MONEY -= LOCAL:3
 			RESTART
 		ENDIF
+	ENDIF
+ELSEIF 500 <= RESULT && RESULT <= 900 && ITEMNAME:(RESULT - 500) != ""
+	LOCAL:1 = RESULT - 500
+	IF ITEM:(LOCAL:1) > 0
+		CALL GET_PRICE(LOCAL:1)
+		LOCAL:2 = RESULT
+		PRINTFORML %ITEMNAME:(LOCAL:1)%を売却します
+		PRINTFORML 売却する個数を入力して下さい（0または所持数以上の入力でキャンセル)
+		INPUT
+		LOCAL:3 = RESULT
+		;購入個数が0なら戻る
+		IF LOCAL:3 == 0 || LOCAL:3 > ITEM:(LOCAL:1)
+			RESTART
+		ENDIF
+		MONEY += RESULT * LOCAL:2
+		PRINTFORMW %ITEMNAME:(LOCAL:1)%を売却し、金{RESULT * LOCAL:2}を得ました
+		ITEM:(LOCAL:1) -= RESULT
+		IF LOCAL:1 < 150
+			ITEMSALES:(LOCAL:1) = 1
+		ELSEIF ITEMTERM:(LOCAL:1) > 0
+			ITEMTIME:(LOCAL:1) = 0
+		ENDIF
+		RESTART
 	ENDIF
 ENDIF
 
@@ -472,7 +517,7 @@ ITEMTERM:284 = 8
 ITEMTERM:285 = 6
 ITEMTERM:286 = 6
 ITEMTERM:287 = 6
-
+ITEMTERM:288 = 10
 ;-------------------------------------------------
 ;ARG:0番のアイテムの真の購入価格を取得
 ;-------------------------------------------------
@@ -553,6 +598,10 @@ RETURN 300000
 ;永久脱毛剤
 @GET_PRICE287
 RETURN 50000
+
+;タトゥー除去手術
+@GET_PRICE288
+RETURN 200000
 ;-------------------------------------------------
 ;アイテムの開発条件
 ;-------------------------------------------------
@@ -750,6 +799,14 @@ IF (ITEMSALES:ふたなり薬 != 0) + (ITEMSALES:性転換薬 != 0) + (ITEMSALES
 ENDIF
 RETURN 0
 
+;タトゥー除去手術
+@ITEM_ABLE288
+;ニードル＆インクを所持
+IF ITEM:ニードル＆インク
+	RETURN 1
+ENDIF
+RETURN 0
+
 ;-------------------------------------------------
 ;アイテムの使用条件
 ;-------------------------------------------------
@@ -814,6 +871,14 @@ RETURN 0
 @IS_ITEM_USE287(ARG:0)
 SIF TALENT:(ARG:0):陰毛現在値 != 陰毛_パイパン
 	RETURN 1
+RETURN 0
+
+;●入れ墨除去手術
+@IS_ITEM_USE288(ARG:0)
+FOR LOCAL, 0, VARSIZE("TATOO")
+	SIF TATOO:(ARG:0):LOCAL != ""
+		RETURN 1
+NEXT
 RETURN 0
 
 ;-------------------------------------------------
@@ -944,6 +1009,27 @@ PRINTFORML %ANAME(ARG:0)%の股間に永久脱毛剤を塗り込んだ
 PRINTFORML %ANAME(ARG:0)%は<パイパン>になった
 TALENT:(ARG:0):陰毛目標値 = 陰毛_パイパン
 TALENT:(ARG:0):陰毛現在値 = 陰毛_パイパン
+
+;入れ墨除去手術
+@ITEM_EFFECT288(ARG:0)
+PRINTFORML %ANAME(ARG:0)%のどの入れ墨を除去しますか？
+FOR LOCAL, 0, VARSIZE("TATOO")
+	SIF TATOO:(ARG:0):(LOCAL) != ""
+		PRINTFORML [{LOCAL}] %GET_TATOO_NAME(LOCAL)% - 「%TATOO:(ARG:0):(LOCAL)%」
+NEXT
+PRINTFORML [99] 戻る
+$INPUT_LOOP
+INPUT
+IF RESULT == 99
+	CALL GET_PRICE288
+	MONEY += RESULT
+	RETURN
+ELSEIF 0 < RESULT && RESULT < VARSIZE("TATOO") && TATOO:(ARG:0):RESULT != ""
+	PRINTFORMW %ANAME(ARG:0)%の%GET_TATOO_NAME(RESULT)%のタトゥーを除去しました……
+	TATOO:(ARG:0):RESULT = 
+ELSE
+	GOTO INPUT_LOOP
+ENDIF
 
 ;●太平要術の書
 @ITEM_EFFECT141(ARG:0)
