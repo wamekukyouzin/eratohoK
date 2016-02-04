@@ -18,7 +18,6 @@
 #DIM 受動
 #DIM 能動
 VARSET キャラ数
-VARSET 満足度
 FOR LOCAL, 0, CHARANUM
 	SIF CFLAG:(LOCAL:0):所属 == CFLAG:MASTER:所属
 		キャラ数 ++
@@ -301,7 +300,6 @@ $INPUT_LOOP
 INPUTS
 CLEARLINE 1
 PRINTFORML 
-;満足度は平均3で20～30くらいになるように
 SELECTCASE RESULTS
 	CASE "相互フェラ"
 		IF PENIS(提供先) && PENIS(提供元)
@@ -726,6 +724,11 @@ IF TALENT:提供元:手練手管 && RAND:100 < 50
 	TIMES 満足度, 1.25
 ENDIF
 
+;このままだと低すぎるんで2倍
+TIMES 満足度, 2.0
+;さらに、最低値保証
+満足度 += RAND(5, 15)
+
 IF NO:提供元 >= 2000
 	CALL COLORPRINTFORM("特殊キャラを提供:満足度にペナルティ", COLOR("警告"), "L")
 	満足度 = MAX(満足度 /10, 1)
@@ -749,14 +752,32 @@ IF 提供元 == MASTER
 		CFLAG:提供先:17 = 1
 	ENDIF
 ENDIF
+IF 提供元 != MASTER
+	LOCAL:1 = LIMIT(CFLAG:提供元:好感度 / 10, 200, 1000)
+	LOCAL:2 = LIMIT(CFLAG:提供元:従属度 / 10, 200, 1000)
+	CFLAG:提供元:好感度 -= LIMIT(CFLAG:提供元:好感度 / 10, 200, 1000)
+	CFLAG:提供元:従属度 -= LIMIT(CFLAG:提供元:従属度 / 10, 200, 1000)
+	PRINTL
+	PRINTFORM %ANAME(提供元), 8%:
+	PRINTFORM 好感度%TOSTR_SIGN(LOCAL:1)%{ABS(LOCAL:1)}(合計:{CFLAG:提供元:好感度}) 
+	PRINTFORM 従属度%TOSTR_SIGN(LOCAL:2)%{ABS(LOCAL:2)}(合計:{CFLAG:提供元:従属度})
+	PRINTL
+ENDIF
 
 RETURN 満足度
 
 @TALK_CAN_GIVE_SEX(ARG:0)
 #FUNCTION
-;主人公以外なら頭首でないこと、主人公と同一勢力であること、性知識が3以上であること、主人公であるかIS_SLAVEであるか肉便器であるか薬物依存であること
-IF (ARG:0 != GET_COUNTRY_BOSS(CFLAG:MASTER:1) || MASTER == GET_COUNTRY_BOSS(CFLAG:MASTER:1)) && CFLAG:(ARG:0):1 == CFLAG:MASTER:1 && ABL:(ARG:0):性知識 >= 3 && (ARG:0 == MASTER || IS_SLAVE(ARG:0) || TALENT:(ARG:0):肉便器 || TALENT:(ARG:0):薬物依存)
-	RETURNF 1
-ELSE
+;所属がMASTERと違うとだめ
+SIF CFLAG:(ARG:0):所属 != CFLAG:MASTER:1
 	RETURNF 0
-ENDIF
+;主人公以外は君主だと駄目
+SIF ARG:0 != MASTER && ARG:0 == GET_COUNTRY_BOSS(CFLAG:MASTER:1)
+	RETURNF 0
+;性知識が必要
+SIF ABL:(ARG:0):性知識 < 3
+	RETURNF 0
+;主人公以外は「陥落系素質もちである、既成事実3、肉便器、薬物依存」のいずれかを満たす必要がある
+SIF ARG:0 != MASTER && !(IS_SLAVE(ARG:0) || IS_LOVER(ARG:0) || MARK:(ARG:0):既成事実 == 3 || TALENT:(ARG:0):肉便器 || TALENT:(ARG:0):薬物依存)
+	RETURNF 0
+RETURNF 1
