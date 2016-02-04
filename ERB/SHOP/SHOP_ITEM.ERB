@@ -517,7 +517,7 @@ ITEMTERM:284 = 8
 ITEMTERM:285 = 6
 ITEMTERM:286 = 6
 ITEMTERM:287 = 6
-
+ITEMTERM:288 = 10
 ;-------------------------------------------------
 ;ARG:0番のアイテムの真の購入価格を取得
 ;-------------------------------------------------
@@ -598,6 +598,10 @@ RETURN 300000
 ;永久脱毛剤
 @GET_PRICE287
 RETURN 50000
+
+;タトゥー除去手術
+@GET_PRICE288
+RETURN 200000
 ;-------------------------------------------------
 ;アイテムの開発条件
 ;-------------------------------------------------
@@ -795,6 +799,14 @@ IF (ITEMSALES:ふたなり薬 != 0) + (ITEMSALES:性転換薬 != 0) + (ITEMSALES
 ENDIF
 RETURN 0
 
+;タトゥー除去手術
+@ITEM_ABLE288
+;ニードル＆インクを所持
+IF ITEM:ニードル＆インク
+	RETURN 1
+ENDIF
+RETURN 0
+
 ;-------------------------------------------------
 ;アイテムの使用条件
 ;-------------------------------------------------
@@ -859,6 +871,14 @@ RETURN 0
 @IS_ITEM_USE287(ARG:0)
 SIF TALENT:(ARG:0):陰毛現在値 != 陰毛_パイパン
 	RETURN 1
+RETURN 0
+
+;●入れ墨除去手術
+@IS_ITEM_USE288(ARG:0)
+FOR LOCAL, 0, VARSIZE("TATOO")
+	SIF TATOO:(ARG:0):LOCAL != ""
+		RETURN 1
+NEXT
 RETURN 0
 
 ;-------------------------------------------------
@@ -989,6 +1009,27 @@ PRINTFORML %ANAME(ARG:0)%の股間に永久脱毛剤を塗り込んだ
 PRINTFORML %ANAME(ARG:0)%は<パイパン>になった
 TALENT:(ARG:0):陰毛目標値 = 陰毛_パイパン
 TALENT:(ARG:0):陰毛現在値 = 陰毛_パイパン
+
+;入れ墨除去手術
+@ITEM_EFFECT288(ARG:0)
+PRINTFORML %ANAME(ARG:0)%のどの入れ墨を除去しますか？
+FOR LOCAL, 0, VARSIZE("TATOO")
+	SIF TATOO:(ARG:0):(LOCAL) != ""
+		PRINTFORML [{LOCAL}] %GET_TATOO_NAME(LOCAL)% - 「%TATOO:(ARG:0):(LOCAL)%」
+NEXT
+PRINTFORML [99] 戻る
+$INPUT_LOOP
+INPUT
+IF RESULT == 99
+	CALL GET_PRICE288
+	MONEY += RESULT
+	RETURN
+ELSEIF 0 < RESULT && RESULT < VARSIZE("TATOO") && TATOO:(ARG:0):RESULT != ""
+	PRINTFORMW %ANAME(ARG:0)%の%GET_TATOO_NAME(RESULT)%のタトゥーを除去しました……
+	TATOO:(ARG:0):RESULT = 
+ELSE
+	GOTO INPUT_LOOP
+ENDIF
 
 ;●太平要術の書
 @ITEM_EFFECT141(ARG:0)
