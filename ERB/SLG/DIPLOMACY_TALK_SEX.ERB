@@ -768,9 +768,16 @@ RETURN 満足度
 
 @TALK_CAN_GIVE_SEX(ARG:0)
 #FUNCTION
-;主人公以外なら頭首でないこと、主人公と同一勢力であること、性知識が3以上であること、主人公であるかIS_SLAVEであるか肉便器であるか薬物依存であること
-IF (ARG:0 != GET_COUNTRY_BOSS(CFLAG:MASTER:1) || MASTER == GET_COUNTRY_BOSS(CFLAG:MASTER:1)) && CFLAG:(ARG:0):1 == CFLAG:MASTER:1 && ABL:(ARG:0):性知識 >= 3 && (ARG:0 == MASTER || IS_SLAVE(ARG:0) || TALENT:(ARG:0):肉便器 || TALENT:(ARG:0):薬物依存)
-	RETURNF 1
-ELSE
+;所属がMASTERと違うとだめ
+SIF CFLAG:(ARG:0):所属 != CFLAG:MASTER:1
 	RETURNF 0
-ENDIF
+;主人公以外は君主だと駄目
+SIF ARG:0 != MASTER && ARG:0 == GET_COUNTRY_BOSS(CFLAG:MASTER:1)
+	RETURNF 0
+;性知識が必要
+SIF ABL:(ARG:0):性知識 < 3
+	RETURNF 0
+;主人公以外は「陥落系素質もちである、既成事実3、肉便器、薬物依存」のいずれかを満たす必要がある
+SIF ARG:0 != MASTER && !(IS_SLAVE(ARG:0) || IS_LOVER(ARG:0) || MARK:(ARG:0):既成事実 == 3 || TALENT:(ARG:0):肉便器 || TALENT:(ARG:0):薬物依存)
+	RETURNF 0
+RETURNF 1
