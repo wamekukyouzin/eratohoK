@@ -201,9 +201,16 @@ CALL CHANGE_RELATION_O_TO_C(LOCAL:7, CFLAG:MASTER:1, -200, 500)
 VARSET LOCAL, 0
 
 DRAWLINE
-PRINTFORML 現在の君主を捕らえて新たな君主を立てます
-PRINTFORML 新君主は主人公、または[恋慕][親友][服従]のいずれかを持つキャラの中から選ぶことができます
-PRINTFORML 本当にクーデターを実行しますか？
+IF GET_COUNTRY_BOSS(CFLAG:MASTER:1) != MASTER
+	PRINTFORML 現在の君主を捕らえて新たな君主を立てます
+	PRINTFORML もし現在の君主が[親愛][隷属]を所持しているならば、平和裏に代替わりできるでしょう
+	PRINTFORML 新君主は主人公、または[恋慕][親友][服従]のいずれかを持つキャラの中から選ぶことができます
+	PRINTFORML 本当にクーデターを実行しますか？
+ELSE
+	PRINTFORML 君主の座を別の誰かに譲ります
+	PRINTFORML 新君主は主人公、または[恋慕][親友][服従]のいずれかを持つキャラの中から選ぶことができます
+	PRINTFORML 本当に国譲りを実行しますか？
+ENDIF
 CALL ASK_YN
 IF RESULT == 1
 	RETURN
@@ -218,8 +225,14 @@ LOCAL:6 = TALENT:(LOCAL:5):恋慕 || TALENT:(LOCAL:5):親友 || TALENT:(LOCAL:5)
 ;旧君主が部隊に配属されている場合強制解除
 CALL FORCE_FREE(LOCAL:5)
 
+
+IF LOCAL:5 == MASTER
+	CALL COLORPRINTFORM(@"%ANAME(MASTER)%は、代替わりにすることにした……", COLOR("注意"), "W")
+;君主が代替わりに同意
+ELSEIF TALENT:(LOCAL:5):親愛 || TALENT:(LOCAL:5):隷属
+	CALL COLORPRINTFORM(@"%ANAME(MASTER)%の説得で、%ANAME(LOCAL:5)%は、代替わりに同意した……", COLOR("注意"), "W")
 ;君主を確保
-IF LOCAL:6 || GET_OWN_CITY(CFLAG:MASTER:1) <= 1 || RAND:250 < MAX(ABL:(LOCAL:5):武闘, ABL:(LOCAL:5):知略, ABL:(LOCAL:5):政治) + 30
+ELSEIF LOCAL:6 || GET_OWN_CITY(CFLAG:MASTER:1) <= 1 || RAND:250 < MAX(ABL:(LOCAL:5):武闘, ABL:(LOCAL:5):知略, ABL:(LOCAL:5):政治) + 30
 	LOCAL:40 = 0
 
 	SETCOLOR COLOR("注意")
