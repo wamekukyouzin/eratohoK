@@ -971,20 +971,33 @@ FOR LOCAL:0, 0, CHARANUM
 
 		;旧君主が士官済みなら旧君主に従う
 		ELSEIF CFLAG:(LOCAL:5):1 != 0
-			CFLAG:(LOCAL:0):1 = CFLAG:(LOCAL:5):1
-			;逃走フラグをオフにする
-			CFLAG:(LOCAL:0):12 = 0
-			CFLAG:(LOCAL:0):13 = 0
-			CFLAG:(LOCAL:0):14 = 0
-			;プレイヤー勢力へ逃れた場合メッセージを表示
-			IF CFLAG:(LOCAL:0):1 == CFLAG:MASTER:1
-				SETCOLOR COLOR("注意")
-				PRINTFORMW 放浪していた%NAME:(LOCAL:0)%が我が国に仕官してきました
-				RESETCOLOR
+			;プレイヤー勢力へ逃れる場合メッセージを表示
+			IF CFLAG:(LOCAL:5):1 == CFLAG:MASTER:1
+					SETCOLOR COLOR("注意")
+					PRINTFORMW 放浪していた%NAME:(LOCAL:0)%が我が国に流れ着きました
+					PRINTFORML どうしますか？
+					RESETCOLOR
+					CALL ASK_MULTI("登用", "放置", "投獄")
+					IF RESULT == 0
+						PRINTFORMW %NAME:(LOCAL:0)%を登用しました
+						CFLAG:(LOCAL:0):所属 = CFLAG:MASTER:所属
+					ELSEIF RESULT == 1
+						PRINTFORMW %NAME:(LOCAL:0)%を放置しておきます
+					ELSEIF RESULT == 2
+						PRINTFORMW %NAME:(LOCAL:0)%を投獄しました
+						CFLAG:(LOCAL:0):捕虜先 = CFLAG:MASTER:所属
+					ENDIF
 			ELSE
 				SETCOLOR COLOR("注意")
-				PRINTFORMW 放浪していた%NAME:(LOCAL:0)%が%NAME:(GET_COUNTRY_BOSS(CFLAG:(LOCAL:0):1))%に仕官したようです
+				PRINTFORMW 放浪していた%NAME:(LOCAL:0)%が%NAME:(GET_COUNTRY_BOSS(CFLAG:(LOCAL:5):1))%に仕官したようです
+				CFLAG:(LOCAL:0):1 = CFLAG:(LOCAL:5):1
 				RESETCOLOR
+			ENDIF
+			IF CFLAG:(LOCAL:0):1 != 0 || CFLAG:(LOCAL:0):9 != 0
+				;特定の勢力に逃れた場合、逃走フラグをオフにする
+				CFLAG:(LOCAL:0):12 = 0
+				CFLAG:(LOCAL:0):13 = 0
+				CFLAG:(LOCAL:0):14 = 0
 			ENDIF
 		ENDIF
 	ENDIF
