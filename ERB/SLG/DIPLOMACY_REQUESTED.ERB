@@ -96,16 +96,28 @@ NEXT
 ;設定：性的な要求は条件を満たせば常時
 IF CONFIG:308 == 0
 	IF ABL:(LOCAL:5):欲望 >= 3 && ABL:(LOCAL:5):性知識 >= 3
-		LOCAL:10 = 10
+		IF DIPLOMACY_TRAINED_DAY == 0 && RAND:2
+			LOCAL:10 = 11
+		ELSE
+			LOCAL:10 = 10
+		ENDIF
 	ENDIF
 ;設定：性的な要求は条件を満たせば常時＆欲望条件無視
 ELSEIF CONFIG:308 == 2
 	IF ABL:(LOCAL:5):性知識 >= 3
-		LOCAL:10 = 10
+		IF DIPLOMACY_TRAINED_DAY == 0 && RAND:2
+			LOCAL:10 = 11
+		ELSE
+			LOCAL:10 = 10
+		ENDIF
 	ENDIF
 ;設定：条件無視で100％性的な要求
 ELSEIF CONFIG:308 == 3
-	LOCAL:10 = 10
+	IF DIPLOMACY_TRAINED_DAY == 0 && RAND:2
+		LOCAL:10 = 11
+	ELSE
+		LOCAL:10 = 10
+	ENDIF
 ENDIF
 
 ;要求の具体的な内容を設定
@@ -128,12 +140,12 @@ SELECTCASE LOCAL:10
 
 	;性的行為を要求
 	CASE 10
-		CALL DEPLOMACY_REQUESTED_SEX(ARG:0, ARG:1)
+		CALL DIPLOMACY_REQUESTED_SEX(ARG:0, ARG:1)
 		LOCAL:20 = RESULT
 
 	;数期間の調教を要求
 	CASE 11
-		CALL DEPLOMACY_REQUESTED_TRAIN(ARG:0, ARG:1)
+		CALL DIPLOMACY_REQUESTED_TRAIN(ARG:0, ARG:1)
 		LOCAL:20 = RESULT
 
 	;エラーチェック
@@ -449,7 +461,7 @@ GOTO INPUT_LOOP
 ;性的行為の要求の処理
 ;ARG:0は相手の勢力番号、ARG:1は要求の重さ。要求を飲むと1、断ると0を返す
 ;-------------------------------------------------
-@DEPLOMACY_REQUESTED_SEX(ARG:0, ARG:1)
+@DIPLOMACY_REQUESTED_SEX(ARG:0, ARG:1)
 ;自国・相手勢力の君主のキャラ番号をそれぞれ取得
 LOCAL:4 = GET_COUNTRY_BOSS(CFLAG:MASTER:1)
 LOCAL:5 = GET_COUNTRY_BOSS(ARG:0)
@@ -489,6 +501,21 @@ ELSE
 		LOCAL:10 += 20
 	ELSEIF CFLAG:(LOCAL:5):2 >= 500
 		LOCAL:10 -= 5
+	ENDIF
+
+	;性別による判定
+	IF IS_MALE(LOCAL:5)
+		SIF IS_FEMALE(MASTER)
+			LOCAL:10 -= 10
+		SIF IS_FEMALE(LOCAL:4)
+			LOCAL:10 += 10
+	ENDIF
+	
+	IF IS_FEMALE(LOCAL:5)
+		SIF IS_MALE(MASTER)
+			LOCAL:10 -= 10
+		SIF IS_MALE(LOCAL:4)
+			LOCAL:10 += 10
 	ENDIF
 
 	IF LOCAL:10 >= 0
@@ -555,6 +582,12 @@ ELSEIF LOCAL:11 >= 15 && RAND:2
 	LOCAL:15 = 1
 ELSEIF LOCAL:12 <= -15 && RAND:2
 	LOCAL:15 = 2
+ELSEIF !RAND:3
+	IF RAND:2 && (PENIS(MASTER) && VAGINA(LOCAL:5)) || (VAGINA(MASTER) && PENIS(LOCAL:5))
+		LOCAL:15 = 30
+	ELSE
+		LOCAL:15 = 50
+	ENDIF
 ELSEIF PENIS(LOCAL:5)
 	LOCAL:15 = 10
 	IF (TALENT:(LOCAL:6):巨乳 || TALENT:(LOCAL:6):爆乳) && RAND:3 >= 1
@@ -851,6 +884,152 @@ SELECTCASE LOCAL:15
 		PRINTL 
 
 		PRINTFORMW ………………
+	CASE 30
+		IF PENIS(LOCAL:5) && VAGINA(LOCAL:6)
+			PRINTFORML %ANAME(LOCAL:5)%はさっそく、%ANAME(LOCAL:6)%の服を脱がせ、自らも服を脱いだ
+			PRINTFORML %ANAME(LOCAL:5)%の股座にある逸物は、快楽への期待で早くもいきり勃っている……
+			SELECTCASE RAND:7
+				CASE 0
+					PRINTFORML %ANAME(LOCAL:5)%は、%ANAME(LOCAL:6)%を四つん這いにさせ、後ろからその雌穴を貫いた
+				CASE 1
+					PRINTFORML %ANAME(LOCAL:5)%は、%ANAME(LOCAL:6)%を仰向けにさせ、覆い被さって上から何度も雌穴を突いた
+				CASE 2
+					PRINTFORML %ANAME(LOCAL:5)%は、%ANAME(LOCAL:6)%に壁に手をついて尻を向けさせ、後ろからその雌穴を貫いた
+				CASE 3
+					PRINTFORML %ANAME(LOCAL:5)%は、%ANAME(LOCAL:6)%と向かい合い、立ったまま雌穴を貫いた
+				CASE 4
+					PRINTFORML %ANAME(LOCAL:5)%は座り、%ANAME(LOCAL:6)%を向かい合った体勢で跨がらせ、下から何度も突き上げた
+				CASE 5
+					PRINTFORML %ANAME(LOCAL:5)%は座り、%ANAME(LOCAL:6)%を後ろ向きの体勢で跨がらせ、下から何度も突き上げた
+				CASE 6
+					PRINTFORML %ANAME(LOCAL:5)%は仰向けに寝ると、%ANAME(LOCAL:6)%を己の上に跨がらせ、自ら腰を振らせた
+			ENDSELECT
+			CALL DOUTEI_COMMON(LOCAL:5, LOCAL:6)
+			CALL VIRGIN_COMMON(LOCAL:6, LOCAL:5)
+			PRINTFORML やがて%ANAME(LOCAL:5)%は、%ANAME(LOCAL:6)%の膣内にたっぷりと射精した
+			PRINTFORML ペニスを引き抜かれた淫裂からは、白いものがどろりとこぼれ落ちている……
+			CALL RECORD_INJECTION(LOCAL:6, GET_ID(LOCAL:5), (ABL:(LOCAL:5):射精 + 1))
+			CALL CHECK_PREGNANT(LOCAL:6)
+			
+			PRINTL 
+
+			PRINTFORML <%ANAME(LOCAL:5)%>
+			CALL EVENT_NIGHT_SEX_SAMESEX_EXP(LOCAL:6, LOCAL:5, 5)
+			CALL PRINT_ADD_EXP(LOCAL:5, "性技経験値", (MAX(ABL:(LOCAL:5):性技 + ABL:(LOCAL:6):性技 / 2, 3)))
+			CALL PRINT_ADD_EXP(LOCAL:5, "性交経験値", (MAX(ABL:(LOCAL:5):性交 + ABL:(LOCAL:6):性交 / 2, 3)))
+			CALL PRINT_ADD_EXP(LOCAL:5, "射精経験値", 1)
+			CALL PRINT_ADD_EXP(LOCAL:5, "欲望経験値", ABL:(LOCAL:5):欲望 + 3)
+			CALL PRINT_ADD_EXP(LOCAL:5, "Ｃ感経験値", ABL:(LOCAL:5):Ｃ感 + 2)
+			CALL PRINT_ADD_EXP(LOCAL:5, "絶頂経験", 1)
+			CALL TRAIN_AUTO_ABLUP(LOCAL:5)
+			PRINTL 
+
+			PRINTFORML <%ANAME(LOCAL:6)%>
+			CALL EVENT_NIGHT_SEX_SAMESEX_EXP(LOCAL:6, LOCAL:5, 5)
+			CALL PRINT_ADD_EXP(LOCAL:6, "性技経験値", (MAX(ABL:(LOCAL:5):性技 + ABL:(LOCAL:6):性技 / 2, 3)))
+			CALL PRINT_ADD_EXP(LOCAL:6, "性交経験値", (MAX(ABL:(LOCAL:5):性交 + ABL:(LOCAL:6):性交 / 2, 3)))
+			CALL PRINT_ADD_EXP(LOCAL:6, "欲望経験値", ABL:(LOCAL:5):欲望 + 3)
+			CALL PRINT_ADD_EXP(LOCAL:6, "Ｖ感経験値", ABL:(LOCAL:5):Ｖ感 + 2)
+			CALL PRINT_ADD_EXP(LOCAL:6, "絶頂経験", 1)
+			CALL TRAIN_AUTO_ABLUP(LOCAL:6)
+			PRINTL 
+
+			PRINTFORMW ………………
+		ELSEIF PENIS(LOCAL:6) && VAGINA(LOCAL:5)
+			PRINTFORML %ANAME(LOCAL:5)%はさっそく、%ANAME(LOCAL:6)%の服を脱がせ、自らも服を脱いだ
+			PRINTFORML %ANAME(LOCAL:6)%の股座にある逸物は、快楽への期待で早くもいきり勃っている……
+			PRINTFORML これは期待できそうだと、%ANAME(LOCAL:5)%は舌なめずりした
+			SELECTCASE RAND:7
+				CASE 0
+					PRINTFORML %ANAME(LOCAL:5)%は自ら%ANAME(LOCAL:6)%に尻を向け、腰をくねらせて性交をねだった
+				CASE 1
+					PRINTFORML %ANAME(LOCAL:5)%は自ら仰向けに横たわり、股を開き秘裂を指で開いて性交をねだった
+				CASE 2
+					PRINTFORML %ANAME(LOCAL:5)%は自ら壁に手をついて%ANAME(LOCAL:6)%に尻を向け、後ろから雌穴を貫くようねだった
+				CASE 3
+					PRINTFORML %ANAME(LOCAL:5)%は%ANAME(LOCAL:6)%と向かい合い、立ったままの姿勢で犯すよう命じた
+				CASE 4
+					PRINTFORML %ANAME(LOCAL:5)%は%ANAME(LOCAL:6)%を座らせ、向かい合った体勢で跨がると、下から突き上げるようねだった
+				CASE 5
+					PRINTFORML %ANAME(LOCAL:5)%は%ANAME(LOCAL:6)%を座らせ、後ろ向きの体勢で跨がると、下から何度も突き上げるようねだった
+				CASE 6
+					PRINTFORML %ANAME(LOCAL:5)%は%ANAME(LOCAL:6)%を仰向けに寝かせ、その上に跨がると、亀頭に己の雌穴の入り口を擦りつける
+			ENDSELECT
+			PRINTFORML %ANAME(LOCAL:6)%は命じられるがまま、%ANAME(LOCAL:5)%に挿入した……
+			CALL DOUTEI_COMMON(LOCAL:6, LOCAL:5)
+			CALL VIRGIN_COMMON(LOCAL:5, LOCAL:6)
+			PRINTFORML やがて%ANAME(LOCAL:6)%が限界を迎えると、%ANAME(LOCAL:5)%はそのまま膣内で射精させた……
+			PRINTFORML ペニスを引き抜かれた淫裂からは、白い物がどろりとこぼれ落ちている……
+			CALL RECORD_INJECTION(LOCAL:5, GET_ID(LOCAL:6), (ABL:(LOCAL:6):射精 + 1))
+			CALL CHECK_PREGNANT(LOCAL:5)
+			
+			PRINTL 
+
+			PRINTFORML <%ANAME(LOCAL:6)%>
+			CALL EVENT_NIGHT_SEX_SAMESEX_EXP(LOCAL:6, LOCAL:5, 5)
+			CALL PRINT_ADD_EXP(LOCAL:6, "性技経験値", (MAX((ABL:(LOCAL:5):性技 + ABL:(LOCAL:6):性技) / 2, 3)))
+			CALL PRINT_ADD_EXP(LOCAL:6, "性交経験値", (MAX((ABL:(LOCAL:5):性交 + ABL:(LOCAL:6):性交) / 2, 3)))
+			CALL PRINT_ADD_EXP(LOCAL:6, "射精経験値", 1)
+			CALL PRINT_ADD_EXP(LOCAL:6, "欲望経験値", ABL:(LOCAL:6):欲望 + 3)
+			CALL PRINT_ADD_EXP(LOCAL:6, "Ｃ感経験値", ABL:(LOCAL:6):Ｃ感 + 2)
+			CALL PRINT_ADD_EXP(LOCAL:6, "絶頂経験", 1)
+			CALL TRAIN_AUTO_ABLUP(LOCAL:6)
+			PRINTL 
+
+			PRINTFORML <%ANAME(LOCAL:5)%>
+			CALL EVENT_NIGHT_SEX_SAMESEX_EXP(LOCAL:6, LOCAL:5, 5)
+			CALL PRINT_ADD_EXP(LOCAL:5, "性技経験値", (MAX((ABL:(LOCAL:5):性技 + ABL:(LOCAL:6):性技) / 2, 3)))
+			CALL PRINT_ADD_EXP(LOCAL:5, "性交経験値", (MAX((ABL:(LOCAL:5):性交 + ABL:(LOCAL:6):性交) / 2, 3)))
+			CALL PRINT_ADD_EXP(LOCAL:5, "欲望経験値", ABL:(LOCAL:5):欲望 + 3)
+			CALL PRINT_ADD_EXP(LOCAL:5, "Ｖ感経験値", ABL:(LOCAL:5):Ｖ感 + 2)
+			CALL PRINT_ADD_EXP(LOCAL:5, "絶頂経験", 1)
+			CALL TRAIN_AUTO_ABLUP(LOCAL:5)
+			PRINTL 
+
+			PRINTFORMW ………………
+		ENDIF
+	CASE 50
+		IF PENIS(LOCAL:6)
+			PRINTFORML %ANAME(LOCAL:5)%はさっそく、%ANAME(LOCAL:6)%の服を脱がせ、自らも服を脱いだ
+			PRINTFORML %ANAME(LOCAL:5)%の秘所は、快楽への期待で早くも濡れ始めている……
+			PRINTFORML 不意に、%ANAME(LOCAL:5)%はぱんぱんと手を叩いた
+			PRINTFORML すると、艶やかな女兵士達がぞろぞろとなだれ込んできた
+			PRINTFORML そのまま、%ANAME(LOCAL:6)%は、慰安として兵士達に提供されてしまった……
+			CALL DOUTEI_COMMON(LOCAL:6, -11)
+			PRINTFORML やがてコトが終わると、そこには精根尽き果て陰茎から種を弱々しく零す%ANAME(LOCAL:6)%と、
+			PRINTFORML %ANAME(LOCAL:6)%の痴態を肴に何度も自慰をし、ぐったりと疲れた%ANAME(LOCAL:5)%が残されていた
+			
+			PRINTFORML <%ANAME(LOCAL:6)%>
+			CALL EVENT_NIGHT_SEX_SAMESEX_EXP(LOCAL:6, LOCAL:5, 15)
+			CALL PRINT_ADD_EXP(LOCAL:6, "性交経験値", (ABL:(LOCAL:6):性交 + 10))
+			CALL PRINT_ADD_EXP(LOCAL:6, "欲望経験値", ABL:(LOCAL:6):欲望 * 2 + 3)
+			CALL PRINT_ADD_EXP(LOCAL:6, "Ｃ感経験値", ABL:(LOCAL:6):Ｃ感 * 2 + 2)
+			CALL PRINT_ADD_EXP(LOCAL:6, "射精経験値", MAX(ABL:(LOCAL:6):Ｃ感 * 2, 10))
+			CALL PRINT_ADD_EXP(LOCAL:6, "絶頂経験", MAX(ABL:(LOCAL:6):Ｃ感 * 2, 10))
+			CALL TRAIN_AUTO_ABLUP(LOCAL:6)
+			PRINTL 
+		ELSEIF VAGINA(LOCAL:6)
+			PRINTFORML %ANAME(LOCAL:5)%はさっそく、%ANAME(LOCAL:6)%の服を脱がせ、自らも服を脱いだ
+			PRINTFORML %ANAME(LOCAL:5)%の股座にある逸物は、快楽への期待で早くもいきり勃っている……
+			PRINTFORML 不意に、%ANAME(LOCAL:5)%はぱんぱんと手を叩いた
+			PRINTFORML すると、屈強な兵士達がぞろぞろとなだれ込んできた
+			PRINTFORML そのまま、%ANAME(LOCAL:6)%は、慰安として兵士達に提供されてしまった……
+			CALL VIRGIN_COMMON(LOCAL:6, -11)
+			PRINTFORML やがてコトが終わると、そこには全身あらゆる穴から種を零す%ANAME(LOCAL:6)%と、
+			PRINTFORML %ANAME(LOCAL:6)%の痴態を肴に何度も自慰をし、ぐったりと疲れた%ANAME(LOCAL:5)%が残されていた
+			CALL RECORD_INJECTION(LOCAL:6, -11, 15)
+			CALL CHECK_PREGNANT(LOCAL:6)
+			
+			PRINTFORML <%ANAME(LOCAL:6)%>
+			CALL EVENT_NIGHT_SEX_SAMESEX_EXP(LOCAL:6, LOCAL:5, 15)
+			CALL PRINT_ADD_EXP(LOCAL:6, "性交経験値", (ABL:(LOCAL:6):性交 + 10))
+			CALL PRINT_ADD_EXP(LOCAL:6, "欲望経験値", ABL:(LOCAL:6):欲望 * 2 + 3)
+			CALL PRINT_ADD_EXP(LOCAL:6, "Ｖ感経験値", ABL:(LOCAL:6):Ｖ感 * 2 + 2)
+			CALL PRINT_ADD_EXP(LOCAL:6, "Ａ感経験値", ABL:(LOCAL:6):Ａ感 * 2 + 2)
+			CALL PRINT_ADD_EXP(LOCAL:6, "絶頂経験", MAX((ABL:(LOCAL:6):Ｃ感 + ABL:(LOCAL:6):Ａ感) * 2, 10))
+			CALL TRAIN_AUTO_ABLUP(LOCAL:6)
+			PRINTL 
+		ENDIF
 ENDSELECT
 
 RETURN 1
@@ -859,7 +1038,9 @@ RETURN 1
 ;数期間の調教を要求
 ;ARG:0は相手の勢力番号、ARG:1は要求の重さ。要求を飲むと1、断ると0を返す
 ;-------------------------------------------------
-@DEPLOMACY_REQUESTED_TRAIN(ARG:0, ARG:1)
+@DIPLOMACY_REQUESTED_TRAIN(ARG:0, ARG:1)
+#DIM TRAINING_DAY
+
 ;自国・相手勢力の君主のキャラ番号をそれぞれ取得
 LOCAL:4 = GET_COUNTRY_BOSS(CFLAG:MASTER:1)
 LOCAL:5 = GET_COUNTRY_BOSS(ARG:0)
@@ -901,6 +1082,20 @@ ELSE
 		LOCAL:10 -= 5
 	ENDIF
 
+	;性別による判定
+	IF IS_MALE(LOCAL:5)
+		SIF IS_FEMALE(MASTER)
+			LOCAL:10 -= 10
+		SIF IS_FEMALE(LOCAL:4)
+			LOCAL:10 += 10
+	ENDIF
+	IF IS_FEMALE(LOCAL:5)
+		SIF IS_MALE(MASTER)
+			LOCAL:10 -= 10
+		SIF IS_MALE(LOCAL:4)
+			LOCAL:10 += 10
+	ENDIF
+
 	IF LOCAL:10 >= 0
 		LOCAL:6 = LOCAL:4
 	ELSE
@@ -910,3 +1105,30 @@ ENDIF
 
 ;対象キャラは君主またはあなた
 ;内容は別の関数を使い、能力・素質に応じて分岐
+
+;要求の重さと対象キャラへの判定値の大きさに応じて日数を算出　最大7日間
+TRAINING_DAY = MIN(MAX(ABS(LOCAL:10)*(ARG:1), 1), 7)
+
+PRINTFORML %NAME:(LOCAL:5)%は%ANAME(LOCAL:6)%に対して、こちらの提案を飲む代わりに{TRAINING_DAY}日間調教させろと要求してきた
+
+CALL ASK_YN("受け入れる", "断る")
+IF RESULT == 1
+	RETURN 0
+ENDIF
+
+IF LOCAL:6 == MASTER
+	;逆調教要求日数を設定
+	DIPLOMACY_TRAINED_DAY = TRAINING_DAY
+	DIPLOMACY_TRAINING_CHARA = LOCAL:5
+	PRINTL 
+ELSE
+	PRINTFORMW %ANAME(MASTER)%は%ANAME(LOCAL:6)%に対して、要求を飲むように説得した…
+	;逆調教要求日数を設定
+	DIPLOMACY_TRAINED_DAY -= TRAINING_DAY
+	DIPLOMACY_TRAINING_CHARA = LOCAL:5
+	PRINTL 
+ENDIF
+
+
+
+RETURN 1
