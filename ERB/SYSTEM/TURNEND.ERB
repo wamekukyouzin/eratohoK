@@ -12,20 +12,7 @@ IF TIME == 0
 	IF SHOP_TIME >= CALC_SHOP_TIME() || CFLAG:MASTER:9
 		CALL TURNEND_LIFE
 	ELSE
-		IF GET_COOK() != -1
-			LOCAL = GET_COOK()
-			IF LOCAL != 0 && !CFLAG:(LOCAL):9 && CFLAG:(LOCAL):1 == CFLAG:MASTER:1
-				BASE:MASTER:体力 = MIN(BASE:MASTER:体力 + (ABL:LOCAL:料理 / 10 * 100 + RAND:100), MAXBASE:MASTER:体力)
-				BASE:MASTER:気力 = MIN(BASE:MASTER:気力 + (ABL:LOCAL:料理 / 10 * 100 + RAND:100), MAXBASE:MASTER:気力)
-				PRINTFORML %ANAME(LOCAL)%の料理で、体力と気力が回復しました
-			ELSE
-				SETCOLOR COLOR("注意")
-				PRINTFORML 料理長が国内にいない（捕虜になっている、国外に追放された）ため、その恩恵をうけられません
-				PRINTFORMW !料理長を解除しました!
-				RESETCOLOR
-				CALL SET_COOK(-1)
-			ENDIF
-		ENDIF
+		CALL COOK_HEAL
 		BEGIN SHOP
 	ENDIF
 ;戦略フェイズ
@@ -657,6 +644,9 @@ NEXT
 ;登用コマンドの実行済みフラグをクリア
 FLAG:17 = 0
 
+;-------------------------------------------------
+;各国から勧誘される処理
+;-------------------------------------------------
 @INVITE_TO_COUNTRY
 #DIM 雇用確率
 #DIM 支度金
@@ -722,5 +712,24 @@ IF !FLAG:1 && !FLAG:27 && !CFLAG:MASTER:1 && !CFLAG:MASTER:9
 				PRINTFORML
 			ENDIF
 		NEXT
+	ENDIF
+ENDIF
+
+;-------------------------------------------------
+;料理長による回復
+;-------------------------------------------------
+@COOK_HEAL
+IF GET_COOK() != -1
+	LOCAL = GET_COOK()
+	IF LOCAL != 0 && !CFLAG:(LOCAL):9 && CFLAG:(LOCAL):1 == CFLAG:MASTER:1
+		BASE:MASTER:体力 = MIN(BASE:MASTER:体力 + (ABL:LOCAL:料理 / 10 * 100 + RAND:100), MAXBASE:MASTER:体力)
+		BASE:MASTER:気力 = MIN(BASE:MASTER:気力 + (ABL:LOCAL:料理 / 10 * 100 + RAND:100), MAXBASE:MASTER:気力)
+		PRINTFORML %ANAME(LOCAL)%の料理で、体力と気力が回復しました
+	ELSE
+		SETCOLOR COLOR("注意")
+		PRINTFORML 料理長が国内にいない（捕虜になっている、国外に追放された）ため、その恩恵をうけられません
+		PRINTFORMW !料理長を解除しました!
+		RESETCOLOR
+		CALL SET_COOK(-1)
 	ENDIF
 ENDIF
