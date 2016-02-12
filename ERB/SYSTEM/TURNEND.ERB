@@ -12,20 +12,7 @@ IF TIME == 0
 	IF SHOP_TIME >= CALC_SHOP_TIME() || CFLAG:MASTER:9
 		CALL TURNEND_LIFE
 	ELSE
-		IF GET_COOK() != -1
-			LOCAL = GET_COOK()
-			IF LOCAL != 0 && !CFLAG:(LOCAL):9 && CFLAG:(LOCAL):1 == CFLAG:MASTER:1
-				BASE:MASTER:体力 = MIN(BASE:MASTER:体力 + (ABL:LOCAL:料理 / 10 * 100 + RAND:100), MAXBASE:MASTER:体力)
-				BASE:MASTER:気力 = MIN(BASE:MASTER:気力 + (ABL:LOCAL:料理 / 10 * 100 + RAND:100), MAXBASE:MASTER:気力)
-				PRINTFORML %ANAME(LOCAL)%の料理で、体力と気力が回復しました
-			ELSE
-				SETCOLOR COLOR("注意")
-				PRINTFORML 料理長が国内にいない（捕虜になっている、国外に追放された）ため、その恩恵をうけられません
-				PRINTFORMW !料理長を解除しました!
-				RESETCOLOR
-				CALL SET_COOK(-1)
-			ENDIF
-		ENDIF
+		CALL COOK_HEAL
 		BEGIN SHOP
 	ENDIF
 ;戦略フェイズ
@@ -126,7 +113,76 @@ IF DVAR:要求野盗斬り捨て
 	SWAPCHARA MASTER, DVAR:要求野盗斬り捨て
 	BEGIN TRAIN
 ENDIF
-;
+
+;逆調教要求日数が残っている場合
+IF DIPLOMACY_TRAINED_DAY > 0 && !FLAG:31 && !FLAG:調教要求フラグ
+	DIPLOMACY_TRAINED_DAY --
+	FLAG:31 = 2
+	;全員の調教参加フラグを解除
+	CVARSET CFLAG, 6, 0
+	CFLAG:DIPLOMACY_TRAINING_CHARA:6 = 1
+	PRINTFORML %ANAME(MASTER)%は外交交渉の見返りとして、%ANAME(DIPLOMACY_TRAINING_CHARA)%の寝室へ向かった……
+ENDIF
+;君主逆調教要求日数が残っている場合
+IF DIPLOMACY_TRAINED_DAY < 0 && !FLAG:調教要求フラグ
+	DIPLOMACY_TRAINED_DAY ++
+	VARSET TMP_好感度
+	VARSET TMP_従属度
+	VARSET TMP_依存度
+	VARSET TMP_参加者
+	;捕虜逆調教モード
+	FLAG:12 = 5
+	;ウフフモード
+	FLAG:50 = 1
+	FLAG:あてがうフラグ = 1
+	FLAG:調教要求フラグ = 1
+	;アイテムを一通り追加
+	ITEM:A_ローター = 1
+	ITEM:A_バイブ = 1
+	ITEM:A_アナルバイブ = 1
+	ITEM:A_ペニスバンド = 1
+	ITEM:A_オナホール = 1
+	ITEM:A_クリキャップ = 1
+	ITEM:A_ニプルキャップ = 1
+	ITEM:A_媚薬 = 99
+	ITEM:A_排卵誘発剤 = 99
+	;行動開始時の共通処理
+	;好感度等を保存
+	TMP_好感度:0 = CFLAG:DIPLOMACY_TRAINING_CHARA:好感度
+	TMP_従属度:0 = CFLAG:DIPLOMACY_TRAINING_CHARA:従属度
+	TMP_依存度:0 = CFLAG:DIPLOMACY_TRAINING_CHARA:依存度
+	;調教中は好感度を1000に
+	CFLAG:DIPLOMACY_TRAINING_CHARA:好感度 = 1000
+	CFLAG:DIPLOMACY_TRAINING_CHARA:従属度 = 1000
+	CFLAG:DIPLOMACY_TRAINING_CHARA:依存度 = 1000
+	;参加済みに
+	TMP_参加者:0 = DIPLOMACY_TRAINING_CHARA
+	;全員の調教参加フラグを解除
+	CVARSET CFLAG, 6, 0
+	CFLAG:DIPLOMACY_TRAINING_CHARA:6 = 1
+	CFLAG:DIPLOMACY_TRAINING_CHARA:91 = 1
+
+	PRINTFORMW %ANAME(GET_COUNTRY_BOSS(CFLAG:MASTER:1))%は外交交渉の見返りとして、%ANAME(DIPLOMACY_TRAINING_CHARA)%の寝室へ向かった……
+	TMP_MASTER = GET_COUNTRY_BOSS(CFLAG:MASTER:1)
+	SWAPCHARA MASTER, TMP_MASTER
+	CALL KOJO_NTR_ATEGAU(MASTER, DIPLOMACY_TRAINING_CHARA)
+	
+	;時間の処理をしないと、「拠点フェイズの終了時にここに到達、調教→調教終了でSLGフェイズのターンエンドが呼ばれ、次期の拠点フェイズに飛ぶ」みたいな挙動になる
+	;IF TIME == 0
+	;	DAY --
+	;	SIF !FLAG:28
+	;		TIME = 1
+	;ELSEIF TIME == 1
+	;	TIME = 0
+	;	SHOP_TIME = CALC_SHOP_TIME()
+	;ENDIF
+	
+	;行動開始時の共通設定
+	CALL START_TRAIN_COMMON
+	REDRAW 1
+	RETURN 1
+ENDIF
+
 ;強制調教フラグが立っているなら即時調教モードに入る
 IF FLAG:31 == 1
 	FLAG:31 = 0
@@ -156,6 +212,8 @@ ELSEIF FLAG:31 == 2
 	ENDIF
 	CALL START_TRAIN_COMMON
 ELSE
+	SIF FLAG:調教要求フラグ
+		FLAG:調教要求フラグ = 0
 	;一応謎勢力にあなたが存在することが無いようにおまじない
 	SIF CFLAG:MASTER:1 == 0 && CFLAG:MASTER:9 == 0
 		TIME = 1
@@ -307,13 +365,13 @@ NEXT
 
 IF CFLAG:MASTER:1 <= 0
 	WAIT
-;給料の支給(観戦中・捕虜のときはスキップ)
+;給料の支給(観戦中・捕虜のときはスキップ)◆
 ELSEIF CFLAG:MASTER:9 == 0
 	DRAWLINE
-	LOCAL:0 = GET_SUM_ECONOMY(CFLAG:MASTER:1) * (ABL:MASTER:武闘 + ABL:MASTER:知略 + ABL:MASTER:政治 + 100) / 40000
+	LOCAL:0 = GET_SUM_ECONOMY(CFLAG:MASTER:1) * (ABL:MASTER:武闘 + ABL:MASTER:知略 + ABL:MASTER:政治 + 200) / 30000 - MIN(GET_OWN_CITY(CFLAG:MASTER:所属) - 5, 1) * 100
 	MONEY += LOCAL:0
 	PRINTFORML %CALLNAME:MASTER%に今期分の俸給が支払われました
-	PRINTFORML <都市の経済規模×(%CALLNAME:MASTER%の能力合計＋100)÷400>
+	PRINTFORML <都市の経済規模×(%CALLNAME:MASTER%の能力合計＋200)÷300－(支配都市数－5)×100>
 	PRINTFORMW 所持金＋{LOCAL:0}
 ENDIF
 
@@ -590,6 +648,9 @@ NEXT
 ;登用コマンドの実行済みフラグをクリア
 FLAG:17 = 0
 
+;-------------------------------------------------
+;各国から勧誘される処理
+;-------------------------------------------------
 @INVITE_TO_COUNTRY
 #DIM 雇用確率
 #DIM 支度金
@@ -655,5 +716,24 @@ IF !FLAG:1 && !FLAG:27 && !CFLAG:MASTER:1 && !CFLAG:MASTER:9
 				PRINTFORML
 			ENDIF
 		NEXT
+	ENDIF
+ENDIF
+
+;-------------------------------------------------
+;料理長による回復
+;-------------------------------------------------
+@COOK_HEAL
+IF GET_COOK() != -1
+	LOCAL = GET_COOK()
+	IF LOCAL != 0 && !CFLAG:(LOCAL):9 && CFLAG:(LOCAL):1 == CFLAG:MASTER:1
+		BASE:MASTER:体力 = MIN(BASE:MASTER:体力 + (ABL:LOCAL:料理 / 10 * 100 + RAND:100), MAXBASE:MASTER:体力)
+		BASE:MASTER:気力 = MIN(BASE:MASTER:気力 + (ABL:LOCAL:料理 / 10 * 100 + RAND:100), MAXBASE:MASTER:気力)
+		PRINTFORML %ANAME(LOCAL)%の料理で、体力と気力が回復しました
+	ELSE
+		SETCOLOR COLOR("注意")
+		PRINTFORML 料理長が国内にいない（捕虜になっている、国外に追放された）ため、その恩恵をうけられません
+		PRINTFORMW !料理長を解除しました!
+		RESETCOLOR
+		CALL SET_COOK(-1)
 	ENDIF
 ENDIF
