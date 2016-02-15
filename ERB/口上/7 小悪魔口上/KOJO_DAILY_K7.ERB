@@ -1,0 +1,114 @@
+﻿@KOJO_DAILY_K7()
+
+;書庫整理
+CALL KOJO_DAILY_K7_SYOKOSEIRI
+
+
+;----------------------------------
+;書庫整理
+;----------------------------------
+@KOJO_DAILY_K7_SYOKOSEIRI
+#DIM 小悪魔
+
+小悪魔 = NAME_TO_CHARA("小悪魔")
+
+;ラッキースケベチャンスはオンリーワンだ
+SIF KDVAR:小悪魔:小悪魔_書庫整理 == -1
+	RETURN -1
+
+;ペニス持ってないの！？　じゃあ帰りな
+SIF !PENIS(MASTER)
+	RETURN -1
+
+;小悪魔が同一勢力所属で捕虜でなく死んでいないなら3.5%で発生
+SIF !CHECK_KOJO_DAILY_HAPPEN(小悪魔, 35, 1, 0)
+	RETURN -1
+
+;好感度または従属度が500以上必要
+SIF CFLAG:小悪魔:好感度 < 500 && CFLAG:小悪魔:従属度 < 500
+	RETURN -1
+
+SIF CFLAG:小悪魔:面識 == 0
+	CFLAG:小悪魔:面識 = 1
+
+CALL KOJO_DAILY_START
+PRINTFORML %ANAME(MASTER)%は%ANAME(小悪魔)%と書庫の整理をしていた
+PRINTFORML しばらく手を入れていなかったので、乱雑極まりない有様だった
+PRINTFORML 「%ANAME(MASTER)%さん、これはどちらへ運びましょうか？」
+PRINTFORMW %ANAME(MASTER)%が本棚の最上段を指さすと、%ANAME(小悪魔)%は脚立を持ってきた
+PRINTFORML 「こういう時、身長が高い人が羨ましくなりますよね……ひゃっ！」
+PRINTFORMW %ANAME(MASTER)%がそうだな、と返事しようとしたその時、%ANAME(小悪魔)%が脚立の上でバランスを崩した
+PRINTFORM %ANAME(MASTER)%は慌てて駆け寄り、
+PRINTL
+CALL ASK_YN("小悪魔の腰を掴んだ", "脚立を押さえた")
+IF RESULT == 0
+	PRINTFORMW %ANAME(小悪魔)%の腰をがっしり掴むと、フワリと良い匂いがした
+	PRINTFORMW 体のどこかに香水でも塗っているのだろうか？
+	PRINTFORMW 「あ、あの、もう大丈夫です……」
+	PRINTFORMW 鼻をスンスンさせていると、%ANAME(小悪魔)%が困惑したような声を出した
+	PRINTFORMW 「……どうかしましたか？　何か気になるんですか？」
+	PRINTFORMW はっと我に返った%ANAME(MASTER)%は、なんでもない、なんでもないと繰り返し、仕事に戻ろうとした
+	PRINTFORML 「あの、続けてくださっても……構いませんよ」
+	PRINTFORMW %ANAME(小悪魔)%はささやく様にそう言った
+	PRINTFORMW %ANAME(MASTER)%はどういう意味か分かっているのか尋ねる
+	PRINTFORMW 「わかってるかどうか、確かめてみますか？」
+	PRINTFORMW %ANAME(MASTER)%は書庫のカギを閉め、%ANAME(小悪魔)%をゆっくりと押し倒した……
+
+	CFLAG:小悪魔:好感度 += 100
+	EXP:小悪魔:Ｃ感経験値 += ABL:小悪魔:Ｃ感 * 5 + 5 + RAND:11
+	EXP:小悪魔:Ｖ感経験値 += ABL:小悪魔:Ｖ感 * 20 + 15 + RAND:11
+	EXP:小悪魔:Ｂ感経験値 += ABL:小悪魔:Ｂ感 * 4 + 4 + RAND:9
+	EXP:小悪魔:欲望経験値 += ABL:小悪魔:欲望 * 3 + 2 + RAND:7
+	EXP:小悪魔:奉仕経験値 += ABL:小悪魔:奉仕 * 2 + 5 + RAND:11
+	EXP:小悪魔:性交経験値 += ABL:小悪魔:性交 * 5 + 15 + RAND:11
+	EXP:小悪魔:性技経験値 += ABL:小悪魔:性技 + 2 + RAND:4
+	EXP:小悪魔:精愛経験値 += ABL:小悪魔:精愛 * 10 + 30 + RAND:21
+	;中出しと妊娠判定
+	IF CONFIG:1 == 0 && (VAGINA(小悪魔) || TALENT:小悪魔:孕み可能)
+		FOR LOCAL:1, 440, 480
+			TCVAR:小悪魔:(LOCAL:1) = 0
+		NEXT
+		CALL RECORD_INJECTION(小悪魔, GET_ID(MASTER), 3)
+		CALL CHECK_PREGNANT(小悪魔)
+	ENDIF
+	;能力上昇はメッセージ表示後
+	CALL TRAIN_AUTO_ABLUP(小悪魔)
+	;処女とキス未経験を失う
+	IF TALENT:小悪魔:キス未経験
+		IF RAND:4
+			;ペニスへのキス
+			CALL KISS_COMMON(小悪魔, MASTER, 1, 0, 0)
+		ENDIF
+		;唇へのキス
+		CALL KISS_COMMON(小悪魔, MASTER, 0, 0, 0)
+		SETCOLOR COLOR("注意")
+		PRINTFORML %ANAME(小悪魔)%は<キス未経験>を失った…
+		RESETCOLOR
+	ENDIF
+	IF TALENT:小悪魔:処女 && VAGINA(小悪魔)
+		SETCOLOR COLOR("注意")
+		PRINTFORML %ANAME(小悪魔)%は<処女>を失った…
+		RESETCOLOR
+		;処女を捧げた相手を%ANAME(MASTER)%に設定
+		CFLAG:小悪魔:41 = GET_ID(MASTER)
+		TALENT:小悪魔:処女 = 0
+	ENDIF
+	IF TALENT:MASTER:童貞
+		CFLAG:MASTER:40 = GET_ID(小悪魔)
+		TALENT:MASTER:童貞 = 0
+	ENDIF
+	IF TALENT:MASTER:キス未経験
+		CALL KISS_COMMON(MASTER, 小悪魔, 0, 0, 0)
+		TALENT:MASTER:キス未経験 = 0
+	ENDIF
+
+	PRINTFORMW 「ふふ……おしごと。サボっちゃいましたね」
+	PRINTFORMW 「なんて言い訳しましょうか？」
+	PRINTFORMW それを考えるのは後でいいだろう
+	PRINTFORMW そう呟きつつ、%ANAME(MASTER)%は%ANAME(小悪魔)%を抱きしめた……
+ELSE
+	PRINTFORML 「ああ、びっくりした。ありがとうございます」
+	PRINTFORMW 不安定だから気を付けるよう%ANAME(MASTER)%は注意をし、仕事に戻った……
+ENDIF
+
+KDVAR:小悪魔:小悪魔_書庫整理 = -1
