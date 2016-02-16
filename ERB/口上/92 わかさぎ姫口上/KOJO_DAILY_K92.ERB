@@ -1,0 +1,180 @@
+﻿@KOJO_DAILY_K92()
+
+;お前がパパになるんだよ！
+CALL KOJO_DAILY_K92_OMAPAPA
+
+
+;----------------------------------
+;お前がパパになるんだよ！
+;----------------------------------
+@KOJO_DAILY_K92_OMAPAPA
+#DIM わかさぎ姫
+#DIM 玄爺
+
+わかさぎ姫 = NAME_TO_CHARA("わかさぎ姫")
+玄爺 = NAME_TO_CHARA("玄爺")
+
+;何度も騙されるようなキャラじゃないと思うし…
+SIF KDVAR:わかさぎ姫:わかさぎ姫_おまパパ == 1
+	RETURN -1
+
+;わかさぎ姫が同一勢力所属で捕虜でなく死んでいないなら3.5%で発生
+SIF !CHECK_KOJO_DAILY_HAPPEN(わかさぎ姫, 35, 1, 0, 1)
+	RETURN -1
+
+;陥落済みならやります
+SIF !(TALENT:わかさぎ姫:恋慕 == 1 || TALENT:わかさぎ姫:親愛 == 1 || TALENT:わかさぎ姫:服従 == 1 || TALENT:わかさぎ姫:隷属 == 1 || TALENT:わかさぎ姫:恋人 == 1 || TALENT:わかさぎ姫:烙印 == 1)
+	RETURN -1
+
+
+CALL KOJO_DAILY_START
+PRINTFORMW %ANAME(MASTER)%が%ANAME(わかさぎ姫)%と談笑していると、不意に%ANAME(わかさぎ姫)%は黙りこくってしまった
+PRINTFORMW 何か粗相をしてしまったのかと、%ANAME(MASTER)%が狼狽えると、そうではないと%ANAME(わかさぎ姫)%は否定した
+PRINTFORML 「はしたないお話ではありますが、実は今、産卵期の真っただ中にありまして……」
+PRINTFORMW 「正直、今すぐにでも産卵したくてたまらない状態なんです」
+PRINTFORMW 「でも、%ANAME(MASTER)%以外の子を産む可能性を考えると、怖くて、どうすればいいのか……」
+PRINTFORML %ANAME(わかさぎ姫)%は目に涙を溜め、わずかに肩を震わせながら心中を語った
+PRINTFORMW 恥を忍び、赤裸々に語る%ANAME(わかさぎ姫)%の厚い信頼を感じる……
+PRINTFORMW 「……ですから、大変不躾な申し出ではありますが、どうか、どうか%ANAME(MASTER)%に、その」
+PRINTFORMW 「せ、精子を、いただきたいのですが、お願いできませんか」
+PRINTL
+
+CALL ASK_MULTI("承りました", "やなこったいで　ござる", "おーい！　誰か！　こちらの淑女がお精子お恵みくださいってよ！")
+SELECTCASE RESULT
+	CASE 0
+		PRINTFORMW %ANAME(MASTER)%が快諾すると、%ANAME(わかさぎ姫)%は安堵からか、涙をポロポロこぼし始めた
+		PRINTFORMW 「ああ……ありがとうございます……%ANAME(MASTER)%、ありがとう……」
+		PRINTFORMW 恐怖や不安から解放された%ANAME(わかさぎ姫)%を慰め、%ANAME(MASTER)%たちは人目につかない所へ移動した……
+
+		EXP:わかさぎ姫:Ｃ感経験値 += ABL:わかさぎ姫:Ｃ感 * 5 + 5 + RAND:11
+		EXP:わかさぎ姫:Ｖ感経験値 += ABL:わかさぎ姫:Ｖ感 * 20 + 15 + RAND:11
+		EXP:わかさぎ姫:Ｂ感経験値 += ABL:わかさぎ姫:Ｂ感 * 4 + 4 + RAND:9
+		EXP:わかさぎ姫:欲望経験値 += ABL:わかさぎ姫:欲望 * 3 + 2 + RAND:7
+		EXP:わかさぎ姫:奉仕経験値 += ABL:わかさぎ姫:奉仕 * 2 + 5 + RAND:11
+		EXP:わかさぎ姫:性交経験値 += ABL:わかさぎ姫:性交 * 5 + 15 + RAND:11
+		EXP:わかさぎ姫:性技経験値 += ABL:わかさぎ姫:性技 + 2 + RAND:4
+		EXP:わかさぎ姫:精愛経験値 += ABL:わかさぎ姫:精愛 * 10 + 30 + RAND:21
+		;中出しと妊娠判定
+		IF CONFIG:1 == 0 && (VAGINA(わかさぎ姫) || TALENT:わかさぎ姫:孕み可能)
+			FOR LOCAL:1, 440, 480
+				TCVAR:わかさぎ姫:(LOCAL:1) = 0
+			NEXT
+			CALL RECORD_INJECTION(わかさぎ姫, GET_ID(MASTER), 3)
+			CALL CHECK_PREGNANT(わかさぎ姫)
+		ENDIF
+		;能力上昇はメッセージ表示後
+		CALL TRAIN_AUTO_ABLUP(わかさぎ姫)
+		;処女とキス未経験を失う
+		IF TALENT:わかさぎ姫:キス未経験
+			IF RAND:4
+				;ペニスへのキス
+				CALL KISS_COMMON(わかさぎ姫, MASTER, 1, 0, 0)
+			ENDIF
+		;唇へのキス
+			CALL KISS_COMMON(わかさぎ姫, MASTER, 0, 0, 0)
+			SETCOLOR COLOR("注意")
+			PRINTFORML %ANAME(わかさぎ姫)%は<キス未経験>を失った…
+			RESETCOLOR
+		ENDIF
+		IF TALENT:わかさぎ姫:処女 && VAGINA(わかさぎ姫)
+			SETCOLOR COLOR("注意")
+			PRINTFORML %ANAME(わかさぎ姫)%は<処女>を失った…
+			RESETCOLOR
+			;処女を捧げた相手を%ANAME(MASTER)%に設定
+			CFLAG:わかさぎ姫:41 = GET_ID(MASTER)
+			TALENT:わかさぎ姫:処女 = 0
+		ENDIF
+		IF TALENT:MASTER:童貞
+			CFLAG:MASTER:40 = GET_ID(わかさぎ姫)
+			TALENT:MASTER:童貞 = 0
+		ENDIF
+		IF TALENT:MASTER:キス未経験
+			CALL KISS_COMMON(MASTER, わかさぎ姫, 0, 0, 0)
+			TALENT:MASTER:キス未経験 = 0
+		ENDIF
+;卵生の妊娠とか処女とか判定がホント謎だけど愛さえあれば関係ないよね
+	CASE 1
+		PRINTFORMW 「……そうですよね。引くのが普通の反応だと、思います……」
+		PRINTFORMW 「すみませんでした。自力でなんとか、%ANAME(MASTER)%以外の人を拒んでみせます」
+		PRINTFORMW そう言うと、%ANAME(わかさぎ姫)%はどこかへと去っていった……
+	CASE 2
+		IF CFLAG:玄爺:特殊状態フラグ != 2 && !CFLAG:玄爺:捕虜先
+			SELECTCASE RAND:100
+				CASE IS < 20
+					PRINTFORMW %ANAME(MASTER)%が大声で人を呼び集めると、空飛ぶ亀が近くに降りてきた
+					PRINTFORMW 「もし、そこな紳士どの、何をしておられるのかな？」
+					PRINTFORMW よぉし、この女はおまえにくれてやる。好きにしろッ！
+					PRINTFORMW 「これ、女性を乱暴に扱ってはイカンぞ。お主も男なら……」
+					PRINTFORML 同じ海産物なんだからちょうどいいと思わんか？　黙ってやれ
+					PRINTFORMW %ANAME(MASTER)%は武器を抜き、冷たい刃を%ANAME(玄爺)%に押し当てて命令した
+					PRINTFORMW 「嫌ぁっ！　やめて！　助けて！　%ANAME(MASTER)%！」
+					PRINTFORMW 「すまぬ……すまぬ……」
+					PRINTFORMW 「さわらないで……お願い、やめて……」
+
+					EXP:わかさぎ姫:Ｃ感経験値 += ABL:わかさぎ姫:Ｃ感 * 5 + 5 + RAND:11
+					EXP:わかさぎ姫:Ｖ感経験値 += ABL:わかさぎ姫:Ｖ感 * 20 + 15 + RAND:11
+					EXP:わかさぎ姫:Ｂ感経験値 += ABL:わかさぎ姫:Ｂ感 * 4 + 4 + RAND:9
+					EXP:わかさぎ姫:欲望経験値 += ABL:わかさぎ姫:欲望 * 3 + 2 + RAND:7
+					EXP:わかさぎ姫:奉仕経験値 += ABL:わかさぎ姫:奉仕 * 2 + 5 + RAND:11
+					EXP:わかさぎ姫:性交経験値 += ABL:わかさぎ姫:性交 * 5 + 15 + RAND:11
+					EXP:わかさぎ姫:性技経験値 += ABL:わかさぎ姫:性技 + 2 + RAND:4
+					EXP:わかさぎ姫:精愛経験値 += ABL:わかさぎ姫:精愛 * 10 + 30 + RAND:21
+					;中出しと妊娠判定
+					IF CONFIG:1 == 0 && (VAGINA(わかさぎ姫) || TALENT:わかさぎ姫:孕み可能)
+						FOR LOCAL:1, 440, 480
+							TCVAR:わかさぎ姫:(LOCAL:1) = 0
+						NEXT
+						CALL RECORD_INJECTION(わかさぎ姫, GET_ID(玄爺), 3)
+						CALL CHECK_PREGNANT(わかさぎ姫)
+					ENDIF
+					;能力上昇はメッセージ表示後
+					CALL TRAIN_AUTO_ABLUP(わかさぎ姫)
+					;処女とキス未経験を失う
+					IF TALENT:わかさぎ姫:キス未経験
+						IF RAND:4
+							;ペニスへのキス
+							CALL KISS_COMMON(わかさぎ姫, 玄爺, 1, 0, 0)
+						ENDIF
+					;唇へのキス
+						CALL KISS_COMMON(わかさぎ姫, 玄爺, 0, 0, 0)
+						SETCOLOR COLOR("注意")
+						PRINTFORML %ANAME(わかさぎ姫)%は<キス未経験>を失った…
+						RESETCOLOR
+					ENDIF
+					IF TALENT:わかさぎ姫:処女 && VAGINA(わかさぎ姫)
+						SETCOLOR COLOR("注意")
+						PRINTFORML %ANAME(わかさぎ姫)%は<処女>を失った…
+						RESETCOLOR
+						;処女を捧げた相手を%ANAME(玄爺)%に設定
+						CFLAG:わかさぎ姫:41 = GET_ID(玄爺)
+						TALENT:わかさぎ姫:処女 = 0
+					ENDIF
+					IF TALENT:玄爺:童貞
+						CFLAG:玄爺:40 = GET_ID(わかさぎ姫)
+						TALENT:玄爺:童貞 = 0
+					ENDIF
+					IF TALENT:玄爺:キス未経験
+						CALL KISS_COMMON(玄爺, わかさぎ姫, 0, 0, 0)
+						TALENT:玄爺:キス未経験 = 0
+					ENDIF
+				CASEELSE
+					PRINTFORMW %ANAME(MASTER)%が大声で人を呼び集めると、何事かと数人の人間が集まってきた
+					PRINTFORMW 「えっ？　%ANAME(MASTER)%？　なにを……」
+					PRINTFORMW よぉし、この女はおまえたちにくれてやる。好きにしろッ！
+					PRINTFORMW 集まった衆人にざわめきが広がり、続いて情欲が場に滲み始めた
+					PRINTFORMW 「嫌ぁっ！　やめて！　助けて！　%ANAME(MASTER)%！」
+					PRINTFORMW 「さわらないで……お願い、やめて……」
+					CALL FORCE_FUCK(わかさぎ姫, -1)
+			ENDSELECT
+		ELSE
+		PRINTFORMW %ANAME(MASTER)%が大声で人を呼び集めると、何事かと数人の人間が集まってきた
+		PRINTFORMW 「えっ？　%ANAME(MASTER)%？　なにを……」
+		PRINTFORMW よぉし、この女はおまえたちにくれてやる。好きにしろッ！
+		PRINTFORMW 集まった衆人にざわめきが広がり、続いて情欲が場に滲み始めた
+		PRINTFORMW 「嫌ぁっ！　やめて！　助けて！　%ANAME(MASTER)%！」
+		PRINTFORMW 「さわらないで……お願い、やめて……」
+		CALL FORCE_FUCK(わかさぎ姫, -1)
+		ENDIF
+ENDSELECT
+
+KDVAR:わかさぎ姫:わかさぎ姫_おまパパ = 1

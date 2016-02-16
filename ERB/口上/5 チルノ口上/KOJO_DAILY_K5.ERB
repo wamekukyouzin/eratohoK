@@ -1,0 +1,112 @@
+﻿@KOJO_DAILY_K5()
+
+;仲良し
+CALL KOJO_DAILY_K5_NAKAYOSI
+
+
+;----------------------------------
+;仲良し
+;----------------------------------
+@KOJO_DAILY_K5_NAKAYOSI
+#DIM チルノ
+
+チルノ = NAME_TO_CHARA("チルノ")
+
+;1回でいいよね
+SIF KDVAR:チルノ:チルノ_仲良し == -1
+	RETURN -1
+
+;チルノが同一勢力所属で捕虜でなく面識があり死んでいないなら3.5%で発生
+SIF !CHECK_KOJO_DAILY_HAPPEN(チルノ, 35, 1, 0, 1)
+	RETURN -1
+
+;無知シチュが成立したら合意と見てよろしいですね！？
+SIF ABL:チルノ:性知識 < 2 || ABL:MASTER:性知識 >= 2 || CFLAG:チルノ:好感度 < 1500
+	RETURN -1
+
+CALL KOJO_DAILY_START
+
+PRINTFORML %ANAME(MASTER)%は%ANAME(チルノ)%に引っ張られるようにして城下町を歩いていた
+PRINTFORML 「もー！　わざわざ飛ばずに歩いてやってんだから、ちゃんと着いてきてよね！」
+PRINTFORMW キャンキャン騒ぎながら好き勝手動き回る%ANAME(チルノ)%は、どことなく元気な犬を思わせた
+PRINTFORMW 「おお！　……おお？　なあ、あれ何やってるんだ？」
+PRINTFORMW %ANAME(チルノ)%が指さす方向を見ると、一組の男女が営みを行っていた
+PRINTFORMW 往来で何をしているのかと動揺したが、いつの間にか人通りのない、路地裏に入り込んでいたらしい
+PRINTFORMW 「ねえ？　あれってなにしてるんだ？　なんか面白いことなの？」
+PRINTL
+
+CALL ASK_MULTI("ちゃんと教える", "嘘を教える", "実技で教える")
+SELECTCASE RESULT
+	CASE 0
+		PRINTFORML %ANAME(チルノ)%にもそういう知識は必要だろう
+		PRINTFORMW そう考えた%ANAME(MASTER)%は、雄と雌が肉体を介して愛し合う理屈を説いた……
+		PRINTFORML 「そうなのか……そうなんだ」
+		PRINTFORMW %ANAME(チルノ)%は理解しているのかしていないのか、ぼんやりと中空を見つめていた
+		PRINTFORMW 「ねえ、%ANAME(MASTER)%」
+		PRINTFORMW 「いつか、あたいもそういうことをする時が来るのかな？」
+		PRINTFORMW %ANAME(チルノ)%は%ANAME(MASTER)%に視線を移し、問いかけた……
+		ABL:チルノ:性知識 = 2
+	CASE 1
+		PRINTFORMW サッカーって聞いたことある？　ボールを相手のゴールにシュートする遊びなんだけど
+		PRINTFORML 「知ってるぞ！　あ！　わかった！」
+		PRINTFORML 「あれもサッカーなんだろ！」
+		PRINTFORML 正解！　100ポイントあげます
+		PRINTFORMW 「へへ！　あたいったら天才ね！」
+		PRINTFORMW そう言うと、%ANAME(チルノ)%はあたいも混ぜてと叫びながら走っていった……
+		;ちょっとバカすぎるかな？
+	CASE 2
+		PRINTFORMW 「おおおっ？　なんだいきなり？」
+		PRINTFORMW いきなり押し倒された%ANAME(チルノ)%は何をされているのか理解していない様子だった
+		PRINTFORMW 「なんでいきなり服を脱ぐんだ？　え？　あたいも脱ぐの？　ええ？　うん？」
+		PRINTFORMW 大量の疑問符を頭に浮かべる%ANAME(チルノ)%を%ANAME(MASTER)%は抱き寄せた……
+			EXP:チルノ:Ｃ感経験値 += ABL:チルノ:Ｃ感 * 5 + 5 + RAND:11
+			EXP:チルノ:Ｖ感経験値 += ABL:チルノ:Ｖ感 * 20 + 15 + RAND:11
+			EXP:チルノ:Ｂ感経験値 += ABL:チルノ:Ｂ感 * 4 + 4 + RAND:9
+			EXP:チルノ:欲望経験値 += ABL:チルノ:欲望 * 3 + 2 + RAND:7
+			EXP:チルノ:奉仕経験値 += ABL:チルノ:奉仕 * 2 + 5 + RAND:11
+			EXP:チルノ:性交経験値 += ABL:チルノ:性交 * 5 + 15 + RAND:11
+			EXP:チルノ:性技経験値 += ABL:チルノ:性技 + 2 + RAND:4
+			EXP:チルノ:精愛経験値 += ABL:チルノ:精愛 * 10 + 30 + RAND:21
+			;中出しと妊娠判定
+			IF CONFIG:1 == 0 && (VAGINA(チルノ) || TALENT:チルノ:孕み可能)
+				FOR LOCAL:1, 440, 480
+					TCVAR:チルノ:(LOCAL:1) = 0
+				NEXT
+				CALL RECORD_INJECTION(チルノ, GET_ID(MASTER), 3)
+				CALL CHECK_PREGNANT(チルノ)
+			ENDIF
+			;能力上昇はメッセージ表示後
+			CALL TRAIN_AUTO_ABLUP(チルノ)
+			;処女とキス未経験を失う
+			IF TALENT:チルノ:キス未経験
+				IF RAND:4
+					;ペニスへのキス
+					CALL KISS_COMMON(チルノ, MASTER, 1, 0, 0)
+				ENDIF
+				;唇へのキス
+				CALL KISS_COMMON(チルノ, MASTER, 0, 0, 0)
+				SETCOLOR COLOR("注意")
+				PRINTFORML %ANAME(チルノ)%は<キス未経験>を失った…
+				RESETCOLOR
+			ENDIF
+			IF TALENT:チルノ:処女 && VAGINA(チルノ)
+				SETCOLOR COLOR("注意")
+				PRINTFORML %ANAME(チルノ)%は<処女>を失った…
+				RESETCOLOR
+				;処女を捧げた相手を%ANAME(MASTER)%に設定
+				CFLAG:チルノ:41 = GET_ID(MASTER)
+				TALENT:チルノ:処女 = 0
+			ENDIF
+			IF TALENT:MASTER:童貞
+				CFLAG:MASTER:40 = GET_ID(チルノ)
+				TALENT:MASTER:童貞 = 0
+			ENDIF
+			IF TALENT:MASTER:キス未経験
+				CALL KISS_COMMON(MASTER, チルノ, 0, 0, 0)
+				TALENT:MASTER:キス未経験 = 0
+			ENDIF
+		PRINTFORMW 「……ねえ、もしかしてなんだけど」
+		PRINTFORMW 「%ANAME(MASTER)%すっごく悪いことしてない？」
+		PRINTFORMW してないよーと適当に返事をし、%ANAME(MASTER)%は互いの服を整えた……
+ENDSELECT
+KDVAR:チルノ:チルノ_仲良し = -1
