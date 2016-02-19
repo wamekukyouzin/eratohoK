@@ -10,7 +10,7 @@ CALL KOJO_DAILY_K60_COMPETE
 @KOJO_DAILY_K60_COMPETE
 #DIM 勇儀
 #DIM 判定値
-
+#DIM 拉致
 勇儀 = NAME_TO_CHARA("勇儀")
 
 ;勇儀がいないと駄目
@@ -25,10 +25,16 @@ SIF KDVAR:勇儀:勇儀_力比べ == -1
 SIF !IS_MALE(MASTER)
 	RETURN -1
 
-;勇儀と面識がなく、勇儀が放浪しており、MASTERの武闘が60以上で、3%またはMASTERの武闘が90以上
+;「MASTERの武闘が60以上で、2%」または「MASTERの武闘が90以上」、勇儀と面識がなく、所属がことなり、勇儀が死んでいない
 ;こういうちょっと変わった条件に対してはCHECK_KOJO_DAILY_HAPPENは通用しないんだなぁ
-SIF !((RAND:1000 < 30 || 90 <= ABL:MASTER:武闘) && 60 <= ABL:MASTER:武闘 && !CFLAG:勇儀:面識 && CFLAG:勇儀:特殊状態フラグ == 1)
+SIF !((RAND:1000 < 20 || 90 <= ABL:MASTER:武闘) && 60 <= ABL:MASTER:武闘 && !CFLAG:勇儀:面識 && CFLAG:勇儀:所属 != CFLAG:MASTER:所属 && CFLAG:勇儀:特殊状態フラグ != 2)
 	RETURN -1
+
+IF CFLAG:勇儀:所属 && GET_COUNTRY_BOSS(CFLAG:MASTER:所属) != MASTER
+	拉致 = 1
+ELSE
+	拉致 = 0
+ENDIF
 
 CALL KOJO_DAILY_START()
 
@@ -52,8 +58,13 @@ PRINTFORMW 」
 PRINTFORMW 「嘘じゃないよ？　鬼は嘘が嫌いなんだ。信用してくれていい」
 PRINTFORMW 「そうだ、ハンデもつけてあげるよ。私は片手に杯をもって、酒を一滴もこぼさないよう立ち回る」
 PRINTFORM 「その代わり……私が勝ったら、
-CALL COLORPRINTFORM(@"有り金全て", COLOR("注意"))
-PRINTFORMW いただこうか」
+IF 拉致
+	CALL COLORPRINTFORM(@"配下になってもらおうか", COLOR("注意"))
+	PRINTFORMW 」
+ELSE
+	CALL COLORPRINTFORM(@"有り金全て", COLOR("注意"))
+	PRINTFORMW いただこうか」
+ENDIF
 PRINTFORMW 何を言っているんだと思ったが、どうやら勇儀は本気であるようだった
 PRINTFORML ……鬼といえば、昔話でおなじみの、力自慢の妖怪だ。ハンデをつけても、勝つのは容易ではあるまい
 PRINTFORML しかし――もし勝てば、頼みを何でも一つ。
@@ -61,8 +72,9 @@ PRINTFORMW ……勇儀の顔つき、身体つきは、女性として実に魅
 PRINTL
 CALL ASK_YN("のぞむところだ！", "いや今忙しいつってんだろ")
 IF RESULT == 1
-	PRINTFORMW いやいや、仕事があるのだ。この大量の書類を見ろ。手合わせどころではない。
-	PRINTFORMW 「そうかい……。そりゃ残念だね。あんたは中々腕が立つと聞いてたから、是非やりあってみたかったんだけど」
+	PRINTFORMW いやいや、仕事があるのだ。この大量の書類を見ろ。手合わせどころではない
+	PRINTFORMW 「むっ……。そうかい、そりゃ残念だ」
+	PRINTFORMW 「あんたは中々腕が立つと聞いてたから、是非やりあってみたかったんだけど」
 	PRINTFORMW 「ま、そういうことならしょうがない。邪魔したね」
 	PRINTFORMW %ANAME(勇儀)%は立ち去っていった……
 ELSE
@@ -79,7 +91,7 @@ ELSE
 		PRINTFORMW 「それでもいいさ、アンタの勝ちってことに変わりはない」
 		PRINTFORMW 「さて……まさか正直、負けるとは思ってなかったけど。頼みを一つ、なんでも聞いてやろう」
 		PRINTL
-		CALL ASK_MULTI("部下になって", "カキタレになって", "力が欲しい", "金くれ")
+		CALL ASK_MULTI_JUDGE("部下になって", GET_COUNTRY_BOSS(CFLAG:勇儀:所属) != 勇儀, "カキタレになって", GET_COUNTRY_BOSS(CFLAG:勇儀:所属) != 勇儀, "力が欲しい", 1, "金くれ", 1)
 		SELECTCASE RESULT
 			CASE 0
 				PRINTFORMW 「あぁ、そういうことならこっちも大歓迎だよ」
@@ -87,7 +99,7 @@ ELSE
 				CALL COLORPRINTFORM(@"%ANAME(勇儀)%が部下になりました", COLOR("注意"), "W")
 				CFLAG:勇儀:所属 = CFLAG:MASTER:所属
 				CFLAG:勇儀:特殊状態フラグ = 0
-				CFLAG:勇儀:好感度 += 300
+				CFLAG:勇儀:好感度 += 500
 			CASE 1
 				PRINTFORMW 「えっ、……あ、ああ、頼みってそういう？」
 				PRINTFORMW 「うーん、英雄色を好むとか言ったりするけど……いや、まあ、約束だし、受け入れるけどさ」
@@ -122,11 +134,26 @@ ELSE
 		PRINTFORMW 「ははは、勝ちだな！　私の！」
 		PRINTFORML ……やはり、鬼には勝てなかった
 		PRINTFORMW 杯の酒をこぼさないようにするというのは相当なハンデだと思うが、それでもなお駄目だとは……
-		PRINTFORMW 「さてと、悪いけど約束は約束だ。有り金全部、もらっていくよ」
-		PRINTFORMW 「昔なら命をもらってたとこだからさ、ま、拾いもんだと思いなよ」
-		CALL COLORPRINTFORM(@"所持金を全て奪われました", COLOR("警告"), "W")
-		PRINTFORMW 「じゃ、私はこれで。楽しかったよ！」
-		PRINTFORMW %ANAME(勇儀)%は立ち去っていった……
+		PRINTFORMW 「さてと、悪いけど約束は約束だ」
+		IF 拉致
+			PRINTFORMW 「あんたの身体を、もらうことにするよ」
+			PRINTFORM 「くく、悪いようにはしないさ。
+			CALL COLORPRINTFORM(@"10", COLOR("注意"))
+			PRINTFORMW 期くらいしたら、放浪してもらっても構わないよ」
+			PRINTFORMW 「ま、そういうことだから、これからよろしく！」
+			PRINTFORMW %ANAME(勇儀)%に無理矢理引っ張られた……
+			CALL COLORPRINTFORM(@"%ANAME(勇儀)%の配下にされました", COLOR("警告"), "W")
+			CFLAG:MASTER:1 = CFLAG:勇儀:1
+			PLAYER_HIRED_COUNTER == 10
+			CALL FORCE_FREE(MASTER)
+		ELSE
+			PRINTFORMW 「有り金全部、もらっていくよ」
+			PRINTFORMW 「昔なら命をもらってたとこだからさ、ま、拾いもんだと思いなよ」
+			CALL COLORPRINTFORM(@"所持金を全て奪われました", COLOR("警告"), "W")
+			PRINTFORMW 「じゃ、私はこれで。楽しかったよ！」
+			PRINTFORMW %ANAME(勇儀)%は立ち去っていった……
+			MONEY = 0
+		ENDIF
 	ENDIF
 ENDIF
 
