@@ -1,157 +1,230 @@
 ﻿;複数シナリオにまたがるイベント処理
 @EVENT_DAILY()
+#DIM EVENT_LIST, 100
+#DIM EVENT_PICK, 1000
 VARSET LOCAL
+VARSET EVENT_PICK
+
 DAILY_CANCEL = 0
 
 SIF !IS_DAILY_EVENT_HAPPEN(MASTER)
 	RETURN 0
 
-;薬売り
-SIF !DCONFIG:DCON_薬売り
-	CALL SMUGGLER
-SIF DAILY_CANCEL
-	RETURN 0
 
-;金貸し
-SIF !DCONFIG:DCON_金貸し
-	CALL LENDER
-SIF DAILY_CANCEL
-	RETURN 0
+;派生イベント関係の処理
+CALL DAYLY_DERIVATION
 
-;夜遊び
-SIF !DCONFIG:DCON_夜遊び
-	CALL NIGHTLIFE
-SIF DAILY_CANCEL
-	RETURN 0
+;イベントリストの作成（起動後作成していなければ）
+;イベント追加時は系列に合わせて定数に使用したものを突っ込んでおいてください
+;金貸しイベント(ID=1)が登録されていなければ処理を実行(薬売りはID=0なので利用できない)
+IF !EVENT_LIST:1
+	;0が薬売りで使用されているので-1で初期化
+	VARSET EVENT_LIST, -1
+	;スケベ系:0-6
+	EVENT_LIST:0 = DCON_薬売り, DCON_金貸し, DCON_夜遊び, DCON_富豪, DCON_募金, DCON_催眠, DCON_接待
+	;雇用系:20-22
+	EVENT_LIST:20 = DCON_傭兵, DCON_用心棒, DCON_仕官の誘い
+	;トレーナー:30-33
+	EVENT_LIST:30 = DCON_素質トレーナー, DCON_セックストレーナー, DCON_外界の医者, DCON_麻薬治療医
+	;外交:40-41
+	EVENT_LIST:40 = DCON_人材要求, DCON_資金援助要求
+	;野盗:50-52
+	EVENT_LIST:50 = DCON_野盗討伐, DCON_野盗身代金, DCON_野盗蜂起, DCON_放浪捕縛
+	;素質系:60-64
+	EVENT_LIST:60 = DCON_肉便器, DCON_薬物依存, DCON_雌犬, DCON_苗床
+	;その他90-93
+	EVENT_LIST:90 = DCON_触手討伐任務, DCON_触手兵, DCON_ランダム謀反, DCON_MISC
+ENDIF
 
-;傭兵
-SIF !DCONFIG:DCON_傭兵
-	CALL MERCENARY
-SIF DAILY_CANCEL
-	RETURN 0
-	
-;用心棒
-SIF !DCONFIG:DCON_用心棒
-	CALL BOUNCER
-SIF DAILY_CANCEL
-	RETURN 0
+;デイリーイベント発生チェック
+;例の関数で順番を決めてSELECTCASEにぶん投げる
+;順番にイベントフラグ及び発生期間の確認と確率ロールを行い、大丈夫であればイベント本体に移動
+;その後、終了フラグが立っていればループを脱出する
 
-;筋肉馬鹿
-SIF !DCONFIG:DCON_素質トレーナー
-	CALL TALENT_TRAINER
-SIF DAILY_CANCEL
-	RETURN 0
+;いつもの順番決定、拡張性を考えて枠は100個用意させていただきました
+CALL FISHER_YATES_SHAFFLE(100)
 
-;セックストレーナー
-SIF !DCONFIG:DCON_セックストレーナー
-	CALL SEX_TRAINER
-SIF DAILY_CANCEL
-	RETURN 0
+;念のため順番を記録
+ARRAYCOPY "SHAFFLE_ARRAY" , "EVENT_PICK"
 
-;外界の医者
-SIF !DCONFIG:DCON_外界の医者
-	CALL DOCTOR_GAIRAI
-SIF DAILY_CANCEL
-	RETURN 0
+FOR LOCAL:0, 0, 100
+	SELECTCASE EVENT_LIST:(EVENT_PICK:(LOCAL:0))
+	;薬売り
+	;8期以降で2.5%
+	CASE DCON_薬売り
+		SIF !DCONFIG:DCON_薬売り && DAY >= 8 && RAND:1000 < 25
+			CALL SMUGGLER
 
-;麻薬治療医
-SIF !DCONFIG:DCON_麻薬治療医
-	CALL DOCTOR_DRUG
-SIF DAILY_CANCEL
-	RETURN 0
+	;金貸し
+	;15期以降で2%
+	CASE DCON_金貸し
+		SIF !DCONFIG:DCON_金貸し && DAY >= 15 && RAND:1000 < 20
+			CALL LENDER
 
-;人材要求
-SIF !DCONFIG:DCON_人材要求
-	CALL DAILY_DIPLO_REQUEST_CHARA
-SIF DAILY_CANCEL
-	RETURN 0
+	;夜遊び
+	;5期以降で4%
+	CASE DCON_夜遊び
+		SIF !DCONFIG:DCON_夜遊び && DAY >= 5 && RAND:1000 < 40
+			CALL NIGHTLIFE
 
-;資金援助要求
-SIF !DCONFIG:DCON_資金援助要求
-	CALL DAILY_DIPLO_REQUEST_MONEY
-SIF DAILY_CANCEL
-	RETURN 0
+	;富豪
+	;20期以降で3%（お気に入りがいれば25%）
+	CASE DCON_富豪
+		SIF !DCONFIG:DCON_富豪 && DAY >= 20 && RAND:1000 < (DVAR:富豪お気に入り > 0 ? 250 # 30)
+			CALL MILLIONAIRE
 
-;野盗討伐イベント
-SIF !DCONFIG:DCON_野盗討伐
-	CALL BANDIT_CONQUER
-SIF DAILY_CANCEL
-	RETURN 0
+	;募金
+	;10期以降で3%（抱くたびに確率アップ）
+	CASE DCON_募金
+		SIF !DCONFIG:DCON_募金 && DAY >= 10 && RAND:1000 < (30 + INRANGE(DVAR:募金抱いた回数, 0, 10) * 7)
+			CALL FUND_RAISING
 
-;野盗の身代金要求処理
-SIF !DCONFIG:DCON_野盗身代金
-	CALL BANDIT_REQUIRE_RANSOM
-SIF DAILY_CANCEL
-	RETURN 0
+	;催眠
+	;10期以降で3%
+	CASE DCON_催眠
+		SIF !DCONFIG:DCON_催眠 && DAY >= 10 && RAND:1000 < 30
+			CALL BLAIN_WASH
 
-;肉便器イベント
-SIF !DCONFIG:DCON_肉便器
-	CALL PUBLIC_TOILET
-SIF DAILY_CANCEL
-	RETURN 0
+	;接待
+	;5期以降で2%
+	CASE DCON_接待
+		SIF !DCONFIG:DCON_接待 && DAY >= 5 && RAND:1000 < 20
+			CALL RECEPTION
 
-;薬物依存イベント
-SIF !DCONFIG:DCON_薬物依存
-	CALL DRUG_ADDICT
-SIF DAILY_CANCEL
-	RETURN 0
+	;傭兵
+	;5期以降で3%
+	CASE DCON_傭兵
+		SIF !DCONFIG:DCON_傭兵 && DAY >= 5 && RAND:1000 < 30
+			CALL MERCENARY
 
-;雌犬用イベント
-SIF !DCONFIG:DCON_雌犬
-	CALL ZOOPHILIA
-SIF DAILY_CANCEL
-	RETURN 0
+	;用心棒
+	;10期以降で2%
+	CASE DCON_用心棒
+		SIF !DCONFIG:DCON_用心棒 && DAY >= 10 && RAND:1000 < 20
+			CALL BOUNCER
 
-;苗床用イベント
-SIF !DCONFIG:DCON_苗床
-	CALL SEEDBED
-SIF DAILY_CANCEL
-	RETURN 0
+	;筋肉馬鹿
+	;15期以降で2.5%
+	CASE DCON_素質トレーナー
+		SIF !DCONFIG:DCON_素質トレーナー && DAY >= 15 && RAND:1000 < 25
+			CALL TALENT_TRAINER
 
-;触手兵イベント
-SIF !DCONFIG:DCON_触手兵
-	CALL TENTACLE_SOLDIERS
-SIF DAILY_CANCEL
-	RETURN 0
+	;セックストレーナー
+	;15期以降で3%の確率
+	CASE DCON_セックストレーナー
+		SIF !DCONFIG:DCON_セックストレーナー && DAY >= 15 && RAND:1000 < 30
+			CALL SEX_TRAINER
 
-;触手討伐任務イベント
-SIF !DCONFIG:DCON_触手討伐任務
-	CALL TENTACLE_SUPPRESSION
-	
-SIF !DCONFIG:DCON_富豪
-	CALL MILLIONAIRE
-SIF DAILY_CANCEL
-	RETURN 0
+	;外界の医者
+	;15期以降で3.5%
+	CASE DCON_外界の医者
+		SIF !DCONFIG:DCON_外界の医者 && DAY >= 15 && RAND:1000 < 35
+			CALL DOCTOR_GAIRAI
 
-;募金イベント
-SIF !DCONFIG:DCON_募金
-	CALL FUND_RAISING
-SIF DAILY_CANCEL
-	RETURN 0
+	;麻薬治療医
+	;15期以降で7.5%
+	CASE DCON_麻薬治療医
+		SIF !DCONFIG:DCON_麻薬治療医 && DAY >= 15 && RAND:1000 < 75
+			CALL DOCTOR_DRUG
 
-;催眠イベント
-SIF !DCONFIG:DCON_催眠
-	CALL BLAIN_WASH
-SIF DAILY_CANCEL
-	RETURN 0
+	;人材要求
+	;外交解禁後3.5%
+	CASE DCON_人材要求
+		SIF !DCONFIG:DCON_人材要求 && DAY >= SLG_PP:0 && RAND:1000 < 35  
+			CALL DAILY_DIPLO_REQUEST_CHARA
 
-;接待イベント
-SIF !DCONFIG:DCON_接待
-	CALL RECEPTION
-SIF DAILY_CANCEL
-	RETURN 0
+	;資金援助要求
+	;外交解禁後3.5%
+	CASE DCON_資金援助要求
+		SIF !DCONFIG:DCON_資金援助要求 && DAY >= SLG_PP:0 && RAND:1000 < 35
+			CALL DAILY_DIPLO_REQUEST_MONEY
 
-;小型イベント
-SIF !DCONFIG:DCON_MISC
-	CALL DAILY_MISC
-SIF DAILY_CANCEL
-	RETURN 0
+	;野盗討伐イベント
+	CASE DCON_野盗討伐
+		SIF !DCONFIG:DCON_野盗討伐 && DAY >= 15 && RAND:1000 < 40
+			CALL BANDIT_CONQUER
+
+	;野盗の身代金要求処理
+	;乱数が特殊かつ解禁時期がないため関数側で処理
+	CASE DCON_野盗身代金
+		SIF !DCONFIG:DCON_野盗身代金
+			CALL BANDIT_REQUIRE_RANSOM
+
+	;野盗の身代金要求処理
+	;とりあえずキャラ別判定は関数に任せて10%の部分だけ引き出す
+	CASE DCON_放浪捕縛
+		SIF !DCONFIG:DCON_放浪捕縛 && RAND:1000 < 100
+			CALL BANDIT_ARREST
+
+	;肉便器イベント
+	;キャラごとに乱数判定のため関数側で処理
+	CASE DCON_肉便器
+		SIF !DCONFIG:DCON_肉便器
+			CALL PUBLIC_TOILET
+
+	;薬物依存イベント
+	;キャラごとに乱数判定のため関数側で処理
+	CASE DCON_薬物依存
+		SIF !DCONFIG:DCON_薬物依存
+			CALL DRUG_ADDICT
+
+	;雌犬用イベント
+	;キャラごとに乱数判定のため関数側で処理
+	CASE DCON_雌犬
+		SIF !DCONFIG:DCON_雌犬
+			CALL ZOOPHILIA
+
+	;苗床用イベント
+	;キャラごとに乱数判定のため関数側で処理
+	CASE DCON_苗床
+		SIF !DCONFIG:DCON_苗床
+			CALL SEEDBED
+
+	;触手兵イベント
+	;10期以降で2%
+	CASE DCON_触手兵
+		SIF !DCONFIG:DCON_触手兵 && DAY >= 10 && RAND:1000 < 20
+			CALL TENTACLE_SOLDIERS
+
+	;触手討伐任務イベント
+	;10期以降で2%
+	CASE DCON_触手討伐任務
+		SIF !DCONFIG:DCON_触手討伐任務 && DAY >= 10 && RAND:1000 < 20 
+			CALL TENTACLE_SUPPRESSION
+
+	;小型イベント
+	;複数のイベントが併発し、それぞれ異なる確率で処理しているので関数本体に残しています
+	CASE DCON_MISC
+		SIF !DCONFIG:DCON_MISC
+			CALL DAILY_MISC
+
+	;未定義
+	CASEELSE
+		CONTINUE
+	ENDSELECT
+
+	;終了フラグが立っていれば口上デイリー処理へ
+	SIF DAILY_CANCEL
+		BREAK
+NEXT
 
 ;口上用デイリー MASTERのものは発動しない
+;順番決定
+CALL FISHER_YATES_SHAFFLE(CHARANUM)
+;念のため順番を記録
+ARRAYCOPY "SHAFFLE_ARRAY" , "EVENT_PICK"
+
+;同一ターンに最大3人のイベントしか発生しない
+LOCAL:1 = 3
+
 FOR LOCAL, 1, CHARANUM
-	CALL KOJO_DAILY(LOCAL)
-	SIF DAILY_CANCEL
-		RETURN 0
+	CALL KOJO_DAILY(EVENT_PICK:LOCAL)
+	;正常終了していたらカウントを減らす
+	SIF !RESULT
+		LOCAL:1 --
+	;終了フラグもしくはが立っていれば抜ける
+	SIF DAILY_CANCEL || !LOCAL:1
+		BREAK
 NEXT
 
 
