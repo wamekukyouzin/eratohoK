@@ -10,7 +10,7 @@ VARSET 人数
 FOR LCOUNT, 0, CHARANUM
 	IF !CFLAG:LCOUNT:捕虜先 && CFLAG:LCOUNT:特殊状態フラグ != 2 && IS_FEMALE(LCOUNT)
 		;CFLAG:薬物依存に応じて判定（最大30）。TALENT薬物依存持ちだと50%まで増加。
-		IF MIN(CFLAG:LCOUNT:薬物依存 / 7, 30) + TALENT:LCOUNT:薬物依存 * 20 > RAND:100
+		IF (TALENT:LCOUNT:薬物依存 ? 50 # MIN(CFLAG:LCOUNT:薬物依存 / 7, 30)) > RAND:100
 			LOCAL:人数 = LCOUNT
 			人数++
 		ENDIF
@@ -26,7 +26,7 @@ ELSE
 			初回 = 0
 		ENDIF
 		PRINTFORMW %ANAME(対象)%は、薬物の禁断症状に苦しんでいるようだ……
-		LOCAL = RAND:13
+		LOCAL = CONFIG:200 ? RAND:13 # 13
 		SELECTCASE LOCAL
 			CASE 0
 				PRINTFORML %ANAME(対象)%は症状に堪えかね、怪しげな薬売りにわたりをつけたようだ
@@ -109,8 +109,9 @@ ELSE
 				PRINTFORML 途端、%ANAME(対象)%はトリップし、その口からは下品な言葉が流れ出る
 				PRINTFORML 売人は%ANAME(対象)%を組み伏せ、その肉穴にたっぷりと白濁を吐き出していった……
 		ENDSELECT
+		SIF LOCAL != 13
+			CALL FORCE_FUCK(対象, -1)
 		CFLAG:(対象):薬物依存 += RAND(50, 100)
-		CALL FORCE_FUCK(対象, -1)
 		CALL KOJO_EVENT_DAILY(対象, 口上_薬物依存, LOCAL)
 		PRINTFORMW
 	NEXT
