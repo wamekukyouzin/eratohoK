@@ -311,90 +311,100 @@ ELSEIF LOCAL:6 || GET_OWN_CITY(CFLAG:MASTER:1) <= 1 || RAND:250 < MAX(ABL:(LOCAL
 ;君主が逃亡
 ELSE
 	LOCAL:40 = 1
+	;新たに勢力を生成できない状態であれば、放浪させる
+	;勢力数最大の状態でクーデターした方がはるかに有利になっちゃうんだけど、しかたなし
+	IF GET_NEW_COUNTRY() == -1
+		SETCOLOR COLOR("注意")
+		PRINTFORML 現君主である%NAME:(LOCAL:5)%の確保に失敗しました…
+		PRINTFORMW %NAME:(LOCAL:5)%は放浪した模様です
+		RESETCOLOR
+		CFLAG:(LOCAL:5):所属 = 0
+		CFLAG:(LOCAL:5):特殊状態フラグ = 1
+		CALL CHANGE_RELATION_O_TO_C(LOCAL:5, CFLAG:MASTER:1, -500, 1000)
+	ELSE
+		;接する自国都市の数が最も少ない都市の中からランダムに逃亡先を選択する
 
-	;接する自国都市の数が最も少ない都市の中からランダムに逃亡先を選択する
-
-	;自国の都市をリスト化
-	LOCAL:30 = 0
-	FOR LOCAL:0, 0, MAX_CITY
-		IF CITY_OWNER:(LOCAL:0) == CFLAG:MASTER:1 && GET_CITYNAME(LOCAL:0) != "無名"
-			LOCAL:(LOCAL:30 + 100) = LOCAL:0
-			LOCAL:30 ++
-		ENDIF
-	NEXT
-
-	;それぞれの都市が他の自国都市と接している数をカウント
-	FOR LOCAL:0, 0, LOCAL:30
-		FOR LOCAL:1, LOCAL:0 + 1, LOCAL:30
-			LOCAL:2 = LOCAL:(LOCAL:0 + 100)
-			LOCAL:3 = LOCAL:(LOCAL:1 + 100)
-			IF IS_ROOT(LOCAL:2, LOCAL:3)
-				LOCAL:(LOCAL:0 + 200) ++
-				LOCAL:(LOCAL:1 + 200) ++
+		;自国の都市をリスト化
+		LOCAL:30 = 0
+		FOR LOCAL:0, 0, MAX_CITY
+			IF CITY_OWNER:(LOCAL:0) == CFLAG:MASTER:1 && GET_CITYNAME(LOCAL:0) != "無名"
+				LOCAL:(LOCAL:30 + 100) = LOCAL:0
+				LOCAL:30 ++
 			ENDIF
 		NEXT
-	NEXT
 
-	;最も接する自国都市が少ない都市を抜き出してリスト化
-	LOCAL:31 = 999
-	FOR LOCAL:0, 0, LOCAL:30
-		IF LOCAL:(LOCAL:0 + 200) < LOCAL:31
-			LOCAL:300 = LOCAL:(LOCAL:0 + 100)
-			LOCAL:32 = 1
-		ELSEIF LOCAL:(LOCAL:0 + 200) == LOCAL:31
-			LOCAL:(LOCAL:32 + 300) = LOCAL:(LOCAL:0 + 100)
-			LOCAL:32 ++
-		ENDIF
-	NEXT
-
-	;リスト化した都市の中から逃亡先の都市をランダムに選び出す
-	LOCAL:33 = LOCAL:(RAND:(LOCAL:32) + 300)
-
-	SETCOLOR COLOR("注意")
-	PRINTFORML 現君主である%NAME:(LOCAL:5)%の確保に失敗しました…
-	PRINTFORMW %NAME:(LOCAL:5)%は%GET_RELAYNAME(LOCAL:33)%へと逃走した模様です
-	RESETCOLOR
-
-	;この場合、クーデター後の勢力は新勢力として作成する
-	FOR LOCAL:0, 1, MAX_COUNTRY
-		IF !IS_COUNTRY(LOCAL:0)
-			;元の国家番号を保存
-			LOCAL:8 = CFLAG:MASTER:1
-
-			;士官を新勢力に移す
-			FOR LOCAL:1, 0, CHARANUM
-				IF LOCAL:1 == MASTER || (LOCAL:1 != LOCAL:5 && CFLAG:(LOCAL:1):1 == LOCAL:8 && (TALENT:(LOCAL:1):恋慕 || TALENT:(LOCAL:1):親友 || TALENT:(LOCAL:1):服従))
-					CFLAG:(LOCAL:1):1 = LOCAL:0
-					;部隊に配属されている場合強制解除
-					CALL FORCE_FREE(LOCAL:1)
+		;それぞれの都市が他の自国都市と接している数をカウント
+		FOR LOCAL:0, 0, LOCAL:30
+			FOR LOCAL:1, LOCAL:0 + 1, LOCAL:30
+				LOCAL:2 = LOCAL:(LOCAL:0 + 100)
+				LOCAL:3 = LOCAL:(LOCAL:1 + 100)
+				IF IS_ROOT(LOCAL:2, LOCAL:3)
+					LOCAL:(LOCAL:0 + 200) ++
+					LOCAL:(LOCAL:1 + 200) ++
 				ENDIF
 			NEXT
+		NEXT
 
-			;旧君主の逃亡先を除く都市の所属先を新勢力に変更
-			FOR LOCAL:1, 0, LOCAL:30
-				LOCAL:2 = LOCAL:(LOCAL:1 + 100)
-				IF LOCAL:2 != LOCAL:33
-					CITY_OWNER:(LOCAL:2) = LOCAL:0
-				ENDIF
-			NEXT
-			COUNTRY_COLOR:(LOCAL:0) = 0xD0D0D0
+		;最も接する自国都市が少ない都市を抜き出してリスト化
+		LOCAL:31 = 999
+		FOR LOCAL:0, 0, LOCAL:30
+			IF LOCAL:(LOCAL:0 + 200) < LOCAL:31
+				LOCAL:300 = LOCAL:(LOCAL:0 + 100)
+				LOCAL:32 = 1
+			ELSEIF LOCAL:(LOCAL:0 + 200) == LOCAL:31
+				LOCAL:(LOCAL:32 + 300) = LOCAL:(LOCAL:0 + 100)
+				LOCAL:32 ++
+			ENDIF
+		NEXT
 
-			;兵力の分配
-			COUNTRY_SOLDIER:(LOCAL:0) = COUNTRY_SOLDIER:(LOCAL:8) + CITY_SOLDIER:(LOCAL:33)
-			CITY_SOLDIER:(LOCAL:33) = 0
-			COUNTRY_SOLDIER:(LOCAL:8) = COUNTRY_SOLDIER:(LOCAL:0) / (GET_OWN_CITY(LOCAL:0) + 1)
-			COUNTRY_SOLDIER:(LOCAL:0) -= COUNTRY_SOLDIER:(LOCAL:8)
+		;リスト化した都市の中から逃亡先の都市をランダムに選び出す
+		LOCAL:33 = LOCAL:(RAND:(LOCAL:32) + 300)
 
-			;COMは先に行動できないので兵数で優遇
-			COUNTRY_SOLDIER:(LOCAL:8) = COUNTRY_SOLDIER:(LOCAL:8) * 2 + 500
+		SETCOLOR COLOR("注意")
+		PRINTFORML 現君主である%NAME:(LOCAL:5)%の確保に失敗しました…
+		PRINTFORMW %NAME:(LOCAL:5)%は%GET_RELAYNAME(LOCAL:33)%へと逃走した模様です
+		RESETCOLOR
 
-			;防衛兵力の初期設定(兵数の2/3弱、最低500)
-			CITY_SOLDIER:(LOCAL:33) = (COUNTRY_SOLDIER:(LOCAL:8) / 750 + 1) * 500
-			COUNTRY_SOLDIER:(LOCAL:8) -= CITY_SOLDIER:(LOCAL:33)
+		;この場合、クーデター後の勢力は新勢力として作成する
+		FOR LOCAL:0, 1, MAX_COUNTRY
+			IF !IS_COUNTRY(LOCAL:0)
+				;元の国家番号を保存
+				LOCAL:8 = CFLAG:MASTER:1
 
-			BREAK
-		ENDIF
-	NEXT
+				;士官を新勢力に移す
+				FOR LOCAL:1, 0, CHARANUM
+					IF LOCAL:1 == MASTER || (LOCAL:1 != LOCAL:5 && CFLAG:(LOCAL:1):1 == LOCAL:8 && (TALENT:(LOCAL:1):恋慕 || TALENT:(LOCAL:1):親友 || TALENT:(LOCAL:1):服従))
+						CFLAG:(LOCAL:1):1 = LOCAL:0
+						;部隊に配属されている場合強制解除
+						CALL FORCE_FREE(LOCAL:1)
+					ENDIF
+				NEXT
+				;旧君主の逃亡先を除く都市の所属先を新勢力に変更
+				FOR LOCAL:1, 0, LOCAL:30
+					LOCAL:2 = LOCAL:(LOCAL:1 + 100)
+					IF LOCAL:2 != LOCAL:33
+						CITY_OWNER:(LOCAL:2) = LOCAL:0
+					ENDIF
+				NEXT
+				COUNTRY_COLOR:(LOCAL:0) = 0xD0D0D0
+
+				;兵力の分配
+				COUNTRY_SOLDIER:(LOCAL:0) = COUNTRY_SOLDIER:(LOCAL:8) + CITY_SOLDIER:(LOCAL:33)
+				CITY_SOLDIER:(LOCAL:33) = 0
+				COUNTRY_SOLDIER:(LOCAL:8) = COUNTRY_SOLDIER:(LOCAL:0) / (GET_OWN_CITY(LOCAL:0) + 1)
+				COUNTRY_SOLDIER:(LOCAL:0) -= COUNTRY_SOLDIER:(LOCAL:8)
+
+				;COMは先に行動できないので兵数で優遇
+				COUNTRY_SOLDIER:(LOCAL:8) = COUNTRY_SOLDIER:(LOCAL:8) * 2 + 500
+
+				;防衛兵力の初期設定(兵数の2/3弱、最低500)
+				CITY_SOLDIER:(LOCAL:33) = (COUNTRY_SOLDIER:(LOCAL:8) / 750 + 1) * 500
+				COUNTRY_SOLDIER:(LOCAL:8) -= CITY_SOLDIER:(LOCAL:33)
+
+				BREAK
+			ENDIF
+		NEXT
+	ENDIF
 ENDIF
 
 ;調教参加フラグをクリア
