@@ -34,6 +34,10 @@ PRINTBUTTON " 0[最初から]", 0
 PRINTL 
 PRINTBUTTON " 1[続きから]", 1
 PRINTL 
+[IF_DEBUG]
+PRINTBUTTON "99[   DEBUG]", 99
+PRINTL 
+[ENDIF]
 ALIGNMENT LEFT
 $INPUT_LOOP
 INPUT
@@ -43,6 +47,11 @@ IF RESULT == 0
 ELSEIF RESULT == 1
 	LOADGAME
 	RESTART
+ELSEIF RESULT == 99
+	[IF_DEBUG]
+	CALL DEBUGMENU()
+	RESTART
+	[ENDIF]
 ENDIF
 GOTO INPUT_LOOP
 
@@ -687,6 +696,10 @@ IF RESULT == 0
 	REDRAW 1
 	;主人公の所属を選択した勢力に
 	CFLAG:MASTER:1 = FLAG:3
+	;体力気力精神力の現在値を最大値に変更
+	FOR LOCAL:2, 0, VARSIZE("BASE")
+		BASE:MASTER:(LOCAL:2) = MAXBASE:MASTER:(LOCAL:2)
+	NEXT
 	;主人公の「放浪」は通常の放浪フラグで処理されるモノではないので、放浪フラグをへし折っておく
 	CFLAG:MASTER:特殊状態フラグ = 0
 	IF ABL:MASTER:性知識 < 5
@@ -1699,6 +1712,9 @@ ELSEIF RESULT == 1
 			CFLAG:(LOCAL:1):1 = CFLAG:MASTER:1
 			SIF CFLAG:MASTER:1 == 0
 				CFLAG:(LOCAL:1):12 = 1
+			FOR LOCAL:2, 0, VARSIZE("BASE")
+				BASE:(LOCAL:1):(LOCAL:2) = MAXBASE:(LOCAL:1):(LOCAL:2)
+			NEXT
 		ENDIF
 	NEXT
 
@@ -1713,6 +1729,10 @@ ELSEIF RESULT == 2 && LOCAL:2 >= 2
 			LOCAL:1 = RESULT
 			CALL APPLY_MASTER_DATA(LOCAL:1, LOCAL:0)
 			CALL NEWCHARA_INIT(LOCAL:1)
+			;ループ用にしか使わないし直後に固定値代入しているので使い回し許してください（何でもしません）
+			FOR LOCAL:2, 0, VARSIZE("BASE")
+				BASE:(LOCAL:1):(LOCAL:2) = MAXBASE:(LOCAL:1):(LOCAL:2)
+			NEXT
 			LOCAL:3 = RAND:(LOCAL:2 - 1)
 			LOCAL:2 = 0
 			FOR LOCAL:4, 1, MAX_COUNTRY
@@ -1802,6 +1822,9 @@ IF RESULT == 200
 					CALL APPLY_MASTER_DATA(LOCAL:1, LOCAL:0)
 					CALL NEWCHARA_INIT(LOCAL:1)
 					CFLAG:(LOCAL:1):1 = LOCAL:5
+					FOR LOCAL:2, 0, VARSIZE("BASE")
+						BASE:(LOCAL:1):(LOCAL:2) = MAXBASE:(LOCAL:1):(LOCAL:2)
+					NEXT
 				ENDIF
 			NEXT
 			PRINTFORMW 登録キャラを%NAME:(LOCAL:5)%勢力の士官として登場させます
@@ -2254,24 +2277,25 @@ DRAWLINE
 PRINTFORML SLG用設定を選択してください（下に行くほどSLG側の難易度が上がります）
 PRINTFORML 一部例外を除き、これらの設定はゲーム中でも変更可能です
 PRINTL 設定| 難易度 | 好感度補正 | 補正方式 | 兵力補正 | 継戦補正 | 敵対補正 |
-PRINTL [0] |  簡単  |    高い    |   通常   | がっつり |   なし   |   EASY   | 初めて・嫁の活躍を見たい方向け
-PRINTL [1] |  簡単  |    普通    |   通常   | がっつり | 武将：低 |   EASY   | 上の設定で少し物足りなくなった人に
-PRINTL [2] |  簡単  |    普通    |   通常   |   強め   | 武将：通 |  NORMAL  | それぞれの設定を一通り試したい人向け
-PRINTL [3] |  普通  |    低い    |   通常   |   弱め   | 回数：低 |  NORMAL  | キャラの能力に重点を置きたい人向け
-PRINTL [4] |  普通  |    無し    |   －－   | がっつり | 回数：通 |   HARD   | 愛の力のない純粋な戦略を楽しみたい方に
-PRINT [5] |  困難  |    高い    |  倍率型  |   強め   | 武将：高 | LUNATIC  | 
+PRINTL [0]  |  簡単  |    高い    |   通常   | がっつり |   なし   |   EASY   | 初めて・嫁の活躍を見たい方向け
+PRINTL [1]  |  簡単  |    普通    |   通常   | がっつり | 武将：低 |   EASY   | 上の設定で少し物足りなくなった人に
+PRINTL [2]  |  簡単  |    普通    |   通常   |   強め   | 武将：通 |  NORMAL  | それぞれの設定を一通り試したい人向け
+PRINTL [3]  |  普通  |    低い    |   通常   |   弱め   | 回数：低 |  NORMAL  | キャラの能力に重点を置きたい人向け
+PRINTL [99] |  普通  |    無し    |   －－   |   弱め   | 回数：低 |  NORMAL  | デフォルト：恋と戦は別腹です
+PRINTL [4]  |  普通  |    無し    |   －－   | がっつり | 回数：通 |   HARD   | 愛の力のない純粋な戦略を楽しみたい方に
+PRINT [5]  |  困難  |    高い    |  倍率型  |   強め   | 武将：高 | LUNATIC  | 
 SETCOLOR COLOR("注意")
-PRINTL 周回前提、準備はできていますか？
+PRINTL 周回前提：準備はできていますか？
 
 RESETCOLOR
-PRINT [6] |  
+PRINT [6]  |  
 SETCOLOR COLOR("警告")
 PRINT 虐め  
 PRINTD |    普通    |  倍率型  |   弱め   | 武将：高 |  EXTRA   | 
-PRINTL 周回前提、まぁがんばれ
+PRINTL 周回前提：まぁがんばれ
 RESETCOLOR
 
-PRINT [7] |  
+PRINT [7]  |  
 SETCOLOR COLOR("警告")
 PRINT 虐め  
 PRINTD |    低い    |  倍率型  |   無し   | 回数：高 |  
@@ -2280,6 +2304,8 @@ PRINTD |
 SETCOLOR COLOR("灰色")
 PRINTL ようこそ、悪夢へ
 RESETCOLOR
+
+
 
 PRINTL [99] デフォルトのままであそぶ
 $INPUT_LOOP_SLG
@@ -2349,7 +2375,7 @@ CASEELSE
 ENDSELECT
 
 IF INRANGE(RESULT, 0, 7)
-	PRINTL 設定が変更されました。
+	PRINTL 設定が変更されました
 	SIF RESULT == 6
 		PRINTL なお、難易度はゲーム中変更できません。
 	SIF RESULT == 7

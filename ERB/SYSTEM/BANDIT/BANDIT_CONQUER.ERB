@@ -10,7 +10,7 @@ VARSET 武闘合計
 VARSET 知略合計
 
 野盗 = GET_COUNTRY_FROM_ID(COUNTRY_BANDIT)
-SIF !(RAND:1000 < 40 && DAY >= 15 && BANDIT_POP_SUSPENDED == 0 && 野盗 != -1 && CFLAG:MASTER:所属 != 野盗)
+SIF !(BANDIT_POP_SUSPENDED == 0 && 野盗 != -1 && CFLAG:MASTER:所属 != 野盗)
 	RETURN -1
 
 DRAWLINE
@@ -45,8 +45,8 @@ ENDIF
 
 FOR LOCAL, 0, 3
 	IF 候補:LOCAL >= 0
-		武闘合計 += ABL:LOCAL:武闘
-		知略合計 += ABL:LOCAL:知略
+		武闘合計 += ABL:(候補:LOCAL):武闘
+		知略合計 += ABL:(候補:LOCAL):知略
 		人数 ++
 	ENDIF
 NEXT
@@ -112,6 +112,21 @@ ELSE
 	SETCOLOR COLOR("注意")
 	PRINTFORML 潜入作戦は失敗してしまったようだ……
 	RESETCOLOR
+	;無傷ってのもどうかと思うので手っ取り早くお休みいただくことします
+	IF CONFIG:200
+		PRINTFORML %ANAME(候補:(RAND:(人数)))%たちは命からがら帰ってきたが、怪我の治療が必要なようだ…
+		FOR LOCAL,0, 3
+			IF 候補:LOCAL >= 0
+				LOCAL:2 = INRANGE(5 - (LOCAL:1 ? (ABL:(候補:LOCAL):武闘 * 2 + ABL:(候補:LOCAL):知略) # (ABL:(候補:LOCAL):武闘 + ABL:(候補:LOCAL):知略 * 2)) / 50, 2, 5)
+				SETCOLOR COLOR("警告")
+				PRINTFORML %ANAME(候補:LOCAL)%は{LOCAL:2}ターンのクールタイムに入った！
+				RESETCOLOR
+				COOLTIME:(候補:LOCAL):0 = LOCAL:2
+			ENDIF
+		NEXT
+		RETURN 0
+	ENDIF
+
 	FOR LOCAL, 0 , 人数
 		PRINTFORML
 		IF IS_FEMALE(候補:LOCAL)
@@ -415,6 +430,7 @@ ELSE
 		NEXT
 		CALL KOJO_EVENT_DAILY(候補:LOCAL, 口上_野盗討伐, 2, LOCAL:1)
 	NEXT
+
 ENDIF
 
 @BANDIT_CONQUER_SELECT_COMMANDER
