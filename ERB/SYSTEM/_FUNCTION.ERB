@@ -15,9 +15,22 @@ CALL INIT_TENDENCY(ARG:0)
 CFLAG:(ARG:0):5 = 1
 
 ;キス未経験でないならキス経験を不明として記録
-IF !TALENT:(ARG:0):キス未経験 && CFLAG:(ARG:0):61 == 0
-	CFLAG:(ARG:0):60 = -1
-	CFLAG:(ARG:0):61 = -1
+IF !TALENT:(ARG:0):キス未経験
+	FIRSTKISS_PARTNER:(ARG:0):0 = 不明
+ELSE
+	FIRSTKISS_PARTNER:(ARG:0):0 = ----
+ENDIF
+
+IF !TALENT:(ARG:0):処女
+	VIRGIN_PARTNER:(ARG:0):0 = 不明
+ELSE
+	VIRGIN_PARTNER:(ARG:0):0 = ----
+ENDIF
+
+IF !TALENT:(ARG:0):童貞
+	DOUTEI_PARTNER:(ARG:0):0 = 不明
+ELSE
+	DOUTEI_PARTNER:(ARG:0):0 = ----
 ENDIF
 
 ;初期化に必要な変数を記録
@@ -95,6 +108,8 @@ IF CFLAG:(ARG:0):16 == 4
 			CALL RESET_MOTHER_STATE(LOCAL:0, 0)
 	NEXT
 ENDIF
+
+;削除されるキャラを初体験とする
 
 ;キャラの削除
 DELCHARA ARG:0
@@ -1499,203 +1514,92 @@ RETURNF 100
 
 ;-------------------------------------------------
 ;キスの共通処理
-;キャラARG:0がキャラARG:1の部位ARG:2にキス
-;ARG:0、ARG:1に負の値を指定すると、その値をIDとみなして記録。-1=不明 -10=触手 -11=誰とも知らぬ兵士 -12=外来人 -13 ホフゴブリン
-;ARG:2に指定する部位番号:0=唇 1=ペニス 2=膣 3=アナル 4=足 20=触手
-;既成事実を取得させるならARG:3に1を、そうでないなら0を設定する
-;メッセージを表示するならARG:4に1を、非表示なら0を設定する
+;対象が相手にキス
+;メッセージを表示するならARG:2に1を、非表示なら0を設定する
+;既成事実を取得させるならARG:3にキャラ番号を設定する
 ;◆◆キス経験は自動では入らないため注意◆◆
 ;-------------------------------------------------
-@KISS_COMMON(ARG:0, ARG:1, ARG:2, ARG:3 = -1, ARG:4 = -1)
-IF ARG:3 == -1
-	THROW 関数@KISS_COMMONの第4引数の値({ARG:3})が不正です
-ENDIF
-IF ARG:4 == -1
-	THROW 関数@KISS_COMMONの第5引数の値({ARG:4})が不正です
-ENDIF
+@KISS_COMMON(対象, 相手, シチュ, ARG:2 = -1, ARG:3 = 1)
+#DIM 対象
+#DIMS 相手
+#DIM シチュ
 
-IF ARG:0 >= 0
-	LOCAL:5 = GET_ID(ARG:0)
-ELSE
-	LOCAL:5 = ARG:0
-ENDIF
-
-IF ARG:1 >= 0
-	IF TALENT:(ARG:1):犬
-		LOCAL:6 = -14
-	ELSEIF TALENT:(ARG:1):豚
-		LOCAL:6 = -15
-	ELSE
-		LOCAL:6 = GET_ID(ARG:1)
+IF TALENT:対象:キス未経験
+	IF ARG:2
+		PRINTFORMW %ANAME(対象)%は%相手%に初めてのキスをした…
+		SETCOLOR COLOR("注意")
+		PRINTFORMW %ANAME(対象)%は<キス未経験>を失った…
+		RESETCOLOR
 	ENDIF
-ELSE
-	LOCAL:6 = ARG:1
-ENDIF
-
-LOCAL:4 = 0
-IF ARG:2 == 0
-	IF ARG:0 >= 0
-		IF TALENT:(ARG:0):キス未経験
-			IF ARG:4
-				SETCOLOR COLOR("注意")
-				PRINTFORMW %ANAME(ARG:0)%は<キス未経験>を失った…
-				RESETCOLOR
-			ENDIF
-			LOCAL:4 += 1
-			TALENT:(ARG:0):キス未経験 = 0
-			;初キスの相手を記録
-			CFLAG:(ARG:0):60 = LOCAL:6
-		ENDIF
-	ENDIF
-
-	IF ARG:1 >= 0
-		IF TALENT:(ARG:1):キス未経験
-			IF ARG:4
-				SETCOLOR COLOR("注意")
-				PRINTFORMW %ANAME(ARG:1)%は<キス未経験>を失った…
-				RESETCOLOR
-			ENDIF
-			LOCAL:4 += 2
-			TALENT:(ARG:1):キス未経験 = 0
-			;初キスの相手を記録
-			CFLAG:(ARG:1):60 = LOCAL:5
-		ENDIF
-	ENDIF
-
-	IF ARG:3 && ARG:0 >= 0 && ARG:1 >= 0
+	SELECTCASE シチュ
+		CASE 1
+			相手 = %相手%(強姦)
+		CASE 2
+			相手 = %相手%(輪姦)
+		CASE 3
+			相手 = %相手%(乱交)
+		CASE 4
+			相手 = %相手%(調教)
+	ENDSELECT
+	FIRSTKISS_PARTNER:対象:0 = %相手%
+	TALENT:(対象):キス未経験 = 0
+	IF INRANGE(ARG:2, 0, CHARANUM)
 		;既成事実Lv1に相当
-		CALL SET_COUPLE_STEP(ARG:0, ARG:4)
-		CALL SET_COUPLE_STEP(ARG:1, ARG:4)
+		CALL SET_COUPLE_STEP(対象, 1)
+		CALL SET_COUPLE_STEP(ARG:2, 1)
 	ENDIF
 ENDIF
 
-IF ARG:0 >= 0 && CFLAG:(ARG:0):61 == 0
-	CFLAG:(ARG:0):61 = LOCAL:6
-	CFLAG:(ARG:0):62 = ARG:2
-	IF CONFIG:10 == 1 && ARG:4
-		IF ARG:2 == 0 && LOCAL:4 == 3 && ARG:1 >= 0
-			PRINTFORMW %ANAME(ARG:0)%と%ANAME(ARG:1)%は互いの唇に初めてのキスをした…
-		ELSE
-			SELECTCASE ARG:1
-				CASE -1
-					LOCALS:0 = 誰とも知れぬ相手の
-				CASE -10
-					LOCALS:0 = 触手の
-				CASE -11
-					LOCALS:0 = 誰とも知らぬ兵士の
-				CASE -12
-					LOCALS:0 = 外来人の
-				CASE -13
-					LOCALS:0 = ホフゴブリンの
-				CASE -14
-					LOCALS:0 = 犬の
-				CASE -15
-					LOCALS:0 = 豚の
-				CASE -16
-					LOCALS:0 = 野盗の
-				CASE -17
-					LOCALS:0 = 金貸しの客の
-				CASEELSE
-					IF ARG:1 >= 0
-						LOCALS:0 = %ANAME(ARG:1)%の
-					ELSE
-						LOCALS:0 = 
-					ENDIF
-			ENDSELECT
-			PRINTFORMW %ANAME(ARG:0)%は%LOCALS:0%%GET_KISS_PART_NAME(ARG:2)%に初めてのキスをした…
-		ENDIF
-	ENDIF
-ENDIF
 
-IF ARG:1 >= 0 && CFLAG:(ARG:1):61 == 0 && ARG:2 == 0
-	CFLAG:(ARG:1):61 = LOCAL:5
-	CFLAG:(ARG:1):62 = 0
-	IF CONFIG:10 == 1 && ARG:4
-		IF ARG:2 == 0 && LOCAL:4 == 2
-			SELECTCASE ARG:0
-				CASE -1
-					LOCALS:0 = 誰とも知れぬ相手の
-				CASE -10
-					LOCALS:0 = 触手の
-				CASE -11
-					LOCALS:0 = 誰とも知らぬ兵士の
-				CASE -12
-					LOCALS:0 = 外来人の
-				CASE -13
-					LOCALS:0 = ホフゴブリンの
-				CASE -14
-					LOCALS:0 = 犬の
-				CASE -15
-					LOCALS:0 = 豚の
-				CASE -16
-					LOCALS:0 = 野盗の
-				CASE -17
-					LOCALS:0 = 金貸しの客の
-				CASEELSE
-					IF ARG:0 >= 0
-						LOCALS:0 = %ANAME(ARG:0)%の
-					ELSE
-						LOCALS:0 = 
-					ENDIF
-			ENDSELECT
-			PRINTFORMW %ANAME(ARG:1)%は%LOCALS:0%唇に初めてのキスをした…
-		ENDIF
-	ENDIF
-ENDIF
 
 ;-------------------------------------------------
 ;童貞喪失の共通処理
-;キャラARG:0がキャラARG:1で童貞喪失
-;ARG:0、ARG:1に負の値を指定すると、その値をIDとみなして記録。-1=不明 -10=触手 -11=誰とも知らぬ兵士 -12=外来人
+;対象が相手（文字列）で童貞喪失
+;ARG:2はメッセージ表示フラグ
 ;-------------------------------------------------
-@DOUTEI_COMMON(ARG:0, ARG:1)
+@DOUTEI_COMMON(対象, 相手, ARG:2 = 1)
+#DIM 対象
+#DIMS 相手
+SIF !PENIS(対象) || !TALENT:対象:童貞
+	RETURN 0
 
-IF ARG:1 >= 0
-	IF TALENT:(ARG:1):犬
-		LOCAL:6 = -14
-	ELSEIF TALENT:(ARG:1):豚
-		LOCAL:6 = -15
-	ELSE
-		LOCAL:6 = GET_ID(ARG:1)
-	ENDIF
-ELSE
-	LOCAL:6 = ARG:1
-ENDIF
-
-IF TALENT:(ARG:0):童貞 == 1
+IF ARG:2
 	SETCOLOR COLOR("注意")
-	PRINTFORML 童貞喪失(%ANAME(ARG:0)%)
+	PRINTFORML 童貞喪失(%ANAME(対象)%)
 	RESETCOLOR
-	CFLAG:(ARG:0):40 = LOCAL:6
 ENDIF
-TALENT:(ARG:0):童貞 = 0
+DOUTEI_PARTNER:対象:0 = %相手%
+TALENT:対象:童貞 = 0
 
 ;-------------------------------------------------
 ;処女喪失の共通処理
-;キャラARG:0がキャラARG:1で処女喪失
-;ARG:0、ARG:1に負の値を指定すると、その値をIDとみなして記録。-1=不明 -10=触手 -11=誰とも知らぬ兵士 -12=外来人
-
+;対象が相手で処女喪失
+;シチュを指定すると文字列が付与される
+;ARG:2はメッセージを表示するフラグ 1で表示
 ;-------------------------------------------------
-@VIRGIN_COMMON(ARG:0, ARG:1)
-
-IF ARG:1 >= 0
-	IF TALENT:(ARG:1):犬
-		LOCAL:6 = -14
-	ELSEIF TALENT:(ARG:1):豚
-		LOCAL:6 = -15
-	ELSE
-		LOCAL:6 = GET_ID(ARG:1)
-	ENDIF
-ELSE
-	LOCAL:6 = ARG:1
-ENDIF
-IF TALENT:(ARG:0):処女 == 1
+@VIRGIN_COMMON(対象, 相手, シチュ = 0, ARG:2 = 1)
+#DIM 対象
+#DIMS 相手
+#DIM シチュ
+SIF !VAGINA(対象)
+	RETURN 0
+IF TALENT:(対象):処女 == 1
 	SETCOLOR COLOR("注意")
-	PRINTFORML 処女喪失(%ANAME(ARG:0)%)
+	PRINTFORML %ANAME(対象)%は<処女>を失った…
 	RESETCOLOR
-	CFLAG:(ARG:0):41 = LOCAL:6
+	SELECTCASE シチュ
+		CASE 1
+			相手 = %相手%(強姦)
+		CASE 2
+			相手 = %相手%(輪姦)
+		CASE 3
+			相手 = %相手%(乱交)
+		CASE 4
+			相手 = %相手%(調教)
+	ENDSELECT
+	VIRGIN_PARTNER:対象:0 = %相手%
 ENDIF
-TALENT:(ARG:0):処女 = 0
+TALENT:(対象):処女 = 0
 
 ;-------------------------------------------------
 ;処女喪失相手を記録（拡張形式）
