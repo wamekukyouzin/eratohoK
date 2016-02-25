@@ -15,8 +15,22 @@ CALL INIT_TENDENCY(ARG:0)
 CFLAG:(ARG:0):5 = 1
 
 ;キス未経験でないならキス経験を不明として記録
-IF !TALENT:(ARG:0):キス未経験 && CFLAG:(ARG:0):61 == 0
+IF !TALENT:(ARG:0):キス未経験
 	FIRSTKISS_PARTNER:(ARG:0):0 = 不明
+ELSE
+	FIRSTKISS_PARTNER:(ARG:0):0 = ----
+ENDIF
+
+IF !TALENT:(ARG:0):処女
+	VIRGIN_PARTNER:(ARG:0):0 = 不明
+ELSE
+	VIRGIN_PARTNER:(ARG:0):0 = ----
+ENDIF
+
+IF !TALENT:(ARG:0):童貞
+	DOUTEI_PARTNER:(ARG:0):0 = 不明
+ELSE
+	DOUTEI_PARTNER:(ARG:0):0 = ----
 ENDIF
 
 ;初期化に必要な変数を記録
@@ -1540,30 +1554,22 @@ ENDIF
 
 ;-------------------------------------------------
 ;童貞喪失の共通処理
-;キャラARG:0がキャラARG:1で童貞喪失
-;ARG:0、ARG:1に負の値を指定すると、その値をIDとみなして記録。-1=不明 -10=触手 -11=誰とも知らぬ兵士 -12=外来人
+;対象が相手（文字列）で童貞喪失
+;ARG:2はメッセージ表示フラグ
 ;-------------------------------------------------
-@DOUTEI_COMMON(ARG:0, ARG:1)
+@DOUTEI_COMMON(対象, 相手, ARG:2 = 1)
+#DIM 対象
+#DIMS 相手
+SIF !PENIS(対象) || !TALENT:対象:童貞
+	RETURN 0
 
-IF ARG:1 >= 0
-	IF TALENT:(ARG:1):犬
-		LOCAL:6 = -14
-	ELSEIF TALENT:(ARG:1):豚
-		LOCAL:6 = -15
-	ELSE
-		LOCAL:6 = GET_ID(ARG:1)
-	ENDIF
-ELSE
-	LOCAL:6 = ARG:1
-ENDIF
-
-IF TALENT:(ARG:0):童貞 == 1
+IF ARG:2
 	SETCOLOR COLOR("注意")
-	PRINTFORML 童貞喪失(%ANAME(ARG:0)%)
+	PRINTFORML 童貞喪失(%ANAME(対象)%)
 	RESETCOLOR
-	CFLAG:(ARG:0):40 = LOCAL:6
 ENDIF
-TALENT:(ARG:0):童貞 = 0
+DOUTEI_PARTNER:対象:0 = %相手%
+TALENT:対象:童貞 = 0
 
 ;-------------------------------------------------
 ;処女喪失の共通処理
