@@ -46,15 +46,21 @@ PRINTL
 DRAWLINE
 PRINTFORML 【遊戯】
 
-PRINTFORML 　　[0] 丁半
-PRINTFORML 　　[1] 宝引き
-PRINTFORML 　　[2] 座敷闘人
-
+PRINTFORM [0] 丁半
+PRINT 　　
+PRINTFORM [1] 宝引き
+PRINT 　　
+PRINTFORM [2] 座敷闘人
+PRINTL
 
 DRAWLINE
-PRINTL 　　[100] 札交換
+PRINTFORM [100] 札交換
+PRINT 　　
+SIF FLAG:8 < MAX_COMMON_CHARACTER
+	PRINTFORM [101] 身請け
+PRINTL
 DRAWLINE
-PRINT 　　[999] 戻る
+PRINT [999] 戻る
 REDRAW 0
 
 
@@ -67,7 +73,10 @@ IF RESULT == 999
 ELSEIF RESULT == 100
 	REDRAW 1
 	CALL GAMBLE_EXCHANGE
-ELSEIF RESULT > 100 && RESULT < 300 && ITEMNAME:RESULT != ""
+ELSEIF RESULT == 101 && FLAG:8 < MAX_COMMON_CHARACTER
+	REDRAW 1
+	CALL GAMBLE_MIUKE
+ELSEIF RESULT >= 101 && RESULT < 300 && ITEMNAME:RESULT != ""
 
 	LOCAL:2 = RESULT
 	CALL GET_PRICE_GAMBLE(LOCAL:2)
@@ -146,6 +155,176 @@ ELSE
 ENDIF
 PRINTW
 RETURN 0
+
+;-------------------------------------------------
+;身請け
+;-------------------------------------------------
+@GAMBLE_MIUKE
+#DIMS 松竹梅 ="梅", "竹", "松"
+#DIM 額 = 1000, 2000, 5000
+#DIM 対象
+DRAWLINE
+PRINTFORML 怪しげな男が話しかけてきた……
+PRINTFORML 「お客さん、ずいぶん景気がよさそうですね」
+PRINTFORML 「ウチで借金こさえて働く羽目になった連中、身請けしてみやせんか？」
+PRINTFORML 「へへ、なぁに、ちょっとした慈善事業だと思ってさぁ……」
+$SHOW_LOOP
+PRINTFORML 「松竹梅で、格に応じた奴隷を売りますよ」
+PRINTFORML 「抱いてよし、戦わせてよしでさぁ」
+PRINTFORML 「ただし、後から返品はきかないんで、そこだけは頼んますよ、へへ、へ……」
+DRAWLINE
+PRINTFORML 現在の札:{GAMBLE_MONEY}
+CALL ASK_MULTI_JUDGE(@"%松竹梅:0% 札{額:0}", GAMBLE_MONEY >= 額:0, @"%松竹梅:1% 札{額:1}", GAMBLE_MONEY >= 額:1, @"%松竹梅:2% 札{額:2}", GAMBLE_MONEY >= 額:2, "戻る", 1)
+LOCAL = RESULT
+SIF LOCAL == 3
+	RETURN
+PRINTFORMW 「%松竹梅:LOCAL%ですか」
+SELECTCASE LOCAL
+	CASE 0
+		PRINTFORMW 「まっ、正直言って安モンなんでね。品質とか"使い込み具合"に、文句つけんといてくだせぇよ」
+	CASE 1
+		PRINTFORMW 「ま、奴隷にしちゃ可も無く不可も無くってトコですかね。最上級には及びやせんが、妥当なとこでしょう」
+	CASE 2
+		PRINTFORMW 「へへ、それを選ぶとはお目が高い。後悔はさせやせんよ、へへへ」
+ENDSELECT
+
+PRINTFORML 「で、男と女、どっちがお好みで？」
+CALL ASK_MULTI("男", "女", "ふたなり", "戻る")
+
+SIF RESULT == 3
+	GOTO SHOW_LOOP
+
+LOCAL:1 = RESULT
+PRINTFORMW 「へへ、了解、少々お待ちを……」
+CALL CREATE_RANDOM_CHARA(0, -1, LOCAL:1 == 2 ? 1 # LOCAL:1)
+対象 = RESULT
+CALL GAMBLE_MIUKE_SET_STATUS(対象, LOCAL, LOCAL:1 == 2)
+PRINTFORML
+PRINTFORML
+PRINTFORML
+PRINTFORMW しばらくすると、男は奴隷を連れてきた
+PRINTFORM 名前を尋ねると、\@LOCAL:1 == 0 ? 奴隷の男 # 奴隷の女 \@は
+CALL COLORPRINTFORM(NAME_FORMAL(対象), COLOR("注意"))
+PRINTFORM と名乗った
+PRINTFORMW とりあえず、%ANAME(対象)%を連れて帰ることにした……
+PRINTW
+RETURN 0
+
+;-------------------------------------------------
+;身請けしたキャラを生成
+;-------------------------------------------------
+@GAMBLE_MIUKE_SET_STATUS(対象, 格, ふたなり)
+#DIM 対象
+#DIM 格
+#DIM ふたなり
+SIF ふたなり
+	TALENT:対象:性別 = 2
+
+CFLAG:対象:所属 = CFLAG:MASTER:所属
+CFLAG:対象:好感度 = RAND(格 * 300, 格 * 700 + 1)
+CFLAG:対象:依存度 = RAND(格 * 100, 格 * 150 + 1)
+CFLAG:対象:従属度 = RAND(格 * 1000, 格 * 1500 + 1)
+
+ABL:対象:武闘 = 30 + RAND(格 * 15, 格 * 25 + 1)
+ABL:対象:知略 = 30 + RAND(格 * 15, 格 * 25 + 1)
+ABL:対象:政治 = 30 + RAND(格 * 15, 格 * 25 + 1)
+ABL:対象:料理 = 20 + RAND(格 * 5, 格 * 15 + 1)
+ABL:対象:歌唱 = 20 + RAND(格 * 5, 格 * 15 + 1)
+
+FOR LOCAL, 0, 5
+	ABL:対象:LOCAL = RAND(格, 格 * 2 + 1)
+NEXT
+
+ABL:対象:欲望 = RAND(格, 格 * 2 + 1)
+ABL:対象:性技 = RAND(格, 格 * 3 + 1)
+ABL:対象:性知識 = RAND(1, 2 + 格)
+
+FOR LOCAL, 0, 32
+	SIF GROUPMATCH(LOCAL, 28, 31) && IS_MALE(対象)
+		CONTINUE
+	ABL:対象:LOCAL = RAND(格, 格 * 2 + 1)
+NEXT
+
+IF VAGINA(対象) && RAND:100 < 格 * 30
+	TALENT:対象:処女 = 1
+	VIRGIN_PARTNER:対象:0 = ----
+ELSE
+	TALENT:対象:処女 = 0
+	VIRGIN_PARTNER:対象:0 = 不明
+ENDIF
+
+IF RAND:100 < 格 * 30
+	TALENT:対象:キス未経験 = 1
+	FIRSTKISS_PARTNER:対象:0 = ----
+ELSE
+	TALENT:対象:キス未経験 = 0
+	FIRSTKISS_PARTNER:対象:0 = 不明
+ENDIF
+
+IF PENIS(対象) && RAND:100 < 格 * 30
+	TALENT:対象:童貞 = 1
+	DOUTEI_PARTNER:対象:0 = ----
+ELSE
+	TALENT:対象:童貞 = 0
+	DOUTEI_PARTNER:対象:0 = 不明
+ENDIF
+
+IF 格 == 0
+	IF RAND:2
+		TALENT:対象:抑圧 = 1
+	ELSE
+		TALENT:対象:孤高 = 1
+	ENDIF
+ENDIF
+
+IF RAND:100 < 格 * 30
+	TALENT:対象:素直 = 1
+	TALENT:対象:反抗的 = 0
+ENDIF
+
+IF RAND:100	< 格 * 30
+	TALENT:対象:解放 = 1
+	TALENT:対象:抑圧 = 0
+ENDIF
+
+SIF 格 == 0 && RAND:100 < 30
+	TALENT:対象:サボり魔 = 1
+
+IF RAND:100 < 格 * 25
+	TALENT:対象:習得早い = 1
+	TALENT:対象:習得遅い = 0
+ENDIF
+
+IF RAND:100	< 格 * 30
+	TALENT:対象:舌使い = 1
+ENDIF
+
+IF RAND:100	< 格 * 40
+	TALENT:対象:汚臭鈍感 = 1
+	TALENT:対象:汚臭敏感 = 0
+ENDIF
+
+IF RAND:100	< 格 * 25
+	TALENT:対象:快感に素直 = 1
+	TALENT:対象:快感の否定 = 0
+ENDIF
+
+SIF 格 == 2
+	TALENT:対象:RAND(180, 186) = 1
+
+FOR LOCAL, 0, 3
+	IF RAND:100 < 格 * 5
+		TALENT:対象:RAND(219, 231) = 1
+	ENDIF
+NEXT
+
+FOR LOCAL, 0, 3
+	IF RAND:100 < (7 - 格 * 3)
+		CALL SET_TATOO_RANDOM(対象, STR_FOR_TATOO(-1), 0)
+	ELSEIF RAND:100 < (7 - 格 * 3)
+		CALL SET_PIERCE_RANDOM(対象, 0)
+	ENDIF
+NEXT
 
 ;-------------------------------------------------
 ;アイテムの説明を表示し、購入の入力処理を行う
@@ -629,7 +808,7 @@ CASE 0
 CASE 1
 	PRINTFORMW %ANAME(ARG:0)%は仰向けの%ARGS:1%にまたがり、その雌穴をもって奉仕していた
 	PRINTFORMW 気持ちいいですか？　もっと絞めましょうか？　いつお射精してくださっても構いませんよ
-	PRINTFORMW 心にもない言葉をひきつった笑顔で述べると、やがて%ANAME(ARGS:1)%は呻き声と共に精を放った
+	PRINTFORMW 心にもない言葉をひきつった笑顔で述べると、やがて%ARGS:1%は呻き声と共に精を放った
 	PRINTFORMW 一人目を済ませた%ANAME(ARG:0)%は、隣で仰向けになっている二人目の男の上に乗り、また媚びを売り始めた……
 CASE 2
 	PRINTFORMW %ARGS:1%は%ANAME(ARG:0)%に覆いかぶさり、激しく腰を打ち付けている
@@ -637,7 +816,7 @@ CASE 2
 	PRINTFORMW %ARGS:1%がスパートをかけると、%ANAME(ARG:0)%はイヤッ！　それだけはっ！　と%ARGS:1%を両手で押さえて必死に抵抗した
 	PRINTFORMW やがて%ARGS:1%のペニスから精液が噴き出すと、%ANAME(ARG:0)%は声にならない声を上げ、同時に絶頂した……
 CASE 3
-	PRINTFORMW %ANAME(ARGS:0)%は首にリードをつけられ、犬の真似をするよう強要されていた
+	PRINTFORMW %ANAME(ARG:0)%は首にリードをつけられ、犬の真似をするよう強要されていた
 	PRINTFORMW ワン、ワンと呟きながらその場で四つん這いになると、服従のポーズで謝意を示すよう命令が下る
 	PRINTFORMW 逆らえない%ANAME(ARG:0)%は、両手両足を丸めて仰向けになり、男たちに腹部と陰部を晒した
 	PRINTFORMW 興奮した男たちは%ANAME(ARG:0)%に押し寄せ、手垢まみれの手でその身体を弄び始めた……
@@ -778,7 +957,7 @@ CASE 26
 	PRINTFORMW 契約が終わり、アガリを賭場に持って行こうとすると、チップ代わりにと膣内に精を残された……
 CASE 27
 	PRINTFORMW %ANAME(ARG:0)%は空きビルに集められた子供たちの前で、性教育の教材としてアルバイトをしていた
-	PRINTFORMW 講師の%ARG:1%が%ANAME(ARG:0)%の身体を使って赤ちゃんを作ってみるよう指示すると、興奮した子供たちが%ANAME(ARG:0)%に飛びついた
+	PRINTFORMW 講師の%ARGS:1%が%ANAME(ARG:0)%の身体を使って赤ちゃんを作ってみるよう指示すると、興奮した子供たちが%ANAME(ARG:0)%に飛びついた
 	PRINTFORMW まだ幼い生殖器を%ANAME(ARG:0)%に押し込み、無我夢中で腰を振り、%ANAME(ARG:0)%の膣内に精通特有の特濃精液を注ぎ込んだ
 	PRINTFORMW 生徒たち全員の精通を請け負った%ANAME(ARG:0)%は、数日後の着床レポートの提出を義務付けられた……
 CASE 28
