@@ -20,12 +20,12 @@ CALL DAYLY_DERIVATION
 IF !EVENT_LIST:1
 	;0が薬売りで使用されているので-1で初期化
 	VARSET EVENT_LIST, -1
-	;スケベ系:0-6
-	EVENT_LIST:0 = DCON_薬売り, DCON_金貸し, DCON_夜遊び, DCON_富豪, DCON_募金, DCON_催眠, DCON_接待
+	;スケベ系:0-8
+	EVENT_LIST:0 = DCON_薬売り, DCON_金貸し, DCON_夜遊び, DCON_富豪, DCON_募金, DCON_催眠, DCON_接待, DCON_恩返し, DCON_カルマ
 	;雇用系:20-22
 	EVENT_LIST:20 = DCON_傭兵, DCON_用心棒, DCON_仕官の誘い
 	;トレーナー:30-33
-	EVENT_LIST:30 = DCON_素質トレーナー, DCON_セックストレーナー, DCON_外界の医者, DCON_麻薬治療医
+	EVENT_LIST:30 = DCON_素質トレーナー, DCON_セックストレーナー, DCON_外界の医者, DCON_麻薬治療医, DCON_触手トレーナー
 	;外交:40-41
 	EVENT_LIST:40 = DCON_人材要求, DCON_資金援助要求
 	;野盗:50-52
@@ -91,6 +91,18 @@ FOR LOCAL:0, 0, 100
 		SIF !DCONFIG:DCON_接待 && DAY >= 5 && RAND:1000 < 20
 			CALL RECEPTION
 
+	;恩返し
+	;10期以降、あなたが男性の場合、確率3%で発生、イベント中は発生確率アップ
+	CASE DCON_恩返し
+		SIF !DCONFIG:DCON_恩返し && DAY >= 10 && IS_MALE(MASTER) && RAND:1000 < (DVAR:恩返しフラグ || DVAR:通い妻フラグ > 0 ? 250 # 30)
+			CALL REPAYMENT
+
+	;カルマ
+	;10期以降、あなたが男性の場合、確率3%で発生、イベント中は発生確率アップ
+	CASE DCON_カルマ
+		SIF !DCONFIG:DCON_カルマ && DAY >= 10 && IS_MALE(MASTER) && RAND:1000 < ( DVAR:進行度 > 0 ? 250 # 30 )
+			CALL KARMA
+
 	;傭兵
 	;5期以降で3%
 	CASE DCON_傭兵
@@ -126,6 +138,12 @@ FOR LOCAL:0, 0, 100
 	CASE DCON_麻薬治療医
 		SIF !DCONFIG:DCON_麻薬治療医 && DAY >= 15 && RAND:1000 < 75
 			CALL DOCTOR_DRUG
+
+	;触手トレーナー
+	;触手部屋がある場合、15期以降で2.5%
+	CASE DCON_触手トレーナー
+		SIF !DCONFIG:DCON_触手トレーナー && DAY >= 15 && RAND:1000 < 25 && ITEM:触手部屋
+			CALL TENTACLE_TRAINER
 
 	;人材要求
 	;外交解禁後3.5%

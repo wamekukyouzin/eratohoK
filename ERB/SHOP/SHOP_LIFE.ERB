@@ -35,13 +35,15 @@ SELECTCASE ARG:0
 		CALL PRINTBUTTON_SHOP(16, "{士官を募る}", 7)
 	CASE 14
 		CALL PRINTBUTTON_SHOP(17, "{地方へ派遣}", 7,  FLAG:7 == 1017)
-	CASE 16
+	CASE 15
+		CALL PRINTBUTTON_SHOP(18, "{      賭場}", 7,  FLAG:7 == 1018)
+	CASE 17
 		CALL PRINTBUTTON_SHOP(20, "{  婚姻の儀}", 7,  FLAG:7 == 1020)
-	CASE 18
-		CALL PRINTBUTTON_SHOP(25, "{服を替える}", 7,  FLAG:7 == 1025)
 	CASE 19
-		CALL PRINTBUTTON_SHOP(26, "{    料理長}", 7,  FLAG:7 == 1026)
+		CALL PRINTBUTTON_SHOP(25, "{服を替える}", 7,  FLAG:7 == 1025)
 	CASE 20
+		CALL PRINTBUTTON_SHOP(26, "{    料理長}", 7,  FLAG:7 == 1026)
+	CASE 21
 		IF SHOP_AVAIL:27
 			IF FLAG:35 >= 0 && IS_SYOKUSYU_MANAGE(FLAG:35)
 				CALL PRINTBUTTON_SHOP(27, "{◎触手部屋}", 7)
@@ -51,20 +53,20 @@ SELECTCASE ARG:0
 		ELSE
 			CALL PRINTBUTTON_SHOP(27, "{  触手部屋}", 7)
 		ENDIF
-	CASE 21
-		CALL PRINTBUTTON_SHOP(28, "{寺子屋予算}", 7)
 	CASE 22
+		CALL PRINTBUTTON_SHOP(28, "{寺子屋予算}", 7)
+	CASE 23
 		CALL PRINTBUTTON_SHOP(29, "{  推しメン}", 7,  FLAG:7 == 1029)
-	CASE 24
-		CALL PRINTBUTTON_SHOP(40, "{  能力表示}", 7,  FLAG:7 == 1040)
 	CASE 25
-		CALL PRINTBUTTON_SHOP(41, "{  関係一覧}", 7,  FLAG:7 == 1041)
+		CALL PRINTBUTTON_SHOP(40, "{  能力表示}", 7,  FLAG:7 == 1040)
 	CASE 26
+		CALL PRINTBUTTON_SHOP(41, "{  関係一覧}", 7,  FLAG:7 == 1041)
+	CASE 27
 		CALL PRINTBUTTON_SHOP(50, "{  アイテム}", 7)
 	;項番50台は各メニュー内のボタンで使われてることがあるので注意
-	CASE 28
+	CASE 29
 		CALL PRINTBUTTON_SHOP(60, "{次の周回へ}", 7)
-	CASE 30
+	CASE 31
 		CALL PRINTBUTTON_SHOP(99, "{      休息}", 7)
 	CASE 33
 		CALL PRINTBUTTON_SHOP(70, "{      設定}", 7)
@@ -316,6 +318,14 @@ ELSEIF FLAG:7 == 1017
 	CALL PRINT_LIFE_MENU(2)
 	CALL REPEAT_DASH(0)
 	行数 = 3
+;賭場
+ELSEIF FLAG:7 == 1018
+	CALL PRINT_LIFE_MENU(0)
+	PRINTFORML ★★賭場に向かわせる自国キャラを選択してください★★
+	CALL PRINT_LIFE_MENU(1)
+	CALL REPEAT_DASH(0)
+	行数 = 2
+
 ;婚姻の儀
 ELSEIF FLAG:7 == 1020
 	CALL PRINT_LIFE_MENU(0)
@@ -1441,7 +1451,7 @@ ENDIF
 PRINTL
 行数 = 3
 ;ページ数を計算
-LOCAL:12 = (LINES_SHOP_DRAW - 2 - 行数) * 3
+LOCAL:12 = (LINES_SHOP_DRAW - 2 - 行数) * 2
 最大ページ数 = 0
 FOR LOCAL:0, 0, CHARANUM
 	;選択可能な条件を満たしているかどうかを判定
@@ -1622,6 +1632,12 @@ IF SHOP_AVAIL:(ARG:0)
 	;地方へ派遣
 	ELSEIF ARG:0 == 17
 		FLAG:7 = 1017
+		FLAG:6 = 1
+		FLAG:70 = 0
+		RETURN 0
+	;賭場
+	ELSEIF ARG:0 == 18
+		FLAG:7 = 1018
 		FLAG:6 = 1
 		FLAG:70 = 0
 		RETURN 0
@@ -2080,8 +2096,7 @@ ELSEIF FLAG:7 == 1010
 	ELSEIF RESULT == 2 && !FLAG:28 && !CFLAG:(ARG:0):59
 		IF CFLAG:(ARG:0):1 == CFLAG:MASTER:1
 			PRINTFORML 本当に%ANAME(ARG:0)%を国から追放しますか？
-			LOCAL:10 = GET_COMMANDER_NUM(CFLAG:MASTER:1)
-			IF !(LOCAL:10 % 5) && (LOCAL:10 / 5) == SHOP_TIME && CFLAG:(ARG:0):1 == CFLAG:MASTER:1
+			IF CALC_SHOP_TIME(!IS_ANIMAL(ARG:0)) == SHOP_TIME
 				SETCOLOR COLOR("警告")
 				PRINTFORML 追放した場合、最大行動回数減少により直ちに今期の拠点フェイズが終了します！
 				RESETCOLOR
@@ -2137,7 +2152,7 @@ ELSEIF FLAG:7 == 1010
 		PRINTFORML %ANAME(ARG:0)%を性奴隷にすることで見込まれる兵数の増加は{LOCAL:11}です
 		PRINTFORML 本当に%ANAME(ARG:0)%を性奴隷にしますか？
 		LOCAL:10 = GET_COMMANDER_NUM(CFLAG:MASTER:1)
-		IF !(LOCAL:10 % 5) && (LOCAL:10 / 5) == SHOP_TIME && CFLAG:(ARG:0):1 == CFLAG:MASTER:1
+		IF CALC_SHOP_TIME(!IS_ANIMAL(ARG:0)) == SHOP_TIME
 			SETCOLOR COLOR("警告")
 			PRINTFORML 性奴隷にした場合、最大行動回数減少により直ちに今期の拠点フェイズが終了します！
 			RESETCOLOR
@@ -2189,8 +2204,7 @@ ELSEIF FLAG:7 == 1010
 			PRINTFORML 処刑場につれて来られた%ANAME(ARG:0)%は、泣きながら命乞いを始めた
 			PRINTFORML 『二度と逆らわない、どんな事でもするから、お腹の子だけは助けて』と、必死の形相で懇願している
 			PRINTFORML 本当に%ANAME(ARG:0)%を処刑しますか？
-			LOCAL:10 = GET_COMMANDER_NUM(CFLAG:MASTER:1)
-			IF !(LOCAL:10 % 5) && (LOCAL:10 / 5) == SHOP_TIME && CFLAG:(ARG:0):1 == CFLAG:MASTER:1
+			IF CALC_SHOP_TIME(!IS_ANIMAL(ARG:0)) == SHOP_TIME
 				SETCOLOR COLOR("警告")
 				PRINTFORML 処刑した場合、最大行動回数減少により直ちに今期の拠点フェイズが終了します！
 				RESETCOLOR
@@ -2257,8 +2271,7 @@ ELSEIF FLAG:7 == 1010
 			ENDIF
 		ELSE
 			PRINTFORML 本当に%ANAME(ARG:0)%を処刑しますか？
-			LOCAL:10 = GET_COMMANDER_NUM(CFLAG:MASTER:1)
-			IF !(LOCAL:10 % 5) && (LOCAL:10 / 5) == SHOP_TIME && CFLAG:(ARG:0):1 == CFLAG:MASTER:1
+			IF CALC_SHOP_TIME(!IS_ANIMAL(ARG:0)) == SHOP_TIME
 				SETCOLOR COLOR("警告")
 				PRINTFORML 処刑した場合、最大行動回数減少により直ちに今期の拠点フェイズが終了します！
 				RESETCOLOR
@@ -2296,8 +2309,7 @@ ELSEIF FLAG:7 == 1010
 				PRINTFORML 触手に形作られた処刑部屋につれて来られた%ANAME(ARG:0)%は、泣きながら命乞いを始めた
 				PRINTFORML 『二度と逆らわない、どんな事でもするから、お腹の子だけは助けて』と、必死の形相で懇願している
 				PRINTFORML 本当に%ANAME(ARG:0)%を処刑しますか？
-				LOCAL:10 = GET_COMMANDER_NUM(CFLAG:MASTER:1)
-				IF !(LOCAL:10 % 5) && (LOCAL:10 / 5) == SHOP_TIME && CFLAG:(ARG:0):1 == CFLAG:MASTER:1
+				IF CALC_SHOP_TIME(!IS_ANIMAL(ARG:0)) == SHOP_TIME
 					SETCOLOR COLOR("警告")
 					PRINTFORML 処刑した場合、最大行動回数減少により直ちに今期の拠点フェイズが終了します！
 					RESETCOLOR
@@ -2377,8 +2389,7 @@ ELSEIF FLAG:7 == 1010
 				ENDIF
 			ELSE
 				PRINTFORML 本当に%ANAME(ARG:0)%を処刑しますか？
-				LOCAL:10 = GET_COMMANDER_NUM(CFLAG:MASTER:1)
-				IF !(LOCAL:10 % 5) && (LOCAL:10 / 5) == SHOP_TIME && CFLAG:(ARG:0):1 == CFLAG:MASTER:1
+				IF CALC_SHOP_TIME(!IS_ANIMAL(ARG:0)) == SHOP_TIME
 					SETCOLOR COLOR("警告")
 					PRINTFORML 処刑した場合、最大行動回数減少により直ちに今期の拠点フェイズが終了します！
 					RESETCOLOR
@@ -2664,6 +2675,12 @@ ELSEIF FLAG:7 == 1017
 			BEGIN TURNEND
 		ENDIF
 	ENDIF
+	RETURN 1
+
+;賭場
+ELSEIF FLAG:7 == 1018
+	FLAG:11 = 0
+	CALL SHOP_GAMBLE(ARG:0)
 	RETURN 1
 
 ;婚姻の儀
@@ -3382,13 +3399,23 @@ SELECTCASE RAND:100
 		PRINTFORMW を手に入れた
 ENDSELECT
 ;-------------------------------------------------
-;活動可能回数の計算 士官5人で1回増える
+;活動可能回数の計算
+;ARG:0 = 一人追放しての計算
 ;-------------------------------------------------
-@CALC_SHOP_TIME()
+@CALC_SHOP_TIME(ARG:0 = 0)
 #FUNCTION
-LOCAL:1 = 0
-FOR LOCAL, 0, CHARANUM
-	SIF CFLAG:LOCAL:1 == CFLAG:MASTER:1 && !IS_ANIMAL(LOCAL)
-		LOCAL:1 ++
-NEXT
-RETURNF LOCAL:1 / 5 + 1
+#DIM 行動回数
+#DIM 士官数
+士官数 = GET_COMMANDER_NUM(CFLAG:MASTER:所属) - GET_ANIMAL_NUM(CFLAG:MASTER:所属)
+SIF ARG:0
+	士官数 --
+LOCAL = 2
+行動回数 = 1
+;行動回数が1増えるごとに、次に行動回数が増えるために必要な士官の数も増えていく
+DO
+	士官数 -= LOCAL
+	LOCAL += 1 + (行動回数 % 2)
+	行動回数 ++
+LOOP 士官数 - LOCAL> 0
+RETURNF 行動回数 - 1
+
