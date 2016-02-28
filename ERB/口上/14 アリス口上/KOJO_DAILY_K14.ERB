@@ -1,0 +1,54 @@
+﻿@KOJO_DAILY_K14()
+
+;人形裁判
+CALL KOJO_DAILY_K14_NINGYOUSAIBAN
+
+
+;----------------------------------
+;人形裁判
+;----------------------------------
+@KOJO_DAILY_K14_NINGYOUSAIBAN
+#DIM アリス
+#DIM 上海人形
+#DIM 蓬莱人形
+#DIM 大江戸人形
+#DIM ゴリアテ人形
+#DIM 助っ人
+
+アリス = NAME_TO_CHARA("アリス")
+上海人形 = NAME_TO_CHARA("上海人形")
+蓬莱人形 = NAME_TO_CHARA("蓬莱人形")
+大江戸人形 = NAME_TO_CHARA("大江戸人形")
+ゴリアテ人形 = NAME_TO_CHARA("ゴリアテ人形")
+
+
+;アリスが捕虜でなく死んでいないなら1.5%で発生
+SIF !CHECK_KOJO_DAILY_HAPPEN(アリス, 15, -1, 0, -1)
+	RETURN -1
+
+;加入させる人形のセレクト
+SELECTCASE RAND:4
+	CASE 0
+		助っ人 = NAME_TO_CHARA("上海人形")
+	CASE 1
+		助っ人 = NAME_TO_CHARA("蓬莱人形")
+	CASE 2
+		助っ人 = NAME_TO_CHARA("大江戸人形")
+	CASEELSE
+		助っ人 = NAME_TO_CHARA("ゴリアテ人形")
+ENDSELECT
+
+;選んだ人形がいるならやらない
+SIF (CFLAG:助っ人:所属 == CFLAG:アリス:所属 && !CFLAG:助っ人:捕虜先 && 助っ人 != GET_COUNTRY_BOSS(CFLAG:助っ人:所属))
+	RETURN -1
+
+;助っ人参戦！！
+SIF CFLAG:助っ人:特殊状態フラグ == 2
+	CFLAG:助っ人:特殊状態フラグ = 0
+CFLAG:助っ人:所属 = CFLAG:アリス:所属
+CALL FORCE_FREE(助っ人)
+
+
+CALL KOJO_DAILY_START
+PRINTFORMW 「人形を操ってこその人形使いよ」
+PRINTFORMW %ANAME(アリス)%の能力により、%ANAME(助っ人)%が%ANAME(アリス)%のいる勢力に加入しました
