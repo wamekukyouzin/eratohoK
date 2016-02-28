@@ -2921,6 +2921,50 @@ FLAG:12 = 2
 CALL START_TRAIN_COMMON
 REDRAW 1
 RETURN 1
+
+;-------------------------------------------------
+;「捕虜の調教」で対象が一人のとき、別の捕虜が身代わりになろうとする
+;-------------------------------------------------
+@PRISONER_SCAPEGOAT(対象)
+#DIM 対象
+#DIM 候補
+#DIM 判定値, 1000
+VARSET 判定値, 0
+FOR LOCAL, 0, CHARANUM
+	IF CFLAG:LOCAL:9 == CFLAG:対象:9
+		SIF REL_LIKE:LOCAL:対象 > 0
+			判定値:LOCAL += RAND(REL_LIKE:LOCAL:対象, REL_LIKE:LOCAL:対象 * 2) 
+		SIF RELATION:LOCAL:対象 >= 100
+			判定値:LOCAL += (RELATION:LOCAL:対象 - 100) * 10
+	ENDIF
+NEXT
+
+候補 = FINDELEMENT(判定値, MAXARRAY(判定値, 0, CHARANUM), 0, CHARANUM)
+
+
+IF 判定値:候補 > RAND:10000
+	PRINTFORMW %ANAME(MASTER)%が%ANAME(対象)%の調教を開始しようとすると、%ANAME(候補)%がすがりついてきた
+	PRINTFORML 自分が代わりになる、だから%ANAME(対象)%のことは見逃して欲しい、ということだそうだが……
+	CALL ASK_MULTI("受け入れる", @"受け入れつつ、%ANAME(対象)%に見せつける", "無視する")
+	SELECTCASE RESULT
+		CASE 0
+			PRINTFORMW そこまでいうなら、認めてやろう
+			PRINTFORMW %ANAME(MASTER)%は%ANAME(候補)%を調教することにした……
+			PRISONER_TARGET:FINDELEMENT(PRISONER_TARGET, 対象) = 候補
+		CASE 1
+			PRINTFORMW そこまでいうなら、認めてやろう
+			PRINTFORMW ただし、%ANAME(候補)%が犯される様を、%ANAME(対象)%に見せつけてやろう
+			PRINTFORMW どんな顔をするか、今から楽しみだ……
+			PRISONER_TARGET:FINDELEMENT(PRISONER_TARGET, 対象) = 候補
+			CFLAG:対象:57 = 1
+		CASE 2
+			PRINTFORMW 何を馬鹿なことを言っているのだろう
+			PRINTFORMW %ANAME(MASTER)%は%ANAME(候補)%を無視し、%ANAME(対象)%の調教にとりかかった
+	ENDSELECT
+ELSE
+	RETURN 0
+ENDIF
+
 ;-------------------------------------------------
 ;捕虜の調教でターゲットが一人だけのときの処理（旧仕様の捕虜の調教で捕虜をクリックしたときの処理）
 ;-------------------------------------------------
@@ -2973,6 +3017,7 @@ $INPUT_LOOP_TREAT
 INPUT
 
 IF RESULT == 0
+	CALL PRISONER_SCAPEGOAT(ARG:0)
 	CALL DECIDE_PRISONER_MEMBER()
 ELSEIF RESULT == 1
 	IF CFLAG:(ARG:0):59
