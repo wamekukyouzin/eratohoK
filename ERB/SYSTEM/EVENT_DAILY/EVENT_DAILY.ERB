@@ -49,7 +49,7 @@ ENDIF
 ;イベント発生倍率のセット
 ;2^(コンフィグ値-1)+1、つまりDCONFIG:950が0/1/2/3/4の場合1/2/3/5/10倍になる
 ;なお1000を超えた場合、そのイベントが必ず発生するだけで何ら問題はない（ぉ
-EVENT_ODDS = POWER(2, DCONFIG:950 - 1) + 1
+EVENT_ODDS = POWER(2, DCONFIG:DCON_通常発生頻度 - 1) + 1
 
 ;いつもの順番決定、拡張性を考えて枠は100個用意させていただきました
 CALL FISHER_YATES_SHAFFLE(100)
@@ -253,16 +253,16 @@ CALL FISHER_YATES_SHAFFLE(CHARANUM)
 ;念のため順番を記録
 ARRAYCOPY "SHAFFLE_ARRAY" , "EVENT_PICK"
 
-;同一ターンに最大3人のイベントしか発生しない
-LOCAL:1 = DCONFIG:952 + 1
-
 FOR LOCAL, 1, CHARANUM
+	PRINTFORMW %ANAME(EVENT_PICK:LOCAL)%
+	SIF NO:(EVENT_PICK:LOCAL) > 200 || (NO:(EVENT_PICK:LOCAL) <= 200 && KDCONFIG:(NO:(EVENT_PICK:LOCAL)))
+		CONTINUE
 	CALL KOJO_DAILY(EVENT_PICK:LOCAL)
 	;正常終了していたらカウントを減らす
-	SIF !RESULT
+	SIF RESULT
 		EVENT_COUNT:1 --
-	;終了フラグもしくはが立っていれば抜ける
-	SIF DAILY_CANCEL || !EVENT_COUNT:1
+	;終了フラグもしくはカウントが0になっていたら抜ける
+	SIF DAILY_CANCEL || EVENT_COUNT:1 == 0
 		BREAK
 NEXT
 
