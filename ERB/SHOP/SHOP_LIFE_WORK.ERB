@@ -8,6 +8,8 @@
 #DIM 全消費, 1
 #DIM 内容, 1
 #DIM 報酬, 1
+#DIM 能力, 1
+#DIM 経験値, 1
 DRAWLINE
 PRINTFORML 行動回数を消費し、%ANAME(対象)%が働いてお金を稼ぎます
 PRINTFORML 職種次第では、そのほかの恩恵も得られるでしょう
@@ -15,16 +17,22 @@ PRINTFORML どうやってお金を稼ぎますか？
 DRAWLINE
 PRINTBUTTON @"%"[鉱山労働]", 12, LEFT%", 1
 PRINTBUTTON "[行動全消費]", 11
-PRINTL   鉱山で働いて稼ぎます。実入りが多いです。武闘が影響します。
-PRINTBUTTON @"%"[土木工事]", 12, LEFT%", 2
-PRINTBUTTON "[行動全消費]", 12
-PRINTL   土木工事を手伝います。経済が成長します。武闘が影響します。
-PRINTBUTTON @"%"[軍事広報]", 12, LEFT%", 3
+PRINTL   鉱山で働いて稼ぎます。武闘が影響します。
+PRINTBUTTON @"%"[軍事広報]", 12, LEFT%", 1
+PRINTBUTTON "[行動全消費]", 11
+PRINTL   軍の広報活動を手伝います。知略が影響します。
+PRINTBUTTON @"%"[街の宣伝]", 12, LEFT%", 3
 PRINTBUTTON "[行動全消費]", 13
-PRINTL   軍の宣伝活動をします。兵数が増えます。知略と政治が影響します。
+PRINTL   街の宣伝活動を手伝います。政治が影響します。
+PRINTBUTTON @"%"[炊き出し]", 12, LEFT%", 4
+PRINTBUTTON "[行動全消費]", 14
+PRINTL   炊き出しを手伝います。料理が影響します。
+PRINTBUTTON @"%"[ライブ]", 12, LEFT%", 5
+PRINTBUTTON "[行動全消費]", 15
+PRINTL   ストリートライブで稼ぎます。歌唱が影響します。
 IF ABL:対象:性技 >= ランク閾値_その他_C
-	PRINTBUTTON @"%"[娼婦]", 12, LEFT%", 4
-	PRINTBUTTON "[行動全消費]", 14
+	PRINTBUTTON @"%"[娼婦]", 12, LEFT%", 6
+	PRINTBUTTON "[行動全消費]", 16
 	PRINTL   娼婦として働きます。スケベな経験が増えます。スケベな能力が影響します。
 ELSE
 	SETCOLOR COLOR("選択不可")
@@ -43,16 +51,16 @@ IF 内容 == 0
 	RETURN 0
 ENDIF
 
-IF GROUPMATCH(内容, 11, 12, 13, 14)
+IF GROUPMATCH(内容, 11, 12, 13, 14, 15, 16)
 	全消費 = 1
 	内容 -= 10
-ELSEIF GROUPMATCH(内容, 1, 2, 3, 4)
+ELSEIF GROUPMATCH(内容, 1, 2, 3, 4, 5, 6)
 	全消費 = 0
 ELSE
 	GOTO INPUT_LOOP
 ENDIF
 
-IF 内容 == 4 && ABL:対象:性技 < ランク閾値_その他_C
+IF 内容 == 6 && ABL:対象:性技 < ランク閾値_その他_C
 	GOTO INPUT_LOOP
 ENDIF
 
@@ -90,30 +98,38 @@ ENDIF
 SELECTCASE 内容
 	CASE 1
 		PRINTFORML %ANAME(対象)%は鉱山で働いた……
-		報酬 = 2000
-		報酬 += RAND:(MAX(ABL:対象:武闘 * 10, 1))
+		能力 = GETNUM(ABL, "武闘")
+		経験値 = GETNUM(EXP, "武闘経験値")
 	CASE 2
-		PRINTFORML %ANAME(対象)%は土木工事を手伝った……
-		報酬 = 1000
-		報酬 += RAND:(MAX(ABL:対象:武闘 * 7, 1))
-		LOCAL:1 = (3000 + RAND(MAX(ABL:対象:武闘 * 50, 1), MAX(ABL:対象:武闘 * 100, 100))) / (SHOP_WORK_COUNT + 1)
-		CALL FISHER_YATES_SHAFFLE(MAX_CITY)
-		FOR LOCAL, 0, MAX_CITY
-			IF CITY_OWNER:(SHAFFLE_ARRAY:LOCAL) == CFLAG:対象:1 && CITY_ECONOMY:(SHAFFLE_ARRAY:LOCAL) < CITY_ECONOMY_LIMIT:(SHAFFLE_ARRAY:LOCAL)
-				LOCAL:1 = MIN(LOCAL:1, CITY_ECONOMY_LIMIT:(SHAFFLE_ARRAY:LOCAL) - CITY_ECONOMY:(SHAFFLE_ARRAY:LOCAL))
-				CITY_ECONOMY:(SHAFFLE_ARRAY:LOCAL) += LOCAL:1
-				PRINTFORML %GET_CITYNAME(SHAFFLE_ARRAY:LOCAL)%の経済が{LOCAL:1 / 100}成長した
-				BREAK
-			ENDIF
-		NEXT
-	CASE 3
 		PRINTFORML %ANAME(対象)%は軍事広報を手伝った……
-		報酬 = 500
-		報酬 += RAND:(MAX((ABL:対象:知略 +ABL:対象:政治) * 3, 1))
-		LOCAL:1 = (500 + RAND(MAX((ABL:対象:政治 + ABL:対象:知略) * 3, 1), MAX((ABL:対象:政治 + ABL:対象:知略) * 7, 10))) / (SHOP_WORK_COUNT + 1)
-		COUNTRY_SOLDIER:(CFLAG:対象:1) += LOCAL:1
-		PRINTFORML 兵が{LOCAL:1}人増えた
+		能力 = GETNUM(ABL, "知略")
+		経験値 = GETNUM(EXP, "知略経験値")
+		;LOCAL:1 = (500 + RAND(MAX(ABL:対象:知略 * 5, 1), MAX(ABL:対象:知略 * 10, 1)) / (SHOP_WORK_COUNT + 1)
+		;COUNTRY_SOLDIER:(CFLAG:対象:1) += LOCAL:1
+		;PRINTFORML 兵が{LOCAL:1}人増えた
+	CASE 3
+		PRINTFORML %ANAME(対象)%は街の宣伝活動を手伝った……
+		能力 = GETNUM(ABL, "政治")
+		経験値 = GETNUM(EXP, "政治経験値")
+		;LOCAL:1 = (3000 + RAND(MAX(ABL:対象:政治 * 50, 1), MAX(ABL:対象:政治 * 100, 100))) / (SHOP_WORK_COUNT + 1)
+		;CALL FISHER_YATES_SHAFFLE(MAX_CITY)
+		;FOR LOCAL, 0, MAX_CITY
+		;	IF CITY_OWNER:(SHAFFLE_ARRAY:LOCAL) == CFLAG:対象:1 && CITY_ECONOMY:(SHAFFLE_ARRAY:LOCAL) < CITY_ECONOMY_LIMIT:(SHAFFLE_ARRAY:LOCAL)
+		;		LOCAL:1 = MIN(LOCAL:1, CITY_ECONOMY_LIMIT:(SHAFFLE_ARRAY:LOCAL) - CITY_ECONOMY:(SHAFFLE_ARRAY:LOCAL))
+		;		CITY_ECONOMY:(SHAFFLE_ARRAY:LOCAL) += LOCAL:1
+		;		PRINTFORML %GET_CITYNAME(SHAFFLE_ARRAY:LOCAL)%の経済が{LOCAL:1 / 100}成長した
+		;		BREAK
+		;	ENDIF
+		;NEXT
 	CASE 4
+		PRINTFORML %ANAME(対象)%は炊き出しに出かけた……
+		能力 = GETNUM(ABL, "料理")
+		経験値 = GETNUM(EXP, "料理経験値")
+	CASE 5
+		PRINTFORML %ANAME(対象)%はストリートライブで稼いだ……
+		能力 = GETNUM(ABL, "歌唱")
+		経験値 = GETNUM(EXP, "歌唱経験値")
+	CASE 6
 		PRINTFORMW %ANAME(対象)%は娼館で働いた……
 		PRINTFORML 
 		IF IS_FEMALE(対象)
@@ -148,6 +164,23 @@ SELECTCASE 内容
 	CASEELSE
 		GOTO INPUT_LOOP
 ENDSELECT
+
+IF 内容 != 6
+	報酬 = 2000
+	SELECTCASE 能力
+		CASE GETNUM(ABL, "武闘"), GETNUM(ABL, "知略"), GETNUM(ABL, "政治")
+			報酬 += RAND:(MAX(ABL:対象:能力 * 10, 1))
+		CASE GETNUM(ABL, "料理"), GETNUM(ABL, "歌唱")
+			報酬 += RAND:(MAX(ABL:対象:能力 * 20, 1))
+	ENDSELECT
+	SELECTCASE 経験値
+		CASE GETNUM(EXP, "武闘経験値"), GETNUM(EXP, "知略経験値"), GETNUM(EXP, "政治経験値")
+			CALL PRINT_ADD_EXP(対象, EXPNAME:(経験値), RAND:(ABLUP_NEED_EXP_SLG_THREE(ABL:対象:能力)) / (SHOP_WORK_COUNT + 1) / 100)
+		CASE GETNUM(EXP, "料理経験値"), GETNUM(EXP, "歌唱経験値")
+			CALL PRINT_ADD_EXP(対象, EXPNAME:(経験値), RAND:(ABLUP_NEED_EXP_SLG_TWO(ABL:対象:能力)) / (SHOP_WORK_COUNT + 1) / 100)
+	ENDSELECT
+	CALL TRAIN_AUTO_ABLUP(対象)
+ENDIF
 
 報酬 /= (SHOP_WORK_COUNT + 1)
 報酬 += RAND:500
