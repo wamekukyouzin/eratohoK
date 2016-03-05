@@ -1,0 +1,97 @@
+﻿@KOJO_DAILY_EXIST_K8()
+
+@KOJO_DAILY_K8()
+#DIM 発生フラグ
+発生フラグ = 0
+
+;すけべ巫女
+CALL KOJO_DAILY_K8_GATHER_SPERM
+SIF RESULT != -1
+	発生フラグ = 1
+SIF DAILY_CANCEL
+	RETURN 1
+
+;------------------------------------
+;精液採取
+;-----------------------------------
+@KOJO_DAILY_K8_GATHER_SPERM
+#DIM パチュリー
+
+パチュリー = NAME_TO_CHARA("パチュリー")
+
+;MASTERが男で、好感度1000以上
+SIF !(CHECK_KOJO_DAILY_HAPPEN(パチュリー, 1000, 1, 0) && IS_MALE(MASTER) && CFLAG:パチュリー:好感度 >= 1000)
+	RETURN -1
+
+IF IS_SLAVE(パチュリー)
+	LOCALS:0 = ご主人様
+ELSE
+	LOCALS:0 = %ANAME(MASTER)%
+ENDIF
+
+CALL KOJO_DAILY_START()
+PRINTFORML %ANAME(MASTER)%が仕事をしていると、%ANAME(パチュリー)%が訪ねてきた
+IF KDVAR:パチュリー:パチュリー_精液採取 == 0
+	PRINTFORML 「ねえ、折り入ってお願いがあるのだけど」
+	PRINTFORML 「ちょっと人払いをして、話せるかしら？」
+	PRINTFORML
+	CALL ASK_YN("構わない", "今は忙しい")
+	IF RESULT == 1
+		PRINTFORMW 「……そう」
+		PRINTFORMW 「なら構わないわ。また今度」
+		PRINTFORMW パチュリーは立ち去った……
+		RETURN 0
+	ELSE
+		PRINTFORML 別に構わない……
+		PRINTFORMW %ANAME(MASTER)%は部下達を下がらせ、%ANAME(パチュリー)%と二人きりになった
+		PRINTFORMW 「……ありがとう。それでその話っていうのが……そうね、どう言えばいいかしら」
+		PRINTFORMW 「実は、その……なんというか、言いにくい話なのだけど」
+		PRINTFORMW やけに歯切れの悪い様子を見せながら、%ANAME(パチュリー)%はぽつりと呟く
+		PRINTFORML
+		PRINTFORMW 「……精液を、もらえないかしら」
+		PRINTFORML
+		PRINTFORML ぽかんとする%ANAME(MASTER)%を見、言い訳するように、%ANAME(パチュリー)%はまくしたてる
+		PRINTFORMW 「いや、違うわよ。変なことに使うわけじゃないわ」
+		PRINTFORMW 「でも、魔法の実験のために必要なの」
+		PRINTFORMW 「それでその……そういうことを頼めそうな知り合いが、%LOCALS:0%しかいなかったから」
+		PRINTFORMW 「私だって、こんな間抜けなことを他人に頼む日が来ようとは思ってなかったけど……」
+		PRINTFORML
+		PRINTFORMW 「もちろんただでとは言わないわ。提供してくれたサンプルの量に応じて、報酬は払う」
+		PRINTFORMW 「それに、まぁ……手伝ってあげないでもないわ」
+		PRINTFORMW 「でも、嫌だというなら構わないわ。そもそもが無茶なお願いだしね」
+		PRINTFORMW 「私としては、実験ができるとありがたいのだけど。考えてもらえるかしら？」
+		PRINTFORML なるほど、どうやらからかわれているのではなく、本当に精液が必要なようだ
+		PRINTFORML ずいぶんとんでもない話だが、困っているのなら手伝ってやるべきだろうか……
+	ENDIF
+ELSE
+	PRINTFORML 「……ありがとう、実はその、また精液が必要になったの」
+	PRINTFORML 「手伝ってもらえるかしら？
+ENDIF
+PRINTL
+CALL ASK_YN("手伝う", "忙しいから……")
+IF RESULT == 1
+	PRINTFORMW 「……そう。それなら仕方ないわ」
+	PRINTFORMW 「そこらの男で……というのも気分が悪いし、別の触媒を探すことにするわ」
+	PRINTFORMW 「変な話をしてごめんなさいね」
+	PRINTFORMW %ANAME(パチュリー)%は立ち去った……
+	KDVAR:パチュリー:パチュリー_精液採取 = 2
+ELSE
+	PRINTFORMW 「……そう。ありがとう」
+	CFLAG:パチュリー:好感度 += 100
+	;全員の調教参加フラグをクリア
+	CVARSET CFLAG, 6, 0
+	CFLAG:パチュリー:6 = 1
+	CFLAG:パチュリー:93 = 1
+	CFLAG:パチュリー:調教中帰らない = 1
+	BASE:パチュリー:体力 = MAXBASE:パチュリー:体力
+	BASE:パチュリー:気力 = MAXBASE:パチュリー:気力
+	;強制調教フラグをオン
+	FLAG:31 = 1
+	;それ以降のデイリーイベント発生を潰す
+	DAILY_CANCEL = 1
+	;フラグ
+	KDVAR:パチュリー:パチュリー_精液採取 = 1
+	KDVAR:パチュリー:パチュリー_精液採取_調教中 = 1
+	DRAWLINE
+	PRINTFORML
+ENDIF
