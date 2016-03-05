@@ -253,6 +253,9 @@ SHOP_TIME = 0
 ;料理長をリセット（料理長がランダムキャラや出産キャラで、かつそのキャラを引き継がなかったときのため）
 CALL SET_COOK(-1)
 
+;観戦モードフラグを0
+FLAG:1 = 0
+
 ;SLG関連の変数をクリア
 STATS_TIME = 0
 VARSET STATS_BOSS_ID_LIST, 0
@@ -332,34 +335,30 @@ ELSEIF LOCAL:10 == 1
 
 	$SELECT_SCENARIO
 
-	;2週目以降で、プレイヤーが頭首になっていた場合、勢力選択はできない
-	IF FLAG:26 >= 2 && GET_COUNTRY_BOSS(CFLAG:MASTER:1) == MASTER
-		PRINTFORMW このシナリオでは%ANAME(MASTER)%は頭首なので、勢力選択はスキップされます。
-		CALL NEWGAME_SETTING
-	ELSE
-		;勢力選択
-		CALL SELECT_COUNTRY
-		;その勢力がプレイ可能か調べる。未定義なら全勢力プレイ可能とする
-		TRYCCALLFORM IS_COUNTRY_PLAYABLE_%SCENARIOID%
-		IF !RESULT
-			SETCOLOR COLOR("警告")
-			PRINTFORML !!!このシナリオでは、その勢力でプレイすることはできません!!!
-			PRINTFORMW 勢力選択画面に戻ります
-			RESETCOLOR
-			GOTO SELECT_SCENARIO
-		ENDIF
-		CATCH
-			
-		ENDCATCH
-		;観戦モードでなく、かつ1週目のときだけ、あなたを弄る
-		IF !FLAG:1 && FLAG:26 == 1
-			CALL SELECT_MASTER
-		ENDIF
-		IF FLAG:3 == -1
-			CALL START_WITH_NEW_COUNTRY
-		ENDIF
-		CFLAG:MASTER:1 = FLAG:3
+	;勢力選択
+	CALL SELECT_COUNTRY
+	;その勢力がプレイ可能か調べる。未定義なら全勢力プレイ可能とする
+	TRYCCALLFORM IS_COUNTRY_PLAYABLE_%SCENARIOID%
+	IF !RESULT
+		SETCOLOR COLOR("警告")
+		PRINTFORML !!!このシナリオでは、その勢力でプレイすることはできません!!!
+		PRINTFORMW 勢力選択画面に戻ります
+		RESETCOLOR
+		GOTO SELECT_SCENARIO
 	ENDIF
+	CATCH
+		
+	ENDCATCH
+	;前の週でキャラを変更したとき用に、「あなた」と主人公を入れ替えて戻す
+	SWAPCHARA NAME_TO_CHARA("あなた"), MASTER
+	;観戦モードでないときだけ、設定を弄る
+	IF !FLAG:1
+		CALL SELECT_MASTER
+	ENDIF
+	IF FLAG:3 == -1
+		CALL START_WITH_NEW_COUNTRY
+	ENDIF
+	CFLAG:MASTER:1 = FLAG:3
 	
 	;登録キャラの扱いを設定
 	FOR LOCAL:0, 0, 30
@@ -464,10 +463,8 @@ DRAWLINE
 PRINT ★★所属勢力選択★★
 PRINTPLAIN   
 PRINTBUTTON "97[オプション]", 97
-IF FLAG:26 == 1
-	PRINTPLAIN   
-	PRINTBUTTON "98[観戦]", 98
-ENDIF
+PRINTPLAIN   
+PRINTBUTTON "98[観戦]", 98
 PRINTPLAIN   
 PRINTBUTTON "99[放浪]", 99
 PRINTPLAIN   
@@ -514,7 +511,7 @@ ELSEIF RESULT == 97
 	;オプション設定
 	CALL NEWGAME_SETTING
 	GOTO SHOW_LOOP
-ELSEIF RESULT == 98 && FLAG:26 == 1
+ELSEIF RESULT == 98
 	FLAG:3 = 0
 	FLAG:1 = 1
 	TIME = 1
