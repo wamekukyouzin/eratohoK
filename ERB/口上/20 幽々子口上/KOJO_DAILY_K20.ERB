@@ -1,0 +1,59 @@
+﻿@KOJO_DAILY_EXIST_K20()
+
+@KOJO_DAILY_K20()
+#DIM 発生フラグ
+発生フラグ = 0
+
+;食べ歩き
+CALL KOJO_DAILY_K20_TABEARUKI
+SIF RESULT != -1
+	発生フラグ = 1
+SIF DAILY_CANCEL
+	RETURN 1
+RETURN 発生フラグ
+
+;----------------------------------
+;食べ歩き
+;----------------------------------
+@KOJO_DAILY_K20_TABEARUKI
+#DIM 幽々子
+
+幽々子 = NAME_TO_CHARA("幽々子")
+
+;幽々子が同一勢力所属で捕虜でなく面識があるなら4%で発生
+SIF !CHECK_KOJO_DAILY_HAPPEN(幽々子, 40, 1, 0, 1)
+	RETURN -1
+
+;好感度500が必要
+SIF CFLAG:幽々子:好感度 < 500
+	RETURN -1
+
+CALL KOJO_DAILY_START
+PRINTFORMW %ANAME(MASTER)%が仕事をしていると、%ANAME(幽々子)%が訪ねてきた
+SELECTCASE KDVAR:幽々子:幽々子_食べ歩き
+	CASE 0
+		PRINTFORMW 「お出かけしたいのだけど、暇なら付き合ってくれないかしら？」
+	CASE 1
+		PRINTFORMW 「またお出かけしたいのだけど、付き合ってくれないかしら？」
+	CASE 2
+		PRINTFORMW 「またお出かけしたいのだけど、今度は付き合ってくれるわよね？」
+ENDSELECT
+PRINTFORML さて、どうしようか……
+PRINTL
+CALL ASK_YN("付き合う", "今は忙しい")
+
+IF RESULT == 1
+	PRINTFORMW 「あら、そうなの？」
+	PRINTFORMW 「それなら仕方ないわね、一人で出かけることにするわ」
+	PRINTFORMW %ANAME(幽々子)%は一人で出かけていった……
+	KDVAR:幽々子:幽々子_食べ歩き = 2
+ELSE
+	PRINTFORMW 「あら、ありがとう」
+	PRINTFORMW 「それじゃ早速行きましょ？　今日の目標は10軒ね」
+	PRINTFORMW %ANAME(幽々子)%の食べ歩きに付き合わされた……
+	CALL COLORPRINTFORM(@"連れ回された疲れで、%ANAME(MASTER)%に1ターンのクールタイムが付与されました", COLOR("警告"), "W")
+	CALL COLORPRINTFORM(@"連れ回され、ちょっと体力がつきました", COLOR("注意"), "W")
+	CALL PRINT_ADD_EXP(MASTER, "武闘経験値", RAND(1, 3), 1)
+	CALL TRAIN_AUTO_ABLUP(MASTER)
+	KDVAR:幽々子:幽々子_食べ歩き = 1
+ENDIF
