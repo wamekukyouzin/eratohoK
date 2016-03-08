@@ -1,0 +1,60 @@
+﻿@KOJO_DAILY_EXIST_K18()
+
+@KOJO_DAILY_K18()
+#DIM 発生フラグ
+発生フラグ = 0
+
+;プリズムリバーライブ
+CALL KOJO_DAILY_K18_PRISMRIVER_LIVE
+SIF RESULT != -1
+	発生フラグ = 1
+SIF DAILY_CANCEL
+	RETURN 1
+RETURN 発生フラグ
+;----------------------------------
+;プリズムリバーライブ
+;----------------------------------
+@KOJO_DAILY_K18_PRISMRIVER_LIVE
+#DIM ルナサ
+#DIM メルラン
+#DIM リリカ
+#DIM 対象
+ルナサ = NAME_TO_CHARA("ルナサ")
+リリカ = NAME_TO_CHARA("リリカ")
+メルラン = NAME_TO_CHARA("メルラン")
+
+;ルナサ、メルラン、リリカが捕虜でなく、4%
+SIF !CHECK_KOJO_DAILY_HAPPEN(ルナサ, 40, -1, 0, -1) || !CHECK_KOJO_DAILY_HAPPEN(リリカ, 1000, -1, 0, -1) || !CHECK_KOJO_DAILY_HAPPEN(メルラン, 1000, -1, 0, -1)
+	RETURN -1
+
+;三人の所属が同一
+SIF !ALLSAMES(CFLAG:ルナサ:所属, CFLAG:メルラン:所属, CFLAG:リリカ:所属)
+	RETURN -1
+
+;対象都市が見つからなければ（まぁないと思うけど）駄目
+CALL DAILY_EVENT_RAND_CITYSELECT
+対象 = RESULT
+SIF RESULT == -1
+	RETURN -1
+
+
+CALL KOJO_DAILY_START
+PRINTFORMW プリズムリバー幻樂団が%CITY_NAME:対象%でライブを行ったようだ……
+PRINTFORMW 大人気の彼女たちのライブは、なかなかの経済効果を生み出した！
+IF 対象 > 0
+	LOCAL:1 = (ABL:ルナサ:歌唱 + ABL:メルラン:歌唱 + ABL:リリカ:歌唱) * 100
+	LOCAL:1 = RAND(LOCAL:1 / 2, LOCAL:1 + 5000)
+	SETCOLOR COLOR("オレンジ")
+	;経済が成長しきってたら限界を伸ばす
+	IF CITY_ECONOMY:対象 == CITY_ECONOMY_LIMIT:対象
+		CITY_ECONOMY_LIMIT:対象 += LOCAL:1
+		PRINTFORML %CITY_NAME:対象%の経済規模の上限が{LOCAL:1 / 100}上昇し、{CITY_ECONOMY_LIMIT:対象 / 100}になった！
+	;成長しきってなければ限界まで伸ばす
+	ELSE
+		SIF CITY_ECONOMY:対象 + LOCAL:1 >= CITY_ECONOMY_LIMIT:対象
+			LOCAL:1 = MIN(LOCAL:1, CITY_ECONOMY_LIMIT:対象 - CITY_ECONOMY)
+		CITY_ECONOMY:対象 += LOCAL:1
+		PRINTFORML %CITY_NAME:対象%の経済規模が{LOCAL:1 / 100}上昇し、{CITY_ECONOMY:対象 / 100}になった！
+	ENDIF
+	RESETCOLOR
+ENDIF
