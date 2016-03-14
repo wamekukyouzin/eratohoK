@@ -349,12 +349,15 @@ ELSEIF LOCAL:10 == 1
 	CATCH
 		
 	ENDCATCH
-	;前の週でキャラを変更したとき用に、「あなた」と主人公を入れ替えて戻す
-	SWAPCHARA NAME_TO_CHARA("あなた"), MASTER
+
 	;観戦モードでないときだけ、設定を弄る
 	IF !FLAG:1
 		CALL SELECT_MASTER
+	ELSE
+		;観戦モードの場合、前の週でキャラを変更したとき用に、「あなた」と主人公を入れ替えて戻す処理だけは必要
+		SWAPCHARA NAME_TO_CHARA("あなた"), MASTER
 	ENDIF
+
 	IF FLAG:3 == -1
 		CALL START_WITH_NEW_COUNTRY
 	ENDIF
@@ -564,6 +567,7 @@ GOTO INPUT_LOOP
 ;主人公選択
 ;-------------------------------------------------
 @SELECT_MASTER
+#DIM MASTERそのまま
 LOADGLOBAL
 
 ;あなたの所属を無所属にする
@@ -578,6 +582,11 @@ DRAWLINE
 PRINTL ●登録キャラ
 PRINT    
 PRINTBUTTON "  0[新規作成    ]", 0
+;二週目以降なら
+IF FLAG:26 > 1
+	PRINT    
+	PRINTBUTTON "98[前週と同じで]", 98
+ENDIF
 LOCAL:1 = 0
 FOR LOCAL:0, 0, 30
 	;体力が正なら登録キャラが存在すると判定
@@ -634,7 +643,14 @@ IF RESULT == 0
 		PRINTFORMW 先に不要な登録キャラを削除して下さい
 	ENDIF
 	RESTART
-
+;前週と同じ
+ELSEIF RESULT == 98
+	IF FLAG:26 > 1
+		MASTERそのまま = 1
+		LOCAL:6 = MASTER
+	ELSE
+		GOTO INPUT_LOOP1
+	ENDIF
 ;登録キャラを選択
 ELSEIF RESULT >= 10 && RESULT <= 40 && MASTER_MAXBASE:(RESULT - 10):0 > 0
 	MASTER_ID = RESULT - 10
@@ -658,6 +674,12 @@ ELSE
 ENDIF
 
 LOCAL:7 = 0
+
+IF !MASTERそのまま
+	;前の週でキャラを変更したとき用に、「あなた」と主人公を入れ替えて戻す
+	SWAPCHARA NAME_TO_CHARA("あなた"), MASTER
+ENDIF
+
 ;主人公に既存のキャラを選んだ場合
 IF LOCAL:6 != MASTER
 	;選択したキャラをマスターに変更
