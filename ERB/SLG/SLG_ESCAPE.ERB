@@ -33,53 +33,9 @@ ENDIF
 ;滅亡した勢力の士官のうち、他のCPU勢力の捕虜となっていたキャラは、滅亡と同時に囚われていた勢力の士官になる
 FOR LOCAL:0, 0, CHARANUM
 	IF LOCAL:0 != MASTER && CFLAG:(LOCAL:0):1 == ARG:0 && CFLAG:(LOCAL:0):9 && CFLAG:(LOCAL:0):9 != CFLAG:MASTER:1
-		;ただし、滅亡する軍の捕虜となっていた（自国の捕虜となっていた）場合は、滅ぼした軍にしょっ引かれる
+		;滅亡する軍の捕虜となっていた（自国の捕虜となっていた）場合は、TREAT_PRISONERで判定
 		IF CFLAG:(LOCAL:0):9 == ARG:0
-			;ただし、滅ぼしたのが「あなた」軍だった場合は、解放するか投獄するか選択(判定あり)
-			IF ARG:1 == CFLAG:MASTER:1
-				;ただしただし、滅亡する国が元あなたが所属した軍で、その捕虜があなたが不当に投獄した捕虜だった場合は即再投獄
-				IF CFLAG:(LOCAL:0):95 == GET_ID(MASTER)
-					SETCOLOR COLOR("注意")
-					PRINTFORML 囚われていた%ANAME(LOCAL:0)%は、ようやく自分が解放されると安堵したのもつかの間
-					PRINTFORML 牢の前に立つ%ANAME(GET_COUNTRY_BOSS(ARG:1))%の姿を目にし、絶望に打ちひしがれた！
-					PRINTFORML %ANAME(LOCAL:0)%は再び、%ANAME(GET_COUNTRY_BOSS(ARG:1))%の手によって捕らえられてしまった！
-					RESETCOLOR
-					;こういうノリ駄目
-					;IF RAND:2 == 0
-					;	PRINTFORML %ANAME(GET_COUNTRY_BOSS(ARG:1))%軍兵士『さっすが～、%ANAME(GET_COUNTRY_BOSS(ARG:1))%様は話がわかるッ！』
-					;ELSEIF RAND:2 == 1
-					;	PRINTFORML %ANAME(GET_COUNTRY_BOSS(ARG:1))%軍兵士『%ANAME(GET_COUNTRY_BOSS(ARG:1))%軍団心得ッ！エンジョイ＆エキサイティング！』
-					;ENDIF
-					PRINTL 
-					CFLAG:(LOCAL:0):1 = 0
-					CFLAG:(LOCAL:0):12 = 0
-					CFLAG:(LOCAL:0):9 = ARG:1
-					;念のためCFLAG:95を上書き
-					CFLAG:(LOCAL:0):95 = GET_ID(MASTER)
-				ELSE
-					SETCOLOR COLOR("注意")
-					PRINTFORML 敵勢力の最終拠点を陥落させ、地下牢にたどり着いた%ANAME(MASTER)%が目にしたのは
-					PRINTFORM 信頼していた仲間によって不当に捕らえられ
-					;シナリオ6だと若干メッセージ変動
-					SIF SCENARIO_NUMBER == 6
-						PRINTFORM 、陵辱の限りを尽くされ
-					PRINTFORML た%ANAME(LOCAL:0)%の姿だった！
-					RESETCOLOR
-					;下克上主を倒したので敵対度がリセット(好感度が上がったりはしない)
-					SIF REL_HATE:(LOCAL:0):(MASTER) >= 1
-						REL_HATE:(LOCAL:0):(MASTER) = 0
-					CALL TREAT_PRISONER(ARG:0, ARG:1, LOCAL:0)
-				ENDIF
-			ELSE
-				SETCOLOR COLOR("注意")
-				PRINTFORML 囚われていた%ANAME(LOCAL:0)%は、ようやく自分が解放されると安堵したのもつかの間
-				PRINTFORML 自国を滅ぼした%ANAME(GET_COUNTRY_BOSS(ARG:1))%の捕虜として捕らえられてしまった！
-				RESETCOLOR
-				PRINTL 
-				CFLAG:(LOCAL:0):1 = 0
-				CFLAG:(LOCAL:0):12 = 0
-				CFLAG:(LOCAL:0):9 = ARG:1
-			ENDIF
+			CALL TREAT_PRISONER(ARG:0, ARG:1, LOCAL:0)
 		ELSE
 			;滅亡した勢力の士官のうち、囚われているのが野盗の場合、ゴブリン、外来の場合はなにもしない。
 			IF CFLAG:(LOCAL:0):9 == GET_COUNTRY_FROM_ID(COUNTRY_BANDIT) || CFLAG:(LOCAL:0):9 == GET_COUNTRY_FROM_ID(COUNTRY_GOBLIN) || CFLAG:(LOCAL:0):9 == GET_COUNTRY_FROM_ID(COUNTRY_GAIRAI)
