@@ -41,6 +41,16 @@ RETURNF 0
 ;主人公と挿入状態にあるキャラの数
 #DIM INSERT_LIST_MAX
 
+;無限ループ回避用
+#DIM LOOP_CNT
+
+VARSET LOOP_CNT
+
+;選択可能なコマンドが最後の最後までなかった場合、ここに飛んでくる
+$RESTARTED
+
+LOOP_CNT ++
+
 VARSET 行動候補, -1
 VARSET CATEGORY_PRIORITY, 0
 VARSET COM_PRIORITY, 0
@@ -1687,8 +1697,19 @@ NEXT
 ;代わる代わる挿入など、最初の方の優先度判定でのCOM_ABLEを回避してきたやつが未だに実行不可なら、ここでひっかけて殺す
 COM_ENABLE = 1
 TRYCALLFORM COM_ABLE{LOCAL:9 % 1000}
-SIF !RESULT
-	RESTART
+IF !RESULT
+	IF LOOP_CNT < 5000
+		GOTO RESTARTED
+	ELSE
+		PRINTFORML (実行可能なコマンドが見つかりません)
+		PRINTFORML (コマンドにフィルタをかけすぎたりすると発生します)
+		PRINTFORML (状況を無視し、強制的に『愛撫する』を選択します)
+		LOCAL:10 = 0
+		LOOP_CNT = 0
+		GOTO SKIPPED
+	ENDIF
+ENDIF
+LOOP_CNT = 0
 COM_ENABLE = 0
 TFLAG:30 = 0
 
