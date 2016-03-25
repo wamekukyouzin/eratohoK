@@ -2702,3 +2702,173 @@ SELECTCASE ARG:1
 			RETURNF 1
 		ENDIF
 ENDSELECT
+
+;---------------------------
+;与えられた値について、締まり具合を文字列で返す関数
+;---------------------------
+@TOSTR_TIGHTNESS(ARG:0)
+#FUNCTIONS
+SELECTCASE ARG:0
+	CASE IS >= 締まり_ぎちぎち
+		RETURNF "ぎちぎち"
+	CASE IS >= 締まり_きつきつ
+		RETURNF "きつきつ"
+	CASE IS >= 締まり_きゅっきゅっ
+		RETURNF "きゅっきゅっ"
+	CASE IS >= 締まり_名器
+		RETURNF "名器"
+	CASE IS >= 締まり_普通
+		RETURNF "普通"
+	CASE IS >= 締まり_ゆるめ
+		RETURNF "ゆるめ"
+	CASE IS >= 締まり_ゆるゆる
+		RETURNF "ゆるゆる"
+	CASE IS >= 締まり_ぽっかり
+		RETURNF "ぽっかり"
+	CASE IS >= 締まり_がばがば
+		RETURNF "がばがば"
+	CASEELSE
+		RETURNF "崩壊"
+ENDSELECT
+
+;---------------------------
+;ARG:0のキャラの締まりが改善する処理
+;---------------------------
+@TIGHTNESS_GROW(対象)
+#DIM 対象
+#DIM Ｖ回復量
+#DIM Ａ回復量
+
+IF VAGINA(対象)
+	Ｖ回復量 = 締まり_最高値 - TALENT:対象:Ｖ締まり
+	Ｖ回復量 = MAX(Ｖ回復量 / 100, 2)
+	Ｖ回復量 = RAND:Ｖ回復量
+	Ｖ回復量 = MAX(Ｖ回復量 * MAX(100 - EXP:対象:Ｖ拡張経験 / 10, 1) / 100, 1)
+ELSE
+	Ｖ回復量 = 0
+ENDIF
+
+Ａ回復量 = 締まり_最高値 - TALENT:対象:Ａ締まり
+Ａ回復量 = MAX(Ａ回復量 / 100, 2)
+Ａ回復量 = RAND:Ａ回復量
+Ａ回復量 = MAX(Ａ回復量 * MAX(100 - EXP:対象:Ａ拡張経験 / 10, 1) / 100, 1)
+
+SIF TALENT:対象:Ｖ締まり >= 締まり_きゅっきゅっ
+	Ｖ回復量 /= 2
+SIF TALENT:対象:Ａ締まり >= 締まり_きゅっきゅっ
+	Ａ回復量 /= 2
+
+TALENT:対象:Ｖ締まり = LIMIT(TALENT:対象:Ｖ締まり + Ｖ回復量, 締まり_最低値, 締まり_最高値)
+TALENT:対象:Ａ締まり = LIMIT(TALENT:対象:Ａ締まり + Ａ回復量, 締まり_最低値, 締まり_最高値)
+
+
+;---------------------------
+;対象の膣の締まりが悪化する処理
+;---------------------------
+@TIGHTNESS_DECREASE_V(対象, 基準値)
+#DIM 対象
+#DIM 基準値
+#DIM 減少量
+#DIMS 変化前
+#DIMS 変化後
+
+SIF !VAGINA(対象)
+	RETURN -1
+
+変化前 = TOSTR_TIGHTNESS(TALENT:対象:Ｖ締まり)
+
+減少量 = 基準値
+;Ｖ拡張経験が100超えてたら、100につき1乱数で増える
+SIF EXP:対象:Ｖ拡張経験 > 100
+	減少量 += RAND:(MIN(EXP:対象:Ｖ拡張経験 / 100, 5))
+
+TALENT:対象:Ｖ締まり -= 減少量
+
+変化後 = TOSTR_TIGHTNESS(TALENT:対象:Ｖ締まり)
+
+SIF 変化前 != 変化後
+	CALL COLORPRINTFORM(@"%ANAME(対象)%の膣の締まりが%変化後%になった", COLOR("注意"), "L")
+
+;---------------------------
+;対象の膣の締まりが悪化する処理
+;---------------------------
+@TIGHTNESS_DECREASE_A(対象, 基準値)
+#DIM 対象
+#DIM 基準値
+#DIM 減少量
+#DIMS 変化前
+#DIMS 変化後
+
+変化前 = TOSTR_TIGHTNESS(TALENT:対象:Ａ締まり)
+
+減少量 = 基準値
+;Ａ拡張経験が100超えてたら、100につき1乱数で増える
+SIF EXP:対象:Ａ拡張経験 > 100
+	減少量 += RAND:(MIN(EXP:対象:Ａ拡張経験 / 100, 5))
+
+TALENT:対象:Ａ締まり -= 減少量
+
+変化後 = TOSTR_TIGHTNESS(TALENT:対象:Ａ締まり)
+
+SIF 変化前 != 変化後
+	CALL COLORPRINTFORM(@"%ANAME(対象)%のアナルの締まりが%変化後%になった", COLOR("注意"), "L")
+
+;---------------------------
+;与えられた文字列に対するデフォルトの締まり具合を取得する関数
+;「このキャラの締まり具合を名器にしたい……」というときに呼び出して締まり具合に直にブチ込むとかそういう使い方をする
+;---------------------------
+@GET_DEFAULT_TIGHTNESS(文字列)
+#FUNCTION
+#DIMS 文字列
+
+SELECTCASE 文字列
+	CASE "ぎちぎち"
+		RETURNF 950
+	CASE "きつきつ"
+		RETURNF 850
+	CASE "きゅっきゅっ"
+		RETURNF 750
+	CASE "名器"
+		RETURNF 650
+	CASE "普通"
+		RETURNF 550
+	CASE "ゆるめ"
+		RETURNF 450
+	CASE "ゆるゆる"
+		RETURNF 350
+	CASE "ぽっかり"
+		RETURNF 250
+	CASE "がばがば"
+		RETURNF 150
+	CASE "崩壊"
+		RETURNF 50
+ENDSELECT
+THROW GET_DEFAULT_TIGHTNESSに妙な文字列が投げられました
+
+;---------------------------
+;ランダムなデフォルト締まり具合を取得する関数
+;---------------------------
+@GET_RANDOM_TIGHTNESS
+#FUNCTION
+SELECTCASE RAND:100
+	CASE 0 TO 4
+		RETURNF GET_DEFAULT_TIGHTNESS("崩壊")
+	CASE 5 TO 9
+		RETURNF GET_DEFAULT_TIGHTNESS("がばがば")
+	CASE 10 TO 14
+		RETURNF GET_DEFAULT_TIGHTNESS("ぽっかり")
+	CASE 15 TO 24
+		RETURNF GET_DEFAULT_TIGHTNESS("ゆるゆる")
+	CASE 25 TO 34
+		RETURNF GET_DEFAULT_TIGHTNESS("ゆるめ")
+	CASE 35 TO 59
+		RETURNF GET_DEFAULT_TIGHTNESS("普通")
+	CASE 60 TO 79
+		RETURNF GET_DEFAULT_TIGHTNESS("名器")
+	CASE 80 TO 89
+		RETURNF GET_DEFAULT_TIGHTNESS("きゅっきゅっ")
+	CASE 90 TO 94
+		RETURNF GET_DEFAULT_TIGHTNESS("きつきつ")
+	CASEELSE
+		RETURNF GET_DEFAULT_TIGHTNESS("ぎちぎち")
+ENDSELECT
