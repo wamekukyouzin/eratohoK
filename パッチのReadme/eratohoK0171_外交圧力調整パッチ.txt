@@ -1,0 +1,119 @@
+∇eratohoK Ver0.171用 外交圧力関係調整パッチ
+
+▲概要
+久しぶりにAIのテコ入れ準備をば
+強要関係のペナルティ処理を関数化、及びペナルティを汎用配列に統合
+これにより外交ペナルティはプレイヤーではなく勢力に依存するようになります
+
+なお、非プレイヤー勢力の強要関係の判定が実装されていないので今はまだプレイヤーへのペナルティのみとなります（ぉ
+
+□パッチ仕様
+こっそり仕込んでおいたDIPLOMACY_HATEの本実装
+勢力ごとに「他勢力に嫌われる行動」を行った場合に加算されるカウントで、原則として周回中に軽減されることはありません
+なおこれ一定値が貯まるたびに外交上のペナルティを実施します（一部未実装）
+＋感情値悪化(10)
+　他勢力絡みたあなたの印象値が悪くなります
+＋条約の解除(20)
+　自勢力に対する感情値と条約の種別に応じた確率判定を行い、条約に関係する他の全勢力が同意した場合、その条約が解消されます　当選同盟や連合が解除されると編成していた部隊が解除されます
+＋外交封鎖(40)
+　一定期間外交コマンドが死にます
+　君主を脅していようが頭を下げたかろうが無理です、諦めて時がすぎるのをお待ち下さい
+
+◆パッチ内容
+・NEWGAME.ERB
+　@INITIALIZE_COMMONで外交ペナルティ関係を初期化していたので@NEWLOOPで初期化するように
+
+・DIPLOMACY.ERB
+・DIPLOMACY_EACH.ERB
+　DIPLOMACY_REQUEST_SUCCESS_COUNTの廃止およびFLAG:99の開放とDIPLOMACY_HATEへの移行作業
+　変数自体は移行しきれていないので残しています（消すとエラー出るし、多分）
+　あと、DIPLOMACY_HATEへの加算値も調整
+
+・DIPLOMACY_REQUEST.ERB
+　DIPLOMACY_REQUEST_SUCCESS_COUNTの廃止およびFLAG:99の開放とDIPLOMACY_HATEへの移行作業
+　DIPLOMACY_HATEへの加算値の調整（一旦緩めにしていますが、そのうち直すかもしれません）
+　@DIPLOMACY_REQUEST_CHECK
+　相手君主の感情値を元にした難易度補正の適用
+　好感度が高く敵対度が低ければ難易度は下がります(50～250%)
+　@DIPLOMACY_BACKFIREの正式実装
+　戦略フェイズ終了時の外交チェック（同盟の解消など）を行った後に判定
+　DIPLOMACY_HATEの累積値がしきい値を超えている場合ペナルティ発動（複数種発動することもあるが、同じものは1ターンに1度だけ）
+　なお、最大レベルの「反連合の成立」は処理関係が面倒なので一旦保留です（同盟やらなんやら全部見ないといけないので死ぬ）
+
+以下のERBを機能別に分ける
+・SLG_AI.ERB
+　＋SLG_AI_DOCTRINE.ERB
+　　@SLG_AI_SETDOCTRINE
+　＋SLG_AI_DIPLOMACY.ERB
+　　@AI_DIPLOMACY_ACT
+　　@AI_DIPLOMACY_CHECK
+　　@MEMORY_PROSPECT_A
+　　@MEMORY_PROSPECT_C
+・SLG_TURNEND.ERB
+　＋SLG_COMBAT.ERB
+　　@BATTLE_UNIT_TO_UNIT
+　　@BATTLE_UNIT_TO_CITY
+　　@BATTLE_CALC
+　　@BATTLE_SP_SKILL
+　　@BATTLE_BASE_SKILL
+　　@TRY_SCHEME
+　　（反計発動時の表示を修正）
+　　@WHOES_SCHEME
+　　@SELECT_SCHEME
+　　@UNIT_BREAK_CAPTURE
+　　@UNIT_SUPPORT_LEVEL
+　　@UNIT_ATTACK_LEVEL
+　　@UNIT_DEFENSE_LEVEL
+　　@UNIT_INTELLIGENCE_LEVEL
+　　@UNIT_MAGIC_LEVEL
+　　@CITY_SUPPORT_LEVEL
+　　@CITY_ATTACK_LEVEL
+　　@CITY_DEFENSE_LEVEL
+　　@CITY_GUARD_RATE
+　　@CITY_INTELLIGENCE_LEVEL
+　　@CITY_MAGIC_LEVEL
+
+▲パッチ適用方法
+eratohoK ver0.171本体にこのパッチを上書きしてご利用ください
+
+〓その他
+以前話があった「条約関係のデータ仕様の見直し」をちょっと本気で考えたくなっているところ
+二次元配列にしてTERM:勢力A:勢力Bで条約期間を入れて正なら同盟、負なら停戦条約という感じで管理できないかなと思っています
+これができると色々と同盟関係でループ処理しているのが一気に改善できるわけですよ(あ、連合の方は現状のままで行かないと面倒すぎるので保留です)
+
+いつものごとく結構コアな部分に手を加えているため、予期せぬ問題が発生する可能性がありますのでご注意下さい。
+また、DIPLOMACY_HATEをDIPLOMACY_REQUEST_SUCCESS_COUNTに移行する処理は行っていません（配分が変わっているのもありますので）
+
+確認している問題事項
+・ある２勢力間で同盟と停戦条約を両方結ぶことがある（多分外交処理の判定でのチェックミス）
+・外交封鎖中でも同盟国のキャラと交流できる（まぁ同盟は友好だからありでもいいかなとは思いますがどうなんだろう？）
+
+以下テンプレ
+初期難易度設定やAI関係で気になるところや希望の案があればご意見ください
+可能な限り対処します、きっと
+
+
+〓パッチ履歴（Ver0.160以降）
+eratohoK Ver0.160用 不具合修正及びAI再調整、ついでに色々パッチ
+eratohoK Ver0.161用 モブ見分けパッチ
+eratohoK Ver0.161用 外交処理修正パッチ
+eratohoK Ver0.161用 穴あき乱数生成関数パッチ
+eratohoK Ver0.161用 触手部屋解放＆強要判定再調整パッチ
+eratohoK Ver0.165用 不具合修正パッチ
+eratohoK Ver0.165用 AI再調教パッチ：各種外交及び侵攻編
+eratohoK Ver0.165用 シナリオ追加パッチ「幻想狂騒曲」
+eratohoK Ver0.165用 パッチまとめ16/02/04版
+eratohoK Ver0.165用 AI再調整パッチ（パッチまとめ対応版）
+eratohoK Ver0.166用 不具合修正パッチ
+eratohoK Ver0.166用 放浪訓練修正パッチ
+eratohoK Ver0.167用 ちょっと細かい調整パッチ
+eratohoK Ver0.167用 ちょっと細かい調整パッチDX
+eratohoK Ver0.167用 パッチまとめ＋α（2016/02/15版）
+eratohoK Ver0.167用 eratohoK Ver0.167＋パッチまとめ用 デイリーイベント調整パッチ（テスト版）
+eratohoK Ver0.167用 パッチまとめ＋α（2016/02/18版）改
+eratohoK Ver0.167用 eratohoK Ver0.167＋パッチまとめ用 デイリーイベント調整＋大規模イベントフィルタ試験パッチ（人柱版）
+eratohoK Ver0.167用 eratohoK Ver0.167＋パッチまとめ用 デイリーイベント調整＋大規模イベントフィルタ試験パッチ
+eratohoK Ver0.168fix用 乱数配列拡張パッチ
+eratohoK Ver0.168fix用パッチまとめとデイリーイベント調整パッチ
+eratohoK Ver0.171用やろうと思っていることの構想書きと処理分割パッチ
+eratohoK Ver0.171用 外交圧力関係調整パッチ＼先にこれを作っておけばAIが外交圧力をかける処理がやりやすいはずなのです／
