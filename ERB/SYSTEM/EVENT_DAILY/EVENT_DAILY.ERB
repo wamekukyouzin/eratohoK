@@ -14,7 +14,10 @@ SIF !IS_DAILY_EVENT_HAPPEN(MASTER)
 
 
 ;派生イベント関係の処理
-CALL DAYLY_DERIVATION
+CALL DAILY_DERIVATION
+
+;口上デイリー用の派生イベント関係の処理
+CALL KOJO_DAILY_DERIVATION
 
 ;イベント発生数のセット
 EVENT_COUNT:0 = DCONFIG:951 + 1, DCONFIG:952 + 1
@@ -26,7 +29,7 @@ IF !EVENT_LIST:1
 	;0が薬売りで使用されているので-1で初期化
 	VARSET EVENT_LIST, -1
 	;スケベ系:0-8
-	EVENT_LIST:0 = DCON_薬売り, DCON_金貸し, DCON_夜遊び, DCON_富豪, DCON_募金, DCON_催眠, DCON_接待, DCON_恩返し, DCON_カルマ, DCON_河童娘, DCON_暗殺
+	EVENT_LIST:0 = DCON_薬売り, DCON_金貸し, DCON_夜遊び, DCON_富豪, DCON_募金, DCON_催眠, DCON_接待, DCON_恩返し, DCON_カルマ, DCON_河童娘, DCON_闇討ち, DCON_睡姦, DCON_賞金首討伐, DCON_お手伝い, DCON_酒場
 	;雇用系:20-22
 	EVENT_LIST:20 = DCON_傭兵, DCON_用心棒, DCON_仕官の誘い
 	;トレーナー:30-33
@@ -34,7 +37,7 @@ IF !EVENT_LIST:1
 	;外交:40-41
 	EVENT_LIST:40 = DCON_人材要求, DCON_資金援助要求
 	;野盗:50-52
-	EVENT_LIST:50 = DCON_野盗討伐, DCON_野盗身代金, DCON_野盗蜂起, DCON_放浪捕縛, DCON_野盗略奪
+	EVENT_LIST:50 = DCON_野盗討伐, DCON_野盗身代金, DCON_野盗蜂起, DCON_放浪捕縛, DCON_野盗略奪, DCON_村落襲撃
 	;素質系:60-64
 	EVENT_LIST:60 = DCON_肉便器, DCON_薬物依存, DCON_雌犬, DCON_苗床
 	;その他90-93
@@ -111,7 +114,7 @@ FOR LOCAL:0, 0, 100
 	;カルマ
 	;10期以降、あなたが男性の場合、確率3%で発生、イベント中は発生確率アップ
 	CASE DCON_カルマ
-		SIF !DCONFIG:DCON_カルマ && DAY >= 10 && IS_MALE(MASTER) && RAND:1000 < ( DVAR:進行度 > 0 ? 250 # 30 ) * EVENT_ODDS
+		SIF !DCONFIG:DCON_カルマ && DAY >= 10 && IS_MALE(MASTER) && RAND:1000 < ( DVAR:カルマ進行度 > 0 ? 250 # 30 ) * EVENT_ODDS
 			CALL KARMA
 
 	;河童娘
@@ -120,11 +123,35 @@ FOR LOCAL:0, 0, 100
 		SIF !DCONFIG:DCON_河童娘 && DAY >= 10 && RAND:1000 < 30 * EVENT_ODDS
 			CALL KAPPAPPA
 
-	;暗殺
+	;闇討ち
 	;15期以降、確率2.5%で発生
-	CASE DCON_暗殺
-		SIF !DCONFIG:DCON_暗殺 && DAY >= 15 && RAND:1000 < 25 * EVENT_ODDS
-			CALL ASSASSIN
+	CASE DCON_闇討ち
+		SIF !DCONFIG:DCON_闇討ち && DAY >= 15 && RAND:1000 < 25 * EVENT_ODDS
+			CALL ASSASSIN_CHALLENGE
+
+	;睡姦
+	;10期以降、あなたが男性の場合、確率3%で発生
+	CASE DCON_睡姦
+		SIF !DCONFIG:DCON_睡姦 && IS_MALE(MASTER) && DAY >= 10 && RAND:1000 < 30 * EVENT_ODDS
+			CALL DRUNK_RAPE
+
+	;賞金首討伐
+	;15期以降、確率3%で発生
+	CASE DCON_賞金首討伐
+		SIF !DCONFIG:DCON_賞金首討伐 && DAY >= 15 && RAND:1000 < 30 * EVENT_ODDS
+			CALL BOUNTY_HUNTER
+
+	;お手伝い
+	;15期以降、確率2.5%で発生
+	CASE DCON_お手伝い
+		SIF !DCONFIG:DCON_お手伝い && DAY >= 15 && RAND:1000 < 25 * EVENT_ODDS
+			CALL WORK_HELPER
+
+	;酒場
+	;10期以降、確率2%で発生
+	CASE DCON_酒場
+		SIF !DCONFIG:DCON_酒場 && DAY >= 10 && RAND:1000 < 20 * EVENT_ODDS
+			CALL TAVERN_SEX
 
 	;傭兵
 	;5期以降で3%
@@ -202,6 +229,11 @@ FOR LOCAL:0, 0, 100
 		SIF !DCONFIG:DCON_野盗略奪 && DAY >= 12 && RAND:1000 < 40 * EVENT_ODDS
 			CALL BANDIT_PILLAGE
 
+	;村落襲撃イベント、12期以降3%で発動
+	CASE DCON_村落襲撃
+		SIF !DCONFIG:DCON_村落襲撃 && DAY >= 12 && RAND:1000 < 30 * EVENT_ODDS
+			CALL BANDIT_LOOT
+
 	;肉便器イベント
 	;キャラごとに乱数判定のため関数側で処理
 	CASE DCON_肉便器
@@ -225,6 +257,12 @@ FOR LOCAL:0, 0, 100
 	CASE DCON_苗床
 		SIF !DCONFIG:DCON_苗床
 			CALL SEEDBED
+
+	;モブ支援会話
+	;10期以降、確率3%で発生、イベント中は発生確率アップ
+;	CASE DCON_モブ支援会話
+;		SIF !DCONFIG:DCON_モブ支援会話 && DAY >= 10 && RAND:1000 < ( DVAR:支援会話進行度 > 0 ? 250 # 30 ) * EVENT_ODDS
+;			CALL MOBU_LOVER
 
 	;触手兵イベント
 	;10期以降で2%
@@ -277,8 +315,9 @@ FOR LOCAL, 1, CHARANUM
 		BREAK
 NEXT
 
-
+;-------------------------------------------------------------------------------
 ;指定キャラについて、「放浪したり死んだりしていない」「捕虜でない」「どこかの勢力に所属している」を満たしているなら真
+;-------------------------------------------------------------------------------
 @IS_DAILY_EVENT_HAPPEN(ARG:0)
 #FUNCTION
 IF CFLAG:(ARG:0):12 == 0 && CFLAG:(ARG:0):9 == 0 && CFLAG:(ARG:0):1
@@ -287,11 +326,12 @@ ENDIF
 RETURNF 0
 
 
-
+;-------------------------------------------------------------------------------
 ;デイリーイベントにおいて、ランダムに対象キャラを選出する
 ;捕虜でなく、死んだりしていないのは前提
 ;ARG:0 0自勢力キャラ　1全勢力から選択
 ;RESULT 選出された対象キャラ
+;-------------------------------------------------------------------------------
 @DAILY_EVENT_RAND_CHARASELECT(ARG:0 = 0)
 #DIM 対象, 1000
 #DIM カウンタ, 1
@@ -307,9 +347,11 @@ NEXT
 
 RETURN カウンタ ? 対象:(RAND:カウンタ) # -1
 
+;-------------------------------------------------------------------------------
 ;デイリーイベントにおいて、ランダムに対象都市を選出する
 ;ARG:0 0自勢力都市　1全勢力から選択
 ;RESULT 選出された対象都市
+;-------------------------------------------------------------------------------
 @DAILY_EVENT_RAND_CITYSELECT(ARG:0 = 0)
 #DIM 対象, MAX_CITY
 #DIM カウンタ, 1
@@ -329,8 +371,10 @@ NEXT
 
 RETURN カウンタ ? 対象:(RAND:カウンタ) # -1
 
+;-------------------------------------------------------------------------------
 ;デイリーイベントにおいて、ランダムに対象国家を選出する
 ;RESULT 選出された対象国家
+;-------------------------------------------------------------------------------
 @DAILY_EVENT_RAND_COUNTRYSELECT
 #DIM 対象, MAX_COUNTRY
 #DIM カウンタ

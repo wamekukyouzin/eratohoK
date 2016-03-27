@@ -55,9 +55,6 @@ IF DVAR:要求野盗斬り捨て
 					ABL:(LOCAL:0):射精 = 3000
 				ENDIF
 			ENDIF
-			FOR LOCAL:1, 0, 900
-				COM_EXP:(LOCAL:0):(LOCAL:1) = 1000
-			NEXT
 			LOCAL:2 ++
 		ENDIF
 	NEXT
@@ -111,18 +108,20 @@ IF DVAR:要求野盗斬り捨て
 	PRINTFORMW %LOCALS%はなんとか逃げだそうとするが、縛られており、さらに男達に押さえつけられてはどうしようもなかった
 	PRINTFORMW 男達はへらへらと笑いながら、躾のなっていない雌犬を屈服させようと、再び彼女を犯し始める……
 	SWAPCHARA MASTER, DVAR:要求野盗斬り捨て
-	FLAG:31 == 2
+	FLAG:31 = 2
 ENDIF
 
 ;逆調教要求日数が残っている場合
 IF DIPLOMACY_TRAINED_DAY > 0 && !FLAG:31 && !FLAG:調教要求フラグ
 	DIPLOMACY_TRAINED_DAY --
-	FLAG:31 = 2
 	;全員の調教参加フラグを解除
 	CVARSET CFLAG, 6, 0
 	CFLAG:DIPLOMACY_TRAINING_CHARA:6 = 1
+	FLAG:調教モード = 5
 	PRINTFORML %ANAME(MASTER)%は外交交渉の見返りとして、%ANAME(DIPLOMACY_TRAINING_CHARA)%の寝室へ向かった……
+	CALL START_TRAIN_COMMON
 ENDIF
+
 ;君主逆調教要求日数が残っている場合
 IF DIPLOMACY_TRAINED_DAY < 0 && !FLAG:調教要求フラグ
 	DIPLOMACY_TRAINED_DAY ++
@@ -190,9 +189,10 @@ IF FLAG:31 == 1
 	FLAG:50 = 1
 	;時間の処理をしないと、「拠点フェイズの終了時にここに到達、調教→調教終了でSLGフェイズのターンエンドが呼ばれ、次期の拠点フェイズに飛ぶ」みたいな挙動になる
 	IF TIME == 0
-		DAY --
-		SIF !FLAG:28
+		IF !FLAG:28
 			TIME = 1
+			DAY --
+		ENDIF
 	ELSEIF TIME == 1
 		TIME = 0
 		SHOP_TIME = CALC_SHOP_TIME()
@@ -203,9 +203,10 @@ ELSEIF FLAG:31 == 2
 	FLAG:調教モード = 5
 	FLAG:50 = 1
 	IF TIME == 0
-		DAY --
-		SIF !FLAG:28
+		IF !FLAG:28
 			TIME = 1
+			DAY --
+		ENDIF
 	ELSEIF TIME == 1
 		TIME = 0
 		SHOP_TIME = CALC_SHOP_TIME()
@@ -410,6 +411,9 @@ FOR LOCAL:0, 0, CHARANUM
 	BASE:(LOCAL:0):0 = MAXBASE:(LOCAL:0):0
 	BASE:(LOCAL:0):1 = MAXBASE:(LOCAL:0):1
 
+	SIF CFLAG:(LOCAL:0):脱走不可能 && !CFLAG:(LOCAL:0):捕虜先
+		CFLAG:(LOCAL:0):脱走不可能 == 0
+	
 	;衣装を着ている場合、経験値を2+10-衣装嗜好レベル分だけ増加させる
 	IF CFLAG:(LOCAL:0):92
 		EXP:(LOCAL:0):衣装嗜好経験値 += 2 + (10 - ABL:(LOCAL:0):衣装嗜好)
@@ -419,6 +423,10 @@ FOR LOCAL:0, 0, CHARANUM
 
 	;陰毛が成長
 	CALL INMOU_GROW(LOCAL:0)
+	
+	;締まりの改善
+	CALL TIGHTNESS_GROW(LOCAL:0)
+	
 	
 	IF TALENT:LOCAL:蓬莱人 && CFLAG:LOCAL:特殊状態フラグ == 2
 		CALL COLORPRINTFORM("リザレクション！", COLOR("注意"), "W")
@@ -671,7 +679,7 @@ IF !FLAG:1 && !FLAG:27 && !CFLAG:MASTER:1 && !CFLAG:MASTER:9
 		;確率判定に成功したら、現存する国家からランダムでループ
 		CALL FISHER_YATES_SHAFFLE(MAX_COUNTRY)
 		FOR LOCAL, 0, MAX_COUNTRY
-			IF IS_COUNTRY(SHAFFLE_ARRAY:(LOCAL)) && COUNTRY_EVENT_ID:(SHAFFLE_ARRAY:(LOCAL)) != COUNTRY_BANDIT
+			IF IS_COUNTRY(SHAFFLE_ARRAY:(LOCAL)) && !GROUPMATCH(COUNTRY_EVENT_ID:(SHAFFLE_ARRAY:(LOCAL)), COUNTRY_BANDIT, COUNTRY_GAIRAI, COUNTRY_GOBLIN)
 				;仕官してから野に下った5勢力からは誘われない
 				IF FINDELEMENT(COUNTRY_PLAYER_BELONGED, SHAFFLE_ARRAY:(LOCAL)) != -1
 					CONTINUE

@@ -4,8 +4,11 @@
 ;コマンド名称
 ;-------------------------------------------------
 @COM_NAME310
-RESULTS:0 = 酒に付き合わせる
-RESULTS:1 = 酒に付き合わされる
+RESULTS:0 = 酒を飲ませる
+RESULTS:1 = 酌をさせられる
+RESULTS:2 = 酌をさせる
+RESULTS:3 = 酒を飲まされる
+
 
 ;-------------------------------------------------
 ;選択可否判定
@@ -17,9 +20,6 @@ SIF RESULT == 0
 	RETURN 0
 ;捕虜会話では不可
 SIF FLAG:12 == 6
-	RETURN 0
-;主人公がプレイヤーのとき限定
-SIF MPLY:0 != MASTER
 	RETURN 0
 ;酒類を持っている必要がある
 SIF !(ITEM:濁り酒 || ITEM:清酒 || ITEM:葡萄酒 || ITEM:麦酒 || ITEM:醸造酒 || ITEM:果実酒 || ITEM:日本酒 || ITEM:蒸留酒)
@@ -33,141 +33,140 @@ RETURN 1
 ;メイン処理
 ;-------------------------------------------------
 @COM310
+#DIM 酒配列 = GETNUM(ITEM, "濁り酒"), GETNUM(ITEM, "清酒"), GETNUM(ITEM, "葡萄酒"), GETNUM(ITEM, "麦酒"), GETNUM(ITEM, "醸造酒"), GETNUM(ITEM, "日本酒"), GETNUM(ITEM, "蒸留酒")
+#DIM 飲む酒
 ;コマンドの成否をTFLAG:18にセット
 CALL JUDGE_COM_RESULT(MTAR:0, 15, 5)
 
-;酒の選択
-PRINTFORML どの酒を勧めますか？
-
-SIF ITEM:濁り酒
-	PRINTL [1] 濁り酒
-SIF ITEM:清酒
-	PRINTL [2] 清酒
-SIF ITEM:葡萄酒
-	PRINTL [3] 葡萄酒
-SIF ITEM:麦酒
-	PRINTL [4] 麦酒
-SIF ITEM:醸造酒
-	PRINTL [5] 醸造酒
-SIF ITEM:果実酒
-	PRINTL [6] 果実酒
-SIF ITEM:日本酒
-	PRINTL [7] 日本酒
-SIF ITEM:蒸留酒
-	PRINTL [8] 蒸留酒
-PRINTL [0] キャンセル
-
-$INPUT_LOOP_DRINK
-INPUT
-
-IF RESULT == 1 && ITEM:濁り酒
-	ITEM:濁り酒 --
-	SOURCE:(MPLY:0):酔い追加 = 600
-	SOURCE:(MTAR:0):酔い追加 = 600
-	IF TALENT:(MTAR:0):酒豪
-		LOCAL:0 = 220
-	ELSEIF TALENT:(MTAR:0):幼児 || TALENT:(MTAR:0):幼稚
-		LOCAL:0 = 120
-		TFLAG:18 = -1
+;主導権がMASTERにあれば酒を選択できる
+IF TFLAG:45 == MASTER
+	;酒の選択
+	PRINTFORM どの酒を\@ MPLY:0 == MASTER ? 勧めますか？ # 飲みますか？ \@
+	FOR LOCAL, 0, VARSIZE("酒配列")
+		IF ITEM:(酒配列:LOCAL) > 0
+			PRINTBUTTON "[" + ITEMNAME:(酒配列:LOCAL) + "]", 酒配列:LOCAL
+			PRINT    
+			PRINTFORML {ITEM:(酒配列:LOCAL)}個
+		ENDIF
+	NEXT
+	$INPUT_LOOP_DRINK
+	INPUT
+	IF ITEM:RESULT > 0
+		飲む酒 = RESULT
 	ELSE
-		LOCAL:0 = 190
+		GOTO INPUT_LOOP_DRINK
 	ENDIF
-	FLAG:20 = 1
-ELSEIF RESULT == 2 && ITEM:清酒
-	ITEM:清酒 --
-	SOURCE:(MPLY:0):酔い追加 = 1200
-	SOURCE:(MTAR:0):酔い追加 = 1200
-	IF TALENT:(MTAR:0):酒豪
-		LOCAL:0 = 280
-	ELSEIF TALENT:(MTAR:0):幼児 || TALENT:(MTAR:0):幼稚
-		LOCAL:0 = 120
-		TFLAG:18 = -1
-	ELSE
-		LOCAL:0 = 240
-	ENDIF
-	FLAG:20 = 2
-ELSEIF RESULT == 3 && ITEM:葡萄酒
-	ITEM:葡萄酒 --
-	SOURCE:(MPLY:0):酔い追加 = 800
-	SOURCE:(MTAR:0):酔い追加 = 800
-	IF TALENT:(MTAR:0):酒豪
-		LOCAL:0 = 320
-	ELSEIF TALENT:(MTAR:0):幼児 || TALENT:(MTAR:0):幼稚
-		LOCAL:0 = 260
-	ELSE
-		LOCAL:0 = 320
-	ENDIF
-	FLAG:20 = 3
-ELSEIF RESULT == 4 && ITEM:麦酒
-	ITEM:麦酒 --
-	SOURCE:(MPLY:0):酔い追加 = 1000
-	SOURCE:(MTAR:0):酔い追加 = 1000
-	IF TALENT:(MTAR:0):酒豪
-		LOCAL:0 = 320
-	ELSEIF TALENT:(MTAR:0):幼児 || TALENT:(MTAR:0):幼稚
-		LOCAL:0 = 120
-		TFLAG:18 = -1
-	ELSE
-		LOCAL:0 = 270
-	ENDIF
-	FLAG:20 = 4
-ELSEIF RESULT == 5 && ITEM:醸造酒
-	ITEM:醸造酒 --
-	SOURCE:(MPLY:0):酔い追加 = 1800
-	SOURCE:(MTAR:0):酔い追加 = 1800
-	IF TALENT:(MTAR:0):酒豪
-		LOCAL:0 = 360
-	ELSEIF TALENT:(MTAR:0):幼児 || TALENT:(MTAR:0):幼稚
-		LOCAL:0 = 100
-		TFLAG:18 = -1
-	ELSE
-		LOCAL:0 = 300
-	ENDIF
-	FLAG:20 = 5
-ELSEIF RESULT == 6 && ITEM:果実酒
-	ITEM:果実酒 --
-	SOURCE:(MPLY:0):酔い追加 = 1200
-	SOURCE:(MTAR:0):酔い追加 = 1200
-	IF TALENT:(MTAR:0):酒豪
-		LOCAL:0 = 360
-	ELSEIF TALENT:(MTAR:0):幼児 || TALENT:(MTAR:0):幼稚
-		LOCAL:0 = 260
-	ELSE
-		LOCAL:0 = 400
-	ENDIF
-	FLAG:20 = 6
-ELSEIF RESULT == 7 && ITEM:日本酒
-	ITEM:日本酒 --
-	SOURCE:(MPLY:0):酔い追加 = 3000
-	SOURCE:(MTAR:0):酔い追加 = 3000
-	IF TALENT:(MTAR:0):酒豪
-		LOCAL:0 = 500
-		TFLAG:18 = 1
-	ELSEIF TALENT:(MTAR:0):幼児 || TALENT:(MTAR:0):幼稚
-		LOCAL:0 = 100
-		TFLAG:18 = -1
-	ELSE
-		LOCAL:0 = 360
-	ENDIF
-	FLAG:20 = 7
-ELSEIF RESULT == 8 && ITEM:蒸留酒
-	ITEM:蒸留酒 --
-	SOURCE:(MPLY:0):酔い追加 = 5000
-	SOURCE:(MTAR:0):酔い追加 = 5000
-	IF TALENT:(MTAR:0):酒豪
-		LOCAL:0 = 500
-		TFLAG:18 = 1
-	ELSE
-		LOCAL:0 = 50
-		TFLAG:18 = -1
-	ENDIF
-	FLAG:20 = 8
-ELSEIF RESULT == 0
-	RETURN 0
 ELSE
-	CLEARLINE 1
-	GOTO INPUT_LOOP_DRINK
+	WHILE 1
+		LOCAL = 酒配列:(RAND:(VARSIZE("酒配列")))
+		IF ITEM:LOCAL > 0
+			飲む酒 = LOCAL
+			BREAK
+		ENDIF
+	WEND
 ENDIF
+
+SELECTCASE 飲む酒
+	CASE GETNUM(ITEM, "濁り種")
+		ITEM:濁り酒 --
+		SOURCE:(MTAR:0):酔い追加 = 600
+		IF TALENT:(MTAR:0):酒豪
+			LOCAL:0 = 220
+		ELSEIF TALENT:(MTAR:0):幼児 || TALENT:(MTAR:0):幼稚
+			LOCAL:0 = 120
+			TFLAG:18 = -1
+		ELSE
+			LOCAL:0 = 190
+		ENDIF
+		FLAG:20 = 1
+	CASE GETNUM(ITEM, "清酒")
+		ITEM:清酒 --
+		SOURCE:(MTAR:0):酔い追加 = 1200
+		IF TALENT:(MTAR:0):酒豪
+			LOCAL:0 = 280
+		ELSEIF TALENT:(MTAR:0):幼児 || TALENT:(MTAR:0):幼稚
+			LOCAL:0 = 120
+			TFLAG:18 = -1
+		ELSE
+			LOCAL:0 = 240
+		ENDIF
+		FLAG:20 = 2
+	CASE GETNUM(ITEM, "葡萄酒")
+		ITEM:葡萄酒 --
+		SOURCE:(MTAR:0):酔い追加 = 800
+		IF TALENT:(MTAR:0):酒豪
+			LOCAL:0 = 320
+		ELSEIF TALENT:(MTAR:0):幼児 || TALENT:(MTAR:0):幼稚
+			LOCAL:0 = 260
+		ELSE
+			LOCAL:0 = 320
+		ENDIF
+		FLAG:20 = 3
+	CASE GETNUM(ITEM, "麦酒")
+		ITEM:麦酒 --
+		SOURCE:(MTAR:0):酔い追加 = 1000
+		IF TALENT:(MTAR:0):酒豪
+			LOCAL:0 = 320
+		ELSEIF TALENT:(MTAR:0):幼児 || TALENT:(MTAR:0):幼稚
+			LOCAL:0 = 120
+			TFLAG:18 = -1
+		ELSE
+			LOCAL:0 = 270
+		ENDIF
+		FLAG:20 = 4
+	CASE GETNUM(ITEM, "醸造酒")
+		ITEM:醸造酒 --
+		SOURCE:(MTAR:0):酔い追加 = 1800
+		IF TALENT:(MTAR:0):酒豪
+			LOCAL:0 = 360
+		ELSEIF TALENT:(MTAR:0):幼児 || TALENT:(MTAR:0):幼稚
+			LOCAL:0 = 100
+			TFLAG:18 = -1
+		ELSE
+			LOCAL:0 = 300
+		ENDIF
+		FLAG:20 = 5
+	CASE GETNUM(ITEM, "果実酒")
+		ITEM:果実酒 --
+		SOURCE:(MTAR:0):酔い追加 = 1200
+		IF TALENT:(MTAR:0):酒豪
+			LOCAL:0 = 360
+		ELSEIF TALENT:(MTAR:0):幼児 || TALENT:(MTAR:0):幼稚
+			LOCAL:0 = 260
+		ELSE
+			LOCAL:0 = 400
+		ENDIF
+		FLAG:20 = 6
+	CASE GETNUM(ITEM, "日本酒")
+		ITEM:日本酒 --
+		SOURCE:(MTAR:0):酔い追加 = 3000
+		IF TALENT:(MTAR:0):酒豪
+			LOCAL:0 = 500
+			TFLAG:18 = 1
+		ELSEIF TALENT:(MTAR:0):幼児 || TALENT:(MTAR:0):幼稚
+			LOCAL:0 = 100
+			TFLAG:18 = -1
+		ELSE
+			LOCAL:0 = 360
+		ENDIF
+		FLAG:20 = 7
+	CASE GETNUM(ITEM, "蒸留酒")
+		ITEM:蒸留酒 --
+		SOURCE:(MTAR:0):酔い追加 = 5000
+		IF TALENT:(MTAR:0):酒豪
+			LOCAL:0 = 500
+			TFLAG:18 = 1
+		ELSE
+			LOCAL:0 = 50
+			TFLAG:18 = -1
+		ENDIF
+		FLAG:20 = 8
+	CASEELSE
+		PRINTFORMW 存在しない酒が指定されたよ
+		PRINTFORMW 飲む酒:{飲む酒}
+		PRINTFORMW 上のメッセージと一緒にスレで報告してね
+		RETURN 0
+ENDSELECT
 
 ;●ターゲット側の処理
 ;固定で獲得するソース
@@ -199,20 +198,6 @@ TFLAG:49 = 2
 
 ;倒錯度変化基準値
 TFLAG:50 = -1
-SELECTCASE ABL:(MPLY:0):肝臓
-	CASE 0
-		TIMES SOURCE:(MPLY:0):酔い追加, 1.5
-	CASE 1
-		TIMES SOURCE:(MPLY:0):酔い追加, 1.30
-	CASE 2
-		TIMES SOURCE:(MPLY:0):酔い追加, 1.15
-	CASE 3
-		TIMES SOURCE:(MPLY:0):酔い追加, 1.00
-	CASE 4
-		TIMES SOURCE:(MPLY:0):酔い追加, 0.85
-	CASEELSE
-		TIMES SOURCE:(MPLY:0):酔い追加, 0.70
-ENDSELECT
 
 SELECTCASE ABL:(MTAR:0):肝臓
 	CASE 0
@@ -229,7 +214,6 @@ SELECTCASE ABL:(MTAR:0):肝臓
 		TIMES SOURCE:(MTAR:0):酔い追加, 0.70
 ENDSELECT
 	
-EXP:(MPLY:0):肝臓経験値 += SOURCE:(MPLY:0):酔い追加 / 100
 EXP:(MTAR:0):肝臓経験値 += SOURCE:(MTAR:0):酔い追加 / 100
 
 RETURN 1
@@ -238,19 +222,23 @@ RETURN 1
 ;地の文(前文)
 ;-------------------------------------------------
 @COM_TEXT_BEFORE310
-PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%と酒を飲み交わした
-IF TFLAG:18 == 1
-	IF GROUPMATCH(FLAG:20, 3, 4, 5, 6, 7, 8)
-		PRINTFORML %ANAME(MTAR:0)%は珍しい酒を飲めて上機嫌だ…
-	ELSE
-		PRINTFORML いい感じに酔いが回り、いつも以上に話が盛り上がった…
+IF MPLY:0 == MASTER
+	PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%に酌を\@ TFLAG:45 == MPLY:0 ? した # させられた \@
+	IF TFLAG:18 == 1
+		IF GROUPMATCH(FLAG:20, 3, 4, 5, 6, 7, 8)
+			PRINTFORML %ANAME(MTAR:0)%は珍しい酒を飲めて上機嫌だ…
+		ELSE
+			PRINTFORML いい感じに酔いが回り、いつも以上に話が盛り上がった…
+		ENDIF
+	ELSEIF TFLAG:18 == -1
+		IF GROUPMATCH(FLAG:20, 7, 8)
+			PRINTFORML ……%ANAME(MTAR:0)%はあまりの度数の強さにむせてしまい、激しく咳き込んだ
+		ELSE
+			PRINTFORML %ANAME(MTAR:0)%の口には合わなかったようだ…
+		ENDIF
 	ENDIF
-ELSEIF TFLAG:18 == -1
-	IF GROUPMATCH(FLAG:20, 7, 8)
-		PRINTFORML ……%ANAME(MTAR:0)%はあまりの度数の強さにむせてしまい、激しく咳き込んだ
-	ELSE
-		PRINTFORML %ANAME(MTAR:0)%の口には合わなかったようだ…
-	ENDIF
+ELSE
+	PRINTFORMW %ANAME(MTAR:0)%は%ANAME(MPLY:0)%に酌を\@ TFLAG:45 == MPLY:0 ? させた # された \@…
 ENDIF
 
 ;--------------------------------------------------------

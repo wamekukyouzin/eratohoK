@@ -518,6 +518,7 @@ ITEMTERM:285 = 6
 ITEMTERM:286 = 6
 ITEMTERM:287 = 6
 ITEMTERM:288 = 10
+ITEMTERM:289 = 4
 ;-------------------------------------------------
 ;ARG:0番のアイテムの真の購入価格を取得
 ;-------------------------------------------------
@@ -602,6 +603,10 @@ RETURN 50000
 ;タトゥー除去手術
 @GET_PRICE288
 RETURN 100000
+
+;穴トレ
+@GET_PRICE299
+RETURN 50000
 ;-------------------------------------------------
 ;アイテムの開発条件
 ;-------------------------------------------------
@@ -807,6 +812,13 @@ IF ITEM:ニードル＆インク
 ENDIF
 RETURN 0
 
+@ITEM_ABLE289
+;太平淫術の書を持っている
+IF ITEM:太平淫術の書
+	RETURN 1
+ENDIF
+RETURN 0
+
 ;-------------------------------------------------
 ;アイテムの使用条件
 ;-------------------------------------------------
@@ -880,6 +892,10 @@ FOR LOCAL, 0, VARSIZE("TATOO")
 		RETURN 1
 NEXT
 RETURN 0
+
+;●穴トレ
+@IS_ITEM_USE289(ARG:0)
+RETURN 1
 
 ;-------------------------------------------------
 ;その場使用アイテムの効果
@@ -1031,6 +1047,32 @@ ELSE
 	GOTO INPUT_LOOP
 ENDIF
 
+;穴トレ
+@ITEM_EFFECT289(ARG:0)
+#DIMS 変化前
+#DIMS 変化後
+PRINTFORML %ANAME(ARG:0)%のどちらの穴を鍛えますか？
+CALL ASK_MULTI_JUDGE("膣", VAGINA(ARG:0), "尻", 1, "戻る", 2)
+SELECTCASE RESULT
+	CASE 0
+		変化前 = TOSTR_TIGHTNESS(TALENT:(ARG:0):Ｖ締まり)
+		TALENT:(ARG:0):Ｖ締まり = LIMIT(TALENT:(ARG:0):Ｖ締まり + 100, 締まり_最低値, 締まり_最高値)
+		変化後 = TOSTR_TIGHTNESS(TALENT:(ARG:0):Ｖ締まり)
+		CALL COLORPRINTFORM(@"%ANAME(ARG:0)%の膣穴をトレーニングしました！", COLOR("注意"), "W")
+		CALL COLORPRINTFORM(@"変化前:%変化前%　→　変化後:%変化後%", COLOR("注意"), "W")
+	CASE 1
+		変化前 = TOSTR_TIGHTNESS(TALENT:(ARG:0):Ａ締まり)
+		TALENT:(ARG:0):Ａ締まり = LIMIT(TALENT:(ARG:0):Ａ締まり + 100, 締まり_最低値, 締まり_最高値)
+		変化後 = TOSTR_TIGHTNESS(TALENT:(ARG:0):Ａ締まり)
+		CALL COLORPRINTFORM(@"%ANAME(ARG:0)%の尻穴をトレーニングしました！", COLOR("注意"), "W")
+		CALL COLORPRINTFORM(@"変化前:%変化前%　→　変化後:%変化後%", COLOR("注意"), "W")
+	CASE 2
+		CALL GET_PRICE299
+		MONEY += RESULT
+		RETURN
+ENDSELECT
+RETURN
+
 ;●太平要術の書
 @ITEM_EFFECT141(ARG:0)
 TALENT:(ARG:0):妖術知識 = 1
@@ -1076,6 +1118,7 @@ ABL:LOCAL:料理 = 1
 TALENT:LOCAL:貞操無頓着 = 1
 TALENT:LOCAL:動物耳 = 1
 TALENT:LOCAL:しっぽ = 1
+TALENT:LOCAL:服従 = 1
 TALENT:LOCAL:隷属 = 1
 TALENT:LOCAL:絶倫 = 1
 TALENT:(LOCAL:0):合意 = 1

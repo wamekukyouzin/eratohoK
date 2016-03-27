@@ -10,7 +10,15 @@ SIF RESULT != -1
 	発生フラグ = 1
 SIF DAILY_CANCEL
 	RETURN 1
+
+;水遊び
+CALL KOJO_DAILY_K32_MIZUASOBI
+SIF RESULT != -1
+	発生フラグ = 1
+SIF DAILY_CANCEL
+	RETURN 1
 RETURN 発生フラグ
+
 
 ;------------------------------------
 ;新聞勧誘
@@ -120,3 +128,57 @@ ENDIF
 
 ;フラグ
 KDVAR:文:文_新聞勧誘 = 1
+
+;----------------------------------
+;水遊び
+;----------------------------------
+@KOJO_DAILY_K32_MIZUASOBI
+#DIM 文
+文 = NAME_TO_CHARA("文")
+
+;文が同じ勢力で、捕虜でないなら 3.5%
+SIF !(CHECK_KOJO_DAILY_HAPPEN(文, 35, 1, 0, 1))
+	RETURN -1
+
+;好感度が必要
+SIF CFLAG:文:好感度 >= 500
+	RETURN -1
+
+;一回きり
+SIF KDVAR:文:文_水遊び
+	RETURN -1
+
+CALL KOJO_DAILY_START()
+
+PRINTFORMW 「はぁ～、暑い……あの、%ANAME(MASTER)%、もう帰りませんか？」
+PRINTFORMW 「空を飛んでる間はいいけれど、こうやって地を歩くと、本当にこの暑さが嫌になってくるわ……」
+PRINTFORML うだるように暑い中、%ANAME(MASTER)%と%ANAME(文)%は領地の見回りをしていた
+PRINTFORML %ANAME(文)%は大汗をかいている。暑がりなのだそうだ
+PRINTFORMW 襟元をぱたぱたとあおぐものだから、目のやり場に困ってしまうが……
+PRINTFORML 「ん……あ、ちょっと、%ANAME(MASTER)%、見てくださいよ、ちょうどいいところに川がありましたよ」
+PRINTFORMW 「この暑さ、そして涼しげな川！　するべきことといったら一つですよねぇ？」
+PRINTFORMW 「さ、さ、参りましょう、この程度ならサボりのうちにも入りませんって！　ね？」
+PRINTFORML %ANAME(文)%の言うとおり、目の前には行水におあつらえ向きの小川が横たわっている
+PRINTFORML 
+PRINTFORML さて、どうしたものか……
+PRINTFORML
+CALL ASK_YN("水遊びする", "やめておく")
+IF RESULT == 0
+	PRINTFORML 「さすが%ANAME(MASTER)%！　そう言ってくれると思いましたよ！」
+	PRINTFORML 「そうと決まればさあ、善は急げですよ！」
+	PRINTFORML 文に手を引かれ、水遊びを楽しんだ……
+	PRINTFORMW
+	PRINTFORMW
+	PRINTFORMW
+	PRINTFORML 拠点に戻った%ANAME(MASTER)%は、なんだか寒気を覚えた
+	PRINTFORML どうやら風邪をひいてしまったようだ……
+	CALL COLORPRINTFORM(@"%ANAME(MASTER)%に3ターンのクールタイムがつきました", COLOR("警告"), "W")
+	CALL ADD_COOLTIME(MASTER, 3)
+	KDVAR:文:文_水遊び = 1
+ELSE
+	PRINTFORMW 「えぇー？　ちょっとくらいいいじゃないですか、ね？」
+	PRINTFORMW 「……駄目？　はぁ、しょうがないか……」
+	PRINTFORML 仕事をさぼるわけにはいかない
+	PRINTFORMW 誘惑を断ち切り、見回りに戻ることにした……
+	KDVAR:文:文_水遊び = 2
+ENDIF

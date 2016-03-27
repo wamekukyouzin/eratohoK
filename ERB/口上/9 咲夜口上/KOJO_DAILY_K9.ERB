@@ -1,0 +1,111 @@
+﻿@KOJO_DAILY_EXIST_K9()
+
+@KOJO_DAILY_K9()
+#DIM 発生フラグ
+発生フラグ = 0
+
+;トレーニング
+CALL KOJO_DAILY_K9_TRAINING
+SIF RESULT != -1
+	発生フラグ = 1
+SIF DAILY_CANCEL
+	RETURN 1
+RETURN 発生フラグ
+
+;----------------------------------
+;トレーニング
+;----------------------------------
+@KOJO_DAILY_K9_TRAINING
+#DIM 咲夜
+#DIM 時間
+#DIM 答え
+#DIMS 答え文字列 = "左", "右", "上", "下"
+#DIM アップ能力
+
+咲夜 = NAME_TO_CHARA("咲夜")
+
+SIF !(CHECK_KOJO_DAILY_HAPPEN(咲夜, 40, 1, 0, 1))
+	RETURN -1
+
+
+;レミリア、パチュリー以外
+SIF GROUPMATCH(CSTR:MASTER:99, "レミリア", "パチュリー")
+	RETURN -1
+
+
+;答えを出しておく
+答え = RAND:4
+
+;上がる能力も出しておく
+SELECTCASE RAND:100
+	CASE IS < 40
+		アップ能力 = GETNUM(ABL, "武闘")
+	CASE IS < 60
+		アップ能力 = GETNUM(ABL, "知略")
+	CASE IS < 80
+		アップ能力 = GETNUM(ABL, "政治")
+	CASE IS < 90
+		アップ能力 = GETNUM(ABL, "料理")
+	CASEELSE
+		アップ能力 = GETNUM(ABL, "歌唱")
+ENDSELECT
+
+CALL KOJO_DAILY_START()
+
+SELECTCASE KDVAR:咲夜:咲夜_トレーニング
+	CASE 0
+		PRINTFORMW %ANAME(MASTER)%が散歩をしていると、%ANAME(咲夜)%が投げナイフの訓練をしているところに出くわした
+		PRINTFORMW %ANAME(咲夜)%はこちらを見つけると、訓練を中断して近づいてきた
+		PRINTFORML 「%ANAME(MASTER)%。ちょうど良かったわ、ナイフの訓練をしてたのだけど、仮想敵がいないとやっぱり駄目なの」
+		PRINTFORMW 「ちょっと付き合ってくれない？」
+		PRINTFORMW 軽い口調で言うが、手に持ったそれは刃のついた本物のナイフだ
+		PRINTFORML 失敗すれば当然怪我するだろうが……
+	CASE 1
+		PRINTFORMW また、%ANAME(咲夜)%のナイフの訓練に出くわした
+		PRINTFORMW 「あら、ちょうど良かったわ」
+		PRINTFORMW 「また付き合ってくれない？」
+		PRINTFORML 失敗すれば怪我するだろうが、どうしようか……
+	CASE 2
+		PRINTFORMW また、%ANAME(咲夜)%のナイフの訓練に出くわした
+		PRINTFORMW 「あら、ちょうど良かったわ」
+		PRINTFORMW 「今度は付き合ってくれるわよね？」
+		PRINTFORML 失敗すれば怪我するだろうが、どうしようか……
+ENDSELECT
+CALL ASK_YN("付き合う", "危ないからやめておく")
+IF RESULT == 1
+	PRINTFORMW 「あら、そう？　意気地なしね」
+	PRINTFORMW 「仕方ない、一人で練習することにするわ」
+	PRINTFORML %ANAME(咲夜)%は訓練に戻っていった……
+	KDVAR:咲夜:咲夜_トレーニング = 2
+ELSE
+	PRINTFORMW 「ふふ、ありがとう」
+	PRINTFORMW 「それじゃ、いくわよ……！」
+	PRINTFORML 咲夜がナイフを投げてきた！
+	CALL COLORPRINTFORM(@"%答え文字列:答え%を選べ！", COLOR("警告"), "L")
+	FOR LOCAL, 0, VARSIZE("答え文字列")
+		PRINTFORML [{LOCAL}] %答え文字列:LOCAL%
+	NEXT
+	TINPUT 2000, -1, 1
+	;失敗したパターン
+	IF RESULT != 答え
+		PRINTFORML %ANAME(MASTER)%は回避しようと試みた！
+		PRINTFORMW だが、ナイフはものの見事に%ANAME(MASTER)%に命中した！
+		PRINTFORMW 「ちょ、ちょっと大丈夫！？」
+		PRINTFORMW 「ごめんなさい。……でもおかげで自信がついたわ、ありがとうね？」
+		PRINTFORMW %ANAME(咲夜)%に手当してもらった……
+		CALL COLORPRINTFORM(@"%ANAME(MASTER)%は怪我をしてしまいました", COLOR("警告"), "W")
+		CALL COLORPRINTFORM(@"%ANAME(MASTER)%に3ターンのクールタイムがつきました", COLOR("警告"), "W")
+		CALL COLORPRINTFORM(@"訓練の結果、%ANAME(咲夜)%の%ABLNAME:アップ能力%が1上昇しました", COLOR("注意"), "W")
+		CALL ADD_COOLTIME(MASTER, 3)
+		ABL:咲夜:アップ能力 += 1
+	;成功
+	ELSE
+		PRINTFORML %ANAME(MASTER)%は回避しようと試みた！
+		PRINTFORMW %ANAME(咲夜)%の放ったナイフを、見事回避してみせた！
+		PRINTFORMW 「あら……結構本気で投げたのだけど、まさか避けられるなんてね」
+		PRINTFORMW 「私もまだまだね。もっと練習しなくちゃ。付き合ってくれてありがとう、礼を言うわ」
+		PRINTFORMW 咲夜は訓練に戻っていった……
+		CALL COLORPRINTFORM(@"訓練の結果、%ANAME(MASTER)%の%ABLNAME:アップ能力%が1上昇しました", COLOR("注意"), "W")
+		ABL:MASTER:アップ能力 += 1
+	ENDIF
+ENDIF
