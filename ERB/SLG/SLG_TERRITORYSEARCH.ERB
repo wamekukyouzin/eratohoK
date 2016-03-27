@@ -3,24 +3,35 @@
 ;-------------------------------------------------
 @TERRITORYSEARCH
 #DIM 対象
+#DIM 仲間
 #DIM 金額
 #DIM 兵数
+#DIM 対象都市
 #DIM 候補キャラ, 1000
 #DIM 候補数
-#DIM 変化値
 VARSET 候補キャラ
 VARSET 候補数
 
 DRAWLINE
+PRINTFORMW 手の空いている者に領地を探索させることにした
+PRINTFORMW 誰に行かせようか？
+CALL TERRITORYSEARCH_SELECT_COMMANDER
+IF RESULT < 0
+	PRINTFORMW やはりやめておこう
+	RETURN
+ENDIF
 DONE_TERRITORYSEARCH = 1
-CALL SET_COOLTIME(MASTER, 1)
-PRINTFORMW 領地内を探索することにした
+対象 = RESULT
+CALL SET_COOLTIME(対象, 1)
+PRINTFORMW %ANAME(対象)%は領地探索に出かけた
 PRINTFORML ・
 PRINTFORML ・
 PRINTFORMW ・
-SIF RAND:3 >= 1
+IF RAND:2 == 1
 	PRINTFORMW 特にめぼしい物は見つからなかった
-SELECTCASE RAND:32
+	RETURN
+ENDIF
+SELECTCASE RAND:50
 	;妖怪を討伐する
 	CASE 0
 		PRINTFORMW 領民によれば近頃この辺りで妖怪が暴れて困っているらしい
@@ -29,34 +40,39 @@ SELECTCASE RAND:32
 		CALL ASK_MULTI(@"討伐を試みる", "やめておく")
 			IF RESULT == 1
 				PRINTFORMW 危険な相手だ、領民には悪いが自分にはどうしようもない
-				PRINTFORMW そう思った%ANAME(MASTER)%は宮殿へ戻った
+				PRINTFORMW そう思った%ANAME(対象)%は宮殿へ戻った
 			ELSE
 				PRINTFORMW そんな危険な奴は放置できない！
-				PRINTFORMW %ANAME(MASTER)%は武器を持って妖怪の巣へと乗り込んだ
+				PRINTFORMW %ANAME(対象)%は武器を持って妖怪の巣へと乗り込んだ
 				PRINTFORML ・
 				PRINTFORML ・
 				PRINTFORMW ・
-				IF (ABL:MASTER:武闘) * (RAND:5 + 1) > 30 * (RAND:10 + 1)
+				IF (ABL:対象:武闘) * (RAND:5 + 1) > 30 * (RAND:10 + 1)
 					PRINTFORMW やった！
-					PRINTFORMW %ANAME(MASTER)%は見事妖怪を討伐することに成功した
+					PRINTFORMW %ANAME(対象)%は見事妖怪を討伐することに成功した
 					PRINTFORMW 領民に感謝されて宮殿へ戻った
-					CALL PRINT_ADD_EXP(MASTER, "武闘経験値", RAND:3 + 1, 1)
+					CALL PRINT_ADD_EXP(対象, "武闘経験値", RAND:3 + 1, 1)
 				ELSE
-					IF IS_MALE(MASTER)
+					IF IS_MALE(対象)
 						PRINTFORMW やられた！
-						PRINTFORMW 妖怪は想像以上に手強く、返り討ちにあった%ANAME(MASTER)%は命からがら逃げかえった
-						CALL ADD_COOLTIME(MASTER, 3)
-						PRINTFORMW %ANAME(MASTER)%は3ターンのクールダウンに入った
+						PRINTFORMW 妖怪は想像以上に手強く、返り討ちにあった%ANAME(対象)%は命からがら逃げかえった
+						CALL ADD_COOLTIME(対象, 3)
+						CALL COLORPRINTFORM(@"%ANAME(対象)%は3ターンのクールダウンに入った", COLOR("注意"))
+						PRINTFORMW 
 					ELSE
 						PRINTFORMW やられた！
-						PRINTFORMW 妖怪は想像以上に手強く、%ANAME(MASTER)%は返り討ちにされて巣へと引きずられていった
+						PRINTFORMW 妖怪は想像以上に手強く、%ANAME(対象)%は返り討ちにされて巣へと引きずられていった
 						PRINTFORML 
-						PRINTFORMW %ANAME(MASTER)%は妖怪の交尾相手にされ、野生的なセックスで何度も種付けされてしまった
-						CALL FORCE_FUCK(MASTER, -1, @"野良妖怪の\@RAND:2 ? ペニス # 唇\@", @"野良妖怪", RAND:2 + 1)
+						PRINTFORMW %ANAME(対象)%は服を剥ぎ取られてペニスをねじ込まれている
+						PRINTFORMW 妖怪の長大なペニスで子宮を小突かれる度に%ANAME(対象)%は痙攣して喘ぎ声を上げる
+						PRINTFORMW 彼女を気に入った妖怪は交尾相手として躾ける様に激しく腰を打ちつける
+						PRINTFORMW %ANAME(対象)%は痛みが快楽に代わってしまうほど、野生的なセックスで何度も種付けされてしまった
+						CALL FORCE_FUCK(対象, -1, @"野良妖怪の\@RAND:2 ? ペニス # 唇\@", @"野良妖怪", RAND:2 + 1)
 						PRINTFORML 
-						PRINTFORMW 散々犯された後、何とか逃げ帰った
-						CALL ADD_COOLTIME(MASTER, 3)
-						PRINTFORMW %ANAME(MASTER)%は3ターンのクールダウンに入った
+						PRINTFORMW %ANAME(対象)%は散々犯された後、何とか逃げ帰った
+						CALL ADD_COOLTIME(対象, 3)
+						CALL COLORPRINTFORM(@"%ANAME(対象)%は3ターンのクールダウンに入った", COLOR("注意"))
+						PRINTFORMW 
 					ENDIF
 				ENDIF
 			ENDIF
@@ -68,24 +84,25 @@ SELECTCASE RAND:32
 		CALL ASK_MULTI(@"捕獲を試みる", "やめておく")
 			IF RESULT == 1
 				PRINTFORMW ヘビの見間違いか何かだろう
-				PRINTFORMW そう思った%ANAME(MASTER)%は宮殿へ戻った
+				PRINTFORMW そう思った%ANAME(対象)%は宮殿へ戻った
 			ELSE
 				PRINTFORMW 面白そうだ
-				PRINTFORMW %ANAME(MASTER)%も知恵を絞って罠を張り、捕獲を試みた
+				PRINTFORMW %ANAME(対象)%も知恵を絞って罠を張り、捕獲を試みた
 				PRINTFORML ・
 				PRINTFORML ・
 				PRINTFORMW ・
-				IF (ABL:MASTER:知略) * (RAND:5 + 1) > 30 * (RAND:10 + 1)
+				IF (ABL:対象:知略) * (RAND:5 + 1) > 30 * (RAND:10 + 1)
 					PRINTFORMW やった！
-					PRINTFORMW %ANAME(MASTER)%は見事つちのこを捕獲することに成功した
+					PRINTFORMW %ANAME(対象)%は見事つちのこを捕獲することに成功した
 					PRINTFORMW 賞金を手に入れ、ホクホク顔で宮殿へ戻った
 					金額 = MIN(DAY * 50, 5000) + RAND(1000, 5000)
 					MONEY += 金額
-					PRINTFORMW 金{金額}を手に入れた
+					CALL COLORPRINTFORM(@"金{金額}を手に入れた", COLOR("注意"))
+					PRINTFORMW 
 				ELSE
 					PRINTFORMW やられた！
 					PRINTFORMW 餌だけを奪われてしまった
-					PRINTFORMW 本当につちのこがいたのかもわからぬまま、悔しがりながら%ANAME(MASTER)%は宮殿へ戻った
+					PRINTFORMW 本当につちのこがいたのかもわからぬまま、悔しがりながら%ANAME(対象)%は宮殿へ戻った
 				ENDIF
 			ENDIF
 	;古びた矛を拾う
@@ -96,17 +113,18 @@ SELECTCASE RAND:32
 		CALL ASK_MULTI(@"持ち帰って磨く", "武器屋に売る", "捨てておく")
 			IF RESULT == 2
 				PRINTFORMW こんなボロボロの武器には用はない
-				PRINTFORMW そう思った%ANAME(MASTER)%は矛を放り投げると宮殿へ戻った
+				PRINTFORMW そう思った%ANAME(対象)%は矛を放り投げると宮殿へ戻った
 			ELSEIF RESULT == 1
 				PRINTFORMW こんなものでも武器だ、もしかしたら高値で売れるかもしれない
-				PRINTFORMW %ANAME(MASTER)%は武器屋へ持って行った
+				PRINTFORMW %ANAME(対象)%は武器屋へ持って行った
 				金額 = MIN(3000 + 1000 * (DAY / 10), 10000)
-				PRINTFORMW …矛は金{金額}で売れた
-				PRINTFORMW 思わぬ臨時収入に%ANAME(MASTER)%はホクホク顔で宮殿へ戻った
 				MONEY += 金額
+				CALL COLORPRINTFORM(@"矛は金{金額}で売れた！", COLOR("注意"))
+				PRINTFORMW 
+				PRINTFORMW 思わぬ臨時収入に%ANAME(対象)%はホクホク顔で宮殿へ戻った
 			ELSE
 				PRINTFORMW 折角拾った武器だ、持ち帰ってみよう
-				PRINTFORMW そう思った%ANAME(MASTER)%は矛を抱えて宮殿へ戻った
+				PRINTFORMW そう思った%ANAME(対象)%は矛を抱えて宮殿へ戻った
 				PRINTFORMW 宮殿に戻ると早速矛を磨いてみた
 				PRINTFORML ・
 				PRINTFORML ・
@@ -114,7 +132,7 @@ SELECTCASE RAND:32
 				IF RAND:3 == 0
 					PRINTFORMW すると矛は立派な輝きを取り戻した！
 					PRINTFORMW 手に持ってみると力がみなぎるのを感じた
-					CALL PRINT_ADD_EXP(MASTER, "武闘経験値", RAND:3 + 1, 1)
+					CALL PRINT_ADD_EXP(対象, "武闘経験値", RAND:3 + 1, 1)
 				ELSE
 					PRINTFORMW そこら辺にあるような普通の矛だった
 					PRINTFORMW 自分には不要だと思い、部下に与えることにした
@@ -128,46 +146,55 @@ SELECTCASE RAND:32
 		CALL ASK_MULTI(@"討伐を試みる", "やめておく")
 			IF RESULT == 1
 				PRINTFORMW 危険な相手だ、領民には悪いが自分にはどうしようもない
-				PRINTFORMW そう思った%ANAME(MASTER)%は宮殿へ戻った
+				PRINTFORMW そう思った%ANAME(対象)%は宮殿へ戻った
 			ELSE
 				PRINTFORMW そんな危険な連中は放置できない！
-				PRINTFORMW %ANAME(MASTER)%は山賊を捕まえる為の罠を張った
+				PRINTFORMW %ANAME(対象)%は山賊を捕まえる為の罠を張った
 				PRINTFORML ・
 				PRINTFORML ・
 				PRINTFORMW ・
-				IF (ABL:MASTER:知略) * (RAND:5 + 1) > 30 * (RAND:10 + 1)
+				IF (ABL:対象:知略) * (RAND:5 + 1) > 30 * (RAND:10 + 1)
 					PRINTFORMW やった！
-					PRINTFORMW %ANAME(MASTER)%は見事山賊を討伐することに成功した！
+					PRINTFORMW %ANAME(対象)%は見事山賊を討伐することに成功した！
 					PRINTFORMW 領民に感謝されて宮殿へ戻った
-					CALL PRINT_ADD_EXP(MASTER, "知略経験値", RAND:3 + 1, 1)
+					CALL PRINT_ADD_EXP(対象, "知略経験値", RAND:3 + 1, 1)
 				ELSE
-					IF IS_MALE(MASTER)
+					IF IS_MALE(対象)
 						PRINTFORMW やられた！
-						PRINTFORMW 山賊は想像以上に手強く、返り討ちにあった%ANAME(MASTER)%は命からがら逃げかえった
-						CALL ADD_COOLTIME(MASTER, 3)
-						PRINTFORMW %ANAME(MASTER)%は3ターンのクールダウンに入った
+						PRINTFORMW 山賊は想像以上に手強く、返り討ちにあった%ANAME(対象)%は命からがら逃げかえった
+						CALL ADD_COOLTIME(対象, 3)
+						CALL COLORPRINTFORM(@"%ANAME(対象)%は3ターンのクールダウンに入った", COLOR("注意"))
+						PRINTFORMW 
 					ELSE
 						PRINTFORMW やられた！
-						PRINTFORMW 山賊は想像以上に手強く、%ANAME(MASTER)%は返り討ちにされてねぐらへと引きずられていった
+						PRINTFORMW 山賊は想像以上に手強く、%ANAME(対象)%は返り討ちにされてねぐらへと引きずられていった
 						PRINTFORML 
-						PRINTFORMW %ANAME(MASTER)%は山賊どもの慰み者としてボロボロになるまで輪姦されてしまった
-						CALL FORCE_FUCK(MASTER, -1, @"山賊の\@RAND:2 ? ペニス # 唇\@", @"山賊", RAND:2 + 1)
+						PRINTFORMW %ANAME(対象)%は山賊どもの慰み者にされている
+						PRINTFORMW 抵抗する度に殴られ、お仕置きと称して犯され続け、彼女はすっかり彼らに従順に奉仕する様になっている
+						PRINTFORMW 今もまた一人の山賊の上に跨り淫らに体をくねらせながら自ら腰を振っている
+						PRINTFORMW 男が限界を迎えると%ANAME(対象)%はやや虚ろに笑いながら膣を締めつけ、その精を一滴残らず膣内で受け止めた
+						PRINTFORMW 彼らに気に入られた%ANAME(対象)%はその後も身体中を使われてたっぷりと種付けされ続けた
+						CALL FORCE_FUCK(対象, -1, @"山賊の\@RAND:2 ? ペニス # 唇\@", @"山賊", RAND:2 + 1)
 						PRINTFORML 
-						PRINTFORMW 散々犯された後、何とか逃げ帰った
-						CALL ADD_COOLTIME(MASTER, 3)
-						PRINTFORMW %ANAME(MASTER)%は3ターンのクールダウンに入った
+						PRINTFORMW %ANAME(対象)%は散々犯された後、何とか逃げ帰った
+						CALL ADD_COOLTIME(対象, 3)
+						CALL COLORPRINTFORM(@"%ANAME(対象)%は3ターンのクールダウンに入った", COLOR("注意"))
+						PRINTFORMW 
 					ENDIF
 				ENDIF
 			ENDIF
 	;お祭りを楽しむ
 	CASE 4
 		PRINTFORMW 領内で盛大にお祭りが開かれていた
-		PRINTFORMW 久しぶりの息抜きに、%ANAME(MASTER)%も大いに楽しんだ
+		PRINTFORMW 久しぶりの息抜きに、%ANAME(対象)%も大いに楽しんだ
 		金額 = MIN(5000 * (DAY / 10), 10000)
+		SIF 金額 == 0
+			金額 = 1000
 		SIF 金額 > MONEY
 			金額 = MONEY / 2
 		MONEY -= 金額
-		PRINTFORMW {金額}を消費した
+		CALL COLORPRINTFORM(@"金{金額}を消費した", COLOR("注意"))
+		PRINTFORMW 
 	;茸を見つける
 	CASE 5
 		PRINTFORMW 森の中で不思議な形をした茸を見つけた
@@ -177,37 +204,38 @@ SELECTCASE RAND:32
 		CALL ASK_MULTI(@"調理を試みる", "やめておく")
 			IF RESULT == 1
 				PRINTFORMW 素人が下手に手を出すべきじゃない
-				PRINTFORMW そう思った%ANAME(MASTER)%は宮殿へ戻った
+				PRINTFORMW そう思った%ANAME(対象)%は宮殿へ戻った
 			ELSE
 				PRINTFORMW 危険かもしれないが食欲には勝てなかった
-				PRINTFORMW %ANAME(MASTER)%は茸を持ち帰り調理した
+				PRINTFORMW %ANAME(対象)%は茸を持ち帰り調理した
 				PRINTFORML ・
 				PRINTFORML ・
 				PRINTFORMW ・
-				IF (ABL:MASTER:料理) * (RAND:5 + 1) > 30 * (RAND:10 + 1)
+				IF (ABL:対象:料理) * (RAND:5 + 1) > 30 * (RAND:10 + 1)
 					PRINTFORMW 美味しい！
-					PRINTFORMW 茸はまるで上等な霜降りの様に舌の上で蕩け、%ANAME(MASTER)%は極上の味に思わず頬が緩んだ
-					PRINTFORMW %ANAME(MASTER)%は料理に自信を持った
-					CALL PRINT_ADD_EXP(MASTER, "料理経験値", RAND:3 + 1, 1)
+					PRINTFORMW 茸はまるで上等な霜降りの様に舌の上で蕩け、%ANAME(対象)%は極上の味に思わず頬が緩んだ
+					PRINTFORMW %ANAME(対象)%は料理に自信を持った
+					CALL PRINT_ADD_EXP(対象, "料理経験値", RAND:3 + 1, 1)
 				ELSE
 					PRINTFORMW しまった！
-					PRINTFORMW 調理に失敗した%ANAME(MASTER)%は腹をこわしてしまった
-					PRINTFORMW 教訓にしよう…お腹を押さえて冷や汗をかきながら%ANAME(MASTER)%はそう強く思った
-					CALL ADD_COOLTIME(MASTER, 3)
-					PRINTFORMW %ANAME(MASTER)%は3ターンのクールダウンに入った
+					PRINTFORMW 調理に失敗した%ANAME(対象)%は腹をこわしてしまった
+					PRINTFORMW 教訓にしよう…お腹を押さえて冷や汗をかきながら%ANAME(対象)%はそう強く思った
+					CALL ADD_COOLTIME(対象, 3)
+					CALL COLORPRINTFORM(@"%ANAME(対象)%は3ターンのクールダウンに入った", COLOR("注意"))
+					PRINTFORMW 
 				ENDIF
 			ENDIF
 	;水浴びを愉しむ
 	CASE 6
 		PRINTFORMW 探索中、森の奥で水浴びに丁度良い水場を見つけた
 		PRINTFORMW どうしよう？
-		CALL ASK_MULTI_JUDGE(@"水浴びをする", 1,"水浴びを覗く", IS_MALE(MASTER),"水を飲む", 1)
+		CALL ASK_MULTI_JUDGE(@"水浴びをする", 1,"水浴びを覗く", IS_MALE(対象),"水を飲む", 1)
 			IF RESULT == 2
 				PRINTFORMW 水はとても冷たく、飲むと力が湧いてきた
-				PRINTFORMW 喉を潤した%ANAME(MASTER)%は充足して宮殿へ戻った
+				PRINTFORMW 喉を潤した%ANAME(対象)%は充足して宮殿へ戻った
 			ELSEIF RESULT == 1
 				PRINTFORMW 誰かが水浴びをしている様だ
-				PRINTFORMW %ANAME(MASTER)%はニヤリと笑い見つからない様に茂みに隠れながら覗きを敢行した
+				PRINTFORMW %ANAME(対象)%はニヤリと笑い見つからない様に茂みに隠れながら覗きを敢行した
 				PRINTFORML 
 				PRINTFORMW 水浴びをしていたのは人間の娘だった
 				PRINTFORMW まだ若さが残るものの凹凸のはっきりとした女らしい肉体がこの距離でもわかる
@@ -215,39 +243,42 @@ SELECTCASE RAND:32
 				PRINTFORMW どうしよう？
 				CALL ASK_MULTI(@"襲いかかる", "覗き続ける")
 					IF RESULT == 1
-						PRINTFORMW %ANAME(MASTER)%は見つからない様にしながらもその魅力的な肉体を目に焼き付けた
+						PRINTFORMW %ANAME(対象)%は見つからない様にしながらもその魅力的な肉体を目に焼き付けた
 					ELSE
-						PRINTFORMW %ANAME(MASTER)%は周囲に他に人の気配がない事を確認すると
+						PRINTFORMW %ANAME(対象)%は周囲に他に人の気配がない事を確認すると
 						PRINTFORMW 茂みを飛び出し、水浴びをしている少女に襲いかかった！
 						PRINTFORMW 少女は突然の暴漢に驚き逃げようとしたが、足を滑らせ捕まってしまった
-						PRINTFORMW %ANAME(MASTER)%は暴れる彼女を無理矢理茂みの中へと連れ込んだ
+						PRINTFORMW %ANAME(対象)%は暴れる彼女を無理矢理茂みの中へと連れ込んだ
 						PRINTFORML 
-						PRINTFORMW 娘の膣は非常によく締まり、%ANAME(MASTER)%は我慢できず何度も精を放った
+						PRINTFORMW 娘の膣は非常によく締まり、%ANAME(対象)%は我慢できず何度も精を放った
 						PRINTFORML 
-						PRINTFORMW 茫然と横たわっている娘を放置して%ANAME(MASTER)%は宮殿へ戻った
+						PRINTFORMW 茫然と横たわっている娘を放置して%ANAME(対象)%は宮殿へ戻った
 					ENDIF
 			ELSE
 				PRINTFORMW 折角だから水浴びをしていくことにした
 				PRINTFORML 
-				IF IS_MALE(MASTER)
+				IF IS_MALE(対象)
 					PRINTFORMW とても気持ちがよかった
-					PRINTFORMW さっぱりした%ANAME(MASTER)%は充足して宮殿へ戻った
+					PRINTFORMW さっぱりした%ANAME(対象)%は充足して宮殿へ戻った
 				ELSE
-					PRINTFORMW %ANAME(MASTER)%が水浴びをしているとどこからか視線を感じた
+					PRINTFORMW %ANAME(対象)%が水浴びをしているとどこからか視線を感じた
 					PRINTFORMW どうしよう？
 					CALL ASK_MULTI(@"水浴びを続ける", "水から上がる")
 						IF RESULT == 1
-							PRINTFORMW 不穏な空気を察した%ANAME(MASTER)%は
+							PRINTFORMW 不穏な空気を察した%ANAME(対象)%は
 							PRINTFORMW 早々に水浴びを切り上げると、足早に宮殿へ戻った
 						ELSE
 							PRINTFORMW 気のせいだと水浴びを続行した
 							PRINTFORMW すると突然近くの茂みから痴漢が飛び出し、襲いかかってきた！
-							PRINTFORMW 抵抗する%ANAME(MASTER)%だったが、裸の状態では何もできず、無理矢理茂みの中へと連れ込まれた
+							PRINTFORMW 抵抗する%ANAME(対象)%だったが、裸の状態では何もできず、無理矢理茂みの中へと連れ込まれた
 							PRINTFORML 
-							PRINTFORMW %ANAME(MASTER)%は四つん這いに押し倒され、痴漢によって何度も汚されてしまった
-							CALL FORCE_FUCK(MASTER, -1, @"痴漢の\@RAND:2 ? ペニス # 唇\@", @"痴漢", RAND:2 + 1)
+							PRINTFORMW %ANAME(対象)%は興奮した痴漢によって四つん這いに押し倒された
+							PRINTFORMW 抵抗しようとするもそれも空しく彼のそそり立つ肉棒で貫かれてしまい、ビクンと身体を跳ねさせる
+							PRINTFORMW 興奮しきった痴漢は始めから猛烈に腰を振りだし、%ANAME(対象)%は思わず喘ぎ声を出してしまう
+							PRINTFORMW やがて彼が低く唸りながら熱い濁流を放つと、%ANAME(対象)%は意に反して絶頂させられてしまった
+							CALL FORCE_FUCK(対象, -1, @"痴漢の\@RAND:2 ? ペニス # 唇\@", @"痴漢", RAND:2 + 1)
 							PRINTFORML 
-							PRINTFORMW 痴漢は秘所から白濁液を垂らしながら横たわっている%ANAME(MASTER)%を放置して去って行った
+							PRINTFORMW 痴漢は秘所から白濁液を垂らしながら横たわっている%ANAME(対象)%を放置して去って行った
 						ENDIF
 				ENDIF
 			ENDIF
@@ -260,24 +291,33 @@ SELECTCASE RAND:32
 			ENDIF
 		NEXT
 		IF 候補数 == 0
-			対象 = 0
+			仲間 = 0
 		ELSE
-			対象 = FINDELEMENT(候補キャラ, MAXARRAY(候補キャラ))
+			仲間 = FINDELEMENT(候補キャラ, MAXARRAY(候補キャラ))
 		ENDIF
 		PRINTFORMW 領内を探索中、迷子の男の子と遭遇した
 		PRINTFORMW 親とはぐれてしまったらしいが、周囲にそれらしい人物は見当たらない
 		PRINTFORMW どうしようか？
-		CALL ASK_MULTI_JUDGE(@"一緒に親を探す", 1,"誘惑する", IS_FEMALE(MASTER) && TALENT:MASTER:処女 != 1,"兵士に預ける", 1,"放っておく", 1)
+		CALL ASK_MULTI_JUDGE(@"一緒に親を探す", 1,"誘惑する", IS_FEMALE(対象) && TALENT:対象:処女 != 1,"兵士に預ける", 1,"放っておく", 1)
 			IF RESULT == 3
 				PRINTFORMW 面倒事はごめんだ
-				PRINTFORMW そう思った%ANAME(MASTER)%はさっさと宮殿へ戻った
-				IF !(対象 <= 0)
-					PRINTFORMW …どうやら%ANAME(対象)%に見られていたらしい、%ANAME(対象)%の評価が下がった
-					CFLAG:対象:好感度 -= 200
+				PRINTFORMW そう思った%ANAME(対象)%はさっさと宮殿へ戻った
+				IF 仲間 != 0 && 対象 == MASTER
+					PRINTFORMW …どうやら%ANAME(仲間)%に見られていたらしい
+					CFLAG:仲間:好感度 -= 200
+					CALL COLORPRINTFORM(@"%ANAME(仲間)%の評価が下がった", COLOR("注意"))
+					PRINTFORMW
+				ELSE
+					PRINTFORMW …どうやら領民に見られていたらしい
+					FOR LOCAL, 1, MAX_COUNTRY
+						CALL CHANGE_RELATION_C_TO_C(LOCAL, CFLAG:MASTER:1, -10, 10)
+					NEXT
+					CALL COLORPRINTFORM(@"噂が広がり他国の評判が下がった", COLOR("注意"))
+					PRINTFORMW 
 				ENDIF
 			ELSEIF RESULT == 2
 				PRINTFORMW ここは兵士に任せる事にしよう
-				PRINTFORMW %ANAME(MASTER)%は子供を近場の兵士に預けると宮殿へ戻った
+				PRINTFORMW %ANAME(対象)%は子供を近場の兵士に預けると宮殿へ戻った
 			ELSEIF RESULT == 0
 				PRINTFORMW 泣きだしそうな子供をなだめ、一緒に親を探してあげた
 				PRINTFORML ・
@@ -286,9 +326,10 @@ SELECTCASE RAND:32
 				IF RAND:2 == 0
 					PRINTFORMW 無事に親を見つけることが出来た！
 					PRINTFORMW 笑顔で手を振る子供と別れ、良い気分で宮殿へ戻った
-					IF !(対象 <= 0)
-						PRINTFORMW …どうやら%ANAME(対象)%に見られていたらしい、%ANAME(対象)%の評価が上がった
-						CFLAG:対象:好感度 += 200
+					IF 仲間 != 0 && 対象 == MASTER
+						PRINTFORMW …どうやら%ANAME(仲間)%に見られていたらしい
+						CFLAG:仲間:好感度 += 200
+						CALL COLORPRINTFORMW(@"%ANAME(仲間)%の評価が上がった", COLOR("注意"))
 					ENDIF
 				ELSE
 					PRINTFORMW 親を見つけることが出来なかった…
@@ -299,10 +340,14 @@ SELECTCASE RAND:32
 				PRINTFORMW 泣きだしそうな子供をなだめ、「良い所に連れて行ってあげる」と囁く
 				PRINTFORMW そして子供の手を引き近くの宿へと連れ込んだ
 				PRINTFORML 
-				PRINTFORMW 初めての事に戸惑う無垢な子供に興奮し、%ANAME(対象)%は全身で可愛がった
-				CALL FORCE_FUCK(MASTER, -1, @"子供の\@RAND:2 ? ペニス # 唇\@", @"子供", RAND:2 + 1)
+				PRINTFORMW 初めての事に戸惑う無垢な子供に%ANAME(対象)%は自らの身体をさらけ出し誘惑する
+				PRINTFORMW ゴクリと生唾を飲む彼に見せつけるように体をくねらせると、彼はたまらず彼女に抱きついてきた
+				PRINTFORMW %ANAME(対象)%は興奮しながらも優しく彼をリードし、たっぷりとセックスを教え込む
+				PRINTFORMW やがて気持ち良さそうな吐息と共に少年が射精すると、%ANAME(対象)%はぶるっと身震いしながら絶頂した
+				CALL FORCE_FUCK(対象, -1, @"子供の\@RAND:2 ? ペニス # 唇\@", @"子供", RAND:2 + 1)
 				PRINTFORML 
-				PRINTFORMW たっぷりと楽しんだ後、子供を親元へ送り届けた
+				PRINTFORMW 子供を存分に可愛がった後、親元へ送り届けた
+				PRINTFORMW 別れる際、手を振る彼の股間が膨れているのが見えた
 
 			ENDIF
 	;薬を買う
@@ -313,9 +358,13 @@ SELECTCASE RAND:32
 		CALL ASK_MULTI_JUDGE(@"折角だから買ってみる", MONEY >= 5000,"やめておく", 1)
 			IF RESULT == 1
 				PRINTFORMW あいにく今は病気でもない
-				PRINTFORMW %ANAME(MASTER)%はしつこい薬売りを振り払い宮殿へ戻った
+				PRINTFORMW %ANAME(対象)%はしつこい薬売りを振り払い宮殿へ戻った
 			ELSE
-				PRINTFORMW 薬を買った%ANAME(MASTER)%は早速その場で飲んでみた
+				PRINTFORMW 「へへへへ、毎度有りです」
+				MONEY -= 5000
+				CALL COLORPRINTFORM(@"金5000を支払った", COLOR("注意"))
+				PRINTFORMW 
+				PRINTFORMW 薬を買った%ANAME(対象)%は早速その場で飲んでみた
 				SELECTCASE RAND:3
 					CASE 0
 						PRINTFORMW …しかし何も起きなかった
@@ -325,38 +374,43 @@ SELECTCASE RAND:32
 						PRINTFORMW すぐに身体が熱くなった
 						IF RAND:2 == 0
 							PRINTFORMW 力が漲り活性化するのを感じた
-							TALENT:MASTER:回復早い == 1
-							TALENT:MASTER:回復遅い == 0
-							PRINTFORMW %ANAME(MASTER)%は[回復早い]になった
+							TALENT:対象:回復早い == 1
+							TALENT:対象:回復遅い == 0
+							CALL COLORPRINTFORMW(@"%ANAME(対象)%は[回復早い]になった", COLOR("注意"))
+							PRINTFORMW 
 							PRINTFORMW 「おやおや、どうやら当たりだったようで、いえいえなんでもありませんよ」
 							PRINTFORMW そう告げると薬売りはさっさと去って行ってしまった
 						ELSE
 							PRINTFORMW 力が抜けて気怠くなるのを感じた
-							TALENT:MASTER:回復遅い == 1
-							TALENT:MASTER:回復早い == 0
-							PRINTFORMW %ANAME(MASTER)%は[回復遅い]になった
+							TALENT:対象:回復遅い == 1
+							TALENT:対象:回復早い == 0
+							CALL COLORPRINTFORMW(@"%ANAME(対象)%は[回復遅い]になった", COLOR("注意"))
+							PRINTFORMW 
 							PRINTFORMW 「効能には個人差がありますからね～、おっと返品は受け付けませんよ」
 							PRINTFORMW そう告げると薬売りはさっさと去って行ってしまった
 						ENDIF
 					CASE 2
 						PRINTFORMW すぐに身体が火照りだした
-						IF IS_MALE(MASTER)
-							PRINTFORMW %ANAME(MASTER)%は思わず勃起するのを必死で押さえ込みながら薬売りを睨む
+						IF IS_MALE(対象)
+							PRINTFORMW %ANAME(対象)%は思わず勃起するのを必死で押さえ込みながら薬売りを睨む
 							PRINTFORMW 「効能には個人差がありますからね～、おっと返品は受け付けませんよ」
 							PRINTFORMW そう告げると薬売りはさっさと去って行ってしまった
-							PRINTFORMW 興奮を持て余したまま%ANAME(MASTER)%はフラフラとした足取りで宮殿へ戻った
+							PRINTFORMW 興奮を持て余したまま%ANAME(対象)%はフラフラとした足取りで宮殿へ戻った
 						ELSE
-							PRINTFORMW 突然子宮が疼きだし、%ANAME(MASTER)%は思わずその場にへたり込んでしまった
+							PRINTFORMW 突然子宮が疼きだし、%ANAME(対象)%は思わずその場にへたり込んでしまった
 							PRINTFORMW 「おやおや、ひっひ…どうやら薬の副作用ですね、こちらへどうぞ、処置しましょう」
-							PRINTFORMW 薬売りに腰に手を回され支えられながら、%ANAME(MASTER)%は近くの物陰に連れ込まれた
+							PRINTFORMW 薬売りに腰に手を回され支えられながら、%ANAME(対象)%は近くの物陰に連れ込まれた
 							PRINTFORML 
-							PRINTFORMW %ANAME(MASTER)%はぐちょぐちょになった雌穴を薬売りによって散々調教され、何度も絶頂させられてしまった
-							CALL FORCE_FUCK(MASTER, -1, @"薬売りの\@RAND:2 ? ペニス # 唇\@", @"薬売り", RAND:2 + 1)
+							PRINTFORMW 「おらおら！雌の分際でお高くとまりやがって！鳴いてみろよ、この雌豚がぁ！」
+							PRINTFORMW %ANAME(対象)%はぐちょぐちょになった雌穴を薬売りによって乱暴に犯されている
+							PRINTFORMW その乱暴な腰遣いに%ANAME(対象)%の子宮はきゅんと疼き、あられもない喘ぎ声を出しながら体を震わせる
+							PRINTFORMW 「おっ！おっ！良い締め付けだ！ご褒美に種付けしてやるぞ！うっ、ううぉぉお！」
+							PRINTFORMW 一際深くペニスをねじ込まれて射精されると、%ANAME(対象)%は悦びの声を上げ全身をピンと伸ばして絶頂した
+							CALL FORCE_FUCK(対象, -1, @"薬売りの\@RAND:2 ? ペニス # 唇\@", @"薬売り", RAND:2 + 1)
 							PRINTFORML 
-							PRINTFORMW アヘ顔を晒して痙攣する%ANAME(MASTER)%を放置して薬売りはさっさと立ち去った
+							PRINTFORMW アヘ顔を晒して痙攣する%ANAME(対象)%を放置して薬売りはさっさと立ち去った
 						ENDIF
 				ENDSELECT
-				MONEY -= 5000
 			ENDIF
 	;悪い地主を懲らしめる
 	CASE 9
@@ -369,34 +423,40 @@ SELECTCASE RAND:32
 		CALL ASK_MULTI(@"地主を懲らしめる", "やめておく")
 			IF RESULT == 1
 				PRINTFORMW 面倒な相手だ、領民には悪いが自分にはどうしようもない
-				PRINTFORMW そう思った%ANAME(MASTER)%は宮殿へ戻った
+				PRINTFORMW そう思った%ANAME(対象)%は宮殿へ戻った
 			ELSE
 				PRINTFORMW そんな不埒な輩は放置できない！
-				PRINTFORMW %ANAME(MASTER)%は地主を懲らしめるための策を練った
+				PRINTFORMW %ANAME(対象)%は地主を懲らしめるための策を練った
 				PRINTFORML ・
 				PRINTFORML ・
 				PRINTFORMW ・
-				IF (ABL:MASTER:政治) * (RAND:5 + 1) > 30 * (RAND:10 + 1)
+				IF (ABL:対象:政治) * (RAND:5 + 1) > 30 * (RAND:10 + 1)
 					PRINTFORMW やった！
-					PRINTFORMW %ANAME(MASTER)%は見事地主を懲らしめることに成功した！
+					PRINTFORMW %ANAME(対象)%は見事地主を懲らしめることに成功した！
 					PRINTFORMW 領民に感謝されて宮殿へ戻った
-					CALL PRINT_ADD_EXP(MASTER, "政治経験値", RAND:3 + 1, 1)
+					CALL PRINT_ADD_EXP(対象, "政治経験値", RAND:3 + 1, 1)
 				ELSE
-					IF IS_MALE(MASTER)
+					IF IS_MALE(対象)
 						PRINTFORMW やられた！
-						PRINTFORMW 地主は想像以上にずる賢く、%ANAME(MASTER)%は逆に金をだまし取られてしまった
+						PRINTFORMW 地主は想像以上にずる賢く、%ANAME(対象)%は逆に金をだまし取られてしまった
 						MONEY -= 金額
-						PRINTFORMW 金{金額}を失った
+						CALL COLORPRINTFORM(@"金{金額}を失った", COLOR("注意"))
+						PRINTFORMW 
 					ELSE
 						PRINTFORMW やられた！
-						PRINTFORMW 地主は想像以上にずる賢く、%ANAME(MASTER)%は逆に金をだまし取られた上に捕まってしまった
+						PRINTFORMW 地主は想像以上にずる賢く、%ANAME(対象)%は逆に金をだまし取られた上に捕まってしまった
 						PRINTFORML 
-						PRINTFORMW %ANAME(MASTER)%はお仕置きと称し地主の性奴隷としてねっとりと躾けられた
-						CALL FORCE_FUCK(MASTER, -1, @"地主の\@RAND:2 ? ペニス # 唇\@", @"地主", RAND:2 + 1)
+						PRINTFORMW 捕まった%ANAME(対象)%は地主からお仕置きと称して調教されている
+						PRINTFORMW 地主は嫌悪感で震える%ANAME(対象)%の全身をべろべろと舐めまわし、秘所や乳房を太い指で弄っていく
+						PRINTFORMW 見かけによらぬ巧みなテクニックに、彼女は次第にだらしなく舌を垂らし切なげな吐息を漏らしてしまう
+						PRINTFORMW そしてとろとろになった雌穴にペニスをねじ込まれると、甘い雌の声を上げて悦んでしまった
+						PRINTFORMW もはや嫌悪感は圧倒的な快楽に流され、%ANAME(対象)%は男の性奴隷に成り果てながらたっぷりと犯されてしまった
+						CALL FORCE_FUCK(対象, -1, @"地主の\@RAND:2 ? ペニス # 唇\@", @"地主", RAND:2 + 1)
 						PRINTFORML 
-						PRINTFORMW 散々犯された後、何とか逃げ帰った
+						PRINTFORMW %ANAME(対象)%は散々犯された後、何とか逃げ帰った
 						MONEY -= 金額
-						PRINTFORMW 金{金額}を失った
+						CALL COLORPRINTFORM(@"金{金額}を失った", COLOR("注意"))
+						PRINTFORMW 
 					ENDIF
 				ENDIF
 			ENDIF
@@ -406,11 +466,12 @@ SELECTCASE RAND:32
 		PRINTFORMW 視界がグルンと周り、次の瞬間地面に転がり落ちた！
 		PRINTFORMW 痛む身体を摩りながら起き上ると、どうやら落とし穴にはまったとわかった
 		PRINTFORMW 一体誰が、そんな事を考えていると頭上から笑い声が聞こえた
-		PRINTFORMW 見上げると妖精たちが穴に落ちた%ANAME(MASTER)%を見て笑っていた
+		PRINTFORMW 見上げると妖精たちが穴に落ちた%ANAME(対象)%を見て笑っていた
 		PRINTFORMW 怒って穴からはい出ると、妖精たちはキャーキャー言いながら飛び去って行ってしまった
-		PRINTFORMW %ANAME(MASTER)%は溜息をついて、泥だらけになった服を払いながら宮殿へ戻った
-		CALL ADD_COOLTIME(MASTER, 2)
-		PRINTFORMW %ANAME(MASTER)%は2ターンのクールダウンに入った
+		PRINTFORMW %ANAME(対象)%は溜息をついて、泥だらけになった服を払いながら宮殿へ戻った
+		CALL ADD_COOLTIME(対象, 2)
+		CALL COLORPRINTFORM(@"%ANAME(対象)%は2ターンのクールダウンに入った", COLOR("注意"))
+		PRINTFORMW 
 	;野良妖怪と遭遇
 	CASE 11
 		金額 = 5000
@@ -421,54 +482,61 @@ SELECTCASE RAND:32
 		PRINTFORMW どうしよう？
 		CALL ASK_MULTI(@"友好的に接する", "威圧的に接する", "距離を取って立ち去る")
 			IF RESULT == 0
-				IF ABL:MASTER:知略 * (RAND:3 + 1) >= 100
+				IF ABL:対象:知略 * (RAND:3 + 1) >= 100
 					PRINTFORMW 友好的に接してみた
-					PRINTFORMW %ANAME(MASTER)%の態度に妖怪も気を許したようだ
+					PRINTFORMW %ANAME(対象)%の態度に妖怪も気を許したようだ
 					PRINTFORMW 友好的な雰囲気のまま無事に別れた
 				ELSE
 					PRINTFORMW 友好的に接してみた
 					PRINTFORMW だがその態度を妖怪は訝しみ、襲いかかってきた！
 					PRINTFORMW …何とか逃げ帰ったが、財布を落としてしまった
 					MONEY -= 金額
-					PRINTFORMW 金{金額}を失った
+					CALL COLORPRINTFORM(@"金{金額}を失った", COLOR("注意"))
+					PRINTFORMW 
 				ENDIF
 			ELSEIF RESULT == 1
-				IF ABL:MASTER:武闘 * (RAND:3 + 1) >= 100
+				IF ABL:対象:武闘 * (RAND:3 + 1) >= 100
 					PRINTFORMW 威圧的に接してみた
-					PRINTFORMW %ANAME(MASTER)%の威圧感に妖怪は震えあがっている
+					PRINTFORMW %ANAME(対象)%の威圧感に妖怪は震えあがっている
 					PRINTFORMW 一目散に逃げ去った
 				ELSE
 					PRINTFORMW 威圧的に接してみた
 					PRINTFORMW だが妖怪は鼻で笑って襲いかかってきた！
 					PRINTFORMW …何とか逃げ帰ったが、財布を落としてしまった
 					MONEY -= 金額
-					PRINTFORMW 金{金額}を失った
+					CALL COLORPRINTFORM(@"金{金額}を失った", COLOR("注意"))
+					PRINTFORMW 
 				ENDIF
 			ELSE
-				PRINTFORMW %ANAME(MASTER)%は妖怪と距離を取ってその場を立ち去ろうとした
+				PRINTFORMW %ANAME(対象)%は妖怪と距離を取ってその場を立ち去ろうとした
 				PRINTFORMW しかし後ろを見せた途端、妖怪が襲いかかってきた！
-				IF IS_MALE(MASTER)
+				IF IS_MALE(対象)
 					PRINTFORMW …何とか逃げ帰ったが、財布を落としてしまった
 					MONEY -= 金額
-					PRINTFORMW 金{金額}を失った
+					CALL COLORPRINTFORM(@"金{金額}を失った", COLOR("注意"))
+					PRINTFORMW 
 				ELSE
-					PRINTFORMW 後頭部を殴られた%ANAME(MASTER)%は昏倒してしまった
+					PRINTFORMW 後頭部を殴られた%ANAME(対象)%は昏倒してしまった
 					PRINTFORML 
-					PRINTFORMW ねぐらに持ち帰られた%ANAME(MASTER)%は、乱暴に服を剥がれ巨大なペニスで蹂躙されてしまった
-					CALL FORCE_FUCK(MASTER, -1, @"野良妖怪の\@RAND:2 ? ペニス # 唇\@", @"野良妖怪", RAND:2 + 1)
+					PRINTFORMW 妖怪のねぐらに持ち帰られた%ANAME(対象)%は、圧し掛かられながら犯されている
+					PRINTFORMW ドスドスと子宮を潰されるような激しいストロークに%ANAME(対象)%は涙を流しながら呻いている
+					PRINTFORMW なんとか逃れようともがくも、深々とペニスで串刺しにされておりそれもかなわない
+					PRINTFORMW 乱暴に唇を塞がれながら灼熱の精液を胎内に放たれると、%ANAME(対象)%はくぐもった声を出しながら全身を震わせた
+					PRINTFORMW 妖怪の圧倒的なスタミナにより、一晩中交尾の相手をさせられ子宮が満たされる程の精液を放たれた
+					CALL FORCE_FUCK(対象, -1, @"野良妖怪の\@RAND:2 ? ペニス # 唇\@", @"野良妖怪", RAND:2 + 1)
 					PRINTFORML 
-					PRINTFORMW 散々犯された後、ドロドロに汚された%ANAME(MASTER)%は道端に捨てられた
+					PRINTFORMW 散々犯された後、ドロドロに汚された%ANAME(対象)%は道端に捨てられた
 				ENDIF
 			ENDIF
 	;賢者と語り合う
 	CASE 12
 		PRINTFORMW 領内を探索中、とある賢者の評判を聞いた
-		PRINTFORMW 気になった%ANAME(MASTER)%は会ってみることにした
+		PRINTFORMW 気になった%ANAME(対象)%は会ってみることにした
 		PRINTFORMW 賢者は一見普通の好々爺に見えた
-		IF (ABL:MASTER:政治) * (RAND:5 + 1) > 30 * (RAND:10 + 1)
+		IF (ABL:対象:政治) * (RAND:5 + 1) > 30 * (RAND:10 + 1)
 			PRINTFORMW しかしいくつか言葉を交わすうちに非常に思慮深いとわかった
-			PRINTFORMW %ANAME(MASTER)%は夜通し彼と語り合った
-			CALL PRINT_ADD_EXP(MASTER, "政治経験値", RAND:3 + 1, 1)
+			PRINTFORMW %ANAME(対象)%は夜通し彼と語り合った
+			CALL PRINT_ADD_EXP(対象, "政治経験値", RAND:3 + 1, 1)
 		ELSE
 			PRINTFORMW いくつか言葉を交わしたがとぼけた返事ばかりでろくに話にならなかった
 			PRINTFORMW 評判など当てにならない、賢者の家を後にした
@@ -477,31 +545,35 @@ SELECTCASE RAND:32
 	CASE 13
 		PRINTFORMW 森の中を歩いていると、人のうめき声が聞こえてきた
 		PRINTFORMW 茂みをかき分け声のした方へ向かうと、少女が倒れているのを見つけた
-		PRINTFORMW %ANAME(MASTER)%に気付いた少女は一瞬身構えたが、敵意はない事を示すと安心した様に胸を撫で下ろした
+		PRINTFORMW %ANAME(対象)%に気付いた少女は一瞬身構えたが、敵意はない事を示すと安心した様に胸を撫で下ろした
 		PRINTFORMW どうやら怪我をして動けないようだ
 		PRINTFORMW どうしよう？
-		CALL ASK_MULTI_JUDGE(@"村へ運んでやる", 1,"金目の物を奪って放置する", 1,"助ける見返りを求める", IS_MALE(MASTER))
+		CALL ASK_MULTI_JUDGE(@"村へ運んでやる", 1,"金目の物を奪って放置する", 1,"助ける見返りを求める", IS_MALE(対象))
 			IF RESULT == 0
 				PRINTFORMW 彼女に肩を貸して村へ運んでやった
 				PRINTFORMW 家族と彼女に深く感謝された
-				PRINTFORMW 良い気分で%ANAME(MASTER)%は宮殿へ戻った
+				PRINTFORMW 良い気分で%ANAME(対象)%は宮殿へ戻った
 				FOR LOCAL, 1, MAX_COUNTRY
 					CALL CHANGE_RELATION_C_TO_C(LOCAL, CFLAG:MASTER:1, 15, -15)
 				NEXT
-				PRINTFORMW 噂が広がり自軍の評判が少しだけ上がった
+				CALL COLORPRINTFORM(@"噂が広がり自軍の評判が少しだけ上がった", COLOR("注意"))
+				PRINTFORMW 
 			ELSEIF RESULT == 1
 				PRINTFORMW 怪我した彼女を殴りつけ気絶させると
 				PRINTFORMW 金目の物を奪い取ってその場を立ち去った
 				PRINTFORMW …果たしてその後彼女がどうなったかはわからない
 				金額 = MIN(1000 * (DAY / 5), 10000)
-				PRINTFORMW 金{金額}を得た
+				SIF 金額 == 0
+					金額 = 1000
 				MONEY += 金額
+				CALL COLORPRINTFORM(@"金{金額}を得た", COLOR("注意"))
+				PRINTFORMW 
 			ELSE
 				PRINTFORMW 倒れる彼女の傍に跪き顔を近づけ、助けてほしければ見返りをよこせと囁く
-				PRINTFORMW 彼女は一瞬驚いた表情を見せしばし顔を俯せた後、泣きそうな顔で%ANAME(MASTER)%を見つめてきた
-				PRINTFORMW %ANAME(MASTER)%が立ち上がり去ろうとすると、背後から待ってと呼びとめる声が聞こえた
+				PRINTFORMW 彼女は一瞬驚いた表情を見せしばし顔を俯せた後、泣きそうな顔で%ANAME(対象)%を見つめてきた
+				PRINTFORMW %ANAME(対象)%が立ち上がり去ろうとすると、背後から待ってと呼びとめる声が聞こえた
 				PRINTFORMW 振り返ると彼女が震えながら「なんでもするから、助けて…ください…」と消え入りそうな声で呟いた
-				PRINTFORMW それを聞いた%ANAME(MASTER)%はニヤリと笑い、少女に近づくと優しく押し倒した
+				PRINTFORMW それを聞いた%ANAME(対象)%はニヤリと笑い、少女に近づくと優しく押し倒した
 				PRINTFORML 
 				PRINTFORMW 少女の豊満な肉体を存分に可愛がってやると、やがて少女の方も自ら身体をくねらせ嬌声を響かせた
 				PRINTFORML 
@@ -510,7 +582,7 @@ SELECTCASE RAND:32
 			ENDIF
 	;外来人の子供と遭遇
 	CASE 14
-		IF IS_MALE(MASTER)
+		IF IS_MALE(対象)
 			PRINTFORMW 外来人の少女と遭遇した
 			PRINTFORMW どうやら幻想郷に迷い込んだばかりらしく、途方に暮れているようだ
 			PRINTFORMW どうしよう？
@@ -520,8 +592,10 @@ SELECTCASE RAND:32
 					PRINTFORMW 見て見ぬふりをして立ち去った
 				ELSEIF RESULT == 0
 					PRINTFORMW 妖怪に襲われるかもしれない
-					PRINTFORMW %ANAME(MASTER)%は彼女を安全な場所まで案内してあげた
+					PRINTFORMW %ANAME(対象)%は彼女を安全な場所まで案内してあげた
 					PRINTFORMW その道中、彼女から面白い話を色々と聞いた
+					CALL PRINT_ADD_EXP(対象, "政治経験値", RAND:8 + 1, 1)
+					CALL PRINT_ADD_EXP(対象, "知略経験値", RAND:8 + 1, 1)
 				ELSE
 					PRINTFORMW 知り合いもいない外来人なら好都合だ
 					PRINTFORMW 少女を騙して人気のない物陰へと連れ込んだ
@@ -534,22 +608,27 @@ SELECTCASE RAND:32
 			PRINTFORMW 外来人の少年と遭遇した
 			PRINTFORMW どうやら幻想郷に迷い込んだばかりらしく、途方に暮れているようだ
 			PRINTFORMW どうしよう？
-			CALL ASK_MULTI_JUDGE(@"安全なところに案内する", 1,"誘惑する", TALENT:MASTER:処女 != 1,"放っておく", 1)
+			CALL ASK_MULTI_JUDGE(@"安全なところに案内する", 1,"誘惑する", TALENT:対象:処女 != 1,"放っておく", 1)
 				IF RESULT == 2
 					PRINTFORMW 面倒事はごめんだ
 					PRINTFORMW 見て見ぬふりをして立ち去った
 				ELSEIF RESULT == 0
 					PRINTFORMW 妖怪に襲われるかもしれない
-					PRINTFORMW %ANAME(MASTER)%は彼を安全な場所まで案内してあげた
+					PRINTFORMW %ANAME(対象)%は彼を安全な場所まで案内してあげた
 					PRINTFORMW その道中、彼から面白い話を色々と聞いた
-					CALL PRINT_ADD_EXP(MASTER, "政治経験値", RAND:8 + 1, 1)
-					CALL PRINT_ADD_EXP(MASTER, "知略経験値", RAND:8 + 1, 1)
+					CALL PRINT_ADD_EXP(対象, "政治経験値", RAND:8 + 1, 1)
+					CALL PRINT_ADD_EXP(対象, "知略経験値", RAND:8 + 1, 1)
 				ELSE
-					PRINTFORMW %ANAME(MASTER)%は案内すると告げて少年を近くの物陰へと連れ込んだ
-					PRINTFORMW そこで少年を誘惑すると彼はゴクリと生唾を飲んで%ANAME(MASTER)%を押し倒してきた
+					PRINTFORMW %ANAME(対象)%は案内すると告げて少年を近くの物陰へと連れ込んだ
+					PRINTFORMW そこで少年を誘惑すると彼はゴクリと生唾を飲んで%ANAME(対象)%を押し倒してきた
 					PRINTFORML 
-					PRINTFORMW 少年の若さに任せた情熱的なセックスで、%ANAME(MASTER)%は何度も絶頂させられ嬌声を響かせた
-					CALL FORCE_FUCK(MASTER, -1, @"少年の\@RAND:2 ? ペニス # 唇\@", @"少年", RAND:2 + 1)
+					PRINTFORMW キスをしながら優しく服を脱がせると、可愛い見た目に似合わぬ凶悪なペニスに露わになった
+					PRINTFORMW 思わぬ逞しさに%ANAME(対象)%は釘付けになり、思わず子宮が疼いてしまうのを感じる
+					PRINTFORMW 我慢できなくなった彼女は自ら割れ目を割れ開き、そそりたつ彼のペニスを導いた
+					PRINTFORMW 少年が一突きで根元までペニスをねじ込むとあまりの衝撃に%ANAME(対象)%は一瞬気が飛んでしまう
+					PRINTFORMW 膣肉の締まりに興奮した少年が若さに任せて腰を打ちつけると、%ANAME(対象)%もそれに合わせてヨガり狂う
+					PRINTFORMW %ANAME(対象)%は彼のペニスとに夢中になって、何度も絶頂させられ嬌声を響かせた
+					CALL FORCE_FUCK(対象, -1, @"少年の\@RAND:2 ? ペニス # 唇\@", @"少年", RAND:2 + 1)
 					PRINTFORML 
 					PRINTFORMW 少年とたっぷりセックスを楽しんだ後、安全なところへ案内してあげた
 				ENDIF
@@ -563,39 +642,42 @@ SELECTCASE RAND:32
 		CALL ASK_MULTI(@"気合除け", "パターンを見切る", "あえて動かない")
 			IF RESULT == 2
 				PRINTFORMW こういう時はあえて動かなけれｂ＼ぴちゅーん／　[Ｐ]
-				COOLTIME:MASTER:0 += 3
-				PRINTFORMW %ANAME(MASTER)%は3ターンのクールダウンに入った
+				CALL ADD_COOLTIME(対象, 3)
+				CALL COLORPRINTFORM(@"%ANAME(対象)%は3ターンのクールダウンに入った", COLOR("注意"))
+				PRINTFORMW 
 			ELSEIF RESULT == 0
 				PRINTFORMW 気合除けを試みた！
 				PRINTFORML ・
 				PRINTFORML ・
 				PRINTFORMW ・
-				IF (ABL:MASTER:武闘) * (RAND:5 + 1) > 40 * (RAND:8 + 1)
+				IF (ABL:対象:武闘) * (RAND:5 + 1) > 40 * (RAND:8 + 1)
 					PRINTFORMW やった！
-					PRINTFORMW %ANAME(MASTER)%は見事弾幕を切り抜けた
+					PRINTFORMW %ANAME(対象)%は見事弾幕を切り抜けた
 					PRINTFORMW 丁度良い訓練になった
-					CALL PRINT_ADD_EXP(MASTER, "武闘経験値", RAND:3 + 1, 1)
+					CALL PRINT_ADD_EXP(対象, "武闘経験値", RAND:3 + 1, 1)
 				ELSE
 					PRINTFORMW しかし弾幕は想像以上に激しく、捕まってしまった！
 					PRINTFORMW ＼ぴちゅーん／　[Ｐ]
-					CALL ADD_COOLTIME(MASTER, 3)
-					PRINTFORMW %ANAME(MASTER)%は3ターンのクールダウンに入った
+					CALL ADD_COOLTIME(対象, 3)
+					CALL COLORPRINTFORM(@"%ANAME(対象)%は3ターンのクールダウンに入った", COLOR("注意"))
+					PRINTFORMW 
 				ENDIF
 			ELSE
 				PRINTFORMW パターンを見切った！
 				PRINTFORML ・
 				PRINTFORML ・
 				PRINTFORMW ・
-				IF (ABL:MASTER:知略) * (RAND:5 + 1) > 40 * (RAND:8 + 1)
+				IF (ABL:対象:知略) * (RAND:5 + 1) > 40 * (RAND:8 + 1)
 					PRINTFORMW やった！
-					PRINTFORMW %ANAME(MASTER)%は見事弾幕を切り抜けた
+					PRINTFORMW %ANAME(対象)%は見事弾幕を切り抜けた
 					PRINTFORMW 丁度良い訓練になった
-					CALL PRINT_ADD_EXP(MASTER, "知略経験値", RAND:3 + 1, 1)
+					CALL PRINT_ADD_EXP(対象, "知略経験値", RAND:3 + 1, 1)
 				ELSE
 					PRINTFORMW しかし弾幕は想像以上に激しく、捕まってしまった！
 					PRINTFORMW ＼ぴちゅーん／　[Ｐ]
-					CALL ADD_COOLTIME(MASTER, 3)
-					PRINTFORMW %ANAME(MASTER)%は3ターンのクールダウンに入った
+					CALL ADD_COOLTIME(対象, 3)
+					CALL COLORPRINTFORM(@"%ANAME(対象)%は3ターンのクールダウンに入った", COLOR("注意"))
+					PRINTFORMW 
 				ENDIF
 			ENDIF
 	;狂気の月を見る
@@ -603,45 +685,59 @@ SELECTCASE RAND:32
 		PRINTFORMW 散策に夢中になり、すっかり夜になってしまった
 		PRINTFORMW 帰宅途中、ふと空を見上げると満月が浮かんでいた
 		PRINTFORMW …いつもより大きい気がする
-		PRINTFORMW 吸い込まれる様な不思議な感覚に陥った
+		SELECTCASE RAND:2
+			CASE 0
+				PRINTFORMW 月を見つめていると、心が沈み言い知れない感覚に落ち込んでいくのを感じた
+				TALENT:対象:抑圧 == 1
+				TALENT:対象:解放 == 0
+				CALL COLORPRINTFORM(@"%ANAME(対象)%は[抑圧的]になった", COLOR("注意"))
+				PRINTFORMW 
+			CASE 1
+				PRINTFORMW 月を見つめていると、心がざわつき不思議な感覚がこみ上げて来るのを感じた
+				TALENT:対象:抑圧 == 0
+				TALENT:対象:解放 == 1
+				CALL COLORPRINTFORM(@"%ANAME(対象)%は[解放的]になった", COLOR("注意"))
+				PRINTFORMW 
+		ENDSELECT
 		PRINTFORMW 一瞬眩暈がして倒れ掛かったが、なんとか正気に戻った
 		PRINTFORMW もう一度空を見上げると、そこにはいつもの大きさの月があった
 		PRINTFORMW 錯覚だったのだろうか？頭をひねりながら宮殿へ戻った
-		
 	;指輪を拾う
 	CASE 17
 		PRINTFORMW 探索中、地面に光る物を見つけた
 		PRINTFORMW 土に埋もれたそれを拾い上げるときらりと光る指輪だった
 		PRINTFORMW 誰かが落としたものだろう
 		PRINTFORMW どうしよう？
-		CALL ASK_MULTI(@"持ち主を探して届ける", "仲間にプレゼントする", "ネコババする", "捨てておく")
+		CALL ASK_MULTI_JUDGE(@"持ち主を探して届ける", 1,"仲間にプレゼントする", 対象 == MASTER,"ネコババする", 1,"捨てておく", 1)
 			IF RESULT == 3
 				PRINTFORMW よく見るとガラス玉の安物だ
-				PRINTFORMW %ANAME(MASTER)%は指輪を放り投げると宮殿へ戻った
+				PRINTFORMW %ANAME(対象)%は指輪を放り投げると宮殿へ戻った
 			ELSEIF RESULT == 2
 				PRINTFORMW 良い物を拾った
 				PRINTFORMW 店に売れば小遣いになるかもしれない
 				金額 = 2000 * (RAND:5 + 1)
-				PRINTFORMW …指輪は金{金額}で売れた
+				CALL COLORPRINTFORM(@"指輪は金{金額}で売れた", COLOR("注意"))
+				PRINTFORMW 
 				MONEY += 金額
 			ELSEIF RESULT == 1
 				PRINTFORMW 誰にプレゼントしようかな？
 				CALL SLG_CHARA_LIST
-				対象 = RESULT
-				IF 対象 == -1
+				仲間 = RESULT
+				IF 仲間 == -1 || 仲間 == 対象
 					PRINTFORMW いや、やっぱり売る事にしよう
-					金額 = 2000 * (RAND:5 + 1)
-					PRINTFORMW …指輪は金{金額}で売れた
+					金額 = 1000 * (RAND:5 + 1)
 					MONEY += 金額
+					CALL COLORPRINTFORM(@"指輪は金{金額}で売れた", COLOR("注意"))
+					PRINTFORMW 
 				ELSE
-					PRINTFORMW %ANAME(対象)%に指輪をプレゼントすると喜んでもらえた
-					CFLAG:対象:好感度 += 150
+					CFLAG:仲間:好感度 += 150
+					PRINTFORMW %ANAME(仲間)%に指輪をプレゼントすると喜んでもらえた
 				ENDIF
 			ELSE
 				PRINTFORMW 指輪の持ち主は落として困ってるだろう
 				PRINTFORMW 持ち主を探すことにした
 				PRINTFORMW …無事に指輪の持ち主に届けることが出来た
-				PRINTFORMW %ANAME(MASTER)%は良い気分で宮殿へ戻った
+				PRINTFORMW %ANAME(対象)%は良い気分で宮殿へ戻った
 			ENDIF
 	;酒を掘り起こす
 	CASE 18
@@ -665,23 +761,26 @@ SELECTCASE RAND:32
 					ELSEIF RESULT == 1
 						PRINTFORMW そんなに美味しそうなお酒ならばぜひ味わいたい
 						PRINTFORMW 無論一人で
-						PRINTFORMW %ANAME(MASTER)%は目の前の男を斬り捨てた
+						PRINTFORMW %ANAME(対象)%は目の前の男を斬り捨てた
 						PRINTFORMW そして男の掘っていた場所を掘り進めると、やがて酒瓶を見つけた
 						PRINTFORMW 中には並々と酒が入っていた
 						PRINTFORMW 試しに一口飲んでみる
 						PRINTFORMW …美味しい！
 						PRINTFORMW 男の言っていた通り大変美味しい
-						PRINTFORMW %ANAME(MASTER)%は酒瓶を持ち帰り、たっぷりと堪能した
-						CALL PRINT_ADD_EXP(MASTER, "肝臓経験値", RAND(50, 100), 1)
+						PRINTFORMW %ANAME(対象)%は酒瓶を持ち帰り、たっぷりと堪能した
+						CALL PRINT_ADD_EXP(対象, "肝臓経験値", RAND(50, 100), 1)
 
 					ELSE
 						PRINTFORMW そういう事なら自分も手伝おう
-						PRINTFORMW %ANAME(MASTER)%は男と二人で地面を掘り返していくと、やがて酒瓶を見つけた
+						PRINTFORMW %ANAME(対象)%は男と二人で地面を掘り返していくと、やがて酒瓶を見つけた
 						PRINTFORMW 中には並々と酒が入っていた
 						PRINTFORMW 試しに一口飲んでみる
 						PRINTFORMW …美味しい！
 						PRINTFORMW 男の言っていた通り大変美味しい
 						PRINTFORMW 彼の家に持ち帰り、二人でたっぷりと堪能した
+						ITEM:果実酒 += 3
+						CALL COLORPRINTFORM(@"土産として果実酒を3個貰った", COLOR("注意"))
+						PRINTFORMW 
 					ENDIF
 			ENDIF
 	;お地蔵さんを見つける
@@ -696,58 +795,65 @@ SELECTCASE RAND:32
 			ELSEIF RESULT == 1
 				PRINTFORMW 手持ちのお菓子を備えて手を合わせた
 				PRINTFORMW …心なしか気分がよくなった気がする
-				MAXBASE:MASTER:体力 += 50
-				PRINTFORMW 体力最大値が{50}上がって、{MAXBASE:MASTER:体力}になった
+				MAXBASE:対象:体力 += 50
+				CALL COLORPRINTFORM(@"体力最大値が{50}上がって、{MAXBASE:対象:体力}になった", COLOR("注意"))
+				PRINTFORMW 
 			ELSE
 				PRINTFORMW このままでは哀れだ
-				PRINTFORMW そう思った%ANAME(MASTER)%は近くの農民に道具を借りて掃除してやることにした
+				PRINTFORMW そう思った%ANAME(対象)%は近くの農民に道具を借りて掃除してやることにした
 				PRINTFORMW …疲れたがさっきより大分ましになった
 				PRINTFORMW 良い気分をして気分よく宮殿へ戻った
-				CALL ADD_COOLTIME(MASTER, 1)
-				MAXBASE:MASTER:体力 += 100
-				PRINTFORMW 体力最大値が{100}上がって、{MAXBASE:MASTER:体力}になった
-				PRINTFORMW %ANAME(MASTER)%は1ターンのクールダウンに入った
+				CALL ADD_COOLTIME(対象, 1)
+				MAXBASE:対象:体力 += 100
+				CALL COLORPRINTFORM(@"体力最大値が{100}上がって、{MAXBASE:対象:体力}になった", COLOR("注意"))
+				PRINTFORMW 
+				CALL COLORPRINTFORM(@"%ANAME(対象)%は1ターンのクールダウンに入った", COLOR("注意"))
+				PRINTFORMW 
+
 			ENDIF
 	;町おこしの手伝い
 	CASE 20
 		CALL DAILY_EVENT_RAND_CITYSELECT(0)
 		対象 = RESULT
-		SIF 対象 > 0
+		SIF 対象 < 0
 			RETURN
-		PRINTFORMW %CITY_NAME:対象%で町起こしの現場に遭遇した
+		PRINTFORMW %CITY_NAME:対象都市%で町起こしの現場に遭遇した
 		PRINTFORMW 町おこしが成功すれば経済が潤いそうだ
 		PRINTFORMW どうしよう？
 		CALL ASK_MULTI(@"協力する", "やめておく")
 			IF RESULT == 1
 				PRINTFORMW 下手に手出しをしないほうが良いだろう
-				PRINTFORMW %ANAME(MASTER)%はしばらく様子を眺めた後、宮殿へ戻った
+				PRINTFORMW %ANAME(対象)%はしばらく様子を眺めた後、宮殿へ戻った
 			ELSE
 				PRINTFORMW 町民に協力を申し出た
 				PRINTFORMW 政治の知識を生かして町おこしを成功させてみせる
 				PRINTFORML ・
 				PRINTFORML ・
 				PRINTFORMW ・
-				IF ABL:MASTER:政治 / 10 > RAND:10 + 1
+				IF ABL:対象:政治 / 10 > RAND:10 + 1
 					PRINTFORMW やった！
 					PRINTFORMW 見事町おこしに成功した
-					PRINTFORMW %ANAME(MASTER)%は町民に感謝されて宮殿へ戻った
-					LOCAL:1 = RAND(CITY_ECONOMY_LIMIT:(対象) / 100 * 100 / 10 , CITY_ECONOMY_LIMIT:(対象) / 100 * 100 / 10 + 1000)
-					IF CITY_ECONOMY:対象 == CITY_ECONOMY_LIMIT:対象
-						CITY_ECONOMY_LIMIT:対象 += LOCAL:1
-						PRINTFORML %CITY_NAME:対象%の経済規模の上限が{LOCAL:1 / 100}上昇し、{CITY_ECONOMY_LIMIT:対象 / 100}になった！
+					PRINTFORMW %ANAME(対象)%は町民に感謝されて宮殿へ戻った
+					LOCAL:1 = RAND(CITY_ECONOMY_LIMIT:(対象都市) / 100 * 100 / 10 , CITY_ECONOMY_LIMIT:(対象都市) / 100 * 100 / 10 + 1000)
+					IF CITY_ECONOMY:対象都市 == CITY_ECONOMY_LIMIT:対象都市
+						CITY_ECONOMY_LIMIT:対象都市 += LOCAL:1
+						CALL COLORPRINTFORM(@"%CITY_NAME:対象都市%の経済規模の上限が{LOCAL:1 / 100}上昇し、{CITY_ECONOMY_LIMIT:対象都市 / 100}になった！", COLOR("注意"))
+						PRINTFORMW 
 					ELSE
-						SIF CITY_ECONOMY:対象 + LOCAL:1 >= CITY_ECONOMY_LIMIT:対象
-							LOCAL:1 = MIN(LOCAL:1, CITY_ECONOMY_LIMIT:対象 - CITY_ECONOMY)
-						CITY_ECONOMY:対象 += LOCAL:1
-						PRINTFORML %CITY_NAME:対象%の経済規模が{LOCAL:1 / 100}上昇し、{CITY_ECONOMY:対象 / 100}になった！
+						SIF CITY_ECONOMY:対象都市 + LOCAL:1 >= CITY_ECONOMY_LIMIT:対象都市
+							LOCAL:1 = MIN(LOCAL:1, CITY_ECONOMY_LIMIT:対象都市 - CITY_ECONOMY)
+						CITY_ECONOMY:対象都市 += LOCAL:1
+						CALL COLORPRINTFORM(@"%CITY_NAME:対象都市%の経済規模が{LOCAL:1 / 100}上昇し、{CITY_ECONOMY:対象都市 / 100}になった！", COLOR("注意"))
+						PRINTFORMW 
 					ENDIF
 				ELSE
 					PRINTFORMW 失敗した…
 					PRINTFORMW 町おこしに失敗し、むしろ経済は衰退してしまった
-					PRINTFORMW %ANAME(MASTER)%は肩を落とす町民から逃げる様に宮殿へ戻った……
-					LOCAL:1 = RAND(CITY_ECONOMY_LIMIT:(対象) / 100 * 100 / 10 , CITY_ECONOMY_LIMIT:(対象) / 100 * 100 / 10 + 1000)
-					CITY_ECONOMY:対象 -= LOCAL:1
-					PRINTFORML %CITY_NAME:対象%の経済規模が{LOCAL:1 / 100}減少し、{CITY_ECONOMY:対象 / 100}になった……
+					PRINTFORMW %ANAME(対象)%は肩を落とす町民から逃げる様に宮殿へ戻った
+					LOCAL:1 = RAND(CITY_ECONOMY_LIMIT:(対象都市) / 100 * 100 / 10 , CITY_ECONOMY_LIMIT:(対象都市) / 100 * 100 / 10 + 1000)
+					CITY_ECONOMY:対象都市 -= LOCAL:1
+					CALL COLORPRINTFORM(@"%CITY_NAME:対象都市%の経済規模が{LOCAL:1 / 100}減少し、{CITY_ECONOMY:対象都市 / 100}になった…", COLOR("注意"))
+					PRINTFORMW 
 				ENDIF
 			ENDIF
 	;迷子になる
@@ -756,12 +862,16 @@ SELECTCASE RAND:32
 		PRINTFORMW 見慣れぬ道を進み過ぎて迷子になってしまったようだ
 		PRINTFORMW 散々歩き回り疲れ果て、結局通りすがった人力車を頼んで宮殿へ帰り着いた
 		金額 = MIN(1000 * (RAND:5 + 1), 10000)
+		SIF 金額 == 0
+			金額 = 1000
 		SIF 金額 > MONEY
 			金額 = MONEY / 4
 		MONEY -= 金額
-		CALL ADD_COOLTIME(MASTER:0, 2)
-		PRINTFORMW 金{金額}を失った
-		PRINTFORMW %ANAME(MASTER)%は2ターンのクールダウンに入った
+		CALL ADD_COOLTIME(対象:0, 2)
+		CALL COLORPRINTFORM(@"金{金額}を消費した", COLOR("注意"))
+		PRINTFORMW 
+		CALL COLORPRINTFORM(@"%ANAME(対象)%は2ターンのクールダウンに入った", COLOR("注意"))
+		PRINTFORMW 
 	;スリにあう
 	CASE 22
 		金額 = MIN((MONEY / 5) + 3000 * (DAY / 10), 10000)
@@ -771,45 +881,49 @@ SELECTCASE RAND:32
 		PRINTFORMW なんとなく懐を調べると財布がない！
 		PRINTFORMW どうやら、スリにあってしまったようだ
 		MONEY -= 金額
-		PRINTFORMW 金{金額}を失った
+		CALL COLORPRINTFORM(@"金{金額}を消費した", COLOR("注意"))
+		PRINTFORMW 
 	;弾幕ごっこを挑まれる
 	CASE 23
 		PRINTFORMW 道を歩いていると、野良妖怪に弾幕ごっこを挑まれた
-		PRINTFORMW 挑まれたからには逃げるわけにもいくまい、%ANAME(MASTER)%は全力で相手をした
+		PRINTFORMW 挑まれたからには逃げるわけにもいくまい、%ANAME(対象)%は全力で相手をした
 		PRINTFORML ・
 		PRINTFORML ・
 		PRINTFORMW ・
-		変化値 = RAND:3 + 1
-		IF ABL:MASTER:武闘 + ABL:MASTER:知略 >= 40 * (RAND:5 + 1)
+		IF ABL:対象:武闘 + ABL:対象:知略 >= 40 * (RAND:5 + 1)
 			PRINTFORMW 見事勝利した！
 			PRINTFORMW 良い勝負で自信がついた
-			CALL PRINT_ADD_EXP(MASTER, "武闘経験値", RAND:6 + 1, 1)
-			CALL PRINT_ADD_EXP(MASTER, "知略経験値", RAND:6 + 1, 1)
+			CALL PRINT_ADD_EXP(対象, "武闘経験値", RAND:6 + 1, 1)
+			CALL PRINT_ADD_EXP(対象, "知略経験値", RAND:6 + 1, 1)
 		ELSE
-			IF IS_MALE(MASTER)
+			IF IS_MALE(対象)
 				PRINTFORMW 負けてしまった
 				PRINTFORMW 野良妖怪に負けて自信を失った…
-				CALL ADD_COOLTIME(MASTER:0, 2)
-				PRINTFORMW %ANAME(MASTER)%は2ターンのクールダウンに入った
+				CALL ADD_COOLTIME(対象:0, 2)
+				PRINTFORMW %ANAME(対象)%は2ターンのクールダウンに入った
 			ELSE
 				PRINTFORMW 負けてしまった
-				PRINTFORMW 野良妖怪は勝負に負けた%ANAME(MASTER)%をねぐらへと連れ込んだ
+				PRINTFORMW 野良妖怪は勝負に負けた%ANAME(対象)%をねぐらへと連れ込んだ
 				PRINTFORML 
-				PRINTFORMW %ANAME(MASTER)%は敗北の代償として、野良妖怪によって夜通し子作りを強要された
-				CALL FORCE_FUCK(MASTER, -1, @"野良妖怪の\@RAND:2 ? ペニス # 唇\@", @"野良妖怪", RAND:2 + 1)
+				PRINTFORMW %ANAME(対象)%は股間から大量の白濁液を垂れ流しながら、息も絶え絶えになっている
+				PRINTFORMW 敗北の代償として妖怪に散々犯されつくされた%ANAME(対象)%は、しかし恍惚の表情を浮かべて横たわっている
+				PRINTFORMW 妖怪の荒々しいセックスに彼女は身も心もすっかりメロメロにされてしまっているのだ
+				PRINTFORMW 休憩を終えた彼が%ANAME(対象)%を抱き寄せると、彼女は熱っぽい視線を送って次をおねだりする
+				PRINTFORMW 妖怪もそれに応えて早速ペニスを%ANAME(対象)%に挿入し、激しく腰を振りだした
+				CALL FORCE_FUCK(対象, -1, @"野良妖怪の\@RAND:2 ? ペニス # 唇\@", @"野良妖怪", RAND:2 + 1)
 				PRINTFORML 
-				PRINTFORMW 一晩中犯され続けた後解放された%ANAME(MASTER)%は、震える身体を引きずり宮殿へ戻った
+				PRINTFORMW 一晩中犯され続けた後解放された%ANAME(対象)%は、震える身体を引きずり宮殿へ戻った
 			ENDIF
 		ENDIF
 	;ナンパされる
 	CASE 24
 		PRINTFORMW 街中を散策中、ナンパされた
-		IF IS_MALE(MASTER)
-			PRINTFORMW %ANAME(MASTER)%好みの女性だ
-			PRINTFORMW 艶めかしく体をくねらせ、%ANAME(MASTER)%を誘ってくる
+		IF IS_MALE(対象)
+			PRINTFORMW %ANAME(対象)%好みの女性だ
+			PRINTFORMW 艶めかしく体をくねらせ、%ANAME(対象)%を誘ってくる
 		ELSE
 			PRINTFORMW 立派な体格の男性だ
-			PRINTFORMW 馴れ馴れしく肩に手を回して、%ANAME(MASTER)%を誘ってくる
+			PRINTFORMW 馴れ馴れしく肩に手を回して、%ANAME(対象)%を誘ってくる
 		ENDIF
 		PRINTFORMW どうしよう？
 		CALL ASK_MULTI(@"誘いに乗る", "誘いを断る")
@@ -817,71 +931,85 @@ SELECTCASE RAND:32
 				PRINTFORMW あいにくそんな気分ではない
 				PRINTFORMW しつこい相手をあしらって宮殿へ戻った
 			ELSE
-				PRINTFORMW %ANAME(MASTER)%は相手の誘いに乗り、腕を組んで近くの宿屋へと入っていった
+				PRINTFORMW %ANAME(対象)%は相手の誘いに乗り、腕を組んで近くの宿屋へと入っていった
 				PRINTFORML 
-				PRINTFORMW 相手との身体の相性は抜群でお互いに何度も絶頂しながら、一晩中セックスを楽しんだ
-				SIF IS_FEMALE(MASTER)
-					CALL FORCE_FUCK(MASTER, -1, @"ならず者の\@RAND:2 ? ペニス # 唇\@", @"ならず者", RAND:2 + 1)
+				IF IS_MALE(対象)
+					PRINTFORMW 相手との身体の相性は抜群でお互いに何度も絶頂しながら、一晩中セックスを楽しんだ
+				ELSE
+					PRINTFORMW 部屋の中に肉のぶつかる音と%ANAME(対象)%の悦びの声がリズミカルに響いている
+					PRINTFORMW お互いをヒッシと抱きあいながらまぐわう二人の結合部からは、大量の精液と愛液が溢れている
+					PRINTFORMW %ANAME(対象)%と彼の相性は抜群で、宿に入ってから休憩も挟まずひたすら獣の様に交尾を続けている
+					PRINTFORMW 結局夜が白むまで二人は繋がりっぱなしで何度も何度も絶頂を繰り返した
+					CALL FORCE_FUCK(対象, -1, @"ならず者の\@RAND:2 ? ペニス # 唇\@", @"ならず者", RAND:2 + 1)
+				ENDIF
 				PRINTFORML 
 				PRINTFORMW 相手と連絡先を教え合い、言葉の代わりに濃厚なキスを交わして別れた
 			ENDIF
 	;鬼に挑まれる
 	CASE 25
 		PRINTFORMW 郊外を歩いていると、目の前に鬼が立ちはだかった
-		PRINTFORMW %ANAME(MASTER)%の噂を聞いてやって来たらしい、力試しがしたいとのことだ
+		PRINTFORMW %ANAME(対象)%の噂を聞いてやって来たらしい、力試しがしたいとのことだ
 		PRINTFORMW どうしよう？
 		CALL ASK_MULTI(@"力試しをする", "断る")
 			IF RESULT == 1
 				PRINTFORMW 断ると鬼は臆病者と罵って去って行った
-				PRINTFORMW %ANAME(MASTER)%は失礼な奴だと憤りながら宮殿へ戻った
+				PRINTFORMW %ANAME(対象)%は失礼な奴だと憤りながら宮殿へ戻った
 			ELSE
 				PRINTFORMW 挑戦を受けると鬼は嬉しそうに笑い早速かかってきた
 				PRINTFORML ・
 				PRINTFORML ・
 				PRINTFORMW ・
-				IF ABL:MASTER:武闘 > 70 + ((DAY / 10) * (RAND:10 + 1))
+				IF ABL:対象:武闘 > 70 + ((DAY / 10) * (RAND:10 + 1))
 					PRINTFORMW 見事鬼を打倒した！
-					PRINTFORMW 鬼は%ANAME(MASTER)%の力を認め、深々と頭を下げると手下ともども仲間にしてほしいと言ってきた
+					PRINTFORMW 鬼は%ANAME(対象)%の力を認め、深々と頭を下げると手下ともども仲間にしてほしいと言ってきた
 					PRINTFORMW 仲間が増えるのは大歓迎だ、受け入れてやることにした
 					兵数 = MIN(1000 * (DAY / 10), 10000)
-					COUNTRY_SOLDIER:(CFLAG:MASTER:1) += 兵数
+					SIF 兵数 == 0
+						兵数 = 1000
+					COUNTRY_SOLDIER:(CFLAG:対象:1) += 兵数
 					PRINTFORMW 兵数が{兵数}増えた
 				ELSE
 					PRINTFORMW 鬼は想像以上に強く、負けてしまった
-					PRINTFORMW 地面に横たわる%ANAME(MASTER)%を見下ろすと鬼は首を振りながら去って行った
-					CALL ADD_COOLTIME(MASTER:0, 3)
-					PRINTFORMW %ANAME(MASTER)%は3ターンのクールダウンに入った
+					PRINTFORMW 地面に横たわる%ANAME(対象)%を見下ろすと鬼は首を振りながら去って行った
+					CALL ADD_COOLTIME(対象:0, 3)
+					CALL COLORPRINTFORM(@"%ANAME(対象)%は3ターンのクールダウンに入った", COLOR("注意"))
+					PRINTFORMW 
+
 				ENDIF
 			ENDIF
 	;宴に参加する
 	CASE 26
 		PRINTFORMW 探索の途中、楽しそうな声が聞こえてきた
 		PRINTFORMW 声のする方へ向かうと、そこでは宴が催されていた
-		PRINTFORMW 参加者に手招きされ、%ANAME(MASTER)%も大量の酒を振る舞われた
+		PRINTFORMW 参加者に手招きされ、%ANAME(対象)%も大量の酒を振る舞われた
 		PRINTFORML ・
 		PRINTFORML ・
 		PRINTFORMW ・
-		IF ABL:MASTER:肝臓 >= 5
-			PRINTFORMW %ANAME(MASTER)%の呑みっぷりに拍手喝さいが起こった
+		IF ABL:対象:肝臓 >= 5
+			PRINTFORMW %ANAME(対象)%の呑みっぷりに拍手喝さいが起こった
 			PRINTFORMW 楽しい宴は夜通し続いた
 		ELSE
-			IF IS_MALE(MASTER)
-				PRINTFORMW %ANAME(MASTER)%は酔い潰れてしまった
+			IF IS_MALE(対象)
+				PRINTFORMW %ANAME(対象)%は酔い潰れてしまった
 				PRINTFORMW 気が付いた時には宴は終わっており、懐の財布が軽くなっていた
 				金額 = MIN(MONEY / 10 + (2000 * DAY / 10), 10000)
 				SIF 金額 > MONEY
 					金額 = MONEY / 2
-				PRINTFORMW 金{金額}を失った
 				MONEY -= 金額
+				CALL COLORPRINTFORM(@"金{金額}を失った", COLOR("注意"))
+				PRINTFORMW 
 			ELSE
-				PRINTFORMW %ANAME(MASTER)%は酔い潰れてしまった
+				PRINTFORMW %ANAME(対象)%は酔い潰れてしまった
 				PRINTFORMW 朦朧としている彼女は宴の参加者の一人によって物陰に連れ込まれた
 				PRINTFORML 
-				PRINTFORMW 泥酔している彼女は男の言いなりのまま奉仕させられ、ご褒美と称して大量の種を放たれた
-				CALL FORCE_FUCK(MASTER, -1, @"ならず者の\@RAND:2 ? ペニス # 唇\@", @"ならず者", RAND:2 + 1)
+				PRINTFORMW 泥酔している%ANAME(対象)%は男に言われるがままに奉仕させられている
+				PRINTFORMW 寝転ぶ彼に跨り従順にペニスを咥えこんで腰を振る%ANAME(対象)%は、トロケた表情で熱い吐息を吐いている
+				PRINTFORMW %ANAME(対象)%の頭の中は下腹部から与えられる熱と快楽で埋め尽くされ、もはや男の言いなりになっている
+				PRINTFORMW やがて満足した男によってご褒美と称して大量の精液を放たれながら、彼女はあられもない声を上げて絶頂した
+				CALL FORCE_FUCK(対象, -1, @"ならず者の\@RAND:2 ? ペニス # 唇\@", @"ならず者", RAND:2 + 1)
 				PRINTFORML 
 				PRINTFORMW 気が付いた時には宴は終わっていた
-				PRINTFORMW %ANAME(MASTER)%は頭を抱え、本人も気づかぬうちに太腿に漏れ出た精液を垂らしながら宮殿へ戻った
+				PRINTFORMW %ANAME(対象)%は頭を抱え、本人も気づかぬうちに太腿に漏れ出た精液を垂らしながら宮殿へ戻った
 			ENDIF
 		ENDIF
 	;呪いの人形
@@ -892,52 +1020,54 @@ SELECTCASE RAND:32
 		CALL ASK_MULTI(@"持ち帰る", "焼いてしまう", "放っておく")
 			IF RESULT == 0
 				PRINTFORMW 人形と目があった気がする
-				PRINTFORMW 吸い込まれるように人形に手が伸び、%ANAME(MASTER)%はそれを拾い上げると
+				PRINTFORMW 吸い込まれるように人形に手が伸び、%ANAME(対象)%はそれを拾い上げると
 				PRINTFORMW 懐に大事にしまって宮殿へ戻った
 				PRINTFORMW 人形を神棚に飾っておくと、なんだか仕事が捗るようになった気がした
-				CALL PRINT_ADD_EXP(MASTER, "政治経験値", RAND:3 + 1, 1)
+				CALL PRINT_ADD_EXP(対象, "政治経験値", RAND:3 + 1, 1)
 			ELSEIF RESULT == 1
-				PRINTFORMW 嫌な予感がした%ANAME(MASTER)%はその場で人形を焼くことにした
+				PRINTFORMW 嫌な予感がした%ANAME(対象)%はその場で人形を焼くことにした
 				PRINTFORMW 人形が火に包まれると、辺りにこの世のものとは思えない絶叫が響いた
 				PRINTFORMW 火が収まるとそこには焼け残った動物の骨が残っていた…
 			ELSE
-				PRINTFORMW 嫌な予感がした%ANAME(MASTER)%は人形を放置して足早に宮殿に戻った
+				PRINTFORMW 嫌な予感がした%ANAME(対象)%は人形を放置して足早に宮殿に戻った
 				PRINTFORMW 
-				PRINTFORMW 部屋に戻った%ANAME(MASTER)%は驚愕した！
+				PRINTFORMW 部屋に戻った%ANAME(対象)%は驚愕した！
 				PRINTFORMW 机の上に先ほどの人形が置いてあるではないか！
 				PRINTFORMW 誰かの悪戯かと思い、窓から投げ捨てたが次の日にはまた元の位置にあった
 				PRINTFORMW …人形は何度捨てても気づいたらそばに戻って来ていた
-				TALENT:MASTER:中毒しやすい = 1
-				TALENT:MASTER:痛みに弱い = 1
-				PRINTFORMW %ANAME(MASTER)%は[痛みに弱い][中毒しやすい]になった
+				TALENT:対象:中毒しやすい = 1
+				TALENT:対象:痛みに弱い = 1
+				TALENT:対象:痛みに強い = 0
+				CALL COLORPRINTFORM(@"%ANAME(対象)%は[痛みに弱い][中毒しやすい]になった", COLOR("注意"))
+				PRINTFORMW 
 			ENDIF
 	;カラオケ大会に参加する
 	CASE 28
 		PRINTFORMW カラオケ大会に遭遇した
-		PRINTFORMW %ANAME(MASTER)%も参加しないかと言われた
+		PRINTFORMW %ANAME(対象)%も参加しないかと言われた
 		PRINTFORMW どうしよう？
 		CALL ASK_MULTI(@"飛び入り参加する", "やめておく")
 			IF RESULT == 1
 				PRINTFORMW 歌うよりも聞く方が好きだ
-				PRINTFORMW %ANAME(MASTER)%は他の観客と一緒になって大会を楽しんだ
+				PRINTFORMW %ANAME(対象)%は他の観客と一緒になって大会を楽しんだ
 			ELSE
 				PRINTFORMW そう言われたら断れない！
-				PRINTFORMW %ANAME(MASTER)%はマイクを掴み、渾身の歌を披露した
+				PRINTFORMW %ANAME(対象)%はマイクを掴み、渾身の歌を披露した
 				PRINTFORML ・
 				PRINTFORML ・
 				PRINTFORMW ・
-				変化値 = RAND:3 + 1
-				IF (ABL:MASTER:歌唱) * (RAND:5 + 1) > 30 * (RAND:10 + 1)
+				IF (ABL:対象:歌唱) * (RAND:5 + 1) > 30 * (RAND:10 + 1)
 					PRINTFORMW やった！
-					PRINTFORMW %ANAME(MASTER)%は見事高得点をたたき出した！
+					PRINTFORMW %ANAME(対象対象)%は見事高得点をたたき出した！
 					PRINTFORMW 観客のアンコールに応え、続けて2曲目を披露した
-					CALL PRINT_ADD_EXP(MASTER, "歌唱経験値", RAND:3 + 1, 1)
+					CALL PRINT_ADD_EXP(対象, "歌唱経験値", RAND:3 + 1, 1)
 				ELSE
 					PRINTFORMW 「ひっこめへたくそ！」
 					PRINTFORMW 観客から石を投げられた
-					PRINTFORMW %ANAME(MASTER)%は自信を失った…
-					CALL ADD_COOLTIME(MASTER, 2)
-					PRINTFORMW %ANAME(MASTER)%は2ターンのクールダウンに入った
+					PRINTFORMW %ANAME(対象)%は自信を失った…
+					CALL ADD_COOLTIME(対象, 2)
+					CALL COLORPRINTFORM(@"%ANAME(対象)%は2ターンのクールダウンに入った", COLOR("注意"))
+					PRINTFORMW 
 				ENDIF
 			ENDIF
 	;不思議なお店
@@ -945,8 +1075,8 @@ SELECTCASE RAND:32
 		金額 = 1000
 		SIF MONEY < 1000
 			金額 = 1000
-		PRINTFORMW 商店街を歩いていると気になる雰囲気お店を見つけた
-		PRINTFORMW 一件ただの料理店に見えるが、%ANAME(MASTER)%は入店することにした
+		PRINTFORMW 商店街を歩いているとなんだか気になる雰囲気のお店を見つけた
+		PRINTFORMW 一件ただの料理店に見えるが、%ANAME(対象)%は入店することにした
 		PRINTFORMW 店の中は神秘的な雰囲気を醸し出していた
 		PRINTFORMW 店員は狐のお面をつけていたのが気になったが、接客は普通の様だ
 		PRINTFORMW 席につき、適当なメニューを注文する
@@ -954,24 +1084,31 @@ SELECTCASE RAND:32
 		PRINTFORML ・
 		PRINTFORML ・
 		PRINTFORMW ・
-		IF IS_FEMALE(MASTER) && RAND:2 == 0
+		IF IS_FEMALE(対象) && RAND:2 == 0
 			PRINTFORMW 料理を食べていると次第に気が遠くなっていく
-			PRINTFORMW やがて%ANAME(MASTER)%の視線は虚ろとなり、体をだらりと垂らして放心状態になった
+			PRINTFORMW やがて%ANAME(対象)%の視線は虚ろとなり、体をだらりと垂らして放心状態になった
 			PRINTFORMW すると例の店員が現れ、彼女の身体を抱きかかえて店の奥へと連れ込んだ
 			PRINTFORML 
-			PRINTFORMW %ANAME(MASTER)%は意識が曖昧なまま店員に犯されてしまい、朦朧とする意識の中で何度も絶頂させられた
-			CALL FORCE_FUCK(MASTER, -1, @"ならず者の\@RAND:2 ? ペニス # 唇\@", @"ならず者", RAND:2 + 1)
+			PRINTFORMW 「あっ♥ああっ、あん♥ご主人様♥気持ちいいです♥あ♥あぁん♥」
+			PRINTFORMW 薬によって洗脳された彼女は淫らな言葉を吐きながら自ら店員に犯されている
+			PRINTFORMW その目はハートになっており、“ご主人様”に突かれる度に悦びの声を上げて体を震わせる
+			PRINTFORMW 「ああ♥あっあっ♥ん♥イく♥イく♥イきます♥淫乱雌奴隷の%ANAME(対象)%は♥♥あっ♥はしたなくイきますぅぅぅ♥♥♥」
+			PRINTFORMW 大きく背を反らしながら絶頂する彼女がぎゅううときつくペニスを締め上げると
+			PRINTFORMW 男も耐えきれずに彼女の中に大量射精をし、その熱で彼女は更に一際大きく喘ぎながら連続絶頂した
+			CALL FORCE_FUCK(対象, -1, @"ならず者の\@RAND:2 ? ペニス # 唇\@", @"ならず者", RAND:2 + 1)
 			PRINTFORML 
 			PRINTFORMW 気が付いた時には料理を食べ終わっていた
-			PRINTFORMW %ANAME(MASTER)%はいつの間に食べ終わったのか訝しみながらも店を後にした
+			PRINTFORMW %ANAME(対象)%はいつの間に食べ終わったのか訝しみながらも店を後にした
 			MONEY -= 金額
-			PRINTFORMW 金{金額}を支払った
-			CFLAG:MASTER:薬物依存 += RAND(20, 50)
+			CALL COLORPRINTFORM(@"金{金額}を支払った", COLOR("注意"))
+			PRINTFORMW 
+			CFLAG:対象:薬物依存 += RAND(20, 50)
 		ELSE
 			PRINTFORMW とても素敵な店だった、また来る事にしよう
 			MONEY -= 金額
-			PRINTFORMW 金{金額}を支払った
-			CFLAG:MASTER:薬物依存 += RAND(20, 50)
+			CALL COLORPRINTFORM(@"金{金額}を支払った", COLOR("注意"))
+			PRINTFORMW 
+			CFLAG:対象:薬物依存 += RAND(20, 50)
 		ENDIF
 	;妖精を懲らしめる
 	CASE 30
@@ -982,9 +1119,9 @@ SELECTCASE RAND:32
 			ENDIF
 		NEXT
 		IF 候補数 == 0
-			対象 = 0
+			仲間 = 0
 		ELSE
-			対象 = FINDELEMENT(候補キャラ, MAXARRAY(候補キャラ))
+			仲間 = FINDELEMENT(候補キャラ, MAXARRAY(候補キャラ))
 		ENDIF
 		PRINTFORMW 街外れを歩いていると茂みがガサガサと動いていた
 		PRINTFORMW 妖怪でも潜んでいるのかと目を凝らしてみると、妖精が隠れているのを見つけた
@@ -999,24 +1136,24 @@ SELECTCASE RAND:32
 				PRINTFORMW そんな事を考えながら素知らぬ顔で茂みに近づく
 				PRINTFORMW すると
 				PRINTFORMW 「ワー！」と大声を上げながら妖精が飛び出してきた
-				PRINTFORMW %ANAME(MASTER)%は大げさに驚きその場に倒れ込む演技をした
+				PRINTFORMW %ANAME(対象)%は大げさに驚きその場に倒れ込む演技をした
 				PRINTFORMW 妖精はその反応を気を良くしたのか、キャッキャと喜びながら飛び去って行った
-				IF !(対象 <= 0)
+				IF 仲間 != 0 && 対象 == MASTER
 					PRINTFORMW 可愛いものだと立ち上がると、背後から声をかけられた
 					PRINTFORMW %ANAME(対象)%だ、どうやら見られていたらしい
-					PRINTFORMW くすくすと笑う%ANAME(対象)%にからかわれながら、共に宮殿へと戻った
-					CFLAG:対象:面識 = 1
-					CFLAG:対象:好感度 += 150
+					PRINTFORMW くすくすと笑う%ANAME(仲間)%にからかわれながら、共に宮殿へと戻った
+					CFLAG:仲間:面識 = 1
+					CFLAG:仲間:好感度 += 150
 				ELSE
 					PRINTFORMW 可愛いものだと立ち上がり、宮殿へ戻った
 				ENDIF
 			ELSE
-				PRINTFORMW 悪戯妖精を懲らしめてやろうと思った%ANAME(MASTER)%はそっと回り込んだ
+				PRINTFORMW 悪戯妖精を懲らしめてやろうと思った%ANAME(対象)%はそっと回り込んだ
 				PRINTFORMW …そして茂みに隠れている妖精に背後から飛びかかった！
 				PRINTFORMW 突然の事に悲鳴を上げて暴れる妖精を地面に押さえ込む
 				PRINTFORMW 妖精は暫くじたばたと暴れていたが、やがて大人しくなるとシクシク泣きだした
 				PRINTFORMW どうしよう？
-				CALL ASK_MULTI_JUDGE(@"尻叩きで勘弁してやる", 1,"可愛そうになったから逃がしてやる", 1,"犯す", IS_MALE(MASTER))
+				CALL ASK_MULTI_JUDGE(@"尻叩きで勘弁してやる", 1,"可愛そうになったから逃がしてやる", 1,"犯す", IS_MALE(対象))
 					IF RESULT == 0
 						PRINTFORMW ここは心を鬼にして懲らしめることにする
 						PRINTFORMW 妖精をのお尻を突き出させ、思い切り引っ叩く
@@ -1028,7 +1165,7 @@ SELECTCASE RAND:32
 						PRINTFORMW 次は容赦しない事にしよう
 					ELSE
 						PRINTFORMW 妖精でも女には違いない、そして妖精相手なら誰にも咎められないだろう
-						PRINTFORMW %ANAME(MASTER)%は妖精の口を塞いで茂みの奥へと連れ込んだ
+						PRINTFORMW %ANAME(対象)%は妖精の口を塞いで茂みの奥へと連れ込んだ
 						PRINTFORML 
 						PRINTFORMW 泣き喚く妖精の身体を抱え、きつく締まる膣肉を堪能しながら何発も射精した
 						PRINTFORML 
@@ -1045,28 +1182,988 @@ SELECTCASE RAND:32
 			ENDIF
 		NEXT
 		IF 候補数 == 0
-			対象 = 0
+			仲間 = 0
 		ELSE
-			対象 = FINDELEMENT(候補キャラ, MAXARRAY(候補キャラ))
+			仲間 = FINDELEMENT(候補キャラ, MAXARRAY(候補キャラ))
 		ENDIF
 		金額 = 2000
 		SIF MONEY < 2000
 			金額 = MONEY / 2
-		IF !(対象 <= 0)
+		IF 仲間 != 0 && 対象 == MASTER
 			PRINTFORMW 街中を食べ歩きしていると、見知った姿を見かけた
-			PRINTFORMW %ANAME(対象)%だ
+			PRINTFORMW %ANAME(仲間)%だ
 			PRINTFORMW 向こうもこちらに気付くと近づいてきた
 			PRINTFORMW 久しぶりの休日で街をぶらぶらしていたらしい
 			PRINTFORMW 良ければ一緒に歩かないかと誘うと、少し思案した後に了承してくれた
-			PRINTFORMW %ANAME(対象)%と一緒に楽しんだ
+			PRINTFORMW %ANAME(仲間)%と一緒に楽しんだ
 			MONEY -= 金額
-			CFLAG:対象:面識 = 1
-			CFLAG:対象:好感度 += 200
-			PRINTFORMW 金{金額}を支払った
+			CFLAG:仲間:面識 = 1
+			CFLAG:仲間:好感度 += 200
+			CALL COLORPRINTFORM(@"金{金額}を支払った", COLOR("注意"))
+			PRINTFORMW 
 		ELSE
-			PRINTFORMW 一人で食べ歩きした
+			PRINTFORMW %ANAME(対象)%は久しぶりの休日に一人で食べ歩きをして楽しんだ
 			MONEY -= 金額
-			PRINTFORMW 金{金額}を支払った
+			CALL COLORPRINTFORM(@"金{金額}を支払った", COLOR("注意"))
+			PRINTFORMW 
+		ENDIF
+	;奴隷商人に出会う
+	CASE 32
+		金額 = 3000
+		LOCAL = RAND:6 + 2
+		PRINTFORMW 領内を巡回していると鎖に繋がれた子供たちを引き連れた男に出会った
+		PRINTFORMW 引きとめて話を聞くと、奴隷商人らしい
+		PRINTFORMW 身寄りのない孤児たちを捕まえて売りに行くところだとか
+		PRINTFORMW 「お客さん、1人どうです？お安くしておきますよ？」
+		PRINTFORMW 奴隷は{LOCAL}人、値段は一人金{金額}らしい
+		PRINTFORMW どうしよう？
+		CALL ASK_MULTI_JUDGE(@"好みの少女を買う", MONEY >= 金額 && IS_MALE(対象),"全員買う", MONEY >= 金額 * LOCAL,"斬り捨てる", 1,"立ち去る", 1)
+			IF RESULT == 3
+				PRINTFORMW 今の世の中ではこう言ったことは珍しくない
+				PRINTFORMW そして今は特に奴隷を買うつもりもない
+				PRINTFORMW %ANAME(対象)%は立ち去った
+			ELSEIF RESULT == 2
+				PRINTFORMW 何という男だ！
+				PRINTFORMW %ANAME(対象)%は怒りのままに男を斬り捨てた！
+				PRINTFORMW そして部下に命じて子供たちを孤児院まで連れて行かせた
+				PRINTFORMW 孤児院に預ける為に多少の金はかかったが、子供たちの為ならば安いものだ
+				金額 = 10000
+				SIF MONEY < 10000
+					金額 = MONEY / 2
+				MONEY -= 金額
+				FOR LOCAL, 1, MAX_COUNTRY
+					CALL CHANGE_RELATION_C_TO_C(LOCAL, CFLAG:MASTER:1, 15, -15)
+				NEXT
+				CALL COLORPRINTFORM(@"金{金額}を支払った", COLOR("注意"))
+				PRINTFORMW 
+				CALL COLORPRINTFORM(@"この事は噂として広がり評判が上がった", COLOR("注意"))
+				PRINTFORMW 
+			ELSEIF RESULT == 0
+				PRINTFORMW 好みの少女を見つけた%ANAME(対象)%はその子を買う事にした
+				PRINTFORMW おびえた表情で震える娘を引っ張り宮殿へと戻った
+				PRINTFORML 
+				PRINTFORMW 早速娘を自室に連れ込むと、泣き喚く少女の初物の身体を存分に味わった
+				PRINTFORML 
+				MONEY -= 金額
+				CALL COLORPRINTFORM(@"金{金額}を支払った", COLOR("注意"))
+				PRINTFORMW 
+			ELSE
+				金額 = 金額 * LOCAL
+				PRINTFORMW 見捨てることは出来ない
+				PRINTFORMW %ANAME(対象)%は全員を買い取ると告げた
+				PRINTFORMW 奴隷商人は一瞬驚きの表情を見せたがすぐに揉み手をしながら笑顔に戻った
+				PRINTFORMW 「へっへっへ、ありがとうございます、お客さん」
+				PRINTFORMW 引き取った子供たちを部下に命じて孤児院まで連れて行かせた
+				MONEY -= 金額
+				FOR LOCAL, 1, MAX_COUNTRY
+					CALL CHANGE_RELATION_C_TO_C(LOCAL, CFLAG:MASTER:1, 30, -30)
+				NEXT
+				CALL COLORPRINTFORM(@"金{金額}を支払った", COLOR("注意"))
+				PRINTFORMW 
+				CALL COLORPRINTFORM(@"この事は噂として広がり評判が上がった", COLOR("注意"))
+				PRINTFORMW 
+			ENDIF
+				
+	;堤防作り
+	CASE 33
+		CALL DAILY_EVENT_RAND_CITYSELECT(0)
+		対象都市 = RESULT
+		SIF 対象都市 < 0
+			RETURN
+		PRINTFORMW %CITY_NAME:対象都市%を散策していると河川の氾濫で悩んでいる村にたどりついた
+		PRINTFORMW 堤防を作れれば村は助かるかもしれないが、金5000かかる上に成功するとも限らない
+		PRINTFORMW どうしよう？
+		CALL ASK_MULTI_JUDGE(@"金{5000}で堤防を作る", MONEY >= 5000,"放っておく",1)
+			IF RESULT == 1
+				PRINTFORMW 領民には悪いが今は1円も無駄にはできない
+				PRINTFORMW 何も言わずに村から立ち去った
+			ELSE
+				PRINTFORMW 領民の生活の為に金を惜しんでいる場合ではない
+				PRINTFORMW %ANAME(対象)%は早速技術者たちを呼びよせ、堤防作製に取り掛からせた
+				PRINTFORML ・
+				PRINTFORML ・
+				PRINTFORMW ・
+				IF (ABL:対象:政治) * (RAND:3 + 1) >= 30 * (RAND:5 + 1)
+					PRINTFORMW やった！
+					PRINTFORMW 無事に頑丈な堤防が出来た
+					CITY_GUARD:対象都市 += 15
+					PRINTFORMW 村人たちに感謝された
+					CALL COLORPRINTFORM(@"%CITY_NAME:対象都市%の防衛率が15上昇し、{CITY_GUARD:対象都市}になった", COLOR("注意"))
+					PRINTFORMW 
+					MONEY -= 5000
+					CALL COLORPRINTFORM(@"金{5000}を消費した", COLOR("注意"))
+					PRINTFORMW 
+				ELSE
+					PRINTFORMW 失敗した！
+					PRINTFORMW 堤防を上手く作ることは出来なかった
+					PRINTFORMW 肩を落とす領民たちから逃げる様に立ち去った
+					MONEY -= 5000
+					CALL COLORPRINTFORM(@"金{5000}を消費した", COLOR("注意"))
+					PRINTFORMW 
+				ENDIF
+			ENDIF
+	;風紀の乱れ
+	CASE 34
+		CALL DAILY_EVENT_RAND_CITYSELECT(0)
+		対象都市 = RESULT
+		SIF 対象都市 < 0
+			RETURN
+		PRINTFORMW %CITY_NAME:対象都市%の風紀が乱れているようだ
+		PRINTFORMW しかしそれによって経済は発展しているようだ
+		PRINTFORMW 戦争のストレス発散の為に目をつぶるべきだろうか？
+		PRINTFORMW どうしよう？
+		CALL ASK_MULTI(@"厳しく取り締まる", "多少は目をつぶる")
+			IF RESULT == 0
+				PRINTFORMW 風紀の乱れは指揮の乱れにつながる
+				PRINTFORMW %ANAME(対象)%は厳しく取り締まるように指示した
+			ELSE
+				PRINTFORMW 戦争の不満をそらすにもある程度は目をつぶろう
+				PRINTFORML 
+				PRINTFORMW …%CITY_NAME:対象都市%の経済は潤った
+				LOCAL:0 = RAND(CITY_ECONOMY_LIMIT:(対象都市) / 100 * 100 / 10 , CITY_ECONOMY_LIMIT:(対象都市) / 100 * 100 / 10 + 1000)
+				IF CITY_ECONOMY:対象都市 == CITY_ECONOMY_LIMIT:対象都市
+					CITY_ECONOMY_LIMIT:対象都市 += LOCAL:0
+					CALL COLORPRINTFORM(@"%CITY_NAME:対象都市%の経済規模の上限が{LOCAL:0 / 100}上昇し、{CITY_ECONOMY_LIMIT:対象都市 / 100}になった！", COLOR("注意"))
+					PRINTFORMW 
+				ELSE
+					IF CITY_ECONOMY_LIMIT:対象都市 < (CITY_ECONOMY:対象都市 + LOCAL:0)
+						LOCAL:0 = CITY_ECONOMY_LIMIT:対象都市 - CITY_ECONOMY:対象都市
+					ENDIF
+					CITY_ECONOMY:対象都市 += LOCAL:0
+					CALL COLORPRINTFORM(@"%CITY_NAME:対象都市%の経済規模が{LOCAL:0 / 100}上昇し、{CITY_ECONOMY:対象都市 / 100}になった！", COLOR("注意"))
+					PRINTFORMW 
+				ENDIF
+				FOR LOCAL, 1, MAX_COUNTRY
+					CALL CHANGE_RELATION_C_TO_C(LOCAL, CFLAG:MASTER:1, -30, 30)
+				NEXT
+				CALL COLORPRINTFORM(@" しかし治安が悪化し国の評判は下がった", COLOR("注意"))
+				PRINTFORMW 
+			ENDIF
+	;怪我をする
+	CASE 35
+		PRINTFORMW 痛いっ！
+		PRINTFORMW %ANAME(対象)%は散策中に怪我をしてしまった
+		PRINTFORMW どうしよう？
+		CALL ASK_MULTI(@"我慢する", "医者に見せる", "自分で治療する")
+			IF RESULT == 2
+				PRINTFORMW このぐらいの怪我ならば自力で治療できそうだ
+				LOCAL = RAND:4
+				SIF TALENT:対象:治療 == 1
+					LOCAL += 1
+				IF LOCAL >= 2
+					PRINTFORMW …うまく治療できた！
+				ELSE
+					PRINTFORMW …失敗した
+					CALL ADD_COOLTIME(対象:0, 2)
+					CALL COLORPRINTFORM(@"%ANAME(対象)%は2ターンのクールダウンに入った", COLOR("注意"))
+					PRINTFORMW 
+				ENDIF
+			ELSEIF RESULT == 0
+				PRINTFORMW 我慢することにした
+				IF RAND:4 != 0
+					PRINTFORMW …怪我が悪化してしまった
+					IF MAXBASE:対象:体力 >= 1100
+						MAXBASE:対象:体力 -= 100
+						CALL COLORPRINTFORM(@"体力最大値が{100}下がって、{MAXBASE:対象:体力}になった", COLOR("注意"))
+						PRINTFORMW 
+					ELSE
+						CALL ADD_COOLTIME(対象:0, 3)
+						CALL COLORPRINTFORM(@"%ANAME(対象)%は3ターンのクールダウンに入った", COLOR("注意"))
+						PRINTFORMW 
+					ENDIF
+				ELSE
+					PRINTFORMW …気合で治した！
+					MAXBASE:対象:体力 += 100
+					CALL COLORPRINTFORM(@"体力最大値が{100}上がって、{MAXBASE:対象:体力}になった", COLOR("注意"))
+					PRINTFORMW 
+				ENDIF
+			ELSE
+				PRINTFORMW 近くにあった小さな診療所に向かった
+				PRINTFORMW 背の曲がった下品な笑みを浮かべた医者が現れた
+				PRINTFORMW いかにもヤブ医者に見えたが、見た目で判断してはいけないと視てもらった
+				PRINTFORML ・
+				PRINTFORML ・
+				PRINTFORMW ・
+				IF IS_FEMALE(対象) && RAND:2 == 0
+					PRINTFORMW %ANAME(対象)%は麻酔を打たれて手術台の上で眠っている
+					PRINTFORMW 医者は舌なめずりをすると、舌と指を%ANAME(対象)%の肢体にいやらしく這い回らせた
+					PRINTFORMW 愛撫に反応し微かに%ANAME(対象)%が漏らす色っぽい吐息に我慢できなくなった医者は肉棒を取り出すと
+					PRINTFORMW %ANAME(対象)%の両足を開かせ、蜜穴の奥めがけて根元まで一気に突き入れた
+					PRINTFORMW ビクンと跳ねる%ANAME(対象)%の身体にむしゃぶりつきながら、彼は猛然と腰を振り存分にその身体を犯しつくした
+					CALL FORCE_FUCK(対象, -1, @"ならず者の\@RAND:2 ? ペニス # 唇\@", @"ならず者", RAND:2 + 1)
+					PRINTFORML 
+					PRINTFORMW 見た目と違い腕は確かだった様だ
+					PRINTFORMW すっかり怪我の治った%ANAME(対象)%は医者に礼を言って立ち去った
+					PRINTFORMW 麻酔の影響か、太腿に伝わる精液には気づいていなかった
+					MONEY -= 2000
+					CALL COLORPRINTFORM(@"金2000を支払った", COLOR("注意"))
+					PRINTFORMW 
+				ELSE
+					PRINTFORMW 見た目と違い腕は確かだった様だ
+					PRINTFORMW すっかり怪我の治った%ANAME(対象)%は医者に礼を言って立ち去った
+					MONEY -= 2000
+					CALL COLORPRINTFORM(@"金2000を支払った", COLOR("注意"))
+					PRINTFORMW 
+				ENDIF
+			ENDIF
+	;賭け
+	CASE 36
+		PRINTFORMW 酒場で飲んでいたら客の一人に賭けを持ち出された
+		PRINTFORMW 賽子を振って大きな目を出した方が金1000をもらうというものだ
+		PRINTFORMW 同数の場合はこちらの勝ちで良いと告げる
+		PRINTFORMW どうしよう？
+		CALL ASK_MULTI_JUDGE(@"受ける", MONEY >= 1000,"やめる", 1)
+			IF RESULT == 1
+				$CHANCEL
+				PRINTFORMW そんな気分じゃない
+				PRINTFORMW 賭けの代わりに酒を飲み交わすことにした
+			ELSE
+				PRINTFORMW 勝負！
+				PRINTFORML ・
+				PRINTFORML ・
+				PRINTFORMW ・
+				LOCAL:1 = RAND:6 + 1
+				LOCAL:2 = RAND:6 + 1
+				IF LOCAL:1 >= LOCAL:2
+					PRINTFORMW {LOCAL:1}！{LOCAL:2}！
+					PRINTFORMW やった！
+					PRINTFORMW 勝負に勝った%ANAME(対象)%は金1000を受け取った
+					MONEY += 1000
+				ELSE
+					PRINTFORMW {LOCAL:1}！{LOCAL:2}！
+					PRINTFORMW 負けた
+					PRINTFORMW 勝負に負けた%ANAME(対象)%は金1000を支払った
+					MONEY -= 1000
+				ENDIF
+				PRINTFORMW 再び賭けを持ち出された
+				PRINTFORMW 今度は賭け金5000だ
+				PRINTFORMW どうしよう？
+				CALL ASK_MULTI_JUDGE(@"受ける", MONEY >= 5000,"やめる", 1)
+					IF RESULT == 1
+						GOTO CHANCEL
+					ELSE
+						PRINTFORMW 勝負！
+						PRINTFORML ・
+						PRINTFORML ・
+						PRINTFORMW ・
+						LOCAL:1 = RAND:6 + 1
+						LOCAL:2 = RAND:6 + 3
+						SIF LOCAL:2 > 6
+							LOCLA:2 = 6
+						IF LOCAL:1 >= LOCAL:2
+							PRINTFORMW {LOCAL:1}！{LOCAL:2}！
+							PRINTFORMW やった！
+							PRINTFORMW 勝負に勝った%ANAME(対象)%は金5000を受け取った
+							MONEY += 5000
+						ELSE
+							PRINTFORMW {LOCAL:1}！{LOCAL:2}！
+							PRINTFORMW 負けた
+							PRINTFORMW 勝負に負けた%ANAME(対象)%は金5000を支払った
+							MONEY -= 5000
+						ENDIF
+						IF IS_FEMALE(対象)
+							PRINTFORMW 再び賭けを持ち出された
+							PRINTFORMW 今度はなんと金10000を出すが、負けたら言う事を聞いてもらうと言ってきた
+							PRINTFORMW どうしよう？
+							CALL ASK_MULTI(@"受ける", "やめる")
+								IF RESULT == 1
+									GOTO CHANCEL
+								ELSE
+									PRINTFORMW 勝負！
+									PRINTFORML ・
+									PRINTFORML ・
+									PRINTFORMW ・
+									LOCAL:1 = RAND:6 + 1
+									IF LOCAL:1 == 6
+										PRINTFORMW {LOCAL:1}！6！
+										PRINTFORMW やった！
+										PRINTFORMW 相手は驚いていたが、渋々金10000を支払った
+										MONEY += 10000
+									ELSE
+										PRINTFORMW {LOCAL:1}！6！
+										PRINTFORMW 負けた
+										PRINTFORMW 男は勝負に負けた%ANAME(対象)%の腰に手を回すと、一晩付き合えと言ってきた
+										PRINTFORMW %ANAME(対象)%は従わざるを得なかった
+										PRINTFORML 
+										PRINTFORMW 宿に連れ込まれた%ANAME(対象)%は男の巧みな指使いによってすぐに惚けた様な表情になった
+										PRINTFORMW 男に逞しいペニスを魅せ付けられると、%ANAME(対象)%は躊躇うことなく自ら秘所を晒しておねだりした
+										PRINTFORMW 男の荒々しくも巧みな腰遣いに%ANAME(対象)%は何度も気をやり、膣内射精をされても抵抗せずに受け入れた
+										CALL FORCE_FUCK(対象, -1, @"ならず者の\@RAND:2 ? ペニス # 唇\@", @"ならず者", RAND:2 + 1)
+										PRINTFORML 
+										PRINTFORMW 夜も白む頃にようやく解放された%ANAME(対象)%は、下腹部を抑えながらふらついた足取りで帰路についた
+									ENDIF
+								ENDIF
+						ELSE
+							PRINTFORMW 男は今夜はこのぐらいにしようと言って立ち去った
+						ENDIF
+					ENDIF
+			ENDIF
+	;怪しい行商人
+	CASE 37
+		PRINTFORMW 行商人に声をかけられた
+		PRINTFORMW なんでも新発売の薬の試供を行っているとのことだ
+		PRINTFORMW 精力がつく自信作らしい
+		PRINTFORMW どうしよう？
+		CALL ASK_MULTI(@"飲む", "やめておく")
+			IF RESULT == 1
+				PRINTFORMW いかにも怪しい男だ
+				PRINTFORMW 訝しんだ%ANAME(対象)%は断るとその場を立ち去った
+			ELSE
+				PRINTFORMW 面白そうだ
+				PRINTFORMW ためしに飲んでみることにした
+				PRINTFORML ・
+				PRINTFORML ・
+				PRINTFORMW ・
+				SELECTCASE RAND:3
+					CASE 0
+						PRINTFORMW …心なしか気分がよくなった気がする
+						MAXBASE:対象:精神力 += 100
+						CALL COLORPRINTFORM(@"精神力最大値が{100}上がって、{MAXBASE:対象:精神力}になった", COLOR("注意"))
+						PRINTFORMW 
+					CASE 1
+						PRINTFORMW …特に何も効果はなさそうだった
+						IF MONEY >= 1000
+							PRINTFORMW しかし好みの味だったので10本ほど買う事にした
+							MONEY -= 1000
+							CALL COLORPRINTFORM(@"金1000を支払った", COLOR("注意"))
+							PRINTFORMW 
+						ENDIF
+					CASE 2
+						PRINTFORMW …薬を飲んだ%ANAME(対象)%は体が火照りだした
+						IF IS_FEMALE(対象)
+							PRINTFORMW 突如下腹部が熱くなり、頭の中が快楽で埋め尽くされ我慢できなくなる
+							PRINTFORMW ガクガクと震えて息を荒げる様子を行商人がにやにやと笑いながら見てくる
+							PRINTFORMW 「おやおや、どうかしましたか？ひひひ、薬の副作用なら治療するのを手伝いましょうかね？」
+							PRINTFORMW 薬のせいだとわかっていてもその火照りは抗いがたく、彼女は行商人に縋り付いた
+							PRINTFORMW 行商人は%ANAME(対象)%の身体に手を回し指と舌で撫でまわしながら、近くの物陰へと連れ込んだ
+							PRINTFORML 
+							PRINTFORMW 薬の効果で発情した%ANAME(対象)%は、自ら秘所を突き出す格好になり腰を振って男を誘った
+							PRINTFORMW そのまんこは既にトロトロになっており、ひくついて男根を待ちわびている
+							PRINTFORMW 男が遠慮なくペニスを捻じりこむと、彼女は大きく背を反らして悦びの声を上げる
+							PRINTFORMW %ANAME(対象)%は嬌声を上げながらひたすら下腹部から与えられる快楽に没頭した
+							CALL FORCE_FUCK(対象, -1, @"行商人の\@RAND:2 ? ペニス # 唇\@", @"行商人", RAND:2 + 1)
+							PRINTFORML 
+							PRINTFORMW %ANAME(対象)%が意識を取り戻した時には、全身が白濁で汚された状態で物陰に放置されていた
+						ELSE
+							PRINTFORMW 「おやおや、どうかしましたか？ひひひ」
+							PRINTFORMW %ANAME(対象)%は震える声で行商人に何でもないと告げると、汗をかきながら足早で帰路についた
+						ENDIF
+				ENDSELECT
+			ENDIF
+	;綺麗な花を見つける
+	CASE 38
+		PRINTFORMW 道端に綺麗な花々が咲いている
+		PRINTFORMW 目を奪われる光景だ、折角だから一輪摘んでいくことにした
+		PRINTFORMW どの色の花を摘もう？
+		CALL ASK_MULTI(@"紅い花", "蒼い花", "黄色い花")
+			IF RESULT == 0
+				PRINTFORMW 紅い花を摘み、香を嗅いだ
+				PRINTFORMW …するとかすかに身体が火照るような感覚に陥った
+				CALL PRINT_ADD_EXP(対象, "性技経験値", RAND:3 + 1, 1)
+			ELSEIF RESULT == 2
+				PRINTFORMW 黄色い花を摘み、香を嗅いだ
+				PRINTFORMW …すると頭がすっきりして良い気分になった
+				CALL PRINT_ADD_EXP(対象, "知略経験値", RAND:3 + 1, 1)
+			ELSE
+				PRINTFORMW 蒼い花を摘み、香を嗅いだ
+				PRINTFORMW …すると突然眠気に襲われ、抗う間もなくその場に崩れ落ちてしまった
+				IF IS_FEMALE(対象)
+					PRINTFORML 
+					PRINTFORMW 下腹部に伝わる熱で意識を取り戻すと、%ANAME(対象)%はならず者に犯されていた
+					PRINTFORMW 男は彼女が意識を取り戻したことに焦って逃げようとしたが、%ANAME(対象)%は身体が痺れてろくに動けなかった
+					PRINTFORMW %ANAME(対象)%が抵抗できない事に気付いた男はニヤニヤ笑いながら再びペニスをねじ込んできた
+					PRINTFORMW 散々弄られ犯されていたらしい彼女の身体はとても敏感になっており、挿入だけで軽く絶頂してしまった
+					PRINTFORMW 苦悶の表情で耐えている%ANAME(対象)%の反応を楽しむように、男は彼女を好き放題犯し続けた
+					CALL FORCE_FUCK(対象, -1, @"ならず者の\@RAND:2 ? ペニス # 唇\@", @"ならず者", RAND:2 + 1)
+					PRINTFORML 
+					PRINTFORMW %ANAME(対象)%が動けるようになるころには、秘所から大量の精液がどろりと垂れ流されていた
+				ELSE
+					PRINTFORMW …気が付くと夕暮れになっていた
+					PRINTFORMW 重い頭を摩りながら体を調べたが異常はなかった
+					PRINTFORMW しかし財布がスられてしまっていた
+					金額 = 1000 + (500 * (DAY / 10))
+					SIF 金額 > MONEY
+						金額 = MONEY / 2
+					MONEY -= 金額
+					CALL COLORPRINTFORM(@"金{金額}を失った", COLOR("注意"))
+					PRINTFORMW 
+				ENDIF
+			ENDIF
+	;兎の花売り
+	CASE 39
+		IF IS_FEMALE(対象)
+			PRINTFORMW 「お姉さん、お花いらない？」
+		ELSE
+			PRINTFORMW 「お兄さん、お花いらない？」
+		ENDIF
+		PRINTFORMW 探索中、花を売っている妖怪兎と出会った
+		IF MONEY < 10
+			PRINTFORMW しかし財布の中には金10も無かった
+			PRINTFORMW 驚いた
+			PRINTFORMW 彼女も驚いていた
+		ELSE
+			PRINTFORMW どうしよう？
+			CALL ASK_MULTI_JUDGE(@"一輪買う", 1,"彼女毎全部買う", IS_MALE(対象) && MONEY >= 1000,"追い払う", 1)
+				IF RESULT == 2
+					PRINTFORMW 花などいらない
+					PRINTFORMW しっしと兎を追い払った
+				ELSEIF RESULT == 0
+					PRINTFORMW それでは一輪貰おう
+					PRINTFORMW 「ありがと、えーっと、これが似合うと思うの」
+					PRINTFORMW 彼女から花を受け取ると良い香りがした
+					PRINTFORMW 香を楽しみながら探索を続けた
+					MONEY -= 10
+					CALL COLORPRINTFORM(@"金10を支払った", COLOR("注意"))
+					PRINTFORMW 
+				ELSE
+					PRINTFORMW 「えっ、それって、えと…」
+					PRINTFORMW どうやら言葉の意味は分かるらしい、頬を赤らめもじもじし出した
+					PRINTFORMW 「わかったよ…あっちに私の家があるから…来て？」
+					PRINTFORMW 彼女に手を引かれて森の奥にあるあばら家に連れ込まれた
+					PRINTFORML 
+					PRINTFORMW 「あっ、ああっ、ん…お兄さん…凄いよぉ、あっああっ…」
+					PRINTFORMW 幼いながらも慣れた腰つきで奉仕するその姿は%ANAME(対象)%の情欲を刺激し、瑞々しい肢体を存分に堪能した
+					PRINTFORML 
+					PRINTFORMW 「優しくしてくれて、ありがと…えと、お兄さんならまた相手してあげてもいいよ？」
+					PRINTFORMW 照れるようにそう告げる彼女と口づけを交わし、その場を後にした
+					MONEY -= 1000
+					CALL COLORPRINTFORM(@"金1000を支払った", COLOR("注意"))
+					PRINTFORMW 
+				ENDIF
+		ENDIF
+	;捨て犬
+	CASE 40
+		PRINTFORMW 探索中、汚れた犬を見つけた
+		PRINTFORMW 人間になれているようだ、元は飼い犬だったのだろうか
+		PRINTFORMW どうしよう？
+		CALL ASK_MULTI(@"連れ帰る", "追い払う")
+			IF RESULT == 1
+				PRINTFORMW 汚い犬を飼う余裕などない
+				PRINTFORMW しっしと犬を追い払った
+			ELSE
+				PRINTFORMW 可哀そうだ、連れ帰る事にしよう
+				PRINTFORML ・
+				PRINTFORML ・
+				PRINTFORMW ・
+				SELECTCASE RAND:3
+					CASE 0
+						PRINTFORMW 犬はその愛くるしさから軍のマスコットになった
+						PRINTFORMW 部下に提案され試しに広告塔に使ったら入隊希望者が増えた
+						兵数 = 500 + 500 * (DAY / 10)
+						COUNTRY_SOLDIER:(CFLAG:対象:1) += 兵数
+						CALL COLORPRINTFORM(@"兵数が{兵数}増えて、COUNTRY_SOLDIER:(CFLAG:対象:1)になった", COLOR("注意"))
+						PRINTFORMW 
+					CASE 1
+						PRINTFORMW 犬はその愛くるしさから町のマスコットになった
+						FOR LOCAL, 1, MAX_COUNTRY
+							CALL CHANGE_RELATION_C_TO_C(LOCAL, CFLAG:MASTER:1, 15, -15)
+						NEXT
+						CALL COLORPRINTFORM(@"町民に頼まれて試しに広告塔に使ったらその評判は他国まで伝わった", COLOR("注意"))
+						PRINTFORMW 
+					CASE 2
+						PRINTFORMW 犬は%ANAME(対象)%によくなついた
+						PRINTFORMW 訓練中や仕事中、%ANAME(対象)%の傍らに佇む凛々しい姿は評判になった
+						IF IS_FEMALE(対象)
+							PRINTFORML 
+							PRINTFORMW しかし二人の間には秘密があった
+							PRINTFORMW 深夜の寝室、ベッドの上で犬が%ANAME(対象)%に覆い被さり猛烈に腰を振っている
+							PRINTFORMW %ANAME(対象)%は服従のポーズで犬のペニスに貫かれながら、恍惚の表情でだらしなく舌を垂らしている
+							PRINTFORMW 夜になると、二人の主従関係は逆転し犬が%ANAME(対象)%のご主人様となるのだ
+							PRINTFORMW ご主人様の灼熱の子種を注ぎ込まれながら、%ANAME(対象)%は獣の様な嬌声を上げて絶頂した
+							CALL FORCE_FUCK(対象, -1, @"犬の\@RAND:2 ? ペニス # 唇\@", @"犬", RAND:2 + 1)
+						ENDIF
+				ENDSELECT
+			ENDIF
+	;減税の訴え
+	CASE 41
+		CALL DAILY_EVENT_RAND_CITYSELECT(0)
+		対象都市 = RESULT
+		SIF 対象都市 < 0
+			RETURN
+		PRINTFORMW 探索中、%CITY_NAME:対象都市%のとある村で休息を取った
+		PRINTFORMW そこで村人たちに今年は作物の出来がよくないので減税してもらいたいとの話を聞かされる
+		PRINTFORMW 減税を行えばその分経済に影響があるだろう
+		PRINTFORMW このままでもすぐに誰かが死んだりする程でもなさそうだが
+		PRINTFORMW しかし領民の機嫌は取っておいた方がいいかもしれない
+		PRINTFORMW どうしよう？
+		CALL ASK_MULTI(@"減税する", "断る")
+			IF RESULT == 1
+				PRINTFORMW この村だけを特別扱いはできない
+				PRINTFORMW %ANAME(対象)%は村人たちにそう告げると村を立ち去った
+			ELSE
+				PRINTFORMW まぁその位は問題ないだろう、一時的に減税することにした
+				PRINTFORMW %ANAME(対象)%の判断に村人たちは大変感謝した
+				LOCAL:0 = 1000 * (RAND:3 + 1)
+				SIF CITY_ECONOMY:対象都市 - LOCAL:0 <= 0
+					LOCAL:0 = CITY_ECONOMY:対象都市 / 2
+				CITY_ECONOMY:対象都市 -= LOCAL:0
+				CALL COLORPRINTFORM(@"%CITY_NAME:対象都市%の経済規模が{LOCAL:0 / 100}減少し、{CITY_ECONOMY_LIMIT:対象都市 / 100}になった", COLOR("注意"))
+				PRINTFORMW 
+				FOR LOCAL, 1, MAX_COUNTRY
+					CALL CHANGE_RELATION_C_TO_C(LOCAL, CFLAG:MASTER:1, 15, -15)
+				NEXT
+				CALL COLORPRINTFORM(@"しかし領民の事を考えた政策は他国から支持された", COLOR("注意"))
+				PRINTFORMW 
+			ENDIF
+	;乱交パーティー
+	CASE 42
+		CALL DAILY_EVENT_RAND_CITYSELECT(0)
+		対象都市 = RESULT
+		SIF 対象都市 < 0
+			RETURN
+		PRINTFORMW %CITY_NAME:対象都市%のとある歓楽街を散策中、見知らぬ男が寄ってきた
+		PRINTFORMW 「へへへ、今暇ですかい？良い事してるんですけどご一緒にどうです？」
+		PRINTFORMW 怪しいが男の言い方が気になった%ANAME(対象)%は詳細を聞いてみた
+		PRINTFORMW 「いやなに、この先の店の地下で男女が集まって、ね？へへへ」
+		PRINTFORMW …どうやら乱交パーティーの参加者を集めているらしい
+		PRINTFORMW 歓楽街とはいえただ歩いているだけでそんな誘いを受けるとは思わなかった
+		PRINTFORMW どうしよう？
+		CALL ASK_MULTI(@"参加してみる", "男を捕まえる", "やめておく")
+			IF RESULT == 2
+				PRINTFORMW そんな集まりに興味はない
+				PRINTFORMW %ANAME(対象)%は男をあしらって立ち去った
+			ELSEIF RESULT == 1
+				PRINTFORMW そんな不埒な事をしているとは許せない！
+				PRINTFORMW %ANAME(対象)%は男を捕まえようと手を伸ばした
+				IF RAND:2 == 0
+					PRINTFORMW 逃げようとした男を間一髪取り押さえ、兵士につきだした
+					PRINTFORMW そして男の情報を元にパーティー会場に集まっていた連中も一網打尽にした
+					PRINTFORMW 風紀の乱れは国力の乱れに繋がりかねない、これを機に町の性の乱れを正す政策を行った
+					CITY_GUARD:対象都市 += 10
+					CALL COLORPRINTFORM(@"%CITY_NAME:対象都市%の防衛率が10上昇し、{CITY_GUARD:対象都市}になった", COLOR("注意"))
+					PRINTFORMW 
+				ELSE
+					PRINTFORMW しかし男に勘づかれ逃げられてしまった
+					PRINTFORMW 兵士と共に乱交会場に向かったがそこもすでにもぬけの殻だった
+					PRINTFORMW 男達を逃がした事を悔しがりつつ、歓楽街を後にした
+				ENDIF
+			ELSE
+				PRINTFORMW 乱交…興味がある
+				PRINTFORMW 男の誘いに乗ってみることにした
+				IF IS_FEMALE(対象)
+					PRINTFORMW 了承すると、男は下卑た笑みを浮かべて%ANAME(対象)%の腰に手を回してきた
+					PRINTFORMW 彼女も特に抵抗せずに男に連れられるまま、とある店の地下へと降りて行った
+					PRINTFORML 
+					PRINTFORML そこでは無数の裸の男女が乱れていた
+					PRINTFORML 大音量で流れる音楽と共に、部屋中にいやらしい蜜音と喘ぎ声が響いている
+					PRINTFORMW むせ返るような雄と雌の匂いが充満しており、一息で%ANAME(対象)%も身体が火照ってしまうのを感じた
+					PRINTFORML %ANAME(対象)%を連れ込んだ男が早速彼女を抱きしめ、愛撫と共に服を脱がしてくる
+					PRINTFORML すっかり昂ぶった%ANAME(対象)%もされるがままに体をくねらせながら裸になった
+					PRINTFORMW %ANAME(対象)%は一晩中彼らと共に肉欲の宴におぼれ、無数のペニスにご奉仕し何度も膣出しされた
+					CALL FORCE_FUCK(対象, -1, @"ならず者の\@RAND:2 ? ペニス # 唇\@", @"ならず者", RAND:2 + 1)
+					PRINTFORML 
+					PRINTFORMW すっかりハマってしまった%ANAME(対象)%は、次のパーティーにも誘ってほしいと告げて別れた
+				ELSE
+					PRINTFORMW 了承すると、男は下卑た笑みを浮かべて%ANAME(対象)%をとある店の地下へと誘った
+					PRINTFORML 
+					PRINTFORML そこでは無数の裸の男女が乱れていた
+					PRINTFORML 大音量で流れる音楽と共に、部屋中にいやらしい蜜音と喘ぎ声が響いている
+					PRINTFORMW むせ返るような雄と雌の匂いが充満しており、一息で%ANAME(対象)%も身体が火照ってしまうのを感じた
+					PRINTFORML 一人の裸の少女が%ANAME(対象)%に抱きついてくると、愛撫と共に服を脱がしてくる
+					PRINTFORML すっかり昂ぶった%ANAME(対象)%も彼女の唇を乱暴に塞ぎ、舌を絡ませながら裸になった
+					PRINTFORMW %ANAME(対象)%は一晩中彼女らと共に肉欲の宴におぼれ、おねだりされるままに何度もセックスを繰り返した
+					PRINTFORML 
+					PRINTFORMW すっかり満足した%ANAME(対象)%は、次のパーティーにも誘ってほしいと告げて別れた
+				ENDIF
+			ENDIF
+	;山奥の小屋
+	CASE 43
+		PRINTFORMW 山登り中、すっかり迷子になってしまった
+		PRINTFORMW 途方に暮れる%ANAME(対象)%だったが、幸運な事に山小屋を見つけた
+		PRINTFORMW 山小屋を訪れると、そこには山男が一人住んでいた
+		PRINTFORM 事情を話すと山男はジロジロと%ANAME(対象)%を見て、
+		IF IS_MALE(対象)
+			金額 = 1000 + (500 * (DAY / 10))
+			SIF 金額 > MONEY
+				金額 = MONEY / 2
+			PRINTFORMW 泊めてほしければ金{金額}を払えと言ってきた
+			PRINTFORMW どうしよう？
+			CALL ASK_MULTI(@"金を払う", "自力で下山を試みる")
+				IF RESULT == 0
+					PRINTFORMW 仕方がない、金を払って泊めてもらう事にした
+					MONEY -= 金額
+					CALL COLORPRINTFORM(@"金{金額}を支払った", COLOR("注意"))
+					PRINTFORMW 
+					PRINTFORML 
+					PRINTFORMW 翌日、里へ下る道を教えてもらい無事に下山できた
+				ELSE
+					PRINTFORMW そんな金は払えない
+					PRINTFORMW %ANAME(対象)%は自力での下山を試みた
+					PRINTFORML ・
+					PRINTFORML ・
+					PRINTFORMW ・
+					IF RAND:4 == 0
+						PRINTFORMW なんとか無事に下山することが出来た！
+					ELSE
+						PRINTFORMW うわぁ！
+						PRINTFORMW 下山途中で足を滑らせてしまった
+						PRINTFORMW なんとか里まで降りることは出来たが、大怪我をしてしまった…
+						CALL ADD_COOLTIME(対象:0, 3)
+						CALL COLORPRINTFORM(@"%ANAME(対象)%は3ターンのクールダウンに入った", COLOR("注意"))
+						PRINTFORMW 
+					ENDIF
+				ENDIF
+		ELSE
+			PRINTFORMW 快く泊めてくれた
+			PRINTFORMW 御馳走してくれた温かいスープが冷え切った体に心地よく染み渡った
+			PRINTFORMW …しかしスープを飲んでいると徐々に体が痺れてきた
+			PRINTFORMW 手足に力が入らなくなり、思わず器をこぼしてしまう
+			PRINTFORMW どうしたのかと混乱する%ANAME(対象)%だが、山男の顔を見て全てを察した
+			PRINTFORMW スープにしびれ薬を入れられていたのだ！
+			PRINTFORMW もはや自力では這う事も出来ない%ANAME(対象)%は、男から逃れる事も出来ず寝床に連れ込まれた
+			PRINTFORML 
+			PRINTFORMW 小屋の中から嬌声が響いている
+			PRINTFORMW 犯されていはずなのに、%ANAME(対象)%は男に跨りながら自分から腰を振っている
+			PRINTFORMW 男の調合した媚薬を打たれた%ANAME(対象)%は頭の中が快楽で埋め尽くされ、セックスに夢中になっている
+			PRINTFORMW 男が低く唸ると共に%ANAME(対象)%の奥深くで射精すると、彼女は一際大きな嬌声を上げて体を反らした
+			CALL FORCE_FUCK(対象, -1, @"山男の\@RAND:2 ? ペニス # 唇\@", @"山男", RAND:2 + 1)
+			PRINTFORML
+			PRINTFORMW 翌朝、男より早く目覚めた%ANAME(対象)%は
+			PRINTFORMW 昨夜の羞恥を思い出し真っ赤になりながらそそくさと小屋を後にした
+		ENDIF
+	;商人の挨拶
+	CASE 44
+		PRINTFORMW ある商人が娘と共に挨拶に来た
+		PRINTFORMW この地で商売をするので、どうか御贔屓にというありがちな挨拶だった
+		PRINTFORMW 印象としては狡猾そうな小心者といった感じだ
+		PRINTFORMW どうしよう？
+		CALL ASK_MULTI_JUDGE(@"普通に挨拶を交わす", 1,"それとなく賄賂を要求する", 1,"娘を差し出させる", IS_MALE(対象))
+			IF RESULT == 0
+				PRINTFORMW 特に問題はなさそうだ
+				PRINTFORMW 今度店に寄る約束を交わし、商人を帰した
+			ELSEIF RESULT == 1
+				PRINTFORMW それとなく賄賂を要求した
+				PRINTFORMW 男は抜け目なく小包を取り出すと、つまらないものですがと差し出してきた
+				PRINTFORMW 中々話の分かる男の様だ
+				PRINTFORMW 今後も贔屓にさせてもらうと告げると、深々と頭を下げて帰って行った
+				金額 = 1000 + (500 * (RAND:10 + 1))
+				MONEY += 金額
+				CALL COLORPRINTFORM(@"金{金額}を手に入れた", COLOR("注意"))
+				PRINTFORMW 
+			ELSE
+				PRINTFORMW 娘をよく見ると中々の美少女だ
+				PRINTFORMW %ANAME(対象)%はニヤリと笑うと男に近づき耳元で娘を抱かせろと要求した
+				PRINTFORMW 男は目を見開いて%ANAME(対象)%を見たが、冗談ではないとわかると俯きながら小さく唸った
+				PRINTFORMW やがて男は後ろを振り向いて娘の耳元でいくつか言葉を交わした
+				PRINTFORMW 会話の途中で娘も驚いたように%ANAME(対象)%を見てきたが、最後には小さく頷いていた
+				PRINTFORMW 商人は%ANAME(対象)%に向き直ると、よろしくお願いしますと告げて部屋から出て行った
+				PRINTFORMW %ANAME(対象)%は娘に声をかけると、娘はよろよろと立ち上がった
+				PRINTFORMW 潤んだ瞳で見つめてくる娘の手を取り、寝室へと連れ込んだ
+				PRINTFORML 
+				PRINTFORMW 娘が服を脱ぐと年齢不相応な豊満な肉体が露わになる
+				PRINTFORMW 彼女は羞恥で頬を染め、両手で必死に秘部を隠す
+				PRINTFORMW その初々しい反応が%ANAME(対象)%を昂ぶらせ、娘を強引にベッドに押し倒した
+				PRINTFORMW 誰も触れたことのない娘の身体を存分に堪能し、中も外も%ANAME(対象)%の精液で染め上げてやった
+				PRINTFORML 
+				PRINTFORMW 別れる際、娘のお尻を撫でまわしながら、「今後も贔屓にさせてもらおう」と囁くと
+				PRINTFORMW 彼女はぶるっと身震いして頬を染めながら小さく、「ありがとうございます」と答えた
+			ENDIF
+	;強盗に遭遇
+	CASE 45
+		PRINTFORMW 探索中、強盗に遭遇した
+		PRINTFORMW 男は村娘を人質にして逃げようとしている
+		PRINTFORMW どうしよう？
+		CALL ASK_MULTI(@"説得する", "自分が人質になる", "兵士に任せる")
+			IF RESULT == 2
+				PRINTFORMW ここは出しゃばらずに兵士に任せよう
+				PRINTFORML ・
+				PRINTFORML ・
+				PRINTFORMW ・
+				PRINTFORMW 兵士は男を捕えるのに失敗し、村娘は連れ去られてしまった
+				FOR LOCAL, 1, MAX_COUNTRY
+					CALL CHANGE_RELATION_C_TO_C(LOCAL, CFLAG:MASTER:1, -20, 20)
+				NEXT
+				CALL COLORPRINTFORM(@"この国の兵士は頼りにならないとの噂が流れ評判が下がってしまった", COLOR("注意"))
+				PRINTFORMW 
+			ELSEIF RESULT == 0
+				PRINTFORMW 村娘の命が最優先だ
+				PRINTFORMW %ANAME(対象)%は男への説得を試みた
+				PRINTFORML ・
+				PRINTFORML ・
+				PRINTFORMW ・
+				IF (ABL:対象:知略) * (RAND:3 + 1) > 30 * (RAND:5 + 1)
+					PRINTFORMW やった！
+					PRINTFORMW %ANAME(対象)%の説得は成功し、男は人質を解放して投降した
+					FOR LOCAL, 1, MAX_COUNTRY
+						CALL CHANGE_RELATION_C_TO_C(LOCAL, CFLAG:MASTER:1, 20, -20)
+					NEXT
+					CALL COLORPRINTFORM(@"%ANAME(対象)%の行動は村人たちに感謝され評判は他国へも伝わった", COLOR("注意"))
+					PRINTFORMW 
+				ELSE
+					PRINTFORMW しまった！
+					PRINTFORMW 説得に失敗し、逆に男を怒らせてしまった
+					PRINTFORMW そして人質を気遣うあまり男に逃げられ、村娘も連れ去られてしまった
+					FOR LOCAL, 1, MAX_COUNTRY
+						CALL CHANGE_RELATION_C_TO_C(LOCAL, CFLAG:MASTER:1, -20, 20)
+					NEXT
+					CALL COLORPRINTFORM(@"この国の役人は頼りにならないとの噂が流れ評判が下がってしまった", COLOR("注意"))
+					PRINTFORMW 
+				ENDIF
+			ELSE
+				PRINTFORMW 自分が代わりに人質になることを申し出た
+				PRINTFORMW 男は訝しみながらも役人の方が人質の価値があると考え、了承した
+				IF IS_MALE(対象)
+					PRINTFORMW %ANAME(対象)%は大人しい人質を演じながらも男の隙を窺った
+					PRINTFORML ・
+					PRINTFORML ・
+					PRINTFORMW ・
+					IF (ABL:対象:武闘) * (RAND:3 + 1) > 30 * (RAND:5 + 1)
+						PRINTFORMW やった！
+						PRINTFORMW 隙をついて男に反撃し、拘束することに成功した
+						FOR LOCAL, 1, MAX_COUNTRY
+							CALL CHANGE_RELATION_C_TO_C(LOCAL, CFLAG:MASTER:1, 20, -20)
+						NEXT
+						CALL COLORPRINTFORM(@"%ANAME(対象)%の行動は村人たちに感謝され評判は他国へも伝わった", COLOR("注意"))
+						PRINTFORMW 
+					ELSE
+						PRINTFORMW しまった！
+						PRINTFORMW 隙をついて反撃しようとしたが見抜かれてしまった
+						PRINTFORMW 男は駆け付けた兵士によって取り押さえられたものの、怪我をしてしまった…
+						COOLTIME:対象:0 += 3
+						CALL COLORPRINTFORM(@"%ANAME(対象)%は3ターンのクールダウンに入った", COLOR("注意"))
+						PRINTFORMW 
+					ENDIF
+				ELSE
+					PRINTFORMW 男は%ANAME(対象)%を連れて村の裏手にある山奥へと逃げ込んだ
+					PRINTFORMW %ANAME(対象)%は何とか男に反撃しようと隙を窺っていたが、その前に縄で縛られてしまった
+					PRINTFORMW 抵抗してもがく彼女を抱え上げ、男はさらに山奥へと進んだ
+					PRINTFORML 
+					PRINTFORMW 山奥にある洞窟の中で%ANAME(対象)%は地面に押さえつけられ男に犯されている
+					PRINTFORMW どうせ捕まるなら最後にお前を存分に孕ませてやる！そう宣言した男は既に何発も膣出しをしている
+					PRINTFORMW 男が腰を振る度に結合部から精液を溢れさせながら、%ANAME(対象)%は涙を流して喘いだ
+					CALL FORCE_FUCK(対象, -1, @"ならず者の\@RAND:2 ? ペニス # 唇\@", @"ならず者", RAND:2 + 1)
+					PRINTFORML 
+					PRINTFORMW その後駆けつけた兵士によって男は取り押さえられ、ボロボロの%ANAME(対象)%も助け出された
+				ENDIF
+			ENDIF
+	;魔術書
+	CASE 46
+		PRINTFORMW 探索途中、古びた本を見つけた
+		PRINTFORMW どうやら魔術書の様だ
+		IF TALENT:対象:妖術知識 == 1
+			PRINTFORMW 中には妖術に関する知識が書かれていた
+			PRINTFORMW 中々面白い内容だ
+			PRINTFORMW 魔術書を懐にしまい込むと、探索に戻った
+			CALL PRINT_ADD_EXP(対象, "妖術経験値", RAND:3 + 1, 1)
+		ELSE
+			PRINTFORMW しかしページをめくってみても何が書かれているのかもわからない
+			PRINTFORMW どうせ内容は出鱈目だろう
+			PRINTFORMW そこらに放り投げると、探索に戻った
+		ENDIF
+	;紅霧発生
+	CASE 47
+		CALL DAILY_EVENT_RAND_CITYSELECT(0)
+		対象都市 = RESULT
+		SIF 対象都市 < 0
+			RETURN
+		PRINTFORMW %CITY_NAME:対象都市%に紅い霧が立ち込めている
+		PRINTFORMW 原因不明の異変に領民たちは不安になり治安が乱れた
+		PRINTFORML %ANAME(対象)%は領民の不安を和らげるべく奔走し、何とか被害を抑えることは出来たが
+		LOCAL:1 = ABL:対象:政治 / 10
+		SIF LOCAL:1 > 9
+			LOCAL:1 = 9
+		LOCAL:0 = ((10 - LOCAL:1) + ((DAY / 5) + 1)) * 100
+		SIF CITY_ECONOMY:対象都市 - LOCAL:0 < 0
+			LOCAL:0 = CITY_ECONOMY:対象都市 / 2
+		CITY_ECONOMY:対象都市 -= LOCAL:0
+		CALL COLORPRINTFORM(@"%CITY_NAME:対象都市%の経済規模が{LOCAL:0 / 100}減少し、{CITY_ECONOMY:対象都市 / 100}になった", COLOR("注意"))
+		PRINTFORMW 
+	;気持ちの良い木陰
+	CASE 48
+		PRINTFORMW 森の中を歩いていると、丁度良い木陰を見つけた
+		PRINTFORMW 寝転がれば気持ち良さそうだ
+		PRINTFORMW どうしよう？
+		CALL ASK_MULTI(@"寝転がる", "立ち去る")
+			IF RESULT == 1
+				PRINTFORMW 今は先を急いでいる
+				PRINTFORMW %ANAME(対象)%はその場を後にした
+			ELSE
+				PRINTFORMW 折角だから休んで行こう
+				PRINTFORMW %ANAME(対象)%は木陰に寝転んだ
+				IF RAND:3 == 0
+					PRINTFORMW すると腰の辺りに何か硬いものが当たるのを感じた
+					PRINTFORMW 何かが埋まっているのだろうか？
+					PRINTFORMW 掘り返してみると小判の山が出てきた！
+					PRINTFORMW かつて誰かが埋めた物のようだ
+					PRINTFORMW 当たりに人の気配はない、貰っていくことにした
+					金額 = 1000 + (500 * (DAY / 10))
+					MONEY += 金額
+					CALL COLORPRINTFORM(@"金{金額}を手に入れた", COLOR("注意"))
+					PRINTFORMW 
+				ELSE
+					PRINTFORMW ゴロンと寝転がり目を閉じる
+					PRINTFORMW 頬に当たる風が心地よい
+					PRINTFORMW 次第に眠気に襲われ、うつらうつらとしだした
+					PRINTFORML ・
+					PRINTFORML ・
+					PRINTFORMW ・
+					IF RAND:2 == 0
+						PRINTFORMW 烏の鳴き声で目が覚めた
+						PRINTFORMW どうやらすっかり眠ってしまっていたらしい、空は夕焼けに染まっている
+						PRINTFORMW とても心地の良い眠りだった
+						PRINTFORMW %ANAME(対象)%は起き上がりグッと一伸びをすると、軽やかな足取りで帰路についた
+					ELSEIF IS_MALE(対象)
+						PRINTFORMW 烏の鳴き声で目が覚めた
+						PRINTFORMW どうやらすっかり眠ってしまっていたらしい、空は夕焼けに染まっている
+						PRINTFORMW 起き上がり帰ろうとした%ANAME(対象)%は違和感を覚えた
+						PRINTFORMW 財布がない！
+						PRINTFORMW どうやら寝ている間に何者かにスられてしまったらしい
+						PRINTFORMW 不用心な自分を責めながらとぼとぼと帰路についた
+						金額 = 1000 + (1000 * (DAY / 10))
+						SIF 金額 > MONEY
+							金額 = MONEY / 3
+						MONEY -= 金額
+						CALL COLORPRINTFORM(@"金{金額}を失った", COLOR("注意"))
+						PRINTFORMW 
+					ELSE
+						PRINTFORMW 違和感を覚えて%ANAME(対象)%が目が覚ますと、縛られ猿轡をされた格好で妖怪に犯されていた
+						PRINTFORMW もがいて逃れようとする彼女を押さえつけて妖怪は腰を振り続け、長大なペニスで膣肉を抉ってくる
+						PRINTFORMW その度に彼女はくぐもった呻き声を上げ、ビクビクと痙攣する
+						PRINTFORMW 妖怪は彼女に抱きつきぶるっと身震いすると、無遠慮に彼女の中へと精を放った
+						CALL FORCE_FUCK(対象, -1, @"野良妖怪の\@RAND:2 ? ペニス # 唇\@", @"野良妖怪", RAND:2 + 1)
+						PRINTFORML
+						PRINTFORMW その後も犯され続けボロボロになった%ANAME(対象)%を放置して、野良妖怪はどこかへ行ってしまった
+					ENDIF
+				ENDIF
+			ENDIF
+	;子供と遊ぶ
+	CASE 49
+		PRINTFORMW 探索中、遊んでる子供達に出会った
+		PRINTFORMW 見学していると、ねだられて%ANAME(対象)%も参加させられた
+		PRINTFORMW …結局一日中付き合う事になった
+		PRINTFORMW 子供達の遊びに付き合い%ANAME(対象)%は心が穏やかになった
+		IF 対象 == MASTER
+			MAXBASE:対象:気力 += 100
+			CALL COLORPRINTFORM(@"精神力気値が{100}上がって、{MAXBASE:対象:気力}になった", COLOR("注意"))
+			PRINTFORMW 
+		ELSE
+			LOCAL:0 = 10
+			SIF (ABL:対象:野心) < 10
+				LOCAL = (ABL:対象:野心)
+			ABL:対象:野心 -= LOCAL:0
+			CALL COLORPRINTFORM(@"%ANAME(対象)%の野心が{LOCAL:0}減少し、{ABL:対象:野心}になった", COLOR("注意"))
+			PRINTFORMW 
 		ENDIF
 ENDSELECT
 RETURN 
+
+@TERRITORYSEARCH_SELECT_COMMANDER
+#DIM 消去行
+#DIM 対象
+#DIM 表示位置
+#DIM 表示ページ
+#DIM 総ページ数
+#DIM キャラ数
+#DIM キャラカウンタ
+#DIM 表示開始位置
+#DIM 表示終了位置
+VARSET キャラ数
+FOR LOCAL, 0, CHARANUM
+	SIF CFLAG:(LOCAL:0):所属 == CFLAG:MASTER:所属
+		キャラ数 ++
+NEXT
+総ページ数 = (キャラ数 - 1) / 40 + 1
+表示ページ = 1
+
+PRINTFORML %TOSTR_SPACE(23)%   武|  知|  政|  妖|  歌|  料 %TOSTR_SPACE(26)%   武|  知|  政|  妖|  歌|  料
+
+$SHOW_LOOP
+
+VARSET 消去行
+VARSET 表示位置
+VARSET キャラカウンタ
+表示開始位置 = (表示ページ - 1) * 40
+表示終了位置 = 表示ページ * 40
+
+
+FOR LOCAL:0, 0, CHARANUM
+	;育児されている子供は弾く
+	SIF CFLAG:(LOCAL:0):16 == 4
+		CONTINUE
+	;所属が同じのキャラのみ
+	IF CFLAG:(LOCAL:0):所属 == CFLAG:MASTER:所属
+		IF 表示開始位置 <= キャラカウンタ && キャラカウンタ < 表示終了位置
+			IF 表示位置 % 2 != 0
+				PRINT 　　
+			ELSEIF 表示位置 > 0
+				PRINTL 
+				消去行 ++
+			ENDIF
+			IF !CFLAG:LOCAL:捕虜先 && COOLTIME:(LOCAL:0):0 == 0 && TMP_IS_FREE:(LOCAL:0):0 == 0
+				PRINTFORM [{LOCAL:0 + 99, 4}]%ANAME(LOCAL:0), 16, RIGHT%
+				PRINTFORM   
+				CALL PRINT_ALPHABET_RANK(0, ABL:(LOCAL:0):武闘)
+				PRINTFORM {ABL:(LOCAL:0):武闘, 3}|
+				CALL PRINT_ALPHABET_RANK(0, ABL:(LOCAL:0):知略)
+				PRINTFORM {ABL:(LOCAL:0):知略, 3}|
+				CALL PRINT_ALPHABET_RANK(0, ABL:(LOCAL:0):政治)
+				PRINTFORM {ABL:(LOCAL:0):政治, 3}|
+				CALL PRINT_ALPHABET_RANK(1, ABL:(LOCAL:0):妖術)
+				PRINTFORM {ABL:(LOCAL:0):妖術, 3}|
+				CALL PRINT_ALPHABET_RANK(2, ABL:(LOCAL:0):歌唱)
+				PRINTFORM {ABL:(LOCAL:0):歌唱, 3}|
+				CALL PRINT_ALPHABET_RANK(2, ABL:(LOCAL:0):料理)
+				PRINTFORM {ABL:(LOCAL:0):料理, 3}
+			ELSE
+				LOCALS:0 = [{NO:(LOCAL:0) + 99, 4}]%ANAME(LOCAL:0), 16, RIGHT%  %ALPHABET_RANK(0, ABL:LOCAL:武闘)%{ABL:(LOCAL:0):武闘, 3}|%ALPHABET_RANK(0, ABL:LOCAL:知略)%{ABL:(LOCAL:0):知略, 3}|
+				LOCALS:0 += @"%ALPHABET_RANK(0, ABL:LOCAL:政治)%{ABL:(LOCAL:0):政治, 3}|%ALPHABET_RANK(1, ABL:LOCAL:妖術)%{ABL:(LOCAL:0):妖術, 3}|%ALPHABET_RANK(2, ABL:LOCAL:歌唱)%{ABL:(LOCAL:0):歌唱, 3}|%ALPHABET_RANK(2, ABL:LOCAL:料理)%{ABL:(LOCAL:0):料理, 3}"
+				SETCOLOR COLOR("選択不可")
+				PRINTPLAINFORM %LOCALS:0%
+				RESETCOLOR
+			ENDIF
+			表示位置 ++
+		ENDIF
+		キャラカウンタ ++
+	ENDIF
+NEXT
+
+PRINTL 
+DRAWLINE
+
+IF 総ページ数 >= 2
+	消去行 += 2
+	IF 表示ページ > 1
+		PRINT [  8] 前のページ            
+	ELSE
+		PRINT                             
+	ENDIF
+	LOCALS:0 = ページ{表示ページ}/{総ページ数}
+	PRINTPLAINFORM %LOCALS:0, 28, LEFT%
+	IF 表示ページ < 総ページ数
+		PRINT [  9] 後のページ
+	ENDIF
+	PRINTL 
+	DRAWLINE
+ENDIF
+
+PRINTL [  0] やっぱりやめておく
+
+REDRAW 0
+
+消去行 += 4
+
+$INPUT_LOOP
+INPUT
+IF RESULT == 8 && 表示ページ > 1
+	表示ページ --
+	CLEARLINE 消去行
+	GOTO SHOW_LOOP
+ELSEIF RESULT == 9 && 表示ページ < 総ページ数
+	表示ページ ++
+	CLEARLINE 消去行
+	GOTO SHOW_LOOP
+ELSEIF RESULT == 0
+	REDRAW 1
+	RETURN -1
+ENDIF
+
+対象 = RESULT - 99
+IF 対象 > CHARANUM || 対象 < 0
+	CLEARLINE 消去行
+	GOTO SHOW_LOOP
+ELSEIF CFLAG:MASTER:所属 != CFLAG:対象:所属 || CFLAG:対象:捕虜先
+	CLEARLINE 消去行
+	GOTO SHOW_LOOP
+ENDIF
+
+RETURN 対象
