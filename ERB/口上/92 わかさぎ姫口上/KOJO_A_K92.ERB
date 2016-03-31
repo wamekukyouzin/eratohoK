@@ -11,6 +11,9 @@ IF TALENT:虚ろ
 	RETURN
 ENDIF
 
+IF TALENT:処女
+	CFLAG:304 = 1
+ENDIF
 ;-------------------------------------------------
 ;初回
 ;-------------------------------------------------
@@ -60,6 +63,23 @@ IF CFLAG:200 == 0
 			PRINTFORMW 貴方　に設定しました
 			CFLAG:300 = 2
 		ENDIF
+	PRINTFORML 
+	PRINTFORML %CALLNAME:TARGET%の素質を口上に合わせて変更しますか？
+	PRINTFORML 
+	PRINTFORML [0]いいよ　　（自制心が消えて好奇心がつきます）
+	PRINTFORML [1]だめ　　　
+		$INPUT_LOOP_WAKASAGI_6
+		INPUT
+		IF RESULT != 0 && RESULT != 1
+			GOTO INPUT_LOOP_WAKASAGI_6
+		ELSEIF RESULT == 0
+			PRINTFORMW 素質を変更しました
+			TALENT:自制心 = 0
+			TALENT:好奇心 = 1
+		ELSEIF RESULT == 1
+			PRINTFORMW 変更せずに始めます
+		ENDIF
+		
 
 ;-------------------------------------------------
 ;開始時(1回のみ)
@@ -90,7 +110,7 @@ ELSEIF CFLAG:200 < 4 && MARK:2 == 2
 		PRINTFORML 「さあ、私は誰でしょう？分かりますかあ」
 		PRINTFORMW 
 		PRINTFORML %CALLNAME:TARGET%だ。と%CALLNAME:MASTER%が答えると
-		PRINTFORML %CALLNAME:MASTER%を解放して、その頬にキスしてきた
+		PRINTFORML %CALLNAME:MASTER%を解放してその頬にキスしてきた
 		PRINTFORML 「正解のごほうびですよ。えへへ…」
 		PRINTFORML 
 		PRINTFORMW （ふふっ、嬉しいなあ…）
@@ -232,6 +252,9 @@ IF TALENT:虚ろ
 	RETURN
 ENDIF
 
+IF CFLAG:304 == 1
+	CFLAG:304 = 0
+ENDIF
 ;-------------------------------------------------
 ;行動不能の場合
 ;-------------------------------------------------
@@ -392,6 +415,9 @@ IF TALENT:虚ろ
 	RETURN
 ENDIF
 
+IF TALENT:処女
+	CFLAG:304 = 1
+ENDIF
 ;=================================================
 ;●「閨に呼ぶ」の終了時のセリフ ※単独で呼ばれた場合のみ呼ばれる
 ;=================================================
@@ -399,6 +425,10 @@ ENDIF
 ;[虚ろ]状態なら口上を表示しない
 IF TALENT:虚ろ
 	RETURN
+ENDIF
+
+IF CFLAG:304 == 1
+	CFLAG:304 = 0
 ENDIF
 
 ;酒酔いによる行動不能
@@ -438,7 +468,22 @@ IF TALENT:虚ろ || IS_EQUIP_CONTINUE(TARGET, "口装着")
 	RETURN 0
 ENDIF
 
-RETURN 0
+;1対1の足コキの時は地の文変更
+IF SELECTCOM == 14
+	IF MPLY_NUM == 1 && MTAR_NUM == 1
+		IF TALENT:サド
+			PRINTFORMW %CALLNAME:TARGET%はサディスティックな笑みを浮かべながら、%CALLNAME:MASTER%のペニスを尾で激しく擦りあげた…
+		ELSE
+			PRINTFORMW %CALLNAME:TARGET%は%CALLNAME:MASTER%のペニスをその尾で遠慮がちに擦りあげた…
+		ENDIF
+		RETURN 1
+	ELSE
+	RETURN 0
+	ENDIF
+	
+ELSE
+	RETURN 0
+ENDIF
 
 ;=================================================
 ;●コマンド実行時(このキャラがプレイヤーでもターゲットでも呼び出される)
@@ -450,55 +495,6 @@ IF TALENT:虚ろ || IS_EQUIP_CONTINUE(TARGET, "口装着")
 	RETURN 0
 ENDIF
 
-;-------------------------------------------------
-;キス
-;-------------------------------------------------
-IF SELECTCOM == 20
-	;このキャラが主導権を持っている
-	IF IS_INITIATIVE(TARGET)
-		;ファーストキス
-		IF TALENT:キス未経験
-			;恋慕 or 服従
-			IF TALENT:恋慕 || TALENT:服従
-				;PRINTFORMW 
-			;それ以外
-			ELSE
-				;PRINTFORMW 
-			ENDIF
-		;キス経験済み
-		ELSE
-			;恋慕 or 服従
-			IF TALENT:恋慕 || TALENT:服従
-				;PRINTFORMW 
-			;それ以外
-			ELSE
-				;PRINTFORMW 
-			ENDIF
-		ENDIF
-	;このキャラが主導権を持っていない
-	ELSE
-		;ファーストキス
-		IF TALENT:キス未経験
-			;恋慕 or 服従
-			IF TALENT:恋慕 || TALENT:服従
-				;PRINTFORMW 
-			;それ以外
-			ELSE
-				;PRINTFORMW 
-			ENDIF
-		;キス経験済み
-		ELSE
-			;恋慕 or 服従
-			IF TALENT:恋慕 || TALENT:服従
-				;PRINTFORMW 
-			;それ以外
-			ELSE
-				;PRINTFORMW 
-			ENDIF
-		ENDIF
-	ENDIF
-	RETURN 0
-ENDIF
 
 ;-------------------------------------------------
 ;貝合わせ
@@ -582,6 +578,8 @@ IF SELECTCOM == 22
 	IF IS_INITIATIVE(TARGET)
 		;初めて
 		IF IS_COM_FIRST()
+			SIF CFLAG:304 == 1
+				CFLAG:304 = 0
 			;このキャラと主人公が共に処女
 			IF TALENT:処女 && TALENT:MASTER:処女
 				;恋慕 or 服従
@@ -645,6 +643,8 @@ IF SELECTCOM == 22
 	ELSE
 		;初めて
 		IF IS_COM_FIRST()
+			SIF CFLAG:304 == 1
+				CFLAG:304 = 0
 			;このキャラと主人公が共に処女
 			IF TALENT:処女 && TALENT:MASTER:処女
 				;恋慕 or 服従
@@ -717,51 +717,105 @@ IF TALENT:虚ろ || IS_EQUIP_CONTINUE(TARGET, "口装着")
 	RETURN 0
 ENDIF
 
+
+;-------------------------------------------------
+;キス
+;処理の都合上ファーストキスはキス経験1以下に
+;-------------------------------------------------
+
+;キス
+IF SELECTCOM == 20
+
+	;このキャラが主導権を持っている
+	;IF IS_INITIATIVE(TARGET)
+		;ファーストキス
+		IF EXP:キス経験 <= 1
+			;恋慕 or 恋人
+			IF TALENT:恋慕 || TALENT:恋人
+				PRINTFORML 「キス…お願いしてもいいですか…？」
+				PRINTFORML 「初めてなので、優しくしてください」
+				PRINTFORMW …………
+				PRINTFORMW 「ど、どうぞっ」
+			ELSE
+			ENDIF
+			PRINTFORML 
+		;キス経験済み
+		ELSE
+			;恋慕 or 恋人
+			IF TALENT:恋慕 || TALENT:恋人
+				IF TALENT:蕩唇
+				SELECTCASE RAND:3
+					CASE 1
+						PRINTFORML %CALLNAME:TARGET%は%CALLNAME:MASTER%にしがみついてキスをねだった
+						PRINTFORMW 「ん…　はあ……もう病みつきになっちゃいましたあ…」
+					CASE 2
+						PRINTFORMW 「キス…してください。忘れられません…」
+					CASEELSE
+						PRINTFORMW 「いっぱいちゅーしてください…　とろけちゃうくらい…」
+				ENDSELECT
+				
+				ELSEIF ABL:Ｍ感 >= 5
+				SELECTCASE RAND:3
+					CASE 1
+						PRINTFORMW 「キスって気持ちいいですねえ。もっとしてほしいです。んー」
+					CASE 2
+						PRINTFORML 「ふはあ…　頭がボーっとしちゃいます…」
+						PRINTFORMW 「ちゅーしてもらうの…大好き……♪」
+					CASEELSE
+						PRINTFORMW 「キスしてもらうたびに、好きがどんどん大きくなるみたい…」
+				ENDSELECT
+				
+				ELSE
+				SELECTCASE RAND:3
+					CASE 1
+						PRINTFORMW 「優しいキス、してほしいです」
+					CASE 2
+						PRINTFORMW 「キスしたくなっちゃいました？えへへ、お願いします…」
+					CASEELSE
+						PRINTFORML 「ん？　んぁ…ん……　ちゅ」
+						PRINTFORMW 「不意打ちのキスなんて、びっくりしちゃいましたよ。もう…」
+				ENDSELECT
+				ENDIF
+				PRINTFORML 
+
+			ELSE
+			ENDIF
+		ENDIF
+	;ENDIF
+	RETURN 0
+ENDIF
+
+
 ;-------------------------------------------------
 ;愛撫(ターゲット)
 ;-------------------------------------------------
 IF SELECTCOM == 0
-	;このキャラが主導権を持っている
-	IF IS_INITIATIVE(TARGET)
-		;初めて
-		IF IS_COM_FIRST()
-			;恋慕 or 服従
-			IF TALENT:恋慕 || TALENT:服従
-				;PRINTFORMW 
-			;それ以外
-			ELSE
-				;PRINTFORMW 
-			ENDIF
-		;二回目以降
+	
+	;初めて
+	IF IS_COM_FIRST()
+		;恋慕 or 恋人
+		IF TALENT:恋慕 || TALENT:恋人
+			PRINTFORML 「はい。触ってください…んっ、ひゃんっ！」
+			PRINTFORMW 「あうう…手つきがえっちですよう」
+		;それ以外
 		ELSE
-			;恋慕 or 服従
-			IF TALENT:恋慕 || TALENT:服従
-				;PRINTFORMW 
-			;それ以外
-			ELSE
-				;PRINTFORMW 
-			ENDIF
+			;PRINTFORMW 
 		ENDIF
-	;このキャラが主導権を持っていない
+	;二回目以降
 	ELSE
-		;初めて
-		IF IS_COM_FIRST()
-			;恋慕 or 服従
-			IF TALENT:恋慕 || TALENT:服従
-				;PRINTFORMW 
-			;それ以外
-			ELSE
-				;PRINTFORMW 
-			ENDIF
-		;二回目以降
+		;恋慕 or 恋人
+		IF TALENT:恋慕 || TALENT:恋人
+			SELECTCASE RAND:3
+			CASE 1
+				PRINTFORMW 「ふぁ、んん…気持ちいい、です」
+			CASE 2
+				PRINTFORMW 「もっと、もっと…あっ、ん…触って…」
+			CASEELSE
+				PRINTFORMW 「ん、くぅ…ん。そこ、敏感なんですよお…」
+			ENDSELECT
+		;それ以外
 		ELSE
-			;恋慕 or 服従
-			IF TALENT:恋慕 || TALENT:服従
-				;PRINTFORMW 
-			;それ以外
-			ELSE
-				;PRINTFORMW 
-			ENDIF
+			;PRINTFORMW 
 		ENDIF
 	ENDIF
 	RETURN 0
@@ -771,70 +825,106 @@ ENDIF
 ;胸愛撫(ターゲット)
 ;-------------------------------------------------
 IF SELECTCOM == 1
-	;このキャラが主導権を持っている
-	IF IS_INITIATIVE(TARGET)
-		;初めて
-		IF IS_COM_FIRST()
-			;恋慕 or 服従
-			IF TALENT:恋慕 || TALENT:服従
-				;PRINTFORMW 
-			;それ以外
-			ELSE
-				;PRINTFORMW 
-			ENDIF
-		;二回目以降
+
+	;初めて
+	IF IS_COM_FIRST()
+		;恋慕 or 恋人
+		IF TALENT:恋慕 || TALENT:恋人
+			PRINTFORML 「おっぱいですか？ちょっと恥ずかしいですけど…はい」
+			PRINTFORMW 「んんっ！少し、痛いです…」
+		;それ以外
 		ELSE
-			;恋慕 or 服従
-			IF TALENT:恋慕 || TALENT:服従
-				;Ｂ感Lv3以上
-				IF ABL:Ｂ感 >= 3
-					;PRINTFORMW 
-				;Ｂ感Lv3未満
-				ELSE
-					;PRINTFORMW 
-				ENDIF
-			;それ以外
+			;PRINTFORMW 
+		ENDIF
+	;二回目以降
+	ELSE
+		;恋慕 or 恋人
+		IF TALENT:恋慕 || TALENT:恋人
+			;Ｂ感Lv4以上
+			IF ABL:Ｂ感 >= 5
+				SELECTCASE RAND:3
+				CASE 1
+					PRINTFORMW 「いっぱい揉まれて、ちょっと大きくなったかも…です」
+				CASE 2
+					PRINTFORMW 「はうっ！先っぽつままないでぇ…ビリビリ、きちゃいますう」
+				CASEELSE
+					PRINTFORMW 「んうぅ…！胸ばっかり…いじめないでくださいよお…！」
+				ENDSELECT
+			;Ｂ感Lv5未満
 			ELSE
-				;Ｂ感Lv3以上
-				IF ABL:Ｂ感 >= 3
-					;PRINTFORMW 
-				;Ｂ感Lv3未満
-				ELSE
-					;PRINTFORMW 
-				ENDIF
+				SELECTCASE RAND:3
+				CASE 1
+					PRINTFORMW 「んん…私の胸好きなんですか…？なら、嬉しい…です」
+				CASE 2
+					PRINTFORML 「あったかい手…心臓の音、分かりますか…？」
+					PRINTFORMW 「いつもよりちょっと速い…あなたと同じですね。えへへ…」
+				CASEELSE
+					PRINTFORML 「おっぱいを触ってもらっていると、胸の奥がほわわんってなります」
+					PRINTFORMW 「この感じ…好きかもしれません。ふふっ」
+				ENDSELECT
+			ENDIF
+		;それ以外
+		ELSE
+			;Ｂ感Lv3以上
+			IF ABL:Ｂ感 >= 3
+				;PRINTFORMW 
+			;Ｂ感Lv3未満
+			ELSE
+				;PRINTFORMW 
 			ENDIF
 		ENDIF
-	;このキャラが主導権を持っていない
-	ELSE
-		;初めて
-		IF IS_COM_FIRST()
-			;恋慕 or 服従
-			IF TALENT:恋慕 || TALENT:服従
-				;PRINTFORMW 
-			;それ以外
-			ELSE
-				;PRINTFORMW 
-			ENDIF
-		;二回目以降
+	ENDIF
+	RETURN 0
+ENDIF
+
+;-------------------------------------------------
+;乳首吸い(ターゲット)
+;-------------------------------------------------
+IF SELECTCOM == 9
+
+	;初めて
+	IF IS_COM_FIRST()
+		;恋慕 or 恋人
+		IF TALENT:恋慕 || TALENT:恋人
+			PRINTFORML 「おっぱいですか？ちょっと恥ずかしいですけど…はい」
+			PRINTFORMW 「ん…くふっ！くすぐったいですよお」
+		;それ以外
 		ELSE
-			;恋慕 or 服従
-			IF TALENT:恋慕 || TALENT:服従
-				;Ｂ感Lv3以上
-				IF ABL:Ｂ感 >= 3
-					;PRINTFORMW 
-				;Ｂ感Lv3未満
-				ELSE
-					;PRINTFORMW 
-				ENDIF
-			;それ以外
+			;PRINTFORMW 
+		ENDIF
+	;二回目以降
+	ELSE
+		;恋慕 or 恋人
+		IF TALENT:恋慕 || TALENT:恋人
+			;Ｂ感Lv5以上
+			IF ABL:Ｂ感 >= 5
+				SELECTCASE RAND:3
+				CASE 1
+					PRINTFORMW 「いっぱい吸われて、ちょっと大きくなったかも…です」
+				CASE 2
+					PRINTFORMW 「はうっ！先っぽ舐めないでぇ…ビクビク、しちゃいますう」
+				CASEELSE
+					PRINTFORMW 「んうぅ…！胸ばっかり…いじめないでくださいよお…！」
+				ENDSELECT
+			;Ｂ感Lv5未満
 			ELSE
-				;Ｂ感Lv3以上
-				IF ABL:Ｂ感 >= 3
-					;PRINTFORMW 
-				;Ｂ感Lv3未満
-				ELSE
-					;PRINTFORMW 
-				ENDIF
+				SELECTCASE RAND:3
+				CASE 1
+					PRINTFORMW 「おっきい赤ちゃんみたいです…かわいい」
+				CASE 2
+					PRINTFORMW 「いやらしい吸い方ですねえ、もうっ」
+				CASEELSE
+					PRINTFORMW 「うふふっ、なでなでしてあげますね。いっぱい吸ってください」
+				ENDSELECT
+			ENDIF
+		;それ以外
+		ELSE
+			;Ｂ感Lv3以上
+			IF ABL:Ｂ感 >= 3
+				;PRINTFORMW 
+			;Ｂ感Lv3未満
+			ELSE
+				;PRINTFORMW 
 			ENDIF
 		ENDIF
 	ENDIF
@@ -845,70 +935,50 @@ ENDIF
 ;クンニ(ターゲット)
 ;-------------------------------------------------
 IF SELECTCOM == 2
-	;このキャラが主導権を持っている
-	IF IS_INITIATIVE(TARGET)
-		;初めて
-		IF IS_COM_FIRST()
-			;恋慕 or 服従
-			IF TALENT:恋慕 || TALENT:服従
-				;PRINTFORMW 
-			;それ以外
-			ELSE
-				;PRINTFORMW 
-			ENDIF
-		;二回目以降
+	;初めて
+	IF IS_COM_FIRST()
+		;恋慕 or 恋人
+		IF TALENT:恋慕 || TALENT:恋人
+			PRINTFORML 「大事なところ、見られちゃってる…」
+			PRINTFORMW 「うう…恥ずかしすぎますよお…」
+		;それ以外
 		ELSE
-			;恋慕 or 服従
-			IF TALENT:恋慕 || TALENT:服従
-				;Ｃ感Lv3以上
-				IF ABL:Ｃ感 >= 3
-					;PRINTFORMW 
-				;Ｃ感Lv3未満
-				ELSE
-					;PRINTFORMW 
-				ENDIF
-			;それ以外
-			ELSE
-				;Ｃ感Lv3以上
-				IF ABL:Ｃ感 >= 3
-					;PRINTFORMW 
-				;Ｃ感Lv3未満
-				ELSE
-					;PRINTFORMW 
-				ENDIF
-			ENDIF
+			;PRINTFORMW 
 		ENDIF
-	;このキャラが主導権を持っていない
+	;二回目以降
 	ELSE
-		;初めて
-		IF IS_COM_FIRST()
-			;恋慕 or 服従
-			IF TALENT:恋慕 || TALENT:服従
-				;PRINTFORMW 
-			;それ以外
+		;恋慕 or 恋人
+		IF TALENT:恋慕 || TALENT:恋人
+			;Ｃ感Lv5以上
+			IF ABL:Ｃ感 >= 5
+				SELECTCASE RAND:3
+				CASE 1
+					PRINTFORMW 「ひうっ！そこ、吸わないで…！ダメに…なっちゃいます、よ」
+				CASE 2
+					PRINTFORMW 「あ…んっ！舌が…気持ちいい、です…」
+				CASEELSE
+					PRINTFORML 「ここ…お口で気持ちよくして、ください…」
+					PRINTFORMW 「うう…恥ずかしいけど、期待しちゃってます」
+				ENDSELECT
+			;Ｃ感Lv5未満
 			ELSE
-				;PRINTFORMW 
+				SELECTCASE RAND:3
+				CASE 1
+					PRINTFORMW 「やっぱり恥ずかしいですね…んんっ！開かないでくださいよお」
+				CASE 2
+					PRINTFORMW 「ん、んん…！　もう、音立てないでくださいよう。」
+				CASEELSE
+					PRINTFORMW 「むずむずします…気持ちいいかって？よく分からないです…」
+				ENDSELECT
 			ENDIF
-		;二回目以降
+		;それ以外
 		ELSE
-			;恋慕 or 服従
-			IF TALENT:恋慕 || TALENT:服従
-				;Ｃ感Lv3以上
-				IF ABL:Ｃ感 >= 3
-					;PRINTFORMW 
-				;Ｃ感Lv3未満
-				ELSE
-					;PRINTFORMW 
-				ENDIF
-			;それ以外
+			;Ｂ感Lv3以上
+			IF ABL:Ｂ感 >= 3
+				;PRINTFORMW 
+			;Ｂ感Lv3未満
 			ELSE
-				;Ｃ感Lv3以上
-				IF ABL:Ｃ感 >= 3
-					;PRINTFORMW 
-				;Ｃ感Lv3未満
-				ELSE
-					;PRINTFORMW 
-				ENDIF
+				;PRINTFORMW 
 			ENDIF
 		ENDIF
 	ENDIF
@@ -1788,23 +1858,29 @@ ENDIF
 ;-------------------------------------------------
 IF SELECTCOM == 30
 	;このキャラが主導権を持っている
-	IF IS_INITIATIVE(TARGET)
+	;IF IS_INITIATIVE(TARGET)
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF TALENT:処女
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
+			IF CFLAG:304 == 1
+			CFLAG:304 = 0
+				;恋慕 or 恋人
+				IF TALENT:恋慕 || TALENT:恋人
+					PRINTFORMW 「とうとう、しちゃうんですね。せっくす…」
+					PRINTFORMW 「あの、初めてなので…優しく、してください……」
+					PRINTFORMW 「やり方とかは分からないから…お任せします」
+					PRINTFORMW 
+					GOTO WAKASAGI_8
 				;それ以外
 				ELSE
 					;PRINTFORMW 
 				ENDIF
 			;非処女
 			ELSE
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
+				;恋慕 or 恋人
+				IF TALENT:恋慕 || TALENT:恋人
+					PRINTFORML 「ん…これ、あなたに包まれてるみたい…」
+					PRINTFORMW 「なんだか安心できます。えへへ…大好き……」
 				;それ以外
 				ELSE
 					;PRINTFORMW 
@@ -1812,15 +1888,20 @@ IF SELECTCOM == 30
 			ENDIF
 		;二回目以降
 		ELSE
-			;恋慕 or 服従
-			IF TALENT:恋慕 || TALENT:服従
-				;Ｖ感Lv3以上
-				IF ABL:Ｖ感 >= 3
-					;PRINTFORMW 
-				;Ｖ感Lv3未満
-				ELSE
-					;PRINTFORMW 
-				ENDIF
+			;恋慕 or 恋人
+			IF TALENT:恋慕 || TALENT:恋人
+				SELECTCASE RAND:5
+				CASE 1
+					PRINTFORMW 「この体勢、ぎゅっと抱きつけて好きです」
+				CASE 2
+					PRINTFORMW 「顔が近くて…ちょっと照れますね…」
+				CASE 3
+					PRINTFORMW 「はあぁ…お腹の中、拡げられちゃってる…」
+				CASE 4
+					PRINTFORMW 「あの、このままキス…うう、恥ずかしい…」
+				CASEELSE
+					PRINTFORMW 「んっ…んっ…奥のところ、気持ちいい、です」
+				ENDSELECT
 			;それ以外
 			ELSE
 				;Ｖ感Lv3以上
@@ -1832,52 +1913,8 @@ IF SELECTCOM == 30
 				ENDIF
 			ENDIF
 		ENDIF
-	;このキャラが主導権を持っていない
-	ELSE
-		;初めて
-		IF IS_COM_FIRST()
-			;処女
-			IF TALENT:処女
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
-				;それ以外
-				ELSE
-					;PRINTFORMW 
-				ENDIF
-			;非処女
-			ELSE
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
-				;それ以外
-				ELSE
-					;PRINTFORMW 
-				ENDIF
-			ENDIF
-		;二回目以降
-		ELSE
-			;恋慕 or 服従
-			IF TALENT:恋慕 || TALENT:服従
-				;Ｖ感Lv3以上
-				IF ABL:Ｖ感 >= 3
-					;PRINTFORMW 
-				;Ｖ感Lv3未満
-				ELSE
-					;PRINTFORMW 
-				ENDIF
-			;それ以外
-			ELSE
-				;Ｖ感Lv3以上
-				IF ABL:Ｖ感 >= 3
-					;PRINTFORMW 
-				;Ｖ感Lv3未満
-				ELSE
-					;PRINTFORMW 
-				ENDIF
-			ENDIF
-		ENDIF
-	ENDIF
+	
+	;ENDIF
 	RETURN 0
 ENDIF
 
@@ -1886,23 +1923,29 @@ ENDIF
 ;-------------------------------------------------
 IF SELECTCOM == 31
 	;このキャラが主導権を持っている
-	IF IS_INITIATIVE(TARGET)
+	;IF IS_INITIATIVE(TARGET)
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF TALENT:処女
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
+			IF CFLAG:304 == 1
+			CFLAG:304 = 0
+				;恋慕 or 恋人
+				IF TALENT:恋慕 || TALENT:恋人
+					PRINTFORMW 「とうとう、しちゃうんですね。せっくす…」
+					PRINTFORMW 「あの、初めてなので…優しく、してください……」
+					PRINTFORMW 「う、後ろから？えっと…こんな感じですか？」
+					PRINTFORMW 
+					GOTO WAKASAGI_8
 				;それ以外
 				ELSE
 					;PRINTFORMW 
 				ENDIF
 			;非処女
 			ELSE
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
+				;恋慕 or 恋人
+				IF TALENT:恋慕 || TALENT:恋人
+					PRINTFORML 「顔が見えないのはちょっと不安です」
+					PRINTFORMW 「ひゃあぁ！？いきなり背中撫でないでくださいよお！」
 				;それ以外
 				ELSE
 					;PRINTFORMW 
@@ -1910,15 +1953,20 @@ IF SELECTCOM == 31
 			ENDIF
 		;二回目以降
 		ELSE
-			;恋慕 or 服従
-			IF TALENT:恋慕 || TALENT:服従
-				;Ｖ感Lv3以上
-				IF ABL:Ｖ感 >= 3
-					;PRINTFORMW 
-				;Ｖ感Lv3未満
-				ELSE
-					;PRINTFORMW 
-				ENDIF
+			;恋慕 or 恋人
+			IF TALENT:恋慕 || TALENT:恋人
+				SELECTCASE RAND:5
+				CASE 1
+					PRINTFORMW 「もう…そんなにまじまじと見ないでくださいよう！」
+				CASE 2
+					PRINTFORMW 「はーっ、はーっ…怖いのに、気持ちいいよおっ…！」
+				CASE 3
+					PRINTFORMW 「見えないと、敏感になってる感じ…！んっ、あぁっ！」
+				CASE 4
+					PRINTFORMW 「あ、んんっ！これいつもより深く、きてますっ…！」
+				CASEELSE
+					PRINTFORMW 「この体位…やっぱり恥ずかしいですね」
+				ENDSELECT
 			;それ以外
 			ELSE
 				;Ｖ感Lv3以上
@@ -1930,52 +1978,8 @@ IF SELECTCOM == 31
 				ENDIF
 			ENDIF
 		ENDIF
-	;このキャラが主導権を持っていない
-	ELSE
-		;初めて
-		IF IS_COM_FIRST()
-			;処女
-			IF TALENT:処女
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
-				;それ以外
-				ELSE
-					;PRINTFORMW 
-				ENDIF
-			;非処女
-			ELSE
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
-				;それ以外
-				ELSE
-					;PRINTFORMW 
-				ENDIF
-			ENDIF
-		;二回目以降
-		ELSE
-			;恋慕 or 服従
-			IF TALENT:恋慕 || TALENT:服従
-				;Ｖ感Lv3以上
-				IF ABL:Ｖ感 >= 3
-					;PRINTFORMW 
-				;Ｖ感Lv3未満
-				ELSE
-					;PRINTFORMW 
-				ENDIF
-			;それ以外
-			ELSE
-				;Ｖ感Lv3以上
-				IF ABL:Ｖ感 >= 3
-					;PRINTFORMW 
-				;Ｖ感Lv3未満
-				ELSE
-					;PRINTFORMW 
-				ENDIF
-			ENDIF
-		ENDIF
-	ENDIF
+	
+	;ENDIF
 	RETURN 0
 ENDIF
 
@@ -1984,23 +1988,29 @@ ENDIF
 ;-------------------------------------------------
 IF SELECTCOM == 32
 	;このキャラが主導権を持っている
-	IF IS_INITIATIVE(TARGET)
+	;IF IS_INITIATIVE(TARGET)
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF TALENT:処女
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
+			IF CFLAG:304 == 1
+			CFLAG:304 = 0
+				;恋慕 or 恋人
+				IF TALENT:恋慕 || TALENT:恋人
+					PRINTFORMW 「とうとう、しちゃうんですね。せっくす…」
+					PRINTFORMW 「あの、初めてなので…優しく、してください……」
+					PRINTFORMW 「抱きあってするんですか？ふふっ…嬉しいです」
+					PRINTFORMW 
+					GOTO WAKASAGI_8
 				;それ以外
 				ELSE
 					;PRINTFORMW 
 				ENDIF
 			;非処女
 			ELSE
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
+				;恋慕 or 恋人
+				IF TALENT:恋慕 || TALENT:恋人
+					PRINTFORML 「もっとぎゅーってしてくださいよお」
+					PRINTFORMW 「えへへ…上も下もあったかいです…」
 				;それ以外
 				ELSE
 					;PRINTFORMW 
@@ -2008,15 +2018,20 @@ IF SELECTCOM == 32
 			ENDIF
 		;二回目以降
 		ELSE
-			;恋慕 or 服従
-			IF TALENT:恋慕 || TALENT:服従
-				;Ｖ感Lv3以上
-				IF ABL:Ｖ感 >= 3
-					;PRINTFORMW 
-				;Ｖ感Lv3未満
-				ELSE
-					;PRINTFORMW 
-				ENDIF
+			;恋慕 or 恋人
+			IF TALENT:恋慕 || TALENT:恋人
+				SELECTCASE RAND:5
+				CASE 1
+					PRINTFORMW 「あの…頭、撫でながら動いてほしいです…」
+				CASE 2
+					PRINTFORMW 「んん、ああんっ！くっつくの…好きい…！」
+				CASE 3
+					PRINTFORMW 「いっぱい抱きしめられて、頭がぼーっとしちゃいます…幸せぇ…♪」
+				CASE 4
+					PRINTFORMW 「腰をくねらせる？えっと、こう…？　んんっ！中でビクッてしましたぁ…」
+				CASEELSE
+					PRINTFORMW 「このまま、ちゅー…しちゃいます…？」
+				ENDSELECT
 			;それ以外
 			ELSE
 				;Ｖ感Lv3以上
@@ -2028,52 +2043,8 @@ IF SELECTCOM == 32
 				ENDIF
 			ENDIF
 		ENDIF
-	;このキャラが主導権を持っていない
-	ELSE
-		;初めて
-		IF IS_COM_FIRST()
-			;処女
-			IF TALENT:処女
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
-				;それ以外
-				ELSE
-					;PRINTFORMW 
-				ENDIF
-			;非処女
-			ELSE
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
-				;それ以外
-				ELSE
-					;PRINTFORMW 
-				ENDIF
-			ENDIF
-		;二回目以降
-		ELSE
-			;恋慕 or 服従
-			IF TALENT:恋慕 || TALENT:服従
-				;Ｖ感Lv3以上
-				IF ABL:Ｖ感 >= 3
-					;PRINTFORMW 
-				;Ｖ感Lv3未満
-				ELSE
-					;PRINTFORMW 
-				ENDIF
-			;それ以外
-			ELSE
-				;Ｖ感Lv3以上
-				IF ABL:Ｖ感 >= 3
-					;PRINTFORMW 
-				;Ｖ感Lv3未満
-				ELSE
-					;PRINTFORMW 
-				ENDIF
-			ENDIF
-		ENDIF
-	ENDIF
+	
+	;ENDIF
 	RETURN 0
 ENDIF
 
@@ -2082,23 +2053,29 @@ ENDIF
 ;-------------------------------------------------
 IF SELECTCOM == 33
 	;このキャラが主導権を持っている
-	IF IS_INITIATIVE(TARGET)
+	;IF IS_INITIATIVE(TARGET)
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF TALENT:処女
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
+			IF CFLAG:304 == 1
+			CFLAG:304 = 0
+				;恋慕 or 恋人
+				IF TALENT:恋慕 || TALENT:恋人
+					PRINTFORMW 「とうとう、しちゃうんですね。せっくす…」
+					PRINTFORMW 「あの、初めてなので…優しく、してください……」
+					PRINTFORMW 「お膝に乗るんですか？分かりました。ちゃんと支えててくださいね」
+					PRINTFORMW 
+					GOTO WAKASAGI_8
 				;それ以外
 				ELSE
 					;PRINTFORMW 
 				ENDIF
 			;非処女
 			ELSE
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
+				;恋慕 or 恋人
+				IF TALENT:恋慕 || TALENT:恋人
+					PRINTFORML 「後ろからぎゅーってされるのも好きですよ」
+					PRINTFORMW 「あん、もうイタズラしちゃダメですよお」
 				;それ以外
 				ELSE
 					;PRINTFORMW 
@@ -2106,15 +2083,20 @@ IF SELECTCOM == 33
 			ENDIF
 		;二回目以降
 		ELSE
-			;恋慕 or 服従
-			IF TALENT:恋慕 || TALENT:服従
-				;Ｖ感Lv3以上
-				IF ABL:Ｖ感 >= 3
-					;PRINTFORMW 
-				;Ｖ感Lv3未満
-				ELSE
-					;PRINTFORMW 
-				ENDIF
+			;恋慕 or 恋人
+			IF TALENT:恋慕 || TALENT:恋人
+				SELECTCASE RAND:5
+				CASE 1
+					PRINTFORMW 「はふぅ…　もうちょっと寄りかかってもいいですか…？」
+				CASE 2
+					PRINTFORMW 「はあ…いちばん深い所まで来ちゃってます……」
+				CASE 3
+					PRINTFORMW 「全身可愛がってもらえて…嬉しいですよぅ…」
+				CASE 4
+					PRINTFORMW 「んくっ…胸も、あそこも…熱いっ、です…！」
+				CASEELSE
+					PRINTFORMW 「うわ…入ってるところ丸見え…　うわわわ…」
+				ENDSELECT
 			;それ以外
 			ELSE
 				;Ｖ感Lv3以上
@@ -2126,77 +2108,40 @@ IF SELECTCOM == 33
 				ENDIF
 			ENDIF
 		ENDIF
-	;このキャラが主導権を持っていない
-	ELSE
-		;初めて
-		IF IS_COM_FIRST()
-			;処女
-			IF TALENT:処女
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
-				;それ以外
-				ELSE
-					;PRINTFORMW 
-				ENDIF
-			;非処女
-			ELSE
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
-				;それ以外
-				ELSE
-					;PRINTFORMW 
-				ENDIF
-			ENDIF
-		;二回目以降
-		ELSE
-			;恋慕 or 服従
-			IF TALENT:恋慕 || TALENT:服従
-				;Ｖ感Lv3以上
-				IF ABL:Ｖ感 >= 3
-					;PRINTFORMW 
-				;Ｖ感Lv3未満
-				ELSE
-					;PRINTFORMW 
-				ENDIF
-			;それ以外
-			ELSE
-				;Ｖ感Lv3以上
-				IF ABL:Ｖ感 >= 3
-					;PRINTFORMW 
-				;Ｖ感Lv3未満
-				ELSE
-					;PRINTFORMW 
-				ENDIF
-			ENDIF
-		ENDIF
-	ENDIF
+	
+	;ENDIF
 	RETURN 0
 ENDIF
 
 ;-------------------------------------------------
 ;騎乗位(ターゲット)
 ;-------------------------------------------------
-IF SELECTCOM == 34
+IF SELECTCOM == 34 || SELECTCOM == 35
 	;このキャラが主導権を持っている
-	IF IS_INITIATIVE(TARGET)
+	;IF IS_INITIATIVE(TARGET)
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF TALENT:処女
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
+			IF CFLAG:304 == 1
+			CFLAG:304 = 0
+				;恋慕 or 恋人
+				IF TALENT:恋慕 || TALENT:恋人
+					PRINTFORMW 「とうとう、しちゃうんですね。せっくす…」
+					PRINTFORMW 「あの、初めてなので…優しく、してください……」
+					PRINTFORMW 「え？私からするんですか？　怖いですけど、あなたの頼みなら…」
+					PRINTFORMW 「それじゃあ、ゆっくり…いきますね」
+					PRINTFORMW 
+					GOTO WAKASAGI_8
 				;それ以外
 				ELSE
 					;PRINTFORMW 
 				ENDIF
 			;非処女
 			ELSE
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
+				;恋慕 or 恋人
+				IF TALENT:恋慕 || TALENT:恋人
+					PRINTFORML 「今日は私が気持ちよくしてあげますねえ…」
+					PRINTFORMW 「んっ…　入りました。動きますよ…」
 				;それ以外
 				ELSE
 					;PRINTFORMW 
@@ -2204,15 +2149,20 @@ IF SELECTCOM == 34
 			ENDIF
 		;二回目以降
 		ELSE
-			;恋慕 or 服従
-			IF TALENT:恋慕 || TALENT:服従
-				;Ｖ感Lv3以上
-				IF ABL:Ｖ感 >= 3
-					;PRINTFORMW 
-				;Ｖ感Lv3未満
-				ELSE
-					;PRINTFORMW 
-				ENDIF
+			;恋慕 or 恋人
+			IF TALENT:恋慕 || TALENT:恋人
+				SELECTCASE RAND:5
+				CASE 1
+					PRINTFORMW 「たっぷり気持ちよくなってくださいね…えへへ」
+				CASE 2
+					PRINTFORMW 「ふふ…されるがままのあなた…可愛いですよ♪」
+				CASE 3
+					PRINTFORMW 「はぁ…はぁ…もっと欲しいです。動いて、いい…？」
+				CASE 4
+					PRINTFORMW 「ひぁんっ！私がしてあげるんですから動かな、はぅん…もうっ！」
+				CASEELSE
+					PRINTFORMW 「んうぅ…　奥にぐりぐりするの…いいっ、です…！」
+				ENDSELECT
 			;それ以外
 			ELSE
 				;Ｖ感Lv3以上
@@ -2224,152 +2174,109 @@ IF SELECTCOM == 34
 				ENDIF
 			ENDIF
 		ENDIF
-	;このキャラが主導権を持っていない
-	ELSE
-		;初めて
-		IF IS_COM_FIRST()
-			;処女
-			IF TALENT:処女
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
-				;それ以外
-				ELSE
-					;PRINTFORMW 
-				ENDIF
-			;非処女
-			ELSE
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
-				;それ以外
-				ELSE
-					;PRINTFORMW 
-				ENDIF
-			ENDIF
-		;二回目以降
-		ELSE
-			;恋慕 or 服従
-			IF TALENT:恋慕 || TALENT:服従
-				;Ｖ感Lv3以上
-				IF ABL:Ｖ感 >= 3
-					;PRINTFORMW 
-				;Ｖ感Lv3未満
-				ELSE
-					;PRINTFORMW 
-				ENDIF
-			;それ以外
-			ELSE
-				;Ｖ感Lv3以上
-				IF ABL:Ｖ感 >= 3
-					;PRINTFORMW 
-				;Ｖ感Lv3未満
-				ELSE
-					;PRINTFORMW 
-				ENDIF
-			ENDIF
-		ENDIF
-	ENDIF
+	
+	;ENDIF
 	RETURN 0
 ENDIF
 
 ;-------------------------------------------------
 ;背面騎乗位(ターゲット)
 ;-------------------------------------------------
-IF SELECTCOM == 35
-	;このキャラが主導権を持っている
-	IF IS_INITIATIVE(TARGET)
-		;初めて
-		IF IS_COM_FIRST()
-			;処女
-			IF TALENT:処女
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
-				;それ以外
-				ELSE
-					;PRINTFORMW 
-				ENDIF
-			;非処女
-			ELSE
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
-				;それ以外
-				ELSE
-					;PRINTFORMW 
-				ENDIF
-			ENDIF
-		;二回目以降
-		ELSE
-			;恋慕 or 服従
-			IF TALENT:恋慕 || TALENT:服従
-				;Ｖ感Lv3以上
-				IF ABL:Ｖ感 >= 3
-					;PRINTFORMW 
-				;Ｖ感Lv3未満
-				ELSE
-					;PRINTFORMW 
-				ENDIF
-			;それ以外
-			ELSE
-				;Ｖ感Lv3以上
-				IF ABL:Ｖ感 >= 3
-					;PRINTFORMW 
-				;Ｖ感Lv3未満
-				ELSE
-					;PRINTFORMW 
-				ENDIF
-			ENDIF
-		ENDIF
-	;このキャラが主導権を持っていない
-	ELSE
-		;初めて
-		IF IS_COM_FIRST()
-			;処女
-			IF TALENT:処女
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
-				;それ以外
-				ELSE
-					;PRINTFORMW 
-				ENDIF
-			;非処女
-			ELSE
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
-				;それ以外
-				ELSE
-					;PRINTFORMW 
-				ENDIF
-			ENDIF
-		;二回目以降
-		ELSE
-			;恋慕 or 服従
-			IF TALENT:恋慕 || TALENT:服従
-				;Ｖ感Lv3以上
-				IF ABL:Ｖ感 >= 3
-					;PRINTFORMW 
-				;Ｖ感Lv3未満
-				ELSE
-					;PRINTFORMW 
-				ENDIF
-			;それ以外
-			ELSE
-				;Ｖ感Lv3以上
-				IF ABL:Ｖ感 >= 3
-					;PRINTFORMW 
-				;Ｖ感Lv3未満
-				ELSE
-					;PRINTFORMW 
-				ENDIF
-			ENDIF
-		ENDIF
-	ENDIF
-	RETURN 0
-ENDIF
+;IF SELECTCOM == 35
+;	;このキャラが主導権を持っている
+;	IF IS_INITIATIVE(TARGET)
+;		;初めて
+;		IF IS_COM_FIRST()
+;			;処女
+;			IF CFLAG:304 == 1
+;			CFLAG:304 = 0
+;				;恋慕 or 服従
+;				IF TALENT:恋慕 || TALENT:服従
+;					;PRINTFORMW 
+;				;それ以外
+;				ELSE
+;					;PRINTFORMW 
+;				ENDIF
+;			;非処女
+;			ELSE
+;				;恋慕 or 服従
+;				IF TALENT:恋慕 || TALENT:服従
+;					;PRINTFORMW 
+;				;それ以外
+;				ELSE
+;					;PRINTFORMW 
+;				ENDIF
+;			ENDIF
+;		;二回目以降
+;		ELSE
+;			;恋慕 or 服従
+;			IF TALENT:恋慕 || TALENT:服従
+;				;Ｖ感Lv3以上
+;				IF ABL:Ｖ感 >= 3
+;					;PRINTFORMW 
+;				;Ｖ感Lv3未満
+;				ELSE
+;					;PRINTFORMW 
+;				ENDIF
+;			;それ以外
+;			ELSE
+;				;Ｖ感Lv3以上
+;				IF ABL:Ｖ感 >= 3
+;					;PRINTFORMW 
+;				;Ｖ感Lv3未満
+;				ELSE
+;					;PRINTFORMW 
+;				ENDIF
+;			ENDIF
+;		ENDIF
+;	;このキャラが主導権を持っていない
+;	ELSE
+;		;初めて
+;		IF IS_COM_FIRST()
+;			;処女
+;			IF TALENT:処女
+;				;恋慕 or 服従
+;				IF TALENT:恋慕 || TALENT:服従
+;					;PRINTFORMW 
+;				;それ以外
+;				ELSE
+;					;PRINTFORMW 
+;				ENDIF
+;			;非処女
+;			ELSE
+;				;恋慕 or 服従
+;				IF TALENT:恋慕 || TALENT:服従
+;					;PRINTFORMW 
+;				;それ以外
+;				ELSE
+;					;PRINTFORMW 
+;				ENDIF
+;			ENDIF
+;		;二回目以降
+;		ELSE
+;			;恋慕 or 服従
+;			IF TALENT:恋慕 || TALENT:服従
+;				;Ｖ感Lv3以上
+;				IF ABL:Ｖ感 >= 3
+;					;PRINTFORMW 
+;				;Ｖ感Lv3未満
+;				ELSE
+;					;PRINTFORMW 
+;				ENDIF
+;			;それ以外
+;			ELSE
+;				;Ｖ感Lv3以上
+;				IF ABL:Ｖ感 >= 3
+;					;PRINTFORMW 
+;				;Ｖ感Lv3未満
+;				ELSE
+;					;PRINTFORMW 
+;				ENDIF
+;			ENDIF
+;		ENDIF
+;	ENDIF
+;	RETURN 0
+;ENDIF
 
 ;-------------------------------------------------
 ;二本挿入(ターゲット)
@@ -2379,6 +2286,8 @@ IF SELECTCOM == 36
 	IF IS_INITIATIVE(TARGET)
 		;初めて
 		IF IS_COM_FIRST()
+			SIF CFLAG:304 == 1
+				CFLAG:304 = 0
 			;恋慕 or 服従
 			IF TALENT:恋慕 || TALENT:服従
 				;PRINTFORMW 
@@ -2412,6 +2321,8 @@ IF SELECTCOM == 36
 	ELSE
 		;初めて
 		IF IS_COM_FIRST()
+			SIF CFLAG:304 == 1
+				CFLAG:304 = 0
 			;恋慕 or 服従
 			IF TALENT:恋慕 || TALENT:服従
 				;PRINTFORMW 
@@ -2997,6 +2908,8 @@ IF SELECTCOM == 55
 	IF IS_INITIATIVE(TARGET)
 		;初めて
 		IF IS_COM_FIRST()
+			SIF CFLAG:304 == 1
+				CFLAG:304 = 0
 			;恋慕 or 服従
 			IF TALENT:恋慕 || TALENT:服従
 				;PRINTFORMW 
@@ -3018,6 +2931,8 @@ IF SELECTCOM == 55
 	ELSE
 		;初めて
 		IF IS_COM_FIRST()
+			SIF CFLAG:304 == 1
+				CFLAG:304 = 0
 			;恋慕 or 服従
 			IF TALENT:恋慕 || TALENT:服従
 				;PRINTFORMW 
@@ -3097,6 +3012,8 @@ IF SELECTCOM == 57
 	IF IS_INITIATIVE(TARGET)
 		;初めて
 		IF IS_COM_FIRST()
+			SIF CFLAG:304 == 1
+				CFLAG:304 = 0
 			;恋慕 or 服従
 			IF TALENT:恋慕 || TALENT:服従
 				;PRINTFORMW 
@@ -3118,6 +3035,8 @@ IF SELECTCOM == 57
 	ELSE
 		;初めて
 		IF IS_COM_FIRST()
+			SIF CFLAG:304 == 1
+				CFLAG:304 = 0
 			;恋慕 or 服従
 			IF TALENT:恋慕 || TALENT:服従
 				;PRINTFORMW 
@@ -3271,6 +3190,8 @@ IF SELECTCOM == 61
 	IF IS_INITIATIVE(TARGET)
 		;初めて
 		IF IS_COM_FIRST()
+			SIF CFLAG:304 == 1
+				CFLAG:304 = 0
 			;処女
 			IF TALENT:処女
 				;恋慕 or 服従
@@ -3316,6 +3237,8 @@ IF SELECTCOM == 61
 	ELSE
 		;初めて
 		IF IS_COM_FIRST()
+			SIF CFLAG:304 == 1
+				CFLAG:304 = 0
 			;処女
 			IF TALENT:処女
 				;恋慕 or 服従
@@ -3591,6 +3514,8 @@ IF SELECTCOM == 65
 	IF IS_INITIATIVE(TARGET)
 		;初めて
 		IF IS_COM_FIRST()
+			SIF CFLAG:304 == 1
+				CFLAG:304 = 0
 			;処女
 			IF TALENT:処女
 				;恋慕 or 服従
@@ -3636,6 +3561,8 @@ IF SELECTCOM == 65
 	ELSE
 		;初めて
 		IF IS_COM_FIRST()
+			SIF CFLAG:304 == 1
+				CFLAG:304 = 0
 			;処女
 			IF TALENT:処女
 				;恋慕 or 服従
@@ -4525,6 +4452,8 @@ IF SELECTCOM == 87
 	IF IS_INITIATIVE(TARGET)
 		;初めて
 		IF IS_COM_FIRST()
+			SIF CFLAG:304 == 1
+				CFLAG:304 = 0
 			;処女
 			IF TALENT:処女
 				;恋慕 or 服従
@@ -4570,6 +4499,8 @@ IF SELECTCOM == 87
 	ELSE
 		;初めて
 		IF IS_COM_FIRST()
+			SIF CFLAG:304 == 1
+				CFLAG:304 = 0
 			;処女
 			IF TALENT:処女
 				;恋慕 or 服従
@@ -6259,6 +6190,8 @@ IF SELECTCOM == 201
 	IF IS_INITIATIVE(TARGET)
 		;初めて
 		IF IS_COM_FIRST()
+			SIF CFLAG:304 == 1
+				CFLAG:304 = 0
 			;処女
 			IF TALENT:処女
 				;恋慕 or 服従
@@ -6302,6 +6235,8 @@ IF SELECTCOM == 201
 	ELSE
 		;初めて
 		IF IS_COM_FIRST()
+			SIF CFLAG:304 == 1
+				CFLAG:304 = 0
 			;処女
 			IF TALENT:処女
 				;恋慕 or 服従
@@ -6975,6 +6910,8 @@ IF SELECTCOM == 212
 	IF IS_INITIATIVE(TARGET)
 		;初めて
 		IF IS_COM_FIRST()
+			SIF CFLAG:304 == 1
+				CFLAG:304 = 0
 			;恋慕 or 服従
 			IF TALENT:恋慕 || TALENT:服従
 				;PRINTFORMW 
@@ -7012,6 +6949,8 @@ IF SELECTCOM == 212
 	ELSE
 		;初めて
 		IF IS_COM_FIRST()
+			SIF CFLAG:304 == 1
+				CFLAG:304 = 0
 			;恋慕 or 服従
 			IF TALENT:恋慕 || TALENT:服従
 				;PRINTFORMW 
@@ -8429,6 +8368,115 @@ IF SELECTCOM == 550
 	ENDIF
 ENDIF
 
+;-------------------------------------------------
+;遠隔調教(ターゲット)
+;-------------------------------------------------
+IF SELECTCOM == 98
+	;このキャラが主導権を持っている
+	IF IS_INITIATIVE(TARGET)
+		SIF CFLAG:304 == 1
+			CFLAG:304 = 0
+		;恋慕 or 服従 or 親友
+		IF TALENT:恋慕 || TALENT:服従 || TALENT:親友
+			;PRINTFORMW 
+		;それ以外
+		ELSE
+			;PRINTFORMW 
+		ENDIF
+	;このキャラが主導権を持っていない
+	ELSE
+		SIF CFLAG:304 == 1
+			CFLAG:304 = 0
+		;恋慕 or 服従 or 親友
+		IF TALENT:恋慕 || TALENT:服従 || TALENT:親友
+			;PRINTFORMW 
+		;それ以外
+		ELSE
+			;PRINTFORMW 
+		ENDIF
+	ENDIF
+	RETURN 0
+ENDIF
+
+;-------------------------------------------------
+;酒恥肉倫(ターゲット)
+;-------------------------------------------------
+IF SELECTCOM == 51
+	;このキャラが主導権を持っている
+	IF IS_INITIATIVE(TARGET)
+		SIF CFLAG:304 == 1
+			CFLAG:304 = 0
+		;恋慕 or 服従 or 親友
+		IF TALENT:恋慕 || TALENT:服従 || TALENT:親友
+			;PRINTFORMW 
+		;それ以外
+		ELSE
+			;PRINTFORMW 
+		ENDIF
+	;このキャラが主導権を持っていない
+	ELSE
+		SIF CFLAG:304 == 1
+			CFLAG:304 = 0
+		;恋慕 or 服従 or 親友
+		IF TALENT:恋慕 || TALENT:服従 || TALENT:親友
+			;PRINTFORMW 
+		;それ以外
+		ELSE
+			;PRINTFORMW 
+		ENDIF
+	ENDIF
+	RETURN 0
+ENDIF
+
+;-------------------------------------------------
+;処女喪失
+;複数プレイ時には呼ばれないはずだけど一応潰しておく
+;-------------------------------------------------
+;主人公とのセックスによる処女喪失
+IF CFLAG:999 == 1
+	$WAKASAGI_8
+	;IF MPLY_NUM == 1 && MTAR_NUM == 1
+	IF IS_MPLY(MASTER)
+		;恋慕 or 恋人
+		IF TALENT:恋慕 || TALENT:恋人
+			PRINTFORMW 「━━━━！　い…痛い、です」
+			PRINTFORMW 「はーー…はーー…　すみません、ちょっとだけ、待ってて…」
+			PRINTFORML 
+			PRINTFORMW ………………
+			PRINTFORMW …………
+			PRINTFORML 
+			PRINTFORMW 「はあ…　多分、もう大丈夫です」
+			PRINTFORMW 「お待たせしちゃいましたね。ごめんなさい」
+			PRINTFORMW 「それから…」
+			PRINTFORMW 「初めてをもらってくれて、ありがとうございました」
+			PRINTFORML 
+			PRINTFORMW 「はう…改まって言うと恥ずかしいです、ね…」
+		
+		;それ以外
+		ELSE
+			;PRINTFORMW 
+		ENDIF
+	;主人公にセックス以外で処女を奪われる
+	ELSE
+		;恋慕 or 恋人
+		IF TALENT:恋慕 || TALENT:恋人
+			PRINTFORMW 「初めてだったのに…ずっと、好きな人にあげたかったのに…」
+			PRINTFORMW 「……ひどい」
+		;それ以外
+		ELSE
+			;PRINTFORMW 
+		ENDIF
+	;それ以外の時に処女喪失
+	;ELSEIF TCVAR:13 == 3 || TCVAR:13 == 4
+		;恋慕 or 恋人
+		;IF TALENT:恋慕 || TALENT:恋人
+			;PRINTFORMW 「こんな事になるんだったら、もっと早くに…」
+		;それ以外
+		;ELSE
+			;PRINTFORMW 
+		;ENDIF
+	ENDIF
+ENDIF
 ;=================================================
 ;●コマンド実行時(このキャラがプレイヤー側のとき)
 ;=================================================
@@ -8437,6 +8485,73 @@ ENDIF
 IF TALENT:虚ろ || IS_EQUIP_CONTINUE(TARGET, "口装着")
 	RETURN 0
 ENDIF
+
+;-------------------------------------------------
+;キス
+;処理の都合上ファーストキスはキス経験1以下に
+;-------------------------------------------------
+
+;キス
+IF SELECTCOM == 20
+	;このキャラが主導権を持っている
+	;IF IS_INITIATIVE(TARGET)
+		;ファーストキス
+		IF EXP:キス経験 <= 1
+			;恋慕 or 恋人
+			IF TALENT:恋慕 || TALENT:恋人
+				PRINTFORML 「キス…してもいいですか…？」
+				PRINTFORML 「初めてなので、上手くできなかったらごめんなさい」
+				PRINTFORMW …………
+				PRINTFORMW 「い、行きますっ」
+			ELSE
+			ENDIF
+			PRINTFORML 
+		;キス経験済み
+		ELSE
+			;恋慕 or 恋人
+			IF TALENT:恋慕 || TALENT:恋人
+				IF TALENT:蕩唇
+				SELECTCASE RAND:3
+					CASE 1
+						PRINTFORML %CALLNAME:TARGET%は%CALLNAME:MASTER%にしがみついて唇を奪った
+						PRINTFORMW 「ん…　はあ……もう病みつきになっちゃいましたあ…」
+					CASE 2
+						PRINTFORMW 「キス…したいです。忘れられません…」
+					CASEELSE
+						PRINTFORMW 「いっぱいちゅーしちゃいますよお…　きもちいいですよお…」
+				ENDSELECT
+				
+				ELSEIF ABL:Ｍ感 >= 5
+				SELECTCASE RAND:3
+					CASE 1
+						PRINTFORMW 「キスって気持ちいいですねえ。もっとしていいですか？んー」
+					CASE 2
+						PRINTFORML 「いつもはあんなにカッコいいのに、ちゅーされるとおとなしくなっちゃうの」
+						PRINTFORMW 「可愛いですっ♪（ちゅっちゅっ）」
+					CASEELSE
+						PRINTFORMW 「キスするたびに、好きがどんどん大きくなるみたい…」
+				ENDSELECT
+				
+				ELSE
+				SELECTCASE RAND:3
+					CASE 1
+						PRINTFORMW 「キス、しちゃいますね。動かないで…」
+					CASE 2
+						PRINTFORMW 「ふふっ…私からしてあげますね」
+					CASEELSE
+						PRINTFORML 「んーー……　ふう…」
+						PRINTFORMW 「たまには不意打ちです。えへへ…」
+				ENDSELECT
+				ENDIF
+				PRINTFORML 
+
+			ELSE
+			ENDIF
+		ENDIF
+	;ENDIF
+	RETURN 0
+ENDIF
+
 
 ;-------------------------------------------------
 ;愛撫(プレイヤー)
@@ -8965,48 +9080,57 @@ ENDIF
 ;-------------------------------------------------
 IF SELECTCOM == 10
 	;このキャラが主導権を持っている
-	IF IS_INITIATIVE(TARGET)
-		;初めて
-		IF IS_COM_FIRST()
-			;恋慕 or 服従
-			IF TALENT:恋慕 || TALENT:服従
-				;PRINTFORMW 
-			;それ以外
-			ELSE
-				;PRINTFORMW 
-			ENDIF
-		;二回目以降
-		ELSE
-			;恋慕 or 服従
-			IF TALENT:恋慕 || TALENT:服従
-				;PRINTFORMW 
-			;それ以外
-			ELSE
-				;PRINTFORMW 
-			ENDIF
-		ENDIF
+	;IF IS_INITIATIVE(TARGET)
+		
 	;このキャラが主導権を持っていない
-	ELSE
+	;ELSE
 		;初めて
 		IF IS_COM_FIRST()
-			;恋慕 or 服従
-			IF TALENT:恋慕 || TALENT:服従
-				;PRINTFORMW 
+			;恋慕 or 恋人
+			IF TALENT:恋慕 || TALENT:恋人
+				PRINTFORML 「うわ…硬くて、あっついです…」
+				PRINTFORMW 「握ってこするんですよね。ん…　こんな感じ…ですか？」
 			;それ以外
 			ELSE
 				;PRINTFORMW 
 			ENDIF
 		;二回目以降
 		ELSE
-			;恋慕 or 服従
-			IF TALENT:恋慕 || TALENT:服従
-				;PRINTFORMW 
+			;恋慕 or 恋人
+			IF TALENT:恋慕 || TALENT:恋人
+				IF ABL:奉仕 >= 5
+					SELECTCASE RAND:5
+					CASE 1
+						PRINTFORMW 「ふふっ。びくんびくんしてます…期待してるんですね？」
+					CASE 2
+						PRINTFORMW 「楽にしててくださいね。いっぱい気持ちよくしてあげます…」
+					CASE 3
+						PRINTFORMW 「感じてくれてるんですね。嬉しいです」
+					CASE 4
+						PRINTFORMW 「もう弱いところもお見通しです。ここを触ってあげれば……ほらあ♪」
+					CASEELSE
+						PRINTFORMW 「いっぱい練習したんです。あなたに喜んでもらうために…」
+					ENDSELECT
+				ELSE
+					SELECTCASE RAND:5
+					CASE 1
+						PRINTFORMW 「どうですか？うまくできてますか…？」
+					CASE 2
+						PRINTFORMW 「上手にできたら褒めてくださいね」
+					CASE 3
+						PRINTFORMW 「先っぽなでなでしてあげますね。ちょっと可愛いです」
+					CASE 4
+						PRINTFORMW 「こう、かな…あ、ちょっと強かったですか？ごめんなさい」
+					CASEELSE
+						PRINTFORMW 「少しドキドキしちゃいます。それじゃ、行きますね…」
+					ENDSELECT
+				ENDIF
 			;それ以外
 			ELSE
 				;PRINTFORMW 
 			ENDIF
 		ENDIF
-	ENDIF
+	;ENDIF
 	RETURN 0
 ENDIF
 
@@ -9015,48 +9139,58 @@ ENDIF
 ;-------------------------------------------------
 IF SELECTCOM == 11
 	;このキャラが主導権を持っている
-	IF IS_INITIATIVE(TARGET)
-		;初めて
-		IF IS_COM_FIRST()
-			;恋慕 or 服従
-			IF TALENT:恋慕 || TALENT:服従
-				;PRINTFORMW 
-			;それ以外
-			ELSE
-				;PRINTFORMW 
-			ENDIF
-		;二回目以降
-		ELSE
-			;恋慕 or 服従
-			IF TALENT:恋慕 || TALENT:服従
-				;PRINTFORMW 
-			;それ以外
-			ELSE
-				;PRINTFORMW 
-			ENDIF
-		ENDIF
+	;IF IS_INITIATIVE(TARGET)
+		
 	;このキャラが主導権を持っていない
-	ELSE
+	;ELSE
 		;初めて
 		IF IS_COM_FIRST()
-			;恋慕 or 服従
-			IF TALENT:恋慕 || TALENT:服従
-				;PRINTFORMW 
+			;恋慕 or 恋人
+			IF TALENT:恋慕 || TALENT:恋人
+				PRINTFORML 「お口で、咥えるんですね」
+				PRINTFORMW 「はい。精いっぱいご奉仕します…」
 			;それ以外
 			ELSE
 				;PRINTFORMW 
 			ENDIF
 		;二回目以降
 		ELSE
-			;恋慕 or 服従
-			IF TALENT:恋慕 || TALENT:服従
-				;PRINTFORMW 
+			;恋慕 or 恋人
+			IF TALENT:恋慕 || TALENT:恋人
+				IF ABL:奉仕 >= 5
+					SELECTCASE RAND:5
+					CASE 1
+						PRINTFORMW 「ご奉仕するの…好きになっちゃたかも、です」
+					CASE 2
+						PRINTFORMW 「んん、出ちゃいそうですか…？いっぱい、出してください…」
+					CASE 3
+						PRINTFORMW 「私のお口で気持ちよくなってくださいね…」
+					CASE 4
+						PRINTFORMW 「あむ、ん…　我慢しないでいいんですよ。いつでも受け止めますから」
+					CASEELSE
+						PRINTFORMW 「いっぱいぺろぺろしてあげますね。うふふっ」
+					ENDSELECT
+				ELSE
+					SELECTCASE RAND:5
+					CASE 1
+						PRINTFORMW 「んむ…ちゅぱ、どうれすか…きもひいい…？」
+					CASE 2
+						PRINTFORML 「んぐ…ぐっ！　ケホッ、ケホッ…」
+						PRINTFORMW 「すみません、むせちゃいました…」
+					CASE 3
+						PRINTFORMW 「なんだかヌルヌルしてきました。んむ、しょっぱいです」
+					CASE 4
+						PRINTFORMW 「んーー…口に入りきれません。ちゅ、ちゅうぅ…」
+					CASEELSE
+						PRINTFORMW 「どんどん熱くなってます…気持ちいいんですか？」
+					ENDSELECT
+				ENDIF
 			;それ以外
 			ELSE
 				;PRINTFORMW 
 			ENDIF
 		ENDIF
-	ENDIF
+	;ENDIF
 	RETURN 0
 ENDIF
 
@@ -9065,98 +9199,102 @@ ENDIF
 ;-------------------------------------------------
 IF SELECTCOM == 12
 	;このキャラが主導権を持っている
-	IF IS_INITIATIVE(TARGET)
-		;初めて
-		IF IS_COM_FIRST()
-			;恋慕 or 服従
-			IF TALENT:恋慕 || TALENT:服従
-				;PRINTFORMW 
-			;それ以外
-			ELSE
-				;PRINTFORMW 
-			ENDIF
-		;二回目以降
-		ELSE
-			;恋慕 or 服従
-			IF TALENT:恋慕 || TALENT:服従
-				;PRINTFORMW 
-			;それ以外
-			ELSE
-				;PRINTFORMW 
-			ENDIF
-		ENDIF
+	;IF IS_INITIATIVE(TARGET)
+		
 	;このキャラが主導権を持っていない
-	ELSE
+	;ELSE
 		;初めて
 		IF IS_COM_FIRST()
-			;恋慕 or 服従
-			IF TALENT:恋慕 || TALENT:服従
-				;PRINTFORMW 
+			;恋慕 or 恋人
+			IF TALENT:恋慕 || TALENT:恋人
+				PRINTFORML 「おっぱいで挟むんですか…」
+				PRINTFORMW 「できるかな…一応、やってみますね」
 			;それ以外
 			ELSE
 				;PRINTFORMW 
 			ENDIF
 		;二回目以降
 		ELSE
-			;恋慕 or 服従
-			IF TALENT:恋慕 || TALENT:服従
-				;PRINTFORMW 
+			;恋慕 or 恋人
+			IF TALENT:恋慕 || TALENT:恋人
+				IF ABL:奉仕 >= 5
+					SELECTCASE RAND:3
+					CASE 1
+						PRINTFORMW 「おっぱいで絞ってあげます。ほら、ぎゅー…って」
+					CASE 2
+						PRINTFORMW 「あん、元気よすぎですよう。暴れん坊さんなんだから…」
+					CASEELSE
+						PRINTFORMW 「むにゅむにゅむにゅ～っ。えへへ、ぴょこぴょこ飛び出して可愛いです」
+					ENDSELECT
+				ELSE
+					SELECTCASE RAND:3
+					CASE 1
+						PRINTFORMW 「うむむ…結構難しいですねえ…」
+					CASE 2
+						PRINTFORML 「あなたのおちんちん…あったかいです」
+						PRINTFORMW 「私の胸も、暖かい…ですか？」
+					CASEELSE
+						PRINTFORML 「なんだかいつもよりガチガチになってるような…」
+						PRINTFORMW 「もしかして、興奮してます？」
+					ENDSELECT
+				ENDIF
 			;それ以外
 			ELSE
 				;PRINTFORMW 
 			ENDIF
 		ENDIF
-	ENDIF
+	;ENDIF
 	RETURN 0
 ENDIF
 
 ;-------------------------------------------------
-;素股(プレイヤー)
+;素股(プレイヤー)　すげえやりにくそう
 ;-------------------------------------------------
 IF SELECTCOM == 13
 	;このキャラが主導権を持っている
-	IF IS_INITIATIVE(TARGET)
-		;初めて
-		IF IS_COM_FIRST()
-			;恋慕 or 服従
-			IF TALENT:恋慕 || TALENT:服従
-				;PRINTFORMW 
-			;それ以外
-			ELSE
-				;PRINTFORMW 
-			ENDIF
-		;二回目以降
-		ELSE
-			;恋慕 or 服従
-			IF TALENT:恋慕 || TALENT:服従
-				;PRINTFORMW 
-			;それ以外
-			ELSE
-				;PRINTFORMW 
-			ENDIF
-		ENDIF
+	;IF IS_INITIATIVE(TARGET)
+		
 	;このキャラが主導権を持っていない
-	ELSE
+	;ELSE
 		;初めて
 		IF IS_COM_FIRST()
-			;恋慕 or 服従
-			IF TALENT:恋慕 || TALENT:服従
-				;PRINTFORMW 
+			;恋慕 or 恋人
+			IF TALENT:恋慕 || TALENT:恋人
+				PRINTFORML 「おまたで擦るんですか…　うーん」
+				PRINTFORMW 「上に乗ればいいのかな……？」
 			;それ以外
 			ELSE
 				;PRINTFORMW 
 			ENDIF
 		;二回目以降
 		ELSE
-			;恋慕 or 服従
-			IF TALENT:恋慕 || TALENT:服従
-				;PRINTFORMW 
+			;恋慕 or 恋人
+			IF TALENT:恋慕 || TALENT:恋人
+				IF ABL:奉仕 >= 5
+					SELECTCASE RAND:3
+					CASE 1
+						PRINTFORMW 「ヌルヌルになってきましたね。少しスピード、上げましょうか？」
+					CASE 2
+						PRINTFORMW 「んん…落ちちゃいそう。ぎゅっと抱きついててもいいですか…？」
+					CASEELSE
+						PRINTFORMW 「あん…ビクビクしてます。このまま、かけちゃいますか…？」
+					ENDSELECT
+				ELSE
+					SELECTCASE RAND:3
+					CASE 1
+						PRINTFORMW 「んっ…んっ……これで、ちゃんと気持ちよくできてますか？」
+					CASE 2
+						PRINTFORMW 「うっかり入っちゃいそうで、ちょっと怖いです…」
+					CASEELSE
+						PRINTFORMW 「はっ…くぅ…！私の方も、こすれて…んんっ」
+					ENDSELECT
+				ENDIF
 			;それ以外
 			ELSE
 				;PRINTFORMW 
 			ENDIF
 		ENDIF
-	ENDIF
+	;ENDIF
 	RETURN 0
 ENDIF
 
@@ -9165,48 +9303,51 @@ ENDIF
 ;-------------------------------------------------
 IF SELECTCOM == 14
 	;このキャラが主導権を持っている
-	IF IS_INITIATIVE(TARGET)
-		;初めて
-		IF IS_COM_FIRST()
-			;恋慕 or 服従
-			IF TALENT:恋慕 || TALENT:服従
-				;PRINTFORMW 
-			;それ以外
-			ELSE
-				;PRINTFORMW 
-			ENDIF
-		;二回目以降
-		ELSE
-			;恋慕 or 服従
-			IF TALENT:恋慕 || TALENT:服従
-				;PRINTFORMW 
-			;それ以外
-			ELSE
-				;PRINTFORMW 
-			ENDIF
-		ENDIF
+	;IF IS_INITIATIVE(TARGET)
+		
 	;このキャラが主導権を持っていない
-	ELSE
+	;ELSE
 		;初めて
 		IF IS_COM_FIRST()
-			;恋慕 or 服従
-			IF TALENT:恋慕 || TALENT:服従
-				;PRINTFORMW 
+			;恋慕 or 恋人
+			IF TALENT:恋慕 || TALENT:恋人
+				PRINTFORMW 「しっぽ？え？なんで？　ちくちくしてますよ？たぶん痛いですよ？」
+				PRINTFORML 
+				PRINTFORMW 「分かった。分かりましたよ。やりますから、そんな悲しそうな顔しないでくださいっ」
+				PRINTFORMW 「…はあ。どうしてこんな人好きになっちゃったんだろう……」
 			;それ以外
 			ELSE
 				;PRINTFORMW 
 			ENDIF
 		;二回目以降
 		ELSE
-			;恋慕 or 服従
-			IF TALENT:恋慕 || TALENT:服従
-				;PRINTFORMW 
+			;恋慕 or 恋人
+			IF TALENT:恋慕 || TALENT:恋人
+				IF TALENT:サド
+					SELECTCASE RAND:3
+					CASE 1
+						PRINTFORMW 「ちくちくちく～♪ちょっと痛いくらいがいいんですよね。あなたは」
+					CASE 2
+						PRINTFORMW 「しっぽで撫でられて喜ぶなんて…とんだ変態さんですねえ～」
+					CASEELSE
+						PRINTFORMW 「うふふ…大人しくしてれば、たぁっぷり可愛がってあげますよお…」
+					ENDSELECT
+				ELSE
+					SELECTCASE RAND:3
+					CASE 1
+						PRINTFORMW 「上手く加減できなかったらごめんなさい…」
+					CASE 2
+						PRINTFORMW 「こう、かな…　傷つけちゃいそうで怖いですよう」
+					CASEELSE
+						PRINTFORMW 「あの…痛かったら言ってくださいね…？」
+					ENDSELECT
+				ENDIF
 			;それ以外
 			ELSE
 				;PRINTFORMW 
 			ENDIF
 		ENDIF
-	ENDIF
+	;ENDIF
 	RETURN 0
 ENDIF
 
@@ -14385,33 +14526,47 @@ ENDIF
 ;処女喪失
 ;-------------------------------------------------
 ;主人公とのセックスによる処女喪失
-IF TCVAR:13 == 1
-	;恋慕 or 服従
-	IF TALENT:恋慕 || TALENT:服従
-		;PRINTFORMW 
-	;それ以外
-	ELSE
-		;PRINTFORMW 
-	ENDIF
+;IF TCVAR:13 == 1
+;	$WAKASAGI_8
+;	;恋慕 or 恋人
+;	IF TALENT:恋慕 || TALENT:恋人
+;		PRINTFORMW 「━━━━！　い…痛い、です」
+;		PRINTFORMW 「はーー…はーー…　すみません、ちょっとだけ、待ってて…」
+;		PRINTFORML 
+;		PRINTFORMW ………………
+;		PRINTFORMW …………
+;		PRINTFORML 
+;		PRINTFORMW 「はあ…　多分、もう大丈夫です」
+;		PRINTFORMW 「お待たせしちゃいましたね。ごめんなさい」
+;		PRINTFORMW 「それから…」
+;		PRINTFORMW 「初めてをもらってくれて、ありがとうございました」
+;		PRINTFORML 
+;		PRINTFORMW 「はう…改まって言うと恥ずかしいです、ね…」
+;		
+;	;それ以外
+;	ELSE
+;		;PRINTFORMW 
+;	ENDIF
 ;主人公にセックス以外で処女を奪われる
-ELSEIF TCVAR:13 == 2
-	;恋慕 or 服従
-	IF TALENT:恋慕 || TALENT:服従
-		;PRINTFORMW 
-	;それ以外
-	ELSE
-		;PRINTFORMW 
-	ENDIF
+;ELSEIF TCVAR:13 == 2
+;	;恋慕 or 恋人
+;	IF TALENT:恋慕 || TALENT:恋人
+;		PRINTFORMW 「初めてだったのに…ずっと、好きな人にあげたかったのに…」
+;		PRINTFORMW 「……ひどい」
+;	;それ以外
+;	ELSE
+;		;PRINTFORMW 
+;	ENDIF
 ;それ以外の時に処女喪失
-ELSEIF TCVAR:13 == 3 || TCVAR:13 == 4
-	;恋慕 or 服従
-	IF TALENT:恋慕 || TALENT:服従
-		;PRINTFORMW 
-	;それ以外
-	ELSE
-		;PRINTFORMW 
-	ENDIF
-ENDIF
+;ELSEIF TCVAR:13 == 3 || TCVAR:13 == 4
+;	;恋慕 or 恋人
+;	IF TALENT:恋慕 || TALENT:恋人
+;		PRINTFORMW 「こんな事になるんだったら、もっと早くに…」
+;	;それ以外
+;	ELSE
+;		;PRINTFORMW 
+;	ENDIF
+;ENDIF
 
 ;-------------------------------------------------
 ;主人公を射精させた
@@ -14420,9 +14575,20 @@ IF NOWEX:MASTER:射精 > 0
 	SELECTCASE TCVAR:MASTER:420
 		;膣に射精
 		CASE 1
-			;恋慕 or 服従
-			IF TALENT:恋慕 || TALENT:服従
-				;PRINTFORMW 
+			;恋慕 or 恋人
+			IF TALENT:恋慕 || TALENT:恋人
+				SELECTCASE RAND:5
+					CASE 1
+						PRINTFORMW 「お腹の中いっぱいです。えへへ…」
+					CASE 2
+						PRINTFORMW 「んんう…あったかいの、気持ちいい…」
+					CASE 3
+						PRINTFORMW 「こんなに…赤ちゃん、できちゃうかも…」
+					CASE 4
+						PRINTFORMW 「あん、出しすぎですよお。溢れてきちゃう…」
+					CASEELSE
+						PRINTFORMW 「えへへ…たっぷり、もらっちゃいました…」
+				ENDSELECT
 			;それ以外
 			ELSE
 				;PRINTFORMW 
@@ -14437,46 +14603,111 @@ IF NOWEX:MASTER:射精 > 0
 			ENDIF
 		;手に射精
 		CASE 3
-			;恋慕 or 服従
-			IF TALENT:恋慕 || TALENT:服従
-				;PRINTFORMW 
+			;恋慕 or 恋人
+			;恋慕 or 恋人 かつ奉仕Lv5以上
+			IF (TALENT:恋慕 || TALENT:恋人) && ABL:奉仕 >= 5
+				SELECTCASE RAND:3
+					CASE 1
+						PRINTFORMW 「うふふ。手がヌルヌルになっちゃいました」
+					CASE 2
+						PRINTFORMW 「まだ元気ですねえ。もう一回やりますか？」
+					CASEELSE
+						PRINTFORMW 「ふふっ、喜んでいただけましたか？」
+				ENDSELECT
+			;恋慕 or 恋人
+			ELSEIF TALENT:恋慕 || TALENT:恋人
+				GOTO WAKASAGI_7
 			;それ以外
 			ELSE
 				;PRINTFORMW 
 			ENDIF
 		;口に射精
 		CASE 4
-			;恋慕 or 服従 かつ精愛Lv2以上
-			IF (TALENT:恋慕 || TALENT:服従) && ABL:精愛 >= 2
-				;PRINTFORMW 
-			;恋慕 or 服従
-			ELSEIF TALENT:恋慕 || TALENT:服従
-				;PRINTFORMW 
+			IF (TALENT:恋慕 || TALENT:恋人) && ABL:精愛 >= 9
+				SELECTCASE RAND:3
+					CASE 1
+						PRINTFORMW 「うふふ…おいしい……」
+					CASE 2
+						PRINTFORMW 「もっと欲しいです。飲ませてください…」
+					CASEELSE
+						PRINTFORMW 「精液…好きになっちゃいました…」
+				ENDSELECT
+			;恋慕 or 恋人 かつ奉仕Lv5以上
+			ELSEIF (TALENT:恋慕 || TALENT:恋人) && ABL:奉仕 >= 5
+				SELECTCASE RAND:3
+					CASE 1
+						PRINTFORMW 「綺麗にしてあげますから、動かないでください…」
+					CASE 2
+						PRINTFORMW 「んむ…口の中が、あなたの味でいっぱい…」
+					CASEELSE
+						PRINTFORMW 「ん、くっ。なんとか飲めました…」
+				ENDSELECT
+			;恋慕 or 恋人
+			ELSEIF TALENT:恋慕 || TALENT:恋人
+				SELECTCASE RAND:3
+					CASE 1
+						PRINTFORMW 「んむー…変な味です」
+					CASE 2
+						PRINTFORMW 「飲んだ方がいいですか？なら、頑張ってみます」
+					CASEELSE
+						PRINTFORMW 「ゴホッ、ごめんなさい。こぼしちゃいました…」
+				ENDSELECT
 			;それ以外
 			ELSE
 				;PRINTFORMW 
 			ENDIF
 		;胸に射精
 		CASE 5
-			;恋慕 or 服従
-			IF TALENT:恋慕 || TALENT:服従
-				;PRINTFORMW 
+			;恋慕 or 恋人 かつ奉仕Lv5以上
+			IF (TALENT:恋慕 || TALENT:恋人) && ABL:奉仕 >= 5
+				SELECTCASE RAND:3
+					CASE 1
+						PRINTFORMW 「最後まで絞っちゃいますね。えい、ぎゅっぎゅっ」
+					CASE 2
+						PRINTFORMW 「いっぱい出せましたね。いい子いい子してあげます」
+					CASEELSE
+						PRINTFORML 「胸の中にあったかいのがじわーっ…て広がって…」
+						PRINTFORMW 「なんだか…幸せな気分です」
+				ENDSELECT
+			;恋慕 or 恋人
+			ELSEIF TALENT:恋慕 || TALENT:恋人
+				SELECTCASE RAND:3
+					CASE 1
+						PRINTFORMW 「すごい勢いですね。髪にかかっちゃいました」
+					CASE 2
+						PRINTFORMW 「私の胸、よかったですか？」
+					CASEELSE
+						PRINTFORMW 「ふわ…おっぱいが真っ白です」
+				ENDSELECT
 			;それ以外
 			ELSE
 				;PRINTFORMW 
 			ENDIF
 		;足に射精
-		CASE 6
+		;CASE 6
 		;尻尾に射精
-		CASE 7
+		;CASE 7
 		;顔に射精
-		CASE 8
+		;CASE 8
 		;髪に射精
-		CASE 9
+		;CASE 9
 		;腋に射精
-		CASE 10
+		;CASE 10
 		;その他の場所に射精
 		CASEELSE
+			$WAKASAGI_7
+			SELECTCASE RAND:5
+				CASE 1
+					PRINTFORMW 「出ちゃいそうですか？はい、どうぞ…」
+				CASE 2
+					PRINTFORMW 「うまくできましたか？なら良かったです」
+				CASE 3
+					PRINTFORMW 「うわわ…すごい勢い……」
+				CASE 4
+					PRINTFORMW 「ん…精液、熱いです…」
+				CASEELSE
+					PRINTFORMW 「こんなに喜んでもらえて、嬉しいです」
+			ENDSELECT
 	ENDSELECT
 
 ;-------------------------------------------------
