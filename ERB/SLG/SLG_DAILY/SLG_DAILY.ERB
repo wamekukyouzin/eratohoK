@@ -1,0 +1,87 @@
+﻿;複数シナリオにまたがるイベント処理
+@SLG_DAILY()
+#DIM EVENT_LIST, 100
+#DIM EVENT_PICK, 1000
+#DIM EVENT_ODDS
+#DIM EVENT_COUNT, 2
+VARSET LOCAL
+VARSET EVENT_PICK
+
+DAILY_CANCEL = 0
+
+SIF !SLG_DAILY_EVENT_HAPPEN(MASTER)
+	RETURN 0
+
+
+;派生イベント関係の処理
+CALL SLG_DAILY_DERIVATION
+
+;イベント発生数のセット
+EVENT_COUNT:0 = DCONFIG:951 + 1, DCONFIG:952 + 1
+
+;イベントリストの作成（起動後作成していなければ）
+;イベント追加時は系列に合わせて定数に使用したものを突っ込んでおいてください
+;金貸しイベント(ID=1)が登録されていなければ処理を実行(薬売りはID=0なので利用できない)
+IF !EVENT_LIST:1
+;	;0が薬売りで使用されているので-1で初期化
+;	VARSET EVENT_LIST, -1
+;	;スケベ系:0-8
+;	EVENT_LIST:0 = DCON_薬売り, DCON_金貸し, DCON_夜遊び, DCON_富豪, DCON_募金, DCON_催眠, DCON_接待, DCON_恩返し, DCON_カルマ, DCON_河童娘, DCON_闇討ち, DCON_睡姦, DCON_賞金首討伐, DCON_お手伝い, DCON_酒場
+;	;雇用系:20-22
+;	EVENT_LIST:20 = DCON_傭兵, DCON_用心棒, DCON_仕官の誘い
+;	;トレーナー:30-33
+;	EVENT_LIST:30 = DCON_素質トレーナー, DCON_セックストレーナー, DCON_外界の医者, DCON_麻薬治療医, DCON_触手トレーナー
+;	;外交:40-41
+;	EVENT_LIST:40 = DCON_人材要求, DCON_資金援助要求
+;	;野盗:50-52
+;	EVENT_LIST:50 = DCON_野盗討伐, DCON_野盗身代金, DCON_野盗蜂起, DCON_放浪捕縛, DCON_野盗略奪, DCON_村落襲撃
+;	;素質系:60-64
+;	EVENT_LIST:60 = DCON_肉便器, DCON_薬物依存, DCON_雌犬, DCON_苗床
+;	;その他90-93
+;	EVENT_LIST:90 = DCON_触手討伐任務, DCON_触手兵, DCON_ランダム謀反, DCON_MISC
+ENDIF
+
+;デイリーイベント発生チェック
+;例の関数で順番を決めてSELECTCASEにぶん投げる
+;順番にイベントフラグ及び発生期間の確認と確率ロールを行い、大丈夫であればイベント本体に移動
+;その後、終了フラグが立っていればループを脱出する
+
+;イベント発生倍率のセット
+;2^(コンフィグ値-1)+1、つまりDCONFIG:950が0/1/2/3/4の場合1/2/3/5/10倍になる
+;なお1000を超えた場合、そのイベントが必ず発生するだけで何ら問題はない（ぉ
+EVENT_ODDS = POWER(2, DCONFIG:DCON_通常発生頻度 - 1) + 1
+
+;いつもの順番決定、拡張性を考えて枠は100個用意させていただきました
+CALL FISHER_YATES_SHAFFLE(100)
+
+;念のため順番を記録
+ARRAYCOPY "SHAFFLE_ARRAY" , "EVENT_PICK"
+
+FOR LOCAL:0, 0, 100
+	RESULT = -1
+	SELECTCASE EVENT_LIST:(EVENT_PICK:(LOCAL:0))
+	;未定義
+	CASEELSE
+		CONTINUE
+	ENDSELECT
+
+	;正常終了していたらカウントを減らす
+	;イベントに入る前に弾かれていた場合はカウントしない
+	SIF RESULT != -1
+		EVENT_COUNT:0 --
+	;終了フラグが立っていれば口上デイリー処理へ
+	SIF DAILY_CANCEL || !EVENT_COUNT:0
+		BREAK
+
+NEXT
+
+
+;-------------------------------------------------------------------------------
+;指定キャラについて、「放浪したり死んだりしていない」「捕虜でない」「どこかの勢力に所属している」を満たしているなら真
+;-------------------------------------------------------------------------------
+@SLG_DAILY_EVENT_HAPPEN(ARG:0)
+#FUNCTION
+IF CFLAG:(ARG:0):12 == 0 && CFLAG:(ARG:0):9 == 0 && CFLAG:(ARG:0):1
+	RETURNF 1
+ENDIF
+RETURNF 0
