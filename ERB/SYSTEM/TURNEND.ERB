@@ -404,9 +404,6 @@ ENDIF
 ;野盗出現しない期間を1へらす
 BANDIT_POP_SUSPENDED = MAX(BANDIT_POP_SUSPENDED - 1, 0)
 
-;雇用しないかと誘われる
-SIF !DCONFIG:DCON_仕官の誘い
-	CALL INVITE_TO_COUNTRY
 
 FOR LOCAL:0, 0, CHARANUM
 	;全員の体力・気力を最大まで回復
@@ -665,77 +662,6 @@ NEXT
 
 ;登用コマンドの実行済みフラグをクリア
 FLAG:17 = 0
-
-;-------------------------------------------------
-;各国から勧誘される処理
-;-------------------------------------------------
-@INVITE_TO_COUNTRY
-#DIM 雇用確率
-#DIM 支度金
-#DIM 首領
-#DIM CONTINUEフラグ
-IF !FLAG:1 && !FLAG:27 && !CFLAG:MASTER:1 && !CFLAG:MASTER:9
-	;雇用確率を能力に応じて決定
-	雇用確率 = (ABL:MASTER:武闘 + ABL:MASTER:知略 + ABL:MASTER:政治) * 2 / 3
-	IF 雇用確率 > RAND:300
-		;確率判定に成功したら、現存する国家からランダムでループ
-		CALL FISHER_YATES_SHAFFLE(MAX_COUNTRY)
-		FOR LOCAL, 0, MAX_COUNTRY
-			IF IS_COUNTRY(SHAFFLE_ARRAY:(LOCAL)) && !GROUPMATCH(COUNTRY_EVENT_ID:(SHAFFLE_ARRAY:(LOCAL)), COUNTRY_BANDIT, COUNTRY_GAIRAI, COUNTRY_GOBLIN)
-				;仕官してから野に下った5勢力からは誘われない
-				IF FINDELEMENT(COUNTRY_PLAYER_BELONGED, SHAFFLE_ARRAY:(LOCAL)) != -1
-					CONTINUE
-				ENDIF
-				;支度金の計算
-				首領 = GET_COUNTRY_BOSS(SHAFFLE_ARRAY:(LOCAL))
-				支度金 = 雇用確率 * 20 / 1000 * 1000 + RAND:1000 + RAND:(MAX(1, CFLAG:首領:好感度))
-				PRINTFORML
-				PRINTFORMW ・　・　・
-				PRINTFORMW ・　・
-				PRINTFORMW ・
-				PRINTFORML
-				DRAWLINE
-				PRINTFORMW %ANAME(首領)%から、仕官しないかという誘いが来た
-				PRINTFORM 支度金として金
-				SETCOLOR COLOR("注意")
-				PRINTFORM {支度金}
-				RESETCOLOR
-				PRINTFORMW を用意しているようだ
-				PRINTFORML この乱世、どこかに仕えて力を蓄えておくのは一つの手だ。向こうの心証も良いだろう
-				PRINTFORML ただし、わざわざ誘われた以上、すぐに下野することは認められない
-				PRINTFORM 最低でも
-				SETCOLOR COLOR("注意")
-				PRINTFORM 10
-				RESETCOLOR
-				PRINTFORMW 期程度は務めなくてはならないようだ
-				PRINTFORML 一方で、見込みのない勢力であれば、誘いを断るのもありだろう
-				PRINTFORML 丁重に辞退すれば向こうの機嫌を損ねることもなさそうだ
-				PRINTFORMW どうしようか……
-				CALL ASK_YN("誘いを受ける", "丁重に辞退する")
-				IF RESULT == 0
-					PRINTFORML %ANAME(首領)%に仕えることにした
-					PRINTFORMW 配下の武将たちは%ANAME(MASTER)%を歓迎しているようだ……
-					PRINTFORMW 支度金{支度金}を受け取った
-					CFLAG:MASTER:所属 = SHAFFLE_ARRAY:(LOCAL)
-					CFLAG:MASTER:12 = 0
-					MONEY += 支度金
-					FOR LOCAL:1, 0, CHARANUM
-						IF CFLAG:(LOCAL:1):所属 == CFLAG:MASTER:所属
-							CFLAG:(LOCAL:1):好感度 += RAND(300, 600)
-						ENDIF
-					NEXT
-					PLAYER_HIRED_COUNTER = 10
-					BREAK
-				ELSE
-					PRINTFORMW 誘いを丁重に断った
-					BREAK
-				ENDIF
-				DRAWLINE
-				PRINTFORML
-			ENDIF
-		NEXT
-	ENDIF
-ENDIF
 
 ;-------------------------------------------------
 ;料理長による回復
