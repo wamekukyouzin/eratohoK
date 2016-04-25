@@ -53,8 +53,6 @@ SELECTCASE ARG:0
 		ELSE
 			CALL PRINTBUTTON_SHOP(27, "{  触手部屋}", 7)
 		ENDIF
-	CASE 22
-		CALL PRINTBUTTON_SHOP(28, "{寺子屋予算}", 7)
 	CASE 23
 		CALL PRINTBUTTON_SHOP(29, "{  推しメン}", 7,  FLAG:7 == 1029)
 	CASE 25
@@ -112,9 +110,6 @@ SIF !(ITEM:巫女装束 || ITEM:踊り子衣装 || ITEM:メイド服)
 ;SIF FLAG:35 < 0 || !IS_SYOKUSYU_MANAGE(FLAG:35)
 SIF !ITEM:触手部屋
 	SHOP_AVAIL:27 = 0
-
-SIF !(CFLAG:(NAME_TO_CHARA("慧音")):1 == CFLAG:MASTER:1 && !CFLAG:(NAME_TO_CHARA("慧音")):9 && !CFLAG:(NAME_TO_CHARA("慧音")):12 && CITY_OWNER:GET_CITYNUMBER("寺子屋") == CFLAG:MASTER:1)
-	SHOP_AVAIL:28 = 0
 
 SIF FLAG:100
 	SHOP_AVAIL:29 = 0
@@ -1898,9 +1893,6 @@ IF SHOP_AVAIL:(ARG:0)
 	;触手部屋
 	ELSEIF ARG:0 == 27
 		CALL SHOP_SYOKUSYU
-	;寺子屋予算
-	ELSEIF ARG:0 == 28
-		CALL SHOP_TERAKOYA
 	;推しメン
 	ELSEIF ARG:0 == 29
 		FLAG:7 = 1029
@@ -2085,40 +2077,14 @@ IF FLAG:7 == 1000
 		ENDIF
 		IF CFLAG:(ARG:0):16 == 4
 			LOCALS = %EDUCATION(CFLAG:ARG:教育方針)%
-			PRINTL [0] 普通に会う [1] 集中教育を実行 [2] 寺子屋 [3] やっぱりやめる
+			PRINTL [0] 普通に会う [1] 集中教育を実行 [2] やっぱりやめる
 			PRINTFORM 　現在の教育方針 -  
 			PRINTBUTTON "["+LOCALS+"]",10
-			PRINTFORM 　寺子屋の予算 -  {FLAG:102}
-			;あなた軍所属の寺子屋通い児童の人数を数える
-			LOCAL:13 = 0
-			FOR LOCAL:12, 0, CHARANUM
-				SIF CFLAG:(LOCAL:12):寺子屋 == 1 && CFLAG:(LOCAL:12):1 == CFLAG:MASTER:1 && !CFLAG:(LOCAL:12):12 && !CFLAG:(LOCAL:12):9
-				LOCAL:13 += 1
-			NEXT
-			PRINTFORM 　今期消費予算 -  {LOCAL:13}人×500
-			PRINTL
-			INPUT
 			IF RESULT == 1 && CFLAG:ARG:教育方針 >= 10 && CFLAG:ARG:教育方針 <= 14
 				CFLAG:ARG:91 = 1
 				SHOP_TIME ++
 				CALL 教育(ARG, MASTER, CFLAG:ARG:教育方針)
-			;親馬鹿パッチ、寺子屋を選択するとその子は寺子屋に通うようになり、毎ターン500の寺子屋用予算が消費される
 			ELSEIF  RESULT == 2
-				IF  !CFLAG:(ARG:0):寺子屋
-					;ただし、慧音が自軍所属で死亡・捕虜・負傷・臨月・育児・料理長しておらず、寺子屋が自軍所属であり侵攻を受けてない事が前提
-					IF CFLAG:(NAME_TO_CHARA("慧音")):1 == CFLAG:MASTER:1 && !CFLAG:(NAME_TO_CHARA("慧音")):9 && !CFLAG:(NAME_TO_CHARA("慧音")):12 && !CFLAG:(NAME_TO_CHARA("慧音")):16 && GET_COOK() != NAME_TO_CHARA("慧音") && CITY_OWNER:GET_CITYNUMBER("寺子屋") == CFLAG:MASTER:1 && !TMP_IS_STAY_ENEMY_UNIT(GET_CITYNUMBER("寺子屋"))
-						PRINTFORML %ANAME(ARG:0)%を寺子屋に通わせます
-						PRINTFORMW 寺子屋への追加予算を忘れないようにしてください
-						CFLAG:(ARG:0):寺子屋 = 1
-					ELSE
-						PRINTFORMW %ANAME(NAME_TO_CHARA("慧音"))%が教育可能な状態でないか、寺子屋の安全が確保されていないため選択できません
-					ENDIF
-				ELSE
-					PRINTFORML %ANAME(ARG:0)%が寺子屋に通わないようにします
-					PRINTFORMW 手を振る%ANAME(NAME_TO_CHARA("慧音"))%先生は少し寂しそうです
-					CFLAG:(ARG:0):寺子屋 = 0
-				ENDIF
-			ELSEIF  RESULT == 3
 			;処理なしで戻れる？
 			ELSEIF RESULT == 10
 				IF CFLAG:ARG:教育方針 < 10 || CFLAG:ARG:教育方針 >= 14
@@ -2130,41 +2096,14 @@ IF FLAG:7 == 1000
 			ELSE
 				GOTO NORMAL_MEET
 			ENDIF
-		;親馬鹿パッチ、被育児期間は終わっているが、まだ【幼児】が取れていないなら寺子屋に通える
 		ELSEIF TALENT:(ARG:0):幼児
 			LOCALS = %EDUCATION(CFLAG:ARG:教育方針)%
-			PRINTL [0] 普通に会う [1] 寺子屋 [2] やっぱりやめる
+			PRINTL [0] 普通に会う [1] やっぱりやめる
 			PRINTFORM 　現在の教育方針 -  
 			PRINTBUTTON "["+LOCALS+"]",10
-			PRINTFORM 　寺子屋の予算 -  {FLAG:102}
-			;あなた軍所属の寺子屋通い児童の人数を数える
-			LOCAL:13 = 0
-			FOR LOCAL:12, 0, CHARANUM
-				SIF CFLAG:(LOCAL:12):寺子屋 == 1 && CFLAG:(LOCAL:12):1 == CFLAG:MASTER:1 && !CFLAG:(LOCAL:12):12 && !CFLAG:(LOCAL:12):9
-				LOCAL:13 += 1
-			NEXT
-			PRINTFORM 　今期消費予算 -  {LOCAL:13}人×500
 			PRINTL
 			INPUT
-			IF RESULT == 1
-				IF  !CFLAG:(ARG:0):寺子屋
-					;ただし、慧音が自軍所属で死亡・捕虜・負傷・臨月・育児・料理長しておらず、寺子屋が自軍所属であり侵攻を受けてない事が前提
-					IF CFLAG:(NAME_TO_CHARA("慧音")):1 == CFLAG:MASTER:1 && !CFLAG:(NAME_TO_CHARA("慧音")):9 && !CFLAG:(NAME_TO_CHARA("慧音")):12 && !CFLAG:(NAME_TO_CHARA("慧音")):16 && GET_COOK() != NAME_TO_CHARA("慧音") && CITY_OWNER:GET_CITYNUMBER("寺子屋") == CFLAG:MASTER:1 && !TMP_IS_STAY_ENEMY_UNIT(GET_CITYNUMBER("寺子屋"))
-						PRINTFORML %ANAME(ARG:0)%を寺子屋に通わせます
-						PRINTFORML 寺子屋への追加予算を忘れないようにしてください
-						PRINTFORMW また、通っている間は部隊配属不能になります
-						CFLAG:(ARG:0):寺子屋 = 1
-						CALL FORCE_FREE(ARG:0)
-					ELSE
-						PRINTFORMW %ANAME(NAME_TO_CHARA("慧音"))%が教育可能な状態でないか、寺子屋の安全が確保されていないため選択できません
-					ENDIF
-				ELSE
-					PRINTFORML %ANAME(ARG:0)%が寺子屋に通わないようにします
-					PRINTFORML 手を振る%ANAME(NAME_TO_CHARA("慧音"))%先生は少し寂しそうです
-					PRINTFORMW 部隊への再配属が可能になりました
-					CFLAG:(ARG:0):寺子屋 = 0
-				ENDIF
-			ELSEIF  RESULT == 2
+			IF  RESULT == 1
 			;処理なしで戻れる？
 			ELSEIF RESULT == 10
 				IF CFLAG:ARG:教育方針 < 10 || CFLAG:ARG:教育方針 >= 14
