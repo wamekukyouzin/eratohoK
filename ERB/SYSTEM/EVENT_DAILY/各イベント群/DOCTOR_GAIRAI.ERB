@@ -1,0 +1,135 @@
+﻿@DOCTOR_GAIRAI
+;外界の医者による治療
+IF CFLAG:MASTER:1 != 0 && CFLAG:MASTER:9 == 0
+	;[虚ろ][崩壊]が付いたキャラの数を調べる(自国限定)
+	LOCAL:2 = 0
+	FOR LOCAL:0, 0, CHARANUM
+		IF (CFLAG:(LOCAL:0):1 == CFLAG:MASTER:1 || CFLAG:(LOCAL:0):9 == CFLAG:MASTER:1) && (TALENT:(LOCAL:0):虚ろ || TALENT:(LOCAL:0):崩壊)
+			LOCAL:2 ++
+		ENDIF
+	NEXT
+
+	;[虚ろ][崩壊]のキャラがいる
+	IF LOCAL:2
+		CALL COLORPRINTFORM(@"外界の医者が訪ねてきました", COLOR("注意"))
+		PRINTFORML
+
+		PRINTFORMW 「…どうやら心に傷を負った人間がいるようだな」
+		PRINTFORMW 「心の傷を癒やすのも医者の務め。どうか治療を行わせてもらえないだろうか」
+		PRINTL 
+		PRINTFORML ★★[虚ろ]または[崩壊]が付いたキャラを１人だけ治療することができます★★
+		PRINTFORML ★★治療するキャラを選んで下さい★★
+		DRAWLINE
+
+		;全員の調教参加フラグをクリア
+		CVARSET CFLAG, 6, 0
+
+		;ページ数の計算
+		LOCAL:6 = (LOCAL:2 - 1) / 44 + 1
+		LOCAL:7 = 1
+
+		$SHOW_LOOP
+
+		;キャラリストの表示
+		LOCAL:8 = 0
+		LOCAL:9 = 0
+		LOCAL:10 = (LOCAL:7 - 1) * 44
+		LOCAL:11 = LOCAL:7 * 44
+		LOCAL:12 = 4
+		FOR LOCAL:0, 0, CHARANUM
+			IF (CFLAG:(LOCAL:0):1 == CFLAG:MASTER:1 || CFLAG:(LOCAL:0):9 == CFLAG:MASTER:1) && (TALENT:(LOCAL:0):虚ろ || TALENT:(LOCAL:0):崩壊)
+				IF LOCAL:8 >= LOCAL:10 && LOCAL:8 < LOCAL:11
+					IF LOCAL:9 % 2 != 0
+						PRINTPLAIN 　
+					ELSEIF LOCAL:9 >= 1
+						PRINTL 
+						LOCAL:12 ++
+					ENDIF
+					CALL PRINT_PARTNER_DATA(LOCAL:0)
+					LOCAL:9 ++
+				ENDIF
+				LOCAL:8 ++
+			ENDIF
+		NEXT
+		PRINTL 
+		DRAWLINE
+
+		IF LOCAL:6 >= 2
+			LOCAL:12 += 2
+			IF LOCAL:7 > 1
+				PRINT [  8] 前のページ            
+			ELSE
+				PRINT                             
+			ENDIF
+			LOCALS:0 = page{LOCAL:7}/{LOCAL:6}
+			PRINTPLAINFORM %LOCALS:0, 28, LEFT%
+			IF LOCAL:7 < LOCAL:6
+				PRINT [  9] 後のページ
+			ENDIF
+			PRINTL 
+			DRAWLINE
+		ENDIF
+
+		PRINTL [  0] 治療しない
+
+		REDRAW 0
+
+		$INPUT_LOOP
+		INPUT
+
+		;治療しない
+		IF RESULT == 0
+			REDRAW 1
+			PRINTFORML %ANAME(MASTER)%は治療を断った
+			PRINTFORMW 「そ、そうか…。何か特殊な事情があるというなら、俺も口出しはしないが…」
+		;前のページ
+		ELSEIF RESULT == 8 && LOCAL:7 > 1
+			LOCAL:7 = MAX(1, LOCAL:7 - 1)
+			CLEARLINE LOCAL:12
+			GOTO SHOW_LOOP
+		;後のページ
+		ELSEIF RESULT == 9 && LOCAL:7 < LOCAL:6
+			LOCAL:7 = MIN(LOCAL:6, LOCAL:7 + 1)
+			CLEARLINE LOCAL:12
+			GOTO SHOW_LOOP
+		ELSE
+			LOCAL:5 = NO_TO_CHARA(RESULT - 100)
+			IF LOCAL:5 >= 0 && (CFLAG:(LOCAL:5):1 == CFLAG:MASTER:1 || CFLAG:(LOCAL:5):9 == CFLAG:MASTER:1) && (TALENT:(LOCAL:5):虚ろ || TALENT:(LOCAL:5):崩壊)
+				REDRAW 1
+				PRINTFORMW 「%NAME:(LOCAL:5)%さんを治療するんだな？　よし、任せてくれ！」
+				PRINTFORMW 「我が身、我が鍼と一つなり！　一鍼同体！　阻疾傷去！　げ・ん・き・に・なれえぇぇぇぇぇぇっ！」
+				SETCOLOR COLOR("注意")
+				IF TALENT:(LOCAL:5):崩壊
+					PRINTFORMW %ANAME(LOCAL:5)%は<崩壊>を失った
+				ELSE
+					PRINTFORMW %ANAME(LOCAL:5)%は<虚ろ>を失った
+				ENDIF
+				RESETCOLOR
+				TALENT:(LOCAL:5):崩壊 = 0
+				TALENT:(LOCAL:5):虚ろ = 0
+				CFLAG:(LOCAL:5):崩壊 = MIN(CFLAG:(LOCAL:5):崩壊, 1000)
+				PRINTFORMW 「これでもう大丈夫だ。ただ、しばらくの間は無理をさせないようにな」
+			ELSE
+				CLEARLINE 1
+				GOTO INPUT_LOOP
+			ENDIF
+		ENDIF
+
+	;[虚ろ][崩壊]のキャラがいない場合(クリア済みなら何も起きない)
+	ELSEIF !FLAG:28
+		DRAWLINE
+		SETCOLOR COLOR("注意")
+		PRINTFORMW 外界の医者が訪ねてきました
+		RESETCOLOR
+
+		PRINTFORMW 「ここに傷ついた人間がいると聞いてやってきた。医者として治療に当たらせてもらいたい」
+		PRINTFORMW ………………
+		;徴兵限界を超えて兵の確保が可能
+		LOCAL:0 = MIN(GET_SUM_ECONOMY(CFLAG:MASTER:1) / 200, 2000)
+		COUNTRY_SOLDIER:(CFLAG:MASTER:1) += LOCAL:0
+		SETCOLOR COLOR("注意")
+		PRINTFORMW 我が軍の兵数が{LOCAL:0}だけ増加しました
+		RESETCOLOR
+	ENDIF
+ENDIF
+

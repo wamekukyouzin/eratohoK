@@ -1,0 +1,107 @@
+﻿;キャラが雇われにくる
+@BOUNCER
+#DIM 対象
+#DIM 素質
+#DIM 料金
+
+CALL CREATE_RANDOM_CHARA()
+対象 = RESULT
+
+;生成に失敗したらRETURN 0
+SIF RESULT == -1
+	RETURN -1
+
+;能力は自前で設定 三能力の合計値は210
+;ver0.150時点で全キャラ中25位程度の実力　近くには雷鼓・サグメ・文などがいる
+ABL:対象:武闘 = RAND(60, 85)
+ABL:対象:知略 = RAND(60, 80)
+ABL:対象:政治 = 210 - (ABL:対象:武闘 + ABL:対象:知略)
+;歌唱と料理は合計60
+;6能力の合計は270
+;ver0.147時点で全キャラ中30位程度の実力　近くには慧音・屠自古などがいる
+ABL:対象:歌唱 = RAND(20, 40)
+ABL:対象:料理 = 60 - ABL:対象:歌唱
+;さらに、SLG用素質を一つ取得させる
+SELECTCASE RAND:1000
+	;治療
+	CASE IS < 100
+		素質 = 203
+	;努力家
+	CASE IS < 175
+		素質 = 205
+	;策士
+	CASE IS < 250
+		素質 = 219
+	;明察
+	CASE IS < 300
+		素質 = 220
+	;ステゴロ
+	CASE IS < 375
+		素質 = 221
+	;三種の神器
+	CASE IS < 450
+		素質 = 222
+	;下克上等
+	CASE IS < 490
+		素質 = 223
+	;魔力転換
+	CASE IS < 540
+		素質 = 224
+	;突貫
+	CASE IS < 640
+		素質 = 225
+	;バンドガール
+	CASE IS < 680
+		素質 = 226
+	;哨戒
+	CASE IS < 750
+		素質 = 227
+	;防衛戦術
+	CASE IS < 800
+		素質 = 228
+	;暗殺
+	CASE  IS < 840
+		素質 = 229
+	;弁舌
+	CASE IS < 880
+		素質 = 230
+	;風説流布
+	CASE IS < 920
+		素質 = 241
+	;手練手管
+	CASE IS < 960
+		素質 = 242
+	;早足
+	CASEELSE
+		素質 = 240
+ENDSELECT
+TALENT:対象:素質 = 1
+
+料金 = RAND(20000, 30000)
+
+
+PRINTFORML %ANAME(MASTER)%が仕事をしていると、従者が来客を告げた
+PRINTFORMW なんでも、腕に自信のある者が士官したいと言ってきたらしい
+PRINTFORML 優秀な人材なら大歓迎だ……それが本当に優秀ならの話だが
+PRINTFORMW ともかく、%ANAME(MASTER)%は会ってみることにしてみた……
+PRINTFORML
+PRINTFORM 客は名前を
+CALL COLORPRINTFORM(@"%NAME:(対象)%", COLOR("注意"))
+PRINTFORMW といった
+PRINTFORML 軽く実力をみせてもらったが、なるほど、中々できる奴のようだ
+PRINTFORMW これならば、%ANAME(MASTER)%の勢力に迎えても、十分活躍してくれるだろう……
+PRINTFORM %ANAME(対象)%は、支度金として
+CALL COLORPRINTFORM(@"{料金}", COLOR("注意"))
+PRINTFORML を要求している
+PRINTFORMW 安くない額だが、実力のある者を迎えられることには代えられないか……
+DRAWLINE
+PRINTFORML 現在の資金:{MONEY}
+CALL ASK_MULTI_JUDGE(@"金{料金}を払って雇う", MONEY >= 料金, "断る", 1)
+IF RESULT == 0
+	PRINTFORMW %ANAME(対象)%を迎え入れることにした……
+	CFLAG:対象:所属 = CFLAG:MASTER:所属
+	MONEY -= 料金
+ELSE
+	PRINTFORMW 帰ってもらうことにした……
+	CALL DELETE_CHARA(対象)
+ENDIF

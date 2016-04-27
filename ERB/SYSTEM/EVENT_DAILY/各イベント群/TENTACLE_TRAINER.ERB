@@ -1,0 +1,518 @@
+﻿@TENTACLE_TRAINER
+#DIM 対象
+
+IF DVAR:触手トレーナー == -1 || CONFIG:200
+	RETURN -1
+ENDIF
+
+
+;5回以上利用すると苗床を付けられるようになる
+IF DVAR:触手トレーナー == 5
+	PRINTFORMW あの妖術師が再び訪れた
+	PRINTFORML 「お久しぶりです…また“実験素材”と“資金”の提供をお願いしに来ました…」
+	PRINTFORML 「そして、日頃からご利用していただいているお礼として…更に新しい“トレーニング”をご用意しました…」
+	PRINTFORMW 新しいトレーニングとは、相手を触手づけにして【苗床】にしてしまうものらしい
+	PRINTFORML 価格は70000、少々値は張るが今までの実績からも効果は信用できそうだ
+	PRINTFORML 無論、ある程度触手に慣れている者にしか無理だろうが
+	PRINTFORMW そして引き続き、今まで通りのトレーニングもしてくれるようだ
+	PRINTFORMW さて、どうしようか……
+;1回目
+ELSEIF DVAR:触手トレーナー == 0
+	PRINTFORML 仕事中、来客を知らされた
+	PRINTFORML いかにも妖しげな雰囲気の者らしい
+	PRINTFORMW どれ程妖しげなのか、会ってみることにした
+	PRINTFORML 
+	PRINTFORMW 「%ANAME(MASTER)%様ですね、初めまして。お目にかかれて光栄です」
+	PRINTFORML 目深にフードをかぶり顔を隠した男が恭しく頭を下げる
+	PRINTFORMW 成程、確かにいかにも怪しげな雰囲気だ
+	PRINTFORML 「私は、妖術家業をしておりまして…%ANAME(MASTER)%様ならばどういう事かお分かりになるでしょう？」
+	PRINTFORMW 相手の言葉を聞いてその雰囲気にも合点が言った
+	PRINTFORML 「妖術を極める為に様々な研究をしているのですが…いかんせん“実験素材”と“資金”の調達が難しく…」
+	PRINTFORML 「そこで同じ妖術使いの%ANAME(MASTER)%様ならば、私のスポンサーになってくださるのではないかと…お伺いした次第でございます」
+	PRINTFORMW 「無論、タダで、とは言いません。私は妖術知識を他者に伝え、またその能力を伸ばすことを得意としております」
+	PRINTFORML 男の言葉を纏めると、金を払えば仲間に妖術知識を授けてくれるようだ
+	PRINTFORMW 無論その為にどの様な行為が必要なのかも%ANAME(MASTER)%にはわかる、実験素材とはそういう事だろう
+	PRINTFORML 費用は一回50000、高いと言えば高いが安いと言えば安いか？
+	PRINTFORMW 妖しげではあるが、男が出鱈目を言っているのではない事はその知識を聞けば分かった
+	PRINTFORMW さて、どうしようか……
+;2回目以降
+ELSE
+	PRINTFORMW あの妖術師が再び訪れた
+	PRINTFORMW 「お久しぶりです…また“実験素材”と“資金”の提供をお願いしに来ました…」
+	PRINTFORMW さて、どうしようか……
+ENDIF
+
+DRAWLINE
+IF DVAR:触手トレーナー >= 5
+	PRINTFORML 現在の資金:{MONEY} 妖術知識費用:50000 苗床費用:70000
+ELSE
+	PRINTFORML 現在の資金:{MONEY} 妖術知識費用:50000
+ENDIF
+CALL ASK_MULTI_JUDGE(@"素材と資金を提供する", MONEY >= 50000, "やめておく", 1, "斬り捨てる", 1)
+	IF RESULT == 2
+		PRINTFORMW 悪の触手使いめ！覚悟！
+		PRINTFORMW 「ぎゃー！」
+		PRINTFORMW 悪は去った！
+		DVAR:触手トレーナー = -1
+		RETURN
+	ELSEIF RESULT == 1
+			PRINTFORML 悪いが今はそれは必要としていない
+		PRINTFORML 「そうですか…それではまたお伺いしましょう」
+		PRINTFORMW 妖術師は音も立てずに去って行った
+		DVAR:触手トレーナー += 1
+		RETURN
+	ELSE
+		PRINTFORMW 「わかりました…では、どなたを提供していただけるのか、選んでください…」
+		DRAWLINE
+		CALL TENTACLE_TRAINER_SELECT_COMMANDER
+		対象 = RESULT
+		IF 対象 == -1
+			PRINTFORML やはりやめておこう
+			PRINTFORML 「そうですか…それではまたお伺いしましょう」
+			PRINTFORMW 妖術師は音も立てずに去って行った
+			RETURN
+		ELSE
+			IF 対象 == MASTER
+				PRINTFORML 「あなた自身が？…わかりました…」
+			ELSE
+				PRINTFORML 「%ANAME(対象)%さんですね、わかりました…」
+			ENDIF
+			IF DVAR:触手トレーナー >= 5 && ABL:対象:触手 >= 4 && TALENT:対象:苗床 == 0 && MONEY >= 70000
+				PRINTFORMW 「通常のトレーニングと苗床トレーニング…どちらにしましょうか？」
+				CALL ASK_MULTI(@"通常のトレーニング", "苗床にしてもらう")
+					IF RESULT == 1
+						PRINTFORMW 「では、こちらへどうぞ…」
+						IF ABL:対象:触手 <= 4 && 対象 != PLAYER
+							PRINTFORMW 妖術師は嫌がる%ANAME(対象)%をローブの下から伸ばした無数の触手で束縛して連れて行った
+						ELSE
+							PRINTFORMW %ANAME(対象)%はもじもじしながらも大人しく妖術師に連れて行かれた
+						ENDIF
+						PRINTFORML ・
+						PRINTFORML ・
+						PRINTFORML ・
+						SELECTCASE RAND:5
+							CASE 0
+								PRINTFORMW %ANAME(対象)%のお腹は臨月の妊婦のように膨れ上がっており、時折中で何かが動いているかの様に表面が蠢く
+								PRINTFORMW %ANAME(対象)%の中に種付けされた触手が、%ANAME(対象)%の魔力を吸い上げ、急激に成長し出産の時を待っているのだ
+								PRINTFORMW ほどなくして%ANAME(対象)%は下腹部に強烈な疼きを感じ、ドクンドクンと子宮が脈動し出すのを感じる
+								PRINTFORMW いよいよ出産の時がやってきた、%ANAME(対象)%は自ら秘貝を広げいきみ、触手の出産を手助けする
+								PRINTFORMW 途中、触手が産道をうねうねと這いずる感触で、%ANAME(対象)%は何度も絶頂してしまう
+								PRINTFORMW やがて触手が勢いよく%ANAME(対象)%の雌穴から飛び出ると、%ANAME(対象)%はアヘ顔を晒しながら至福の絶頂を味わった
+							CASE 1
+								PRINTFORMW 無数の触手たちに埋もれながら、子宮を小突かれて%ANAME(対象)%は喜悦の声を上げている
+								PRINTFORMW %ANAME(対象)%の下腹部には、ハート形の紋章が浮かび上がっており、%ANAME(対象)%の子宮を疼かせている
+								PRINTFORMW その紋章は%ANAME(対象)%が絶頂する度に怪しく光り、%ANAME(対象)%の頭の中を快感で塗りつぶしていく
+								PRINTFORMW %ANAME(対象)%はもはや触手に奉仕して種をもらう事しか考えられなくなっており、積極的に触手をしごいて種をねだる
+								PRINTFORMW 触手の苗床になるとはなんて幸せな事なのだろう、もっと早くに知ればよかった
+								PRINTFORMW おぼろげにそんな事を考えながら、全身に触手の種を受けて幸せそうに%ANAME(対象)%は絶頂した
+							CASE 2
+								PRINTFORMW 薄暗い部屋の中に、巨大な球根状の触手が鎮座している
+								PRINTFORMW %ANAME(対象)%はその巨大な触手に呑みこまれ、全身の穴を触手で埋め尽くされながら犯されている
+								PRINTFORMW 身動きすらできずに、ひたすら与えられる快感に、%ANAME(対象)%はもはや絶頂から降りられなくなっている
+								PRINTFORMW びゅるると特濃の種を口内と子宮に注がれ、再び絶頂しながら%ANAME(対象)%は美味しそうにそれを飲みこんでいく
+								PRINTFORMW もはや%ANAME(対象)%の頭の中に触手に対する嫌悪感は無く、快感を与えてくれる愛しい相手と認識している
+								PRINTFORMW 夜通し触手たちに可愛がられた%ANAME(対象)%は、種を植え付けられることを自ら望むようになっていた
+							CASE 3
+								PRINTFORMW %ANAME(対象)%は触手の壁に埋め込まれながら、スポンジ状の触手によって目隠しされている
+								PRINTFORMW その触手はチカチカと催眠光を発し、彼女の意識を塗り替えていく
+								PRINTFORMW しばらくすると%ANAME(対象)%はだらしなく涎と舌を垂らし、まるで発情したか犬の様に息を荒げだした
+								PRINTFORMW そんな%ANAME(対象)%の股間に一本の触手が擦り寄り、二度三度と愛液を垂れ流している割れ目を擦りあげる
+								PRINTFORMW %ANAME(対象)%は恥も外聞も無く、必死で腰を振りながら触手を受け入れようと種をおねだりする
+								PRINTFORMW その態度に満足したように触手は%ANAME(対象)%を犯し始め、%ANAME(対象)%は極上のご褒美を与えられた
+							CASE 4
+								PRINTFORMW %ANAME(対象)%は触手を咥えこみながら、あへあへとだらしなく舌を垂らして自ら腰を振っている
+								PRINTFORMW 先ほどから注射器のような触手によって、%ANAME(対象)%の中に得体のしれない液体が注入されている
+								PRINTFORMW その液体が自らの血肉と混ざり合い、少しずつ内側から自分の身体が作り変えられているのを感じる
+								PRINTFORMW しかし%ANAME(対象)%の意識はすでに触手によって塗り替えられており、嫌悪の色はない
+								PRINTFORMW むしろ%ANAME(対象)%は作りかえられる副作用による麻薬の様な快感に没頭し、更に腰の動きを早めていく
+								PRINTFORMW 絶頂しながらもなお種をねだる%ANAME(対象)%に対し、触手たちは精液と媚薬を注ぎ込み続けてやった
+						ENDSELECT
+						PRINTFORML ・
+						PRINTFORML ・
+						PRINTFORML ・
+						CALL COLORPRINTFORM(@"%ANAME(対象)%は【苗床】になった", COLOR("注意"))
+						PRINTFORMW 
+						EXP:対象:Ｃ感経験値 += ABL:対象:Ｃ感 * 2 + 8 + RAND:5
+						EXP:対象:Ｂ感経験値 += ABL:対象:Ｂ感 * 2 + 8 + RAND:5
+						EXP:対象:Ｖ感経験値 += ABL:対象:Ｖ感 * 10 + 20 + RAND:5
+						EXP:対象:Ａ感経験値 += ABL:対象:Ａ感 * 10 + 20 + RAND:5
+						EXP:対象:欲望経験値 += ABL:対象:欲望 * 3 + 4 + RAND:3
+						EXP:対象:性交経験値 += ABL:対象:性交 * 2 + 20 + RAND:5
+						EXP:対象:触手経験値 += ABL:対象:触手 * 6 + 30 + RAND:5
+						EXP:対象:妖術経験値 += ABL:対象:妖術 * 5 + 30 + RAND:10
+						EXP:対象:キス経験 += 4 + RAND:8
+						EXP:対象:口淫経験 += 6 + RAND:10
+						EXP:対象:絶頂経験 += 6 + RAND:10
+						EXP:対象:触手出産経験 += 6 + RAND:10
+						CALL TIGHTNESS_DECREASE_V(対象, RAND(5, 15))
+						CALL TIGHTNESS_DECREASE_A(対象, RAND(5, 15))
+						CALL TRAIN_AUTO_ABLUP(対象)
+						CALL KISS_COMMON(対象, "触手", 4)
+						CALL VIRGIN_COMMON(対象, "触手", 4)
+						TALENT:対象:苗床 = 1
+						MONEY -= 70000
+						DVAR:触手トレーナー += 1
+						PRINTFORML 「ご協力ありがとうございました…それでは私はこれで…」
+						PRINTFORMW 妖術師は音も立てずに去って行った
+						RETURN
+					ELSE
+						PRINTFORMW 「では、こちらへどうぞ…」
+					ENDIF
+			ELSE
+				PRINTFORMW 「では、こちらへどうぞ…」
+			ENDIF
+			IF TALENT:対象:妖術知識 == 0
+				IF ABL:対象:触手 <= 4 && 対象 != PLAYER
+					PRINTFORMW 妖術師は嫌がる%ANAME(対象)%をローブの下から伸ばした無数の触手で束縛して連れて行った
+				ELSEIF TALENT:対象:苗床 == 1
+					PRINTFORMW すっかり触手の魅力に溺れた%ANAME(対象)%は期待に頬を赤らめながら妖術師について行った
+				ELSE
+					PRINTFORMW %ANAME(対象)%はもじもじしながらも大人しく妖術師に連れて行かれた
+				ENDIF
+				PRINTFORML ・
+				PRINTFORML ・
+				PRINTFORML ・
+				PRINTFORMW 薄暗い部屋の中で、%ANAME(対象)%は無数の触手に犯されている
+				PRINTFORML 手足を触手に拘束された状態で無数の触手によって、代わる代わるに穴という穴を蹂躙され続ける
+				PRINTFORMW 体中に触手の体液を塗りたくられ、もはや全身が触手たちのおもちゃになっていた
+				PRINTFORML 絶え間なく与えられる異形の快楽に、%ANAME(対象)%は背徳感を感じながらもひたすらよがり狂う事しかできない
+				PRINTFORMW そして膣内への幾度目かの射精を受け、%ANAME(対象)%はアヘ顔を晒しながら絶頂した
+				PRINTFORML 触手が引き抜かれると%ANAME(対象)%は力なく床に倒れ込むが、そんな彼女にお構いなしに次の触手が群がっていく
+				PRINTFORMW 饗宴は夜通し続き、%ANAME(対象)%は全身に触手の魔力と快感を染み込ませた
+				PRINTFORML ・
+				PRINTFORML ・
+				PRINTFORML ・
+				TALENT:対象:妖術知識 = 1
+				ABL:対象:妖術 += 10
+				CALL COLORPRINTFORM(@"%ANAME(対象)%は妖術知識を身につけた", COLOR("注意"))
+				PRINTFORMW 
+				EXP:対象:Ｃ感経験値 += ABL:対象:Ｃ感 * 2 + 8 + RAND:5
+				EXP:対象:Ｂ感経験値 += ABL:対象:Ｂ感 * 2 + 8 + RAND:5
+				EXP:対象:Ｖ感経験値 += ABL:対象:Ｖ感 * 10 + 20 + RAND:5
+				EXP:対象:Ａ感経験値 += ABL:対象:Ａ感 * 10 + 20 + RAND:5
+				EXP:対象:欲望経験値 += ABL:対象:欲望 * 3 + 4 + RAND:3
+				EXP:対象:性交経験値 += ABL:対象:性交 * 2 + 20 + RAND:5
+				EXP:対象:触手経験値 += ABL:対象:触手 * 6 + 30 + RAND:5
+				EXP:対象:キス経験 += 4 + RAND:8
+				EXP:対象:口淫経験 += 6 + RAND:10
+				EXP:対象:絶頂経験 += 6 + RAND:10
+				EXP:対象:触手出産経験 += 6 + RAND:10
+				CALL TIGHTNESS_DECREASE_V(対象, RAND(5, 15))
+				CALL TIGHTNESS_DECREASE_A(対象, RAND(5, 15))
+				CALL TRAIN_AUTO_ABLUP(対象)
+				CALL KISS_COMMON(対象, "触手", 4)
+				CALL VIRGIN_COMMON(対象, "触手", 4)
+				MONEY -= 50000
+				DVAR:触手トレーナー += 1
+			ELSE
+				IF ABL:対象:触手 <= 4 && 対象 != PLAYER
+					PRINTFORMW 妖術師は嫌がる%ANAME(対象)%をローブの下から伸ばした無数の触手で束縛して連れて行った
+				ELSEIF TALENT:対象:苗床 == 1
+					PRINTFORMW すっかり触手の魅力に溺れた%ANAME(対象)%は期待に頬を赤らめながら妖術師について行った
+				ELSE
+					PRINTFORMW %ANAME(対象)%はもじもじしながらも大人しく妖術師に連れて行かれた
+				ENDIF
+				PRINTFORML ・
+				PRINTFORML ・
+				PRINTFORML ・
+				SELECTCASE RAND:25
+					CASE 0
+						PRINTFORMW 薄暗い部屋の中で、%ANAME(対象)%は触手に犯されていた
+						PRINTFORMW 全身を触手に緊縛された状態で無数の触手によって代わる代わるに雌穴を蹂躙され続けている
+						PRINTFORMW 人外の快楽を与えられ、%ANAME(対象)%は背徳感を感じながらもひたすらよがり狂う
+						PRINTFORMW そして幾度目かの射精を受け、%ANAME(対象)%は絶叫しながら全身を震わせ絶頂した
+						PRINTFORMW 触手を引き抜かれ力なく床に倒れ込む%ANAME(対象)%に、更に触手が群がっていく
+					CASE 1
+						PRINTFORMW 薄暗い部屋の中、%ANAME(対象)%のくぐもった呻き声が響く
+						PRINTFORMW %ANAME(対象)%の股の間には人の腕程もありそうな極太の触手が深々と刺さっており、雌穴ははち切れんばかりだ
+						PRINTFORMW 触手が出入りするたびに%ANAME(対象)%のお腹が触手の形に浮かび上がり、%ANAME(対象)%は悲鳴の混じった喘ぎ声を上げる
+						PRINTFORMW 触手が無理矢理%ANAME(対象)%の子宮の中へと侵入すると、%ANAME(対象)%は余りの衝撃に全身を痙攣させて声にならない声を上げる
+						PRINTFORMW 触手は%ANAME(対象)%を気遣う事も無くこの雌を確実に種付けするべく、大量の種を注ぎ込んだ
+					CASE 2
+						PRINTFORMW 触手で埋もれた部屋の中で、%ANAME(対象)%は宙吊りで犯されている
+						PRINTFORMW その雌穴には複数の触手が群がっており、競うように%ANAME(対象)%の雌穴を蹂躙している
+						PRINTFORMW 触手たちは%ANAME(対象)%の事を気遣う事も無く膣内で蠢き、その度に%ANAME(対象)%は目を白黒させて嬌声を上げる
+						PRINTFORMW そして触手たちが一斉に膨れ上がり、%ANAME(対象)%の中に大量の精液を吐き出すと、%ANAME(対象)%は気を失うほどの絶頂に達した
+						PRINTFORMW 満足した触手達が引き抜かれると、痙攣する%ANAME(対象)%の雌穴からは大量の精液がごぽっと溢れ出た
+					CASE 3
+						PRINTFORMW 触手で埋もれた部屋の中に、悲鳴混じりの嬌声が響く
+						PRINTFORMW %ANAME(対象)%は雌穴と尻穴の両方を触手によって激しく犯されている
+						PRINTFORMW 二本の触手は交互に%ANAME(対象)%の中を前後して膣肉と尻肉を絶え間なく刺激し、%ANAME(対象)%は壊れた人形の様にただただ喘ぐ
+						PRINTFORMW やがて二本の触手がそれぞれ%ANAME(対象)%の中へと限界までグリグリと侵入し、その奥深くへと種をぶちまけた
+						PRINTFORMW 信じられない程の熱を注ぎこまれ、%ANAME(対象)%は頭が爆発しそうな快感を味わいながら獣のような雄たけびをあげ絶頂した
+					CASE 4
+						PRINTFORMW 卑猥な水音が響く部屋の中で、%ANAME(対象)%は犯されている
+						PRINTFORMW 拘束された%ANAME(対象)%の尻穴に深々と触手が突き刺さっており、%ANAME(対象)%はブルブルと身震いしながらその熱さに耐えている
+						PRINTFORMW 触手は%ANAME(対象)%の尻穴を刺激しながら奥へと奥へと進んでおり、%ANAME(対象)%の下腹部は蠢く触手の形に膨れ上がっている
+						PRINTFORMW 必死で耐えていた%ANAME(対象)%だが胃の辺りに違和感を感じた次の瞬間、%ANAME(対象)%の口からずりゅっと触手がはいでてきた
+						PRINTFORMW 触手に貫通された%ANAME(対象)%は、目をぐるんと回し、 呆然自失になりながらも人外の快楽で大きく身を震わせ絶頂した
+					CASE 5
+						PRINTFORMW 触手によって大の字に拘束され散々に犯されながらも、%ANAME(対象)%は必死で耐えている
+						PRINTFORMW 朦朧とする意識の中で乳首に違和感を覚え見てみると、先端が針金の様な二本の触手が%ANAME(対象)%の乳首をつついている
+						PRINTFORMW まさか、と%ANAME(対象)%が思う間もなく二本の触手がずりゅずりゅと、%ANAME(対象)%の乳首の中へと入りこんできた
+						PRINTFORMW 絶叫を上げる%ANAME(対象)%だが、触手たちは構うことなく乳房の肉をかき分け更に奥へと潜り込んでいく
+						PRINTFORMW その異形の感覚に次第に%ANAME(対象)%は快感を得始め、乳房の中で射精されると大きく背を反らしながら絶頂した
+					CASE 6
+						PRINTFORMW 薄暗い部屋の中央で、%ANAME(対象)%は床に這いつくばって喘いでいる
+						PRINTFORMW %ANAME(対象)%の股間にはうねうねと蠢く肉の塊が張り付いており、雌穴と尻穴を覆っている
+						PRINTFORMW 触手の貞操帯によって絶え間なく両穴を犯され続け、%ANAME(対象)%は何度も意識を失い、その度にまた絶頂で意識を呼び起こされる
+						PRINTFORMW 絶え間ない快感から逃れようと必死で触手を剥そうとするが、むしろその抵抗で刺激された触手は一層激しく攻めだした
+						PRINTFORMW 夜が明けぼろ雑巾の様に転がる%ANAME(対象)%のの両穴からは、大量の触手の種がぼこぼこと溢れ出ていた
+					CASE 7
+						PRINTFORMW 触手の蠢く部屋の中央で、%ANAME(対象)%は舌を垂らしながらだらしなく喘いでいる
+						PRINTFORMW %ANAME(対象)%の股間には巨大なペニスのような触手がそそり立っており、別の触手にずっぽりと呑まれながら扱かれている
+						PRINTFORMW 触手の根がガッチリと%ANAME(対象)%に寄生しており、取り外せないばかりか、ペニスへの快感もそのまま%ANAME(対象)%に伝わっている
+						PRINTFORMW やがて未知の快感に耐えられなくなった%ANAME(対象)%は、アヘ顔を晒しながら触手の中に絶頂射精してしまった
+						PRINTFORMW しかしそれで触手の攻めは終わらず、%ANAME(対象)%の精根尽き果てるまで何度も何度も搾精され続けた
+					CASE 8
+						PRINTFORMW 薄暗い部屋の中に、卑猥な水音と%ANAME(対象)%の嬌声が響いている
+						PRINTFORMW 部屋の中央で下半身を巨大な触手にすっぽりと呑みこまれた恰好で、%ANAME(対象)%は体を震わせ喘いでいる
+						PRINTFORMW 巨大な触手の中では更に無数の触手が%ANAME(対象)%の足をがっちりと捕え、更に多数の触手が雌穴を犯しているのだ
+						PRINTFORMW 下半身から襲いかかる暴力的な快楽から逃れようと絶頂しながらもがく%ANAME(対象)%だが、触手は意に介さずに次々と種を吐き出す
+						PRINTFORMW %ANAME(対象)%が解放されたころにはもはや足腰も立たなくなっており、雌穴からはとめどなく触手の種が溢れていた
+					CASE 9
+						PRINTFORMW %ANAME(対象)%は触手に抱えられる格好で虚ろな喘ぎ声を上げている
+						PRINTFORMW 両の耳からは細い触手が%ANAME(対象)%の中へと侵入し、ぐちゅぐちゅと頭の中をかき回して触手を受け入れる様に精神改造している
+						PRINTFORMW %ANAME(対象)%は涎を垂らしながら虚ろな表情で時折その刺激に反応し、ビクビクと身体を震わせているだけだ
+						PRINTFORMW やがて一本の触手が%ANAME(対象)%の割れ目へと近づくと、%ANAME(対象)%は自ら指で割り開き触手を受け入れた
+						PRINTFORMW 脳と子宮へと無理矢理与えられる人外の快感に、%ANAME(対象)%は泡を吹きながら何度も絶頂を続けた
+					CASE 10
+						PRINTFORMW 大量の触手で埋もれる部屋の中で、%ANAME(対象)%は触手に緊縛されながら犯されている
+						PRINTFORMW 犯され続け、息も絶え絶えの%ANAME(対象)%のへそに一本の細い触手がゆっくりと侵入していく
+						PRINTFORMW %ANAME(対象)%があり得ない光景に顔を引き攣らせていると、次の瞬間、下腹部からドクンと脈動を感じた
+						PRINTFORMW へそに挿入された触手が妖しく発光している、%ANAME(対象)%の魔力を吸いだしているのだ
+						PRINTFORMW その副作用で子宮に直接与えられる異端の快楽に%ANAME(対象)%はひたすらヨガり狂うしかなかった
+					CASE 11
+						PRINTFORMW 薄暗い部屋の中で、%ANAME(対象)%は触手に犯されている
+						PRINTFORMW 両手両足を大の字の格好で拘束され、ろくに動けな%ANAME(対象)%の割れ目に一本の触手が激しく出入りしている
+						PRINTFORMW 一突き毎に子宮を押し潰される様な衝撃に%ANAME(対象)%は目をチカチカさせながらも、下唇を噛みしめて必死で耐えている
+						PRINTFORMW しかし触手が大量の精液を吐き出すと、ガクガクと身体を震わせながら嬌声を上げて絶頂してしまった
+						PRINTFORMW 一度絶頂させられた%ANAME(対象)%は、もはや抗う事も出来ず、ひたすら触手たちに与えられる快楽にヨガり狂った
+					CASE 12
+						PRINTFORMW 無数の触手たちに囲まれながら、%ANAME(対象)%は彼らに犯されている
+						PRINTFORMW 全身を拘束されている%ANAME(対象)%に先端が注射器の様になっている触手が近づくと、プスッと%ANAME(対象)%の首筋に刺さる
+						PRINTFORMW いきなりの事に身を悲鳴を上げた%ANAME(対象)%は、何か熱い液体が注ぎ込まれていくのを感じる
+						PRINTFORMW すると全身が熱く滾りだし、触手に軽く愛撫されるだけで絶頂してしまう程に全身が敏感になってしまった
+						PRINTFORMW 触手に特濃の媚薬を注射された%ANAME(対象)%は、中毒になりそうなその快感に溺れ、ひたすら喘ぎ続けた
+					CASE 13
+						PRINTFORMW 触手たちに囲まれながら、%ANAME(対象)%は床に這いつくばって呻いている
+						PRINTFORMW %ANAME(対象)%のお腹は妊婦のように膨れ上がっており、時折ドクンドクンと蠢いている
+						PRINTFORMW 子宮に侵入した大量の触手が中から%ANAME(対象)%を犯しているのだ
+						PRINTFORMW 触手から染み出る体液に含まれる媚薬成分で、子宮が熱く疼いてしまい、触手が蠢く度に%ANAME(対象)%は絶頂し涎を垂らす
+						PRINTFORMW その後触手たちに子宮を開発されつくした%ANAME(対象)%は、触手が出ていった後も子宮の疼きを止められなかった
+					CASE 14
+						PRINTFORMW かび臭い部屋の中で、%ANAME(対象)%は触手に犯されている
+						PRINTFORMW 先端がカリ首のように太くなっている触手が%ANAME(対象)%の雌穴を出入りし、膣肉をゴリゴリと刺激する
+						PRINTFORMW それだけでも%ANAME(対象)%は何度も絶頂させられ、必死で触手を引き抜こうと抗っている
+						PRINTFORMW すると突然触手の先端がドリルの様に回転し、%ANAME(対象)%の膣内を乱暴にえぐりだした
+						PRINTFORMW %ANAME(対象)%はいきなりの衝撃に目を白黒させながら絶頂させられ、抵抗することも忘れて延々とヨガり狂わされた
+					CASE 15
+						PRINTFORMW かび臭い部屋の中に、じゅっぽじゅっぽという卑猥な音が鳴り響く
+						PRINTFORMW 大量に蠢く触手の中央に、彼らに犯されている%ANAME(対象)%がいた
+						PRINTFORMW 全身の穴という穴を触手に犯されながら、両手両足まで使わされ触手をしごかされているその姿はまさに生贄の様だ
+						PRINTFORMW 触手たちが一斉に膨れ上がり、白濁液を吐き出すと%ANAME(対象)%はその量と熱さに目の前がチカチカして溺れてしまいそうになる
+						PRINTFORMW しかし一度の射精で彼らは満足せず、再び無数の触手が%ANAME(対象)%に群がると、極上の雌に種付けするべく夜通し犯しつくした
+					CASE 16
+						PRINTFORMW 触手が蠢く部屋の中央に、%ANAME(対象)%は四つん這いの状態で息を荒げて呻いている
+						PRINTFORMW そのお腹は臨月の妊婦のように膨れ上がっており、時折脈動しているのが分かる
+						PRINTFORMW %ANAME(対象)%の中に侵入し増殖した触手が溢れ出ようと暴れているのだ
+						PRINTFORMW 必死で堪える%ANAME(対象)%の努力もむなしく、子宮口を中からこじ開けられて、触手を出産させられながら絶頂してしまった
+						PRINTFORMW 狂気的な快感により%ANAME(対象)%は触手を出産する度に絶叫しながら絶頂し、出産を終える頃には精根尽き果て気を失っていた
+					CASE 17
+						PRINTFORMW 鼻を突く臭いの籠った部屋の中で、%ANAME(対象)%は触手に犯されている
+						PRINTFORMW %ANAME(対象)%の蜜穴には深々と触手が突き刺さっており、その脈動に合わせて%ANAME(対象)%は呻き声を上げる
+						PRINTFORMW 触手の表面の細かいイボイボが%ANAME(対象)%の膣穴をゴリゴリと刺激すると、%ANAME(対象)%はビクビクと身体を震わせ絶頂させられる
+						PRINTFORMW %ANAME(対象)%の弱点を把握し尽くした触手は、%ANAME(対象)%がより悦ぶように蠢き、%ANAME(対象)%は異形との交わりにおぼれていく
+						PRINTFORMW やがて%ANAME(対象)%の中に彼らの種が吐き出されると、%ANAME(対象)%はビクンと大きく背中を反らしこの上なく深い絶頂に達した
+					CASE 18
+						PRINTFORMW 触手に埋め尽くされた部屋の中で、%ANAME(対象)%は触手に抱えられる格好で犯されている
+						PRINTFORMW %ANAME(対象)%に突き刺さっている触手は先端から極細の髭のような触手を持ち、子宮口から%ANAME(対象)%の子宮の中へと侵入している
+						PRINTFORMW 何故か%ANAME(対象)%はその触手に触れられる感覚を敏感に感じてしまい、子宮内を撫でられるとあまりの快感に悲鳴混じりに喘ぐ
+						PRINTFORMW 極細触手の先端が%ANAME(対象)%の卵管の奥まで侵入し、その先の卵巣を刺激すると、%ANAME(対象)%の嬌声と共に卵子が産みだされた
+						PRINTFORMW 極細触手が%ANAME(対象)%の卵子に群がり犯しだすと、そのあり得ない感覚を味わわされ、%ANAME(対象)%は人外の快感で絶頂してしまった
+					CASE 19
+						PRINTFORMW 無数の触手が蠢く部屋の中に、甘い嬌声が響いている
+						PRINTFORMW 部屋の中央で恍惚といった表情で%ANAME(対象)%が触手と交わっている
+						PRINTFORMW %ANAME(対象)%の耳には細い触手が入り込んでおり、ぐちゅぐちゅと頭の中をかき混ぜられる度に%ANAME(対象)%は身震いする
+						PRINTFORMW 脳を弄られ催眠状態の%ANAME(対象)%にとって、彼らは自分に種付けしてくれる愛しい雄にしか見えない
+						PRINTFORMW やがて触手が%ANAME(対象)%の奥深くで射精すると、%ANAME(対象)%は目をハートにしながら彼らの種を受け入れた
+					CASE 20
+						PRINTFORMW 触手のベッドに寝かされながら、%ANAME(対象)%は嬌声交じりの絶叫を上げている
+						PRINTFORMW %ANAME(対象)%のお腹は大きく膨れ上がり、またその秘所からは多数の触手が溢れ出ている
+						PRINTFORMW 無数の触手を出産しながら、%ANAME(対象)%は頭がイカれそうな快楽でよがり狂う
+						PRINTFORMW 触手は産み落とされる最中でも%ANAME(対象)%の産道で暴れ、膣肉を刺激し、更なる快楽を%ANAME(対象)%に与えている
+						PRINTFORMW やがて出産中の我が子に種を注ぎ込まれながら、%ANAME(対象)%は強烈な背徳感と共に一際大きな絶頂に達した
+					CASE 21
+						PRINTFORMW 触手のベッドに寝かされながら、%ANAME(対象)%は息を荒げている
+						PRINTFORMW その胸は普段の%ANAME(対象)%からは想像できない程膨れ上がっており、乳首からは母乳のようなモノが垂れ流れている
+						PRINTFORMW %ANAME(対象)%の乳房の表面がボコボコと蠢き、ひぎぃ！と%ANAME(対象)%が呻いて身を反らせる
+						PRINTFORMW %ANAME(対象)%は涙を流して許しを請うが、乳房に潜りこんでいる触手はお構いなしに暴れ、より激しく彼女を犯す
+						PRINTFORMW やがて%ANAME(対象)%は乳首から多数の触手を産み落としながら、狂気の絶頂を味わわされた
+					CASE 22
+						PRINTFORMW 嬌声が響く部屋の中で、無数の触手が%ANAME(対象)%の秘所に群がっている
+						PRINTFORMW 絶頂しっぱなしの%ANAME(対象)%の事などお構いなしに、子袋をめざして触手たちは奥へ奥へと進む
+						PRINTFORMW 最奥までたどり着いた触手たちは、子宮口をグリグリと刺激して侵入を試み、その度に%ANAME(対象)%は体を跳ねる
+						PRINTFORMW そして触手たちが%ANAME(対象)%の子宮口をこじ開け、内部へと潜りこむと、ピンポン玉のような卵を産み付け始める
+						PRINTFORMW %ANAME(対象)%は異形の卵が子宮に産み付けられている背徳感で背中をゾクゾクと震わせながら、嬌声を上げた
+					CASE 23
+						PRINTFORMW 薄暗い部屋の中で、%ANAME(対象)%は触手に犯されている
+						PRINTFORMW %ANAME(対象)%の中には、たこ足の様に吸盤の生えている触手が根元から切り離されて潜りこんでいる
+						PRINTFORMW 触手は%ANAME(対象)%の膣肉に吸盤でへばりつき、まるで膣肉を咀嚼される様な刺激を%ANAME(対象)%にもたらす
+						PRINTFORMW 最も敏感な所に絶え間なく与えられる甘い刺激に、%ANAME(対象)%は体を身もだえしながらよがり狂うしかなかった
+						PRINTFORMW 部屋から出た後も、その触手は暫く%ANAME(対象)%の中にもぐりこみ続け、%ANAME(対象)%を刺激し続けた
+					CASE 24
+						PRINTFORMW ずちゅずちゅといかがわしい音が響く部屋の中で、%ANAME(対象)%は巨大な触手に跨っている
+						PRINTFORMW その触手の表面からはまるで男根のような小さな触手が何本も生えており、跨る%ANAME(対象)%を犯している
+						PRINTFORMW まるで人間の男に跨って犯されているかのような錯覚を受けながら、%ANAME(対象)%は触手に与えられる刺激で喘ぐ
+						PRINTFORMW やがて%ANAME(対象)%の絶頂と共に触手も種を吐き出すと、うごうごと巨大な触手が蠢き、次の男根を%ANAME(対象)%にねじ込む
+						PRINTFORMW “彼”に生えている大量の男根の全てを満足させるまで、%ANAME(対象)%は触手から降ろされることを許されなかった
+				ENDSELECT
+				PRINTFORML ・
+				PRINTFORML ・
+				PRINTFORML ・
+				CALL COLORPRINTFORM(@"%ANAME(対象)%の妖術能力が上がった", COLOR("注意"))
+				PRINTFORMW 
+				EXP:対象:Ｃ感経験値 += ABL:対象:Ｃ感 * 2 + 8 + RAND:5
+				EXP:対象:Ｂ感経験値 += ABL:対象:Ｂ感 * 2 + 8 + RAND:5
+				EXP:対象:Ｖ感経験値 += ABL:対象:Ｖ感 * 10 + 20 + RAND:5
+				EXP:対象:Ａ感経験値 += ABL:対象:Ａ感 * 10 + 20 + RAND:5
+				EXP:対象:欲望経験値 += ABL:対象:欲望 * 3 + 4 + RAND:3
+				EXP:対象:性交経験値 += ABL:対象:性交 * 2 + 20 + RAND:5
+				EXP:対象:触手経験値 += ABL:対象:触手 * 6 + 30 + RAND:5
+				EXP:対象:妖術経験値 += ABL:対象:妖術 * 5 + 30 + RAND:10
+				EXP:対象:キス経験 += 4 + RAND:8
+				EXP:対象:口淫経験 += 6 + RAND:10
+				EXP:対象:絶頂経験 += 6 + RAND:10
+				EXP:対象:触手出産経験 += 6 + RAND:10
+				CALL TRAIN_AUTO_ABLUP(対象)
+				CALL KISS_COMMON(対象, "触手", 4)
+				CALL VIRGIN_COMMON(対象, "触手", 4)
+				MONEY -= 50000
+				DVAR:触手トレーナー += 1
+			ENDIF
+			PRINTFORML 「ご協力ありがとうございました…それでは私はこれで…」
+			PRINTFORMW 妖術師は音も立てずに去って行った
+		ENDIF
+	ENDIF
+RETURN
+
+@TENTACLE_TRAINER_SELECT_COMMANDER
+#DIM 消去行
+#DIM 対象
+#DIM 表示位置
+#DIM 表示ページ
+#DIM 総ページ数
+#DIM キャラ数
+#DIM キャラカウンタ
+#DIM 表示開始位置
+#DIM 表示終了位置
+VARSET キャラ数
+FOR LOCAL, 0, CHARANUM
+	SIF CFLAG:(LOCAL:0):所属 == CFLAG:MASTER:所属
+		キャラ数 ++
+NEXT
+総ページ数 = (キャラ数 - 1) / 40 + 1
+表示ページ = 1
+
+PRINTFORML %TOSTR_SPACE(23)%   武|  知|  政|  妖|  歌|  料 %TOSTR_SPACE(26)%   武|  知|  政|  妖|  歌|  料
+
+$SHOW_LOOP
+
+VARSET 消去行
+VARSET 表示位置
+VARSET キャラカウンタ
+表示開始位置 = (表示ページ - 1) * 40
+表示終了位置 = 表示ページ * 40
+
+
+FOR LOCAL:0, 0, CHARANUM
+	;育児されている子供は弾く
+	SIF CFLAG:(LOCAL:0):16 == 4
+		CONTINUE
+	;所属が同じのキャラのみ
+	IF CFLAG:(LOCAL:0):所属 == CFLAG:MASTER:所属
+		IF 表示開始位置 <= キャラカウンタ && キャラカウンタ < 表示終了位置
+			IF 表示位置 % 2 != 0
+				PRINT 　　
+			ELSEIF 表示位置 > 0
+				PRINTL 
+				消去行 ++
+			ENDIF
+			IF !CFLAG:LOCAL:捕虜先 && IS_FEMALE(LOCAL:0)
+				PRINTFORM [{LOCAL:0 + 99, 4}]%ANAME(LOCAL:0), 16, RIGHT%
+				PRINTFORM   
+				CALL PRINT_ALPHABET_RANK(0, ABL:(LOCAL:0):武闘)
+				PRINTFORM {ABL:(LOCAL:0):武闘, 3}|
+				CALL PRINT_ALPHABET_RANK(0, ABL:(LOCAL:0):知略)
+				PRINTFORM {ABL:(LOCAL:0):知略, 3}|
+				CALL PRINT_ALPHABET_RANK(0, ABL:(LOCAL:0):政治)
+				PRINTFORM {ABL:(LOCAL:0):政治, 3}|
+				CALL PRINT_ALPHABET_RANK(1, ABL:(LOCAL:0):妖術)
+				PRINTFORM {ABL:(LOCAL:0):妖術, 3}|
+				CALL PRINT_ALPHABET_RANK(2, ABL:(LOCAL:0):歌唱)
+				PRINTFORM {ABL:(LOCAL:0):歌唱, 3}|
+				CALL PRINT_ALPHABET_RANK(2, ABL:(LOCAL:0):料理)
+				PRINTFORM {ABL:(LOCAL:0):料理, 3}
+			ELSE
+				LOCALS:0 = [{NO:(LOCAL:0) + 99, 4}]%ANAME(LOCAL:0), 16, RIGHT%  %ALPHABET_RANK(0, ABL:LOCAL:武闘)%{ABL:(LOCAL:0):武闘, 3}|%ALPHABET_RANK(0, ABL:LOCAL:知略)%{ABL:(LOCAL:0):知略, 3}|
+				LOCALS:0 += @"%ALPHABET_RANK(0, ABL:LOCAL:政治)%{ABL:(LOCAL:0):政治, 3}|%ALPHABET_RANK(1, ABL:LOCAL:妖術)%{ABL:(LOCAL:0):妖術, 3}|%ALPHABET_RANK(2, ABL:LOCAL:歌唱)%{ABL:(LOCAL:0):歌唱, 3}|%ALPHABET_RANK(2, ABL:LOCAL:料理)%{ABL:(LOCAL:0):料理, 3}"
+				SETCOLOR COLOR("選択不可")
+				PRINTPLAINFORM %LOCALS:0%
+				RESETCOLOR
+			ENDIF
+			表示位置 ++
+		ENDIF
+		キャラカウンタ ++
+	ENDIF
+NEXT
+
+PRINTL 
+DRAWLINE
+
+IF 総ページ数 >= 2
+	消去行 += 2
+	IF 表示ページ > 1
+		PRINT [  8] 前のページ            
+	ELSE
+		PRINT                             
+	ENDIF
+	LOCALS:0 = ページ{表示ページ}/{総ページ数}
+	PRINTPLAINFORM %LOCALS:0, 28, LEFT%
+	IF 表示ページ < 総ページ数
+		PRINT [  9] 後のページ
+	ENDIF
+	PRINTL 
+	DRAWLINE
+ENDIF
+
+PRINTL [  0] やっぱりやめる
+
+REDRAW 0
+
+消去行 += 4
+
+$INPUT_LOOP
+INPUT
+IF RESULT == 8 && 表示ページ > 1
+	表示ページ --
+	CLEARLINE 消去行
+	GOTO SHOW_LOOP
+ELSEIF RESULT == 9 && 表示ページ < 総ページ数
+	表示ページ ++
+	CLEARLINE 消去行
+	GOTO SHOW_LOOP
+ELSEIF RESULT == 0
+	REDRAW 1
+	RETURN -1
+ENDIF
+
+対象 = RESULT - 99
+IF 対象 > CHARANUM || 対象 < 0
+	CLEARLINE 消去行
+	GOTO SHOW_LOOP
+ELSEIF CFLAG:MASTER:所属 != CFLAG:対象:所属 || CFLAG:対象:捕虜先 || !IS_FEMALE(対象)
+	CLEARLINE 消去行
+	GOTO SHOW_LOOP
+ENDIF
+
+RETURN 対象

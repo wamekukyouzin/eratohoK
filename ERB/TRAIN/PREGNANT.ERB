@@ -620,14 +620,6 @@ IF CONFIG:5 == 0 && TALENT:(ARG:0):幼児 && CFLAG:(ARG:0):28 >= 21 && NO:(ARG:0
 	;あくまで暫定的な措置・完全ランダムで遺伝はしない
 	CALL SET_INMOU_RANDOM(ARG:0)
 
-	;親馬鹿パッチ、寺子屋に通っていた子供は寺子屋を卒業する
-	IF CFLAG:(ARG:0):寺子屋
-		PRINTL 
-		PRINTFORML %ANAME(ARG:0)%が寺子屋を卒業しました
-		PRINTFORMW 手を振る%ANAME(NAME_TO_CHARA("慧音"))%先生は感極まって号泣しています
-		CFLAG:(ARG:0):寺子屋 = 0
-	ENDIF
-
 	;一部素質の初期値を現在の値で上書き
 	;CALL SET_INI_TALENT(ARG:0, "幼児")
 	;CALL SET_INI_TALENT(ARG:0, "幼稚")
@@ -842,12 +834,21 @@ ENDIF
 
 ;一時的に母乳体質になっていた場合(再度妊娠していた場合は除く)
 IF CFLAG:(ARG:0):33 && !TALENT:(ARG:0):妊娠
-	IF ARG:1 && IS_PREGNANT_MSG(ARG:0)
-		SETCOLOR COLOR("注意")
-		PRINTFORMW %ANAME(ARG:0)%の母乳は止まりました
-		RESETCOLOR
+	;胸の大きさに応じた噴乳経験値を持ってると母乳体質が永続化する(偏見)
+	IF ( GET_BUSTSIZE_NUM(ARG:0) < 0 && ABL:(ARG:0):噴乳 >= ランク閾値_その他_A ) || ( GET_BUSTSIZE_NUM(ARG:0) == 0 && ABL:(ARG:0):噴乳 >= ランク閾値_その他_A - 1 ) || ( GET_BUSTSIZE_NUM(ARG:0) > 0 && ABL:(ARG:0):噴乳 >= ランク閾値_その他_A - 2 )
+		IF ARG:1 && IS_PREGNANT_MSG(ARG:0)
+			SETCOLOR COLOR("注意")
+			PRINTFORMW %ANAME(ARG:0)%は度重なる噴乳により、子育てが終わったにも係わらず母乳が止まらなくなったようだ
+			RESETCOLOR
+		ENDIF
+	ELSE
+		IF ARG:1 && IS_PREGNANT_MSG(ARG:0)
+			SETCOLOR COLOR("注意")
+			PRINTFORMW %ANAME(ARG:0)%の母乳は止まりました
+			RESETCOLOR
+		ENDIF
+		TALENT:(ARG:0):母乳体質 = 0
 	ENDIF
-	TALENT:(ARG:0):母乳体質 = 0
 	;妊娠による一時的な母乳体質のフラグ
 	CFLAG:(ARG:0):33 = 0
 ENDIF

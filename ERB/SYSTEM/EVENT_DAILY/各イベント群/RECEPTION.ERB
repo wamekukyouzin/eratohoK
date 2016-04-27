@@ -1,0 +1,588 @@
+﻿@RECEPTION
+#DIM 対象
+#DIM 兵数
+
+;主人公が君主ではない場合
+IF GET_COUNTRY_BOSS(CFLAG:MASTER:所属) == MASTER || CONFIG:200
+	RETURN -1
+ENDIF
+
+
+IF DVAR:接待フラグ == 0
+	PRINTFORMW %ANAME(GET_COUNTRY_BOSS(CFLAG:MASTER:所属))%から呼び出しを受けた
+	PRINTFORMW %ANAME(GET_COUNTRY_BOSS(CFLAG:MASTER:所属))%の元へ行くと、苦い表情でこんな話をされた
+	PRINTFORMW 何でも近々とある貴族を接待することになったが、その貴族というのは女好きで有名な男だ
+	PRINTFORMW 当然、そっちの接待も求められるだろうが、無下に断ることもできない相手だ
+	PRINTFORMW だから他の者との交流が多い%ANAME(MASTER)%に接待させるのに適任な者を選んでほしい、と
+	PRINTFORMW こんな接待の相手を自らの一存で選ばなければならないとは頭が痛い話だ
+	PRINTFORMW しかし%ANAME(GET_COUNTRY_BOSS(CFLAG:MASTER:所属))%も同じだろう
+	PRINTFORMW %ANAME(MASTER)%は複雑な表情でリストを眺めた……
+ELSEIF TALENT:MASTER:貴族の虜 == 2
+	PRINTFORMW あの方が再び訪れるらしい
+	PRINTFORMW また楽しんで頂くために、しっかりと接待の準備をしなくては
+	PRINTFORMW %ANAME(MASTER)%は誰に任せようかとリストを眺めた……
+ELSEIF DVAR:接待フラグ == 1
+	PRINTFORMW 例の貴族が再び訪れるらしい
+	PRINTFORMW どうやら前回の接待がことのほか好評だったようだ
+	PRINTFORMW 正直もう関わりたくはないのだが、やはり接待相手を選ぶ様に言われた
+	PRINTFORMW さて、誰を選ぶべきか……
+ELSEIF DVAR:接待フラグ == 2
+	PRINTFORMW 例の貴族が再び訪れるらしい
+	PRINTFORMW 今回こそはちゃんともてなしてくれよ、と釘を刺されたようだ
+	PRINTFORMW 正直もう関わりたくはないのだが、やはり接待相手を選ぶ様に言われた
+	PRINTFORMW さて、誰を選ぶべきか……
+ENDIF
+DRAWLINE
+CALL RECEPTION_SELECT_COMMANDER
+
+対象 = RESULT
+
+IF  対象 == -1
+	IF TALENT:MASTER:貴族の虜 == 2
+		PRINTFORMW 今はとても忙しい時期だ、将を使っての接待は見送ってもらうしかない
+		PRINTFORMW %ANAME(MASTER)%は彼に今回は通常の接待で許してほしいと伝えた
+	ELSE
+		PRINTFORMW やはりそんなことは出来ないと告げた
+		PRINTFORMW %ANAME(GET_COUNTRY_BOSS(CFLAG:MASTER:所属))%もそれに頷き、今回は通常の接待だけで済ませることにした
+	ENDIF
+	PRINTFORML
+	PRINTFORMW 貴族は接待の内容が不満だったようだ
+	PRINTFORM ある事ない事を言いふらされ、
+	CALL COLORPRINTFORM(@"%ANAME(GET_COUNTRY_BOSS(CFLAG:MASTER:1))%の評判を下げられました", COLOR("注意"))
+	PRINTFORMW
+	FOR LOCAL, 1, MAX_COUNTRY
+		CALL CHANGE_RELATION_C_TO_C(LOCAL, CFLAG:MASTER:1, -(50 + ((DVAR:接待を連続で断った回数) * 25)), 50 + ((DVAR:接待を連続で断った回数) * 25))
+	NEXT
+	;評判を下げる処理
+	DVAR:接待フラグ = 2
+	DVAR:接待を連続で断った回数 += 1
+	RETURN
+ELSEIF 対象 == MASTER
+	IF TALENT:対象:貴族の虜 == 2
+		PRINTFORMW もちろん%ANAME(対象)%自身がやることにした
+		PRINTFORMW あの方にまた可愛がってもらえると思うだけで体の奥が熱くなるのを感じた
+	ELSEIF TALENT:対象:貴族の虜 == 1
+		PRINTFORMW 仕方ない、また自分がやることにしよう
+		PRINTFORMW %ANAME(対象)%は自分の身体の奥が熱くなるのに気付かなかった
+	ELSEIF TALENT:対象:肉便器 == 1　|| TALENT:対象:淫乱 == 1
+		PRINTFORMW そういう仕事ならば自分がやることしよう
+		PRINTFORMW %ANAME(対象)%は僅かに頬を緩ませながらそう答えた
+	ELSE
+		PRINTFORMW 他の子にこんなことはさせられない
+		PRINTFORMW %ANAME(対象)%は意を決して自ら接待を行うことにした
+	ENDIF
+ELSE
+	PRINTFORMW 一番の適任は、彼女だろう
+	PRINTFORMW %ANAME(MASTER)%は%ANAME(対象)%を呼びだすと接待の仕事を伝えた
+	IF TALENT:対象:貴族の虜 == 2
+		PRINTFORMW 彼女は積極的に仕事を引き受けると、いそいそと準備を始めた
+	ELSEIF TALENT:対象:貴族の虜 == 1
+		PRINTFORMW 彼女はやや頬を染めながら、仕方なさそうに仕事を引き受けた
+	ELSEIF TALENT:対象:肉便器 == 1　|| TALENT:対象:淫乱 == 1
+		PRINTFORMW 彼女は命令を聞くと嫌な表情一つ見せずに二つ返事で引き受けた
+	ELSE
+		PRINTFORMW 彼女は命令を聞くと嫌そうな表情を見せたが、渋々と引き受けた
+	ENDIF
+ENDIF
+PRINTFORML ・
+PRINTFORML ・
+PRINTFORMW ・
+PRINTFORMW 貴族がやってきた
+IF TALENT:MASTER:貴族の虜 == 2
+	PRINTFORML 彼を見るなり%ANAME(MASTER)%は頬を染め、恋人が甘える様にすり寄る
+	PRINTFORML ようこそいらっしゃいました、また貴方に楽しんで貰える様に準備しました
+	PRINTFORMW %ANAME(MASTER)%は尻を撫でられながら、彼を案内した
+ELSEIF TALENT:MASTER:貴族の虜 == 1
+	PRINTFORML 相変わらずの風貌の男だが、%ANAME(MASTER)%はもはや不快感もなかった
+	PRINTFORMW 微かに熱のこもった視線を彼に送りながら、%ANAME(MASTER)%は男を案内した
+ELSEIF DVAR:接待フラグ == 0
+	PRINTFORML 見るからに裕福そうに丸々と太り脂ぎった男だ
+	PRINTFORMW 一件柔和な笑みを浮かべているが、細めた目の奥からねっとりとした視線が覗いているのを感じた
+ELSE
+	PRINTFORML やはり何度見ても好きになれそうにない男だ
+	PRINTFORMW しかし仕事だと割り切り、男を案内した
+ENDIF
+IF TALENT:対象:貴族の虜 == 2
+	PRINTFORML 
+	PRINTFORML 今日もたっぷりと可愛がってくださいね
+	PRINTFORML 男の身体に自らの身体を擦り付けながら、%ANAME(対象)%は熱い吐息を漏らして甘える
+	PRINTFORMW 早速濃厚な口付けを交わしながら、二人は用意された部屋へと入っていった
+ELSEIF TALENT:対象:貴族の虜 == 1
+	PRINTFORML 
+	PRINTFORML ねっとりとした目つきで体中を視姦され、%ANAME(対象)%は思わず身震いする
+	PRINTFORML その表情には微かに嫌悪の色があるものの、それ以上に期待の色が勝っているようだ
+	PRINTFORMW %ANAME(対象)%は男に体を弄られながらも抵抗せずに、彼と共に用意された部屋へと入っていった
+ELSEIF 対象 == MASTER
+	PRINTFORML 
+	PRINTFORML 本日は私がお相手させていただきます、よろしくお願いします
+	PRINTFORML %ANAME(対象)%が深々と頭を下げ挨拶すると、男は豚の鳴き声のような興奮した声を上げた
+	PRINTFORMW ねっとりと絡みつくような視線を投げられ、肩に手を回されながら用意された部屋へと連れ込まれた
+ELSE
+	PRINTFORML 
+	PRINTFORML %ANAME(対象)%を紹介すると、男は豚の鳴き声のような興奮した声を上げた
+	PRINTFORML もはや%ANAME(MASTER)%の事など邪魔だと言わんばかりに押しのけると
+	PRINTFORMW 無遠慮に%ANAME(対象)%の腰に手を回し、用意された部屋へと入っていった
+ENDIF
+PRINTFORML
+PRINTFORMW
+SELECTCASE RAND:43
+CASE 0
+	PRINTFORMW 男の巨大なペニスを挿入され、%ANAME(対象)%の膣ははち切れんばかりになっている
+	PRINTFORMW ぐりぐりと刺激される%ANAME(対象)%の子宮は、その圧倒的な存在感と熱さであっと言う間に躾けられてしまった
+	PRINTFORMW 膣を男の物と一体化したような感覚に陥りながら、男の腰の動きに合わせ%ANAME(対象)%は喘ぐ
+	PRINTFORMW やがて常人の何倍もの量と濃さの精液を放たれると、%ANAME(対象)%はあられもない悦びの声を上げた
+CASE 1
+	PRINTFORMW 男は部屋に入るなり%ANAME(対象)%を押し倒すと、その上にのっしと覆いかぶさった
+	PRINTFORMW 興奮して息を荒げ、%ANAME(対象)%の服を乱暴に剥ぎ取りながら、彼女の頬を舌でねろぉと舐め上げる
+	IF TALENT:対象:貴族の虜 >= 1
+		PRINTFORMW 思わず蕩けた表情になる%ANAME(対象)%のことなどお構いなしに一物を取りだすと、勢いよく挿入した
+	ELSE
+		PRINTFORMW 嫌悪感で顔を引きつらせる%ANAME(対象)%のことなどお構いなしに一物を取りだすと、勢いよく挿入した
+	ENDIF
+	PRINTFORMW 全体重を乗せた激しいピストンを受け、%ANAME(対象)%は呻き声を上げながら必死で男を抱きしめる他なかった
+CASE 2
+	PRINTFORMW 男はふん！ふん！と激しく息を荒げながら、%ANAME(対象)%に覆いかぶさる格好で腰を打ち付けている
+	PRINTFORMW ドスドスと勢いよく抽送され、その度に子宮を小突かれている%ANAME(対象)%は息も絶え絶えになっている
+	PRINTFORMW しかし男は一向に勢いを弱めることなく、%ANAME(対象)%を更に激しく犯し続ける
+	PRINTFORMW やがて男が勢いよく射精すると、それを子宮で受け止めながら%ANAME(対象)%は背筋と足をピンと伸ばして絶頂した
+CASE 3
+	PRINTFORMW くちゅくちゅと粘膜が触れあう淫らな音が部屋に響く
+	PRINTFORMW 男は胡坐をかいた上に%ANAME(対象)%を跨らせ、対面座位の格好で彼女とねっとりと唾液を交換している
+	IF TALENT:対象:貴族の虜 >= 1
+		PRINTFORMW 積極的に舌を絡ませている%ANAME(対象)%は、この瞬間を少しでも長く味わおうと、腰を動かさない様に我慢している
+	ELSE
+		PRINTFORMW 嫌悪感で男から少しでも逃れようとする%ANAME(対象)%だが、雌穴に男の巨根を深々と挿入されており、それもかなわない
+	ENDIF
+	PRINTFORMW 男はあえて激しく動かずに、%ANAME(対象)%が自ら腰を動かしだすまで、ねっとりとその柔肌を堪能し続けた
+CASE 4
+	PRINTFORMW %ANAME(対象)%は男と一戦を終え、布団の上で息も絶え絶えに転がっている
+	PRINTFORMW その雌穴からはどろりと大量の白濁液が垂れており、ぱくぱくと広がってしまっている
+	PRINTFORMW もう少し休ませてと懇願する%ANAME(対象)%に、男はニンマリと笑うと、どちゅん！とその巨大な一物をねじりこんだ
+	PRINTFORMW 悲鳴を上げ身体をビクンと震わせる彼女に構うことなく、男は再び激しいピストンで攻め始めた
+CASE 5
+	PRINTFORMW %ANAME(対象)%は男によりべろんべろんに酔わされてしまった
+	PRINTFORMW 朦朧としている%ANAME(対象)%を布団の上に寝かせ服を脱がせると、汗でしっとりとしている肌にむしゃぶりつく
+	PRINTFORMW 男の巧みな指と舌の動きに、酒の作用で敏感になっている%ANAME(対象)%は、何度も嬌声をあげ潮を吹かされる
+	PRINTFORMW %ANAME(対象)%の肌を存分に堪能した男はガチガチに勃起した一物を取りだすと、今度は%ANAME(対象)%の中を味わいだした
+CASE 6
+	PRINTFORMW %ANAME(対象)%は男によってメイド服を着せられている
+	PRINTFORMW その恰好のまま、仰向けに寝転ぶ男に跨り奉仕させられている
+	PRINTFORMW スカートをたくし上げ接合部を見せつけながら、腰を上下し男のペニスをしごく姿を見て、男は舌なめずりをする
+	IF TALENT:対象:貴族の虜 >= 1
+		PRINTFORMW 恰好だけとは分かっていても、束の間本当にご主人様に奉仕できている悦びに打ち震えながら、%ANAME(対象)%は喘ぎ続けた
+	ELSE
+		PRINTFORMW 恰好だけとは分かっていても、次第に本当のご主人様に奉仕しているような錯覚に陥りながら、%ANAME(対象)%は喘ぎ続けた
+	ENDIF
+CASE 7
+	PRINTFORMW 男は%ANAME(対象)%を連れて風呂場へ向かった
+	PRINTFORMW 肌を密着したまま湯船につかっていると、やがて男の手が%ANAME(対象)%の敏感な箇所に伸びる
+	PRINTFORMW 初めは身をこわばらせていた%ANAME(対象)%だが、男の的確なテクニックにより次第にのぼせた様な甘い声を漏らしだした
+	PRINTFORMW %ANAME(対象)%の反応にすっかりご機嫌になった男は、湯船につかったまま存分に%ANAME(対象)%の身体を愉しみ始めた
+CASE 8
+	PRINTFORMW %ANAME(対象)%は四つん這いの格好で腰をつかまれ、激しく犯されている
+	PRINTFORMW 一突き毎に脳天まで痺れるような快感が走り、崩れ落ちそうになるのを震える腕で必死にこらえる
+	IF TALENT:対象:貴族の虜 >= 1
+		PRINTFORMW 男に犬の様に鳴けと命令されると、%ANAME(対象)%迷うことなくわん！わん！と喘ぎ声を交えて鳴きだした
+	ELSE
+		PRINTFORMW 男に犬の様に鳴けと命令されると、初め%ANAME(対象)%は戸惑っていたが、次第にわん！わん！と喘ぎ声を交えて鳴きだした
+	ENDIF
+	PRINTFORMW 男のペニスが射精を迎える頃には、%ANAME(対象)%の身と心はすっかりと躾けられ、男に服従してしまっていた
+CASE 9
+	PRINTFORMW %ANAME(対象)%は男と繋がったまま布団の上に寝転がっている
+	PRINTFORMW 深々とペニスを突き刺したまま、しかし男は腰を動かそうとせず、%ANAME(対象)%の頭を撫でたり胸を揉んだりしている
+	PRINTFORMW 男に優しく焦らされながら膣から感じる熱で次第に彼女の息は荒くなり、気付けば自分から腰をくいくいと揺すっていた
+	PRINTFORMW その様子を満足そうに眺めながら男は彼女の全身を堪能した
+CASE 10
+	PRINTFORMW %ANAME(対象)%は男に首を絞められながら犯されている
+	PRINTFORMW 息苦しさで必死に男の腕を外そうとするが、男の力はすさまじく一掃きつく締め上げられる
+	PRINTFORMW %ANAME(対象)%があまりの苦しさに体を痙攣させるとそれと共に膣全体が締まり、男のペニスに心地よい刺激を与える
+	PRINTFORMW その刺激に我を忘れた男に更に厳しく攻めたてられ、%ANAME(対象)%は窒息感と快感で激しく絶頂した
+CASE 11
+	PRINTFORMW 男にキスをされながら全身の性感帯を弄られていた
+	PRINTFORMW あらゆる場所をねっとりと刺激され続け、もはや%ANAME(対象)%の方が我慢の限界となり、うるんだ瞳で男を見つめている
+	PRINTFORMW いよいよ割れ目にペニスを擦り付けられ、欲しいかと問われると、顔を真っ赤にして小さくおねだりの言葉をつぶやいた
+	PRINTFORMW 可愛い奴めと笑いながら男は%ANAME(対象)%を押し倒し、雌穴の深くまでゆっくりとペニスを挿入していった
+CASE 12
+	PRINTFORMW %ANAME(対象)%は男との激しい性交の後、両穴から精液を垂らし息を荒げながらぐったりと倒れている
+	PRINTFORMW その表情は恍惚としており、時折思い出したかのように体を痙攣させ軽く絶頂する
+	PRINTFORMW 再び元気になった男は%ANAME(対象)%を抱きかかえると、軽くキスをし、そのまま風呂場へと運んで行った
+	PRINTFORMW 数分後、風呂場から水の跳ねる音と%ANAME(対象)%の嬌声が響いてきた
+CASE 13
+	PRINTFORMW お互いに裸の状態で%ANAME(対象)%はねっとりと愛撫されている
+	PRINTFORMW 部屋に炊かれた芳香の作用で、%ANAME(対象)%の身体は触れられるだけで喘ぎ声を上げる程敏感になっており
+	PRINTFORMW 男の熟練のテクニックで這わされる指と舌により、次第に理性が溶け出し蕩けた声を漏らしだした
+	PRINTFORMW 散々昂ぶらされ焦らされた%ANAME(対象)%が、自ら男にねだりだすと、男は息を荒げて覆いかぶさった
+CASE 14
+	PRINTFORMW %ANAME(対象)%は首輪をはめられ、まるで犬の様な姿勢で激しく犯されている
+	PRINTFORMW 巨大なペニスによる圧迫感で、何度も気をやりそうになりながら、必死でシーツを掴み堪えている
+	PRINTFORMW 男が不意にリードを引っ張ると、首を絞められ、その衝撃と息苦しさで激しくえづく
+	PRINTFORMW その度に膣が締めあがる感触に男は病み付きになり、その後も玩具のように乱暴に犯され続けた
+CASE 15
+	PRINTFORMW 男によって%ANAME(対象)%の全身に怪しい液体が塗られている
+	IF TALENT:対象:貴族の虜 >= 1
+		PRINTFORMW どんな気持ち良くなれる効果があるのだろうと期待する%ANAME(対象)%だったが、すぐにその作用が現れた
+	ELSE
+		PRINTFORMW ローションか何かかといぶかしがる%ANAME(対象)%だったが、すぐにその作用が現れた
+	ENDIF
+	PRINTFORMW 身体が熱くなり、まるで全身が性感帯になったかのように敏感になり、切なげに腰を擦らせ始める
+	PRINTFORMW 軽く触れられるだけで絶頂するほどに敏感になった%ANAME(対象)%は、体の外も中も散々男に苛め尽くされた
+CASE 16
+	PRINTFORMW %ANAME(対象)%は裸エプロンの格好をさせられている
+	PRINTFORMW 更に男の要望であなたと呼ばされ、まるで妻のように振る舞わされる%ANAME(対象)%は顔を赤くしている
+	PRINTFORMW すっかりその気になった男は%ANAME(対象)%を押し倒すと、今夜は寝かさないぞと息を荒げペニスをねじ込んだ
+	PRINTFORMW 男のねっとりとした腰遣いと優しい愛撫に、%ANAME(対象)%はまるで本当の夫婦になった錯覚に陥り甘えた声で喘いだ
+CASE 17
+	PRINTFORMW %ANAME(対象)%は部屋に入るなり男に押し倒されると、指と舌でじっくりと時間をかけて愛撫された
+	PRINTFORMW 愛液が溢れる蜜穴を見た男はペニスを割れ目にあてがい、%ANAME(対象)%の耳元で愛の言葉を囁きながらゆっくりと挿入する
+	PRINTFORMW それはいたって普通のまぐわいだったが、それでも男の腰遣いで次第に彼女の喉から喘ぎ声が漏れ出していく
+	PRINTFORMW 絶え間なく与えられる快楽と愛の言葉に、%ANAME(対象)%は仕事だということを忘れて激しくよがった
+CASE 18
+	PRINTFORMW %ANAME(対象)%は男の一物を懸命に口で奉仕している。しかし男のそれは大きすぎ、とてもではないが咥えこみ切れない
+	PRINTFORMW そんな彼女に焦れた男は%ANAME(対象)%の頭を押さえ込むと、無理矢理喉奥までペニスをねじ込んだ
+	PRINTFORMW 乱暴に頭を使われ、窒息しそうになり目を白黒させている%ANAME(対象)%の口内に、酷い臭いの精液が溢れるほど放たれた
+	PRINTFORMW 精液を必死で飲みこむ%ANAME(対象)%の姿に興奮した男は、乱暴に%ANAME(対象)%を押し倒し今度は下の口にねじ込んだ
+CASE 19
+	PRINTFORMW %ANAME(対象)%の尻穴に巨大な張子がねじ込まれている
+	PRINTFORMW 自らのペニスを模って作らせたと笑う男の声も届かない程の痛みと熱で、彼女は歯を食いしばっている
+	PRINTFORMW 男は震える%ANAME(対象)%を抱き上げると、舌なめずりをしながら雌穴の方に己のペニスをねじりこんだ
+	PRINTFORMW 両穴から体内を圧迫され、目を回しながら声にならない声を上げる%ANAME(対象)%を、男は存分に犯しつくした
+CASE 20
+	PRINTFORMW 男の要望で%ANAME(対象)%は卑猥な衣装を着せられている、スケスケでいかにも娼婦が着る様な下着だ
+	PRINTFORMW 顔を真っ赤にして身を震わせる%ANAME(対象)%を、男は舌なめずりをしながら卑猥な視線でねっとりと視姦している
+	PRINTFORMW 男は%ANAME(対象)%を壁際に立たせ、ぶちゅると%ANAME(対象)%の唇を自らの唇で覆うと、全身を密着させてペニスを挿入した
+	PRINTFORMW 男と壁に挟まれ身動きができない%ANAME(対象)%は、男の愛撫に身を任せて、ビクビクと身体を振るわせ続けるしかなかった
+CASE 21
+	PRINTFORMW %ANAME(対象)%は尻を持ち上げられる格好で、背後から男に犯されている
+	PRINTFORMW ぱんぱんと肉と肉がぶつかる音が響き、その度に%ANAME(対象)%は体をビクビクと震わせる
+	PRINTFORMW 枕に顔をうずめながら、必死で声が出ない様に我慢している%ANAME(対象)%だったが
+	PRINTFORMW 執拗に子宮を小突かれ続け雌の本能を刺激されてしまい、男の射精と共に大きく背を反らし嬌声を上げてしまった
+CASE 22
+	PRINTFORMW 男は%ANAME(対象)%に怪しげな薬を口移しで飲ませると、不安がる%ANAME(対象)%を優しく愛撫しだした
+	IF TALENT:対象:貴族の虜 >= 1
+		PRINTFORMW 期待に胸を高鳴らせる%ANAME(対象)%は、やがて薬の効果が現れると、とろんとした表情になりよだれを垂らしだした
+	ELSE
+		PRINTFORMW 嫌がっていた%ANAME(対象)%だが、やがて薬の効果が現れると、とろんとした表情になりよだれを垂らしだした
+	ENDIF
+	PRINTFORMW 夢見心地になった%ANAME(対象)%は、雌の本能に従い男に与えられる快感を受け入れ、甘える様にペニスをねだった
+	PRINTFORMW 男は%ANAME(対象)%を優しく布団に寝かせると、トロトロになった雌穴に一物を沈めていった
+CASE 23
+	PRINTFORMW 男は布団に寝転び己の男根をそそり立たせ、いやらしい笑みを浮かべて%ANAME(対象)%に跨り楽しませる様に命ずる
+	IF TALENT:対象:貴族の虜 >= 1
+		PRINTFORMW %ANAME(対象)%はまるで娼婦の様に媚びた笑みを浮かべると、積極的に男の物に奉仕を始めた
+	ELSE
+		PRINTFORMW %ANAME(対象)%は男の気持ち悪い笑みに逃げ出したくなる衝動をぐっとこらえ、まるで娼婦の様に男の物に奉仕を始めた
+	ENDIF
+	PRINTFORMW 下の口で巨大なペニスを咥えこみながら、卑猥な言葉を紡ぎ、身体をくねらせ腰を振り男を楽しませる
+	PRINTFORMW 気付かぬうちに%ANAME(対象)%は自らの行為に夢中になり、より大きな声で男の種を催促していた
+CASE 24
+	PRINTFORMW %ANAME(対象)%は目隠しをされたまま、男に全身を愛撫されている
+	PRINTFORMW 視界を奪われたことで肌の感覚が普段より敏感になっている為、思わず甘い吐息が漏れてしまう
+	PRINTFORMW やがて%ANAME(対象)%が股をもじもじとこすり合わせ始めると、乱暴に押し倒され、ペニスを膣深くまで挿入された
+	PRINTFORMW %ANAME(対象)%は侵入してくる男の形をはっきりと感じてしまい、一突き毎に全身を抉られる様な快感を得て、喘ぎ続けた
+CASE 25
+	PRINTFORMW じゅっぽじゅっぽと卑猥な音を立てながら男のペニスが%ANAME(対象)%の秘所を出入りしている
+	PRINTFORMW 男の巨根に攻められ続け、たまらなくなった%ANAME(対象)%が絶頂するのと同時に、男も射精した
+	PRINTFORMW そのあまりの熱さに膣がぎゅうと締まり、貪欲に男のペニスから全ての精液を絞りだそうとする
+	PRINTFORMW 男が低く唸ってペニスを引き抜くと、秘貝はどろりと白濁液を垂らしながらぱくぱくと痙攣し、更なる挿入をねだっていた
+CASE 26
+	PRINTFORMW 散々犯され汗だくになった%ANAME(対象)%が、布団の上で雌穴から精液を溢れさせたまま倒れている
+	PRINTFORMW 孕むと良いなぁと男が%ANAME(対象)%の下腹を撫でると、きゅんと子宮がうずくのを感じてしまう
+	PRINTFORMW 次を仕込もうと、男が倒れている%ANAME(対象)%をうつ伏せに転がし尻を持ち上げると
+	PRINTFORMW %ANAME(対象)%は頬を上気させ、無意識に尻を振って次を誘っていた
+CASE 27
+	PRINTFORMW 男は%ANAME(対象)%を背後から抱きしめ、ぶひぶひと息を荒げながら勢いよく腰を振っている
+	PRINTFORMW 男が低く呻いて身震いすると、子宮をつぶすほど奥深くにペニスを差し込み、勢いよく射精した
+	PRINTFORMW 舌を吸われぎゅうっと抱きしめられながら精液を注がれていると、%ANAME(対象)%は脳が溶ける様な興奮を感じ
+	PRINTFORMW 子宮に容赦なく注がれる濃厚な快感を与えられるままに貪った
+CASE 28
+	PRINTFORMW 男との交わりが一段落した%ANAME(対象)%は、彼の腕の中に抱かれている
+	IF TALENT:対象:貴族の虜 >= 1
+		PRINTFORMW その表情は部屋に入る時以上に、うっとりとしており、時折熱っぽい吐息を漏らしている
+	ELSE
+		PRINTFORMW その表情は部屋に入る時とは異なり、うっとりとしており、時折熱っぽい吐息を漏らしている
+	ENDIF
+	PRINTFORMW 男の逞しいペニスと絶倫ぶりに、一人の雌として屈服せざるを得なかった
+	PRINTFORMW やがて男が次に移ろうとすると、%ANAME(対象)%は今度は積極的に体を開き、彼を受け入れた
+CASE 29
+	PRINTFORMW どすんどすんと響くような力強さで、男は%ANAME(対象)%にペニスを打ちつけている
+	PRINTFORMW %ANAME(対象)%はそのあまりの衝撃に、男の動きに合わせて身体を震わせ喘ぐことしかできない
+	PRINTFORMW だらしなく舌を垂らしながら許しを請う%ANAME(対象)%に、男はねっとりと笑うと、更に激しく腰を振りだした
+	PRINTFORMW %ANAME(対象)%は壊れかける程に激しく犯され続け、何度も精液を注がれた
+CASE 30
+	PRINTFORMW %ANAME(対象)%は男の持ってきた卑猥な踊り子衣装に身を包み、踊らされている
+	IF TALENT:対象:貴族の虜 >= 1
+		PRINTFORMW 場末の娼婦でも着ないような卑猥な衣装に、顔を真っ赤にしながらも男を誘うように彼女は腰をくねらせ踊る
+	ELSE
+		PRINTFORMW 場末の娼婦でも着ないような卑猥な衣装に、顔を真っ赤にしながら踊る彼女を男はニタニタと笑いながら鑑賞する
+	ENDIF
+	PRINTFORMW %ANAME(対象)%が男が満足するまで踊りきると、汗だくで雌の匂いを漂わせる彼女に興奮し、男が襲いかかった
+	PRINTFORMW 疲れ切っている%ANAME(対象)%はろくに抵抗も出来ず、男にされるがままに犯された
+CASE 31
+	PRINTFORMW 男に命じられ、%ANAME(対象)%は股を広げ、見せつけるように自慰をさせられている
+	PRINTFORMW 食い入るように見つめられ、羞恥で顔を真っ赤にしながらも、指はむしろいつもよりも激しく恥部をかき混ぜている
+	PRINTFORMW やがて絶頂に達した%ANAME(対象)%は、涎を垂らしながらビクビクと震えながらぷしっと潮を吹いた
+	PRINTFORMW その艶めかしい様子に興奮した男は、絶頂の余韻で息を荒げて呆ける%ANAME(対象)%を押し倒した
+CASE 32
+	PRINTFORMW 男はうつ伏せになっている%ANAME(対象)%にのしかかりながら、深々とペニスをねじ込んでいる
+	PRINTFORMW 体重を乗せてグリグリとボルチオを刺激され、いやがおうにも雌の本能を呼び起こされてしまう
+	IF TALENT:対象:貴族の虜 >= 1
+		PRINTFORMW %ANAME(対象)%は目をハートにしながら、少しでも長くこの快感を味わおうとこらえている
+	ELSE
+		PRINTFORMW %ANAME(対象)%は目をハートにしながらも、枕に顔をうずめて声をこらえようとしている
+	ENDIF
+	PRINTFORMW しかし男が射精すると、彼女は子宮でその熱を感じながら我慢できずにピンク色の嬌声を響かせた
+CASE 33
+	PRINTFORMW %ANAME(対象)%はうつろな表情で男に抱かれている
+	PRINTFORMW 男に飲まされた薬の効果で意識が朦朧としており、与えられる快楽を素直に受け入れている
+	PRINTFORMW %ANAME(対象)%の頭の中は気持ちいい事でいっぱいになっており、蕩けた様な表情で積極的に腰を振っている
+	PRINTFORMW やがて男が低く唸りペニスを痙攣させると、%ANAME(対象)%はぎゅうっと男を抱きしめながら射精を受け入れた
+CASE 34
+	PRINTFORMW 男が豚の鳴き声に似た声を上げながら、%ANAME(対象)%の中へとびゅるびゅると精液を吐き出す
+	PRINTFORMW %ANAME(対象)%は快感で頭の中に火花が散りながらも、歯を噛みしめてその射精が終わるのを耐える
+	PRINTFORMW しかし男が射精しながら腰を振りだすと、%ANAME(対象)%は想定外の衝撃に目を大きく見開きたまらず絶頂してしまった
+	PRINTFORMW 彼女が震える声で止めるように懇願するも、男の腰は止まらず、さらなる射精で彼女は気を失うほどの絶頂を味わった
+CASE 35
+	PRINTFORMW %ANAME(対象)%は男に抱え上げられながら犯されている
+	PRINTFORMW 重力とピストンで一突き毎に子宮がつぶれそうな衝撃を与えられ、%ANAME(対象)%はその度に痙攣する
+	PRINTFORMW しかし彼女は逃げることも出来ず、必死で男の首にしがみつき、うめき声に似た喘ぎ声を上げて耐えている
+	PRINTFORMW やがて男が射精すると、%ANAME(対象)%は甲高い嬌声を響かせながら全身をピンと伸ばしながら絶頂した
+CASE 36
+	PRINTFORMW %ANAME(対象)%は男にのしかかられながら激しく犯されている
+	PRINTFORMW 呻く男が一際深くにねじ込んで射精すると、%ANAME(対象)%は弓なりに体を反らし絶頂する
+	PRINTFORMW 男の精液の量はすさまじく、確実に彼女の卵子を犯そうと子宮を蹂躙していく
+	PRINTFORMW 身動きできずに与えられる暴力的な熱さに、%ANAME(対象)%はひたすらよがり狂うしかなかった
+CASE 37
+	PRINTFORMW %ANAME(対象)%は男に跨りながら腰をくねらせている
+	IF TALENT:対象:貴族の虜 >= 1
+		PRINTFORMW 男に愛の言葉を催促され、%ANAME(対象)%は照れながらも彼を誘う淫らな言葉を紡ぐ
+	ELSE
+		PRINTFORMW 男に愛の言葉を催促され、%ANAME(対象)%はたどたどしく彼を誘う淫らな言葉を紡ぐ
+	ENDIF
+	PRINTFORMW 愛の言葉を一言囁くたびに下から激しく突き上げられ、次第により情熱的な言葉を積極的に発しだす
+	PRINTFORMW やがて惚けた表情でピンク色のおねだりの言葉を叫びつつ、男の種を受けながら心の底から絶頂した
+CASE 38
+	PRINTFORMW 男に深々とハメられながら、%ANAME(対象)%は胸を弄られている
+	PRINTFORMW 彼の巧みなテクニックと下半身から与えられる快感でその乳首は痛いほどに起っている
+	PRINTFORMW 男が%ANAME(対象)%の乳首を舌で軽く噛むと、甘い快感が駆け巡りゾクゾクっと背中を震わせた
+	PRINTFORMW 思わず男を抱きしめながら、%ANAME(対象)%は甘い嬌声を上げてエクスタシーを感じた
+CASE 39
+	PRINTFORMW 男は%ANAME(対象)%を抱きしめながらずんずんと乱暴にペニスを差し込んでいる
+	PRINTFORMW 男の荒々しいピストンで子宮を刺激され続け、%ANAME(対象)%は艶めかしい声を上げながらよがっている
+	PRINTFORMW %ANAME(対象)%は高まりに応じて、雌の本能が男の種を求め子宮が降りてくるのを感じてしまう
+	IF TALENT:対象:貴族の虜 >= 1
+		PRINTFORMW 彼女もまたその本能に逆らう事はなく男を抱きしめ、一滴残らず彼の精液を受け止めた
+	ELSE
+		PRINTFORMW 逃れようともがく彼女を押さえつけながら、男は一滴残らず精液を吐き出し続けた
+	ENDIF
+CASE 40
+	PRINTFORMW %ANAME(対象)%は男の股に顔を埋め、じゅるじゅると音を立てて肉棒にしゃぶりついていた
+	IF TALENT:対象:貴族の虜 >= 1
+		PRINTFORMW 男が精を放つと、%ANAME(対象)%は進んでそれを吸い取り、男に舌上の白濁を見せた
+	ELSE
+		PRINTFORMW 男が腰を震わせると、%ANAME(対象)%は涙目になりながら精液を口中に留め、口を開いて男に中身を見せた
+	ENDIF
+	PRINTFORMW 男が%ANAME(対象)%の口に指を突っ込み、散々かき回してから指を引き抜くと、口と指の間に愛液の橋がかかった
+	PRINTFORMW 男は指をニチャニチャさせて「こんなに糸を引いているぞ」と、顔を赤らめる%ANAME(対象)%に見せつけた
+CASE 41
+	PRINTFORMW 男の精力的な腰使いに、%ANAME(対象)%は両手で数えられないほどイカされていた
+	PRINTFORMW %ANAME(対象)%が絶頂が近くなると、男に「イってもよろしいでしょうか」と許可を求めた
+	PRINTFORMW 男がまだダメだとハネつけると、%ANAME(対象)%は必死に歯を食いしばって快感を堪えようとする
+	PRINTFORMW 男の許可が出る前に果ててしまった%ANAME(対象)%は、「勝手にイってしまいました、申し訳ありません」と謝罪した
+CASE 42
+	PRINTFORMW 男は%ANAME(対象)%と深いところで繋がり、その精を子宮で受け止めていた
+	PRINTFORMW ペニスが引き抜かれると、%ANAME(対象)%は男の竿を自ら舐め清めていった
+	PRINTFORMW お掃除の最中、男のイチモツはみるみる元気を取り戻していき、再び%ANAME(対象)%は押し倒された
+	IF TALENT:対象:貴族の虜 >= 1
+		PRINTFORMW 彼女はうんざりしたような態度ではあったが、その手は男の竿を掴み、%ANAME(対象)%の女陰へと誘導していた
+	ELSE
+		PRINTFORMW %ANAME(対象)%は顔を背けて早く時が過ぎることを願っていたが、%ANAME(対象)%は無意識に腰を浮かせ、男を受け入れたがっていた
+	ENDIF
+ENDSELECT
+
+;貴族の虜、入れ墨を入れられた後に1/3で貴族の愛人にされる
+IF (TALENT:対象:貴族の虜 == 1 && RAND:3 < 1)
+	PRINTFORML
+	PRINTFORMW %ANAME(対象)%はすっかり貴族の虜になってしまった
+	PRINTFORMW あれほど嫌だったのに、今では彼に抱かれることが至福の時間になってしまっている
+	PRINTFORMW ぐふぐふと笑う男に、ワシの愛人になるかと問われると、うっとりとした表情で同意した
+	PRINTFORM
+	CALL COLORPRINTFORM(@"%ANAME(対象)%は愛人に成り下がりました", COLOR("注意"))
+	PRINTFORMW
+	TALENT:対象:貴族の虜 = 2
+	CALL LOSE_RELATION_TALENT(対象)
+	CFLAG:対象:好感度 = LIMIT(CFLAG:対象:好感度, -1000, 0)
+	CFLAG:対象:依存度 = LIMIT(CFLAG:対象:依存度, -1000, 0)
+	CFLAG:対象:従属度 = LIMIT(CFLAG:対象:従属度, -1000, 0)
+ENDIF
+
+IF !RAND:5
+	CALL SET_TATOO_RANDOM(対象, STR_FOR_TATOO(-1), 0)
+	IF RESULT != -1
+		PRINTFORML
+		PRINTFORMW 男は%ANAME(対象)%の事を気に入り、自らの物だという証として%ANAME(対象)%の身体に卑猥な入れ墨を入れた
+		PRINTFORM
+		CALL COLORPRINTFORM(@"%ANAME(対象)%の%GET_TATOO_NAME(RESULT)%に、「%TATOO:対象:RESULT%」と入れ墨を入れられた", COLOR("注意"))
+		PRINTFORMW
+	ELSE
+		PRINTFORML
+		PRINTFORMW 男は%ANAME(対象)%の事を気に入り、自らの物だという証としてチョーカーを取り付けた……
+		PRINTFORM
+	ENDIF
+	IF TALENT:対象:貴族の虜 == 2
+		PRINTFORMW 男の所有物になった証を刻まれ、%ANAME(対象)%は悦びで頬を緩め、愛しそうに\@ RESULT != -1 ? 入れ墨 # チョーカー \@を撫でた
+	ELSE
+		PRINTFORMW %ANAME(対象)%も困った表情を見せながらも、まんざらでもなさそうだった
+		TALENT:対象:貴族の虜 = 1
+	ENDIF
+ENDIF
+
+CALL FORCE_FUCK(対象, SP_NAME_TO_ID("不明"), @"貴族の\@ RAND:2 ? ペニス # 唇\@", @"貴族")
+
+PRINTFORML 
+PRINTFORMW 
+PRINTFORMW 次の日
+PRINTFORMW 男は大変満足した様子で、支援を確約してくれた
+IF 対象 == MASTER
+	PRINTFORMW 次もよろしく頼むよ、と
+	PRINTFORMW %ANAME(MASTER)%は尻を撫でまわされながら言われた
+	IF TALENT:対象:貴族の虜 >= 1
+		PRINTFORMW %ANAME(MASTER)%はすっかり呆けた表情を見せ、とろけた声で返事をした
+	ELSE
+		PRINTFORMW 男の巧みな指使いに、%ANAME(MASTER)%は震える声で返事をせざるを得なかった
+	ENDIF
+ELSE
+	PRINTFORMW %ANAME(対象)%の尻を撫でまわしながら
+	PRINTFORMW 次もまたよろしく頼むよ、と%ANAME(MASTER)%に告げてくる
+	PRINTFORMW %ANAME(対象)%は抵抗せずに微かに甘い声を漏らしていた
+ENDIF
+兵数 = (RAND:9 * 1000 + 1000)
+PRINTFORM
+	CALL COLORPRINTFORM(@"男の支援により、{兵数}の兵が増えた", COLOR("シアン"))
+	PRINTFORMW
+COUNTRY_SOLDIER:(CFLAG:MASTER:所属) += 兵数
+DVAR:接待フラグ = 1
+DVAR:接待を連続で断った回数 = 0
+RETURN
+
+@RECEPTION_SELECT_COMMANDER
+#DIM 消去行
+#DIM 対象
+#DIM 表示位置
+#DIM 表示ページ
+#DIM 総ページ数
+#DIM キャラ数
+#DIM キャラカウンタ
+#DIM 表示開始位置
+#DIM 表示終了位置
+VARSET キャラ数
+FOR LOCAL, 0, CHARANUM
+	SIF CFLAG:(LOCAL:0):所属 == CFLAG:MASTER:所属
+		キャラ数 ++
+NEXT
+総ページ数 = (キャラ数 - 1) / 40 + 1
+表示ページ = 1
+
+PRINTFORML %TOSTR_SPACE(23)%   武|  知|  政|  妖|  歌|  料 %TOSTR_SPACE(26)%   武|  知|  政|  妖|  歌|  料
+
+$SHOW_LOOP
+
+VARSET 消去行
+VARSET 表示位置
+VARSET キャラカウンタ
+表示開始位置 = (表示ページ - 1) * 40
+表示終了位置 = 表示ページ * 40
+
+
+FOR LOCAL:0, 0, CHARANUM
+	;「そのキャラの所属勢力の君主が、そのキャラ自身」＝「そのキャラが君主である」場合は除外
+	SIF LOCAL == GET_COUNTRY_BOSS(CFLAG:LOCAL:1)
+		CONTINUE
+	;育児されている子供は弾く
+	SIF CFLAG:(LOCAL:0):16 == 4
+		CONTINUE
+	;所属が同じのキャラのみ
+	IF CFLAG:(LOCAL:0):所属 == CFLAG:MASTER:所属
+		IF 表示開始位置 <= キャラカウンタ && キャラカウンタ < 表示終了位置
+			IF 表示位置 % 2 != 0
+				PRINT 　　
+			ELSEIF 表示位置 > 0
+				PRINTL 
+				消去行 ++
+			ENDIF
+			IF !CFLAG:LOCAL:捕虜先 && IS_FEMALE(LOCAL:0)
+				PRINTFORM [{LOCAL:0 + 99, 4}]%ANAME(LOCAL:0), 16, RIGHT%
+				PRINTFORM   
+				CALL PRINT_ALPHABET_RANK(0, ABL:(LOCAL:0):武闘)
+				PRINTFORM {ABL:(LOCAL:0):武闘, 3}|
+				CALL PRINT_ALPHABET_RANK(0, ABL:(LOCAL:0):知略)
+				PRINTFORM {ABL:(LOCAL:0):知略, 3}|
+				CALL PRINT_ALPHABET_RANK(0, ABL:(LOCAL:0):政治)
+				PRINTFORM {ABL:(LOCAL:0):政治, 3}|
+				CALL PRINT_ALPHABET_RANK(1, ABL:(LOCAL:0):妖術)
+				PRINTFORM {ABL:(LOCAL:0):妖術, 3}|
+				CALL PRINT_ALPHABET_RANK(2, ABL:(LOCAL:0):歌唱)
+				PRINTFORM {ABL:(LOCAL:0):歌唱, 3}|
+				CALL PRINT_ALPHABET_RANK(2, ABL:(LOCAL:0):料理)
+				PRINTFORM {ABL:(LOCAL:0):料理, 3}
+			ELSE
+				LOCALS:0 = [{NO:(LOCAL:0) + 99, 4}]%ANAME(LOCAL:0), 16, RIGHT%  %ALPHABET_RANK(0, ABL:LOCAL:武闘)%{ABL:(LOCAL:0):武闘, 3}|%ALPHABET_RANK(0, ABL:LOCAL:知略)%{ABL:(LOCAL:0):知略, 3}|
+				LOCALS:0 += @"%ALPHABET_RANK(0, ABL:LOCAL:政治)%{ABL:(LOCAL:0):政治, 3}|%ALPHABET_RANK(1, ABL:LOCAL:妖術)%{ABL:(LOCAL:0):妖術, 3}|%ALPHABET_RANK(2, ABL:LOCAL:歌唱)%{ABL:(LOCAL:0):歌唱, 3}|%ALPHABET_RANK(2, ABL:LOCAL:料理)%{ABL:(LOCAL:0):料理, 3}"
+				SETCOLOR COLOR("選択不可")
+				PRINTPLAINFORM %LOCALS:0%
+				RESETCOLOR
+			ENDIF
+			表示位置 ++
+		ENDIF
+		キャラカウンタ ++
+	ENDIF
+NEXT
+
+PRINTL 
+DRAWLINE
+
+IF 総ページ数 >= 2
+	消去行 += 2
+	IF 表示ページ > 1
+		PRINT [  8] 前のページ            
+	ELSE
+		PRINT                             
+	ENDIF
+	LOCALS:0 = ページ{表示ページ}/{総ページ数}
+	PRINTPLAINFORM %LOCALS:0, 28, LEFT%
+	IF 表示ページ < 総ページ数
+		PRINT [  9] 後のページ
+	ENDIF
+	PRINTL 
+	DRAWLINE
+ENDIF
+
+PRINTL [  0] やっぱり選べない
+REDRAW 0
+
+消去行 += 4
+
+$INPUT_LOOP
+INPUT
+IF RESULT == 8 && 表示ページ > 1
+	表示ページ --
+	CLEARLINE 消去行
+	GOTO SHOW_LOOP
+ELSEIF RESULT == 9 && 表示ページ < 総ページ数
+	表示ページ ++
+	CLEARLINE 消去行
+	GOTO SHOW_LOOP
+ELSEIF RESULT == 0
+	REDRAW 1
+	RETURN -1
+ENDIF
+
+対象 = RESULT - 99
+IF 対象 > CHARANUM || 対象 < 0
+	CLEARLINE 消去行
+	GOTO SHOW_LOOP
+ELSEIF CFLAG:MASTER:所属 != CFLAG:対象:所属 || CFLAG:対象:捕虜先 || !IS_FEMALE(対象)
+	CLEARLINE 消去行
+	GOTO SHOW_LOOP
+ENDIF
+
+RETURN 対象
