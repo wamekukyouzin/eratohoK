@@ -160,18 +160,27 @@ RETURNF 0
 
 ;-------------------------------------------------
 ;士官の部隊所属マップを作成する関数(0=フリー、1=遊撃、2=防衛、-1=その他特殊状態)
+;こちらに条件を追加した場合は、@IS_FREEにも追加すること
 ;-------------------------------------------------
 @TMP_CREATE_IS_FREE_MAP
 CVARSET TMP_IS_FREE, 0, 0
 
 FOR LOCAL:0, 0, CHARANUM
-	;捕虜／臨月・育児／放浪・死亡／ケガ／クールタイムなど
-	IF CFLAG:(LOCAL:0):9 || CFLAG:(LOCAL:0):16 || CFLAG:(LOCAL:0):12 != 0 || TALENT:(LOCAL:0):触手妊娠 || TALENT:(LOCAL:0):Ａ触手妊娠 || COOLTIME:(LOCAL:0):0 || (LOCAL:0 == GET_COOK()) || LOCAL:0 == ID_TO_CHARA(DVAR:金貸し娘) || IS_ANIMAL(LOCAL:0)
+	;CFLAGのチェック
+	IF CFLAG:(LOCAL:0):9 || CFLAG:(LOCAL:0):16 || CFLAG:(LOCAL:0):12
 		TMP_IS_FREE:(LOCAL:0):0 = -1
-	ELSE
-		TMP_IS_FREE:(LOCAL:0):0 = 0
+		CONTINUE
+	;素質チェック
+	ELSEIF TALENT:(LOCAL:0):触手妊娠 || TALENT:(LOCAL:0):Ａ触手妊娠 || IS_ANIMAL(LOCAL:0)
+		TMP_IS_FREE:(LOCAL:0):0 = -1
+		CONTINUE
+	;その他のチェック
+	ELSEIF COOLTIME:(LOCAL:0):0 || (LOCAL:0 == GET_COOK()) || !CHECKDVAR(LOCAL:0)
+		TMP_IS_FREE:(LOCAL:0):0 = -1
+		CONTINUE
 	ENDIF
 NEXT
+
 FOR LOCAL:0, 0, MAX_CITY
 	FOR LOCAL:1, 0, 2
 		LOCAL:2 = GET_CITY_COMMANDER(LOCAL:0, LOCAL:1)
