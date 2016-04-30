@@ -39,8 +39,6 @@ SELECTCASE ARG:0
 		CALL PRINTBUTTON_SHOP(18, "{      賭場}", 7,  FLAG:7 == 1018)
 	CASE 17
 		CALL PRINTBUTTON_SHOP(20, "{  婚姻の儀}", 7,  FLAG:7 == 1020)
-	CASE 19
-		CALL PRINTBUTTON_SHOP(25, "{服を替える}", 7,  FLAG:7 == 1025)
 	CASE 20
 		CALL PRINTBUTTON_SHOP(26, "{    料理長}", 7,  FLAG:7 == 1026)
 	CASE 21
@@ -103,9 +101,6 @@ SIF CONFIG:7 != 1
 
 SIF !FLAG:44 || SHOP_TIME != 0
 	SHOP_AVAIL:16 = 0
-
-SIF !(ITEM:巫女装束 || ITEM:踊り子衣装 || ITEM:メイド服)
-	SHOP_AVAIL:25 = 0
 
 ;SIF FLAG:35 < 0 || !IS_SYOKUSYU_MANAGE(FLAG:35)
 SIF !ITEM:触手部屋
@@ -2494,69 +2489,6 @@ ELSEIF FLAG:7 == 1040
 	ENDIF
 	REDRAW 1
 	RETURN 1
-;(コスプレパッチ追加分)
-;服を替える
-ELSEIF FLAG:7 == 1025
-	;SHOW_INFOの初期画面を基本情報にする
-	FLAG:11 = 0
-
-	DRAWLINE
-	CALL SHOW_INFO(ARG:0)
-	DRAWLINE
-	
-	PRINTFORML %ANAME(ARG:0)%に何の服を着せますか？
-	PRINTFORML ※戦闘時は兵士の士気に強く作用するため、歌唱・料理技能への効力が強くなります
-	PRINTL [0] - 普段着
-	FOR LOCAL, 1, 7
-		IF !ITEM:(239+LOCAL)
-			SETCOLOR COLOR("選択不可")
-		ENDIF
-		PRINTFORM [{LOCAL}] - %ITEMNAME:(239+LOCAL), 14, LEFT%
-		SELECTCASE LOCAL
-			CASE 1
-				PRINTFORML 料理技能が上昇します
-			CASE 2
-				PRINTFORML 歌唱技能が上昇します
-			CASE 3
-				PRINTFORML 妖術技能が上昇します
-			CASE 4
-				PRINTFORML 料理技能が上昇します
-			CASE 5
-				PRINTFORML 歌唱技能が上昇します
-			CASE 6
-				PRINTFORML 妖術技能が上昇します
-		ENDSELECT
-		RESETCOLOR
-	NEXT
-	
-	$INPUT_CLOTHE
-	INPUT
-	
-	;数字の直打ちによるエラーを防ぐ
-	IF !INRANGE(RESULT, 0,  6)
-		PRINTL 不正な入力です
-		GOTO INPUT_CLOTHE
-	;普段着以外に着替えさせる場合、該当する服を持っていないと着替えられない
-	ELSEIF RESULT != 0 && !ITEM:(239+RESULT)
-		PRINTFORML %ITEMNAME:(239+RESULT)%を持っていません
-		GOTO INPUT_CLOTHE
-	ELSE
-		;選択を一時的に退避
-		LOCAL:1 = RESULT
-		
-		;普段着以外
-		IF RESULT != 0
-			PRINTFORMW %ANAME(ARG:0)%は%ITEMNAME:(239+RESULT)%に着替えました
-		;普段着
-		ELSE
-			PRINTFORMW %ANAME(ARG:0)%は普段着に着替えました
-		ENDIF
-		
-		CFLAG:(ARG:0):92 = LOCAL:1
-		VARSET LOCAL:1
-	ENDIF
-	
-	
 ;投獄する
 ELSEIF FLAG:7 == 1011
 	FLAG:11 = 0
@@ -3639,6 +3571,7 @@ SELECTCASE RAND:100
 				LOCAL = GETNUM(EXP, "政治経験値")
 		ENDSELECT
 		CALL PRINT_ADD_EXP(MASTER, EXPNAME:LOCAL, LIMIT(余剰 / 4, 1, 5), 1)
+		CALL TRAIN_AUTO_ABLUP(MASTER)
 		WAIT
 	CASE IS < 70
 		PRINTFORMW 余った行動回数で仲間と交友を深めた……
