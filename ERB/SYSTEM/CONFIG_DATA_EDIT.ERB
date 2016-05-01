@@ -659,36 +659,41 @@ ELSEIF RESULT == 125
 		NEXT
 	ENDIF
 ELSEIF RESULT == 130
-	PRINTFORML 主人公と別の勢力に所属する、君主以外の全てのキャラを捕虜にします
+	PRINTFORML 主人公と別の勢力に所属する、未登場・死亡済み・君主でない全キャラを捕虜にします
 	CALL ASK_YN("実行", "キャンセル")
 	IF RESULT == 0
 		FOR LOCAL:0, 0, CHARANUM
-			IF LOCAL:0 != MASTER && !GROUPMATCH(CFLAG:(LOCAL:0):1, 0, CFLAG:MASTER:1) && GET_COUNTRY_FROM_BOSS_ID(GET_ID(LOCAL:0)) == -1
+			SIF CFLAG:LOCAL:特殊状態フラグ == 2 || (!CFLAG:LOCAL:所属 && !CFLAG:LOCAL:特殊状態フラグ) || GET_COUNTRY_BOSS(CFLAG:LOCAL:0) == LOCAL:0
+				CONTINUE
+			IF CFLAG:MASTER:所属 != CFLAG:LOCAL:所属
 				CFLAG:(LOCAL:0):9 = CFLAG:MASTER:1
+				CFLAG:(LOCAL:0):12 = 0
 			ENDIF
 		NEXT
 	ENDIF
 ELSEIF RESULT == 131
-	PRINTFORML 主人公と各勢力の君主を除く、全てのキャラを捕虜にします
+	PRINTFORML 未登場・死亡済み・君主でない全キャラを捕虜にします
 	CALL ASK_YN("実行", "キャンセル")
 	IF RESULT == 0
 		FOR LOCAL:0, 0, CHARANUM
-			IF LOCAL:0 != MASTER && CFLAG:(LOCAL:0):1 != 0 && GET_COUNTRY_FROM_BOSS_ID(GET_ID(LOCAL:0)) == -1
-				CFLAG:(LOCAL:0):9 = CFLAG:MASTER:1
-			ENDIF
+			SIF CFLAG:LOCAL:特殊状態フラグ == 2 || (!CFLAG:LOCAL:所属 && !CFLAG:LOCAL:特殊状態フラグ) || GET_COUNTRY_BOSS(CFLAG:LOCAL:0) == LOCAL:0
+				CONTINUE
+			CFLAG:(LOCAL:0):9 = CFLAG:MASTER:1
+			CFLAG:(LOCAL:0):12 = 0
 		NEXT
 	ENDIF
 ELSEIF RESULT == 150
-	PRINTFORML 各勢力の君主を除く、生存中の全てのキャラを自国の士官にします
+	PRINTFORML 未登場・死亡済み・君主でない全キャラを自国の士官にします
 	PRINTFORML 主人公が放浪している場合、全員放浪します
 	CALL ASK_YN("実行", "キャンセル")
 	IF RESULT == 0
 		FOR LOCAL:0, 0, CHARANUM
-			SIF GET_COUNTRY_BOSS(CFLAG:LOCAL:所属) == LOCAL || CFLAG:LOCAL:特殊状態フラグ == 2
+			SIF CFLAG:LOCAL:特殊状態フラグ == 2 || (!CFLAG:LOCAL:所属 && !CFLAG:LOCAL:特殊状態フラグ) || GET_COUNTRY_BOSS(CFLAG:LOCAL:0) == LOCAL:0
 				CONTINUE
 			CFLAG:(LOCAL:0):所属 = CFLAG:MASTER:所属
 			CFLAG:(LOCAL:0):捕虜先 = 0
-			CFLAG:(LOCAL:0):特殊状態フラグ = CFLAG:MASTER:特殊状態フラグ
+			SIF !CFLAG:MASTER:所属
+				CFLAG:(LOCAL:0):特殊状態フラグ = 1
 		NEXT
 	ENDIF
 ELSEIF RESULT == 200
@@ -1820,6 +1825,7 @@ ELSE
 			IF RESULT == 0 || IS_COUNTRY(RESULT)
 				CFLAG:(ARG:0):所属 = RESULT
 				CFLAG:(ARG:0):12 = 0
+				;所属がなければ放浪
 				SIF RESULT == 0
 					CFLAG:(ARG:0):12 = 1
 			ENDIF
@@ -1828,17 +1834,23 @@ ELSE
 	ELSEIF RESULT == 60
 		LOCAL:1 = 1
 		IF !F_COUNTRY_BOSS
-			FOR LOCAL:0, CFLAG:(ARG:0):9 + 1, MAX_COUNTRY
+			FOR LOCAL:0, CFLAG:(ARG:0):捕虜先 + 1, MAX_COUNTRY
 				IF IS_COUNTRY(LOCAL:0)
-					CFLAG:(ARG:0):9 = LOCAL:0
+					CFLAG:(ARG:0):捕虜先 = LOCAL:0
+					;放浪フラグは折る
+					SIF CFLAG:(ARG:0):特殊状態フラグ == 1
+						CFLAG:(ARG:0):特殊状態フラグ = 0
 					LOCAL:1 = 0
 					BREAK
 				ENDIF
 			NEXT
 		ENDIF
 		IF LOCAL:1
-			CFLAG:(ARG:0):9 = 0
+			CFLAG:(ARG:0):捕虜先 = 0
 			CFLAG:(ARG:0):29 = 0
+			;所属がなければ放浪
+			SIF !CFLAG:(ARG:0):所属
+				CFLAG:(ARG:0):特殊状態フラグ = 1
 		ENDIF
 	ELSEIF RESULT == 61
 		LOCAL:1 = 0
@@ -1858,6 +1870,12 @@ ELSE
 			IF RESULT == 0 || IS_COUNTRY(RESULT)
 				CFLAG:(ARG:0):捕虜先 = RESULT
 				CFLAG:(ARG:0):29 = 0
+				;放浪キャラを捕虜にした場合はフラグを折る
+				SIF CFLAG:(ARG:0):特殊状態フラグ == 1 && CFLAG:(ARG:0):捕虜先
+					CFLAG:(ARG:0):特殊状態フラグ = 0
+				;所属がないキャラが捕虜でなくなっていたら放浪させとく
+				SIF CFLAG:(ARG:0):所属 && !CFLAG:(ARG:0):捕虜先
+					CFLAG:(ARG:0):特殊状態フラグ = 1
 			ENDIF
 		ENDIF
 		CLEARLINE LOCAL:1

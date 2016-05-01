@@ -31,7 +31,7 @@ IF RAND:2 == 0
 	PRINTFORMW 特にめぼしいものは見つからなかった
 	RETURN
 ENDIF
-SELECTCASE RAND:90
+SELECTCASE RAND:100
 	;妖怪を討伐する
 	CASE 0
 		PRINTFORML 領民によれば近頃この辺りで妖怪が暴れて困っているらしい
@@ -4685,6 +4685,638 @@ SELECTCASE RAND:90
 				PRINTFORML 
 				PRINTFORML %ANAME(対象)%の奉仕に満足した彼に見送られながら病室を後にした
 				PRINTFORMW …彼は怪我が治ると以前より熱心に働くようになった
+			ENDIF
+	;妖精の群れ
+	CASE 90
+		CALL DAILY_EVENT_RAND_CITYSELECT(0)
+		対象都市 = RESULT
+		SIF 対象都市 < 0
+			RETURN
+		PRINTFORML %ANAME(対象都市)%で妖精が大量発生しているらしい
+		PRINTFORMW どうしよう？
+		CALL ASK_MULTI(@"観光資源にする" ,"捕まえる" ,"放っておく")
+			IF RESULT == 2
+				PRINTFORMW 妖精なら大した害もないだろう、放っておいた
+			ELSEIF RESULT == 0
+				PRINTFORMW さぞや神秘的な光景だろう
+				PRINTFORML 観光資源にする計画を立てた
+				PRINTFORML ・
+				PRINTFORML ・
+				PRINTFORMW ・
+				IF ABL:対象:政治 / 10 > RAND:10 + 1
+					PRINTFORML やった！
+					PRINTFORMW 観光資源化に見事成功した
+					LOCAL:1 = RAND(CITY_ECONOMY_LIMIT:(対象都市) / 100 * 100 / 10 , CITY_ECONOMY_LIMIT:(対象都市) / 100 * 100 / 10 + 1000)
+					IF CITY_ECONOMY:対象都市 == CITY_ECONOMY_LIMIT:対象都市
+						CITY_ECONOMY_LIMIT:対象都市 += LOCAL:1
+						CALL COLORPRINTFORM(@"%CITY_NAME:対象都市%の経済規模の上限が{LOCAL:1 / 100}上昇し、{CITY_ECONOMY_LIMIT:対象都市 / 100}になった！", COLOR("注意"))
+						PRINTFORMW 
+					ELSE
+						SIF CITY_ECONOMY:対象都市 + LOCAL:1 >= CITY_ECONOMY_LIMIT:対象都市
+							LOCAL:1 = MIN(LOCAL:1, CITY_ECONOMY_LIMIT:対象都市 - CITY_ECONOMY)
+						CITY_ECONOMY:対象都市 += LOCAL:1
+						CALL COLORPRINTFORM(@"%CITY_NAME:対象都市%の経済規模が{LOCAL:1 / 100}上昇し、{CITY_ECONOMY:対象都市 / 100}になった！", COLOR("注意"))
+						PRINTFORMW 
+					ENDIF
+				ELSE
+					PRINTFORML 失敗した…
+					PRINTFORMW 奔放な妖精たちのせいでむしろ観光客は減少した
+					LOCAL:1 = RAND(CITY_ECONOMY_LIMIT:(対象都市) / 100 * 100 / 10 , CITY_ECONOMY_LIMIT:(対象都市) / 100 * 100 / 10 + 1000)
+					CITY_ECONOMY:対象都市 -= LOCAL:1
+					CALL COLORPRINTFORM(@"%CITY_NAME:対象都市%の経済規模が{LOCAL:1 / 100}減少し、{CITY_ECONOMY:対象都市 / 100}になった…", COLOR("注意"))
+					PRINTFORMW 
+				ENDIF
+			ELSE
+				PRINTFORML それだけ大量にいるならば多少捕まえてもいいだろう
+				PRINTFORMW %ANAME(対象)%は早速妖精を捕獲に出かけた
+				PRINTFORML ・
+				PRINTFORML ・
+				PRINTFORMW ・
+				LOCAL = (ABL:対象:武闘 / 10) + 2
+				金額 = LOCAL * 800
+				IF !PENIS(対象)
+					MONEY += 金額
+					PRINTFORML やった！
+					CALL COLORPRINTFORM(@"妖精を{LOCAL}匹捕まえて、金{金額}で売れた！", COLOR("注意"))
+					PRINTFORMW 
+				ELSE
+					PRINTFORML やった！
+					PRINTFORML 妖精を{LOCAL}匹を捕まえた
+					PRINTFORML 彼女たちは妖精ながらもしっかりと少女の身体をしているのがわかる
+					PRINTFORMW どうしよう？
+					CALL ASK_MULTI(@"試してみる" ,"全てマニアに売る")
+						IF RESULT == 1
+							PRINTFORMW マニアに売った
+							MONEY += 金額
+							CALL COLORPRINTFORM(@"金{金額}で売れた！", COLOR("注意"))
+							PRINTFORMW 
+						ELSE
+							PRINTFORMW 怯える妖精の表情にムラムラしてきた%ANAME(対象)%は、一匹を試してみる事にした
+							PRINTFORML 
+							PRINTFORML 彼女を押さえつけ乱暴に服を剥ぐと、幼いながらもしっかりと女のラインをした身体が露わになる
+							PRINTFORML まるで人間の少女を犯すかのような背徳感でゾクッとしながら、ピンクの割れ目にペニスを挿入した
+							PRINTFORML きつい膣穴にぐりぐりとペニスをねじ込んでいくと、彼女は悲鳴を上げながら痙攣する
+							PRINTFORML それにより膣穴が更にペニスを締めつけてくる感触で%ANAME(対象)%は思わず身震いしてしまう
+							PRINTFORMW %ANAME(対象)%は想像以上の極上の雌穴をじっくりと堪能し、満足するまで何度も精を放った
+							PRINTFORML 
+							PRINTFORMW たっぷり楽しんだ後、残りの妖精をマニアに売り払った
+							金額 -= 800
+							MONEY += 金額
+							CALL COLORPRINTFORM(@"金{金額}で売れた！", COLOR("注意"))
+							PRINTFORMW 
+						ENDIF
+				ENDIF
+			ENDIF
+	;麻薬取引
+	CASE 91
+		PRINTFORML 人気の少ない道を歩いていると、そわそわしている男を見つけた
+		PRINTFORML %ANAME(対象)%と目が合うと彼はさっと目を逸らした
+		PRINTFORMW どうしよう？
+		CALL ASK_MULTI(@"声をかける" ,"様子を窺う" ,"何もしない")
+			IF RESULT == 2
+				PRINTFORML 怪しいがそれだけで人を疑うのも良くない
+				PRINTFORMW さっさと立ち去った
+				RETURN
+			ELSEIF RESULT == 0
+				PRINTFORML 声をかけると男はますます挙動不審になった
+				PRINTFORML 更に%ANAME(対象)%の問いかけを無視して、去ろうとしたので無理矢理連行する事にした
+				PRINTFORML 暴れる男を警察につきだし調べると、麻薬常習者だと判明した
+				PRINTFORML どうやら麻薬の売人を探していたらしい
+				PRINTFORMW 警察に周辺地域のパトロールを強化するように命じた
+				ITEM:麻薬 += 1
+				CALL COLORPRINTFORM(@"麻薬を1個手に入れた", COLOR("注意"))
+				PRINTFORMW 
+				RETURN
+			ELSE
+				PRINTFORML 物陰に隠れて様子を窺っていると、彼は別の男と接触した
+				PRINTFORML 何やらこそこそと話をした後、二人は路地裏へと入って行った
+				PRINTFORML 気になった%ANAME(対象)%はこっそりと後をつけた
+				PRINTFORMW そこで彼は小さな包みの様なモノを受け取ると、そそくさとその場を立ち去った
+				IF IS_FEMALE(対象) && CFLAG:対象:薬物依存 > 0
+					PRINTFORML あれは麻薬だ！
+					PRINTFORML その途端、%ANAME(対象)%の身体が熱くなり震えだした
+					PRINTFORML すっかり薬物依存になっている%ANAME(対象)%は薬の誘惑にゴクリと生唾を飲む
+					PRINTFORML そして我慢できずに売人の前に飛び出ると、自分もそれが欲しいと懇願した
+					PRINTFORMW 売人は一瞬驚いていたが、%ANAME(対象)%の様子を見るとニヤニヤと笑いながら何処かへと連れて行った
+				ELSE
+					PRINTFORML 何やら怪しい取引の様だ
+					PRINTFORML %ANAME(対象)%は意を決して残った男の前に立ちふさがった
+					PRINTFORML 彼は一瞬驚いていたが、平静を装いながら何か用かと告げる
+					PRINTFORMW どうしよう？
+					CALL ASK_MULTI(@"連行する" ,"探ってみる")
+						IF RESULT == 0
+							PRINTFORML 話は連行してから聞く事にした
+							PRINTFORML 抵抗する男を捕獲し警察につきだして調べると、懐から麻薬が出てきた
+							PRINTFORML どうやら麻薬の売人だったようだ
+							PRINTFORMW 警察に周辺地域のパトロールを強化するように命じた
+							ITEM:麻薬 += 2
+							CALL COLORPRINTFORM(@"麻薬を2個手に入れた", COLOR("注意"))
+							PRINTFORMW 
+							RETURN
+						ELSE
+							PRINTFORML 無理矢理連行するよりも探ってみる事にした
+							PRINTFORMW 先程の男とのやり取りを思い出し、自分にも売ってほしいとカマをかけた
+							IF IS_MALE(対象)
+								PRINTFORML しかし男は品切れだと言うと、踵を返して駆けだした
+								PRINTFORMW 慌てて追いかけたが、迷路のような路地裏でまかれてしまった
+								RETURN
+							ELSE
+								PRINTFORML 一瞬の沈黙の後、男は待ってろと言って懐をまさぐりだした
+								PRINTFORML そして辺りを気にする様な仕草で%ANAME(対象)%に手招きをしてきた
+								PRINTFORMW 男の懐を覗き込もうとすると、不意に首筋に注射針を刺されてしまった！
+								PRINTFORML 慌てて注射器を叩き落として男を睨みつけるも、彼はニヤニヤと%ANAME(対象)%を見ている
+								PRINTFORML すると%ANAME(対象)%の視界が歪みだし、足元がふらつきだした
+								PRINTFORML 特濃の薬の効果で思考が惚けだした%ANAME(対象)%は、涎を垂らしトロンとした表情を見せる
+								PRINTFORMW 男はそんな%ANAME(対象)%を抱きながら何処かへと連れて行った
+							ENDIF
+						ENDIF
+				ENDIF
+			ENDIF
+		PRINTFORML 
+		PRINTFORML 男のねぐらに連れ込まれた%ANAME(対象)%は鎖に繋がれて犯されている
+		PRINTFORML 四つん這いの格好でペニスを奥深く撃ち込まれる度に、%ANAME(対象)%はピンク色の嬌声を上げる
+		PRINTFORML 男が何の遠慮も無く膣内射精を放つと、%ANAME(対象)%は悦びの声と共に身を跳ねさせて何度も絶頂した
+		PRINTFORMW 乱暴に犯されているにも関わらず、%ANAME(対象)%の表情は恍惚としており快楽に惚けているのがわかる
+		PRINTFORML 男に命ぜられるままに腰を振り、熱心にペニスに奉仕しているその姿はまさに性奴隷そのものだ
+		PRINTFORML ご褒美として新しい薬を飲まされると、%ANAME(対象)%の情欲は更に昂ぶりさらなるセックスをおねだりする
+		PRINTFORMW 男は最高の性奴隷を手に入れたと笑いながら再び%ANAME(対象)%を犯し始めた
+		CALL FORCE_FUCK(対象, -1, @"売人の\@RAND:2 ? ペニス # 唇\@", @"売人", RAND:2 + 1)
+		PRINTFORML 
+		PRINTFORML 薬の効果が切れて我に返った%ANAME(対象)%は何とか逃げ出せた
+		PRINTFORMW しかし散々薬を打たれた影響で体が熱くうずく様になってしまった
+		CFLAG:対象:薬物依存 += RAND(30, 60)
+	;エロ本を拾う
+	CASE 92
+		PRINTFORML 夕暮れ時、河原で古びた本を拾った
+		PRINTFORML 何の気もなしに読んでみると、エロ本だった
+		PRINTFORMW 女性が首輪をつけてまるで犬の様に犯されている内容だ
+		IF IS_MALE(対象)
+			PRINTFORML これは良い拾い物をしたと喜び持ち帰った
+			PRINTFORMW 自室に持ち込みじっくりと読みこんだ
+			CALL PRINT_ADD_EXP(対象, "性技経験値", RAND:10 + 6, 1)
+		ELSE
+			PRINTFORML 思わず釘付けになり読みふけっていると、背後から声をかけられた
+			PRINTFORML %ANAME(対象)%は悲鳴を上げて飛び上がり、振り返ると男がニヤニヤしながら立っていた
+			PRINTFORML 男は焦る%ANAME(対象)%に迫ると、その本の様な事をしないかと誘ってきた
+			PRINTFORMW どうしよう？
+			CALL ASK_MULTI(@"誘いに乗る" ,"男を突き飛ばす")
+				IF RESULT == 1
+					PRINTFORMW %ANAME(対象)%は迫る男を突き飛ばすと、一目散に走り去った
+				ELSE
+					PRINTFORML 男の不躾な問いかけに、しかし%ANAME(対象)%は拒む言葉が出てこなかった
+					PRINTFORML チラと先ほどの本に目をやり、写真の女性の痴態に思わずごくりと喉を鳴らす
+					PRINTFORML そんな%ANAME(対象)%の様子に男は更に近づき、耳元で「気持ち良くしてやるぞ？」と囁いてきた
+					PRINTFORML もはや頭の中が期待で一杯になっていた%ANAME(対象)%は、男の言葉にゆっくりと頷いた
+					PRINTFORMW %ANAME(対象)%は男に腕を引かれて彼のねぐらへと連れて行かれた
+					PRINTFORML 
+					PRINTFORML 深夜、%ANAME(対象)%は男に連れられて人気のない公園にいた
+					PRINTFORML しかしその身には一切の衣服を着けておらず、首輪をつけて男にリードを引かれている
+					PRINTFORML %ANAME(対象)%は四つん這いの姿勢で男に引かれながら、興奮した雌犬の様にだらしなく舌を垂らしている
+					PRINTFORMW 男が何事か耳元で囁くと、%ANAME(対象)%は羞恥で頬を染めながら興奮でゾクゾクと身を震わせた
+					PRINTFORML %ANAME(対象)%はすっかり雌犬になりきり、男に命ぜられるままに動き、媚びるように喉を鳴らす
+					PRINTFORML その仕草に満足した男がペニスを取り出すと、%ANAME(対象)%は更に興奮し、服従のポーズで挿入をねだった
+					PRINTFORML 男は%ANAME(対象)%を押さえつけ、既に愛液の溢れる雌穴にペニスをあてがうと、一気に突き刺した
+					PRINTFORML 途端に、脳天まで貫かれたかのような衝撃で、%ANAME(対象)%はのけぞりながら悦びの声をあげる
+					PRINTFORMW 男は%ANAME(対象)%の身も心も支配する様に、子宮まで届くほどの激しいストロークを繰り返す
+					PRINTFORML 一突き毎に%ANAME(対象)%は子宮を躾けられ、雌犬の様にだらしない喘ぎ声をあげてヨガり狂う
+					PRINTFORML やがて男のペニスが跳ねるのを感じた%ANAME(対象)%は、両手足で彼にしがみつき種付けをおねだりしだす
+					PRINTFORML 彼がそれに応え、%ANAME(対象)%の胎内に子種を放つと、%ANAME(対象)%は一際大きな嬌声と共に絶頂した
+					PRINTFORML %ANAME(対象)%はアヘ顔を晒しながら、精液を一滴残らず吸い取ろうと子宮口をペニスに吸い付かせて震える
+					PRINTFORMW 射精を終えた男が一息をついてペニスを引き抜くと、幸せそうにアヘ顔を晒す%ANAME(対象)%の姿があった
+					PRINTFORMW %ANAME(対象)%はすっかり身も心も雌犬になりきり、その後もご主人様に躾けをしてもらった
+					CALL FORCE_FUCK(対象, -1, @"浮浪者の\@RAND:2 ? ペニス # 唇\@", @"浮浪者", RAND:2 + 1)
+					PRINTFORML 
+					PRINTFORML 一晩中、雌犬としてたっぷりと躾けられた%ANAME(対象)%は
+					PRINTFORMW 彼にまた来る様にに命令されると、目を♥にして涎を垂らしながらコクコクと頷いた
+				ENDIF
+		ENDIF
+	;痴話喧嘩
+	CASE 93
+		PRINTFORML 郊外で男女が言い争っている場面に遭遇した
+		PRINTFORML しばらく様子を見ていると二人は互いに悪態をついて別れた
+		PRINTFORMW どうしよう？
+		CALL ASK_MULTI(@"男を追う" ,"女を追う" ,"放っておく")
+			IF RESULT == 2
+				PRINTFORMW ただの痴話喧嘩だろう、放っておく事にした
+			ELSEIF RESULT == 1
+				PRINTFORML お節介かもしれないが、あまりの剣幕に放っておけなかった
+				PRINTFORMW %ANAME(対象)%は女の方を追いかけた
+				PRINTFORML 
+				IF IS_FEMALE(対象)
+					PRINTFORML %ANAME(対象)%は彼女と近くの喫茶店で話をした
+					PRINTFORML 男とは恋人同士で、些細な事で言い争いになったらしい
+					PRINTFORML %ANAME(対象)%がゆっくり話を聞いてやると彼女は次第に落ち着き
+					PRINTFORML 彼に謝ることを決意すると、%ANAME(対象)%に礼を告げて彼を追いかけて行った
+					PRINTFORMW %ANAME(対象)%は良い事をしたと上機嫌で帰路についた
+				ELSE
+					PRINTFORML %ANAME(対象)%は彼女と近くの喫茶店で話をした
+					PRINTFORML 男とは恋人同士で、些細な事で言い争いになったらしい
+					PRINTFORML %ANAME(対象)%は彼女の味方になりゆっくり話を聞いてやった
+					PRINTFORML すると彼女の機嫌も治っていき、次第に話が弾みだした
+					PRINTFORMW 二人はすっかり意気投合し、成り行きのままに宿屋へと入って行った
+					PRINTFORML 
+					PRINTFORML 彼女の服を優しく脱がせると、魅力的な肢体が露わになる
+					PRINTFORML 頬を染めてもじもじと内股を擦り付ける彼女を押し倒すと、彼女は照れるように笑った
+					PRINTFORML そんな彼女と笑いあうと、優しく口付けをしながらゆっくりとペニスをねじ込む
+					PRINTFORML 彼女の膣肉はペニスをきつく締め付けてきて、まるで何本もの舌で絡みつかれるような感覚を味わった
+					PRINTFORML 極上の蜜壺に%ANAME(対象)%は思わず小さく呻き声を上げながら、ねっとりと腰を振る
+					PRINTFORML 一突き毎に彼女は喘ぎ声を上げながら艶めかしく体をくねらせて、%ANAME(対象)%の欲情を煽った
+					PRINTFORMW 男の事など忘れさせるように、一晩中彼女をたっぷりと躾けてやった
+					PRINTFORML 
+					PRINTFORMW 別れる際に、すっかり%ANAME(対象)%にメロメロになった彼女に連絡先を渡された
+				ENDIF
+			ELSE
+				PRINTFORML お節介かもしれないが、あまりの剣幕に放っておけなかった
+				PRINTFORMW %ANAME(対象)%は男の方を追いかけた
+				IF IS_MALE(対象)
+					PRINTFORML %ANAME(対象)%は彼と近くの喫茶店で話をした
+					PRINTFORML 女とは恋人同士で、些細な事で言い争いになったらしい
+					PRINTFORML %ANAME(対象)%がゆっくり話を聞いてやると彼は次第に落ち着き
+					PRINTFORML 彼女に謝ることを決意すると、%ANAME(対象)%に礼を告げて彼女を追いかけて行った
+					PRINTFORMW %ANAME(対象)%は良い事をしたと上機嫌で帰路についた
+				ELSE
+					PRINTFORML %ANAME(対象)%は彼と近くの喫茶店で話をした
+					PRINTFORML 女とは恋人同士で、些細な事で言い争いになったらしい
+					PRINTFORML あ%ANAME(対象)%は彼の味方になりゆっくり話を聞いてやった
+					PRINTFORML すると彼の機嫌も治っていき、次第に話が弾みだした
+					PRINTFORMW 二人はすっかり意気投合し、成り行きのままに宿屋へと入って行った
+					PRINTFORML 
+					PRINTFORML %ANAME(対象)%はアヘアヘとだらしない顔を晒しながら彼に犯されている
+					PRINTFORML 背後から腰を掴まれ激しく腰を打ちつけられ膣壁を抉られる度に、%ANAME(対象)%の目の前で火花が散る
+					PRINTFORML 彼もまた%ANAME(対象)%の身体に夢中になりガツンガツンと貪る様に%ANAME(対象)%の膣内を犯してくる
+					PRINTFORML 逞しいペニスで膣内を圧迫されながら、何度も子宮を小突かれて%ANAME(対象)%はひたすらヨガり狂う
+					PRINTFORML %ANAME(対象)%が甘える様な声で精をねだりだすと、彼もそれに応える様に腰の動きを早めていった
+					PRINTFORMW 当初の目的も忘れ、二人は一晩中獣の様にひたすらお互いを求め続けた
+					CALL FORCE_FUCK(対象, -1, @"行きずりの男の\@RAND:2 ? ペニス # 唇\@", @"行きずりの男", RAND:2 + 1)
+					PRINTFORML 
+					PRINTFORMW 別れ際、彼は名残惜しそうに%ANAME(対象)%の首筋に強く吸いつき、キスマークをつけてきた
+				ENDIF
+			ENDIF
+	;娼婦の誘い
+	CASE 94
+		PRINTFORML やや治安の悪い地域を歩いていると路地裏から何やら物音が聞こえてきた
+		PRINTFORML 何事かと覗くと、娼婦らしき女性が男性から金をもらっていた
+		PRINTFORML どうやら仕事をした後らしい
+		PRINTFORMW 彼女は覗いていた%ANAME(対象)%に気付くと、淫靡な笑みを浮かべて近づいてきた
+		IF IS_MALE(対象)
+			PRINTFORML そして%ANAME(対象)%の首に手を回すと
+			PRINTFORML 「あなたも楽しむ？」と誘ってきた
+			PRINTFORMW どうしよう？
+			CALL ASK_MULTI(@"相手をしてもらう" ,"断る")
+				IF RESULT == 1
+					PRINTFORMW 今はそんな気分ではないと断ると、彼女は残念そうにしながら去って行った
+				ELSE
+					PRINTFORML %ANAME(対象)%は妖艶な彼女の雰囲気に思わず頷いてしまった
+					PRINTFORMW 彼女はふふっと小悪魔の様に笑い%ANAME(対象)%の手を取ると、近くの小屋へと連れ込んだ
+					PRINTFORML 
+					PRINTFORML 彼女の肉体とテクニックは素晴らしく、%ANAME(対象)%はされるがままになってしまった
+					PRINTFORML 一突きするごとに彼女はたまらないといった声を上げ、妖艶に身体をくねらせ%ANAME(対象)%を誘う
+					PRINTFORMW %ANAME(対象)%は昂ぶったままに獣のように彼女とまぐわい続け、何度も精を吐き出した
+					PRINTFORML 
+					金額 = 1000 + (DAY * 20)
+					SIF MONEY < 金額
+						金額 = MONEY / 2
+					MONEY -= 金額
+					CALL COLORPRINTFORM(@"金{金額}を支払った", COLOR("注意"))
+					PRINTFORMW 
+				ENDIF
+		ELSE
+			PRINTFORML 「見ない子ね、新人かしら？」
+			PRINTFORML 彼女は%ANAME(対象)%に微笑みながら話しかけてくる
+			PRINTFORML 「ふふっ、緊張してるのね？でも直に慣れるわよ」
+			PRINTFORML 「そうだ、今から仕事を取ってあげようか？いいのよ、あなた可愛いもの」
+			PRINTFORML …何やら勘違いされてるようだ
+			PRINTFORMW どうしよう？
+			CALL ASK_MULTI(@"仕事を頼む" ,"誤解を解く")
+				IF RESULT == 1
+					PRINTFORML 流石に娼婦になるつもりはない
+					PRINTFORMW %ANAME(対象)%は早々に誤解を解いて彼女と別れた
+				ELSE
+					PRINTFORML 娼婦の仕事に興味があった%ANAME(対象)%は仕事を頼むことにした
+					PRINTFORML 彼女は%ANAME(対象)%を連れて近くの小屋に入ると、そこで娼婦の衣装を貸してくれた
+					CALL COLORPRINTFORM(@"それはスケスケの衣装で、むしろ下着に近かった", COLOR("桃"))
+					PRINTFORMW 
+					PRINTFORML %ANAME(対象)%は羞恥で顔を真っ赤にしながらも、同時に期待に似た感情で胸を高鳴らせた
+					PRINTFORML 彼女と共に路地裏でしばらく立っていると、すぐに男が通りがかった
+					PRINTFORML %ANAME(対象)%は彼女に促されて彼を誘う様に胸を強調するポーズを取り、笑顔を見せる
+					PRINTFORMW その気になった彼に買われた%ANAME(対象)%は、彼女に指示された通りに近くの小屋へと向かった
+					PRINTFORML 
+					PRINTFORML %ANAME(対象)%は彼を座らせ、勃起したペニスを取り出すと舌と指で丁寧に奉仕を始めた
+					PRINTFORML 浮き出る血管を撫でながら舌で裏筋を舐めると、彼は小さく呻き声を上げペニスが小さく震えた
+					PRINTFORML 彼の我慢が限界に近づいたのを察した%ANAME(対象)%は床に横たわると、両手を開いて彼を誘う
+					PRINTFORMW 彼は獣の様に%ANAME(対象)%に飛びつくと、勢いよくペニスをねじ込み激しく腰を振り始めた
+					PRINTFORML %ANAME(対象)%は彼の荒々しいピストンで膣肉を抉られながら、娼婦らしく色っぽい喘ぎ声を上げる
+					PRINTFORML しかし次第に本心からこの逞しい雄になら孕まされても良いという思いが頭の中を染めていき
+					PRINTFORML それに応じて%ANAME(対象)%の身体も男の精液を搾り取ろうと、彼のペニスにより強く締めつけていった
+					PRINTFORMW %ANAME(対象)%はすっかり夢中となって彼の種を求め続け、全身を使いたっぷりと奉仕した
+					CALL FORCE_FUCK(対象, -1, @"客の\@RAND:2 ? ペニス # 唇\@", @"客", RAND:2 + 1)
+					PRINTFORML 
+					PRINTFORMW 初仕事を終えた%ANAME(対象)%は身も心もすっかり立派な娼婦になっていた
+					金額 = 1500 + (ABL:対象:性技 * 100) + (ABL:対象:奉仕 * 100)
+					MONEY += 金額
+					CALL COLORPRINTFORM(@"金{金額}を手に入れた", COLOR("注意"))
+					PRINTFORMW 
+				ENDIF
+		ENDIF
+	;落とし穴
+	CASE 95
+		PRINTFORML 山中を歩いていると足を滑らせ落とし穴に落ちてしまった
+		PRINTFORML 腰のあたりまでズッポリと嵌ってしまい自力では抜け出せそうにない
+		PRINTFORMW 足をバタバタと振っても何の感触もなく、どうやら地面の下は空洞になっているようだ
+		IF RAND:2 == 0 || IS_MALE(対象)
+			PRINTFORMW 途方に暮れていると人の姿が見えた
+			IF RAND:2 == 0
+				PRINTFORML 助けを求めると彼は驚きながらも快く助けてくれた
+				PRINTFORMW 幸い怪我はしておらず、%ANAME(対象)%は彼にお礼を言って帰路についた
+			ELSE
+				PRINTFORML 助けを求めると彼は礼金を要求してきた
+				PRINTFORML 渋々財布を取りだし金を渡すと彼はようやく助けてくれた
+				PRINTFORML 幸い怪我はしていなかった
+				PRINTFORMW 男は金を数えながらさっさと立ち去った
+				金額 = 1000 + (DAY * 300)
+				SIF MONEY < 金額
+					金額 = MONEY
+				MONEY -= 金額
+				CALL COLORPRINTFORM(@"金{金額}を失った", COLOR("注意"))
+				PRINTFORMW 
+			ENDIF
+		ELSE
+			PRINTFORML 途方に暮れていると、ヒタッと脚に何かが触れるのを感じた
+			PRINTFORML そのぬるりとした感触に%ANAME(対象)%は思わず悲鳴を上げ足をすくめる
+			PRINTFORML 何事かとドキドキする%ANAME(対象)%の脚にそれが再び絡みついてきた
+			PRINTFORML 足をジタバタさせなんとか逃れようとするものの、それは力強く%ANAME(対象)%の脚に絡みつき離さない
+			PRINTFORML 両脚をがっちりと捕えられ何をされるのかと恐怖する%ANAME(対象)%の股間を何かがつついた
+			PRINTFORMW その感触に%ANAME(対象)%が最悪を想定した次の瞬間に、それは%ANAME(対象)%の秘所にずぶりとねじ込まれた
+			PRINTFORML 
+			PRINTFORML びゅるるる！と大量の触手の卵が吐き出されると共に、%ANAME(対象)%は身体をのけぞらせて嬌声を上げる
+			PRINTFORML 極太の触手で膣内をいっぱいに広げられながら容赦なく子宮に放たれる熱に、%ANAME(対象)%は何度も絶頂し悶える
+			PRINTFORML 散々犯されつくし何度も種を放たれた%ANAME(対象)%は、あまりの連続絶頂に全身汗まみれでぜーぜーと息を荒げる
+			PRINTFORML しかしそんな状況にも関わらずその表情は先ほどまでの恐怖に満ちたものとは違い、すっかり惚けていた
+			PRINTFORMW 触手の体液に含まれる媚薬成分により、%ANAME(対象)%の頭の中はすっかり種付けされる雌のそれになっているようだ
+			PRINTFORML そしてそんな%ANAME(対象)%の秘所に再び別の触手がねじ込まれ、%ANAME(対象)%は衝撃でビクンと身体を跳ねさせる
+			PRINTFORML %ANAME(対象)%は無理矢理押し寄せてくる快楽の波にガクガクと身体を震わせ、宙吊りの脚をピンと伸ばして絶頂してしまう
+			PRINTFORML ずっぷ、ずっぷ　と触手が膣内を蹂躙する度に%ANAME(対象)%は悦びの声を上げ、膣肉を収縮させて種を待ちわびた
+			PRINTFORMW 触手に気に入られた%ANAME(対象)%はその後も次から次へと繁殖の相手をさせられた
+			CALL FORCE_FUCK(対象, -1, @"触手", @"触手", RAND:2 + 1)
+			PRINTFORML 
+			PRINTFORMW %ANAME(対象)%が視線も虚ろに壊れた様に呻き声しか出せなくなった頃に、ようやく解放された
+		ENDIF
+	;川止めで暇になる
+	CASE 96
+		PRINTFORML 旅の途中、大雨に遭遇した
+		PRINTFORML おかげで川止めになり、近くの宿に泊まる事にした
+		PRINTFORML 雨は暫くやみそうになく%ANAME(対象)%は暇を持て余してしまう
+		PRINTFORMW どうしよう？
+		CALL ASK_MULTI(@"勉強する" ,"他の客と博打をする" ,"適当な相手を部屋に誘う" ,"大人しくしている")
+			IF RESULT == 3
+				PRINTFORMW 部屋で大人しくしていた
+			ELSEIF RESULT == 0
+				PRINTFORMW いい機会なので勉強する事にした
+				CALL PRINT_ADD_EXP(対象, "知略経験値", RAND:10 + 5, 1)
+			ELSEIF RESULT == 1
+				PRINTFORMW 他の客と博打に興じた
+				PRINTFORML ・
+				PRINTFORML ・
+				PRINTFORMW ・
+				LOCAL = 50 - RAND:101
+				IF LOCAL > 0
+					金額 = LOCAL * 50
+					MONEY += 金額
+					PRINTFORML やった！
+					PRINTFORMW どうやらついていたようだ
+					CALL COLORPRINTFORM(@"博打で金{金額}を手に入れた", COLOR("注意"))
+					PRINTFORMW 
+				ELSEIF LOCAL < 0
+					金額 = -(LOCAL * 50)
+					MONEY -= 金額
+					PRINTFORML 負けた！
+					PRINTFORMW どうやらついてなかったようだ
+					CALL COLORPRINTFORM(@"博打で金{金額}を失った", COLOR("注意"))
+					PRINTFORMW 
+				ELSE
+					PRINTFORMW 勝ちもせず敗けもしなかった
+				ENDIF
+			ELSE
+				PRINTFORML 部屋の中で雨音を聞いていると性欲を持て余してしまった
+				PRINTFORMW どうしようかと悶々としていると、同じように足止めを食らった客と出会った
+				IF IS_MALE(対象)
+					PRINTFORML どことなく儚げな雰囲気を持つ女性だ
+					PRINTFORML 話を聞くと、夫を亡くして実家に帰る途中らしい
+					PRINTFORML 暇を持て余した同士でたわいない会話をしていると、ふと彼女の手が%ANAME(対象)%の手に重なった
+					PRINTFORML 優しくその手を握り返して彼女の顔を見つめると、微かに頬を染めている
+					PRINTFORMW %ANAME(対象)%は何も言わずに彼女の手を取ると、自室に誘った
+					PRINTFORML 
+					PRINTFORML 薄暗い部屋の中で彼女とまぐわっている
+					PRINTFORML 持て余していた性欲を発散するかのように、彼女は%ANAME(対象)%の上で激しく腰を振る
+					PRINTFORML 彼女の熟れた身体をなぞると、ゾクゾクと身を震わせ甘えるような声を漏らした
+					PRINTFORML 切なげで色っぽい表情と絡みついてくる様な膣の締まりに我慢できずに射精してしまう
+					PRINTFORML すると彼女はビクンと痙攣して%ANAME(対象)%の胸に倒れ込むと、悦びの声を上げながら絶頂した
+					PRINTFORMW 雨音の響く中、しばしの間、二人は焼けるような快楽に身を委ねた
+					PRINTFORML 
+					PRINTFORMW 川止めが終わると、%ANAME(対象)%は彼女と何も言わずに別れた
+				ELSE
+					PRINTFORML 日に焼けた肌と屈強な肉体を持つ男性だ
+					PRINTFORML どうやら家族の為に出稼ぎに来ているらしい
+					PRINTFORML 暇を持てました同士でたわいない会話をしていると、ふと彼が%ANAME(対象)%の手を握ってきた
+					PRINTFORML 彼を見つめると身体を寄せてきて、もっと良い暇つぶしをしないかと誘ってきた
+					PRINTFORML 奥さんの事は良いのかとからかうと、彼はややばつの悪そうな顔をしてしどろもどろになる
+					PRINTFORMW しかし満更でもなかった%ANAME(対象)%は、彼の誘いに乗って部屋へ招かれた
+					PRINTFORML 
+					PRINTFORML 薄暗い部屋の中で彼とまぐわっている
+					PRINTFORML 彼は%ANAME(対象)%の腰を掴み、持てあましていた性欲を発散する様に激しく腰を打ちつけてくる
+					PRINTFORML %ANAME(対象)%も彼の荒々しい攻めですっかり女の本能を刺激され、甘えるような声を漏らして応える
+					PRINTFORML 彼の首に手を回してねだる様に舌を出すと、彼はむしゃぶりつく様に舌を絡めてきた
+					PRINTFORML 彼と深々と繋がりながら膣内射精を受け、%ANAME(対象)%は雌の悦びで身を震わせながら絶頂に達した
+					PRINTFORMW 雨音の響く中、しばしの間、二人で焼けるような快楽に身を委ねた
+					CALL FORCE_FUCK(対象, -1, @"行きずりの男の\@RAND:2 ? ペニス # 唇\@", @"行きずりの男", RAND:2 + 1)
+					PRINTFORML 
+					PRINTFORML 川止めが終わるまでしばらくの間、まるで夫婦のように過ごした
+					PRINTFORMW 別れ際、彼は%ANAME(対象)%の下腹部を撫で回し、子供が出来たら面倒を見てやると囁いてきた
+				ENDIF
+			ENDIF
+	;占い師に遭遇
+	CASE 97
+		PRINTFORML %ANAME(対象)%は探索中、占い師に出会った
+		PRINTFORML サービスしてくれると言うので話のタネに占ってもらう事にした
+		PRINTFORMW 占い師は%ANAME(対象)%の手の平を逃げるとブツブツと呟き出した
+		PRINTFORML 
+		SELECTCASE RAND:4
+			CASE 0
+				PRINTFORML 金運がついていると言われた
+				PRINTFORML 本当かどうかと怪しんでいたが、帰り道にお金を拾った
+				PRINTFORMW 機会があればまたあの占い師に会う事にしよう
+				金額 = 500 + 500 * (RAND:5 + 1)
+				MONEY += 金額
+				CALL COLORPRINTFORM(@"金{金額}を手に入れた", COLOR("注意"))
+				PRINTFORMW 
+			CASE 1
+				PRINTFORML 水難の相が出ていると言われた
+				PRINTFORML 嫌な結果に顔をしかめながらも気にしない事にした
+				PRINTFORML …しかしその後の探索中に、足を滑らせて水路に落ちてしまった
+				PRINTFORMW 占い師の言うとおりに気を付けた方がよかったと後悔しながら帰路についた
+				CALL ADD_COOLTIME(対象, 2)
+				CALL COLORPRINTFORM(@"%ANAME(対象)%は2ターンのクールダウンに入った", COLOR("注意"))
+				PRINTFORMW 
+			CASE 2
+				PRINTFORML 周りの人に感謝して生きると良い事があると言われた
+				PRINTFORML 占いというよりも説教みたいだなと思いながらも、彼の言葉が妙に頭に残った
+				PRINTFORMW 宮殿に帰った後はいつもより仲間に気遣うようにしてみた
+				IF 対象 == MASTER
+					FOR LOCAL, 0, CHARANUM
+						SIF CFLAG:(LOCAL):所属 == CFLAG:MASTER:所属 && !CFLAG:(LOCAL):9 && !IS_ANIMAL(LOCAL)
+							CFLAG:(LOCAL):好感度 += 50
+					NEXT
+					CALL COLORPRINTFORM(@"仲間の評価が上がった", COLOR("注意"))
+					PRINTFORMW 
+				ENDIF
+			CASE 3
+				IF IS_MALE(対象)
+					PRINTFORML 女難の相に気を付けるように言われた
+					PRINTFORML 身に覚えがあるような無い様な
+					PRINTFORMW %ANAME(対象)%は首をひねりながら帰路についた
+				ELSE
+					PRINTFORML 占い師に瞳を見つめるように言われ、きょとんとしながらも見つめる
+					PRINTFORML すると次第に%ANAME(対象)%の頭がぼんやりとしだし、視界がぐにゃりと歪む
+					PRINTFORML 彼は%ANAME(対象)%を見つめながら、君はもう少し性に奔放に生きたほうが良い、と諭してきた
+					PRINTFORMW その言葉は妙な説得力を持って頭の中に響き、%ANAME(対象)%は虚ろな瞳でコクリと頷いた
+					PRINTFORML 男が指を鳴らすと、%ANAME(対象)%は我に返った、どうやら気分を悪くしてぼんやりしていたらしい
+					PRINTFORML ならば気晴らしにセックスをしようと男に誘われると、%ANAME(対象)%は一瞬固まった
+					PRINTFORML しかし次の瞬間、笑みを浮かべて彼の言葉に頷いた
+					PRINTFORMW %ANAME(対象)%はニヤケる男と腕を絡ませながら近くの宿屋へと向かった
+					PRINTFORML 
+					PRINTFORML %ANAME(対象)%は雌壺で彼のペニスを深々と咥えこみながらキスをしている
+					PRINTFORML 夢中で舌を絡ませながら、ゆさゆさと腰を揺すられると、時折唇の隙間から甘い吐息を漏らす
+					PRINTFORMW 恋人の様な甘いセックスに%ANAME(対象)%はすっかりメロメロになり、種を求めて子宮が降りてくるのを感じた
+					PRINTFORML 子宮口をぐりぐりと刺激されると、ゾクゾクと身体を震わせ膣壁でペニスを締め付け嬌声を上げる
+					PRINTFORML %ANAME(対象)%の膣肉の刺激に、彼も耐えられなくなり子宮内にペニスをねじ込む様にして精を放つ
+					PRINTFORML とたんに下腹部に広がる熱を感じて、%ANAME(対象)%は雌の悦びと共にアヘ顔を晒して絶頂した
+					PRINTFORMW 彼の子種をどぷどぷと胎内に注がれながら、%ANAME(対象)%は至福の時間を味わいつつ再び絶頂した
+					CALL FORCE_FUCK(対象, -1, @"占い師の\@RAND:2 ? ペニス # 唇\@", @"占い師", RAND:2 + 1)
+					PRINTFORML 
+					PRINTFORMW %ANAME(対象)%はたっぷりセックスを楽しんだ後、連絡先を交換して彼と別れた
+				ENDIF
+		ENDSELECT
+	;弓の勝負
+	CASE 98
+		PRINTFORML 山の中を歩いていると、猟師に出会った
+		PRINTFORML 彼は%ANAME(対象)%の目の前で兎を仕留めて見せた
+		PRINTFORML 優れた弓の腕に賞賛の言葉を贈ると、彼は狩りの勝負を持ちかけてきた
+		PRINTFORML 勝てば美味しいご飯を奢ってくれると言う
+		PRINTFORMW どうしよう？
+		CALL ASK_MULTI(@"勝負する" ,"やめておく")
+			IF RESULT == 1
+				PRINTFORML 自分では勝負にならないだろう、辞退した
+				PRINTFORMW 彼は残念そうに肩をすくめると兎を手に去って行った
+			ELSE
+				PRINTFORML 受けて立つ事にした
+				PRINTFORML より大きな獲物を捕まえたほうが勝ちだ
+				PRINTFORMW さて、どうしよう？
+				CALL ASK_MULTI(@"弓で狩る" ,"罠を仕掛ける")
+					IF RESULT == 0
+						PRINTFORMW 彼と同じく弓で狩る事にした
+						LOCAL:0 = ABL:対象:武闘
+						LOCAL:1 = 0
+					ELSE
+						PRINTFORMW こちらは罠を仕掛ける事にした
+						LOCAL:0 = ABL:対象:知略
+						LOCAL:1 = 1
+					ENDIF
+				PRINTFORML ・
+				PRINTFORML ・
+				PRINTFORMW ・
+				IF (LOCAL:0) * (RAND:5 + 1) >= 40 * (RAND:5 + 1) + DAY
+					PRINTFORML やった！
+					PRINTFORML %ANAME(対象)%は見事に彼よりも立派な獲物をしとめた
+					PRINTFORMW 彼は%ANAME(対象)%の腕に感服し、仕留めた獲物を使って美味しいご飯を奢ってくれた
+					IF LOCAL:1 == 0
+						CALL PRINT_ADD_EXP(対象, "武闘経験値", RAND:10 + 5, 1)
+					ELSE
+						CALL PRINT_ADD_EXP(対象, "知略経験値", RAND:10 + 5, 1)
+					ENDIF
+				ELSE
+					PRINTFORMW 負けてしまった
+					IF IS_MALE(対象)
+						PRINTFORMW しかし彼は良い勝負だったと褒め、仕留めた獲物を使って美味しいご飯を奢ってくれた
+					ELSE
+						PRINTFORML 彼は獲物をぶら下げながら%ANAME(対象)%に近づき、勝負の褒賞を求めてきた
+						PRINTFORML 何のことかわからず戸惑っていると、彼は%ANAME(対象)%の腰に手を回して抱き寄せてきた
+						PRINTFORML ドギマギする%ANAME(対象)%に彼はぐぐっと顔を近づけると、身体を求めてきた
+						PRINTFORMW 勝負に負けた%ANAME(対象)%は渋々ながら要求に従うしかなかった
+						PRINTFORML 
+						PRINTFORML 茂みの奥で腰掛ける彼の上に跨り、%ANAME(対象)%は腰を振っている
+						PRINTFORML その表情は恍惚としており、彼に見せつける様に淫らに身体をくねらせている
+						PRINTFORML 彼のペニスはとても逞しく腰を上下させる度に膣奥まで届き、%ANAME(対象)%は甘い吐息を漏らしてしまう
+						PRINTFORML %ANAME(対象)%は与えられる快楽に没頭する様に涎を垂らしながら夢中で腰を振り、彼のペニスを扱き続ける
+						PRINTFORML 彼に腰を掴まれて肉棒を膣奥まで捻じりこまれると、%ANAME(対象)%は待望の瞬間に期待して膣を締め上げる
+						PRINTFORMW そして彼のペニスから放たれる灼熱を胎内で受け止めながら、%ANAME(対象)%はあられもない嬌声を上げて絶頂した
+						CALL FORCE_FUCK(対象, -1, @"狩人の\@RAND:2 ? ペニス # 唇\@", @"狩人", RAND:2 + 1)
+						PRINTFORML 
+						PRINTFORMW すっかり彼の“獲物”にされてしまった%ANAME(対象)%は、日が暮れるまでたっぷりと可愛がられた
+					ENDIF
+				ENDIF
+			ENDIF
+	;オークション
+	CASE 99
+		PRINTFORML 深夜の歓楽街を探索していると、気になる店を見つけた
+		PRINTFORML 身なりの良い客の集団が先ほどから何度も入店しているものの
+		PRINTFORML 外から見た限りではそんなに繁盛しているようには見えない
+		PRINTFORMW どうしよう？
+		CALL ASK_MULTI(@"忍びこむ" ,"放っておく")
+			IF RESULT == 1
+				PRINTFORML いや、考え過ぎだろう
+				PRINTFORMW %ANAME(対象)%はかぶりを振るとその場を立ち去った
+			ELSE
+				PRINTFORML 何か悪巧みがありそうだ
+				PRINTFORMW %ANAME(対象)%は自身の直感を信じて客に紛れて忍びこむ事にした
+				PRINTFORML 
+				IF IS_MALE(対象)
+					PRINTFORML 表向きはただの酒場だったが、その地下ではオークションが開かれていた
+					PRINTFORML 出展されている品物はいかにもいわくつきのありそうな物ばかりだ
+					PRINTFORML それどころか奴隷や妖怪までも出品され始めた
+					PRINTFORML 恐らくここに集まった連中の慰み者や鑑賞用なのだろう
+					PRINTFORML しばし競りの様子を窺っていると、%ANAME(対象)%好みの奴隷が一人売りに出された
+					PRINTFORMW どうしよう？
+					金額 = 2000 + 1000 * (RAND:10 + 1)
+					CALL ASK_MULTI_JUDGE(@"競りに参加する", MONEY >= 金額,"立ち去る", 1)
+						IF RESULT == 1
+							PRINTFORML %ANAME(対象)%はこれ以上その場に居たくなかった
+							PRINTFORMW 目を背けると逃げる様にその場を後にした
+						ELSE
+							PRINTFORML その奴隷を気に入った%ANAME(対象)%も競りに参加する事にした
+							PRINTFORML 競りは盛り上がったが、何とか彼女を落札することが出来た
+							PRINTFORML すると店員がサービスとして店の奥の個室を貸してくれた
+							PRINTFORMW %ANAME(対象)%は微かに震える彼女を連れてその部屋に入った
+							PRINTFORML 
+							PRINTFORML 娘は幼さを残しながらも女性らしい色気に満ちた身体をしていた
+							PRINTFORML しっかりと調教されており、%ANAME(対象)%の愛撫に対し敏感に反応して楽しませてくれる
+							PRINTFORML 我慢出来ずにひくつく割れ目にペニスをねじ込むと、彼女はのけぞりながら可愛い声を上げた
+							PRINTFORMW 膣の具合も最高であり、痙攣してしがみ付いてくる彼女をたっぷりと可愛がってやった
+							PRINTFORML 
+							PRINTFORML 存分に堪能した後、いくらか金を渡して彼女を解放してやった
+							PRINTFORMW 解放された彼女は困惑の表情をしながら、切なげな視線で%ANAME(対象)%を見つめていた
+							MONEY -= 金額
+						ENDIF
+				ELSE
+					PRINTFORML 表向きはただの酒場だったが、その地下ではオークションが開かれていた
+					PRINTFORML 出展されている品物はいかにもいわくつきのありそうな物ばかりだ
+					PRINTFORML その光景に思わず眉をしかめる%ANAME(対象)%は、背後から忍び寄る人影に気付かなかった
+					PRINTFORML 気配に気づいた時にはもう遅く、ガツンと後頭部を殴られて昏倒してしまった
+					PRINTFORMW %ANAME(対象)%を殴り倒した男はこの侵入者に対し、怪しげな笑みを浮かべて店の奥へと運び込んだ
+					PRINTFORML 
+					PRINTFORML %ANAME(対象)%はオークションの商品として売られることになった
+					PRINTFORML 手枷と目隠しをされ、全裸に剥かれて舞台に乗せられて競りの対象として見世物にされている
+					PRINTFORML 何も見えずとも無数の好奇の目線で見つめられているのを感じ、%ANAME(対象)%は思わず息を荒げる
+					PRINTFORMW 不意に司会に尻を揉まれて、%ANAME(対象)%は甘い吐息を漏らしてしまい、客の歓声が上がる
+					PRINTFORML %ANAME(対象)%の競りはとても盛り上がり、結局は一人の富豪に高額で売られることになった
+					PRINTFORML 極上の品に興奮した彼は、%ANAME(対象)%を受け取ると全身を味見する様にねっとりと愛撫してくる
+					PRINTFORML 気持ち悪さに何とか逃げようとするもそれも構わず、彼の屋敷に持ち帰られることになった
+					PRINTFORMW その後%ANAME(対象)%は男ののペットして散々に犯され、次第に身も心も彼に飼われる幸せに染まっていった
+					CALL FORCE_FUCK(対象, -1, @"富豪中年の\@RAND:2 ? ペニス # 唇\@", @"富豪中年", RAND:2 + 1)
+					CALL FORCE_FUCK(対象, -1, @"富豪中年の\@RAND:2 ? ペニス # 唇\@", @"富豪中年", RAND:2 + 1)
+					PRINTFORML 
+					PRINTFORML 男にしばらく飼われていた%ANAME(対象)%だが、何とか隙をついて逃げ出した
+					PRINTFORMW しかし身体はすっかり躾けられてしまっており子宮の熱い疼きは残ってしまった
+				ENDIF
 			ENDIF
 ENDSELECT
 RETURN 

@@ -1,4 +1,9 @@
 ﻿;複数シナリオにまたがるイベント処理
+;SLG_DAILYは戦略フェイズ終了時に判定が呼び出される。
+;ただし観戦モード時は一律で無効。
+;主人公が放浪しているか勢力に所属しているかは、各イベントの実行判定の責任において判断すること。
+;クリアフラグを一応確認するようにしているが、あれが立つと戦略フェイズ画面でターンを進められなくなるはずなので、問題ないっちゃない。
+
 @SLG_DAILY()
 #DIM EVENT_LIST, 100
 #DIM EVENT_PICK, 1000
@@ -19,10 +24,9 @@ CALL SLG_DAILY_DERIVATION
 EVENT_COUNT:0 = SDCONFIG:951 + 1, SDCONFIG:952 + 1
 
 ;イベントリストの作成（起動後作成していなければ）
-;イベント追加時は系列に合わせて定数に使用したものを突っ込んでおいてください
 IF !EVENT_LIST:1
 	VARSET EVENT_LIST, -1
-	EVENT_LIST:0 = SDCON_仕官の誘い
+	EVENT_LIST:0 = SDCON_仕官の誘い, SDCON_闇討ちの提案, SDCON_弾幕ごっこ
 ENDIF
 
 ;デイリーイベント発生チェック
@@ -48,16 +52,24 @@ FOR LOCAL:0, 0, 100
 	;士官しないかと誘われる
 	;確率判定は本体で行う
 	CASE SDCON_仕官の誘い
-		SIF !SDCONFIG:SDCON_仕官の誘い
+		IF !SDCONFIG:SDCON_仕官の誘い && !FLAG:クリアフラグ && SDVAR:仕官の誘い_非勧誘残ターン
+			DAILY_NAME=士官の誘い
 			CALL INVITE_TO_COUNTRY
-
+		ENDIF
 	;闇討ち
 	;15期以降、確率2.5%で発生
-	CASE DCON_闇討ち
-		IF !DCONFIG:DCON_闇討ち && DAY >= 15 && RAND:1000 < 25 * EVENT_ODDS && !FLAG:クリアフラグ
+	CASE SDCON_闇討ちの提案
+		IF !SDCONFIG:SDCON_闇討ちの提案 && DAY >= 15 && RAND:1000 < 25 * EVENT_ODDS && !FLAG:クリアフラグ
 			DAILY_NAME = 闇討ちの提案
 			CALL DAILY_START()
 			CALL ASSASSIN_CHALLENGE
+		ENDIF
+	;5期以降、確率3%で発生
+	CASE SDCON_弾幕ごっこ
+		IF !SDCONFIG:SDCON_弾幕ごっこ && DAY >= 5 && RAND:1000 < 30 * EVENT_ODDS
+			DAILY_NAME = 弾幕ごっこ
+			CALL DAILY_START()
+			CALL DANMAKU
 		ENDIF
 	;未定義
 	CASEELSE

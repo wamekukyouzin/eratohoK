@@ -407,6 +407,7 @@ RETURNF ""
 ;-------------------------------------------------
 ;ARG:0番のキャラが将としての仕事を行える状態なら1を、そうでないなら0を返す関数
 ;条件:捕虜でない、臨月・育児中でない、部隊・都市いずれの将にも設定されていない
+;こちらに条件を追加した場合は、TMP_CREATE_IS_FREE_MAPにも追加すること
 ;-------------------------------------------------
 @IS_FREE(ARG:0)
 #FUNCTION
@@ -421,7 +422,7 @@ SIF TALENT:(ARG:0):触手妊娠 || TALENT:(ARG:0):Ａ触手妊娠 || IS_ANIMAL(A
 	RETURNF 0
 
 ;その他のチェック
-SIF COOLTIME:(ARG:0):0 || (ARG:0 == GET_COOK()) || ARG:0 == ID_TO_CHARA(DVAR:金貸し娘)
+SIF COOLTIME:(ARG:0):0 || (ARG:0 == GET_COOK()) || !CHECKDVAR(ARG:0)
 	RETURNF 0
 
 LOCAL:2 = CFLAG:(ARG:0):1
@@ -1735,9 +1736,10 @@ FOR LOCAL, 1, CHARANUM
 	IF CFLAG:LOCAL:捕虜先 && !IS_COUNTRY(CFLAG:LOCAL:捕虜先)
 		SETCOLOR COLOR("注意")
 		IF CFLAG:LOCAL:1
-			PRINTFORML 囚われていた%ANAME(LOCAL)%は解放され、%NAME:(GET_COUNTRY_BOSS(CFLAG:LOCAL:1))%に戻りました
+			PRINTFORML 囚われていた%ANAME(LOCAL)%は解放され、%NAME:(GET_COUNTRY_BOSS(CFLAG:LOCAL:1))%のところに戻りました
 		ELSE
 			PRINTFORML 囚われていた%ANAME(LOCAL)%は解放され、放浪しました
+			CFLAG:LOCAL:特殊状態フラグ = 1
 		ENDIF
 		RESETCOLOR
 	;解放されないフラグが立っていたら脱走不可能
@@ -1750,6 +1752,7 @@ FOR LOCAL, 1, CHARANUM
 			PRINTFORML %NAME:(GET_COUNTRY_BOSS(CFLAG:LOCAL:捕虜先))%に囚われていた%ANAME(LOCAL)%は\@ CFLAG:LOCAL:解放カウンタ >= 10 ? ようやく# \@解放され、%NAME:(GET_COUNTRY_BOSS(CFLAG:LOCAL:1))%のところに戻りました
 		ELSE
 			PRINTFORML %NAME:(GET_COUNTRY_BOSS(CFLAG:LOCAL:捕虜先))%に囚われていた%ANAME(LOCAL)%は解放され、放浪しました
+			CFLAG:LOCAL:特殊状態フラグ = 1
 		ENDIF
 		RESETCOLOR
 		;BANDIT_RELEASE_MSGでまた捕虜になる処理があるので、LOCAL:1に一旦保存
@@ -1785,12 +1788,11 @@ FOR LOCAL, 1, CHARANUM
 				PRINTFORML %NAME:(GET_COUNTRY_BOSS(CFLAG:LOCAL:捕虜先))%に囚われていた%ANAME(LOCAL)%は脱走し、%NAME:(GET_COUNTRY_BOSS(CFLAG:LOCAL:1))%のところに戻りました
 			ELSE
 				PRINTFORML %NAME:(GET_COUNTRY_BOSS(CFLAG:LOCAL:捕虜先))%に囚われていた%ANAME(LOCAL)%は脱走し、放浪しました
+				CFLAG:LOCAL:特殊状態フラグ = 1
 			ENDIF
 			RESETCOLOR
 			CFLAG:LOCAL:捕虜先 = 0
 			CFLAG:LOCAL:解放カウンタ = 0
-			SIF !CFLAG:LOCAL:所属
-				CFLAG:LOCAL:特殊状態フラグ = 1
 		ENDIF
 	ENDIF
 NEXT
