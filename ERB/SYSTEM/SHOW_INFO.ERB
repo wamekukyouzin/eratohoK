@@ -145,6 +145,16 @@ ELSE
 	PRINTL 
 	PRINTL □ 素質 □
 	CALL NEW_PRINT_TALENT(ARG:0)
+	PRINTL 
+	PRINTL □ ＳＬＧ □
+	CALL NEW_PRINT_SLGTALENT(ARG:0)
+	PRINTL 
+	IF CONFIG:16 == 0
+		PRINTL □ タトゥ □
+		PRINT   
+		CALL PRINT_TATOO(ARG:0)
+		PRINTL 
+	ENDIF
 	PRINTL □ その他 □
 	IF IS_FEMALE(ARG:0)
 		PRINTFORML Ｖ締まり:%TOSTR_TIGHTNESS(TALENT:(ARG:0):Ｖ締まり)%
@@ -161,14 +171,10 @@ ELSE
 		PRINTL
 	ENDIF
 	PRINTFORML 性的嗜好:%TOSTR_SEXUAL_PREFERENCE(TALENT:(ARG:0):性的嗜好)%\@ TALENT:(ARG:0):性的嗜好ロック ? (他の者に刻まれた) # \@
-	IF CONFIG:16 == 0
-		PRINTL □ タトゥ □
-		CALL PRINT_TATOO(ARG:0)
-		PRINTL
-	ENDIF
+	PRINTL
 	PRINTL □ 特殊な陥落 □
-	FOR LOCAL, 0, 10
-		SIF TOSTR_FALLEN_TALENT(LOCAL) != ""
+	FOR LOCAL, 0, 63
+		SIF GETBIT(TALENT:(ARG:0):特殊勢力陥落系, LOCAL) && TOSTR_FALLEN_TALENT(LOCAL) != ""
 			CALL COLORPRINTFORM(TOSTR_FALLEN_TALENT(LOCAL) + " ", COLOR("ピンク"))
 	NEXT
 	PRINTL
@@ -637,6 +643,32 @@ IF CONFIG:6 == 1
 	PRINTL 
 ENDIF
 
+;-------------------------------------------------
+;ARG:0番のキャラのＳＬＧ素質を表示
+;-------------------------------------------------
+@NEW_PRINT_SLGTALENT(ARG:0)
+#DIMS STN
+LOCAL:1 = 0
+LOCAL:4 = 0
+PRINT   
+FOR LOCAL, 0, 63
+	IF GETBIT(TALENT:(ARG:0):ＳＬＧ素質, LOCAL) && TOSTR_SLG_TALENT(LOCAL) != ""
+		STN = %TOSTR_SLG_TALENT(LOCAL)%
+		;改行判定
+		LOCAL:3 = STRLENS(STN) + 3
+		LOCAL:1 += LOCAL:3
+		IF LOCAL:1 >= 78
+			LOCAL:1 = LOCAL:3
+			PRINTL 
+			PRINT   
+		ENDIF
+		PRINTFORM <%STN%> 
+		LOCAL:4 = 1
+	ENDIF
+NEXT
+SIF !LOCAL:4
+	PRINT なし
+PRINTL
 ;-------------------------------------------------
 ;数値表示変更
 ;-------------------------------------------------

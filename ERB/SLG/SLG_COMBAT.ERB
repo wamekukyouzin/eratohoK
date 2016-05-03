@@ -728,7 +728,7 @@ NEXT
 FOR LOCAL:0, 0, 3
 	LOCAL:2 = 発動側:(LOCAL:0)
 	;暗殺。相手武将からランダムで1人部隊から取り除き、クールタイムを付与する。
-	IF LOCAL:2 >= 0 && TALENT:(LOCAL:2):暗殺 && 75 > RAND:1000
+	IF LOCAL:2 >= 0 && GETBIT(TALENT:(LOCAL:2):ＳＬＧ素質, 素質_暗殺) && 75 > RAND:1000
 		;LOCAL:3 = 対象部隊の人数
 		;LOCAL:4 = 変数「対象」に対し用いる添え字
 		;LOCAL:5 = 対象部隊の勢力番号
@@ -779,7 +779,7 @@ FOR LOCAL:0, 0, 3
 			ENDIF
 		ENDIF
 	ENDIF
-	IF LOCAL:2 >= 0 && TALENT:(LOCAL:2):弁舌 && 15 > RAND:100
+	IF LOCAL:2 >= 0 && GETBIT(TALENT:(LOCAL:2):ＳＬＧ素質, 素質_弁舌) && 15 > RAND:100
 		LOCAL:6 = RAND(1, 20)
 		;勢力番号取得
 		IF ARG:5 >= 0
@@ -882,7 +882,7 @@ ENDIF
 SETCOLOR COLOR("素質発動")
 FOR LOCAL:0, 0, 3
 	IF 武将:LOCAL >= 0
-		IF TALENT:(武将:LOCAL):三種の神器 && 20 > RAND:100
+		IF GETBIT(TALENT:(武将:LOCAL):ＳＬＧ素質, 素質_三種の神器) && 20 > RAND:100
 			SELECTCASE RAND:3
 				CASE 0
 					PRINTFORML %ANAME(武将:LOCAL)%の三種の神器・剣！
@@ -900,33 +900,33 @@ FOR LOCAL:0, 0, 3
 		ENDIF
 		;策士。計略が発動する。
 		;相手のBATTLE_INTの1.3倍がこちらのBATTLE_INTより高い場合、そちらを利用する（反計を防止）
-		IF TALENT:(武将:LOCAL):策士 && 10 > RAND:100
+		IF GETBIT(TALENT:(武将:LOCAL):ＳＬＧ素質, 素質_策士) && 10 > RAND:100
 			PRINTFORML %ANAME(武将:LOCAL)%は策を張り巡らせる……！
 			BATTLE_INT:発動側 = MAX(BATTLE_INT:発動側, BATTLE_INT:受動側 * 13 / 10)
 			BATTLE_FORCE_SCHEME = 発動側
 		ENDIF
 		;明察。反計の確定発動。
 		;具体的には自軍のBATTLE_INTを敵軍の4倍にしつつ（反計の発動を確実にしつつ）、相手側にFORCE_SCHEMEを入れる
-		IF TALENT:(武将:LOCAL):明察 && 7 > RAND:100
+		IF GETBIT(TALENT:(武将:LOCAL):ＳＬＧ素質, 素質_明察) && 7 > RAND:100
 			PRINTFORML %ANAME(武将:LOCAL)%は敵部隊の計略を見透かした！
 			BATTLE_INT:発動側 = BATTLE_INT:受動側 * 4
 			BATTLE_FORCE_SCHEME = 受動側
 			
 		ENDIF
 		;ステゴロ。両軍割合ダメージ。一応自軍に有利。
-		IF TALENT:(武将:LOCAL):ステゴロ && 30 > RAND:100
+		IF GETBIT(TALENT:(武将:LOCAL):ＳＬＧ素質, 素質_ステゴロ) && 30 > RAND:100
 			PRINTFORML %ANAME(武将:LOCAL)%は大暴れしている！
 			BATTLE_RATE_DMG:発動側 += RAND(10,15)
 			BATTLE_RATE_DMG:受動側 += RAND(5,10)
 		ENDIF
 		;突貫。攻撃力が増えるが防御力が減る。
-		IF TALENT:(武将:LOCAL):突貫 && 15 > RAND:100
+		IF GETBIT(TALENT:(武将:LOCAL):ＳＬＧ素質, 素質_突貫) && 15 > RAND:100
 			PRINTFORML %ANAME(武将:LOCAL)%は捨て身の陣をしいた！
 			TIMES BATTLE_ATC:発動側, 1.2
 			TIMES BATTLE_DEF:発動側, 0.7
 		ENDIF
 		;下克上等。相手より弱ければ弱いほど発動率は高まる。野戦部隊にのみ発動する。
-		IF TALENT:(武将:LOCAL):下克上等 && BATTLE_F_UNIT:受動側
+		IF GETBIT(TALENT:(武将:LOCAL):ＳＬＧ素質, 素質_下克上等) && BATTLE_F_UNIT:受動側
 			LOCAL:1 = (100 - (BATTLE_ATC:発動側 + BATTLE_DEF:発動側 + BATTLE_INT:発動側 + BATTLE_MAG:発動側) * 100  / (BATTLE_ATC:受動側 + BATTLE_DEF:受動側 + BATTLE_INT:受動側 + BATTLE_MAG:受動側)) / 2
 			IF LOCAL:1 > RAND:100
 				PRINTFORML %ANAME(武将:LOCAL)%の下克上等！
@@ -942,14 +942,14 @@ FOR LOCAL:0, 0, 3
 			ENDIF
 		ENDIF
 		;魔力転換。攻撃力の2割を割合ダメージ基礎値とする。
-		IF TALENT:(武将:LOCAL):魔力転換 && 15 > RAND:100
+		IF GETBIT(TALENT:(武将:LOCAL):ＳＬＧ素質, 素質_魔力転換) && 15 > RAND:100
 			PRINTFORML %ANAME(武将:LOCAL)%は攻撃力を魔力に転換した！
 			BATTLE_MAG:発動側 += BATTLE_ATC:発動側 * 2 / 10
 			BATTLE_ATC:発動側 = BATTLE_ATC:発動側 * 8 / 10
 		ENDIF
 		
 		;バンドガール。歌唱（料理も）の補正が二重にかかる。
-		IF TALENT:(武将:LOCAL):バンドガール && 5 > RAND:100
+		IF GETBIT(TALENT:(武将:LOCAL):ＳＬＧ素質, 素質_バンドガール) && 5 > RAND:100
 			PRINTFORML %ANAME(武将:LOCAL)%は楽器演奏で士気を高めた！
 			IF 都市フラグ
 				BATTLE_ATC:発動側 = MAX(BATTLE_ATC:発動側, ABL_50_POWER) * CITY_SUPPORT_LEVEL(勢力) / 1000
@@ -963,13 +963,13 @@ FOR LOCAL:0, 0, 3
 		ENDIF
 		
 		;哨戒。被害軽減率を僅かに得る。
-		IF TALENT:(武将:LOCAL):哨戒 && 15 > RAND:100
+		IF GETBIT(TALENT:(武将:LOCAL):ＳＬＧ素質, 素質_哨戒) && 15 > RAND:100
 			PRINTFORML %ANAME(武将:LOCAL)%は周囲を警戒している！
 			BATTLE_RATE_GRD:発動側 += 10
 		ENDIF
 		
 		;都市防衛。自軍が都市である場合のみ、防御力が上昇し被害軽減率を得る。
-		IF 都市フラグ && TALENT:(武将:LOCAL):防衛戦術 && 25 > RAND:100
+		IF 都市フラグ && GETBIT(TALENT:(武将:LOCAL):ＳＬＧ素質, 素質_防衛戦術) && 25 > RAND:100
 			PRINTFORML %ANAME(武将:LOCAL)%は防衛に巧みな戦術を発揮した！
 			TIMES BATTLE_DEF:発動側 , 1.20
 			BATTLE_RATE_GRD:発動側 += 20
@@ -1439,7 +1439,7 @@ FOR LOCAL:0, 0, 3
 				TIMES CAPTURE_RATE, 0.5
 				CAPTURE_RATE = MAX(CAPTURE_RATE, 5, 50)
 		ENDSELECT
-		IF TALENT:(LOCAL:4):早足 && RAND:3 && CAPTURE_RATE != 100
+		IF GETBIT(TALENT:(LOCAL:4):ＳＬＧ素質, 素質_早足) && RAND:3 && CAPTURE_RATE != 100
 			SETCOLOR COLOR("素質発動")
 			PRINTFORML %ANAME(LOCAL:4)%は早足を利用して逃げ回る！
 			RESETCOLOR
@@ -1505,8 +1505,8 @@ FOR LOCAL:0, 0, 3
 				LOCAL:5 = 0
 				;治療持ちが同じ勢力にいる場合は確率、本人が治療持ちの場合は確定で、負傷を軽減
 				FOR LOCAL:1, 0, CHARANUM
-					IF COOLTIME:(LOCAL:4):0 > 1 && (TALENT:(LOCAL:1):治療 && CFLAG:(LOCAL:1):1 == CFLAG:(LOCAL:4):1 && CFLAG:(LOCAL:1):9 == 0 && RAND:100 < 10) || (TALENT:(LOCAL:4):治療 && !LOCAL:5)
-						IF TALENT:(LOCAL:4):治療
+					IF COOLTIME:(LOCAL:4):0 > 1 && (GETBIT(TALENT:(LOCAL:1):ＳＬＧ素質, 素質_治療) && CFLAG:(LOCAL:1):1 == CFLAG:(LOCAL:4):1 && CFLAG:(LOCAL:1):9 == 0 && RAND:100 < 10) || (GETBIT(TALENT:(LOCAL:4):ＳＬＧ素質, 素質_治療) && !LOCAL:5)
+						IF GETBIT(TALENT:(LOCAL:4):ＳＬＧ素質, 素質_治療)
 							COOLTIME:(LOCAL:4):0 = 1
 							LOCAL:5 = 1
 							SETCOLOR COLOR("素質発動")
