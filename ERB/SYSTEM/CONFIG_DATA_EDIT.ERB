@@ -1124,7 +1124,7 @@ RESTART
 
 ;TALENTNAMEの一時保存用
 #DIMS TN
-
+#DIMS STN
 ;君主かどうかのフラグ
 #DIM F_COUNTRY_BOSS
 
@@ -1306,8 +1306,66 @@ SELECTCASE MODE
 		PRINTL 
 		PRINTL  ※髪色・髪の長さはコンフィグの「外見に関する詳細の表示」がONのときのみ表示
 
-	;●EXP設定タブの表示
+	;●SLG素質設定タブの表示
 	CASE 2
+		;最大ページ数の計算
+		LOCAL:3 = 0
+		FOR LOCAL:0, 0, 63
+			STN = %TOSTR_SLG_TALENT(LOCAL:0)%
+			IF STN != ""
+				LOCAL:3 ++
+			ENDIF
+		NEXT
+		MAX_PAGE = (LOCAL:3 - 1) / 64 + 1
+		;ページが範囲外なら修正
+		IF PAGE >= 1
+			PAGE = (PAGE - 1) % MAX_PAGE + 1
+		ELSE
+			PAGE = MAX_PAGE - (-PAGE) % MAX_PAGE
+		ENDIF
+
+		LOCAL:3 = 0
+		LOCAL:4 = 0
+		LOCAL:5 = 0
+		FOR LOCAL:0, 0, 63
+			STN = %TOSTR_SLG_TALENT(LOCAL:0)%
+			IF STN != ""
+				IF LOCAL:3 >= (PAGE - 1) * 64 && LOCAL:3 < PAGE * 64
+					;改行判定
+					IF LOCAL:5 % 4 == 0
+						IF LOCAL:5 >= 1
+							PRINTL 
+						ENDIF
+						PRINT   
+						LOCAL:4 ++
+					ENDIF
+					LOCAL:5 ++
+					IF GETBIT(TALENT:(ARG:0):GETNUM(TALENT, "ＳＬＧ素質"), LOCAL:0)
+						SETCOLOR COLOR("選択中")
+					ENDIF
+					PRINTBUTTON @"{LOCAL:0, 3}\{%STN, 14%\}", LOCAL:0
+					RESETCOLOR
+					PRINT    
+				ENDIF
+				LOCAL:3 ++
+			ENDIF
+		NEXT
+		FOR LOCAL:0, LOCAL:4, 16
+			PRINTL 
+		NEXT
+
+		PRINTL 
+		PRINT   
+		PRINTBUTTON "901[前のページ]", 901
+		PRINT   
+		PRINTBUTTON "902[次のページ]", 902
+		PRINTL 
+		DRAWLINE
+
+
+
+	;●EXP設定タブの表示
+	CASE 3
 		LOCAL:3 = 0
 		LOCAL:4 = 0
 		FOR LOCAL:0, 40, 69
@@ -1571,9 +1629,11 @@ CALL PRINTBUTTON_EX("2000[能力設定]", 2000, 1, MODE == 0)
 PRINT     
 CALL PRINTBUTTON_EX("2001[素質設定]", 2001, 1, MODE == 1)
 PRINT     
-CALL PRINTBUTTON_EX("2002[経験設定]", 2002, 1, MODE == 2)
+CALL PRINTBUTTON_EX("2002[  ＳＬＧ]", 2002, 1, MODE == 2)
+PRINT
+CALL PRINTBUTTON_EX("2003[経験設定]", 2003, 1, MODE == 3)
 PRINT     
-CALL PRINTBUTTON_EX("2003[  その他]", 2003, 1, MODE == 3)
+CALL PRINTBUTTON_EX("2004[  その他]", 2004, 1, MODE == 4)
 PRINTL
 DRAWLINE
 PRINTBUTTON "3001[←前のキャラ]", 3001
@@ -1711,8 +1771,17 @@ ELSEIF MODE == 1
 			ENDIF
 		ENDIF
 	ENDIF
-;経験設定
+;SLG素質設定
 ELSEIF MODE == 2
+	IF RESULT == 901
+		PAGE --
+	ELSEIF RESULT == 902
+		PAGE ++
+	ELSEIF RESULT >= 0 && RESULT < 64 && TOSTR_SLG_TALENT(RESULT) != ""
+		INVERTBIT TALENT:(ARG:0):GETNUM(TALENT, "ＳＬＧ素質"), RESULT
+	ENDIF
+;経験設定
+ELSEIF MODE == 3
 	IF RESULT >= 40 && RESULT < 70 && EXPNAME:(RESULT) != ""
 		LOCAL:0 = RESULT
 		PRINTFORML %EXPNAME:(LOCAL:0)% の値を入力して下さい
