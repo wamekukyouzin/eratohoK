@@ -370,6 +370,7 @@ VARSET BATTLE_政治, 0
 VARSET BATTLE_歌唱, 0
 VARSET BATTLE_料理, 0
 VARSET BATTLE_妖術, 0
+VARSET BATTLE_素質, 0
 FOR LOCAL, 0, 3
 	LOCAL:2 = GET_UNIT_COMMANDER(ARG:0, ARG:1, LOCAL) >= 0
 	IF LOCAL:2 >= 0
@@ -379,6 +380,7 @@ FOR LOCAL, 0, 3
 		BATTLE_歌唱:0:LOCAL = ABL:(LOCAL:2):歌唱
 		BATTLE_料理:0:LOCAL = ABL:(LOCAL:2):料理
 		BATTLE_妖術:0:LOCAL = ABL:(LOCAL:2):妖術
+		BATTLE_素質:0:LOCAL = TALENT:(LOCAL:2):ＳＬＧ素質
 	ENDIF
 NEXT
 
@@ -392,6 +394,7 @@ IF ARG:3 >= 0
 			BATTLE_歌唱:1:LOCAL = ABL:(LOCAL:2):歌唱
 			BATTLE_料理:1:LOCAL = ABL:(LOCAL:2):料理
 			BATTLE_妖術:1:LOCAL = ABL:(LOCAL:2):妖術
+			BATTLE_素質:0:LOCAL = TALENT:(LOCAL:2):ＳＬＧ素質
 		ENDIF
 	NEXT
 ELSE
@@ -404,6 +407,7 @@ ELSE
 			BATTLE_歌唱:1:LOCAL = ABL:(LOCAL:2):歌唱
 			BATTLE_料理:1:LOCAL = ABL:(LOCAL:2):料理
 			BATTLE_妖術:1:LOCAL = ABL:(LOCAL:2):妖術
+			BATTLE_素質:0:LOCAL = TALENT:(LOCAL:2):ＳＬＧ素質
 			IF TALENT:(LOCAL:2):妖術知識
 				LOCAL:3 += ABL_POWER_X(ABL:(LOCAL:2):妖術, LOCAL:2) / 2
 			ENDIF
@@ -449,12 +453,8 @@ ELSE
 ENDIF
 
 ;基本値に影響を与える素質発動処理はここに
-CALL BATTLE_BASE_SKILL(0, ARG:0, ARG:1)
-IF BATTLE_F_UNIT:1 == 1
-	CALL BATTLE_BASE_SKILL(1, ARG:2, ARG:3)
-ELSE
-	CALL BATTLE_BASE_SKILL(1, ARG:2, -1, 1)
-ENDIF
+CALL BATTLE_BASE_SKILL(0, 1, ARG:0, ARG:1, ARG:2, ARG:3)
+CALL BATTLE_BASE_SKILL(1, 0, ARG:2, ARG:3, ARG:0, ARG:1)
 ;★
 ;PRINTFORML 攻撃0={BATTLE_ATC:0, 8}   防御0={BATTLE_DEF:0, 8}
 ;PRINTFORMW 攻撃1={BATTLE_ATC:1, 8}   防御1={BATTLE_DEF:1, 8}
@@ -745,6 +745,7 @@ BATTLE_DMG:1 = LOCAL:13
 #DIM 対象側キャラ, 3
 #DIM 発動キャラ
 #DIM 対象キャラ
+#DIM 発動キャラ素質
 ;各部隊の将を取得(発動側 20～22、対象 30～32)
 VARSET 発動側キャラ, -1
 VARSET 対象側キャラ, -1
@@ -784,8 +785,9 @@ FOR LOCAL:0, 0, 3
 	
 	SIF 発動キャラ < 0
 		CONTINUE
+	発動キャラ素質 = BATTLE_素質:発動側:LOCAL
 	;暗殺。相手武将の中から一人選択し、その能力を一時的に0にする（戦闘参加不能と解釈）
-	IF GETBIT(TALENT:発動キャラ:ＳＬＧ素質, 素質_暗殺) && 100 > RAND:100
+	IF GETBIT(発動キャラ素質, 素質_暗殺) && 100 > RAND:100
 		LOCAL:1 = RAND:VARSIZE("対象側キャラ")
 		対象キャラ = 対象側キャラ:(LOCAL:1)
 		IF 対象キャラ >= 0
@@ -799,8 +801,9 @@ FOR LOCAL:0, 0, 3
 			BATTLE_歌唱:(対象側):(LOCAL:1) = 0
 		ENDIF
 	ENDIF
-
-	IF GETBIT(TALENT:発動キャラ:ＳＬＧ素質, 素質_弁舌) && 15 > RAND:100
+	
+	;弁舌。兵力を奪う。
+	IF GETBIT(発動キャラ素質, 素質_弁舌) && 15 > RAND:100
 		LOCAL:6 = RAND(1, 20)
 		;勢力番号取得
 		IF 対象部隊 >= 0
@@ -861,143 +864,160 @@ NEXT
 ;-------------------------------------------------
 ;優先して発動する特殊計略の処理
 ;引数0～1には計算用変数の配列番号(0 or 1)を取る ARG:0=計略発動側 ARG:1=受動側
-;※都市フラグが勃っている防衛部隊とみなし、勢力を都市番号として使用
+;※部隊が0以下の場合防衛部隊とみなし、勢力を都市番号として使用
 ;-------------------------------------------------
-@BATTLE_BASE_SKILL(発動側, 勢力, 部隊, 都市フラグ=0)
+@BATTLE_BASE_SKILL(発動側, 対象側, 発動勢力, 発動部隊, 対象勢力, 対象部隊)
 #DIM 勢力
 #DIM 部隊
 #DIM 発動側
-#DIM 都市フラグ
-#DIM 武将, 3
-#DIM 受動側
-VARSET 武将, -1
-IF 発動側 == 0
-	受動側 = 1
-ELSE
-	受動側 = 0
-ENDIF
-IF !都市フラグ
+#DIM 対象側
+#DIM 発動勢力
+#DIM 発動部隊
+#DIM 対象勢力
+#DIM 対象部隊
+#DIM 発動側キャラ, 3
+#DIM 対象側キャラ, 3
+#DIM 発動キャラ
+#DIM 対象キャラ
+#DIM 発動キャラ素質
+
+VARSET 発動側キャラ, -1
+VARSET 対象側キャラ, -1
+
+IF 発動部隊 >= 0
 	FOR LOCAL:0, 0, 3
-		武将:(LOCAL) = GET_UNIT_COMMANDER(勢力, 部隊, LOCAL)
+		発動側キャラ:(LOCAL) = GET_UNIT_COMMANDER(対象勢力, 対象部隊, LOCAL)
 	NEXT
 ELSE
 	FOR LOCAL:0, 0, 2
-		武将:(LOCAL) = GET_CITY_COMMANDER(勢力, LOCAL)
+		発動側キャラ:(LOCAL) = GET_CITY_COMMANDER(対象勢力, LOCAL)
+	NEXT
+ENDIF
+
+IF 対象部隊 >= 0
+	FOR LOCAL:0, 0, 3
+		対象側キャラ:(LOCAL) = GET_UNIT_COMMANDER(対象勢力, 発動部隊, LOCAL)
+	NEXT
+ELSE
+	FOR LOCAL:0, 0, 2
+		対象側キャラ:(LOCAL) = GET_CITY_COMMANDER(対象勢力, LOCAL)
 	NEXT
 ENDIF
 
 SETCOLOR COLOR("素質発動")
 FOR LOCAL:0, 0, 3
-	IF 武将:LOCAL >= 0
-		IF GETBIT(TALENT:(武将:LOCAL):ＳＬＧ素質, 素質_三種の神器) && 20 > RAND:100
-			SELECTCASE RAND:3
-				CASE 0
-					PRINTFORML %ANAME(武将:LOCAL)%の三種の神器・剣！
-					PRINTFORML 部隊の攻撃力が上昇する！
-					TIMES BATTLE_ATC:発動側, 1.3
-				CASE 1
-					PRINTFORML %ANAME(武将:LOCAL)%の三種の神器・玉！
-					PRINTFORML 部隊の防御力が上昇する！
-					TIMES BATTLE_DEF:発動側, 1.3
-				CASE 2
-					PRINTFORML %ANAME(武将:LOCAL)%の三種の神器・鏡！
-					PRINTFORML 部隊が割合ダメージを与える！
-					BATTLE_RATE_DMG:発動側 = 10
-			ENDSELECT
+	発動キャラ = 発動側キャラ:LOCAL
+	SIF 発動キャラ < 0
+		CONTINUE
+	発動キャラ素質 = BATTLE_素質:発動側:LOCAL
+	IF GETBIT(発動キャラ素質, 素質_三種の神器) && 20 > RAND:100
+		SELECTCASE RAND:3
+			CASE 0
+				PRINTFORML %ANAME(発動キャラ素質)%の三種の神器・剣！
+				PRINTFORML 部隊の攻撃力が上昇する！
+				TIMES BATTLE_ATC:発動側, 1.3
+			CASE 1
+				PRINTFORML %ANAME(発動キャラ素質)%の三種の神器・玉！
+				PRINTFORML 部隊の防御力が上昇する！
+				TIMES BATTLE_DEF:発動側, 1.3
+			CASE 2
+				PRINTFORML %ANAME(発動キャラ素質)%の三種の神器・鏡！
+				PRINTFORML 部隊が割合ダメージを与える！
+				BATTLE_RATE_DMG:発動側 = 10
+		ENDSELECT
+	ENDIF
+	;策士。計略が発動する。
+	;相手のBATTLE_INTの1.3倍がこちらのBATTLE_INTより高い場合、そちらを利用する（反計を防止）
+	IF GETBIT(発動キャラ素質, 素質_策士) && 10 > RAND:100
+		PRINTFORML %ANAME(発動キャラ)%は策を張り巡らせる……！
+		BATTLE_INT:発動側 = MAX(BATTLE_INT:発動側, BATTLE_INT:対象側 * 13 / 10)
+		BATTLE_FORCE_SCHEME = 発動側
+	ENDIF
+	;明察。反計の確定(たぶん)発動。
+	;具体的には自軍のBATTLE_INTを敵軍の4倍にしつつ（反計の発動を確実にしつつ）、相手側にFORCE_SCHEMEを入れる
+	IF GETBIT(発動キャラ素質, 素質_明察) && 7 > RAND:100
+		PRINTFORML %ANAME(発動キャラ)%は敵部隊の計略を見透かした！
+		BATTLE_INT:発動側 = BATTLE_INT:受動側 * 4
+		BATTLE_FORCE_SCHEME = 受動側
+	ENDIF
+	;ステゴロ。両軍割合ダメージ。一応自軍に有利。
+	IF GETBIT(発動キャラ素質, 素質_ステゴロ) && 30 > RAND:100
+		PRINTFORML %ANAME(発動キャラ)%は大暴れしている！
+		BATTLE_RATE_DMG:発動側 += RAND(10,15)
+		BATTLE_RATE_DMG:対象側 += RAND(5,10)
+	ENDIF
+	;突貫。攻撃力が増えるが防御力が減る。
+	IF GETBIT(発動キャラ素質, 素質_突貫) && 15 > RAND:100
+		PRINTFORML %ANAME(発動キャラ)%は捨て身の陣をしいた！
+		TIMES BATTLE_ATC:発動側, 1.2
+		TIMES BATTLE_DEF:発動側, 0.7
+	ENDIF
+	;下克上等。相手より弱ければ弱いほど発動率は高まる。野戦部隊にのみ発動する。
+	IF GETBIT(発動キャラ素質, 素質_下克上等) && BATTLE_F_UNIT:対象側
+		LOCAL:1 = (100 - (BATTLE_ATC:発動側 + BATTLE_DEF:発動側 + BATTLE_INT:発動側 + BATTLE_MAG:発動側) * 100  / (BATTLE_ATC:対象側 + BATTLE_DEF:対象側 + BATTLE_INT:対象側 + BATTLE_MAG:対象側)) / 2
+		IF LOCAL:1 > RAND:100
+			PRINTFORML %ANAME(発動キャラ)%の下克上等！
+			PRINTFORML 自らは強く、相手は弱くなる！
+			TIMES BATTLE_ATC:発動側 , 1.50
+			TIMES BATTLE_DEF:発動側 , 1.50
+			TIMES BATTLE_INT:発動側 , 1.50
+			TIMES BATTLE_MAG:発動側 , 1.50
+			TIMES BATTLE_ATC:対象側 , 0.75
+			TIMES BATTLE_DEF:対象側 , 0.75
+			TIMES BATTLE_INT:対象側 , 0.75
+			TIMES BATTLE_MAG:対象側 , 0.75
 		ENDIF
-		;策士。計略が発動する。
-		;相手のBATTLE_INTの1.3倍がこちらのBATTLE_INTより高い場合、そちらを利用する（反計を防止）
-		IF GETBIT(TALENT:(武将:LOCAL):ＳＬＧ素質, 素質_策士) && 10 > RAND:100
-			PRINTFORML %ANAME(武将:LOCAL)%は策を張り巡らせる……！
-			BATTLE_INT:発動側 = MAX(BATTLE_INT:発動側, BATTLE_INT:受動側 * 13 / 10)
-			BATTLE_FORCE_SCHEME = 発動側
+	ENDIF
+	;魔力転換。攻撃力の2割を割合ダメージ基礎値とする。
+	IF GETBIT(発動キャラ素質, 素質_魔力転換) && 15 > RAND:100
+		PRINTFORML %ANAME(発動キャラ)%は攻撃力を魔力に転換した！
+		BATTLE_MAG:発動側 += BATTLE_ATC:発動側 * 2 / 10
+		BATTLE_ATC:発動側 = BATTLE_ATC:発動側 * 8 / 10
+	ENDIF
+	
+	;バンドガール。歌唱（料理も）の補正が二重にかかる。
+	IF GETBIT(発動キャラ素質, 素質_バンドガール) && 5 > RAND:100
+		PRINTFORML %ANAME(発動キャラ)%は楽器演奏で士気を高めた！
+		IF 発動部隊 < 0
+			BATTLE_ATC:発動側 = MAX(BATTLE_ATC:発動側, ABL_50_POWER) * CITY_SUPPORT_LEVEL(勢力) / 1000
+			BATTLE_DEF:発動側 = MAX(BATTLE_DEF:発動側, ABL_50_POWER) * CITY_SUPPORT_LEVEL(勢力) / 1000
+			BATTLE_INT:発動側 = MAX(BATTLE_INT:発動側, ABL_50_POWER) * CITY_SUPPORT_LEVEL(勢力) / 1000
+		ELSE
+			BATTLE_ATC:発動側 = MAX(BATTLE_ATC:発動側, ABL_50_POWER) * UNIT_SUPPORT_LEVEL(勢力, 部隊) / 1000
+			BATTLE_DEF:発動側 = MAX(BATTLE_DEF:発動側, ABL_50_POWER) * UNIT_SUPPORT_LEVEL(勢力, 部隊) / 1000
+			BATTLE_INT:発動側 = MAX(BATTLE_INT:発動側, ABL_50_POWER) * UNIT_SUPPORT_LEVEL(勢力, 部隊) / 1000
 		ENDIF
-		;明察。反計の確定発動。
-		;具体的には自軍のBATTLE_INTを敵軍の4倍にしつつ（反計の発動を確実にしつつ）、相手側にFORCE_SCHEMEを入れる
-		IF GETBIT(TALENT:(武将:LOCAL):ＳＬＧ素質, 素質_明察) && 7 > RAND:100
-			PRINTFORML %ANAME(武将:LOCAL)%は敵部隊の計略を見透かした！
-			BATTLE_INT:発動側 = BATTLE_INT:受動側 * 4
-			BATTLE_FORCE_SCHEME = 受動側
-			
-		ENDIF
-		;ステゴロ。両軍割合ダメージ。一応自軍に有利。
-		IF GETBIT(TALENT:(武将:LOCAL):ＳＬＧ素質, 素質_ステゴロ) && 30 > RAND:100
-			PRINTFORML %ANAME(武将:LOCAL)%は大暴れしている！
-			BATTLE_RATE_DMG:発動側 += RAND(10,15)
-			BATTLE_RATE_DMG:受動側 += RAND(5,10)
-		ENDIF
-		;突貫。攻撃力が増えるが防御力が減る。
-		IF GETBIT(TALENT:(武将:LOCAL):ＳＬＧ素質, 素質_突貫) && 15 > RAND:100
-			PRINTFORML %ANAME(武将:LOCAL)%は捨て身の陣をしいた！
-			TIMES BATTLE_ATC:発動側, 1.2
-			TIMES BATTLE_DEF:発動側, 0.7
-		ENDIF
-		;下克上等。相手より弱ければ弱いほど発動率は高まる。野戦部隊にのみ発動する。
-		IF GETBIT(TALENT:(武将:LOCAL):ＳＬＧ素質, 素質_下克上等) && BATTLE_F_UNIT:受動側
-			LOCAL:1 = (100 - (BATTLE_ATC:発動側 + BATTLE_DEF:発動側 + BATTLE_INT:発動側 + BATTLE_MAG:発動側) * 100  / (BATTLE_ATC:受動側 + BATTLE_DEF:受動側 + BATTLE_INT:受動側 + BATTLE_MAG:受動側)) / 2
-			IF LOCAL:1 > RAND:100
-				PRINTFORML %ANAME(武将:LOCAL)%の下克上等！
-				PRINTFORML 自らは強く、相手は弱くなる！
-				TIMES BATTLE_ATC:発動側 , 1.50
-				TIMES BATTLE_DEF:発動側 , 1.50
-				TIMES BATTLE_INT:発動側 , 1.50
-				TIMES BATTLE_MAG:発動側 , 1.50
-				TIMES BATTLE_ATC:受動側 , 0.75
-				TIMES BATTLE_DEF:受動側 , 0.75
-				TIMES BATTLE_INT:受動側 , 0.75
-				TIMES BATTLE_MAG:受動側 , 0.75
-			ENDIF
-		ENDIF
-		;魔力転換。攻撃力の2割を割合ダメージ基礎値とする。
-		IF GETBIT(TALENT:(武将:LOCAL):ＳＬＧ素質, 素質_魔力転換) && 15 > RAND:100
-			PRINTFORML %ANAME(武将:LOCAL)%は攻撃力を魔力に転換した！
-			BATTLE_MAG:発動側 += BATTLE_ATC:発動側 * 2 / 10
-			BATTLE_ATC:発動側 = BATTLE_ATC:発動側 * 8 / 10
-		ENDIF
-		
-		;バンドガール。歌唱（料理も）の補正が二重にかかる。
-		IF GETBIT(TALENT:(武将:LOCAL):ＳＬＧ素質, 素質_バンドガール) && 5 > RAND:100
-			PRINTFORML %ANAME(武将:LOCAL)%は楽器演奏で士気を高めた！
-			IF 都市フラグ
-				BATTLE_ATC:発動側 = MAX(BATTLE_ATC:発動側, ABL_50_POWER) * CITY_SUPPORT_LEVEL(勢力) / 1000
-				BATTLE_DEF:発動側 = MAX(BATTLE_DEF:発動側, ABL_50_POWER) * CITY_SUPPORT_LEVEL(勢力) / 1000
-				BATTLE_INT:発動側 = MAX(BATTLE_INT:発動側, ABL_50_POWER) * CITY_SUPPORT_LEVEL(勢力) / 1000
-			ELSE
-				BATTLE_ATC:発動側 = MAX(BATTLE_ATC:発動側, ABL_50_POWER) * UNIT_SUPPORT_LEVEL(勢力, 部隊) / 1000
-				BATTLE_DEF:発動側 = MAX(BATTLE_DEF:発動側, ABL_50_POWER) * UNIT_SUPPORT_LEVEL(勢力, 部隊) / 1000
-				BATTLE_INT:発動側 = MAX(BATTLE_INT:発動側, ABL_50_POWER) * UNIT_SUPPORT_LEVEL(勢力, 部隊) / 1000
-			ENDIF
-		ENDIF
-		
-		;哨戒。被害軽減率を僅かに得る。
-		IF GETBIT(TALENT:(武将:LOCAL):ＳＬＧ素質, 素質_哨戒) && 15 > RAND:100
-			PRINTFORML %ANAME(武将:LOCAL)%は周囲を警戒している！
-			BATTLE_RATE_GRD:発動側 += 10
-		ENDIF
-		
-		;都市防衛。自軍が都市である場合のみ、防御力が上昇し被害軽減率を得る。
-		IF 都市フラグ && GETBIT(TALENT:(武将:LOCAL):ＳＬＧ素質, 素質_防衛戦術) && 25 > RAND:100
-			PRINTFORML %ANAME(武将:LOCAL)%は防衛に巧みな戦術を発揮した！
-			TIMES BATTLE_DEF:発動側 , 1.20
-			BATTLE_RATE_GRD:発動側 += 20
-		ENDIF
+	ENDIF
+	
+	;哨戒。被害軽減率を僅かに得る。
+	IF GETBIT(発動キャラ素質, 素質_哨戒) && 15 > RAND:100
+		PRINTFORML %ANAME(発動キャラ)%は周囲を警戒している！
+		BATTLE_RATE_GRD:発動側 += 10
+	ENDIF
+	
+	;都市防衛。自軍が都市である場合のみ、防御力が上昇し被害軽減率を得る。
+	IF 発動部隊 < 0 && GETBIT(発動キャラ素質, 素質_防衛戦術) && 25 > RAND:100
+		PRINTFORML %ANAME(発動キャラ)%は防衛に巧みな戦術を発揮した！
+		TIMES BATTLE_DEF:発動側 , 1.20
+		BATTLE_RATE_GRD:発動側 += 20
 	ENDIF
 NEXT
 
 FOR LOCAL:0, 0, 3
-	IF 武将:LOCAL >= 0
+	発動キャラ = 発動側キャラ:LOCAL
+	IF 発動キャラ >= 0
 		;外来人。敵部隊の自部隊より高い能力を、自部隊の能力以下にせしめる。発動判定は1回の戦闘で1度のみで、発動率はGAIRAI_RANKに依存する。
-		IF TALENT:(武将:LOCAL):特殊勢力素質 == 素質_外来人
+		IF TALENT:発動キャラ:特殊勢力素質 == 素質_外来人
 			;GAIRAI_RANKに応じて確率が上昇。
 			IF GAIRAI_RANK * 10 > RAND:100
 				SETCOLOR COLOR("桃")
-				PRINTFORML %ANAME(武将:LOCAL)%は敵に怪しげな桃色の霧を吹きかける……！
-				SIF BATTLE_ATC:受動側 > BATTLE_ATC:発動側
-					BATTLE_ATC:受動側 = BATTLE_ATC:発動側 * 7 / 10
-				SIF BATTLE_DEF:受動側 > BATTLE_DEF:発動側
-					BATTLE_DEF:受動側 = BATTLE_DEF:発動側 * 7 / 10
-				SIF BATTLE_INT:受動側 > BATTLE_INT:発動側
-					BATTLE_INT:受動側 = BATTLE_INT:発動側 * 7 / 10
+				PRINTFORML %ANAME(発動キャラ)%は敵に怪しげな桃色の霧を吹きかける……！
+				SIF BATTLE_ATC:対象側 > BATTLE_ATC:発動側
+					BATTLE_ATC:対象側 = BATTLE_ATC:発動側 * 7 / 10
+				SIF BATTLE_DEF:対象側 > BATTLE_DEF:発動側
+					BATTLE_DEF:対象側 = BATTLE_DEF:発動側 * 7 / 10
+				SIF BATTLE_INT:対象側 > BATTLE_INT:発動側
+					BATTLE_INT:対象側 = BATTLE_INT:発動側 * 7 / 10
 				SETCOLOR COLOR("素質発動")
 			ENDIF
 			BREAK
