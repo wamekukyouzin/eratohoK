@@ -238,7 +238,74 @@ SIF SP_COUNTRY_APPEARED:特殊勢力出現_触手 || !SP_COUNTRY_RANK:(特殊勢
 SIF !(DAY >= 25 && DAY - 8 > RAND:100)
 	RETURN -1
 
+;2ターンに1度、無理矢理妊娠
+CALL TENTACLE_FORCE_PREGNATE(DAY % 2 == 0)
+
 ;出現場所はランダム
 CALL TENTACLE_RISE()
 
 
+;--------------------------------------
+;触手勢力用の定期イベント。
+;--------------------------------------
+@TENTACLE_FORCE_PREGNATE(条件 = 0)
+#DIM 触手
+#DIM 条件
+#DIM 候補, 1000
+#DIM 候補数
+#DIM 対象
+
+VARSET 候補, -1
+VARSET 候補数
+
+SIF !条件
+	RETURN -1
+
+触手 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_触手))
+
+SIF 触手 == -1
+	RETURN -1
+
+SIF CONFIG:200
+	RETURN -1
+
+FOR LOCAL, 0, CHARANUM
+	;触手所属か触手の捕虜
+	IF (CFLAG:LOCAL:所属 == 触手 || CFLAG:LOCAL:捕虜先 == 触手) && IS_FEMALE(LOCAL) && GETBIT(TALENT:LOCAL:特殊勢力陥落系, 陥落_触手) && !TALENT:LOCAL:妊娠
+		候補:候補数 = LOCAL
+		候補数 ++
+	ENDIF
+NEXT
+
+SIF 候補数 < 1
+	RETURN -1
+
+対象 = 候補:(RAND:候補数)
+
+SIF 対象 == -1
+	RETURN -1
+	
+DRAWLINE
+SETCOLOR COLOR("桃")
+PRINTFORML 触手は%ANAME(対象)%を繁殖のため利用したようだ……
+PRINTFORML 
+IF GETBIT(TALENT:特殊勢力陥落系, 陥落_触手)
+	PRINTFORMW 彼らに寄生され、従順な苗床と化していた%ANAME(対象)%は、嬉々として彼らに身体を提供した
+	PRINTFORMW その肉穴に触手達は次々と己を差し入れては、卵を産み付けていく
+	PRINTFORMW さらに触手は、特殊な液体を彼女に打ち込み、彼女の体質をより卵を育てるため相応しいものにしていく
+	PRINTFORMW 子宮の奥の強烈な疼きにヨガりながら、%ANAME(対象)%は何度も絶頂した……
+ELSE
+	PRINTFORMW 彼らに捕らえられ、犯され続けていた%ANAME(対象)%を、触手は本格的に苗床として使うつもりらしい
+	PRINTFORMW その肉穴に触手達は次々と己を差し入れては、卵を産み付けていく
+	PRINTFORMW さらに触手は、特殊な液体を彼女に打ち込み、彼女の体質をより卵を育てるため相応しいものにしていく
+	PRINTFORMW 己が得体のしれないものになっていく%ANAME(対象)%は悲鳴をあげるが、誰も助けてはくれない……
+ENDIF
+PRINTFORML
+PRINTFORMW 解放された頃には、その子宮を妊婦のように膨れあがらせた%ANAME(対象)%が残されるばかりだった……
+
+FOR LOCAL, 0, 3
+	CALL FORCE_FUCK(対象, SP_NAME_TO_ID("触手"), @"触手", @"触手", 2, SP_TRAIN_IS_DECREASE_CFLAG(対象, SP_COUNTRY_ID:(特殊勢力_触手)))
+NEXT
+
+CFLAG:対象:55 = SP_NAME_TO_ID("触手")
+CFLAG:対象:56 = SP_NAME_TO_ID("触手")
