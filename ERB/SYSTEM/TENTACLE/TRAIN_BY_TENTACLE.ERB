@@ -1,0 +1,88 @@
+﻿;-------------------------------------------------
+;触手による調教
+;-------------------------------------------------
+@TRAIN_BY_TENTACLE
+#DIM 触手
+#DIM 対象
+;IDから触手勢力の番号を取得
+触手 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_触手))
+
+SIF 触手 == -1 || CONFIG:200
+	RETURN -1
+
+LOCAL:9 = 1
+FOR 対象, 0, CHARANUM
+	;触手勢力所属で捕虜でないか、触手勢力の捕虜。SPキャラでない。
+	IF (CFLAG:対象:所属 == 触手 && !CFLAG:対象:捕虜先 || CFLAG:対象:9 == 触手) && NO:対象 < 2000
+
+		;調教カウンタを増やす
+		CFLAG:対象:調教カウンタ++
+		
+		;調教の様子を表示
+		;SPキャラでなく、テキスト表示設定で、「堕ちているか、堕ちていて1/3の確率」
+		IF NO:対象 < 2000 && TRAIN_IS_SHOW_TEXT(対象) && (!GETBIT(TALENT:対象:特殊勢力陥落系, 陥落_触手) || (GETBIT(TALENT:対象:特殊勢力陥落系, 陥落_触手) && CFLAG:対象:所属 != 触手) || (GETBIT(TALENT:対象:特殊勢力陥落系, 陥落_触手) && !RAND:3))
+			IF LOCAL:9
+				LOCAL:9 = 0
+				DRAWLINE
+				PRINTW 触手に囚われた士官が、彼らの繁殖のため使われているようです……
+			ENDIF
+			PRINTL 
+			CALL TENTACLE_TRAIN_MSG(対象)
+			CALL FORCE_FUCK(対象, SP_NAME_TO_ID("触手"), @"触手", @"触手", 2, SP_TRAIN_IS_DECREASE_CFLAG(対象, SP_COUNTRY_ID:(特殊勢力_触手)))
+			;堕ちそうなら特殊メッセ
+			IF CFLAG:対象:調教カウンタ >= TRAIN_FALLEN_TERM:2 && CFLAG:対象:調教カウンタ <= TRAIN_FALLEN_TERM:3 && !GETBIT(TALENT:対象:特殊勢力陥落系, 陥落_触手)
+				SETCOLOR COLOR("警告")
+				PRINTFORML 度重なる陵辱で、%ANAME(対象)%の肉体は触手の母体と化す寸前だ……
+				PRINTFORML このまま助けがなければ、彼らの苗床となり果ててしまうだろう
+				RESETCOLOR
+			ENDIF
+
+			;「解放カウンタが一定以上で、堕ちていない」か「触手所属でなく、堕ちている」で寝返る
+			IF (CFLAG:対象:調教カウンタ >= TRAIN_FALLEN_TERM:3 && !GETBIT(TALENT:対象:特殊勢力陥落系, 陥落_触手)) || (CFLAG:対象:所属 != 触手 && GETBIT(TALENT:対象:特殊勢力陥落系, 陥落_触手))
+				;調教の様子を表示
+				IF TRAIN_IS_SHOW_TEXT(対象)
+					PRINTFORML ・
+					PRINTFORML ・
+					PRINTFORML ・
+					IF GETBIT(TALENT:対象:特殊勢力陥落系, 陥落_触手)
+						PRINTFORMW 触手たちは再び%ANAME(対象)%に寄生し、彼女の意識に自らが触手の苗床に過ぎないという刷り込みを行った
+						PRINTFORMW 洗脳された%ANAME(対象)%は、触手を増やすという唯一の目的のため、その身体を捧げることにした……
+					ELSE
+						IF CFLAG:MASTER:所属 != 触手
+							PRINTFORMW 触手たちの陵辱で、%ANAME(対象)%は心も体も折れてしまった
+							PRINTFORMW 頃合いを見計らって、触手たちは%ANAME(対象)%の肉体に寄生した……
+							IF TALENT:対象:烙印
+								PRINTFORML %ANAME(対象)%が%ANAME(MASTER)%専用であることを示す烙印を、
+								PRINTFORMW 寄生した触手は超常的な力でかき消した
+								TALENT:対象:烙印 = 0
+							ELSE
+								PRINTFORMW 触手は%ANAME(対象)%の身体に巣食い始めた
+							ENDIF
+							SIF IS_LOVER(対象)
+								PRINTFORMW %ANAME(対象)%の頭の中から、かつて愛していた%ANAME(MASTER)%のことが、綺麗さっぱり消え失せた……
+						ELSE
+							PRINTFORMW 触手の陵辱と%ANAME(MASTER)%の努力で、%ANAME(対象)%の自我は砕け、苗床として成長した
+							PRINTFORMW %ANAME(MASTER)%は%ANAME(対象)%に触手を寄生させ、彼らのための兵隊兼母体に仕上げた……
+						ENDIF
+					ENDIF
+				ENDIF
+				CALL KOJO_SPECIAL_FALLEN_EVENT(対象, SP_COUNTRY_ID:(特殊勢力_触手))
+				SETCOLOR COLOR("注意")
+				PRINTFORMW %ANAME(対象)%は触手に寝返ってしまった
+				RESETCOLOR
+				CFLAG:対象:1 = 触手
+				CFLAG:対象:9 = 0
+				SETBIT TALENT:対象:特殊勢力陥落系, 陥落_触手
+				$HUKUJU_LOOP
+				CALL COLORPRINTFORM(@"触手たちは、早速%ANAME(対象)%を苗床として利用することにした……", COLOR("桃"), "W")
+				FOR LOCAL, 0, 5
+					CALL FORCE_FUCK(対象, SP_NAME_TO_ID("触手"), @"触手", @"触手", 2, SP_TRAIN_IS_DECREASE_CFLAG(対象, SP_COUNTRY_ID:(特殊勢力_触手)))
+				NEXT
+				CALL SET_TATOO_RANDOM(対象, STR_FOR_TATOO(-1), 0)
+				SIF CFLAG:MASTER:所属 != 触手
+					CALL LOSE_RELATION_TALENT(対象)
+			ENDIF
+			WAIT
+		ENDIF
+	ENDIF
+NEXT

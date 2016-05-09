@@ -1,0 +1,244 @@
+﻿;--------------------------------------
+;触手出現イベント
+;出現できたら1、できなければ0をかえす
+;都市 = 最初に奪う都市 指定しなければ野盗と同一の方式
+;メッセージフラグ = 汎用メッセージ表示フラグ　指定しなければ表示
+;--------------------------------------
+@TENTACLE_RISE(都市:0 = -1, メッセージフラグ = 1)
+#DIM 触手
+#DIM メッセージフラグ
+#DIM 都市, 10
+#DIM 勢力
+;触手勢力を作成
+CALL TENTACLE_INIT()
+触手 = RESULT
+;作れなかったら戻す
+SIF 触手 == -1
+	RETURN 0
+
+;引数で奪う都市が指定されていなければ、BANDIT_RISE_SELECT_CITY()を流用
+IF 都市:0 < 0 || 都市:0 >= CITY_NUM
+	CALL BANDIT_RISE_SELECT_CITY()
+	FOR LOCAL, 0, VARSIZE("都市")
+		SIF RESULT:LOCAL == -1
+			BREAK
+		都市:LOCAL = RESULT:LOCAL
+	NEXT
+	;多分ないはずなんだけど、奪えなかったら諦め
+	IF 都市:0 == -1
+		RETURN
+	ENDIF
+	FOR LOCAL, 0, VARSIZE("都市")
+		SIF 都市:LOCAL == -1
+			BREAK
+		CALL TAKEOVER_CITY_FROM_NO(触手, 都市:LOCAL)
+	NEXT
+ELSE
+	勢力 = CITY_OWNER:(都市:0)
+	FOR LOCAL, 0, SP_COUNTRY_RANK:(特殊勢力_触手)
+		SIF GET_OWN_CITY(勢力) <= 3
+			BREAK
+		FOR LOCAL:1, 1, MAX_CITY
+			IF CITY_OWNER:(LOCAL:1) == 勢力 && !RAND:3
+				CALL TAKEOVER_CITY_FROM_NO(触手, 都市)
+				BREAK
+			ENDIF
+		NEXT
+	NEXT
+ENDIF
+
+
+IF メッセージフラグ
+	DRAWLINE
+	SETCOLOR COLOR("警告")
+	PRINTFORMW 突如として、地の底から無数の触手が湧きだしてきました！
+	PRINTFORMW 触手は幻想郷の人妖を乗っ取り、手駒とすることで、その勢力を強めているようです
+	PRINTFORMW このままでは危険だと、幻想郷の各勢力は撃退に乗り出したようです……
+	RESETCOLOR
+	DRAWLINE
+ENDIF
+
+RETURN 1
+
+;--------------------------------------
+;ターンエンド時の触手の処理
+;--------------------------------------
+@TURNEND_TENTACLE
+#DIM 触手
+
+IF !SP_COUNTRY_APPEARED:特殊勢力出現_触手
+	;触手の蜂起
+	CALL SLG_TENTACLE_RISE
+	RETURN -1
+ENDIF
+
+IF SP_COUNTRY_APPEARED:特殊勢力出現_触手 == 1
+	;触手の番号を取得(ID:299)
+	触手 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_触手))
+	IF 触手 == -1
+		DRAWLINE
+		SETCOLOR COLOR("注意")
+		PRINTFORML
+		PRINTFORML
+		PRINTFORML
+		PRINTFORMW 各勢力の努力あって、触手を殲滅することに成功しました
+		PRINTFORMW 幻想郷に平穏が戻りました……
+		PRINTFORML
+		PRINTFORML
+		PRINTFORML
+		RESETCOLOR
+		;触手を削除する
+		LOCAL:1 = CHARANUM
+		FOR LOCAL:0, 0, LOCAL:1
+			LOCAL:2 = LOCAL:1 - LOCAL:0 - 1
+			IF TALENT:(LOCAL:2):特殊勢力素質 == 素質_触手
+				CALL DELETE_CHARA(LOCAL:2)
+			ENDIF
+		NEXT
+		SP_COUNTRY_APPEARED:特殊勢力出現_触手 = 2
+		RETURN -1
+	ENDIF
+
+	CALL TRAIN_BY_TENTACLE
+ENDIF
+;--------------------------------------
+;触手の初期化処理
+;--------------------------------------
+@TENTACLE_INIT(ARG:0)
+#DIM LCOUNT
+VARSET LOCAL
+
+LOCAL:4 = GET_NEW_COUNTRY()
+;作れなかったらなしで
+IF LOCAL:4 == -1
+	RETURN -1
+ENDIF
+COUNTRY_COLOR:(LOCAL:4) = 0xFF1493
+COUNTRY_SOLDIER:(LOCAL:4) = 20000 + SP_COUNTRY_RANK:(特殊勢力_触手)
+COUNTRY_AI_TYPE:(LOCAL:4) = AI_防衛
+COUNTRY_EVENT_ID:(LOCAL:4) = SP_COUNTRY_ID:(特殊勢力_触手)
+
+CALL ADD_VOID_CHARA()
+LOCAL = RESULT
+SELECTCASE SP_COUNTRY_NAME:(特殊勢力_触手)
+	CASE 0
+		NAME:LOCAL = 触手兵
+		CALLNAME:LOCAL = 触手兵
+		CSTR:LOCAL:0 = 触手兵
+		CSTR:LOCAL:1 = 触手兵
+		CSTR:LOCAL:3 = 触手兵
+		CSTR:LOCAL:4 = 触手兵
+		CSTR:LOCAL:5 = 触手兵
+		CSTR:LOCAL:6 = 触手兵
+	CASE 1
+		NAME:LOCAL = 触手兵長
+		CALLNAME:LOCAL = 触手兵長
+		CSTR:LOCAL:0 = 触手兵長
+		CSTR:LOCAL:1 = 触手兵長
+		CSTR:LOCAL:3 = 触手兵長
+		CSTR:LOCAL:4 = 触手兵長
+		CSTR:LOCAL:5 = 触手兵長
+		CSTR:LOCAL:6 = 触手兵長
+	CASE 2
+		TARGET = LOCAL
+		CALL SET_RANDOM_NAME_K(LOCAL)
+		NAME:LOCAL = %CSTR:LOCAL:1%
+		CALLNAME:LOCAL = %CSTR:LOCAL:1%
+ENDSELECT
+MAXBASE:LOCAL:体力 = 3000
+MAXBASE:LOCAL:気力 = 3000
+MAXBASE:LOCAL:精神力 = 1500
+BASE:LOCAL:体力 = MAXBASE:LOCAL:体力
+BASE:LOCAL:気力 = MAXBASE:LOCAL:気力
+BASE:LOCAL:精神力 = MAXBASE:LOCAL:精神力
+ABL:LOCAL:Ｃ感 = 3
+ABL:LOCAL:欲望 = 8
+ABL:LOCAL:性技 = 3
+ABL:LOCAL:性知識 = 5
+ABL:LOCAL:奉仕 = 1
+ABL:LOCAL:性交 = 10
+ABL:LOCAL:射精 = 5
+EXP:LOCAL:絶頂経験 = 500
+ABL:LOCAL:武闘 = 55 + RAND(5, 15) + 5 * SP_COUNTRY_RANK:(特殊勢力_触手)
+ABL:LOCAL:知略 = 30 + RAND(5, 15) + 3 * SP_COUNTRY_RANK:(特殊勢力_触手)
+ABL:LOCAL:政治 = 40 + RAND(5, 10) + 3 * SP_COUNTRY_RANK:(特殊勢力_触手)
+ABL:LOCAL:歌唱 = 10
+ABL:LOCAL:料理 = 10
+TALENT:LOCAL:絶倫 = 1
+TALENT:LOCAL:特殊勢力素質 = 素質_触手
+TALENT:LOCAL:陰毛現在値 = 陰毛_標準
+TALENT:LOCAL:陰毛目標値 = 陰毛_標準
+TALENT:LOCAL:Ｖ締まり = GET_DEFAULT_TIGHTNESS("普通")
+TALENT:LOCAL:Ａ締まり = GET_DEFAULT_TIGHTNESS("普通")
+;所属を触手にする
+CFLAG:LOCAL:1 = LOCAL:4
+CALL NEWCHARA_INIT(LOCAL)
+COUNTRY_BOSS:(LOCAL:4) = GET_ID(LOCAL)
+
+
+FOR LCOUNT, 0, 14
+	CALL ADD_VOID_CHARA()
+	LOCAL = RESULT
+	NAME:LOCAL = 触手兵%UNICODE(0xFF21 + LCOUNT)%
+	CALLNAME:LOCAL = 触手兵%UNICODE(0xFF21 + LCOUNT)%
+	MAXBASE:LOCAL:体力 = 3000
+	MAXBASE:LOCAL:気力 = 3000
+	MAXBASE:LOCAL:精神力 = 1500
+	BASE:LOCAL:体力 = MAXBASE:LOCAL:体力
+	BASE:LOCAL:気力 = MAXBASE:LOCAL:気力
+	BASE:LOCAL:精神力 = MAXBASE:LOCAL:精神力
+	SELECTCASE RAND:100
+		CASE IS < 60
+			TALENT:(LOCAL):性別 = 0
+		CASE IS < 90
+			TALENT:(LOCAL):性別 = 1
+		CASE IS < 100
+			TALENT:(LOCAL):性別 = 2
+	ENDSELECT
+	ABL:LOCAL:Ｃ感 = 3
+	ABL:LOCAL:欲望 = 8
+	ABL:LOCAL:性技 = 3
+	ABL:LOCAL:性知識 = 5
+	ABL:LOCAL:奉仕 = 1
+	ABL:LOCAL:性交 = 10
+	ABL:LOCAL:射精 = 5
+	ABL:LOCAL:肝臓 = 3
+	EXP:LOCAL:絶頂経験 = 500
+	ABL:LOCAL:武闘 = 50 + RAND:15 + 5 * SP_COUNTRY_RANK:(特殊勢力_触手)
+	ABL:LOCAL:知略 = 30 + RAND:15 + 3 * SP_COUNTRY_RANK:(特殊勢力_触手)
+	ABL:LOCAL:政治 = 35 + RAND:10 + 3 * SP_COUNTRY_RANK:(特殊勢力_触手)
+	ABL:LOCAL:歌唱 = 10
+	ABL:LOCAL:料理 = 10
+	TALENT:LOCAL:絶倫 = 1
+	TALENT:LOCAL:特殊勢力素質 = 素質_触手
+	TALENT:LOCAL:陰毛現在値 = 陰毛_標準
+	TALENT:LOCAL:陰毛目標値 = 陰毛_標準
+	TALENT:LOCAL:Ｖ締まり = GET_DEFAULT_TIGHTNESS("普通")
+	TALENT:LOCAL:Ａ締まり = GET_DEFAULT_TIGHTNESS("普通")
+	;所属を触手にする
+	CFLAG:LOCAL:1 = LOCAL:4
+	CALL NEWCHARA_INIT(LOCAL)
+NEXT
+SP_COUNTRY_APPEARED:特殊勢力出現_触手 = 1
+
+RETURN LOCAL:4
+
+;--------------------------------------
+;触手の侵攻イベントを実行するSLGイベント。
+;判定通ったら素のTENTACLE_RISEを呼ぶだけ。
+;25期以降、50期までに徐々に確率が高まっていく。既に発生していたらなし。
+;--------------------------------------
+@SLG_TENTACLE_RISE()
+
+;既に出現しているか、触手なし設定なら発動しない
+SIF SP_COUNTRY_APPEARED:特殊勢力出現_触手 || !SP_COUNTRY_RANK:(特殊勢力_触手)
+	RETURN -1
+
+;25期以降、確率判定をクリアしていること
+SIF !(DAY >= 25 && DAY - 8 > RAND:100)
+	RETURN -1
+
+;出現場所はランダム
+CALL TENTACLE_RISE()
+
+
