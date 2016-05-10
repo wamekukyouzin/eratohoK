@@ -36,7 +36,7 @@ IF 都市:0 < 0 || 都市:0 >= CITY_NUM
 	NEXT
 ELSE
 	勢力 = CITY_OWNER:(都市:0)
-	FOR LOCAL, 0, GAIRAI_RANK
+	FOR LOCAL, 0, SP_COUNTRY_RANK:(特殊勢力_外来人)
 		SIF GET_OWN_CITY(勢力) <= 3
 			BREAK
 		FOR LOCAL:1, 1, MAX_CITY
@@ -67,15 +67,15 @@ RETURN 1
 @TURNEND_GAIRAI
 #DIM 外来
 
-IF !SP_COUNTRY_APPEARED:特殊勢力出現_外来人
+IF !SP_COUNTRY_APPEARED:特殊勢力_外来人
 	;外来人の蜂起
 	CALL SLG_GAIRAI_RISE
 	RETURN -1
 ENDIF
 
-IF SP_COUNTRY_APPEARED:特殊勢力出現_外来人 == 1
+IF SP_COUNTRY_APPEARED:特殊勢力_外来人 == 1
 	;外来勢力の番号を取得(ID:299)
-	外来 = GET_COUNTRY_FROM_ID(COUNTRY_GAIRAI)
+	外来 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_外来人))
 	IF 外来 == -1
 		DRAWLINE
 		SETCOLOR COLOR("注意")
@@ -92,11 +92,11 @@ IF SP_COUNTRY_APPEARED:特殊勢力出現_外来人 == 1
 		LOCAL:1 = CHARANUM
 		FOR LOCAL:0, 0, LOCAL:1
 			LOCAL:2 = LOCAL:1 - LOCAL:0 - 1
-			IF TALENT:(LOCAL:2):特殊勢力素質 == 素質_外来人
+			IF TALENT:(LOCAL:2):特殊勢力素質 == 特殊勢力_外来人
 				CALL DELETE_CHARA(LOCAL:2)
 			ENDIF
 		NEXT
-		SP_COUNTRY_APPEARED:特殊勢力出現_外来人 = 2
+		SP_COUNTRY_APPEARED:特殊勢力_外来人 = 2
 		RETURN
 	ENDIF
 
@@ -128,14 +128,14 @@ IF LOCAL:4 == -1
 	RETURN -1
 ENDIF
 COUNTRY_COLOR:(LOCAL:4) = 0x483D8B
-COUNTRY_SOLDIER:(LOCAL:4) = 20000 + GAIRAI_RANK * 1000 + SUMARRAY(CITY_ECONOMY) / 2000
+COUNTRY_SOLDIER:(LOCAL:4) = 20000 + SP_COUNTRY_RANK:(特殊勢力_外来人) * 1000 + SUMARRAY(CITY_ECONOMY) / 2000
 COUNTRY_AI_TYPE:(LOCAL:4) = AI_蛮行
-COUNTRY_EVENT_ID:(LOCAL:4) = COUNTRY_GAIRAI
+COUNTRY_EVENT_ID:(LOCAL:4) = SP_COUNTRY_ID:(特殊勢力_外来人)
 MONEY:(LOCAL:4) = SUMARRAY(CITY_ECONOMY) / 100
 
 CALL ADD_VOID_CHARA()
 LOCAL = RESULT
-SELECTCASE GAIRAI_NAME
+SELECTCASE SP_COUNTRY_NAME:(特殊勢力_外来人)
 	CASE 0
 		NAME:LOCAL = 外来人
 		CALLNAME:LOCAL = 外来人
@@ -175,13 +175,13 @@ ABL:LOCAL:性交 = 10
 ABL:LOCAL:射精 = 5
 EXP:LOCAL:絶頂経験 = 500
 ;素質外来人の特殊効果で勝ちを拾っていく
-ABL:LOCAL:武闘 = 30 + RAND(10, 20) + 5 * GAIRAI_RANK
-ABL:LOCAL:知略 = 30 + RAND(10, 20) + 5 * GAIRAI_RANK
+ABL:LOCAL:武闘 = 30 + RAND(10, 20) + 5 * SP_COUNTRY_RANK:(特殊勢力_外来人)
+ABL:LOCAL:知略 = 30 + RAND(10, 20) + 5 * SP_COUNTRY_RANK:(特殊勢力_外来人)
 ABL:LOCAL:政治 = RAND(30, 60)
 ABL:LOCAL:歌唱 = 10
 ABL:LOCAL:料理 = 10
 TALENT:LOCAL:絶倫 = 1
-TALENT:LOCAL:特殊勢力素質 = 素質_外来人
+TALENT:LOCAL:特殊勢力素質 = 特殊勢力_外来人
 TALENT:LOCAL:陰毛現在値 = 陰毛_標準
 TALENT:LOCAL:陰毛目標値 = 陰毛_標準
 ;所属を野盗勢力にする
@@ -210,13 +210,13 @@ FOR LCOUNT, 0, 14
 	ABL:LOCAL:肝臓 = 3
 	EXP:LOCAL:絶頂経験 = 500
 	;素質外来人の特殊効果で勝ちを拾っていく
-	ABL:LOCAL:武闘 = 20 + RAND:20 + 5 * GAIRAI_RANK
-	ABL:LOCAL:知略 = 20 + RAND:20 + 5 * GAIRAI_RANK
+	ABL:LOCAL:武闘 = 20 + RAND:20 + 5 * SP_COUNTRY_RANK:(特殊勢力_外来人)
+	ABL:LOCAL:知略 = 20 + RAND:20 + 5 * SP_COUNTRY_RANK:(特殊勢力_外来人)
 	ABL:LOCAL:政治 = RAND(30, 60)
 	ABL:LOCAL:歌唱 = 10
 	ABL:LOCAL:料理 = 10
 	TALENT:LOCAL:絶倫 = 1
-	TALENT:LOCAL:特殊勢力素質 = 素質_外来人
+	TALENT:LOCAL:特殊勢力素質 = 特殊勢力_外来人
 	TALENT:LOCAL:陰毛現在値 = 陰毛_標準
 	TALENT:LOCAL:陰毛目標値 = 陰毛_標準
 	TALENT:LOCAL:Ｖ締まり = GET_DEFAULT_TIGHTNESS("普通")
@@ -225,7 +225,7 @@ FOR LCOUNT, 0, 14
 	CFLAG:LOCAL:1 = LOCAL:4
 	CALL NEWCHARA_INIT(LOCAL)
 NEXT
-SP_COUNTRY_APPEARED:特殊勢力出現_外来人 = 1
+SP_COUNTRY_APPEARED:特殊勢力_外来人 = 1
 
 RETURN LOCAL:4
 
@@ -238,7 +238,7 @@ RETURN LOCAL:4
 #DIM 所有者
 
 ;既に出現しているか、外来人なし設定なら発動しない
-SIF SP_COUNTRY_APPEARED:特殊勢力出現_外来人 || !GAIRAI_RANK
+SIF SP_COUNTRY_APPEARED:特殊勢力_外来人 || !SP_COUNTRY_RANK:(特殊勢力_外来人)
 	RETURN -1
 
 ;20期以降、確率判定をクリアしていること
@@ -281,7 +281,7 @@ ENDIF
 VARSET 候補, -1
 VARSET 候補数
 
-外来 = GET_COUNTRY_FROM_ID(COUNTRY_GAIRAI)
+外来 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_外来人))
 
 ;外来所属でなく、条件を満たしている
 SIF 外来 == -1 || !条件
@@ -323,7 +323,7 @@ IF CFLAG:対象:捕虜先 == 外来
 	PRINTFORML
 	CALL COLORPRINTFORM(@"%ANAME(対象)%が外来人の奴隷となりました", COLOR("警告"), "W")
 	RESETCOLOR
-	SETBIT TALENT:対象:特殊勢力陥落系, 陥落_外来人
+	SETBIT TALENT:対象:特殊勢力陥落系, 特殊勢力_外来人
 	CFLAG:対象:所属 = 外来
 	CFLAG:対象:捕虜先 = 0
 ELSE
@@ -342,4 +342,63 @@ ELSE
 	CFLAG:対象:捕虜先 = 外来
 	CALL FORCE_FREE(対象)
 ENDIF
-CALL KOJO_SPECIAL_TURNEND_EVENT(対象, COUNTRY_GAIRAI, 0)
+CALL KOJO_SPECIAL_TURNEND_EVENT(対象, SP_COUNTRY_ID:(特殊勢力_外来人), 0)
+
+;-----------------------------------
+;外来勢力に捕らえられたときのイベント
+;-----------------------------------
+@MASTER_CAPTURED_GAIRAI(ARG:0)
+PRINTFORMW 捕らえられた%ANAME(MASTER)%は外来人たちの研究者の前に引きずり出された…
+IF GETBIT(TALENT:MASTER:特殊勢力陥落系, 特殊勢力_外来人)
+	PRINTFORML 君は脱走した研究対象XXX番じゃないか、よく戻ってきた
+	PRINTFORMW さあ、また実験を行うから、この首輪をつけなさい
+	PRINTFORMW 外来人たちは当然のように、首輪を嵌めようとしてくるが……
+	CALL ASK_YN("受け入れる", "拒否する")
+	IF RESULT == 0
+		PRINTFORMW これをつければ、また沢山研究してもらえる
+		PRINTFORMW %ANAME(MASTER)%の身体は疼き、首輪を自ら受け入れてしまった
+		PRINTFORMW 途端、彼らに対しては絶対服従であるという考えが、頭の中を埋め尽くした
+		PRINTFORMW 付いてきたまえ、そんな簡単な命令に従うことにすら、深い喜びを感じる
+		PRINTFORMW 彼らの作った特殊な首輪を嵌め、%ANAME(MASTER)%は再び、奴隷に成り下がった……
+		SETCOLOR COLOR("注意")
+		PRINTFORMW %ANAME(MASTER)%は再び、外来人たちの研究用奴隷となりました
+		RESETCOLOR
+	ELSE
+		PRINTFORMW 誰がそんなもの。%ANAME(MASTER)%ははねのける
+		PRINTFORMW 外来人たちにはその態度が理解できないようだった
+		PRINTFORMW どういう反応だろうかこれは、興味深いぞ、是非とも調べねば
+		PRINTFORMW わきたつ外来人たちは、%ANAME(MASTER)%を取り押さえ、枷で縛り、研究用の牢獄へと放り込んだ……
+	ENDIF
+ELSE
+	PRINTFORML 研究者は%ANAME(MASTER)%の体を研究対象を見る瞳で舐めるように見定めた後、
+	PRINTFORMW 君は研究価値がありそうだと呟いた
+	PRINTFORMW 自ら研究に協力してくれるなら、手ひどい真似はしないと言っているが……
+	PRINTFORMW 受け入れますか？
+	CALL ASK_YN("受け入れる", "拒否する")
+	IF RESULT == 0
+		PRINTFORMW 投獄されるよりはマシだろう。%ANAME(MASTER)%が頷くと、外来人たちは満足げに頷いた
+		PRINTFORMW では管理用タグを付けようと、彼らは言い出した
+		PRINTFORMW 「タグ」として用意された焼きごては、あろうことか、%ANAME(MASTER)%の下腹に押し当てられた……
+		SETCOLOR COLOR("注意")
+		PRINTFORMW %ANAME(MASTER)%は外来人たちの研究用奴隷となりました
+		RESETCOLOR
+	ELSE
+		PRINTFORMW お前達になど手を貸すか。%ANAME(MASTER)%は毅然として言い放つ	
+		PRINTFORMW ではしかたないと、彼らはそのまま%ANAME(MASTER)%を投獄した……
+	ENDIF
+ENDIF
+IF RESULT == 0
+	SETBIT TALENT:MASTER:特殊勢力陥落系, 特殊勢力_外来人
+	CFLAG:MASTER:1 = ARG:0
+	FOR LOCAL:0, 0, CHARANUM
+		IF TALENT:(LOCAL:0):特殊勢力素質 == 特殊勢力_外来人
+			TALENT:(LOCAL:0):合意 = 1
+			CFLAG:(LOCAL:0):2 = MAX(CFLAG:(LOCAL:0):2, 500)
+			CFLAG:(LOCAL:0):3 = MAX(CFLAG:(LOCAL:0):3, 500)
+		ENDIF
+	NEXT
+	RETURN 1
+ELSE
+	CFLAG:MASTER:9 = ARG:0
+	RETURN 3
+ENDIF

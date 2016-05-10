@@ -2074,15 +2074,18 @@ ENDIF
 RESETCOLOR
 PRINT  
 
-IF GETBIT(TALENT:(ARG:0):特殊勢力陥落系, 陥落_外来人)
+IF GETBIT(TALENT:(ARG:0):特殊勢力陥落系, 特殊勢力_外来人)
 	SETCOLOR 0x0000A0
 	PRINT 外
-ELSEIF GETBIT(TALENT:(ARG:0):特殊勢力陥落系, 陥落_ホフゴブリン)
+ELSEIF GETBIT(TALENT:(ARG:0):特殊勢力陥落系, 特殊勢力_ホフゴブリン)
 	SETCOLOR 0x2B5C1B
 	PRINT ゴ
-ELSEIF GETBIT(TALENT:(ARG:0):特殊勢力陥落系, 陥落_野盗)
+ELSEIF GETBIT(TALENT:(ARG:0):特殊勢力陥落系, 特殊勢力_野盗)
 	SETCOLOR 0x800000
 	PRINT 野
+ELSEIF GETBIT(TALENT:(ARG:0):特殊勢力陥落系, 特殊勢力_触手)
+	SETCOLOR 0xFF1493
+	PRINT 寄
 ELSEIF TALENT:(ARG:0):親愛
 	SETCOLOR 0xF5CE13
 	PRINT 愛
@@ -2593,42 +2596,6 @@ DO
 	RETURNF LOCAL:0
 LOOP 1
 
-;---------------------------
-;ARG:0番のキャラがEVENT_IDがARG:1である勢力による調教でFORCE_FUCKされたときに、CFLAGが減少するか
-;減少「しない」場合、1を返す（@FORCE_FUCKの「CFLAG減少させないフラグ」に対応する）
-;---------------------------
-@SP_TRAIN_IS_DECREASE_CFLAG(ARG:0, ARG:1)
-#FUNCTION
-SELECTCASE ARG:1
-	;野盗の場合
-	CASE COUNTRY_BANDIT
-		;野盗の士官か奴隷としてスタートし、対象が堕ちている
-		IF GROUPMATCH(BANDIT_START, 1, 2) && GETBIT(TALENT:(ARG:0):特殊勢力陥落系, 陥落_野盗)
-			RETURNF 1
-		;MASTERが野盗に所属している
-		ELSEIF CFLAG:MASTER:所属 == GET_COUNTRY_FROM_ID(COUNTRY_BANDIT)
-			RETURNF 1
-		;MASTERが野盗の捕虜で、対象が堕ちている
-		ELSEIF CFLAG:MASTER:捕虜先 == GET_COUNTRY_FROM_ID(COUNTRY_BANDIT) && GETBIT(TALENT:(ARG:0):特殊勢力陥落系, 陥落_野盗)
-			RETURNF 1
-		ENDIF
-	CASE COUNTRY_GOBLIN
-		;MASTERがホフゴブリン勢力に所属している
-		IF CFLAG:MASTER:所属 == GET_COUNTRY_FROM_ID(COUNTRY_GOBLIN)
-			RETURNF 1
-		;MASTERがホフゴブリン勢力の捕虜で、対象が堕ちている
-		ELSEIF CFLAG:MASTER:捕虜先 == GET_COUNTRY_FROM_ID(COUNTRY_GOBLIN) && GETBIT(TALENT:(ARG:0):特殊勢力陥落系, 陥落_ホフゴブリン)
-			RETURNF 1
-		ENDIF
-	CASE COUNTRY_GAIRAI
-		;MASTERが外来勢力に所属している
-		IF CFLAG:MASTER:所属 == GET_COUNTRY_FROM_ID(COUNTRY_GAIRAI)
-			RETURNF 1
-		;MASTERが外来勢力の捕虜で、対象が堕ちている
-		ELSEIF CFLAG:MASTER:捕虜先 == GET_COUNTRY_FROM_ID(COUNTRY_GAIRAI) && GETBIT(TALENT:(ARG:0):特殊勢力陥落系, 陥落_外来人)
-			RETURNF 1
-		ENDIF
-ENDSELECT
 
 ;---------------------------
 ;与えられた値について、締まり具合を文字列で返す関数
@@ -2810,49 +2777,6 @@ DRAWLINE
 PRINTFORML ・
 PRINTFORML ・
 PRINTFORML ・
-
-;-------------------------------------------------
-;渡された勢力番号が特殊勢力であるかを判断する
-;-------------------------------------------------	
-@IS_SP_COUNTRY(勢力)
-#FUNCTION
-#DIM 勢力
-SIF 勢力 < 0 || 勢力 >= MAX_COUNTRY
-	RETURNF 0
-RETURNF GROUPMATCH(COUNTRY_EVENT_ID:(勢力), COUNTRY_BANDIT, COUNTRY_GAIRAI, COUNTRY_GOBLIN)
-
-;-------------------------------------------------
-;渡されたキャラが特殊勢力の陥落系素質を持っているかを判断する
-;-------------------------------------------------	
-@IS_FALLEN_TO_SP_COUNTRY(対象)
-#FUNCTION
-#DIM 対象
-RETURNF TOSTR_FALLEN_TALENT(TALENT:対象:特殊勢力陥落系)
-
-;-------------------------------------------------
-;渡されたキャラが特殊勢力のキャラであるかどうかを判断する
-;-------------------------------------------------	
-@IS_SP_COUNTRY_CHARA(対象)
-#FUNCTION
-#DIM 対象
-RETURNF TALENT:対象:特殊勢力素質
-
-;-------------------------------------------------
-;渡されたビット番号に対応する陥落素質の文字列を返す
-;-------------------------------------------------	
-@TOSTR_FALLEN_TALENT(ビット)
-#FUNCTIONS
-#DIM ビット
-SELECTCASE ビット
-	CASE 陥落_野盗
-		RETURNF "野盗の肉便器"
-	CASE 陥落_ホフゴブリン
-		RETURNF "ホフゴブリンの性奴隷"
-	CASE 陥落_外来人
-		RETURNF "研究用奴隷"
-	CASEELSE
-		RETURNF ""
-ENDSELECT
 
 ;-------------------------------------------------
 ;渡されたビット番号に対応するＳＬＧ素質の文字列を返す
