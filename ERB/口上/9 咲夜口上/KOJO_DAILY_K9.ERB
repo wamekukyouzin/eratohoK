@@ -11,6 +11,22 @@ SIF RESULT != -1
 	発生フラグ = 1
 SIF DAILY_CANCEL
 	RETURN 1
+
+;主の客は
+DAILY_NAME = 主の客は
+CALL KOJO_DAILY_K9_AFTER_REMILLIAS_INVITATION
+SIF RESULT != -1
+	発生フラグ = 1
+SIF DAILY_CANCEL
+	RETURN 1
+
+DAILY_NAME = 主の主は
+CALL KOJO_DAILY_K9_LOYALTY_FROM_SAKUYA
+SIF RESULT != -1
+	発生フラグ = 1
+SIF DAILY_CANCEL
+	RETURN 1
+
 RETURN 発生フラグ
 
 ;----------------------------------
@@ -110,3 +126,120 @@ ELSE
 		ABL:MASTER:アップ能力 += 1
 	ENDIF
 ENDIF
+
+;----------------------------------
+;主の客は
+;----------------------------------
+@KOJO_DAILY_K9_AFTER_REMILLIAS_INVITATION
+#DIM 咲夜
+#DIM レミリア
+
+;咲夜と同じ勢力、咲夜が捕虜でない、100%
+SIF !(CHECK_KOJO_DAILY_HAPPEN(咲夜, 1000, 1, 0))
+	RETURN -1
+
+SIF !(CHECK_KOJO_DAILY_HAPPEN(レミリア, 1000, 1, 0))
+	RETURN -1
+
+SIF TALENT:咲夜:隷属 || TALENT:咲夜:服従 || TALENT:咲夜:恋慕 || TALENT:咲夜:親愛 || TALENT:咲夜:親愛 || TALENT:咲夜:合意
+	RETURN -1
+
+;一回きり
+SIF KDVAR:咲夜:咲夜_主の客は
+	RETURN -1
+
+;レミリアからの勧誘をこなしている
+SIF KDVAR:レミリア:レミリア_レミリアからの勧誘 != 2
+	RETURN -1
+
+;紅魔館メンバー
+SIF GROUPMATCH(CSTR:MASTER:99, "レミリア", "パチュリー", "美鈴", "小悪魔", "フランドール")
+	RETURN -1
+
+;面識を得る
+CFLAG:咲夜:面識 = 1
+
+CALL KOJO_DAILY_START()
+
+PRINTFORMW 「ああ、%ANAME(MASTER)%。少しいいかしら」
+PRINTFORML %ANAME(対象)%が部屋を訪ねてきた
+PRINTFORMW 「話は聞いてるわ、お嬢様の誘いを受けたそうね？　ようこそ、紅魔館へ」
+PRINTFORMW 「それにあたって、一つ大事な話があるの。悪い話ではないわ」
+PRINTFORMW 「ご存じの通り、私はお嬢様のメイド。お嬢様が是というなら、私にとっても是だわ」
+PRINTFORMW 「……それはつまり、お嬢様が身体を許されたなら、私も許す、ということでもある」
+PRINTFORMW 「お嬢様同様、私のことも、好きにしてくれていいわ」
+PRINTFORML 
+CALL ASK_YN("正気か？", "そうさせてもらおう")
+IF RESULT == 0
+	PRINTFORMW 「もちろん。遊びや酔狂で言ったりはしないわ。繰り返しになるけど、お嬢様のされることが、私のすること」
+	PRINTFORMW 「ま、それだけお嬢様は%ANAME(MASTER)%を欲しがっていて、かつ繋ぎ止めたがっているということよ」
+	PRINTFORML なおも躊躇する%ANAME(MASTER)%に、%ANAME(対象)%は呆れた顔を浮かべた
+	PRINTFORML 「……別に、義務感だけから言ってるわけじゃないのよ？
+	PRINTFORMW 「私だって一人の独立した人間だわ。どうしてもしたくなければ、しない」
+	PRINTFORMW 「お嬢様じゃないけど、私も、どうせ成すなら優秀な子のほうがいいってことよ」
+	PRINTFORMW 「ま、%ANAME(MASTER)%の意志に任せるけどね。私の部屋は、好きに訪ねてくれていいから」
+	PRINTFORML 言うだけ言って、%ANAME(対象)%は立ち去った
+	PRINTFORML あとには、呆然とする%ANAME(MASTER)%が残されるばかりだった……
+ELSE
+	PRINTFORMW 「話が早いわね。そうそう、それでいいの」
+	PRINTFORMW 「それで満足して、紅魔館に残って、結果を残してくれたら十分。あなたはそのために呼ばれたんだから」
+	PRINTFORMW 「それじゃ、私の部屋は好きに訪ねてくれていいから。そっちから呼んでくれてもいいわ」
+	PRINTFORML 満足気に頷くと、%ANAME(対象)%は立ち去った
+	PRINTFORML そのうちにでも呼んでやるとしよう……
+ENDIF
+
+CALL COLORPRINTFORM(@"%ANAME(咲夜)%の合意を得ました", COLOR("注意"), "W")
+CFLAG:咲夜:従属度 = MIN(CFLAG:咲夜:従属度 + 500, 1000)
+CFLAG:咲夜:依存度 = MIN(CFLAG:咲夜:依存度 + 300, 500)
+TALENT:咲夜:合意 = 1
+KDVAR:咲夜:咲夜_主の客は = 1
+
+;----------------------------------
+;主の主は
+;----------------------------------
+@KOJO_DAILY_K9_LOYALTY_FROM_SAKUYA
+#DIM 咲夜
+#DIM レミリア
+
+;咲夜と同じ勢力、咲夜が捕虜でない、100%
+SIF !(CHECK_KOJO_DAILY_HAPPEN(咲夜, 1000, 1, 0))
+	RETURN -1
+
+SIF !(CHECK_KOJO_DAILY_HAPPEN(レミリア, 1000, 1, 0))
+	RETURN -1
+
+SIF IS_SLAVE(咲夜) || IS_LOVER(咲夜) || TALENT:咲夜:合意
+	RETURN -1
+
+;一回きり
+SIF KDVAR:咲夜:咲夜_主の主は
+	RETURN -1
+
+;レミリアがIS_SLAVE
+SIF IS_SLAVE(レミリア)
+	RETURN -1
+
+;紅魔館メンバーはだめ
+SIF GROUPMATCH(CSTR:MASTER:99, "レミリア", "パチュリー", "美鈴", "小悪魔", "フランドール")
+	RETURN -1
+
+;面識を得る
+CFLAG:咲夜:面識 = 1
+
+CALL KOJO_DAILY_START()
+PRINTFORMW 「失礼いたします。ご主人様、少々お時間よろしいでしょうか？」
+PRINTFORML うやうやしげな様子で、%ANAME(対象)%が部屋を訪ねてきた
+PRINTFORML ご主人様とは何事かと問うと、%ANAME(対象)%は慇懃に語り始める
+PRINTFORMW 「我があるじ、レミリア・スカーレットが、あなた様に忠誠を誓いました」
+PRINTFORMW 「あるじのあるじは、またあるじです。私も、%ANAME(MASTER)%様に忠誠を誓います」
+PRINTFORMW 「なんなりとご命令ください。戦も、お望みでしたら伽も、完璧にこなしてみせますわ」
+PRINTFORMW 「取り急ぎは以上です。夜の慰みが必要でしたら、いつでもお呼びくださいませ」
+PRINTFORML 言うだけ言って、時を止めたのか、%ANAME(対象)%は消えてしまった
+PRINTFORML 折角の申し出だ、有効に活用させてもらおう……
+CALL COLORPRINTFORM(@"%ANAME(咲夜)%が忠誠を誓いました", COLOR("注意"), "W")
+CALL COLORPRINTFORM(@"%ANAME(咲夜)%の合意を得ました", COLOR("注意"), "W")
+
+CFLAG:咲夜:従属度 = MAX(CFLAG:咲夜:従属度 + 1500, 1500)
+CFLAG:咲夜:依存度 = MAX(CFLAG:咲夜:依存度 + 300, 300)
+TALENT:咲夜:合意 = 1
+TALENT:咲夜:服従 = 1
