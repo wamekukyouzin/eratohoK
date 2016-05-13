@@ -1,0 +1,59 @@
+﻿;-------------------------------------------------
+;自警団による調教（？）
+;-------------------------------------------------
+@TRAIN_BY_VIGILANTE
+#DIM 自警団
+#DIM 対象
+;IDから自警団勢力の番号を取得
+自警団 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_自警団))
+
+SIF 自警団 == -1 || CONFIG:200
+	RETURN -1
+
+LOCAL:9 = 1
+FOR 対象, 0, CHARANUM
+	;自警団勢力の捕虜。SPキャラでない。
+	IF CFLAG:対象:9 == 自警団 && NO:対象 < 2000
+		;調教カウンタを増やす
+		CFLAG:対象:調教カウンタ++
+		
+		;調教の様子を表示
+		;SPキャラでなく、テキスト表示設定で、自警団の捕虜
+		IF NO:対象 < 2000 && TRAIN_IS_SHOW_TEXT(対象)
+			IF LOCAL:9
+				LOCAL:9 = 0
+				DRAWLINE
+				PRINTW 自警団に捕らえられた士官が熱心な説得を受けているようです…
+			ENDIF
+			PRINTL
+			PRINTFORML %対象%は説得されている……
+
+			IF CFLAG:対象:調教カウンタ >= TRAIN_FALLEN_TERM:2 && CFLAG:対象:調教カウンタ <= TRAIN_FALLEN_TERM:3 && !GETBIT(TALENT:対象:特殊勢力陥落系, 特殊勢力_自警団)
+				SETCOLOR COLOR("警告")
+				PRINTFORML アツい説得で、%ANAME(対象)%は自警団への参加の意欲を固めている……
+				PRINTFORML このまま助けがなければ、本当に自警団に参加するだろう
+				RESETCOLOR
+			ENDIF
+
+			;「解放カウンタが一定以上で、自警団所属でない」で寝返る
+			IF (CFLAG:対象:調教カウンタ >= TRAIN_FALLEN_TERM:3 && CFLAG:対象:所属 != 自警団)
+				;調教の様子を表示
+				IF TRAIN_IS_SHOW_TEXT(対象)
+					PRINTFORML ・
+					PRINTFORML ・
+					PRINTFORML ・
+					PRINTFORMW 自警団たちの熱心な説得で、%ANAME(対象)%は自警団への参加の意思を固めた
+					PRINTFORMW 支給された制服に、%ANAME(対象)%は袖を通した……
+					CALL KOJO_SPECIAL_FALLEN_EVENT(対象, SP_COUNTRY_ID:(特殊勢力_自警団))
+					SETCOLOR COLOR("注意")
+					PRINTFORMW %ANAME(対象)%は自警団に寝返ってしまった
+					RESETCOLOR
+					CFLAG:対象:所属 = 自警団
+					CFLAG:対象:捕虜先 = 0
+				ENDIF
+
+			ENDIF
+			WAIT
+		ENDIF
+	ENDIF
+NEXT
