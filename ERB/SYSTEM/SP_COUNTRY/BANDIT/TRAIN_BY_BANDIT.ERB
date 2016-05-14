@@ -14,22 +14,31 @@ SIF CONFIG:200
 FOR LOCAL:0, 0, CHARANUM
 	対象 = LOCAL:0
 	IF (CFLAG:対象:所属 == 野盗 && !CFLAG:対象:捕虜先 || CFLAG:対象:9 == 野盗) && NO:対象 < 2000
-		;調教の様子を表示
-		IF TRAIN_IS_SHOW_TEXT(対象) && (!GETBIT(TALENT:対象:特殊勢力陥落系, 特殊勢力_野盗) || (GETBIT(TALENT:対象:特殊勢力陥落系, 特殊勢力_野盗) && CFLAG:対象:所属 != 野盗) || (GETBIT(TALENT:対象:特殊勢力陥落系, 特殊勢力_野盗) && !RAND:3))
+		;個人的な嗜好による改造
+		IF !GETBIT(TALENT:対象:特殊勢力陥落系, 特殊勢力_野盗)
 			;マスターは条件を満たしても野盗の士官スタートなら抜ける
 			SIF 対象 == MASTER && BANDIT_START == 1
 				CONTINUE
+			;軟禁中はスキップ
+			SIF CFLAG:対象:9 == 野盗 && CFLAG:対象:29
+				CONTINUE
+			;MASTER以外の身内はスキップ
+			SIF CFLAG:対象:所属 == 野盗 && 対象 != MASTER
+				CONTINUE
+		ENDIF
+		;調教の様子を表示
+		IF TRAIN_IS_SHOW_TEXT(対象) && (!GETBIT(TALENT:対象:特殊勢力陥落系, 特殊勢力_野盗) || (GETBIT(TALENT:対象:特殊勢力陥落系, 特殊勢力_野盗) && CFLAG:対象:所属 != 野盗) || (GETBIT(TALENT:対象:特殊勢力陥落系, 特殊勢力_野盗) && !RAND:3))
 			IF !LOCAL:1
 				DRAWLINE
 				PRINTFORML 野盗に囚われた各国の仕官が陵辱されているようです……
 				PRINTFORML
 				LOCAL:1 = 1
 			ENDIF
-			CFLAG:(LOCAL:0):調教カウンタ ++
 			;メッセ表示
 			CALL BANDIT_TRAIN_MSG(対象)
 			WAIT
 			CALL FORCE_FUCK(対象, SP_NAME_TO_ID("野盗"), @"野盗の\@ RAND:2 ? ペニス # 唇\@", "野盗", 2, SP_TRAIN_IS_DECREASE_CFLAG(対象, SP_COUNTRY_ID:(特殊勢力_野盗)))
+			CFLAG:(LOCAL:0):調教カウンタ ++
 			;あまり長く捕らえられていると寝返る
 			IF (CFLAG:対象:調教カウンタ >= TRAIN_FALLEN_TERM:3 && !GETBIT(TALENT:対象:特殊勢力陥落系, 特殊勢力_野盗)) || (CFLAG:対象:所属 != 野盗 && GETBIT(TALENT:対象:特殊勢力陥落系, 特殊勢力_野盗))
 				SETCOLOR COLOR("警告")
@@ -749,6 +758,23 @@ ELSE
 	メッセージ = 0
 	PRINTFORML 野盗に囚われた%ANAME(対象)%が調教されているようだ……
 ENDIF
+
+
+IF !GETBIT(TALENT:(対象):特殊勢力陥落系, 特殊勢力_野盗)
+	SELECTCASE LOCAL:5
+		CASE 1
+			PRINTFORML %ANAME(対象)%は\@ IS_LOVER(対象) ? %ANAME(MASTER)%の顔を思い浮かべて #  \@犯されることに苦痛を覚えている……
+		CASE 2
+			PRINTFORML %ANAME(対象)%は犯されることに快楽を覚えている……
+			SIF IS_LOVER(対象)
+				PRINTFORML 思い浮かべていた%ANAME(MASTER)%の顔が、次第に薄れていく……
+		CASE 3
+			PRINTFORML %ANAME(対象)%は犯される快楽を自ら求めている……
+			SIF IS_LOVER(対象)
+				PRINTFORML 腰を振り快楽をねだる%ANAME(対象)%の頭の中に、%ANAME(MASTER)%のことなどほとんど残っていない……
+	ENDSELECT
+ENDIF
+
 
 CALL KOJO_SPECIAL_TRAIN_EVENT(対象, SP_COUNTRY_ID:(特殊勢力_野盗), メッセージ)
 

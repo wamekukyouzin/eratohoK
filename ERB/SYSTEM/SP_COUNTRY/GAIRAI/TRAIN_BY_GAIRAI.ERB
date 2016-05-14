@@ -13,7 +13,17 @@ SIF 外来 == -1 || CONFIG:200
 
 FOR 対象, 0, CHARANUM
 	;外来勢力に寝返った士官／外来勢力の捕虜となった士官の扱い
-	IF (CFLAG:対象:所属 == 外来 && !CFLAG:対象:捕虜先 || CFLAG:対象:9 == 外来) && NO:対象 < 2000
+	IF (CFLAG:対象:所属 == 外来 && !CFLAG:対象:捕虜先 || CFLAG:対象:捕虜先 == 外来) && NO:対象 < 2000
+		;個人的な嗜好による改造
+		IF !TALENT:対象:GETBIT(TALENT:対象:特殊勢力陥落系, 特殊勢力_外来人)
+			;軟禁中はスキップ
+			SIF CFLAG:対象:捕虜先 == 外来 && CFLAG:対象:29
+				CONTINUE
+			;MASTER以外の身内はスキップ
+			SIF CFLAG:対象:所属 == 外来 && 対象 != MASTER
+				CONTINUE
+		ENDIF
+		
 		;調教の様子を表示
 		IF !TALENT:対象:特殊勢力素質 && TRAIN_IS_SHOW_TEXT(対象) && (!GETBIT(TALENT:対象:特殊勢力陥落系, 特殊勢力_外来人) || (GETBIT(TALENT:対象:特殊勢力陥落系, 特殊勢力_外来人) && CFLAG:対象:所属 != 外来) || (GETBIT(TALENT:対象:特殊勢力陥落系, 特殊勢力_外来人) && !RAND:3))
 			IF LOCAL:9
@@ -22,12 +32,14 @@ FOR 対象, 0, CHARANUM
 				PRINTW 外来人に捕らえられた士官が「研究」されているようです…
 			ENDIF
 			PRINTL 
+			
 			CALL GAIRAI_TRAIN_MSG(対象)
 			IF IS_FEMALE(対象) && GAIRAI_SEX_VS(対象) == 1
 				CALL FORCE_FUCK(対象, SP_NAME_TO_ID("外来人"), @"\@ RAND:2 ? # 外来人の唇 ? 外来人の秘唇\@", @"外来人", 2, SP_TRAIN_IS_DECREASE_CFLAG(対象, SP_COUNTRY_ID:(特殊勢力_外来人)), 0, 1)
 			ELSE
 				CALL FORCE_FUCK(対象, SP_NAME_TO_ID("外来人"), @"\@ RAND:2 ? # 外来人の唇 ? 外来人のペニス\@", @"外来人", 2, SP_TRAIN_IS_DECREASE_CFLAG(対象, SP_COUNTRY_ID:(特殊勢力_外来人)))
 			ENDIF
+			
 			;調教カウンタを加算
 			CFLAG:対象:調教カウンタ ++
 

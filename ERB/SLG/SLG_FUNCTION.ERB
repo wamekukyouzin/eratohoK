@@ -1701,6 +1701,9 @@ FOR LOCAL:0, 0, 10
 	UNIT_COMMANDER:(ARG:0):(LOCAL:0) = 0
 	UNIT_BREAK_TERM:(ARG:0):(LOCAL:0) = 0
 NEXT
+FOR LOCAL, 0, MAX_CITY
+	PHEROMONE:(ARG:0):(LOCAL:0) = 0
+NEXT
 
 ;-------------------------------------------------
 ;解放カウンタに基づいて捕虜を解放する処理
@@ -2108,3 +2111,78 @@ CALL FORCE_FREE(ARG:0)
 @ADD_COOLTIME(ARG:0, ARG:1)
 COOLTIME:(ARG:0):0 += ARG:1
 CALL FORCE_FREE(ARG:0)
+
+
+;-------------------------------------------------
+;ARG:0番の都市について駐留部隊を含めた防衛兵力を返す関数
+;数しか見てないが敵の同盟軍も含めて評価を行う
+;-------------------------------------------------
+@GET_CITY_GUARD(ARG:0)
+#FUNCTION
+#DIM GUARD
+GUARD = CITY_SOLDIER:(ARG:0)
+SIF CITY_OWNER:(ARG:0) < 1
+	RETURNF GUARD
+
+FOR LOCAL, 1, MAX_COUNTRY
+	SIF CHECK_COUNTRY_RELATION_F(CITY_OWNER:(ARG:0), LOCAL) <= 1
+		CONTINUE
+	FOR LOCAL:1, 0, 10
+		SIF UNIT_SOLDIER:(LOCAL:0):(LOCAL:1) < 1
+			CONTINUE
+		SIF UNIT_POSITION:(LOCAL:0):(LOCAL:1) != ARG:0
+			CONTINUE
+		GUARD += UNIT_SOLDIER:(LOCAL:0):(LOCAL:1)
+	NEXT
+NEXT
+RETURNF GUARD
+
+
+;-------------------------------------------------
+;勢力ARG:0の部隊ARG:1の現在位置を決定する関数
+;最重要都市を探してそこに作る（評価法は守備部隊の配分と同一）
+;-------------------------------------------------
+@SET_NEW_UNIT_POSITION(ARG:0, ARG:1)
+#DIM CITY_COUNT               ;自勢力に所属する都市の総数
+#DIM CITY_ID, MAX_CITY        ;自勢力都市のIDの一時記録
+#DIM CITY_PHEROMONE, MAX_CITY ;自勢力都市のフェロモンの一時記録
+
+SIF GET_OWN_CITY(ARG:0) < 1
+	RETURN
+
+;野盗は特殊処理が必要か？
+;IF COUNTRY_EVENT_ID:(LOCAL:0) == COUNTRY_BANDIT && GET_OWN_CITY(LOCAL:0) == 0
+;ENDIF
+
+VARSET CITY_COUNT
+VARSET CITY_ID
+VARSET CITY_PHEROMONE
+
+;自勢力圏都市IDとフェロモン濃度の取得
+FOR LOCAL, 0, MAX_CITY
+	IF CITY_OWNER:(LOCAL:0) == ARG:0
+		CITY_PHEROMONE:LOCAL = PHEROMONE:(ARG:0):LOCAL
+		CITY_ID:CITY_COUNT = LOCAL:0
+		CITY_COUNT ++
+		SIF CITY_COUNT >= GET_OWN_CITY(ARG:0)
+			BREAK
+	ENDIF
+NEXT
+
+;ノームソートなるものをウィキペで見つけて試す
+FOR LOCAL, 1, CITY_COUNT
+	IF CITY_PHEROMONE:(CITY_ID:(LOCAL - 1)) < CITY_PHEROMONE:(CITY_ID:LOCAL)
+		SWAP CITY_ID:(LOCAL - 1), CITY_ID:LOCAL
+		LOCAL = MAX(LOCAL - 2, 0)
+	ENDIF
+NEXT
+
+UNIT_POSITION:(ARG:0):(ARG:1) = CITY_ID:0
+
+IF !(CITY_ID:0)
+	PRINTFORML 場所決定の異常
+	FOR LOCAL, 1, CITY_COUNT
+		PRINTFORML {CITY_ID:(LOCAL:1), 3}%CITY_NAME_SHORT:(CITY_ID:(LOCAL:1)), 8%：{CITY_PHEROMONE:(LOCAL:1)}
+	NEXT
+	WAIT
+ENDIF
