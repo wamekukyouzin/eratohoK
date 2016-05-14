@@ -14,10 +14,16 @@ LOCAL:9 = 1
 FOR 対象, 0, CHARANUM
 	;触手勢力所属で捕虜でないか、触手勢力の捕虜。SPキャラでない。
 	IF (CFLAG:対象:所属 == 触手 && !CFLAG:対象:捕虜先 || CFLAG:対象:9 == 触手) && NO:対象 < 2000
+		;個人的な嗜好による改造
+		IF !TALENT:対象:GETBIT(TALENT:対象:特殊勢力陥落系, 特殊勢力_触手)
+			;軟禁中はスキップ
+			SIF CFLAG:対象:捕虜先 == 触手 && CFLAG:対象:29
+				CONTINUE
+			;MASTER以外の身内はスキップ
+			SIF CFLAG:対象:所属 == 触手 && 対象 != MASTER
+				CONTINUE
+		ENDIF
 
-		;調教カウンタを増やす
-		CFLAG:対象:調教カウンタ++
-		
 		;調教の様子を表示
 		;SPキャラでなく、テキスト表示設定で、「堕ちているか、堕ちていて1/3の確率」
 		IF NO:対象 < 2000 && TRAIN_IS_SHOW_TEXT(対象) && (!GETBIT(TALENT:対象:特殊勢力陥落系, 特殊勢力_触手) || (GETBIT(TALENT:対象:特殊勢力陥落系, 特殊勢力_触手) && CFLAG:対象:所属 != 触手) || (GETBIT(TALENT:対象:特殊勢力陥落系, 特殊勢力_触手) && !RAND:3))
@@ -26,11 +32,16 @@ FOR 対象, 0, CHARANUM
 				DRAWLINE
 				PRINTW 触手に囚われた士官が、彼らの繁殖のため使われているようです……
 			ENDIF
+			
 			PRINTL 
 			CALL TENTACLE_TRAIN_MSG(対象)
 			CALL FORCE_FUCK(対象, SP_NAME_TO_ID("触手"), @"触手", @"触手", 2, SP_TRAIN_IS_DECREASE_CFLAG(対象, SP_COUNTRY_ID:(特殊勢力_触手)))
 			EXP:対象:触手経験値 += RAND(MAX(ABL:対象:触手, 1) * 4, MAX(ABL:対象:触手, 1) * 6)
 			CALL TRAIN_AUTO_ABLUP(対象)
+
+			;調教カウンタを増やす
+			CFLAG:対象:調教カウンタ++
+			
 			;堕ちそうなら特殊メッセ
 			IF CFLAG:対象:調教カウンタ >= TRAIN_FALLEN_TERM:2 && CFLAG:対象:調教カウンタ <= TRAIN_FALLEN_TERM:3 && !GETBIT(TALENT:対象:特殊勢力陥落系, 特殊勢力_触手)
 				SETCOLOR COLOR("警告")
@@ -38,7 +49,8 @@ FOR 対象, 0, CHARANUM
 				PRINTFORML このまま助けがなければ、彼らの苗床となり果ててしまうだろう
 				RESETCOLOR
 			ENDIF
-
+			;調教カウンタを加算
+			CFLAG:対象:調教カウンタ ++
 			;「解放カウンタが一定以上で、堕ちていない」か「触手所属でなく、堕ちている」で寝返る
 			IF (CFLAG:対象:調教カウンタ >= TRAIN_FALLEN_TERM:3 && !GETBIT(TALENT:対象:特殊勢力陥落系, 特殊勢力_触手)) || (CFLAG:対象:所属 != 触手 && GETBIT(TALENT:対象:特殊勢力陥落系, 特殊勢力_触手))
 				;調教の様子を表示
