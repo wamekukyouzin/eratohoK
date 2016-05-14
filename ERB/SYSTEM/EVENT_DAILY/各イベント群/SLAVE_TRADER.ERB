@@ -1,0 +1,224 @@
+﻿@SLAVE_TRADER
+#DIM 対象
+#DIM 捕虜番号, 1000
+#DIM 野盗
+
+野盗 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:特殊勢力_野盗)
+
+;野盗勢力がなかったら、あるいはあなたが野盗所属の場合はキャンセル
+SIF 野盗 == -1 || CFLAG:MASTER:所属 == 野盗 || CONFIG:200
+	RETURN
+
+;捕虜がいるか判定、いない場合はキャンセル
+FOR LOCAL, 0, CHARANUM
+	IF CFLAG:LOCAL:捕虜先 == CFLAG:MASTER:所属
+		BREAK
+	ENDIF
+NEXT
+
+SIF LOCAL == CHARANUM
+	RETURN
+
+DAILY_NAME = 奴隷商人
+CALL DAILY_START()
+PRINTFORML 奴隷商人がやってきた
+PRINTFORML 「こちらで捕虜を捕えていると聞いてまいりました」
+PRINTFORML 「もしも扱いにお困りでしたら我々が買い取りますが、いかがいたしましょう？」
+PRINTFORMW どうしよう？
+CALL ASK_MULTI(@"売る", "やめておく")
+	IF RESULT == 1
+		PRINTFORML 大事な交渉材料だ、そんなことは出来ない
+		PRINTFORMW きっぱりと断ると商人は肩を竦めて帰って行った
+		RETURN
+	ELSE
+		PRINTFORML 金になるならば売らない手はない
+		PRINTFORML 奴隷商人を捕虜のところへと案内した
+		PRINTFORMW 彼は捕虜たちの状態を調べて買い取り価格を提示してきた
+	ENDIF
+DRAWLINE
+$SHOW_LOOP
+PRINTFORML 誰を売ろうか？
+FOR LOCAL, 0, CHARANUM
+	IF CFLAG:LOCAL:捕虜先 == CFLAG:MASTER:所属
+		捕虜番号:(LOCAL:1) = LOCAL
+		PRINTFORM [{LOCAL:1}]%ANAME(LOCAL), 16, RIGHT% - 金{SLAVE_TRADER_PRICE(LOCAL), 6, RIGHT}
+		PRINTL
+		LOCAL:1 ++
+	ENDIF
+NEXT
+DRAWLINE
+PRINTFORML [1000] やめておく
+$INPUT_LOOP
+INPUT
+IF RESULT == 1000
+	PRINTFORML やはり大事な交渉材料だ、売るのはやめておこう
+	PRINTFORMW 断ると商人は肩を竦めて帰って行った
+	RETURN
+ELSEIF RESULT < 0 || RESULT >= LOCAL:1
+	GOTO INPUT_LOOP
+ELSE
+	対象 = 捕虜番号:(RESULT)
+	PRINTFORMW 「%ANAME(対象)%を売ってくださいますか？」
+	CALL ASK_MULTI(@"%ANAME(対象)%を売る" ,"考え直す")
+	IF RESULT == 1
+		PRINTFORML 「おや？残念ですね」
+		PRINTFORMW 「では、どなたを売ってくださいますか？」
+		DRAWLINE
+		GOTO SHOW_LOOP
+	ELSE
+		PRINTFORML %ANAME(対象)%を売る事にした
+		PRINTFORML 「ありがとうございます。こちらが料金になります」
+		MONEY += SLAVE_TRADER_PRICE(対象)
+		PRINTFORMW 金{SLAVE_TRADER_PRICE(対象)}を手に入れた
+		PRINTFORML %ANAME(対象)%は%ANAME(MASTER)%を睨みつけながら奴隷商人に引きずられていった……
+		CFLAG:対象:好感度 -= 300
+		CFLAG:対象:従属度 -= 300
+		CFLAG:対象:捕虜先 = 0
+		CFLAG:対象:特殊状態フラグ = 0
+	ENDIF
+	PRINTFORML ・
+	PRINTFORML ・
+	PRINTFORMW ・
+	IF IS_FEMALE(対象)
+		SELECTCASE RAND:5
+			CASE 0
+				LOCALS = 富豪
+			CASE 1
+				LOCALS = ヤクザ
+			CASE 2
+				LOCALS = 貴族
+			CASE 3
+				LOCALS = 妖怪
+			CASE 4
+				LOCALS = 外来人
+		ENDSELECT
+		PRINTFORMW %ANAME(対象)%は%LOCALS%に買われた様だ
+		PRINTFORML 
+		SELECTCASE RAND:20
+			CASE 0
+				PRINTFORML %ANAME(対象)%はベッドの上で四つん這いの姿勢のまま乱暴に犯されている
+				PRINTFORML 逞しい肉棒で一突き毎にゴリゴリと膣壁を抉られて、彼女はビクビクと身を震わせてヨガり狂う
+				PRINTFORMW やがて最奥へと強烈な熱を放たれると共に、彼女は大きく身をのけぞらせながら絶頂した
+			CASE 1
+				PRINTFORML %ANAME(対象)%は正常位の姿勢で犯されながらあられもない声を上げている
+				PRINTFORML %LOCALS%のねっとりとした腰遣いに彼女の子宮はすっかり躾けられており、目を♥にして身悶える
+				PRINTFORMW ペニスが膣内で跳ねるのを感じた%ANAME(対象)%は、全身で彼にしがみ付いて膣出しをおねだりした
+			CASE 2
+				PRINTFORML %ANAME(対象)%はは対面座位の姿勢でペニスを深々とねじ込まれながらキスされている
+				PRINTFORML 散々犯され続けた%ANAME(対象)%は身も心もすでに屈服寸前になっており、彼に合わせて従順に舌を絡ませる
+				PRINTFORMW 不意に突き上げられて甘い喘ぎと共に軽く達してしまい、彼女は蕩けた表情でぶるっと震えた
+			CASE 3
+				PRINTFORML %ANAME(対象)%は両腕を鎖で拘束されたまま、彼に乱暴に犯されている
+				PRINTFORML 激しいストロークでゴスゴスと子宮を小突かれる度に、彼女は身体を跳ねさせて思わず喘いでしまう
+				PRINTFORMW 下腹部から伝わる圧倒的な快楽に次第に%ANAME(対象)%の思考は蕩けていき、やがて自ら腰を振りだしていた
+			CASE 4
+				PRINTFORML %ANAME(対象)%は彼の腕に抱かれながら甘えるような表情で息を荒げている
+				PRINTFORML %LOCALS%の巧みなテクニックによって調教された彼女は、ただの一匹の雌にされてしまっていた
+				PRINTFORMW 彼が再び%ANAME(対象)%をベッドに横たえペニスを突き付けると、彼女は自ら身体を開いた
+			CASE 5
+				PRINTFORML 首輪をされた%ANAME(対象)%は、リードを握られながら立ちバックの姿勢で犯されている
+				PRINTFORML 脳天まで貫かれる様な激しいセックスに、彼女はガクガクと足を震わせながらなんとか耐えている
+				PRINTFORMW しかし不意打ちの様に膣内射精をされると、%ANAME(対象)%は一際大きな嬌声を上げて絶頂してしまった
+			CASE 6
+				PRINTFORML どぷどぷと大量の精液を注がれながら%ANAME(対象)%は大きく背を反らして絶頂している
+				PRINTFORML 散々犯された彼女の身体はすっかり蕩けきっており、子宮で%LOCALS%の精液を素直に飲み込んでいく
+				PRINTFORMW ペニスを引き抜かれると、彼女は雌穴からドロリと白濁液を垂らしながらだらしないアヘ顔を晒していた
+			CASE 7
+				PRINTFORML 彼に覆い被さられながらドスンドスンと激しいピストンを受けて%LOCALS%は痙攣している
+				PRINTFORML 一突き毎に子宮が潰される程の衝撃で、彼女は頭が真っ白になりながら喉から震えた呻き声を漏らす
+				PRINTFORMW ペニスを胎内にねじ込まれながら射精されると、%ANAME(対象)%はあられもない声を上げて絶頂してしまった
+			CASE 8
+				PRINTFORML うつ伏せの姿勢で彼のペニスをねじ込まれて、%ANAME(対象)%は枕を掴みながら息を荒げている
+				PRINTFORML ペニスでグリグリと膣肉を抉られる度に、彼女は頭がはじけそうな快楽に襲われ、より強く枕を掴む
+				PRINTFORMW 彼が膣内射精を予告すると、%ANAME(対象)%は期待で涎を垂らしながらゾクゾクと背筋を震わせた
+			CASE 9
+				PRINTFORML %ANAME(対象)%は%LOCALS%とともに湯船につかりながら色っぽい喘ぎ声を上げている
+				PRINTFORML ペニスで貫かれながら全身を丹念に愛撫され、風呂場の熱気も手伝い彼女は惚けたような表情で喘ぐ
+				PRINTFORMW 我慢できずに腰をくねらせると、彼も激しく腰を振り出し、風呂場に%ANAME(対象)%の嬌声が響き出した
+			CASE 10
+				PRINTFORML %ANAME(対象)%は卑猥な衣装を着せられながら彼に跨って腰を振っている
+				PRINTFORML 腰を落とす度に長大なペニスで子宮まで擦りあげられて、彼女は無意識にだらしない雌の顔を晒す
+				PRINTFORMW %LOCALS%が腰を掴んでずん！と突き上げると、彼女はビクンと大きく体を跳ねさせて絶頂した
+			CASE 11
+				PRINTFORML %ANAME(対象)%は蜜穴から精液を垂らしながら彼のペニスに跪いて奉仕をしている
+				PRINTFORML この逞しい肉棒に散々躾けられた彼女はすっかりメロメロになってしまい、熱心に舌を這わせる
+				PRINTFORMW ペニスが再び天を突くほどにそりたつと、%ANAME(対象)%は次を期待して自らベッドに横たわり体を開いた
+			CASE 12
+				PRINTFORML %LOCALS%に押し倒されながら激しくペニスを打ちつけられ、%ANAME(対象)%は呻き声を上げている
+				PRINTFORML 雄々しいピストンと逞しい肉棒に雌の本能を刺激され、犯されているにも拘らず次第に彼女の声が熱を帯びていく
+				PRINTFORMW そして%ANAME(対象)%の最奥で灼熱の精液を放たれると、彼女はもはや我慢できずに嬌声と共に絶頂した
+			CASE 13
+				PRINTFORML 深々と突き刺さった彼のペニスでグリグリと膣肉を刺激され、%ANAME(対象)%は嬌声を上げた
+				PRINTFORML 巧みに女の弱点を攻められ続けた彼女はもはや彼の思うがままに喘がされるだけの雌に成り下がっている
+				PRINTFORMW 震える声で許しを請うも攻めは一向にやまず、彼が満足するまでその身体を延々と嬲られ続けた
+			CASE 14
+				PRINTFORML %LOCALS%に跨りながら、%ANAME(対象)%は虚ろな表情で命ぜられるままに腰を振っている
+				PRINTFORML 特製の薬を打たれて前後不覚状態の彼女は、ただ与えられる快楽に素直に動く肉人形になっている
+				PRINTFORMW 具合の良さに彼が低く呻いて膣内射精をすると、%ANAME(対象)%は虚ろな笑みを浮かべながら絶頂した
+			CASE 15
+				PRINTFORML 彼に散々乱暴に犯された%ANAME(対象)%は息も絶え絶えでベッドに転がっている
+				PRINTFORML %LOCALS%に下腹部を撫でられながら「孕むまで仕込んでやる」と囁かれ、彼女はぶるっと身を震わせた
+				PRINTFORMW その表情は妊娠の不安や恐怖以上に、逞しい雄に孕まされる雌としての悦びと期待に満ちていた
+			CASE 16
+				PRINTFORML %LOCALS%は%ANAME(対象)%に覆いかぶさり盛った犬の様に夢中で腰を打ちつけている
+				PRINTFORML 全体重を乗せた激しいピストンに彼女は目を白黒させながら、必死でシーツを掴んで気をやらない様に耐えている
+				PRINTFORMW しかし彼の底なしのスタミナにはかなわず、やがてペニスに屈服してしまい、何度も絶頂させられることになった
+			CASE 17
+				PRINTFORML %LOCALS%のペットとして飼われている%ANAME(対象)%は鎖でつながれてベッドに横たわっている
+				PRINTFORML “ご主人様”に気に入られた彼女は何不自由ない待遇を与えられ、毎晩優しくに抱かれる生活をしている
+				PRINTFORMW 戸惑うほどの待遇に徐々に%ANAME(対象)%は懐柔されだしており、自らの子宮に彼の子を宿す悦びに目覚めつつあった
+			CASE 18
+				PRINTFORML ベッドの上で彼に犯されながら%ANAME(対象)%は恍惚の表情を浮かべて身を震わせている
+				PRINTFORML 彼のねっとりとした優しい愛撫と巧みな腰遣いに、彼女の理性はあっと言う間に溶かされて一匹の雌にされていた
+				PRINTFORMW もはや子宮の疼きに耐えられなくなった%ANAME(対象)%は、彼の首に手を回してあさましく膣内射精をおねだりしだした
+			CASE 19
+				PRINTFORML %ANAME(対象)%は乱暴に犯されながら声にならない声を上げて泡を吐いている
+				PRINTFORML 特製の媚薬を飲まされた彼女は、ペニスが出入りするたびに頭が爆発する様な快楽を受けて延々と絶頂している
+				PRINTFORMW やがて子宮に彼の子種を注がれると、彼女は下腹部に伝わる熱で気を失うほどの強烈な絶頂に達した
+		ENDSELECT
+		CALL FORCE_FUCK(対象, -1, @"%LOCALS%の\@RAND:2 ? ペニス # 唇\@", @"%LOCALS%", RAND:2 + 1)
+		PRINTFORMW 
+		PRINTFORML ・
+		PRINTFORML ・
+		PRINTFORMW ・
+		LOCAL:2 = RAND:16
+		IF LOCAL:2 == 0
+			PRINTFORML %LOCALS%に気に入られた%ANAME(対象)%は、彼の性奴隷として一生を過ごすことになった
+			PRINTFORMW しかしその表情は幸福に満ちており、もはや何の後悔も不安も無く自らの境遇を受け入れていた……
+			CFLAG:対象:所属 = 0
+			CFLAG:対象:特殊状態フラグ = 2
+		ELSEIF LOCAL:2 <= 4 && CFLAG:対象:所属 != 0 && CFLAG:対象:所属 != CFLAG:MASTER:所属
+			PRINTFORMW %ANAME(対象)%は何とか脱出して元の勢力に復帰したらしい
+		ELSE
+			PRINTFORMW 散々犯された後に飽きられた%ANAME(対象)%は、野盗へ売られたらしい
+			CFLAG:対象:捕虜先 = 野盗
+		ENDIF
+	ELSE
+		PRINTFORML %ANAME(対象)%は野盗へ売られたらしい
+		CFLAG:対象:捕虜先 = 野盗
+	ENDIF
+ENDIF
+
+RETURN
+;-------------------------------------------------
+;奴隷市場用、奴隷の金額計算関数
+;-------------------------------------------------
+@SLAVE_TRADER_PRICE(対象)
+#FUNCTION
+#DIM 対象
+#DIM 額
+;基礎値に能力とスケベ能力を加算する
+;奴隷市場の値段の半分ほど
+額 = 2500
+額 += (ABL:対象:武闘 + ABL:対象:知略 + ABL:対象:政治) * 40
+額 += (ABL:対象:歌唱 + ABL:対象:料理) * 20
+額 += (ABL:対象:欲望 + ABL:対象:性技 + ABL:対象:奉仕 + ABL:対象:性交) * 250
+
+;処女なら高値で売れる
+SIF TALENT:対象:処女 == 1
+	額 += 10000
+;人気者なら高値で売れる
+SIF TALENT:対象:人気 == 1
+	額 += 10000
+
+RETURNF 額
