@@ -18,6 +18,7 @@ SIF 触手 == -1
 
 ;引数で奪う都市が指定されていなければ、BANDIT_RISE_SELECT_CITY()を流用
 IF 都市:0 < 0 || 都市:0 >= CITY_NUM
+	VARSET 都市, -1
 	CALL BANDIT_RISE_SELECT_CITY()
 	FOR LOCAL, 0, VARSIZE("都市")
 		SIF RESULT:LOCAL == -1
@@ -29,23 +30,29 @@ IF 都市:0 < 0 || 都市:0 >= CITY_NUM
 		RETURN
 	ENDIF
 	FOR LOCAL, 0, VARSIZE("都市")
+		PRINTFORML {都市:LOCAL}
 		SIF 都市:LOCAL == -1
-			BREAK
+			CONTINUE
+		PRINTFORML %CITY_NAME:(都市:LOCAL)%を簒奪
 		CALL TAKEOVER_CITY_FROM_NO(触手, 都市:LOCAL)
 	NEXT
 ELSE
+	;なんか変だったがこういうことだろうか？
+	;都市:0を強制接収した上で該当勢力の都市をランダムに奪う
 	勢力 = CITY_OWNER:(都市:0)
+	CALL TAKEOVER_CITY_FROM_NO(触手, 都市)
 	FOR LOCAL, 0, SP_COUNTRY_RANK:(特殊勢力_触手)
 		SIF GET_OWN_CITY(勢力) <= 3
 			BREAK
 		FOR LOCAL:1, 1, MAX_CITY
 			IF CITY_OWNER:(LOCAL:1) == 勢力 && !RAND:3
-				CALL TAKEOVER_CITY_FROM_NO(触手, 都市)
+				CALL TAKEOVER_CITY_FROM_NO(触手, LOCAL:1)
 				BREAK
 			ENDIF
 		NEXT
 	NEXT
 ENDIF
+
 COUNTRY_IS_CLOSED:触手 = 1
 
 IF メッセージフラグ
