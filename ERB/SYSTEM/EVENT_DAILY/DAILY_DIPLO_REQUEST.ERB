@@ -207,6 +207,7 @@ ELSE
 		DVAR:要求野盗斬り捨て = 結果キャラ
 		CALL KOJO_EVENT_DAILY(結果キャラ, 口上_人材要求, LOCAL)
 		CALL KOJO_EVENT_DAILY(結果君主, 口上_人材要求_君主, LOCAL)
+		CALL DAILY_DIPLO_REQUEST_KILL_BANDIT
 	ENDIF
 	DVAR:士官要求カウンタ = 10
 ENDIF
@@ -443,13 +444,15 @@ ELSE
 		CALL KOJO_EVENT_DAILY(結果君主, 口上_資金援助要求_君主, LOCAL)
 		RESETCOLOR
 		DVAR:要求野盗斬り捨て = 結果キャラ
+		CALL DAILY_DIPLO_REQUEST_KILL_BANDIT
 	ENDIF
 	DVAR:資金援助要求カウンタ = 10
 ENDIF
 
-;-------------------------------------------------
-;担保として預かったキャラを返却するイベント
-;-------------------------------------------------
+
+
+
+
 @DAILY_DIPLO_REQUEST_RETURN_HOSTAGE
 #DIM 対象
 #DIM 君主
@@ -619,3 +622,76 @@ ELSE
 	CLEARBIT TALENT:対象:デイリー陥落系, 素質_デイリー_借り物
 ENDIF
 DVAR:資金援助担保 = 0
+
+
+
+;-------------------------------------------------
+;野盗を斬った場合の処理
+;-------------------------------------------------
+@DAILY_DIPLO_REQUEST_KILL_BANDIT
+;野盗からの使いを斬り捨てていたら、逆調教される
+IF DVAR:要求野盗斬り捨て
+	;全員の調教参加フラグを解除
+	CVARSET CFLAG, 6, 0
+	LOCAL:2 = 0
+	FOR LOCAL:0, 0, CHARANUM
+		IF CFLAG:(LOCAL:0):1 == GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗)) && NO:(LOCAL:0) > 2000 && LOCAL:2 < 6
+			CFLAG:(LOCAL:0):6 = 1
+			CFLAG:(LOCAL:0):65 = 1
+			LOCAL:2 ++
+		ENDIF
+	NEXT
+	;捕虜逆調教モード
+	FLAG:12 = 5
+	;ウフフモード
+	FLAG:50 = 1
+	;アイテムを一通り追加
+	ITEM:A_ローター = 1
+	ITEM:A_バイブ = 1
+	ITEM:A_アナルバイブ = 1
+	ITEM:A_ペニスバンド = 1
+	ITEM:A_オナホール = 1
+	ITEM:A_クリキャップ = 1
+	ITEM:A_ニプルキャップ = 1
+	ITEM:A_媚薬 = 99
+	ITEM:A_排卵誘発剤 = 99
+	ITEM:A_麻薬 = 99
+	ITEM:A_桃源香 = 99
+	;行動開始時の共通処理
+	;全ての参加キャラについて処理
+	FOR LOCAL:0, 0, CHARANUM
+		IF CFLAG:(LOCAL:0):6
+			;現在の機嫌を保存
+			FOR LOCAL:1, 0, 10
+				CFLAG:(LOCAL:0):(LOCAL:1 + 190) = PALAM:(LOCAL:0):(LOCAL:1 + 10)
+			NEXT
+			;参加済みに
+			CFLAG:(LOCAL:0):91 = 1
+		ENDIF
+	NEXT
+	LOCALS = %ANAME(DVAR:要求野盗斬り捨て)%
+	DRAWLINE
+	PRINTFORMW 衛兵の目を盗み、複数の男が宮廷に忍び込んだ……
+	PRINTFORMW 廊下を歩いていた%LOCALS%に背後から忍び寄り、薬をしみこませた布を頭から被せる
+	PRINTFORMW ぐったりとした%LOCALS%を麻袋に詰め込むと、男達は宮廷から逃げ出した……
+	PRINTFORML
+	PRINTFORML
+	PRINTFORML
+	PRINTFORMW 男達の正体は野盗だった
+	PRINTFORMW %ANAME(MASTER)%が使いの者を斬ったので、報復ついでに%LOCALS%を拉致したのだ
+	PRINTFORMW アジトに戻った彼らは、眠りこける%LOCALS%の服を剥ぎ取ると、早速その身体を「使い」はじめた……
+	FOR LOCAL:0, 0, 4
+		CALL FORCE_FUCK(DVAR:要求野盗斬り捨て, SP_NAME_TO_ID("野盗"), @"野盗の\@RAND:2 ? ペニス # 唇\@", "野盗", 2)
+	NEXT
+	PRINTFORML
+	PRINTFORML
+	PRINTFORML
+	PRINTFORMW %LOCALS%が目を覚ますと、そこは見覚えのない部屋だった
+	PRINTFORMW 一糸まとわぬ自らの身体は縄で縛られ、見知らぬ男達に群がられている
+	PRINTFORMW 白濁にまみれた肌は、自分がこの男達に何度も陵辱されたことを示している……
+	PRINTFORMW %LOCALS%はなんとか逃げだそうとするが、縛られており、さらに男達に押さえつけられてはどうしようもなかった
+	PRINTFORMW 男達はへらへらと笑いながら、躾のなっていない雌犬を屈服させようと、再び彼女を犯し始める……
+	SWAPCHARA MASTER, DVAR:要求野盗斬り捨て
+	FLAG:31 = 2
+	DAILY_CANCEL = 1
+ENDIF
