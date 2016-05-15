@@ -346,6 +346,7 @@ RETURN LOCAL:0
 ;その場使用アイテムの対象キャラを選択 ARG:0=アイテム番号
 ;-------------------------------------------------
 @SELECT_ITEM_USER(ARG:0)
+#DIM FIRSTLINE
 ;全員の調教参加フラグをクリア
 CVARSET CFLAG, 6, 0
 
@@ -362,10 +363,10 @@ NEXT
 ;ページ数の計算
 LOCAL:10 = (LOCAL:5 - 1) / 44 + 1
 LOCAL:11 = 1
-
 DRAWLINE
 PRINTFORML %ITEMNAME:(ARG:0)%を誰に使用しますか？
 DRAWLINE
+FIRSTLINE = LINECOUNT
 
 $SHOW_LOOP
 
@@ -426,14 +427,14 @@ ELSEIF RESULT == 8
 	IF LOCAL:11 < 0
 		LOCAL:11 = LOCAL:10
 	ENDIF
-	CLEARLINE LOCAL:16
+	CLEARLINE LINECOUNT - FIRSTLINE
 	GOTO SHOW_LOOP
 ELSEIF RESULT == 9
 	LOCAL:11 ++
 	IF LOCAL:11 > LOCAL:10
 		LOCAL:11 = 0
 	ENDIF
-	CLEARLINE LOCAL:16
+	CLEARLINE LINECOUNT - FIRSTLINE
 	GOTO SHOW_LOOP
 ELSE
 	LOCAL:20 = RESULT - 100
@@ -509,6 +510,7 @@ ITEMTERM:261 = 3
 ITEMTERM:262 = 4
 ITEMTERM:263 = 5
 ITEMTERM:264 = 5
+ITEMTERM:265 = 5
 ITEMTERM:280 = 3
 ITEMTERM:281 = 4
 ITEMTERM:282 = 3
@@ -567,6 +569,10 @@ RETURN 10000
 @GET_PRICE264
 RETURN 7000
 
+;●桃源香
+@GET_PRICE265
+RETURN 3500
+
 ;●ふたなり薬
 @GET_PRICE280
 RETURN 30000
@@ -596,7 +602,7 @@ RETURN 50000
 RETURN 100000
 
 ;穴トレ
-@GET_PRICE299
+@GET_PRICE289
 RETURN 50000
 ;-------------------------------------------------
 ;アイテムの開発条件
@@ -707,6 +713,13 @@ IF ITEM:太平淫術の書
 ENDIF
 RETURN 0
 
+;●桃源香
+@ITEM_ABLE265
+;媚薬を開発済み、且つ太平淫術の書を持っている
+IF ITEMSALES:媚薬 && ITEM:太平淫術の書
+	RETURN 1
+ENDIF
+RETURN 0
 
 ;●ふたなり薬
 @ITEM_ABLE280
@@ -778,6 +791,7 @@ IF ITEM:ニードル＆インク
 ENDIF
 RETURN 0
 
+;穴トレ
 @ITEM_ABLE289
 ;太平淫術の書を持っている
 IF ITEM:太平淫術の書
@@ -896,7 +910,7 @@ IF GROUPMATCH(TALENT:(ARG:0):性別, 2, 3, 5)
 	IF RESULT == 0
 		PRINTFORMW %ANAME(ARG:0)%を童貞に戻しました
 		TALENT:(ARG:0):童貞 = 1
-		DOUTEI_PARTNER:(ARG:0):0 = ----
+		SEXUAL_EXPERIENCE:(ARG:0):初体験_童貞 = ----
 	ENDIF
 ENDIF
 
@@ -962,12 +976,14 @@ ENDIF
 
 ;●再生の秘薬
 @ITEM_EFFECT284(ARG:0)
+#DIM FIRST_LINE
 IF !EXISTCSV(ARG:0)
 	CALL OLD_ITEM_EFFECT_284(ARG:0)
 	RETURN
 ENDIF
 PRINTFORML %ANAME(ARG:0)%が再生の秘薬を飲むが……
 PRINTFORML
+FIRST_LINE = LINECOUNT
 $SHOW_LOOP_SET
 PRINTL ●再生「させない」能力の設定
 PRINTL
@@ -990,10 +1006,10 @@ IF RESULT == 1
 	RETURN
 ELSEIF GROUPMATCH(RESULT, 100, 101, 102, 103, 104, 105, 106)
 	INVERTBIT LOCAL:20, RESULT - 100
-	CLEARLINE 7
+	CLEARLINE LINECOUNT - FIRST_LINE
 	GOTO SHOW_LOOP_SET
 ELSEIF RESULT != 0
-	CLEARLINE 7
+	CLEARLINE LINECOUNT - FIRST_LINE
 	GOTO SHOW_LOOP_SET
 ENDIF
 
@@ -1006,32 +1022,34 @@ CALL PASS_CHARA(ARG, LOCAL:20)
 CFLAG:(ARG:0):1 = LOCAL:1
 CFLAG:(ARG:0):9 = LOCAL:2
 
-PRINTFORML <研究用奴隷の烙印><ゴブリンの性奴隷><薬売りの奴隷><野盗の肉便器><貴族の虜>を残しますか？
+PRINTFORML 特殊勢力やデイリーイベントで得る陥落系素質等を残しますか？
 CALL ASK_YN("残す", "消去")
 IF RESULT == 1
 	FOR LOCAL:0, 0, CHARANUM
-		TALENT:(ARG:0):研究用奴隷の烙印 = 0
-		TALENT:(ARG:0):ゴブリンの性奴隷 = 0
-		TALENT:(ARG:0):薬売りの奴隷 = 0
-		TALENT:(ARG:0):野盗の肉便器 = 0
-		TALENT:(ARG:0):貴族の虜 = 0
+		TALENT:(ARG:0):特殊勢力陥落系 = 0
+		TALENT:(ARG:0):デイリー陥落系 = 0
 	NEXT
 ENDIF
 
 IF TALENT:(ARG:0):処女 != 1
 	TALENT:(ARG:0):処女 = 1
-	VIRGIN_PARTNER:(ARG:0):0 = ----
+	SEXUAL_EXPERIENCE:(ARG:0):初体験_処女 = ----
 	PRINTFORML %ANAME(ARG:0)%の<処女>が再生されました
 ENDIF
 IF TALENT:(ARG:0):キス未経験 != 1
 	TALENT:(ARG:0):キス未経験 = 1
-	FIRSTKISS_PARTNER:(ARG:0):0 = ----
+	SEXUAL_EXPERIENCE:(ARG:0):初体験_ファーストキス = ----
 	PRINTFORML %ANAME(ARG:0)%の<キス未経験>が再生されました
 ENDIF
 IF TALENT:(ARG:0):童貞 != 1
 	TALENT:(ARG:0):童貞 = 1
-	DOUTEI_PARTNER:(ARG:0):0 = ----
+	SEXUAL_EXPERIENCE:(ARG:0):初体験_童貞 = ----
 	PRINTFORML %ANAME(ARG:0)%の<童貞>が再生されました
+ENDIF
+IF TALENT:(ARG:0):アナル処女 != 1
+	TALENT:(ARG:0):アナル処女 = 1
+	SEXUAL_EXPERIENCE:(ARG:0):初体験_アナル処女 = ----
+	PRINTFORML %ANAME(ARG:0)%の<アナル処女>が再生されました
 ENDIF
 PRINTFORML %ANAME(ARG:0)%の肉体が再生されました
 WAIT
@@ -1039,55 +1057,38 @@ RETURN
 
 ;固定キャラ以外に再生の秘薬を飲ませた場合
 @OLD_ITEM_EFFECT_284(ARG:0)
-PRINTFORML %ANAME(ARG:0)%の全ての性感帯の感度がLv0に戻りました
+PRINTFORML %ANAME(ARG:0)%の肉体が再生されました
 FOR LOCAL:0, 0, 5
 	ABL:(ARG:0):(LOCAL:0) = 0
 	EXP:(ARG:0):(LOCAL:0) = 0
 NEXT
 IF TALENT:(ARG:0):処女 != 1
 	TALENT:(ARG:0):処女 = 1
-	VIRGIN_PARTNER:(ARG:0):0 = ----
+	SEXUAL_EXPERIENCE:(ARG:0):初体験_処女 = ----
 	PRINTFORML %ANAME(ARG:0)%の<処女>が再生されました
 ENDIF
 IF TALENT:(ARG:0):キス未経験 != 1
 	TALENT:(ARG:0):キス未経験 = 1
-	FIRSTKISS_PARTNER:(ARG:0):0 = ----
+	SEXUAL_EXPERIENCE:(ARG:0):初体験_ファーストキス = ----
 	PRINTFORML %ANAME(ARG:0)%の<キス未経験>が再生されました
 ENDIF
 IF TALENT:(ARG:0):童貞 != 1
 	TALENT:(ARG:0):童貞 = 1
-	DOUTEI_PARTNER:(ARG:0):0 = ----
+	SEXUAL_EXPERIENCE:(ARG:0):初体験_童貞 = ----
 	PRINTFORML %ANAME(ARG:0)%の<童貞>が再生されました
 ENDIF
+IF TALENT:(ARG:0):アナル処女 != 1
+	TALENT:(ARG:0):アナル処女 = 1
+	SEXUAL_EXPERIENCE:(ARG:0):初体験_アナル処女 = ----
+	PRINTFORML %ANAME(ARG:0)%の<アナル処女>が再生されました
+ENDIF
+
 IF TALENT:(ARG:0):烙印
 	TALENT:(ARG:0):烙印 = 0
 	PRINTFORML %ANAME(ARG:0)%の体から<烙印>が消えました
 ENDIF
-IF TALENT:(ARG:0):研究用奴隷の烙印
-	TALENT:(ARG:0):研究用奴隷の烙印 = 0
-	PRINTFORML %ANAME(ARG:0)%の体から<研究用奴隷の烙印>が消えました
-ENDIF
-IF TALENT:(ARG:0):ゴブリンの性奴隷
-	TALENT:(ARG:0):ゴブリンの性奴隷 = 0
-	PRINTFORML %ANAME(ARG:0)%は<ゴブリンの性奴隷>ではなくなりました
-ENDIF
-IF TALENT:(ARG:0):薬売りの奴隷
-	TALENT:(ARG:0):薬売りの奴隷 = 0
-	PRINTFORML %ANAME(ARG:0)%は<薬売りの奴隷>ではなくなりました
-ENDIF
-IF TALENT:(ARG:0):野盗の肉便器
-	TALENT:(ARG:0):野盗の肉便器 = 0
-	PRINTFORML %ANAME(ARG:0)%は<野盗の肉便器>ではなくなりました
-ENDIF
-IF TALENT:(ARG:0):薬売りの奴隷
-	TALENT:(ARG:0):薬売りの奴隷 = 0
-	PRINTFORML %ANAME(ARG:0)%は<薬売りの奴隷>ではなくなりました
-ENDIF
-
-IF TALENT:(ARG:0):貴族の虜
-	TALENT:(ARG:0):貴族の虜 = 0
-	PRINTFORML %ANAME(ARG:0)%は<貴族の虜>ではなくなりました
-ENDIF
+TALENT:(ARG:0):特殊勢力陥落系 = 0
+TALENT:(ARG:0):デイリー陥落系 = 0
 WAIT
 
 

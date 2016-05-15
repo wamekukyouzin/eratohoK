@@ -15,7 +15,7 @@ VARSET 候補数
 DRAWLINE
 PRINTFORMW 手の空いている者に領地を探索させることにした
 PRINTFORMW 誰に行かせようか？
-CALL TERRITORYSEARCH_SELECT_COMMANDER
+CALL SELECT_CHARA_LIST_ONLY_LOGIC_SLG("育児対象, 別勢力", "捕虜")
 IF RESULT < 0
 	PRINTFORMW やはりやめておこう
 	RETURN
@@ -375,16 +375,16 @@ SELECTCASE RAND:100
 						PRINTFORMW すぐに身体が熱くなった
 						IF RAND:2 == 0
 							PRINTFORMW 力が漲り活性化するのを感じた
-							TALENT:対象:回復早い == 1
-							TALENT:対象:回復遅い == 0
+							TALENT:対象:回復早い = 1
+							TALENT:対象:回復遅い = 0
 							CALL COLORPRINTFORM(@"%ANAME(対象)%は[回復早い]になった", COLOR("注意"))
 							PRINTFORMW 
 							PRINTFORML 「おやおや、どうやら当たりだったようで、いえいえなんでもありませんよ」
 							PRINTFORMW そう告げると薬売りはさっさと去って行ってしまった
 						ELSE
 							PRINTFORMW 力が抜けて気怠くなるのを感じた
-							TALENT:対象:回復遅い == 1
-							TALENT:対象:回復早い == 0
+							TALENT:対象:回復遅い = 1
+							TALENT:対象:回復早い = 0
 							CALL COLORPRINTFORM(@"%ANAME(対象)%は[回復遅い]になった", COLOR("注意"))
 							PRINTFORMW 
 							PRINTFORML 「効能には個人差がありますからね～、おっと返品は受け付けませんよ」
@@ -689,14 +689,14 @@ SELECTCASE RAND:100
 		SELECTCASE RAND:2
 			CASE 0
 				PRINTFORMW 月を見つめていると、心が沈み言い知れない感覚に落ち込んでいくのを感じた
-				TALENT:対象:抑圧 == 1
-				TALENT:対象:解放 == 0
+				TALENT:対象:抑圧 = 1
+				TALENT:対象:解放 = 0
 				CALL COLORPRINTFORM(@"%ANAME(対象)%は[抑圧的]になった", COLOR("注意"))
 				PRINTFORMW 
 			CASE 1
 				PRINTFORMW 月を見つめていると、心がざわつき不思議な感覚がこみ上げて来るのを感じた
-				TALENT:対象:抑圧 == 0
-				TALENT:対象:解放 == 1
+				TALENT:対象:抑圧 = 0
+				TALENT:対象:解放 = 1
 				CALL COLORPRINTFORM(@"%ANAME(対象)%は[解放的]になった", COLOR("注意"))
 				PRINTFORMW 
 		ENDSELECT
@@ -722,7 +722,7 @@ SELECTCASE RAND:100
 				MONEY += 金額
 			ELSEIF RESULT == 1
 				PRINTFORMW 誰にプレゼントしようかな？
-				CALL SLG_CHARA_LIST
+				CALL SELECT_CHARA_LIST("別勢力", "捕虜")
 				仲間 = RESULT
 				IF 仲間 == -1 || 仲間 == 対象
 					PRINTFORMW いや、やっぱり売る事にしよう
@@ -1349,7 +1349,7 @@ SELECTCASE RAND:100
 			IF RESULT == 2
 				PRINTFORMW このぐらいの怪我ならば自力で治療できそうだ
 				LOCAL = RAND:4
-				SIF TALENT:対象:治療 == 1
+				SIF GETBIT(TALENT:対象:ＳＬＧ素質, 素質_ＳＬＧ_治療)
 					LOCAL += 1
 				IF LOCAL >= 2
 					PRINTFORMW …うまく治療できた！
@@ -2321,7 +2321,7 @@ SELECTCASE RAND:100
 				PRINTFORML ・
 				PRINTFORML ・
 				PRINTFORML ・
-				IF (ABL:対象:歌唱) * (RAND:3 + 1) > 30 * (RAND:4 + 1) || TALENT:対象:バンドガール == 1
+				IF (ABL:対象:歌唱) * (RAND:3 + 1) > 30 * (RAND:4 + 1) || GETBIT(TALENT:対象:ＳＬＧ素質, 素質_ＳＬＧ_バンドガール)
 					PRINTFORML 大成功だ！
 					PRINTFORML 村娘たちは音楽に合わせて歌いながら作業することで、普段よりも効率よく終わらせることができた
 					CALL PRINT_ADD_EXP(対象, "政治経験値", RAND:3 + 1, 1)
@@ -3317,7 +3317,7 @@ SELECTCASE RAND:100
 							PRINTFORMW %ANAME(対象)%は代わりに村への援助としていくらかの金を置いて行った
 							金額 = 1000 + (500 * (DAY / 10 + 1))
 							SIF MONEY < 金額
-								金額 == MONEY
+								金額 = MONEY
 							MONEY -= 金額
 							CALL COLORPRINTFORM(@"金{金額}を支払った", COLOR("注意"))
 							PRINTFORMW 
@@ -3393,7 +3393,7 @@ SELECTCASE RAND:100
 				PRINTFORML ・
 				PRINTFORML ・
 				PRINTFORMW ・
-				LOCAL:0 == RAND:3
+				LOCAL:0 = RAND:3
 				IF TALENT:対象:小柄体型 == 1 || TALENT:対象:子供体型 == 1 || LOCAL:0 == 0
 					PRINTFORML 巣の奥で彼らの荷物を見つけた！
 					PRINTFORML それだけではなく、恐らくどこかから盗んできたらしきお金や道具が置いてあった
@@ -4469,7 +4469,7 @@ SELECTCASE RAND:100
 			PRINTFORMW 機会があれば再会を約束して別れた
 			CFLAG:仲間:好感度 += 100
 		ENDIF
-		CFLAG:仲間:面識 == 1
+		CFLAG:仲間:面識 = 1
 	;奴隷少女
 	CASE 86
 		PRINTFORML 探索中、歩き続けて疲れた%ANAME(対象)%はどこか休める場所がないか辺りを見回した
@@ -4570,7 +4570,7 @@ SELECTCASE RAND:100
 					PRINTFORMW ・
 					PRINTFORML 無事に仕事をこなせた
 					PRINTFORMW 礼を告げる店長からバイト代を受け取った
-					金額 = 1000 + 500 * (CFLAG:対象:奉仕 + RAND:5)
+					金額 = 1000 + 500 * (ABL:対象:奉仕 + RAND:5)
 					MONEY += 金額
 					CALL COLORPRINTFORM(@"金{金額}を手に入れた", COLOR("注意"))
 					PRINTFORMW 
@@ -5321,123 +5321,3 @@ SELECTCASE RAND:100
 ENDSELECT
 RETURN 
 
-@TERRITORYSEARCH_SELECT_COMMANDER
-#DIM 消去行
-#DIM 対象
-#DIM 表示位置
-#DIM 表示ページ
-#DIM 総ページ数
-#DIM キャラ数
-#DIM キャラカウンタ
-#DIM 表示開始位置
-#DIM 表示終了位置
-VARSET キャラ数
-FOR LOCAL, 0, CHARANUM
-	SIF CFLAG:(LOCAL:0):所属 == CFLAG:MASTER:所属
-		キャラ数 ++
-NEXT
-総ページ数 = (キャラ数 - 1) / 40 + 1
-表示ページ = 1
-
-PRINTFORML %TOSTR_SPACE(23)%   武|  知|  政|  妖|  歌|  料 %TOSTR_SPACE(26)%   武|  知|  政|  妖|  歌|  料
-
-$SHOW_LOOP
-
-VARSET 消去行
-VARSET 表示位置
-VARSET キャラカウンタ
-表示開始位置 = (表示ページ - 1) * 40
-表示終了位置 = 表示ページ * 40
-
-
-FOR LOCAL:0, 0, CHARANUM
-	;育児されている子供は弾く
-	SIF CFLAG:(LOCAL:0):16 == 4
-		CONTINUE
-	;所属が同じのキャラのみ
-	IF CFLAG:(LOCAL:0):所属 == CFLAG:MASTER:所属
-		IF 表示開始位置 <= キャラカウンタ && キャラカウンタ < 表示終了位置
-			IF 表示位置 % 2 != 0
-				PRINT 　　
-			ELSEIF 表示位置 > 0
-				PRINTL 
-				消去行 ++
-			ENDIF
-			IF !CFLAG:LOCAL:捕虜先 && COOLTIME:(LOCAL:0):0 == 0 && TMP_IS_FREE:(LOCAL:0):0 == 0
-				PRINTFORM [{LOCAL:0 + 99, 4}]%ANAME(LOCAL:0), 16, RIGHT%
-				PRINTFORM   
-				CALL PRINT_ALPHABET_RANK(0, ABL:(LOCAL:0):武闘)
-				PRINTFORM {ABL:(LOCAL:0):武闘, 3}|
-				CALL PRINT_ALPHABET_RANK(0, ABL:(LOCAL:0):知略)
-				PRINTFORM {ABL:(LOCAL:0):知略, 3}|
-				CALL PRINT_ALPHABET_RANK(0, ABL:(LOCAL:0):政治)
-				PRINTFORM {ABL:(LOCAL:0):政治, 3}|
-				CALL PRINT_ALPHABET_RANK(1, ABL:(LOCAL:0):妖術)
-				PRINTFORM {ABL:(LOCAL:0):妖術, 3}|
-				CALL PRINT_ALPHABET_RANK(2, ABL:(LOCAL:0):歌唱)
-				PRINTFORM {ABL:(LOCAL:0):歌唱, 3}|
-				CALL PRINT_ALPHABET_RANK(2, ABL:(LOCAL:0):料理)
-				PRINTFORM {ABL:(LOCAL:0):料理, 3}
-			ELSE
-				LOCALS:0 = [{NO:(LOCAL:0) + 99, 4}]%ANAME(LOCAL:0), 16, RIGHT%  %ALPHABET_RANK(0, ABL:LOCAL:武闘)%{ABL:(LOCAL:0):武闘, 3}|%ALPHABET_RANK(0, ABL:LOCAL:知略)%{ABL:(LOCAL:0):知略, 3}|
-				LOCALS:0 += @"%ALPHABET_RANK(0, ABL:LOCAL:政治)%{ABL:(LOCAL:0):政治, 3}|%ALPHABET_RANK(1, ABL:LOCAL:妖術)%{ABL:(LOCAL:0):妖術, 3}|%ALPHABET_RANK(2, ABL:LOCAL:歌唱)%{ABL:(LOCAL:0):歌唱, 3}|%ALPHABET_RANK(2, ABL:LOCAL:料理)%{ABL:(LOCAL:0):料理, 3}"
-				SETCOLOR COLOR("選択不可")
-				PRINTPLAINFORM %LOCALS:0%
-				RESETCOLOR
-			ENDIF
-			表示位置 ++
-		ENDIF
-		キャラカウンタ ++
-	ENDIF
-NEXT
-
-PRINTL 
-DRAWLINE
-
-IF 総ページ数 >= 2
-	消去行 += 2
-	IF 表示ページ > 1
-		PRINT [  8] 前のページ            
-	ELSE
-		PRINT                             
-	ENDIF
-	LOCALS:0 = ページ{表示ページ}/{総ページ数}
-	PRINTPLAINFORM %LOCALS:0, 28, LEFT%
-	IF 表示ページ < 総ページ数
-		PRINT [  9] 後のページ
-	ENDIF
-	PRINTL 
-	DRAWLINE
-ENDIF
-
-PRINTL [  0] やっぱりやめておく
-
-REDRAW 0
-
-消去行 += 4
-
-$INPUT_LOOP
-INPUT
-IF RESULT == 8 && 表示ページ > 1
-	表示ページ --
-	CLEARLINE 消去行
-	GOTO SHOW_LOOP
-ELSEIF RESULT == 9 && 表示ページ < 総ページ数
-	表示ページ ++
-	CLEARLINE 消去行
-	GOTO SHOW_LOOP
-ELSEIF RESULT == 0
-	REDRAW 1
-	RETURN -1
-ENDIF
-
-対象 = RESULT - 99
-IF 対象 > CHARANUM || 対象 < 0
-	CLEARLINE 消去行
-	GOTO SHOW_LOOP
-ELSEIF CFLAG:MASTER:所属 != CFLAG:対象:所属 || CFLAG:対象:捕虜先
-	CLEARLINE 消去行
-	GOTO SHOW_LOOP
-ENDIF
-
-RETURN 対象

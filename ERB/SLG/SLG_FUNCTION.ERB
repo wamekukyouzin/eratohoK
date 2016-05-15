@@ -725,7 +725,7 @@ FOR LOCAL:0, 0, MAX_COUNTRY
 	IF IS_COUNTRY(LOCAL:0)
 		FOR LOCAL:1, 0, 10
 			IF UNIT_SOLDIER:(LOCAL:0):(LOCAL:1) > 0 && UNIT_POSITION:(LOCAL:0):(LOCAL:1) == ARG:0
-				IF LOCAL:0 == GET_COUNTRY_FROM_ID(COUNTRY_BANDIT)
+				IF LOCAL:0 == GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗))
 					LOCAL:2 = 2
 					BREAK
 				ELSE
@@ -747,7 +747,7 @@ RETURNF LOCAL:2
 #FUNCTION
 #DIM RET
 RET = 0
-LOCAL:20 = GET_COUNTRY_FROM_ID(COUNTRY_BANDIT)
+LOCAL:20 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗))
 
 SIF ARG:1 == 0
 	ARG:1 = CFLAG:MASTER:1
@@ -1108,7 +1108,7 @@ NEXT
 #DIM COUNTRY_V, 100
 #DIM COUNTRY_S2, 100
 #DIM COUNTRY_V2, 100
-
+#DIM FIRST_LINE
 FILTER = 0
 
 LOCAL:9 = 0
@@ -1124,7 +1124,7 @@ FOR LOCAL:0, 1, MAX_COUNTRY
 NEXT
 
 REDRAW 0
-
+FIRST_LINE = LINECOUNT
 $SHOW_LOOP
 
 FOR LOCAL:0, 0, 4
@@ -1191,15 +1191,15 @@ IF RESULT == 0 && ARG:1 == 0
 	RETURN
 ELSEIF RESULT == 100 && FILTER != 0
 	FILTER = 0
-	CLEARLINE 19 + (ARG:1 == 0) * 2
+	CLEARLINE LINECOUNT - FIRST_LINE
 	GOTO SHOW_LOOP
 ELSEIF RESULT == 101 && FILTER != 1
 	FILTER = 1
-	CLEARLINE 19 + (ARG:1 == 0) * 2
+	CLEARLINE LINECOUNT - FIRST_LINE
 	GOTO SHOW_LOOP
 ELSEIF RESULT == 102 && FILTER != 2
 	FILTER = 2
-	CLEARLINE 19 + (ARG:1 == 0) * 2
+	CLEARLINE LINECOUNT - FIRST_LINE
 	GOTO SHOW_LOOP
 ELSEIF RESULT >= 0x1000000 && RESULT < 0x2000000
 	LOCAL:40 = (RESULT >> 14) & 0x1FF
@@ -1669,12 +1669,12 @@ FOR LOCAL:0, 0, CHARANUM
 		;捕虜になっていなければ、放浪させる
 		SIF !CFLAG:(LOCAL:0):9
 			CFLAG:(LOCAL:0):12 = 1
-		SIF TALENT:(LOCAL:0):借り物
-			TALENT:(LOCAL:0):借り物 = 0
+		SIF GETBIT(TALENT:(LOCAL:0):デイリー陥落系, 素質_デイリー_借り物)
+			CLEARBIT TALENT:(LOCAL:0):デイリー陥落系, 素質_デイリー_借り物
 	ENDIF
 	IF CFLAG:(LOCAL:0):9 == ARG:0
-		SIF TALENT:(LOCAL:0):借り物
-			TALENT:(LOCAL:0):借り物 = 0
+		SIF GETBIT(TALENT:(LOCAL:0):デイリー陥落系, 素質_デイリー_借り物)
+			CLEARBIT TALENT:(LOCAL:0):デイリー陥落系, 素質_デイリー_借り物
 		IF IS_COUNTRY(CFLAG:(LOCAL:0):1)
 			PRINTFORML %NAME:(LOCAL:3)%の滅亡により、%ANAME(LOCAL)%は%NAME:(GET_COUNTRY_BOSS(CFLAG:(LOCAL):1))%に帰っていきました
 		ELSE
@@ -1700,6 +1700,9 @@ FOR LOCAL:0, 0, 10
 	UNIT_TARGET:(ARG:0):(LOCAL:0) = 0
 	UNIT_COMMANDER:(ARG:0):(LOCAL:0) = 0
 	UNIT_BREAK_TERM:(ARG:0):(LOCAL:0) = 0
+NEXT
+FOR LOCAL, 0, MAX_CITY
+	PHEROMONE:(ARG:0):(LOCAL:0) = 0
 NEXT
 
 ;-------------------------------------------------
@@ -1731,7 +1734,7 @@ IF CFLAG:MASTER:9 && CFLAG:MASTER:43 >= 5 && RAND:100 < (CFLAG:MASTER:43 - 5) * 
 	ENDIF
 ENDIF
 FOR LOCAL, 1, CHARANUM
-	特殊捕虜先 = (CFLAG:LOCAL:捕虜先 == GET_COUNTRY_FROM_ID(300) || CFLAG:LOCAL:捕虜先 == GET_COUNTRY_FROM_ID(COUNTRY_BANDIT) || CFLAG:LOCAL:捕虜先 == GET_COUNTRY_FROM_ID(COUNTRY_GAIRAI))
+	特殊捕虜先 = IS_SP_COUNTRY(CFLAG:LOCAL:捕虜先)
 	;もしその国が何らかの理由で滅んでいるのにまだ捕らえられていたら、強制的に解放する
 	IF CFLAG:LOCAL:捕虜先 && !IS_COUNTRY(CFLAG:LOCAL:捕虜先)
 		SETCOLOR COLOR("注意")
@@ -1746,7 +1749,8 @@ FOR LOCAL, 1, CHARANUM
 	ELSEIF CFLAG:LOCAL:脱走不可能
 		CONTINUE
 	;通常の解放処理
-	ELSEIF LOCAL != MASTER && CFLAG:LOCAL:捕虜先 && CFLAG:LOCAL:捕虜先 != CFLAG:MASTER:1 && MIN((CFLAG:LOCAL:解放カウンタ - 5) * 5, 30) > RAND:100 && !特殊捕虜先
+	;SLG設定（CONFIG:320のビット0）
+	ELSEIF LOCAL != MASTER && CFLAG:LOCAL:捕虜先 && CFLAG:LOCAL:捕虜先 != CFLAG:MASTER:1 && MIN((CFLAG:LOCAL:解放カウンタ - 5) * 5, 30) > RAND:100 && !特殊捕虜先 && !GETBIT(CONFIG:320, 0)
 		SETCOLOR COLOR("注意")
 		IF CFLAG:LOCAL:1
 			PRINTFORML %NAME:(GET_COUNTRY_BOSS(CFLAG:LOCAL:捕虜先))%に囚われていた%ANAME(LOCAL)%は\@ CFLAG:LOCAL:解放カウンタ >= 10 ? ようやく# \@解放され、%NAME:(GET_COUNTRY_BOSS(CFLAG:LOCAL:1))%のところに戻りました
@@ -1759,11 +1763,12 @@ FOR LOCAL, 1, CHARANUM
 		LOCAL:1 = CFLAG:LOCAL:捕虜先
 		CFLAG:LOCAL:捕虜先 = 0
 		CFLAG:LOCAL:解放カウンタ = 0
-		IF CFLAG:LOCAL:1 == CFLAG:MASTER:1 && LOCAL:1 == GET_COUNTRY_FROM_ID(COUNTRY_BANDIT)
+		IF CFLAG:LOCAL:1 == CFLAG:MASTER:1 && LOCAL:1 == GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗))
 			CALL BANDIT_RELEASE_MSG(LOCAL)
 		ENDIF
 	;たまに脱走する。野盗、ホフゴブ、外来人なら率高め
-	ELSEIF LOCAL != MASTER && CFLAG:LOCAL:捕虜先 && CFLAG:LOCAL:捕虜先 != CFLAG:MASTER:1 && 特殊捕虜先 * 17 + 3 > RAND:100
+	;SLG設定(CONFIG:320のビット1)で脱走しない設定にもできる
+	ELSEIF (LOCAL != MASTER && CFLAG:LOCAL:捕虜先 && CFLAG:LOCAL:捕虜先 != CFLAG:MASTER:1 && 特殊捕虜先 * 17 + 3 > RAND:100) && !GETBIT(CONFIG:320, 1)
 		;ただし自国の捕虜(現状下克上シナリオ専用)だと脱走先は放浪、または失敗
 		;IF CFLAG:LOCAL:9 == CFLAG:LOCAL:1
 			;この場合脱走成功確率はさらに10分の1
@@ -1868,149 +1873,15 @@ ENDIF
 ;統治権を委譲する
 CITY_OWNER:(ARG:1) = ARG:0
 
-;-------------------------------------------------
-;キャラリスト表示　誰かを選べばそのキャラ番号が、「やめる」を選ぶと-1が返る
-;-------------------------------------------------
-@SLG_CHARA_LIST()
-#DIM 消去行
-#DIM 対象
-#DIM 表示位置
-#DIM 表示ページ
-#DIM 総ページ数
-#DIM キャラ数
-#DIM キャラカウンタ
-#DIM 表示開始位置
-#DIM 表示終了位置
-
-VARSET キャラ数
-
-FOR LOCAL, 0, CHARANUM
-	;育児されている子供は弾く
-	SIF CFLAG:(LOCAL:0):16 == 4
-		CONTINUE
-	;動物を除外
-	SIF IS_ANIMAL(LOCAL)
-		CONTINUE
-	SIF CFLAG:(LOCAL:0):所属 == CFLAG:MASTER:所属
-		キャラ数 ++
-NEXT
-
-総ページ数 = (キャラ数 - 1) / 40 + 1
-表示ページ = 1
-
-PRINTFORML %TOSTR_SPACE(23)%   武|  知|  政|  妖|  歌|  料 %TOSTR_SPACE(26)%   武|  知|  政|  妖|  歌|  料
-
-$SHOW_LOOP
-
-VARSET 消去行
-VARSET 表示位置
-VARSET キャラカウンタ
-表示開始位置 = (表示ページ - 1) * 40
-表示終了位置 = 表示ページ * 40
-
-
-FOR LOCAL:0, 0, CHARANUM
-	;育児されている子供は弾く
-	SIF CFLAG:(LOCAL:0):16 == 4
-		CONTINUE
-	;動物を除外
-	SIF IS_ANIMAL(LOCAL)
-		CONTINUE
-	;所属が同じのキャラのみ。
-	IF CFLAG:(LOCAL:0):所属 == CFLAG:MASTER:所属
-		IF 表示開始位置 <= キャラカウンタ && キャラカウンタ < 表示終了位置
-			IF 表示位置 % 2 != 0
-				PRINT 　　
-			ELSEIF 表示位置 > 0
-				PRINTL 
-				消去行 ++
-			ENDIF
-			IF !CFLAG:LOCAL:捕虜先
-				PRINTFORM [{LOCAL:0 + 99, 4}]%ANAME(LOCAL:0), 16, RIGHT%
-				PRINTFORM   
-				CALL PRINT_ALPHABET_RANK(0, ABL:(LOCAL:0):武闘)
-				PRINTFORM {ABL:(LOCAL:0):武闘, 3}|
-				CALL PRINT_ALPHABET_RANK(0, ABL:(LOCAL:0):知略)
-				PRINTFORM {ABL:(LOCAL:0):知略, 3}|
-				CALL PRINT_ALPHABET_RANK(0, ABL:(LOCAL:0):政治)
-				PRINTFORM {ABL:(LOCAL:0):政治, 3}|
-				CALL PRINT_ALPHABET_RANK(1, ABL:(LOCAL:0):妖術)
-				PRINTFORM {ABL:(LOCAL:0):妖術, 3}|
-				CALL PRINT_ALPHABET_RANK(2, ABL:(LOCAL:0):歌唱)
-				PRINTFORM {ABL:(LOCAL:0):歌唱, 3}|
-				CALL PRINT_ALPHABET_RANK(2, ABL:(LOCAL:0):料理)
-				PRINTFORM {ABL:(LOCAL:0):料理, 3}
-			ELSE
-				LOCALS:0 = [{NO:(LOCAL:0) + 99, 4}]%ANAME(LOCAL:0), 16, RIGHT%  %ALPHABET_RANK(0, ABL:LOCAL:武闘)%{ABL:(LOCAL:0):武闘, 3}|%ALPHABET_RANK(0, ABL:LOCAL:知略)%{ABL:(LOCAL:0):知略, 3}|
-				LOCALS:0 += @"%ALPHABET_RANK(0, ABL:LOCAL:政治)%{ABL:(LOCAL:0):政治, 3}|%ALPHABET_RANK(1, ABL:LOCAL:妖術)%{ABL:(LOCAL:0):妖術, 3}|%ALPHABET_RANK(2, ABL:LOCAL:歌唱)%{ABL:(LOCAL:0):歌唱, 3}|%ALPHABET_RANK(2, ABL:LOCAL:料理)%{ABL:(LOCAL:0):料理, 3}"
-				SETCOLOR COLOR("選択不可")
-				PRINTPLAINFORM %LOCALS:0%
-				RESETCOLOR
-			ENDIF
-			表示位置 ++
-		ENDIF
-		キャラカウンタ ++
-	ENDIF
-NEXT
-
-PRINTL 
-DRAWLINE
-
-IF 総ページ数 >= 2
-	消去行 += 2
-	IF 表示ページ > 1
-		PRINT [  8] 前のページ            
-	ELSE
-		PRINT                             
-	ENDIF
-	LOCALS:0 = ページ{表示ページ}/{総ページ数}
-	PRINTPLAINFORM %LOCALS:0, 28, LEFT%
-	IF 表示ページ < 総ページ数
-		PRINT [  9] 後のページ
-	ENDIF
-	PRINTL 
-	DRAWLINE
-ENDIF
-
-PRINTL [  0] やっぱりやめる
-
-REDRAW 0
-
-消去行 += 4
-
-$INPUT_LOOP
-INPUT
-IF RESULT == 8 && 表示ページ > 1
-	表示ページ --
-	CLEARLINE 消去行
-	GOTO SHOW_LOOP
-ELSEIF RESULT == 9 && 表示ページ < 総ページ数
-	表示ページ ++
-	CLEARLINE 消去行
-	GOTO SHOW_LOOP
-ELSEIF RESULT == 0
-	REDRAW 1
-	RETURN -1
-ENDIF
-
-対象 = RESULT - 99
-IF 対象 > CHARANUM || 対象 < 0
-	CLEARLINE 消去行
-	GOTO SHOW_LOOP
-ELSEIF CFLAG:MASTER:所属 != CFLAG:対象:所属 || CFLAG:対象:捕虜先
-	CLEARLINE 消去行
-	GOTO SHOW_LOOP
-ENDIF
-
-RETURN 対象
-
+;-------------------------------------
 ; 夜盗の状態
 ; 0:沈静化
 ; 1:出没中
 ; 2:都市持ち
+;-----------------------------------------
 @GET_BANDIT_STATE()
 #FUNCTION
-	LOCAL:10 = GET_COUNTRY_FROM_ID(COUNTRY_BANDIT)
+	LOCAL:10 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗))
 	SIF LOCAL:10 < 0
 		RETURNF 0
 		
@@ -2108,3 +1979,78 @@ CALL FORCE_FREE(ARG:0)
 @ADD_COOLTIME(ARG:0, ARG:1)
 COOLTIME:(ARG:0):0 += ARG:1
 CALL FORCE_FREE(ARG:0)
+
+
+;-------------------------------------------------
+;ARG:0番の都市について駐留部隊を含めた防衛兵力を返す関数
+;数しか見てないが敵の同盟軍も含めて評価を行う
+;-------------------------------------------------
+@GET_CITY_GUARD(ARG:0)
+#FUNCTION
+#DIM GUARD
+GUARD = CITY_SOLDIER:(ARG:0)
+SIF CITY_OWNER:(ARG:0) < 1
+	RETURNF GUARD
+
+FOR LOCAL, 1, MAX_COUNTRY
+	SIF CHECK_COUNTRY_RELATION_F(CITY_OWNER:(ARG:0), LOCAL) <= 1
+		CONTINUE
+	FOR LOCAL:1, 0, 10
+		SIF UNIT_SOLDIER:(LOCAL:0):(LOCAL:1) < 1
+			CONTINUE
+		SIF UNIT_POSITION:(LOCAL:0):(LOCAL:1) != ARG:0
+			CONTINUE
+		GUARD += UNIT_SOLDIER:(LOCAL:0):(LOCAL:1)
+	NEXT
+NEXT
+RETURNF GUARD
+
+
+;-------------------------------------------------
+;勢力ARG:0の部隊ARG:1の現在位置を決定する関数
+;最重要都市を探してそこに作る（評価法は守備部隊の配分と同一）
+;-------------------------------------------------
+@SET_NEW_UNIT_POSITION(ARG:0, ARG:1)
+#DIM CITY_COUNT               ;自勢力に所属する都市の総数
+#DIM CITY_ID, MAX_CITY        ;自勢力都市のIDの一時記録
+#DIM CITY_PHEROMONE, MAX_CITY ;自勢力都市のフェロモンの一時記録
+
+SIF GET_OWN_CITY(ARG:0) < 1
+	RETURN
+
+;野盗は特殊処理が必要か？
+;IF COUNTRY_EVENT_ID:(LOCAL:0) == COUNTRY_BANDIT && GET_OWN_CITY(LOCAL:0) == 0
+;ENDIF
+
+VARSET CITY_COUNT
+VARSET CITY_ID
+VARSET CITY_PHEROMONE
+
+;自勢力圏都市IDとフェロモン濃度の取得
+FOR LOCAL, 0, MAX_CITY
+	IF CITY_OWNER:(LOCAL:0) == ARG:0
+		CITY_PHEROMONE:LOCAL = PHEROMONE:(ARG:0):LOCAL
+		CITY_ID:CITY_COUNT = LOCAL:0
+		CITY_COUNT ++
+		SIF CITY_COUNT >= GET_OWN_CITY(ARG:0)
+			BREAK
+	ENDIF
+NEXT
+
+;ノームソートなるものをウィキペで見つけて試す
+FOR LOCAL, 1, CITY_COUNT
+	IF CITY_PHEROMONE:(CITY_ID:(LOCAL - 1)) < CITY_PHEROMONE:(CITY_ID:LOCAL)
+		SWAP CITY_ID:(LOCAL - 1), CITY_ID:LOCAL
+		LOCAL = MAX(LOCAL - 2, 0)
+	ENDIF
+NEXT
+
+UNIT_POSITION:(ARG:0):(ARG:1) = CITY_ID:0
+
+IF !(CITY_ID:0)
+	PRINTFORML 場所決定の異常
+	FOR LOCAL, 1, CITY_COUNT
+		PRINTFORML {CITY_ID:(LOCAL:1), 3}%CITY_NAME_SHORT:(CITY_ID:(LOCAL:1)), 8%：{CITY_PHEROMONE:(LOCAL:1)}
+	NEXT
+	WAIT
+ENDIF

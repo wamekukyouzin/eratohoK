@@ -13,24 +13,28 @@ CALL INIT_TENDENCY(ARG:0)
 
 ;キス未経験でないならキス経験を不明として記録
 IF !TALENT:(ARG:0):キス未経験
-	FIRSTKISS_PARTNER:(ARG:0):0 = 不明
+	SEXUAL_EXPERIENCE:(ARG:0):初体験_ファーストキス = 不明
 ELSE
-	FIRSTKISS_PARTNER:(ARG:0):0 = ----
+	SEXUAL_EXPERIENCE:(ARG:0):初体験_ファーストキス = ----
 ENDIF
 
 IF VAGINA(ARG:0) && !TALENT:(ARG:0):処女
-	VIRGIN_PARTNER:(ARG:0):0 = 不明
+	SEXUAL_EXPERIENCE:(ARG:0):初体験_処女 = 不明
 ELSE
 	TALENT:(ARG:0):処女 = 1
-	VIRGIN_PARTNER:(ARG:0):0 = ----
+	SEXUAL_EXPERIENCE:(ARG:0):初体験_処女 = ----
 ENDIF
 
 IF PENIS(ARG:0) && !TALENT:(ARG:0):童貞
-	DOUTEI_PARTNER:(ARG:0):0 = 不明
+	SEXUAL_EXPERIENCE:(ARG:0):初体験_童貞 = 不明
 ELSE
 	TALENT:(ARG:0):童貞 = 1
-	DOUTEI_PARTNER:(ARG:0):0 = ----
+	SEXUAL_EXPERIENCE:(ARG:0):初体験_童貞 = ----
 ENDIF
+
+;アナル処女はつねにつけとく
+SEXUAL_EXPERIENCE:(ARG:0):初体験_アナル処女 = ----
+TALENT:(ARG:0):アナル処女 = 1
 
 ;汎用キャラなら口上パターンを設定
 IF NO:(ARG:0) > 200 || NO:(ARG:0) < 2000
@@ -263,21 +267,27 @@ FOR LOCAL:0, 0, VARSIZE("TATOO")
 NEXT
 
 IF TALENT:(ARG:0):キス未経験
-	FIRSTKISS_PARTNER:(ARG:0):0 = ----
+	SEXUAL_EXPERIENCE:(ARG:0):初体験_ファーストキス = ----
 ELSE
-	FIRSTKISS_PARTNER:(ARG:0):0 = 不明
+	SEXUAL_EXPERIENCE:(ARG:0):初体験_ファーストキス = 不明
 ENDIF
 
 IF TALENT:(ARG:0):童貞
-	DOUTEI_PARTNER:(ARG:0):0 = ----
+	SEXUAL_EXPERIENCE:(ARG:0):初体験_童貞 = ----
 ELSE
-	DOUTEI_PARTNER:(ARG:0):0 = 不明
+	SEXUAL_EXPERIENCE:(ARG:0):初体験_童貞 = 不明
 ENDIF
 
 IF TALENT:(ARG:0):処女
-	VIRGIN_PARTNER:(ARG:0):0 = ----
+	SEXUAL_EXPERIENCE:(ARG:0):初体験_処女 = ----
 ELSE
-	VIRGIN_PARTNER:(ARG:0):0 = 不明
+	SEXUAL_EXPERIENCE:(ARG:0):初体験_処女 = 不明
+ENDIF
+
+IF TALENT:(ARG:0):アナル処女
+	SEXUAL_EXPERIENCE:(ARG:0):初体験_アナル処女 = ----
+ELSE
+	SEXUAL_EXPERIENCE:(ARG:0):初体験_アナル処女 = 不明
 ENDIF
 ;-------------------------------------------------
 ;TALENTの初期値を現在の値に設定する関数
@@ -1546,7 +1556,7 @@ IF TALENT:対象:キス未経験
 		CASE 4
 			相手 = %相手%(調教)
 	ENDSELECT
-	FIRSTKISS_PARTNER:対象:0 = %相手%
+	SEXUAL_EXPERIENCE:対象:初体験_ファーストキス = %相手%
 	TALENT:(対象):キス未経験 = 0
 	IF ARG:3
 		;既成事実Lv1に相当
@@ -1572,7 +1582,7 @@ IF ARG:2
 	PRINTFORML 童貞喪失(%ANAME(対象)%)
 	RESETCOLOR
 ENDIF
-DOUTEI_PARTNER:対象:0 = %相手%
+SEXUAL_EXPERIENCE:対象:初体験_童貞 = %相手%
 TALENT:対象:童貞 = 0
 
 ;-------------------------------------------------
@@ -1601,9 +1611,38 @@ IF TALENT:(対象):処女 == 1
 		CASE 4
 			相手 = %相手%(調教)
 	ENDSELECT
-	VIRGIN_PARTNER:対象:0 = %相手%
+	SEXUAL_EXPERIENCE:対象:初体験_処女 = %相手%
 ENDIF
 TALENT:(対象):処女 = 0
+
+;-------------------------------------------------
+;アナル処女喪失の共通処理
+;対象が相手で処女喪失
+;シチュを指定すると文字列が付与される
+;ARG:2はメッセージを表示するフラグ 1で表示
+;-------------------------------------------------
+@VIRGIN_COMMON_A(対象, 相手, シチュ = 0, ARG:2 = 1)
+#DIM 対象
+#DIMS 相手
+#DIM シチュ
+IF TALENT:(対象):アナル処女 == 1
+	SETCOLOR COLOR("注意")
+	PRINTFORML %ANAME(対象)%は<アナル処女>を失った…
+	RESETCOLOR
+	SELECTCASE シチュ
+		CASE 1
+			相手 = %相手%(強姦)
+		CASE 2
+			相手 = %相手%(輪姦)
+		CASE 3
+			相手 = %相手%(乱交)
+		CASE 4
+			相手 = %相手%(調教)
+	ENDSELECT
+	SEXUAL_EXPERIENCE:対象:初体験_アナル処女 = %相手%
+ENDIF
+TALENT:対象:アナル処女 = 0
+
 
 ;-------------------------------------------------
 ;処女喪失相手を記録（拡張形式）
@@ -2074,15 +2113,18 @@ ENDIF
 RESETCOLOR
 PRINT  
 
-IF TALENT:(ARG:0):研究用奴隷の烙印
+IF GETBIT(TALENT:(ARG:0):特殊勢力陥落系, 特殊勢力_外来人)
 	SETCOLOR 0x0000A0
 	PRINT 外
-ELSEIF TALENT:(ARG:0):ゴブリンの性奴隷
+ELSEIF GETBIT(TALENT:(ARG:0):特殊勢力陥落系, 特殊勢力_ホフゴブリン)
 	SETCOLOR 0x2B5C1B
 	PRINT ゴ
-ELSEIF TALENT:(ARG:0):野盗の肉便器
+ELSEIF GETBIT(TALENT:(ARG:0):特殊勢力陥落系, 特殊勢力_野盗)
 	SETCOLOR 0x800000
 	PRINT 野
+ELSEIF GETBIT(TALENT:(ARG:0):特殊勢力陥落系, 特殊勢力_触手)
+	SETCOLOR 0xFF1493
+	PRINT 寄
 ELSEIF TALENT:(ARG:0):親愛
 	SETCOLOR 0xF5CE13
 	PRINT 愛
@@ -2497,7 +2539,7 @@ SELECTCASE TOUPPER(ARGS)
 		RETURNF 0x404040
 	CASE "LIGHT-GRAY", "明灰色"
 		RETURNF 0x777777
-	CASE "PINK", "桃"
+	CASE "PINK", "桃", "ピンク"
 		RETURNF 0xFA58F4
 	CASE "DARK-PINK", "黒桃"
 		RETURNF 0x990099
@@ -2593,42 +2635,6 @@ DO
 	RETURNF LOCAL:0
 LOOP 1
 
-;---------------------------
-;ARG:0番のキャラがEVENT_IDがARG:1である勢力による調教でFORCE_FUCKされたときに、CFLAGが減少するか
-;減少「しない」場合、1を返す（@FORCE_FUCKの「CFLAG減少させないフラグ」に対応する）
-;---------------------------
-@SP_TRAIN_IS_DECREASE_CFLAG(ARG:0, ARG:1)
-#FUNCTION
-SELECTCASE ARG:1
-	;野盗の場合
-	CASE COUNTRY_BANDIT
-		;野盗の士官か奴隷としてスタートし、対象が堕ちている
-		IF GROUPMATCH(BANDIT_START, 1, 2) && TALENT:(ARG:0):野盗の肉便器
-			RETURNF 1
-		;MASTERが野盗に所属している
-		ELSEIF CFLAG:MASTER:所属 == GET_COUNTRY_FROM_ID(COUNTRY_BANDIT)
-			RETURNF 1
-		;MASTERが野盗の捕虜で、対象が堕ちている
-		ELSEIF CFLAG:MASTER:捕虜先 == GET_COUNTRY_FROM_ID(COUNTRY_BANDIT) && TALENT:(ARG:0):野盗の肉便器
-			RETURNF 1
-		ENDIF
-	CASE COUNTRY_GOBLIN
-		;MASTERがホフゴブリン勢力に所属している
-		IF CFLAG:MASTER:所属 == GET_COUNTRY_FROM_ID(COUNTRY_GOBLIN)
-			RETURNF 1
-		;MASTERがホフゴブリン勢力の捕虜で、対象が堕ちている
-		ELSEIF CFLAG:MASTER:捕虜先 == GET_COUNTRY_FROM_ID(COUNTRY_GOBLIN) && TALENT:(ARG:0):ゴブリンの性奴隷
-			RETURNF 1
-		ENDIF
-	CASE COUNTRY_GAIRAI
-		;MASTERが外来勢力に所属している
-		IF CFLAG:MASTER:所属 == GET_COUNTRY_FROM_ID(COUNTRY_GAIRAI)
-			RETURNF 1
-		;MASTERが外来勢力の捕虜で、対象が堕ちている
-		ELSEIF CFLAG:MASTER:捕虜先 == GET_COUNTRY_FROM_ID(COUNTRY_GAIRAI) && TALENT:(ARG:0):研究用奴隷の烙印
-			RETURNF 1
-		ENDIF
-ENDSELECT
 
 ;---------------------------
 ;与えられた値について、締まり具合を文字列で返す関数
@@ -2810,3 +2816,117 @@ DRAWLINE
 PRINTFORML ・
 PRINTFORML ・
 PRINTFORML ・
+
+;-------------------------------------------------
+;渡されたビット番号に対応するＳＬＧ素質の文字列を返す
+;-------------------------------------------------	
+@TOSTR_SLG_TALENT(ビット)
+#FUNCTIONS
+#DIM ビット
+SELECTCASE ビット
+	CASE 素質_ＳＬＧ_治療
+		RETURNF "治療"
+	CASE 素質_ＳＬＧ_超成長力
+		RETURNF "超成長力"
+	CASE 素質_ＳＬＧ_努力家
+		RETURNF "努力家"
+	CASE 素質_ＳＬＧ_策士
+		RETURNF "策士"
+	CASE 素質_ＳＬＧ_明察
+		RETURNF "明察"
+	CASE 素質_ＳＬＧ_ステゴロ
+		RETURNF "ステゴロ"
+	CASE 素質_ＳＬＧ_三種の神器
+		RETURNF "三種の神器"
+	CASE 素質_ＳＬＧ_下克上等
+		RETURNF "下克上等"
+	CASE 素質_ＳＬＧ_魔力転換
+		RETURNF "魔力転換"
+	CASE 素質_ＳＬＧ_突貫
+		RETURNF "突貫"
+	CASE 素質_ＳＬＧ_バンドガール
+		RETURNF "バンドガール"
+	CASE 素質_ＳＬＧ_哨戒
+		RETURNF "哨戒"
+	CASE 素質_ＳＬＧ_防衛戦術
+		RETURNF "防衛戦術"
+	CASE 素質_ＳＬＧ_暗殺
+		RETURNF "暗殺"
+	CASE 素質_ＳＬＧ_弁舌
+		RETURNF "弁舌"
+	CASE 素質_ＳＬＧ_早足
+		RETURNF "早足"
+	CASE 素質_ＳＬＧ_風説流布
+		RETURNF "風説流布"
+	CASE 素質_ＳＬＧ_手練手管
+		RETURNF "手練手管"
+	CASE 素質_ＳＬＧ_疾風迅雷
+		RETURNF "疾風迅雷"
+	CASE 素質_ＳＬＧ_封魔
+		RETURNF "封魔"
+ENDSELECT
+
+;-------------------------------------------------
+;渡されたビット番号に対応するＳＬＧ素質の文字列を返す
+;-------------------------------------------------	
+@TOSTR_DAILY_TALENT(ビット)
+#FUNCTIONS
+#DIM ビット
+SELECTCASE ビット
+	CASE 素質_デイリー_薬売りの性奴隷
+		RETURNF "薬売りの性奴隷"
+	CASE 素質_デイリー_貴族の虜
+		RETURNF "貴族の虜"
+	CASE 素質_デイリー_貴族の愛人
+		RETURNF "貴族の愛人"
+	CASE 素質_デイリー_借り物
+		RETURNF "借り物"
+	CASE 素質_デイリー_淫紋
+		RETURNF "淫紋"
+ENDSELECT
+
+;-------------------------------------------------
+;渡されたビット番号に対応する陥落系素質の文字列を返す
+;-------------------------------------------------	
+@TOSTR_SEX_TALENT(ビット)
+#FUNCTIONS
+#DIM ビット
+SELECTCASE ビット
+	CASE 素質_陥落_淫乱
+		RETURNF "淫乱"
+	CASE 素質_陥落_淫核
+		RETURNF "淫核"
+	CASE 素質_陥落_淫壷
+		RETURNF "淫壷"
+	CASE 素質_陥落_尻穴狂い
+		RETURNF "尻穴狂い"
+	CASE 素質_陥落_淫乳
+		RETURNF "淫乳"
+	CASE 素質_陥落_蕩唇
+		RETURNF "蕩唇"
+	CASE 素質_陥落_射精狂い
+		RETURNF "射精狂い"
+	CASE 素質_陥落_サド
+		RETURNF "サド"
+	CASE 素質_陥落_マゾ
+		RETURNF "マゾ"
+	CASE 素質_陥落_雌犬
+		RETURNF "雌犬"
+	CASE 素質_陥落_肉便器
+		RETURNF "肉便器"
+	CASE 素質_陥落_苗床
+		RETURNF "苗床"
+	CASE 素質_陥落_薬物依存
+		RETURNF "薬物依存"
+ENDSELECT
+
+;-------------------------------------------------
+;カタカナ判定関数
+;命名処理用に文字列がカタカナかどうかを判定する（1ならカタカナ）
+;多分半角ｶﾅとかは対応できない
+;ARGS 判定対象
+;ARG　判定位置（省略可）、1文字目が0、2文字目が1（UNICODE式）
+;-------------------------------------------------
+@CHECK_KATAKANA(ARGS, ARG)
+#FUNCTION
+RETURNF INRANGE(ENCODETOUNI(ARGS, ARG), 0x30A1, 0x30FA)

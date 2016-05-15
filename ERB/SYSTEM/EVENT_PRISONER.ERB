@@ -4,6 +4,7 @@
 ;捕虜の扱いを設定する
 ;-------------------------------------------------
 @SETSTATE_PRISONER
+#DIM FIRST_LINE
 ;1ページ22人までのコマンドが表示される
 ;LOCAL	
 	;0:ループ用
@@ -35,7 +36,7 @@ LOCAL:11 = 1
 
 ;触手調教が可能かどうかを判定
 LOCAL:20 = ITEM:触手部屋 && FLAG:35 >= 0 && IS_SYOKUSYU_MANAGE(FLAG:35)
-
+FIRST_LINE = LINECOUNT
 $SHOW_LOOP
 
 DRAWLINE
@@ -135,7 +136,7 @@ ELSE
 	CLEARLINE 1
 	GOTO INPUT_LOOP
 ENDIF
-CLEARLINE LOCAL:7 + 7
+CLEARLINE LINECOUNT - FIRST_LINE
 GOTO SHOW_LOOP
 
 ;-------------------------------------------------
@@ -619,6 +620,8 @@ SELECTCASE RAND:5
 ENDSELECT
 
 CALL VIRGIN_COMMON(ARG:0, "名も知れぬ兵士たち", 2)
+SIF !RAND:4
+	CALL VIRGIN_COMMON_A(ARG:0, "名も知れぬ兵士たち", 2)
 
 SELECTCASE ABL:(ARG:0):欲望
 	CASE 0
@@ -1085,7 +1088,7 @@ ELSE
 			IF TALENT:(ARG:0):虚ろ || TALENT:(ARG:0):崩壊
 				PRINTFORML %ANAME(ARG:0)%は話を聞いていないのか、視線をその辺へ漂わせている
 				PRINTFORML 喋る触手はこっちで決めておくねと言うと、一番優しい凌辱方を%ANAME(ARG:0)%へけしかけた
-			ELSEIF TALENT:(ARG:0):淫乱
+			ELSEIF GETBIT(TALENT:(ARG:0):肉体陥落系, 素質_陥落_淫乱)
 				PRINTFORML %ANAME(ARG:0)%は顔を真っ赤に染め上げつつも、聞くうちに膣蜜が垂れてしまった
 				PRINTFORML 喋る触手は聞くまでも無かったねと言いながら、プランを順番に%ANAME(ARG:0)%へけしかけた
 			ELSEIF ABL:(ARG:0):性知識 == 0
@@ -1179,7 +1182,8 @@ ENDIF
 ;触手へのキス
 CALL KISS_COMMON(ARG:0, @"触手")
 CALL VIRGIN_COMMON(ARG:0, "触手", 2)
-
+SIF !RAND:4
+	CALL VIRGIN_COMMON_A(ARG:0, "触手", 2)
 SELECTCASE ABL:(ARG:0):欲望
 	CASE 0
 		TIMES LOCAL:0, 1.00
@@ -1476,7 +1480,8 @@ SELECTCASE RAND:5
 ENDSELECT
 
 CALL VIRGIN_COMMON(ARG:0, "娼館の客")
-
+SIF !RAND:4
+	CALL VIRGIN_COMMON_A(ARG:0, "娼館の客")
 SELECTCASE ABL:(ARG:0):欲望
 	CASE 0
 		TIMES LOCAL:0, 1.00
@@ -1607,7 +1612,7 @@ IF (!TALENT:(ARG:0):母乳体質 || CFLAG:(ARG:0):33) && TALENT:(ARG:0):性別 !
 		EXP:(ARG:0):搾乳経験値 += 1
 	SIF TALENT:(ARG:0):Ｂ鈍感
 		EXP:(ARG:0):搾乳経験値 += -1
-	SIF TALENT:(ARG:0):淫乳
+	SIF GETBIT(TALENT:(ARG:0):肉体陥落系, 素質_陥落_淫乳)
 		EXP:(ARG:0):搾乳経験値 += 2
 	SIF ABL:(ARG:0):Ｂ感 >= 3
 		EXP:(ARG:0):搾乳経験値 += 2
@@ -1629,7 +1634,7 @@ IF TALENT:(ARG:0):母乳体質
 		SPOUT_MILK *= 3 / 2
 	SIF TALENT:(ARG:0):Ｂ鈍感
 		SPOUT_MILK *= 3 / 4
-	SIF TALENT:(ARG:0):淫乳
+	SIF GETBIT(TALENT:(ARG:0):肉体陥落系, 素質_陥落_淫乳)
 		SPOUT_MILK *= 3 / 2
 	;念のため
 	SPOUT_MILK = MAX(SPOUT_MILK, 1)
@@ -1975,7 +1980,7 @@ ENDIF
 
 SIF CFLAG:(ARG:0):9 == 0	;捕虜なんかじゃないわよっ！
 	RETURN					;カエレ! （・∀・）
-SIF COUNTRY_EVENT_ID:(CFLAG:(ARG:0):1) >= COUNTRY_GAIRAI || COUNTRY_EVENT_ID:(CFLAG:(ARG:0):9) >= COUNTRY_GAIRAI	;外来人299,ゴブ300 以降の勢力に関係する場合処理しない
+SIF COUNTRY_EVENT_ID:(CFLAG:(ARG:0):1) >= SP_COUNTRY_ID:(特殊勢力_外来人) || COUNTRY_EVENT_ID:(CFLAG:(ARG:0):9) >= SP_COUNTRY_ID:(特殊勢力_外来人)	;外来人299,ゴブ300 以降の勢力に関係する場合処理しない
 	RETURN
 SIF CFLAG:(ARG:0):43 == 0	;解放カウンタ０＝捕虜なりたて は捕虜処置選択前なのでスルー
 	RETURN

@@ -1,0 +1,138 @@
+﻿;--------------------------------------
+;野盗蜂起イベント
+;--------------------------------------
+@SLG_BANDIT_RISE()
+#DIM 野盗
+
+野盗 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗))
+
+SIF 野盗 == -1
+	RETURN -1
+
+SIF GET_OWN_CITY(野盗) > 0
+	RETURN -1
+
+SIF DAY < SLG_PP:1
+	RETURN -1
+	
+IF RAND:1000 >= DVAR:野盗蜂起カウンタ * 5 - MIN(DAY / 10, 30)
+	DVAR:野盗蜂起カウンタ ++
+	RETURN -1
+ENDIF
+
+CALL BANDIT_RISE()
+
+;--------------------------------------
+;野盗蜂起イベントの実装
+;--------------------------------------
+@BANDIT_RISE()
+#DIM 野盗
+#DIM 結果, 10
+#DIM 判定無視
+#DIM 候補数
+VARSET LOCAL
+VARSET 結果, -1
+野盗 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗))
+
+;野盗勢力場合は発生しない
+
+SIF 野盗 == -1
+	RETURN -1
+
+CALL BANDIT_RISE_SELECT_CITY()
+
+FOR LOCAL, 0, VARSIZE("結果")
+	SIF RESULT:LOCAL == -1
+		BREAK
+	結果:LOCAL = RESULT:LOCAL
+NEXT
+
+SIF 結果:0 == -1
+	RETURN -1
+
+;メッセージ表示
+DRAWLINE
+PRINTFORML
+SETCOLOR COLOR("警告")
+PRINTFORMW 野盗が蜂起しました！
+RESETCOLOR
+LOCAL:1 = CITY_OWNER:(結果:0)
+
+;奪った都市の所属武将を何人かかっぱらう（無所属都市でなければ）
+IF IS_COUNTRY(LOCAL:1)
+	FOR LOCAL, 0, CHARANUM
+		SIF LOCAL:2 >= (SP_COUNTRY_RANK:(特殊勢力_野盗) >=3 ? 5 # 3)
+			BREAK
+		IF CFLAG:LOCAL:所属 == LOCAL:1 && !CFLAG:LOCAL:捕虜先 && IS_FEMALE(LOCAL) && GET_COUNTRY_BOSS(LOCAL:1) != LOCAL && !RAND:4
+			CALL COLORPRINTFORM(@"野盗は%ANAME(LOCAL)%を\@CONFIG:200 ? # 性奴隷として\@拉致しました", COLOR("警告"), "W")
+			LOCAL:2 ++
+			CFLAG:LOCAL:捕虜先 = 野盗
+			CALL FORCE_FREE(LOCAL)
+		ENDIF
+	NEXT
+ENDIF
+
+FOR LOCAL, 0, SP_COUNTRY_RANK:(特殊勢力_野盗)
+	SIF 結果:LOCAL == -1
+		BREAK
+	CALL COLORPRINTFORM(@"%CITY_NAME:(結果:LOCAL)%が奪われました", COLOR("警告") , "W")
+	CALL TAKEOVER_CITY_FROM_NO(野盗, 結果:LOCAL)
+NEXT
+COUNTRY_SOLDIER:野盗 += LIMIT(DAY * 100, 3000, 20000)
+COUNTRY_IS_CLOSED:野盗 = 0
+DVAR:野盗蜂起カウンタ = 0
+
+;--------------------------------------
+;野盗蜂起イベントにおける、都市選択処理
+;--------------------------------------
+@BANDIT_RISE_SELECT_CITY
+#DIM 勢力, MAX_COUNTRY
+#DIM 判定値, MAX_COUNTRY
+#DIM 都市, MAX_CITY
+#DIM 対象勢力
+#DIM 候補数
+#DIM 戻り値, 10
+VARSET 勢力
+VARSET 判定値
+VARSET 都市
+VARSET 候補数
+VARSET 戻り値, -1
+;各勢力の都市数に基づいて判定値を算出
+FOR LOCAL, 0, MAX_COUNTRY
+	IF GET_OWN_CITY(LOCAL) > 1 || (LOCAL == 0 && GET_OWN_CITY(LOCAL) > 0)
+		勢力:候補数 = LOCAL
+		判定値:候補数 = RAND:GET_OWN_CITY(LOCAL)
+		候補数 ++
+	ENDIF
+NEXT
+
+SIF 候補数 == 0
+	RETURN -1
+
+;都市数が多い勢力ほど狙われやすい
+対象勢力 = 勢力:FINDELEMENT(判定値, MAXARRAY(判定値, 0, 候補数), 0, 候補数)
+
+VARSET 候補数
+
+;対象都市を選択
+FOR LOCAL, 1, CITY_NUM + 1
+	IF CITY_OWNER:LOCAL == 対象勢力
+		都市:候補数 = LOCAL
+		候補数 ++
+	ENDIF
+NEXT
+
+SIF 候補数 == 0
+	RETURN -1
+
+CALL FISHER_YATES_SHAFFLE(候補数)
+
+FOR LOCAL, 0, IS_COUNTRY(対象勢力) ? LIMIT(GET_OWN_CITY(対象勢力) / 5, 1, 10) # 1
+	SIF SHAFFLE_ARRAY:LOCAL == -1
+		BREAK
+	戻り値:(LOCAL) = 都市:(SHAFFLE_ARRAY:LOCAL)
+NEXT
+
+RETURN 戻り値:0, 戻り値:1, 戻り値:2, 戻り値:3, 戻り値:4, 戻り値:5, 戻り値:6, 戻り値:7, 戻り値:8, 戻り値:9
+
+

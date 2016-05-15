@@ -8,16 +8,18 @@ LOCAL:5 = GET_COUNTRY_BOSS(ARG:0)
 LOCAL:6 = GET_COUNTRY_BOSS(ARG:1)
 
 IF ARG:0 == CFLAG:MASTER:1
-	CALL MASTER_CAPTURED_SPECIAL(ARG:1)
-	IF RESULT != -1
-	;主人公の勢力に仕官していたか捕虜になっていたキャラは全員捕えらえる
-		FOR LOCAL:0, 0 , CHARANUM
-			IF (CFLAG:(LOCAL:0):1 == ARG:0 ||CFLAG:(LOCAL:0):9 == ARG:0)
-				CFLAG:(LOCAL:0):1 = 0
-				CFLAG:(LOCAL:0):9 = ARG:1
-			ENDIF
-		NEXT
-		RETURN 1
+	IF IS_SP_COUNTRY(ARG:1)
+		CALL SP_MASTER_CAPTURED(ARG:1)
+		IF RESULT != -1
+		;主人公の勢力に仕官していたか捕虜になっていたキャラは全員捕えらえる
+			FOR LOCAL:0, 0 , CHARANUM
+				IF (CFLAG:(LOCAL:0):1 == ARG:0 ||CFLAG:(LOCAL:0):9 == ARG:0)
+					CFLAG:(LOCAL:0):1 = 0
+					CFLAG:(LOCAL:0):9 = ARG:1
+				ENDIF
+			NEXT
+			RETURN 1
+		ENDIF
 	ENDIF
 ENDIF
 
@@ -38,9 +40,9 @@ FOR LOCAL:0, 0, CHARANUM
 			CALL TREAT_PRISONER(ARG:0, ARG:1, LOCAL:0)
 		ELSE
 			;滅亡した勢力の士官のうち、囚われているのが野盗の場合、ゴブリン、外来の場合はなにもしない。
-			IF CFLAG:(LOCAL:0):9 == GET_COUNTRY_FROM_ID(COUNTRY_BANDIT) || CFLAG:(LOCAL:0):9 == GET_COUNTRY_FROM_ID(COUNTRY_GOBLIN) || CFLAG:(LOCAL:0):9 == GET_COUNTRY_FROM_ID(COUNTRY_GAIRAI)
+			IF IS_SP_COUNTRY(CFLAG:(LOCAL:0):捕虜先)
 			;滅亡した勢力の士官のうち、他のCPU勢力の捕虜となっていたキャラは、登用判定を通す。
-			ELSEIF GET_COUNTRY_BOSS(CFLAG:(LOCAL:0):9) != -1 && JUDGE_ASSIGN(LOCAL:0, CFLAG:(LOCAL:0):9, CFLAG:(LOCAL:0):1) && CFLAG:(LOCAL:0):9 != GET_COUNTRY_FROM_ID(COUNTRY_BANDIT)　&& CFLAG:(LOCAL:0):9 != GET_COUNTRY_FROM_ID(COUNTRY_GOBLIN)&& CFLAG:(LOCAL:0):9 != GET_COUNTRY_FROM_ID(COUNTRY_GAIRAI)
+			ELSEIF GET_COUNTRY_BOSS(CFLAG:(LOCAL:0):9) != -1 && JUDGE_ASSIGN(LOCAL:0, CFLAG:(LOCAL:0):9, CFLAG:(LOCAL:0):1) && !IS_SP_COUNTRY(CFLAG:(LOCAL:0):捕虜先)
 				SETCOLOR COLOR("注意")
 				PRINTFORML 囚われていた%ANAME(LOCAL:0)%は、%ANAME(GET_COUNTRY_BOSS(CFLAG:(LOCAL:0):9))%に仕えることになったようだ
 				RESETCOLOR
@@ -302,7 +304,7 @@ ENDIF
 ;特殊勢力フラグ
 特殊勢力以外ない = 1
 FOR LOCAL:0, 1, MAX_COUNTRY
-	IF IS_COUNTRY(LOCAL:0) && !GROUPMATCH(COUNTRY_EVENT_ID:(LOCAL:0), COUNTRY_GOBLIN, COUNTRY_GAIRAI, COUNTRY_BANDIT)
+	IF IS_COUNTRY(LOCAL:0) && !IS_SP_COUNTRY(LOCAL:0)
 		特殊勢力以外ない = 0
 		BREAK
 	ENDIF
@@ -312,7 +314,7 @@ LOCAL:8 = RAND:601 + RAND:601 + RAND:2 * 600 - 600
 LOCAL:9 = 0
 FOR LOCAL:0, 1, MAX_COUNTRY
 	;通常勢力が存在する場合、ゴブリン、外来、野盗は除外
-	SIF !特殊勢力以外ない && GROUPMATCH(COUNTRY_EVENT_ID:(LOCAL:0), COUNTRY_GOBLIN, COUNTRY_GAIRAI, COUNTRY_BANDIT)
+	SIF !特殊勢力以外ない && IS_SP_COUNTRY(LOCAL:0)
 		CONTINUE
 	LOCAL:5 = COUNTRY_BOSS:(LOCAL:0)
 	LOCAL:6 = ID_TO_CHARA(LOCAL:5)
@@ -389,6 +391,7 @@ IF ARG:1 == CFLAG:MASTER:1
 		PRINTL [1] 解放
 		PRINTL [2] 投獄
 		PRINTL [3] 処刑
+		PRINTL [4] 軟禁
 
 		$INPUT_LOOP
 		INPUT
@@ -439,6 +442,13 @@ IF ARG:1 == CFLAG:MASTER:1
 		CFLAG:(ARG:2):9 = ARG:1
 		RETURN 2
 
+	ELSEIF RESULT == 4
+		CFLAG:(ARG:2):29 = 1
+		CALL KOJO_EVENT(ARG:2, 335)
+		PRINTFORMW %NAME:(ARG:2)%を軟禁しました
+		CFLAG:(ARG:2):9 = ARG:1
+		RETURN 4
+
 	ELSEIF RESULT == 3
 		CALL KOJO_EVENT(ARG:2, 336)
 		PRINTFORMW ……………………
@@ -459,14 +469,14 @@ ELSE
 	LOCAL:5 = GET_COUNTRY_BOSS(ARG:1)
 
 	;外来勢力(ID:299)、ホフゴブリン、野盗なら必ず投獄
-	IF COUNTRY_EVENT_ID:(ARG:1) == COUNTRY_GAIRAI || COUNTRY_EVENT_ID:(ARG:1) == 300 || COUNTRY_EVENT_ID:(ARG:1) == COUNTRY_BANDIT
+	IF IS_SP_COUNTRY(ARG:1)
 		IF ARG:2 == MASTER
 			CALL MASTER_CAPTURED(ARG:1)
 			RETURN RESULT
 		ENDIF
 		CFLAG:(ARG:2):9 = ARG:1
 		;野盗勢力に囚われた場合はイベントに送る
-		SIF COUNTRY_EVENT_ID:(ARG:1) == COUNTRY_BANDIT && TRAIN_IS_SHOW_TEXT(ARG:2)
+		SIF COUNTRY_EVENT_ID:(ARG:1) == SP_COUNTRY_ID:(特殊勢力_野盗) && TRAIN_IS_SHOW_TEXT(ARG:2)
 			CALL TREAT_PRISONER_BANDIT(ARG:2)
 		RETURN 2
 
@@ -658,7 +668,7 @@ ENDIF
 ;以下は処刑が仮決定したときの処理
 
 ;王の好感度が500以上かつ主導度Ｕ100以上または<サド>
-IF !LOCAL:8 && ((CFLAG:(LOCAL:5):2 >= 500 && (ABL:(LOCAL:5):主導度Ｕ >= 100 || TALENT:(LOCAL:5):サド)))
+IF !LOCAL:8 && ((CFLAG:(LOCAL:5):2 >= 500 && (ABL:(LOCAL:5):主導度Ｕ >= 100 || GETBIT(TALENT:(LOCAL:5):肉体陥落系, 素質_陥落_サド))))
 	PRINTFORMW %ANAME(MASTER)%が仕官を拒むと、%NAME:(LOCAL:5)%は不敵な笑みを浮かべ、%ANAME(MASTER)%を投獄するように命じた…
 	SETCOLOR COLOR("注意")
 	PRINTFORMW %ANAME(MASTER)%は%NAME:(LOCAL:5)%の捕虜となりました
@@ -671,7 +681,7 @@ LOCAL:6 = -1
 LOCAL:7 = 0
 FOR LOCAL:0, 0, CHARANUM
 	;ARG:0勢力の中に主人公への好感度500以上かつ主導度Ｕ100以上または<サド>のキャラがいる場合
-	IF CFLAG:(LOCAL:0):1 == ARG:0 && CFLAG:(LOCAL:0):9 == 0 && CFLAG:(LOCAL:0):2 >= 500 && (ABL:(LOCAL:0):主導度Ｕ >= 100 || TALENT:(LOCAL:0):サド)
+	IF CFLAG:(LOCAL:0):1 == ARG:0 && CFLAG:(LOCAL:0):9 == 0 && CFLAG:(LOCAL:0):2 >= 500 && (ABL:(LOCAL:0):主導度Ｕ >= 100 || GETBIT(TALENT:(LOCAL:0):肉体陥落系, 素質_陥落_サド))
 		IF CFLAG:(LOCAL:0):2 > LOCAL:7
 			;条件を満たすキャラのうち、好感度が最大のキャラを探索
 			LOCAL:6 = LOCAL:0
@@ -762,7 +772,7 @@ LOCAL:6 = GET_COUNTRY_FROM_BOSS_ID(GET_ID(ARG:2))
 LOCAL:10 = 200
 
 ;特殊勢力所属なら1/2で判定を無視して応じる
-SIF RAND:2 && GROUPMATCH(LOCAL:6, GET_COUNTRY_FROM_ID(COUNTRY_BANDIT), GET_COUNTRY_FROM_ID(COUNTRY_GOBLIN), GET_COUNTRY_FROM_ID(COUNTRY_GAIRAI))
+SIF RAND:2 && IS_SP_COUNTRY(LOCAL:6)
 RETURNF 1
 
 ;登用側の君主への好感度と敵対度の補正
@@ -1040,221 +1050,3 @@ IF IS_COUNTRY(CFLAG:MASTER:1) && CFLAG:MASTER:9 == 0
 	ENDIF
 ENDIF
 
-;-------------------------------------------------
-;主人公が捕らえられた際の特殊処理
-;ARG:0 捕らえた国家
-;戻り値 0=処刑 1=部下になる 2=解放される 3=投獄される
-;-------------------------------------------------
-@MASTER_CAPTURED_SPECIAL(ARG:0)
-;外来勢力(ID:299)が捕らえた場合
-IF COUNTRY_EVENT_ID:(ARG:0) == COUNTRY_GAIRAI
-	PRINTW ………………
-	PRINTW ……
-	PRINTFORMW 捕らえられた%ANAME(MASTER)%は外来人たちの研究者の前に引きずり出された…
-	IF TALENT:MASTER:研究用奴隷の烙印
-		PRINTFORML 君は脱走した研究対象XXX番じゃないか、よく戻ってきた
-		PRINTFORMW さあ、また実験を行うから、この首輪をつけなさい
-		PRINTFORMW 外来人たちは当然のように、首輪を嵌めようとしてくるが……
-		CALL ASK_YN("受け入れる", "拒否する")
-		IF RESULT == 0
-			PRINTFORMW これをつければ、また沢山研究してもらえる
-			PRINTFORMW %ANAME(MASTER)%の身体は疼き、首輪を自ら受け入れてしまった
-			PRINTFORMW 途端、彼らに対しては絶対服従であるという考えが、頭の中を埋め尽くした
-			PRINTFORMW 付いてきたまえ、そんな簡単な命令に従うことにすら、深い喜びを感じる
-			PRINTFORMW 彼らの作った特殊な首輪を嵌め、%ANAME(MASTER)%は再び、奴隷に成り下がった……
-			SETCOLOR COLOR("注意")
-			PRINTFORMW %ANAME(MASTER)%は再び、外来人たちの研究用奴隷となりました
-			RESETCOLOR
-		ELSE
-			PRINTFORMW 誰がそんなもの。%ANAME(MASTER)%ははねのける
-			PRINTFORMW 外来人たちにはその態度が理解できないようだった
-			PRINTFORMW どういう反応だろうかこれは、興味深いぞ、是非とも調べねば
-			PRINTFORMW わきたつ外来人たちは、%ANAME(MASTER)%を取り押さえ、枷で縛り、研究用の牢獄へと放り込んだ……
-		ENDIF
-	ELSE
-		PRINTFORML 研究者は%ANAME(MASTER)%の体を研究対象を見る瞳で舐めるように見定めた後、
-		PRINTFORMW 君は研究価値がありそうだと呟いた
-		PRINTFORMW 自ら研究に協力してくれるなら、手ひどい真似はしないと言っているが……
-		PRINTFORMW 受け入れますか？
-		CALL ASK_YN("受け入れる", "拒否する")
-		IF RESULT == 0
-			PRINTFORMW 投獄されるよりはマシだろう。%ANAME(MASTER)%が頷くと、外来人たちは満足げに頷いた
-			PRINTFORMW では管理用タグを付けようと、彼らは言い出した
-			PRINTFORMW 「タグ」として用意された焼きごては、あろうことか、%ANAME(MASTER)%の下腹に押し当てられた……
-			SETCOLOR COLOR("注意")
-			PRINTFORMW %ANAME(MASTER)%は外来人たちの研究用奴隷となりました
-			RESETCOLOR
-		ELSE
-			PRINTFORMW お前達になど手を貸すか。%ANAME(MASTER)%は毅然として言い放つ	
-			PRINTFORMW ではしかたないと、彼らはそのまま%ANAME(MASTER)%を投獄した……
-		ENDIF
-	ENDIF
-	IF RESULT == 0
-		TALENT:MASTER:研究用奴隷の烙印 = 1
-		CFLAG:MASTER:1 = ARG:0
-		FOR LOCAL:0, 0, CHARANUM
-			IF TALENT:(LOCAL:0):外来人
-				TALENT:(LOCAL:0):合意 = 1
-				CFLAG:(LOCAL:0):2 = MAX(CFLAG:(LOCAL:0):2, 500)
-				CFLAG:(LOCAL:0):3 = MAX(CFLAG:(LOCAL:0):3, 500)
-			ENDIF
-		NEXT
-		RETURN 1
-	ELSE
-		CFLAG:MASTER:9 = ARG:0
-		RETURN 3
-	ENDIF
-;ホフゴブリン(ID:300)が滅亡させた場合
-ELSEIF COUNTRY_EVENT_ID:(ARG:0) == 300
-	;主人公勢力または主人公が捕えられている勢力が滅亡した
-	PRINTW ………………
-	PRINTW ……
-	PRINTFORMW 捕らえられた%ANAME(MASTER)%はホフゴブリンの前に引きずり出された…
-	IF IS_MALE(MASTER)
-		PRINTFORMW ホフゴブリンは%ANAME(MASTER)%を見ると、男なんて要らねぇのになと呟いた
-		PRINTFORMW 俺達の側につくなら、イイ思いをさせてやるぜ？　と言った
-		PRINTFORMW 奴隷という扱いにはなるようだが、拒否するより待遇はマシになるようだ……
-		PRINTFORMW 受け入れますか？
-		CALL ASK_YN("受け入れる", "拒否する")
-		IF RESULT == 0
-			PRINTFORMW 投獄されるよりはマシだろう。%ANAME(MASTER)%が頷くと、ホフゴブリンはゲタゲタと笑う
-			PRINTFORMW 何を笑っているのかといぶかる%ANAME(MASTER)%に、奴隷としての証をつけてやるよと彼らは言い出した
-			PRINTFORMW 用意された焼きごては、あろうことか、%ANAME(MASTER)%のペニスに押し当てられた……
-			SETCOLOR COLOR("注意")
-			PRINTFORMW %ANAME(MASTER)%はホフゴブリンの性奴隷となりました
-			RESETCOLOR
-		ELSE
-			PRINTFORMW お前達になど手を貸すか。%ANAME(MASTER)%は毅然として言い放つ	
-			PRINTFORMW そうかよと、彼らはそのまま興味なさげに、%ANAME(MASTER)%を投獄した……
-		ENDIF
-	ELSEIF TALENT:MASTER:ゴブリンの性奴隷
-		PRINTFORMW 懲りずに俺達の前に来たのかよと、彼らは%ANAME(MASTER)%の身体に手を這わせながらささやく
-		PRINTFORMW それだけで%ANAME(MASTER)%の身体は、彼らに刻み込まれた快楽を思い出して濡れてしまう
-		PRINTFORMW %ANAME(MASTER)%の声が甘く蕩け始めた頃、また俺達のところに来るか？　と彼らは尋ねる
-		PRINTFORMW 受け入れますか？
-		CALL ASK_YN("受け入れる", "拒否する")
-		IF RESULT == 0
-			PRINTFORMW 彼らによって育て上げられた雌の本性が、%ANAME(MASTER)%を頷かせた
-			PRINTFORMW おかえりという言葉を%ANAME(MASTER)%にかけると、ホフゴブリンはその首に家畜用の首輪を嵌めた……
-			SETCOLOR COLOR("注意")
-			PRINTFORMW %ANAME(MASTER)%は、ホフゴブリンの性奴隷という身分を思い出した
-			RESETCOLOR
-		ELSE
-			PRINTFORMW 拒否されるということは考えになかったらしく、ホフゴブリン達はしばし意外そうにしていた
-			PRINTFORMW やがてその表情を怒りに変えると、牢獄で自分の立場ってもんを思い出させてやるよと吐き捨てた
-			PRINTFORMW ホフゴブリン達は%ANAME(MASTER)%に手枷と足枷を嵌め、投獄した……
-		ENDIF
-	ELSE
-		PRINTFORMW ホフゴブリンは%ANAME(MASTER)%の体をいやらしい目で眺める。
-		PRINTFORMW 俺達の性奴隷になることを誓うなら、行動の自由をある程度は認めてやると言い始めた……
-		PRINTFORMW 屈辱的な提案だが、受け入れずとも、女である%ANAME(MASTER)%の末路は同じだろう
-		PRINTFORMW 受け入れますか？
-		CALL ASK_YN("受け入れる", "拒否する")
-		IF RESULT == 0
-			PRINTFORMW 受け入れなくとも、どうせ犯されるのは見えているのだ。%ANAME(MASTER)%は力なく頷く。
-			PRINTFORMW そうこなくちゃなと、ホフゴブリンは下卑た笑みを浮かべた
-			PRINTFORMW %ANAME(MASTER)%の身体に、性奴隷としての焼き印が刻まれた……
-			SETCOLOR COLOR("注意")
-			PRINTFORMW %ANAME(MASTER)%はホフゴブリンの性奴隷となりました
-			RESETCOLOR
-		ELSE
-			PRINTFORMW そんなことができるか。%ANAME(MASTER)%がきっぱりと拒否すると、ホフゴブリンは顔をしかめる
-			PRINTFORMW ああそうかよ、牢獄で一万回くらいヤられりゃ、お前も立場ってもんが分かるだろうさと吐き捨てた
-			PRINTFORMW ホフゴブリン達は%ANAME(MASTER)%に手枷と足枷を嵌め、投獄した……
-		ENDIF
-	ENDIF
-	IF RESULT == 0
-		CFLAG:MASTER:1 = ARG:0
-		TALENT:MASTER:ゴブリンの性奴隷 = 1
-		FOR LOCAL:0, 0, CHARANUM
-			IF TALENT:(LOCAL:0):ホフゴブリン
-				TALENT:(LOCAL:0):合意 = 1
-				CFLAG:(LOCAL:0):2 = MAX(CFLAG:(LOCAL:0):2, 500)
-				CFLAG:(LOCAL:0):3 = MAX(CFLAG:(LOCAL:0):3, 500)
-			ENDIF
-		NEXT
-		RETURN 1
-	ELSE
-		CFLAG:MASTER:9 = ARG:0
-		RETURN 3
-	ENDIF
-;野盗が滅亡させた場合
-ELSEIF COUNTRY_EVENT_ID:(ARG:0) == COUNTRY_BANDIT
-	;主人公勢力または主人公が捕えられている勢力が滅亡した
-	PRINTW ………………
-	PRINTW ……
-	PRINTFORMW 捕らえられた%ANAME(MASTER)%は野盗の前に引きずり出された…
-	IF IS_MALE(MASTER)
-		PRINTFORMW 野盗は%ANAME(MASTER)%を見、兵士にちょうどいいと判断したらしい
-		PRINTFORMW 俺達の側につくなら、イイ思いをさせてやるぜ？　と言った
-		PRINTFORMW 奴隷という扱いにはなるようだが、拒否するより待遇はマシになるようだ……
-		PRINTFORMW 受け入れますか？
-		CALL ASK_YN("受け入れる", "拒否する")
-		IF RESULT == 0
-			PRINTFORMW 投獄されるよりはマシだろう。%ANAME(MASTER)%が頷くと、野盗はニヤリと笑う
-			PRINTFORMW 何を笑っているのかといぶかる%ANAME(MASTER)%に、奴隷としての証をつけてやるよと彼らは言い出した
-			PRINTFORMW %ANAME(MASTER)%に、頑丈な首輪が嵌められた……
-			SETCOLOR COLOR("注意")
-			PRINTFORMW %ANAME(MASTER)%は野盗の配下となりました
-			RESETCOLOR
-		ELSE
-			PRINTFORMW お前達になど手を貸すか。%ANAME(MASTER)%は毅然として言い放つ	
-			PRINTFORMW そうかよと、彼らはそのまま興味なさげに、%ANAME(MASTER)%を投獄した……
-		ENDIF
-	ELSEIF TALENT:MASTER:野盗の肉便器
-		PRINTFORMW 肉便器ちゃんが戻ってきたぜと、彼らは%ANAME(MASTER)%を取り囲む
-		PRINTFORMW 眼前にペニスを突き出され、%ANAME(MASTER)%の身体は、彼らに刻み込まれた快楽を思い出して濡れてしまう
-		PRINTFORMW %ANAME(MASTER)%の声が甘く蕩け始めた頃、また俺達のところに来るか？　と彼らは尋ねる
-		PRINTFORMW 受け入れますか？
-		CALL ASK_YN("受け入れる", "拒否する")
-		IF RESULT == 0
-			PRINTFORMW 彼らによって育て上げられた雌の本性が、%ANAME(MASTER)%を頷かせた
-			PRINTFORMW 再び服従しますという意思表示として、%ANAME(MASTER)%は突き出されたペニスに熱烈なキスをした……
-			SETCOLOR COLOR("注意")
-			PRINTFORMW %ANAME(MASTER)%は、自分が野盗の肉便器にすぎないことを思い出した
-			RESETCOLOR
-		ELSE
-			PRINTFORMW 拒否されるということは考えになかったらしく、野盗達は爆笑した
-			PRINTFORMW その強がりがいつまで続くかなと、%ANAME(MASTER)%に唾を吐きかける
-			PRINTFORMW 野盗達は%ANAME(MASTER)%に手枷と足枷を嵌め、投獄した……
-		ENDIF
-	ELSE
-		PRINTFORMW 野盗は%ANAME(MASTER)%の体をいやらしい目で眺める
-		PRINTFORMW どうせ結果は同じなんだから、肉便器になっちまえよと言い始めた
-		PRINTFORMW 屈辱的な提案だが、受け入れずとも、女である%ANAME(MASTER)%がされることは変わるまい
-		PRINTFORMW 受け入れますか？
-		CALL ASK_YN("受け入れる", "拒否する")
-		IF RESULT == 0
-			PRINTFORMW 受け入れなくとも、どうせされることは変わらない
-			PRINTFORMW なら、従順な姿勢を見せた方が、まだ待遇はマシなはずだ……%ANAME(MASTER)%は力なく頷く
-			PRINTFORMW マジで受け入れやがったぜと、野盗どもはゲラゲラと笑う
-			PRINTFORMW 彼らは%ANAME(MASTER)%を取り押さえ、その下腹に、「肉便器」の三文字の焼き印を入れた……
-			SETCOLOR COLOR("注意")
-			PRINTFORMW %ANAME(MASTER)%は野盗の肉便器に成り下がった
-			RESETCOLOR
-		ELSE
-			PRINTFORMW そんなことができるか。%ANAME(MASTER)%がきっぱりと拒否すると、野盗はへらへらと笑う
-			PRINTFORMW その強がりがいつまで続くかなと、%ANAME(MASTER)%に唾を吐きかける
-			PRINTFORMW 野盗達は%ANAME(MASTER)%に手枷と足枷を嵌め、投獄した……
-		ENDIF
-	ENDIF
-	IF RESULT == 0
-		CFLAG:MASTER:1 = ARG:0
-		IF IS_FEMALE(MASTER)
-			TALENT:MASTER:野盗の肉便器 = 1
-			FOR LOCAL:0, 0, CHARANUM
-				IF TALENT:(LOCAL:0):野盗
-					TALENT:(LOCAL:0):合意 = 1
-					CFLAG:(LOCAL:0):2 = MAX(CFLAG:(LOCAL:0):2, 500)
-					CFLAG:(LOCAL:0):3 = MAX(CFLAG:(LOCAL:0):3, 500)
-				ENDIF
-			NEXT
-		ENDIF
-		RETURN 1
-	ELSE
-		CFLAG:MASTER:9 = ARG:0
-		RETURN 3
-	ENDIF
-ENDIF
-
-RETURN -1

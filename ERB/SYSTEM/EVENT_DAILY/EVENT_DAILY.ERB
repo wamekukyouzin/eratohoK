@@ -29,7 +29,7 @@ IF !EVENT_LIST:1
 	;0が薬売りで使用されているので-1で初期化
 	VARSET EVENT_LIST, -1
 	;スケベ系:0-8
-	EVENT_LIST:0 = DCON_薬売り, DCON_金貸し, DCON_夜遊び, DCON_富豪, DCON_募金, DCON_催眠, DCON_接待, DCON_恩返し, DCON_カルマ, DCON_河童娘, DCON_闇討ち, DCON_睡姦, DCON_賞金首討伐, DCON_お手伝い, DCON_酒場, DCON_家庭教師, DCON_夜伽
+	EVENT_LIST:0 = DCON_薬売り, DCON_金貸し, DCON_夜遊び, DCON_富豪, DCON_募金, DCON_催眠, DCON_接待, DCON_恩返し, DCON_カルマ, DCON_河童娘, DCON_闇討ち, DCON_睡姦, DCON_賞金首討伐, DCON_お手伝い, DCON_酒場, DCON_家庭教師, DCON_夜伽, DCON_淫紋, DCON_奴隷商人
 	;雇用系:20-22
 	EVENT_LIST:20 = DCON_傭兵, DCON_用心棒, DCON_仕官の誘い
 	;トレーナー:30-33
@@ -39,7 +39,7 @@ IF !EVENT_LIST:1
 	;野盗:50-52
 	EVENT_LIST:50 = DCON_野盗討伐, DCON_野盗身代金, DCON_野盗蜂起, DCON_放浪捕縛, DCON_野盗略奪, DCON_村落襲撃, DCON_性奴隷要求, DCON_士官籠絡
 	;素質系:60-64
-	EVENT_LIST:60 = DCON_肉便器, DCON_薬物依存, DCON_雌犬, DCON_苗床
+	;EVENT_LIST:60 = DCON_肉便器, DCON_薬物依存, DCON_雌犬, DCON_苗床
 	;その他90-93
 	EVENT_LIST:90 = DCON_シャブセックス, DCON_触手討伐任務, DCON_触手兵, DCON_ランダム謀反, DCON_MISC
 ENDIF
@@ -184,6 +184,7 @@ FOR LOCAL:0, 0, 100
 			CALL DAILY_START()
 			CALL TAVERN_SEX
 		ENDIF
+
 	;家庭教師
 	;15期以降、確率2%で発生、お気に入りがいる場合は25%にアップ
 	CASE DCON_家庭教師
@@ -200,6 +201,24 @@ FOR LOCAL:0, 0, 100
 			DAILY_NAME = 夜伽
 			CALL DAILY_START()
 			CALL VIGIL
+		ENDIF
+		
+	;淫紋
+	;12期以降、確率3%で発生、悪魔祓いに成功していたらもう発動しない
+	CASE DCON_淫紋
+		IF !DCONFIG:DCON_淫紋 && !DVAR:浸食中キャラ && DAY >= 1 && DVAR:悪魔契約 >= 0 && RAND:1000 < 30 * EVENT_ODDS
+			DAILY_NAME = 淫紋
+			CALL DAILY_START()
+			CALL LEWDNESS_CURSE
+		ENDIF
+		
+	;奴隷商人
+	;15期以降、確率10%で発生
+	CASE DCON_奴隷商人
+		IF !DCONFIG:DCON_奴隷商人 && DAY >= 15 && RAND:1000 < 100 * EVENT_ODDS
+			DAILY_NAME = 奴隷商人
+			CALL DAILY_START()
+			CALL SLAVE_TRADER
 		ENDIF
 
 	;傭兵
@@ -292,8 +311,6 @@ FOR LOCAL:0, 0, 100
 	;とりあえずキャラ別判定は関数に任せて5%の部分だけ引き出す
 	CASE DCON_放浪捕縛
 		IF !DCONFIG:DCON_放浪捕縛 && RAND:1000 < 50 * EVENT_ODDS
-			DAILY_NAME = 野盗による拉致
-			CALL DAILY_START()
 			CALL BANDIT_ARREST
 		ENDIF
 	;野盗略奪イベント、12期以降4%で発動
@@ -325,30 +342,6 @@ FOR LOCAL:0, 0, 100
 			CALL BANDIT_CORRUPTION
 		ENDIF
 
-	;肉便器イベント
-	;キャラごとに乱数判定のため関数側で処理
-	CASE DCON_肉便器
-		SIF !DCONFIG:DCON_肉便器
-			CALL PUBLIC_TOILET
-
-	;薬物依存イベント
-	;キャラごとに乱数判定のため関数側で処理
-	CASE DCON_薬物依存
-		SIF !DCONFIG:DCON_薬物依存
-			CALL DRUG_ADDICT
-
-	;雌犬用イベント
-	;キャラごとに乱数判定のため関数側で処理
-	CASE DCON_雌犬
-		SIF !DCONFIG:DCON_雌犬
-			CALL ZOOPHILIA
-
-	;苗床用イベント
-	;キャラごとに乱数判定のため関数側で処理
-	CASE DCON_苗床
-		SIF !DCONFIG:DCON_苗床
-			CALL SEEDBED
-
 	;モブ支援会話
 	;10期以降、確率3%で発生、イベント中は発生確率アップ
 ;	CASE DCON_モブ支援会話
@@ -359,8 +352,6 @@ FOR LOCAL:0, 0, 100
 	;2%で発動
 	CASE DCON_シャブセックス
 		IF !DCONFIG:DCON_シャブセックス && RAND:1000 < 20 * EVENT_ODDS
-			DAILY_NAME = シャブセックス
-			CALL DAILY_START()
 			CALL DRUG_SEX
 		ENDIF
 	;触手兵イベント

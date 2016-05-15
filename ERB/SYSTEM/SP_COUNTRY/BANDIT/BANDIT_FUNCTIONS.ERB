@@ -1,0 +1,313 @@
+﻿;-------------------------------------------------
+;野盗の追加
+;-------------------------------------------------
+@BANDIT_INIT()
+#DIM LCOUNT
+VARSET LOCAL
+IF GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗)) == -1
+	LOCAL:4 = GET_NEW_COUNTRY()
+	COUNTRY_COLOR:(LOCAL:4) = 0x800000
+	COUNTRY_SOLDIER:(LOCAL:4) = 1000 * POWER(2, SP_COUNTRY_RANK:(特殊勢力_野盗))
+	COUNTRY_AI_TYPE:(LOCAL:4) = AI_通常
+	COUNTRY_EVENT_ID:(LOCAL:4) = SP_COUNTRY_ID:(特殊勢力_野盗)
+	COUNTRY_IS_CLOSED:(LOCAL:4) = 1	
+ELSE
+	LOCAL:4 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗))
+ENDIF
+;まず首領を作成
+CALL ADD_VOID_CHARA()
+LOCAL = RESULT
+SELECTCASE SP_COUNTRY_NAME:(特殊勢力_野盗)
+	CASE 0
+		NAME:LOCAL = 野盗
+		CALLNAME:LOCAL = 野盗
+		CSTR:LOCAL:0 = 野盗
+		CSTR:LOCAL:1 = 野盗
+		CSTR:LOCAL:3 = ヤトウ
+		CSTR:LOCAL:4 = ヤトウ
+		CSTR:LOCAL:5 = ヤトウ
+		CSTR:LOCAL:6 = ヤトウ
+	CASE 1
+		NAME:LOCAL = 野盗首領
+		CALLNAME:LOCAL = 野盗首領
+		CSTR:LOCAL:0 = 野盗首領
+		CSTR:LOCAL:1 = 野盗首領
+		CSTR:LOCAL:3 = ヤトウシュリョウ
+		CSTR:LOCAL:4 = ヤトウシュリョウ
+		CSTR:LOCAL:5 = ヤトウシュリョウ
+		CSTR:LOCAL:6 = ヤトウシュリョウ
+	CASE 2
+		TARGET = LOCAL
+		TALENT:LOCAL:性別 = 0
+		CALL SET_RANDOM_NAME_J(LOCAL)
+		NAME:LOCAL = %CSTR:LOCAL:1%
+		CALLNAME:LOCAL = %CSTR:LOCAL:1%
+ENDSELECT
+MAXBASE:LOCAL:体力 = 3000
+MAXBASE:LOCAL:気力 = 3000
+MAXBASE:LOCAL:精神力 = 1500
+BASE:LOCAL:体力 = MAXBASE:LOCAL:体力
+BASE:LOCAL:気力 = MAXBASE:LOCAL:気力
+BASE:LOCAL:精神力 = MAXBASE:LOCAL:精神力
+ABL:LOCAL:Ｃ感 = 3
+ABL:LOCAL:欲望 = 8
+ABL:LOCAL:性技 = 3
+ABL:LOCAL:性知識 = 5
+ABL:LOCAL:奉仕 = 1
+ABL:LOCAL:性交 = 10
+ABL:LOCAL:射精 = 5
+EXP:LOCAL:絶頂経験 = 500
+;首領の性能はエリートの強化版
+ABL:LOCAL:武闘 =  50 + 4 * SP_COUNTRY_RANK:(特殊勢力_野盗) + RAND:16 + RAND:16
+ABL:LOCAL:知略 = 140 + 4 * SP_COUNTRY_RANK:(特殊勢力_野盗) - ABL:LOCAL:武闘
+ABL:LOCAL:政治 = 50 + RAND:5 * SP_COUNTRY_RANK:(特殊勢力_野盗)
+ABL:LOCAL:歌唱 = 10
+ABL:LOCAL:料理 = 10
+TALENT:LOCAL:絶倫 = 1
+TALENT:LOCAL:特殊勢力素質 = 特殊勢力_野盗
+SETBIT TALENT:(LOCAL:0):肉体陥落系, 素質_陥落_サド
+TALENT:LOCAL:陰毛現在値 = 陰毛_標準
+TALENT:LOCAL:陰毛目標値 = 陰毛_標準
+TALENT:LOCAL:Ｖ締まり = GET_DEFAULT_TIGHTNESS("普通")
+TALENT:LOCAL:Ａ締まり = GET_DEFAULT_TIGHTNESS("普通")
+;奴隷スタートなら好感度と合意と会ったことあるフラグを編集
+IF BANDIT_START == 2
+	TALENT:LOCAL:合意 = 1
+	CFLAG:LOCAL:好感度 = RAND(300, 800)
+	CFLAG:LOCAL:17 = 1
+ENDIF
+;所属を野盗勢力にする
+CFLAG:LOCAL:1 = LOCAL:4
+CALL NEWCHARA_INIT(LOCAL)
+COUNTRY_BOSS:(LOCAL:4) = GET_ID(LOCAL)
+
+FOR LCOUNT, 0, 14
+	CALL ADD_VOID_CHARA()
+	LOCAL = RESULT
+	NAME:LOCAL = 野盗%UNICODE(0xFF21 + LCOUNT)%
+	CALLNAME:LOCAL = 野盗%UNICODE(0xFF21 + LCOUNT)%
+	MAXBASE:LOCAL:体力 = 3000
+	MAXBASE:LOCAL:気力 = 3000
+	MAXBASE:LOCAL:精神力 = 1500
+	BASE:LOCAL:体力 = MAXBASE:LOCAL:体力
+	BASE:LOCAL:気力 = MAXBASE:LOCAL:気力
+	BASE:LOCAL:精神力 = MAXBASE:LOCAL:精神力
+	ABL:LOCAL:Ｃ感 = 3
+	ABL:LOCAL:欲望 = 8
+	ABL:LOCAL:性技 = 3
+	ABL:LOCAL:性知識 = 5
+	ABL:LOCAL:奉仕 = 1
+	ABL:LOCAL:性交 = 10
+	ABL:LOCAL:射精 = 5
+	EXP:LOCAL:絶頂経験 = 500
+	;ある程度性能にばらつきを入れる
+	;乱数の幅を大きくしておくことで振れ幅を大きくし、複数の乱数に分けることである程度中心値に収束するように
+	;初期設定でランクを上げるとランク×4ずつ能力値が上がる
+	SELECTCASE LCOUNT
+	CASE 0 TO 3
+		;一般兵:35-60(収束期待値：45)/35-60(収束期待値：45)
+		ABL:LOCAL:武闘 = 30 + 4 * SP_COUNTRY_RANK:(特殊勢力_野盗) + MAX(RAND:21 - 10, 0) + RAND:16
+		ABL:LOCAL:知略 = 30 + 4 * SP_COUNTRY_RANK:(特殊勢力_野盗) + MAX(RAND:21 - 10, 0) + RAND:16
+	CASE 4 TO 7
+		;武闘兵:35-75(収束期待値：50)/25-55(収束期待値：35)
+		ABL:LOCAL:武闘 = 30 + 4 * SP_COUNTRY_RANK:(特殊勢力_野盗) + MAX(RAND:21 - 10, 0) + RAND:11 + RAND:21
+		ABL:LOCAL:知略 = 20 + 4 * SP_COUNTRY_RANK:(特殊勢力_野盗) + MAX(RAND:21 - 10, 0) + RAND:11 + RAND:11
+	CASE 8 TO 11
+		;知能犯:25-55(収束期待値：35)/35-75(収束期待値：50)
+		ABL:LOCAL:武闘 = 20 + 4 * SP_COUNTRY_RANK:(特殊勢力_野盗) + MAX(RAND:21 - 10, 0) + RAND:11 + RAND:11
+		ABL:LOCAL:知略 = 30 + 4 * SP_COUNTRY_RANK:(特殊勢力_野盗) + MAX(RAND:21 - 10, 0) + RAND:11 + RAND:21
+	CASE 12 TO 14
+		;エリート:合計値は120、45-75(収束期待値:60)/45-75(収束期待値:60)
+		ABL:LOCAL:武闘 =  40 + 4 * SP_COUNTRY_RANK:(特殊勢力_野盗) + RAND:16 + RAND:16
+		ABL:LOCAL:知略 = 120 + 4 * SP_COUNTRY_RANK:(特殊勢力_野盗) - ABL:LOCAL:武闘
+	CASEELSE
+		;例外、一般兵と同値
+		ABL:LOCAL:武闘 = 30 + 4 * SP_COUNTRY_RANK:(特殊勢力_野盗) + MAX(RAND:21 - 10, 0) + RAND:6 + RAND:11
+		ABL:LOCAL:知略 = 30 + 4 * SP_COUNTRY_RANK:(特殊勢力_野盗) + MAX(RAND:21 - 10, 0) + RAND:6 + RAND:11
+	ENDSELECT
+	ABL:LOCAL:政治 = 40 + RAND:5 * SP_COUNTRY_RANK:(特殊勢力_野盗)
+	ABL:LOCAL:歌唱 = 10
+	ABL:LOCAL:料理 = 10
+	ABL:LOCAL:肝臓 = 3
+	TALENT:LOCAL:絶倫 = 1
+	TALENT:LOCAL:特殊勢力素質 = 特殊勢力_野盗
+	TALENT:LOCAL:陰毛現在値 = 陰毛_標準
+	TALENT:LOCAL:陰毛目標値 = 陰毛_標準
+	TALENT:LOCAL:Ｖ締まり = GET_DEFAULT_TIGHTNESS("普通")
+	TALENT:LOCAL:Ａ締まり = GET_DEFAULT_TIGHTNESS("普通")
+	;奴隷スタートなら好感度と合意と会ったことあるフラグを編集
+	IF BANDIT_START == 2
+		TALENT:LOCAL:合意 = 1
+		CFLAG:LOCAL:好感度 = RAND(300, 800)
+		CFLAG:LOCAL:17 = 1
+	ENDIF
+	;所属を野盗勢力にする
+	CFLAG:LOCAL:1 = LOCAL:4
+	CALL NEWCHARA_INIT(LOCAL)
+NEXT
+
+IF BANDIT_START == 1 || BANDIT_START == 2
+	CFLAG:MASTER:所属 = LOCAL:4
+ELSEIF BANDIT_START == 3
+	CFLAG:MASTER:捕虜先 = LOCAL:4
+ENDIF
+
+SIF BANDIT_START == 1
+	TALENT:MASTER:特殊勢力素質 = 特殊勢力_野盗
+
+
+;--------------------------------------
+;野盗が捕虜を得たときに確率で発動するエロイベント
+;--------------------------------------
+@TREAT_PRISONER_BANDIT(対象)
+#DIM 対象
+#DIM 陥落済み
+SIF !(RAND:100 < 3 && IS_FEMALE(対象)) || CONFIG:200
+	RETURN 0
+IF GETBIT(TALENT:対象:特殊勢力陥落系, 特殊勢力_野盗)
+	陥落済み = 1
+ELSE
+	陥落済み = 0
+ENDIF
+
+SETCOLOR COLOR("桃")
+PRINTFORML ……
+SELECTCASE RAND:4
+	CASE 0
+		IF 陥落済み
+			PRINTFORML %ANAME(対象)%は野盗に自ら捕らえられ、その%STR_BODY("身体", 対象)%をゆだねてみせる
+			PRINTFORML 俺たちの下から離れてる間にナマッてねぇか見てやるよと、野盗は彼女の服を剥ぎ取っていく
+			PRINTFORML %ANAME(対象)%が自分から股を開き誘うと、興奮した野盗は一も二にもなくその股に己の一物をねじ込んだ
+			PRINTFORML 膣内を犯すモノのたくましさに、%ANAME(対象)%はたまらないという声をあげてよがり、腰を振りたくる
+			PRINTFORML やがて、%ANAME(対象)%の両穴に、「ご主人様」の貴重な種がたっぷりと植え付けられた……
+		ELSE
+			PRINTFORML %ANAME(対象)%を捕らえた野盗は、暴れる%ANAME(対象)%を殴りつけると、地面に組み敷いた
+			PRINTFORML 親分に下手な女ァ差し出しちゃいけねぇ、味見しねぇとなと、服を剥ぎ取っていく
+			PRINTFORML そして嫌がる%ANAME(対象)%の両脚を無理矢理に開くと、その股に己の一物をねじ込んだ
+			PRINTFORML %STR_BODY("陰唇：処女確認：修飾", 対象)%膣内を荒らし回るおぞましいモノに、%ANAME(対象)%は半狂乱になり暴れるが、野盗はそれをあっさりと押さえ、腰を振りたくる
+			PRINTFORML やがて、%ANAME(対象)%の両穴に、野盗の汚らわしい種がたっぷりとつけられてしまった……
+		ENDIF
+	CASE 1
+		IF 陥落済み
+			PRINTFORML 野盗に自ら身を差し出した%ANAME(対象)%は、その肌を晒し、枷を着けてもらい、彼らの行軍に付き添っている
+			PRINTFORML %ANAME(対象)%はすっかり彼らのトロフィー扱いをされており、時折好き勝手に%STR_BODY("尻", 対象)%や%STR_BODY("胸", 対象)%に触れられる
+			PRINTFORML 理不尽に詰られ、頬や尻を張られ、殴られるたび、%ANAME(対象)%は嫌がるどころかもっと嬲って欲しいといわんばかりの艶やかな声を上げる
+			PRINTFORML やがて彼らが休憩に入ると、%ANAME(対象)%は自ら名乗り出て、彼らの慰安役を買って出た
+			PRINTFORML 結局、その両穴が閉じなくなるまで、%ANAME(対象)%は彼らの欲望を満足させ続けた……
+		ELSE
+			PRINTFORML 野盗に捕らえられた%ANAME(対象)%は裸に剥かれ、枷を着けられた状態で、彼らの行軍に付き合わされている
+			PRINTFORML %ANAME(対象)%はすっかり彼らのトロフィー扱いをされており、時折好き勝手に%STR_BODY("尻", 対象)%や%STR_BODY("胸", 対象)%に触れられる
+			PRINTFORML 少しでもその手から逃れようとすれば、容赦なく詰られ、頬や尻を張られ、殴られる
+			PRINTFORML やがて彼らが休憩に入ると、彼らは当然のように%ANAME(対象)%に群がり、彼女を犯し始めた
+			PRINTFORML 結局、その両穴が閉じなくなるまで、%ANAME(対象)%は犯され続けた……
+		ENDIF
+	CASE 2
+		IF 陥落済み
+			PRINTFORML 野盗のアジトに連れ込まれた%ANAME(対象)%は、武器を持っていないことを証明するため、身体検査をしてもらった
+			PRINTFORML 検査と言っても名ばかりのもの、その実態は陵辱だが、%ANAME(対象)%は彼らの自分勝手な愛撫に、積極的己の身体を捧げている
+			PRINTFORML まだ検査が足りないと、男達が彼女のあらゆる穴にペニスをねじ込んでいくと、%ANAME(対象)%はくぐもった声をあげながら激しく絶頂する
+			PRINTFORML %ANAME(対象)%は快楽にヨガりながらも淫らに腰を振り、彼らの種を己の肉畑で受け止めていく
+			PRINTFORML やがて「検査」が終了すると、%ANAME(対象)%は自ら牢に入り、性交の余韻に昂ぶる身体を慰めながら、また呼ばれるときを待ち始めた……
+		ELSE
+			PRINTFORML 野盗のアジトに連れ帰られた%ANAME(対象)%は、武器を隠し持っていないか調べると、身体検査にかけられた
+			PRINTFORML 検査といっても名ばかりのもので、男達の手は彼女の%STR_BODY("胸：修飾", 対象)%乳房を、%STR_BODY("尻", 対象)%を、%STR_BODY("陰唇：処女確認：修飾", 対象)%秘部を弄り、無理矢理に快楽を引き出していく
+			PRINTFORML それだけではまだ検査が不十分だと、彼らは己の一物を、%ANAME(対象)%のあらゆる穴にねじ込んでいく
+			PRINTFORML 暴れる%ANAME(対象)%を無理矢理に押さえつけては、次から次へ種を植え付けていく
+			PRINTFORML 結局、%ANAME(対象)%が解放され、牢に放り込まれたときには、彼女は疲弊しきって放心状態になっていた……
+		ENDIF
+	CASE 3
+		IF 陥落済み
+			PRINTFORML 野盗に自ら身を差し出した%ANAME(対象)%は、服を剥かれ、目隠しや枷や縄で拘束された……そんなものがなくとも、抵抗しなかったろうが
+			PRINTFORML 彼らは%ANAME(対象)%を担ぎ上げると、浮浪者の溜まり場に彼女の身柄を放置した
+			PRINTFORML 当然、%ANAME(対象)%はすぐ浮浪者に見つかった。これから何をされるか察した%ANAME(対象)%は、期待に股を濡らす
+			PRINTFORML そんな彼女を変態だ淫乱だと嘲笑いながら、浮浪者たちは汚らしいペニスを次から次へ%ANAME(対象)%にねじ込んでいく……
+			PRINTFORML だらしないアヘ顔を晒し、白濁まみれで生ゴミ捨て場に放置された%ANAME(対象)%を、野盗どもは鼻を摘まみながら連れて帰った
+		ELSE
+			PRINTFORML 野盗に捕らえられた%ANAME(対象)%は、服を剥かれ、何一つ抵抗できないよう、目隠しや枷や縄でがんじがらめに拘束された
+			PRINTFORML 野盗どもは%ANAME(対象)%を担ぎ上げると、浮浪者の溜まり場に彼女の身柄を放置した
+			PRINTFORML 当然、%ANAME(対象)%はすぐ浮浪者に見つかった。野盗とつながりのある彼らに、%ANAME(対象)%を救い出すような良心など当然ない
+			PRINTFORML それどころか、女日照りの彼らは、汚らしいペニスを次から次へ%ANAME(対象)%にねじ込んでいく……
+			PRINTFORML 白濁まみれで生ゴミ捨て場に放置された%ANAME(対象)%を、野盗どもはくせぇくせぇと鼻を摘まみながら連れて帰った
+		ENDIF
+ENDSELECT
+RESETCOLOR
+CALL FORCE_FUCK(対象, SP_NAME_TO_ID("野盗"), @"野盗の\@ RAND:2 ? ペニス # 唇\@", "野盗", 2, GROUPMATCH(BANDIT_START, 1, 2))
+
+
+;-----------------------------------
+;野盗に捕らえられたときのイベント
+;-----------------------------------
+@MASTER_CAPTURED_BANDIT(ARG:0)
+PRINTFORMW 捕らえられた%ANAME(MASTER)%は野盗の前に引きずり出された…
+IF IS_MALE(MASTER)
+	PRINTFORMW 野盗は%ANAME(MASTER)%を見、兵士にちょうどいいと判断したらしい
+	PRINTFORMW 俺達の側につくなら、イイ思いをさせてやるぜ？　と言った
+	PRINTFORMW 奴隷という扱いにはなるようだが、拒否するより待遇はマシになるようだ……
+	PRINTFORMW 受け入れますか？
+	CALL ASK_YN("受け入れる", "拒否する")
+	IF RESULT == 0
+		PRINTFORMW 投獄されるよりはマシだろう。%ANAME(MASTER)%が頷くと、野盗はニヤリと笑う
+		PRINTFORMW 何を笑っているのかといぶかる%ANAME(MASTER)%に、奴隷としての証をつけてやるよと彼らは言い出した
+		PRINTFORMW %ANAME(MASTER)%に、頑丈な首輪が嵌められた……
+		SETCOLOR COLOR("注意")
+		PRINTFORMW %ANAME(MASTER)%は野盗の配下となりました
+		RESETCOLOR
+	ELSE
+		PRINTFORMW お前達になど手を貸すか。%ANAME(MASTER)%は毅然として言い放つ	
+		PRINTFORMW そうかよと、彼らはそのまま興味なさげに、%ANAME(MASTER)%を投獄した……
+	ENDIF
+ELSEIF GETBIT(TALENT:MASTER:特殊勢力陥落系, 特殊勢力_野盗)
+	PRINTFORMW 肉便器ちゃんが戻ってきたぜと、彼らは%ANAME(MASTER)%を取り囲む
+	PRINTFORMW 眼前にペニスを突き出され、%ANAME(MASTER)%の身体は、彼らに刻み込まれた快楽を思い出して濡れてしまう
+	PRINTFORMW %ANAME(MASTER)%の声が甘く蕩け始めた頃、また俺達のところに来るか？　と彼らは尋ねる
+	PRINTFORMW 受け入れますか？
+	CALL ASK_YN("受け入れる", "拒否する")
+	IF RESULT == 0
+		PRINTFORMW 彼らによって育て上げられた雌の本性が、%ANAME(MASTER)%を頷かせた
+		PRINTFORMW 再び服従しますという意思表示として、%ANAME(MASTER)%は突き出されたペニスに熱烈なキスをした……
+		SETCOLOR COLOR("注意")
+		PRINTFORMW %ANAME(MASTER)%は、自分が野盗の肉便器にすぎないことを思い出した
+		RESETCOLOR
+	ELSE
+		PRINTFORMW 拒否されるということは考えになかったらしく、野盗達は爆笑した
+		PRINTFORMW その強がりがいつまで続くかなと、%ANAME(MASTER)%に唾を吐きかける
+		PRINTFORMW 野盗達は%ANAME(MASTER)%に手枷と足枷を嵌め、投獄した……
+	ENDIF
+ELSE
+	PRINTFORMW 野盗は%ANAME(MASTER)%の体をいやらしい目で眺める
+	PRINTFORMW どうせ結果は同じなんだから、肉便器になっちまえよと言い始めた
+	PRINTFORMW 屈辱的な提案だが、受け入れずとも、女である%ANAME(MASTER)%がされることは変わるまい
+	PRINTFORMW 受け入れますか？
+	CALL ASK_YN("受け入れる", "拒否する")
+	IF RESULT == 0
+		PRINTFORMW 受け入れなくとも、どうせされることは変わらない
+		PRINTFORMW なら、従順な姿勢を見せた方が、まだ待遇はマシなはずだ……%ANAME(MASTER)%は力なく頷く
+		PRINTFORMW マジで受け入れやがったぜと、野盗どもはゲラゲラと笑う
+		PRINTFORMW 彼らは%ANAME(MASTER)%を取り押さえ、その下腹に、「肉便器」の三文字の焼き印を入れた……
+		SETCOLOR COLOR("注意")
+		PRINTFORMW %ANAME(MASTER)%は野盗の肉便器に成り下がった
+		RESETCOLOR
+	ELSE
+		PRINTFORMW そんなことができるか。%ANAME(MASTER)%がきっぱりと拒否すると、野盗はへらへらと笑う
+		PRINTFORMW その強がりがいつまで続くかなと、%ANAME(MASTER)%に唾を吐きかける
+		PRINTFORMW 野盗達は%ANAME(MASTER)%に手枷と足枷を嵌め、投獄した……
+	ENDIF
+ENDIF
+IF RESULT == 0
+	CFLAG:MASTER:1 = ARG:0
+	IF IS_FEMALE(MASTER)
+		SETBIT TALENT:MASTER:特殊勢力陥落系, 特殊勢力_野盗
+		FOR LOCAL:0, 0, CHARANUM
+			IF TALENT:(LOCAL:0):特殊勢力素質 == 特殊勢力_野盗
+				TALENT:(LOCAL:0):合意 = 1
+				CFLAG:(LOCAL:0):2 = MAX(CFLAG:(LOCAL:0):2, 500)
+				CFLAG:(LOCAL:0):3 = MAX(CFLAG:(LOCAL:0):3, 500)
+			ENDIF
+		NEXT
+	ENDIF
+	RETURN 1
+ELSE
+	CFLAG:MASTER:9 = ARG:0
+	RETURN 3
+ENDIF
+

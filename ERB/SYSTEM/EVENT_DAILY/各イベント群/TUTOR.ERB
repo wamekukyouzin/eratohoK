@@ -144,7 +144,7 @@ CALL ASK_MULTI(@"引き受ける", "断る")
 			PRINTFORML 使いの男は再び仰々しく頭を下げる
 			PRINTFORMW さて、それでは誰を派遣しよう？
 			DRAWLINE
-			CALL TUTOR_SELECT_COMMANDER
+			CALL SELECT_CHARA_LIST_SLG()
 			IF RESULT < 0
 				PRINTFORML 引き受けたかったがあいにく今は全員忙しかった
 				PRINTFORMW 使いの男に謝り、引き取ってもらった
@@ -658,130 +658,6 @@ ELSE
 ENDIF
 
 RETURN
-
-;---------------------------------------------------------------------------------
-;派遣キャラ選択
-;---------------------------------------------------------------------------------
-@TUTOR_SELECT_COMMANDER
-#DIM 消去行
-#DIM 対象
-#DIM 表示位置
-#DIM 表示ページ
-#DIM 総ページ数
-#DIM キャラ数
-#DIM キャラカウンタ
-#DIM 表示開始位置
-#DIM 表示終了位置
-VARSET キャラ数
-FOR LOCAL, 0, CHARANUM
-	SIF CFLAG:(LOCAL:0):所属 == CFLAG:MASTER:所属
-		キャラ数 ++
-NEXT
-総ページ数 = (キャラ数 - 1) / 40 + 1
-表示ページ = 1
-
-PRINTFORML %TOSTR_SPACE(23)%   武|  知|  政|  妖|  歌|  料 %TOSTR_SPACE(26)%   武|  知|  政|  妖|  歌|  料
-
-$SHOW_LOOP
-
-VARSET 消去行
-VARSET 表示位置
-VARSET キャラカウンタ
-表示開始位置 = (表示ページ - 1) * 40
-表示終了位置 = 表示ページ * 40
-
-
-FOR LOCAL:0, 0, CHARANUM
-	;育児されている子供は弾く
-	SIF CFLAG:(LOCAL:0):16 == 4
-		CONTINUE
-	;所属が同じのキャラのみ
-	IF CFLAG:(LOCAL:0):所属 == CFLAG:MASTER:所属
-		IF 表示開始位置 <= キャラカウンタ && キャラカウンタ < 表示終了位置
-			IF 表示位置 % 2 != 0
-				PRINT 　　
-			ELSEIF 表示位置 > 0
-				PRINTL 
-				消去行 ++
-			ENDIF
-			IF !CFLAG:LOCAL:捕虜先
-				PRINTFORM [{LOCAL:0 + 99, 4}]%ANAME(LOCAL:0), 16, RIGHT%
-				PRINTFORM   
-				CALL PRINT_ALPHABET_RANK(0, ABL:(LOCAL:0):武闘)
-				PRINTFORM {ABL:(LOCAL:0):武闘, 3}|
-				CALL PRINT_ALPHABET_RANK(0, ABL:(LOCAL:0):知略)
-				PRINTFORM {ABL:(LOCAL:0):知略, 3}|
-				CALL PRINT_ALPHABET_RANK(0, ABL:(LOCAL:0):政治)
-				PRINTFORM {ABL:(LOCAL:0):政治, 3}|
-				CALL PRINT_ALPHABET_RANK(1, ABL:(LOCAL:0):妖術)
-				PRINTFORM {ABL:(LOCAL:0):妖術, 3}|
-				CALL PRINT_ALPHABET_RANK(2, ABL:(LOCAL:0):歌唱)
-				PRINTFORM {ABL:(LOCAL:0):歌唱, 3}|
-				CALL PRINT_ALPHABET_RANK(2, ABL:(LOCAL:0):料理)
-				PRINTFORM {ABL:(LOCAL:0):料理, 3}
-			ELSE
-				LOCALS:0 = [{NO:(LOCAL:0) + 99, 4}]%ANAME(LOCAL:0), 16, RIGHT%  %ALPHABET_RANK(0, ABL:LOCAL:武闘)%{ABL:(LOCAL:0):武闘, 3}|%ALPHABET_RANK(0, ABL:LOCAL:知略)%{ABL:(LOCAL:0):知略, 3}|
-				LOCALS:0 += @"%ALPHABET_RANK(0, ABL:LOCAL:政治)%{ABL:(LOCAL:0):政治, 3}|%ALPHABET_RANK(1, ABL:LOCAL:妖術)%{ABL:(LOCAL:0):妖術, 3}|%ALPHABET_RANK(2, ABL:LOCAL:歌唱)%{ABL:(LOCAL:0):歌唱, 3}|%ALPHABET_RANK(2, ABL:LOCAL:料理)%{ABL:(LOCAL:0):料理, 3}"
-				SETCOLOR COLOR("選択不可")
-				PRINTPLAINFORM %LOCALS:0%
-				RESETCOLOR
-			ENDIF
-			表示位置 ++
-		ENDIF
-		キャラカウンタ ++
-	ENDIF
-NEXT
-
-PRINTL 
-DRAWLINE
-
-IF 総ページ数 >= 2
-	消去行 += 2
-	IF 表示ページ > 1
-		PRINT [  8] 前のページ            
-	ELSE
-		PRINT                             
-	ENDIF
-	LOCALS:0 = ページ{表示ページ}/{総ページ数}
-	PRINTPLAINFORM %LOCALS:0, 28, LEFT%
-	IF 表示ページ < 総ページ数
-		PRINT [  9] 後のページ
-	ENDIF
-	PRINTL 
-	DRAWLINE
-ENDIF
-
-PRINTL [  0] やっぱりやめておく
-
-REDRAW 0
-
-消去行 += 4
-
-$INPUT_LOOP
-INPUT
-IF RESULT == 8 && 表示ページ > 1
-	表示ページ --
-	CLEARLINE 消去行
-	GOTO SHOW_LOOP
-ELSEIF RESULT == 9 && 表示ページ < 総ページ数
-	表示ページ ++
-	CLEARLINE 消去行
-	GOTO SHOW_LOOP
-ELSEIF RESULT == 0
-	REDRAW 1
-	RETURN -1
-ENDIF
-
-対象 = RESULT - 99
-IF 対象 > CHARANUM || 対象 < 0
-	CLEARLINE 消去行
-	GOTO SHOW_LOOP
-ELSEIF CFLAG:MASTER:所属 != CFLAG:対象:所属 || CFLAG:対象:捕虜先
-	CLEARLINE 消去行
-	GOTO SHOW_LOOP
-ENDIF
-
-RETURN 対象
 
 ;---------------------------------------------------------------------------------
 ;授業内容

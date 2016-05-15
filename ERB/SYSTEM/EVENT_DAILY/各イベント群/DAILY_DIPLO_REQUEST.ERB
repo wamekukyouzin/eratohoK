@@ -1,0 +1,697 @@
+﻿;-------------------------------------------------
+;士官の移籍を求められるイベント
+;-------------------------------------------------
+@DAILY_DIPLO_REQUEST_CHARA
+#DIM 自国経済値
+#DIM 各国経済値, MAX_COUNTRY
+#DIM 候補国, MAX_COUNTRY
+#DIM 候補数
+#DIM 結果国
+#DIM 結果君主
+;LOCALSIZEにあわせる。VARSIZE使いたいけどDIMには組み込めない
+#DIM 候補キャラ, 1000
+#DIM 結果キャラ
+#DIM 野盗
+VARSET 自国経済値
+VARSET 各国経済値
+VARSET 候補国
+VARSET 候補キャラ
+VARSET 候補数
+VARSET 野盗
+
+;士官要求カウンタが残っていればデクリメント（0になるまでイベントは再発生しない）
+SIF DVAR:士官要求カウンタ > 0
+	DVAR:士官要求カウンタ--
+
+;前提条件は「前回の士官要求から一定期間経過しており、クリア前）
+SIF !(DVAR:士官要求カウンタ == 0 && !FLAG:クリアフラグ)
+	RETURN -1
+
+;あらかじめ、野盗の勢力番号を保存
+野盗 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗))
+
+
+;------------ここから国の選出-----------------
+
+;まず各国の経済値を保存
+FOR LOCAL, 0, MAX_COUNTRY
+	IF CFLAG:MASTER:所属 == LOCAL
+		自国経済値 = GET_SUM_ECONOMY(LOCAL)
+	ELSEIF IS_COUNTRY(LOCAL)
+		各国経済値:LOCAL = GET_SUM_ECONOMY(LOCAL)
+	ENDIF
+NEXT
+
+;野盗勢力に所属していない場合、野盗勢力の経済値は自国経済値の倍ということにしておく
+SIF 野盗 > 0 && CFLAG:MASTER:所属 != 野盗
+	各国経済値:野盗 = 自国経済値 * 2
+
+
+;自国より経済値が大きい国家を候補として記録
+FOR LOCAL, 0, MAX_COUNTRY
+	IF 自国経済値 < 各国経済値:LOCAL
+		候補国:候補数 = LOCAL
+		候補数 ++
+	ENDIF
+NEXT
+
+;候補がなかったらおわる
+IF 候補数 == 0
+	RETURN -1
+ENDIF
+
+;候補が存在するなら、ランダムで選出したものを結果国とする
+CALL FISHER_YATES_SHAFFLE(候補数)
+結果国 = 候補国:(SHAFFLE_ARRAY:0)
+結果君主 = GET_COUNTRY_BOSS(結果国)
+
+;3割の確率で強制的に野盗になる
+IF 野盗 > 0 && CFLAG:MASTER:所属 != 野盗 && RAND:100 < 30
+	結果国 = 野盗
+	結果君主 = GET_COUNTRY_BOSS(野盗)
+ENDIF
+
+;------------ここからキャラの選出-----------------
+
+;候補数をゼロクリア
+VARSET 候補数
+
+;キャラの選出
+FOR LOCAL, 0, CHARANUM
+	;MASTERではなく、MASTER所属勢力の君主でもなく、同じ国に所属。もし結果国が野盗なら女であること。動物はだめ。
+	IF LOCAL != MASTER && LOCAL != GET_COUNTRY_BOSS(CFLAG:MASTER:所属) && CFLAG:(LOCAL):所属 == CFLAG:MASTER:所属 && !CFLAG:(LOCAL):9 && (結果国 != 野盗 || IS_FEMALE(LOCAL)) && !IS_ANIMAL(LOCAL)
+		;0 ~ 「三能力の10倍と、好感度・従属度・依存度の1/10の総和」　の乱数を保存
+		候補キャラ:LOCAL = RAND(0, MAX((ABL:LOCAL:武闘 + ABL:LOCAL:知略 + ABL:LOCAL:政治) * 10 + (CFLAG:LOCAL:好感度 + CFLAG:LOCAL:従属度 + CFLAG:LOCAL:依存度) / 10, 1))
+		候補数 ++
+	ENDIF
+NEXT
+
+;候補がなかったら終わる
+SIF 候補数 == 0
+	RETURN -1
+
+;先ほど得た乱数が最大だったキャラを取得
+結果キャラ = FINDELEMENT(候補キャラ, MAXARRAY(候補キャラ))
+
+;ないはずだけど、結果キャラがみつからなかったら終わる
+SIF 結果キャラ <= 0
+	RETURN -1
+
+
+;ここからメッセージと各種処理
+;野盗の場合は特殊パターン
+DRAWLINE
+IF 結果国 != 野盗
+	PRINTFORML %ANAME(MASTER)%が政務を行っていると、部下が来客を告げた
+	CALL COLORPRINTFORM(@"%ANAME(結果君主)%", COLOR("注意"))
+	PRINTFORMW が使いをよこしてきたのだという
+	PRINTFORML %ANAME(結果君主)%といえば、こちらより強力な勢力を率いている君主だ
+	PRINTFORMW むげに扱うわけにはいかないので、%ANAME(MASTER)%は早速会うことにした……
+	PRINTFORML
+	PRINTFORML
+	PRINTFORML
+	PRINTFORMW %ANAME(結果君主)%の使いが持ってきた話は、こういうことだった
+	PRINTFORML
+	PRINTFORML 昨今は戦いが激しくなり、国は有望な人材を求めてやまない
+	PRINTFORM ついては、%ANAME(MASTER)%のところにいる
+	CALL COLORPRINTFORM(@"%ANAME(結果キャラ)%", COLOR("注意"))
+	PRINTFORMW を譲ってくれないか
+	PRINTFORMW こちらから出せるものは特にないが、両勢力の友好関係にとって大変有意義な取引である……
+	PRINTFORML
+	PRINTFORML むろん、こちらの勢力の弱さにつけ込んだ、足下を見た要求だ
+	PRINTFORML 怒りを覚える%ANAME(MASTER)%だが、いかんせん向こうの方が立場が強いのは事実
+	PRINTFORML 断れば相手は心証を悪くするだろうし、それは%ANAME(MASTER)%の勢力の将来を危うくしかねない
+	PRINTFORMW かといって、そんな人質のような役目を%ANAME(結果キャラ)%に負わせられるだろうか……
+	DRAWLINE
+	CALL ASK_MULTI(@"%ANAME(結果キャラ)%を送り出す", "断る")
+	LOCAL = RESULT
+	IF RESULT == 0
+		PRINTFORMW ここは従うしかない。そう考えた%ANAME(MASTER)%は、%ANAME(結果キャラ)%を送り出すことにした……
+		PRINTFORMW 要求に従ったことで、%ANAME(結果君主)%は大いに気を良くしたようだ
+		CALL CHANGE_RELATION_C_TO_C(結果国, CFLAG:MASTER:所属, 500, -300)
+		CALL FORCE_FREE(結果キャラ)
+		CFLAG:結果キャラ:所属 = 結果国
+		CFLAG:結果キャラ:好感度 /= 2
+		CFLAG:結果キャラ:依存度 /= 2
+		CFLAG:結果キャラ:従属度 /= 2
+		CALL KOJO_EVENT_DAILY(結果キャラ, 口上_人材要求, LOCAL)
+		CALL KOJO_EVENT_DAILY(結果君主, 口上_人材要求_君主, LOCAL)
+	ELSEIF RESULT == 1
+		PRINTFORMW やはりそんなことはできない。そう伝え、%ANAME(結果君主)%の使いを送り返した
+		PRINTFORMW 要求を生意気にも断ってきたと、%ANAME(結果君主)%は立腹しているようだ……
+		CALL CHANGE_RELATION_C_TO_C(結果国, CFLAG:MASTER:所属, -300, 300)
+		CALL KOJO_EVENT_DAILY(結果キャラ, 口上_人材要求, LOCAL)
+		CALL KOJO_EVENT_DAILY(結果君主, 口上_人材要求_君主, LOCAL)
+	ENDIF
+	DVAR:士官要求カウンタ = 10
+ELSE
+	PRINTFORML %ANAME(MASTER)%が政務を行っていると、部下が来客を告げた
+	CALL COLORPRINTFORM(@"%ANAME(結果君主)%", COLOR("注意"))
+	PRINTFORMW が使いをよこしてきたのだという
+	PRINTFORML %ANAME(結果君主)%といえば、各国が頭を悩ましている相手だ
+	PRINTFORMW 一体何を伝えに来たのだと、%ANAME(MASTER)%は早速会うことにした……
+	PRINTFORML
+	PRINTFORML
+	PRINTFORML
+	PRINTFORMW %ANAME(結果君主)%の使いが持ってきた話は、こういうことだった
+	PRINTFORML
+	PRINTFORML 最近、勢力圏内の村々を狩りつくしてしまい、ろくな娘がいなくなってしまった
+	PRINTFORML 最近いい女を抱けていない男連中は餓えており、士気にも影響がでている
+	PRINTFORM そんなとき、%ANAME(MASTER)%のところにいる
+	CALL COLORPRINTFORM(@"%ANAME(結果キャラ)%", COLOR("注意"))
+	PRINTFORMW が上玉だと聞いた
+	PRINTFORML そこで頼み事なのだが、%ANAME(結果キャラ)%を「捕虜として」「貸して」くれないか
+	PRINTFORMW さもなくば、何らかの「不利益」が%ANAME(MASTER)%に生ずることになるだろう
+	PRINTFORML 昨今、我々は力をつけ、今や各国と対等に渡り合える関係にある
+	PRINTFORMW 報復は必ず実行されることを忘れるな
+	PRINTFORMW %ANAME(結果キャラ)%のことは丁重に扱ってやるから、安心してくれてかまわない……
+	PRINTFORML
+	PRINTFORML 貸してくれ、丁重に扱うなどと言ってこそいるが、奴らが%ANAME(結果キャラ)%を性奴隷代わりにすることは間違いない
+	PRINTFORMW 賊ふぜいが、なんとふざけた要求か！
+	PRINTFORML 怒りを覚える%ANAME(MASTER)%だが、奴らが厄介で、言ったことを実行する執念深さがあるのも事実
+	PRINTFORML 断れば、相手が何らかの嫌がらせ――それも血も涙もないような――にでるのは確実だろう
+	PRINTFORMW かといって、こんな人を人とも思わない連中に%ANAME(結果キャラ)%を渡していいのだろうか……
+	DRAWLINE
+	CALL ASK_MULTI(@"%ANAME(結果キャラ)%を送り出す", "刺激しないよう、丁重に断る", "使いの者を斬り捨てる")
+	LOCAL = RESULT
+	IF RESULT == 0
+		PRINTFORMW ここは従うしかない。そう考えた%ANAME(MASTER)%は、%ANAME(結果キャラ)%を送り出すことにした……
+		PRINTFORMW 使いの者は、皆の見ている前で%ANAME(結果キャラ)%の服を剥ぎ取り、首輪と手足の枷を嵌め、鎖をひいて連れて行った……
+		IF !CONFIG:200
+			PRINTFORMW 野盗どものアジトに連れ帰られた%ANAME(結果キャラ)%は、野盗全員の前で新たな奴隷としてお披露目された
+			PRINTFORMW そしてそのまま、奴隷として初めての「お仕事」に従事させられたようだ……
+			CALL FORCE_FREE(結果キャラ)
+			CALL FORCE_FUCK(結果キャラ, SP_NAME_TO_ID("野盗"), @"野盗の\@ RAND:2 ? ペニス # 唇\@", "野盗", 2)
+		ENDIF
+			CALL CHANGE_RELATION_C_TO_C(結果国, CFLAG:MASTER:所属, 500, -300)
+			CFLAG:結果キャラ:好感度 /= 2
+			CFLAG:結果キャラ:依存度 /= 2
+			CFLAG:結果キャラ:従属度 /= 2
+			CFLAG:結果キャラ:捕虜先 = 結果国
+			CALL KOJO_EVENT_DAILY(結果キャラ, 口上_人材要求, LOCAL)
+			CALL KOJO_EVENT_DAILY(結果君主, 口上_人材要求_君主, LOCAL)
+	ELSEIF RESULT == 1
+		PRINTFORMW やはりそんなことはできない。そう伝え、%ANAME(結果君主)%の使いを送り返した
+		PRINTFORMW 報復を警戒していた%ANAME(MASTER)%だが、丁重に断ったのがよかったのか、何の嫌がらせも起こらなかった……
+		CALL KOJO_EVENT_DAILY(結果キャラ, 口上_人材要求, LOCAL)
+		CALL KOJO_EVENT_DAILY(結果君主, 口上_人材要求_君主, LOCAL)
+	ELSEIF RESULT == 2
+		PRINTFORMW 怒りにまかせ、%ANAME(MASTER)%は使いの者を斬り捨てた！
+		PRINTFORMW 不意のことに、使いの者は武器を抜くこともできず倒れ伏した
+		PRINTFORMW そのまま部下に命じ、野盗どもへの意思表示として、その首を城門に晒させた
+		PRINTFORMW 少し胸がすっとした気分だ……
+		PRINTFORML 
+		SETCOLOR COLOR("警告")
+		PRINTFORMW ……だが、これがどのような結果を招くか、%ANAME(MASTER)%は思い知ることとなる……
+		RESETCOLOR
+		DVAR:要求野盗斬り捨て = 結果キャラ
+		CALL KOJO_EVENT_DAILY(結果キャラ, 口上_人材要求, LOCAL)
+		CALL KOJO_EVENT_DAILY(結果君主, 口上_人材要求_君主, LOCAL)
+		CALL DAILY_DIPLO_REQUEST_KILL_BANDIT
+	ENDIF
+	DVAR:士官要求カウンタ = 10
+ENDIF
+;-------------------------------------------------
+;資金援助を求められるイベント
+;-------------------------------------------------
+@DAILY_DIPLO_REQUEST_MONEY
+#DIM 自国経済値
+#DIM 各国経済値, MAX_COUNTRY
+#DIM 候補国, MAX_COUNTRY
+#DIM 候補数
+#DIM 結果国
+#DIM 結果君主
+;LOCALSIZEにあわせる。VARSIZE使いたいけどDIMには組み込めない
+#DIM 候補キャラ, 1000
+#DIM 結果キャラ
+#DIM 野盗
+#DIM 候補額
+VARSET 自国経済値
+VARSET 各国経済値
+VARSET 候補国
+VARSET 候補キャラ
+VARSET 候補数
+VARSET 野盗
+
+;前提条件は「外交が解禁されて以降で、前回の士官要求から一定期間経過しており、クリア前で、かつ3.5%）
+SIF !(DVAR:資金援助要求カウンタ == 0 && !FLAG:クリアフラグ)
+	RETURN 0
+
+野盗 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗))
+;------------ここから国の選出-----------------
+
+;まず各国の経済値を保存
+FOR LOCAL, 0, MAX_COUNTRY
+	IF CFLAG:MASTER:所属 == LOCAL
+		自国経済値 = GET_SUM_ECONOMY(LOCAL)
+	ELSEIF IS_COUNTRY(LOCAL)
+		各国経済値:LOCAL = GET_SUM_ECONOMY(LOCAL)
+	ENDIF
+NEXT
+
+;野盗勢力に所属していない場合、野盗勢力の経済値は1ということにしておく
+SIF 野盗 > 0 && CFLAG:MASTER:所属 != 野盗
+	各国経済値:野盗 = 1
+
+
+;自国より経済値が小さい国家を候補として記録
+FOR LOCAL, 0, MAX_COUNTRY
+	IF IS_COUNTRY(LOCAL) && LOCAL != CFLAG:MASTER:所属 && 自国経済値 > 各国経済値:LOCAL
+		候補国:候補数 = LOCAL
+		候補数 ++
+	ENDIF
+NEXT
+
+
+;候補がなかったらおわる
+IF 候補数 == 0
+	RETURN 0
+ENDIF
+
+;候補が存在するなら、ランダムで選出したものを結果国とする
+CALL FISHER_YATES_SHAFFLE(候補数)
+結果国 = 候補国:(SHAFFLE_ARRAY:0)
+結果君主 = GET_COUNTRY_BOSS(結果国)
+
+;3割の確率で強制的に野盗になる
+IF 野盗 > 0 && CFLAG:MASTER:所属 != 野盗 && RAND:100 < 30
+	結果国 = 野盗
+	結果君主 = GET_COUNTRY_BOSS(野盗)
+ENDIF
+
+;給料5ターンぶん、最低10000
+候補額 = MAX(GET_SUM_ECONOMY(CFLAG:MASTER:1) * (ABL:MASTER:武闘 + ABL:MASTER:知略 + ABL:MASTER:政治 + 100) / 40000 * 5, 10000)
+
+
+;メッセージと各種処理
+;野盗の場合は特殊パターン
+DRAWLINE
+IF 結果国 != 野盗
+	;人質として差し出すキャラ選出を行う
+	;候補数をゼロクリア
+	VARSET 候補数
+	;キャラの選出
+	FOR LOCAL, 0, CHARANUM
+		;結果国所属で、捕虜ではなく、首領ではない。かつ女である。動物はだめ。
+		IF CFLAG:LOCAL:所属 == 結果国 && !CFLAG:(LOCAL):9 && LOCAL != GET_COUNTRY_BOSS(結果国) && IS_FEMALE(LOCAL) && !IS_ANIMAL(LOCAL)
+			;0 ~ 「三能力の10倍と、好感度・従属度・依存度の1/10の総和」　の乱数を保存
+			候補キャラ:LOCAL = RAND(0, MAX((ABL:LOCAL:武闘 + ABL:LOCAL:知略 + ABL:LOCAL:政治) * 10 + (CFLAG:LOCAL:好感度 + CFLAG:LOCAL:従属度 + CFLAG:LOCAL:依存度) / 10, 1))
+			候補数 ++
+		ENDIF
+	NEXT
+	;候補がなかったら終わる
+	SIF 候補数 == 0
+		RETURN 0
+	;先ほど得た乱数が最大だったキャラを取得
+	結果キャラ = FINDELEMENT(候補キャラ, MAXARRAY(候補キャラ))
+	;結果キャラがみつからなかったら終わる
+	SIF 結果キャラ <= 0
+		RETURN 0
+	PRINTFORML %ANAME(MASTER)%が政務を行っていると、部下が来客を告げた
+	CALL COLORPRINTFORM(@"%ANAME(結果君主)%", COLOR("注意"))
+	PRINTFORMW が使いをよこしてきたのだという
+	PRINTFORML %ANAME(結果君主)%といえば、こちらよりは格下の勢力だが……
+	PRINTFORMW いずれにせよむげに扱うわけにはいかないので、%ANAME(MASTER)%は早速会うことにした……
+	PRINTFORML
+	PRINTFORML
+	PRINTFORML
+	PRINTFORMW %ANAME(結果君主)%の使いが持ってきた話は、こういうことだった
+	PRINTFORML
+	PRINTFORML 昨今は戦いが激しくなり、我が国は資金繰りに困窮している現状である
+	PRINTFORM ついては、%ANAME(MASTER)%から金
+	CALL COLORPRINTFORM(@"{候補額}", COLOR("注意"))
+	PRINTFORMW ほど援助してくれないか
+	PRINTFORM その引き替えとして、
+	CALL COLORPRINTFORM(@"%ANAME(結果キャラ)%", COLOR("注意"))
+	PRINTFORM を
+	CALL COLORPRINTFORM("10", COLOR("注意"))
+	PRINTFORM 期の間、貸し出す……
+	PRINTFORML
+	PRINTFORML 他国に泣きつかなくてはならないほど、経済的に厳しいのだろう
+	PRINTFORML 同情する%ANAME(MASTER)%だが、それと援助するかはまた別の話だ
+	PRINTFORML 援助すれば%ANAME(結果君主)%は気を良くするだろうし、優秀な人材も借りられる
+	PRINTFORML それは巡り巡って、%ANAME(MASTER)%の勢力の将来を安定させる布石ともなろう
+	PRINTFORMW とはいえ、金も色々なことに必要だ。無限にあるわけではないし、使い道は考えなくては……
+	DRAWLINE
+	PRINTFORML 現在の資金:{MONEY}
+	CALL ASK_MULTI_JUDGE(@"金{候補額}を援助する", MONEY >= 候補額, "断る", 1, "お前の身体を寄越せ", MONEY >= 候補額)
+	LOCAL = RESULT
+	IF RESULT == 0
+		PRINTFORMW まあ、援助してやるとしよう。%ANAME(MASTER)%は金{候補額}をくれてやることにした
+		PRINTFORMW 資金援助によって、%ANAME(結果君主)%は大いに気を良くしたようだ
+		CALL KOJO_EVENT_DAILY(結果キャラ, 口上_資金援助要求, LOCAL)
+		CALL KOJO_EVENT_DAILY(結果君主, 口上_資金援助要求_君主, LOCAL)
+		CALL COLORPRINTFORM(@"%ANAME(結果キャラ)%を借り受けました", COLOR("注意"), "W")
+		CALL CHANGE_RELATION_C_TO_C(結果国, CFLAG:MASTER:所属, 300, -200)
+		CALL FORCE_FREE(結果キャラ)
+		;担保元を保存
+		DVAR:資金援助担保 = CFLAG:結果キャラ:所属
+		DVAR:資金援助担保時所属国 = CFLAG:MASTER:所属
+		;借り物をつけて移籍
+		SETBIT TALENT:結果キャラ:デイリー陥落系, 素質_デイリー_借り物
+		CFLAG:結果キャラ:所属 = CFLAG:MASTER:所属
+		MONEY -= 候補額
+	ELSEIF RESULT == 1
+		PRINTFORMW こっちにもそんな余裕はない。そう伝え、%ANAME(結果君主)%の使いを送り返した
+		CALL KOJO_EVENT_DAILY(結果キャラ, 口上_資金援助要求, LOCAL)
+		CALL KOJO_EVENT_DAILY(結果君主, 口上_資金援助要求_君主, LOCAL)
+	ELSEIF RESULT == 2
+		PRINTFORMW 代わりにお前の身体を寄越せ……%ANAME(結果君主)%にそう伝えた
+		PRINTFORMW 冗談で済まないこの発言は、%ANAME(結果君主)%のみならず他の勢力をも動揺させた
+		PRINTFORMW しかしそれでも、%ANAME(結果君主)%はこれを受け入れざるを得なかった……
+		CALL KOJO_EVENT_DAILY(結果キャラ, 口上_資金援助要求, LOCAL)
+		CALL KOJO_EVENT_DAILY(結果君主, 口上_資金援助要求_君主, LOCAL)
+		CALL COLORPRINTFORM(@"資金援助と引き換えに、%ANAME(結果君主)%を抱けるようになりました", COLOR("注意"), "W")
+		CALL COLORPRINTFORM(@"各国との関係が悪化しました", COLOR("警告"), "W")
+		MONEY -= 候補額
+		CFLAG:(結果君主):59 = 1
+		;関係悪化
+		FOR LOCAL:0, 0, MAX_COUNTRY
+			IF IS_COUNTRY(LOCAL) && LOCAL != CFLAG:MASTER:所属
+				IF LOCAL == 結果国
+					CALL CHANGE_RELATION_C_TO_C(結果国, CFLAG:MASTER:所属, -1000, 1000)
+				ELSE
+					CALL CHANGE_RELATION_C_TO_C(LOCAL, CFLAG:MASTER:所属, -400, 300)
+				ENDIF
+			ENDIF
+		NEXT
+	ENDIF
+	DVAR:資金援助要求カウンタ = 10
+ELSE
+	PRINTFORML %ANAME(MASTER)%が政務を行っていると、部下が来客を告げた
+	CALL COLORPRINTFORM(@"%ANAME(結果君主)%", COLOR("注意"))
+	PRINTFORMW が使いをよこしてきたのだという
+	PRINTFORML %ANAME(結果君主)%といえば、各国が頭を悩ましている相手だ
+	PRINTFORMW 一体何を伝えに来たのだと、%ANAME(MASTER)%は早速会うことにした……
+	PRINTFORML
+	PRINTFORML
+	PRINTFORML
+	PRINTFORMW %ANAME(結果君主)%の使いが持ってきた話は、こういうことだった
+	PRINTFORML
+	PRINTFORML 最近、勢力圏内の村々を狩りつくしてしまい、「税収」がなくなってしまった
+	PRINTFORML 金がなく、男連中は娯楽に餓えており、士気にも影響がでている
+	PRINTFORM そこで頼み事なのだが、金
+	CALL COLORPRINTFORM(@"{候補額}", COLOR("注意"))
+	PRINTFORMW ほど「譲って」くれないか
+	PRINTFORMW さもなくば、何らかの「不利益」が%ANAME(MASTER)%に生ずることになるだろう
+	PRINTFORML 昨今、我々は力をつけ、今や各国と対等に渡り合える関係にある
+	PRINTFORMW 報復は必ず実行されることを忘れるな……
+	PRINTFORML
+	PRINTFORMW 賊ふぜいが、なんとふざけた要求か！
+	PRINTFORML 怒りを覚える%ANAME(MASTER)%だが、奴らが厄介で、言ったことを実行する執念深さがあるのも事実
+	PRINTFORML 断れば、相手が何らかの嫌がらせ――それも血も涙もないような――にでるのは確実だろう
+	PRINTFORMW かといって、周りに害を振りまくあんな連中に、金を渡していいものだろうか……
+	DRAWLINE
+	CALL ASK_MULTI_JUDGE(@"金{候補額}を援助する", MONEY >= 候補額, "刺激しないよう、丁重に断る", 1, "使いの者を斬り捨てる", 1)
+	IF RESULT == 0
+		PRINTFORMW まあ、援助してやるとしよう。%ANAME(MASTER)%は金{候補額}をくれてやることにした
+		PRINTFORMW 資金援助によって、%ANAME(結果君主)%は大いに気を良くしたようだ
+		CALL KOJO_EVENT_DAILY(結果君主, 口上_資金援助要求_君主, LOCAL)
+		CALL CHANGE_RELATION_C_TO_C(結果国, CFLAG:MASTER:所属, 300, -200)
+		MONEY -= 候補額
+	ELSEIF RESULT == 1
+		PRINTFORMW 犯罪者どもにくれてやる金はない。%ANAME(結果君主)%の使いを送り返した
+		PRINTFORMW 報復を警戒していた%ANAME(MASTER)%だが、丁重に断ったのがよかったのか、何の嫌がらせも起こらなかった……
+	ELSEIF RESULT == 2
+		PRINTFORMW 怒りにまかせ、%ANAME(MASTER)%は使いの者を斬り捨てた！
+		PRINTFORMW 不意のことに、使いの者は武器を抜くこともできず倒れ伏した
+		PRINTFORMW そのまま部下に命じ、野盗どもへの意思表示として、その首を城門に晒させた
+		PRINTFORMW 少し胸がすっとした気分だ……
+		PRINTFORML 
+		;-------資金援助要求はここでキャラ選出を行う-------
+		;候補数をゼロクリア
+		VARSET 候補数
+		;キャラの選出
+		FOR LOCAL, 0, CHARANUM
+			;MASTERではなく、MASTER所属勢力の君主でもなく、同じ国に所属。もし結果国が野盗なら女であること。
+			IF LOCAL != MASTER && LOCAL != GET_COUNTRY_BOSS(CFLAG:MASTER:所属) && CFLAG:(LOCAL):所属 == CFLAG:MASTER:所属 && !CFLAG:(LOCAL):9 && (結果国 != 野盗 || IS_FEMALE(LOCAL)) && !IS_ANIMAL(LOCAL)
+				;0 ~ 「三能力の10倍と、好感度・従属度・依存度の1/10の総和」　の乱数を保存
+				候補キャラ:LOCAL = RAND(0, MAX((ABL:LOCAL:武闘 + ABL:LOCAL:知略 + ABL:LOCAL:政治) * 10 + (CFLAG:LOCAL:好感度 + CFLAG:LOCAL:従属度 + CFLAG:LOCAL:依存度) / 10, 1))
+				候補数 ++
+			ENDIF
+		NEXT
+		;候補がなかったら終わる
+		SIF 候補数 == 0
+			RETURN 0
+		;先ほど得た乱数が最大だったキャラを取得
+		結果キャラ = FINDELEMENT(候補キャラ, MAXARRAY(候補キャラ))
+		;ないはずだけど、結果キャラがみつからなかったら終わる
+		SIF 結果キャラ <= 0
+			RETURN 0
+
+		SETCOLOR COLOR("警告")
+		PRINTFORMW ……だが、これがどのような結果を招くか、%ANAME(MASTER)%は思い知ることとなる……
+		CALL KOJO_EVENT_DAILY(結果君主, 口上_資金援助要求_君主, LOCAL)
+		RESETCOLOR
+		DVAR:要求野盗斬り捨て = 結果キャラ
+		CALL DAILY_DIPLO_REQUEST_KILL_BANDIT
+	ENDIF
+	DVAR:資金援助要求カウンタ = 10
+ENDIF
+
+
+
+
+
+@DAILY_DIPLO_REQUEST_RETURN_HOSTAGE
+#DIM 対象
+#DIM 君主
+対象 = -1
+君主 = GET_COUNTRY_BOSS(DVAR:資金援助担保)
+FOR LOCAL, 0, CHARANUM
+	IF GETBIT(TALENT:(LOCAL:0):デイリー陥落系, 素質_デイリー_借り物)
+		対象 = LOCAL
+		BREAK
+	ENDIF
+NEXT
+;ないはずだけど、対象が見つからなかったら抜ける
+SIF 対象 == -1
+	RETURN 0
+;ないはずだけど、君主が見つからなかったら（対象の元所属国家が滅ぶかなにかしていたら）抜ける
+SIF 君主 == -1
+	RETURN 0
+
+;担保をとったときの所属国と今の所属が違っていたら、簡易イベントで済ませる
+IF CFLAG:MASTER:所属 != DVAR:資金援助担保時所属国
+	PRINTFORMW 資金援助のため貸し出されていた%ANAME(対象)%は、%ANAME(君主)%の元へ戻っていったそうだ……
+	CFLAG:対象:所属 = DVAR:資金援助担保時所属国
+	CLEARBIT TALENT:対象:デイリー陥落系, 素質_デイリー_借り物
+	RETURN
+ENDIF
+
+DRAWLINE
+PRINTFORMW ……そろそろ%ANAME(対象)%の返却の期限だ
+PRINTFORMW %ANAME(MASTER)%は%ANAME(君主)%の元へ向かった……
+PRINTFORML
+;自国の捕虜にしている
+IF CFLAG:対象:捕虜先 == CFLAG:MASTER:1
+	PRINTFORMW ……%ANAME(対象)%は今、牢屋に幽閉している状態だ
+	PRINTFORMW 戦死してしまったことにして、幽閉したままにするのもありかもしれない
+	PRINTFORMW もちろん、%ANAME(君主)%との関係は、めちゃめちゃにこじれてしまうことだろうが……
+	PRINTFORML
+	CALL ASK_MULTI("戦死したと嘘をつく", "正直に返却する")
+	LOCAL = RESULT
+	IF RESULT == 0
+		PRINTFORMW %ANAME(MASTER)%は%ANAME(君主)%との会談に臨んだ
+		PRINTFORMW そして、%ANAME(対象)%が戦死してしまった旨を伝えた
+		PRINTFORMW 話を聞いた%ANAME(君主)%は怒り狂い、お前達の顔など二度と見たくないと、部屋を後にした……
+		PRINTFORML
+		PRINTFORMW 拠点に戻った%ANAME(MASTER)%は、牢につながれた%ANAME(対象)%を見、舌なめずりした
+		PRINTFORMW 邪魔者もいなくなった今、こいつをどのように調理してやろうか……
+		CALL KOJO_EVENT_DAILY(対象, 口上_借り物返却, 0)
+		CALL KOJO_EVENT_DAILY(君主, 口上_借り物返却_君主, 0)
+		CALL COLORPRINTFORM(@"%ANAME(君主)%との関係が非常に悪化しました", COLOR("警告"), "W")
+		CALL COLORPRINTFORM(@"%ANAME(対象)%が無所属の自国捕虜となりました", COLOR("警告"), "W")
+		CALL CHANGE_RELATION_C_TO_C(DVAR:資金援助担保, CFLAG:MASTER:1, -1000, 800)
+		CFLAG:対象:1 = 0
+		CLEARBIT TALENT:対象:デイリー陥落系, 素質_デイリー_借り物
+	ELSEIF RESULT == 1
+		PRINTFORMW %ANAME(MASTER)%は%ANAME(君主)%に%ANAME(対象)%を返却した
+		PRINTFORMW 幽閉していたのもあって心証は最高とはいかなかったが、一応、感謝はされたようだ……
+		CALL KOJO_EVENT_DAILY(対象, 口上_借り物返却, 1)
+		CALL KOJO_EVENT_DAILY(君主, 口上_借り物返却_君主, 1)
+		CALL COLORPRINTFORM(@"%ANAME(君主)%との関係が多少改善されました", COLOR("注意"), "W")
+		CALL COLORPRINTFORM(@"%ANAME(対象)%が帰って行きました", COLOR("警告"), "W")
+		CALL CHANGE_RELATION_C_TO_C(DVAR:資金援助担保, CFLAG:MASTER:1, 300, -100)
+		CFLAG:対象:所属 = DVAR:資金援助担保
+		CFLAG:対象:捕虜先 = 0
+		CLEARBIT TALENT:対象:デイリー陥落系, 素質_デイリー_借り物
+	ENDIF
+;死んだ
+ELSEIF CFLAG:対象:12 == 2
+	PRINTFORMW ……%ANAME(対象)%は、残念ながら死亡してしまった
+	PRINTFORMW 言い逃れるわけにもいかず、%ANAME(MASTER)%は正直に伝えた
+	PRINTFORMW 話を聞いた%ANAME(君主)%は激怒し、お前達に預けたのが間違いだったと非難した……
+	CALL KOJO_EVENT_DAILY(対象, 口上_借り物返却, 2)
+	CALL KOJO_EVENT_DAILY(君主, 口上_借り物返却_君主, 2)
+	CALL COLORPRINTFORM(@"%ANAME(君主)%との関係がかなり悪化しました", COLOR("警告"), "W")
+	CALL CHANGE_RELATION_C_TO_C(DVAR:資金援助担保, CFLAG:MASTER:所属, -800, 700)
+	CLEARBIT TALENT:対象:デイリー陥落系, 素質_デイリー_借り物
+;他国の捕虜にされている
+ELSEIF CFLAG:対象:捕虜先
+	PRINTFORMW ……%ANAME(対象)%は今、%ANAME(GET_COUNTRY_BOSS(CFLAG:対象:捕虜先))%に幽閉されている
+	PRINTFORMW 言い逃れるわけにもいかず、%ANAME(MASTER)%は正直に伝えた
+	PRINTFORMW 話を聞いた%ANAME(君主)%は怒り、なぜ身柄を確かにしておいてくれなかったのだと非難した……
+	CALL KOJO_EVENT_DAILY(対象, 口上_借り物返却, 3)
+	CALL KOJO_EVENT_DAILY(君主, 口上_借り物返却_君主, 3)
+	CALL COLORPRINTFORM(@"%ANAME(君主)%との関係が悪化しました", COLOR("警告"), "W")
+	CALL COLORPRINTFORM(@"%ANAME(対象)%が担保ではなくなりました", COLOR("警告"), "W")
+	CALL CHANGE_RELATION_C_TO_C(DVAR:資金援助担保, CFLAG:MASTER:所属, -500, 500)
+	CFLAG:対象:1 = DVAR:資金援助担保
+	CLEARBIT TALENT:対象:デイリー陥落系, 素質_デイリー_借り物
+;他国に移籍した（捕虜からの登用、野盗による拉致などで）
+ELSEIF CFLAG:対象:所属 != CFLAG:MASTER:所属
+	PRINTFORMW ……%ANAME(対象)%は今、\@ IS_COUNTRY(CFLAG:対象:所属) ? %ANAME(GET_COUNTRY_BOSS(CFLAG:対象:所属))%に仕えている # 放浪している \@
+	PRINTFORMW 言い逃れるわけにもいかず、%ANAME(MASTER)%は正直に伝えた
+	PRINTFORMW 話を聞いた%ANAME(君主)%は怒り、なぜ身柄を確かにしておいてくれなかったのだと非難した……
+	CALL KOJO_EVENT_DAILY(対象, 口上_借り物返却, 4)
+	CALL KOJO_EVENT_DAILY(君主, 口上_借り物返却_君主, 4)
+	CALL COLORPRINTFORM(@"%ANAME(君主)%との関係が悪化しました", COLOR("警告"), "W")
+	CALL COLORPRINTFORM(@"%ANAME(対象)%が担保ではなくなりました", COLOR("警告"), "W")
+	CALL CHANGE_RELATION_C_TO_C(DVAR:資金援助担保, CFLAG:MASTER:所属, -500, 500)
+	CLEARBIT TALENT:対象:デイリー陥落系, 素質_デイリー_借り物
+;帰りたくない・恋慕ルート
+ELSEIF IS_LOVER(対象)
+	PRINTFORMW ……%ANAME(君主)%との会談の場で、当の%ANAME(対象)%が帰りたくないと言い始めた
+	PRINTFORMW %ANAME(MASTER)%と触れあう中で、慕うようになったと
+	PRINTFORMW できればこのまま、%ANAME(MASTER)%に仕えたいというのだが……
+	PRINTFORML
+	CALL ASK_MULTI("ダメ元で残留を頼んでみる", "諦めて国元へ返す")
+	IF RESULT == 0
+		PRINTFORMW %ANAME(MASTER)%としても、%ANAME(対象)%を失うことは色々つらい
+		PRINTFORMW そのことを、%ANAME(君主)%に素直に、誠実に伝えた
+		PRINTFORMW 話を聞いた%ANAME(君主)%は、複雑な思いだったようだが、
+		PRINTFORMW それなら祝福するしかあるまいと、最終的には移籍を受け入れてくれた……
+		CALL KOJO_EVENT_DAILY(対象, 口上_借り物返却, 5)
+		CALL KOJO_EVENT_DAILY(君主, 口上_借り物返却_君主, 5)
+		CALL COLORPRINTFORM(@"%ANAME(君主)%との関係がやや改善されました", COLOR("注意"), "W")
+		CALL COLORPRINTFORM(@"%ANAME(対象)%が正式に自国に移籍しました", COLOR("注意"), "W")
+		CALL CHANGE_RELATION_C_TO_C(DVAR:資金援助担保, CFLAG:MASTER:1, 300, -300)
+		CLEARBIT TALENT:対象:デイリー陥落系, 素質_デイリー_借り物
+	ELSEIF RESULT == 1
+		PRINTFORMW %ANAME(MASTER)%は%ANAME(君主)%に%ANAME(対象)%を返却した
+		PRINTFORMW %ANAME(対象)%は寂しがったが、少なくとも%ANAME(君主)%には感謝された……
+		CALL KOJO_EVENT_DAILY(対象, 口上_借り物返却, 6)
+		CALL KOJO_EVENT_DAILY(君主, 口上_借り物返却_君主, 6)
+		CALL COLORPRINTFORM(@"%ANAME(君主)%との関係が改善されました", COLOR("注意"), "W")
+		CALL COLORPRINTFORM(@"%ANAME(対象)%が帰って行きました", COLOR("警告"), "W")
+		CALL CHANGE_RELATION_C_TO_C(DVAR:資金援助担保, CFLAG:MASTER:1, 500, -500)
+		CFLAG:対象:所属 = DVAR:資金援助担保
+		CLEARBIT TALENT:対象:デイリー陥落系, 素質_デイリー_借り物
+	ENDIF
+;帰りたくない・屈服ルート
+ELSEIF IS_SLAVE(対象)
+	PRINTFORMW ……%ANAME(君主)%との会談の場で、当の%ANAME(対象)%が帰りたくないと言い始めた
+	PRINTFORMW %ANAME(MASTER)%と触れあう中で、忠誠を誓ったのだと
+	PRINTFORMW できればこのまま、%ANAME(MASTER)%に仕えたいというのだが……
+	PRINTFORML
+	CALL ASK_MULTI(@"%ANAME(対象)%を奪い取る", "諦めて国元へ返す")
+	IF RESULT == 0
+		PRINTFORMW %ANAME(MASTER)%としても、%ANAME(対象)%のような優秀なしもべは手元に置いておきたい
+		PRINTFORMW そのことを、%ANAME(君主)%に一方的に伝えた
+		PRINTFORMW さらに、%ANAME(対象)%が屈服した証を見せつけるように、%ANAME(君主)%の前で自らに奉仕させた
+		PRINTFORMW %ANAME(君主)%は呆然とし、そしてその後激怒し、
+		PRINTFORMW お前達の顔などもう見たくもないと叫んで、部屋を後にした……
+		CALL KOJO_EVENT_DAILY(対象, 口上_借り物返却, 7)
+		CALL KOJO_EVENT_DAILY(君主, 口上_借り物返却_君主, 7)
+		CALL COLORPRINTFORM(@"%ANAME(君主)%との関係がこじれきりました", COLOR("警告"), "W")
+		CALL COLORPRINTFORM(@"%ANAME(対象)%が正式に自国に移籍しました", COLOR("注意"), "W")
+		CALL CHANGE_RELATION_C_TO_C(DVAR:資金援助担保, CFLAG:MASTER:1, -1500, 1500)
+		CLEARBIT TALENT:対象:デイリー陥落系, 素質_デイリー_借り物
+	ELSEIF RESULT == 1
+		PRINTFORMW %ANAME(MASTER)%は%ANAME(君主)%に%ANAME(対象)%を返却した
+		PRINTFORMW %ANAME(対象)%は寂しがったが、少なくとも%ANAME(君主)%には感謝された……
+		CALL KOJO_EVENT_DAILY(対象, 口上_借り物返却, 8)
+		CALL KOJO_EVENT_DAILY(君主, 口上_借り物返却_君主, 8)
+		CALL COLORPRINTFORM(@"%ANAME(君主)%との関係が改善されました", COLOR("注意"), "W")
+		CALL COLORPRINTFORM(@"%ANAME(対象)%が帰って行きました", COLOR("警告"), "W")
+		CALL CHANGE_RELATION_C_TO_C(DVAR:資金援助担保, CFLAG:MASTER:1, 500, -500)
+		CFLAG:対象:所属 = DVAR:資金援助担保
+		CLEARBIT TALENT:対象:デイリー陥落系, 素質_デイリー_借り物
+	ENDIF
+;帰れ
+ELSE
+	PRINTFORMW ……約束通り、%ANAME(対象)%を%ANAME(君主)%に返却した
+	PRINTFORMW %ANAME(君主)%から感謝された……
+	CALL KOJO_EVENT_DAILY(対象, 口上_借り物返却, 9)
+	CALL KOJO_EVENT_DAILY(君主, 口上_借り物返却_君主, 9)
+	CALL COLORPRINTFORM(@"%ANAME(君主)%との関係が改善されました", COLOR("注意"), "W")
+	CALL COLORPRINTFORM(@"%ANAME(対象)%が帰って行きました", COLOR("警告"), "W")
+	CALL CHANGE_RELATION_C_TO_C(DVAR:資金援助担保, CFLAG:MASTER:1, 500, -500)
+	CFLAG:対象:所属 = DVAR:資金援助担保
+	CLEARBIT TALENT:対象:デイリー陥落系, 素質_デイリー_借り物
+ENDIF
+DVAR:資金援助担保 = 0
+
+
+
+;-------------------------------------------------
+;野盗を斬った場合の処理
+;-------------------------------------------------
+@DAILY_DIPLO_REQUEST_KILL_BANDIT
+;野盗からの使いを斬り捨てていたら、逆調教される
+IF DVAR:要求野盗斬り捨て
+	;全員の調教参加フラグを解除
+	CVARSET CFLAG, 6, 0
+	LOCAL:2 = 0
+	FOR LOCAL:0, 0, CHARANUM
+		IF CFLAG:(LOCAL:0):1 == GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗)) && NO:(LOCAL:0) > 2000 && LOCAL:2 < 6
+			CFLAG:(LOCAL:0):6 = 1
+			CFLAG:(LOCAL:0):65 = 1
+			LOCAL:2 ++
+		ENDIF
+	NEXT
+	;捕虜逆調教モード
+	FLAG:12 = 5
+	;ウフフモード
+	FLAG:50 = 1
+	;アイテムを一通り追加
+	ITEM:A_ローター = 1
+	ITEM:A_バイブ = 1
+	ITEM:A_アナルバイブ = 1
+	ITEM:A_ペニスバンド = 1
+	ITEM:A_オナホール = 1
+	ITEM:A_クリキャップ = 1
+	ITEM:A_ニプルキャップ = 1
+	ITEM:A_媚薬 = 99
+	ITEM:A_排卵誘発剤 = 99
+	ITEM:A_麻薬 = 99
+	ITEM:A_桃源香 = 99
+	;行動開始時の共通処理
+	;全ての参加キャラについて処理
+	FOR LOCAL:0, 0, CHARANUM
+		IF CFLAG:(LOCAL:0):6
+			;現在の機嫌を保存
+			FOR LOCAL:1, 0, 10
+				CFLAG:(LOCAL:0):(LOCAL:1 + 190) = PALAM:(LOCAL:0):(LOCAL:1 + 10)
+			NEXT
+			;参加済みに
+			CFLAG:(LOCAL:0):91 = 1
+		ENDIF
+	NEXT
+	LOCALS = %ANAME(DVAR:要求野盗斬り捨て)%
+	DRAWLINE
+	PRINTFORMW 衛兵の目を盗み、複数の男が宮廷に忍び込んだ……
+	PRINTFORMW 廊下を歩いていた%LOCALS%に背後から忍び寄り、薬をしみこませた布を頭から被せる
+	PRINTFORMW ぐったりとした%LOCALS%を麻袋に詰め込むと、男達は宮廷から逃げ出した……
+	PRINTFORML
+	PRINTFORML
+	PRINTFORML
+	PRINTFORMW 男達の正体は野盗だった
+	PRINTFORMW %ANAME(MASTER)%が使いの者を斬ったので、報復ついでに%LOCALS%を拉致したのだ
+	PRINTFORMW アジトに戻った彼らは、眠りこける%LOCALS%の服を剥ぎ取ると、早速その身体を「使い」はじめた……
+	FOR LOCAL:0, 0, 4
+		CALL FORCE_FUCK(DVAR:要求野盗斬り捨て, SP_NAME_TO_ID("野盗"), @"野盗の\@RAND:2 ? ペニス # 唇\@", "野盗", 2)
+	NEXT
+	PRINTFORML
+	PRINTFORML
+	PRINTFORML
+	PRINTFORMW %LOCALS%が目を覚ますと、そこは見覚えのない部屋だった
+	PRINTFORMW 一糸まとわぬ自らの身体は縄で縛られ、見知らぬ男達に群がられている
+	PRINTFORMW 白濁にまみれた肌は、自分がこの男達に何度も陵辱されたことを示している……
+	PRINTFORMW %LOCALS%はなんとか逃げだそうとするが、縛られており、さらに男達に押さえつけられてはどうしようもなかった
+	PRINTFORMW 男達はへらへらと笑いながら、躾のなっていない雌犬を屈服させようと、再び彼女を犯し始める……
+	SWAPCHARA MASTER, DVAR:要求野盗斬り捨て
+	FLAG:31 = 2
+	DAILY_CANCEL = 1
+ENDIF

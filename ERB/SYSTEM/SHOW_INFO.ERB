@@ -119,7 +119,7 @@ ELSE
 	ENDIF
 	PRINTFORM   捕虜:%LOCALS:0%
 	IF LOCAL:4 >= 0
-		IF CFLAG:(LOCAL:0):29 == 0
+		IF CFLAG:(ARG:0):29 == 0
 			PRINT (監禁)
 		ELSE
 			PRINT (軟禁)
@@ -145,6 +145,15 @@ ELSE
 	PRINTL 
 	PRINTL □ 素質 □
 	CALL NEW_PRINT_TALENT(ARG:0)
+	PRINTL 
+	PRINTL □ ＳＬＧ □
+	CALL NEW_PRINT_SLGTALENT(ARG:0)
+	PRINTL 
+	IF CONFIG:16 == 0
+		PRINTL □ タトゥ □
+		CALL PRINT_TATOO(ARG:0)
+		PRINTL 
+	ENDIF
 	PRINTL □ その他 □
 	IF IS_FEMALE(ARG:0)
 		PRINTFORML Ｖ締まり:%TOSTR_TIGHTNESS(TALENT:(ARG:0):Ｖ締まり)%
@@ -161,11 +170,10 @@ ELSE
 		PRINTL
 	ENDIF
 	PRINTFORML 性的嗜好:%TOSTR_SEXUAL_PREFERENCE(TALENT:(ARG:0):性的嗜好)%\@ TALENT:(ARG:0):性的嗜好ロック ? (他の者に刻まれた) # \@
-	IF CONFIG:16 == 0
-		PRINTL □ タトゥ □
-		CALL PRINT_TATOO(ARG:0)
-		PRINTL
-	ENDIF
+	PRINTL
+	PRINTL □ 特殊な陥落 □
+	CALL NEW_PRINT_SPECIAL_TALENT(ARG:0)
+	PRINTL
 ENDIF
 
 ;-------------------------------------------------
@@ -364,16 +372,17 @@ IF LOCAL:1 > 0
 	PRINTL 
 ENDIF
 
-	PRINTFORML   ファーストキス   : %FIRSTKISS_PARTNER:(ARG:0):0%
+	PRINTFORML   ファーストキス    : %SEXUAL_EXPERIENCE:(ARG:0):初体験_ファーストキス%
 
 IF VAGINA(ARG:0)
-	PRINTFORML   処女を捧げた相手 : %VIRGIN_PARTNER:(ARG:0):0%
+	PRINTFORML   処女を捧げた相手  : %SEXUAL_EXPERIENCE:(ARG:0):初体験_処女%
 ENDIF
 
 IF PENIS(ARG:0)
-	PRINTFORML   童貞を捧げた相手 : %DOUTEI_PARTNER:(ARG:0):0%
+	PRINTFORML   童貞を捧げた相手  : %SEXUAL_EXPERIENCE:(ARG:0):初体験_童貞%
 ENDIF
 
+	PRINTFORML 尻穴処女を捧げた相手: %SEXUAL_EXPERIENCE:(ARG:0):初体験_アナル処女%
 ;-------------------------------------------------
 ;ARG:0番のキャラの能力を表示
 ;-------------------------------------------------
@@ -575,6 +584,8 @@ FOR LOCAL:0, 1, 300
 			CONTINUE
 		ELSEIF VAGINA(ARG:0) && TN == "孕み可能"
 			CONTINUE
+		ELSEIF TN == "処女" || TN == "アナル処女" || TN == "キス未経験"
+			CONTINUE
 		ENDIF
 
 		IF TN == "正妻" && IS_HUSBAND(ARG:0)
@@ -631,6 +642,90 @@ IF CONFIG:6 == 1
 	PRINTL 
 ENDIF
 
+;-------------------------------------------------
+;ARG:0番のキャラのＳＬＧ素質を表示
+;-------------------------------------------------
+@NEW_PRINT_SLGTALENT(ARG:0)
+#DIMS STN
+LOCAL:1 = 0
+LOCAL:4 = 0
+PRINT   
+FOR LOCAL, 0, 63
+	IF GETBIT(TALENT:(ARG:0):ＳＬＧ素質, LOCAL) && TOSTR_SLG_TALENT(LOCAL) != ""
+		STN = %TOSTR_SLG_TALENT(LOCAL)%
+		;改行判定
+		LOCAL:3 = STRLENS(STN) + 3
+		LOCAL:1 += LOCAL:3
+		IF LOCAL:1 >= 78
+			LOCAL:1 = LOCAL:3
+			PRINTL 
+			PRINT   
+		ENDIF
+		PRINTFORM <%STN%> 
+		LOCAL:4 = 1
+	ENDIF
+NEXT
+SIF !LOCAL:4
+	PRINT なし
+PRINTL
+
+;-------------------------------------------------
+;ARG:0番の陥落・特殊勢力陥落・デイリー陥落素質を一覧表示
+;-------------------------------------------------
+@NEW_PRINT_SPECIAL_TALENT(ARG:0)
+#DIM 表示
+#DIMS TN
+PRINT   
+LOCAL:1 = 0
+表示 = 0
+FOR LOCAL:0, 0, 64
+	IF GETBIT(TALENT:(ARG:0):肉体陥落系, LOCAL) && TOSTR_SEX_TALENT(LOCAL) != ""
+		TN = %TOSTR_SEX_TALENT(LOCAL:0)%
+		;改行判定
+		LOCAL:3 = STRLENS(TN) + 3
+		LOCAL:1 += LOCAL:3
+		IF LOCAL:1 >= 78
+			LOCAL:1 = LOCAL:3
+			PRINTL 
+			PRINT   
+		ENDIF
+		PRINTFORM <%TN%> 
+		表示 = 1
+	ENDIF
+NEXT
+FOR LOCAL:0, 0, 64
+	IF GETBIT(TALENT:(ARG:0):デイリー陥落系, LOCAL) && TOSTR_DAILY_TALENT(LOCAL) != ""
+		TN = %TOSTR_DAILY_TALENT(LOCAL:0)%
+		;改行判定
+		LOCAL:3 = STRLENS(TN) + 3
+		LOCAL:1 += LOCAL:3
+		IF LOCAL:1 >= 78
+			LOCAL:1 = LOCAL:3
+			PRINTL 
+			PRINT   
+		ENDIF
+		PRINTFORM <%TN%> 
+		表示 = 1
+	ENDIF
+NEXT
+FOR LOCAL:0, 0, 64
+	IF GETBIT(TALENT:(ARG:0):特殊勢力陥落系, LOCAL) && TOSTR_FALLEN_TALENT(LOCAL) != ""
+		TN = %TOSTR_FALLEN_TALENT(LOCAL:0)%
+		;改行判定
+		LOCAL:3 = STRLENS(TN) + 3
+		LOCAL:1 += LOCAL:3
+		IF LOCAL:1 >= 78
+			LOCAL:1 = LOCAL:3
+			PRINTL 
+			PRINT   
+		ENDIF
+		PRINTFORM <%TN%> 
+		表示 = 1
+	ENDIF
+NEXT
+IF !表示
+	PRINT なし
+ENDIF
 ;-------------------------------------------------
 ;数値表示変更
 ;-------------------------------------------------

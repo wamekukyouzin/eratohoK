@@ -1,0 +1,265 @@
+﻿;--------------------------------------
+;自警団出現イベント
+;出現できたら1、できなければ0をかえす
+;--------------------------------------
+@VIGILANTE_RISE(都市:0, 都市:1, 都市:2, 都市:3, 都市:4, 都市:5, メッセージフラグ = 1)
+#DIM 自警団
+#DIM メッセージフラグ
+#DIM 都市, 6
+#DIM 勢力
+;自警団勢力を作成
+CALL VIGILANTE_INIT()
+自警団 = RESULT
+;作れなかったら戻す
+SIF 自警団 == -1
+	RETURN 0
+
+FOR LOCAL, 0, VARSIZE("都市")
+	勢力 = CITY_OWNER:(都市:LOCAL)
+	SIF IS_COUNTRY(勢力) && GET_OWN_CITY(勢力) <= 2
+		CONTINUE
+	CALL TAKEOVER_CITY_FROM_NO(自警団, 都市:LOCAL)
+NEXT
+
+IF メッセージフラグ
+	DRAWLINE
+	SETCOLOR COLOR("警告")
+	PRINTFORMW 荒れる幻想郷を憂えた里の勇士たちが、人里を中心に自警団を作り上げました！
+	PRINTFORMW 自分たちこそが幻想郷を平和に治められると考えた彼らは、より勢力を伸ばそうとしているようです……
+	RESETCOLOR
+	DRAWLINE
+ENDIF
+
+RETURN 1
+
+;--------------------------------------
+;ターンエンド時の自警団の処理
+;--------------------------------------
+@TURNEND_VIGILANTE
+#DIM 自警団
+
+IF !SP_COUNTRY_APPEARED:特殊勢力_自警団
+	;自警団の蜂起
+	CALL SLG_VIGILANTE_RISE
+	RETURN -1
+ENDIF
+
+IF SP_COUNTRY_APPEARED:特殊勢力_自警団 == 1
+	;自警団の番号を取得
+	自警団 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_自警団))
+	IF 自警団 == -1
+		DRAWLINE
+		SETCOLOR COLOR("注意")
+		PRINTFORML
+		PRINTFORML
+		PRINTFORML
+		PRINTFORMW 壊滅的な被害を受けた自警団は、活動を継続することができなくなったようです……
+		PRINTFORMW 彼らは解散してしまいました
+		PRINTFORM
+		PRINTFORML
+		PRINTFORML
+		RESETCOLOR
+		;自警団を削除する
+		LOCAL:1 = CHARANUM
+		FOR LOCAL:0, 0, LOCAL:1
+			LOCAL:2 = LOCAL:1 - LOCAL:0 - 1
+			IF TALENT:(LOCAL:2):特殊勢力素質 == 特殊勢力_自警団
+				CALL DELETE_CHARA(LOCAL:2)
+			ENDIF
+		NEXT
+		SP_COUNTRY_APPEARED:特殊勢力_自警団 = 2
+		RETURN -1
+	ENDIF
+
+	;兵力の増える処理
+	IF DAY % 3 == 0
+		DRAWLINE
+		LOCAL:0 = MAX(RAND:4000, 1000)
+		LOCAL:0 += RAND:500 * SP_COUNTRY_RANK:(特殊勢力_自警団)
+		PRINTFORML 自警団が徴兵を行っているようです……
+		PRINTFORML 自警団の兵力が{LOCAL:0}増加した
+		COUNTRY_SOLDIER:(自警団) += LOCAL:0
+	ENDIF
+	;4ターンに1回、特別な徴兵
+	CALL VIGILANTE_SPECIAL_REQRUITMENT(DAY % 4 == 0)
+	;調教(?)処理
+	CALL TRAIN_BY_VIGILANTE
+ENDIF
+;--------------------------------------
+;自警団の初期化処理
+;--------------------------------------
+@VIGILANTE_INIT(ARG:0)
+#DIM LCOUNT
+VARSET LOCAL
+
+LOCAL:4 = GET_NEW_COUNTRY()
+;作れなかったらなしで
+IF LOCAL:4 == -1
+	RETURN -1
+ENDIF
+COUNTRY_COLOR:(LOCAL:4) = 0x33CC66
+COUNTRY_SOLDIER:(LOCAL:4) = 20000 + SP_COUNTRY_RANK:(特殊勢力_自警団) * 2000
+COUNTRY_AI_TYPE:(LOCAL:4) = AI_防衛
+COUNTRY_EVENT_ID:(LOCAL:4) = SP_COUNTRY_ID:(特殊勢力_自警団)
+
+CALL CREATE_RANDOM_CHARA
+LOCAL = RESULT
+IF LOCAL == -1
+	COUNTRY_COLOR:(LOCAL:4) = 0
+	COUNTRY_SOLDIER:(LOCAL:4) = 0
+	COUNTRY_AI_TYPE:(LOCAL:4) = 0
+	COUNTRY_EVENT_ID:(LOCAL:4) = 0
+	RETURN -1
+ENDIF
+
+SELECTCASE SP_COUNTRY_NAME:(特殊勢力_自警団)
+	CASE 0
+		NAME:LOCAL = 自警団員
+		CALLNAME:LOCAL = 自警団員
+		CSTR:LOCAL:0 = 自警団員
+		CSTR:LOCAL:1 = 自警団員
+		CSTR:LOCAL:3 = 自警団員
+		CSTR:LOCAL:4 = 自警団員
+		CSTR:LOCAL:5 = 自警団員
+		CSTR:LOCAL:6 = 自警団員
+	CASE 1
+		NAME:LOCAL = 自警団長
+		CALLNAME:LOCAL = 自警団長
+		CSTR:LOCAL:0 = 自警団長
+		CSTR:LOCAL:1 = 自警団長
+		CSTR:LOCAL:3 = 自警団長
+		CSTR:LOCAL:4 = 自警団長
+		CSTR:LOCAL:5 = 自警団長
+		CSTR:LOCAL:6 = 自警団長
+	CASE 2
+		TARGET = LOCAL
+		CALL SET_RANDOM_NAME_K(LOCAL)
+		NAME:LOCAL = %CSTR:LOCAL:1%
+		CALLNAME:LOCAL = %CSTR:LOCAL:1%
+ENDSELECT
+ABL:LOCAL:武闘 = 60 + RAND(5, 15) + 5 * SP_COUNTRY_RANK:(特殊勢力_自警団)
+ABL:LOCAL:知略 = 50 + RAND(5, 15) + 3 * SP_COUNTRY_RANK:(特殊勢力_自警団)
+ABL:LOCAL:政治 = 40 + RAND(5, 10) + 3 * SP_COUNTRY_RANK:(特殊勢力_自警団)
+ABL:LOCAL:歌唱 = 10
+ABL:LOCAL:料理 = 10
+TALENT:LOCAL:特殊勢力素質 = 特殊勢力_自警団
+TALENT:LOCAL:陰毛現在値 = 陰毛_標準
+TALENT:LOCAL:陰毛目標値 = 陰毛_標準
+TALENT:LOCAL:Ｖ締まり = GET_DEFAULT_TIGHTNESS("普通")
+TALENT:LOCAL:Ａ締まり = GET_DEFAULT_TIGHTNESS("普通")
+;所属を自警団にする
+CFLAG:LOCAL:1 = LOCAL:4
+CALL NEWCHARA_INIT(LOCAL)
+COUNTRY_BOSS:(LOCAL:4) = GET_ID(LOCAL)
+
+
+FOR LCOUNT, 0, 14
+	CALL CREATE_RANDOM_CHARA
+	LOCAL = RESULT
+	NAME:LOCAL = 自警団員%UNICODE(0xFF21 + LCOUNT)%
+	CALLNAME:LOCAL = 自警団員%UNICODE(0xFF21 + LCOUNT)%
+	TALENT:LOCAL:特殊勢力素質 = 特殊勢力_自警団
+	;所属を自警団にする
+	CFLAG:LOCAL:1 = LOCAL:4
+	CALL NEWCHARA_INIT(LOCAL)
+NEXT
+SP_COUNTRY_APPEARED:特殊勢力_自警団 = 1
+
+RETURN LOCAL:4
+
+;--------------------------------------
+;自警団の侵攻イベントを実行するSLGイベント。
+;判定通ったら素のVIGILANTE_RISEを呼ぶだけ。
+;--------------------------------------
+@SLG_VIGILANTE_RISE()
+#DIM 住宅街
+#DIM 寺子屋
+#DIM 阿求屋敷
+#DIM 霧雨店
+#DIM 畑
+#DIM 鈴奈庵
+
+;既に出現しているか、自警団なし設定なら発動しない
+SIF SP_COUNTRY_APPEARED:特殊勢力_自警団 || !SP_COUNTRY_RANK:(特殊勢力_自警団)
+	RETURN -1
+
+;15期以降、確率判定をクリアしていること
+SIF !(DAY >= 15 && DAY - 8 > RAND:100)
+	RETURN -1
+
+住宅街 = GET_CITYNUMBER("人里住宅街")
+寺子屋 = GET_CITYNUMBER("寺子屋")
+阿求屋敷 = GET_CITYNUMBER("阿求屋敷")
+霧雨店 = GET_CITYNUMBER("霧雨店")
+畑 = GET_CITYNUMBER("人間の里の畑")
+寺子屋 = GET_CITYNUMBER("寺子屋")
+
+;どれか一つは都市があること
+SIF ALLSAMES(0, 住宅街, 寺子屋, 阿求屋敷, 霧雨店, 畑, 寺子屋)
+	RETURN -1
+
+CALL VIGILANTE_RISE(住宅街, 寺子屋, 阿求屋敷, 霧雨店, 畑, 寺子屋)
+
+;--------------------------------------
+;自警団の定期イベント。
+;陥落済みキャラを使って兵数を増やす
+;--------------------------------------
+@VIGILANTE_SPECIAL_REQRUITMENT(条件 = 1)
+#DIM 自警団
+#DIM 条件
+#DIM 候補, 1000
+#DIM 候補数
+#DIM 対象
+#DIM メッセージ
+VARSET 候補, -1
+VARSET 候補数
+
+自警団 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_自警団))
+
+;自警団勢力があり、条件を満たしている
+SIF 自警団 == -1 || !条件
+RETURN -1
+
+LOCAL = MAX(RAND:3000, 1000)
+DRAWLINE
+SETCOLOR COLOR("注意")
+PRINTFORMW 自警団は演説を行っている……
+PRINTFORMW その内容に賛同した人妖{LOCAL}人が自警団に参加しました
+RESETCOLOR
+
+COUNTRY_SOLDIER:自警団 += LOCAL
+
+RETURN 1
+
+;-----------------------------
+;自警団に捕らえられたときのイベント
+;-----------------------------
+@MASTER_CAPTURED_VIGILANTE(ARG:0)
+PRINTFORMW 捕らえられた%ANAME(MASTER)%は自警団の前に引きずり出された…
+PRINTFORMW 自警団は%ANAME(MASTER)%に熱心な説得をする
+PRINTFORMW 自分たちは幻想郷の未来のために戦っている、君も一緒にどうだ……
+PRINTFORMW 理想が先行しがちだが、参加すれば投獄されずに済むようだ
+PRINTFORMW 受け入れますか？
+CALL ASK_YN("受け入れる", "拒否する")
+IF RESULT == 0
+	PRINTFORMW 彼らの理想は道理が通っている。協力するのにやぶさかではない
+	PRINTFORMW そう伝えると団長は笑顔を浮かべ、そうこなくちゃなといった
+	PRINTFORMW 渡された制服に、%ANAME(MASTER)%は袖を通した……
+	CALL COLORPRINTFORM(@"%ANAME(MASTER)%は自警団の一員となりました", COLOR("注意"), "W")
+ELSE
+	PRINTFORMW 協力はできない。%ANAME(MASTER)%がきっぱりと拒否すると、団長は残念そうな顔を浮かべる
+	PRINTFORMW 自警団員たちは%ANAME(MASTER)%を牢屋に牢獄した……
+ENDIF
+IF RESULT == 0
+	CFLAG:MASTER:1 = ARG:0
+	FOR LOCAL:0, 0, CHARANUM
+		IF TALENT:(LOCAL:0):特殊勢力素質 == 特殊勢力_自警団
+			CFLAG:(LOCAL:0):2 = MAX(CFLAG:(LOCAL:0):2, 500)
+			CFLAG:(LOCAL:0):3 = MAX(CFLAG:(LOCAL:0):3, 500)
+		ENDIF
+	NEXT
+	RETURN 1
+ELSE
+	CFLAG:MASTER:9 = ARG:0
+	RETURN 3
+ENDIF
