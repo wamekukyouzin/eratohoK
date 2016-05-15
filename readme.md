@@ -9,9 +9,10 @@ eratohoK by 喚く狂人
 # キャラの能力について
 キャラのデータは作者の趣味に合わせて改変されており、他のバリアントと素質が違っていたりします。
 
-<https://docs.google.com/spreadsheets/d/1cKeuMvkQAOYJuTPucaMD-2llKT_WRG3xemrBh0u6R-c/edit?usp=sharing>
+[こちら](https://docs.google.com/spreadsheets/d/1cKeuMvkQAOYJuTPucaMD-2llKT_WRG3xemrBh0u6R-c/edit?usp=sharing)から閲覧できます。ただし開発に使用しているので、開発中の未発表バージョンのデータになったりすることがあります。
 
-こちらから閲覧できます。ただし開発に使用しているので、開発中の未発表バージョンのデータになったりすることがあります。
+# リポジトリ
+このバリアントはGitを用い開発されています。開発に利用される場合は、[こちら](https://github.com/wamekukyouzin/eratohoK/)のリポジトリをforkしてください。
 
 # 更新について
 各更新での変更は同梱のCHAGELOG.MDをご覧下さい。

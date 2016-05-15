@@ -1,0 +1,187 @@
+﻿;桃源香
+
+;-------------------------------------------------
+;コマンド名称
+;-------------------------------------------------
+@COM_NAME76
+LOCALS:0 = 桃源香
+
+RESULTS:0 = %LOCALS:0%を焚く
+RESULTS:1 = %LOCALS:0%を焚かされる
+RESULTS:2 = %LOCALS:0%を焚かせる
+RESULTS:3 = %LOCALS:0%を焚かれる
+RESULTS:4 = %LOCALS:0%を焚かせる
+RESULTS:5 = %LOCALS:0%使用見せつけ
+
+;-------------------------------------------------
+;選択可否判定
+;-------------------------------------------------
+@COM_ABLE76
+;共通部分
+CALL COM_ABLE_COMMON(76)
+SIF RESULT == 0
+	RETURN 0
+	;プレイヤーは最大で1人まで
+	SIF MPLY_NUM <= 0 || MPLY_NUM > 1
+		RETURN 0
+	;ターゲットは最大で1人まで
+	SIF MTAR_NUM <= 0 || MTAR_NUM > 1
+		RETURN 0
+	;プレイヤーが行動不能なら不可
+	SIF !IS_PLAYABLE(MPLY:0)
+		RETURN 0
+	;桃源香が必要
+	SIF ITEM:桃源香 <= 0 && ITEM:A_桃源香 <= 0
+		RETURN 0
+	;既にターゲットが桃源香を使われているなら不可
+	SIF TCVAR:(MTAR:0):68
+		RETURN 0
+	;プレイヤーが拘束中なら不可
+	SIF IS_BIND(MPLY:0)
+		RETURN 0
+	;プレイヤーが顔面騎乗されているなら不可
+	SIF IS_RIDDEN(MPLY:0)
+		RETURN 0
+	;プレイヤーがクンニ・フェラ・パイズリ中なら不可
+	SIF IS_EQUIP_PLAYER(MPLY:0, 2, 11, 12)
+		RETURN 0
+	RETURN 1
+
+;-------------------------------------------------
+;メイン処理
+;-------------------------------------------------
+@COM76
+#DIM 対象
+
+;実行判定
+CALL COM_ORDER_COMMON
+SIF RESULT == 0
+	RETURN 0
+
+;媚薬を１つ減少させる(追加アイテム使用時は減少させない)
+IF ITEM:A_桃源香 <= 0
+	ITEM:桃源香 = MAX(ITEM:桃源香 - 1, 0)
+ENDIF
+
+
+;●参加者全員の処理
+;桃源香使用フラグを立てる
+FOR 対象, 0, CHARANUM
+	IF CFLAG:(対象):6
+		TCVAR:(対象):68 = 1
+	ENDIF
+NEXT
+
+;●プレイヤー側の処理
+
+SOURCE:(MPLY:0):逸脱 = 50
+
+
+;●ターゲット側の処理
+
+SOURCE:(MTAR:0):逸脱 = 100
+
+SELECTCASE ABL:(MTAR:0):欲望
+	CASE 0
+		SOURCE:(MTAR:0):反感 = 200
+		SOURCE:(MTAR:0):不安 = 400
+	CASE 1
+		SOURCE:(MTAR:0):反感 = 150
+		SOURCE:(MTAR:0):不安 = 300
+	CASE 2
+		SOURCE:(MTAR:0):反感 = 80
+		SOURCE:(MTAR:0):不安 = 150
+	CASE 3
+		SOURCE:(MTAR:0):反感 = 50
+		SOURCE:(MTAR:0):不安 = 100
+	CASEELSE
+		SOURCE:(MTAR:0):反感 = MAX(30 - (ABL:(MTAR:0):欲望 - 5) * 20, 0)
+		SOURCE:(MTAR:0):不安 = MAX(50 - (ABL:(MTAR:0):欲望 - 5) * 20, 0)
+ENDSELECT
+
+;主導権に応じた優越・屈従のソース追加
+CALL ADD_SOURCE_INITIATIVE_U(MTAR:0, 30, 40)
+
+;射精箇所と対象をセット
+CALL STACK_SPERM(MPLY:0, MTAR:0, 0)
+
+;主導度変化基準値
+TFLAG:49 = 1
+
+;倒錯度変化基準値
+TFLAG:50 = 4
+
+;レズ・ＢＬ経験基準値
+TFLAG:51 = 0
+
+;経過時間を無理矢理1減らす
+TFLAG:55 --
+
+RETURN 1
+
+;-------------------------------------------------
+;固有の実行判定(プレイヤー側)
+;-------------------------------------------------
+@COM_ORDER_PLAYER76(ARG:0)
+;実行値の設定
+TCVAR:(ARG:0):25 = 65
+
+;共通部分
+CALL COM_ORDER(ARG:0)
+
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲望Lv{ABL:(ARG:0):欲望}", ABL:(ARG:0):欲望 * 1)
+CALL COM_ORDER_ELEMENT(ARG:0, @"奉仕Lv{ABL:(ARG:0):奉仕}", ABL:(ARG:0):奉仕 * 4)
+
+LOCAL:0 = GET_PALAMLV(PALAM:(ARG:0):欲情)
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲情Lv{LOCAL:0}", MIN(LOCAL:0 * 1, 10))
+
+IF TALENT:(ARG:0):恥じらい
+	CALL COM_ORDER_ELEMENT(ARG:0, "恥じらい", -1)
+ENDIF
+IF TALENT:(ARG:0):献身的
+	CALL COM_ORDER_ELEMENT(ARG:0, "献身的", 6)
+ENDIF
+IF TALENT:(ARG:0):快感の否定
+	CALL COM_ORDER_ELEMENT(ARG:0, "快感の否定", -1)
+ENDIF
+
+IF !TALENT:(ARG:0):合意
+	CALL COM_ORDER_ELEMENT(ARG:0, "合意なし", -10)
+ENDIF
+
+RETURN 1
+
+;-------------------------------------------------
+;地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE76
+SELECTCASE GET_COM_INITIATIVE()
+	;プレイヤーに主導権
+	CASE 0
+		PRINTFORMW %ANAME(MPLY:0)%は桃源香の封を解い%TARGET_STR("た", "てきた")%…
+	;ターゲットに主導権
+	CASE 1
+		PRINTFORML %ANAME(MTAR:0)%は%ANAME(MPLY:0)%に桃源香をように命令した
+		PRINTFORMW %ANAME(MPLY:0)%は言われるまま香炉の封を解いた…
+	;第三者に主導権
+	CASEELSE
+		PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に対して、桃源香を使うように命令した
+		PRINTFORMW %ANAME(MPLY:0)%は言われるまま香炉の封を解いた…
+ENDSELECT
+;-------------------------------------------------
+;地の文(実行後)
+;-------------------------------------------------
+@COM_TEXT_AFTER76
+IF MTAR:0 != MASTER
+	IF (TCVAR:(MTAR:0):52) || (TCVAR:(MTAR:0):53 == 1)
+		PRINTFORML 意識を失っているか否かに関わらず、充満する桃色の香りが%ANAME(MTAR:0)%たちの体を熱く火照らせていく…
+	ELSE
+		SIF TCVAR:(MTAR:0):51
+			PRINT 疲れて否が応でも吸ってしまう
+		IF TALENT:(MTAR:0):妖術知識 || TALENT:(MTAR:0):技師
+			PRINTFORML 周囲を漂う甘い香りに%ANAME(MTAR:0)%が気付いた時には、既に身体の疼きを止められる者は誰一人居なかった…
+		ELSE
+			PRINTFORML 辺りに充満する妖艶な香りが、その場に居る者の肉体と思考を桃色に染め上げていく…
+		ENDIF
+	ENDIF
+ENDIF
