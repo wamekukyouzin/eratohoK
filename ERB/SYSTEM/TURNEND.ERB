@@ -187,6 +187,8 @@ IF DIPLOMACY_TRAINED_DAY < 0 && !FLAG:調教要求フラグ
 	RETURN
 ENDIF
 
+$SKIPPED
+
 ;強制調教フラグが立っているなら即時調教モードに入る
 IF FLAG:31 == 1
 	FLAG:31 = 0
@@ -202,6 +204,7 @@ IF FLAG:31 == 1
 		TIME = 0
 		SHOP_TIME = CALC_SHOP_TIME()
 	ENDIF
+	FLAG:イベント発生禁止 = 1
 	CALL START_TRAIN_COMMON
 ELSEIF FLAG:31 == 2
 	FLAG:31 = 0
@@ -216,10 +219,12 @@ ELSEIF FLAG:31 == 2
 		TIME = 0
 		SHOP_TIME = CALC_SHOP_TIME()
 	ENDIF
+	FLAG:イベント発生禁止 = 1
 	CALL START_TRAIN_COMMON
 ELSE
 	SIF FLAG:調教要求フラグ
 		FLAG:調教要求フラグ = 0
+	FLAG:イベント発生禁止 = 0
 	;一応謎勢力にあなたが存在することが無いようにおまじない
 	SIF CFLAG:MASTER:1 == 0 && CFLAG:MASTER:9 == 0
 		TIME = 1
@@ -232,6 +237,10 @@ ENDIF
 @TURNEND_LIFE
 SHOP_TIME = 0
 SHOP_WORK_COUNT = 0
+
+SIF FLAG:イベント発生禁止
+	GOTO SKIPPED
+
 ;夜に起こるイベント(夜這いなど)
 CALL EVENT_NIGHT
 
@@ -278,6 +287,8 @@ CALL SLAVEMARKET_PREPARE_GOODS
 ;デイリーイベント
 CALL EVENT_DAILY
 
+$SKIPPED
+
 ;統一後の場合
 IF FLAG:28
 	;一期終了時の処理
@@ -319,6 +330,9 @@ ENDIF
 ;-------------------------------------------------
 @TURNEND_POLITICS
 
+SIF FLAG:イベント発生禁止
+	GOTO SKIPPED
+
 ; 防衛兵と部隊兵を保存
 ARRAYCOPY "CITY_SOLDIER", "CITY_SOLDIER_PREV"
 FOR LOCAL:0, 0, MAX_COUNTRY
@@ -350,6 +364,8 @@ CALL SLG_DAILY
 
 ;一期終了時の処理
 CALL TURNEND_COMMON
+
+$SKIPPED
 
 ;時間を進める
 DAY ++
