@@ -2,6 +2,7 @@
 #DIM 対象
 #DIMS 賞金首, 6
 #DIM 賞金額, 6
+#DIM COOL_TIME
 
 賞金首:0 = 巨大スライム
 賞金額:0 = 20000
@@ -86,11 +87,15 @@ ELSE
 	LOCAL:2 = RESULT
 	PRINTFORML %賞金首:RESULT%に決めた
 	PRINTFORMW %ANAME(対象)%は早速討伐に向かった
-	PRINTFORML ・
-	PRINTFORML ・
+	PRINTFORML ・・・
+	PRINTFORML ・・
 	PRINTFORMW ・
-	;判定は結構適当、良い感じのバランスが分からんちん
-	IF (ABL:対象:武闘 * (RAND:5 + 1)) + (ABL:対象:知略 * (RAND:3 + 1)) > LOCAL:1 / 100
+	;判定処理、
+	;武闘の基準値、10%単位で最大4倍。ただし、暗殺持ちは+100％
+	LOCAL:3 = ABL:対象:武闘 * (RAND:31 + 10 + GETBIT(TALENT:対象:ＳＬＧ素質, 素質_ＳＬＧ_暗殺) * 10) / 10
+	;知略の基準値、10%単位で最大3倍。ただし、策士持ちは+150％
+	LOCAL:4 = ABL:対象:知略 * (RAND:21 + 10 + GETBIT(TALENT:対象:ＳＬＧ素質, 素質_ＳＬＧ_策士) * 15) / 10
+	IF LOCAL:3 + LOCAL:4 > LOCAL:1 / 100
 		PRINTFORMW %ANAME(対象)%は見事%賞金首:RESULT%を討伐した！
 		PRINTFORMW 賞金を手に入れた！
 		PRINTFORMW 更に自勢力の評判が上がった！
@@ -102,7 +107,7 @@ ELSE
 		RETURN
 	ELSE
 		PRINTFORMW %ANAME(対象)%は返り討ちにされてしまった
-		IF IS_FEMALE(MASTER)
+		IF IS_FEMALE(MASTER) && !CONFIG:200
 			PRINTFORMW %賞金首:RESULT%はぐったりと横たわる%ANAME(対象)%を巣穴へと引きずって行った
 			PRINTFORML 
 			PRINTFORML 
@@ -423,11 +428,13 @@ ELSE
 					CALL FORCE_FUCK(対象, -1, @"鬼の\@RAND:2 ? ペニス # 唇\@", @"鬼", RAND:2 + 1)
 					CALL FORCE_FUCK(対象, -1, @"鬼の\@RAND:2 ? ペニス # 唇\@", @"鬼", RAND:2 + 1)
 			ENDSELECT
-			PRINTFORMW 散々凌辱された後、%ANAME(対象)%はボロボロの身体を引きずりつつ何とか逃げ帰った
+			PRINT 散々凌辱された後、
 		ENDIF
-		CALL ADD_COOLTIME(対象, 2)
+		PRINTFORML %ANAME(対象)%はボロボロの身体を引きずりつつ何とか逃げ帰った
+		COOL_TIME = RAND(2, CONFIG:200 ? 5 # 3)
+		CALL ADD_COOLTIME(対象, COOL_TIME)
 		SETCOLOR COLOR("オレンジ")
-		PRINTFORMW %ANAME(対象)%は2ターンのクールダウンになった
+		PRINTFORMW %ANAME(対象)%は治療のため{COOL_TIME}ターンの休養をとった
 		RESETCOLOR
 	ENDIF
 ENDIF
