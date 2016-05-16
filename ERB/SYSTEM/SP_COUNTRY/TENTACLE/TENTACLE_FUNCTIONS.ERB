@@ -1,14 +1,18 @@
 ﻿;--------------------------------------
-;触手出現イベント
+;蜂起イベント用メッセージ関数
 ;出現できたら1、できなければ0をかえす
-;都市 = 最初に奪う都市 指定しなければ野盗と同一の方式
-;メッセージフラグ = 汎用メッセージ表示フラグ　指定しなければ表示
 ;--------------------------------------
-@TENTACLE_RISE(都市:0 = -1, メッセージフラグ = 1)
+@TENTACLE_RISE()
 #DIM 触手
-#DIM メッセージフラグ
-#DIM 都市, 10
-#DIM 勢力
+
+;既に出現しているか、触手なし設定なら発動しない
+SIF SP_COUNTRY_APPEARED:特殊勢力_触手 || !SP_COUNTRY_RANK:(特殊勢力_触手)
+	RETURN -1
+
+;15期以降、確率判定をクリアしていること
+SIF !(DAY >= 15 && DAY - 8 > RAND:100)
+	RETURN -1
+
 ;触手勢力を作成
 CALL TENTACLE_INIT()
 触手 = RESULT
@@ -16,55 +20,29 @@ CALL TENTACLE_INIT()
 SIF 触手 == -1
 	RETURN 0
 
-;引数で奪う都市が指定されていなければ、BANDIT_RISE_SELECT_CITY()を流用
-IF 都市:0 < 0 || 都市:0 >= CITY_NUM
-	VARSET 都市, -1
-	CALL BANDIT_RISE_SELECT_CITY()
-	FOR LOCAL, 0, VARSIZE("都市")
-		SIF RESULT:LOCAL == -1
-			BREAK
-		都市:LOCAL = RESULT:LOCAL
-	NEXT
-	;多分ないはずなんだけど、奪えなかったら諦め
-	IF 都市:0 == -1
-		RETURN
-	ENDIF
-	FOR LOCAL, 0, VARSIZE("都市")
-		SIF 都市:LOCAL == -1
-			CONTINUE
-		CALL TAKEOVER_CITY_FROM_NO(触手, 都市:LOCAL)
-	NEXT
-ELSE
-	;なんか変だったがこういうことだろうか？
-	;都市:0を強制接収した上で該当勢力の都市をランダムに奪う
-	勢力 = CITY_OWNER:(都市:0)
-	CALL TAKEOVER_CITY_FROM_NO(触手, 都市)
-	FOR LOCAL, 0, SP_COUNTRY_RANK:(特殊勢力_触手)
-		SIF GET_OWN_CITY(勢力) <= 3
-			BREAK
-		FOR LOCAL:1, 1, MAX_CITY
-			IF CITY_OWNER:(LOCAL:1) == 勢力 && !RAND:3
-				CALL TAKEOVER_CITY_FROM_NO(触手, LOCAL:1)
-				BREAK
-			ENDIF
-		NEXT
-	NEXT
-ENDIF
+CALL SP_COUNTRY_RISE(触手)
 
-COUNTRY_IS_CLOSED:触手 = 1
+SIF !RESULT
+	RETURN 0
 
-IF メッセージフラグ
-	DRAWLINE
-	SETCOLOR COLOR("警告")
-	PRINTFORMW 突如として、地の底から無数の触手が湧きだしてきました！
-	PRINTFORMW %CITY_NAME:(都市)%\@ GET_OWN_CITY(触手) > 1 ? など # \@が占領されたようです
-	PRINTFORMW 触手は幻想郷の人妖を乗っ取り、手駒とすることで、その勢力を強めています
-	PRINTFORMW このままでは危険だと、幻想郷の各勢力は撃退に乗り出したようです……
-	RESETCOLOR
-	DRAWLINE
-ENDIF
-
+SP_COUNTRY_APPEARED:特殊勢力_触手 = 1
 RETURN 1
+
+;---------------------
+;蜂起イベント用メッセージ関数
+;---------------------
+@TENTACLE_RISE_MESSAGE(勢力, 対象)
+#DIM 勢力
+#DIM 対象
+DRAWLINE
+SETCOLOR COLOR("警告")
+PRINTFORMW 突如として、地の底から無数の触手が湧きだしてきました！
+PRINTFORMW %CITY_NAME:(対象)%\@ GET_OWN_CITY(勢力) > 1 ? など # \@が占領されたようです
+PRINTFORMW 触手は幻想郷の人妖を乗っ取り、手駒とすることで、その勢力を強めています
+PRINTFORMW このままでは危険だと、幻想郷の各勢力は撃退に乗り出したようです……
+RESETCOLOR
+DRAWLINE
+
 
 ;--------------------------------------
 ;ターンエンド時の触手の処理
@@ -74,8 +52,8 @@ RETURN 1
 
 IF !SP_COUNTRY_APPEARED:特殊勢力_触手
 	;触手の蜂起
-	CALL SLG_TENTACLE_RISE
-	RETURN -1
+	CALL TENTACLE_RISE
+	RETURN RESULT
 ENDIF
 
 IF SP_COUNTRY_APPEARED:特殊勢力_触手 == 1
@@ -124,8 +102,9 @@ IF LOCAL:4 == -1
 ENDIF
 COUNTRY_COLOR:(LOCAL:4) = 0xFF1493
 COUNTRY_SOLDIER:(LOCAL:4) = 20000 + SP_COUNTRY_RANK:(特殊勢力_触手) * 2000
-COUNTRY_AI_TYPE:(LOCAL:4) = AI_蛮行
+COUNTRY_AI_TYPE:(LOCAL:4) = AI_好戦
 COUNTRY_EVENT_ID:(LOCAL:4) = SP_COUNTRY_ID:(特殊勢力_触手)
+COUNTRY_IS_CLOSED:(LOCAL:4) = 1
 
 CALL ADD_VOID_CHARA()
 LOCAL = RESULT
@@ -228,28 +207,8 @@ FOR LCOUNT, 0, 14
 	CFLAG:LOCAL:1 = LOCAL:4
 	CALL NEWCHARA_INIT(LOCAL)
 NEXT
-SP_COUNTRY_APPEARED:特殊勢力_触手 = 1
 
 RETURN LOCAL:4
-
-;--------------------------------------
-;触手の侵攻イベントを実行するSLGイベント。
-;判定通ったら素のTENTACLE_RISEを呼ぶだけ。
-;25期以降、50期までに徐々に確率が高まっていく。既に発生していたらなし。
-;--------------------------------------
-@SLG_TENTACLE_RISE()
-
-;既に出現しているか、触手なし設定なら発動しない
-SIF SP_COUNTRY_APPEARED:特殊勢力_触手 || !SP_COUNTRY_RANK:(特殊勢力_触手)
-	RETURN -1
-
-;15期以降、確率判定をクリアしていること
-SIF !(DAY >= 15 && DAY - 8 > RAND:100)
-	RETURN -1
-
-;出現場所はランダム
-CALL TENTACLE_RISE()
-
 
 ;--------------------------------------
 ;触手勢力用の定期イベント。

@@ -2,11 +2,17 @@
 ;自警団出現イベント
 ;出現できたら1、できなければ0をかえす
 ;--------------------------------------
-@VIGILANTE_RISE(都市:0, 都市:1, 都市:2, 都市:3, 都市:4, 都市:5, メッセージフラグ = 1)
+@VIGILANTE_RISE()
 #DIM 自警団
-#DIM メッセージフラグ
-#DIM 都市, 6
-#DIM 勢力
+
+;既に出現しているか、自警団なし設定なら発動しない
+SIF SP_COUNTRY_APPEARED:特殊勢力_自警団 || !SP_COUNTRY_RANK:(特殊勢力_自警団)
+	RETURN -1
+
+;15期以降、確率判定をクリアしていること
+SIF !(DAY >= 15 && DAY - 8 > RAND:100)
+	RETURN -1
+
 ;自警団勢力を作成
 CALL VIGILANTE_INIT()
 自警団 = RESULT
@@ -14,23 +20,41 @@ CALL VIGILANTE_INIT()
 SIF 自警団 == -1
 	RETURN 0
 
-FOR LOCAL, 0, VARSIZE("都市")
-	勢力 = CITY_OWNER:(都市:LOCAL)
-	SIF IS_COUNTRY(勢力) && GET_OWN_CITY(勢力) <= 2
-		CONTINUE
-	CALL TAKEOVER_CITY_FROM_NO(自警団, 都市:LOCAL)
-NEXT
+CALL SP_COUNTRY_RISE(自警団)
 
-IF メッセージフラグ
-	DRAWLINE
-	SETCOLOR COLOR("警告")
-	PRINTFORMW 荒れる幻想郷を憂えた里の勇士たちが、人里を中心に自警団を作り上げました！
-	PRINTFORMW 自分たちこそが幻想郷を平和に治められると考えた彼らは、より勢力を伸ばそうとしているようです……
-	RESETCOLOR
-	DRAWLINE
-ENDIF
+SIF !RESULT
+	RETURN 0
 
+SP_COUNTRY_APPEARED:特殊勢力_自警団 = 1
 RETURN 1
+
+
+;--------------------------------------
+;蜂起イベント用都市選択処理
+;--------------------------------------
+@VIGILANTE_RISE_SELECT_CITY()
+#DIM 住宅街
+住宅街 = GET_CITYNUMBER("人里住宅街")
+IF 住宅街 && (!IS_COUNTRY(CITY_OWNER:住宅街) || GET_OWN_CITY(CITY_OWNER:住宅街) >= 2)
+	LOCAL = 住宅街
+ELSE
+	CALL SP_COUNTRY_RISE_SELECT_CITY()
+	LOCAL = RESULT
+ENDIF
+RETURN LOCAL
+
+;--------------------------------------
+;蜂起イベント用メッセージ関数
+;--------------------------------------
+@VIGILANTE_RISE_MESSAGE(勢力, 対象)
+#DIM 勢力
+#DIM 対象
+DRAWLINE
+SETCOLOR COLOR("警告")
+PRINTFORMW 荒れる幻想郷を憂う勇士たちが、%CITY_NAME:(対象)%\@ GET_OWN_CITY(勢力) > 1 ? など # \@で自警団を立ち上げました！
+PRINTFORMW 自分たちこそ幻想郷を平和に治められると考えた彼らは、より勢力を伸ばそうとしているようです……
+RESETCOLOR
+DRAWLINE
 
 ;--------------------------------------
 ;ターンエンド時の自警団の処理
@@ -40,8 +64,8 @@ RETURN 1
 
 IF !SP_COUNTRY_APPEARED:特殊勢力_自警団
 	;自警団の蜂起
-	CALL SLG_VIGILANTE_RISE
-	RETURN -1
+	CALL VIGILANTE_RISE
+	RETURN RESULT
 ENDIF
 
 IF SP_COUNTRY_APPEARED:特殊勢力_自警団 == 1
@@ -166,39 +190,6 @@ NEXT
 SP_COUNTRY_APPEARED:特殊勢力_自警団 = 1
 
 RETURN LOCAL:4
-
-;--------------------------------------
-;自警団の侵攻イベントを実行するSLGイベント。
-;判定通ったら素のVIGILANTE_RISEを呼ぶだけ。
-;--------------------------------------
-@SLG_VIGILANTE_RISE()
-#DIM 住宅街
-#DIM 寺子屋
-#DIM 阿求屋敷
-#DIM 霧雨店
-#DIM 畑
-#DIM 鈴奈庵
-
-;既に出現しているか、自警団なし設定なら発動しない
-SIF SP_COUNTRY_APPEARED:特殊勢力_自警団 || !SP_COUNTRY_RANK:(特殊勢力_自警団)
-	RETURN -1
-
-;15期以降、確率判定をクリアしていること
-SIF !(DAY >= 15 && DAY - 8 > RAND:100)
-	RETURN -1
-
-住宅街 = GET_CITYNUMBER("人里住宅街")
-寺子屋 = GET_CITYNUMBER("寺子屋")
-阿求屋敷 = GET_CITYNUMBER("阿求屋敷")
-霧雨店 = GET_CITYNUMBER("霧雨店")
-畑 = GET_CITYNUMBER("人間の里の畑")
-寺子屋 = GET_CITYNUMBER("寺子屋")
-
-;どれか一つは都市があること
-SIF ALLSAMES(0, 住宅街, 寺子屋, 阿求屋敷, 霧雨店, 畑, 寺子屋)
-	RETURN -1
-
-CALL VIGILANTE_RISE(住宅街, 寺子屋, 阿求屋敷, 霧雨店, 畑, 寺子屋)
 
 ;--------------------------------------
 ;自警団の定期イベント。

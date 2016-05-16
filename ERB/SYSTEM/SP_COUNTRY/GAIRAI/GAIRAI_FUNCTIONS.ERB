@@ -1,69 +1,65 @@
 ﻿;--------------------------------------
 ;外来勢力出現イベント
 ;出現できたら1、できなければ0をかえす
-;都市 = 最初に奪う都市 指定しなければ野盗と同一の方式
-;メッセージフラグ = 汎用メッセージ表示フラグ　指定しなければ表示
 ;--------------------------------------
-@GAIRAI_RISE(都市:0 = -1, メッセージフラグ = 1)
-#DIM 外来
-#DIM 勢力
-#DIM メッセージフラグ
-#DIM 都市, 10
+@GAIRAI_RISE()
+#DIM 外来人
+
+;既に出現しているか、外来人なし設定なら発動しない
+SIF SP_COUNTRY_APPEARED:特殊勢力_外来人 || !SP_COUNTRY_RANK:(特殊勢力_外来人)
+	RETURN -1
+
+;20期以降、確率判定をクリアしていること
+SIF !(DAY >= 20 && DAY - 15 > RAND:100)
+	RETURN -1
 
 ;外来勢力を作成
 CALL GAIRAI_INIT()
-外来 = RESULT
+外来人 = RESULT
 ;作れなかったら戻す
-SIF 外来 == -1
+SIF 外来人 == -1
 	RETURN 0
 
-;引数で奪う都市が指定されていなければ、BANDIT_RISE_SELECT_CITY()を流用
-IF 都市:0 < 0 || 都市:0 >= CITY_NUM
-	VARSET 都市, -1
-	CALL BANDIT_RISE_SELECT_CITY()
-	FOR LOCAL, 0, VARSIZE("都市")
-		SIF RESULT:LOCAL == -1
-			BREAK
-		都市:LOCAL = RESULT:LOCAL
-	NEXT
-	;多分ないはずなんだけど、奪えなかったら諦め
-	IF 都市:0 == -1
-		RETURN
-	ENDIF
-	FOR LOCAL, 0, VARSIZE("都市")
-		SIF 都市:LOCAL == -1
-			BREAK
-		CALL TAKEOVER_CITY_FROM_NO(外来, 都市:LOCAL)
-	NEXT
-ELSE
-	;なんか変だったがこういうことだろうか？
-	;都市:0を強制接収した上で該当勢力の都市をランダムに奪う
-	勢力 = CITY_OWNER:(都市:0)
-	CALL TAKEOVER_CITY_FROM_NO(外来, 都市)
-	FOR LOCAL, 0, SP_COUNTRY_RANK:(特殊勢力_外来人)
-		SIF GET_OWN_CITY(勢力) <= 3
-			BREAK
-		FOR LOCAL:1, 1, MAX_CITY
-			IF CITY_OWNER:(LOCAL:1) == 勢力 && !RAND:3
-				CALL TAKEOVER_CITY_FROM_NO(外来, LOCAL:1)
-				BREAK
-			ENDIF
-		NEXT
-	NEXT
-ENDIF
+CALL SP_COUNTRY_RISE(外来人)
 
+SIF !RESULT
+	RETURN 0
 
-IF メッセージフラグ
-	DRAWLINE
-	SETCOLOR COLOR("警告")
-	PRINTFORMW 結界の外から突如、外来人が雪崩のように攻めこんできました！
-	PRINTFORMW 彼らの電撃的な作戦行動により、%CITY_NAME:(都市)%\@ GET_OWN_CITY(外来) > 1 ? など # \@が奪われました
-	PRINTFORMW これに伴い、幻想郷の各勢力が異変解決の準備を始めたようです…
-	RESETCOLOR
-	DRAWLINE
-ENDIF
-
+SP_COUNTRY_APPEARED:特殊勢力_外来人 = 1
 RETURN 1
+
+;--------------------------------------
+;蜂起イベント用都市選択処理
+;--------------------------------------
+@GAIRAI_RISE_SELECT_CITY()
+#DIM 結界
+#DIM 所有者
+;博麗大結界の所有者が3都市以上所持していればそこから
+結界 = GET_CITYNUMBER("博麗大結界")
+IF 結界 && (!IS_COUNTRY(CITY_OWNER:結界) || GET_OWN_CITY(CITY_OWNER:結界) >= 3)
+	LOCAL = 結界
+;そうでなければランダム
+ELSE
+	CALL SP_COUNTRY_RISE_SELECT_CITY()
+	LOCAL = RESULT
+ENDIF
+
+RETURN RESULT
+
+
+;---------------------
+;蜂起イベント用メッセージ関数
+;---------------------
+@GAIRAI_RISE_MESSAGE(勢力, 対象)
+#DIM 勢力
+#DIM 対象
+DRAWLINE
+SETCOLOR COLOR("警告")
+PRINTFORMW 結界の外から突如、外来人が雪崩のように攻めこんできました！
+PRINTFORMW 彼らの電撃的な作戦行動により、%CITY_NAME:(対象)%\@ GET_OWN_CITY(勢力) > 1 ? など # \@が奪われました
+PRINTFORMW これに伴い、幻想郷の各勢力が異変解決の準備を始めたようです…
+RESETCOLOR
+DRAWLINE
 
 ;--------------------------------------
 ;ターンエンド時の外来兵の処理
@@ -73,8 +69,8 @@ RETURN 1
 
 IF !SP_COUNTRY_APPEARED:特殊勢力_外来人
 	;外来人の蜂起
-	CALL SLG_GAIRAI_RISE
-	RETURN -1
+	CALL GAIRAI_RISE
+	RETURN RESULT
 ENDIF
 
 IF SP_COUNTRY_APPEARED:特殊勢力_外来人 == 1
@@ -232,44 +228,6 @@ NEXT
 SP_COUNTRY_APPEARED:特殊勢力_外来人 = 1
 
 RETURN LOCAL:4
-
-;--------------------------------------
-;外来人の侵攻イベントを実行するSLGイベント。
-;判定通ったら素のGAIRAI_RISEを呼ぶだけ。
-;--------------------------------------
-@SLG_GAIRAI_RISE()
-#DIM 結界
-#DIM 所有者
-
-;既に出現しているか、外来人なし設定なら発動しない
-SIF SP_COUNTRY_APPEARED:特殊勢力_外来人 || !SP_COUNTRY_RANK:(特殊勢力_外来人)
-	RETURN -1
-
-;20期以降、確率判定をクリアしていること
-SIF !(DAY >= 20 && DAY - 15 > RAND:100)
-	RETURN -1
-
-;博麗大結界から蜂起しようとする
-結界 = GET_CITYNUMBER("博麗大結界")
-IF 結界 && GET_OWN_CITY(CITY_OWNER:(結界)) >= 5
-	所有者 = CITY_OWNER:(結界)
-	CALL GAIRAI_RISE(結界)
-	IF RESULT
-		IF IS_COUNTRY(所有者)
-			FOR LOCAL, 0, CHARANUM
-				IF CFLAG:LOCAL:所属 == 所有者 && GET_COUNTRY_BOSS(CFLAG:LOCAL:所属) != LOCAL && !CFLAG:LOCAL:捕虜先 && !RAND:4
-					CALL COLORPRINTFORM(@"%ANAME(LOCAL)%は研究サンプルとして拉致されました", COLOR("警告"), "W")
-					CFLAG:LOCAL:捕虜先 = CITY_OWNER:(結界)
-					CALL FORCE_FREE(LOCAL)
-				ENDIF
-			NEXT
-		ENDIF
-	ENDIF
-;博麗大結界の存在しないマップなら素のGAIRAI_RISE
-ELSEIF 結界 == 0
-	CALL GAIRAI_RISE()
-ENDIF
-
 
 ;--------------------------------------
 ;外来人によるブレインコントロールイベント
