@@ -1,97 +1,77 @@
 ﻿;-------------------------------------------------
 ;調教メッセージ
-;SLG_TURNENDより呼ばれる
 ;-------------------------------------------------
 @TRAIN_BY_BANDIT()
 #DIM 野盗
 #DIM 対象
-VARSET LOCAL
-
-SIF CONFIG:200
-	RETURN -1
 
 野盗 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗))
+
+SIF 野盗 == -1 || CONFIG:200
+	RETURN -1
+
+
 FOR LOCAL:0, 0, CHARANUM
 	対象 = LOCAL:0
-	IF (CFLAG:対象:所属 == 野盗 && !CFLAG:対象:捕虜先 || CFLAG:対象:9 == 野盗) && NO:対象 < 2000
-		;個人的な嗜好による改造
+	SIF !IS_TRAIN_BY_SP_COUNTRY(対象, 野盗)
+		CONTINUE
+	IF !LOCAL:1
+		DRAWLINE
+		PRINTFORMW 野盗に囚われた各国の仕官が陵辱されているようです……
+		PRINTFORML
+		LOCAL:1 = 1
+	ENDIF
+
+	;メッセ表示
+	CALL BANDIT_TRAIN_MSG(対象)
+	CALL FORCE_FUCK(対象, SP_NAME_TO_ID("野盗"), @"野盗の\@ RAND:2 ? ペニス # 唇\@", "野盗", 2, SP_TRAIN_IS_DECREASE_CFLAG(対象, 野盗))
+	CFLAG:(LOCAL:0):調教カウンタ ++
+	
+	;あまり長く捕らえられていると寝返る
+	IF IS_BETRAY_TO_SP_COUNTRY(対象, 野盗)
+		SETCOLOR COLOR("警告")
 		IF !GETBIT(TALENT:対象:特殊勢力陥落系, 特殊勢力_野盗)
-			;マスターは条件を満たしても野盗の士官スタートなら抜ける
-			SIF 対象 == MASTER && BANDIT_START == 1
-				CONTINUE
-			;軟禁中はスキップ
-			SIF CFLAG:対象:9 == 野盗 && CFLAG:対象:29
-				CONTINUE
-			;MASTER以外の身内はスキップ
-			SIF CFLAG:対象:所属 == 野盗 && 対象 != MASTER
-				CONTINUE
+			PRINTFORMW ……長きにわたる調教生活により、%ANAME(対象)%の心は折れてしまったようだ
+			SIF IS_LOVER(対象)
+				PRINTFORML %ANAME(MASTER)%への愛情よりも、野盗どもに使われる快楽が上回ったのだ
+			PRINTFORMW %ANAME(対象)%は野盗の肉便器となり、寝返った
+		ELSE
+			PRINTFORMW ……野盗の調教を受け、%ANAME(対象)%は彼らの肉便器に過ぎない己の身分を思い出した
+			PRINTFORMW %ANAME(対象)%は野盗の肉便器に復職した
 		ENDIF
-		;調教の様子を表示
-		IF TRAIN_IS_SHOW_TEXT(対象) && (!GETBIT(TALENT:対象:特殊勢力陥落系, 特殊勢力_野盗) || (GETBIT(TALENT:対象:特殊勢力陥落系, 特殊勢力_野盗) && CFLAG:対象:所属 != 野盗) || (GETBIT(TALENT:対象:特殊勢力陥落系, 特殊勢力_野盗) && !RAND:3))
-			IF !LOCAL:1
-				DRAWLINE
-				PRINTFORML 野盗に囚われた各国の仕官が陵辱されているようです……
-				PRINTFORML
-				LOCAL:1 = 1
+		RESETCOLOR
+		
+		CALL KOJO_SPECIAL_FALLEN_EVENT(対象, SP_COUNTRY_ID:(特殊勢力_野盗))
+
+		CFLAG:対象:所属 = 野盗
+		CFLAG:対象:捕虜先 = 0
+		SIF !SP_TRAIN_IS_DECREASE_CFLAG(対象, 野盗)
+			CALL LOSE_RELATION_TALENT(対象)
+		SETBIT TALENT:対象:特殊勢力陥落系, 特殊勢力_野盗
+
+		$HUKUJU_LOOP
+		SELECTCASE RAND:10
+			CASE IS < 4
+				CALL SET_PIERCE_RANDOM(対象, 0)
+				SIF RESULT != -1
+					CALL COLORPRINTFORM(@"%ANAME(対象)%の%GET_PIERCE_NAME(RESULT)%に、服従の証のピアスが取り付けられた……", COLOR("桃"), "W")
+			CASE IS < 7
+				SIF IS_MALE(対象)
+					GOTO HUKUJU_LOOP
+				CALL SET_TATOO_RANDOM(対象, STR_FOR_TATOO(-1), 0)
+				SIF RESULT != -1
+					CALL COLORPRINTFORM(@"%ANAME(対象)%の%GET_TATOO_NAME(RESULT)%に、「%TATOO:対象:RESULT%」とタトゥーが刻まれた……", COLOR("桃"), "W")
+			CASEELSE
+				IF GET_INMOU(対象) >= 陰毛_標準
+				CALL COLORPRINTFORM(@"服従の証として、%ANAME(対象)%の陰毛はハート型に整えられた……", COLOR("桃"), "W")
+				TALENT:対象:陰毛目標値 = 陰毛_ハート型
+				TALENT:対象:陰毛現在値 = 陰毛_ハート型
+			ELSE
+				CALL COLORPRINTFORM(@"服従の証として、%ANAME(対象)%の陰毛は永久脱毛された……", COLOR("桃"), "W")
+				TALENT:対象:陰毛目標値 = 陰毛_パイパン
+				TALENT:対象:陰毛現在値 = 陰毛_パイパン
 			ENDIF
-			;メッセ表示
-			CALL BANDIT_TRAIN_MSG(対象)
-			WAIT
-			CALL FORCE_FUCK(対象, SP_NAME_TO_ID("野盗"), @"野盗の\@ RAND:2 ? ペニス # 唇\@", "野盗", 2, SP_TRAIN_IS_DECREASE_CFLAG(対象, 野盗))
-			CFLAG:(LOCAL:0):調教カウンタ ++
-			;あまり長く捕らえられていると寝返る
-			IF (CFLAG:対象:調教カウンタ >= TRAIN_FALLEN_TERM:3 && !GETBIT(TALENT:対象:特殊勢力陥落系, 特殊勢力_野盗)) || (CFLAG:対象:所属 != 野盗 && GETBIT(TALENT:対象:特殊勢力陥落系, 特殊勢力_野盗))
-				SETCOLOR COLOR("警告")
-				IF !GETBIT(TALENT:対象:特殊勢力陥落系, 特殊勢力_野盗)
-					PRINTFORMW ……長きにわたる調教生活により、%ANAME(対象)%の心は折れてしまったようだ
-					PRINTFORMW %ANAME(対象)%は野盗の肉便器となり、寝返った
-				ELSE
-					PRINTFORMW ……野盗の調教を受け、%ANAME(対象)%は彼らの肉便器に過ぎない己の身分を思い出した
-					PRINTFORMW %ANAME(対象)%は野盗の肉便器に復職した
-				ENDIF
-				RESETCOLOR
-				CALL KOJO_SPECIAL_FALLEN_EVENT(対象, SP_COUNTRY_ID:(特殊勢力_野盗))
-				SETBIT TALENT:対象:特殊勢力陥落系, 特殊勢力_野盗
-				CFLAG:対象:所属 = 野盗
-				CFLAG:対象:捕虜先 = 0
-				$HUKUJU_LOOP
-				SELECTCASE RAND:10
-					CASE IS < 4
-						CALL SET_PIERCE_RANDOM(対象, 0)
-						SIF RESULT != -1
-							CALL COLORPRINTFORM(@"%ANAME(対象)%の%GET_PIERCE_NAME(RESULT)%に、服従の証のピアスが取り付けられた……", COLOR("桃"), "W")
-					CASE IS < 7
-						SIF IS_MALE(対象)
-							GOTO HUKUJU_LOOP
-						CALL SET_TATOO_RANDOM(対象, STR_FOR_TATOO(-1), 0)
-						SIF RESULT != -1
-							CALL COLORPRINTFORM(@"%ANAME(対象)%の%GET_TATOO_NAME(RESULT)%に、「%TATOO:対象:RESULT%」とタトゥーが刻まれた……", COLOR("桃"), "W")
-					CASEELSE
-						IF GET_INMOU(対象) >= 陰毛_標準
-						CALL COLORPRINTFORM(@"服従の証として、%ANAME(対象)%の陰毛はハート型に整えられた……", COLOR("桃"), "W")
-						TALENT:対象:陰毛目標値 = 陰毛_ハート型
-						TALENT:対象:陰毛現在値 = 陰毛_ハート型
-					ELSE
-						CALL COLORPRINTFORM(@"服従の証として、%ANAME(対象)%の陰毛は永久脱毛された……", COLOR("桃"), "W")
-						TALENT:対象:陰毛目標値 = 陰毛_パイパン
-						TALENT:対象:陰毛現在値 = 陰毛_パイパン
-					ENDIF
-				ENDSELECT
-				IF IS_LOVER(対象) && !GROUPMATCH(BANDIT_START, 1, 2)
-					SETCOLOR COLOR("警告")
-					PRINTFORML %ANAME(対象)%の中で、%ANAME(MASTER)%への愛情よりも、野盗どもに使われる快楽が上回った
-					RESETCOLOR
-					CALL LOSE_RELATION_TALENT(LOCAL)
-				ENDIF
-				IF IS_SLAVE(対象) && !GROUPMATCH(BANDIT_START, 1, 2)
-					SETCOLOR COLOR("警告")
-					PRINTFORML %ANAME(対象)%の中で、%ANAME(MASTER)%への忠誠よりも、野盗どもに使われる快楽が上回った
-					RESETCOLOR
-					CALL LOSE_RELATION_TALENT(対象)
-					TALENT:対象:烙印 = 0
-				ENDIF
-			ENDIF
-		ENDIF
+		ENDSELECT
 	ENDIF
 NEXT
 
