@@ -571,3 +571,99 @@ FOR LOCAL, 0, 5
 		PRINT ☆
 	ENDIF
 NEXT
+
+;-----------------------------
+;キャラの星評価を用意
+;-----------------------------
+@TMP_PREPARE_CHARA_STARS()
+#DIM 合計ポイント, 1000
+#DIM キャラ数
+VARSET 合計ポイント, __INT_MAX__
+
+;値合計用意
+FOR LOCAL, 0, CHARANUM
+	合計ポイント:LOCAL = 0
+	合計ポイント:LOCAL += ABL:LOCAL:武闘 + (ABL:LOCAL:武闘 >= ランク閾値_三能力_C) * 15
+	合計ポイント:LOCAL += ABL:LOCAL:知略 + (ABL:LOCAL:知略 >= ランク閾値_三能力_C) * 15
+	合計ポイント:LOCAL += ABL:LOCAL:政治 + (ABL:LOCAL:政治 >= ランク閾値_三能力_C) * 15
+	合計ポイント:LOCAL += ABL:LOCAL:妖術 * 3 / 2
+	合計ポイント:LOCAL += ABL:LOCAL:料理 * (ABL:LOCAL:料理 >= 50)
+	合計ポイント:LOCAL += ABL:LOCAL:歌唱 * (ABL:LOCAL:歌唱 >= 50)
+	FOR LOCAL:1, 0, 64
+		SIF GETBIT(TALENT:LOCAL:ＳＬＧ素質, LOCAL:1)
+			合計ポイント:LOCAL += 20
+	NEXT
+NEXT
+
+;TMP_CHARA_STARSの数
+LOCAL:2 = 1
+;このTMP_CHARA_STARS数でのTMP_CHARA_STARS付与回数
+LOCAL:3 = 0
+
+;TMP_CHARA_STARSを小さい順に付与
+FOR LOCAL, 0, CHARANUM
+	LOCAL:1 = FINDELEMENT(合計ポイント, MINARRAY(合計ポイント))
+	合計ポイント:(LOCAL:1) = __INT_MAX__
+	TMP_CHARA_STARS:(LOCAL:1) = LOCAL:2
+	LOCAL:3 ++
+	IF LOCAL:2 <= CHARANUM % 10
+		IF CHARANUM / 10 + 1 <= LOCAL:3
+			LOCAL:3 = 0
+			LOCAL:2 ++
+		ENDIF
+	ELSEIF CHARANUM / 10 <= LOCAL:3
+		LOCAL:3 = 0
+		LOCAL:2 ++
+	ENDIF
+	;そのTMP_CHARA_STARS数でTMP_CHARA_STARSを与えた回数が勢力数の1/10より大きい、ないしそのTMP_CHARA_STARS数が総数の10で割ったあまりなら継続
+NEXT
+
+;-----------------------------
+;キャラの星評価を表示
+;TMP_CREATE_STARS_MAPとセット
+;-----------------------------
+@TMP_PRINT_CHARA_STARS(対象)
+#DIM 対象
+FOR LOCAL, 0, 10
+	IF LOCAL < TMP_CHARA_STARS:対象
+		CALL COLORPRINTFORM("★", GET_CHARA_STARS_COLOR(対象))
+	ELSE
+		PRINT ☆
+	ENDIF
+NEXT
+;-----------------------------
+;キャラの星評価をシンプルに表示
+;-----------------------------
+@TMP_PRINT_CHARA_STARS_NUM(対象)
+#DIM 対象
+CALL COLORPRINTFORM(@"★{TMP_CHARA_STARS:対象, 2, LEFT}", GET_CHARA_STARS_COLOR(対象))
+
+;-----------------------------
+;キャラの星評価用の色を取得
+;-----------------------------
+@GET_CHARA_STARS_COLOR(対象)
+#FUNCTION
+#DIM 対象
+SELECTCASE TMP_CHARA_STARS:対象
+	CASE 1
+		RETURNF COLOR("灰色")
+	CASE 2
+		RETURNF COLOR("明灰色")
+	CASE 3
+		RETURNF COLOR("青")
+	CASE 4
+		RETURNF COLOR("水色")
+	CASE 5
+		RETURNF COLOR("緑")
+	CASE 6
+		RETURNF COLOR("黄")
+	CASE 7
+		RETURNF COLOR("橙")
+	CASE 8
+		RETURNF COLOR("赤")
+	CASE 9
+		RETURNF COLOR("桃")
+	CASE 10
+		RETURNF COLOR("パ紫")
+ENDSELECT
+RETURNF 0x000000
