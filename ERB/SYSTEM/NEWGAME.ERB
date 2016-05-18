@@ -333,18 +333,6 @@ ELSEIF LOCAL:10 == 1
 
 	;勢力選択
 	CALL SELECT_COUNTRY
-	;その勢力がプレイ可能か調べる。未定義なら全勢力プレイ可能とする
-	TRYCCALLFORM IS_COUNTRY_PLAYABLE_%SCENARIOID%
-	IF !RESULT
-		SETCOLOR COLOR("警告")
-		PRINTFORML !!!このシナリオでは、その勢力でプレイすることはできません!!!
-		PRINTFORMW 勢力選択画面に戻ります
-		RESETCOLOR
-		GOTO SELECT_SCENARIO
-	ENDIF
-	CATCH
-		
-	ENDCATCH
 
 	;観戦モードでないときだけ、設定を弄る
 	IF !FLAG:1
@@ -492,8 +480,19 @@ ELSE
 	PRINT この都市は 
 	CALL COLORPRINTFORM(@"%NAME_FORMAL(ボス)%", COUNTRY_COLOR:選択勢力)
 	PRINTL  の勢力下にあります
-	PRINTBUTTON " 0[この勢力で開始]", 0
-	PRINTL 
+	;その勢力がプレイ可能か調べる。未定義なら全勢力プレイ可能とする
+	TRYCCALLFORM IS_COUNTRY_PLAYABLE_%SCENARIOID%
+		IF !RESULT
+			CALL COLORPRINTFORM(@"このシナリオでは、その勢力でプレイすることはできません", COLOR("注意"))
+			選択不可 = 1
+		ELSE
+			PRINTBUTTON " 0[この勢力で開始]", 0
+			PRINTL
+		ENDIF
+	CATCH
+		PRINTBUTTON " 0[この勢力で開始]", 0
+		PRINTL
+	ENDCATCH
 ENDIF
 
 REDRAW 0
@@ -503,11 +502,17 @@ INPUT
 
 IF RESULT == 0
 	IF ボス >= 0
+		TRYCCALLFORM IS_COUNTRY_PLAYABLE_%SCENARIOID%
+			SIF !RESULT
+				GOTO SELECTABLE
+			PRINTFORMW このシナリオでは、その勢力でプレイすることはできません
+		CATCH
+			$SELECTABLE
 			FLAG:3 = 選択勢力
 			PRINTFORMW %NAME:(ボス)%勢力で開始します
 			RETURN
+		ENDCATCH
 	ENDIF
-
 ELSEIF RESULT == 97
 	;オプション設定
 	CALL NEWGAME_SETTING
