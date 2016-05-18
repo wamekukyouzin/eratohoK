@@ -446,6 +446,88 @@ GOTO INPUT_LOOP
 #DIM 選択勢力
 #DIM ボス
 #DIM 選択不可
+#DIM 士官数, MAX_COUNTRY
+#DIM 都市数, MAX_COUNTRY
+#DIM 能力値, MAX_COUNTRY
+#DIM 経済値, MAX_COUNTRY
+#DIM 防衛値, MAX_COUNTRY
+#DIM 合計ポイント, MAX_COUNTRY
+#DIM 星, MAX_COUNTRY
+#DIM 勢力数
+VARSET 士官数, __INT_MIN__
+VARSET 都市数, __INT_MIN__
+VARSET 能力値, __INT_MIN__
+VARSET 経済値, __INT_MIN__
+VARSET 防衛値, __INT_MIN__
+VARSET 合計ポイント, __INT_MAX__
+VARSET 勢力数, 0
+VARSET 星, 0
+;---ランキング用星数準備シーケンス---
+;値合計用意
+FOR LOCAL, 0, MAX_COUNTRY
+	IF IS_COUNTRY(LOCAL)
+		士官数:LOCAL = GET_COMMANDER_NUM(LOCAL)
+		都市数:LOCAL = GET_OWN_CITY(LOCAL)
+		経済値:LOCAL = GET_SUM_ECONOMY(LOCAL)
+		防衛値:LOCAL = GET_SUM_GUARD(LOCAL)
+		勢力数 ++
+		能力値:LOCAL = 0
+		合計ポイント:LOCAL = 0
+		FOR LOCAL:1, 0, CHARANUM
+			SIF LOCAL == CFLAG:(LOCAL:1):所属
+				能力値:LOCAL += ABL:(LOCAL:1):武闘 + ABL:(LOCAL:1):知略 + ABL:(LOCAL:1):政治 + ABL:(LOCAL:1):妖術 + ABL:(LOCAL:1):料理 + ABL:(LOCAL:1):歌唱
+		NEXT
+	ENDIF
+NEXT
+
+;ポイント用意　各分野の順位の値の合計なので、小さい方がよい
+;倍率が1より小さければ大勢に影響を与えない分野、大きければ与える分野
+FOR LOCAL, 0, 勢力数
+	LOCAL:1 = FINDELEMENT(士官数, MAXARRAY(士官数))
+	士官数:(LOCAL:1) = __INT_MIN__
+	合計ポイント:(LOCAL:1) += LOCAL * 2 / 3
+
+	LOCAL:1 = FINDELEMENT(都市数, MAXARRAY(都市数))
+	都市数:(LOCAL:1) = __INT_MIN__
+	合計ポイント:(LOCAL:1) += LOCAL
+
+	LOCAL:1 = FINDELEMENT(能力値, MAXARRAY(能力値))
+	能力値:(LOCAL:1) = __INT_MIN__
+	合計ポイント:(LOCAL:1) += LOCAL * 3 / 2
+
+	LOCAL:1 = FINDELEMENT(経済値, MAXARRAY(経済値))
+	経済値:(LOCAL:1) = __INT_MIN__
+	合計ポイント:(LOCAL:1) += LOCAL * 3 / 2
+
+	LOCAL:1 = FINDELEMENT(防衛値, MAXARRAY(防衛値))
+	防衛値:(LOCAL:1) = __INT_MIN__
+	合計ポイント:(LOCAL:1) += LOCAL
+NEXT
+
+;星の数
+LOCAL:2 = 1
+;この星数での星付与回数
+LOCAL:3 = 0
+
+;星を付与
+FOR LOCAL, 0, 勢力数
+	LOCAL:1 = FINDELEMENT(合計ポイント, MINARRAY(合計ポイント))
+	合計ポイント:(LOCAL:1) = __INT_MAX__
+	星:(LOCAL:1) = LOCAL:2
+	LOCAL:3 ++
+	IF LOCAL:2 <= 勢力数 % 5
+		IF 勢力数 / 5 + 1 <= LOCAL:3
+			LOCAL:3 = 0
+			LOCAL:2 ++
+		ENDIF
+	ELSEIF 勢力数 / 5 <= LOCAL:3
+		LOCAL:3 = 0
+		LOCAL:2 ++
+	ENDIF
+	;その星数で星を与えた回数が勢力数の1/5より大きい、ないしその星数が総数の5で割ったあまりなら継続
+NEXT
+
+		
 選択勢力 = 0
 FIRST_LINE = LINECOUNT
 $SHOW_LOOP
@@ -480,7 +562,30 @@ ELSE
 	PRINT この都市は 
 	CALL COLORPRINTFORM(@"%NAME_FORMAL(ボス)%", COUNTRY_COLOR:選択勢力)
 	PRINTL  の勢力下にあります
-
+	;星表示
+	DRAWLINE
+	PRINTFORM 難易度:
+	SELECTCASE 星:選択勢力
+		CASE 1
+			LOCAL:1 = COLOR("水色")
+		CASE 2
+			LOCAL:1 = COLOR("黄緑")
+		CASE 3
+			LOCAL:1 = COLOR("緑")
+		CASE 4
+			LOCAL:1 = COLOR("注意")
+		CASE 5
+			LOCAL:1 = COLOR("警告")
+	ENDSELECT
+	FOR LOCAL, 0, 5
+		IF LOCAL <	星:選択勢力
+			CALL COLORPRINTFORM("★", LOCAL:1)
+		ELSE
+			PRINT ☆
+		ENDIF
+	NEXT
+	PRINT    あまりあてにならないので注意！
+	PRINTL
 	;所属キャラ一覧表示
 	DRAWLINE
 	PRINTFORM 所属キャラ:
