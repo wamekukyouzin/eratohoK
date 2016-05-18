@@ -434,3 +434,140 @@ FOR LOCAL:0, 0, LOCAL:9
 NEXT
 
 RETURNF LOCAL:10
+
+;-----------------------------
+;勢力の星評価を用意
+;-----------------------------
+@TMP_PREPARE_COUNTRY_STARS()
+#DIM 士官数, MAX_COUNTRY
+#DIM 都市数, MAX_COUNTRY
+#DIM 能力値, MAX_COUNTRY
+#DIM 経済値, MAX_COUNTRY
+#DIM 防衛値, MAX_COUNTRY
+#DIM 合計ポイント, MAX_COUNTRY
+#DIM 勢力数
+VARSET 士官数, __INT_MIN__
+VARSET 都市数, __INT_MIN__
+VARSET 能力値, __INT_MIN__
+VARSET 経済値, __INT_MIN__
+VARSET 防衛値, __INT_MIN__
+VARSET 合計ポイント, __INT_MAX__
+VARSET 勢力数, 0
+VARSET TMP_COUNTRY_STARS, 0
+;---ランキング用TMP_COUNTRY_STARS数準備シーケンス---
+;値合計用意
+FOR LOCAL, 0, MAX_COUNTRY
+	IF IS_COUNTRY(LOCAL)
+		士官数:LOCAL = GET_COMMANDER_NUM(LOCAL)
+		都市数:LOCAL = GET_OWN_CITY(LOCAL)
+		経済値:LOCAL = GET_SUM_ECONOMY(LOCAL)
+		防衛値:LOCAL = GET_SUM_GUARD(LOCAL)
+		勢力数 ++
+		能力値:LOCAL = 0
+		合計ポイント:LOCAL = 0
+		FOR LOCAL:1, 0, CHARANUM
+			SIF LOCAL == CFLAG:(LOCAL:1):所属
+				能力値:LOCAL += (ABL:(LOCAL:1):武闘 >= 60) + (ABL:(LOCAL:1):知略 >= 60) + (ABL:(LOCAL:1):政治 >= 60) + (ABL:(LOCAL:1):妖術 >= 0) + (ABL:(LOCAL:1):料理 >= 50) + (ABL:(LOCAL:1):歌唱 >= 50)
+		NEXT
+	ENDIF
+NEXT
+
+;ポイント用意　各分野の順位の値の合計なので、小さい方がよい
+;倍率が1より小さければ大勢に影響を与えない分野、大きければ与える分野
+FOR LOCAL, 0, 勢力数
+	LOCAL:1 = FINDELEMENT(士官数, MAXARRAY(士官数))
+	士官数:(LOCAL:1) = __INT_MIN__
+	合計ポイント:(LOCAL:1) += LOCAL * 2 / 3
+
+	LOCAL:1 = FINDELEMENT(都市数, MAXARRAY(都市数))
+	都市数:(LOCAL:1) = __INT_MIN__
+	合計ポイント:(LOCAL:1) += LOCAL
+
+	LOCAL:1 = FINDELEMENT(能力値, MAXARRAY(能力値))
+	能力値:(LOCAL:1) = __INT_MIN__
+	合計ポイント:(LOCAL:1) += LOCAL * 2
+
+	LOCAL:1 = FINDELEMENT(経済値, MAXARRAY(経済値))
+	経済値:(LOCAL:1) = __INT_MIN__
+	合計ポイント:(LOCAL:1) += LOCAL * 3 / 2
+
+	LOCAL:1 = FINDELEMENT(防衛値, MAXARRAY(防衛値))
+	防衛値:(LOCAL:1) = __INT_MIN__
+	合計ポイント:(LOCAL:1) += LOCAL / 2
+NEXT
+
+;TMP_COUNTRY_STARSの数
+LOCAL:2 = 1
+;このTMP_COUNTRY_STARS数でのTMP_COUNTRY_STARS付与回数
+LOCAL:3 = 0
+
+;TMP_COUNTRY_STARSを付与
+FOR LOCAL, 0, 勢力数
+	LOCAL:1 = FINDELEMENT(合計ポイント, MINARRAY(合計ポイント))
+	合計ポイント:(LOCAL:1) = __INT_MAX__
+	TMP_COUNTRY_STARS:(LOCAL:1) = LOCAL:2
+	LOCAL:3 ++
+	IF LOCAL:2 <= 勢力数 % 5
+		IF 勢力数 / 5 + 1 <= LOCAL:3
+			LOCAL:3 = 0
+			LOCAL:2 ++
+		ENDIF
+	ELSEIF 勢力数 / 5 <= LOCAL:3
+		LOCAL:3 = 0
+		LOCAL:2 ++
+	ENDIF
+	;そのTMP_COUNTRY_STARS数でTMP_COUNTRY_STARSを与えた回数が勢力数の1/5より大きい、ないしそのTMP_COUNTRY_STARS数が総数の5で割ったあまりなら継続
+NEXT
+
+;-----------------------------
+;;勢力の難易度を表示
+;TMP_CREATE_STARS_MAPとセット
+;-----------------------------
+@TMP_PRINT_COUNTRY_DIFFICULTY(勢力番号)
+#DIM 勢力番号
+SELECTCASE TMP_COUNTRY_STARS:勢力番号
+	CASE 1
+		LOCAL:1 = COLOR("水色")
+	CASE 2
+		LOCAL:1 = COLOR("黄緑")
+	CASE 3
+		LOCAL:1 = COLOR("緑")
+	CASE 4
+		LOCAL:1 = COLOR("注意")
+	CASE 5
+		LOCAL:1 = COLOR("警告")
+ENDSELECT
+FOR LOCAL, 0, 5
+	IF LOCAL < TMP_COUNTRY_STARS:勢力番号
+		CALL COLORPRINTFORM("★", LOCAL:1)
+	ELSE
+		PRINT ☆
+	ENDIF
+NEXT
+
+;-----------------------------
+;星評価を表示
+;TMP_CREATE_STARS_MAPとセット
+;-----------------------------
+@TMP_PRINT_COUNTRY_STARS(勢力番号)
+#DIM 勢力番号
+SELECTCASE TMP_COUNTRY_STARS:勢力番号
+	CASE 1
+		LOCAL:1 = COLOR("桃")
+	CASE 2
+		LOCAL:1 = COLOR("橙")
+	CASE 3
+		LOCAL:1 = COLOR("緑")
+	CASE 4
+		LOCAL:1 = COLOR("水色")
+	CASE 5
+		LOCAL:1 = COLOR("灰色")
+ENDSELECT
+LOCAL:2 = 6 - TMP_COUNTRY_STARS:勢力番号
+FOR LOCAL, 0, 5
+	IF LOCAL < LOCAL:2
+		CALL COLORPRINTFORM("★", LOCAL:1)
+	ELSE
+		PRINT ☆
+	ENDIF
+NEXT
