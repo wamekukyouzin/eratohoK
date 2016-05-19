@@ -108,7 +108,9 @@ ELSE
 	ENDIF
 	PRINTFORM 所属:%LOCALS:0%
 	PRINTL 
-
+	PRINT 評価:
+	CALL TMP_PRINT_CHARA_STARS(ARG:0)
+	PRINTL
 	PRINTFORM 好感度:{CFLAG:(ARG:0):2, 10, LEFT}依存度:{CFLAG:(ARG:0):3, 10, LEFT}従属度:{CFLAG:(ARG:0):4, 10, LEFT}
 
 	LOCAL:4 = GET_COUNTRY_BOSS(CFLAG:(ARG:0):9)
@@ -126,9 +128,6 @@ ELSE
 		ENDIF
 	ENDIF
 	PRINTL 
-	PRINT 評価:
-	CALL TMP_PRINT_CHARA_STARS(ARG:0)
-	PRINTL
 	;（精神力ゲージの表示。捕虜時限定）
 	IF CFLAG:(ARG:0):9 == CFLAG:MASTER:1 && CFLAG:(ARG:0):29 == 0 || CFLAG:(ARG:0):59
 		PRINT     精神力 
@@ -141,6 +140,9 @@ ELSE
 	PRINTL □ 経験 □
 	CALL NEW_PRINT_EXP(ARG:0)
 	PRINTL 
+	PRINTL □ 初体験 □
+	CALL NEW_PRINT_FIRST_EXPERIENCE(ARG:0)
+	PRINTL
 	PRINTL □ 能力 □
 	PRINTFORML     体力最大値:{MAXBASE:(ARG:0):体力, 6, LEFT}  気力最大値:{MAXBASE:(ARG:0):気力, 6, LEFT}  精神力最大値:{MAXBASE:(ARG:0):精神力, 6, LEFT}
 	CALL NEW_PRINT_ABL(ARG:0)
@@ -152,19 +154,37 @@ ELSE
 	CALL NEW_PRINT_SLGTALENT(ARG:0)
 	PRINTL 
 	IF CONFIG:16 == 0
-		PRINTL □ タトゥ □
-		CALL PRINT_TATOO(ARG:0)
-		PRINTL 
+		LOCAL:1 = 0
+		FOR LOCAL:0, 0, VARSIZE("TATOO")
+			IF IS_TATOOED(ARG:0, LOCAL:0)
+				LOCAL:1 = 1
+				BREAK
+			ENDIF
+		NEXT
+		IF LOCAL:1
+			PRINTL □ タトゥ □
+			CALL PRINT_TATOO(ARG:0)
+			PRINTL 
+		ENDIF
 	ENDIF
 	PRINTL □ その他 □
 	IF IS_FEMALE(ARG:0)
-		PRINTFORML Ｖ締まり:%TOSTR_TIGHTNESS(TALENT:(ARG:0):Ｖ締まり)%
+		PRINTFORM Ｖ締まり:%TOSTR_TIGHTNESS(TALENT:(ARG:0):Ｖ締まり)%  
 	ENDIF
-	PRINTFORML Ａ締まり:%TOSTR_TIGHTNESS(TALENT:(ARG:0):Ａ締まり)%
+	PRINTFORML Ａ締まり:%TOSTR_TIGHTNESS(TALENT:(ARG:0):Ａ締まり)%  
 	IF CONFIG:14 == 0
-		PRINT   ピアス:
-		CALL PRINT_PIERCE(ARG:0)
-		PRINTL 
+		LOCAL:1 = 0
+		FOR LOCAL:0, 0, ピアス_最大ビット + 1
+			IF IS_PIERCED(ARG:0, LOCAL:0)
+				LOCAL:1 = 1
+				BREAK
+			ENDIF
+		NEXT
+		IF LOCAL:1
+			PRINT   ピアス:
+			CALL PRINT_PIERCE(ARG:0)
+			PRINTL 
+		ENDIF
 	ENDIF
 	IF CONFIG:15 == 0
 		PRINT     陰毛:
@@ -361,7 +381,7 @@ FOR LOCAL:0, 0, 100
 
 	IF EXP:(ARG:0):(LOCAL:2) > 0
 		;改行判定
-		IF LOCAL:1 > 0 && LOCAL:1 % 4 == 0
+		IF LOCAL:1 > 0 && LOCAL:1 % 6 == 0
 			PRINTL 
 		ENDIF
 		LOCAL:1 ++
@@ -373,18 +393,23 @@ NEXT
 IF LOCAL:1 > 0
 	PRINTL 
 ENDIF
-
-	PRINTFORML   ファーストキス    : %SEXUAL_EXPERIENCE:(ARG:0):初体験_ファーストキス%
-
+;------------------------
+;ARG:0番のキャラの初めての相手を表示
+;-------------------------
+@NEW_PRINT_FIRST_EXPERIENCE(ARG:0)
+PRINT     
+PRINTFORM キス:%SEXUAL_EXPERIENCE:(ARG:0):初体験_ファーストキス, 10, LEFT% 
 IF VAGINA(ARG:0)
-	PRINTFORML   処女を捧げた相手  : %SEXUAL_EXPERIENCE:(ARG:0):初体験_処女%
+	PRINTFORM 処女:%SEXUAL_EXPERIENCE:(ARG:0):初体験_処女, 10, LEFT% 
 ENDIF
 
 IF PENIS(ARG:0)
-	PRINTFORML   童貞を捧げた相手  : %SEXUAL_EXPERIENCE:(ARG:0):初体験_童貞%
+	PRINTFORM 童貞:%SEXUAL_EXPERIENCE:(ARG:0):初体験_童貞, 10, LEFT%
 ENDIF
 
-	PRINTFORML 尻穴処女を捧げた相手: %SEXUAL_EXPERIENCE:(ARG:0):初体験_アナル処女%
+PRINTFORM 尻穴処女:%SEXUAL_EXPERIENCE:(ARG:0):初体験_アナル処女, 10, LEFT%
+
+
 ;-------------------------------------------------
 ;ARG:0番のキャラの能力を表示
 ;-------------------------------------------------
@@ -601,7 +626,7 @@ FOR LOCAL:0, 1, 300
 		;改行判定
 		LOCAL:3 = STRLENS(TN) + 3
 		LOCAL:1 += LOCAL:3
-		IF LOCAL:1 >= 78
+		IF LOCAL:1 >= 95
 			LOCAL:1 = LOCAL:3
 			PRINTL 
 			PRINT   
@@ -658,7 +683,7 @@ FOR LOCAL, 0, 63
 		;改行判定
 		LOCAL:3 = STRLENS(STN) + 3
 		LOCAL:1 += LOCAL:3
-		IF LOCAL:1 >= 78
+		IF LOCAL:1 >= 95
 			LOCAL:1 = LOCAL:3
 			PRINTL 
 			PRINT   
