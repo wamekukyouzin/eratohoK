@@ -578,20 +578,60 @@ NEXT
 @TMP_PREPARE_CHARA_STARS()
 #DIM 合計ポイント, 1000
 #DIM キャラ数
+#DIM 能力 = GETNUM(ABL, "武闘"), GETNUM(ABL, "知略"), GETNUM(ABL, "政治"), GETNUM(ABL, "妖術"), GETNUM(ABL, "料理"), GETNUM(ABL, "歌唱")
 VARSET 合計ポイント, __INT_MAX__
 
 ;値合計用意
 FOR LOCAL, 0, CHARANUM
 	合計ポイント:LOCAL = 0
-	合計ポイント:LOCAL += ABL:LOCAL:武闘 + (ABL:LOCAL:武闘 >= ランク閾値_三能力_C) * 15
-	合計ポイント:LOCAL += ABL:LOCAL:知略 + (ABL:LOCAL:知略 >= ランク閾値_三能力_C) * 15
-	合計ポイント:LOCAL += ABL:LOCAL:政治 + (ABL:LOCAL:政治 >= ランク閾値_三能力_C) * 15
+	合計ポイント:LOCAL += ABL:LOCAL:武闘
+	合計ポイント:LOCAL += ABL:LOCAL:知略
+	合計ポイント:LOCAL += ABL:LOCAL:政治
 	合計ポイント:LOCAL += ABL:LOCAL:妖術 * 3 / 2
-	合計ポイント:LOCAL += ABL:LOCAL:料理 * (ABL:LOCAL:料理 >= 50)
-	合計ポイント:LOCAL += ABL:LOCAL:歌唱 * (ABL:LOCAL:歌唱 >= 50)
+	合計ポイント:LOCAL += MAX(ABL:LOCAL:料理 - 50, 0)
+	合計ポイント:LOCAL += MAX(ABL:LOCAL:歌唱 - 50, 0)
+	FOR LOCAL:1, 0, VARSIZE("能力")
+		SELECTCASE 能力:(LOCAL:1)
+			CASE GETNUM(ABL, "武闘"), GETNUM(ABL, "知略"), GETNUM(ABL, "政治")
+				SELECTCASE ALPHABET_RANK(ABL:LOCAL:(能力:(LOCAL:1)), 0)
+					CASE "S"
+						合計ポイント:LOCAL += 15
+					CASE "A"
+						合計ポイント:LOCAL += 10
+					CASE "B"
+						合計ポイント:LOCAL += 5
+				ENDSELECT
+			CASE GETNUM(ABL, "妖術")
+				SELECTCASE ALPHABET_RANK(ABL:LOCAL:(能力:(LOCAL:1)), 1)
+					CASE "S"
+						合計ポイント:LOCAL += 30
+					CASE "A"
+						合計ポイント:LOCAL += 25
+					CASE "B"
+						合計ポイント:LOCAL += 20
+					CASE "C"
+						合計ポイント:LOCAL += 15
+					CASE "D"
+						合計ポイント:LOCAL += 10
+					CASE "E"
+						合計ポイント:LOCAL += 5
+				ENDSELECT
+			CASE GETNUM(ABL, "料理"), GETNUM(ABL, "歌唱")
+				SELECTCASE ALPHABET_RANK(ABL:LOCAL:(能力:(LOCAL:1)), 2)
+					CASE "S"
+						合計ポイント:LOCAL += 20
+					CASE "A"
+						合計ポイント:LOCAL += 15
+					CASE "B"
+						合計ポイント:LOCAL += 10
+					CASE "C"
+						合計ポイント:LOCAL += 5
+				ENDSELECT
+		ENDSELECT
+	NEXT
 	FOR LOCAL:1, 0, 64
 		SIF GETBIT(TALENT:LOCAL:ＳＬＧ素質, LOCAL:1)
-			合計ポイント:LOCAL += 20
+			合計ポイント:LOCAL += 15
 	NEXT
 NEXT
 
@@ -636,7 +676,7 @@ NEXT
 ;-----------------------------
 @TMP_PRINT_CHARA_STARS_NUM(対象)
 #DIM 対象
-CALL COLORPRINTFORM(@"★{TMP_CHARA_STARS:対象, 2, LEFT}", GET_CHARA_STARS_COLOR(対象))
+CALL COLORPRINTFORM(@"★{TMP_CHARA_STARS:対象, 2, RIGHT}", GET_CHARA_STARS_COLOR(対象))
 
 ;-----------------------------
 ;キャラの星評価用の色を取得
