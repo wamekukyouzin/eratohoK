@@ -1,113 +1,340 @@
-﻿;-------------------------
-;性処理と同様の経験をさせる汎用関数FORCE_FUCK
-;対象は対象となるキャラ、IDには膣内射精したことにしたいキャラのIDを入力
-;レズフラグを立てると、IDと膣内射精フラグは無効
-;-------------------------
-@FORCE_FUCK(対象, ID, キス, セックス, シチュ, CFLAG減少させないフラグ = 0, 膣内射精させないフラグ = 0, レズフラグ = 0)
+﻿;-------------------------------------------------
+;セックスしました的なシーンで汎用的に用いる関数
+;部位文字列には加算したい経験値をカンマ区切りで記述
+;追加処理文字列にはその他追加の処理をカンマ区切りで記述
+;膣内射精相手IDは追加処理文字列に膣内射精を含めた場合に使用
+;キス相手、セックス相手、シチュはそれぞれ対象が「キス喪失」「処女喪失」「Ａ処女喪失」を指定した場合に使用。
+;-------------------------------------------------
+@FUCK(対象, 経験値文字列, 追加処理文字列, 膣内射精相手ID = -1, キス相手 = "", セックス相手 = "", シチュ = -1)
 #DIM 対象
-#DIM ID
-#DIMS キス
-#DIMS セックス
+#DIMS 経験値文字列
+#DIMS 追加処理文字列
+#DIM 膣内射精相手ID
+#DIMS キス相手
+#DIMS セックス相手
 #DIM シチュ
-#DIM CFLAG減少させないフラグ
-#DIM 膣内射精させないフラグ
-#DIM レズフラグ
-VARSET LOCAL
-IF !CFLAG減少させないフラグ
-	;好感度と従属度を失っていく
-	CFLAG:対象:好感度 = MAX(CFLAG:対象:好感度 - MAX(CFLAG:対象:好感度 / 10, 200) , -1000)
-	CFLAG:対象:依存度 = MAX(CFLAG:対象:依存度 - MAX(CFLAG:対象:依存度 / 10, 200) , -1000)
-	CFLAG:対象:従属度 = MAX(CFLAG:対象:従属度 - MAX(CFLAG:対象:従属度 / 10, 200) , -1000)
-ENDIF
 
-LOCAL:1 = 0
-LOCAL:1 += MAX(ABL:対象:Ｃ感 - 1, 0) 
-LOCAL:1 += MAX(ABL:対象:Ｖ感 - 1, 0)
-LOCAL:1 += MAX(ABL:対象:Ａ感 - 1, 0)
-LOCAL:1 += MAX(ABL:対象:Ｂ感 - 1, 0)
-LOCAL:1 += MAX(ABL:対象:Ｍ感 - 1, 0) / 2
-LOCAL:1 = LOCAL:1 * (ABL:対象:欲望 + 2) / 2
-
-IF PENIS(対象)
-	EXP:対象:Ｃ感経験値 += ABL:対象:Ｃ感 + 3 + RAND:2
-	EXP:対象:Ａ感経験値 += ABL:対象:Ａ感 * 10 + 15 + RAND:10
-ELSE
-	EXP:対象:Ｃ感経験値 += ABL:対象:Ｃ感 * 4 + 5 + RAND:7
-	EXP:対象:Ｖ感経験値 += ABL:対象:Ｖ感 * 10 + 10 + RAND:7
-	EXP:対象:Ａ感経験値 += ABL:対象:Ａ感 * 10 + 10 + RAND:7
-ENDIF
-
-EXP:対象:Ｂ感経験値 += ABL:対象:Ｂ感 * 5 + 4 + RAND:6
-EXP:対象:Ｍ感経験値 += ABL:対象:Ｍ感 * 5 + 4 + RAND:6
 EXP:対象:欲望経験値 += ABL:対象:欲望 * 3 + 2 + LOCAL:1 + RAND:6
 EXP:対象:奉仕経験値 += ABL:対象:奉仕 * 2 + 5 + RAND:7
-EXP:対象:性交経験値 += ABL:対象:性交 * 4 + 10 + RAND:7
 EXP:対象:性技経験値 += ABL:対象:性技 + 2 + RAND:4
-EXP:対象:自慰経験値 += ABL:対象:自慰 * 3 + 5 + RAND:8
-EXP:対象:精愛経験値 += ABL:対象:精愛 * 7 + 10 + RAND:10
 
-SIF !RAND:3
-	EXP:対象:露出経験値 += ABL:対象:露出 * 2 + 5 + RAND:8
-SIF !RAND:3
-	EXP:対象:排泄経験値 += ABL:対象:排泄 * 2 + 5 + RAND:8
+CALL FUCK_EXP_PROCESS(対象, 経験値文字列)
 
-
-IF IS_MALE(対象)
-	EXP:対象:ＢＬ経験値 += 20 + RAND:11
-ENDIF
-
-IF IS_FEMALE(対象) && レズフラグ
-	EXP:対象:レズ経験値 += 15 + RAND:10
-ENDIF
-
-IF PENIS(対象)
-	EXP:対象:射精経験値 += ABL:対象:射精 * 7 + 20 + RAND:10
-ENDIF
-
-SIF VAGINA(対象) && RAND:100 < 15
-	EXP:対象:Ｖ拡張経験 += RAND:3
-
-SIF RAND:100 < 15
-	EXP:対象:Ａ拡張経験 += RAND:3
-
-EXP:対象:苦痛快楽経験 += LOCAL:1 * (30 + RAND:40) / 100
-EXP:対象:緊縛経験 += 3 + RAND:4
-EXP:対象:キス経験 += 2 + RAND:8
-EXP:対象:口淫経験 += 3 + RAND:10
-EXP:対象:絶頂経験 += LOCAL:1 * (60 + RAND:81) / 100
-EXP:対象:輪姦経験 += 3 + RAND(2, MAX(3, MIN(8, ABL:対象:欲望)))
-;中出しと妊娠判定
-IF !レズフラグ && (CONFIG:1 == 0 && (VAGINA(対象) || TALENT:対象:孕み可能) && !膣内射精させないフラグ)
-	FOR LOCAL, 440, 480
-		TCVAR:対象:(LOCAL) = 0
-	NEXT
-	CALL RECORD_INJECTION(対象, ID, 3)
-	CALL CHECK_PREGNANT(対象)
-ENDIF
-
-;能力上昇メッセ
+CALL FUCK_EXTRA_PROCESS(対象, 追加処理文字列, 膣内射精相手ID, キス相手, セックス相手, シチュ)
 CALL TRAIN_AUTO_ABLUP(対象, 0)
 
-CALL TIGHTNESS_DECREASE_V(対象, RAND(10, 20))
-CALL TIGHTNESS_DECREASE_A(対象, RAND(10, 20))
+;-------------------------------------------------
+;FUCKの糖衣用
+;レイプ
+;-------------------------------------------------
+@FUCK_RAPE(対象, 膣内射精相手ID, キス相手, セックス相手)
+#DIM 対象
+#DIM 膣内射精相手ID
+#DIMS キス相手
+#DIMS セックス相手
+CALL FUCK(対象, "Ｃ, Ｖ, Ａ, Ｂ, Ｍ, Ｖ拡張, Ａ拡張, 性交, 自慰, 精愛, 露出, 排泄, 射精, 苦痛快楽, 緊縛, キス, 口淫", "キス喪失, 処女喪失, Ａ処女喪失, CFLAG減少, 性癖取得, 膣内射精", 膣内射精相手ID, キス相手, セックス相手, 1)
+
+;-------------------------------------------------
+;FUCKの糖衣用
+;レイプに避妊つけただけ
+;-------------------------------------------------
+@FUCK_RAPE_HININ(対象, キス相手, セックス相手)
+#DIM 対象
+#DIMS キス相手
+#DIMS セックス相手
+CALL FUCK(対象, "Ｃ, Ｖ, Ａ, Ｂ, Ｍ, Ｖ拡張, Ａ拡張, 性交, 自慰, 精愛, 露出, 排泄, 射精, 苦痛快楽, 緊縛, キス, 口淫", "キス喪失, 処女喪失, Ａ処女喪失, CFLAG減少, 性癖取得", -1, キス相手, セックス相手, 1)
 
 
-;処女とキス未経験を失う
-CALL KISS_COMMON(対象, @"%キス%", シチュ)
-CALL VIRGIN_COMMON(対象, @"%セックス%", シチュ)
-CALL VIRGIN_COMMON_A(対象, @"%セックス%", シチュ)
+;-------------------------------------------------
+;FUCKの糖衣用
+;レイプに獣姦つけただけ
+;-------------------------------------------------
+@FUCK_BEAST(対象, 膣内射精相手ID, キス相手, セックス相手)
+#DIM 対象
+#DIM 膣内射精相手ID
+#DIMS キス相手
+#DIMS セックス相手
+CALL FUCK(対象, "Ｃ, Ｖ, Ａ, Ｂ, Ｍ, Ｖ拡張, Ａ拡張, 性交, 自慰, 精愛, 露出, 排泄, 射精, 苦痛快楽, 緊縛, キス, 口淫, 獣姦", "キス喪失, 処女喪失, Ａ処女喪失, CFLAG減少, 性癖取得, 膣内射精", 膣内射精相手ID, キス相手, セックス相手, 1)
 
-SELECTCASE RAND:100
-	CASE IS < 20
-		LOCAL = 性的嗜好_愛撫される
-	CASE IS < 40
-		LOCAL = 性的嗜好_奉仕する
-	CASE IS < 80
-		LOCAL = 性的嗜好_性交される
-	CASEELSE
-		LOCAL = 性的嗜好_ＳＭされる
-ENDSELECT
-CALL GET_RANDOM_SEXUAL_PREFERENCE_EXP(対象, LOCAL, RAND(5, 9))
-CALL CHECK_SEXUAL_PREFERENCE(対象, 1)
+;-------------------------------------------------
+;FUCKの糖衣用
+;レイプに触手つけただけ
+;-------------------------------------------------
+@FUCK_TENTACLE(対象, 膣内射精相手ID, キス相手, セックス相手)
+#DIM 対象
+#DIM 膣内射精相手ID
+#DIMS キス相手
+#DIMS セックス相手
+CALL FUCK(対象, "Ｃ, Ｖ, Ａ, Ｂ, Ｍ, Ｖ拡張, Ａ拡張, 性交, 自慰, 精愛, 露出, 排泄, 射精, 苦痛快楽, 緊縛, キス, 口淫, 触手", "キス喪失, 処女喪失, Ａ処女喪失, CFLAG減少, 性癖取得, 膣内射精", 膣内射精相手ID, キス相手, セックス相手, 1)
 
 
+;-------------------------------------------------
+;FUCKの糖衣用
+;輪姦
+;-------------------------------------------------
+@FUCK_GANGBANG(対象, 膣内射精相手ID, キス相手, セックス相手)
+#DIM 対象
+#DIM 膣内射精相手ID
+#DIMS キス相手
+#DIMS セックス相手
+CALL FUCK(対象, "Ｃ, Ｖ, Ａ, Ｂ, Ｍ, Ｖ拡張, Ａ拡張, 性交, 自慰, 精愛, 露出, 排泄, 射精, 苦痛快楽, 緊縛, キス, 口淫, 輪姦", "キス喪失, 処女喪失, Ａ処女喪失,  CFLAG減少, 性癖取得, 膣内射精", 膣内射精相手ID, キス相手, セックス相手, 2)
+
+;-------------------------------------------------
+;FUCKの糖衣用
+;乱交
+;-------------------------------------------------
+@FUCK_GROUP(対象, 膣内射精相手ID, キス相手, セックス相手)
+#DIM 対象
+#DIM 膣内射精相手ID
+#DIMS キス相手
+#DIMS セックス相手
+CALL FUCK(対象, "Ｃ, Ｖ, Ａ, Ｂ, Ｍ, レズ, Ｖ拡張, Ａ拡張, 性交, 自慰, 精愛, 露出, 排泄, 射精, 苦痛快楽, 緊縛, キス, 口淫, 輪姦", "キス喪失, 処女喪失, Ａ処女喪失,  CFLAG減少, 性癖取得, 膣内射精", 膣内射精相手ID, キス相手, セックス相手, 3)
+
+;-------------------------------------------------
+;FUCKの糖衣用
+;和姦
+;-------------------------------------------------
+@FUCK_MAKELOVE(対象, 膣内射精相手ID, キス相手, セックス相手)
+#DIM 対象
+#DIM 膣内射精相手ID
+#DIMS キス相手
+#DIMS セックス相手
+CALL FUCK(対象, "Ｃ, Ｖ, Ａ, Ｂ, Ｍ, 性交, 精愛, 射精, キス, 口淫", "キス喪失, 処女喪失, Ａ処女喪失, 膣内射精", 膣内射精相手ID, キス相手, セックス相手)
+
+;-------------------------------------------------
+;FUCKの糖衣用
+;レイプのシチュを調教にしただけ
+;-------------------------------------------------
+@FUCK_TRAIN(対象, 膣内射精相手ID, キス相手, セックス相手)
+#DIM 対象
+#DIM 膣内射精相手ID
+#DIMS キス相手
+#DIMS セックス相手
+CALL FUCK(対象, "Ｃ, Ｖ, Ａ, Ｂ, Ｍ, Ｖ拡張, Ａ拡張, 性交, 自慰, 精愛, 露出, 排泄, 射精, 苦痛快楽, 緊縛, キス, 口淫", "キス喪失, 処女喪失, Ａ処女喪失, CFLAG減少, 性癖取得, 膣内射精", 膣内射精相手ID, キス相手, セックス相手, 4)
+
+;-------------------------------------------------
+;FUCKの糖衣用
+;特殊勢力による輪姦
+;-------------------------------------------------
+@FUCK_GANGBANG_SP(対象, 膣内射精相手ID, キス相手, セックス相手, 勢力番号)
+#DIM 対象
+#DIM 膣内射精相手ID
+#DIMS キス相手
+#DIMS セックス相手
+#DIM 勢力番号
+
+LOCALS '= "キス喪失, 処女喪失, Ａ処女喪失, 性癖取得, 膣内射精"
+SIF !SP_TRAIN_IS_DECREASE_CFLAG(勢力番号)
+	LOCALS '= LOCALS + ", CFLAG減少"
+CALL FUCK(対象, "Ｃ, Ｖ, Ａ, Ｂ, Ｍ, Ｖ拡張, Ａ拡張, 性交, 自慰, 精愛, 露出, 排泄, 射精, 苦痛快楽, 緊縛, キス, 口淫, 輪姦", LOCALS, 膣内射精相手ID, キス相手, セックス相手, 2)
+
+;-------------------------------------------------
+;FUCKの糖衣用
+;特殊勢力による輪姦 レズ版
+;-------------------------------------------------
+@FUCK_GANGBANG_LES_SP(対象, 膣内射精相手ID, キス相手, セックス相手, 勢力番号)
+#DIM 対象
+#DIM 膣内射精相手ID
+#DIMS キス相手
+#DIMS セックス相手
+#DIM 勢力番号
+
+LOCALS '= "キス喪失, 処女喪失, Ａ処女喪失, 性癖取得"
+SIF !SP_TRAIN_IS_DECREASE_CFLAG(勢力番号)
+	LOCALS '= LOCALS + ", CFLAG減少"
+CALL FUCK(対象, "Ｃ, Ｖ, Ａ, Ｂ, Ｍ, Ｖ拡張, Ａ拡張, 性交, レズ, 自慰, 露出, 排泄, 射精, 苦痛快楽, 緊縛, キス, 口淫, 輪姦", LOCALS, 膣内射精相手ID, キス相手, セックス相手, 2)
+
+;-------------------------------------------------
+;FUCKにおける、部位に経験値を加算する関数
+;-------------------------------------------------
+@FUCK_EXP_PROCESS(対象, 経験値指定文字列)
+#DIM 対象
+#DIMS 経験値指定文字列
+#DIMS 経験値, 100
+VARSET 経験値
+SPLIT 経験値指定文字列, ",", 経験値
+LOCAL:1 = 0
+FOR LOCAL, 0, VARSIZE("経験値")
+	SIF 経験値:LOCAL == ""
+		CONTINUE
+
+	IF STRFIND(経験値:LOCAL, "レズ") != -1 && IS_FEMALE(対象)
+		PRINTFORMW %経験値:LOCAL% 
+		EXP:対象:レズ経験値 += 15 + RAND:10
+		CONTINUE
+	ENDIF
+	
+	IF STRFIND(経験値:LOCAL, "ＢＬ") != -1 && IS_MALE(対象)
+		EXP:対象:ＢＬ経験値 += 15 + RAND:10
+		CONTINUE
+	ENDIF
+	
+	IF STRFIND(経験値:LOCAL, "Ｖ拡張") != -1
+		EXP:対象:Ｖ拡張経験 += RAND:5
+		CALL TIGHTNESS_DECREASE_V(対象, RAND(5, 10))
+		CONTINUE
+	ENDIF
+	
+	IF STRFIND(経験値:LOCAL, "Ａ拡張") != -1
+		EXP:対象:Ａ拡張経験 += RAND:5
+		CALL TIGHTNESS_DECREASE_A(対象, RAND(5, 10))
+		CONTINUE
+	ENDIF
+	
+	IF STRFIND(経験値:LOCAL, "性交") != -1
+		EXP:対象:性交経験値 += ABL:対象:性交 * 4 + 10 + RAND:7
+		CONTINUE
+	ENDIF
+
+	IF STRFIND(経験値:LOCAL, "自慰") != -1
+		EXP:対象:自慰経験値 += ABL:対象:自慰 * 3 + 5 + RAND:8
+		CONTINUE
+	ENDIF
+		
+	IF STRFIND(経験値:LOCAL, "精愛") != -1
+		EXP:対象:精愛経験値 += ABL:対象:精愛 * 7 + 7 + RAND:10
+		CONTINUE
+	ENDIF
+
+		
+	IF STRFIND(経験値:LOCAL, "露出") != -1
+		EXP:対象:露出経験値 += ABL:対象:露出 * 2 + 5 + RAND:8
+		CONTINUE
+	ENDIF
+		
+	IF STRFIND(経験値:LOCAL, "排泄") != -1
+		EXP:対象:排泄経験値 += ABL:対象:排泄 * 2 + 5 + RAND:8
+		CONTINUE
+	ENDIF
+
+	IF STRFIND(経験値:LOCAL, "触手") != -1
+		EXP:対象:排泄経験値 += ABL:対象:触手 * 2 + 5 + RAND:8
+		CONTINUE
+	ENDIF
+		
+	IF STRFIND(経験値:LOCAL, "射精") != -1 && PENIS(対象)
+		EXP:対象:射精経験値 += ABL:対象:射精 * 7 + 20 + RAND:10
+		CONTINUE
+	ENDIF
+	
+	IF STRFIND(経験値:LOCAL, "苦痛快楽") != -1
+		EXP:対象:苦痛快楽経験 += RAND(20, 30)
+		CONTINUE
+	ENDIF
+
+	IF STRFIND(経験値:LOCAL, "緊縛") != -1
+		EXP:対象:緊縛経験 += 3 + RAND:4
+		CONTINUE
+	ENDIF
+		
+	IF STRFIND(経験値:LOCAL, "キス") != -1
+		EXP:対象:キス経験 += 2 + RAND:8
+		CONTINUE
+	ENDIF
+		
+	IF STRFIND(経験値:LOCAL, "口淫") != -1
+		EXP:対象:口淫経験 += 3 + RAND:10
+		CONTINUE
+	ENDIF
+		
+	IF STRFIND(経験値:LOCAL, "輪姦") != -1
+		EXP:対象:輪姦経験 += 3 + RAND(2, MAX(3, MIN(8, ABL:対象:欲望)))
+		CONTINUE
+	ENDIF
+		
+	IF STRFIND(経験値:LOCAL, "獣姦") != -1
+		EXP:対象:獣姦経験 += 3 + RAND:3
+		CONTINUE
+	ENDIF
+
+	IF STRFIND(経験値:LOCAL, "Ｃ") != -1
+		EXP:対象:Ｃ感経験値 += ABL:対象:Ｃ感 + 3 + RAND:2
+		LOCAL:1 += ABL:対象:Ｃ感
+		CONTINUE
+	ENDIF
+	
+	IF STRFIND(経験値:LOCAL, "Ｖ") != -1 && VAGINA(対象)
+		EXP:対象:Ｖ感経験値 += ABL:対象:Ｖ感 * 10 + 10 + RAND:7
+		LOCAL:1 += ABL:対象:Ｖ感
+		CALL TIGHTNESS_DECREASE_V(対象, RAND(5, 10))
+		CONTINUE
+	ENDIF
+
+	IF STRFIND(経験値:LOCAL, "Ｂ") != -1
+		EXP:対象:Ｂ感経験値 += ABL:対象:Ｂ感 * 5 + 4 + RAND:6
+		LOCAL:1 += ABL:対象:Ｂ感
+		CONTINUE
+	ENDIF
+	
+	IF STRFIND(経験値:LOCAL, "Ａ") != -1
+		EXP:対象:Ａ感経験値 += ABL:対象:Ａ感 * 10 + 10 + RAND:7
+		CALL TIGHTNESS_DECREASE_A(対象, RAND(5, 10))
+		LOCAL:1 += ABL:対象:Ａ感
+		CONTINUE
+	ENDIF
+
+	IF STRFIND(経験値:LOCAL, "Ｍ") != -1
+		EXP:対象:Ｍ感経験値 += ABL:対象:Ｍ感 * 5 + 4 + RAND:6
+		LOCAL:1 += ABL:対象:Ｍ感
+		CONTINUE
+	ENDIF
+
+NEXT
+EXP:対象:絶頂経験 += LOCAL:1 * (60 + RAND:81) / 100
+
+;-------------------------------------------------
+;FUCKにおける、追加処理を行う関数
+;-------------------------------------------------
+@FUCK_EXTRA_PROCESS(対象, 追加処理指定文字列, 膣内射精相手ID = -1, キス相手 = "", セックス相手 = "", シチュ = -1)
+#DIM 対象
+#DIMS 追加処理指定文字列
+#DIMS 追加処理, 100
+#DIM 膣内射精相手ID
+#DIMS キス相手
+#DIMS セックス相手
+#DIM シチュ
+VARSET 追加処理
+SPLIT 追加処理指定文字列, ",", 追加処理
+
+FOR LOCAL, 0, VARSIZE("追加処理")
+	SIF 追加処理:LOCAL == ""
+		CONTINUE
+		
+	SIF STRFIND(追加処理:LOCAL, "キス喪失") != -1
+		CALL KISS_COMMON(対象, @"%キス相手%", シチュ)
+		
+	SIF STRFIND(追加処理:LOCAL, "処女喪失") != -1
+		CALL VIRGIN_COMMON(対象, @"%セックス相手%", シチュ)
+		
+	SIF STRFIND(追加処理:LOCAL, "Ａ処女喪失") != -1
+		CALL VIRGIN_COMMON_A(対象, @"%セックス相手%", シチュ)
+
+	IF STRFIND(追加処理:LOCAL, "CFLAG減少") != -1
+		CFLAG:対象:好感度 = MAX(CFLAG:対象:好感度 - MAX(CFLAG:対象:好感度 / 10, 200) , -1000)
+		CFLAG:対象:依存度 = MAX(CFLAG:対象:依存度 - MAX(CFLAG:対象:依存度 / 10, 200) , -1000)
+		CFLAG:対象:従属度 = MAX(CFLAG:対象:従属度 - MAX(CFLAG:対象:従属度 / 10, 200) , -1000)
+	ENDIF
+	
+	IF STRFIND(追加処理:LOCAL, "性癖取得") != -1
+		SELECTCASE RAND:100
+			CASE IS < 20
+				LOCAL:1 = 性的嗜好_愛撫される
+			CASE IS < 40
+				LOCAL:1 = 性的嗜好_奉仕する
+			CASE IS < 80
+				LOCAL:1 = 性的嗜好_性交される
+			CASEELSE
+				LOCAL:1 = 性的嗜好_ＳＭされる
+		ENDSELECT
+		CALL GET_RANDOM_SEXUAL_PREFERENCE_EXP(対象, LOCAL:1, RAND(5, 9))
+		CALL CHECK_SEXUAL_PREFERENCE(対象, 1)
+	ENDIF
+	
+	IF STRFIND(追加処理:LOCAL, "膣内射精") != -1
+		FOR LOCAL:1, 440, 480
+			TCVAR:対象:(LOCAL:1) = 0
+		NEXT
+		CALL RECORD_INJECTION(対象, 膣内射精相手ID, 3)
+		CALL CHECK_PREGNANT(対象)
+	ENDIF
+NEXT
