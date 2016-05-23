@@ -19,15 +19,7 @@
 #DIM 能動
 VARSET キャラ数
 VARSET 満足度
-FOR LOCAL, 0, CHARANUM
-	SIF CFLAG:(LOCAL:0):所属 == CFLAG:MASTER:所属
-		キャラ数 ++
-NEXT
-
-総ページ数 = (キャラ数 - 1) / 40 + 1
-表示ページ = 1
-CALL TMP_CREATE_IS_FREE_MAP
-
+$SELECT_CHARA
 DRAWLINE
 PRINTFORML %ANAME(MASTER)%は「楽しみ」を提供することにした
 PRINTFORML することをするわけだから、性知識の足りない者は提供すらできない
@@ -37,101 +29,10 @@ PRINTFORML 条件を満たす者の中で、性に貪欲で、技術に長け、
 PRINTFORML もっとも、向こうが何をさせるかによって必要な技術は変わるから、一概にはいえないが……
 PRINTFORML さて、誰にすべきか……
 DRAWLINE
-PRINTFORML %TOSTR_SPACE(24)%   欲|  技|  奉|  交|  政|  %TOSTR_SPACE(26)%   欲|  技|  奉|  交|  政|
-
-$SHOW_LOOP
-VARSET 表示位置
-VARSET キャラカウンタ
-表示開始位置 = (表示ページ - 1) * 40
-表示終了位置 = 表示ページ * 40
-
-FOR LOCAL:0, 0, CHARANUM
-	IF TALK_CAN_GIVE_SEX(LOCAL:0)
-		IF 表示開始位置 <= キャラカウンタ && キャラカウンタ < 表示終了位置
-			IF 表示位置 % 2 != 0
-				PRINT 　　
-			ELSEIF 表示位置 > 0
-				PRINTL 
-			ENDIF
-			IF CFLAG:(LOCAL:0):91 || TMP_IS_FREE:(LOCAL:0):0 != 0
-				SETCOLOR COLOR("選択不可")
-				LOCALS:0 = [{LOCAL:0 + 99, 4}] %ANAME(LOCAL:0), 16, RIGHT%  
-				LOCALS:0 += @"  %ALPHABET_RANK(3, ABL:(LOCAL:0):欲望)%{ABL:(LOCAL:0):欲望, 3}|"
-				LOCALS:0 += @"%ALPHABET_RANK(3, ABL:(LOCAL:0):性技)%{ABL:(LOCAL:0):性技, 3}|"
-				LOCALS:0 += @"%ALPHABET_RANK(3, ABL:(LOCAL:0):奉仕)%{ABL:(LOCAL:0):奉仕, 3}|"
-				LOCALS:0 += @"%ALPHABET_RANK(3, ABL:(LOCAL:0):性交)%{ABL:(LOCAL:0):性交, 3}|"
-				LOCALS:0 += @"%ALPHABET_RANK(0, ABL:(LOCAL:0):政治)%{ABL:(LOCAL:0):政治, 3}|"
-				PRINTPLAINFORM %LOCALS:0%
-				RESETCOLOR
-			ELSE
-				PRINTFORM [{LOCAL:0 + 99, 4}] %ANAME(LOCAL:0), 16, RIGHT%
-				PRINTFORM   
-				CALL PRINT_ALPHABET_RANK(3, ABL:(LOCAL:0):欲望)
-				PRINTFORM {ABL:(LOCAL:0):欲望, 3}|
-				CALL PRINT_ALPHABET_RANK(3, ABL:(LOCAL:0):性技)
-				PRINTFORM {ABL:(LOCAL:0):性技, 3}|
-				CALL PRINT_ALPHABET_RANK(3, ABL:(LOCAL:0):奉仕)
-				PRINTFORM {ABL:(LOCAL:0):奉仕, 3}|
-				CALL PRINT_ALPHABET_RANK(3, ABL:(LOCAL:0):性交)
-				PRINTFORM {ABL:(LOCAL:0):性交, 3}|
-				CALL PRINT_ALPHABET_RANK(0, ABL:(LOCAL:0):政治)
-				PRINTFORM {ABL:(LOCAL:0):政治, 3}|
-			ENDIF
-			表示位置++
-		ENDIF
-		キャラカウンタ ++
-	ENDIF
-NEXT
-PRINTL
-DRAWLINE
-
-IF 総ページ数 >= 2
-	IF 表示ページ > 1
-		PRINT [  8] 前のページ            
-	ELSE
-		PRINT                             
-	ENDIF
-	LOCALS:0 = ページ{表示ページ}/{総ページ数}
-	PRINTPLAINFORM %LOCALS:0, 28, LEFT%
-	IF 表示ページ < 総ページ数
-		PRINT [  9] 後のページ
-	ENDIF
-	PRINTL 
-	DRAWLINE
-ENDIF
-
-PRINTL [  0] 戻る
-
-REDRAW 0
-
-
-INPUT
-IF RESULT == 8 && 表示ページ > 1
-	表示ページ --
-	CLEARLINE LINECOUNT - FIRST_LINE
-	GOTO SHOW_LOOP
-ELSEIF RESULT == 9 && 表示ページ < 総ページ数
-	表示ページ ++
-	CLEARLINE LINECOUNT - FIRST_LINE
-	GOTO SHOW_LOOP
-ELSEIF RESULT == 0
-	REDRAW 1
-	RETURN -1
-ENDIF
-
-提供元 = RESULT - 99
-IF 提供元 > CHARANUM || 提供元 < 0
-	CLEARLINE LINECOUNT - FIRST_LINE
-	GOTO SHOW_LOOP
-ELSEIF !TALK_CAN_GIVE_SEX(提供元) || CFLAG:提供元:91 || TMP_IS_FREE:提供元:0 != 0
-	CLEARLINE LINECOUNT - FIRST_LINE
-	GOTO SHOW_LOOP
-ENDIF
-提供先 = ARG:0
-PRINTFORML %ANAME(提供元)%を%ANAME(提供先)%に提供することにした……
-DRAWLINE
-PRINTFORML
-;ふた ふた
+CALL SELECT_CHARA_LIST("育児対象, 別勢力, 放浪, 死亡, 未登場, 動物", "!IS_FREE, 捕虜,　!TALK_CAN_GIVE_SEX", "欲望", "性技", "奉仕", "性交", "政治")
+SIF RESULT == -1
+	RETURN 0
+提供元 = RESULT;ふた ふた
 IF VAGINA(提供先) && PENIS(提供先) && VAGINA(提供元) && PENIS(提供元)
 	PRINTBUTTON "[相互フェラ]", "相互フェラ"
 	PRINTL
