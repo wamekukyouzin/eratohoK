@@ -1,4 +1,4 @@
-﻿era恋姫 readme
+era恋姫 readme
 
 2013/03/10
 超絶プロトタイプ製作
