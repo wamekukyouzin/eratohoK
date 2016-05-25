@@ -1,4 +1,117 @@
-﻿
+﻿;-------------------------------------------------
+;「能力表示」のメニュー表示で使用するフィルタリングのモード文字列
+;-------------------------------------------------
+@CHARALIST_MODE
+#FUNCTIONS
+SELECTCASE FLAG:能力表示フィルタ
+	CASE 0
+		RETURNF "士官+捕虜+友好"
+	CASE 1
+		RETURNF "士官"
+	CASE 2
+		RETURNF "士官+捕虜"
+	CASE 3
+		RETURNF "全て"
+ENDSELECT
+
+;-------------------------------------------------
+;「能力表示」のメニュー表示
+;-------------------------------------------------
+@LIFE_MENU_CHARALIST
+#DIM 選択人数;(LOCAL:30)
+#DIM 行数;(LOCAL:20)
+#DIM 最大ページ数
+#DIM PRINTOPTION
+
+CALL PRINT_LIFE_MENU(0)
+PRINTFORM ★★能力を表示するキャラを選択して下さい★★
+CALL PRINTBUTTON_SHOP(58, @"[%CHARALIST_MODE()%]", 10)
+CALL PRINTBUTTON_SHOP(59, "[能力一覧表示]", 10)
+PRINTL
+CALL PRINT_LIFE_MENU(1)
+CALL REPEAT_DASH(0)
+CALL PRINT_LIFE_MENU(2)
+CALL PRINT_PARTNER_DATA(MASTER, 0, 0, 100, 1, 1)
+PRINTL 
+行数 = 3
+
+;ページ数を計算
+LOCAL:12 = (LINES_SHOP_DRAW - 2 - 行数) * 2
+最大ページ数 = 0
+FOR LOCAL:0, 0, CHARANUM
+	;選択可能な条件を満たしているかどうかを判定
+	CALL CHECK_SELECTABLE(FLAG:7, LOCAL:0)
+	IF RESULT
+		最大ページ数 ++
+	ENDIF
+NEXT
+最大ページ数 = MAX((最大ページ数 - 1) / LOCAL:12 + 1, 1)
+
+;ページ数を範囲に収める
+FLAG:6 = (最大ページ数 - 1 + FLAG:6 % 最大ページ数) % 最大ページ数 + 1
+LOCAL:11 = FLAG:6
+
+;キャラリストの表示
+LOCAL:13 = 0
+LOCAL:14 = 0
+LOCAL:15 = (LOCAL:11 - 1) * LOCAL:12
+LOCAL:16 = LOCAL:11 * LOCAL:12
+FOR LOCAL:0, 0, CHARANUM
+	LOCAL:5 = SHOP_CHARA_LIST:(LOCAL:0)
+	;選択可能な条件を満たしているかどうかを判定
+	RESULT = 0
+	CALL CHECK_SELECTABLE(FLAG:7, LOCAL:5)
+	PRINTOPTION = RESULT
+	IF RESULT
+		IF LOCAL:13 >= LOCAL:15 && LOCAL:13 < LOCAL:16
+			IF LOCAL:14 % 2 != 0
+				PRINTPLAIN 　
+			ELSE
+				IF LOCAL:14 >= 1
+					PRINTL 
+				ENDIF
+				CALL PRINT_LIFE_MENU(行数)
+				行数 ++
+			ENDIF
+			CALL PRINT_PARTNER_DATA(LOCAL:5, LOCAL:21, CFLAG:(LOCAL:5):7, 100, PRINTOPTION, 1)
+			LOCAL:14 ++
+		ENDIF
+		LOCAL:13 ++
+	ENDIF
+NEXT
+IF LOCAL:14 >= 1
+	PRINTL 
+ENDIF
+
+IF 行数 < LINES_SHOP_DRAW
+	FOR LOCAL:0, 行数, LINES_SHOP_DRAW
+		CALL PRINT_LIFE_MENU(LOCAL:0)
+		IF LOCAL:0 == LINES_SHOP_DRAW - 2
+			CALL REPEAT_DASH(0, 0)
+		ELSEIF LOCAL:0 == LINES_SHOP_DRAW - 1
+			PRINT   
+			IF 最大ページ数 >= 2
+				PRINTBUTTON "54[前のページ    ]", 54
+			ELSE
+				SETCOLOR COLOR("選択不可")
+				PRINTPLAINFORM 54[前のページ    ]
+				RESETCOLOR
+			ENDIF
+			PRINTPLAINFORM %TOSTR_SPACE(10)%
+			LOCALS:0 = page{LOCAL:11}/{最大ページ数}
+			PRINTPLAINFORM %LOCALS:0, 14, LEFT%
+			IF 最大ページ数 >= 2
+				PRINTBUTTON "56[次のページ    ]", 56
+			ELSE
+				SETCOLOR COLOR("選択不可")
+				PRINTPLAINFORM 56[次のページ    ]
+				RESETCOLOR
+			ENDIF
+		ENDIF
+		PRINTL 
+	NEXT
+ENDIF
+
 
 ;-------------------------------------------------
 ;「夜這い」のメニュー表示
