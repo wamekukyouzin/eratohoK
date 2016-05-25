@@ -1,0 +1,1415 @@
+﻿;-------------------------------------------------
+;「能力表示」のメニュー表示で使用するフィルタリングのモード文字列
+;-------------------------------------------------
+@CHARALIST_MODE
+#FUNCTIONS
+SELECTCASE FLAG:能力表示フィルタ
+	CASE 0
+		RETURNF "士官+捕虜+友好"
+	CASE 1
+		RETURNF "士官"
+	CASE 2
+		RETURNF "士官+捕虜"
+	CASE 3
+		RETURNF "全て"
+ENDSELECT
+
+;-------------------------------------------------
+;「能力表示」のメニュー表示
+;-------------------------------------------------
+@LIFE_MENU_CHARALIST
+#DIM 選択人数;(LOCAL:30)
+#DIM 行数;(LOCAL:20)
+#DIM 最大ページ数
+#DIM PRINTOPTION
+
+CALL PRINT_LIFE_MENU(0)
+PRINTFORM ★★能力を表示するキャラを選択して下さい★★
+CALL PRINTBUTTON_SHOP(58, @"[%CHARALIST_MODE()%]", 10)
+CALL PRINTBUTTON_SHOP(59, "[能力一覧表示]", 10)
+PRINTL
+CALL PRINT_LIFE_MENU(1)
+CALL REPEAT_DASH(0)
+CALL PRINT_LIFE_MENU(2)
+CALL PRINT_PARTNER_DATA(MASTER, 0, 0, 100, 1, 1)
+PRINTL 
+行数 = 3
+
+;ページ数を計算
+LOCAL:12 = (LINES_SHOP_DRAW - 2 - 行数) * 2
+最大ページ数 = 0
+FOR LOCAL:0, 0, CHARANUM
+	;選択可能な条件を満たしているかどうかを判定
+	CALL CHECK_SELECTABLE(FLAG:7, LOCAL:0)
+	IF RESULT
+		最大ページ数 ++
+	ENDIF
+NEXT
+最大ページ数 = MAX((最大ページ数 - 1) / LOCAL:12 + 1, 1)
+
+;ページ数を範囲に収める
+FLAG:6 = (最大ページ数 - 1 + FLAG:6 % 最大ページ数) % 最大ページ数 + 1
+LOCAL:11 = FLAG:6
+
+;キャラリストの表示
+LOCAL:13 = 0
+LOCAL:14 = 0
+LOCAL:15 = (LOCAL:11 - 1) * LOCAL:12
+LOCAL:16 = LOCAL:11 * LOCAL:12
+FOR LOCAL:0, 0, CHARANUM
+	LOCAL:5 = SHOP_CHARA_LIST:(LOCAL:0)
+	;選択可能な条件を満たしているかどうかを判定
+	RESULT = 0
+	CALL CHECK_SELECTABLE(FLAG:7, LOCAL:5)
+	PRINTOPTION = RESULT
+	IF RESULT
+		IF LOCAL:13 >= LOCAL:15 && LOCAL:13 < LOCAL:16
+			IF LOCAL:14 % 2 != 0
+				PRINTPLAIN 　
+			ELSE
+				IF LOCAL:14 >= 1
+					PRINTL 
+				ENDIF
+				CALL PRINT_LIFE_MENU(行数)
+				行数 ++
+			ENDIF
+			CALL PRINT_PARTNER_DATA(LOCAL:5, LOCAL:21, CFLAG:(LOCAL:5):7, 100, PRINTOPTION, 1)
+			LOCAL:14 ++
+		ENDIF
+		LOCAL:13 ++
+	ENDIF
+NEXT
+IF LOCAL:14 >= 1
+	PRINTL 
+ENDIF
+
+IF 行数 < LINES_SHOP_DRAW
+	FOR LOCAL:0, 行数, LINES_SHOP_DRAW
+		CALL PRINT_LIFE_MENU(LOCAL:0)
+		IF LOCAL:0 == LINES_SHOP_DRAW - 2
+			CALL REPEAT_DASH(0, 0)
+		ELSEIF LOCAL:0 == LINES_SHOP_DRAW - 1
+			PRINT   
+			IF 最大ページ数 >= 2
+				PRINTBUTTON "54[前のページ    ]", 54
+			ELSE
+				SETCOLOR COLOR("選択不可")
+				PRINTPLAINFORM 54[前のページ    ]
+				RESETCOLOR
+			ENDIF
+			PRINTPLAINFORM %TOSTR_SPACE(10)%
+			LOCALS:0 = page{LOCAL:11}/{最大ページ数}
+			PRINTPLAINFORM %LOCALS:0, 14, LEFT%
+			IF 最大ページ数 >= 2
+				PRINTBUTTON "56[次のページ    ]", 56
+			ELSE
+				SETCOLOR COLOR("選択不可")
+				PRINTPLAINFORM 56[次のページ    ]
+				RESETCOLOR
+			ENDIF
+		ENDIF
+		PRINTL 
+	NEXT
+ENDIF
+
+
+;-------------------------------------------------
+;「夜這い」のメニュー表示
+;-------------------------------------------------
+@LIFE_MENU_YOBAI()
+#DIM 行数;(LOCAL:20)
+#DIM 最大ページ数;(LOCAL:10)
+#DIM 現ページ数;(LOCAL:11)
+#DIM PRINTOPTION
+CALL PRINT_LIFE_MENU(0)
+PRINTFORML ★★対象となるキャラを選択して下さい★★
+CALL PRINT_LIFE_MENU(1)
+CALL REPEAT_DASH(0)
+行数 = 2
+CALL TMP_CREATE_COUNTRY_NEIBORING_MAP
+;ページ数を計算
+LOCAL:12 = (LINES_SHOP_DRAW / 2 - 2 - 行数) * 2
+最大ページ数 = 0
+FOR LOCAL:0, 0, CHARANUM
+	;選択可能な条件を満たしているかどうかを判定
+	RESULT = 0
+	SIF TMP_COUNTRY_IS_NEIBORING:(CFLAG:MASTER:1):(CFLAG:LOCAL:1)
+		CALL CHECK_SELECTABLE1002(LOCAL:0)
+	IF RESULT
+		最大ページ数 ++
+	ENDIF
+NEXT
+最大ページ数 = MAX((最大ページ数 - 1) / LOCAL:12 + 1, 1)
+
+;ページ数を範囲に収める
+FLAG:6 = (最大ページ数 - 1 + FLAG:6 % 最大ページ数) % 最大ページ数 + 1
+現ページ数 = FLAG:6
+
+;キャラリストの表示
+LOCAL:13 = 0
+LOCAL:14 = 0
+LOCAL:15 = (現ページ数 - 1) * LOCAL:12
+LOCAL:16 = 現ページ数 * LOCAL:12
+FOR LOCAL:0, 0, CHARANUM
+	LOCAL:5 = SHOP_CHARA_LIST:(LOCAL:0)
+	;選択可能な条件を満たしているかどうかを判定
+	RESULT = 0
+	SIF TMP_COUNTRY_IS_NEIBORING:(CFLAG:MASTER:1):(CFLAG:(LOCAL:5):1) 
+		CALL CHECK_SELECTABLE1002(LOCAL:5)
+	IF RESULT
+		IF LOCAL:13 >= LOCAL:15 && LOCAL:13 < LOCAL:16
+			IF LOCAL:14 % 2 != 0
+				PRINTPLAIN 　
+			ELSE
+				IF LOCAL:14 >= 1
+					PRINTL 
+				ENDIF
+				CALL PRINT_LIFE_MENU(行数)
+				行数 ++
+			ENDIF
+			CALL CHECK_SELECTABLE(1002, LOCAL:5)
+			CALL PRINT_PARTNER_DATA(LOCAL:5, 0, 0, 100, RESULT , 1)
+			LOCAL:14 ++
+		ENDIF
+		LOCAL:13 ++
+	ENDIF
+NEXT
+IF LOCAL:14 >= 1
+	PRINTL 
+ENDIF
+LOCAL:1  = 行数
+FOR LOCAL:0, LOCAL:1, LINES_SHOP_DRAW / 2
+	CALL PRINT_LIFE_MENU(LOCAL:0)
+	行数 ++ 
+	IF LOCAL:0 == LINES_SHOP_DRAW / 2 - 2
+		CALL REPEAT_DASH(0,0)
+	ELSEIF LOCAL:0 == LINES_SHOP_DRAW / 2 - 1
+		PRINT   
+		IF 最大ページ数 >= 2
+			PRINTBUTTON "54[前のページ    ]", 54
+		ELSE
+			SETCOLOR COLOR("選択不可")
+			PRINTPLAINFORM 54[前のページ    ]
+			RESETCOLOR
+		ENDIF
+		PRINTPLAINFORM %TOSTR_SPACE(10)%
+		LOCALS:0 = page{現ページ数}/{最大ページ数}
+		PRINTPLAINFORM %LOCALS:0, 14, LEFT%
+		IF 最大ページ数 >= 2
+			PRINTBUTTON "56[次のページ    ]", 56
+		ELSE
+			SETCOLOR COLOR("選択不可")
+			PRINTPLAINFORM 56[次のページ    ]
+			RESETCOLOR
+		ENDIF
+	ENDIF
+	PRINTL 
+NEXT
+
+
+;現在参加している助手の数を数える
+LOCAL:1 = 0
+FOR LOCAL:0, 0, CHARANUM
+	;選択可能な条件を満たしているかどうかを判定
+	CALL CHECK_SELECTABLE_ASSI(LOCAL:0)
+	IF RESULT == 1
+		;選択中の人数を数える
+		SIF CFLAG:(LOCAL:0):70
+			LOCAL:1 ++
+	ELSE
+		;条件を満たしていなければ強制的にＯＦＦ
+		CFLAG:(LOCAL:0):57 = 0
+		CFLAG:(LOCAL:0):70 = 0
+	ENDIF
+NEXT
+
+CALL PRINT_LIFE_MENU(行数)
+CALL REPEAT_DASH(0)
+CALL PRINT_LIFE_MENU(行数 + 1)
+PRINTFORM 助手を最大2人まで連れて行く事が可能です
+SIF LOCAL:1 >= 2
+	SETCOLOR COLOR("オレンジ")
+PRINTFORML (現在{LOCAL:1}/2人)
+RESETCOLOR
+CALL PRINT_LIFE_MENU(行数 + 2)
+CALL REPEAT_DASH(0)
+
+行数 += 3
+
+;ページ数を計算
+LOCAL:12 = (LINES_SHOP_DRAW - 2 - 行数) * 2
+最大ページ数 = 0
+FOR LOCAL:0, 0, CHARANUM
+	;選択可能な条件を満たしているかどうかを判定
+	CALL CHECK_SELECTABLE_ASSI(LOCAL:0)
+	IF RESULT
+		最大ページ数 ++
+	ENDIF
+NEXT
+最大ページ数 = MAX((最大ページ数 - 1) / LOCAL:12 + 1, 1)
+
+;ページ数を範囲に収める
+FLAG:13 = (最大ページ数 - 1 + FLAG:13 % 最大ページ数) % 最大ページ数 + 1
+現ページ数 = FLAG:13
+
+;キャラリストの表示
+LOCAL:13 = 0
+LOCAL:14 = 0
+LOCAL:15 = (現ページ数 - 1) * LOCAL:12
+LOCAL:16 = 現ページ数 * LOCAL:12
+FOR LOCAL:0, 0, CHARANUM
+	LOCAL:5 = SHOP_CHARA_LIST:(LOCAL:0)
+	;選択可能な条件を満たしているかどうかを判定
+	RESULT = 0
+	CALL CHECK_SELECTABLE_ASSI(LOCAL:5)
+	PRINTOPTION = RESULT
+	IF RESULT
+		IF LOCAL:13 >= LOCAL:15 && LOCAL:13 < LOCAL:16
+			IF LOCAL:14 % 2 != 0
+				PRINTPLAIN 　
+			ELSE
+				IF LOCAL:14 >= 1
+					PRINTL 
+				ENDIF
+				CALL PRINT_LIFE_MENU(行数)
+				行数 ++
+			ENDIF
+			CALL PRINT_PARTNER_DATA(LOCAL:5, 1, CFLAG:(LOCAL:5):70, 1100, PRINTOPTION, 1)
+			LOCAL:14 ++
+		ENDIF
+		LOCAL:13 ++
+	ENDIF
+NEXT
+IF LOCAL:14 >= 1
+	PRINTL 
+ENDIF
+LOCAL:1 = 行数
+FOR LOCAL:0, LOCAL:1, LINES_SHOP_DRAW
+	CALL PRINT_LIFE_MENU(LOCAL:0)
+	行数 ++
+	IF LOCAL:0 == LINES_SHOP_DRAW - 2
+		CALL REPEAT_DASH(0,0)
+	ELSEIF LOCAL:0 == LINES_SHOP_DRAW - 1
+		PRINT   
+		IF 最大ページ数 >= 2
+			PRINTBUTTON "64[前のページ    ]", 64
+		ELSE
+			SETCOLOR COLOR("選択不可")
+			PRINTPLAINFORM 64[前のページ    ]
+			RESETCOLOR
+		ENDIF
+		PRINTPLAINFORM %TOSTR_SPACE(10)%
+		LOCALS:0 = page{現ページ数}/{最大ページ数}
+		PRINTPLAINFORM %LOCALS:0, 14, LEFT%
+		IF 最大ページ数 >= 2
+			PRINTBUTTON "66[次のページ    ]", 66
+		ELSE
+			SETCOLOR COLOR("選択不可")
+			PRINTPLAINFORM 66[次のページ    ]
+			RESETCOLOR
+		ENDIF
+	ENDIF
+	PRINTL 
+NEXT
+
+
+;-------------------------------------------------
+;「捕虜の調教」のメニュー表示
+;-------------------------------------------------
+@LIFE_MENU_PRISONER(ARG)
+#DIM 行数;(LOCAL:20)
+#DIM 最大ページ数;(LOCAL:10)
+#DIM 現ページ数;(LOCAL:11)
+#DIM 選択人数
+#DIM PRINTOPTION
+選択人数 = INRANGEARRAY(PRISONER_TARGET, 0, CHARANUM + 1)
+CALL PRINT_LIFE_MENU(0)
+PRINTFORML ★★対象となるキャラを選択して下さい★★
+CALL PRINT_LIFE_MENU(1)
+CALL REPEAT_DASH(0)
+CALL PRINT_LIFE_MENU(2)
+PRINTPLAIN   
+IF 選択人数 >= 1
+	PRINTBUTTON "55[このメンバーで決定]", 55
+	PRINT    
+ELSE
+	SETCOLOR COLOR("選択不可")
+	PRINTPLAINFORM 55[このメンバーで決定]
+	PRINT    
+	RESETCOLOR
+ENDIF
+IF 選択人数 >= VARSIZE("PRISONER_TARGET")
+	SETCOLOR COLOR("オレンジ")
+ENDIF
+PRINTFORML (現在{選択人数}/{VARSIZE("PRISONER_TARGET")}人)
+RESETCOLOR
+CALL PRINT_LIFE_MENU(3)
+CALL REPEAT_DASH(0)
+行数 = 4
+CALL TMP_CREATE_COUNTRY_NEIBORING_MAP
+;ページ数を計算
+LOCAL:12 = (LINES_SHOP_DRAW / 2 - 2 - 行数) * 2
+最大ページ数 = 0
+FOR LOCAL:0, 0, CHARANUM
+	;選択可能な条件を満たしているかどうかを判定
+	RESULT = 0
+	CALL CHECK_SELECTABLE1010(LOCAL:0)
+	IF RESULT
+		最大ページ数 ++
+	ENDIF
+NEXT
+最大ページ数 = MAX((最大ページ数 - 1) / LOCAL:12 + 1, 1)
+
+;ページ数を範囲に収める
+FLAG:6 = (最大ページ数 - 1 + FLAG:6 % 最大ページ数) % 最大ページ数 + 1
+現ページ数 = FLAG:6
+
+;キャラリストの表示
+LOCAL:13 = 0
+LOCAL:14 = 0
+LOCAL:15 = (現ページ数 - 1) * LOCAL:12
+LOCAL:16 = 現ページ数 * LOCAL:12
+FOR LOCAL:0, 0, CHARANUM
+	LOCAL:5 = SHOP_CHARA_LIST:(LOCAL:0)
+	;選択可能な条件を満たしているかどうかを判定
+	RESULT = 0
+	CALL CHECK_SELECTABLE1010(LOCAL:5)
+	IF RESULT
+		IF LOCAL:13 >= LOCAL:15 && LOCAL:13 < LOCAL:16
+			IF LOCAL:14 % 2 != 0
+				PRINTPLAIN 　
+			ELSE
+				IF LOCAL:14 >= 1
+					PRINTL 
+				ENDIF
+				CALL PRINT_LIFE_MENU(行数)
+				行数 ++
+			ENDIF
+			CALL CHECK_SELECTABLE(1010, LOCAL:5)
+			CALL PRINT_PARTNER_DATA(LOCAL:5, 1, FINDELEMENT(PRISONER_TARGET, LOCAL:5) != -1, 100, RESULT, 1)
+			LOCAL:14 ++
+		ENDIF
+		LOCAL:13 ++
+	ENDIF
+NEXT
+IF LOCAL:14 >= 1
+	PRINTL 
+ENDIF
+LOCAL:1  = 行数
+FOR LOCAL:0, LOCAL:1, LINES_SHOP_DRAW / 2
+	CALL PRINT_LIFE_MENU(LOCAL:0)
+	行数 ++ 
+	IF LOCAL:0 == LINES_SHOP_DRAW / 2 - 2
+		CALL REPEAT_DASH(0,0)
+	ELSEIF LOCAL:0 == LINES_SHOP_DRAW / 2 - 1
+		PRINT   
+		IF 最大ページ数 >= 2
+			PRINTBUTTON "54[前のページ    ]", 54
+		ELSE
+			SETCOLOR COLOR("選択不可")
+			PRINTPLAINFORM 54[前のページ    ]
+			RESETCOLOR
+		ENDIF
+		PRINTPLAINFORM %TOSTR_SPACE(10)%
+		LOCALS:0 = page{現ページ数}/{最大ページ数}
+		PRINTPLAINFORM %LOCALS:0, 14, LEFT%
+		IF 最大ページ数 >= 2
+			PRINTBUTTON "56[次のページ    ]", 56
+		ELSE
+			SETCOLOR COLOR("選択不可")
+			PRINTPLAINFORM 56[次のページ    ]
+			RESETCOLOR
+		ENDIF
+	ENDIF
+	PRINTL 
+NEXT
+
+
+;現在参加している助手の数を数える
+LOCAL:1 = 0
+FOR LOCAL:0, 0, CHARANUM
+	;選択可能な条件を満たしているかどうかを判定
+	CALL CHECK_SELECTABLE_ASSI(LOCAL:0)
+	IF RESULT == 1
+		;選択中の人数を数える
+		IF ARG && CFLAG:(LOCAL:0):70
+			LOCAL:1 ++
+		ELSEIF !ARG && CFLAG:(LOCAL:0):57
+				LOCAL:1 ++
+		ENDIF
+	ELSE
+		;条件を満たしていなければ強制的にＯＦＦ
+		CFLAG:(LOCAL:0):57 = 0
+		CFLAG:(LOCAL:0):70 = 0
+	ENDIF
+NEXT
+
+CALL PRINT_LIFE_MENU(行数)
+CALL REPEAT_DASH(0)
+CALL PRINT_LIFE_MENU(行数 + 1)
+PRINTFORM 助手を最大\@ARG ? 2 # 4 \@人まで連れて行く事が可能です
+SIF (LOCAL:1 >= 4 && !ARG) ||(LOCAL:1 >= 2 && ARG) 
+	SETCOLOR COLOR("オレンジ")
+PRINTFORML (現在{LOCAL:1}/\@ARG ? 2 # 4 \@人)
+RESETCOLOR
+CALL PRINT_LIFE_MENU(行数 + 2)
+CALL REPEAT_DASH(0)
+
+行数 += 3
+
+;ページ数を計算
+LOCAL:12 = (LINES_SHOP_DRAW - 2 - 行数) * 2
+最大ページ数 = 0
+FOR LOCAL:0, 0, CHARANUM
+	;選択可能な条件を満たしているかどうかを判定
+	CALL CHECK_SELECTABLE_ASSI(LOCAL:0)
+	IF RESULT
+		最大ページ数 ++
+	ENDIF
+NEXT
+最大ページ数 = MAX((最大ページ数 - 1) / LOCAL:12 + 1, 1)
+
+;ページ数を範囲に収める
+FLAG:13 = (最大ページ数 - 1 + FLAG:13 % 最大ページ数) % 最大ページ数 + 1
+現ページ数 = FLAG:13
+
+;キャラリストの表示
+LOCAL:13 = 0
+LOCAL:14 = 0
+LOCAL:15 = (現ページ数 - 1) * LOCAL:12
+LOCAL:16 = 現ページ数 * LOCAL:12
+FOR LOCAL:0, 0, CHARANUM
+	LOCAL:5 = SHOP_CHARA_LIST:(LOCAL:0)
+	;選択可能な条件を満たしているかどうかを判定
+	RESULT = 0
+	CALL CHECK_SELECTABLE_ASSI(LOCAL:5)
+	PRINTOPTION = RESULT
+	IF RESULT
+		IF LOCAL:13 >= LOCAL:15 && LOCAL:13 < LOCAL:16
+			IF LOCAL:14 % 2 != 0
+				PRINTPLAIN 　
+			ELSE
+				IF LOCAL:14 >= 1
+					PRINTL 
+				ENDIF
+				CALL PRINT_LIFE_MENU(行数)
+				行数 ++
+			ENDIF
+			CALL PRINT_PARTNER_DATA(LOCAL:5, 1, CFLAG:(LOCAL:5):57, 1100, PRINTOPTION, 1)
+			LOCAL:14 ++
+		ENDIF
+		LOCAL:13 ++
+	ENDIF
+NEXT
+IF LOCAL:14 >= 1
+	PRINTL 
+ENDIF
+LOCAL:1 = 行数
+FOR LOCAL:0, LOCAL:1, LINES_SHOP_DRAW
+	CALL PRINT_LIFE_MENU(LOCAL:0)
+	行数 ++
+	IF LOCAL:0 == LINES_SHOP_DRAW - 2
+		CALL REPEAT_DASH(0,0)
+	ELSEIF LOCAL:0 == LINES_SHOP_DRAW - 1
+		PRINT   
+		IF 最大ページ数 >= 2
+			PRINTBUTTON "64[前のページ    ]", 64
+		ELSE
+			SETCOLOR COLOR("選択不可")
+			PRINTPLAINFORM 64[前のページ    ]
+			RESETCOLOR
+		ENDIF
+		PRINTPLAINFORM %TOSTR_SPACE(10)%
+		LOCALS:0 = page{現ページ数}/{最大ページ数}
+		PRINTPLAINFORM %LOCALS:0, 14, LEFT%
+		IF 最大ページ数 >= 2
+			PRINTBUTTON "66[次のページ    ]", 66
+		ELSE
+			SETCOLOR COLOR("選択不可")
+			PRINTPLAINFORM 66[次のページ    ]
+			RESETCOLOR
+		ENDIF
+	ENDIF
+	PRINTL 
+NEXT
+;-------------------------------------------------
+;「手引きさせる」のメニュー表示
+;-------------------------------------------------
+@LIFE_MENU_TEBIKI(ARG)
+#DIM 行数;(LOCAL:20)
+#DIM 最大ページ数;(LOCAL:10)
+#DIM 現ページ数;(LOCAL:11)
+#DIM PRINTOPTION
+CALL PRINT_LIFE_MENU(0)
+PRINTFORML ★★対象となるキャラを選択して下さい★★
+CALL PRINT_LIFE_MENU(1)
+CALL REPEAT_DASH(0)
+行数 = 2
+CALL TMP_CREATE_COUNTRY_NEIBORING_MAP
+;ページ数を計算
+LOCAL:12 = (LINES_SHOP_DRAW / 2 - 2 - 行数) * 2
+最大ページ数 = 0
+FOR LOCAL:0, 0, CHARANUM
+	;選択可能な条件を満たしているかどうかを判定
+	RESULT = 0
+	IF ARG == 1 && TMP_COUNTRY_IS_NEIBORING:(CFLAG:MASTER:1):(CFLAG:LOCAL:1)
+		CALL CHECK_SELECTABLE1003(LOCAL:0)
+	ELSE
+		CALL CHECK_SELECTABLE1010(LOCAL:0)
+	ENDIF
+	IF RESULT
+		最大ページ数 ++
+	ENDIF
+NEXT
+最大ページ数 = MAX((最大ページ数 - 1) / LOCAL:12 + 1, 1)
+
+;ページ数を範囲に収める
+FLAG:6 = (最大ページ数 - 1 + FLAG:6 % 最大ページ数) % 最大ページ数 + 1
+現ページ数 = FLAG:6
+
+;キャラリストの表示
+LOCAL:13 = 0
+LOCAL:14 = 0
+LOCAL:15 = (現ページ数 - 1) * LOCAL:12
+LOCAL:16 = 現ページ数 * LOCAL:12
+FOR LOCAL:0, 0, CHARANUM
+	LOCAL:5 = SHOP_CHARA_LIST:(LOCAL:0)
+	;選択可能な条件を満たしているかどうかを判定
+	RESULT = 0
+	IF ARG
+		SIF TMP_COUNTRY_IS_NEIBORING:(CFLAG:MASTER:1):(CFLAG:(LOCAL:5):1) 
+			CALL CHECK_SELECTABLE1003(LOCAL:5)
+	ELSE
+		CALL CHECK_SELECTABLE1010(LOCAL:5)
+	ENDIF
+	IF RESULT
+		IF LOCAL:13 >= LOCAL:15 && LOCAL:13 < LOCAL:16
+			IF LOCAL:14 % 2 != 0
+				PRINTPLAIN 　
+			ELSE
+			IF LOCAL:14 >= 1
+				PRINTL 
+			ENDIF
+			CALL PRINT_LIFE_MENU(行数)
+			行数 ++
+			ENDIF
+			
+			IF ARG
+				CALL CHECK_SELECTABLE(1003, LOCAL:5)
+			ELSE
+				CALL CHECK_SELECTABLE(1010, LOCAL:5)
+			ENDIF
+			CALL PRINT_PARTNER_DATA(LOCAL:5, 0, 0, 100, RESULT , 1)
+			
+			LOCAL:14 ++
+		ENDIF
+		LOCAL:13 ++
+	ENDIF
+NEXT
+IF LOCAL:14 >= 1
+	PRINTL 
+ENDIF
+
+LOCAL:1 = 行数
+FOR LOCAL:0, LOCAL:1, LINES_SHOP_DRAW / 2
+	CALL PRINT_LIFE_MENU(LOCAL:0)
+	行数 ++
+	IF LOCAL:0 == LINES_SHOP_DRAW / 2 - 2
+		CALL REPEAT_DASH(0,0)
+	ELSEIF LOCAL:0 == LINES_SHOP_DRAW / 2 - 1
+		PRINT   
+		IF 最大ページ数 >= 2
+			PRINTBUTTON "54[前のページ    ]", 54
+		ELSE
+			SETCOLOR COLOR("選択不可")
+			PRINTPLAINFORM 54[前のページ    ]
+			RESETCOLOR
+		ENDIF
+		PRINTPLAINFORM %TOSTR_SPACE(10)%
+		LOCALS:0 = page{現ページ数}/{最大ページ数}
+		PRINTPLAINFORM %LOCALS:0, 14, LEFT%
+		IF 最大ページ数 >= 2
+			PRINTBUTTON "56[次のページ    ]", 56
+		ELSE
+			SETCOLOR COLOR("選択不可")
+			PRINTPLAINFORM 56[次のページ    ]
+			RESETCOLOR
+		ENDIF
+	ENDIF
+	PRINTL 
+NEXT
+
+;現在参加している助手の数を数える
+LOCAL:1 = 0
+FOR LOCAL:0, 0, CHARANUM
+	;選択可能な条件を満たしているかどうかを判定
+	CALL CHECK_SELECTABLE_NAITSU(LOCAL:0)
+	IF RESULT == 1
+		;選択中の人数を数える
+		IF ARG && CFLAG:(LOCAL:0):71
+			LOCAL:1 ++
+		ELSEIF !ARG && CFLAG:(LOCAL:0):57
+				LOCAL:1 ++
+		ENDIF
+	ELSE
+		;条件を満たしていなければ強制的にＯＦＦ
+		CFLAG:(LOCAL:0):57 = 0
+		CFLAG:(LOCAL:0):71 = 0
+	ENDIF
+NEXT
+
+CALL PRINT_LIFE_MENU(行数)
+CALL REPEAT_DASH(0)
+CALL PRINT_LIFE_MENU(行数 + 1)
+PRINTL 誰に手引きさせますか？
+CALL PRINT_LIFE_MENU(行数 + 2)
+CALL REPEAT_DASH(0)
+行数 += 3
+
+;ページ数を計算
+LOCAL:12 = (LINES_SHOP_DRAW - 2 - 行数) * 2
+最大ページ数 = 0
+FOR LOCAL:0, 0, CHARANUM
+	;選択可能な条件を満たしているかどうかを判定
+	CALL CHECK_SELECTABLE_NAITSU(LOCAL:0)
+	IF RESULT
+		最大ページ数 ++
+	ENDIF
+NEXT
+最大ページ数 = MAX((最大ページ数 - 1) / LOCAL:12 + 1, 1)
+
+;ページ数を範囲に収める
+FLAG:13 = (最大ページ数 - 1 + FLAG:13 % 最大ページ数) % 最大ページ数 + 1
+現ページ数 = FLAG:13
+
+;キャラリストの表示
+LOCAL:13 = 0
+LOCAL:14 = 0
+LOCAL:15 = (現ページ数 - 1) * LOCAL:12
+LOCAL:16 = 現ページ数 * LOCAL:12
+FOR LOCAL:0, 0, CHARANUM
+	LOCAL:5 = SHOP_CHARA_LIST:(LOCAL:0)
+	;選択可能な条件を満たしているかどうかを判定
+	RESULT = 0
+	CALL CHECK_SELECTABLE_NAITSU(LOCAL:5)
+	PRINTOPTION = RESULT
+	IF RESULT
+		IF LOCAL:13 >= LOCAL:15 && LOCAL:13 < LOCAL:16
+			IF LOCAL:14 % 2 != 0
+				PRINTPLAIN 　
+			ELSE
+				IF LOCAL:14 >= 1
+					PRINTL 
+				ENDIF
+				CALL PRINT_LIFE_MENU(行数)
+				行数 ++
+			ENDIF
+			IF ARG
+				CALL PRINT_PARTNER_DATA(LOCAL:5, 1, CFLAG:(LOCAL:5):71, 1100, PRINTOPTION, 1)
+			ELSE
+				CALL PRINT_PARTNER_DATA(LOCAL:5, 1, CFLAG:(LOCAL:5):57, 1100, PRINTOPTION, 1)
+			ENDIF
+			LOCAL:14 ++
+		ENDIF
+		LOCAL:13 ++
+	ENDIF
+NEXT
+IF LOCAL:14 >= 1
+	PRINTL 
+ENDIF
+
+LOCAL:1  = 行数
+FOR LOCAL:0, LOCAL:1, LINES_SHOP_DRAW
+	CALL PRINT_LIFE_MENU(LOCAL:0)
+	行数 ++
+	IF LOCAL:0 == LINES_SHOP_DRAW - 2
+		CALL REPEAT_DASH(0,0)
+	ELSEIF LOCAL:0 == LINES_SHOP_DRAW - 1
+		PRINT   
+		IF 最大ページ数 >= 2
+			PRINTBUTTON "64[前のページ    ]", 64
+		ELSE
+			SETCOLOR COLOR("選択不可")
+			PRINTPLAINFORM 64[前のページ    ]
+			RESETCOLOR
+		ENDIF
+		PRINTPLAINFORM %TOSTR_SPACE(10)%
+		LOCALS:0 = page{現ページ数}/{最大ページ数}
+		PRINTPLAINFORM %LOCALS:0, 14, LEFT%
+		IF 最大ページ数 >= 2
+			PRINTBUTTON "66[次のページ    ]", 66
+		ELSE
+			SETCOLOR COLOR("選択不可")
+			PRINTPLAINFORM 66[次のページ    ]
+			RESETCOLOR
+		ENDIF
+	ENDIF
+	PRINTL 
+NEXT
+;-------------------------------------------------
+;「説得させる」のメニュー表示
+;-------------------------------------------------
+@LIFE_MENU_SETTOKU()
+#DIM 行数;(LOCAL:20)
+#DIM 最大ページ数;(LOCAL:10)
+#DIM 現ページ数;(LOCAL:11)
+#DIM PRINTOPTION
+#DIM SELECTABLE
+#DIM 軟禁者
+#DIM 説得者
+CALL PRINT_LIFE_MENU(0)
+PRINTFORML %"★★説得対象キャラを選択して下さい★★", 44, LEFT%┃★★説得担当（再選択で解除）★★
+CALL PRINT_LIFE_MENU(1)
+CALL REPEAT_DASH(0)
+行数 = 2
+CALL TMP_CREATE_COUNTRY_NEIBORING_MAP
+;ページ数を計算
+LOCAL:12 = (LINES_SHOP_DRAW / 2 - 2 - 行数) * 2
+最大ページ数 = 0
+FOR LOCAL:0, 0, CHARANUM
+	;選択可能な条件を満たしているかどうかを判定
+	RESULT = 0
+	CALL CHECK_SELECTABLE1012(LOCAL:0)
+	IF RESULT
+		最大ページ数 ++
+	ENDIF
+NEXT
+最大ページ数 = MAX((最大ページ数 - 1) / LOCAL:12 + 1, 1)
+
+;ページ数を範囲に収める
+FLAG:6 = (最大ページ数 - 1 + FLAG:6 % 最大ページ数) % 最大ページ数 + 1
+現ページ数 = FLAG:6
+
+;キャラリストの表示
+LOCAL:13 = 0
+LOCAL:14 = 0
+LOCAL:15 = (現ページ数 - 1) * LOCAL:12
+LOCAL:16 = 現ページ数 * LOCAL:12
+FOR LOCAL:0, 0, CHARANUM
+	軟禁者 = SHOP_CHARA_LIST:(LOCAL:0)
+	説得者 = ID_TO_CHARA(CFLAG:軟禁者:74)
+	;選択可能な条件を満たしているかどうかを判定
+	RESULT = 0
+	CALL CHECK_SELECTABLE1012(軟禁者)
+	SELECTABLE = RESULT
+	IF SELECTABLE
+		IF LOCAL:13 >= LOCAL:15 && LOCAL:13 < LOCAL:16
+			IF LOCAL:14 >= 1
+				PRINTL 
+			ENDIF
+			CALL PRINT_LIFE_MENU(行数)
+			行数 ++
+			;もしキャラIDが保存してたFLAG:72と一致したら青転
+			IF 軟禁者 == ID_TO_CHARA(FLAG:72)
+				SETCOLOR COLOR("シアン")
+				PRINTPLAIN  ＞
+				CALL PRINT_KOUKANDO_DATA(軟禁者, 説得者, 1, 1, 100, SELECTABLE)
+			ELSE
+				PRINTPLAIN 　 
+				CALL PRINT_KOUKANDO_DATA(軟禁者, 説得者, 1, 0, 100, SELECTABLE)
+			ENDIF
+			;説得者が設定されていたら表示
+			IF 説得者 != -1
+				IF 軟禁者 == ID_TO_CHARA(FLAG:72)
+					SETCOLOR COLOR("シアン")
+					PRINTPLAIN  <<<<
+				ELSE
+					SETCOLOR COLOR("オレンジ")
+					PRINTPLAIN  <<<<
+					RESETCOLOR
+				ENDIF
+				CALL PRINT_KOUKANDO_DATA(説得者, 軟禁者, 0, 0, 1100, 1)
+				RESETCOLOR
+			ELSEIF 軟禁者 == ID_TO_CHARA(FLAG:72)
+				SETCOLOR COLOR("シアン")
+				PRINTFORM  ＜━ ----[%"？？？", MAX_CHARANAME_LENGTH - 1, LEFT%]
+				RESETCOLOR
+			ELSE
+				PRINTPLAIN ┃ 　 ----
+			ENDIF
+			LOCAL:14 ++
+		ENDIF
+		LOCAL:13 ++
+	;選択可能な条件を満たしてない（つまり軟禁状態じゃない）ので担当者IDを初期化
+	ELSE
+	CFLAG:軟禁者:74 = 0
+	ENDIF
+NEXT
+IF LOCAL:14 >= 1
+	PRINTL 
+ENDIF
+
+LOCAL:1 = 行数
+FOR LOCAL:0, LOCAL:1, LINES_SHOP_DRAW / 2
+	CALL PRINT_LIFE_MENU(LOCAL:0)
+	行数 ++
+	IF LOCAL:0 == LINES_SHOP_DRAW / 2 - 2
+		CALL REPEAT_DASH(0,0)
+	ELSEIF LOCAL:0 == LINES_SHOP_DRAW / 2 - 1
+		PRINT   
+		IF 最大ページ数 >= 2
+			PRINTBUTTON "54[前のページ    ]", 54
+		ELSE
+			SETCOLOR COLOR("選択不可")
+			PRINTPLAINFORM 54[前のページ    ]
+			RESETCOLOR
+		ENDIF
+		PRINTPLAINFORM %TOSTR_SPACE(10)%
+		LOCALS:0 = page{現ページ数}/{最大ページ数}
+		PRINTPLAINFORM %LOCALS:0, 14, LEFT%
+		IF 最大ページ数 >= 2
+			PRINTBUTTON "56[次のページ    ]", 56
+		ELSE
+			SETCOLOR COLOR("選択不可")
+			PRINTPLAINFORM 56[次のページ    ]
+			RESETCOLOR
+		ENDIF
+	ELSE
+		PRINTFORM %" ", 44%┃
+	ENDIF
+	PRINTL 
+NEXT
+
+CALL PRINT_LIFE_MENU(行数)
+CALL REPEAT_DASH(0)
+CALL PRINT_LIFE_MENU(行数 + 1)
+IF FLAG:72 != 0
+	PRINT ★★
+	SETCOLOR COLOR("シアン")
+	PRINTFORM %ANAME(ID_TO_CHARA(FLAG:72))%
+	RESETCOLOR
+	PRINT を説得する担当者を指名してください★★
+ENDIF
+PRINTL
+CALL PRINT_LIFE_MENU(行数 + 2)
+CALL REPEAT_DASH(0)
+
+行数 += 3
+
+;ページ数を計算
+LOCAL:12 = (LINES_SHOP_DRAW - 2 - 行数) * 2
+最大ページ数 = 0
+FOR LOCAL:0, 0, CHARANUM
+	;選択可能な条件を満たしているかどうかを判定
+	CALL CHECK_SELECTABLE_SETTOKU(LOCAL:0)
+	IF RESULT
+		最大ページ数 ++
+	ENDIF
+NEXT
+最大ページ数 = MAX((最大ページ数 - 1) / LOCAL:12 + 1, 1)
+
+;ページ数を範囲に収める
+FLAG:13 = (最大ページ数 - 1 + FLAG:13 % 最大ページ数) % 最大ページ数 + 1
+現ページ数 = FLAG:13
+
+;キャラリストの表示
+LOCAL:13 = 0
+LOCAL:14 = 0
+LOCAL:15 = (現ページ数 - 1) * LOCAL:12
+LOCAL:16 = 現ページ数 * LOCAL:12
+FOR LOCAL:0, 0, CHARANUM
+	説得者 = SHOP_CHARA_LIST:(LOCAL:0)
+	;選択可能な条件を満たしているかどうかを判定
+	RESULT = 0
+	CALL CHECK_SELECTABLE_SETTOKU(説得者)
+	PRINTOPTION = RESULT
+	;ASSI且つ自国に所属限定
+	IF RESULT && CFLAG:(説得者):1 == CFLAG:MASTER:1
+		IF LOCAL:13 >= LOCAL:15 && LOCAL:13 < LOCAL:16
+			IF LOCAL:14 % 2 != 0
+				PRINTPLAIN 　
+			ELSE
+				IF LOCAL:14 >= 1
+					PRINTL 
+				ENDIF
+				CALL PRINT_LIFE_MENU(行数)
+				行数 ++
+			ENDIF
+			PRINTPLAIN 　 
+			CALL PRINT_KOUKANDO_DATA(説得者, ID_TO_CHARA(FLAG:72), 1, SETTOKU_CHARA(説得者) + 1, 1100, PRINTOPTION)
+			LOCAL:14 ++
+		ENDIF
+		LOCAL:13 ++
+	ENDIF
+NEXT
+IF LOCAL:14 >= 1
+	PRINTL 
+ENDIF
+
+LOCAL:1 = 行数
+FOR LOCAL:0, 行数, LINES_SHOP_DRAW
+	CALL PRINT_LIFE_MENU(LOCAL:0)
+	行数 ++
+	IF LOCAL:0 == LINES_SHOP_DRAW - 2
+		CALL REPEAT_DASH(0,0)
+	ELSEIF LOCAL:0 == LINES_SHOP_DRAW - 1
+		PRINT   
+		IF 最大ページ数 >= 2
+			PRINTBUTTON "64[前のページ    ]", 64
+		ELSE
+			SETCOLOR COLOR("選択不可")
+			PRINTPLAINFORM 64[前のページ    ]
+			RESETCOLOR
+		ENDIF
+		PRINTPLAINFORM %TOSTR_SPACE(10)%
+		LOCALS:0 = page{現ページ数}/{最大ページ数}
+		PRINTPLAINFORM %LOCALS:0, 14, LEFT%
+		IF 最大ページ数 >= 2
+			PRINTBUTTON "66[次のページ    ]", 66
+		ELSE
+			SETCOLOR COLOR("選択不可")
+			PRINTPLAINFORM 66[次のページ    ]
+			RESETCOLOR
+		ENDIF
+	ENDIF
+	PRINTL 
+NEXT
+
+;-------------------------------------------------
+;「あてがう」のメニュー表示
+;-------------------------------------------------
+@LIFE_MENU_ATEGAU()
+#DIM 行数;(LOCAL:20)
+#DIM 最大ページ数;(LOCAL:10)
+#DIM 現ページ数;(LOCAL:11)
+#DIM PRINTOPTION
+CALL PRINT_LIFE_MENU(0)
+PRINTFORML ★★対象となるキャラを選択して下さい★★
+CALL PRINT_LIFE_MENU(1)
+CALL REPEAT_DASH(0)
+行数 = 2
+CALL TMP_CREATE_COUNTRY_NEIBORING_MAP
+;ページ数を計算
+LOCAL:12 = (LINES_SHOP_DRAW / 2 - 2 - 行数) * 2
+最大ページ数 = 0
+FOR LOCAL:0, 0, CHARANUM
+	;選択可能な条件を満たしているかどうかを判定
+	RESULT = 0
+	CALL CHECK_SELECTABLE1004(LOCAL:0)
+	IF RESULT
+		最大ページ数 ++
+	ENDIF
+NEXT
+最大ページ数 = MAX((最大ページ数 - 1) / LOCAL:12 + 1, 1)
+
+;ページ数を範囲に収める
+FLAG:6 = (最大ページ数 - 1 + FLAG:6 % 最大ページ数) % 最大ページ数 + 1
+現ページ数 = FLAG:6
+
+;キャラリストの表示
+LOCAL:13 = 0
+LOCAL:14 = 0
+LOCAL:15 = (現ページ数 - 1) * LOCAL:12
+LOCAL:16 = 現ページ数 * LOCAL:12
+FOR LOCAL:0, 0, CHARANUM
+	LOCAL:5 = SHOP_CHARA_LIST:(LOCAL:0)
+	;選択可能な条件を満たしているかどうかを判定
+	RESULT = 0
+	CALL CHECK_SELECTABLE1004(LOCAL:5)
+	IF RESULT
+		IF LOCAL:13 >= LOCAL:15 && LOCAL:13 < LOCAL:16
+			IF LOCAL:14 % 2 != 0
+				PRINTPLAIN 　
+			ELSE
+				IF LOCAL:14 >= 1
+					PRINTL 
+				ENDIF
+				CALL PRINT_LIFE_MENU(行数)
+				行数 ++
+			ENDIF
+			CALL CHECK_SELECTABLE1004(LOCAL:5)
+			CALL PRINT_PARTNER_DATA(LOCAL:5, 0, 0, 100, RESULT , 1)
+			
+			LOCAL:14 ++
+		ENDIF
+		LOCAL:13 ++
+	ENDIF
+NEXT
+IF LOCAL:14 >= 1
+	PRINTL 
+ENDIF
+LOCAL:1  = 行数
+FOR LOCAL:0, LOCAL:1, LINES_SHOP_DRAW / 2
+	CALL PRINT_LIFE_MENU(LOCAL:0)
+	行数 ++ 
+	IF LOCAL:0 == LINES_SHOP_DRAW / 2 - 2
+		CALL REPEAT_DASH(0,0)
+	ELSEIF LOCAL:0 == LINES_SHOP_DRAW / 2 - 1
+		PRINT   
+		IF 最大ページ数 >= 2
+			PRINTBUTTON "54[前のページ    ]", 54
+		ELSE
+			SETCOLOR COLOR("選択不可")
+			PRINTPLAINFORM 54[前のページ    ]
+			RESETCOLOR
+		ENDIF
+		PRINTPLAINFORM %TOSTR_SPACE(10)%
+		LOCALS:0 = page{現ページ数}/{最大ページ数}
+		PRINTPLAINFORM %LOCALS:0, 14, LEFT%
+		IF 最大ページ数 >= 2
+			PRINTBUTTON "56[次のページ    ]", 56
+		ELSE
+			SETCOLOR COLOR("選択不可")
+			PRINTPLAINFORM 56[次のページ    ]
+			RESETCOLOR
+		ENDIF
+	ENDIF
+	PRINTL 
+NEXT
+
+
+;現在参加している助手の数を数える
+LOCAL:1 = 0
+FOR LOCAL:0, 0, CHARANUM
+	;選択可能な条件を満たしているかどうかを判定
+	CALL CHECK_SELECTABLE_ATEGAU(LOCAL:0)
+	IF RESULT == 1
+		;選択中の人数を数える
+		SIF CFLAG:(LOCAL:0):57
+				LOCAL:1 ++
+	ELSE
+		;条件を満たしていなければ強制的にＯＦＦ
+		CFLAG:(LOCAL:0):57 = 0
+	ENDIF
+NEXT
+
+CALL PRINT_LIFE_MENU(行数)
+CALL REPEAT_DASH(0)
+CALL PRINT_LIFE_MENU(行数 + 1)
+PRINTFORM 最大3人にあてがうことができます
+SIF LOCAL:1 >= 3
+	SETCOLOR COLOR("オレンジ")
+PRINTFORML (現在{LOCAL:1}/3人)
+RESETCOLOR
+CALL PRINT_LIFE_MENU(行数 + 2)
+CALL REPEAT_DASH(0)
+
+行数 += 3
+
+;ページ数を計算
+LOCAL:12 = (LINES_SHOP_DRAW - 2 - 行数) * 2
+最大ページ数 = 0
+FOR LOCAL:0, 0, CHARANUM
+	;選択可能な条件を満たしているかどうかを判定
+	CALL CHECK_SELECTABLE_ATEGAU(LOCAL:0)
+	IF RESULT
+		最大ページ数 ++
+	ENDIF
+NEXT
+最大ページ数 = MAX((最大ページ数 - 1) / LOCAL:12 + 1, 1)
+
+;ページ数を範囲に収める
+FLAG:13 = (最大ページ数 - 1 + FLAG:13 % 最大ページ数) % 最大ページ数 + 1
+現ページ数 = FLAG:13
+
+;キャラリストの表示
+LOCAL:13 = 0
+LOCAL:14 = 0
+LOCAL:15 = (現ページ数 - 1) * LOCAL:12
+LOCAL:16 = 現ページ数 * LOCAL:12
+FOR LOCAL:0, 0, CHARANUM
+	LOCAL:5 = SHOP_CHARA_LIST:(LOCAL:0)
+	;選択可能な条件を満たしているかどうかを判定
+	RESULT = 0
+	CALL CHECK_SELECTABLE_ATEGAU(LOCAL:5)
+	PRINTOPTION = RESULT
+	IF RESULT
+		IF LOCAL:13 >= LOCAL:15 && LOCAL:13 < LOCAL:16
+			IF LOCAL:14 % 2 != 0
+				PRINTPLAIN 　
+			ELSE
+				IF LOCAL:14 >= 1
+					PRINTL 
+				ENDIF
+				CALL PRINT_LIFE_MENU(行数)
+				行数 ++
+			ENDIF
+			CALL PRINT_PARTNER_DATA(LOCAL:5, 1, CFLAG:(LOCAL:5):57, 1100, PRINTOPTION, 1)
+			LOCAL:14 ++
+		ENDIF
+		LOCAL:13 ++
+	ENDIF
+NEXT
+IF LOCAL:14 >= 1
+	PRINTL 
+ENDIF
+LOCAL:1 = 行数
+FOR LOCAL:0, LOCAL:1, LINES_SHOP_DRAW
+	CALL PRINT_LIFE_MENU(LOCAL:0)
+	行数 ++
+	IF LOCAL:0 == LINES_SHOP_DRAW - 2
+		CALL REPEAT_DASH(0,0)
+	ELSEIF LOCAL:0 == LINES_SHOP_DRAW - 1
+		PRINT   
+		IF 最大ページ数 >= 2
+			PRINTBUTTON "64[前のページ    ]", 64
+		ELSE
+			SETCOLOR COLOR("選択不可")
+			PRINTPLAINFORM 64[前のページ    ]
+			RESETCOLOR
+		ENDIF
+		PRINTPLAINFORM %TOSTR_SPACE(10)%
+		LOCALS:0 = page{現ページ数}/{最大ページ数}
+		PRINTPLAINFORM %LOCALS:0, 14, LEFT%
+		IF 最大ページ数 >= 2
+			PRINTBUTTON "66[次のページ    ]", 66
+		ELSE
+			SETCOLOR COLOR("選択不可")
+			PRINTPLAINFORM 66[次のページ    ]
+			RESETCOLOR
+		ENDIF
+	ENDIF
+	PRINTL 
+NEXT
+
+;-------------------------------------------------
+;「料理長」のメニュー表示
+;-------------------------------------------------
+@LIFE_MENU_COOK()
+#DIM 選択人数;(LOCAL:30)
+#DIM 行数;(LOCAL:20)
+#DIM 最大ページ数
+#DIM PRINTOPTION
+CALL PRINT_LIFE_MENU(0)
+PRINTFORML ★★料理長にしたい自国キャラを選択して下さい★★
+CALL PRINT_LIFE_MENU(1)
+CALL REPEAT_DASH(0)
+CALL PRINT_LIFE_MENU(2)
+PRINTFORML 料理長は拠点フェイズの行動後に体力・気力を回復してくれます
+CALL PRINT_LIFE_MENU(3)
+PRINTFORML 回復量は料理長の料理の値に応じます。料理長は部隊への参加ができません
+CALL PRINT_LIFE_MENU(4)
+PRINTFORM 現在の料理長は
+IF GET_COOK() != -1
+	FONTSTYLE 1
+	SETCOLOR COLOR("オレンジ")
+	PRINTFORM 　%ANAME(GET_COOK())%　
+	FONTSTYLE 0
+	RESETCOLOR
+	PRINTFORML です
+ELSE
+	FONTSTYLE 1
+	PRINTFORML 　いません
+	FONTSTYLE 0
+ENDIF
+CALL PRINT_LIFE_MENU(5)
+PRINTFORML 現在料理長になっているキャラを選択することで解除できます
+CALL PRINT_LIFE_MENU(6)
+CALL REPEAT_DASH(0)
+行数 = 7
+;ページ数を計算
+LOCAL:12 = (LINES_SHOP_DRAW - 2 - 行数) * 3
+最大ページ数 = 0
+FOR LOCAL:0, 0, CHARANUM
+	;選択可能な条件を満たしているかどうかを判定
+	CALL CHECK_SELECTABLE(FLAG:7, LOCAL:0)
+	IF RESULT
+		最大ページ数 ++
+	ENDIF
+NEXT
+最大ページ数 = MAX((最大ページ数 - 1) / LOCAL:12 + 1, 1)
+
+;ページ数を範囲に収める
+FLAG:6 = (最大ページ数 - 1 + FLAG:6 % 最大ページ数) % 最大ページ数 + 1
+LOCAL:11 = FLAG:6
+
+;キャラリストの表示
+LOCAL:13 = 0
+LOCAL:14 = 0
+LOCAL:15 = (LOCAL:11 - 1) * LOCAL:12
+LOCAL:16 = LOCAL:11 * LOCAL:12
+FOR LOCAL:0, 0, CHARANUM
+	LOCAL:5 = SHOP_CHARA_LIST:(LOCAL:0)
+	;選択可能な条件を満たしているかどうかを判定
+	RESULT = 0
+	CALL CHECK_SELECTABLE(FLAG:7, LOCAL:5)
+	PRINTOPTION = RESULT
+	IF RESULT
+		IF LOCAL:13 >= LOCAL:15 && LOCAL:13 < LOCAL:16
+			IF LOCAL:14 % 3 != 0
+				PRINTPLAIN 　
+			ELSE
+				IF LOCAL:14 >= 2
+					PRINTL 
+				ENDIF
+				CALL PRINT_LIFE_MENU(行数)
+				行数 ++
+			ENDIF
+			IF PRINTOPTION == 1
+				PRINTBUTTON @"{NO:(LOCAL:5) + 100, 5, RIGHT}[%ANAME(LOCAL:5), 16, LEFT%]", NO:(LOCAL:5) + 100
+			ELSEIF PRINTOPTION == 2
+				PRINTBUTTON @"{NO:(LOCAL:5) + 100, 5, RIGHT}[%ANAME(LOCAL:5), 16, LEFT%]", NO:(LOCAL:5) + 100
+			ENDIF
+			PRINTFORM  
+			CALL PRINT_ALPHABET_RANK(2, ABL:(LOCAL:5):料理)
+			PRINTFORM  {ABL:(LOCAL:5):料理, 2, RIGHT} 
+			LOCAL:14 ++
+		ENDIF
+		LOCAL:13 ++
+	ENDIF
+NEXT
+IF LOCAL:14 >= 2
+	PRINTL 
+ENDIF
+
+IF 行数 < LINES_SHOP_DRAW
+	LOCAL:1 = 行数
+	FOR LOCAL:0, LOCAL:1, LINES_SHOP_DRAW
+		CALL PRINT_LIFE_MENU(LOCAL:0)
+		IF LOCAL:0 == LINES_SHOP_DRAW - 2
+			CALL REPEAT_DASH(0, 0)
+		ELSEIF LOCAL:0 == LINES_SHOP_DRAW - 1
+			PRINT   
+			IF 最大ページ数 >= 2
+				PRINTBUTTON "54[前のページ    ]", 54
+			ELSE
+				SETCOLOR COLOR("選択不可")
+				PRINTPLAINFORM 54[前のページ    ]
+				RESETCOLOR
+			ENDIF
+			PRINTPLAINFORM %TOSTR_SPACE(10)%
+			LOCALS:0 = page{LOCAL:11}/{最大ページ数}
+			PRINTPLAINFORM %LOCALS:0, 14, LEFT%
+			IF 最大ページ数 >= 2
+				PRINTBUTTON "56[次のページ    ]", 56
+			ELSE
+				SETCOLOR COLOR("選択不可")
+				PRINTPLAINFORM 56[次のページ    ]
+				RESETCOLOR
+			ENDIF
+		ENDIF
+		PRINTL 
+	NEXT
+ENDIF
+
+
+;-------------------------------------------------
+;「関係一覧」のメニュー表示
+;-------------------------------------------------
+@LIFE_MENU_RELATION()
+#DIM 選択人数;(LOCAL:30)
+#DIM 行数;(LOCAL:20)
+#DIM 最大ページ数
+#DIM PRINTOPTION
+CALL PRINT_LIFE_MENU(0)
+PRINTFORM ★★関係を表示するキャラを選択して下さい 現在:対象\@ FLAG:25 == 0 ? からの # への\@★★
+CALL PRINTBUTTON_SHOP(58, "[切り替え]", 10)
+PRINTL
+CALL PRINT_LIFE_MENU(1)
+CALL REPEAT_DASH(0)
+CALL PRINT_LIFE_MENU(2)
+PRINT    
+CALL PRINTBUTTON_CENTER(@"{NO:MASTER + 100, 5, RIGHT}[%ANAME(MASTER), 16, LEFT%]", NO:MASTER + 100, 0, 1, FLAG:23 == MASTER)
+PRINTFORM  
+IF FLAG:23 >= 0
+	IF FLAG:25 == 0
+		PRINTFORM 好:{REL_LIKE:(FLAG:23):MASTER, 4, RIGHT}
+		PRINTFORM 嫌:{REL_HATE:(FLAG:23):MASTER, 4, RIGHT}
+	ELSE
+		PRINTFORM 好:{REL_LIKE:MASTER:(FLAG:23), 4, RIGHT}
+		PRINTFORM 嫌:{REL_HATE:MASTER:(FLAG:23), 4, RIGHT}
+	ENDIF
+ELSE
+	PRINTFORM               
+ENDIF
+PRINTL
+行数 = 3
+;ページ数を計算
+LOCAL:12 = (LINES_SHOP_DRAW - 2 - 行数) * 2
+最大ページ数 = 0
+FOR LOCAL:0, 0, CHARANUM
+	;選択可能な条件を満たしているかどうかを判定
+	CALL CHECK_SELECTABLE(FLAG:7, LOCAL:0)
+	IF RESULT
+		最大ページ数 ++
+	ENDIF
+NEXT
+最大ページ数 = MAX((最大ページ数 - 1) / LOCAL:12 + 1, 1)
+
+;ページ数を範囲に収める
+FLAG:6 = (最大ページ数 - 1 + FLAG:6 % 最大ページ数) % 最大ページ数 + 1
+LOCAL:11 = FLAG:6
+
+;キャラリストの表示
+LOCAL:13 = 0
+LOCAL:14 = 0
+LOCAL:15 = (LOCAL:11 - 1) * LOCAL:12
+LOCAL:16 = LOCAL:11 * LOCAL:12
+FOR LOCAL:0, 0, CHARANUM
+	LOCAL:5 = SHOP_CHARA_LIST:(LOCAL:0)
+	;選択可能な条件を満たしているかどうかを判定
+	RESULT = 0
+	CALL CHECK_SELECTABLE(FLAG:7, LOCAL:5)
+	PRINTOPTION = RESULT
+	IF RESULT
+		IF LOCAL:13 >= LOCAL:15 && LOCAL:13 < LOCAL:16
+			IF LOCAL:14 % 2 != 0
+				PRINTPLAIN 　
+			ELSE
+				IF LOCAL:14 >= 1
+					PRINTL 
+				ENDIF
+				CALL PRINT_LIFE_MENU(行数)
+				行数 ++
+			ENDIF
+			PRINT    
+			IF PRINTOPTION == 1
+				CALL PRINTBUTTON_CENTER(@"{NO:(LOCAL:5) + 100, 5, RIGHT}[%ANAME(LOCAL:5), 16, LEFT%]", NO:(LOCAL:5) + 100, 0, 1, FLAG:23 == LOCAL:5)
+			ELSEIF PRINTOPTION == 2
+				CALL PRINTBUTTON_CENTER(@"{NO:(LOCAL:5) + 100, 5, RIGHT}[%ANAME(LOCAL:5), 16, LEFT%]", NO:(LOCAL:5) + 100, 0, 1, FLAG:23 == LOCAL:5)
+			ENDIF
+			PRINTFORM  
+			IF FLAG:23 >= 0
+				IF FLAG:25 == 0
+					PRINTFORM 好:{REL_LIKE:(FLAG:23):(LOCAL:5), 4, RIGHT}
+					PRINTFORM 嫌:{REL_HATE:(FLAG:23):(LOCAL:5), 4, RIGHT}
+				ELSE
+					PRINTFORM 好:{REL_LIKE:(LOCAL:5):(FLAG:23), 4, RIGHT}
+					PRINTFORM 嫌:{REL_HATE:(LOCAL:5):(FLAG:23), 4, RIGHT}
+				ENDIF
+			ELSE
+				PRINTFORM               
+			ENDIF
+			LOCAL:14 ++
+		ENDIF
+		LOCAL:13 ++
+	ENDIF
+NEXT
+IF LOCAL:14 >= 1
+	PRINTL 
+ENDIF
+
+IF 行数 < LINES_SHOP_DRAW
+	LOCAL:1 = 行数
+	FOR LOCAL:0, LOCAL:1, LINES_SHOP_DRAW
+		CALL PRINT_LIFE_MENU(LOCAL:0)
+		IF LOCAL:0 == LINES_SHOP_DRAW - 2
+			CALL REPEAT_DASH(0, 0)
+		ELSEIF LOCAL:0 == LINES_SHOP_DRAW - 1
+			PRINT   
+			IF 最大ページ数 >= 2
+				PRINTBUTTON "54[前のページ    ]", 54
+			ELSE
+				SETCOLOR COLOR("選択不可")
+				PRINTPLAINFORM 54[前のページ    ]
+				RESETCOLOR
+			ENDIF
+			PRINTPLAINFORM %TOSTR_SPACE(10)%
+			LOCALS:0 = page{LOCAL:11}/{最大ページ数}
+			PRINTPLAINFORM %LOCALS:0, 14, LEFT%
+			IF 最大ページ数 >= 2
+				PRINTBUTTON "56[次のページ    ]", 56
+			ELSE
+				SETCOLOR COLOR("選択不可")
+				PRINTPLAINFORM 56[次のページ    ]
+				RESETCOLOR
+			ENDIF
+		ENDIF
+		PRINTL 
+	NEXT
+ENDIF
+
+
+
+
+
