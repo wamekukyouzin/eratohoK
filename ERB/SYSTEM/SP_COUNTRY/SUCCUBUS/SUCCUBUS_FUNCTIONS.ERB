@@ -50,7 +50,7 @@ RESETCOLOR
 DRAWLINE
 
 ;--------------------------------------
-;ターンエンド時のホフゴブリンの処理
+;ターンエンド時のサキュバスの処理
 ;--------------------------------------
 @TURNEND_SUCCUBUS
 #DIM サキュバス
@@ -82,12 +82,15 @@ IF SP_COUNTRY_APPEARED:特殊勢力_サキュバス == 1
 		RETURN -1
 	ENDIF
 
+	;6ターンに1回、ドレイン
+	CALL SUCCUBUS_DRAIN(DAY % 6 == 0)
+
 	;調教処理
 	DEBUGPRINTFORML {DAY, 3}調教：サキュバス
 	CALL TRAIN_BY_SUCCUBUS
 ENDIF
 ;--------------------------------------
-;ホフゴブリンの初期化処理
+;サキュバスの初期化処理
 ;--------------------------------------
 @SUCCUBUS_INIT(ARG:0)
 #DIM LCOUNT
@@ -219,6 +222,100 @@ FOR LCOUNT, 0, 14
 	CALL NEWCHARA_INIT(LOCAL)
 NEXT
 RETURN LOCAL:4
+
+;-----------------------------
+;サキュバスの定期イベント
+;-----------------------------
+@SUCCUBUS_DRAIN(条件)
+#DIM サキュバス
+#DIM 条件
+#DIM 候補, 1000
+#DIM 候補数
+#DIM 対象, 2
+#DIM メッセージ
+#DIM 吸収候補, 5
+#DIM 吸収対象
+#DIM 吸収値
+VARSET 候補, -1
+VARSET 候補数
+
+サキュバス = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_サキュバス))
+
+;サキュバス勢力があり、条件を満たしている
+SIF サキュバス == -1 || !条件
+RETURN -1
+
+FOR LOCAL, 0, CHARANUM
+	;サキュバス所属で、捕虜でなく、陥落済み　念のためSPキャラを除外
+	IF CFLAG:LOCAL:所属 == サキュバス && !CFLAG:LOCAL:9 && IS_FEMALE(LOCAL) && NO < 2000 && GETBIT(TALENT:LOCAL:特殊勢力陥落系, 特殊勢力_サキュバス)
+		候補:候補数 = LOCAL
+		候補数 ++
+	ENDIF
+NEXT
+
+SIF 候補数 < 1
+	RETURN -1
+
+対象 = 候補:(RAND:候補数)
+
+SIF 対象 == -1 || CONFIG:200
+	RETURN -1
+
+吸収候補:0 = (RAND:(ABL:対象:武闘))
+吸収候補:1 = (RAND:(ABL:対象:知略))
+吸収候補:2 = (RAND:(ABL:対象:政治))
+吸収候補:3 = (RAND:(ABL:対象:歌唱))
+吸収候補:4 = (RAND:(ABL:対象:料理))
+
+吸収対象 = FINDELEMENT(吸収候補, MAXARRAY(吸収候補))
+SELECTCASE 吸収対象
+	CASE 0
+		吸収対象 = GETNUM(ABL, "武闘")
+	CASE 1
+		吸収対象 = GETNUM(ABL, "知略")
+	CASE 2
+		吸収対象 = GETNUM(ABL, "政治")
+	CASE 3
+		吸収対象 = GETNUM(ABL, "歌唱")
+	CASE 4
+		吸収対象 = GETNUM(ABL, "料理")
+ENDSELECT
+
+SIF ABL:対象:吸収対象 < 10
+	RETURN -1
+
+吸収値 = LIMIT(ABL:対象:吸収対象 / 10, 1, 3)
+
+VARSET 候補, -1
+VARSET 候補数, 0
+
+FOR LOCAL, 0, CHARANUM
+	IF CFLAG:LOCAL:所属 == サキュバス && !CFLAG:LOCAL:9 && TALENT:LOCAL:特殊勢力素質 == 特殊勢力_サキュバス
+		候補:候補数 = LOCAL
+		候補数 ++
+	ENDIF
+NEXT
+
+SIF 候補数 < 1
+	RETURN -1
+
+対象:1 = 候補:(RAND:候補数)
+
+SIF 対象 == -1
+	RETURN -1
+
+DRAWLINE
+SETCOLOR COLOR("桃")
+PRINTFORMW サキュバスは%ANAME(対象)%から精気を吸収している……
+PRINTFORML 
+SETCOLOR COLOR("警告")
+PRINTFORMW サキュバスは%ANAME(対象)%の能力を奪い取った！
+PRINTFORMW %ANAME(対象)%の%ABLNAME:吸収対象%が{吸収値}下がった！
+PRINTFORMW %ANAME(対象:1)%の%ABLNAME:吸収対象%が{吸収値}上がった！
+PRINTFORML 
+ABL:(対象:0):吸収対象 -= 吸収値
+ABL:(対象:1):吸収対象 += 吸収値
+
 
 ;-----------------------------
 ;サキュバスに捕らえられたときのイベント
