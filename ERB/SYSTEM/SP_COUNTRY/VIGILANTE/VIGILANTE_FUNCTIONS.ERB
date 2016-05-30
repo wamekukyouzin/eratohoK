@@ -49,7 +49,7 @@ RETURN LOCAL
 ;--------------------------------------
 ;蜂起イベント用メッセージ関数
 ;--------------------------------------
-@VIGILANTE_RISE_MESSAGE(勢力, 対象)
+@VIGILANTE_RISE_MSG(勢力, 対象)
 #DIM 勢力
 #DIM 対象
 DRAWLINE
@@ -57,55 +57,44 @@ SETCOLOR COLOR("警告")
 PRINTFORMW 荒れる幻想郷を憂う勇士たちが、%CITY_NAME:(対象)%\@ GET_OWN_CITY(勢力) > 1 ? など # \@で自警団を立ち上げました！
 PRINTFORMW 自分たちこそ幻想郷を平和に治められると考えた彼らは、より勢力を伸ばそうとしているようです……
 RESETCOLOR
-DRAWLINE
 
 ;--------------------------------------
 ;ターンエンド時の自警団の処理
 ;--------------------------------------
 @TURNEND_VIGILANTE
 #DIM 自警団
+自警団 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:特殊勢力_自警団)
 
-IF SP_COUNTRY_APPEARED:特殊勢力_自警団 == 1
-	;自警団の番号を取得
-	自警団 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_自警団))
-	IF 自警団 == -1
-		DRAWLINE
-		SETCOLOR COLOR("注意")
-		PRINTFORML
-		PRINTFORML
-		PRINTFORML
-		PRINTFORMW 壊滅的な被害を受けた自警団は、活動を継続することができなくなったようです……
-		PRINTFORMW 彼らは解散してしまいました
-		PRINTFORM
-		PRINTFORML
-		PRINTFORML
-		RESETCOLOR
-		;自警団を削除する
-		LOCAL:1 = CHARANUM
-		FOR LOCAL:0, 0, LOCAL:1
-			LOCAL:2 = LOCAL:1 - LOCAL:0 - 1
-			IF TALENT:(LOCAL:2):特殊勢力素質 == 特殊勢力_自警団
-				CALL DELETE_CHARA(LOCAL:2)
-			ENDIF
-		NEXT
-		SP_COUNTRY_APPEARED:特殊勢力_自警団 = 2
-		RETURN -1
-	ENDIF
-
-	;兵力の増える処理
-	IF DAY % 3 == 0
-		DRAWLINE
-		LOCAL:0 = MAX(RAND:4000, 1000)
-		LOCAL:0 += RAND:500 * SP_COUNTRY_RANK:(特殊勢力_自警団)
-		PRINTFORML 自警団が徴兵を行っているようです……
-		PRINTFORML 自警団の兵力が{LOCAL:0}増加した
-		COUNTRY_SOLDIER:(自警団) += LOCAL:0
-	ENDIF
-	;4ターンに1回、特別な徴兵
-	CALL VIGILANTE_SPECIAL_REQRUITMENT(DAY % 4 == 0)
-	;調教(?)処理
-	CALL TRAIN_BY_VIGILANTE
+;兵力の増える処理
+IF DAY % 3 == 0
+	DRAWLINE
+	LOCAL:0 = MAX(RAND:4000, 1000)
+	LOCAL:0 += RAND:500 * SP_COUNTRY_RANK:(特殊勢力_自警団)
+	PRINTFORML 自警団が徴兵を行っているようです……
+	PRINTFORML 自警団の兵力が{LOCAL:0}増加した
+	COUNTRY_SOLDIER:(自警団) += LOCAL:0
 ENDIF
+;4ターンに1回、特別な徴兵
+CALL VIGILANTE_SPECIAL_REQRUITMENT(DAY % 4 == 0)
+;調教(?)処理
+CALL TRAIN_BY_VIGILANTE
+
+;--------------------------------------
+;滅亡時の処理
+;--------------------------------------
+@VIGILANTE_DESTROY_MSG
+DRAWLINE
+SETCOLOR COLOR("注意")
+PRINTFORML
+PRINTFORML
+PRINTFORML
+PRINTFORMW 壊滅的な被害を受けた自警団は、活動を継続することができなくなったようです……
+PRINTFORMW 彼らは解散してしまいました
+PRINTFORM
+PRINTFORML
+PRINTFORML
+RESETCOLOR
+
 ;--------------------------------------
 ;自警団の初期化処理
 ;--------------------------------------
@@ -179,6 +168,7 @@ FOR LCOUNT, 0, 14
 	LOCAL = RESULT
 	NAME:LOCAL = 自警団員%UNICODE(0xFF21 + LCOUNT)%
 	CALLNAME:LOCAL = 自警団員%UNICODE(0xFF21 + LCOUNT)%
+	NO:(CHARANUM - 1) = GET_EMPTY_NO(ARG:0)
 	TALENT:LOCAL:特殊勢力素質 = 特殊勢力_自警団
 	;所属を自警団にする
 	CFLAG:LOCAL:1 = LOCAL:4
