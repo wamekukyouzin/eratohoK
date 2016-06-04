@@ -1814,7 +1814,6 @@ NEXT
 @RELEASE_PRISONERS()
 #DIM 特殊捕虜先
 VARSET LOCAL
-DRAWLINE
 ;主人公が捕虜で監禁日数が4日以上ときのみ発生
 IF CFLAG:MASTER:9 && CFLAG:MASTER:43 >= 5 && RAND:100 < (CFLAG:MASTER:43 - 5) * 15 + 15
 	DRAWLINE
@@ -1840,9 +1839,13 @@ FOR LOCAL, 1, CHARANUM
 	特殊捕虜先 = IS_SP_COUNTRY(CFLAG:LOCAL:捕虜先)
 	;もしその国が何らかの理由で滅んでいるのにまだ捕らえられていたら、強制的に解放する
 	IF CFLAG:LOCAL:捕虜先 && !IS_COUNTRY(CFLAG:LOCAL:捕虜先)
+		IF !LOCAL:1
+			DRAWLINE
+			LOCAL:1 = 1
+		ENDIF
 		SETCOLOR COLOR("注意")
-		IF CFLAG:LOCAL:1
-			PRINTFORML 囚われていた%ANAME(LOCAL)%は解放され、%NAME:(GET_COUNTRY_BOSS(CFLAG:LOCAL:1))%のところに戻りました
+		IF IS_COUNTRY(CFLAG:LOCAL:所属)
+			PRINTFORML 囚われていた%ANAME(LOCAL)%は解放され、%NAME:(GET_COUNTRY_BOSS(CFLAG:LOCAL:所属))%のところに戻りました
 		ELSE
 			PRINTFORML 囚われていた%ANAME(LOCAL)%は解放され、放浪しました
 			CFLAG:LOCAL:特殊状態フラグ = 1
@@ -1854,45 +1857,26 @@ FOR LOCAL, 1, CHARANUM
 	;通常の解放処理
 	;SLG設定（CONFIG:320のビット0）
 	ELSEIF LOCAL != MASTER && CFLAG:LOCAL:捕虜先 && CFLAG:LOCAL:捕虜先 != CFLAG:MASTER:1 && MIN((CFLAG:LOCAL:解放カウンタ - 5) * 5, 30) > RAND:100 && !特殊捕虜先 && !GETBIT(CONFIG:320, 0)
+		IF !LOCAL:1
+			DRAWLINE
+			LOCAL:1 = 1
+		ENDIF
 		SETCOLOR COLOR("注意")
-		IF CFLAG:LOCAL:1
+		IF IS_COUNTRY(CFLAG:LOCAL:所属)
 			PRINTFORML %NAME:(GET_COUNTRY_BOSS(CFLAG:LOCAL:捕虜先))%に囚われていた%ANAME(LOCAL)%は\@ CFLAG:LOCAL:解放カウンタ >= 10 ? ようやく# \@解放され、%NAME:(GET_COUNTRY_BOSS(CFLAG:LOCAL:1))%のところに戻りました
 		ELSE
 			PRINTFORML %NAME:(GET_COUNTRY_BOSS(CFLAG:LOCAL:捕虜先))%に囚われていた%ANAME(LOCAL)%は解放され、放浪しました
 			CFLAG:LOCAL:特殊状態フラグ = 1
 		ENDIF
 		RESETCOLOR
-		;BANDIT_RELEASE_MSGでまた捕虜になる処理があるので、LOCAL:1に一旦保存
-		LOCAL:1 = CFLAG:LOCAL:捕虜先
 		CFLAG:LOCAL:捕虜先 = 0
 		CFLAG:LOCAL:解放カウンタ = 0
-		IF CFLAG:LOCAL:1 == CFLAG:MASTER:1 && LOCAL:1 == GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗))
-			CALL BANDIT_RELEASE_MSG(LOCAL)
-		ENDIF
 	;たまに脱走する。野盗、ホフゴブ、外来人なら率高め
 	;SLG設定(CONFIG:320のビット1)で脱走しない設定にもできる
 	ELSEIF (LOCAL != MASTER && CFLAG:LOCAL:捕虜先 && CFLAG:LOCAL:捕虜先 != CFLAG:MASTER:1 && 特殊捕虜先 * 17 + 3 > RAND:100) && !GETBIT(CONFIG:320, 1)
-		;ただし自国の捕虜(現状下克上シナリオ専用)だと脱走先は放浪、または失敗
-		;IF CFLAG:LOCAL:9 == CFLAG:LOCAL:1
-			;この場合脱走成功確率はさらに10分の1
-			;IF RAND:9 == 0
-				;SETCOLOR COLOR("注意")
-				;PRINTFORML 下克上地獄から脱走した%ANAME(LOCAL)%は、当ても無く放浪の旅に出ました
-				;RESETCOLOR
-				;CFLAG:LOCAL:捕虜先 = 0
-				;CFLAG:LOCAL:解放カウンタ = 0
-				;CFLAG:LOCAL:1 = 0
-				;CFLAG:LOCAL:12 = 1
-			;失敗したらイベント
-			;ELSE
-				;SETCOLOR COLOR("注意")
-				;PRINTFORML %NAME:(GET_COUNTRY_BOSS(CFLAG:LOCAL:捕虜先))%に囚われていた%ANAME(LOCAL)%は自由を求めて牢を飛び出した！
-				;PRINTFORML しかし、外で待っていたのは鞭を片手に嗜虐の笑みを浮かべる%NAME:(GET_COUNTRY_BOSS(CFLAG:LOCAL:捕虜先))%であった！
-				;RESETCOLOR
-			;ENDIF
-		IF CFLAG:LOCAL:9 != CFLAG:LOCAL:1
+		IF CFLAG:LOCAL:捕虜先 != CFLAG:LOCAL:所属
 			SETCOLOR COLOR("注意")
-			IF CFLAG:LOCAL:1
+			IF IS_COUNTRY(CFLAG:LOCAL:1)
 				PRINTFORML %NAME:(GET_COUNTRY_BOSS(CFLAG:LOCAL:捕虜先))%に囚われていた%ANAME(LOCAL)%は脱走し、%NAME:(GET_COUNTRY_BOSS(CFLAG:LOCAL:1))%のところに戻りました
 			ELSE
 				PRINTFORML %NAME:(GET_COUNTRY_BOSS(CFLAG:LOCAL:捕虜先))%に囚われていた%ANAME(LOCAL)%は脱走し、放浪しました
