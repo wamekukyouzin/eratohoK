@@ -13,6 +13,16 @@ SIF GROUPMATCH(SP_COUNTRY_START:LOCAL, 特殊勢力スタート_士官, 特殊�
 SIF CFLAG:MASTER:所属 == 勢力番号 || (CFLAG:MASTER:捕虜先 == 対象 && GETBIT(TALENT:対象:特殊勢力陥落系, LOCAL))
 	RETURNF 0
 RETURNF 1
+
+;-------------------------------------------------
+;渡されたIDのキャラの特殊勢力素質に対応する特殊精液を返す
+;-------------------------------------------------	
+@SP_CHARA_TO_SPERM_ID(ID)
+#FUNCTION
+#DIM ID
+;SP_COUNTRY_NAMEの各インデックスと、各特殊勢力素質の値が、同じ特殊勢力を示していることを利用する
+RETURNF GET_SPERM_ID(SP_COUNTRY_NAME:(TALENT:ID_TO_CHARA(ID):特殊勢力素質))
+
 ;-------------------------------------------------
 ;渡された勢力番号が特殊勢力であるかを判断する
 ;-------------------------------------------------	
@@ -21,11 +31,7 @@ RETURNF 1
 #DIM 勢力
 SIF 勢力 < 0 || 勢力 >= MAX_COUNTRY
 	RETURNF 0
-FOR LOCAL, 0, VARSIZE("SP_COUNTRY_ID")
-	SIF COUNTRY_EVENT_ID:(勢力) == SP_COUNTRY_ID:LOCAL
-		RETURNF 1
-NEXT
-RETURNF 0
+RETURNF (FINDELEMENT(SP_COUNTRY_ID, COUNTRY_EVENT_ID:勢力) != -1 ? FINDELEMENT(SP_COUNTRY_ID, COUNTRY_EVENT_ID:勢力) # 0)
 
 ;-------------------------------------------------
 ;対象が渡された勢力に調教されうるかを判断する
@@ -46,7 +52,7 @@ SIF 対象 == MASTER && SP_COUNTRY_START:SP_COUNTRY_TO_CONST(勢力番号) == �
 ;軟禁中はスキップ
 SIF CFLAG:対象:9 == 勢力番号 && CFLAG:対象:29
 	RETURNF 0
-;テキスト非表示な性別とかならスキップ
+;テキスト非表示な設定ならスキップ
 SIF	!TRAIN_IS_SHOW_TEXT(対象)
 	RETURNF 0
 ;その勢力に所属するMASTER以外の堕ちていないキャラはスキップ
@@ -97,21 +103,9 @@ RETURNF TALENT:対象:特殊勢力素質
 @SP_COUNTRY_TO_CONST(勢力番号)
 #FUNCTION
 #DIM 勢力番号
-SELECTCASE COUNTRY_EVENT_ID:勢力番号
-	CASE SP_COUNTRY_ID:特殊勢力_野盗
-		RETURNF 特殊勢力_野盗
-	CASE SP_COUNTRY_ID:特殊勢力_触手
-		RETURNF 特殊勢力_触手
-	CASE SP_COUNTRY_ID:特殊勢力_外来人
-		RETURNF 特殊勢力_外来人
-	CASE SP_COUNTRY_ID:特殊勢力_自警団
-		RETURNF 特殊勢力_自警団
-	CASE SP_COUNTRY_ID:特殊勢力_ホフゴブリン
-		RETURNF 特殊勢力_ホフゴブリン
-	CASE SP_COUNTRY_ID:特殊勢力_サキュバス
-		RETURNF 特殊勢力_サキュバス
-ENDSELECT
-RETURNF 0
+SIF 勢力番号 < 0 || 勢力番号 >= MAX_COUNTRY
+	RETURNF 0
+RETURNF (FINDELEMENT(SP_COUNTRY_ID, COUNTRY_EVENT_ID:勢力番号) != -1 ? FINDELEMENT(SP_COUNTRY_ID, COUNTRY_EVENT_ID:勢力番号) # 0)
 
 ;---------------------------------------------------
 ;与えられたEVENTIDを、対応する定数割り当てに変換する
