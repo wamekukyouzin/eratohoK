@@ -1,0 +1,68 @@
+﻿
+;--------------------------------------
+;蜂起イベントが発生するかの判定
+;--------------------------------------
+@GAIRAI_RISE_RATE()
+;既に出現しているか、外来人なし設定なら発動しない
+SIF SP_COUNTRY_APPEARED:特殊勢力_外来人 || !SP_COUNTRY_RANK:(特殊勢力_外来人)
+	RETURN 0
+
+;20期以降、確率判定をクリアしていること
+SIF !(DAY >= 20 && DAY - 15 > RAND:100)
+	RETURN 0
+RETURN 1
+
+
+;--------------------------------------
+;外来勢力出現イベント
+;出現できたら1、できなければ0をかえす
+;--------------------------------------
+@GAIRAI_RISE()
+#DIM 外来人
+
+;外来勢力を作成
+CALL GAIRAI_INIT()
+外来人 = RESULT
+;作れなかったら戻す
+SIF 外来人 == -1
+	RETURN 0
+
+CALL SP_COUNTRY_RISE(外来人)
+
+SIF !RESULT
+	RETURN 0
+
+SP_COUNTRY_APPEARED:特殊勢力_外来人 = 1
+RETURN 1
+
+;--------------------------------------
+;蜂起イベント用都市選択処理
+;--------------------------------------
+@GAIRAI_RISE_SELECT_CITY()
+#DIM 結界
+#DIM 所有者
+;博麗大結界の所有者が3都市以上所持していればそこから
+結界 = GET_CITYNUMBER("博麗大結界")
+IF 結界 && (!IS_COUNTRY(CITY_OWNER:結界) || GET_OWN_CITY(CITY_OWNER:結界) >= 3)
+	LOCAL = 結界
+;そうでなければランダム
+ELSE
+	CALL SP_COUNTRY_RISE_SELECT_CITY()
+	LOCAL = RESULT
+ENDIF
+
+RETURN RESULT
+
+
+;---------------------
+;蜂起イベント用メッセージ関数
+;---------------------
+@GAIRAI_RISE_MSG(勢力, 対象)
+#DIM 勢力
+#DIM 対象
+DRAWLINE
+SETCOLOR COLOR("警告")
+PRINTFORMW 結界の外から突如、外来人が雪崩のように攻めこんできました！
+PRINTFORMW 彼らの電撃的な作戦行動により、%CITY_NAME:(対象)%\@ GET_OWN_CITY(勢力) > 1 ? など # \@が奪われました
+PRINTFORMW これに伴い、幻想郷の各勢力が異変解決の準備を始めたようです…
+RESETCOLOR
