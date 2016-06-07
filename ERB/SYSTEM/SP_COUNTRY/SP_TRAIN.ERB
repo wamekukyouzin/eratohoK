@@ -1,0 +1,57 @@
+﻿;-------------------------------------------------
+;特殊勢力による調教
+;-------------------------------------------------
+@SP_TRAIN(勢力)
+#DIM 勢力
+#DIM 対象
+#DIM 表示フラグ
+#DIM 勢力定数
+#DIMS 勢力名
+
+勢力定数 = SP_COUNTRY_TO_CONST(勢力)
+
+SIF !勢力定数
+	RETURN 0
+
+勢力名 = %SP_COUNTRY_NAME_ENG:勢力定数%
+
+SIF 勢力名 == ""
+	RETURN 0
+
+SIF CONFIG:200
+	RETURN -1
+
+表示フラグ = 0
+
+TRYCCALLFORM %勢力名%_DOES_TRAIN
+CATCH
+	RETURN
+ENDCATCH
+
+FOR 対象, 0, CHARANUM
+	SIF !IS_TRAIN_BY_SP_COUNTRY(対象, 勢力)
+		CONTINUE
+	IF !表示フラグ
+		DRAWLINE
+		PRINTFORMW %SP_COUNTRY_NAME:勢力定数%に囚われた各国の仕官が調教されているようです……
+		PRINTFORML
+		表示フラグ = 1
+	ENDIF
+	TRYCALLFORM %勢力名%_TRAIN_MSG(対象)
+	CFLAG:対象:調教カウンタ ++
+	IF IS_BETRAY_TO_SP_COUNTRY(対象, 勢力)
+		PRINTFORML
+		SETCOLOR COLOR("警告")
+		TRYCALLFORM %勢力名%_FALLEN_MSG(対象)
+		RESETCOLOR
+		
+		CFLAG:対象:所属 = 勢力
+		CFLAG:対象:捕虜先 = 0
+		SETBIT TALENT:対象:特殊勢力陥落系, 勢力定数
+		SIF SP_TRAIN_IS_DECREASE_CFLAG(対象, 勢力)
+			CALL LOSE_RELATION_TALENT(対象)
+		TRYCALLFORM %勢力名%_FALLEN_LEAVE_MARK(対象)
+	ENDIF
+	PRINTL
+	WAIT
+NEXT
