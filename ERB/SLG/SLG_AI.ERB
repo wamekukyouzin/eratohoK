@@ -42,39 +42,36 @@ IF GET_OWN_CITY(ARG:0) > 0
 			ENDIF
 		ENDIF
 	NEXT
-	FOR LOCAL:0, 0, 10
-		;(LOCAL:0)番の部隊の存在判定　※最終決戦パッチ、FLAG:101の（勢力番号）ビットが1であればスキップ
-		;最終決戦以外にも「野盗が中継点を占拠（つまりそこを通る旅人が陵辱される可能性もあるわけだ）」
-		;「主人公勢力以外に複数勢力がある状態で特定勢力だけ決戦モード」に使えそうなので改造しました。
+	
+		FOR LOCAL:0, 0, 10
+		;(LOCAL:0)番の部隊の解体判定　※最終決戦パッチ、FLAG:101の（勢力番号）ビットが1であればスキップ
 		IF UNIT_SOLDIER:(ARG:0):(LOCAL:0) > 0 && !GETBIT(FLAG:101, ARG:0)
 			;ID=0の都市は未定義のはずなので解散させちゃう
 			IF UNIT_POSITION:(ARG:0):(LOCAL:0) == 0
 				CALL CLEAR_UNIT(ARG:0, LOCAL:0)
-			;兵数500未満なら解散
-			ELSEIF UNIT_SOLDIER:(ARG:0):(LOCAL:0) < 500
-				CALL CLEAR_UNIT(ARG:0, LOCAL:0)
-			;部隊の現在位置が地点かつ移動先を失っていれば解散する（強制解散フラグを使って時間を必要にするのも多分あり）
-			ELSEIF !UNIT_TARGET:(ARG:0):(LOCAL:0) && CITY_TYPE:(UNIT_POSITION:(ARG:0):(LOCAL:0)) == 1
-				CALL CLEAR_UNIT(ARG:0, LOCAL:0)
-			;連合以上でも滞在できるようにする
-			;同盟や連合を利用したり自国で隣接地の敵部隊と睨み合って欲しい
-			;ただし、現在地か移動先が停戦対象なら解散
+			ENDIF
+			;現在位置に敵の部隊がいるときは解散させない
+			IF IS_STAY_ENEMY_UNIT(UNIT_POSITION:(ARG:0):(LOCAL:0)) == 1
+				CONTINUE
+			;現在地か移動先が停戦対象なら解散
 			ELSEIF TMP_COUNTRY_RELATION:(ARG:0):(CITY_OWNER:(UNIT_POSITION:(ARG:0):(LOCAL:0))) == 1
 				CALL CLEAR_UNIT(ARG:0, LOCAL:0)
 			ELSEIF TMP_COUNTRY_RELATION:(ARG:0):(CITY_OWNER:(UNIT_TARGET:(ARG:0):(LOCAL:0))) == 1
 				CALL CLEAR_UNIT(ARG:0, LOCAL:0)
+			;兵数2000ないし自国兵力の10%未満なら解散
+			ELSEIF UNIT_SOLDIER:(ARG:0):(LOCAL:0) < MAX(GET_SUM_SOLDIER(ARG:0) / 10, 2000)
+				CALL CLEAR_UNIT(ARG:0, LOCAL:0)
+			;部隊の現在位置が中継地点かつ移動先を失っていれば解散する（強制解散フラグを使って時間を必要にするのも多分あり）
+			ELSEIF !UNIT_TARGET:(ARG:0):(LOCAL:0) && CITY_TYPE:(UNIT_POSITION:(ARG:0):(LOCAL:0)) == 1
+				CALL CLEAR_UNIT(ARG:0, LOCAL:0)
+			;部隊の所在地が敵対勢力でなければ解散する
+			;部隊を使い回すようにしたのでナシ
+			;ELSEIF TMP_COUNTRY_RELATION:(ARG:0):(CITY_OWNER:(UNIT_POSITION:(ARG:0):(LOCAL:0))) >= 1
+			;	CALL CLEAR_UNIT(ARG:0, LOCAL:0)
 			ELSE
 				;連戦の影響がある場合
 				IF CONFIG:313 > 0
 					SIF RAND:(UNIT_TIRED_COUNT:(ARG:0):(LOCAL:0) / 3 + 1)
-						CALL CLEAR_UNIT(ARG:0, LOCAL:0)
-				ENDIF
-				
-				;現在位置に敵の部隊がいるときは解散させない
-				IF IS_STAY_ENEMY_UNIT(UNIT_POSITION:(ARG:0):(LOCAL:0)) == 1
-				;それ以外でまだ残っているなら一定確率で解散
-				ELSEIF UNIT_SOLDIER:(ARG:0):(LOCAL:0) > 0
-					SIF !RAND:3
 						CALL CLEAR_UNIT(ARG:0, LOCAL:0)
 				ENDIF
 			ENDIF
