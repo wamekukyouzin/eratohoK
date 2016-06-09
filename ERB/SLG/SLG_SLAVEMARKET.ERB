@@ -35,6 +35,12 @@ FOR LOCAL, 0, SLAVEMARKET_MAX_GOODS
 		IF GETBIT(TALENT:(LOCAL:1):特殊勢力陥落系, 特殊勢力_野盗)
 			CALL COLORPRINTFORM(" 肉便器", COLOR("注意"))
 		ENDIF
+		IF GETBIT(TALENT:(LOCAL:1):特殊勢力陥落系, 特殊勢力_触手)
+			CALL COLORPRINTFORM(" 寄生", COLOR("注意"))
+		ENDIF
+		IF GETBIT(TALENT:(LOCAL:1):特殊勢力陥落系, 特殊勢力_サキュバス)
+			CALL COLORPRINTFORM(" 夢魔", COLOR("注意"))
+		ENDIF
 		PRINTL
 	ELSE
 		SETCOLOR COLOR("選択不可")
@@ -130,11 +136,11 @@ ELSE
 			PRINTFORML 
 			PRINTFORMW ……男が連れてきた%ANAME(対象)%の姿は、ひどいものだった
 			PRINTFORMW 丸裸の%ANAME(対象)%の剥き出しの身体には、痛々しいピアスが取り付けられている
-			PRINTFORMW 奴隷であることを示すためか、入れ墨まで入れられている……
+			PRINTFORMW 肉便器であることを示すためか、入れ墨まで入れられている……
 			PRINTFORMW %ANAME(対象)%は%ANAME(MASTER)%を見るなり、媚びるように擦り寄ってきた
 			PRINTFORMW 新しいご主人様、どうか%ANAME(対象)%を可愛がってくださいませと言い始める……
 			PRINTFORMW どうやら%ANAME(対象)%は、その精神をも造り替えられてしまったらしい
-			PRINTFORMW 性奴隷としての生活がどれほど過酷だったかは、推して知ることのできるものだった……
+			PRINTFORMW 肉便器としての生活がどれほど過酷だったかは、推して知ることのできるものだった……
 			PRINTFORML 
 			CALL SET_TATOO_RANDOM(対象, "性奴隷", 0)
 			CALL SET_PIERCE_RANDOM(対象, 0)
@@ -144,9 +150,9 @@ ELSE
 			PRINTFORMW 丸裸の%ANAME(対象)%の剥き出しの身体のあちこちに、痛々しいピアスが取り付けられている
 			PRINTFORMW 奴隷であることを示すためか、入れ墨まで入れられている……
 			PRINTFORMW %ANAME(対象)%は%ANAME(MASTER)%を見るなり、地に手をつけ、深々と頭を下げた
-			PRINTFORMW どうか肉便器の%ANAME(対象)%を、気持ちよく使ってくださいませと言い始める……
+			PRINTFORMW どうか性奴隷の%ANAME(対象)%を、気持ちよく使ってくださいませと言い始める……
 			PRINTFORMW どうやら%ANAME(対象)%は、その精神をも造り替えられてしまったらしい
-			PRINTFORMW 肉便器としての生活がどれほど過酷だったかは、推して知ることのできるものだった……
+			PRINTFORMW 性奴隷としての生活がどれほど過酷だったかは、推して知ることのできるものだった……
 			PRINTFORML 
 			CALL SET_TATOO_RANDOM(対象, "肉便器", 0)
 			CALL SET_PIERCE_RANDOM(対象, 0)
@@ -222,12 +228,10 @@ RETURNF 0
 ;自国所属と特殊勢力陥落済みは高い
 SIF CFLAG:対象:所属 == CFLAG:MASTER:所属
 	額 += 5000
-SIF GETBIT(TALENT:対象:特殊勢力陥落系, 特殊勢力_外来人)
+FOR LOCAL, 0, MAX_SP_COUNTRY
+	SIF GETBIT(TALENT:対象:特殊勢力陥落系, LOCAL)
 	額 += 10000
-SIF GETBIT(TALENT:対象:特殊勢力陥落系, 特殊勢力_ホフゴブリン)
-	額 += 10000
-SIF GETBIT(TALENT:対象:特殊勢力陥落系, 特殊勢力_野盗)
-	額 += 10000
+NEXT
 
 ;恋人だと足下見られる
 SIF IS_LOVER(対象)
@@ -245,28 +249,31 @@ RETURNF 額
 #DIM カウンタ
 #DIM 候補, 1000
 #DIM 候補数
-#DIM 野盗
-#DIM 外来
-#DIM ゴブリン
+#DIM 自警団
 VARSET 候補, -1
 VARSET 候補数
 VARSET カウンタ
 VARSET SLAVEMARKET_GOODS
 VARSET SLAVEMARKET_SPECIALGOODS
 
-野盗 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗))
-外来 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_外来人))
-ゴブリン = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_ホフゴブリン))
+;野盗 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗))
+;外来 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_外来人))
+;ゴブリン = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_ホフゴブリン))
 ;特殊勢力がいなければ抜ける
-SIF 野盗 == -1 && 外来 == -1 && ゴブリン == -1
-	RETURN 0
+;SIF 野盗 == -1 && 外来 == -1 && ゴブリン == -1
+;	RETURN 0
+
+自警団 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_自警団))
 
 ;対象を選出
 FOR LOCAL, 0, CHARANUM
 	;SPキャラは対象としない（野盗そのものがリストアップされるのを防ぐ
 	SIF NO:LOCAL >= 2000
 		BREAK
-	;野盗か外来人かホフゴブリンの捕虜、ないし所属
+	;自警団関係者も対象としない
+	SIF GROUPMATCH(自警団, CFLAG:LOCAL:所属, CFLAG:LOCAL:捕虜先)
+		CONTINUE
+	;特殊勢力の捕虜、ないし所属
 	IF IS_SP_COUNTRY(CFLAG:LOCAL:所属) || IS_SP_COUNTRY(CFLAG:LOCAL:捕虜先)
 		候補:候補数 = LOCAL
 		候補数++
