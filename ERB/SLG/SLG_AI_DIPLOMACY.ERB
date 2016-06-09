@@ -12,13 +12,14 @@
 #DIM DIPLOMACY_TALK, 3
 #DIM AI_ACTION_LIMIT
 #DIM REST_COUNTRY
-
+#DIM REL_COST, 2
 VARSET REL_AI_TYPE, 0
 VARSET REL_AI_LIKE, 0
 VARSET REL_AI_HATE, 0
 VARSET DIPLOMACY_TARGET
 VARSET DIPLOMACY_TALK
 VARSET BOSS_ID
+VARSET REL_COST
 
 ;条約締結フラグ
 LOCAL:100 = 0
@@ -100,6 +101,13 @@ FOR LOCAL:0, 0, MAX_COUNTRY
 							LOCAL:10 += LIMIT(LOCAL:8 / 100 - LOCAL:9 / 200, 1, 10) + RAND:5
 
 						LOCAL:10 = MAX(LOCAL:10, LOCAL:11)
+						;条約コストの支払い:AIタイプごとに国庫から一定割合引かれる（AI相性による補正あり）
+						REL_COST:0 = AI_DIPLOMACY_COST:(REL_AI_TYPE:0):0 * AI_RELATION:(REL_AI_TYPE:0):(REL_AI_TYPE:1)
+						REL_COST:0 = REL_COST:0 * ((COUNTRY_REQUEST_RATE_C:(LOCAL:5):(ARG:0) - 1) % 4) * 50
+						REL_COST:1 = MONEY:(ARG:0) * REL_COST:0 / (100 * 100 * 100)
+						MONEY:(ARG:0) -= REL_COST:1
+						MONEY:(LOCAL:5) += REL_COST:1 * 95 / 100
+
 						;同盟締結
 						SETCOLOR COLOR("注意")
 						PRINTFORML %NAME:(BOSS_ID:0)%と%NAME:(BOSS_ID:1)%は{LOCAL:10}期間の同盟を締結しました
@@ -139,6 +147,28 @@ FOR LOCAL:0, 0, MAX_COUNTRY
 				FOR LOCAL:2, 0, MAX_TREATY_C
 					IF TREATY_C_TERM:(LOCAL:2) <= 0
 
+					;同盟締結済みであれば次に
+					FOR LOCAL:20, 0, MAX_TREATY_A
+						IF TREATY_A_TERM:(LOCAL:20) > 0
+							LOCAL:6 = 0
+							FOR LOCAL:21, 0, MAX_TREATY_COUNTRY
+								IF TREATY_A_COUNTRY:(LOCAL:20):(LOCAL:21) == ARG:0
+									LOCAL:6 |= 0b001
+								ELSEIF TREATY_A_COUNTRY:(LOCAL:20):(LOCAL:21) == LOCAL:5
+									LOCAL:6 |= 0b010
+								ELSEIF TREATY_A_COUNTRY:(LOCAL:20):(LOCAL:21) >= 1
+									LOCAL:6 |= 0b100
+								ENDIF
+							NEXT
+							;対象の２勢力間の停戦を削除し、残り期間を記録
+							SIF LOCAL:6 == 0b011
+								BREAK
+						ENDIF
+					NEXT
+					SIF LOCAL:6 == 0b011
+						CONTINUE
+
+
 						REL_AI_TYPE:1 = COUNTRY_AI_TYPE:(LOCAL:5)
 						;★対象がプレイヤー勢力なら選択肢を表示
 
@@ -158,6 +188,13 @@ FOR LOCAL:0, 0, MAX_COUNTRY
 						SIF LOCAL:8 >= AI_RELATION_BORDER:(REL_AI_TYPE:0):2 && LOCAL:9 < AI_RELATION_BORDER:(REL_AI_TYPE:0):3
 							LOCAL:10 += LIMIT(LOCAL:8 / 100 - LOCAL:9 / 200, 1, 10) + RAND:5
 
+						;条約コストの支払い:AIタイプごとに国庫から一定割合引かれる（AI相性による補正あり）
+						REL_COST:0 = AI_DIPLOMACY_COST:(REL_AI_TYPE:0):1 * AI_RELATION:(REL_AI_TYPE:0):(REL_AI_TYPE:1)
+						REL_COST:0 = REL_COST:0 * ((COUNTRY_REQUEST_RATE_C:(LOCAL:5):(ARG:0) - 1) % 4) * 50
+						REL_COST:1 = MONEY:(ARG:0) * REL_COST:0 / (100 * 100 * 100)
+						MONEY:(ARG:0) -= REL_COST:1
+						MONEY:(LOCAL:5) += REL_COST:1 * 95 / 100
+						
 						;停戦条約締結
 						SETCOLOR COLOR("注意")
 						PRINTFORML %NAME:(BOSS_ID:0)%と%NAME:(BOSS_ID:1)%は{LOCAL:10}期間の停戦条約を締結しました
@@ -215,6 +252,9 @@ IF SUMARRAY(DIPLOMACY_TARGET)
 		SIF BOSS_ID:1 == -1
 			BREAK
 ;		DEBUGPRINTFORML {DAY,3} 【会談:%NAME:(BOSS_ID:0)%→%NAME:(BOSS_ID:1)%】
+
+		;会談コストの支払い:AIタイプごとに国庫から一定割合引かれる（AI相性による補正あり）
+		MONEY:(ARG:0) -= MONEY:(ARG:0) * AI_DIPLOMACY_COST:(REL_AI_TYPE:0):2 * AI_RELATION:(REL_AI_TYPE:0):(REL_AI_TYPE:1) / (100 * 100)
 
 		REL_AI_TYPE:1 = COUNTRY_AI_TYPE:(DIPLOMACY_TALK:2)
 		;好感度上昇・敵対値下降基準値
@@ -357,6 +397,7 @@ IF LIST_MAX >= 2
 					LOCAL:5 = AI_RELATION_BORDER:(COUNTRY_AI:1:1):8 * AI_RELATION:(COUNTRY_AI:0:1):(COUNTRY_AI:1:1) / 100
 					SELECTCASE LOCAL:110 * 10 / LOCAL:10
 					CASE IS > LOCAL:5
+						CALL MEMORY_PROSPECT_C(ARG:0, LOCAL:11)
 						;プレイヤーが停戦を提案した場合、中度の要求をされる(同盟は不可)
 						COUNTRY_REQUEST_RATE_C:(ARG:0):(LOCAL:11) = 3
 					CASE IS > LOCAL:5 / 2
@@ -380,6 +421,7 @@ IF LIST_MAX >= 2
 				LOCAL:11 = LOCAL:(LOCAL:0 + 211)
 				;連合の討伐対象は除く
 				IF LOCAL:11 != U_TARGET
+					CALL MEMORY_PROSPECT_C(ARG:0, LOCAL:11)
 					;プレイヤーが停戦を提案した場合、重度の要求をされる(同盟は不可)
 					COUNTRY_REQUEST_RATE_C:(ARG:0):(LOCAL:11) = 4
 				ENDIF
@@ -441,6 +483,7 @@ IF LIST_MAX >= 2
 			;相手君主への好感度が低く敵対値が高い場合(関係が悪い)
 			ELSE
 				;プレイヤーが停戦を提案した場合、中度の要求をされる(同盟は不可)
+				CALL MEMORY_PROSPECT_C(ARG:0, LOCAL:210)
 				COUNTRY_REQUEST_RATE_C:(ARG:0):(LOCAL:210) = 3
 			ENDIF
 		ENDIF
