@@ -1,115 +1,26 @@
 ﻿;--------------------------------------
-;触手出現イベント
-;出現できたら1、できなければ0をかえす
-;都市 = 最初に奪う都市 指定しなければ野盗と同一の方式
-;メッセージフラグ = 汎用メッセージ表示フラグ　指定しなければ表示
-;--------------------------------------
-@TENTACLE_RISE(都市:0 = -1, メッセージフラグ = 1)
-#DIM 触手
-#DIM メッセージフラグ
-#DIM 都市, 10
-#DIM 勢力
-;触手勢力を作成
-CALL TENTACLE_INIT()
-触手 = RESULT
-;作れなかったら戻す
-SIF 触手 == -1
-	RETURN 0
-
-;引数で奪う都市が指定されていなければ、BANDIT_RISE_SELECT_CITY()を流用
-IF 都市:0 < 0 || 都市:0 >= CITY_NUM
-	VARSET 都市, -1
-	CALL BANDIT_RISE_SELECT_CITY()
-	FOR LOCAL, 0, VARSIZE("都市")
-		SIF RESULT:LOCAL == -1
-			BREAK
-		都市:LOCAL = RESULT:LOCAL
-	NEXT
-	;多分ないはずなんだけど、奪えなかったら諦め
-	IF 都市:0 == -1
-		RETURN
-	ENDIF
-	FOR LOCAL, 0, VARSIZE("都市")
-		SIF 都市:LOCAL == -1
-			CONTINUE
-		CALL TAKEOVER_CITY_FROM_NO(触手, 都市:LOCAL)
-	NEXT
-ELSE
-	;なんか変だったがこういうことだろうか？
-	;都市:0を強制接収した上で該当勢力の都市をランダムに奪う
-	勢力 = CITY_OWNER:(都市:0)
-	CALL TAKEOVER_CITY_FROM_NO(触手, 都市)
-	FOR LOCAL, 0, SP_COUNTRY_RANK:(特殊勢力_触手)
-		SIF GET_OWN_CITY(勢力) <= 3
-			BREAK
-		FOR LOCAL:1, 1, MAX_CITY
-			IF CITY_OWNER:(LOCAL:1) == 勢力 && !RAND:3
-				CALL TAKEOVER_CITY_FROM_NO(触手, LOCAL:1)
-				BREAK
-			ENDIF
-		NEXT
-	NEXT
-ENDIF
-
-COUNTRY_IS_CLOSED:触手 = 1
-
-IF メッセージフラグ
-	DRAWLINE
-	SETCOLOR COLOR("警告")
-	PRINTFORMW 突如として、地の底から無数の触手が湧きだしてきました！
-	PRINTFORMW %CITY_NAME:(都市)%\@ GET_OWN_CITY(触手) > 1 ? など # \@が占領されたようです
-	PRINTFORMW 触手は幻想郷の人妖を乗っ取り、手駒とすることで、その勢力を強めています
-	PRINTFORMW このままでは危険だと、幻想郷の各勢力は撃退に乗り出したようです……
-	RESETCOLOR
-	DRAWLINE
-ENDIF
-
-RETURN 1
-
-;--------------------------------------
 ;ターンエンド時の触手の処理
 ;--------------------------------------
 @TURNEND_TENTACLE
-#DIM 触手
+;2ターンに1度、無理矢理妊娠
+CALL TENTACLE_FORCE_PREGNATE(DAY % 2 == 0)
 
-IF !SP_COUNTRY_APPEARED:特殊勢力_触手
-	;触手の蜂起
-	CALL SLG_TENTACLE_RISE
-	RETURN -1
-ENDIF
+;--------------------------------------
+;滅亡時の処理
+;--------------------------------------
+@TENTACLE_DESTROY_MSG
+DRAWLINE
+SETCOLOR COLOR("注意")
+PRINTFORML
+PRINTFORML
+PRINTFORML
+PRINTFORMW 各勢力の努力あって、触手を殲滅することに成功しました
+PRINTFORMW 幻想郷に平穏が戻りました……
+PRINTFORML
+PRINTFORML
+PRINTFORML
+RESETCOLOR
 
-IF SP_COUNTRY_APPEARED:特殊勢力_触手 == 1
-	;触手の番号を取得(ID:299)
-	触手 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_触手))
-	IF 触手 == -1
-		DRAWLINE
-		SETCOLOR COLOR("注意")
-		PRINTFORML
-		PRINTFORML
-		PRINTFORML
-		PRINTFORMW 各勢力の努力あって、触手を殲滅することに成功しました
-		PRINTFORMW 幻想郷に平穏が戻りました……
-		PRINTFORML
-		PRINTFORML
-		PRINTFORML
-		RESETCOLOR
-		;触手を削除する
-		LOCAL:1 = CHARANUM
-		FOR LOCAL:0, 0, LOCAL:1
-			LOCAL:2 = LOCAL:1 - LOCAL:0 - 1
-			IF TALENT:(LOCAL:2):特殊勢力素質 == 特殊勢力_触手
-				CALL DELETE_CHARA(LOCAL:2)
-			ENDIF
-		NEXT
-		SP_COUNTRY_APPEARED:特殊勢力_触手 = 2
-		RETURN -1
-	ENDIF
-
-	;2ターンに1度、無理矢理妊娠
-	CALL TENTACLE_FORCE_PREGNATE(DAY % 2 == 0)
-
-	CALL TRAIN_BY_TENTACLE
-ENDIF
 ;--------------------------------------
 ;触手の初期化処理
 ;--------------------------------------
@@ -124,12 +35,13 @@ IF LOCAL:4 == -1
 ENDIF
 COUNTRY_COLOR:(LOCAL:4) = 0xFF1493
 COUNTRY_SOLDIER:(LOCAL:4) = 20000 + SP_COUNTRY_RANK:(特殊勢力_触手) * 2000
-COUNTRY_AI_TYPE:(LOCAL:4) = AI_蛮行
+COUNTRY_AI_TYPE:(LOCAL:4) = AI_好戦
 COUNTRY_EVENT_ID:(LOCAL:4) = SP_COUNTRY_ID:(特殊勢力_触手)
+COUNTRY_IS_CLOSED:(LOCAL:4) = 1
 
 CALL ADD_VOID_CHARA()
 LOCAL = RESULT
-SELECTCASE SP_COUNTRY_NAME:(特殊勢力_触手)
+SELECTCASE SP_COUNTRY_BOSSNAME:(特殊勢力_触手)
 	CASE 0
 		NAME:LOCAL = 触手兵
 		CALLNAME:LOCAL = 触手兵
@@ -167,6 +79,7 @@ ABL:LOCAL:性知識 = 5
 ABL:LOCAL:奉仕 = 1
 ABL:LOCAL:性交 = 10
 ABL:LOCAL:射精 = 5
+ABL:LOCAL:肝臓 = 4
 EXP:LOCAL:絶頂経験 = 500
 ABL:LOCAL:武闘 = 55 + RAND(5, 15) + 5 * SP_COUNTRY_RANK:(特殊勢力_触手)
 ABL:LOCAL:知略 = 40 + RAND(5, 15) + 3 * SP_COUNTRY_RANK:(特殊勢力_触手)
@@ -228,28 +141,8 @@ FOR LCOUNT, 0, 14
 	CFLAG:LOCAL:1 = LOCAL:4
 	CALL NEWCHARA_INIT(LOCAL)
 NEXT
-SP_COUNTRY_APPEARED:特殊勢力_触手 = 1
 
 RETURN LOCAL:4
-
-;--------------------------------------
-;触手の侵攻イベントを実行するSLGイベント。
-;判定通ったら素のTENTACLE_RISEを呼ぶだけ。
-;25期以降、50期までに徐々に確率が高まっていく。既に発生していたらなし。
-;--------------------------------------
-@SLG_TENTACLE_RISE()
-
-;既に出現しているか、触手なし設定なら発動しない
-SIF SP_COUNTRY_APPEARED:特殊勢力_触手 || !SP_COUNTRY_RANK:(特殊勢力_触手)
-	RETURN -1
-
-;15期以降、確率判定をクリアしていること
-SIF !(DAY >= 15 && DAY - 8 > RAND:100)
-	RETURN -1
-
-;出現場所はランダム
-CALL TENTACLE_RISE()
-
 
 ;--------------------------------------
 ;触手勢力用の定期イベント。
@@ -308,13 +201,13 @@ ELSE
 ENDIF
 PRINTFORML
 PRINTFORMW 解放された頃には、その子宮を妊婦のように膨れあがらせた%ANAME(対象)%が残されるばかりだった……
-
+RESETCOLOR
 FOR LOCAL, 0, 3
-	CALL FORCE_FUCK(対象, SP_NAME_TO_ID("触手"), @"触手", @"触手", 2, SP_TRAIN_IS_DECREASE_CFLAG(対象, SP_COUNTRY_ID:(特殊勢力_触手)))
+	CALL FUCK_GANGBANG_SP(対象, GET_SPERM_ID("触手"), @"触手", @"触手", 触手)
 NEXT
 
-CFLAG:対象:55 = SP_NAME_TO_ID("触手")
-CFLAG:対象:56 = SP_NAME_TO_ID("触手")
+CFLAG:対象:55 = GET_SPERM_ID("触手")
+CFLAG:対象:56 = GET_SPERM_ID("触手")
 TALENT:(対象):触手妊娠 = 1
 TALENT:(対象):Ａ触手妊娠 = 1
 
@@ -389,5 +282,5 @@ IF RESULT == 0
 	RETURN 1
 ELSE
 	CFLAG:MASTER:9 = ARG:0
-	RETURN 3
+	RETURN 2
 ENDIF

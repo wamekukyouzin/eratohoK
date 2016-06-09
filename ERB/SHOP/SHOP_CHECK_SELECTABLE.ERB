@@ -159,7 +159,7 @@ RETURN CHECK91(ARG:0, 2, CFLAG:(ARG:0):所属 == CFLAG:MASTER:所属 && !CFLAG:(
 ;-------------------------------------------------
 @CHECK_SELECTABLE1017(ARG:0)
 ;非主人公、同一勢力、汎用キャラ、君主でない、捕虜でない、部隊に所属していない、借り物でない、好感度300必要
-RETURN ARG:0 != MASTER && CFLAG:(ARG:0):1 == CFLAG:MASTER:1 && NO:(ARG:0) >= 201 && GET_COUNTRY_BOSS(CFLAG:(ARG:0):1) != ARG:0 && CFLAG:(ARG:0):9 == 0 && TMP_IS_FREE:(ARG:0):0 == 0 && CFLAG:(ARG:0):2 >= 300 && !GETBIT(TALENT:(ARG:0):デイリー陥落系, 素質_デイリー_借り物) && CHECKDVAR(ARG:0)  && !IS_ANIMAL(ARG:0)
+RETURN ARG:0 != MASTER && CFLAG:(ARG:0):1 == CFLAG:MASTER:1 && NO:(ARG:0) >= 201 && GET_COUNTRY_BOSS(CFLAG:(ARG:0):1) != ARG:0 && CFLAG:(ARG:0):9 == 0 && TMP_IS_FREE:(ARG:0):0 == 0 && CFLAG:(ARG:0):2 >= 300 && !GETBIT(TALENT:(ARG:0):デイリー系, 素質_デイリー_借り物) && CHECKDVAR(ARG:0)  && !IS_ANIMAL(ARG:0)
 
 ;-------------------------------------------------
 ;[賭場]へ向かうキャラの選択可否判定
@@ -210,8 +210,23 @@ RETURN ARG:0 != MASTER && (CFLAG:(ARG:0):1 == CFLAG:MASTER:9 || CFLAG:(ARG:0):9 
 @CHECK_SELECTABLE1040(ARG:0)
 ;非主人公(主人公は別処理)、同一勢力or共闘勢力or自国の捕虜
 ;最後に&& CFLAG:(ARG:0):9としてるのは、マスターが未所属捕虜で能力表示を開いた場合、「どこの勢力の捕虜にもなっていない」キャラが引っかかるから
-RETURN ARG:0 != MASTER && (TMP_COUNTRY_RELATION:(CFLAG:MASTER:1):(CFLAG:(ARG:0):1) >= 2 || (CFLAG:(ARG:0):9 == CFLAG:MASTER:1 && CFLAG:(ARG:0):9))
-
+SIF ARG:0 == MASTER
+	RETURN 0
+SELECTCASE FLAG:能力表示フィルタ
+	;従来
+	CASE 0
+		RETURN TMP_COUNTRY_RELATION:(CFLAG:MASTER:1):(CFLAG:(ARG:0):1) >= 2 || (CFLAG:(ARG:0):9 == CFLAG:MASTER:1 && CFLAG:(ARG:0):9)
+	;自国のみ
+	CASE 1
+		RETURN (CFLAG:MASTER:所属 && CFLAG:MASTER:所属 == CFLAG:ARG:所属)
+	;捕虜も
+	CASE 2
+		RETURN CFLAG:MASTER:所属 && (CFLAG:MASTER:所属 == CFLAG:ARG:所属 || CFLAG:MASTER:所属 == CFLAG:ARG:捕虜先)
+	;ぜんぶ
+	CASE 3
+		RETURN 1
+ENDSELECT
+RETURN 1
 ;-------------------------------------------------
 ;[関係一覧]の選択可否判定
 ;-------------------------------------------------

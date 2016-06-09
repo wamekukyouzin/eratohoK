@@ -1,0 +1,103 @@
+﻿;妊娠した子供の種親を記録する
+
+;---------------------------------------------------------
+;母親のキャラ番号と父親のIDを受け取り、母親の妊娠記録を更新する
+;P_TIMESは回数 通常は1
+;---------------------------------------------------------
+@REFRESH_PREGNANT_RECORD(MOTHER, FATHER_ID, P_TIMES = 1)
+#DIM MOTHER
+#DIM FATHER_ID
+#DIM P_TIMES
+
+IF P_TIMES <= 0
+	RETURN
+ENDIF
+
+;父親不明(=0)の場合、-1として記録
+IF FATHER_ID == 0
+	FATHER_ID = -1
+ENDIF
+
+;既に同一のIDが記録されているか調べる
+FOR LOCAL:0, 0, PREGNANT_RECORD_MAX
+	IF PREGNANT_RECORD_FATHER:MOTHER:(LOCAL:0) == FATHER_ID
+		;同一のIDが見つかった場合、その父親による妊娠回数をP_TIMES分増やして終了
+		PREGNANT_RECORD_TIMES:MOTHER:(LOCAL:0) += P_TIMES
+		RETURN
+	ENDIF
+NEXT
+
+;既存の記録が見つからなかった場合、空いている場所に新たに記録
+FOR LOCAL:0, 0, PREGNANT_RECORD_MAX
+	IF PREGNANT_RECORD_FATHER:MOTHER:(LOCAL:0) == 0
+		PREGNANT_RECORD_FATHER:MOTHER:(LOCAL:0) = FATHER_ID
+		PREGNANT_RECORD_TIMES:MOTHER:(LOCAL:0) = P_TIMES
+		RETURN
+	ENDIF
+NEXT
+
+;---------------------------------------------------------
+; ARG:0番のキャラの妊娠記録を一括表示する
+;---------------------------------------------------------
+@SHOW_PREGNANT_RECORD(ARG:0)
+#DIM 表示回数
+#DIM その他
+VARSET 表示回数
+VARSET その他
+VARSET LOCAL, 0
+DRAWLINE
+PRINTFORML ○%CALLNAME:(ARG:0)%の妊娠記録○
+
+FOR LOCAL:0, 0, PREGNANT_RECORD_MAX
+	LOCAL:1 = PREGNANT_RECORD_FATHER:(ARG:0):(LOCAL:0)
+	IF LOCAL:1 != 0
+		;父親が不明または既に削除されている場合
+		IF LOCAL:1 == -1 || (LOCAL:1 > 0 && ID_TO_CHARA(LOCAL:1) == -1)
+			;「その他」の項目に回数を加算する
+			その他 ++
+		ENDIF
+	ENDIF
+NEXT
+
+FOR LOCAL:0, 0, LOCAL:20
+	LOCAL:3 = LOCAL:(LOCAL:0 + 100)
+	LOCAL:4 = LOCAL:(LOCAL:0 + 200)
+	IF LOCAL:500 >= 1
+		IF LOCAL:500 % 3 == 0
+			PRINTL 
+		ELSE
+			PRINT     
+		ENDIF
+	ENDIF
+	LOCAL:500 ++
+	PRINTFORM %ANAME(ID_TO_CHARA(LOCAL:3)), 18, RIGHT%{LOCAL:4, 6, RIGHT}
+NEXT
+IF LOCAL:20 >= 1
+	PRINTL 
+	PRINTL 
+ENDIF
+
+FOR LOCAL, 0, PREGNANT_RECORD_MAX
+	LOCAL:1 = PREGNANT_RECORD_FATHER:(ARG:0):(LOCAL:0)
+	LOCAL:2 = PREGNANT_RECORD_TIMES:(ARG:0):(LOCAL:0)
+	IF LOCAL:1 != 0
+		LOCAL:3 = 1
+		;父親が不明または既に削除されている場合、その他扱いなのでCONTINUE
+		SIF LOCAL:1 == -1 || (LOCAL:1 > 0 && ID_TO_CHARA(LOCAL:1) == -1)
+			CONTINUE
+		;父親がキャラの場合
+		SIF LOCAL:1 > 0
+			PRINTFORM %ANAME(ID_TO_CHARA(LOCAL:1)), 18, RIGHT%{LOCAL:2, 6, RIGHT}
+		;父親が特殊精液の場合
+		SIF LOCAL:1 < 0 && GET_SPERM_NAME(LOCAL:1) != ""
+			PRINTFORM %GET_SPERM_NAME(LOCAL:1), 18, RIGHT%{LOCAL:2, 6, RIGHT}
+	ENDIF
+NEXT
+PRINTL
+SIF その他 > 0
+	PRINTFORM 不明・その他{その他, 6, RIGHT}
+
+;表示件数ゼロなら無しと表示しておく
+IF !LOCAL:3
+	PRINTL   なし
+ENDIF

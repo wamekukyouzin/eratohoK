@@ -434,3 +434,470 @@ FOR LOCAL:0, 0, LOCAL:9
 NEXT
 
 RETURNF LOCAL:10
+
+;-----------------------------
+;勢力の星評価を用意
+;-----------------------------
+@TMP_PREPARE_COUNTRY_STARS()
+#DIM 士官数, MAX_COUNTRY
+#DIM 都市数, MAX_COUNTRY
+#DIM 能力値, MAX_COUNTRY
+#DIM 経済値, MAX_COUNTRY
+#DIM 防衛値, MAX_COUNTRY
+#DIM 合計ポイント, MAX_COUNTRY
+#DIM 勢力数
+VARSET 士官数, __INT_MIN__
+VARSET 都市数, __INT_MIN__
+VARSET 能力値, __INT_MIN__
+VARSET 経済値, __INT_MIN__
+VARSET 防衛値, __INT_MIN__
+VARSET 合計ポイント, __INT_MAX__
+VARSET 勢力数, 0
+VARSET TMP_COUNTRY_STARS, 0
+;---ランキング用TMP_COUNTRY_STARS数準備シーケンス---
+;値合計用意
+FOR LOCAL, 0, MAX_COUNTRY
+	IF IS_COUNTRY(LOCAL)
+		士官数:LOCAL = GET_COMMANDER_NUM(LOCAL)
+		都市数:LOCAL = GET_OWN_CITY(LOCAL)
+		経済値:LOCAL = GET_SUM_ECONOMY(LOCAL)
+		防衛値:LOCAL = GET_SUM_GUARD(LOCAL)
+		勢力数 ++
+		能力値:LOCAL = 0
+		合計ポイント:LOCAL = 0
+		FOR LOCAL:1, 0, CHARANUM
+			SIF LOCAL == CFLAG:(LOCAL:1):所属
+				能力値:LOCAL += (ABL:(LOCAL:1):武闘 >= 60) + (ABL:(LOCAL:1):知略 >= 60) + (ABL:(LOCAL:1):政治 >= 60) + (ABL:(LOCAL:1):妖術 >= 0) + (ABL:(LOCAL:1):料理 >= 50) + (ABL:(LOCAL:1):歌唱 >= 50)
+		NEXT
+	ENDIF
+NEXT
+
+;ポイント用意　各分野の順位の値の合計なので、小さい方がよい
+;倍率が1より小さければ大勢に影響を与えない分野、大きければ与える分野
+FOR LOCAL, 0, 勢力数
+	LOCAL:1 = FINDELEMENT(士官数, MAXARRAY(士官数))
+	士官数:(LOCAL:1) = __INT_MIN__
+	合計ポイント:(LOCAL:1) += LOCAL * 2 / 3
+
+	LOCAL:1 = FINDELEMENT(都市数, MAXARRAY(都市数))
+	都市数:(LOCAL:1) = __INT_MIN__
+	合計ポイント:(LOCAL:1) += LOCAL
+
+	LOCAL:1 = FINDELEMENT(能力値, MAXARRAY(能力値))
+	能力値:(LOCAL:1) = __INT_MIN__
+	合計ポイント:(LOCAL:1) += LOCAL * 2
+
+	LOCAL:1 = FINDELEMENT(経済値, MAXARRAY(経済値))
+	経済値:(LOCAL:1) = __INT_MIN__
+	合計ポイント:(LOCAL:1) += LOCAL * 3 / 2
+
+	LOCAL:1 = FINDELEMENT(防衛値, MAXARRAY(防衛値))
+	防衛値:(LOCAL:1) = __INT_MIN__
+	合計ポイント:(LOCAL:1) += LOCAL / 2
+NEXT
+
+;TMP_COUNTRY_STARSの数
+LOCAL:2 = 1
+;このTMP_COUNTRY_STARS数でのTMP_COUNTRY_STARS付与回数
+LOCAL:3 = 0
+
+;TMP_COUNTRY_STARSを付与
+FOR LOCAL, 0, 勢力数
+	LOCAL:1 = FINDELEMENT(合計ポイント, MINARRAY(合計ポイント))
+	合計ポイント:(LOCAL:1) = __INT_MAX__
+	TMP_COUNTRY_STARS:(LOCAL:1) = LOCAL:2
+	LOCAL:3 ++
+	IF LOCAL:2 <= 勢力数 % 5
+		IF 勢力数 / 5 + 1 <= LOCAL:3
+			LOCAL:3 = 0
+			LOCAL:2 ++
+		ENDIF
+	ELSEIF 勢力数 / 5 <= LOCAL:3
+		LOCAL:3 = 0
+		LOCAL:2 ++
+	ENDIF
+	;そのTMP_COUNTRY_STARS数でTMP_COUNTRY_STARSを与えた回数が勢力数の1/5より大きい、ないしそのTMP_COUNTRY_STARS数が総数の5で割ったあまりなら継続
+NEXT
+
+;-----------------------------
+;;勢力の難易度を表示
+;TMP_CREATE_STARS_MAPとセット
+;-----------------------------
+@TMP_PRINT_COUNTRY_DIFFICULTY(勢力番号)
+#DIM 勢力番号
+SELECTCASE TMP_COUNTRY_STARS:勢力番号
+	CASE 1
+		LOCAL:1 = COLOR("水色")
+	CASE 2
+		LOCAL:1 = COLOR("黄緑")
+	CASE 3
+		LOCAL:1 = COLOR("緑")
+	CASE 4
+		LOCAL:1 = COLOR("注意")
+	CASE 5
+		LOCAL:1 = COLOR("警告")
+ENDSELECT
+FOR LOCAL, 0, 5
+	IF LOCAL < TMP_COUNTRY_STARS:勢力番号
+		CALL COLORPRINTFORM("★", LOCAL:1)
+	ELSE
+		PRINT ☆
+	ENDIF
+NEXT
+
+;-----------------------------
+;星評価を表示
+;TMP_CREATE_STARS_MAPとセット
+;-----------------------------
+@TMP_PRINT_COUNTRY_STARS(勢力番号)
+#DIM 勢力番号
+SELECTCASE TMP_COUNTRY_STARS:勢力番号
+	CASE 1
+		LOCAL:1 = COLOR("桃")
+	CASE 2
+		LOCAL:1 = COLOR("橙")
+	CASE 3
+		LOCAL:1 = COLOR("緑")
+	CASE 4
+		LOCAL:1 = COLOR("水色")
+	CASE 5
+		LOCAL:1 = COLOR("灰色")
+ENDSELECT
+LOCAL:2 = 6 - TMP_COUNTRY_STARS:勢力番号
+FOR LOCAL, 0, 5
+	IF LOCAL < LOCAL:2
+		CALL COLORPRINTFORM("★", LOCAL:1)
+	ELSE
+		PRINT ☆
+	ENDIF
+NEXT
+
+;-----------------------------
+;キャラの星評価を用意
+;-----------------------------
+@TMP_PREPARE_CHARA_STARS()
+#DIM 合計ポイント, 1000
+#DIM キャラ数
+#DIM 能力 = GETNUM(ABL, "武闘"), GETNUM(ABL, "知略"), GETNUM(ABL, "政治"), GETNUM(ABL, "妖術"), GETNUM(ABL, "料理"), GETNUM(ABL, "歌唱")
+VARSET 合計ポイント, __INT_MAX__
+
+;値合計用意
+FOR LOCAL, 0, CHARANUM
+	合計ポイント:LOCAL = 0
+	合計ポイント:LOCAL += ABL:LOCAL:武闘
+	合計ポイント:LOCAL += ABL:LOCAL:知略
+	合計ポイント:LOCAL += ABL:LOCAL:政治
+	合計ポイント:LOCAL += ABL:LOCAL:妖術 * 3 / 2
+	合計ポイント:LOCAL += MAX(ABL:LOCAL:料理 - 50, 0)
+	合計ポイント:LOCAL += MAX(ABL:LOCAL:歌唱 - 50, 0)
+	FOR LOCAL:1, 0, VARSIZE("能力")
+		SELECTCASE 能力:(LOCAL:1)
+			CASE GETNUM(ABL, "武闘"), GETNUM(ABL, "知略"), GETNUM(ABL, "政治")
+				SELECTCASE ALPHABET_RANK(ABL:LOCAL:(能力:(LOCAL:1)), 0)
+					CASE "S"
+						合計ポイント:LOCAL += 15
+					CASE "A"
+						合計ポイント:LOCAL += 10
+					CASE "B"
+						合計ポイント:LOCAL += 5
+				ENDSELECT
+			CASE GETNUM(ABL, "妖術")
+				SELECTCASE ALPHABET_RANK(ABL:LOCAL:(能力:(LOCAL:1)), 1)
+					CASE "S"
+						合計ポイント:LOCAL += 30
+					CASE "A"
+						合計ポイント:LOCAL += 25
+					CASE "B"
+						合計ポイント:LOCAL += 20
+					CASE "C"
+						合計ポイント:LOCAL += 15
+					CASE "D"
+						合計ポイント:LOCAL += 10
+					CASE "E"
+						合計ポイント:LOCAL += 5
+				ENDSELECT
+			CASE GETNUM(ABL, "料理"), GETNUM(ABL, "歌唱")
+				SELECTCASE ALPHABET_RANK(ABL:LOCAL:(能力:(LOCAL:1)), 2)
+					CASE "S"
+						合計ポイント:LOCAL += 20
+					CASE "A"
+						合計ポイント:LOCAL += 15
+					CASE "B"
+						合計ポイント:LOCAL += 10
+					CASE "C"
+						合計ポイント:LOCAL += 5
+				ENDSELECT
+		ENDSELECT
+	NEXT
+	FOR LOCAL:1, 0, 64
+		SIF GETBIT(TALENT:LOCAL:ＳＬＧ素質, LOCAL:1)
+			合計ポイント:LOCAL += 15
+	NEXT
+NEXT
+
+;TMP_CHARA_STARSの数
+LOCAL:2 = 1
+;このTMP_CHARA_STARS数でのTMP_CHARA_STARS付与回数
+LOCAL:3 = 0
+
+;TMP_CHARA_STARSを小さい順に付与
+FOR LOCAL, 0, CHARANUM
+	LOCAL:1 = FINDELEMENT(合計ポイント, MINARRAY(合計ポイント))
+	合計ポイント:(LOCAL:1) = __INT_MAX__
+	TMP_CHARA_STARS:(LOCAL:1) = LOCAL:2
+	LOCAL:3 ++
+	IF LOCAL:2 <= CHARANUM % 10
+		IF CHARANUM / 10 + 1 <= LOCAL:3
+			LOCAL:3 = 0
+			LOCAL:2 ++
+		ENDIF
+	ELSEIF CHARANUM / 10 <= LOCAL:3
+		LOCAL:3 = 0
+		LOCAL:2 ++
+	ENDIF
+	;そのTMP_CHARA_STARS数でTMP_CHARA_STARSを与えた回数が勢力数の1/10より大きい、ないしそのTMP_CHARA_STARS数が総数の10で割ったあまりなら継続
+NEXT
+
+;-----------------------------
+;キャラの星評価を表示
+;TMP_CREATE_STARS_MAPとセット
+;-----------------------------
+@TMP_PRINT_CHARA_STARS(対象)
+#DIM 対象
+FOR LOCAL, 0, 10
+	IF LOCAL < TMP_CHARA_STARS:対象
+		CALL COLORPRINTFORM("★", GET_CHARA_STARS_COLOR(対象))
+	ELSE
+		PRINT ☆
+	ENDIF
+NEXT
+;-----------------------------
+;キャラの星評価をシンプルに表示
+;-----------------------------
+@TMP_PRINT_CHARA_STARS_NUM(対象)
+#DIM 対象
+CALL COLORPRINTFORM(@"★{TMP_CHARA_STARS:対象, 2, RIGHT}", GET_CHARA_STARS_COLOR(対象))
+
+;-----------------------------
+;キャラの星評価用の色を取得
+;-----------------------------
+@GET_CHARA_STARS_COLOR(対象)
+#FUNCTION
+#DIM 対象
+SELECTCASE TMP_CHARA_STARS:対象
+	CASE 1
+		RETURNF COLOR("灰色")
+	CASE 2
+		RETURNF COLOR("明灰色")
+	CASE 3
+		RETURNF COLOR("青")
+	CASE 4
+		RETURNF COLOR("水色")
+	CASE 5
+		RETURNF COLOR("緑")
+	CASE 6
+		RETURNF COLOR("黄")
+	CASE 7
+		RETURNF COLOR("橙")
+	CASE 8
+		RETURNF COLOR("赤")
+	CASE 9
+		RETURNF COLOR("桃")
+	CASE 10
+		RETURNF COLOR("パ紫")
+ENDSELECT
+RETURNF 0x000000
+
+;-----------------------------
+;ある都市が各勢力の都市と接続しているかのマップを作成
+;-----------------------------
+@TMP_CREATE_CONNECTION_MAP
+VARSET TMP_CONNECTED_TO_US, 0
+VARSET TMP_CONNECTED_TO_US_ONLY, 0
+
+FOR LOCAL, 0, MAX_COUNTRY
+	FOR LOCAL:1, 0, MAX_CITY
+		IF CITY_OWNER:(LOCAL:1) == LOCAL
+			TMP_CONNECTED_TO_US:(LOCAL):(LOCAL:1) = 1
+			CONTINUE
+		ENDIF
+		FOR LOCAL:2, 0, 10
+			SIF CITY_ROOT:(LOCAL:1):(LOCAL:2) < 1
+				BREAK
+			IF CITY_TYPE:(CITY_ROOT:(LOCAL:1):(LOCAL:2)) == 1
+				FOR LOCAL:3, 0, 10
+					SIF CITY_ROOT:(CITY_ROOT:(LOCAL:1):(LOCAL:2)):(LOCAL:3) < 1
+						BREAK
+					SIF CITY_ROOT:(CITY_ROOT:(LOCAL:1):(LOCAL:2)):(LOCAL:3) == CITY_ROOT:(LOCAL:1):(LOCAL:2)
+						CONTINUE
+					IF CITY_OWNER:(CITY_ROOT:(CITY_ROOT:(LOCAL:1):(LOCAL:2)):(LOCAL:3)) == LOCAL
+						TMP_CONNECTED_TO_US:(LOCAL):(LOCAL:1) = 1
+						BREAK
+					ENDIF
+				NEXT
+			ENDIF
+			SIF CITY_OWNER:(CITY_ROOT:(LOCAL:1):(LOCAL:2)) == LOCAL
+				TMP_CONNECTED_TO_US:(LOCAL):(LOCAL:1) = 1
+			SIF TMP_CONNECTED_TO_US:(LOCAL):(LOCAL:1)
+				BREAK
+		NEXT
+	NEXT
+
+	FOR LOCAL:1, 0, MAX_CITY
+		;そもそも自勢力都市と繋がっていない場合、および都市所有者が自分でない場合は駄目
+		SIF !TMP_CONNECTED_TO_US:(LOCAL):(LOCAL:1)
+			CONTINUE
+		SIF CITY_OWNER:(LOCAL:1) != LOCAL
+			CONTINUE
+		FOR LOCAL:2, 0, 10
+			LOCAL:4 = 0
+			SIF CITY_ROOT:(LOCAL:1):(LOCAL:2) < 1
+				BREAK
+			IF CITY_TYPE:(CITY_ROOT:(LOCAL:1):(LOCAL:2)) == 1
+				FOR LOCAL:3, 0, 10
+					SIF CITY_ROOT:(CITY_ROOT:(LOCAL:1):(LOCAL:2)):(LOCAL:3) < 1
+						CONTINUE
+					SIF CITY_ROOT:(CITY_ROOT:(LOCAL:1):(LOCAL:2)):(LOCAL:3) == CITY_ROOT:(LOCAL:1):(LOCAL:2)
+						CONTINUE
+					IF CITY_OWNER:(CITY_ROOT:(CITY_ROOT:(LOCAL:1):(LOCAL:2)):(LOCAL:3)) != LOCAL
+						LOCAL:4 = 1
+						BREAK
+					ENDIF
+				NEXT
+			ENDIF
+			SIF CITY_TYPE:(CITY_ROOT:(LOCAL:1):(LOCAL:2)) != 1 && CITY_OWNER:(CITY_ROOT:(LOCAL:1):(LOCAL:2)) != LOCAL
+				LOCAL:4 = 1
+			SIF LOCAL:4
+				BREAK
+		NEXT
+		SIF !LOCAL:4
+			TMP_CONNECTED_TO_US_ONLY:(LOCAL):(LOCAL:1) = 1
+	NEXT
+NEXT
+
+;-----------------------------
+;各勢力がどう飛び地になっているかのマップを作成
+;-----------------------------
+@TMP_CREATE_ENCLAVE_MAP
+#DIM CURRENT_NODE
+#DIM CURRENT_LOOP
+#DIM WORK_NODE
+#DIM NODE_STACK, MAX_CITY
+#DIM LOOP_STACK, MAX_CITY
+#DIM CHECKED, MAX_CITY
+#DIM PASSED, MAX_CITY
+#DIM ENCLAVE_SIZE
+#DIM POINTER
+VARSET TMP_ENCLAVE_NUM
+VARSET TMP_ENCLAVE_SIZE
+VARSET TMP_MAX_ENCLAVE_SIZE
+
+FOR LOCAL, 0, MAX_COUNTRY
+	VARSET NODE_STACK
+	VARSET LOOP_STACK
+	VARSET CHECKED
+	VARSET POINTER
+	VARSET PASSED
+	CURRENT_NODE = 1
+	CURRENT_LOOP = 0
+	FOR LOCAL:1, 1, GET_CITY_NUM() + 1
+		CURRENT_NODE = LOCAL:1
+		;対象勢力の都市でなければスルー
+		SIF CITY_OWNER:CURRENT_NODE != LOCAL:0
+			CONTINUE
+		;チェック済みなら飛ばす
+		SIF CHECKED:CURRENT_NODE
+			CONTINUE
+		;新しい飛び地なので飛び地の数を増やす
+		TMP_ENCLAVE_NUM:LOCAL ++
+		ENCLAVE_SIZE ++
+		;通過都市に記録
+		PASSED:(ENCLAVE_SIZE - 1) = CURRENT_NODE
+		;------ここから再帰処理（的なもの）-----
+		$RECURSION
+		;カレントノードをチェックする
+		CHECKED:CURRENT_NODE = 1
+		;カレントノードの接続都市を調べる
+		FOR LOCAL:2, CURRENT_LOOP, 10
+			WORK_NODE = CITY_ROOT:CURRENT_NODE:(LOCAL:2)
+			;チェック済みなら飛ばす
+			SIF CHECKED:WORK_NODE
+				CONTINUE
+			SIF WORK_NODE == 0
+				BREAK
+				
+			;接続先が中継地点の場合
+			;その先を見る
+			IF CITY_TYPE:WORK_NODE == 1
+				;中継地点はCURRENT_NODEにならないので、RECURSION冒頭のチェック処理にかからない
+				;中継地点にチェックをいれておく
+				CHECKED:WORK_NODE = 1
+
+				;CURRENT_NODEでないほうの接続先を取得
+				LOCAL:3 = (CITY_ROOT:WORK_NODE:0 == CURRENT_NODE ? CITY_ROOT:WORK_NODE:1 # CITY_ROOT:WORK_NODE:0)
+
+				;接続先が対象勢力の都市でないなら飛ばす
+				SIF CITY_OWNER:(LOCAL:3) != LOCAL
+					CONTINUE
+				;接続先がチェック済みなら飛ばす
+				SIF CHECKED:(LOCAL:3)
+					CONTINUE
+					
+				;-------------再帰処理---------------
+				;飛び地サイズを増やす
+				ENCLAVE_SIZE ++
+				;通過都市に記録
+				PASSED:(ENCLAVE_SIZE - 1) = LOCAL:3
+				;スタックには中継点からの接続元であるCURRENT_NODEを入れる
+				NODE_STACK:POINTER = CURRENT_NODE
+				LOOP_STACK:POINTER = CURRENT_LOOP
+				POINTER ++
+				;CURRENT_NODEには中継先を入れる
+				;スタックで中継元を入れたことで、中継点がなかったかのように振る舞う
+				CURRENT_NODE = LOCAL:3
+				CURRENT_LOOP = 0
+				GOTO RECURSION
+
+			;接続先が都市の場合
+			ELSE
+				;接続先が対象勢力の都市でないなら飛ばす
+				SIF CITY_OWNER:WORK_NODE != LOCAL
+					CONTINUE
+				;-------------再帰処理---------------
+				;飛び地サイズを増やす
+				ENCLAVE_SIZE ++
+				;通過都市に記録
+				PASSED:(ENCLAVE_SIZE - 1) = WORK_NODE
+				;スタックにCURRENT_NODEと現在のループ状況を退避
+				NODE_STACK:POINTER = CURRENT_NODE
+				LOOP_STACK:POINTER = CURRENT_LOOP
+				POINTER ++
+				;CURRENT_NODEに接続先を入れる
+				CURRENT_NODE = WORK_NODE
+				CURRENT_LOOP = 0
+				GOTO RECURSION
+			ENDIF
+		NEXT
+		;GOTO RECURSION(再帰呼び出しに相当)せず最後までいけたら、
+		;再帰でいうRETURNの処理に入る
+		POINTER --
+		;ポインターが0以上（まだ再帰できる）なら再帰
+		IF POINTER >= 0
+			CURRENT_NODE = NODE_STACK:POINTER
+			CURRENT_LOOP = LOOP_STACK:POINTER
+			GOTO RECURSION
+		ENDIF
+		FOR LOCAL:2, 0, ENCLAVE_SIZE
+			TMP_ENCLAVE_SIZE:LOCAL:(PASSED:(LOCAL:2)) = ENCLAVE_SIZE
+		NEXT
+		;次の都市を見る前に、初期化が必要な変数を初期化
+		POINTER = 0
+		ENCLAVE_SIZE = 0
+	NEXT
+	LOCAL:2 = 0
+	FOR LOCAL:1, 0, GET_CITY_NUM() + 1
+		SIF TMP_ENCLAVE_SIZE:(LOCAL):(LOCAL:1) > LOCAL:2
+			LOCAL:2 = TMP_ENCLAVE_SIZE:(LOCAL):(LOCAL:1)
+	NEXT
+	TMP_MAX_ENCLAVE_SIZE:LOCAL = LOCAL:2
+NEXT

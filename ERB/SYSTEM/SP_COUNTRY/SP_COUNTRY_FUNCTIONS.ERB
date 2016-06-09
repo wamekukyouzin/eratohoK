@@ -1,110 +1,27 @@
-﻿;-----------------------------------------
-;捕虜にされているときの逆調教関数へのハブ
-;-----------------------------------------
-@SP_TRAIN_IN_PRISON
-SELECTCASE CFLAG:MASTER:9
-	CASE GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗))
-		CALL REV_TRAIN_BANDIT
-	CASE GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_ホフゴブリン))
-		CALL REV_TRAIN_GOBLIN
-	CASE GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_外来人))
-		CALL REV_TRAIN_GAIRAI
-	CASE GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_触手))
-		CALL REV_TRAIN_TENTACLE
-ENDSELECT
-SIF !RESULT
-;行動開始時の共通処理
-	CALL START_TRAIN_COMMON
-RETURN 1
-
-
-;---------------------------------------
-;ターンエンド時の各勢力のイベントのハブ
-;---------------------------------------
-@SP_TURNEND
-;野盗による調教
-CALL TRAIN_BY_BANDIT
-	
-;外来人ターンエンド処理
-CALL TURNEND_GAIRAI
-
-;ホフゴブリンターンエンド処理
-CALL TURNEND_GOBLIN
-
-;触手ターンエンド処理
-CALL TURNEND_TENTACLE
-
-;自警団ターンエンド処理
-CALL TURNEND_VIGILANTE
-
-
-;-------------------------------------------------
-;主人公が捕らえられた際の特殊処理
-;ARG:0 捕らえた国家
-;戻り値 0=処刑 1=部下になる 2=解放される 3=投獄される
-;-------------------------------------------------
-@SP_MASTER_CAPTURED(ARG:0)
-PRINTW ………………
-PRINTW ……
-RESULT = -1
-SELECTCASE COUNTRY_EVENT_ID:(ARG:0)
-	CASE SP_COUNTRY_ID:(特殊勢力_野盗)
-		CALL MASTER_CAPTURED_BANDIT(ARG:0)
-	CASE SP_COUNTRY_ID:(特殊勢力_外来人)
-		CALL MASTER_CAPTURED_GAIRAI(ARG:0)
-	CASE SP_COUNTRY_ID:(特殊勢力_ホフゴブリン)
-		CALL MASTER_CAPTURED_GOBILIN(ARG:0)
-	CASE SP_COUNTRY_ID:(特殊勢力_触手)
-		CALL MASTER_CAPTURED_TENTACLE(ARG:0)
-	CASE SP_COUNTRY_ID:(特殊勢力_自警団)
-		CALL MASTER_CAPTURED_VIGILANTE(ARG:0)
-ENDSELECT
-RETURN RESULT
-
+﻿;---------------------------
+;対象キャラが対象勢力による調教でFORCE_FUCKされたときに、CFLAGが減少するか
 ;---------------------------
-;ARG:0番のキャラがEVENT_IDがARG:1である勢力による調教でFORCE_FUCKされたときに、CFLAGが減少するか
-;減少「しない」場合、1を返す（@FORCE_FUCKの「CFLAG減少させないフラグ」に対応する）
-;---------------------------
-@SP_TRAIN_IS_DECREASE_CFLAG(ARG:0, ARG:1)
+@SP_TRAIN_IS_DECREASE_CFLAG(対象, 勢力番号)
 #FUNCTION
-SELECTCASE ARG:1
-	;野盗の場合
-	CASE SP_COUNTRY_ID:(特殊勢力_野盗)
-		;野盗の士官か奴隷としてスタートし、対象が堕ちている
-		IF GROUPMATCH(BANDIT_START, 1, 2) && GETBIT(TALENT:(ARG:0):特殊勢力陥落系, 特殊勢力_野盗)
-			RETURNF 1
-		;MASTERが野盗に所属している
-		ELSEIF CFLAG:MASTER:所属 == GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗))
-			RETURNF 1
-		;MASTERが野盗の捕虜で、対象が堕ちている
-		ELSEIF CFLAG:MASTER:捕虜先 == GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗)) && GETBIT(TALENT:(ARG:0):特殊勢力陥落系, 特殊勢力_野盗)
-			RETURNF 1
-		ENDIF
-	CASE SP_COUNTRY_ID:(特殊勢力_ホフゴブリン)
-		;MASTERがホフゴブリン勢力に所属している
-		IF CFLAG:MASTER:所属 == GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_ホフゴブリン))
-			RETURNF 1
-		;MASTERがホフゴブリン勢力の捕虜で、対象が堕ちている
-		ELSEIF CFLAG:MASTER:捕虜先 == GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_ホフゴブリン)) && GETBIT(TALENT:(ARG:0):特殊勢力陥落系, 特殊勢力_ホフゴブリン)
-			RETURNF 1
-		ENDIF
-	CASE SP_COUNTRY_ID:(特殊勢力_外来人)
-		;MASTERが外来勢力に所属している
-		IF CFLAG:MASTER:所属 == GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_外来人))
-			RETURNF 1
-		;MASTERが外来勢力の捕虜で、対象が堕ちている
-		ELSEIF CFLAG:MASTER:捕虜先 == GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_外来人)) && GETBIT(TALENT:(ARG:0):特殊勢力陥落系, 特殊勢力_外来人)
-			RETURNF 1
-		ENDIF
-	CASE SP_COUNTRY_ID:(特殊勢力_触手)
-		;MASTERが触手勢力に所属している
-		IF CFLAG:MASTER:所属 == GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_触手))
-			RETURNF 1
-		;MASTERが触手勢力の捕虜で、対象が堕ちている
-		ELSEIF CFLAG:MASTER:捕虜先 == GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_触手)) && GETBIT(TALENT:(ARG:0):特殊勢力陥落系, 特殊勢力_触手)
-			RETURNF 1
-		ENDIF
-ENDSELECT
+#DIM 対象
+#DIM 勢力番号
+LOCAL = SP_COUNTRY_TO_CONST(勢力番号)
+;士官か奴隷としてスタートし、対象が堕ちている
+SIF GROUPMATCH(SP_COUNTRY_START:LOCAL, 特殊勢力スタート_士官, 特殊勢力スタート_奴隷) && GETBIT(TALENT:対象:特殊勢力陥落系, LOCAL)
+	RETURNF 0
+;MASTERが対象勢力に所属している、または捕虜で対象が堕ちている
+SIF CFLAG:MASTER:所属 == 勢力番号 || (CFLAG:MASTER:捕虜先 == 対象 && GETBIT(TALENT:対象:特殊勢力陥落系, LOCAL))
+	RETURNF 0
+RETURNF 1
+
+;-------------------------------------------------
+;渡されたIDのキャラの特殊勢力素質に対応する特殊精液を返す
+;-------------------------------------------------	
+@SP_CHARA_TO_SPERM_ID(ID)
+#FUNCTION
+#DIM ID
+;SP_COUNTRY_NAMEの各インデックスと、各特殊勢力素質の値が、同じ特殊勢力を示していることを利用する
+RETURNF GET_SPERM_ID(SP_COUNTRY_NAME:(TALENT:ID_TO_CHARA(ID):特殊勢力素質))
 
 ;-------------------------------------------------
 ;渡された勢力番号が特殊勢力であるかを判断する
@@ -114,12 +31,55 @@ ENDSELECT
 #DIM 勢力
 SIF 勢力 < 0 || 勢力 >= MAX_COUNTRY
 	RETURNF 0
-FOR LOCAL, 0, VARSIZE("SP_COUNTRY_ID")
-	SIF COUNTRY_EVENT_ID:(勢力) == SP_COUNTRY_ID:LOCAL
-		RETURNF 1
-NEXT
-RETURNF 0
+RETURNF (FINDELEMENT(SP_COUNTRY_ID, COUNTRY_EVENT_ID:勢力) != -1 ? FINDELEMENT(SP_COUNTRY_ID, COUNTRY_EVENT_ID:勢力) # 0)
 
+;-------------------------------------------------
+;対象が渡された勢力に調教されうるかを判断する
+;-------------------------------------------------	
+@IS_TRAIN_BY_SP_COUNTRY(対象, 勢力番号)
+#FUNCTION
+#DIM 対象
+#DIM 勢力番号
+;その勢力所属でも、その勢力の捕虜でもないキャラは駄目（あたりまえ）
+SIF CFLAG:対象:所属 != 勢力番号 && CFLAG:対象:捕虜先 != 勢力番号
+	RETURNF 0
+;特殊勢力のキャラは駄目
+SIF TALENT:対象:特殊勢力素質
+	RETURNF 0
+;MASTERは士官スタートなら抜ける
+SIF 対象 == MASTER && SP_COUNTRY_START:SP_COUNTRY_TO_CONST(勢力番号) == 特殊勢力スタート_士官
+	RETURNF 0
+;軟禁中はスキップ
+SIF CFLAG:対象:9 == 勢力番号 && CFLAG:対象:29
+	RETURNF 0
+;テキスト非表示な設定ならスキップ
+SIF	!TRAIN_IS_SHOW_TEXT(対象)
+	RETURNF 0
+;その勢力に所属するMASTER以外の堕ちていないキャラはスキップ
+;綺麗なまま捕らえておきたい人向け
+;	SIF !GETBIT(TALENT:対象:特殊勢力陥落系, COUNTRY_TO_CONST(勢力番号)) && CFLAG:対象:所属 == 勢力番号 && 対象 != MASTER
+;		RETURNF 0
+;対象勢力に所属して、しかも堕ちているキャラは2/3でカット（いちいち出るとうっとうしいので）
+SIF CFLAG:対象:所属 == 勢力番号 && GETBIT(TALENT:対象:特殊勢力陥落系, SP_COUNTRY_TO_CONST(勢力番号)) && RAND:3
+	RETURNF 0
+RETURNF 1
+
+;-------------------------------------------------
+;対象が渡された勢力に寝返るかどうか判断する
+;-------------------------------------------------	
+@IS_BETRAY_TO_SP_COUNTRY(対象, 勢力番号)
+#FUNCTION
+#DIM 対象
+#DIM 勢力番号
+#DIM 勢力定数
+勢力定数 = SP_COUNTRY_TO_CONST(勢力番号)
+;堕ちていないなら、ターン数不足なら駄目
+SIF !GETBIT(TALENT:対象:特殊勢力陥落系, 勢力定数) && SP_TRAIN_COUNT:対象:勢力定数 < TRAIN_FALLEN_TERM:3
+	RETURNF 0
+;堕ちていて、その勢力に士官しているならスキップ（既に寝返っているので。士官でない場合、一度よそに登用されるかなにかしているので例外）
+SIF CFLAG:対象:所属 == 勢力番号 && GETBIT(TALENT:対象:特殊勢力陥落系, 勢力定数)
+	RETURNF 0
+RETURNF 1
 
 ;-------------------------------------------------
 ;渡されたキャラが特殊勢力の陥落系素質を持っているかを判断する
@@ -137,21 +97,25 @@ RETURNF (TALENT:対象:特殊勢力陥落系 != 0)
 #DIM 対象
 RETURNF TALENT:対象:特殊勢力素質
 
-;-------------------------------------------------
-;渡されたビット番号に対応する陥落素質の文字列を返す
-;-------------------------------------------------	
-@TOSTR_FALLEN_TALENT(ビット)
-#FUNCTIONS
-#DIM ビット
-SELECTCASE ビット
-	CASE 特殊勢力_野盗
-		RETURNF "野盗の肉便器"
-	CASE 特殊勢力_ホフゴブリン
-		RETURNF "ホフゴブリンの性奴隷"
-	CASE 特殊勢力_外来人
-		RETURNF "研究用奴隷"
-	CASE 特殊勢力_触手
-		RETURNF "触手による寄生"
-	CASEELSE
-		RETURNF ""
-ENDSELECT
+
+;---------------------------------------------------
+;与えられた勢力番号を、対応する定数割り当てに変換する
+;勢力番号だけ分かる状態で定数割り当てが拾いたいときに
+;---------------------------------------------------
+@SP_COUNTRY_TO_CONST(勢力番号)
+#FUNCTION
+#DIM 勢力番号
+SIF 勢力番号 < 0 || 勢力番号 >= MAX_COUNTRY
+	RETURNF 0
+RETURNF (FINDELEMENT(SP_COUNTRY_ID, COUNTRY_EVENT_ID:勢力番号) != -1 ? FINDELEMENT(SP_COUNTRY_ID, COUNTRY_EVENT_ID:勢力番号) # 0)
+
+;---------------------------------------------------
+;与えられたEVENTIDを、対応する定数割り当てに変換する
+;おそらく使わない
+;---------------------------------------------------
+@SP_COUNTRY_ID_TO_COSNT(EVENTID)
+#FUNCTION
+#DIM EVENTID
+SIF GET_COUNTRY_FROM_ID(EVENTID) != -1
+	RETURNF SP_COUNTRY_TO_CONST(GET_COUNTRY_FROM_ID(EVENTID))
+RETURNF 0

@@ -1,0 +1,175 @@
+﻿;----------------------------------------------
+;蜂起を起こすNPCの候補を選択し、確率ロール
+;----------------------------------------------
+@SLG_RANDOM_RISE
+#DIM LCOUNT
+#DIM 人数
+#DIM 候補, 1000
+#DIM 候補値, 1000
+#DIM 結果
+#DIM 判定値
+#DIM 勢力番号
+VARSET 人数
+VARSET 候補
+VARSET 候補値, __INT_MIN__
+
+;10期以降
+SIF DAY < SLG_PP:1
+	RETURN 0
+
+勢力番号 = GET_NEW_COUNTRY()
+
+;新しく勢力作れないなら戻す
+SIF 勢力番号 <= 0
+	RETURN 0
+
+;---今回の蜂起候補を取得---
+FOR LCOUNT, 0, CHARANUM
+	SIF LCOUNT == MASTER
+		CONTINUE
+	;放浪していないとだめ
+	SIF CFLAG:LCOUNT:特殊状態フラグ != 1
+		CONTINUE
+	;特殊キャラはだめ（特殊キャラは放浪してなそうな気もするけど）
+	SIF NO:LCOUNT >= 2000
+		CONTINUE
+	;野心が皆無なやつもだめ
+	SIF ABL:LCOUNT:野心 <= 0
+		CONTINUE
+	候補:人数 = LCOUNT
+	;選出候補値は野心をそのまま利用
+	候補値:人数 = RAND(0, MAX(1, ABL:LCOUNT:野心))
+	人数 ++
+NEXT
+
+;候補がいなければRETURN
+SIF 人数 < 1
+	RETURN 0
+
+結果 = 候補:FINDELEMENT(候補値, MAXARRAY(候補値, 0, 人数))
+;---候補取得ここまで---
+
+判定値 = CALC_RISE_RATE(結果)
+;確率ロールに失敗したら戻る
+SIF 判定値 <= RAND:3000
+	RETURN 0
+
+;----確率ロール成功。勢力を作成。----
+
+CALL CHARA_DIPRO_COLOR(CSTR:結果:99)
+
+LOCAL = RESULT
+;色設定がなかったら髪の色
+SIF LOCAL == 0XFFFFFF
+	LOCAL = TALENT:結果:髪色
+
+SELECTCASE RAND:7
+	CASE 0, 1
+		COUNTRY_AI_TYPE:勢力番号 = AI_通常
+	CASE 2
+		COUNTRY_AI_TYPE:勢力番号 = AI_外交
+	CASE 3
+		COUNTRY_AI_TYPE:勢力番号 = AI_好戦
+	CASE 4
+		COUNTRY_AI_TYPE:勢力番号 = AI_防衛
+	CASE 5
+		COUNTRY_AI_TYPE:勢力番号 = AI_内政
+	CASE 6
+		COUNTRY_AI_TYPE:勢力番号 = AI_蛮行
+ENDSELECT
+
+COUNTRY_COLOR:勢力番号 = LOCAL
+COUNTRY_SOLDIER:勢力番号 = RAND(15000, 20000)
+COUNTRY_BOSS:勢力番号 = GET_ID(結果)
+CFLAG:結果:所属 = 勢力番号
+CFLAG:結果:特殊状態フラグ = 0
+
+CALL SP_COUNTRY_RISE(勢力番号)
+
+VARSET 候補
+VARSET 人数
+;賛同者をつのる
+FOR LOCAL, 1, CHARANUM
+	SIF LOCAL == 結果
+		CONTINUE
+	;主人公所属で陥落系素質ありなら賛同しない
+	SIF CFLAG:LOCAL:所属 && CFLAG:MASTER:所属 == CFLAG:LOCAL:所属 && (IS_LOVER(LOCAL) || IS_SLAVE(LOCAL))
+		CONTINUE
+	;君主は駄目
+	SIF GET_COUNTRY_BOSS(CFLAG:LOCAL:所属) == LOCAL
+		CONTINUE
+	;死んでたら駄目
+	SIF CFLAG:LOCAL:特殊状態フラグ == 2
+		CONTINUE
+	;捕虜なら駄目ですよねー
+	SIF CFLAG:LOCAL:捕虜先
+		CONTINUE
+	候補:人数 = LOCAL
+	人数 ++
+NEXT
+CALL FISHER_YATES_SHAFFLE(人数)
+LOCAL:1 = 1
+FOR LOCAL, 0, 人数
+	LOCAL:2 = 候補:(SHAFFLE_ARRAY:(LOCAL))
+	LOCAL:3 = REL_LIKE:(LOCAL:2):結果
+	IF CFLAG:(LOCAL:2):所属
+		LOCAL:3 += REL_HATE:(LOCAL:2):(GET_COUNTRY_BOSS(CFLAG:(LOCAL:2):所属))
+	ELSE
+		LOCAL:3 += 500
+	ENDIF
+	IF LOCAL:3 > LOCAL:1 * 300
+		PRINTFORMW %ANAME(LOCAL:2)%が賛同し、%ANAME(結果)%につきました
+		CFLAG:(LOCAL:2):所属 = 勢力番号
+		CFLAG:(LOCAL:2):特殊状態フラグ = 0
+		LOCAL:1 ++
+	ENDIF
+NEXT
+
+
+;----------------------------------------------
+;蜂起を起こす確率を算出
+;----------------------------------------------
+@CALC_RISE_RATE(対象)
+#FUNCTION
+#DIM 対象
+#DIM 判定値
+;野心とDAYから判定値を算出
+判定値 = ABL:対象:野心 * 3 / 2
+;都市数が少ないほど蜂起しやすい
+判定値 += (MAX_COUNTRY - GET_COUNTRY_NUM()) * 2
+;終盤は蜂起しにくくする（ただでさえ終わらない観戦モードがさらに終わらなくなるので）
+判定値 -= LIMIT(DAY / 2 - 50, 0, 200)
+SIF TALENT:対象:臆病
+	判定値 -= 5
+SIF TALENT:対象:反抗的
+	判定値 += 15
+SIF TALENT:対象:素直
+	判定値 -= 8
+SIF TALENT:対象:大人しい
+	判定値 -= 5
+SIF TALENT:対象:プライド高い
+	判定値 += 20
+SIF TALENT:対象:生意気
+	判定値 += 10
+SIF TALENT:対象:プライド低い
+	判定値 -= 15
+SIF TALENT:対象:自制心
+	判定値 -= 5
+SIF TALENT:対象:保守的
+	判定値 -= 5
+SIF TALENT:対象:好奇心
+	判定値 += 5
+SIF TALENT:対象:一線越えない
+	判定値 -= 15
+SIF TALENT:対象:抑圧
+	判定値 -= 5
+SIF TALENT:対象:解放
+	判定値 += 15
+SIF TALENT:対象:孤高
+	判定値 += 20
+
+;3能力が200越えてたらプラス補正
+SIF ABL:対象:武闘 + ABL:対象:知略 + ABL:対象:政治 > 180
+	判定値 += MAX(ABL:対象:武闘 + ABL:対象:知略 + ABL:対象:政治 - 200, 50)
+
+RETURNF 判定値

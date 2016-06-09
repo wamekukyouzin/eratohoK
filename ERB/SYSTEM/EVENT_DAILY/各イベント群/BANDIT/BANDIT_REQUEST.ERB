@@ -1,0 +1,148 @@
+﻿@BANDIT_REQUEST
+#DIM 野盗
+#DIM 対象
+#DIM 候補キャラ, 1000
+#DIM 候補数
+VARSET 候補キャラ
+VARSET 候補数
+
+野盗 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗))
+
+SIF 野盗 == -1
+	RETURN -1
+
+FOR LOCAL, 0, CHARANUM
+	IF CFLAG:(LOCAL):所属 == CFLAG:MASTER:所属 && !CFLAG:(LOCAL):9 && !IS_ANIMAL(LOCAL) && IS_FEMALE(LOCAL) && LOCAL != GET_COUNTRY_BOSS(MASTER)
+		候補キャラ:LOCAL = RAND:1000 
+		候補数 ++
+	ENDIF
+NEXT
+IF 候補数 == 0
+	対象 = 0
+ELSE
+	対象 = FINDELEMENT(候補キャラ, MAXARRAY(候補キャラ))
+ENDIF
+DAILY_NAME = 奴隷の要求
+
+SELECTCASE CHECK_COUNTRY_RELATION_F(CFLAG:MASTER:1, 野盗 != -1 ? 野盗 # 0)
+	;停戦中だと選択肢あり、どれも重いペナルティつき
+	CASE 1
+		CALL DAILY_START()
+		PRINTFORMW 野盗の使いがやって来たらしい
+		PRINTFORMW 停戦中とはいえ正直あまり関わりになりたくない相手だが
+		PRINTFORMW 機嫌を損ねられてはどんな被害があるかわからない
+		PRINTFORMW %ANAME(MASTER)%は渋々重い腰を上げた
+		PRINTFORML 
+		IF 対象 == 0
+			PRINTFORMW 使いの男は性奴隷として領民を差し出すように要求してきた
+			PRINTFORMW 今、彼らの機嫌を損ねるわけにはいかない
+			PRINTFORMW 苦渋の決断で%ANAME(対象)%は近くの村から娘を何人か連れて来て野盗へ差し出した
+			PRINTFORMW 使いの男は下卑た笑みを浮かべ抵抗する娘たちを連れて行った
+			FOR LOCAL, 1, MAX_COUNTRY
+				CALL CHANGE_RELATION_C_TO_C(LOCAL, CFLAG:MASTER:1, -500,500)
+			NEXT
+			CALL CHANGE_RELATION_C_TO_C(野盗, CFLAG:MASTER:1, 500,-500)
+			CALL COLORPRINTFORM(@"この事は当然民衆に広がり、他国の評判が大きく下がった", COLOR("警告"))
+			PRINTFORMW
+		ELSE
+			PRINTFORMW 使いの男は性奴隷として%ANAME(対象)%を差し出すように要求してきた
+			PRINTFORMW なんとふざけた要求か！
+			PRINTFORMW しかし…今こいつらと事を構えるのは得策ではない
+			PRINTFORMW どうしよう？
+			CALL ASK_MULTI_JUDGE(@"%ANAME(対象)%を差し出す", 1,"代わりに村娘を差し出す", 1,"代わりに金を払う", 1,"代わりに奉仕する", IS_FEMALE(対象))
+				IF RESULT == 0
+					PRINTFORMW ここで連中の機嫌を損ねるわけにはいかない
+					PRINTFORMW 苦渋の決断で%ANAME(対象)%を送り出すことにした
+					PRINTFORMW 使いの男は下卑た笑みを浮かべ%ANAME(対象)%の身体を弄りながら彼女を連れて行った
+					CFLAG:対象:9 = 野盗
+					CALL COLORPRINTFORM(@"%ANAME(対象)%は野盗の性奴隷として連れていかれました", COLOR("警告"))
+					PRINTFORMW
+				ELSEIF RESULT == 1
+					PRINTFORMW %ANAME(対象)%を差し出すことなどできるわけがない
+					PRINTFORMW しかしここで連中の機嫌を損ねるわけにはいかない
+					PRINTFORMW %ANAME(MASTER)%は代わりの者を差し出すから許してほしいと頭を下げた
+					PRINTFORMW 使いの男は最初は渋い顔をしていたものの、拝み倒すと代わりを認めてくれた
+					PRINTFORMW 近くの村から娘を何人か連れて来て野盗へ差し出した
+					PRINTFORMW 使いの男は下卑た笑みを浮かべ抵抗する娘たちを連れて行った
+					FOR LOCAL, 1, MAX_COUNTRY
+						CALL CHANGE_RELATION_C_TO_C(LOCAL, CFLAG:MASTER:1, -500,500)
+					NEXT
+					CALL CHANGE_RELATION_C_TO_C(野盗, CFLAG:MASTER:1, 500,-500)
+					CALL COLORPRINTFORM(@"この事は当然民衆に広がり、他国の評判が大きく下がった", COLOR("警告"))
+					PRINTFORMW
+				ELSEIF RESULT == 2
+					PRINTFORMW %ANAME(対象)%を差し出すことなどできるわけがない
+					PRINTFORMW しかしここで連中の機嫌を損ねるわけにはいかない
+					PRINTFORMW %ANAME(MASTER)%は代わりにお金を渡すから許してほしいと頭を下げた
+					PRINTFORMW 使いの男は最初は渋い顔をしていたものの、拝み倒すと代わりを認めてくれた
+					LOCAL:1 = 20000 + (5000 * (DAY / 10) * (RAND:6 + 1))
+					IF MONEY < LOCAL:1
+						PRINTFORMW しかし男の要求した金額は自国にはなかった
+						PRINTFORMW 男は再度%ANAME(対象)%を要求し、%ANAME(MASTER)%はそれを呑まざるを得なかった
+						PRINTFORMW 使いの男は下卑た笑みを浮かべ%ANAME(対象)%の身体を弄りながら彼女を連れて行った
+						CFLAG:対象:9 = 野盗
+						CALL COLORPRINTFORM(@"%ANAME(対象)%は野盗の性奴隷として連れていかれました", COLOR("警告"))
+						PRINTFORMW
+					ELSE
+						PRINTFORMW 男の要求した金額は{LOCAL:1}だ
+						PRINTFORMW 安くはないが%ANAME(対象)%の代わりなら仕方がない
+						PRINTFORMW 使いの男は下卑た笑みを浮かべ差し出された金を持って帰って行った
+						MONEY -= LOCAL:1
+						CALL COLORPRINTFORM(@"金{LOCAL:1}を支払った", COLOR("警告"))
+						PRINTFORMW
+					ENDIF
+				ELSE
+					PRINTFORMW 代わりに自分が奉仕をするから許してほしい
+					PRINTFORMW %ANAME(MASTER)%がそう告げると使いの男は眉をしかめマジマジと見つめてきた
+					PRINTFORMW しかし直ぐにそれもいいなと笑い、%ANAME(MASTER)%を抱き寄せて身体を弄ってきた
+					PRINTFORMW %ANAME(MASTER)%は男に顔を舐め回され嫌悪感で顔を染めながら、せめて寝室で震える声でつぶやく
+					PRINTFORMW 男はヘッヘッヘと笑い、%ANAME(MASTER)%の身体を弄りながら彼女を寝室へと連れ込んだ
+					PRINTFORML 
+					PRINTFORMW すぐに寝室から男女の交わる音が漏れ出してきた
+					PRINTFORMW %ANAME(MASTER)%は男のペニスを深々と咥えこみ、熱心に腰を振っている
+					PRINTFORMW 男の巧みな愛撫でその表情はすっかり蕩けており、抱かれる前の嫌悪感も忘れて身をくねらせる
+					PRINTFORMW ペニスでゴリゴリと膣壁を抉られると彼女はたまらないといった甘い声を漏らす
+					PRINTFORMW %ANAME(MASTER)%は次第に%ANAME(対象)%の為という建前を忘れて本気でセックスに夢中になっていた
+					CALL FUCK_RAPE(MASTER, -1, @"野盗の\@RAND:2 ? ペニス # 唇\@", @"野盗")
+					PRINTFORML 
+					IF ABL:MASTER:性交 + ABL:MASTER:欲望 + ABL:MASTER:性技 + ABL:MASTER:奉仕 + ABL:MASTER:Ｖ感 >= 15
+						PRINTFORMW %ANAME(MASTER)%を散々犯しつくした後、男は満足して帰って行った
+					ELSE
+						PRINTFORMW %ANAME(MASTER)%を散々犯しつくした男は満足せず、結局%ANAME(対象)%をを連れて行ってしまった
+						CFLAG:対象:9 = 野盗
+						CALL COLORPRINTFORM(@"%ANAME(対象)%は野盗の性奴隷として連れていかれました", COLOR("警告"))
+						PRINTFORMW
+					ENDIF
+				ENDIF
+		ENDIF
+	;同盟中だと問答無用で性奴隷を連れて行かれる、対象がいなければ村娘を連れて行かれる
+	CASE 3
+		CALL DAILY_START()
+		PRINTFORMW 野盗の使いがやって来たらしい
+		PRINTFORMW 同盟の相手とはいえ正直あまり関わりになりたくないが
+		PRINTFORMW 機嫌を損ねられてはどんな被害があるかわからない
+		PRINTFORMW %ANAME(MASTER)%は渋々重い腰を上げた
+		PRINTFORML 
+		IF 対象 == 0
+			PRINTFORMW 使いの男は性奴隷として領民を差し出すように要求してきた
+			PRINTFORMW 今、彼らの機嫌を損ねるわけにはいかない
+			PRINTFORMW 苦渋の決断で%ANAME(対象)%は近くの村から娘を何人か連れて来て野盗へ差し出した
+			PRINTFORMW 使いの男は下卑た笑みを浮かべ抵抗する娘たちを連れて行った
+			FOR LOCAL, 1, MAX_COUNTRY
+				CALL CHANGE_RELATION_C_TO_C(LOCAL, CFLAG:MASTER:1, -500,500)
+			NEXT
+			CALL CHANGE_RELATION_C_TO_C(野盗, CFLAG:MASTER:1, 500,-500)
+			CALL COLORPRINTFORM(@"この事は当然民衆に広がり、他国の評判が大きく下がった", COLOR("警告"))
+			PRINTFORMW
+		ELSE
+			PRINTFORMW 使いの男は性奴隷として%ANAME(対象)%を差し出すように要求してきた
+			PRINTFORMW なんとふざけた要求か！
+			PRINTFORMW しかし…ここで連中の機嫌を損ねるわけにはいかない
+			PRINTFORMW 苦渋の決断で%ANAME(対象)%を送り出すことにした
+			PRINTFORMW 使いの男は下卑た笑みを浮かべ%ANAME(対象)%の身体を弄りながら彼女を連れて行った
+			CFLAG:対象:9 = 野盗
+			CALL COLORPRINTFORM(@"%ANAME(対象)%は野盗の性奴隷として連れていかれました", COLOR("警告"))
+			PRINTFORMW
+		ENDIF
+ENDSELECT
+RETURN

@@ -1,4 +1,10 @@
-﻿;-------------------------------------------------
+﻿;--------------------------------------
+;ターンエンド時の野盗の処理
+;--------------------------------------
+@TURNEND_BANDIT
+#DIM 野盗
+
+;-------------------------------------------------
 ;野盗の追加
 ;-------------------------------------------------
 @BANDIT_INIT()
@@ -17,7 +23,7 @@ ENDIF
 ;まず首領を作成
 CALL ADD_VOID_CHARA()
 LOCAL = RESULT
-SELECTCASE SP_COUNTRY_NAME:(特殊勢力_野盗)
+SELECTCASE SP_COUNTRY_BOSSNAME:(特殊勢力_野盗)
 	CASE 0
 		NAME:LOCAL = 野盗
 		CALLNAME:LOCAL = 野盗
@@ -63,19 +69,14 @@ ABL:LOCAL:知略 = 140 + 4 * SP_COUNTRY_RANK:(特殊勢力_野盗) - ABL:LOCAL:�
 ABL:LOCAL:政治 = 50 + RAND:5 * SP_COUNTRY_RANK:(特殊勢力_野盗)
 ABL:LOCAL:歌唱 = 10
 ABL:LOCAL:料理 = 10
+ABL:LOCAL:肝臓 = 4
 TALENT:LOCAL:絶倫 = 1
 TALENT:LOCAL:特殊勢力素質 = 特殊勢力_野盗
-SETBIT TALENT:(LOCAL:0):肉体陥落系, 素質_陥落_サド
+SETBIT TALENT:(LOCAL:0):淫乱系, 素質_淫乱_サド
 TALENT:LOCAL:陰毛現在値 = 陰毛_標準
 TALENT:LOCAL:陰毛目標値 = 陰毛_標準
 TALENT:LOCAL:Ｖ締まり = GET_DEFAULT_TIGHTNESS("普通")
 TALENT:LOCAL:Ａ締まり = GET_DEFAULT_TIGHTNESS("普通")
-;奴隷スタートなら好感度と合意と会ったことあるフラグを編集
-IF BANDIT_START == 2
-	TALENT:LOCAL:合意 = 1
-	CFLAG:LOCAL:好感度 = RAND(300, 800)
-	CFLAG:LOCAL:17 = 1
-ENDIF
 ;所属を野盗勢力にする
 CFLAG:LOCAL:1 = LOCAL:4
 CALL NEWCHARA_INIT(LOCAL)
@@ -135,26 +136,13 @@ FOR LCOUNT, 0, 14
 	TALENT:LOCAL:陰毛目標値 = 陰毛_標準
 	TALENT:LOCAL:Ｖ締まり = GET_DEFAULT_TIGHTNESS("普通")
 	TALENT:LOCAL:Ａ締まり = GET_DEFAULT_TIGHTNESS("普通")
-	;奴隷スタートなら好感度と合意と会ったことあるフラグを編集
-	IF BANDIT_START == 2
-		TALENT:LOCAL:合意 = 1
-		CFLAG:LOCAL:好感度 = RAND(300, 800)
-		CFLAG:LOCAL:17 = 1
-	ENDIF
 	;所属を野盗勢力にする
 	CFLAG:LOCAL:1 = LOCAL:4
 	CALL NEWCHARA_INIT(LOCAL)
 NEXT
 
-IF BANDIT_START == 1 || BANDIT_START == 2
-	CFLAG:MASTER:所属 = LOCAL:4
-ELSEIF BANDIT_START == 3
-	CFLAG:MASTER:捕虜先 = LOCAL:4
-ENDIF
 
-SIF BANDIT_START == 1
-	TALENT:MASTER:特殊勢力素質 = 特殊勢力_野盗
-
+RETURN LOCAL:4
 
 ;--------------------------------------
 ;野盗が捕虜を得たときに確率で発動するエロイベント
@@ -231,7 +219,7 @@ SELECTCASE RAND:4
 		ENDIF
 ENDSELECT
 RESETCOLOR
-CALL FORCE_FUCK(対象, SP_NAME_TO_ID("野盗"), @"野盗の\@ RAND:2 ? ペニス # 唇\@", "野盗", 2, GROUPMATCH(BANDIT_START, 1, 2))
+CALL FUCK_GANGBANG_SP(対象, GET_SPERM_ID("野盗"), @"野盗の\@ RAND:2 ? ペニス # 唇\@", "野盗", GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:特殊勢力_野盗))
 
 
 ;-----------------------------------
@@ -266,7 +254,7 @@ ELSEIF GETBIT(TALENT:MASTER:特殊勢力陥落系, 特殊勢力_野盗)
 		PRINTFORMW 彼らによって育て上げられた雌の本性が、%ANAME(MASTER)%を頷かせた
 		PRINTFORMW 再び服従しますという意思表示として、%ANAME(MASTER)%は突き出されたペニスに熱烈なキスをした……
 		SETCOLOR COLOR("注意")
-		PRINTFORMW %ANAME(MASTER)%は、自分が野盗の肉便器にすぎないことを思い出した
+		PRINTFORMW %ANAME(MASTER)%は、自分が野盗の性奴隷にすぎないことを思い出した
 		RESETCOLOR
 	ELSE
 		PRINTFORMW 拒否されるということは考えになかったらしく、野盗達は爆笑した
@@ -275,7 +263,7 @@ ELSEIF GETBIT(TALENT:MASTER:特殊勢力陥落系, 特殊勢力_野盗)
 	ENDIF
 ELSE
 	PRINTFORMW 野盗は%ANAME(MASTER)%の体をいやらしい目で眺める
-	PRINTFORMW どうせ結果は同じなんだから、肉便器になっちまえよと言い始めた
+	PRINTFORMW どうせ結果は同じなんだから、性奴隷になっちまえよと言い始めた
 	PRINTFORMW 屈辱的な提案だが、受け入れずとも、女である%ANAME(MASTER)%がされることは変わるまい
 	PRINTFORMW 受け入れますか？
 	CALL ASK_YN("受け入れる", "拒否する")
@@ -283,9 +271,9 @@ ELSE
 		PRINTFORMW 受け入れなくとも、どうせされることは変わらない
 		PRINTFORMW なら、従順な姿勢を見せた方が、まだ待遇はマシなはずだ……%ANAME(MASTER)%は力なく頷く
 		PRINTFORMW マジで受け入れやがったぜと、野盗どもはゲラゲラと笑う
-		PRINTFORMW 彼らは%ANAME(MASTER)%を取り押さえ、その下腹に、「肉便器」の三文字の焼き印を入れた……
+		PRINTFORMW 彼らは%ANAME(MASTER)%を取り押さえ、その下腹に、「性奴隷」の三文字の焼き印を入れた……
 		SETCOLOR COLOR("注意")
-		PRINTFORMW %ANAME(MASTER)%は野盗の肉便器に成り下がった
+		PRINTFORMW %ANAME(MASTER)%は野盗の性奴隷に成り下がった
 		RESETCOLOR
 	ELSE
 		PRINTFORMW そんなことができるか。%ANAME(MASTER)%がきっぱりと拒否すると、野盗はへらへらと笑う
@@ -308,6 +296,6 @@ IF RESULT == 0
 	RETURN 1
 ELSE
 	CFLAG:MASTER:9 = ARG:0
-	RETURN 3
+	RETURN 2
 ENDIF
 

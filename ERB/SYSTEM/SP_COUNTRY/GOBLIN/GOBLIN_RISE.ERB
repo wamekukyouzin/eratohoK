@@ -1,0 +1,80 @@
+﻿;--------------------------------------
+;ホフゴブリン出現イベント
+;出現できたら1、できなければ0をかえす
+;--------------------------------------
+@GOBLIN_RISE()
+#DIM ホフゴブリン
+
+;ホフゴブリン勢力を作成
+CALL GOBLIN_INIT()
+ホフゴブリン = RESULT
+;作れなかったら戻す
+SIF ホフゴブリン == -1
+	RETURN 0
+
+CALL SP_COUNTRY_RISE(ホフゴブリン)
+
+SIF !RESULT
+	RETURN 0
+
+SP_COUNTRY_APPEARED:特殊勢力_ホフゴブリン = 1
+RETURN 1
+
+
+;--------------------------------------
+;蜂起イベントが発生するかの判定
+;--------------------------------------
+@GOBLIN_RISE_RATE()
+;既に出現しているか、勢力なし設定なら発動しない
+SIF SP_COUNTRY_APPEARED:特殊勢力_ホフゴブリン || !SP_COUNTRY_RANK:(特殊勢力_ホフゴブリン)
+	RETURN 0
+
+;20期以降、確率判定をクリアしていること
+SIF !(DAY >= 20 && DAY - 10 > RAND:100)
+	RETURN 0
+RETURN 1
+
+;--------------------------------------
+;蜂起イベント用都市選択処理
+;--------------------------------------
+@GOBLIN_RISE_SELECT_CITY()
+#DIM レミリア
+#DIM 紅魔館
+
+レミリア = GET_COUNTRY_FROM_BOSS_NAME("レミリア")
+紅魔館 = GET_CITYNUMBER("紅魔館")
+
+;レミリアが君主やってて、紅魔館がマップに存在し、レミリアの都市数が3以上で、レミリアが紅魔館を占拠しているなら、紅魔館を占領する
+IF レミリア != -1 && 紅魔館 && GET_OWN_CITY(レミリア) >= 3 && CITY_OWNER:紅魔館 == レミリア
+	LOCAL = 紅魔館
+;そのどちらでもないならランダム
+ELSE
+	CALL SP_COUNTRY_RISE_SELECT_CITY
+	LOCAL = RESULT
+ENDIF
+
+RETURN LOCAL
+
+;--------------------------------------
+;蜂起イベント用メッセージ関数
+;--------------------------------------
+@GOBLIN_RISE_MSG(勢力, 対象)
+#DIM 勢力
+#DIM 対象
+#DIM レミリア
+DRAWLINE
+SETCOLOR COLOR("警告")
+PRINTFORMW 日頃から虐げられ、溜まっていたホフゴブリンたちの鬱憤が、とうとう爆発しました！
+PRINTFORMW 彼らは反旗を翻し、%CITY_NAME:(対象)%\@ GET_OWN_CITY(勢力) > 1 ? など # \@を占拠したようです
+PRINTFORMW これに伴い、幻想郷の各勢力が異変解決の準備を始めたようです…
+RESETCOLOR
+
+;レミリアが君主やってて、ホフゴブリンが紅魔館を奪ったなら、レミリア勢にクールタイム付与
+レミリア = GET_COUNTRY_FROM_BOSS_NAME("レミリア")
+IF 対象 == GET_CITYNUMBER("紅魔館") && レミリア != -1
+	CALL COLORPRINTFORM(@"突然のことに動揺したレミリア勢力に、1ターンのクールタイムが付与されます！", COLOR("警告"), "W")
+	FOR LOCAL, 0, CHARANUM
+		SIF CFLAG:LOCAL:所属 == レミリア	
+			CALL ADD_COOLTIME(LOCAL, 1)
+	NEXT
+ENDIF

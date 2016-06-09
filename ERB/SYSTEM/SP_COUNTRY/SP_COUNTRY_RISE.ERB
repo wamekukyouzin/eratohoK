@@ -1,0 +1,164 @@
+﻿;--------------------------------------
+;特殊勢力の蜂起処理
+;一応、通常勢力の蜂起イベントにも使える
+;--------------------------------------
+@SP_COUNTRY_RISE(勢力番号)
+#DIM 勢力番号
+#DIMS CALLBACK
+#DIM 対象
+CALLBACK = %SP_COUNTRY_NAME_ENG:SP_COUNTRY_TO_CONST(勢力番号)%
+
+;都市選択処理
+TRYCCALLFORM %CALLBACK%_RISE_SELECT_CITY
+CATCH
+	CALL SP_COUNTRY_RISE_SELECT_CITY
+ENDCATCH
+
+SIF RESULT == -1
+	RETURN 0
+
+対象 = RESULT
+
+;都市簒奪処理
+TRYCCALLFORM %CALLBACK%_RISE_TAKEOVER_CITY(勢力番号, 対象)
+CATCH
+	CALL SP_COUNTRY_RISE_TAKEOVER_CITY(勢力番号, 対象)
+ENDCATCH
+
+SIF RESULT == -1
+	RETURN 0
+
+;蜂起メッセージ
+TRYCCALLFORM %CALLBACK%_RISE_MSG(勢力番号, 対象)
+CATCH
+	CALL SP_COUNTRY_RISE_MSG(勢力番号, 対象)
+ENDCATCH
+
+RETURN 1
+
+;--------------------------------------
+;特殊勢力の蜂起処理における、ランダムな都市を選択するための処理
+;--------------------------------------
+@SP_COUNTRY_RISE_SELECT_CITY
+#DIM 勢力, MAX_COUNTRY
+#DIM 判定値, MAX_COUNTRY
+#DIM 都市, MAX_CITY
+#DIM 対象勢力
+#DIM 候補数
+#DIM 対象都市
+VARSET 勢力
+VARSET 判定値
+VARSET 都市
+VARSET 候補数
+
+;各勢力の都市数に基づいて判定値を算出
+FOR LOCAL, 0, MAX_COUNTRY
+	IF GET_OWN_CITY(LOCAL) > 1 || (!IS_COUNTRY(LOCAL) && GET_OWN_CITY(LOCAL) > 0)
+		勢力:候補数 = LOCAL
+		判定値:候補数 = RAND:GET_OWN_CITY(LOCAL)
+		候補数 ++
+	ENDIF
+NEXT
+
+;ありえないはずではある
+SIF 候補数 == 0
+	RETURN -1
+
+;都市数が多い勢力ほど狙われやすい
+対象勢力 = 勢力:FINDELEMENT(判定値, MAXARRAY(判定値, 0, 候補数), 0, 候補数)
+
+VARSET 候補数
+
+;対象都市を選択
+FOR LOCAL, 1, CITY_NUM + 1
+	IF CITY_OWNER:LOCAL == 対象勢力
+		都市:候補数 = LOCAL
+		候補数 ++
+	ENDIF
+NEXT
+
+;一応、ありえないはずではある
+SIF 候補数 == 0
+	RETURN -1
+
+対象都市 = 都市:(RAND:候補数)
+
+
+RETURN 対象都市
+
+;--------------------------------------
+;特殊勢力の蜂起処理における、与えられた都市の周囲を簒奪する処理
+;--------------------------------------
+@SP_COUNTRY_RISE_TAKEOVER_CITY(勢力, 初期都市)
+#DIM 勢力
+#DIM 初期都市
+#DIM 接続先
+#DIM 簒奪数
+#DIM 簒奪上限
+
+CALL TAKEOVER_CITY_FROM_NO(勢力, 初期都市)
+
+簒奪数 = 1
+;初期都市を中心に、接続されている都市を奪う
+;中継点がある場合は80%
+FOR LOCAL:0, 0, VARSIZE("CITY_ROOT", 1)
+	
+	;接続先を取得
+	接続先 = CITY_ROOT:初期都市:(LOCAL:0)
+	SIF 接続先 == 0
+		BREAK
+	
+	SELECTCASE CITY_TYPE:接続先
+		;接続先が都市
+		;OWNERの所有都市数を調べ、3以上なら奪う
+		CASE 0
+			IF !IS_COUNTRY(CITY_OWNER:(接続先))
+				CALL TAKEOVER_CITY_FROM_NO(勢力, 接続先)
+				簒奪数 ++
+			ELSE
+				IF GET_OWN_CITY(CITY_OWNER:接続先) >= 3
+					CALL TAKEOVER_CITY_FROM_NO(勢力, 接続先)
+					簒奪数 ++
+				ENDIF
+			ENDIF
+		;接続先が中継地
+		;さらに接続している先を取得し、同様の処理
+		CASE 1
+			SIF RAND:100 > 60
+				CONTINUE
+			FOR LOCAL:2, 0, VARSIZE("CITY_ROOT", 1)
+				LOCAL:3  = CITY_ROOT:接続先:(LOCAL:2)
+				SIF LOCAL:3 == 0
+					BREAK
+				IF LOCAL:3 != 初期都市
+					接続先 = LOCAL:3
+					IF !IS_COUNTRY(CITY_OWNER:(接続先))
+						CALL TAKEOVER_CITY_FROM_NO(勢力, 接続先)
+						簒奪数 ++
+						BREAK
+					ELSE
+						IF GET_OWN_CITY(CITY_OWNER:接続先) >= 2
+							CALL TAKEOVER_CITY_FROM_NO(勢力, 接続先)
+							簒奪数 ++
+							BREAK
+						ENDIF
+					ENDIF
+				ENDIF
+			NEXT
+	ENDSELECT
+NEXT
+
+RETURN 簒奪数
+
+;--------------------------------------
+;特殊勢力の蜂起処理における、メッセージ部分
+;--------------------------------------
+@SP_COUNTRY_RISE_MSG(勢力番号, 対象)
+#DIM 勢力番号
+#DIM 対象
+DRAWLINE
+SETCOLOR COLOR("警告")
+PRINTFORMW %ANAME(GET_COUNTRY_BOSS(勢力番号))%が蜂起しました！
+PRINTFORMW %CITY_NAME:(対象)%\@ GET_OWN_CITY(勢力番号) > 1 ? など # \@を占拠したようです……
+RESETCOLOR
+DRAWLINE

@@ -1,90 +1,38 @@
 ﻿;--------------------------------------
-;自警団出現イベント
-;出現できたら1、できなければ0をかえす
-;--------------------------------------
-@VIGILANTE_RISE(都市:0, 都市:1, 都市:2, 都市:3, 都市:4, 都市:5, メッセージフラグ = 1)
-#DIM 自警団
-#DIM メッセージフラグ
-#DIM 都市, 6
-#DIM 勢力
-;自警団勢力を作成
-CALL VIGILANTE_INIT()
-自警団 = RESULT
-;作れなかったら戻す
-SIF 自警団 == -1
-	RETURN 0
-
-FOR LOCAL, 0, VARSIZE("都市")
-	勢力 = CITY_OWNER:(都市:LOCAL)
-	SIF IS_COUNTRY(勢力) && GET_OWN_CITY(勢力) <= 2
-		CONTINUE
-	CALL TAKEOVER_CITY_FROM_NO(自警団, 都市:LOCAL)
-NEXT
-
-IF メッセージフラグ
-	DRAWLINE
-	SETCOLOR COLOR("警告")
-	PRINTFORMW 荒れる幻想郷を憂えた里の勇士たちが、人里を中心に自警団を作り上げました！
-	PRINTFORMW 自分たちこそが幻想郷を平和に治められると考えた彼らは、より勢力を伸ばそうとしているようです……
-	RESETCOLOR
-	DRAWLINE
-ENDIF
-
-RETURN 1
-
-;--------------------------------------
 ;ターンエンド時の自警団の処理
 ;--------------------------------------
 @TURNEND_VIGILANTE
 #DIM 自警団
+自警団 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:特殊勢力_自警団)
 
-IF !SP_COUNTRY_APPEARED:特殊勢力_自警団
-	;自警団の蜂起
-	CALL SLG_VIGILANTE_RISE
-	RETURN -1
+;兵力の増える処理
+IF DAY % 3 == 0
+	DRAWLINE
+	LOCAL:0 = MAX(RAND:4000, 1000)
+	LOCAL:0 += RAND:500 * SP_COUNTRY_RANK:(特殊勢力_自警団)
+	PRINTFORML 自警団が徴兵を行っているようです……
+	PRINTFORML 自警団の兵力が{LOCAL:0}増加した
+	COUNTRY_SOLDIER:(自警団) += LOCAL:0
 ENDIF
+;4ターンに1回、特別な徴兵
+CALL VIGILANTE_SPECIAL_REQRUITMENT(DAY % 4 == 0)
 
-IF SP_COUNTRY_APPEARED:特殊勢力_自警団 == 1
-	;自警団の番号を取得
-	自警団 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_自警団))
-	IF 自警団 == -1
-		DRAWLINE
-		SETCOLOR COLOR("注意")
-		PRINTFORML
-		PRINTFORML
-		PRINTFORML
-		PRINTFORMW 壊滅的な被害を受けた自警団は、活動を継続することができなくなったようです……
-		PRINTFORMW 彼らは解散してしまいました
-		PRINTFORM
-		PRINTFORML
-		PRINTFORML
-		RESETCOLOR
-		;自警団を削除する
-		LOCAL:1 = CHARANUM
-		FOR LOCAL:0, 0, LOCAL:1
-			LOCAL:2 = LOCAL:1 - LOCAL:0 - 1
-			IF TALENT:(LOCAL:2):特殊勢力素質 == 特殊勢力_自警団
-				CALL DELETE_CHARA(LOCAL:2)
-			ENDIF
-		NEXT
-		SP_COUNTRY_APPEARED:特殊勢力_自警団 = 2
-		RETURN -1
-	ENDIF
+;--------------------------------------
+;滅亡時の処理
+;--------------------------------------
+@VIGILANTE_DESTROY_MSG
+DRAWLINE
+SETCOLOR COLOR("注意")
+PRINTFORML
+PRINTFORML
+PRINTFORML
+PRINTFORMW 壊滅的な被害を受けた自警団は、活動を継続することができなくなったようです……
+PRINTFORMW 彼らは解散してしまいました
+PRINTFORM
+PRINTFORML
+PRINTFORML
+RESETCOLOR
 
-	;兵力の増える処理
-	IF DAY % 3 == 0
-		DRAWLINE
-		LOCAL:0 = MAX(RAND:4000, 1000)
-		LOCAL:0 += RAND:500 * SP_COUNTRY_RANK:(特殊勢力_自警団)
-		PRINTFORML 自警団が徴兵を行っているようです……
-		PRINTFORML 自警団の兵力が{LOCAL:0}増加した
-		COUNTRY_SOLDIER:(自警団) += LOCAL:0
-	ENDIF
-	;4ターンに1回、特別な徴兵
-	CALL VIGILANTE_SPECIAL_REQRUITMENT(DAY % 4 == 0)
-	;調教(?)処理
-	CALL TRAIN_BY_VIGILANTE
-ENDIF
 ;--------------------------------------
 ;自警団の初期化処理
 ;--------------------------------------
@@ -112,7 +60,7 @@ IF LOCAL == -1
 	RETURN -1
 ENDIF
 
-SELECTCASE SP_COUNTRY_NAME:(特殊勢力_自警団)
+SELECTCASE SP_COUNTRY_BOSSNAME:(特殊勢力_自警団)
 	CASE 0
 		NAME:LOCAL = 自警団員
 		CALLNAME:LOCAL = 自警団員
@@ -158,6 +106,7 @@ FOR LCOUNT, 0, 14
 	LOCAL = RESULT
 	NAME:LOCAL = 自警団員%UNICODE(0xFF21 + LCOUNT)%
 	CALLNAME:LOCAL = 自警団員%UNICODE(0xFF21 + LCOUNT)%
+	NO:(CHARANUM - 1) = GET_EMPTY_NO(ARG:0)
 	TALENT:LOCAL:特殊勢力素質 = 特殊勢力_自警団
 	;所属を自警団にする
 	CFLAG:LOCAL:1 = LOCAL:4
@@ -166,39 +115,6 @@ NEXT
 SP_COUNTRY_APPEARED:特殊勢力_自警団 = 1
 
 RETURN LOCAL:4
-
-;--------------------------------------
-;自警団の侵攻イベントを実行するSLGイベント。
-;判定通ったら素のVIGILANTE_RISEを呼ぶだけ。
-;--------------------------------------
-@SLG_VIGILANTE_RISE()
-#DIM 住宅街
-#DIM 寺子屋
-#DIM 阿求屋敷
-#DIM 霧雨店
-#DIM 畑
-#DIM 鈴奈庵
-
-;既に出現しているか、自警団なし設定なら発動しない
-SIF SP_COUNTRY_APPEARED:特殊勢力_自警団 || !SP_COUNTRY_RANK:(特殊勢力_自警団)
-	RETURN -1
-
-;15期以降、確率判定をクリアしていること
-SIF !(DAY >= 15 && DAY - 8 > RAND:100)
-	RETURN -1
-
-住宅街 = GET_CITYNUMBER("人里住宅街")
-寺子屋 = GET_CITYNUMBER("寺子屋")
-阿求屋敷 = GET_CITYNUMBER("阿求屋敷")
-霧雨店 = GET_CITYNUMBER("霧雨店")
-畑 = GET_CITYNUMBER("人間の里の畑")
-寺子屋 = GET_CITYNUMBER("寺子屋")
-
-;どれか一つは都市があること
-SIF ALLSAMES(0, 住宅街, 寺子屋, 阿求屋敷, 霧雨店, 畑, 寺子屋)
-	RETURN -1
-
-CALL VIGILANTE_RISE(住宅街, 寺子屋, 阿求屋敷, 霧雨店, 畑, 寺子屋)
 
 ;--------------------------------------
 ;自警団の定期イベント。
@@ -261,5 +177,5 @@ IF RESULT == 0
 	RETURN 1
 ELSE
 	CFLAG:MASTER:9 = ARG:0
-	RETURN 3
+	RETURN 2
 ENDIF

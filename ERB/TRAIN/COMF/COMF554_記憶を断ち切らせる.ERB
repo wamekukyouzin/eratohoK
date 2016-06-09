@@ -1,0 +1,95 @@
+﻿;浮気禁止／浮気許可
+
+;-------------------------------------------------
+;コマンド名称
+;-------------------------------------------------
+@COM_NAME554
+RESULTS:0 = 記憶を断ち切らせる
+
+;-------------------------------------------------
+;選択可否判定
+;-------------------------------------------------
+@COM_ABLE554
+;共通部分
+CALL COM_ABLE_COMMON(554)
+SIF RESULT == 0
+	RETURN 0
+;プレイヤーは最大で1人まで
+SIF MPLY_NUM <= 0 || MPLY_NUM > 1
+	RETURN 0
+;ターゲットは最大で1人まで
+SIF MTAR_NUM <= 0 || MTAR_NUM > 1
+	RETURN 0
+;主人公がプレイヤーのとき限定
+SIF MPLY:0 != MASTER
+	RETURN 0
+;調教モードが会いに行くか通常の閨のとき限定
+SIF !GROUPMATCH(FLAG:調教モード, 0, 1)
+	RETURN 0
+;プレイヤーの口が塞がっているなら不可
+SIF IS_M_HOLD(MPLY:0)
+	RETURN 0
+;特殊勢力に堕ちていること
+SIF !IS_FALLEN_TO_SP_COUNTRY(MTAR:0)
+	RETURN 0
+;所属が特殊勢力でない
+SIF IS_SP_COUNTRY(CFLAG:(MTAR:0):所属)
+	RETURN 0
+;所属が特殊勢力でない
+SIF IS_SP_COUNTRY(CFLAG:(MPLY:0):所属)
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;メイン処理
+;-------------------------------------------------
+@COM554
+;●実行値の計算
+CVARSET TCVAR, 24, -10000
+CVARSET TCVAR, 25, 10000
+
+TCVAR:(MTAR:0):25 = 150
+
+CALL COM_ORDER(MTAR:0)
+
+CALL COM_ORDER_ELEMENT(MTAR:0, "依存度", CFLAG:(MTAR:0):3 / 30)
+
+IF TALENT:(MTAR:0):服従
+	CALL COM_ORDER_ELEMENT(MTAR:0, "服従", 30)
+ENDIF
+
+IF TALENT:(MTAR:0):隷属
+	CALL COM_ORDER_ELEMENT(MTAR:0, "隷属", 40)
+ENDIF
+
+LOCAL = LIMIT(REL_LIKE:(MTAR:0):(MPLY:0) / 75 - REL_HATE:(MTAR:0):(MPLY:0) / 50,  -20, 20)
+
+IF LOCAL != 0
+	CALL COM_ORDER_ELEMENT(MTAR:0, "友好度/嫌悪度", LOCAL)
+ENDIF
+
+LOCAL:1 = 0
+FOR LOCAL, 0, MAX_SP_COUNTRY
+	SIF GETBIT(TALENT:(MTAR:0):特殊勢力陥落系, LOCAL)
+		LOCAL:1 ++
+NEXT
+
+IF LOCAL:1 != 0
+	CALL COM_ORDER_ELEMENT(MTAR:0, "特殊勢力への陥落", LOCAL:1 * -10)
+ENDIF
+
+;判定結果を表示
+PRINTFORMW  = {TCVAR:(MTAR:0):24} %TOSTR_COMPARE(TCVAR:(MTAR:0):24, TCVAR:(MTAR:0):25)% 実行値{TCVAR:(MTAR:0):25}
+
+IF TCVAR:(MTAR:0):24 >= TCVAR:(MTAR:0):25
+	PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%に、かつての調教の記憶を忘れ目を覚ますよう伝えた
+	PRINTFORMW %ANAME(MTAR:0)%は困惑している様子だが、%ANAME(MPLY:0)%がそう言うなら……と納得したようだ
+	PRINTFORML
+	CALL COLORPRINTFORM(@"%ANAME(MTAR:0)%はかつて調教されていた記憶を断ち切った", COLOR("注意"), "W")
+	TALENT:(MTAR:0):特殊勢力陥落系 = 0
+ELSE
+	PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%に、かつての調教の記憶を忘れ目を覚ますよう伝えた
+	PRINTFORMW だが、%ANAME(MTAR:0)%は彼らのことを忘れるつもりはないようだ……
+ENDIF
+
+RETURN 1

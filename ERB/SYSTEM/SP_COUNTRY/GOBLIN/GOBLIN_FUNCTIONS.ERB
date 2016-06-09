@@ -1,122 +1,38 @@
 ﻿;--------------------------------------
-;ホフゴブリン出現イベント
-;出現できたら1、できなければ0をかえす
-;都市 = 最初に奪う都市 指定しなければ野盗と同一の方式
-;メッセージフラグ = 汎用メッセージ表示フラグ　指定しなければ表示
-;--------------------------------------
-@GOBLIN_RISE(都市:0 = -1, メッセージフラグ = 1)
-#DIM ゴブリン
-#DIM メッセージフラグ
-#DIM 都市, 10
-#DIM 勢力
-;ホフゴブリン勢力を作成
-CALL GOBLIN_INIT()
-ゴブリン = RESULT
-;作れなかったら戻す
-SIF ゴブリン == -1
-	RETURN 0
-
-;引数で奪う都市が指定されていなければ、BANDIT_RISE_SELECT_CITY()を流用
-IF 都市:0 < 0 || 都市:0 >= CITY_NUM
-	VARSET 都市, -1
-	CALL BANDIT_RISE_SELECT_CITY()
-	FOR LOCAL, 0, VARSIZE("都市")
-		SIF RESULT:LOCAL == -1
-			BREAK
-		都市:LOCAL = RESULT:LOCAL
-	NEXT
-	;多分ないはずなんだけど、奪えなかったら諦め
-	IF 都市:0 == -1
-		RETURN
-	ENDIF
-	FOR LOCAL, 0, VARSIZE("都市")
-		SIF 都市:LOCAL == -1
-			BREAK
-		CALL TAKEOVER_CITY_FROM_NO(ゴブリン, 都市:LOCAL)
-	NEXT
-ELSE
-	;なんか変だったがこういうことだろうか？
-	;都市:0を強制接収した上で該当勢力の都市をランダムに奪う
-	勢力 = CITY_OWNER:(都市:0)
-	CALL TAKEOVER_CITY_FROM_NO(ゴブリン, 都市)
-	FOR LOCAL, 0, SP_COUNTRY_RANK:(特殊勢力_ホフゴブリン)
-		SIF GET_OWN_CITY(勢力) <= 3
-			BREAK
-		FOR LOCAL:1, 1, MAX_CITY
-			IF CITY_OWNER:(LOCAL:1) == 勢力 && !RAND:3
-				CALL TAKEOVER_CITY_FROM_NO(ゴブリン, LOCAL:1)
-				BREAK
-			ENDIF
-		NEXT
-	NEXT
-ENDIF
-
-IF メッセージフラグ
-	DRAWLINE
-	SETCOLOR COLOR("警告")
-	PRINTFORMW 日頃から虐げられ、溜まっていたホフゴブリンたちの鬱憤が、とうとう爆発しました！
-	PRINTFORMW 彼らは反旗を翻し、%CITY_NAME:(都市)%\@ GET_OWN_CITY(ゴブリン) > 1 ? など # \@を占拠したようです
-	PRINTFORMW これに伴い、幻想郷の各勢力が異変解決の準備を始めたようです…
-	RESETCOLOR
-	DRAWLINE
-ENDIF
-
-RETURN 1
-
-;--------------------------------------
 ;ターンエンド時のホフゴブリンの処理
 ;--------------------------------------
 @TURNEND_GOBLIN
-#DIM ゴブリン
+#DIM ホフゴブリン
+ホフゴブリン = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:特殊勢力_ホフゴブリン)
 
-IF !SP_COUNTRY_APPEARED:特殊勢力_ホフゴブリン
-	;ホフゴブリンの蜂起
-	CALL SLG_GOBLIN_RISE
-	RETURN -1
+;兵力の増える処理
+IF DAY % 3 == 0
+	DRAWLINE
+	LOCAL:0 = MAX(RAND:3000, 1000)
+	LOCAL:0 += RAND:500 * SP_COUNTRY_RANK:(特殊勢力_ホフゴブリン)
+	PRINTFORML ホフゴブリンにつけばおこぼれにあずかれると聞いた野良妖怪たちが、次々と寝返っているようです……
+	PRINTFORML ホフゴブリンの兵力が{LOCAL:0}増加した
+	COUNTRY_SOLDIER:ホフゴブリン += LOCAL:0
 ENDIF
+;4ターンに1回、特別な徴兵
+CALL GOBLIN_SPECIAL_REQRUITMENT(DAY % 4 == 0)
 
-IF SP_COUNTRY_APPEARED:特殊勢力_ホフゴブリン == 1
-	;ホフゴブリンの番号を取得(ID:299)
-	ゴブリン = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_ホフゴブリン))
-	IF ゴブリン == -1
-		DRAWLINE
-		SETCOLOR COLOR("注意")
-		PRINTFORML
-		PRINTFORML
-		PRINTFORML
-		PRINTFORMW 壊滅的な被害を受けたホフゴブリンは、ちりぢりに四散していきました
-		PRINTFORMW 八雲紫が「めっ☆（滅っ）」したようなので、しばらくは大人しくしていることでしょう……
-		PRINTFORML
-		PRINTFORML
-		PRINTFORML
-		RESETCOLOR
-		;ホフゴブリンを削除する
-		LOCAL:1 = CHARANUM
-		FOR LOCAL:0, 0, LOCAL:1
-			LOCAL:2 = LOCAL:1 - LOCAL:0 - 1
-			IF TALENT:(LOCAL:2):特殊勢力素質 == 特殊勢力_ホフゴブリン
-				CALL DELETE_CHARA(LOCAL:2)
-			ENDIF
-		NEXT
-		SP_COUNTRY_APPEARED:特殊勢力_ホフゴブリン = 2
-		RETURN -1
-	ENDIF
+;--------------------------------------
+;滅亡時の処理
+;--------------------------------------
+@GOBLIN_DESTROY_MSG
+DRAWLINE
+SETCOLOR COLOR("注意")
+PRINTFORML
+PRINTFORML
+PRINTFORML
+PRINTFORMW 壊滅的な被害を受けたホフゴブリンは、ちりぢりに四散していきました
+PRINTFORMW 八雲紫が「めっ☆（滅っ）」したようなので、しばらくは大人しくしていることでしょう……
+PRINTFORML
+PRINTFORML
+PRINTFORML
+RESETCOLOR
 
-	;兵力の増える処理
-	IF DAY % 3 == 0
-		DRAWLINE
-		LOCAL:0 = MAX(RAND:3000, 1000)
-		LOCAL:0 += RAND:500 * SP_COUNTRY_RANK:(特殊勢力_ホフゴブリン)
-		PRINTFORML ホフゴブリンにつけばおこぼれにあずかれると聞いた野良妖怪たちが、次々と寝返っているようです……
-		PRINTFORML ホフゴブリンの兵力が{LOCAL:0}増加した
-		COUNTRY_SOLDIER:(ゴブリン) += LOCAL:0
-	ENDIF
-	;4ターンに1回、特別な徴兵
-	CALL GOBLIN_SPECIAL_REQRUITMENT(DAY % 4 == 0)
-	;調教処理
-	DEBUGPRINTFORML {DAY, 3}調教：ホフゴブリン
-	CALL TRAIN_BY_GOBLIN
-ENDIF
 ;--------------------------------------
 ;ホフゴブリンの初期化処理
 ;--------------------------------------
@@ -136,7 +52,7 @@ COUNTRY_EVENT_ID:(LOCAL:4) = SP_COUNTRY_ID:(特殊勢力_ホフゴブリン)
 
 CALL ADD_VOID_CHARA()
 LOCAL = RESULT
-SELECTCASE SP_COUNTRY_NAME:(特殊勢力_ホフゴブリン)
+SELECTCASE SP_COUNTRY_BOSSNAME:(特殊勢力_ホフゴブリン)
 	CASE 0
 		NAME:LOCAL = ホフゴブリン
 		CALLNAME:LOCAL = ホフゴブリン
@@ -180,6 +96,7 @@ ABL:LOCAL:知略 = 45 + RAND(5, 15) + 3 * SP_COUNTRY_RANK:(特殊勢力_ホフ�
 ABL:LOCAL:政治 = 40 + RAND(5, 10) + 3 * SP_COUNTRY_RANK:(特殊勢力_ホフゴブリン)
 ABL:LOCAL:歌唱 = 10
 ABL:LOCAL:料理 = 10
+ABL:LOCAL:肝臓 = 4
 TALENT:LOCAL:絶倫 = 1
 TALENT:LOCAL:特殊勢力素質 = 特殊勢力_ホフゴブリン
 TALENT:LOCAL:陰毛現在値 = 陰毛_標準
@@ -221,47 +138,13 @@ FOR LCOUNT, 0, 14
 	TALENT:LOCAL:特殊勢力素質 = 特殊勢力_ホフゴブリン
 	TALENT:LOCAL:陰毛現在値 = 陰毛_標準
 	TALENT:LOCAL:陰毛目標値 = 陰毛_標準
+	TALENT:LOCAL:Ｖ締まり = GET_DEFAULT_TIGHTNESS("普通")
+	TALENT:LOCAL:Ａ締まり = GET_DEFAULT_TIGHTNESS("普通")
 	;所属をホフゴブリンにする
 	CFLAG:LOCAL:1 = LOCAL:4
 	CALL NEWCHARA_INIT(LOCAL)
 NEXT
-SP_COUNTRY_APPEARED:特殊勢力_ホフゴブリン = 1
-
 RETURN LOCAL:4
-
-;--------------------------------------
-;ホフゴブリンの侵攻イベントを実行するSLGイベント。
-;判定通ったら素のGOBLIN_RISEを呼ぶだけ。
-;25期以降、50期までに徐々に確率が高まっていく。既に発生していたらなし。
-;--------------------------------------
-@SLG_GOBLIN_RISE()
-#DIM 紅魔館
-#DIM レミリア
-
-;既に出現しているか、外来人なし設定なら発動しない
-SIF SP_COUNTRY_APPEARED:特殊勢力_ホフゴブリン || !SP_COUNTRY_RANK:(特殊勢力_ホフゴブリン)
-	RETURN -1
-
-;20期以降、確率判定をクリアしていること
-SIF !(DAY >= 20 && DAY - 10 > RAND:100)
-	RETURN -1
-
-レミリア = GET_COUNTRY_FROM_BOSS_NAME("レミリア")
-紅魔館 = GET_CITYNUMBER("紅魔館")
-;レミリアが君主やってて、紅魔館がマップに存在し、レミリアの都市数が4以上で、レミリアが紅魔館を占拠しているなら、紅魔館を占領する
-IF レミリア != -1 && 紅魔館 && GET_OWN_CITY(レミリア) >= 4 && CITY_OWNER:紅魔館 == レミリア
-	CALL GOBLIN_RISE(紅魔館)
-	IF RESULT
-		CALL COLORPRINTFORM(@"突然のことに動揺したレミリア勢力に、1ターンのクールタイムが付与されます！", COLOR("警告"), "W")
-		FOR LOCAL, 0, CHARANUM
-			SIF CFLAG:LOCAL:所属 == レミリア	
-				CALL ADD_COOLTIME(LOCAL, 1)
-		NEXT
-	ENDIF
-;レミリアが君主でない、または紅魔館がないなら、ランダムに決めてしまえ
-ELSEIF (レミリア == -1 || !紅魔館)
-	CALL GOBLIN_RISE()
-ENDIF
 
 ;--------------------------------------
 ;ホフゴブリンの定期イベント。
@@ -443,5 +326,5 @@ IF RESULT == 0
 	RETURN 1
 ELSE
 	CFLAG:MASTER:9 = ARG:0
-	RETURN 3
+	RETURN 2
 ENDIF

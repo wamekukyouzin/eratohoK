@@ -289,6 +289,12 @@ IF TALENT:(ARG:0):アナル処女
 ELSE
 	SEXUAL_EXPERIENCE:(ARG:0):初体験_アナル処女 = 不明
 ENDIF
+
+FOR LOCAL, 0, VARSIZE("COM_EXP")
+	COM_EXP:(ARG:0):LOCAL = 0
+NEXT
+
+
 ;-------------------------------------------------
 ;TALENTの初期値を現在の値に設定する関数
 ;-------------------------------------------------
@@ -352,6 +358,18 @@ ELSE
 ENDIF
 
 RETURNF LOCALS:0
+
+;-------------------------------------------------
+;ARG:0番のキャラについて、三人称代名詞を返す関数
+;引数を省略するとエラーになる
+;-------------------------------------------------
+@PRONOUN(ARG:0 = -999)
+#FUNCTIONS
+IF ARG:0 == -999
+	THROW 関数@ANAMEに引数が設定されていません
+ENDIF
+RETURNF (IS_FEMALE(ARG:0) ? "彼女" # "彼")
+
 
 ;-------------------------------------------------
 ;ARG:0番のキャラのIDを取得する関数
@@ -1307,6 +1325,28 @@ ENDIF
 RETURNF 0
 
 ;-------------------------------------------------
+;キャラARG:0のバストサイズをARG:1にする
+;-2:絶壁～2:爆乳
+;-------------------------------------------------
+@SET_BUSTSIZE(ARG:0, ARG:1)
+TALENT:(ARG:0):絶壁 = 0
+TALENT:(ARG:0):貧乳 = 0
+TALENT:(ARG:0):巨乳 = 0
+TALENT:(ARG:0):爆乳 = 0
+SIF IS_MALE(ARG:0)
+	RETURN
+SELECTCASE ARG:1
+	CASE -2
+		TALENT:(ARG:0):絶壁 = 1
+	CASE -1
+		TALENT:(ARG:0):貧乳 = 0
+	CASE 1
+		TALENT:(ARG:0):巨乳 = 1
+	CASE 2
+		TALENT:(ARG:0):爆乳 = 1
+ENDSELECT
+RETURN
+;-------------------------------------------------
 ;能力の成長型を文字列に直す
 ;-------------------------------------------------
 @TOSTR_GROWTYPE(ARG:0)
@@ -2003,12 +2043,12 @@ ENDSELECT
 ;-------------------------------------------------
 ;ARG:0番のキャラのボタン＋情報をシンプルに表示する関数
 ;ARG:1に1を設定すると選択様ボタンになる([]→{})  このときARG:2に1を設定すると水色表示になる
-;ボタンの選択番号は NO + ARG:3 になる
+;ボタンの選択番号は NO + ARG:3 になる ARG:5に1を選択した場合、ボタンテキストに番号を非表示
 ;ARG:4は@CHECK_SELECTABLEの返り値に対応
 ;-------------------------------------------------
-@PRINT_PARTNER_DATA(ARG:0, ARG:1 = 0, ARG:2 = 0, ARG:3 = 100, ARG:4 = 1)
+@PRINT_PARTNER_DATA(ARG:0, ARG:1 = 0, ARG:2 = 0, ARG:3 = 100, ARG:4 = 1, ARG:5 = 0)
 IF CONFIG:13 == 0
-	PRINT  
+	PRINT 
 	CALL PRINT_RESTMARK(ARG:0)
 ENDIF
 
@@ -2022,8 +2062,13 @@ ENDIF
 
 SIF ARG:1 && ARG:2
 		SETCOLOR COLOR("選択中")
-
-IF ARG:4 == 1
+IF ARG:5
+	IF ARG:4 == 1
+		CALL PRINTBUTTON_CENTER(@"%LOCALS:0%%ANAME(ARG:0), 16, LEFT%%LOCALS:1%", NO:(ARG:0) + ARG:3, 0)
+	ELSEIF ARG:4 == 2
+		CALL PRINTBUTTON_CENTER(@"%LOCALS:0%%ANAME(ARG:0), 16, LEFT%%LOCALS:1%", NO:(ARG:0) + ARG:3, 0, 0)
+	ENDIF
+ELSEIF ARG:4 == 1
 	CALL PRINTBUTTON_CENTER(@"{NO:(ARG:0) + ARG:3, 5, RIGHT}%LOCALS:0%%ANAME(ARG:0), 16, LEFT%%LOCALS:1%", NO:(ARG:0) + ARG:3, 0)
 ELSEIF ARG:4 == 2
 	CALL PRINTBUTTON_CENTER(@"{NO:(ARG:0) + ARG:3, 5, RIGHT}%LOCALS:0%%ANAME(ARG:0), 16, LEFT%%LOCALS:1%", NO:(ARG:0) + ARG:3, 0, 0)
@@ -2077,8 +2122,11 @@ PRINT
 
 IF CONFIG:13 == 2
 	CALL PRINT_RESTMARK(ARG:0)
-	PRINT  
+	PRINT 
 ENDIF
+
+CALL TMP_PRINT_CHARA_STARS_NUM(ARG:0)
+PRINT  
 	
 IF ARG:0 == MASTER
 	PRINT   
@@ -2125,6 +2173,12 @@ ELSEIF GETBIT(TALENT:(ARG:0):特殊勢力陥落系, 特殊勢力_野盗)
 ELSEIF GETBIT(TALENT:(ARG:0):特殊勢力陥落系, 特殊勢力_触手)
 	SETCOLOR 0xFF1493
 	PRINT 寄
+ELSEIF GETBIT(TALENT:(ARG:0):特殊勢力陥落系, 特殊勢力_自警団)
+	SETCOLOR 0x33CC66
+	PRINT 自
+ELSEIF GETBIT(TALENT:(ARG:0):特殊勢力陥落系, 特殊勢力_サキュバス)
+	SETCOLOR 0x8B008B
+	PRINT 夢
 ELSEIF TALENT:(ARG:0):親愛
 	SETCOLOR 0xF5CE13
 	PRINT 愛
@@ -2367,117 +2421,78 @@ NO:(CHARANUM - 1) = GET_EMPTY_NO(ARG:0)
 RETURN CHARANUM - 1
 
 ;-------------------------------------------------
+;キャラ能力をアルファベットで表すときの色を取得
+;--------------------------------------------------
+@GET_RANK_COLOR(ランク)
+#FUNCTION
+#DIMS ランク
+SELECTCASE ランク
+	CASE "S"
+		RETURNF COLOR("パ紫")
+	CASE "A"
+		RETURNF COLOR("桃")
+	CASE "B"
+		RETURNF COLOR("赤")
+	CASE "C"
+		RETURNF COLOR("橙")
+	CASE "D"
+		RETURNF COLOR("黄")
+	CASE "E"
+		RETURNF COLOR("緑")
+	CASE "F"
+		RETURNF COLOR("水色")
+	CASE "G"
+		RETURNF COLOR("灰色")
+	CASE "-"
+		RETURNF COLOR("灰色")
+ENDSELECT
+
+
+
+;-------------------------------------------------
 ;キャラ能力をアルファベットで表す
 ;TWのアレをパクリ、もとい参考にさせていただきました
 ;あちらと違い、好感度等には非対応
-;分類=(0:武闘、知略、政治 1:妖術 2:歌唱、料理  3:それ以外) 値=それの値
 ;-------------------------------------------------
 @PRINT_ALPHABET_RANK(分類, 値)
 #DIM 分類
 #DIM 値
 #DIMS ランク
 ランク = %ALPHABET_RANK(分類, 値)%
-SELECTCASE ランク
-	CASE "S"
-		SETCOLOR COLOR("パ紫")
-	CASE "A"
-		SETCOLOR COLOR("桃")
-	CASE "B"
-		SETCOLOR COLOR("赤")
-	CASE "C"
-		SETCOLOR COLOR("橙")
-	CASE "D"
-		SETCOLOR COLOR("黄")
-	CASE "E"
-		SETCOLOR COLOR("緑")
-	CASE "F"
-		SETCOLOR COLOR("水色")
-	CASE "G"
-		SETCOLOR COLOR("灰色")
-	CASE "-"
-		SETCOLOR COLOR("灰色")
-ENDSELECT
+SETCOLOR GET_RANK_COLOR(ランク)
 PRINTFORM %ランク%
 RESETCOLOR
 
+;-------------------------------------------------
+;キャラ能力に対応するランク文字列を返す。
+;-------------------------------------------------
 @ALPHABET_RANK(分類, 値)
 #FUNCTIONS
 #DIM 分類
 #DIM 値
 #DIMS ランク
 SELECTCASE 分類
-	CASE 0
-		SELECTCASE 値
-			CASE IS >= ランク閾値_三能力_S
-				ランク = S
-			CASE IS >= ランク閾値_三能力_A
-				ランク = A
-			CASE IS >= ランク閾値_三能力_B
-				ランク = B
-			CASE IS >= ランク閾値_三能力_C
-				ランク = C
-			CASE IS >= ランク閾値_三能力_D
-				ランク = D
-			CASE IS >= ランク閾値_三能力_E
-				ランク = E
-			CASE IS >= ランク閾値_三能力_F
-				ランク = F
-			CASEELSE
-				ランク = G
-		ENDSELECT
-	CASE 1
-		SELECTCASE 値
-			CASE IS >= ランク閾値_妖術_S
-				ランク = S
-			CASE IS >= ランク閾値_妖術_A
-				ランク = A
-			CASE IS >= ランク閾値_妖術_B
-				ランク = B
-			CASE IS >= ランク閾値_妖術_C
-				ランク = C
-			CASE IS >= ランク閾値_妖術_D
-				ランク = D
-			CASE IS >= ランク閾値_妖術_E
-				ランク = E
-			CASE IS >= ランク閾値_妖術_F
-				ランク = F
-			CASE IS >= ランク閾値_妖術_G
-				ランク = G
-			CASEELSE
-				ランク = -
-		ENDSELECT
-	CASE 2
-		SELECTCASE 値
-			CASE IS >= ランク閾値_料理歌唱_S
-				ランク = S
-			CASE IS >= ランク閾値_料理歌唱_A
-				ランク = A
-			CASE IS >= ランク閾値_料理歌唱_B
-				ランク = B
-			CASE IS >= ランク閾値_料理歌唱_C
-				ランク = C
-			CASEELSE
-				ランク = -
-		ENDSELECT
-	CASE 3
-		SELECTCASE 値
-			CASE IS >= ランク閾値_その他_S
-				ランク = S
-			CASE IS >= ランク閾値_その他_A
-				ランク = A
-			CASE IS >= ランク閾値_その他_B
-				ランク = B
-			CASE IS >= ランク閾値_その他_C
-				ランク = C
-			CASE IS >= ランク閾値_その他_D
-				ランク = D
-			CASE IS >= ランク閾値_その他_E
-				ランク = E
-			CASE IS >= ランク閾値_その他_F
-				ランク = F
-			CASEELSE
-				ランク = G
-		ENDSELECT
+	CASE ランク_三能力
+		FOR LOCAL, ランク_S, ランク_無 + 1
+			SIF 値 >= ランク閾値:ランク_三能力:LOCAL
+				RETURNF ランク文字列:LOCAL
+		NEXT
+	CASE ランク_妖術
+		FOR LOCAL, ランク_S, ランク_無 + 1
+			SIF 値 >= ランク閾値:ランク_妖術:LOCAL
+				RETURNF ランク文字列:LOCAL
+		NEXT
+	CASE ランク_料理歌唱
+		FOR LOCAL, ランク_S, ランク_C + 1
+			SIF 値 >= ランク閾値:ランク_料理歌唱:LOCAL
+				RETURNF ランク文字列:LOCAL
+		NEXT
+		RETURNF ランク文字列:ランク_無
+	CASE ランク_その他
+		FOR LOCAL, ランク_S, ランク_無
+			SIF 値 >= ランク閾値:ランク_その他:LOCAL
+				RETURNF ランク文字列:LOCAL
+		NEXT
 ENDSELECT
 RETURNF ランク
 
@@ -2817,108 +2832,6 @@ PRINTFORML ・
 PRINTFORML ・
 PRINTFORML ・
 
-;-------------------------------------------------
-;渡されたビット番号に対応するＳＬＧ素質の文字列を返す
-;-------------------------------------------------	
-@TOSTR_SLG_TALENT(ビット)
-#FUNCTIONS
-#DIM ビット
-SELECTCASE ビット
-	CASE 素質_ＳＬＧ_治療
-		RETURNF "治療"
-	CASE 素質_ＳＬＧ_超成長力
-		RETURNF "超成長力"
-	CASE 素質_ＳＬＧ_努力家
-		RETURNF "努力家"
-	CASE 素質_ＳＬＧ_策士
-		RETURNF "策士"
-	CASE 素質_ＳＬＧ_明察
-		RETURNF "明察"
-	CASE 素質_ＳＬＧ_ステゴロ
-		RETURNF "ステゴロ"
-	CASE 素質_ＳＬＧ_三種の神器
-		RETURNF "三種の神器"
-	CASE 素質_ＳＬＧ_下克上等
-		RETURNF "下克上等"
-	CASE 素質_ＳＬＧ_魔力転換
-		RETURNF "魔力転換"
-	CASE 素質_ＳＬＧ_突貫
-		RETURNF "突貫"
-	CASE 素質_ＳＬＧ_バンドガール
-		RETURNF "バンドガール"
-	CASE 素質_ＳＬＧ_哨戒
-		RETURNF "哨戒"
-	CASE 素質_ＳＬＧ_防衛戦術
-		RETURNF "防衛戦術"
-	CASE 素質_ＳＬＧ_暗殺
-		RETURNF "暗殺"
-	CASE 素質_ＳＬＧ_弁舌
-		RETURNF "弁舌"
-	CASE 素質_ＳＬＧ_早足
-		RETURNF "早足"
-	CASE 素質_ＳＬＧ_風説流布
-		RETURNF "風説流布"
-	CASE 素質_ＳＬＧ_手練手管
-		RETURNF "手練手管"
-	CASE 素質_ＳＬＧ_疾風迅雷
-		RETURNF "疾風迅雷"
-	CASE 素質_ＳＬＧ_封魔
-		RETURNF "封魔"
-ENDSELECT
-
-;-------------------------------------------------
-;渡されたビット番号に対応するＳＬＧ素質の文字列を返す
-;-------------------------------------------------	
-@TOSTR_DAILY_TALENT(ビット)
-#FUNCTIONS
-#DIM ビット
-SELECTCASE ビット
-	CASE 素質_デイリー_薬売りの性奴隷
-		RETURNF "薬売りの性奴隷"
-	CASE 素質_デイリー_貴族の虜
-		RETURNF "貴族の虜"
-	CASE 素質_デイリー_貴族の愛人
-		RETURNF "貴族の愛人"
-	CASE 素質_デイリー_借り物
-		RETURNF "借り物"
-	CASE 素質_デイリー_淫紋
-		RETURNF "淫紋"
-ENDSELECT
-
-;-------------------------------------------------
-;渡されたビット番号に対応する陥落系素質の文字列を返す
-;-------------------------------------------------	
-@TOSTR_SEX_TALENT(ビット)
-#FUNCTIONS
-#DIM ビット
-SELECTCASE ビット
-	CASE 素質_陥落_淫乱
-		RETURNF "淫乱"
-	CASE 素質_陥落_淫核
-		RETURNF "淫核"
-	CASE 素質_陥落_淫壷
-		RETURNF "淫壷"
-	CASE 素質_陥落_尻穴狂い
-		RETURNF "尻穴狂い"
-	CASE 素質_陥落_淫乳
-		RETURNF "淫乳"
-	CASE 素質_陥落_蕩唇
-		RETURNF "蕩唇"
-	CASE 素質_陥落_射精狂い
-		RETURNF "射精狂い"
-	CASE 素質_陥落_サド
-		RETURNF "サド"
-	CASE 素質_陥落_マゾ
-		RETURNF "マゾ"
-	CASE 素質_陥落_雌犬
-		RETURNF "雌犬"
-	CASE 素質_陥落_肉便器
-		RETURNF "肉便器"
-	CASE 素質_陥落_苗床
-		RETURNF "苗床"
-	CASE 素質_陥落_薬物依存
-		RETURNF "薬物依存"
-ENDSELECT
 
 ;-------------------------------------------------
 ;カタカナ判定関数
@@ -2930,3 +2843,17 @@ ENDSELECT
 @CHECK_KATAKANA(ARGS, ARG)
 #FUNCTION
 RETURNF INRANGE(ENCODETOUNI(ARGS, ARG), 0x30A1, 0x30FA)
+
+;-------------------------------------------------
+;指定範囲内で数値をインクリメントさせる関数
+;-------------------------------------------------
+@ROUND_INCREMENT(OPERAND, MINVAL, MAXVAL)
+#FUNCTION
+#DIM OPERAND
+#DIM MINVAL
+#DIM MAXVAL
+OPERAND ++
+SIF OPERAND > MAXVAL
+	OPERAND = MINVAL
+
+RETURNF OPERAND

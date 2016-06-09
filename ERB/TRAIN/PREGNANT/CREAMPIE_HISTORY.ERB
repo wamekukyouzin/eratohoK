@@ -1,0 +1,59 @@
+﻿;---------------------------------------------------------
+;中出し履歴を更新する関数
+;古くなった履歴を削除する
+;---------------------------------------------------------
+@UPDATE_CREAMPIE_HISTORY(ARG)
+#DIM LCOUNT
+FOR LCOUNT, 150, 170
+	IF CFLAG:ARG:LCOUNT != 0
+		;最終中出し日からの期間を加算
+		CFLAG:ARG:(LCOUNT + 20) ++
+		;履歴が古ければリストから削除
+		IF CFLAG:ARG:(LCOUNT + 20) >= 5
+			CFLAG:ARG:LCOUNT = 0
+			CFLAG:ARG:(LCOUNT + 20) = 0
+		ENDIF
+	ENDIF
+NEXT
+
+;---------------------------------------------------------
+;父親候補を履歴から探す関数
+;妊娠している時点で種親はいるはずなので候補が0人である場合は一応エラーを投げて父親が不明ということにする
+;RETURNF CASE
+	;0:候補が複数など候補が1人でない場合
+	;else:父親候補の番号
+;---------------------------------------------------------
+@GET_FATHER_CANDIDATE_FROM_CREAMPIE_HISTORY(ARG)
+#FUNCTION
+#DIM FATHER_CANDIDATE,20
+#DIM CANDIDATE_COUNT
+#DIM LCOUNT
+VARSET CANDIDATE_COUNT
+VARSET FATHER_CANDIDATE
+FOR LCOUNT, 150, 170
+	IF CFLAG:ARG:LCOUNT != 0
+		FATHER_CANDIDATE:CANDIDATE_COUNT = CFLAG:ARG:LCOUNT
+		CANDIDATE_COUNT ++
+	ENDIF
+NEXT
+
+SIF CANDIDATE_COUNT == 0
+	CALLF ERROR
+
+;種親が複数いる場合はランダムにする
+;SIF CANDIDATE_COUNT != 1
+;	RETURNF 0
+
+LOCAL = (RAND:(MAX(CANDIDATE_COUNT / 2, 1)) == 0 ? FATHER_CANDIDATE:(RAND:CANDIDATE_COUNT) # 0)
+
+RETURNF LOCAL
+
+;---------------------------------------------------------
+;中だし履歴を削除する関数
+;---------------------------------------------------------
+@CLEAR_CREAMPIE_HISTORY(ARG:0)
+#DIM LCOUNT
+;中出し履歴をクリア
+FOR LCOUNT, 150, 190
+	CFLAG:(ARG:0):(LCOUNT) = 0
+NEXT

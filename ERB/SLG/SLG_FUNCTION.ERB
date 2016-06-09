@@ -1,4 +1,15 @@
 ﻿;SLG部分の各種関数まとめ
+;-------------------------------------------------
+;現存する勢力数を返す関数
+;-------------------------------------------------
+@GET_COUNTRY_NUM(ARG:0)
+#FUNCTION
+LOCAL:1 = 0
+FOR LOCAL, 0, MAX_COUNTRY
+	SIF IS_COUNTRY(LOCAL)
+		LOCAL:1 ++
+NEXT
+RETURNF LOCAL:1
 
 ;-------------------------------------------------
 ;ARG:0番の勢力の存在判定
@@ -52,6 +63,19 @@ FOR LOCAL:0, 0, MAX_CITY
 		LOCAL:1 += CITY_ECONOMY:(LOCAL:0)
 NEXT
 RETURNF LOCAL:1
+
+;-------------------------------------------------
+;ARG:0番の勢力について、都市防衛力の合計値を返す関数
+;-------------------------------------------------
+@GET_SUM_GUARD(ARG:0)
+#FUNCTION
+LOCAL:1 = 0
+FOR LOCAL:0, 0, MAX_CITY
+	SIF CITY_OWNER:(LOCAL:0) == ARG:0
+		LOCAL:1 += CITY_GUARD:(LOCAL:0)
+NEXT
+RETURNF LOCAL:1
+
 
 ;-------------------------------------------------
 ;ARG:0番の勢力について、支配都市数を返す関数
@@ -303,6 +327,68 @@ FOR LOCAL:0, 0, MAX_UNIT_COMMANDER
 	ENDIF
 NEXT
 RETURNF LOCALS:0
+
+;-------------------------------------------------
+;ARG:0勢力のARG:1部隊の情報をPRINTする関数
+;ARG:2が真なら??を表示
+;-------------------------------------------------
+@PRINT_UNIT_INFO(ARG:0, ARG:1, ARG:2 = 0)
+IF ARG:2
+	CALL COLORPRINTFORM(@"?? %"????軍", 12, LEFT% ★:%"??", 4, LEFT% 兵:%"????", 7, LEFT%攻:%"????", 6, LEFT%防:%"????", 6, LEFT%知:%"????", 6, LEFT%", COLOR("選択不可"), "L")
+	RETURN
+ENDIF
+LOCAL:1 = GET_COUNTRY_BOSS(ARG:0)
+LOCALS:2 = %GET_UNIT_COMMANDER_NAME(ARG:0, ARG:1, " ")%
+SIF LOCALS:2 != ""
+	LOCALS:2 = %LOCALS:2%
+SELECTCASE CHECK_COUNTRY_RELATION_F(CFLAG:MASTER:1, ARG:0)
+	CASE 0
+		SETCOLOR COLOR("警告")
+		PRINT 敵
+	CASE 1
+		SETCOLOR COLOR("停戦")
+		PRINT 停
+	CASE 2
+		SETCOLOR COLOR("連合")
+		PRINT 連
+	CASE 3
+		SETCOLOR COLOR("同盟")
+		PRINT 同
+	CASE 4
+		SETCOLOR COLOR("永久同盟")
+		PRINT 永
+	CASE 5
+		SETCOLOR COLOR("シアン")
+		PRINT 自
+ENDSELECT
+PRINT  
+SETCOLOR COUNTRY_COLOR:(ARG:0)
+;あんまり長いなら半角に
+LOCALS:1 = %ANAME(LOCAL:1) + "軍"%
+SIF STRLENS(LOCALS:1) >= 12
+	LOCALS:1 = %TOHALF(LOCALS:1)%
+SIF STRLENS(LOCALS:2) >= 30
+	LOCALS:2 = %TOHALF(LOCALS:2)%
+PRINTFORM %LOCALS:1, 12, LEFT%
+PRINTFORM %LOCALS:2, 30, LEFT%
+PRINTFORM ★:{SUM_UNIT_STARS(ARG:0, ARG:1), 4, LEFT}
+PRINTFORM 兵:{UNIT_SOLDIER:(ARG:0):(ARG:1), 7, LEFT}
+PRINTFORM 攻:%TOSTR_UNIT_POWER_SHORT(UNIT_ATTACK_LEVEL(ARG:0, ARG:1)), 6, LEFT%
+PRINTFORM 防:%TOSTR_UNIT_POWER_SHORT(UNIT_DEFENSE_LEVEL(ARG:0, ARG:1)), 6, LEFT%
+PRINTFORM 知:%TOSTR_UNIT_POWER_SHORT(UNIT_INTELLIGENCE_LEVEL(ARG:0, ARG:1)), 6, LEFT%
+RESETCOLOR
+;-------------------------------------------------
+;ARG:0勢力のARG:1部隊の星の数を返す関数
+;-------------------------------------------------
+@SUM_UNIT_STARS(ARG:0, ARG:1)
+#FUNCTION
+LOCAL:2 = 0
+FOR LOCAL:0, 0, MAX_UNIT_COMMANDER
+	LOCAL:1 =GET_UNIT_COMMANDER(ARG:0, ARG:1, LOCAL:0)
+	SIF LOCAL:1 >= 0
+		LOCAL:2 += TMP_CHARA_STARS:(LOCAL:1)
+NEXT
+RETURNF LOCAL:2
 
 ;-------------------------------------------------
 ;都市ARG:0の防衛部隊を指揮する将の名前(NAME)を返す関数 ARGS:1=複数の将がいる場合に間を区切る文字
@@ -1652,6 +1738,8 @@ CFLAG:(LOCAL:3):42 = 0
 
 
 ;イベントキャラを削除
+;たいていの場合、この関数に至るまでの処理でARG:0勢力の士官はいなくなっている
+;セーフティくらいの意味しかない
 LOCAL:2 = CHARANUM
 FOR LOCAL:0, 0, LOCAL:2
 	LOCAL:1 = LOCAL:2 - LOCAL:0 - 1
@@ -1660,6 +1748,21 @@ FOR LOCAL:0, 0, LOCAL:2
 	ENDIF
 NEXT
 
+;特殊勢力の場合、メッセージを表示して該当キャラを削除する
+IF IS_SP_COUNTRY(ARG:0)
+	TRYCCALLFORM %SP_COUNTRY_NAME_ENG:SP_COUNTRY_TO_CONST(ARG:0)%_DESTROY_MSG
+	;該当勢力のキャラを削除する
+	LOCAL:1 = CHARANUM
+	FOR LOCAL:0, 0, LOCAL:1
+		LOCAL:2 = LOCAL:1 - LOCAL:0 - 1
+		IF TALENT:(LOCAL:2):特殊勢力素質 == SP_COUNTRY_TO_CONST(ARG:0)
+			CALL DELETE_CHARA(LOCAL:2)
+		ENDIF
+	NEXT
+	SP_COUNTRY_APPEARED:SP_COUNTRY_TO_CONST(ARG:0) = 2
+	CATCH
+	ENDCATCH
+ENDIF
 ;士官を無所属にする
 ;その勢力が保持していた捕虜は帰す
 FOR LOCAL:0, 0, CHARANUM
@@ -1669,12 +1772,12 @@ FOR LOCAL:0, 0, CHARANUM
 		;捕虜になっていなければ、放浪させる
 		SIF !CFLAG:(LOCAL:0):9
 			CFLAG:(LOCAL:0):12 = 1
-		SIF GETBIT(TALENT:(LOCAL:0):デイリー陥落系, 素質_デイリー_借り物)
-			CLEARBIT TALENT:(LOCAL:0):デイリー陥落系, 素質_デイリー_借り物
+		SIF GETBIT(TALENT:(LOCAL:0):デイリー系, 素質_デイリー_借り物)
+			CLEARBIT TALENT:(LOCAL:0):デイリー系, 素質_デイリー_借り物
 	ENDIF
 	IF CFLAG:(LOCAL:0):9 == ARG:0
-		SIF GETBIT(TALENT:(LOCAL:0):デイリー陥落系, 素質_デイリー_借り物)
-			CLEARBIT TALENT:(LOCAL:0):デイリー陥落系, 素質_デイリー_借り物
+		SIF GETBIT(TALENT:(LOCAL:0):デイリー系, 素質_デイリー_借り物)
+			CLEARBIT TALENT:(LOCAL:0):デイリー系, 素質_デイリー_借り物
 		IF IS_COUNTRY(CFLAG:(LOCAL:0):1)
 			PRINTFORML %NAME:(LOCAL:3)%の滅亡により、%ANAME(LOCAL)%は%NAME:(GET_COUNTRY_BOSS(CFLAG:(LOCAL):1))%に帰っていきました
 		ELSE
@@ -1711,7 +1814,6 @@ NEXT
 @RELEASE_PRISONERS()
 #DIM 特殊捕虜先
 VARSET LOCAL
-DRAWLINE
 ;主人公が捕虜で監禁日数が4日以上ときのみ発生
 IF CFLAG:MASTER:9 && CFLAG:MASTER:43 >= 5 && RAND:100 < (CFLAG:MASTER:43 - 5) * 15 + 15
 	DRAWLINE
@@ -1737,9 +1839,13 @@ FOR LOCAL, 1, CHARANUM
 	特殊捕虜先 = IS_SP_COUNTRY(CFLAG:LOCAL:捕虜先)
 	;もしその国が何らかの理由で滅んでいるのにまだ捕らえられていたら、強制的に解放する
 	IF CFLAG:LOCAL:捕虜先 && !IS_COUNTRY(CFLAG:LOCAL:捕虜先)
+		IF !LOCAL:1
+			DRAWLINE
+			LOCAL:1 = 1
+		ENDIF
 		SETCOLOR COLOR("注意")
-		IF CFLAG:LOCAL:1
-			PRINTFORML 囚われていた%ANAME(LOCAL)%は解放され、%NAME:(GET_COUNTRY_BOSS(CFLAG:LOCAL:1))%のところに戻りました
+		IF IS_COUNTRY(CFLAG:LOCAL:所属)
+			PRINTFORML 囚われていた%ANAME(LOCAL)%は解放され、%NAME:(GET_COUNTRY_BOSS(CFLAG:LOCAL:所属))%のところに戻りました
 		ELSE
 			PRINTFORML 囚われていた%ANAME(LOCAL)%は解放され、放浪しました
 			CFLAG:LOCAL:特殊状態フラグ = 1
@@ -1751,45 +1857,30 @@ FOR LOCAL, 1, CHARANUM
 	;通常の解放処理
 	;SLG設定（CONFIG:320のビット0）
 	ELSEIF LOCAL != MASTER && CFLAG:LOCAL:捕虜先 && CFLAG:LOCAL:捕虜先 != CFLAG:MASTER:1 && MIN((CFLAG:LOCAL:解放カウンタ - 5) * 5, 30) > RAND:100 && !特殊捕虜先 && !GETBIT(CONFIG:320, 0)
+		IF !LOCAL:1
+			DRAWLINE
+			LOCAL:1 = 1
+		ENDIF
 		SETCOLOR COLOR("注意")
-		IF CFLAG:LOCAL:1
+		IF IS_COUNTRY(CFLAG:LOCAL:所属)
 			PRINTFORML %NAME:(GET_COUNTRY_BOSS(CFLAG:LOCAL:捕虜先))%に囚われていた%ANAME(LOCAL)%は\@ CFLAG:LOCAL:解放カウンタ >= 10 ? ようやく# \@解放され、%NAME:(GET_COUNTRY_BOSS(CFLAG:LOCAL:1))%のところに戻りました
 		ELSE
 			PRINTFORML %NAME:(GET_COUNTRY_BOSS(CFLAG:LOCAL:捕虜先))%に囚われていた%ANAME(LOCAL)%は解放され、放浪しました
 			CFLAG:LOCAL:特殊状態フラグ = 1
 		ENDIF
 		RESETCOLOR
-		;BANDIT_RELEASE_MSGでまた捕虜になる処理があるので、LOCAL:1に一旦保存
-		LOCAL:1 = CFLAG:LOCAL:捕虜先
 		CFLAG:LOCAL:捕虜先 = 0
 		CFLAG:LOCAL:解放カウンタ = 0
-		IF CFLAG:LOCAL:1 == CFLAG:MASTER:1 && LOCAL:1 == GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗))
-			CALL BANDIT_RELEASE_MSG(LOCAL)
-		ENDIF
 	;たまに脱走する。野盗、ホフゴブ、外来人なら率高め
 	;SLG設定(CONFIG:320のビット1)で脱走しない設定にもできる
 	ELSEIF (LOCAL != MASTER && CFLAG:LOCAL:捕虜先 && CFLAG:LOCAL:捕虜先 != CFLAG:MASTER:1 && 特殊捕虜先 * 17 + 3 > RAND:100) && !GETBIT(CONFIG:320, 1)
-		;ただし自国の捕虜(現状下克上シナリオ専用)だと脱走先は放浪、または失敗
-		;IF CFLAG:LOCAL:9 == CFLAG:LOCAL:1
-			;この場合脱走成功確率はさらに10分の1
-			;IF RAND:9 == 0
-				;SETCOLOR COLOR("注意")
-				;PRINTFORML 下克上地獄から脱走した%ANAME(LOCAL)%は、当ても無く放浪の旅に出ました
-				;RESETCOLOR
-				;CFLAG:LOCAL:捕虜先 = 0
-				;CFLAG:LOCAL:解放カウンタ = 0
-				;CFLAG:LOCAL:1 = 0
-				;CFLAG:LOCAL:12 = 1
-			;失敗したらイベント
-			;ELSE
-				;SETCOLOR COLOR("注意")
-				;PRINTFORML %NAME:(GET_COUNTRY_BOSS(CFLAG:LOCAL:捕虜先))%に囚われていた%ANAME(LOCAL)%は自由を求めて牢を飛び出した！
-				;PRINTFORML しかし、外で待っていたのは鞭を片手に嗜虐の笑みを浮かべる%NAME:(GET_COUNTRY_BOSS(CFLAG:LOCAL:捕虜先))%であった！
-				;RESETCOLOR
-			;ENDIF
-		IF CFLAG:LOCAL:9 != CFLAG:LOCAL:1
+		IF !LOCAL:1
+			DRAWLINE
+			LOCAL:1 = 1
+		ENDIF
+		IF CFLAG:LOCAL:捕虜先 != CFLAG:LOCAL:所属
 			SETCOLOR COLOR("注意")
-			IF CFLAG:LOCAL:1
+			IF IS_COUNTRY(CFLAG:LOCAL:1)
 				PRINTFORML %NAME:(GET_COUNTRY_BOSS(CFLAG:LOCAL:捕虜先))%に囚われていた%ANAME(LOCAL)%は脱走し、%NAME:(GET_COUNTRY_BOSS(CFLAG:LOCAL:1))%のところに戻りました
 			ELSE
 				PRINTFORML %NAME:(GET_COUNTRY_BOSS(CFLAG:LOCAL:捕虜先))%に囚われていた%ANAME(LOCAL)%は脱走し、放浪しました
@@ -1841,7 +1932,7 @@ FOR LCOUNTRY, 0, MAX_COUNTRY
 	IF IS_COUNTRY(LCOUNTRY)
 		FOR LUNIT, 0, MAX_UNIT
 			;部隊が存在し現在この都市の上にある
-			IF UNIT_SOLDIER:LCOUNTRY:LUNIT > 0 && UNIT_POSITION:LCOUNTRY:LUNIT == ARG:0
+			IF UNIT_SOLDIER:LCOUNTRY:LUNIT > 0 && UNIT_POSITION:LCOUNTRY:LUNIT == ARG:1
 				CALL CLEAR_UNIT(LCOUNTRY, LUNIT, 1)
 			ENDIF
 		NEXT

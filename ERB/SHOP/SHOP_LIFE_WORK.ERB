@@ -10,12 +10,15 @@
 #DIM 報酬, 1
 #DIM 能力, 1
 #DIM 経験値, 1
+
 DRAWLINE
 PRINTFORML 行動回数を消費し、%ANAME(対象)%が働いてお金を稼ぎます
 PRINTFORML 職種次第では、そのほかの恩恵も得られるでしょう
 PRINTFORML どうやってお金を稼ぎますか？
-PRINTFORML 現在の体力:{BASE:対象:体力} / {MAXBASE:対象:体力}
-PRINTFORML 残り行動回数:{CALC_SHOP_TIME() - SHOP_TIME}
+PRINTFORML 
+PRINTFORML 　体力:{BASE:対象:体力} / {MAXBASE:対象:体力}
+PRINTFORML ケガ率:{SHOP_LIFE_WORK_CALC_INJURED_RATE(対象)}％
+PRINTFORML 残行動:{CALC_SHOP_TIME() - SHOP_TIME}
 DRAWLINE
 PRINTBUTTON @"%"[鉱山労働]", 12, LEFT%", 1
 PRINTBUTTON "[行動全消費]", 11
@@ -32,7 +35,7 @@ PRINTL   炊き出しを手伝います。料理が影響します。
 PRINTBUTTON @"%"[ライブ]", 12, LEFT%", 5
 PRINTBUTTON "[行動全消費]", 15
 PRINTL   ストリートライブで稼ぎます。歌唱が影響します。
-IF ABL:対象:性技 >= ランク閾値_その他_D
+IF ABL:対象:性技 >= ランク閾値:ランク_その他:ランク_D
 	PRINTBUTTON @"%"[娼婦]", 12, LEFT%", 6
 	PRINTBUTTON "[行動全消費]", 16
 	PRINTL   娼婦として働きます。スケベな経験が増えます。スケベな能力が影響します。
@@ -62,14 +65,18 @@ ELSE
 	GOTO INPUT_LOOP
 ENDIF
 
-IF 内容 == 6 && ABL:対象:性技 < ランク閾値_その他_D
+IF 内容 == 6 && ABL:対象:性技 < ランク閾値:ランク_その他:ランク_D
 	GOTO INPUT_LOOP
 ENDIF
 
+;全消費の場合ここに戻ってくる
 $WORK_LOOP
 
-BASE:対象:体力 = MAX(BASE:対象:体力 - RAND(600, 800), 0)
+SHOP_TIME += 1
+SHOP_WORK_COUNT += 1
 
+
+;結果の計算
 SELECTCASE RAND:100
 	CASE 0 TO 19
 		結果 = 0
@@ -79,7 +86,8 @@ SELECTCASE RAND:100
 		結果 = 2
 ENDSELECT
 
-IF BASE:対象:体力 <= 0 || RAND:100 < SHOP_WORK_COUNT
+;ケガの処理
+IF SHOP_LIFE_WORK_CALC_INJURED_RATE(対象) > RAND:100 + 全消費 * 50
 	LOCAL = RAND:3 + 1
 	SETCOLOR COLOR("警告")
 	PRINTFORMW うわぁっ！！
@@ -140,37 +148,15 @@ SELECTCASE 内容
 		報酬 = 1500
 		SIF TALENT:対象:処女
 			報酬 += 10000
-		報酬 += RAND:(MAX((ABL:対象:欲望 * 3 + ABL:対象:性技 * 3 + ABL:対象:奉仕 * 2 + ABL:対象:性交 * 2) * 10, 1))
-		CALL VIRGIN_COMMON(対象, "娼館の客")
-		SIF !RAND:4
-			CALL VIRGIN_COMMON_A(対象, "娼館の客")
-		;ペニスへのキス
-		CALL KISS_COMMON(対象, "娼館の客のペニス")
-
-		;唇へのキス
-		CALL KISS_COMMON(対象, "娼館の客の唇")
-
-		;経験値は性処理より低い
-		IF !VAGINA(対象)
-			EXP:対象:Ｃ感経験値 += ABL:対象:Ｃ感
-			EXP:対象:Ａ感経験値 += ABL:対象:Ａ感 + 5
-		ELSE
-			EXP:対象:Ｃ感経験値 += ABL:対象:Ｃ感
-			EXP:対象:Ｖ感経験値 += ABL:対象:Ｖ感 + 5
-			EXP:対象:Ａ感経験値 += ABL:対象:Ａ感 + 5
-		ENDIF
-
-		EXP:対象:Ｂ感経験値 += ABL:対象:Ｂ感 + RAND:3
-		EXP:対象:Ｍ感経験値 += ABL:対象:Ｍ感 + RAND:3
-		EXP:対象:欲望経験値 += ABL:対象:欲望 + (LOCAL:1 / 2)
-		EXP:対象:奉仕経験値 += ABL:対象:奉仕 + RAND:3
-		EXP:対象:性交経験値 += ABL:対象:性交 + RAND:3
-		CALL TIGHTNESS_DECREASE_V(対象, RAND(5, 8))
-		CALL TIGHTNESS_DECREASE_A(対象, RAND(5, 8))
+		報酬 += RAND:(MAX(ABL:対象:欲望 * 3 + ABL:対象:性技 * 3 + ABL:対象:奉仕 * 2 + ABL:対象:性交 * 2, 1)) * 20
+		報酬 += GETBIT(TALENT:対象:淫乱系, 素質_淫乱_娼婦) * RAND(1000, 1500)
+		CALL FUCK(対象, "欲望, 奉仕, 性技, 性交, 精愛, Ｃ, Ｖ, Ａ, Ｂ, Ｍ, 売春", "キス喪失, 処女喪失, Ａ処女喪失, 膣内射精", GET_SPERM_ID("娼館の客"), "娼館の客のペニス", "娼館の客")
 	CASEELSE
 		GOTO INPUT_LOOP
 ENDSELECT
 
+;売春以外は報酬は一律
+;あと経験値獲得処理
 IF 内容 != 6
 	報酬 = 2000
 	SELECTCASE 能力
@@ -188,7 +174,8 @@ IF 内容 != 6
 	CALL TRAIN_AUTO_ABLUP(対象)
 ENDIF
 
-報酬 /= (SHOP_WORK_COUNT + 1)
+;労働回数に応じて報酬は減少
+報酬 /= SHOP_WORK_COUNT
 報酬 += RAND:500
 
 PRINTFORML
@@ -205,9 +192,11 @@ PRINTFORML 金{報酬}を得た
 
 MONEY += 報酬
 
+LOCAL = MAX(MAXBASE:対象:体力 / 10, 700)
+BASE:対象:体力 = MAX(BASE:対象:体力 - RAND(400, LOCAL), 0)
+
+
 PRINTFORMW 
-SHOP_TIME += 1
-SHOP_WORK_COUNT += 1
 CFLAG:対象:行動済み = 1
 IF SHOP_TIME < CALC_SHOP_TIME()
 	CALL COOK_HEAL(対象)
@@ -217,6 +206,17 @@ IF SHOP_TIME < CALC_SHOP_TIME()
 ENDIF
 RESULT = 0
 BEGIN TURNEND
+
+;-------------------------------------------------
+;ケガ率の算出
+;-------------------------------------------------
+@SHOP_LIFE_WORK_CALC_INJURED_RATE(対象)
+#FUNCTION
+#DIM 対象
+;ケガ率の最大は20
+;体力が0なら＋10
+RETURNF (MAXBASE:対象:体力 - BASE:対象:体力) * 100 / (MAXBASE:対象:体力 * 5) + (BASE:対象:体力 <= 0) * 10
+
 
 ;-------------------------------------------------
 ;娼館で働いた場合のテキスト
