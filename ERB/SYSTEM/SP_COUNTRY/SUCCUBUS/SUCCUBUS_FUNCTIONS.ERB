@@ -2,8 +2,8 @@
 ;ターンエンド時のサキュバスの処理
 ;--------------------------------------
 @TURNEND_SUCCUBUS
-;6ターンに1回、ドレイン
-CALL SUCCUBUS_DRAIN(DAY % 6 == 0)
+;3ターンに1回、ドレイン
+CALL SUCCUBUS_DRAIN(DAY % 3 == 0)
 
 
 ;--------------------------------------
@@ -174,13 +174,15 @@ VARSET 候補数
 
 サキュバス = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_サキュバス))
 
+
 ;サキュバス勢力があり、条件を満たしている
 SIF サキュバス == -1 || !条件
-RETURN -1
+	RETURN -1
 
 FOR LOCAL, 0, CHARANUM
-	;サキュバス所属で、捕虜でなく、陥落済み　念のためSPキャラを除外
-	IF CFLAG:LOCAL:所属 == サキュバス && !CFLAG:LOCAL:9 && IS_FEMALE(LOCAL) && NO < 2000 && GETBIT(TALENT:LOCAL:特殊勢力陥落系, 特殊勢力_サキュバス)
+	;サキュバス所属で捕虜でない　またはサキュバス勢力の捕虜　念のためSPキャラを除外
+	IF ((CFLAG:LOCAL:所属 == サキュバス && !CFLAG:LOCAL:捕虜先) || CFLAG:LOCAL:捕虜先 == サキュバス) && NO:LOCAL < 2000
+		
 		候補:候補数 = LOCAL
 		候補数 ++
 	ENDIF
@@ -222,19 +224,19 @@ SIF ABL:対象:吸収対象 < 10
 VARSET 候補, -1
 VARSET 候補数, 0
 
-FOR LOCAL, 0, CHARANUM
-	IF CFLAG:LOCAL:所属 == サキュバス && !CFLAG:LOCAL:9 && TALENT:LOCAL:特殊勢力素質 == 特殊勢力_サキュバス
-		候補:候補数 = LOCAL
-		候補数 ++
-	ENDIF
-NEXT
+;FOR LOCAL, 0, CHARANUM
+;	IF CFLAG:LOCAL:所属 == サキュバス && !CFLAG:LOCAL:9 && TALENT:LOCAL:特殊勢力素質 == 特殊勢力_サキュバス
+;		候補:候補数 = LOCAL
+;		候補数 ++
+;	ENDIF
+;NEXT
 
-SIF 候補数 < 1
-	RETURN -1
+;SIF 候補数 < 1
+;	RETURN -1
 
-対象:1 = 候補:(RAND:候補数)
+対象:1 = GET_COUNTRY_BOSS(サキュバス)
 
-SIF 対象 == -1
+SIF 対象:1 == -1
 	RETURN -1
 
 DRAWLINE
@@ -245,6 +247,7 @@ SETCOLOR COLOR("警告")
 PRINTFORMW サキュバスは%ANAME(対象)%の能力を奪い取った！
 PRINTFORMW %ANAME(対象)%の%ABLNAME:吸収対象%が{吸収値}下がった！
 PRINTFORMW %ANAME(対象:1)%の%ABLNAME:吸収対象%が{吸収値}上がった！
+RESETCOLOR
 PRINTFORML 
 ABL:(対象:0):吸収対象 -= 吸収値
 ABL:(対象:1):吸収対象 += 吸収値
