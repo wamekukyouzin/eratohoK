@@ -1,0 +1,77 @@
+﻿;-------------------------
+;スカウト
+;-----------------------
+@SLG_SCOUT
+#DIM 対象
+#DIM 提示額
+#DIM 関係補正
+#DIM 好感度補正
+#DIM FIRST_LINE
+FIRST_LINE = LINECOUNT
+DRAWLINE
+PRINTFORML 自国の強化のため、在野の人材をスカウトしてこよう……
+PRINTFORML スカウトには金が必要だ　%ANAME(MASTER)%自身と親しい相手ほど安価で済むだろう
+PRINTFORML さて、誰をスカウトしようか……
+DRAWLINE
+
+CALL SELECT_CHARA_LIST_ONLY_LOGIC_SLG("放浪していない, 死亡", "")
+
+SIF RESULT == -1
+	RETURN 0
+
+対象 = RESULT
+
+;基本額は能力とＳＬＧ素質から算出
+提示額 = ABL:対象:武闘 + ABL:対象:知略 + ABL:対象:政治 + ABL:対象:料理 * (ABL:対象:料理 >= 50)  + ABL:対象:歌唱 * (ABL:対象:歌唱 >= 50) + (ABL:対象:妖術 * 5)
+提示額 *= 100
+FOR LOCAL, 0, VARSIZE("SLG_TALENT_NAME")
+	SIF GETBIT(TALENT:LOCAL:ＳＬＧ素質, LOCAL)
+		提示額 += 500
+NEXT
+
+;面識がないと高くなる
+SIF !CFLAG:対象:面識
+	TIMES 提示額, 1.3
+
+;REL_LIKEとREL_HATEの差に基づいて最大30%の補正
+関係補正 = REL_LIKE:対象:MASTER - REL_HATE:対象:MASTER
+関係補正 /= 50
+関係補正 = 100 - 関係補正
+
+提示額 = 提示額 * 関係補正 / 100
+
+;好感度に基づいて補正
+好感度補正 = 100 - MAX(MAX(CFLAG:対象:好感度, CFLAG:対象:従属度) / 100, 30)
+
+提示額 = 提示額 * 好感度補正 / 100
+
+提示額 = 提示額 * (100 + MAX(DAY / 5, 30)) / 100
+
+;乱数を乗せる
+;ただし単にRANDするとリロして乱数調整できてしまうので、DUMPRANDからのINITRANDで乱数状態を元に戻す
+DUMPRAND
+提示額 = 提示額 * RAND(90, 110) / 100
+INITRAND
+
+PRINTFORML %ANAME(対象)%に仕官しないかともちかけた……
+IF REL_LIKE:対象:MASTER - REL_HATE:対象:MASTER <= -500
+	PRINTFORMW ……だが、%ANAME(対象)%に断られてしまった
+	CLEARLINE LINECOUNT - FIRST_LINE
+	RESTART
+ENDIF
+PRINTFORML %ANAME(対象)%は金{提示額}を要求してきた
+PRINTFORML 現在資金:{MONEY}  要求額:{提示額}
+PRINTFORML
+CALL ASK_MULTI_JUDGE("支払う", MONEY >= 提示額, "やめる", 1)
+IF RESULT == 1
+	PRINTFORML それだけの余裕がない……
+	PRINTFORMW %ANAME(対象)%に、この話はなかったことにしてもらった
+	CLEARLINE LINECOUNT - FIRST_LINE
+	RESTART
+ELSE
+	PRINTFORML 戦力補強のためなら安いものだ……
+	PRINTFORML %ANAME(対象)%に{提示額}を支払い、固い握手を交わした
+	CALL COLORPRINTFORM(@"%ANAME(対象)%が仲間になりました", COLOR("注意"), "W")
+	CFLAG:対象:所属 == CFLAG:MASTER:所属
+	MONEY -= 提示額
+ENDIF
