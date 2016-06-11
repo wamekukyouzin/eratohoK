@@ -199,79 +199,85 @@ SPLIT 利用ロジック指定文字列, ",", 利用ロジック
 FOR LOCAL, 0, VARSIZE("利用ロジック")
 	SIF 利用ロジック:LOCAL == ""
 		CONTINUE
+	;スペースを除去
+	利用ロジック:LOCAL = %REPLACE(利用ロジック:LOCAL, " ", "")%
+	利用ロジック:LOCAL = %REPLACE(利用ロジック:LOCAL, "　", "")%
 	;利用できるロジック一覧　必要に応じて追加してくれていいです
 	;「除外するキャラを」指定することに注意
 	;「死亡」はMASTERがどこかに所属している時に「別勢力」指定で自然と除外できたり、そういうのがあるので注意
 
-	SIF STRFIND(利用ロジック:LOCAL, "男") != -1  && IS_MALE(対象)
+	SIF 利用ロジック:LOCAL == "男" && IS_MALE(対象)
 		RETURN 0
 
-	SIF STRFIND(利用ロジック:LOCAL, "女") != -1 && IS_FEMALE(対象)
+	SIF 利用ロジック:LOCAL == "女" && IS_FEMALE(対象)
 		RETURN 0
-	SIF STRFIND(利用ロジック:LOCAL, "異性") != -1 && !IS_SAMESEX(MASTER, 対象)
+	SIF 利用ロジック:LOCAL == "異性" && !IS_SAMESEX(MASTER, 対象)
 		RETURN 0
 		
-	SIF STRFIND(利用ロジック:LOCAL, "同性") != -1 && IS_SAMESEX(MASTER, 対象)
+	SIF 利用ロジック:LOCAL == "同性" && IS_SAMESEX(MASTER, 対象)
 		RETURN 0
 
-	SIF STRFIND(利用ロジック:LOCAL, "育児対象") != -1 && CFLAG:対象:16 == 4
+	SIF 利用ロジック:LOCAL == "育児対象" && CFLAG:対象:16 == 4
 		RETURN 0
 
-	SIF STRFIND(利用ロジック:LOCAL, "動物") != -1 && IS_ANIMAL(対象)
+	SIF 利用ロジック:LOCAL == "動物" && IS_ANIMAL(対象)
 		RETURN 0
 
-	SIF STRFIND(利用ロジック:LOCAL, "君主") != -1 && GET_COUNTRY_BOSS(CFLAG:対象:所属) == 対象
+	SIF 利用ロジック:LOCAL == "君主" && GET_COUNTRY_BOSS(CFLAG:対象:所属) == 対象
 		RETURN 0
 
-	SIF STRFIND(利用ロジック:LOCAL, "別勢力") != -1 && CFLAG:対象:所属 != CFLAG:MASTER:所属
+	SIF 利用ロジック:LOCAL == "別勢力" && CFLAG:対象:所属 != CFLAG:MASTER:所属
 		RETURN 0
 	
-	SIF STRFIND(利用ロジック:LOCAL, "同勢力") != -1 && CFLAG:対象:所属 == CFLAG:MASTER:所属
+	SIF 利用ロジック:LOCAL == "同勢力" && CFLAG:対象:所属 == CFLAG:MASTER:所属
 		RETURN 0
 
-	SIF STRFIND(利用ロジック:LOCAL, "所属なし") != -1 && !CFLAG:対象:所属
+	SIF 利用ロジック:LOCAL == "所属なし" && !CFLAG:対象:所属
 		RETURN 0
 	
-	SIF STRFIND(利用ロジック:LOCAL, "!IS_FREE") != -1 && !IS_FREE(対象)
+	SIF 利用ロジック:LOCAL == "放浪していない" && CFLAG:対象:特殊状態フラグ != 1
 		RETURN 0
 	
-	SIF STRFIND(利用ロジック:LOCAL, "捕虜") != -1 && CFLAG:対象:捕虜先
+	SIF 利用ロジック:LOCAL == "!IS_FREE" && !IS_FREE(対象)
 		RETURN 0
 	
-	SIF STRFIND(利用ロジック:LOCAL, "捕虜でない") != -1 && !CFLAG:対象:捕虜先
+	SIF 利用ロジック:LOCAL == "捕虜" && CFLAG:対象:捕虜先
 		RETURN 0
 	
-	SIF STRFIND(利用ロジック:LOCAL, "!PENIS") != -1 && !PENIS(対象)
+	SIF 利用ロジック:LOCAL == "捕虜でない" && !CFLAG:対象:捕虜先
 		RETURN 0
 	
-	SIF STRFIND(利用ロジック:LOCAL, "!VAGINA") != -1 && !VAGINA(対象)
+	SIF 利用ロジック:LOCAL == "!PENIS" && !PENIS(対象)
+		RETURN 0
+	
+	SIF 利用ロジック:LOCAL == "!VAGINA" && !VAGINA(対象)
 		RETURN 0
 		
-	SIF STRFIND(利用ロジック:LOCAL, "生存") != -1 && CFLAG:対象:特殊状態フラグ != 2
+	SIF 利用ロジック:LOCAL == "生存" && CFLAG:対象:特殊状態フラグ != 2
 		RETURN 0
 		
-	SIF STRFIND(利用ロジック:LOCAL, "死亡") != -1 && CFLAG:対象:特殊状態フラグ == 2
+	SIF 利用ロジック:LOCAL == "死亡" && CFLAG:対象:特殊状態フラグ == 2
 		RETURN 0
 
-	SIF STRFIND(利用ロジック:LOCAL, "放浪") != -1 && CFLAG:対象:特殊状態フラグ == 1
+	SIF 利用ロジック:LOCAL == "放浪" && CFLAG:対象:特殊状態フラグ == 1
 		RETURN 0
 		
-	SIF STRFIND(利用ロジック:LOCAL, "未登場") != -1 && ALLSAMES(0, CFLAG:対象:特殊状態フラグ, CFLAG:対象:所属)
+	SIF 利用ロジック:LOCAL == "未登場" && ALLSAMES(0, CFLAG:対象:特殊状態フラグ, CFLAG:対象:所属)
 		RETURN 0
 	
-	SIF STRFIND(利用ロジック:LOCAL, "特殊キャラ") != -1 && NO:対象 >= 2000
+	SIF 利用ロジック:LOCAL == "特殊キャラ" && NO:対象 >= 2000
 		RETURN 0
 	
-	SIF STRFIND(利用ロジック:LOCAL, "妊娠") != -1 && TALENT:対象:妊娠
+	SIF 利用ロジック:LOCAL == "妊娠" && TALENT:対象:妊娠
 		RETURN 0
 	
-	SIF STRFIND(利用ロジック:LOCAL, "MASTER") != -1 && 対象 == MASTER
+	SIF 利用ロジック:LOCAL == "MASTER" && 対象 == MASTER
 		RETURN 0
 	
-	SIF STRFIND(利用ロジック:LOCAL, "淫紋") != -1 && GETBIT(TALENT:対象:デイリー系, 素質_デイリー_淫紋)
+	SIF 利用ロジック:LOCAL == "淫紋" && GETBIT(TALENT:対象:デイリー系, 素質_デイリー_淫紋)
 		RETURN 0
 
-	SIF STRFIND(利用ロジック:LOCAL, "!TALK_CAN_GIVE_SEX") != -1 && !TALK_CAN_GIVE_SEX(対象)
+	SIF 利用ロジック:LOCAL == "!TALK_CAN_GIVE_SEX" && !TALK_CAN_GIVE_SEX(対象)
 		RETURN 0
 
 NEXT
