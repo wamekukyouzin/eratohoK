@@ -163,30 +163,59 @@ ELSE
 			PRINTFORML 「えっへへへ、毎度ォ」
 			PRINTFORMW 「そのオモチャと仲良くやることですな！　げへへへ」
 		ENDIF
+
+		CFLAG:対象:捕虜先 = 0
+
 		PRINTFORMW %ANAME(対象)%を受け取り、市場を後にした……
-		IF IS_COUNTRY(CFLAG:対象:所属) && CFLAG:対象:所属 != GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗)) && CFLAG:対象:所属 != CFLAG:MASTER:所属
+		IF IS_COUNTRY(CFLAG:対象:所属) && !IS_SP_COUNTRY(CFLAG:対象:所属) && CFLAG:対象:所属 != CFLAG:MASTER:所属
 			PRINTFORMW ……%ANAME(対象)%は%ANAME(GET_COUNTRY_BOSS(CFLAG:対象:所属))%の所属だ
 			PRINTFORMW 返してやるのが人の道であるように思えるが……
 			PRINTFORML どうしますか？
 			DRAWLINE
-			CALL ASK_MULTI("返してやる", "買ったのだから自分のものだ")
+			CALL ASK_MULTI("返してやる", "自国で働いてもらう", "買ったのだから自分のものだ")
 			IF RESULT == 0
 				PRINTFORMW %ANAME(対象)%を%ANAME(GET_COUNTRY_BOSS(CFLAG:対象:所属))%に返してやることにした
 				PRINTFORMW %ANAME(GET_COUNTRY_BOSS(CFLAG:対象:所属))%から深く感謝された……
 				CALL CHANGE_RELATION_C_TO_C(CFLAG:対象:所属, CFLAG:MASTER:1, 600, -600)
+				CFLAG:対象:好感度 = MAX(500, CFLAG:対象:好感度 + 500)
+				CFLAG:対象:従属度 = MAX(500, CFLAG:対象:従属度 + 500)
+				CFLAG:対象:依存度 = MAX(100, CFLAG:対象:依存度 + 100)
+			ELSEIF RESULT == 1
+				PRINTFORMW %ANAME(GET_COUNTRY_BOSS(CFLAG:対象:所属))%にせっかく買ったものをただで返してやるほどの義理はない
+				PRINTFORMW 士官としての待遇を条件に、%ANAME(対象)%に協力を約束させた……
+				CFLAG:対象:所属 = CFLAG:MASTER:所属
+				CFLAG:対象:好感度 = MAX(0, CFLAG:対象:好感度 + 500)
+				CFLAG:対象:従属度 = MAX(0, CFLAG:対象:従属度 + 500)
+				CFLAG:対象:依存度 = MAX(0, CFLAG:対象:依存度 + 100)
 			ELSE
 				PRINTFORMW いやいや、金を出して買ったのだから、もう%ANAME(対象)%は自分のものだ
 				PRINTFORMW どのように使ってやろうか考えながら、%ANAME(MASTER)%は市場を後にした……
+				CFLAG:対象:所属 = 0
+				CFLAG:対象:捕虜先 = CFLAG:MASTER:所属
+			ENDIF
+		ELSEIF CFLAG:対象:所属 != CFLAG:MASTER:所属
+			PRINTFORML ……買い取った奴隷をどうしようか？
+			DRAWLINE
+			CALL ASK_MULTI("監禁しておく", "士官として迎え入れる")
+			IF RESULT == 1
+				PRINTFORMW %ANAME(対象)%は%ANAME(GET_COUNTRY_BOSS(CFLAG:MASTER:所属))%の士官として働くことになった……
 				CFLAG:対象:所属 = CFLAG:MASTER:所属
+				CFLAG:対象:好感度 = MAX(500, CFLAG:対象:好感度 + 500)
+				CFLAG:対象:従属度 = MAX(500, CFLAG:対象:従属度 + 500)
+				CFLAG:対象:依存度 = MAX(100, CFLAG:対象:依存度 + 100)
+			ELSE
+				PRINTFORMW %ANAME(対象)%を逃げ出さないように監禁しておくことにした……
+				CFLAG:対象:所属 = 0
+				CFLAG:対象:捕虜先 = CFLAG:MASTER:所属
 			ENDIF
 		ELSE
+			CFLAG:対象:好感度 = MAX(500, CFLAG:対象:好感度 + 500)
+			CFLAG:対象:従属度 = MAX(500, CFLAG:対象:従属度 + 500)
+			CFLAG:対象:依存度 = MAX(100, CFLAG:対象:依存度 + 100)
 			CFLAG:対象:所属 = CFLAG:MASTER:所属
 		ENDIF
+
 		;捕虜状態から解放、部隊から除外、買ったキャラを配列から削除
-		CFLAG:対象:好感度 += 500
-		CFLAG:対象:従属度 += 500
-		CFLAG:対象:依存度 += 100
-		CFLAG:対象:捕虜先 = 0
 		;念のため放浪フラグを折る
 		CFLAG:対象:特殊状態フラグ = 0
 		CALL FORCE_FREE(対象)
