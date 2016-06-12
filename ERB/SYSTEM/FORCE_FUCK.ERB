@@ -32,6 +32,9 @@ CALL TRAIN_AUTO_ABLUP(対象, 0)
 #DIMS セックス相手
 #DIMS 童貞相手
 #DIM シチュ
+ABL:対象:主導度Ｎ -= (50 + RAND:50) * ((TALENT:対象:Ｍ気質 || TALENT:対象:倒錯的) + 1) / (TALENT:対象:気丈 + 1)
+ABL:対象:主導度Ｕ -= (50 + RAND:50) * ((TALENT:対象:Ｍ気質 || TALENT:対象:倒錯的) + 1) / (TALENT:対象:気丈 + 1)
+ABL:対象:倒錯度 += (20 + RAND:30) * ((TALENT:対象:Ｍ気質 || TALENT:対象:倒錯的) + 1)
 SIF SP_TRAIN_IS_DECREASE_CFLAG(対象, 勢力番号)
 	追加処理文字列 '= 追加処理文字列 + ", CFLAG減少"
 CALL FUCK(対象, 経験値文字列, 追加処理文字列, 膣内射精相手ID, キス相手, セックス相手, 童貞相手, シチュ)
@@ -177,7 +180,9 @@ CALL FUCK(対象, "Ｃ, Ｖ, Ａ, Ｂ, Ｍ, Ｖ拡張, Ａ拡張, 性交, レズ
 @FUCK_EXP_PROCESS(対象, 経験値指定文字列)
 #DIM 対象
 #DIMS 経験値指定文字列
+#DIM 倒錯度倍率
 #DIMS 経験値, 100
+VARSET 倒錯度倍率
 VARSET 経験値
 SPLIT 経験値指定文字列, ",", 経験値
 LOCAL:1 = 0
@@ -276,16 +281,19 @@ FOR LOCAL, 0, VARSIZE("経験値")
 		
 	IF 経験値:LOCAL == "露出"
 		EXP:対象:露出経験値 += ABL:対象:露出 * 2 + 5 + RAND:8
+		倒錯度倍率 ++
 		CONTINUE
 	ENDIF
 		
 	IF 経験値:LOCAL == "排泄"
 		EXP:対象:排泄経験値 += ABL:対象:排泄 * 2 + 5 + RAND:8
+		倒錯度倍率 ++
 		CONTINUE
 	ENDIF
 
 	IF 経験値:LOCAL == "触手"
 		EXP:対象:排泄経験値 += ABL:対象:触手 * 2 + 5 + RAND:8
+		倒錯度倍率 ++
 		CONTINUE
 	ENDIF
 		
@@ -296,11 +304,15 @@ FOR LOCAL, 0, VARSIZE("経験値")
 	
 	IF 経験値:LOCAL == "苦痛快楽"
 		EXP:対象:苦痛快楽経験 += RAND(20, 30)
+		ABL:対象:主導度Ｕ -= (5 + RAND:15) * ((TALENT:対象:Ｍ気質 || TALENT:対象:倒錯的) + 1) / (TALENT:対象:気丈 + 1)
+		倒錯度倍率 ++
 		CONTINUE
 	ENDIF
 
 	IF 経験値:LOCAL == "緊縛"
 		EXP:対象:緊縛経験 += 3 + RAND:4
+		ABL:対象:主導度Ｕ -= (5 + RAND:15) * ((TALENT:対象:Ｍ気質 || TALENT:対象:倒錯的) + 1) / (TALENT:対象:気丈 + 1)
+		倒錯度倍率 ++
 		CONTINUE
 	ENDIF
 		
@@ -316,24 +328,34 @@ FOR LOCAL, 0, VARSIZE("経験値")
 		
 	IF 経験値:LOCAL == "輪姦"
 		EXP:対象:輪姦経験 += 3 + RAND(2, MAX(3, MIN(8, ABL:対象:欲望)))
+		倒錯度倍率 ++
 		CONTINUE
 	ENDIF
 		
 	IF 経験値:LOCAL == "獣姦"
 		EXP:対象:獣姦経験 += 3 + RAND:3
+		倒錯度倍率 ++
 		CONTINUE
 	ENDIF
 	IF 経験値:LOCAL == "薬物依存"
 		CFLAG:対象:薬物依存 += RAND(20, 50)
+		倒錯度倍率 ++
 		CONTINUE
 	ENDIF
 	
 	IF 経験値:LOCAL == "売春"
 		EXP:対象:売春経験 += 3 + RAND(2, MAX(3, MIN(8, ABL:対象:欲望)))
+		倒錯度倍率 ++
 		CONTINUE
 	ENDIF
 NEXT
+
+ABL:対象:倒錯度 += (5 + RAND:15) * MAX(3, 倒錯度倍率) * ((TALENT:対象:Ｍ気質 || TALENT:対象:倒錯的) + 1)
 EXP:対象:絶頂経験 += LOCAL:1 * (60 + RAND:81) / 100
+
+ABL:対象:倒錯度 = LIMIT(ABL:対象:倒錯度, 0, 1000)
+ABL:対象:主導度Ｎ = LIMIT(ABL:対象:主導度Ｎ, -1000, 1000)
+ABL:対象:主導度Ｕ = LIMIT(ABL:対象:主導度Ｕ, -1000, 1000)
 
 ;-------------------------------------------------
 ;FUCKにおける、追加処理を行う関数

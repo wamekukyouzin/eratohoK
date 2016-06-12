@@ -4,196 +4,241 @@
 @SLAVEMARKET
 #DIM 対象
 #DIM 対象添え字
-#DIM 特売
-特売 = ID_TO_CHARA(SLAVEMARKET_SPECIALGOODS)
+#DIM FIRST_LINE
 DRAWLINE
 PRINTFORML 「よぉ～こそ！　イキのいいのを揃えてますよぉ？」
 PRINTFORML %ANAME(MASTER)%は奴隷市場を訪れた
 PRINTFORML ボロボロの服を着た女達が檻に入れられ、並べられている
 PRINTFORML 係の者は、使えそうな奴隷のリストを渡してきた……
-PRINTFORML 現在の金:{MONEY}
+PRINTFORML 所持金:{MONEY}
 DRAWLINE
-$SHOW_LOOP
-FOR LOCAL, 0, SLAVEMARKET_MAX_GOODS
+
+FOR LOCAL, 0, VARSIZE("SLAVEMARKET_GOODS")
 	LOCAL:1 = ID_TO_CHARA(SLAVEMARKET_GOODS:LOCAL)
-	;野盗に対し人質解放要求などを行い、すでに捕虜でなくなっている場合は、パージする
-	IF LOCAL:1 != -1
-		IF !CFLAG:(LOCAL:1):捕虜先
-			SLAVEMARKET_GOODS:(LOCAL) = 0
-			CONTINUE
-		ENDIF
-		PRINTFORM [{LOCAL}]%ANAME(LOCAL:1), 16, RIGHT% - 金{SLAVEMARKET_CALC_PRICE(LOCAL:1), 6, RIGHT}
-		IF LOCAL:1 == 特売
-			CALL COLORPRINTFORM(" 特売!", COLOR("注意"))
-		ENDIF
-		IF GETBIT(TALENT:(LOCAL:1):特殊勢力陥落系, 特殊勢力_外来人)
-			CALL COLORPRINTFORM(" 研究用", COLOR("注意"))
-		ENDIF
-		IF GETBIT(TALENT:(LOCAL:1):特殊勢力陥落系, 特殊勢力_ホフゴブリン)
-			CALL COLORPRINTFORM(" 性奴隷", COLOR("注意"))
-		ENDIF
-		IF GETBIT(TALENT:(LOCAL:1):特殊勢力陥落系, 特殊勢力_野盗)
-			CALL COLORPRINTFORM(" 肉便器", COLOR("注意"))
-		ENDIF
-		IF GETBIT(TALENT:(LOCAL:1):特殊勢力陥落系, 特殊勢力_触手)
-			CALL COLORPRINTFORM(" 寄生", COLOR("注意"))
-		ENDIF
-		IF GETBIT(TALENT:(LOCAL:1):特殊勢力陥落系, 特殊勢力_サキュバス)
-			CALL COLORPRINTFORM(" 夢魔", COLOR("注意"))
-		ENDIF
-		PRINTL
-	ELSE
-		SETCOLOR COLOR("選択不可")
-		PRINTPLAINFORM [{LOCAL}]%"品切れ", 16, RIGHT% - 金{0, 6, RIGHT}
-		RESETCOLOR
-		PRINTL
+	SIF LOCAL:1 == -1
+		CONTINUE
+	;人質解放要求などにより既に捕虜でなくなっている場合、パージ
+	IF !IS_SP_COUNTRY(CFLAG:(LOCAL:1):捕虜先) && !IS_SP_COUNTRY(CFLAG:(LOCAL:1):所属)
+		SLAVEMARKET_GOODS:LOCAL = 0
+		CONTINUE
 	ENDIF
+	CALL SLAVEMARKET_SHOW_INFO(LOCAL:1, LOCAL)
+	DRAWLINE
 NEXT
-DRAWLINE
+
+PRINTL 
 PRINTFORML [99] 戻る
+
 $INPUT_LOOP
 INPUT
 IF RESULT == 99
 	RETURN 0
-ELSEIF RESULT < 0 || RESULT >= SLAVEMARKET_MAX_GOODS
-	GOTO INPUT_LOOP
-ELSEIF !SLAVEMARKET_GOODS:RESULT
-	PRINTFORML 品切れです
-	GOTO INPUT_LOOP
-ELSE
-	対象 = ID_TO_CHARA(SLAVEMARKET_GOODS:RESULT)
-	対象添え字 = RESULT
-	PRINTFORML 「へへ、その女ァ%NAME_FORMAL(対象)%ってんです」
-	PRINTFORML 「イキのいい新鮮な奴隷ですよ、いかがです？」
-	IF GETBIT(TALENT:(対象):特殊勢力陥落系, 特殊勢力_外来人)
-		PRINTFORML 「怪しげな連中が、研究用サンプルを払い下げるつって持ってきたんですよぉ」
-		PRINTFORML 「なんの研究だか知らんが、ひひひ、上等に出来上がってまさァな」
-	ENDIF
-	IF GETBIT(TALENT:対象:特殊勢力陥落系, 特殊勢力_ホフゴブリン)
-		PRINTFORML 「実はこのメス、下等生物どもの性奴隷をやってましてね？　飽きて捨てられたわけですが」
-		PRINTFORML 「あの連中が飼うにはちょっと勿体ない上玉だと思いませんかァ？　ヒヒッ」
-	ENDIF
-	IF GETBIT(TALENT:対象:特殊勢力陥落系, 特殊勢力_野盗)
-		PRINTFORML 「コイツはあるところで"便器"やってましてね、言っちまえば中古ですが、使用感は格別ですぜ」
-		PRINTFORML 「なんせこの私も使ったんでねぇ！　ヒッヒッヒ！」
-	ENDIF
-	SIF 対象 == 特売
-		PRINTFORML 「ちょっと"訳あり"でしてね、特売ってことで値引きさせていただいてやす」
-	PRINTFORML 「今なら{SLAVEMARKET_CALC_PRICE(対象)}でお譲りいたしやす」
-	IF IS_LOVER(対象)
-		PRINTFORML 「……ヒヒッ、コイツアンタの恋人だろ？」
-		PRINTFORML 「目ぇ離したら駄目でしょうがァ～、あっしらみたいな悪い奴らに取られちまうんで」
-		PRINTFORML 「今回は授業料ってコトで、ちょっと高めにさせていただいてやすよ」
-	ENDIF
-	PRINTFORML 「で？　この女にするんで？」
-	CALL ASK_MULTI_JUDGE(@"%ANAME(対象)%を買う", MONEY >= SLAVEMARKET_CALC_PRICE(対象), "やめておく", 1)
-	IF RESULT == 1
-		PRINTFORML 「おや？　そうですか」
-		PRINTFORML 「じゃ、誰にするんで？」
-		DRAWLINE
-		GOTO SHOW_LOOP
-	ELSE
-		MONEY -= SLAVEMARKET_CALC_PRICE(対象)
-		PRINTFORMW 「ひひ、じゃあ商談成立だ」
-		PRINTFORMW 「じゃ、持ってってくんなせぇ」
-		;確率でエロイベント
-		IF IS_FEMALE(対象) && (20 > RAND:100 || 対象 == 特売)
-			PRINTFORML
-			PRINTFORMW ……男が連れてきた%ANAME(対象)%の姿を見、%ANAME(MASTER)%は目を疑った
-			PRINTFORML 丸裸の%ANAME(対象)%は目隠しをされ、手足には枷が嵌められている
-			PRINTFORMW 剥き出しの身体には、痛々しいピアスが取り付けられている
-			PRINTFORML 全身白濁にまみれており、穴からも粘つく汁がどろどろと零れている
-			PRINTFORMW あちこちに書かれた正の字が、%ANAME(対象)%のされたことを物語っていた
-			PRINTFORMW そんな悲惨な様だというのに、%ANAME(対象)%はえへらえへらと笑っている
-			PRINTFORMW ……これは楽しくて笑っているのではない。何か怪しげな薬の作用だ……
-			PRINTFORML
-			PRINTFORML 「あ～、市場に並べてる間も、奴隷としてあっしらが使わせていただいてますんでね」
-			PRINTFORML 「洗浄はセルフサービスですんで、すいやせんけどね」
-			PRINTFORMW 「あっ、返品は受け付けませんよ、残念ですけどねぇ」
-			SIF 対象 == 特売
-				PRINTFORMW 「ま、特売になるにはそれなりの理由があるってことですよ、へへへ」
-			IF IS_LOVER(対象)
-				PRINTFORMW 「別に構わんでしょ～？　恋人とカンドーノサイカイができたんだから」
-				PRINTFORMW 「これに懲りたら、もっと大事にしてやることですな、げひゃひゃひゃ！」
-			ENDIF
-			PRINTFORMW 男を斬り捨ててやりたいが、この市場には多くの衛兵がいる。暴れれば自分が危ない
-			PRINTFORMW 歯を噛みしめながら、%ANAME(MASTER)%は%ANAME(対象)%を受け取った……
-			CALL FUCK_GANGBANG(対象, GET_SPERM_ID("奴隷商人"), @"奴隷商人の\@RAND:2 ? ペニス # 唇\@", "奴隷商人")
-			CFLAG:対象:薬物依存 += RAND(30, 50)
-			CALL SET_PIERCE_RANDOM(対象, 0)
-		ELSEIF GETBIT(TALENT:対象:特殊勢力陥落系, 特殊勢力_外来人)
-			PRINTFORML 
-			PRINTFORMW ……男が連れてきた%ANAME(対象)%の姿は、ひどいものだった
-			PRINTFORMW 丸裸の%ANAME(対象)%は全身に様々な"改造"の痕跡がみられた
-			PRINTFORMW それだけで、%ANAME(対象)%のされてきたことがうかがえるというものだった
-			PRINTFORMW けれども、%ANAME(対象)%が造り替えられたのは、その肉体だけではないらしい
-			PRINTFORMW 全身から淫らな香りを漂わす彼女は、こうして%ANAME(MASTER)%に引き渡されたときですら、秘部を弄くり回している
-			PRINTFORMW どうやら「研究」とやらは、%ANAME(対象)%の精神をも破壊したようだ
-			PRINTFORMW 払い下げられたということだが、なるほど、それもうなずけることだった……
-			PRINTFORML
-			SETBIT TALENT:対象:淫乱系, 素質_淫乱_淫乱
-		ELSEIF GETBIT(TALENT:対象:特殊勢力陥落系, 特殊勢力_ホフゴブリン)
-			PRINTFORML 
-			PRINTFORMW ……男が連れてきた%ANAME(対象)%の姿は、ひどいものだった
-			PRINTFORMW 丸裸の%ANAME(対象)%の剥き出しの身体には、痛々しいピアスが取り付けられている
-			PRINTFORMW 肉便器であることを示すためか、入れ墨まで入れられている……
-			PRINTFORMW %ANAME(対象)%は%ANAME(MASTER)%を見るなり、媚びるように擦り寄ってきた
-			PRINTFORMW 新しいご主人様、どうか%ANAME(対象)%を可愛がってくださいませと言い始める……
-			PRINTFORMW どうやら%ANAME(対象)%は、その精神をも造り替えられてしまったらしい
-			PRINTFORMW 肉便器としての生活がどれほど過酷だったかは、推して知ることのできるものだった……
-			PRINTFORML 
-			CALL SET_TATOO_RANDOM(対象, "性奴隷", 0)
-			CALL SET_PIERCE_RANDOM(対象, 0)
-		ELSEIF GETBIT(TALENT:対象:特殊勢力陥落系, 特殊勢力_野盗)
-			PRINTFORML 
-			PRINTFORMW ……男が連れてきた%ANAME(対象)%の姿は、ひどいものだった
-			PRINTFORMW 丸裸の%ANAME(対象)%の剥き出しの身体のあちこちに、痛々しいピアスが取り付けられている
-			PRINTFORMW 奴隷であることを示すためか、入れ墨まで入れられている……
-			PRINTFORMW %ANAME(対象)%は%ANAME(MASTER)%を見るなり、地に手をつけ、深々と頭を下げた
-			PRINTFORMW どうか性奴隷の%ANAME(対象)%を、気持ちよく使ってくださいませと言い始める……
-			PRINTFORMW どうやら%ANAME(対象)%は、その精神をも造り替えられてしまったらしい
-			PRINTFORMW 性奴隷としての生活がどれほど過酷だったかは、推して知ることのできるものだった……
-			PRINTFORML 
-			CALL SET_TATOO_RANDOM(対象, "肉便器", 0)
-			CALL SET_PIERCE_RANDOM(対象, 0)
-		ENDIF
-		IF IS_LOVER(対象)
-			PRINTFORMW 「ひひ、これに懲りたら、もっと大事にしてやることですな、ひゃひゃひゃ！」
-		ELSE
-			PRINTFORML 「えっへへへ、毎度ォ」
-			PRINTFORMW 「そのオモチャと仲良くやることですな！　げへへへ」
-		ENDIF
-		PRINTFORMW %ANAME(対象)%を受け取り、市場を後にした……
-		IF IS_COUNTRY(CFLAG:対象:所属) && CFLAG:対象:所属 != GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗)) && CFLAG:対象:所属 != CFLAG:MASTER:所属
-			PRINTFORMW ……%ANAME(対象)%は%ANAME(GET_COUNTRY_BOSS(CFLAG:対象:所属))%の所属だ
-			PRINTFORMW 返してやるのが人の道であるように思えるが……
-			PRINTFORML どうしますか？
-			DRAWLINE
-			CALL ASK_MULTI("返してやる", "買ったのだから自分のものだ")
-			IF RESULT == 0
-				PRINTFORMW %ANAME(対象)%を%ANAME(GET_COUNTRY_BOSS(CFLAG:対象:所属))%に返してやることにした
-				PRINTFORMW %ANAME(GET_COUNTRY_BOSS(CFLAG:対象:所属))%から深く感謝された……
-				CALL CHANGE_RELATION_C_TO_C(CFLAG:対象:所属, CFLAG:MASTER:1, 600, -600)
-			ELSE
-				PRINTFORMW いやいや、金を出して買ったのだから、もう%ANAME(対象)%は自分のものだ
-				PRINTFORMW どのように使ってやろうか考えながら、%ANAME(MASTER)%は市場を後にした……
-				CFLAG:対象:所属 = CFLAG:MASTER:所属
-			ENDIF
-		ELSE
-			CFLAG:対象:所属 = CFLAG:MASTER:所属
-		ENDIF
-		;捕虜状態から解放、部隊から除外、買ったキャラを配列から削除
-		CFLAG:対象:好感度 += 500
-		CFLAG:対象:従属度 += 500
-		CFLAG:対象:依存度 += 100
-		CFLAG:対象:捕虜先 = 0
-		;念のため放浪フラグを折る
-		CFLAG:対象:特殊状態フラグ = 0
-		CALL FORCE_FREE(対象)
-		SLAVEMARKET_GOODS:対象添え字 = 0
-		
-	ENDIF
 ENDIF
+
+IF RESULT < 0
+	CLEARLINE 1
+	GOTO INPUT_LOOP
+ELSEIF 100 <= RESULT && RESULT < VARSIZE("SLAVEMARKET_GOODS") + 100
+	対象添え字 = RESULT - 100
+	対象 = ID_TO_CHARA(SLAVEMARKET_GOODS:対象添え字)
+	IF 対象 == -1
+		CLEARLINE 1
+		GOTO INPUT_LOOP
+	ENDIF
+	DRAWLINE
+	CALL SHOW_INFO(対象)
+	WAIT
+	CLEARLINE LINECOUNT - FIRST_LINE
+	RESTART
+ELSEIF VARSIZE("SLAVEMARKET_GOODS") <= RESULT || MONEY < SLAVEMARKET_PRICE:RESULT
+		CLEARLINE 1
+		GOTO INPUT_LOOP
+ENDIF
+
+対象 = ID_TO_CHARA(SLAVEMARKET_GOODS:RESULT)
+対象添え字 = RESULT
+
+
+IF 対象 == -1
+	CLEARLINE 1
+	GOTO INPUT_LOOP
+ENDIF
+
+対象 = ID_TO_CHARA(SLAVEMARKET_GOODS:RESULT)
+対象添え字 = RESULT
+PRINTFORML 「へへ、そいつぁ%NAME_FORMAL(対象)%ってぇ奴隷でさ」
+PRINTFORML 「今なら{SLAVEMARKET_PRICE:対象添え字}でお譲りいたしやすよ」
+SIF 対象添え字 == SLAVEMARKET_SPECIALGOODS
+	PRINTFORML 「ちょっと"訳あり"でしてね、特売ってことで値引きさせていただいてやす」
+IF IS_LOVER(対象)
+	PRINTFORML 「……ん？　高いって？」
+	PRINTFORML 「そりゃもちろん、コイツがアンタの"コレ"だって知ってるからに決まってんでしょォ？」
+	PRINTFORML 「高いってんなら、自分のオンナが他のオトコに売られるとこでも見てるんだなァ、ヒヒッ！」
+ENDIF
+PRINTFORML 「で？　どうされます？」
+PRINTL
+CALL ASK_MULTI_JUDGE(@"%ANAME(対象)%を買う", MONEY >= SLAVEMARKET_PRICE:対象添え字, "やめておく", 1)
+IF RESULT == 1
+	CLEARLINE LINECOUNT - FIRST_LINE
+	RESTART
+ENDIF
+
+MONEY -= SLAVEMARKET_PRICE:対象添え字
+PRINTFORMW 「ひひ、じゃあ商談成立だ」
+PRINTFORMW 「じゃ、持ってってくんなせぇ」
+
+;確率でエロイベント　特売なら確定
+IF IS_FEMALE(対象) && (20 > RAND:100 || 対象添え字 == SLAVEMARKET_SPECIALGOODS)
+	PRINTFORML
+	PRINTFORMW ……男が連れてきた%ANAME(対象)%の姿を見、%ANAME(MASTER)%は目を疑った
+	PRINTFORML 丸裸の%ANAME(対象)%は目隠しをされ、手足には枷が嵌められている
+	PRINTFORMW 剥き出しの身体には、痛々しいピアスが取り付けられている
+	PRINTFORML 全身白濁にまみれており、穴からも粘つく汁がどろどろと零れている
+	PRINTFORMW あちこちに書かれた正の字が、%ANAME(対象)%のされたことを物語っていた
+	PRINTFORMW そんな悲惨な様だというのに、%ANAME(対象)%はえへらえへらと笑っている
+	PRINTFORMW ……これは楽しくて笑っているのではない。何か怪しげな薬の作用だ……
+	PRINTFORML
+	PRINTFORML 「あ～、市場に並べてる間も、奴隷としてあっしらが使わせていただいてますんでね」
+	PRINTFORML 「洗浄はセルフサービスですんで、すいやせんけどね」
+	PRINTFORMW 「おっと、返品は受け付けませんよ、残念ですけどねぇ」
+	SIF 対象 == SLAVEMARKET_SPECIALGOODS
+		PRINTFORMW 「ま、特売になるにはそれなりの理由があるってことですよ、へへへ」
+	IF IS_LOVER(対象)
+		PRINTFORMW 「別に構わんでしょ～？　恋人とカンドーノサイカイができたんだから」
+		PRINTFORMW 「これに懲りたら、もっと大事にしてやることですな、げひゃひゃひゃ！」
+	ENDIF
+	PRINTFORMW 男を斬り捨ててやりたいが、この市場には多くの衛兵がいる。暴れれば自分が危ない
+	PRINTFORMW 歯を噛みしめながら、%ANAME(MASTER)%は%ANAME(対象)%を受け取った……
+	CALL FUCK_GANGBANG(対象, GET_SPERM_ID("奴隷商人"), @"奴隷商人の\@RAND:2 ? ペニス # 唇\@", "奴隷商人")
+	CFLAG:対象:薬物依存 += RAND(30, 50)
+	CALL SET_PIERCE_RANDOM(対象, 0)
+ENDIF
+
+IF IS_LOVER(対象)
+	PRINTFORMW 「ひひ、これに懲りたら、もっと大事にしてやることですな、ひゃひゃひゃ！」
+ELSE
+	PRINTFORML 「えっへへへ、毎度ォ」
+	PRINTFORMW 「そのオモチャと仲良くやることですな！　げへへへ」
+ENDIF
+
+CFLAG:対象:捕虜先 = 0
+
+PRINTFORMW %ANAME(対象)%を受け取り、市場を後にした……
+;別勢力に所属（特殊勢力以外）
+IF IS_COUNTRY(CFLAG:対象:所属) && !IS_SP_COUNTRY(CFLAG:対象:所属) && CFLAG:対象:所属 != CFLAG:MASTER:所属
+	PRINTFORMW ……%ANAME(対象)%は%ANAME(GET_COUNTRY_BOSS(CFLAG:対象:所属))%の所属だ
+	PRINTFORMW 返してやるのが人の道であるように思えるが……
+	PRINTFORML どうしますか？
+	DRAWLINE
+	CALL ASK_MULTI("返してやる", "士官として働いてもらう", "奴隷として監禁する")
+	IF RESULT == 0
+		PRINTFORMW %ANAME(対象)%を%ANAME(GET_COUNTRY_BOSS(CFLAG:対象:所属))%に返してやることにした
+		PRINTFORMW %ANAME(GET_COUNTRY_BOSS(CFLAG:対象:所属))%から深く感謝された……
+		CALL CHANGE_RELATION_C_TO_C(CFLAG:対象:所属, CFLAG:MASTER:1, 600, -600)
+		CFLAG:対象:好感度 = MAX(500, CFLAG:対象:好感度 + 500)
+		CFLAG:対象:従属度 = MAX(500, CFLAG:対象:従属度 + 500)
+		CFLAG:対象:依存度 = MAX(100, CFLAG:対象:依存度 + 100)
+	ELSEIF RESULT == 1
+		PRINTFORMW %ANAME(GET_COUNTRY_BOSS(CFLAG:対象:所属))%にせっかく買ったものをただで返してやるほどの義理はない
+		PRINTFORMW 士官としての待遇を条件に、%ANAME(対象)%に協力を約束させた……
+		CFLAG:対象:所属 = CFLAG:MASTER:所属
+		CFLAG:対象:好感度 = MAX(0, CFLAG:対象:好感度 + 500)
+		CFLAG:対象:従属度 = MAX(0, CFLAG:対象:従属度 + 500)
+		CFLAG:対象:依存度 = MAX(0, CFLAG:対象:依存度 + 100)
+	ELSE
+		PRINTFORMW いやいや、金を出して買ったのだから、もう%ANAME(対象)%は自分のものだ
+		PRINTFORMW どのように使ってやろうか考えながら、%ANAME(MASTER)%は市場を後にした……
+		CFLAG:対象:所属 = 0
+		CFLAG:対象:捕虜先 = CFLAG:MASTER:所属
+	ENDIF
+;どこにも所属していないか、特殊勢力所属
+ELSEIF CFLAG:対象:所属 != CFLAG:MASTER:所属
+	PRINTFORML ……%ANAME(対象)%の待遇はどうしようか？
+	DRAWLINE
+	CALL ASK_MULTI("士官として迎え入れる", "監禁しておく")
+	IF RESULT == 0
+		PRINTFORMW %ANAME(対象)%は%ANAME(GET_COUNTRY_BOSS(CFLAG:MASTER:所属))%の士官として働くことになった……
+		CFLAG:対象:所属 = CFLAG:MASTER:所属
+		CFLAG:対象:好感度 = MAX(500, CFLAG:対象:好感度 + 500)
+		CFLAG:対象:従属度 = MAX(500, CFLAG:対象:従属度 + 500)
+		CFLAG:対象:依存度 = MAX(100, CFLAG:対象:依存度 + 100)
+	ELSE
+		PRINTFORMW %ANAME(対象)%を逃げ出さないように監禁しておくことにした……
+		CFLAG:対象:所属 = 0
+		CFLAG:対象:捕虜先 = CFLAG:MASTER:所属
+	ENDIF
+;自国の士官
+ELSE
+	CFLAG:対象:好感度 = MAX(500, CFLAG:対象:好感度 + 500)
+	CFLAG:対象:従属度 = MAX(500, CFLAG:対象:従属度 + 500)
+	CFLAG:対象:依存度 = MAX(100, CFLAG:対象:依存度 + 100)
+	CFLAG:対象:所属 = CFLAG:MASTER:所属
+ENDIF
+
+;捕虜状態から解放、部隊から除外、買ったキャラを配列から削除
+;念のため放浪フラグを折る
+CFLAG:対象:特殊状態フラグ = 0
+CALL FORCE_FREE(対象)
+SLAVEMARKET_GOODS:対象添え字 = 0
+
+;-------------------------------------------------
+;奴隷市場の商品の情報表示＋ボタン生成
+;-------------------------------------------------
+@SLAVEMARKET_SHOW_INFO(対象, 番号)
+#DIM 対象
+#DIM 番号
+IF MONEY >= SLAVEMARKET_PRICE:番号
+	PRINTBUTTON @"%"[" + ANAME(対象) + "]", MAX_CHARANAME_LENGTH + 2, LEFT%", 番号
+	PRINTFORM  販売額:{SLAVEMARKET_PRICE:番号, 8, LEFT}
+	PRINTBUTTON "[能力表示]", 番号 + 100
+	SIF SLAVEMARKET_SPECIALGOODS == 番号
+		CALL COLORPRINTFORM("特売！", COLOR("桃"))
+ELSE
+	SETCOLOR COLOR("選択不可")
+	PRINTPLAINFORM %"[" + ANAME(対象) + "]", MAX_CHARANAME_LENGTH + 2, LEFT%
+	RESETCOLOR
+	PRINTFORM  販売額:{SLAVEMARKET_PRICE:番号, 8, LEFT}
+	SIF SLAVEMARKET_SPECIALGOODS == 番号
+		CALL COLORPRINTFORM("特売！  ", COLOR("桃"))
+	CALL COLORPRINTFORM("資金不足のため購入不可", COLOR("警告"))
+ENDIF
+PRINTL
+PRINT 性知識:
+PRINTFORM {ABL:対象:性知識, 2, RIGHT}
+PRINT  欲望:
+CALL PRINT_ALPHABET_RANK(ランク_その他, ABL:対象:欲望)
+PRINTFORM {ABL:対象:欲望, 2, RIGHT}
+PRINT  性技:
+CALL PRINT_ALPHABET_RANK(ランク_その他, ABL:対象:性技)
+PRINTFORM {ABL:対象:性技, 3, RIGHT}
+PRINT  奉仕:
+CALL PRINT_ALPHABET_RANK(ランク_その他, ABL:対象:奉仕)
+PRINTFORM {ABL:対象:奉仕, 3, RIGHT}
+PRINT  性交:
+CALL PRINT_ALPHABET_RANK(ランク_その他, ABL:対象:性交)
+PRINTFORM {ABL:対象:性交, 3, RIGHT}
+PRINT  精愛:
+CALL PRINT_ALPHABET_RANK(ランク_その他, ABL:対象:精愛)
+PRINTFORM {ABL:対象:精愛, 3, RIGHT}
+PRINTL
+PRINTFORM 所持素質:
+LOCAL:1 = 0
+FOR LOCAL, 0, VARSIZE("SEX_TALENT_NAME")
+	IF GETBIT(TALENT:対象:淫乱系, LOCAL)
+		PRINTFORM %SEX_TALENT_NAME:LOCAL% 
+		LOCAL:1 = 1
+	ENDIF
+NEXT
+FOR LOCAL, 0, VARSIZE("SP_FALLEN_TALENT_NAME")
+	IF GETBIT(TALENT:対象:特殊勢力陥落系, LOCAL)
+		PRINTFORM %SP_FALLEN_TALENT_NAME:LOCAL% 
+		LOCAL:1 = 1
+	ENDIF
+NEXT
+SIF !LOCAL:1
+	PRINT なし
+PRINTL
+
 ;-------------------------------------------------
 ;奴隷市場が利用できるかを返す関数
 ;-------------------------------------------------
@@ -219,27 +264,26 @@ RETURNF 0
 #FUNCTION
 #DIM 対象
 #DIM 額
-;基礎値に能力とスケベ能力を加算する
-額 = 5000
-額 += (ABL:対象:武闘 + ABL:対象:知略 + ABL:対象:政治) * 70
-額 += (ABL:対象:歌唱 + ABL:対象:料理) * 30
-額 += (ABL:対象:欲望 + ABL:対象:性技 + ABL:対象:奉仕 + ABL:対象:性交) * 500
 
+;基礎値に能力とスケベ能力を加算する
+額 = (ABL:対象:武闘 + ABL:対象:知略 + ABL:対象:政治) * 50
+額 += ((ABL:対象:歌唱 >= 50) + (ABL:対象:料理 >= 50)) * 2500
+額 += ABL:対象:性知識 * 1000
+額 += (ABL:対象:欲望 + ABL:対象:性技 + ABL:対象:奉仕 + ABL:対象:性交) * 1500
+額 += (ABL:対象:露出 + ABL:対象:精愛 + ABL:対象:自慰) * 500
+額 += (ABL:対象:Ｃ感 + ABL:対象:Ｖ感 + ABL:対象:Ａ感 + ABL:対象:Ｂ感 + ABL:対象:Ｍ感) * 1000
 ;自国所属と特殊勢力陥落済みは高い
 SIF CFLAG:対象:所属 == CFLAG:MASTER:所属
 	額 += 5000
 FOR LOCAL, 0, MAX_SP_COUNTRY
 	SIF GETBIT(TALENT:対象:特殊勢力陥落系, LOCAL)
-	額 += 10000
+		額 += 3000
 NEXT
 
 ;恋人だと足下見られる
 SIF IS_LOVER(対象)
 	額 += 20000
 
-;「特売」なら2/3で買える
-SIF 対象 == ID_TO_CHARA(SLAVEMARKET_SPECIALGOODS)
-	額 = 額 / 3 * 2
 RETURNF 額
 
 ;-------------------------------------------------
@@ -290,14 +334,14 @@ ENDIF
 CALL FISHER_YATES_SHAFFLE(候補数)
 
 FOR LOCAL, 0, MIN(候補数, SLAVEMARKET_MAX_GOODS)
-	IF RAND:3
-		SLAVEMARKET_GOODS:LOCAL = GET_ID(候補:(SHAFFLE_ARRAY:LOCAL))
-	ENDIF
+	SLAVEMARKET_GOODS:LOCAL = GET_ID(候補:(SHAFFLE_ARRAY:LOCAL))
+	SLAVEMARKET_PRICE:LOCAL = SLAVEMARKET_CALC_PRICE(SLAVEMARKET_GOODS:LOCAL)
 NEXT
 
 IF !RAND:3
-	SLAVEMARKET_SPECIALGOODS = SLAVEMARKET_GOODS:(RAND:MIN(候補数, SLAVEMARKET_MAX_GOODS))
+	SLAVEMARKET_SPECIALGOODS = RAND:MIN(候補数, SLAVEMARKET_MAX_GOODS)
+	SLAVEMARKET_PRICE:SLAVEMARKET_SPECIALGOODS /= 2
 ELSE
-	SLAVEMARKET_SPECIALGOODS = 0
+	SLAVEMARKET_SPECIALGOODS = SLAVEMARKET_MAX_GOODS
 ENDIF
 RETURN 1
