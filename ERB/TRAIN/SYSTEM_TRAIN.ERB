@@ -10,7 +10,7 @@ LINES_TRAIN = LINECOUNT
 ;調教に参加している人数を数える
 TFLAG:44 = 0
 FOR LOCAL:0, 0, CHARANUM
-	IF CFLAG:(LOCAL:0):6
+	IF CFLAG:(LOCAL:0):調教参加フラグ
 		TFLAG:44 ++
 	ENDIF
 NEXT
@@ -34,7 +34,7 @@ IF FLAG:12 == 0
 	NEXT
 ENDIF
 
-;IF FLAG:12 == 2 && CFLAG:(FLAG:19):59 && TFLAG:44 == 1
+;IF FLAG:12 == 2 && CFLAG:(FLAG:19):外交調教経過ターン && TFLAG:44 == 1
 ;	IF ABL:(FLAG:19):欲望 >= 3 && ABL:(FLAG:19):性知識 >= 3 && (ABL:(FLAG:19):主導度Ｕ >= 300 || TALENT:(FLAG:19):サド)
 ;		PRINTFORMW ………………
 ;		PRINTFORMW これはどういうことだろうか？
@@ -48,13 +48,13 @@ ENDIF
 ;時間の設定
 IF FLAG:12 == 0
 	;臨月
-	IF CFLAG:(MTAR:0):16 == 1
+	IF CFLAG:(MTAR:0):行動不能状態 == 1
 		TFLAG:56 = 3
 	;育児中
-	ELSEIF CFLAG:(MTAR:0):16 == 2
+	ELSEIF CFLAG:(MTAR:0):行動不能状態 == 2
 		TFLAG:56 = 3
 	;怪我
-	ELSEIF CFLAG:(MTAR:0):16 == 3
+	ELSEIF CFLAG:(MTAR:0):行動不能状態 == 3
 		TFLAG:56 = 3
 	ELSE
 		TFLAG:56 = 7
@@ -91,13 +91,13 @@ IF GROUPMATCH(FLAG:調教モード, 4, 5) && !GROUPMATCH(1, FLAG:あてがうフ
 	CALL CLEAR_MPLY
 	CALL CLEAR_MTAR
 	FOR LOCAL:0, 0, CHARANUM
-		IF CFLAG:(LOCAL:0):6 && LOCAL:0 != MASTER
+		IF CFLAG:(LOCAL:0):調教参加フラグ && LOCAL:0 != MASTER
 			CALL ADD_MPLY(LOCAL:0)
 		ENDIF
 	NEXT
 	CALL ADD_MTAR(MASTER)
 	;縄は捕虜であるか1/3
-	SIF CFLAG:(MASTER):9 || !RAND:3
+	SIF CFLAG:(MASTER):捕虜先 || !RAND:3
 		CALL SET_EQUIP(85, 1)
 	SIF !RAND:3
 		CALL SET_EQUIP(84, 1)
@@ -109,7 +109,7 @@ ENDIF
 IF FLAG:29 == 1
 	FLAG:29 = 0
 	FOR LOCAL:0, 0, CHARANUM
-		IF CFLAG:(LOCAL:0):6
+		IF CFLAG:(LOCAL:0):調教参加フラグ
 			PALAM:(LOCAL:0):潤滑 = 30000
 			PALAM:(LOCAL:0):欲情 = 30000
 		ENDIF
@@ -118,7 +118,7 @@ ENDIF
 
 ;種族名が鬼の場合、たまに酔っ払った状態でスタート
 FOR LOCAL, 0, CHARANUM
-	SIF CFLAG:(LOCAL:0):6 && CSTR:(LOCAL:0):8 == "鬼" && !RAND:3
+	SIF CFLAG:(LOCAL:0):調教参加フラグ && CSTR:(LOCAL:0):8 == "鬼" && !RAND:3
 		PALAM:(LOCAL:0):酔い = RAND(3000, 6000)
 NEXT
 
@@ -133,7 +133,7 @@ CALL ADD_MPLY(MASTER)
 ;参加人数が1人ならターゲットを固定
 IF TFLAG:44 == 1
 	FOR LOCAL:0, 0, CHARANUM
-		IF CFLAG:(LOCAL:0):6
+		IF CFLAG:(LOCAL:0):調教参加フラグ
 			CALL ADD_MTAR(LOCAL:0)
 			BREAK
 		ENDIF
@@ -185,7 +185,7 @@ VARSET MEQUIP_CUT, 0
 
 ;現在のEXPを保存
 FOR LOCAL:0, 0, CHARANUM
-	IF CFLAG:(LOCAL:0):6 || LOCAL:0 == MASTER
+	IF CFLAG:(LOCAL:0):調教参加フラグ || LOCAL:0 == MASTER
 		FOR LOCAL:1, 0, 100
 			TCVAR:(LOCAL:0):(LOCAL:1 + 100) = EXP:(LOCAL:0):(LOCAL:1)
 		NEXT
@@ -338,7 +338,7 @@ ENDIF
 IF FLAG:10 == -1
 	LOCAL:1 = 0
 	FOR LOCAL:0, 0, CHARANUM
-		IF LOCAL:0 == MASTER || CFLAG:(LOCAL:0):6
+		IF LOCAL:0 == MASTER || CFLAG:(LOCAL:0):調教参加フラグ
 			IF IS_PLAYABLE(LOCAL:0)
 				IF IS_MPLY(LOCAL:0)
 					LOCAL:1 |= 1
@@ -415,7 +415,7 @@ NEXT
 ;実行したコマンドの知識を獲得
 FOR LOCAL:0, 0, CHARANUM
 	;調教に参加していても、行動不能だと獲得できない
-	IF (LOCAL:0 == MASTER || CFLAG:(LOCAL:0):6) && IS_PLAYABLE(LOCAL:0)
+	IF (LOCAL:0 == MASTER || CFLAG:(LOCAL:0):調教参加フラグ) && IS_PLAYABLE(LOCAL:0)
 		CALL SET_COM_KNOWLEDGE(LOCAL:0, SELECTCOM)
 	ENDIF
 NEXT
@@ -440,7 +440,7 @@ NEXT
 
 ;子育てモードならコマンドの実行回数を記録
 IF FLAG:12 == 3
-	CFLAG:(MTAR:0):27 ++
+	CFLAG:(MTAR:0):育成コマンド実行回数 ++
 ENDIF
 
 IF GROUPMATCH(FLAG:12, 2, 4, 5)
@@ -462,7 +462,7 @@ IF !GROUPMATCH(FLAG:12, 4, 5) && !IS_PLAYABLE(MASTER)
 	;ウフフ中は継続判定
 	IF FLAG:50
 		FOR LOCAL:0, 0, CHARANUM
-			IF LOCAL:0 != MASTER && CFLAG:(LOCAL:0):6 && (ABL:(LOCAL:0):主導度Ｕ >= 500 || ABL:(LOCAL:0):欲望 >= 10)
+			IF LOCAL:0 != MASTER && CFLAG:(LOCAL:0):調教参加フラグ && (ABL:(LOCAL:0):主導度Ｕ >= 500 || ABL:(LOCAL:0):欲望 >= 10)
 				;行動可能でウフフ主導度300以上または欲望10以上のキャラが1人以上入れば継続
 				LOCAL:20 ++
 				IF !IS_AUTOSELECT(LOCAL:0)
@@ -505,7 +505,7 @@ ENDIF
 LOCAL:2 = 1
 LOCAL:3 = 0
 FOR LOCAL:0, 0, CHARANUM
-	IF CFLAG:(LOCAL:0):6
+	IF CFLAG:(LOCAL:0):調教参加フラグ
 		IF !TCVAR:(LOCAL:0):53
 			LOCAL:2 = 0
 		ENDIF
@@ -521,7 +521,7 @@ IF LOCAL:2 && !TFLAG:8
 	;調教参加者が１人のとき
 	IF LOCAL:3 == 1
 		FOR LOCAL:0, 0, CHARANUM
-			IF CFLAG:(LOCAL:0):6
+			IF CFLAG:(LOCAL:0):調教参加フラグ
 				IF TCVAR:(LOCAL:0):53 == 1
 					IF TFLAG:54 == 1
 						PRINTFORML すっかり酔い潰れた%ANAME(LOCAL:0)%は%ANAME(MASTER)%にもたれかかって眠っている
@@ -602,7 +602,7 @@ ENDIF
 ;主人公が行動不能かつ調教が継続した場合
 IF !TFLAG:2 && LOCAL:20
 	FOR LOCAL:0, 0, CHARANUM
-		IF LOCAL:0 != MASTER && CFLAG:(LOCAL:0):6 && IS_AUTOSELECT(LOCAL:0) && (ABL:(LOCAL:0):主導度Ｕ >= 500 || ABL:(LOCAL:0):欲望 >= 10)
+		IF LOCAL:0 != MASTER && CFLAG:(LOCAL:0):調教参加フラグ && IS_AUTOSELECT(LOCAL:0) && (ABL:(LOCAL:0):主導度Ｕ >= 500 || ABL:(LOCAL:0):欲望 >= 10)
 			TFLAG:2 = 1
 			IF LOCAL:20 >= 2
 				LOCALS:0 = たち
@@ -638,7 +638,7 @@ ELSEIF !TFLAG:2 && GROUPMATCH(FLAG:12, 4, 5) && !IS_PLAYABLE(MASTER)
 	TFLAG:2 = 1
 	LOCAL:1 = 0
 	FOR LOCAL:0, 0, CHARANUM
-		IF CFLAG:(LOCAL:0):6 && IS_PLAYABLE(LOCAL:0)
+		IF CFLAG:(LOCAL:0):調教参加フラグ && IS_PLAYABLE(LOCAL:0)
 			LOCAL:1 ++
 			LOCAL:2 = LOCAL:0
 		ENDIF
@@ -751,7 +751,7 @@ ELSE
 	;このまま別れる
 	IF LOCAL:2 == 0
 		;ムードが60以上または相手が肉便器で通常または育児中なら押し倒し／おねだりの判定
-		IF (TFLAG:37 >= 60 || GETBIT(TALENT:(MTAR:0):淫乱系, 素質_淫乱_精液便女)) && ARG:0 == 0 && GROUPMATCH(CFLAG:(MTAR:0):16, 0, 2)
+		IF (TFLAG:37 >= 60 || GETBIT(TALENT:(MTAR:0):淫乱系, 素質_淫乱_精液便女)) && ARG:0 == 0 && GROUPMATCH(CFLAG:(MTAR:0):行動不能状態, 0, 2)
 			;押し倒し／おねだり判定
 			CALL PUSH_OVER
 			;押し倒された場合
@@ -863,43 +863,43 @@ ENDIF
 ;-------------------------------------------------
 ;真名を許すイベント
 ;-------------------------------------------------
-@AFTER_ALLOW_NAME
+;@AFTER_ALLOW_NAME
 ;ターゲットが複数いる場合は戻る
-IF MTAR_NUM != 1
-	RETURN 0
-ENDIF
+;IF MTAR_NUM != 1
+;	RETURN 0
+;ENDIF
 
 ;既に真名を許してもらった場合、真名が定義されていない場合は戻る
-IF CFLAG:(MTAR:0):8 || CALLNAME:(MTAR:0) == "" || CALLNAME:(MTAR:0) == NAME:(MTAR:0)
-	RETURN 0
-ENDIF
-
+;IF CFLAG:(MTAR:0):8 || CALLNAME:(MTAR:0) == "" || CALLNAME:(MTAR:0) == NAME:(MTAR:0)
+;	RETURN 0
+;ENDIF
+;
 ;好感度500以上
-IF CFLAG:(MTAR:0):2 < 500
-	RETURN 0
-ENDIF
+;IF CFLAG:(MTAR:0):2 < 500
+;	RETURN 0
+;ENDIF
 
-PRINTL 
-DRAWLINE
+;PRINTL 
+;DRAWLINE
 
 ;睡姦を行った場合
-IF TFLAG:8
-	PRINTFORMW 後日、%ANAME(MASTER)%は%NAME:(MTAR:0)%からの呼び出しを受けた…
-ENDIF
+;IF TFLAG:8
+;	PRINTFORMW 後日、%ANAME(MASTER)%は%NAME:(MTAR:0)%からの呼び出しを受けた…
+;ENDIF
 
 ;口上独自のイベント
-CALL KOJO_EVENT(MTAR:0, 10)
+;CALL KOJO_EVENT(MTAR:0, 10)
 
 ;真名許可フラグ
-CFLAG:(MTAR:0):8 = 1
+;CFLAG:(MTAR:0):8 = 1
 
-PRINTL 
-SETCOLOR COLOR("注意")
-PRINTFORML %NAME:(MTAR:0)%から真名「%CALLNAME:(MTAR:0)%」を許されました
-RESETCOLOR
-DRAWLINE
-WAIT
-RETURN 1
+;PRINTL 
+;SETCOLOR COLOR("注意")
+;PRINTFORML %NAME:(MTAR:0)%から真名「%CALLNAME:(MTAR:0)%」を許されました
+;RESETCOLOR
+;DRAWLINE
+;WAIT
+;RETURN 1
 
 ;-------------------------------------------------
 ;押し倒した時の判定
@@ -1460,7 +1460,7 @@ SIF TALENT:(MTAR:0):親愛
 SIF TALENT:(MTAR:0):キス未経験
 	CALL COM_ORDER_ELEMENT(MTAR:0, "キス未経験", -10)
 
-IF CFLAG:(MTAR:0):9 == CFLAG:MASTER:1
+IF CFLAG:(MTAR:0):捕虜先 == CFLAG:MASTER:1
 	CALL COM_ORDER_ELEMENT(MTAR:0, "捕虜", -50)
 ENDIF
 
@@ -1484,7 +1484,7 @@ IF PALAM:(MTAR:0):酔い >= 150
 ENDIF
 
 ;振られた回数の影響
-LOCAL:0 = CFLAG:(MTAR:0):44 * 50
+LOCAL:0 = CFLAG:(MTAR:0):振られた回数 * 50
 SIF TALENT:(MTAR:0):楽観的
 	TIMES LOCAL:0, 0.50
 SIF TALENT:(MTAR:0):悲観的
@@ -1552,7 +1552,7 @@ IF TALENT:(MTAR:0):恋慕
 		;断った場合
 		ELSE
 			;主人公に振られた回数を加算
-			CFLAG:(MTAR:0):44 ++
+			CFLAG:(MTAR:0):振られた回数 ++
 
 			SOURCE:(MTAR:0):反感 += 600
 			SOURCE:(MTAR:0):悲哀 += 6000

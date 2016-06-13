@@ -42,7 +42,7 @@ UNIT_SOLDIER:(ARG:0):(ARG:1) -= BATTLE_DMG:0
 UNIT_SOLDIER:(ARG:2):(ARG:3) -= BATTLE_DMG:1
 
 ;自勢力のみ詳細を表示(ただし捕虜になっていると見られない)
-IF FLAG:1 || (CFLAG:MASTER:1 >= 1 && CFLAG:MASTER:9 == 0 && (ARG:0 == CFLAG:MASTER:1 || ARG:2 == CFLAG:MASTER:1))
+IF FLAG:観戦モード || (CFLAG:MASTER:1 >= 1 && CFLAG:MASTER:捕虜先 == 0 && (ARG:0 == CFLAG:MASTER:1 || ARG:2 == CFLAG:MASTER:1))
 	PRINTFORML %BATTLE_NAME:0, 10, RIGHT%軍 {BATTLE_SOL:0, 6, RIGHT}→{UNIT_SOLDIER:(ARG:0):(ARG:1), 6, RIGHT}
 	PRINTFORML %BATTLE_NAME:1, 10, RIGHT%軍 {BATTLE_SOL:1, 6, RIGHT}→{UNIT_SOLDIER:(ARG:2):(ARG:3), 6, RIGHT}
 ENDIF
@@ -121,7 +121,7 @@ SIF !CITY_TYPE:(LOCAL:5)
 	CITY_IS_ATTACKED:(LOCAL:5) ++
 
 ;自勢力のみウェイト
-IF (ARG:0 == CFLAG:MASTER:1 || ARG:2 == CFLAG:MASTER:1 || FLAG:1) && !LOCAL:9 && CFLAG:MASTER:9 == 0
+IF (ARG:0 == CFLAG:MASTER:1 || ARG:2 == CFLAG:MASTER:1 || FLAG:観戦モード) && !LOCAL:9 && CFLAG:MASTER:捕虜先 == 0
 	WAIT
 ENDIF
 
@@ -193,7 +193,7 @@ UNIT_SOLDIER:(ARG:0):(ARG:1) -= BATTLE_DMG:0
 CITY_SOLDIER:(ARG:2) -= BATTLE_DMG:1
 
 ;自勢力のみ詳細を表示(ただし捕虜になっていると見られない)
-IF FLAG:1 || (CFLAG:MASTER:1 >= 1 && CFLAG:MASTER:9 == 0 && (ARG:0 == CFLAG:MASTER:1 || LOCAL:6 == CFLAG:MASTER:1))
+IF FLAG:観戦モード || (CFLAG:MASTER:1 >= 1 && CFLAG:MASTER:捕虜先 == 0 && (ARG:0 == CFLAG:MASTER:1 || LOCAL:6 == CFLAG:MASTER:1))
 	PRINTFORML %BATTLE_NAME:0, 10, RIGHT%軍 {BATTLE_SOL:0, 6, RIGHT}→{UNIT_SOLDIER:(ARG:0):(ARG:1), 6, RIGHT}
 	PRINTFORML %BATTLE_NAME:1, 10, RIGHT%軍 {BATTLE_SOL:1, 6, RIGHT}→{CITY_SOLDIER:(ARG:2), 6, RIGHT}
 ENDIF
@@ -253,7 +253,7 @@ IF CITY_SOLDIER:(ARG:2) <= 0
 	;勢力の滅亡判定
 	IF IS_COUNTRY(LOCAL:6) && GET_OWN_CITY(LOCAL:6) <= 0
 		IF COUNTRY_EVENT_ID:(LOCAL:6) == SP_COUNTRY_ID:(特殊勢力_野盗)
-			IF CFLAG:MASTER:1 == LOCAL:6 && CFLAG:(LOCAL:0):9 != 0
+			IF CFLAG:MASTER:1 == LOCAL:6 && CFLAG:(LOCAL:0):捕虜先 != 0
 				SETCOLOR COLOR("警告")
 				PRINTFORMW %NAME:MASTER%の仕えていた%BATTLE_NAME:1%たちは、都市を全て失いました…
 				PRINTFORMW そのごたごたで、捕らえていた捕虜たちが全て逃げていってしまいました
@@ -282,7 +282,7 @@ IF CITY_SOLDIER:(ARG:2) <= 0
 			;外交禁止フラグを立てる
 			COUNTRY_IS_CLOSED:(LOCAL:6) = 1
 		ELSE
-			IF CFLAG:MASTER:1 == LOCAL:6 && CFLAG:(LOCAL:0):9 != 0
+			IF CFLAG:MASTER:1 == LOCAL:6 && CFLAG:(LOCAL:0):捕虜先 != 0
 				SETCOLOR COLOR("警告")
 				PRINTFORMW %NAME:MASTER%の仕えていた%BATTLE_NAME:1%勢力は滅亡してしまいました…
 				RESETCOLOR
@@ -344,7 +344,7 @@ ELSE
 ENDIF
 
 ;自勢力のみウェイト
-IF (ARG:0 == CFLAG:MASTER:1 || LOCAL:6 == CFLAG:MASTER:1 || FLAG:1) && !LOCAL:9 && CFLAG:MASTER:9 == 0
+IF (ARG:0 == CFLAG:MASTER:1 || LOCAL:6 == CFLAG:MASTER:1 || FLAG:観戦モード) && !LOCAL:9 && CFLAG:MASTER:捕虜先 == 0
 	WAIT
 ENDIF
 
@@ -1523,7 +1523,7 @@ IF CONFIG:305 >= 1
 
 				;所属を無所属、状態フラグを死亡に
 				CFLAG:(LOCAL:4):1 = 0
-				CFLAG:(LOCAL:4):12 = 2
+				CFLAG:(LOCAL:4):特殊状態フラグ = 2
 			ENDIF
 		ENDIF
 	NEXT
@@ -1561,7 +1561,7 @@ FOR LOCAL:0, 0, 3
 		CAPTURE_RATE = 0
 	ENDIF
 	;戦死したキャラはスキップ
-	IF LOCAL:4 >= 0 && CFLAG:(LOCAL:4):12 != 2 && !(LOCAL:4 == MASTER && FLAG:34)
+	IF LOCAL:4 >= 0 && CFLAG:(LOCAL:4):特殊状態フラグ != 2 && !(LOCAL:4 == MASTER && FLAG:34)
 		;捕縛判定(君主は捕縛されない)
 		;イベントキャラ(NOが2000以上)は捕獲できない
 		IF RAND:100 < CAPTURE_RATE && LOCAL:4 != GET_COUNTRY_BOSS(COUNTRY_L) && NO:(LOCAL:4) < 2000 
@@ -1577,9 +1577,9 @@ FOR LOCAL:0, 0, 3
 			CALL TREAT_PRISONER(COUNTRY_L, COUNTRY_W, LOCAL:4, 1)
 			;解放したなら自勢力に戻ってもらう
 			IF RESULT == 1
-				CFLAG:(LOCAL:4):12 = 0
-				CFLAG:(LOCAL:4):13 = 0
-				CFLAG:(LOCAL:4):14 = 0
+				CFLAG:(LOCAL:4):特殊状態フラグ = 0
+				CFLAG:(LOCAL:4):恨む君主 = 0
+				CFLAG:(LOCAL:4):滅亡前の君主 = 0
 			;処刑したなら無所属に
 			ELSEIF RESULT == 3
 				CFLAG:(LOCAL:4):1 = 0
@@ -1617,7 +1617,7 @@ FOR LOCAL:0, 0, 3
 				LOCAL:5 = 0
 				;治療持ちが同じ勢力にいる場合は確率、本人が治療持ちの場合は確定で、負傷を軽減
 				FOR LOCAL:1, 0, CHARANUM
-					IF COOLTIME:(LOCAL:4):0 > 1 && (GETBIT(TALENT:(LOCAL:1):ＳＬＧ素質, 素質_ＳＬＧ_治療) && CFLAG:(LOCAL:1):1 == CFLAG:(LOCAL:4):1 && CFLAG:(LOCAL:1):9 == 0 && RAND:100 < 10) || (GETBIT(TALENT:(LOCAL:4):ＳＬＧ素質, 素質_ＳＬＧ_治療) && !LOCAL:5)
+					IF COOLTIME:(LOCAL:4):0 > 1 && (GETBIT(TALENT:(LOCAL:1):ＳＬＧ素質, 素質_ＳＬＧ_治療) && CFLAG:(LOCAL:1):1 == CFLAG:(LOCAL:4):1 && CFLAG:(LOCAL:1):捕虜先 == 0 && RAND:100 < 10) || (GETBIT(TALENT:(LOCAL:4):ＳＬＧ素質, 素質_ＳＬＧ_治療) && !LOCAL:5)
 						IF GETBIT(TALENT:(LOCAL:4):ＳＬＧ素質, 素質_ＳＬＧ_治療)
 							COOLTIME:(LOCAL:4):0 = 1
 							LOCAL:5 = 1

@@ -499,7 +499,7 @@ RETURNF ""
 #FUNCTION
 
 ;CFLAGのチェック
-SIF CFLAG:(ARG:0):9 || CFLAG:(ARG:0):16 || CFLAG:(ARG:0):12
+SIF CFLAG:(ARG:0):捕虜先 || CFLAG:(ARG:0):行動不能状態 || CFLAG:(ARG:0):特殊状態フラグ
 	RETURNF 0
 
 ;Kの追加要素に合わせて条件を増やす
@@ -1368,7 +1368,7 @@ IF !LOCAL:10
 	IF CFLAG:(ARG:1):1 != CFLAG:MASTER:1 || ARG:1 == MASTER
 		LOCAL:0 = 0
 	;主人公が他国の捕虜となっている場合は補正を掛けない
-	ELSEIF CFLAG:MASTER:9 != 0 && CFLAG:MASTER:9 != CFLAG:(ARG:1):1
+	ELSEIF CFLAG:MASTER:捕虜先 != 0 && CFLAG:MASTER:捕虜先 != CFLAG:(ARG:1):1
 		LOCAL:0 = 0
 	ELSE
 		;好感度・従属度の大きいほうが影響
@@ -1733,8 +1733,8 @@ FOR LOCAL:0, 0, MAX_TREATY_C
 NEXT
 
 ;調教状態をリセット
-CFLAG:(LOCAL:3):59 = 0
-CFLAG:(LOCAL:3):42 = 0
+CFLAG:(LOCAL:3):外交調教経過ターン = 0
+CFLAG:(LOCAL:3):外交要求成功フラグ = 0
 
 
 ;イベントキャラを削除
@@ -1768,23 +1768,23 @@ ENDIF
 FOR LOCAL:0, 0, CHARANUM
 	IF CFLAG:(LOCAL:0):1 == ARG:0
 		CFLAG:(LOCAL:0):1 = 0
-		;CFLAG:(LOCAL:0):9 = 0
+		;CFLAG:(LOCAL:0):捕虜先 = 0
 		;捕虜になっていなければ、放浪させる
-		SIF !CFLAG:(LOCAL:0):9
-			CFLAG:(LOCAL:0):12 = 1
+		SIF !CFLAG:(LOCAL:0):捕虜先
+			CFLAG:(LOCAL:0):特殊状態フラグ = 1
 		SIF GETBIT(TALENT:(LOCAL:0):デイリー系, 素質_デイリー_借り物)
 			CLEARBIT TALENT:(LOCAL:0):デイリー系, 素質_デイリー_借り物
 	ENDIF
-	IF CFLAG:(LOCAL:0):9 == ARG:0
+	IF CFLAG:(LOCAL:0):捕虜先 == ARG:0
 		SIF GETBIT(TALENT:(LOCAL:0):デイリー系, 素質_デイリー_借り物)
 			CLEARBIT TALENT:(LOCAL:0):デイリー系, 素質_デイリー_借り物
 		IF IS_COUNTRY(CFLAG:(LOCAL:0):1)
 			PRINTFORML %NAME:(LOCAL:3)%の滅亡により、%ANAME(LOCAL)%は%NAME:(GET_COUNTRY_BOSS(CFLAG:(LOCAL):1))%に帰っていきました
 		ELSE
 			PRINTFORML %NAME:(LOCAL:3)%の滅亡により、%ANAME(LOCAL)%は放浪しました
-			CFLAG:(LOCAL:0):12 = 1
+			CFLAG:(LOCAL:0):特殊状態フラグ = 1
 		ENDIF
-		CFLAG:(LOCAL:0):9 = 0
+		CFLAG:(LOCAL:0):捕虜先 = 0
 	ENDIF
 NEXT
 
@@ -1815,7 +1815,7 @@ NEXT
 #DIM 特殊捕虜先
 VARSET LOCAL
 ;主人公が捕虜で監禁日数が4日以上ときのみ発生
-IF CFLAG:MASTER:9 && CFLAG:MASTER:43 >= 5 && RAND:100 < (CFLAG:MASTER:43 - 5) * 15 + 15
+IF CFLAG:MASTER:捕虜先 && CFLAG:MASTER:解放カウンタ >= 5 && RAND:100 < (CFLAG:MASTER:解放カウンタ - 5) * 15 + 15
 	DRAWLINE
 	PRINTFORMW 兵士たちが%ANAME(MASTER)%の牢を開け、%ANAME(MASTER)%に対して外に出るように言った
 	PRINTFORMW どうやら%ANAME(MASTER)%は解放されることになったようだ…
@@ -1829,7 +1829,7 @@ IF CFLAG:MASTER:9 && CFLAG:MASTER:43 >= 5 && RAND:100 < (CFLAG:MASTER:43 - 5) * 
 		PRINTFORMW %ANAME(MASTER)%は君主の元へと戻りました
 		RESETCOLOR
 	ENDIF
-	CFLAG:MASTER:9 = 0
+	CFLAG:MASTER:捕虜先 = 0
 	IF CFLAG:MASTER:1 == 0
 		;放浪状態なら拠点フェイズをスキップ
 		TIME = 1

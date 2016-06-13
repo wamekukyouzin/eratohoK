@@ -79,7 +79,7 @@ VARSET 候補数
 ;キャラの選出
 FOR LOCAL, 0, CHARANUM
 	;MASTERではなく、MASTER所属勢力の君主でもなく、同じ国に所属。もし結果国が野盗なら女であること。動物はだめ。
-	IF LOCAL != MASTER && LOCAL != GET_COUNTRY_BOSS(CFLAG:MASTER:所属) && CFLAG:(LOCAL):所属 == CFLAG:MASTER:所属 && !CFLAG:(LOCAL):9 && (結果国 != 野盗 || IS_FEMALE(LOCAL)) && !IS_ANIMAL(LOCAL)
+	IF LOCAL != MASTER && LOCAL != GET_COUNTRY_BOSS(CFLAG:MASTER:所属) && CFLAG:(LOCAL):所属 == CFLAG:MASTER:所属 && !CFLAG:(LOCAL):捕虜先 && (結果国 != 野盗 || IS_FEMALE(LOCAL)) && !IS_ANIMAL(LOCAL)
 		;0 ~ 「三能力の10倍と、好感度・従属度・依存度の1/10の総和」　の乱数を保存
 		候補キャラ:LOCAL = RAND(0, MAX((ABL:LOCAL:武闘 + ABL:LOCAL:知略 + ABL:LOCAL:政治) * 10 + (CFLAG:LOCAL:好感度 + CFLAG:LOCAL:従属度 + CFLAG:LOCAL:依存度) / 10, 1))
 		候補数 ++
@@ -297,7 +297,7 @@ IF 結果国 != 野盗
 	;キャラの選出
 	FOR LOCAL, 0, CHARANUM
 		;結果国所属で、捕虜ではなく、首領ではない。かつ女である。動物はだめ。
-		IF CFLAG:LOCAL:所属 == 結果国 && !CFLAG:(LOCAL):9 && LOCAL != GET_COUNTRY_BOSS(結果国) && IS_FEMALE(LOCAL) && !IS_ANIMAL(LOCAL)
+		IF CFLAG:LOCAL:所属 == 結果国 && !CFLAG:(LOCAL):捕虜先 && LOCAL != GET_COUNTRY_BOSS(結果国) && IS_FEMALE(LOCAL) && !IS_ANIMAL(LOCAL)
 			;0 ~ 「三能力の10倍と、好感度・従属度・依存度の1/10の総和」　の乱数を保存
 			候補キャラ:LOCAL = RAND(0, MAX((ABL:LOCAL:武闘 + ABL:LOCAL:知略 + ABL:LOCAL:政治) * 10 + (CFLAG:LOCAL:好感度 + CFLAG:LOCAL:従属度 + CFLAG:LOCAL:依存度) / 10, 1))
 			候補数 ++
@@ -368,7 +368,7 @@ IF 結果国 != 野盗
 		CALL COLORPRINTFORM(@"資金援助と引き換えに、%ANAME(結果君主)%を抱けるようになりました", COLOR("注意"), "W")
 		CALL COLORPRINTFORM(@"各国との関係が悪化しました", COLOR("警告"), "W")
 		MONEY -= 候補額
-		CFLAG:(結果君主):59 = 1
+		CFLAG:(結果君主):外交調教経過ターン = 1
 		;関係悪化
 		FOR LOCAL:0, 0, MAX_COUNTRY
 			IF IS_COUNTRY(LOCAL) && LOCAL != CFLAG:MASTER:所属
@@ -428,7 +428,7 @@ ELSE
 		;キャラの選出
 		FOR LOCAL, 0, CHARANUM
 			;MASTERではなく、MASTER所属勢力の君主でもなく、同じ国に所属。もし結果国が野盗なら女であること。
-			IF LOCAL != MASTER && LOCAL != GET_COUNTRY_BOSS(CFLAG:MASTER:所属) && CFLAG:(LOCAL):所属 == CFLAG:MASTER:所属 && !CFLAG:(LOCAL):9 && (結果国 != 野盗 || IS_FEMALE(LOCAL)) && !IS_ANIMAL(LOCAL)
+			IF LOCAL != MASTER && LOCAL != GET_COUNTRY_BOSS(CFLAG:MASTER:所属) && CFLAG:(LOCAL):所属 == CFLAG:MASTER:所属 && !CFLAG:(LOCAL):捕虜先 && (結果国 != 野盗 || IS_FEMALE(LOCAL)) && !IS_ANIMAL(LOCAL)
 				;0 ~ 「三能力の10倍と、好感度・従属度・依存度の1/10の総和」　の乱数を保存
 				候補キャラ:LOCAL = RAND(0, MAX((ABL:LOCAL:武闘 + ABL:LOCAL:知略 + ABL:LOCAL:政治) * 10 + (CFLAG:LOCAL:好感度 + CFLAG:LOCAL:従属度 + CFLAG:LOCAL:依存度) / 10, 1))
 				候補数 ++
@@ -524,7 +524,7 @@ IF CFLAG:対象:捕虜先 == CFLAG:MASTER:1
 		CLEARBIT TALENT:対象:デイリー系, 素質_デイリー_借り物
 	ENDIF
 ;死んだ
-ELSEIF CFLAG:対象:12 == 2
+ELSEIF CFLAG:対象:特殊状態フラグ == 2
 	PRINTFORMW ……%ANAME(対象)%は、残念ながら死亡してしまった
 	PRINTFORMW 言い逃れるわけにもいかず、%ANAME(MASTER)%は正直に伝えた
 	PRINTFORMW 話を聞いた%ANAME(君主)%は激怒し、お前達に預けたのが間違いだったと非難した……
@@ -642,8 +642,8 @@ IF DVAR:要求野盗斬り捨て
 	LOCAL:2 = 0
 	FOR LOCAL:0, 0, CHARANUM
 		IF CFLAG:(LOCAL:0):1 == GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗)) && NO:(LOCAL:0) > 2000 && LOCAL:2 < 6
-			CFLAG:(LOCAL:0):6 = 1
-			CFLAG:(LOCAL:0):65 = 1
+			CFLAG:(LOCAL:0):調教参加フラグ = 1
+			CFLAG:(LOCAL:0):能力固定フラグ = 1
 			LOCAL:2 ++
 		ENDIF
 	NEXT
@@ -666,13 +666,13 @@ IF DVAR:要求野盗斬り捨て
 	;行動開始時の共通処理
 	;全ての参加キャラについて処理
 	FOR LOCAL:0, 0, CHARANUM
-		IF CFLAG:(LOCAL:0):6
+		IF CFLAG:(LOCAL:0):調教参加フラグ
 			;現在の機嫌を保存
 			FOR LOCAL:1, 0, 10
 				CFLAG:(LOCAL:0):(LOCAL:1 + 190) = PALAM:(LOCAL:0):(LOCAL:1 + 10)
 			NEXT
 			;参加済みに
-			CFLAG:(LOCAL:0):91 = 1
+			CFLAG:(LOCAL:0):行動済み = 1
 		ENDIF
 	NEXT
 	LOCALS = %ANAME(DVAR:要求野盗斬り捨て)%

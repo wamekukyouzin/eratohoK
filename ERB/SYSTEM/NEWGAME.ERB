@@ -233,13 +233,13 @@ CALL INITIALIZE_COMMON
 VARSET ITEMSALES, 1, 0, 200
 
 ;周回を0に設定
-FLAG:26 = 0
+FLAG:周回数 = 0
 
 ;-------------------------------------------------
 ;CSVでは設定できないキャラデータの初期設定
 ;-------------------------------------------------
 @ADDITIONAL_CHARA_SETTING
-CFLAG:(NAME_TO_CHARA("アリス")):21 = GET_ID(NAME_TO_CHARA("神綺"))
+CFLAG:(NAME_TO_CHARA("アリス")):母親 = GET_ID(NAME_TO_CHARA("神綺"))
 
 
 ;-------------------------------------------------
@@ -286,7 +286,7 @@ TARGET = -1
 ASSI = -1
 
 ;周回数が1増える
-FLAG:26++
+FLAG:周回数++
 
 ;クリアフラグを解除
 FLAG:28 = 0
@@ -297,7 +297,7 @@ SHOP_TIME = 0
 CALL SET_COOK(-1)
 
 ;観戦モードフラグを0
-FLAG:1 = 0
+FLAG:観戦モード = 0
 
 ;SLG関連の変数をクリア
 STATS_TIME = 0
@@ -390,12 +390,12 @@ ELSEIF LOCAL:10 == 1
 	CALL SELECT_COUNTRY
 
 	IF RESULT == -1
-		FLAG:26 = 0
+		FLAG:周回数 = 0
 		RESTART
 	ENDIF
 	
 	;観戦モードでないときだけ、設定を弄る
-	IF !FLAG:1
+	IF !FLAG:観戦モード
 		CALL SELECT_MASTER
 	ELSE
 		;観戦モードの場合、前の週でキャラを変更したとき用に、「あなた」と主人公を入れ替えて戻す処理だけは必要
@@ -428,7 +428,7 @@ ELSEIF LOCAL:10 == 1
 	FOR LOCAL:0, 0, CHARANUM
 		IF INRANGE(NO:(LOCAL:0), 201, 2000 - 1)
 			CFLAG:(LOCAL:0):1 = CFLAG:MASTER:1
-			CFLAG:(LOCAL:0):12 = 0 
+			CFLAG:(LOCAL:0):特殊状態フラグ = 0 
 		ENDIF
 	NEXT
 
@@ -452,7 +452,7 @@ ELSEIF LOCAL:10 == 1
 	CALL SELECT_SLG_SETTING
 	
 	;一週目のみ、金1000をもらえる
-	IF FLAG:26 == 1
+	IF FLAG:周回数 == 1
 		CALL COLORPRINTFORM("一週目ボーナス！", COLOR("注意"), "W")
 		PRINTFORMW 金1000が支給されます
 		MONEY += 1000
@@ -485,7 +485,7 @@ FOR LOCAL:0, 0, SCENARIO_NUMBER
 		PRINTL
 NEXT
 
-IF FLAG:26 == 1
+IF FLAG:周回数 == 1
 	DRAWLINE
 	PRINTBUTTON "99[タイトルに戻る]", 99
 ENDIF
@@ -494,7 +494,7 @@ $INPUT_LOOP
 INPUT
 IN = RESULT
 FOR LOCAL:0 , 0, SCENARIO_NUMBER
-	IF IN == 99 && FLAG:26 == 1
+	IF IN == 99 && FLAG:周回数 == 1
 		RETURN 0
 	ENDIF
 	IF IN == SCENARIO_SELECT:(LOCAL:0)
@@ -534,7 +534,7 @@ IF GET_NEW_COUNTRY() != -1
 	PRINTPLAIN   
 	PRINTBUTTON "101[旗揚げ]", 101
 ENDIF
-IF FLAG:26 == 1
+IF FLAG:周回数 == 1
 	PRINTPLAIN   
 	PRINTBUTTON "999[戻る]", 999
 ENDIF
@@ -619,7 +619,7 @@ ELSEIF RESULT == 97
 	GOTO SHOW_LOOP
 ELSEIF RESULT == 98
 	FLAG:3 = 0
-	FLAG:1 = 1
+	FLAG:観戦モード = 1
 	TIME = 1
 	PRINTFORMW 観戦モードで開始します
 	RETURN
@@ -636,8 +636,8 @@ ELSEIF RESULT == 101 && GET_NEW_COUNTRY() != -1
 	FLAG:3 = -1
 	PRINTFORMW 旗揚げしてスタートします
 	RETURN
-ELSEIF RESULT == 999 && FLAG:26 == 1
-	FLAG:26 --
+ELSEIF RESULT == 999 && FLAG:周回数 == 1
+	FLAG:周回数 --
 	CVARSET CFLAG, 1, 0
 	CVARSET CFLAG, 9, 0
 	CVARSET CFLAG, 12, 0
@@ -726,7 +726,7 @@ PRINTL ●登録キャラ
 PRINT    
 PRINTBUTTON "  0[新規作成    ]", 0
 ;二週目以降なら
-IF FLAG:26 > 1
+IF FLAG:周回数 > 1
 	PRINT    
 	PRINTBUTTON "98[前週と同じで]", 98
 ENDIF
@@ -788,7 +788,7 @@ IF RESULT == 0
 	RESTART
 ;前週と同じ
 ELSEIF RESULT == 98
-	IF FLAG:26 > 1
+	IF FLAG:周回数 > 1
 		MASTERそのまま = 1
 		LOCAL:6 = MASTER
 	ELSE
@@ -848,7 +848,7 @@ IF RESULT == 0
 	SWAPCHARA MASTER, LOCAL:6
 	CALL NEWGAME_SWAP_RELATIONS(LOCAL:6)
 	IF LOCAL:7
-		CFLAG:MASTER:81 = CFLAG:(LOCAL:6):81
+		CFLAG:MASTER:キャラＩＤ = CFLAG:(LOCAL:6):キャラＩＤ
 		NO:(LOCAL:6) = __INT_MAX__
 		CALL DELETE_CHARA(LOCAL:6)
 	ENDIF
@@ -965,7 +965,7 @@ ELSEIF RESULT == 1
 			CALL NEWCHARA_INIT(LOCAL:1)
 			CFLAG:(LOCAL:1):1 = CFLAG:MASTER:1
 			SIF CFLAG:MASTER:1 == 0
-				CFLAG:(LOCAL:1):12 = 1
+				CFLAG:(LOCAL:1):特殊状態フラグ = 1
 			FOR LOCAL:2, 0, VARSIZE("BASE")
 				BASE:(LOCAL:1):(LOCAL:2) = MAXBASE:(LOCAL:1):(LOCAL:2)
 			NEXT
@@ -1141,7 +1141,7 @@ ELSEIF RESULT == 1
 	PRINTW 霖之助を主人公勢力のキャラとして登場させます
 	CFLAG:NAME_TO_CHARA("霖之助"):1 = CFLAG:MASTER:1
 	SIF CFLAG:MASTER:1 == 0
-		CFLAG:NAME_TO_CHARA("霖之助"):12 = 1
+		CFLAG:NAME_TO_CHARA("霖之助"):特殊状態フラグ = 1
 
 ELSEIF RESULT == 2 && LOCAL:2 >= 2
 	PRINTW 霖之助をランダムな勢力のキャラとして登場させます

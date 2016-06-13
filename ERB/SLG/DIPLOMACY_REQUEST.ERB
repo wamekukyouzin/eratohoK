@@ -31,11 +31,11 @@ LOCAL:10 = DIPLOMACY_REQUEST_CHECK(CFLAG:MASTER:1, ARG:0, 40)
 DIPLOMACY_HATE:(CFLAG:MASTER:1):0 += 2
 
 ;既に要求を飲んだことがあり、前回と同様の方法が通用する場合
-IF (LOCAL:10 && CFLAG:(LOCAL:5):42 == 1) || ((CFLAG:(LOCAL:5):42 == 2 && (TALENT:(LOCAL:5):烙印 || TALENT:(LOCAL:5):服従 || TALENT:(LOCAL:5):隷属 || (GETBIT(TALENT:(LOCAL:5):淫乱系, 素質_淫乱_マゾ) && TALENT:(LOCAL:5):恋慕)))) || (CFLAG:(LOCAL:5):42 == 3 && GETBIT(TALENT:(LOCAL:5):淫乱系, 素質_淫乱_薬物中毒))
-	IF (CFLAG:(LOCAL:5):42 == 2) || (TALENT:(LOCAL:5):烙印 || TALENT:(LOCAL:5):服従 || TALENT:(LOCAL:5):隷属 || (GETBIT(TALENT:(LOCAL:5):淫乱系, 素質_淫乱_マゾ) && TALENT:(LOCAL:5):恋慕))
+IF (LOCAL:10 && CFLAG:(LOCAL:5):外交要求成功フラグ == 1) || ((CFLAG:(LOCAL:5):外交要求成功フラグ == 2 && (TALENT:(LOCAL:5):烙印 || TALENT:(LOCAL:5):服従 || TALENT:(LOCAL:5):隷属 || (GETBIT(TALENT:(LOCAL:5):淫乱系, 素質_淫乱_マゾ) && TALENT:(LOCAL:5):恋慕)))) || (CFLAG:(LOCAL:5):外交要求成功フラグ == 3 && GETBIT(TALENT:(LOCAL:5):淫乱系, 素質_淫乱_薬物中毒))
+	IF (CFLAG:(LOCAL:5):外交要求成功フラグ == 2) || (TALENT:(LOCAL:5):烙印 || TALENT:(LOCAL:5):服従 || TALENT:(LOCAL:5):隷属 || (GETBIT(TALENT:(LOCAL:5):淫乱系, 素質_淫乱_マゾ) && TALENT:(LOCAL:5):恋慕))
 		PRINTFORMW %NAME:(LOCAL:5)%は困ったように瞳を彷徨わせながらも、媚びるような声で%ANAME(MASTER)%の要求を受け入れた
 		CALL DIPLOMACY_REQUEST_GOHOUBI(ARG:0)
-	ELSEIF CFLAG:(LOCAL:5):42 == 3 && GETBIT(TALENT:(LOCAL:5):淫乱系, 素質_淫乱_薬物中毒)
+	ELSEIF CFLAG:(LOCAL:5):外交要求成功フラグ == 3 && GETBIT(TALENT:(LOCAL:5):淫乱系, 素質_淫乱_薬物中毒)
 		PRINTFORMW %NAME:(LOCAL:5)%は虚ろな瞳で、従うから薬をくれるよう%ANAME(MASTER)%に訴えてきた
 		CALL DIPLOMACY_REQUEST_DRUG(ARG:0)
 	ELSEIF TALENT:(LOCAL:5):反抗的 || TALENT:(LOCAL:5):生意気 || TALENT:(LOCAL:5):プライド高い
@@ -50,12 +50,12 @@ ELSEIF ARG:1 && (TALENT:(LOCAL:5):烙印 || TALENT:(LOCAL:5):服従 || TALENT:(L
 	IF TALENT:(LOCAL:5):烙印
 		PRINTFORMW 既に%ANAME(MASTER)%に烙印を刻み付けられ所有物となった%NAME:(LOCAL:5)%は、断ることも出来ず頷いた
 		PRINTFORMW ……心なしか嬉しそうに見える
-		CFLAG:(LOCAL:5):42 = 2
+		CFLAG:(LOCAL:5):外交要求成功フラグ = 2
 		CALL DIPLOMACY_REQUEST_GOHOUBI(ARG:0)
 	ELSE
 		PRINTFORMW 既に%ANAME(MASTER)%に陶酔しきった%NAME:(LOCAL:5)%は、目を逸らしながらも頷いた
 		PRINTFORMW ……心なしか嬉しそうに見える
-		CFLAG:(LOCAL:5):42 = 2
+		CFLAG:(LOCAL:5):外交要求成功フラグ = 2
 		CALL DIPLOMACY_REQUEST_GOHOUBI(ARG:0)
 	ENDIF
 	DIPLOMACY_HATE:(CFLAG:MASTER:1):0 ++
@@ -109,7 +109,7 @@ ELSE
 				NEXT
 			ENDIF
 
-			CFLAG:(LOCAL:5):42 = 1
+			CFLAG:(LOCAL:5):外交要求成功フラグ = 1
 			DIPLOMACY_HATE:(CFLAG:MASTER:1):0 += 2
 			RETURN 1
 
@@ -202,7 +202,7 @@ ELSE
 			PRINTFORMW ………………
 			PRINTFORML しばらく愛撫を続けると、%NAME:(LOCAL:5)%はすっかり陶酔した表情になり、
 			PRINTFORMW 媚びるような態度で%ANAME(MASTER)%の要求を飲むことを約束した
-			CFLAG:(LOCAL:5):42 = 2
+			CFLAG:(LOCAL:5):外交要求成功フラグ = 2
 			DIPLOMACY_HATE:(CFLAG:MASTER:1):0 += 2
 			RETURN 2
 		ELSE
@@ -221,7 +221,7 @@ ELSE
 			PRINTFORMW ………………
 			PRINTFORML 一にも二にもなく、要求に従うことに%NAME:(LOCAL:5)%は同意した
 			PRINTFORMW %ANAME(MASTER)%は褒美として、差し出された舌の上に錠剤を載せてやった……
-			CFLAG:(LOCAL:5):42 = 3
+			CFLAG:(LOCAL:5):外交要求成功フラグ = 3
 			CFLAG:(LOCAL:5):薬物依存 += RAND(20, 50)
 			DIPLOMACY_HATE:(CFLAG:MASTER:1):0 += 3
 			RETURN 3
@@ -729,7 +729,7 @@ SIF LOCAL:2 <= 0
 LOCAL:12 = (24 - LOCAL:20) * 2
 LOCAL:10 = 0
 FOR LOCAL:0, 0, CHARANUM
-	SIF CFLAG:(LOCAL:0):1 == ARG:0 && CFLAG:(LOCAL:0):9 == 0 && LOCAL:0 != LOCAL:5
+	SIF CFLAG:(LOCAL:0):1 == ARG:0 && CFLAG:(LOCAL:0):捕虜先 == 0 && LOCAL:0 != LOCAL:5
 		LOCAL:10 ++
 NEXT
 LOCAL:10 = MAX((LOCAL:10 - 1) / LOCAL:12 + 1, 1)
@@ -750,7 +750,7 @@ LOCAL:15 = (LOCAL:11 - 1) * LOCAL:12
 LOCAL:16 = LOCAL:11 * LOCAL:12
 LOCAL:17 = 0
 FOR LOCAL:0, 0, CHARANUM
-	IF CFLAG:(LOCAL:0):1 == ARG:0 && CFLAG:(LOCAL:0):9 == 0 && LOCAL:0 != LOCAL:5
+	IF CFLAG:(LOCAL:0):1 == ARG:0 && CFLAG:(LOCAL:0):捕虜先 == 0 && LOCAL:0 != LOCAL:5
 		IF LOCAL:13 >= LOCAL:15 && LOCAL:13 < LOCAL:16
 			IF LOCAL:14 % 2 != 0
 				PRINTPLAIN 　
@@ -814,14 +814,14 @@ ELSEIF RESULT == 56
 	GOTO SHOW_LOOP2
 ELSE
 	LOCAL:30 = NO_TO_CHARA(RESULT - 100)
-	IF LOCAL:30 >= 0 && CFLAG:(LOCAL:30):1 == ARG:0 && CFLAG:(LOCAL:30):9 == 0 && LOCAL:30 != LOCAL:5
+	IF LOCAL:30 >= 0 && CFLAG:(LOCAL:30):1 == ARG:0 && CFLAG:(LOCAL:30):捕虜先 == 0 && LOCAL:30 != LOCAL:5
 		DRAWLINE
 		CALL SHOW_INFO(LOCAL:30)
 		DRAWLINE
 		PRINTL このキャラを我が国の捕虜として連れて行きますか？
 		CALL ASK_YN()
 		IF RESULT == 0
-			CFLAG:(LOCAL:30):9 = CFLAG:MASTER:1
+			CFLAG:(LOCAL:30):捕虜先 = CFLAG:MASTER:1
 			;部隊に含まれているなら取り除く
 			FOR LOCAL, 0, MAX_UNIT
 				FOR LOCAL:1 , 0, 3
@@ -870,8 +870,8 @@ SIF LOCAL:2 <= 0
 PRINTFORML %NAME:(LOCAL:5)%は囚えていた我が国の捕虜を全員解放した…
 SETCOLOR COLOR("注意")
 FOR LOCAL:0, 0, CHARANUM
-	IF CFLAG:(LOCAL:0):1 == CFLAG:MASTER:1 && CFLAG:(LOCAL:0):9 == ARG:0
-		CFLAG:(LOCAL:0):9 = 0
+	IF CFLAG:(LOCAL:0):1 == CFLAG:MASTER:1 && CFLAG:(LOCAL:0):捕虜先 == ARG:0
+		CFLAG:(LOCAL:0):捕虜先 = 0
 		PRINTFORML %ANAME(LOCAL:0)%は解放されました
 	ENDIF
 NEXT
@@ -908,7 +908,7 @@ SETCOLOR COLOR("注意")
 PRINTFORML %NAME:(LOCAL:5)%が「捕虜の調教」メニューから調教可能になりました
 RESETCOLOR
 PRINTFORMW (条件を満たしている間は常に調教可能になります)
-CFLAG:(LOCAL:5):59 = 1
+CFLAG:(LOCAL:5):外交調教経過ターン = 1
 
 ;-------------------------------------------------
 ;外交による調教要求フラグの解除判定
@@ -918,7 +918,7 @@ CFLAG:(LOCAL:5):59 = 1
 CALL TMP_CREATE_COUNTRY_BOSS_MAP
 
 FOR LOCAL:0, 0, CHARANUM
-	IF CFLAG:(LOCAL:0):59
+	IF CFLAG:(LOCAL:0):外交調教経過ターン
 		;君主でなければ解除
 		LOCAL:2 = -1
 		FOR LOCAL:1, 1, MAX_COUNTRY
@@ -928,7 +928,7 @@ FOR LOCAL:0, 0, CHARANUM
 			ENDIF
 		NEXT
 		IF LOCAL:2 == -1
-			CFLAG:(LOCAL:0):59 = 0
+			CFLAG:(LOCAL:0):外交調教経過ターン = 0
 			PRINTL 
 			SETCOLOR COLOR("注意")
 			PRINTFORMW %ANAME(LOCAL:0)%が君主ではなくなったため、「捕虜の調教」の調教対象から外れました…
@@ -937,7 +937,7 @@ FOR LOCAL:0, 0, CHARANUM
 		ENDIF
 
 		IF !IS_COUNTRY(CFLAG:MASTER:1)
-			CFLAG:(LOCAL:0):59 = 0
+			CFLAG:(LOCAL:0):外交調教経過ターン = 0
 			PRINTL
 			SETCOLOR COLOR("注意")
 			PRINTFORMW %ANAME(LOCAL:0)%はあなたが勢力からいなくなったため、「捕虜の調教」の調教対象から外れました…
@@ -956,15 +956,15 @@ FOR LOCAL:0, 0, CHARANUM
 			LOCAL:3 = 1
 
 		;【条件B】特定の素質を持っていて、快楽でいうことを聞かせた
-		SIF TALENT:(LOCAL:0):烙印 || TALENT:(LOCAL:0):服従 || TALENT:(LOCAL:0):隷属 || (GETBIT(TALENT:(LOCAL:0):淫乱系, 素質_淫乱_マゾ) && TALENT:(LOCAL:0):恋慕) && CFLAG:(LOCAL:0):42 == 2
+		SIF TALENT:(LOCAL:0):烙印 || TALENT:(LOCAL:0):服従 || TALENT:(LOCAL:0):隷属 || (GETBIT(TALENT:(LOCAL:0):淫乱系, 素質_淫乱_マゾ) && TALENT:(LOCAL:0):恋慕) && CFLAG:(LOCAL:0):外交要求成功フラグ == 2
 			LOCAL:4 = 1
 
-		SIF CFLAG:(LOCAL:0):薬物依存 >= REL_HATE:(LOCAL:0):(MASTER) && CFLAG:(LOCAL:0):43 == 3
+		SIF CFLAG:(LOCAL:0):薬物依存 >= REL_HATE:(LOCAL:0):(MASTER) && CFLAG:(LOCAL:0):外交要求成功フラグ == 3
 			LOCAL:4 = 1
 
 		;【条件A】【条件B】のいずれも満たさず2ターン以降経過しているなら解除
-		IF !LOCAL:3 && !LOCAL:4 && CFLAG:(LOCAL:0):59 > 2
-			CFLAG:(LOCAL:0):59 = 0
+		IF !LOCAL:3 && !LOCAL:4 && CFLAG:(LOCAL:0):外交調教経過ターン > 2
+			CFLAG:(LOCAL:0):外交調教経過ターン = 0
 			PRINTL 
 			PRINTFORML %ANAME(LOCAL:0)%はこれ以上%ANAME(MASTER)%に体を許すつもりはないと通告してきた…
 			SETCOLOR COLOR("注意")
@@ -973,8 +973,8 @@ FOR LOCAL:0, 0, CHARANUM
 			CONTINUE
 		ENDIF
 		
-		SIF CFLAG:(LOCAL:0):59
-			CFLAG:(LOCAL:0):59 ++
+		SIF CFLAG:(LOCAL:0):外交調教経過ターン
+			CFLAG:(LOCAL:0):外交調教経過ターン ++
 	ENDIF
 NEXT
 
