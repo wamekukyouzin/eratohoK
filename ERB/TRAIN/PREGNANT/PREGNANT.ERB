@@ -116,10 +116,10 @@ SIF FLAG:1
 SIF ARG:0 == MASTER
 	RETURNF 1
 ;主人公が捕虜 or 放浪中の場合、他の士官の状況はわからない
-SIF CFLAG:MASTER:捕虜先 != 0 || CFLAG:MASTER:1 == 0
+SIF CFLAG:MASTER:捕虜先 != 0 || CFLAG:MASTER:所属 == 0
 	RETURNF 0
 ;自国・同盟国・連合国のキャラ、自国の捕虜、特殊勢力所属or捕虜
-SIF (TMP_COUNTRY_RELATION:(CFLAG:MASTER:1):(CFLAG:(ARG:0):1) >= 2 && CFLAG:(ARG:0):捕虜先 == 0) || CFLAG:(ARG:0):捕虜先 == CFLAG:MASTER:1 || IS_SP_COUNTRY(CFLAG:(ARG:0):所属) || IS_SP_COUNTRY(CFLAG:(ARG:0):捕虜先)
+SIF (TMP_COUNTRY_RELATION:(CFLAG:MASTER:所属):(CFLAG:(ARG:0):所属) >= 2 && CFLAG:(ARG:0):捕虜先 == 0) || CFLAG:(ARG:0):捕虜先 == CFLAG:MASTER:所属 || IS_SP_COUNTRY(CFLAG:(ARG:0):所属) || IS_SP_COUNTRY(CFLAG:(ARG:0):捕虜先)
 	RETURNF 1
 RETURNF 0
 
@@ -291,7 +291,7 @@ ENDIF
 IF ARG:0 != MASTER
 	;父親不明で出産がLv2以下なら崩壊値が増加
 	IF CFLAG:(ARG:0):子の父親 == 0 && ABL:(ARG:0):出産 <= 2
-		IF CFLAG:(ARG:0):捕虜先 == CFLAG:MASTER:1
+		IF CFLAG:(ARG:0):捕虜先 == CFLAG:MASTER:所属
 			CFLAG:(ARG:0):崩壊 += 1200
 			CALL TALENT_CHECK(ARG:0)
 		ELSE
@@ -299,7 +299,7 @@ IF ARG:0 != MASTER
 			CALL TALENT_CHECK(ARG:0)
 		ENDIF
 	;父親が主人公、出産がLv2以下、捕虜調教、[恋慕][服従][親友][恋人][烙印]なしなら崩壊値が増加
-	ELSEIF CFLAG:(ARG:0):子の父親 == GET_ID(MASTER) && ABL:(ARG:0):出産 <= 2 && CFLAG:(ARG:0):捕虜先 >= 1 && CFLAG:(ARG:0):捕虜先 == CFLAG:MASTER:1
+	ELSEIF CFLAG:(ARG:0):子の父親 == GET_ID(MASTER) && ABL:(ARG:0):出産 <= 2 && CFLAG:(ARG:0):捕虜先 >= 1 && CFLAG:(ARG:0):捕虜先 == CFLAG:MASTER:所属
 		IF !TALENT:(ARG:0):恋慕 && !TALENT:(ARG:0):服従 && !TALENT:(ARG:0):親友 && !TALENT:(ARG:0):恋人 && !TALENT:(ARG:0):烙印
 			CFLAG:(ARG:0):崩壊 += 1200
 			CALL TALENT_CHECK(ARG:0)
@@ -450,10 +450,10 @@ CHILD = RESULT
 ;捕虜の場合
 IF CFLAG:MOTHER:捕虜先 >= 1
 	;子の所属を母親が囚われている勢力にする
-	CFLAG:CHILD:1 = CFLAG:MOTHER:捕虜先
+	CFLAG:CHILD:所属 = CFLAG:MOTHER:捕虜先
 ELSE
 	;子の所属を母親と同じにする
-	CFLAG:CHILD:1 = CFLAG:MOTHER:1
+	CFLAG:CHILD:所属 = CFLAG:MOTHER:所属
 ENDIF
 
 IF IS_PREGNANT_MSG(MOTHER)
@@ -467,7 +467,7 @@ IF IS_PREGNANT_MSG(MOTHER)
 		RESETCOLOR
 
 		;父親が同一勢力にいれば出産に立ち会う際の口上を表示
-		IF FATHER >= 0 && CFLAG:FATHER:捕虜先 == 0 && CFLAG:FATHER:1 >= 1 && CFLAG:FATHER:特殊状態フラグ == 0 && ((CFLAG:MASTER:捕虜先 == 0 && CFLAG:FATHER:1 == CFLAG:MASTER:1) || (CFLAG:MASTER:捕虜先 >= 1 && CFLAG:MASTER:捕虜先 == CFLAG:FATHER:1))
+		IF FATHER >= 0 && CFLAG:FATHER:捕虜先 == 0 && CFLAG:FATHER:所属 >= 1 && CFLAG:FATHER:特殊状態フラグ == 0 && ((CFLAG:MASTER:捕虜先 == 0 && CFLAG:FATHER:所属 == CFLAG:MASTER:所属) || (CFLAG:MASTER:捕虜先 >= 1 && CFLAG:MASTER:捕虜先 == CFLAG:FATHER:所属))
 			CALL KOJO_EVENT(FATHER, 43)
 		ELSE
 			PRINTFORMW %ANAME(MOTHER)%は無事に出産を終えました
@@ -549,7 +549,7 @@ IF CFLAG:(ARG:0):行動不能状態 == 4
 	;子供が十分に成長した
 	IF CFLAG:(ARG:0):子の成長度 == 6
 		;主人公勢力の士官ならメッセージを表示
-		IF CFLAG:(ARG:0):1 == CFLAG:MASTER:1
+		IF CFLAG:(ARG:0):所属 == CFLAG:MASTER:所属
 			PRINTL 
 			SETCOLOR COLOR("注意")
 			PRINTFORML まだ幼いながらも%ANAME(ARG:0)%は一人で行動できる程度にまで成長しました
