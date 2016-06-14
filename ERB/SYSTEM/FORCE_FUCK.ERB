@@ -32,9 +32,12 @@ CALL TRAIN_AUTO_ABLUP(対象, 0)
 #DIMS セックス相手
 #DIMS 童貞相手
 #DIM シチュ
-ABL:対象:主導度Ｎ -= (50 + RAND:50) * ((TALENT:対象:Ｍ気質 || TALENT:対象:倒錯的) + 1) / (TALENT:対象:気丈 + 1)
-ABL:対象:主導度Ｕ -= (50 + RAND:50) * ((TALENT:対象:Ｍ気質 || TALENT:対象:倒錯的) + 1) / (TALENT:対象:気丈 + 1)
-ABL:対象:倒錯度 += (20 + RAND:30) * ((TALENT:対象:Ｍ気質 || TALENT:対象:倒錯的) + 1)
+ABL:対象:主導度Ｎ -= (15 + RAND:15) * (MIN(2 , (TALENT:対象:Ｍ気質 + TALENT:対象:臆病 + TALENT:対象:痛みに弱い + TALENT:対象:貞操観念 + TALENT:対象:悲観的)) + 2) / (TALENT:対象:気丈 * 2 + TALENT:対象:貞操無頓着 + TALENT:対象:プライド低い + TALENT:対象:感情乏しい + IS_FALLEN_TO_SP_COUNTRY(対象) * 3 + 1) / MAX(1 , SP_TRAIN_COUNT:対象:SP_COUNTRY_TO_CONST(勢力番号))
+ABL:対象:主導度Ｕ -= (10 + RAND:10) * (MIN(3 , (TALENT:対象:Ｍ気質 + TALENT:対象:倒錯的 + TALENT:対象:解放 + TALENT:対象:快感に素直 + TALENT:対象:中毒しやすい + TALENT:対象:臆病 + TALENT:対象:痛みに弱い)) + 3) / (TALENT:対象:自制心 + TALENT:対象:気丈 + TALENT:対象:感情乏しい + IS_FALLEN_TO_SP_COUNTRY(対象) * 3 + 1) / MAX(1 , SP_TRAIN_COUNT:対象:SP_COUNTRY_TO_CONST(勢力番号))
+ABL:対象:倒錯度 += (10 + RAND:5) * MIN(5 , (TALENT:対象:Ｍ気質 + TALENT:対象:倒錯的 + TALENT:対象:解放 + TALENT:対象:快感に素直 + TALENT:対象:中毒しやすい) * 2 + 1) / (TALENT:対象:自制心 + TALENT:対象:無関心 + TALENT:対象:感情乏しい + IS_FALLEN_TO_SP_COUNTRY(対象) * 3 + 1) / MAX(1 , SP_TRAIN_COUNT:対象:SP_COUNTRY_TO_CONST(勢力番号) - 2)
+ABL:対象:主導度Ｎ = LIMIT(ABL:対象:主導度Ｎ, -1000, 1000)
+ABL:対象:主導度Ｕ = LIMIT(ABL:対象:主導度Ｕ, -1000, 1000)
+ABL:対象:倒錯度 = LIMIT(ABL:対象:倒錯度, 0, 1000)
 SIF SP_TRAIN_IS_DECREASE_CFLAG(対象, 勢力番号)
 	追加処理文字列 '= 追加処理文字列 + ", CFLAG減少"
 CALL FUCK(対象, 経験値文字列, 追加処理文字列, 膣内射精相手ID, キス相手, セックス相手, 童貞相手, シチュ)
@@ -180,8 +183,10 @@ CALL FUCK(対象, "Ｃ, Ｖ, Ａ, Ｂ, Ｍ, Ｖ拡張, Ａ拡張, 性交, レズ
 @FUCK_EXP_PROCESS(対象, 経験値指定文字列)
 #DIM 対象
 #DIMS 経験値指定文字列
+#DIM 主導度低下倍率
 #DIM 倒錯度倍率
 #DIMS 経験値, 100
+VARSET 主導度低下倍率
 VARSET 倒錯度倍率
 VARSET 経験値
 SPLIT 経験値指定文字列, ",", 経験値
@@ -293,7 +298,7 @@ FOR LOCAL, 0, VARSIZE("経験値")
 
 	IF 経験値:LOCAL == "触手"
 		EXP:対象:排泄経験値 += ABL:対象:触手 * 2 + 5 + RAND:8
-		倒錯度倍率 ++
+		倒錯度倍率 += 2
 		CONTINUE
 	ENDIF
 		
@@ -304,14 +309,14 @@ FOR LOCAL, 0, VARSIZE("経験値")
 	
 	IF 経験値:LOCAL == "苦痛快楽"
 		EXP:対象:苦痛快楽経験 += RAND(20, 30)
-		ABL:対象:主導度Ｕ -= (5 + RAND:15) * ((TALENT:対象:Ｍ気質 || TALENT:対象:倒錯的) + 1) / (TALENT:対象:気丈 + 1)
+		主導度低下倍率 ++
 		倒錯度倍率 ++
 		CONTINUE
 	ENDIF
 
 	IF 経験値:LOCAL == "緊縛"
 		EXP:対象:緊縛経験 += 3 + RAND:4
-		ABL:対象:主導度Ｕ -= (5 + RAND:15) * ((TALENT:対象:Ｍ気質 || TALENT:対象:倒錯的) + 1) / (TALENT:対象:気丈 + 1)
+		主導度低下倍率 ++
 		倒錯度倍率 ++
 		CONTINUE
 	ENDIF
@@ -328,29 +333,31 @@ FOR LOCAL, 0, VARSIZE("経験値")
 		
 	IF 経験値:LOCAL == "輪姦"
 		EXP:対象:輪姦経験 += 3 + RAND(2, MAX(3, MIN(8, ABL:対象:欲望)))
-		倒錯度倍率 ++
+		倒錯度倍率 += 2
 		CONTINUE
 	ENDIF
 		
 	IF 経験値:LOCAL == "獣姦"
 		EXP:対象:獣姦経験 += 3 + RAND:3
-		倒錯度倍率 ++
+		倒錯度倍率 += 2
 		CONTINUE
 	ENDIF
 	IF 経験値:LOCAL == "薬物依存"
 		CFLAG:対象:薬物依存 += RAND(20, 50)
-		倒錯度倍率 ++
+		倒錯度倍率 += 2
 		CONTINUE
 	ENDIF
 	
 	IF 経験値:LOCAL == "売春"
 		EXP:対象:売春経験 += 3 + RAND(2, MAX(3, MIN(8, ABL:対象:欲望)))
-		倒錯度倍率 ++
+		倒錯度倍率 += 2
 		CONTINUE
 	ENDIF
 NEXT
 
-ABL:対象:倒錯度 += (5 + RAND:15) * MIN(3, 倒錯度倍率) * ((TALENT:対象:Ｍ気質 || TALENT:対象:倒錯的) + 1)
+
+ABL:対象:主導度Ｕ -= (8 + RAND:5) * MIN(3, 主導度低下倍率) * (MIN(2 , (TALENT:対象:Ｍ気質 + TALENT:対象:臆病 + TALENT:対象:痛みに弱い + TALENT:対象:貞操観念 + TALENT:対象:悲観的)) + 2) / (TALENT:対象:気丈 * 2 + TALENT:対象:貞操無頓着 + TALENT:対象:プライド低い + TALENT:対象:感情乏しい + 1) / MAX(1 , (IS_SP_COUNTRY(CFLAG:対象:捕虜先) || IS_FALLEN_TO_SP_COUNTRY(対象)) * 5)
+ABL:対象:倒錯度 += (5 + RAND:5) * MIN(3, 倒錯度倍率) * MIN(5 , (TALENT:対象:Ｍ気質 + TALENT:対象:倒錯的 + TALENT:対象:解放 + TALENT:対象:快感に素直 + TALENT:対象:中毒しやすい) * 2 + 1) / (TALENT:対象:自制心 + TALENT:対象:無関心 + TALENT:対象:感情乏しい + 1) / MAX(1 , (IS_SP_COUNTRY(CFLAG:対象:捕虜先) || IS_FALLEN_TO_SP_COUNTRY(対象)) * 5)
 EXP:対象:絶頂経験 += LOCAL:1 * (60 + RAND:81) / 100
 
 ABL:対象:倒錯度 = LIMIT(ABL:対象:倒錯度, 0, 1000)
