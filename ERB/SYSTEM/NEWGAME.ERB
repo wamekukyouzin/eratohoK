@@ -1294,21 +1294,15 @@ PRINTFORML
 FIRST_LINE = LINECOUNT
 $SHOW_LOOP
 
-IF 勢力定数割り当て != 特殊勢力_野盗
-	PRINTFORML 野盗\@ GET_NEW_COUNTRY() == -1 ? （勢力が一杯であるため、出現できません） # \@
-	CALL PRINTBUTTON_EX("{0}", 10, 勢力定数割り当て != 特殊勢力_野盗, SP_COUNTRY_RANK:(特殊勢力_野盗) == 0)
-	CALL PRINTBUTTON_EX("{1}", 11, 勢力定数割り当て != 特殊勢力_野盗, SP_COUNTRY_RANK:(特殊勢力_野盗) == 1)
-	CALL PRINTBUTTON_EX("{2}", 12, 勢力定数割り当て != 特殊勢力_野盗, SP_COUNTRY_RANK:(特殊勢力_野盗) == 2)
-	CALL PRINTBUTTON_EX("{3}", 13, 勢力定数割り当て != 特殊勢力_野盗, SP_COUNTRY_RANK:(特殊勢力_野盗) == 3)
-	CALL PRINTBUTTON_EX("{4}", 14, 勢力定数割り当て != 特殊勢力_野盗, SP_COUNTRY_RANK:(特殊勢力_野盗) == 4)
-	CALL PRINTBUTTON_EX("{5}", 15, 勢力定数割り当て != 特殊勢力_野盗, SP_COUNTRY_RANK:(特殊勢力_野盗) == 5)
-	PRINTL
-ENDIF
-FOR LOCAL, 2, MAX_SP_COUNTRY
+FOR LOCAL, 0, MAX_SP_COUNTRY
 	LOCALS = %SP_COUNTRY_NAME:LOCAL%
-	SIF LOCALS == "" || LOCAL == 勢力定数割り当て
+	;定義されていない、または既に存在している（特殊勢力スタートか、シナリオ定義)なら表示しない
+	SIF LOCALS == "" || GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:LOCAL) != -1
 		CONTINUE
-	PRINTFORML %LOCALS%
+	PRINTFORM %LOCALS%
+	SIF LOCAL == 特殊勢力_野盗 && GET_NEW_COUNTRY() == -1
+		PRINTFORM 勢力が一杯なので、出現できません
+	PRINTL
 	CALL PRINTBUTTON_EX("{0}", 10 * LOCAL,     勢力定数割り当て != LOCAL, SP_COUNTRY_RANK:LOCAL == 0)
 	CALL PRINTBUTTON_EX("{1}", 10 * LOCAL + 1, 勢力定数割り当て != LOCAL, SP_COUNTRY_RANK:LOCAL == 1)
 	CALL PRINTBUTTON_EX("{2}", 10 * LOCAL + 2, 勢力定数割り当て != LOCAL, SP_COUNTRY_RANK:LOCAL == 2)
@@ -1319,7 +1313,7 @@ FOR LOCAL, 2, MAX_SP_COUNTRY
 NEXT
 
 PRINTL
-PRINTFORML ボスの名前（ランダム名は男性名です）
+PRINTFORML ボスの名前
 
 FOR LOCAL, 0, MAX_SP_COUNTRY
 	LOCALS = %SP_COUNTRY_NAME:LOCAL%
@@ -1344,29 +1338,32 @@ $INPUT_LOOP
 INPUT
 IF RESULT == 999
 	;野盗あり設定ならここで勢力作成
-	SIF SP_COUNTRY_RANK:(特殊勢力_野盗) && GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:特殊勢力_野盗) == -1
+	SIF SP_COUNTRY_RANK:(特殊勢力_野盗)
 		CALL BANDIT_INIT
 	SIF 野盗都市
 		CALL BANDIT_RISE()
 	;特殊勢力スタートならここで所属やら何やら書き換える
-	IF 勢力定数割り当て
+	FOR LOCAL, 0, MAX_SP_COUNTRY
+		SIF SP_COUNTRY_START:LOCAL == 0
+			CONTINUE
 		SELECTCASE SP_COUNTRY_START:勢力定数割り当て
 			CASE 特殊勢力スタート_士官
 				CFLAG:MASTER:所属 = 勢力
 			CASE 特殊勢力スタート_奴隷
 				CFLAG:MASTER:所属 = 勢力
-				FOR LOCAL, 0, CHARANUM
+				FOR LOCAL:1, 0, CHARANUM
 					IF TALENT:LOCAL:特殊勢力素質 == 勢力定数割り当て
-						TALENT:LOCAL:合意 = 1
-						CFLAG:LOCAL:好感度 = 800
-						CFLAG:LOCAL:依存度 = 300
-						CFLAG:LOCAL:面識 = 1
+						TALENT:(LOCAL:1):合意 = 1
+						CFLAG:(LOCAL:1):好感度 = 800
+						CFLAG::依存度 = 300
+						CFLAG:(LOCAL:1):面識 = 1
 					ENDIF
 				NEXT
 			CASE 特殊勢力スタート_捕虜
 				CFLAG:MASTER:捕虜先 = 勢力
 		ENDSELECT
-	ENDIF
+		BREAK
+	NEXT
 	RETURN
 ENDIF
 
