@@ -7,13 +7,13 @@
 LOCAL:5 = GET_COUNTRY_BOSS(ARG:0)
 LOCAL:6 = GET_COUNTRY_BOSS(ARG:1)
 
-IF ARG:0 == CFLAG:MASTER:1
+IF ARG:0 == CFLAG:MASTER:所属
 	IF IS_SP_COUNTRY(ARG:1)
 		TRYCCALLFORM MASTER_CAPTURED_%SP_COUNTRY_NAME_ENG:SP_COUNTRY_TO_CONST(ARG:1)%(ARG:1)
 			;主人公の勢力に仕官していたか捕虜になっていたキャラは全員捕えらえる
 			FOR LOCAL:0, 0 , CHARANUM
-				IF (CFLAG:(LOCAL:0):1 == ARG:0 ||CFLAG:(LOCAL:0):捕虜先 == ARG:0)
-					CFLAG:(LOCAL:0):1 = 0
+				IF (CFLAG:(LOCAL:0):所属 == ARG:0 ||CFLAG:(LOCAL:0):捕虜先 == ARG:0)
+					CFLAG:(LOCAL:0):所属 = 0
 					CFLAG:(LOCAL:0):捕虜先 = ARG:1
 				ENDIF
 			NEXT
@@ -24,7 +24,7 @@ IF ARG:0 == CFLAG:MASTER:1
 ENDIF
 
 ;主人公勢力の手で滅亡させた場合
-IF ARG:1 == CFLAG:MASTER:1
+IF ARG:1 == CFLAG:MASTER:所属
 	WAIT
 	PRINTL 
 	PRINTW ………………
@@ -34,7 +34,7 @@ ENDIF
 
 ;滅亡した勢力の士官のうち、他のCPU勢力の捕虜となっていたキャラは、滅亡と同時に囚われていた勢力の士官になる
 FOR LOCAL:0, 0, CHARANUM
-	IF LOCAL:0 != MASTER && CFLAG:(LOCAL:0):1 == ARG:0 && CFLAG:(LOCAL:0):捕虜先 && CFLAG:(LOCAL:0):捕虜先 != CFLAG:MASTER:1
+	IF LOCAL:0 != MASTER && CFLAG:(LOCAL:0):所属 == ARG:0 && CFLAG:(LOCAL:0):捕虜先 && CFLAG:(LOCAL:0):捕虜先 != CFLAG:MASTER:所属
 		;滅亡する軍の捕虜となっていた（自国の捕虜となっていた）場合は、TREAT_PRISONERで判定
 		IF CFLAG:(LOCAL:0):捕虜先 == ARG:0
 			CALL TREAT_PRISONER(ARG:0, ARG:1, LOCAL:0)
@@ -42,11 +42,11 @@ FOR LOCAL:0, 0, CHARANUM
 			;滅亡した勢力の士官のうち、囚われているのが野盗の場合、ゴブリン、外来の場合はなにもしない。
 			IF IS_SP_COUNTRY(CFLAG:(LOCAL:0):捕虜先)
 			;滅亡した勢力の士官のうち、他のCPU勢力の捕虜となっていたキャラは、登用判定を通す。
-			ELSEIF GET_COUNTRY_BOSS(CFLAG:(LOCAL:0):捕虜先) != -1 && JUDGE_ASSIGN(LOCAL:0, CFLAG:(LOCAL:0):捕虜先, CFLAG:(LOCAL:0):1) && !IS_SP_COUNTRY(CFLAG:(LOCAL:0):捕虜先)
+			ELSEIF GET_COUNTRY_BOSS(CFLAG:(LOCAL:0):捕虜先) != -1 && JUDGE_ASSIGN(LOCAL:0, CFLAG:(LOCAL:0):捕虜先, CFLAG:(LOCAL:0):所属) && !IS_SP_COUNTRY(CFLAG:(LOCAL:0):捕虜先)
 				SETCOLOR COLOR("注意")
 				PRINTFORML 囚われていた%ANAME(LOCAL:0)%は、%ANAME(GET_COUNTRY_BOSS(CFLAG:(LOCAL:0):捕虜先))%に仕えることになったようだ
 				RESETCOLOR
-				CFLAG:(LOCAL:0):1 = CFLAG:(LOCAL:0):捕虜先
+				CFLAG:(LOCAL:0):所属 = CFLAG:(LOCAL:0):捕虜先
 				CFLAG:(LOCAL:0):捕虜先 = 0
 			;登用判定にひっかからなければ放浪
 			ELSE
@@ -54,7 +54,7 @@ FOR LOCAL:0, 0, CHARANUM
 				SETCOLOR COLOR("注意")
 				PRINTFORML 囚われていた%ANAME(LOCAL:0)%は、放浪したようだ
 				RESETCOLOR
-				CFLAG:(LOCAL:0):1 = 0
+				CFLAG:(LOCAL:0):所属 = 0
 				CFLAG:(LOCAL:0):捕虜先 = 0
 				CFLAG:(LOCAL:0):特殊状態フラグ = 1
 			ENDIF
@@ -96,9 +96,9 @@ ENDIF
 ;君主と共にARG:1勢力に仕えるパターン(君主を登用)
 IF LOCAL:7 == 0
 	LOCAL:1 = 0
-	LOCAL:2 = CFLAG:MASTER:1
+	LOCAL:2 = CFLAG:MASTER:所属
 
-	IF ARG:0 == CFLAG:MASTER:1
+	IF ARG:0 == CFLAG:MASTER:所属
 		IF MASTER == LOCAL:5
 			PRINTFORMW 君主が登用に応じたため、%ANAME(MASTER)%に仕えていた全ての士官が%NAME:(LOCAL:6)%勢力に編入されます
 			PRINTFORMW 以降は%NAME:(LOCAL:6)%勢力として行動します
@@ -109,35 +109,35 @@ IF LOCAL:7 == 0
 	ENDIF
 
 	FOR LOCAL:0, 0, CHARANUM
-		IF CFLAG:(LOCAL:0):1 == ARG:0
+		IF CFLAG:(LOCAL:0):所属 == ARG:0
 			IF ARG:1 == LOCAL:2
 				IF !LOCAL:1
 					LOCAL:1 = 1
 					PRINTFORMW 君主が登用に応じたため、%NAME:(LOCAL:5)%に仕えていた士官は全員我が国に編入されます
 				ENDIF
-				IF CFLAG:(LOCAL:0):捕虜先 == CFLAG:MASTER:1
+				IF CFLAG:(LOCAL:0):捕虜先 == CFLAG:MASTER:所属
 					PRINTL 
 					PRINTFORML %NAME:(LOCAL:0)%は現在投獄されています
 					PRINTFORML 牢屋から出して我が国の士官に復帰させますか？
 					CALL ASK_YN("はい", "いいえ(現在の所属が無所属になります)")
 					IF RESULT == 0
 						PRINTFORML %NAME:(LOCAL:0)%が我が国の士官として復帰しました
-						CFLAG:(LOCAL:0):1 = ARG:1
+						CFLAG:(LOCAL:0):所属 = ARG:1
 						CFLAG:(LOCAL:0):捕虜先 = 0
 						CFLAG:(LOCAL:0):特殊状態フラグ = 0
 					ELSE
 						PRINTFORML %NAME:(LOCAL:0)%は無所属の捕虜としてこのまま牢屋に閉じ込めておきます
-						CFLAG:(LOCAL:0):1 = 0
+						CFLAG:(LOCAL:0):所属 = 0
 						CFLAG:(LOCAL:0):特殊状態フラグ = 0
 					ENDIF
 					PRINTL 
 				ELSE
 					PRINTFORML %NAME:(LOCAL:0)%が我が国の士官として加わりました
-					CFLAG:(LOCAL:0):1 = ARG:1
+					CFLAG:(LOCAL:0):所属 = ARG:1
 					CFLAG:(LOCAL:0):特殊状態フラグ = 0
 				ENDIF
 			ELSE
-				CFLAG:(LOCAL:0):1 = ARG:1
+				CFLAG:(LOCAL:0):所属 = ARG:1
 				CFLAG:(LOCAL:0):特殊状態フラグ = 0
 			ENDIF
 		ENDIF
@@ -151,17 +151,17 @@ IF LOCAL:7 == 0
 ELSEIF LOCAL:7 == 1 || LOCAL:7 == 2
 	;士官の逃走判定(主人公は後回し)
 	FOR LOCAL:0, 0, CHARANUM
-		IF CFLAG:(LOCAL:0):1 == ARG:0 && LOCAL:0 != LOCAL:5 && LOCAL:0 != MASTER
+		IF CFLAG:(LOCAL:0):所属 == ARG:0 && LOCAL:0 != LOCAL:5 && LOCAL:0 != MASTER
 			IF CFLAG:(LOCAL:0):捕虜先 != 0
 				;捕虜なら無所属に
-				CFLAG:(LOCAL:0):1 = 0
+				CFLAG:(LOCAL:0):所属 = 0
 			ELSE
 				CALL JUDGE_ESCAPE(ARG:0, ARG:1, LOCAL:0, 1)
 			ENDIF
 		ENDIF
 	NEXT
 	FOR LOCAL:0, 0, CHARANUM
-		IF CFLAG:(LOCAL:0):1 == ARG:0 && LOCAL:0 != LOCAL:5 && LOCAL:0 != MASTER
+		IF CFLAG:(LOCAL:0):所属 == ARG:0 && LOCAL:0 != LOCAL:5 && LOCAL:0 != MASTER
 			;逃走に失敗した場合
 			IF CFLAG:(LOCAL:0):特殊状態フラグ == 0
 				CALL TREAT_PRISONER(ARG:0, ARG:1, LOCAL:0)
@@ -169,10 +169,10 @@ ELSEIF LOCAL:7 == 1 || LOCAL:7 == 2
 		ENDIF
 	NEXT
 
-	IF CFLAG:MASTER:1 == ARG:0 && MASTER != LOCAL:5
+	IF CFLAG:MASTER:所属 == ARG:0 && MASTER != LOCAL:5
 		IF CFLAG:MASTER:捕虜先 != 0
 			;捕虜なら無所属に
-			CFLAG:MASTER:1 = 0
+			CFLAG:MASTER:所属 = 0
 		ELSE
 			;主人公の逃走判定
 			CALL JUDGE_ESCAPE(ARG:0, ARG:1, MASTER, 1)
@@ -189,7 +189,7 @@ LOCAL:2 = 0
 FOR LOCAL:0, 0, CHARANUM
 	IF CFLAG:(LOCAL:0):捕虜先 == ARG:0
 		;滅亡させた側の勢力の士官なら、そのまま元の勢力に戻る
-		IF CFLAG:(LOCAL:0):1 == ARG:1
+		IF CFLAG:(LOCAL:0):所属 == ARG:1
 			CFLAG:(LOCAL:0):捕虜先 = 0
 			SETCOLOR COLOR("注意")
 			PRINTFORML %NAME:(LOCAL:5)%勢力に囚えられていた%ANAME(LOCAL:0)%は、元の勢力に復帰した
@@ -219,8 +219,8 @@ NEXT
 
 ;ARG:0勢力に所属していたキャラを無所属にする
 FOR LOCAL:0, 0, CHARANUM
-	IF CFLAG:(LOCAL:0):1 == ARG:0
-		CFLAG:(LOCAL:0):1 = 0
+	IF CFLAG:(LOCAL:0):所属 == ARG:0
+		CFLAG:(LOCAL:0):所属 = 0
 	ENDIF
 NEXT
 
@@ -244,13 +244,13 @@ IF ARG:2 == MASTER
 
 ;相手君主への好感度が300以上、敵対値が300未満なら大人しく捕まる
 ELSEIF LOCAL:6 >= 300 && LOCAL:7 < 300
-	IF ARG:1 == CFLAG:MASTER:1
+	IF ARG:1 == CFLAG:MASTER:所属
 		CALL KOJO_EVENT(ARG:2, LOCAL:10)
 		PRINTFORML %NAME:(ARG:2)%を捕らえました
 	ENDIF
 
 ;滅亡させたのが主人公勢力で[恋慕][服従]がある
-ELSEIF ARG:1 == CFLAG:MASTER:1 && (TALENT:(ARG:2):恋慕 || TALENT:(ARG:2):服従)
+ELSEIF ARG:1 == CFLAG:MASTER:所属 && (TALENT:(ARG:2):恋慕 || TALENT:(ARG:2):服従)
 	CALL KOJO_EVENT(ARG:2, LOCAL:10)
 	PRINTFORML %NAME:(ARG:2)%を捕らえました
 
@@ -279,7 +279,7 @@ ELSE
 	ENDIF
 
 	IF RAND:100 < LOCAL:8
-		IF ARG:1 == CFLAG:MASTER:1
+		IF ARG:1 == CFLAG:MASTER:所属
 			CALL KOJO_EVENT(ARG:2, LOCAL:10)
 			PRINTFORML %NAME:(ARG:2)%を捕らえました
 		ENDIF
@@ -340,7 +340,7 @@ RETURNF 0
 ;-------------------------------------------------
 @TREAT_PRISONER(ARG:0, ARG:1, ARG:2, ARG:3 = 0)
 ;滅亡させたのが主人公の勢力
-IF ARG:1 == CFLAG:MASTER:1
+IF ARG:1 == CFLAG:MASTER:所属
 	LOCAL:5 = 1
 
 	$RESELECT_LOOP
@@ -366,7 +366,7 @@ IF ARG:1 == CFLAG:MASTER:1
 		;捕虜の場合
 		IF CFLAG:(ARG:2):捕虜先 == ARG:0 && ARG:0 >= 1
 			LOCAL:2 = GET_COUNTRY_BOSS(ARG:0)
-			LOCAL:3 = GET_COUNTRY_BOSS(CFLAG:(ARG:2):1)
+			LOCAL:3 = GET_COUNTRY_BOSS(CFLAG:(ARG:2):所属)
 			LOCALS:0 = 
 			LOCALS:1 = 
 			IF LOCAL:2 >= 0
@@ -403,7 +403,7 @@ IF ARG:1 == CFLAG:MASTER:1
 		IF JUDGE_ASSIGN(ARG:2, GET_COUNTRY_BOSS(ARG:1), GET_COUNTRY_BOSS(ARG:0))
 			CALL KOJO_EVENT(ARG:2, 332)
 			PRINTFORMW %NAME:(ARG:2)%を登用しました
-			CFLAG:(ARG:2):1 = ARG:1
+			CFLAG:(ARG:2):所属 = ARG:1
 			;捕虜設定を解除
 			CFLAG:(ARG:2):捕虜先 = 0
 			;好感度を上昇、敵対値を減少
@@ -496,7 +496,7 @@ ELSE
 			ENDIF
 			RESETCOLOR
 		ENDIF
-		CFLAG:(ARG:2):1 = ARG:1
+		CFLAG:(ARG:2):所属 = ARG:1
 		CFLAG:(ARG:2):捕虜先 = 0
 		CFLAG:(ARG:2):恨む君主 = 0
 		CFLAG:(ARG:2):滅亡前の君主 = 0
@@ -512,7 +512,7 @@ ELSE
 			CALL MASTER_CAPTURED(ARG:1)
 			;登用に応じた
 			IF RESULT == 1
-				CFLAG:MASTER:1 = ARG:1
+				CFLAG:MASTER:所属 = ARG:1
 				CFLAG:MASTER:捕虜先 = 0
 				RETURN 0
 			;解放された
@@ -532,7 +532,7 @@ ELSE
 		;好感度が低く敵対値が特に高い場合は処刑(処刑禁止の設定なら処刑しない)
 		ELSEIF LOCAL:6 < 100 && LOCAL:7 >= 800 && CONFIG:304 == 0
 			;主人公勢力が滅亡した場合
-			IF ARG:0 == CFLAG:MASTER:1
+			IF ARG:0 == CFLAG:MASTER:所属
 				;主人公以外で君主の場合
 				IF ARG:2 == GET_COUNTRY_BOSS(ARG:0)
 					PRINTFORMW 君主である%NAME:(ARG:2)%は%NAME:(LOCAL:5)%の前に引きずり出された…
@@ -567,7 +567,7 @@ ELSE
 		;それ以外は解放
 		ELSE
 			;主人公勢力が滅亡した場合
-			IF ARG:0 == CFLAG:MASTER:1
+			IF ARG:0 == CFLAG:MASTER:所属
 				;主人公以外で君主の場合
 				IF ARG:2 == GET_COUNTRY_BOSS(ARG:0)
 					PRINTFORMW 君主である%NAME:(ARG:2)%は%NAME:(LOCAL:5)%の前に引きずり出された…
@@ -683,7 +683,7 @@ LOCAL:6 = -1
 LOCAL:7 = 0
 FOR LOCAL:0, 0, CHARANUM
 	;ARG:0勢力の中に主人公への好感度500以上かつ主導度Ｕ100以上または<サド>のキャラがいる場合
-	IF CFLAG:(LOCAL:0):1 == ARG:0 && CFLAG:(LOCAL:0):捕虜先 == 0 && CFLAG:(LOCAL:0):2 >= 500 && (ABL:(LOCAL:0):主導度Ｕ >= 100 || GETBIT(TALENT:(LOCAL:0):淫乱系, 素質_淫乱_サド))
+	IF CFLAG:(LOCAL:0):所属 == ARG:0 && CFLAG:(LOCAL:0):捕虜先 == 0 && CFLAG:(LOCAL:0):2 >= 500 && (ABL:(LOCAL:0):主導度Ｕ >= 100 || GETBIT(TALENT:(LOCAL:0):淫乱系, 素質_淫乱_サド))
 		IF CFLAG:(LOCAL:0):2 > LOCAL:7
 			;条件を満たすキャラのうち、好感度が最大のキャラを探索
 			LOCAL:6 = LOCAL:0
@@ -722,7 +722,7 @@ LOCAL:6 = -1
 LOCAL:7 = 0
 FOR LOCAL:0, 0, CHARANUM
 	;ARG:0勢力の中に主人公への好感度 or 依存度が1500以上のキャラがいる場合
-	IF CFLAG:(LOCAL:0):1 == ARG:0 && CFLAG:(LOCAL:0):捕虜先 == 0 && (CFLAG:(LOCAL:0):2 >= 1500 || CFLAG:(LOCAL:0):3 >= 1500)
+	IF CFLAG:(LOCAL:0):所属 == ARG:0 && CFLAG:(LOCAL:0):捕虜先 == 0 && (CFLAG:(LOCAL:0):2 >= 1500 || CFLAG:(LOCAL:0):3 >= 1500)
 		IF CFLAG:(LOCAL:0):2 > LOCAL:7
 			;条件を満たすキャラのうち、好感度が最大のキャラを探索
 			LOCAL:6 = LOCAL:0
@@ -781,7 +781,7 @@ RETURNF 1
 LOCAL:10 += REL_LIKE:(ARG:0):(ARG:1) * 2 - REL_HATE:(ARG:0):(ARG:1)
 
 ;主人公が登用側の勢力に所属している場合
-IF CFLAG:MASTER:1 == LOCAL:5
+IF CFLAG:MASTER:所属 == LOCAL:5
 	;好感度・依存度・従属度による補正
 	LOCAL:10 += (CFLAG:(ARG:0):2 + MAX(CFLAG:(ARG:0):3, 0) + MAX(CFLAG:(ARG:0):4, 0)) / 20
 	LOCAL:10 += (TALENT:(ARG:0):恋慕 != 0) * 250
@@ -802,12 +802,12 @@ ELSEIF ARG:2 < 0 || CFLAG:(ARG:2):特殊状態フラグ == 2
 	LOCAL:10 += 200
 
 ;君主が存命中で登用側の勢力に仕えている場合
-ELSEIF CFLAG:(ARG:2):1 == LOCAL:5
+ELSEIF CFLAG:(ARG:2):所属 == LOCAL:5
 	;現在の君主への好感度と敵対度の補正(＋補正)
 	LOCAL:10 += REL_LIKE:(ARG:0):(ARG:2) * 2 - REL_HATE:(ARG:0):(ARG:2)
 
 	;主人公がARG:0の君主であるか、主人公がARG:0と同じ勢力に所属している場合
-	IF ARG:2 == MASTER || (LOCAL:6 >= 1 && CFLAG:MASTER:1 == LOCAL:6)
+	IF ARG:2 == MASTER || (LOCAL:6 >= 1 && CFLAG:MASTER:所属 == LOCAL:6)
 		;好感度・依存度・従属度による補正(＋補正)
 		LOCAL:10 += (CFLAG:(ARG:0):2 + MAX(CFLAG:(ARG:0):3, 0) + MAX(CFLAG:(ARG:0):4, 0)) / 20
 		LOCAL:10 += (TALENT:(ARG:0):恋慕 != 0) * 250
@@ -830,7 +830,7 @@ ELSE
 	LOCAL:10 -= REL_LIKE:(ARG:0):(ARG:2) * 2 - REL_HATE:(ARG:0):(ARG:2)
 
 	;主人公がARG:0の君主であるか、主人公がARG:0と同じ勢力に所属している場合
-	IF ARG:2 == MASTER || (LOCAL:6 >= 1 && CFLAG:MASTER:1 == LOCAL:6)
+	IF ARG:2 == MASTER || (LOCAL:6 >= 1 && CFLAG:MASTER:所属 == LOCAL:6)
 		;好感度・依存度・従属度による補正(－補正)
 		LOCAL:10 -= (CFLAG:(ARG:0):2 + MAX(CFLAG:(ARG:0):3, 0) + MAX(CFLAG:(ARG:0):4, 0)) / 20
 		LOCAL:10 -= (TALENT:(ARG:0):恋慕 != 0) * 250
@@ -881,7 +881,7 @@ FOR LOCAL:0, 0, CHARANUM
 		;逃走先を判定
 		LOCAL:1 = ESCAPE_TO(LOCAL:0)
 		IF IS_COUNTRY(LOCAL:1)
-			IF LOCAL:1 == CFLAG:MASTER:1
+			IF LOCAL:1 == CFLAG:MASTER:所属
 				IF !ライン
 					ライン = 1
 					DRAWLINE
@@ -901,11 +901,11 @@ FOR LOCAL:0, 0, CHARANUM
 					CFLAG:(LOCAL:0):捕虜先 = CFLAG:MASTER:所属
 				ENDIF
 			ELSE
-				CFLAG:(LOCAL:0):1 = LOCAL:1
+				CFLAG:(LOCAL:0):所属 = LOCAL:1
 			ENDIF
 		ENDIF
 		;特定の勢力に逃れた場合、逃走フラグをオフにする
-		IF CFLAG:(LOCAL:0):1 != 0 || CFLAG:(LOCAL:0):捕虜先 != 0
+		IF CFLAG:(LOCAL:0):所属 != 0 || CFLAG:(LOCAL:0):捕虜先 != 0
 			CFLAG:(LOCAL:0):特殊状態フラグ = 0
 		ENDIF
 	ENDIF
@@ -926,7 +926,7 @@ FOR LOCAL:0, 0, CHARANUM
 					DRAWLINE
 				ENDIF
 				;プレイヤー勢力へ逃れた場合メッセージを表示
-				IF LOCAL:1 == CFLAG:MASTER:1
+				IF LOCAL:1 == CFLAG:MASTER:所属
 					SETCOLOR COLOR("注意")
 					PRINTFORML 放浪していた%NAME:(LOCAL:0)%が我が国に流れ着きました
 					PRINTFORML どうしますか？
@@ -948,7 +948,7 @@ FOR LOCAL:0, 0, CHARANUM
 					CFLAG:(LOCAL:0):所属 = LOCAL:1
 				ENDIF
 			ENDIF
-			IF CFLAG:(LOCAL:0):1 != 0 || CFLAG:(LOCAL:0):捕虜先 != 0
+			IF CFLAG:(LOCAL:0):所属 != 0 || CFLAG:(LOCAL:0):捕虜先 != 0
 				;特定の勢力に逃れた場合、逃走フラグをオフにする
 				CFLAG:(LOCAL:0):特殊状態フラグ = 0
 				CFLAG:(LOCAL:0):恨む君主 = 0
@@ -957,13 +957,13 @@ FOR LOCAL:0, 0, CHARANUM
 			ENDIF
 
 		;旧君主が士官済みなら旧君主に従う
-		ELSEIF CFLAG:(LOCAL:5):1 != 0
+		ELSEIF CFLAG:(LOCAL:5):所属 != 0
 			IF !ライン
 				ライン = 1
 				DRAWLINE
 			ENDIF
 			;プレイヤー勢力へ逃れる場合メッセージを表示
-			IF CFLAG:(LOCAL:5):1 == CFLAG:MASTER:1
+			IF CFLAG:(LOCAL:5):所属 == CFLAG:MASTER:所属
 				SETCOLOR COLOR("注意")
 				PRINTFORML 放浪していた%NAME:(LOCAL:0)%が我が国に流れ着きました
 				PRINTFORML どうしますか？
@@ -980,11 +980,11 @@ FOR LOCAL:0, 0, CHARANUM
 				ENDIF
 			ELSE
 				SETCOLOR COLOR("注意")
-				PRINTFORML 放浪していた%NAME:(LOCAL:0)%が%NAME:(GET_COUNTRY_BOSS(CFLAG:(LOCAL:5):1))%に仕官したようです
-				CFLAG:(LOCAL:0):1 = CFLAG:(LOCAL:5):1
+				PRINTFORML 放浪していた%NAME:(LOCAL:0)%が%NAME:(GET_COUNTRY_BOSS(CFLAG:(LOCAL:5):所属))%に仕官したようです
+				CFLAG:(LOCAL:0):所属 = CFLAG:(LOCAL:5):所属
 				RESETCOLOR
 			ENDIF
-			IF CFLAG:(LOCAL:0):1 != 0 || CFLAG:(LOCAL:0):捕虜先 != 0
+			IF CFLAG:(LOCAL:0):所属 != 0 || CFLAG:(LOCAL:0):捕虜先 != 0
 				;特定の勢力に逃れた場合、逃走フラグをオフにする
 				CFLAG:(LOCAL:0):特殊状態フラグ = 0
 				CFLAG:(LOCAL:0):恨む君主 = 0
@@ -996,18 +996,18 @@ NEXT
 
 ;●放浪士官の獲得イベント
 ;主人公が特定の勢力に属していて捕虜でない場合に発生
-IF IS_COUNTRY(CFLAG:MASTER:1) && CFLAG:MASTER:捕虜先 == 0
+IF IS_COUNTRY(CFLAG:MASTER:所属) && CFLAG:MASTER:捕虜先 == 0
 	LOCAL:5 = 0
 	FOR LOCAL:0, 0, CHARANUM
 		;放浪士官のリストを作る
-		IF CFLAG:(LOCAL:0):特殊状態フラグ == 1 && CFLAG:(LOCAL:0):恨む君主 != CFLAG:MASTER:1
+		IF CFLAG:(LOCAL:0):特殊状態フラグ == 1 && CFLAG:(LOCAL:0):恨む君主 != CFLAG:MASTER:所属
 			LOCAL:(LOCAL:5 + 10) = LOCAL:0
 			LOCAL:5 ++
 		ENDIF
 	NEXT
 	;放浪士官が１人以上存在
 	IF LOCAL:5 >= 1
-		LOCAL:6 = GET_COMMANDER_NUM(CFLAG:MASTER:1)
+		LOCAL:6 = GET_COMMANDER_NUM(CFLAG:MASTER:所属)
 		;主人公勢力の士官が３人以下なら必ず発生
 		IF LOCAL:6 <= 3
 			LOCAL:7 = 100
@@ -1037,21 +1037,21 @@ IF IS_COUNTRY(CFLAG:MASTER:1) && CFLAG:MASTER:捕虜先 == 0
 			IF LOCAL:9 && RESULT == 0
 				LOCAL:9 = 0
 				;登用に応じるかどうかを判定
-				IF JUDGE_ASSIGN(LOCAL:8, GET_COUNTRY_BOSS(CFLAG:MASTER:1), -1)
+				IF JUDGE_ASSIGN(LOCAL:8, GET_COUNTRY_BOSS(CFLAG:MASTER:所属), -1)
 					CALL KOJO_EVENT(LOCAL:8, 350)
 					PRINTFORMW %NAME:(LOCAL:8)%が我が国の士官になりました
-					CFLAG:(LOCAL:8):1 = CFLAG:MASTER:1
+					CFLAG:(LOCAL:8):所属 = CFLAG:MASTER:所属
 					CFLAG:(LOCAL:8):特殊状態フラグ = 0
 					CFLAG:(LOCAL:8):恨む君主 = 0
 					CFLAG:(LOCAL:8):滅亡前の君主 = 0
 					;好感度を上昇、敵対値を減少
-					CALL CHANGE_RELATION_O_TO_C(LOCAL:8, CFLAG:MASTER:1, 80, -80)
+					CALL CHANGE_RELATION_O_TO_C(LOCAL:8, CFLAG:MASTER:所属, 80, -80)
 				ELSE
 					CALL KOJO_EVENT(LOCAL:8, 351)
 					PRINTFORMW %NAME:(LOCAL:8)%は応じる気はないようです…
 					GOTO RESELECT_LOOP
 					;好感度を上昇、敵対値を減少
-					CALL CHANGE_RELATION_O_TO_C(LOCAL:8, CFLAG:MASTER:1, 80, -80)
+					CALL CHANGE_RELATION_O_TO_C(LOCAL:8, CFLAG:MASTER:所属, 80, -80)
 				ENDIF
 
 			ELSEIF (LOCAL:9 && RESULT == 1) || (!LOCAL:9 && RESULT == 0)
@@ -1060,11 +1060,11 @@ IF IS_COUNTRY(CFLAG:MASTER:1) && CFLAG:MASTER:捕虜先 == 0
 			ELSE
 				CALL KOJO_EVENT(LOCAL:8, 352)
 				PRINTFORMW %NAME:(LOCAL:8)%を捕らえて投獄しました
-				CFLAG:(LOCAL:8):捕虜先 = CFLAG:MASTER:1
+				CFLAG:(LOCAL:8):捕虜先 = CFLAG:MASTER:所属
 				CFLAG:(LOCAL:8):特殊状態フラグ = 0
 
 				;好感度を下げ、敵対値を上げる
-				CALL CHANGE_RELATION_O_TO_C(LOCAL:8, CFLAG:MASTER:1, -300, 400)
+				CALL CHANGE_RELATION_O_TO_C(LOCAL:8, CFLAG:MASTER:所属, -300, 400)
 			ENDIF
 		ENDIF
 	ENDIF

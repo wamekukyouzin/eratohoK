@@ -202,12 +202,12 @@ IF !FLAG:クリアフラグ
 			PRINTL 
 
 			;主人公の所属する国家が統一した場合
-			IF UNIFY == CFLAG:MASTER:1
+			IF UNIFY == CFLAG:MASTER:所属
 				;好感度が最も高いキャラとその好感度を求める
 				LOCAL:1 = 0
 				LOCAL:2 = -1
 				FOR LOCAL:0, 0, CHARANUM
-					IF CFLAG:(LOCAL:0):2 > LOCAL:1 && LOCAL:0 != MASTER && CFLAG:(LOCAL:0):特殊状態フラグ == 0 && CFLAG:(LOCAL:0):1 == CFLAG:MASTER:1
+					IF CFLAG:(LOCAL:0):2 > LOCAL:1 && LOCAL:0 != MASTER && CFLAG:(LOCAL:0):特殊状態フラグ == 0 && CFLAG:(LOCAL:0):所属 == CFLAG:MASTER:所属
 						LOCAL:1 = CFLAG:(LOCAL:0):2
 						LOCAL:2 = LOCAL:0
 					ENDIF
@@ -290,7 +290,7 @@ IF !FLAG:クリアフラグ
 	CALL TMP_CREATE_RELATION_MAP
 
 	;分割統治エンド
-	IF CFLAG:MASTER:1 >= 1 && IS_NOENEMY(CFLAG:MASTER:1) && !FLAG:クリアフラグ
+	IF CFLAG:MASTER:所属 >= 1 && IS_NOENEMY(CFLAG:MASTER:所属) && !FLAG:クリアフラグ
 		;好感度が最も高いキャラとその好感度を求める
 		LOCAL:1 = 0
 		LOCAL:2 = -1
@@ -302,10 +302,10 @@ IF !FLAG:クリアフラグ
 		NEXT
 
 		;野盗をここで削除
-		SIF GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗)) != -1 && CFLAG:MASTER:1 != GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗))
+		SIF GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗)) != -1 && CFLAG:MASTER:所属 != GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗))
 			CALL DESTROY_COUNTRY(GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗)))
 
-		LOCAL:3 = GET_COUNTRY_BOSS(CFLAG:MASTER:1)
+		LOCAL:3 = GET_COUNTRY_BOSS(CFLAG:MASTER:所属)
 		PRINTL 
 		SETCOLOR COLOR("注意")
 		PRINTFORMW もはや争うべき勢力はこの幻想郷に存在しません
@@ -317,7 +317,7 @@ IF !FLAG:クリアフラグ
 		PRINTFORML 幻想郷を焼き尽くさんばかりに燃え広がった戦乱の炎は、
 		PRINTFORMW やがて君主同士が手を取り合い共存することで収まった。
 		FOR LOCAL:0, 1, MAX_COUNTRY
-			IF IS_COUNTRY(LOCAL:0) && LOCAL:0 != CFLAG:MASTER:1
+			IF IS_COUNTRY(LOCAL:0) && LOCAL:0 != CFLAG:MASTER:所属
 				PRINTFORMW %NAME_FORMAL(GET_COUNTRY_BOSS(LOCAL:0))%。
 			ENDIF
 		NEXT
@@ -436,7 +436,7 @@ RETURNF LOCAL:2
 ;全ての都市が無所属もしくは自勢力・永久同盟勢力の所有なら1を返す
 FOR LOCAL:0, 0, MAX_CITY
 	IF CITY_TYPE:(LOCAL:0) == 0 && GET_CITYNAME(LOCAL:0) != "無名"
-		IF CITY_OWNER:(LOCAL:0) != 0 && TMP_COUNTRY_RELATION:(CFLAG:MASTER:1):(CITY_OWNER:(LOCAL:0)) < 4
+		IF CITY_OWNER:(LOCAL:0) != 0 && TMP_COUNTRY_RELATION:(CFLAG:MASTER:所属):(CITY_OWNER:(LOCAL:0)) < 4
 			RETURNF 0
 		ENDIF
 	ENDIF
@@ -451,7 +451,7 @@ LOCAL:2 = 1
 FOR LOCAL:0, 0, MAX_CITY
 	IF CITY_TYPE:(LOCAL:0) == 0 && GET_CITYNAME(LOCAL:0) != "無名" && CITY_OWNER:(LOCAL:0) == 0
 		;統一したのが主人公勢力ならメッセージを表示
-		IF ARG:0 == CFLAG:MASTER:1
+		IF ARG:0 == CFLAG:MASTER:所属
 			IF LOCAL:2
 				LOCAL:2 = 0
 				PRINTL 
@@ -473,7 +473,7 @@ ENDIF
 ;-------------------------------------------------
 @CAPTURE_WANDERER(ARG:0)
 ;主人公勢力が検挙する場合メッセージと選択肢を表示
-IF ARG:0 == CFLAG:MASTER:1
+IF ARG:0 == CFLAG:MASTER:所属
 	LOCAL:9 = 0
 	FOR LOCAL:0, 0, CHARANUM
 		;放浪中の士官がいるか調べる
@@ -504,7 +504,7 @@ IF ARG:0 == CFLAG:MASTER:1
 			PRINTW 全員を我が国の士官として迎えました
 			FOR LOCAL:0, 0, CHARANUM
 				IF CFLAG:(LOCAL:0):特殊状態フラグ == 1
-					CFLAG:(LOCAL:0):1 = CFLAG:MASTER:1
+					CFLAG:(LOCAL:0):所属 = CFLAG:MASTER:所属
 					CFLAG:(LOCAL:0):特殊状態フラグ = 0
 					CFLAG:(LOCAL:0):恨む君主 = 0
 					CFLAG:(LOCAL:0):滅亡前の君主 = 0
@@ -514,8 +514,8 @@ IF ARG:0 == CFLAG:MASTER:1
 			PRINTW 全員を捕虜として投獄しました
 			FOR LOCAL:0, 0, CHARANUM
 				IF CFLAG:(LOCAL:0):特殊状態フラグ == 1
-					CFLAG:(LOCAL:0):1 = 0
-					CFLAG:(LOCAL:0):捕虜先 = CFLAG:MASTER:1
+					CFLAG:(LOCAL:0):所属 = 0
+					CFLAG:(LOCAL:0):捕虜先 = CFLAG:MASTER:所属
 					CFLAG:(LOCAL:0):特殊状態フラグ = 0
 					CFLAG:(LOCAL:0):恨む君主 = 0
 					CFLAG:(LOCAL:0):滅亡前の君主 = 0
@@ -525,8 +525,8 @@ IF ARG:0 == CFLAG:MASTER:1
 			PRINTW 全員を捕虜として軟禁しました
 			FOR LOCAL:0, 0, CHARANUM
 				IF CFLAG:(LOCAL:0):特殊状態フラグ == 1
-					CFLAG:(LOCAL:0):1 = 0
-					CFLAG:(LOCAL:0):捕虜先 = CFLAG:MASTER:1
+					CFLAG:(LOCAL:0):所属 = 0
+					CFLAG:(LOCAL:0):捕虜先 = CFLAG:MASTER:所属
 					CFLAG:(LOCAL:0):監禁状態 = 1
 					CFLAG:(LOCAL:0):特殊状態フラグ = 0
 					CFLAG:(LOCAL:0):恨む君主 = 0
@@ -547,7 +547,7 @@ IF ARG:0 == CFLAG:MASTER:1
 ELSE
 	FOR LOCAL:0, 0, CHARANUM
 		IF CFLAG:(LOCAL:0):特殊状態フラグ == 1
-			CFLAG:(LOCAL:0):1 = ARG:0
+			CFLAG:(LOCAL:0):所属 = ARG:0
 			CFLAG:(LOCAL:0):特殊状態フラグ = 0
 			CFLAG:(LOCAL:0):恨む君主 = 0
 			CFLAG:(LOCAL:0):滅亡前の君主 = 0
@@ -653,10 +653,10 @@ IF RESULT == 0
 			CFLAG:(LOCAL:0):恨む君主 = 0
 			CFLAG:(LOCAL:0):滅亡前の君主 = 0
 			IF CHARA_TREATMENT:(LOCAL:0) == 0
-				CFLAG:(LOCAL:0):1 = CFLAG:MASTER:1
+				CFLAG:(LOCAL:0):所属 = CFLAG:MASTER:所属
 			ELSE
-				CFLAG:(LOCAL:0):1 = 0
-				CFLAG:(LOCAL:0):捕虜先 = CFLAG:MASTER:1
+				CFLAG:(LOCAL:0):所属 = 0
+				CFLAG:(LOCAL:0):捕虜先 = CFLAG:MASTER:所属
 			ENDIF
 		ENDIF
 	NEXT
@@ -789,7 +789,7 @@ ITEMSALES:太平要術の書 = 1
 ITEM:太平要術の書 = 0
 
 FOR LOCAL:0, 0, CHARANUM
-	CFLAG:(LOCAL:0):1 = 0
+	CFLAG:(LOCAL:0):所属 = 0
 	CFLAG:(LOCAL:0):捕虜先 = 0
 	CFLAG:(LOCAL:0):捕虜の扱い = 0
 	CFLAG:(LOCAL:0):特殊状態フラグ = 0
