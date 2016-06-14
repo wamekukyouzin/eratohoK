@@ -5,7 +5,7 @@
 ;-------------------------------------------------
 @OPENING_STORY
 ;2週目以降用のオープニング口上
-;IF FLAG:26 >= 2
+;IF FLAG:周回数 >= 2
 ;	RETURN 1
 ;ENDIF
 
@@ -22,16 +22,16 @@ RETURN 1
 #DIM UNIFY
 
 ;クリア済みは除く
-IF !FLAG:28
+IF !FLAG:クリアフラグ
 	;主人公が死亡した場合
-	IF FLAG:27 || FLAG:34
+	IF FLAG:処刑エンドフラグ || FLAG:戦死エンドフラグ
 		DRAWLINE
 
 		;処刑
-		IF FLAG:27
+		IF FLAG:処刑エンドフラグ
 			PRINTFORMW 処刑を命じられた%ANAME(MASTER)%の首元に、ひんやりと冷たい鉄の刀が押し当てられる…
 		;戦死
-		ELSEIF FLAG:34
+		ELSEIF FLAG:戦死エンドフラグ
 			PRINTFORMW 戦いの中で致命傷を負った%ANAME(MASTER)%は、傷口から大量の血を噴き出し地面に倒れ伏していた
 			PRINTFORMW 馬のいななきや刀が触れ合う金属音、悲鳴や狂喜の入り混じった歓声が響く中、%ANAME(MASTER)%の意識は薄れていく…
 		ENDIF
@@ -72,7 +72,7 @@ IF !FLAG:28
 		FOR LOCAL:0, 0, 60
 			PRINTL 
 		NEXT
-		FLAG:27 = 9999
+		FLAG:処刑エンドフラグ = 1
 		RETURN
 	ENDIF
 
@@ -283,14 +283,14 @@ IF !FLAG:28
 		CALL CAPTURE_WANDERER(UNIFY)
 
 		;クリアフラグを立てる
-		FLAG:28 = 1
+		FLAG:クリアフラグ = 1
 	ENDIF
 
 	;国家関係マップの作成
 	CALL TMP_CREATE_RELATION_MAP
 
 	;分割統治エンド
-	IF CFLAG:MASTER:1 >= 1 && IS_NOENEMY(CFLAG:MASTER:1) && !FLAG:28
+	IF CFLAG:MASTER:1 >= 1 && IS_NOENEMY(CFLAG:MASTER:1) && !FLAG:クリアフラグ
 		;好感度が最も高いキャラとその好感度を求める
 		LOCAL:1 = 0
 		LOCAL:2 = -1
@@ -403,7 +403,7 @@ IF !FLAG:28
 		CALL CAPTURE_WANDERER(CFLAG:MASTER:所属)
 
 		;クリアフラグを立てる
-		FLAG:28 = 1
+		FLAG:クリアフラグ = 1
 	ENDIF
 ENDIF
 
@@ -1095,9 +1095,6 @@ ELSEIF RESULT == 9
 		;マスターを元に戻す
 		SWAPCHARA MASTER, LOCAL:6
 		CALL NEWGAME_SWAP_RELATIONS(LOCAL:6)
-	ELSE
-		;能力設定済みフラグをＯＮにする
-		FLAG:5 = 1
 	ENDIF
 	RESTART
 ELSEIF RESULT == 1 && LOCAL:8 >= 0

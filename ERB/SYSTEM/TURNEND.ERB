@@ -21,15 +21,15 @@ ELSE
 ENDIF
 
 ;逆調教要求日数が残っている場合
-IF DIPLOMACY_TRAINED_DAY > 0 && !FLAG:31 && !FLAG:調教要求フラグ
+IF DIPLOMACY_TRAINED_DAY > 0 && !FLAG:強制調教フラグ && !FLAG:調教要求フラグ
 	DIPLOMACY_TRAINED_DAY --
 	;全員の調教参加フラグを解除
 	CVARSET CFLAG, 6, 0
 	CFLAG:DIPLOMACY_TRAINING_CHARA:調教参加フラグ = 1
 	;捕虜逆調教モード
-	FLAG:12 = 5
+	FLAG:調教モード = 5
 	;ウフフモード
-	FLAG:50 = 1
+	FLAG:ウフフフラグ = 1
 	PRINTFORML %ANAME(MASTER)%は外交交渉の見返りとして、%ANAME(DIPLOMACY_TRAINING_CHARA)%の寝室へ向かった……
 	CALL START_TRAIN_COMMON
 	RETURN
@@ -43,9 +43,9 @@ IF DIPLOMACY_TRAINED_DAY < 0 && !FLAG:調教要求フラグ
 	VARSET TMP_依存度
 	VARSET TMP_参加者
 	;捕虜逆調教モード
-	FLAG:12 = 5
+	FLAG:調教モード = 5
 	;ウフフモード
-	FLAG:50 = 1
+	FLAG:ウフフフラグ = 1
 	FLAG:あてがうフラグ = 1
 	FLAG:調教要求フラグ = 1
 	;アイテムを一通り追加
@@ -82,7 +82,7 @@ IF DIPLOMACY_TRAINED_DAY < 0 && !FLAG:調教要求フラグ
 	;時間の処理をしないと、「拠点フェイズの終了時にここに到達、調教→調教終了でSLGフェイズのターンエンドが呼ばれ、次期の拠点フェイズに飛ぶ」みたいな挙動になる
 	;IF TIME == 0
 	;	DAY --
-	;	SIF !FLAG:28
+	;	SIF !FLAG:クリアフラグ
 	;		TIME = 1
 	;ELSEIF TIME == 1
 	;	TIME = 0
@@ -98,13 +98,13 @@ ENDIF
 $SKIPPED
 
 ;強制調教フラグが立っているなら即時調教モードに入る
-IF FLAG:31 == 1
-	FLAG:31 = 0
+IF FLAG:強制調教フラグ == 1
+	FLAG:強制調教フラグ = 0
 	FLAG:調教モード = 1
-	FLAG:50 = 1
+	FLAG:ウフフフラグ = 1
 	;時間の処理をしないと、「拠点フェイズの終了時にここに到達、調教→調教終了でSLGフェイズのターンエンドが呼ばれ、次期の拠点フェイズに飛ぶ」みたいな挙動になる
 	IF TIME == 0
-		IF !FLAG:28
+		IF !FLAG:クリアフラグ
 			TIME = 1
 			DAY --
 		ENDIF
@@ -114,12 +114,12 @@ IF FLAG:31 == 1
 	ENDIF
 	FLAG:イベント発生禁止 = 1
 	CALL START_TRAIN_COMMON
-ELSEIF FLAG:31 == 2
-	FLAG:31 = 0
+ELSEIF FLAG:強制調教フラグ == 2
+	FLAG:強制調教フラグ = 0
 	FLAG:調教モード = 5
-	FLAG:50 = 1
+	FLAG:ウフフフラグ = 1
 	IF TIME == 0
-		IF !FLAG:28
+		IF !FLAG:クリアフラグ
 			TIME = 1
 			DAY --
 		ENDIF
@@ -175,10 +175,10 @@ CALL EVENT_SETTOKU
 ;捕虜の扱いに対応したイベント
 CALL EVENT_PRISONER
 
-;捕虜でなければ、FLAG:14(捕虜調教初回済みフラグ）とFLAG:47（捕虜調教回数）を消す
+;捕虜でなければ、FLAG:逆調教回数（捕虜調教回数）を消す
 IF !CFLAG:MASTER:捕虜先
-	FLAG:14 = 0
-	FLAG:47 = 0
+	FLAG:逆調教メイン調教者 = 0
+	FLAG:逆調教回数 = 0
 ENDIF
 
 ;口上呼び出し
@@ -200,7 +200,7 @@ CALL SCOUT_PREPARE_CANDIDATES
 $SKIPPED
 
 ;統一後の場合
-IF FLAG:28
+IF FLAG:クリアフラグ
 	;一期終了時の処理
 	CALL TURNEND_COMMON
 	;クールタイムのリセット
@@ -265,7 +265,7 @@ FOR LOCAL:0, 0, MAX_COUNTRY
 NEXT
 
 ;デッドエンディングなら戻る
-IF FLAG:27 == 9999
+IF FLAG:処刑エンドフラグ == 1
 	RETURN
 ENDIF
 
@@ -322,8 +322,8 @@ CALL VARY_ECONOMY
 CALL GAIN_COUNTRY_TAX
 
 ;経済成長・兵数増強の補正値をクリア
-FLAG:42 = 0
-FLAG:43 = 0
+FLAG:経済成長追加値 = 0
+FLAG:兵数増加追加値 = 0
 
 PLAYER_HIRED_COUNTER = MAX(0, PLAYER_HIRED_COUNTER - 1)
 COUNTRY_PLAYER_BELONGED_COUNTER++
@@ -535,10 +535,10 @@ FOR LOCAL:0, 0, CHARANUM
 NEXT
 
 ;触手部屋の管理者に経験値を加算
-IF ITEM:触手部屋 && FLAG:35 >= 0 && IS_SYOKUSYU_MANAGE(FLAG:35)
-	EXP:(FLAG:35):触手経験値 += 2
-	EXP:(FLAG:35):妖術経験値 += 2
-	CALL TRAIN_AUTO_ABLUP(FLAG:35, 1)
+IF ITEM:触手部屋 && FLAG:触手部屋管理者 >= 0 && IS_SYOKUSYU_MANAGE(FLAG:触手部屋管理者)
+	EXP:(FLAG:触手部屋管理者):触手経験値 += 2
+	EXP:(FLAG:触手部屋管理者):妖術経験値 += 2
+	CALL TRAIN_AUTO_ABLUP(FLAG:触手部屋管理者, 1)
 ENDIF
 
 ;外交による調教要求フラグの解除判定
@@ -576,9 +576,6 @@ CVARSET CFLAG, 32, 0
 FOR LOCAL:0, 110, 130
 	CVARSET CFLAG, LOCAL:0, 0
 NEXT
-
-;登用コマンドの実行済みフラグをクリア
-FLAG:17 = 0
 
 ;-------------------------------------------------
 ;料理長による回復

@@ -12,7 +12,7 @@ SELECTCASE ARG:0
 	CASE 7
 		CALL PRINTBUTTON_CENTER(" 5{  能力表示}", 5, 6, 1, FLAG:拠点フェイズ選択コマンド == 1040)
 	CASE 20
-		IF FLAG:28
+		IF FLAG:クリアフラグ
 			CALL PRINTBUTTON_CENTER("50[次の周回へ]", 50, 6)
 		ELSE
 			PRINT 　　　　　　　
@@ -34,7 +34,7 @@ PRINT ┃
 ;-------------------------------------------------
 @SHOW_SHOP_LIFE_B
 ;無効な入力時に消去する時の行数
-FLAG:24 = 30
+FLAG:ショップ消去行数 = 30
 
 VARSET LOCAL, 0
 
@@ -84,12 +84,12 @@ NEXT
 LOCAL:10 = MAX((LOCAL:10 - 1) / LOCAL:12 + 1, 1)
 
 ;ページ数を範囲に収める
-IF FLAG:6 <= 0
-	FLAG:6 = LOCAL:10 - ((-FLAG:6) % LOCAL:10)
-ELSEIF FLAG:6 >= LOCAL:10 + 1
-	FLAG:6 = (FLAG:6 + 1) % LOCAL:10 + 1
+IF FLAG:拠点フェイズページ <= 0
+	FLAG:拠点フェイズページ = LOCAL:10 - ((-FLAG:拠点フェイズページ) % LOCAL:10)
+ELSEIF FLAG:拠点フェイズページ >= LOCAL:10 + 1
+	FLAG:拠点フェイズページ = (FLAG:拠点フェイズページ + 1) % LOCAL:10 + 1
 ENDIF
-LOCAL:11 = FLAG:6
+LOCAL:11 = FLAG:拠点フェイズページ
 
 ;キャラリストの表示
 LOCAL:13 = 0
@@ -167,23 +167,23 @@ IF ARG:0 == 0
 ;様子を見る
 ;ELSEIF ARG:0 == 1
 ;	FLAG:拠点フェイズ選択コマンド = 1030
-;	FLAG:6 = 1
+;	FLAG:拠点フェイズページ = 1
 ;	RETURN 0
 ;能力表示
 ELSEIF ARG:0 == 5
 	FLAG:拠点フェイズ選択コマンド = 1040
-	FLAG:6 = 1
+	FLAG:拠点フェイズページ = 1
 	RETURN 0
 ;次の周回へ
-ELSEIF ARG:0 == 50 && FLAG:28
+ELSEIF ARG:0 == 50 && FLAG:クリアフラグ
 	CALL GO_NEXT_LOOP
 ;前のページ
 ELSEIF ARG:0 == 54
-	FLAG:6 --
+	FLAG:拠点フェイズページ --
 	RETURN 0
 ;次のページ
 ELSEIF ARG:0 == 56
-	FLAG:6 ++
+	FLAG:拠点フェイズページ ++
 	RETURN 0
 ELSE
 	RETURN 0
@@ -225,8 +225,8 @@ CATCH
 	LOCAL:10 = RESULT:0
 	LOCAL:11 = RESULT:1
 
-	;FLAG:46に記録されたIDからメイン調教者のキャラ番号を取得
-	LOCAL:12 = ID_TO_CHARA(FLAG:46)
+	;FLAG:逆調教メイン調教者に記録されたIDからメイン調教者のキャラ番号を取得
+	LOCAL:12 = ID_TO_CHARA(FLAG:逆調教メイン調教者)
 	IF LOCAL:12 >= 0 && CFLAG:(LOCAL:12):1 == CFLAG:MASTER:捕虜先 && CFLAG:(LOCAL:12):捕虜先 == 0 && GROUPMATCH(CFLAG:(LOCAL:12):行動不能状態, 0, 2)
 		;メイン調教者を調教に参加させる
 		CFLAG:(LOCAL:12):調教参加フラグ = 1
@@ -254,7 +254,7 @@ CATCH
 
 	;参加者が一人以上いれば逆調教を開始
 	ELSEIF LOCAL:11 > 0
-		IF FLAG:47 == 0
+		IF FLAG:逆調教回数 == 0
 			LOCALS:0 = 
 			IF LOCAL:11 >= 2
 				LOCALS:0 = たち
@@ -263,17 +263,17 @@ CATCH
 			PRINTFORMW %ANAME(MASTER)%の牢屋の前に、%ANAME(LOCAL:10)%%LOCALS:0%がやって来た
 			PRINTFORMW %ANAME(LOCAL:10)%%LOCALS:0%は%ANAME(MASTER)%に対し、%ANAME(MASTER)%が仕官する気になるまで調教すると宣言してきた…
 			;説得してからの期間を0にする
-			FLAG:32 = 0
+			FLAG:勧誘経過期間 = 0
 		ENDIF
 
 		;捕虜逆調教モード
-		FLAG:12 = 5
+		FLAG:調教モード = 5
 		;ウフフモード
-		FLAG:50 = 1
+		FLAG:ウフフフラグ = 1
 		;回数をカウント
-		FLAG:47 ++
+		FLAG:逆調教回数 ++
 		;説得してからの期間を増加
-		FLAG:32 ++
+		FLAG:勧誘経過期間 ++
 		;解放カウンタをリセット
 		CFLAG:MASTER:解放カウンタ = 0
 		;アイテムを一通り追加
@@ -310,9 +310,9 @@ CATCH
 				PRINTFORMW %ANAME(LOCAL:12)%は%ANAME(MASTER)%の牢を空け中に入ると、少し話がしたいと言ってきた…
 
 				;捕虜会話モード
-				FLAG:12 = 6
+				FLAG:調教モード = 6
 				;非ウフフモード
-				FLAG:50 = 0
+				FLAG:ウフフフラグ = 0
 				;行動開始時の共通処理
 				CALL START_TRAIN_COMMON
 				RETURN 1
@@ -330,7 +330,7 @@ ENDCATCH
 ;-------------------------------------------------
 @SHOP_WATCH_OTHERS(ARG:0)
 ;SHOW_INFOの初期画面を基本情報にする
-FLAG:11 = 0
+FLAG:能力表示モード = 0
 
 $SHOW_LOOP_INFO_A
 
@@ -405,7 +405,7 @@ VARSET 調教人数, 0
 VARSET メイン, -1
 
 FOR LCOUNT, 0, CHARANUM
-	SIF GET_ID(LCOUNT) == FLAG:46
+	SIF GET_ID(LCOUNT) == FLAG:逆調教メイン調教者
 		CONTINUE
 	SIF CFLAG:(LCOUNT):所属 != CFLAG:MASTER:捕虜先 || CFLAG:(LCOUNT):捕虜先 || CFLAG:(LCOUNT):特殊状態フラグ
 		CONTINUE

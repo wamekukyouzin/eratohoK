@@ -23,7 +23,7 @@ FOR LOCAL:0, 0, CHARANUM
 NEXT
 
 ;「会いに行く」モード
-IF FLAG:12 == 0
+IF FLAG:調教モード == 0
 	FOR LOCAL:0, 0, CHARANUM
 		;ツンデレ＆恋慕＆非恋人の場合
 		IF TALENT:(LOCAL:0):ツンデレ && TALENT:(LOCAL:0):恋慕 && !TALENT:(LOCAL:0):恋人
@@ -34,19 +34,19 @@ IF FLAG:12 == 0
 	NEXT
 ENDIF
 
-;IF FLAG:12 == 2 && CFLAG:(FLAG:19):外交調教経過ターン && TFLAG:44 == 1
+;IF FLAG:調教モード == 2 && CFLAG:(FLAG:19):外交調教経過ターン && TFLAG:44 == 1
 ;	IF ABL:(FLAG:19):欲望 >= 3 && ABL:(FLAG:19):性知識 >= 3 && (ABL:(FLAG:19):主導度Ｕ >= 300 || TALENT:(FLAG:19):サド)
 ;		PRINTFORMW ………………
 ;		PRINTFORMW これはどういうことだろうか？
 ;		PRINTFORMW 気付けば、%ANAME(FLAG:19)%に完全に主導権を奪われ、縄で縛り上げられてしまっている
 ;		PRINTFORMW ひょっとすると、調教する相手を間違えたかもしれない…
-;		FLAG:12 = 5
+;		FLAG:調教モード = 5
 ;		FLAG:19 = -1
 ;	ENDIF
 ;ENDIF
 
 ;時間の設定
-IF FLAG:12 == 0
+IF FLAG:調教モード == 0
 	;臨月
 	IF CFLAG:(MTAR:0):行動不能状態 == 1
 		TFLAG:56 = 3
@@ -59,13 +59,13 @@ IF FLAG:12 == 0
 	ELSE
 		TFLAG:56 = 7
 	ENDIF
-ELSEIF FLAG:12 == 3
+ELSEIF FLAG:調教モード == 3
 	TFLAG:56 = 5
-ELSEIF FLAG:12 == 6
+ELSEIF FLAG:調教モード == 6
 	TFLAG:56 = 7
-ELSEIF FLAG:50
+ELSEIF FLAG:ウフフフラグ
 	TFLAG:56 = 20
-	SIF FLAG:70
+	SIF FLAG:夜這い
 		TFLAG:56 = 10
 	;野盗を斬り捨てたことによる入れ替え調教なら、さらに長い
 	SIF DVAR:要求野盗斬り捨て
@@ -73,14 +73,14 @@ ELSEIF FLAG:50
 ENDIF
 
 ;情報表示モードのリセット
-FLAG:11 = 0
+FLAG:能力表示モード = 0
 
 ;捕虜調教・子育てなら常に主人公が主導権を握る
-IF GROUPMATCH(FLAG:12, 2, 3)
-	FLAG:10 = MASTER
+IF GROUPMATCH(FLAG:調教モード, 2, 3)
+	FLAG:主導権所有者 = MASTER
 ;それ以外なら通常は「成り行き」で開始
 ELSE
-	FLAG:10 = -1
+	FLAG:主導権所有者 = -1
 ENDIF
 
 ;EQUIPの初期化
@@ -106,8 +106,8 @@ IF GROUPMATCH(FLAG:調教モード, 4, 5) && !GROUPMATCH(1, FLAG:あてがうフ
 ENDIF
 
 ;元士官からの逆調教は、既に出来上がった状態からスタート
-IF FLAG:29 == 1
-	FLAG:29 = 0
+IF FLAG:特殊勢力逆調教知り合いフラグ == 1
+	FLAG:特殊勢力逆調教知り合いフラグ = 0
 	FOR LOCAL:0, 0, CHARANUM
 		IF CFLAG:(LOCAL:0):調教参加フラグ
 			PALAM:(LOCAL:0):潤滑 = 30000
@@ -244,7 +244,7 @@ FOR LOCAL:0, 0, LOCAL:40
 	LOCAL:1 = LOCAL:(LOCAL:0 + 50)
 	IF LOCAL:1 == MASTER
 		LOCAL:41 = MAX(LOCAL:41, 0)
-	ELSEIF FLAG:50
+	ELSEIF FLAG:ウフフフラグ
 		LOCAL:41 = MAX(LOCAL:41, ABL:(LOCAL:1):主導度Ｕ)
 	ELSE
 		LOCAL:41 = MAX(LOCAL:41, ABL:(LOCAL:1):主導度Ｎ)
@@ -257,7 +257,7 @@ FOR LOCAL:0, 0, LOCAL:40
 	LOCAL:1 = LOCAL:(LOCAL:0 + 50)
 	IF LOCAL:1 == MASTER
 		LOCAL:42 += MAX(-LOCAL:41 + 800, 0)
-	ELSEIF FLAG:50
+	ELSEIF FLAG:ウフフフラグ
 		LOCAL:42 += MAX(ABL:(LOCAL:1):主導度Ｕ - LOCAL:41 + 800, 0)
 	ELSE
 		LOCAL:42 += MAX(ABL:(LOCAL:1):主導度Ｎ - LOCAL:41 + 800, 0)
@@ -271,7 +271,7 @@ ELSE
 		LOCAL:1 = LOCAL:(LOCAL:0 + 50)
 		IF LOCAL:1 == MASTER
 			LOCAL:43 -= MAX(-LOCAL:41 + 800, 0)
-		ELSEIF FLAG:50
+		ELSEIF FLAG:ウフフフラグ
 			LOCAL:43 -= MAX(ABL:(LOCAL:1):主導度Ｕ - LOCAL:41 + 800, 0)
 		ELSE
 			LOCAL:43 -= MAX(ABL:(LOCAL:1):主導度Ｎ - LOCAL:41 + 800, 0)
@@ -287,16 +287,16 @@ ENDIF
 ;主導権を持つキャラが設定されているなら、基本的にそのキャラに主導権を持たせる
 ;ただし、上で決定された仮の主導権者との主導度に大きな差があると、その差に応じた確率で主導権を奪われる
 
-IF TFLAG:0 && FLAG:10 >= 0
+IF TFLAG:0 && FLAG:主導権所有者 >= 0
 	;おまかせフラグが立っているなら主導権奪取は起こらない
-	TFLAG:45 = FLAG:10
+	TFLAG:45 = FLAG:主導権所有者
 
-ELSEIF FLAG:10 >= 0 && FLAG:10 != TFLAG:45 && !(IS_MPLY(FLAG:10) && IS_MPLY(TFLAG:45)) && !(IS_MTAR(FLAG:10) && IS_MTAR(TFLAG:45))
-	IF FLAG:50
-		IF FLAG:10 == MASTER
+ELSEIF FLAG:主導権所有者 >= 0 && FLAG:主導権所有者 != TFLAG:45 && !(IS_MPLY(FLAG:主導権所有者) && IS_MPLY(TFLAG:45)) && !(IS_MTAR(FLAG:主導権所有者) && IS_MTAR(TFLAG:45))
+	IF FLAG:ウフフフラグ
+		IF FLAG:主導権所有者 == MASTER
 			LOCAL:9 = 0
 		ELSE
-			LOCAL:9 = ABL:(FLAG:10):主導度Ｕ
+			LOCAL:9 = ABL:(FLAG:主導権所有者):主導度Ｕ
 		ENDIF
 		IF TFLAG:45 == MASTER
 			LOCAL:7 = -LOCAL:9 - 300
@@ -304,10 +304,10 @@ ELSEIF FLAG:10 >= 0 && FLAG:10 != TFLAG:45 && !(IS_MPLY(FLAG:10) && IS_MPLY(TFLA
 			LOCAL:7 = ABL:(TFLAG:45):主導度Ｕ - LOCAL:9 - 300
 		ENDIF
 	ELSE
-		IF FLAG:10 == MASTER
+		IF FLAG:主導権所有者 == MASTER
 			LOCAL:9 = 0
 		ELSE
-			LOCAL:9 = ABL:(FLAG:10):主導度Ｎ
+			LOCAL:9 = ABL:(FLAG:主導権所有者):主導度Ｎ
 		ENDIF
 		IF TFLAG:45 == MASTER
 			LOCAL:7 = -LOCAL:9 - 300
@@ -317,25 +317,25 @@ ELSEIF FLAG:10 >= 0 && FLAG:10 != TFLAG:45 && !(IS_MPLY(FLAG:10) && IS_MPLY(TFLA
 	ENDIF
 
 	IF LOCAL:7 < 0
-		TFLAG:45 = FLAG:10
+		TFLAG:45 = FLAG:主導権所有者
 	ELSE
 		LOCAL:8 = MIN(LOCAL:7 * SQRT(LOCAL:7 * 10000) * 70 / 18520 + 500, 8500)
 		IF RAND:10000 >= LOCAL:8
-			TFLAG:45 = FLAG:10
+			TFLAG:45 = FLAG:主導権所有者
 		ELSE
-			IF FLAG:10 == MASTER
-				PRINTFORMW %ANAME(FLAG:10)%が主導権を握っていたはずが、気が付くと%ANAME(TFLAG:45)%に主導権を奪われていた…
+			IF FLAG:主導権所有者 == MASTER
+				PRINTFORMW %ANAME(FLAG:主導権所有者)%が主導権を握っていたはずが、気が付くと%ANAME(TFLAG:45)%に主導権を奪われていた…
 			ELSEIF TFLAG:45 == MASTER
-				PRINTFORMW %ANAME(FLAG:10)%に主導権を握らせていたはずが、気が付くと%ANAME(TFLAG:45)%が主導権を握ってしまっていた…
+				PRINTFORMW %ANAME(FLAG:主導権所有者)%に主導権を握らせていたはずが、気が付くと%ANAME(TFLAG:45)%が主導権を握ってしまっていた…
 			ELSE
-				PRINTFORMW %ANAME(FLAG:10)%が主導権を握っていたはずだが、いつの間にか%ANAME(TFLAG:45)%が主導権を奪っていた…
+				PRINTFORMW %ANAME(FLAG:主導権所有者)%が主導権を握っていたはずだが、いつの間にか%ANAME(TFLAG:45)%が主導権を奪っていた…
 			ENDIF
 		ENDIF
 	ENDIF
 ENDIF
 
 ;主導権が「成り行き」の場合のメッセージ
-IF FLAG:10 == -1
+IF FLAG:主導権所有者 == -1
 	LOCAL:1 = 0
 	FOR LOCAL:0, 0, CHARANUM
 		IF LOCAL:0 == MASTER || CFLAG:(LOCAL:0):調教参加フラグ
@@ -439,13 +439,13 @@ FOR LOCAL:0, 0, MAX_MEQUIP
 NEXT
 
 ;子育てモードならコマンドの実行回数を記録
-IF FLAG:12 == 3
+IF FLAG:調教モード == 3
 	CFLAG:(MTAR:0):育成コマンド実行回数 ++
 ENDIF
 
-IF GROUPMATCH(FLAG:12, 2, 4, 5)
+IF GROUPMATCH(FLAG:調教モード, 2, 4, 5)
 	LOCALS:0 = 調教
-ELSEIF FLAG:50
+ELSEIF FLAG:ウフフフラグ
 	LOCALS:0 = 夜伽
 ELSE
 	LOCALS:0 = 行動
@@ -458,9 +458,9 @@ IF TFLAG:38
 ENDIF
 
 ;主人公が行動不能(逆調教除く)
-IF !GROUPMATCH(FLAG:12, 4, 5) && !IS_PLAYABLE(MASTER)
+IF !GROUPMATCH(FLAG:調教モード, 4, 5) && !IS_PLAYABLE(MASTER)
 	;ウフフ中は継続判定
-	IF FLAG:50
+	IF FLAG:ウフフフラグ
 		FOR LOCAL:0, 0, CHARANUM
 			IF LOCAL:0 != MASTER && CFLAG:(LOCAL:0):調教参加フラグ && (ABL:(LOCAL:0):主導度Ｕ >= 500 || ABL:(LOCAL:0):欲望 >= 10)
 				;行動可能でウフフ主導度300以上または欲望10以上のキャラが1人以上入れば継続
@@ -487,7 +487,7 @@ IF !GROUPMATCH(FLAG:12, 4, 5) && !IS_PLAYABLE(MASTER)
 ENDIF
 
 ;逆調教で行動可能な調教者がいなければ終了
-IF GROUPMATCH(FLAG:12, 4, 5)
+IF GROUPMATCH(FLAG:調教モード, 4, 5)
 	LOCAL:10 = 0
 	FOR LOCAL:0, 0, CHARANUM
 		IF IS_AUTOSELECT(LOCAL:0)
@@ -558,7 +558,7 @@ IF LOCAL:2 && !TFLAG:8
 						;睡姦中フラグをＯＮ
 						TFLAG:8 = 1
 						;ウフフフラグをＯＮ
-						FLAG:50 = 1
+						FLAG:ウフフフラグ = 1
 						;時間を再設定
 						TFLAG:55 = 0
 						TFLAG:56 = 15
@@ -634,7 +634,7 @@ IF !TFLAG:2 && LOCAL:20
 	NEXT
 
 ;逆調教で主人公が疲労・失神状態になった場合
-ELSEIF !TFLAG:2 && GROUPMATCH(FLAG:12, 4, 5) && !IS_PLAYABLE(MASTER)
+ELSEIF !TFLAG:2 && GROUPMATCH(FLAG:調教モード, 4, 5) && !IS_PLAYABLE(MASTER)
 	TFLAG:2 = 1
 	LOCAL:1 = 0
 	FOR LOCAL:0, 0, CHARANUM
@@ -662,18 +662,18 @@ LINES_TRAIN = LINECOUNT
 CALL INITIALIZE_EQUIP()
 
 ;子育てモード
-IF FLAG:12 == 3
+IF FLAG:調教モード == 3
 	PRINTL 
 	PRINTFORMW (そろそろ日が暮れます。今日はここまでにしてゆっくり過ごすことにしました)
 	BEGIN AFTERTRAIN
 
-ELSEIF FLAG:12 == 4 || FLAG:12 == 5
+ELSEIF FLAG:調教モード == 4 || FLAG:調教モード == 5
 	PRINTL 
 	PRINTFORMW (どうやら今日の調教は終了したようです…)
 	BEGIN AFTERTRAIN
 
 ;ウフフモードの場合
-ELSEIF FLAG:50
+ELSEIF FLAG:ウフフフラグ
 	;睡姦中
 	IF TFLAG:8
 		PRINTL 
@@ -695,7 +695,7 @@ ELSEIF FLAG:50
 	ELSEIF TFLAG:54
 		PRINTL 
 		PRINTFORMW (もう夜も遅い時間です。今日はここまでにして帰ることにしました)
-	ELSEIF FLAG:70
+	ELSEIF FLAG:夜這い
 		PRINTL 
 		PRINTFORMW (これ以上留まるのは危険です。今日はここまでにして逃げることにしました)
 	ELSE
@@ -757,14 +757,14 @@ ELSE
 			;押し倒された場合
 			IF RESULT == 1
 				;ウフフフラグをＯＮ
-				FLAG:50 = 1
+				FLAG:ウフフフラグ = 1
 				;時間を再設定
 				TFLAG:55 = 0
 				TFLAG:56 = 20
 				;タブ設定をリセット
 				TFLAG:7 = 0
 				;主導権を相手側に渡す
-				FLAG:10 = MTAR:0
+				FLAG:主導権所有者 = MTAR:0
 				;既成事実Lv3に相当
 				CALL SET_COUPLE_STEP(MTAR:0, 3)
 			;おねだりされた場合
@@ -779,7 +779,7 @@ ELSE
 					BEGIN AFTERTRAIN
 				ENDIF
 			;押し倒し／おねだりが発生せず、捕虜会話でない場合
-			ELSEIF FLAG:12 != 6
+			ELSEIF FLAG:調教モード != 6
 				;相手からのキス・告白の判定
 				CALL CHECK_EXIT_ACTION
 			ENDIF
@@ -843,7 +843,7 @@ ELSE
 		;このターン合意えっち
 		CFLAG:(MTAR:0):93 = 1
 		;ウフフフラグをＯＮ
-		FLAG:50 = 1
+		FLAG:ウフフフラグ = 1
 		;時間を再設定
 		TFLAG:55 = 0
 		TFLAG:56 = 20
@@ -854,7 +854,7 @@ ELSE
 	ENDIF
 
 	;ウフフモードに入らないなら終了
-	IF !FLAG:50
+	IF !FLAG:ウフフフラグ
 		PRINTFORMW （%LOCALS:0%%ANAME(MTAR:0)%と一旦別れました）
 		BEGIN AFTERTRAIN
 	ENDIF
@@ -1195,7 +1195,7 @@ ENDIF
 ;-------------------------------------------------
 @PUSH_OVER
 ;既にウフフ中なら戻る
-IF FLAG:50
+IF FLAG:ウフフフラグ
 	RETURN 0
 ENDIF
 
