@@ -2859,3 +2859,31 @@ SIF OPERAND > MAXVAL
 	OPERAND = MINVAL
 
 RETURNF OPERAND
+
+;-------------------------------------------------
+;対象の所属を変更させ、必要な変数操作を行う関数
+;所属を0にすると放浪する。その際、死亡フラグを指定した場合は死亡扱いになる
+;-------------------------------------------------
+@CHANGE_COUNTRY(対象, 勢力番号, 死亡フラグ = 0)
+#DIM 対象
+#DIM 勢力番号
+#DIM 死亡フラグ
+SIF !INRANGE(対象, 0, CHARANUM)
+	THROW @CHANGE_COUNTRYに不正なキャラ番号が渡されました
+SIF !INRANGE(勢力番号, 0, MAX_COUNTRY) || (!IS_COUNTRY(勢力番号) && 勢力番号 != 0)
+	THROW @CHANGE_COUNTRYに不正な勢力番号が渡されました
+	
+CFLAG:対象:所属 = 勢力番号
+CFLAG:対象:捕虜先 = 0
+CFLAG:対象:監禁状態 = 0
+IF 対象 != MASTER
+	IF 勢力番号 != 0
+		CFLAG:対象:特殊状態フラグ = 0
+	ELSE
+		CFLAG:対象:特殊状態フラグ = 死亡フラグ + 1
+	ENDIF
+ENDIF
+
+CFLAG:対象:恨む君主 = 0
+CFLAG:対象:滅亡前の君主 = 0
+CALL FORCE_FREE(対象)
