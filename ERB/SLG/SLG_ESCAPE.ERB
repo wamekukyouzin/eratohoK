@@ -13,7 +13,7 @@ IF ARG:0 == CFLAG:MASTER:所属
 			;主人公の勢力に仕官していたか捕虜になっていたキャラは全員捕えらえる
 			FOR LOCAL:0, 0 , CHARANUM
 				IF (CFLAG:(LOCAL:0):所属 == ARG:0 ||CFLAG:(LOCAL:0):捕虜先 == ARG:0)
-					CFLAG:(LOCAL:0):所属 = 0
+					CALL CHANGE_COUNTRY(LOCAL:0, 0)
 					CFLAG:(LOCAL:0):捕虜先 = ARG:1
 				ENDIF
 			NEXT
@@ -39,14 +39,14 @@ FOR LOCAL:0, 0, CHARANUM
 		IF CFLAG:(LOCAL:0):捕虜先 == ARG:0
 			CALL TREAT_PRISONER(ARG:0, ARG:1, LOCAL:0)
 		ELSE
-			;滅亡した勢力の士官のうち、囚われているのが野盗の場合、ゴブリン、外来の場合はなにもしない。
+			;滅亡した勢力の士官のうち、囚われているのが特殊勢力の場合はなにもしない。
 			IF IS_SP_COUNTRY(CFLAG:(LOCAL:0):捕虜先)
 			;滅亡した勢力の士官のうち、他のCPU勢力の捕虜となっていたキャラは、登用判定を通す。
 			ELSEIF GET_COUNTRY_BOSS(CFLAG:(LOCAL:0):捕虜先) != -1 && JUDGE_ASSIGN(LOCAL:0, CFLAG:(LOCAL:0):捕虜先, CFLAG:(LOCAL:0):所属) && !IS_SP_COUNTRY(CFLAG:(LOCAL:0):捕虜先)
 				SETCOLOR COLOR("注意")
 				PRINTFORML 囚われていた%ANAME(LOCAL:0)%は、%ANAME(GET_COUNTRY_BOSS(CFLAG:(LOCAL:0):捕虜先))%に仕えることになったようだ
 				RESETCOLOR
-				CFLAG:(LOCAL:0):所属 = CFLAG:(LOCAL:0):捕虜先
+				CALL CHANGE_COUNTRY(LOCAL:0, CFLAG:(LOCAL:0):捕虜先)
 				CFLAG:(LOCAL:0):捕虜先 = 0
 			;登用判定にひっかからなければ放浪
 			ELSE
@@ -54,9 +54,7 @@ FOR LOCAL:0, 0, CHARANUM
 				SETCOLOR COLOR("注意")
 				PRINTFORML 囚われていた%ANAME(LOCAL:0)%は、放浪したようだ
 				RESETCOLOR
-				CFLAG:(LOCAL:0):所属 = 0
-				CFLAG:(LOCAL:0):捕虜先 = 0
-				CFLAG:(LOCAL:0):特殊状態フラグ = 1
+				CALL CHANGE_COUNTRY(LOCAL:0, 0)
 			ENDIF
 		ENDIF
 	ENDIF
@@ -122,23 +120,19 @@ IF LOCAL:7 == 0
 					CALL ASK_YN("はい", "いいえ(現在の所属が無所属になります)")
 					IF RESULT == 0
 						PRINTFORML %NAME:(LOCAL:0)%が我が国の士官として復帰しました
-						CFLAG:(LOCAL:0):所属 = ARG:1
-						CFLAG:(LOCAL:0):捕虜先 = 0
-						CFLAG:(LOCAL:0):特殊状態フラグ = 0
+						CALL CHANGE_COUNTRY(LOCAL:0, ARG:1)
 					ELSE
 						PRINTFORML %NAME:(LOCAL:0)%は無所属の捕虜としてこのまま牢屋に閉じ込めておきます
-						CFLAG:(LOCAL:0):所属 = 0
-						CFLAG:(LOCAL:0):特殊状態フラグ = 0
+						CALL CHANGE_COUNTRY(LOCAL:0, 0)
+						CFLAG:(LOCAL:0):捕虜先 = CFLAG:MASTER:所属
 					ENDIF
 					PRINTL 
 				ELSE
 					PRINTFORML %NAME:(LOCAL:0)%が我が国の士官として加わりました
-					CFLAG:(LOCAL:0):所属 = ARG:1
-					CFLAG:(LOCAL:0):特殊状態フラグ = 0
+					CALL CHANGE_COUNTRY(LOCAL:0, ARG:1)
 				ENDIF
 			ELSE
-				CFLAG:(LOCAL:0):所属 = ARG:1
-				CFLAG:(LOCAL:0):特殊状態フラグ = 0
+				CALL CHANGE_COUNTRY(LOCAL:0, ARG:1)
 			ENDIF
 		ENDIF
 	NEXT
@@ -154,7 +148,7 @@ ELSEIF LOCAL:7 == 1 || LOCAL:7 == 2
 		IF CFLAG:(LOCAL:0):所属 == ARG:0 && LOCAL:0 != LOCAL:5 && LOCAL:0 != MASTER
 			IF CFLAG:(LOCAL:0):捕虜先 != 0
 				;捕虜なら無所属に
-				CFLAG:(LOCAL:0):所属 = 0
+				CALL CHANGE_COUNTRY(LOCAL:0, 0)
 			ELSE
 				CALL JUDGE_ESCAPE(ARG:0, ARG:1, LOCAL:0, 1)
 			ENDIF
@@ -172,7 +166,7 @@ ELSEIF LOCAL:7 == 1 || LOCAL:7 == 2
 	IF CFLAG:MASTER:所属 == ARG:0 && MASTER != LOCAL:5
 		IF CFLAG:MASTER:捕虜先 != 0
 			;捕虜なら無所属に
-			CFLAG:MASTER:所属 = 0
+			CALL CHANGE_COUNTRY(MASTER, 0)
 		ELSE
 			;主人公の逃走判定
 			CALL JUDGE_ESCAPE(ARG:0, ARG:1, MASTER, 1)
@@ -220,7 +214,7 @@ NEXT
 ;ARG:0勢力に所属していたキャラを無所属にする
 FOR LOCAL:0, 0, CHARANUM
 	IF CFLAG:(LOCAL:0):所属 == ARG:0
-		CFLAG:(LOCAL:0):所属 = 0
+		CALL CHANGE_COUNTRY(LOCAL:0, 0)
 	ENDIF
 NEXT
 
@@ -403,9 +397,7 @@ IF ARG:1 == CFLAG:MASTER:所属
 		IF JUDGE_ASSIGN(ARG:2, GET_COUNTRY_BOSS(ARG:1), GET_COUNTRY_BOSS(ARG:0))
 			CALL KOJO_EVENT(ARG:2, 332)
 			PRINTFORMW %NAME:(ARG:2)%を登用しました
-			CFLAG:(ARG:2):所属 = ARG:1
-			;捕虜設定を解除
-			CFLAG:(ARG:2):捕虜先 = 0
+			CALL CHANGE_COUNTRY(ARG:2, ARG:1)
 			;好感度を上昇、敵対値を減少
 			CALL CHANGE_RELATION_O_TO_C(ARG:2, ARG:1, 50, -50)
 		ELSE
@@ -496,10 +488,7 @@ ELSE
 			ENDIF
 			RESETCOLOR
 		ENDIF
-		CFLAG:(ARG:2):所属 = ARG:1
-		CFLAG:(ARG:2):捕虜先 = 0
-		CFLAG:(ARG:2):恨む君主 = 0
-		CFLAG:(ARG:2):滅亡前の君主 = 0
+		CALL CHANGE_COUNTRY(ARG:2, ARG:1)
 		RETURN 0
 
 	;登用できなかった場合
@@ -512,8 +501,7 @@ ELSE
 			CALL MASTER_CAPTURED(ARG:1)
 			;登用に応じた
 			IF RESULT == 1
-				CFLAG:MASTER:所属 = ARG:1
-				CFLAG:MASTER:捕虜先 = 0
+				CALL CHANGE_COUNTRY(MASTER, ARG:1)
 				RETURN 0
 			;解放された
 			ELSEIF RESULT == 2
@@ -893,7 +881,7 @@ FOR LOCAL:0, 0, CHARANUM
 				CALL ASK_MULTI("登用", "放置", "投獄")
 				IF RESULT == 0
 					PRINTFORMW %NAME:(LOCAL:0)%を登用しました
-					CFLAG:(LOCAL:0):所属 = CFLAG:MASTER:所属
+					CALL CHANGE_COUNTRY(LOCAL:0, CFLAG:MASTER:所属)
 				ELSEIF RESULT == 1
 					PRINTFORMW %NAME:(LOCAL:0)%を放置しておきます
 				ELSEIF RESULT == 2
@@ -901,7 +889,7 @@ FOR LOCAL:0, 0, CHARANUM
 					CFLAG:(LOCAL:0):捕虜先 = CFLAG:MASTER:所属
 				ENDIF
 			ELSE
-				CFLAG:(LOCAL:0):所属 = LOCAL:1
+				CALL CHANGE_COUNTRY(LOCAL:0, LOCAL:1)
 			ENDIF
 		ENDIF
 		;特定の勢力に逃れた場合、逃走フラグをオフにする
@@ -934,7 +922,7 @@ FOR LOCAL:0, 0, CHARANUM
 					CALL ASK_MULTI("登用", "放置", "投獄")
 					IF RESULT == 0
 						PRINTFORMW %NAME:(LOCAL:0)%を登用しました
-						CFLAG:(LOCAL:0):所属 = CFLAG:MASTER:所属
+						CALL CHANGE_COUNTRY(LOCAL:0, CFLAG:MASTER:所属)
 					ELSEIF RESULT == 1
 						PRINTFORMW %NAME:(LOCAL:0)%を放置しておきます
 					ELSEIF RESULT == 2
@@ -945,15 +933,12 @@ FOR LOCAL:0, 0, CHARANUM
 					SETCOLOR COLOR("注意")
 					PRINTFORML 放浪していた%NAME:(LOCAL:0)%が%NAME:(GET_COUNTRY_BOSS(LOCAL:1))%に仕官したようです
 					RESETCOLOR
-					CFLAG:(LOCAL:0):所属 = LOCAL:1
+					CALL CHANGE_COUNTRY(LOCAL:0, LOCAL:1)
 				ENDIF
 			ENDIF
 			IF CFLAG:(LOCAL:0):所属 != 0 || CFLAG:(LOCAL:0):捕虜先 != 0
 				;特定の勢力に逃れた場合、逃走フラグをオフにする
 				CFLAG:(LOCAL:0):特殊状態フラグ = 0
-				CFLAG:(LOCAL:0):恨む君主 = 0
-				CFLAG:(LOCAL:0):滅亡前の君主 = 0
-				
 			ENDIF
 
 		;旧君主が士官済みなら旧君主に従う
@@ -971,7 +956,7 @@ FOR LOCAL:0, 0, CHARANUM
 				CALL ASK_MULTI("登用", "放置", "投獄")
 				IF RESULT == 0
 					PRINTFORMW %NAME:(LOCAL:0)%を登用しました
-					CFLAG:(LOCAL:0):所属 = CFLAG:MASTER:所属
+					CALL CHANGE_COUNTRY(LOCAL:0, CFLAG:MASTER:所属)
 				ELSEIF RESULT == 1
 					PRINTFORMW %NAME:(LOCAL:0)%を放置しておきます
 				ELSEIF RESULT == 2
@@ -981,14 +966,12 @@ FOR LOCAL:0, 0, CHARANUM
 			ELSE
 				SETCOLOR COLOR("注意")
 				PRINTFORML 放浪していた%NAME:(LOCAL:0)%が%NAME:(GET_COUNTRY_BOSS(CFLAG:(LOCAL:5):所属))%に仕官したようです
-				CFLAG:(LOCAL:0):所属 = CFLAG:(LOCAL:5):所属
+				CALL CHANGE_COUNTRY(LOCAL:0, CFLAG:(LOCAL:5):所属)
 				RESETCOLOR
 			ENDIF
 			IF CFLAG:(LOCAL:0):所属 != 0 || CFLAG:(LOCAL:0):捕虜先 != 0
 				;特定の勢力に逃れた場合、逃走フラグをオフにする
 				CFLAG:(LOCAL:0):特殊状態フラグ = 0
-				CFLAG:(LOCAL:0):恨む君主 = 0
-				CFLAG:(LOCAL:0):滅亡前の君主 = 0
 			ENDIF
 		ENDIF
 	ENDIF
@@ -1040,10 +1023,8 @@ IF IS_COUNTRY(CFLAG:MASTER:所属) && CFLAG:MASTER:捕虜先 == 0
 				IF JUDGE_ASSIGN(LOCAL:8, GET_COUNTRY_BOSS(CFLAG:MASTER:所属), -1)
 					CALL KOJO_EVENT(LOCAL:8, 350)
 					PRINTFORMW %NAME:(LOCAL:8)%が我が国の士官になりました
+					CALL CHANGE_COUNTRY(LOCAL:8, CFLAG:MASTER:所属)
 					CFLAG:(LOCAL:8):所属 = CFLAG:MASTER:所属
-					CFLAG:(LOCAL:8):特殊状態フラグ = 0
-					CFLAG:(LOCAL:8):恨む君主 = 0
-					CFLAG:(LOCAL:8):滅亡前の君主 = 0
 					;好感度を上昇、敵対値を減少
 					CALL CHANGE_RELATION_O_TO_C(LOCAL:8, CFLAG:MASTER:所属, 80, -80)
 				ELSE
@@ -1062,7 +1043,6 @@ IF IS_COUNTRY(CFLAG:MASTER:所属) && CFLAG:MASTER:捕虜先 == 0
 				PRINTFORMW %NAME:(LOCAL:8)%を捕らえて投獄しました
 				CFLAG:(LOCAL:8):捕虜先 = CFLAG:MASTER:所属
 				CFLAG:(LOCAL:8):特殊状態フラグ = 0
-
 				;好感度を下げ、敵対値を上げる
 				CALL CHANGE_RELATION_O_TO_C(LOCAL:8, CFLAG:MASTER:所属, -300, 400)
 			ENDIF
