@@ -718,8 +718,7 @@ ELSEIF RESULT == 130
 			SIF CFLAG:LOCAL:特殊状態フラグ == 2 || (!CFLAG:LOCAL:所属 && !CFLAG:LOCAL:特殊状態フラグ) || GET_COUNTRY_BOSS(CFLAG:LOCAL:所属) == LOCAL:0
 				CONTINUE
 			IF CFLAG:MASTER:所属 != CFLAG:LOCAL:所属
-				CFLAG:(LOCAL:0):捕虜先 = CFLAG:MASTER:所属
-				CFLAG:(LOCAL:0):特殊状態フラグ = 0
+				CALL CAPTURE(LOCAL:0, CFLAG:MASTER:所属)
 			ENDIF
 		NEXT
 	ENDIF
@@ -730,8 +729,7 @@ ELSEIF RESULT == 131
 		FOR LOCAL:0, 1, CHARANUM
 			SIF CFLAG:LOCAL:特殊状態フラグ == 2 || (!CFLAG:LOCAL:所属 && !CFLAG:LOCAL:特殊状態フラグ) || GET_COUNTRY_BOSS(CFLAG:LOCAL:所属) == LOCAL:0
 				CONTINUE
-			CFLAG:(LOCAL:0):捕虜先 = CFLAG:MASTER:所属
-			CFLAG:(LOCAL:0):特殊状態フラグ = 0
+			CALL CAPTURE(LOCAL:0, CFLAG:MASTER:所属)
 		NEXT
 	ENDIF
 ELSEIF RESULT == 150
@@ -742,10 +740,7 @@ ELSEIF RESULT == 150
 		FOR LOCAL:0, 0, CHARANUM
 			SIF CFLAG:LOCAL:特殊状態フラグ == 2 || (!CFLAG:LOCAL:所属 && !CFLAG:LOCAL:特殊状態フラグ) || GET_COUNTRY_BOSS(CFLAG:LOCAL:所属) == LOCAL:0
 				CONTINUE
-			CFLAG:(LOCAL:0):所属 = CFLAG:MASTER:所属
-			CFLAG:(LOCAL:0):捕虜先 = 0
-			SIF !CFLAG:MASTER:所属
-				CFLAG:(LOCAL:0):特殊状態フラグ = 1
+			CALL CHANGE_COUNTRY(LOCAL:0, CFLAG:MASTER:所属)
 		NEXT
 	ENDIF
 ELSEIF RESULT == 200
@@ -2299,23 +2294,22 @@ ELSE
 		IF F_COUNTRY_BOSS
 			CFLAG:(ARG:0):特殊状態フラグ = 0
 		ELSE
-			IF CFLAG:(ARG:0):所属 == 0 && CFLAG:(ARG:0):特殊状態フラグ == 0
+			
+			IF CFLAG:(ARG:0):所属 == 0 && CFLAG:(ARG:0):特殊状態フラグ == 0 && !CFLAG:(ARG:0):捕虜先
 				CFLAG:(ARG:0):特殊状態フラグ = 1
 			ELSEIF CFLAG:(ARG:0):所属 == 0 && CFLAG:(ARG:0):特殊状態フラグ == 1
 				CFLAG:(ARG:0):特殊状態フラグ = 2
 			ELSE
 				CFLAG:(ARG:0):特殊状態フラグ = 0
-				LOCAL:1 = 1
 				FOR LOCAL:0, CFLAG:(ARG:0):所属 + 1, MAX_COUNTRY
 					IF IS_COUNTRY(LOCAL:0)
-						CFLAG:(ARG:0):所属 = LOCAL:0
+						CALL CHANGE_COUNTRY(ARG:0, LOCAL:0)
 						LOCAL:1 = 0
 						BREAK
 					ENDIF
 				NEXT
-				IF LOCAL:1
-					CFLAG:(ARG:0):所属 = 0
-				ENDIF
+				SIF LOCAL:0 == MAX_COUNTRY
+					CALL CHANGE_COUNTRY(ARG:0, 0)
 			ENDIF
 		ENDIF
 	ELSEIF RESULT == 51
@@ -2334,11 +2328,7 @@ ELSE
 			INPUT
 			LOCAL:1 ++
 			IF RESULT == 0 || IS_COUNTRY(RESULT)
-				CFLAG:(ARG:0):所属 = RESULT
-				CFLAG:(ARG:0):特殊状態フラグ = 0
-				;所属がなければ放浪
-				SIF RESULT == 0
-					CFLAG:(ARG:0):特殊状態フラグ = 1
+				CALL CHANGE_COUNTRY(ARG:0, RESULT)
 			ENDIF
 		ENDIF
 		CLEARLINE LOCAL:1
@@ -2347,22 +2337,13 @@ ELSE
 		IF !F_COUNTRY_BOSS
 			FOR LOCAL:0, CFLAG:(ARG:0):捕虜先 + 1, MAX_COUNTRY
 				IF IS_COUNTRY(LOCAL:0)
-					CFLAG:(ARG:0):捕虜先 = LOCAL:0
-					;放浪フラグは折る
-					SIF CFLAG:(ARG:0):特殊状態フラグ == 1
-						CFLAG:(ARG:0):特殊状態フラグ = 0
-					LOCAL:1 = 0
+					CALL CAPTURE(ARG:0, LOCAL:0)
 					BREAK
 				ENDIF
 			NEXT
 		ENDIF
-		IF LOCAL:1
-			CFLAG:(ARG:0):捕虜先 = 0
-			CFLAG:(ARG:0):監禁状態 = 0
-			;所属がなければ放浪
-			SIF !CFLAG:(ARG:0):所属
-				CFLAG:(ARG:0):特殊状態フラグ = 1
-		ENDIF
+		SIF LOCAL:0 == MAX_COUNTRY
+			CALL CAPTURE(ARG:0, 0)
 	ELSEIF RESULT == 61
 		LOCAL:1 = 0
 		IF !F_COUNTRY_BOSS
@@ -2378,16 +2359,8 @@ ELSE
 			NEXT
 			INPUT
 			LOCAL:1 ++
-			IF RESULT == 0 || IS_COUNTRY(RESULT)
-				CFLAG:(ARG:0):捕虜先 = RESULT
-				CFLAG:(ARG:0):監禁状態 = 0
-				;放浪キャラを捕虜にした場合はフラグを折る
-				SIF CFLAG:(ARG:0):特殊状態フラグ == 1 && CFLAG:(ARG:0):捕虜先
-					CFLAG:(ARG:0):特殊状態フラグ = 0
-				;所属がないキャラが捕虜でなくなっていたら放浪させとく
-				SIF CFLAG:(ARG:0):所属 && !CFLAG:(ARG:0):捕虜先
-					CFLAG:(ARG:0):特殊状態フラグ = 1
-			ENDIF
+			SIF RESULT == 0 || IS_COUNTRY(RESULT)
+				CALL CAPTURE(ARG:0, RESULT)
 		ENDIF
 		CLEARLINE LOCAL:1
 	ELSEIF RESULT == 62 && CFLAG:(ARG:0):捕虜先 >= 1

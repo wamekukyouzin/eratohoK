@@ -121,7 +121,7 @@ ELSE
 	PRINTFORMW 「そのオモチャと仲良くやることですな！　げへへへ」
 ENDIF
 
-CFLAG:対象:捕虜先 = 0
+
 
 PRINTFORMW %ANAME(対象)%を受け取り、市場を後にした……
 ;別勢力に所属（特殊勢力以外）
@@ -138,18 +138,19 @@ IF IS_COUNTRY(CFLAG:対象:所属) && !IS_SP_COUNTRY(CFLAG:対象:所属) && CFL
 		CFLAG:対象:好感度 = MAX(500, CFLAG:対象:好感度 + 500)
 		CFLAG:対象:従属度 = MAX(500, CFLAG:対象:従属度 + 500)
 		CFLAG:対象:依存度 = MAX(100, CFLAG:対象:依存度 + 100)
+		CALL CAPTURE(対象, 0)
 	ELSEIF RESULT == 1
 		PRINTFORMW %ANAME(GET_COUNTRY_BOSS(CFLAG:対象:所属))%にせっかく買ったものをただで返してやるほどの義理はない
 		PRINTFORMW 士官としての待遇を条件に、%ANAME(対象)%に協力を約束させた……
-		CFLAG:対象:所属 = CFLAG:MASTER:所属
+		CALL CHANGE_COUNTRY(対象, CFLAG:MASTER:所属)
 		CFLAG:対象:好感度 = MAX(0, CFLAG:対象:好感度 + 500)
 		CFLAG:対象:従属度 = MAX(0, CFLAG:対象:従属度 + 500)
 		CFLAG:対象:依存度 = MAX(0, CFLAG:対象:依存度 + 100)
 	ELSE
 		PRINTFORMW いやいや、金を出して買ったのだから、もう%ANAME(対象)%は自分のものだ
 		PRINTFORMW どのように使ってやろうか考えながら、%ANAME(MASTER)%は市場を後にした……
-		CFLAG:対象:所属 = 0
-		CFLAG:対象:捕虜先 = CFLAG:MASTER:所属
+		CALL CHANGE_COUNTRY(LOCAL:0, 0)
+		CALL CAPTURE(対象, MASTER)
 	ENDIF
 ;どこにも所属していないか、特殊勢力所属
 ELSEIF CFLAG:対象:所属 != CFLAG:MASTER:所属
@@ -158,21 +159,21 @@ ELSEIF CFLAG:対象:所属 != CFLAG:MASTER:所属
 	CALL ASK_MULTI("士官として迎え入れる", "監禁しておく")
 	IF RESULT == 0
 		PRINTFORMW %ANAME(対象)%は%ANAME(GET_COUNTRY_BOSS(CFLAG:MASTER:所属))%の士官として働くことになった……
-		CFLAG:対象:所属 = CFLAG:MASTER:所属
+		CALL CHANGE_COUNTRY(対象, CFLAG:MASTER:所属)
 		CFLAG:対象:好感度 = MAX(500, CFLAG:対象:好感度 + 500)
 		CFLAG:対象:従属度 = MAX(500, CFLAG:対象:従属度 + 500)
 		CFLAG:対象:依存度 = MAX(100, CFLAG:対象:依存度 + 100)
 	ELSE
 		PRINTFORMW %ANAME(対象)%を逃げ出さないように監禁しておくことにした……
-		CFLAG:対象:所属 = 0
-		CFLAG:対象:捕虜先 = CFLAG:MASTER:所属
+		CALL CHANGE_COUNTRY(対象, 0)
+		CALL CAPTURE(対象, CFLAG:MASTER:所属)
 	ENDIF
 ;自国の士官
 ELSE
 	CFLAG:対象:好感度 = MAX(500, CFLAG:対象:好感度 + 500)
 	CFLAG:対象:従属度 = MAX(500, CFLAG:対象:従属度 + 500)
 	CFLAG:対象:依存度 = MAX(100, CFLAG:対象:依存度 + 100)
-	CFLAG:対象:所属 = CFLAG:MASTER:所属
+	CALL CHANGE_COUNTRY(対象, CFLAG:MASTER:所属)
 ENDIF
 
 ;捕虜状態から解放、部隊から除外、買ったキャラを配列から削除
