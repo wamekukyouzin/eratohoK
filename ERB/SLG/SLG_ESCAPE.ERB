@@ -14,7 +14,7 @@ IF ARG:0 == CFLAG:MASTER:所属
 			FOR LOCAL:0, 0 , CHARANUM
 				IF (CFLAG:(LOCAL:0):所属 == ARG:0 ||CFLAG:(LOCAL:0):捕虜先 == ARG:0)
 					CALL CHANGE_COUNTRY(LOCAL:0, 0)
-					CFLAG:(LOCAL:0):捕虜先 = ARG:1
+					CALL CAPTURE(LOCAL:0, ARG:1)
 				ENDIF
 			NEXT
 			RETURN 1
@@ -47,7 +47,7 @@ FOR LOCAL:0, 0, CHARANUM
 				PRINTFORML 囚われていた%ANAME(LOCAL:0)%は、%ANAME(GET_COUNTRY_BOSS(CFLAG:(LOCAL:0):捕虜先))%に仕えることになったようだ
 				RESETCOLOR
 				CALL CHANGE_COUNTRY(LOCAL:0, CFLAG:(LOCAL:0):捕虜先)
-				CFLAG:(LOCAL:0):捕虜先 = 0
+				CALL CAPTURE(LOCAL:0, 0)
 			;登用判定にひっかからなければ放浪
 			ELSE
 				;フェイルセーフ
@@ -124,7 +124,7 @@ IF LOCAL:7 == 0
 					ELSE
 						PRINTFORML %NAME:(LOCAL:0)%は無所属の捕虜としてこのまま牢屋に閉じ込めておきます
 						CALL CHANGE_COUNTRY(LOCAL:0, 0)
-						CFLAG:(LOCAL:0):捕虜先 = CFLAG:MASTER:所属
+						CALL CAPTURE(LOCAL:0, CFLAG:MASTER:所属)
 					ENDIF
 					PRINTL 
 				ELSE
@@ -184,7 +184,7 @@ FOR LOCAL:0, 0, CHARANUM
 	IF CFLAG:(LOCAL:0):捕虜先 == ARG:0
 		;滅亡させた側の勢力の士官なら、そのまま元の勢力に戻る
 		IF CFLAG:(LOCAL:0):所属 == ARG:1
-			CFLAG:(LOCAL:0):捕虜先 = 0
+			CALL CAPTURE(LOCAL:0, 0)
 			SETCOLOR COLOR("注意")
 			PRINTFORML %NAME:(LOCAL:5)%勢力に囚えられていた%ANAME(LOCAL:0)%は、元の勢力に復帰した
 			RESETCOLOR
@@ -414,7 +414,7 @@ IF ARG:1 == CFLAG:MASTER:所属
 		PRINTFORMW %NAME:(ARG:2)%を解放しました
 		IF CFLAG:(ARG:2):捕虜先 != 0
 			;捕虜設定を解除
-			CFLAG:(ARG:2):捕虜先 = 0
+			CALL CAPTURE(ARG:2, 0)
 		ELSE
 			;状態フラグを逃走状態に
 			CFLAG:(ARG:2):特殊状態フラグ = 1
@@ -431,14 +431,13 @@ IF ARG:1 == CFLAG:MASTER:所属
 	ELSEIF RESULT == 2
 		CALL KOJO_EVENT(ARG:2, 335)
 		PRINTFORMW %NAME:(ARG:2)%を投獄しました
-		CFLAG:(ARG:2):捕虜先 = ARG:1
+		CALL CAPTURE(ARG:2, ARG:1)
 		RETURN 2
 
 	ELSEIF RESULT == 4
-		CFLAG:(ARG:2):監禁状態 = 1
 		CALL KOJO_EVENT(ARG:2, 335)
 		PRINTFORMW %NAME:(ARG:2)%を軟禁しました
-		CFLAG:(ARG:2):捕虜先 = ARG:1
+		CALL CAPTURE(ARG:2, ARG:1)
 		RETURN 4
 
 	ELSEIF RESULT == 3
@@ -447,10 +446,7 @@ IF ARG:1 == CFLAG:MASTER:所属
 		PRINTFORMW ……
 		PRINTFORMW %NAME:(ARG:2)%を処刑しました
 		CALL EXECUTION(ARG:2)
-		;捕虜設定を解除
-		CFLAG:(ARG:2):捕虜先 = 0
-		;状態フラグを死亡状態に
-		CFLAG:(ARG:2):特殊状態フラグ = 2
+		CALL CHANGE_COUNTRY(ARG:2, 0, 1)
 		RETURN 3
 	ELSE
 		GOTO INPUT_LOOP
@@ -466,7 +462,7 @@ ELSE
 			CALL MASTER_CAPTURED(ARG:1)
 			RETURN RESULT
 		ENDIF
-		CFLAG:(ARG:2):捕虜先 = ARG:1
+		CALL CAPTURE(ARG:2, ARG:1)
 		;野盗勢力に囚われた場合はイベントに送る
 		SIF COUNTRY_EVENT_ID:(ARG:1) == SP_COUNTRY_ID:(特殊勢力_野盗) && TRAIN_IS_SHOW_TEXT(ARG:2)
 			CALL TREAT_PRISONER_BANDIT(ARG:2)
@@ -505,11 +501,11 @@ ELSE
 				RETURN 0
 			;解放された
 			ELSEIF RESULT == 2
-				CFLAG:MASTER:捕虜先 = 0
+				CALL CAPTURE(MASTER, 0)
 				RETURN 1
 			;投獄された
 			ELSEIF RESULT == 3
-				CFLAG:MASTER:捕虜先 = ARG:1
+				CALL CAPTURE(MASTER, ARG:1)
 				RETURN 2
 			;処刑
 			ELSE
@@ -550,7 +546,7 @@ ELSE
 
 		;戦闘による捕縛ならば投獄
 		ELSEIF ARG:3
-			CFLAG:(ARG:2):捕虜先 = ARG:1
+			CALL CAPTURE(ARG:2, ARG:1)
 
 		;それ以外は解放
 		ELSE
@@ -574,7 +570,7 @@ ELSE
 
 			IF CFLAG:(ARG:2):捕虜先 != 0
 				;捕虜設定を解除
-				CFLAG:(ARG:2):捕虜先 = 0
+				CALL CAPTURE(ARG:2, 0)
 			ELSE
 				;状態フラグを逃走状態に
 				CFLAG:(ARG:2):特殊状態フラグ = 1
@@ -886,7 +882,7 @@ FOR LOCAL:0, 0, CHARANUM
 					PRINTFORMW %NAME:(LOCAL:0)%を放置しておきます
 				ELSEIF RESULT == 2
 					PRINTFORMW %NAME:(LOCAL:0)%を投獄しました
-					CFLAG:(LOCAL:0):捕虜先 = CFLAG:MASTER:所属
+					CALL CAPTURE(LOCAL:0, CFLAG:MASTER:所属)
 				ENDIF
 			ELSE
 				CALL CHANGE_COUNTRY(LOCAL:0, LOCAL:1)
@@ -927,7 +923,7 @@ FOR LOCAL:0, 0, CHARANUM
 						PRINTFORMW %NAME:(LOCAL:0)%を放置しておきます
 					ELSEIF RESULT == 2
 						PRINTFORMW %NAME:(LOCAL:0)%を投獄しました
-						CFLAG:(LOCAL:0):捕虜先 = CFLAG:MASTER:所属
+						CALL CAPTURE(LOCAL:0, CFLAG:MASTER:所属)
 					ENDIF
 				ELSE
 					SETCOLOR COLOR("注意")
@@ -961,7 +957,7 @@ FOR LOCAL:0, 0, CHARANUM
 					PRINTFORMW %NAME:(LOCAL:0)%を放置しておきます
 				ELSEIF RESULT == 2
 					PRINTFORMW %NAME:(LOCAL:0)%を投獄しました
-					CFLAG:(LOCAL:0):捕虜先 = CFLAG:MASTER:所属
+					CALL CAPTURE(LOCAL:0, CFLAG:MASTER:所属)
 				ENDIF
 			ELSE
 				SETCOLOR COLOR("注意")
@@ -1041,8 +1037,7 @@ IF IS_COUNTRY(CFLAG:MASTER:所属) && CFLAG:MASTER:捕虜先 == 0
 			ELSE
 				CALL KOJO_EVENT(LOCAL:8, 352)
 				PRINTFORMW %NAME:(LOCAL:8)%を捕らえて投獄しました
-				CFLAG:(LOCAL:8):捕虜先 = CFLAG:MASTER:所属
-				CFLAG:(LOCAL:8):特殊状態フラグ = 0
+				CALL CAPTURE(LOCAL:8, CFLAG:MASTER:所属)
 				;好感度を下げ、敵対値を上げる
 				CALL CHANGE_RELATION_O_TO_C(LOCAL:8, CFLAG:MASTER:所属, -300, 400)
 			ENDIF
