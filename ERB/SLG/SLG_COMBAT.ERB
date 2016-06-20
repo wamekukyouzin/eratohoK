@@ -364,6 +364,8 @@ VARSET BATTLE_RATE_GRD_B, 0
 VARSET SCHEME_BASE, 3200
 VARSET BATTLE_FORCE_SCHEME, -1
 VARSET SCHEME_BASE, ABL_50_POWER
+VARSET BATTLE_COMMANDER, -1
+VARSET BATTLE_COMMANDER_NUM
 VARSET BATTLE_武闘, 0
 VARSET BATTLE_知略, 0
 VARSET BATTLE_政治, 0
@@ -371,9 +373,11 @@ VARSET BATTLE_歌唱, 0
 VARSET BATTLE_料理, 0
 VARSET BATTLE_妖術, 0
 VARSET BATTLE_素質, 0
-FOR LOCAL, 0, 3
+BATTLE_COMMANDER_NUM:0 = GET_UNIT_COMMANDER_NUM(ARG:0, ARG:1)
+FOR LOCAL, 0, BATTLE_COMMANDER_NUM:0
 	LOCAL:2 = GET_UNIT_COMMANDER(ARG:0, ARG:1, LOCAL)
 	IF LOCAL:2 >= 0
+		BATTLE_COMMANDER:0:LOCAL = LOCAL:2
 		BATTLE_武闘:0:LOCAL = ABL:(LOCAL:2):武闘
 		BATTLE_知略:0:LOCAL = ABL:(LOCAL:2):知略
 		BATTLE_政治:0:LOCAL = ABL:(LOCAL:2):政治
@@ -385,9 +389,11 @@ FOR LOCAL, 0, 3
 NEXT
 
 IF ARG:3 >= 0
-	FOR LOCAL, 0, 3
+	BATTLE_COMMANDER_NUM:1 = GET_UNIT_COMMANDER_NUM(ARG:2, ARG:3)
+	FOR LOCAL, 0, BATTLE_COMMANDER_NUM:1
 		LOCAL:2 = GET_UNIT_COMMANDER(ARG:2, ARG:3, LOCAL)
 		IF LOCAL:2 >= 0
+			BATTLE_COMMANDER:1:LOCAL = LOCAL:2
 			BATTLE_武闘:1:LOCAL = ABL:(LOCAL:2):武闘
 			BATTLE_知略:1:LOCAL = ABL:(LOCAL:2):知略
 			BATTLE_政治:1:LOCAL = ABL:(LOCAL:2):政治
@@ -398,9 +404,11 @@ IF ARG:3 >= 0
 		ENDIF
 	NEXT
 ELSE
-	FOR LOCAL:0, 0, 2
+	BATTLE_COMMANDER_NUM:1 = GET_CITY_COMMANDER_NUM(ARG:2)
+	FOR LOCAL:0, 0, BATTLE_COMMANDER_NUM:1
 		LOCAL:2 = GET_CITY_COMMANDER(ARG:2, LOCAL:0)
 		IF LOCAL:2 >= 0
+			BATTLE_COMMANDER:1:LOCAL = LOCAL:2
 			BATTLE_武闘:1:LOCAL = ABL:(LOCAL:2):武闘
 			BATTLE_知略:1:LOCAL = ABL:(LOCAL:2):知略
 			BATTLE_政治:1:LOCAL = ABL:(LOCAL:2):政治
@@ -746,29 +754,6 @@ BATTLE_DMG:1 = LOCAL:13
 #DIM 発動キャラ
 #DIM 対象キャラ
 #DIM 発動キャラ素質
-;各部隊の将を取得(発動側 20～22、対象 30～32)
-VARSET 発動側キャラ, -1
-VARSET 対象側キャラ, -1
-対象側 = !発動側
-IF 発動部隊 >= 0
-	FOR LOCAL:0, 0, 3
-		発動側キャラ:(LOCAL:0) = GET_UNIT_COMMANDER(発動勢力, 発動部隊, LOCAL:0)
-	NEXT
-ELSE
-	FOR LOCAL:0, 0, 2
-		発動側キャラ:(LOCAL:0) = GET_CITY_COMMANDER(発動勢力, LOCAL:0)
-	NEXT
-ENDIF
-IF 対象部隊 >= 0
-	FOR LOCAL:0, 0, 3
-		対象側キャラ:(LOCAL:0) = GET_UNIT_COMMANDER(対象勢力, 対象部隊, LOCAL:0)
-	NEXT
-ELSE
-	FOR LOCAL:0, 0, 2
-		対象側キャラ:(LOCAL:0) = GET_CITY_COMMANDER(対象勢力, LOCAL:0)
-	NEXT
-ENDIF
-
 ;[五斗米道]による特殊計略
 ;FOR LOCAL:0, 0, 3
 ;	LOCAL:2 = 発動側:(LOCAL:0)
@@ -780,31 +765,16 @@ ENDIF
 ;		BREAK
 ;	ENDIF
 ;NEXT
+対象側 = !発動側
 
-FOR LOCAL:0, 0, 3
-	発動キャラ = 発動側キャラ:(LOCAL:0)
+FOR LOCAL:0, 0, BATTLE_COMMANDER_NUM:発動側
+	発動キャラ = BATTLE_COMMANDER:(発動側):(LOCAL:0)
 	
 	SIF 発動キャラ < 0
 		CONTINUE
 
 	発動キャラ素質 = BATTLE_素質:発動側:LOCAL
 
-	;暗殺。相手武将の中から一人選択し、その能力を一時的に0にする（戦闘参加不能と解釈）
-	IF GETBIT(発動キャラ素質, 素質_ＳＬＧ_暗殺) && 15 > RAND:100
-		LOCAL:1 = RAND:VARSIZE("対象側キャラ")
-		対象キャラ = 対象側キャラ:(LOCAL:1)
-		IF 対象キャラ >= 0
-			CALL COLORPRINTFORM(@"%ANAME(発動キャラ)%は、%ANAME(対象キャラ)%に暗殺をしかけた！", COLOR("素質発動"), "L")
-			CALL COLORPRINTFORM(@"%ANAME(対象キャラ)%はこの戦闘に参加できない！", COLOR("素質発動"), "L")
-			BATTLE_武闘:(対象側):(LOCAL:1) = 0
-			BATTLE_知略:(対象側):(LOCAL:1) = 0
-			BATTLE_政治:(対象側):(LOCAL:1) = 0
-			BATTLE_妖術:(対象側):(LOCAL:1) = 0
-			BATTLE_料理:(対象側):(LOCAL:1) = 0
-			BATTLE_歌唱:(対象側):(LOCAL:1) = 0
-		ENDIF
-	ENDIF
-	
 	;弁舌。兵力を奪う。
 	IF GETBIT(発動キャラ素質, 素質_ＳＬＧ_弁舌) && 15 > RAND:100
 		LOCAL:6 = RAND(1, 20)
@@ -834,17 +804,7 @@ FOR LOCAL:0, 0, 3
 		ENDIF
 	ENDIF
 
-	;封魔。対象の素質発動を封じる。
-	IF GETBIT(発動キャラ素質, 素質_ＳＬＧ_封魔) && 20 > RAND:100
-		LOCAL:1 = RAND:VARSIZE("対象側キャラ")
-		対象キャラ = 対象側キャラ:(LOCAL:1)
-		IF 対象キャラ >= 0
-			CALL COLORPRINTFORM(@"%ANAME(発動キャラ)%は%ANAME(対象キャラ)%に封魔の術をかけた！", COLOR("素質発動"), "L")
-			CALL COLORPRINTFORM(@"%ANAME(対象キャラ)%はこの戦闘で素質を発動できない！", COLOR("素質発動"), "L")
-			BATTLE_素質:(対象側):(LOCAL:1) = 0
-		ENDIF
-	ENDIF
-
+	;斉射。敵部隊を1割（最大2000）削る
 	IF GETBIT(発動キャラ素質, 素質_ＳＬＧ_斉射) && 25 > RAND:100
 		CALL COLORPRINTFORM(@"%ANAME(発動キャラ)%は敵部隊に一斉掃射を仕掛けた！", COLOR("素質発動"), "L")
 		IF 対象部隊 >= 0
@@ -859,21 +819,8 @@ FOR LOCAL:0, 0, 3
 			CITY_SOLDIER:対象勢力 -= LOCAL:6
 		ENDIF
 	ENDIF
-
-	;野盗。対象部隊の女の数だけ強化される。強化量はSP_COUNTRY_RANK:(特殊勢力_野盗)に依存する。
-	IF TALENT:発動キャラ:特殊勢力素質 == 特殊勢力_野盗 && SP_COUNTRY_RANK:(特殊勢力_野盗) * 10 > RAND:100
-		LOCAL:2 = 0
-		FOR LOCAL:1, 0, VARSIZE("対象側キャラ")
-			対象キャラ = 対象側キャラ:(LOCAL:1)
-			IF 対象キャラ >= 0 && IS_FEMALE(対象キャラ)
-				LOCAL:2 ++
-				CALL COLORPRINTFORM(@"%ANAME(発動キャラ)%は、%ANAME(対象キャラ)%の姿にテンションをあげている！", COLOR("素質発動"), "L")
-			ENDIF
-		NEXT
-		BATTLE_武闘:発動側:LOCAL += MIN(SP_COUNTRY_RANK:(特殊勢力_野盗) / 2, 1) * LOCAL:2
-		BATTLE_知略:発動側:LOCAL += MIN(SP_COUNTRY_RANK:(特殊勢力_野盗) / 2, 1) * LOCAL:2
-	ENDIF
 	
+	;ホフゴブリン。援軍を呼ぶ。
 	IF TALENT:発動キャラ:特殊勢力素質 == 特殊勢力_ホフゴブリン && 25 > RAND:100
 		SETCOLOR COLOR("素質発動")
 		PRINTFORML %ANAME(発動キャラ)%は仲間を呼んだ！
@@ -888,11 +835,41 @@ FOR LOCAL:0, 0, 3
 		ENDIF
 		RESETCOLOR
 	ENDIF
-	
+
+	SIF FINDELEMENT(BATTLE_COMMANDER_NUM, 0) != -1
+		CONTINUE
+	;-----------ここから対象をとる素質------------------
+	;暗殺。相手武将の中から一人選択し、その能力を一時的に0にする（戦闘参加不能と解釈）
+	IF GETBIT(発動キャラ素質, 素質_ＳＬＧ_暗殺) && 15 > RAND:100
+		LOCAL:1 = RAND:(BATTLE_COMMANDER_NUM:発動側)
+		対象キャラ = BATTLE_COMMANDER:対象側:(LOCAL:1)
+		IF 対象キャラ >= 0
+			CALL COLORPRINTFORM(@"%ANAME(発動キャラ)%は、%ANAME(対象キャラ)%に暗殺をしかけた！", COLOR("素質発動"), "L")
+			CALL COLORPRINTFORM(@"%ANAME(対象キャラ)%はこの戦闘に参加できない！", COLOR("素質発動"), "L")
+			BATTLE_武闘:(対象側):(LOCAL:1) = 0
+			BATTLE_知略:(対象側):(LOCAL:1) = 0
+			BATTLE_政治:(対象側):(LOCAL:1) = 0
+			BATTLE_妖術:(対象側):(LOCAL:1) = 0
+			BATTLE_料理:(対象側):(LOCAL:1) = 0
+			BATTLE_歌唱:(対象側):(LOCAL:1) = 0
+		ENDIF
+	ENDIF
+
+	;封魔。対象の素質発動を封じる。
+	IF GETBIT(発動キャラ素質, 素質_ＳＬＧ_封魔) && 20 > RAND:100
+		LOCAL:1 = RAND:(BATTLE_COMMANDER_NUM:対象側)
+		対象キャラ = BATTLE_COMMANDER:対象側:(LOCAL:1)
+		IF 対象キャラ >= 0
+			CALL COLORPRINTFORM(@"%ANAME(発動キャラ)%は%ANAME(対象キャラ)%に封魔の術をかけた！", COLOR("素質発動"), "L")
+			CALL COLORPRINTFORM(@"%ANAME(対象キャラ)%はこの戦闘で素質を発動できない！", COLOR("素質発動"), "L")
+			BATTLE_素質:(対象側):(LOCAL:1) = 0
+		ENDIF
+	ENDIF
+
 	;触手。パーティに女がいると援軍を得る
 	IF TALENT:発動キャラ:特殊勢力素質 == 特殊勢力_触手 && 20 > RAND:100
-		FOR LOCAL, 0, VARSIZE("発動側キャラ")
-			LOCAL:1 = 発動側キャラ:LOCAL
+		FOR LOCAL, 0, BATTLE_COMMANDER_NUM:発動側
+			LOCAL:1 = BATTLE_COMMANDER:発動側:LOCAL
 			IF LOCAL:1 >= 0 && IS_FEMALE(LOCAL:1) && BATTLE_武闘:発動側:LOCAL > 0
 				SETCOLOR COLOR("素質発動")
 				PRINTFORML %ANAME(LOCAL:1)%の身体に触手が群がっていく……！
@@ -913,8 +890,8 @@ FOR LOCAL:0, 0, 3
 	
 	;サキュバス。暗殺
 	IF TALENT:発動キャラ:特殊勢力素質 == 特殊勢力_サキュバス && 5 + 2 * SP_COUNTRY_RANK:(特殊勢力_サキュバス) > RAND:100
-		LOCAL:1 = RAND:VARSIZE("対象側キャラ")
-		対象キャラ = 対象側キャラ:(LOCAL:1)
+		LOCAL:1 = RAND:(BATTLE_COMMANDER_NUM:対象側)
+		対象キャラ = BATTLE_COMMANDER:対象側:(LOCAL:1)
 		IF 対象キャラ >= 0
 			CALL COLORPRINTFORM(@"%ANAME(対象キャラ)%は、%ANAME(発動キャラ)%に見とれている！", COLOR("素質発動"), "L")
 			CALL COLORPRINTFORM(@"%ANAME(対象キャラ)%はこの戦闘に参加できない！", COLOR("素質発動"), "L")
@@ -926,6 +903,24 @@ FOR LOCAL:0, 0, 3
 			BATTLE_歌唱:(対象側):(LOCAL:1) = 0
 		ENDIF
 	ENDIF
+
+
+	;野盗。対象部隊の女の数だけ強化される。強化量はSP_COUNTRY_RANK:(特殊勢力_野盗)に依存する。
+	IF TALENT:発動キャラ:特殊勢力素質 == 特殊勢力_野盗 && SP_COUNTRY_RANK:(特殊勢力_野盗) * 10 > RAND:100
+		LOCAL:2 = 0
+		FOR LOCAL:1, 0, (BATTLE_COMMANDER_NUM:対象側)
+			対象キャラ = BATTLE_COMMANDER:対象側:LOCAL:1
+			IF 対象キャラ >= 0 && IS_FEMALE(対象キャラ)
+				LOCAL:2 ++
+				CALL COLORPRINTFORM(@"%ANAME(発動キャラ)%は、%ANAME(対象キャラ)%の姿にテンションをあげている！", COLOR("素質発動"), "L")
+			ENDIF
+		NEXT
+		BATTLE_武闘:発動側:LOCAL += MIN(SP_COUNTRY_RANK:(特殊勢力_野盗) / 2, 1) * LOCAL:2
+		BATTLE_知略:発動側:LOCAL += MIN(SP_COUNTRY_RANK:(特殊勢力_野盗) / 2, 1) * LOCAL:2
+	ENDIF
+	
+	
+
 
 NEXT
 
@@ -955,29 +950,9 @@ VARSET 対象側キャラ, -1
 
 対象側 = !発動側
 
-IF 発動部隊 >= 0
-	FOR LOCAL:0, 0, 3
-		発動側キャラ:(LOCAL) = GET_UNIT_COMMANDER(発動勢力, 発動部隊, LOCAL)
-	NEXT
-ELSE
-	FOR LOCAL:0, 0, 2
-		発動側キャラ:(LOCAL) = GET_CITY_COMMANDER(発動勢力, LOCAL)
-	NEXT
-ENDIF
-
-IF 対象部隊 >= 0
-	FOR LOCAL:0, 0, 3
-		対象側キャラ:(LOCAL) = GET_UNIT_COMMANDER(対象勢力, 対象部隊, LOCAL)
-	NEXT
-ELSE
-	FOR LOCAL:0, 0, 2
-		対象側キャラ:(LOCAL) = GET_CITY_COMMANDER(対象勢力, LOCAL)
-	NEXT
-ENDIF
-
 SETCOLOR COLOR("素質発動")
-FOR LOCAL:0, 0, 3
-	発動キャラ = 発動側キャラ:LOCAL
+FOR LOCAL:0, 0, BATTLE_COMMANDER_NUM:発動側
+	発動キャラ = BATTLE_COMMANDER:発動側:LOCAL
 	SIF 発動キャラ < 0
 		CONTINUE
 	発動キャラ素質 = BATTLE_素質:発動側:LOCAL
