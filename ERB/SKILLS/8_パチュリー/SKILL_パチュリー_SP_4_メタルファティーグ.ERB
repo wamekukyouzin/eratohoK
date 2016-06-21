@@ -1,0 +1,83 @@
+﻿;-----------------------------------
+;基本値計算に先んじて処理するもの
+;-----------------------------------
+@SKILL_8_SP_4_EXIST
+RETURN 1
+
+@SKILL_8_SP_4_NAME
+RESULTS = メタルファティーグ
+
+;レベルは1-5まで
+@SKILL_8_SP_4_LEVEL
+RETURN 2
+
+;対象選択
+@SKILL_8_SP_4_SETTARGET(発動者, 発動番号, 発動側, 発動勢力, 発動部隊, 対象勢力, 対象部隊)
+#DIM 発動者
+#DIM 発動番号
+#DIM スキル
+#DIMS ジャンル
+#DIM 発動側
+#DIM 発動勢力
+#DIM 発動部隊
+#DIM 対象側
+#DIM 対象勢力
+#DIM 対象部隊
+対象側 = !発動側
+;部隊対象
+RETURN 1
+
+;発動判定
+@SKILL_8_SP_4_CAN_INVOKE(発動者, 発動番号, 発動側, 発動勢力, 発動部隊, 対象勢力, 対象部隊)
+#DIM 発動者
+#DIM 発動番号
+#DIM スキル
+#DIMS ジャンル
+#DIM 発動側
+#DIM 発動勢力
+#DIM 発動部隊
+#DIM 対象側
+#DIM 対象勢力
+#DIM 対象部隊
+対象側 = !発動側
+RETURN RAND:1000 < 125
+
+;発動テキストをオーバライドしたいときに。
+;「誰それのスキル発動！　○○した！」の「○○した！」の部分を実装したい場合は、
+;これじゃなくてINVOKEで書けばいいです。
+;@SKILL_8_SP_4_INVOKE_TEXT(発動者, スキル, ジャンル)
+;#DIM 発動者
+;#DIM スキル
+;#DIMS ジャンル
+
+;効果をここに記述
+@SKILL_8_SP_4_INVOKE(発動者, 発動番号, 発動側, 発動勢力, 発動部隊, 対象勢力, 対象部隊)
+#DIM 発動者
+#DIM 発動番号
+#DIM スキル
+#DIMS ジャンル
+#DIM 発動側
+#DIM 発動勢力
+#DIM 発動部隊
+#DIM 対象側
+#DIM 対象勢力
+#DIM 対象部隊
+対象側 = !発動側
+PRINTFORML 敵部隊にダメージ！
+IF 対象部隊 >= 0
+	LOCAL:5 = 対象勢力
+	LOCAL:6 = RAND(300, 700)
+	LOCAL:7 = MAX(UNIT_SOLDIER:対象勢力:対象部隊 - LOCAL:6, 1)
+	PRINTFORML %ANAME(GET_COUNTRY_BOSS(LOCAL:5)), 10, RIGHT%軍:{UNIT_SOLDIER:対象勢力:対象部隊, 6, RIGHT} → {LOCAL:7}
+	UNIT_SOLDIER:対象勢力:対象部隊 = LOCAL:7
+ELSE
+	LOCAL:5 = CITY_OWNER:対象勢力
+	LOCAL:6 = RAND(300, 700)
+	LOCAL:7 = MAX(CITY_SOLDIER:対象勢力 - LOCAL:6, 1)
+	PRINTFORML %@"\@ GET_COUNTRY_BOSS(LOCAL:5) >= 0 ? %ANAME(GET_COUNTRY_BOSS(LOCAL:5))% # 無所属 \@", 10, RIGHT%軍:{CITY_SOLDIER:対象勢力, 6, RIGHT} → {LOCAL:7}
+	CITY_SOLDIER:対象勢力 = LOCAL:7
+ENDIF
+
+
+@SKILL_8_SP_4_EXPLANATION
+RESULTS = 敵部隊にダメージ
