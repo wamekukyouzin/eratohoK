@@ -119,6 +119,58 @@ IF IS_COUNTRY(ARG:0)
 ENDIF
 RETURNF LOCAL:1
 
+
+;-------------------------------------------------
+;ARG:1の正負に応じてGET_UNIT_COMMANDER_ALLとGET_CITY_COMMANDER_ALLを呼び出す関数
+;その辺透過的に扱えるようにするため作成
+;-------------------------------------------------
+@GET_COMMANDER_ALL(ARG:0, ARG:1)
+IF ARG:1 < 0
+	CALL GET_CITY_COMMANDER_ALL(ARG:0)
+ELSE
+	CALL GET_UNIT_COMMANDER_ALL(ARG:0, ARG:1)
+ENDIF
+RETURN RESULT:0, RESULT:1, RESULT:2
+
+;-------------------------------------------------
+;ARG:1の正負に応じてCITY_SOLDERとUNIT_SOLDIERを取得するための関数
+;CITY_SOLDIERとUNIT_SOLDIERを透過的に扱うために作成。
+;-------------------------------------------------
+@GET_SOLDIER(ARG:0, ARG:1)
+#FUNCTION
+IF ARG:1 < 0
+	RETURNF CITY_SOLDIER:(ARG:0)
+ELSE
+	RETURNF UNIT_SOLDIER:(ARG:0):(ARG:1)
+ENDIF
+RETURNF -1
+
+;-------------------------------------------------
+;ARG:1の正負に応じてCITY_SOLDERとUNIT_SOLDIERを操作するための関数
+;CITY_SOLDIERとUNIT_SOLDIERを透過的に扱うために作成。
+;-------------------------------------------------
+@MODIFY_SOLDIER(ARG:0, ARG:1, ARG:2, ARG:3 = 0)
+IF ARG:1 < 0
+	LOCAL:1 = CITY_OWNER:(ARG:0)
+	LOCAL:2 = MAX(CITY_SOLDIER:(ARG:0) + ARG:2, 0)
+	SIF ARG:3
+		PRINTFORML %@"\@ GET_COUNTRY_BOSS(LOCAL:1) >= 0 ? %ANAME(GET_COUNTRY_BOSS(LOCAL:1))% # 無所属 \@", 10, RIGHT%軍:{CITY_SOLDIER:(ARG:0), 6, RIGHT} → {LOCAL:2}
+	CITY_SOLDIER:(ARG:0) = LOCAL:2	
+ELSE
+	LOCAL:1 = ARG:0
+	LOCAL:2 = MAX(UNIT_SOLDIER:(ARG:0):(ARG:1) + ARG:2, 0)
+	SIF ARG:3
+		PRINTFORML %ANAME(GET_COUNTRY_BOSS(LOCAL:1)), 10, RIGHT%軍:{UNIT_SOLDIER:(ARG:0):(ARG:1), 6, RIGHT} → {LOCAL:2}
+	UNIT_SOLDIER:(ARG:0):(ARG:1) = LOCAL:2
+ENDIF
+
+@INCREASE_SOLDIER(ARG:0, ARG:1, ARG:2, ARG:3 = 0)
+CALL MODIFY_SOLDIER(ARG:0, ARG:1, ABS(ARG:2), ARG:3)
+
+@DECREASE_SOLDIER(ARG:0, ARG:1, ARG:2, ARG:3 = 0)
+CALL MODIFY_SOLDIER(ARG:0, ARG:1, ABS(ARG:2) * -1, ARG:3)
+
+
 ;-------------------------------------------------
 ;ARG:0番の都市について、ARG:1番目の守将のキャラ番号を返す関数
 ;-------------------------------------------------
@@ -128,6 +180,15 @@ SIF !INRANGE_CITY(ARG:0) || !INRANGE_CITY_COMMANDER(ARG:1)
 	RETURNF -1
 
 RETURNF ID_TO_CHARA((CITY_COMMANDER:(ARG:0) >> (16 * ARG:1)) & 0xFFFF)
+
+;-------------------------------------------------
+;ARG:0番の都市について、将全員のキャラ番号をRESULTにつっこんで返す関数
+;-------------------------------------------------
+@GET_CITY_COMMANDER_ALL(ARG:0)
+FOR LOCAL, 0, MAX_CITY_COMMANDER
+	RESULT:LOCAL = GET_CITY_COMMANDER(ARG:0, LOCAL)
+NEXT
+RETURN RESULT:0, RESULT:1, -1
 
 ;-------------------------------------------------
 ;ARG:0番の都市について、ARG:1番目の守将をARG:2番のキャラに設定する関数
@@ -230,6 +291,15 @@ SIF !INRANGE_COUNTRY(ARG:0) || !INRANGE_UNIT(ARG:1) || !INRANGE_UNIT_COMMANDER(A
 	RETURNF -1
 
 RETURNF ID_TO_CHARA((UNIT_COMMANDER:(ARG:0):(ARG:1) >> (16 * ARG:2)) & 0xFFFF)
+
+;-------------------------------------------------
+;ARG:0勢力のARG:1部隊の将全員のキャラ番号をRESULTにつっこんで返す関数
+;-------------------------------------------------
+@GET_UNIT_COMMANDER_ALL(ARG:0, ARG:1)
+FOR LOCAL, 0, MAX_UNIT_COMMANDER
+	RESULT:LOCAL = GET_UNIT_COMMANDER(ARG:0, ARG:1, LOCAL)
+NEXT
+RETURN RESULT:0, RESULT:1, RESULT:2
 
 ;-------------------------------------------------
 ;ARG:0勢力のARG:1部隊について、ARG:2番目の将をARG:3番のキャラに設定する関数
@@ -396,13 +466,16 @@ SIF STRLENS(LOCALS:1) >= 10
 	LOCALS:1 = %TOHALF(LOCALS:1)%
 SIF STRLENS(LOCALS:2) >= 28
 	LOCALS:2 = %TOHALF(LOCALS:2)%
+;部隊能力の用意
+CALL GET_UNIT_COMMANDER_ALL(ARG:0, ARG:1)
+CALL SET_BATTLE_MIRROR_VAL(0, RESULT, RESULT:1, RESULT:2)
 PRINTFORM %LOCALS:1, 10, LEFT%
 PRINTFORM %LOCALS:2, 28, LEFT%
 PRINTFORM ★:{SUM_UNIT_STARS(ARG:0, ARG:1), 4, LEFT}
 PRINTFORM 兵:{UNIT_SOLDIER:(ARG:0):(ARG:1), 6, LEFT}
-PRINTFORM 攻:%TOSTR_UNIT_POWER_SHORT(UNIT_ATTACK_LEVEL(ARG:0, ARG:1)), 5, LEFT%
-PRINTFORM 防:%TOSTR_UNIT_POWER_SHORT(UNIT_DEFENSE_LEVEL(ARG:0, ARG:1)), 5, LEFT%
-PRINTFORM 知:%TOSTR_UNIT_POWER_SHORT(UNIT_INTELLIGENCE_LEVEL(ARG:0, ARG:1)), 5, LEFT%
+PRINTFORM 攻:%TOSTR_UNIT_POWER_SHORT(ATTACK_LEVEL(0,0)), 5, LEFT%
+PRINTFORM 防:%TOSTR_UNIT_POWER_SHORT(DEFENSE_LEVEL(0,0)), 5, LEFT%
+PRINTFORM 知:%TOSTR_UNIT_POWER_SHORT(INTELLIGENCE_LEVEL(0,0)), 5, LEFT%
 RESETCOLOR
 ;-------------------------------------------------
 ;ARG:0勢力のARG:1部隊の星の数を返す関数
