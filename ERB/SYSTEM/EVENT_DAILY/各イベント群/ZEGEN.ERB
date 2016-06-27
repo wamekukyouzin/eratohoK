@@ -38,7 +38,7 @@ CALL ASK_MULTI(@"捜査する" ,"取引する" ,"無視する")
 				$SHOW_LOOP
 				PRINTFORMW 誰を捕ってきてもらおうか？
 				FOR LOCAL, 0, CHARANUM
-					IF CFLAG:LOCAL:捕虜先 == !CFLAG:MASTER:所属
+					IF CFLAG:LOCAL:捕虜先 == !CFLAG:MASTER:所属 && NO:LOCAL < 2000
 						捕虜番号:(LOCAL:1) = LOCAL
 						PRINTFORM [{LOCAL:1}]%ANAME(LOCAL), 16, RIGHT% - 金{ZEGEN_PRICE(LOCAL), 6, RIGHT}
 						PRINTL
@@ -84,7 +84,7 @@ CALL ASK_MULTI(@"捜査する" ,"取引する" ,"無視する")
 			ELSE
 				PRINTFORML 自分を売ることにした
 				PRINTFORMW 遊郭で働かされた
-				CALL KIDNAPPER_SEXWORK(MASTER)
+				CALL ZEGEN_SEXWORK(MASTER)
 				金額 = 1000 + (ABL:MASTER:性交 + ABL:MASTER:性技 + ABL:MASTER:奉仕 + ABL:MASTER:Ｖ感) * 500
 				MONEY += 金額 
 				CALL COLORPRINTFORM(@"金{金額}を手に入れた", COLOR("シアン"))
@@ -109,41 +109,51 @@ CALL ASK_MULTI(@"捜査する" ,"取引する" ,"無視する")
 		PRINTFORMW どうしよう？
 		CALL ASK_MULTI(@"武力制圧する" ,"客から情報を得る" ,"娘たちを逃がす")
 			IF RESULT == 0
-				PRINTFORML 武力で制圧を試みた
+				PRINTFORMW 武力で制圧を試みた
+				PRINTFORML ・
+				PRINTFORML ・
+				PRINTFORMW ・
 				IF ABL:対象:武闘 * (RAND:5 + 1) > 40 * (RAND:9 + 1)
-					PRINTFORML 拠点を制圧した
-					PRINTFORMW 国内での連中の活動は減るだろう
+					PRINTFORML 拠点を制圧した！
+					PRINTFORMW これで国内での連中の活動は減るだろう
 					IF 対象都市 > 0
 						CITY_GUARD:対象都市 += 20
 						CALL COLORPRINTFORM(@"%CITY_NAME:対象都市%の防衛率が20上昇し、{CITY_GUARD:対象都市}になった", COLOR("シアン"))
 						PRINTFORMW 
 					ENDIF
 				ELSE
-					PRINTFORML 失敗した
+					PRINTFORML 失敗してしまった……
 					PRINTFORMW 薬を打たれて夢見心地になった%ANAME(対象)%は、客の相手をさせられることになった
-					CALL KIDNAPPER_SEXWORK(対象)
+					CALL ZEGEN_SEXWORK(対象)
 					CFLAG:対象:薬物依存 += RAND(30, 60)
-					PRINTFORMW その後、何とか逃げ出した
+					PRINTFORMW その後、%ANAME(対象)%は何とか逃げ出した
 				ENDIF
 			ELSEIF RESULT == 2
-				PRINTFORML 娘たちを逃がした
+				PRINTFORMW 娘たちを逃がすことにした
+				PRINTFORML ・
+				PRINTFORML ・
+				PRINTFORMW ・
 				IF ABL:対象:知略 * (RAND:5 + 1) > 40 * (RAND:9 + 1)
-					PRINTFORMW 成功した！
+					PRINTFORML 成功した！
+					PRINTFORMW 救出した娘たちは家族たちと再会出来て泣いて喜んでいた
 					FOR LOCAL, 1, MAX_COUNTRY
 						CALL CHANGE_RELATION_C_TO_C(LOCAL, CFLAG:MASTER:1, 50, -50)
 					NEXT
 					CALL COLORPRINTFORM(@"娘たちを助けたことで他国の評判が上がった", COLOR("シアン"))
 					PRINTFORMW 
 				ELSE
-					PRINTFORML 失敗した
+					PRINTFORML 失敗してしまった……
 					PRINTFORMW 薬を打たれて夢見心地になった%ANAME(対象)%は、客の相手をさせられることになった
-					CALL KIDNAPPER_SEXWORK(対象)
+					CALL ZEGEN_SEXWORK(対象)
 					CFLAG:対象:薬物依存 += RAND(30, 60)
-					PRINTFORMW その後、何とか逃げ出した
+					PRINTFORMW その後、%ANAME(対象)%は何とか逃げ出した
 				ENDIF
 			ELSE
 				PRINTFORMW 客の相手をして情報を得ることにした
-				CALL KIDNAPPER_SEXWORK(対象)
+				CALL ZEGEN_SEXWORK(対象)
+				PRINTFORML ・
+				PRINTFORML ・
+				PRINTFORMW ・
 				IF (ABL:対象:性交 + ABL:対象:性技 + ABL:対象:奉仕 + ABL:対象:Ｖ感) > 10 + DAY / 10
 					PRINTFORML %ANAME(対象)%の奉仕に満足した客はべらべらと情報を話してくれた
 					PRINTFORMW その情報を手に遊郭を抜け出した%ANAME(対象)%は奴らの組織を摘発した
@@ -159,7 +169,7 @@ CALL ASK_MULTI(@"捜査する" ,"取引する" ,"無視する")
 					PRINTFORMW 
 				ELSE
 					PRINTFORML しかし客を満足させられず情報も得られなかった
-					PRINTFORMW その後、何とか逃げ出した
+					PRINTFORMW その後、%ANAME(対象)%は何とか逃げ出した
 				ENDIF
 			ENDIF
 	ENDIF
