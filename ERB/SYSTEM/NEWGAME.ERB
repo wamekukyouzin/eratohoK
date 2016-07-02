@@ -697,10 +697,11 @@ SELECTCASE RESULT
 		PRINTFORMW 捕虜としてスタートします
 ENDSELECT
 SP_COUNTRY_START:LOCAL = RESULT + 1
+;この時点で設定していない（シナリオ側で設定していない）なら設定
 IF SP_COUNTRY_RANK:LOCAL == 0
 	PRINTFORML %SP_COUNTRY_NAME:LOCAL%の強さはどうしますか？
 	CALL ASK_MULTI("よわい", "ややよわ", "ふつう", "ややつよ", "つよい")
-	PRINTFORMW 強さは{RESULT}で設定します
+	PRINTFORMW 強さは{RESULT + 1}で設定します
 	SP_COUNTRY_RANK:LOCAL = RESULT
 
 	PRINTFORML %SP_COUNTRY_NAME:LOCAL%のボスの名前はどうしますか？
@@ -708,7 +709,10 @@ IF SP_COUNTRY_RANK:LOCAL == 0
 	PRINTFORMW 名前を設定しました
 	SP_COUNTRY_BOSSNAME:LOCAL = RESULT
 ENDIF
-CALLFORM %SP_COUNTRY_NAME_ENG:LOCAL%_RISE()
+
+;なければ作る
+SIF GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:LOCAL) == -1
+	CALLFORM %SP_COUNTRY_NAME_ENG:LOCAL%_RISE()
 
 
 ;-------------------------------------------------
@@ -1276,13 +1280,13 @@ ENDIF
 #DIM 野盗都市
 #DIM FIRST_LINE
 #DIM スタート勢力定数
-#DIM 勢力
+#DIM スタート勢力
 VARSET スタート勢力定数
-;特殊勢力スタートを選択している場合は、先んじてSP_COUNTRY_RANK:(特殊勢力_野盗)をとりあえず1にしておく
+
 FOR LOCAL, 0, MAX_SP_COUNTRY
 	IF SP_COUNTRY_START:LOCAL
 		スタート勢力定数 = LOCAL
-		勢力 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:スタート勢力定数)
+		スタート勢力 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:スタート勢力定数)
 	ENDIF
 NEXT
 DRAWLINE
@@ -1326,7 +1330,7 @@ FOR LOCAL, 0, MAX_SP_COUNTRY
 	PRINTL
 NEXT
 PRINTL
-IF GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:特殊勢力_野盗) != -1
+IF GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:特殊勢力_野盗) != -1 && GET_OWN_CITY(GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:特殊勢力_野盗)) == 0
 	PRINTL 野盗の初期都市（ランダム）
 	CALL PRINTBUTTON_EX("{なし}" , 200, SP_COUNTRY_RANK:(特殊勢力_野盗), 野盗都市 == 0)
 	CALL PRINTBUTTON_EX("{あり}" , 201, SP_COUNTRY_RANK:(特殊勢力_野盗), 野盗都市 == 1)
@@ -1348,9 +1352,9 @@ IF RESULT == 999
 			CONTINUE
 		SELECTCASE SP_COUNTRY_START:スタート勢力定数
 			CASE 特殊勢力スタート_士官
-				CALL CHANGE_COUNTRY(MASTER, 勢力)
+				CALL CHANGE_COUNTRY(MASTER, スタート勢力)
 			CASE 特殊勢力スタート_奴隷
-				CALL CHANGE_COUNTRY(MASTER, 勢力)
+				CALL CHANGE_COUNTRY(MASTER, スタート勢力)
 				FOR LOCAL:1, 0, CHARANUM
 					IF TALENT:(LOCAL:1):特殊勢力素質 == スタート勢力定数
 						TALENT:(LOCAL:1):合意 = 1
@@ -1360,7 +1364,7 @@ IF RESULT == 999
 					ENDIF
 				NEXT
 			CASE 特殊勢力スタート_捕虜
-				CALL CAPTURE(MASTER, 勢力)
+				CALL CAPTURE(MASTER, スタート勢力)
 		ENDSELECT
 		BREAK
 	NEXT
@@ -1386,13 +1390,15 @@ IF INRANGE(RESULT, 100, 199)
 	;勢力
 	LOCAL:1 = RESULT / 10
 	IF GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:LOCAL) != LOCAL
-		PRINTFORML スタートに指定した勢力の君主は指定時にしか変えられません
+		PRINTFORML  %SP_COUNTRY_NAME:スタート勢力定数%でのスタートを選択しているため、ここでは君主名を変更できません
 	ELSEIF SP_COUNTRY_NAME:(LOCAL:1) != "" && INRANGE(LOCAL, 0, 2) && SP_COUNTRY_RANK:(LOCAL:1) 
 		SP_COUNTRY_BOSSNAME:(LOCAL:1) = LOCAL
 	ENDIF
 ENDIF
 
-IF スタート勢力定数 != 特殊勢力_野盗 && GROUPMATCH(RESULT, 200, 201)
+;野盗の領地変更
+;スタート勢力が野盗でない、野盗のランクが1以上（登場しない設定でない）、野盗勢力が存在しない（シナリオ側で作っていないあ）か野盗の都市が0（シナリオ側でその処理をしていない）
+IF GROUPMATCH(RESULT, 200, 201) && スタート勢力定数 != 特殊勢力_野盗 && SP_COUNTRY_RANK:特殊勢力_野盗 >= 1 && (GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:特殊勢力_野盗) != -1 || GET_OWN_CITY(GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:特殊勢力_野盗)) == 0)
 	野盗都市 = RESULT - 200
 ENDIF
 
