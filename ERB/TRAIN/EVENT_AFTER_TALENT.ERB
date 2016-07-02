@@ -101,6 +101,8 @@ IF !TALENT:(ARG:0):虚ろ
 				TALENT:(ARG:0):ＮＴＲ = 0
 			ENDIF
 			RESETCOLOR
+			SIF TALENT:(ARG:0):プライド高い && CFLAG:(ARG:0):好感度 < -500
+				CALL TALENT_LOSE_PRIDE(ARG:0)
 			TALENT:(ARG:0):服従 = 1
 			;堕とした人数＋１
 			FLAG:陥落人数 += 1
@@ -214,12 +216,19 @@ ENDIF
 IF !GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_精液便女) && EXP:(ARG:0):輪姦経験 >= 150 && ABL:(ARG:0):欲望 >= ランク閾値:ランク_その他:ランク_B && ABL:(ARG:0):性交 >= ランク閾値:ランク_その他:ランク_C
 	PRINTL
 	PRINTFORMW %ANAME(ARG:0)%の様子がおかしい……
-	PRINTFORMW %ANAME(ARG:0)%は犯される快感を覚え、便器として使われる悦びに身を捧げることにしたようだ
+	IF TALENT:(ARG:0):プライド高い
+		PRINTFORMW %ANAME(ARG:0)%は犯される快感に負け、自分が性処理用の便器であることを受け入れてしまった
+	ELSE
+		PRINTFORMW %ANAME(ARG:0)%は犯される快感を覚え、便器として使われる悦びに身を捧げることにしたようだ
+	ENDIF
 	CALL KOJO_EVENT(ARG:0,  83)
 	SETCOLOR COLOR("注意")
 	PRINTFORMW %ANAME(ARG:0)%は<精液便女>になった
 	RESETCOLOR
 	SETBIT TALENT:(ARG:0):淫乱系, 素質_淫乱_精液便女
+	SIF TALENT:(ARG:0):プライド高い
+		CALL TALENT_LOSE_PRIDE(ARG:0)
+	CALL TALENT_LOSE_TEISOU(ARG:0)
 ENDIF
 
 ;獣姦経験150以上、欲望B以上、性交C以上で雌犬
@@ -244,6 +253,7 @@ IF !GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_娼婦) && EXP:(ARG:0):売春
 	PRINTFORMW %ANAME(ARG:0)%は<娼婦>になった
 	RESETCOLOR
 	SETBIT TALENT:(ARG:0):淫乱系, 素質_淫乱_娼婦
+	CALL TALENT_LOSE_TEISOU(ARG:0)
 ENDIF
 
 ;薬物依存が300を越えると薬物依存を取得
@@ -281,6 +291,7 @@ SIF GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_苗床)
 IF ABL:(ARG:0):欲望 >= LOCAL:2 * 3
 	CALL TALENT_CHECK_PART(ARG:0)
 ENDIF
+
 
 ;-------------------------------------------------
 ;部位特化素質＆サドマゾの取得処理
@@ -375,6 +386,74 @@ ELSEIF !GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_苗床) && ABL:(ARG:0):�
 	RESETCOLOR
 	SETBIT TALENT:(ARG:0):淫乱系, 素質_淫乱_苗床
 ENDIF
+
+;-------------------------------------------------
+;プライド高いを所有するキャラクターが屈服した場合の処理
+;ARG:1は色変更を行わないフラグ	ARG:2は先頭の改行を行わないフラグ
+;-------------------------------------------------
+@TALENT_LOSE_PRIDE(ARG:0, ARG:1, ARG:2)
+SIF !ARG:1
+	SETCOLOR COLOR("注意")
+IF TALENT:(ARG:0):プライド高い
+	SIF !ARG:2
+		PRINTL 
+	PRINTFORMW %ANAME(ARG:0)%は<プライド高い>を失った
+	TALENT:(ARG:0):プライド高い = 0
+	IF TALENT:(ARG:0):孤高 || TALENT:(ARG:0):気丈 || !TALENT:(ARG:0):臆病 || TALENT:(ARG:0):生意気 || TALENT:(ARG:0):ツンデレ || TALENT:(ARG:0):反抗的
+		PRINTL 
+		PRINTFORML 自尊心を失った%ANAME(ARG:0)%はすっかり弱気になったようだ……
+		ABL:(ARG:0):主導度Ｎ -= (ABL:(ARG:0):主導度Ｎ + 1000) / 5 * (TALENT:(ARG:0):気丈 + 1)
+		ABL:(ARG:0):主導度Ｕ -= (ABL:(ARG:0):主導度Ｕ + 1000) / 5 * (TALENT:(ARG:0):気丈 + 1)
+		ABL:(ARG:0):主導度Ｎ = LIMIT(ABL:(ARG:0):主導度Ｎ, -1000, 1000)
+		ABL:(ARG:0):主導度Ｕ = LIMIT(ABL:(ARG:0):主導度Ｕ, -1000, 1000)
+		IF TALENT:(ARG:0):孤高
+			PRINTFORMW %ANAME(ARG:0)%は<孤高>を失った
+			TALENT:(ARG:0):孤高 = 0
+		ENDIF
+		IF TALENT:(ARG:0):気丈
+			PRINTFORMW %ANAME(ARG:0)%は<気丈>を失った
+			TALENT:(ARG:0):気丈 = 0
+		ELSEIF !TALENT:(ARG:0):臆病
+			PRINTFORMW %ANAME(ARG:0)%は<臆病>を得た
+			TALENT:(ARG:0):臆病 = 1
+		ENDIF
+		;反発系の素質から一つだけ失う
+		IF TALENT:(ARG:0):反抗的
+			PRINTFORMW %ANAME(ARG:0)%は<反抗的>を失った
+			TALENT:(ARG:0):反抗的 = 0
+		ELSEIF TALENT:(ARG:0):生意気
+			PRINTFORMW %ANAME(ARG:0)%は<生意気>を失った
+			TALENT:(ARG:0):生意気 = 0
+		ELSEIF TALENT:(ARG:0):ツンデレ
+			PRINTFORMW %ANAME(ARG:0)%は<ツンデレ>を失った
+			TALENT:(ARG:0):ツンデレ = 0
+		ENDIF
+	ENDIF
+ENDIF
+SIF !ARG:1
+	RESETCOLOR
+
+;-------------------------------------------------
+;特殊勢力による淫乱取得時などの貞操観念喪失・貞操無頓着入手時の処理
+;ARG:1は色変更を行わないフラグ	ARG:2は先頭の改行を行わないフラグ
+;-------------------------------------------------
+@TALENT_LOSE_TEISOU(ARG:0, ARG:1, ARG:2)
+SIF !ARG:1
+	SETCOLOR COLOR("注意")
+IF TALENT:(ARG:0):貞操観念
+	SIF !ARG:2
+		PRINTL 
+	PRINTFORMW %ANAME(ARG:0)%は<貞操観念>を失い、<貞操無頓着>を得た
+	TALENT:(ARG:0):貞操観念 = 0
+	TALENT:(ARG:0):貞操無頓着 = 1
+ELSEIF !TALENT:(ARG:0):貞操無頓着
+	SIF !ARG:2
+		PRINTL 
+	PRINTFORMW %ANAME(ARG:0)%は<貞操無頓着>を得た
+	TALENT:(ARG:0):貞操無頓着 = 1
+ENDIF
+SIF !ARG:1
+	RESETCOLOR
 
 @CHECK_SEXUAL_PREFERENCE(ARG:0)
 #DIM 嗜好候補, 15
