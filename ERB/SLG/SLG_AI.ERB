@@ -976,31 +976,36 @@ FOR LOCAL:2, 0, 10
 NEXT
 
 ;-------------------------------------------------
-;都市ARG:0に最適な守将を配置。ARG:1を1にすると二人設定できる。
+;都市ARG:0に最適な守将を配置。ARG:1を1にすると二人設定できる。ARG:2を1にすると、その都市の守将を含めるようにする
 ;※直前に @TMP_CREATE_IS_FREE_MAP 関数を呼び出してから使用すること
 ;-------------------------------------------------
-@SET_CITY_COMMANDER_BEST(ARG:0, ARG:1 = 0)
+@SET_CITY_COMMANDER_BEST(ARG:0, ARG:1 = 0, ARG:2 = 0)
 #DIM LCOUNT
 CALL CHECK_CITY_COMMANDER_BEST(ARG:0, ARG:1)
 FOR LCOUNT:0, 0, MAX_CITY_COMMANDER
 	CALL SET_CITY_COMMANDER(ARG:0, LCOUNT:0, CITY_COMMANDER_BEST:(LCOUNT:0))
 NEXT
 ;-------------------------------------------------
-;都市ARG:0に最適な守将を確認。ARG:1を1にすると二人設定できる。
+;都市ARG:0に最適な守将を確認。ARG:1を1にすると二人設定できる。ARG:2に１すると、その都市の守将を含めるようにする
 ;※直前に @TMP_CREATE_IS_FREE_MAP 関数を呼び出してから使用すること
 ;-------------------------------------------------
-@CHECK_CITY_COMMANDER_BEST(ARG:0, ARG:1 = 0)
+@CHECK_CITY_COMMANDER_BEST(ARG:0, ARG:1 = 0, ARG:2 = 0)
 #DIM 勢力
+#DIM 守将, 2
 #DIM LCOUNT,2
 #DIM 最大
 VARSET LOCAL, __INT_MIN__
 VARSET CITY_COMMANDER_BEST, -1
 ;都市を所有する勢力の番号を取得
 勢力 = CITY_OWNER:(ARG:0)
-
+VARSET 守将, -1
+IF ARG:2
+	CALL GET_CITY_COMMANDER_ALL(ARG:0)
+	守将 = RESULT:0, RESULT:1
+ENDIF
 ;勢力に所属してFREEな各キャラの能力を記録
 FOR LCOUNT, 0, CHARANUM
-	IF CFLAG:(LCOUNT):所属 == 勢力 && TMP_IS_FREE:(LCOUNT):0 == 0
+	IF CFLAG:(LCOUNT):所属 == 勢力 && (TMP_IS_FREE:LCOUNT:0 == 0 || (ARG:2 && GROUPMATCH(LCOUNT, 守将:0, 守将:1)))
 		;MASTER麾下の武将は、除外フラグをたてていたら除外する
 		SIF 勢力 == CFLAG:MASTER:所属 && CFLAG:(LCOUNT):最強編成除外フラグ
 			CONTINUE
