@@ -1455,124 +1455,59 @@ RETURNF LOCAL:1
 ;-------------------------------------------------
 @ABL_POWER_X(ARG:0, ARG:1)
 #FUNCTION
-
+#DIM 利用値
+#DIM 補正値ステップ
+#DIM 補正値
 ;コンフィグで能力補正が皆無の場合
 SIF CONFIG:309 == 2
 	RETURNF ABL_POWER(ARG:0)
 
-LOCAL:0 = 0
-LOCAL:10 = 0
+;自勢力のキャラでない、MASTER自身の場合は補正なし
+SIF CFLAG:(ARG:1):所属 != CFLAG:MASTER:所属 || ARG:1 == MASTER
+	RETURNF ABL_POWER(ARG:0)
 
-IF !LOCAL:10
-	;自勢力のキャラでなければ補正は掛けない
-	IF CFLAG:(ARG:1):所属 != CFLAG:MASTER:所属 || ARG:1 == MASTER
-		LOCAL:0 = 0
-	;主人公が他国の捕虜となっている場合は補正を掛けない
-	ELSEIF CFLAG:MASTER:捕虜先 != 0 && CFLAG:MASTER:捕虜先 != CFLAG:(ARG:1):所属
-		LOCAL:0 = 0
-	ELSE
-		;好感度・従属度の大きいほうが影響
-		LOCAL:1 = MAX(CFLAG:(ARG:1):2, CFLAG:(ARG:1):4)
-		LOCAL:0 = LIMIT(LOCAL:1, 0, 20000)
-		SIF LOCAL:1 > 20000
-			LOCAL:0 += (MIN(60000, LOCAL:1) - 20000) / 2
-		SIF LOCAL:1 > 60000
-			LOCAL:0 += (MIN(300000, LOCAL:1) - 60000) / 4
-		SIF LOCAL:1 > 300000
-			LOCAL:0 += (MIN(940000, LOCAL:1) - 300000) / 8
-		SIF LOCAL:1 > 940000
-			LOCAL:0 += SQRT(LOCAL:1 - 940000)
+;主人公が他国の捕虜となっている場合は補正を掛けない
+;心配でメシも喉を通らない的な？
+SIF CFLAG:MASTER:捕虜先 != 0 && CFLAG:MASTER:捕虜先 != CFLAG:(ARG:1):所属
+	RETURNF ABL_POWER(ARG:0)
 
-		SIF TALENT:(ARG:1):正妻
-			LOCAL:0 += 10000
+;好感度、従属度、依存度の中から一番高いやつを利用する
+;依存度が先行することはそんなないやろ………………
+利用値 = MAX(CFLAG:(ARG:1):好感度, CFLAG:(ARG:1):従属度, CFLAG:(ARG:1):依存度)
 
-		SIF TALENT:(ARG:1):親愛
-			LOCAL:0 += 5000
+;値1000ごとに補正値1を得る
+;ただしもとの能力10につき1、補正値にマイナスがかかる(強キャラは補正を得にくい）
+補正値 = MAX(利用値 / 1000 - (ARG:0 / 10), 0)
 
-		SIF TALENT:(ARG:1):恋慕 || TALENT:(ARG:1):親友
-			LOCAL:0 += 2000
+;陥落系素質はボーナスをかける
+SIF TALENT:(ARG:1):正妻
+	補正値 += 2
+SIF TALENT:(ARG:1):親愛
+	補正値 += 2
+SIF TALENT:(ARG:1):恋慕 || TALENT:(ARG:1):親友
+	補正値 += 1
+SIF TALENT:(ARG:1):恋人
+	補正値 += 1
+SIF TALENT:(ARG:1):隷属
+	補正値 += 2
+SIF TALENT:(ARG:1):服従
+	補正値 += 1
+SIF TALENT:(ARG:1):烙印
+	補正値 += 1
 
-		SIF TALENT:(ARG:1):恋人
-			LOCAL:0 += 1000
-
-		SIF TALENT:(ARG:1):隷属
-			LOCAL:0 += 5000
-
-		SIF TALENT:(ARG:1):服従
-			LOCAL:0 += 2000
-
-		SIF TALENT:(ARG:1):烙印
-			LOCAL:0 += 1000
-	ENDIF
-ENDIF
-
-;補正種別による加算処理
-SELECTCASE CONFIG:310
-;補正タイプ:％UP
-CASE 1
-	;補正強度の設定
-	SELECTCASE CONFIG:309
-	CASE 2
-		;最初で処理済
-	CASE 3
-		LOCAL:2 = 1
+;最終的な補正値に制限をかける
+SELECTCASE CONFIG:309
 	CASE 0
-		LOCAL:2 = 4
+		補正値 = MIN(補正値, 10)
 	CASE 1
-		LOCAL:2 = 8
-	ENDSELECT
-
-	LOCAL:3 = ABL_POWER(ARG:0)
-	LOCAL:4 = (LOCAL:0 * LOCAL:2 / 2 + 10000) / 100
-
-	IF LOCAL:3 >= 32768000 / LOCAL:4
-		LOCAL:5 = (LOCAL:0 * LOCAL:2 / 2 + 800000) / 8000
-		LOCAL:6 = LOCAL:3 - 32768000 / LOCAL:4
-		LOCAL:7 = LOCAL:6 * LOCAL:5 + 32768000
-	ELSE
-		LOCAL:7 = LOCAL:3 * LOCAL:4
-	ENDIF
-	RETURNF LOCAL:7 / 100
-
-;補正タイプ:直接倍率型
-CASE 2
-	;補正強度の設定
-	SELECTCASE CONFIG:309
+		補正値 = MIN(補正値, 20)
 	CASE 2
-		;最初で処理済
+		;そもそもここにはこない
 	CASE 3
-		LOCAL:2 = 1
-	CASE 0
-		LOCAL:2 = 2
-	CASE 1
-		LOCAL:2 = 4
-	ENDSELECT
-
-	;補正処理を主人公以外に対するものにも適用
-	;3倍ほど強化されるので観察した上で再調整予定
-	IF (CFLAG:(ARG:1):所属 == CFLAG:MASTER:所属 && ARG:1 != MASTER) || LOCAL:10
-		LOCAL:3 = ABL_POWER(ARG:0)
-		RETURNF MAX((LOCAL:3 * SQRT(LOCAL:0 * LOCAL:2 * (LOCAL:10 ? 1000 # 10000) / 30) / 1000), 1)
-	ELSE
-		RETURNF ABL_POWER(ARG:0) + ARG:0 * LOCAL:0 * LOCAL:2 * 3 / 40
-	ENDIF
-
-;補正タイプ:通常
-CASEELSE
-	;補正強度の設定
-	SELECTCASE CONFIG:309
-	CASE 2
-		;最初で処理済
-	CASE 3
-		LOCAL:2 = 1
-	CASE 0
-		LOCAL:2 = 2
-	CASE 1
-		LOCAL:2 = 4
-	ENDSELECT
-	RETURNF ABL_POWER(ARG:0) + ARG:0 * LOCAL:0 * LOCAL:2 * 3 / 40
+		補正値 = MIN(補正値, 5)
 ENDSELECT
 
+RETURNF ABL_POWER(ARG:0 + 補正値)
 
 ;-------------------------------------------------
 ;ARG:0の0.75乗を返す関数 主に戦闘のダメージ計算用
