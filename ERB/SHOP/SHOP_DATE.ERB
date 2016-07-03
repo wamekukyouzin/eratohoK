@@ -1,0 +1,190 @@
+﻿
+;-------------------------------------------------
+;デート
+;-------------------------------------------------
+@SHOP_DATE(対象)
+#DIM 対象, 1
+#DIM 結果, 1
+#DIM 全消費, 1
+#DIM 内容, 1
+#DIM 能力, 1
+
+;対象者とデートする
+;お金消費,1回10000
+;好感度+ 200+RAND:100
+;行先は湖、森、人里etc
+
+DRAWLINE
+PRINTFORML 行動回数とお金を消費し、%ANAME(対象)%とデートします。
+PRINTFORML 1回デートする毎に金10000を消費します。
+PRINTFORML どこに誘いますか？
+PRINTFORML 
+PRINTFORML 残行動:{CALC_SHOP_TIME() - SHOP_TIME}
+PRINTFORML 所持金:{MONEY}
+DRAWLINE
+PRINTBUTTON @"%"[湖]", 12, LEFT%", 1
+PRINTBUTTON "[行動全消費]", 11
+PRINTL   湖に誘います。武闘値が高いほど相手に好印象を与えられます。
+PRINTBUTTON @"%"[森]", 12, LEFT%", 2
+PRINTBUTTON "[行動全消費]", 12
+PRINTL   森に誘います。知略値が高いほど相手に好印象を与えられます。
+PRINTBUTTON @"%"[人里]", 12, LEFT%", 3
+PRINTBUTTON "[行動全消費]", 13
+PRINTL   人里に誘います。政治値が高いほど相手に好印象を与えられます。
+PRINTBUTTON @"%"[花畑]", 12, LEFT%", 4
+PRINTBUTTON "[行動全消費]", 14
+PRINTL   花畑に誘います。歌唱値が高いほど相手に好印象を与えられます。
+PRINTBUTTON @"%"[自宅]", 12, LEFT%", 5
+PRINTBUTTON "[行動全消費]", 15
+PRINTL   自宅に誘います。料理値が高いほど相手に好印象を与えられます。
+DRAWLINE
+PRINTBUTTON "[0] - 戻る", 0
+$INPUT_LOOP
+INPUT
+
+内容 = RESULT
+;0だったら戻す
+IF 内容 == 0
+	RETURN 0
+ENDIF
+
+IF GROUPMATCH(内容, 11, 12, 13, 14, 15)
+	IF MONEY < 10000 * (CALC_SHOP_TIME() - SHOP_TIME)
+		PRINTFORMW お金が足りません。
+		GOTO INPUT_LOOP
+	ELSE
+		全消費 = 1
+		内容 -= 10
+		LOCAL:5 = 1
+	ENDIF
+ELSEIF GROUPMATCH(内容, 1, 2, 3, 4 ,5)
+	IF MONEY < 10000
+		PRINTFORMW お金が足りません。
+		GOTO INPUT_LOOP
+	ELSE
+		全消費 = 0
+	ENDIF
+ELSE
+	GOTO INPUT_LOOP
+ENDIF
+
+;全消費の場合ここに戻ってくる
+$DATE_LOOP
+
+SHOP_TIME += 1
+SHOP_WORK_COUNT += 1
+
+
+;結果の計算
+SELECTCASE RAND:100
+	CASE 0 TO 19
+		結果 = 0
+	CASE 20 TO 79
+		結果 = 1
+	CASEELSE
+		結果 = 2
+ENDSELECT
+
+SELECTCASE 内容
+	CASE 1
+		IF LOCAL:5 == 0
+			PRINTFORML %ANAME(対象)%を湖に誘った。
+		ELSE
+			PRINTFORML 引き続き湖で%ANAME(対象)%と楽しんだ。
+		ENDIF
+		能力 = ABL:MASTER:武闘
+	CASE 2
+		IF LOCAL:5 == 0
+			PRINTFORML %ANAME(対象)%を森に誘った。
+		ELSE
+			PRINTFORML 引き続き森で%ANAME(対象)%と楽しんだ。
+		ENDIF
+		能力 = ABL:MASTER:知略
+	CASE 3
+		IF LOCAL:5 == 0
+			PRINTFORML %ANAME(対象)%を人里に誘った。
+		ELSE
+			PRINTFORML 引き続き人里で%ANAME(対象)%と楽しんだ。
+		ENDIF
+		能力 = ABL:MASTER:政治
+	CASE 4
+		IF LOCAL:5 == 0
+			PRINTFORML %ANAME(対象)%を花畑に誘った。
+		ELSE
+			PRINTFORML 引き続き花畑で%ANAME(対象)%と楽しんだ。
+		ENDIF
+		能力 = ABL:MASTER:歌唱
+	CASE 5
+		IF LOCAL:5 == 0
+			PRINTFORML %ANAME(対象)%を自宅に誘った。
+		ELSE
+			PRINTFORML 引き続き自宅で%ANAME(対象)%と楽しんだ。
+		ENDIF
+		能力 = ABL:MASTER:料理
+	CASEELSE
+		GOTO INPUT_LOOP
+ENDSELECT
+
+;口上でキャラ毎に別のセリフを言わせられるようにしたい
+SELECTCASE RAND:5
+	CASE 0
+		PRINTFORMW %PRONOUN(対象)%は楽しんでくれている様だ。
+	CASE 1
+		PRINTFORMW 二人で楽しい時間を過ごした。
+	CASE 2
+		PRINTFORMW %PRONOUN(対象)%との会話が弾んだ。
+	CASE 3
+		PRINTFORMW はしゃぐ%PRONOUN(対象)%に振り回された。
+	CASE 4
+		PRINTFORMW 楽しすぎてあっという間に時間が過ぎてしまった。
+ENDSELECT
+
+PRINTFORML
+結果 = 100 + RAND:100 + 能力
+CFLAG:対象:好感度 += 結果
+MONEY -= 10000
+SIF CFLAG:対象:面識 == 0
+	CFLAG:対象:面識 = 1
+PRINTFORML %ANAME(対象)%の好感度が{結果}上昇した
+PRINTFORML 金10000を消費した
+
+PRINTFORMW 
+IF SHOP_TIME < CALC_SHOP_TIME()
+	CALL COOK_HEAL(対象)
+	SIF 全消費
+		GOTO DATE_LOOP
+	RESTART
+ENDIF
+
+;デート後、一定条件でキスされる
+IF CFLAG:対象:好感度 >= 1000 && RAND:3 == 0
+	PRINTFORML 
+	PRINTFORML デートの帰り道、突然%ANAME(対象)%にキスをされた
+	PRINTFORMW 驚く%ANAME(MASTER)%を尻目に、%PRONOUN(対象)%は悪戯っぽく笑うと足早に先へ行ってしまった
+	CALL KISS_COMMON(対象, @"%ANAME(MASTER)%の唇")
+	LOCAL:6 = 1
+ENDIF
+
+;デート後、一定条件で告白される
+IF CFLAG:対象:好感度 >= 1500 && TALENT:対象:服従 != 1 && !IS_LOVER(対象) && LOCAL:6 != 1 && RAND:2 == 0
+	PRINTFORML 
+	PRINTFORML デートの帰り道、突然%ANAME(対象)%に告白された
+	PRINTFORML %PRONOUN(対象)%は微かに瞳を潤ませながら真っ直ぐに%ANAME(MASTER)%を見つめてくる
+	PRINTFORML どうしよう？
+	CALL ASK_MULTI(@"受ける" ,"断る")
+		IF RESULT == 1
+			PRINTFORML 申し訳ないが断った
+			PRINTFORMW %PRONOUN(対象)%は一瞬寂しそうな顔を見せたが、何事もなかったかのように笑うと足早に先に行ってしまった
+		ELSE
+			PRINTFORML %ANAME(MASTER)%は%ANAME(対象)%の手を取ると、真っ直ぐに見つめ返して返事をした
+			PRINTFORML すると%PRONOUN(対象)%はパァッと笑顔になり、勢いよく%ANAME(MASTER)%に抱きついてキスをしてきた
+			PRINTFORMW しばし甘い口づけを交わした後に唇を離すとなんだか照れ臭い雰囲気が流れ、お互いに頬を緩ませながら手を握って一緒に帰った
+			CALL KISS_COMMON(対象, @"%ANAME(MASTER)%の唇")
+			CALL GET_LOVERS(対象)
+			TALENT:対象:合意 = 1
+			PRINTFORMW %ANAME(対象)%の[合意]を得ました
+		ENDIF
+ENDIF
+RESULT = 1
+
+BEGIN TURNEND

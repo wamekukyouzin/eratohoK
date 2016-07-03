@@ -79,7 +79,7 @@ VARSET 候補数
 ;キャラの選出
 FOR LOCAL, 0, CHARANUM
 	;MASTERではなく、MASTER所属勢力の君主でもなく、同じ国に所属。もし結果国が野盗なら女であること。動物はだめ。
-	IF LOCAL != MASTER && LOCAL != GET_COUNTRY_BOSS(CFLAG:MASTER:所属) && CFLAG:(LOCAL):所属 == CFLAG:MASTER:所属 && !CFLAG:(LOCAL):9 && (結果国 != 野盗 || IS_FEMALE(LOCAL)) && !IS_ANIMAL(LOCAL)
+	IF LOCAL != MASTER && LOCAL != GET_COUNTRY_BOSS(CFLAG:MASTER:所属) && CFLAG:(LOCAL):所属 == CFLAG:MASTER:所属 && !CFLAG:(LOCAL):捕虜先 && (結果国 != 野盗 || IS_FEMALE(LOCAL)) && !IS_ANIMAL(LOCAL)
 		;0 ~ 「三能力の10倍と、好感度・従属度・依存度の1/10の総和」　の乱数を保存
 		候補キャラ:LOCAL = RAND(0, MAX((ABL:LOCAL:武闘 + ABL:LOCAL:知略 + ABL:LOCAL:政治) * 10 + (CFLAG:LOCAL:好感度 + CFLAG:LOCAL:従属度 + CFLAG:LOCAL:依存度) / 10, 1))
 		候補数 ++
@@ -131,8 +131,7 @@ IF 結果国 != 野盗
 		PRINTFORMW ここは従うしかない。そう考えた%ANAME(MASTER)%は、%ANAME(結果キャラ)%を送り出すことにした……
 		PRINTFORMW 要求に従ったことで、%ANAME(結果君主)%は大いに気を良くしたようだ
 		CALL CHANGE_RELATION_C_TO_C(結果国, CFLAG:MASTER:所属, 500, -300)
-		CALL FORCE_FREE(結果キャラ)
-		CFLAG:結果キャラ:所属 = 結果国
+		CALL CHANGE_COUNTRY(結果キャラ, 結果国)
 		CFLAG:結果キャラ:好感度 /= 2
 		CFLAG:結果キャラ:依存度 /= 2
 		CFLAG:結果キャラ:従属度 /= 2
@@ -189,8 +188,7 @@ ELSE
 			CFLAG:結果キャラ:好感度 /= 2
 			CFLAG:結果キャラ:依存度 /= 2
 			CFLAG:結果キャラ:従属度 /= 2
-			CFLAG:結果キャラ:捕虜先 = 結果国
-
+			CALL CAPTURE(結果キャラ, 結果国)
 
 	ELSEIF RESULT == 1
 		PRINTFORMW やはりそんなことはできない。そう伝え、%ANAME(結果君主)%の使いを送り返した
@@ -283,7 +281,7 @@ IF 野盗 > 0 && CFLAG:MASTER:所属 != 野盗 && RAND:100 < 30
 ENDIF
 
 ;給料5ターンぶん、最低10000
-候補額 = MAX(GET_SUM_ECONOMY(CFLAG:MASTER:1) * (ABL:MASTER:武闘 + ABL:MASTER:知略 + ABL:MASTER:政治 + 100) / 40000 * 5, 10000)
+候補額 = MAX(GET_SUM_ECONOMY(CFLAG:MASTER:所属) * (ABL:MASTER:武闘 + ABL:MASTER:知略 + ABL:MASTER:政治 + 100) / 40000 * 5, 10000)
 
 
 DAILY_NAME = 資金援助要求
@@ -297,7 +295,7 @@ IF 結果国 != 野盗
 	;キャラの選出
 	FOR LOCAL, 0, CHARANUM
 		;結果国所属で、捕虜ではなく、首領ではない。かつ女である。動物はだめ。
-		IF CFLAG:LOCAL:所属 == 結果国 && !CFLAG:(LOCAL):9 && LOCAL != GET_COUNTRY_BOSS(結果国) && IS_FEMALE(LOCAL) && !IS_ANIMAL(LOCAL)
+		IF CFLAG:LOCAL:所属 == 結果国 && !CFLAG:(LOCAL):捕虜先 && LOCAL != GET_COUNTRY_BOSS(結果国) && IS_FEMALE(LOCAL) && !IS_ANIMAL(LOCAL)
 			;0 ~ 「三能力の10倍と、好感度・従属度・依存度の1/10の総和」　の乱数を保存
 			候補キャラ:LOCAL = RAND(0, MAX((ABL:LOCAL:武闘 + ABL:LOCAL:知略 + ABL:LOCAL:政治) * 10 + (CFLAG:LOCAL:好感度 + CFLAG:LOCAL:従属度 + CFLAG:LOCAL:依存度) / 10, 1))
 			候補数 ++
@@ -353,7 +351,7 @@ IF 結果国 != 野盗
 		DVAR:資金援助担保時所属国 = CFLAG:MASTER:所属
 		;借り物をつけて移籍
 		SETBIT TALENT:結果キャラ:デイリー系, 素質_デイリー_借り物
-		CFLAG:結果キャラ:所属 = CFLAG:MASTER:所属
+		CALL CHANGE_COUNTRY(結果キャラ, CFLAG:MASTER:所属)
 		MONEY -= 候補額
 	ELSEIF RESULT == 1
 		PRINTFORMW こっちにもそんな余裕はない。そう伝え、%ANAME(結果君主)%の使いを送り返した
@@ -368,7 +366,7 @@ IF 結果国 != 野盗
 		CALL COLORPRINTFORM(@"資金援助と引き換えに、%ANAME(結果君主)%を抱けるようになりました", COLOR("注意"), "W")
 		CALL COLORPRINTFORM(@"各国との関係が悪化しました", COLOR("警告"), "W")
 		MONEY -= 候補額
-		CFLAG:(結果君主):59 = 1
+		CFLAG:(結果君主):外交調教経過ターン = 1
 		;関係悪化
 		FOR LOCAL:0, 0, MAX_COUNTRY
 			IF IS_COUNTRY(LOCAL) && LOCAL != CFLAG:MASTER:所属
@@ -428,7 +426,7 @@ ELSE
 		;キャラの選出
 		FOR LOCAL, 0, CHARANUM
 			;MASTERではなく、MASTER所属勢力の君主でもなく、同じ国に所属。もし結果国が野盗なら女であること。
-			IF LOCAL != MASTER && LOCAL != GET_COUNTRY_BOSS(CFLAG:MASTER:所属) && CFLAG:(LOCAL):所属 == CFLAG:MASTER:所属 && !CFLAG:(LOCAL):9 && (結果国 != 野盗 || IS_FEMALE(LOCAL)) && !IS_ANIMAL(LOCAL)
+			IF LOCAL != MASTER && LOCAL != GET_COUNTRY_BOSS(CFLAG:MASTER:所属) && CFLAG:(LOCAL):所属 == CFLAG:MASTER:所属 && !CFLAG:(LOCAL):捕虜先 && (結果国 != 野盗 || IS_FEMALE(LOCAL)) && !IS_ANIMAL(LOCAL)
 				;0 ~ 「三能力の10倍と、好感度・従属度・依存度の1/10の総和」　の乱数を保存
 				候補キャラ:LOCAL = RAND(0, MAX((ABL:LOCAL:武闘 + ABL:LOCAL:知略 + ABL:LOCAL:政治) * 10 + (CFLAG:LOCAL:好感度 + CFLAG:LOCAL:従属度 + CFLAG:LOCAL:依存度) / 10, 1))
 				候補数 ++
@@ -478,7 +476,7 @@ SIF 君主 == -1
 ;担保をとったときの所属国と今の所属が違っていたら、簡易イベントで済ませる
 IF CFLAG:MASTER:所属 != DVAR:資金援助担保時所属国
 	PRINTFORMW 資金援助のため貸し出されていた%ANAME(対象)%は、%ANAME(君主)%の元へ戻っていったそうだ……
-	CFLAG:対象:所属 = DVAR:資金援助担保時所属国
+	CALL CHANGE_COUNTRY(対象, DVAR:資金援助担保時所属国)
 	CLEARBIT TALENT:対象:デイリー系, 素質_デイリー_借り物
 	RETURN
 ENDIF
@@ -490,7 +488,7 @@ PRINTFORMW ……そろそろ%ANAME(対象)%の返却の期限だ
 PRINTFORMW %ANAME(MASTER)%は%ANAME(君主)%の元へ向かった……
 PRINTFORML
 ;自国の捕虜にしている
-IF CFLAG:対象:捕虜先 == CFLAG:MASTER:1
+IF CFLAG:対象:捕虜先 == CFLAG:MASTER:所属
 	PRINTFORMW ……%ANAME(対象)%は今、牢屋に幽閉している状態だ
 	PRINTFORMW 戦死してしまったことにして、幽閉したままにするのもありかもしれない
 	PRINTFORMW もちろん、%ANAME(君主)%との関係は、めちゃめちゃにこじれてしまうことだろうが……
@@ -504,32 +502,26 @@ IF CFLAG:対象:捕虜先 == CFLAG:MASTER:1
 		PRINTFORML
 		PRINTFORMW 拠点に戻った%ANAME(MASTER)%は、牢につながれた%ANAME(対象)%を見、舌なめずりした
 		PRINTFORMW 邪魔者もいなくなった今、こいつをどのように調理してやろうか……
-
-
 		CALL COLORPRINTFORM(@"%ANAME(君主)%との関係が非常に悪化しました", COLOR("警告"), "W")
 		CALL COLORPRINTFORM(@"%ANAME(対象)%が無所属の自国捕虜となりました", COLOR("警告"), "W")
-		CALL CHANGE_RELATION_C_TO_C(DVAR:資金援助担保, CFLAG:MASTER:1, -1000, 800)
-		CFLAG:対象:1 = 0
+		CALL CHANGE_RELATION_C_TO_C(DVAR:資金援助担保, CFLAG:MASTER:所属, -1000, 800)
+		CALL CHANGE_COUNTRY(対象, 0)
+		CALL CAPTURE(対象, CFLAG:MASTER:所属)
 		CLEARBIT TALENT:対象:デイリー系, 素質_デイリー_借り物
 	ELSEIF RESULT == 1
 		PRINTFORMW %ANAME(MASTER)%は%ANAME(君主)%に%ANAME(対象)%を返却した
 		PRINTFORMW 幽閉していたのもあって心証は最高とはいかなかったが、一応、感謝はされたようだ……
-
-
 		CALL COLORPRINTFORM(@"%ANAME(君主)%との関係が多少改善されました", COLOR("注意"), "W")
 		CALL COLORPRINTFORM(@"%ANAME(対象)%が帰って行きました", COLOR("警告"), "W")
-		CALL CHANGE_RELATION_C_TO_C(DVAR:資金援助担保, CFLAG:MASTER:1, 300, -100)
-		CFLAG:対象:所属 = DVAR:資金援助担保
-		CFLAG:対象:捕虜先 = 0
+		CALL CHANGE_RELATION_C_TO_C(DVAR:資金援助担保, CFLAG:MASTER:所属, 300, -100)
+		CALL CHANGE_COUNTRY(対象, DVAR:資金援助担保)
 		CLEARBIT TALENT:対象:デイリー系, 素質_デイリー_借り物
 	ENDIF
 ;死んだ
-ELSEIF CFLAG:対象:12 == 2
+ELSEIF CFLAG:対象:特殊状態 == 2
 	PRINTFORMW ……%ANAME(対象)%は、残念ながら死亡してしまった
 	PRINTFORMW 言い逃れるわけにもいかず、%ANAME(MASTER)%は正直に伝えた
 	PRINTFORMW 話を聞いた%ANAME(君主)%は激怒し、お前達に預けたのが間違いだったと非難した……
-
-
 	CALL COLORPRINTFORM(@"%ANAME(君主)%との関係がかなり悪化しました", COLOR("警告"), "W")
 	CALL CHANGE_RELATION_C_TO_C(DVAR:資金援助担保, CFLAG:MASTER:所属, -800, 700)
 	CLEARBIT TALENT:対象:デイリー系, 素質_デイリー_借り物
@@ -538,20 +530,17 @@ ELSEIF CFLAG:対象:捕虜先
 	PRINTFORMW ……%ANAME(対象)%は今、%ANAME(GET_COUNTRY_BOSS(CFLAG:対象:捕虜先))%に幽閉されている
 	PRINTFORMW 言い逃れるわけにもいかず、%ANAME(MASTER)%は正直に伝えた
 	PRINTFORMW 話を聞いた%ANAME(君主)%は怒り、なぜ身柄を確かにしておいてくれなかったのだと非難した……
-
-
 	CALL COLORPRINTFORM(@"%ANAME(君主)%との関係が悪化しました", COLOR("警告"), "W")
 	CALL COLORPRINTFORM(@"%ANAME(対象)%が担保ではなくなりました", COLOR("警告"), "W")
 	CALL CHANGE_RELATION_C_TO_C(DVAR:資金援助担保, CFLAG:MASTER:所属, -500, 500)
-	CFLAG:対象:1 = DVAR:資金援助担保
+	;CHANGE_COUNTRYすると捕虜先消えるのでこうする
+	CFLAG:対象:所属 = DVAR:資金援助担保
 	CLEARBIT TALENT:対象:デイリー系, 素質_デイリー_借り物
 ;他国に移籍した（捕虜からの登用、野盗による拉致などで）
 ELSEIF CFLAG:対象:所属 != CFLAG:MASTER:所属
 	PRINTFORMW ……%ANAME(対象)%は今、\@ IS_COUNTRY(CFLAG:対象:所属) ? %ANAME(GET_COUNTRY_BOSS(CFLAG:対象:所属))%に仕えている # 放浪している \@
 	PRINTFORMW 言い逃れるわけにもいかず、%ANAME(MASTER)%は正直に伝えた
 	PRINTFORMW 話を聞いた%ANAME(君主)%は怒り、なぜ身柄を確かにしておいてくれなかったのだと非難した……
-
-
 	CALL COLORPRINTFORM(@"%ANAME(君主)%との関係が悪化しました", COLOR("警告"), "W")
 	CALL COLORPRINTFORM(@"%ANAME(対象)%が担保ではなくなりました", COLOR("警告"), "W")
 	CALL CHANGE_RELATION_C_TO_C(DVAR:資金援助担保, CFLAG:MASTER:所属, -500, 500)
@@ -568,21 +557,17 @@ ELSEIF IS_LOVER(対象)
 		PRINTFORMW そのことを、%ANAME(君主)%に素直に、誠実に伝えた
 		PRINTFORMW 話を聞いた%ANAME(君主)%は、複雑な思いだったようだが、
 		PRINTFORMW それなら祝福するしかあるまいと、最終的には移籍を受け入れてくれた……
-
-
 		CALL COLORPRINTFORM(@"%ANAME(君主)%との関係がやや改善されました", COLOR("注意"), "W")
 		CALL COLORPRINTFORM(@"%ANAME(対象)%が正式に自国に移籍しました", COLOR("注意"), "W")
-		CALL CHANGE_RELATION_C_TO_C(DVAR:資金援助担保, CFLAG:MASTER:1, 300, -300)
+		CALL CHANGE_RELATION_C_TO_C(DVAR:資金援助担保, CFLAG:MASTER:所属, 300, -300)
 		CLEARBIT TALENT:対象:デイリー系, 素質_デイリー_借り物
 	ELSEIF RESULT == 1
 		PRINTFORMW %ANAME(MASTER)%は%ANAME(君主)%に%ANAME(対象)%を返却した
 		PRINTFORMW %ANAME(対象)%は寂しがったが、少なくとも%ANAME(君主)%には感謝された……
-
-
 		CALL COLORPRINTFORM(@"%ANAME(君主)%との関係が改善されました", COLOR("注意"), "W")
 		CALL COLORPRINTFORM(@"%ANAME(対象)%が帰って行きました", COLOR("警告"), "W")
-		CALL CHANGE_RELATION_C_TO_C(DVAR:資金援助担保, CFLAG:MASTER:1, 500, -500)
-		CFLAG:対象:所属 = DVAR:資金援助担保
+		CALL CHANGE_RELATION_C_TO_C(DVAR:資金援助担保, CFLAG:MASTER:所属, 500, -500)
+		CALL CHANGE_COUNTRY(対象, DVAR:資金援助担保)
 		CLEARBIT TALENT:対象:デイリー系, 素質_デイリー_借り物
 	ENDIF
 ;帰りたくない・屈服ルート
@@ -598,21 +583,17 @@ ELSEIF IS_SLAVE(対象)
 		PRINTFORMW さらに、%ANAME(対象)%が屈服した証を見せつけるように、%ANAME(君主)%の前で自らに奉仕させた
 		PRINTFORMW %ANAME(君主)%は呆然とし、そしてその後激怒し、
 		PRINTFORMW お前達の顔などもう見たくもないと叫んで、部屋を後にした……
-
-
 		CALL COLORPRINTFORM(@"%ANAME(君主)%との関係がこじれきりました", COLOR("警告"), "W")
 		CALL COLORPRINTFORM(@"%ANAME(対象)%が正式に自国に移籍しました", COLOR("注意"), "W")
-		CALL CHANGE_RELATION_C_TO_C(DVAR:資金援助担保, CFLAG:MASTER:1, -1500, 1500)
+		CALL CHANGE_RELATION_C_TO_C(DVAR:資金援助担保, CFLAG:MASTER:所属, -1500, 1500)
 		CLEARBIT TALENT:対象:デイリー系, 素質_デイリー_借り物
 	ELSEIF RESULT == 1
 		PRINTFORMW %ANAME(MASTER)%は%ANAME(君主)%に%ANAME(対象)%を返却した
 		PRINTFORMW %ANAME(対象)%は寂しがったが、少なくとも%ANAME(君主)%には感謝された……
-
-
 		CALL COLORPRINTFORM(@"%ANAME(君主)%との関係が改善されました", COLOR("注意"), "W")
 		CALL COLORPRINTFORM(@"%ANAME(対象)%が帰って行きました", COLOR("警告"), "W")
-		CALL CHANGE_RELATION_C_TO_C(DVAR:資金援助担保, CFLAG:MASTER:1, 500, -500)
-		CFLAG:対象:所属 = DVAR:資金援助担保
+		CALL CHANGE_RELATION_C_TO_C(DVAR:資金援助担保, CFLAG:MASTER:所属, 500, -500)
+		CALL CHANGE_COUNTRY(対象, DVAR:資金援助担保)
 		CLEARBIT TALENT:対象:デイリー系, 素質_デイリー_借り物
 	ENDIF
 ;帰れ
@@ -623,8 +604,8 @@ ELSE
 
 	CALL COLORPRINTFORM(@"%ANAME(君主)%との関係が改善されました", COLOR("注意"), "W")
 	CALL COLORPRINTFORM(@"%ANAME(対象)%が帰って行きました", COLOR("警告"), "W")
-	CALL CHANGE_RELATION_C_TO_C(DVAR:資金援助担保, CFLAG:MASTER:1, 500, -500)
-	CFLAG:対象:所属 = DVAR:資金援助担保
+	CALL CHANGE_RELATION_C_TO_C(DVAR:資金援助担保, CFLAG:MASTER:所属, 500, -500)
+	CALL CHANGE_COUNTRY(対象, DVAR:資金援助担保)
 	CLEARBIT TALENT:対象:デイリー系, 素質_デイリー_借り物
 ENDIF
 DVAR:資金援助担保 = 0
@@ -641,16 +622,16 @@ IF DVAR:要求野盗斬り捨て
 	CVARSET CFLAG, 6, 0
 	LOCAL:2 = 0
 	FOR LOCAL:0, 0, CHARANUM
-		IF CFLAG:(LOCAL:0):1 == GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗)) && NO:(LOCAL:0) > 2000 && LOCAL:2 < 6
-			CFLAG:(LOCAL:0):6 = 1
-			CFLAG:(LOCAL:0):65 = 1
+		IF CFLAG:(LOCAL:0):所属 == GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗)) && NO:(LOCAL:0) > 2000 && LOCAL:2 < 6
+			CFLAG:(LOCAL:0):調教参加フラグ = 1
+			CFLAG:(LOCAL:0):能力固定フラグ = 1
 			LOCAL:2 ++
 		ENDIF
 	NEXT
 	;捕虜逆調教モード
-	FLAG:12 = 5
+	FLAG:調教モード = 5
 	;ウフフモード
-	FLAG:50 = 1
+	FLAG:ウフフフラグ = 1
 	;アイテムを一通り追加
 	ITEM:A_ローター = 1
 	ITEM:A_バイブ = 1
@@ -666,13 +647,13 @@ IF DVAR:要求野盗斬り捨て
 	;行動開始時の共通処理
 	;全ての参加キャラについて処理
 	FOR LOCAL:0, 0, CHARANUM
-		IF CFLAG:(LOCAL:0):6
+		IF CFLAG:(LOCAL:0):調教参加フラグ
 			;現在の機嫌を保存
 			FOR LOCAL:1, 0, 10
 				CFLAG:(LOCAL:0):(LOCAL:1 + 190) = PALAM:(LOCAL:0):(LOCAL:1 + 10)
 			NEXT
 			;参加済みに
-			CFLAG:(LOCAL:0):91 = 1
+			CFLAG:(LOCAL:0):行動済み = 1
 		ENDIF
 	NEXT
 	LOCALS = %ANAME(DVAR:要求野盗斬り捨て)%
@@ -698,6 +679,6 @@ IF DVAR:要求野盗斬り捨て
 	PRINTFORMW %LOCALS%はなんとか逃げだそうとするが、縛られており、さらに男達に押さえつけられてはどうしようもなかった
 	PRINTFORMW 男達はへらへらと笑いながら、躾のなっていない雌犬を屈服させようと、再び彼女を犯し始める……
 	SWAPCHARA MASTER, DVAR:要求野盗斬り捨て
-	FLAG:31 = 2
+	FLAG:強制調教フラグ = 2
 	DAILY_CANCEL = 1
 ENDIF

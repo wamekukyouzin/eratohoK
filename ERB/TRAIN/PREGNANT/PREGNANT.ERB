@@ -42,7 +42,7 @@ FOR LOCAL:0, 440, 460
 NEXT
 
 ;既に妊娠状態なら判定スキップ
-IF CFLAG:(ARG:0):18 >= 1
+IF CFLAG:(ARG:0):妊娠期間 >= 1
 	RETURN
 ENDIF
 
@@ -56,7 +56,7 @@ IF LOCAL:2 >= 1
 	;子供の数と妊娠中のキャラの数を合算
 	LOCAL:4 = 0
 	FOR LOCAL:0, 0, CHARANUM
-		IF LOCAL:0 != MASTER && ((NO:(LOCAL:0) >= 401 && NO:(LOCAL:0) <= 999) || CFLAG:(LOCAL:0):18 >= 1)
+		IF LOCAL:0 != MASTER && ((NO:(LOCAL:0) >= 401 && NO:(LOCAL:0) <= 999) || CFLAG:(LOCAL:0):妊娠期間 >= 1)
 			LOCAL:4 ++
 		ENDIF
 	NEXT
@@ -67,7 +67,7 @@ IF LOCAL:2 >= 1
 		LOCAL:5 = 650
 
 		;獣変化中は確率上昇
-		IF CFLAG:(ARG:0):49
+		IF CFLAG:(ARG:0):獣変化フラグ
 			;排卵誘発剤使用中は確率上昇
 			IF TCVAR:(ARG:0):65
 				LOCAL:5 = 70
@@ -90,11 +90,11 @@ IF LOCAL:2 >= 1
 				IF TCVAR:(ARG:0):(LOCAL:0) != 0
 					LOCAL:3 -= TCVAR:(ARG:0):(LOCAL:0 + 20)
 					IF LOCAL:3 <= 0
-						;種親のIDを設定
-						CFLAG:(ARG:0):19 = TCVAR:(ARG:0):(LOCAL:0)
+						;父親のIDを設定
+						CFLAG:(ARG:0):子の遺伝上の父親 = TCVAR:(ARG:0):(LOCAL:0)
 
 						;妊娠期間を1に設定
-						CFLAG:(ARG:0):18 = 1
+						CFLAG:(ARG:0):妊娠期間 = 1
 						BREAK
 					ENDIF
 				ENDIF
@@ -110,16 +110,16 @@ ENDIF
 @IS_PREGNANT_MSG(ARG:0)
 #FUNCTION
 ;観戦モードでは全て表示
-SIF FLAG:1
+SIF FLAG:観戦モード
 	RETURNF 1
 ;主人公は常に表示
 SIF ARG:0 == MASTER
 	RETURNF 1
 ;主人公が捕虜 or 放浪中の場合、他の士官の状況はわからない
-SIF CFLAG:MASTER:9 != 0 || CFLAG:MASTER:1 == 0
+SIF CFLAG:MASTER:捕虜先 != 0 || CFLAG:MASTER:所属 == 0
 	RETURNF 0
 ;自国・同盟国・連合国のキャラ、自国の捕虜、特殊勢力所属or捕虜
-SIF (TMP_COUNTRY_RELATION:(CFLAG:MASTER:1):(CFLAG:(ARG:0):1) >= 2 && CFLAG:(ARG:0):9 == 0) || CFLAG:(ARG:0):9 == CFLAG:MASTER:1 || IS_SP_COUNTRY(CFLAG:(ARG:0):所属) || IS_SP_COUNTRY(CFLAG:(ARG:0):捕虜先)
+SIF (TMP_COUNTRY_RELATION:(CFLAG:MASTER:所属):(CFLAG:(ARG:0):所属) >= 2 && CFLAG:(ARG:0):捕虜先 == 0) || CFLAG:(ARG:0):捕虜先 == CFLAG:MASTER:所属 || IS_SP_COUNTRY(CFLAG:(ARG:0):所属) || IS_SP_COUNTRY(CFLAG:(ARG:0):捕虜先)
 	RETURNF 1
 RETURNF 0
 
@@ -133,7 +133,7 @@ CALL TMP_CREATE_RELATION_MAP
 ;母親のチェックをする
 FOR LOCAL:0, 0, CHARANUM
 	;死亡したキャラは処理しない
-	IF CFLAG:(LOCAL:0):12 == 2
+	IF CFLAG:(LOCAL:0):特殊状態 == 2
 		CONTINUE
 	ENDIF
 	CALL TURNEND_PREGNANT_CHECK_MOTHER(LOCAL:0)
@@ -142,7 +142,7 @@ NEXT
 ;子供の処理をする
 FOR LOCAL:0, 0, CHARANUM
 	;死亡したキャラは処理しない
-	IF CFLAG:(LOCAL:0):12 == 2
+	IF CFLAG:(LOCAL:0):特殊状態 == 2
 		CONTINUE
 	ENDIF
 	CALL TURNEND_PREGNANT_CHECK_CHILD(LOCAL:0)
@@ -153,29 +153,29 @@ NEXT
 ;---------------------------------------------------------
 @TURNEND_PREGNANT_CHECK_MOTHER(ARG:0)
 ;妊娠判明前
-IF CFLAG:(ARG:0):18 <= 3
+IF CFLAG:(ARG:0):妊娠期間 <= 3
 	;妊娠が発覚するまでは疑わしい期間の中出し履歴を残す
 	CALL UPDATE_CREAMPIE_HISTORY(ARG:0)
 ENDIF
 
 ;妊娠中
-IF CFLAG:(ARG:0):18 >= 1
+IF CFLAG:(ARG:0):妊娠期間 >= 1
 	;妊娠期間を進める
-	CFLAG:(ARG:0):18 ++
+	CFLAG:(ARG:0):妊娠期間 ++
 
 	;妊娠４期目(ここでようやく妊娠判明)
-	IF CFLAG:(ARG:0):18 == 4
+	IF CFLAG:(ARG:0):妊娠期間 == 4
 		;4期たったら体調が変動することで妊娠が発覚する
 		CALL DETECT_PREGNANCY(ARG:0)
 
 	;妊娠７期目
-	ELSEIF CFLAG:(ARG:0):18 == 7
+	ELSEIF CFLAG:(ARG:0):妊娠期間 == 7
 		;7期たったら臨月となり通常の活動ができなくなる
 		IF IS_PREGNANT_MSG(ARG:0)
 			PRINTL 
 			CALL KOJO_EVENT(ARG:0, 41)
-			SIF CFLAG:(ARG:0):16 == 2
-				CALL KOJO_EVENT(ID_TO_CHARA(CFLAG:(ARG:0):22), 46)
+			SIF CFLAG:(ARG:0):行動不能状態 == 2
+				CALL KOJO_EVENT(ID_TO_CHARA(CFLAG:(ARG:0):育児対象), 46)
 		ENDIF
 
 		;部隊の所属を解除
@@ -188,30 +188,30 @@ IF CFLAG:(ARG:0):18 >= 1
 		ENDIF
 
 		;臨月状態に設定
-		CFLAG:(ARG:0):16 = 1
+		CFLAG:(ARG:0):行動不能状態 = 1
 
 	;妊娠１０期目
-	ELSEIF CFLAG:(ARG:0):18 == 10
+	ELSEIF CFLAG:(ARG:0):妊娠期間 == 10
 		;10期で出産する
 		CALL BIRTH_CHILD(ARG:0)
 	ENDIF
 ENDIF
 
 ;出産後
-IF CFLAG:(ARG:0):25 >= 1
+IF CFLAG:(ARG:0):育児期間 >= 1
 	;出産後期間を進める
-	CFLAG:(ARG:0):25 ++
+	CFLAG:(ARG:0):育児期間 ++
 
 	;育児対象のキャラ番号を取得
-	LOCAL:5 = ID_TO_CHARA(CFLAG:(ARG:0):22)
+	LOCAL:5 = ID_TO_CHARA(CFLAG:(ARG:0):育児対象)
 
 	;育児中かつ母親が主人公以外なら自動で育てる
 	IF LOCAL:5 >= 0 && ARG:0 != MASTER
-		CALL MOTHER_AUTO_REARING(ARG:0, LOCAL:5, CFLAG:(ARG:0):25)
+		CALL MOTHER_AUTO_REARING(ARG:0, LOCAL:5, CFLAG:(ARG:0):育児期間)
 	ENDIF
 
 	;出産後期間が8に達した
-	IF CFLAG:(ARG:0):25 == 8
+	IF CFLAG:(ARG:0):育児期間 == 8
 		;出産後の各種初期化処理
 		CALL RESET_MOTHER_STATE(ARG:0, 1)
 	ENDIF
@@ -250,18 +250,18 @@ IF !TALENT:(ARG:0):母乳体質
 	ENDIF
 	TALENT:(ARG:0):母乳体質 = 1
 	;妊娠による一時的な母乳体質のフラグ
-	CFLAG:(ARG:0):33 = 1
+	CFLAG:(ARG:0):一時的母乳体質 = 1
 ENDIF
 
 ;女性が妊娠したときすでに妊娠で胸が大きくなっている場合、あるいはもう大きくならない場合を除き胸が大きくなる
-IF IS_FEMALE(ARG:0) && !TALENT:(ARG:0):爆乳 && CFLAG:(ARG:0):26 == 0
+IF IS_FEMALE(ARG:0) && !TALENT:(ARG:0):爆乳 && CFLAG:(ARG:0):出産前バストサイズ == 0
 	IF IS_PREGNANT_MSG(ARG:0)
 		SETCOLOR COLOR("注意")
 		PRINTFORMW 妊娠により%ANAME(ARG:0)%の胸のサイズが一段階大きくなりました
 		RESETCOLOR
 	ENDIF
 	BUSTSIZE = GET_BUSTSIZE_NUM(ARG:0)
-	CFLAG:(ARG:0):26 = BUSTSIZE + 3
+	CFLAG:(ARG:0):出産前バストサイズ = BUSTSIZE + 3
 	SELECTCASE BUSTSIZE
 		CASE -2
 			TALENT:(ARG:0):絶壁 = 0
@@ -283,23 +283,23 @@ CALL RECORD_FATHER_FROM_CREAMPIE_HISTORY(ARG:0)
 IF IS_PREGNANT_MSG(ARG:0)
 	CALL KOJO_EVENT(ARG:0, 40)
 	;育児中に妊娠したら子供がそれにリアクションをするイベントを挿し込む
-	SIF CFLAG:(ARG:0):16 == 2
-		CALL KOJO_EVENT(ID_TO_CHARA(CFLAG:(ARG:0):22), 45)
+	SIF CFLAG:(ARG:0):行動不能状態 == 2
+		CALL KOJO_EVENT(ID_TO_CHARA(CFLAG:(ARG:0):育児対象), 45)
 ENDIF
 
 ;あなた以外は状況によって崩壊する場合がある
 IF ARG:0 != MASTER
-	;種親不明で出産がLv2以下なら崩壊値が増加
-	IF CFLAG:(ARG:0):23 == 0 && ABL:(ARG:0):出産 <= 2
-		IF CFLAG:(ARG:0):9 == CFLAG:MASTER:1
+	;父親不明で出産がLv2以下なら崩壊値が増加
+	IF CFLAG:(ARG:0):子の父親 == 0 && ABL:(ARG:0):出産 <= 2
+		IF CFLAG:(ARG:0):捕虜先 == CFLAG:MASTER:所属
 			CFLAG:(ARG:0):崩壊 += 1200
 			CALL TALENT_CHECK(ARG:0)
 		ELSE
 			CFLAG:(ARG:0):崩壊 += 600
 			CALL TALENT_CHECK(ARG:0)
 		ENDIF
-	;種親が主人公、出産がLv2以下、捕虜調教、[恋慕][服従][親友][恋人][烙印]なしなら崩壊値が増加
-	ELSEIF CFLAG:(ARG:0):23 == GET_ID(MASTER) && ABL:(ARG:0):出産 <= 2 && CFLAG:(ARG:0):9 >= 1 && CFLAG:(ARG:0):9 == CFLAG:MASTER:1
+	;父親が主人公、出産がLv2以下、捕虜調教、[恋慕][服従][親友][恋人][烙印]なしなら崩壊値が増加
+	ELSEIF CFLAG:(ARG:0):子の父親 == GET_ID(MASTER) && ABL:(ARG:0):出産 <= 2 && CFLAG:(ARG:0):捕虜先 >= 1 && CFLAG:(ARG:0):捕虜先 == CFLAG:MASTER:所属
 		IF !TALENT:(ARG:0):恋慕 && !TALENT:(ARG:0):服従 && !TALENT:(ARG:0):親友 && !TALENT:(ARG:0):恋人 && !TALENT:(ARG:0):烙印
 			CFLAG:(ARG:0):崩壊 += 1200
 			CALL TALENT_CHECK(ARG:0)
@@ -317,23 +317,23 @@ ENDIF
 ;複数候補がいる場合0が帰ってくることに留意
 FATHER_CANDIDATE = GET_FATHER_CANDIDATE_FROM_CREAMPIE_HISTORY(ARG:0)
 
-;子供の父親の記録と母親の種親の記録でルールが違うのを吸収する処理
+;子供の父親の記録と母親の父親の記録でルールが違うのを吸収する処理
 ;子供の父親には個人名だけが入るのに対し、母親の相手は種族、グループなどでも父親として記録される
-;複数の種親候補がいる場合
+;複数の父親候補がいる場合
 IF FATHER_CANDIDATE == 0
 	;父親不明にする
-	CFLAG:(ARG:0):23 = 0
-	;種親の記録をつける(父親不明)
+	CFLAG:(ARG:0):子の父親 = 0
+	;父親の記録をつける(父親不明)
 	CALL REFRESH_PREGNANT_RECORD(ARG:0, -1)
-;種親候補が特定のキャラ
+;父親候補が特定のキャラ
 ELSE
 	;父親のIDを記録
-	CFLAG:(ARG:0):23 = FATHER_CANDIDATE
-	;種親の記録をつける
+	CFLAG:(ARG:0):子の父親 = FATHER_CANDIDATE
+	;父親の記録をつける
 	CALL REFRESH_PREGNANT_RECORD(ARG:0, FATHER_CANDIDATE)
 	;特殊精液なら、里子フラグをたてる
 	SIF FATHER_CANDIDATE < 0
-		CFLAG:(ARG:0):96 = 1
+		CFLAG:(ARG:0):里子フラグ = 1
 ENDIF
 
 ;---------------------------------------------------------
@@ -380,26 +380,26 @@ ENDIF
 IF 仕官させないフラグ
 	;仕官させないとき
 	;仕官させないときは妊娠休暇終了
-	CFLAG:(ARG:0):16 = 0
+	CFLAG:(ARG:0):行動不能状態 = 0
 ELSE
 	;士官させるとき
 	;捕虜でないなら育児状態に設定
-	IF CFLAG:(ARG:0):9 == 0
+	IF CFLAG:(ARG:0):捕虜先 == 0
 		;育児をするなら育児休暇
-		CFLAG:(ARG:0):16 = 2
-		CFLAG:(ARG:0):22 = GET_ID(子供)
+		CFLAG:(ARG:0):行動不能状態 = 2
+		CFLAG:(ARG:0):育児対象 = GET_ID(子供)
 	ELSE
 		;育児をしないなら休暇終了
-		CFLAG:(ARG:0):16 = 0
+		CFLAG:(ARG:0):行動不能状態 = 0
 	ENDIF
 	;子供を被育児状態に設定
-	CFLAG:子供:16 = 4
+	CFLAG:子供:行動不能状態 = 4
 ENDIF
 EXP:(ARG:0):出産経験 += 1
 EXP:(ARG:0):出産経験値 += 1
 CALL TRAIN_AUTO_ABLUP(ARG:0, 1)
 ;出産後期間のカウンタ初期化
-CFLAG:(ARG:0):25 = 1
+CFLAG:(ARG:0):育児期間 = 1
 
 ;性知識がLv0ならLv1になる
 IF ABL:(ARG:0):性知識 == 0
@@ -412,9 +412,9 @@ IF ABL:(ARG:0):性知識 == 0
 	ENDIF
 ENDIF
 ;妊娠関係のフラグをクリア
-CFLAG:(ARG:0):18 = 0
-CFLAG:(ARG:0):19 = 0
-CFLAG:(ARG:0):23 = 0
+CFLAG:(ARG:0):妊娠期間 = 0
+CFLAG:(ARG:0):子の遺伝上の父親 = 0
+CFLAG:(ARG:0):子の父親 = 0
 TALENT:(ARG:0):妊娠 = 0
 
 CALL CLEAR_CREAMPIE_HISTORY(ARG:0)
@@ -431,9 +431,9 @@ CALL CLEAR_CREAMPIE_HISTORY(ARG:0)
 #DIM CHILD
 #DIM FATHER
 ;里子フラグが立っていたら、里子に出したことにする
-IF CFLAG:MOTHER:96
-	CFLAG:MOTHER:96 = 0
-	IF IS_PREGNANT_MSG(MOTHER) && FLAG:1
+IF CFLAG:MOTHER:里子フラグ
+	CFLAG:MOTHER:里子フラグ = 0
+	IF IS_PREGNANT_MSG(MOTHER) && FLAG:観戦モード
 		SETCOLOR COLOR("注意")
 		PRINTFORMW %ANAME(MOTHER)%が産気づいたようです
 		PRINTFORMW 生まれた子供を、%ANAME(MOTHER)%は里子に出しました……
@@ -448,17 +448,17 @@ CALL CREATE_CHILD(MOTHER)
 CHILD = RESULT
 
 ;捕虜の場合
-IF CFLAG:MOTHER:9 >= 1
+IF CFLAG:MOTHER:捕虜先 >= 1
 	;子の所属を母親が囚われている勢力にする
-	CFLAG:CHILD:1 = CFLAG:MOTHER:9
+	CALL CHANGE_COUNTRY(CHILD, CFLAG:MOTHER:捕虜先)
 ELSE
 	;子の所属を母親と同じにする
-	CFLAG:CHILD:1 = CFLAG:MOTHER:1
+	CALL CHANGE_COUNTRY(CHILD, CFLAG:MOTHER:所属)
 ENDIF
 
 IF IS_PREGNANT_MSG(MOTHER)
 	;父親のキャラ番号を取得
-	FATHER = ID_TO_CHARA(CFLAG:MOTHER:23)
+	FATHER = ID_TO_CHARA(CFLAG:MOTHER:子の父親)
 
 	PRINTL 
 	IF MOTHER == MASTER
@@ -467,7 +467,7 @@ IF IS_PREGNANT_MSG(MOTHER)
 		RESETCOLOR
 
 		;父親が同一勢力にいれば出産に立ち会う際の口上を表示
-		IF FATHER >= 0 && CFLAG:FATHER:9 == 0 && CFLAG:FATHER:1 >= 1 && CFLAG:FATHER:12 == 0 && ((CFLAG:MASTER:9 == 0 && CFLAG:FATHER:1 == CFLAG:MASTER:1) || (CFLAG:MASTER:9 >= 1 && CFLAG:MASTER:9 == CFLAG:FATHER:1))
+		IF FATHER >= 0 && CFLAG:FATHER:捕虜先 == 0 && CFLAG:FATHER:所属 >= 1 && CFLAG:FATHER:特殊状態 == 0 && ((CFLAG:MASTER:捕虜先 == 0 && CFLAG:FATHER:所属 == CFLAG:MASTER:所属) || (CFLAG:MASTER:捕虜先 >= 1 && CFLAG:MASTER:捕虜先 == CFLAG:FATHER:所属))
 			CALL KOJO_EVENT(FATHER, 43)
 		ELSE
 			PRINTFORMW %ANAME(MOTHER)%は無事に出産を終えました
@@ -488,7 +488,7 @@ IF IS_PREGNANT_MSG(MOTHER)
 	ENDIF
 	PRINTL 
 	PRINTL 
-	IF !FLAG:1
+	IF !FLAG:観戦モード
 		;観戦でない
 		PRINTFORMW この子を将来、自国の仕官となるように教育しますか？
 		CALL ASK_YN
@@ -499,14 +499,14 @@ IF IS_PREGNANT_MSG(MOTHER)
 			RETURN -1
 		ELSE
 			;片親がMASTER
-			IF CFLAG:CHILD:24 == GET_ID(MASTER) || CFLAG:CHILD:21 == GET_ID(MASTER)
+			IF CFLAG:CHILD:父親 == GET_ID(MASTER) || CFLAG:CHILD:母親 == GET_ID(MASTER)
 				;手動での命名処理
 				CALL INPUT_CHILD_NAME(CHILD)
 				;最初から真名で呼ぶ
 				CFLAG:CHILD:8 = 1
 				RETURN CHILD
 			;親が不明
-			ELSEIF CFLAG:CHILD:24 == 0
+			ELSEIF CFLAG:CHILD:父親 == 0
 				;選択肢を表示
 				PRINTFORML この子の父親は不明です
 				PRINTFORML 自分で名前を付けますか？
@@ -535,9 +535,9 @@ RETURN CHILD
 @TURNEND_PREGNANT_CHECK_CHILD(ARG:0)
 
 ;被育児状態の子供
-IF CFLAG:(ARG:0):16 == 4
+IF CFLAG:(ARG:0):行動不能状態 == 4
 	;子供の能力の成長
-	CALL CHILD_GROWTH(ARG:0, CFLAG:(ARG:0):28 + 1)
+	CALL CHILD_GROWTH(ARG:0, CFLAG:(ARG:0):子の成長度 + 1)
 
 	;一部能力の初期値を現在の値で上書き
 	;CALL SET_INI_ABL(ARG:0, "武闘")
@@ -547,9 +547,9 @@ IF CFLAG:(ARG:0):16 == 4
 	;CALL SET_INI_ABL(ARG:0, "料理")
 
 	;子供が十分に成長した
-	IF CFLAG:(ARG:0):28 == 6
+	IF CFLAG:(ARG:0):子の成長度 == 6
 		;主人公勢力の士官ならメッセージを表示
-		IF CFLAG:(ARG:0):1 == CFLAG:MASTER:1
+		IF CFLAG:(ARG:0):所属 == CFLAG:MASTER:所属
 			PRINTL 
 			SETCOLOR COLOR("注意")
 			PRINTFORML まだ幼いながらも%ANAME(ARG:0)%は一人で行動できる程度にまで成長しました
@@ -562,12 +562,12 @@ IF CFLAG:(ARG:0):16 == 4
 		;INI_MAXBASE:(ARG:0):2 = MAXBASE:(ARG:0):2
 
 		;被育児状態を解除
-		CFLAG:(ARG:0):16 = 0
+		CFLAG:(ARG:0):行動不能状態 = 0
 	ENDIF
 ENDIF
 
 ;[幼児]があり成長度が21以上の子供を成長させる
-IF CONFIG:5 == 0 && TALENT:(ARG:0):幼児 && CFLAG:(ARG:0):28 >= 21 && NO:(ARG:0) >= 401
+IF CONFIG:5 == 0 && TALENT:(ARG:0):幼児 && CFLAG:(ARG:0):子の成長度 >= 21 && NO:(ARG:0) >= 401
 	IF IS_PREGNANT_MSG(ARG:0)
 		PRINTL 
 		SETCOLOR COLOR("注意")
@@ -616,7 +616,7 @@ ENDIF
 ;---------------------------------------------------------
 @TURNEND_PREGNANT_CHECK_SYOKUSYU
 FOR LOCAL:0, 0, CHARANUM
-	IF CFLAG:(LOCAL:0):55 || CFLAG:(LOCAL:0):56
+	IF CFLAG:(LOCAL:0):触手産卵実行者 || CFLAG:(LOCAL:0):触手Ａ産卵実行者
 		PRINTL 
 		SETCOLOR COLOR("注意")
 		PRINTFORMW %ANAME(LOCAL:0)%に産み付けられた触手の子供は、瞬く間に大きく育ち%ANAME(LOCAL:0)%のお腹から這い出そうとしています
@@ -630,14 +630,14 @@ FOR LOCAL:0, 0, CHARANUM
 
 		VARSET LOCAL, 0, 10, 30
 
-		IF CFLAG:(LOCAL:0):55
+		IF CFLAG:(LOCAL:0):触手産卵実行者
 			LOCAL:12 = RAND:2 + 3
 			LOCAL:13 = (ABL:(LOCAL:0):Ｖ感 + 1) * LOCAL:12 * 2
 			LOCAL:14 = MIN(ABL:(LOCAL:0):Ｖ感, 25) * LOCAL:12 * LIMIT(ABL:(LOCAL:0):触手 * 50 + EXP:(LOCAL:0):Ｖ拡張経験, 50, 200) / 100
 			LOCAL:15 = 5
 		ENDIF
 
-		IF CFLAG:(LOCAL:0):56
+		IF CFLAG:(LOCAL:0):触手Ａ産卵実行者
 			LOCAL:22 = RAND:2 + 3
 			LOCAL:23 = (ABL:(LOCAL:0):Ａ感 + 1) * LOCAL:22 * 2
 			LOCAL:24 = MIN(ABL:(LOCAL:0):Ａ感, 25) * LOCAL:22 * LIMIT(ABL:(LOCAL:0):触手 * 50 + EXP:(LOCAL:0):Ａ拡張経験, 50, 200) / 100
@@ -666,13 +666,13 @@ FOR LOCAL:0, 0, CHARANUM
 		ENDIF
 
 		;苦痛要素
-		IF CFLAG:(LOCAL:0):55 && ABL:(LOCAL:0):Ｖ感 < 5
-			IF CFLAG:(LOCAL:0):56 >= 1 && ABL:(LOCAL:0):Ａ感 < 5
+		IF CFLAG:(LOCAL:0):触手産卵実行者 && ABL:(LOCAL:0):Ｖ感 < 5
+			IF CFLAG:(LOCAL:0):触手Ａ産卵実行者 >= 1 && ABL:(LOCAL:0):Ａ感 < 5
 				LOCAL:31 += 900 + LOCAL:30 * 1200
 			ELSE
 				LOCAL:31 += 600 + LOCAL:30 * 800
 			ENDIF
-		ELSEIF CFLAG:(LOCAL:0):56 && ABL:(LOCAL:0):Ａ感 < 5
+		ELSEIF CFLAG:(LOCAL:0):触手Ａ産卵実行者 && ABL:(LOCAL:0):Ａ感 < 5
 			LOCAL:31 += 600 + LOCAL:30 * 800
 		ENDIF
 
@@ -684,31 +684,31 @@ FOR LOCAL:0, 0, CHARANUM
 
 		CFLAG:(LOCAL:0):崩壊 += LOCAL:31
 
-		IF TALENT:(LOCAL:0):妊娠 && CFLAG:(LOCAL:0):55
+		IF TALENT:(LOCAL:0):妊娠 && CFLAG:(LOCAL:0):触手産卵実行者
 			SETCOLOR COLOR("注意")
-			PRINTFORMW 触手は%ANAME(LOCAL:0)%の胎内に宿っていた子供と同化し、より強靭に育ちました(妖術ボーナス+{CFLAG:(LOCAL:0):18 * 2})
+			PRINTFORMW 触手は%ANAME(LOCAL:0)%の胎内に宿っていた子供と同化し、より強靭に育ちました(妖術ボーナス+{CFLAG:(LOCAL:0):妊娠期間 * 2})
 			PRINTL 
 			RESETCOLOR
 
 			;妊娠関係のフラグをクリア
-			SIF CFLAG:(LOCAL:0):16 == 1
-				CFLAG:(LOCAL:0):16 = 0
-			CFLAG:(LOCAL:0):18 = 0
-			CFLAG:(LOCAL:0):19 = 0
-			CFLAG:(LOCAL:0):23 = 0
+			SIF CFLAG:(LOCAL:0):行動不能状態 == 1
+				CFLAG:(LOCAL:0):行動不能状態 = 0
+			CFLAG:(LOCAL:0):妊娠期間 = 0
+			CFLAG:(LOCAL:0):子の遺伝上の父親 = 0
+			CFLAG:(LOCAL:0):子の父親 = 0
 			TALENT:(LOCAL:0):妊娠 = 0
 
 			;中出し履歴をクリア
 			CALL CLEAR_CREAMPIE_HISTORY(LOCAL:0)
-			IF CFLAG:(LOCAL:0):25 == 0
+			IF CFLAG:(LOCAL:0):育児期間 == 0
 				PRINTFORMW 触手による堕胎のショックで体の反応が収まっていく
 				CALL RESET_MOTHER_STATE(LOCAL:0, 0)
 			ENDIF
 		ENDIF
 
-		LOCAL:5 = ID_TO_CHARA(CFLAG:(LOCAL:0):55)
-		LOCAL:6 = ID_TO_CHARA(CFLAG:(LOCAL:0):56)
-		LOCAL:7 = LOCAL:12 * 4 + LOCAL:14 / 3 + CFLAG:(LOCAL:0):18 * 2
+		LOCAL:5 = ID_TO_CHARA(CFLAG:(LOCAL:0):触手産卵実行者)
+		LOCAL:6 = ID_TO_CHARA(CFLAG:(LOCAL:0):触手Ａ産卵実行者)
+		LOCAL:7 = LOCAL:12 * 4 + LOCAL:14 / 3 + CFLAG:(LOCAL:0):妊娠期間 * 2
 		LOCAL:8 = LOCAL:22 * 4 + LOCAL:24 / 3
 
 		IF LOCAL:5 >= 0
@@ -733,8 +733,8 @@ FOR LOCAL:0, 0, CHARANUM
 
 		TALENT:(LOCAL:0):触手妊娠 = 0
 		TALENT:(LOCAL:0):Ａ触手妊娠 = 0
-		CFLAG:(LOCAL:0):55 = 0
-		CFLAG:(LOCAL:0):56 = 0
+		CFLAG:(LOCAL:0):触手産卵実行者 = 0
+		CFLAG:(LOCAL:0):触手Ａ産卵実行者 = 0
 	ENDIF
 NEXT
 
@@ -744,11 +744,11 @@ NEXT
 ;---------------------------------------------------------
 @RESET_MOTHER_STATE(ARG:0, ARG:1 = 1)
 ;育児対象のキャラ番号を取得
-LOCAL:5 = ID_TO_CHARA(CFLAG:(ARG:0):22)
+LOCAL:5 = ID_TO_CHARA(CFLAG:(ARG:0):育児対象)
 
 ;育児中
 IF LOCAL:5 >= 0
-	IF CFLAG:(ARG:0):16 == 1
+	IF CFLAG:(ARG:0):行動不能状態 == 1
 		;例外状況として、子育て中に臨月になる場合がある　それ用の分岐
 		IF ARG:1 && IS_PREGNANT_MSG(ARG:0)
 			PRINTL 
@@ -764,9 +764,9 @@ IF LOCAL:5 >= 0
 			RESETCOLOR
 		ENDIF
 		;育児状態を解除
-		CFLAG:(ARG:0):16 = 0
+		CFLAG:(ARG:0):行動不能状態 = 0
 	ENDIF
-	CFLAG:(ARG:0):22 = 0
+	CFLAG:(ARG:0):育児対象 = 0
 	;子育てが終わると【子供人質】が解除
 	IF TALENT:(ARG:0):子供人質 > 0
 		SETCOLOR COLOR("注意")
@@ -778,7 +778,7 @@ ENDIF
 
 
 ;胸サイズが変動している場合(再度妊娠していた場合は除く)
-IF CFLAG:(ARG:0):26 && !TALENT:(ARG:0):妊娠
+IF CFLAG:(ARG:0):出産前バストサイズ && !TALENT:(ARG:0):妊娠
 	IF ARG:1 && IS_PREGNANT_MSG(ARG:0)
 		PRINTL 
 		SETCOLOR COLOR("注意")
@@ -789,7 +789,7 @@ IF CFLAG:(ARG:0):26 && !TALENT:(ARG:0):妊娠
 	TALENT:(ARG:0):貧乳 = 0
 	TALENT:(ARG:0):巨乳 = 0
 	TALENT:(ARG:0):爆乳 = 0
-	SELECTCASE CFLAG:(ARG:0):26
+	SELECTCASE CFLAG:(ARG:0):出産前バストサイズ
 		CASE 1
 			TALENT:(ARG:0):絶壁 = 1
 		CASE 2
@@ -799,11 +799,11 @@ IF CFLAG:(ARG:0):26 && !TALENT:(ARG:0):妊娠
 		CASE 5
 			TALENT:(ARG:0):爆乳 = 1
 	ENDSELECT
-	CFLAG:(ARG:0):26 = 0
+	CFLAG:(ARG:0):出産前バストサイズ = 0
 ENDIF
 
 ;一時的に母乳体質になっていた場合(再度妊娠していた場合は除く)
-IF CFLAG:(ARG:0):33 && !TALENT:(ARG:0):妊娠
+IF CFLAG:(ARG:0):一時的母乳体質 && !TALENT:(ARG:0):妊娠
 	;胸の大きさに応じたABL:噴乳を持ってると母乳体質が永続化する
 	IF ( GET_BUSTSIZE_NUM(ARG:0) < 0 && ABL:(ARG:0):噴乳 >= ランク閾値:ランク_その他:ランク_A ) || ( GET_BUSTSIZE_NUM(ARG:0) == 0 && ABL:(ARG:0):噴乳 >= ランク閾値:ランク_その他:ランク_B ) || ( GET_BUSTSIZE_NUM(ARG:0) > 0 && ABL:(ARG:0):噴乳 >= ランク閾値:ランク_その他:ランク_C )
 		IF ARG:1 && IS_PREGNANT_MSG(ARG:0)
@@ -820,11 +820,11 @@ IF CFLAG:(ARG:0):33 && !TALENT:(ARG:0):妊娠
 		TALENT:(ARG:0):母乳体質 = 0
 	ENDIF
 	;妊娠による一時的な母乳体質のフラグ
-	CFLAG:(ARG:0):33 = 0
+	CFLAG:(ARG:0):一時的母乳体質 = 0
 ENDIF
 
 ;出産後期間のリセット
-CFLAG:(ARG:0):25 = 0
+CFLAG:(ARG:0):育児期間 = 0
 
 ;---------------------------------------------------------
 ;手動で子供の名前を設定する関数  ARG:0=子供のキャラ番号
@@ -832,8 +832,8 @@ CFLAG:(ARG:0):25 = 0
 @INPUT_CHILD_NAME(ARG:0)
 #DIM FIRST_LINE
 ;父親、母親のキャラ番号を取得
-LOCAL:5 = ID_TO_CHARA(CFLAG:(ARG:0):24)
-LOCAL:6 = ID_TO_CHARA(CFLAG:(ARG:0):21)
+LOCAL:5 = ID_TO_CHARA(CFLAG:(ARG:0):父親)
+LOCAL:6 = ID_TO_CHARA(CFLAG:(ARG:0):母親)
 
 ;姓の初期設定
 IF LOCAL:5 >= 0 && CSTR:(LOCAL:5):0 != ""
@@ -1166,7 +1166,7 @@ LOCAL:33 = 60
 LOCAL:34 = 61
 
 IF ARG:2 <= 5
-	FOR LOCAL:0, CFLAG:(ARG:1):27, 5
+	FOR LOCAL:0, CFLAG:(ARG:1):育成コマンド実行回数, 5
 		LOCAL:5 = RAND:(LOCAL:20)
 		FOR LOCAL:1, 0, 5
 			LOCAL:5 -= LOCAL:(LOCAL:1 + 10)
@@ -1178,7 +1178,7 @@ IF ARG:2 <= 5
 		NEXT
 	NEXT
 ELSE
-	FOR LOCAL:0, CFLAG:(ARG:1):27, 5
+	FOR LOCAL:0, CFLAG:(ARG:1):育成コマンド実行回数, 5
 		LOCAL:5 = RAND:(LOCAL:20)
 		FOR LOCAL:1, 0, 5
 			LOCAL:5 -= LOCAL:(LOCAL:1 + 10)

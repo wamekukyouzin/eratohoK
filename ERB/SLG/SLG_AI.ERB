@@ -6,7 +6,7 @@
 FIRST_LINE = LINECOUNT
 
 ;ランダムキャラを使用している場合
-IF FLAG:44
+IF FLAG:ランダムキャラ使用
 	;士官数が足りなければ士官を募集
 	CALL RECRUIT_AI(ARG:0)
 ENDIF
@@ -15,7 +15,8 @@ ENDIF
 IF DAY < SLG_PP:0
 ELSE
 	;外交の処理
-	CALL AI_DIPLOMACY_ACT(ARG:0)
+	SIF GET_COUNTRY_NUM() - (GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗)) != 1) > 3
+		CALL AI_DIPLOMACY_ACT(ARG:0)
 	;国家関係に変化があった場合
 	IF RESULT
 		;国家関係マップの再作成(処理の高速化)
@@ -44,14 +45,17 @@ IF GET_OWN_CITY(ARG:0) > 0
 	NEXT
 	
 		FOR LOCAL:0, 0, 10
-		;(LOCAL:0)番の部隊の解体判定　※最終決戦パッチ、FLAG:101の（勢力番号）ビットが1であればスキップ
-		IF UNIT_SOLDIER:(ARG:0):(LOCAL:0) > 0 && !GETBIT(FLAG:101, ARG:0)
+		;(LOCAL:0)番の部隊の解体判定
+		IF UNIT_SOLDIER:(ARG:0):(LOCAL:0) > 0
 			;ID=0の都市は未定義のはずなので解散させちゃう
 			IF UNIT_POSITION:(ARG:0):(LOCAL:0) == 0
 				CALL CLEAR_UNIT(ARG:0, LOCAL:0)
 			ENDIF
 			;現在位置に敵の部隊がいるときは解散させない
 			IF IS_STAY_ENEMY_UNIT(UNIT_POSITION:(ARG:0):(LOCAL:0)) == 1
+				CONTINUE
+			;現在地が敵勢力の都市の場合は解散させない
+			ELSEIF TMP_COUNTRY_RELATION:(ARG:0):(CITY_OWNER:(UNIT_POSITION:(ARG:0):(LOCAL:0))) == 0 && CITY_TYPE:(UNIT_POSITION:(ARG:0):(LOCAL:0)) == 0
 				CONTINUE
 			;現在地か移動先が停戦対象なら解散
 			ELSEIF TMP_COUNTRY_RELATION:(ARG:0):(CITY_OWNER:(UNIT_POSITION:(ARG:0):(LOCAL:0))) == 1
@@ -87,9 +91,9 @@ IF GET_OWN_CITY(ARG:0) > 0
 	
 	IF DAY >= SLG_PP:1
 		CALL AI_DEPLOY_ARMY(ARG:0, 0)
-		;既存部隊の攻撃目標設定
+		;既存部隊の攻撃目標設定(敵の都市上にいて、上の解散条件で解散されてないんなら使い回す）
 		FOR LOCAL:1, 0, 10
-			SIF UNIT_SOLDIER:(ARG:0):(LOCAL:1) > 0  && UNIT_TARGET:(ARG:0):(LOCAL:1) <= 0
+			SIF UNIT_SOLDIER:(ARG:0):(LOCAL:1) > 0  && UNIT_TARGET:(ARG:0):(LOCAL:1) <= 0 && TMP_COUNTRY_RELATION:(ARG:0):(CITY_OWNER:(UNIT_POSITION:(ARG:0):(LOCAL:1))) != 0
 				CALL SLG_AI_INVASION_EXIST_UNIT_SETTARGET(ARG:0, LOCAL:1)
 		NEXT
 		;新規部隊の攻撃目標設定・作成処理
@@ -660,7 +664,7 @@ VARSET FREE_AI_PRIORITY, 10
 LOCAL:1 = 0
 FOR LOCAL:0, 0, MIN(CHARANUM, 1000)
 	;自国の士官のみ考慮
-	IF CFLAG:(LOCAL:0):1 == ARG:0 && TMP_IS_FREE:(LOCAL:0):0 == 0
+	IF CFLAG:(LOCAL:0):所属 == ARG:0 && TMP_IS_FREE:(LOCAL:0):0 == 0
 		;MASTER麾下の武将は、除外フラグをたてていたら除外する
 		SIF ARG:0 == CFLAG:MASTER:所属 && CFLAG:(LOCAL):最強編成除外フラグ
 			CONTINUE
@@ -846,7 +850,7 @@ NEXT
 
 FOR LOCAL:0, 0, MIN(CHARANUM, 1000)
 	;自国の士官のみ考慮
-	IF CFLAG:(LOCAL:0):1 == ARG:0
+	IF CFLAG:(LOCAL:0):所属 == ARG:0
 		;自由に行動可能なら候補フラグを立てる
 		CHECK_IS_FREE:(LOCAL:0) = (TMP_IS_FREE:(LOCAL:0):0 == 0)
 	ENDIF
@@ -972,31 +976,36 @@ FOR LOCAL:2, 0, 10
 NEXT
 
 ;-------------------------------------------------
-;都市ARG:0に最適な守将を配置。ARG:1を1にすると二人設定できる。
+;都市ARG:0に最適な守将を配置。ARG:1を1にすると二人設定できる。ARG:2を1にすると、その都市の守将を含めるようにする
 ;※直前に @TMP_CREATE_IS_FREE_MAP 関数を呼び出してから使用すること
 ;-------------------------------------------------
-@SET_CITY_COMMANDER_BEST(ARG:0, ARG:1 = 0)
+@SET_CITY_COMMANDER_BEST(ARG:0, ARG:1 = 0, ARG:2 = 0)
 #DIM LCOUNT
-CALL CHECK_CITY_COMMANDER_BEST(ARG:0, ARG:1)
+CALL CHECK_CITY_COMMANDER_BEST(ARG:0, ARG:1, ARG:2)
 FOR LCOUNT:0, 0, MAX_CITY_COMMANDER
 	CALL SET_CITY_COMMANDER(ARG:0, LCOUNT:0, CITY_COMMANDER_BEST:(LCOUNT:0))
 NEXT
 ;-------------------------------------------------
-;都市ARG:0に最適な守将を確認。ARG:1を1にすると二人設定できる。
+;都市ARG:0に最適な守将を確認。ARG:1を1にすると二人設定できる。ARG:2に１すると、その都市の守将を含めるようにする
 ;※直前に @TMP_CREATE_IS_FREE_MAP 関数を呼び出してから使用すること
 ;-------------------------------------------------
-@CHECK_CITY_COMMANDER_BEST(ARG:0, ARG:1 = 0)
+@CHECK_CITY_COMMANDER_BEST(ARG:0, ARG:1 = 0, ARG:2 = 0)
 #DIM 勢力
+#DIM 守将, 2
 #DIM LCOUNT,2
 #DIM 最大
 VARSET LOCAL, __INT_MIN__
 VARSET CITY_COMMANDER_BEST, -1
 ;都市を所有する勢力の番号を取得
 勢力 = CITY_OWNER:(ARG:0)
-
+VARSET 守将, -1
+IF ARG:2
+	CALL GET_CITY_COMMANDER_ALL(ARG:0)
+	守将 = RESULT:0, RESULT:1
+ENDIF
 ;勢力に所属してFREEな各キャラの能力を記録
 FOR LCOUNT, 0, CHARANUM
-	IF CFLAG:(LCOUNT):所属 == 勢力 && TMP_IS_FREE:(LCOUNT):0 == 0
+	IF CFLAG:(LCOUNT):所属 == 勢力 && (TMP_IS_FREE:LCOUNT:0 == 0 || (ARG:2 && GROUPMATCH(LCOUNT, 守将:0, 守将:1)))
 		;MASTER麾下の武将は、除外フラグをたてていたら除外する
 		SIF 勢力 == CFLAG:MASTER:所属 && CFLAG:(LCOUNT):最強編成除外フラグ
 			CONTINUE

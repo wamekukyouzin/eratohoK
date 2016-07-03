@@ -6,7 +6,7 @@
 ;生成したキャラの番号を返すが、人数の限界により生成に失敗した場合-1を返す
 ;-------------------------
 @CREATE_RANDOM_CHARA(ARG:0 = 1, ARG:1 = -1, ARG:2 = -1, ARG:3 = 0)
-IF FLAG:8 >= MAX_COMMON_CHARACTER
+IF FLAG:汎用武将カウント >= MAX_COMMON_CHARACTER
 	RETURN -1
 ENDIF
 
@@ -20,8 +20,8 @@ ADDVOIDCHARA
 TARGET = CHARANUM - 1
 
 ;NOの設定
-NO = FLAG:8 + 201
-FLAG:8 ++
+NO = FLAG:汎用武将カウント + 201
+FLAG:汎用武将カウント ++
 
 ;素質と能力の決定
 CALL RANDOM_CHARA_SETTING(ARG:0, ARG:1, ARG:2)
@@ -68,6 +68,7 @@ IF LOCAL:0 == 0
 	;童貞かどうかをランダムに設定
 	TALENT:童貞 = (RAND:5 <= 2)
 	TALENT:処女 = 1
+	TALENT:アナル処女 = 1
 	;キス経験をランダムに設定
 	IF TALENT:童貞
 		TALENT:キス未経験 = (RAND:4 != 0)
@@ -80,6 +81,7 @@ ELSEIF LOCAL:0 == 4
 	;童貞かどうかをランダムに設定(男性より童貞率高め)
 	TALENT:童貞 = (RAND:8 <= 6)
 	TALENT:処女 = 1
+	TALENT:アナル処女 = (RAND:10 != 0)
 	;キス経験をランダムに設定
 	IF TALENT:童貞
 		TALENT:キス未経験 = (RAND:4 != 0)
@@ -93,6 +95,7 @@ ELSE
 	;処女・キス経験をランダムに設定
 	TALENT:童貞 = 1
 	TALENT:処女 = (RAND:4 != 0)
+	TALENT:アナル処女 = (RAND:10 != 0)
 	IF TALENT:処女
 		TALENT:キス未経験 = (RAND:4 != 0)
 	ELSE
@@ -920,8 +923,8 @@ ENDIF
 ;髪型・髪の長さをランダムに設定する関数
 ;-------------------------
 @SET_HAIR(ARG:0)
-LOCAL:5 = ID_TO_CHARA(CFLAG:(ARG:0):20)
-LOCAL:6 = ID_TO_CHARA(CFLAG:(ARG:0):21)
+LOCAL:5 = ID_TO_CHARA(CFLAG:(ARG:0):遺伝上の父親)
+LOCAL:6 = ID_TO_CHARA(CFLAG:(ARG:0):母親)
 LOCAL:7 = (LOCAL:5 >= 0 && TALENT:(LOCAL:5):髪色 != 0)
 LOCAL:8 = (LOCAL:6 >= 0 && TALENT:(LOCAL:6):髪色 != 0)
 
@@ -1047,7 +1050,7 @@ IF LOCAL:9 < 8
 		;●自軍の状況に合わせて募集するタイプを選択
 		VARSET LOCAL, -1, 20, 50
 		FOR LOCAL:0, 0, CHARANUM
-			IF CFLAG:(LOCAL:0):1 == ARG:0
+			IF CFLAG:(LOCAL:0):所属 == ARG:0
 				FOR LOCAL:1, 0, 3
 					LOCAL:10 = LOCAL:1 + 50
 					LOCAL:11 = LOCAL:1 * 10 + 20
@@ -1097,10 +1100,10 @@ IF LOCAL:9 < 8
 		;指定の条件でランダムキャラを作成
 		CALL CREATE_RANDOM_CHARA(LOCAL:6, LOCAL:8, -1, LOCAL:9)
 		IF RESULT >= 0
-			CFLAG:RESULT:1 = ARG:0
 			SETCOLOR COLOR("注意")
 			PRINTFORML %ANAME(RESULT)%が%ANAME(GET_COUNTRY_BOSS(ARG:0))%に登用された
 			RESETCOLOR
+			CALL CHANGE_COUNTRY(RESULT, ARG:0)
 		ENDIF
 	ENDIF
 ENDIF
@@ -1183,10 +1186,10 @@ ENDIF
 
 REDRAW 1
 
-LOCAL:0 = GET_COMMANDER_NUM(CFLAG:MASTER:1)
+LOCAL:0 = GET_COMMANDER_NUM(CFLAG:MASTER:所属)
 
 ;君主が[動物耳]or[尻尾]を持つならケモ率高め
-LOCAL:4 = GET_COUNTRY_BOSS(CFLAG:MASTER:1)
+LOCAL:4 = GET_COUNTRY_BOSS(CFLAG:MASTER:所属)
 IF LOCAL:4 >= 0 && (TALENT:(LOCAL:4):動物耳 || TALENT:(LOCAL:4):しっぽ)
 	LOCAL:5 = 75
 ELSE
@@ -1218,7 +1221,7 @@ ELSE
 	$INPUT_LOOP_SELECT
 
 	;SHOW_INFOの初期画面を基本情報にする
-	FLAG:11 = 0
+	FLAG:能力表示モード = 0
 
 	;キャラの情報を表示
 	DRAWLINE
@@ -1244,7 +1247,7 @@ ELSE
 	INPUT
 
 	IF RESULT == 0
-		CFLAG:(LOCAL:2):1 = CFLAG:MASTER:1
+		CALL CHANGE_COUNTRY(LOCAL:2, CFLAG:MASTER:所属)
 		PRINTFORMW %ANAME(LOCAL:2)%が我が国の士官になりました
 		IF hold != -1
 			CALL DELETE_CHARA(hold)

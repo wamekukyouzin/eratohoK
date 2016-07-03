@@ -1,0 +1,72 @@
+﻿;---------------------------------
+;SP, BASE, CAPTURE, ESCAPEスキル発動用 CAPTUREでは発動側が捕縛側、ESCAPEでは発動側が逃走側
+;---------------------------------
+@SKILL_COMBAT_TRY_INVOKE(発動者, 発動番号, ジャンル, スキル, 発動側, 発動勢力, 発動部隊, 対象勢力, 対象部隊)
+#DIM 発動者
+#DIM 発動番号
+#DIM スキル
+#DIMS ジャンル
+#DIM 発動側
+#DIM 発動勢力
+#DIM 発動部隊
+#DIM 対象勢力
+#DIM 対象部隊
+発動者 = NO:発動者
+
+SIF BATTLE_SKILL_SEALED:発動側:発動番号
+	RETURN -1
+
+;存在判定
+TRYCCALLFORM SKILL_{発動者}_%ジャンル%_{スキル}_EXIST
+	CATCH
+		RETURN -1
+ENDCATCH
+SETCOLOR COLOR("スキル発動")
+;対象選択
+TRYCCALLFORM SKILL_{発動者}_%ジャンル%_{スキル}_SETTARGET(発動者, 発動番号, 発動側, 発動勢力, 発動部隊, 対象勢力, 対象部隊)
+	IF !RESULT
+		RESETCOLOR
+		RETURN 0
+	ENDIF
+CATCH
+ENDCATCH
+;発動判定
+CALLFORM SKILL_{発動者}_%ジャンル%_{スキル}_CAN_INVOKE(発動者, 発動番号, 発動側, 発動勢力, 発動部隊, 対象勢力, 対象部隊)
+IF !RESULT
+	RESETCOLOR
+	RETURN 0
+ENDIF
+;TRYCCALLFORM SKILL_{発動者}_%ジャンル%_{スキル}_INVOKE_TEXT(発動者)
+;	CATCH
+		CALLFORM SKILL_PRINT_INVOKE(発動者, ジャンル, スキル)
+;ENDCATCH
+CALLFORM SKILL_{発動者}_%ジャンル%_{スキル}_INVOKE(発動者, 発動番号, 発動側, 発動勢力, 発動部隊, 対象勢力, 対象部隊)
+RESETCOLOR
+RETURN RESULT
+
+
+
+
+;---------------------------------
+;スキル発動時のデフォルト地の文
+;---------------------------------
+@SKILL_PRINT_INVOKE(発動者, ジャンル, スキル)
+#DIM 発動者
+#DIM スキル
+#DIMS ジャンル
+CALLFORM SKILL_{発動者}_%ジャンル%_{スキル}_NAME
+PRINTFORML %ANAME(NO_TO_CHARA(発動者))%のスキル「%RESULTS%」発動！
+
+;---------------------------------
+;暗殺の効果用
+;---------------------------------
+@ASSASINATE(対象側, 対象番号)
+#DIM 対象側
+#DIM 対象番号
+BATTLE_武闘:対象側:対象番号 = 0
+BATTLE_知略:対象側:対象番号 = 0
+BATTLE_政治:対象側:対象番号 = 0
+BATTLE_妖術:対象側:対象番号 = 0
+BATTLE_料理:対象側:対象番号 = 0
+BATTLE_歌唱:対象側:対象番号 = 0
+BATTLE_SKILL_SEALED:対象側:対象番号 = 1

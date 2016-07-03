@@ -11,12 +11,9 @@ VARSET 参加者, -1
 VARSET 参加者数
 
 触手 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_触手))
-;ゴブリンによる主人公以外のキャラへの自動調教
-IF FLAG:28
-	CALL TRAIN_BY_TENTACLE
-ENDIF
+
 ;四回ごとに誘われる
-IF FLAG:47 > 0 && FLAG:47 % 4 == 0
+IF FLAG:逆調教回数 > 0 && FLAG:逆調教回数 % 4 == 0
 	PRINTFORML 調教の時間が近づくと、%ANAME(MASTER)%はいつものように触手どもに拘束され、
 	PRINTFORMW あとは触手に自我を乗っ取られた連中に汚されるのを待つのみとなった
 	PRINTFORML やってきた触手兵たちは、%ANAME(MASTER)%に何もしなかった
@@ -26,14 +23,13 @@ IF FLAG:47 > 0 && FLAG:47 % 4 == 0
 	IF RESULT == 0
 		PRINTFORML %ANAME(MASTER)%が頷くと、触手は一斉に%ANAME(MASTER)%へと群がった
 		FOR LOCAL, 0, 5
-			CALL FUCK_SP(MASTER, "欲望, 奉仕, 性交, 性技, 精愛, 排泄, Ｖ拡張, Ａ拡張, Ｃ, Ｖ, Ａ, Ｂ, Ｍ, 口淫, キス, 緊縛, 苦痛快楽", "処女喪失, 膣内射精, Ａ処女喪失, キス喪失", 触手, GET_SPERM_ID("触手"), "触手", "触手")
+			CALL FUCK_SP(MASTER, "欲望, 奉仕, 性交, 性技, 精愛, 排泄, Ｖ拡張, Ａ拡張, Ｃ, Ｖ, Ａ, Ｂ, Ｍ, 口淫, キス, 緊縛, 苦痛快楽", "処女喪失, 膣内射精, Ａ処女喪失, キス喪失, 腸内射精, 口内射精", 触手, GET_SPERM_ID("触手"), "触手", "触手")
 		NEXT
 		SETCOLOR COLOR("注意")
 		PRINTFORMW %ANAME(MASTER)%は触手に寄生されました
 		RESETCOLOR
 		SETBIT TALENT:MASTER:特殊勢力陥落系, 特殊勢力_触手
-		CFLAG:MASTER:1 = 触手
-		CFLAG:MASTER:9 = 0
+		CALL CHANGE_COUNTRY(MASTER, 触手)
 		FOR LOCAL:0, 0, CHARANUM
 			IF TALENT:(LOCAL:0):特殊勢力素質 == 特殊勢力_触手
 				TALENT:(LOCAL:0):合意 = 1
@@ -64,7 +60,7 @@ IF RAND:2
 		CALL FISHER_YATES_SHAFFLE(候補数)
 		FOR LOCAL, 0, MIN(候補数, 4)
 			参加者:参加者数 = 候補:(SHAFFLE_ARRAY:(LOCAL:0))
-			CFLAG:(参加者:参加者数):6 = 1
+			CFLAG:(参加者:参加者数):調教参加フラグ = 1
 			参加者数 ++
 		NEXT
 		IF 参加者数
@@ -87,7 +83,7 @@ IF RAND:2
 				PRINTFORMW どうやら触手に寄生され、自我を喪失してしまっているようだ……
 				PRINTFORMW %ANAME(参加者:0)%\@ 参加者数 > 1 ? たち # \@は他の触手兵とともに、%ANAME(MASTER)%に群がりはじめた……
 			ENDIF
-			FLAG:29 = 1
+			FLAG:特殊勢力逆調教知り合いフラグ = 1
 		ENDIF
 	ENDIF
 ENDIF
@@ -99,29 +95,29 @@ ENDIF
 
 FOR LOCAL:0, 0, ループ数
 	FOR LOCAL:1, 0, CHARANUM
-		IF TALENT:(LOCAL:1):特殊勢力素質 == 特殊勢力_触手 && !CFLAG:(LOCAL:1):6 && CFLAG:(LOCAL:1):所属 == 触手
+		IF TALENT:(LOCAL:1):特殊勢力素質 == 特殊勢力_触手 && !CFLAG:(LOCAL:1):調教参加フラグ && CFLAG:(LOCAL:1):所属 == 触手
 			参加者:参加者数 =  LOCAL:1
 			参加者数 ++
-			CFLAG:(LOCAL:1):6 = 1
-			CFLAG:(LOCAL:1):64 = 1
-			CFLAG:(LOCAL:1):65 = 1
+			CFLAG:(LOCAL:1):調教参加フラグ = 1
+			CFLAG:(LOCAL:1):TEXT_LAST非表示 = 1
+			CFLAG:(LOCAL:1):能力固定フラグ = 1
 			BREAK
 		ENDIF
 	NEXT
 NEXT
 
 FOR LOCAL:0, 0, 参加者数
-	CFLAG:(参加者:(LOCAL:0)):6 = 1
+	CFLAG:(参加者:(LOCAL:0)):調教参加フラグ = 1
 NEXT
 ;逆調教モード
-FLAG:12 = 4
+FLAG:調教モード = 4
 ;ウフフモード
-FLAG:50 = 1
+FLAG:ウフフフラグ = 1
 ;アイテムは追加されない
 ITEM:A_媚薬 = 99
 ITEM:A_排卵誘発剤 = 99
 ;回数をカウント
-FLAG:47 ++
+FLAG:逆調教回数 ++
 ;解放カウンタをリセット
-CFLAG:MASTER:43 = 0
+CFLAG:MASTER:解放カウンタ = 0
 

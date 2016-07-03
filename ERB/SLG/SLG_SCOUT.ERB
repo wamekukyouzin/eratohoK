@@ -20,7 +20,7 @@ FOR LOCAL, 0, VARSIZE("SCOUT_CANDIDATES")
 		CONTINUE
 	ENDIF
 	;何らかの理由で（データ操作とか）放浪していない場合、パージ
-	IF CFLAG:(LOCAL:1):特殊状態フラグ != 1
+	IF CFLAG:(LOCAL:1):特殊状態 != 1
 		SCOUT_CANDIDATES:(LOCAL) = 0
 		CONTINUE
 	ENDIF
@@ -78,10 +78,7 @@ PRINTFORML %ANAME(対象)%に{SCOUT_PRICE:対象添え字}を支払い、固い�
 CALL COLORPRINTFORM(@"%ANAME(対象)%が仲間になりました", COLOR("注意"), "W")
 
 MONEY -= SCOUT_PRICE:対象添え字
-
-CFLAG:対象:所属 = CFLAG:MASTER:所属
-CFLAG:対象:捕虜先 = 0
-CFLAG:対象:特殊状態フラグ = 0
+CALL CHANGE_COUNTRY(LOCAL:0, CFLAG:MASTER:所属)
 CFLAG:対象:好感度 = MAX(500, CFLAG:対象:好感度 + 500)
 CFLAG:対象:従属度 = MAX(500, CFLAG:対象:従属度 + 300)
 CFLAG:対象:依存度 = MAX(100, CFLAG:対象:依存度 + 100)
@@ -188,7 +185,7 @@ SIF !CFLAG:対象:面識
 提示額 = 提示額 * 関係補正 / 100
 
 ;好感度に基づいて補正
-好感度補正 = 100 - MAX(MAX(CFLAG:対象:好感度, CFLAG:対象:従属度) / 100, 30)
+好感度補正 = 100 - MIN(MAX(CFLAG:対象:好感度, CFLAG:対象:従属度) / 100, 30)
 提示額 = 提示額 * 好感度補正 / 100
 
 ;日数で補正する
@@ -248,7 +245,7 @@ FOR LOCAL, 0, CHARANUM
 	SIF REL_LIKE:LOCAL:MASTER - REL_HATE:LOCAL:MASTER <= -1000
 		CONTINUE
 	;放浪中でないとだめ
-	SIF CFLAG:LOCAL:特殊状態フラグ != 1
+	SIF CFLAG:LOCAL:特殊状態 != 1
 		CONTINUE
 	候補:候補数 = LOCAL
 	候補数 ++

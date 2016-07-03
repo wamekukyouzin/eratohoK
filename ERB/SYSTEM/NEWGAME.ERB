@@ -233,13 +233,13 @@ CALL INITIALIZE_COMMON
 VARSET ITEMSALES, 1, 0, 200
 
 ;周回を0に設定
-FLAG:26 = 0
+FLAG:周回数 = 0
 
 ;-------------------------------------------------
 ;CSVでは設定できないキャラデータの初期設定
 ;-------------------------------------------------
 @ADDITIONAL_CHARA_SETTING
-CFLAG:(NAME_TO_CHARA("アリス")):21 = GET_ID(NAME_TO_CHARA("神綺"))
+CFLAG:(NAME_TO_CHARA("アリス")):母親 = GET_ID(NAME_TO_CHARA("神綺"))
 
 
 ;-------------------------------------------------
@@ -250,7 +250,7 @@ CFLAG:(NAME_TO_CHARA("アリス")):21 = GET_ID(NAME_TO_CHARA("神綺"))
 DAY = 1
 
 ;触手部屋の管理者を初期化
-FLAG:35 = -1
+FLAG:触手部屋管理者 = 0
 
 ;フェイズを拠点フェイズにする
 TIME = 0
@@ -269,11 +269,14 @@ FOR LOCAL, 0, VARSIZE("KDVAR")
 	CVARSET KDSTR, LOCAL, 
 NEXT
 
-;特殊勢力スタート変数をリセット
+;特殊勢力関係の変数をリセット
 VARSET SP_COUNTRY_START
-
-;特殊勢力の出現フラグをリセット
+VARSET SP_COUNTRY_RANK
 VARSET SP_COUNTRY_APPEARED
+VARSET SP_COUNTRY_BOSSNAME
+FOR LOCAL, 0, VARSIZE("SP_TRAIN_COUNT")
+	CVARSET SP_TRAIN_COUNT, LOCAL, 0
+NEXT
 
 ;捕虜について削除
 VARSET PRISONER_TARGET, -1
@@ -281,15 +284,18 @@ VARSET PRISONER_TARGET, -1
 ;スカウト回数をリセット
 VARSET SCOUT_COUNT, 0
 
+;特別訓練回数をリセット
+VARSET SPECIAL_TRAIN_COUNT, 0
+
 ;変数の初期化
 TARGET = -1
 ASSI = -1
 
 ;周回数が1増える
-FLAG:26++
+FLAG:周回数++
 
 ;クリアフラグを解除
-FLAG:28 = 0
+FLAG:クリアフラグ = 0
 
 SHOP_TIME = 0
 
@@ -297,7 +303,11 @@ SHOP_TIME = 0
 CALL SET_COOK(-1)
 
 ;観戦モードフラグを0
-FLAG:1 = 0
+FLAG:観戦モード = 0
+
+;SHOW_INFOの初期画面を基本情報にする
+FLAG:能力表示モード = 0
+
 
 ;SLG関連の変数をクリア
 STATS_TIME = 0
@@ -390,22 +400,22 @@ ELSEIF LOCAL:10 == 1
 	CALL SELECT_COUNTRY
 
 	IF RESULT == -1
-		FLAG:26 = 0
+		FLAG:周回数 = 0
 		RESTART
 	ENDIF
 	
 	;観戦モードでないときだけ、設定を弄る
-	IF !FLAG:1
+	IF !FLAG:観戦モード
 		CALL SELECT_MASTER
 	ELSE
 		;観戦モードの場合、前の週でキャラを変更したとき用に、「あなた」と主人公を入れ替えて戻す処理だけは必要
 		SWAPCHARA NAME_TO_CHARA("あなた"), MASTER
 	ENDIF
 
-	IF FLAG:3 == -1
+	IF FLAG:OP選択勢力 == -1
 		CALL START_WITH_NEW_COUNTRY
 	ENDIF
-	CFLAG:MASTER:1 = FLAG:3
+	CALL CHANGE_COUNTRY(MASTER, FLAG:OP選択勢力)
 	
 	;登録キャラの扱いを設定
 	FOR LOCAL:0, 0, 30
@@ -427,8 +437,7 @@ ELSEIF LOCAL:10 == 1
 	;引き継ぎキャラの所属を主人公勢力にする
 	FOR LOCAL:0, 0, CHARANUM
 		IF INRANGE(NO:(LOCAL:0), 201, 2000 - 1)
-			CFLAG:(LOCAL:0):1 = CFLAG:MASTER:1
-			CFLAG:(LOCAL:0):12 = 0 
+			CALL CHANGE_COUNTRY(LOCAL:0, CFLAG:MASTER:所属)
 		ENDIF
 	NEXT
 
@@ -452,7 +461,7 @@ ELSEIF LOCAL:10 == 1
 	CALL SELECT_SLG_SETTING
 	
 	;一週目のみ、金1000をもらえる
-	IF FLAG:26 == 1
+	IF FLAG:周回数 == 1
 		CALL COLORPRINTFORM("一週目ボーナス！", COLOR("注意"), "W")
 		PRINTFORMW 金1000が支給されます
 		MONEY += 1000
@@ -485,7 +494,7 @@ FOR LOCAL:0, 0, SCENARIO_NUMBER
 		PRINTL
 NEXT
 
-IF FLAG:26 == 1
+IF FLAG:周回数 == 1
 	DRAWLINE
 	PRINTBUTTON "99[タイトルに戻る]", 99
 ENDIF
@@ -494,7 +503,7 @@ $INPUT_LOOP
 INPUT
 IN = RESULT
 FOR LOCAL:0 , 0, SCENARIO_NUMBER
-	IF IN == 99 && FLAG:26 == 1
+	IF IN == 99 && FLAG:周回数 == 1
 		RETURN 0
 	ENDIF
 	IF IN == SCENARIO_SELECT:(LOCAL:0)
@@ -534,7 +543,7 @@ IF GET_NEW_COUNTRY() != -1
 	PRINTPLAIN   
 	PRINTBUTTON "101[旗揚げ]", 101
 ENDIF
-IF FLAG:26 == 1
+IF FLAG:周回数 == 1
 	PRINTPLAIN   
 	PRINTBUTTON "999[戻る]", 999
 ENDIF
@@ -607,7 +616,7 @@ IF RESULT == 0
 			PRINTFORMW このシナリオでは、その勢力でプレイすることはできません
 		CATCH
 			$SELECTABLE
-			FLAG:3 = 選択勢力
+			FLAG:OP選択勢力 = 選択勢力
 			PRINTFORMW %NAME:(ボス)%勢力で開始します
 			RETURN
 		ENDCATCH
@@ -618,26 +627,26 @@ ELSEIF RESULT == 97
 	CLEARLINE LINECOUNT - FIRST_LINE
 	GOTO SHOW_LOOP
 ELSEIF RESULT == 98
-	FLAG:3 = 0
-	FLAG:1 = 1
+	FLAG:OP選択勢力 = 0
+	FLAG:観戦モード = 1
 	TIME = 1
 	PRINTFORMW 観戦モードで開始します
 	RETURN
 ELSEIF RESULT == 99
-	FLAG:3 = 0
+	FLAG:OP選択勢力 = 0
 	TIME = 1
 	PRINTFORMW 放浪状態から開始します
 	RETURN
 ELSEIF RESULT == 100
-	FLAG:3 = 0
+	FLAG:OP選択勢力 = 0
 	CALL SP_COUNTRY_SELECT
 	RETURN
 ELSEIF RESULT == 101 && GET_NEW_COUNTRY() != -1
-	FLAG:3 = -1
+	FLAG:OP選択勢力 = -1
 	PRINTFORMW 旗揚げしてスタートします
 	RETURN
-ELSEIF RESULT == 999 && FLAG:26 == 1
-	FLAG:26 --
+ELSEIF RESULT == 999 && FLAG:周回数 == 1
+	FLAG:周回数 --
 	CVARSET CFLAG, 1, 0
 	CVARSET CFLAG, 9, 0
 	CVARSET CFLAG, 12, 0
@@ -691,18 +700,22 @@ SELECTCASE RESULT
 		PRINTFORMW 捕虜としてスタートします
 ENDSELECT
 SP_COUNTRY_START:LOCAL = RESULT + 1
+;この時点で設定していない（シナリオ側で設定していない）なら設定
+IF SP_COUNTRY_RANK:LOCAL == 0
+	PRINTFORML %SP_COUNTRY_NAME:LOCAL%の強さはどうしますか？
+	CALL ASK_MULTI("よわい", "ややよわ", "ふつう", "ややつよ", "つよい")
+	PRINTFORMW 強さは{RESULT + 1}で設定します
+	SP_COUNTRY_RANK:LOCAL = RESULT
 
-PRINTFORML %SP_COUNTRY_NAME:LOCAL%の強さはどうしますか？
-CALL ASK_MULTI("よわい", "ややよわ", "ふつう", "ややつよ", "つよい")
-PRINTFORMW 強さは{RESULT}で設定します
-SP_COUNTRY_RANK:LOCAL = RESULT
+	PRINTFORML %SP_COUNTRY_NAME:LOCAL%のボスの名前はどうしますか？
+	CALL ASK_MULTI(@"勢力名", "固有名", "ランダム名")
+	PRINTFORMW 名前を設定しました
+	SP_COUNTRY_BOSSNAME:LOCAL = RESULT
+ENDIF
 
-PRINTFORML %SP_COUNTRY_NAME:LOCAL%のボスの名前はどうしますか？
-CALL ASK_MULTI(@"勢力名", "固有名", "ランダム名")
-PRINTFORMW 名前を設定しました
-SP_COUNTRY_BOSSNAME:LOCAL = RESULT
-
-CALLFORM %SP_COUNTRY_NAME_ENG:LOCAL%_RISE()
+;なければ作る
+SIF GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:LOCAL) == -1
+	CALLFORM %SP_COUNTRY_NAME_ENG:LOCAL%_RISE()
 
 
 ;-------------------------------------------------
@@ -714,19 +727,19 @@ VARSET LOCAL
 LOADGLOBAL
 
 ;あなたの所属を無所属にする
-CFLAG:MASTER:1 = 0
+CALL CHANGE_COUNTRY(MASTER, 0)
 
 DRAWLINE
 PRINTL ★★主人公を選択して下さい★★
 PRINTL ※通常はプレイヤーの分身となる主人公を新規作成し、作成したキャラを選択します
-SIF FLAG:3 <= 0
+SIF FLAG:OP選択勢力 <= 0
 	PRINTL ※特殊なスタートを選択しているので、既存キャラ一覧に君主以外の全キャラが表示されます
 DRAWLINE
 PRINTL ●登録キャラ
 PRINT    
 PRINTBUTTON "  0[新規作成    ]", 0
 ;二週目以降なら
-IF FLAG:26 > 1
+IF FLAG:周回数 > 1
 	PRINT    
 	PRINTBUTTON "98[前週と同じで]", 98
 ENDIF
@@ -754,7 +767,7 @@ LOCAL:1 = 0
 FOR LOCAL:0, 1, CHARANUM
 	;選択勢力と同一勢力所属のキャラを選べる
 	;ただし旗揚げスタート時と放浪スタート時と特殊盗スタート時は、君主以外であれば誰でも選択できる（利便性）
-	IF ((FLAG:3 <= 0 && GET_COUNTRY_BOSS(CFLAG:(LOCAL:0):所属) != LOCAL:0 ) || (FLAG:3 > 0 && CFLAG:(LOCAL:0):所属 == FLAG:3)) && NO:(LOCAL:0) < 2000 && !TALENT:(LOCAL:2):特殊勢力素質
+	IF ((FLAG:OP選択勢力 <= 0 && GET_COUNTRY_BOSS(CFLAG:(LOCAL:0):所属) != LOCAL:0 ) || (FLAG:OP選択勢力 > 0 && CFLAG:(LOCAL:0):所属 == FLAG:OP選択勢力)) && NO:(LOCAL:0) < 2000 && !TALENT:(LOCAL:2):特殊勢力素質
 		IF LOCAL:1 % 4 == 0 && LOCAL:1 >= 1
 			PRINTL 
 			PRINT    
@@ -788,7 +801,7 @@ IF RESULT == 0
 	RESTART
 ;前週と同じ
 ELSEIF RESULT == 98
-	IF FLAG:26 > 1
+	IF FLAG:周回数 > 1
 		MASTERそのまま = 1
 		LOCAL:6 = MASTER
 	ELSE
@@ -804,7 +817,7 @@ ELSEIF RESULT >= 10 && RESULT <= 40 && MASTER_MAXBASE:(RESULT - 10):0 > 0
 ;既存のキャラを選択
 ELSE
 	LOCAL:2 = NO_TO_CHARA(RESULT - 100)
-	IF LOCAL:2 >= 0 && ((FLAG:3 <= 0 && GET_COUNTRY_BOSS(CFLAG:(LOCAL:2):所属) != LOCAL:0 ) || (FLAG:3 > 0 && CFLAG:(LOCAL:2):所属 == FLAG:3)) && NO:(LOCAL:2) < 2000 && !TALENT:(LOCAL:2):特殊勢力素質
+	IF LOCAL:2 >= 0 && ((FLAG:OP選択勢力 <= 0 && GET_COUNTRY_BOSS(CFLAG:(LOCAL:2):所属) != LOCAL:0 ) || (FLAG:OP選択勢力 > 0 && CFLAG:(LOCAL:2):所属 == FLAG:OP選択勢力)) && NO:(LOCAL:2) < 2000 && !TALENT:(LOCAL:2):特殊勢力素質
 		LOCAL:6 = LOCAL:2
 		MASTER_ID = -1
 	ELSE
@@ -848,18 +861,17 @@ IF RESULT == 0
 	SWAPCHARA MASTER, LOCAL:6
 	CALL NEWGAME_SWAP_RELATIONS(LOCAL:6)
 	IF LOCAL:7
-		CFLAG:MASTER:81 = CFLAG:(LOCAL:6):81
+		CFLAG:MASTER:キャラＩＤ = CFLAG:(LOCAL:6):キャラＩＤ
 		NO:(LOCAL:6) = __INT_MAX__
 		CALL DELETE_CHARA(LOCAL:6)
 	ENDIF
 	;主人公の所属を選択した勢力に
-	CFLAG:MASTER:1 = FLAG:3
+	CALL CHANGE_COUNTRY(MASTER, FLAG:OP選択勢力)
 	;体力気力精神力の現在値を最大値に変更
 	FOR LOCAL:2, 0, VARSIZE("BASE")
 		BASE:MASTER:(LOCAL:2) = MAXBASE:MASTER:(LOCAL:2)
 	NEXT
 	;主人公の「放浪」は通常の放浪フラグで処理されるモノではないので、放浪フラグをへし折っておく
-	CFLAG:MASTER:特殊状態フラグ = 0
 	IF ABL:MASTER:性知識 < 5
 		PRINTFORML 主人公の性知識Lvを最大(Lv5)にしますか？
 		PRINTFORML 　※Lv5未満の場合、一部のウフフコマンドの実行に制限が掛かります
@@ -963,9 +975,7 @@ ELSEIF RESULT == 1
 			LOCAL:1 = RESULT
 			CALL APPLY_MASTER_DATA(LOCAL:1, LOCAL:0)
 			CALL NEWCHARA_INIT(LOCAL:1)
-			CFLAG:(LOCAL:1):1 = CFLAG:MASTER:1
-			SIF CFLAG:MASTER:1 == 0
-				CFLAG:(LOCAL:1):12 = 1
+			CALL CHANGE_COUNTRY(LOCAL:1, CFLAG:MASTER:所属)
 			FOR LOCAL:2, 0, VARSIZE("BASE")
 				BASE:(LOCAL:1):(LOCAL:2) = MAXBASE:(LOCAL:1):(LOCAL:2)
 			NEXT
@@ -989,9 +999,9 @@ ELSEIF RESULT == 2 && LOCAL:2 >= 2
 			NEXT
 			$COUNTRY_LOOP
 			LOCAL:3 = RAND:MAX_COUNTRY
-			SIF !IS_COUNTRY(LOCAL:3) || LOCAL:3 == CFLAG:MASTER:1
+			SIF !IS_COUNTRY(LOCAL:3) || LOCAL:3 == CFLAG:MASTER:所属
 				GOTO COUNTRY_LOOP
-			CFLAG:(LOCAL:1):1 = LOCAL:3
+			CALL CHANGE_COUNTRY(LOCAL:1, LOCAL:3)
 		ENDIF
 	NEXT
 ELSEIF RESULT == 3 && LOCAL:2 >= 2
@@ -1069,7 +1079,7 @@ IF RESULT == 200
 					LOCAL:1 = RESULT
 					CALL APPLY_MASTER_DATA(LOCAL:1, LOCAL:0)
 					CALL NEWCHARA_INIT(LOCAL:1)
-					CFLAG:(LOCAL:1):1 = CFLAG:(LOCAL:5):1
+					CALL CHANGE_COUNTRY(LOCAL:1, CFLAG:(LOCAL:5):所属)
 					FOR LOCAL:2, 0, VARSIZE("BASE")
 						BASE:(LOCAL:1):(LOCAL:2) = MAXBASE:(LOCAL:1):(LOCAL:2)
 					NEXT
@@ -1094,7 +1104,7 @@ ELSEIF RESULT >= 100 && RESULT < 200
 				CALL ADD_VOID_CHARA()
 				LOCAL:1 = RESULT
 				CALL APPLY_MASTER_DATA(LOCAL:1, LOCAL:0)
-				CFLAG:(LOCAL:1):1 = CFLAG:(LOCAL:5):1
+				CALL CHANGE_COUNTRY(LOCAL:1, CFLAG:(LOCAL:5):所属)
 				CALL NEWCHARA_INIT(LOCAL:1)
 			ENDIF
 		NEXT
@@ -1139,20 +1149,17 @@ IF RESULT == 0
 	PRINTW 霖之助は登場しません
 ELSEIF RESULT == 1
 	PRINTW 霖之助を主人公勢力のキャラとして登場させます
-	CFLAG:NAME_TO_CHARA("霖之助"):1 = CFLAG:MASTER:1
-	SIF CFLAG:MASTER:1 == 0
-		CFLAG:NAME_TO_CHARA("霖之助"):12 = 1
-
+	CALL CHANGE_COUNTRY(NAME_TO_CHARA("霖之助"), CFLAG:MASTER:所属)
 ELSEIF RESULT == 2 && LOCAL:2 >= 2
 	PRINTW 霖之助をランダムな勢力のキャラとして登場させます
 	;ランダムに勢力を選ぶ
 	LOCAL:3 = RAND:(LOCAL:2 - 1)
 	LOCAL:2 = 0
 	FOR LOCAL:0, 1, MAX_COUNTRY
-		IF IS_COUNTRY(LOCAL:0) && LOCAL:0 != CFLAG:MASTER:1
+		IF IS_COUNTRY(LOCAL:0) && LOCAL:0 != CFLAG:MASTER:所属
 			IF LOCAL:2 == LOCAL:3
 				;選んだ勢力に霖之助を追加
-				CFLAG:NAME_TO_CHARA("霖之助"):1 = LOCAL:0
+				CALL CHANGE_COUNTRY(NAME_TO_CHARA("霖之助"), LOCAL:0)
 				BREAK
 			ENDIF
 			LOCAL:2 ++
@@ -1228,7 +1235,7 @@ IF RESULT == 200
 		LOCAL:5 = ID_TO_CHARA(COUNTRY_BOSS:(LOCAL:6))
 		IF LOCAL:5 > 0
 			;選んだ勢力に霖之助を追加
-			CFLAG:NAME_TO_CHARA("霖之助"):1 = LOCAL:6
+			CFLAG:NAME_TO_CHARA("霖之助"):所属 = LOCAL:6
 			PRINTFORMW 霖之助を%NAME:(LOCAL:5)%勢力の士官として登場させます
 			REDRAW 1
 			RETURN
@@ -1242,7 +1249,7 @@ ELSEIF RESULT >= 100 && RESULT < 200
 	LOCAL:5 = ID_TO_CHARA(COUNTRY_BOSS:(LOCAL:6))
 	IF LOCAL:5 > 0
 		;選んだ勢力に霖之助を追加
-		CFLAG:NAME_TO_CHARA("霖之助"):1 = LOCAL:6
+		CFLAG:NAME_TO_CHARA("霖之助"):所属 = LOCAL:6
 		PRINTFORMW 霖之助を%NAME:(LOCAL:5)%勢力の士官として登場させます
 		RETURN
 	ENDIF
@@ -1253,19 +1260,19 @@ GOTO INPUT_LOOP
 ;ランダムキャラを使用するかどうか選択
 ;-------------------------------------------------
 @SELECT_RCHARA
-IF FLAG:4 == -1
-	FLAG:44 = 0
-ELSEIF FLAG:4 == 1
-	FLAG:44 = 1
+IF FLAG:OPランダムキャラ使用 == -1
+	FLAG:ランダムキャラ使用 = 0
+ELSEIF FLAG:OPランダムキャラ使用 == 1
+	FLAG:ランダムキャラ使用 = 1
 ELSE
 	DRAWLINE
 	PRINTFORML このシナリオではランダムキャラを使用できます
 	PRINTFORML ランダムキャラを使用しますか？
 	CALL ASK_YN
 	IF RESULT == 0
-		FLAG:44 = 1
+		FLAG:ランダムキャラ使用 = 1
 	ELSE
-		FLAG:44 = 0
+		FLAG:ランダムキャラ使用 = 0
 	ENDIF
 ENDIF
 
@@ -1275,14 +1282,14 @@ ENDIF
 @SELECT_SP_COUNTRY
 #DIM 野盗都市
 #DIM FIRST_LINE
-#DIM 勢力定数割り当て
-#DIM 勢力
-VARSET 勢力定数割り当て
-;特殊勢力スタートを選択している場合は、先んじてSP_COUNTRY_RANK:(特殊勢力_野盗)をとりあえず1にしておく
+#DIM スタート勢力定数
+#DIM スタート勢力
+VARSET スタート勢力定数
+
 FOR LOCAL, 0, MAX_SP_COUNTRY
 	IF SP_COUNTRY_START:LOCAL
-		勢力定数割り当て = LOCAL
-		勢力 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:勢力定数割り当て)
+		スタート勢力定数 = LOCAL
+		スタート勢力 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:スタート勢力定数)
 	ENDIF
 NEXT
 DRAWLINE
@@ -1294,45 +1301,39 @@ PRINTFORML
 FIRST_LINE = LINECOUNT
 $SHOW_LOOP
 
-IF 勢力定数割り当て != 特殊勢力_野盗
-	PRINTFORML 野盗\@ GET_NEW_COUNTRY() == -1 ? （勢力が一杯であるため、出現できません） # \@
-	CALL PRINTBUTTON_EX("{0}", 10, 勢力定数割り当て != 特殊勢力_野盗, SP_COUNTRY_RANK:(特殊勢力_野盗) == 0)
-	CALL PRINTBUTTON_EX("{1}", 11, 勢力定数割り当て != 特殊勢力_野盗, SP_COUNTRY_RANK:(特殊勢力_野盗) == 1)
-	CALL PRINTBUTTON_EX("{2}", 12, 勢力定数割り当て != 特殊勢力_野盗, SP_COUNTRY_RANK:(特殊勢力_野盗) == 2)
-	CALL PRINTBUTTON_EX("{3}", 13, 勢力定数割り当て != 特殊勢力_野盗, SP_COUNTRY_RANK:(特殊勢力_野盗) == 3)
-	CALL PRINTBUTTON_EX("{4}", 14, 勢力定数割り当て != 特殊勢力_野盗, SP_COUNTRY_RANK:(特殊勢力_野盗) == 4)
-	CALL PRINTBUTTON_EX("{5}", 15, 勢力定数割り当て != 特殊勢力_野盗, SP_COUNTRY_RANK:(特殊勢力_野盗) == 5)
-	PRINTL
-ENDIF
-FOR LOCAL, 2, MAX_SP_COUNTRY
+FOR LOCAL, 0, MAX_SP_COUNTRY
 	LOCALS = %SP_COUNTRY_NAME:LOCAL%
-	SIF LOCALS == "" || LOCAL == 勢力定数割り当て
+	;定義されていない、または既に存在している（特殊勢力スタートか、シナリオ定義)なら表示しない
+	SIF LOCALS == "" || GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:LOCAL) != -1
 		CONTINUE
-	PRINTFORML %LOCALS%
-	CALL PRINTBUTTON_EX("{0}", 10 * LOCAL,     勢力定数割り当て != LOCAL, SP_COUNTRY_RANK:LOCAL == 0)
-	CALL PRINTBUTTON_EX("{1}", 10 * LOCAL + 1, 勢力定数割り当て != LOCAL, SP_COUNTRY_RANK:LOCAL == 1)
-	CALL PRINTBUTTON_EX("{2}", 10 * LOCAL + 2, 勢力定数割り当て != LOCAL, SP_COUNTRY_RANK:LOCAL == 2)
-	CALL PRINTBUTTON_EX("{3}", 10 * LOCAL + 3, 勢力定数割り当て != LOCAL, SP_COUNTRY_RANK:LOCAL == 3)
-	CALL PRINTBUTTON_EX("{4}", 10 * LOCAL + 4, 勢力定数割り当て != LOCAL, SP_COUNTRY_RANK:LOCAL == 4)
-	CALL PRINTBUTTON_EX("{5}", 10 * LOCAL + 5, 勢力定数割り当て != LOCAL, SP_COUNTRY_RANK:LOCAL == 5)
+	PRINTFORM %LOCALS%
+	SIF LOCAL == 特殊勢力_野盗 && GET_NEW_COUNTRY() == -1
+		PRINTFORM 勢力が一杯なので、出現できません
+	PRINTL
+	CALL PRINTBUTTON_EX("{0}", 10 * LOCAL,     スタート勢力定数 != LOCAL, SP_COUNTRY_RANK:LOCAL == 0)
+	CALL PRINTBUTTON_EX("{1}", 10 * LOCAL + 1, スタート勢力定数 != LOCAL, SP_COUNTRY_RANK:LOCAL == 1)
+	CALL PRINTBUTTON_EX("{2}", 10 * LOCAL + 2, スタート勢力定数 != LOCAL, SP_COUNTRY_RANK:LOCAL == 2)
+	CALL PRINTBUTTON_EX("{3}", 10 * LOCAL + 3, スタート勢力定数 != LOCAL, SP_COUNTRY_RANK:LOCAL == 3)
+	CALL PRINTBUTTON_EX("{4}", 10 * LOCAL + 4, スタート勢力定数 != LOCAL, SP_COUNTRY_RANK:LOCAL == 4)
+	CALL PRINTBUTTON_EX("{5}", 10 * LOCAL + 5, スタート勢力定数 != LOCAL, SP_COUNTRY_RANK:LOCAL == 5)
 	PRINTL
 NEXT
 
 PRINTL
-PRINTFORML ボスの名前（ランダム名は男性名です）
+PRINTFORML ボスの名前
 
 FOR LOCAL, 0, MAX_SP_COUNTRY
 	LOCALS = %SP_COUNTRY_NAME:LOCAL%
-	SIF LOCALS == "" || LOCAL == 勢力定数割り当て
+	SIF LOCALS == "" || GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:LOCAL) != -1
 		CONTINUE
 	PRINTFORML %LOCALS%
 	CALL PRINTBUTTON_EX(@"[勢力名]", 10 * LOCAL + 100, SP_COUNTRY_RANK:LOCAL, SP_COUNTRY_BOSSNAME:LOCAL == 0)
 	CALL PRINTBUTTON_EX(@"[固有名]",   10 * LOCAL + 101, SP_COUNTRY_RANK:LOCAL, SP_COUNTRY_BOSSNAME:LOCAL == 1)
-	CALL PRINTBUTTON_EX(@"[ランダム]", 10 * LOCAL + 102, LOCAL != 勢力定数割り当て && SP_COUNTRY_RANK:LOCAL, SP_COUNTRY_BOSSNAME:LOCAL == 2)
+	CALL PRINTBUTTON_EX(@"[ランダム]", 10 * LOCAL + 102, LOCAL != スタート勢力定数 && SP_COUNTRY_RANK:LOCAL, SP_COUNTRY_BOSSNAME:LOCAL == 2)
 	PRINTL
 NEXT
 PRINTL
-IF 勢力定数割り当て != 特殊勢力_野盗
+IF GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:特殊勢力_野盗) != -1 && GET_OWN_CITY(GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:特殊勢力_野盗)) == 0
 	PRINTL 野盗の初期都市（ランダム）
 	CALL PRINTBUTTON_EX("{なし}" , 200, SP_COUNTRY_RANK:(特殊勢力_野盗), 野盗都市 == 0)
 	CALL PRINTBUTTON_EX("{あり}" , 201, SP_COUNTRY_RANK:(特殊勢力_野盗), 野盗都市 == 1)
@@ -1344,29 +1345,32 @@ $INPUT_LOOP
 INPUT
 IF RESULT == 999
 	;野盗あり設定ならここで勢力作成
-	SIF SP_COUNTRY_RANK:(特殊勢力_野盗) && GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:特殊勢力_野盗) == -1
+	SIF SP_COUNTRY_RANK:(特殊勢力_野盗)
 		CALL BANDIT_INIT
 	SIF 野盗都市
 		CALL BANDIT_RISE()
 	;特殊勢力スタートならここで所属やら何やら書き換える
-	IF 勢力定数割り当て
-		SELECTCASE SP_COUNTRY_START:勢力定数割り当て
+	FOR LOCAL, 0, MAX_SP_COUNTRY
+		SIF SP_COUNTRY_START:LOCAL == 0
+			CONTINUE
+		SELECTCASE SP_COUNTRY_START:スタート勢力定数
 			CASE 特殊勢力スタート_士官
-				CFLAG:MASTER:所属 = 勢力
+				CALL CHANGE_COUNTRY(MASTER, スタート勢力)
 			CASE 特殊勢力スタート_奴隷
-				CFLAG:MASTER:所属 = 勢力
-				FOR LOCAL, 0, CHARANUM
-					IF TALENT:LOCAL:特殊勢力素質 == 勢力定数割り当て
-						TALENT:LOCAL:合意 = 1
-						CFLAG:LOCAL:好感度 = 800
-						CFLAG:LOCAL:依存度 = 300
-						CFLAG:LOCAL:面識 = 1
+				CALL CHANGE_COUNTRY(MASTER, スタート勢力)
+				FOR LOCAL:1, 0, CHARANUM
+					IF TALENT:(LOCAL:1):特殊勢力素質 == スタート勢力定数
+						TALENT:(LOCAL:1):合意 = 1
+						CFLAG:(LOCAL:1):好感度 = 800
+						CFLAG:(LOCAL:1):依存度 = 300
+						CFLAG:(LOCAL:1):面識 = 1
 					ENDIF
 				NEXT
 			CASE 特殊勢力スタート_捕虜
-				CFLAG:MASTER:捕虜先 = 勢力
+				CALL CAPTURE(MASTER, スタート勢力)
 		ENDSELECT
-	ENDIF
+		BREAK
+	NEXT
 	RETURN
 ENDIF
 
@@ -1375,9 +1379,8 @@ IF INRANGE(RESULT, 0, 99)
 	LOCAL = RESULT % 10
 	;勢力
 	LOCAL:1 = RESULT / 10
-
-	IF 勢力定数割り当て == LOCAL:1
-		PRINTFORML %SP_COUNTRY_NAME:勢力定数割り当て%でのスタートを選択しているため、ここでは強さを変更できません
+	IF GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:LOCAL) != -1
+		PRINTFORML %SP_COUNTRY_NAME:スタート勢力定数%でのスタートを選択しているため、ここでは強さを変更できません
 	ELSEIF SP_COUNTRY_NAME:(LOCAL:1) != "" && INRANGE(LOCAL, 0, 5)
 		SP_COUNTRY_RANK:(LOCAL:1) = LOCAL
 	ENDIF
@@ -1389,14 +1392,16 @@ IF INRANGE(RESULT, 100, 199)
 	LOCAL = RESULT % 10
 	;勢力
 	LOCAL:1 = RESULT / 10
-	IF 勢力定数割り当て == LOCAL:1
-		PRINTFORML スタートに指定した勢力の君主は指定時にしか変えられません
+	IF GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:LOCAL) != LOCAL
+		PRINTFORML  %SP_COUNTRY_NAME:スタート勢力定数%でのスタートを選択しているため、ここでは君主名を変更できません
 	ELSEIF SP_COUNTRY_NAME:(LOCAL:1) != "" && INRANGE(LOCAL, 0, 2) && SP_COUNTRY_RANK:(LOCAL:1) 
 		SP_COUNTRY_BOSSNAME:(LOCAL:1) = LOCAL
 	ENDIF
 ENDIF
 
-IF 勢力定数割り当て != 特殊勢力_野盗 && GROUPMATCH(RESULT, 200, 201)
+;野盗の領地変更
+;スタート勢力が野盗でない、野盗のランクが1以上（登場しない設定でない）、野盗勢力が存在しない（シナリオ側で作っていないあ）か野盗の都市が0（シナリオ側でその処理をしていない）
+IF GROUPMATCH(RESULT, 200, 201) && スタート勢力定数 != 特殊勢力_野盗 && SP_COUNTRY_RANK:特殊勢力_野盗 >= 1 && (GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:特殊勢力_野盗) != -1 || GET_OWN_CITY(GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:特殊勢力_野盗)) == 0)
 	野盗都市 = RESULT - 200
 ENDIF
 
@@ -1411,34 +1416,39 @@ PRINTFORML SLG用設定を選択してください（下に行くほどSLG側の
 PRINTFORML 一部例外を除き、これらの設定はゲーム中でも変更可能です
 CALL COLORPRINTFORM("デフォルト設定で遊ぶのを強くオススメします", COLOR("注意"), "L")
 CALL COLORPRINTFORM("その他形式でのバランステストは行っていません", COLOR("注意"), "L")
-PRINTL 設定 | 難易度 | 好感度補正 | 補正方式 | 兵力補正 | 継戦補正 | 敵対補正 |
-PRINTL [0]  |  簡単  |    高い    |   通常   | がっつり |   なし   |   EASY   | 初めて・嫁の活躍を見たい方向け
-PRINTL [1]  |  簡単  |    普通    |   通常   | がっつり | 武将：低 |   EASY   | 上の設定で少し物足りなくなった人に
-PRINTL [2]  |  簡単  |    普通    |   通常   |   強め   | 武将：通 |  NORMAL  | それぞれの設定を一通り試したい人向け
-PRINTL [3]  |  普通  |    低い    |   通常   |   弱め   | 回数：低 |  NORMAL  | キャラの能力に重点を置きたい人向け
-PRINTL [99] |  普通  |    無し    |   －－   |   弱め   | 回数：低 |  NORMAL  | デフォルト：恋と戦は別腹です
-PRINTL [4]  |  普通  |    無し    |   －－   | がっつり | 回数：通 |   HARD   | 愛の力のない純粋な戦略を楽しみたい方に
-PRINT [5]  |  困難  |    高い    |  倍率型  |   強め   | 武将：高 | LUNATIC  | 
-SETCOLOR COLOR("注意")
-PRINTL 周回前提：準備はできていますか？
+PRINTFORML AI強さ    ：まんまです
+PRINTFORML 好感度補正：好感度や従属度によるキャラ能力への補正の強さ
+PRINTFORML 兵力補正  ：部隊の兵力差がどれくらい戦闘結果に影響するか
+PRINTFORML 継戦補正  ：連戦している部隊が弱体化するか
+PRINTFORML 敵の強さ  ：敵部隊の強さ
+PRINTL 設定 | AI強さ | 好感度補正 | 兵力補正 | 継戦補正 | 敵の強さ |
+PRINTL [0]  |  簡単  |    高い    | がっつり |   なし   |   EASY   | 初めて・嫁の活躍を見たい方向け
+PRINTL [1]  |  簡単  |    普通    | がっつり | 武将：低 |   EASY   | 上の設定で少し物足りなくなった人に
+PRINTL [2]  |  簡単  |    普通    |   強め   | 武将：通 |  NORMAL  | それぞれの設定を一通り試したい人向け
+PRINTL [3]  |  普通  |    低い    |   弱め   | 回数：低 |  NORMAL  | キャラの能力に重点を置きたい人向け
+PRINTL [4]  |  普通  |    無し    | がっつり | 回数：通 |   HARD   | 愛の力のない純粋な戦略を楽しみたい方に
+PRINTL [5]  |  困難  |    高い    |   強め   | 武将：高 | LUNATIC  | 高難易度モード。敵がえれぇ強いぞ！
+PRINTL [99] |  普通  |    無し    |   弱め   | 回数：低 |  NORMAL  | デフォルト：恋と戦は別腹です。推奨！
+;SETCOLOR COLOR("注意")
+;PRINTL 周回前提：準備はできていますか？
 
-RESETCOLOR
-PRINT [6]  |  
-SETCOLOR COLOR("警告")
-PRINT 虐め  
-PRINTD |    普通    |  倍率型  |   弱め   | 武将：高 |  EXTRA   | 
-PRINTL 周回前提：まぁがんばれ
-RESETCOLOR
-
-PRINT [7]  |  
-SETCOLOR COLOR("警告")
-PRINT 虐め  
-PRINTD |    低い    |  倍率型  |   無し   | 回数：高 |  
-PRINT EXTRA+  
-PRINTD | 
-SETCOLOR COLOR("灰色")
-PRINTL ようこそ、悪夢へ
-RESETCOLOR
+;RESETCOLOR
+;PRINT [6]  |  
+;SETCOLOR COLOR("警告")
+;PRINT 虐め  
+;PRINTD |    普通    |  倍率型  |   弱め   | 武将：高 |  EXTRA   | 
+;PRINTL 周回前提：まぁがんばれ
+;RESETCOLOR
+;
+;PRINT [7]  |  
+;SETCOLOR COLOR("警告")
+;PRINT 虐め  
+;PRINTD |    低い    |  倍率型  |   無し   | 回数：高 |  
+;PRINT EXTRA+  
+;PRINTD | 
+;SETCOLOR COLOR("灰色")
+;PRINTL ようこそ、悪夢へ
+;RESETCOLOR
 
 
 
@@ -1450,71 +1460,47 @@ SELECTCASE RESULT
 CASE 0
 	CONFIG:300 = 0
 	CONFIG:309 = 1
-	CONFIG:310 = 0
 	CONFIG:312 = 3
 	CONFIG:313 = 0
 	CONFIG:314 = 0
 CASE 1
 	CONFIG:300 = 0
 	CONFIG:309 = 0
-	CONFIG:310 = 0
 	CONFIG:312 = 3
 	CONFIG:313 = 4
 	CONFIG:314 = 0
 CASE 2
 	CONFIG:300 = 0
 	CONFIG:309 = 0
-	CONFIG:310 = 0
 	CONFIG:312 = 2
 	CONFIG:313 = 5
 	CONFIG:314 = 1
 CASE 3
 	CONFIG:300 = 1
 	CONFIG:309 = 3
-	CONFIG:310 = 0
 	CONFIG:312 = 1
 	CONFIG:313 = 1
 	CONFIG:314 = 1
 CASE 4
 	CONFIG:300 = 1
 	CONFIG:309 = 2
-	CONFIG:310 = 0
 	CONFIG:312 = 3
 	CONFIG:313 = 2
 	CONFIG:314 = 2
 CASE 5
 	CONFIG:300 = 2
 	CONFIG:309 = 1
-	CONFIG:310 = 2
 	CONFIG:312 = 2
 	CONFIG:313 = 6
 	CONFIG:314 = 3
-CASE 6
-	CONFIG:300 = 3
-	CONFIG:309 = 0
-	CONFIG:310 = 2
-	CONFIG:312 = 1
-	CONFIG:313 = 6
-	CONFIG:314 = 4
-CASE 7
-	CONFIG:300 = 3
-	CONFIG:309 = 3
-	CONFIG:310 = 2
-	CONFIG:312 = 0
-	CONFIG:313 = 3
-	CONFIG:314 = 5
 CASE 99
 CASEELSE
 	CLEARLINE 1
 	GOTO INPUT_LOOP_SLG
 ENDSELECT
 
-IF INRANGE(RESULT, 0, 7)
+IF INRANGE(RESULT, 0, 5)
 	PRINTL 設定が変更されました
-	SIF RESULT == 6
-		PRINTL なお、難易度はゲーム中変更できません。
-	SIF RESULT == 7
-		PRINTL なお、難易度及び敵対補正がロックされました。
 ELSE
 	PRINTW 設定を変更せずに開始します。
 ENDIF
@@ -1532,7 +1518,7 @@ IF TIME == 0
 ELSE
 	LOCALS:0 = 戦
 ENDIF
-LOCAL:0 = GET_COUNTRY_BOSS(CFLAG:MASTER:1)
+LOCAL:0 = GET_COUNTRY_BOSS(CFLAG:MASTER:所属)
 IF LOCAL:0 >= 0
 	LOCALS:1 = %NAME:(LOCAL:0)%
 ELSE
@@ -1551,7 +1537,7 @@ IF TIME == 0
 ELSE
 	LOCALS:0 = 戦
 ENDIF
-LOCAL:0 = GET_COUNTRY_BOSS(CFLAG:MASTER:1)
+LOCAL:0 = GET_COUNTRY_BOSS(CFLAG:MASTER:所属)
 IF LOCAL:0 >= 0
 	LOCALS:1 = %NAME:(LOCAL:0)%
 ELSE
@@ -1639,18 +1625,17 @@ PRINTL
 $INPUT_LOOP
 INPUT
 IF RESULT == 0
-	FLAG:3 = 勢力
-	CFLAG:MASTER:所属 = 勢力
+	FLAG:OP選択勢力 = 勢力
 	CITY_OWNER:都市 = 勢力
 	COUNTRY_BOSS:勢力 = GET_ID(MASTER)
 	COUNTRY_COLOR:勢力 = TALENT:MASTER:髪色 == 0 ? 0x404040 # TALENT:MASTER:髪色
 	;経済規模に対する最大兵数の半分を得る
 	COUNTRY_SOLDIER:勢力 = GET_SUM_ECONOMY(勢力) / 20
 	CITY_SOLDIER:都市 = 500
+	CALL CHANGE_COUNTRY(MASTER, 勢力)
 	FOR LOCAL, 0, CHARANUM
 		IF 士官:LOCAL == 1
-			CFLAG:LOCAL:所属 = 勢力
-			CFLAG:LOCAL:特殊状態フラグ = 0
+			CALL CHANGE_COUNTRY(LOCAL, 勢力)
 		ENDIF
 	NEXT
 	REDRAW 1

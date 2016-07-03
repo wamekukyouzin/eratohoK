@@ -371,12 +371,20 @@ RETURNF ARGS:2
 ;-------------------------------------------------
 ;射精対象のキャラと部位をスタックする関数
 ;ARG:0=射精元のキャラ番号、ARG:1=射精先のキャラ番号、ARG:2=射精部位(※資料フォルダの変数表を参照)、ARG:3=上書きするかどうか
+;0=体(指定なし) 1=膣内 2=アナル 3=手 4=口 5=胸 6=足 7=尻尾 8=顔 9=髪 10=腋 11=尻 12=オナホ 13=触手 14 = ゴム
+
 ;なお膣射・腸射を指定すると他の射精箇所が全てリセットされ、そのコマンド中は以後の上書きも禁止される
+;さらにゴム射精は膣射・腸射を上書きする
 ;-------------------------------------------------
 @STACK_SPERM(ARG:0, ARG:1, ARG:2, ARG:3 = 1)
-;既に膣射・腸射先が指定されていれば戻る
+;ゴム装備中は無理矢理オーバライドする
+IF IS_EQUIP_TARGET(ARG:0, 75)
+	ARG:2 = 14
+ENDIF
+
+;既に膣射・腸射、ゴム先が指定されていれば戻る
 FOR LOCAL:0, 0, 20
-	IF GROUPMATCH(TCVAR:(ARG:0):(LOCAL:0 + 420), 1, 2)
+	IF GROUPMATCH(TCVAR:(ARG:0):(LOCAL:0 + 420), 1, 2, 14)
 		RETURN
 	ENDIF
 NEXT
@@ -390,8 +398,8 @@ IF !ARG:3
 	NEXT
 ENDIF
 
-;もしARG:2が膣orアナルなら今までの指定をリセットして新たに上書き
-IF ARG:2 == 1 || ARG:2 == 2
+;もしARG:2が膣orアナルorゴムなら今までの指定をリセットして新たに上書き
+IF ARG:2 == 14 || ARG:2 == 1 || ARG:2 == 2
 	FOR LOCAL:0, 0, 20
 		TCVAR:(ARG:0):(LOCAL:0 + 400) = -1
 		TCVAR:(ARG:0):(LOCAL:0 + 420) = 0
@@ -450,15 +458,15 @@ RETURNF 0
 ;-------------------------------------------------
 @IS_INITIATIVE_SETTING(ARG:0)
 #FUNCTION
-IF FLAG:10 == -1
+IF FLAG:主導権所有者 == -1
 	RETURNF 1
 ENDIF
 
-IF FLAG:10 == ARG:0
+IF FLAG:主導権所有者 == ARG:0
 	RETURNF 2
 ENDIF
 
-IF (IS_MPLY(FLAG:10) && IS_MPLY(ARG:0)) || (IS_MTAR(FLAG:10) && IS_MTAR(ARG:0))
+IF (IS_MPLY(FLAG:主導権所有者) && IS_MPLY(ARG:0)) || (IS_MTAR(FLAG:主導権所有者) && IS_MTAR(ARG:0))
 	RETURNF 2
 ENDIF
 
@@ -473,7 +481,6 @@ PRINTFORMW %ANAME(ARG:0)%と<恋人>になりました
 RESETCOLOR
 
 TALENT:(ARG:0):恋人 = 1
-FLAG:48 += 1
 
 ;既成事実Lv2に相当
 CALL SET_COUPLE_STEP(ARG:0, 2)
@@ -493,7 +500,7 @@ RETURNF LOCAL:0 - LOCAL:1
 @GET_INITIATIVE_VALUE(ARG:0)
 #FUNCTION
 ;ウフフ中はウフフ主導度
-IF FLAG:50
+IF FLAG:ウフフフラグ
 	LOCAL:0 = ABL:(ARG:0):主導度Ｕ
 ;非ウフフ中は日常主導度
 ELSE

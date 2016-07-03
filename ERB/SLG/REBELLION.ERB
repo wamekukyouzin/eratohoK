@@ -20,13 +20,13 @@ SIF !INRANGE(DAY , ARG:1 , ARG:2)
 SIF CSTR:MASTER:99 == ARGS:0
 	RETURNF 0
 ;無所属でない／いずれかの勢力の捕虜ではない／放浪もしくは死亡状態ではないか
-SIF CFLAG:(LOCAL:0):1 == 0 || CFLAG:(LOCAL:0):9 || CFLAG:(LOCAL:0):12
+SIF CFLAG:(LOCAL:0):所属 == 0 || CFLAG:(LOCAL:0):捕虜先 || CFLAG:(LOCAL:0):特殊状態
 	RETURNF 0
 ;さすがに君主が謀反起こしたらダメですよね。
-SIF GET_COUNTRY_BOSS(CFLAG:(LOCAL:0):1) == LOCAL:0
+SIF GET_COUNTRY_BOSS(CFLAG:(LOCAL:0):所属) == LOCAL:0
 	RETURNF 0
 ;所属勢力の支配都市数が指定範囲内か
-SIF !INRANGE(GET_OWN_CITY(CFLAG:(LOCAL:0):1), ARG:3 , ARG:4)
+SIF !INRANGE(GET_OWN_CITY(CFLAG:(LOCAL:0):所属), ARG:3 , ARG:4)
 	RETURNF 0
 ;確実に謀反起こすのもどうかと思うので％ロール
 SIF RAND:100 > ARG:5 
@@ -78,6 +78,57 @@ FOR LOCAL:1 , 0 , MAX_CITY
 			SIF LOCAL:0 == 0
 				RETURN 0
 		NEXT
+	ENDIF
+NEXT
+;普通ここまできませんが念のため
+RETURN 2
+
+
+
+;-------------------------------------------------
+;汎用型ランダム街強奪候補選択関数
+;ARG:0勢力から独立したARG:1勢力がARG:2都市かっぱらう関数です。
+;ARG:0のある一都市を奪い、続いてその都市に連続しているARG:0の都市のみを奪います。
+;LOCAL 0:残り強奪予定都市数, 1:健気なカウンタ君, 2:判定する都市番号
+;RETURN 0:強奪できました♪, 1:もしかして：全部奪っても足りないか０を指定, 2:もっとおかしな何かが起きました
+;-------------------------------------------------
+@STEAL_CITIES_RESTRICTED(ARG:0, ARG:1, ARG:2)
+;都市数のチェック
+SIF MATCH(CITY_OWNER , ARG:0) <= ARG:2 || ARG:2 == 0
+	RETURN 1
+;奪う都市数の設定
+LOCAL:0 = ARG:2
+;都市のシャッフル
+CALL FISHER_YATES_SHAFFLE(MAX_CITY)
+FOR LOCAL:1 , 0 , MAX_CITY
+	;シャッフルした配列から都市番号を参照
+	LOCAL:2 = SHAFFLE_ARRAY:(LOCAL:1)
+	;反乱元の勢力が支配していれば支配勢力を差し替え
+	IF CITY_OWNER:(LOCAL:2) == ARG:0
+		CALL TAKEOVER_CITY_FROM_NO(ARG:1, LOCAL:2)
+		PRINTFORML %GET_CITYNAME(LOCAL:2)%を奪いました
+		LOCAL:0 --
+		;予定数が0になったら終了
+		SIF LOCAL:0 == 0
+			RETURN 0
+		LOCAL:4 = 0
+		FOR LOCAL:3, 0, 10
+			SIF CITY_ROOT:(LOCAL:2):(LOCAL:3) < 1
+				BREAK
+			IF CITY_TYPE:(CITY_ROOT:(LOCAL:2):(LOCAL:3)) == 1
+				LOCAL:4 = (CITY_ROOT:(CITY_ROOT:(LOCAL:2):(LOCAL:3)):0 == LOCAL:2 ? CITY_ROOT:(CITY_ROOT:(LOCAL:2):(LOCAL:3)):1 # CITY_ROOT:(CITY_ROOT:(LOCAL:2):(LOCAL:3)):0)
+			ELSE
+				LOCAL:4 = CITY_ROOT:(LOCAL:2):(LOCAL:3)
+			ENDIF
+			IF LOCAL:4
+				CALL TAKEOVER_CITY_FROM_NO(ARG:1, LOCAL:4)
+				PRINTFORML %GET_CITYNAME(LOCAL:4)%を奪いました
+				LOCAL:0 --
+			ENDIF
+			SIF LOCAL:0 == 0
+				RETURN 0
+		NEXT
+		RETURN 1
 	ENDIF
 NEXT
 ;普通ここまできませんが念のため

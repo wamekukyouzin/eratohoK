@@ -11,12 +11,9 @@ VARSET 参加者, -1
 VARSET 参加者数
 
 サキュバス = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_サキュバス))
-;サキュバスによる主人公以外のキャラへの自動調教
-IF FLAG:28
-	CALL TRAIN_BY_SUCCUBUS
-ENDIF
+
 ;四回ごとに誘われる
-IF FLAG:47 > 0 && FLAG:47 % 4 == 0
+IF FLAG:逆調教回数 > 0 && FLAG:逆調教回数 % 4 == 0
 	PRINTFORML 調教の時間が近づくと、%ANAME(MASTER)%はいつものように夢の世界で拘束され、
 	PRINTFORMW あとはサキュバス達に弄ばれるのを待つのみとなった
 	PRINTFORML やってきたサキュバスは、そろそろ素直になってくれたかしらと訪ねてきた
@@ -34,8 +31,7 @@ IF FLAG:47 > 0 && FLAG:47 % 4 == 0
 		PRINTFORMW %ANAME(MASTER)%は夢魔になりました
 		RESETCOLOR
 		SETBIT TALENT:MASTER:特殊勢力陥落系, 特殊勢力_サキュバス
-		CFLAG:MASTER:1 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_サキュバス))
-		CFLAG:MASTER:9 = 0
+		CALL CHANGE_COUNTRY(MASTER, サキュバス)
 		FOR LOCAL:0, 0, CHARANUM
 			IF TALENT:(LOCAL:0):特殊勢力素質 == 特殊勢力_サキュバス
 				TALENT:(LOCAL:0):合意 = 1
@@ -66,7 +62,7 @@ IF IS_MALE(MASTER) || RAND:3
 		CALL FISHER_YATES_SHAFFLE(候補数)
 		FOR LOCAL, 0, MIN(候補数, 4)
 			参加者:参加者数 = 候補:(SHAFFLE_ARRAY:(LOCAL:0))
-			CFLAG:(参加者:参加者数):6 = 1
+			CFLAG:(参加者:参加者数):調教参加フラグ = 1
 			参加者数 ++
 		NEXT
 		IF 参加者数
@@ -90,7 +86,7 @@ IF IS_MALE(MASTER) || RAND:3
 				PRINTFORMW かつて%ANAME(参加者:0)%\@ 参加者数 > 1 ? たち # \@が%ANAME(MASTER)%と知り合い「だった」ことを、掴んでいるようだ……
 				PRINTFORMW さあ楽しみましょう。サキュバスがそのように言うと、%ANAME(参加者:0)%\@ 参加者数 > 1 ? たち # \@は%ANAME(MASTER)%に群がった……
 			ENDIF
-			FLAG:29 = 1
+			FLAG:特殊勢力逆調教知り合いフラグ = 1
 		ENDIF
 	ENDIF
 ENDIF
@@ -102,24 +98,24 @@ ENDIF
 
 FOR LOCAL:0, 0, ループ数
 	FOR LOCAL:1, 0, CHARANUM
-		IF TALENT:(LOCAL:1):特殊勢力素質 == 特殊勢力_サキュバス && !CFLAG:(LOCAL:1):6 && CFLAG:(LOCAL:1):所属 == サキュバス
+		IF TALENT:(LOCAL:1):特殊勢力素質 == 特殊勢力_サキュバス && !CFLAG:(LOCAL:1):調教参加フラグ && CFLAG:(LOCAL:1):所属 == サキュバス
 			参加者:参加者数 =  LOCAL:1
 			参加者数 ++
-			CFLAG:(LOCAL:1):6 = 1
-			CFLAG:(LOCAL:1):64 = 1
-			CFLAG:(LOCAL:1):65 = 1
+			CFLAG:(LOCAL:1):調教参加フラグ = 1
+			CFLAG:(LOCAL:1):TEXT_LAST非表示 = 1
+			CFLAG:(LOCAL:1):能力固定フラグ = 1
 			BREAK
 		ENDIF
 	NEXT
 NEXT
 
 FOR LOCAL:0, 0, 参加者数
-	CFLAG:(参加者:(LOCAL:0)):6 = 1
+	CFLAG:(参加者:(LOCAL:0)):調教参加フラグ = 1
 NEXT
 ;逆調教モード
-FLAG:12 = 4
+FLAG:調教モード = 4
 ;ウフフモード
-FLAG:50 = 1
+FLAG:ウフフフラグ = 1
 ;アイテムを一通り追加
 ITEM:A_ローター = 1
 ITEM:A_バイブ = 1
@@ -136,7 +132,7 @@ ITEM:A_口枷 = 1
 ITEM:A_媚薬 = 99
 ITEM:A_排卵誘発剤 = 99
 ;回数をカウント
-FLAG:47 ++
+FLAG:逆調教回数 ++
 ;解放カウンタをリセット
-CFLAG:MASTER:43 = 0
+CFLAG:MASTER:解放カウンタ = 0
 

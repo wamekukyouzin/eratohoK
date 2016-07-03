@@ -1,0 +1,232 @@
+﻿@GAIRAI_PHEROMONE
+#DIM 対象
+#DIM 外来人
+#DIM 候補キャラ,1000
+#DIM 候補数
+#DIM 勢力番号
+
+外来人 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_外来人))
+
+SIF 外来人 == -1
+	RETURN -1
+
+対象 = ID_TO_CHARA(DVAR:フェロモン中毒)
+
+;前回の発生からの状態変化をみる
+IF 対象 != -1
+	;君主になっているなら解除
+	IF 対象 == GET_COUNTRY_BOSS(CFLAG:対象:所属)
+		DVAR:フェロモン中毒 = 0
+		RETURN -1
+	ENDIF
+
+	;外来人所属になってるなら解除
+	IF CFLAG:対象:所属 == 外来人
+		DVAR:フェロモン中毒 = 0
+		RETURN -1
+	ENDIF
+	
+	;死んでいたら戻す
+	IF CFLAG:対象:特殊状態 == 2
+		DVAR:フェロモン中毒 = 0
+		RETURN -1
+	ENDIF
+	
+	;未登場
+	IF ALLSAMES(CFLAG:LOCAL:特殊状態, CFLAG:LOCAL:所属, 0)
+		DVAR:フェロモン中毒 = 0
+		RETURN -1
+	ENDIF
+	
+	;オンナをやめたなら解除
+	IF !IS_FEMALE(対象)
+		DVAR:フェロモン中毒 = 0
+		RETURN -1
+	ENDIF
+
+	;捕虜になっているなら戻す
+	SIF CFLAG:対象:捕虜先
+		RETURN -1
+;対象がいなければ新たに設定する
+ELSE
+	VARSET 候補キャラ, __INT_MIN__
+	FOR LOCAL, 0, CHARANUM
+		;所属が外来人でなく、捕虜でなく、女。
+		;MASTERでなく、君主でなく、動物でなく、特殊キャラでなく、特殊勢力キャラでなく、死んでおらず、未登場でもない
+{
+		IF CFLAG:(LOCAL):所属 != 外来人 && !CFLAG:(LOCAL):捕虜先 && IS_FEMALE(LOCAL) 
+		&& LOCAL != MASTER && LOCAL != GET_COUNTRY_BOSS(CFLAG:LOCAL:所属) && !IS_ANIMAL(LOCAL) && NO:LOCAL < 2000 && !TALENT:LOCAL:特殊勢力素質
+		&& CFLAG:LOCAL:特殊状態 != 2 && !ALLSAMES(CFLAG:LOCAL:特殊状態, CFLAG:LOCAL:所属, 0)
+}
+			候補キャラ:LOCAL = RAND:1000
+			SIF CFLAG:LOCAL:所属 == CFLAG:MASTER:所属
+				候補キャラ:LOCAL = 候補キャラ:LOCAL * 2 / 3
+				
+			候補数 ++
+		ENDIF
+	NEXT
+	SIF 候補数 == 0
+		RETURN -1
+	対象 = FINDELEMENT(候補キャラ, MAXARRAY(候補キャラ))
+	DVAR:フェロモン中毒 = GET_ID(対象)
+ENDIF
+
+DAILY_NAME = フェロモン発生装置
+CALL DAILY_START()
+
+IF DVAR:フェロモン中毒回数 == 0
+	PRINTFORML 外来人が性奴調教用の機械を開発した
+	PRINTFORML 女を引き寄せるフェロモンを発生させるのだ
+	PRINTFORML 早速実験を行った結果、%ANAME(対象)%が引き寄せられた
+	PRINTFORML その表情は明らかに正気ではなく、発情したような貌を見せている
+	PRINTFORML %ANAME(対象)%はだらしなく舌を垂らしながら秘所を弄りまわしながらフラフラと外来人の元に歩み寄る
+	PRINTFORMW 実験成功を確信した彼は満足そうに笑うと、%ANAME(対象)%を物陰へと連れ込んだ
+ELSE
+	PRINTFORML 再びフェロモン発生装置を使用した
+	PRINTFORML 今回はフェロモンの中毒性を確かめるための実験だ
+	PRINTFORML しばらく待っていると、フラフラと%ANAME(対象)%がやってきた
+	PRINTFORML その表情はやはり発情しきっており、期待に満ちている
+	PRINTFORMW 外来人は%ANAME(対象)%の様子に実験の成功を確信して満足そうに笑うと、物陰へと連れ込んだ
+ENDIF
+PRINTFORML 
+SELECTCASE RAND:20
+	CASE 0
+		PRINTFORML %ANAME(対象)%は四つん這いの格好で外来人に犯されている
+		PRINTFORML 外来人が乱暴に腰を打ち付ける度に、肉の打ち合う音と共に%ANAME(対象)%の嬌声がリズミカルに響く
+		PRINTFORML 激しいピストンに子宮の疼きが我慢できなくなった%ANAME(対象)%は、甘える様に種付けをおねだりしだす
+		PRINTFORMW 彼がそれに応える様に彼女の奥深くで射精すると、%ANAME(対象)%は悦びの声を上げて絶頂した
+	CASE 1
+		PRINTFORML %ANAME(対象)%は犬のような恰好で外来人に犯されている
+		PRINTFORML 彼に覆いかぶされながら激しくペニスをねじ込まれ、%ANAME(対象)%は悦びの声を上げて身を震わせる
+		PRINTFORML 一突き毎に脳天まで痺れる様な快楽が%ANAME(対象)%を襲い、倒れそうになるのを震える腕で何とか堪える
+		PRINTFORMW 獣の様な激しい交尾は日が暮れるまで続き、%ANAME(対象)%は何度も種付け絶頂を味わう事になった
+	CASE 2
+		PRINTFORML %ANAME(対象)%は外来人に押し倒されて乱舞にペニスをねじ込まれている
+		PRINTFORML 子宮に響くような激しいストロークに、%ANAME(対象)%はだらしない表情でヒィヒィと喘いでいる
+		PRINTFORML 雄々しい抽送に体はすっかり屈服しており、子種をねだる様に膣肉をひくつかせてペニスを刺激する
+		PRINTFORMW やがて彼の精液が勢いよく放たれると、%ANAME(対象)%はあられもない声と共に身を仰け反らせた
+	CASE 3
+		PRINTFORML %ANAME(対象)%はまんぐり返しの姿勢で激しくペニスを打ち込まれている
+		PRINTFORML 野太いペニスで膣肉をゴリゴリと抉られながら、%ANAME(対象)%は涙を流して悦びの声を上げる
+		PRINTFORML 不意にズン！と一際深くに打ち込まれると、%ANAME(対象)%は頭が真っ白になって絶頂してしまった
+		PRINTFORMW すっかり肉体を支配された%ANAME(対象)%は、その後も彼に犯されるがままにヨガリ狂わされた
+	CASE 4
+		PRINTFORML %ANAME(対象)%は外来人に押し倒され正常位で犯されている
+		PRINTFORML その表情は悦びに満ちており、震える手足で彼にしがみついて色っぽく喘いでいる
+		PRINTFORML 卑猥な蜜音と共にペニスが出入りする度に、%ANAME(対象)%の膣は子種を求めて蠢きペニスに絡みつく
+		PRINTFORMW その締め付けに彼が我慢できずに膣内射精すると、%ANAME(対象)%はアヘ顔を晒して絶頂した
+	CASE 5
+		PRINTFORML %ANAME(対象)%は全裸に剥かれて乱暴に犯されている
+		PRINTFORML 彼のペニスを深々と受け入れながら、%ANAME(対象)%は雄を誘う様な淫靡な表情で舌を絡ませている
+		PRINTFORML まるで娼婦の様な%ANAME(対象)%の淫らな仕草に、外来人の興奮も加速して更に激しく腰を打ち付ける
+		PRINTFORMW %ANAME(対象)%は激しいピストンにますます悦び身をくねらせながら、絶頂に昇って行った
+	CASE 6
+		PRINTFORML 外来人の極太のペニスで激しくボルチオを小突かれて%ANAME(対象)%は絶頂した
+		PRINTFORML 彼の肉欲のままに延々と犯され続けた%ANAME(対象)%は、すっかり雌の顔をしながらビクビクと痙攣する
+		PRINTFORML 絶頂の連続で頭を惚けさせながらも、その媚肉はきつくペニスを締め付け更なる快楽を求めている
+		PRINTFORMW その後も二人は時間を忘れてまぐわい続け、%ANAME(対象)%は何度も彼の精を受け止めた
+	CASE 7
+		PRINTFORML %ANAME(対象)%は外来人の上でだらしない表情で腰を振っている
+		PRINTFORML ペニスが出入りする度に膣肉が抉られて、%ANAME(対象)%はたまらないといった声を上げて身をくねらせる
+		PRINTFORML 不意に腰を突き上げられ、子宮をキックされるような衝撃が走り、%ANAME(対象)%は大きく背をのけぞらせた
+		PRINTFORMW %ANAME(対象)%は快楽で頭を真っ白にして痙攣しながら、目を♥にして悦びの言葉を絞り出した
+	CASE 8
+		PRINTFORML %ANAME(対象)%は地面に押し倒されて激しくペニスをねじ込まれている
+		PRINTFORML 彼の情熱的なセックスで何度も絶頂させられた%ANAME(対象)%は、体に力が入らずされるがままになっている
+		PRINTFORML 絶頂して敏感になった媚肉をゴリゴりと抉られると、%ANAME(対象)%は壊れた人形のようにヨガリ狂う
+		PRINTFORMW しかし彼の攻めは一向に衰えず、%ANAME(対象)%はその後も散々虐められてしまった
+	CASE 9
+		PRINTFORML %ANAME(対象)%は外来人に跨りながら淫らに身体をくねらせている
+		PRINTFORML 蜜壺をギチギチに広げて極太のペニスを咥え込み、その逞しさに%ANAME(対象)%は悦びの表情を見せて喘ぐ
+		PRINTFORML 外来人は%ANAME(対象)%の奉仕に満足しながら、その淫靡さを誉めると、ご褒美の種付けを予告する
+		PRINTFORMW その言葉に%ANAME(対象)%は悦びで子宮を疼かせ、ご褒美をもらおうとさらに激しく奉仕を続けた
+	CASE 10
+		PRINTFORML %ANAME(対象)%は秘所から精液を溢れさせながら地べたに横たわっている
+		PRINTFORML 散々犯されたにも関わらずその表情は悦びに満ちており、息を荒げながら時折ビクビクと震えている
+		PRINTFORML たっぷり膣出しされた下腹部を外来人に優しく撫でられると、%ANAME(対象)%は身震いをしてまた達した
+		PRINTFORMW 子宮の疼きが止まらない%ANAME(対象)%はまんこを指で割れ開くと次をおねだりしだした
+	CASE 11
+		PRINTFORML %ANAME(対象)%は片足を抱え上げられながら激しく突き上げられている
+		PRINTFORML 一突き毎に子宮に響くような荒々しいピストンに、%ANAME(対象)%はあられもない声を上げて悦ぶ
+		PRINTFORML 快楽のあまり身体がガクガクと震えて崩れ落ちそうになるのを、壁に寄りかかって何とか堪えている
+		PRINTFORMW そんな彼女に構うことなく攻めを激しさを増し、%ANAME(対象)%もヒィヒィと喘ぎながらそれを受け止めた
+	CASE 12
+		PRINTFORML %ANAME(対象)%は立バックの姿勢で激しく犯されている
+		PRINTFORML 脳天まで響くストロークで%ANAME(対象)%の頭の中は真っ白になり、喉から呻くような声を漏らしている
+		PRINTFORML 荒々しいセックスに身体はすっかり躾けられ、%ANAME(対象)%は膣全体で彼のペニスの形を覚え込まされている
+		PRINTFORMW 不意に勢いよく彼の精を放たれると、%ANAME(対象)%は強烈な絶頂と共に無様に潮を吹いた
+	CASE 13
+		PRINTFORML %ANAME(対象)%は彼の股の間に跪いてペニスに奉仕している
+		PRINTFORML だらしなく開ききった割れ目からはドロリと白濁液が溢れており、すでに何度も犯されたことを物語る
+		PRINTFORML しかし%ANAME(対象)%は自らを何度も絶頂に導いてくれた逞しいペニスに対し、愛おしそうに奉仕している
+		PRINTFORMW やがてペニスが復活すると、%ANAME(対象)%は彼にしがみつくようにして慈悲をおねだりした
+	CASE 14
+		PRINTFORML %ANAME(対象)%は対面座位の格好で彼のペニスを咥え込んでいる
+		PRINTFORML 抱きしめられながらトントントンと絶え間なく子宮を小突かれて、%ANAME(対象)%はすっかりトロけきっている
+		PRINTFORML 膣肉は痙攣しながらぎゅうぎゅうとペニスを締め付けて、雌の本能のままに彼の子種を催促している
+		PRINTFORMW 限界を迎えた彼が無遠慮に奥深くで種を放つと、%ANAME(対象)%は悦びの声ととともにアクメに達した
+	CASE 15
+		PRINTFORML %ANAME(対象)%は外来人に激しく犯されながらヨガリ狂っている
+		PRINTFORML 彼が低く唸って膣内射精すると、その熱で%ANAME(対象)%は身を反らしてあられもない声を上げて絶頂した
+		PRINTFORML ビュー♥ビュー♥と勢いよく子宮に注がれるザーメンを感じて、%ANAME(対象)%は痙攣しながら連続絶頂する
+		PRINTFORMW 射精を終えた彼がペニスを引き抜くと、まんこから卑猥な音と共にドロリと精液が溢れ出た
+	CASE 16
+		PRINTFORML %ANAME(対象)%は彼と舌を絡ませながら獣の様にまぐわっている
+		PRINTFORML 膣を深く抉られながら強く舌を吸われると%ANAME(対象)%は頭が真っ白になってしまいあられもなく喘ぐ
+		PRINTFORML 全身が溶ける様な快感に、%ANAME(対象)%は目を♥にして彼にしがみつき、さらに激しく腰を振りだす
+		PRINTFORMW 二人は本能のままの濃厚なセックスに、夢中になって腰を打ち付けあった
+	CASE 17
+		PRINTFORML %ANAME(対象)%は首輪をつけられながら背後から犯されている
+		PRINTFORML ぱぁんぱぁん、と外来人はまるでペットを躾けるかのように%ANAME(対象)%に激しく腰を打ち付ける
+		PRINTFORML %ANAME(対象)%は快楽のあまりアヘアヘとまるで犬の様にだらしなく舌を垂らしながら、ヨガリ狂っている
+		PRINTFORMW 子宮へと彼の子種をマーキングされると、%ANAME(対象)%は獣の様な声を上げて絶頂に達した
+	CASE 18
+		PRINTFORML %ANAME(対象)%は目隠しをされながら外来人に犯されている
+		PRINTFORML 一切の遠慮もない雄々しいピストンに、%ANAME(対象)%はマスクの下でアヘ顔になりながらヨガリ狂う
+		PRINTFORML 目が見えない分、ペニスの形をハッキリと感じてしまい、膣全体を彼のペニス専用に調教されていく
+		PRINTFORMW すっかり躾けられた子宮に膣内射精をされると、%ANAME(対象)%は胎内に広がる熱を感じながら絶頂した
+	CASE 19
+		PRINTFORML %ANAME(対象)%はエヘエヘと涎を垂らしながら犯されている
+		PRINTFORML 実験の為にフェロモンを過剰に嗅がされた%ANAME(対象)%は、身も心も発情した雌犬同然にされてしまっている
+		PRINTFORML 彼がペニスをグリグリと深くねじ込むと、%ANAME(対象)%はビクンと大きく体を跳ねさせて悦びの声を上げた
+		PRINTFORMW %ANAME(対象)%はその後もひたすら種付け交尾をねだり、何度も子宮にザーメンを注がれた
+ENDSELECT
+
+CALL FUCK_SP(対象, "欲望, 精愛, 奉仕, 性交, 性技, Ｖ, Ｂ, Ｃ, Ｍ", "膣内射精, 処女喪失, キス喪失", 勢力番号, GET_SPERM_ID("外来人"), @"外来人の\@ RAND:2 ? 唇 # ペニス \@", "外来人", "")
+
+PRINTFORML 
+
+IF GETBIT(TALENT:対象:特殊勢力陥落系, 特殊勢力_外来人)
+	PRINTFORML %ANAME(対象)%はかつて彼らに刻まれた実験動物の性を思い出した
+	PRINTFORML こちらを見下ろしながら首輪を差し出してくる彼に対し、%ANAME(対象)%は躊躇なく首を差し出した
+	PRINTFORMW その表情は屈辱でも羞恥でもなく、悦びと期待に満ちていた
+	CALL COLORPRINTFORM(@"%ANAME(対象)%は再び外来人の実験動物に成り下がった…", COLOR("ピンク"))
+	PRINTFORMW 
+	CALL CHANGE_COUNTRY(対象, 外来人)
+	DVAR:フェロモン中毒 = 0
+	DVAR:フェロモン中毒回数 = 0
+ELSEIF DVAR:フェロモン中毒回数 < 3
+	PRINTFORML %ANAME(対象)%が気を失う程犯した後、彼は装置を持ってさっさと立ち去った
+	IF DVAR:フェロモン中毒回数 == 0
+		PRINTFORMW 正気に戻った%ANAME(対象)%は自らの痴態に顔を真っ赤にしながらも、心の底で次を期待していた
+	ELSE
+		PRINTFORMW 正気に戻った%ANAME(対象)%は自らの痴態に顔を真っ赤にしながらも、微かに子宮の疼きを覚えていた
+		DVAR:フェロモン中毒 = 対象
+	ENDIF
+	DVAR:フェロモン中毒回数 ++
+ELSE
+	PRINTFORML %ANAME(対象)%はすっかりフェロモン中毒になってしまったようだ
+	PRINTFORML 立ち去ろうとする外来人にすがりついて、自分を今後も飼ってくれるように頼んだ
+	PRINTFORML 彼は下卑た笑みを浮かべて%ANAME(対象)%を見下ろすと、首輪を差し出してきた
+	PRINTFORML その意味を察した%ANAME(対象)%は一瞬迷ったものの、即座に自らの首を差し出した
+	PRINTFORMW 彼は新しいペットの尻を撫でまわしながら拠点へと連れ帰った
+	SETBIT TALENT:対象:特殊勢力陥落系, 特殊勢力_外来人
+	CALL COLORPRINTFORM(@"%ANAME(対象)%は外来人の実験動物に成り下がった…", COLOR("ピンク"))
+	PRINTFORMW 
+	CALL GAIRAI_FALLEN_LEAVE_MARK(対象)
+	CALL CHANGE_COUNTRY(対象, 外来人)
+	DVAR:フェロモン中毒 = 0
+	DVAR:フェロモン中毒回数 = 0
+ENDIF
+
+RETURN

@@ -87,12 +87,17 @@ BASE:LOCAL:体力 = MAXBASE:LOCAL:体力
 BASE:LOCAL:気力 = MAXBASE:LOCAL:気力
 BASE:LOCAL:精神力 = MAXBASE:LOCAL:精神力
 ABL:LOCAL:Ｃ感 = 3
-ABL:LOCAL:欲望 = 8
-ABL:LOCAL:性技 = 3
+ABL:LOCAL:欲望 = 5
+ABL:LOCAL:性技 = 4
 ABL:LOCAL:性知識 = 5
-ABL:LOCAL:奉仕 = 1
-ABL:LOCAL:性交 = 10
-ABL:LOCAL:射精 = 5
+ABL:LOCAL:奉仕 = 4
+ABL:LOCAL:性交 = 2
+ABL:LOCAL:露出 = 3
+ABL:LOCAL:射精 = 3
+ABL:LOCAL:排泄 = 2
+ABL:LOCAL:主導度Ｕ = 700
+ABL:LOCAL:主導度Ｎ = 300
+ABL:LOCAL:倒錯度 = 600
 EXP:LOCAL:絶頂経験 = 500
 ;素質外来人の特殊効果で勝ちを拾っていく
 ABL:LOCAL:武闘 = 30 + RAND(10, 20) + 5 * SP_COUNTRY_RANK:(特殊勢力_外来人)
@@ -123,13 +128,17 @@ FOR LCOUNT, 0, 14
 	BASE:LOCAL:気力 = MAXBASE:LOCAL:気力
 	BASE:LOCAL:精神力 = MAXBASE:LOCAL:精神力
 	ABL:LOCAL:Ｃ感 = 3
-	ABL:LOCAL:欲望 = 8
-	ABL:LOCAL:性技 = 3
+	ABL:LOCAL:欲望 = 5
+	ABL:LOCAL:性技 = 4
 	ABL:LOCAL:性知識 = 5
-	ABL:LOCAL:奉仕 = 1
-	ABL:LOCAL:性交 = 10
-	ABL:LOCAL:射精 = 5
-	ABL:LOCAL:肝臓 = 3
+	ABL:LOCAL:奉仕 = 4
+	ABL:LOCAL:性交 = 2
+	ABL:LOCAL:露出 = 3
+	ABL:LOCAL:射精 = 3
+	ABL:LOCAL:排泄 = 2
+	ABL:LOCAL:主導度Ｕ = 700
+	ABL:LOCAL:主導度Ｎ = 300
+	ABL:LOCAL:倒錯度 = 600
 	EXP:LOCAL:絶頂経験 = 500
 	;素質外来人の特殊効果で勝ちを拾っていく
 	ABL:LOCAL:武闘 = 20 + RAND:20 + 5 * SP_COUNTRY_RANK:(特殊勢力_外来人)
@@ -137,6 +146,7 @@ FOR LCOUNT, 0, 14
 	ABL:LOCAL:政治 = RAND(30, 60)
 	ABL:LOCAL:歌唱 = 10
 	ABL:LOCAL:料理 = 10
+	ABL:LOCAL:肝臓 = 3
 	TALENT:LOCAL:絶倫 = 1
 	TALENT:LOCAL:特殊勢力素質 = 特殊勢力_外来人
 	TALENT:LOCAL:陰毛現在値 = 陰毛_標準
@@ -173,7 +183,7 @@ RETURN -1
 
 FOR LOCAL, 0, CHARANUM
 	;SPキャラでない、MASTERでない、君主でない、捕虜でないか外来勢力の捕虜、外来人所属でない、死んでいない、所属があるor放浪している（未登場でない）
-	IF NO:LOCAL < 2000 && LOCAL != MASTER && LOCAL != GET_COUNTRY_BOSS(CFLAG:LOCAL:所属) && (!CFLAG:LOCAL:捕虜先 || CFLAG:LOCAL:捕虜先 == 外来) && CFLAG:LOCAL:1 != 外来 && CFLAG:LOCAL:特殊状態フラグ != 2 && (CFLAG:LOCAL:所属 || CFLAG:LOCAL:特殊状態フラグ == 1)
+	IF NO:LOCAL < 2000 && LOCAL != MASTER && LOCAL != GET_COUNTRY_BOSS(CFLAG:LOCAL:所属) && (!CFLAG:LOCAL:捕虜先 || CFLAG:LOCAL:捕虜先 == 外来) && CFLAG:LOCAL:1 != 外来 && CFLAG:LOCAL:特殊状態 != 2 && (CFLAG:LOCAL:所属 || CFLAG:LOCAL:特殊状態 == 1)
 		候補:候補数 = LOCAL
 		候補数 ++
 	ENDIF
@@ -208,8 +218,7 @@ IF CFLAG:対象:捕虜先 == 外来
 	CALL COLORPRINTFORM(@"%ANAME(対象)%が外来人の奴隷となりました", COLOR("警告"), "W")
 	RESETCOLOR
 	SETBIT TALENT:対象:特殊勢力陥落系, 特殊勢力_外来人
-	CFLAG:対象:所属 = 外来
-	CFLAG:対象:捕虜先 = 0
+	CALL CHANGE_COUNTRY(対象, 外来)
 ELSE
 	DRAWLINE
 	SETCOLOR COLOR("桃")
@@ -223,8 +232,7 @@ ELSE
 	PRINTFORML
 	CALL COLORPRINTFORM(@"%ANAME(対象)%が外来人に囚われました", COLOR("警告"), "W")
 	RESETCOLOR
-	CFLAG:対象:捕虜先 = 外来
-	CALL FORCE_FREE(対象)
+	CALL CAPTURE(対象, 外来)
 ENDIF
 
 ;-----------------------------------
@@ -272,7 +280,7 @@ ELSE
 ENDIF
 IF RESULT == 0
 	SETBIT TALENT:MASTER:特殊勢力陥落系, 特殊勢力_外来人
-	CFLAG:MASTER:1 = ARG:0
+	CFLAG:MASTER:所属 = ARG:0
 	FOR LOCAL:0, 0, CHARANUM
 		IF TALENT:(LOCAL:0):特殊勢力素質 == 特殊勢力_外来人
 			TALENT:(LOCAL:0):合意 = 1
@@ -282,6 +290,6 @@ IF RESULT == 0
 	NEXT
 	RETURN 1
 ELSE
-	CFLAG:MASTER:9 = ARG:0
+	CALL CAPTURE(MASTER, ARG:0)
 	RETURN 2
 ENDIF

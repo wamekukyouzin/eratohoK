@@ -15,7 +15,7 @@ PRINTFORMW 君はこの戦いを生き残り、幻想郷の覇者となれるの
 PRINTL
 
 ;ランダムキャラは選択に委ねる
-FLAG:4 = 0
+FLAG:OPランダムキャラ使用 = 0
 
 ;-------------------------------------------------
 ;定例イベント
@@ -152,13 +152,13 @@ IF LOCAL:1 != 0
 	;都市を二つかすめ取る
 	;ただし、激おこであれば1/3（最低2都市）持っていく
 	IF LOCAL:10 == 2
-		CALL STEAL_CITIES(LOCAL:3, LOCAL:4, MAX(GET_OWN_CITY(LOCAL:3) / 3 , 2))
+		CALL STEAL_CITIES_RESTRICTED(LOCAL:3, LOCAL:4, MAX(GET_OWN_CITY(LOCAL:3) / 3 , 2))
 	ELSE
-		CALL STEAL_CITIES(LOCAL:3, LOCAL:4, 2)
+		CALL STEAL_CITIES_RESTRICTED(LOCAL:3, LOCAL:4, 2)
 	ENDIF
 
 	;マミゾウは（ぬえの離反の時、離反元にいて、捕虜でなく、君主でもなければ）必ず奪う
-	IF CFLAG:(NAME_TO_CHARA("マミゾウ")):1 == LOCAL:3 && CFLAG:(NAME_TO_CHARA("マミゾウ")):9 == 0 && LOCAL:2 != NAME_TO_CHARA("マミゾウ") && LOCAL:1 == NAME_TO_CHARA("ぬえ")
+	IF CFLAG:(NAME_TO_CHARA("マミゾウ")):1 == LOCAL:3 && CFLAG:(NAME_TO_CHARA("マミゾウ")):捕虜先 == 0 && LOCAL:2 != NAME_TO_CHARA("マミゾウ") && LOCAL:1 == NAME_TO_CHARA("ぬえ")
 		CFLAG:(NAME_TO_CHARA("マミゾウ")):1 = LOCAL:4
 	ENDIF
 
@@ -172,7 +172,7 @@ IF LOCAL:1 != 0
 	;所属武将の数を調べる
 	FOR LOCAL:0, 0, CHARANUM
 		;離反元所属で、捕虜でなく、プレイヤーでも離反者でも君主でないキャラ
-		IF CFLAG:(LOCAL:0):1 == LOCAL:3 && CFLAG:(LOCAL:0):9 == 0 && !GROUPMATCH(LOCAL:0 , MASTER , LOCAL:1 , LOCAL:2)
+		IF CFLAG:(LOCAL:0):1 == LOCAL:3 && CFLAG:(LOCAL:0):捕虜先 == 0 && !GROUPMATCH(LOCAL:0 , MASTER , LOCAL:1 , LOCAL:2)
 		;DEBUGPRINTFORML CHARAMATCH:{LOCAL:0}
 			;恋慕系か隷属系でないなら組み込み、恋慕なら拉致、プレイヤーのいない勢力では組み込み
 			;(陥落済かつ「離反に同調」か「離反せず離反元に残る」)
@@ -208,18 +208,18 @@ IF LOCAL:1 != 0
 			FOR LOCAL:99, 0, CHARANUM
 				LOCAL:0 = SHAFFLE_ARRAY:(LOCAL:99)
 				;離反元所属で、捕虜でなく、プレイヤーでも離反者でも君主でないキャラ
-				IF CFLAG:(LOCAL:0):1 == LOCAL:3 && CFLAG:(LOCAL:0):9 == 0 && !GROUPMATCH(LOCAL:0 , MASTER , LOCAL:1 , LOCAL:2)
+				IF CFLAG:(LOCAL:0):1 == LOCAL:3 && CFLAG:(LOCAL:0):捕虜先 == 0 && !GROUPMATCH(LOCAL:0 , MASTER , LOCAL:1 , LOCAL:2)
 					;陥落済かつ「離反に同調」か「離反せず離反元に残る」ではないなら1/2で引き抜かれる
 					IF !((IS_LOVER(LOCAL:0) || IS_SLAVE(LOCAL:0)) && (!LOCAL:10 || (LOCAL:10 && CFLAG:MASTER:1 == LOCAL:3))) && RAND:2 == 0  && LOCAL:5 > 0
 						CFLAG:(LOCAL:0):1 = LOCAL:4
 						LOCAL:5 --
 					;離反せず離反元に残るなら陥落済みキャラは1/2で拉致される
 					ELSEIF RAND:2 == 0 && (IS_LOVER(LOCAL:0) || IS_SLAVE(LOCAL:0)) && LOCAL:6 > 0 && INRANGE(LOCAL:10 , 1 , 2)
-						CFLAG:(LOCAL:0):9 = LOCAL:4
+						CALL CAPTURE(LOCAL:0, LOCAL:4)
 						LOCAL:6 --
 					;離反に同調すれば陥落済キャラは同行
 					ELSEIF (IS_LOVER(LOCAL:0) || IS_SLAVE(LOCAL:0)) && LOCAL:6 > 0 && LOCAL:10 == 0
-						CFLAG:(LOCAL:0):1 = LOCAL:4
+						CALL CHANGE_COUNTRY(LOCAL:0, LOCAL:4)
 						LOCAL:6 --
 					ENDIF
 				ENDIF
@@ -244,7 +244,7 @@ IF LOCAL:1 != 0
 	FOR LOCAL:0, 0, CHARANUM
 		IF CFLAG:(LOCAL:0):1 == LOCAL:4 && LOCAL:0 != LOCAL:1
 			PRINTFORML %ANAME(LOCAL:0)%が%ANAME(LOCAL:1)%の下につきました
-		ELSEIF CFLAG:(LOCAL:0):9 == LOCAL:4
+		ELSEIF CFLAG:(LOCAL:0):捕虜先 == LOCAL:4
 			SETCOLOR COLOR("注意")
 			;性処理用云々は消しました
 			PRINTFORML %ANAME(LOCAL:0)%が%ANAME(LOCAL:1)%に拉致されました

@@ -1,0 +1,115 @@
+﻿@SHOP_VISIT(訪問先君主)
+#DIM 訪問先君主
+#DIM 訪問先
+#DIM 候補, 1000
+#DIM 人数
+#DIM 対象
+#DIM CONST VISIT_EVENT_MAX = 10
+訪問先 = CFLAG:(訪問先君主):所属
+
+VARSET 候補, -1
+VARSET 人数
+FOR LOCAL, 0, CHARANUM
+	IF 訪問先 == CFLAG:LOCAL:所属 && CFLAG:LOCAL:捕虜先 == 0
+		候補:人数 = LOCAL
+		人数 ++
+	ENDIF
+NEXT
+
+対象 = 候補:(RAND:人数)
+
+DRAWLINE
+PRINTFORMW %ANAME(訪問先君主)%の国を訪ねた……
+PRINTFORMW ……%ANAME(対象)%に出会った
+PRINTFORMW 少しの間、世間話をした……
+
+IF !CFLAG:対象:面識
+	CALL COLORPRINTFORM(@"%ANAME(対象)%の面識を得ました", COLOR("注意"), "L")
+	CFLAG:対象:面識 = 1
+ENDIF
+
+CALL COLORPRINTFORM(@"%ANAME(対象)%の好感度がほんの少し上がりました", COLOR("注意"), "L")
+CFLAG:対象:好感度 += 30
+PRINTFORML
+
+SHOP_TIME += 1
+
+
+FOR LOCAL, 0, VISIT_EVENT_MAX
+	TRYCCALLFORM VISIT_EVENT_{LOCAL}(訪問先君主, 訪問先, 対象)
+		IF RESULT != -1
+			BREAK
+		ENDIF
+	CATCH
+		BREAK
+	ENDCATCH
+NEXT
+
+RESULT = 1
+BEGIN TURNEND
+
+
+;-------------------------------------------------
+;移籍の申し出
+;-------------------------------------------------
+@VISIT_EVENT_1(訪問先君主, 訪問先, 対象)
+#DIM 訪問先君主
+#DIM 訪問先
+#DIM 対象
+SIF !((IS_SLAVE(対象) || IS_LOVER(対象)) && RAND:100 < 25 && 対象 != GET_COUNTRY_BOSS(CFLAG:対象:所属) && !IS_SP_COUNTRY(CFLAG:MASTER:所属))
+	RETURN -1
+
+PRINTFORMW ……別れ際、%ANAME(対象)%に呼び止められた
+PRINTFORMW どうか側に置いてくれないか、とのことだ
+PRINTFORMW %ANAME(MASTER)%への想いから、%ANAME(訪問先君主)%を捨て、%ANAME(GET_COUNTRY_BOSS(CFLAG:MASTER:所属))%につこうということらしい
+PRINTFORMW 移籍してくれれば助かりはするが、%ANAME(訪問先君主)%からすれば裏切るようそそのかしたように見えるだろう
+PRINTFORMW 関係が悪くなることは必至だが……
+CALL ASK_YN("来てもらう", "断る")
+IF RESULT == 0
+	PRINTFORML %ANAME(対象)%の力は、外交関係の悪化をおいても是非欲しい
+	PRINTFORML %ANAME(MASTER)%は%ANAME(対象)%の手を引き、拠点へと二人で戻った……
+	CALL COLORPRINTFORM(@"%ANAME(対象)%が仲間になりました", COLOR("注意"), "L")
+	CALL COLORPRINTFORM(@"%ANAME(訪問先君主)%との関係が悪化しました", COLOR("警告"), "L")
+	CALL CHANGE_COUNTRY(対象, CFLAG:MASTER:所属)
+	CALL CHANGE_RELATION_C_TO_O(訪問先, MASTER, -100, 100)
+ELSE
+	PRINTFORML %ANAME(訪問先君主)%との関係をこじらせるわけにはいかない
+	PRINTFORML 丁重に断ると、%ANAME(対象)%はさみしそうな表情を浮かべたが、納得してくれたようだ……
+ENDIF
+
+
+;-------------------------------------------------
+;移籍の勧誘
+;-------------------------------------------------
+@VISIT_EVENT_2(訪問先君主, 訪問先, 対象)
+#DIM 訪問先君主
+#DIM 訪問先
+#DIM 対象
+#DIM 支度金
+SIF !(GET_COUNTRY_BOSS(CFLAG:MASTER:所属) != MASTER && RAND:3000 <= ABL:MASTER:武闘 + ABL:MASTER:知略 + ABL:MASTER:政治)
+	RETURN -1
+支度金 = (ABL:MASTER:武闘 + ABL:MASTER:知略 + ABL:MASTER:政治) * 50 * RAND(80, 120) / 100
+
+PRINTFORMW ……別れ際、%ANAME(対象)%に呼び止められた
+PRINTFORMW %ANAME(訪問先君主)%の下に来ないか、とのことだ
+PRINTFORM 支度金として、金
+CALL COLORPRINTFORM(@"{支度金}", COLOR("注意"))
+PRINTFORM を用意しているという
+PRINTFORMW どうやら%ANAME(MASTER)%の能力を見込んで、引き抜こうとしているようだ
+PRINTFORMW 応じれば、%ANAME(GET_COUNTRY_BOSS(CFLAG:MASTER:所属))%との関係は悪くなってしまうだろうが……？
+CALL ASK_YN("応じる", "断る")
+IF RESULT == 0
+	PRINTFORML こんな時代だ。見込みのあるものについていくのが正解というものだろう
+	PRINTFORML %ANAME(MASTER)%が頷くと、%ANAME(対象)%は満足げな笑みを浮かべた……
+	CALL COLORPRINTFORM(@"%ANAME(訪問先君主)%の下に移籍しました", COLOR("注意"), "W")
+	CALL COLORPRINTFORM(@"支度金{支度金}を受け取りました", COLOR("注意"), "W")
+	CALL COLORPRINTFORM(@"%ANAME(GET_COUNTRY_BOSS(CFLAG:MASTER:所属))%との関係が悪化しました", COLOR("警告"), "W")
+	CALL CHANGE_RELATION_C_TO_O(CFLAG:MASTER:所属, MASTER, -300, 300)
+	CALL CHANGE_COUNTRY(MASTER, 訪問先)
+	MONEY += 支度金
+ELSE
+	PRINTFORML %ANAME(GET_COUNTRY_BOSS(CFLAG:MASTER:所属))%との関係をこじらせるわけにはいかない
+	PRINTFORML 丁重に断ると、%ANAME(対象)%は残念そうな表情を浮かべたが、納得してくれたようだ……
+ENDIF
+
+

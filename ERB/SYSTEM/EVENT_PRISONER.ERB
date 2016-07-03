@@ -20,7 +20,7 @@
 ;●捕虜の人数をカウント
 LOCAL:5 = 0
 FOR LOCAL:0, 0, CHARANUM
-	IF LOCAL:0 != MASTER && CFLAG:(LOCAL:0):9 != 0 && CFLAG:(LOCAL:0):9 == CFLAG:MASTER:1 && CFLAG:(LOCAL:0):29 == 0
+	IF LOCAL:0 != MASTER && CFLAG:(LOCAL:0):捕虜先 != 0 && CFLAG:(LOCAL:0):捕虜先 == CFLAG:MASTER:所属 && CFLAG:(LOCAL:0):監禁状態 == 0
 		LOCAL:5 ++
 	ENDIF
 NEXT
@@ -35,7 +35,7 @@ LOCAL:10 = (LOCAL:5 - 1) / 22 + 1
 LOCAL:11 = 1
 
 ;触手調教が可能かどうかを判定
-LOCAL:20 = ITEM:触手部屋 && FLAG:35 >= 0 && IS_SYOKUSYU_MANAGE(FLAG:35)
+LOCAL:20 = ITEM:触手部屋 && ID_TO_CHARA(FLAG:触手部屋管理者) >= 0 && IS_SYOKUSYU_MANAGE(ID_TO_CHARA(FLAG:触手部屋管理者))
 FIRST_LINE = LINECOUNT
 $SHOW_LOOP
 
@@ -61,7 +61,7 @@ LOCAL:8 = 0
 LOCAL:12 = (LOCAL:11 - 1) * 22
 LOCAL:13 = LOCAL:11 * 22
 FOR LOCAL:0, 0, CHARANUM
-	IF LOCAL:0 != MASTER && CFLAG:(LOCAL:0):9 == CFLAG:MASTER:1 && CFLAG:(LOCAL:0):29 == 0
+	IF LOCAL:0 != MASTER && CFLAG:(LOCAL:0):捕虜先 == CFLAG:MASTER:所属 && CFLAG:(LOCAL:0):監禁状態 == 0
 		IF LOCAL:8 >= LOCAL:12 && LOCAL:8 < LOCAL:13
 			PRINTBUTTON @"{NO:(LOCAL:0)+100, 4}[%ANAME(LOCAL:0), 16, LEFT%]", NO:(LOCAL:0)+100
 			PRINT  
@@ -127,9 +127,9 @@ ELSEIF RESULT >= 100 && RESULT <= 999
 ELSEIF RESULT >= 1000
 	LOCAL:5 = RESULT / 1000 - 1
 	LOCAL:6 = RESULT % 1000
-	IF LOCAL:5 < CHARANUM && LOCAL:5 != MASTER && CFLAG:(LOCAL:5):9 == CFLAG:MASTER:1 && CFLAG:(LOCAL:5):29 == 0
-		IF CFLAG:(LOCAL:5):11 != LOCAL:6 && (LOCAL:6 == 0 || (LOCAL:6 >= 2 && LOCAL:6 <= 5) || (LOCAL:6 == 6 && LOCAL:20)) || LOCAL:6 == 7 || LOCAL:6 == 8
-			CFLAG:(LOCAL:5):11 = LOCAL:6
+	IF LOCAL:5 < CHARANUM && LOCAL:5 != MASTER && CFLAG:(LOCAL:5):捕虜先 == CFLAG:MASTER:所属 && CFLAG:(LOCAL:5):監禁状態 == 0
+		IF CFLAG:(LOCAL:5):捕虜の扱い != LOCAL:6 && (LOCAL:6 == 0 || (LOCAL:6 >= 2 && LOCAL:6 <= 5) || (LOCAL:6 == 6 && LOCAL:20)) || LOCAL:6 == 7 || LOCAL:6 == 8
+			CFLAG:(LOCAL:5):捕虜の扱い = LOCAL:6
 		ENDIF
 	ENDIF
 ELSE
@@ -144,7 +144,7 @@ GOTO SHOW_LOOP
 ;引数  0:捕虜のキャラ番号 1:扱いの種別番号 2:ボタンに表示される文字列
 ;-------------------------------------------------
 @SETSTATE_PRISONER_BUTTON(ARG:0, ARG:1, ARGS:2)
-IF CFLAG:(ARG:0):11 == ARG:1
+IF CFLAG:(ARG:0):捕虜の扱い == ARG:1
 	SETCOLOR COLOR("選択中")
 	PRINTPLAINFORM \{%ARGS:2%\}
 	RESETCOLOR
@@ -157,8 +157,8 @@ ENDIF
 ;-------------------------------------------------
 @SETSTATE_PRISONER_SETALL(ARG:0)
 FOR LOCAL:0, 0, CHARANUM
-	IF LOCAL:0 != MASTER && CFLAG:(LOCAL:0):9 != 0 && CFLAG:(LOCAL:0):9 == CFLAG:MASTER:1 && CFLAG:(LOCAL:0):29 == 0
-		CFLAG:(LOCAL:0):11 = ARG:0
+	IF LOCAL:0 != MASTER && CFLAG:(LOCAL:0):捕虜先 != 0 && CFLAG:(LOCAL:0):捕虜先 == CFLAG:MASTER:所属 && CFLAG:(LOCAL:0):監禁状態 == 0
+		CFLAG:(LOCAL:0):捕虜の扱い = ARG:0
 	ENDIF
 NEXT
 
@@ -172,15 +172,15 @@ NEXT
 	;21:触手調教の予定だった奴隷がいたか
 ;触手部屋が使用可能かどうかを判定
 LOCAL:20 = 0
-IF ITEM:触手部屋 && FLAG:35 >= 0 && IS_SYOKUSYU_MANAGE(FLAG:35)
+IF ITEM:触手部屋 && ID_TO_CHARA(FLAG:触手部屋管理者) >= 0 && IS_SYOKUSYU_MANAGE(ID_TO_CHARA(FLAG:触手部屋管理者))
 	LOCAL:20 = 1
 ENDIF
 
 IF !LOCAL:20
 	LOCAL:21 = 0
 	FOR LOCAL:0, 0, CHARANUM
-		IF CFLAG:(LOCAL:0):11 == 6
-			CFLAG:(LOCAL:0):11 = 0
+		IF CFLAG:(LOCAL:0):捕虜の扱い == 6
+			CFLAG:(LOCAL:0):捕虜の扱い = 0
 			LOCAL:21 = 1
 		ENDIF
 	NEXT
@@ -194,7 +194,7 @@ ENDIF
 LOCAL:2 = 0
 FOR LOCAL:0, 0, CHARANUM
 	;LOCAL:0が捕虜であることを意味するお決まり表現
-	IF LOCAL:0 != MASTER && CFLAG:(LOCAL:0):9 != 0 && CFLAG:(LOCAL:0):9 == CFLAG:MASTER:1 && CFLAG:(LOCAL:0):29 == 0
+	IF LOCAL:0 != MASTER && CFLAG:(LOCAL:0):捕虜先 != 0 && CFLAG:(LOCAL:0):捕虜先 == CFLAG:MASTER:所属 && CFLAG:(LOCAL:0):監禁状態 == 0
 		;捕虜の扱いが拘留の場合は扱いの描写が一行で終わるので前後に特別改行を入れずに連続で結果を出す
 		;捕虜の扱いがそれ以外の場合は扱いの描写が複数行にわたるので分かりやすいように前後に改行が一行ずつはいるように調整する
 		;イメージ
@@ -210,11 +210,11 @@ FOR LOCAL:0, 0, CHARANUM
 			;(wait)
 			;キャラ6拘留テキスト
 			;キャラ7拘留テキスト
-		IF CFLAG:(LOCAL:0):11 != 0 && LOCAL:2
+		IF CFLAG:(LOCAL:0):捕虜の扱い != 0 && LOCAL:2
 			PRINTL 
 		ENDIF
-		CALLFORM EVENT_PRISONER{CFLAG:(LOCAL:0):11}(LOCAL:0)
-		IF CFLAG:(LOCAL:0):11 != 0
+		CALLFORM EVENT_PRISONER{CFLAG:(LOCAL:0):捕虜の扱い}(LOCAL:0)
+		IF CFLAG:(LOCAL:0):捕虜の扱い != 0
 			WAIT
 			CALL TALENT_CHECK(LOCAL:0)
 			PRINTL 
@@ -294,20 +294,20 @@ ELSE
 	IF ABL:(ARG:0):武闘 >= 70 || TALENT:(ARG:0):痛みに強い
 		PRINTFORML %ANAME(ARG:0)%は歯を食いしばって必死に痛みと屈辱に耐えている…
 		IF TALENT:(ARG:0):痛みに強い
-			CFLAG:(ARG:0):32 = 1600
+			CFLAG:(ARG:0):捕虜怖 = 1600
 		ELSE
-			CFLAG:(ARG:0):32 = 2400
+			CFLAG:(ARG:0):捕虜怖 = 2400
 		ENDIF
 	ELSEIF TALENT:(ARG:0):痛みに弱い || TALENT:(ARG:0):幼稚
 		PRINTFORML %ANAME(ARG:0)%は痛みのあまり泣き叫びながら許しを請うている…
-		CFLAG:(ARG:0):32 = 3200
+		CFLAG:(ARG:0):捕虜怖 = 3200
 	ELSE
 		PRINTFORML %ANAME(ARG:0)%は鞭で打たれるたびに悲鳴を上げている…
-		CFLAG:(ARG:0):32 = 2400
+		CFLAG:(ARG:0):捕虜怖 = 2400
 	ENDIF
-	CFLAG:(ARG:0):32 = CFLAG:(ARG:0):32 * (200 - ABL:(ARG:0):武闘) / 200
-	CFLAG:(ARG:0):30 = 3000
-	CFLAG:(ARG:0):31 = 1500
+	CFLAG:(ARG:0):捕虜怖 = CFLAG:(ARG:0):捕虜怖 * (200 - ABL:(ARG:0):武闘) / 200
+	CFLAG:(ARG:0):捕虜怒 = 3000
+	CFLAG:(ARG:0):捕虜哀 = 1500
 ENDIF
 
 ;■Ｃ開発
@@ -335,9 +335,9 @@ CALL FUCK(ARG:0, "欲望, Ｃ, レズ")
 
 CALL TRAIN_AUTO_ABLUP(ARG:0)
 
-CFLAG:(ARG:0):30 = 500
-CFLAG:(ARG:0):31 = 500
-CFLAG:(ARG:0):32 = 250
+CFLAG:(ARG:0):捕虜怒 = 500
+CFLAG:(ARG:0):捕虜哀 = 500
+CFLAG:(ARG:0):捕虜怖 = 250
 
 ;■Ｂ開発
 @EVENT_PRISONER4(ARG:0)
@@ -363,9 +363,9 @@ ENDIF
 CALL FUCK(ARG:0, "欲望, Ｂ, レズ")
 CALL TRAIN_AUTO_ABLUP(ARG:0)
 
-CFLAG:(ARG:0):30 = 400
-CFLAG:(ARG:0):31 = 400
-CFLAG:(ARG:0):32 = 200
+CFLAG:(ARG:0):捕虜怒 = 400
+CFLAG:(ARG:0):捕虜哀 = 400
+CFLAG:(ARG:0):捕虜怖 = 200
 
 ;■性処理
 @EVENT_PRISONER5(ARG:0)
@@ -645,9 +645,9 @@ ELSE
 	LOCAL:0 = LOCAL:0 * (74000 - MIN(EXP:(ARG:0):絶頂経験, 50000)) / 1440000
 ENDIF
 
-CFLAG:(ARG:0):30 = LOCAL:0
-CFLAG:(ARG:0):31 = LOCAL:0
-CFLAG:(ARG:0):32 = LOCAL:0
+CFLAG:(ARG:0):捕虜怒 = LOCAL:0
+CFLAG:(ARG:0):捕虜哀 = LOCAL:0
+CFLAG:(ARG:0):捕虜怖 = LOCAL:0
 
 ;絶頂回数の計算
 LOCAL:1 = 0
@@ -657,7 +657,7 @@ LOCAL:1 += MAX(ABL:(ARG:0):Ａ感 - 1, 0) * 3
 LOCAL:1 += MAX(ABL:(ARG:0):Ｂ感 - 1, 0)
 LOCAL:1 += MAX(ABL:(ARG:0):Ｍ感 - 1, 0) / 2
 LOCAL:1 = LOCAL:1 * (ABL:(ARG:0):欲望 + 2) / 2
-CALL FUCK(ARG:0, "欲望, 性技, 精愛, 性交, 射精, Ｃ, Ｖ, Ｂ, Ｍ, Ａ, 苦痛快楽, 緊縛, ＢＬ, 輪姦, 口淫", "処女喪失, Ａ処女喪失, 膣内射精, キス喪失", GET_SPERM_ID("兵士"), "兵士のペニス", "兵士")
+CALL FUCK(ARG:0, "欲望, 性技, 精愛, 性交, 射精, Ｃ, Ｖ, Ｂ, Ｍ, Ａ, 苦痛快楽, 緊縛, ＢＬ, 輪姦, 口淫", "処女喪失, Ａ処女喪失, 膣内射精, キス喪失, 腸内射精, 口内射精", GET_SPERM_ID("兵士"), "兵士のペニス", "兵士")
 PRINTL 
 
 
@@ -668,7 +668,7 @@ IF TALENT:(ARG:0):崩壊
 ELSEIF TALENT:(ARG:0):虚ろ
 	TIMES LOCAL:2, 0.80
 ENDIF
-FLAG:43 += LOCAL:2
+FLAG:兵数増加追加値 += LOCAL:2
 
 ;■触手調教
 @EVENT_PRISONER6(ARG:0)
@@ -1174,9 +1174,9 @@ ELSE
 	LOCAL:0 = LOCAL:0 * (74000 - MIN(EXP:(ARG:0):絶頂経験, 50000)) / 288000
 ENDIF
 
-CFLAG:(ARG:0):30 = LOCAL:0
-CFLAG:(ARG:0):31 = LOCAL:0
-CFLAG:(ARG:0):32 = LOCAL:0
+CFLAG:(ARG:0):捕虜怒 = LOCAL:0
+CFLAG:(ARG:0):捕虜哀 = LOCAL:0
+CFLAG:(ARG:0):捕虜怖 = LOCAL:0
 
 ;絶頂回数の計算
 LOCAL:1 = 0
@@ -1189,11 +1189,11 @@ LOCAL:1 = LOCAL:1 * (ABL:(ARG:0):欲望 + 2) / 2
 
 PRINTL 
 
-CALL FUCK(ARG:0, "欲望, 性技, 精愛, 性交, 射精, Ｃ, Ｖ, Ｂ, Ｍ, Ａ, 苦痛快楽, 緊縛, ＢＬ, 輪姦, 口淫, 触手", "処女喪失, Ａ処女喪失, 膣内射精, キス喪失", GET_SPERM_ID("触手"), "触手", "触手")
+CALL FUCK(ARG:0, "欲望, 性技, 精愛, 性交, 射精, Ｃ, Ｖ, Ｂ, Ｍ, Ａ, 苦痛快楽, 緊縛, ＢＬ, 輪姦, 口淫, 触手", "処女喪失, Ａ処女喪失, 膣内射精, キス喪失, 腸内射精, 口内射精", GET_SPERM_ID("触手"), "触手", "触手")
 
 ;触手部屋の管理者に妖術経験値と触手経験値を与える
 LOCAL:2 = SQRT(LOCAL:1 * 100) / 4 + 5
-LOCAL:2 = LOCAL:2 * MAX(100 - ABL:(FLAG:35):妖術, 20) / 100
+LOCAL:2 = LOCAL:2 * MAX(100 - ABL:(ID_TO_CHARA(FLAG:触手部屋管理者)):妖術, 20) / 100
 IF TALENT:(ARG:0):虚ろ
 	TIMES LOCAL:2, 0.50
 ELSEIF TALENT:(ARG:0):崩壊
@@ -1201,10 +1201,10 @@ ELSEIF TALENT:(ARG:0):崩壊
 ENDIF
 
 ;1.33より、入手妖術経験値半減
-PRINTFORML <%ANAME(FLAG:35)%>
-CALL PRINT_ADD_EXP(FLAG:35, "触手経験値", 10)
-CALL PRINT_ADD_EXP(FLAG:35, "妖術経験値", LOCAL:2 / 2)
-CALL TRAIN_AUTO_ABLUP(FLAG:35)
+PRINTFORML <%ANAME(ID_TO_CHARA(FLAG:触手部屋管理者))%>
+CALL PRINT_ADD_EXP(ID_TO_CHARA(FLAG:触手部屋管理者), "触手経験値", 10)
+CALL PRINT_ADD_EXP(ID_TO_CHARA(FLAG:触手部屋管理者), "妖術経験値", LOCAL:2 / 2)
+CALL TRAIN_AUTO_ABLUP(ID_TO_CHARA(FLAG:触手部屋管理者))
 
 
 
@@ -1421,9 +1421,9 @@ ELSE
 	LOCAL:0 = LOCAL:0 * (74000 - MIN(EXP:(ARG:0):絶頂経験, 50000)) / 1440000
 ENDIF
 
-CFLAG:(ARG:0):30 = LOCAL:0
-CFLAG:(ARG:0):31 = LOCAL:0
-CFLAG:(ARG:0):32 = LOCAL:0
+CFLAG:(ARG:0):捕虜怒 = LOCAL:0
+CFLAG:(ARG:0):捕虜哀 = LOCAL:0
+CFLAG:(ARG:0):捕虜怖 = LOCAL:0
 
 ;絶頂回数の計算
 LOCAL:1 = 0
@@ -1436,7 +1436,7 @@ LOCAL:1 = LOCAL:1 * (ABL:(ARG:0):欲望 + 2) / 2
 
 PRINTL 
 
-CALL FUCK(ARG:0, "欲望, 性技, 精愛, 性交, 射精, Ｃ, Ｖ, Ｂ, Ｍ, Ａ, 口淫", "処女喪失, Ａ処女喪失, 膣内射精, キス喪失", GET_SPERM_ID("娼館の客"), "娼館の客", "娼館の客")
+CALL FUCK(ARG:0, "欲望, 性技, 精愛, 性交, 射精, Ｃ, Ｖ, Ｂ, Ｍ, Ａ, 口淫", "処女喪失, Ａ処女喪失, 膣内射精, キス喪失, 腸内射精, 口内射精", GET_SPERM_ID("娼館の客"), "娼館の客", "娼館の客")
 
 ;もらえる額の計算
 LOCAL:1 = ABL:(ARG:0):欲望 + ABL:(ARG:0):奉仕 + ABL:(ARG:0):性技 + ABL:(ARG:0):性交 + ABL:(ARG:0):Ｃ感 + ABL:(ARG:0):Ｖ感 + ABL:(ARG:0):Ａ感 + ABL:(ARG:0):Ｂ感
@@ -1476,11 +1476,11 @@ SELECTCASE RAND:7
 ENDSELECT
 ;次に具体的な処理を書く　このバリアントでは珠ではなく経験で能力を管理することに注意
 ;念のため一度感情を初期化
-CFLAG:(ARG:0):30 = 0
-CFLAG:(ARG:0):31 = 0
-CFLAG:(ARG:0):32 = 0
+CFLAG:(ARG:0):捕虜怒 = 0
+CFLAG:(ARG:0):捕虜哀 = 0
+CFLAG:(ARG:0):捕虜怖 = 0
 ;母乳が出ないキャラは搾乳されると母乳が出る体質になっていく 先に処理
-IF (!TALENT:(ARG:0):母乳体質 || CFLAG:(ARG:0):33) && TALENT:(ARG:0):性別 != 0
+IF (!TALENT:(ARG:0):母乳体質 || CFLAG:(ARG:0):一時的母乳体質) && TALENT:(ARG:0):性別 != 0
 	EXP:(ARG:0):搾乳経験値 += (1 + RAND:3)
 	SIF TALENT:(ARG:0):Ｂ敏感
 		EXP:(ARG:0):搾乳経験値 += 1
@@ -1496,9 +1496,9 @@ IF (!TALENT:(ARG:0):母乳体質 || CFLAG:(ARG:0):33) && TALENT:(ARG:0):性別 !
 	IF RESULT == 1
 		PRINTFORML %ANAME(ARG:0)%は体が変えられてしまったことに衝撃を受け複雑な感情を強く感じている
 		;実際はもっとあるだろうけど取りあえず拷問一回分の感情を
-		CFLAG:(ARG:0):30 += 3000
-		CFLAG:(ARG:0):31 += 3000
-		CFLAG:(ARG:0):32 += 3000
+		CFLAG:(ARG:0):捕虜怒 += 3000
+		CFLAG:(ARG:0):捕虜哀 += 3000
+		CFLAG:(ARG:0):捕虜怖 += 3000
 	ENDIF
 ENDIF
 IF TALENT:(ARG:0):母乳体質
@@ -1546,9 +1546,9 @@ CALL TRAIN_AUTO_ABLUP(ARG:0)
 ;イメージとしては最初はやや抵抗が強い程度だけど調教が進むと身体改造が入るわけだから精神的打撃が大きい
 ;噴乳が無いとちょっと反発が強い調教程度
 ;噴乳すると体を改造される恐怖が強くなり怒りが弱まって(そんな心の余裕なくなる)悲しみが強くなる
-CFLAG:(ARG:0):30 += MAX(SPOUT_MILK * -40 + 500, 0)
-CFLAG:(ARG:0):31 += SPOUT_MILK * 150 + 400
-CFLAG:(ARG:0):32 += SPOUT_MILK * 300 + 200
+CFLAG:(ARG:0):捕虜怒 += MAX(SPOUT_MILK * -40 + 500, 0)
+CFLAG:(ARG:0):捕虜哀 += SPOUT_MILK * 150 + 400
+CFLAG:(ARG:0):捕虜怖 += SPOUT_MILK * 300 + 200
 
 
 ;-------------------------------------------------
@@ -1556,8 +1556,8 @@ CFLAG:(ARG:0):32 += SPOUT_MILK * 300 + 200
 ;-------------------------------------------------
 @PRISONER_CHANGE_EMOTION(ARG:0)
 ;監禁中
-IF CFLAG:(ARG:0):29 == 0
-	SELECTCASE CFLAG:(ARG:0):11
+IF CFLAG:(ARG:0):監禁状態 == 0
+	SELECTCASE CFLAG:(ARG:0):捕虜の扱い
 		;拘留
 		CASE 0
 			TIMES PALAM:(ARG:0):怒外, 0.70
@@ -1574,9 +1574,9 @@ IF CFLAG:(ARG:0):29 == 0
 			CALL CHANGE_RELATION_O_TO_O(ARG:0, MASTER, LOCAL, -10)
 		;拷問
 		CASE 2
-			CUP:(ARG:0):怒主 = CFLAG:(ARG:0):30
-			CUP:(ARG:0):哀主 = CFLAG:(ARG:0):31
-			CUP:(ARG:0):怖主 = CFLAG:(ARG:0):32
+			CUP:(ARG:0):怒主 = CFLAG:(ARG:0):捕虜怒
+			CUP:(ARG:0):哀主 = CFLAG:(ARG:0):捕虜哀
+			CUP:(ARG:0):怖主 = CFLAG:(ARG:0):捕虜怖
 			;ソース処理の関数を流用
 			CALL UP_TALENT_CHECK3(ARG:0)
 
@@ -1591,13 +1591,13 @@ IF CFLAG:(ARG:0):29 == 0
 			IF BASE:(ARG:0):精神力 < 0
 				CFLAG:(ARG:0):崩壊 += 800 - BASE:(ARG:0):精神力 * 2
 			ENDIF
-			IF CFLAG:(ARG:0):1 != CFLAG:MASTER:1
+			IF CFLAG:(ARG:0):所属 != CFLAG:MASTER:所属
 				FOR LOCAL:1, 1, MAX_COUNTRY
-					IF IS_COUNTRY(LOCAL:1) && LOCAL:1 != CFLAG:MASTER:1
-						IF LOCAL:1 == CFLAG:(LOCAL:1):1
-							CALL CHANGE_RELATION_C_TO_C(LOCAL:1, CFLAG:MASTER:1, -30, 50)
+					IF IS_COUNTRY(LOCAL:1) && LOCAL:1 != CFLAG:MASTER:所属
+						IF LOCAL:1 == CFLAG:(LOCAL:1):所属
+							CALL CHANGE_RELATION_C_TO_C(LOCAL:1, CFLAG:MASTER:所属, -30, 50)
 						ELSE
-							CALL CHANGE_RELATION_C_TO_C(LOCAL:1, CFLAG:MASTER:1, -5, 0)
+							CALL CHANGE_RELATION_C_TO_C(LOCAL:1, CFLAG:MASTER:所属, -5, 0)
 						ENDIF
 					ENDIF
 				NEXT
@@ -1605,9 +1605,9 @@ IF CFLAG:(ARG:0):29 == 0
 
 		;Ｃ開発
 		CASE 3
-			CUP:(ARG:0):怒主 = CFLAG:(ARG:0):30
-			CUP:(ARG:0):哀主 = CFLAG:(ARG:0):31
-			CUP:(ARG:0):怖主 = CFLAG:(ARG:0):32
+			CUP:(ARG:0):怒主 = CFLAG:(ARG:0):捕虜怒
+			CUP:(ARG:0):哀主 = CFLAG:(ARG:0):捕虜哀
+			CUP:(ARG:0):怖主 = CFLAG:(ARG:0):捕虜怖
 			;ソース処理の関数を流用
 			CALL UP_TALENT_CHECK3(ARG:0)
 
@@ -1623,13 +1623,13 @@ IF CFLAG:(ARG:0):29 == 0
 				CFLAG:(ARG:0):崩壊 += 400 - BASE:(ARG:0):精神力
 			ENDIF
 
-			IF CFLAG:(ARG:0):1 != CFLAG:MASTER:1
+			IF CFLAG:(ARG:0):所属 != CFLAG:MASTER:所属
 				FOR LOCAL:1, 1, MAX_COUNTRY
-					IF IS_COUNTRY(LOCAL:1) && LOCAL:1 != CFLAG:MASTER:1
-						IF LOCAL:1 == CFLAG:MASTER:1
-							CALL CHANGE_RELATION_C_TO_C(LOCAL:1, CFLAG:MASTER:1, -20, 30)
+					IF IS_COUNTRY(LOCAL:1) && LOCAL:1 != CFLAG:MASTER:所属
+						IF LOCAL:1 == CFLAG:MASTER:所属
+							CALL CHANGE_RELATION_C_TO_C(LOCAL:1, CFLAG:MASTER:所属, -20, 30)
 						ELSE
-							CALL CHANGE_RELATION_C_TO_C(LOCAL:1, CFLAG:MASTER:1, -5, 0)
+							CALL CHANGE_RELATION_C_TO_C(LOCAL:1, CFLAG:MASTER:所属, -5, 0)
 						ENDIF
 					ENDIF
 				NEXT
@@ -1637,9 +1637,9 @@ IF CFLAG:(ARG:0):29 == 0
 			
 		;Ｂ開発
 		CASE 4
-			CUP:(ARG:0):怒主 = CFLAG:(ARG:0):30
-			CUP:(ARG:0):哀主 = CFLAG:(ARG:0):31
-			CUP:(ARG:0):怖主 = CFLAG:(ARG:0):32
+			CUP:(ARG:0):怒主 = CFLAG:(ARG:0):捕虜怒
+			CUP:(ARG:0):哀主 = CFLAG:(ARG:0):捕虜哀
+			CUP:(ARG:0):怖主 = CFLAG:(ARG:0):捕虜怖
 			;ソース処理の関数を流用
 			CALL UP_TALENT_CHECK3(ARG:0)
 
@@ -1655,13 +1655,13 @@ IF CFLAG:(ARG:0):29 == 0
 				CFLAG:(ARG:0):崩壊 += 400 - BASE:(ARG:0):精神力
 			ENDIF
 
-			IF CFLAG:(ARG:0):1 != CFLAG:MASTER:1
+			IF CFLAG:(ARG:0):所属 != CFLAG:MASTER:所属
 				FOR LOCAL:1, 1, MAX_COUNTRY
-					IF IS_COUNTRY(LOCAL:1) && LOCAL:1 != CFLAG:MASTER:1
-						IF LOCAL:1 == CFLAG:MASTER:1
-							CALL CHANGE_RELATION_C_TO_C(LOCAL:1, CFLAG:MASTER:1, -20, 30)
+					IF IS_COUNTRY(LOCAL:1) && LOCAL:1 != CFLAG:MASTER:所属
+						IF LOCAL:1 == CFLAG:MASTER:所属
+							CALL CHANGE_RELATION_C_TO_C(LOCAL:1, CFLAG:MASTER:所属, -20, 30)
 						ELSE
-							CALL CHANGE_RELATION_C_TO_C(LOCAL:1, CFLAG:MASTER:1, -5, 0)
+							CALL CHANGE_RELATION_C_TO_C(LOCAL:1, CFLAG:MASTER:所属, -5, 0)
 						ENDIF
 					ENDIF
 				NEXT
@@ -1669,9 +1669,9 @@ IF CFLAG:(ARG:0):29 == 0
 			
 		;性処理
 		CASE 5
-			CUP:(ARG:0):怒主 = CFLAG:(ARG:0):30
-			CUP:(ARG:0):哀主 = CFLAG:(ARG:0):31
-			CUP:(ARG:0):怖主 = CFLAG:(ARG:0):32
+			CUP:(ARG:0):怒主 = CFLAG:(ARG:0):捕虜怒
+			CUP:(ARG:0):哀主 = CFLAG:(ARG:0):捕虜哀
+			CUP:(ARG:0):怖主 = CFLAG:(ARG:0):捕虜怖
 			;ソース処理の関数を流用
 			CALL UP_TALENT_CHECK3(ARG:0)
 
@@ -1687,13 +1687,13 @@ IF CFLAG:(ARG:0):29 == 0
 				CFLAG:(ARG:0):崩壊 += 800 - BASE:(ARG:0):精神力 * 2
 			ENDIF
 
-			IF CFLAG:(ARG:0):1 != CFLAG:MASTER:1
+			IF CFLAG:(ARG:0):所属 != CFLAG:MASTER:所属
 				FOR LOCAL:1, 1, MAX_COUNTRY
-					IF IS_COUNTRY(LOCAL:1) && LOCAL:1 != CFLAG:MASTER:1
-						IF LOCAL:1 == CFLAG:(ARG:0):1
-							CALL CHANGE_RELATION_C_TO_C(LOCAL:1, CFLAG:MASTER:1, -50, 80)
+					IF IS_COUNTRY(LOCAL:1) && LOCAL:1 != CFLAG:MASTER:所属
+						IF LOCAL:1 == CFLAG:(ARG:0):所属
+							CALL CHANGE_RELATION_C_TO_C(LOCAL:1, CFLAG:MASTER:所属, -50, 80)
 						ELSE
-							CALL CHANGE_RELATION_C_TO_C(LOCAL:1, CFLAG:MASTER:1, -15, 5)
+							CALL CHANGE_RELATION_C_TO_C(LOCAL:1, CFLAG:MASTER:所属, -15, 5)
 						ENDIF
 					ENDIF
 				NEXT
@@ -1701,9 +1701,9 @@ IF CFLAG:(ARG:0):29 == 0
 			
 		;触手調教
 		CASE 6
-			CUP:(ARG:0):怒主 = CFLAG:(ARG:0):30
-			CUP:(ARG:0):哀主 = CFLAG:(ARG:0):31
-			CUP:(ARG:0):怖主 = CFLAG:(ARG:0):32
+			CUP:(ARG:0):怒主 = CFLAG:(ARG:0):捕虜怒
+			CUP:(ARG:0):哀主 = CFLAG:(ARG:0):捕虜哀
+			CUP:(ARG:0):怖主 = CFLAG:(ARG:0):捕虜怖
 			;ソース処理の関数を流用
 			CALL UP_TALENT_CHECK3(ARG:0)
 
@@ -1719,22 +1719,22 @@ IF CFLAG:(ARG:0):29 == 0
 				CFLAG:(ARG:0):崩壊 += 800 - BASE:(ARG:0):精神力 * 2
 			ENDIF
 
-			IF CFLAG:(ARG:0):1 != CFLAG:MASTER:1
+			IF CFLAG:(ARG:0):所属 != CFLAG:MASTER:所属
 				FOR LOCAL:1, 1, MAX_COUNTRY
-					IF IS_COUNTRY(LOCAL:1) && LOCAL:1 != CFLAG:MASTER:1
-						IF LOCAL:1 == CFLAG:(ARG:0):1
-							CALL CHANGE_RELATION_C_TO_C(LOCAL:1, CFLAG:MASTER:1, -50, 80)
+					IF IS_COUNTRY(LOCAL:1) && LOCAL:1 != CFLAG:MASTER:所属
+						IF LOCAL:1 == CFLAG:(ARG:0):所属
+							CALL CHANGE_RELATION_C_TO_C(LOCAL:1, CFLAG:MASTER:所属, -50, 80)
 						ELSE
-							CALL CHANGE_RELATION_C_TO_C(LOCAL:1, CFLAG:MASTER:1, -15, 5)
+							CALL CHANGE_RELATION_C_TO_C(LOCAL:1, CFLAG:MASTER:所属, -15, 5)
 						ENDIF
 					ENDIF
 				NEXT
 			ENDIF
 		;娼館
 		CASE 7
-			CUP:(ARG:0):怒主 = CFLAG:(ARG:0):30
-			CUP:(ARG:0):哀主 = CFLAG:(ARG:0):31
-			CUP:(ARG:0):怖主 = CFLAG:(ARG:0):32
+			CUP:(ARG:0):怒主 = CFLAG:(ARG:0):捕虜怒
+			CUP:(ARG:0):哀主 = CFLAG:(ARG:0):捕虜哀
+			CUP:(ARG:0):怖主 = CFLAG:(ARG:0):捕虜怖
 			;ソース処理の関数を流用
 			CALL UP_TALENT_CHECK3(ARG:0)
 
@@ -1750,13 +1750,13 @@ IF CFLAG:(ARG:0):29 == 0
 				CFLAG:(ARG:0):崩壊 += 300 - BASE:(ARG:0):精神力 * 2
 			ENDIF
 
-			IF CFLAG:(ARG:0):1 != CFLAG:MASTER:1
+			IF CFLAG:(ARG:0):所属 != CFLAG:MASTER:所属
 				FOR LOCAL:1, 1, MAX_COUNTRY
-					IF IS_COUNTRY(LOCAL:1) && LOCAL:1 != CFLAG:MASTER:1
-						IF LOCAL:1 == CFLAG:(ARG:0):1
-							CALL CHANGE_RELATION_C_TO_C(LOCAL:1, CFLAG:MASTER:1, -30, 50)
+					IF IS_COUNTRY(LOCAL:1) && LOCAL:1 != CFLAG:MASTER:所属
+						IF LOCAL:1 == CFLAG:(ARG:0):所属
+							CALL CHANGE_RELATION_C_TO_C(LOCAL:1, CFLAG:MASTER:所属, -30, 50)
 						ELSE
-							CALL CHANGE_RELATION_C_TO_C(LOCAL:1, CFLAG:MASTER:1, -10, 5)
+							CALL CHANGE_RELATION_C_TO_C(LOCAL:1, CFLAG:MASTER:所属, -10, 5)
 						ENDIF
 					ENDIF
 				NEXT
@@ -1765,9 +1765,9 @@ IF CFLAG:(ARG:0):29 == 0
 		CASE 8
 			;捕虜の扱いに関わる機嫌の変動処理
 			;捕虜の扱いによって生まれた感情を一端CUPに収めてSOURCE処理と同じ関数を通して素質に応じた倍率をかける
-			CUP:(ARG:0):怒主 = CFLAG:(ARG:0):30
-			CUP:(ARG:0):哀主 = CFLAG:(ARG:0):31
-			CUP:(ARG:0):怖主 = CFLAG:(ARG:0):32
+			CUP:(ARG:0):怒主 = CFLAG:(ARG:0):捕虜怒
+			CUP:(ARG:0):哀主 = CFLAG:(ARG:0):捕虜哀
+			CUP:(ARG:0):怖主 = CFLAG:(ARG:0):捕虜怖
 			;ソース処理の関数を流用
 			CALL UP_TALENT_CHECK3(ARG:0)
 			
@@ -1797,13 +1797,13 @@ IF CFLAG:(ARG:0):29 == 0
 			
 			;違う勢力の相手に苦痛を強いた場合評判が下がる
 			;本人には反発されるけど外から見てもその恐怖は分かりづらいので外からはあまり反発されない
-			IF CFLAG:(ARG:0):1 != CFLAG:MASTER:1
+			IF CFLAG:(ARG:0):所属 != CFLAG:MASTER:所属
 				FOR LOCAL:1, 1, MAX_COUNTRY
-					IF IS_COUNTRY(LOCAL:1) && LOCAL:1 != CFLAG:MASTER:1
-						IF LOCAL:1 == CFLAG:MASTER:1
-							CALL CHANGE_RELATION_C_TO_C(LOCAL:1, CFLAG:MASTER:1, -20, 30)
+					IF IS_COUNTRY(LOCAL:1) && LOCAL:1 != CFLAG:MASTER:所属
+						IF LOCAL:1 == CFLAG:MASTER:所属
+							CALL CHANGE_RELATION_C_TO_C(LOCAL:1, CFLAG:MASTER:所属, -20, 30)
 						ELSE
-							CALL CHANGE_RELATION_C_TO_C(LOCAL:1, CFLAG:MASTER:1, -5, 0)
+							CALL CHANGE_RELATION_C_TO_C(LOCAL:1, CFLAG:MASTER:所属, -5, 0)
 						ENDIF
 					ENDIF
 				NEXT
@@ -1826,9 +1826,9 @@ ELSE
 	CALL CHANGE_RELATION_O_TO_O(ARG:0, MASTER, LOCAL, -10)
 
 	FOR LOCAL:1, 1, MAX_COUNTRY
-		IF IS_COUNTRY(LOCAL:1) && LOCAL:1 != CFLAG:MASTER:1 && (REL_LIKE:(LOCAL:1):(CFLAG:MASTER:1) <= 300 || REL_LIKE:(LOCAL:1):(CFLAG:MASTER:1) >= 300)
-			SIF LOCAL:1 == CFLAG:(ARG:1):1
-				CALL CHANGE_RELATION_C_TO_C(LOCAL:1, CFLAG:MASTER:1, 5, 0)
+		IF IS_COUNTRY(LOCAL:1) && LOCAL:1 != CFLAG:MASTER:所属 && (REL_LIKE:(LOCAL:1):(CFLAG:MASTER:所属) <= 300 || REL_LIKE:(LOCAL:1):(CFLAG:MASTER:所属) >= 300)
+			SIF LOCAL:1 == CFLAG:(ARG:1):所属
+				CALL CHANGE_RELATION_C_TO_C(LOCAL:1, CFLAG:MASTER:所属, 5, 0)
 		ENDIF
 	NEXT
 ENDIF
@@ -1852,23 +1852,23 @@ ENDIF
 捕虜ＬＩＫＥ = 0
 捕虜ＨＡＴＥ = 0
 
-SIF CFLAG:(ARG:0):9 == 0	;捕虜なんかじゃないわよっ！
+SIF CFLAG:(ARG:0):捕虜先 == 0	;捕虜なんかじゃないわよっ！
 	RETURN					;カエレ! （・∀・）
-SIF COUNTRY_EVENT_ID:(CFLAG:(ARG:0):1) >= SP_COUNTRY_ID:(特殊勢力_外来人) || COUNTRY_EVENT_ID:(CFLAG:(ARG:0):9) >= SP_COUNTRY_ID:(特殊勢力_外来人)	;外来人299,ゴブ300 以降の勢力に関係する場合処理しない
+SIF COUNTRY_EVENT_ID:(CFLAG:(ARG:0):所属) >= SP_COUNTRY_ID:(特殊勢力_外来人) || COUNTRY_EVENT_ID:(CFLAG:(ARG:0):捕虜先) >= SP_COUNTRY_ID:(特殊勢力_外来人)	;外来人299,ゴブ300 以降の勢力に関係する場合処理しない
 	RETURN
-SIF CFLAG:(ARG:0):43 == 0	;解放カウンタ０＝捕虜なりたて は捕虜処置選択前なのでスルー
+SIF CFLAG:(ARG:0):解放カウンタ == 0	;解放カウンタ０＝捕虜なりたて は捕虜処置選択前なのでスルー
 	RETURN
 
 ;MASTER所属国でない勢力に捕虜にされている
-IF CFLAG:(ARG:0):9 != CFLAG:(MASTER):1
+IF CFLAG:(ARG:0):捕虜先 != CFLAG:(MASTER):所属
 	対国ＬＩＫＥ = 0
 	対国ＨＡＴＥ = 0
 	捕虜ＬＩＫＥ = 0
 	捕虜ＨＡＴＥ = 0
 
 ;MASTERが待遇決める＆投獄
-ELSEIF CFLAG:(ARG:0):9 == CFLAG:(MASTER):1 && CFLAG:(ARG:0):29 == 0 
-	SELECTCASE CFLAG:(ARG:0):11
+ELSEIF CFLAG:(ARG:0):捕虜先 == CFLAG:(MASTER):所属 && CFLAG:(ARG:0):監禁状態 == 0 
+	SELECTCASE CFLAG:(ARG:0):捕虜の扱い
 		;拘留
 		CASE 0
 			対国ＬＩＫＥ =  0
@@ -1926,7 +1926,7 @@ ELSEIF CFLAG:(ARG:0):9 == CFLAG:(MASTER):1 && CFLAG:(ARG:0):29 == 0
 	ENDSELECT
 
 ;MASTERが待遇決める＆軟禁
-ELSEIF CFLAG:(ARG:0):9 == CFLAG:(MASTER):1 && CFLAG:(ARG:0):29 == 1
+ELSEIF CFLAG:(ARG:0):捕虜先 == CFLAG:(MASTER):所属 && CFLAG:(ARG:0):監禁状態 == 1
 			対国ＬＩＫＥ =  0
 			対国ＨＡＴＥ =  4
 			捕虜ＬＩＫＥ = 10
@@ -1936,13 +1936,13 @@ ENDIF
 ;PRINTFORML 捕虜 %NAME:(ARG:0),12,LEFT% 関係変動 所属国家間（ LIKE {対国ＬＩＫＥ}　HATE {対国ＨＡＴＥ} ）　捕虜個人（LIKE {捕虜ＬＩＫＥ}　HATE {捕虜ＨＡＴＥ} ）
 ;PRINTFORML 前　%NAME:(ARG:0)% → %NAME:(MASTER)% L{REL_LIKE:(ARG:0):(MASTER)}  H{REL_HATE:(ARG:0):(MASTER)}
 
-IF CFLAG:(ARG:0):1!= 0		;国対国は、所属国が無所属になってない場合のみ
-	LOCAL:0 = GET_COUNTRY_BOSS(CFLAG:(ARG:0):9)	;捕虜にした国のボス
-	LOCAL:1 = GET_COUNTRY_BOSS(CFLAG:(ARG:0):1) ;本来の所属国
+IF CFLAG:(ARG:0):所属 != 0		;国対国は、所属国が無所属になってない場合のみ
+	LOCAL:0 = GET_COUNTRY_BOSS(CFLAG:(ARG:0):捕虜先)	;捕虜にした国のボス
+	LOCAL:1 = GET_COUNTRY_BOSS(CFLAG:(ARG:0):所属) ;本来の所属国
 
-	CALL CHANGE_RELATION_C_TO_C( CFLAG:(ARG:0):1, CFLAG:(ARG:0):9, 対国ＬＩＫＥ, 対国ＨＡＴＥ )
+	CALL CHANGE_RELATION_C_TO_C( CFLAG:(ARG:0):所属, CFLAG:(ARG:0):捕虜先, 対国ＬＩＫＥ, 対国ＨＡＴＥ )
 
-;	SIF 対国ＨＡＴＥ >=8  && CFLAG:(ARG:0):9 == CFLAG:(MASTER):1
+;	SIF 対国ＨＡＴＥ >=8  && CFLAG:(ARG:0):捕虜先 == CFLAG:(MASTER):所属
 ;		PRINTFORML 捕虜として拘束されている %NAME:(ARG:0)% への待遇に %NAME:(LOCAL:1)% が抗議しています...
 
 ;捕虜個人への 国対国の影響を相殺させる 以下の@CHANGE_RELATION_O_TO_C の影響のみにしたい　奇数変化だと端数でてる
@@ -1951,6 +1951,6 @@ IF CFLAG:(ARG:0):1!= 0		;国対国は、所属国が無所属になってない�
 
 ENDIF
 
-	CALL CHANGE_RELATION_O_TO_C( ARG:0, CFLAG:(ARG:0):9, 捕虜ＬＩＫＥ, 捕虜ＨＡＴＥ )
+	CALL CHANGE_RELATION_O_TO_C( ARG:0, CFLAG:(ARG:0):捕虜先, 捕虜ＬＩＫＥ, 捕虜ＨＡＴＥ )
 
 ;PRINTFORML 後　%NAME:(ARG:0)% → %NAME:(MASTER)% L{REL_LIKE:(ARG:0):(MASTER)}  H{REL_HATE:(ARG:0):(MASTER)}

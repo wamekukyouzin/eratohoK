@@ -10,9 +10,9 @@ IF CFLAG:(ARG:0):捕虜先 || !IS_COUNTRY(CFLAG:(ARG:0):所属)
 	RETURN -1
 ENDIF
 ;離反元君主のキャラ番号
-LOCAL:2 = GET_COUNTRY_BOSS(CFLAG:(ARG:0):1)
+LOCAL:2 = GET_COUNTRY_BOSS(CFLAG:(ARG:0):所属)
 ;離反元国家の番号
-LOCAL:3 = CFLAG:(ARG:0):1
+LOCAL:3 = CFLAG:(ARG:0):所属
 ;新しい勢力を取得
 LOCAL:4 = GET_NEW_COUNTRY()
 
@@ -58,7 +58,7 @@ COUNTRY_COLOR:(LOCAL:4) = LOCAL:10
 ;出力 0:離反について出奔,1:元君主のもとに留まる,2:説得を行うも失敗
 LOCAL:10 = 1
 ;プレイヤーが離反者の所属国家の君主でなく、かつ離反者の同僚である
-IF LOCAL:2 != MASTER && CFLAG:MASTER:1 == CFLAG:(ARG:0):1
+IF LOCAL:2 != MASTER && CFLAG:MASTER:所属 == CFLAG:(ARG:0):所属
 	;それなりに仲が良いと、一緒に来ないかと尋ねられる
 	;汎用化したので、セリフはそれっぽい地の文に置き換え
 	IF CFLAG:(ARG:0):2 >= 300
@@ -74,7 +74,7 @@ IF LOCAL:2 != MASTER && CFLAG:MASTER:1 == CFLAG:(ARG:0):1
 		PRINTFORMW 今後の身の振り方に関わってくることだ、慎重に選ばなくては……
 		CALL ASK_MULTI(@"%ANAME(ARG:0)%につく", @"%ANAME(LOCAL:2)%側に残る", "馬鹿なことはやめろと説得する")
 		IF RESULT == 0
-			CFLAG:MASTER:1 = LOCAL:4
+			CALL CHANGE_COUNTRY(MASTER, LOCAL:4)
 			PRINTFORML お前ならそう言ってくれると思っていた……%ANAME(ARG:0)%は凶悪な笑みをにやりと浮かべてみせた
 			PRINTFORML いっちょやってやろう、%ANAME(ARG:0)%は%ANAME(MASTER)%と固い握手を交わした……
 			PRINTFORMW なんだかえらいことに首を突っ込んでしまった気がする。大丈夫だろうか……
@@ -129,7 +129,7 @@ RESETCOLOR
 WAIT
 
 COUNTRY_BOSS:(LOCAL:4) = GET_ID(ARG:0)
-CFLAG:(ARG:0):1 = LOCAL:4
+CALL CHANGE_COUNTRY(ARG:0, LOCAL:4)
 	;離反元勢力の都市の守将を解除
 FOR LOCAL:0, 0, MAX_CITY
 	IF CITY_OWNER:(LOCAL:0) == LOCAL:3
@@ -137,7 +137,7 @@ FOR LOCAL:0, 0, MAX_CITY
 	ENDIF
 NEXT
 ;都市をかすめ取る
-CALL STEAL_CITIES(LOCAL:3, LOCAL:4, ARG:1)
+CALL STEAL_CITIES_RESTRICTED(LOCAL:3, LOCAL:4, ARG:1)
 
 ;離反元所属武将の一部をかすめ取る処理。
 ;LOCAL 1:離反者 , 2:離反元勢力君主 , 3:離反元勢力 , 5:離反元の未陥落者数 , 6:離反元の陥落済人数（プレイヤーが離反元勢力にいなければ5に併合）
@@ -148,7 +148,7 @@ LOCAL:6 = 0
 ;所属武将の数を調べる
 FOR LOCAL:0, 0, CHARANUM
 	;離反元所属で、捕虜でなく、プレイヤーでも離反者でも君主でないキャラ
-	IF CFLAG:(LOCAL:0):1 == LOCAL:3 && CFLAG:(LOCAL:0):9 == 0 && !GROUPMATCH(LOCAL:0 , MASTER , ARG:0 , LOCAL:2)
+	IF CFLAG:(LOCAL:0):所属 == LOCAL:3 && CFLAG:(LOCAL:0):9 == 0 && !GROUPMATCH(LOCAL:0 , MASTER , ARG:0 , LOCAL:2)
 	;DEBUGPRINTFORML CHARAMATCH:{LOCAL:0}
 		;イベントキャラは除外
 		IF NO:(LOCAL:0) >= 2000
@@ -156,7 +156,7 @@ FOR LOCAL:0, 0, CHARANUM
 		ENDIF
 		;恋慕系か隷属系でないなら組み込み、恋慕なら拉致、プレイヤーのいない勢力では組み込み
 		;(陥落済かつ「離反に同調」か「離反せず離反元に残る」)
-		IF (IS_LOVER(LOCAL:0) || IS_SLAVE(LOCAL:0)) && (!LOCAL:10 || (LOCAL:10 && CFLAG:MASTER:1 == LOCAL:3))
+		IF (IS_LOVER(LOCAL:0) || IS_SLAVE(LOCAL:0)) && (!LOCAL:10 || (LOCAL:10 && CFLAG:MASTER:所属 == LOCAL:3))
 			LOCAL:6 ++
 		ELSE
 			LOCAL:5 ++
@@ -187,10 +187,10 @@ IF LOCAL:5 > 0 || LOCAL:6 > 0
 		FOR LOCAL:99, 0, CHARANUM
 			LOCAL:0 = SHAFFLE_ARRAY:(LOCAL:99)
 			;離反元所属で、捕虜でなく、プレイヤーでも離反者でも君主でないキャラ
-			IF CFLAG:(LOCAL:0):1 == LOCAL:3 && CFLAG:(LOCAL:0):9 == 0 && !GROUPMATCH(LOCAL:0 , MASTER , ARG:0 , LOCAL:2)
+			IF CFLAG:(LOCAL:0):所属 == LOCAL:3 && CFLAG:(LOCAL:0):9 == 0 && !GROUPMATCH(LOCAL:0 , MASTER , ARG:0 , LOCAL:2)
 				;陥落済かつ「離反に同調」か「離反せず離反元に残る」ではないなら1/2で引き抜かれる
-				IF !((IS_LOVER(LOCAL:0) || IS_SLAVE(LOCAL:0)) && (!LOCAL:10 || (LOCAL:10 && CFLAG:MASTER:1 == LOCAL:3))) && RAND:2 == 0  && LOCAL:5 > 0
-					CFLAG:(LOCAL:0):1 = LOCAL:4
+				IF !((IS_LOVER(LOCAL:0) || IS_SLAVE(LOCAL:0)) && (!LOCAL:10 || (LOCAL:10 && CFLAG:MASTER:所属 == LOCAL:3))) && RAND:2 == 0  && LOCAL:5 > 0
+					CALL CHANGE_COUNTRY(LOCAL:0, LOCAL:4)
 					LOCAL:5 --
 				;離反せず離反元に残るなら陥落済みキャラは1/2で拉致される
 				ELSEIF RAND:2 == 0 && (IS_LOVER(LOCAL:0) || IS_SLAVE(LOCAL:0)) && LOCAL:6 > 0 && INRANGE(LOCAL:10 , 1 , 2)
@@ -198,7 +198,7 @@ IF LOCAL:5 > 0 || LOCAL:6 > 0
 					LOCAL:6 --
 				;離反に同調すれば陥落済キャラは同行
 				ELSEIF (IS_LOVER(LOCAL:0) || IS_SLAVE(LOCAL:0)) && LOCAL:6 > 0 && LOCAL:10 == 0
-					CFLAG:(LOCAL:0):1 = LOCAL:4
+					CALL CHANGE_COUNTRY(LOCAL:0, LOCAL:4)
 					LOCAL:6 --
 				ENDIF
 			ENDIF
@@ -220,7 +220,7 @@ FOR LOCAL:0, 0, MAX_CITY
 NEXT
 ;反乱勢力に流れた人材
 FOR LOCAL:0, 0, CHARANUM
-	IF CFLAG:(LOCAL:0):1 == LOCAL:4 && LOCAL:0 != ARG:0
+	IF CFLAG:(LOCAL:0):所属 == LOCAL:4 && LOCAL:0 != ARG:0
 		PRINTFORML %ANAME(LOCAL:0)%が%ANAME(ARG:0)%の下につきました
 	ELSEIF CFLAG:(LOCAL:0):9 == LOCAL:4
 		SETCOLOR COLOR("警告")

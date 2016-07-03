@@ -16,17 +16,17 @@ IF !((CFLAG:(ARG:0):2 >= 800 || CFLAG:(ARG:0):4 >= 800) && CFLAG:(ARG:0):3 >= 10
 ENDIF
 
 ;無所属または主人公と所属勢力が異なれば禁止
-IF CFLAG:(ARG:0):1 == 0 || CFLAG:(ARG:0):1 != CFLAG:MASTER:1
+IF CFLAG:(ARG:0):所属 == 0 || CFLAG:(ARG:0):所属 != CFLAG:MASTER:所属
 	RETURNF 0
 ENDIF
 
 ;主人公または対象が捕虜なら禁止
-IF CFLAG:MASTER:9 != 0 || CFLAG:(ARG:0):9 != 0
+IF CFLAG:MASTER:捕虜先 != 0 || CFLAG:(ARG:0):捕虜先 != 0
 	RETURNF 0
 ENDIF
 
-;特殊状態フラグが立っていれば禁止
-IF CFLAG:(ARG:0):16
+;行動不能フラグが立っていれば禁止
+IF CFLAG:(ARG:0):行動不能状態
 	RETURNF 0
 ENDIF
 
@@ -100,8 +100,8 @@ ENDIF
 ;●イベントの選択
 LOCAL:5 = 0
 
-;[合意]あり ＆ 対象の性知識Lv2以上 ＆ 主人公の特殊状態フラグが立っていない
-IF TALENT:(LOCAL:4):合意 && ABL:(LOCAL:4):性知識 >= 2 && !CFLAG:MASTER:16
+;[合意]あり ＆ 対象の性知識Lv2以上 ＆ 主人公の特殊状態が立っていない
+IF TALENT:(LOCAL:4):合意 && ABL:(LOCAL:4):性知識 >= 2 && !CFLAG:MASTER:行動不能状態
 	RESULT = 1
 	IF RAND:100 < MIN(ABL:(LOCAL:4):欲望 * 5 + 25, 75)
 		;夜這い性交
@@ -131,13 +131,13 @@ ENDIF
 
 IF !LOCAL:5
 	;主人公が臨月
-	IF CFLAG:MASTER:16 == 1
+	IF CFLAG:MASTER:行動不能状態 == 1
 		CALL EVENT_NIGHT_M_PREGNANT(LOCAL:4)
 	;主人公が育児中
-	ELSEIF CFLAG:MASTER:16 == 2
+	ELSEIF CFLAG:MASTER:行動不能状態 == 2
 		CALL EVENT_NIGHT_M_REARING(LOCAL:4)
 	;主人公が怪我
-	ELSEIF CFLAG:MASTER:16 == 3
+	ELSEIF CFLAG:MASTER:行動不能状態 == 3
 		CALL EVENT_NIGHT_M_WOUND(LOCAL:4)
 
 	ELSEIF (TALENT:(LOCAL:4):幼稚 || TALENT:(LOCAL:4):幼児 || TALENT:(LOCAL:4):素直) && RAND:2 == 0
@@ -159,8 +159,8 @@ ENDIF
 DRAWLINE
 PRINTFORMW %ANAME(ARG:0)%が%ANAME(MASTER)%の元を訪ねてきた
 
-;確定種親の場合
-IF CFLAG:MASTER:23 == GET_ID(ARG:0)
+;確定父親の場合
+IF CFLAG:MASTER:子の父親 == GET_ID(ARG:0)
 	PRINTFORMW %ANAME(ARG:0)%は出産を間近に控えた%ANAME(MASTER)%の様子を見に来たようだ
 
 	;口上の表示
@@ -193,12 +193,12 @@ DRAWLINE
 PRINTFORMW %ANAME(ARG:0)%が%ANAME(MASTER)%の元を訪ねてきた
 
 ;子供のキャラ番号を取得
-LOCAL:0 = ID_TO_CHARA(CFLAG:MASTER:22)
+LOCAL:0 = ID_TO_CHARA(CFLAG:MASTER:育児対象)
 
 ;父親のキャラ番号を取得
-LOCAL:1 = ID_TO_CHARA(CFLAG:(LOCAL:0):24)
+LOCAL:1 = ID_TO_CHARA(CFLAG:(LOCAL:0):父親)
 
-;確定種親の場合
+;確定父親の場合
 IF LOCAL:1 == ARG:0
 	PRINTFORMW %ANAME(ARG:0)%は仕事の合間を縫って%ANAME(LOCAL:0)%の様子を見に来たようだ
 

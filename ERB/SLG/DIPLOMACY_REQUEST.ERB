@@ -7,7 +7,7 @@
 ;要求が通った場合1、通らなかった場合0、処理をキャンセルした場合は-1を返す
 ;-------------------------------------------------
 @DIPLOMACY_REQUEST_COMMON(ARG:0, ARG:1 = 0)
-LOCAL:4 = GET_COUNTRY_BOSS(CFLAG:MASTER:1)
+LOCAL:4 = GET_COUNTRY_BOSS(CFLAG:MASTER:所属)
 LOCAL:5 = GET_COUNTRY_BOSS(ARG:0)
 
 ;●武力による脅しが通るかどうかを判定
@@ -16,26 +16,26 @@ LOCAL:10 = 0
 ;勢力同士の隣接関係マップを作成
 CALL TMP_CREATE_COUNTRY_NEIBORING_MAP
 
-LOCAL:6 = GET_SUM_ECONOMY(CFLAG:MASTER:1)
+LOCAL:6 = GET_SUM_ECONOMY(CFLAG:MASTER:所属)
 LOCAL:7 = GET_SUM_ECONOMY(ARG:0)
 
 LOCAL:8 = 0
 FOR LOCAL:0, 1, MAX_COUNTRY
-	SIF TMP_COUNTRY_IS_NEIBORING:(CFLAG:MASTER:1):(LOCAL:0)
+	SIF TMP_COUNTRY_IS_NEIBORING:(CFLAG:MASTER:所属):(LOCAL:0)
 		LOCAL:8 += GET_SUM_ECONOMY(LOCAL:0)
 NEXT
 
 ;※条件は降伏勧告より緩和、引数で要求内容辺り参照して変化できるようにしたいなぁ
-LOCAL:10 = DIPLOMACY_REQUEST_CHECK(CFLAG:MASTER:1, ARG:0, 40)
+LOCAL:10 = DIPLOMACY_REQUEST_CHECK(CFLAG:MASTER:所属, ARG:0, 40)
 ;こっそりヘイト加算
-DIPLOMACY_HATE:(CFLAG:MASTER:1):0 += 2
+DIPLOMACY_HATE:(CFLAG:MASTER:所属):0 += 2
 
 ;既に要求を飲んだことがあり、前回と同様の方法が通用する場合
-IF (LOCAL:10 && CFLAG:(LOCAL:5):42 == 1) || ((CFLAG:(LOCAL:5):42 == 2 && (TALENT:(LOCAL:5):烙印 || TALENT:(LOCAL:5):服従 || TALENT:(LOCAL:5):隷属 || (GETBIT(TALENT:(LOCAL:5):淫乱系, 素質_淫乱_マゾ) && TALENT:(LOCAL:5):恋慕)))) || (CFLAG:(LOCAL:5):42 == 3 && GETBIT(TALENT:(LOCAL:5):淫乱系, 素質_淫乱_薬物中毒))
-	IF (CFLAG:(LOCAL:5):42 == 2) || (TALENT:(LOCAL:5):烙印 || TALENT:(LOCAL:5):服従 || TALENT:(LOCAL:5):隷属 || (GETBIT(TALENT:(LOCAL:5):淫乱系, 素質_淫乱_マゾ) && TALENT:(LOCAL:5):恋慕))
+IF (LOCAL:10 && CFLAG:(LOCAL:5):外交要求成功フラグ == 1) || ((CFLAG:(LOCAL:5):外交要求成功フラグ == 2 && (TALENT:(LOCAL:5):烙印 || TALENT:(LOCAL:5):服従 || TALENT:(LOCAL:5):隷属 || (GETBIT(TALENT:(LOCAL:5):淫乱系, 素質_淫乱_マゾ) && TALENT:(LOCAL:5):恋慕)))) || (CFLAG:(LOCAL:5):外交要求成功フラグ == 3 && GETBIT(TALENT:(LOCAL:5):淫乱系, 素質_淫乱_薬物中毒))
+	IF (CFLAG:(LOCAL:5):外交要求成功フラグ == 2) || (TALENT:(LOCAL:5):烙印 || TALENT:(LOCAL:5):服従 || TALENT:(LOCAL:5):隷属 || (GETBIT(TALENT:(LOCAL:5):淫乱系, 素質_淫乱_マゾ) && TALENT:(LOCAL:5):恋慕))
 		PRINTFORMW %NAME:(LOCAL:5)%は困ったように瞳を彷徨わせながらも、媚びるような声で%ANAME(MASTER)%の要求を受け入れた
 		CALL DIPLOMACY_REQUEST_GOHOUBI(ARG:0)
-	ELSEIF CFLAG:(LOCAL:5):42 == 3 && GETBIT(TALENT:(LOCAL:5):淫乱系, 素質_淫乱_薬物中毒)
+	ELSEIF CFLAG:(LOCAL:5):外交要求成功フラグ == 3 && GETBIT(TALENT:(LOCAL:5):淫乱系, 素質_淫乱_薬物中毒)
 		PRINTFORMW %NAME:(LOCAL:5)%は虚ろな瞳で、従うから薬をくれるよう%ANAME(MASTER)%に訴えてきた
 		CALL DIPLOMACY_REQUEST_DRUG(ARG:0)
 	ELSEIF TALENT:(LOCAL:5):反抗的 || TALENT:(LOCAL:5):生意気 || TALENT:(LOCAL:5):プライド高い
@@ -44,21 +44,21 @@ IF (LOCAL:10 && CFLAG:(LOCAL:5):42 == 1) || ((CFLAG:(LOCAL:5):42 == 2 && (TALENT
 		PRINTFORMW %NAME:(LOCAL:5)%は悲痛な表情を浮かべると、疲れたような声で%ANAME(MASTER)%の要求を受け入れた
 	ENDIF
 	RETURN 1
-	DIPLOMACY_HATE:(CFLAG:MASTER:1):0 += 2
+	DIPLOMACY_HATE:(CFLAG:MASTER:所属):0 += 2
 
 ELSEIF ARG:1 && (TALENT:(LOCAL:5):烙印 || TALENT:(LOCAL:5):服従 || TALENT:(LOCAL:5):隷属 || (GETBIT(TALENT:(LOCAL:5):淫乱系, 素質_淫乱_マゾ) && TALENT:(LOCAL:5):恋慕))
 	IF TALENT:(LOCAL:5):烙印
 		PRINTFORMW 既に%ANAME(MASTER)%に烙印を刻み付けられ所有物となった%NAME:(LOCAL:5)%は、断ることも出来ず頷いた
 		PRINTFORMW ……心なしか嬉しそうに見える
-		CFLAG:(LOCAL:5):42 = 2
+		CFLAG:(LOCAL:5):外交要求成功フラグ = 2
 		CALL DIPLOMACY_REQUEST_GOHOUBI(ARG:0)
 	ELSE
 		PRINTFORMW 既に%ANAME(MASTER)%に陶酔しきった%NAME:(LOCAL:5)%は、目を逸らしながらも頷いた
 		PRINTFORMW ……心なしか嬉しそうに見える
-		CFLAG:(LOCAL:5):42 = 2
+		CFLAG:(LOCAL:5):外交要求成功フラグ = 2
 		CALL DIPLOMACY_REQUEST_GOHOUBI(ARG:0)
 	ENDIF
-	DIPLOMACY_HATE:(CFLAG:MASTER:1):0 ++
+	DIPLOMACY_HATE:(CFLAG:MASTER:所属):0 ++
 	RETURN 1
 
 ;要求を飲んだことがない or 前回の方法が通用しない場合
@@ -99,18 +99,18 @@ ELSE
 			ENDIF
 
 			;関係悪化
-			CALL CHANGE_RELATION_C_TO_C(ARG:0, CFLAG:MASTER:1, -100, 150)
+			CALL CHANGE_RELATION_C_TO_C(ARG:0, CFLAG:MASTER:所属, -100, 150)
 
 			;性的な要求なら周囲からの評判も悪化
 			IF ARG:1
 				FOR LOCAL:0, 1, MAX_COUNTRY
-					SIF IS_COUNTRY(LOCAL:0) && LOCAL:0 != CFLAG:MASTER:1
-						CALL CHANGE_RELATION_C_TO_C(ARG:0, CFLAG:MASTER:1, -100, 50)
+					SIF IS_COUNTRY(LOCAL:0) && LOCAL:0 != CFLAG:MASTER:所属
+						CALL CHANGE_RELATION_C_TO_C(ARG:0, CFLAG:MASTER:所属, -100, 50)
 				NEXT
 			ENDIF
 
-			CFLAG:(LOCAL:5):42 = 1
-			DIPLOMACY_HATE:(CFLAG:MASTER:1):0 += 2
+			CFLAG:(LOCAL:5):外交要求成功フラグ = 1
+			DIPLOMACY_HATE:(CFLAG:MASTER:所属):0 += 2
 			RETURN 1
 
 		ELSE
@@ -202,8 +202,8 @@ ELSE
 			PRINTFORMW ………………
 			PRINTFORML しばらく愛撫を続けると、%NAME:(LOCAL:5)%はすっかり陶酔した表情になり、
 			PRINTFORMW 媚びるような態度で%ANAME(MASTER)%の要求を飲むことを約束した
-			CFLAG:(LOCAL:5):42 = 2
-			DIPLOMACY_HATE:(CFLAG:MASTER:1):0 += 2
+			CFLAG:(LOCAL:5):外交要求成功フラグ = 2
+			DIPLOMACY_HATE:(CFLAG:MASTER:所属):0 += 2
 			RETURN 2
 		ELSE
 			PRINTFORML だが、いくら%ANAME(MASTER)%の頼みでもそれだけは応えることが出来ないと、
@@ -221,9 +221,9 @@ ELSE
 			PRINTFORMW ………………
 			PRINTFORML 一にも二にもなく、要求に従うことに%NAME:(LOCAL:5)%は同意した
 			PRINTFORMW %ANAME(MASTER)%は褒美として、差し出された舌の上に錠剤を載せてやった……
-			CFLAG:(LOCAL:5):42 = 3
+			CFLAG:(LOCAL:5):外交要求成功フラグ = 3
 			CFLAG:(LOCAL:5):薬物依存 += RAND(20, 50)
-			DIPLOMACY_HATE:(CFLAG:MASTER:1):0 += 3
+			DIPLOMACY_HATE:(CFLAG:MASTER:所属):0 += 3
 			RETURN 3
 		ENDIF
 	ENDIF
@@ -238,7 +238,7 @@ RETURN -1
 @DIPLOMACY_REQUEST_PRIZE(ARG:0)
 #DIM TRAIN_LIST, 20
 
-LOCAL:4 = GET_COUNTRY_BOSS(CFLAG:MASTER:1)
+LOCAL:4 = GET_COUNTRY_BOSS(CFLAG:MASTER:所属)
 LOCAL:5 = GET_COUNTRY_BOSS(ARG:0)
 
 PRINTL 
@@ -392,7 +392,7 @@ SELECTCASE TRAIN_LIST:RESULT
 			PRINTFORMW %ANAME(MASTER)%はその場を後にした…
 		ENDIF
 		CALL FUCK(MASTER, "Ｃ, 欲望, 性交, 射精", "童貞喪失", 0, "", "", @"%ANAME(LOCAL:5)%のアナル")
-		CALL FUCK(LOCAL:5, "欲望, 奉仕, 性交, 精愛, Ａ, 射精", "Ａ処女喪失", 0, "", ANAME(MASTER))
+		CALL FUCK(LOCAL:5, "欲望, 奉仕, 性交, 精愛, Ａ, 射精", "Ａ処女喪失, 腸内射精", 0, "", ANAME(MASTER))
 		CFLAG:(LOCAL:5):4 += 400
 		CFLAG:(LOCAL:5):3 += 200
 		WAIT
@@ -414,7 +414,7 @@ SELECTCASE TRAIN_LIST:RESULT
 		PRINTFORML だらしのないアヘ顔をさらしながら酸欠で軽く痙攣している%ANAME(LOCAL:5)%を放置し、
 		PRINTFORMW %ANAME(MASTER)%はその場を後にした…
 		CALL FUCK(MASTER, "Ｃ, 欲望, 射精")
-		CALL FUCK(LOCAL:5, "欲望, 奉仕, 性技, 精愛, 口淫", "キス喪失", 0, @"%ANAME(MASTER)%のペニス")
+		CALL FUCK(LOCAL:5, "欲望, 奉仕, 性技, 精愛, 口淫", "キス喪失, 口内射精", 0, @"%ANAME(MASTER)%のペニス")
 		CFLAG:(LOCAL:5):4 += 300
 		CFLAG:(LOCAL:5):3 += 300
 		WAIT
@@ -489,7 +489,7 @@ SELECTCASE TRAIN_LIST:RESULT
 		PRINTFORML 部屋に戻った%ANAME(MASTER)%を迎えたのは、むせかえるほどの性の匂いだった
 		PRINTFORML ベッドの上では、全身真っ白に染まった%ANAME(LOCAL:5)%が、両穴と口から子種を垂れ流しにしながら、
 		PRINTFORML 肉棒をねだる言葉を並べたてていた……
-		CALL FUCK(LOCAL:5, "欲望, 性交, 精愛, 奉仕, 性技, Ｖ, Ｃ, Ａ, Ｂ, Ｍ, 口淫, 緊縛, 苦痛快楽, 輪姦", "処女喪失, Ａ処女喪失", GET_SPERM_ID("兵士"), "兵士のペニス", "兵士")
+		CALL FUCK(LOCAL:5, "欲望, 性交, 精愛, 奉仕, 性技, Ｖ, Ｃ, Ａ, Ｂ, Ｍ, 口淫, 緊縛, 苦痛快楽, 輪姦", "処女喪失, Ａ処女喪失, 膣内射精, 腸内射精, 口内射精", GET_SPERM_ID("兵士"), "兵士のペニス", "兵士")
 		WAIT
 	;宮廷を散歩する
 	CASE 7
@@ -505,7 +505,7 @@ SELECTCASE TRAIN_LIST:RESULT
 				PRINTFORML 部下たちは信じられないものを見るような目で、%ANAME(MASTER)%を、そしてなにより%ANAME(LOCAL:5)%を見ている
 				PRINTFORML %ANAME(MASTER)%が促すと、%ANAME(LOCAL:5)%は、自らが%ANAME(MASTER)%に屈服し、雌となったことを報告した
 				PRINTFORML そして彼ら・彼女らの見ている前で、%ANAME(MASTER)%の一物を露出させ、その唇で奉仕を始めた……
-				CALL FUCK(LOCAL:5, "欲望, 精愛, 奉仕, 性技, 露出, 露出, 口淫", "キス喪失", 0, @"%ANAME(MASTER)%のペニス")
+				CALL FUCK(LOCAL:5, "欲望, 精愛, 奉仕, 性技, 露出, 露出, 口淫", "キス喪失, 口内射精", 0, @"%ANAME(MASTER)%のペニス")
 				LOCAL:21 = GET_EVENT_ABL_POWER(ABL:(LOCAL:5):性技) + GET_EVENT_ABL_POWER(ABL:(LOCAL:5):露出)
 			CASE 1
 				PRINTFORMW %ANAME(MASTER)%は中庭にやって来た
@@ -524,7 +524,7 @@ SELECTCASE TRAIN_LIST:RESULT
 				PRINTFORML %ANAME(MASTER)%によって仕込まれた技術は、兵士をあっという間に昂ぶらせ、射精へと導いた
 				PRINTFORML 放たれる白濁を、%ANAME(LOCAL:5)%は音を立てて飲み下していく
 				PRINTFORMW %ANAME(MASTER)%が%ANAME(LOCAL:5)%の膣穴を使う許可を出すと、兵士は感謝しながら彼女を猛然と犯し始めた……
-				CALL FUCK(LOCAL:5, "欲望, 精愛, 奉仕, 性交, 性技, 露出, 露出, 口淫, Ｖ感", "キス喪失, 処女喪失", GET_SPERM_ID("兵士"), "兵士のペニス", "兵士")
+				CALL FUCK(LOCAL:5, "欲望, 精愛, 奉仕, 性交, 性技, 露出, 露出, 口淫, Ｖ感", "キス喪失, 処女喪失, 膣内射精, 口内射精", GET_SPERM_ID("兵士"), "兵士のペニス", "兵士")
 				LOCAL:21 = GET_EVENT_ABL_POWER(ABL:(LOCAL:5):性交) + GET_EVENT_ABL_POWER(ABL:(LOCAL:5):露出)
 			CASE 3
 				PRINTFORML 人目につかない廊下の陰に、%ANAME(MASTER)%は%ANAME(LOCAL:5)%を連れ込んだ
@@ -533,7 +533,7 @@ SELECTCASE TRAIN_LIST:RESULT
 				PRINTFORMW そして節操のない雌犬への罰として、肉棒を深々と突き入れた
 				PRINTFORML 誰かに見られていることも忘れ、%ANAME(LOCAL:5)%はたまらないという声をあげ、腰を振りたくってヨガり狂っている
 				PRINTFORML やがて%ANAME(MASTER)%が膣穴深くで射精すると、%ANAME(LOCAL:5)%は宮廷中に響くほどの声で絶頂した……
-				CALL FUCK(LOCAL:5, "欲望, 精愛, 奉仕, 性交, 性技, 露出, 露出, Ｖ感", "処女喪失", GET_ID(MASTER), "", ANAME(MASTER))
+				CALL FUCK(LOCAL:5, "欲望, 精愛, 奉仕, 性交, 性技, 露出, 露出, Ｖ感", "処女喪失, 膣内射精", GET_ID(MASTER), "", ANAME(MASTER))
 				LOCAL:21 = GET_EVENT_ABL_POWER(ABL:(LOCAL:5):Ｖ感) + GET_EVENT_ABL_POWER(ABL:(LOCAL:5):露出)
 		ENDSELECT
 		PRINTFORMW ………………
@@ -583,7 +583,7 @@ ENDSELECT
 ;要求を飲んだ時のご褒美（薬物）
 ;-------------------------------------------------
 @DIPLOMACY_REQUEST_DRUG_USE(ARG:0)
-LOCAL:4 = GET_COUNTRY_BOSS(CFLAG:MASTER:1)
+LOCAL:4 = GET_COUNTRY_BOSS(CFLAG:MASTER:所属)
 LOCAL:5 = GET_COUNTRY_BOSS(ARG:0)
 
 SELECTCASE RAND:100
@@ -596,7 +596,7 @@ SELECTCASE RAND:100
 		PRINTFORML やがて%ANAME(MASTER)%が限界を迎え、その精を%ANAME(LOCAL:5)%の口内に放つと、
 		PRINTFORMW %ANAME(LOCAL:5)%は音を立ててそれを飲み下していった……
 		CALL FUCK(MASTER, "Ｃ, 欲望, 射精")
-		CALL FUCK(LOCAL:5, "欲望, 奉仕, 性技, 精愛, 口淫", "キス喪失", 0, @"%ANAME(MASTER)%のペニス")
+		CALL FUCK(LOCAL:5, "欲望, 奉仕, 性技, 精愛, 口淫", "キス喪失, 口内射精", 0, @"%ANAME(MASTER)%のペニス")
 	CASEELSE
 		PRINTFORML %ANAME(MASTER)%は、トリップする%ANAME(LOCAL:5)%をベッドの上に押し倒した
 		PRINTFORML そして前戯もそこそこに、その濡れた穴にペニスを挿入した
@@ -618,7 +618,7 @@ ENDSELECT
 ;-------------------------------------------------
 @DIPLOMACY_REQUEST_DRUG(ARG:0)
 
-LOCAL:4 = GET_COUNTRY_BOSS(CFLAG:MASTER:1)
+LOCAL:4 = GET_COUNTRY_BOSS(CFLAG:MASTER:所属)
 LOCAL:5 = GET_COUNTRY_BOSS(ARG:0)
 
 CFLAG:(LOCAL:5):薬物依存 += RAND(20, 50)
@@ -656,7 +656,7 @@ ENDIF
 ;兵を要求する
 ;-------------------------------------------------
 @DIPLOMACY_REQUEST_SOLDIER(ARG:0)
-LOCAL:4 = GET_COUNTRY_BOSS(CFLAG:MASTER:1)
+LOCAL:4 = GET_COUNTRY_BOSS(CFLAG:MASTER:所属)
 LOCAL:5 = GET_COUNTRY_BOSS(ARG:0)
 
 PRINTFORMW %ANAME(MASTER)%は%NAME:(LOCAL:5)%に対して、兵を寄越せと要求した
@@ -669,7 +669,7 @@ SIF LOCAL:2 <= 0
 LOCAL:11 = MIN(GET_SUM_ECONOMY(ARG:0) * 8 / 1000, GET_SUM_SOLDIER(ARG:0) * 2 / 3)
 
 ;相手から自国にLOCAL:11だけ兵を移動
-CALL SHIFT_SOLDIER(ARG:0, CFLAG:MASTER:1, LOCAL:11)
+CALL SHIFT_SOLDIER(ARG:0, CFLAG:MASTER:所属, LOCAL:11)
 
 PRINTFORMW %NAME:(LOCAL:5)%は%NAME:(LOCAL:4)%に兵{LOCAL:11}を「提供」した…
 
@@ -685,7 +685,7 @@ RETURN 1
 ;経済力を要求する
 ;-------------------------------------------------
 @DIPLOMACY_REQUEST_ECONOMY(ARG:0)
-LOCAL:4 = GET_COUNTRY_BOSS(CFLAG:MASTER:1)
+LOCAL:4 = GET_COUNTRY_BOSS(CFLAG:MASTER:所属)
 LOCAL:5 = GET_COUNTRY_BOSS(ARG:0)
 
 PRINTFORMW %ANAME(MASTER)%は%NAME:(LOCAL:5)%に対して、経済力を寄越せと要求した
@@ -698,7 +698,7 @@ SIF LOCAL:2 <= 0
 LOCAL:11 = GET_SUM_ECONOMY(ARG:0) / 20 / 100 * 100
 
 ;相手から自国にLOCAL:11だけ経済力を移動
-CALL SHIFT_ECONOMY(ARG:0, CFLAG:MASTER:1, LOCAL:11)
+CALL SHIFT_ECONOMY(ARG:0, CFLAG:MASTER:所属, LOCAL:11)
 
 PRINTFORMW %NAME:(LOCAL:5)%は%NAME:(LOCAL:4)%に経済力{LOCAL:11 / 100}を「提供」した…
 
@@ -715,7 +715,7 @@ RETURN 1
 ;-------------------------------------------------
 @DIPLOMACY_REQUEST_PRISONER(ARG:0)
 #DIM FIRST_LINE
-LOCAL:4 = GET_COUNTRY_BOSS(CFLAG:MASTER:1)
+LOCAL:4 = GET_COUNTRY_BOSS(CFLAG:MASTER:所属)
 LOCAL:5 = GET_COUNTRY_BOSS(ARG:0)
 
 PRINTFORMW %ANAME(MASTER)%は%NAME:(LOCAL:5)%に対して、人質をよこせと要求した
@@ -729,7 +729,7 @@ SIF LOCAL:2 <= 0
 LOCAL:12 = (24 - LOCAL:20) * 2
 LOCAL:10 = 0
 FOR LOCAL:0, 0, CHARANUM
-	SIF CFLAG:(LOCAL:0):1 == ARG:0 && CFLAG:(LOCAL:0):9 == 0 && LOCAL:0 != LOCAL:5
+	SIF CFLAG:(LOCAL:0):所属 == ARG:0 && CFLAG:(LOCAL:0):捕虜先 == 0 && LOCAL:0 != LOCAL:5
 		LOCAL:10 ++
 NEXT
 LOCAL:10 = MAX((LOCAL:10 - 1) / LOCAL:12 + 1, 1)
@@ -750,7 +750,7 @@ LOCAL:15 = (LOCAL:11 - 1) * LOCAL:12
 LOCAL:16 = LOCAL:11 * LOCAL:12
 LOCAL:17 = 0
 FOR LOCAL:0, 0, CHARANUM
-	IF CFLAG:(LOCAL:0):1 == ARG:0 && CFLAG:(LOCAL:0):9 == 0 && LOCAL:0 != LOCAL:5
+	IF CFLAG:(LOCAL:0):所属 == ARG:0 && CFLAG:(LOCAL:0):捕虜先 == 0 && LOCAL:0 != LOCAL:5
 		IF LOCAL:13 >= LOCAL:15 && LOCAL:13 < LOCAL:16
 			IF LOCAL:14 % 2 != 0
 				PRINTPLAIN 　
@@ -814,14 +814,14 @@ ELSEIF RESULT == 56
 	GOTO SHOW_LOOP2
 ELSE
 	LOCAL:30 = NO_TO_CHARA(RESULT - 100)
-	IF LOCAL:30 >= 0 && CFLAG:(LOCAL:30):1 == ARG:0 && CFLAG:(LOCAL:30):9 == 0 && LOCAL:30 != LOCAL:5
+	IF LOCAL:30 >= 0 && CFLAG:(LOCAL:30):所属 == ARG:0 && CFLAG:(LOCAL:30):捕虜先 == 0 && LOCAL:30 != LOCAL:5
 		DRAWLINE
 		CALL SHOW_INFO(LOCAL:30)
 		DRAWLINE
 		PRINTL このキャラを我が国の捕虜として連れて行きますか？
 		CALL ASK_YN()
 		IF RESULT == 0
-			CFLAG:(LOCAL:30):9 = CFLAG:MASTER:1
+			CALL CAPTURE(LOCAL:30, CFLAG:MASTER:所属)
 			;部隊に含まれているなら取り除く
 			FOR LOCAL, 0, MAX_UNIT
 				FOR LOCAL:1 , 0, 3
@@ -857,7 +857,7 @@ GOTO INPUT_LOOP
 ;人質の解放を要求する
 ;-------------------------------------------------
 @DIPLOMACY_REQUEST_RELEASE(ARG:0)
-LOCAL:4 = GET_COUNTRY_BOSS(CFLAG:MASTER:1)
+LOCAL:4 = GET_COUNTRY_BOSS(CFLAG:MASTER:所属)
 LOCAL:5 = GET_COUNTRY_BOSS(ARG:0)
 
 PRINTFORMW %ANAME(MASTER)%は%NAME:(LOCAL:5)%に対して、無条件で人質を解放するよう要求した
@@ -870,8 +870,8 @@ SIF LOCAL:2 <= 0
 PRINTFORML %NAME:(LOCAL:5)%は囚えていた我が国の捕虜を全員解放した…
 SETCOLOR COLOR("注意")
 FOR LOCAL:0, 0, CHARANUM
-	IF CFLAG:(LOCAL:0):1 == CFLAG:MASTER:1 && CFLAG:(LOCAL:0):9 == ARG:0
-		CFLAG:(LOCAL:0):9 = 0
+	IF CFLAG:(LOCAL:0):所属 == CFLAG:MASTER:所属 && CFLAG:(LOCAL:0):捕虜先 == ARG:0
+		CALL CAPTURE(LOCAL:0, 0)
 		PRINTFORML %ANAME(LOCAL:0)%は解放されました
 	ENDIF
 NEXT
@@ -889,13 +889,14 @@ RETURN 1
 ;調教する
 ;-------------------------------------------------
 @DIPLOMACY_REQUEST_TRAIN(ARG:0)
-LOCAL:4 = GET_COUNTRY_BOSS(CFLAG:MASTER:1)
+LOCAL:4 = GET_COUNTRY_BOSS(CFLAG:MASTER:所属)
 LOCAL:5 = GET_COUNTRY_BOSS(ARG:0)
 
 IF COUNTRY_EVENT_ID:(ARG:0) == SP_COUNTRY_ID:(特殊勢力_野盗)
 	PRINTFORMW 野盗は突っぱねてきました
 	RETURN 0
 ENDIF
+
 
 PRINTFORMW %ANAME(MASTER)%は%NAME:(LOCAL:5)%に対して、体を好きにさせろと要求した
 
@@ -908,7 +909,7 @@ SETCOLOR COLOR("注意")
 PRINTFORML %NAME:(LOCAL:5)%が「捕虜の調教」メニューから調教可能になりました
 RESETCOLOR
 PRINTFORMW (条件を満たしている間は常に調教可能になります)
-CFLAG:(LOCAL:5):59 = 1
+CFLAG:(LOCAL:5):外交調教経過ターン = 1
 
 ;-------------------------------------------------
 ;外交による調教要求フラグの解除判定
@@ -918,17 +919,17 @@ CFLAG:(LOCAL:5):59 = 1
 CALL TMP_CREATE_COUNTRY_BOSS_MAP
 
 FOR LOCAL:0, 0, CHARANUM
-	IF CFLAG:(LOCAL:0):59
+	IF CFLAG:(LOCAL:0):外交調教経過ターン
 		;君主でなければ解除
 		LOCAL:2 = -1
 		FOR LOCAL:1, 1, MAX_COUNTRY
-			IF LOCAL:0 == TMP_COUNTRY_BOSS_NUMBER:(LOCAL:1) && LOCAL:1 != CFLAG:MASTER:1
+			IF LOCAL:0 == TMP_COUNTRY_BOSS_NUMBER:(LOCAL:1) && LOCAL:1 != CFLAG:MASTER:所属
 				LOCAL:2 = LOCAL:1
 				BREAK
 			ENDIF
 		NEXT
 		IF LOCAL:2 == -1
-			CFLAG:(LOCAL:0):59 = 0
+			CFLAG:(LOCAL:0):外交調教経過ターン = 0
 			PRINTL 
 			SETCOLOR COLOR("注意")
 			PRINTFORMW %ANAME(LOCAL:0)%が君主ではなくなったため、「捕虜の調教」の調教対象から外れました…
@@ -936,8 +937,8 @@ FOR LOCAL:0, 0, CHARANUM
 			CONTINUE
 		ENDIF
 
-		IF !IS_COUNTRY(CFLAG:MASTER:1)
-			CFLAG:(LOCAL:0):59 = 0
+		IF !IS_COUNTRY(CFLAG:MASTER:所属)
+			CFLAG:(LOCAL:0):外交調教経過ターン = 0
 			PRINTL
 			SETCOLOR COLOR("注意")
 			PRINTFORMW %ANAME(LOCAL:0)%はあなたが勢力からいなくなったため、「捕虜の調教」の調教対象から外れました…
@@ -952,19 +953,19 @@ FOR LOCAL:0, 0, CHARANUM
 		;勢力同士の隣接関係マップを作成
 		CALL TMP_CREATE_COUNTRY_NEIBORING_MAP
 		;強要時より基礎判定値は下げています
-		SIF DIPLOMACY_REQUEST_CHECK(CFLAG:MASTER:1, LOCAL:2, 25, 1)
+		SIF DIPLOMACY_REQUEST_CHECK(CFLAG:MASTER:所属, LOCAL:2, 25, 1)
 			LOCAL:3 = 1
 
 		;【条件B】特定の素質を持っていて、快楽でいうことを聞かせた
-		SIF TALENT:(LOCAL:0):烙印 || TALENT:(LOCAL:0):服従 || TALENT:(LOCAL:0):隷属 || (GETBIT(TALENT:(LOCAL:0):淫乱系, 素質_淫乱_マゾ) && TALENT:(LOCAL:0):恋慕) && CFLAG:(LOCAL:0):42 == 2
+		SIF TALENT:(LOCAL:0):烙印 || TALENT:(LOCAL:0):服従 || TALENT:(LOCAL:0):隷属 || (GETBIT(TALENT:(LOCAL:0):淫乱系, 素質_淫乱_マゾ) && TALENT:(LOCAL:0):恋慕) && CFLAG:(LOCAL:0):外交要求成功フラグ == 2
 			LOCAL:4 = 1
 
-		SIF CFLAG:(LOCAL:0):薬物依存 >= REL_HATE:(LOCAL:0):(MASTER) && CFLAG:(LOCAL:0):43 == 3
+		SIF CFLAG:(LOCAL:0):薬物依存 >= REL_HATE:(LOCAL:0):(MASTER) && CFLAG:(LOCAL:0):外交要求成功フラグ == 3
 			LOCAL:4 = 1
 
 		;【条件A】【条件B】のいずれも満たさず2ターン以降経過しているなら解除
-		IF !LOCAL:3 && !LOCAL:4 && CFLAG:(LOCAL:0):59 > 2
-			CFLAG:(LOCAL:0):59 = 0
+		IF !LOCAL:3 && !LOCAL:4 && CFLAG:(LOCAL:0):外交調教経過ターン > 2
+			CFLAG:(LOCAL:0):外交調教経過ターン = 0
 			PRINTL 
 			PRINTFORML %ANAME(LOCAL:0)%はこれ以上%ANAME(MASTER)%に体を許すつもりはないと通告してきた…
 			SETCOLOR COLOR("注意")
@@ -973,8 +974,8 @@ FOR LOCAL:0, 0, CHARANUM
 			CONTINUE
 		ENDIF
 		
-		SIF CFLAG:(LOCAL:0):59
-			CFLAG:(LOCAL:0):59 ++
+		SIF CFLAG:(LOCAL:0):外交調教経過ターン
+			CFLAG:(LOCAL:0):外交調教経過ターン ++
 	ENDIF
 NEXT
 
@@ -1085,11 +1086,11 @@ FOR COUNT:1, 0, CHARANUM
 	;遊撃中もしくは特殊状態のキャラは除外
 	SIF !IS_FREE(COUNT:1)
 		CONTINUE
-	IF CFLAG:(COUNT:1):1 == ARG:0 && BOSS:0 != COUNT:1
+	IF CFLAG:(COUNT:1):所属 == ARG:0 && BOSS:0 != COUNT:1
 		;政治力の計算、ただし能力に感情値の補正が直接作用する
 		POLITICS_SELF:3 = ABL_POWER(ABL:(COUNT:1):政治 * (REL_LIKE:(COUNT:1):(BOSS:1) / 10 + 50) * (100 - REL_HATE:(COUNT:1):(BOSS:1) / 20) / 10000)
 		ARRAYSORT POLITICS_SELF, BACK
-	ELSEIF CFLAG:(COUNT:1):1 == ARG:1 && BOSS:1 != COUNT:1
+	ELSEIF CFLAG:(COUNT:1):所属 == ARG:1 && BOSS:1 != COUNT:1
 		;政治力の記録
 		POLITICS_TARGET:(COUNT:1) = ABL:(COUNT:1):政治
 	ENDIF
@@ -1292,7 +1293,7 @@ ROLL_RES:1 = POWER_BALANCE:1 ? RAND(POWER_BALANCE:1) # -3
 ROLL_RES:2 = POWER_BALANCE:2 ? RAND(POWER_BALANCE:2) # -5
 ROLL_RES:3 = POWER_BALANCE:3 ? RAND(POWER_BALANCE:3) # -2
 
-LOCAL:0 = ARG:0 == CFLAG:MASTER:1 ? ((CONFIG:300 + 1) * 5) # 10
+LOCAL:0 = ARG:0 == CFLAG:MASTER:所属 ? ((CONFIG:300 + 1) * 5) # 10
 LOCAL:1 = DIFFICULTY * LOCAL:0 / 10
 SIF !ARG:3
 	PRINTFORML 【評価点】経済比:{POWER_BALANCE:1}, 戦力比:{POWER_BALANCE:2}, 部下の政治力比:{POWER_BALANCE:3}, 君主の政治力比:{POWER_BALANCE:4}
@@ -1425,10 +1426,10 @@ IF DIPLOMACY_HATE:(ARG:0):0 >= DIPLOMACY_HATE:(ARG:0):2 + 20
 							RESETCOLOR
 							;移動処理対象の検索
 							FOR LOCAL:1, 0, MAX_TREATY_COUNTRY
-								IF TREATY_A_COUNTRY:(LOOP_COUNT:0):(LOCAL:1) >= 1 && TREATY_A_COUNTRY:(LOCAL:0):(LOCAL:1) != CFLAG:MASTER:1
+								IF TREATY_A_COUNTRY:(LOOP_COUNT:0):(LOCAL:1) >= 1 && TREATY_A_COUNTRY:(LOCAL:0):(LOCAL:1) != CFLAG:MASTER:所属
 									;その同盟にプレイヤー勢力がいたか検索
 									FOR LOCAL:2, 0, MAX_TREATY_COUNTRY
-										IF TREATY_A_COUNTRY:(LOOP_COUNT:0):(LOCAL:2) == CFLAG:MASTER:1
+										IF TREATY_A_COUNTRY:(LOOP_COUNT:0):(LOCAL:2) == CFLAG:MASTER:所属
 											;いたら、自国へ誘った士官の移動処理
 											CALL GO_TO_MASTERS_COUNTRY(TREATY_A_COUNTRY:(LOOP_COUNT:0):(LOCAL:1))
 										ENDIF
@@ -1535,10 +1536,10 @@ IF DIPLOMACY_HATE:(ARG:0):0 >= DIPLOMACY_HATE:(ARG:0):2 + 20
 							RESETCOLOR
 							;移動処理対象の検索
 							FOR LOCAL:1, 0, MAX_TREATY_COUNTRY
-								IF TREATY_U_COUNTRY:(LOOP_COUNT:0):(LOCAL:1) >= 1 && TREATY_U_COUNTRY:(LOCAL:0):(LOCAL:1) != CFLAG:MASTER:1
+								IF TREATY_U_COUNTRY:(LOOP_COUNT:0):(LOCAL:1) >= 1 && TREATY_U_COUNTRY:(LOCAL:0):(LOCAL:1) != CFLAG:MASTER:所属
 									;その同盟にプレイヤー勢力がいたか検索
 									FOR LOCAL:2, 0, MAX_TREATY_COUNTRY
-										IF TREATY_U_COUNTRY:(LOOP_COUNT:0):(LOCAL:2) == CFLAG:MASTER:1
+										IF TREATY_U_COUNTRY:(LOOP_COUNT:0):(LOCAL:2) == CFLAG:MASTER:所属
 											;いたら、自国へ誘った士官の移動処理
 											CALL GO_TO_MASTERS_COUNTRY(TREATY_U_COUNTRY:(LOOP_COUNT:0):(LOCAL:1))
 										ENDIF

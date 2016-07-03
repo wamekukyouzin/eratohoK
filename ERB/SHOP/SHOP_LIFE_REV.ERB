@@ -8,11 +8,11 @@ SELECTCASE ARG:0
 	CASE 0
 		CALL PRINTBUTTON_CENTER(" 0[……………]", 0, 6)
 	;CASE 2
-	;	CALL PRINTBUTTON_CENTER(" 1{様子を見る}", 1, 6, 1, FLAG:7 == 1030)
+	;	CALL PRINTBUTTON_CENTER(" 1{様子を見る}", 1, 6, 1, FLAG:拠点フェイズ選択コマンド == 1030)
 	CASE 7
-		CALL PRINTBUTTON_CENTER(" 5{  能力表示}", 5, 6, 1, FLAG:7 == 1040)
+		CALL PRINTBUTTON_CENTER(" 5{  能力表示}", 5, 6, 1, FLAG:拠点フェイズ選択コマンド == 1040)
 	CASE 20
-		IF FLAG:28
+		IF FLAG:クリアフラグ
 			CALL PRINTBUTTON_CENTER("50[次の周回へ]", 50, 6)
 		ELSE
 			PRINT 　　　　　　　
@@ -34,30 +34,30 @@ PRINT ┃
 ;-------------------------------------------------
 @SHOW_SHOP_LIFE_B
 ;無効な入力時に消去する時の行数
-FLAG:24 = 30
+FLAG:ショップ消去行数 = 30
 
 VARSET LOCAL, 0
 
 ;キャラクタ表示順のリストを作成
-CALL CREATE_SELECOTR_SORT_LIST
+CALL CREATE_SELECTOR_SORT_LIST
 
 ;全員の調教参加フラグをクリア
 CVARSET CFLAG, 6, 0
 
 ;各コマンドが実行不能ならメニューの選択状態を解除する
-IF GROUPMATCH(FLAG:7, 1000, 1001, 1002, 1010, 1011, 1020)
-	FLAG:7 = 0
+IF GROUPMATCH(FLAG:拠点フェイズ選択コマンド, 1000, 1001, 1002, 1010, 1011, 1020)
+	FLAG:拠点フェイズ選択コマンド = 0
 ENDIF
 
 ;様子を見る
-IF FLAG:7 == 1030
+IF FLAG:拠点フェイズ選択コマンド == 1030
 	CALL PRINT_LIFE_MENU_B(0)
 	PRINTFORML ★★様子を見たいキャラを選択して下さい★★
 	CALL PRINT_LIFE_MENU_B(1)
 	PRINTFORML %TOSTR_REPEAT("-", 70)%
 	LOCAL:20 = 2
 ;能力表示
-ELSEIF FLAG:7 == 1040
+ELSEIF FLAG:拠点フェイズ選択コマンド == 1040
 	CALL PRINT_LIFE_MENU_B(0)
 	PRINTFORML ★★能力を表示するキャラを選択して下さい★★
 	CALL PRINT_LIFE_MENU_B(1)
@@ -76,7 +76,7 @@ LOCAL:10 = 0
 FOR LOCAL:0, 0, CHARANUM
 	;選択可能な条件を満たしているかどうかを判定
 	RESULT = 0
-	TRYCALLFORM CHECK_SELECTABLE{FLAG:7}(LOCAL:0)
+	TRYCALLFORM CHECK_SELECTABLE{FLAG:拠点フェイズ選択コマンド}(LOCAL:0)
 	IF RESULT
 		LOCAL:10 ++
 	ENDIF
@@ -84,12 +84,12 @@ NEXT
 LOCAL:10 = MAX((LOCAL:10 - 1) / LOCAL:12 + 1, 1)
 
 ;ページ数を範囲に収める
-IF FLAG:6 <= 0
-	FLAG:6 = LOCAL:10 - ((-FLAG:6) % LOCAL:10)
-ELSEIF FLAG:6 >= LOCAL:10 + 1
-	FLAG:6 = (FLAG:6 + 1) % LOCAL:10 + 1
+IF FLAG:拠点フェイズページ <= 0
+	FLAG:拠点フェイズページ = LOCAL:10 - ((-FLAG:拠点フェイズページ) % LOCAL:10)
+ELSEIF FLAG:拠点フェイズページ >= LOCAL:10 + 1
+	FLAG:拠点フェイズページ = (FLAG:拠点フェイズページ + 1) % LOCAL:10 + 1
 ENDIF
-LOCAL:11 = FLAG:6
+LOCAL:11 = FLAG:拠点フェイズページ
 
 ;キャラリストの表示
 LOCAL:13 = 0
@@ -100,7 +100,7 @@ FOR LOCAL:0, 0, CHARANUM
 	LOCAL:5 = SHOP_CHARA_LIST:(LOCAL:0)
 	;選択可能な条件を満たしているかどうかを判定
 	RESULT = 0
-	TRYCALLFORM CHECK_SELECTABLE{FLAG:7}(LOCAL:5)
+	TRYCALLFORM CHECK_SELECTABLE{FLAG:拠点フェイズ選択コマンド}(LOCAL:5)
 	IF RESULT
 		IF LOCAL:13 >= LOCAL:15 && LOCAL:13 < LOCAL:16
 			IF LOCAL:14 % 2 != 0
@@ -166,24 +166,24 @@ IF ARG:0 == 0
 	ENDIF
 ;様子を見る
 ;ELSEIF ARG:0 == 1
-;	FLAG:7 = 1030
-;	FLAG:6 = 1
+;	FLAG:拠点フェイズ選択コマンド = 1030
+;	FLAG:拠点フェイズページ = 1
 ;	RETURN 0
 ;能力表示
 ELSEIF ARG:0 == 5
-	FLAG:7 = 1040
-	FLAG:6 = 1
+	FLAG:拠点フェイズ選択コマンド = 1040
+	FLAG:拠点フェイズページ = 1
 	RETURN 0
 ;次の周回へ
-ELSEIF ARG:0 == 50 && FLAG:28
+ELSEIF ARG:0 == 50 && FLAG:クリアフラグ
 	CALL GO_NEXT_LOOP
 ;前のページ
 ELSEIF ARG:0 == 54
-	FLAG:6 --
+	FLAG:拠点フェイズページ --
 	RETURN 0
 ;次のページ
 ELSEIF ARG:0 == 56
-	FLAG:6 ++
+	FLAG:拠点フェイズページ ++
 	RETURN 0
 ELSE
 	RETURN 0
@@ -209,7 +209,7 @@ RETURN 1
 @TRAIN_IN_PRISON
 #DIM CHARA_LIST, 1000
 
-TRYCCALLFORM REV_TRAIN_%SP_COUNTRY_NAME_ENG:SP_COUNTRY_TO_CONST(CFLAG:MASTER:9)%
+TRYCCALLFORM REV_TRAIN_%SP_COUNTRY_NAME_ENG:SP_COUNTRY_TO_CONST(CFLAG:MASTER:捕虜先)%
 	SIF !RESULT
 	;行動開始時の共通処理
 		CALL START_TRAIN_COMMON
@@ -225,17 +225,17 @@ CATCH
 	LOCAL:10 = RESULT:0
 	LOCAL:11 = RESULT:1
 
-	;FLAG:46に記録されたIDからメイン調教者のキャラ番号を取得
-	LOCAL:12 = ID_TO_CHARA(FLAG:46)
-	IF LOCAL:12 >= 0 && CFLAG:(LOCAL:12):1 == CFLAG:MASTER:9 && CFLAG:(LOCAL:12):9 == 0 && GROUPMATCH(CFLAG:(LOCAL:12):16, 0, 2)
+	;FLAG:逆調教メイン調教者に記録されたIDからメイン調教者のキャラ番号を取得
+	LOCAL:12 = ID_TO_CHARA(FLAG:逆調教メイン調教者)
+	IF LOCAL:12 >= 0 && CFLAG:(LOCAL:12):所属 == CFLAG:MASTER:捕虜先 && CFLAG:(LOCAL:12):捕虜先 == 0 && GROUPMATCH(CFLAG:(LOCAL:12):行動不能状態, 0, 2)
 		;メイン調教者を調教に参加させる
-		CFLAG:(LOCAL:12):6 = 1
+		CFLAG:(LOCAL:12):調教参加フラグ = 1
 		LOCAL:10 = LOCAL:12
 		LOCAL:11 ++
 	ENDIF
 
-	IF CFLAG:MASTER:18 >= 7
-		IF LOCAL:10 >= 0 && CFLAG:MASTER:18 == 7
+	IF CFLAG:MASTER:妊娠期間 >= 7
+		IF LOCAL:10 >= 0 && CFLAG:MASTER:妊娠期間 == 7
 			LOCALS:0 = 
 			IF LOCAL:11 >= 2
 				LOCALS:0 = たち
@@ -250,11 +250,11 @@ CATCH
 			PRINTFORMW %ANAME(MASTER)%は牢屋の中で日々を過ごした…
 		ENDIF
 		;解放カウンタをリセット
-		CFLAG:MASTER:43 = 0
+		CFLAG:MASTER:解放カウンタ = 0
 
 	;参加者が一人以上いれば逆調教を開始
 	ELSEIF LOCAL:11 > 0
-		IF FLAG:47 == 0
+		IF FLAG:逆調教回数 == 0
 			LOCALS:0 = 
 			IF LOCAL:11 >= 2
 				LOCALS:0 = たち
@@ -263,19 +263,19 @@ CATCH
 			PRINTFORMW %ANAME(MASTER)%の牢屋の前に、%ANAME(LOCAL:10)%%LOCALS:0%がやって来た
 			PRINTFORMW %ANAME(LOCAL:10)%%LOCALS:0%は%ANAME(MASTER)%に対し、%ANAME(MASTER)%が仕官する気になるまで調教すると宣言してきた…
 			;説得してからの期間を0にする
-			FLAG:32 = 0
+			FLAG:勧誘経過期間 = 0
 		ENDIF
 
 		;捕虜逆調教モード
-		FLAG:12 = 5
+		FLAG:調教モード = 5
 		;ウフフモード
-		FLAG:50 = 1
+		FLAG:ウフフフラグ = 1
 		;回数をカウント
-		FLAG:47 ++
+		FLAG:逆調教回数 ++
 		;説得してからの期間を増加
-		FLAG:32 ++
+		FLAG:勧誘経過期間 ++
 		;解放カウンタをリセット
-		CFLAG:MASTER:43 = 0
+		CFLAG:MASTER:解放カウンタ = 0
 		;アイテムを一通り追加
 		ITEM:A_ローター = 1
 		ITEM:A_バイブ = 1
@@ -295,14 +295,14 @@ CATCH
 			;恋慕または服従のキャラがいれば時々やってくる
 			LOCAL:11 = 0
 			FOR LOCAL:0, 0, CHARANUM
-				IF LOCAL:0 != MASTER && CFLAG:(LOCAL:0):1 == CFLAG:MASTER:9 && CFLAG:(LOCAL:0):9 == 0 && GROUPMATCH(CFLAG:(LOCAL:0):16, 0, 2) && (TALENT:(LOCAL:0):恋慕 || TALENT:(LOCAL:0):服従)
+				IF LOCAL:0 != MASTER && CFLAG:(LOCAL:0):所属 == CFLAG:MASTER:捕虜先 && CFLAG:(LOCAL:0):捕虜先 == 0 && GROUPMATCH(CFLAG:(LOCAL:0):行動不能状態, 0, 2) && (TALENT:(LOCAL:0):恋慕 || TALENT:(LOCAL:0):服従)
 					CHARA_LIST:(LOCAL:11) = LOCAL:0
 					LOCAL:11 ++
 				ENDIF
 			NEXT
 			IF LOCAL:11 >= 1
 				LOCAL:12 = CHARA_LIST:(RAND:(LOCAL:11))
-				CFLAG:(LOCAL:12):6 = 1
+				CFLAG:(LOCAL:12):調教参加フラグ = 1
 				LOCAL:10 = 1
 
 				DRAWLINE
@@ -310,9 +310,9 @@ CATCH
 				PRINTFORMW %ANAME(LOCAL:12)%は%ANAME(MASTER)%の牢を空け中に入ると、少し話がしたいと言ってきた…
 
 				;捕虜会話モード
-				FLAG:12 = 6
+				FLAG:調教モード = 6
 				;非ウフフモード
-				FLAG:50 = 0
+				FLAG:ウフフフラグ = 0
 				;行動開始時の共通処理
 				CALL START_TRAIN_COMMON
 				RETURN 1
@@ -330,7 +330,7 @@ ENDCATCH
 ;-------------------------------------------------
 @SHOP_WATCH_OTHERS(ARG:0)
 ;SHOW_INFOの初期画面を基本情報にする
-FLAG:11 = 0
+FLAG:能力表示モード = 0
 
 $SHOW_LOOP_INFO_A
 
@@ -344,7 +344,7 @@ CALL ASK_YN
 IF RESULT == 0
 	CALL GAIRAI_TRAIN_MSG(ARG:0)
 	WAIT
-	;IF CFLAG:(ARG:0):9 == 0
+	;IF CFLAG:(ARG:0):捕虜先 == 0
 	;	SELECTCASE RAND:2
 	;		CASE 0
 	;			PRINTFORML %ANAME(ARG:0)%は外来人たちに前と後ろの穴を次から次へと犯され、
@@ -405,9 +405,9 @@ VARSET 調教人数, 0
 VARSET メイン, -1
 
 FOR LCOUNT, 0, CHARANUM
-	SIF GET_ID(LCOUNT) == FLAG:46
+	SIF GET_ID(LCOUNT) == FLAG:逆調教メイン調教者
 		CONTINUE
-	SIF CFLAG:(LCOUNT):所属 != CFLAG:MASTER:捕虜先 || CFLAG:(LCOUNT):捕虜先 || CFLAG:(LCOUNT):特殊状態フラグ
+	SIF CFLAG:(LCOUNT):所属 != CFLAG:MASTER:捕虜先 || CFLAG:(LCOUNT):捕虜先 || CFLAG:(LCOUNT):特殊状態
 		CONTINUE
 	SIF !CFLAG:(LCOUNT):面識 && RAND:3
 		CONTINUE

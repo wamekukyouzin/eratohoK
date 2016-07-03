@@ -9,7 +9,7 @@ FLAG:201 = 0
 
 ;拠点フェイズ
 IF TIME == 0
-	IF SHOP_TIME >= CALC_SHOP_TIME() || CFLAG:MASTER:9
+	IF SHOP_TIME >= CALC_SHOP_TIME() || CFLAG:MASTER:捕虜先
 		CALL TURNEND_LIFE
 	ELSE
 		CALL COOK_HEAL
@@ -21,15 +21,15 @@ ELSE
 ENDIF
 
 ;逆調教要求日数が残っている場合
-IF DIPLOMACY_TRAINED_DAY > 0 && !FLAG:31 && !FLAG:調教要求フラグ
+IF DIPLOMACY_TRAINED_DAY > 0 && !FLAG:強制調教フラグ && !FLAG:調教要求フラグ
 	DIPLOMACY_TRAINED_DAY --
 	;全員の調教参加フラグを解除
 	CVARSET CFLAG, 6, 0
-	CFLAG:DIPLOMACY_TRAINING_CHARA:6 = 1
+	CFLAG:DIPLOMACY_TRAINING_CHARA:調教参加フラグ = 1
 	;捕虜逆調教モード
-	FLAG:12 = 5
+	FLAG:調教モード = 5
 	;ウフフモード
-	FLAG:50 = 1
+	FLAG:ウフフフラグ = 1
 	PRINTFORML %ANAME(MASTER)%は外交交渉の見返りとして、%ANAME(DIPLOMACY_TRAINING_CHARA)%の寝室へ向かった……
 	CALL START_TRAIN_COMMON
 	RETURN
@@ -43,9 +43,9 @@ IF DIPLOMACY_TRAINED_DAY < 0 && !FLAG:調教要求フラグ
 	VARSET TMP_依存度
 	VARSET TMP_参加者
 	;捕虜逆調教モード
-	FLAG:12 = 5
+	FLAG:調教モード = 5
 	;ウフフモード
-	FLAG:50 = 1
+	FLAG:ウフフフラグ = 1
 	FLAG:あてがうフラグ = 1
 	FLAG:調教要求フラグ = 1
 	;アイテムを一通り追加
@@ -71,18 +71,18 @@ IF DIPLOMACY_TRAINED_DAY < 0 && !FLAG:調教要求フラグ
 	TMP_参加者:0 = DIPLOMACY_TRAINING_CHARA
 	;全員の調教参加フラグを解除
 	CVARSET CFLAG, 6, 0
-	CFLAG:DIPLOMACY_TRAINING_CHARA:6 = 1
-	CFLAG:DIPLOMACY_TRAINING_CHARA:91 = 1
+	CFLAG:DIPLOMACY_TRAINING_CHARA:調教参加フラグ = 1
+	CFLAG:DIPLOMACY_TRAINING_CHARA:行動済み = 1
 
-	PRINTFORMW %ANAME(GET_COUNTRY_BOSS(CFLAG:MASTER:1))%は外交交渉の見返りとして、%ANAME(DIPLOMACY_TRAINING_CHARA)%の寝室へ向かった……
-	TMP_MASTER = GET_COUNTRY_BOSS(CFLAG:MASTER:1)
+	PRINTFORMW %ANAME(GET_COUNTRY_BOSS(CFLAG:MASTER:所属))%は外交交渉の見返りとして、%ANAME(DIPLOMACY_TRAINING_CHARA)%の寝室へ向かった……
+	TMP_MASTER = GET_COUNTRY_BOSS(CFLAG:MASTER:所属)
 	SWAPCHARA MASTER, TMP_MASTER
 	CALL KOJO_NTR_ATEGAU(MASTER, DIPLOMACY_TRAINING_CHARA)
 	
 	;時間の処理をしないと、「拠点フェイズの終了時にここに到達、調教→調教終了でSLGフェイズのターンエンドが呼ばれ、次期の拠点フェイズに飛ぶ」みたいな挙動になる
 	;IF TIME == 0
 	;	DAY --
-	;	SIF !FLAG:28
+	;	SIF !FLAG:クリアフラグ
 	;		TIME = 1
 	;ELSEIF TIME == 1
 	;	TIME = 0
@@ -98,13 +98,13 @@ ENDIF
 $SKIPPED
 
 ;強制調教フラグが立っているなら即時調教モードに入る
-IF FLAG:31 == 1
-	FLAG:31 = 0
+IF FLAG:強制調教フラグ == 1
+	FLAG:強制調教フラグ = 0
 	FLAG:調教モード = 1
-	FLAG:50 = 1
+	FLAG:ウフフフラグ = 1
 	;時間の処理をしないと、「拠点フェイズの終了時にここに到達、調教→調教終了でSLGフェイズのターンエンドが呼ばれ、次期の拠点フェイズに飛ぶ」みたいな挙動になる
 	IF TIME == 0
-		IF !FLAG:28
+		IF !FLAG:クリアフラグ
 			TIME = 1
 			DAY --
 		ENDIF
@@ -114,12 +114,12 @@ IF FLAG:31 == 1
 	ENDIF
 	FLAG:イベント発生禁止 = 1
 	CALL START_TRAIN_COMMON
-ELSEIF FLAG:31 == 2
-	FLAG:31 = 0
+ELSEIF FLAG:強制調教フラグ == 2
+	FLAG:強制調教フラグ = 0
 	FLAG:調教モード = 5
-	FLAG:50 = 1
+	FLAG:ウフフフラグ = 1
 	IF TIME == 0
-		IF !FLAG:28
+		IF !FLAG:クリアフラグ
 			TIME = 1
 			DAY --
 		ENDIF
@@ -134,7 +134,7 @@ ELSE
 		FLAG:調教要求フラグ = 0
 	FLAG:イベント発生禁止 = 0
 	;一応謎勢力にあなたが存在することが無いようにおまじない
-	SIF CFLAG:MASTER:1 == 0 && CFLAG:MASTER:9 == 0
+	SIF CFLAG:MASTER:所属 == 0 && CFLAG:MASTER:捕虜先 == 0
 		TIME = 1
 	BEGIN SHOP
 ENDIF
@@ -159,7 +159,7 @@ ELSE
 	;捕虜の人数をカウント
 	LOCAL:5 = 0
 	FOR LOCAL:0, 0, CHARANUM
-		IF LOCAL:0 != MASTER && CFLAG:(LOCAL:0):9 != 0 && CFLAG:(LOCAL:0):9 == CFLAG:MASTER:1 && CFLAG:(LOCAL:0):29 == 0
+		IF LOCAL:0 != MASTER && CFLAG:(LOCAL:0):捕虜先 != 0 && CFLAG:(LOCAL:0):捕虜先 == CFLAG:MASTER:所属 && CFLAG:(LOCAL:0):監禁状態 == 0
 			LOCAL:5 ++
 		ENDIF
 	NEXT
@@ -175,16 +175,16 @@ CALL EVENT_SETTOKU
 ;捕虜の扱いに対応したイベント
 CALL EVENT_PRISONER
 
-;捕虜でなければ、FLAG:14(捕虜調教初回済みフラグ）とFLAG:47（捕虜調教回数）を消す
+;捕虜でなければ、FLAG:逆調教回数（捕虜調教回数）を消す
 IF !CFLAG:MASTER:捕虜先
-	FLAG:14 = 0
-	FLAG:47 = 0
+	FLAG:逆調教メイン調教者 = 0
+	FLAG:逆調教回数 = 0
 ENDIF
 
 ;口上呼び出し
 FOR LOCAL:0, 0, CHARANUM
 	;主人公と同一勢力の仕官で、捕虜でない
-	IF CFLAG:(LOCAL:0):1 != 0 && LOCAL:0 != MASTER && CFLAG:(LOCAL:0):1 == CFLAG:MASTER:1 && CFLAG:(LOCAL:0):9 == 0
+	IF CFLAG:(LOCAL:0):所属 != 0 && LOCAL:0 != MASTER && CFLAG:(LOCAL:0):所属 == CFLAG:MASTER:所属 && CFLAG:(LOCAL:0):捕虜先 == 0
 		CALL KOJO_EVENT(LOCAL:0, 30)
 	ENDIF
 NEXT
@@ -196,11 +196,15 @@ CALL EVENT_DAILY
 CALL SLAVEMARKET_PREPARE_GOODS
 ;スカウトの対象リストを更新
 CALL SCOUT_PREPARE_CANDIDATES
+;特別訓練の価格を更新
+CALL CALC_SPECIAL_TRAIN_PRICE
+;このターンの特別訓練実施回数をリセット
+SPECIAL_TRAIN_COUNT_THIS_TURN = 0
 
 $SKIPPED
 
 ;統一後の場合
-IF FLAG:28
+IF FLAG:クリアフラグ
 	;一期終了時の処理
 	CALL TURNEND_COMMON
 	;クールタイムのリセット
@@ -210,7 +214,7 @@ IF FLAG:28
 	DAY ++
 
 ;捕虜の場合
-ELSEIF CFLAG:MASTER:9 != 0
+ELSEIF CFLAG:MASTER:捕虜先 != 0
 	;強制的に自動行動
 	LOCAL:0 = CONFIG:302
 	CONFIG:302 = 1
@@ -265,7 +269,7 @@ FOR LOCAL:0, 0, MAX_COUNTRY
 NEXT
 
 ;デッドエンディングなら戻る
-IF FLAG:27 == 9999
+IF FLAG:処刑エンドフラグ == 1
 	RETURN
 ENDIF
 
@@ -279,7 +283,7 @@ $SKIPPED
 
 ;時間を進める
 DAY ++
-IF (CFLAG:MASTER:1 == 0 && CFLAG:MASTER:9 == 0) || FLAG:1
+IF (CFLAG:MASTER:所属 == 0 && CFLAG:MASTER:捕虜先 == 0) || FLAG:観戦モード
 	TIME = 1
 ELSE
 	TIME = 0
@@ -297,7 +301,7 @@ CALL GREAT_ESCAPE
 
 ;口上呼び出し
 FOR LOCAL:0, 0, CHARANUM
-	IF CFLAG:(LOCAL:0):1 == CFLAG:MASTER:1 && LOCAL:0 != MASTER
+	IF CFLAG:(LOCAL:0):所属 == CFLAG:MASTER:所属 && LOCAL:0 != MASTER
 		CALL KOJO_EVENT(LOCAL:0, 31)
 	ENDIF
 NEXT
@@ -305,12 +309,12 @@ NEXT
 VARSET PRISONER_TARGET, -1
 
 
-IF CFLAG:MASTER:1 <= 0
+IF CFLAG:MASTER:所属 <= 0
 	WAIT
 ;給料の支給(観戦中・捕虜のときはスキップ)◆
-ELSEIF CFLAG:MASTER:9 == 0
+ELSEIF CFLAG:MASTER:捕虜先 == 0
 	DRAWLINE
-	LOCAL:0 = GET_SUM_ECONOMY(CFLAG:MASTER:1) * (ABL:MASTER:武闘 + ABL:MASTER:知略 + ABL:MASTER:政治 + 200) / 30000 - MIN(GET_OWN_CITY(CFLAG:MASTER:所属) - 5, 1) * 100
+	LOCAL:0 = CALC_SALARY()
 	MONEY += LOCAL:0
 	PRINTFORML %CALLNAME:MASTER%に今期分の俸給が支払われました
 	PRINTFORML <都市の経済規模×(%CALLNAME:MASTER%の能力合計＋200)÷300－(支配都市数－5)×100>
@@ -322,8 +326,8 @@ CALL VARY_ECONOMY
 CALL GAIN_COUNTRY_TAX
 
 ;経済成長・兵数増強の補正値をクリア
-FLAG:42 = 0
-FLAG:43 = 0
+FLAG:経済成長追加値 = 0
+FLAG:兵数増加追加値 = 0
 
 PLAYER_HIRED_COUNTER = MAX(0, PLAYER_HIRED_COUNTER - 1)
 COUNTRY_PLAYER_BELONGED_COUNTER++
@@ -351,12 +355,10 @@ FOR LOCAL:0, 0, CHARANUM
 	CALL TIGHTNESS_GROW(LOCAL:0)
 	
 	
-	IF TALENT:LOCAL:蓬莱人 && CFLAG:LOCAL:特殊状態フラグ == 2
+	IF TALENT:LOCAL:蓬莱人 && CFLAG:LOCAL:特殊状態 == 2
 		CALL COLORPRINTFORM("リザレクション！", COLOR("注意"), "W")
 		CALL COLORPRINTFORM(@"%NAME_FORMAL(LOCAL)%が蘇りました", COLOR("注意"), "W")
-		CFLAG:LOCAL:特殊状態フラグ = 1
-		CFLAG:LOCAL:所属 = 0
-		CFLAG:LOCAL:捕虜先 = 0
+		CALL CHANGE_COUNTRY(LOCAL, 0)
 	ENDIF
 	
 	;NTR周り
@@ -367,19 +369,16 @@ FOR LOCAL:0, 0, CHARANUM
 			CFLAG:LOCAL:ＮＴＲ値 = 0
 			TALENT:LOCAL:ＮＴＲ = 0
 		ELSE
-			IF GET_COUNTRY_BOSS(CFLAG:(LOCAL):1) != LOCAL
-				IF !CFLAG:(LOCAL:1):捕虜先 && CFLAG:(LOCAL:1):特殊状態フラグ == 2 && !CFLAG:LOCAL:特殊状態フラグ
+			IF GET_COUNTRY_BOSS(CFLAG:(LOCAL):所属) != LOCAL
+				IF !CFLAG:(LOCAL:1):捕虜先 && CFLAG:(LOCAL:1):特殊状態 == 2 && !CFLAG:LOCAL:特殊状態
 					CALL COLORPRINTFORM(@"%ANAME(LOCAL:1)%が死亡したことを儚み、%ANAME(LOCAL)%も後を追いました", COLOR("警告"), "W")
-					CFLAG:LOCAL:特殊状態フラグ = 2
-					CFLAG:LOCAL:所属 = 0
-				ELSEIF !CFLAG:(LOCAL:1):捕虜先 && CFLAG:(LOCAL:1):特殊状態フラグ == 1 && !CFLAG:LOCAL:特殊状態フラグ
+					CALL CHANGE_COUNTRY(LOCAL, 0, 1)
+				ELSEIF !CFLAG:(LOCAL:1):捕虜先 && CFLAG:(LOCAL:1):特殊状態 == 1 && !CFLAG:LOCAL:特殊状態
 					CALL COLORPRINTFORM(@"放浪している%ANAME(LOCAL:1)%を追い、%ANAME(LOCAL)%も放浪しました", COLOR("警告"), "W")
-					CFLAG:LOCAL:特殊状態フラグ = 1
-					CFLAG:LOCAL:所属 = 0
-				ELSEIF !CFLAG:LOCAL:捕虜先 && CFLAG:(LOCAL:1):所属 != CFLAG:LOCAL:所属 && CFLAG:LOCAL:特殊状態フラグ != 2
-					CALL COLORPRINTFORM(@"別勢力にいる%ANAME(LOCAL:1)%を追い、%ANAME(LOCAL)%が\@ GET_COUNTRY_BOSS(CFLAG:(LOCAL:1):1) != -1 ? %ANAME(GET_COUNTRY_BOSS(CFLAG:(LOCAL:1):1))%に # \@移籍しました", COLOR("警告"), "W")
-					CFLAG:LOCAL:所属 = CFLAG:(LOCAL:1):所属
-					CFLAG:LOCAL:特殊状態フラグ = 0
+					CALL CHANGE_COUNTRY(LOCAL, 0)
+				ELSEIF !CFLAG:LOCAL:捕虜先 && CFLAG:(LOCAL:1):所属 != CFLAG:LOCAL:所属 && CFLAG:LOCAL:特殊状態 != 2
+					CALL COLORPRINTFORM(@"別勢力にいる%ANAME(LOCAL:1)%を追い、%ANAME(LOCAL)%が\@ GET_COUNTRY_BOSS(CFLAG:(LOCAL:1):所属) != -1 ? %ANAME(GET_COUNTRY_BOSS(CFLAG:(LOCAL:1):所属))%に # \@移籍しました", COLOR("警告"), "W")
+					CALL CHANGE_COUNTRY(LOCAL, CFLAG:(LOCAL:1):所属)
 				ELSEIF CFLAG:(LOCAL:1):捕虜先 && IS_COUNTRY(CFLAG:LOCAL:所属)
 					CALL COLORPRINTFORM(@"%ANAME(LOCAL:1)%が牢につながれたままであることに、%ANAME(LOCAL)%は不満を募らせています……", COLOR("警告"), "W")
 					CFLAG:LOCAL:好感度 = 0
@@ -392,7 +391,7 @@ FOR LOCAL:0, 0, CHARANUM
 	ENDIF
 
 	;このターン～系フラグを折る
-	CFLAG:(LOCAL:0):91 = 0
+	CFLAG:(LOCAL:0):行動済み = 0
 	CFLAG:(LOCAL:0):93 = 0
 
 	;捕虜でなく、所属が特殊勢力でないなら、調教カウンタを減らしていく
@@ -403,14 +402,14 @@ FOR LOCAL:0, 0, CHARANUM
 	ENDIF
 
 	;同じ勢力で共に過ごした期数を加算
-	IF LOCAL:0 != MASTER && CFLAG:(LOCAL:0):1 != 0 && CFLAG:(LOCAL:0):1 == CFLAG:MASTER:1
+	IF LOCAL:0 != MASTER && CFLAG:(LOCAL:0):所属 != 0 && CFLAG:(LOCAL:0):所属 == CFLAG:MASTER:所属
 		CFLAG:(LOCAL:0):77 ++
 	ENDIF
 
 	;本の効果の残りターンを減らす
-	CFLAG:(LOCAL:0):47 = MAX(CFLAG:(LOCAL:0):47 - 1, 0)
-	IF CFLAG:(LOCAL:0):47 == 0
-		CFLAG:(LOCAL:0):46 = 0
+	CFLAG:(LOCAL:0):本の効果残ターン = MAX(CFLAG:(LOCAL:0):本の効果残ターン - 1, 0)
+	IF CFLAG:(LOCAL:0):本の効果残ターン == 0
+		CFLAG:(LOCAL:0):本の効果 = 0
 	ENDIF
 
 	;薬物依存値を減らす 薬物中毒あると300以下にならない
@@ -422,10 +421,10 @@ FOR LOCAL:0, 0, CHARANUM
 	ENDIF
 
 	;特定勢力に所属していて捕虜でない
-	IF CFLAG:(LOCAL:0):1 != 0 && CFLAG:(LOCAL:0):9 == 0
+	IF CFLAG:(LOCAL:0):所属 != 0 && CFLAG:(LOCAL:0):捕虜先 == 0
 		FOR LOCAL:1, 0, CHARANUM
 			;同一勢力に所属するキャラの間で好感度を上昇させ、敵対度を減少させる
-			IF LOCAL:1 != LOCAL:0 && CFLAG:(LOCAL:1):1 == CFLAG:(LOCAL:0):1 && CFLAG:(LOCAL:1):9 == 0
+			IF LOCAL:1 != LOCAL:0 && CFLAG:(LOCAL:1):所属 == CFLAG:(LOCAL:0):所属 && CFLAG:(LOCAL:1):捕虜先 == 0
 				LOCAL:3 = 5
 				IF TALENT:(LOCAL:1):謎の魅力
 					LOCAL:3 = 10
@@ -440,16 +439,16 @@ FOR LOCAL:0, 0, CHARANUM
 	ENDIF
 
 	;捕虜の場合
-	IF CFLAG:(LOCAL:0):9 != 0 && CFLAG:(LOCAL:0):9 == CFLAG:MASTER:1
+	IF CFLAG:(LOCAL:0):捕虜先 != 0 && CFLAG:(LOCAL:0):捕虜先 == CFLAG:MASTER:所属
 		;捕虜の機嫌変化
 		CALL PRISONER_CHANGE_EMOTION(LOCAL:0)
 
 	;被育児状態の子供の場合
-	ELSEIF CFLAG:(LOCAL:0):16 == 4
+	ELSEIF CFLAG:(LOCAL:0):行動不能状態 == 4
 		;機嫌は変動しない
 
 	;捕虜でなく、被育児状態の子供でもない場合
-	ELSEIF CFLAG:(LOCAL:0):16 != 4
+	ELSEIF CFLAG:(LOCAL:0):行動不能状態 != 4
 		;現在の機嫌を減衰させる
 		TIMES PALAM:(LOCAL:0):怒外, 0.60
 		TIMES PALAM:(LOCAL:0):哀外, 0.60
@@ -462,7 +461,7 @@ FOR LOCAL:0, 0, CHARANUM
 		;<抑圧>持ちは機嫌が変動しない
 		IF !TALENT:(LOCAL:0):抑圧
 			;怪我をしている場合
-			IF CFLAG:(LOCAL:0):16 == 3
+			IF CFLAG:(LOCAL:0):行動不能状態 == 3
 				IF RAND:2 == 0
 					PALAM:(LOCAL:0):怒外 += RAND:1001
 				ELSE
@@ -490,7 +489,7 @@ FOR LOCAL:0, 0, CHARANUM
 	ENDIF
 
 	;捕虜の収監によるRELATIONの変化
-	SIF CFLAG:(LOCAL:0):9 != 0
+	SIF CFLAG:(LOCAL:0):捕虜先 != 0
 		CALL PRISONER_CHANGE_RELATION(LOCAL:0)
 
 	;精神力の回復
@@ -521,29 +520,24 @@ FOR LOCAL:0, 0, CHARANUM
 	CALL TALENT_CHECK(LOCAL:0)
 
 	;子供の成長度を加算
-	CFLAG:(LOCAL:0):28 = MIN(CFLAG:(LOCAL:0):28 + 1, 999999)
-
-	;浮気禁止フラグの解除判定
-	IF CFLAG:(LOCAL:0):63 && !(TALENT:(LOCAL:0):恋慕 || TALENT:(LOCAL:0):服従)
-		CFLAG:(LOCAL:0):63 = 0
-	ENDIF
+	CFLAG:(LOCAL:0):子の成長度 = MIN(CFLAG:(LOCAL:0):子の成長度 + 1, 999999)
 
 	;説得者の状況判定
-	IF CFLAG:(LOCAL:0):74
-		LOCAL:10 = ID_TO_CHARA(CFLAG:(LOCAL:0):74)
+	IF CFLAG:(LOCAL:0):説得担当者
+		LOCAL:10 = ID_TO_CHARA(CFLAG:(LOCAL:0):説得担当者)
 		CALL CHECK_SELECTABLE_SETTOKU(LOCAL:10)
-		SIF !(CFLAG:(LOCAL:0):9 == CFLAG:(LOCAL:10):1 && RESULT)
-			CFLAG:(LOCAL:0):74 = 0
+		SIF !(CFLAG:(LOCAL:0):捕虜先 == CFLAG:(LOCAL:10):所属 && RESULT)
+			CFLAG:(LOCAL:0):説得担当者 = 0
 	ENDIF
 
 
 NEXT
 
 ;触手部屋の管理者に経験値を加算
-IF ITEM:触手部屋 && FLAG:35 >= 0 && IS_SYOKUSYU_MANAGE(FLAG:35)
-	EXP:(FLAG:35):触手経験値 += 2
-	EXP:(FLAG:35):妖術経験値 += 2
-	CALL TRAIN_AUTO_ABLUP(FLAG:35, 1)
+IF ITEM:触手部屋 && ID_TO_CHARA(FLAG:触手部屋管理者) >= 0 && IS_SYOKUSYU_MANAGE(ID_TO_CHARA(FLAG:触手部屋管理者))
+	EXP:(ID_TO_CHARA(FLAG:触手部屋管理者)):触手経験値 += 2
+	EXP:(ID_TO_CHARA(FLAG:触手部屋管理者)):妖術経験値 += 2
+	CALL TRAIN_AUTO_ABLUP(ID_TO_CHARA(FLAG:触手部屋管理者), 1)
 ENDIF
 
 ;外交による調教要求フラグの解除判定
@@ -564,6 +558,12 @@ CALL TURNEND_PREGNANT_CHECK
 ;特殊な朝イベント
 CALL EVENT_MORNING_SP
 
+;特殊勢力による調教
+FOR LOCAL, 0, MAX_COUNTRY
+	CALL SP_TRAIN(LOCAL)
+NEXT
+
+
 FOR LOCAL:0, 0, CHARANUM
 	;恋慕などの素質変化の処理(二回目)
 	CALL TALENT_CHECK(LOCAL:0)
@@ -582,9 +582,6 @@ FOR LOCAL:0, 110, 130
 	CVARSET CFLAG, LOCAL:0, 0
 NEXT
 
-;登用コマンドの実行済みフラグをクリア
-FLAG:17 = 0
-
 ;-------------------------------------------------
 ;料理長による回復
 ;-------------------------------------------------
@@ -592,7 +589,7 @@ FLAG:17 = 0
 #DIM 対象
 IF GET_COOK() != -1
 	LOCAL = GET_COOK()
-	IF LOCAL != 0 && !CFLAG:(LOCAL):9 && CFLAG:(LOCAL):1 == CFLAG:MASTER:1
+	IF LOCAL != 0 && !CFLAG:(LOCAL):捕虜先 && CFLAG:(LOCAL):所属 == CFLAG:MASTER:所属
 		BASE:対象:体力 = MIN(BASE:対象:体力 + (ABL:LOCAL:料理 / 10 * 100 + RAND:100), MAXBASE:対象:体力)
 		BASE:対象:気力 = MIN(BASE:対象:気力 + (ABL:LOCAL:料理 / 10 * 100 + RAND:100), MAXBASE:対象:気力)
 		PRINTFORML %ANAME(LOCAL)%の料理で、%ANAME(対象)%の体力と気力が回復しました
@@ -627,18 +624,18 @@ ELSE
 	PRINTFORMW ・
 		SELECTCASE RAND:5
 		CASE IS <= 3
-			IF !CFLAG:MASTER:1
+			IF !CFLAG:MASTER:所属
 				PRINTFORMW 脱出に成功した！
 				PRINTFORMW %ANAME(MASTER)%は放浪する事にしました
 			ELSE
 				PRINTFORMW 脱出に成功した！
 				PRINTFORMW %ANAME(MASTER)%は勢力に復帰しました
 			ENDIF
-			CFLAG:MASTER:捕虜先 = 0
+			CALL CAPTURE(MASTER, 0)
 		CASEELSE
 			IF IS_FEMALE(MASTER)
 				PRINTFORMW 脱出に失敗してしまった……
-				PRINTFORMW 兵士達に見つかった%ANAME(MASTER)%は、仕置きと称して連れて行かれる
+				PRINTFORMW 兵士達に見つかった%ANAME(MASTER)%は、仕置きと称して連れて行かれた
 				PRINTFORML 
 					SELECTCASE RAND:5
 						CASE 0
@@ -653,7 +650,7 @@ ELSE
 							PRINTFORMW その後も%ANAME(MASTER)%は数えきれないほどの豚に種付けされ、身体の中も外もドロドロにされてしまった
 						CASE 1
 							PRINTFORMW %ANAME(MASTER)%は男囚用の牢獄に連れてこられた
-							PRINTFORML  牢の中には大量の囚人がいる。彼らは%ANAME(MASTER)%を見ると　女だ！犯させろ！　と狂気に近い叫びをあげる
+							PRINTFORML 牢の中には大量の囚人がいる。彼らは%ANAME(MASTER)%を見ると　女だ！犯させろ！　と狂気に近い叫びをあげる
 							PRINTFORMW 何をされるか悟った%ANAME(MASTER)%は顔をひきつらせ許しを請うが、兵士達は無視して牢に%ANAME(MASTER)%を放り込んだ
 							PRINTFORML 牢獄の中は薄暗く、怯える%ANAME(MASTER)%は、周囲の暗がりから注がれる無数の飢えた視線を感じた
 							PRINTFORMW 危機を感じ逃れようとする%ANAME(MASTER)%に、無数の手が伸びてきて床に押さえつけると、その服を乱暴に剥ぎ取っていく

@@ -11,20 +11,20 @@ CALL LIFE_LIMIT
 ;捕虜調教のターゲットをクリア
 VARSET PRISONER_TARGET, -1
 
-FLAG:70 = 0
+FLAG:夜這い = 0
 
 ;初対面のキャラの対面済みフラグをＯＮ
 FOR LOCAL:0, 0, CHARANUM
-	SIF CFLAG:(LOCAL:0):6 && LOCAL:0 != MASTER && !CFLAG:(LOCAL:0):17
-		CFLAG:(LOCAL:0):17 = 1
+	SIF CFLAG:(LOCAL:0):調教参加フラグ && LOCAL:0 != MASTER && !CFLAG:(LOCAL:0):面識
+		CFLAG:(LOCAL:0):面識 = 1
 NEXT
 
 ;調教参加者同士の印象値が改善される
 FOR LOCAL:0, 0, CHARANUM
 	;一応主人公の値も弄る
-	IF LOCAL:0 == MASTER || CFLAG:(LOCAL:0):6
+	IF LOCAL:0 == MASTER || CFLAG:(LOCAL:0):調教参加フラグ
 		FOR LOCAL:1, 0, CHARANUM
-			IF LOCAL:0 != LOCAL:1 && (LOCAL:1 == MASTER || CFLAG:(LOCAL:1):6)
+			IF LOCAL:0 != LOCAL:1 && (LOCAL:1 == MASTER || CFLAG:(LOCAL:1):調教参加フラグ)
 				CALL TRAIN_CHANGE_RELATION(LOCAL:0, LOCAL:1)
 			ENDIF
 		NEXT
@@ -33,14 +33,14 @@ NEXT
 
 ;現在の酔いを酔い合計値に加算
 FOR LOCAL:0, 0, CHARANUM
-	SIF CFLAG:(LOCAL:0):6 && NO:(LOCAL:0) <= 999 || LOCAL:0 == MASTER
-		CFLAG:(LOCAL:0):67 += PALAM:(LOCAL:0):酔い
+	SIF CFLAG:(LOCAL:0):調教参加フラグ && NO:(LOCAL:0) <= 999 || LOCAL:0 == MASTER
+		CFLAG:(LOCAL:0):酔い累積値 += PALAM:(LOCAL:0):酔い
 NEXT
 
 ;非ウフフ限定
-IF !FLAG:50
+IF !FLAG:ウフフフラグ
 	FOR LOCAL:0, 0, CHARANUM
-		IF CFLAG:(LOCAL:0):6 && NO:(LOCAL:0) <= 999
+		IF CFLAG:(LOCAL:0):調教参加フラグ && NO:(LOCAL:0) <= 999
 			;調教後自慰のチェック
 			CALL AFTER_SELF_CHECK(LOCAL:0)
 		ENDIF
@@ -49,7 +49,7 @@ ENDIF
 
 ;性知識アップ
 FOR LOCAL:0, 0, CHARANUM
-	IF (LOCAL == MASTER || CFLAG:(LOCAL:0):6) && ABL:(LOCAL:0):性知識 < 4
+	IF (LOCAL == MASTER || CFLAG:(LOCAL:0):調教参加フラグ) && ABL:(LOCAL:0):性知識 < 4
 		LOCAL:1 = MIN(SUM_EX(LOCAL:0) / MAX(ABL:(LOCAL:0):性知識 * 2, 1), 30)
 		CALL PRINT_ADD_EXP(LOCAL:0, "性知識経験値", LOCAL:1, 1)
 		CALL TRAIN_AUTO_ABLUP(LOCAL:0)
@@ -59,7 +59,7 @@ NEXT
 
 IF !FLAG:あてがうフラグ
 	FOR LOCAL:0, 0, CHARANUM
-		IF (LOCAL == MASTER || CFLAG:(LOCAL:0):6) && NO:(LOCAL:0) <= 999
+		IF (LOCAL == MASTER || CFLAG:(LOCAL:0):調教参加フラグ) && NO:(LOCAL:0) <= 999
 			;素質変化に関する処理(恋慕の取得など)
 			CALL TALENT_CHECK(LOCAL:0)
 		ENDIF
@@ -67,7 +67,7 @@ IF !FLAG:あてがうフラグ
 ENDIF
 
 FOR LOCAL:0, 0, CHARANUM
-	IF LOCAL == MASTER || CFLAG:(LOCAL:0):6
+	IF LOCAL == MASTER || CFLAG:(LOCAL:0):調教参加フラグ
 		;性的嗜好の変化
 		;あてがった場合はロックフラグを立てる
 		CALL CHECK_SEXUAL_PREFERENCE(LOCAL:0, LOCAL == MASTER && FLAG:あてがうフラグ)
@@ -76,7 +76,7 @@ NEXT
 
 
 FOR LOCAL:0, 0, CHARANUM
-	IF (LOCAL:0 == MASTER || CFLAG:(LOCAL:0):6) && NO:(LOCAL:0) <= 999
+	IF (LOCAL:0 == MASTER || CFLAG:(LOCAL:0):調教参加フラグ) && NO:(LOCAL:0) <= 999
 		;妊娠判定
 		CALL CHECK_PREGNANT(LOCAL:0)
 	ENDIF
@@ -108,10 +108,10 @@ NEXT
 
 ;助手記録を削除
 FOR LOCAL:0, 0, CHARANUM
-	SIF CFLAG:LOCAL:57
-		CFLAG:LOCAL:57 = 0
-	SIF CFLAG:LOCAL:70
-		CFLAG:LOCAL:70 = 0
+	SIF CFLAG:LOCAL:捕虜調教の助手
+		CFLAG:LOCAL:捕虜調教の助手 = 0
+	SIF CFLAG:LOCAL:夜這いの助手
+		CFLAG:LOCAL:夜這いの助手 = 0
 	SIF CFLAG:LOCAL:調教中帰らない
 		CFLAG:LOCAL:調教中帰らない = 0
 NEXT
@@ -259,8 +259,7 @@ IF DVAR:要求野盗斬り捨て
 	RESETCOLOR
 	DRAWLINE
 	CALL FORCE_FREE(MASTER)
-	CFLAG:MASTER:所属 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗))
-	CFLAG:MASTER:薬物依存 += RAND(100, 150)
+	CALL CHANGE_COUNTRY(MASTER, SP_COUNTRY_ID:(特殊勢力_野盗))
 	EXP:MASTER:輪姦経験 += RAND(25, 50)
 	SWAPCHARA MASTER, DVAR:要求野盗斬り捨て
 	DVAR:要求野盗斬り捨て = 0
@@ -279,8 +278,8 @@ BEGIN TURNEND
 ;SIF CFLAG:98 & 2
 ;	RETURN 0
 
-;特殊状態フラグが立っていれば戻る
-SIF CFLAG:(ARG:0):16
+;特殊状態が立っていれば戻る
+SIF CFLAG:(ARG:0):行動不能状態
 	RETURN 0
 
 ;虚ろ・崩壊なら戻る
@@ -518,7 +517,7 @@ IF TALENT:(ARG:1):小悪魔
 ENDIF
 
 ;閨・子育てなら効果は（とりあえず）4倍
-IF FLAG:12 == 1 || FLAG:12 == 3
+IF FLAG:調教モード == 1 || FLAG:調教モード == 3
 	好印象増加値 = 好印象増加値 * 4
 	悪印象減少値 = 悪印象減少値 * 4
 ENDIF
