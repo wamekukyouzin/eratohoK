@@ -63,18 +63,16 @@ RETURN GET_SOLDIER(発動勢力, 発動部隊) < GET_SOLDIER(対象勢力, 対�
 #DIM 対象部隊
 対象側 = !発動側
 PRINTFORML %ANAME(NO_TO_CHARA(発動者))%は勝てないと判断し、部隊を離脱させた！
+LOCAL:1 = MIN(GET_SOLDIER(発動勢力, 発動部隊), 500)
+LOCAL:2 = MAX(GET_SOLDIER(発動勢力, 発動部隊) - 500, 0)
+
 FOR LOCAL, 0, BATTLE_COMMANDER_NUM:発動側
-	CALL ASSASINATE(発動側, LOCAL)
 	CALL FORCE_FREE(BATTLE_COMMANDER:発動側:LOCAL)
 NEXT
-IF GET_SOLDIER(発動勢力, 発動部隊) > 500
-	IF 発動部隊 > 0
-		COUNTRY_SOLDIER:発動勢力 += GET_SOLDIER(発動勢力, 発動部隊) - 500
-	ELSE
-		COUNTRY_SOLDIER:(CITY_OWNER:(発動勢力)) += GET_SOLDIER(発動勢力, 発動部隊) - 500
-	ENDIF
-	CALL DECREASE_SOLDIER(発動勢力, 発動部隊, GET_SOLDIER(発動勢力, 発動部隊) - 500, 1)
-ENDIF
+CALL SET_BATTLE_MIRROR_VAL(発動側)
+
+CALL SET_SOLDIER(発動勢力, 発動部隊, LOCAL:1, 1)
+COUNTRY_SOLDIER:(発動部隊 > 0 ? 発動勢力 # CITY_OWNER:(発動勢力)) += LOCAL:2
 
 @SKILL_27_SP_0_EXPLANATION
 RESULTS = 敵部隊の兵数が自部隊より多い場合、武将を全員部隊から外し、兵を500残して回収する。
