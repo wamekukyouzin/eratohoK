@@ -1,6 +1,6 @@
 ﻿;複数シナリオにまたがるイベント処理
 @EVENT_DAILY()
-#DIM EVENT_LIST, 100
+#DIM EVENT_LIST, 1000
 #DIM EVENT_PICK, 1000
 #DIM EVENT_ODDS
 #DIM EVENT_COUNT, 2
@@ -28,20 +28,31 @@ EVENT_COUNT:0 = DCONFIG:951 + 1, DCONFIG:952 + 1
 IF !EVENT_LIST:1
 	;0が薬売りで使用されているので-1で初期化
 	VARSET EVENT_LIST, -1
+{
 	;スケベ系:
-	EVENT_LIST:0 = DCON_薬売り, DCON_金貸し, DCON_夜遊び, DCON_富豪, DCON_募金, DCON_催眠, DCON_接待, DCON_恩返し, DCON_カルマ, DCON_河童娘, DCON_闇討ち, DCON_睡姦, DCON_賞金首討伐, DCON_お手伝い, DCON_酒場, DCON_家庭教師, DCON_夜伽, DCON_淫紋, DCON_奴隷商人, DCON_羞恥プレイ, DCON_人攫い組織, DCON_お風呂, DCON_屋形船, DCON_種族間抗争
+	EVENT_LIST:0 = 
+	DCON_薬売り,		DCON_金貸し,		DCON_夜遊び,		DCON_富豪,		DCON_募金,		DCON_催眠,
+	DCON_接待,			DCON_恩返し,		DCON_カルマ,		DCON_河童娘,	DCON_闇討ち, 	DCON_睡姦,
+	DCON_賞金首討伐,	DCON_お手伝い,		DCON_酒場,			DCON_家庭教師,	DCON_夜伽,		DCON_淫紋,
+	DCON_奴隷商人,		DCON_羞恥プレイ,	DCON_人攫い組織,	DCON_お風呂,	DCON_屋形船,	DCON_種族間抗争,
+	DCON_触手兵,		DCON_シャブセックス
+}	
 	;雇用系:
-	EVENT_LIST:30 = DCON_傭兵, DCON_用心棒, DCON_仕官の誘い
+	EVENT_LIST:100 = DCON_傭兵, DCON_用心棒, DCON_仕官の誘い
 	;トレーナー:
-	EVENT_LIST:40 = DCON_素質トレーナー, DCON_セックストレーナー, DCON_外界の医者, DCON_麻薬治療医, DCON_触手トレーナー
+	EVENT_LIST:200 = DCON_素質トレーナー, DCON_セックストレーナー, DCON_外界の医者, DCON_麻薬治療医, DCON_触手トレーナー
 	;外交:
-	EVENT_LIST:50 = DCON_人材要求, DCON_資金援助要求
-	;野盗:60
-	EVENT_LIST:60 = DCON_野盗討伐, DCON_野盗身代金, DCON_野盗蜂起, DCON_放浪捕縛, DCON_野盗略奪, DCON_村落襲撃, DCON_性奴隷要求, DCON_士官籠絡, DCON_捕虜解放
-	;素質系:70
-	;EVENT_LIST:70 = DCON_肉便器, DCON_薬物依存, DCON_雌犬, DCON_苗床
-	;その他90-93
-	EVENT_LIST:90 = DCON_外来人非道実験, DCON_外来人フェロモン, DCON_ステマ, DCON_ゴブリン妊婦拉致, DCON_ゴブリン捕虜拉致, DCON_シャブセックス, DCON_触手討伐任務, DCON_触手兵, DCON_ランダム謀反, DCON_MISC
+	EVENT_LIST:400 = DCON_人材要求, DCON_資金援助要求
+	;特殊勢力
+{
+	EVENT_LIST:600 = 
+	DCON_野盗_討伐,			DCON_野盗_身代金,		DCON_野盗_蜂起,		DCON_野盗_放浪捕縛,		DCON_野盗_略奪,		DCON_野盗_村落襲撃,
+	DCON_野盗_性奴隷要求,	DCON_野盗_士官籠絡,		DCON_野盗_捕虜解放,
+	DCON_外来人_非道実験,	DCON_外来人_フェロモン,
+	DCON_ゴブリン_妊婦拉致,	DCON_ゴブリン_捕虜拉致
+}
+	;その他
+	EVENT_LIST:900 =DCON_ステマ, DCON_ランダム謀反, DCON_MISC
 ENDIF
 
 ;デイリーイベント発生チェック
@@ -63,6 +74,9 @@ ARRAYCOPY "SHAFFLE_ARRAY" , "EVENT_PICK"
 FOR LOCAL:0, 0, 100
 	RESULT = -1
 	SELECTCASE EVENT_LIST:(EVENT_PICK:(LOCAL:0))
+	
+	;-------------------スケベ系-------------------
+
 	;薬売り
 	;8期以降で2.5%
 	CASE DCON_薬売り
@@ -222,6 +236,21 @@ FOR LOCAL:0, 0, 100
 			CALL ANIMAL_SEX_BATTLE
 		ENDIF
 		
+	;触手兵イベント
+	;10期以降で2%
+	CASE DCON_触手兵
+		IF !DCONFIG:DCON_触手兵 && DAY >= 10 && RAND:1000 < 20 * EVENT_ODDS
+			CALL TENTACLE_SOLDIERS
+		ENDIF
+	;シャブセックス
+	;2%で発動
+	CASE DCON_シャブセックス
+		IF !DCONFIG:DCON_シャブセックス && RAND:1000 < 20 * EVENT_ODDS
+			CALL DRUG_SEX
+		ENDIF
+
+	;-------------------傭兵系-------------------
+
 	;傭兵
 	;5期以降で3%
 	CASE DCON_傭兵
@@ -235,6 +264,9 @@ FOR LOCAL:0, 0, 100
 		IF !DCONFIG:DCON_用心棒 && DAY >= 10 && RAND:1000 < 20 * EVENT_ODDS
 			CALL BOUNCER
 		ENDIF
+
+	;-------------------トレーナー-------------------
+
 	;筋肉馬鹿
 	;15期以降で2.5%
 	CASE DCON_素質トレーナー
@@ -265,6 +297,8 @@ FOR LOCAL:0, 0, 100
 		IF !DCONFIG:DCON_触手トレーナー && DAY >= 15 && RAND:1000 < 25 * EVENT_ODDS && ITEM:触手部屋
 			CALL TENTACLE_TRAINER
 		ENDIF
+
+	;-------------------外交系-------------------
 	;人材要求
 	;外交解禁後3.5%
 	CASE DCON_人材要求
@@ -277,106 +311,89 @@ FOR LOCAL:0, 0, 100
 		IF !DCONFIG:DCON_資金援助要求 && DAY >= SLG_PP:0 && RAND:1000 < 35 * EVENT_ODDS
 			CALL DAILY_DIPLO_REQUEST_MONEY
 		ENDIF
+		
+		
+	;-------------------特殊勢力系-------------------
 	;野盗討伐イベント
-	CASE DCON_野盗討伐
-		IF !DCONFIG:DCON_野盗討伐 && DAY >= 15 && RAND:1000 < 40 * EVENT_ODDS
+	CASE DCON_野盗_討伐
+		IF !DCONFIG:DCON_野盗_討伐 && DAY >= 15 && RAND:1000 < 40 * EVENT_ODDS
 			CALL BANDIT_CONQUER
 		ENDIF
 	;野盗の身代金要求処理
 	;乱数が特殊かつ解禁時期がないため関数側で処理
-	CASE DCON_野盗身代金
-		SIF !DCONFIG:DCON_野盗身代金
+	CASE DCON_野盗_身代金
+		SIF !DCONFIG:DCON_野盗_身代金
 			CALL BANDIT_REQUIRE_RANSOM
 
 	;野盗の放浪キャラ捕縛処理
 	;とりあえずキャラ別判定は関数に任せて5%の部分だけ引き出す
-	CASE DCON_放浪捕縛
-		IF !DCONFIG:DCON_放浪捕縛 && RAND:1000 < 50 * EVENT_ODDS
+	CASE DCON_野盗_放浪捕縛
+		IF !DCONFIG:DCON_野盗_放浪捕縛 && RAND:1000 < 50 * EVENT_ODDS
 			CALL BANDIT_ARREST
 		ENDIF
 	;野盗略奪イベント、12期以降4%で発動
-	CASE DCON_野盗略奪
+	CASE DCON_野盗_略奪
 		;略奪
-		IF !DCONFIG:DCON_野盗略奪 && DAY >= 12 && RAND:1000 < 40 * EVENT_ODDS
+		IF !DCONFIG:DCON_野盗_略奪 && DAY >= 12 && RAND:1000 < 40 * EVENT_ODDS
 			CALL BANDIT_PILLAGE
 		ENDIF
 	;捕虜解放イベント、関数側で処理
-	CASE DCON_捕虜解放
+	CASE DCON_野盗_捕虜解放
 		;略奪
-		IF !DCONFIG:DCON_捕虜解放
+		IF !DCONFIG:DCON_野盗_捕虜解放
 			CALL BANDIT_RELEASE
 		ENDIF
 	;村落襲撃イベント、12期以降3%で発動
-	CASE DCON_村落襲撃
-		IF !DCONFIG:DCON_村落襲撃 && DAY >= 12 && RAND:1000 < 30 * EVENT_ODDS
+	CASE DCON_野盗_村落襲撃
+		IF !DCONFIG:DCON_野盗_村落襲撃 && DAY >= 12 && RAND:1000 < 30 * EVENT_ODDS
 			CALL BANDIT_LOOT
 		ENDIF
 		
 	;性奴隷要求イベント、30期以3%で発動、野盗と停戦・同盟状態でなければデイリーの方ではじかれる
-	CASE DCON_性奴隷要求
-		SIF !DCONFIG:DCON_性奴隷要求 && DAY >= 30 && RAND:1000 < 30 * EVENT_ODDS
+	CASE DCON_野盗_性奴隷要求
+		SIF !DCONFIG:DCON_野盗_性奴隷要求 && DAY >= 30 && RAND:1000 < 30 * EVENT_ODDS
 			CALL BANDIT_REQUEST
 
 	;士官籠絡イベント、15期以降3%で発動、ターゲットがいる場合25%にアップ
-	CASE DCON_士官籠絡
-		IF !DCONFIG:DCON_士官籠絡 && DAY >= 15 && RAND:1000 < (DVAR:麻薬漬けターゲット > 0 ? 250 # 30) * EVENT_ODDS
+	CASE DCON_野盗_士官籠絡
+		IF !DCONFIG:DCON_野盗_士官籠絡 && DAY >= 15 && RAND:1000 < (DVAR:麻薬漬けターゲット > 0 ? 250 # 30) * EVENT_ODDS
 			CALL BANDIT_CORRUPTION
 		ENDIF
 
-	;モブ支援会話
-	;10期以降、確率3%で発生、イベント中は発生確率アップ
-;	CASE DCON_モブ支援会話
-;		SIF !DCONFIG:DCON_モブ支援会話 && DAY >= 10 && RAND:1000 < ( DVAR:支援会話進行度 > 0 ? 250 # 30 ) * EVENT_ODDS
-;			CALL MOBU_LOVER
-
 	;外来人非道実験
 	;4%で発動
-	CASE DCON_外来人非道実験
-		IF !DCONFIG:DCON_外来人非道実験 && RAND:1000 < 40 * EVENT_ODDS
+	CASE DCON_外来人_非道実験
+		IF !DCONFIG:DCON_外来人_非道実験 && RAND:1000 < 40 * EVENT_ODDS
 			CALL GAIRAI_EXPERIMENT
 		ENDIF
 	;外来人フェロモン
 	;5%で発動、フェロモン中毒者がいると25%
-	CASE DCON_外来人フェロモン
-		IF !DCONFIG:DCON_外来人フェロモン && RAND:1000 < (DVAR:フェロモン中毒回数 > 0 ? 200 # 50) * EVENT_ODDS
+	CASE DCON_外来人_フェロモン
+		IF !DCONFIG:DCON_外来人_フェロモン && RAND:1000 < (DVAR:フェロモン中毒回数 > 0 ? 200 # 50) * EVENT_ODDS
 			CALL GAIRAI_PHEROMONE
 		ENDIF
+
+	;ゴブリン妊婦拉致
+	;2.5%で発動
+	CASE DCON_ゴブリン_妊婦拉致
+		IF !DCONFIG:DCON_ゴブリン_妊婦拉致 && RAND:1000 < 25 * EVENT_ODDS
+			CALL GOBLIN_PREGNANT_ABD
+		ENDIF
+	;ゴブリン捕虜拉致
+	;3%で発動
+	CASE DCON_ゴブリン_捕虜拉致
+		IF !DCONFIG:DCON_ゴブリン_捕虜拉致 && RAND:1000 < 30 * EVENT_ODDS
+			CALL GOBLIN_PRISONER_ABD
+		ENDIF
+
+
+	;-------------------その他系-------------------
 	;ステマ
 	;7%で発動
 	CASE DCON_ステマ
 		IF !DCONFIG:DCON_ステマ && RAND:1000 < 70 * EVENT_ODDS
 			CALL STEMA
 		ENDIF
-	;ゴブリン妊婦拉致
-	;2.5%で発動
-	CASE DCON_ゴブリン妊婦拉致
-		IF !DCONFIG:DCON_ゴブリン妊婦拉致 && RAND:1000 < 25 * EVENT_ODDS
-			CALL GOBLIN_PREGNANT_ABD
-		ENDIF
-	;ゴブリン捕虜拉致
-	;3%で発動
-	CASE DCON_ゴブリン捕虜拉致
-		IF !DCONFIG:DCON_ゴブリン捕虜拉致 && RAND:1000 < 30 * EVENT_ODDS
-			CALL GOBLIN_PRISONER_ABD
-		ENDIF
-	;シャブセックス
-	;2%で発動
-	CASE DCON_シャブセックス
-		IF !DCONFIG:DCON_シャブセックス && RAND:1000 < 20 * EVENT_ODDS
-			CALL DRUG_SEX
-		ENDIF
-	;触手兵イベント
-	;10期以降で2%
-	CASE DCON_触手兵
-		IF !DCONFIG:DCON_触手兵 && DAY >= 10 && RAND:1000 < 20 * EVENT_ODDS
-			CALL TENTACLE_SOLDIERS
-		ENDIF
-
-	;触手討伐任務イベント
-	;10期以降で2%
-;	CASE DCON_触手討伐任務
-;		SIF !DCONFIG:DCON_触手討伐任務 && DAY >= 10 && RAND:1000 < 20 * EVENT_ODDS
-;			CALL TENTACLE_SUPPRESSION
 
 	;小型イベント
 	;複数のイベントが併発しなくなった代わりにこちらで確率を制御（10%）
