@@ -523,6 +523,8 @@ ITEMTERM:288 = 10
 ITEMTERM:289 = 4
 ITEMTERM:290 = 4
 ITEMTERM:291 = 4
+ITEMTERM:292 = 4
+ITEMTERM:293 = 10
 ;-------------------------------------------------
 ;ARG:0番のアイテムの真の購入価格を取得
 ;-------------------------------------------------
@@ -614,6 +616,14 @@ RETURN 40000
 ;増茎手術
 @GET_PRICE291
 RETURN 40000
+
+;避妊薬
+@GET_PRICE292
+RETURN 20000
+
+;堕胎薬
+@GET_PRICE293
+RETURN 50000
 
 ;-------------------------------------------------
 ;アイテムの開発条件
@@ -826,6 +836,17 @@ IF ITEM:太平淫術の書
 ENDIF
 RETURN 0
 
+;避妊薬
+@ITEM_ABLE292
+RETURN 1
+
+;堕胎薬
+@ITEM_ABLE293
+IF ITEM:太平淫術の書
+	RETURN 1
+ENDIF
+RETURN 0
+
 ;-------------------------------------------------
 ;アイテムの使用条件
 ;-------------------------------------------------
@@ -889,29 +910,36 @@ RETURN 0
 ;●永久脱毛剤
 @IS_ITEM_USE287(ARG:0)
 SIF TALENT:(ARG:0):陰毛現在値 != 陰毛_パイパン
-	RETURN 1
+	RETURN (CFLAG:(ARG:0):所属 == CFLAG:MASTER:所属 && CFLAG:(ARG:0):捕虜先 == 0) || CFLAG:(ARG:0):捕虜先 == CFLAG:MASTER:所属
 RETURN 0
 
 ;●入れ墨除去手術
 @IS_ITEM_USE288(ARG:0)
 FOR LOCAL, 0, VARSIZE("TATOO")
 	SIF TATOO:(ARG:0):LOCAL != ""
-		RETURN 1
+		RETURN (CFLAG:(ARG:0):所属 == CFLAG:MASTER:所属 && CFLAG:(ARG:0):捕虜先 == 0) || CFLAG:(ARG:0):捕虜先 == CFLAG:MASTER:所属
 NEXT
 RETURN 0
 
 ;●穴トレ
 @IS_ITEM_USE289(ARG:0)
-RETURN 1
+RETURN (CFLAG:(ARG:0):所属 == CFLAG:MASTER:所属 && CFLAG:(ARG:0):捕虜先 == 0) || CFLAG:(ARG:0):捕虜先 == CFLAG:MASTER:所属
 
 ;●豊胸
 @IS_ITEM_USE290(ARG:0)
-RETURN IS_FEMALE(ARG:0)
+RETURN IS_FEMALE(ARG:0) && ((CFLAG:(ARG:0):所属 == CFLAG:MASTER:所属 && CFLAG:(ARG:0):捕虜先 == 0) || CFLAG:(ARG:0):捕虜先 == CFLAG:MASTER:所属)
 
 ;●ぞうけい
 @IS_ITEM_USE291(ARG:0)
-RETURN PENIS(ARG:0)
+RETURN PENIS(ARG:0) && ((CFLAG:(ARG:0):所属 == CFLAG:MASTER:所属 && CFLAG:(ARG:0):捕虜先 == 0) || CFLAG:(ARG:0):捕虜先 == CFLAG:MASTER:所属)
 
+;避妊薬
+@IS_ITEM_USE292(ARG:0)
+RETURN !CFLAG:(ARG:0):妊娠期間 && IS_FEMALE(ARG:0) && CFLAG:(ARG:0):避妊薬残ターン == 0 && ((CFLAG:(ARG:0):所属 == CFLAG:MASTER:所属 && CFLAG:(ARG:0):捕虜先 == 0) || CFLAG:(ARG:0):捕虜先 == CFLAG:MASTER:所属)
+
+;堕胎薬
+@IS_ITEM_USE293(ARG:0)
+RETURN TALENT:(ARG:0):妊娠  && IS_FEMALE(ARG:0) && ((CFLAG:(ARG:0):所属 == CFLAG:MASTER:所属 && CFLAG:(ARG:0):捕虜先 == 0) || CFLAG:(ARG:0):捕虜先 == CFLAG:MASTER:所属)
 
 ;-------------------------------------------------
 ;その場使用アイテムの効果
@@ -1219,6 +1247,32 @@ SELECTCASE RESULT
 		CALL COLORPRINTFORM(@"%ANAME(ARG:0)%のペニスが\@ LOCAL == -1 ? 普通 # %TALENTNAME:LOCAL% \@になりました！", COLOR("注意"), "W")
 ENDSELECT
 
+;避妊薬
+@ITEM_EFFECT292(ARG:0)
+PRINTFORMW %ANAME(ARG:0)%はしばらく妊娠しなくなった……
+CFLAG:(ARG:0):避妊薬残ターン += 5
+CALL CLEAR_CREAMPIE_HISTORY(LOCAL:0)
+
+;堕胎手術
+@ITEM_EFFECT293(ARG:0)
+PRINTFORMW %ANAME(ARG:0)%に堕胎手術を受けさせた……
+PRINTFORMW %ANAME(ARG:0)%は＜妊娠＞ではなくなった
+;状況に応じて崩壊値が増えたりする処理をいれたい
+
+;妊娠関係のフラグをクリア
+SIF CFLAG:(LOCAL:0):行動不能状態 == 1
+	CFLAG:(LOCAL:0):行動不能状態 = 0
+CFLAG:(LOCAL:0):妊娠期間 = 0
+CFLAG:(LOCAL:0):子の遺伝上の父親 = 0
+CFLAG:(LOCAL:0):子の父親 = 0
+TALENT:(LOCAL:0):妊娠 = 0
+
+
+;中出し履歴をクリア
+CALL CLEAR_CREAMPIE_HISTORY(LOCAL:0)
+IF CFLAG:(LOCAL:0):育児期間 == 0
+	CALL RESET_MOTHER_STATE(LOCAL:0, 0)
+ENDIF
 
 ;●太平要術の書
 @ITEM_EFFECT141(ARG:0)
