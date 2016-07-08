@@ -733,24 +733,37 @@ SIF GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:LOCAL) == -1
 ;主人公選択
 ;-------------------------------------------------
 @SELECT_MASTER
-#DIM MASTERそのまま
+#DIM 旧MASTER
+#DIM 選択MASTER
+#DIM 登録キャラを選択
 VARSET LOCAL
 LOADGLOBAL
 
-;あなたの所属を無所属にする
-CALL CHANGE_COUNTRY(MASTER, 0)
+;星評価を用意
+CALL TMP_PREPARE_CHARA_STARS()
+
+VARSET 旧MASTER
+VARSET 選択MASTER
+VARSET 登録キャラを選択
+
+;前週で「あなた」以外を主人公でしていたとき対策で、SWAPCHARAしてMASTERを「あなた」に戻しておく。
+旧MASTER = NAME_TO_CHARA("あなた")
+SWAPCHARA MASTER, 旧MASTER
 
 DRAWLINE
 PRINTL ★★主人公を選択して下さい★★
 PRINTL ※通常はプレイヤーの分身となる主人公を新規作成し、作成したキャラを選択します
 SIF FLAG:OP選択勢力 <= 0
 	PRINTL ※特殊なスタートを選択しているので、既存キャラ一覧に君主以外の全キャラが表示されます
+;二週目以降で選択勢力と異なる勢力の君主の場合、前週と同じ選択をさせるとまずいのでアレする
+SIF FLAG:周回数 > 1 && CFLAG:旧MASTER:所属 != FLAG:OP選択勢力 && GET_COUNTRY_BOSS(CFLAG:旧MASTER:所属) == 旧MASTER
+	CALL COLORPRINTFORM("※前周の主人公がここ以外の勢力の君主なので、「前週と同じ」は利用できません", COLOR("注意"), "L")
 DRAWLINE
 PRINTL ●登録キャラ
 PRINT    
 PRINTBUTTON "  0[新規作成    ]", 0
 ;二週目以降なら
-IF FLAG:周回数 > 1
+IF FLAG:周回数 > 1 && !(CFLAG:旧MASTER:所属 != FLAG:OP選択勢力 && GET_COUNTRY_BOSS(CFLAG:旧MASTER:所属) == 旧MASTER)
 	PRINT    
 	PRINTBUTTON "98[前週と同じで]", 98
 ENDIF
@@ -770,9 +783,6 @@ NEXT
 PRINTL 
 DRAWLINE
 PRINTL ●既存のキャラ
-;PRINT    
-;PRINTBUTTON " 99[霖之助      ]", 99
-;PRINTL 
 PRINT    
 LOCAL:1 = 0
 FOR LOCAL:0, 1, CHARANUM
@@ -811,34 +821,29 @@ IF RESULT == 0
 	ENDIF
 	RESTART
 ;前週と同じ
-ELSEIF RESULT == 98
+ELSEIF RESULT == 98 && FLAG:周回数 > 1 && !(CFLAG:旧MASTER:所属 != FLAG:OP選択勢力 && GET_COUNTRY_BOSS(CFLAG:旧MASTER:所属) == 旧MASTER)
 	IF FLAG:周回数 > 1
-		MASTERそのまま = 1
-		LOCAL:6 = MASTER
+		選択MASTER = 旧MASTER
+		RESTART
 	ELSE
 		GOTO INPUT_LOOP1
 	ENDIF
 ;登録キャラを選択
-ELSEIF RESULT >= 10 && RESULT <= 40 && MASTER_MAXBASE:(RESULT - 10):0 > 0
+ELSEIF INRANGE(RESULT, 10, 40) && MASTER_MAXBASE:(RESULT - 10):0 > 0
 	MASTER_ID = RESULT - 10
 	ADDCHARA 0
-	LOCAL:6 = CHARANUM -1
-	CALL APPLY_MASTER_DATA(LOCAL:6, MASTER_ID)
-	LOCAL:7 = 1
+	選択MASTER = CHARANUM -1
+	CALL APPLY_MASTER_DATA(選択MASTER, MASTER_ID)
+	登録キャラを選択 = 1
 ;既存のキャラを選択
 ELSE
 	LOCAL:2 = NO_TO_CHARA(RESULT - 100)
 	IF LOCAL:2 >= 0 && ((FLAG:OP選択勢力 <= 0 && GET_COUNTRY_BOSS(CFLAG:(LOCAL:2):所属) != LOCAL:0 ) || (FLAG:OP選択勢力 > 0 && CFLAG:(LOCAL:2):所属 == FLAG:OP選択勢力)) && NO:(LOCAL:2) < 2000 && !TALENT:(LOCAL:2):特殊勢力素質
-		LOCAL:6 = LOCAL:2
+		選択MASTER = LOCAL:2
 		MASTER_ID = -1
 	ELSE
 		GOTO INPUT_LOOP1
 	ENDIF
-ENDIF
-
-IF !MASTERそのまま
-	;前の週でキャラを変更したとき用に、「あなた」と主人公を入れ替えて戻す
-	SWAPCHARA NAME_TO_CHARA("あなた"), MASTER
 ENDIF
 
 ;一時的にコンフィグの外見詳細表示をONにする
@@ -846,7 +851,7 @@ LOCAL:0 = CONFIG:6
 CONFIG:6 = 1
 
 DRAWLINE
-CALL SHOW_INFO(LOCAL:6)
+CALL SHOW_INFO(選択MASTER)
 DRAWLINE
 
 CONFIG:6 = LOCAL:0
@@ -856,6 +861,7 @@ IF MASTER_ID >= 0
 	PRINT    
 	PRINTBUTTON " 1[修正]", 1
 	PRINT    
+	
 	PRINTBUTTON " 2[削除]", 2
 ENDIF
 PRINTL 
@@ -869,12 +875,12 @@ INPUT
 
 IF RESULT == 0
 	REDRAW 1
-	SWAPCHARA MASTER, LOCAL:6
-	CALL NEWGAME_SWAP_RELATIONS(LOCAL:6)
-	IF LOCAL:7
-		CFLAG:MASTER:キャラＩＤ = CFLAG:(LOCAL:6):キャラＩＤ
-		NO:(LOCAL:6) = __INT_MAX__
-		CALL DELETE_CHARA(LOCAL:6)
+	SWAPCHARA MASTER, 選択MASTER
+	CALL NEWGAME_SWAP_RELATIONS(選択MASTER)
+	IF 登録キャラを選択
+		CFLAG:MASTER:キャラＩＤ = CFLAG:(選択MASTER):キャラＩＤ
+		NO:(選択MASTER) = __INT_MAX__
+		CALL DELETE_CHARA(選択MASTER)
 	ENDIF
 	;主人公の所属を選択した勢力に
 	CALL CHANGE_COUNTRY(MASTER, FLAG:OP選択勢力)
@@ -882,7 +888,6 @@ IF RESULT == 0
 	FOR LOCAL:2, 0, VARSIZE("BASE")
 		BASE:MASTER:(LOCAL:2) = MAXBASE:MASTER:(LOCAL:2)
 	NEXT
-	;主人公の「放浪」は通常の放浪フラグで処理されるモノではないので、放浪フラグをへし折っておく
 	IF ABL:MASTER:性知識 < 5
 		PRINTFORML 主人公の性知識Lvを最大(Lv5)にしますか？
 		PRINTFORML 　※Lv5未満の場合、一部のウフフコマンドの実行に制限が掛かります
@@ -896,9 +901,9 @@ IF RESULT == 0
 	RETURN
 
 ELSEIF RESULT == 9
-	IF LOCAL:7
-		NO:(LOCAL:6) = __INT_MAX__
-		CALL DELETE_CHARA(LOCAL:6)
+	IF 登録キャラを選択
+		NO:(選択MASTER) = __INT_MAX__
+		CALL DELETE_CHARA(選択MASTER)
 	ENDIF
 	RESTART
 ELSEIF RESULT == 1 && MASTER_ID >= 0
