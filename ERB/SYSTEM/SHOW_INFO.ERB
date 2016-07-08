@@ -1,5 +1,146 @@
 ﻿;情報表示に関わる関数
 
+@SHOW_INFO_WITH_UI(対象, ページ移動)
+#DIM 対象
+#DIM ページ移動
+#DIM FIRST_LINE
+#DIM 現好みLV
+#DIM 経験数
+
+FIRST_LINE = LINECOUNT
+
+;主人公なら性癖設定画面の表示を禁止
+IF 対象 == 対象 && FLAG:能力表示モード == 1
+	FLAG:能力表示モード = 0
+ENDIF
+
+;対象キャラの情報を表示
+DRAWLINE
+CALL SHOW_INFO(対象)
+DRAWLINE
+
+REDRAW 0
+
+PRINTBUTTON " 9[戻る]", 9
+PRINT   
+CALL PRINTBUTTON_EX(" 0[基本情報]", 0, 1, FLAG:能力表示モード == 0)
+IF 対象 == MASTER
+	SETCOLOR COLOR("選択不可")
+	PRINTFORM  1[性癖設定]
+	RESETCOLOR
+ELSE
+	CALL PRINTBUTTON_EX(" 1[性癖設定]", 1, 1, FLAG:能力表示モード == 1)
+ENDIF
+CALL PRINTBUTTON_EX(" 2[能力詳細]", 2, 1, FLAG:能力表示モード == 2)
+CALL PRINTBUTTON_EX(" 3[妊娠記録]", 3, 1, FLAG:能力表示モード == 3)
+CALL PRINTBUTTON_EX(" 4[スキル表示]", 4, 1, FLAG:能力表示モード == 4)
+IF ページ移動
+	PRINTL
+	PRINTBUTTON " 7[前のキャラ]", 7
+	PRINTBUTTON " 8[次のキャラ]", 8
+ENDIF
+PRINTL 
+
+$INPUT_LOOP
+INPUT
+
+IF FLAG:能力表示モード == 1
+	;「性癖設定」専用の入力処理
+	IF RESULT == 101
+		FLAG:性癖設定ページ数 --
+		CLEARLINE LINECOUNT - FIRST_LINE
+		RESTART
+	ELSEIF RESULT == 102
+		FLAG:性癖設定ページ数 ++
+		CLEARLINE LINECOUNT - FIRST_LINE
+		RESTART
+	ELSEIF RESULT >= 1000 && RESULT < 1900
+		現好みLV = COM_TENDENCY:(対象):(RESULT - 1000)
+		経験数 = COM_EXP:(対象):(RESULT - 1000) /10
+		IF (現好みLV == 0 && 経験数 >= 10) || (現好みLV == 1 && 経験数 >= 35) || (現好みLV == 2 && 経験数 >= 100)
+			COM_TENDENCY:(対象):(RESULT - 1000) ++
+		ENDIF
+		CLEARLINE LINECOUNT - FIRST_LINE
+		RESTART
+	ELSEIF RESULT >= 2000 && RESULT < 2900
+		IF COM_TENDENCY:(対象):(RESULT - 2000) >= 1
+			COM_TENDENCY:(対象):(RESULT - 2000) --
+		ENDIF
+		CLEARLINE LINECOUNT - FIRST_LINE
+		RESTART
+	ELSEIF RESULT == 3000 || RESULT == 4000 || RESULT == 5000 || RESULT == 6000 || RESULT == 7000 || RESULT == 8000
+		CALL 性癖一括変更(対象, RESULT)
+		CLEARLINE LINECOUNT - FIRST_LINE
+		RESTART
+	ENDIF
+ENDIF
+
+IF RESULT == 9
+	REDRAW 1
+	RETURN
+ELSEIF RESULT >= 0 && RESULT <= 4 && FLAG:能力表示モード != RESULT && !(RESULT == 1 && 対象 == MASTER)
+	FLAG:能力表示モード = RESULT
+	CLEARLINE LINECOUNT - FIRST_LINE
+	RESTART
+;前のキャラ
+ELSEIF RESULT == 7 && ページ移動
+	LOCAL:0 = 0
+	LOCAL:1 = 0
+	WHILE 1
+		LOCAL:2 = SHOP_CHARA_LIST:(LOCAL:0)
+		IF LOCAL:1
+			IF LOCAL:2 != -1
+				対象 = SHOP_CHARA_LIST:(LOCAL:0)
+				BREAK
+			ENDIF
+		ELSEIF LOCAL:2 == 対象
+			LOCAL:1 = 1
+		ENDIF
+		LOCAL:0 --
+		IF LOCAL:0 < 0
+			LOCAL:0 = CHARANUM - 1
+		ENDIF
+		SIF SHOP_CHARA_LIST:(LOCAL:0) == -1
+			LOCAL:0 --
+		IF LOCAL:0 < 0
+			LOCAL:0 = CHARANUM - 1
+		ENDIF
+	WEND
+	CLEARLINE LINECOUNT - FIRST_LINE
+	RESTART
+;後ろのキャラ
+ELSEIF RESULT == 8 && ページ移動
+	LOCAL:0 = 0
+	LOCAL:1 = 0
+	WHILE 1
+		LOCAL:2 = SHOP_CHARA_LIST:(LOCAL:0)
+		IF LOCAL:1
+			IF LOCAL:2 != -1
+				対象 = SHOP_CHARA_LIST:(LOCAL:0)
+				BREAK
+			ENDIF
+		ELSEIF LOCAL:2 == 対象
+			LOCAL:1 = 1
+		ENDIF
+		LOCAL:0 ++
+		IF LOCAL:0 >= CHARANUM
+			LOCAL:0 = 0
+		ENDIF
+		SIF SHOP_CHARA_LIST:(LOCAL:0) == -1
+			LOCAL:0 ++
+		IF LOCAL:0 >= CHARANUM
+			LOCAL:0 = 0
+		ENDIF
+	WEND
+	CLEARLINE LINECOUNT - FIRST_LINE
+	RESTART
+;★
+ELSEIF RESULT == 1000
+	FLAG:能力表示モード = 10
+	RESTART
+ENDIF
+GOTO INPUT_LOOP
+
 ;-------------------------------------------------
 ;ARG:0番のキャラの性別情報を表示（右詰め）
 ;ARG:1が真なら一文字表示
