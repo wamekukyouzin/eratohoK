@@ -1648,35 +1648,32 @@ RETURNF 100
 ;既成事実を取得させるならARG:3を勃てる
 ;◆◆キス経験は自動では入らないため注意◆◆
 ;-------------------------------------------------
-@KISS_COMMON(対象, 相手, シチュ, ARG:2 = 1, ARG:3 = 0)
+@KISS_COMMON(対象, 相手, シチュ = 0, ARG:2 = 1, ARG:3 = 0)
 #DIM 対象
 #DIMS 相手
 #DIM シチュ
+SIF !TALENT:対象:キス未経験
+	RETURN 0
 
-IF TALENT:対象:キス未経験
-	IF ARG:2
-		PRINTFORMW %ANAME(対象)%は%相手%に初めてのキスをした…
-		SETCOLOR COLOR("注意")
-		PRINTFORMW %ANAME(対象)%は<キス未経験>を失った…
-		RESETCOLOR
-	ENDIF
-	SELECTCASE シチュ
-		CASE 1
-			相手 = %相手%(強姦)
-		CASE 2
-			相手 = %相手%(輪姦)
-		CASE 3
-			相手 = %相手%(乱交)
-		CASE 4
-			相手 = %相手%(調教)
-	ENDSELECT
-	SEXUAL_EXPERIENCE:対象:初体験_ファーストキス = %相手%
-	TALENT:(対象):キス未経験 = 0
-	IF ARG:3
-		;既成事実Lv1に相当
-		CALL SET_COUPLE_STEP(対象, 1)
-	ENDIF
+IF ARG:2
+	SETCOLOR COLOR("注意")
+	PRINTFORM %ANAME(対象)%は
+	SIF LOST_SITUATION:シチュ != ""
+		PRINTFORM %LOST_SITUATION:シチュ%で
+	PRINTFORMW <キス未経験>を失った…
+	RESETCOLOR
 ENDIF
+
+SEXUAL_EXPERIENCE:対象:初体験_ファーストキス = %相手%
+SEXUAL_EXPERIENCE_SITUATION:対象:初体験_ファーストキス = シチュ
+
+TALENT:対象:キス未経験 = 0
+
+IF ARG:3
+	;既成事実Lv1に相当
+	CALL SET_COUPLE_STEP(対象, 1)
+ENDIF
+
 
 
 
@@ -1685,18 +1682,26 @@ ENDIF
 ;対象が相手（文字列）で童貞喪失
 ;ARG:2はメッセージ表示フラグ
 ;-------------------------------------------------
-@DOUTEI_COMMON(対象, 相手, ARG:2 = 1)
+@DOUTEI_COMMON(対象, 相手, シチュ = 0, ARG:2 = 1)
 #DIM 対象
 #DIMS 相手
+#DIM シチュ
 SIF !PENIS(対象) || !TALENT:対象:童貞
 	RETURN 0
-
 IF ARG:2
 	SETCOLOR COLOR("注意")
-	PRINTFORML 童貞喪失(%ANAME(対象)%)
+	PRINTFORM %ANAME(対象)%は
+	SIF LOST_SITUATION:シチュ != ""
+		PRINTFORM %LOST_SITUATION:シチュ%で
+	PRINTFORMW <童貞>を失った…
 	RESETCOLOR
 ENDIF
+
 SEXUAL_EXPERIENCE:対象:初体験_童貞 = %相手%
+SEXUAL_EXPERIENCE_SITUATION:対象:初体験_童貞 = シチュ
+
+TALENT:対象:キス未経験 = 0
+
 TALENT:対象:童貞 = 0
 
 ;-------------------------------------------------
@@ -1709,25 +1714,23 @@ TALENT:対象:童貞 = 0
 #DIM 対象
 #DIMS 相手
 #DIM シチュ
-SIF !VAGINA(対象)
+SIF !VAGINA(対象) || !TALENT:対象:処女
 	RETURN 0
-IF TALENT:(対象):処女 == 1
+IF ARG:2
 	SETCOLOR COLOR("注意")
-	PRINTFORML %ANAME(対象)%は<処女>を失った…
+	PRINTFORM %ANAME(対象)%は
+	SIF LOST_SITUATION:シチュ != ""
+		PRINTFORM %LOST_SITUATION:シチュ%で
+	PRINTFORMW <処女>を失った…
 	RESETCOLOR
-	SELECTCASE シチュ
-		CASE 1
-			相手 = %相手%(強姦)
-		CASE 2
-			相手 = %相手%(輪姦)
-		CASE 3
-			相手 = %相手%(乱交)
-		CASE 4
-			相手 = %相手%(調教)
-	ENDSELECT
-	SEXUAL_EXPERIENCE:対象:初体験_処女 = %相手%
 ENDIF
-TALENT:(対象):処女 = 0
+
+SEXUAL_EXPERIENCE:対象:初体験_処女 = %相手%
+SEXUAL_EXPERIENCE_SITUATION:対象:初体験_処女 = シチュ
+
+TALENT:対象:キス未経験 = 0
+
+TALENT:対象:処女 = 0
 
 ;-------------------------------------------------
 ;アナル処女喪失の共通処理
@@ -1739,23 +1742,36 @@ TALENT:(対象):処女 = 0
 #DIM 対象
 #DIMS 相手
 #DIM シチュ
-IF TALENT:(対象):アナル処女 == 1
+
+SIF !TALENT:対象:アナル処女
+	RETURN 0
+
+IF ARG:2
 	SETCOLOR COLOR("注意")
-	PRINTFORML %ANAME(対象)%は<アナル処女>を失った…
+	PRINTFORM %ANAME(対象)%は
+	SIF LOST_SITUATION:シチュ != ""
+		PRINTFORM %LOST_SITUATION:シチュ%で
+	PRINTFORMW <アナル処女>を失った…
 	RESETCOLOR
-	SELECTCASE シチュ
-		CASE 1
-			相手 = %相手%(強姦)
-		CASE 2
-			相手 = %相手%(輪姦)
-		CASE 3
-			相手 = %相手%(乱交)
-		CASE 4
-			相手 = %相手%(調教)
-	ENDSELECT
-	SEXUAL_EXPERIENCE:対象:初体験_アナル処女 = %相手%
 ENDIF
+
+SEXUAL_EXPERIENCE:対象:初体験_アナル処女 = %相手%
+SEXUAL_EXPERIENCE_SITUATION:対象:初体験_アナル処女 = シチュ
+
 TALENT:対象:アナル処女 = 0
+
+;-------------------------------------------------
+;調教モードの値からシチュエーションを取得してくる
+;-------------------------------------------------
+@GET_SITUATION_BY_TRAIN_MODE()
+#FUNCTION
+SELECTCASE FLAG:調教モード
+	CASE 調教_会う, 調教_閨, 調教_捕虜会話, 調教_子育て
+		RETURNF 喪失_和姦
+	CASE 調教_捕虜調教, 調教_逆調教特殊, 調教_逆調教通常
+		RETURNF 喪失_調教
+ENDSELECT
+
 
 
 ;-------------------------------------------------
