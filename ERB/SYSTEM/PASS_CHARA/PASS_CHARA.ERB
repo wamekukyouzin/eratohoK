@@ -1,22 +1,138 @@
-﻿@PASS_CHARA_UI()
+﻿;------------------------------
+;引き継ぎ用キャラセレクト部分
+;------------------------------
+@PASS_CHARA_CHARASELECT()
+#DIM FIRST_LINE
+#DIM 対象
+#DIM 表示位置
+#DIM 表示ページ
+#DIM 総ページ数
+#DIM キャラ数
+#DIM キャラカウンタ
+#DIM 表示開始位置
+#DIM 表示終了位置
+
+VARSET キャラ数
+
+キャラ数 = CHARANUM
+総ページ数 = (キャラ数 - 1) / 60 + 1
+表示ページ = 1
+
+
+FIRST_LINE = LINECOUNT
+
+$SHOW_LOOP
+
+VARSET 表示位置
+VARSET キャラカウンタ
+表示開始位置 = (表示ページ - 1) * 60
+表示終了位置 = 表示ページ * 60
+
+DRAWLINE
+PRINTFORML 設定するキャラを選んで下さい  
+PRINTBUTTON "[まとめて設定]", 3
+PRINTBUTTON "[まとめて解除]", 4
+PRINTL
+DRAWLINE
+
+
+FOR LOCAL:0, 0, CHARANUM
+	IF 表示開始位置 <= キャラカウンタ && キャラカウンタ < 表示終了位置
+		IF 表示位置 % 3!= 0
+			PRINT     
+		ELSEIF 表示位置 > 0
+			PRINTL 
+		ENDIF
+		SIF 引き継ぎ設定済み:LOCAL:0
+			SETCOLOR 0x00FFFF
+		PRINTFORM [{LOCAL + 99, 3, LEFT}]%ANAME(LOCAL), MAX_CHARANAME_LENGTH, LEFT%
+		RESETCOLOR
+		表示位置 ++
+	ENDIF
+	キャラカウンタ ++
+NEXT
+
+PRINTL 
+DRAWLINE
+
+IF 総ページ数 >= 2
+	IF 表示ページ > 1
+		PRINT [  1] 前のページ            
+	ELSE
+		PRINT                             
+	ENDIF
+	IF 表示ページ < 総ページ数
+		PRINT [  2] 後のページ
+	ENDIF
+	PRINTL 
+	DRAWLINE
+ENDIF
+
+PRINTL [  0] これでよい
+
+REDRAW 0
+
+
+$INPUT_LOOP
+INPUT
+IF RESULT == 1 && 表示ページ > 1
+	表示ページ --
+	CLEARLINE LINECOUNT - FIRST_LINE
+	GOTO SHOW_LOOP
+ELSEIF RESULT == 2 && 表示ページ < 総ページ数
+	表示ページ ++
+	CLEARLINE LINECOUNT - FIRST_LINE
+	GOTO SHOW_LOOP
+ELSEIF RESULT == 3
+	CALL PASS_CHARA_UI(-1)
+	RESTART
+ELSEIF RESULT == 4
+	CALL CLEAR_ALL_PASS_SETTINGS
+	RESTART
+ELSEIF RESULT == 0
+RETURN
+ENDIF
+
+対象 = RESULT - 99
+IF 対象 > CHARANUM || 対象 < 0
+	CLEARLINE 1
+	GOTO INPUT_LOOP
+ENDIF
+CALL PASS_CHARA_UI(対象)
+RESTART
+
+
+;-------------------------------------------
+;キャラごと（ないし全員）の引き継ぎ項目を設定する
+;-------------------------------------------
+@PASS_CHARA_UI(対象)
+#DIM 対象
 #DIM FIRST_LINE
 #DIM 素質ページ
 #DIM 経験ページ
-REDRAW 1
+
+LOADGLOBAL
+
+CALL PASS_CHARA_COPY_ORIGINAL_TO_TMP(対象)
+
 FIRST_LINE = LINECOUNT
+
+$SHOW_LOOP
+
+REDRAW 1
 PRINTFORML 引き継ぎたい要素を選択してください
 DRAWLINE
 PRINTL □体力□
 FOR LOCAL, 0, 5
 	SIF BASENAME:LOCAL != ""
-		CALL PRINT_TOGGLE_BUTTON(@"%"[" + BASENAME:LOCAL + "]", 16, LEFT%", 100 + LOCAL, BASE引き継ぎ:LOCAL)
+		CALL PRINT_TOGGLE_BUTTON(@"%"[" + BASENAME:LOCAL + "]", 16, LEFT%", 100 + LOCAL, BASE引き継ぎ_TMP:LOCAL)
 NEXT
 PRINTL
 DRAWLINE
 PRINTL □好感度□
-CALL PRINT_TOGGLE_BUTTON(@"%"[好感度]", 16, LEFT%", 200 + GETNUM(CFLAG, "好感度"), CFLAG引き継ぎ:GETNUM(CFLAG, "好感度"))
-CALL PRINT_TOGGLE_BUTTON(@"%"[従属度]", 16, LEFT%", 200 + GETNUM(CFLAG, "従属度"), CFLAG引き継ぎ:GETNUM(CFLAG, "従属度"))
-CALL PRINT_TOGGLE_BUTTON(@"%"[依存度]", 16, LEFT%", 200 + GETNUM(CFLAG, "依存度"), CFLAG引き継ぎ:GETNUM(CFLAG, "依存度"))
+CALL PRINT_TOGGLE_BUTTON(@"%"[好感度]", 16, LEFT%", 200 + GETNUM(CFLAG, "好感度"), CFLAG引き継ぎ_TMP:GETNUM(CFLAG, "好感度"))
+CALL PRINT_TOGGLE_BUTTON(@"%"[従属度]", 16, LEFT%", 200 + GETNUM(CFLAG, "従属度"), CFLAG引き継ぎ_TMP:GETNUM(CFLAG, "従属度"))
+CALL PRINT_TOGGLE_BUTTON(@"%"[依存度]", 16, LEFT%", 200 + GETNUM(CFLAG, "依存度"), CFLAG引き継ぎ_TMP:GETNUM(CFLAG, "依存度"))
 PRINTL
 DRAWLINE
 PRINTL □能力□
@@ -25,7 +141,7 @@ PRINTBUTTON @"%"[すべてオン]", 16, LEFT%", 2001
 PRINTL
 FOR LOCAL, 0, VARSIZE("ABL")
 	SIF ABLNAME:LOCAL != ""
-		CALL PRINT_TOGGLE_BUTTON(@"%"[" + ABLNAME:LOCAL +"]", 16, LEFT%", 300 + LOCAL, ABL引き継ぎ:LOCAL)
+		CALL PRINT_TOGGLE_BUTTON(@"%"[" + ABLNAME:LOCAL +"]", 16, LEFT%", 300 + LOCAL, ABL引き継ぎ_TMP:LOCAL)
 NEXT
 PRINTL
 DRAWLINE
@@ -35,7 +151,7 @@ PRINTBUTTON @"%"[すべてオン]", 16, LEFT%", 2101
 PRINTL
 FOR LOCAL, 0, 300
 	SIF TALENTNAME:LOCAL != "" && PASS_CHARA_CHECK_SHOW_TALENT(LOCAL)
-		CALL PRINT_TOGGLE_BUTTON(@"%"[" + TALENTNAME:LOCAL + "]", 16, LEFT%", 500 + LOCAL, TALENT引き継ぎ:LOCAL)
+		CALL PRINT_TOGGLE_BUTTON(@"%"[" + TALENTNAME:LOCAL + "]", 16, LEFT%", 500 + LOCAL, TALENT引き継ぎ_TMP:LOCAL)
 NEXT
 PRINTL
 DRAWLINE
@@ -45,32 +161,36 @@ PRINTBUTTON @"%"[すべてオン]", 16, LEFT%", 2201
 PRINTL
 FOR LOCAL, 40, 70
 	SIF EXPNAME:LOCAL != ""
-		CALL PRINT_TOGGLE_BUTTON(@"%"[" + EXPNAME:LOCAL + "]", 16, LEFT%", 800 + LOCAL, EXP引き継ぎ:LOCAL)
+		CALL PRINT_TOGGLE_BUTTON(@"%"[" + EXPNAME:LOCAL + "]", 16, LEFT%", 800 + LOCAL, EXP引き継ぎ_TMP:LOCAL)
 NEXT
 PRINTL
 DRAWLINE
 PRINTL □その他□
-CALL PRINT_TOGGLE_BUTTON(@"%"[陥落素質]", 16, LEFT%", 1000, 陥落素質引き継ぎ)
-CALL PRINT_TOGGLE_BUTTON(@"%"[淫乱素質]", 16, LEFT%", 1001, 淫乱素質引き継ぎ)
-CALL PRINT_TOGGLE_BUTTON(@"%"[ＳＬＧ素質]", 16, LEFT%", 1002, ＳＬＧ素質引き継ぎ)
-CALL PRINT_TOGGLE_BUTTON(@"%"[特殊勢力陥落]", 16, LEFT%", 1003, 特殊勢力陥落引き継ぎ)
+CALL PRINT_TOGGLE_BUTTON(@"%"[陥落素質]", 16, LEFT%", 1000, 陥落素質引き継ぎ_TMP)
+CALL PRINT_TOGGLE_BUTTON(@"%"[淫乱素質]", 16, LEFT%", 1001, 淫乱素質引き継ぎ_TMP)
+CALL PRINT_TOGGLE_BUTTON(@"%"[ＳＬＧ素質]", 16, LEFT%", 1002, ＳＬＧ素質引き継ぎ_TMP)
+CALL PRINT_TOGGLE_BUTTON(@"%"[特殊勢力陥落]", 16, LEFT%", 1003, 特殊勢力陥落引き継ぎ_TMP)
 PRINTL
-CALL PRINT_TOGGLE_BUTTON(@"%"[締まり]", 16, LEFT%", 1010, 締まり引き継ぎ)
-CALL PRINT_TOGGLE_BUTTON(@"%"[陰毛]", 16, LEFT%", 1011, 陰毛引き継ぎ)
-CALL PRINT_TOGGLE_BUTTON(@"%"[ピアス]", 16, LEFT%", 1012, ピアス引き継ぎ)
-CALL PRINT_TOGGLE_BUTTON(@"%"[タトゥー]", 16, LEFT%", 1013, タトゥー引き継ぎ)
+CALL PRINT_TOGGLE_BUTTON(@"%"[締まり]", 16, LEFT%", 1010, 締まり引き継ぎ_TMP)
+CALL PRINT_TOGGLE_BUTTON(@"%"[陰毛]", 16, LEFT%", 1011, 陰毛引き継ぎ_TMP)
+CALL PRINT_TOGGLE_BUTTON(@"%"[ピアス]", 16, LEFT%", 1012, ピアス引き継ぎ_TMP)
+CALL PRINT_TOGGLE_BUTTON(@"%"[タトゥー]", 16, LEFT%", 1013, タトゥー引き継ぎ_TMP)
 PRINTL
-CALL PRINT_TOGGLE_BUTTON(@"%"[キス初体験]", 16, LEFT%", 1020, キス引き継ぎ)
-CALL PRINT_TOGGLE_BUTTON(@"%"[処女喪失]", 16, LEFT%", 1021, 処女引き継ぎ)
-CALL PRINT_TOGGLE_BUTTON(@"%"[Ａ処女喪失]", 16, LEFT%", 1022, アナル処女引き継ぎ)
-CALL PRINT_TOGGLE_BUTTON(@"%"[童貞喪失]", 16, LEFT%", 1023, 童貞引き継ぎ)
+CALL PRINT_TOGGLE_BUTTON(@"%"[キス初体験]", 16, LEFT%", 1020, キス引き継ぎ_TMP)
+CALL PRINT_TOGGLE_BUTTON(@"%"[処女喪失]", 16, LEFT%", 1021, 処女引き継ぎ_TMP)
+CALL PRINT_TOGGLE_BUTTON(@"%"[Ａ処女喪失]", 16, LEFT%", 1022, アナル処女引き継ぎ_TMP)
+CALL PRINT_TOGGLE_BUTTON(@"%"[童貞喪失]", 16, LEFT%", 1023, 童貞引き継ぎ_TMP)
 PRINTL
-CALL PRINT_TOGGLE_BUTTON(@"%"[バストサイズ]", 16, LEFT%", 1030, バストサイズ引き継ぎ)
-CALL PRINT_TOGGLE_BUTTON(@"%"[ペニスサイズ]", 16, LEFT%", 1031, ペニスサイズ引き継ぎ)
-CALL PRINT_TOGGLE_BUTTON(@"%"[性的嗜好]", 16, LEFT%", 1032, 性的嗜好引き継ぎ)
-CALL PRINT_TOGGLE_BUTTON(@"%"[妊娠記録]", 16, LEFT%", 1033, 妊娠記録引き継ぎ)
+CALL PRINT_TOGGLE_BUTTON(@"%"[バストサイズ]", 16, LEFT%", 1030, バストサイズ引き継ぎ_TMP)
+CALL PRINT_TOGGLE_BUTTON(@"%"[ペニスサイズ]", 16, LEFT%", 1031, ペニスサイズ引き継ぎ_TMP)
+CALL PRINT_TOGGLE_BUTTON(@"%"[性的嗜好]", 16, LEFT%", 1032, 性的嗜好引き継ぎ_TMP)
+CALL PRINT_TOGGLE_BUTTON(@"%"[妊娠記録]", 16, LEFT%", 1033, 妊娠記録引き継ぎ_TMP)
 PRINTL
 DRAWLINE
+PRINTBUTTON "[プリセットセーブ]", 9997
+PRINT 
+PRINTBUTTON "[プリセットロード]", 9998
+PRINT 
 PRINTBUTTON "[これでよい]", 9999
 
 INPUT
@@ -78,80 +198,569 @@ SELECTCASE RESULT
 	CASE IS < 200
 		RESULT = RESULT - 100
 		SIF BASENAME:RESULT != ""
-			BASE引き継ぎ:RESULT = !BASE引き継ぎ:RESULT
+			BASE引き継ぎ_TMP:RESULT = !BASE引き継ぎ_TMP:RESULT
 	CASE IS < 300
 		RESULT = RESULT - 200
 		SIF GROUPMATCH(RESULT, GETNUM(CFLAG, "好感度"), GETNUM(CFLAG, "依存度"), GETNUM(CFLAG, "従属度"))
-			CFLAG引き継ぎ:RESULT = !CFLAG引き継ぎ:RESULT
+			CFLAG引き継ぎ_TMP:RESULT = !CFLAG引き継ぎ_TMP:RESULT
 	CASE IS < 500
 		RESULT = RESULT - 300
 		SIF ABLNAME:RESULT != ""
-			ABL引き継ぎ:RESULT = !ABL引き継ぎ:RESULT
+			ABL引き継ぎ_TMP:RESULT = !ABL引き継ぎ_TMP:RESULT
 	CASE IS < 800
 		RESULT = RESULT - 500
 		SIF TALENTNAME:RESULT != "" && PASS_CHARA_CHECK_SHOW_TALENT(RESULT)
-			TALENT引き継ぎ:RESULT = !TALENT引き継ぎ:RESULT
+			TALENT引き継ぎ_TMP:RESULT = !TALENT引き継ぎ_TMP:RESULT
 	CASE 840 TO 870
 		RESULT = RESULT - 800
 		SIF EXPNAME:RESULT != ""
-			EXP引き継ぎ:RESULT = !EXP引き継ぎ:RESULT
+			EXP引き継ぎ_TMP:RESULT = !EXP引き継ぎ_TMP:RESULT
 	CASE 1000
-		陥落素質引き継ぎ = !陥落素質引き継ぎ
+		陥落素質引き継ぎ_TMP = !陥落素質引き継ぎ_TMP
 	CASE 1001
-		淫乱素質引き継ぎ = !淫乱素質引き継ぎ
+		淫乱素質引き継ぎ_TMP = !淫乱素質引き継ぎ_TMP
 	CASE 1002
-		ＳＬＧ素質引き継ぎ = !ＳＬＧ素質引き継ぎ
+		ＳＬＧ素質引き継ぎ_TMP = !ＳＬＧ素質引き継ぎ_TMP
 	CASE 1003
-		特殊勢力陥落引き継ぎ = !特殊勢力陥落引き継ぎ
+		特殊勢力陥落引き継ぎ_TMP = !特殊勢力陥落引き継ぎ_TMP
 	CASE 1010
-		締まり引き継ぎ = !締まり引き継ぎ
+		締まり引き継ぎ_TMP = !締まり引き継ぎ_TMP
 	CASE 1011
-		陰毛引き継ぎ = !陰毛引き継ぎ
+		陰毛引き継ぎ_TMP = !陰毛引き継ぎ_TMP
 	CASE 1012
-		ピアス引き継ぎ = !ピアス引き継ぎ
+		ピアス引き継ぎ_TMP = !ピアス引き継ぎ_TMP
 	CASE 1013
-		タトゥー引き継ぎ = !タトゥー引き継ぎ
+		タトゥー引き継ぎ_TMP = !タトゥー引き継ぎ_TMP
 	CASE 1020
-		キス引き継ぎ = !キス引き継ぎ
+		キス引き継ぎ_TMP = !キス引き継ぎ_TMP
 	CASE 1021
-		処女引き継ぎ = !処女引き継ぎ
+		処女引き継ぎ_TMP = !処女引き継ぎ_TMP
 	CASE 1022
-		アナル処女引き継ぎ = !アナル処女引き継ぎ
+		アナル処女引き継ぎ_TMP = !アナル処女引き継ぎ_TMP
 	CASE 1023
-		童貞引き継ぎ = !童貞引き継ぎ
+		童貞引き継ぎ_TMP = !童貞引き継ぎ_TMP
 	CASE 1030
-		バストサイズ引き継ぎ = !バストサイズ引き継ぎ
+		バストサイズ引き継ぎ_TMP = !バストサイズ引き継ぎ_TMP
 	CASE 1031
-		ペニスサイズ引き継ぎ = !ペニスサイズ引き継ぎ
+		ペニスサイズ引き継ぎ_TMP = !ペニスサイズ引き継ぎ_TMP
 	CASE 1032
-		性的嗜好引き継ぎ = !性的嗜好引き継ぎ
+		性的嗜好引き継ぎ_TMP = !性的嗜好引き継ぎ_TMP
 	CASE 1033
-		妊娠記録引き継ぎ = !妊娠記録引き継ぎ
+		妊娠記録引き継ぎ_TMP = !妊娠記録引き継ぎ_TMP
 	CASE 2000, 2001
 		RESULT = RESULT - 2000
 		FOR LOCAL, 0, VARSIZE("ABL")
 			SIF ABLNAME:LOCAL != ""
-				ABL引き継ぎ:LOCAL = RESULT
+				ABL引き継ぎ_TMP:LOCAL = RESULT
 		NEXT
 	CASE 2100, 2101
 		RESULT = RESULT - 2100
 		FOR LOCAL, 0, 300
 			SIF TALENTNAME:LOCAL != "" && PASS_CHARA_CHECK_SHOW_TALENT(LOCAL)
-				TALENT引き継ぎ:LOCAL = RESULT
+				TALENT引き継ぎ_TMP:LOCAL = RESULT
 		NEXT
 	CASE 2200, 2201
 		RESULT = RESULT - 2200
 		FOR LOCAL, 40, 70
 			SIF EXPNAME:LOCAL != ""
-				EXP引き継ぎ:LOCAL = RESULT
+				EXP引き継ぎ_TMP:LOCAL = RESULT
 		NEXT
+	CASE 9997
+		CALL PASS_CHARA_SAVE_GLOBAL
+	CASE 9998
+		CALL PASS_CHARA_LOAD_GLOBAL
 	CASE 9999
+		CALL PASS_CHARA_COPY_TMP_TO_ORIGINAL(対象)
 		RETURN
 ENDSELECT
 CLEARLINE LINECOUNT - FIRST_LINE
+GOTO SHOW_LOOP
+
+;-------------------------------------------
+;キャラの引き継ぎ設定をTMPにコピーする
+;-------------------------------------------
+@PASS_CHARA_COPY_ORIGINAL_TO_TMP(対象)
+#DIM 対象
+VARSET ABL引き継ぎ_TMP
+VARSET TALENT引き継ぎ_TMP
+VARSET EXP引き継ぎ_TMP
+VARSET CFLAG引き継ぎ_TMP
+VARSET BASE引き継ぎ_TMP
+VARSET 陥落素質引き継ぎ_TMP
+VARSET 淫乱素質引き継ぎ_TMP
+VARSET ＳＬＧ素質引き継ぎ_TMP
+VARSET 締まり引き継ぎ_TMP
+VARSET 陰毛引き継ぎ_TMP
+VARSET ピアス引き継ぎ_TMP
+VARSET 特殊勢力陥落引き継ぎ_TMP
+VARSET 性的嗜好引き継ぎ_TMP
+VARSET タトゥー引き継ぎ_TMP
+VARSET キス引き継ぎ_TMP
+VARSET 童貞引き継ぎ_TMP
+VARSET 処女引き継ぎ_TMP
+VARSET アナル処女引き継ぎ_TMP
+VARSET バストサイズ引き継ぎ_TMP
+VARSET ペニスサイズ引き継ぎ_TMP
+VARSET 妊娠記録引き継ぎ_TMP
+
+IF INRANGE(対象, 0, CHARANUM)
+	;ARRAYCOPYがキャラ変数に対応してればこんなことはせずに済むんだが:-(
+	FOR LOCAL, 0, VARSIZE("ABL引き継ぎ")
+		ABL引き継ぎ_TMP:LOCAL = ABL引き継ぎ:対象:LOCAL
+	NEXT
+
+	FOR LOCAL, 0, VARSIZE("TALENT引き継ぎ")
+		TALENT引き継ぎ_TMP:LOCAL = TALENT引き継ぎ:対象:LOCAL
+	NEXT
+
+
+	FOR LOCAL, 0, VARSIZE("EXP引き継ぎ")
+		EXP引き継ぎ_TMP:LOCAL = EXP引き継ぎ:対象:LOCAL
+	NEXT
+
+
+	FOR LOCAL, 0, VARSIZE("CFLAG引き継ぎ") 
+		CFLAG引き継ぎ_TMP:LOCAL = CFLAG引き継ぎ:対象:LOCAL
+	NEXT
+
+
+	FOR LOCAL, 0, VARSIZE("BASE引き継ぎ")
+		BASE引き継ぎ_TMP:LOCAL = BASE引き継ぎ:対象:LOCAL
+	NEXT
+
+	陥落素質引き継ぎ_TMP = 陥落素質引き継ぎ:対象:0
+	淫乱素質引き継ぎ_TMP = 淫乱素質引き継ぎ:対象:0
+	ＳＬＧ素質引き継ぎ_TMP = ＳＬＧ素質引き継ぎ:対象:0
+	締まり引き継ぎ_TMP = 締まり引き継ぎ:対象:0
+	陰毛引き継ぎ_TMP = 陰毛引き継ぎ:対象:0
+	ピアス引き継ぎ_TMP = ピアス引き継ぎ:対象:0
+	特殊勢力陥落引き継ぎ_TMP = 特殊勢力陥落引き継ぎ:対象:0
+	性的嗜好引き継ぎ_TMP = 性的嗜好引き継ぎ:対象:0
+	タトゥー引き継ぎ_TMP = タトゥー引き継ぎ:対象:0
+	キス引き継ぎ_TMP = キス引き継ぎ:対象:0
+	童貞引き継ぎ_TMP = 童貞引き継ぎ:対象:0
+	処女引き継ぎ_TMP = 処女引き継ぎ:対象:0
+	アナル処女引き継ぎ_TMP = アナル処女引き継ぎ:対象:0
+	バストサイズ引き継ぎ_TMP = バストサイズ引き継ぎ:対象:0
+	ペニスサイズ引き継ぎ_TMP = ペニスサイズ引き継ぎ:対象:0
+	妊娠記録引き継ぎ_TMP = 妊娠記録引き継ぎ:対象:0
+ELSE
+
+	;ARRAYCOPYがキャラ変数に対応してればこんなことはせずに済むんだが:-(
+	FOR LOCAL, 0, VARSIZE("ABL引き継ぎ")
+		SIF (CMATCH(ABL引き継ぎ:LOCAL, 1)) == CHARANUM
+			ABL引き継ぎ_TMP:LOCAL = 1
+	NEXT
+
+	FOR LOCAL, 0, VARSIZE("TALENT引き継ぎ")
+		SIF (CMATCH(TALENT引き継ぎ:LOCAL, 1)) == CHARANUM
+			TALENT引き継ぎ_TMP:LOCAL = TALENT引き継ぎ:対象:LOCAL
+	NEXT
+
+	FOR LOCAL, 0, VARSIZE("EXP引き継ぎ")
+		SIF (CMATCH(EXP引き継ぎ:LOCAL, 1)) == CHARANUM
+			EXP引き継ぎ_TMP:LOCAL = 1
+	NEXT
+
+
+	FOR LOCAL, 0, VARSIZE("CFLAG引き継ぎ")
+		SIF (CMATCH(CFLAG引き継ぎ:LOCAL, 1)) == CHARANUM
+			CFLAG引き継ぎ_TMP:LOCAL = 1
+	NEXT
+
+
+	FOR LOCAL, 0, VARSIZE("BASE引き継ぎ")
+		SIF (CMATCH(BASE引き継ぎ:LOCAL, 1)) == CHARANUM
+			BASE引き継ぎ_TMP:LOCAL = 1
+	NEXT
+	SIF (CMATCH(陥落素質引き継ぎ:0, 1)) == CHARANUM
+		陥落素質引き継ぎ_TMP = 1
+	SIF (CMATCH(淫乱素質引き継ぎ:0, 1)) == CHARANUM
+		淫乱素質引き継ぎ_TMP = 1
+	SIF (CMATCH(ＳＬＧ素質引き継ぎ:0, 1)) == CHARANUM
+		ＳＬＧ素質引き継ぎ_TMP = 1
+	SIF (CMATCH(締まり引き継ぎ:0, 1)) == CHARANUM
+		締まり引き継ぎ_TMP = 1
+	SIF (CMATCH(陰毛引き継ぎ:0, 1)) == CHARANUM
+		陰毛引き継ぎ_TMP = 1
+	SIF (CMATCH(ピアス引き継ぎ:0, 1)) == CHARANUM
+		ピアス引き継ぎ_TMP = 1
+	SIF (CMATCH(特殊勢力陥落引き継ぎ:0, 1)) == CHARANUM
+		特殊勢力陥落引き継ぎ_TMP = 1
+	SIF (CMATCH(性的嗜好引き継ぎ:0, 1)) == CHARANUM
+		性的嗜好引き継ぎ_TMP = 1
+	SIF (CMATCH(タトゥー引き継ぎ:0, 1)) == CHARANUM
+		タトゥー引き継ぎ_TMP = 1
+	SIF (CMATCH(キス引き継ぎ:0, 1)) == CHARANUM
+		キス引き継ぎ_TMP = 1
+	SIF (CMATCH(童貞引き継ぎ:0, 1)) == CHARANUM
+		童貞引き継ぎ_TMP = 1
+	SIF (CMATCH(処女引き継ぎ:0, 1)) == CHARANUM
+		処女引き継ぎ_TMP = 1
+	SIF (CMATCH(アナル処女引き継ぎ:0, 1)) == CHARANUM
+		アナル処女引き継ぎ_TMP = 1
+	SIF (CMATCH(バストサイズ引き継ぎ:0, 1)) == CHARANUM
+		バストサイズ引き継ぎ_TMP = 1
+	SIF (CMATCH(ペニスサイズ引き継ぎ:0, 1)) == CHARANUM
+		ペニスサイズ引き継ぎ_TMP = 1
+	SIF (CMATCH(妊娠記録引き継ぎ:0, 1)) == CHARANUM
+		妊娠記録引き継ぎ_TMP = 1
+ENDIF
+
+;-------------------------------------------
+;TMPをキャラの引き継ぎ設定に反映する
+;ついでに設定済みフラグをたてたり折ったり
+;-------------------------------------------
+@PASS_CHARA_COPY_TMP_TO_ORIGINAL(対象)
+#DIM 対象
+#DIM 設定済みフラグ
+設定済みフラグ = 0
+IF INRANGE(対象, 0, CHARANUM)
+	FOR LOCAL, 0, VARSIZE("ABL引き継ぎ")
+		SIF ABL引き継ぎ_TMP:LOCAL
+			設定済みフラグ  = 1
+		ABL引き継ぎ:対象:LOCAL = ABL引き継ぎ_TMP:LOCAL
+	NEXT
+
+	FOR LOCAL, 0, VARSIZE("TALENT引き継ぎ")
+		SIF TALENT引き継ぎ_TMP:LOCAL
+			設定済みフラグ  = 1
+		TALENT引き継ぎ:対象:LOCAL = TALENT引き継ぎ_TMP:LOCAL
+	NEXT
+
+
+	FOR LOCAL, 0, VARSIZE("EXP引き継ぎ")
+		SIF EXP引き継ぎ_TMP:LOCAL
+			設定済みフラグ  = 1
+		EXP引き継ぎ:対象:LOCAL = EXP引き継ぎ_TMP:LOCAL
+	NEXT
+
+
+	FOR LOCAL, 0, VARSIZE("CFLAG引き継ぎ") 
+		SIF CFLAG引き継ぎ_TMP:LOCAL
+			設定済みフラグ  = 1
+		CFLAG引き継ぎ:対象:LOCAL =CFLAG引き継ぎ_TMP:LOCAL
+	NEXT
+
+
+	FOR LOCAL, 0, VARSIZE("BASE引き継ぎ")
+		SIF BASE引き継ぎ_TMP:LOCAL
+			設定済みフラグ = 1
+		BASE引き継ぎ:対象:LOCAL = BASE引き継ぎ_TMP:LOCAL
+	NEXT
+
+	SIF 陥落素質引き継ぎ_TMP
+		設定済みフラグ  = 1
+	SIF 淫乱素質引き継ぎ_TMP
+		設定済みフラグ  = 1
+	SIF ＳＬＧ素質引き継ぎ_TMP
+		設定済みフラグ  = 1
+	SIF 締まり引き継ぎ_TMP
+		設定済みフラグ  = 1
+	SIF 陰毛引き継ぎ_TMP
+		設定済みフラグ  = 1
+	SIF ピアス引き継ぎ_TMP
+		設定済みフラグ  = 1
+	SIF 特殊勢力陥落引き継ぎ_TMP
+		設定済みフラグ  = 1
+	SIF 性的嗜好引き継ぎ_TMP
+		設定済みフラグ  = 1
+	SIF タトゥー引き継ぎ_TMP
+		設定済みフラグ  = 1
+	SIF キス引き継ぎ_TMP
+		設定済みフラグ  = 1
+	SIF 童貞引き継ぎ_TMP
+		設定済みフラグ  = 1
+	SIF 処女引き継ぎ_TMP
+		設定済みフラグ  = 1
+	SIF アナル処女引き継ぎ_TMP
+		設定済みフラグ  = 1
+	SIF バストサイズ引き継ぎ_TMP
+		設定済みフラグ  = 1
+	SIF ペニスサイズ引き継ぎ_TMP
+		設定済みフラグ  = 1
+	SIF 妊娠記録引き継ぎ_TMP
+		設定済みフラグ  = 1
+
+	陥落素質引き継ぎ:対象:0 = 陥落素質引き継ぎ_TMP
+	淫乱素質引き継ぎ:対象:0 = 淫乱素質引き継ぎ_TMP
+	ＳＬＧ素質引き継ぎ:対象:0 = ＳＬＧ素質引き継ぎ_TMP
+	締まり引き継ぎ:対象:0 = 締まり引き継ぎ_TMP
+	陰毛引き継ぎ:対象:0 = 陰毛引き継ぎ_TMP
+	ピアス引き継ぎ:対象:0 = ピアス引き継ぎ_TMP
+	特殊勢力陥落引き継ぎ:対象:0 = 特殊勢力陥落引き継ぎ_TMP
+	性的嗜好引き継ぎ:対象:0 = 性的嗜好引き継ぎ_TMP
+	タトゥー引き継ぎ:対象:0 = タトゥー引き継ぎ_TMP
+	キス引き継ぎ:対象:0 = キス引き継ぎ_TMP
+	童貞引き継ぎ:対象:0 = 童貞引き継ぎ_TMP
+	処女引き継ぎ:対象:0 = 処女引き継ぎ_TMP
+	アナル処女引き継ぎ:対象:0 = アナル処女引き継ぎ_TMP
+	バストサイズ引き継ぎ:対象:0 = バストサイズ引き継ぎ_TMP
+	ペニスサイズ引き継ぎ:対象:0 = ペニスサイズ引き継ぎ_TMP
+	妊娠記録引き継ぎ:対象:0 = 妊娠記録引き継ぎ_TMP
+	
+	引き継ぎ設定済み:対象:0 = 設定済みフラグ
+	
+ELSE
+
+	FOR LOCAL, 0, VARSIZE("ABL引き継ぎ")
+		CVARSET ABL引き継ぎ, LOCAL, ABL引き継ぎ_TMP:LOCAL
+		SIF MATCH(ABL引き継ぎ_TMP:LOCAL, 1)
+			設定済みフラグ = 1
+	NEXT
+
+	FOR LOCAL, 0, VARSIZE("TALENT引き継ぎ")
+		CVARSET TALENT引き継ぎ, LOCAL, TALENT引き継ぎ_TMP:LOCAL
+		SIF MATCH(TALENT引き継ぎ_TMP:LOCAL, 1)
+			設定済みフラグ = 1
+	NEXT
+
+	FOR LOCAL, 0, VARSIZE("BASE引き継ぎ")
+		CVARSET BASE引き継ぎ, LOCAL, BASE引き継ぎ_TMP:LOCAL
+		SIF MATCH(BASE引き継ぎ_TMP:LOCAL, 1)
+			設定済みフラグ = 1
+	NEXT
+
+	FOR LOCAL, 0, VARSIZE("EXP引き継ぎ")
+		CVARSET EXP引き継ぎ, LOCAL, EXP引き継ぎ_TMP:LOCAL
+		SIF MATCH(EXP引き継ぎ_TMP:LOCAL, 1)
+			設定済みフラグ = 1
+	NEXT
+
+
+	FOR LOCAL, 0, VARSIZE("CFLAG引き継ぎ")
+		CVARSET CFLAG引き継ぎ, LOCAL, CFLAG引き継ぎ_TMP:LOCAL
+		SIF MATCH(CFLAG引き継ぎ_TMP:LOCAL, 1)
+			設定済みフラグ = 1
+	NEXT
+
+	SIF 陥落素質引き継ぎ_TMP
+		設定済みフラグ  = 1
+	SIF 淫乱素質引き継ぎ_TMP
+		設定済みフラグ  = 1
+	SIF ＳＬＧ素質引き継ぎ_TMP
+		設定済みフラグ  = 1
+	SIF 締まり引き継ぎ_TMP
+		設定済みフラグ  = 1
+	SIF 陰毛引き継ぎ_TMP
+		設定済みフラグ  = 1
+	SIF ピアス引き継ぎ_TMP
+		設定済みフラグ  = 1
+	SIF 特殊勢力陥落引き継ぎ_TMP
+		設定済みフラグ  = 1
+	SIF 性的嗜好引き継ぎ_TMP
+		設定済みフラグ  = 1
+	SIF タトゥー引き継ぎ_TMP
+		設定済みフラグ  = 1
+	SIF キス引き継ぎ_TMP
+		設定済みフラグ  = 1
+	SIF 童貞引き継ぎ_TMP
+		設定済みフラグ  = 1
+	SIF 処女引き継ぎ_TMP
+		設定済みフラグ  = 1
+	SIF アナル処女引き継ぎ_TMP
+		設定済みフラグ  = 1
+	SIF バストサイズ引き継ぎ_TMP
+		設定済みフラグ  = 1
+	SIF ペニスサイズ引き継ぎ_TMP
+		設定済みフラグ  = 1
+	SIF 妊娠記録引き継ぎ_TMP
+		設定済みフラグ  = 1
+
+	CVARSET 陥落素質引き継ぎ, 0, 陥落素質引き継ぎ_TMP
+	CVARSET 淫乱素質引き継ぎ, 0, 淫乱素質引き継ぎ_TMP
+	CVARSET ＳＬＧ素質引き継ぎ, 0, ＳＬＧ素質引き継ぎ_TMP
+	CVARSET 締まり引き継ぎ, 0, 締まり引き継ぎ_TMP
+	CVARSET 陰毛引き継ぎ, 0, 陰毛引き継ぎ_TMP
+	CVARSET ピアス引き継ぎ, 0, ピアス引き継ぎ_TMP
+	CVARSET 特殊勢力陥落引き継ぎ, 0, 特殊勢力陥落引き継ぎ_TMP
+	CVARSET 性的嗜好引き継ぎ, 0, 性的嗜好引き継ぎ_TMP
+	CVARSET タトゥー引き継ぎ, 0, タトゥー引き継ぎ_TMP
+	CVARSET キス引き継ぎ, 0, キス引き継ぎ_TMP
+	CVARSET 童貞引き継ぎ, 0, 童貞引き継ぎ_TMP
+	CVARSET 処女引き継ぎ, 0, 処女引き継ぎ_TMP
+	CVARSET アナル処女引き継ぎ, 0, アナル処女引き継ぎ_TMP
+	CVARSET バストサイズ引き継ぎ, 0, バストサイズ引き継ぎ_TMP
+	CVARSET ペニスサイズ引き継ぎ, 0, ペニスサイズ引き継ぎ_TMP
+	CVARSET 妊娠記録引き継ぎ, 0, 妊娠記録引き継ぎ_TMP
+
+	CVARSET 引き継ぎ設定済み, 0, 設定済みフラグ
+
+
+ENDIF
+
+;-------------------------------------------
+;プリセットセーブ
+;-------------------------------------------
+@PASS_CHARA_SAVE_GLOBAL
+#DIM FIRST_LINE
+FIRST_LINE = LINECOUNT
+DRAWLINE
+PRINTFORML 引き継ぎ（一人分）をプリセットとしてセーブします
+PRINTFORML 五個までセーブできます
+DRAWLINE
+FOR LOCAL, 0, MAX_PASS_GLOBAL_SAVE
+	PRINTFORML [{LOCAL}] - %PASS_GLOBAL_SAVE_NAME:LOCAL%
+NEXT
+DRAWLINE
+PRINTFORML [9] 戻る
+INPUT
+IF RESULT == 9
+	RETURN
+ELSEIF INRANGE(RESULT, 0, MAX_PASS_GLOBAL_SAvE)
+	LOCAL:1 = RESULT
+	FOR LOCAL, 0, VARSIZE("ABL引き継ぎ")
+		ABL引き継ぎ_G:(LOCAL:1):LOCAL = ABL引き継ぎ_TMP:LOCAL
+	NEXT
+	FOR LOCAL, 0, VARSIZE("BASE引き継ぎ")
+		BASE引き継ぎ_G:(LOCAL:1):LOCAL = BASE引き継ぎ_TMP:LOCAL
+	NEXT
+	FOR LOCAL, 0, VARSIZE("TALENT引き継ぎ")
+		TALENT引き継ぎ_G:(LOCAL:1):LOCAL = TALENT引き継ぎ_TMP:LOCAL
+	NEXT
+	FOR LOCAL, 0, VARSIZE("CFLAG引き継ぎ")
+		CFLAG引き継ぎ_G:(LOCAL:1):LOCAL = CFLAG引き継ぎ_TMP:LOCAL
+	NEXT
+	FOR LOCAL, 0, VARSIZE("EXP引き継ぎ")
+		EXP引き継ぎ_G:(LOCAL:1):LOCAL = EXP引き継ぎ_TMP:LOCAL
+	NEXT
+
+
+	陥落素質引き継ぎ_G:(LOCAL:1) = 陥落素質引き継ぎ_TMP
+	淫乱素質引き継ぎ_G:(LOCAL:1) = 淫乱素質引き継ぎ_TMP
+	ＳＬＧ素質引き継ぎ_G:(LOCAL:1) = ＳＬＧ素質引き継ぎ_TMP
+	締まり引き継ぎ_G:(LOCAL:1) = 締まり引き継ぎ_TMP
+	陰毛引き継ぎ_G:(LOCAL:1) = 陰毛引き継ぎ_TMP
+	ピアス引き継ぎ_G:(LOCAL:1) = ピアス引き継ぎ_TMP
+	特殊勢力陥落引き継ぎ_G:(LOCAL:1) = 特殊勢力陥落引き継ぎ_TMP
+	性的嗜好引き継ぎ_G:(LOCAL:1) = 性的嗜好引き継ぎ_TMP
+	タトゥー引き継ぎ_G:(LOCAL:1) = タトゥー引き継ぎ_TMP
+	キス引き継ぎ_G:(LOCAL:1) = キス引き継ぎ_TMP
+	童貞引き継ぎ_G:(LOCAL:1) = 童貞引き継ぎ_TMP
+	処女引き継ぎ_G:(LOCAL:1) = 処女引き継ぎ_TMP
+	アナル処女引き継ぎ_G:(LOCAL:1) = アナル処女引き継ぎ_TMP
+	バストサイズ引き継ぎ_G:(LOCAL:1) = バストサイズ引き継ぎ_TMP
+	ペニスサイズ引き継ぎ_G:(LOCAL:1) = ペニスサイズ引き継ぎ_TMP
+	妊娠記録引き継ぎ_G:(LOCAL:1) = 妊娠記録引き継ぎ_TMP
+	
+	PRINTFORML 名前を入力して下さい
+	INPUTS
+	IF RESULTS == ""
+		RESULTS = %GETTIMES()%
+	ENDIF
+	PASS_GLOBAL_SAVE_NAME:(LOCAL:1) = %RESULTS%
+	SAVEGLOBAL
+ENDIF
+CLEARLINE LINECOUNT - FIRST_LINE
 RESTART
 
+;-------------------------------------------
+;プリセットセーブ
+;-------------------------------------------
+@PASS_CHARA_LOAD_GLOBAL
+#DIM FIRST_LINE
+FIRST_LINE = LINECOUNT
+DRAWLINE
+PRINTFORML 引き継ぎプリセットをロードします
+DRAWLINE
+FOR LOCAL, 0, MAX_PASS_GLOBAL_SAVE
+	PRINTFORML [{LOCAL}] - %PASS_GLOBAL_SAVE_NAME:LOCAL%
+NEXT
+DRAWLINE
+PRINTFORML [9] 戻る
+INPUT
+IF RESULT == 9
+	RETURN
+ELSEIF INRANGE(RESULT, 0, MAX_PASS_GLOBAL_SAvE)
+	LOCAL:1 = RESULT
+	FOR LOCAL, 0, VARSIZE("ABL引き継ぎ")
+		ABL引き継ぎ_TMP:LOCAL = ABL引き継ぎ_G:(LOCAL:1):LOCAL
+	NEXT
+	FOR LOCAL, 0, VARSIZE("BASE引き継ぎ")
+		BASE引き継ぎ_TMP:LOCAL = BASE引き継ぎ_G:(LOCAL:1):LOCAL
+	NEXT
+	FOR LOCAL, 0, VARSIZE("TALENT引き継ぎ")
+		TALENT引き継ぎ_TMP:LOCAL = TALENT引き継ぎ_G:(LOCAL:1):LOCAL
+	NEXT
+	FOR LOCAL, 0, VARSIZE("CFLAG引き継ぎ")
+		CFLAG引き継ぎ_TMP:LOCAL = CFLAG引き継ぎ_G:(LOCAL:1):LOCAL
+	NEXT
+	FOR LOCAL, 0, VARSIZE("EXP引き継ぎ")
+		EXP引き継ぎ_TMP:LOCAL = EXP引き継ぎ_G:(LOCAL:1):LOCAL
+	NEXT
 
+
+	陥落素質引き継ぎ_TMP = 陥落素質引き継ぎ_G:(LOCAL:1)
+	淫乱素質引き継ぎ_TMP = 淫乱素質引き継ぎ_G:(LOCAL:1)
+	ＳＬＧ素質引き継ぎ_TMP = ＳＬＧ素質引き継ぎ_G:(LOCAL:1)
+	締まり引き継ぎ_TMP = 締まり引き継ぎ_G:(LOCAL:1)
+	陰毛引き継ぎ_TMP = 陰毛引き継ぎ_G:(LOCAL:1)
+	ピアス引き継ぎ_TMP = ピアス引き継ぎ_G:(LOCAL:1)
+	特殊勢力陥落引き継ぎ_TMP = 特殊勢力陥落引き継ぎ_G:(LOCAL:1)
+	性的嗜好引き継ぎ_TMP = 性的嗜好引き継ぎ_G:(LOCAL:1)
+	タトゥー引き継ぎ_TMP = タトゥー引き継ぎ_G:(LOCAL:1)
+	キス引き継ぎ_TMP = キス引き継ぎ_G:(LOCAL:1)
+	童貞引き継ぎ_TMP = 童貞引き継ぎ_G:(LOCAL:1)
+	処女引き継ぎ_TMP = 処女引き継ぎ_G:(LOCAL:1)
+	アナル処女引き継ぎ_TMP = アナル処女引き継ぎ_G:(LOCAL:1)
+	バストサイズ引き継ぎ_TMP = バストサイズ引き継ぎ_G:(LOCAL:1)
+	ペニスサイズ引き継ぎ_TMP = ペニスサイズ引き継ぎ_G:(LOCAL:1)
+	妊娠記録引き継ぎ_TMP = 妊娠記録引き継ぎ_G:(LOCAL:1)
+	PRINTFORMW ロードしました
+ENDIF
+CLEARLINE LINECOUNT - FIRST_LINE
+RESTART
+
+;-------------------------------------------
+;TMPをキャラの引き継ぎ設定に反映する
+;ついでに設定済みフラグをたてたり折ったり
+;-------------------------------------------
+@CLEAR_ALL_PASS_SETTINGS()
+FOR LOCAL, 0, VARSIZE("ABL引き継ぎ")
+	CVARSET ABL引き継ぎ, LOCAL, 0
+NEXT
+
+FOR LOCAL, 0, VARSIZE("TALENT引き継ぎ")
+	CVARSET TALENT引き継ぎ, LOCAL, 0
+NEXT
+
+FOR LOCAL, 0, VARSIZE("BASE引き継ぎ")
+	CVARSET BASE引き継ぎ, LOCAL, 0
+NEXT
+
+FOR LOCAL, 0, VARSIZE("EXP引き継ぎ")
+	CVARSET EXP引き継ぎ, LOCAL, 0
+NEXT
+
+
+FOR LOCAL, 0, VARSIZE("CFLAG引き継ぎ")
+	CVARSET CFLAG引き継ぎ, LOCAL, 0
+NEXT
+
+CVARSET 陥落素質引き継ぎ, 0, 0
+CVARSET 淫乱素質引き継ぎ, 0, 0
+CVARSET ＳＬＧ素質引き継ぎ, 0, 0
+CVARSET 締まり引き継ぎ, 0, 0
+CVARSET 陰毛引き継ぎ, 0, 0
+CVARSET ピアス引き継ぎ, 0, 0
+CVARSET 特殊勢力陥落引き継ぎ, 0, 0
+CVARSET 性的嗜好引き継ぎ, 0, 0
+CVARSET タトゥー引き継ぎ, 0, 0
+CVARSET キス引き継ぎ, 0, 0
+CVARSET 童貞引き継ぎ, 0, 0
+CVARSET 処女引き継ぎ, 0, 0
+CVARSET アナル処女引き継ぎ, 0, 0
+CVARSET バストサイズ引き継ぎ, 0, 0
+CVARSET ペニスサイズ引き継ぎ, 0, 0
+CVARSET 妊娠記録引き継ぎ, 0, 0
+
+CVARSET 引き継ぎ設定済み, 0, 0
+
+
+
+;-------------------------------------------
+;キャラを引き継ぐ処理
+;-------------------------------------------
 @PASS_CHARA(対象)
 #DIM 対象
 #DIM ABL保存, VARSIZE("ABL引き継ぎ")
@@ -224,72 +833,72 @@ TALENT保存:GETNUM(TALENT, "デイリー系") = TALENT:対象:デイリー系
 
 ;ABLを保存
 FOR LOCAL, 0, VARSIZE("ABL引き継ぎ")
-	SIF ABL引き継ぎ:LOCAL
+	SIF ABL引き継ぎ:対象:LOCAL
 		ABL保存:LOCAL = ABL:対象:LOCAL
 NEXT
 
-;TALENTを保存
+;TALENTを保存J
 FOR LOCAL, 0, VARSIZE("TALENT引き継ぎ")
-	SIF TALENT引き継ぎ:LOCAL
+	SIF TALENT引き継ぎ:対象:LOCAL
 		TALENT保存:LOCAL = TALENT:対象:LOCAL
 NEXT
 
 ;EXPを保存
 FOR LOCAL, 40, 70
-	SIF EXP引き継ぎ:LOCAL
+	SIF EXP引き継ぎ:対象:LOCAL
 		EXP保存:LOCAL = EXP:対象:LOCAL
 NEXT
 
 ;CFLAGを保存
-SIF CFLAG引き継ぎ:GETNUM(CFLAG, "好感度")
+SIF CFLAG引き継ぎ:対象:GETNUM(CFLAG, "好感度")
 	CFLAG保存:GETNUM(CFLAG, "好感度") = CFLAG:対象:好感度
-SIF CFLAG引き継ぎ:GETNUM(CFLAG, "従属度")
+SIF CFLAG引き継ぎ:対象:GETNUM(CFLAG, "従属度")
 	CFLAG保存:GETNUM(CFLAG, "従属度") = CFLAG:対象:従属度
-SIF CFLAG引き継ぎ:GETNUM(CFLAG, "依存度")
+SIF CFLAG引き継ぎ:対象:GETNUM(CFLAG, "依存度")
 	CFLAG保存:GETNUM(CFLAG, "依存度") = CFLAG:対象:依存度
 
 ;BASEを保存
 FOR LOCAL, 0, VARSIZE("BASE引き継ぎ")
-	SIF BASE引き継ぎ:LOCAL
+	SIF BASE引き継ぎ:対象:LOCAL
 		BASE保存:LOCAL = MAXBASE:対象:LOCAL
 NEXT
 
 ;陥落素質を保存
-IF 陥落素質引き継ぎ
+IF 陥落素質引き継ぎ:対象:0
 	FOR LOCAL, 150, 157
 		TALENT保存:LOCAL = TALENT:対象:LOCAL
 	NEXT
 ENDIF
 
-SIF 淫乱素質引き継ぎ
+SIF 淫乱素質引き継ぎ:対象:0
 	淫乱素質保存 = TALENT:対象:淫乱系
 
-SIF ＳＬＧ素質引き継ぎ
+SIF ＳＬＧ素質引き継ぎ:対象:0
 	ＳＬＧ素質保存 = TALENT:対象:ＳＬＧ素質
 
-IF 締まり引き継ぎ
+IF 締まり引き継ぎ:対象:0
 	Ｖ締まり保存 = TALENT:対象:Ｖ締まり
 	Ａ締まり保存 = TALENT:対象:Ａ締まり
 ENDIF
 
-IF 陰毛引き継ぎ
+IF 陰毛引き継ぎ:対象:0
 	陰毛現在値保存 = TALENT:対象:陰毛現在値
 	陰毛目標値保存 = TALENT:対象:陰毛目標値
 ENDIF
 
-IF ピアス引き継ぎ
+IF ピアス引き継ぎ:対象:0
 	ピアス保存 = TALENT:対象:ピアス
 	ピアス穴保存 = TALENT:対象:ピアス穴
 ENDIF
 
-IF 特殊勢力陥落引き継ぎ
+IF 特殊勢力陥落引き継ぎ:対象:0
 	特殊勢力陥落保存 = TALENT:対象:特殊勢力陥落系
 	FOR LOCAL, 0, VARSIZE("SP_TRAIN_COUNT")
 		調教カウント保存:LOCAL = SP_TRAIN_COUNT:対象:LOCAL
 	NEXT
 ENDIF
 
-IF 性的嗜好引き継ぎ
+IF 性的嗜好引き継ぎ:対象:0
 	性的嗜好保存 = TALENT:対象:性的嗜好
 	性的嗜好ロック保存 = TALENT:対象:性的嗜好ロック
 	FOR LOCAL, 0, VARSIZE("COM_EXP")
@@ -297,40 +906,40 @@ IF 性的嗜好引き継ぎ
 	NEXT
 ENDIF
 
-IF タトゥー引き継ぎ
+IF タトゥー引き継ぎ:対象:0
 	FOR LOCAL, 0, VARSIZE("TATOO")
 		タトゥー保存:LOCAL = %TATOO:対象:LOCAL%
 	NEXT
 ENDIF
 
-IF キス引き継ぎ
+IF キス引き継ぎ:対象:0
 	キス保存 = %SEXUAL_EXPERIENCE:対象:初体験_ファーストキス%
 	キスシチュ保存 = SEXUAL_EXPERIENCE_SITUATION:対象:初体験_ファーストキス
 	TALENT保存:GETNUM(TALENT, "キス未経験") = TALENT:対象:キス未経験
 ENDIF
-IF 童貞引き継ぎ
+IF 童貞引き継ぎ:対象:0
 	童貞保存 = %SEXUAL_EXPERIENCE:対象:初体験_童貞%
 	童貞シチュ保存 = SEXUAL_EXPERIENCE_SITUATION:対象:初体験_童貞
 	TALENT保存:GETNUM(TALENT, "童貞") = TALENT:対象:童貞
 ENDIF
-IF 処女引き継ぎ
+IF 処女引き継ぎ:対象:0
 	処女保存 = %SEXUAL_EXPERIENCE:対象:初体験_処女%
 	処女シチュ保存 = SEXUAL_EXPERIENCE_SITUATION:対象:初体験_処女
 	TALENT保存:GETNUM(TALENT, "処女") = TALENT:対象:処女
 ENDIF
-IF アナル処女引き継ぎ
+IF アナル処女引き継ぎ:対象:0
 	アナル処女保存 = %SEXUAL_EXPERIENCE:対象:初体験_アナル処女%
 	アナル処女シチュ保存 = SEXUAL_EXPERIENCE_SITUATION:対象:初体験_アナル処女
 	TALENT保存:GETNUM(TALENT, "アナル処女") = TALENT:対象:アナル処女
 ENDIF
 
-SIF バストサイズ引き継ぎ
+SIF バストサイズ引き継ぎ:対象:0
 	バストサイズ保存 = GET_BUSTSIZE_NUM(対象)
 
-SIF ペニスサイズ引き継ぎ
+SIF ペニスサイズ引き継ぎ:対象:0
 	ペニスサイズ保存 = GET_PENISSIZE_NUM(対象)
 
-IF 妊娠記録引き継ぎ
+IF 妊娠記録引き継ぎ:対象:0
 	FOR LOCAL, 0, PREGNANT_RECORD_MAX
 		PREGNAMT_RECORD_FATHER保存:LOCAL = PREGNANT_RECORD_FATHER:対象:LOCAL
 		PREGNANT_RECORD_TIMES保存:LOCAL = PREGNANT_RECORD_TIMES:対象:LOCAL
@@ -346,72 +955,72 @@ TALENT:対象:デイリー系 = TALENT保存:GETNUM(TALENT, "デイリー系")
 
 ;ABLを戻す
 FOR LOCAL, 0, VARSIZE("ABL引き継ぎ")
-	SIF ABL引き継ぎ:LOCAL
+	SIF ABL引き継ぎ:対象:LOCAL
 		ABL:対象:LOCAL = ABL保存:LOCAL
 NEXT
 
 ;TALENTを戻す
 FOR LOCAL, 0, VARSIZE("TALENT引き継ぎ")
-	SIF TALENT引き継ぎ:LOCAL
+	SIF TALENT引き継ぎ:対象:LOCAL
 		TALENT:対象:LOCAL = TALENT保存:LOCAL
 NEXT
 
 ;EXPを戻す
 FOR LOCAL, 40, 70
-	SIF EXP引き継ぎ:LOCAL
+	SIF EXP引き継ぎ:対象:LOCAL
 		EXP:対象:LOCAL = EXP保存:LOCAL
 NEXT
 
 ;CFLAGを戻す
-SIF CFLAG引き継ぎ:GETNUM(CFLAG, "好感度")
+SIF CFLAG引き継ぎ:対象:GETNUM(CFLAG, "好感度")
 	CFLAG:対象:好感度 = CFLAG保存:GETNUM(CFLAG, "好感度")
-SIF CFLAG引き継ぎ:GETNUM(CFLAG, "従属度")
+SIF CFLAG引き継ぎ:対象:GETNUM(CFLAG, "従属度")
 	CFLAG:対象:従属度 = CFLAG保存:GETNUM(CFLAG, "従属度")
-SIF CFLAG引き継ぎ:GETNUM(CFLAG, "依存度")
+SIF CFLAG引き継ぎ:対象:GETNUM(CFLAG, "依存度")
 	CFLAG:対象:依存度 = CFLAG保存:GETNUM(CFLAG, "依存度")
 
 ;BASEを戻す
 FOR LOCAL, 0, VARSIZE("BASE引き継ぎ")
-	SIF BASE引き継ぎ:LOCAL
+	SIF BASE引き継ぎ:対象:LOCAL
 		MAXBASE:対象:LOCAL = BASE保存:LOCAL
 NEXT
 
 ;陥落素質を戻す
-IF 陥落素質引き継ぎ
+IF 陥落素質引き継ぎ:対象:0
 	FOR LOCAL, 150, 157
 		TALENT:対象:LOCAL = TALENT保存:LOCAL
 	NEXT
 ENDIF
 
-SIF 淫乱素質引き継ぎ
+SIF 淫乱素質引き継ぎ:対象:0
 	TALENT:対象:淫乱系 = 淫乱素質保存
 
-SIF ＳＬＧ素質引き継ぎ
+SIF ＳＬＧ素質引き継ぎ:対象:0
 	TALENT:対象:ＳＬＧ素質 = ＳＬＧ素質保存
 
-IF 締まり引き継ぎ
+IF 締まり引き継ぎ:対象:0
 	TALENT:対象:Ｖ締まり = Ｖ締まり保存
 	TALENT:対象:Ａ締まり = Ａ締まり保存
 ENDIF
 
-IF 陰毛引き継ぎ
+IF 陰毛引き継ぎ:対象:0
 	TALENT:対象:陰毛現在値 = 陰毛現在値保存
 	TALENT:対象:陰毛目標値 = 陰毛目標値保存
 ENDIF
 
-IF ピアス引き継ぎ
+IF ピアス引き継ぎ:対象:0
 	TALENT:対象:ピアス = ピアス保存
 	TALENT:対象:ピアス穴 =ピアス穴保存
 ENDIF
 
-IF 特殊勢力陥落引き継ぎ
+IF 特殊勢力陥落引き継ぎ:対象:0
 	TALENT:対象:特殊勢力陥落系 = 特殊勢力陥落保存
 	FOR LOCAL, 0, VARSIZE("SP_TRAIN_COUNT")
 		SP_TRAIN_COUNT:対象:LOCAL = 調教カウント保存:LOCAL
 	NEXT
 ENDIF
 
-IF 性的嗜好引き継ぎ
+IF 性的嗜好引き継ぎ:対象:0
 	TALENT:対象:性的嗜好 = 性的嗜好保存
 	TALENT:対象:性的嗜好ロック = 性的嗜好ロック保存
 	FOR LOCAL, 0, VARSIZE("COM_EXP")
@@ -419,40 +1028,40 @@ IF 性的嗜好引き継ぎ
 	NEXT
 ENDIF
 
-IF タトゥー引き継ぎ
+IF タトゥー引き継ぎ:対象:0
 	FOR LOCAL, 0, VARSIZE("TATOO")
 		TATOO:対象:LOCAL = %タトゥー保存:LOCAL%
 	NEXT
 ENDIF
 
-IF キス引き継ぎ
+IF キス引き継ぎ:対象:0
 	SEXUAL_EXPERIENCE:対象:初体験_ファーストキス = %キス保存%
 	SEXUAL_EXPERIENCE_SITUATION:対象:初体験_ファーストキス = キスシチュ保存
 	TALENT:対象:キス未経験 = TALENT保存:GETNUM(TALENT, "キス未経験")
 ENDIF
-IF 童貞引き継ぎ
+IF 童貞引き継ぎ:対象:0
 	SEXUAL_EXPERIENCE:対象:初体験_童貞 = %童貞保存%
 	TALENT:対象:童貞 = TALENT保存:GETNUM(TALENT, "童貞")
 	SEXUAL_EXPERIENCE_SITUATION:対象:初体験_童貞 = 童貞シチュ保存
 ENDIF
-IF 処女引き継ぎ
+IF 処女引き継ぎ:対象:0
 	SEXUAL_EXPERIENCE:対象:初体験_処女 = %処女保存%
 	TALENT:対象:処女 = TALENT保存:GETNUM(TALENT, "処女")
 	SEXUAL_EXPERIENCE_SITUATION:対象:初体験_処女 = 処女シチュ保存
 ENDIF
-IF アナル処女引き継ぎ
+IF アナル処女引き継ぎ:対象:0
 	SEXUAL_EXPERIENCE:対象:初体験_アナル処女 = %アナル処女保存%
 	SEXUAL_EXPERIENCE_SITUATION:対象:初体験_アナル処女 = アナル処女シチュ保存
 	TALENT:対象:アナル処女 = TALENT保存:GETNUM(TALENT, "アナル処女")
 ENDIF
 
-SIF バストサイズ引き継ぎ
+SIF バストサイズ引き継ぎ:対象:0
 	CALL SET_BUSTSIZE(対象, バストサイズ保存)
 
-SIF ペニスサイズ引き継ぎ
+SIF ペニスサイズ引き継ぎ:対象:0
 	CALL SET_PENISSIZE(対象, ペニスサイズ保存)
 
-IF 妊娠記録引き継ぎ
+IF 妊娠記録引き継ぎ:対象:0
 	FOR LOCAL, 0, PREGNANT_RECORD_MAX
 		PREGNANT_RECORD_FATHER:対象:LOCAL = PREGNAMT_RECORD_FATHER保存:LOCAL
 		PREGNANT_RECORD_TIMES:対象:LOCAL = PREGNANT_RECORD_TIMES保存:LOCAL
