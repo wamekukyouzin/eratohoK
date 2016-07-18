@@ -298,8 +298,14 @@ IF RESULT == -1
 	RESTART
 ENDIF
 
-;観戦モードでないときだけ、設定を弄る
-IF !FLAG:観戦モード
+
+;特殊勢力君主スタートならなにもしない
+IF MATCH(SP_COUNTRY_START, 特殊勢力スタート_君主)
+;観戦モードの場合、前の週でキャラを変更したとき用に、「あなた」と主人公を入れ替えて戻す処理だけは必要
+ELSEIF FLAG:観戦モード
+	SWAPCHARA NAME_TO_CHARA("あなた"), MASTER
+;どちらでもなければ、設定する
+ELSEIF !FLAG:観戦モード
 	CALL SELECT_MASTER
 	IF ABL:MASTER:性知識 < 5
 		PRINTFORML 主人公の性知識Lvを最大(Lv5)にしますか？
@@ -311,9 +317,6 @@ IF !FLAG:観戦モード
 			PRINTFORMW %ANAME(MASTER)%の性知識をLv5にしました
 		ENDIF
 	ENDIF
-ELSE
-	;観戦モードの場合、前の週でキャラを変更したとき用に、「あなた」と主人公を入れ替えて戻す処理だけは必要
-	SWAPCHARA NAME_TO_CHARA("あなた"), MASTER
 ENDIF
 
 IF FLAG:OP選択勢力 == -4
@@ -714,7 +717,7 @@ SIF SP_COUNTRY_NAME:LOCAL == ""
 	GOTO INPUT_LOOP2
 
 PRINTFORML どういう境遇でスタートしますか？
-CALL ASK_MULTI("士官(調教を受けない)", "奴隷(最初から合意もち)", "捕虜(無所属・捕虜からスタート)")
+CALL ASK_MULTI("士官(調教を受けない)", "奴隷(最初から合意もち)", "捕虜(無所属・捕虜からスタート)", "君主")
 SELECTCASE RESULT
 	CASE 0
 		PRINTFORMW 士官としてスタートします
@@ -722,6 +725,8 @@ SELECTCASE RESULT
 		PRINTFORMW 奴隷としてスタートします
 	CASE 2
 		PRINTFORMW 捕虜としてスタートします
+	CASE 3
+		PRINTFORMW 君主としてスタートします
 ENDSELECT
 
 SP_COUNTRY_START:LOCAL = RESULT + 1
@@ -742,6 +747,22 @@ ENDIF
 ;なければ作る
 SIF GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:LOCAL) == -1
 	CALLFORM %SP_COUNTRY_NAME_ENG:LOCAL%_RISE()
+
+LOCAL:1 = RESULT
+
+IF SP_COUNTRY_START:LOCAL == 特殊勢力スタート_君主
+	LOCAL:2 = NAME_TO_CHARA("あなた")
+	LOCAL:3 = GET_COUNTRY_BOSS(LOCAL:1)
+	PRINTFORMW %ANAME(LOCAL:3)%
+	;前の週の主人公と「あなた」を入れ替え、「あなた」と君主を入れ替え、君主のNOとIDを「あなた」に設定、「あなた」のNOをINT_MAXにして削除
+	SWAPCHARA MASTER, LOCAL:2
+	SWAPCHARA MASTER, LOCAL:3
+	CFLAG:MASTER:キャラＩＤ = CFLAG:(LOCAL:3):キャラＩＤ
+	NO:MASTER = NO:(LOCAL:3)
+	CSTR:MASTER:99 = あなた
+	NO:(LOCAL:3) = __INT_MAX__
+	CALL DELETE_CHARA(LOCAL:3)
+ENDIF
 
 
 ;-------------------------------------------------
@@ -1428,6 +1449,9 @@ IF RESULT == 999
 				NEXT
 			CASE 特殊勢力スタート_捕虜
 				CALL CAPTURE(MASTER, スタート勢力)
+			;多分問題ないが
+			CASE 特殊勢力スタート_君主
+				CALL CHANGE_COUNTRY(MASTER, スタート勢力, 1)
 		ENDSELECT
 		BREAK
 	NEXT
