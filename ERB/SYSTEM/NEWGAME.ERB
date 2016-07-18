@@ -246,6 +246,134 @@ CFLAG:(NAME_TO_CHARA("アリス")):母親 = GET_ID(NAME_TO_CHARA("神綺"))
 ;ARG:0 = 1 で周回モード
 ;-------------------------------------------------
 @NEWLOOP(ARG:0=0)
+
+CALL NEWLOOP_RESET_VARS
+
+;周回数が1増える
+FLAG:周回数++
+
+;シナリオ側で特殊キャラを生成しており、かつ一週目、「戻る」したときのため、特殊キャラを全て削除する
+LOCAL:2 = CHARANUM
+FOR LOCAL:0, 0, LOCAL:2
+	LOCAL:1 = LOCAL:2 - LOCAL:0 - 1
+	IF CFLAG:(LOCAL:1):所属 == ARG:0 && NO:(LOCAL:1) >= 2000
+		CALL DELETE_CHARA(LOCAL:1)
+	ENDIF
+NEXT
+
+
+;シナリオ選択
+CALL SELECT_SCENARIO
+IF RESULT == -1
+	BEGIN TITLE
+	RETURN 0
+ENDIF
+
+TRYCALLFORM SCENARIO_NAME_%SCENARIOID%
+LOCALS '= RESULTS
+PRINTFORML シナリオ 「%LOCALS%」 で開始します
+
+;シナリオマップ選択処理
+TRYCALLFORM SCENARIO_MAPSELECT_%SCENARIOID%
+
+;マップ初期化
+CALL MAPSETUP(1)
+CALL MAP_INIT
+
+;シナリオイントロ
+TRYCALLFORM SCENARIO_INTRO_%SCENARIOID%
+
+;シナリオ初期勢力配置
+TRYCCALLFORM SCENARIO_PLACEMENT_%SCENARIOID%
+CATCH
+	CALL SCENARIO_PLACEMENT_DEFAULT
+ENDCATCH
+
+;勢力選択
+CALL SELECT_COUNTRY
+
+;戻った場合
+IF RESULT == -1
+	FLAG:周回数 = 0
+	RESTART
+ENDIF
+
+;観戦モードでないときだけ、設定を弄る
+IF !FLAG:観戦モード
+	CALL SELECT_MASTER
+	IF ABL:MASTER:性知識 < 5
+		PRINTFORML 主人公の性知識Lvを最大(Lv5)にしますか？
+		PRINTFORML 　※Lv5未満の場合、一部のウフフコマンドの実行に制限が掛かります
+		PRINTFORML 　※性知識は特定のコマンドやアイテムなどで上げることが可能です
+		CALL ASK_YN()
+		IF RESULT == 0
+			ABL:MASTER:性知識 = 5
+			PRINTFORMW %ANAME(MASTER)%の性知識をLv5にしました
+		ENDIF
+	ENDIF
+ELSE
+	;観戦モードの場合、前の週でキャラを変更したとき用に、「あなた」と主人公を入れ替えて戻す処理だけは必要
+	SWAPCHARA NAME_TO_CHARA("あなた"), MASTER
+ENDIF
+
+IF FLAG:OP選択勢力 == -4
+	CALL START_WITH_NEW_COUNTRY
+ENDIF
+
+;登録キャラの扱いを設定
+FOR LOCAL:0, 0, MAX_MASTER
+	;体力が正なら登録キャラが存在すると判定（主人公は除外）
+	IF MASTER_MAXBASE:(LOCAL:0):0 > 0 && MASTER_ID != LOCAL:0
+		LOCAL:1 ++
+	ENDIF
+NEXT
+
+;いたら扱いを選択
+SIF LOCAL:1 > 0
+	CALL SET_登録キャラ
+
+LOCAL:1 = 0
+
+;ランダムキャラを使用するかどうか
+CALL SELECT_RCHARA
+
+;特殊勢力の設定
+CALL SELECT_SP_COUNTRY
+
+TRYCALLFORM SCENARIO_%SCENARIOID%_AFTERSELECT
+
+CALL SELECT_SLG_SETTING
+
+;引き継ぎキャラの所属を主人公勢力にする
+FOR LOCAL:0, 0, CHARANUM
+	IF INRANGE(NO:(LOCAL:0), 201, 2000 - 1)
+		CALL CHANGE_COUNTRY(LOCAL:0, CFLAG:MASTER:所属, 1)
+	ENDIF
+NEXT
+
+;開始時の国庫を設定
+;シナリオに応じて
+FOR LOCAL:0, 1, MAX_COUNTRY
+	SIF !IS_COUNTRY(LOCAL:0)
+		CONTINUE
+	MONEY:(LOCAL:0) += GET_SUM_ECONOMY(LOCAL:0) * 100 / (100 * 100)
+NEXT
+
+;一週目のみ、金1000をもらえる
+IF FLAG:周回数 == 1
+	CALL COLORPRINTFORM("一週目ボーナス！", COLOR("注意"), "W")
+	PRINTFORMW 金1000が支給されます
+	MONEY += 1000
+ENDIF
+
+RETURN 1
+
+
+
+;-------------------------------------
+;新しく周回する時用、変数のリセット処理
+;-------------------------------------
+@NEWLOOP_RESET_VARS
 ;日付を1日目に戻す
 DAY = 1
 
@@ -291,9 +419,6 @@ VARSET SPECIAL_TRAIN_COUNT, 0
 TARGET = -1
 ASSI = -1
 
-;周回数が1増える
-FLAG:周回数++
-
 ;クリアフラグを解除
 FLAG:クリアフラグ = 0
 
@@ -334,7 +459,7 @@ FOR LOCAL:0, 0, MAX_COUNTRY
 		UNIT_POSITION:(LOCAL:0):(LOCAL:1) = 0
 		UNIT_TARGET:(LOCAL:0):(LOCAL:1) = 0
 		UNIT_COMMANDER:(LOCAL:0):(LOCAL:1) = 0
-		UNIT_BREAK_TERM:(ARG:0):(LOCAL:1) = 0
+		UNIT_BREAK_TERM:(LOCAL:0):(LOCAL:1) = 0
 	NEXT
 NEXT
 VARSET TREATY_A_TERM, 0
@@ -358,128 +483,11 @@ FOR LOCAL:0, 0, MAX_TREATY_C
 	NEXT
 NEXT
 
-
-;シナリオ側で特殊キャラを生成しており、かつ一週目、「戻る」したときのため、特殊キャラを全て削除する
-LOCAL:2 = CHARANUM
-FOR LOCAL:0, 0, LOCAL:2
-	LOCAL:1 = LOCAL:2 - LOCAL:0 - 1
-	IF CFLAG:(LOCAL:1):所属 == ARG:0 && NO:(LOCAL:1) >= 2000
-		CALL DELETE_CHARA(LOCAL:1)
-	ENDIF
-NEXT
-
-
-;各勢力の国庫を空に（プレイヤーの懐はそのまま）
-VARSET MONEY, 0, 1
-
 ;マップIDをリセット
 MAPID '= "DEFAULT"
 
-;シナリオ選択
-CALL SELECT_SCENARIO
-LOCAL:10 = RESULT
-
-IF LOCAL:10 == 0
-	BEGIN TITLE
-	RETURN 0
-ELSEIF LOCAL:10 == 1
-
-	TRYCALLFORM SCENARIO_NAME_%SCENARIOID%
-	LOCALS '= RESULTS
-	PRINTFORML シナリオ 「%LOCALS%」 で開始します
-
-	;シナリオマップ選択処理
-	TRYCALLFORM SCENARIO_MAPSELECT_%SCENARIOID%
-
-	;マップ初期化
-	CALL MAPSETUP(1)
-	CALL MAP_INIT
-
-	;シナリオイントロ
-	TRYCALLFORM SCENARIO_INTRO_%SCENARIOID%
-
-	;シナリオ初期勢力配置
-	TRYCCALLFORM SCENARIO_PLACEMENT_%SCENARIOID%
-	CATCH
-		CALL SCENARIO_PLACEMENT_DEFAULT
-	ENDCATCH
-	
-
-	$SELECT_SCENARIO
-
-	;勢力選択
-	CALL SELECT_COUNTRY
-
-	IF RESULT == -1
-		FLAG:周回数 = 0
-		RESTART
-	ENDIF
-	
-	;観戦モードでないときだけ、設定を弄る
-	IF !FLAG:観戦モード
-		CALL SELECT_MASTER
-	ELSE
-		;観戦モードの場合、前の週でキャラを変更したとき用に、「あなた」と主人公を入れ替えて戻す処理だけは必要
-		SWAPCHARA NAME_TO_CHARA("あなた"), MASTER
-	ENDIF
-
-	IF FLAG:OP選択勢力 == -1
-		CALL START_WITH_NEW_COUNTRY
-	ENDIF
-	CALL CHANGE_COUNTRY(MASTER, FLAG:OP選択勢力, 1)
-	
-	;登録キャラの扱いを設定
-	FOR LOCAL:0, 0, 30
-		;体力が正なら登録キャラが存在すると判定（主人公は除外）
-		IF MASTER_MAXBASE:(LOCAL:0):0 > 0 && MASTER_ID != LOCAL:0
-			LOCAL:1 ++
-		ENDIF
-	NEXT
-	
-	SIF LOCAL:1 > 0
-		CALL SET_登録キャラ
-
-	LOCAL:1 = 0
-	
-	;霖之助の扱いを設定
-	;SIF NAME_TO_CHARA("霖之助") != MASTER
-	;	CALL SET_霖之助
-
-	;引き継ぎキャラの所属を主人公勢力にする
-	FOR LOCAL:0, 0, CHARANUM
-		IF INRANGE(NO:(LOCAL:0), 201, 2000 - 1)
-			CALL CHANGE_COUNTRY(LOCAL:0, CFLAG:MASTER:所属, 1)
-		ENDIF
-	NEXT
-
-	;開始時の国庫を設定
-	;シナリオに応じて
-	FOR LOCAL:0, 1, MAX_COUNTRY
-		SIF !IS_COUNTRY(LOCAL:0)
-			CONTINUE
-		MONEY:(LOCAL:0) += GET_SUM_ECONOMY(LOCAL:0) * 100 / (100 * 100)
-	NEXT
-
-
-	;ランダムキャラを使用するかどうか
-	CALL SELECT_RCHARA
-	
-	;特殊勢力の設定
-	CALL SELECT_SP_COUNTRY
-	
-	TRYCALLFORM SCENARIO_%SCENARIOID%_AFTERSELECT
-	
-	CALL SELECT_SLG_SETTING
-	
-	;一週目のみ、金1000をもらえる
-	IF FLAG:周回数 == 1
-		CALL COLORPRINTFORM("一週目ボーナス！", COLOR("注意"), "W")
-		PRINTFORMW 金1000が支給されます
-		MONEY += 1000
-	ENDIF
-	
-	RETURN 1
-ENDIF
+;各勢力の国庫を空に（プレイヤーの懐はそのまま）
+VARSET MONEY, 0, 1
 
 ;-------------------------------------------------
 ;シナリオ選択
