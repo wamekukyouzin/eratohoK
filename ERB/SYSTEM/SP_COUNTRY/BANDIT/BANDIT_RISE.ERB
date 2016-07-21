@@ -5,11 +5,21 @@
 #DIM 野盗
 野盗 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗))
 
+;そもそも出現させなかったら駄目
 SIF !SP_COUNTRY_RANK:(特殊勢力_野盗)
 	RETURN 0
 
-SIF 野盗 == -1
+;まだ存在しない（ランクは設定したが、初期で出現させなかった場合）とき
+IF 野盗 == -1
+	IF DAY > SLG_PP:1 && (DAY - SLG_PP:1) * 15
+		CALL BANDIT_INIT(1)
+		SIF !RESULT && BANDIT_HAS_INITIAL_CITIES
+			CALL BANDIT_RISE
+		SIF !RESULT
+			RETURN 1
+	ENDIF
 	RETURN 0
+ENDIF
 
 SIF GET_OWN_CITY(野盗) > 0
 	RETURN 0
@@ -40,7 +50,7 @@ IF 野盗 == -1
 	野盗 = RESULT
 ENDIF
 
-SIF 野盗 == -1
+SIF 野盗 == 0
 	RETURN 0
 
 CALL SP_COUNTRY_RISE(野盗)
