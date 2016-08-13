@@ -1,0 +1,92 @@
+﻿;------------------------------------
+;そのキャラがデイリーイベントをもつか判断する関数
+;KOJO_EXISTとは別にこの関数も必要になるので注意
+;------------------------------------
+@KOJO_DAILY_EXIST_K29()
+
+
+;------------------------------------
+;そのキャラのデイリー本体を呼び出すハブとなる関数
+;------------------------------------
+@KOJO_DAILY_K29()
+#DIM 発生フラグ
+発生フラグ = 0
+
+;デイリーイベント
+DAILY_NAME = 治療
+CALL KOJO_DAILY_K29_TREATMENT
+SIF RESULT != -1
+	発生フラグ = 1
+SIF DAILY_CANCEL
+	RETURN 1
+
+;;デイリーイベント
+;DAILY_NAME = デイリーイベントの名前
+;CALL KOJO_DAILY_K29h_NAMAE_OF_DAILY_EVENT
+;SIF RESULT != -1
+;	発生フラグ = 1
+;SIF DAILY_CANCEL
+;	RETURN 1
+
+RETURN 発生フラグ
+
+
+;------------------------------------
+;治療
+;-----------------------------------
+@KOJO_DAILY_K29_TREATMENT
+#DIM 永琳
+
+永琳 = NAME_TO_CHARA("永琳")
+
+;永琳が同勢力で捕虜でなく面識あり
+SIF !CHECK_KOJO_DAILY_HAPPEN(永琳, 250, 1, 0, 1)
+	RETURN -1
+
+SIF GROUPMATCH(MASTER, NAME_TO_CHARA("輝夜"), NAME_TO_CHARA("鈴仙"), NAME_TO_CHARA("てゐ"))
+	RETURN -1
+
+;2ターン以上のクールタイムが必要
+SIF COOLTIME:MASTER:0 <= 1
+	RETURN -1
+
+CALL KOJO_DAILY_START()
+PRINTFORMW 自室で休養する%ANAME(MASTER)%の元を、%ANAME(永琳)%が訪ねてきた
+PRINTFORMW 「聞いたわよ、\@ KDVAR:永琳:永琳_治療 ? また # \@怪我したんだって？　……やれやれ、何をしてるんだか」
+PRINTFORMW 少し待ってなさい。すぐに治療してあげるから……
+
+CALL COLORPRINTFORM(@"%ANAME(永琳)%が治療してくれたため、%ANAME(MASTER)%のクールタイムが0になりました", COLOR("注意"), "W")
+
+COOLTIME:MASTER:0 = 0
+
+IF !TALENT:永琳:合意 || ABL:永琳:欲望 <= 3
+	PRINTFORMW 「これでよし、と。……これに懲りたら、次は怪我しないようにすることね」
+	PRINTFORMW 「それじゃ、私はこれで。お大事に」
+
+	RETURN
+ENDIF
+
+PRINTFORMW 「さてと、それじゃ……"治療費"をいただこうかしら？」
+PRINTFORML 治療費？　そんなことは一言も言っていなかったではないか
+PRINTFORMW %ANAME(MASTER)%が抗議すると、%ANAME(永琳)%は妖しげに笑った
+PRINTFORMW 「あら、あなたにとっても、悪い話じゃないと思うけど？」
+PRINTFORMW 「だって、お金じゃなくて、身体で払ってもらうだけなんだから」
+PRINTFORMW 言いながら、%PRONOUN(永琳)%は自らの衣服をはだけ、美しく豊かな肉体を露わにしていく
+PRINTFORMW 「ふふっ、蓬莱人の閨技、見せてあげる……♪」
+PRINTFORMW どうやら受け入れる他になさそうだ
+PRINTFORMW %ANAME(MASTER)%はしばしの間、身体をゆだねることにした……
+
+;全員の調教参加フラグをクリア
+CVARSET CFLAG, 6, 0
+CFLAG:永琳:調教参加フラグ = 1
+CFLAG:永琳:好感度 += 200
+CFLAG:永琳:強制友好化 = 1
+BASE:永琳:体力 = MAXBASE:永琳:体力
+BASE:永琳:気力 = MAXBASE:永琳:気力
+;強制逆調教フラグをオン
+FLAG:強制調教フラグ = 2
+;それ以降のデイリーイベント発生を潰す
+DAILY_CANCEL = 1
+;フラグ
+KDVAR:永琳:永琳_治療 = 1
+RETURN
