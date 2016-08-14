@@ -1,0 +1,103 @@
+﻿;------------------------------------
+;そのキャラがデイリーイベントをもつか判断する関数
+;KOJO_EXISTとは別にこの関数も必要になるので注意
+;------------------------------------
+@KOJO_DAILY_EXIST_K27()
+
+
+;------------------------------------
+;そのキャラのデイリー本体を呼び出すハブとなる関数
+;------------------------------------
+@KOJO_DAILY_K27()
+#DIM 発生フラグ
+発生フラグ = 0
+
+;デイリーイベント
+DAILY_NAME = ラッキー
+CALL KOJO_DAILY_K27_LUCKY
+SIF RESULT != -1
+	発生フラグ = 1
+SIF DAILY_CANCEL
+	RETURN 1
+
+;;デイリーイベント
+;DAILY_NAME = デイリーイベントの名前
+;CALL KOJO_DAILY_K27_NAMAE_OF_DAILY_EVENT
+;SIF RESULT != -1
+;	発生フラグ = 1
+;SIF DAILY_CANCEL
+;	RETURN 1
+
+RETURN 発生フラグ
+
+;------------------------------------
+;デイリーイベント本体
+;創意工夫
+;発生判定に失敗した場合（イベントが発生しない場合）はマイナス１を返すこと
+;-----------------------------------
+@KOJO_DAILY_K27_LUCKY
+#DIM てゐ
+#DIM 代金
+てゐ = NAME_TO_CHARA("てゐ")
+
+SIF !CHECK_KOJO_DAILY_HAPPEN(てゐ, 150, 0, 0, 0)
+	RETURN -1
+
+SIF GROUPMATCH(MASTER, NAME_TO_CHARA("鈴仙"), NAME_TO_CHARA("永琳"), NAME_TO_CHARA("輝夜"))
+	RETURN -1
+
+SIF KDVAR:てゐ:てゐ_ラッキー
+	RETURN -1
+
+代金 = MIN(MONEY / 5, 10000)
+
+CALL KOJO_DAILY_START()
+
+PRINTFORMW しまった……
+PRINTFORMW 迷いの竹林を歩いているうちに、どうやら道に迷ってしまったようだ
+PRINTFORMW ここは一度迷ってしまうとそうそう出られないと聞く。どうしたものか……
+PRINTFORMW 「あれ？　どしたのあんた」
+PRINTFORMW 途方にくれていたところ、妖怪兎に出くわした
+PRINTFORMW こちらに敵意はないようだが……
+PRINTFORMW 「ははぁ、さては迷子になったわけだ」
+PRINTFORM 「運が良かったね、この
+CALL COLORPRINTFORM(NAME_FORMAL(てゐ), COLOR("注意"))
+PRINTFORMW 様が、無事に出口に送り届けてやろうじゃないか」
+PRINTFORMW どうやらこのあたりの地理に詳しいらしい。地獄に仏とはこのことだ
+PRINTFORMW ……それにしても、少女はにこにこと笑っているが、どこか信用ならないように感じる……
+PRINTFORMW 「……で？　いくら出してくれんの？」
+PRINTFORMW 「いやだなぁ、まさかタダで道案内してもらおうなんて思ってないよね？」
+PRINTFORM 「そうだなぁ、金
+CALL COLORPRINTFORM(TOSTR(代金), COLOR("注意"))
+PRINTFORMW くらいで受けてあげるよ。どう？」
+PRINTFORMW ……なるほど、そういうことか
+PRINTFORMW %PRONOUN(てゐ)%からすると、今の自分は絶好の金づるなのだろう
+PRINTFORMW とはいえ、案内してもらわないと出られないのも確かだ
+PRINTFORMW さて、どうするか……
+PRINTFORML
+CALL ASK_YN("払う", "自力でなんとかする")
+
+IF RESULT == 0
+	PRINTFORML 背に腹は代えられない……
+	PRINTFORMW おとなしく払うことにした
+	PRINTFORMW 「ふふふ、まいどあり」
+	PRINTFORMW 「んじゃ案内したげるよ。ついてきてね」
+	PRINTFORMW %ANAME(てゐ)%のおかげで、無事に出口まで辿りつけた……
+	CALL COLORPRINTFORM(@"{代金}を支払いました", COLOR("警告"), "W")
+	MONEY -= 代金
+	CFLAG:てゐ:好感度 += 300
+ELSE
+	PRINTFORMW 「ふーん？　まぁそれならそれでいいけど」
+	PRINTFORMW 「そんじゃま、頑張ってねー」
+	PRINTFORMW %ANAME(てゐ)%はさっさと立ち去ってしまった……
+	CALL COLORPRINTFORM(@"道に迷った疲れで、%ANAME(MASTER)%に3ターンのクールタイムが付与されました", COLOR("警告"), "W")
+	CALL ADD_COOLTIME(MASTER, 3)
+ENDIF
+
+CALL COLORPRINTFORM(@"%ANAME(てゐ)%の面識を得ました", COLOR("注意"), "W")
+CFLAG:てゐ:面識 = 1
+
+KDVAR:てゐ:てゐ_ラッキー = 1
+
+RETURN 
+
