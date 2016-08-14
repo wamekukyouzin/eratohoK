@@ -1,60 +1,81 @@
-﻿@KOJO_DAILY_EXIST_K14()
+﻿;------------------------------------
+;そのキャラがデイリーイベントをもつか判断する関数
+;KOJO_EXISTとは別にこの関数も必要になるので注意
+;------------------------------------
+@KOJO_DAILY_EXIST_K14()
 
+
+;------------------------------------
+;そのキャラのデイリー本体を呼び出すハブとなる関数
+;------------------------------------
 @KOJO_DAILY_K14()
 #DIM 発生フラグ
 発生フラグ = 0
 
-;人形裁判
-;DAILY_NAME = 人形裁判
-;CALL KOJO_DAILY_K14_NINGYOUSAIBAN
+;デイリーイベント
+DAILY_NAME = ほつれ
+CALL KOJO_DAILY_K14_FRAY
+SIF RESULT != -1
+	発生フラグ = 1
+SIF DAILY_CANCEL
+	RETURN 1
+
+;;デイリーイベント
+;DAILY_NAME = デイリーイベントの名前
+;CALL KOJO_DAILY_K14_NAMAE_OF_DAILY_EVENT
 ;SIF RESULT != -1
 ;	発生フラグ = 1
 ;SIF DAILY_CANCEL
 ;	RETURN 1
-;RETURN 発生フラグ
-;----------------------------------
-;人形裁判
-;----------------------------------
-@KOJO_DAILY_K14_NINGYOUSAIBAN
+
+RETURN 発生フラグ
+
+
+;------------------------------------
+;ほつれ
+;------------------------------------
+@KOJO_DAILY_K14_FRAY
 #DIM アリス
-#DIM 上海人形
-#DIM 蓬莱人形
-#DIM 大江戸人形
-#DIM ゴリアテ人形
-#DIM 助っ人
 
 アリス = NAME_TO_CHARA("アリス")
-上海人形 = NAME_TO_CHARA("上海人形")
-蓬莱人形 = NAME_TO_CHARA("蓬莱人形")
-大江戸人形 = NAME_TO_CHARA("大江戸人形")
-ゴリアテ人形 = NAME_TO_CHARA("ゴリアテ人形")
 
-
-;アリスが捕虜でなく死んでいないなら1.5%で発生
-SIF !CHECK_KOJO_DAILY_HAPPEN(アリス, 15, -1, 0, -1)
+SIF !CHECK_KOJO_DAILY_HAPPEN(アリス, 30, 1, 0)
 	RETURN -1
 
-;加入させる人形のセレクト
-SELECTCASE RAND:4
-	CASE 0
-		助っ人 = NAME_TO_CHARA("上海人形")
-	CASE 1
-		助っ人 = NAME_TO_CHARA("蓬莱人形")
-	CASE 2
-		助っ人 = NAME_TO_CHARA("大江戸人形")
-	CASEELSE
-		助っ人 = NAME_TO_CHARA("ゴリアテ人形")
-ENDSELECT
-
-;選択された人形がアリスと同勢力である、捕虜である、君主である、死んでいる場合は戻す
-SIF CFLAG:助っ人:所属 == CFLAG:アリス:所属 || !CFLAG:助っ人:捕虜先 || 助っ人 == GET_COUNTRY_BOSS(CFLAG:助っ人:所属) || CFLAG:助っ人:特殊状態 == 2
+SIF KDVAR:アリス:アリス_ほつれ
 	RETURN -1
 
-;放浪している場合は解除
-SIF CFLAG:助っ人:特殊状態 == 1
-	CFLAG:助っ人:特殊状態 = 0
-CALL CHANGE_COUNTRY(助っ人, CFLAG:アリス:所属, 1)
 
-CALL KOJO_DAILY_START
-PRINTFORMW 「人形を操ってこその人形使いよ」
-CALL COLORPRINTFORM(@"%ANAME(アリス)%の能力により、%ANAME(助っ人)%が%ANAME(アリス)%のいる勢力に加入しました", COLOR("注意"), "L")
+CALL KOJO_DAILY_START()
+
+PRINTFORMW 「ん……ちょっと待ちなさい」
+PRINTFORML %ANAME(アリス)%とすれ違いざまに呼び止められた
+PRINTFORMW 何だろうと思っていると、上着を脱がされる……
+PRINTFORMW 「袖のところがほつれてる。みっともないわ」
+PRINTFORMW 「ほら、繕っといてあげるから」
+PRINTFORML ソーイングセットを取り出すと、%ANAME(アリス)%は手早くほつれを直していく
+PRINTFORMW やがて、袖はほつれなど最初からなかったかのように修復された……
+PRINTFORMW 「これでいいかしら。応急手当みたいなものだから、あんまりアテにはできないけど」
+PRINTFORML
+CALL ASK_YN("うまいものだな", "ありがとう")
+
+IF RESULT == 0
+	PRINTFORMW 「褒められるほどのものでもないわ。人形の服を繕ったりするから出来るってだけ」
+	PRINTFORMW 「人が着る服をゼロから作ったりするのは難しいしね」
+ELSE
+	PRINTFORMW 「どういたしまして」
+ENDIF
+
+PRINTFORMW 「それじゃ、私はこれで」
+PRINTFORMW %ANAME(アリス)%は立ち去っていった……
+
+CFLAG:アリス:好感度 += 30
+
+IF !CFLAG:アリス:面識
+	CALL COLORPRINTFORM(@"%ANAME(アリス)%の面識を得ました", COLOR("注意"))
+	CFLAG:アリス:面識 = 1
+ENDIF
+
+KDVAR:アリス:アリス_ほつれ = 1
+
+RETURN

@@ -140,15 +140,6 @@ FOR LOCAL:0, 0, CHARANUM
 	ENDIF
 NEXT
 
-;人気もちによる部隊兵数増加処理
-FOR LOCAL:0, 0, MAX_COUNTRY
-	FOR LOCAL:1, 0, MAX_UNIT
-		IF UNIT_SOLDIER:(LOCAL:0):(LOCAL:1) > 0
-			CALL IDOL_GATHER_SOLDIER(LOCAL:0, LOCAL:1)
-		ENDIF
-	NEXT
-NEXT
-
 ;放浪士官で自国に誘ったキャラがいれば主人公勢力へ加入
 CALL GO_TO_MASTERS_COUNTRY(0)
 
@@ -569,6 +560,7 @@ RESETCOLOR
 ;ARG:0番の勢力の徴兵処理
 ;-------------------------------------------------
 @COUNTRY_ADD_SOLDIER(ARG:0)
+#DIM LCOUNT
 ;増加する兵数は経済規模×0.5(警邏・歌唱などによる補正あり)
 ;最大兵数は経済規模×10
 
@@ -639,6 +631,19 @@ ENDIF
 ;ENDIF
 
 LOCAL:4 = MIN(LOCAL:2, LOCAL:3)
+
+;人気持ち一人につき5%増加
+;50%まで
+LOCAL:5 = 0
+FOR LCOUNT, 0, CHARANUM
+	IF TMP_IS_FREE:LCOUNT:0 ==0 && TALENT:LCOUNT:人気 && CFLAG:LCOUNT:所属 == ARG:0
+		LOCAL:4 += MAX(LOCAL:4 * 5 / 100, 1)
+		LOCAL:5 ++
+		SIF LOCAL:5 == 10
+			BREAK
+	ENDIF
+NEXT
+
 COUNTRY_SOLDIER:(ARG:0) += LOCAL:4
 
 IF ARG:0 == CFLAG:MASTER:所属 && LOCAL:4 > 0
@@ -889,23 +894,24 @@ NEXT
 ;-------------------------------------------------
 ;ARG:0勢力のARG:1番の部隊に「人気」もちの武将が存在する場合、その部隊の兵数を増加させる処理
 ;-------------------------------------------------
-@IDOL_GATHER_SOLDIER(ARG:0, ARG:1)
-#DIM LCOUNT
-#DIM 武将
-#DIM 増加数
-FOR LCOUNT, 0, 3
-	武将 = GET_UNIT_COMMANDER(ARG:0, ARG:1, LCOUNT)
-	IF 武将 >= 0 && TALENT:武将:人気
-		増加数 = GET_SUM_ECONOMY(ARG:0) / 100
-		TIMES 増加数, 0.10
-		IF ARG:0 == CFLAG:MASTER:所属
-			PRINTFORML
-			PRINTFORML %ANAME(武将)%の人気っぷりが、部隊に人を集めているようだ……
-			PRINTFORM {ARG:1+1}番の部隊に
-			PRINTFORM {増加数}
-			PRINTFORML の義勇兵が集まりました
-			PRINTFORML 兵数:{UNIT_SOLDIER:(ARG:0):(ARG:1)} → {UNIT_SOLDIER:(ARG:0):(ARG:1) + 増加数}
-		ENDIF
-		UNIT_SOLDIER:(ARG:0):(ARG:1) += 増加数
-	ENDIF
-NEXT
+;@IDOL_GATHER_SOLDIER(ARG:0, ARG:1)
+;#DIM LCOUNT
+;#DIM 武将
+;#DIM 増加数
+;FOR LCOUNT, 0, 3
+;	武将 = GET_UNIT_COMMANDER(ARG:0, ARG:1, LCOUNT)
+;	IF 武将 >= 0 && TALENT:武将:人気
+;		増加数 = GET_SUM_ECONOMY(ARG:0) / 100
+;		TIMES 増加数, 0.10
+;		IF ARG:0 == CFLAG:MASTER:所属
+;			PRINTFORML
+;			PRINTFORML %ANAME(武将)%の人気っぷりが、部隊に人を集めているようだ……
+;			PRINTFORM {ARG:1+1}番の部隊に
+;			PRINTFORM {増加数}
+;			PRINTFORML の義勇兵が集まりました
+;			PRINTFORML 兵数:{UNIT_SOLDIER:(ARG:0):(ARG:1)} → {UNIT_SOLDIER:(ARG:0):(ARG:1) + 増加数}
+;		ENDIF
+;		UNIT_SOLDIER:(ARG:0):(ARG:1) += 増加数
+;	ENDIF
+;NEXT
+;

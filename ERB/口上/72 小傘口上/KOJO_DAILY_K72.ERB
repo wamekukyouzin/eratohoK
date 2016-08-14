@@ -1,134 +1,118 @@
-﻿@KOJO_DAILY_EXIST_K72()
+﻿;------------------------------------
+;そのキャラがデイリーイベントをもつか判断する関数
+;KOJO_EXISTとは別にこの関数も必要になるので注意
+;------------------------------------
+@KOJO_DAILY_EXIST_K72()
 
+
+;------------------------------------
+;そのキャラのデイリー本体を呼び出すハブとなる関数
+;------------------------------------
 @KOJO_DAILY_K72()
 #DIM 発生フラグ
 発生フラグ = 0
 
-;びっくり
-DAILY_NAME = びっくり
-CALL KOJO_DAILY_K72_BIKKURI
+;デイリーイベント
+DAILY_NAME = 朝のオドロキ
+CALL KOJO_DAILY_K72_SURPRISE_IN_THE_MORNING
 SIF RESULT != -1
 	発生フラグ = 1
 SIF DAILY_CANCEL
 	RETURN 1
 
-;乳母日傘
-DAILY_NAME = 乳母日傘
-CALL KOJO_DAILY_K72_ONBA
-SIF RESULT != -1
-	発生フラグ = 1
-SIF DAILY_CANCEL
-	RETURN 1
+;;デイリーイベント
+;DAILY_NAME = デイリーイベントの名前
+;CALL KOJO_DAILY_K72_NAMAE_OF_DAILY_EVENT
+;SIF RESULT != -1
+;	発生フラグ = 1
+;SIF DAILY_CANCEL
+;	RETURN 1
+
 RETURN 発生フラグ
 
 
-;----------------------------------
-;びっくり
-;----------------------------------
-@KOJO_DAILY_K72_BIKKURI
+;------------------------------------
+;デイリーイベント本体
+;創意工夫
+;発生判定に失敗した場合（イベントが発生しない場合）はマイナス１を返すこと
+;-----------------------------------
+@KOJO_DAILY_K72_SURPRISE_IN_THE_MORNING
 #DIM 小傘
 
 小傘 = NAME_TO_CHARA("小傘")
 
-;一回のみ
-SIF KDVAR:小傘:小傘_びっくり
+SIF !CHECK_KOJO_DAILY_HAPPEN(小傘, 35, 1, 0, 1)
 	RETURN -1
 
-;小傘が同一勢力所属で捕虜でなく死んでいないなら、1.5%で発生
-;150日目以降は確率ダウン
-SIF !CHECK_KOJO_DAILY_HAPPEN(小傘, DAY < 150 ? 15 # 5, 1, 0)
+SIF ABL:小傘:欲望 < 3
 	RETURN -1
 
-;あなたが竿持ちじゃないと発生しない
+SIF TALENT:小傘:処女 || TALENT:小傘:キス未経験
+	RETURN -1
+
+SIF !IS_LOVER(小傘) && !IS_SLAVE(小傘)
+	RETURN -1
+
 SIF !PENIS(MASTER)
 	RETURN -1
 
-;面識がないなら顔見知りになる
-SIF CFLAG:小傘:面識 == 0
-	CFLAG:小傘:面識 = 1
+SIF KDVAR:小傘:小傘_朝のオドロキ
+	RETURN -1
 
-CALL KOJO_DAILY_START
-PRINTFORMW %ANAME(MASTER)%が人気のない所を歩いていると、物陰から%ANAME(小傘)%が飛び出してきた
-PRINTFORMW 「ベロベロばぁ～！　どう？　びっくりした？」
-PRINTL
-CALL ASK_MULTI("ひえ～", "答えは沈黙", "驚きのあまり応戦")
-SELECTCASE RESULT
+CALL KOJO_DAILY_START()
+
+PRINTFORMW なんだか股間周りがきもちいい……
+PRINTFORM 怪訝に思いながら%ANAME(MASTER)%が目を覚ますと、
+SELECTCASE IFRAND("0, 1", 1, "2", GET_BUSTSIZE_NUM(小傘) > 0)
 	CASE 0
-		PRINTFORMW 「やったぁ！　えへへ、驚いてくれてありがとう」
-		PRINTFORMW ニコニコと笑っている%ANAME(小傘)%を見ていると、すごくいいことをした気持ちになった……
-		CFLAG:小傘:好感度 += 30
+		PRINTFORML 布団が盛り上がっている
+		PRINTFORMW 何事かと思ってまくってみれば、%ANAME(小傘)%が%ANAME(MASTER)%のモノをしゃぶっていた
+		PRINTFORMW 「んく、ん……♥　ぷあっ、おはよ、%ANAME(MASTER)%」
+		PRINTFORMW 「えへへ、驚いた？　んちゅ……ん、こうしたら驚いてもらえるし、悦んでもらえるし、一石二鳥かなって……んくぅ」
+		PRINTFORML 確かに驚かされた……そして気持ちもいい
+		PRINTFORMW こみ上げてくる感覚に、%ANAME(MASTER)%はあっという間に射精してしまう
+		CALL FUCK(小傘, "Ｍ, 奉仕, 精愛, 性技, 欲望, 口淫", "キス喪失, 口内射精", GET_ID(MASTER), @"%ANAME(MASTER)%のペニス", "", "", 喪失_和姦)
+		CALL FUCK(MASTER, "Ｃ, 射精, 欲望", "")
+		PRINTFORMW 「んくぅっ……んぐ、ん……♥　朝から濃いの出たねー、ごちそうさまでした♪」
 	CASE 1
-		PRINTFORMW %ANAME(MASTER)%は%ANAME(小傘)%など存在しないかのように完全に無視して歩き続けた
-		PRINTFORMW 「えっ、あっ、ちょっと待ってよ～」
-		PRINTFORMW 追ってきた%ANAME(小傘)%が後ろの方で転んだような音がした……
+		PRINTFORMW %ANAME(小傘)%が%ANAME(MASTER)%の上で腰を振っているではないか
+		PRINTFORMW 「あはっ……あっんぁあッ……あくっ、うぅんっ……♥」
+		PRINTFORMW 「んぁっ、は……♥　あ、起きた？　おはよ……あぁんっ！」
+		PRINTFORML にこやかに挨拶してくる%ANAME(小傘)%だが、その表情はいつもの彼女らしからぬほど淫靡だ
+		PRINTFORMW その腰は精を搾り取ろうとしているかのように妖しくくねっている……
+		PRINTFORMW 「あぅんっ……こうしたらゼッタイ驚いてもらえるし、ふたりで気持ちよくもなれて、最高かなって……♪」
+		PRINTFORMW 「ちょっと待ってね……わちきそろそろキちゃいそうだから……あはっ……♪」
+		PRINTFORML 熱に浮かされたような表情で呟くと、%ANAME(小傘)%は%ANAME(MASTER)%との性交に没頭していく
+		PRINTFORMW その献身的かつ淫らな腰使いに、%ANAME(MASTER)%はあっという間に達してしまった
+		CALL FUCK(小傘, "Ｖ, 奉仕, 性交, 欲望, 性技", "膣内射精, 処女喪失", GET_ID(MASTER), "", ANAME(MASTER), "", 喪失_和姦)
+		CALL FUCK(MASTER, "Ｃ, 射精, 欲望", "童貞喪失", 0, "", "", @"%ANAME(小傘)%の膣", 喪失_和姦)
+		PRINTFORMW 「んんんっ……♥　あはっ……一杯射精て……はぁ……っ」
+		PRINTFORMW 「たくさん射精したね、えらいえらい」
 	CASE 2
-		PRINTFORMW 「え"う"っ……え？　なんで？」
-		PRINTFORMW %ANAME(MASTER)%は無意識に%ANAME(小傘)%に平手打ちを放っていた
-		PRINTFORMW もし戦場のような、武器を持っている状況だったのなら迷うことなくそちらを使っていただろう
-		PRINTFORMW 「こっちがびっくりしちゃった……これがさでずむ？」
-		SOURCE:小傘:嗜虐 += 50
-		SOURCE:小傘:苦痛 += 50
-		SOURCE:小傘:逸脱 += 50
-	CASE 3	
-		PRINTFORMW 「えっ？　えっえっ？」
-		PRINTFORMW %ANAME(MASTER)%は無茶な理屈で子作りを開始した……
-		CALL FUCK(MASTER, "Ｃ, 欲望, 性交, 射精", "童貞, キス喪失", 0, @"%ANAME(小傘)%の唇", "", @"%ANAME(小傘)%の膣", 喪失_強姦)
-		CALL FUCK(小傘, "欲望, Ｃ, Ｂ, Ｖ, 奉仕, 性交, 性技, 精愛", "膣内射精, 処女喪失, キス喪失", GET_ID(MASTER), @"%ANAME(MASTER)%の\@ RAND:2 ? 唇 # ペニス \@", ANAME(MASTER), "", 喪失_強姦)
-
-		PRINTFORMW 四肢を放り出し、白濁にまみれた%ANAME(小傘)%を放置し、%ANAME(MASTER)%はスッキリした気持ちで着衣を正して歩き始めた
-		PRINTFORMW もしかすると、これで%ANAME(小傘)%も正しいターゲットにベロベロばぁできることだろう……
-;自分で書いといてなんだけど最低だと思う。意味も分からん。でもこういうの好き
+		PRINTFORML 布団が盛り上がっている
+		PRINTFORMW 何事かと思ってまくってみれば、%ANAME(小傘)%が%ANAME(MASTER)%のモノを胸で扱き上げている
+		PRINTFORMW 「ん……はっ、あ、おはよ、%ANAME(MASTER)%」
+		PRINTFORMW 「えへへ、驚いた？　男の人ってこういうのが好きだって聞いたから……どうかな？」
+		PRINTFORML 確かに驚いた……そして気持ちもいい
+		PRINTFORMW %ANAME(小傘)%の豊かな乳房の柔らかな感触は、%ANAME(MASTER)%をあっという間に射精に導いた
+		CALL FUCK(小傘, "Ｂ, 奉仕, 精愛, 性技, 欲望")
+		CALL FUCK(MASTER, "Ｃ,　射精, 欲望")
+		PRINTFORMW 「あはっ……♥　おっぱい熱っ……気持ちよかったんだね、よかった」
 ENDSELECT
-KDVAR:小傘:小傘_びっくり = 1
+
+PRINTFORMW 「気持ちよくなってもらえたし、驚かせたし、わちきも大満足だよ」
+PRINTFORM 「それじゃ%ANAME(MASTER)%、今日も
+IF IS_LOVER(小傘)
+	PRINTFORMW 一日、頑張ろうね！」
+	PRINTFORMW いつもの屈託のない笑みを浮かべる%ANAME(小傘)%に軽く口づけると、%ANAME(MASTER)%は起き上がった……
+ELSE
+	PRINTFORMW いっぱい、わちきのこと、可愛がってね……？」
+	PRINTFORMW あなたに心酔した%ANAME(小傘)%は、淫靡な、そして媚びたような表情を浮かべる
+	PRINTFORMW 軽く口づけてやると、%ANAME(MASTER)%は起き上がった……
+ENDIF
+
+KDVAR:小傘:小傘_朝のオドロキ = 1
+RETURN
 
 
-;----------------------------------
-;乳母日傘
-;----------------------------------
-@KOJO_DAILY_K72_ONBA
-#DIM 小傘
 
-小傘 = NAME_TO_CHARA("小傘")
-
-;ラブラブじゃないとダメよ
-SIF TALENT:小傘:恋慕 == 0 && TALENT:小傘:親愛 == 0 && TALENT:小傘:恋人 == 0
-	RETURN -1
-
-;小傘が同一勢力所属で捕虜でなく死んでいないなら、2.5%で発生
-SIF !CHECK_KOJO_DAILY_HAPPEN(小傘, 25, 1, 0, 1)
-	RETURN -1
-
-;あなたが竿持ちじゃないと発生しない
-SIF !PENIS(MASTER)
-	RETURN -1
-
-CALL KOJO_DAILY_START
-PRINTFORMW %ANAME(MASTER)%が部屋で横になっていると、%ANAME(小傘)%が尋ねてきた
-PRINTFORMW 「あっ、%ANAME(MASTER)%ったら、ちゃんと布団で寝なきゃダメだよ」
-PRINTFORMW %ANAME(MASTER)%が疲れたから動きたくないと主張すると、%ANAME(小傘)%は少し困ったように微笑んだ
-PRINTFORMW 「も～、しょうがないなぁ……」
-SELECTCASE RAND:4
-	CASE 0
-		PRINTFORMW %ANAME(小傘)%は%ANAME(MASTER)%の頭を自らの膝に乗せ、ゆっくり頬を撫でた
-		PRINTFORMW 「えへへ、膝枕って恋人っぽいでしょ。えへへ……」
-		PRINTFORML %ANAME(小傘)%は自分からしておきながら、顔を真っ赤にしている
-		PRINTFORMW %ANAME(小傘)%の柔らかさを感じながら、%ANAME(MASTER)%はまどろみの中へ落ちていった……
-		PRINTFORMW 「あ……ふふ、おやすみ、%ANAME(MASTER)%……」
-	CASE 1
-		PRINTFORMW %ANAME(小傘)%は毛布を手に取ると、%ANAME(MASTER)%と並ぶように寝転んだ
-		PRINTFORMW 「風邪ひいちゃダメだからね？　気をつけなきゃ」
-		PRINTFORMW 風邪をひいても、%ANAME(小傘)%がいるから大丈夫だ
-		PRINTFORMW %ANAME(MASTER)%がそう言うと、%ANAME(小傘)%は「ばか」とだけ呟いた……
-	CASE 2
-		PRINTFORMW %ANAME(小傘)%は%ANAME(MASTER)%の腕を枕にし、%ANAME(MASTER)%の隣に寝転んだ
-		PRINTFORMW 「……ね、しばらく、このままでいさせて」
-		PRINTFORMW %ANAME(MASTER)%は何も言わず、%ANAME(小傘)%を両腕で抱きしめた
-		PRINTFORMW 何も言葉は交わさなかったが、奇妙な満足感を%ANAME(MASTER)%たちは覚えた……
-	CASE 3	
-		PRINTFORMW %ANAME(MASTER)%は卓上に貰い物のお菓子があるから、好きに食べていいと%ANAME(小傘)%に言った
-		PRINTFORMW 「うん、おいしい！　これ結構いいものみたいだね。はい、%ANAME(MASTER)%、口開けて」
-		PRINTFORMW %ANAME(小傘)%に言われるまま口を開くと、お菓子を一口分だけ入れてくれた
-		PRINTFORMW 「ね？　おいしいでしょ？　くれた人にちゃんとお礼言わなきゃダメだよ？」
-		PRINTFORMW 雑談をしながら、%ANAME(小傘)%は%ANAME(MASTER)%の口にお菓子を運び続けた……
-ENDSELECT
-CFLAG:小傘:好感度 += 50

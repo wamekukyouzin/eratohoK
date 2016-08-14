@@ -35,8 +35,6 @@ SELECTCASE ARG:0
 		CALL PRINTBUTTON_SHOP(16, "{士官を募る}", 7)
 	CASE 14
 		CALL PRINTBUTTON_SHOP(17, "{地方へ派遣}", 7,  FLAG:拠点フェイズ選択コマンド == 1017)
-	CASE 15
-		CALL PRINTBUTTON_SHOP(18, "{      賭場}", 7,  FLAG:拠点フェイズ選択コマンド == 1018)
 	CASE 16
 		CALL PRINTBUTTON_SHOP(19, "{    デート}", 7,  FLAG:拠点フェイズ選択コマンド == 1019)
 	CASE 17
@@ -93,7 +91,7 @@ PRINT ┃
 NUMBER = 11
 HAS_WIFE = 0
 
-IF CFLAG:MASTER:行動不能状態 || COOLTIME:MASTER:0 > 1
+IF CFLAG:MASTER:行動不能状態　== 1 || COOLTIME:MASTER:0 > 1
 	SHOP_AVAIL:0 = 0
 	SHOP_AVAIL:1 = 0
 	SHOP_AVAIL:10 = 0
@@ -323,13 +321,6 @@ ELSEIF FLAG:拠点フェイズ選択コマンド == 1017
 	CALL PRINT_LIFE_MENU(2)
 	CALL REPEAT_DASH(0)
 	行数 = 3
-;賭場
-ELSEIF FLAG:拠点フェイズ選択コマンド == 1018
-	CALL PRINT_LIFE_MENU(0)
-	PRINTFORML ★★賭場に向かわせる自国キャラを選択してください★★
-	CALL PRINT_LIFE_MENU(1)
-	CALL REPEAT_DASH(0)
-	行数 = 2
 ;デート
 ELSEIF FLAG:拠点フェイズ選択コマンド == 1019
 	CALL PRINT_LIFE_MENU(0)
@@ -571,12 +562,6 @@ IF SHOP_AVAIL:(ARG:0)
 	;地方へ派遣
 	ELSEIF ARG:0 == 17
 		FLAG:拠点フェイズ選択コマンド = 1017
-		FLAG:拠点フェイズページ = 1
-		FLAG:夜這い = 0
-		RETURN 0
-	;賭場
-	ELSEIF ARG:0 == 18
-		FLAG:拠点フェイズ選択コマンド = 1018
 		FLAG:拠点フェイズページ = 1
 		FLAG:夜這い = 0
 		RETURN 0
@@ -1144,12 +1129,6 @@ ELSEIF FLAG:拠点フェイズ選択コマンド == 1017
 	ENDIF
 	RETURN 1
 
-;賭場
-ELSEIF FLAG:拠点フェイズ選択コマンド == 1018
-	FLAG:能力表示モード = 0
-	CALL SHOP_GAMBLE(ARG:0)
-	RETURN 1
-
 ;デート
 ELSEIF FLAG:拠点フェイズ選択コマンド == 1019
 	FLAG:能力表示モード = 0
@@ -1394,12 +1373,15 @@ VARSET SHOP_CHARA_LIST, -1
 
 LOCAL:5 = 0
 
-SHOP_CHARA_LIST:(LOCAL:5) = MASTER
-LOCAL:5 ++
+;SHOP_CHARA_LIST:(LOCAL:5) = MASTER
+;LOCAL:5 ++
 
 ;主人公と同一勢力の士官が第１優先
 FOR LOCAL:0, 0, CHARANUM
-	IF LOCAL != MASTER && CFLAG:(LOCAL:0):所属 == CFLAG:MASTER:所属
+	;主人公でない「あなた」は飛ばす
+	SIF LOCAL == NAME_TO_CHARA("あなた") && LOCAL != MASTER
+		CONTINUE
+	IF CFLAG:(LOCAL:0):所属 == CFLAG:MASTER:所属
 		SHOP_CHARA_LIST:(LOCAL:5) = LOCAL:0
 		LOCAL:5 ++
 	ENDIF
@@ -1407,8 +1389,10 @@ NEXT
 
 ;他勢力・捕虜でない士官が第２優先
 FOR LOCAL:0, 0, CHARANUM
+	;主人公でない「あなた」は飛ばす
+	SIF LOCAL == NAME_TO_CHARA("あなた") && LOCAL != MASTER
+		CONTINUE
 	IF CFLAG:(LOCAL:0):所属 != CFLAG:MASTER:所属 && !CFLAG:(LOCAL:0):捕虜先
-		;「あなた」がここにかかった場合、主人公を別キャラにしている（あなたはゲームに登場しない）ということなので飛ばす
 		SIF LOCAL == NAME_TO_CHARA("あなた") && LOCAL != MASTER
 			CONTINUE
 		SHOP_CHARA_LIST:(LOCAL:5) = LOCAL:0
@@ -1418,6 +1402,9 @@ NEXT
 
 ;他勢力・捕虜がラスト
 FOR LOCAL:0, 0, CHARANUM
+	;主人公でない「あなた」は飛ばす
+	SIF LOCAL == NAME_TO_CHARA("あなた") && LOCAL != MASTER
+		CONTINUE
 	IF CFLAG:(LOCAL:0):所属 != CFLAG:MASTER:所属 && CFLAG:(LOCAL:0):捕虜先
 		SHOP_CHARA_LIST:(LOCAL:5) = LOCAL:0
 		LOCAL:5 ++

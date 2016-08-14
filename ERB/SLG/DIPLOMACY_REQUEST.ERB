@@ -729,7 +729,7 @@ SIF LOCAL:2 <= 0
 LOCAL:12 = (24 - LOCAL:20) * 2
 LOCAL:10 = 0
 FOR LOCAL:0, 0, CHARANUM
-	SIF CFLAG:(LOCAL:0):所属 == ARG:0 && CFLAG:(LOCAL:0):捕虜先 == 0 && LOCAL:0 != LOCAL:5
+	SIF CFLAG:(LOCAL:0):所属 == ARG:0 && CFLAG:(LOCAL:0):捕虜先 == 0 && LOCAL:0 != LOCAL:5　&& NO:(LOCAL:0) < 2000
 		LOCAL:10 ++
 NEXT
 LOCAL:10 = MAX((LOCAL:10 - 1) / LOCAL:12 + 1, 1)
@@ -750,7 +750,7 @@ LOCAL:15 = (LOCAL:11 - 1) * LOCAL:12
 LOCAL:16 = LOCAL:11 * LOCAL:12
 LOCAL:17 = 0
 FOR LOCAL:0, 0, CHARANUM
-	IF CFLAG:(LOCAL:0):所属 == ARG:0 && CFLAG:(LOCAL:0):捕虜先 == 0 && LOCAL:0 != LOCAL:5
+	IF CFLAG:(LOCAL:0):所属 == ARG:0 && CFLAG:(LOCAL:0):捕虜先 == 0 && LOCAL:0 != LOCAL:5　&& NO:(LOCAL:0) < 2000
 		IF LOCAL:13 >= LOCAL:15 && LOCAL:13 < LOCAL:16
 			IF LOCAL:14 % 2 != 0
 				PRINTPLAIN 　
@@ -814,7 +814,7 @@ ELSEIF RESULT == 56
 	GOTO SHOW_LOOP2
 ELSE
 	LOCAL:30 = NO_TO_CHARA(RESULT - 100)
-	IF LOCAL:30 >= 0 && CFLAG:(LOCAL:30):所属 == ARG:0 && CFLAG:(LOCAL:30):捕虜先 == 0 && LOCAL:30 != LOCAL:5
+	IF LOCAL:30 >= 0 && CFLAG:(LOCAL:30):所属 == ARG:0 && CFLAG:(LOCAL:30):捕虜先 == 0 && LOCAL:30 != LOCAL:5　&& NO:(LOCAL:30) < 2000
 		DRAWLINE
 		CALL SHOW_INFO(LOCAL:30)
 		DRAWLINE
@@ -917,6 +917,8 @@ CFLAG:(LOCAL:5):外交調教経過ターン = 1
 @CHECK_DIPLOMACY_TRAIN_FLAG
 ;各国の君主のキャラ番号・略名マップを作成
 CALL TMP_CREATE_COUNTRY_BOSS_MAP
+;勢力同士の隣接関係マップを作成
+CALL TMP_CREATE_COUNTRY_NEIBORING_MAP
 
 FOR LOCAL:0, 0, CHARANUM
 	IF CFLAG:(LOCAL:0):外交調教経過ターン
@@ -950,8 +952,7 @@ FOR LOCAL:0, 0, CHARANUM
 		LOCAL:4 = 0
 
 		;【条件A】強要が可能である
-		;勢力同士の隣接関係マップを作成
-		CALL TMP_CREATE_COUNTRY_NEIBORING_MAP
+
 		;強要時より基礎判定値は下げています
 		SIF DIPLOMACY_REQUEST_CHECK(CFLAG:MASTER:所属, LOCAL:2, 25, 1)
 			LOCAL:3 = 1
@@ -1423,6 +1424,12 @@ IF DIPLOMACY_HATE:(ARG:0):0 >= DIPLOMACY_HATE:(ARG:0):2 + 20
 							NEXT
 							PRINTL 同盟は解散しました
 							PRINTL 同盟の解散に伴い、参加していた勢力の全部隊は解散されます
+							FOR LOCAL:1, 0, MAX_TREATY_COUNTRY
+								IF TREATY_A_COUNTRY:(LOOP_COUNT:0):(LOCAL:1) == CFLAG:MASTER:所属
+									CALL COLORPRINTFORM("注意:自国の部隊も解散されています", COLOR("警告"), "W")
+									BREAK
+								ENDIF
+							NEXT
 							RESETCOLOR
 							;移動処理対象の検索
 							FOR LOCAL:1, 0, MAX_TREATY_COUNTRY
@@ -1533,6 +1540,12 @@ IF DIPLOMACY_HATE:(ARG:0):0 >= DIPLOMACY_HATE:(ARG:0):2 + 20
 							NEXT
 							PRINTL 連合は解散しました
 							PRINTL 連合の解散に伴い、参加していた勢力の全部隊は解隊されます
+							FOR LOCAL:1, 0, MAX_TREATY_COUNTRY
+								IF TREATY_U_COUNTRY:(LOOP_COUNT:0):(LOCAL:1) == CFLAG:MASTER:所属
+									CALL COLORPRINTFORM("注意:自国の部隊も解散されています", COLOR("警告"), "W")
+									BREAK
+								ENDIF
+							NEXT
 							RESETCOLOR
 							;移動処理対象の検索
 							FOR LOCAL:1, 0, MAX_TREATY_COUNTRY

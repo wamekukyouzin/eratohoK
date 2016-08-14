@@ -11,6 +11,16 @@ SIF RESULT != -1
 	発生フラグ = 1
 SIF DAILY_CANCEL
 	RETURN 1
+
+;全てをあなたに
+DAILY_NAME = 全てをあなたに
+CALL KOJO_DAILY_K83_I_GIVE_YOU_EVERYTHING_I_HAVE
+SIF RESULT != -1
+	発生フラグ = 1
+SIF DAILY_CANCEL
+	RETURN 1
+
+
 RETURN 発生フラグ
 
 
@@ -36,6 +46,10 @@ SIF LOCAL == CHARANUM
 ;青娥が同一勢力所属で捕虜でなく死んでいないなら5.0%で発生
 SIF !CHECK_KOJO_DAILY_HAPPEN(青娥, 50, 1, 0, -1)
 	RETURN -1
+
+SIF KDVAR:青娥:青娥_死霊術 == 2
+	RETURN -1
+
 
 ;面識がないなら顔見知りになる
 SIF CFLAG:青娥:面識 == 0
@@ -107,4 +121,125 @@ SELECTCASE RESULT
 		PRINTFORMW 「あら、よろしいんですの？」
 		PRINTFORMW 「楽しめるかと思っていたのですけれど……」
 		PRINTFORMW 「それでしたら仕方ありませんわね。ごきげんよう」
+		KDVAR:青娥:青娥_死霊術 = 2
 ENDSELECT
+
+
+;----------------------------------
+;全てをあなたに
+;----------------------------------
+@KOJO_DAILY_K83_I_GIVE_YOU_EVERYTHING_I_HAVE
+#DIM 青娥
+#DIM 芳香
+
+青娥 = NAME_TO_CHARA("青娥")
+芳香 = NAME_TO_CHARA("芳香")
+
+SIF !CHECK_KOJO_DAILY_HAPPEN(青娥, 1000, 1, 0, 1)
+	RETURN -1
+
+SIF !CHECK_KOJO_DAILY_HAPPEN(芳香, 1000, 1)
+	RETURN -1
+
+SIF MASTER == 芳香
+	RETURN -1
+
+SIF !IS_SLAVE(青娥)
+	RETURN -1
+
+SIF IS_SLAVE(芳香) || IS_LOVER(芳香)
+	RETURN -1
+
+SIF !IS_MALE(MASTER)
+	RETURN -1
+
+SIF KDVAR:青娥:青娥_全てをあなたに
+	RETURN -1
+
+
+CALL KOJO_DAILY_START()
+PRINTFORMW 「%ANAME(MASTER)%様、少しよろしいですか？」
+PRINTFORML 自室で仕事をしていると、%ANAME(青娥)%が壁をすり抜けて部屋に入ってくるところだった
+PRINTFORMW 躾けてやった甲斐あって、こちらを見る彼女の目はすっかり従順なものになっている……
+PRINTFORMW 「言うまでもないことですが、私は%ANAME(MASTER)%様の忠実なしもべ、永遠の忠誠を誓う身ですわ」
+PRINTFORMW 「ですから、私のもつ全ては、貴方様のもの……カラダも、知識も、なにもかも」
+PRINTFORMW 「そう……私の、キョンシーも、もちろん」
+PRINTFORML %ANAME(青娥)%が扉に向けて目配せすると、%ANAME(芳香)%が入ってきた
+PRINTFORML 男の情欲をそそるような、淫らな衣装に身を包んでいる……
+PRINTFORMW 心なしか、その肢体も男好きのするものになっているような気がするが……？
+PRINTFORMW 「あなたにお仕えするのですもの、それに相応しい姿にいたしませんと……ね？」
+PRINTFORMW 「%ANAME(MASTER)%様、どうか、私と%ANAME(芳香)%、二人とも可愛がってくださいまし……」
+PRINTFORML ……つまりは自分が可愛がってほしいから、%ANAME(芳香)%を捧げるということらしい
+PRINTFORMW まあ、彼女が心まで%ANAME(MASTER)%のものになっているということを示してはいるだろう
+PRINTFORMW %ANAME(青娥)%はすっかりそのつもりらしく、%ANAME(芳香)%と対になるような淫らな衣装に身を包んでいる
+PRINTFORML どうしたものか……
+PRINTFORML
+CALL ASK_MULTI("可愛がってやる", "今忙しいから……", "張り倒す")
+SELECTCASE RESULT
+	CASE 1
+		PRINTFORMW 「あぁん……そんな……」
+		PRINTFORMW 「焦らしたいと、そういう趣向ですのね？　もう……」
+		PRINTFORMW 「必要とあらば、いつでも呼んでくださいまし、%ANAME(青娥)%は貴方様のものですので……」
+		PRINTFORMW 残念ながら今はそんな気分ではない
+		PRINTFORMW 二人を帰らせた……
+	CASE 2
+		PRINTFORMW 「あぁっ……！」
+		PRINTFORML 誰がいつそんなことを頼んだ
+		PRINTFORMW 自分のものだというのなら、勝手なことをするな……
+		PRINTFORMW そう主張し、%ANAME(青娥)%の頬を張り倒した
+		PRINTFORMW 「はい、申し訳ございません……」
+		PRINTFORMW 「差し出がましいことをいたしました、失礼いたします……」
+		PRINTFORMW 痛みに頬を押さえる%ANAME(青娥)%の表情は、どこか恍惚としたものに思えた……
+		CFLAG:青娥:従属度 += 300
+	CASE 0
+		PRINTFORMW そこまで言うなら、たっぷりと愉しませてもらおう……
+		PRINTFORMW 二人をベッドに押し倒した……
+		CALL COLORPRINTFORM(@"%ANAME(芳香)%が服従を誓いました", COLOR("注意"), "W")
+		CALL COLORPRINTFORM(@"%ANAME(芳香)%の合意を得ました", COLOR("注意"), "W")
+
+		;全員の調教参加フラグをクリア
+		CVARSET CFLAG, 6, 0
+
+		CFLAG:青娥:従属度 += 500
+		CFLAG:青娥:依存度 += 300
+		TALENT:青娥:チョロイン = 1
+		CFLAG:青娥:調教参加フラグ = 1
+		CFLAG:青娥:調教中帰らない = 1
+		CFLAG:青娥:強制友好化 = 1
+		BASE:青娥:体力 = MAXBASE:青娥:体力
+		BASE:青娥:気力 = MAXBASE:青娥:気力
+
+		CFLAG:芳香:従属度 = MAX(CFLAG:芳香:従属度, 1500)
+		CFLAG:芳香:依存度 = MAX(CFLAG:芳香:依存度, 300)
+		TALENT:芳香:服従 = 1
+		TALENT:芳香:反抗的 = 0
+		TALENT:芳香:チョロイン = 1
+		TALENT:芳香:濡れにくい = 0
+		TALENT:芳香:保守的 = 0
+		TALENT:芳香:自制心 = 0
+		CFLAG:芳香:調教参加フラグ = 1
+		CFLAG:芳香:調教中帰らない = 1
+		CFLAG:芳香:強制友好化 = 1
+		BASE:芳香:体力 = MAXBASE:芳香:体力
+		BASE:芳香:気力 = MAXBASE:芳香:気力
+		TALENT:芳香:Ｃ鈍感 = 0
+		TALENT:芳香:Ｂ鈍感 = 0
+		TALENT:芳香:Ｖ鈍感 = 0
+		TALENT:芳香:Ａ鈍感 = 0
+		TALENT:芳香:Ｃ敏感 = 1
+		TALENT:芳香:Ｂ敏感 = 1
+		TALENT:芳香:Ｖ敏感 = 1
+		TALENT:芳香:Ａ敏感 = 1
+		CALL SET_BUSTSIZE(芳香, 1)
+		TALENT:芳香:美尻 = 1
+		TALENT:芳香:美脚 = 1
+		;強制逆調教フラグをオン
+		FLAG:強制調教フラグ = 1
+		;それ以降のデイリーイベント発生を潰す
+		DAILY_CANCEL = 1
+ENDSELECT
+
+
+
+KDVAR:青娥:青娥_全てをあなたに = 1
+RETURN

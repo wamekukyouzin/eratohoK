@@ -1,0 +1,340 @@
+﻿;=================================================
+;●「閨に呼ぶ」の開始時のセリフ ※単独で呼ばれた場合のみ呼ばれる
+;=================================================
+@KOJO_TRAIN_START_A2_K7
+;[虚ろ]状態なら口上を表示しない
+IF TALENT:虚ろ
+	RETURN
+ENDIF
+IF KDVAR:小悪魔_精気吸収_調教中
+	PRINTFORMW 「では、その……よろしくお願いします」
+	PRINTFORMW 「私も、できる限りの努力はしますから」
+	PRINTFORMW 「いっぱい、だしてくださいね？」
+ENDIF
+
+
+
+;=================================================
+;●「閨に呼ぶ」の終了時のセリフ ※単独で呼ばれた場合のみ呼ばれる
+;=================================================
+@KOJO_TRAIN_END_A2_K7
+#DIM 経験値, 5
+VARSET 経験値
+;[虚ろ]状態なら口上を表示しない
+IF TALENT:虚ろ
+	RETURN
+ENDIF
+
+IF KDVAR:小悪魔_精気吸収_調教中
+	PRINTFORMW 「……ふぅ。ありがとうございました」
+	PRINTFORM 「ええっと、
+	CALL COLORPRINTFORM(@"{KDVAR:小悪魔_精気吸収_射精量}", COLOR("注意"))
+	PRINTFORMW くらいの精気になったようです……」
+	SELECTCASE KDVAR:小悪魔_精気吸収_射精量
+		CASE 0
+			PRINTFORMW 「……って、一度も射精してくださらなかったんですね……」
+			PRINTFORMW 「えっと、その……私とするのはきもちよくありませんでしたか？」
+		CASE IS <= 5
+			PRINTFORMW 「……うーん、ちょっと物足りない感じです……」
+			PRINTFORMW 「でも、%ANAME(MASTER)%のをいただけましたから。満足です」
+		CASE IS <= 15
+			PRINTFORMW 「ふう……満たされてます♥」
+			PRINTFORMW 「これだけ精気をいただければ、しばらく餓えることはなさそうです」
+			PRINTFORMW 「変なことに付き合わせてしまってすみません……ありがとうございます」
+		CASE IS <= 25
+			PRINTFORMW 「ああ……満腹です、とってもしあわせぇっ……♥」
+			PRINTFORMW 「悪魔としての力が高まってるのが分かります……」
+			PRINTFORMW 「その、もしよかったら、またしていただけますか？」
+			PRINTFORMW 「その分、%ANAME(MASTER)%のことも気持ちよくしてさしあげますから……ね♥」
+		CASEELSE
+			PRINTFORMW 「んん、こんなに沢山の精気……受け止めきれませんよぅ……♥」
+			PRINTFORMW 「悪魔としての力は高まりますけど……あの、体調は大丈夫ですか？」
+			PRINTFORMW 「くれぐれも無茶はしないでいくださいね？　倒れたりしたら大変ですから……」
+	ENDSELECT
+	IF KDVAR:小悪魔_精気吸収_射精量 > 0
+		FOR LOCAL, KDVAR:小悪魔_精気吸収_射精量, 0, -1
+			経験値:(RAND:5) ++
+		NEXT
+		PRINTFORML
+		CALL PRINT_ADD_EXP(TARGET, "武闘経験値", 経験値:0)
+		CALL PRINT_ADD_EXP(TARGET, "知略経験値", 経験値:1)
+		CALL PRINT_ADD_EXP(TARGET, "政治経験値", 経験値:2)
+		CALL PRINT_ADD_EXP(TARGET, "歌唱経験値", 経験値:3)
+		CALL PRINT_ADD_EXP(TARGET, "料理経験値", 経験値:4)
+		CALL TRAIN_AUTO_ABLUP(TARGET)
+		PRINTFORML 
+		PRINTFORMW 「んんっ……力が満ちるぅっ……」
+		PRINTFORMW 「できれば、その……またお願いしますね……♥」
+		PRINTFORMW 一瞬、蕩けた表情を浮かべ、%ANAME(TARGET)%は部屋を後にした……
+	ELSE
+		PRINTFORML
+		PRINTFORMW 「うーん、体調が悪かったんですか……？」
+		PRINTFORMW 「……そういうことなら仕方ないですが……はぁ、お腹すいたなぁ……」
+		PRINTFORMW %ANAME(TARGET)%は早々に服を着替え、部屋を後にした……
+	ENDIF
+	KDVAR:小悪魔_精気吸収_調教中 = 0
+	KDVAR:小悪魔_精気吸収_射精量 = 0
+ENDIF
+
+;=================================================
+;●コマンド実行後(パラメータの変動処理が終わってから呼び出される)
+;=================================================
+@KOJO_COM_AFTER_A_K7
+;[虚ろ]状態の場合は口上を表示しない
+IF TALENT:虚ろ
+	RETURN 0
+ENDIF
+IF KDVAR:小悪魔_精気吸収_調教中
+	BASE:体力 = MAXBASE:体力
+	BASE:気力 = MAXBASE:気力
+ENDIF
+;-------------------------------------------------
+;主人公を射精させた
+;-------------------------------------------------
+IF NOWEX:MASTER:射精 > 0
+	SELECTCASE TCVAR:MASTER:420
+		;膣に射精
+		CASE 1
+			IF KDVAR:小悪魔_精気吸収_調教中
+				SELECTCASE RAND:12
+					CASE 0
+						PRINTFORML 「っあ、なかに、あは、ああ……っ♥」
+					CASE 1
+						PRINTFORML 「……あ、すごい、あついっ……！」
+					CASE 2
+						PRINTFORML 「っ、くぅんっ……！」
+					CASE 3
+						PRINTFORML 「あ、でてます、なかぁっ……あぁっ……♥」
+					CASE 4
+						PRINTFORML 「っあ、あぁッ……！」
+						PRINTFORML 「……あ、は、すごっ、上質な精気ぃっ……♥」
+					CASE 5
+						PRINTFORML 「はぁ、お腹の中っ、射精てますぅ……っ！」
+						PRINTFORML 「……ね、もっと、してくださいますよね……？」
+					CASE 6
+						PRINTFORML 「あぁあんっ……！」
+					CASE 7
+						PRINTFORML 「っは、あはっ……」
+				ENDSELECT
+			;恋慕 or 服従
+			ELSEIF TALENT:恋慕 || TALENT:服従
+				;PRINTFORMW 
+			;それ以外
+			ELSE
+				;PRINTFORMW 
+			ENDIF
+		;アナルに射精
+		CASE 2
+			IF KDVAR:小悪魔_精気吸収_調教中
+				SELECTCASE RAND:12
+					CASE 0
+						PRINTFORML 「っあ、おしり、あぁッ……♥」
+					CASE 1
+						PRINTFORML 「……あ、すごぃ、あつっ……！」
+					CASE 2
+						PRINTFORML 「っ、ぅあ、お尻っ、お尻ぃいっ……！」
+					CASE 3
+						PRINTFORML 「あっ、お腹の中ッ、でてますぅっ……！」
+					CASE 4
+						PRINTFORML 「はぁあっ、アッ……！」
+						PRINTFORML 「……あ、は、こんな上質な精気、久しぶりぃっ……♥」
+					CASE 5
+						PRINTFORML 「うぁ、お腹の中、でて……っ！」
+						PRINTFORML 「……ふふ、そっちも、満たしてくださいますか……？」
+					CASE 6
+						PRINTFORML 「んんんんっ……！」
+					CASE 7
+						PRINTFORML 「っは、あはぁんっ……♥」
+				ENDSELECT
+			;恋慕 or 服従
+			ELSEIF TALENT:恋慕 || TALENT:服従
+				;PRINTFORMW 
+			;それ以外
+			ELSE
+				;PRINTFORMW 
+			ENDIF
+		;手に射精
+		CASE 3
+			IF KDVAR:小悪魔_精気吸収_調教中
+				SELECTCASE RAND:12
+					CASE 0
+						PRINTFORML 「あは……、たくさん出ましたねぇ」
+					CASE 1
+						PRINTFORML 「……んふ、おいし」
+						PRINTFORML %ANAME(TARGET)%は手についた精液を舐め取っている……
+					CASE 2
+						PRINTFORML 「んん……濃くて上質な精気……ふふ」
+					CASE 3
+						PRINTFORML 「沢山出るわね……お互いにとって素晴らしいことですよね」
+					CASE 4
+						PRINTFORML 「気持ちよさそうな顔ですね……」
+						PRINTFORML 「……私の手、よかったですか？」
+					CASE 5
+						PRINTFORML 「ん、……」
+						PRINTFORML 「……手で射精させるの、吸収効率があんまりよくないんです……」
+						PRINTFORML 「つぎはもっとすごいところに、くださいますよね？」
+					CASE 6
+						PRINTFORML 「ん……射精してくださったんですね」
+						PRINTFORML 「悪いけど、もう少しつきあってくださいますか？　もう少し、満たされたいんです……」
+				ENDSELECT
+			;恋慕 or 服従
+			ELSEIF TALENT:恋慕 || TALENT:服従
+				;PRINTFORMW 
+			;それ以外
+			ELSE
+				;PRINTFORMW 
+			ENDIF
+		;口に射精
+		CASE 4
+			IF KDVAR:小悪魔_精気吸収_調教中
+				SELECTCASE RAND:12
+					CASE 0
+						PRINTFORML 「ん……、んく……けぷっ」
+					CASE 1
+						PRINTFORML 「んくっ……んぅ」
+						PRINTFORML 「……濃くて、良質な精気です。おいしい……」
+						PRINTFORML 「ね、もっと分けてくださいますよね？」
+					CASE 2
+						PRINTFORML 「んくっ……！」
+						PRINTFORML 「……ふぅ、勢いよく射精ましたねぇ」
+					CASE 3
+						PRINTFORML 「んっく、ん……」
+						PRINTFORML 「口だと、味覚で精気を味わえるのがいいですねぇ……♥」
+					CASE 4
+						PRINTFORML 「んんくぅ……」
+						PRINTFORML 「……んふ、ごちそうさまでした」
+						PRINTFORML 「つぎはもっと、すごいところに注いでくださいますよね……♥」
+					CASE 5
+						PRINTFORML 「ん、……くちゅ」
+						PRINTFORML 「……んっ……くむ……んふ……」
+					CASE 6
+						PRINTFORML 「ん……ぷはっ」
+						PRINTFORML 「……すっごく濃い……気持ちよかったですか？」
+				ENDSELECT
+			;恋慕 or 服従
+			ELSEIF TALENT:恋慕 || TALENT:服従
+				;PRINTFORMW 
+			;それ以外
+			ELSE
+				;PRINTFORMW 
+			ENDIF
+		;胸に射精
+		CASE 5
+			IF KDVAR:小悪魔_精気吸収_調教中
+				SELECTCASE RAND:12
+					CASE 0
+						PRINTFORML 「男の人って、本当に胸が好きですねぇ……」
+						PRINTFORML 「いいですよ？　もっと、色々してくださっても……♥」
+					CASE 1
+						PRINTFORML 「ん……」
+						PRINTFORML 「あはっ、おっぱい、あったかい……♥」
+					CASE 2
+						PRINTFORML 胸にかかった精液を、%ANAME(TARGET)%は舌を伸ばして舐め取っている……
+					CASE 3
+						PRINTFORML 「沢山出ましたねぇ……ふふ、ありがとうございます♪」
+					CASE 4
+						PRINTFORML 「気持ちよさそうな顔ね……」
+						PRINTFORML 「……私の胸、きもちよかったんですね♥」
+					CASE 5
+						PRINTFORML 「ん、……」
+						PRINTFORML 「はぁ……濃厚な精気……満たされるのが分かります」
+						PRINTFORML 「ね、もう少し、くださいませんか？」
+					CASE 6
+						PRINTFORML 「ん……射精してくださったんですね」
+						PRINTFORML 「悪いけど、もう少しつきあってくださいますか？　もっと、満たされたいんです……♥」
+				ENDSELECT
+			;恋慕 or 服従
+			ELSEIF TALENT:恋慕 || TALENT:服従
+				;PRINTFORMW 
+			;それ以外
+			ELSE
+				;PRINTFORMW 
+			ENDIF
+		;足に射精
+		CASE 6
+			IF KDVAR:小悪魔_精気吸収_調教中
+				SELECTCASE RAND:4
+					CASE 0
+						PRINTFORML 「ん……」
+						PRINTFORML 「ふふ、こんなとこに射精しちゃうなんて、変態さんですねぇ……？」
+					CASE 1
+						PRINTFORML 「んっ、足どろどろぉ……」
+						PRINTFORML 「ね、もっと射精して下さいね……？」
+					CASE 2
+						PRINTFORML 「あは、濃い精気……♪」
+						PRINTFORML 「でももったいなぁい、もっと大切なところで味わいたいです……」
+						PRINTFORML 「……シて、くださいますよね？」
+				ENDSELECT
+			;恋慕 or 服従
+			ELSEIF TALENT:恋慕 || TALENT:服従
+				;PRINTFORMW 
+			;それ以外
+			ELSE
+				;PRINTFORMW 
+			ENDIF
+		;尻尾に射精
+		CASE 7
+		;顔に射精
+		CASE 8
+			IF KDVAR:小悪魔_精気吸収_調教中
+				SELECTCASE RAND:12
+					CASE 0
+						PRINTFORML 「ひゃ……！？」
+						PRINTFORML 「……あはっ、射精たんですね、ありがとうございます……♥」
+					CASE 1
+						PRINTFORML 「ん……あはっ」
+						PRINTFORML %ANAME(TARGET)%は精液の匂いに恍惚としている
+					CASE 2
+						PRINTFORML 「あはっ……」
+						PRINTFORML 「あぁっ、精気で満たされてるのがわかります……♥」
+					CASE 3
+						PRINTFORML 「んんっ……」
+						PRINTFORML 「……ふふ、暖かいです」
+					CASE 4
+						PRINTFORML 「きゃ……！？」
+						PRINTFORML 「あは、ちょっとびっくりしちゃいました」
+					CASE 5
+						PRINTFORML 「ん、……」
+						PRINTFORML 「男の人って、顔にかけるのって好きですね」
+						PRINTFORML 「%ANAME(MASTER)%もそうなんですか？」
+					CASE 6
+						PRINTFORML 「ん……射精してくださったんですね」
+						PRINTFORML 「こんなに濃い精気……ありがとうございます」
+				ENDSELECT
+			;恋慕 or 服従
+			ELSEIF TALENT:恋慕 || TALENT:服従
+				;PRINTFORMW 
+			;それ以外
+			ELSE
+				;PRINTFORMW 
+			ENDIF
+		;髪に射精
+		CASE 9
+			IF KDVAR:小悪魔_精気吸収_調教中
+				SELECTCASE RAND:12
+					CASE 0
+						PRINTFORML 「……んん……髪に射精されたんですか？」
+						PRINTFORML 「即席のシャンプーですか？　なんて、ふふ」
+					CASE 1
+						PRINTFORML 「んっ……髪？」
+						PRINTFORML 「……次はもっと、すごいところに射精してくださいますよね？」
+					CASE 2
+						PRINTFORML 「……髪に出すことに、どんな意味があるんでしょう」
+						PRINTFORML 「男性の性欲って、たまに不思議です」
+					CASE 3
+						PRINTFORML 「……んー……髪が傷んでしまうので、あんまり、その……」
+				ENDSELECT
+			;恋慕 or 服従
+			ELSEIF TALENT:恋慕 || TALENT:服従
+				;PRINTFORMW 
+			;それ以外
+			ELSE
+				;PRINTFORMW 
+			ENDIF
+		;腋に射精
+		CASE 10
+		;その他の場所に射精
+		CASEELSE
+	ENDSELECT
+	KDVAR:小悪魔_精気吸収_射精量 += (KDVAR:小悪魔_精気吸収_射精量 >= 50 ? NOWEX:MASTER:射精 / 20 # NOWEX:MASTER:射精)
+ENDIF

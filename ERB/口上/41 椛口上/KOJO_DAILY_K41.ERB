@@ -1,94 +1,166 @@
-﻿@KOJO_DAILY_EXIST_K41()
+﻿;------------------------------------
+;そのキャラがデイリーイベントをもつか判断する関数
+;KOJO_EXISTとは別にこの関数も必要になるので注意
+;------------------------------------
+@KOJO_DAILY_EXIST_K41()
 
+
+;------------------------------------
+;そのキャラのデイリー本体を呼び出すハブとなる関数
+;------------------------------------
 @KOJO_DAILY_K41()
 #DIM 発生フラグ
 発生フラグ = 0
 
-;疲れからか
-DAILY_NAME = 疲れからか
-CALL KOJO_DAILY_K41_TUKAREKARAKA
+;デイリーイベント
+DAILY_NAME = 大将棋
+CALL KOJO_DAILY_K41_DAISYOUGI
 SIF RESULT != -1
 	発生フラグ = 1
 SIF DAILY_CANCEL
 	RETURN 1
+
+;;デイリーイベント
+;DAILY_NAME = デイリーイベントの名前
+;CALL KOJO_DAILY_K41_NAMAE_OF_DAILY_EVENT
+;SIF RESULT != -1
+;	発生フラグ = 1
+;SIF DAILY_CANCEL
+;	RETURN 1
+
 RETURN 発生フラグ
 
 
-;----------------------------------
-;疲れからか
-;----------------------------------
-@KOJO_DAILY_K41_TUKAREKARAKA
-#DIM 椛
+;------------------------------------
+;大将棋
+;-----------------------------------
+@KOJO_DAILY_K41_DAISYOUGI
+#DIM 対象
 
-椛 = NAME_TO_CHARA("椛")
+対象 = NAME_TO_CHARA("椛")
 
-;椛が同一勢力所属で捕虜でなく死んでいないなら3.5%で発生
-SIF !CHECK_KOJO_DAILY_HAPPEN(椛, 35, 1, 0, 1)
+;椛が同勢力、捕虜でない、面識あり
+SIF !CHECK_KOJO_DAILY_HAPPEN(対象, 40, 1, 0, 1)
 	RETURN -1
 
-;えっ！？　まだペニス持ってないの！？
-SIF !PENIS(MASTER)
+;はたてとにとりは駄目
+SIF GROUPMATCH(MASTER, NAME_TO_CHARA("はたて"), NAME_TO_CHARA("にとり"))
 	RETURN -1
 
-;一緒に出歩くくらいの仲じゃないとね
-SIF CFLAG:椛:好感度 < 1500
+;3回勝ったら発動しない
+SIF KDVAR:対象:椛_大将棋_勝利回数 > 3
 	RETURN -1
 
-CALL KOJO_DAILY_START
-PRINTFORML %ANAME(MASTER)%は%ANAME(椛)%と2人で市中の警邏をしていた
-IF KDVAR:椛:椛_疲れからか == 0
-	PRINTFORML 仕事ではなく、%ANAME(椛)%が個人的に見回りたいと言っていたので、%ANAME(MASTER)%はそれに付き合っているのである
-	PRINTFORMW 山賊、匪賊、盗賊、蛮族、野盗……めんどくさい連中はいくらでも湧いて出てくる以上、%ANAME(椛)%の言い分はまっとうであった
-	PRINTFORMW 「ふう……%ANAME(MASTER)%さん、疲れていませんか？」
-	PRINTFORMW 「いえ、私は馴れておりますので。全然問題あいまつぇんが」
-	PRINTFORMW 噛み噛みだった
-	PRINTFORMW ……将として働きながら、私的に巡回しているのだ。疲労を溜めない方が不自然だろう
-	PRINTFORML 自分は疲れたから休みたい、どこかで休ませてくれないか
-	PRINTFORMW %ANAME(MASTER)%がそう提案すると、%ANAME(椛)%は尻尾をフルフル振って賛同した
-	PRINTFORMW 「そうですか！　仕方ありませんね。どこかお店にでも入りましょうか」
+
+CALL KOJO_DAILY_START()
+
+IF KDVAR:対象:椛_大将棋 == 0
+	KDVAR:対象:椛_大将棋 = 1
+	PRINTFORML %ANAME(対象)%を見かけた
+	PRINTFORMW 地面に置いた大きな木の板を睨んでいるが……？
+	PRINTFORMW 「ああ、%ANAME(MASTER)%さん」
+	PRINTFORMW 「これですか？　大将棋ですよ。通常の将棋より駒も盤も複雑な将棋です。天狗や河童の間で人気なんです」
+	PRINTFORMW 「そうだ、折角ですから一局いかがですか、私と？」
+	PRINTFORML ……目の前の木の板は、将棋盤とは到底思えないようなサイズをしている
+	PRINTFORML やってみようか……
+ELSEIF KDVAR:対象:椛_大将棋_勝利回数 == 2
+	PRINTFORML %ANAME(対象)%を見かけた
+	PRINTFORMW 将棋盤を抱えているが……
+	PRINTFORMW 「%ANAME(MASTER)%さん。あなたにはずいぶん辛酸を舐めさせられました
+	PRINTFORMW 「ですが、私も今度という今度は負けませんよ」
+	PRINTFORMW 「たっぷり勉強して、天狗の名手たちと何局も戦ってきました。これで負けたら、何だってしてあげてもいいですよ」
+	PRINTFORMW 「さあ、勝負です！」
+ELSEIF KDVAR:対象:椛_大将棋 == 1 && !椛_大将棋_前回勝利
+	PRINTFORML %ANAME(対象)%を見かけた
+	PRINTFORML また将棋をやっているようだが……
+	PRINTFORMW 「ああ、%ANAME(MASTER)%さん」
+	PRINTFORMW 「どうですか？　大将棋」
 ELSE
-	PRINTFORMW 「ふう……%ANAME(MASTER)%さん、疲れていませんか？」
-	PRINTFORML %ANAME(MASTER)%が疲れたから休みたい、どこかで休ませてくれないかと提案すると
-	PRINTFORMW %ANAME(椛)%は尻尾をフルフル振って賛同した
-	PRINTFORMW 「仕方ありませんね。またどこか行きましょうか」
+	PRINTFORML %ANAME(対象)%を見かけた
+	PRINTFORML また将棋をやっているようだが……
+	PRINTFORMW 「ああ、%ANAME(MASTER)%さん」
+	PRINTFORMW 「どうですか？　大将棋」
+	PRINTFORMW 「私も勉強してきましたから、今度こそは負けませんよ」
 ENDIF
 PRINTL
+CALL ASK_YN("やる", "やめておく")
+IF RESULT == 1
+	PRINTFORMW 「そうですか？　それは残念」
+	PRINTFORMW 「では、またの機会にでも」
+	KDVAR:対象:椛_大将棋_前回勝利 = 0
+	RETURN
+ENDIF
 
-CALL ASK_MULTI("酒でもやるか", "サボりたいのか？", "出会い茶屋へ……")
-SELECTCASE RESULT
-	CASE 0
-			PRINTFORML 「昼間から赤提灯ですか……まあ、そういうのが好きな人は好きでしょうね」
-			PRINTFORMW 「あ！　あのお店空いてますよ！　%ANAME(MASTER)%好みなんじゃないですか？」
-			PRINTFORMW あくまで付き合いで飲むというテイを保とうとする%ANAME(椛)%を引き連れ、%ANAME(MASTER)%は暖簾をくぐった……
-			CFLAG:椛:好感度 += 50
-			SIF KDVAR:椛:椛_疲れからか != 2
-				KDVAR:椛:椛_疲れからか = 1
-	CASE 1
-			PRINTFORML 「なっ、なにを馬鹿なことを、そんなだらしないことを言うわけでは……」
-			PRINTFORMW %ANAME(MASTER)%は尻尾を丸めてしまった%ANAME(椛)%と哨戒を続けた……
-			SIF KDVAR:椛:椛_疲れからか != 2
-				KDVAR:椛:椛_疲れからか = 1
-	CASE 2
-			PRINTFORML %ANAME(MASTER)%はパッと見ではそれと分からない出会茶屋に足を運んだ
-			IF KDVAR:椛:椛_疲れからか != 2
-				PRINTFORMW 「茶屋ですか。……ホントに茶屋ですか？　なんだか妙な気がするんですが」
-				PRINTFORML 疲れからか、%ANAME(椛)%は妙な気配程度にしか気づいていないようだった
-				PRINTFORMW 大変好都合である
-				PRINTL 
-				PRINTFORML 階段を昇り、奥の間へ入ると、一組の布団に枕が二つ並べてあった
-				PRINTFORML 「な、ななななな……騙しましたね！？」
-				PRINTFORMW だって休みたいって言うから
-				PRINTFORMW 「そういう意味ではありません！！！！」
-				PRINTFORMW 尻尾をピンと立てて怒る%ANAME(椛)%に、%ANAME(MASTER)%は平謝りした
-				PRINTFORMW 「もういいですよ……その、嫌というわけでも、ありませんから」
-				PRINTFORML %ANAME(MASTER)%は、赤くなった顔を伏せる%ANAME(椛)%の手を取り、優しく引き寄せた
-				TALENT:椛:合意 = 1
-				KDVAR:椛:椛_疲れからか = 2
+PRINTFORMW 「やってくれますか。では、お手柔らかに」
+SIF KDVAR:対象:椛_大将棋_前回勝利
+	PRINTFORMW 「前のようにいくと思ったら大間違いですよ？」
+
+FOR LOCAL, 0, 5
+	PRINTFORML ・
+NEXT
+
+IF MAX(ABL:MASTER:知略 - ABL:対象:知略, 15) <= RAND:100
+	KDVAR:対象:椛_大将棋_前回勝利 = 0
+	PRINTFORML ……詰みだ
+	PRINTFORMW %ANAME(MASTER)%も善戦はしたが、あと一手及ばなかった……
+	PRINTFORML 「ふふふ、私の勝ちですね」
+	PRINTFORMW 「楽しかったです。付き合ってくださって、ありがとうございました」
+	CALL COLORPRINTFORM(@"頭を使ったため、%ANAME(対象)%の知略が少しだけ鍛えられました", COLOR("注意"), "W")
+	CALL PRINT_ADD_EXP(対象, "知略経験値", 5, 1)
+	CALL TRAIN_AUTO_ABLUP(対象)
+	RETURN
+ENDIF
+
+KDVAR:対象:椛_大将棋_前回勝利 = 1
+KDVAR:対象:椛_大将棋_勝利回数 ++
+PRINTFORML ……王手だ
+PRINTFORMW 手強かったが、どうにか%ANAME(対象)%を詰ませることができた……
+PRINTFORMW 「……むむ、参りました」
+PRINTFORMW 「私も、もっと勉強しないといけませんね……」
+PRINTFORMW 「付き合ってくださって、ありがとうございました」
+CALL COLORPRINTFORM(@"頭を使ったため、%ANAME(MASTER)%の知略が少しだけ鍛えられました", COLOR("注意"), "W")
+CALL PRINT_ADD_EXP(MASTER, "知略経験値", 5, 1)
+CALL TRAIN_AUTO_ABLUP(MASTER)
+IF KDVAR:対象:椛_大将棋_勝利回数 == 3
+	PRINTFORMW ……「何だってしてあげてもいい」と彼女は言っていた
+	PRINTFORMW その約束を守ってもらおうか……？
+	CALL ASK_MULTI_JUDGE("武将として頑張ってもらう", 1, "お金を要求する", 1, "身体を要求する", IS_MALE(MASTER))
+	SELECTCASE RESULT
+		CASE 0
+			PRINTFORMW 「修行を積め？　そんなことでいいのなら、いくらでも」
+			PRINTFORMW 「お役に立てるところを、見せてさしあげますよ」
+			CALL COLORPRINTFORM(@"%ANAME(対象)%は修行をつみました", COLOR("注意"), "W")
+			CALL COLORPRINTFORM(@"%ANAME(対象)%の武闘、知略、政治が5ずつ上がりました", COLOR("注意"), "W")
+			ABL:対象:武闘 += 5
+			ABL:対象:知略 += 5
+			ABL:対象:政治 += 5
+		CASE 1
+			PRINTFORMW 「お金……ですか」
+			PRINTFORMW 「うーん、私もそんなに持ってないんですが……これくらいで勘弁していただけますか？」
+			PRINTFORMW 「はあ、今月節約しなくちゃ……」
+			CALL COLORPRINTFORM(@"%ANAME(対象)%から金10000をまきあげました", COLOR("注意"), "W")
+			MONEY += 10000
+		CASE 2
+			IF TALENT:対象:合意
+				PRINTFORMW 「身体……って」
+				PRINTFORMW 「そんなの、今さら断ったりしませんよ」
+				PRINTFORMW 「そういうコトがしたいなら最初から言えばいいのに……」
 			ELSE
-				PRINTFORML 「またこの茶屋ですか。いえ、嫌というわけではありませんが」
-				PRINTFORMW 「むしろ気兼ねなく過ごせていいかな……なんて」
+				PRINTFORMW 「からっ……、え！　えっ！？」
+				PRINTFORMW 「その、それって、アレですか、男女が閨を共にするという……その、アレですよね」
+				PRINTFORMW 「えーっ、えーっ……？」
+				PRINTFORMW 「……う、うう、分かりました。一度言った手前、ひっくり返したりはできませんから……」
+				PRINTFORMW 「でもその……お手柔らかにお願いしますね？」
 			ENDIF
-			PRINTFORML %ANAME(MASTER)%が%ANAME(椛)%の衣服に手をかけると、%ANAME(椛)%は目を閉じて体をゆだねてきた……
-			CALL FUCK(MASTER, "Ｃ, 欲望, 性交, 射精", "童貞, キス喪失", 0, @"%ANAME(椛)%の唇", "", @"%ANAME(椛)%の膣", 喪失_和姦)
-			CALL FUCK(椛, "欲望, Ｃ, Ｂ, Ｖ, 奉仕, 性交, 性技, 精愛, キス, 口淫", "膣内射精, 処女喪失, キス喪失, 口内射精", GET_ID(MASTER), @"%ANAME(MASTER)%の\@ RAND:2 ? 唇 # ペニス \@", ANAME(MASTER), "", 喪失_和姦)
-ENDSELECT
+			PRINTFORMW 早速、%ANAME(対象)%を寝室に連れ込んだ……
+			CALL COLORPRINTFORM(@"%ANAME(対象)%と楽しい時間を過ごしました", COLOR("注意"), "W")
+			SIF !TALENT:対象:合意
+				CALL COLORPRINTFORM(@"%ANAME(対象)%の合意を得ました", COLOR("注意"), "W")
+			CALL FUCK(対象, "欲望, 奉仕, 性技, Ｃ, Ｖ, Ｂ, Ｍ, 性交, 精愛, 射精, キス, 口淫", "キス喪失, 処女喪失, 膣内射精, 口内射精", GET_ID(MASTER), @"%ANAME(MASTER)%の唇", ANAME(MASTER), "", 喪失_和姦)
+			CFLAG:対象:好感度 += 500
+			CFLAG:対象:従属度 += 500
+			CFLAG:対象:依存度 += 100
+			TALENT:対象:チョロイン = 1
+			TALENT:対象:合意 = 1
+	ENDSELECT
+ENDIF

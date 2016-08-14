@@ -1,63 +1,147 @@
-﻿@KOJO_DAILY_EXIST_K75()
+﻿;------------------------------------
+;そのキャラがデイリーイベントをもつか判断する関数
+;KOJO_EXISTとは別にこの関数も必要になるので注意
+;------------------------------------
+@KOJO_DAILY_EXIST_K75()
 
+
+;------------------------------------
+;そのキャラのデイリー本体を呼び出すハブとなる関数
+;------------------------------------
 @KOJO_DAILY_K75()
 #DIM 発生フラグ
 発生フラグ = 0
 
-;進路相談
-DAILY_NAME = 進路相談
-CALL KOJO_DAILY_K75_SHINRO
+;デイリーイベント
+DAILY_NAME = 水蜜桃
+CALL KOJO_DAILY_K75_MAKELOVE_IN_FESTIVAL
 SIF RESULT != -1
 	発生フラグ = 1
 SIF DAILY_CANCEL
 	RETURN 1
+
+;;デイリーイベント
+;DAILY_NAME = デイリーイベントの名前
+;CALL KOJO_DAILY_K75_NAMAE_OF_DAILY_EVENT
+;SIF RESULT != -1
+;	発生フラグ = 1
+;SIF DAILY_CANCEL
+;	RETURN 1
+
 RETURN 発生フラグ
 
 
-;----------------------------------
-;進路相談
-;----------------------------------
-@KOJO_DAILY_K75_SHINRO
+;------------------------------------
+;デイリーイベント本体
+;創意工夫
+;発生判定に失敗した場合（イベントが発生しない場合）はマイナス１を返すこと
+;-----------------------------------
+@KOJO_DAILY_K75_MAKELOVE_IN_FESTIVAL
 #DIM 水蜜
-#DIM 判定値
 
 水蜜 = NAME_TO_CHARA("水蜜")
 
-;水蜜が同一勢力所属で捕虜でなく面識があるなら1.5%で発生
-SIF !CHECK_KOJO_DAILY_HAPPEN(水蜜, 15, 1, 0, 1)
+SIF !CHECK_KOJO_DAILY_HAPPEN(水蜜, 25, 1, 0, 1)
 	RETURN -1
 
-;おわってたら出ない
-SIF KDVAR:水蜜:水蜜_進路相談 == -1
+SIF !IS_LOVER(水蜜)
 	RETURN -1
 
-CALL KOJO_DAILY_START
-PRINTFORMW %ANAME(MASTER)%が退屈していると、%ANAME(水蜜)%が何やら頭をひねっていた
-PRINTFORMW 「……ああ、%ANAME(MASTER)%さんですか。いえ、ちょっと悩んでいることがありまして」
-PRINTL
-CALL ASK_YN("話を聞く", "興味ないね")
-IF RESULT == 0
-	PRINTFORMW 「ありがとうございます。実は、船を動かすこともない今、私にできることは何かないかと考えておりまして」
-	PRINTFORMW 「船に関わることなら多少の覚えはあるのですが、船も海もありませんので……」
-	PRINTFORMW 何かあるだろうか……
-		CALL ASK_MULTI("セイレーンに倣う", "陸でも星は見えるだろう", "ない。現実は非情である")
-		SELECTCASE RESULT
-			CASE 0
-				PRINTFORMW 船を沈める妖怪なら美しい歌声がつきものだろう
-				PRINTFORMW それを聞いた%ANAME(水蜜)%は恭しく礼を述べ、どこかで練習してきますと言い去っていった
-				ABL:水蜜:歌唱 += 5
-				CALL COLORPRINTFORM(@"%ANAME(水蜜)%の歌唱が5上昇しました", COLOR("注意"), "W")
-			CASE 1
-				PRINTFORMW 船の進路を決める時、星見をしたりはしていなかったのか
-				PRINTFORMW それを聞いた%ANAME(水蜜)%は目を輝かせて礼を言い、練習のために去っていった
-				SETBIT TALENT:水蜜:ＳＬＧ素質, 素質_ＳＬＧ_疾風迅雷
-				CALL COLORPRINTFORM(@"%ANAME(水蜜)%は＜疾風迅雷＞を得ました", COLOR("注意"), "W")
-			CASE 2
-				PRINTFORMW 「ううん、なかなか思いつかないものですね……」
-		ENDSELECT
-ELSE
-	PRINTFORMW あまり軽率に人の悩みに首を突っ込むべきではないだろう(人じゃないけど)
-	PRINTFORMW %ANAME(MASTER)%はうんうん唸る%ANAME(水蜜)%を放置してその場を去った
+SIF !(MASTER == NAME_TO_CHARA("あなた") && IS_MALE(MASTER))
+	RETURN -1
+
+SIF KDVAR:水蜜:水蜜_水蜜桃
+	RETURN -1
+
+CALL KOJO_DAILY_START()
+
+PRINTFORML 「ねぇ%ANAME(MASTER)%、夕方から暇？」
+PRINTFORMW 「人里でお祭りがあるんだってさ、行こうよ」
+PRINTFORMW 非番で暇をしていると、%ANAME(水蜜)%に誘われた
+PRINTFORMW 祭りか……今は何かと大変な時期だが、そういうときにこそ息抜きをするべきかもしれない
+PRINTFORMW なにより、%ANAME(水蜜)%とそういった時間を過ごしてみるのも悪くないかもしれない……
+PRINTFORML
+CALL ASK_YN("行く", "遠慮しておく")
+
+IF RESULT == 1
+	PRINTFORMW 「えー、つまんないの」
+	PRINTFORMW 「まあしょうがないか。それなら一人で行ってこよっかな」
+	PRINTFORMW %ANAME(水蜜)%は立ち去っていった……
+	KDVAR:水蜜:水蜜_水蜜桃 = 1
+	RETURN
 ENDIF
 
-KDVAR:水蜜:水蜜_進路相談 = -1
+
+PRINTFORMW 「だよね、%ANAME(MASTER)%も行きたいよね！」
+PRINTFORMW 「じゃあ夕方ね、準備して待ってるから！」
+PRINTFORMW
+PRINTFORMW
+PRINTFORMW
+DRAWLINE
+PRINTFORMW
+PRINTFORMW
+PRINTFORMW
+PRINTFORMW 「はぁ……楽しかったね！」
+PRINTFORMW 綿飴を片手に笑顔を浮かべる%ANAME(水蜜)%は、まるきりあどけない少女に見える
+PRINTFORMW 浴衣姿も実に似合っているが……
+PRINTFORML
+CALL ASK_YN("手を出す", "こらえる")
+
+IF RESULT == 1
+	PRINTFORMW いやいや、こんな可愛げな娘相手に何を考えているのだ
+	PRINTFORMW 湧き上がった欲望をぐっとこらえ、二人で楽しく話をしながら帰った……
+	KDVAR:水蜜:水蜜_水蜜桃 = 1
+	RETURN
+ENDIF
+
+PRINTFORMW 「え、っと、あの、%ANAME(MASTER)%？　どうしたの？」
+PRINTFORMW 祭りのついでに、思い出をもうひとつ作るのもいいだろう
+PRINTFORMW %ANAME(水蜜)%の手をとって、木立へと連れ込む
+PRINTFORMW このあたりなら人目にもつかないだろう……
+PRINTFORMW
+PRINTFORMW 「ちょっ……と、まずいって、こんなとこでぇっ……」
+PRINTFORMW 羞恥がたつのか、%ANAME(水蜜)%は身をよじって逃げようとする
+PRINTFORMW 理屈をこねる口を塞ぎ、%PRONOUN(水蜜)%の脚の間に膝をいれて逃げられなくしてやる……
+PRINTFORMW
+PRINTFORMW 「んっ……く、ふァぅ……っ、あ、そこっ……ァ」
+PRINTFORMW %ANAME(水蜜)%の敏感なところを、じっくりと指先でいたぶってやる
+PRINTFORMW 快楽にほだされてきたのか、%ANAME(水蜜)%は逃げようとしなくなってきた
+PRINTFORMW 従順なのはいいことだ。たっぷりといじくり回してやる……
+PRINTFORMW 
+PRINTFORMW 「あぅっ……あっ、はっ、あぁっ……♥」
+PRINTFORMW 木にもたれさせ、尻をこちらに向けさせた%ANAME(水蜜)%に、モノを後ろから緩やかに抜き差しする
+PRINTFORMW %ANAME(水蜜)%は熱に浮かされたような甘い声をこぼしている……
+PRINTFORMW 
+PRINTFORMW 「あぁっ、はっ♥　そこぉっ、ァ、っあ、は♥　きもちいっ、♥　もっと、ぉ♥」
+PRINTFORMW %ANAME(水蜜)%は性交の快感をすっかり覚えたらしく、腰をくねらせながらさらなる快楽をねだってくる
+PRINTFORMW %PRONOUN(水蜜)%がいよいよ達そうかというところで、%ANAME(MASTER)%も膣内で果てた……
+PRINTFORMW 
+PRINTFORMW 
+CALL FUCK(水蜜, "Ｃ, Ｖ, Ｂ, Ｍ, 欲望, 奉仕, 性交, 性技, 精愛, 露出, キス", "処女喪失, キス喪失, 膣内射精", GET_ID(MASTER), @"%ANAME(MASTER)%の唇", ANAME(MASTER), "", 喪失_和姦)
+CALL FUCK(MASTER, "Ｃ, Ｍ, 欲望, 性交, 露出, 射精, キス", "童貞喪失, キス喪失", -1, @"%ANAME(水蜜)%の唇", "",　@"%ANAME(水蜜)%の膣", 喪失_和姦)
+PRINTFORMW 
+PRINTFORMW 
+PRINTFORMW 「……もう。バレなかったからよかったようなものの、誰かに見られてたらどうするつもりだったのよ……」
+PRINTFORML コトが終わり帰路についた二人だったが、%ANAME(水蜜)%はむくれていた
+PRINTFORMW 頬は紅潮しており、いまいち怒っている感じがしないが……
+PRINTFORMW 「そりゃ、ああいう感じのもちょっと悪くないかなとは思ったけどさ」
+PRINTFORMW 「でもいい？　ああいうことは外じゃダメだからね？　聖にバレたらなんて言われるか……」
+PRINTFORMW それは確かにそのとおりだ。少し調子に乗ったかもしれない
+PRINTFORMW ……%ANAME(水蜜)%も、まんざらでもなかったような気がするが
+PRINTFORMW 「それはその、流されちゃっただけだし。し始めたのは%ANAME(MASTER)%なんだから反省して」
+PRINTFORMW 「……部屋とかでなら、いいから。わかった？」
+PRINTFORMW そうつぶやいたきり、%ANAME(水蜜)%は顔を赤らめて視線をそらしてしまった
+PRINTFORMW なんというか、やはりまんざらでもなかったのだろう……
+
+SIF !TALENT:水蜜:合意
+	CALL COLORPRINTFORM(@"%ANAME(水蜜)%の合意を得ました", COLOR("注意"), "W")
+
+CFLAG:水蜜:好感度 += 100
+CFLAG:水蜜:従属度 += 100
+CFLAG:水蜜:依存度 += 100
+TALENT:水蜜:合意 = 1
+TALENT:水蜜:チョロイン = 1
+
+KDVAR:水蜜:水蜜_水蜜桃 = 1
+
+RETURN 
