@@ -44,7 +44,7 @@ ELSE
 ENDIF
 
 ;汎用キャラなら口上パターンを設定
-IF NO:(ARG:0) > 200 || NO:(ARG:0) < 2000
+IF IS_CHILD(ARG:0) || IS_RANDOM_CHARA(ARG:0)
 	CALL SET_KOJO_PATTERN(ARG:0)
 ENDIF
 
@@ -53,15 +53,15 @@ ENDIF
 ;-------------------------------------------------
 @DELETE_CHARA(ARG:0)
 ;固定キャラの場合
-IF NO:(ARG:0) < 201
+IF IS_FIXED_CHARA(ARG:0)
 	;削除は禁止。エラーメッセージを出力
 	THROW 固定キャラを削除することはできません(キャラ番号={ARG:0})
 
 ;ランダムキャラ(汎用)の場合
-ELSEIF NO:(ARG:0) < 401
+ELSEIF IS_RANDOM_CHARA(ARG:0)
 	;キャラARG:0より後ろのNOを持つキャラのNOを詰める
 	FOR LOCAL:0, 0, CHARANUM
-		IF NO:(LOCAL:0) > NO:(ARG:0) && NO:(LOCAL:0) < 401
+		IF NO:(LOCAL:0) > NO:(ARG:0) && IS_RANDOM_CHARA(LOCAL:0)
 			NO:(LOCAL:0) --
 		ENDIF
 	NEXT
@@ -69,10 +69,10 @@ ELSEIF NO:(ARG:0) < 401
 	FLAG:汎用武将カウント --
 
 ;ランダムキャラ(子供)の場合
-ELSEIF NO:(ARG:0) < 901
+ELSEIF IS_CHILD(ARG:0)
 	;キャラARG:0より後ろのNOを持つキャラのNOを詰める
 	FOR LOCAL:0, 0, CHARANUM
-		IF NO:(LOCAL:0) > NO:(ARG:0) && NO:(LOCAL:0) < 901
+		IF NO:(LOCAL:0) > NO:(ARG:0) && IS_CHILD(LOCAL:0)
 			NO:(LOCAL:0) --
 		ENDIF
 	NEXT
@@ -1189,12 +1189,42 @@ RETURNF !IS_MALE(ARG:0)
 #FUNCTION
 RETURNF IS_MALE(ARG:0) == IS_MALE(ARG:1)
 
-;---------------------------
+;-------------------------------------------------
 ;ARG:0番のキャラが動物系かどうかを返す関数
-;---------------------------
+;-------------------------------------------------
 @IS_ANIMAL(ARG:0)
 #FUNCTION
 RETURNF TALENT:(ARG:0):犬 || TALENT:(ARG:0):豚
+
+;-------------------------------------------------
+;ARG:0番のキャラが固定キャラ（ランダムキャラ、子供、特殊キャラ)なら1を返す関数
+;-------------------------------------------------
+@IS_FIXED_CHARA(ARG:0)
+#FUNCTION
+RETURNF NO:(ARG:0) < MAX_FIXED_CHARA
+
+@IS_RANDOM_CHARA(ARG:0)
+#FUNCTION
+RETURNF INRANGE(NO:(ARG:0), MAX_FIXED_CHARA, MAX_FIXED_CHARA + MAX_RANDOM_CHARA - 1)
+
+@IS_CHILD(ARG:0)
+#FUNCTION
+RETURNF INRANGE(NO:(ARG:0), MAX_FIXED_CHARA + MAX_RANDOM_CHARA, MAX_FIXED_CHARA + MAX_RANDOM_CHARA + MAX_CHILD - 1)
+
+@IS_SP_CHARA(ARG:0)
+#FUNCTION
+RETURNF NO:(ARG:0)　>= MIN_NO_SP_CHARA
+
+;-------------------------------------------------
+;子供・ランダムキャラを追加できるかを返す
+;-------------------------------------------------
+@CAN_ADD_RANDOM_CHARA()
+#FUNCTION
+RETURNF FLAG:汎用武将カウント < MAX_RANDOM_CHARA
+
+@CAN_ADD_CHILD()
+#FUNCTION
+RETURNF FLAG:子供カウント < MAX_CHILD
 
 
 ;-------------------------------------------------
@@ -2485,29 +2515,23 @@ RETURN CHARANUM - 1
 
 ;ランダムキャラ、子供以外で同じシナリオ中で同じデータが複数人が出てくるなどでCSVから生成することができないキャラを追加する際
 ;そのキャラの種別であいているNOを取得するための関数
-;ARG:0 ;危険！　使わないこと 引継ぎ可能であるかと思ってた
-	;1:そのキャラがシナリオ終了後引き継ぐことができる と思っていた
-@GET_EMPTY_NO(ARG:0 = 0)
+@GET_EMPTY_NO()
 #FUNCTION
 ;範囲の最低値を入れる
-IF ARG:0 == 1
-	LOCAL:1 = 1100
-ELSE
-	LOCAL:1 = 2100
-ENDIF
+	LOCAL:1 = MIN_NO_SP_CHARA
 FOR LOCAL:0, 0, CHARANUM
 	;範囲内でより大きい数字を見つけたらその数字より1大きい数字を入れる
 	;条件式を分かりやすくするためにあえて不必要な条件を追加する
-	SIF NO:(LOCAL:0) >= LOCAL:1 && (ARG:0 == 1 && NO:(LOCAL:0) < 2000 || ARG:0 != 1)
+	SIF NO:(LOCAL:0) >= LOCAL:1
 		LOCAL:1 = NO:(LOCAL:0) + 1
 NEXT
 RETURNF LOCAL:1
 
 ;ランダムキャラを追加するためのひな形を用意する関数　になるかと思ってた
 ;ARG:0 危険！使わないこと
-@ADD_VOID_CHARA(ARG:0 = 0)
+@ADD_VOID_CHARA()
 ADDVOIDCHARA
-NO:(CHARANUM - 1) = GET_EMPTY_NO(ARG:0)
+NO:(CHARANUM - 1) = GET_EMPTY_NO()
 RETURN CHARANUM - 1
 
 ;-------------------------------------------------
