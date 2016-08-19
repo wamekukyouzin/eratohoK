@@ -46,62 +46,56 @@ IF CFLAG:(ARG:0):妊娠期間 >= 1
 	RETURN
 ENDIF
 
+SIF CFLAG:(ARG:0):避妊薬残ターン
+	RETURN
+
 ;コンフィグによる妊娠抑制があれば戻る
 IF CONFIG:1 == 1
 	RETURN
 ENDIF
 
+;膣内射精量が0以下なら妊娠判定に入らない
+SIF LOCAL:2 <= 0
+	RETURN 
+
 ;中出し量が1以上の場合
-IF LOCAL:2 >= 1
-	;子供の数と妊娠中のキャラの数を合算
-	LOCAL:4 = 0
-	FOR LOCAL:0, 0, CHARANUM
-		IF LOCAL:0 != MASTER && ((IS_CHILD(LOCAL:0)) || CFLAG:(LOCAL:0):妊娠期間 >= 1)
-			LOCAL:4 ++
+
+;妊娠判定に使う乱数の基本最大値
+LOCAL:5 = 1000
+
+;獣変化中は確率上昇
+IF CFLAG:(ARG:0):獣変化フラグ
+	;排卵誘発剤使用中は確率上昇
+	IF TCVAR:(ARG:0):65
+		LOCAL:5 = 100
+	ELSE
+		LOCAL:5 = 500
+	ENDIF
+;排卵誘発剤使用中は確率上昇
+ELSEIF TCVAR:(ARG:0):65
+	LOCAL:5 = 200
+ENDIF
+
+;★デバッグ用(100%妊娠)
+;LOCAL:5 = 1
+
+IF RAND:(LOCAL:5) < SQRT(LOCAL:2 * 100 + 300)
+	;誰の子供かを判定
+	LOCAL:3 = RAND:(LOCAL:2)
+	FOR LOCAL:0, 440, 460
+		IF TCVAR:(ARG:0):(LOCAL:0) != 0
+			LOCAL:3 -= TCVAR:(ARG:0):(LOCAL:0 + 20)
+			IF LOCAL:3 <= 0
+				;父親のIDを設定
+				CFLAG:(ARG:0):子の遺伝上の父親 = TCVAR:(ARG:0):(LOCAL:0)
+					;妊娠期間を1に設定
+				CFLAG:(ARG:0):妊娠期間 = 1
+				BREAK
+			ENDIF
 		ENDIF
 	NEXT
-
-	;子供の数にまだ余裕があるなら妊娠判定
-	IF LOCAL:4 < MAX_CHILD
-		;妊娠判定に使う乱数の基本最大値
-		LOCAL:5 = 650
-
-		;獣変化中は確率上昇
-		IF CFLAG:(ARG:0):獣変化フラグ
-			;排卵誘発剤使用中は確率上昇
-			IF TCVAR:(ARG:0):65
-				LOCAL:5 = 70
-			ELSE
-				LOCAL:5 = 350
-			ENDIF
-		;排卵誘発剤使用中は確率上昇
-		ELSEIF TCVAR:(ARG:0):65
-			LOCAL:5 = 100
-		ENDIF
-
-		;★デバッグ用(100%妊娠)
-		;LOCAL:5 = 1
-
-		IF RAND:(LOCAL:5) < SQRT(LOCAL:2 * 100 + 300)
-			;誰の子供かを判定
-			LOCAL:3 = RAND:(LOCAL:2)
-
-			FOR LOCAL:0, 440, 460
-				IF TCVAR:(ARG:0):(LOCAL:0) != 0
-					LOCAL:3 -= TCVAR:(ARG:0):(LOCAL:0 + 20)
-					IF LOCAL:3 <= 0
-						;父親のIDを設定
-						CFLAG:(ARG:0):子の遺伝上の父親 = TCVAR:(ARG:0):(LOCAL:0)
-
-						;妊娠期間を1に設定
-						CFLAG:(ARG:0):妊娠期間 = 1
-						BREAK
-					ENDIF
-				ENDIF
-			NEXT
-		ENDIF
-	ENDIF
 ENDIF
+
 
 ;---------------------------------------------------------
 ;妊娠関係のメッセージを表示するかどうか ARG:0=妊娠したキャラの番号
@@ -109,19 +103,10 @@ ENDIF
 ;---------------------------------------------------------
 @IS_PREGNANT_MSG(ARG:0)
 #FUNCTION
-;観戦モードでは全て表示
-SIF FLAG:観戦モード
-	RETURNF 1
-;主人公は常に表示
-SIF ARG:0 == MASTER
-	RETURNF 1
 ;主人公が捕虜 or 放浪中の場合、他の士官の状況はわからない
 SIF CFLAG:MASTER:捕虜先 != 0 || CFLAG:MASTER:所属 == 0
 	RETURNF 0
-;自国・同盟国・連合国のキャラ、自国の捕虜、特殊勢力所属or捕虜
-SIF (TMP_COUNTRY_RELATION:(CFLAG:MASTER:所属):(CFLAG:(ARG:0):所属) >= 2 && CFLAG:(ARG:0):捕虜先 == 0) || CFLAG:(ARG:0):捕虜先 == CFLAG:MASTER:所属 || IS_SP_COUNTRY(CFLAG:(ARG:0):所属) || IS_SP_COUNTRY(CFLAG:(ARG:0):捕虜先)
-	RETURNF 1
-RETURNF 0
+RETURNF 1
 
 ;---------------------------------------------------------
 ;ターンエンド時に行う妊娠出産関連の処理
@@ -332,8 +317,8 @@ ELSE
 	;父親の記録をつける
 	CALL REFRESH_PREGNANT_RECORD(ARG:0, FATHER_CANDIDATE)
 	;特殊精液なら、里子フラグをたてる
-	SIF FATHER_CANDIDATE < 0
-		CFLAG:(ARG:0):里子フラグ = 1
+	;SIF FATHER_CANDIDATE < 0
+	;	CFLAG:(ARG:0):里子フラグ = 1
 ENDIF
 
 ;---------------------------------------------------------
@@ -431,9 +416,8 @@ CALL CLEAR_CREAMPIE_HISTORY(ARG:0)
 #DIM CHILD
 #DIM FATHER
 ;里子フラグが立っていたら、里子に出したことにする
-IF CFLAG:MOTHER:里子フラグ
-	CFLAG:MOTHER:里子フラグ = 0
-	IF IS_PREGNANT_MSG(MOTHER) && FLAG:観戦モード
+IF IS_FOSTER_CHILD(MOTHER)
+	IF IS_PREGNANT_MSG(MOTHER)
 		SETCOLOR COLOR("注意")
 		PRINTFORMW %ANAME(MOTHER)%が産気づいたようです
 		PRINTFORMW 生まれた子供を、%ANAME(MOTHER)%は里子に出しました……
@@ -443,9 +427,22 @@ IF CFLAG:MOTHER:里子フラグ
 		RETURN -1
 	ENDIF
 ENDIF
+
 ;子供を生成
 CALL CREATE_CHILD(MOTHER)
 CHILD = RESULT
+
+IF RESULT == -1
+	IF IS_PREGNANT_MSG(MOTHER)
+		SETCOLOR COLOR("注意")
+		PRINTFORMW %ANAME(MOTHER)%が産気づいたようです
+		PRINTFORMW 生まれた子供を、%ANAME(MOTHER)%は里子に出しました……
+		RESETCOLOR
+		RETURN -1
+	ELSEIF !IS_PREGNANT_MSG(MOTHER)
+		RETURN -1
+	ENDIF
+ENDIF
 
 ;捕虜の場合
 IF CFLAG:MOTHER:捕虜先 >= 1
@@ -528,6 +525,20 @@ ELSE
 	CALL RANDOM_CHILD_NAMING(CHILD)
 ENDIF
 RETURN CHILD
+
+;---------------------------------------------------------
+;ARG:0が、産んだ子供を里子に出すか。
+;---------------------------------------------------------
+@IS_FOSTER_CHILD(ARG:0)
+#FUNCTION
+SIF CFLAG:(ARG:0):子の父親 < 0
+	RETURNF 1
+SIF FLAG:観戦モード && RAND:4
+	RETURNF 1
+SIF CFLAG:MASTER:所属 != CFLAG:(ARG:0):所属 && RAND:4
+	RETURNF 1
+
+RETURNF 0
 
 ;---------------------------------------------------------
 ;ターンエンド時の妊娠出産関係の処理の子供用
