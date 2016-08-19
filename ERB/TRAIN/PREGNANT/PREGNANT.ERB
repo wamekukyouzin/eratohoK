@@ -317,8 +317,8 @@ ELSE
 	;父親の記録をつける
 	CALL REFRESH_PREGNANT_RECORD(ARG:0, FATHER_CANDIDATE)
 	;特殊精液なら、里子フラグをたてる
-	SIF FATHER_CANDIDATE < 0
-		CFLAG:(ARG:0):里子フラグ = 1
+	;SIF FATHER_CANDIDATE < 0
+	;	CFLAG:(ARG:0):里子フラグ = 1
 ENDIF
 
 ;---------------------------------------------------------
@@ -416,9 +416,8 @@ CALL CLEAR_CREAMPIE_HISTORY(ARG:0)
 #DIM CHILD
 #DIM FATHER
 ;里子フラグが立っていたら、里子に出したことにする
-IF CFLAG:MOTHER:里子フラグ
-	CFLAG:MOTHER:里子フラグ = 0
-	IF IS_PREGNANT_MSG(MOTHER) && FLAG:観戦モード
+IF IS_FOSTER_CHILD(MOTHER)
+	IF IS_PREGNANT_MSG(MOTHER)
 		SETCOLOR COLOR("注意")
 		PRINTFORMW %ANAME(MOTHER)%が産気づいたようです
 		PRINTFORMW 生まれた子供を、%ANAME(MOTHER)%は里子に出しました……
@@ -513,6 +512,20 @@ ELSE
 	CALL RANDOM_CHILD_NAMING(CHILD)
 ENDIF
 RETURN CHILD
+
+;---------------------------------------------------------
+;ARG:0が、産んだ子供を里子に出すか。
+;---------------------------------------------------------
+@IS_FOSTER_CHILD(ARG:0)
+#FUNCTION
+SIF CFLAG:(ARG:0):子の父親 < 0
+	RETURNF 1
+SIF FLAG:観戦モード && RAND:4
+	RETURNF 1
+SIF CFLAG:MASTER:所属 != CFLAG:(ARG:0):所属 && RAND:4
+	RETURNF 1
+
+RETURNF 0
 
 ;---------------------------------------------------------
 ;ターンエンド時の妊娠出産関係の処理の子供用
