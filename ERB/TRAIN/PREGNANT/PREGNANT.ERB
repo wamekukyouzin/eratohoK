@@ -51,57 +51,49 @@ IF CONFIG:1 == 1
 	RETURN
 ENDIF
 
+
+;膣内射精量が0以下なら妊娠判定に入らない
+SIF LOCAL:2 <= 0
+	RETURN 
+
 ;中出し量が1以上の場合
-IF LOCAL:2 >= 1
-	;子供の数と妊娠中のキャラの数を合算
-	LOCAL:4 = 0
-	FOR LOCAL:0, 0, CHARANUM
-		IF LOCAL:0 != MASTER && ((IS_CHILD(LOCAL:0)) || CFLAG:(LOCAL:0):妊娠期間 >= 1)
-			LOCAL:4 ++
+
+;妊娠判定に使う乱数の基本最大値
+LOCAL:5 = 1000
+
+;獣変化中は確率上昇
+IF CFLAG:(ARG:0):獣変化フラグ
+	;排卵誘発剤使用中は確率上昇
+	IF TCVAR:(ARG:0):65
+		LOCAL:5 = 100
+	ELSE
+		LOCAL:5 = 500
+	ENDIF
+;排卵誘発剤使用中は確率上昇
+ELSEIF TCVAR:(ARG:0):65
+	LOCAL:5 = 200
+ENDIF
+
+;★デバッグ用(100%妊娠)
+;LOCAL:5 = 1
+
+IF RAND:(LOCAL:5) < SQRT(LOCAL:2 * 100 + 300)
+	;誰の子供かを判定
+	LOCAL:3 = RAND:(LOCAL:2)
+	FOR LOCAL:0, 440, 460
+		IF TCVAR:(ARG:0):(LOCAL:0) != 0
+			LOCAL:3 -= TCVAR:(ARG:0):(LOCAL:0 + 20)
+			IF LOCAL:3 <= 0
+				;父親のIDを設定
+				CFLAG:(ARG:0):子の遺伝上の父親 = TCVAR:(ARG:0):(LOCAL:0)
+					;妊娠期間を1に設定
+				CFLAG:(ARG:0):妊娠期間 = 1
+				BREAK
+			ENDIF
 		ENDIF
 	NEXT
-
-	;子供の数にまだ余裕があるなら妊娠判定
-	IF LOCAL:4 < MAX_CHILD
-		;妊娠判定に使う乱数の基本最大値
-		LOCAL:5 = 1000
-
-		;獣変化中は確率上昇
-		IF CFLAG:(ARG:0):獣変化フラグ
-			;排卵誘発剤使用中は確率上昇
-			IF TCVAR:(ARG:0):65
-				LOCAL:5 = 100
-			ELSE
-				LOCAL:5 = 500
-			ENDIF
-		;排卵誘発剤使用中は確率上昇
-		ELSEIF TCVAR:(ARG:0):65
-			LOCAL:5 = 200
-		ENDIF
-
-		;★デバッグ用(100%妊娠)
-		;LOCAL:5 = 1
-
-		IF RAND:(LOCAL:5) < SQRT(LOCAL:2 * 100 + 300)
-			;誰の子供かを判定
-			LOCAL:3 = RAND:(LOCAL:2)
-
-			FOR LOCAL:0, 440, 460
-				IF TCVAR:(ARG:0):(LOCAL:0) != 0
-					LOCAL:3 -= TCVAR:(ARG:0):(LOCAL:0 + 20)
-					IF LOCAL:3 <= 0
-						;父親のIDを設定
-						CFLAG:(ARG:0):子の遺伝上の父親 = TCVAR:(ARG:0):(LOCAL:0)
-
-						;妊娠期間を1に設定
-						CFLAG:(ARG:0):妊娠期間 = 1
-						BREAK
-					ENDIF
-				ENDIF
-			NEXT
-		ENDIF
-	ENDIF
 ENDIF
+
 
 ;---------------------------------------------------------
 ;妊娠関係のメッセージを表示するかどうか ARG:0=妊娠したキャラの番号
