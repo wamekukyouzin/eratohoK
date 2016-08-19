@@ -915,57 +915,51 @@ CFLAG:(LOCAL:5):外交調教経過ターン = 1
 ;外交による調教要求フラグの解除判定
 ;-------------------------------------------------
 @CHECK_DIPLOMACY_TRAIN_FLAG
-;各国の君主のキャラ番号・略名マップを作成
-CALL TMP_CREATE_COUNTRY_BOSS_MAP
+#DIM TRAIN_FLAG
 ;勢力同士の隣接関係マップを作成
 CALL TMP_CREATE_COUNTRY_NEIBORING_MAP
 
 FOR LOCAL:0, 0, CHARANUM
 	IF CFLAG:(LOCAL:0):外交調教経過ターン
-		;君主でなければ解除
-		LOCAL:2 = -1
-		FOR LOCAL:1, 1, MAX_COUNTRY
-			IF LOCAL:0 == TMP_COUNTRY_BOSS_NUMBER:(LOCAL:1) && LOCAL:1 != CFLAG:MASTER:所属
-				LOCAL:2 = LOCAL:1
-				BREAK
-			ENDIF
-		NEXT
-		IF LOCAL:2 == -1
+		;対象が他勢力の君主でなければ解除
+		IF CFLAG:MASTER:所属 == CFLAG:(LOCAL:0):所属 || GET_COUNTRY_BOSS(CFLAG:(LOCAL:0):所属) != LOCAL:0
 			CFLAG:(LOCAL:0):外交調教経過ターン = 0
 			PRINTL 
 			SETCOLOR COLOR("注意")
-			PRINTFORMW %ANAME(LOCAL:0)%が君主ではなくなったため、「捕虜の調教」の調教対象から外れました…
+			PRINTFORMW %ANAME(LOCAL:0)%が他勢力の君主ではなくなったため、「捕虜の調教」の調教対象から外れました…
 			RESETCOLOR
 			CONTINUE
 		ENDIF
 
+		;あなたがいずれの勢力にも属していなければ解除
+		;IS_COUNTRYの性質上、領土のない野盗に所属している場合は解除されず
 		IF !IS_COUNTRY(CFLAG:MASTER:所属)
 			CFLAG:(LOCAL:0):外交調教経過ターン = 0
 			PRINTL
 			SETCOLOR COLOR("注意")
-			PRINTFORMW %ANAME(LOCAL:0)%はあなたが勢力からいなくなったため、「捕虜の調教」の調教対象から外れました…
+			PRINTFORMW %ANAME(LOCAL:0)%はあなたが無所属となったため、「捕虜の調教」の調教対象から外れました…
 			RESETCOLOR
 			CONTINUE
 		ENDIF
 
-		LOCAL:3 = 0
-		LOCAL:4 = 0
+		TRAIN_FLAG = 0
 
-		;【条件A】強要が可能である
-
+		;【条件A】国力による重圧に屈している
 		;強要時より基礎判定値は下げています
-		SIF DIPLOMACY_REQUEST_CHECK(CFLAG:MASTER:所属, LOCAL:2, 25, 1)
-			LOCAL:3 = 1
+		;好感度による難易度補正の都合上判定値を引き下げ、ついでにターン経過とともに難易度が上がるように
+		SIF DIPLOMACY_REQUEST_CHECK(CFLAG:MASTER:所属, CFLAG:(LOCAL:0):所属, 15 + CFLAG:(LOCAL:0):外交調教経過ターン * 2, 1)
+			SETBIT TRAIN_FLAG , 0
 
-		;【条件B】特定の素質を持っていて、快楽でいうことを聞かせた
+		;【条件B】隷従系陥落素質の所持、もしくは被虐の悦楽に染まり「ご褒美」のために体を売った
 		SIF TALENT:(LOCAL:0):烙印 || TALENT:(LOCAL:0):服従 || TALENT:(LOCAL:0):隷属 || (GETBIT(TALENT:(LOCAL:0):淫乱系, 素質_淫乱_マゾ) && TALENT:(LOCAL:0):恋慕) && CFLAG:(LOCAL:0):外交要求成功フラグ == 2
-			LOCAL:4 = 1
+			SETBIT TRAIN_FLAG , 1
 
+		;【条件C】薬キメにハマって薬のために体を売っていた（ぉ
 		SIF CFLAG:(LOCAL:0):薬物依存 >= REL_HATE:(LOCAL:0):(MASTER) && CFLAG:(LOCAL:0):外交要求成功フラグ == 3
-			LOCAL:4 = 1
+			SETBIT TRAIN_FLAG , 2
 
-		;【条件A】【条件B】のいずれも満たさず2ターン以降経過しているなら解除
-		IF !LOCAL:3 && !LOCAL:4 && CFLAG:(LOCAL:0):外交調教経過ターン > 2
+		;【条件A】【条件B】【条件C】のいずれも満たさず2ターン以降経過しているなら解除
+		IF !TRAIN_FLAG && CFLAG:(LOCAL:0):外交調教経過ターン > 2
 			CFLAG:(LOCAL:0):外交調教経過ターン = 0
 			PRINTL 
 			PRINTFORML %ANAME(LOCAL:0)%はこれ以上%ANAME(MASTER)%に体を許すつもりはないと通告してきた…
@@ -975,6 +969,7 @@ FOR LOCAL:0, 0, CHARANUM
 			CONTINUE
 		ENDIF
 		
+		DEBUGPRINTL %ANAME(LOCAL:0)%:外交調教継続({CFLAG:(LOCAL:0):外交調教経過ターン}ターン目)
 		SIF CFLAG:(LOCAL:0):外交調教経過ターン
 			CFLAG:(LOCAL:0):外交調教経過ターン ++
 	ENDIF
