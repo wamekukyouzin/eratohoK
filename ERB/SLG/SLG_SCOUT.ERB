@@ -77,11 +77,48 @@ IF RESULT == 1
 	CLEARLINE LINECOUNT - FIRST_LINE
 	RESTART
 ENDIF
+
+PRINTFORML いくら支払う……？ (所持金:{MONEY})
+$PAYMENT_LOOP
+INPUT
+LOCAL = RESULT
+SIF LOCAL > MONEY
+	GOTO PAYMENT_LOOP
+
+IF !SCOUT_JUDGE_PAYMENT_DISCOUNT(対象, SCOUT_PRICE:対象添え字, LOCAL)
+	PRINTFORMW %ANAME(対象)%に、そんな額では仕官できないと返された……
+	SCOUT_CANDIDATES:対象添え字 = 0
+	RESTART
+ENDIF
+
 PRINTFORML 戦力補強のためなら安いものだ……
-PRINTFORML %ANAME(対象)%に{SCOUT_PRICE:対象添え字}を支払い、固い握手を交わした
+PRINTFORML %ANAME(対象)%に金{LOCAL}を支払った
+
+LOCAL:1 = SCOUT_JUDGE_PAYMENT_PLUS(対象, SCOUT_PRICE:対象添え字, LOCAL)
+
+IF LOCAL:1 && SCOUT_COUNT
+	PRINTFORML %ANAME(対象)%はこんなにもらえるなんて！　と喜んでいるようだ……
+	PRINTFORML %ANAME(対象)%の能力が上昇した
+	FOR LOCAL, 0, LOCAL:1
+		SELECTCASE RAND:5
+			CASE 0
+				ABL:対象:武闘 ++
+			CASE 1
+				ABL:対象:知略 ++
+			CASE 2
+				ABL:対象:政治 ++
+			CASE 3
+				ABL:対象:歌唱 ++
+			CASE 4
+				ABL:対象:料理 ++
+		ENDSELECT
+	NEXT
+ENDIF
+
+PRINTFORML %ANAME(対象)%と固い握手を交わした……
 CALL COLORPRINTFORM(@"%ANAME(対象)%が仲間になりました", COLOR("注意"), "W")
 
-MONEY -= SCOUT_PRICE:対象添え字
+MONEY -= LOCAL
 CALL CHANGE_COUNTRY(対象, CFLAG:MASTER:所属, 1)
 CFLAG:対象:好感度 = MAX(500, CFLAG:対象:好感度 + 500)
 CFLAG:対象:従属度 = MAX(500, CFLAG:対象:従属度 + 300)
@@ -228,7 +265,7 @@ RETURNF 0
 ;-------------------------------------------------
 @SCOUT_PREPARE_CANDIDATES
 #DIM カウンタ
-#DIM 候補, 1000
+#DIM 候補, 3000
 #DIM 候補数
 VARSET 候補, -1
 VARSET 候補数
@@ -268,3 +305,94 @@ FOR LOCAL, 0, MIN(候補数, VARSIZE("SCOUT_CANDIDATES"))
 	SCOUT_CANDIDATES:LOCAL = GET_ID(候補:(SHAFFLE_ARRAY:LOCAL))
 	SCOUT_PRICE:LOCAL = SCOUT_CALC_PRICE(候補:(SHAFFLE_ARRAY:LOCAL))
 NEXT
+
+
+;-------------------------------------------------
+;スカウト対象がどこまで値引きを許すか
+;-------------------------------------------------
+@SCOUT_JUDGE_PAYMENT_DISCOUNT(対象, 提示額, 支払額)
+#FUNCTION
+#DIM 対象
+#DIM 提示額
+#DIM 支払額
+#DIM 倍率
+#DIM 関係補正
+
+倍率 = 100
+
+SIF TALENT:対象:プライド低い
+	倍率 -= 5
+SIF TALENT:対象:プライド高い
+	倍率 += 5
+SIF TALENT:対象:素直
+	倍率 -= 5
+SIF TALENT:対象:反抗的
+	倍率 += 5
+SIF TALENT:対象:無関心
+	倍率 -= 5
+SIF TALENT:対象:孤高
+	倍率 += 20
+
+SIF IS_LOVER(対象) || IS_SLAVE(対象)
+	倍率 -= 10
+
+倍率 -= MIN(MAX(CFLAG:対象:好感度, CFLAG:対象:従属度) / 100, 50)
+
+;REL_LIKEとREL_HATEの差に基づいて最大15%の補正
+関係補正 = REL_LIKE:対象:MASTER - REL_HATE:対象:MASTER
+関係補正 /= 100
+関係補正 = 100 - 関係補正
+
+倍率 = 倍率 * 関係補正 / 100
+
+;最大100
+倍率 = MIN(倍率, 100)
+
+SIF 支払額 >= 提示額 * 倍率 / 100
+	RETURNF 1
+
+RETURNF 0
+
+;-------------------------------------------------
+;上乗せした時スカウト対象がやる気を出すか、どれくらいだすのか
+;-------------------------------------------------
+@SCOUT_JUDGE_PAYMENT_PLUS(対象, 提示額, 支払額)
+#FUNCTION
+#DIM 対象
+#DIM 提示額
+#DIM 支払額
+#DIM 倍率
+#DIM 関係補正
+
+倍率 = 100
+
+倍率 = TMP_CHARA_STARS:対象 * 5
+
+SIF TALENT:対象:プライド低い
+	倍率 -= 5
+SIF TALENT:対象:プライド高い
+	倍率 += 5
+SIF TALENT:対象:素直
+	倍率 -= 5
+SIF TALENT:対象:反抗的
+	倍率 += 5
+SIF TALENT:対象:無関心
+	倍率 -= 5
+SIF TALENT:対象:孤高
+	倍率 += 20
+
+SIF IS_LOVER(対象) || IS_SLAVE(対象)
+	倍率 -= 25
+
+;REL_LIKEとREL_HATEの差に基づいて最大15%の補正
+関係補正 = REL_LIKE:対象:MASTER - REL_HATE:対象:MASTER
+関係補正 /= 100
+関係補正 = 100 - 関係補正
+
+倍率 = 倍率 * 関係補正 / 100
+
+倍率 = LIMIT(倍率, 120, 200)
+
+提示額 = 提示額 * 倍率 / 100
+
+RETURNF LIMIT((支払額 - 提示額) / 300, 0, 50)
