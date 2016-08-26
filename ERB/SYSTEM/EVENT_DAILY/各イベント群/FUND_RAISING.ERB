@@ -12,6 +12,8 @@ CALL DAILY_START()
 ;抱いた回数が増えると募金額が減る（最低5%）
 ;最低額を10000に設定
 募金額 = MAX(MONEY * MIN(((10 + RAND:11 + RAND:11) - DVAR:募金抱いた回数)/ 2, 5) / 100, 10000)
+SIF DVAR:募金抱いた回数 >= 5
+	募金額 = 募金額 / 3
 IF DVAR:募金 == 0
 	PRINTFORMW 仕事をしていると部下が来客を告げた
 	PRINTFORMW 何やら市民団体の者らしいが
@@ -30,15 +32,15 @@ IF DVAR:募金 == 0
 ELSEIF DVAR:募金 == 1
 	PRINTFORML 例の慈善団体の娘が、また募金を求めにきたようだ
 	SELECTCASE DVAR:募金抱いた回数
-	CASE IS < 6
+	CASE IS < 2
 		PRINTFORMW 「あの、恵まれない子供たちのために…またお願いします」
-	CASE 6 TO 8
+	CASE 2 TO 4
 		PRINTFORMW 「あの、恵まれない子供たちのために…今日もお願いします」
 		PRINTFORMW 何かを期待しているのか、心なしか顔が赤い…
-	CASE 9 TO 12
+	CASE 5 TO 7
 		PRINTFORMW 「あの…子供たちと…それを建前に抱かれに来た、はしたない私のために…またお願いします」
 		PRINTFORMW 紅潮させた頬を隠すことなく、しかし恥ずかしそうな表情でおねだりをしてきた
-	CASE IS > 12
+	CASE IS > 7
 		PRINTFORMW 「ここに来るだけで…体が疼いちゃうようになりました」
 		PRINTFORMW 「お願いです、淫らな私のために……」
 		PRINTFORMW 欲望を隠すことなくさらけ出す姿は娼婦のそれとは異なる淫靡なものだった
@@ -52,9 +54,9 @@ ENDIF
 PRINTFORMW さて、どうしようか……
 DRAWLINE
 IF DVAR:募金抱いた回数 <= 4
-	CALL ASK_MULTI(@"金{募金額}を援助する", "やめておく", "代わりにお前を抱かせろ")
+	CALL ASK_MULTI_JUDGE(@"金{募金額}を援助する", 1,"やめておく", 1,"代わりにお前を抱かせろ", PENIS(MASTER))
 ELSE
-	CALL ASK_MULTI(@"金{募金額}と引き換えに抱く", "やめておく")
+	CALL ASK_MULTI_JUDGE(@"金{募金額}と引き換えに抱く", PENIS(MASTER),"やめておく", 1)
 ENDIF
 ;断るパターン
 IF RESULT == 1
@@ -83,7 +85,7 @@ ELSEIF RESULT == 0
 	IF MONEY <= 募金額
 		PRINTFORMW 募金しようとしたが金が足りなかった
 		PRINTFORMW 娘はガッカリしながらもお気持ちだけでもありがとうございますと告げ、去って行った
-	ELSEIF DVAR:募金抱いた回数 < 5
+	ELSEIF DVAR:募金抱いた回数 == 0
 		PRINTFORMW 子供を出されてしまってはどうしようもない
 		PRINTFORMW 寄付してやることにしよう
 		PRINTFORMW 「ありがとうございます！%ANAME(MASTER)%様のおかげで多くの子供たちが救われます！」
@@ -95,27 +97,94 @@ ELSEIF RESULT == 0
 		CALL COLORPRINTFORM(@"%ANAME(GET_COUNTRY_BOSS(CFLAG:MASTER:所属))%の評判がわずかに上がりました", COLOR("注意"))
 		PRINTFORMW
 		CALL CHANGE_RELATION_C_TO_C(LOCAL, CFLAG:MASTER:所属, 15, -15)
-	ELSEIF RAND:5
-		PRINTFORML 「はい…今日もたっぷりと礼を尽くさせていただきます」
-		PRINTFORML そう言いながら紅潮させた肢体を露わにしていく。
-		PRINTFORMW すっかり%ANAME(MASTER)%好みに躾けられた肉体を、たっぷりと味わった……
+	ELSEIF DVAR:募金抱いた回数 < 5
+		PRINTFORMW また抱いてもいいが、今はそんな気分ではない
+		PRINTFORMW 素直に募金だけしてやることにした
+		PRINTFORMW 「あっ…いえ、はい…あ、ありがとうございます……」
+		PRINTFORMW 彼女はどこか拍子抜けしたような、あるいはおあずけを食らったような表情をしていた
 		PRINTFORML 
 		CALL COLORPRINTFORM(@"{募金額}", COLOR("注意"))
 		PRINTFORMW の金を募金した
-		DVAR:募金抱いた回数 ++
 		MONEY -= 募金額
-		;募金したんだし評判は上げておく
 		CALL COLORPRINTFORM(@"%ANAME(GET_COUNTRY_BOSS(CFLAG:MASTER:所属))%の評判がわずかに上がりました", COLOR("注意"))
 		PRINTFORMW
 		CALL CHANGE_RELATION_C_TO_C(LOCAL, CFLAG:MASTER:所属, 15, -15)
-	ELSE
-		;レアケースその２、着衣エロ（着替えは用意しているので安心して、と本人は供述しており……）
-		PRINTFORML 「いつもありがとうございます！%ANAME(MASTER)%様のおかげで本当に多くの子供たちが救われているんです！」
-		PRINTFORMW 娘はパッと笑顔になり、%ANAME(MASTER)%の手を強く握って感謝の気持ちを伝えてきた
-		PRINTFORMW 「ですので、たまには…」
-		PRINTFORML 少女の笑みは娼婦のそれと変わり、握っていた手をそっと己のスカートの中へと導く
-		PRINTFORMW 「たまには、普段のままの私をご賞味しませんか？」
-		PRINTFORMW あるべきはずの下着の感触はそこにはなく、淫らな水音を立てるぬかるみがあった…
+	ELSEIF DVAR:募金抱いた回数 >= 5
+		IF RAND:20
+			PRINTFORML 「はい…今日もたっぷりと礼を尽くさせていただきますね…♥」
+			PRINTFORML 抱いてやると告げると彼女は恍惚の笑みを浮かべて息を荒げた
+			PRINTFORMW 寝室へと案内すると、待ちきれないかのように%ANAME(MASTER)%に抱き着いてきた……
+			PRINTFORML 
+			SELECTCASE RAND:10
+				CASE 0
+					PRINTFORML 「あっ♥い、いぃ♥あぁ♥おちんぽぉ♥いいのぉ♥あぁん♥」
+					PRINTFORML 彼女は%ANAME(MASTER)%に跨り髪を振り乱しながら激しく腰を振ってヨガっている
+					PRINTFORML 以前の彼女では考えられないその淫靡な表情と誘う様な仕草が%ANAME(MASTER)%の興奮を煽る
+					PRINTFORML 「もっと♥もっとぉ♥あぁ♥そこそこぉ♥ご主人様ぁ♥♥あ♥あぁ♥♥♥」
+					PRINTFORMW 淫らに踊り狂う彼女に求められるまま、夜通したっぷりと可愛がってやった
+				CASE 1
+					PRINTFORML 「ん♥んん♥どうですか♥あっ…♥ご主人様ぁ♥♥あ♥あん♥」
+					PRINTFORML 彼女は%ANAME(MASTER)%に抱きつき、腰の動きを合わせながら甘える様な声で囁いてくる
+					PRINTFORML 返事代わりに激しく一突きしてやると、悦びの声を上げて大きく身を仰け反らせた
+					PRINTFORML 「あひぃ♥♥♥あ…♥イッたぁ♥イッちゃいましたぁ…♥あ♥んん♥あはぁ♥♥」
+					PRINTFORMW もっともっとと熱っぽい視線を送ってくる彼女と何度も何度もまぐわった
+				CASE 2
+					PRINTFORML 「ひぃぃ♥ひぃん♥そこぉ♥あ♥はげしっ♥あぁ♥いく♥いっちゃう♥♥ひぃぃ♥♥」
+					PRINTFORML 腰をつかんで激しく突いてやると、彼女は痙攣しながら悲鳴のような喘ぎ声を上げる
+					PRINTFORML 一突き毎に膣肉がペニスをきつく締め付けてきて、より深くへといざなわれる
+					PRINTFORML 「あ♥あん♥やぁ、おちんぽ♥おっきくなってるぅ♥♥あん♥あ♥きてぇ♥♥」
+					PRINTFORMW 膣の締め付けに思わず射精すると、彼女は身体を弓なりに反らしながら絶頂した
+				CASE 3
+					PRINTFORML 「じゅぷ♥じゅっぷ♥ん♥んん♥ぢゅるるぅ♥♥…ぷはぁ♥はぁ♥はぁ♥どうですかぁ？」
+					PRINTFORML フェラを終えた彼女は%ANAME(MASTER)%のペニスに愛おしそうに頬ずりしながら見上げてくる
+					PRINTFORML 上手だとほめてやると彼女は嬉しそうに笑い、ご褒美を求めてお尻を突き出してきた
+					PRINTFORML 「見てください♥もうぐちょぐちょなんです♥♥我慢できないのぉ♥♥」
+					PRINTFORMW 求められるままに一気にねじこんでやると、彼女は歓喜の声を上げて潮を吹いた
+				CASE 4
+					PRINTFORML 「あ♥あ♥だめぇ♥あっ♥イってる♥今イってます♥♥イってるから許してぇええ♥♥♥」
+					PRINTFORML イキっぱなしになった彼女が痙攣しながらヨガリ狂い、許しを請うてくる
+					PRINTFORML しかしその必死な表情がたまらなく可愛く、%ANAME(MASTER)%は腰の動きをさらに加速させる
+					PRINTFORML 「あひ♥あっ♥♥♥あっ♥♥いひぃ♥いく♥いく♥またイっくぅぅう♥♥♥」
+					PRINTFORMW その後も彼女はひたすら絶頂を繰り返し、気を失うまでたっぷりと虐めてやった
+				CASE 5
+					PRINTFORML 「あ♥んー♥あっ♥あぁ♥子宮疼くのぉ♥あ♥ご主人様ぁ♥♥」
+					PRINTFORML 対面座位で激しくまぐわう彼女が%ANAME(MASTER)%に向かって甘い吐息をかけてくる
+					PRINTFORML 彼女は足を腰に絡ませうるんだ瞳で%ANAME(MASTER)%を見つめ、膣内射精をおねだりしてくる
+					PRINTFORML 「ねぇ♥ねぇん♥ください♥あ♥切ないのぉ♥♥あ♥びゅるびゅる出してぇ♥♥♥」
+					PRINTFORMW その可愛いおねだりを断るつもりもなく、%ANAME(MASTER)%は何度も彼女の胎内に精を放った
+				CASE 6
+					PRINTFORML 「はぁ…♥はぁ…♥えへぇ♥今日も、凄かったです♥ん…♥はぁぁ♥♥」
+					PRINTFORML %ANAME(MASTER)%の腕に抱かれて息を荒げながら彼女がうっとりとした表情で呟く
+					PRINTFORML 先程までの彼女のヨガリっぷりを揶揄うと、身震いし熱のこもった溜息をついた
+					PRINTFORML 「あんっ…♥もぉ♥こんな風にしたのは♥あなたなんですからね♥んん♥♥♥」
+					PRINTFORMW しばしの休息の後、次をおねだりされた%ANAME(MASTER)%は二回戦に入るべく彼女を押し倒した
+				CASE 7
+					PRINTFORML 「あぁ♥あ♥やぁ♥乳首ばっかりぃ♥そんなに♥あぁ♥ん♥はぁあん♥♥」
+					PRINTFORML 突き上げながら胸を愛撫してやると彼女はたまらないといった風に身をくねらせる
+					PRINTFORML コリコリの乳首を甘噛みすると、彼女は嬌声と共に膣をキュッと締め付けてきた
+					PRINTFORML 「イッ♥♥♥はぁ♥それだめぇ♥真っ白になるのぉ♥あ♥あぁ♥あぁん♥」
+					PRINTFORMW その後も乳首攻めを続け、可愛くヨガリ乱れる彼女の様子を存分に楽しんだ
+				CASE 8
+					PRINTFORML 「あい♥あっ♥ん♥ん♥あぁ♥そこ♥そこいいの♥あ♥♥あぁ♥いいよぉ♥」
+					PRINTFORML 彼女を四つん這いにさせて、腰をわしづかみにしてひたすらガン突きする
+					PRINTFORML 一突き毎に彼女の喘ぎは色気を増し、きゅうきゅうとペニスを締め付けてくる
+					PRINTFORML 「もっと♥もっとぉ♥あひ♥それぇ♥♥ぐりぐりって♥♥あぁん♥あん♥♥♥」
+					PRINTFORMW %ANAME(MASTER)%も彼女も時間を忘れて、まるで獣の様な濃厚な交尾に没頭していった
+				CASE 9
+					PRINTFORML 「ふぅ♥ん♥あぁ♥やぁ♥そこだめぇ♥馬鹿になっちゃう♥♥あぁん♥♥♥」
+					PRINTFORML ずっぷりとペニスをねじ込み彼女の子宮口を亀頭でグリグリと刺激してやる
+					PRINTFORML よほどポルチオを気に入ったのか、小突く度に身体を跳ねさせ悦びの声を上げる
+					PRINTFORML 「らぁぁ♥♥すごぃい♥あ♥あ♥あぁん♥またイっちゃいますぅううう♥♥」
+					PRINTFORMW 言葉とは裏腹に敏感に反応する彼女の身体を%ANAME(MASTER)%好みに染めていった
+			ENDSELECT
+		ELSE
+			PRINTFORML 「いつもありがとうございます！%ANAME(MASTER)%様のおかげで本当に多くの子供たちが救われているんです！」
+			PRINTFORMW 娘はパッと笑顔になり、%ANAME(MASTER)%の手を強く握って感謝の気持ちを伝えてきた
+			PRINTFORMW 「ですので、たまには…」
+			PRINTFORML 少女の笑みは娼婦のそれと変わり、握っていた手をそっと己のスカートの中へと導く
+			PRINTFORMW 「たまには、普段のままの私をご賞味しませんか？」
+			PRINTFORMW あるべきはずの下着の感触はそこにはなく、淫らな水音を立てるぬかるみがあった…
+		ENDIF
 		PRINTFORML 
 		CALL COLORPRINTFORM(@"{募金額}", COLOR("注意"))
 		PRINTFORMW の金を募金した
