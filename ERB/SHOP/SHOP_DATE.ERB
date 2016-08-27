@@ -8,11 +8,13 @@
 #DIM 全消費, 1
 #DIM 内容, 1
 #DIM 能力, 1
-
+#DIM イベント発生, 1
 ;対象者とデートする
 ;お金消費,1回10000
 ;好感度+ 200+RAND:100
 ;行先は湖、森、人里etc
+
+イベント発生 = 0
 
 DRAWLINE
 PRINTFORML 行動回数とお金を消費し、%ANAME(対象)%とデートします。
@@ -148,6 +150,12 @@ SIF CFLAG:対象:面識 == 0
 PRINTFORML %ANAME(対象)%の好感度が{結果}上昇した
 PRINTFORML 金10000を消費した
 
+IF !イベント発生
+	CALL KOJO_DATE_EVENT(対象, 内容)
+	SIF RESULT
+		イベント発生 = 1
+ENDIF
+
 PRINTFORMW 
 IF SHOP_TIME < CALC_SHOP_TIME()
 	CALL COOK_HEAL(対象)
@@ -156,35 +164,39 @@ IF SHOP_TIME < CALC_SHOP_TIME()
 	RESTART
 ENDIF
 
-;デート後、一定条件でキスされる
-IF CFLAG:対象:好感度 >= 1000 && RAND:3 == 0
-	PRINTFORML 
-	PRINTFORML デートの帰り道、突然%ANAME(対象)%にキスをされた
-	PRINTFORMW 驚く%ANAME(MASTER)%を尻目に、%PRONOUN(対象)%は悪戯っぽく笑うと足早に先へ行ってしまった
-	CALL KISS_COMMON(対象, @"%ANAME(MASTER)%の唇", 喪失_和姦, 1)
-	LOCAL:6 = 1
+;デートイベントが発生していなければ、キスと告白を受けるかもしれない
+IF !イベント発生
+	;デート後、一定条件でキスされる
+	IF CFLAG:対象:好感度 >= 1000 && RAND:3 == 0
+		PRINTFORML 
+		PRINTFORML デートの帰り道、突然%ANAME(対象)%にキスをされた
+		PRINTFORMW 驚く%ANAME(MASTER)%を尻目に、%PRONOUN(対象)%は悪戯っぽく笑うと足早に先へ行ってしまった
+		CALL KISS_COMMON(対象, @"%ANAME(MASTER)%の唇", 喪失_和姦, 1)
+		LOCAL:6 = 1
+	ENDIF
+
+	;デート後、一定条件で告白される
+	IF CFLAG:対象:好感度 >= 1500 && TALENT:対象:服従 != 1 && !IS_LOVER(対象) && LOCAL:6 != 1 && RAND:2 == 0
+		PRINTFORML 
+		PRINTFORML デートの帰り道、突然%ANAME(対象)%に告白された
+		PRINTFORML %PRONOUN(対象)%は微かに瞳を潤ませながら真っ直ぐに%ANAME(MASTER)%を見つめてくる
+		PRINTFORML どうしよう？
+		CALL ASK_MULTI(@"受ける" ,"断る")
+			IF RESULT == 1
+				PRINTFORML 申し訳ないが断った
+				PRINTFORMW %PRONOUN(対象)%は一瞬寂しそうな顔を見せたが、何事もなかったかのように笑うと足早に先に行ってしまった
+			ELSE
+				PRINTFORML %ANAME(MASTER)%は%ANAME(対象)%の手を取ると、真っ直ぐに見つめ返して返事をした
+				PRINTFORML すると%PRONOUN(対象)%はパァッと笑顔になり、勢いよく%ANAME(MASTER)%に抱きついてキスをしてきた
+				PRINTFORMW しばし甘い口づけを交わした後に唇を離すとなんだか照れ臭い雰囲気が流れ、お互いに頬を緩ませながら手を握って一緒に帰った
+				CALL KISS_COMMON(対象, @"%ANAME(MASTER)%の唇", 喪失_和姦, 1)
+				CALL GET_LOVERS(対象)
+				TALENT:対象:合意 = 1
+				PRINTFORMW %ANAME(対象)%の[合意]を得ました
+			ENDIF
+	ENDIF
 ENDIF
 
-;デート後、一定条件で告白される
-IF CFLAG:対象:好感度 >= 1500 && TALENT:対象:服従 != 1 && !IS_LOVER(対象) && LOCAL:6 != 1 && RAND:2 == 0
-	PRINTFORML 
-	PRINTFORML デートの帰り道、突然%ANAME(対象)%に告白された
-	PRINTFORML %PRONOUN(対象)%は微かに瞳を潤ませながら真っ直ぐに%ANAME(MASTER)%を見つめてくる
-	PRINTFORML どうしよう？
-	CALL ASK_MULTI(@"受ける" ,"断る")
-		IF RESULT == 1
-			PRINTFORML 申し訳ないが断った
-			PRINTFORMW %PRONOUN(対象)%は一瞬寂しそうな顔を見せたが、何事もなかったかのように笑うと足早に先に行ってしまった
-		ELSE
-			PRINTFORML %ANAME(MASTER)%は%ANAME(対象)%の手を取ると、真っ直ぐに見つめ返して返事をした
-			PRINTFORML すると%PRONOUN(対象)%はパァッと笑顔になり、勢いよく%ANAME(MASTER)%に抱きついてキスをしてきた
-			PRINTFORMW しばし甘い口づけを交わした後に唇を離すとなんだか照れ臭い雰囲気が流れ、お互いに頬を緩ませながら手を握って一緒に帰った
-			CALL KISS_COMMON(対象, @"%ANAME(MASTER)%の唇", 喪失_和姦, 1)
-			CALL GET_LOVERS(対象)
-			TALENT:対象:合意 = 1
-			PRINTFORMW %ANAME(対象)%の[合意]を得ました
-		ENDIF
-ENDIF
 RESULT = 1
 
 BEGIN TURNEND
