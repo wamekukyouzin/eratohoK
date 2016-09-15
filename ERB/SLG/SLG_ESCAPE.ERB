@@ -107,31 +107,45 @@ IF LOCAL:7 == 0
 
 	FOR LOCAL:0, 0, CHARANUM
 		IF CFLAG:(LOCAL:0):所属 == ARG:0
+			;MASTER所属の国が吸収する
 			IF ARG:1 == LOCAL:2
 				IF !LOCAL:1
 					LOCAL:1 = 1
 					PRINTFORMW 君主が登用に応じたため、%NAME:(LOCAL:5)%に仕えていた士官は全員我が国に編入されます
 				ENDIF
-				IF CFLAG:(LOCAL:0):捕虜先 == CFLAG:MASTER:所属
+				;捕虜状態でない
+				IF !CFLAG:(LOCAL:0):捕虜先
+					PRINTFORML %NAME:(LOCAL:0)%が我が国の士官として加わりました
+					CALL CHANGE_COUNTRY(LOCAL:0, ARG:1, 1)
+				;すでに捕虜にしてた(ここで登用に応じるかチェックしても面白い？)
+				ELSEIF CFLAG:(LOCAL:0):捕虜先 == CFLAG:MASTER:所属
 					PRINTL 
-					PRINTFORML %NAME:(LOCAL:0)%は現在投獄されています
-					PRINTFORML 牢屋から出して我が国の士官に復帰させますか？
+					PRINTFORML %NAME:(LOCAL:0)%は現在我が国が投獄しています
+					PRINTFORML 牢から出して士官として登用しますか？
 					CALL ASK_YN("はい", "いいえ(現在の所属が無所属になります)")
 					IF RESULT == 0
 						PRINTFORML %NAME:(LOCAL:0)%が我が国の士官として復帰しました
 						CALL CHANGE_COUNTRY(LOCAL:0, ARG:1, 1)
 					ELSE
 						PRINTFORML %NAME:(LOCAL:0)%は無所属の捕虜としてこのまま牢屋に閉じ込めておきます
-						CALL CHANGE_COUNTRY(LOCAL:0, 0, 1)
+						CALL CHANGE_COUNTRY(LOCAL:0, 0)
 						CALL CAPTURE(LOCAL:0, CFLAG:MASTER:所属)
 					ENDIF
 					PRINTL 
+				;他国が捕虜にしてる(通常AI国はすでに滅亡国の捕虜を取り込みしてるはず？なので特殊勢力に囚われてる可能性？)
 				ELSE
-					PRINTFORML %NAME:(LOCAL:0)%が我が国の士官として加わりました
-					CALL CHANGE_COUNTRY(LOCAL:0, ARG:1, 1)
+					PRINTFORML %NAME:(LOCAL:0)%が我が国所属となりましたが、他国で捕虜となったままです
+					CALL CHANGE_COUNTRY(LOCAL:0, ARG:1)
 				ENDIF
+			;AI国が吸収する
 			ELSE
-				CALL CHANGE_COUNTRY(LOCAL:0, ARG:1, 1)
+				;捕虜状態でないor吸収する国がすでに捕虜にしてた
+				IF !CFLAG:(LOCAL:0):捕虜先 || CFLAG:(LOCAL:0):捕虜先 == ARG:1
+					CALL CHANGE_COUNTRY(LOCAL:0, ARG:1, 1)
+				;他国が捕虜にしてる(ここで捕虜解除してしまうと、第三勢力が持ってる捕虜ごと奪われてしまう)
+				ELSE
+					CALL CHANGE_COUNTRY(LOCAL:0, ARG:1)
+				ENDIF
 			ENDIF
 		ENDIF
 	NEXT
