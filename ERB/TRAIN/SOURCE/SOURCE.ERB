@@ -60,21 +60,17 @@ FOR LOCAL:0, 0, CHARANUM
 NEXT
 
 ;●主人のソース処理
-CALL SOURCE_CHECK_MASTER
+;CALL SOURCE_CHECK_MASTER
 
 ;●ターゲットのソース処理
 ;快楽系ソースと絶頂の処理
 FOR LOCAL:0, 0, MTAR_NUM
-	IF MTAR:(LOCAL:0) != MASTER
 		CALL SOURCE_CHECK_1(MTAR:(LOCAL:0))
-	ENDIF
 NEXT
 
 ;快楽系以外のソースの処理
 FOR LOCAL:0, 0, MTAR_NUM
-	IF MTAR:(LOCAL:0) != MASTER
 		CALL SOURCE_CHECK_2(MTAR:(LOCAL:0))
-	ENDIF
 NEXT
 
 ;●ターゲット以外のソース処理
@@ -498,16 +494,16 @@ FOR LOCAL:0, 0, 10
 NEXT
 
 ;●状況に応じたパラメータ上昇の補正
-FOR LOCAL:0, 0, 5
-	;異常経験による効果増加(異常経験1000で約1.5倍、10000で約6倍)
-	IF EXP:(ARG:0):50 >= 1000000
-		CUP:(ARG:0):(LOCAL:0) = CUP:(ARG:0):(LOCAL:0) * (12 + (EXP:(ARG:0):50 / 1000000 * 5 + 95) / 100)
-	ELSEIF EXP:(ARG:0):50 >= 10000
-		CUP:(ARG:0):(LOCAL:0) = CUP:(ARG:0):(LOCAL:0) * (6 + (EXP:(ARG:0):50 / 10000 * 5 + 95) / 100)
-	ELSEIF EXP:(ARG:0):50 >= 100
-		CUP:(ARG:0):(LOCAL:0) = CUP:(ARG:0):(LOCAL:0) * (EXP:(ARG:0):50 / 100 * 5 + 95) / 100
-	ENDIF
-NEXT
+;FOR LOCAL:0, 0, 5
+;	;異常経験による効果増加(異常経験1000で約1.5倍、10000で約6倍)
+;	IF EXP:(ARG:0):50 >= 1000000
+;		CUP:(ARG:0):(LOCAL:0) = CUP:(ARG:0):(LOCAL:0) * (12 + (EXP:(ARG:0):50 / 1000000 * 5 + 95) / 100)
+;	ELSEIF EXP:(ARG:0):50 >= 10000
+;		CUP:(ARG:0):(LOCAL:0) = CUP:(ARG:0):(LOCAL:0) * (6 + (EXP:(ARG:0):50 / 10000 * 5 + 95) / 100)
+;	ELSEIF EXP:(ARG:0):50 >= 100
+;		CUP:(ARG:0):(LOCAL:0) = CUP:(ARG:0):(LOCAL:0) * (EXP:(ARG:0):50 / 100 * 5 + 95) / 100
+;	ENDIF
+;NEXT
 
 ;●素質などによるパラメータ上昇の補正(快感系)
 CALL UP_TALENT_CHECK1(ARG:0)
@@ -558,8 +554,8 @@ SIF TCVAR:(ARG:0):麻薬
 ;ARG:0番のキャラについて、快楽系以外のソースの処理を行う
 ;-------------------------------------------------
 @SOURCE_CHECK_2(ARG:0)
-;気絶・睡眠中なら感情に関わるソースを全てゼロにする
-IF TCVAR:(ARG:0):52 || TCVAR:(ARG:0):53 == 1
+;気絶・睡眠中・主人公は感情に関わるソースを全てゼロにする
+IF TCVAR:(ARG:0):52 || TCVAR:(ARG:0):53 == 1 || ARG:0 == MASTER
 	FOR LOCAL:0, 10, 40
 		IF TALENTNAME:(LOCAL:0) != "苦痛"
 			SOURCE:(ARG:0):(LOCAL:0) = 0
@@ -681,32 +677,17 @@ ENDIF
 @SHOW_SOURCE(ARG:0)
 LOCAL:2 = 0
 
-;主人公の場合、無意味なソースを表示しない
-IF ARG:0 == MASTER
-	FOR LOCAL:0, 0, 100
-		;SOURCEの並び設定を取得
-		LOCAL:1 = GET_SORTED_SOURCE(LOCAL:0)
-		IF LOCAL:1 >= 0 && SOURCE:(ARG:0):(LOCAL:1) > 0 && GROUPMATCH(LOCAL:1, 0, 1, 2, 3, 4, 9, 40, 50)
-			IF !LOCAL:2
-				LOCAL:2 = 1
-				PRINTFORM %ANAME(ARG:0), 8%:
-			ENDIF
-			PRINTFORM %SOURCENAME:(LOCAL:1)%({SOURCE:(ARG:0):(LOCAL:1)})
+FOR LOCAL:0, 0, 100
+	;SOURCEの並び設定を取得
+	LOCAL:1 = GET_SORTED_SOURCE(LOCAL:0)
+	IF LOCAL:1 >= 0 && SOURCE:(ARG:0):(LOCAL:1) > 0
+		IF !LOCAL:2
+			LOCAL:2 = 1
+			PRINTFORM %ANAME(ARG:0), 8%:
 		ENDIF
-	NEXT
-ELSE
-	FOR LOCAL:0, 0, 100
-		;SOURCEの並び設定を取得
-		LOCAL:1 = GET_SORTED_SOURCE(LOCAL:0)
-		IF LOCAL:1 >= 0 && SOURCE:(ARG:0):(LOCAL:1) > 0
-			IF !LOCAL:2
-				LOCAL:2 = 1
-				PRINTFORM %ANAME(ARG:0), 8%:
-			ENDIF
-			PRINTFORM %SOURCENAME:(LOCAL:1)%({SOURCE:(ARG:0):(LOCAL:1)})
-		ENDIF
-	NEXT
-ENDIF
+		PRINTFORM %SOURCENAME:(LOCAL:1)%({SOURCE:(ARG:0):(LOCAL:1)})
+	ENDIF
+NEXT
 IF LOCAL:2
 	PRINTL 
 ENDIF
