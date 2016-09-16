@@ -455,55 +455,37 @@ ENDIF
 ;-------------------------------------------------
 @BATTLE_CALC_CORE(ARG:0, ARG:1, ARG:2, ARG:3)
 #DIM SCHEME_BASE, 2
+#DIM 兵数比,2
 VARSET SCHEME_BASE, ABL_POWER(30)
 ;★
 ;PRINTFORML 攻撃0={BATTLE_ATC:0, 8}   防御0={BATTLE_DEF:0, 8}
 ;PRINTFORMW 攻撃1={BATTLE_ATC:1, 8}   防御1={BATTLE_DEF:1, 8}
 
 ;戦力比計算
-;兵数の多い側に兵力比の平方根×10/30/100％のボーナス
-;とりあえず攻撃力と防御力のみ。知力や妖術が兵力で伸びてもどうかと思いますし
-;兵力が同じなら？両軍にボーナスね
-;LOCAL 30:攻撃側の兵数比 31:防御側の兵数比 32:補正倍率
+;兵数の多い方の戦力が、(兵数比の平方根)倍になる 
+;100をかけるのはEMUERAが少数を扱えないため。100をかけて少数第二位まで一時的に整数にし、消えないようにする
+兵数比:0 = BATTLE_SOL:0 * 100 / MAX(BATTLE_SOL:1, 1)
+兵数比:1 = BATTLE_SOL:1 * 100 / MAX(BATTLE_SOL:0, 1)
 
+IF 兵数比:0 > 兵数比:1
+	;SQRTの中で100倍している(上記計算)ので、SQRTの結果は兵力比の平方根の10倍。それをBATTLE変数にかけているので、10で割って正しい値を出す
+	BATTLE_ATC:0 = BATTLE_ATC:0 * SQRT(兵数比:0) / 10
+	BATTLE_DEF:0 = BATTLE_DEF:0 * SQRT(兵数比:0) / 10
+ELSE
+	BATTLE_ATC:1 = BATTLE_ATC:1 * SQRT(兵数比:1) / 10
+	BATTLE_DEF:1 = BATTLE_DEF:1 * SQRT(兵数比:1) / 10
+ENDIF
 
-LOCAL:30 = BATTLE_SOL:0 / MAX(BATTLE_SOL:1, 1)
-LOCAL:31 = BATTLE_SOL:1 / MAX(BATTLE_SOL:0, 1)
-
-;倍率設定
-SELECTCASE CONFIG:312
-CASE 1
-	LOCAL:32 = 1
-CASE 2
-	LOCAL:32 = 3
-CASE 3
-	LOCAL:32 = 10
-CASEELSE
-	LOCAL:32 = 0
-
-ENDSELECT
-
-;補正計算。MAXはセイフティネット（元の値を割りこまないように）です
-	BATTLE_ATC:0 = BATTLE_ATC:0 * MAX(10 + SQRT(LOCAL:30) * LOCAL:32 , 10) / 10
-	BATTLE_DEF:0 = BATTLE_DEF:0 * MAX(10 + SQRT(LOCAL:30) * LOCAL:32 , 10) / 10
-;	BATTLE_INT:0 = BATTLE_INT:0 * MAX(10 + SQRT(LOCAL:30) * LOCAL:32 , 10) / 10
-;	BATTLE_MAG:0 = BATTLE_MAG:0 * MAX(10 + SQRT(LOCAL:30) * LOCAL:32 , 10) / 10
-
-	BATTLE_ATC:1 = BATTLE_ATC:1 * MAX(10 + SQRT(LOCAL:31) * LOCAL:32 , 10) / 10
-	BATTLE_DEF:1 = BATTLE_DEF:1 * MAX(10 + SQRT(LOCAL:31) * LOCAL:32 , 10) / 10
-;	BATTLE_INT:1 = BATTLE_INT:1 * MAX(10 + SQRT(LOCAL:31) * LOCAL:32 , 10) / 10
-;	BATTLE_MAG:1 = BATTLE_MAG:1 * MAX(10 + SQRT(LOCAL:31) * LOCAL:32 , 10) / 10
-
-	;オーバフローして符号が反転する問題対策
-	;しかたないので負数なら整数の最大値ブチ込みます
-	SIF BATTLE_ATC:0 < 0
-		BATTLE_ATC:0 = __INT_MAX__
-	SIF BATTLE_DEF:0 < 0
-		BATTLE_DEF:0 = __INT_MAX__
-	SIF BATTLE_ATC:1 < 0
-		BATTLE_ATC:1 = 0
-	SIF BATTLE_DEF:1 < 0
-		BATTLE_DEF:1 = 0
+;オーバフローして符号が反転する問題対策
+;しかたないので負数なら整数の最大値ブチ込みます
+SIF BATTLE_ATC:0 < 0
+	BATTLE_ATC:0 = __INT_MAX__
+SIF BATTLE_DEF:0 < 0
+	BATTLE_DEF:0 = __INT_MAX__
+SIF BATTLE_ATC:1 < 0
+	BATTLE_ATC:1 = 0
+SIF BATTLE_DEF:1 < 0
+	BATTLE_DEF:1 = 0
 
 ;敵軍補正
 ;主人公の所属する勢力が敵対勢力と戦う際、敵側に補正をかける。
