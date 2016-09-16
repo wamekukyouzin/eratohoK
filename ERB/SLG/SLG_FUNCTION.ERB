@@ -1529,46 +1529,10 @@ GOTO INPUT_LOOP
 ;-------------------------------------------------
 ;能力値がARG:0のときの実際の影響力を返す関数
 ;ただし、好感度による補正は考慮しない(考慮する場合は@ABL_POWER_X)
-;計算値は (2 ^ (0.1 * ARG:0)) * 100
 ;-------------------------------------------------
 @ABL_POWER(ARG:0)
 #FUNCTION
-;●150以下は (2 ^ (0.1 * ARG:0)) * 100 で計算
-LOCAL:3 = LIMIT(ARG:0, 0, 150)
-LOCAL:1 = 100
-FOR LOCAL:0, 0, LOCAL:3 / 10
-	LOCAL:1 *= 2
-NEXT
-
-LOCAL:2 = 1000
-;事前に計算した2の0.1～0.9乗を1000倍したリスト
-SELECTCASE LOCAL:3 % 10
-	CASE 1
-		LOCAL:2 = 1072
-	CASE 2
-		LOCAL:2 = 1149
-	CASE 3
-		LOCAL:2 = 1231
-	CASE 4
-		LOCAL:2 = 1320
-	CASE 5
-		LOCAL:2 = 1414
-	CASE 6
-		LOCAL:2 = 1516
-	CASE 7
-		LOCAL:2 = 1625
-	CASE 8
-		LOCAL:2 = 1741
-	CASE 9
-		LOCAL:2 = 1866
-ENDSELECT
-LOCAL:1 = LOCAL:1 * LOCAL:2 / 1000
-
-;●150を超えた分は ×(ARG:0 - 110) / 40 で計算
-SIF ARG:0 > 150
-	LOCAL:1 = LOCAL:1 * (MIN(ARG:0, 300) - 110) / 40
-
-RETURNF LOCAL:1
+RETURNF MAX(SQRT(1000 * ARG:0) * 100, 1)
 
 ;-------------------------------------------------
 ;能力値がARG:0のときの実際の影響力を返す関数  ARG:1は対象のキャラ番号
@@ -2164,7 +2128,7 @@ RETURNF 0
 ;-------------------------------------------------
 @TOSTR_UNIT_POWER(ARG:0)
 #FUNCTIONS
-IF ARG:0 <= ABL_50_POWER
+IF ARG:0 <= ABL_POWER(50)
 	RETURNF "最低"
 ELSEIF ARG:0 < 6400
 	RETURNF "烏合の衆"
