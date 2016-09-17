@@ -465,22 +465,7 @@ CALL BATTLE_SOLDIER_RATE_CORRECTION(ARG:0, ARG:1, ARG:2, ARG:3)
 CALL BATTLE_DIFFICULTY_CORRECTION(ARG:0, ARG:1, ARG:2, ARG:3)
 CALL BATTLE_TIREDNESS_CORRECTION(ARG:0, ARG:1, ARG:2, ARG:3)
 
-
-IF RAND:(MAX(BATTLE_INT:0 + BATTLE_INT:1, 1)) >= (SCHEME_BASE:0 + SCHEME_BASE:1) || BATTLE_FORCE_SCHEME != -1
-	;BATTLE_FORCE_SCHEMEによる強制策略
-	IF BATTLE_FORCE_SCHEME == 0
-		CALL TRY_SCHEME(0, 1, ARG:0, ARG:1, ARG:2, ARG:3)
-	ELSEIF BATTLE_FORCE_SCHEME == 1
-		CALL TRY_SCHEME(1, 0, ARG:2, ARG:3, ARG:0, ARG:1)
-	ELSEIF RAND:(MAX(BATTLE_INT:0 + BATTLE_INT:1 - (SCHEME_BASE:0 + SCHEME_BASE:1), 1)) < BATTLE_INT:0 - SCHEME_BASE:0
-		;計略の発動
-		CALL TRY_SCHEME(0, 1, ARG:0, ARG:1, ARG:2, ARG:3)
-	;ARG:2勢力部隊の計略発動
-	ELSE
-		;計略の発動
-		CALL TRY_SCHEME(1, 0, ARG:2, ARG:3, ARG:0, ARG:1)
-	ENDIF
-ENDIF
+CALL BATTLE_SCHEME(ARG:0, ARG:1, ARG:2, ARG:3)
 
 ;■ダメージの計算
 BATTLE_RATE_DMG:0 *= 10
@@ -670,6 +655,28 @@ ELSEIF CITY_IS_ATTACKED:(ARG:2)
 	NEXT
 ENDIF
 
+;-------------------------------------------------
+;計略が発動するかを判定する
+;-------------------------------------------------
+@BATTLE_SCHEME(ARG:0, ARG:1, ARG:2, ARG:3)
+#DIM SCHEME_BASE
+#DIM 発動者
+SCHEME_BASE = ABL_POWER(50)
+;BATTLE_FORCE_SCHEMEによる強制策略
+IF BATTLE_FORCE_SCHEME == 0
+	CALL TRY_SCHEME(0, 1, ARG:0, ARG:1, ARG:2, ARG:3)
+	RETURN
+ELSEIF BATTLE_FORCE_SCHEME == 1
+	CALL TRY_SCHEME(1, 0, ARG:2, ARG:3, ARG:0, ARG:1)
+	RETURN
+ENDIF
+
+;両軍の差が大きいほど発生しやすくなる
+IF MAX(BATTLE_INT:0, BATTLE_INT:1) - MIN(BATTLE_INT:0, BATTLE_INT:1) >= RAND:SCHEME_BASE
+	発動者 = FINDELEMENT(BATTLE_INT, MAX(BATTLE_INT:0, BATTLE_INT:1))
+	;計略の発動
+	CALL TRY_SCHEME(発動者, !発動者, ARG:0, ARG:1, ARG:2, ARG:3)
+ENDIF
 
 ;-------------------------------------------------
 ;疲労度の算出処理
@@ -698,6 +705,7 @@ IF ARG:3 > 0
 ELSE
 	CITY_IS_ATTACKED:(ARG:2) += LOCAL:37
 ENDIF
+
 
 ;-------------------------------------------------
 ;優先して発動する特殊計略の処理
@@ -912,13 +920,7 @@ FOR LOCAL:0, 0, BATTLE_COMMANDER_NUM:発動側
 		BATTLE_INT:発動側 = MAX(BATTLE_INT:発動側, BATTLE_INT:対象側 * 13 / 10)
 		BATTLE_FORCE_SCHEME = 発動側
 	ENDIF
-	;明察。反計の確定(たぶん)発動。
-	;具体的には自軍のBATTLE_INTを敵軍の4倍にしつつ（反計の発動を確実にしつつ）、相手側にFORCE_SCHEMEを入れる
-	IF GETBIT(発動キャラ素質, 素質_ＳＬＧ_明察) && 7 > RAND:100
-		PRINTFORML %ANAME(発動キャラ)%は敵部隊の計略を見透かした！
-		BATTLE_INT:発動側 = BATTLE_INT:対象側 * 4
-		BATTLE_FORCE_SCHEME = 対象側
-	ENDIF
+
 	;ステゴロ。両軍割合ダメージ。一応自軍に有利。
 	IF GETBIT(発動キャラ素質, 素質_ＳＬＧ_ステゴロ) && 30 > RAND:100
 		PRINTFORML %ANAME(発動キャラ)%は大暴れしている！
@@ -1023,6 +1025,7 @@ FOR LOCAL:0, 0, 3
 NEXT
 
 RESETCOLOR
+
 ;-------------------------------------------------
 ;計略の発動
 ;引数0～1には計算用変数の配列番号(0 or 1)を取る ARG:0=計略発動側 ARG:1=対象側
@@ -1035,118 +1038,60 @@ RESETCOLOR
 #DIM 発動部隊
 #DIM 対象勢力
 #DIM 対象部隊
+#DIM 明察キャラ
+
 SETCOLOR COLOR("シアン")
 PRINTFORML %BATTLE_NAME:(発動側)%軍の計略発動！
 
-;対象勢力勢力部隊の《反計》判定
-;・対象側知略パワーが発動側知略パワーの半分を超えている
-;・「対象側知略パワー＋対象側知略パワー以下の乱数」が「発動側知略パワーの2倍＋発動側の知略パワーの2倍以下の乱数」以上であること
-;の2つの条件を満たせば対象側が「反計」計略を発動した扱いになる
-;つまり、対象側知略パワーが発動側知略パワーの4倍以上であれば確定で反計が成立する
-IF RAND:(BATTLE_INT:(対象側)) + BATTLE_INT:(対象側) >= RAND:(BATTLE_INT:(発動側) * 2) + BATTLE_INT:(発動側) * 2
-	SETCOLOR COLOR("警告")
-	PRINT 《反計》
-	RESETCOLOR
+
+;発動勢力勢力部隊の《貫計》判定(武力)
+IF RAND:(BATTLE_ATC:(対象側)) + BATTLE_ATC:(対象側) >= RAND:(BATTLE_INT:(発動側) * 3) + BATTLE_INT:(発動側)
+	SETCOLOR COLOR("黄緑")
+	PRINTFORM 《貫計》
 	PRINTDATAL
-		DATAFORM %BATTLE_NAME:(対象側)%軍は計略を先読みし%BATTLE_NAME:(発動側)%軍に大きな被害を与えた
-		DATAFORM %BATTLE_NAME:(対象側)%軍は相手の動きを読みきり%BATTLE_NAME:(発動側)%軍の計略の隙を突いた
-		DATAFORM %BATTLE_NAME:(対象側)%軍は%BATTLE_NAME:(発動側)%軍の稚拙な計略を逆に利用して被害を与えた
-		DATAFORM %BATTLE_NAME:(対象側)%は%BATTLE_NAME:(発動側)%軍に送った諜報の情報をもとに、伏兵を使い被害を与えた
-		DATAFORM %BATTLE_NAME:(発動側)%軍の策は、%BATTLE_NAME:(発動側)%軍自身に牙をむいた
-		DATAFORM %BATTLE_NAME:(発動側)%は策を逆に利用され、手ひどい打撃を受けた
-		DATAFORM %BATTLE_NAME:(発動側)%の策は%BATTLE_NAME:(対象側)%軍に読み切られていた
+		DATAFORM %BATTLE_NAME:(対象側)%軍は力で%BATTLE_NAME:(発動側)%軍の計略をねじ伏せ無効化した
+		DATAFORM %BATTLE_NAME:(対象側)%軍は%BATTLE_NAME:(発動側)%軍の計略を圧倒的な力で無効化した
+		DATAFORM %BATTLE_NAME:(発動側)%軍の計略は%BATTLE_NAME:(対象側)%軍がもつ力の前では無意味だった
 	ENDDATA
-	;反計実行者の決定及び口上
-	IF GROUPMATCH(CFLAG:MASTER:所属, 発動勢力, 対象勢力)
-		CALL WHOES_SCHEME(対象側, 対象勢力, 対象部隊, 51)
+	BATTLE_RATE_DMG:対象側 += 5
+	BATTLE_RATE_ATC:対象側 += 30
+	BATTLE_RATE_GRD:対象側 += 30
+	IF 発動勢力 == CFLAG:MASTER:所属 || 対象勢力 == CFLAG:MASTER:所属
+		CALL WHOES_SCHEME(対象側, 対象勢力, 対象部隊, GETNUM(ABL, "武闘"))
 		IF RESULT >= 0
 			RESETCOLOR
 			;口上の表示
-			CALL KOJO_EVENT(RESULT, 311)
-		ENDIF
-	ELSEIF GROUPMATCH(CFLAG:MASTER:所属, 対象側, 発動部隊)
-		CALL WHOES_SCHEME(対象側, 対象勢力, 対象部隊, 51)
-		IF RESULT >= 0
-			RESETCOLOR
-			;口上の表示
-			CALL KOJO_EVENT(RESULT, 314)
+			CALL KOJO_EVENT(RESULT, 312)
 		ENDIF
 	ENDIF
-
-	BATTLE_RATE_DMG:(対象側) += 8
-	BATTLE_RATE_ATC:(対象側) += 50
-	BATTLE_RATE_GRD:(対象側) += 50
 ELSE
-	;発動勢力勢力部隊の《貫計》判定(愛情)
-	LOCAL:5 = 1
-	IF 対象勢力 == CFLAG:MASTER:所属
-		FOR LOCAL:0, 0, 3
-			IF BATTLE_F_UNIT:(対象側)
-				LOCAL:2 = GET_UNIT_COMMANDER(対象勢力, 対象部隊, LOCAL:0)
-			ELSE
-				IF LOCAL:0 >= 2
-					BREAK
-				ELSE
-					LOCAL:2 = GET_CITY_COMMANDER(対象勢力, LOCAL:0)
-				ENDIF
-			ENDIF
-
-			IF LOCAL:2 >= 0
-				LOCAL:3 = MAX(ABL_POWER_X(30, LOCAL:2) - ABL_POWER(30), 1)
-				IF RAND:(LOCAL:3 * 2) + LOCAL:3 >= RAND:(BATTLE_INT:(発動側) * 3) + BATTLE_INT:(発動側)
-					SETCOLOR COLOR("黄緑")
-					PRINTFORM 《貫計》
-					PRINTDATAL
-						DATAFORM %BATTLE_NAME:(対象側)%軍の%NAME:(LOCAL:2)%は圧倒的な勢いで%BATTLE_NAME:(発動側)%軍の計略をねじ伏せ無効化した
-						DATAFORM %BATTLE_NAME:(対象側)%軍は%NAME:(LOCAL:2)%の執念で%BATTLE_NAME:(発動側)%軍の計略を潰した
-					ENDDATA
-					RESETCOLOR
-					LOCAL:5 = 0
-
-					RESETCOLOR
-					;口上の表示
-					CALL KOJO_EVENT(LOCAL:2, 313)
-					BREAK
-				ENDIF
-			ENDIF
-		NEXT
-	ENDIF
-
-	IF LOCAL:5
-		;発動勢力勢力部隊の《貫計》判定(武力)
-		IF RAND:(BATTLE_ATC:(対象側)) + BATTLE_ATC:(対象側) >= RAND:(BATTLE_INT:(発動側) * 3) + BATTLE_INT:(発動側)
+	;明察の発動判定
+	FOR LOCAL, 0, BATTLE_COMMANDER_NUM:対象側
+		明察キャラ = BATTLE_COMMANDER:対象側:LOCAL
+		SIF 明察キャラ < 0 || BATTLE_SKILL_SEALED:対象側:(LOCAL:0) || BATTLE_SUMMONED_CHARA:(発動側):(LOCAL:0)
+			CONTINUE
+		IF GETBIT(BATTLE_素質:対象側:LOCAL, 素質_ＳＬＧ_明察) && 25 > RAND:100
 			SETCOLOR COLOR("黄緑")
 			PRINTFORM 《貫計》
-			PRINTDATAL
-				DATAFORM %BATTLE_NAME:(対象側)%軍は力で%BATTLE_NAME:(発動側)%軍の計略をねじ伏せ無効化した
-				DATAFORM %BATTLE_NAME:(対象側)%軍は%BATTLE_NAME:(発動側)%軍の計略を圧倒的な力で無効化した
-				DATAFORM %BATTLE_NAME:(発動側)%軍の計略は%BATTLE_NAME:(対象側)%軍がもつ力の前では無意味だった
-			ENDDATA
-			IF 発動勢力 == CFLAG:MASTER:所属 || 対象勢力 == CFLAG:MASTER:所属
-				CALL WHOES_SCHEME(対象側, 対象勢力, 対象部隊, 50)
-				IF RESULT >= 0
-					RESETCOLOR
-					;口上の表示
-					CALL KOJO_EVENT(RESULT, 312)
-				ENDIF
-			ENDIF
-
-		;計略がそのまま通った場合
-		ELSE
-			;計略の選択
-			CALL SELECT_SCHEME(発動側, 対象側)
-
-			IF 発動勢力 == CFLAG:MASTER:所属 || 対象勢力 == CFLAG:MASTER:所属
-				CALL WHOES_SCHEME(発動側, 発動勢力, 発動部隊, 51)
-				IF RESULT >= 0
-					RESETCOLOR
-					;口上の表示
-					CALL KOJO_EVENT(RESULT, 310)
-				ENDIF
-			ENDIF
+			PRINTFORML %ANAME(明察キャラ)%は敵部隊の計略を見透かした
+			BATTLE_RATE_DMG:対象側 += 20
+			BATTLE_RATE_ATC:対象側 += 50
+			BATTLE_RATE_GRD:対象側 += 50
+			RETURN
+		ENDIF
+	NEXT
+	;通ったら計略の選択
+	CALL SELECT_SCHEME(発動側, 対象側)
+	IF 発動勢力 == CFLAG:MASTER:所属 || 対象勢力 == CFLAG:MASTER:所属
+		CALL WHOES_SCHEME(発動側, 発動勢力, 発動部隊, GETNUM(ABL, "知略"))
+		IF RESULT >= 0
+			RESETCOLOR
+			;口上の表示
+			CALL KOJO_EVENT(RESULT, 310)
 		ENDIF
 	ENDIF
 ENDIF
+
 RESETCOLOR
 
 ;-------------------------------------------------
@@ -1202,131 +1147,64 @@ RETURN -1
 ;引数には計算用変数の配列番号(0 or 1)を取る ARG:0=計略発動側 ARG:1=対象側
 ;-------------------------------------------------
 @SELECT_SCHEME(ARG:0, ARG:1)
-VARSET LOCAL, 0
+#DIM TINT
+TINT = BATTLE_INT:(ARG:0) - BATTLE_INT:(ARG:1)
 
-;■知略パワーに応じて選択可能な計略を増やす
-;同士討ち
-SIF BATTLE_INT:(ARG:0) >= ABL_POWER(110)
-	LOCAL:10 = 1
-;兵器攻撃
-SIF BATTLE_INT:(ARG:0) >= ABL_POWER(100)
-	LOCAL:11 = 1
-;地形利用
-SIF BATTLE_INT:(ARG:0) >= ABL_POWER(90)
-	LOCAL:12 = 1
-;内通撹乱
-SIF BATTLE_INT:(ARG:0) >= ABL_POWER(85)
-	LOCAL:13 = 1
-;分断
-SIF BATTLE_INT:(ARG:0) >= ABL_POWER(75)
-	LOCAL:14 = 1
-;夜襲
-SIF BATTLE_INT:(ARG:0) >= ABL_POWER(70)
-	LOCAL:18 = 1
-;包囲殲滅
-SIF BATTLE_INT:(ARG:0) >= ABL_POWER(65)
-	LOCAL:15 = 1
-;釣り出し
-LOCAL:16 = 1
-;挑発
-LOCAL:17 = 1
-
-;計略発動側が防衛部隊
-IF !BATTLE_F_UNIT:(ARG:0)
-	LOCAL:12 = 0
-	LOCAL:14 = 0
-	LOCAL:15 = 0
-	;LOCAL:16 = 0
-	LOCAL:17 = 0
-;対象側が防衛部隊
-ELSEIF !BATTLE_F_UNIT:(ARG:1)
-	LOCAL:12 = 0
-	LOCAL:14 = 0
-	LOCAL:15 = 0
-	LOCAL:16 = 0
-	LOCAL:18 = 0
-;遭遇戦
-ELSE
-	LOCAL:17 = 0
-ENDIF
-
-LOCAL:2 = 0
-FOR LOCAL:0, 10, 30
-	IF LOCAL:(LOCAL:0)
-		LOCAL:2 ++
-	ENDIF
-NEXT
-LOCAL:3 = RAND:(LOCAL:2)
-LOCAL:4 = 0
-FOR LOCAL:0, 10, 30
-	IF LOCAL:(LOCAL:0)
-		IF LOCAL:3 == LOCAL:4
-			LOCAL:5 = LOCAL:0
-		ENDIF
-		LOCAL:4 ++
-	ENDIF
-NEXT
-
-SELECTCASE LOCAL:5
-	CASE 10
-		PRINTFORML %BATTLE_NAME:(ARG:0)%軍は周到な策謀により%BATTLE_NAME:(ARG:1)%軍を同士討ちさせることに成功した
-		BATTLE_RATE_DMG:(ARG:0) += 20
-		BATTLE_RATE_ATC:(ARG:0) += 50
-		BATTLE_RATE_GRD:(ARG:0) += 80
-	CASE 11
-		PRINTFORML %BATTLE_NAME:(ARG:0)%軍は兵器を利用して%BATTLE_NAME:(ARG:1)%軍に大攻勢を仕掛けました
-		BATTLE_RATE_DMG:(ARG:0) += 5
-		BATTLE_RATE_ATC:(ARG:0) += 120
-		BATTLE_RATE_GRD:(ARG:0) += 55
-	CASE 12
-		PRINTFORML %BATTLE_NAME:(ARG:0)%軍は%BATTLE_NAME:(ARG:1)%軍を有利な地形に誘い込んで大打撃を与えた
-		BATTLE_RATE_DMG:(ARG:0) += 12
-		BATTLE_RATE_ATC:(ARG:0) += 60
-		BATTLE_RATE_GRD:(ARG:0) += 70
-	CASE 13
-		PRINTFORML %BATTLE_NAME:(ARG:0)%軍は内通者を利用して%BATTLE_NAME:(ARG:1)%軍を撹乱した
-		BATTLE_RATE_DMG:(ARG:0) += 4
-		BATTLE_RATE_ATC:(ARG:0) += 80
-		BATTLE_RATE_GRD:(ARG:0) += 45
-	CASE 14
-		PRINTFORML %BATTLE_NAME:(ARG:0)%軍は%BATTLE_NAME:(ARG:1)%軍の部隊を分断し指揮系統を混乱させた
-		BATTLE_RATE_DMG:(ARG:0) += 2
-		BATTLE_RATE_ATC:(ARG:0) += 80
-		BATTLE_RATE_GRD:(ARG:0) += 40
-	CASE 15
-		PRINTFORML %BATTLE_NAME:(ARG:0)%軍は%BATTLE_NAME:(ARG:1)%軍の突出した部隊を包囲し各個撃破した
-		BATTLE_RATE_DMG:(ARG:0) += 0
-		BATTLE_RATE_ATC:(ARG:0) += 55
-		BATTLE_RATE_GRD:(ARG:0) += 30
-	CASE 16
-		PRINTFORML %BATTLE_NAME:(ARG:0)%軍は%BATTLE_NAME:(ARG:1)%軍の先鋒部隊を誘い出して孤立させ、優位に戦闘を進めた
-		BATTLE_RATE_DMG:(ARG:0) += 0
-		BATTLE_RATE_ATC:(ARG:0) += 40
-		BATTLE_RATE_GRD:(ARG:0) += 20
-	CASE 17
+{
+SELECTCASE IFRAND("0, 1", 1, "2", TINT >= ABL_POWER(50), "3", TINT >= ABL_POWER(70), "4", TINT >= ABL_POWER(75), "5", TINT >= ABL_POWER(85),
+ "6", TINT >= ABL_POWER(90), "7", TINT >= ABL_POWER(100), "8, 9", TINT >= ABL_POWER(110))
+}
+	CASE 0
 		PRINTFORML %BATTLE_NAME:(ARG:0)%軍は%BATTLE_NAME:(ARG:1)%軍を挑発し、城から討って出させた
 		BATTLE_RATE_DMG:(ARG:0) += 0
 		BATTLE_RATE_ATC:(ARG:0) += 60
 		BATTLE_RATE_GRD:(ARG:0) += 0
-	CASE 18
+	CASE 1
+		PRINTFORML %BATTLE_NAME:(ARG:0)%軍は%BATTLE_NAME:(ARG:1)%軍の先鋒部隊を誘い出して孤立させ、優位に戦闘を進めた
+		BATTLE_RATE_DMG:(ARG:0) += 0
+		BATTLE_RATE_ATC:(ARG:0) += 40
+		BATTLE_RATE_GRD:(ARG:0) += 20
+	CASE 2
+		PRINTFORML %BATTLE_NAME:(ARG:0)%軍は%BATTLE_NAME:(ARG:1)%軍の突出した部隊を包囲し各個撃破した
+		BATTLE_RATE_DMG:(ARG:0) += 0
+		BATTLE_RATE_ATC:(ARG:0) += 55
+		BATTLE_RATE_GRD:(ARG:0) += 30
+	CASE 3
 		PRINTFORML %BATTLE_NAME:(ARG:0)%軍は%BATTLE_NAME:(ARG:1)%軍に夜襲を掛けて戦果を上げた
 		BATTLE_RATE_DMG:(ARG:0) += 0
 		BATTLE_RATE_ATC:(ARG:0) += 70
 		BATTLE_RATE_GRD:(ARG:0) += 30
+	CASE 4
+		PRINTFORML %BATTLE_NAME:(ARG:0)%軍は%BATTLE_NAME:(ARG:1)%軍の部隊を分断し指揮系統を混乱させた
+		BATTLE_RATE_DMG:(ARG:0) += 2
+		BATTLE_RATE_ATC:(ARG:0) += 80
+		BATTLE_RATE_GRD:(ARG:0) += 40
+	CASE 5
+		PRINTFORML %BATTLE_NAME:(ARG:0)%軍は内通者を利用して%BATTLE_NAME:(ARG:1)%軍を撹乱した
+		BATTLE_RATE_DMG:(ARG:0) += 4
+		BATTLE_RATE_ATC:(ARG:0) += 80
+		BATTLE_RATE_GRD:(ARG:0) += 45
+	CASE 6
+		PRINTFORML %BATTLE_NAME:(ARG:0)%軍は%BATTLE_NAME:(ARG:1)%軍を有利な地形に誘い込んで大打撃を与えた
+		BATTLE_RATE_DMG:(ARG:0) += 12
+		BATTLE_RATE_ATC:(ARG:0) += 60
+		BATTLE_RATE_GRD:(ARG:0) += 70
+	CASE 7
+		PRINTFORML %BATTLE_NAME:(ARG:0)%軍は兵器を利用して%BATTLE_NAME:(ARG:1)%軍に大攻勢を仕掛けました
+		BATTLE_RATE_DMG:(ARG:0) += 5
+		BATTLE_RATE_ATC:(ARG:0) += 120
+		BATTLE_RATE_GRD:(ARG:0) += 55
+	CASE 8
+		PRINTFORML %BATTLE_NAME:(ARG:0)%軍は周到な策謀により%BATTLE_NAME:(ARG:1)%軍を同士討ちさせることに成功した
+		BATTLE_RATE_DMG:(ARG:0) += 20
+		BATTLE_RATE_ATC:(ARG:0) += 50
+		BATTLE_RATE_GRD:(ARG:0) += 80
+	CASE 9
+		PRINTFORML %BATTLE_NAME:(ARG:0)%軍は%BATTLE_NAME:(ARG:1)%軍の稚拙な策を逆に利用した
+		BATTLE_RATE_DMG:(ARG:0) += 20
+		BATTLE_RATE_ATC:(ARG:0) += 70
+		BATTLE_RATE_GRD:(ARG:0) += 80
 ENDSELECT
-
-;	同士討ち……100[○○○]敵部隊に大被害、味方の被害大幅軽減
-;	兵器　　…… 95[○○○]敵部隊に大被害、味方の被害軽減
-;	地形利用…… 90[○××]敵部隊に中被害、味方の被害大幅軽減
-;	追撃　　…… 85[※※※]敵部隊の離脱時に大被害
-;	降伏　　…… 85[○○×]敵部隊に中被害、味方の兵数上昇
-;	内通撹乱…… 80[○○○]敵部隊に中被害、味方の被害軽減
-;	分断　　…… 75[○××]攻撃／防御を低い値に固定
-;	補給襲撃…… 70[○○○]部隊の攻撃力を持続的に低下
-;	包囲殲滅…… 65[○××]敵部隊に中被害、味方の被害軽減
-;	釣り出し…… 55[○××]敵部隊に小被害、味方の被害軽減
-;	挑発　　…… 50[×○×]敵部隊の防御倍率を低下させる→強制的に遭遇戦と同様の計算に
-
 
 ;-------------------------------------------------
 ;部隊壊滅時の一連の処理
