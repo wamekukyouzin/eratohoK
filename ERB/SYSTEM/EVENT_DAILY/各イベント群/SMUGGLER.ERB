@@ -134,19 +134,23 @@ ENDIF
 対象 = RESULT
 ;効果選択
 ;------------成功率・変化量算出----------------
-能力計 = ABL:対象:武闘 + ABL:対象:知略 + ABL:対象:政治
+能力計 = ABL:対象:武闘 + ABL:対象:知略 + ABL:対象:政治 + ABL:対象:防衛
 ;失敗率は3能力の1/5
 失敗率 = 能力計 / 5
 ;能力計に応じ、失敗率に補正
 SELECTCASE 能力計
-	CASE IS < 160
+	CASE IS < 200
 		失敗率 -= 10
-	CASE IS > 200
+	CASE IS > 250
 		失敗率 += 5
 ENDSELECT
 ;80以上ある能力を保存
 IF ABL:(対象):武闘 >= 80
 	SETBIT 高能力フラグ, 0
+	失敗率 += 5
+ENDIF
+IF ABL:対象:防衛 >= 80
+	SETBIT 高能力フラグ , 3
 	失敗率 += 5
 ENDIF
 IF ABL:(対象):知略 >= 80
@@ -161,13 +165,13 @@ ENDIF
 IF RAND:100 < 失敗率
 	;対象能力を決定する
 	;80以上のものがあればそれらの中から選択する
-	FOR LOCAL:0, 0, 3
+	FOR LOCAL:0, 0, 4
 		;80より小さければ上の処理でビットが立っていないので、GETBITの返値が0
 		;RANDが(100 * 0, 100 * 0 + 100)となるので、RAND(0, 100)になる。80より大きければ左右で100 * 1となり、RAND(100, 200)になる
 		;結果、80以上が確実に選出される
 		LOCAL:(LOCAL + 1) = RAND(GETBIT(高能力フラグ, LOCAL:0) * 100, GETBIT(高能力フラグ, LOCAL:0) * 100 + 100)
 	NEXT
-	対象能力 = FINDELEMENT(LOCAL, MAXARRAY(LOCAL, 1, 4), 1, 4) + 49
+	対象能力 = FINDELEMENT(LOCAL, MAXARRAY(LOCAL, 1, 4), 1, 5) + 49
 	;変化量は5 ~ 10
 	変化量 = RAND(5, 11)
 	結果フラグ = 0
@@ -180,11 +184,11 @@ ELSE
 		;結果、80以上は回避される（全部80以上ならともかく）
 		LOCAL:(LOCAL + 1) = RAND(GETBIT(高能力フラグ, LOCAL:0) * -100, GETBIT(高能力フラグ, LOCAL:0) * -100 + 100)
 	NEXT
-	対象能力 = FINDELEMENT(LOCAL, MINARRAY(LOCAL, 1, 4), 1, 4) + 49
+	対象能力 = FINDELEMENT(LOCAL, MINARRAY(LOCAL, 1, 4), 1, 5) + 49
 	;変化量は10~15
-	;能力計が200以上あると5～10になる
+	;能力計が250以上あると5～10になる
 	変化量 = RAND(10, 16)
-	SIF 能力計 >= 200
+	SIF 能力計 >= 250
 		変化量 -= 5
 	結果フラグ = 1
 ENDIF
