@@ -466,10 +466,15 @@ ENDIF
 ;引数 0:攻撃側勢力 1:攻撃側部隊 2:対象勢力 3:対象部隊 ※ARG:3が0未満の場合、防衛部隊とみなし、ARG:2を都市番号として使用
 ;-------------------------------------------------
 @BATTLE_CALC_CORE(ARG:0, ARG:1, ARG:2, ARG:3)
-#DIM SCHEME_BASE, 2
-#DIM 計略発動率
-VARSET SCHEME_BASE, ABL_POWER(30)
-;★
+#DIM 最終被ダメージ, 2
+#DIM 攻撃ゆらぎ, 2
+#DIM 防御ゆらぎ, 2
+#DIM 兵数ゆらぎ, 2
+#DIM 攻防差基礎被ダメージ, 2
+#DIM 兵数差基礎被ダメージ, 2
+#DIM 割合被ダメージ, 2
+#DIM 過剰被ダメージ
+
 ;PRINTFORML 攻撃0={BATTLE_ATC:0, 8}   防御0={BATTLE_DEF:0, 8}
 ;PRINTFORMW 攻撃1={BATTLE_ATC:1, 8}   防御1={BATTLE_DEF:1, 8}
 
@@ -477,65 +482,91 @@ CALL BATTLE_SOLDIER_RATE_CORRECTION(ARG:0, ARG:1, ARG:2, ARG:3)
 CALL BATTLE_DIFFICULTY_CORRECTION(ARG:0, ARG:1, ARG:2, ARG:3)
 CALL BATTLE_TIREDNESS_CORRECTION(ARG:0, ARG:1, ARG:2, ARG:3)
 
+;PRINTFORML 攻撃0={BATTLE_ATC:0, 8}   防御0={BATTLE_DEF:0, 8}
+;PRINTFORMW 攻撃1={BATTLE_ATC:1, 8}   防御1={BATTLE_DEF:1, 8}
+
 CALL BATTLE_SCHEME(ARG:0, ARG:1, ARG:2, ARG:3)
 
-;■ダメージの計算
-BATTLE_RATE_DMG:0 *= 10
-BATTLE_RATE_DMG:1 *= 10
-
 ;妖術パワーによる割合ダメージの追加
-BATTLE_RATE_DMG:0 += POWER_0625(BATTLE_MAG:0 * 10000 / MAX(BATTLE_DEF:1, 1))
-BATTLE_RATE_DMG:1 += POWER_0625(BATTLE_MAG:1 * 10000 / MAX(BATTLE_DEF:0, 1))
+SIF BATTLE_MAG:0 > 0
+	BATTLE_RATE_DMG:0 += MAX(BATTLE_MAG:0 / 2000, 1)
+SIF BATTLE_MAG:1 > 0
+	BATTLE_RATE_DMG:1 += MAX(BATTLE_MAG:1 / 2000, 1)
 
-;割合ダメージの処理
-LOCAL:10 = BATTLE_SOL:0 * MAX(0, 1000 - BATTLE_RATE_DMG:1) * 8 / 10
-LOCAL:11 = BATTLE_SOL:1 * MAX(0, 1000 - BATTLE_RATE_DMG:0) * 8 / 10
+;PRINTFORML BATTLE_RATE_DMG:0 {BATTLE_RATE_DMG:0}
+;PRINTFORML BATTLE_RATE_DMG:1 {BATTLE_RATE_DMG:1}
 
-LOCAL:12 = LOCAL:11 * BATTLE_ATC:1 / MAX(BATTLE_DEF:0, 1)
-LOCAL:13 = LOCAL:10 * BATTLE_ATC:0 / MAX(BATTLE_DEF:1, 1)
+;割合ダメージの算出
+割合被ダメージ:0 = BATTLE_SOL:0 * BATTLE_RATE_DMG:1 / 100
+割合被ダメージ:1 = BATTLE_SOL:1 * BATTLE_RATE_DMG:0 / 100
 
-SIF LOCAL:12 < 0
-	LOCAL:12 = __INT_MAX__
-SIF LOCAL:13 < 0
-	LOCAL:13 = __INT_MAX__
+;PRINTFORML 割合被ダメ:0 {割合被ダメージ:0}
+;PRINTFORML 割合被ダメ:1 {割合被ダメージ:1}
 
-;基本部分の計算
-LOCAL:12 = POWER_0625(LOCAL:12) * (RAND:401 + 800) / 4
-LOCAL:13 = POWER_0625(LOCAL:13) * (RAND:401 + 800) / 4
+;基礎ダメ
+;兵数の差 / 10
+;(攻撃力 - 防御力) / 100
+兵数ゆらぎ:0 = BATTLE_SOL:0 * RAND(800, 1200) / 1000
+兵数ゆらぎ:1 = BATTLE_SOL:1 * RAND(800, 1200) / 1000
+攻撃ゆらぎ:0 = BATTLE_ATC:0 * RAND(800, 1200) / 1000
+攻撃ゆらぎ:1 = BATTLE_ATC:1 * RAND(800, 1200) / 1000
+防御ゆらぎ:0 = BATTLE_DEF:0 * RAND(800, 1200) / 1000
+防御ゆらぎ:1 = BATTLE_DEF:1 * RAND(800, 1200) / 1000
+
+兵数差基礎被ダメージ:0 = MAX((兵数ゆらぎ:1 - 兵数ゆらぎ:0) / 10, 30)
+兵数差基礎被ダメージ:1 = MAX((兵数ゆらぎ:0 - 兵数ゆらぎ:1) / 10, 30)
+攻防差基礎被ダメージ:0 = MAX((攻撃ゆらぎ:1 - 防御ゆらぎ:0) / 100, 30)
+攻防差基礎被ダメージ:1 = MAX((攻撃ゆらぎ:0 - 防御ゆらぎ:1) / 100, 30)
+
+;PRINTFORML 兵数基礎:0 {兵数差基礎被ダメージ:0}
+;PRINTFORML 兵数基礎:1 {兵数差基礎被ダメージ:1}
+;PRINTFORML 攻防基礎:0 {攻防差基礎被ダメージ:0}
+;PRINTFORML 攻防基礎:1 {攻防差基礎被ダメージ:1}
+
+最終被ダメージ:0 = (兵数差基礎被ダメージ:0 + 攻防差基礎被ダメージ:0) * RAND(8000, 12000) / 1000
+最終被ダメージ:1 = (兵数差基礎被ダメージ:1 + 攻防差基礎被ダメージ:1) * RAND(8000, 12000) / 1000
+
+;PRINTFORML 乱数適用:0 {最終被ダメージ:0}
+;PRINTFORML 乱数適用:1 {最終被ダメージ:1}
+
 
 ;与被害倍率と被害軽減率の適用
-LOCAL:12 = LOCAL:12 * (BATTLE_RATE_ATC:1 + 100) / 100 * MAX(0, 100 - BATTLE_RATE_GRD:0) / 100000
-LOCAL:13 = LOCAL:13 * (BATTLE_RATE_ATC:0 + 100) / 100 * MAX(0, 100 - BATTLE_RATE_GRD:1) / 100000
+最終被ダメージ:0 = 最終被ダメージ:0 * (BATTLE_RATE_ATC:1 + 100) / 100
+最終被ダメージ:0 = 最終被ダメージ:0 * (100 - BATTLE_RATE_GRD:0) / 100
+最終被ダメージ:1 = 最終被ダメージ:1 * (BATTLE_RATE_ATC:0 + 100) / 100
+最終被ダメージ:1 = 最終被ダメージ:1 * (100 - BATTLE_RATE_GRD:1) / 100
 
-;ダメージ変数に割合ダメージ分を追加
-LOCAL:12 += BATTLE_SOL:0 * BATTLE_RATE_DMG:1 / 1000
-LOCAL:13 += BATTLE_SOL:1 * BATTLE_RATE_DMG:0 / 1000
+最終被ダメージ:0 += 割合被ダメージ:0
+最終被ダメージ:1 += 割合被ダメージ:1
 
-;追加された被害軽減率の適用
-LOCAL:12 = LOCAL:12 * LIMIT(100 - BATTLE_RATE_GRD_B:0, 0, 100) / 100
-LOCAL:13 = LOCAL:13 * LIMIT(100 - BATTLE_RATE_GRD_B:1, 0, 100) / 100
+最終被ダメージ:0 = 最終被ダメージ:0 * (100 - BATTLE_RATE_GRD_B:0) / 100
+最終被ダメージ:1 = 最終被ダメージ:1 * (100 - BATTLE_RATE_GRD_B:1) / 100
 
-
+;PRINTFORML 割合適用:0 {最終被ダメージ:0}
+;PRINTFORML 割合適用:1 {最終被ダメージ:1}
 ;★
 ;PRINTFORMW 割合ダメージ0:{BATTLE_RATE_DMG:0}  ダメージ{LOCAL:12}  妖術評価{BATTLE_MAG:0}  防御評価{BATTLE_DEF:0}
 ;PRINTFORMW 割合ダメージ1:{BATTLE_RATE_DMG:1}  ダメージ{LOCAL:13}  妖術評価{BATTLE_MAG:1}  防御評価{BATTLE_DEF:1}
 
-;どちらかの兵数が0未満になった場合、過剰ダメージの割合だけ相手の被害を軽減
-IF BATTLE_SOL:0 < LOCAL:12
-	LOCAL:20 = BATTLE_SOL:0 * 10000 / LOCAL:12
-	LOCAL:12 = BATTLE_SOL:0
-	LOCAL:13 = LOCAL:13 * LOCAL:20 / 10000
+;どちらかの兵数が0未満になった場合、過剰ダメージが元の兵数に占める割合の1/3だけ相手の被害を軽減。ただし30%まで（上限にかかるにはものすごいオーバーキルしてる必要があるが……）
+IF BATTLE_SOL:0 < 最終被ダメージ:0
+	過剰被ダメージ = 最終被ダメージ:0 - BATTLE_SOL:0
+	最終被ダメージ:0 = BATTLE_SOL:0
+	最終被ダメージ:1 = 最終被ダメージ:1 - MIN((最終被ダメージ:1 * (過剰被ダメージ * 10000 / BATTLE_SOL:0)) / 30000, 最終被ダメージ:1 * 3 / 10)
 ENDIF
-IF BATTLE_SOL:1 < LOCAL:13
-	LOCAL:20 = BATTLE_SOL:1 * 10000 / LOCAL:13
-	LOCAL:13 = BATTLE_SOL:1
-	LOCAL:12 = LOCAL:12 * LOCAL:20 / 10000
+IF BATTLE_SOL:1 < 最終被ダメージ:1
+	過剰被ダメージ = 最終被ダメージ:1 - BATTLE_SOL:1
+	最終被ダメージ:1 = BATTLE_SOL:1
+	最終被ダメージ:0 = 最終被ダメージ:0 - MIN((最終被ダメージ:0 * (過剰被ダメージ * 10000 / BATTLE_SOL:1)) / 30000, 最終被ダメージ:0 * 3 / 10)
 ENDIF
+
+;PRINTFORML 軽減適用:0 {最終被ダメージ:0}
+;PRINTFORML 軽減適用:1 {最終被ダメージ:1}
 
 CALL BATTLE_ADD_TIREDNESS(ARG:0, ARG:1, ARG:2, ARG:3)
 
-BATTLE_DMG:0 = LOCAL:12
-BATTLE_DMG:1 = LOCAL:13
+BATTLE_DMG:0 = 最終被ダメージ:0
+BATTLE_DMG:1 = 最終被ダメージ:1
 
 
 ;-------------------------------------------------
