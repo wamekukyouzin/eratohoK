@@ -604,15 +604,20 @@ BATTLE_DMG:1 = 最終被ダメージ:1
 兵数比:1 = BATTLE_SOL:1 * 100 / MAX(BATTLE_SOL:0, 1)
 
 IF 兵数比:0 > 兵数比:1
-	;SQRTの中で100倍している(上記計算)ので、SQRTの結果は兵力比の平方根の10倍。それをBATTLE変数にかけているので、10で割って正しい値を出す
-	BATTLE_ATC:0 = BATTLE_ATC:0 * SQRT(兵数比:0) / 10
-	BATTLE_DEF:0 = BATTLE_DEF:0 * SQRT(兵数比:0) / 10
-	;1.4倍の場合140が入っている。10の位を取り出す。
-	BATTLE_RATE_DMG:0 = MIN(兵数比:1 % 100 / 10, 20)
+	BATTLE_ATC:0 = BATTLE_ATC:0 * SQRT(兵数比:0 * 100) / 100
+	BATTLE_DEF:0 = BATTLE_DEF:0 * SQRT(兵数比:0 * 100) / 100
+	;単にx倍だと弱い部隊が報われないので固定値も足しておく
+	;0.1倍相手より多い度に500増える
+	BATTLE_ATC:0 += 5000 * (兵数比:0 * 10 - 1000) / 1000
+	BATTLE_DEF:0 += 5000 * (兵数比:0 * 10 - 1000) / 1000
+	;1.4倍の場合4が入る。最大は3倍のときの20
+	BATTLE_RATE_DMG:0 += MIN(兵数比:0 / 10 - 10, 20)
 ELSE
-	BATTLE_ATC:1 = BATTLE_ATC:1 * SQRT(兵数比:1) / 10
-	BATTLE_DEF:1 = BATTLE_DEF:1 * SQRT(兵数比:1) / 10
-	BATTLE_RATE_DMG:1 = MIN(兵数比:1 % 100 / 10, 20)
+	BATTLE_ATC:1 = BATTLE_ATC:1 * SQRT(兵数比:1 * 100) / 100
+	BATTLE_DEF:1 = BATTLE_DEF:1 * SQRT(兵数比:1 * 100) / 100
+	BATTLE_ATC:1 += 5000 * (兵数比:1 * 10 - 1000) / 1000
+	BATTLE_DEF:1 += 5000 * (兵数比:1 * 10 - 1000) / 1000
+	BATTLE_RATE_DMG:1 += MIN(兵数比:1 / 10 - 10, 20)
 ENDIF
 
 ;オーバフローして符号が反転する問題対策
