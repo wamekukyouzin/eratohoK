@@ -812,14 +812,15 @@ NEXT
 
 RETURNF -1
 
+
 ;--------------------------------------------------------
 ;ARG:0番の都市のリスクをチェック
 ; 6 現在敵部隊が存在する
 ; 5 隣接する中継地に敵部隊を確認
 ; 4 隣国が敵対（中継地なし）
 ; 3 その他
-; 2 
-; 1 
+; 2 隣国は停戦ないし同盟中だが、隣国と同盟している国が殴ってくる可能性がある
+; 1 隣国は停戦ないし同盟中だが、隣国と同盟している国が殴ってくる可能性がない
 ; 0 安全
 ; 
 ; TODO:隣国が停戦以上の関係であるが、その同盟国が攻め込んでくる関係
@@ -836,24 +837,34 @@ SIF !INRANGE(ARG:0 , 1 , MAX_CITY)
 
 OWNER1 = CITY_OWNER:(ARG:0)
 
+;敵部隊がいるなら問答無用でリスク6
 SIF IS_STAY_ENEMY_UNIT(ARG:0, OWNER1, 1) == 1
 	RETURNF 6
 
 ; 隣接都市を走査
 FOR LOCAL:0, 0, 10
 	LOCAL:5 = CITY_ROOT:(ARG:0):(LOCAL:0)
-	
-	SIF LOCAL:5 == 0
+
+	SIF LOCAL:5 == -1
 		BREAK
 
 	IF CITY_TYPE:(LOCAL:5) == 0
 	; 都市の場合
 		OWNER2 = CITY_OWNER:(LOCAL:5)
 		SELECTCASE TMP_COUNTRY_RELATION:OWNER1:OWNER2
+			;隣接する都市が敵国所有である
 			CASE 0
-				RETURNF 4
+				SIF  IS_COUNTRY(OWNER2)
+					RETURNF 4
+			;隣接する都市が敵国所有でも自国所有でもない
 			CASE IS != 5
-				RET = 3
+				FOR LOCAL:1, 0, MAX_COUNTRY
+					;隣接都市の所有国と同盟していて、かつ自国と同盟していない国があるなら、殴ってきうるので危険度２とする
+					SIF IS_COUNTRY(LOCAL:1) && !GROUPMATCH(LOCAL:1, OWNER1, OWNER2) && GROUPMATCH(TMP_COUNTRY_RELATION:OWNER2:(LOCAL:1), 3, 4)　&& TMP_COUNTRY_RELATION:OWNER1:(LOCAL:1) == 0
+						RETURNF 2
+				NEXT
+				;(ほぼありえないが)もしなければ、危険度１とする
+				RETURNF 1
 		ENDSELECT
 	ELSE
 	; 中継地の場合
@@ -867,16 +878,22 @@ FOR LOCAL:0, 0, 10
 		FOR LOCAL:1, 0, 10
 			LOCAL:6 = CITY_ROOT:(LOCAL:5):(LOCAL:1)
 			
-			SIF LOCAL:6 == 0
+			SIF LOCAL:6 == -1
 				BREAK
 			
 			OWNER2 = CITY_OWNER:(LOCAL:6)
 			
 			; 都市の場合
 			IF CITY_TYPE:(LOCAL:6) == 0
-				; 自国でなければ危険度3以上
-				SIF  TMP_COUNTRY_RELATION:OWNER1:OWNER2 != 5
-					RET = 3
+				; 敵なら危険度3以上
+				SIF TMP_COUNTRY_RELATION:OWNER1:OWNER2 == 0 && IS_COUNTRY(OWNER2)
+					RETURNF 3
+				;自国なら0
+				SIF TMP_COUNTRY_RELATION:OWNER1:OWNER2 == 5
+					RET = 0
+				;その都市の所有国と同盟していて、かつ自国と同盟していない国があるなら、殴ってきうるので危険度1とする
+				SIF IS_COUNTRY(LOCAL:1) && !GROUPMATCH(LOCAL:1, OWNER1, OWNER2) && GROUPMATCH(TMP_COUNTRY_RELATION:OWNER2:(LOCAL:1), 3, 4)　&& TMP_COUNTRY_RELATION:OWNER1:(LOCAL:1) == 0
+					RETURNF 1
 			ENDIF
 		NEXT
 	ENDIF
