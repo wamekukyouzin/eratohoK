@@ -1,912 +1,719 @@
-﻿;-------------------------------------------------
-;ARG:0勢力のAIの行動
-;-------------------------------------------------
-@AI_ACTION(ARG:0)
-#DIM FIRST_LINE
-;#; #DIM USETIME
-FIRST_LINE = LINECOUNT
+﻿;メモ　呼び出しが必要な関数
+;現在のものに加えて CREATE_CONNECTION,ENCLAVE,OFFENSIVE_IMPORTANCE,DEFFENSIVE_IMPORTANCE
+
+@AI_ACTION(勢力)
+#DIM 勢力
+#DIM 攻撃兵数
+#DIM 部隊
+#DIM USETIME
+SETCOLOR COUNTRY_COLOR:勢力
+PRINTFORML %ANAME(GET_COUNTRY_BOSS(勢力))%思考中……
+RESETCOLOR
 
 ;ランダムキャラを使用している場合
 IF FLAG:ランダムキャラ使用
 	;士官数が足りなければ士官を募集
-	CALL RECRUIT_AI(ARG:0)
+	CALL RECRUIT_AI(勢力)
 ENDIF
 
-;{SLG_PP:0}期までは外交を行わない
-IF DAY < SLG_PP:0
-ELSE
-	;外交の処理
-	IF GET_COUNTRY_NUM() - (GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗)) != 1) > 3
-		;#; USETIME = GETTIME()
-		CALL AI_DIPLOMACY_ACT(ARG:0)
-		;#; USETIME = GETTIME() - USETIME;
-		;#; DEBUGPRINTFORML %NAME:(GET_COUNTRY_BOSS(ARG))%外交 : {USETIME}ms
-	ENDIF
-ENDIF
+;外交の処理
+SIF DAY >= SLG_PP:0
+	CALL SLG_NEW_DIPLOMACY(勢力)
 
-IF GET_OWN_CITY(ARG:0) > 0
-	;部隊マップの作成(処理の高速化)
-	CALL TMP_CREATE_UNIT_MAP
-	;リグル式AI
-;	CALL AI_ACO_ANT(ARG:0)
-;	CALL AI_ACO_PHEROMONE(ARG:0)
 
-	
-	;防衛を全て解除
-	FOR LOCAL:0, 0, MAX_CITY
-		IF CITY_OWNER:(LOCAL:0) == ARG:0
-			;敵部隊のいる都市は解除不可
-			IF !TMP_IS_STAY_ENEMY_UNIT(LOCAL:0)
-				COUNTRY_SOLDIER:(ARG:0) += CITY_SOLDIER:(LOCAL:0)
-				CITY_SOLDIER:(LOCAL:0) = 0
-				CITY_COMMANDER:(LOCAL:0) = 0
-			ENDIF
+;都市をもたない（野盗など）ならスキップする
+SIF TMP_OWN_CITY:勢力 < 1
+	GOTO NORMAL_AI_THINK_ENDED
+
+;こっから先軍事なので軍事開始してなければスキップ
+SIF DAY < SLG_PP:1
+	GOTO NORMAL_AI_THINK_ENDED
+
+CALL AI_DEPLOY_ARMY(勢力, 0)
+
+;防衛を全て解除
+FOR LOCAL:0, 1, GET_CITY_NUM() + 1
+	IF CITY_OWNER:(LOCAL:0) == 勢力
+		;敵部隊のいる都市は解除不可
+		IF !IS_STAY_ENEMY_UNIT(LOCAL:0, 勢力)
+			COUNTRY_SOLDIER:勢力 += CITY_SOLDIER:(LOCAL:0)
+			CITY_SOLDIER:(LOCAL:0) = 0
+			CITY_COMMANDER:(LOCAL:0) = 0
 		ENDIF
-	NEXT
-	
-		FOR LOCAL:0, 0, 10
-		;(LOCAL:0)番の部隊の解体判定
-		IF UNIT_SOLDIER:(ARG:0):(LOCAL:0) > 0
-			;ID=0の都市は未定義のはずなので解散させちゃう
-			IF UNIT_POSITION:(ARG:0):(LOCAL:0) == 0
-				CALL CLEAR_UNIT(ARG:0, LOCAL:0)
-			ENDIF
-			;現在位置に敵の部隊がいるときは解散させない
-			IF IS_STAY_ENEMY_UNIT(UNIT_POSITION:(ARG:0):(LOCAL:0)) == 1
-				CONTINUE
-			;現在地が敵勢力の都市の場合は解散させない
-			ELSEIF TMP_COUNTRY_RELATION:(ARG:0):(CITY_OWNER:(UNIT_POSITION:(ARG:0):(LOCAL:0))) == 0 && CITY_TYPE:(UNIT_POSITION:(ARG:0):(LOCAL:0)) == 0
-				CONTINUE
-			;現在地か移動先が停戦対象なら解散
-			ELSEIF TMP_COUNTRY_RELATION:(ARG:0):(CITY_OWNER:(UNIT_POSITION:(ARG:0):(LOCAL:0))) == 1
-				CALL CLEAR_UNIT(ARG:0, LOCAL:0)
-			ELSEIF TMP_COUNTRY_RELATION:(ARG:0):(CITY_OWNER:(UNIT_TARGET:(ARG:0):(LOCAL:0))) == 1
-				CALL CLEAR_UNIT(ARG:0, LOCAL:0)
-			;兵数2000ないし自国兵力の10%未満なら解散
-			ELSEIF UNIT_SOLDIER:(ARG:0):(LOCAL:0) < MAX(GET_SUM_SOLDIER(ARG:0) / 10, 2000)
-				CALL CLEAR_UNIT(ARG:0, LOCAL:0)
-			;部隊の現在位置が中継地点かつ移動先を失っていれば解散する（強制解散フラグを使って時間を必要にするのも多分あり）
-			ELSEIF !UNIT_TARGET:(ARG:0):(LOCAL:0) && CITY_TYPE:(UNIT_POSITION:(ARG:0):(LOCAL:0)) == 1
-				CALL CLEAR_UNIT(ARG:0, LOCAL:0)
-			;部隊の所在地が敵対勢力でなければ解散する
-			;部隊を使い回すようにしたのでナシ
-			;ELSEIF TMP_COUNTRY_RELATION:(ARG:0):(CITY_OWNER:(UNIT_POSITION:(ARG:0):(LOCAL:0))) >= 1
-			;	CALL CLEAR_UNIT(ARG:0, LOCAL:0)
-			ELSE
-				;連戦の影響がある場合
-				IF CONFIG:313 > 0
-					SIF RAND:(UNIT_TIRED_COUNT:(ARG:0):(LOCAL:0) / 3 + 1)
-						CALL CLEAR_UNIT(ARG:0, LOCAL:0)
-				ENDIF
-			ENDIF
-		ENDIF
-	NEXT
-	
-	;DEBUGPRINTFORML %ANAME(GET_COUNTRY_BOSS(ARG:0))%
-	;DEBUGPRINTFORML COUNTRY_SOLDIER:{COUNTRY_SOLDIER:(ARG:0)}
-	;DEBUGPRINTFORML 最大:{GET_SUM_ECONOMY(ARG:0) / 10}
-
-	CALL SLG_AI_SETDOCTRINE(ARG:0)
-	CALL SLG_AI_RESCUE(ARG:0)
-	
-	IF DAY >= SLG_PP:1
-		CALL AI_DEPLOY_ARMY(ARG:0, 0)
-		;既存部隊の攻撃目標設定(敵の都市上にいて、上の解散条件で解散されてないんなら使い回す）
-		FOR LOCAL:1, 0, 10
-			SIF UNIT_SOLDIER:(ARG:0):(LOCAL:1) > 0  && UNIT_TARGET:(ARG:0):(LOCAL:1) <= 0 && TMP_COUNTRY_RELATION:(ARG:0):(CITY_OWNER:(UNIT_POSITION:(ARG:0):(LOCAL:1))) != 0
-				CALL SLG_AI_INVASION_EXIST_UNIT_SETTARGET(ARG:0, LOCAL:1)
-		NEXT
-		;新規部隊の攻撃目標設定・作成処理
-		FOR LOCAL:1, 0, 10
-			CALL SLG_AI_INVASION_SETTARGET(ARG:0)
-			SIF RESULT == 0
-				BREAK
-			CALL SLG_AI_INVASION_CREATEUNIT(ARG:0)
-			SIF RESULT == 0
-				BREAK
-		NEXT
-		;リグル式AI
-;		ELSE
-;			FOR LOCAL:1, 0, 10
-;				CALL SLG_AI_INVASION_CREATEUNIT(ARG:0)
-;				SIF RESULT == 0
-;					BREAK
-;			NEXT
-;			CALL AI_ACO_SETTARGET(ARG:0)
-;		ENDIF
-		
-		CALL AI_DEPLOY_ARMY(ARG:0, 1)
 	ENDIF
-	
-	CALL SLG_AI_DEFENSE(ARG:0)
-ENDIF
+NEXT
+
+;部隊マップの作成(処理の高速化)
+CALL TMP_CREATE_UNIT_MAP
+
+;方針の設定
+CALL SLG_AI_SETDOCTRINE(勢力)
+
+;既存部隊のうち、おかしな状況に陥っちゃってるものを解体する
+CALL SLG_AI_FORCE_CLEAR_UNIT(勢力)
+
+;このターン攻撃にさく兵力と防御にさく兵力を決定する
+CALL SLG_AI_DECIDE_SOLDIER_NUM(勢力)
+攻撃兵数 = RESULT:0
+
+;既存部隊に兵力を補充する
+CALL SLG_AI_REPLENISH_SOLDIER_TO_UNIT(勢力, 攻撃兵数)
+
+;救出
+CALL SLG_AI_RESCUE(勢力, 攻撃兵数)
+攻撃兵数 = RESULT
+
+;部隊の侵攻判定
+FOR 部隊, 0, MAX_UNIT
+	;既存部隊の場合、移動できない連中は飛ばす
+	IF UNIT_SOLDIER:勢力:部隊 > 0
+		;敵がいるなら飛ばす
+		SIF IS_STAY_ENEMY_UNIT(UNIT_POSITION:勢力:部隊, 勢力)
+			CONTINUE
+		;すでに目的地があるなら飛ばす
+		SIF UNIT_TARGET:勢力:部隊
+			CONTINUE
+		;敵の土地にいるなら飛ばす
+		SIF TMP_COUNTRY_RELATION:勢力:(CITY_OWNER:(UNIT_POSITION:勢力:部隊)) == 0
+			CONTINUE
+	;既存部隊でなければ、部隊の作成を試みる
+	ELSEIF UNIT_SOLDIER:勢力:部隊 <= 0
+		CALL SLG_AI_CREATE_UNIT(勢力, 部隊, 攻撃兵数)
+		;作れなかったら飛ばす
+		SIF 攻撃兵数 == RESULT
+			CONTINUE
+		攻撃兵数 = RESULT
+	ENDIF
+	;攻撃先の決定
+	CALL SLG_AI_INVASION_SETTARGET(勢力, 部隊)
+NEXT
+
+;;#;FOR 部隊, 0, MAX_UNIT
+;;#;	SIF UNIT_SOLDIER:勢力:部隊 > 0
+;;#;			DEBUGPRINTFORML %ANAME(GET_COUNTRY_BOSS(勢力))%の{部隊}部隊 兵数{UNIT_SOLDIER:勢力:部隊} 現在地%GET_CITYNAME(UNIT_POSITION:勢力:部隊)% 目的地%GET_CITYNAME(UNIT_TARGET:勢力:部隊)%
+;;#;NEXT
+
+
+CALL SLG_AI_DEFENSE(勢力)
+;通常のAI思考終了
+$NORMAL_AI_THINK_ENDED
+
 
 ;クールタイム減少処理と、このターンに割り当てたフラグ削除処理
-IF ARG:0 != CFLAG:MASTER:所属
+IF 勢力 != CFLAG:MASTER:所属
 	FOR LOCAL, 0, CHARANUM
-		IF CFLAG:LOCAL:所属 == ARG:0
+		IF CFLAG:LOCAL:所属 == 勢力
 			COOLTIME:LOCAL:0 = MAX(COOLTIME:LOCAL:0 - 1 , 0)
 			ASSIGNED_THIS_TURN:LOCAL:0 = 0
 		ENDIF
 	NEXT
 ENDIF
 
-;最初の行数と現在の行数が違う（ここにいたるまでに何か表示した）なら改行
-SIF FIRST_LINE != LINECOUNT
-	PRINTL
+CALL SINGLE_EMPTY_LINE()
 
-;-------------------------------------------------
-;●防衛用の遊撃部隊を作成
-;自軍の都市が攻撃を受けていれば防衛部隊を組織
-;複数の都市が攻撃を受けている場合、都市を失った時に増加する戦線の数を基準に防衛の優先順位を決める
-;-------------------------------------------------
-;2016/05/13
-;ver0.175バニラでのリグル式戦術AIパッチによるバグ修正
-;・複数箇所を攻められた時に迎撃部隊が重要度関係なしに最もIDの若い都市に出現するような挙動になっていた
-;・切り返しの判定に入った上でキャンセルになった場合、REVERSE_SOLDIERの補填処理が無かった
-@SLG_AI_RESCUE(ARG:0)
-;切り返し戦術の攻撃兵数
-#DIM REVERSE_SOLDIER
-;迎撃が必要な都市
-#DIM KOUHO_COUNT            ;元はLOCAL:5
-#DIM KOUHO_JUUYOU, MAX_CITY ;各候補地の重要性評価した都市ID
-#DIM KOUHO_JUUYOU_VAL, MAX_CITY
-#DIM SAIJUUYOU              ;現時点での重要性の最高記録、元はLOCAL:6
-
-;都市IDの一時保存用（迎撃候補→主要都市→反撃候補）
-#DIM TEMP_ID, MAX_CITY      ;元はLOCAL:100～、LOCAL:300～、LOCAL:100～
-
-#DIM JUUYOU_COUNT           ;特に重要な都市の数、元はLOCAL:7
-#DIM GEIGEKI                ;実際に迎撃部隊の編成を行う場所、元はLOCAL:8, LOCAL:9
-
-;敵部隊
-#DIM ENEMY_COUNTRY          ;敵の勢力IDの一時保存用、元はLOCAL:1
-#DIM ENEMY_UNIT             ;敵の部隊IDの一時保存用、元はLOCAL:2
-#DIM ENEMY_TOTAL            ;迎撃都市に存在する敵の総数、元はLOCAL:3
-#DIM UNIT_MAX               ;最も多かった敵の数、元はLOCAL:4
-#DIM ENEMY_MAIN             ;主敵、UNIT_MAXの勢力主体、元はLOCAL:5
-
-;切り返し
-#DIM HANGEKI                ;反撃したかどうか、元はLOCAL:12
-#DIM HANGEKI_COUNT          ;反撃できる都市（迎撃都市に隣接する主敵の都市）の数、元はLOCAL:2
-#DIM HANGEKI_ID             ;決定した反撃対象都市、元はLOCAL:3
-#DIM HANGEKI_ABLE           ;反撃できる（反撃都市に侵攻中の味方部隊がいない）かどうか、元はLOCAL:4
-
-#DIM UNIT_PROTECT           ;防衛用に編成した部隊、元はLOCAL:10
-#DIM UNIT_HANGEKI           ;反撃用に編成した部隊、元はLOCAL:11
-
-IS_PROTECTED = 0
-
-VARSET KOUHO_COUNT
-VARSET TEMP_ID
-VARSET KOUHO_JUUYOU
-VARSET KOUHO_JUUYOU_VAL
-SAIJUUYOU = __INT_MIN__
-
-FOR LOCAL:0, 1, MAX_CITY
-	IF (CITY_OWNER:(LOCAL:0) == ARG:0 && TMP_IS_STAY_ENEMY_UNIT(LOCAL:0)) || (IS_COUNTRY(CITY_OWNER:(LOCAL:0)) && GROUPMATCH(TMP_COUNTRY_RELATION:(ARG:0):(LOCAL:1), 2, 3, 4) && TMP_IS_STAY_ENEMY_UNIT(LOCAL:0))
-		;KOUHO_JUUYOU:KOUHO_COUNT = TMP_CHANGE_LINE_ONLOSE(LOCAL:0)
-		;リグル式ではフェロモンで評価する
-		;他国を防衛する仕様にしたかったのでフェロモンとりやめ　経済値＋(防衛値の50倍) で評価する
-		;ただしその都市を含む飛び地が、その勢力にとって最大の飛び地でない場合、最大の飛び地とのサイズ比に応じて評価値が下がる
-		KOUHO_JUUYOU_VAL:KOUHO_COUNT = CITY_ECONOMY:(LOCAL) + CITY_GUARD:(LOCAL) * 50
-		KOUHO_JUUYOU_VAL:KOUHO_COUNT = KOUHO_JUUYOU_VAL:KOUHO_COUNT * TMP_ENCLAVE_SIZE:(ARG:0):LOCAL / TMP_MAX_ENCLAVE_SIZE:(ARG:0)
-		KOUHO_JUUYOU:KOUHO_COUNT = LOCAL
-		KOUHO_COUNT ++
+;-----------------------------------------------
+;残存兵数における、攻撃兵にまわす兵数・防御にまわす兵数を決定する処理
+;-----------------------------------------------
+@SLG_AI_DECIDE_SOLDIER_NUM(勢力)
+#DIM 勢力
+#DIM 都市
+#DIM 攻撃スコア合計
+#DIM 防衛スコア合計
+#DIM 比率
+#DIM 攻撃兵数
+#DIM 防衛兵数
+FOR 都市, 1, GET_CITY_NUM() + 1
+	;そこが敵の都市で、かつ自勢力と接続しているなら、攻撃スコアに加算
+	;防衛スコアと比較すると、算出方法の兼ね合いで10000倍くらいしてトントン(攻撃スコアは経済 / 防衛倍率、防衛スコアは経済 * 防衛倍率)
+	IF TMP_IS_INVADABLE:勢力:都市
+		攻撃スコア合計 += TMP_OFFENSIVE_IMPORTANCE:勢力:都市 * 10000
 	ENDIF
+	;そこが自勢力の都市で、敵から殴られうるなら、防衛スコアに加算
+	SIF CITY_OWNER:都市 == 勢力 && TMP_CITY_RISK:勢力:都市 >= 2
+		防衛スコア合計 += TMP_DEFFENSIVE_IMPORTANCE:勢力:都市
 NEXT
 
-SIF KOUHO_COUNT == 0
-	RETURN
+;DEBUGPRINTFORML %ANAME(GET_COUNTRY_BOSS(勢力))%の攻撃スコア{攻撃スコア合計} 防衛スコア{防衛スコア合計}
+比率 = 攻撃スコア合計 * 1000 / (攻撃スコア合計 + 防衛スコア合計)
 
-SAIJUUYOU = MAXARRAY(KOUHO_JUUYOU_VAL)
+攻撃兵数 = MIN(COUNTRY_SOLDIER:勢力 * 比率 / 1000, COUNTRY_SOLDIER:勢力)
+防衛兵数 = COUNTRY_SOLDIER:勢力 - 攻撃兵数
+;DEBUGPRINTFORML %ANAME(GET_COUNTRY_BOSS(勢力))%の比率{比率}
+;DEBUGPRINTFORML %ANAME(GET_COUNTRY_BOSS(勢力))%の攻撃兵{攻撃兵数} 防衛兵{防衛兵数} 兵数{COUNTRY_SOLDIER:勢力}
+RETURN 攻撃兵数, 防衛兵数
 
-VARSET JUUYOU_COUNT
-VARSET TEMP_ID
-WHILE JUUYOU_COUNT <= MIN(2, KOUHO_COUNT - 1)
-	LOCAL:0 = FINDELEMENT(KOUHO_JUUYOU_VAL, SAIJUUYOU)
-	TEMP_ID:JUUYOU_COUNT = KOUHO_JUUYOU:(LOCAL:0)
-	JUUYOU_COUNT ++
-	KOUHO_JUUYOU_VAL:(LOCAL:0) = __INT_MIN__
-	SAIJUUYOU = MAXARRAY(KOUHO_JUUYOU_VAL)
+;-----------------------------------------------
+;既存部隊に兵を補充する
+;-----------------------------------------------
+@SLG_AI_REPLENISH_SOLDIER_TO_UNIT(勢力, 攻撃兵数)
+#DIM 勢力
+#DIM 部隊
+#DIM 攻撃兵数
+#DIM 補充兵数
+#DIM 残り補充兵数
+#DIM 補充量
+#DIM 部隊能力合計
+#DIM 部隊能力, MAX_UNIT
+#DIM 最強能力
+VARSET 部隊能力合計
+VARSET 部隊能力, __INT_MIN__
+
+;部隊能力を合計していく
+FOR 部隊, 0, MAX_UNIT
+	SIF UNIT_SOLDIER:勢力:部隊 <= 0
+		CONTINUE
+	;敵がいるなら補充しない
+	SIF IS_STAY_ENEMY_UNIT(UNIT_POSITION:勢力:部隊, 勢力) == 1
+		CONTINUE
+	;味方の勢力でなくても補充しない
+	SIF TMP_COUNTRY_RELATION:勢力:(CITY_OWNER:(UNIT_POSITION:勢力:部隊)) == 0
+		CONTINUE
+	;確定兵数越えてても補充しない
+	SIF UNIT_SOLDIER:勢力:部隊 >= AI_ARMY_PROPERTY:(COUNTRY_AI_TYPE:勢力):AI_確定兵数
+		CONTINUE
+	CALL GET_COMMANDER_ALL(勢力, 部隊)
+	CALL SET_BATTLE_MIRROR_VAL(0, RESULT:0, RESULT:1, RESULT:2)
+	CALL BATTLE_PREPARE_VARS_EACH(0, 0)
+	部隊能力:部隊 = BATTLE_ATC:0 + BATTLE_DEF:0 + BATTLE_INT:0
+	部隊能力合計 += 部隊能力:部隊
+	;DEBUGPRINTFORML %ANAME(GET_COUNTRY_BOSS(勢力))%の{部隊}部隊 部隊能力{部隊能力:部隊}
+NEXT
+
+;ついでに今作れる最強の部隊をみておく
+CALL CHECK_UNIT_COMMANDER_BEST(勢力)
+CALL SET_BATTLE_MIRROR_VAL(0, UNIT_COMMANDER_BEST:0, UNIT_COMMANDER_BEST:1, UNIT_COMMANDER_BEST:2)
+CALL BATTLE_PREPARE_VARS_EACH(0, 0)
+最強能力 = BATTLE_ATC:0 + BATTLE_DEF:0 + BATTLE_INT:0
+
+;補充に使う兵数を決定する
+;現存する最強の部隊の、今作れる最強の部隊に対する割合
+部隊 = FINDELEMENT(部隊能力, MAXARRAY(部隊能力))
+SIF 部隊能力:部隊 == __INT_MIN__
+	RETURN 攻撃兵数
+補充兵数 = MIN(攻撃兵数 * 部隊能力:部隊 / MAX(最強能力, 1), 攻撃兵数 * 70 / 100)
+残り補充兵数 = 補充兵数
+;DEBUGPRINTFORML %ANAME(GET_COUNTRY_BOSS(勢力))%の攻撃兵数{攻撃兵数} 最強能力{最強能力} 現存最強部隊能力{部隊能力:部隊} 補充兵数{補充兵数}
+
+FOR LOCAL, 0, MAX_UNIT
+	部隊 = FINDELEMENT(部隊能力, MAXARRAY(部隊能力))
+	;もう部隊がない場合、抜ける
+	SIF 部隊能力:部隊 == __INT_MIN__
+		BREAK
+
+	;補充兵数から、（補充可能な部隊にしめる自部隊の能力の割合）ぶんだけ補充する
+	;ただし、最低兵数割ってたら最低兵数ぶんだけ補充しようとする
+	;いずれにせよ、残ってる補充兵数以上に補充できないのは当然
+	IF UNIT_SOLDIER:勢力:部隊 < AI_ARMY_PROPERTY:(COUNTRY_AI_TYPE:勢力):AI_最低兵数
+		補充量 = AI_ARMY_PROPERTY:(COUNTRY_AI_TYPE:勢力):AI_最低兵数 - UNIT_SOLDIER:勢力:部隊
+	ELSE
+		補充量 = 補充兵数 * 部隊能力:部隊 / 部隊能力合計
+	ENDIF
+	補充量 = MIN(補充量, 残り補充兵数)
+	;DEBUGPRINTFORML %ANAME(GET_COUNTRY_BOSS(勢力))%の{部隊}部隊に補充 補充前{UNIT_SOLDIER:勢力:部隊}　補充量{補充量} 補充後{UNIT_SOLDIER:勢力:部隊 + 補充量}
+	;DEBUGPRINTFORML 残り補充兵数{残り補充兵数 - 補充量}
+	UNIT_SOLDIER:勢力:部隊 += 補充量
+	COUNTRY_SOLDIER:勢力 -= 補充量
+	残り補充兵数 -= 補充量
+	攻撃兵数 -= 補充量
+	部隊能力:部隊 = __INT_MIN__
+NEXT
+
+RETURN 攻撃兵数
+
+
+;-----------------------------------------------
+;変なことになってる部隊を解体する
+;-----------------------------------------------
+@SLG_AI_FORCE_CLEAR_UNIT(勢力)
+#DIM 勢力
+#DIM 部隊
+
+FOR 部隊, 0, MAX_UNIT
+	SIF UNIT_SOLDIER:勢力:部隊 <= 0
+		CONTINUE
+	;現在地が停戦対象なら解散
+	SIF TMP_COUNTRY_RELATION:勢力:(CITY_OWNER:(UNIT_POSITION:勢力:部隊)) == 1
+		CALL CLEAR_UNIT(勢力, 部隊)
+	;目的地が敵でないなら解散
+	SIF TMP_COUNTRY_RELATION:勢力:(CITY_OWNER:(UNIT_TARGET:勢力:部隊)) != 0
+		CALL CLEAR_UNIT(勢力, 部隊)
+	;部隊の現在位置が中継地点かつ移動先を失っていれば解散する（強制解散フラグを使って時間を必要にするのも多分あり）
+	SIF !UNIT_TARGET:勢力:部隊 && CITY_TYPE:(UNIT_POSITION:勢力:部隊) == 1
+		CALL CLEAR_UNIT(勢力, 部隊)
+NEXT
+
+;-----------------------------------------------
+;部隊を救出する
+;-----------------------------------------------
+@SLG_AI_RESCUE(勢力, 攻撃兵数)
+#DIM 勢力
+#DIM 都市
+#DIM 部隊
+#DIM 攻撃兵数
+#DIM 都市保有者
+#DIM 防衛候補都市, MAX_CITY
+#DIM 防衛スコア, MAX_CITY
+#DIM 防衛スコア合計
+#DIM 救援候補
+#DIM 都市上部隊
+#DIM 敵勢力
+#DIM 敵部隊
+#DIM 敵兵数, 20
+#DIM 敵部隊能力, 20
+#DIM 仮想敵兵数
+#DIM 仮想敵能力
+#DIM 部隊能力
+#DIM 必要兵数
+VARSET 防衛スコア
+VARSET 防衛候補都市
+VARSET 防衛スコア合計
+
+;防衛スコアの合計を算出する
+FOR 都市, 1, GET_CITY_NUM() + 1
+	都市保有者 = CITY_OWNER:都市
+	;敵がいないなら救援しない
+	SIF !IS_STAY_ENEMY_UNIT(都市, 勢力)
+		CONTINUE
+	;助ける必要のないところなら放置
+	SIF !(IS_COUNTRY(都市保有者) && GROUPMATCH(TMP_COUNTRY_RELATION:勢力:都市保有者, 2, 3, 4, 5))
+		CONTINUE
+	防衛スコア合計 = TMP_DEFFENSIVE_IMPORTANCE:勢力:都市 * (TMP_COUNTRY_RELATION:勢力:都市保有者 == 5 ? 10 # 7) / 10
+	防衛スコア:都市 = TMP_DEFFENSIVE_IMPORTANCE:勢力:都市 * (TMP_COUNTRY_RELATION:勢力:都市保有者 == 5 ? 10 # 7) / 10
+	;自国領土でも飛び地は放棄しがち
+	SIF 都市保有者 == 勢力
+		防衛スコア:都市 = 防衛スコア:都市 * TMP_ENCLAVE_SIZE:勢力:都市 / TMP_MAX_ENCLAVE_SIZE:勢力
+NEXT
+
+SIF 防衛スコア合計 == 0
+	RETURN 攻撃兵数
+
+;DEBUGPRINTFORML 防衛スコア合計:{防衛スコア合計}
+WHILE 1
+	;もっとも防衛スコアの高いところを救援にいく
+	救援候補 = FINDELEMENT(防衛スコア, MAXARRAY(防衛スコア))
+	;DEBUGPRINTFORML 救援候補:%GET_CITYNAME(救援候補)% 防衛スコア:{防衛スコア:救援候補}
+	;10%ない,ないし防衛スコア0なら助けない
+	SIF 防衛スコア:救援候補 < 防衛スコア合計 / 10 || 防衛スコア:救援候補 == 0
+		BREAK
+
+	VARSET 敵部隊能力
+	VARSET 敵兵数
+	;存在する敵部隊の能力を計算
+	FOR 都市上部隊, 0, 20
+		敵勢力 = TMP_UNIT_ONCITY_CNT:救援候補:都市上部隊
+		敵部隊 = TMP_UNIT_ONCITY_NUM:救援候補:都市上部隊
+		SIF !IS_COUNTRY(敵勢力) || TMP_COUNTRY_RELATION:勢力:敵勢力 != 0
+			CONTINUE
+		敵兵数:都市上部隊 = UNIT_SOLDIER:敵勢力:敵部隊
+		CALL GET_COMMANDER_ALL(敵勢力, 敵部隊)
+		CALL SET_BATTLE_MIRROR_VAL(0, RESULT:0, RESULT:1, RESULT:2)
+		CALL BATTLE_PREPARE_VARS_EACH(0, 0)
+		敵部隊能力:都市上部隊 = BATTLE_ATC:0 + BATTLE_DEF:0 + BATTLE_INT:0
+	NEXT
+
+	;敵の中で「もっとも多い兵数」「もっとも強い能力」を兼ね備える部隊を仮想敵とする
+	仮想敵兵数 = FINDELEMENT(敵兵数, MAXARRAY(敵兵数))
+	仮想敵能力 = FINDELEMENT(敵部隊能力, MAXARRAY(敵部隊能力))
+
+	;既存の部隊を使う
+	FOR 部隊, 0, MAX_UNIT
+		SIF UNIT_SOLDIER:勢力:部隊 <= 0
+			CONTINUE
+		SIF UNIT_TARGET:勢力:部隊
+			CONTINUE
+		SIF IS_STAY_ENEMY_UNIT(UNIT_POSITION:勢力:部隊, 勢力) == 1
+			CONTINUE
+		SIF TMP_COUNTRY_RELATION:勢力:(CITY_OWNER:(UNIT_POSITION:勢力:部隊)) == 0
+			CONTINUE
+		CALL GET_COMMANDER_ALL(勢力, 部隊)
+		CALL SET_BATTLE_MIRROR_VAL(0, RESULT:0, RESULT:1, RESULT:2)
+		CALL BATTLE_PREPARE_VARS_EACH(0, 0)
+		部隊能力 = BATTLE_ATC:0 + BATTLE_DEF:0 + BATTLE_INT:0
+		必要兵数 = 仮想敵兵数 * (部隊能力 >= 仮想敵能力 ? 80 # 120) / 100
+		;敵部隊の能力の80%ないなら、まず勝てないので諦める
+		SIF 部隊能力 < 仮想敵能力 * 4 / 5
+			CONTINUE
+		;攻撃兵数と部隊兵数足して仮想敵の(能力で勝ってるなら80%、負けてるなら120%）ないなら、まず勝てないので諦める
+		SIF 攻撃兵数 + UNIT_SOLDIER:勢力:部隊 < 必要兵数
+			CONTINUE
+		;補充
+		IF UNIT_SOLDIER:勢力:部隊 < 必要兵数
+			LOCAL = 必要兵数 - UNIT_SOLDIER:勢力:部隊
+			UNIT_SOLDIER:勢力:部隊 += LOCAL
+			攻撃兵数 -= LOCAL
+			COUNTRY_SOLDIER:勢力 -= LOCAL
+		ENDIF
+		UNIT_POSITION:勢力:部隊 = 救援候補
+		GOTO DONE
+		BREAK
+	NEXT
+
+	;派遣してなければ新規部隊を検討
+	FOR 部隊, 0, MAX_UNIT
+		SIF UNIT_SOLDIER:勢力:部隊 > 0
+			CONTINUE
+		CALL CHECK_UNIT_COMMANDER_BEST(勢力)
+		CALL SET_BATTLE_MIRROR_VAL(0, UNIT_COMMANDER_BEST:0, UNIT_COMMANDER_BEST:1, UNIT_COMMANDER_BEST:2)
+		CALL BATTLE_PREPARE_VARS_EACH(0, 0)
+		部隊能力 = BATTLE_ATC:0 + BATTLE_DEF:0 + BATTLE_INT:0
+		必要兵数 = 仮想敵兵数 * (部隊能力 >= 仮想敵能力 ? 80 # 120) / 100
+		SIF 部隊能力 < 仮想敵能力 * 4 / 5
+			CONTINUE
+		SIF 攻撃兵数 < 必要兵数
+			CONTINUE
+		UNIT_SOLDIER:勢力:部隊 = 必要兵数
+		攻撃兵数 =- 必要兵数
+		COUNTRY_SOLDIER:勢力 -= 攻撃兵数
+		FOR LOCAL, 0, MAX_UNIT_COMMANDER
+			SIF UNIT_COMMANDER_BEST:LOCAL == -1
+				BREAK
+			CALL SET_UNIT_COMMANDER(勢力, 部隊, LOCAL, UNIT_COMMANDER_BEST:LOCAL)
+			;IS_FREE_MAPを直接書き換えたほうが速い
+			TMP_IS_FREE:(UNIT_COMMANDER_BEST:LOCAL):0 = 1
+		NEXT
+	NEXT
+
+	$DONE
+	防衛スコア:救援候補 = 0
 WEND
 
-;何してんのコレ？
-;後ろでRANDとか使ってるわりに一個しか取れてない
-;なんかおかしいので上のやつで代替
-;FOR LOCAL:0, 0, KOUHO_COUNT
-;	IF KOUHO_JUUYOU:(LOCAL:0) == SAIJUUYOU
-;		TEMP_ID:JUUYOU_COUNT = LOCAL:0
-;		JUUYOU_COUNT ++
-;	ENDIF
-;NEXT
-
-IF JUUYOU_COUNT > 0
-	;空いている部隊の番号のうち最も若い番号を取得
-	UNIT_PROTECT = -1
-	FOR LOCAL:0, 0, 10
-		IF UNIT_SOLDIER:(ARG:0):(LOCAL:0) <= 0
-			UNIT_PROTECT = LOCAL:0
-			BREAK
-		ENDIF
-	NEXT
-
-	IF UNIT_PROTECT >= 0
-		GEIGEKI = TEMP_ID:(RAND:(JUUYOU_COUNT))
-		;元はLOCAL:(LOCAL:8 + 100)だったが
-		;LOCAL:100～は優先順位が低いものも混じっている状態なのでLOCAL:300～が正しいはず？
-		;じゃないと抽選にLOCAL:7を使用する意味がわからない
-		;たぶんこれはバグだ
-		;複数箇所を攻められた時に重要度関係なしに最もIDの若い都市に出現するような挙動になる
-
-		UNIT_TARGET:(ARG:0):UNIT_PROTECT = 0
-		UNIT_POSITION:(ARG:0):UNIT_PROTECT = GEIGEKI
-		SELECTCASE CONFIG:300
-		;簡単は全部隊の1/3を防衛に回す
-		CASE 0
-			UNIT_SOLDIER:(ARG:0):UNIT_PROTECT = COUNTRY_SOLDIER:(ARG:0) / 3
-		;簡単以外は全部隊の2/3を防衛に回す
-		CASEELSE
-			UNIT_SOLDIER:(ARG:0):UNIT_PROTECT = COUNTRY_SOLDIER:(ARG:0) * 2 / 3
-		ENDSELECT
-		COUNTRY_SOLDIER:(ARG:0) -= UNIT_SOLDIER:(ARG:0):UNIT_PROTECT
-
-		;守るべき都市上にいる敵兵の総数を調べる
-		;このタイミングでLOCAL:1-5の内容は更新される
-		ENEMY_TOTAL = 0
-		UNIT_MAX = 0
-		ENEMY_MAIN = 0
-		
-		;個人用メモ
-		;TMP_UNIT_ONCITY_CNTとTMP_UNIT_ONCITY_NUMは各都市に駐留中の部隊のID情報
-		;
-		;TMP_UNIT_ONCITY_CNT:X:Y
-		;X=駐留中の都市ID
-		;Y=その都市の駐留部隊ID（0～19）
-		;TMP_UNIT_ONCITY_NUMでもX,Yの意味するところは同一
-		;
-		;TMP_UNIT_ONCITY_CNT=勢力ID
-		;TMP_UNIT_ONCITY_NUM=勢力内の部隊ID
-		FOR LOCAL:0, 0, 20
-			ENEMY_COUNTRY = TMP_UNIT_ONCITY_CNT:GEIGEKI:(LOCAL:0)
-			ENEMY_UNIT = TMP_UNIT_ONCITY_NUM:GEIGEKI:(LOCAL:0)
-			IF ENEMY_COUNTRY >= 1 && TMP_COUNTRY_RELATION:(ARG:0):ENEMY_COUNTRY == 0
-				ENEMY_TOTAL += UNIT_SOLDIER:ENEMY_COUNTRY:ENEMY_UNIT
-				IF UNIT_SOLDIER:ENEMY_COUNTRY:ENEMY_UNIT > UNIT_MAX
-					UNIT_MAX = UNIT_SOLDIER:ENEMY_COUNTRY:ENEMY_UNIT
-					ENEMY_MAIN = ENEMY_COUNTRY
-				ENDIF
-			ENDIF
-		NEXT
-
-		HANGEKI = 0
-		REVERSE_SOLDIER = 0
-		;難易度が困難以上で敵部隊が防衛部隊の1/3未満
-		IF CONFIG:300 >= 2 && ENEMY_TOTAL * 3 < UNIT_SOLDIER:(ARG:0):(UNIT_PROTECT)
-			;部隊の半数を攻撃に回す
-			REVERSE_SOLDIER = UNIT_SOLDIER:(ARG:0):(UNIT_PROTECT) / 2
-			UNIT_SOLDIER:(ARG:0):(UNIT_PROTECT) -= REVERSE_SOLDIER
-
-			;出撃先の都市を選択
-			;LOCAL:100～の更新
-			;LOCAL:2 = 0
-			VARSET TEMP_ID
-			HANGEKI_COUNT = 0
-			FOR LOCAL:0, 1, MAX_CITY
-				IF CITY_OWNER:(LOCAL:0) == ENEMY_MAIN && IS_ROOT(GEIGEKI, LOCAL:0)
-					TEMP_ID:HANGEKI_COUNT = LOCAL:0
-					HANGEKI_COUNT ++
-				ENDIF
-			NEXT
-			
-			IF HANGEKI_COUNT > 0
-				HANGEKI_ID = TEMP_ID:(RAND:(HANGEKI_COUNT))
-
-				;既に相手国家に部隊を送り込んでいるなら切り返さない
-				HANGEKI_ABLE = 1
-				FOR LOCAL:0, 0, 10
-					IF UNIT_SOLDIER:(ARG:0):(LOCAL:0) > 0 && CITY_OWNER:(UNIT_POSITION:(ARG:0):(LOCAL:0)) == HANGEKI_ID
-						HANGEKI_ABLE = 0
-						BREAK
-					ENDIF
-				NEXT
-
-				IF HANGEKI_ABLE
-					;空いている部隊の番号のうち最も若い番号を取得
-					UNIT_HANGEKI = -1
-					FOR LOCAL:0, 0, 10
-						IF UNIT_SOLDIER:(ARG:0):(LOCAL:0) <= 0
-							UNIT_HANGEKI = LOCAL:0
-							BREAK
-						ENDIF
-					NEXT
-
-					IF UNIT_HANGEKI >= 0
-						;切り返し部隊を作成
-						UNIT_SOLDIER:(ARG:0):UNIT_HANGEKI = REVERSE_SOLDIER
-						UNIT_TARGET:(ARG:0):UNIT_HANGEKI = LOCAL:3
-						UNIT_POSITION:(ARG:0):UNIT_HANGEKI = LOCAL:9
-
-						;士官が行動可能な状態にあるかどうかのリストを作成
-						CALL TMP_CREATE_IS_FREE_MAP
-
-						;２部隊に載せる将を決定
-
-						;防衛側の将を設定
-						CALL CHECK_UNIT_COMMANDER_BEST(ARG:0)
-						FOR LOCAL:0, 0, 3
-							IF UNIT_COMMANDER_BEST:(LOCAL:1) >= 0
-								CALL SET_UNIT_COMMANDER(ARG:0, UNIT_PROTECT, LOCAL:0, UNIT_COMMANDER_BEST:(LOCAL:0))
-							ENDIF
-						NEXT
-
-						;侵攻側の将を設定
-						CALL CHECK_UNIT_COMMANDER_BEST(ARG:0)
-						FOR LOCAL:0, 0, 3
-							IF UNIT_COMMANDER_BEST:(LOCAL:0) >= 0
-								CALL SET_UNIT_COMMANDER(ARG:0, UNIT_HANGEKI, LOCAL:0, UNIT_COMMANDER_BEST:(LOCAL:0))
-							ENDIF
-						NEXT
-
-						;防衛部隊を作成したことを示すフラグ
-						IS_PROTECTED = 1
-
-						HANGEKI = 1
-					ENDIF
-				ENDIF
-			ENDIF
-		ENDIF
-
-		;切り返し戦術をとらなかった場合
-		IF !HANGEKI
-			;↑でREVERSE_SOLDIERを引いて反撃しなかった場合の補填処理が無かったのはバグっぽい
-			UNIT_SOLDIER:(ARG:0):UNIT_PROTECT += REVERSE_SOLDIER
-			
-			;士官が行動可能な状態にあるかどうかのリストを作成
-			CALL TMP_CREATE_IS_FREE_MAP
-
-			;部隊が最強となるような士官の組み合わせを得る
-			CALL CHECK_UNIT_COMMANDER_BEST(ARG:0)
-			FOR LOCAL:0, 0, 3
-				SIF UNIT_COMMANDER_BEST:(LOCAL:0) >= 0
-					CALL SET_UNIT_COMMANDER(ARG:0, UNIT_PROTECT, LOCAL:0, UNIT_COMMANDER_BEST:(LOCAL:0))
-			NEXT
-
-			;防衛部隊を作成したことを示すフラグ
-			IS_PROTECTED = 1
-		ENDIF
-	ENDIF
-ENDIF
-
+RETURN 攻撃兵数
 
 ;-------------------------------------------------
-;●防衛部隊の配分
+;ARG:0勢力が国庫を消費して徴兵を行うかの判定
+;ARG:1 判定タイミング(0:侵攻判定前, 1:侵攻判定終了後)
 ;-------------------------------------------------
-;2016/05/13
-;ver0.175バニラでのリグル式戦術AIパッチによる改変
-;ほぼ配分をフェロモンのみで評価するようにしただけ
-;2016/06/08
-;上記を差し戻し
-@SLG_AI_DEFENSE(ARG:0)
-VARSET LOCAL
-;敵勢力の都市と隣接する都市の探索
-LOCAL:5 = 0
-FOR LOCAL:0, 0, MAX_CITY
-	;ARG:0勢力の都市で、敵部隊と交戦中でない
-	IF CITY_OWNER:(LOCAL:0) == ARG:0 && !TMP_IS_STAY_ENEMY_UNIT(LOCAL:0)
-		FOR LOCAL:1, 0, MAX_CITY
-			;敵勢力の都市と隣接しているかをチェック
-			IF CITY_OWNER:(LOCAL:1) != 0 && CITY_TYPE:(LOCAL:1) == 0 && IS_ROOT(LOCAL:0, LOCAL:1)
-				IF TMP_COUNTRY_RELATION:(CITY_OWNER:(LOCAL:0)):(CITY_OWNER:(LOCAL:1)) == 0
-					;敵勢力の都市と隣接する都市の番号をLOCAL:100～に順次記録していく
-					LOCAL:(LOCAL:5 + 100) = LOCAL:0
-					LOCAL:5 ++
-					BREAK
-				ENDIF
-			ENDIF
-		NEXT
-	ENDIF
-NEXT
+@AI_DEPLOY_ARMY(ARG:0, ARG:1)
+;自国の経済／兵数／徴兵限界／温存兵率／支配都市数
+#DIM ECONOMY
+#DIM MILITARY
+#DIM MILITARY_LIMIT
+#DIM MILITARY_PERCENTAGE
+#DIM OWN_CITY
+#DIM SELECTOR, 10
+#DIM DEPLOY_COUNT
+#DIM DOCTRINE, 2, 9
 
-;敵勢力からの距離が２の都市の探索(「敵都市に隣接する都市」に隣接)
-LOCAL:6 = 0
-FOR LOCAL:0, 0, MAX_CITY
-	;ARG:0勢力の都市で、敵部隊と交戦中でない
-	IF CITY_OWNER:(LOCAL:0) == ARG:0 && !TMP_IS_STAY_ENEMY_UNIT(LOCAL:0)
-		;「敵都市に隣接する都市」として既に記録されているかをチェック
-		LOCAL:9 = 1
-		FOR LOCAL:1, 0, LOCAL:5
-			LOCAL:2 = LOCAL:(LOCAL:1 + 100)
-			IF LOCAL:0 == LOCAL:2
-				LOCAL:9 = 0
-				BREAK
-			ENDIF
-		NEXT
+VARSET ECONOMY
+VARSET MILITARY
+VARSET MILITARY_LIMIT
+VARSET MILITARY_PERCENTAGE
+VARSET OWN_CITY
+VARSET SELECTOR
+VARSET DEPLOY_COUNT
 
-		;敵都市に隣接していない場合
-		IF LOCAL:9
-			FOR LOCAL:1, 0, LOCAL:5
-				LOCAL:2 = LOCAL:(LOCAL:1 + 100)
-				;「敵都市に隣接する都市」に隣接しているかをチェック
-				IF IS_ROOT(LOCAL:0, LOCAL:2)
-					;敵勢力からの距離が２の都市の番号をLOCAL:200～に順次記録していく
-					LOCAL:(LOCAL:6 + 200) = LOCAL:0
-					LOCAL:6 ++
-					BREAK
-				ENDIF
-			NEXT
-		ENDIF
-	ENDIF
-NEXT
-
-;敵勢力からの距離が３以上の都市の探索(残りの都市)
-LOCAL:7 = 0
-FOR LOCAL:0, 0, MAX_CITY
-	;ARG:0勢力の都市で、敵部隊と交戦中でない
-	IF CITY_OWNER:(LOCAL:0) == ARG:0 && !TMP_IS_STAY_ENEMY_UNIT(LOCAL:0)
-		;「敵都市に隣接する都市」として既に記録されているかをチェック
-		LOCAL:8 = 1
-		FOR LOCAL:1, 0, LOCAL:5
-			LOCAL:2 = LOCAL:(LOCAL:1 + 100)
-			IF LOCAL:0 == LOCAL:2
-				LOCAL:8 = 0
-				BREAK
-			ENDIF
-		NEXT
-
-		IF LOCAL:8
-			;「敵都市に隣接する都市」として既に記録されているかをチェック
-			LOCAL:9 = 1
-			FOR LOCAL:1, 0, LOCAL:6
-				LOCAL:2 = LOCAL:(LOCAL:1 + 200)
-				IF LOCAL:0 == LOCAL:2
-					LOCAL:9 = 0
-					BREAK
-				ENDIF
-			NEXT
-
-			;どちらのリストにも記録されていない場合
-			IF LOCAL:9
-				;敵勢力からの距離が３以上の都市の番号をLOCAL:300～に順次記録していく
-				LOCAL:(LOCAL:7 + 300) = LOCAL:0
-				LOCAL:7 ++
-			ENDIF
-		ENDIF
-	ENDIF
-NEXT
-
-;敵勢力に隣接する都市に重要度を付ける
-LOCAL:10 = 0
-FOR LOCAL:0, 0, LOCAL:5
-	LOCAL:2 = LOCAL:(LOCAL:0 + 100)
-	LOCAL:(LOCAL:0 + 400) = 100
-	;占領されたときに増える戦線の数が多いほど重要
-	LOCAL:(LOCAL:0 + 400) += MAX(TMP_CHANGE_LINE_ONLOSE(ARG:0, LOCAL:2), -1) * 30
-	;勢力全体に占める経済規模の割合が高いほど重要
-	LOCAL:(LOCAL:0 + 400) += CITY_ECONOMY:(LOCAL:2) * 100 / GET_SUM_ECONOMY(ARG:0)
-	;飛び地サイズの比
-	LOCAL:(LOCAL:0 + 400) = LOCAL:(LOCAL:0 + 400) * TMP_ENCLAVE_SIZE:(ARG:0):(LOCAL:2) / TMP_MAX_ENCLAVE_SIZE:(ARG:0)
-	LOCAL:10 += LOCAL:(LOCAL:0 + 400)
-NEXT
-
-SELECTCASE CONFIG:300
-;簡単
-CASE 0
-	;残った兵力を防衛に回す
-	LOCAL:2 = COUNTRY_SOLDIER:(ARG:0) / (MAX(1, LOCAL:5 + LOCAL:6 + LOCAL:7))
-
-	;どの都市も等分配
-	FOR LOCAL:0, 0, LOCAL:5
-		LOCAL:1 = LOCAL:(LOCAL:0 + 100)
-		CITY_SOLDIER:(LOCAL:1) = LOCAL:2
-		COUNTRY_SOLDIER:(ARG:0) -= CITY_SOLDIER:(LOCAL:1)
-	NEXT
-	FOR LOCAL:0, 0, LOCAL:6
-		LOCAL:1 = LOCAL:(LOCAL:0 + 200)
-		CITY_SOLDIER:(LOCAL:1) = LOCAL:2
-		COUNTRY_SOLDIER:(ARG:0) -= CITY_SOLDIER:(LOCAL:1)
-	NEXT
-	FOR LOCAL:0, 0, LOCAL:7
-		LOCAL:1 = LOCAL:(LOCAL:0 + 300)
-		CITY_SOLDIER:(LOCAL:1) = LOCAL:2
-		COUNTRY_SOLDIER:(ARG:0) -= CITY_SOLDIER:(LOCAL:1)
-	NEXT
-	;重要度の高い都市から順に守将を決定
-	LOCAL:15 = LOCAL:5
-	FOR LOCAL:0, 0, LOCAL:15
-		LOCAL:16 = 0
-		FOR LOCAL:1, 0, LOCAL:5
-			LOCAL:2 = LOCAL:(LOCAL:1 + 400)
-			IF LOCAL:2 > LOCAL:16
-				LOCAL:16 = LOCAL:2
-				LOCAL:17 = LOCAL:1
-			ENDIF
-		NEXT
-		CALL TMP_CREATE_IS_FREE_MAP
-		CALL SET_CITY_COMMANDER_BEST(LOCAL:(LOCAL:17 + 100))
-		FOR LOCAL:1, LOCAL:17, LOCAL:5
-			LOCAL:(LOCAL:1 + 100) = LOCAL:(LOCAL:1 + 101)
-			LOCAL:(LOCAL:1 + 400) = LOCAL:(LOCAL:1 + 401)
-		NEXT
-		LOCAL:5 --
-	NEXT
-;普通
-CASE 1
-	;残った兵力を防衛に回す
-	LOCAL:2 = COUNTRY_SOLDIER:(ARG:0) / (MAX(1, LOCAL:5 * 2 + LOCAL:6 + LOCAL:7))
-
-	;敵勢力と隣接する都市への割り振り
-	FOR LOCAL:0, 0, LOCAL:5
-		LOCAL:1 = LOCAL:(LOCAL:0 + 100)
-		CITY_SOLDIER:(LOCAL:1) = LOCAL:2 * 2 * LOCAL:(LOCAL:0 + 400) * LOCAL:5 / LOCAL:10
-		COUNTRY_SOLDIER:(ARG:0) -= CITY_SOLDIER:(LOCAL:1)
-	NEXT
-
-	;敵勢力からの距離が２、３の都市への割り振り
-	FOR LOCAL:0, 0, LOCAL:6
-		LOCAL:1 = LOCAL:(LOCAL:0 + 200)
-		CITY_SOLDIER:(LOCAL:1) = LOCAL:2
-		COUNTRY_SOLDIER:(ARG:0) -= CITY_SOLDIER:(LOCAL:1)
-	NEXT
-	FOR LOCAL:0, 0, LOCAL:7
-		LOCAL:1 = LOCAL:(LOCAL:0 + 300)
-		CITY_SOLDIER:(LOCAL:1) = LOCAL:2
-		COUNTRY_SOLDIER:(ARG:0) -= CITY_SOLDIER:(LOCAL:1)
-	NEXT
-	;重要度の高い都市から順に守将を決定
-	LOCAL:15 = LOCAL:5
-	FOR LOCAL:0, 0, LOCAL:15
-		LOCAL:16 = 0
-		FOR LOCAL:1, 0, LOCAL:5
-			LOCAL:2 = LOCAL:(LOCAL:1 + 400)
-			IF LOCAL:2 > LOCAL:16
-				LOCAL:16 = LOCAL:2
-				LOCAL:17 = LOCAL:1
-			ENDIF
-		NEXT
-		CALL TMP_CREATE_IS_FREE_MAP
-		;防衛AIは武将の数に余裕があると二人配置する
-		IF COUNTRY_AI_TYPE:(ARG:0) == AI_防衛
-			IF TMP_GET_IS_FREE_NUM(ARG:0) >= LOCAL:5 + 1
-				CALL SET_CITY_COMMANDER_BEST(LOCAL:(LOCAL:17 + 100), 1)
-			ELSE
-				CALL SET_CITY_COMMANDER_BEST(LOCAL:(LOCAL:17 + 100), 0)
-			ENDIF
-		ELSE
-			CALL SET_CITY_COMMANDER_BEST(LOCAL:(LOCAL:17 + 100), 0)
-		ENDIF
-		FOR LOCAL:1, LOCAL:17, LOCAL:5
-			LOCAL:(LOCAL:1 + 100) = LOCAL:(LOCAL:1 + 101)
-			LOCAL:(LOCAL:1 + 400) = LOCAL:(LOCAL:1 + 401)
-		NEXT
-		LOCAL:5 --
-	NEXT
-
-;困難・虐め
-CASEELSE
-	;距離３以上の都市に各々500の兵を配分
-	FOR LOCAL:0, 0, LOCAL:7
-		LOCAL:1 = LOCAL:(LOCAL:0 + 300)
-		CITY_SOLDIER:(LOCAL:1) = MIN(500, COUNTRY_SOLDIER:(ARG:0))
-		COUNTRY_SOLDIER:(ARG:0) -= CITY_SOLDIER:(LOCAL:1)
-	NEXT
-
-	;残った兵力を防衛に回す
-	LOCAL:2 = COUNTRY_SOLDIER:(ARG:0) / (MAX(1, LOCAL:5 * 5 + LOCAL:6 * 2))
-
-	;敵勢力と隣接する都市への割り振り
-	FOR LOCAL:0, 0, LOCAL:5
-		LOCAL:1 = LOCAL:(LOCAL:0 + 100)
-		CITY_SOLDIER:(LOCAL:1) += LOCAL:2 * 5 * LOCAL:(LOCAL:0 + 400) * LOCAL:5 / LOCAL:10
-		COUNTRY_SOLDIER:(ARG:0) -= CITY_SOLDIER:(LOCAL:1)
-	NEXT
-
-	;敵勢力からの距離が２の都市への割り振り
-	FOR LOCAL:0, 0, LOCAL:6
-		LOCAL:1 = LOCAL:(LOCAL:0 + 200)
-		CITY_SOLDIER:(LOCAL:1) += LOCAL:2 * 2
-		COUNTRY_SOLDIER:(ARG:0) -= CITY_SOLDIER:(LOCAL:1)
-	NEXT
-
-	;重要度の高い都市から順に守将を決定
-	LOCAL:15 = LOCAL:5
-	FOR LOCAL:0, 0, LOCAL:15
-		LOCAL:16 = 0
-		FOR LOCAL:1, 0, LOCAL:5
-			LOCAL:2 = LOCAL:(LOCAL:1 + 400)
-			IF LOCAL:2 > LOCAL:16
-				LOCAL:16 = LOCAL:2
-				LOCAL:17 = LOCAL:1
-			ENDIF
-		NEXT
-		CALL TMP_CREATE_IS_FREE_MAP
-		;全てのAIは武将の数に余裕があると二人配置する
-		IF TMP_GET_IS_FREE_NUM(ARG:0) >= LOCAL:5 + 1
-			CALL SET_CITY_COMMANDER_BEST(LOCAL:(LOCAL:17 + 100), 1)
-		ELSE
-			CALL SET_CITY_COMMANDER_BEST(LOCAL:(LOCAL:17 + 100), 0)
-		ENDIF
-		FOR LOCAL:1, LOCAL:17, LOCAL:5
-			LOCAL:(LOCAL:1 + 100) = LOCAL:(LOCAL:1 + 101)
-			LOCAL:(LOCAL:1 + 400) = LOCAL:(LOCAL:1 + 401)
-		NEXT
-		LOCAL:5 --
-	NEXT
-ENDSELECT
-;-------------------------------------------------
-;作成可能な部隊のうち能力が最強となる将の組み合わせを調べる ARG:0=勢力番号 ARG:1 = 政治力によるフィルタを無視するフラグ
-;FREE_XXX及びCHECK_IS_FREEの配列は要素の位置が同じなら同じキャラのデータをとるのを利用
-;※直前に @TMP_CREATE_IS_FREE_MAP 関数を呼び出してから使用すること
-;-------------------------------------------------
-@CHECK_UNIT_COMMANDER_BEST(ARG:0, ARG:1 = 0)
-;候補キャラのキャラ番号及びそのキャラの各パワーを記録する配列
-;一次配列でそれぞれ用意しているのは配列検索系の関数を利用するため
-#DIM CHECK_IS_FREE, 3000
-#DIM FREE_STR, 3000
-#DIM FREE_DEF, 3000
-#DIM FREE_INT, 3000
-#DIM FREE_MAG, 3000
-#DIM FREE_POL, 3000
-#DIM FREE_STAR, 3000
-#DIM FREE_AI_PRIORITY, 5
-;候補キャラのパワー上昇率と政治パワー合計
-#DIM FREE_PUP, 3000
-#DIM 候補数
-#DIM SUM_POL
-#DIM 最大値, 5
-#DIM 二人合計, 5
-#DIM 候補, 3
-#DIM 特殊勢力優先
-VARSET CHECK_IS_FREE, -1
-VARSET UNIT_COMMANDER_BEST, -1
-VARSET FREE_STR, -1
-VARSET FREE_DEF, -1
-VARSET FREE_INT, -1
-VARSET FREE_MAG, -1
-VARSET FREE_POL, -1
-VARSET FREE_PUP, -1
-VARSET FREE_STAR, -1
-VARSET FREE_AI_PRIORITY, 10
-
-候補数 = 0
-FOR LOCAL:0, 0, MIN(CHARANUM, 3000)
-	;自国の士官のみ考慮
-	IF CFLAG:(LOCAL:0):所属 == ARG:0 && TMP_IS_FREE:(LOCAL:0):0 == 0
-		;MASTER麾下の武将は、除外フラグをたてていたら除外する
-		SIF ARG:0 == CFLAG:MASTER:所属 && CFLAG:(LOCAL):最強編成除外フラグ
-			CONTINUE
-		;自由に行動可能なキャラ番号をCHECK_IS_FREEに順番に格納
-		CHECK_IS_FREE:候補数 = LOCAL:0
-		候補数 ++
-	ENDIF
-NEXT
-
-;候補がだれもいなければ戻す
-SIF 候補数 == 0
-	RETURN 1
-
-SUM_POL = 0
+DOCTRINE:0:0 = 100, 110, 95, 90, 125, 90, 80, 150, 80
+DOCTRINE:1:0 = 100, 95, 110, 90, 90, 125, 80, 80, 150
 
 
-FOR LOCAL:0, 0, 候補数
-	;別変数に一旦格納
-	LOCAL:2 = CHECK_IS_FREE:(LOCAL:0)
-	FREE_STR:(LOCAL:0) = ABL_POWER_X(ABL:(LOCAL:2):武闘, LOCAL:2)
-	FREE_DEF:(LOCAL:0) = ABL_POWER_X(ABL:(LOCAL:2):防衛, LOCAL:2)
-	FREE_INT:(LOCAL:0) = ABL_POWER_X(ABL:(LOCAL:2):知略, LOCAL:2)
-	FREE_MAG:(LOCAL:0) = ABL_POWER_X(ABL:(LOCAL:2):妖術, LOCAL:2)
-	FREE_POL:(LOCAL:0) = ABL_POWER_X(ABL:(LOCAL:2):政治, LOCAL:2)
-	FREE_STAR:(LOCAL:0) = ABL_POWER_X(TMP_CHARA_STARS:(LOCAL:2) * 10, LOCAL:2)
-	;特殊勢力のキャラなら、各パワーを1にし、通常キャラが優先されるようにしておく。
-	IF IS_SP_COUNTRY_CHARA(LOCAL:2)
-		FREE_STR:(LOCAL:0) = 1
-		FREE_INT:(LOCAL:0) = 1
-		FREE_MAG:(LOCAL:0) = 1
-		;政治パワーを非常に高くしておいて、通常キャラが政治パワーを理由に除外されないようにする
-		FREE_POL:(LOCAL:0) *= 10
-	ENDIF
-	SUM_POL += FREE_POL:(LOCAL:0)
-NEXT
+ECONOMY = TMP_SUM_ECONOMY:(ARG:0)
+MILITARY_LIMIT = ECONOMY / 10
 
+OWN_CITY = MATCH(CITY_OWNER, ARG:0)
 
-IF !ARG:1
-	FOR LOCAL:0, 0, 候補数
-		;行動可能なキャラの政治パワー合計のうち一定割合を占めているキャラを除外
-		IF FREE_POL:(LOCAL:0) > AI_POLITICAL_LIMIT:(COUNTRY_AI_TYPE:(ARG:0)) * SUM_POL / 100
-			FREE_STR:(LOCAL:0) = 0
-			FREE_DEF:(LOCAL:0) = 0
-			FREE_INT:(LOCAL:0) = 0
-			FREE_MAG:(LOCAL:0) = 0
-			FREE_STAR:(LOCAL:0) = 0
-			FREE_POL:(LOCAL:0) = -1
-		ENDIF
-	NEXT
-ENDIF
+;動員レート：現在の経済規模の1～5%を消費することで兵力限界の2～10%の兵力を得る
+;最大判定回数の決定
+SELECTOR:0 = AI_DEPLOY:(COUNTRY_AI_TYPE:(ARG:0)):(ARG:1 ? 3 # 1)
+SELECTOR:1 = RAND:(SELECTOR:0 / 2 + 1) + RAND:(SELECTOR:0 / 2 + SELECTOR:0 % 2 + 1)
 
-;武闘・知略・妖術の最大値を比較し最も大きい値を持つキャラを候補にする
-最大値:0 = MAXARRAY(FREE_STR)
-最大値:1 = MAXARRAY(FREE_DEF)
-最大値:2 = MAXARRAY(FREE_INT)
-最大値:3 = MAXARRAY(FREE_MAG)
-最大値:4 = MAXARRAY(FREE_STAR)
+SIF !SELECTOR:1
+	RETURN 0
 
-;重視率のゆらぎ80～120%
-FREE_AI_PRIORITY:0 = AI_PRIORITY:(COUNTRY_AI_TYPE:(ARG:0)):0 * (80 + RAND:41) / 100
-FREE_AI_PRIORITY:1 = AI_PRIORITY:(COUNTRY_AI_TYPE:(ARG:0)):1 * (80 + RAND:41) / 100
-FREE_AI_PRIORITY:2 = AI_PRIORITY:(COUNTRY_AI_TYPE:(ARG:0)):2 * (80 + RAND:41) / 100
-FREE_AI_PRIORITY:3 = AI_PRIORITY:(COUNTRY_AI_TYPE:(ARG:0)):3 * (80 + RAND:41) / 100
-FREE_AI_PRIORITY:4 = AI_PRIORITY:(COUNTRY_AI_TYPE:(ARG:0)):4 * (80 + RAND:41) / 100
-
-;この時点で全て同一なら、除外処理後に候補が誰もいなくなったということなので、RETURN
-SIF ALLSAMES(最大値:0, 最大値:1, 最大値:2, 最大値:3, 最大値:4) && 最大値:0 == -1
-	RETURN 1
-
-;1人目を決定する
-;最も重視する能力が最も高いキャラを選ぶ。
-IF 最大値:0 * FREE_AI_PRIORITY:0 >= 最大値:1 * FREE_AI_PRIORITY:1
-	IF 最大値:0 * FREE_AI_PRIORITY:0 >= 最大値:2 * FREE_AI_PRIORITY:2
-		候補:0 = FINDELEMENT(FREE_STR, 最大値:0)
-	ELSEIF 最大値:1 * FREE_AI_PRIORITY:1 >= 最大値:2 * FREE_AI_PRIORITY:2
-		候補:0 = FINDELEMENT(FREE_DEF, 最大値:1)
-	ELSE
-		候補:0 = FINDELEMENT(FREE_INT, 最大値:2)
-	ENDIF
-ELSEIF 最大値:1 * FREE_AI_PRIORITY:1 >= 最大値:2 * FREE_AI_PRIORITY:2
-	候補:0 = FINDELEMENT(FREE_DEF, 最大値:1)
-ELSE
-	候補:0 = FINDELEMENT(FREE_INT, 最大値:2)
-ENDIF
-
-UNIT_COMMANDER_BEST:0 = CHECK_IS_FREE:(候補:0)
-
-;いなければ最後の処理へ
-SIF UNIT_COMMANDER_BEST:0 < 0
-	GOTO DECIDED
-
-;１人目のキャラを候補から外す（政治パワーにフラグをつける）
-FREE_POL:(候補:0) = -1
-
-;アップ率の合計が最も大きいキャラを次の候補にする
-FOR LOCAL:0, 0, 候補数
-	;残っているキャラのみを考慮
-	SIF FREE_POL:(LOCAL:0) < 0
-		CONTINUE
-	LOCAL:1 = FREE_STR:(LOCAL:0) * 1000 * FREE_AI_PRIORITY:0 / FREE_STR:(候補:0)
-	LOCAL:2 = FREE_DEF:(LOCAL:0) * 1000 * FREE_AI_PRIORITY:1 / FREE_DEF:(候補:0)
-	LOCAL:3 = FREE_INT:(LOCAL:0) * 1000 * FREE_AI_PRIORITY:2 / FREE_INT:(候補:0)
-	LOCAL:4 = FREE_MAG:(LOCAL:0) * 1000 * FREE_AI_PRIORITY:3 / FREE_MAG:(候補:0)
-	LOCAL:5 =  FREE_STAR:(LOCAL:0) * 1000 * FREE_AI_PRIORITY:4 / FREE_STAR:(候補:0)
-	FREE_PUP:(LOCAL:0) = LOCAL:1 + LOCAL:2 + LOCAL:3 + LOCAL:4 + LOCAL:5
-NEXT
-候補:1 = FINDELEMENT(FREE_PUP,  MAX(MAXARRAY(FREE_PUP), 0))
-
-;２人目のキャラを記録し候補から外す
-UNIT_COMMANDER_BEST:1 = 候補:1 >= 0 ? CHECK_IS_FREE:(候補:1) # -1
-
-;いなければ最後の処理へ
-SIF UNIT_COMMANDER_BEST:1 < 0
-	GOTO DECIDED
-
-;二人の合計を記録
-IF UNIT_COMMANDER_BEST:1 >= 0
-	FREE_POL:(候補:1) = -1
-	二人合計:0 = FREE_STR:(候補:0) + FREE_STR:(候補:1)
-	二人合計:1 = FREE_DEF:(候補:0) + FREE_DEF:(候補:1)
-	二人合計:2 = FREE_INT:(候補:0) + FREE_INT:(候補:1)
-	二人合計:3 = FREE_MAG:(候補:0) + FREE_MAG:(候補:1)
-	二人合計:4 = FREE_STAR:(候補:0) + FREE_STAR:(候補:1)
-ENDIF
-
-VARSET FREE_PUP, -1
-
-;3人目を決定　料理と歌唱も考慮に入れる
-
-;一人目、二人目が特殊勢力のキャラでない場合、フラグたて
-特殊勢力優先 = 0
-IF !IS_SP_COUNTRY_CHARA(CHECK_IS_FREE:(候補:0))
-	IF !IS_SP_COUNTRY_CHARA(CHECK_IS_FREE:(候補:1))
-		特殊勢力優先  = 1
-	ENDIF
-ENDIF
-
-FOR LOCAL:0, 0, 候補数
-	;候補に残っているキャラのみを考慮
-	SIF FREE_POL:(LOCAL:0) < 0 || GROUPMATCH(LOCAL:0, LOCAL:60, LOCAL:61)
-		CONTINUE
-	LOCAL:1 = CHECK_IS_FREE:(LOCAL:0)
-	LOCAL:2 = FREE_STR:(LOCAL:0) * 1000 / 二人合計:0 * FREE_AI_PRIORITY:0
-	LOCAL:3 = FREE_DEF:(LOCAL:0) * 1000 / 二人合計:1 * FREE_AI_PRIORITY:0
-	LOCAL:4 = FREE_INT:(LOCAL:0) * 1000 / 二人合計:2 * FREE_AI_PRIORITY:1
-	LOCAL:5 = FREE_MAG:(LOCAL:0) * 1000 / 二人合計:3 * FREE_AI_PRIORITY:2
-	LOCAL:6 = FREE_STAR:(LOCAL:0) * 1000 / 二人合計:4 * FREE_AI_PRIORITY:3
-	LOCAL:7 = (ABL_POWER_X(ABL:(LOCAL:1):歌唱, LOCAL:1) + 24000) / 24 - 1000
-	LOCAL:8 = (ABL_POWER_X(ABL:(LOCAL:1):料理, LOCAL:1) + 24000) / 24 - 1000
-	FREE_PUP:(LOCAL:0) = LOCAL:2 + LOCAL:3 + LOCAL:4 + LOCAL:5 + LOCAL:6 + LOCAL:7 + LOCAL:8
-
-	IF IS_SP_COUNTRY_CHARA(CHECK_IS_FREE:(LOCAL:0)) && 特殊勢力優先
-		FREE_PUP:(LOCAL:0) = __INT_MAX__
+FOR SELECTOR:3, 0, SELECTOR:1
+	DEPLOY_COUNT ++
+	;現在の国庫が既定値（現在の経済規模のN%）未満であれば動員しない
+	SIF MONEY:(ARG:0) < AI_DEPLOY:(COUNTRY_AI_TYPE:(ARG:0)):4 * ECONOMY * (RAND:41 + 80) / (100 * 100 * 100)
 		BREAK
-	ENDIF
+
+	MILITARY = GET_SUM_SOLDIER(ARG:0)
+	MILITARY_PERCENTAGE = MILITARY * 100 / MILITARY_LIMIT
+	;既に動員上限を超えていれば雇用しない
+	SIF MILITARY_PERCENTAGE > AI_DEPLOY:(COUNTRY_AI_TYPE:(ARG:0)):(ARG:1 ? 2 # 0)
+		BREAK
+
+	;動員に支払う額、現在の経済値の1～5%
+	SELECTOR:8 = RAND:3 + RAND:3 + 1 
+	SELECTOR:9 = SELECTOR:8 * ECONOMY / (100 * 100)
+	;金がないなら動員しない（上の段階で弾かれるのが普通）
+	SIF MONEY:(ARG:0) < SELECTOR:9
+		BREAK
+	MONEY:(ARG:0) -= SELECTOR:9
+
+	;動員処理
+	SELECTOR:2 = SELECTOR:8 * MILITARY_LIMIT * DOCTRINE:(ARG:1 ? 1 # 0):(COUNTRY_POLICY:(ARG:0)) / (100 * 100)
+	COUNTRY_SOLDIER:(ARG:0) += SELECTOR:2
+	SELECTOR:4 += SELECTOR:2
+	SELECTOR:5 += SELECTOR:9
+
 NEXT
-候補:2 = FINDELEMENT(FREE_PUP, MAX(MAXARRAY(FREE_PUP), 0))
-
-;３人目のキャラを記録
-UNIT_COMMANDER_BEST:2 = 候補:2 >= 0 ? CHECK_IS_FREE:(候補:2) # -1
-
-;SIF !NOSAMES(LOCAL:50, LOCAL:51, LOCAL:52)
-;	DEBUGPRINTFORML {DAY, 3}【武将重複？】:%NAME:(GET_COUNTRY_BOSS(ARG:0))%@ {LOCAL:50}:{CHECK_IS_FREE:(LOCAL:50)}, {LOCAL:51}:{CHECK_IS_FREE:(LOCAL:51)}, {LOCAL:52}:{CHECK_IS_FREE:(LOCAL:52)}
-
-$DECIDED
-
-;最後にNO順に並べ替える
-FOR LOCAL:0, 0, 3
-	IF UNIT_COMMANDER_BEST:(LOCAL:0) >= 0
-		FOR LOCAL:1, LOCAL:0 + 1, 3
-			IF UNIT_COMMANDER_BEST:(LOCAL:1) >= 0
-				IF NO:(UNIT_COMMANDER_BEST:(LOCAL:0)) > NO:(UNIT_COMMANDER_BEST:(LOCAL:1))
-					SWAP UNIT_COMMANDER_BEST:(LOCAL:0), UNIT_COMMANDER_BEST:(LOCAL:1)
-				ENDIF
-			ENDIF
-		NEXT
-	ENDIF
-NEXT
-
-
-;-------------------------------------------------
-;都市ARG:0に最適な守将を配置。ARG:1を1にすると二人設定できる。ARG:2を1にすると、その都市の守将を含めるようにする
-;※直前に @TMP_CREATE_IS_FREE_MAP 関数を呼び出してから使用すること
-;-------------------------------------------------
-@SET_CITY_COMMANDER_BEST(ARG:0, ARG:1 = 0, ARG:2 = 0)
-#DIM LCOUNT
-CALL CHECK_CITY_COMMANDER_BEST(ARG:0, ARG:1, ARG:2)
-FOR LCOUNT:0, 0, MAX_CITY_COMMANDER
-	CALL SET_CITY_COMMANDER(ARG:0, LCOUNT:0, CITY_COMMANDER_BEST:(LCOUNT:0))
-NEXT
-;-------------------------------------------------
-;都市ARG:0に最適な守将を確認。ARG:1を1にすると二人設定できる。ARG:2に１すると、その都市の守将を含めるようにする
-;※直前に @TMP_CREATE_IS_FREE_MAP 関数を呼び出してから使用すること
-;-------------------------------------------------
-@CHECK_CITY_COMMANDER_BEST(ARG:0, ARG:1 = 0, ARG:2 = 0)
-#DIM 勢力
-#DIM 守将, 2
-#DIM LCOUNT,2
-#DIM 最大
-VARSET LOCAL, __INT_MIN__
-VARSET CITY_COMMANDER_BEST, -1
-;都市を所有する勢力の番号を取得
-勢力 = CITY_OWNER:(ARG:0)
-VARSET 守将, -1
-IF ARG:2
-	CALL GET_CITY_COMMANDER_ALL(ARG:0)
-	守将 = RESULT:0, RESULT:1
+IF SELECTOR:4
+	;DEBUGPRINTFORML {DAY, 3}【緊急動員（\@ARG:1 ? 防 # 攻 \@）】%NAME:(GET_COUNTRY_BOSS(ARG:0))%:支払{SELECTOR:5}/{ECONOMY / 100}→徴兵{SELECTOR:4}/{MILITARY_LIMIT}
+	SIF ARG:0 == CFLAG:MASTER:所属 || FLAG:観戦モード
+		PRINTFORML %NAME:(GET_COUNTRY_BOSS(ARG:0))%は{SELECTOR:5}の資金を払い\@ARG:1 ? 防衛 # 侵攻 \@のために兵を{SELECTOR:4}動員しました
 ENDIF
-;勢力に所属してFREEな各キャラの能力を記録
-FOR LCOUNT, 0, CHARANUM
-	IF CFLAG:(LCOUNT):所属 == 勢力 && (TMP_IS_FREE:LCOUNT:0 == 0 || (ARG:2 && GROUPMATCH(LCOUNT, 守将:0, 守将:1)))
-		;MASTER麾下の武将は、除外フラグをたてていたら除外する
-		SIF 勢力 == CFLAG:MASTER:所属 && CFLAG:(LCOUNT):最強編成除外フラグ
+
+;-------------------------------------------------
+;部隊を生成する
+;-------------------------------------------------
+@SLG_AI_CREATE_UNIT(勢力, 部隊, 攻撃兵数)
+#DIM 勢力
+#DIM 部隊
+#DIM 攻撃兵数
+#DIM 出兵難易度, 2
+#DIM 兵数候補
+#DIM 最低兵数
+#DIM 確定兵数
+#DIM 出兵数
+#DIM AI_TYPE
+
+
+AI_TYPE = COUNTRY_AI_TYPE:勢力
+最低兵数 = AI_ARMY_PROPERTY:AI_TYPE:AI_最低兵数 / MAX(6 - TMP_OWN_CITY:勢力, 1)
+確定兵数 = MIN(AI_ARMY_PROPERTY:AI_TYPE:AI_確定兵数, TMP_SUM_ECONOMY:勢力 * 10)
+;DEBUGPRINTFORML %ANAME(GET_COUNTRY_BOSS(勢力))%の部隊作成試行 攻撃兵数{攻撃兵数} 最低兵数{最低兵数} 確定兵数{確定兵数}
+
+;兵数が最低割ってたら部隊は作らない
+SIF 攻撃兵数 < 最低兵数
+	RETURN 攻撃兵数
+
+;兵数が確定兵数を割っているなら、確定兵数に対する攻撃兵数の割合%で出兵する
+;ただし都市数が少ないと積極的
+IF 攻撃兵数 < 確定兵数
+	SIF 攻撃兵数 * 100 / 確定兵数 < RAND:(100 - MAX((6 - TMP_OWN_CITY:勢力) * 10, 0))
+		RETURN 攻撃兵数
+ENDIF
+
+CALL CHECK_UNIT_COMMANDER_BEST(勢力)
+;DEBUGPRINTFORML 部隊作成 RESULT:0 {UNIT_COMMANDER_BEST:0} RESULT:1 {UNIT_COMMANDER_BEST:1} RESULT:2 {UNIT_COMMANDER_BEST:2}
+
+
+最低兵数 *= MIN(MAX(MATCH(UNIT_COMMANDER_BEST, -1) * 3, 1), 確定兵数 - 1)
+;DEBUGPRINTFORML 補正後最低兵数{最低兵数} 確定兵数{確定兵数}
+;武将
+;SIF MATCH(武将候補, -1) == 3
+;	RETURN 攻撃兵数
+
+;部隊に編成する兵数を決定
+IF 攻撃兵数 >= 確定兵数
+	出兵数 = 確定兵数
+ELSE
+	出兵数 = MIN(RAND(最低兵数, 確定兵数), 攻撃兵数)
+ENDIF
+
+UNIT_SOLDIER:勢力:部隊 = 出兵数
+COUNTRY_SOLDIER:勢力 -= 出兵数
+攻撃兵数 -= 出兵数
+FOR LOCAL, 0, MAX_UNIT_COMMANDER
+	SIF UNIT_COMMANDER_BEST:LOCAL == -1
+		CONTINUE
+	CALL SET_UNIT_COMMANDER(勢力, 部隊, LOCAL, UNIT_COMMANDER_BEST:LOCAL)
+	;IS_FREE_MAPを直接書き換えたほうが速い
+	TMP_IS_FREE:(UNIT_COMMANDER_BEST:LOCAL):0 = 1
+NEXT
+
+;DEBUGPRINTFORML 部隊作成 兵数{UNIT_SOLDIER:勢力:部隊}
+
+RETURN 攻撃兵数
+
+;-------------------------------------------------
+;部隊の攻撃先を決定する
+;-------------------------------------------------
+@SLG_AI_INVASION_SETTARGET(勢力, 部隊)
+#DIM 勢力
+#DIM 部隊
+#DIM 都市
+#DIM 攻撃候補スコア, MAX_CITY
+#DIM 次のスコア
+#DIM 関係性
+#DIM 君主
+#DIM 都市保有勢力
+#DIM 都市保有君主
+#DIM 攻撃候補
+#DIM 現在スコア
+#DIM 自部隊能力, 3
+#DIM 敵部隊能力, 3
+#DIM カウント
+
+VARSET 攻撃候補スコア, __INT_MIN__
+君主 = GET_COUNTRY_BOSS(勢力)
+
+CALL GET_UNIT_COMMANDER_ALL(勢力, 部隊)
+CALL SET_BATTLE_MIRROR_VAL(0, RESULT:0, RESULT:1, RESULT:2)
+CALL BATTLE_PREPARE_VARS_EACH(0, 0)
+自部隊能力:0 = BATTLE_ATC:0
+自部隊能力:1 = BATTLE_DEF:0
+自部隊能力:2 = BATTLE_INT:0
+
+;スコアを計算
+FOR 都市, 1, GET_CITY_NUM() + 1
+	SIF !TMP_IS_INVADABLE:勢力:都市
+		CONTINUE
+	都市保有勢力 = CITY_OWNER:都市
+	都市保有君主 = GET_COUNTRY_BOSS(都市保有勢力)
+	攻撃候補スコア:都市 = TMP_OFFENSIVE_IMPORTANCE:勢力:都市 * RAND(80, 120)
+	;関係が悪いほど狙われやすい
+	関係性 = IS_COUNTRY(都市保有勢力) ? 1500 + REL_LIKE:君主:都市保有君主 - REL_HATE:君主:都市保有君主 # 1500
+	関係性 = 関係性 * 100 / 3000
+	攻撃候補スコア:都市 = 攻撃候補スコア:都市 * 関係性 / 100
+	;直接つながってないなら2/3
+	攻撃候補スコア:都市 = 攻撃候補スコア:都市 * (TMP_CONNECTED_TO_US:勢力:都市 + 2) / 3
+	;最大の飛び地に対する攻撃元の飛び地サイズの比
+	攻撃候補スコア:都市 = 攻撃候補スコア:都市 * MAX(TMP_ENCLAVE_SIZE:勢力:(TMP_IS_INVADABLE:勢力:都市), 1) / TMP_MAX_ENCLAVE_SIZE:勢力
+	;自国のほうが大きいなら、都市数の差5につき1.5倍狙いやすくする
+	;自国のほうが小さいなら、都市数の差3につき1.2倍狙いやすくする
+	IF IS_COUNTRY(都市保有勢力)
+		攻撃候補スコア:都市 = 攻撃候補スコア:都市 + 攻撃候補スコア:都市 / 2 * MAX((TMP_OWN_CITY:勢力 - TMP_OWN_CITY:都市保有勢力) / 5, 0)
+		攻撃候補スコア:都市 = 攻撃候補スコア:都市 + 攻撃候補スコア:都市 / 5 * MAX((TMP_OWN_CITY:都市保有勢力 - TMP_OWN_CITY:勢力) / 3, 0)
+	ENDIF
+	;同盟か停戦したい相手の都市なら1/3に
+	SIF GROUPMATCH(CHECK_AI_DIPLOMACY_PLAN(勢力, 都市保有勢力), AI_外交計画_停戦, AI_外交計画_同盟)
+		攻撃候補スコア:都市 /= 3
+	;DEBUGPRINTFORML %GET_CITYNAME(都市)% {攻撃候補スコア:都市}
+NEXT
+
+;候補上位10個をみる
+FOR LOCAL, 0, 10
+
+	攻撃候補 = FINDELEMENT(攻撃候補スコア, MAXARRAY(攻撃候補スコア))
+
+	;DEBUGPRINTFORML 攻撃候補 %GET_CITYNAME(攻撃候補)% スコア{攻撃候補スコア:攻撃候補}
+
+	;攻撃候補でないものだったら戻す
+	SIF 攻撃候補スコア:攻撃候補 == __INT_MIN__
+		BREAK
+
+	現在スコア = 攻撃候補スコア:攻撃候補
+	攻撃候補スコア:攻撃候補 = __INT_MIN__
+
+	次のスコア = MAXARRAY(攻撃候補スコア)
+	;すでにそこを狙っている部隊を探す
+	FOR LOCAL:1, 0, MAX_UNIT
+		SIF UNIT_SOLDIER:勢力:(LOCAL:1) <= 0
 			CONTINUE
-		;知略の重みは武闘・妖術の1/8
-{
-		LOCAL:(LCOUNT) = MAX(ABL_POWER_X(ABL:(LCOUNT):武闘, LCOUNT), 0) / 2 + MAX(ABL_POWER_X(ABL:LCOUNT:防衛, LCOUNT), 0) + MAX(ABL_POWER_X(MIN(ABL:(LCOUNT):知略, 110), LCOUNT), 0) / 8 + MAX(ABL_POWER_X(ABL:(LCOUNT):妖術, LCOUNT), 0) + 
-						 MAX(ABL_POWER_X(ABL:(LCOUNT):料理, LCOUNT), 0) / 8 + MAX(ABL_POWER_X(ABL:(LCOUNT):歌唱, LCOUNT), 0) / 8 + 
-						 MAX(ABL_POWER_X(TMP_CHARA_STARS:(LCOUNT) * 10, LCOUNT), 0)
-}
+		SIF LOCAL:1 == 部隊
+			CONTINUE
+		SIF UNIT_TARGET:勢力:(LOCAL:1) != 攻撃候補 && UNIT_POSITION:勢力:(LOCAL:1) != 攻撃候補
+			CONTINUE
+		;DEBUGPRINTFORML すでに狙われている
+		次のスコア = 次のスコア * 15 / 10
+		;DEBUGPRINTFORML 現在スコア{現在スコア} 次のスコア{次のスコア}
+		;すでにそこは狙われているか自部隊がいて、スコアが次のやつの部隊一つにつき1.5倍ないなら戻す
+		SIF 現在スコア < 次のスコア
+			GOTO CANCEL
+	NEXT
+
+	都市保有勢力 = CITY_OWNER:攻撃候補
+	都市保有君主 = GET_COUNTRY_BOSS(都市保有勢力)
+
+	IF IS_COUNTRY(都市保有勢力)
+		CALL CHECK_CITY_COMMANDER_BEST(攻撃候補, 1)
+		CALL SET_BATTLE_MIRROR_VAL(1, CITY_COMMANDER_BEST:0, CITY_COMMANDER_BEST:1, -1)
+		CALL BATTLE_PREPARE_VARS_EACH(1, 攻撃候補)
+	ELSE
+		CALL SET_BATTLE_MIRROR_VAL(1, -1, -1)
+		CALL BATTLE_PREPARE_VARS_EACH(1, 攻撃候補)
+	ENDIF
+
+	;勝ってる要素をカウント
+	;カウント = 0
+	;敵部隊能力:0 = BATTLE_ATC:1
+	;敵部隊能力:1 = BATTLE_DEF:1
+	;敵部隊能力:2 = BATTLE_INT:1
+	;カウント += (UNIT_SOLDIER:勢力:部隊 > CITY_SOLDIER:攻撃候補)
+	;FOR LOCAL:1, 0, 3
+	;	カウント += 自部隊能力:(LOCAL:1) > 敵部隊能力:(LOCAL:1)
+	;NEXT
+
+	;;勝ってる要素が一定ないとキャンセル
+	;SIF カウント < 2
+	;	GOTO CALCEL
+
+	UNIT_TARGET:勢力:部隊 = 攻撃候補
+	UNIT_POSITION:勢力:部隊 = TMP_IS_INVADABLE:勢力:攻撃候補
+	;DEBUGPRINTFORML 攻撃地点を%GET_CITYNAME(UNIT_TARGET:勢力:部隊)%に確定
+	;DEBUGPRINTFORML 出発地点を%GET_CITYNAME(UNIT_POSITION:勢力:部隊)%に確定
+	BREAK
+	$CANCEL
+NEXT
+;DEBUGPRINTFORML 侵攻先:%GET_CITYNAME(UNIT_TARGET:勢力:部隊)% 位置:{UNIT_POSITION:勢力:部隊}
+$DONE
+;-----------------------------------------------
+;防衛
+;-----------------------------------------------
+@SLG_AI_DEFENSE(勢力)
+#DIM 勢力
+#DIM 部隊
+#DIM 防衛スコア, MAX_CITY
+#DIM 防衛スコア合計
+#DIM 初期兵数
+#DIM 振り分け兵数
+#DIM 都市数
+#DIM 都市
+#DIM 武将数
+#DIM 部隊防衛フラグ, MAX_UNIT
+
+VARSET 防衛スコア合計
+VARSET 防衛スコア, __INT_MIN__
+VARSET 部隊防衛フラグ
+
+
+初期兵数 = COUNTRY_SOLDIER:勢力
+武将数 = TMP_GET_IS_FREE_NUM(勢力)
+
+都市数 = 0
+;まずスコアを記録
+FOR 都市, 1, GET_CITY_NUM() + 1
+	;そこが自勢力の都市で、敵と接続しているなら、防衛スコアに加算
+	;最大飛び地でないなら、最大飛び地に対する飛び地サイズの比だけ軽減される
+	IF CITY_OWNER:都市 == 勢力 && TMP_CITY_RISK:勢力:都市 >= 2
+		;DEBUGPRINTFORML %GET_CITYNAME(都市)% スコア{TMP_DEFFENSIVE_IMPORTANCE:勢力:都市}
+		防衛スコア:都市 = TMP_DEFFENSIVE_IMPORTANCE:勢力:都市 * TMP_ENCLAVE_SIZE:勢力:都市 / TMP_MAX_ENCLAVE_SIZE:勢力
+		防衛スコア合計 += 防衛スコア:都市
+		都市数 ++
 	ENDIF
 NEXT
 
-;二人設定フラグが真なら2度回す
-FOR LCOUNT:0, 0, 1 + (ARG:1 == 1)
-	;LOCAL（記録した各キャラの能力）から、最大のものを探索
-	最大 = MAXARRAY(LOCAL, 0)
-	;最大のものが__INT_MIN__でなければ（その都市を所属している勢力に、IS_FREEなキャラが残っていれば）、そいつを登録
-	IF 最大 != __INT_MIN__
-		FOR LCOUNT:1, 0, CHARANUM
-			IF LOCAL:(LCOUNT:1) == 最大
-				CITY_COMMANDER_BEST:(LCOUNT:0) = LCOUNT:1
-				LOCAL:(LCOUNT:1) = __INT_MIN__
-				BREAK
-			ENDIF
+;兵力振り分け＋武将振り分け
+;武将振り分けの都合、大きい順に取得します
+FOR LOCAL, 0, VARSIZE("防衛スコア")
+	都市 = FINDELEMENT(防衛スコア, MAXARRAY(防衛スコア))
+	SIF 防衛スコア:都市 == __INT_MIN__
+		BREAK
+	SIF COUNTRY_SOLDIER:勢力 == 0
+		CONTINUE
+	;全体に対するスコアの割合で
+	振り分け兵数 = 初期兵数 * 防衛スコア:都市 / 防衛スコア合計
+	CITY_SOLDIER:都市 = MIN(振り分け兵数, COUNTRY_SOLDIER:勢力)
+	COUNTRY_SOLDIER:勢力 = MAX(COUNTRY_SOLDIER:勢力 - 振り分け兵数, 0)
+	;既存部隊の配置
+	FOR 部隊, 0, MAX_UNIT
+		SIF UNIT_SOLDIER:勢力:部隊 <= 0
+			CONTINUE
+		SIF UNIT_TARGET:勢力:部隊
+			CONTINUE
+		SIF IS_STAY_ENEMY_UNIT(UNIT_POSITION:勢力:部隊, 勢力) == 1
+			CONTINUE
+		SIF TMP_COUNTRY_RELATION:勢力:(CITY_OWNER:(UNIT_POSITION:勢力:部隊)) == 0
+			CONTINUE
+		SIF 部隊防衛フラグ:部隊
+			CONTINUE
+		UNIT_POSITION:勢力:部隊 = 都市
+		部隊防衛フラグ:部隊 = 1
+		BREAK
+	NEXT
+	;武将配置
+	;余裕があれば2人配置
+	IF 武将数
+		CALL CHECK_CITY_COMMANDER_BEST(都市, TMP_GET_IS_FREE_NUM(勢力) >= 都市数 + 1)
+		FOR LOCAL, 0, VARSIZE("MAX_CITY_COMMANDER")
+			SIF CITY_COMMANDER_BEST:LOCAL == -1
+				CONTINUE
+			武将数 --
+			;IS_FREE_MAPを直接書き換えたほうが速い
+			TMP_IS_FREE:(CITY_COMMANDER_BEST:LOCAL):0 = 2
+			CALL SET_CITY_COMMANDER(都市, LOCAL, CITY_COMMANDER_BEST:LOCAL)
 		NEXT
 	ENDIF
+	防衛スコア:都市 = __INT_MIN__
+	;DEBUGPRINTFORML %GET_CITYNAME(都市)%の防衛兵 {CITY_SOLDIER:都市}
 NEXT

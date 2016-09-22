@@ -1,541 +1,420 @@
-﻿;-------------------------------------------------
-;CPU勢力の自発的な外交
-;戻り値 0=国家関係が変化しなかった 1=国家関係が変化した(何らかの条約を締結)
-;
-;-------------------------------------------------
-@AI_DIPLOMACY_ACT(ARG:0)
-#DIM BOSS_ID, 2
-#DIM REL_AI_TYPE, 2
-#DIM REL_AI_LIKE, 2
-#DIM REL_AI_HATE, 2
-#DIM DIPLOMACY_TARGET, MAX_COUNTRY
-#DIM DIPLOMACY_TALK, 3
-#DIM AI_ACTION_LIMIT
-#DIM REST_COUNTRY
-#DIM REL_COST, 2
-;#; #DIM USETIME
-VARSET REL_AI_TYPE, 0
-VARSET REL_AI_LIKE, 0
-VARSET REL_AI_HATE, 0
-VARSET DIPLOMACY_TARGET
-VARSET DIPLOMACY_TALK
-VARSET BOSS_ID
-VARSET REL_COST
+﻿@SLG_NEW_DIPLOMACY(勢力)
+#DIM 勢力
+#DIM 計画
 
-;条約締結フラグ
-LOCAL:100 = 0
-
-;外交禁止フラグが立っているなら一切の外交行動を行わない
-SIF COUNTRY_IS_CLOSED:(ARG:0) || COUNTRY_NOTDIPLOMACY_TERM:(ARG:0)
-	RETURN 0
-
-BOSS_ID:0 = GET_COUNTRY_BOSS(ARG:0)
-REL_AI_TYPE:0 = COUNTRY_AI_TYPE:(ARG:0)
-
-REST_COUNTRY = (MAX_COUNTRY - 1) - MATCH(COUNTRY_BOSS, 0)
-
-;●1.同盟の処理
-;行動回数の取得
-AI_ACTION_LIMIT = AI_ACTION:(COUNTRY_AI_TYPE:(ARG:0)):0
-
-CALL FISHER_YATES_SHAFFLE(MAX_COUNTRY)
-FOR LOCAL:0, 0, MAX_COUNTRY
-	;行動上限に達していれば終了
-	SIF AI_ACTION_LIMIT <= 0 || COUNTRY_TREATY_NO:(ARG:0):0 > MAX(REST_COUNTRY * AI_ACTION:(COUNTRY_AI_TYPE:(ARG:0)):3 / 100, 1)
-		BREAK
-	LOCAL:5 = COUNTRY_PROSPECT_A:(ARG:0):(SHAFFLE_ARRAY:(LOCAL:0))
-	;★
-	IF LOCAL:5 >= 1 && LOCAL:5 != CFLAG:MASTER:所属 && LOCAL:5 != ARG:0 && COUNTRY_TREATY_NO:(LOCAL:5):0 <= MAX(REST_COUNTRY * AI_ACTION:(COUNTRY_AI_TYPE:(LOCAL:5)):3 / 100, 1)
-		FOR LOCAL:1, 0, MAX_COUNTRY
-			IF COUNTRY_PROSPECT_A:(LOCAL:5):(LOCAL:1) == ARG:0
-				REL_AI_TYPE:1 = COUNTRY_AI_TYPE:(LOCAL:5)
-				;同盟の最低期間
-				LOCAL:11 = 5
-
-				;停戦が組まれていれば解消
-				FOR LOCAL:2, 0, MAX_TREATY_C
-					IF TREATY_C_TERM:(LOCAL:2) > 0
-						LOCAL:6 = 0
-						FOR LOCAL:3, 0, MAX_TREATY_COUNTRY
-							IF TREATY_C_COUNTRY:(LOCAL:2):(LOCAL:3) == ARG:0
-								LOCAL:6 |= 0b001
-							ELSEIF TREATY_C_COUNTRY:(LOCAL:2):(LOCAL:3) == LOCAL:5
-								LOCAL:6 |= 0b010
-							ELSEIF TREATY_C_COUNTRY:(LOCAL:2):(LOCAL:3) >= 1
-								LOCAL:6 |= 0b100
-							ENDIF
-						NEXT
-						;対象の２勢力間の停戦を削除し、残り期間を記録
-						IF LOCAL:6 == 0b011
-							LOCAL:11 = MAX(LOCAL:11, TREATY_C_TERM:(LOCAL:2))
-							TREATY_C_TERM:(LOCAL:2) = 0
-							FOR LOCAL:3, 0, MAX_TREATY_COUNTRY
-								TREATY_C_COUNTRY:(LOCAL:2):(LOCAL:3) = 0
-							NEXT
-						ENDIF
-					ENDIF
-				NEXT
-
-				FOR LOCAL:2, 0, MAX_TREATY_A
-					IF TREATY_A_TERM:(LOCAL:2) <= 0
-						;★対象がプレイヤー勢力なら選択肢を表示
-
-						BOSS_ID:1 = GET_COUNTRY_BOSS(LOCAL:5)
-
-						;AI間の補正をかけた好感度、敵対値の算出
-						REL_AI_LIKE:0 = REL_LIKE:(BOSS_ID:0):(BOSS_ID:1) * AI_RELATION:(REL_AI_TYPE:0):(REL_AI_TYPE:1) / 100
-						REL_AI_LIKE:1 = REL_LIKE:(BOSS_ID:1):(BOSS_ID:0) * AI_RELATION:(REL_AI_TYPE:1):(REL_AI_TYPE:0) / 100
-						REL_AI_HATE:0 = REL_HATE:(BOSS_ID:0):(BOSS_ID:1) * 100 / AI_RELATION:(REL_AI_TYPE:0):(REL_AI_TYPE:1)
-						REL_AI_HATE:1 = REL_HATE:(BOSS_ID:1):(BOSS_ID:0) * 100 / AI_RELATION:(REL_AI_TYPE:0):(REL_AI_TYPE:1)
-						LOCAL:8 = MINARRAY(REL_AI_LIKE)
-						LOCAL:9 = MAXARRAY(REL_AI_HATE)
-
-						LOCAL:10 = 5 + RAND:5
-						;好感度・敵対値に応じて同盟期間を延長
-						SIF LOCAL:8 >= AI_RELATION_BORDER:(REL_AI_TYPE:0):0 && LOCAL:9 < AI_RELATION_BORDER:(REL_AI_TYPE:0):1
-							LOCAL:10 += LIMIT(LOCAL:8 / 100 - LOCAL:9 / 200, 1, 10) + RAND:5
-
-						LOCAL:10 = MAX(LOCAL:10, LOCAL:11)
-						;条約コストの支払い:AIタイプごとに国庫から一定割合引かれる（AI相性による補正あり）
-						REL_COST:0 = AI_DIPLOMACY_COST:(REL_AI_TYPE:0):0 * AI_RELATION:(REL_AI_TYPE:0):(REL_AI_TYPE:1)
-						REL_COST:0 = REL_COST:0 * ((COUNTRY_REQUEST_RATE_C:(LOCAL:5):(ARG:0) - 1) % 4) * 50
-						REL_COST:1 = MONEY:(ARG:0) * REL_COST:0 / (100 * 100 * 100)
-						MONEY:(ARG:0) -= REL_COST:1
-						MONEY:(LOCAL:5) += REL_COST:1 * 95 / 100
-
-						;同盟締結
-						;相手方の外交計画も更新する
-						SETCOLOR COLOR("注意")
-						PRINTFORML %NAME:(BOSS_ID:0)%と%NAME:(BOSS_ID:1)%は{LOCAL:10}期間の同盟を締結しました
-						RESETCOLOR
-						CALL INIT_ALLIANCE(ARG:0, LOCAL:5, LOCAL:10)
-						CALL AI_DIPLOMACY_CHECK(LOCAL:5)
-						AI_ACTION_LIMIT --
-						LOCAL:100 ++
-						BREAK
-						;RETURN 1
-					ENDIF
-				NEXT
-			ENDIF
-		NEXT
-	ENDIF
-NEXT
-
-;●2.停戦の処理
-;行動回数の取得
-AI_ACTION_LIMIT = AI_ACTION:(COUNTRY_AI_TYPE:(ARG:0)):1
-
-CALL FISHER_YATES_SHAFFLE(MAX_COUNTRY)
-FOR LOCAL:0, 0, MAX_COUNTRY
-	;行動上限に達していれば終了
-	SIF AI_ACTION_LIMIT <= 0 || COUNTRY_TREATY_NO:(ARG:0):1 > MAX(REST_COUNTRY * AI_ACTION:(COUNTRY_AI_TYPE:(ARG:0)):4 / 100, 1)
-		BREAK
-
-	LOCAL:5 = COUNTRY_PROSPECT_C:(ARG:0):(SHAFFLE_ARRAY:(LOCAL:0))
-	
-	;★
-	IF LOCAL:5 >= 1 && LOCAL:5 != CFLAG:MASTER:所属 && LOCAL:5 != ARG:0 && COUNTRY_TREATY_NO:(LOCAL:5):1 <= MAX(REST_COUNTRY * AI_ACTION:(COUNTRY_AI_TYPE:(LOCAL:5)):4 / 100, 1)
-		FOR LOCAL:1, 0, MAX_COUNTRY
-			IF COUNTRY_PROSPECT_C:(LOCAL:5):(LOCAL:1) == ARG:0
-				FOR LOCAL:2, 0, MAX_TREATY_C
-					IF TREATY_C_TERM:(LOCAL:2) <= 0
-
-					;同盟締結済みであれば次に
-					FOR LOCAL:20, 0, MAX_TREATY_A
-						IF TREATY_A_TERM:(LOCAL:20) > 0
-							LOCAL:6 = 0
-							FOR LOCAL:21, 0, MAX_TREATY_COUNTRY
-								IF TREATY_A_COUNTRY:(LOCAL:20):(LOCAL:21) == ARG:0
-									LOCAL:6 |= 0b001
-								ELSEIF TREATY_A_COUNTRY:(LOCAL:20):(LOCAL:21) == LOCAL:5
-									LOCAL:6 |= 0b010
-								ELSEIF TREATY_A_COUNTRY:(LOCAL:20):(LOCAL:21) >= 1
-									LOCAL:6 |= 0b100
-								ENDIF
-							NEXT
-							;対象の２勢力間の停戦を削除し、残り期間を記録
-							SIF LOCAL:6 == 0b011
-								BREAK
-						ENDIF
-					NEXT
-					SIF LOCAL:6 == 0b011
-						CONTINUE
-
-
-						REL_AI_TYPE:1 = COUNTRY_AI_TYPE:(LOCAL:5)
-						;★対象がプレイヤー勢力なら選択肢を表示
-
-						BOSS_ID:0 = GET_COUNTRY_BOSS(ARG:0)
-						BOSS_ID:1 = GET_COUNTRY_BOSS(LOCAL:5)
-
-						;AI間の補正をかけた好感度、敵対値の算出
-						REL_AI_LIKE:0 = REL_LIKE:(BOSS_ID:0):(BOSS_ID:1) * AI_RELATION:(REL_AI_TYPE:0):(REL_AI_TYPE:1) / 100
-						REL_AI_LIKE:1 = REL_LIKE:(BOSS_ID:1):(BOSS_ID:0) * AI_RELATION:(REL_AI_TYPE:1):(REL_AI_TYPE:0) / 100
-						REL_AI_HATE:0 = REL_HATE:(BOSS_ID:0):(BOSS_ID:1) * 100 / AI_RELATION:(REL_AI_TYPE:0):(REL_AI_TYPE:1)
-						REL_AI_HATE:1 = REL_HATE:(BOSS_ID:1):(BOSS_ID:0) * 100 / AI_RELATION:(REL_AI_TYPE:0):(REL_AI_TYPE:1)
-						LOCAL:8 = MINARRAY(REL_AI_LIKE)
-						LOCAL:9 = MAXARRAY(REL_AI_HATE)
-
-						LOCAL:10 = 5 + RAND:5
-						;好感度・敵対値に応じて停戦期間を延長
-						SIF LOCAL:8 >= AI_RELATION_BORDER:(REL_AI_TYPE:0):2 && LOCAL:9 < AI_RELATION_BORDER:(REL_AI_TYPE:0):3
-							LOCAL:10 += LIMIT(LOCAL:8 / 100 - LOCAL:9 / 200, 1, 10) + RAND:5
-
-						;条約コストの支払い:AIタイプごとに国庫から一定割合引かれる（AI相性による補正あり）
-						REL_COST:0 = AI_DIPLOMACY_COST:(REL_AI_TYPE:0):1 * AI_RELATION:(REL_AI_TYPE:0):(REL_AI_TYPE:1)
-						REL_COST:0 = REL_COST:0 * ((COUNTRY_REQUEST_RATE_C:(LOCAL:5):(ARG:0) - 1) % 4) * 50
-						REL_COST:1 = MONEY:(ARG:0) * REL_COST:0 / (100 * 100 * 100)
-						MONEY:(ARG:0) -= REL_COST:1
-						MONEY:(LOCAL:5) += REL_COST:1 * 95 / 100
-						
-						;停戦条約締結
-						;相手方の外交計画も更新する
-						SETCOLOR COLOR("注意")
-						PRINTFORML %NAME:(BOSS_ID:0)%と%NAME:(BOSS_ID:1)%は{LOCAL:10}期間の停戦条約を締結しました
-						RESETCOLOR
-						CALL INIT_CEASEFIRE(ARG:0, LOCAL:5, LOCAL:10)
-						CALL AI_DIPLOMACY_CHECK(LOCAL:5)
-						AI_ACTION_LIMIT --
-						LOCAL:100 ++
-						BREAK
-						;RETURN 1;
-					ENDIF
-				NEXT
-			ENDIF
-		NEXT
-	ENDIF
-NEXT
-
-;●3.外交の処理:会談編
-;DIPLOMACY_TARGET 勢力ごとのこちらから見た印象度、0に合計値を入れておく
-;DIPLOMACY_TALK 0:会談回数を記録, 1:相手を選択するための乱数
-FOR LOCAL:0, 0, MAX_COUNTRY
-	;勢力が存在しない、外交封鎖中等の場合はスキップ
-	SIF !IS_COUNTRY(LOCAL:0) || COUNTRY_IS_CLOSED:(ARG:0) || COUNTRY_IS_CLOSED:(LOCAL)
-		CONTINUE
-	;自勢力、野盗勢力はスキップ。なお、難易度：虐めではあなたの属する勢力もハブにされる
-	SIF GROUPMATCH(LOCAL:0, ARG:0, GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗)), (CONFIG:300 == 3 ? CFLAG:(MASTER):所属 # 0))
-		CONTINUE
-	BOSS_ID:1 = GET_COUNTRY_BOSS(LOCAL:0)
-	REL_AI_TYPE:1 = COUNTRY_AI_TYPE:(LOCAL:0)
-	LOCAL:1 = 1501 + REL_LIKE:(BOSS_ID:0):(BOSS_ID:1) - REL_HATE:(BOSS_ID:0):(BOSS_ID:1)
-	DIPLOMACY_TARGET:(LOCAL:0) = LOCAL:1 * AI_RELATION:(REL_AI_TYPE:0):(REL_AI_TYPE:1) / 100
-NEXT
-;DIPLOMACY_TARGET:0 = SUMARRAY(DIPLOMACY_TARGET, 1)
-;DEBUGPRINTFORML {DAY,3} 【印象度合計:%NAME:(BOSS_ID:0)%】{DIPLOMACY_TARGET:0}
-;会談の実行
-IF SUMARRAY(DIPLOMACY_TARGET)
-	DO
-		DIPLOMACY_TALK:0 ++
-		;会談相手の決定
-		DIPLOMACY_TALK:1 = RAND:(SUMARRAY(DIPLOMACY_TARGET, 1))
-		;DEBUGPRINTFORML {DAY,3} 【会談判定値:%NAME:(BOSS_ID:0)%】{DIPLOMACY_TALK:1}
-		BOSS_ID:1 = -1
-		FOR LOCAL:0, 1, MAX_COUNTRY
-			IF INRANGE(DIPLOMACY_TALK:1, 1, DIPLOMACY_TARGET:(LOCAL:0))
-				BOSS_ID:1 = GET_COUNTRY_BOSS(LOCAL:0)
-				LOCAL:8 = LOCAL:0
-				DIPLOMACY_TARGET:(LOCAL:0) /= 2
-				BREAK
-			ELSE
-				DIPLOMACY_TALK:1 -= MIN(DIPLOMACY_TARGET:(LOCAL:0), DIPLOMACY_TALK:1)
-			ENDIF
-		NEXT
-		SIF BOSS_ID:1 == -1
-			BREAK
-;		DEBUGPRINTFORML {DAY,3} 【会談:%NAME:(BOSS_ID:0)%→%NAME:(BOSS_ID:1)%】
-		REL_AI_TYPE:1 = COUNTRY_AI_TYPE:(LOCAL:8)
-
-		;会談コストの支払い:AIタイプごとに国庫から一定割合引かれる（AI相性による補正あり）
-		MONEY:(ARG:0) -= MONEY:(ARG:0) * AI_DIPLOMACY_COST:(REL_AI_TYPE:0):2 * AI_RELATION:(REL_AI_TYPE:0):(REL_AI_TYPE:1) / (100 * 100)
-
-		;好感度上昇・敵対値下降基準値
-		;変動値には相手から見たAI補正をかける
-		LOCAL:2 = (10 + RAND:21 + RAND:21) * AI_RELATION:(REL_AI_TYPE:1):(REL_AI_TYPE:0) / 100
-
-		;政治・料理の補正
-		;会談を行った側のAI補正をかける
-		CALL TMP_CREATE_IS_FREE_MAP
-		LOCAL:0 = 5140 + POWER_075(TMP_GET_POLITICS_POWER(ARG:0))
-		LOCAL:1 = 5140 + POWER_075(TMP_GET_COOKING_POWER(ARG:0))
-		LOCAL:2 = LOCAL:2 * (LOCAL:0 + LOCAL:1) / 10280
-
-		CALL CHANGE_RELATION_C_TO_C(ARG:0, LOCAL:8, LOCAL:2 , -1 * LOCAL:2)
-		CALL CHANGE_RELATION_C_TO_C(LOCAL:8, ARG:0, LOCAL:2 , -1 * LOCAL:2)
-		;相手方の外交計画を更新
-		CALL AI_DIPLOMACY_CHECK(LOCAL:8)
-		SIF FLAG:観戦モード || (CFLAG:MASTER:所属 >= 1 && CFLAG:MASTER:捕虜先 == 0 && GROUPMATCH(CFLAG:MASTER:所属, CFLAG:(BOSS_ID:0):所属, CFLAG:(BOSS_ID:1):所属))
-			PRINTFORML %NAME:(BOSS_ID:0)%が%NAME:(BOSS_ID:1)%と会談を行ったようです
-
-	LOOP RAND:(AI_ACTION:(COUNTRY_AI_TYPE:(ARG:0)):2) >= DIPLOMACY_TALK:0
-ENDIF
-
-RETURN LOCAL:100
-;-------------------------------------------------
-;CPU勢力が外交を行いたい候補をチェックして記録
-;プレイヤーが外交を行った際の判定にも利用
-;※事前に TMP_CREATE_COUNTRY_NEIBORING_MAP 関数による隣接関係マップの作成が必要
-;-------------------------------------------------
-@AI_DIPLOMACY_CHECK(ARG:0)
-;隣接する勢力のリスト
-#DIM LIST_NEIBOR, MAX_COUNTRY
-#DIM LIST_MAX
-#DIM U_TARGET
-#DIM COUNTRY_AI,2, 2
-
-LIST_MAX = 0
-
-VARSET LOCAL, 0
-VARSET COUNTRY_AI
-
-;外交禁止フラグが立っている勢力は一切の外交予定を持たない
-IF COUNTRY_IS_CLOSED:(ARG:0) || COUNTRY_NOTDIPLOMACY_TERM:(ARG:0)
-	FOR LOCAL:0, 0, MAX_COUNTRY
-		;各国に対する外交計画をクリアー
-		COUNTRY_PROSPECT_A:(ARG:0):(LOCAL:0) = 0
-		COUNTRY_PROSPECT_C:(ARG:0):(LOCAL:0) = 0
-		COUNTRY_REQUEST_RATE_A:(ARG:0):(LOCAL:0) = 0
-		COUNTRY_REQUEST_RATE_C:(ARG:0):(LOCAL:0) = 0
-	NEXT
+SIF COUNTRY_IS_CLOSED:勢力
 	RETURN
+
+AI_DIPLOMACY_TERM:勢力 --
+
+;期限切れなら外交計画更新
+IF AI_DIPLOMACY_TERM:勢力 <= 0
+	CALL CREATE_AI_DIPLOMACY_PLAN(勢力)
 ENDIF
 
-;討伐対象勢力を記録(外交を行わない)
-U_TARGET = GET_UNION_TARGET(ARG:0)
-
-FOR LOCAL:0, 0, MAX_COUNTRY
-	;各国に対する外交計画をクリアー
-	COUNTRY_PROSPECT_A:(ARG:0):(LOCAL:0) = 0
-	COUNTRY_PROSPECT_C:(ARG:0):(LOCAL:0) = 0
-	COUNTRY_REQUEST_RATE_A:(ARG:0):(LOCAL:0) = 0
-	COUNTRY_REQUEST_RATE_C:(ARG:0):(LOCAL:0) = 0
-
-	;隣接する勢力をリストに記録
-	IF IS_COUNTRY(LOCAL:0) && LOCAL:0 != ARG:0
-		IF TMP_COUNTRY_IS_NEIBORING:(ARG:0):(LOCAL:0)
-			LIST_NEIBOR:(LIST_MAX) = LOCAL:0
-			LIST_MAX ++
-		ELSEIF LOCAL:0 != U_TARGET
-			;隣接していない討伐対象以外の勢力は、同盟・停戦判定を「非隣接による不成立」にする
-			COUNTRY_REQUEST_RATE_A:(ARG:0):(LOCAL:0) = 6
-			COUNTRY_REQUEST_RATE_C:(ARG:0):(LOCAL:0) = 6
-		ENDIF
-	ENDIF
+FOR 計画, 0, AI_DIPLOMACY_PROPERTY:(COUNTRY_AI_TYPE:勢力):AI_外交_行動回数
+	SIF AI_DIPLOMACY_PLAN:勢力:計画 == -1
+		CONTINUE
+	SIF !IS_COUNTRY(AI_DIPLOMACY_TARGET:勢力:計画)
+		CONTINUE
+	SIF COUNTRY_IS_CLOSED:(AI_DIPLOMACY_TARGET:勢力:計画)
+		CONTINUE
+	SELECTCASE AI_DIPLOMACY_PLAN:勢力:計画
+		CASE AI_外交計画_会談
+			CALL SLG_DIPLOMACY_CONFERENCE(勢力, AI_DIPLOMACY_TARGET:勢力:計画)
+		CASE AI_外交計画_同盟
+			CALL SLG_DIPLOMACY_ALLIANCE(勢力, AI_DIPLOMACY_TARGET:勢力:計画)
+		CASE AI_外交計画_停戦
+			CALL SLG_DIPLOMACY_CEASE_FIRE(勢力, AI_DIPLOMACY_TARGET:勢力:計画)
+		CASE AI_外交計画_悪評
+			CALL SLG_DIPLOMACY_CREATE_SCANDAL(勢力, AI_DIPLOMACY_TARGET:勢力:計画)
+	ENDSELECT
 NEXT
 
-;●友好的な関係の勢力との同盟・停戦
-;隣接する国家に好感度が高く敵対値の低い勢力があれば同盟を模索
-COUNTRY_AI:0:0 = GET_COUNTRY_BOSS(ARG:0)
-COUNTRY_AI:0:1 = COUNTRY_AI_TYPE:(ARG:0)
+;------------------------
+;外交計画を作成する
+;------------------------
+@CREATE_AI_DIPLOMACY_PLAN(勢力)
+#DIM 勢力
+#DIM 君主
+#DIM 相手勢力
+#DIM 勢力インデックス
+#DIM 勢力数
+#DIM 相手勢力君主
+#DIM 勢力リスト, MAX_COUNTRY
+#DIM 関係性リスト, MAX_COUNTRY
+#DIM 逆関係性リスト, MAX_COUNTRY
+#DIM 経済力リスト, MAX_COUNTRY
+#DIM 計画
+#DIM 理由
+#DIM CONST 理由_好き = 0
+#DIM CONST 理由_嫌い = 1
+#DIM CONST 理由_好かれ = 2
+#DIM CONST 理由_嫌われ = 3
+#DIM CONST 理由_経済 = 4
+VARSET 勢力リスト
+VARSET 関係性リスト, 1500
+VARSET 逆関係性リスト, 1500
+VARSET 経済力リスト, __INT_MIN__
 
-FOR LOCAL:0, 1, MAX_COUNTRY
-	;連合の討伐対象は除く、あと念のため同一勢力も弾く
-	IF IS_COUNTRY(LOCAL:0) && !GROUPMATCH(LOCAL:0, U_TARGET, ARG:0)
-		COUNTRY_AI:1:0 = GET_COUNTRY_BOSS(LOCAL:0)
-		COUNTRY_AI:1:1 = COUNTRY_AI_TYPE:(LOCAL:0)
-		;印象値チェック、相手AIの種類とこちらから見たAI相性、ついでに20%程度のぶれ
-		LOCAL:5 = AI_RELATION_BORDER:(COUNTRY_AI:1:1):4 * AI_RELATION:(COUNTRY_AI:0:1):(COUNTRY_AI:1:1) / 100
-		LOCAL:5 = REL_LIKE:(COUNTRY_AI:0:0):(COUNTRY_AI:1:0) >= LOCAL:5 * (80 + RAND:11 + RAND:11 + RAND:11 + RAND:11) / 100
-		LOCAL:6 = AI_RELATION_BORDER:(COUNTRY_AI:1:1):5 * 100 / AI_RELATION:(COUNTRY_AI:0:1):(COUNTRY_AI:1:1)
-		LOCAL:6 = REL_HATE:(COUNTRY_AI:0:0):(COUNTRY_AI:1:0) < LOCAL:6 * (80 + RAND:11 + RAND:11 + RAND:11 + RAND:11) / 100
-		IF LOCAL:5 && LOCAL:6
-			;隣接している
-			IF TMP_COUNTRY_IS_NEIBORING:(ARG:0):(LOCAL:0)
-				;同盟・停戦候補に入れる
-				CALL MEMORY_PROSPECT_A(ARG:0, LOCAL:0)
-				CALL MEMORY_PROSPECT_C(ARG:0, LOCAL:0)
-			ENDIF
-			;プレイヤーが同盟・停戦を提案した場合、無条件で成立
-			COUNTRY_REQUEST_RATE_A:(ARG:0):(LOCAL:0) = 5
-			COUNTRY_REQUEST_RATE_C:(ARG:0):(LOCAL:0) = 5
-		ENDIF
-	ENDIF
+君主 = GET_COUNTRY_BOSS(勢力)
+
+AI_DIPLOMACY_TERM:勢力 = RAND(3, 6)
+
+;外交計画をリセットする
+FOR 計画, 0, VARSIZE("AI_DIPLOMACY_PLAN", 1)
+	AI_DIPLOMACY_PLAN:勢力:計画 = -1
+	AI_DIPLOMACY_TARGET:勢力:計画 = 0
 NEXT
 
-;現在敵対していない勢力をリストから除く
-FOR LOCAL:0, 0, LIST_MAX
-	RESULT:0 = TMP_COUNTRY_RELATION:(ARG:0):(LIST_NEIBOR:(LOCAL:0))
-	IF RESULT:0 >= 1
-		ARRAYREMOVE LIST_NEIBOR, LOCAL:0, 1
-		LIST_MAX --
-	ENDIF
+勢力数 = 0
+FOR 相手勢力, 0, MAX_COUNTRY
+	SIF !IS_COUNTRY(相手勢力)
+		CONTINUE
+	SIF COUNTRY_IS_CLOSED:相手勢力
+		CONTINUE
+	SIF 勢力 == 相手勢力
+		CONTINUE
+	勢力リスト:勢力数 = 相手勢力
+	相手勢力君主 = GET_COUNTRY_BOSS(相手勢力)
+	関係性リスト:勢力数 = 1500 + REL_LIKE:君主:相手勢力君主 - REL_HATE:君主:相手勢力君主
+	逆関係性リスト:勢力数 = 1500 + REL_LIKE:相手勢力君主:君主 - REL_HATE:相手勢力君主:君主
+	経済力リスト:勢力数 = TMP_SUM_ECONOMY:相手勢力
+	勢力数 ++
 NEXT
 
-;２ヶ国以上と隣接
-IF LIST_MAX >= 2
-	;隣接国間で経済規模を比較する
-	LOCAL:6 = GET_SUM_ECONOMY(ARG:0)
-	LOCAL:110 = LOCAL:6
-	LOCAL:210 = ARG:0
-	FOR LOCAL:0, 0, LIST_MAX
-		LOCAL:7 = GET_SUM_ECONOMY(LIST_NEIBOR:(LOCAL:0))
-		FOR LOCAL:1, 0, LOCAL:0 + 2
-			IF LOCAL:1 == LOCAL:0 + 1 || LOCAL:7 < LOCAL:(LOCAL:0 - LOCAL:1 + 110)
-				LOCAL:(LOCAL:0 - LOCAL:1 + 111) = LOCAL:7
-				LOCAL:(LOCAL:0 - LOCAL:1 + 211) = LIST_NEIBOR:(LOCAL:0)
-				BREAK
-			ELSE
-				LOCAL:(LOCAL:0 - LOCAL:1 + 111) = LOCAL:(LOCAL:0 - LOCAL:1 + 110)
-				LOCAL:(LOCAL:0 - LOCAL:1 + 211) = LOCAL:(LOCAL:0 - LOCAL:1 + 210)
-			ENDIF
-		NEXT
-	NEXT
+SIF 勢力数 <= 0
+	RETURN
 
-	;隣国間で自国が最大の経済規模を持つ場合
-	IF LOCAL:210 == ARG:0
-		;周辺国の経済規模を合計
-		LOCAL:8 = SUMARRAY(LOCAL, 111, 110 + LIST_MAX)
-		;自国の経済規模が周辺国の合計の3倍より小さい場合(圧倒的な優位を築けていない場合)
-		SELECTCASE LOCAL:110
-		CASE IS < LOCAL:8 * 4
-			;経済規模の大きい順に停戦候補を決定
-			FOR LOCAL:0, 0, LIST_MAX
-				LOCAL:10 = LOCAL:(LOCAL:0 + 111)
-				LOCAL:11 = LOCAL:(LOCAL:0 + 211)
-				;連合の討伐対象は除く
-				IF LOCAL:11 != U_TARGET
-					
-					;経済規模の比率で分岐
-					LOCAL:5 = AI_RELATION_BORDER:(COUNTRY_AI:1:1):8 * AI_RELATION:(COUNTRY_AI:0:1):(COUNTRY_AI:1:1) / 100
-					SELECTCASE LOCAL:110 * 10 / LOCAL:10
-					CASE IS > LOCAL:5
-						CALL MEMORY_PROSPECT_C(ARG:0, LOCAL:11)
-						;プレイヤーが停戦を提案した場合、中度の要求をされる(同盟は不可)
-						COUNTRY_REQUEST_RATE_C:(ARG:0):(LOCAL:11) = 3
-					CASE IS > LOCAL:5 / 2
-						;停戦候補に入れる
-						CALL MEMORY_PROSPECT_C(ARG:0, LOCAL:11)
-						;プレイヤーが停戦を提案した場合、軽度の要求をされる(同盟は不可)
-						COUNTRY_REQUEST_RATE_C:(ARG:0):(LOCAL:11) = 2
-					CASEELSE
-						;停戦候補に入れる
-						CALL MEMORY_PROSPECT_C(ARG:0, LOCAL:11)
-						;プレイヤーが停戦を提案した場合、軽度の要求をされる(同盟は不可)
-						COUNTRY_REQUEST_RATE_C:(ARG:0):(LOCAL:11) = 2
-					ENDSELECT
-				ENDIF
-			NEXT
-		;圧倒的優位の場合
+FOR 計画, 0, MIN(AI_DIPLOMACY_PROPERTY:(COUNTRY_AI_TYPE:勢力):AI_外交_行動回数, AI_DIPLOMACY_MAX_PLAN)
+	SIF 勢力数 <= 0
+		BREAK
+	SELECTCASE RAND:100
+		CASE IS < 15
+			勢力インデックス = FINDELEMENT(逆関係性リスト, MAXARRAY(逆関係性リスト, 0, 勢力数), 0, 勢力数 + 1)
+			理由 = 理由_好かれ
+		CASE IS < 40
+			勢力インデックス = FINDELEMENT(逆関係性リスト, MINARRAY(逆関係性リスト, 0, 勢力数), 0, 勢力数 + 1)
+			理由 = 理由_嫌われ
+		CASE IS < 65
+			勢力インデックス = FINDELEMENT(関係性リスト, MAXARRAY(関係性リスト, 0, 勢力数), 0, 勢力数 + 1)
+			理由 = 理由_好き
+		CASE IS < 80
+			勢力インデックス = FINDELEMENT(関係性リスト, MINARRAY(関係性リスト, 0, 勢力数), 0, 勢力数 + 1)
+			理由 = 理由_嫌い
 		CASEELSE
-			;経済規模の大きい順に停戦候補を決定
-			FOR LOCAL:0, 0, LIST_MAX
-				LOCAL:10 = LOCAL:(LOCAL:0 + 111)
-				LOCAL:11 = LOCAL:(LOCAL:0 + 211)
-				;連合の討伐対象は除く
-				IF LOCAL:11 != U_TARGET
-					CALL MEMORY_PROSPECT_C(ARG:0, LOCAL:11)
-					;プレイヤーが停戦を提案した場合、重度の要求をされる(同盟は不可)
-					COUNTRY_REQUEST_RATE_C:(ARG:0):(LOCAL:11) = 4
-				ENDIF
-			NEXT
-		ENDSELECT
+			勢力インデックス = FINDELEMENT(経済力リスト, MINARRAY(経済力リスト, 0, 勢力数), 0, 勢力数 + 1)
+			理由 = 理由_経済
+	ENDSELECT
 
-	;隣国間で自国の経済規模が最大でない場合
-	ELSE
-		;経済規模が最大の国家を除き、経済規模が大きい順に同盟・停戦を模索
-		FOR LOCAL:0, 0, LIST_MAX
-			LOCAL:10 = LOCAL:(LOCAL:0 + 111)
-			LOCAL:11 = LOCAL:(LOCAL:0 + 211)
-			;連合の討伐対象、経済規模が最大の勢力は除く
-			IF LOCAL:11 != U_TARGET && LOCAL:11 != ARG:0
+	相手勢力 = 勢力リスト:勢力インデックス
+	AI_DIPLOMACY_TARGET:勢力:計画 = 相手勢力
 
-				COUNTRY_AI:1:0 = GET_COUNTRY_BOSS(LOCAL:11)
-				COUNTRY_AI:1:1 = COUNTRY_AI_TYPE:(LOCAL:11)
-				;印象値チェック、相手AIの種類とこちらから見たAI相性、ついでに20%程度のぶれ
-				LOCAL:5 = AI_RELATION_BORDER:(COUNTRY_AI:1:1):6 * AI_RELATION:(COUNTRY_AI:0:1):(COUNTRY_AI:1:1) / 100
-				LOCAL:5 = REL_LIKE:(COUNTRY_AI:0:0):(COUNTRY_AI:1:0) >= LOCAL:5 * (80 + RAND:11 + RAND:11 + RAND:11 + RAND:11) / 100
-				LOCAL:6 = AI_RELATION_BORDER:(COUNTRY_AI:1:1):7 * 100 / AI_RELATION:(COUNTRY_AI:0:1):(COUNTRY_AI:1:1)
-				LOCAL:6 = REL_HATE:(COUNTRY_AI:0:0):(COUNTRY_AI:1:0) < LOCAL:6 * (80 + RAND:11 + RAND:11 + RAND:11 + RAND:11) / 100
+	SELECTCASE 理由
+		CASE 理由_好かれ
+			SELECTCASE IFRAND("0TO74", 1, "75TO89", 逆関係性リスト:勢力インデックス > 1500 && TMP_COUNTRY_RELATION:勢力:相手勢力 == 0, "90TO99", 逆関係性リスト:勢力インデックス > 1800 && TMP_COUNTRY_RELATION:勢力:相手勢力 <= 2)
+				CASE IS < 75
+					AI_DIPLOMACY_PLAN:勢力:計画 = AI_外交計画_会談
+				CASE IS < 90
+					AI_DIPLOMACY_PLAN:勢力:計画 = AI_外交計画_停戦
+				CASEELSE
+					AI_DIPLOMACY_PLAN:勢力:計画 = AI_外交計画_同盟
+			ENDSELECT
+		CASE 理由_嫌われ
+			SELECTCASE RAND:100
+				CASE IS < 80
+					AI_DIPLOMACY_PLAN:勢力:計画 = AI_外交計画_会談
+				CASE IS < 99
+					AI_DIPLOMACY_PLAN:勢力:計画 = AI_外交計画_悪評
+			ENDSELECT
+		CASE 理由_好き
+			SELECTCASE IFRAND("0TO74", 1, "75TO89", 逆関係性リスト:勢力インデックス > 1500 && TMP_COUNTRY_RELATION:勢力:相手勢力 == 0, "90TO99", 逆関係性リスト:勢力インデックス > 1800 && TMP_COUNTRY_RELATION:勢力:相手勢力 <= 2)
+				CASE IS < 75
+					AI_DIPLOMACY_PLAN:勢力:計画 = AI_外交計画_会談
+				CASE IS < 90
+					AI_DIPLOMACY_PLAN:勢力:計画 = AI_外交計画_停戦
+				CASEELSE
+					AI_DIPLOMACY_PLAN:勢力:計画 = AI_外交計画_同盟
+			ENDSELECT
+		CASE 理由_嫌い
+			SELECTCASE RAND:100
+				CASE IS < 100
+					AI_DIPLOMACY_PLAN:勢力:計画 = AI_外交計画_悪評
+			ENDSELECT
+		CASE 理由_経済
+			AI_DIPLOMACY_PLAN:勢力:計画 = 関係性リスト:勢力インデックス > 1500 ? AI_外交計画_会談 # AI_外交計画_悪評
+	ENDSELECT
 
-					;相手君主への好感度が高いか、敵対値が低めの場合(関係が悪くない)
-					IF LOCAL:5 || LOCAL:6
-						;同盟・停戦候補に入れる
-						CALL MEMORY_PROSPECT_A(ARG:0, LOCAL:11)
-						CALL MEMORY_PROSPECT_C(ARG:0, LOCAL:11)
-						;プレイヤーが同盟・停戦を提案した場合、無条件で成立
-						COUNTRY_REQUEST_RATE_A:(ARG:0):(LOCAL:11) = 1
-						COUNTRY_REQUEST_RATE_C:(ARG:0):(LOCAL:11) = 1
-					;相手君主への好感度が低く敵対値が高い場合(関係が悪い)
-					ELSE
-						;停戦候補に入れる(同盟はしない)
-						CALL MEMORY_PROSPECT_C(ARG:0, LOCAL:11)
-						;プレイヤーが停戦を提案した場合、軽度の要求をされる(同盟は不可)
-						COUNTRY_REQUEST_RATE_C:(ARG:0):(LOCAL:11) = 2
-					ENDIF
-			ENDIF
-		NEXT
-		;経済規模が最大国家の1/3未満なら最大国家との同盟・停戦も模索
-		IF LOCAL:210 != U_TARGET && GET_SUM_ECONOMY(ARG:0) * 3 < LOCAL:110
-			COUNTRY_AI:1:0 = GET_COUNTRY_BOSS(LOCAL:11)
-			COUNTRY_AI:1:1 = COUNTRY_AI_TYPE:(LOCAL:11)
-			;印象値チェック、相手AIの種類とこちらから見たAI相性、ついでに20%程度のぶれ
-			LOCAL:5 = AI_RELATION_BORDER:(COUNTRY_AI:1:1):6 * AI_RELATION:(COUNTRY_AI:0:1):(COUNTRY_AI:1:1) / 100
-			LOCAL:5 = REL_LIKE:(COUNTRY_AI:0:0):(COUNTRY_AI:1:0) >= LOCAL:5 * (80 + RAND:11 + RAND:11 + RAND:11 + RAND:11) / 100
-			LOCAL:6 = AI_RELATION_BORDER:(COUNTRY_AI:1:1):7 * 100 / AI_RELATION:(COUNTRY_AI:0:1):(COUNTRY_AI:1:1)
-			LOCAL:6 = REL_HATE:(COUNTRY_AI:0:0):(COUNTRY_AI:1:0) < LOCAL:6 * (80 + RAND:11 + RAND:11 + RAND:11 + RAND:11) / 100
+	勢力数 --
+	;重複して登録されることがないよう消しとく
+	ARRAYSHIFT 勢力リスト,     -1, 0, 勢力インデックス
+	ARRAYSHIFT 関係性リスト,   -1, 0, 勢力インデックス
+	ARRAYSHIFT 逆関係性リスト, -1, 0, 勢力インデックス
+	ARRAYSHIFT 経済力リスト,   -1, 0, 勢力インデックス
 
-			;相手君主への好感度が高いか、敵対値が低めの場合(関係が悪くない)
-			IF LOCAL:5 || LOCAL:6
-				;同盟・停戦候補に入れる
-				CALL MEMORY_PROSPECT_A(ARG:0, LOCAL:210)
-				CALL MEMORY_PROSPECT_C(ARG:0, LOCAL:210)
-				;プレイヤーが同盟・停戦を提案した場合、無条件で成立
-				COUNTRY_REQUEST_RATE_A:(ARG:0):(LOCAL:210) = 1
-				COUNTRY_REQUEST_RATE_C:(ARG:0):(LOCAL:210) = 1
-			;相手君主への好感度が低く敵対値が高い場合(関係が悪い)
-			ELSE
-				;プレイヤーが停戦を提案した場合、中度の要求をされる(同盟は不可)
-				CALL MEMORY_PROSPECT_C(ARG:0, LOCAL:210)
-				COUNTRY_REQUEST_RATE_C:(ARG:0):(LOCAL:210) = 3
-			ENDIF
-		ENDIF
+	;DEBUGPRINTFORML %ANAME(君主)%の外交計画{計画}番:相手%ANAME(GET_COUNTRY_BOSS(AI_DIPLOMACY_TARGET:勢力:計画))% 内容:{AI_DIPLOMACY_PLAN:勢力:計画} 理由:{理由}
+NEXT
+
+
+
+;------------------------
+;会談を行う
+;------------------------
+@SLG_DIPLOMACY_CONFERENCE(勢力, 相手勢力)
+#DIM 勢力
+#DIM 相手勢力
+#DIM 君主
+#DIM 相手勢力君主
+#DIM 計画
+#DIM 政治パワー
+#DIM 料理パワー
+#DIM 効果量
+#DIM 拒否フラグ
+#DIM 持ち出し額
+
+君主 = GET_COUNTRY_BOSS(勢力)
+相手勢力君主 = GET_COUNTRY_BOSS(相手勢力)
+
+PRINTFORM %ANAME(君主)%は%ANAME(相手勢力君主)%への会談を試みました
+
+拒否フラグ = 0
+
+;相手の外交対象に入っておらず、かつ乱数判定に失敗したら拒否フラグがたつ
+IF !GROUPMATCH(CHECK_AI_DIPLOMACY_PLAN(相手勢力, 勢力), AI_外交計画_会談, AI_外交計画_同盟, AI_外交計画_停戦) && RAND:MAX(1500 + REL_LIKE:相手勢力君主:君主 - REL_HATE:相手勢力君主:君主, 1000) < 500
+	PRINTFORML が、%ANAME(相手勢力君主)%は歓迎しませんでした
+	拒否フラグ = 1
+ELSE
+	PRINTFORML 。%ANAME(相手勢力君主)%は歓迎したようです
+ENDIF
+
+;ベース効果量計算　拒否なら半減
+効果量 = (30 + RAND:21 + RAND:21) * AI_RELATION:(COUNTRY_AI_TYPE:相手勢力):(COUNTRY_AI_TYPE:勢力) / 100 / (拒否フラグ + 1)
+
+;DEBUGPRINTFORML 会談のベース効果量{効果量}
+
+政治パワー = SQRT(TMP_SUM_POLITICS_POWER:勢力) / 10
+料理パワー = SQRT(TMP_SUM_COOKING_POWER:勢力) / 10
+
+効果量 = 効果量 * (政治パワー + 料理パワー + 100) / 100
+
+持ち出し額 = MONEY:勢力 * AI_DIPLOMACY_PROPERTY:(COUNTRY_AI_TYPE:勢力):AI_外交_会談支払額 / 100
+
+;金銭授受
+MONEY:勢力 -= 持ち出し額
+MONEY:相手勢力 += 持ち出し額
+
+;DEBUGPRINTFORML 会談の政治料理パワー補正後効果量{効果量}
+
+CALL CHANGE_RELATION_C_TO_C(勢力, 相手勢力, 効果量, 効果量 * -1)
+CALL CHANGE_RELATION_C_TO_C(相手勢力, 勢力, 効果量, 効果量 * -1)
+
+IF REL_LIKE:相手勢力:勢力 - REL_HATE:相手勢力:勢力 > 600 && !RAND:4
+	CALL CHANGE_AI_DIPLOMACY_PLAN(勢力, 相手勢力, AI_外交計画_停戦)
+	PRINTFORML %ANAME(君主)%は%ANAME(相手勢力君主)%との停戦を試みるようです
+ENDIF
+;------------------------
+;停戦をこころみる
+;------------------------
+@SLG_DIPLOMACY_CEASE_FIRE(勢力, 相手勢力)
+#DIM 勢力
+#DIM 相手勢力
+#DIM 君主
+#DIM 相手勢力君主
+#DIM 計画
+#DIM 政治パワー
+#DIM 料理パワー
+#DIM 効果量
+#DIM 持ち出し額
+#DIM 判定値
+;停戦以上の状態ならRETURN
+SIF TMP_COUNTRY_RELATION:勢力:相手勢力 >= 1
+	RETURN
+
+君主 = GET_COUNTRY_BOSS(勢力)
+相手勢力君主 = GET_COUNTRY_BOSS(相手勢力)
+
+PRINTFORM %ANAME(君主)%は%ANAME(相手勢力君主)%との停戦を試みました
+
+判定値 = MAX(1500 + REL_LIKE:相手勢力君主:君主 - REL_HATE:相手勢力君主:君主, 1000)
+判定値 += LIMIT((TMP_SUM_ECONOMY:勢力 - TMP_SUM_ECONOMY:相手勢力) / 500, 0, 500)
+
+;相手の外交対象に入っておらず、かつ乱数判定に失敗したら拒否フラグがたつ
+IF !GROUPMATCH(CHECK_AI_DIPLOMACY_PLAN(相手勢力, 勢力), AI_外交計画_同盟, AI_外交計画_停戦) && RAND:MAX(判定値, 1000) < 1500
+	PRINTFORML が、%ANAME(相手勢力君主)%は拒否しました
+	IF !RAND:3
+		CALL CHANGE_AI_DIPLOMACY_PLAN(勢力, 相手勢力, AI_外交計画_会談)
+		PRINTFORML %ANAME(君主)%は会談を重ねる方針に切り替えたようです
 	ENDIF
+	RETURN
+ELSE
+	PRINTFORML 。%ANAME(相手勢力君主)%は停戦に同意しました
 ENDIF
 
-;-------------------------------------------------
-;同盟候補の勢力を記録する関数(ARG:0=対象勢力、ARG:1=同盟候補の勢力)
-;-------------------------------------------------
-@MEMORY_PROSPECT_A(ARG:0, ARG:1)
-CALL CHECK_COUNTRY_RELATION(ARG:0, ARG:1)
-;既に同盟以上の関係ならスキップ
-IF RESULT:0 < 3
-	;既にリストに乗っていれば戻る
-	FOR LOCAL:0, 0, MAX_COUNTRY
-		IF COUNTRY_PROSPECT_A:(ARG:0):(LOCAL:0) == ARG:1
-			RETURN
-		ENDIF
-	NEXT
-	FOR LOCAL:0, 0, MAX_COUNTRY
-		IF COUNTRY_PROSPECT_A:(ARG:0):(LOCAL:0) == 0
-			COUNTRY_PROSPECT_A:(ARG:0):(LOCAL:0) = ARG:1
-			;★
-			;PRINTFORML %NAME:GET_COUNTRY_BOSS(ARG:0)%:同盟候補=%NAME:GET_COUNTRY_BOSS(ARG:1)%
-			BREAK
-		ENDIF
-	NEXT
+政治パワー = SQRT(TMP_SUM_POLITICS_POWER:勢力) / 10
+料理パワー = SQRT(TMP_SUM_COOKING_POWER:勢力) / 10
+
+効果量 = LIMIT((REL_LIKE:相手勢力君主:君主 - REL_HATE:相手勢力君主:君主) * (政治パワー + 料理パワー + 100) / 20000, 5, 15)
+
+CALL COLORPRINTFORM(@"%ANAME(君主)%と%ANAME(相手勢力君主)%の停戦期間は{効果量}ターンです", COLOR("注意"), "L")
+CALL INIT_CEASEFIRE(勢力, 相手勢力, 効果量)
+
+TMP_COUNTRY_RELATION:勢力:相手勢力 = 1
+TMP_COUNTRY_RELATION:相手勢力:勢力 = 1
+
+;外交計画を更新
+CALL CLEAR_AI_DIPLOMACY_PLAN(勢力, 相手勢力)
+CALL CLEAR_AI_DIPLOMACY_PLAN(相手勢力, 勢力)
+
+持ち出し額 = MONEY:勢力 * AI_DIPLOMACY_PROPERTY:(COUNTRY_AI_TYPE:勢力):AI_外交_停戦支払額 / 100
+
+;金銭授受
+MONEY:勢力 -= 持ち出し額
+MONEY:相手勢力 += 持ち出し額
+
+;------------------------
+;同盟を試みる
+;------------------------
+@SLG_DIPLOMACY_ALLIANCE(勢力, 相手勢力)
+#DIM 勢力
+#DIM 相手勢力
+#DIM 君主
+#DIM 相手勢力君主
+#DIM 計画
+#DIM 政治パワー
+#DIM 料理パワー
+#DIM 効果量
+#DIM 判定値
+#DIM 持ち出し額
+
+;連合以上の状態ならRETURN
+SIF TMP_COUNTRY_RELATION:勢力:相手勢力 >= 2
+	RETURN
+
+君主 = GET_COUNTRY_BOSS(勢力)
+相手勢力君主 = GET_COUNTRY_BOSS(相手勢力)
+
+PRINTFORM %ANAME(君主)%は%ANAME(相手勢力君主)%との同盟を試みました
+
+判定値 = MAX(1500 + REL_LIKE:相手勢力君主:君主 - REL_HATE:相手勢力君主:君主, 1000)
+判定値 += LIMIT((TMP_SUM_ECONOMY:勢力 - TMP_SUM_ECONOMY:相手勢力) / 500, 0, 500)
+
+;相手の外交対象に入っておらず、かつ乱数判定に失敗したら拒否フラグがたつ
+IF !CHECK_AI_DIPLOMACY_PLAN(相手勢力, 勢力) == AI_外交計画_同盟 && RAND:MAX(判定値, 1000) < 2000
+	PRINTFORML が、%ANAME(相手勢力君主)%は拒否しました
+	IF !RAND:3
+		CALL CHANGE_AI_DIPLOMACY_PLAN(勢力, 相手勢力, AI_外交計画_会談)
+		PRINTFORML %ANAME(君主)%は会談を重ねる方針に切り替えたようです
+	ENDIF
+	RETURN
+ELSE
+	PRINTFORML 。%ANAME(相手勢力君主)%は同盟に同意しました
 ENDIF
 
-;-------------------------------------------------
-;停戦候補の勢力を記録する関数(ARG:0=対象勢力、ARG:1=停戦候補の勢力)
-;-------------------------------------------------
-@MEMORY_PROSPECT_C(ARG:0, ARG:1)
-CALL CHECK_COUNTRY_RELATION(ARG:0, ARG:1)
-;既に停戦以上の関係ならスキップ
-IF RESULT:0 < 1
-	;既にリストに乗っていれば戻る
-	FOR LOCAL:0, 0, MAX_COUNTRY
-		IF COUNTRY_PROSPECT_C:(ARG:0):(LOCAL:0) == ARG:1
-			RETURN
-		ENDIF
-	NEXT
-	FOR LOCAL:0, 0, MAX_COUNTRY
-		IF COUNTRY_PROSPECT_C:(ARG:0):(LOCAL:0) == 0
-			COUNTRY_PROSPECT_C:(ARG:0):(LOCAL:0) = ARG:1
-			;★
-			;PRINTFORML %NAME:GET_COUNTRY_BOSS(ARG:0)%:停戦候補=%NAME:GET_COUNTRY_BOSS(ARG:1)%
-			BREAK
-		ENDIF
-	NEXT
-ENDIF
+政治パワー = SQRT(TMP_SUM_POLITICS_POWER:勢力) / 10
+料理パワー = SQRT(TMP_SUM_COOKING_POWER:勢力) / 10
+
+効果量 = LIMIT((REL_LIKE:相手勢力君主:君主 - REL_HATE:相手勢力君主:君主) * (政治パワー + 料理パワー + 100) / 20000, 5, 15)
+
+CALL COLORPRINTFORM(@"%ANAME(君主)%と%ANAME(相手勢力君主)%の同盟期間は{効果量}ターンです", COLOR("注意"), "L")
+CALL INIT_ALLIANCE(勢力, 相手勢力, 効果量)
+
+TMP_COUNTRY_RELATION:勢力:相手勢力 = 3
+TMP_COUNTRY_RELATION:相手勢力:勢力 = 3
+
+;外交計画を更新
+CALL CLEAR_AI_DIPLOMACY_PLAN(勢力, 相手勢力)
+CALL CLEAR_AI_DIPLOMACY_PLAN(相手勢力, 勢力)
 
 
+持ち出し額 = MONEY:勢力 * AI_DIPLOMACY_PROPERTY:(COUNTRY_AI_TYPE:勢力):AI_外交_同盟支払額 / 100
+
+;金銭授受
+MONEY:勢力 -= 持ち出し額
+MONEY:相手勢力 += 持ち出し額
+
+
+;------------------------
+;悪評を流す
+;------------------------
+@SLG_DIPLOMACY_CREATE_SCANDAL(勢力, 相手勢力)
+#DIM 勢力
+#DIM 相手勢力
+#DIM 君主
+#DIM 相手勢力君主
+#DIM 計画
+#DIM 政治パワー
+#DIM 料理パワー
+#DIM 効果量
+#DIM 拒否フラグ
+
+君主 = GET_COUNTRY_BOSS(勢力)
+相手勢力君主 = GET_COUNTRY_BOSS(相手勢力)
+
+PRINTFORML %ANAME(君主)%は%ANAME(相手勢力君主)%の悪評を流しました
+
+;ベース効果量計算　拒否なら半減
+効果量 = (5 + RAND:5 + RAND:5)
+
+;DEBUGPRINTFORML 悪評のベース効果量{効果量}
+
+政治パワー = SQRT(TMP_SUM_POLITICS_POWER:勢力) / 10
+料理パワー = SQRT(TMP_SUM_COOKING_POWER:勢力) / 10
+
+効果量 = 効果量 * (政治パワー + 料理パワー + 100) / 100
+
+;DEBUGPRINTFORML 悪評の政治料理パワー補正後効果量{効果量}
+
+FOR LOCAL, 0, MAX_COUNTRY
+	SIF !IS_COUNTRY(LOCAL)
+		CONTINUE
+	SIF GROUPMATCH(LOCAL, 勢力, 相手勢力)
+		CONTINUE
+	CALL CHANGE_RELATION_C_TO_C(LOCAL, 相手勢力, 効果量 * -1, 効果量)
+NEXT
+
+
+;------------------------
+;勢力から相手勢力への外交計画を返す
+;------------------------
+@CHECK_AI_DIPLOMACY_PLAN(勢力, 相手勢力)
+#FUNCTION
+#DIM 勢力
+#DIM 相手勢力
+#DIM 計画
+FOR 計画, 0, AI_DIPLOMACY_PROPERTY:(COUNTRY_AI_TYPE:勢力):AI_外交_行動回数
+	SIF AI_DIPLOMACY_TARGET:勢力:計画 == 相手勢力
+		RETURNF AI_DIPLOMACY_PLAN:勢力:計画
+NEXT
+RETURNF -1
+
+;------------------------
+;勢力から相手勢力への外交計画を消去する
+;------------------------
+@CLEAR_AI_DIPLOMACY_PLAN(勢力, 相手勢力)
+#DIM 勢力
+#DIM 相手勢力
+#DIM 計画
+FOR 計画, 0, AI_DIPLOMACY_PROPERTY:(COUNTRY_AI_TYPE:勢力):AI_外交_行動回数
+	IF AI_DIPLOMACY_TARGET:勢力:計画 == 相手勢力
+		AI_DIPLOMACY_PLAN:勢力:計画 = -1
+		AI_DIPLOMACY_TARGET:勢力:計画 = 0
+		RETURN 1
+	ENDIF
+NEXT
+RETURN 0
+
+;------------------------
+;勢力から相手勢力への外交計画を変更する
+;------------------------
+@CHANGE_AI_DIPLOMACY_PLAN(勢力, 相手勢力, 新計画)
+#DIM 勢力
+#DIM 相手勢力
+#DIM 計画
+#DIM 新計画
+FOR 計画, 0, AI_DIPLOMACY_PROPERTY:(COUNTRY_AI_TYPE:勢力):AI_外交_行動回数
+	IF AI_DIPLOMACY_TARGET:勢力:計画 == 相手勢力
+		AI_DIPLOMACY_PLAN:勢力:計画 = 新計画
+		RETURN 1
+	ENDIF
+NEXT
+RETURN 0
