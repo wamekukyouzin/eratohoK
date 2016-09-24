@@ -33,7 +33,7 @@ CALL AI_DEPLOY_ARMY(勢力, 0)
 FOR LOCAL:0, 1, GET_CITY_NUM() + 1
 	IF CITY_OWNER:(LOCAL:0) == 勢力
 		;敵部隊のいる都市は解除不可
-		IF !IS_STAY_ENEMY_UNIT(LOCAL:0, 勢力)
+		IF !TMP_IS_STAY_ENEMY_UNIT(LOCAL:0, 勢力)
 			COUNTRY_SOLDIER:勢力 += CITY_SOLDIER:(LOCAL:0)
 			CITY_SOLDIER:(LOCAL:0) = 0
 			CITY_COMMANDER:(LOCAL:0) = 0
@@ -66,7 +66,7 @@ FOR 部隊, 0, MAX_UNIT
 	;既存部隊の場合、移動できない連中は飛ばす
 	IF UNIT_SOLDIER:勢力:部隊 > 0
 		;敵がいるなら飛ばす
-		SIF IS_STAY_ENEMY_UNIT(UNIT_POSITION:勢力:部隊, 勢力)
+		SIF TMP_IS_STAY_ENEMY_UNIT(UNIT_POSITION:勢力:部隊, 勢力)
 			CONTINUE
 		;すでに目的地があるなら飛ばす
 		SIF UNIT_TARGET:勢力:部隊
@@ -161,7 +161,7 @@ FOR 部隊, 0, MAX_UNIT
 	SIF UNIT_SOLDIER:勢力:部隊 <= 0
 		CONTINUE
 	;敵がいるなら補充しない
-	SIF IS_STAY_ENEMY_UNIT(UNIT_POSITION:勢力:部隊, 勢力) == 1
+	SIF TMP_IS_STAY_ENEMY_UNIT(UNIT_POSITION:勢力:部隊, 勢力) == 1
 		CONTINUE
 	;味方の勢力でなくても補充しない
 	SIF TMP_COUNTRY_RELATION:勢力:(CITY_OWNER:(UNIT_POSITION:勢力:部隊)) == 0
@@ -270,7 +270,7 @@ VARSET 防衛スコア合計
 FOR 都市, 1, GET_CITY_NUM() + 1
 	都市保有者 = CITY_OWNER:都市
 	;敵がいないなら救援しない
-	SIF !IS_STAY_ENEMY_UNIT(都市, 勢力)
+	SIF !TMP_IS_STAY_ENEMY_UNIT(都市, 勢力)
 		CONTINUE
 	;助ける必要のないところなら放置
 	SIF !(IS_COUNTRY(都市保有者) && GROUPMATCH(TMP_COUNTRY_RELATION:勢力:都市保有者, 2, 3, 4, 5))
@@ -319,7 +319,7 @@ WHILE 1
 			CONTINUE
 		SIF UNIT_TARGET:勢力:部隊
 			CONTINUE
-		SIF IS_STAY_ENEMY_UNIT(UNIT_POSITION:勢力:部隊, 勢力) == 1
+		SIF TMP_IS_STAY_ENEMY_UNIT(UNIT_POSITION:勢力:部隊, 勢力) == 1
 			CONTINUE
 		SIF TMP_COUNTRY_RELATION:勢力:(CITY_OWNER:(UNIT_POSITION:勢力:部隊)) == 0
 			CONTINUE
@@ -664,6 +664,9 @@ FOR 都市, 1, GET_CITY_NUM() + 1
 	;そこが自勢力の都市で、敵と接続しているなら、防衛スコアに加算
 	;最大飛び地でないなら、最大飛び地に対する飛び地サイズの比だけ軽減される
 	IF CITY_OWNER:都市 == 勢力 && TMP_CITY_RISK:勢力:都市 >= 2
+		;敵がいる都市はダメ
+		SIF TMP_IS_STAY_ENEMY_UNIT(都市, 勢力) == 1
+			CONTINUE
 		;DEBUGPRINTFORML %GET_CITYNAME(都市)% スコア{TMP_DEFFENSIVE_IMPORTANCE:勢力:都市}
 		防衛スコア:都市 = TMP_DEFFENSIVE_IMPORTANCE:勢力:都市 * TMP_ENCLAVE_SIZE:勢力:都市 / TMP_MAX_ENCLAVE_SIZE:勢力
 		防衛スコア合計 += 防衛スコア:都市
@@ -689,7 +692,7 @@ FOR LOCAL, 0, VARSIZE("防衛スコア")
 			CONTINUE
 		SIF UNIT_TARGET:勢力:部隊
 			CONTINUE
-		SIF IS_STAY_ENEMY_UNIT(UNIT_POSITION:勢力:部隊, 勢力) == 1
+		SIF TMP_IS_STAY_ENEMY_UNIT(UNIT_POSITION:勢力:部隊, 勢力) == 1
 			CONTINUE
 		SIF TMP_COUNTRY_RELATION:勢力:(CITY_OWNER:(UNIT_POSITION:勢力:部隊)) == 0
 			CONTINUE
