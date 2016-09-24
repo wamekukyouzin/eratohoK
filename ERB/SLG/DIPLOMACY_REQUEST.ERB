@@ -1377,7 +1377,7 @@ IF DIPLOMACY_HATE:(ARG:0):0 >= DIPLOMACY_HATE:(ARG:0):2 + 20
 	NEXT
 	;面倒なので同盟停戦連合一括処理(ぉ
 	
-	FOR LOOP_COUNT:0, 0, MAX(MAX_TREATY_A, MAX_TREATY_C, MAX_TREATY_U)
+	FOR LOOP_COUNT:0, 0, MAX(MAX_TREATY_A, MAX_TREATY_C)
 		;同盟のチェック
 		IF LOOP_COUNT:0 < MAX_TREATY_A
 			FOR LOOP_COUNT:1, 0, MAX_TREATY_COUNTRY
@@ -1388,7 +1388,6 @@ IF DIPLOMACY_HATE:(ARG:0):0 >= DIPLOMACY_HATE:(ARG:0):2 + 20
 						HATE_A:0 = 1
 						;対象の同盟に参加している他勢力全てが破棄する場合、同盟は破棄される
 						FOR LOOP_COUNT:2, 0, MAX_TREATY_COUNTRY
-							
 							SIF GROUPMATCH(TREATY_A_COUNTRY:(LOOP_COUNT:0):(LOOP_COUNT:2), ARG:0, 0)
 								CONTINUE
 							TREATY_COUNT ++
@@ -1399,48 +1398,7 @@ IF DIPLOMACY_HATE:(ARG:0):0 >= DIPLOMACY_HATE:(ARG:0):2 + 20
 						NEXT
 						;同盟破棄の処理
 						IF HATE_A
-							TREATY_A_TERM:(LOOP_COUNT:0) = 0
-							SETCOLOR COLOR("注意")
-							LOCAL:5 = 0
-							FOR LOOP_COUNT:2, 0, MAX_TREATY_COUNTRY
-								LOCAL:3 = TREATY_A_COUNTRY:(LOOP_COUNT:0):(LOOP_COUNT:2)
-								IF LOCAL:3 > 0
-									LOCAL:4 = GET_COUNTRY_BOSS(LOCAL:3)
-									IF LOCAL:4 >= 0
-										IF LOCAL:5
-											PRINT ・
-										ENDIF
-										PRINTFORM %NAME:(LOCAL:4)%
-										LOCAL:5 = 1
-									ENDIF
-									;ついでに部隊の解散もここで行う
-									CALL CLEAR_ALL_UNIT(LOCAL:3, 1)
-								ENDIF
-							NEXT
-							PRINTL 同盟は解散しました
-							PRINTL 同盟の解散に伴い、参加していた勢力の全部隊は解散されます
-							FOR LOCAL:1, 0, MAX_TREATY_COUNTRY
-								IF TREATY_A_COUNTRY:(LOOP_COUNT:0):(LOCAL:1) == CFLAG:MASTER:所属
-									CALL COLORPRINTFORM("注意:自国の部隊も解散されています", COLOR("警告"), "W")
-									BREAK
-								ENDIF
-							NEXT
-							RESETCOLOR
-							;移動処理対象の検索
-							FOR LOCAL:1, 0, MAX_TREATY_COUNTRY
-								IF TREATY_A_COUNTRY:(LOOP_COUNT:0):(LOCAL:1) >= 1 && TREATY_A_COUNTRY:(LOCAL:0):(LOCAL:1) != CFLAG:MASTER:所属
-									;その同盟にプレイヤー勢力がいたか検索
-									FOR LOCAL:2, 0, MAX_TREATY_COUNTRY
-										IF TREATY_A_COUNTRY:(LOOP_COUNT:0):(LOCAL:2) == CFLAG:MASTER:所属
-											;いたら、自国へ誘った士官の移動処理
-											CALL GO_TO_MASTERS_COUNTRY(TREATY_A_COUNTRY:(LOOP_COUNT:0):(LOCAL:1))
-										ENDIF
-									NEXT
-								ENDIF
-							NEXT
-							FOR LOCAL:1, 0, MAX_TREATY_COUNTRY
-								TREATY_A_COUNTRY:(LOOP_COUNT:0):(LOCAL:1) = 0
-							NEXT
+							CALL BREAK_ALLIANCE(TREATY_A_COUNTRY:(LOOP_COUNT:0):0, TREATY_A_COUNTRY:(LOOP_COUNT:0):1, LOOP_COUNT:0)
 							PRINTL 
 						ENDIF
 					ENDIF
@@ -1469,23 +1427,7 @@ IF DIPLOMACY_HATE:(ARG:0):0 >= DIPLOMACY_HATE:(ARG:0):2 + 20
 						NEXT
 						;停戦条約破棄の処理
 						IF HATE_C
-							TREATY_C_TERM:(LOOP_COUNT:0) = 0
-							SETCOLOR COLOR("注意")
-							LOCAL:5 = 0
-							FOR LOOP_COUNT:2, 0, MAX_TREATY_COUNTRY
-								LOCAL:3 = TREATY_C_COUNTRY:(LOOP_COUNT:0):(LOOP_COUNT:2)
-								IF LOCAL:3 > 0
-									LOCAL:4 = GET_COUNTRY_BOSS(LOCAL:3)
-									IF LOCAL:4 >= 0
-										IF LOCAL:5
-											PRINT ・
-										ENDIF
-										PRINTFORM %NAME:(LOCAL:4)%
-										LOCAL:5 = 1
-									ENDIF
-								ENDIF
-							NEXT
-							PRINTL による停戦条約は破棄されました
+							CALL BREAK_CEASEFIRE(TREATY_C_COUNTRY:(LOOP_COUNT:0):0, TREATY_C_COUNTRY:(LOOP_COUNT:0):1, LOOP_COUNT:0)
 						ENDIF
 					ENDIF
 				ELSE

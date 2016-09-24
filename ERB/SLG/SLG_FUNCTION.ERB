@@ -1508,6 +1508,52 @@ CALL INIT_CEASEFIRE(LOCAL:1, LOCAL:2, ARG:2)
 RETURN RESULT
 
 ;-------------------------------------------------
+;同盟の解散処理
+;-----------------------------------------------
+@BREAK_ALLIANCE(参加勢力:0, 参加勢力:1, 条約)
+#DIM 参加勢力, 2
+#DIM 参加君主, 2
+#DIM 移動先都市, 2
+#DIM 部隊
+#DIM 条約
+#DIM 都市
+参加君主:0 = GET_COUNTRY_BOSS(参加勢力:0)
+参加君主:1 = GET_COUNTRY_BOSS(参加勢力:1)
+CALL COLORPRINTFORM(@"%ANAME(参加君主:0)%・%ANAME(参加君主:1)%同盟は解散しました", COLOR("注意"), "L")
+CALL COLORPRINTFORM(@"%ANAME(参加君主:1)%の都市にいる%ANAME(参加君主:0)%の部隊、%ANAME(参加君主:0)%の都市にいる%ANAME(参加君主:1)%の部隊は移動します", COLOR("注意"), "L")
+FOR 都市, 1, GET_CITY_NUM() + 1
+	SIF GROUPMATCH(CITY_OWNER:都市, 参加勢力:0, 参加勢力:1)
+		移動先都市:(CITY_OWNER:都市 == 参加勢力:0 ? 0 # 1) = 都市
+NEXT
+FOR 部隊, 0, MAX_UNIT
+	SIF CITY_OWNER:(UNIT_POSITION:(参加勢力:0):部隊) == 参加勢力:1
+		UNIT_POSITION:(参加勢力:0):部隊 = 移動先都市:0
+	SIF CITY_OWNER:(UNIT_POSITION:(参加勢力:1):部隊) == 参加勢力:0
+		UNIT_POSITION:(参加勢力:1):部隊 = 移動先都市:1
+NEXT
+RESETCOLOR
+SIF GROUPMATCH(CFLAG:MASTER:所属, 参加勢力:0, 参加勢力:1)
+	CALL GO_TO_MASTERS_COUNTRY(参加勢力:(CFLAG:MASTER:所属 == 参加勢力:0 ? 1 # 0))
+TREATY_A_COUNTRY:条約:0 = 0
+TREATY_A_COUNTRY:条約:1 = 0
+TREATY_A_TERM:条約 = 0
+
+;-------------------------------------------------
+;停戦条約の終了処理
+;-----------------------------------------------
+@BREAK_CEASEFIRE(参加勢力:0, 参加勢力:1, 条約)
+#DIM 参加勢力, 2
+#DIM 参加君主, 2
+#DIM 条約
+参加君主:0 = GET_COUNTRY_BOSS(参加勢力:0)
+参加君主:1 = GET_COUNTRY_BOSS(参加勢力:1)
+CALL COLORPRINTFORM(@"%ANAME(参加君主:0)%・%ANAME(参加君主:1)%の停戦条約は失効しました", COLOR("注意"), "L")
+TREATY_C_COUNTRY:条約:0 = 0
+TREATY_C_COUNTRY:条約:1 = 0
+TREATY_C_TERM:条約 = 0
+
+
+;-------------------------------------------------
 ;ARG:0番の勢力カラーを変更する関数
 ;ARG:1に1を設定すると「変更せずに戻る」が禁止される
 ;-------------------------------------------------
