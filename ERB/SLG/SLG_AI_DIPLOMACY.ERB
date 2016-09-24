@@ -233,21 +233,27 @@ SIF TMP_COUNTRY_RELATION:勢力:相手勢力 >= 1
 君主 = GET_COUNTRY_BOSS(勢力)
 相手勢力君主 = GET_COUNTRY_BOSS(相手勢力)
 
-PRINTFORM %ANAME(君主)%は%ANAME(相手勢力君主)%との停戦を試みました
-
 判定値 = MAX(1500 + REL_LIKE:相手勢力君主:君主 - REL_HATE:相手勢力君主:君主, 1000)
 判定値 += LIMIT((TMP_SUM_ECONOMY:勢力 - TMP_SUM_ECONOMY:相手勢力) / 500, 0, 500)
 
-;相手の外交対象に入っておらず、かつ乱数判定に失敗したら拒否フラグがたつ
-IF !GROUPMATCH(CHECK_AI_DIPLOMACY_PLAN(相手勢力, 勢力), AI_外交計画_同盟, AI_外交計画_停戦) && RAND:MAX(判定値, 1000) < 1500
-	PRINTFORML が、%ANAME(相手勢力君主)%は拒否しました
-	IF !RAND:3
-		CALL CHANGE_AI_DIPLOMACY_PLAN(勢力, 相手勢力, AI_外交計画_会談)
-		PRINTFORML %ANAME(君主)%は会談を重ねる方針に切り替えたようです
-	ENDIF
-	RETURN
+;プレイヤーに対しての外交であった場合
+IF 相手勢力 == CFLAG:MASTER:所属
+	CALL SLG_DIPLOMACY_TO_PLAYER(勢力, AI_外交計画_停戦)
+	SIF RESULT == 0
+		RETURN 
 ELSE
-	PRINTFORML 。%ANAME(相手勢力君主)%は停戦に同意しました
+	PRINTFORM %ANAME(君主)%は%ANAME(相手勢力君主)%との停戦を試みました
+	;相手の外交対象に入っておらず、かつ乱数判定に失敗したら拒否フラグがたつ
+	IF !GROUPMATCH(CHECK_AI_DIPLOMACY_PLAN(相手勢力, 勢力), AI_外交計画_同盟, AI_外交計画_停戦) && RAND:MAX(判定値, 1000) < 1500
+		PRINTFORML が、%ANAME(相手勢力君主)%は拒否しました
+		IF !RAND:3
+			CALL CHANGE_AI_DIPLOMACY_PLAN(勢力, 相手勢力, AI_外交計画_会談)
+			PRINTFORML %ANAME(君主)%は会談を重ねる方針に切り替えたようです
+		ENDIF
+		RETURN
+	ELSE
+		PRINTFORML 。%ANAME(相手勢力君主)%は停戦に同意しました
+	ENDIF
 ENDIF
 
 政治パワー = SQRT(TMP_SUM_POLITICS_POWER:勢力) / 10
@@ -293,21 +299,29 @@ SIF TMP_COUNTRY_RELATION:勢力:相手勢力 >= 2
 君主 = GET_COUNTRY_BOSS(勢力)
 相手勢力君主 = GET_COUNTRY_BOSS(相手勢力)
 
-PRINTFORM %ANAME(君主)%は%ANAME(相手勢力君主)%との同盟を試みました
+
 
 判定値 = MAX(1500 + REL_LIKE:相手勢力君主:君主 - REL_HATE:相手勢力君主:君主, 1000)
 判定値 += LIMIT((TMP_SUM_ECONOMY:勢力 - TMP_SUM_ECONOMY:相手勢力) / 500, 0, 500)
 
-;相手の外交対象に入っておらず、かつ乱数判定に失敗したら拒否フラグがたつ
-IF !CHECK_AI_DIPLOMACY_PLAN(相手勢力, 勢力) == AI_外交計画_同盟 && RAND:MAX(判定値, 1000) < 2000
-	PRINTFORML が、%ANAME(相手勢力君主)%は拒否しました
-	IF !RAND:3
-		CALL CHANGE_AI_DIPLOMACY_PLAN(勢力, 相手勢力, AI_外交計画_会談)
-		PRINTFORML %ANAME(君主)%は会談を重ねる方針に切り替えたようです
-	ENDIF
-	RETURN
+;プレイヤーに対しての外交であった場合
+IF 相手勢力 == CFLAG:MASTER:所属
+	CALL SLG_DIPLOMACY_TO_PLAYER(勢力, AI_外交計画_停戦)
+	SIF RESULT == 0
+		RETURN 
 ELSE
-	PRINTFORML 。%ANAME(相手勢力君主)%は同盟に同意しました
+	PRINTFORM %ANAME(君主)%は%ANAME(相手勢力君主)%との同盟を試みました
+	;相手の外交対象に入っておらず、かつ乱数判定に失敗したら拒否フラグがたつ
+	IF !CHECK_AI_DIPLOMACY_PLAN(相手勢力, 勢力) == AI_外交計画_同盟 && RAND:MAX(判定値, 1000) < 2000
+		PRINTFORML が、%ANAME(相手勢力君主)%は拒否しました
+		IF !RAND:3
+			CALL CHANGE_AI_DIPLOMACY_PLAN(勢力, 相手勢力, AI_外交計画_会談)
+			PRINTFORML %ANAME(君主)%は会談を重ねる方針に切り替えたようです
+		ENDIF
+		RETURN
+	ELSE
+		PRINTFORML 。%ANAME(相手勢力君主)%は同盟に同意しました
+	ENDIF
 ENDIF
 
 政治パワー = SQRT(TMP_SUM_POLITICS_POWER:勢力) / 10
@@ -418,3 +432,24 @@ FOR 計画, 0, AI_DIPLOMACY_PROPERTY:(COUNTRY_AI_TYPE:勢力):AI_外交_行動�
 	ENDIF
 NEXT
 RETURN 0
+
+;------------------------
+;ある勢力からプレイヤーへの外交打診(停戦・同盟)
+;------------------------
+@SLG_DIPLOMACY_TO_PLAYER(勢力, 計画)
+#DIM 勢力
+#DIM 君主
+#DIM 計画
+#DIMS CONST 内容 = "会談", "停戦", "同盟"
+PRINTFORML %ANAME(君主)%が%内容:計画%を申し出てきました
+PRINTFORML どうしますか？
+CALL ASK_YN("受け入れる", "拒否")
+IF RESULT == 1
+	PRINTFORML 拒否しました
+	;毎ターンきいてくるのはうざいのでクリア
+	CALL CLEAR_AI_DIPLOMACY_PLAN(勢力, CFLAG:MASTER:所属)
+	RETURN 0
+ENDIF
+PRINTFORML %内容:計画%に合意することにしました
+RETURN 1
+
