@@ -1317,7 +1317,7 @@ RETURNF LOCAL:1 < SUMARRAY(ROLL_RES)
 #DIM BOSS_CHARA, 2
 #DIM HATE, 2
 #DIM BOSS_AI, 2
-#DIM LOOP_COUNT, 3
+#DIM LOOP_COUNT, 4
 #DIM HATE_A, MAX_COUNTRY
 #DIM HATE_C, MAX_COUNTRY
 #DIM HATE_U, MAX_COUNTRY
@@ -1493,78 +1493,6 @@ IF DIPLOMACY_HATE:(ARG:0):0 >= DIPLOMACY_HATE:(ARG:0):2 + 20
 				ENDIF
 			NEXT
 		ENDIF
-		;連合のチェック
-		IF LOOP_COUNT:0 < MAX_TREATY_U
-			FOR LOOP_COUNT:1, 0, MAX_TREATY_COUNTRY
-				IF TREATY_U_COUNTRY:(LOOP_COUNT:0):(LOOP_COUNT:1)
-					;参加国リストに問題の勢力が存在すれば該当する同盟の参加国のチェックを行う
-					IF TREATY_U_COUNTRY:(LOOP_COUNT:0):(LOOP_COUNT:1) == ARG:0
-						TREATY_COUNT = 0
-						HATE_U:0 = 1
-						;対象の同盟に参加している他勢力全てが破棄する場合、同盟は破棄される
-						FOR LOOP_COUNT:2, 0, MAX_TREATY_COUNTRY
-							
-							SIF GROUPMATCH(TREATY_U_COUNTRY:(LOOP_COUNT:0):(LOOP_COUNT:2), ARG:0, 0)
-								CONTINUE
-							TREATY_COUNT ++
-							IF !HATE_U:(TREATY_U_COUNTRY:(LOOP_COUNT:0):(LOOP_COUNT:2))
-								HATE_U= 0
-								BREAK
-							ENDIF
-						NEXT
-						;同盟破棄の処理
-						IF HATE_U
-							TREATY_U_TERM:(LOOP_COUNT:0) = 0
-							TREATY_U_TARGET:(LOOP_COUNT:0) = 0
-							SETCOLOR COLOR("注意")
-							LOCAL:5 = 0
-							FOR LOOP_COUNT:2, 0, MAX_TREATY_COUNTRY
-								LOCAL:3 = TREATY_U_COUNTRY:(LOOP_COUNT:0):(LOOP_COUNT:2)
-								IF LOCAL:3 > 0
-									LOCAL:4 = GET_COUNTRY_BOSS(LOCAL:3)
-									IF LOCAL:4 >= 0
-										IF LOCAL:5
-											PRINT ・
-										ENDIF
-										PRINTFORM %NAME:(LOCAL:4)%
-										LOCAL:5 = 1
-									ENDIF
-									;ついでに部隊の解散もここで行う
-									CALL CLEAR_ALL_UNIT(LOCAL:3, 1)
-								ENDIF
-							NEXT
-							PRINTL 連合は解散しました
-							PRINTL 連合の解散に伴い、参加していた勢力の全部隊は解隊されます
-							FOR LOCAL:1, 0, MAX_TREATY_COUNTRY
-								IF TREATY_U_COUNTRY:(LOOP_COUNT:0):(LOCAL:1) == CFLAG:MASTER:所属
-									CALL COLORPRINTFORM("注意:自国の部隊も解散されています", COLOR("警告"), "W")
-									BREAK
-								ENDIF
-							NEXT
-							RESETCOLOR
-							;移動処理対象の検索
-							FOR LOCAL:1, 0, MAX_TREATY_COUNTRY
-								IF TREATY_U_COUNTRY:(LOOP_COUNT:0):(LOCAL:1) >= 1 && TREATY_U_COUNTRY:(LOCAL:0):(LOCAL:1) != CFLAG:MASTER:所属
-									;その同盟にプレイヤー勢力がいたか検索
-									FOR LOCAL:2, 0, MAX_TREATY_COUNTRY
-										IF TREATY_U_COUNTRY:(LOOP_COUNT:0):(LOCAL:2) == CFLAG:MASTER:所属
-											;いたら、自国へ誘った士官の移動処理
-											CALL GO_TO_MASTERS_COUNTRY(TREATY_U_COUNTRY:(LOOP_COUNT:0):(LOCAL:1))
-										ENDIF
-									NEXT
-								ENDIF
-							NEXT
-							FOR LOCAL:1, 0, MAX_TREATY_COUNTRY
-								TREATY_U_COUNTRY:(LOOP_COUNT:0):(LOCAL:1) = 0
-							NEXT
-							PRINTL 
-						ENDIF
-					ENDIF
-				ELSE
-					BREAK
-				ENDIF
-			NEXT
-		ENDIF
 	NEXT
 	RESETCOLOR
 
@@ -1584,61 +1512,5 @@ IF DIPLOMACY_HATE:(ARG:0):0 >= DIPLOMACY_HATE:(ARG:0):3 + 40
 	RESETCOLOR
 ENDIF
 
-[SKIPSTART]
-;大ペナルティ:一定以上の敵対値をもつ勢力が連合を組む
-;条約の扱いで色々手間が掛かりそうなので保留
-IF DIPLOMACY_HATE:(ARG:0):0 >= DIPLOMACY_HATE:(ARG:0):4 + 60
-	PRINTFORMW %ANAME(BOSS_CHARA:0)%の横暴な外交姿勢に対し他国の我慢は限界を超えてしまいました！
-		
-
-	RES_PENALTY += 8
-	DIPLOMACY_HATE:(ARG:0):4 = DIPLOMACY_HATE:(ARG:0):0
-	SETCOLOR COLOR("警告")
-
-
-	;停戦解除
-	LOCAL:9 = 0
-	FOR LOCAL:1, 0, MAX_TREATY_C
-		IF TREATY_C_TERM:(LOCAL:1) >= 1
-			;連合に参加する勢力と討伐対象勢力の両方を含む停戦条約を探す
-			LOCAL:8 = 0
-			FOR LOCAL:2, 0, MAX_TREATY_COUNTRY
-				SIF TREATY_C_COUNTRY:(LOCAL:1):(LOCAL:2) == LOCAL:5
-					LOCAL:8 |= 0b01
-				SIF MATCH(TMP_UNION_COUNTRY, TREATY_C_COUNTRY:(LOCAL:1):(LOCAL:2))
-					LOCAL:8 |= 0b10
-				SIF LOCAL:8 == 0b11
-					BREAK
-			NEXT
-			;LOCAL:1番の条約が連合に参加する勢力と討伐対象勢力の両方を含んでいた場合
-			IF LOCAL:8 == 0b11
-				LOCAL:4 = 0
-				FOR LOCAL:2, 0, MAX_TREATY_COUNTRY
-					LOCAL:3 = TREATY_C_COUNTRY:(LOCAL:1):(LOCAL:2)
-					IF LOCAL:3 == LOCAL:5 || MATCH(TMP_UNION_COUNTRY, TREATY_C_COUNTRY:(LOCAL:1):(LOCAL:2))
-						TREATY_C_COUNTRY:(LOCAL:1):(LOCAL:2) = 0
-						LOCAL:9 = 1
-					ELSEIF IS_COUNTRY(LOCAL:3)
-						LOCAL:4 ++
-					ENDIF
-				NEXT
-				IF LOCAL:4 <= 1
-					TREATY_C_TERM:(LOCAL:1) = 0
-					FOR LOCAL:2, 0, MAX_TREATY_COUNTRY
-						TREATY_C_COUNTRY:(LOCAL:1):(LOCAL:2) = 0
-					NEXT
-				ENDIF
-			ENDIF
-		ENDIF
-	NEXT
-	IF LOCAL:9
-		SETCOLOR COLOR("注意")
-		PRINTFORML 連合参加勢力が%NAME:(LOCAL:6)%と結んでいた停戦条約は解消されました
-		RESETCOLOR
-		WAIT
-	ENDIF
-
-ENDIF
-[SKIPEND]
 
 RETURN RES_PENALTY
