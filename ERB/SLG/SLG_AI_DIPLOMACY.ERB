@@ -172,19 +172,23 @@ NEXT
 #DIM 拒否フラグ
 #DIM 持ち出し額
 
+拒否フラグ = 0
+
 君主 = GET_COUNTRY_BOSS(勢力)
 相手勢力君主 = GET_COUNTRY_BOSS(相手勢力)
 
-PRINTFORM %ANAME(君主)%は%ANAME(相手勢力君主)%への会談を試みました
-
-拒否フラグ = 0
-
-;相手の外交対象に入っておらず、かつ乱数判定に失敗したら拒否フラグがたつ
-IF !GROUPMATCH(CHECK_AI_DIPLOMACY_PLAN(相手勢力, 勢力), AI_外交計画_会談, AI_外交計画_同盟, AI_外交計画_停戦) && RAND:MAX(1500 + REL_LIKE:相手勢力君主:君主 - REL_HATE:相手勢力君主:君主, 1000) < 500
-	PRINTFORML が、%ANAME(相手勢力君主)%は歓迎しませんでした
-	拒否フラグ = 1
+IF 相手勢力 == CFLAG:MASTER:所属
+	CALL COLORPRINTFORM(@"%ANAME(君主)%が%ANAME(相手勢力君主)%と会談しました", COLOR("注意"), "L")
 ELSE
-	PRINTFORML 。%ANAME(相手勢力君主)%は歓迎したようです
+	拒否フラグ = 0
+	PRINTFORM %ANAME(君主)%は%ANAME(相手勢力君主)%への会談を試みました
+	;相手の外交対象に入っておらず、かつ乱数判定に失敗したら拒否フラグがたつ
+	IF !GROUPMATCH(CHECK_AI_DIPLOMACY_PLAN(相手勢力, 勢力), AI_外交計画_会談, AI_外交計画_同盟, AI_外交計画_停戦) && RAND:MAX(1500 + REL_LIKE:相手勢力君主:君主 - REL_HATE:相手勢力君主:君主, 1000) < 500
+		PRINTFORML が、%ANAME(相手勢力君主)%は歓迎しませんでした
+		拒否フラグ = 1
+	ELSE
+		PRINTFORML 。%ANAME(相手勢力君主)%は歓迎したようです
+	ENDIF
 ENDIF
 
 ;ベース効果量計算　拒否なら半減
@@ -364,7 +368,11 @@ MONEY:相手勢力 += 持ち出し額
 君主 = GET_COUNTRY_BOSS(勢力)
 相手勢力君主 = GET_COUNTRY_BOSS(相手勢力)
 
-PRINTFORML %ANAME(君主)%は%ANAME(相手勢力君主)%の悪評を流しました
+IF 相手勢力 == CFLAG:MASTER:所属
+	CALL COLORPRINTFORM(@"%ANAME(君主)%に%ANAME(相手勢力君主)%についての悪評を流されました", COLOR("注意"), "L")
+ELSE
+	PRINTFORML %ANAME(君主)%は%ANAME(相手勢力君主)%の悪評を流しました
+ENDIF
 
 ;ベース効果量計算　拒否なら半減
 効果量 = (5 + RAND:5 + RAND:5)
@@ -441,7 +449,7 @@ RETURN 0
 #DIM 君主
 #DIM 計画
 #DIMS CONST 内容 = "会談", "停戦", "同盟"
-PRINTFORML %ANAME(君主)%が%内容:計画%を申し出てきました
+CALL COLORPRINTFORM(@"%ANAME(君主)%が%内容:計画%を申し出てきました", COLOR("注意"), "L")
 PRINTFORML どうしますか？
 CALL ASK_YN("受け入れる", "拒否")
 IF RESULT == 1
