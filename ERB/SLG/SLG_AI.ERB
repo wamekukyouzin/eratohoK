@@ -1,8 +1,11 @@
-﻿
+﻿;注意点
+;この関数自体ループ内で呼ばれる前提なので、ループを使用するとO(n^2)になる。TMP化できるものはTMPを利用すること。
 @AI_ACTION(勢力)
 #DIM 勢力
 #DIM 攻撃兵数
+#DIM 都市
 #DIM 部隊
+#DIM キャラ
 #DIM USETIME
 SETCOLOR COUNTRY_COLOR:勢力
 PRINTFORML %ANAME(GET_COUNTRY_BOSS(勢力))%思考中……
@@ -30,13 +33,13 @@ SIF DAY < SLG_PP:1
 CALL AI_DEPLOY_ARMY(勢力, 0)
 
 ;防衛を全て解除
-FOR LOCAL:0, 1, GET_CITY_NUM() + 1
-	IF CITY_OWNER:(LOCAL:0) == 勢力
+FOR 都市, 1, GET_CITY_NUM() + 1
+	IF CITY_OWNER:都市 == 勢力
 		;敵部隊のいる都市は解除不可
-		IF !TMP_IS_STAY_ENEMY_UNIT(LOCAL:0, 勢力)
-			COUNTRY_SOLDIER:勢力 += CITY_SOLDIER:(LOCAL:0)
-			CITY_SOLDIER:(LOCAL:0) = 0
-			CITY_COMMANDER:(LOCAL:0) = 0
+		IF !TMP_IS_STAY_ENEMY_UNIT(都市, 勢力)
+			COUNTRY_SOLDIER:勢力 += CITY_SOLDIER:都市
+			CITY_SOLDIER:都市 = 0
+			CITY_COMMANDER:都市 = 0
 		ENDIF
 	ENDIF
 NEXT
@@ -107,10 +110,10 @@ $NORMAL_AI_THINK_ENDED
 
 ;クールタイム減少処理と、このターンに割り当てたフラグ削除処理
 IF 勢力 != CFLAG:MASTER:所属
-	FOR LOCAL, 0, CHARANUM
-		IF CFLAG:LOCAL:所属 == 勢力
-			COOLTIME:LOCAL:0 = MAX(COOLTIME:LOCAL:0 - 1 , 0)
-			ASSIGNED_THIS_TURN:LOCAL:0 = 0
+	FOR キャラ, 0, CHARANUM
+		IF CFLAG:キャラ:所属 == 勢力
+			COOLTIME:キャラ:0 = MAX(COOLTIME:キャラ:0 - 1 , 0)
+			ASSIGNED_THIS_TURN:キャラ:0 = 0
 		ENDIF
 	NEXT
 ENDIF
@@ -154,6 +157,7 @@ RETURN 攻撃兵数, 防衛兵数
 @SLG_AI_REPLENISH_SOLDIER_TO_UNIT(勢力, 攻撃兵数)
 #DIM 勢力
 #DIM 部隊
+#DIM 項番
 #DIM 攻撃兵数
 #DIM 補充兵数
 #DIM 残り補充兵数
@@ -200,7 +204,7 @@ SIF 部隊能力:部隊 == __INT_MIN__
 残り補充兵数 = 補充兵数
 ;DEBUGPRINTFORML %ANAME(GET_COUNTRY_BOSS(勢力))%の攻撃兵数{攻撃兵数} 最強能力{最強能力} 現存最強部隊能力{部隊能力:部隊} 補充兵数{補充兵数}
 
-FOR LOCAL, 0, MAX_UNIT
+FOR 項番, 0, MAX_UNIT
 	部隊 = FINDELEMENT(部隊能力, MAXARRAY(部隊能力))
 	;もう部隊がない場合、抜ける
 	SIF 部隊能力:部隊 == __INT_MIN__
@@ -270,6 +274,8 @@ NEXT
 #DIM 仮想敵能力
 #DIM 部隊能力
 #DIM 必要兵数
+#DIM 補充兵数
+#DIM ポジション
 VARSET 防衛スコア
 VARSET 防衛候補都市
 VARSET 防衛スコア合計
@@ -344,10 +350,10 @@ WHILE 1
 			CONTINUE
 		;補充
 		IF UNIT_SOLDIER:勢力:部隊 < 必要兵数
-			LOCAL = 必要兵数 - UNIT_SOLDIER:勢力:部隊
-			UNIT_SOLDIER:勢力:部隊 += LOCAL
-			攻撃兵数 -= LOCAL
-			COUNTRY_SOLDIER:勢力 -= LOCAL
+			補充兵数 = 必要兵数 - UNIT_SOLDIER:勢力:部隊
+			UNIT_SOLDIER:勢力:部隊 += 補充兵数
+			攻撃兵数 -= 補充兵数
+			COUNTRY_SOLDIER:勢力 -= 補充兵数
 		ENDIF
 		UNIT_POSITION:勢力:部隊 = 救援候補
 		GOTO DONE
@@ -370,12 +376,12 @@ WHILE 1
 		UNIT_SOLDIER:勢力:部隊 = 必要兵数
 		攻撃兵数 =- 必要兵数
 		COUNTRY_SOLDIER:勢力 -= 攻撃兵数
-		FOR LOCAL, 0, MAX_UNIT_COMMANDER
-			SIF UNIT_COMMANDER_BEST:LOCAL == -1
+		FOR ポジション, 0, MAX_UNIT_COMMANDER
+			SIF UNIT_COMMANDER_BEST:ポジション == -1
 				BREAK
-			CALL SET_UNIT_COMMANDER(勢力, 部隊, LOCAL, UNIT_COMMANDER_BEST:LOCAL)
+			CALL SET_UNIT_COMMANDER(勢力, 部隊, ポジション, UNIT_COMMANDER_BEST:ポジション)
 			;IS_FREE_MAPを直接書き換えたほうが速い
-			TMP_IS_FREE:(UNIT_COMMANDER_BEST:LOCAL):0 = 1
+			TMP_IS_FREE:(UNIT_COMMANDER_BEST:ポジション):0 = 1
 		NEXT
 	NEXT
 
@@ -387,6 +393,7 @@ RETURN 攻撃兵数
 
 ;-------------------------------------------------
 ;ARG:0勢力が国庫を消費して徴兵を行うかの判定
+;TODO リファクタ。古いものを大体そのまま使いまわしているので可読性に欠ける。
 ;ARG:1 判定タイミング(0:侵攻判定前, 1:侵攻判定終了後)
 ;-------------------------------------------------
 @AI_DEPLOY_ARMY(ARG:0, ARG:1)
@@ -408,8 +415,10 @@ VARSET OWN_CITY
 VARSET SELECTOR
 VARSET DEPLOY_COUNT
 
-DOCTRINE:0:0 = 100, 110, 95, 90, 125, 90, 80, 150, 80
-DOCTRINE:1:0 = 100, 95, 110, 90, 90, 125, 80, 80, 150
+;各政策に対応する、徴兵量の比率を設定する
+;DOCTRINE:0は徴兵前、DOCTORINE:1は徴兵後に参照される
+DOCTRINE:0:0 = 100, 110, 95
+DOCTRINE:1:0 = 100, 95, 110
 
 
 ECONOMY = TMP_SUM_ECONOMY:(ARG:0)
@@ -471,6 +480,7 @@ ENDIF
 #DIM 最低兵数
 #DIM 確定兵数
 #DIM 出兵数
+#DIM ポジション
 #DIM AI_TYPE
 
 
@@ -510,12 +520,12 @@ ENDIF
 UNIT_SOLDIER:勢力:部隊 = 出兵数
 COUNTRY_SOLDIER:勢力 -= 出兵数
 攻撃兵数 -= 出兵数
-FOR LOCAL, 0, MAX_UNIT_COMMANDER
-	SIF UNIT_COMMANDER_BEST:LOCAL == -1
+FOR ポジション, 0, MAX_UNIT_COMMANDER
+	SIF UNIT_COMMANDER_BEST:ポジション == -1
 		CONTINUE
-	CALL SET_UNIT_COMMANDER(勢力, 部隊, LOCAL, UNIT_COMMANDER_BEST:LOCAL)
+	CALL SET_UNIT_COMMANDER(勢力, 部隊, ポジション, UNIT_COMMANDER_BEST:ポジション)
 	;IS_FREE_MAPを直接書き換えたほうが速い
-	TMP_IS_FREE:(UNIT_COMMANDER_BEST:LOCAL):0 = 1
+	TMP_IS_FREE:(UNIT_COMMANDER_BEST:ポジション):0 = 1
 NEXT
 
 ;DEBUGPRINTFORML 部隊作成 兵数{UNIT_SOLDIER:勢力:部隊}
@@ -527,7 +537,7 @@ RETURN 攻撃兵数
 ;-------------------------------------------------
 @SLG_AI_INVASION_SETTARGET(勢力, 部隊)
 #DIM 勢力
-#DIM 部隊
+#DIM 部隊, 2
 #DIM 都市
 #DIM 攻撃候補スコア, MAX_CITY
 #DIM 次のスコア
@@ -539,7 +549,7 @@ RETURN 攻撃兵数
 #DIM 現在スコア
 #DIM 自部隊能力, 3
 #DIM 敵部隊能力, 3
-#DIM カウント
+#DIM 候補
 
 VARSET 攻撃候補スコア, __INT_MIN__
 君主 = GET_COUNTRY_BOSS(勢力)
@@ -579,7 +589,7 @@ FOR 都市, 1, GET_CITY_NUM() + 1
 NEXT
 
 ;候補上位10個をみる
-FOR LOCAL, 0, 10
+FOR 候補, 0, 10
 
 	攻撃候補 = FINDELEMENT(攻撃候補スコア, MAXARRAY(攻撃候補スコア))
 
@@ -594,12 +604,12 @@ FOR LOCAL, 0, 10
 
 	次のスコア = MAXARRAY(攻撃候補スコア)
 	;すでにそこを狙っている部隊を探す
-	FOR LOCAL:1, 0, MAX_UNIT
-		SIF UNIT_SOLDIER:勢力:(LOCAL:1) <= 0
+	FOR 部隊:1, 0, MAX_UNIT
+		SIF UNIT_SOLDIER:勢力:(部隊:1) <= 0
 			CONTINUE
-		SIF LOCAL:1 == 部隊
+		SIF 部隊:1 == 部隊
 			CONTINUE
-		SIF UNIT_TARGET:勢力:(LOCAL:1) != 攻撃候補 && UNIT_POSITION:勢力:(LOCAL:1) != 攻撃候補
+		SIF UNIT_TARGET:勢力:(部隊:1) != 攻撃候補 && UNIT_POSITION:勢力:(部隊:1) != 攻撃候補
 			CONTINUE
 		;DEBUGPRINTFORML すでに狙われている
 		次のスコア = 次のスコア * 15 / 10
