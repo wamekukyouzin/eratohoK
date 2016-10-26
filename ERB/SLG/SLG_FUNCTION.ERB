@@ -1695,9 +1695,7 @@ RETURNF MAX(SQRT(1000 * ARG:0) * 100, 1)
 #DIM 利用値
 #DIM 補正値ステップ
 #DIM 補正値
-;コンフィグで能力補正が皆無の場合
-SIF CONFIG:309 == 2
-	RETURNF ABL_POWER(ARG:0)
+#DIM 返却値
 
 ;自勢力のキャラでない、MASTER自身の場合は補正なし
 SIF CFLAG:(ARG:1):所属 != CFLAG:MASTER:所属 || ARG:1 == MASTER
@@ -1712,39 +1710,26 @@ SIF CFLAG:MASTER:捕虜先 != 0 && CFLAG:MASTER:捕虜先 != CFLAG:(ARG:1):所�
 ;依存度が先行することはそんなないやろ………………
 利用値 = MAX(CFLAG:(ARG:1):好感度, CFLAG:(ARG:1):従属度, CFLAG:(ARG:1):依存度)
 
-;値1000ごとに補正値1を得る
-;ただしもとの能力10につき1、補正値にマイナスがかかる(強キャラは補正を得にくい）
-補正値 = MAX(利用値 / 1000 - (ARG:0 / 10), 0)
+;値500ごとにパワー1%の補正を得る。上限20%
+補正値 = MIN(利用値 / 500, 20)
 
 ;陥落系素質はボーナスをかける
 SIF TALENT:(ARG:1):正妻
-	補正値 += 2
+	補正値 += 5
 SIF TALENT:(ARG:1):親愛
-	補正値 += 2
+	補正値 += 3
 SIF TALENT:(ARG:1):恋慕 || TALENT:(ARG:1):親友
 	補正値 += 1
 SIF TALENT:(ARG:1):恋人
 	補正値 += 1
 SIF TALENT:(ARG:1):隷属
-	補正値 += 2
+	補正値 += 3
 SIF TALENT:(ARG:1):服従
 	補正値 += 1
 SIF TALENT:(ARG:1):烙印
 	補正値 += 1
 
-;最終的な補正値に制限をかける
-SELECTCASE CONFIG:309
-	CASE 0
-		補正値 = MIN(補正値, 10)
-	CASE 1
-		補正値 = MIN(補正値, 20)
-	CASE 2
-		;そもそもここにはこない
-	CASE 3
-		補正値 = MIN(補正値, 5)
-ENDSELECT
-
-RETURNF ABL_POWER(ARG:0 + 補正値)
+RETURNF ABL_POWER(ARG:0) + ABL_POWER(ARG:0) * 補正値 / 100
 
 ;-------------------------------------------------
 ;兵力の初期配置を行う関数
