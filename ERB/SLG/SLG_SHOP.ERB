@@ -60,21 +60,27 @@ ELSE
 	SHOP_AVAIL:41 = 0
 	IF CFLAG:MASTER:行動不能状態 == 0 && !IS_SP_COUNTRY(CFLAG:MASTER:所属)
 		LOCAL:2 = 0
-		FOR LOCAL:0, 0, CHARANUM
-			;[恋慕][親友][服従]のいずれかを持っている士官の数をカウント
-			IF LOCAL:0 != MASTER && LOCAL:0 != LOCAL:3 && CFLAG:(LOCAL:0):所属 == CFLAG:MASTER:所属 && (TALENT:(LOCAL:0):恋慕 || TALENT:(LOCAL:0):親友 || TALENT:(LOCAL:0):服従)
-				LOCAL:2 ++
+		;主人公が君主の場合、自分以外に士官がいればオッケー
+		IF GET_COUNTRY_BOSS(CFLAG:MASTER:所属) == MASTER
+			IF GET_COMMANDER_NUM(CFLAG:MASTER:所属) >= 2
+				SHOP_AVAIL:41 = 1
+			ELSE
+				SHOP_AVAIL:41 = 0
 			ENDIF
-		NEXT
-		;自国の半数以上の士官が陥落済みならクーデターが可能
-		SIF LOCAL:2 * 2 >= GET_COMMANDER_NUM(CFLAG:MASTER:所属) - 1
-			SHOP_AVAIL:41 = 1
-		;王様が親愛か隷属でもオッケー
-		SIF TALENT:(GET_COUNTRY_BOSS(CFLAG:MASTER:所属)):親愛 || TALENT:(GET_COUNTRY_BOSS(CFLAG:MASTER:所属)):隷属
-			SHOP_AVAIL:41 = 1
-		;主人公が君主でもオッケー
-		SIF GET_COUNTRY_BOSS(CFLAG:MASTER:所属) == MASTER
-			SHOP_AVAIL:41 = 1
+		ELSE
+			FOR LOCAL:0, 0, CHARANUM
+				;[恋慕][親友][服従]のいずれかを持っている士官の数をカウント
+				IF LOCAL:0 != MASTER && LOCAL:0 != LOCAL:3 && CFLAG:(LOCAL:0):所属 == CFLAG:MASTER:所属 && (TALENT:(LOCAL:0):恋慕 || TALENT:(LOCAL:0):親友 || TALENT:(LOCAL:0):服従)
+					LOCAL:2 ++
+				ENDIF
+			NEXT
+			;自国の半数以上の士官が陥落済みならクーデターが可能
+			SIF LOCAL:2 * 2 >= GET_COMMANDER_NUM(CFLAG:MASTER:所属) - 1
+				SHOP_AVAIL:41 = 1
+			;王様が親愛か隷属でもオッケー
+			SIF TALENT:(GET_COUNTRY_BOSS(CFLAG:MASTER:所属)):親愛 || TALENT:(GET_COUNTRY_BOSS(CFLAG:MASTER:所属)):隷属
+				SHOP_AVAIL:41 = 1
+		ENDIF
 	ENDIF
 
 	;野に下る
