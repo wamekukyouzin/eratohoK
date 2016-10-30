@@ -39,6 +39,9 @@ RETURN CHARANUM - 1
 ;子供が生誕時の処理
 ;-------------------------
 @CHILD_SETTING
+#DIM EAR
+#DIM TAIL
+
 ;両親の取得
 LOCAL:5 = ID_TO_CHARA(CFLAG:20)
 LOCAL:6 = ID_TO_CHARA(CFLAG:21)
@@ -243,6 +246,35 @@ SELECTCASE CFLAG:20
 		SETBIT TALENT:特殊勢力陥落系, 特殊勢力_野盗
 ENDSELECT
 
+
+;[パッチによる追加]動物耳、しっぽ
+;どちらか片方だけ所持なら35%、両方所持なら70%の確率で動物耳・しっぽが遺伝
+;暫定的に動物耳・しっぽの遺伝は分離しておく
+;すでに素質を持っているなら処理飛ばし
+IF TALENT:動物耳 == 0 && TALENT:しっぽ == 0
+	EAR = 0
+	TAIL = 0
+	IF LOCAL:5 >= 0
+		SIF TALENT:(LOCAL:5):動物耳
+			EAR += 35
+		SIF TALENT:(LOCAL:5):しっぽ
+			TAIL += 35
+	ENDIF
+
+	IF LOCAL:6 >= 0
+		SIF TALENT:(LOCAL:6):動物耳
+			EAR += 35
+		SIF TALENT:(LOCAL:6):しっぽ
+			TAIL += 35
+	ENDIF
+
+	SIF EAR > 0 && RAND:100 > EAR
+		TALENT:動物耳 = 1
+	SIF TAIL > 0 && RAND:100 > TAIL
+		TALENT:しっぽ = 1
+ENDIF
+
+
 ;成長後の[幼稚]を退避し、固定で幼稚を付与
 TALENT:成長後幼稚 = TALENT:幼稚
 TALENT:幼稚 = 1
@@ -347,6 +379,8 @@ IF !TALENT:美尻 && !TALENT:性別 == 0
 		CALL CHILD_TALENT_SINGLE, LOCAL:5, LOCAL:6, 115, 10
 	ENDIF
 ENDIF
+
+
 
 ;両親の情報から性格を決定
 LOCAL:0 = RAND:100
