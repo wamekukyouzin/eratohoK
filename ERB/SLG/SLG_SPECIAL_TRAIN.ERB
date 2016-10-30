@@ -23,24 +23,27 @@ ELSE
 	PRINTFORML %ANAME(対象)%のどの能力を訓練しますか？
 	DRAWLINE
 	PRINTFORM [{GETNUM(ABL, "武闘")}] 武闘 
-	CALL PRINT_ALPHABET_RANK(ランク_三能力, ABL:(対象):武闘)
+	CALL PRINT_ALPHABET_RANK(ランク_ＳＬＧ, ABL:(対象):武闘)
 	PRINTFORML {ABL:(対象):武闘, 3, RIGHT}
+	PRINTFORM [{GETNUM(ABL, "防衛")}] 防衛 
+	CALL PRINT_ALPHABET_RANK(ランク_ＳＬＧ, ABL:(対象):防衛)
+	PRINTFORML {ABL:(対象):防衛, 3, RIGHT}
 	PRINTFORM [{GETNUM(ABL, "知略")}] 知略 
-	CALL PRINT_ALPHABET_RANK(ランク_三能力, ABL:(対象):知略)
+	CALL PRINT_ALPHABET_RANK(ランク_ＳＬＧ, ABL:(対象):知略)
 	PRINTFORML {ABL:(対象):知略, 3, RIGHT}
 	PRINTFORM [{GETNUM(ABL, "政治")}] 政治 
-	CALL PRINT_ALPHABET_RANK(ランク_三能力, ABL:(対象):政治)
+	CALL PRINT_ALPHABET_RANK(ランク_ＳＬＧ, ABL:(対象):政治)
 	PRINTFORML {ABL:(対象):政治, 3, RIGHT}
 	IF TALENT:対象:妖術知識
 		PRINTFORM [{GETNUM(ABL, "妖術")}] 妖術 
-		CALL PRINT_ALPHABET_RANK(ランク_妖術, ABL:(対象):妖術)
+		CALL PRINT_ALPHABET_RANK(ランク_ＳＬＧ, ABL:(対象):妖術)
 		PRINTFORML {ABL:(対象):妖術, 3, RIGHT}
 	ENDIF
 	PRINTFORM [{GETNUM(ABL, "歌唱")}] 歌唱 
-	CALL PRINT_ALPHABET_RANK(ランク_料理歌唱, ABL:(対象):歌唱)
+	CALL PRINT_ALPHABET_RANK(ランク_ＳＬＧ, ABL:(対象):歌唱)
 	PRINTFORML {ABL:(対象):歌唱, 3, RIGHT}
 	PRINTFORM [{GETNUM(ABL, "料理")}] 料理 
-	CALL PRINT_ALPHABET_RANK(ランク_料理歌唱, ABL:(対象):料理)
+	CALL PRINT_ALPHABET_RANK(ランク_ＳＬＧ, ABL:(対象):料理)
 	PRINTFORML {ABL:(対象):料理, 3, RIGHT}
 	PRINTL 
 	DRAWLINE
@@ -50,7 +53,7 @@ ELSE
 	INPUT
 	IF RESULT == 0
 		GOTO SHOW_LOOP
-	ELSEIF !GROUPMATCH(RESULT, GETNUM(ABL, "武闘"), GETNUM(ABL, "知略"), GETNUM(ABL, "政治"), GETNUM(ABL, "料理"), GETNUM(ABL, "歌唱"), GETNUM(ABL, "妖術"))
+	ELSEIF !GROUPMATCH(RESULT, GETNUM(ABL, "武闘"), GETNUM(ABL, "防衛"), GETNUM(ABL, "知略"), GETNUM(ABL, "政治"), GETNUM(ABL, "料理"), GETNUM(ABL, "歌唱"), GETNUM(ABL, "妖術"))
 		GOTO INPUT_LOOP2
 	ELSEIF RESULT == GETNUM(ABL, "妖術") && !TALENT:(対象):妖術知識
 		GOTO INPUT_LOOP2
@@ -141,53 +144,22 @@ RETURNF SPECIAL_TRAIN_COUNT == 0 || (DAY % 5 == 0 && SPECIAL_TRAIN_COUNT_THIS_TU
 #DIM 成長必要値
 #DIM 返却値
 対象能力値 = ABL:対象:対象項目
-SELECTCASE 対象項目
-	;三能力
-	CASE GETNUM(ABL, "武闘"), GETNUM(ABL, "知略"), GETNUM(ABL, "政治")
-		成長必要値 = ABLUP_NEED_EXP_SLG_THREE(対象能力値)
-		能力合計 = ABL:対象:武闘 + ABL:対象:知略 + ABL:対象:政治
-		取得経験基礎値 = (300 - 能力合計) / 3
-		;選択した項目が高いと取得経験値は下がる
-		SELECTCASE 対象能力値
-			CASE IS < ランク閾値:ランク_三能力:ランク_D
-				取得経験値 = 取得経験基礎値 * 120 / 100
-			CASE IS < ランク閾値:ランク_三能力:ランク_B
-				取得経験値 = 取得経験基礎値 * 70 / 100
-			CASE IS < ランク閾値:ランク_三能力:ランク_A
-				取得経験値 = 取得経験基礎値 * 50 / 100
-			CASEELSE
-				取得経験値 = 取得経験基礎値 * 30 / 100
-		ENDSELECT
-	;歌唱と料理
-	CASE GETNUM(ABL, "料理"), GETNUM(ABL, "歌唱")
-		成長必要値 = ABLUP_NEED_EXP_SLG_TWO(対象能力値)
-		能力合計 = ABL:(対象):歌唱 + ABL:(対象):料理
-		取得経験基礎値 = (200 - 能力合計) / 2
-		SELECTCASE 対象能力値
-			CASE IS < ランク閾値:ランク_料理歌唱:ランク_E
-				取得経験値 = 取得経験基礎値 * 120 / 100
-			CASE IS < ランク閾値:ランク_料理歌唱:ランク_C
-				取得経験値 = 取得経験基礎値 * 50 / 100
-			CASE IS < ランク閾値:ランク_料理歌唱:ランク_A
-				取得経験値 = 取得経験基礎値 * 30 / 100
-			CASEELSE
-				取得経験値 = 取得経験基礎値 * 20 / 100
-		ENDSELECT
-	;妖術
-	CASE GETNUM(ABL, "妖術")
-		成長必要値 = ABLUP_NEED_EXP_SLG_THREE(対象能力値) * 40
-		取得経験基礎値 = RAND(500, 1000)
-		SELECTCASE 対象能力値
-			CASE IS < ランク閾値:ランク_妖術:ランク_E
-				取得経験値 = 取得経験基礎値 * 120 / 100
-			CASE IS < ランク閾値:ランク_妖術:ランク_C
-				取得経験値 = 取得経験基礎値 * 70 / 100
-			CASE IS < ランク閾値:ランク_料理歌唱:ランク_A
-				取得経験値 = 取得経験基礎値 * 50 / 100
-			CASEELSE
-				取得経験値 = 取得経験基礎値 * 30 / 100
-		ENDSELECT
+成長必要値 = ABLUP_NEED_EXP_SLG(対象能力値)
+能力合計 = ABL:対象:武闘 + ABL:対象:知略 + ABL:対象:政治 + ABL:対象:防衛 + ABL:対象:歌唱 + ABL:対象:料理
+取得経験基礎値 = (600 - 能力合計) / 6
+
+;選択した項目が高いと取得経験値は下がる
+SELECTCASE 対象能力値
+	CASE IS < ランク閾値:ランク_ＳＬＧ:ランク_D
+		取得経験値 = 取得経験基礎値 * 120 / 100
+	CASE IS < ランク閾値:ランク_ＳＬＧ:ランク_B
+		取得経験値 = 取得経験基礎値 * 70 / 100
+	CASE IS < ランク閾値:ランク_ＳＬＧ:ランク_A
+		取得経験値 = 取得経験基礎値 * 50 / 100
+	CASEELSE
+		取得経験値 = 取得経験基礎値 * 30 / 100
 ENDSELECT
+
 ;一回につき10%ずつ減る
 取得経験値 = 取得経験値 * MAX(100 - SPECIAL_TRAIN_COUNT_THIS_TURN * 10, 50) / 100
 ;バーゲン時は半減。1度に20まで成長

@@ -342,6 +342,24 @@ ENDIF
 RETURNF @"%NAME:(ARG:0)%"
 
 ;-------------------------------------------------
+;ARG:0番のキャラについて、NAME（名）を返す関数 ただし長い場合はTOHALFをかける　それでも長い（TOHALFがかからない文字）ならSUBSTRING
+;引数を省略するとエラーになる
+;-------------------------------------------------
+@SNAME(ARG:0 = -999)
+#FUNCTIONS
+IF ARG:0 == -999
+	THROW 関数@ANAMEに引数が設定されていません
+ENDIF
+IF STRLENS(ANAME(ARG:0)) >= MAX_CHARANAME_LENGTH / 2
+	IF STRLENS(TOHALF(ANAME(ARG:0))) <= MAX_CHARANAME_LENGTH / 2
+		RETURNF TOHALF(ANAME(ARG:0))
+	ELSE
+		RETURNF SUBSTRING(TOHALF(ANAME(ARG:0)), 0, MAX_CHARANAME_LENGTH / 2)
+	ENDIF
+ENDIF
+RETURNF ANAME(ARG:0)
+
+;-------------------------------------------------
 ;ARG:0番のキャラについて、「姓名」の形の文字列を返す関数
 ;引数を省略するとエラーになる
 ;-------------------------------------------------
@@ -1493,15 +1511,15 @@ RETURNF "不明"
 #FUNCTIONS
 SELECTCASE ARG:0
 	CASE 0
-		RETURNF "武闘・知略・政治"
+		RETURNF "武闘・防衛・知略・政治"
 	CASE 1
-		RETURNF "武闘・知略"
+		RETURNF "武闘・防衛・知略"
 	CASE 2
 		RETURNF "知略・政治"
 	CASE 3
-		RETURNF "武闘・政治"
+		RETURNF "武闘・防衛・政治"
 	CASE 4
-		RETURNF "武闘"
+		RETURNF "武闘・防衛"
 	CASE 5
 		RETURNF "知略"
 	CASE 6
@@ -1589,6 +1607,29 @@ RESETCOLOR
 #FUNCTION
 LOCAL:0 = TALENT:(ARG:0):成長型
 IF ARGS:1 == "武闘"
+	SELECTCASE LOCAL:0
+		CASE 0
+			RETURNF 100
+		CASE 1
+			RETURNF 110
+		CASE 2
+			RETURNF 80
+		CASE 3
+			RETURNF 110
+		CASE 4
+			RETURNF 140
+		CASE 5
+			RETURNF 80
+		CASE 6
+			RETURNF 80
+		CASE 7
+			RETURNF 90
+		CASE 8
+			RETURNF 90
+		CASE 9
+			RETURNF 130
+	ENDSELECT
+ELSEIF ARGS:1 == "防衛"
 	SELECTCASE LOCAL:0
 		CASE 0
 			RETURNF 100
@@ -2053,11 +2094,11 @@ RETURN RESULT
 ;引数にセリフを指定。最大5個まで
 ;戻り値は選択した選択肢の番号
 ;-------------------------------------------------
-@ASK_MULTI(ARGS:0, ARGS:1, ARGS:2, ARGS:3, ARGS:4)
+@ASK_MULTI(ARGS:0, ARGS:1, ARGS:2, ARGS:3, ARGS:4, ARGS:5, ARGS:6, ARGS:7, ARGS:8, ARGS:9)
 CURRENTREDRAW
 LOCAL:0 = RESULT
 REDRAW 0
-FOR LOCAL:0, 0, 5
+FOR LOCAL:0, 0, 10
 	IF ARGS:(LOCAL:0) != ""
 		PRINTBUTTON @"{LOCAL:0, 2, RIGHT}[%ARGS:(LOCAL:0)%]", LOCAL:0
 		PRINTL 
@@ -2065,7 +2106,7 @@ FOR LOCAL:0, 0, 5
 NEXT
 $INPUT_LOOP
 INPUT
-IF RESULT < 0 || RESULT > 4 || ARGS:RESULT == ""
+IF RESULT < 0 || RESULT > 9 || ARGS:RESULT == ""
 	CLEARLINE 1
 	GOTO INPUT_LOOP
 ENDIF
@@ -2077,11 +2118,11 @@ RETURN RESULT
 ;引数にセリフと条件(0で無効、非0で有効)を指定。最大5個まで
 ;戻り値は選択した選択肢の番号
 ;-------------------------------------------------
-@ASK_MULTI_JUDGE(ARGS:0, ARG:0, ARGS:1, ARG:1, ARGS:2, ARG:2, ARGS:3, ARG:3, ARGS:4, ARG:4, ARGS:5, ARG:5)
+@ASK_MULTI_JUDGE(ARGS:0, ARG:0, ARGS:1, ARG:1, ARGS:2, ARG:2, ARGS:3, ARG:3, ARGS:4, ARG:4, ARGS:5, ARG:5, ARGS:6, ARG:6, ARGS:7, ARG:7, ARGS:8, ARG:8, ARGS:9, ARG:9)
 CURRENTREDRAW
 LOCAL:0 = RESULT
 REDRAW 0
-FOR LOCAL:0, 0, 6
+FOR LOCAL:0, 0, 10
 	IF ARGS:(LOCAL:0) != ""
 		IF ARG:(LOCAL:0)
 			PRINTBUTTON @"{LOCAL:0, 2, RIGHT}[%ARGS:(LOCAL:0)%]", LOCAL:0
@@ -2095,7 +2136,7 @@ FOR LOCAL:0, 0, 6
 NEXT
 $INPUT_LOOP
 INPUT
-IF RESULT < 0 || RESULT > 5 || ARGS:RESULT == "" || !ARG:RESULT
+IF RESULT < 0 || RESULT > 9 || ARGS:RESULT == "" || !ARG:RESULT
 	CLEARLINE 1
 	GOTO INPUT_LOOP
 ENDIF
@@ -2668,22 +2709,16 @@ RESETCOLOR
 #DIM 値
 #DIMS ランク
 SELECTCASE 分類
-	CASE ランク_三能力
+	CASE ランク_ＳＬＧ
 		FOR LOCAL, ランク_S, ランク_無 + 1
-			SIF 値 >= ランク閾値:ランク_三能力:LOCAL
+			SIF 値 >= ランク閾値:ランク_ＳＬＧ:LOCAL
 				RETURNF ランク文字列:LOCAL
 		NEXT
-	CASE ランク_妖術
-		FOR LOCAL, ランク_S, ランク_無 + 1
-			SIF 値 >= ランク閾値:ランク_妖術:LOCAL
+	CASE ランク_部隊
+		FOR LOCAL, ランク_S, ランク_無
+			SIF 値 >= ランク閾値:ランク_部隊:LOCAL
 				RETURNF ランク文字列:LOCAL
 		NEXT
-	CASE ランク_料理歌唱
-		FOR LOCAL, ランク_S, ランク_C + 1
-			SIF 値 >= ランク閾値:ランク_料理歌唱:LOCAL
-				RETURNF ランク文字列:LOCAL
-		NEXT
-		RETURNF ランク文字列:ランク_無
 	CASE ランク_その他
 		FOR LOCAL, ランク_S, ランク_無
 			SIF 値 >= ランク閾値:ランク_その他:LOCAL
@@ -3152,6 +3187,8 @@ CALL FORCE_FREE(対象)
 SELECTCASE ARG:0
 	CASE GETNUM(ABL, "武闘")
 		RETURNF GETNUM(EXP, "武闘経験値")
+	CASE GETNUM(ABL, "防衛")
+		RETURNF GETNUM(EXP, "防衛経験値")
 	CASE GETNUM(ABL, "知略")
 		RETURNF GETNUM(EXP, "知略経験値")
 	CASE GETNUM(ABL, "政治")
@@ -3211,4 +3248,25 @@ ENDSELECT
 ;-------------------------------------------------
 @CALC_SALARY()
 #FUNCTION
-RETURNF GET_SUM_ECONOMY(CFLAG:MASTER:所属) * (ABL:MASTER:武闘 + ABL:MASTER:知略 + ABL:MASTER:政治 + 200) / 30000 - MIN(GET_OWN_CITY(CFLAG:MASTER:所属) - 5, 1) * 100
+RETURNF GET_SUM_ECONOMY(CFLAG:MASTER:所属) * (ABL:MASTER:武闘 + ABL:MASTER:防衛 + ABL:MASTER:知略 + ABL:MASTER:政治 + 150) / 30000 - MIN(GET_OWN_CITY(CFLAG:MASTER:所属) - 5, 1) * 100
+
+;-------------------------------------------------
+;末尾に空行ひとつだけを残した状態にする関数
+;-------------------------------------------------
+@SINGLE_EMPTY_LINE()
+WHILE 1
+	IF HTML_GETPRINTEDSTR(0) != "<p align='left'><nobr> </nobr></p>"
+		PRINTL
+		BREAK
+	ELSEIF HTML_GETPRINTEDSTR(1) == "<p align='left'><nobr> </nobr></p>"
+		CLEARLINE 1
+	ELSE
+		BREAK
+	ENDIF
+WEND
+;-------------------------------------------------
+;末尾に空行を残さない関数
+;-------------------------------------------------
+@KILL_EMPTY_LINE()
+CALL SINGLE_EMPTY_LINE
+CLEARLINE 1

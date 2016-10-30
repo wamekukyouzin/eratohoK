@@ -3,470 +3,374 @@
 ;-------------------------------------------------
 ;停戦を申し込む
 ;-------------------------------------------------
-@DIPLOMACY_CEASEFIRE(ARG:0)
-#DIM REL_AI_TYPE, 2
-#DIM REST_COUNTRY
+@DIPLOMACY_CEASEFIRE(相手勢力)
+#DIM 勢力
+#DIM 相手勢力
+#DIM 君主
+#DIM 相手君主
+#DIM 相手外交計画
+#DIM 判定値
+#DIM 期間
+#DIM 勢力経済
+#DIM 相手勢力経済
 
-VARSET REL_AI_TYPE, 0
-
-IF IS_SP_COUNTRY(ARG:0)
+IF IS_SP_COUNTRY(相手勢力)
 	PRINTFORMW 停戦をもちかけましたが、向こうは鼻で笑ってきました
 	RETURN 0
 ENDIF
+勢力 = CFLAG:MASTER:所属
+君主 = GET_COUNTRY_BOSS(CFLAG:MASTER:所属)
+相手君主 = GET_COUNTRY_BOSS(相手勢力)
 
-LOCAL:4 = GET_COUNTRY_BOSS(CFLAG:MASTER:所属)
-LOCAL:5 = GET_COUNTRY_BOSS(ARG:0)
+相手外交計画 = CHECK_AI_DIPLOMACY_PLAN(相手勢力, CFLAG:MASTER:所属)
 
-
-REL_AI_TYPE:0 = COUNTRY_AI_TYPE:(CFLAG:MASTER:所属), COUNTRY_AI_TYPE:(ARG:0)
-;相手勢力の外交計画をチェック
-CALL AI_DIPLOMACY_CHECK(ARG:0)
-
-REST_COUNTRY = (MAX_COUNTRY - 1) - MATCH(COUNTRY_BOSS, 0)
-LOCAL:11 = MAX(REST_COUNTRY * AI_ACTION:(COUNTRY_AI_TYPE:(ARG:0)):4 / 100, 1)
-LOCAL:2 = COUNTRY_TREATY_NO:(ARG:0):1 <= LOCAL:11 ? COUNTRY_REQUEST_RATE_C:(ARG:0):(CFLAG:MASTER:所属) # -1
-
-;無条件で成立(友好)
-IF LOCAL:2 == 5
+;相手の外交計画内ならば、無条件で成立
+IF GROUPMATCH(相手外交計画, AI_外交計画_停戦, AI_外交計画_同盟)
 	PRINTFORMW %ANAME(MASTER)%が停戦を持ちかけると、%NAME:(LOCAL:5)%は快く承諾した…
-	LOCAL:10 = 1
-;無条件で成立
-ELSEIF LOCAL:2 == 1
-	PRINTFORMW %ANAME(MASTER)%が停戦を持ちかけると、%NAME:(LOCAL:5)%は少し悩む素振りを見せたものの、すぐに承諾した
-	PRINTFORMW どうやらお互いの利害が一致したようだ…
-	LOCAL:10 = 1
-;相手からの要求を飲めば成立
-ELSEIF LOCAL:2 >= 2 && LOCAL:2 <= 4
-	;要求の処理
-	CALL DIPLOMACY_REQUESTED(ARG:0, LOCAL:2 - 2)
-	IF RESULT == -1
-		IF LOCAL:2 == 2
-			PRINTFORMW %ANAME(MASTER)%が停戦を持ちかけると、%NAME:(LOCAL:5)%はしばらく悩んだ末に承諾した
-			PRINTFORMW どうやらお互いの利害が一致したようだ…
-			LOCAL:10 = 1
-		ELSE
-			PRINTFORMW %ANAME(MASTER)%が停戦を持ちかけると、%NAME:(LOCAL:5)%はしばらく悩んだ末に断った
-			PRINTFORMW 何か対価を用意できれば受け入れてもらえそうだが…
-			LOCAL:10 = 0
-		ENDIF
-	ELSE
-		LOCAL:10 = RESULT
-	ENDIF
-;不成立(非隣接)
-ELSEIF LOCAL:2 == 6
-	PRINTFORMW %ANAME(MASTER)%は停戦を提案したが、%NAME:(LOCAL:5)%に軽くあしらわれてしまった
-	PRINTFORMW 国境を接していない状態での停戦は、よほど良好な関係でなければ無理だろう…
-	LOCAL:10 = 0
-;不成立
-ELSE
-	PRINTFORMW %ANAME(MASTER)%は停戦を提案したが、%NAME:(LOCAL:5)%に軽くあしらわれてしまった
-	PRINTFORMW 現在の情勢では停戦の成立は難しいだろう…
-	LOCAL:10 = 0
+	GOTO SUCCESS
 ENDIF
 
-;停戦が成立した場合
-IF LOCAL:10
-	IF LOCAL:10 == 2
-		;性的な要求を飲んだ場合、停戦期間は5固定
-		LOCAL:22 = 5
-	ELSE
-		;停戦期間の設定(好感度・敵対値に応じて延長)
-		LOCAL:20 = REL_LIKE:(LOCAL:5):(LOCAL:4) * AI_RELATION:(REL_AI_TYPE:1):(REL_AI_TYPE:0) / 100
-		LOCAL:21 = REL_HATE:(LOCAL:5):(LOCAL:4) * 100 / AI_RELATION:(REL_AI_TYPE:1):(REL_AI_TYPE:0)
+勢力経済 = GET_SUM_ECONOMY(勢力)
+相手勢力経済 = GET_SUM_ECONOMY(相手勢力)
 
-		LOCAL:22 = 5 + RAND:5
-		SIF LOCAL:20 >= AI_RELATION_BORDER:(REL_AI_TYPE:1):2 && LOCAL:21 < AI_RELATION_BORDER:(REL_AI_TYPE:1):3
-			LOCAL:22 += LIMIT(LOCAL:20 / 100 - LOCAL:21 / 200, 1, 10) + RAND:5
-	ENDIF
 
-	;変数の処理
-	FOR LOCAL:0, 0, MAX_TREATY_C
-		IF TREATY_C_TERM:(LOCAL:0) <= 0
-			TREATY_C_TERM:(LOCAL:0) = LOCAL:22
-			TREATY_C_COUNTRY:(LOCAL:0):0 = CFLAG:MASTER:所属
-			TREATY_C_COUNTRY:(LOCAL:0):1 = ARG:0
-			BREAK
+判定値 = (REL_LIKE:相手君主:君主 - REL_HATE:相手君主:君主) * 100 / 1500
+判定値 = 判定値 * MAX(勢力経済 * 100 / 相手勢力経済, 100) / 100
+判定値 += MAX((勢力経済 - 相手勢力経済) / 5000, 0)
+
+DEBUGPRINTFORML 停戦のベース判定値:{判定値}
+
+;勢力同士の隣接関係マップを作成
+CALL TMP_CREATE_COUNTRY_NEIBORING_MAP
+
+SIF !TMP_COUNTRY_IS_NEIBORING:勢力:相手勢力
+	判定値 /= 2
+
+SELECTCASE 判定値
+	CASE IS >= 30
+		PRINTFORMW %ANAME(君主)%が停戦をもちかけると、%ANAME(相手君主)%は快く承諾した…
+	CASE 15 TO 29
+		CALL DIPLOMACY_REQUESTED(相手勢力)
+		;要求できるものなし
+		IF RESULT == -1
+			IF INRANGE(判定値, 25, 30)
+				PRINTFORMW %ANAME(君主)%が停戦をもちかけると、%ANAME(相手君主)%は悩みつつも承諾した…
+			ELSE
+				PRINTFORMW %ANAME(君主)%が停戦をもちかけると、%ANAME(相手君主)%は悩みつつも断った…
+				RETURN
+			ENDIF
+		ELSEIF RESULT == 0
+				RETURN 
 		ENDIF
-	NEXT
+	CASEELSE
+		PRINTFORMW %ANAME(君主)%は停戦を提案したが、%ANAME(相手君主)%は断った…
+		SIF !TMP_COUNTRY_IS_NEIBORING:勢力:相手勢力
+			PRINTFORMW 領地が隣接していない状態での停戦は、通常よりも難しいものとなるようだ…
+		RETURN
+ENDSELECT
 
-	;参加国間の好感度を上昇させ敵対値を低下させる
-	CALL CHANGE_RELATION_C_TO_C(CFLAG:MASTER:所属, ARG:0, 50, -50)
-	CALL CHANGE_RELATION_C_TO_C(ARG:0, CFLAG:MASTER:所属, 50, -50)
+$SUCCESS
+期間 = MAX((REL_LIKE:相手君主:君主 * AI_RELATION:(COUNTRY_AI_TYPE:相手勢力):(COUNTRY_AI_TYPE:勢力) / 100 -  REL_HATE:相手君主:君主 * AI_RELATION:(COUNTRY_AI_TYPE:相手勢力):(COUNTRY_AI_TYPE:勢力) / 100) / 100, 3)
 
-	PRINTL 
-	SETCOLOR COLOR("注意")
-	PRINTFORMW %NAME:(LOCAL:5)%と{LOCAL:22}期間の停戦条約が成立しました
-	RESETCOLOR
-ENDIF
+CALL INIT_CEASEFIRE(勢力, 相手勢力, 期間)
+
+PRINTL 
+SETCOLOR COLOR("注意")
+PRINTFORMW %ANAME(相手君主)%と{期間}期間の停戦が成立しました
+RESETCOLOR
+
 
 ;-------------------------------------------------
 ;同盟を申し込む
 ;-------------------------------------------------
-@DIPLOMACY_ALLIANCE(ARG:0)
-#DIM REL_AI_TYPE, 2
-#DIM REST_COUNTRY
-VARSET REL_AI_TYPE, 0
+@DIPLOMACY_ALLIANCE(相手勢力)
+#DIM 勢力
+#DIM 相手勢力
+#DIM 君主
+#DIM 相手君主
+#DIM 相手外交計画
+#DIM 判定値
+#DIM 期間
+#DIM 勢力経済
+#DIM 相手勢力経済
 
-IF IS_SP_COUNTRY(ARG:0)
-	PRINTFORMW こんな連中と同盟するわけにはいきません
+IF IS_SP_COUNTRY(相手勢力)
+	PRINTFORMW 同盟をもちかけましたが、向こうは鼻で笑ってきました
 	RETURN 0
 ENDIF
+勢力 = CFLAG:MASTER:所属
+君主 = GET_COUNTRY_BOSS(CFLAG:MASTER:所属)
+相手君主 = GET_COUNTRY_BOSS(相手勢力)
 
-REL_AI_TYPE:0 = COUNTRY_AI_TYPE:(CFLAG:MASTER:所属), COUNTRY_AI_TYPE:(ARG:0)
+相手外交計画 = CHECK_AI_DIPLOMACY_PLAN(相手勢力, CFLAG:MASTER:所属)
 
-LOCAL:4 = GET_COUNTRY_BOSS(CFLAG:MASTER:所属)
-LOCAL:5 = GET_COUNTRY_BOSS(ARG:0)
-
-;相手勢力の外交計画をチェック
-CALL AI_DIPLOMACY_CHECK(ARG:0)
-
-REST_COUNTRY = (MAX_COUNTRY - 1) - MATCH(COUNTRY_BOSS, 0)
-LOCAL:11 = MAX(REST_COUNTRY * AI_ACTION:(COUNTRY_AI_TYPE:(ARG:0)):3 / 100, 1)
-LOCAL:2 = COUNTRY_TREATY_NO:(ARG:0):0 <= LOCAL:11 ? COUNTRY_REQUEST_RATE_A:(ARG:0):(CFLAG:MASTER:所属) # -1
-
-
-;無条件で成立(友好)
-IF LOCAL:2 == 5
+;相手の外交計画内ならば、無条件で成立
+IF 相手外交計画 == AI_外交計画_同盟
 	PRINTFORMW %ANAME(MASTER)%が同盟を持ちかけると、%NAME:(LOCAL:5)%は快く承諾した…
-	LOCAL:10 = 1
-;無条件で成立
-ELSEIF LOCAL:2 == 1
-	PRINTFORMW %ANAME(MASTER)%が同盟を持ちかけると、%NAME:(LOCAL:5)%は少し悩む素振りを見せたものの、すぐに承諾した
-	PRINTFORMW どうやらお互いの利害が一致したようだ…
-	LOCAL:10 = 1
-;相手からの要求を飲めば成立
-ELSEIF LOCAL:2 >= 2 && LOCAL:2 <= 4
-	;要求の処理
-	CALL DIPLOMACY_REQUESTED(ARG:0, LOCAL:2 - 2)
-	IF RESULT == -1
-		IF LOCAL:2 == 2
-			PRINTFORMW %ANAME(MASTER)%が停戦を持ちかけると、%NAME:(LOCAL:5)%はしばらく悩んだ末に承諾した
-			PRINTFORMW どうやらお互いの利害が一致したようだ…
-			LOCAL:10 = 1
-		ELSE
-			PRINTFORMW %ANAME(MASTER)%が停戦を持ちかけると、%NAME:(LOCAL:5)%はしばらく悩んだ末に断った
-			PRINTFORMW 何か対価を用意できれば受け入れてもらえそうだが…
-			LOCAL:10 = 0
-		ENDIF
-	ELSE
-		LOCAL:10 = RESULT
-	ENDIF
-;不成立(非隣接)
-ELSEIF LOCAL:2 == 6
-	PRINTFORMW %ANAME(MASTER)%は同盟を提案したが、%NAME:(LOCAL:5)%に軽くあしらわれてしまった
-	PRINTFORMW 国境を接していない状態での同盟は、よほど良好な関係でなければ無理だろう…
-	LOCAL:10 = 0
-;不成立
-ELSE
-	PRINTFORMW %ANAME(MASTER)%は同盟を提案したが、%NAME:(LOCAL:5)%に軽くあしらわれてしまった
-	PRINTFORMW 現在の情勢では同盟の成立は難しいだろう…
-	LOCAL:10 = 0
+	GOTO SUCCESS
 ENDIF
 
-;同盟が成立した場合
-IF LOCAL:10
-	LOCAL:2 = GET_COUNTRY_BOSS(CFLAG:MASTER:所属)
-	LOCALS:0 = 
+勢力経済 = GET_SUM_ECONOMY(勢力)
+相手勢力経済 = GET_SUM_ECONOMY(相手勢力)
 
-	;停戦が組まれていれば解消
-	FOR LOCAL:0, 0, MAX_TREATY_C
-		IF TREATY_C_TERM:(LOCAL:0) > 0
-			LOCAL:31 = 0
-			FOR LOCAL:1, 0, MAX_TREATY_COUNTRY
-				IF TREATY_C_COUNTRY:(LOCAL:0):(LOCAL:1) == CFLAG:MASTER:所属
-					LOCAL:31 |= 0b001
-				ELSEIF TREATY_C_COUNTRY:(LOCAL:0):(LOCAL:1) == LOCAL:32
-					LOCAL:31 |= 0b010
-				ELSEIF TREATY_C_COUNTRY:(LOCAL:0):(LOCAL:1) >= 1
-					LOCAL:31 |= 0b100
-				ENDIF
-			NEXT
-			;対象の２勢力間の停戦を削除し、残り期間を記録
-			IF LOCAL:31 == 0b011
-				LOCAL:11 = MAX(LOCAL:11, TREATY_C_TERM:(LOCAL:0))
-				TREATY_C_TERM:(LOCAL:0) = 0
-				FOR LOCAL:1, 0, MAX_TREATY_COUNTRY
-					TREATY_C_COUNTRY:(LOCAL:0):(LOCAL:1) = 0
-				NEXT
+
+判定値 = (REL_LIKE:相手君主:君主 - REL_HATE:相手君主:君主) * 100 / 1500
+判定値 = 判定値 * MAX(勢力経済 * 100 / 相手勢力経済, 100) / 100
+判定値 += MAX((勢力経済 - 相手勢力経済) / 5000, 0)
+
+DEBUGPRINTFORML 同盟のベース判定値:{判定値}
+
+;勢力同士の隣接関係マップを作成
+CALL TMP_CREATE_COUNTRY_NEIBORING_MAP
+
+SIF !TMP_COUNTRY_IS_NEIBORING:勢力:相手勢力
+	判定値 /= 2
+
+SELECTCASE 判定値
+	CASE IS >= 50
+		PRINTFORMW %ANAME(君主)%が同盟をもちかけると、%ANAME(相手君主)%は快く承諾した…
+	CASE 35 TO 49
+		CALL DIPLOMACY_REQUESTED(相手勢力)
+		;要求できるものなし
+		IF RESULT == -1
+			IF INRANGE(判定値, 40, 49)
+				PRINTFORMW %ANAME(君主)%が同盟をもちかけると、%ANAME(相手君主)%は悩みつつも承諾した…
+			ELSE
+				PRINTFORMW %ANAME(君主)%が同盟をもちかけると、%ANAME(相手君主)%は悩みつつも断った…
+				RETURN
 			ENDIF
+		ELSEIF RESULT == 0
+			RETURN
 		ENDIF
-	NEXT
+	CASEELSE
+		PRINTFORMW %ANAME(君主)%は同盟を提案したが、%ANAME(相手君主)%は断った…
+		SIF !TMP_COUNTRY_IS_NEIBORING:勢力:相手勢力
+			PRINTFORMW 領地が隣接していない状態での同盟は、通常よりも難しいものとなるようだ…
+		RETURN
+ENDSELECT
 
-	IF LOCAL:10 == 2
-		;性的な要求を飲んだ場合、同盟期間は5固定
-		LOCAL:22 = 5
-	ELSE
-		;同盟期間の設定(好感度・敵対値に応じて延長)
-		LOCAL:20 = REL_LIKE:(LOCAL:5):(LOCAL:4) * AI_RELATION:(REL_AI_TYPE:1):(REL_AI_TYPE:0) / 100
-		LOCAL:21 = REL_HATE:(LOCAL:5):(LOCAL:4) * 100 / AI_RELATION:(REL_AI_TYPE:1):(REL_AI_TYPE:0)
+$SUCCESS
+期間 = MAX((REL_LIKE:相手君主:君主 * AI_RELATION:(COUNTRY_AI_TYPE:相手勢力):(COUNTRY_AI_TYPE:勢力) / 100 -  REL_HATE:相手君主:君主 * AI_RELATION:(COUNTRY_AI_TYPE:相手勢力):(COUNTRY_AI_TYPE:勢力) / 100) / 100, 3)
 
-		LOCAL:22 = 5 + RAND:5
-		SIF LOCAL:20 >= AI_RELATION_BORDER:(REL_AI_TYPE:1):0 && LOCAL:21 < AI_RELATION_BORDER:(REL_AI_TYPE:1):1
-			LOCAL:22 += LIMIT(LOCAL:20 / 100 - LOCAL:21 / 200, 1, 10) + RAND:5
-	ENDIF
+CALL INIT_ALLIANCE(勢力, 相手勢力, 期間)
 
-	;変数の処理
-	FOR LOCAL:0, 0, MAX_TREATY_A
-		IF TREATY_A_TERM:(LOCAL:0) <= 0
-			TREATY_A_TERM:(LOCAL:0) = LOCAL:22
-			TREATY_A_COUNTRY:(LOCAL:0):0 = CFLAG:MASTER:所属
-			TREATY_A_COUNTRY:(LOCAL:0):1 = ARG:0
-			BREAK
-		ENDIF
-	NEXT
+PRINTL 
+SETCOLOR COLOR("注意")
+PRINTFORMW %ANAME(相手君主)%と{期間}期間の同盟が成立しました
+RESETCOLOR
 
-	;参加国間の好感度を上昇させ敵対値を低下させる
-	CALL CHANGE_RELATION_C_TO_C(CFLAG:MASTER:所属, ARG:0, 100, -100)
-	CALL CHANGE_RELATION_C_TO_C(ARG:0, CFLAG:MASTER:所属, 100, -100)
 
-	PRINTL 
-	SETCOLOR COLOR("注意")
-	PRINTFORMW %NAME:(LOCAL:5)%と{LOCAL:22}期間の同盟が成立しました
-	RESETCOLOR
-ENDIF
 
 ;-------------------------------------------------
 ;永久同盟を申し込む
 ;-------------------------------------------------
-@DIPLOMACY_ALLIANCE_INDIFINITE(ARG:0)
-CALL CHECK_COUNTRY_RELATION(CFLAG:MASTER:所属, ARG:0)
-LOCAL:3 = RESULT
+@DIPLOMACY_ALLIANCE_INDIFINITE(相手勢力)
+#DIM 勢力
+#DIM 相手勢力
+#DIM 君主
+#DIM 相手君主
+#DIM 相手外交計画
+#DIM 判定値
+#DIM 期間
+勢力 = CFLAG:MASTER:所属
 
-IF LOCAL:3 != 3
+IF CHECK_COUNTRY_RELATION_F(勢力, 相手勢力)
 	PRINTFORMW 永久同盟は、現在同盟中の勢力にしか提案することができません
 	RETURN 0
 ENDIF
 
-IF IS_SP_COUNTRY(ARG:0)
+IF IS_SP_COUNTRY(相手勢力)
 	PRINTFORMW こんな連中と手を組むわけにはいきません
 	RETURN 0
 ENDIF
 
-LOCAL:4 = GET_COUNTRY_BOSS(CFLAG:MASTER:所属)
-LOCAL:5 = GET_COUNTRY_BOSS(ARG:0)
+君主 = GET_COUNTRY_BOSS(CFLAG:MASTER:所属)
+相手君主 = GET_COUNTRY_BOSS(相手勢力)
 
-LOCAL:6 = REL_LIKE:(LOCAL:5):(LOCAL:4)
-LOCAL:7 = REL_HATE:(LOCAL:5):(LOCAL:4)
+PRINTFORMW %ANAME(君主)%は%ANAME(相手君主)%に無期限の同盟を提案した
 
-PRINTFORMW %ANAME(MASTER)%は%NAME:(LOCAL:5)%に無期限の同盟を提案した
-
-;好感度900以上、敵対値0
-IF LOCAL:6 >= 900 && LOCAL:7 <= 0
-	PRINTFORMW %NAME:(LOCAL:5)%は%NAME:(LOCAL:4)%と共に天下を統べる決意を固めたようだ…
-
-	;変数の処理
-	FOR LOCAL:0, 0, MAX_TREATY_A
-		LOCAL:2 = 0
-		FOR LOCAL:1, 0, MAX_TREATY_COUNTRY
-			IF TREATY_A_COUNTRY:(LOCAL:0):(LOCAL:1) == CFLAG:MASTER:所属
-				LOCAL:2 |= 0b01
-			ENDIF
-			IF TREATY_A_COUNTRY:(LOCAL:0):(LOCAL:1) == ARG:0
-				LOCAL:2 |= 0b10
-			ENDIF
-		NEXT
-		IF LOCAL:2 == 0b11
-			TREATY_A_TERM:(LOCAL:0) = 9999
-			BREAK
-		ENDIF
-	NEXT
-
-	;参加国間の好感度を上昇させ敵対値を低下させる
-	CALL CHANGE_RELATION_C_TO_C(CFLAG:MASTER:所属, ARG:0, 100, -100)
-	CALL CHANGE_RELATION_C_TO_C(ARG:0, CFLAG:MASTER:所属, 100, -100)
+;好感度1200以上、敵対値0
+IF REL_LIKE:相手君主:君主 >= 1200 && REL_HATE:相手君主:君主 <= 0
+	PRINTFORMW %ANAME(相手君主)%は%ANAME(君主)%と共に天下を統べる決意を固めたようだ…
+	CALL INIT_ALLIANCE(勢力, 相手勢力, 9999)
 
 	PRINTL 
 	SETCOLOR COLOR("注意")
-	PRINTFORMW %NAME:(LOCAL:5)%と無期限の同盟が成立しました
+	PRINTFORMW %ANAME(相手君主)%と無期限の同盟が成立しました
 	RESETCOLOR
-
 ;不成立
 ELSE
-	PRINTFORML だが、%NAME:(LOCAL:5)%は%ANAME(MASTER)%の提案を断った
-	PRINTFORMW まだ%NAME:(LOCAL:4)%のことをそこまで信用できないようだ…
+	PRINTFORML だが、%ANAME(相手君主)%は%ANAME(君主)%の提案を断った
+	PRINTFORMW まだ%ANAME(君主)%のことをそこまで信用できないようだ…
 ENDIF
 
 ;-------------------------------------------------
 ;外交併合を行う
 ;-------------------------------------------------
-@DIPLOMACY_PERSONAL_UNION(ARG:0)
-CALL CHECK_COUNTRY_RELATION(CFLAG:MASTER:所属, ARG:0)
-LOCAL:3 = RESULT
-IF LOCAL:3 != 3
+@DIPLOMACY_PERSONAL_UNION(相手勢力)
+#DIM 勢力
+#DIM 相手勢力
+#DIM 君主
+#DIM 相手君主
+#DIM 相手外交計画
+#DIM 判定値
+#DIM 成功フラグ
+#DIM 期間
+勢力 = CFLAG:MASTER:所属
+
+IF CHECK_COUNTRY_RELATION_F(勢力, 相手勢力) != 3
 	PRINTFORMW 外交併合は、現在同盟中の勢力にしか提案することができません
 	RETURN 0
 ENDIF
 
-IF IS_SP_COUNTRY(ARG:0)
+IF IS_SP_COUNTRY(相手勢力)
 	PRINTFORMW こんな連中と併合するわけにはいきません
 	RETURN 0
 ENDIF
 
-LOCAL:4 = GET_COUNTRY_BOSS(CFLAG:MASTER:所属)
-LOCAL:5 = GET_COUNTRY_BOSS(ARG:0)
+君主 = GET_COUNTRY_BOSS(CFLAG:MASTER:所属)
+相手君主 = GET_COUNTRY_BOSS(相手勢力)
 
 ;勢力同士の隣接関係マップを作成
 CALL TMP_CREATE_COUNTRY_NEIBORING_MAP
 
-IF !TMP_COUNTRY_IS_NEIBORING:(ARG:0):(CFLAG:MASTER:所属)
+IF !TMP_COUNTRY_IS_NEIBORING:勢力:相手勢力
 	PRINTW 隣接していない勢力と外交併合を行うことはできません
 	RETURN 0
 ENDIF
 
-PRINTFORMW %ANAME(MASTER)%は%NAME:(LOCAL:5)%に対して、同君連合を組む提案をした
+PRINTFORMW %ANAME(君主)%は%ANAME(相手君主)%に対して、外交併合する提案をした
 
-LOCAL:6 = GET_SUM_ECONOMY(CFLAG:MASTER:所属)
-LOCAL:7 = GET_SUM_ECONOMY(ARG:0)
+成功フラグ = 0
 
+;条件1　自勢力に対する好意-敵意が1350以上。
+IF REL_LIKE:相手君主:君主 - REL_HATE:相手君主:君主 > 1350
+	成功フラグ = 1
+;条件2　相手が隷属しており、自勢力の経済力が相手勢力の8倍
+ELSEIF TALENT:相手君主:隷属 && GET_SUM_ECONOMY(勢力) > GET_SUM_ECONOMY(相手勢力) * 8
+	成功フラグ = 1
+;条件3　自勢力の経済力ならびに政治力が、それぞれ相手勢力の4倍
+ELSEIF GET_SUM_ECONOMY(勢力) > GET_SUM_ECONOMY(相手勢力) * 4 && TMP_GET_POLITICS_POWER(勢力) > TMP_GET_POLITICS_POWER(相手勢力) * 3
+	成功フラグ = 1
+ENDIF
 
-LOCAL:9 = REL_LIKE:(LOCAL:5):(LOCAL:4)
-LOCAL:10 = REL_HATE:(LOCAL:5):(LOCAL:4)
-LOCAL:11 = LIMIT(LOCAL:9 - LOCAL:10, 0, 1500)
+IF !成功フラグ
+	PRINTFORMW 残念ながら、%ANAME(相手君主)%は我が国の外交併合に応じませんでした…
+	;併合提案による外交印象の悪化
+	DIPLOMACY_HATE:勢力:0 += 2
+	RETURN 1
+ENDIF
+PRINTFORMW 素晴らしい！%ANAME(相手君主)%は我が国と１つになりました
+RESETCOLOR
 
+;兵数の移動
+CALL CLEAR_ALL_UNIT(相手勢力)
+COUNTRY_SOLDIER:勢力 += COUNTRY_SOLDIER:相手勢力
+COUNTRY_SOLDIER:相手勢力 = 0
 
-LOCAL:8 = 0
-FOR LOCAL:0, 1, MAX_COUNTRY
-	IF TMP_COUNTRY_IS_NEIBORING:(CFLAG:MASTER:所属):(LOCAL:0)
-		LOCAL:8 += GET_SUM_ECONOMY(LOCAL:0)
+;領地の接収
+PRINTL 
+SETCOLOR COLOR("注意")
+PRINTFORML %ANAME(相手君主)%の所領だった都市は我が国の領土となりました
+RESETCOLOR
+FOR LOCAL:0, 0, MAX_CITY
+	IF CITY_OWNER:(LOCAL:0) == 相手勢力
+		CITY_OWNER:(LOCAL:0) = 勢力
+		PRINTFORML %GET_CITYNAME(LOCAL:0)%を我が国の支配下に置きました
 	ENDIF
 NEXT
+WAIT
 
-;LOCAL:4	自陣営の君主
-;LOCAL:5	相手の君主
-;LOCAL:6	自陣営の経済力
-;LOCAL:7	相手の経済力
-;LOCAL:8	隣接勢力の総経済力
-;LOCAL:9	相手君主→自君主の好印象
-;LOCAL:10	相手君主→自君主の嫌印象
-;LOCAL:11	好印象から嫌印象を引いて0～1500に収めたもの
-;CONFIG:300	難易度変数（0/1/2/3）
+PRINTL 
+PRINTFORMW %ANAME(相手君主)%軍の兵士が我が国の兵力として加わりました
 
-;併合判定、以下のいずれかを満たせば成立
-;1:併合相手の君主の自勢力君主に対する「好意―敵意」が（1200/1350/1500/1650）以上
-;2:併合相手の君主が隷属かつ自勢力の経済力が隣接勢力の総経済力の(3/4/5/6)倍を超える
-;3:併合相手の君主の政治力が自勢力の勢力以下、自勢力の経済力が隣接勢力の総経済力の(2/2.5/3/3.5)倍を超えてかつ
-;  併合相手の君主の自勢力君主に対する「好意―敵意」が（800/900/1000/1100）以上
-;
-;注意:好意および敵意の最大値は1500、つまりそういうことです
-IF (LOCAL:8 * (20 + CONFIG:300 * 5) < LOCAL:6 * 10 && LOCAL:11 >= (800 + CONFIG:300 * 100) && ABL:(LOCAL:4):政治 >= ABL:(LOCAL:5):政治) || (TALENT:(LOCAL:5):隷属 && LOCAL:7 * (3 + CONFIG:300) < LOCAL:6) || (LOCAL:11 >= (1200 + CONFIG:300 * 150))
-	SETCOLOR COLOR("注意")
-	PRINTFORMW 素晴らしい！%NAME:(LOCAL:5)%は我が国と１つになりました
-	RESETCOLOR
-
-	;兵数の移動
-	CALL CLEAR_ALL_UNIT(ARG:0)
-	COUNTRY_SOLDIER:(CFLAG:MASTER:所属) += COUNTRY_SOLDIER:(ARG:0)
-	COUNTRY_SOLDIER:(ARG:0) = 0
-
-	;領地の接収
+;自動で登用
+IF CONFIG:303 == 0
+	;士官の組み込み
 	PRINTL 
 	SETCOLOR COLOR("注意")
-	PRINTFORML %NAME:(LOCAL:5)%の所領だった都市は我が国の領土となりました
+	PRINTFORML %ANAME(相手君主)%に仕えていた士官は我が国の士官として組み込まれました
 	RESETCOLOR
-	FOR LOCAL:0, 0, MAX_CITY
-		IF CITY_OWNER:(LOCAL:0) == ARG:0
-			CITY_OWNER:(LOCAL:0) = CFLAG:MASTER:所属
-			PRINTFORML %GET_CITYNAME(LOCAL:0)%を我が国の支配下に置きました
+	FOR LOCAL:0, 0, CHARANUM
+		;SIF CFLAG:(LOCAL:0):捕虜先 == 相手勢力:0
+		;	CALL CHANGE_COUNTRY(LOCAL:0, 相手勢力, 1)
+		IF CFLAG:(LOCAL:0):所属 == 相手勢力
+			IF !CFLAG:(LOCAL:0):捕虜先 || CFLAG:(LOCAL:0):捕虜先 == CFLAG:MASTER:所属
+				CALL CHANGE_COUNTRY(LOCAL:0, CFLAG:MASTER:所属, 1)
+				PRINTFORML %NAME:(LOCAL:0)%を登用しました
+			ELSE
+				CALL CHANGE_COUNTRY(LOCAL:0, CFLAG:MASTER:所属)
+				SETCOLOR COLOR("シアン")
+				PRINTFORML %ANAME(LOCAL:0)%は%ANAME(GET_COUNTRY_BOSS(CFLAG:(LOCAL:0):捕虜先))%に囚われています
+				RESETCOLOR
+			ENDIF
 		ENDIF
 	NEXT
 	WAIT
 
+;自動で投獄
+ELSEIF CONFIG:303 == 1
+	;士官の組み込み
 	PRINTL 
-	PRINTFORMW %NAME:(LOCAL:5)%軍の兵士が我が国の兵力として加わりました
-
-	;自動で登用
-	IF CONFIG:303 == 0
-		;士官の組み込み
-		PRINTL 
-		SETCOLOR COLOR("注意")
-		PRINTFORML %NAME:(LOCAL:5)%に仕えていた士官は我が国の士官として組み込まれました
-		RESETCOLOR
-		FOR LOCAL:0, 0, CHARANUM
-			;SIF CFLAG:(LOCAL:0):捕虜先 == ARG:0
-			;	CALL CHANGE_COUNTRY(LOCAL:0, ARG:0, 1)
-			IF CFLAG:(LOCAL:0):所属 == ARG:0
-				IF !CFLAG:(LOCAL:0):捕虜先 || CFLAG:(LOCAL:0):捕虜先 == CFLAG:MASTER:所属
-					CALL CHANGE_COUNTRY(LOCAL:0, CFLAG:MASTER:所属, 1)
-					PRINTFORML %NAME:(LOCAL:0)%を登用しました
-				ELSE
-					CALL CHANGE_COUNTRY(LOCAL:0, CFLAG:MASTER:所属)
-					SETCOLOR COLOR("シアン")
-					PRINTFORML %ANAME(LOCAL:0)%は%ANAME(GET_COUNTRY_BOSS(CFLAG:(LOCAL:0):捕虜先))%に囚われています
-					RESETCOLOR
-				ENDIF
+	SETCOLOR COLOR("注意")
+	PRINTFORML %ANAME(相手君主)%に仕えていた士官を投獄しました
+	RESETCOLOR
+	FOR LOCAL:0, 0, CHARANUM
+		;SIF CFLAG:(LOCAL:0):捕虜先 == 相手勢力
+		;	CALL CHANGE_COUNTRY(LOCAL:0, 相手勢力, 1)
+		IF CFLAG:(LOCAL:0):所属 == 相手勢力
+			IF !CFLAG:(LOCAL:0):捕虜先 || CFLAG:(LOCAL:0):捕虜先 == CFLAG:MASTER:所属
+				CALL CHANGE_COUNTRY(LOCAL:0, 0, 1)
+				CALL CAPTURE(LOCAL:0, CFLAG:MASTER:所属)
+				PRINTFORML %ANAME(LOCAL:0)%を投獄しました
+			ELSE
+				CALL CHANGE_COUNTRY(LOCAL:0, CFLAG:MASTER:所属)
+				SETCOLOR COLOR("シアン")
+				PRINTFORML %ANAME(LOCAL:0)%は%ANAME(GET_COUNTRY_BOSS(CFLAG:(LOCAL:0):捕虜先))%に囚われています
+				RESETCOLOR
 			ENDIF
-		NEXT
-		WAIT
-
-	;自動で投獄
-	ELSEIF CONFIG:303 == 1
-		;士官の組み込み
-		PRINTL 
-		SETCOLOR COLOR("注意")
-		PRINTFORML %NAME:(LOCAL:5)%に仕えていた士官を投獄しました
-		RESETCOLOR
-		FOR LOCAL:0, 0, CHARANUM
-			;SIF CFLAG:(LOCAL:0):捕虜先 == ARG:0
-			;	CALL CHANGE_COUNTRY(LOCAL:0, ARG:0, 1)
-			IF CFLAG:(LOCAL:0):所属 == ARG:0
-				IF !CFLAG:(LOCAL:0):捕虜先 || CFLAG:(LOCAL:0):捕虜先 == CFLAG:MASTER:所属
-					CALL CHANGE_COUNTRY(LOCAL:0, 0, 1)
-					CALL CAPTURE(LOCAL:0, CFLAG:MASTER:所属)
-					PRINTFORML %ANAME(LOCAL:0)%を投獄しました
-				ELSE
-					CALL CHANGE_COUNTRY(LOCAL:0, CFLAG:MASTER:所属)
-					SETCOLOR COLOR("シアン")
-					PRINTFORML %ANAME(LOCAL:0)%は%ANAME(GET_COUNTRY_BOSS(CFLAG:(LOCAL:0):捕虜先))%に囚われています
-					RESETCOLOR
-				ENDIF
-			ENDIF
-		NEXT
-		WAIT
-
-	;手動で選択
-	ELSE
-		CALL DIPLOMACY_SURRENDER_SET_TREATMENT(ARG:0)
-	ENDIF
-
-	;ARG:0勢力の捕虜となっていたキャラの処理
-	;ARG:0勢力が捕虜持ってるか
-	IF CMATCH(CFLAG:捕虜先, ARG:0)
-		PRINTL
-		PRINTFORMW %NAME:(LOCAL:5)%に囚われていた捕虜を見つけました
-		LOCAL:2 = 0
-		FOR LOCAL:0, 0, CHARANUM
-			IF CFLAG:(LOCAL:0):捕虜先 == ARG:0
-				;自陣営の士官なら、そのまま元に戻る
-				IF CFLAG:(LOCAL:0):所属 == CFLAG:MASTER:所属
-					CALL CAPTURE(LOCAL:0, 0)
-					SETCOLOR COLOR("注意")
-					PRINTFORML %NAME:(LOCAL:5)%勢力に囚えられていた%ANAME(LOCAL:0)%は、我が国に復帰した
-					RESETCOLOR
-					LOCAL:2 = 1
-				ENDIF
-			ENDIF
-		NEXT
-		IF LOCAL:2
-			WAIT
 		ENDIF
-		FOR LOCAL:0, 0, CHARANUM
-			IF CFLAG:(LOCAL:0):捕虜先 == ARG:0
-				;第三勢力の士官なら、TREAT_PRISONERで扱いを決定
-				CALL TREAT_PRISONER(ARG:0, CFLAG:MASTER:所属, LOCAL:0)
-			ENDIF
-		NEXT
-	ENDIF
-	
-	;旧勢力の後始末
-	CALL DESTROY_COUNTRY(ARG:0)
-	;外交併合による外交印象の悪化
-	DIPLOMACY_HATE:(CFLAG:MASTER:所属):0 += 3
+	NEXT
+	WAIT
 
+;手動で選択
 ELSE
-	PRINTFORMW 残念ながら、%NAME:(LOCAL:5)%は我が国の外交併合に応じませんでした…
-	;併合提案による外交印象の悪化
-	DIPLOMACY_HATE:(CFLAG:MASTER:所属):0 += 2
+	CALL DIPLOMACY_SURRENDER_SET_TREATMENT(相手勢力)
 ENDIF
+
+;相手勢力勢力の捕虜となっていたキャラの処理
+;相手勢力勢力が捕虜持ってるか
+IF CMATCH(CFLAG:捕虜先, 相手勢力)
+	PRINTL
+	PRINTFORMW %ANAME(相手君主)%に囚われていた捕虜を見つけました
+	LOCAL:2 = 0
+	FOR LOCAL:0, 0, CHARANUM
+		IF CFLAG:(LOCAL:0):捕虜先 == 相手勢力
+			;自陣営の士官なら、そのまま元に戻る
+			IF CFLAG:(LOCAL:0):所属 == CFLAG:MASTER:所属
+				CALL CAPTURE(LOCAL:0, 0)
+				SETCOLOR COLOR("注意")
+				PRINTFORML %ANAME(相手君主)%勢力に囚えられていた%ANAME(LOCAL:0)%は、我が国に復帰した
+				RESETCOLOR
+				LOCAL:2 = 1
+			ENDIF
+		ENDIF
+	NEXT
+	IF LOCAL:2
+		WAIT
+	ENDIF
+	FOR LOCAL:0, 0, CHARANUM
+		IF CFLAG:(LOCAL:0):捕虜先 == 相手勢力
+			;第三勢力の士官なら、TREAT_PRISONERで扱いを決定
+			CALL TREAT_PRISONER(相手勢力, 勢力, LOCAL:0)
+		ENDIF
+	NEXT
+ENDIF
+
+;旧勢力の後始末
+CALL DESTROY_COUNTRY(相手勢力)
+;外交併合による外交印象の悪化
+DIPLOMACY_HATE:(CFLAG:MASTER:所属):0 += 3
 
 RETURN 1
 
@@ -550,12 +454,12 @@ PRINTFORML ………………
 PRINTFORML 昔から接待といえば、金か「楽しみ」が常道だ
 PRINTFORML %NAME:(LOCAL:5)%を満足させるには、どちらかを用意すべきだろう……
 DRAWLINE
-LOCAL:1 = MIN(3000 + (GET_OWN_CITY(CFLAG:MASTER:所属) * 300), 10000)
-IF MONEY >= LOCAL:1
-	PRINTFORML [1] 金{LOCAL:1}を用意する 現在:{MONEY}
+LOCAL:1 = MIN(1000 + (GET_OWN_CITY(CFLAG:MASTER:所属) * 300), 10000)
+IF MONEY:(CFLAG:MASTER:所属) >= LOCAL:1
+	PRINTFORML [1] 国庫から金{LOCAL:1}を用意する 現在:{MONEY:(CFLAG:MASTER:所属)}
 ELSE
 	SETCOLOR COLOR("選択不可")
-	PRINTPLAINFORM [1] 金{LOCAL:1}が必要だが、そんなに持っていない 現在:{MONEY}
+	PRINTPLAINFORM [1] 国庫に金{LOCAL:1}が必要だが、そんなに持っていない 現在:{MONEY:(CFLAG:MASTER:所属)}
 	PRINTL
 	RESETCOLOR
 ENDIF
@@ -570,11 +474,11 @@ ENDIF
 PRINTFORML [0] 戻る
 $INPUT_LOOP
 INPUT
-IF RESULT == 1 && MONEY >= LOCAL:1
+IF RESULT == 1 && MONEY:(CFLAG:MASTER:所属) >= LOCAL:1
 	PRINTFORML %ANAME(MASTER)%は%NAME:(LOCAL:5)%に金を送った……
-	MONEY -= LOCAL:1
+	MONEY:(CFLAG:MASTER:所属) -= LOCAL:1
 	PRINTL
-	RESULT = 30 + MIN(LOCAL:1 / 300, 30)
+	RESULT = 30 + MIN(LOCAL:1 / 200, 30)
 ELSEIF RESULT == 2 && ABL:(LOCAL:5):性知識 >= 3
 	CALL DIPLOMACY_TALK_SEX(LOCAL:5)
 	IF RESULT == -1
@@ -592,11 +496,11 @@ ENDIF
 ;好感度上昇・敵対値下降基準値
 LOCAL:2 = RESULT
 
-;政治・料理の補正
-CALL TMP_CREATE_IS_FREE_MAP
-LOCAL:0 = 5140 + POWER_075(TMP_GET_POLITICS_POWER(CFLAG:MASTER:所属))
-LOCAL:1 = 5140 + POWER_075(TMP_GET_COOKING_POWER(CFLAG:MASTER:所属))
-LOCAL:2 = LOCAL:2 * (LOCAL:0 + LOCAL:1) / 10280
+LOCAL = SQRT(TMP_GET_POLITICS_POWER(CFLAG:MASTER:所属)) / 10
+LOCAL:1 = SQRT(TMP_GET_COOKING_POWER(CFLAG:MASTER:所属)) / 10
+
+LOCAL:2 = MAX(LOCAL:2 * (LOCAL + LOCAL:1 + 100) / 100, 5)
+
 FOR LOCAL, 0, CHARANUM
 	IF GETBIT(TALENT:LOCAL:ＳＬＧ素質, 素質_ＳＬＧ_風説流布) && RAND:100 < 20 && CFLAG:MASTER:所属 == CFLAG:LOCAL:所属 && IS_FREE(LOCAL)
 		SETCOLOR COLOR("注意")
@@ -656,14 +560,15 @@ PRINTFORMW %ANAME(MASTER)%は%NAME:(LOCAL:5)%に兵{LOCAL:2}を譲り渡した
 ;同じ兵数でも、自国の規模が小さいほど、また相手勢力の規模が小さいほど効果が高い
 LOCAL:10 = GET_SUM_ECONOMY(CFLAG:MASTER:所属)
 LOCAL:11 = GET_SUM_ECONOMY(ARG:0)
-LOCAL:12 = POWER_075(LOCAL:2 * 13000 / LOCAL:10) + POWER_075(LOCAL:2 * 13000 / LOCAL:11)
+LOCAL:12 = SQRT(LOCAL:2 * 26000 / LOCAL:10) + SQRT(LOCAL:2 * 26000 / LOCAL:11)
 LOCAL:12 = LIMIT(LOCAL:12, 25, 350)
 
 ;政治・料理の補正
 CALL TMP_CREATE_IS_FREE_MAP
-LOCAL:0 = 5140 + POWER_075(TMP_GET_POLITICS_POWER(CFLAG:MASTER:所属))
-LOCAL:1 = 5140 + POWER_075(TMP_GET_COOKING_POWER(CFLAG:MASTER:所属))
-LOCAL:12 = LOCAL:12 * LIMIT(LOCAL:0 + LOCAL:1, 10280, 20560) / 10280
+
+LOCAL:0 = SQRT(TMP_GET_POLITICS_POWER(CFLAG:MASTER:所属)) / 10
+LOCAL:1 = SQRT(TMP_GET_COOKING_POWER(CFLAG:MASTER:所属)) / 10
+LOCAL:12 = LOCAL:12 * (LOCAL:0 + LOCAL:1 + 100) / 100
 
 ;互いの国同士の好感度を上昇させ敵対値を低下させる
 CALL DIPLOMACY_IMPROVE_RELATION(ARG:0, LOCAL:12)
@@ -690,7 +595,7 @@ IF LOCAL:6 < 250
 	RETURN 0
 ENDIF
 
-PRINTFORML 譲渡する経済力を入力して下さい(0以下でキャンセル、最大で経済力の20\%まで)
+PRINTFORML 譲渡する経済力を入力して下さい（0以下でキャンセル、最大で経済力の20％まで）
 
 CALL DRAW_ECONOMY_INPUT(LOCAL:6 / 500)
 
@@ -718,15 +623,15 @@ PRINTFORMW %ANAME(MASTER)%は%NAME:(LOCAL:5)%に経済力{LOCAL:2}を譲り渡�
 
 ;好感度上昇値・敵対値下降値の計算
 ;同じ経済力でも、自国の規模が小さいほど、また相手勢力の規模が小さいほど効果が高い
-LOCAL:12 = POWER_075(LOCAL:2 * 115000 / LOCAL:6) + POWER_075(LOCAL:2 * 115000 / LOCAL:7)
+LOCAL:12 = SQRT(LOCAL:2 * 230000 / LOCAL:6) + SQRT(LOCAL:2 * 230000 / LOCAL:7)
 
 LOCAL:12 = LIMIT(LOCAL:12, 25, 350)
 
 ;政治・料理の補正
 CALL TMP_CREATE_IS_FREE_MAP
-LOCAL:0 = 5140 + POWER_075(TMP_GET_POLITICS_POWER(CFLAG:MASTER:所属))
-LOCAL:1 = 5140 + POWER_075(TMP_GET_COOKING_POWER(CFLAG:MASTER:所属))
-LOCAL:12 = LOCAL:12 * LIMIT(LOCAL:0 + LOCAL:1, 10280, 20560) / 10280
+LOCAL:0 = SQRT(TMP_GET_POLITICS_POWER(CFLAG:MASTER:所属)) / 10
+LOCAL:1 = SQRT(TMP_GET_COOKING_POWER(CFLAG:MASTER:所属)) / 10
+LOCAL:12 = LOCAL:12 * (LOCAL:0 + LOCAL:1 + 100) / 100
 
 ;互いの国同士の好感度を上昇させ敵対値を低下させる
 CALL DIPLOMACY_IMPROVE_RELATION(ARG:0, LOCAL:12)
@@ -866,9 +771,9 @@ IF LOCAL:15 >= 0 && CFLAG:(LOCAL:15):所属 == CFLAG:MASTER:所属 && LOCAL:15 !
 		;好感度上昇値・敵対値下降値の計算
 		;主に能力により決定。相手君主がそのキャラに良い印象を抱いていればボーナス
 		LOCAL:25 = 0
-		LOCAL:25 += ABL_POWER(ABL:(LOCAL:15):武闘) + ABL_POWER(ABL:(LOCAL:15):知略) + ABL_POWER(ABL:(LOCAL:15):政治)
+		LOCAL:25 += ABL_POWER(ABL:(LOCAL:15):武闘) + ABL_POWER(ABL:(LOCAL:15):防衛) + ABL_POWER(ABL:(LOCAL:15):知略) + ABL_POWER(ABL:(LOCAL:15):政治)
 		LOCAL:25 += ABL_POWER(ABL:(LOCAL:15):歌唱) + ABL_POWER(ABL:(LOCAL:15):料理)
-		LOCAL:25 /= 400
+		LOCAL:25 /= 500
 
 		IF REL_LIKE:(LOCAL:5):(LOCAL:15) >= 800
 			LOCAL:25 += 50
@@ -880,9 +785,9 @@ IF LOCAL:15 >= 0 && CFLAG:(LOCAL:15):所属 == CFLAG:MASTER:所属 && LOCAL:15 !
 
 		;政治・料理の補正
 		CALL TMP_CREATE_IS_FREE_MAP
-		LOCAL:0 = 5140 + POWER_075(TMP_GET_POLITICS_POWER(CFLAG:MASTER:所属))
-		LOCAL:1 = 5140 + POWER_075(TMP_GET_COOKING_POWER(CFLAG:MASTER:所属))
-		LOCAL:25 = LOCAL:25 * LIMIT(LOCAL:0 + LOCAL:1, 10280, 20560) / 10280
+		LOCAL:0 = SQRT(TMP_GET_POLITICS_POWER(CFLAG:MASTER:所属)) / 10
+		LOCAL:1 = SQRT(TMP_GET_COOKING_POWER(CFLAG:MASTER:所属)) / 10
+		LOCAL:12 = LOCAL:12 * (LOCAL:0 + LOCAL:1 + 100) / 100
 
 		;互いの国同士の好感度を上昇させ敵対値を低下させる
 		CALL DIPLOMACY_IMPROVE_RELATION(ARG:0, LOCAL:25)
@@ -1023,7 +928,7 @@ IF LOCAL:15 >= 0
 		;好感度上昇値・敵対値下降値の計算
 		;主に能力により決定。相手君主がそのキャラに良い印象を抱いていればボーナス
 		LOCAL:25 = 0
-		LOCAL:25 += ABL_POWER(ABL:(LOCAL:15):武闘) + ABL_POWER(ABL:(LOCAL:15):知略) + ABL_POWER(ABL:(LOCAL:15):政治)
+		LOCAL:25 += ABL_POWER(ABL:(LOCAL:15):武闘) + ABL_POWER(ABL:(LOCAL:15):防衛) + ABL_POWER(ABL:(LOCAL:15):知略) + ABL_POWER(ABL:(LOCAL:15):政治)
 		LOCAL:25 += ABL_POWER(ABL:(LOCAL:15):歌唱) + ABL_POWER(ABL:(LOCAL:15):料理)
 		LOCAL:25 /= 400
 
@@ -1031,9 +936,9 @@ IF LOCAL:15 >= 0
 
 		;政治・料理の補正
 		CALL TMP_CREATE_IS_FREE_MAP
-		LOCAL:0 = 5140 + POWER_075(TMP_GET_POLITICS_POWER(CFLAG:MASTER:所属))
-		LOCAL:1 = 5140 + POWER_075(TMP_GET_COOKING_POWER(CFLAG:MASTER:所属))
-		LOCAL:25 = LOCAL:25 * (LOCAL:0 + LOCAL:1) / 10280
+		LOCAL:0 = SQRT(TMP_GET_POLITICS_POWER(CFLAG:MASTER:所属)) / 10
+		LOCAL:1 = SQRT(TMP_GET_COOKING_POWER(CFLAG:MASTER:所属)) / 10
+		LOCAL:25 = LOCAL:25 * (LOCAL:0 / 10 + LOCAL:1 / 10) / 100
 
 		;互いの国同士の好感度を上昇させ敵対値を低下させる
 		CALL DIPLOMACY_IMPROVE_RELATION(ARG:0, LOCAL:25)
@@ -1342,16 +1247,16 @@ DRAWLINE
 PRINTFORML %ANAME(LOCAL:5)%に関する醜聞を他国に流し、関係を悪化させます
 PRINTFORML その代わり、%ANAME(LOCAL:5)%と自国との関係がこじれます
 PRINTFORML 政治力の高い相手なら、出所がバレてさらに関係が悪化するでしょう
-PRINTFORM また、金
+PRINTFORM また、国庫
 SETCOLOR COLOR("注意")
 PRINTFORM 5000
 RESETCOLOR
 PRINTFORML が必要です
-PRINTFORML 本当に醜聞を流して大丈夫ですか？ 現在の資金:{MONEY}
+PRINTFORML 本当に醜聞を流して大丈夫ですか？ 現在の資金:{MONEY:(CFLAG:MASTER:所属)}
 CALL ASK_YN
 IF RESULT == 0
-	IF MONEY < 5000
-		PRINTFORMW 金が足りなかった……
+	IF MONEY < MONEY:(CFLAG:MASTER:所属)
+		PRINTFORMW 国庫の資金が足りなかった……
 		RETURN 0
 	ELSE
 		PRINTFORM %ANAME(LOCAL:5)%が、
@@ -1405,8 +1310,8 @@ IF RESULT == 0
 		PRINTFORML 各国は少なからず動揺したようです
 		;先に政治と料理による補正値を計算
 		CALL TMP_CREATE_IS_FREE_MAP
-		LOCAL:1 = 5140 + POWER_075(TMP_GET_POLITICS_POWER(CFLAG:MASTER:所属))
-		LOCAL:2 = 5140 + POWER_075(TMP_GET_COOKING_POWER(CFLAG:MASTER:所属))
+		LOCAL:0 = SQRT(TMP_GET_POLITICS_POWER(CFLAG:MASTER:所属)) / 10
+		LOCAL:1 = SQRT(TMP_GET_COOKING_POWER(CFLAG:MASTER:所属)) / 10
 		FOR LOCAL, 0, MAX_COUNTRY
 			;基礎値取得
 			LOCAL:3 = RAND:10 + 20
@@ -1415,7 +1320,7 @@ IF RESULT == 0
 				IF CFLAG:MASTER:所属 == LOCAL
 					;政治と料理が高いほど割る数が大きい = 悪感情を得ずに済む
 					LOCAL:3 = LOCAL:3 * 10280 / (LOCAL:1 + LOCAL:2)
-					LOCAL:6 = 5140 + POWER_075(TMP_GET_POLITICS_POWER(CFLAG:(LOCAL:5):所属))
+					LOCAL:6 = SQRT(TMP_GET_POLITICS_POWER(CFLAG:(LOCAL:5):所属)) / 10
 					;ただし相手の方が政治力が高いとバレる
 					IF LOCAL:6 > LOCAL:1
 						PRINTFORML 噂の出所が%ANAME(LOCAL:5)%にバレたようだ……
@@ -1450,8 +1355,8 @@ IF RESULT == 0
 			ENDIF
 		NEXT
 		PRINTW
-		PRINTFORML 資金:{MONEY} → {MONEY - 5000}
-		MONEY -= 5000
+		PRINTFORML 国庫:{MONEY:(CFLAG:MASTER:所属)} → {MONEY:(CFLAG:MASTER:所属) - 5000}
+		MONEY:(CFLAG:MASTER:所属) -= 5000
 		PRINTFORMW 
 		RETURN 1
 	ENDIF
@@ -1981,15 +1886,12 @@ COUNTRY_SOLDIER:(ARG:1) += ARG:2
 @GET_PRISONER_VALUE(ARG:0)
 #FUNCTION
 LOCAL:0 = 0
-LOCAL:0 += ABL_POWER(ABL:(ARG:0):武闘)
-LOCAL:0 += ABL_POWER(ABL:(ARG:0):知略)
-LOCAL:0 += ABL_POWER(ABL:(ARG:0):政治)
-LOCAL:0 += ABL_POWER(ABL:(ARG:0):歌唱)
-LOCAL:0 += ABL_POWER(ABL:(ARG:0):料理)
-;対象が特殊な勢力に捕らえられており、それが自国の捕らえている捕虜でない場合、価値は3倍に
+LOCAL:0 += (ABL:(ARG:0):武闘 + ABL:(ARG:0):防衛 + ABL:(ARG:0):知略 + ABL:(ARG:0):政治) / 4
+LOCAL:0 += (ABL:(ARG:0):歌唱 + ABL:(ARG:0):料理) / 2
+;対象が特殊な勢力に捕らえられており、それが自国の捕らえている捕虜でない場合、価値は5倍に
 SIF CFLAG:MASTER:所属 != CFLAG:(ARG:0):捕虜先 && IS_SP_COUNTRY(CFLAG:(ARG:0):捕虜先)
 	LOCAL:0 *= 5
-RETURNF POWER(MAX(REV_ABL_POWER(LOCAL:0) - 40, 10), 2)
+RETURNF POWER(MAX(LOCAL:0 - 40, 10), 2)
 
 ;-------------------------------------------------
 ;ARG:1の値分だけ勢力ARG:0との好感度を上昇させ敵対値を低下させる処理

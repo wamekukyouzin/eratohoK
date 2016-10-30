@@ -241,6 +241,9 @@ IF SHOP_AVAIL:(ARG:0)
 			;スカウト
 			CASE 34
 				CALL SLG_SCOUT
+			;国庫入金
+			CASE 35
+				CALL SLG_TREASURY_DEPOSIT
 			;独立
 			CASE 40
 				CALL SHOP_INDEPENDENCE
@@ -366,7 +369,7 @@ IF RESULT == 0
 	;部隊マップを作成
 	CALL TMP_CREATE_UNIT_MAP
 	FOR LOCAL:0, 0, MAX_CITY
-		IF CITY_OWNER:(LOCAL:0) == CFLAG:MASTER:所属 && GET_CITYNAME(LOCAL:0) != "無名" && !TMP_IS_STAY_ENEMY_UNIT(LOCAL:0)
+		IF CITY_OWNER:(LOCAL:0) == CFLAG:MASTER:所属 && GET_CITYNAME(LOCAL:0) != "無名" && !TMP_IS_STAY_ENEMY_UNIT(LOCAL:0, CFLAG:MASTER:所属)
 			IF CITY_SOLDIER:(LOCAL:0) > 500
 				COUNTRY_SOLDIER:(CFLAG:MASTER:所属) += CITY_SOLDIER:(LOCAL:0) - 500
 				CITY_SOLDIER:(LOCAL:0) = 500
@@ -382,7 +385,7 @@ IF RESULT == 0
 ENDIF
 
 @SINGLE_MINIMIZE(ARG)
-IF TMP_IS_STAY_ENEMY_UNIT(ARG)
+IF TMP_IS_STAY_ENEMY_UNIT(ARG, CFLAG:MASTER:所属)
 	PRINTW 敵部隊が存在する都市には実行できません
 ELSEIF CITY_OWNER:(ARG) == CFLAG:MASTER:所属 && GET_CITYNAME(ARG) != "無名"
 	IF CITY_SOLDIER:(ARG) > 500
@@ -559,13 +562,13 @@ GOTO INPUT_LOOP
 兵数 = COUNTRY_SOLDIER:(CFLAG:MASTER:所属)
 $SHOW_LOOP
 DRAWLINE
-PRINTFORML 資金を消費して臨時に徴兵することができます
+PRINTFORML 国庫を消費して臨時に徴兵することができます
 PRINTFORML 負数を入力すると解雇して資金を得ることもできます
 PRINTFORML 何人雇う/解雇しますか？(0を入力すると戻る)
 
 PRINTFORM 現在の資金:
 SETCOLOR COLOR("選択中")
-PRINTFORM {MONEY}
+PRINTFORM {MONEY:(CFLAG:MASTER:所属)}
 RESETCOLOR
 PRINT    
 PRINTFORM 雇用レート:
@@ -586,45 +589,45 @@ PRINTFORM {兵数}
 RESETCOLOR
 PRINTL 
 DRAWLINE
-IF MONEY - 100 * 雇用レート > 0
+IF MONEY:(CFLAG:MASTER:所属) - 100 * 雇用レート > 0
 	PRINTFORM [{100, 8}] {100, 8}徴兵
-	PRINTFORML   兵数:{兵数, 10} + {100, 10} = {兵数 + 100, 10}  資金:{MONEY, 10} - {100 * 雇用レート, 10} = {MONEY - 100 * 雇用レート, 10}
+	PRINTFORML   兵数:{兵数, 10} + {100, 10} = {兵数 + 100, 10}  資金:{MONEY:(CFLAG:MASTER:所属), 10} - {100 * 雇用レート, 10} = {MONEY:(CFLAG:MASTER:所属) - 100 * 雇用レート, 10}
 ELSE
 	SETCOLOR COLOR("選択不可")
 	PRINTPLAINFORM [{100, 8}] {100, 8}徴兵
-	PRINTFORML   兵数:{兵数, 10} + {100, 10} = {兵数 + 100, 10}  資金:{MONEY, 10} - {100 * 雇用レート, 10} = {MONEY - 100 * 雇用レート, 10}
+	PRINTFORML   兵数:{兵数, 10} + {100, 10} = {兵数 + 100, 10}  資金:{MONEY:(CFLAG:MASTER:所属), 10} - {100 * 雇用レート, 10} = {MONEY:(CFLAG:MASTER:所属) - 100 * 雇用レート, 10}
 	RESETCOLOR
 ENDIF
 
-IF MONEY - 1000 * 雇用レート > 0
+IF MONEY:(CFLAG:MASTER:所属) - 1000 * 雇用レート > 0
 	PRINTFORM [{1000, 8}] {1000, 8}徴兵
-	PRINTFORML   兵数:{兵数, 10} + {1000, 10} = {兵数 + 1000, 10}  資金:{MONEY, 10} - {1000 * 雇用レート, 10} = {MONEY - 1000 * 雇用レート, 10}
+	PRINTFORML   兵数:{兵数, 10} + {1000, 10} = {兵数 + 1000, 10}  資金:{MONEY:(CFLAG:MASTER:所属), 10} - {1000 * 雇用レート, 10} = {MONEY:(CFLAG:MASTER:所属) - 1000 * 雇用レート, 10}
 ELSE
 	SETCOLOR COLOR("選択不可")
 	PRINTPLAINFORM [{1000, 8}] {1000, 8}徴兵
-	PRINTFORML   兵数:{兵数, 10} + {1000, 10} = {兵数 + 1000, 10}  資金:{MONEY, 10} - {1000 * 雇用レート, 10} = {MONEY - 1000 * 雇用レート, 10}
+	PRINTFORML   兵数:{兵数, 10} + {1000, 10} = {兵数 + 1000, 10}  資金:{MONEY:(CFLAG:MASTER:所属), 10} - {1000 * 雇用レート, 10} = {MONEY:(CFLAG:MASTER:所属) - 1000 * 雇用レート, 10}
 	RESETCOLOR
 ENDIF
 
-IF MONEY - 10000 * 雇用レート > 0
+IF MONEY:(CFLAG:MASTER:所属) - 10000 * 雇用レート > 0
 	PRINTFORM [{10000, 8}] {10000, 8}徴兵
-	PRINTFORML   兵数:{兵数, 10} + {10000, 10} = {兵数 + 10000, 10}  資金:{MONEY, 10} - {10000 * 雇用レート, 10} = {MONEY - 10000 * 雇用レート, 10}
+	PRINTFORML   兵数:{兵数, 10} + {10000, 10} = {兵数 + 10000, 10}  資金:{MONEY:(CFLAG:MASTER:所属), 10} - {10000 * 雇用レート, 10} = {MONEY:(CFLAG:MASTER:所属) - 10000 * 雇用レート, 10}
 ELSE
 	SETCOLOR COLOR("選択不可")
 	PRINTPLAINFORM [{10000, 8}] {10000, 8}徴兵
-	PRINTFORML   兵数:{兵数, 10} + {10000, 10} = {兵数 + 10000, 10}  資金:{MONEY, 10} - {10000 * 雇用レート, 10} = {MONEY - 10000 * 雇用レート, 10}
+	PRINTFORML   兵数:{兵数, 10} + {10000, 10} = {兵数 + 10000, 10}  資金:{MONEY:(CFLAG:MASTER:所属), 10} - {10000 * 雇用レート, 10} = {MONEY:(CFLAG:MASTER:所属) - 10000 * 雇用レート, 10}
 	RESETCOLOR
 ENDIF
 
-雇用兵数限界 = MONEY / 雇用レート
+雇用兵数限界 = MONEY:(CFLAG:MASTER:所属) / 雇用レート
 LOCALS:0 = 限界まで
 IF 雇用兵数限界 > 0
 	PRINTFORM [{雇用兵数限界, 8}] %LOCALS:0, 8%徴兵
-	PRINTFORML   兵数:{兵数, 10} + {雇用兵数限界, 10} = {兵数 + 雇用兵数限界, 10}  資金:{MONEY, 10} - {雇用兵数限界 * 雇用レート, 10} = {MONEY - 雇用兵数限界 * 雇用レート, 10}
+	PRINTFORML   兵数:{兵数, 10} + {雇用兵数限界, 10} = {兵数 + 雇用兵数限界, 10}  資金:{MONEY:(CFLAG:MASTER:所属), 10} - {雇用兵数限界 * 雇用レート, 10} = {MONEY:(CFLAG:MASTER:所属) - 雇用兵数限界 * 雇用レート, 10}
 ELSE
 	SETCOLOR COLOR("選択不可")
 	PRINTPLAINFORM [{雇用兵数限界, 8}] %LOCALS:0, 8%徴兵
-	PRINTFORML   兵数:{兵数, 10} + {雇用兵数限界, 10} = {兵数 + 雇用兵数限界, 10}  資金:{MONEY, 10} - {雇用兵数限界 * 雇用レート, 10} = {MONEY - 雇用兵数限界 * 雇用レート, 10}
+	PRINTFORML   兵数:{兵数, 10} + {雇用兵数限界, 10} = {兵数 + 雇用兵数限界, 10}  資金:{MONEY:(CFLAG:MASTER:所属), 10} - {雇用兵数限界 * 雇用レート, 10} = {MONEY:(CFLAG:MASTER:所属) - 雇用兵数限界 * 雇用レート, 10}
 	RESETCOLOR
 ENDIF
 DRAWLINE
@@ -635,23 +638,23 @@ INPUT 0
 入力値 = RESULT
 IF 入力値 == 0
 	RETURN
-ELSEIF 入力値 > 0 && MONEY >= 雇用レート * 入力値
+ELSEIF 入力値 > 0 && MONEY:(CFLAG:MASTER:所属) >= 雇用レート * 入力値
 	PRINTFORM 金
 	CALL COLORPRINTFORM(@"{入力値 * 雇用レート}", COLOR("注意"))
 	PRINTFORM を消費し、
 	CALL COLORPRINTFORM(@"{入力値}", COLOR("注意"))
 	PRINTFORML の兵を雇います。
 	PRINTFORM 雇用後の資金は
-	CALL COLORPRINTFORM(@"{MONEY - 入力値 * 雇用レート}", COLOR("注意"))
+	CALL COLORPRINTFORM(@"{MONEY:(CFLAG:MASTER:所属) - 入力値 * 雇用レート}", COLOR("注意"))
 	PRINTFORML です。
 	PRINTFORML よろしいですか？
 	CALL ASK_YN
 	IF RESULT == 0
 		PRINTFORML 兵を{入力値}人雇いました！
 		PRINTFORML 兵数:{兵数} → {兵数 + 入力値}
-		PRINTFORMW 資金:{MONEY} → {MONEY - 入力値 * 雇用レート}
+		PRINTFORMW 資金:{MONEY:(CFLAG:MASTER:所属)} → {MONEY:(CFLAG:MASTER:所属) - 入力値 * 雇用レート}
 		COUNTRY_SOLDIER:(CFLAG:MASTER:所属) += 入力値
-		MONEY -= 入力値 * 雇用レート
+		MONEY:(CFLAG:MASTER:所属) -= 入力値 * 雇用レート
 	ELSE
 		GOTO SHOW_LOOP
 	ENDIF
@@ -664,21 +667,21 @@ ELSEIF 入力値 < 0 && 入力値 * -1 <= 兵数
 	CALL COLORPRINTFORM(@"{入力値 * 解雇レート}", COLOR("注意"))
 	PRINTFORML の資金を得ます。
 	PRINTFORM 解雇後の資金は
-	CALL COLORPRINTFORM(@"{MONEY + 入力値 * 解雇レート}", COLOR("注意"))
+	CALL COLORPRINTFORM(@"{MONEY:(CFLAG:MASTER:所属) + 入力値 * 解雇レート}", COLOR("注意"))
 	PRINTFORML です。
 	PRINTFORML よろしいですか？
 	CALL ASK_YN
 	IF RESULT == 0
 		PRINTFORML 兵を{入力値}人解雇しました！
 		PRINTFORML 兵数:{兵数} → {兵数 - 入力値}
-		PRINTFORMW 資金:{MONEY} → {MONEY + 入力値 * 解雇レート}
+		PRINTFORMW 資金:{MONEY:(CFLAG:MASTER:所属)} → {MONEY:(CFLAG:MASTER:所属) + 入力値 * 解雇レート}
 		COUNTRY_SOLDIER: (CFLAG:MASTER:所属) -= 入力値
-		MONEY += 入力値 * 解雇レート
+		MONEY:(CFLAG:MASTER:所属) += 入力値 * 解雇レート
 	ELSE
 		GOTO SHOW_LOOP
 	ENDIF
 	RETURN
-ELSEIF 入力値 > 0 && MONEY < 雇用レート * 入力値
+ELSEIF 入力値 > 0 && MONEY:(CFLAG:MASTER:所属) < 雇用レート * 入力値
 	PRINTFORML 必要資金は{入力値 * 雇用レート}ですが、そんなに資金がありません
 	GOTO SHOW_LOOP
 ELSEIF 入力値 < 0 && 入力値 * -1 > 兵数

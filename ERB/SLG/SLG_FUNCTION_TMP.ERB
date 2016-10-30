@@ -5,7 +5,7 @@
 ;現在の国家関係マップを作成する関数
 ;-------------------------------------------------
 @TMP_CREATE_RELATION_MAP
-VARSET TMP_COUNTRY_RELATION:(LOCAL:0):0, 0
+VARSET TMP_COUNTRY_RELATION, 0
 VARSET COUNTRY_TREATY_NO
 FOR LOCAL:0, 1, MAX_COUNTRY
 	IF IS_COUNTRY(LOCAL:0)
@@ -34,8 +34,8 @@ NEXT
 ;現在の部隊マップを作成する関数
 ;-------------------------------------------------
 @TMP_CREATE_UNIT_MAP
-VARSET TMP_UNIT_ONCITY_CNT:(LOCAL:0):0, 0
-VARSET TMP_UNIT_ONCITY_NUM:(LOCAL:0):0, 0
+VARSET TMP_UNIT_ONCITY_CNT, 0
+VARSET TMP_UNIT_ONCITY_NUM, 0
 
 FOR LOCAL:0, 1, MAX_COUNTRY
 	IF IS_COUNTRY(LOCAL:0)
@@ -144,14 +144,14 @@ NEXT
 ;-------------------------------------------------
 ;ARG:0番の都市上に敵勢力部隊が存在するかどうかを判定する関数
 ;-------------------------------------------------
-@TMP_IS_STAY_ENEMY_UNIT(ARG:0)
+@TMP_IS_STAY_ENEMY_UNIT(ARG:0, ARG:1)
 #FUNCTION
-IF ARG:0 < 0 || ARG:0 >= 100
+IF ARG:0 < 0 || ARG:0 >= GET_CITY_NUM() + 1
 	RETURNF 0
 ENDIF
 
 FOR LOCAL:0, 0, 20
-	IF TMP_UNIT_ONCITY_CNT:(ARG:0):(LOCAL:0) > 0 && TMP_COUNTRY_RELATION:(CITY_OWNER:(ARG:0)):(TMP_UNIT_ONCITY_CNT:(ARG:0):(LOCAL:0)) == 0
+	IF TMP_UNIT_ONCITY_CNT:(ARG:0):(LOCAL:0) > 0 && TMP_COUNTRY_RELATION:(ARG:1):(TMP_UNIT_ONCITY_CNT:(ARG:0):(LOCAL:0)) == 0
 		RETURNF 1
 	ENDIF
 NEXT
@@ -225,7 +225,7 @@ RETURNF 人数
 #FUNCTION
 LOCAL:1 = 0
 FOR LOCAL:0, 0, CHARANUM
-	IF CFLAG:(LOCAL:0):所属 == ARG:0 && TMP_IS_FREE:(LOCAL:0):0 == 0 && ABL:(LOCAL:0):政治 >= 50
+	IF CFLAG:(LOCAL:0):所属 == ARG:0 && TMP_IS_FREE:(LOCAL:0):0 == 0
 		LOCAL:1 += ABL_POWER_X(ABL:(LOCAL:0):政治, LOCAL:0)
 	ENDIF
 NEXT
@@ -239,11 +239,28 @@ RETURNF LOCAL:1
 #FUNCTION
 LOCAL:1 = 0
 FOR LOCAL:0, 0, CHARANUM
-	IF CFLAG:(LOCAL:0):所属 == ARG:0 && TMP_IS_FREE:(LOCAL:0):0 == 0 && ABL:(LOCAL:0):料理 >= 50
+	IF CFLAG:(LOCAL:0):所属 == ARG:0 && TMP_IS_FREE:(LOCAL:0):0 == 0
 		LOCAL:1 += ABL_POWER_X(ABL:(LOCAL:0):料理, LOCAL:0)
 	ENDIF
 NEXT
 RETURNF LOCAL:1
+
+@TMP_CREATE_POLITICS_POWER_MAP
+VARSET TMP_SUM_POLITICS_POWER
+FOR LOCAL:0, 0, CHARANUM
+	SIF TMP_IS_FREE:(LOCAL:0):0 == 0
+		TMP_SUM_POLITICS_POWER:(CFLAG:(LOCAL:0):所属) += ABL_POWER_X(ABL:(LOCAL:0):政治, LOCAL:0)
+NEXT
+
+@TMP_CREATE_COOKING_POWER_MAP
+VARSET TMP_SUM_COOKING_POWER
+FOR LOCAL:0, 0, CHARANUM
+	SIF TMP_IS_FREE:(LOCAL:0):0 == 0
+		TMP_SUM_COOKING_POWER:(CFLAG:(LOCAL:0):所属) += ABL_POWER_X(ABL:(LOCAL:0):料理, LOCAL:0)
+NEXT
+
+
+
 
 ;-------------------------------------------------
 ;●戦線の計算についてのメモ
@@ -466,7 +483,7 @@ FOR LOCAL, 0, MAX_COUNTRY
 		合計ポイント:LOCAL = 0
 		FOR LOCAL:1, 0, CHARANUM
 			SIF LOCAL == CFLAG:(LOCAL:1):所属
-				能力値:LOCAL += (ABL:(LOCAL:1):武闘 >= 60) + (ABL:(LOCAL:1):知略 >= 60) + (ABL:(LOCAL:1):政治 >= 60) + (ABL:(LOCAL:1):妖術 >= 0) + (ABL:(LOCAL:1):料理 >= 50) + (ABL:(LOCAL:1):歌唱 >= 50)
+				能力値:LOCAL += (ABL:(LOCAL:1):武闘 >= 60) + (ABL:(LOCAL:1):防衛 >= 60) + (ABL:(LOCAL:1):知略 >= 60) + (ABL:(LOCAL:1):政治 >= 60) + (ABL:(LOCAL:1):妖術 >= 0) + (ABL:(LOCAL:1):料理 >= 50) + (ABL:(LOCAL:1):歌唱 >= 50)
 		NEXT
 	ENDIF
 NEXT
@@ -577,13 +594,14 @@ NEXT
 @TMP_PREPARE_CHARA_STARS()
 #DIM 合計ポイント, 3000
 #DIM キャラ数
-#DIM 能力 = GETNUM(ABL, "武闘"), GETNUM(ABL, "知略"), GETNUM(ABL, "政治"), GETNUM(ABL, "妖術"), GETNUM(ABL, "料理"), GETNUM(ABL, "歌唱")
+#DIM 能力 = GETNUM(ABL, "武闘"), GETNUM(ABL, "防衛"), GETNUM(ABL, "知略"), GETNUM(ABL, "政治"), GETNUM(ABL, "妖術"), GETNUM(ABL, "料理"), GETNUM(ABL, "歌唱")
 VARSET 合計ポイント, __INT_MAX__
 
 ;値合計用意
 FOR LOCAL, 0, CHARANUM
 	合計ポイント:LOCAL = 0
 	合計ポイント:LOCAL += ABL:LOCAL:武闘
+	合計ポイント:LOCAL += ABL:LOCAL:防衛
 	合計ポイント:LOCAL += ABL:LOCAL:知略
 	合計ポイント:LOCAL += ABL:LOCAL:政治
 	合計ポイント:LOCAL += ABL:LOCAL:妖術 * 3 / 2
@@ -591,7 +609,7 @@ FOR LOCAL, 0, CHARANUM
 	合計ポイント:LOCAL += MAX(ABL:LOCAL:歌唱 - 50, 0)
 	FOR LOCAL:1, 0, VARSIZE("能力")
 		SELECTCASE 能力:(LOCAL:1)
-			CASE GETNUM(ABL, "武闘"), GETNUM(ABL, "知略"), GETNUM(ABL, "政治")
+			CASE GETNUM(ABL, "武闘"), GETNUM(ABL, "防衛"), GETNUM(ABL, "知略"), GETNUM(ABL, "政治")
 				SELECTCASE ALPHABET_RANK(ABL:LOCAL:(能力:(LOCAL:1)), 0)
 					CASE "S"
 						合計ポイント:LOCAL += 15
@@ -733,8 +751,10 @@ RETURNF 0x000000
 @TMP_CREATE_CONNECTION_MAP
 VARSET TMP_CONNECTED_TO_US, 0
 VARSET TMP_CONNECTED_TO_US_ONLY, 0
+VARSET TMP_CONNECTED_TO_ENEMY, 0
 
 FOR LOCAL, 0, MAX_COUNTRY
+	;自勢力との接続を確認
 	FOR LOCAL:1, 0, MAX_CITY
 		IF CITY_OWNER:(LOCAL:1) == LOCAL
 			TMP_CONNECTED_TO_US:(LOCAL):(LOCAL:1) = 1
@@ -762,6 +782,31 @@ FOR LOCAL, 0, MAX_COUNTRY
 		NEXT
 	NEXT
 
+	;敵との接続を確認
+	FOR LOCAL:1, 0, MAX_CITY
+		SIF CITY_OWNER:(LOCAL:1) != LOCAL
+			CONTINUE
+		FOR LOCAL:2, 0, 10
+			SIF CITY_ROOT:(LOCAL:1):(LOCAL:2) < 1
+				BREAK
+			IF CITY_TYPE:(CITY_ROOT:(LOCAL:1):(LOCAL:2)) == 1
+				FOR LOCAL:3, 0, 10
+					SIF CITY_ROOT:(CITY_ROOT:(LOCAL:1):(LOCAL:2)):(LOCAL:3) < 1
+						BREAK
+					SIF CITY_ROOT:(CITY_ROOT:(LOCAL:1):(LOCAL:2)):(LOCAL:3) == CITY_ROOT:(LOCAL:1):(LOCAL:2)
+						CONTINUE
+					IF TMP_COUNTRY_RELATION:LOCAL:(CITY_OWNER:(CITY_ROOT:(CITY_ROOT:(LOCAL:1):(LOCAL:2)):(LOCAL:3))) == 0 && IS_COUNTRY(CITY_OWNER:(CITY_ROOT:(CITY_ROOT:(LOCAL:1):(LOCAL:2)):(LOCAL:3)))
+						TMP_CONNECTED_TO_ENEMY:(LOCAL):(LOCAL:1) = 1
+						BREAK
+					ENDIF
+				NEXT
+			ELSE
+				TMP_CONNECTED_TO_ENEMY:LOCAL:(LOCAL:1) = (TMP_COUNTRY_RELATION:LOCAL:(CITY_OWNER:(LOCAL:1)) == 0 && IS_COUNTRY(CITY_OWNER:(LOCAL:1)))
+			ENDIF
+		NEXT
+	NEXT
+
+	;自勢力とのみつながっているかを確認
 	FOR LOCAL:1, 0, MAX_CITY
 		;そもそも自勢力都市と繋がっていない場合、および都市所有者が自分でない場合は駄目
 		SIF !TMP_CONNECTED_TO_US:(LOCAL):(LOCAL:1)
@@ -921,4 +966,249 @@ FOR LOCAL, 0, MAX_COUNTRY
 			LOCAL:2 = TMP_ENCLAVE_SIZE:(LOCAL):(LOCAL:1)
 	NEXT
 	TMP_MAX_ENCLAVE_SIZE:LOCAL = LOCAL:2
+NEXT
+
+;-----------------------------
+;ある勢力からみて、自勢力の都市がどれくらい重要かのマップを作成する
+;-----------------------------
+@TMP_CREATE_DEFENSIVE_IMPORTANCE_MAP
+#DIM 勢力
+#DIM 都市
+VARSET TMP_DEFFENSIVE_IMPORTANCE
+
+FOR 勢力, 0, MAX_COUNTRY
+	SIF !IS_COUNTRY(勢力)
+		CONTINUE
+	FOR 都市, 1, GET_CITY_NUM() + 1
+		SIF CITY_OWNER:都市 != 勢力
+			CONTINUE
+		TMP_DEFFENSIVE_IMPORTANCE:勢力:都市 += CITY_ECONOMY:都市 * CITY_GUARD:都市 * MAX(TMP_CHANGE_LINE_ONLOSE(勢力, 都市) + 1, 1)
+		;DEBUGPRINTFORML 勢力{勢力} 都市{都市} 防御重要 {TMP_DEFFENSIVE_IMPORTANCE:勢力:都市}
+	NEXT
+NEXT
+
+;-----------------------------
+;ある勢力からみて、敵勢力の都市がどれくらい価値のあるところかのマップを作成する
+;-----------------------------
+@TMP_CREATE_OFFENSIVE_IMPORTANCE_MAP
+#DIM 勢力
+#DIM 都市
+VARSET TMP_OFFENSIVE_IMPORTANCE
+
+FOR 勢力, 0, MAX_COUNTRY
+	SIF !IS_COUNTRY(勢力)
+		CONTINUE
+	FOR 都市, 1, GET_CITY_NUM() + 1
+		TMP_OFFENSIVE_IMPORTANCE:勢力:都市 += CITY_ECONOMY:都市 / CITY_GUARD:都市 / MAX(TMP_CHANGE_LINE_ONGET(勢力, 都市) + 1, 1)
+		;DEBUGPRINTFORML 勢力{勢力} 都市{都市} 経済{CITY_ECONOMY:都市/ 100} 防御{CITY_GUARD:都市} 戦線{TMP_CHANGE_LINE_ONGET(勢力, 都市)} 重要 {TMP_OFFENSIVE_IMPORTANCE:勢力:都市}
+	NEXT
+NEXT
+
+;-----------------------------
+;ある勢力がある都市に攻め込めるかのマップを生成
+;-----------------------------
+@TMP_CREATE_IS_INVADABLE_MAP()
+#DIM 勢力
+#DIM 都市
+
+VARSET TMP_IS_INVADABLE
+
+FOR 勢力, 0, MAX_COUNTRY
+	SIF !IS_COUNTRY(勢力)
+		CONTINUE
+	FOR 都市, 0, MAX_CITY
+		;その都市と敵対してないならダメ
+		SIF TMP_COUNTRY_RELATION:勢力:(CITY_OWNER:都市) != 0
+			CONTINUE
+		;中継点なしの接続先を優先する
+		FOR LOCAL, 0, VARSIZE("CITY_ROOT", 1)
+			SIF CITY_ROOT:都市:LOCAL == -1
+				BREAK
+			;接続先が都市で、かつ攻め込む起点にできる関係性ならその都市の番号を入れる
+			IF CITY_TYPE:(CITY_ROOT:都市:LOCAL) == 0 && TMP_COUNTRY_RELATION:勢力:(CITY_OWNER:(CITY_ROOT:都市:LOCAL)) >= 2
+				TMP_IS_INVADABLE:勢力:都市 = CITY_ROOT:都市:LOCAL
+				BREAK
+			ENDIF
+		NEXT
+		;もう決定してたらこの後にはいかず、次の都市の調査にうつる
+		SIF TMP_IS_INVADABLE:勢力:都市
+			CONTINUE
+		;まだ決定していなければ、中継点からとる
+		FOR LOCAL, 0, VARSIZE("CITY_ROOT", 1)
+			SIF CITY_ROOT:都市:LOCAL == -1
+				BREAK
+			;接続先が中継地点なら接続先を見る
+			IF CITY_TYPE:(CITY_ROOT:都市:LOCAL) == 1
+				LOCAL:1 = CITY_ROOT:都市:LOCAL
+				;中継地点の元都市でないほうの接続先が攻め込む起点にできる関係性なら１
+				IF CITY_ROOT:(LOCAL:1):0 != 都市 && TMP_COUNTRY_RELATION:勢力:(CITY_OWNER:(CITY_ROOT:(LOCAL:1):0)) >= 2
+					TMP_IS_INVADABLE:勢力:都市 = CITY_ROOT:(LOCAL:1):0
+				ELSEIF CITY_ROOT:(LOCAL:1):1 != 都市 && TMP_COUNTRY_RELATION:勢力:(CITY_OWNER:(CITY_ROOT:(LOCAL:1):1)) >= 2
+					TMP_IS_INVADABLE:勢力:都市 = CITY_ROOT:(LOCAL:1):1
+				ENDIF
+			ENDIF
+		NEXT
+	NEXT
+NEXT
+
+;FOR 勢力, 0, MAX_COUNTRY
+;	SIF !IS_COUNTRY(勢力)
+;		CONTINUE
+;	DEBUGPRINTFORML ------%ANAME(GET_COUNTRY_BOSS(勢力))%------
+;	FOR 都市, 1, GET_CITY_NUM() + 1
+;		DEBUGPRINTFORML %GET_CITYNAME(都市)% 攻撃元:%GET_CITYNAME(TMP_IS_INVADABLE:勢力:都市)%
+;	NEXT
+;NEXT
+
+
+;--------------------------------------------------------
+;ARG:0番の都市のリスクをチェック
+; 6 現在敵部隊が存在する
+; 5 隣接する中継地に敵部隊を確認
+; 4 隣国が敵対（中継地なし）
+; 3 その他
+; 2 隣国は停戦ないし同盟中だが、隣国と同盟している国が殴ってくる可能性がある
+; 1 隣国は停戦ないし同盟中だが、隣国と同盟している国が殴ってくる可能性がない
+; 0 安全
+;--------------------------------------------------------
+@TMP_CREATE_CITY_RISK_MAP()
+#DIM 勢力
+#DIM 都市
+#DIM 都市保有勢力
+#DIM 都市隣接勢力
+#DIM 中継点接続先
+
+VARSET TMP_CITY_RISK
+
+FOR 勢力, 0, MAX_COUNTRY
+	SIF !IS_COUNTRY(勢力)
+		CONTINUE
+	FOR 都市, 0, MAX_CITY
+		SIF CITY_OWNER:都市 != 勢力
+			CONTINUE
+		;敵部隊がいれば6 これ以上はないので次の都市へ
+		IF TMP_IS_STAY_ENEMY_UNIT(都市, 勢力)
+			TMP_CITY_RISK:勢力:都市 = 6
+			CONTINUE
+		ENDIF
+		;隣接都市を走査
+		FOR LOCAL:0, 0, VARSIZE("CITY_ROOT", 1)
+			SIF CITY_ROOT:都市:(LOCAL:0) == -1
+				BREAK
+			;リスク5以上になってたらこれ以上はないので抜ける
+			SIF TMP_CITY_RISK:勢力:都市 >= 5
+				BREAK
+			;接続先が都市
+			IF CITY_TYPE:(CITY_ROOT:都市:(LOCAL:0)) == 0
+				都市隣接勢力 = CITY_OWNER:(CITY_ROOT:都市:(LOCAL:0))
+				;接続先の所有者との関係で決まる
+				SELECTCASE TMP_COUNTRY_RELATION:勢力:都市隣接勢力
+					CASE 0
+						;無所属でない敵なら4
+						IF IS_COUNTRY(都市隣接勢力) && TMP_CITY_RISK:勢力:都市 < 4
+							TMP_CITY_RISK:勢力:都市 = 4
+						ENDIF
+					CASE IS != 5
+						IF TMP_CITY_RISK:勢力:都市 < 2
+							;隣接勢力が停戦～同盟だが、その同盟勢力が殴ってくる可能性があるなら2
+							FOR LOCAL:1, 0, MAX_COUNTRY
+								IF IS_COUNTRY(LOCAL:1) && !GROUPMATCH(LOCAL:1, 勢力, 都市隣接勢力) && GROUPMATCH(TMP_COUNTRY_RELATION:都市隣接勢力:(LOCAL:1), 3, 4) && TMP_COUNTRY_RELATION:勢力:(LOCAL:1) == 0 && TMP_CITY_RISK:勢力:都市 < 2
+									TMP_CITY_RISK:勢力:都市 = 2
+									BREAK
+								ENDIF
+							NEXT
+						ENDIF
+				ENDSELECT
+			;中継点
+			ELSE
+				;中継点上に敵がいるなら５
+				IF IS_STAY_ENEMY_UNIT(CITY_ROOT:都市:(LOCAL:0), 勢力)
+					TMP_CITY_RISK:勢力:都市 = 5
+					BREAK
+				ENDIF
+				;ここからあと、4以上のリスクは出ないので、もうその値なってるなら次へ
+				SIF TMP_CITY_RISK:勢力:都市 >= 4
+					CONTINUE
+				;中継点の接続先を取得
+				IF CITY_ROOT:(CITY_ROOT:都市:(LOCAL:0)):0 != 都市
+					中継点接続先 = CITY_ROOT:(CITY_ROOT:都市:(LOCAL:0)):0
+				ELSE
+					中継点接続先 = CITY_ROOT:(CITY_ROOT:都市:(LOCAL:0)):1
+				ENDIF
+				都市隣接勢力 = CITY_OWNER:中継点接続先
+				;無所属ならノーリスクと同義
+				SIF !IS_COUNTRY(都市隣接勢力)
+					CONTINUE
+				;隣接先が敵なら３
+				IF TMP_COUNTRY_RELATION:勢力:都市隣接勢力 == 0 && TMP_CITY_RISK:勢力:都市 < 3
+					TMP_CITY_RISK:勢力:都市 = 3
+					BREAK
+				;隣接先が同盟国だが、その同盟国が殴ってきうるなら1
+				ELSEIF GROUPMATCH(TMP_COUNTRY_RELATION:勢力:都市隣接勢力, 2, 3, 4) && TMP_CITY_RISK:勢力:都市 < 1
+					FOR LOCAL:1, 0, MAX_COUNTRY
+						IF IS_COUNTRY(LOCAL:1) && !GROUPMATCH(LOCAL:1, 勢力, 都市隣接勢力) && GROUPMATCH(TMP_COUNTRY_RELATION:都市隣接勢力:(LOCAL:1), 3, 4) && TMP_COUNTRY_RELATION:勢力:(LOCAL:1) == 0 && TMP_CITY_RISK:勢力:都市 < 2
+							TMP_CITY_RISK:勢力:都市 = 1
+							BREAK
+						ENDIF
+					NEXT
+				ENDIF
+			ENDIF
+		NEXT
+	NEXT
+NEXT
+
+;FOR 勢力, 0, MAX_COUNTRY
+;	SIF !IS_COUNTRY(勢力)
+;		CONTINUE
+;	DEBUGPRINTFORML ------%ANAME(GET_COUNTRY_BOSS(勢力))%------
+;	FOR 都市, 1, GET_CITY_NUM() + 1
+;		DEBUGPRINTFORML %GET_CITYNAME(都市)% リスク:{TMP_CITY_RISK:勢力:都市}
+;	NEXT
+;NEXT
+
+
+;--------------------------------------------------------
+;所持都市数のマップを作成
+;--------------------------------------------------------
+@TMP_CREATE_OWN_CITY_MAP
+#DIM 勢力
+#DIM 都市
+VARSET TMP_OWN_CITY
+FOR 勢力, 0, MAX_COUNTRY
+	FOR 都市, 1, GET_CITY_NUM() + 1
+		SIF CITY_OWNER:都市 == 勢力
+			TMP_OWN_CITY:勢力 ++
+	NEXT
+NEXT
+
+;--------------------------------------------------------
+;経済力合計のマップを作成
+;--------------------------------------------------------
+@TMP_CREATE_SUM_ECONOMY_MAP
+#DIM 都市
+VARSET TMP_SUM_ECONOMY
+VARSET TMP_SUM_ECONOMY_LIMIT
+FOR 都市, 0, MAX_CITY
+	TMP_SUM_ECONOMY:(CITY_OWNER:都市) += CITY_ECONOMY:都市
+	TMP_SUM_ECONOMY_LIMIT:(CITY_OWNER:都市) += CITY_ECONOMY_LIMIT:都市
+NEXT
+
+;--------------------------------------------------------
+;兵力合計のマップを作成
+;--------------------------------------------------------
+@TMP_CREATE_SUM_SOLDIER_MAP
+#DIM 勢力
+#DIM 都市
+#DIM 部隊
+VARSET TMP_SUM_SOLDIER
+FOR 勢力, 0, MAX_COUNTRY
+	SIF !IS_COUNTRY(勢力)
+		CONTINUE
+	TMP_SUM_SOLDIER:勢力 = COUNTRY_SOLDIER:勢力
+	FOR 部隊, 0, MAX_UNIT
+		TMP_SUM_SOLDIER:勢力 += MAX(0, UNIT_SOLDIER:勢力:部隊)
+	NEXT
+NEXT
+FOR 都市, 0, MAX_CITY
+	TMP_SUM_SOLDIER:(CITY_OWNER:都市) += CITY_SOLDIER:都市
 NEXT
