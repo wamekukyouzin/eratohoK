@@ -131,6 +131,8 @@ CALL SINGLE_EMPTY_LINE()
 #DIM 比率
 #DIM 攻撃兵数
 #DIM 防衛兵数
+VARSET 攻撃スコア合計
+VARSET 防衛スコア合計
 FOR 都市, 1, GET_CITY_NUM() + 1
 	;そこが敵の都市で、かつ自勢力と接続しているなら、攻撃スコアに加算
 	;防衛スコアと比較すると、算出方法の兼ね合いで10000倍くらいしてトントン(攻撃スコアは経済 / 防衛倍率、防衛スコアは経済 * 防衛倍率)
@@ -141,6 +143,13 @@ FOR 都市, 1, GET_CITY_NUM() + 1
 	SIF CITY_OWNER:都市 == 勢力 && TMP_CITY_RISK:勢力:都市 >= 2
 		防衛スコア合計 += TMP_DEFFENSIVE_IMPORTANCE:勢力:都市
 NEXT
+
+;攻撃スコアが0なら攻めるべき場所がないので、すべて防衛に回しておく
+;唯一隣接している勢力と停戦した場合、これがないとエラー落ちする
+IF 攻撃スコア合計 == 0
+	RETURN 0, COUNTRY_SOLDIER:勢力
+ENDIF
+
 
 ;DEBUGPRINTFORML %ANAME(GET_COUNTRY_BOSS(勢力))%の攻撃スコア{攻撃スコア合計} 防衛スコア{防衛スコア合計}
 比率 = 攻撃スコア合計 * 1000 / (攻撃スコア合計 + 防衛スコア合計)
@@ -289,8 +298,8 @@ FOR 都市, 1, GET_CITY_NUM() + 1
 	;助ける必要のないところなら放置
 	SIF !(IS_COUNTRY(都市保有者) && GROUPMATCH(TMP_COUNTRY_RELATION:勢力:都市保有者, 2, 3, 4, 5))
 		CONTINUE
-	防衛スコア合計 = TMP_DEFFENSIVE_IMPORTANCE:勢力:都市 * (TMP_COUNTRY_RELATION:勢力:都市保有者 == 5 ? 10 # 7) / 10
 	防衛スコア:都市 = TMP_DEFFENSIVE_IMPORTANCE:勢力:都市 * (TMP_COUNTRY_RELATION:勢力:都市保有者 == 5 ? 10 # 7) / 10
+	防衛スコア合計 += 防衛スコア:都市
 	;自国領土でも飛び地は放棄しがち
 	SIF 都市保有者 == 勢力
 		防衛スコア:都市 = 防衛スコア:都市 * TMP_ENCLAVE_SIZE:勢力:都市 / TMP_MAX_ENCLAVE_SIZE:勢力
