@@ -59,6 +59,7 @@ CALL SLG_AI_DECIDE_SOLDIER_NUM(勢力)
 
 ;既存部隊に兵力を補充する
 CALL SLG_AI_REPLENISH_SOLDIER_TO_UNIT(勢力, 攻撃兵数)
+攻撃兵数 = RESULT
 
 ;救出
 CALL SLG_AI_RESCUE(勢力, 攻撃兵数)
@@ -359,7 +360,7 @@ WHILE 1
 			CONTINUE
 		;補充
 		IF UNIT_SOLDIER:勢力:部隊 < 必要兵数
-			補充兵数 = 必要兵数 - UNIT_SOLDIER:勢力:部隊
+			補充兵数 = MIN(必要兵数 - UNIT_SOLDIER:勢力:部隊, 攻撃兵数)
 			UNIT_SOLDIER:勢力:部隊 += 補充兵数
 			攻撃兵数 -= 補充兵数
 			COUNTRY_SOLDIER:勢力 -= 補充兵数
@@ -383,8 +384,8 @@ WHILE 1
 		SIF 攻撃兵数 < 必要兵数
 			CONTINUE
 		UNIT_SOLDIER:勢力:部隊 = 必要兵数
-		攻撃兵数 =- 必要兵数
-		COUNTRY_SOLDIER:勢力 -= 攻撃兵数
+		攻撃兵数 -= 必要兵数
+		COUNTRY_SOLDIER:勢力 -= 必要兵数
 		FOR ポジション, 0, MAX_UNIT_COMMANDER
 			SIF UNIT_COMMANDER_BEST:ポジション == -1
 				BREAK
@@ -698,25 +699,27 @@ FOR 都市, 1, GET_CITY_NUM() + 1
 		;敵がいる都市はダメ
 		SIF TMP_IS_STAY_ENEMY_UNIT(都市, 勢力) == 1
 			CONTINUE
-		;DEBUGPRINTFORML %GET_CITYNAME(都市)% スコア{TMP_DEFFENSIVE_IMPORTANCE:勢力:都市}
 		防衛スコア:都市 = TMP_DEFFENSIVE_IMPORTANCE:勢力:都市 * TMP_ENCLAVE_SIZE:勢力:都市 / TMP_MAX_ENCLAVE_SIZE:勢力
 		防衛スコア合計 += 防衛スコア:都市
 		都市数 ++
 	ENDIF
 NEXT
 
+SIF 都市数 == 0
+	RETURN
 ;兵力振り分け＋武将振り分け
 ;武将振り分けの都合、大きい順に取得します
-FOR 項番, 0, VARSIZE("防衛スコア")
+FOR 項番, 0, 都市数
 	都市 = FINDELEMENT(防衛スコア, MAXARRAY(防衛スコア))
 	SIF 防衛スコア:都市 == __INT_MIN__
 		BREAK
-	SIF COUNTRY_SOLDIER:勢力 == 0
+	SIF COUNTRY_SOLDIER:勢力 <= 0
 		CONTINUE
 	;全体に対するスコアの割合で
 	振り分け兵数 = 初期兵数 * 防衛スコア:都市 / 防衛スコア合計
 	CITY_SOLDIER:都市 = MIN(振り分け兵数, COUNTRY_SOLDIER:勢力)
 	COUNTRY_SOLDIER:勢力 = MAX(COUNTRY_SOLDIER:勢力 - 振り分け兵数, 0)
+	;DEBUGPRINTFORML COUNTRY_SOLDIER:{COUNTRY_SOLDIER:勢力}
 	;既存部隊の配置
 	FOR 部隊, 0, MAX_UNIT
 		SIF UNIT_SOLDIER:勢力:部隊 <= 0
