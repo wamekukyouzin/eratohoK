@@ -393,6 +393,180 @@ FOR LOCAL, 0, MAX_COUNTRY
 	CALL CHANGE_RELATION_C_TO_C(LOCAL, 相手勢力, 効果量 * -1, 効果量)
 NEXT
 
+;------------------------
+;連合の実行判定
+;------------------------
+@SLG_AI_DIPLOMACY_DOES_CREATE_UNION(勢力, 相手勢力)
+#FUNCTION
+#DIM 勢力
+#DIM 相手勢力
+#DIM 勢力君主
+#DIM 相手勢力君主
+#DIM 嫌悪感
+#DIM 見積もり勢力数
+勢力君主 = GET_COUNTRY_BOSS(勢力)
+相手勢力君主 = GET_COUNTRY_BOSS(相手勢力)
+
+;同時に成立する連合は一つ
+SIF MATCH(TREATY_U_TARGET, 0) != MAX_TREATY_U
+	RETURNF 0
+
+IF REL_HATE:勢力君主:相手勢力君主 - REL_LIKE:勢力君主:相手勢力君主 + DIPLOMACY_HATE:相手勢力 * (CFLAG:MASTER:所属 == 相手勢力 ? 30 # 10) > 300
+ELSEIF TMP_SUM_ECONOMY:勢力 * 3 < TMP_SUM_ECONOMY:相手勢力
+ELSEIF TMP_SUM_SOLDIER:勢力 * 3 < TMP_SUM_SOLDIER:相手勢力
+ELSEIF TMP_OWN_CITY:勢力 * 3 < TMP_SUM_SOLDIER:相手勢力
+ELSE
+	RETURNF 0
+ENDIF
+
+見積もり勢力数 = 0
+FOR LOCAL, 0, MAX_COUNTRY
+	SIF !IS_COUNTRY(LOCAL) || GROUPMATCH(LOCAL, 勢力, 相手勢力) || TMP_COUNTRY_RELATION:LOCAL:相手勢力 != 0
+		CONTINUE
+	SIF SLG_AI_DIPLOMACY_DOES_PARTICIPATE_UNION(LOCAL, 相手勢力, 0)
+		見積もり勢力数 ++
+NEXT
+
+;DEBUGPRINTFORML みつもり{見積もり勢力数}
+
+SIF RAND:(GET_COUNTRY_NUM() > 10 ? 50 # 30) < 見積もり勢力数
+	RETURNF 1
+
+RETURNF 0
+
+;------------------------
+;発議された連合への参加判定
+;------------------------
+@SLG_AI_DIPLOMACY_DOES_PARTICIPATE_UNION(勢力, 相手勢力, 参加勢力数 = 0)
+#FUNCTION
+#DIM 勢力
+#DIM 相手勢力
+#DIM 参加勢力数
+#DIM 勢力君主
+#DIM 相手勢力君主
+#DIM 嫌悪感
+#DIM CONST 理由_嫌い = 1
+#DIM CONST 理由_経済 = 2
+#DIM CONST 理由_武力 = 3
+#DIM CONST 理由_領土 = 4
+
+勢力君主 = GET_COUNTRY_BOSS(勢力)
+相手勢力君主 = GET_COUNTRY_BOSS(相手勢力)
+
+SIF TMP_COUNTRY_RELATION:勢力:相手勢力 != 0
+	RETURNF 0
+
+嫌悪感 = REL_HATE:勢力君主:相手勢力君主 - REL_LIKE:勢力君主:相手勢力君主 + DIPLOMACY_HATE:相手勢力 * (CFLAG:MASTER:所属 == 相手勢力 ? 30 # 10)
+
+IF TMP_SUM_ECONOMY:勢力 * 3 < TMP_SUM_ECONOMY:相手勢力 && !RAND:(2 + 参加勢力数 / 2)
+	RETURNF 理由_経済
+ELSEIF TMP_SUM_SOLDIER:勢力 * 3 < TMP_SUM_SOLDIER:相手勢力 && !RAND:(2 + 参加勢力数 / 2)
+	RETURNF 理由_武力
+ELSEIF TMP_OWN_CITY:勢力 * 3 < TMP_OWN_CITY:相手勢力 && !RAND:(2 + 参加勢力数 / 2)
+	RETURNF 理由_領土
+ELSEIF RAND:MAX(嫌悪感 - 参加勢力数 * 50, 1) > 300
+	RETURNF 理由_嫌い
+ENDIF
+RETURNF 0
+
+;------------------------
+;連合の発議
+;------------------------
+@SLG_DIPLOMACY_CREATE_UNION(勢力, 相手勢力)
+#DIM 勢力
+#DIM 相手勢力
+#DIM 参加勢力数
+#DIM 勢力君主
+#DIM 相手勢力君主
+#DIM 参加フラグ, MAX_COUNTRY
+#DIM CONST 理由_嫌い = 1
+#DIM CONST 理由_経済 = 2
+#DIM CONST 理由_武力 = 3
+#DIM CONST 理由_領土 = 4
+#DIM 連合番号
+VARSET 参加フラグ
+VARSET 参加勢力数
+VARSET 連合番号
+
+CALL CLEAR_AI_DIPLOMACY_PLAN(勢力, 相手勢力)
+
+;連合番号に空きがなければスルー
+FOR LOCAL, 0, MAX_TREATY_U
+	IF TREATY_U_TERM:LOCAL == 0
+		連合番号 = LOCAL
+		BREAK
+	ENDIF
+NEXT
+
+SIF 連合番号 == MAX_TREATY_U
+	RETURN
+
+勢力君主 = GET_COUNTRY_BOSS(勢力)
+相手勢力君主 = GET_COUNTRY_BOSS(相手勢力)
+参加フラグ:勢力 = 1
+参加勢力数 ++
+CALL COLORPRINTFORM(@"%ANAME(勢力君主)%は%ANAME(相手勢力君主)%討伐連合を発議しました！", COLOR(勢力 == CFLAG:MASTER:所属 ? "警告" # "注意"), "W")
+
+FOR LOCAL, 0, MAX_COUNTRY
+	SIF !IS_COUNTRY(LOCAL) || TMP_COUNTRY_RELATION:LOCAL:相手勢力 != 0 || GROUPMATCH(LOCAL, 勢力, 相手勢力)
+		CONTINUE
+	;主人公所属勢力の場合は特殊処理
+	IF LOCAL == CFLAG:MASTER:所属
+		PRINTFORML この連合に参加しますか？
+		CALL ASK_YN()
+		IF RESULT == 1
+			PRINTFORML 参加を表明しました
+			参加フラグ:LOCAL = 1
+		ELSE
+			PRINTFORML 不参加を表明しました
+		ENDIF
+	ELSE
+		参加フラグ:LOCAL = SLG_AI_DIPLOMACY_DOES_PARTICIPATE_UNION(勢力, 相手勢力, 参加勢力数)
+		SIF !参加フラグ:LOCAL
+			CONTINUE
+		PRINTFORM %ANAME(GET_COUNTRY_BOSS(LOCAL))%は
+		SELECTCASE 参加フラグ:LOCAL
+			CASE 理由_嫌い
+				PRINTFORM 勢力間の悪感情
+			CASE 理由_経済
+				PRINTFORM 勢力間の経済格差
+			CASE 理由_武力
+				PRINTFORM 勢力間の兵力格差
+			CASE 理由_領土
+				PRINTFORM 伸長する勢力への警戒心
+		ENDSELECT
+		PRINTFORML から、参加を表明しました
+		参加勢力数 ++
+	ENDIF
+NEXT
+
+IF 参加勢力数 == 1
+	PRINTFORML　……結局、どの勢力も参加しなかった
+	PRINTFORML 連合は取り下げられました
+	RETURN
+ENDIF
+
+参加勢力数 = 0
+
+FOR LOCAL, 0, MAX_COUNTRY
+	SIF !IS_COUNTRY(LOCAL) || !参加フラグ:LOCAL
+		CONTINUE
+	TREATY_U_COUNTRY:連合番号:参加勢力数 = LOCAL
+	参加勢力数 ++
+	FOR LOCAL:1, LOCAL + 1, MAX_COUNTRY
+		SIF !IS_COUNTRY(LOCAL:1) || !参加フラグ:(LOCAL:1)
+			CONTINUE
+		TMP_COUNTRY_RELATION:LOCAL:(LOCAL:1) = 2
+		TMP_COUNTRY_RELATION:(LOCAL:1):LOCAL = 2
+	NEXT
+NEXT
+
+TREATY_U_TERM:連合番号 = LIMIT((REL_HATE:勢力君主:相手勢力君主 - REL_LIKE:勢力君主:相手勢力君主) / 100, 5, 8)
+TREATY_U_TARGET:連合番号 = 相手勢力
+
+CALL ICPRINT(@"連合期間は<{TREATY_U_TERM:連合番号}>ターンです", "L", COLOR("注意"))
+
+WAIT
 
 ;------------------------
 ;勢力から相手勢力への外交計画を返す
