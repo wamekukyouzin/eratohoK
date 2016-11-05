@@ -1,18 +1,18 @@
-﻿;武術訓練
+﻿;料理
 
 ;-------------------------------------------------
 ;コマンド名称
 ;-------------------------------------------------
-@COM_NAME301
-RESULTS:0 = 武術訓練に誘う
-RESULTS:1 = 武術訓練に付き合う
+@COM_NAME307
+RESULTS:0 = 料理に付き合わせる
+RESULTS:1 = 料理に付き合わされる
 
 ;-------------------------------------------------
 ;選択可否判定
 ;-------------------------------------------------
-@COM_ABLE301
+@COM_ABLE307
 ;共通部分
-CALL COM_ABLE_COMMON(301)
+CALL COM_ABLE_COMMON(307)
 SIF RESULT == 0
 	RETURN 0
 ;捕虜会話では不可
@@ -21,8 +21,8 @@ SIF FLAG:調教モード == 6
 ;主人公がプレイヤーのとき限定
 SIF MPLY:0 != MASTER
 	RETURN 0
-;デート中で場所が川辺、花畑、森林以外なら無理
-SIF TFLAG:54 && !GROUPMATCH(GET_PLACENAME(TFLAG:54), "川辺", "花畑", "森林")
+;デート中は無理
+SIF TFLAG:54
 	RETURN 0
 ;臨月or怪我なら不可
 SIF CFLAG:(MTAR:0):行動不能状態 == 1 || CFLAG:(MTAR:0):行動不能状態 == 3
@@ -32,39 +32,48 @@ SIF IS_EQUIP(MPLY:0, 342)
 	RETURN 0
 RETURN 1
 
-
 ;-------------------------------------------------
 ;メイン処理
 ;-------------------------------------------------
-@COM301
-CALL COM_SLG_TRAIN_MAIN_PROCESS(GETNUM(ABL, "武闘"), 0)
+@COM307
+CALL COM_SLG_TRAIN_MAIN_PROCESS(GETNUM(ABL, "料理"), 0)
+
 RETURN 1
 
 ;-------------------------------------------------
 ;地の文(前文)
 ;-------------------------------------------------
-@COM_TEXT_BEFORE301
+@COM_TEXT_BEFORE307
 ;主導権が主人公側
 IF IS_INITIATIVE(MASTER)
-	PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%と武術の訓練を行った
+	PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%と一緒に料理を作った
 ELSE
-	;相手より武闘が10以上劣っている
-	IF ABL:(MPLY:0):武闘 + 10 <= ABL:(MTAR:0):武闘
-		PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%にみっちりと武術を叩き込まれた
-	ELSE
-		PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%の訓練に付き合わされた
-	ENDIF
+	PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%と一緒に料理を作ることになった
 ENDIF
 
-IF TFLAG:18 == 1
-	PRINTFORML 思っていたよりも良い勝負が出来た。これは良い経験になるだろう…
-ELSEIF TFLAG:18 == -1
-	PRINTFORML ……しかし、%ANAME(MPLY:0)%はあっさりとやられてしまった
+IF ABL:(MPLY:0):料理 < 0 || ABL:(MTAR:0):料理 < 0
+	IF TFLAG:18 == 1
+		PRINTFORML どうにか人間でも食べられる物に仕上がった…
+	ELSEIF TFLAG:18 == -1
+		IF RAND:2 == 0
+			PRINTFORML ……臭いだけで気絶しそうなシロモノが完成した
+		ELSE
+			PRINTFORML ……皿の中に何やら怪しく蠢いているものが見える
+		ENDIF
+	ELSE
+		PRINTFORML 精神修行だと思えば食べられなくもない……と思う
+	ENDIF
+ELSE
+	IF TFLAG:18 == 1
+		PRINTFORML 思った以上に美味しく仕上がった…
+	ELSEIF TFLAG:18 == -1
+		PRINTFORML ……見事な失敗作が出来上がった
+	ENDIF
 ENDIF
 
 ;--------------------------------------------------------
 ;地の文(パラメータ・刻印変動後)
 ;--------------------------------------------------------
-@COM_TEXT_LAST301
+@COM_TEXT_LAST307
 ;日常コマンドに共通の地の文
 CALL COM_TEXT_LAST_LIFE
