@@ -1,0 +1,114 @@
+﻿@SLG_AI_PERSUASION(勢力)
+#DIM 勢力
+#DIM 勢力君主
+#DIM 対象
+#DIM 対象君主
+#DIM FIRSTLINE
+FIRSTLINE = LINECOUNT
+勢力君主 = GET_COUNTRY_BOSS(勢力)
+
+AI_PERSUASION_TERM:勢力 --
+
+;説得期限切れ + 捕虜がいるようならプラン生成
+SIF AI_PERSUASION_TERM:勢力 <= 0 && CMATCH(CFLAG:捕虜先, 勢力) > 0
+	CALL AI_PERSUASION_CREATE_PLAN(勢力)
+
+FOR LOCAL, 0, AI_PERSUASION_MAX_TAREGET
+	対象 = ID_TO_CHARA(AI_PERSUASION_TARGET:勢力:LOCAL)
+	SIF 対象 == -1
+		CONTINUE
+	IF CFLAG:対象:捕虜先 != 勢力
+		AI_PERSUASION_TARGET:勢力:LOCAL = 0
+		CONTINUE
+	ENDIF
+	対象君主 = GET_COUNTRY_BOSS(CFLAG:対象:所属)
+	PRINTFORML %ANAME(勢力君主)%は%ANAME(対象)%を説得している……
+	CALL CHANGE_RELATION_O_TO_C(対象, 勢力, RAND(10, 20), RAND(10, 20) * -1)
+	SIF CFLAG:対象:所属
+		CALL CHANGE_RELATION_O_TO_C(対象, 勢力, RAND(5, 10) * -1, RAND(5, 10))
+	IF (CFLAG:対象:所属 && REL_LIKE:対象:勢力君主 - REL_HATE:対象:勢力君主 > REL_LIKE:対象:対象君主 - REL_HATE:対象:対象君主 + 300) || (CFLAG:対象:所属 == 0 && REL_LIKE:対象:勢力君主 - REL_HATE:対象:勢力君主 > 300)
+		CALL COLORPRINTFORM(@"説得の末、%ANAME(対象)%は移籍の意志を固めた", COLOR(CFLAG:対象:所属 > 0 && CFLAG:対象:所属 == CFLAG:MASTER:所属 ? "警告" # "注意"), "L")
+		CALL COLORPRINTFORM(@"%ANAME(対象)%が%ANAME(勢力君主)%に移籍した", COLOR(CFLAG:対象:所属 > 0 && CFLAG:対象:所属 == CFLAG:MASTER:所属 ? "警告" # "注意"), "L")
+		CALL CHANGE_COUNTRY(対象, 勢力, 1)
+	ENDIF
+NEXT
+
+@AI_PERSUASION_CREATE_PLAN(勢力)
+#DIM 勢力
+#DIM 勢力君主
+#DIM 捕虜リスト, 3000
+#DIM 能力値リスト, 3000
+#DIM 好感度リスト, 3000
+#DIM 不満度リスト, 3000
+#DIM 捕虜数
+#DIM 説得対象, AI_PERSUASION_MAX_TAREGET
+#DIM 説得対象数
+#DIM 対象
+VARSET 捕虜リスト
+VARSET 能力値リスト, __INT_MIN__
+VARSET 好感度リスト, __INT_MIN__
+VARSET 不満度リスト, __INT_MIN__
+VARSET 捕虜数
+VARSET 説得対象数
+VARSET 説得対象
+
+
+FOR 対象, 0, AI_PERSUASION_MAX_TAREGET
+	AI_PERSUASION_TARGET:勢力:対象 = 0
+NEXT
+
+勢力君主 = GET_COUNTRY_BOSS(勢力)
+
+FOR 対象, 0, CHARANUM
+	IF CFLAG:対象:所属 != 勢力 && CFLAG:対象:捕虜先 == 勢力
+		捕虜リスト:捕虜数 = 対象
+		能力値リスト:捕虜数 = ABL:対象:武闘 + ABL:対象:知略 + ABL:対象:防衛 + ABL:対象:妖術 + ABL:対象:料理 + ABL:対象:歌唱 + ABL:対象:政治
+		好感度リスト:捕虜数 = REL_LIKE:対象:勢力君主
+		不満度リスト:捕虜数 = IS_COUNTRY(CFLAG:対象:所属) ? REL_HATE:LOCAL:GET_COUNTRY_BOSS(CFLAG:対象:所属) # 1500
+		捕虜数 ++
+	ENDIF
+NEXT
+
+SIF 捕虜数 == 0
+	RETURN
+
+;まずは能力が最大のキャラ
+IF 捕虜数 > 0
+	対象 = FINDELEMENT(能力値リスト, MAXARRAY(能力値リスト))
+	AI_PERSUASION_TARGET:勢力:説得対象数 = GET_ID(捕虜リスト:対象)
+	捕虜リスト:対象 = 0
+	能力値リスト:対象 = __INT_MIN__
+	好感度リスト:対象 = __INT_MIN__
+	不満度リスト:対象 = __INT_MIN__
+	捕虜数 --
+	説得対象数 ++
+ENDIF
+
+;続いて好感度が最大のキャラ
+IF 捕虜数 > 0
+	対象 = FINDELEMENT(好感度リスト, MAXARRAY(好感度リスト))
+	AI_PERSUASION_TARGET:勢力:説得対象数 = GET_ID(捕虜リスト:対象)
+	捕虜リスト:対象 = 0
+	能力値リスト:対象 = __INT_MIN__
+	好感度リスト:対象 = __INT_MIN__
+	不満度リスト:対象 = __INT_MIN__
+	捕虜数 --
+	説得対象数 ++
+ENDIF
+
+;続いて無所属キャラ、いなければ現在の君主に最も不満を抱いているキャラ
+IF 捕虜数 > 0
+	対象 = FINDELEMENT(不満度リスト, MAXARRAY(不満度リスト))
+	AI_PERSUASION_TARGET:勢力:説得対象数 = GET_ID(捕虜リスト:対象)
+	捕虜リスト:対象 = 0
+	能力値リスト:対象 = __INT_MIN__
+	好感度リスト:対象 = __INT_MIN__
+	不満度リスト:対象 = __INT_MIN__
+	捕虜数 --
+	説得対象数 ++
+ENDIF
+
+SIF 説得対象数 > 0
+	AI_PERSUASION_TERM:勢力 = RAND(3, 5)
+
+RETURN
