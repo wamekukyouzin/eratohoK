@@ -1,4 +1,140 @@
-﻿;------------------------------------------------------------
+﻿@COM_SLG_TRAIN_MAIN_PROCESS(能力, 育児フラグ)
+#DIM 能力
+#DIM 育児フラグ
+#DIM 乱数基準値, 2
+#DIM ボーナス, 2
+;コマンドの成否をTFLAG:18にセット
+CALL JUDGE_COM_RESULT(MTAR:0, 5, 5)
+
+乱数基準値:0 = MAX(100 - ABL:(MPLY:0):能力, 10)
+乱数基準値:1 = MAX(100 - ABL:(MTAR:0):能力, 10)
+ボーナス:0 = 5
+ボーナス:1 = 5
+IF ABL:(MPLY:0):能力 > ABL:(MTAR:0):能力 + 10
+	乱数基準値:0 -= 10
+	乱数基準値:1 += 10
+	ボーナス:0 = 0
+	ボーナス:1 += 5
+ELSEIF ABL:(MTAR:0):能力 > ABL:(MPLY:0):能力 + 10
+	乱数基準値:1 += 10
+	乱数基準値:0 -= 10
+	ボーナス:1 = 0
+	ボーナス:0 += 5
+ENDIF
+
+SELECTCASE TFLAG:18
+	CASE -1
+		乱数基準値:0 -= 10
+		乱数基準値:1 -= 10
+		ボーナス:0 = 0
+		ボーナス:1 = 0
+	CASE 0
+	CASEELSE
+		乱数基準値:0 += 10
+		乱数基準値:1 += 10
+		ボーナス:0 += 10
+		ボーナス:1 += 10
+ENDSELECT
+
+乱数基準値:0 += (GROWTYPE_RATE(MPLY:0, ABLNAME:能力) - 100) / 10
+乱数基準値:1 += (GROWTYPE_RATE(MTAR:0, ABLNAME:能力) - 100) / 10
+
+IF ABL:(MPLY:0):能力 > ランク閾値:ランク_ＳＬＧ:ランク_B
+	TIMES 乱数基準値:0, 0.75
+ELSEIF ABL:(MPLY:0):能力 < ランク閾値:ランク_ＳＬＧ:ランク_D
+	TIMES 乱数基準値:0, 1.3
+ENDIF
+IF ABL:(MTAR:0):能力 > ランク閾値:ランク_ＳＬＧ:ランク_B
+	TIMES 乱数基準値:0, 0.75
+ELSEIF ABL:(MTAR:0):能力 < ランク閾値:ランク_ＳＬＧ:ランク_D
+	TIMES 乱数基準値:0, 1.3
+ENDIF
+
+IF 育児フラグ == 0
+	EXP:(MPLY:0):GET_EXP(能力) += (RAND:100 < 乱数基準値:0)
+	EXP:(MTAR:0):GET_EXP(能力) += (RAND:100 < 乱数基準値:1)
+	SIF ボーナス:0
+		EXP:(MPLY:0):GET_EXP(能力) += RAND:100 < ボーナス:0
+	SIF ボーナス:1
+		EXP:(MTAR:0):GET_EXP(能力) += RAND:100 < ボーナス:1
+
+	;適性がなく好感度・従属度が低いと恐怖と反感のソースを得る
+	IF LOCAL:0 < 100
+		SOURCE:(MTAR:0):歓楽 = 0
+		SOURCE:(MTAR:0):恐怖 = MAX(0, 100 - MAX(CFLAG:(MTAR:0):2, CFLAG:(MTAR:0):4) * 100 / 800)
+		SOURCE:(MTAR:0):不安 = MAX(0, 200 - MAX(CFLAG:(MTAR:0):2, CFLAG:(MTAR:0):4) * 200 / 500)
+	ENDIF
+
+	SOURCE:(MTAR:0):歓楽 = 20 * LOCAL:1 / 100
+
+	;親密に応じた歓楽のソース追加
+	CALL ADD_SOURCE_KANRAKU(MTAR:0, LOCAL:2 /2)
+
+	;主導権に応じたソースの追加
+	CALL ADD_SOURCE_INITIATIVE_N(MPLY:0, 100, 100)
+	CALL ADD_SOURCE_INITIATIVE_N(MTAR:0, 100, 100)
+
+	;ターゲットがサボり魔なら効果減少
+	IF TALENT:(MTAR:0):サボり魔
+		TIMES SOURCE:(MTAR:0):歓楽, 0.80
+		SOURCE:(MTAR:0):反感 = 70 - SOURCE:(MTAR:0):歓楽 / 3
+	ENDIF
+
+	;失敗
+	IF TFLAG:18 == -1
+		TIMES SOURCE:(MTAR:0):歓楽, 0.20
+		TIMES SOURCE:(MTAR:0):不安, 1.50
+		SOURCE:(MTAR:0):不満 += 300
+	;	LOCAL:2 = 1
+	;成功
+	ELSEIF TFLAG:18 == 0
+	;	LOCAL:2 = 1
+	;大成功
+	ELSE
+		TIMES SOURCE:(MTAR:0):歓楽, 2.00
+		TIMES SOURCE:(MTAR:0):不安, 0.50
+	;	LOCAL:2 = 2
+	ENDIF
+
+	;精神力の強化
+	SIF MAXBASE:(MTAR:0):精神力 < 3000 || (MAXBASE:(MTAR:0):精神力 < 3500 && RAND:5 == 0)
+		MAXBASE:(MTAR:0):精神力 = MIN(MAXBASE:(MTAR:0):精神力 + 2, 3500)
+
+
+	;体力の強化
+	IF MAXBASE:(MTAR:0):体力 < 1600
+		MAXBASE:(MTAR:0):体力 += 2
+	ELSEIF MAXBASE:(MTAR:0):体力 < 2000
+		MAXBASE:(MTAR:0):体力 += 1
+	ELSEIF MAXBASE:(MTAR:0):体力 < 3000 && RAND:5 == 0
+		MAXBASE:(MTAR:0):体力 += 1
+	ENDIF
+
+	;気力の強化
+	IF MAXBASE:(MTAR:0):気力 < 1600
+		MAXBASE:(MTAR:0):気力 += 1
+	ELSEIF MAXBASE:(MTAR:0):気力 < 2000 && RAND:2 == 0
+		MAXBASE:(MTAR:0):気力 += 1
+	ELSEIF MAXBASE:(MTAR:0):気力 < 2500 && RAND:6 == 0
+		MAXBASE:(MTAR:0):気力 += 1
+	ENDIF
+	;主導度変化基準値
+	TFLAG:49 = 2
+
+	;倒錯度変化基準値
+	TFLAG:50 = -1
+ELSE
+	FOR LOCAL, 0, 10
+		EXP:(MTAR:0):GET_EXP(能力) += (RAND:100 < 乱数基準値:1)
+		SIF ボーナス:1
+			EXP:(MTAR:0):GET_EXP(能力) += RAND:100 < ボーナス:1
+	NEXT
+ENDIF
+
+
+
+
+;------------------------------------------------------------
 ;訓練者ARG:0が 訓練相手ARG:1と　ARG:2（種類：50なら武闘。ABL.csvに対応する番号）を訓練する
 ;効果的な訓練かどうか％倍率のイメージのRETURN（訓練倍率）を返す
 ;TALENT(「怠け者」「超成長」)、GROWTYPE(成長タイプ)は 必要EXPのほうに考慮されているのでここでは扱わない
