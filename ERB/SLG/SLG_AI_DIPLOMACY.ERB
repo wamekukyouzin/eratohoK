@@ -142,18 +142,28 @@ FOR 計画, 0, MIN(AI_DIPLOMACY_PROPERTY:(COUNTRY_AI_TYPE:勢力):AI_外交_行�
 			IF SLG_AI_DIPLOMACY_DOES_CREATE_UNION(勢力, 相手勢力)
 				AI_DIPLOMACY_PLAN:勢力:計画 = AI_外交計画_連合
 			ELSE
-				SELECTCASE RAND:100
-					CASE IS < 70
-						AI_DIPLOMACY_PLAN:勢力:計画 = AI_外交計画_悪評
-					CASEELSE
-						CALL CLEAR_AI_DIPLOMACY_PLAN(勢力, 相手勢力)
-				ENDSELECT
+				IF 関係性リスト:勢力インデックス < RAND:3000 
+					AI_DIPLOMACY_PLAN:勢力:計画 = AI_外交計画_悪評
+				ELSE
+					CALL CLEAR_AI_DIPLOMACY_PLAN(勢力, 相手勢力)
+				ENDIF
 			ENDIF
 		CASE 理由_経済
-			IF REL_HATE:GET_COUNTRY_BOSS(勢力):GET_COUNTRY_BOSS(相手勢力) > REL_LIKE:GET_COUNTRY_BOSS(勢力):GET_COUNTRY_BOSS(相手勢力) && SLG_AI_DIPLOMACY_DOES_CREATE_UNION(勢力, 相手勢力)
+			IF REL_HATE:GET_COUNTRY_BOSS(勢力):GET_COUNTRY_BOSS(相手勢力) > REL_LIKE:GET_COUNTRY_BOSS(勢力):GET_COUNTRY_BOSS(相手勢力) + 300 && SLG_AI_DIPLOMACY_DOES_CREATE_UNION(勢力, 相手勢力)
 				AI_DIPLOMACY_PLAN:勢力:計画 = AI_外交計画_連合
 			ELSE
-				AI_DIPLOMACY_PLAN:勢力:計画 = 関係性リスト:勢力インデックス > 1500 ? AI_外交計画_会談 # AI_外交計画_悪評
+				IF RAND:3000 < 関係性リスト:勢力インデックス
+					SELECTCASE IFRAND("0TO74", 1, "75TO89", 逆関係性リスト:勢力インデックス > 1500 && TMP_COUNTRY_RELATION:勢力:相手勢力 == 0  && 勢力数 >= 2, "90TO99", 逆関係性リスト:勢力インデックス > 1800 && TMP_COUNTRY_RELATION:勢力:相手勢力 <= 2 && 勢力数 >= 2)
+						CASE IS < 75
+							AI_DIPLOMACY_PLAN:勢力:計画 = AI_外交計画_会談
+						CASE IS < 90
+							AI_DIPLOMACY_PLAN:勢力:計画 = AI_外交計画_停戦
+						CASEELSE
+							AI_DIPLOMACY_PLAN:勢力:計画 = AI_外交計画_同盟
+					ENDSELECT
+				ELSE
+					AI_DIPLOMACY_PLAN:勢力:計画 = AI_外交計画_悪評
+				ENDIF
 			ENDIF
 	ENDSELECT
 
