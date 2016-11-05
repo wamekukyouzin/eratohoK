@@ -385,18 +385,63 @@ MONEY:相手勢力 += 持ち出し額
 #DIM 料理パワー
 #DIM 効果量
 #DIM 拒否フラグ
-
+#DIM 対象勢力, 3
+#DIM 対象勢力君主, 3
+#DIMS 君主名
+#DIM 対象数
+VARSET 対象数
+VARSET 対象勢力
+VARSET 対象勢力君主
+VARSET 君主名
 君主 = GET_COUNTRY_BOSS(勢力)
 相手勢力君主 = GET_COUNTRY_BOSS(相手勢力)
 
-IF 相手勢力 == CFLAG:MASTER:所属
-	CALL COLORPRINTFORM(@"%ANAME(君主)%に%ANAME(相手勢力君主)%についての悪評を流されました", COLOR("注意"), "L")
-ELSE
-	PRINTFORML %ANAME(君主)%は%ANAME(相手勢力君主)%の悪評を流しました
+;外交計画から対象を選出
+IF 相手勢力 != CFLAG:MASTER:所属
+	FOR LOCAL, 0, AI_DIPLOMACY_PLAN:(COUNTRY_AI_TYPE:相手勢力):AI_外交_行動回数
+		IF !GROUPMATCH(AI_DIPLOMACY_TARGET:相手勢力:LOCAL, 勢力, 相手勢力) && IS_COUNTRY(AI_DIPLOMACY_TARGET:相手勢力:LOCAL) && GROUPMATCH(AI_DIPLOMACY_PLAN:相手勢力:LOCAL, AI_外交計画_会談, AI_外交計画_停戦, AI_外交計画_同盟)
+			対象勢力:対象数 = AI_DIPLOMACY_TARGET:相手勢力:LOCAL
+			対象勢力君主:対象数 = GET_COUNTRY_BOSS(対象勢力:対象数)
+			対象数 ++
+		ENDIF
+		SIF 対象数 == VARSIZE("対象勢力")
+			BREAK
+	NEXT
 ENDIF
 
-;ベース効果量計算　拒否なら半減
-効果量 = (5 + RAND:5 + RAND:5)
+;まだ空きがあれば、ランダムに決定する
+IF 対象数 != VARSIZE("対象勢力")
+	CALL FISHER_YATES_SHAFFLE(MAX_COUNTRY)
+	FOR LOCAL, 0, MAX_COUNTRY
+		LOCAL:1 = SHAFFLE_ARRAY:LOCAL
+		SIF !IS_COUNTRY(LOCAL:1) || GROUPMATCH(LOCAL:1, 勢力, 相手勢力) || MATCH(対象勢力, LOCAL:1)
+			CONTINUE
+		対象勢力:対象数 = LOCAL:1
+		対象勢力君主:対象数 = GET_COUNTRY_BOSS(対象勢力:対象数)
+		対象数 ++
+		SIF 対象数 == VARSIZE("対象勢力")
+			BREAK
+	NEXT
+ENDIF
+
+;念のため
+SIF 対象数 == 0
+	CALL CLEAR_AI_DIPLOMACY_PLAN(勢力, 相手勢力)
+
+FOR LOCAL, 0, 対象数
+	SIF LOCAL >= 1
+		君主名:0 += "・"
+	君主名 += @"%ANAME(対象勢力君主:LOCAL)%"
+NEXT
+
+IF 相手勢力 == CFLAG:MASTER:所属
+	CALL COLORPRINTFORM(@"%ANAME(君主)%が%ANAME(相手勢力君主)%についての悪評を%君主名%に流しました", COLOR("注意"), "L")
+ELSE
+	PRINTFORML %ANAME(君主)%は%ANAME(相手勢力君主)%の悪評を%君主名%に流しました
+ENDIF
+
+;ベース効果量計算
+効果量 = (15 + RAND:10 + RAND:10)
 
 ;DEBUGPRINTFORML 悪評のベース効果量{効果量}
 
@@ -407,12 +452,8 @@ ENDIF
 
 ;DEBUGPRINTFORML 悪評の政治料理パワー補正後効果量{効果量}
 
-FOR LOCAL, 0, MAX_COUNTRY
-	SIF !IS_COUNTRY(LOCAL)
-		CONTINUE
-	SIF GROUPMATCH(LOCAL, 勢力, 相手勢力)
-		CONTINUE
-	CALL CHANGE_RELATION_C_TO_C(LOCAL, 相手勢力, 効果量 * -1, 効果量)
+FOR LOCAL, 0, 対象数
+	CALL CHANGE_RELATION_C_TO_C(対象勢力:LOCAL, 相手勢力, 効果量 * -1, 効果量)
 NEXT
 
 DIPLOMACY_HATE:勢力 ++
