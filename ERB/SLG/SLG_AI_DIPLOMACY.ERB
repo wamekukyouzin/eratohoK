@@ -79,8 +79,8 @@ FOR 相手勢力, 0, MAX_COUNTRY
 		CONTINUE
 	勢力リスト:勢力数 = 相手勢力
 	相手勢力君主 = GET_COUNTRY_BOSS(相手勢力)
-	関係性リスト:勢力数 = 1500 + REL_LIKE:君主:相手勢力君主 - REL_HATE:君主:相手勢力君主
-	逆関係性リスト:勢力数 = 1500 + REL_LIKE:相手勢力君主:君主 - REL_HATE:相手勢力君主:君主
+	関係性リスト:勢力数 = 1500 + REL_LIKE:君主:相手勢力君主 - REL_HATE:君主:相手勢力君主 - DIPLOMACY_HATE:相手勢力 * (相手勢力 == CFLAG:MASTER:所属 ? 50 # 30)
+	逆関係性リスト:勢力数 = 1500 + REL_LIKE:相手勢力君主:君主 - REL_HATE:相手勢力君主:君主 - DIPLOMACY_HATE:勢力 * (勢力 == CFLAG:MASTER:所属 ? 50 # 30)
 	経済力リスト:勢力数 = TMP_SUM_ECONOMY:相手勢力
 	勢力数 ++
 NEXT
@@ -142,7 +142,7 @@ FOR 計画, 0, MIN(AI_DIPLOMACY_PROPERTY:(COUNTRY_AI_TYPE:勢力):AI_外交_行�
 			IF SLG_AI_DIPLOMACY_DOES_CREATE_UNION(勢力, 相手勢力)
 				AI_DIPLOMACY_PLAN:勢力:計画 = AI_外交計画_連合
 			ELSE
-				IF 関係性リスト:勢力インデックス < RAND:3000 
+				IF 関係性リスト:勢力インデックス < RAND:3000 && DIPLOAMCY_HATE:勢力 <= RAND(10, 15)
 					AI_DIPLOMACY_PLAN:勢力:計画 = AI_外交計画_悪評
 				ELSE
 					CALL CLEAR_AI_DIPLOMACY_PLAN(勢力, 相手勢力)
@@ -162,7 +162,10 @@ FOR 計画, 0, MIN(AI_DIPLOMACY_PROPERTY:(COUNTRY_AI_TYPE:勢力):AI_外交_行�
 							AI_DIPLOMACY_PLAN:勢力:計画 = AI_外交計画_同盟
 					ENDSELECT
 				ELSE
-					AI_DIPLOMACY_PLAN:勢力:計画 = AI_外交計画_悪評
+					IF DIPLOAMCY_HATE:勢力 <= RAND(10, 15)
+						AI_DIPLOMACY_PLAN:勢力:計画 = AI_外交計画_悪評
+					ELSE
+						CALL CLEAR_AI_DIPLOMACY_PLAN(勢力, 相手勢力)
 				ENDIF
 			ENDIF
 	ENDSELECT
