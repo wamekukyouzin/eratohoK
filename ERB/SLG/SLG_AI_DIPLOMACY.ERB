@@ -28,6 +28,8 @@ FOR 計画, 0, AI_DIPLOMACY_PROPERTY:(COUNTRY_AI_TYPE:勢力):AI_外交_行動�
 			CALL SLG_DIPLOMACY_CEASE_FIRE(勢力, AI_DIPLOMACY_TARGET:勢力:計画)
 		CASE AI_外交計画_悪評
 			CALL SLG_DIPLOMACY_CREATE_SCANDAL(勢力, AI_DIPLOMACY_TARGET:勢力:計画)
+		CASE AI_外交計画_連合
+			CALL SLG_DIPLOMACY_CREATE_UNION(勢力, AI_DIPLOMACY_TARGET:勢力:計画)
 	ENDSELECT
 NEXT
 
@@ -77,8 +79,8 @@ FOR 相手勢力, 0, MAX_COUNTRY
 		CONTINUE
 	勢力リスト:勢力数 = 相手勢力
 	相手勢力君主 = GET_COUNTRY_BOSS(相手勢力)
-	関係性リスト:勢力数 = 1500 + REL_LIKE:君主:相手勢力君主 - REL_HATE:君主:相手勢力君主
-	逆関係性リスト:勢力数 = 1500 + REL_LIKE:相手勢力君主:君主 - REL_HATE:相手勢力君主:君主
+	関係性リスト:勢力数 = 1500 + REL_LIKE:君主:相手勢力君主 - REL_HATE:君主:相手勢力君主 - DIPLOMACY_HATE:相手勢力 * (相手勢力 == CFLAG:MASTER:所属 ? 50 # 30)
+	逆関係性リスト:勢力数 = 1500 + REL_LIKE:相手勢力君主:君主 - REL_HATE:相手勢力君主:君主 - DIPLOMACY_HATE:勢力 * (勢力 == CFLAG:MASTER:所属 ? 50 # 30)
 	経済力リスト:勢力数 = TMP_SUM_ECONOMY:相手勢力
 	勢力数 ++
 NEXT
@@ -137,12 +139,35 @@ FOR 計画, 0, MIN(AI_DIPLOMACY_PROPERTY:(COUNTRY_AI_TYPE:勢力):AI_外交_行�
 					AI_DIPLOMACY_PLAN:勢力:計画 = AI_外交計画_同盟
 			ENDSELECT
 		CASE 理由_嫌い
-			SELECTCASE RAND:100
-				CASE IS < 100
+			IF SLG_AI_DIPLOMACY_DOES_CREATE_UNION(勢力, 相手勢力)
+				AI_DIPLOMACY_PLAN:勢力:計画 = AI_外交計画_連合
+			ELSE
+				IF 関係性リスト:勢力インデックス < RAND:3000 && DIPLOAMCY_HATE:勢力 <= RAND(10, 15)
 					AI_DIPLOMACY_PLAN:勢力:計画 = AI_外交計画_悪評
-			ENDSELECT
+				ELSE
+					CALL CLEAR_AI_DIPLOMACY_PLAN(勢力, 相手勢力)
+				ENDIF
+			ENDIF
 		CASE 理由_経済
-			AI_DIPLOMACY_PLAN:勢力:計画 = 関係性リスト:勢力インデックス > 1500 ? AI_外交計画_会談 # AI_外交計画_悪評
+			IF REL_HATE:GET_COUNTRY_BOSS(勢力):GET_COUNTRY_BOSS(相手勢力) > REL_LIKE:GET_COUNTRY_BOSS(勢力):GET_COUNTRY_BOSS(相手勢力) + 300 && SLG_AI_DIPLOMACY_DOES_CREATE_UNION(勢力, 相手勢力)
+				AI_DIPLOMACY_PLAN:勢力:計画 = AI_外交計画_連合
+			ELSE
+				IF RAND:3000 < 関係性リスト:勢力インデックス
+					SELECTCASE IFRAND("0TO74", 1, "75TO89", 逆関係性リスト:勢力インデックス > 1500 && TMP_COUNTRY_RELATION:勢力:相手勢力 == 0  && 勢力数 >= 2, "90TO99", 逆関係性リスト:勢力インデックス > 1800 && TMP_COUNTRY_RELATION:勢力:相手勢力 <= 2 && 勢力数 >= 2)
+						CASE IS < 75
+							AI_DIPLOMACY_PLAN:勢力:計画 = AI_外交計画_会談
+						CASE IS < 90
+							AI_DIPLOMACY_PLAN:勢力:計画 = AI_外交計画_停戦
+						CASEELSE
+							AI_DIPLOMACY_PLAN:勢力:計画 = AI_外交計画_同盟
+					ENDSELECT
+				ELSE
+					IF DIPLOAMCY_HATE:勢力 <= RAND(10, 15)
+						AI_DIPLOMACY_PLAN:勢力:計画 = AI_外交計画_悪評
+					ELSE
+						CALL CLEAR_AI_DIPLOMACY_PLAN(勢力, 相手勢力)
+				ENDIF
+			ENDIF
 	ENDSELECT
 
 	勢力数 --
@@ -363,18 +388,63 @@ MONEY:相手勢力 += 持ち出し額
 #DIM 料理パワー
 #DIM 効果量
 #DIM 拒否フラグ
-
+#DIM 対象勢力, 3
+#DIM 対象勢力君主, 3
+#DIMS 君主名
+#DIM 対象数
+VARSET 対象数
+VARSET 対象勢力
+VARSET 対象勢力君主
+VARSET 君主名
 君主 = GET_COUNTRY_BOSS(勢力)
 相手勢力君主 = GET_COUNTRY_BOSS(相手勢力)
 
-IF 相手勢力 == CFLAG:MASTER:所属
-	CALL COLORPRINTFORM(@"%ANAME(君主)%に%ANAME(相手勢力君主)%についての悪評を流されました", COLOR("注意"), "L")
-ELSE
-	PRINTFORML %ANAME(君主)%は%ANAME(相手勢力君主)%の悪評を流しました
+;外交計画から対象を選出
+IF 相手勢力 != CFLAG:MASTER:所属
+	FOR LOCAL, 0, AI_DIPLOMACY_PLAN:(COUNTRY_AI_TYPE:相手勢力):AI_外交_行動回数
+		IF !GROUPMATCH(AI_DIPLOMACY_TARGET:相手勢力:LOCAL, 勢力, 相手勢力) && IS_COUNTRY(AI_DIPLOMACY_TARGET:相手勢力:LOCAL) && GROUPMATCH(AI_DIPLOMACY_PLAN:相手勢力:LOCAL, AI_外交計画_会談, AI_外交計画_停戦, AI_外交計画_同盟)
+			対象勢力:対象数 = AI_DIPLOMACY_TARGET:相手勢力:LOCAL
+			対象勢力君主:対象数 = GET_COUNTRY_BOSS(対象勢力:対象数)
+			対象数 ++
+		ENDIF
+		SIF 対象数 == VARSIZE("対象勢力")
+			BREAK
+	NEXT
 ENDIF
 
-;ベース効果量計算　拒否なら半減
-効果量 = (5 + RAND:5 + RAND:5)
+;まだ空きがあれば、ランダムに決定する
+IF 対象数 != VARSIZE("対象勢力")
+	CALL FISHER_YATES_SHAFFLE(MAX_COUNTRY)
+	FOR LOCAL, 0, MAX_COUNTRY
+		LOCAL:1 = SHAFFLE_ARRAY:LOCAL
+		SIF !IS_COUNTRY(LOCAL:1) || GROUPMATCH(LOCAL:1, 勢力, 相手勢力) || MATCH(対象勢力, LOCAL:1)
+			CONTINUE
+		対象勢力:対象数 = LOCAL:1
+		対象勢力君主:対象数 = GET_COUNTRY_BOSS(対象勢力:対象数)
+		対象数 ++
+		SIF 対象数 == VARSIZE("対象勢力")
+			BREAK
+	NEXT
+ENDIF
+
+;念のため
+SIF 対象数 == 0
+	CALL CLEAR_AI_DIPLOMACY_PLAN(勢力, 相手勢力)
+
+FOR LOCAL, 0, 対象数
+	SIF LOCAL >= 1
+		君主名:0 += "・"
+	君主名 += @"%ANAME(対象勢力君主:LOCAL)%"
+NEXT
+
+IF 相手勢力 == CFLAG:MASTER:所属
+	CALL COLORPRINTFORM(@"%ANAME(君主)%が%ANAME(相手勢力君主)%についての悪評を%君主名%に流しました", COLOR("注意"), "L")
+ELSE
+	PRINTFORML %ANAME(君主)%は%ANAME(相手勢力君主)%の悪評を%君主名%に流しました
+ENDIF
+
+;ベース効果量計算
+効果量 = (15 + RAND:10 + RAND:10)
 
 ;DEBUGPRINTFORML 悪評のベース効果量{効果量}
 
@@ -385,14 +455,189 @@ ENDIF
 
 ;DEBUGPRINTFORML 悪評の政治料理パワー補正後効果量{効果量}
 
-FOR LOCAL, 0, MAX_COUNTRY
-	SIF !IS_COUNTRY(LOCAL)
-		CONTINUE
-	SIF GROUPMATCH(LOCAL, 勢力, 相手勢力)
-		CONTINUE
-	CALL CHANGE_RELATION_C_TO_C(LOCAL, 相手勢力, 効果量 * -1, 効果量)
+FOR LOCAL, 0, 対象数
+	CALL CHANGE_RELATION_C_TO_C(対象勢力:LOCAL, 相手勢力, 効果量 * -1, 効果量)
 NEXT
 
+DIPLOMACY_HATE:勢力 ++
+
+;------------------------
+;連合の実行判定
+;------------------------
+@SLG_AI_DIPLOMACY_DOES_CREATE_UNION(勢力, 相手勢力)
+#FUNCTION
+#DIM 勢力
+#DIM 相手勢力
+#DIM 勢力君主
+#DIM 相手勢力君主
+#DIM 嫌悪感
+#DIM 見積もり勢力数
+勢力君主 = GET_COUNTRY_BOSS(勢力)
+相手勢力君主 = GET_COUNTRY_BOSS(相手勢力)
+
+;同時に成立する連合は一つ
+SIF MATCH(TREATY_U_TARGET, 0) != MAX_TREATY_U
+	RETURNF 0
+
+IF REL_HATE:勢力君主:相手勢力君主 - REL_LIKE:勢力君主:相手勢力君主 + DIPLOMACY_HATE:相手勢力 * (CFLAG:MASTER:所属 == 相手勢力 ? 30 # 10) > 300
+ELSEIF TMP_SUM_ECONOMY:勢力 * 3 < TMP_SUM_ECONOMY:相手勢力
+ELSEIF TMP_SUM_SOLDIER:勢力 * 3 < TMP_SUM_SOLDIER:相手勢力
+ELSEIF TMP_OWN_CITY:勢力 * 3 < TMP_SUM_SOLDIER:相手勢力
+ELSE
+	RETURNF 0
+ENDIF
+
+見積もり勢力数 = 0
+FOR LOCAL, 0, MAX_COUNTRY
+	SIF !IS_COUNTRY(LOCAL) || GROUPMATCH(LOCAL, 勢力, 相手勢力) || TMP_COUNTRY_RELATION:LOCAL:相手勢力 != 0
+		CONTINUE
+	SIF SLG_AI_DIPLOMACY_DOES_PARTICIPATE_UNION(LOCAL, 相手勢力, 0)
+		見積もり勢力数 ++
+NEXT
+
+;DEBUGPRINTFORML みつもり{見積もり勢力数}
+
+SIF RAND:(GET_COUNTRY_NUM() > 10 ? 50 # 30) < 見積もり勢力数
+	RETURNF 1
+
+RETURNF 0
+
+;------------------------
+;発議された連合への参加判定
+;------------------------
+@SLG_AI_DIPLOMACY_DOES_PARTICIPATE_UNION(勢力, 相手勢力, 参加勢力数 = 0)
+#FUNCTION
+#DIM 勢力
+#DIM 相手勢力
+#DIM 参加勢力数
+#DIM 勢力君主
+#DIM 相手勢力君主
+#DIM 嫌悪感
+#DIM CONST 理由_嫌い = 1
+#DIM CONST 理由_経済 = 2
+#DIM CONST 理由_武力 = 3
+#DIM CONST 理由_領土 = 4
+
+勢力君主 = GET_COUNTRY_BOSS(勢力)
+相手勢力君主 = GET_COUNTRY_BOSS(相手勢力)
+
+SIF TMP_COUNTRY_RELATION:勢力:相手勢力 != 0
+	RETURNF 0
+
+嫌悪感 = REL_HATE:勢力君主:相手勢力君主 - REL_LIKE:勢力君主:相手勢力君主 + DIPLOMACY_HATE:相手勢力 * (CFLAG:MASTER:所属 == 相手勢力 ? 30 # 10)
+
+IF TMP_SUM_ECONOMY:勢力 * 3 < TMP_SUM_ECONOMY:相手勢力 && !RAND:(2 + 参加勢力数 / 2)
+	RETURNF 理由_経済
+ELSEIF TMP_SUM_SOLDIER:勢力 * 3 < TMP_SUM_SOLDIER:相手勢力 && !RAND:(2 + 参加勢力数 / 2)
+	RETURNF 理由_武力
+ELSEIF TMP_OWN_CITY:勢力 * 3 < TMP_OWN_CITY:相手勢力 && !RAND:(2 + 参加勢力数 / 2)
+	RETURNF 理由_領土
+ELSEIF RAND:MAX(嫌悪感 - 参加勢力数 * 50, 1) > 300
+	RETURNF 理由_嫌い
+ENDIF
+RETURNF 0
+
+;------------------------
+;連合の発議
+;------------------------
+@SLG_DIPLOMACY_CREATE_UNION(勢力, 相手勢力)
+#DIM 勢力
+#DIM 相手勢力
+#DIM 参加勢力数
+#DIM 勢力君主
+#DIM 相手勢力君主
+#DIM 参加フラグ, MAX_COUNTRY
+#DIM CONST 理由_嫌い = 1
+#DIM CONST 理由_経済 = 2
+#DIM CONST 理由_武力 = 3
+#DIM CONST 理由_領土 = 4
+#DIM 連合番号
+VARSET 参加フラグ
+VARSET 参加勢力数
+VARSET 連合番号
+
+CALL CLEAR_AI_DIPLOMACY_PLAN(勢力, 相手勢力)
+
+;連合番号に空きがなければスルー
+FOR LOCAL, 0, MAX_TREATY_U
+	IF TREATY_U_TERM:LOCAL == 0
+		連合番号 = LOCAL
+		BREAK
+	ENDIF
+NEXT
+
+SIF 連合番号 == MAX_TREATY_U
+	RETURN
+
+勢力君主 = GET_COUNTRY_BOSS(勢力)
+相手勢力君主 = GET_COUNTRY_BOSS(相手勢力)
+参加フラグ:勢力 = 1
+参加勢力数 ++
+CALL COLORPRINTFORM("!!!連合発議!!!", COLOR("注意"), "L")
+CALL COLORPRINTFORM(@"%ANAME(勢力君主)%は%ANAME(相手勢力君主)%討伐連合を発議しました！", COLOR(勢力 == CFLAG:MASTER:所属 ? "警告" # "注意"), "L")
+
+FOR LOCAL, 0, MAX_COUNTRY
+	SIF !IS_COUNTRY(LOCAL) || TMP_COUNTRY_RELATION:LOCAL:相手勢力 != 0 || GROUPMATCH(LOCAL, 勢力, 相手勢力)
+		CONTINUE
+	;主人公所属勢力の場合は特殊処理
+	IF LOCAL == CFLAG:MASTER:所属
+		PRINTFORML この連合に参加しますか？
+		CALL ASK_YN()
+		IF RESULT == 1
+			PRINTFORML 参加を表明しました
+			参加フラグ:LOCAL = 1
+		ELSE
+			PRINTFORML 不参加を表明しました
+		ENDIF
+	ELSE
+		参加フラグ:LOCAL = SLG_AI_DIPLOMACY_DOES_PARTICIPATE_UNION(勢力, 相手勢力, 参加勢力数)
+		SIF !参加フラグ:LOCAL
+			CONTINUE
+		PRINTFORM %ANAME(GET_COUNTRY_BOSS(LOCAL))%は
+		SELECTCASE 参加フラグ:LOCAL
+			CASE 理由_嫌い
+				PRINTFORM 勢力間の悪感情
+			CASE 理由_経済
+				PRINTFORM 勢力間の経済格差
+			CASE 理由_武力
+				PRINTFORM 勢力間の兵力格差
+			CASE 理由_領土
+				PRINTFORM 伸長する勢力への警戒心
+		ENDSELECT
+		PRINTFORML から、参加を表明しました
+		参加勢力数 ++
+	ENDIF
+NEXT
+
+IF 参加勢力数 == 1
+	PRINTFORML　……結局、どの勢力も参加しなかった
+	PRINTFORML 連合は取り下げられました
+	RETURN
+ENDIF
+
+参加勢力数 = 0
+
+FOR LOCAL, 0, MAX_COUNTRY
+	SIF !IS_COUNTRY(LOCAL) || !参加フラグ:LOCAL
+		CONTINUE
+	TREATY_U_COUNTRY:連合番号:参加勢力数 = LOCAL
+	TMP_COUNTRY_UNION_TARGET:LOCAL = 相手勢力
+	参加勢力数 ++
+	CALL CLEAR_AI_DIPLOMACY_PLAN(LOCAL, 相手勢力)
+	FOR LOCAL:1, LOCAL + 1, MAX_COUNTRY
+		SIF !IS_COUNTRY(LOCAL:1) || !参加フラグ:(LOCAL:1)
+			CONTINUE
+		TMP_COUNTRY_RELATION:LOCAL:(LOCAL:1) = 2
+		TMP_COUNTRY_RELATION:(LOCAL:1):LOCAL = 2
+	NEXT
+NEXT
+
+TREATY_U_TERM:連合番号 = LIMIT((REL_HATE:勢力君主:相手勢力君主 - REL_LIKE:勢力君主:相手勢力君主) / 100, 5, 8)
+TREATY_U_TARGET:連合番号 = 相手勢力
+
+CALL ICPRINT(@"連合期間は<{TREATY_U_TERM:連合番号}>ターンです", "L", COLOR("注意"))
+
+FORCEWAIT
 
 ;------------------------
 ;勢力から相手勢力への外交計画を返す

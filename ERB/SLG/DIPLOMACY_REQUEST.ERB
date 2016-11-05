@@ -28,7 +28,7 @@ NEXT
 ;※条件は降伏勧告より緩和、引数で要求内容辺り参照して変化できるようにしたいなぁ
 LOCAL:10 = DIPLOMACY_REQUEST_CHECK(CFLAG:MASTER:所属, ARG:0, 40)
 ;こっそりヘイト加算
-DIPLOMACY_HATE:(CFLAG:MASTER:所属):0 += 2
+DIPLOMACY_HATE:(CFLAG:MASTER:所属) += 2
 
 ;既に要求を飲んだことがあり、前回と同様の方法が通用する場合
 IF (LOCAL:10 && CFLAG:(LOCAL:5):外交要求成功フラグ == 1) || ((CFLAG:(LOCAL:5):外交要求成功フラグ == 2 && (TALENT:(LOCAL:5):烙印 || TALENT:(LOCAL:5):服従 || TALENT:(LOCAL:5):隷属 || (GETBIT(TALENT:(LOCAL:5):淫乱系, 素質_淫乱_マゾ) && TALENT:(LOCAL:5):恋慕)))) || (CFLAG:(LOCAL:5):外交要求成功フラグ == 3 && GETBIT(TALENT:(LOCAL:5):淫乱系, 素質_淫乱_薬物中毒))
@@ -44,7 +44,7 @@ IF (LOCAL:10 && CFLAG:(LOCAL:5):外交要求成功フラグ == 1) || ((CFLAG:(LO
 		PRINTFORMW %NAME:(LOCAL:5)%は悲痛な表情を浮かべると、疲れたような声で%ANAME(MASTER)%の要求を受け入れた
 	ENDIF
 	RETURN 1
-	DIPLOMACY_HATE:(CFLAG:MASTER:所属):0 += 2
+	DIPLOMACY_HATE:(CFLAG:MASTER:所属) += 2
 
 ELSEIF ARG:1 && (TALENT:(LOCAL:5):烙印 || TALENT:(LOCAL:5):服従 || TALENT:(LOCAL:5):隷属 || (GETBIT(TALENT:(LOCAL:5):淫乱系, 素質_淫乱_マゾ) && TALENT:(LOCAL:5):恋慕))
 	IF TALENT:(LOCAL:5):烙印
@@ -58,7 +58,7 @@ ELSEIF ARG:1 && (TALENT:(LOCAL:5):烙印 || TALENT:(LOCAL:5):服従 || TALENT:(L
 		CFLAG:(LOCAL:5):外交要求成功フラグ = 2
 		CALL DIPLOMACY_REQUEST_GOHOUBI(ARG:0)
 	ENDIF
-	DIPLOMACY_HATE:(CFLAG:MASTER:所属):0 ++
+	DIPLOMACY_HATE:(CFLAG:MASTER:所属) ++
 	RETURN 1
 
 ;要求を飲んだことがない or 前回の方法が通用しない場合
@@ -110,7 +110,7 @@ ELSE
 			ENDIF
 
 			CFLAG:(LOCAL:5):外交要求成功フラグ = 1
-			DIPLOMACY_HATE:(CFLAG:MASTER:所属):0 += 2
+			DIPLOMACY_HATE:(CFLAG:MASTER:所属) += 2
 			RETURN 1
 
 		ELSE
@@ -203,7 +203,7 @@ ELSE
 			PRINTFORML しばらく愛撫を続けると、%NAME:(LOCAL:5)%はすっかり陶酔した表情になり、
 			PRINTFORMW 媚びるような態度で%ANAME(MASTER)%の要求を飲むことを約束した
 			CFLAG:(LOCAL:5):外交要求成功フラグ = 2
-			DIPLOMACY_HATE:(CFLAG:MASTER:所属):0 += 2
+			DIPLOMACY_HATE:(CFLAG:MASTER:所属) += 2
 			RETURN 2
 		ELSE
 			PRINTFORML だが、いくら%ANAME(MASTER)%の頼みでもそれだけは応えることが出来ないと、
@@ -223,7 +223,7 @@ ELSE
 			PRINTFORMW %ANAME(MASTER)%は褒美として、差し出された舌の上に錠剤を載せてやった……
 			CFLAG:(LOCAL:5):外交要求成功フラグ = 3
 			CFLAG:(LOCAL:5):薬物依存 += RAND(20, 50)
-			DIPLOMACY_HATE:(CFLAG:MASTER:所属):0 += 3
+			DIPLOMACY_HATE:(CFLAG:MASTER:所属) += 3
 			RETURN 3
 		ENDIF
 	ENDIF
@@ -1300,159 +1300,3 @@ DEBUGPRINTFORML 【外交要求判定】%NAME:(BOSS:0)%→%NAME:(BOSS:1)%：判�
 RETURNF LOCAL:1 < SUMARRAY(ROLL_RES)
 
 
-;-----------------------------------------------------------------------------------------------------
-;ARG:0勢力の強要行為に対する反発効果の処理
-;軽:好意減少及び敵意増大
-;小:条約／連合破棄（相手側の敵意で判定）
-;中:一時的外交停止
-;大:反連合の成立
-;返り値 0:お咎め無し, 1-15:有罪、何らかのペナルティが発生, -1:冤罪が判明したので無罪放免
-;-----------------------------------------------------------------------------------------------------
-
-@DIPLOMACY_BACKFIRE(ARG:0)
-;上から順に
-;返り値用のペナルティ処理計測値、勢力トップのキャラ番号、勢力のAIタイプ、ループ処理用のカウンタ
-;同盟／停戦／連合の破棄を決めた勢力
-#DIM RES_PENALTY
-#DIM BOSS_CHARA, 2
-#DIM HATE, 2
-#DIM BOSS_AI, 2
-#DIM LOOP_COUNT, 4
-#DIM HATE_A, MAX_COUNTRY
-#DIM HATE_C, MAX_COUNTRY
-#DIM HATE_U, MAX_COUNTRY
-#DIM TREATY_COUNT
-;DIPLOMACY_HATE:(ARG:0)
-;範囲外、チャンネルが閉じている勢力は冤罪のため釈放
-SIF !INRANGE(ARG:0, 1, MAX_COUNTRY) || COUNTRY_IS_CLOSED:(ARG:0)
-	RETURN -1
-VARSET RES_PENALTY
-VARSET BOSS_CHARA
-VARSET HATE
-VARSET LOOP_COUNT
-VARSET HATE_A
-VARSET HATE_C
-VARSET HATE_U
-
-;対象勢力の基礎情報を取得
-BOSS_CHARA:0 = GET_COUNTRY_BOSS(ARG:0)
-BOSS_AI:0 = COUNTRY_AI_TYPE:(ARG:0)
-
-;軽ペナルティ:好感度減少及び敵対値増大
-IF DIPLOMACY_HATE:(ARG:0):0 >= DIPLOMACY_HATE:(ARG:0):1 + 10
-	SETCOLOR COLOR("警告")
-	PRINTFORMW 度重なる他勢力への圧力により、%ANAME(BOSS_CHARA:0)%を警戒する動きが各国で出ているようです！
-	PRINTFORMW %ANAME(BOSS_CHARA:0)%と他国との関係が悪化しました
-	RESETCOLOR
-	FOR LOOP_COUNT:0, 0, MAX_COUNTRY
-		IF IS_COUNTRY(LOOP_COUNT:0) && LOOP_COUNT:0 != ARG:0 && !COUNTRY_IS_CLOSED:(LOOP_COUNT:0)
-			BOSS_AI:1 = COUNTRY_AI_TYPE:(LOOP_COUNT:0)
-			HATE:0 = -1 * RAND(DIPLOMACY_HATE:(ARG:0):0, DIPLOMACY_HATE:(ARG:0):0 * 2) * AI_RELATION:(BOSS_AI:1):(BOSS_AI:0) / 100
-			HATE:1 = RAND(DIPLOMACY_HATE:(ARG:0):0, DIPLOMACY_HATE:(ARG:0):0 * 2) * 100 / AI_RELATION:(BOSS_AI:1):(BOSS_AI:0)
-			CALL CHANGE_RELATION_C_TO_C(LOOP_COUNT:0, ARG:0, HATE:0, HATE:1)
-		ENDIF
-	NEXT
-	RES_PENALTY += 1
-	DIPLOMACY_HATE:(ARG:0):1 = DIPLOMACY_HATE:(ARG:0):0
-ENDIF
-
-;小ペナルティ:相手の持つ敵対値に応じて条約強制破棄／連合からの排除の実施
-IF DIPLOMACY_HATE:(ARG:0):0 >= DIPLOMACY_HATE:(ARG:0):2 + 20
-	SETCOLOR COLOR("警告")
-	PRINTFORMW 度重なる他勢力への外交強攻策により、%ANAME(BOSS_CHARA:0)%に反発する動きが各勢力で出ているようです！
-	;破棄をする勢力のチェック
-	FOR LOCAL, 1, MAX_COUNTRY
-		SIF LOCAL == ARG:0 || !IS_COUNTRY(LOCAL)
-			CONTINUE
-		BOSS_CHARA:1 = GET_COUNTRY_BOSS(LOCAL)
-		HATE:0 = REL_HATE:(BOSS_CHARA:1):(BOSS_CHARA:0)
-		HATE:0 -= REL_LIKE:(BOSS_CHARA:1):(BOSS_CHARA:0)
-		;破棄決断判定、連合/同盟/停戦=20/30/50%(+ヘイト値の5%と嫌悪度(HATE-LIKE)の1%)で決断する
-		SIF RAND:100 < 20 + ((DIPLOMACY_HATE:(ARG:0):0 * 5 + HATE:0) / 100)
-			HATE_U:LOCAL = 1
-		SIF RAND:100 < 30 + ((DIPLOMACY_HATE:(ARG:0):0 * 5 + HATE:0) / 100)
-			HATE_A:LOCAL = 1
-		SIF RAND:100 < 50 + ((DIPLOMACY_HATE:(ARG:0):0 * 5 + HATE:0) / 100)
-			HATE_C:LOCAL = 1
-	NEXT
-	;面倒なので同盟停戦連合一括処理(ぉ
-	
-	FOR LOOP_COUNT:0, 0, MAX(MAX_TREATY_A, MAX_TREATY_C)
-		;同盟のチェック
-		IF LOOP_COUNT:0 < MAX_TREATY_A
-			FOR LOOP_COUNT:1, 0, MAX_TREATY_COUNTRY
-				IF TREATY_A_COUNTRY:(LOOP_COUNT:0):(LOOP_COUNT:1)
-					;参加国リストに問題の勢力が存在すれば該当する同盟の参加国のチェックを行う
-					IF TREATY_A_COUNTRY:(LOOP_COUNT:0):(LOOP_COUNT:1) == ARG:0
-						TREATY_COUNT = 0
-						HATE_A:0 = 1
-						;対象の同盟に参加している他勢力全てが破棄する場合、同盟は破棄される
-						FOR LOOP_COUNT:2, 0, MAX_TREATY_COUNTRY
-							SIF GROUPMATCH(TREATY_A_COUNTRY:(LOOP_COUNT:0):(LOOP_COUNT:2), ARG:0, 0)
-								CONTINUE
-							TREATY_COUNT ++
-							IF !HATE_A:(TREATY_A_COUNTRY:(LOOP_COUNT:0):(LOOP_COUNT:2))
-								HATE_A = 0
-								BREAK
-							ENDIF
-						NEXT
-						;同盟破棄の処理
-						IF HATE_A
-							CALL BREAK_ALLIANCE(TREATY_A_COUNTRY:(LOOP_COUNT:0):0, TREATY_A_COUNTRY:(LOOP_COUNT:0):1, LOOP_COUNT:0)
-							PRINTL 
-						ENDIF
-					ENDIF
-				ELSE
-					BREAK
-				ENDIF
-			NEXT
-		ENDIF
-		;停戦条約のチェック
-		IF LOOP_COUNT:0 < MAX_TREATY_C
-			FOR LOOP_COUNT:1, 0, MAX_TREATY_COUNTRY
-				IF TREATY_C_COUNTRY:(LOOP_COUNT:0):(LOOP_COUNT:1)
-					;参加国リストに問題の勢力が存在すれば該当する停戦条約の参加国のチェックを行う
-					IF TREATY_C_COUNTRY:(LOOP_COUNT:0):(LOOP_COUNT:1) == ARG:0
-						TREATY_COUNT = 0
-						HATE_C:0 = 1
-						;対象の条約に参加している他勢力全てが破棄する場合、条約は破棄される
-						FOR LOOP_COUNT:2, 0, MAX_TREATY_COUNTRY
-							SIF GROUPMATCH(TREATY_C_COUNTRY:(LOOP_COUNT:0):(LOOP_COUNT:2), ARG:0, 0)
-								CONTINUE
-							TREATY_COUNT ++
-							IF !HATE_C:(TREATY_C_COUNTRY:(LOOP_COUNT:0):(LOOP_COUNT:2))
-								HATE_C = 0
-								BREAK
-							ENDIF
-						NEXT
-						;停戦条約破棄の処理
-						IF HATE_C
-							CALL BREAK_CEASEFIRE(TREATY_C_COUNTRY:(LOOP_COUNT:0):0, TREATY_C_COUNTRY:(LOOP_COUNT:0):1, LOOP_COUNT:0)
-						ENDIF
-					ENDIF
-				ELSE
-					BREAK
-				ENDIF
-			NEXT
-		ENDIF
-	NEXT
-	RESETCOLOR
-
-	RES_PENALTY += 2
-	DIPLOMACY_HATE:(ARG:0):2 = DIPLOMACY_HATE:(ARG:0):0
-ENDIF
-
-;中ペナルティ:一時的な外交停止
-IF DIPLOMACY_HATE:(ARG:0):0 >= DIPLOMACY_HATE:(ARG:0):3 + 40
-	PRINTFORMW %ANAME(BOSS_CHARA:0)%との外交を拒否する動きが各国にあるようです
-	;大体ペナルティ発動回数ターンだけ他勢力と外交ができなくなる
-	COUNTRY_NOTDIPLOMACY_TERM:(ARG:0) += MAX(DIPLOMACY_HATE:(ARG:0):0 * (80 + RAND:21 + RAND:21) / (100 * 40), 1)
-	RES_PENALTY += 4
-	DIPLOMACY_HATE:(ARG:0):3 = DIPLOMACY_HATE:(ARG:0):0
-	SETCOLOR COLOR("警告")
-	PRINTFORML {COUNTRY_NOTDIPLOMACY_TERM:(ARG:0)}ターンの間外交が行えなくなりました！
-	RESETCOLOR
-ENDIF
-
-
-RETURN RES_PENALTY
