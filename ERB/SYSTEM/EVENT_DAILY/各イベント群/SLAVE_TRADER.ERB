@@ -1,4 +1,34 @@
-﻿@SLAVE_TRADER
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@EVENT_DAILY_SLAVE_TRADER_RATE()
+RETURN 100
+
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@EVENT_DAILY_SLAVE_TRADER_DECISION()
+RETURN 15 <= DAY
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@EVENT_DAILY_SLAVE_TRADER_GENRE()
+RETURN デイリー_ジャンル_エロ
+
+
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@EVENT_DAILY_SLAVE_TRADER
 #DIM 対象
 #DIM 捕虜番号, 3000
 #DIM 野盗
@@ -7,7 +37,7 @@
 
 ;野盗勢力がなかったら、あるいはあなたが野盗所属の場合はキャンセル
 SIF 野盗 == -1 || CFLAG:MASTER:所属 == 野盗 || CONFIG:200
-	RETURN -1
+	RETURN 0
 
 ;捕虜がいるか判定、いない場合はキャンセル
 FOR LOCAL, 0, CHARANUM
@@ -17,7 +47,7 @@ FOR LOCAL, 0, CHARANUM
 NEXT
 
 SIF LOCAL == CHARANUM
-	RETURN -1
+	RETURN 0
 
 DAILY_NAME = 奴隷商人
 CALL DAILY_START()
@@ -30,7 +60,7 @@ CALL ASK_MULTI(@"売る", "やめておく")
 	IF RESULT == 1
 		PRINTFORML 大事な交渉材料だ、そんなことは出来ない
 		PRINTFORMW きっぱりと断ると商人は肩を竦めて帰って行った
-		RETURN
+		RETURN 1
 	ELSE
 		PRINTFORML 金になるならば売らない手はない
 		PRINTFORML 奴隷商人を捕虜のところへと案内した
@@ -54,7 +84,7 @@ INPUT
 IF RESULT == 1000
 	PRINTFORML やはり大事な交渉材料だ、売るのはやめておこう
 	PRINTFORMW 断ると商人は肩を竦めて帰って行った
-	RETURN
+	RETURN 1
 ELSEIF RESULT < 0 || RESULT >= LOCAL:1
 	GOTO INPUT_LOOP
 ELSE
@@ -198,7 +228,8 @@ ELSE
 	ENDIF
 ENDIF
 
-RETURN
+RETURN 1
+
 ;-------------------------------------------------
 ;奴隷市場用、奴隷の金額計算関数
 ;-------------------------------------------------

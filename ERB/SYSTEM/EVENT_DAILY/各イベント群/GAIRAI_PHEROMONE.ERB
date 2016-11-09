@@ -1,4 +1,36 @@
-﻿@GAIRAI_PHEROMONE
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@EVENT_DAILY_GAIRAI_PHEROMONE_RATE()
+RETURN (DVAR:フェロモン中毒回数 > 0 ? 200 # 50)
+
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@EVENT_DAILY_GAIRAI_PHEROMONE_DECISION()
+#DIM 外来人
+SIF 外来人 == -1
+	RETURN 0
+
+RETURN 1
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@EVENT_DAILY_GAIRAI_PHEROMONE_GENRE()
+RETURN デイリー_ジャンル_特殊勢力
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@EVENT_DAILY_GAIRAI_PHEROMONE()
 #DIM 対象
 #DIM 外来人
 #DIM 候補キャラ, 3000
@@ -7,9 +39,6 @@
 
 外来人 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_外来人))
 
-SIF 外来人 == -1
-	RETURN -1
-
 対象 = ID_TO_CHARA(DVAR:フェロモン中毒)
 
 ;前回の発生からの状態変化をみる
@@ -17,36 +46,36 @@ IF 対象 != -1
 	;君主になっているなら解除
 	IF 対象 == GET_COUNTRY_BOSS(CFLAG:対象:所属)
 		DVAR:フェロモン中毒 = 0
-		RETURN -1
+		RETURN 0
 	ENDIF
 
 	;外来人所属になってるなら解除
 	IF CFLAG:対象:所属 == 外来人
 		DVAR:フェロモン中毒 = 0
-		RETURN -1
+		RETURN 0
 	ENDIF
 	
 	;死んでいたら戻す
 	IF CFLAG:対象:特殊状態 == 2
 		DVAR:フェロモン中毒 = 0
-		RETURN -1
+		RETURN 0
 	ENDIF
 	
 	;未登場
 	IF ALLSAMES(CFLAG:対象:特殊状態, CFLAG:対象:所属, 0)
 		DVAR:フェロモン中毒 = 0
-		RETURN -1
+		RETURN 0
 	ENDIF
 	
 	;オンナをやめたなら解除
 	IF !IS_FEMALE(対象)
 		DVAR:フェロモン中毒 = 0
-		RETURN -1
+		RETURN 0
 	ENDIF
 
 	;捕虜になっているなら戻す
 	SIF CFLAG:対象:捕虜先
-		RETURN -1
+		RETURN 0
 ;対象がいなければ新たに設定する
 ELSE
 	VARSET 候補キャラ, __INT_MIN__
@@ -66,13 +95,10 @@ ELSE
 		ENDIF
 	NEXT
 	SIF 候補数 == 0
-		RETURN -1
+		RETURN 0
 	対象 = FINDELEMENT(候補キャラ, MAXARRAY(候補キャラ))
 	DVAR:フェロモン中毒 = GET_ID(対象)
 ENDIF
-
-DAILY_NAME = フェロモン発生装置
-CALL DAILY_START()
 
 IF DVAR:フェロモン中毒回数 == 0
 	PRINTFORML 外来人が性奴調教用の機械を開発した
@@ -229,4 +255,4 @@ ELSE
 	DVAR:フェロモン中毒回数 = 0
 ENDIF
 
-RETURN
+RETURN 1

@@ -1,19 +1,46 @@
-﻿@TUTOR
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@EVENT_DAILY_TUTOR_RATE()
+RETURN (DVAR:娘お気に入り > 0 ? 250 # 20)
+
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@EVENT_DAILY_TUTOR_DECISION()
+SIF DVAR:家庭教師 == -1
+	RETURN 0
+RETURN 15 <= DAY
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@EVENT_DAILY_TUTOR_GENRE()
+RETURN デイリー_ジャンル_エロ
+
+
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@EVENT_DAILY_TUTOR()
 #DIM 対象
 
-SIF DVAR:家庭教師 == -1
-	RETURN -1
-
-DAILY_NAME = 家庭教師
-CALL DAILY_START()
 IF DVAR:逢瀬フラグ == 1
 	対象 = ID_TO_CHARA(DVAR:娘お気に入り)
 	IF 対象 == -1
 		DVAR:逢瀬フラグ = 0
-		RETURN -1
+		RETURN 0
 	ENDIF
 	SIF CFLAG:対象:捕虜先 || CFLAG:対象:所属 != CFLAG:MASTER:所属
-		RETURN -1
+		RETURN 0
 	PRINTFORMW 貴族の娘と逢引をした…
 	PRINTFORML 
 	SELECTCASE RAND:10
@@ -78,7 +105,7 @@ IF DVAR:逢瀬フラグ == 1
 			PRINTFORML 腰を小刻みにクイクイと捻られるとカリ首が膣肉で擦りあげられ、思わずうめき声を漏らしてしまう
 			PRINTFORMW すると彼女は嬉しそうに笑い更に腰を動かし、結局何度も彼女の中へ射精させられてしまった
 	ENDSELECT
-	RETURN
+	RETURN 1
 ENDIF
 
 ;初回
@@ -124,7 +151,7 @@ ELSE
 		PRINTFORML しかし彼は現在捕虜になっており、派遣できない
 		PRINTFORML そう伝えると使いの男は大変慌て、お嬢様に彼でなければ嫌だと言われたと告げる
 		PRINTFORMW 今回はお嬢様を説得するから、なるべく早く彼を連れ戻してほしいと言い立ち去った
-		RETURN
+		RETURN 1
 	ELSEIF CFLAG:対象:捕虜先
 		PRINTFORML しかし彼は現在捕虜になっており、派遣できない
 		PRINTFORML そう伝えると使いの男は慌てたが
@@ -141,7 +168,7 @@ CALL ASK_MULTI(@"引き受ける", "断る")
 		DVAR:娘お気に入り = 0
 		SIF DVAR:授業回数 >= 4
 			DVAR:家庭教師 = -1
-		RETURN
+		RETURN 1
 	ELSE
 		IF DVAR:娘お気に入り == 0
 			PRINTFORML この程度なら大した手間ではないし、恩を売っておくのも良いだろう
@@ -154,7 +181,7 @@ CALL ASK_MULTI(@"引き受ける", "断る")
 			IF RESULT < 0
 				PRINTFORML 引き受けたかったがあいにく今は全員忙しかった
 				PRINTFORMW 使いの男に謝り、引き取ってもらった
-				RETURN
+				RETURN 1
 			ENDIF
 			対象 = RESULT
 			IF 対象 == MASTER
@@ -226,7 +253,7 @@ IF DVAR:娘お気に入り == 0
 	ENDIF
 	MONEY += 2000
 	PRINTFORMW 報酬2000を受け取った
-	RETURN
+	RETURN 1
 ;お気に入りの場合、イベントが進行していく
 ELSE
 	SELECTCASE DVAR:授業回数 
@@ -663,7 +690,7 @@ ELSE
 	ENDSELECT
 ENDIF
 
-RETURN
+RETURN 1
 
 ;---------------------------------------------------------------------------------
 ;授業内容
@@ -713,4 +740,4 @@ CALL ASK_MULTI(@"戦争の話", "数学の話", "政治の話")
 		ENDIF
 	ENDIF
 	CALL TRAIN_AUTO_ABLUP(ARG:0)
-RETURN
+RETURN 1

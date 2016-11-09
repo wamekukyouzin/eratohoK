@@ -1,16 +1,46 @@
-﻿@BANDIT_LOOT
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@EVENT_DAILY_BANDIT_LOOT_RATE()
+RETURN 30
+
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@EVENT_DAILY_BANDIT_LOOT_DECISION()
+#DIM 野盗
+野盗 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:特殊勢力_野盗)
+SIF 野盗 == -1
+	RETURN 0
+RETURN 1
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@EVENT_DAILY_BANDIT_LOOT_GENRE()
+RETURN デイリー_ジャンル_特殊勢力
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@EVENT_DAILY_BANDIT_LOOT()
 #DIM 都市
 #DIM 金額
 
 CALL DAILY_EVENT_RAND_CITYSELECT(0)
 都市 = RESULT
 SIF 都市 < 0
-	RETURN -1
+	RETURN 0
 	
 金額 = 3000 + (2000 * (DAY / 5))
 
-DAILY_NAME = 村落の襲撃
-CALL DAILY_START()
 PRINTFORML 領土内で野盗の集団を見たとの噂を聞いた
 PRINTFORML 巡回の兵を出してもいいが経費として金{金額}がかかるだろう
 PRINTFORML ただの見間違いの場合は骨折り損のくたびれ儲けになってしまうが
@@ -35,7 +65,7 @@ CALL ASK_MULTI_JUDGE(@"巡回部隊を出す", MONEY >= 金額,"放っておく"
 			CALL COLORPRINTFORM(@"%CITY_NAME:都市%の経済規模が{LOCAL:1 / 100}減少し、{CITY_ECONOMY:都市 / 100}になった", COLOR("注意"))
 			PRINTFORMW 
 		ENDIF
-		RETURN
+		RETURN 1
 	ELSE
 	ENDIF
 PRINTFORML 噂とは言え放置はできない
@@ -70,7 +100,7 @@ ELSE
 	CALL COLORPRINTFORM(@"%CITY_NAME:都市%の経済規模が{LOCAL:1 / 100}減少し、{CITY_ECONOMY:都市 / 100}になった", COLOR("注意"))
 	PRINTFORMW 
 ENDIF
-RETURN
+RETURN 1
 ;---------------------------------------------
 ;領民が犯される
 ;--------------------------------------------

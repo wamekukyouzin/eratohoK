@@ -1,4 +1,32 @@
-﻿@MERCENARY
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@EVENT_DAILY_MERCENARY_RATE()
+RETURN 30
+
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@EVENT_DAILY_MERCENARY_DECISION()
+RETURN DAY >= 5
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@EVENT_DAILY_MERCENARY_GENRE()
+RETURN デイリー_ジャンル_雇用
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@EVENT_DAILY_MERCENARY()
 #DIM 兵数
 #DIM 雇用額
 
@@ -10,11 +38,7 @@ DAILY_NAME = 傭兵団の来訪
 CALL DAILY_START()
 PRINTFORML 従者が来客を告げた
 PRINTFORMW どうやら、傭兵団が軍に参加したいと言っているようだ
-PRINTFORM 兵
-CALL COLORPRINTFORM(@"{兵数}", COLOR("注意"))
-PRINTFORM の雇用で、準備金として金
-CALL COLORPRINTFORM(@"{雇用額}", COLOR("注意"))
-PRINTFORML を求めているようだ
+CALL ICPRINT(@"兵<{兵数}>の雇用で、準備金<{雇用額}>を求めている", "W", COLOR("注意"))
 PRINTFORML 現在の資金:{MONEY}
 
 CALL ASK_MULTI_JUDGE("雇う", MONEY >= 雇用額, "雇わない", 1)
@@ -25,3 +49,4 @@ IF RESULT == 0 && MONEY >= 雇用額
 ELSEIF RESULT == 1
 	PRINTFORMW やめておいた
 ENDIF
+RETURN 1

@@ -1,4 +1,29 @@
-﻿@REPAYMENT
+﻿;---------------------
+;発生確率(1000分率 100で10%)
+;---------------------
+@EVENT_DAILY_REPAYMENT_RATE()
+RETURN (DVAR:恩返しフラグ || DVAR:通い妻フラグ > 0 ? 250 # 30)
+
+;---------------------
+;確率以外の発生判定
+;---------------------
+@EVENT_DAILY_REPAYMENT_DECISION()
+SIF DAY < 10
+	RETURN 0
+SIF !IS_MALE(MASTER)
+	RETURN 0
+RETURN 1
+
+;---------------------
+;ジャンル
+;---------------------
+@EVENT_DAILY_REPAYMENT_GENRE()
+RETURN デイリー_ジャンル_エロ
+
+;---------------------
+;本体
+;---------------------
+@EVENT_DAILY_REPAYMENT()
 #DIM 対象
 #DIMS 動物の種類
 
@@ -14,10 +39,7 @@ IF DVAR:通い妻フラグ == 1
 	ELSEIF DVAR:動物 == 4
 		動物の種類 = 鶴
 	ENDIF
-	
-	DAILY_NAME = 通い妻
-	CALL DAILY_START()
-	
+
 	PRINTFORMW %ANAME(MASTER)%の家に%動物の種類%の娘がやってきた……
 	PRINTFORML 
 	SELECTCASE RAND:15
@@ -112,15 +134,12 @@ IF DVAR:通い妻フラグ == 1
 			PRINTFORML 我慢も限界に達し腰の動きを速めると、彼女もギュッと%ANAME(MASTER)%にしがみついて子種をおねだりしてきた
 			PRINTFORMW 二人でドロドロに溶けていく様な錯覚に陥りながら、共に絶頂へと昇って行った
 	ENDSELECT
-	RETURN 0
+	RETURN 1
 ENDIF
 
 IF DVAR:恩返しフラグ == -1
-	RETURN -1
+	RETURN 0
 ENDIF
-
-DAILY_NAME = 恩返し
-CALL DAILY_START()
 
 ;ここから本文
 ;1回目
@@ -167,12 +186,12 @@ IF DVAR:恩返しフラグ == 0
 			PRINTFORMW %ANAME(MASTER)%の料理技能が上がった！
 			ABL:MASTER:料理 += 2
 			DVAR:恩返しフラグ = -1
-			RETURN
+			RETURN 1
 		ELSEIF RESULT == 1
 			PRINTFORMW 下手に関わることもないだろう
 			PRINTFORMW %ANAME(MASTER)%はその場を後にした
 			DVAR:恩返しフラグ = -1
-			RETURN
+			RETURN 1
 		ELSE
 			PRINTFORMW %ANAME(MASTER)%は%動物の種類%を哀れに思い、助けてやることにした
 			PRINTFORMW %動物の種類%は罠から解放されると、ジッと%ANAME(MASTER)%を見つめていたが
@@ -462,3 +481,5 @@ ELSEIF DVAR:恩返しフラグ == 4
 		ENDIF
 	DVAR:恩返しフラグ = -1
 ENDIF
+
+RETURN 1
