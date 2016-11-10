@@ -1,4 +1,38 @@
-﻿@TENTACLE_BIRTH
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@SLG_EVENT_DAILY_TENTACLE_BIRTH_RATE()
+RETURN 50
+
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@SLG_EVENT_DAILY_TENTACLE_BIRTH_DECISION()
+#DIM 触手
+触手 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_触手))
+;触手勢力がいない場合はキャンセル
+SIF 触手 == -1
+	RETURN 0
+
+RETURN 1
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@SLG_EVENT_DAILY_TENTACLE_BIRTH_GENRE()
+RETURN ＳＬＧ_デイリー_ジャンル_エロ
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@SLG_EVENT_DAILY_TENTACLE_BIRTH()
 #DIM 対象
 #DIM 触手
 #DIM 兵数
@@ -10,9 +44,6 @@ VARSET 候補乱数
 VARSET 候補数
 
 触手 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_触手))
-;触手勢力がいない場合はキャンセル
-SIF 触手 == -1 || CONFIG:200
-	RETURN -1
 
 ;放浪中キャラからターゲットをランダム選出
 FOR LOCAL, 0, CHARANUM
@@ -26,17 +57,14 @@ NEXT
 
 ;候補がいなければ戻す
 SIF 候補数 <= 0
-	RETURN -1
+	RETURN 0
 
 ;候補乱数のうち、一番高い値を出したキャラを対象とする
 対象 = 候補:(FINDELEMENT(候補乱数, MAXARRAY(候補乱数, 0, 候補数), 0, 候補数))
 
 ;候補が不適切ならば戻す
 SIF 対象 < 0
-	RETURN
-	
-DAILY_NAME = 触手強制出産
-CALL DAILY_START()
+	RETURN 0
 
 PRINTFORML 繁殖の為の新たな苗床を求めて彷徨っていた触手が、放浪中の%ANAME(対象)%を見つけた
 PRINTFORML 触手は%ANAME(対象)%に気付かれないように這いより、彼女が人気のない場所に差し掛かった時に襲いかかった！
@@ -179,3 +207,4 @@ CALL COLORPRINTFORM(@"触手勢力の兵数が{兵数}増えた！", COLOR("緑"
 PRINTFORMW
 PRINTFORML 
 PRINTFORMW 満足した触手はドロドロになった%ANAME(対象)%を放置して去って行った
+RETURN 1
