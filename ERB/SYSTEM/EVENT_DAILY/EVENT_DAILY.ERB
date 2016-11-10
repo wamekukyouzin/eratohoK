@@ -1,453 +1,76 @@
-﻿;複数シナリオにまたがるイベント処理
-@EVENT_DAILY()
-#DIM EVENT_LIST, 1000
-#DIM EVENT_PICK, 1000
-#DIM EVENT_ODDS
-#DIM EVENT_COUNT, 2
-VARSET LOCAL
-VARSET EVENT_PICK
+﻿@EVENT_DAILY(SLGフラグ)
+#DIM SLGフラグ
+#DIMS SLG
+#DIM EVENT_NUM
+#DIMS NAME_ENG
+#DIMS NAME_JAP
+#DIM EVENT_COUNT
 
 DAILY_CANCEL = 0
+EVENT_COUNT = DAILY_EVENT_COUNT:(SLGフラグ ? 1 # 0)
+SLG = %(SLGフラグ ? "SLG_" # "" )%
 
 SIF !IS_DAILY_EVENT_HAPPEN(MASTER)
 	RETURN 0
 
-
-;派生イベント関係の処理
-CALL DAILY_DERIVATION
-
-;口上デイリー用の派生イベント関係の処理
-CALL KOJO_DAILY_DERIVATION
-
-;イベント発生数のセット
-EVENT_COUNT:0 = DCONFIG:951 + 1, DCONFIG:952 + 1
-
-;イベントリストの作成（起動後作成していなければ）
-;イベント追加時は系列に合わせて定数に使用したものを突っ込んでおいてください
-;金貸しイベント(ID=1)が登録されていなければ処理を実行(薬売りはID=0なので利用できない)
-IF !EVENT_LIST:1
-	;0が薬売りで使用されているので-1で初期化
-	VARSET EVENT_LIST, -1
-
-;スケベ系:
-{
-	EVENT_LIST:0 = 
-	DCON_薬売り,		DCON_金貸し,		DCON_夜遊び,		DCON_富豪,		DCON_募金,			DCON_催眠,
-	DCON_接待,			DCON_恩返し,		DCON_河童娘,		DCON_闇討ち, 	DCON_睡姦,			DCON_賞金首討伐,
-	DCON_お手伝い,		DCON_酒場,			DCON_家庭教師,		DCON_夜伽,		DCON_淫紋,			DCON_奴隷商人,
-	DCON_羞恥プレイ,	DCON_人攫い組織,	DCON_お風呂,		DCON_屋形船,	DCON_種族間抗争,	DCON_触手兵,
-	DCON_シャブセックス,DCON_救出作戦,		DCON_セクハラ,		DCON_宴会,		DCON_異変解決
-}	
-	;雇用系:
-	EVENT_LIST:100 = DCON_傭兵, DCON_用心棒, DCON_仕官の誘い
-	;トレーナー:
-	EVENT_LIST:200 = DCON_素質トレーナー, DCON_セックストレーナー, DCON_外界の医者, DCON_麻薬治療医, DCON_触手トレーナー
-	;外交:
-	EVENT_LIST:400 = DCON_人材要求, DCON_資金援助要求
-
-;特殊勢力
-{
-	EVENT_LIST:600 = 
-	DCON_野盗_討伐,			DCON_野盗_身代金,		DCON_野盗_蜂起,		DCON_野盗_放浪捕縛,		DCON_野盗_略奪,		DCON_野盗_村落襲撃,
-	DCON_野盗_性奴隷要求,	DCON_野盗_士官籠絡,		DCON_野盗_捕虜解放,
-	DCON_外来人_非道実験,	DCON_外来人_フェロモン,
-	DCON_ゴブリン_妊婦拉致,	DCON_ゴブリン_捕虜拉致
-}
-	;その他
-	EVENT_LIST:900 =DCON_ステマ, DCON_ランダム謀反, DCON_MISC
+IF SLGフラグ
+	CALL SLG_DAILY_DERIVAION
+ELSE
+	CALL DAILY_DERIVATION
 ENDIF
 
-;デイリーイベント発生チェック
-;例の関数で順番を決めてSELECTCASEにぶん投げる
-;順番にイベントフラグ及び発生期間の確認と確率ロールを行い、大丈夫であればイベント本体に移動
-;その後、終了フラグが立っていればループを脱出する
+SIF DAILY_CANCEL
+	RETURN 0
 
-;イベント発生倍率のセット
-;2^(コンフィグ値-1)+1、つまりDCONFIG:950が0/1/2/3/4の場合1/2/3/5/10倍になる
-;なお1000を超えた場合、そのイベントが必ず発生するだけで何ら問題はない（ぉ
-EVENT_ODDS = POWER(2, DCONFIG:DCON_通常発生頻度 - 1) + 1
+EVENT_NUM = SLGフラグ ? VARSIZE("SLG_DAILY_EVENT_NAME_ENG") # VARSIZE("DAILY_EVENT_NAME_ENG")
 
-;いつもの順番決定、拡張性を考えて枠は100個用意させていただきました
-CALL FISHER_YATES_SHAFFLE(1000)
+CALL FISHER_YATES_SHAFFLE(EVENT_NUM)
 
-;念のため順番を記録
-ARRAYCOPY "SHAFFLE_ARRAY" , "EVENT_PICK"
-
-FOR LOCAL:0, 0, 1000
-	RESULT = -1
-	SELECTCASE EVENT_LIST:(EVENT_PICK:(LOCAL:0))
-	
-	;-------------------スケベ系-------------------
-
-	;薬売り
-	;8期以降で2.5%
-	CASE DCON_薬売り
-		IF !DCONFIG:DCON_薬売り && DAY >= 8 && RAND:1000 < 25 * EVENT_ODDS
-			DAILY_NAME = 薬売りの来訪
-			CALL SMUGGLER
-		ENDIF
-
-	;金貸し
-	;15期以降で2%
-	CASE DCON_金貸し
-		IF !DCONFIG:DCON_金貸し && DAY >= 15 && RAND:1000 < 20 * EVENT_ODDS
-			CALL LENDER
-		ENDIF
-		
-	;夜遊び
-	;5期以降で4%
-	CASE DCON_夜遊び
-		IF !DCONFIG:DCON_夜遊び && DAY >= 5 && RAND:1000 < 40 * EVENT_ODDS
-			CALL NIGHTLIFE
-		ENDIF
-
-	;富豪
-	;20期以降で3%（お気に入りがいれば25%）、斬ってない
-	CASE DCON_富豪
-		IF !DCONFIG:DCON_富豪 && DVAR:富豪 != -1 && DAY >= 20 && RAND:1000 < (DVAR:富豪お気に入り > 0 ? 250 # 30) * EVENT_ODDS
-			CALL MILLIONAIRE
-		ENDIF
-
-	;募金
-	;10期以降で3%（抱くたびに確率アップ）
-	CASE DCON_募金
-		IF !DCONFIG:DCON_募金 && DAY >= 10 && RAND:1000 < (30 + INRANGE(DVAR:募金抱いた回数, 0, 10) * 7) * EVENT_ODDS
-			CALL FUND_RAISING
-		ENDIF
-
-	;催眠
-	;10期以降で3%
-	CASE DCON_催眠
-		IF !DCONFIG:DCON_催眠 && DAY >= 10 && RAND:1000 < 30 * EVENT_ODDS
-			CALL BLAIN_WASH
-		ENDIF
-
-	;接待
-	;5期以降で2%
-	CASE DCON_接待
-		IF !DCONFIG:DCON_接待 && DAY >= 5 && RAND:1000 < 20 * EVENT_ODDS
-			CALL RECEPTION
-		ENDIF
-
-	;恩返し
-	;10期以降、あなたが男性の場合、確率3%で発生、イベント中は発生確率アップ
-	CASE DCON_恩返し
-		IF !DCONFIG:DCON_恩返し && DAY >= 10 && IS_MALE(MASTER) && RAND:1000 < (DVAR:恩返しフラグ || DVAR:通い妻フラグ > 0 ? 250 # 30) * EVENT_ODDS
-			CALL REPAYMENT
-		ENDIF
-
-	;河童娘
-	;10期以降、確率3%で発生
-	CASE DCON_河童娘
-		IF !DCONFIG:DCON_河童娘 && DAY >= 10 && RAND:1000 < 30 * EVENT_ODDS
-			CALL KAPPAPPA
-		ENDIF
-
-	;睡姦
-	;10期以降、あなたが男性の場合、確率3%で発生
-	CASE DCON_睡姦
-		IF !DCONFIG:DCON_睡姦 && IS_MALE(MASTER) && DAY >= 10 && RAND:1000 < 30 * EVENT_ODDS
-			CALL DRUNK_RAPE
-		ENDIF
-
-	;賞金首討伐
-	;15期以降、確率3%で発生
-	CASE DCON_賞金首討伐
-		IF !DCONFIG:DCON_賞金首討伐 && DAY >= 15 && RAND:1000 < 30 * EVENT_ODDS
-			CALL BOUNTY_HUNTER
-		ENDIF
-		
-	;お手伝い
-	;15期以降、確率2.5%で発生
-	CASE DCON_お手伝い
-		IF !DCONFIG:DCON_お手伝い && DAY >= 15 && RAND:1000 < 25 * EVENT_ODDS
-			CALL WORK_HELPER
-		ENDIF
-	;酒場
-	;10期以降、確率2%で発生
-	CASE DCON_酒場
-		IF !DCONFIG:DCON_酒場 && DAY >= 10 && RAND:1000 < 20 * EVENT_ODDS
-			CALL TAVERN_SEX
-		ENDIF
-
-	;家庭教師
-	;15期以降、確率2%で発生、お気に入りがいる場合は25%にアップ
-	CASE DCON_家庭教師
-		IF !DCONFIG:DCON_家庭教師 && DAY >= 15 && RAND:1000 < (DVAR:娘お気に入り > 0 ? 250 # 20) * EVENT_ODDS
-			CALL TUTOR
-		ENDIF
-		
-	;夜伽
-	;10期以降、主人公が女の場合、確率15%で発生
-	CASE DCON_夜伽
-		IF !DCONFIG:DCON_夜伽 && DAY >= 10 && IS_FEMALE(MASTER) && RAND:1000 < 150 * EVENT_ODDS
-			CALL VIGIL
-		ENDIF
-		
-	;淫紋
-	;12期以降、確率3%で発生、悪魔祓いに成功していたらもう発動しない
-	CASE DCON_淫紋
-		IF !DCONFIG:DCON_淫紋 && !DVAR:浸食中キャラ && DAY >= 12 && DVAR:悪魔契約 >= 0 && RAND:1000 < 30 * EVENT_ODDS
-			CALL LEWDNESS_CURSE
-		ENDIF
-		
-	;奴隷商人
-	;15期以降、確率10%で発生
-	CASE DCON_奴隷商人
-		IF !DCONFIG:DCON_奴隷商人 && DAY >= 15 && RAND:1000 < 100 * EVENT_ODDS
-			CALL SLAVE_TRADER
-		ENDIF
-		
-	;羞恥プレイ
-	;5期以降、あなたが男で首輪を所持している場合、4%で発動
-	CASE DCON_羞恥プレイ
-		IF !DCONFIG:DCON_羞恥プレイ && DAY >= 5 && IS_MALE(MASTER) && ITEM:首輪 == 1 && RAND:1000 < 40 * EVENT_ODDS
-			CALL PET_PLAY
-		ENDIF
-		
-	;人攫い組織
-	;12期以降、3%で発動
-	CASE DCON_人攫い組織
-		IF !DCONFIG:DCON_人攫い組織 && DAY >= 12 && RAND:1000 < 30 * EVENT_ODDS
-			CALL ZEGEN
-		ENDIF
-		
-	;お風呂
-	;10期以降、3%で発動
-	CASE DCON_お風呂
-		IF !DCONFIG:DCON_お風呂 && DAY >= 10 && RAND:1000 < 30 * EVENT_ODDS
-			CALL BATH_PLAY
-		ENDIF
-		
-	;屋形船
-	;12期以降、3%で発動
-	CASE DCON_屋形船
-		IF !DCONFIG:DCON_屋形船 && DAY >= 12 && RAND:1000 < 30 * EVENT_ODDS
-			CALL HOUSEBOAT
-		ENDIF
-		
-	;種族間抗争
-	;あなたが男の場合、15期以降、2.5%で発動
-	CASE DCON_種族間抗争
-		IF !DCONFIG:DCON_種族間抗争 && IS_MALE(MASTER) && DAY >= 15 && RAND:1000 < 25 * EVENT_ODDS
-			CALL ANIMAL_SEX_BATTLE
-		ENDIF
-		
-	;触手兵イベント
-	;10期以降で2%
-	CASE DCON_触手兵
-		IF !DCONFIG:DCON_触手兵 && DAY >= 10 && RAND:1000 < 20 * EVENT_ODDS
-			CALL TENTACLE_SOLDIERS
-		ENDIF
-	;シャブセックス
-	;2%で発動
-	CASE DCON_シャブセックス
-		IF !DCONFIG:DCON_シャブセックス && RAND:1000 < 20 * EVENT_ODDS
-			CALL DRUG_SEX
-		ENDIF
-		
-	;くっころ救出作戦
-	;3%で発動
-	CASE DCON_救出作戦
-		IF !DCONFIG:DCON_救出作戦 && RAND:1000 < 30 * EVENT_ODDS
-			CALL RESCUE
-		ENDIF
-		
-	;女あなたの悲惨な日常
-	;あなたが女の場合、6%で発動
-	CASE DCON_セクハラ
-		IF !DCONFIG:DCON_セクハラ && IS_FEMALE(MASTER) && RAND:1000 < 60 * EVENT_ODDS
-			CALL YOU_SEXHARA
-		ENDIF
-		
-	;宴会
-	;3%で発動
-	CASE DCON_宴会
-		IF !DCONFIG:DCON_宴会 && RAND:1000 < 30 * EVENT_ODDS
-			CALL ALCOHOL
-		ENDIF
-		
-	;異変解決
-	;10期以降に3%で発動、デイリー発動中は25%で発動
-;	CASE DCON_異変解決
-;		IF !DCONFIG:DCON_異変解決 && DAY >= 10 && RAND:1000 < (DVAR:異変解決度 > 0 ? 250 # 30) * EVENT_ODDS
-;			CALL INVESTIGATION
-;		ENDIF
-
-	;-------------------傭兵系-------------------
-	;傭兵
-	;5期以降で3%
-	CASE DCON_傭兵
-		IF !DCONFIG:DCON_傭兵 && DAY >= 5 && RAND:1000 < 30 * EVENT_ODDS
-			CALL MERCENARY
-		ENDIF
-
-	;用心棒
-	;10期以降で2%
-	CASE DCON_用心棒
-		IF !DCONFIG:DCON_用心棒 && DAY >= 10 && RAND:1000 < 20 * EVENT_ODDS
-			CALL BOUNCER
-		ENDIF
-
-	;-------------------トレーナー-------------------
-
-	;筋肉馬鹿
-	;15期以降で2.5%
-	CASE DCON_素質トレーナー
-		IF !DCONFIG:DCON_素質トレーナー && DAY >= 15 && RAND:1000 < 25 * EVENT_ODDS
-			CALL TALENT_TRAINER
-		ENDIF
-	;セックストレーナー
-	;15期以降で3%の確率
-	CASE DCON_セックストレーナー
-		IF !DCONFIG:DCON_セックストレーナー && DAY >= 15 && RAND:1000 < 30 * EVENT_ODDS
-			CALL SEX_TRAINER
-		ENDIF
-	;外界の医者
-	;15期以降で3.5%
-	CASE DCON_外界の医者
-		IF !DCONFIG:DCON_外界の医者 && DAY >= 15 && RAND:1000 < 35 * EVENT_ODDS
-			CALL DOCTOR_GAIRAI
-		ENDIF
-	;麻薬治療医
-	;15期以降で7.5%
-	CASE DCON_麻薬治療医
-		IF !DCONFIG:DCON_麻薬治療医 && DAY >= 15 && RAND:1000 < 75 * EVENT_ODDS
-			CALL DOCTOR_DRUG
-		ENDIF
-	;触手トレーナー
-	;触手部屋がある場合、15期以降で2.5%
-	CASE DCON_触手トレーナー
-		IF !DCONFIG:DCON_触手トレーナー && DAY >= 15 && RAND:1000 < 25 * EVENT_ODDS && ITEM:触手部屋
-			CALL TENTACLE_TRAINER
-		ENDIF
-
-	;-------------------外交系-------------------
-	;人材要求
-	;外交解禁後3.5%
-	CASE DCON_人材要求
-		IF !DCONFIG:DCON_人材要求 && DAY >= SLG_PP:0 && RAND:1000 < 35 * EVENT_ODDS
-			CALL DAILY_DIPLO_REQUEST_CHARA
-		ENDIF
-	;資金援助要求
-	;外交解禁後3.5%
-	CASE DCON_資金援助要求
-		IF !DCONFIG:DCON_資金援助要求 && DAY >= SLG_PP:0 && RAND:1000 < 35 * EVENT_ODDS
-			CALL DAILY_DIPLO_REQUEST_MONEY
-		ENDIF
-		
-		
-	;-------------------特殊勢力系-------------------
-	;野盗討伐イベント
-	CASE DCON_野盗_討伐
-		IF !DCONFIG:DCON_野盗_討伐 && DAY >= 15 && RAND:1000 < 40 * EVENT_ODDS
-			CALL BANDIT_CONQUER
-		ENDIF
-	;野盗の身代金要求処理
-	;乱数が特殊かつ解禁時期がないため関数側で処理
-	CASE DCON_野盗_身代金
-		SIF !DCONFIG:DCON_野盗_身代金
-			CALL BANDIT_REQUIRE_RANSOM
-
-	;野盗の放浪キャラ捕縛処理
-	;とりあえずキャラ別判定は関数に任せて5%の部分だけ引き出す
-	CASE DCON_野盗_放浪捕縛
-		IF !DCONFIG:DCON_野盗_放浪捕縛 && RAND:1000 < 50 * EVENT_ODDS
-			CALL BANDIT_ARREST
-		ENDIF
-	;野盗略奪イベント、12期以降4%で発動
-	CASE DCON_野盗_略奪
-		;略奪
-		IF !DCONFIG:DCON_野盗_略奪 && DAY >= 12 && RAND:1000 < 40 * EVENT_ODDS
-			CALL BANDIT_PILLAGE
-		ENDIF
-	;捕虜解放イベント、関数側で処理
-	CASE DCON_野盗_捕虜解放
-		;略奪
-		IF !DCONFIG:DCON_野盗_捕虜解放
-			CALL BANDIT_RELEASE
-		ENDIF
-	;村落襲撃イベント、12期以降3%で発動
-	CASE DCON_野盗_村落襲撃
-		IF !DCONFIG:DCON_野盗_村落襲撃 && DAY >= 12 && RAND:1000 < 30 * EVENT_ODDS && GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:特殊勢力_野盗) != CFLAG:MASTER:所属
-			CALL BANDIT_LOOT
-		ENDIF
-		
-	;性奴隷要求イベント、30期以3%で発動、野盗と停戦・同盟状態でなければデイリーの方ではじかれる
-	CASE DCON_野盗_性奴隷要求
-		SIF !DCONFIG:DCON_野盗_性奴隷要求 && DAY >= 30 && RAND:1000 < 30 * EVENT_ODDS
-			CALL BANDIT_REQUEST
-
-	;士官籠絡イベント、15期以降3%で発動、ターゲットがいる場合25%にアップ
-	CASE DCON_野盗_士官籠絡
-		IF !DCONFIG:DCON_野盗_士官籠絡 && DAY >= 15 && RAND:1000 < (DVAR:麻薬漬けターゲット > 0 ? 250 # 30) * EVENT_ODDS
-			CALL BANDIT_CORRUPTION
-		ENDIF
-
-	;外来人非道実験
-	;4%で発動
-	CASE DCON_外来人_非道実験
-		IF !DCONFIG:DCON_外来人_非道実験 && RAND:1000 < 40 * EVENT_ODDS
-			CALL GAIRAI_EXPERIMENT
-		ENDIF
-	;外来人フェロモン
-	;5%で発動、フェロモン中毒者がいると25%
-	CASE DCON_外来人_フェロモン
-		IF !DCONFIG:DCON_外来人_フェロモン && RAND:1000 < (DVAR:フェロモン中毒回数 > 0 ? 200 # 50) * EVENT_ODDS
-			CALL GAIRAI_PHEROMONE
-		ENDIF
-
-	;ゴブリン妊婦拉致
-	;2.5%で発動
-	CASE DCON_ゴブリン_妊婦拉致
-		IF !DCONFIG:DCON_ゴブリン_妊婦拉致 && RAND:1000 < 25 * EVENT_ODDS
-			CALL GOBLIN_PREGNANT_ABD
-		ENDIF
-	;ゴブリン捕虜拉致
-	;3%で発動
-	CASE DCON_ゴブリン_捕虜拉致
-		IF !DCONFIG:DCON_ゴブリン_捕虜拉致 && RAND:1000 < 30 * EVENT_ODDS
-			CALL GOBLIN_PRISONER_ABD
-		ENDIF
-
-
-	;-------------------その他系-------------------
-	;ステマ
-	;7%で発動
-	CASE DCON_ステマ
-		IF !DCONFIG:DCON_ステマ && RAND:1000 < 70 * EVENT_ODDS
-			CALL STEMA
-		ENDIF
-
-	;小型イベント
-	;複数のイベントが併発しなくなった代わりにこちらで確率を制御（10%）
-	CASE DCON_MISC
-		IF !DCONFIG:DCON_MISC && RAND:1000 < 100 * EVENT_ODDS
-			DAILY_NAME = 小型イベント
-			CALL DAILY_START()
-			CALL DAILY_MISC
-		ENDIF
-
-	;未定義
-	CASEELSE
-		CONTINUE
-	ENDSELECT
-
-	;正常終了していたらカウントを減らす
-	;イベントに入る前に弾かれていた場合はカウントしない
-	SIF RESULT != -1
-		EVENT_COUNT:0 --
-	;終了フラグが立っていれば口上デイリー処理へ
-	SIF DAILY_CANCEL || !EVENT_COUNT:0
-		BREAK
-
+FOR LOCAL, 0, EVENT_NUM
+	IF SLGフラグ
+		NAME_ENG = %SLG_DAILY_EVENT_NAME_ENG:(SHAFFLE_ARRAY:LOCAL)%
+		NAME_JAP = %SLG_DAILY_EVENT_NAME:(SHAFFLE_ARRAY:LOCAL)%
+	ELSE
+		NAME_ENG = %DAILY_EVENT_NAME_ENG:(SHAFFLE_ARRAY:LOCAL)%
+		NAME_JAP = %DAILY_EVENT_NAME:(SHAFFLE_ARRAY:LOCAL)%
+	ENDIF
+	TRYCCALLFORM %SLG%EVENT_DAILY_%NAME_ENG%_RATE()
+		SIF RESULT * (SLGフラグ ? SLG_DAILY_EVENT_ODDS # DAILY_EVENT_ODDS) < RAND:1000
+			CONTINUE
+		RESULT = 1
+		TRYCALLFORM %SLG%EVENT_DAILY_%NAME_ENG%_DECISION()
+		SIF RESULT == 0
+			CONTINUE
+		CALL DAILY_START(NAME_JAP)
+		CALLFORM %SLG%EVENT_DAILY_%NAME_ENG%()
+		SIF RESULT == 0
+			EVENT_COUNT --
+		SIF DAILY_CANCEL
+			RETURN
+		SIF EVENT_COUNT == 0
+			BREAK
+	CATCH
+		DEBUGPRINTFORML %SLG%EVENT_DAILY_%NAME_ENG%_RATEみつからず
+	ENDCATCH
 NEXT
+
+
+@EVENT_KOJO_DAILY()
+#DIM EVENT_NUM
+#DIM EVENT_COUNT
+#DIM EVENT_PICK, VARSIZE("SHAFFLE_ARRAY")
+EVENT_COUNT = KOJO_DAILY_EVENT_COUNT
+
+SIF !IS_DAILY_EVENT_HAPPEN(MASTER)
+	RETURN 0
+
+CALL KOJO_DAILY_DERIVATION
 
 ;口上用デイリー MASTERのものは発動しない
 ;順番決定
 CALL FISHER_YATES_SHAFFLE(CHARANUM)
-;念のため順番を記録
-ARRAYCOPY "SHAFFLE_ARRAY" , "EVENT_PICK"
+
+ARRAYCOPY "SHAFFLE_ARRAY", "EVENT_PICK"
 
 FOR LOCAL, 1, CHARANUM
 	SIF !IS_FIXED_CHARA(EVENT_PICK:LOCAL) || (!IS_FIXED_CHARA(EVENT_PICK:LOCAL) && KDCONFIG:(NO:(EVENT_PICK:LOCAL)))
@@ -455,9 +78,9 @@ FOR LOCAL, 1, CHARANUM
 	CALL KOJO_DAILY(EVENT_PICK:LOCAL)
 	;正常終了していたらカウントを減らす
 	SIF RESULT
-		EVENT_COUNT:1 --
+		EVENT_COUNT --
 	;終了フラグもしくはカウントが0になっていたら抜ける
-	SIF DAILY_CANCEL || EVENT_COUNT:1 == 0
+	SIF DAILY_CANCEL || EVENT_COUNT == 0
 		BREAK
 NEXT
 
