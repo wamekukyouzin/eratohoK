@@ -4,6 +4,8 @@
 ;対応するデイリーのDISABLEチェックを規約として必須とする
 ;---------------------
 @EVENT_DAILY_DERIVATION_RETURN_HOSTAGE_DECISION()
+#DIM 君主
+
 ;士官要求カウンタが残っていればデクリメント（0になるまでイベントは再発生しない）
 SIF DVAR:士官要求カウンタ > 0
 	DVAR:士官要求カウンタ--
@@ -11,12 +13,43 @@ SIF DVAR:士官要求カウンタ > 0
 ;資金援助要求カウンタが残っていればデクリメント（0になるまでイベントは再発生しない）
 IF DVAR:資金援助要求カウンタ > 0
 	DVAR:資金援助要求カウンタ--
-	;担保を受け取っていてカウンタが0になったなら、返却期限を迎えたとみなす
-	SIF DVAR:資金援助担保
+	;カウンタが0になったなら、返却期限を迎えたとみなす
+	IF DVAR:資金援助要求カウンタ == 0 && DVAR:資金援助担保
+		君主 = GET_COUNTRY_BOSS(DVAR:資金援助担保)
+		;君主が見つからなかったら（対象の元所属国家が滅ぶかなにかしていたら）駄目
+		IF 君主 == -1
+			DVAR:資金援助担保 = 0
+			DVAR:資金援助担保時所属国 = 0
+			RETURN 0
+		ENDIF
 		RETURN 1
+	ENDIF
 ENDIF
 
 RETURN 0
+
+;---------------------
+;特定の条件を満たすキャラをランダムに選択する場合に利用
+;他の関数は必須だが、これだけはなくてもよい　というかパフォーマンスへ影響するので不要なら作ってはならない
+;対象が存在せずデイリーを開始できない場合は0を返すことでデイリーの発生をキャンセルする
+;---------------------
+@EVENT_DAILY_DERIVATION_RETURN_HOSTAGE_SETTARGET()
+
+FOR LOCAL, 0, CHARANUM
+	IF GETBIT(TALENT:(LOCAL:0):デイリー系, 素質_デイリー_借り物)
+		DAILY_TARGET:0 = LOCAL
+		DAILY_TARGET_NUM = 1
+		BREAK
+	ENDIF
+NEXT
+;対象が見つからなかったら抜ける
+IF DAILY_TARGET_NUM < 1
+	DVAR:資金援助担保 = 0
+	DVAR:資金援助担保時所属国 = 0
+	RETURN 0
+ENDIF
+
+RETURN 1
 
 ;---------------------
 ;本体
@@ -24,25 +57,8 @@ RETURN 0
 @EVENT_DAILY_DERIVATION_RETURN_HOSTAGE()
 #DIM 対象
 #DIM 君主
-対象 = -1
+対象 = DAILY_TARGET:0
 君主 = GET_COUNTRY_BOSS(DVAR:資金援助担保)
-FOR LOCAL, 0, CHARANUM
-	IF GETBIT(TALENT:(LOCAL:0):デイリー系, 素質_デイリー_借り物)
-		対象 = LOCAL
-		BREAK
-	ENDIF
-NEXT
-;対象が見つからなかったら抜ける
-IF 対象 == -1
-	DVAR:資金援助担保 = 0
-	DVAR:資金援助担保時所属国 = 0
-	RETURN 0
-;君主が見つからなかったら（対象の元所属国家が滅ぶかなにかしていたら）抜ける
-ELSEIF 君主 == -1
-	DVAR:資金援助担保 = 0
-	DVAR:資金援助担保時所属国 = 0
-	RETURN 0
-ENDIF
 
 ;担保をとったときの所属国と今の所属が違っていたら、簡易イベントで済ませる
 IF CFLAG:MASTER:所属 != DVAR:資金援助担保時所属国

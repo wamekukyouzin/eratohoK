@@ -4,6 +4,14 @@
 ;対応するデイリーのDISABLEチェックを規約として必須とする
 ;---------------------
 @EVENT_DAILY_DERIVATION_RECEPTION_TRAIN_DECISION()
+RETURN 1
+
+;---------------------
+;特定の条件を満たすキャラをランダムに選択する場合に利用
+;他の関数は必須だが、これだけはなくてもよい　というかパフォーマンスへ影響するので不要なら作ってはならない
+;対象が存在せずデイリーを開始できない場合は0を返すことでデイリーの発生をキャンセルする
+;---------------------
+@EVENT_DAILY_DERIVATION_RECEPTION_TRAIN_SETTARGET()
 FOR LOCAL, 0, CHARANUM
 	SIF !GETBIT(TALENT:LOCAL:デイリー系, 素質_デイリー_貴族の愛人)
 		CONTINUE
@@ -11,9 +19,16 @@ FOR LOCAL, 0, CHARANUM
 		CONTINUE
 	SIF CFLAG:LOCAL:捕虜先 != 0
 		CONTINUE
-	RETURN 1
+	SIF RAND:3
+		CONTINUE
+	DAILY_TARGET:DAILY_TARGET_NUM = LOCAL
+	DAILY_TARGET_NUM ++
 NEXT
-RETURN 0
+
+SIF DAILY_TARGET_NUM < 1
+	RETURN 0
+
+RETURN 1
 
 ;---------------------
 ;本体
@@ -21,14 +36,8 @@ RETURN 0
 @EVENT_DAILY_DERIVATION_RECEPTION_TRAIN()
 #DIM 対象
 
-FOR LOCAL, 0, CHARANUM
-	SIF !GETBIT(TALENT:LOCAL:デイリー系, 素質_デイリー_貴族の愛人)
-		CONTINUE
-	SIF CFLAG:LOCAL:特殊状態 != 0
-		CONTINUE
-	SIF CFLAG:LOCAL:捕虜先 != 0
-		CONTINUE
-	対象 = LOCAL
+FOR LOCAL, 0, DAILY_TARGET_NUM
+	対象 = DAILY_TARGET:LOCAL
 	PRINTFORMW %ANAME(対象)%は貴族の屋敷に通っている……
 	PRINTFORML
 	SELECTCASE RAND:30

@@ -4,6 +4,14 @@
 ;対応するデイリーのDISABLEチェックを規約として必須とする
 ;---------------------
 @EVENT_DAILY_DERIVATION_SMUGGLER_TRAIN_DECISION()
+RETURN 1
+
+;---------------------
+;特定の条件を満たすキャラをランダムに選択する場合に利用
+;他の関数は必須だが、これだけはなくてもよい　というかパフォーマンスへ影響するので不要なら作ってはならない
+;対象が存在せずデイリーを開始できない場合は0を返すことでデイリーの発生をキャンセルする
+;---------------------
+@EVENT_DAILY_DERIVATION_SMUGGLER_TRAIN_SETTARGET()
 FOR LOCAL, 0, CHARANUM
 	SIF !GETBIT(TALENT:LOCAL:デイリー系, 素質_デイリー_薬売りの性奴隷)
 		CONTINUE
@@ -11,8 +19,17 @@ FOR LOCAL, 0, CHARANUM
 		CONTINUE
 	SIF CFLAG:LOCAL:捕虜先
 		CONTINUE
-	RETURN 1
+	SIF RAND:3
+		CONTINUE
+	DAILY_TARGET:DAILY_TARGET_NUM = LOCAL
+	DAILY_TARGET_NUM ++
 NEXT
+
+SIF DAILY_TARGET_NUM < 1
+	RETURN 0
+
+RETURN 1
+
 
 ;---------------------
 ;本体
@@ -24,19 +41,13 @@ NEXT
 #DIM 対象
 #DIM LCOUNT
 
-FOR LCOUNT, 0, CHARANUM
-	SIF !GETBIT(TALENT:LOCAL:デイリー系, 素質_デイリー_薬売りの性奴隷)
-		CONTINUE
-	SIF CFLAG:LOCAL:特殊状態 != 0
-		CONTINUE
-	SIF CFLAG:LOCAL:捕虜先
-		CONTINUE
-	対象 = LCOUNT
+FOR LOCAL, 0, DAILY_TARGET_NUM
+	対象 = DAILY_TARGET:LOCAL
 
 	PRINTFORML %ANAME(対象)%は薬売りの店を訪ねたようだ……
 
-	LOCAL = RAND:16
-	SELECTCASE LOCAL
+	
+	SELECTCASE RAND:16
 		CASE 0
 			PRINTDATAL
 				DATA 「あーいい、相変わらずいい口マンコしてんなァ～」

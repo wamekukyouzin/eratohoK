@@ -205,7 +205,7 @@ FOR LOCAL, 0, 10
 		ENDLIST
 		DATALIST
 			DATAFORM 男のねっとりとした腰使いに、%ANAME(対象)%は官能の極みに達している
-			DATAFORM あがるのは、甘くとろけた女の小枝……
+			DATAFORM あがるのは、甘くとろけた女の声だ……
 		ENDLIST
 		DATALIST
 			DATAFORM 直腸をペニスで蹂躙され、%ANAME(対象)%はあられもなく嬌声をあげている
@@ -403,35 +403,34 @@ RETURN 1
 ;対応するデイリーのDISABLEチェックを規約として必須とする
 ;---------------------
 @EVENT_DAILY_DERIVATION_MILLIONAIRE_TRAIN_DECISION()
+RETURN 1
+
+
+;---------------------
+;特定の条件を満たすキャラをランダムに選択する場合に利用
+;他の関数は必須だが、これだけはなくてもよい　というかパフォーマンスへ影響するので不要なら作ってはならない
+;対象が存在せずデイリーを開始できない場合は0を返すことでデイリーの発生をキャンセルする
+;---------------------
+@EVENT_DAILY_DERIVATION_MILLIONAIRE_TRAIN_SETTARGET()
 FOR LOCAL, 0, CHARANUM
-	SIF GETBIT(TALENT:LOCAL:デイリー系, 素質_デイリー_富豪の愛妾)
-		RETURN 1
+	IF GETBIT(TALENT:LOCAL:デイリー系, 素質_デイリー_富豪の愛妾) && RAND:3
+		DAILY_TARGET:DAILY_TARGET_NUM = LOCAL
+		DAILY_TARGET_NUM ++
+	ENDIF
 NEXT
 
-RETURN 0
+SIF DAILY_TARGET_NUM < 1
+	RETURN 0
+
+RETURN 1
 
 ;---------------------
 ;本体
 ;---------------------
 @EVENT_DAILY_DERIVATION_MILLIONAIRE_TRAIN()
 #DIM 対象
-#DIM 候補, 3000
-#DIM 候補数
 
-VARSET 候補, -1
-VARSET 候補数
-
-FOR LOCAL, 0, CHARANUM
-	IF GETBIT(TALENT:LOCAL:デイリー系, 素質_デイリー_富豪の愛妾)
-		候補:候補数 = LOCAL
-		候補数 ++
-	ENDIF
-NEXT
-
-SIF 候補数 == 0
-	RETURN 0
-
-対象 = 候補:(RAND:候補数)
+対象 = DAILY_TARGET:(RAND:DAILY_TARGET_NUM)
 
 PRINTFORMW %ANAME(対象)%が富豪の男に抱かれている……
 
@@ -510,28 +509,32 @@ NEXT
 
 RETURN 0
 
+
+;---------------------
+;特定の条件を満たすキャラをランダムに選択する場合に利用
+;他の関数は必須だが、これだけはなくてもよい　というかパフォーマンスへ影響するので不要なら作ってはならない
+;対象が存在せずデイリーを開始できない場合は0を返すことでデイリーの発生をキャンセルする
+;---------------------
+@EVENT_DAILY_DERIVATION_MILLIONAIRE_AFTER_SETTARGET()
+FOR LOCAL, 0, CHARANUM
+	IF GETBIT(TALENT:LOCAL:デイリー系, 素質_デイリー_元愛妾) && RAND:3
+		DAILY_TARGET:DAILY_TARGET_NUM = LOCAL
+		DAILY_TARGET_NUM ++
+	ENDIF
+NEXT
+
+SIF DAILY_TARGET_NUM < 1
+	RETURN 0
+
+RETURN 1
+
 ;---------------------
 ;本体
 ;---------------------
 @EVENT_DAILY_DERIVATION_MILLIONAIRE_AFTER()
 #DIM 対象
-#DIM 候補, 3000
-#DIM 候補数
 
-VARSET 候補, -1
-VARSET 候補数
-
-FOR LOCAL, 0, CHARANUM
-	IF GETBIT(TALENT:LOCAL:デイリー系, 素質_デイリー_元愛妾)
-		候補:候補数 = LOCAL
-		候補数 ++
-	ENDIF
-NEXT
-
-SIF 候補数 == 0
-	RETURN 0
-
-対象 = 候補:(RAND:候補数)
+対象 = DAILY_TARGET:(RAND:DAILY_TARGET_NUM)
 
 PRINTFORMW 富豪に捨てられた%ANAME(対象)%が路頭に迷っている……
 
