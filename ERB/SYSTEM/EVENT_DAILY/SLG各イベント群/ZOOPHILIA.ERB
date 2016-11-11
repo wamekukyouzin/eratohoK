@@ -11,20 +11,7 @@ RETURN 1000
 ;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
 ;---------------------
 @SLG_EVENT_DAILY_ZOOPHILIA_DECISION()
-FOR LOCAL, 0, CHARANUM
-	;捕虜でなく、死んでおらず、精液便女所持者の女
-	SIF CFLAG:LOCAL:捕虜先
-		CONTINUE
-	SIF CFLAG:LOCAL:特殊状態 == 2
-		CONTINUE
-	SIF !GETBIT(TALENT:LOCAL:淫乱系, 素質_淫乱_雌犬)
-		CONTINUE
-	SIF !IS_FEMALE(LOCAL)
-		CONTINUE
-	RETURN 1
-NEXT
-
-RETURN 0
+RETURN 1
 
 ;---------------------
 ;ジャンル
@@ -34,40 +21,37 @@ RETURN 0
 RETURN ＳＬＧ_デイリー_ジャンル_エロ
 
 ;---------------------
+;特定の条件を満たすキャラをランダムに選択する場合に利用
+;他の関数は必須だが、これだけはなくてもよい　というかパフォーマンスへ影響するので不要なら作ってはならない
+;対象が存在せずデイリーを開始できない場合は0を返すことでデイリーの発生をキャンセルする
+;---------------------
+@SLG_EVENT_DAILY_ZOOPHILIA_SETTARGET()
+FOR LOCAL, 0, CHARANUM
+	;捕虜でなく、死んでおらず、雌犬所持者の女で、1/3の確率
+	IF !CFLAG:LOCAL:捕虜先 && CFLAG:LOCAL:特殊状態 != 2 && GETBIT(TALENT:LOCAL:淫乱系, 素質_淫乱_雌犬) && IS_FEMALE(LOCAL) && !RAND:3
+		DAILY_TARGET:DAILY_TARGET_NUM = LOCAL
+		DAILY_TARGET_NUM ++
+	ENDIF
+NEXT
+SIF DAILY_TARGET_NUM < 1
+	RETURN 0
+RETURN 1
+
+;---------------------
 ;本体
 ;イベントが発生した場合は1、発生しなかった場合は0を返す
 ;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
 ;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
 ;---------------------
 @SLG_EVENT_DAILY_ZOOPHILIA()
-#DIM 人数
-#DIM LCOUNT
 #DIM 対象
 #DIM ID
 #DIMS 竿役
-#DIM 候補
-VARSET 候補, -1
-VARSET 人数
-FOR LCOUNT, 0, CHARANUM
-	;捕虜でなく、死んでおらず、雌犬所持者の女で、1/3の確率
-	IF !CFLAG:LCOUNT:捕虜先 && CFLAG:LCOUNT:特殊状態 != 2 && GETBIT(TALENT:LCOUNT:淫乱系, 素質_淫乱_雌犬) && IS_FEMALE(LCOUNT)
-		候補:人数 = LCOUNT
-		人数++
-	ENDIF
-NEXT
 
-SIF 人数 == 0
-	RETURN 0
-
-FOR LCOUNT, 0, MIN(人数, 3)
-	LOCAL = RAND:人数
-	対象 = 候補:LOCAL
-	候補:LOCAL = -1
-	SIF 対象 == -1
-		CONTINUE
+FOR LOCAL, 0, DAILY_TARGET_NUM
+	対象 = DAILY_TARGET:LOCAL
 	PRINTFORMW 獣姦の快楽に目覚めた%ANAME(対象)%の身体が、夜な夜な疼いているようだ……
-	LOCAL = RAND:8
-	SELECTCASE LOCAL
+	SELECTCASE RAND:8
 		CASE 0
 			PRINTFORML %ANAME(対象)%は野良犬の溜まり場に出向いてきたようだ
 			PRINTFORML %ANAME(対象)%はおもむろに服を脱ぎ捨て、彼らの前で四つん這いになる

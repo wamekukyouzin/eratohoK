@@ -27,6 +27,26 @@ RETURN 1
 RETURN ＳＬＧ_デイリー_ジャンル_エロ
 
 ;---------------------
+;特定の条件を満たすキャラをランダムに選択する場合に利用
+;他の関数は必須だが、これだけはなくてもよい　というかパフォーマンスへ影響するので不要なら作ってはならない
+;対象が存在せずデイリーを開始できない場合は0を返すことでデイリーの発生をキャンセルする
+;---------------------
+@SLG_EVENT_DAILY_XX_SETTARGET()
+;放浪中キャラからターゲットをランダム選出
+FOR LOCAL, 0, CHARANUM
+	;女で、捕虜でなく死亡もしておらず、何処にも所属していない(あなたは放浪判定じゃなくて未登場判定になってるから追加でこうする)
+	IF IS_FEMALE(LOCAL) && !CFLAG:LOCAL:捕虜先 && !CFLAG:LOCAL:所属 && (CFLAG:LOCAL:特殊状態 == 1 || LOCAL == MASTER)
+		DAILY_TARGET:DAILY_TARGET_NUM = LOCAL
+		DAILY_TARGET_NUM ++
+	ENDIF
+NEXT
+
+;候補がいなければ戻す
+SIF DAILY_TARGET_NUM < 1
+	RETURN 0
+RETURN 1
+
+;---------------------
 ;本体
 ;イベントが発生した場合は1、発生しなかった場合は0を返す
 ;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
@@ -36,35 +56,12 @@ RETURN ＳＬＧ_デイリー_ジャンル_エロ
 #DIM 対象
 #DIM 触手
 #DIM 兵数
-#DIM 候補, 3000
-#DIM 候補乱数, 3000
-#DIM 候補数
-VARSET 候補
-VARSET 候補乱数
-VARSET 候補数
 
 触手 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_触手))
 
-;放浪中キャラからターゲットをランダム選出
-FOR LOCAL, 0, CHARANUM
-	;女で、捕虜でなく死亡もしておらず、何処にも所属していない(あなたは放浪判定じゃなくて未登場判定になってるから追加でこうする)
-	IF IS_FEMALE(LOCAL) && !CFLAG:LOCAL:捕虜先 && !CFLAG:LOCAL:所属 && (CFLAG:LOCAL:特殊状態 == 1 || LOCAL == MASTER)
-		候補:候補数 = LOCAL
-		候補乱数:候補数 = RAND:1000
-		候補数 ++
-	ENDIF
-NEXT
-
-;候補がいなければ戻す
-SIF 候補数 <= 0
-	RETURN 0
 
 ;候補乱数のうち、一番高い値を出したキャラを対象とする
-対象 = 候補:(FINDELEMENT(候補乱数, MAXARRAY(候補乱数, 0, 候補数), 0, 候補数))
-
-;候補が不適切ならば戻す
-SIF 対象 < 0
-	RETURN 0
+対象 = DAILY_TARGET:(RAND:DAILY_TARGET_NUM)
 
 PRINTFORML 繁殖の為の新たな苗床を求めて彷徨っていた触手が、放浪中の%ANAME(対象)%を見つけた
 PRINTFORML 触手は%ANAME(対象)%に気付かれないように這いより、彼女が人気のない場所に差し掛かった時に襲いかかった！

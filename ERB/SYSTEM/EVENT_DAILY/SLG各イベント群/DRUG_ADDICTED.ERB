@@ -11,18 +11,7 @@ RETURN 1000
 ;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
 ;---------------------
 @SLG_EVENT_DAILY_DRUG_ADDICT_DECISION()
-FOR LOCAL, 0, CHARANUM
-	;捕虜でなく、死んでおらず、精液便女所持者の女
-	SIF CFLAG:LOCAL:捕虜先
-		CONTINUE
-	SIF CFLAG:LOCAL:特殊状態 == 2
-		CONTINUE
-	SIF !IS_FEMALE(LOCAL)
-		CONTINUE
-	RETURN 1
-NEXT
-
-RETURN 0
+RETURN 1
 
 ;---------------------
 ;ジャンル
@@ -31,6 +20,28 @@ RETURN 0
 @SLG_EVENT_DAILY_DRUG_ADDICT_GENRE()
 RETURN ＳＬＧ_デイリー_ジャンル_エロ
 
+
+;---------------------
+;特定の条件を満たすキャラをランダムに選択する場合に利用
+;他の関数は必須だが、これだけはなくてもよい　というかパフォーマンスへ影響するので不要なら作ってはならない
+;対象が存在せずデイリーを開始できない場合は0を返すことでデイリーの発生をキャンセルする
+;---------------------
+@SLG_EVENT_DAILY_DRUG_ADDICT_SETTARGET()
+FOR LOCAL, 0, CHARANUM
+	IF !CFLAG:LOCAL:捕虜先 && CFLAG:LOCAL:特殊状態 != 2 && IS_FEMALE(LOCAL)
+		;CFLAG:薬物依存に応じて判定（最大30）。TALENT薬物依存持ちだと50%まで増加。
+		IF (GETBIT(TALENT:LOCAL:淫乱系, 素質_淫乱_薬物中毒) ? 50 # MIN(CFLAG:LOCAL:薬物依存 / 7, 30)) > RAND:100
+			DAILY_TARGET:DAILY_TARGET_NUM = LOCAL
+			DAILY_TARGET_NUM ++
+		ENDIF
+	ENDIF
+NEXT
+
+SIF DAILY_TARGET_NUM < 1
+	RETURN 0
+RETURN 1
+
+
 ;---------------------
 ;本体
 ;イベントが発生した場合は1、発生しなかった場合は0を返す
@@ -38,37 +49,11 @@ RETURN ＳＬＧ_デイリー_ジャンル_エロ
 ;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
 ;---------------------
 @SLG_EVENT_DAILY_DRUG_ADDICT()
-#DIM 人数
-#DIM LCOUNT
-#DIM 選出閾値
 #DIM 対象
-#DIM 初回
-#DIM 候補
 #DIMS 竿役
-VARSET 初回, 1
-VARSET 候補, -1
-VARSET 人数
 
-
-FOR LCOUNT, 0, CHARANUM
-	IF !CFLAG:LCOUNT:捕虜先 && CFLAG:LCOUNT:特殊状態 != 2 && IS_FEMALE(LCOUNT)
-		;CFLAG:薬物依存に応じて判定（最大30）。TALENT薬物依存持ちだと50%まで増加。
-		IF (GETBIT(TALENT:LCOUNT:淫乱系, 素質_淫乱_薬物中毒) ? 50 # MIN(CFLAG:LCOUNT:薬物依存 / 7, 30)) > RAND:100
-			候補:人数 = LCOUNT
-			人数++
-		ENDIF
-	ENDIF
-NEXT
-
-SIF 人数 == 0
-	RETURN 0
-
-FOR LCOUNT, 0, MIN(人数, 3)
-	LOCAL = RAND:人数
-	対象 = 候補:LOCAL
-	候補:LOCAL = -1
-	SIF 対象 == -1
-		CONTINUE
+FOR LOCAL, 0, DAILY_TARGET_NUM
+	対象 = DAILY_TARGET:LOCAL
 	PRINTFORMW %ANAME(対象)%は、薬物の禁断症状に苦しんでいるようだ……
 	SELECTCASE RAND:13
 		CASE 0
