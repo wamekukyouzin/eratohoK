@@ -21,6 +21,25 @@ RETURN 1
 RETURN デイリー_ジャンル_その他
 
 ;---------------------
+;特定の条件を満たすキャラをランダムに選択する場合に利用
+;他の関数は必須だが、これだけはなくてもよい　というかパフォーマンスへ影響するので不要なら作ってはならない
+;対象が存在せずデイリーを開始できない場合は0を返すことでデイリーの発生をキャンセルする
+;---------------------
+@EVENT_DAILY_STEMA_SETTARGET()
+;他国に所属している自分へ恋慕or服従を持つキャラからランダム選択、対象がいない場合はイベントキャンセル
+FOR LOCAL, 0, CHARANUM
+	IF CFLAG:(LOCAL):所属 != CFLAG:MASTER:所属 && IS_COUNTRY(CFLAG:LOCAL:所属) && (IS_LOVER(LOCAL) || IS_SLAVE(LOCAL)) && !CFLAG:(LOCAL):捕虜先 && !IS_ANIMAL(LOCAL)
+		DAILY_TARGET:DAILY_TARGET_NUM = LOCAL 
+		DAILY_TARGET_NUM ++
+	ENDIF
+NEXT
+
+SIF DAILY_TARGET_NUM == 0
+	RETURN 0
+
+RETURN 1
+
+;---------------------
 ;本体
 ;イベントが発生した場合は1、発生しなかった場合は0を返す
 ;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
@@ -28,23 +47,9 @@ RETURN デイリー_ジャンル_その他
 ;---------------------
 @EVENT_DAILY_STEMA()
 #DIM 対象
-#DIM 候補キャラ, 3000
-#DIM 候補数
-VARSET 候補キャラ
-VARSET 候補数
 
-;他国に所属している自分へ恋慕or服従を持つキャラからランダム選択、対象がいない場合はイベントキャンセル
-FOR LOCAL, 0, CHARANUM
-	IF CFLAG:(LOCAL):所属 != CFLAG:MASTER:所属 && IS_COUNTRY(CFLAG:LOCAL:所属) && (IS_LOVER(LOCAL) || IS_SLAVE(LOCAL)) && !CFLAG:(LOCAL):捕虜先 && !IS_ANIMAL(LOCAL)
-		候補キャラ:LOCAL = RAND:1000 
-		候補数 ++
-	ENDIF
-NEXT
 
-SIF 候補数 == 0
-	RETURN 0
-
-対象 = FINDELEMENT(候補キャラ, MAXARRAY(候補キャラ))
+対象 = DAILY_TARGET:(RAND:DAILY_TARGET_NUM)
 
 PRINTFORML %ANAME(GET_COUNTRY_BOSS(CFLAG:対象:所属))%勢力にいる%ANAME(対象)%は、同勢力の仲間に対して
 PRINTFORM %ANAME(MASTER)%の事を

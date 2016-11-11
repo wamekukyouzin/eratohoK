@@ -12,6 +12,7 @@ RETURN (DVAR:フェロモン中毒回数 > 0 ? 200 # 50)
 ;---------------------
 @EVENT_DAILY_GAIRAI_PHEROMONE_DECISION()
 #DIM 外来人
+外来人 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:特殊勢力_外来人)
 SIF 外来人 == -1
 	RETURN 0
 
@@ -25,20 +26,14 @@ RETURN 1
 RETURN デイリー_ジャンル_特殊勢力
 
 ;---------------------
-;本体
-;イベントが発生した場合は1、発生しなかった場合は0を返す
-;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
-;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;特定の条件を満たすキャラをランダムに選択する場合に利用
+;他の関数は必須だが、これだけはなくてもよい　というかパフォーマンスへ影響するので不要なら作ってはならない
+;対象が存在せずデイリーを開始できない場合は0を返すことでデイリーの発生をキャンセルする
 ;---------------------
-@EVENT_DAILY_GAIRAI_PHEROMONE()
+@EVENT_DAILY_GAIRAI_PHEROMONE_SETTARGET()
 #DIM 対象
 #DIM 外来人
-#DIM 候補キャラ, 3000
-#DIM 候補数
-#DIM 勢力番号
-
-外来人 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_外来人))
-
+外来人 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:特殊勢力_外来人)
 対象 = ID_TO_CHARA(DVAR:フェロモン中毒)
 
 ;前回の発生からの状態変化をみる
@@ -78,7 +73,6 @@ IF 対象 != -1
 		RETURN 0
 ;対象がいなければ新たに設定する
 ELSE
-	VARSET 候補キャラ, __INT_MIN__
 	FOR LOCAL, 0, CHARANUM
 		;所属が外来人でなく、捕虜でなく、女。
 		;MASTERでなく、君主でなく、動物でなく、特殊キャラでなく、特殊勢力キャラでなく、死んでおらず、未登場でもない
@@ -87,18 +81,35 @@ ELSE
 		&& LOCAL != MASTER && LOCAL != GET_COUNTRY_BOSS(CFLAG:LOCAL:所属) && !IS_ANIMAL(LOCAL) && !IS_SP_CHARA(LOCAL) && !TALENT:LOCAL:特殊勢力素質
 		&& CFLAG:LOCAL:特殊状態 != 2 && !ALLSAMES(CFLAG:LOCAL:特殊状態, CFLAG:LOCAL:所属, 0)
 }
-			候補キャラ:LOCAL = RAND:1000
-			SIF CFLAG:LOCAL:所属 == CFLAG:MASTER:所属
-				候補キャラ:LOCAL = 候補キャラ:LOCAL * 2 / 3
-				
-			候補数 ++
+			DAILY_TARGET:DAILY_TARGET_NUM = LOCAL
+			SIF CFLAG:LOCAL:所属 == CFLAG:MASTER:所属 && RAND:3
+				CONTINUE
+			DAILY_TARGET_NUM ++
 		ENDIF
 	NEXT
-	SIF 候補数 == 0
+	SIF DAILY_TARGET_NUM < 1
 		RETURN 0
-	対象 = FINDELEMENT(候補キャラ, MAXARRAY(候補キャラ))
+	対象 = DAILY_TARGET:(RAND:DAILY_TARGET_NUM)
 	DVAR:フェロモン中毒 = GET_ID(対象)
 ENDIF
+
+RETURN 1
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@EVENT_DAILY_GAIRAI_PHEROMONE()
+#DIM 対象
+#DIM 外来人
+#DIM 候補キャラ, 3000
+#DIM 候補数
+#DIM 勢力番号
+
+外来人 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_外来人))
+対象 = ID_TO_CHARA(DVAR:フェロモン中毒)
 
 IF DVAR:フェロモン中毒回数 == 0
 	PRINTFORML 外来人が性奴調教用の機械を開発した

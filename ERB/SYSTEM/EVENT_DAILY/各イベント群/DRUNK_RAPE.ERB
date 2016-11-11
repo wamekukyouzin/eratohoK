@@ -17,6 +17,30 @@ SIF DAY < 10
 	RETURN 0
 RETURN 1
 
+
+;---------------------
+;特定の条件を満たすキャラをランダムに選択する場合に利用
+;他の関数は必須だが、これだけはなくてもよい　というかパフォーマンスへ影響するので不要なら作ってはならない
+;対象が存在せずデイリーを開始できない場合は0を返すことでデイリーの発生をキャンセルする
+;---------------------
+@EVENT_DAILY_DRUNK_RAPE_SETTARGET()
+;遭遇キャラの選出
+FOR LOCAL, 0, CHARANUM
+	;別の勢力に所属している、女性キャラ
+	IF CFLAG:(LOCAL):所属 != CFLAG:MASTER:所属 && !CFLAG:(LOCAL):捕虜先 && IS_FEMALE(LOCAL) && !IS_ANIMAL(LOCAL)
+		DAILY_TARGET:DAILY_TARGET_NUM = LOCAL
+		DAILY_TARGET_NUM ++
+	ENDIF
+NEXT
+
+SIF DAILY_TARGET_NUM < 1
+	RETURN 0
+
+RETURN 1
+
+
+
+
 ;---------------------
 ;ジャンル
 ;コンフィグ設定で使用
@@ -62,25 +86,8 @@ CALL ASK_MULTI(@"出席する", "やめておく")
 
 PRINTFORMW 折角だから出席してみることにした
 
-;遭遇キャラの選出
-FOR LOCAL, 0, CHARANUM
-	;別の勢力に所属している、女性キャラ
-	IF CFLAG:(LOCAL):所属 != CFLAG:MASTER:所属 && !CFLAG:(LOCAL):捕虜先 && IS_FEMALE(LOCAL) && !IS_ANIMAL(LOCAL)
-		候補キャラ:LOCAL = RAND:1000 
-		候補数 ++
-	ENDIF
-NEXT
 
-IF 候補数 == 0
-	PRINTFORML ・
-	PRINTFORML ・
-	PRINTFORML ・
-	PRINTFORMW しかし退屈な宴だった
-	RETURN 1
-ENDIF
-
-対象 = FINDELEMENT(候補キャラ, MAXARRAY(候補キャラ))
-
+対象 = DAILY_TARGET:(RAND:DAILY_TARGET_NUM)
 IF 対象 <= 0
 	PRINTFORML ・
 	PRINTFORML ・

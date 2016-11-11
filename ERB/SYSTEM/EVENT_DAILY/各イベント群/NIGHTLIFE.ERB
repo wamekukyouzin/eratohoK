@@ -15,6 +15,33 @@ SIF !(IS_MALE(MASTER))
 
 RETURN 1
 
+
+;---------------------
+;特定の条件を満たすキャラをランダムに選択する場合に利用
+;他の関数は必須だが、これだけはなくてもよい　というかパフォーマンスへ影響するので不要なら作ってはならない
+;対象が存在せずデイリーを開始できない場合は0を返すことでデイリーの発生をキャンセルする
+;---------------------
+@EVENT_DAILY_NIGHTLIFE_SETTARGET()
+
+FOR LOCAL, 0, CHARANUM
+	SIF !IS_FEMALE(LOCAL)
+		CONTINUE
+	;自国所属かつ捕虜でない、かつ「恋慕か親愛か服従・隷属・烙印」で、2/3
+	IF CFLAG:LOCAL:所属 == CFLAG:MASTER:所属 && !CFLAG:LOCAL:捕虜先 && (IS_LOVER(LOCAL) || IS_SLAVE(LOCAL))
+		DAILY_TARGET:DAILY_TARGET_NUM = LOCAL
+		DAILY_TARGET_NUM ++
+	;主人公が特殊勢力におらず、対象が特殊勢力に所属 + 陥落済み、かつ面識がある
+	ELSEIF !IS_SP_COUNTRY(CFLAG:MASTER:所属) && CFLAG:LOCAL:面識 && IS_SP_COUNTRY(LOCAL) && IS_FALLEN_TO_SP_COUNTRY(LOCAL)
+		DAILY_TARGET:DAILY_TARGET_NUM = LOCAL
+		DAILY_TARGET_NUM ++
+	ENDIF
+NEXT
+
+SIF DAILY_TARGET_NUM < 1
+	RETURN 0
+
+RETURN 1
+
 ;---------------------
 ;ジャンル
 ;---------------------
@@ -37,30 +64,8 @@ VARSET 候補数
 ゴブリン = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_ホフゴブリン))
 外来 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_外来人))
 
-;よくやる選出
-;FISHER_YATES_SHAFFLEの人は本当にべんりなもん作ってくれた
 
-FOR LOCAL, 0, CHARANUM
-	;対象が女
-	IF IS_FEMALE(LOCAL)
-		;自国所属かつ捕虜でない、かつ「恋慕か親愛か服従・隷属・烙印」で、2/3
-		IF CFLAG:LOCAL:所属 == CFLAG:MASTER:所属 && !CFLAG:LOCAL:捕虜先 && (IS_LOVER(LOCAL) || IS_SLAVE(LOCAL))
-			候補:候補数 = LOCAL
-			候補数 ++
-		;主人公が特殊勢力におらず、対象が特殊勢力に所属 + 陥落済み、かつ面識がある
-		ELSEIF !IS_SP_COUNTRY(CFLAG:MASTER:所属) && CFLAG:LOCAL:面識 && IS_SP_COUNTRY(LOCAL) && IS_FALLEN_TO_SP_COUNTRY(LOCAL)
-			候補:候補数 = LOCAL
-			候補数 ++
-		ENDIF
-	ENDIF
-NEXT
-
-SIF 候補数 < 1
-	RETURN 0
-
-CALL FISHER_YATES_SHAFFLE(候補数)
-
-対象 = 候補:(SHAFFLE_ARRAY:0)
+対象 = DAILY_TARGET:(RAND:DAILY_TARGET_NUM)
 
 ;恋慕パターン
 IF IS_LOVER(対象)

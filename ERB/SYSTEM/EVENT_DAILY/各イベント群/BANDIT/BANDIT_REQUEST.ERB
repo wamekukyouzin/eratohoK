@@ -24,6 +24,21 @@ RETURN DAY >= 15
 @EVENT_DAILY_BANDIT_REQUEST_GENRE()
 RETURN デイリー_ジャンル_特殊勢力
 
+
+;---------------------
+;特定の条件を満たすキャラをランダムに選択する場合に利用
+;他の関数は必須だが、これだけはなくてもよい　というかパフォーマンスへ影響するので不要なら作ってはならない
+;対象が存在せずデイリーを開始できない場合は0を返すことでデイリーの発生をキャンセルする
+;---------------------
+@EVENT_DAILY_BANDIT_REQUEST_SETTARGET()
+FOR LOCAL, 0, CHARANUM
+	IF CFLAG:(LOCAL):所属 == CFLAG:MASTER:所属 && !CFLAG:(LOCAL):捕虜先 && !IS_ANIMAL(LOCAL) && IS_FEMALE(LOCAL) && LOCAL != GET_COUNTRY_BOSS(MASTER)
+		DAILY_TARGET:DAILY_TARGET_NUM = LOCAL
+		DAILY_TARGET_NUM ++
+	ENDIF
+NEXT
+RETURN 1
+
 ;---------------------
 ;本体
 ;イベントが発生した場合は1、発生しなかった場合は0を返す
@@ -33,23 +48,13 @@ RETURN デイリー_ジャンル_特殊勢力
 @EVENT_DAILY_BANDIT_REQUEST()
 #DIM 野盗
 #DIM 対象
-#DIM 候補キャラ, 3000
-#DIM 候補数
-VARSET 候補キャラ
-VARSET 候補数
 
 野盗 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗))
 
-FOR LOCAL, 0, CHARANUM
-	IF CFLAG:(LOCAL):所属 == CFLAG:MASTER:所属 && !CFLAG:(LOCAL):捕虜先 && !IS_ANIMAL(LOCAL) && IS_FEMALE(LOCAL) && LOCAL != GET_COUNTRY_BOSS(MASTER)
-		候補キャラ:LOCAL = RAND:1000 
-		候補数 ++
-	ENDIF
-NEXT
-IF 候補数 == 0
+IF DAILY_TARGET_NUM == 0
 	対象 = 0
 ELSE
-	対象 = FINDELEMENT(候補キャラ, MAXARRAY(候補キャラ))
+	対象 = DAILY_TARGET:(RAND:DAILY_TARGET_NUM)
 ENDIF
 SELECTCASE CHECK_COUNTRY_RELATION_F(CFLAG:MASTER:所属, 野盗 != -1 ? 野盗 # 0)
 	;停戦中だと選択肢あり、どれも重いペナルティつき

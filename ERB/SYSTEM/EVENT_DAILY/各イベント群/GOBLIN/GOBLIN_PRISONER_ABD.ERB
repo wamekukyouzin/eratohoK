@@ -25,6 +25,28 @@ RETURN 1
 @EVENT_DAILY_GOBLIN_PRISONER_ABD_GENRE()
 RETURN デイリー_ジャンル_特殊勢力
 
+
+;---------------------
+;特定の条件を満たすキャラをランダムに選択する場合に利用
+;他の関数は必須だが、これだけはなくてもよい　というかパフォーマンスへ影響するので不要なら作ってはならない
+;対象が存在せずデイリーを開始できない場合は0を返すことでデイリーの発生をキャンセルする
+;---------------------
+@EVENT_DAILY_GOBLIN_PRISONER_ABD_SETTARGET()
+#DIM ゴブリン
+ゴブリン = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_ホフゴブリン))
+
+FOR LOCAL, 0, CHARANUM
+	;ゴブリン勢力に所属しておらず、ゴブリン勢力の捕虜でもなく、君主でもなく、妊娠している動物以外の女性キャラから選択
+	IF CFLAG:(LOCAL):所属 != ゴブリン && !GROUPMATCH(CFLAG:(LOCAL):捕虜先, 0, ゴブリン) && IS_FEMALE(LOCAL) && !IS_ANIMAL(LOCAL) && !IS_SP_CHARA(LOCAL) && !TALENT:LOCAL:特殊勢力素質 && !IS_SP_COUNTRY(CFLAG:LOCAL:捕虜先)
+		DAILY_TARGET:DAILY_TARGET_NUM = LOCAL
+		DAILY_TARGET_NUM ++
+	ENDIF
+NEXT
+SIF DAILY_TARGET_NUM < 1
+	RETURN 0
+RETURN 1
+
+
 ;---------------------
 ;本体
 ;イベントが発生した場合は1、発生しなかった場合は0を返す
@@ -41,18 +63,10 @@ VARSET 候補キャラ
 VARSET 候補数
 
 ゴブリン = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_ホフゴブリン))
-
-FOR LOCAL, 0, CHARANUM
-	IF CFLAG:(LOCAL):所属 != ゴブリン && !GROUPMATCH(CFLAG:(LOCAL):捕虜先, 0, ゴブリン) && IS_FEMALE(LOCAL) && !IS_ANIMAL(LOCAL) && !IS_SP_CHARA(LOCAL) && !TALENT:LOCAL:特殊勢力素質 && !IS_SP_COUNTRY(CFLAG:LOCAL:捕虜先)
-		候補キャラ:LOCAL = RAND:1000 
-		候補数 ++
-	ENDIF
-NEXT
-SIF 候補数 == 0
-	RETURN 0
-	
 対象 = FINDELEMENT(候補キャラ, MAXARRAY(候補キャラ))
 LOCAL:1 = CFLAG:(対象):捕虜先
+
+対象 = DAILY_TARGET:(RAND:DAILY_TARGET_NUM)
 
 PRINTFORML …月の出ていないある暗い夜
 PRINTFORML %ANAME(GET_COUNTRY_BOSS(LOCAL:1))%勢力の牢獄に怪しい影が蠢いている

@@ -5,7 +5,6 @@
 @EVENT_DAILY_DRUG_SEX_RATE()
 RETURN 50
 
-
 ;---------------------
 ;確率以外の発生判定
 ;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
@@ -19,6 +18,28 @@ RETURN 1
 ;---------------------
 @EVENT_DAILY_DRUG_SEX_GENRE()
 RETURN デイリー_ジャンル_エロ
+
+;---------------------
+;特定の条件を満たすキャラをランダムに選択する場合に利用
+;他の関数は必須だが、これだけはなくてもよい　というかパフォーマンスへ影響するので不要なら作ってはならない
+;対象が存在せずデイリーを開始できない場合は0を返すことでデイリーの発生をキャンセルする
+;---------------------
+@EVENT_DAILY_DRUG_SEX_SETTARGET()
+
+;放浪中キャラからターゲットをランダム選出
+FOR LOCAL, 0, CHARANUM
+	;女で、捕虜でなく死亡もしておらず、何処にも所属していない(あなたは放浪判定じゃなくて未登場判定になってるから追加でこうする)
+	IF IS_FEMALE(LOCAL) && CFLAG:LOCAL:捕虜先 == 0 && !CFLAG:LOCAL:1 && (CFLAG:LOCAL:特殊状態 == 1 || LOCAL == MASTER)
+		DAILY_TARGET:DAILY_TARGET_NUM = LOCAL
+		DAILY_TARGET_NUM ++
+	ENDIF
+NEXT
+
+SIF DAILY_TARGET_NUM < 1
+	RETURN 0
+
+RETURN 1
+
 
 ;---------------------
 ;本体
@@ -35,30 +56,8 @@ VARSET 候補
 VARSET 候補乱数
 VARSET 候補数
 
-;5%で発動
-SIF RAND:1000 > 50
-	RETURN -1
+対象 = DAILY_TARGET:(RAND:DAILY_TARGET_NUM)
 
-;放浪中キャラからターゲットをランダム選出
-FOR LOCAL, 0, CHARANUM
-	;女で、捕虜でなく死亡もしておらず、何処にも所属していない(あなたは放浪判定じゃなくて未登場判定になってるから追加でこうする)
-	IF IS_FEMALE(LOCAL) && CFLAG:LOCAL:捕虜先 == 0 && !CFLAG:LOCAL:1 && (CFLAG:LOCAL:特殊状態 == 1 || LOCAL == MASTER)
-		候補:候補数 = LOCAL
-		候補乱数:候補数 = RAND:100
-		候補数 ++
-	ENDIF
-NEXT
-
-;候補がいなければ戻す
-SIF 候補数 <= 0
-	RETURN 0
-
-;候補乱数のうち、一番高い値を出したキャラを対象とする
-対象 = 候補:(FINDELEMENT(候補乱数, MAXARRAY(候補乱数, 0, 候補数), 0, 候補数))
-
-;候補が不適切ならば戻す
-SIF 対象 < 0
-	RETURN 0
 
 IF TALENT:対象:子供体型
 	PRINTFORMW 「お嬢ちゃん可愛いね、今一人かな？」

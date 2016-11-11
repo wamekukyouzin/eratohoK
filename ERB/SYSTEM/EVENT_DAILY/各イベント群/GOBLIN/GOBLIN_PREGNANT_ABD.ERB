@@ -18,6 +18,25 @@ SIF ゴブリン == -1
 RETURN 1
 
 ;---------------------
+;特定の条件を満たすキャラをランダムに選択する場合に利用
+;他の関数は必須だが、これだけはなくてもよい　というかパフォーマンスへ影響するので不要なら作ってはならない
+;対象が存在せずデイリーを開始できない場合は0を返すことでデイリーの発生をキャンセルする
+;---------------------
+@EVENT_DAILY_GOBLIN_PREGNANT_ABD_SETTARGET()
+#DIM ゴブリン
+ゴブリン = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_ホフゴブリン))
+FOR LOCAL, 0, CHARANUM
+	;ゴブリン勢力に所属しておらず、ゴブリン勢力の捕虜でもなく、君主でもなく、妊娠している動物以外の女性キャラから選択
+	IF CFLAG:(LOCAL):所属 != ゴブリン && LOCAL != GET_COUNTRY_BOSS(CFLAG:LOCAL:所属) && IS_FEMALE(LOCAL) && CFLAG:(LOCAL):行動不能状態 == 1 && !CFLAG:(LOCAL):捕虜先 && !IS_ANIMAL(LOCAL) && !IS_SP_CHARA(LOCAL) && !TALENT:LOCAL:特殊勢力素質
+		DAILY_TARGET:DAILY_TARGET_NUM = LOCAL
+		DAILY_TARGET_NUM ++
+	ENDIF
+NEXT
+SIF DAILY_TARGET_NUM < 1
+	RETURN 0
+RETURN 1
+
+;---------------------
 ;ジャンル
 ;コンフィグ設定で使用
 ;---------------------
@@ -34,23 +53,10 @@ RETURN デイリー_ジャンル_特殊勢力
 #DIM 対象
 #DIM ゴブリン
 #DIM 勢力番号
-#DIM 候補キャラ, 3000
-#DIM 候補数
-VARSET 候補キャラ
-VARSET 候補数
 
 
-FOR LOCAL, 0, CHARANUM
-	;ゴブリン勢力に所属しておらず、ゴブリン勢力の捕虜でもなく、君主でもなく、妊娠している動物以外の女性キャラから選択
-	IF CFLAG:(LOCAL):所属 != ゴブリン && LOCAL != GET_COUNTRY_BOSS(CFLAG:LOCAL:所属) && IS_FEMALE(LOCAL) && CFLAG:(LOCAL):行動不能状態 == 1 && !CFLAG:(LOCAL):捕虜先 && !IS_ANIMAL(LOCAL) && !IS_SP_CHARA(LOCAL) && !TALENT:LOCAL:特殊勢力素質
-		候補キャラ:LOCAL = RAND:1000 
-		候補数 ++
-	ENDIF
-NEXT
-SIF 候補数 == 0
-	RETURN 0
 
-対象 = FINDELEMENT(候補キャラ, MAXARRAY(候補キャラ))
+対象 = DAILY_TARGET:(RAND:DAILY_TARGET_NUM)
 
 PRINTFORML 深夜、%ANAME(対象)%の寝室にホフゴブリン達が侵入した
 PRINTFORML 彼女はぐっすりと眠っており、気づいていない

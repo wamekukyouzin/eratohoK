@@ -23,20 +23,14 @@ RETURN DAY >= 10
 RETURN デイリー_ジャンル_エロ
 
 ;---------------------
-;本体
-;イベントが発生した場合は1、発生しなかった場合は0を返す
-;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
-;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;特定の条件を満たすキャラをランダムに選択する場合に利用
+;他の関数は必須だが、これだけはなくてもよい　というかパフォーマンスへ影響するので不要なら作ってはならない
+;対象が存在せずデイリーを開始できない場合は0を返すことでデイリーの発生をキャンセルする
 ;---------------------
-@EVENT_DAILY_VIGIL()
+@EVENT_DAILY_VIGIL_SETTARGET()
 #DIM 野盗
 #DIM ゴブリン
 #DIM 外来人
-#DIM 対象
-#DIM 候補, 3000
-#DIM 候補数
-VARSET 候補
-VARSET 候補数
 野盗 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗))
 ゴブリン = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_ホフゴブリン))
 外来人 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_外来人))
@@ -48,17 +42,27 @@ SIF !(CFLAG:MASTER:所属 == 野盗 || CFLAG:MASTER:所属 == ゴブリン || CF
 ;男で、主人公と同勢力で、捕虜でなく死亡もしていないキャラから対象をランダム選出(好感度と従属度が高いキャラの方が選ばれやすい)
 FOR LOCAL, 0, CHARANUM
 	IF IS_MALE(LOCAL) && CFLAG:LOCAL:所属 == CFLAG:MASTER:所属 && CFLAG:LOCAL:捕虜先 == 0
-		候補:LOCAL = RAND:10000
-		候補:LOCAL += CFLAG:LOCAL:好感度 + CFLAG:LOCAL:従属度
-		候補数 ++
+		DAILY_TARGET:DAILY_TARGET_NUM = LOCAL
+		DAILY_TARGET_NUM ++
 	ENDIF
 NEXT
-;候補がいなければキャンセル
-SIF 候補数 <= 0
+
+SIF DAILY_TARGET_NUM < 1
 	RETURN 0
-対象 = FINDELEMENT(候補, MAXARRAY(候補))
-SIF 対象 <= 0
-	RETURN 0
+
+RETURN 1
+
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@EVENT_DAILY_VIGIL()
+#DIM 対象
+
+対象 = DAILY_TARGET:(RAND:DAILY_TARGET_NUM)
 
 PRINTFORML %ANAME(対象)%から夜伽を要求された
 PRINTFORMW どうしよう？

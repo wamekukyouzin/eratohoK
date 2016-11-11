@@ -19,6 +19,26 @@ SIF 野盗 == -1
 RETURN 1
 
 ;---------------------
+;特定の条件を満たすキャラをランダムに選択する場合に利用
+;他の関数は必須だが、これだけはなくてもよい　というかパフォーマンスへ影響するので不要なら作ってはならない
+;対象が存在せずデイリーを開始できない場合は0を返すことでデイリーの発生をキャンセルする
+;---------------------
+@EVENT_DAILY_BANDIT_RELEASE_SETTARGET()
+#DIM 野盗
+野盗 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗))
+
+FOR LOCAL, 1, CHARANUM
+	IF CFLAG:LOCAL:所属 == CFLAG:MASTER:所属 && CFLAG:LOCAL:捕虜先 == 野盗 && IS_FEMALE(LOCAL) && SP_TRAIN_COUNT:LOCAL:特殊勢力_野盗 * 10 > RAND:100
+		DAILY_TARGET:DAILY_TARGET_NUM = LOCAL
+		DAILY_TARGET_NUM ++
+	ENDIF
+NEXT
+
+SIF DAILY_TARGET_NUM < 1
+	RETURN 0
+RETURN 1
+
+;---------------------
 ;ジャンル
 ;コンフィグ設定で使用
 ;---------------------
@@ -33,30 +53,12 @@ RETURN デイリー_ジャンル_特殊勢力
 ;---------------------
 @EVENT_DAILY_BANDIT_RELEASE()
 #DIM 対象
-#DIM LCOUNT
-#DIM 人数
 #DIM 野盗
-VARSET 対象, -1
-VARSET LOCAL, -1
-VARSET 人数, 0
 
 野盗 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗))
-	
-FOR LCOUNT, 1, CHARANUM
-	IF CFLAG:LCOUNT:所属 == CFLAG:MASTER:所属 && CFLAG:LCOUNT:捕虜先 == 野盗 && IS_FEMALE(LCOUNT)
-		LOCAL:人数 = LCOUNT
-		人数 ++
-	ENDIF
-NEXT
 
-SIF 人数 < 1
-	RETURN -1
 
-対象 = LOCAL:(RAND:人数)
-
-SIF SP_TRAIN_COUNT:対象:特殊勢力_野盗 * 100 < RAND:100
-	RETURN 0
-
+対象 = DAILY_TARGET:(RAND:DAILY_TARGET_NUM)
 
 CALL BANDIT_RELEASE_MSG(対象)
 
