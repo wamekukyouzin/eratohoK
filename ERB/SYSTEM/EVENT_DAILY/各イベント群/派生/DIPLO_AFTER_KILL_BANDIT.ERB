@@ -1,0 +1,87 @@
+﻿;---------------------
+;対応するデイリーのDISABLEを返す。設定しない場合、イベントは発生しない。
+;---------------------
+@EVENT_DAILY_DERIVATION_KILL_BANDIT_DISABLE()
+RETURN DAILY_DISABLE:(FINDELEMENT(DAILY_EVENT_NAME_ENG, "REQUEST_CHARA"))
+
+
+;---------------------
+;発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;対応するデイリーのDISABLEチェックを規約として必須とする
+;---------------------
+@EVENT_DAILY_DERIVATION_AFTER_KILL_BANDIT_DECISION()
+SIF ID_TO_CHARA(DVAR:要求野盗斬り捨て) != -1
+	RETURN 1
+
+;---------------------
+;本体
+;---------------------
+@EVENT_DAILY_DERIVATION_AFTER_KILL_BANDIT()
+#DIM 対象
+対象 = ID_TO_CHARA(DVAR:要求野盗斬り捨て)
+;野盗からの使いを斬り捨てていたら、逆調教される
+;全員の調教参加フラグを解除
+CVARSET CFLAG, 6, 0
+LOCAL:2 = 0
+FOR LOCAL:0, 0, CHARANUM
+	IF CFLAG:(LOCAL:0):所属 == GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗)) && TALENT:(LOCAL:0):特殊勢力素質 == 特殊勢力_野盗 && LOCAL:2 < 6
+		CFLAG:(LOCAL:0):調教参加フラグ = 1
+		CFLAG:(LOCAL:0):能力固定フラグ = 1
+		LOCAL:2 ++
+	ENDIF
+NEXT
+;捕虜逆調教モード
+FLAG:調教モード = 5
+;ウフフモード
+FLAG:ウフフフラグ = 1
+;アイテムを一通り追加
+ITEM:A_ローター = 1
+ITEM:A_バイブ = 1
+ITEM:A_アナルバイブ = 1
+ITEM:A_ペニスバンド = 1
+ITEM:A_オナホール = 1
+ITEM:A_クリキャップ = 1
+ITEM:A_ニプルキャップ = 1
+ITEM:A_媚薬 = 99
+ITEM:A_排卵誘発剤 = 99
+ITEM:A_麻薬 = 99
+ITEM:A_桃源香 = 99
+;行動開始時の共通処理
+;全ての参加キャラについて処理
+FOR LOCAL:0, 0, CHARANUM
+	IF CFLAG:(LOCAL:0):調教参加フラグ
+		;現在の機嫌を保存
+		FOR LOCAL:1, 0, 10
+			CFLAG:(LOCAL:0):(LOCAL:1 + 190) = PALAM:(LOCAL:0):(LOCAL:1 + 10)
+		NEXT
+		;参加済みに
+		CFLAG:(LOCAL:0):行動済み = 1
+	ENDIF
+NEXT
+DRAWLINE
+PRINTFORMW 衛兵の目を盗み、複数の男が宮廷に忍び込んだ……
+PRINTFORMW 廊下を歩いていた%ANAME(対象)%に背後から忍び寄り、薬をしみこませた布を頭から被せる
+PRINTFORMW ぐったりとした%ANAME(対象)%を麻袋に詰め込むと、男達は宮廷から逃げ出した……
+PRINTFORML
+PRINTFORML
+PRINTFORML
+PRINTFORMW 男達の正体は野盗だった
+PRINTFORMW %ANAME(MASTER)%が使いの者を斬ったので、報復ついでに%ANAME(対象)%を拉致したのだ
+PRINTFORMW アジトに戻った彼らは、眠りこける%ANAME(対象)%の服を剥ぎ取ると、早速その身体を「使い」はじめた……
+FOR LOCAL:0, 0, 4
+	CALL FUCK_GANGBANG(対象, GET_SPERM_ID("野盗"), @"野盗の\@RAND:2 ? ペニス # 唇\@", "野盗")
+NEXT
+PRINTFORML
+PRINTFORML
+PRINTFORML
+PRINTFORMW %ANAME(対象)%が目を覚ますと、そこは見覚えのない部屋だった
+PRINTFORMW 一糸まとわぬ自らの身体は縄で縛られ、見知らぬ男達に群がられている
+PRINTFORMW 白濁にまみれた肌は、自分がこの男達に何度も陵辱されたことを示している……
+PRINTFORMW %ANAME(対象)%はなんとか逃げだそうとするが、縛られており、さらに男達に押さえつけられてはどうしようもなかった
+PRINTFORMW 男達はへらへらと笑いながら、躾のなっていない雌犬を屈服させようと、再び彼女を犯し始める……
+DVAR:野盗調教交換先 = GET_ID(MASTER)
+SWAPCHARA MASTER, 対象
+FLAG:強制調教フラグ = 2
+DAILY_CANCEL = 1
+RETURN 1

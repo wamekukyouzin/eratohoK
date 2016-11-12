@@ -1,4 +1,28 @@
-﻿@SMUGGLER_TRAIN_MSG
+﻿
+;---------------------
+;対応するデイリーのDISABLEを返す。設定しない場合、イベントは発生しない。
+;---------------------
+@EVENT_DAILY_DERIVATION_SMUGGLER_CORRUPTION_DISABLE()
+RETURN DAILY_DISABLE:(FINDELEMENT(DAILY_EVENT_NAME_ENG, "SMUGGLER"))
+
+
+
+
+;---------------------
+;発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;対応するデイリーのDISABLEチェックを規約として必須とする
+;---------------------
+@EVENT_DAILY_DERIVATION_SMUGGLER_CORRUPTION_DECISION()
+RETURN ID_TO_CHARA(DVAR:薬売りターゲット) != -1
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@EVENT_DAILY_DERIVATION_SMUGGLER_CORRUPTION()
 #DIM 対象
 
 対象 = ID_TO_CHARA(DVAR:薬売りターゲット)
@@ -8,7 +32,7 @@ IF !IS_FEMALE(対象)
 	PRINTFORMW %ANAME(対象)%が女をやめたので、薬売りは興味を失ってしまったようだ……
 	DVAR:薬売りターゲット = 0
 	DVAR:薬売り進行度 = 0
-	RETURN
+	RETURN 1
 ENDIF
 
 ;ターゲットが捕虜になったらやめる
@@ -16,27 +40,18 @@ IF CFLAG:対象:捕虜先
 	PRINTFORMW %ANAME(対象)%が捕らえられたので、薬売りはこれ以上の調教をあきらめたようだ……
 	DVAR:薬売りターゲット = 0
 	DVAR:薬売り進行度 = 0
-	RETURN
+	RETURN 1
 ENDIF
 
 IF CFLAG:対象:特殊状態 == 2
 	PRINTFORMW %ANAME(対象)%が死亡したので、薬売りはこれ以上の調教を諦めたようだ……
 	DVAR:薬売りターゲット = 0
 	DVAR:薬売り進行度 = 0
-	RETURN
+	RETURN 1
 ENDIF
 
-DAILY_NAME = 戻れない道
-CALL DAILY_START
 PRINTFORMW %ANAME(対象)%は薬売りの店を訪れたようだ……
 PRINTFORML
-
-IF CONFIG:200
-	DVAR:薬売り進行度 ++
-	RETURN -2
-ENDIF
-
-
 
 ;初回は特殊メッセージ
 IF DVAR:薬売り進行度 == 0
@@ -1083,3 +1098,4 @@ ENDSELECT
 DVAR:薬売り進行度 ++
 ;能力上昇メッセ
 CALL TRAIN_AUTO_ABLUP(対象, 0)
+RETURN 1

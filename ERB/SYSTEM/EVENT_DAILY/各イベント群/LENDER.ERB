@@ -1,4 +1,33 @@
-﻿@LENDER
+﻿;---------------------
+;発生確率(1000分率 100で10%)
+;---------------------
+@EVENT_DAILY_LENDER_RATE()
+	RETURN RAND:1000 < 20
+
+;---------------------
+;確率以外の発生判定
+;---------------------
+@EVENT_DAILY_LENDER_DECISION()
+SIF DVAR:金貸しフラグ == -1
+	RETURN 0
+
+SIF DAY < 15
+	RETURN 0
+
+;返済期限が0日かつ返済額が0ならスキップ
+SIF !(DVAR:金貸し期限 == 0 && DVAR:金貸し現在額 == 0) 
+	RETURN 0
+
+RETURN 1
+
+;---------------------
+;ジャンル
+;---------------------
+@EVENT_DAILY_LENDER_GENRE()
+RETURN デイリー_ジャンル_エロ
+
+
+@EVENT_DAILY_LENDER()
 #DIM LCOUNT, 3
 #DIM 融資額
 #DIM 返済額
@@ -7,16 +36,6 @@
 VARSET 融資額
 VARSET 返済額
 VARSET 返済期限
-
-SIF 金貸しフラグ == -1
-	RETURN -1
-
-;返済期限が0日かつ返済額が0ならスキップ
-SIF !(DVAR:金貸し期限 == 0 && DVAR:金貸し現在額 == 0) 
-	RETURN -1
-
-DAILY_NAME = 金貸しの来訪
-CALL DAILY_START()
 
 ;借りていないパターン
 IF DVAR:金貸し期限 == 0 && DVAR:金貸し現在額 == 0 && DVAR:金貸し総額 == 0
@@ -55,7 +74,7 @@ IF DVAR:金貸し期限 == 0 && DVAR:金貸し現在額 == 0 && DVAR:金貸し�
 		PRINTFORMW 「ふむ。必要でないとおっしゃるなら、仕方ありますまい」
 		PRINTFORMW 「ではわたくしはこのへんで。また伺いますぞ」
 		PRINTFORMW 男は早々に立ち去っていった……
-		RETURN
+		RETURN 1
 	ELSEIF RESULT == 0
 		PRINTFORMW 「契約成立ですな」
 		PRINTFORM 「返済額は
@@ -71,7 +90,7 @@ IF DVAR:金貸し期限 == 0 && DVAR:金貸し現在額 == 0 && DVAR:金貸し�
 		DVAR:金貸し期限 = 返済期限
 		DVAR:金貸し現在額 = 返済額
 		DVAR:金貸し総額 = 返済額
-		RETURN
+		RETURN 1
 	ELSEIF RESULT == 2
 		融資額 = RAND(100000, 300000)
 		PRINTFORMW 「おやおや！　なんてことをなさるのです！　怪我をしたら困るでしょう」
@@ -87,6 +106,7 @@ IF DVAR:金貸し期限 == 0 && DVAR:金貸し現在額 == 0 && DVAR:金貸し�
 			CALL COLORPRINTFORM(@"{融資額}", COLOR("注意"))
 			PRINTFORMW をもっていってしまった……
 			MONEY -= 融資額
+			RETURN 1
 		ELSEIF 担保 != -1 && !CONFIG:200
 			PRINTFORMW 「……なに？　金が足りない？」
 			PRINTFORMW 「では%ANAME(担保)%をうちの店で働かせていただきましょうか」
@@ -96,12 +116,13 @@ IF DVAR:金貸し期限 == 0 && DVAR:金貸し現在額 == 0 && DVAR:金貸し�
 			DVAR:金貸し娘 = GET_ID(担保)
 			DVAR:金貸し総額 = 融資額
 			DVAR:金貸し現在額 = 融資額
+			RETURN 1
 		ELSE
 			PRINTFORMW 「……なに？　金が足りない？」
 			PRINTFORMW 「仕方ない、今回は不問ということにしてさしあげましょう」
 			PRINTFORMW 「しかし、次はありませんからね！」
 			PRINTFORMW 男は立ち去っていった……
-			RETURN
+			RETURN 1
 		ENDIF
 	ENDIF
 ENDIF

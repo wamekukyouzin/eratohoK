@@ -1,131 +1,159 @@
-﻿@WORK_HELPER
-#DIM 候補キャラ, 3000
-#DIM 候補数
-#DIM 対象
-#DIMS 対応能力
-#DIM 対応数値
-VARSET 候補キャラ
-VARSET 候補数
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@EVENT_DAILY_WORK_HELPER_RATE()
+RETURN 25
 
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@EVENT_DAILY_WORK_HELPER_DECISION()
+RETURN 15 <= DAY
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@EVENT_DAILY_WORK_HELPER_GENRE()
+RETURN デイリー_ジャンル_エロ
+
+
+;---------------------
+;特定の条件を満たすキャラをランダムに選択する場合に利用
+;他の関数は必須だが、これだけはなくてもよい　というかパフォーマンスへ影響するので不要なら作ってはならない
+;対象が存在せずデイリーを開始できない場合は0を返すことでデイリーの発生をキャンセルする
+;---------------------
+@EVENT_DAILY_WORK_HELPER_SETTARGET()
 ;遭遇キャラの選出、該当キャラが見つからない場合はキャンセル
 FOR LOCAL, 0, CHARANUM
 	;同勢力に所属しているキャラ
 	IF CFLAG:(LOCAL):所属 == CFLAG:MASTER:所属 && !CFLAG:(LOCAL):捕虜先 && !IS_ANIMAL(LOCAL)
-		候補キャラ:LOCAL = RAND:1000 
-		候補数 ++
+		DAILY_TARGET:DAILY_TARGET_NUM = LOCAL
+		DAILY_TARGET_NUM ++
 	ENDIF
 NEXT
-IF 候補数 == 0
-	RETURN -1
-ENDIF
-対象 = FINDELEMENT(候補キャラ, MAXARRAY(候補キャラ))
-IF 対象 <= 0
-	RETURN -1
-ENDIF
+SIF DAILY_TARGET_NUM < 1
+	RETURN 0
 
-DAILY_NAME = お手伝い
-CALL DAILY_START()
+RETURN 1
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@EVENT_DAILY_WORK_HELPER()
+#DIM 対象
+#DIMS 対応能力
+#DIM 対応数値
+
+対象 = DAILY_TARGET:(RAND:DAILY_TARGET_NUM)
+
 PRINTFORML ある日、宮殿内を歩いていると%ANAME(対象)%を見かけた
 PRINTFORMW 何やら困っている様子だ
 PRINTFORMW どうしよう？
 CALL ASK_MULTI(@"声をかける", "見て見ぬふりをする")
-	IF RESULT == 1
-		PRINTFORMW 面倒事に巻き込まれてはかなわない
-		PRINTFORMW %ANAME(MASTER)%は見て見ぬふりをすることにした
-		RETURN
+IF RESULT == 1
+	PRINTFORMW 面倒事に巻き込まれてはかなわない
+	PRINTFORMW %ANAME(MASTER)%は見て見ぬふりをすることにした
+	RETURN 1
+ELSE
+	IF CFLAG:対象:面識 == 1
+		PRINTFORML %ANAME(対象)%に声をかけた
+		PRINTFORMW すると%ANAME(対象)%は丁度良い所に来てくれたと言い%ANAME(MASTER)%を手招いた
+		PRINTFORML 話を聞くと仕事に手こずっているらしい
+		PRINTFORMW お礼はするから手伝ってくれないかと頼まれた
 	ELSE
-		IF CFLAG:対象:面識 == 1
-			PRINTFORML %ANAME(対象)%に声をかけた
-			PRINTFORMW すると%ANAME(対象)%は丁度良い所に来てくれたと言い%ANAME(MASTER)%を手招いた
-			PRINTFORML 話を聞くと仕事に手こずっているらしい
-			PRINTFORMW お礼はするから手伝ってくれないかと頼まれた
-		ELSE
-			PRINTFORML %ANAME(対象)%に声をかけた
-			PRINTFORMW 初対面の%ANAME(MASTER)%に対し%ANAME(対象)%は少しぎこちなく挨拶を交わす
-			PRINTFORML 何をしているのかと尋ねると、%ANAME(対象)%は少しためらっていたが
-			PRINTFORMW 仕事で手こずっており、手を借りたいと打ち明けてきた
-			CFLAG:対象:面識 = 1
-		ENDIF
-		PRINTFORMW どうしよう？
-		CALL ASK_MULTI(@"手伝おう", "申し訳ないが断る")
-			IF RESULT == 1
-				PRINTFORML 申し訳ないが今から自分も仕事がある
-				PRINTFORMW そう言って断ると%ANAME(対象)%は残念そうにしながらもそれ以上は何も言わなかった
-				RETURN
-			ELSE
-				PRINTFORML 引き受けると%ANAME(対象)%は笑顔で礼を告げた
-				PRINTFORMW 早速二人で仕事に取り掛かった
-				PRINTFORML ・
-				PRINTFORML ・
-				PRINTFORMW ・
-				SELECTCASE RAND:3
-					CASE 0
-						対応能力 = 武闘
-					CASE 1
-						対応能力 = 知略
-					CASE 2
-						対応能力 = 政治
-				ENDSELECT
-				SELECTCASE RAND:3
-					CASE 0
-						対応数値 = 200
-					CASE 1
-						対応数値 = 150
-					CASE 2
-						対応数値 = 100
-				ENDSELECT
-				IF ABL:MASTER:対応能力 * (RAND:4 + 1) >= 対応数値
-					PRINTFORML 仕事を完ぺきにこなしてみせた！
-					PRINTFORML %ANAME(MASTER)%の仕事ぶりに%ANAME(対象)%は喜び、少ないけれどとお金を差し出してきた
-					CALL ASK_MULTI(@"遠慮なく受け取る", "紳士的に断る", "それより体を求める")
-						IF RESULT == 0
-							PRINTFORML 遠慮なく受け取ると
-							PRINTFORMW 重ねて礼を告げる%ANAME(対象)%と別れた
-							MONEY += 5000
-							CFLAG:対象:好感度 += 100
-							RETURN
-						ELSEIF RESULT == 1
-							PRINTFORML 仲間として当然だの事だと%ANAME(MASTER)%が断ると
-							IF IS_FEMALE(対象)
-								PRINTFORML %ANAME(対象)%は笑いながらカッコつけ過ぎよと言ってきた
-							ELSE
-								PRINTFORML %ANAME(対象)%は感心したように%ANAME(MASTER)%を見た
-							ENDIF
-							PRINTFORMW その後しばらく談笑したのち、手を振りながら%ANAME(対象)%と別れた
-							CFLAG:対象:好感度 += 300
-							RETURN
-						ELSE
-							PRINTFORML %ANAME(MASTER)%は%ANAME(対象)%の手を握り顔を近づけ、それよりもっと良いモノをくれと迫る
-							PRINTFORMW %ANAME(対象)%は何のことかわからないと困ったような顔を見せる
-							PRINTFORM %ANAME(MASTER)%は
-							IF IS_FEMALE(対象)
-								PRINTFORM 彼女
-							ELSE
-								PRINTFORM 彼
-							ENDIF
-							PRINTFORMW をぐいと引き寄せ耳元で「わかっているんだろう？」と囁きながらお尻を撫でる
-							IF CFLAG:対象:好感度 > 1500 || CFLAG:対象:従属度 > 1500 || TALENT:対象:合意 == 1
-								PRINTFORMW %ANAME(対象)%は突然の事に小さく悲鳴を上げ身をこわばらせたが、抵抗はしなかった
-								PRINTFORMW 更に尻を撫でまわすと%ANAME(対象)%は身震いしながら、小さく頷いた
-								PRINTFORMW %ANAME(MASTER)%は%ANAME(対象)%の腰を抱きながら近くの部屋へと連れ込むと、その肉体を存分に堪能した
-								CALL FUCK_MAKELOVE(対象, GET_ID(MASTER), @"%ANAME(MASTER)%の\@ RAND:2 ? ペニス # 唇\@", @"%ANAME(MASTER)%")
-								CFLAG:対象:好感度 += 300
-								IF TALENT:対象:合意 == 0
-									PRINTFORMW %ANAME(MASTER)%は%ANAME(対象)%の合意を得た
-									TALENT:対象:合意 = 1
-									TALENT:対象:チョロイン = 1
-								ENDIF
-								PRINTFORMW 別れる時、%ANAME(対象)%は頬を赤らめて%ANAME(MASTER)%を見つめていた
-							ELSE
-								PRINTFORML すると%ANAME(対象)%は悲鳴を上げて%ANAME(MASTER)%を突き飛ばしてきた
-								PRINTFORMW 思わず倒れた%ANAME(MASTER)%を尻目に、%ANAME(対象)%は一目散に去って行った
-								CFLAG:対象:好感度 -= 100
-							ENDIF
-						ENDIF
-				ELSE
-					PRINTFORML どうもうまくいかなかった……
-					PRINTFORMW %ANAME(対象)%は残念そうにしていたが、%ANAME(MASTER)%を責めはしなかった
-				ENDIF
-			ENDIF
+		PRINTFORML %ANAME(対象)%に声をかけた
+		PRINTFORMW 初対面の%ANAME(MASTER)%に対し%ANAME(対象)%は少しぎこちなく挨拶を交わす
+		PRINTFORML 何をしているのかと尋ねると、%ANAME(対象)%は少しためらっていたが
+		PRINTFORMW 仕事で手こずっており、手を借りたいと打ち明けてきた
+		CFLAG:対象:面識 = 1
 	ENDIF
-RETURN
+	PRINTFORMW どうしよう？
+	CALL ASK_MULTI(@"手伝おう", "申し訳ないが断る")
+		IF RESULT == 1
+			PRINTFORML 申し訳ないが今から自分も仕事がある
+			PRINTFORMW そう言って断ると%ANAME(対象)%は残念そうにしながらもそれ以上は何も言わなかった
+			RETURN 1
+		ELSE
+			PRINTFORML 引き受けると%ANAME(対象)%は笑顔で礼を告げた
+			PRINTFORMW 早速二人で仕事に取り掛かった
+			PRINTFORML ・
+			PRINTFORML ・
+			PRINTFORMW ・
+			SELECTCASE RAND:3
+				CASE 0
+					対応能力 = 武闘
+				CASE 1
+					対応能力 = 知略
+				CASE 2
+					対応能力 = 政治
+			ENDSELECT
+			SELECTCASE RAND:3
+				CASE 0
+					対応数値 = 200
+				CASE 1
+					対応数値 = 150
+				CASE 2
+					対応数値 = 100
+			ENDSELECT
+			IF ABL:MASTER:対応能力 * (RAND:4 + 1) >= 対応数値
+				PRINTFORML 仕事を完ぺきにこなしてみせた！
+				PRINTFORML %ANAME(MASTER)%の仕事ぶりに%ANAME(対象)%は喜び、少ないけれどとお金を差し出してきた
+				CALL ASK_MULTI(@"遠慮なく受け取る", "紳士的に断る", "それより体を求める")
+					IF RESULT == 0
+						PRINTFORML 遠慮なく受け取ると
+						PRINTFORMW 重ねて礼を告げる%ANAME(対象)%と別れた
+						MONEY += 5000
+						CFLAG:対象:好感度 += 100
+						RETURN 1
+					ELSEIF RESULT == 1
+						PRINTFORML 仲間として当然だの事だと%ANAME(MASTER)%が断ると
+						IF IS_FEMALE(対象)
+							PRINTFORML %ANAME(対象)%は笑いながらカッコつけ過ぎよと言ってきた
+						ELSE
+							PRINTFORML %ANAME(対象)%は感心したように%ANAME(MASTER)%を見た
+						ENDIF
+						PRINTFORMW その後しばらく談笑したのち、手を振りながら%ANAME(対象)%と別れた
+						CFLAG:対象:好感度 += 300
+						RETURN 1
+					ELSE
+						PRINTFORML %ANAME(MASTER)%は%ANAME(対象)%の手を握り顔を近づけ、それよりもっと良いモノをくれと迫る
+						PRINTFORMW %ANAME(対象)%は何のことかわからないと困ったような顔を見せる
+						PRINTFORM %ANAME(MASTER)%は
+						IF IS_FEMALE(対象)
+							PRINTFORM 彼女
+						ELSE
+							PRINTFORM 彼
+						ENDIF
+						PRINTFORMW をぐいと引き寄せ耳元で「わかっているんだろう？」と囁きながらお尻を撫でる
+						IF CFLAG:対象:好感度 > 1500 || CFLAG:対象:従属度 > 1500 || TALENT:対象:合意 == 1
+							PRINTFORMW %ANAME(対象)%は突然の事に小さく悲鳴を上げ身をこわばらせたが、抵抗はしなかった
+							PRINTFORMW 更に尻を撫でまわすと%ANAME(対象)%は身震いしながら、小さく頷いた
+							PRINTFORMW %ANAME(MASTER)%は%ANAME(対象)%の腰を抱きながら近くの部屋へと連れ込むと、その肉体を存分に堪能した
+							CALL FUCK_MAKELOVE(対象, GET_ID(MASTER), @"%ANAME(MASTER)%の\@ RAND:2 ? ペニス # 唇\@", @"%ANAME(MASTER)%")
+							CFLAG:対象:好感度 += 300
+							IF TALENT:対象:合意 == 0
+								PRINTFORMW %ANAME(MASTER)%は%ANAME(対象)%の合意を得た
+								TALENT:対象:合意 = 1
+								TALENT:対象:チョロイン = 1
+							ENDIF
+							PRINTFORMW 別れる時、%ANAME(対象)%は頬を赤らめて%ANAME(MASTER)%を見つめていた
+						ELSE
+							PRINTFORML すると%ANAME(対象)%は悲鳴を上げて%ANAME(MASTER)%を突き飛ばしてきた
+							PRINTFORMW 思わず倒れた%ANAME(MASTER)%を尻目に、%ANAME(対象)%は一目散に去って行った
+							CFLAG:対象:好感度 -= 100
+						ENDIF
+					ENDIF
+			ELSE
+				PRINTFORML どうもうまくいかなかった……
+				PRINTFORMW %ANAME(対象)%は残念そうにしていたが、%ANAME(MASTER)%を責めはしなかった
+			ENDIF
+		ENDIF
+ENDIF
+RETURN 1

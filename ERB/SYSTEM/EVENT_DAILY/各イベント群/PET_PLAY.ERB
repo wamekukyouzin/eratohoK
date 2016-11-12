@@ -1,8 +1,36 @@
-﻿@PET_PLAY
-#DIM 対象
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@EVENT_DAILY_PET_PLAY_RATE()
+RETURN 40
 
-DAILY_NAME = 深夜の散歩
-CALL DAILY_START()
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@EVENT_DAILY_PET_PLAY_DECISION()
+SIF !ITEM:首輪
+	RETURN 0
+SIF !IS_MALE(MASTER)
+	RETURN 0
+RETURN DAY >= 5
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@EVENT_DAILY_PET_PLAY_GENRE()
+RETURN デイリー_ジャンル_エロ
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@EVENT_DAILY_PET_PLAY()
+#DIM 対象
 
 PRINTFORML 深夜、暇になった%ANAME(MASTER)%が部屋の中を見回していると、壁にかけてある首輪が目にとまった
 PRINTFORML %ANAME(MASTER)%はふと夜の散歩に出かけようと思い立ち、首輪とリードを手に取り部屋を出た
@@ -10,7 +38,7 @@ PRINTFORMW さて、誰を誘おうかな？
 CALL SELECT_CHARA_LIST_ONLY_LOGIC_SEX("別勢力, 育児対象, 動物, 男", "捕虜")
 IF RESULT == -1
 	PRINTFORMW やはりやめておこう
-	RETURN
+	RETURN 1
 ENDIF
 対象 = RESULT
 PRINTFORML %ANAME(MASTER)%は%ANAME(対象)%の部屋を訪ねた
@@ -46,7 +74,7 @@ SELECTCASE RAND:12
 	CASE 2
 		PRINTFORML %ANAME(対象)%を連れて夜の公園に向かった
 		PRINTFORML 犬の様に四つん這いの彼女をひきつれていると、交尾をしている別の“ペット”と飼い主に出会った
-		PRINTFORML 飼い主と会話をしている%ANAME(MASTER)%の足元で、%ANAME(対象)%がは犯されているペットにくぎ付けになり自慰をし始めた
+		PRINTFORML 飼い主と会話をしている%ANAME(MASTER)%の足元で、%ANAME(対象)%は犯されているペットにくぎ付けになり自慰をし始めた
 		PRINTFORMW %ANAME(MASTER)%はこのはしたないペットを躾けるために、彼らと見せつけあうように“お仕置き”を開始した
 	CASE 3
 		PRINTFORML %ANAME(MASTER)%は真っ暗な中庭で%ANAME(対象)%を犯している
@@ -97,4 +125,4 @@ ENDSELECT
 CALL FUCK(対象, "Ｃ, Ｂ, Ｖ, Ｍ, 欲望, 性交, 奉仕, 精愛, 口淫, キス, Ｖ性交", "処女喪失, キス喪失, 膣内射精", GET_ID(MASTER), @"%ANAME(MASTER)%の\@RAND:2 ? ペニス # 唇\@", ANAME(MASTER), "", 喪失_調教)
 CALL FUCK(MASTER, "Ｃ, 射精, Ｖ挿入", "童貞喪失", 0, "", "", @"%ANAME(対象)%の膣", 喪失_調教)
 PRINTFORMW 
-RETURN
+RETURN 1

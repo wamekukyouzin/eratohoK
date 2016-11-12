@@ -1,17 +1,43 @@
-﻿@BANDIT_PILLAGE
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@EVENT_DAILY_BANDIT_PILLAGE_RATE()
+RETURN 40
+
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@EVENT_DAILY_BANDIT_PILLAGE_DECISION()
+#DIM 野盗
+野盗 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗))
+SIF 野盗 
+	RETURN 0
+SIF !IS_MALE(MASTER)
+	RETURN 0
+RETURN DAY >= 12
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@EVENT_DAILY_BANDIT_PILLAGE_GENRE()
+RETURN デイリー_ジャンル_特殊勢力
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@EVENT_DAILY_BANDIT_PILLAGE
 #DIM 野盗
 #DIM お金
 #DIM 兵数
 #DIM 対象
 野盗 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗))
-
-;主人公が盗賊勢力に所属しており、男
-IF !(CFLAG:MASTER:所属 == 野盗 && IS_MALE(MASTER))
-	RETURN -1
-ENDIF
-
-DAILY_NAME = 野盗による略奪
-CALL DAILY_START()
 
 PRINTFORMW このごろ、物資が不足ぎみだ
 PRINTFORMW 普通なら商人から買い付けるところだが、%ANAME(MASTER)%は野盗である
@@ -36,7 +62,7 @@ ELSEIF RESULT == 2
 		PRINTFORMW %ANAME(MASTER)%はさらし首にされた……
 		FLAG:処刑エンドフラグ = 1
 		DAILY_CANCEL = 1
-		RETURN
+		RETURN 1
 	ELSE
 		お金 = ((ABL:MASTER:武闘 + ABL:MASTER:知略) * 5 * (RAND:5 + 1))
 		PRINTFORMW 略奪を行った！
@@ -63,7 +89,7 @@ ELSEIF RESULT == 1
 		PRINTFORMW %ANAME(MASTER)%はさらし首にされた……
 		FLAG:処刑エンドフラグ = 1
 		DAILY_CANCEL = 1
-		RETURN
+		RETURN 1
 	ELSE
 		PRINTFORMW 近くの集落を襲い、適当な村娘を何人か捕まえた
 		PRINTFORMW 戦利品を持ってアジトへと帰還すると、手下たちは早速彼女達に群がった
@@ -198,7 +224,7 @@ ELSE
 			ENDIF
 			FLAG:処刑エンドフラグ = 1
 			DAILY_CANCEL = 1
-			RETURN
+			RETURN 1
 		ELSE
 			IF RAND:2 == 0
 				PRINTFORMW ターゲットに逃げられてしまった……
@@ -285,4 +311,4 @@ ELSE
 		ENDIF
 	ENDIF
 ENDIF
-RETURN 
+RETURN 1

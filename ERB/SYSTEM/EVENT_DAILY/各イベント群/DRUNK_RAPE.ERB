@@ -1,12 +1,67 @@
-﻿@DRUNK_RAPE
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@EVENT_DAILY_DRUNK_RAPE_RATE()
+RETURN 0
+
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@EVENT_DAILY_DRUNK_RAPE_DECISION()
+SIF !IS_MALE(MASTER)
+	RETURN 0
+SIF DAY < 10
+	RETURN 0
+RETURN 1
+
+
+;---------------------
+;特定の条件を満たすキャラをランダムに選択する場合に利用
+;他の関数は必須だが、これだけはなくてもよい　というかパフォーマンスへ影響するので不要なら作ってはならない
+;対象が存在せずデイリーを開始できない場合は0を返すことでデイリーの発生をキャンセルする
+;---------------------
+@EVENT_DAILY_DRUNK_RAPE_SETTARGET()
+;遭遇キャラの選出
+FOR LOCAL, 0, CHARANUM
+	;別の勢力に所属している、女性キャラ
+	IF CFLAG:(LOCAL):所属 != CFLAG:MASTER:所属 && !CFLAG:(LOCAL):捕虜先 && IS_FEMALE(LOCAL) && !IS_ANIMAL(LOCAL)
+		DAILY_TARGET:DAILY_TARGET_NUM = LOCAL
+		DAILY_TARGET_NUM ++
+	ENDIF
+NEXT
+
+SIF DAILY_TARGET_NUM < 1
+	RETURN 0
+
+RETURN 1
+
+
+
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@EVENT_DAILY_DRUNK_RAPE_GENRE()
+RETURN デイリー_ジャンル_エロ
+
+
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;---------------------
+@EVENT_DAILY_DRUNK_RAPE()
 #DIM 対象
 #DIM 候補キャラ, 3000
 #DIM 候補数
 VARSET 候補キャラ
 VARSET 候補数
 
-DAILY_NAME = 酔姦
-CALL DAILY_START()
 
 IF GET_COUNTRY_BOSS(CFLAG:MASTER:所属) == MASTER
 	PRINTFORMW 部下から近々、宴が開かれることを聞かされた
@@ -26,36 +81,19 @@ PRINTFORMW どうしようか
 CALL ASK_MULTI(@"出席する", "やめておく")
 	IF RESULT == 1
 		PRINTFORMW 忙しいので辞退した
-		RETURN 0
+		RETURN 1
 	ENDIF
 
 PRINTFORMW 折角だから出席してみることにした
 
-;遭遇キャラの選出
-FOR LOCAL, 0, CHARANUM
-	;別の勢力に所属している、女性キャラ
-	IF CFLAG:(LOCAL):所属 != CFLAG:MASTER:所属 && !CFLAG:(LOCAL):捕虜先 && IS_FEMALE(LOCAL) && !IS_ANIMAL(LOCAL)
-		候補キャラ:LOCAL = RAND:1000 
-		候補数 ++
-	ENDIF
-NEXT
 
-IF 候補数 == 0
-	PRINTFORML ・
-	PRINTFORML ・
-	PRINTFORML ・
-	PRINTFORMW しかし退屈な宴だった
-	RETURN 0
-ENDIF
-
-対象 = FINDELEMENT(候補キャラ, MAXARRAY(候補キャラ))
-
+対象 = DAILY_TARGET:(RAND:DAILY_TARGET_NUM)
 IF 対象 <= 0
 	PRINTFORML ・
 	PRINTFORML ・
 	PRINTFORML ・
 	PRINTFORMW しかし退屈な宴だった
-	RETURN 0
+	RETURN 1
 ENDIF
 
 PRINTFORML ・
@@ -70,7 +108,7 @@ IF CFLAG:対象:好感度 < 0
 	PRINTFORML しかし%ANAME(MASTER)%に気付いた%ANAME(対象)%は目を逸らしてどこかへ行ってしまった
 	PRINTFORMW 仕方なく%ANAME(MASTER)%は他の者たちと飲み続けた
 	CFLAG:対象:面識 = 1
-	RETURN 0
+	RETURN 1
 ELSEIF CFLAG:対象:面識 == 1
 	PRINTFORMW %ANAME(MASTER)%に気付いた%ANAME(対象)%はこちらへ近づいてきた
 ELSE
@@ -89,7 +127,7 @@ CALL ASK_MULTI(@"談笑を続ける", "踊りに誘う", "飲み比べする")
 		PRINTFORMW 楽しい時間を過ごせた
 		CFLAG:対象:好感度 += 300
 		CFLAG:対象:面識 = 1
-		RETURN 0
+		RETURN 1
 	ELSEIF RESULT == 1
 		PRINTFORML %ANAME(対象)%を踊りに誘うと、彼女は照れながらも%ANAME(MASTER)%の手を取った
 		PRINTFORML ・
@@ -98,7 +136,7 @@ CALL ASK_MULTI(@"談笑を続ける", "踊りに誘う", "飲み比べする")
 		PRINTFORMW 楽しい時間を過ごせた
 		CFLAG:対象:好感度 += 300
 		CFLAG:対象:面識 = 1
-		RETURN 0
+		RETURN 1
 	ELSE
 		PRINTFORML %ANAME(MASTER)%は悪い事を思いついた
 		PRINTFORML 折角だからと%ANAME(対象)%に飲み比べを挑む
@@ -115,7 +153,7 @@ CALL ASK_MULTI(@"談笑を続ける", "踊りに誘う", "飲み比べする")
 			PRINTFORMW %ANAME(MASTER)%はガンガン痛む頭を抱えながら、ふらついた足取りで帰路についた
 			CFLAG:対象:好感度 += 100
 			CFLAG:対象:面識 = 1
-			RETURN 0
+			RETURN 1
 		ENDIF
 		PRINTFORML そのうち%ANAME(対象)%はすっかり酔い潰れてしまった
 		PRINTFORMW %ANAME(MASTER)%は介抱する名目で彼女を近くの小屋に連れ込んだ
@@ -159,4 +197,4 @@ PRINTFORML 存分に彼女の体を堪能した%ANAME(MASTER)%は
 PRINTFORMW 体を綺麗に拭き取り服を着せてやると、その場を後にした
 CFLAG:対象:面識 = 1
 
-RETURN
+RETURN 1

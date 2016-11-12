@@ -1,49 +1,68 @@
-﻿;夜遊び
-@NIGHTLIFE
+﻿;---------------------
+;発生確率(1000分率 100で10%)
+;---------------------
+@EVENT_DAILY_NIGHTLIFE_RATE()
+RETURN 40
+;---------------------
+;確率以外の発生判定
+;---------------------
+@EVENT_DAILY_NIGHTLIFE_DECISION()
+SIF DAY < 5
+	RETURN 0
+;MASTERが男
+SIF !(IS_MALE(MASTER))
+	RETURN 0
+
+RETURN 1
+
+
+;---------------------
+;特定の条件を満たすキャラをランダムに選択する場合に利用
+;他の関数は必須だが、これだけはなくてもよい　というかパフォーマンスへ影響するので不要なら作ってはならない
+;対象が存在せずデイリーを開始できない場合は0を返すことでデイリーの発生をキャンセルする
+;---------------------
+@EVENT_DAILY_NIGHTLIFE_SETTARGET()
+
+FOR LOCAL, 0, CHARANUM
+	SIF !IS_FEMALE(LOCAL)
+		CONTINUE
+	;自国所属かつ捕虜でない、かつ「恋慕か親愛か服従・隷属・烙印」で、2/3
+	IF CFLAG:LOCAL:所属 == CFLAG:MASTER:所属 && !CFLAG:LOCAL:捕虜先 && (IS_LOVER(LOCAL) || IS_SLAVE(LOCAL))
+		DAILY_TARGET:DAILY_TARGET_NUM = LOCAL
+		DAILY_TARGET_NUM ++
+	;主人公が特殊勢力におらず、対象が特殊勢力に所属 + 陥落済み、かつ面識がある
+	ELSEIF !IS_SP_COUNTRY(CFLAG:MASTER:所属) && CFLAG:LOCAL:面識 && IS_SP_COUNTRY(LOCAL) && IS_FALLEN_TO_SP_COUNTRY(LOCAL)
+		DAILY_TARGET:DAILY_TARGET_NUM = LOCAL
+		DAILY_TARGET_NUM ++
+	ENDIF
+NEXT
+
+SIF DAILY_TARGET_NUM < 1
+	RETURN 0
+
+RETURN 1
+
+;---------------------
+;ジャンル
+;---------------------
+@EVENT_DAILY_NIGHTLIFE_GENRE()
+RETURN デイリー_ジャンル_エロ
+
+
+;夜遊び
+@EVENT_DAILY_NIGHTLIFE
 #DIM 対象
-#DIM 候補, 3000
-#DIM 候補数
 #DIM 野盗
 #DIM ゴブリン
 #DIM 外来
-VARSET 候補, -1
-VARSET 候補数
-;MASTERが男
-SIF !(IS_MALE(MASTER))
-	RETURN -1
 
 野盗 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗))
 ゴブリン = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_ホフゴブリン))
 外来 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_外来人))
 
 
-;よくやる選出
-;FISHER_YATES_SHAFFLEの人は本当にべんりなもん作ってくれた
+対象 = DAILY_TARGET:(RAND:DAILY_TARGET_NUM)
 
-FOR LOCAL, 0, CHARANUM
-	;対象が女
-	IF IS_FEMALE(LOCAL)
-		;自国所属かつ捕虜でない、かつ「恋慕か親愛か服従・隷属・烙印」で、2/3
-		IF CFLAG:LOCAL:所属 == CFLAG:MASTER:所属 && !CFLAG:LOCAL:捕虜先 && (IS_LOVER(LOCAL) || IS_SLAVE(LOCAL))
-			候補:候補数 = LOCAL
-			候補数 ++
-		;主人公が特殊勢力におらず、対象が特殊勢力に所属 + 陥落済み、かつ面識がある
-		ELSEIF !IS_SP_COUNTRY(CFLAG:MASTER:所属) && CFLAG:LOCAL:面識 && IS_SP_COUNTRY(LOCAL) && IS_FALLEN_TO_SP_COUNTRY(LOCAL)
-			候補:候補数 = LOCAL
-			候補数 ++
-		ENDIF
-	ENDIF
-NEXT
-
-SIF 候補数 < 1
-	RETURN -1
-
-CALL FISHER_YATES_SHAFFLE(候補数)
-
-対象 = 候補:(SHAFFLE_ARRAY:0)
-
-DAILY_NAME = 夜遊び
-CALL DAILY_START()
 ;恋慕パターン
 IF IS_LOVER(対象)
 	PRINTFORMW 仕事をしていると、%ANAME(対象)%が部屋に訪れてきた……
@@ -52,7 +71,7 @@ IF IS_LOVER(対象)
 	;お前マジそれはないわ
 	IF RESULT == 1
 		PRINTFORMW 悪いけど仕事がある……そう告げると、%ANAME(対象)%は残念そうに帰って行った
-		RETURN
+		RETURN 1
 	ELSE
 		;なんだこの平和な分岐　オラこんなの書くのはじめてよ
 		PRINTFORMW %ANAME(対象)%を連れ、夜の街に繰り出した……
@@ -106,7 +125,7 @@ ELSEIF IS_SLAVE(対象)
 	CALL ASK_MULTI("使ってやる", "いや仕事あるから……")
 	IF RESULT == 1
 		PRINTFORMW 悪いけど仕事がある……そう告げると、%ANAME(対象)%は残念そうに帰って行った
-		RETURN
+		RETURN 1
 	ELSE
 		PRINTFORMW %ANAME(対象)%を連れ、夜の街に繰り出した……
 		PRINTFORML 
@@ -116,7 +135,7 @@ ELSEIF IS_SLAVE(対象)
 				PRINTFORML %ANAME(MASTER)%は%ANAME(対象)%を路地裏に連れ込むと、服を脱ぐよう命令した
 				PRINTFORMW %ANAME(対象)%は躊躇いつつも、%ANAME(MASTER)%の言うことには逆らえず、その肌を夜風に晒す
 				PRINTFORML %ANAME(MASTER)%は強い口調で%ANAME(対象)%に命じ、誰が来るとも分からないこの場所で自慰をさせる
-				PRINTFORMW 見られるかもしれないという意識がお後押ししたのか、%ANAME(対象)%はいつも以上に激しく感じていたようだ
+				PRINTFORMW 見られるかもしれないという意識が後押ししたのか、%ANAME(対象)%はいつも以上に激しく感じていたようだ
 				PRINTFORMW その後、%ANAME(MASTER)%は昂ぶる%ANAME(対象)%の身体を、たっぷりと味わってやった……
 				CALL FUCK_MAKELOVE(対象, GET_ID(MASTER), @"%ANAME(MASTER)%の\@ RAND:2 ? ペニス # 唇\@", @"%ANAME(MASTER)%")
 			CASE 1
@@ -231,7 +250,7 @@ ELSEIF IS_SP_COUNTRY(対象) && IS_FALLEN_TO_SP_COUNTRY(対象)
 		PRINTFORML 「え～っ、ノリ悪ぃなぁ」
 		PRINTFORMW 「まぁしょうがないっスよね、%ANAME(MASTER)%さん仕事ありますもんね」
 		PRINTFORMW 彼は残念そうに立ち去っていった……
-		RETURN
+		RETURN 1
 	ELSE
 		PRINTFORML 「そうこなくっちゃ！　さ、行きましょ行きましょ」
 		PRINTFORMW 彼は早速、%ANAME(MASTER)%を夜の街へと連れ出した……
@@ -427,3 +446,4 @@ ELSEIF IS_SP_COUNTRY(対象) && IS_FALLEN_TO_SP_COUNTRY(対象)
 
 	ENDIF
 ENDIF
+RETURN 1

@@ -1,17 +1,41 @@
-﻿@COMFORT
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@SLG_EVENT_DAILY_COMFORT_RATE()
+RETURN 30
+
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@SLG_EVENT_DAILY_COMFORT_DECISION()
+SIF !IS_COUNTRY(CFLAG:MASTER:所属) || CFLAG:MASTER:捕虜先
+	RETURN 0
+RETURN DAY >= 12
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@SLG_EVENT_DAILY_COMFORT_GENRE()
+RETURN ＳＬＧ_デイリー_ジャンル_エロ
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@SLG_EVENT_DAILY_COMFORT()
 #DIM 対象
 #DIM 金額
 #DIM 対象都市
-SIF !IS_COUNTRY(CFLAG:MASTER:所属) || CFLAG:MASTER:捕虜先
-	RETURN -1
 
-DAILY_NAME = 兵士慰安
-CALL DAILY_START()
-
-CALL DAILY_EVENT_RAND_CITYSELECT(0)
+CALL DAILY_EVENT_RAND_CITYSELECT(1)
 対象都市 = RESULT
-SIF 対象都市 < 0
-	RETURN -1
+
 金額 = 1000 + (500 * (RAND:8 + 1)) + (DAY * 100)
 
 PRINTFORML 長引く戦いで%CITY_NAME:対象都市%の兵士の不満がたまっている
@@ -125,7 +149,7 @@ CALL ASK_MULTI_JUDGE(@"宴会を催す", MONEY >= 金額,"慰安する", 1,"何�
 		ENDIF
 	ENDIF
 
-RETURN
+RETURN 1
 
 ;--------------------------------------------------------------------------------
 ;慰安活動
@@ -289,4 +313,4 @@ SELECTCASE RAND:20
 ENDSELECT
 CALL FUCK_MAKELOVE(ARG:0, -1, @"兵士の\@RAND:2 ? ペニス # 唇\@", @"兵士")
 
-RETURN
+RETURN 1

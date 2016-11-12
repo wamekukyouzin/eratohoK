@@ -1,4 +1,41 @@
-﻿@BANDIT_CONQUER
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@EVENT_DAILY_BANDIT_CONQUER_RATE()
+RETURN 40
+
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@EVENT_DAILY_BANDIT_CONQUER_DECISION()
+#DIM 野盗
+野盗 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗))
+SIF 野盗 == -1
+	RETURN 0
+SIF IS_SP_COUNTRY(CFLAG:MASTER:所属)
+	RETURN 0
+SIF BANDIT_POP_SUSPENDED > 0
+	RETURN 0
+
+RETURN DAY >= 15
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@EVENT_DAILY_BANDIT_CONQUER_GENRE()
+RETURN デイリー_ジャンル_特殊勢力
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@EVENT_DAILY_BANDIT_CONQUER
 #DIM 野盗
 #DIM 候補, 3
 #DIM 人数
@@ -10,11 +47,7 @@ VARSET 武闘合計
 VARSET 知略合計
 
 野盗 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗))
-SIF !(BANDIT_POP_SUSPENDED == 0 && 野盗 != -1 && CFLAG:MASTER:所属 != 野盗)
-	RETURN -1
 
-DAILY_NAME = 野盗討伐
-CALL DAILY_START()
 
 IF DVAR:野盗討伐フラグ == 0
 	PRINTFORML ある日、%ANAME(MASTER)%の元に報告が入った
@@ -40,7 +73,7 @@ NEXT
 IF 候補:0 == -1
 	PRINTFORML ……いや、むやみに部下を危険にさらすこともないだろう
 	PRINTFORMW そう考え直した%ANAME(MASTER)%は、誰も派遣しないことにした
-	RETURN 0
+	RETURN 1
 ENDIF
 
 
@@ -103,6 +136,7 @@ IF LOCAL:1 > LOCAL:2
 		SIF IS_COUNTRY(LOCAL)
 			CALL CHANGE_RELATION_C_TO_C(LOCAL, CFLAG:MASTER:所属, 500, -300)
 	NEXT
+	RETURN 1
 ;失敗パターン
 ELSE
 	DVAR:野盗討伐フラグ = 2
@@ -118,7 +152,7 @@ ELSE
 				CALL SET_COOLTIME(候補:LOCAL, LOCAL:2)
 			ENDIF
 		NEXT
-		RETURN 0
+		RETURN 1
 	ENDIF
 
 	FOR LOCAL, 0 , 人数
@@ -426,6 +460,8 @@ ELSE
 	NEXT
 
 ENDIF
+
+RETURN 1
 
 @BANDIT_CONQUER_SELECT_COMMANDER
 VARSET LOCAL

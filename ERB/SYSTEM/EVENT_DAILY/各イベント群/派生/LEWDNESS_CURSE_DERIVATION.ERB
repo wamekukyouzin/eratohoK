@@ -1,68 +1,61 @@
-﻿
-;---------------------------------------------------------------
-;淫紋イベント派生イベント
-;---------------------------------------------------------------
-@LEWDNESS_CURSE_DERIVATION
-#DIM 対象
-LOCAL:1 = 0
-LOCAL:2 = 0
-FOR LOCAL, 0, CHARANUM
-	SIF !GETBIT(TALENT:LOCAL:デイリー系, 素質_デイリー_淫紋)
-		CONTINUE
-	対象 = LOCAL
-	;未定着パターン
-	IF ID_TO_CHARA(DVAR:浸食中キャラ) == 対象
-		IF !LOCAL:1
-			LOCAL:1 = 1
-			LOCAL:2 = 0
-			DAILY_NAME = 淫紋の浸食
-			CALL DAILY_START
-		ENDIF
-		CALL LEWDNESS_CURSE_PROGRESS(対象)
-	;定着しちゃったキャラ用
-	ELSEIF IS_FEMALE(対象) && !RAND:3
-		IF !LOCAL:2
-			DAILY_NAME = 紋の魔力
-			CALL DAILY_START
-			LOCAL:2 = 1
-		ENDIF
-		CALL LEWDNESS_CURSE_CORRUPTED(対象)
-	ENDIF
-NEXT
+﻿;---------------------
+;対応するデイリーのDISABLEを返す。設定しない場合、イベントは発生しない。
+;---------------------
+@EVENT_DAILY_DERIVATION_LEWDNESS_CURSE_CORRUPTION_DISABLE()
+RETURN DAILY_DISABLE:(FINDELEMENT(DAILY_EVENT_NAME_ENG, "LEWDNESS_CURSE"))
 
-;---------------------------------------------------------------
-;派生イベント進行
-;---------------------------------------------------------------
-@LEWDNESS_CURSE_PROGRESS(対象)
+
+
+;---------------------
+;発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;対応するデイリーのDISABLEチェックを規約として必須とする
+;---------------------
+@EVENT_DAILY_DERIVATION_LEWDNESS_CURSE_CORRUPTION_DECISION()
+
+IF DVAR:浸食中キャラ > 0 && ID_TO_CHARA(DVAR:浸食中キャラ) == -1
+	DVAR:浸食中キャラ = 0
+	RETURN 0
+ELSEIF DVAR:浸食中キャラ > 0
+	RETURN 1
+ENDIF
+
+RETURN 0
+
+;---------------------
+;本体
+;---------------------
+@EVENT_DAILY_DERIVATION_LEWDNESS_CURSE_CORRUPTION()
 #DIM 対象
+対象 = ID_TO_CHARA(DVAR:浸食中キャラ)
 
 IF CFLAG:対象:捕虜先 != 0
 	PRINTFORMW 悪魔に淫紋を刻まれた%ANAME(対象)%は、牢獄の中で悶々と過ごしている……
-	RETURN
+	RETURN 1
 ELSEIF CFLAG:対象:特殊状態 == 2
 	PRINTFORMW %ANAME(対象)%が死亡してしまったので、悪魔は別のターゲットを探す事にした様だ
 	CLEARBIT TALENT:対象:デイリー系, 素質_デイリー_淫紋
 	DVAR:浸食中キャラ = 0
 	DVAR:浸食値 = 0
-	RETURN
+	RETURN 1
 ELSEIF CFLAG:対象:特殊状態 == 1
 	PRINTFORMW %ANAME(対象)%は放浪中、悪魔祓いに出会い淫紋を解呪してもらったようだ
 	CLEARBIT TALENT:対象:デイリー系, 素質_デイリー_淫紋
 	DVAR:浸食中キャラ = 0
 	DVAR:浸食値 = 0
-	RETURN
+	RETURN 1
 ELSEIF CFLAG:対象:所属 != CFLAG:MASTER:所属
 	PRINTFORMW 他国に移った%ANAME(対象)%は、悪魔祓いに淫紋を解呪してもらったようだ
 	CLEARBIT TALENT:対象:デイリー系, 素質_デイリー_淫紋
 	DVAR:浸食中キャラ = 0
 	DVAR:浸食値 = 0
-	RETURN
+	RETURN 1
 ELSEIF !IS_FEMALE(対象)
 	PRINTFORMW %ANAME(対象)%が女ではなくなったので、悪魔は別のターゲットを探す事にした様だ
 	CLEARBIT TALENT:対象:デイリー系, 素質_デイリー_淫紋
 	DVAR:浸食中キャラ = 0
 	DVAR:浸食値 = 0
-	RETURN
+	RETURN 1
 ENDIF
 ;消去させるパターン
 IF RAND:16 == 0
@@ -73,7 +66,7 @@ IF RAND:16 == 0
 	IF RESULT == 1
 		PRINTFORMW いや、やはり何か疑わしい
 		PRINTFORMW やめておくことにした……
-		RETURN
+		RETURN 1
 	ELSE
 		PRINTFORMW 多少疑いつつも、子宮の疼きを鎮められるのなら、と%ANAME(対象)%は彼に解呪を頼んだ
 		PRINTFORML ・
@@ -86,7 +79,7 @@ IF RAND:16 == 0
 		DVAR:浸食中キャラ = 0
 		DVAR:浸食値 = 0
 		DVAR:悪魔契約 = -1
-		RETURN
+		RETURN 1
 	ENDIF
 ELSEIF DVAR:浸食値 < 16
 	PRINTFORM %ANAME(対象)%に刻まれた
@@ -323,7 +316,7 @@ ELSEIF DVAR:浸食値 < 16
 	DVAR:浸食値 += RAND:2 + 1
 	CALL COLORPRINTFORM(@"淫紋の輝きは先ほどよりも強くなっている……", COLOR("桃"))
 	PRINTFORMW 
-	RETURN
+	RETURN 1
 ELSE
 	PRINTFORML 
 	PRINTFORML 淫らな嬌声が響く薄暗い部屋の中で、多数の男女が絡み合っている
@@ -367,140 +360,179 @@ ELSE
 	PRINTFORMW 
 	DVAR:浸食中キャラ = 0
 	DVAR:浸食値 = 0
-	RETURN
+	RETURN 1
 ENDIF
 
+;---------------------
+;対応するデイリーのDISABLEを返す。設定しない場合、イベントは発生しない。
+;---------------------
+@EVENT_DAILY_DERIVATION_LEWDNESS_CURSE_DISABLE()
+RETURN DAILY_DISABLE:(FINDELEMENT(DAILY_EVENT_NAME_ENG, "LEWDNESS_CURSE"))
 
-;---------------------------------------------------------------
-;派生イベント終了済みキャラへのなんかこうアレ
-;---------------------------------------------------------------
-@LEWDNESS_CURSE_CORRUPTED(対象)
+
+;---------------------
+;発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;対応するデイリーのDISABLEチェックを規約として必須とする
+;---------------------
+@EVENT_DAILY_DERIVATION_LEWDNESS_CURSE_CORRUPTED_DECISION()
+RETURN 1
+
+;---------------------
+;特定の条件を満たすキャラをランダムに選択する場合に利用
+;他の関数は必須だが、これだけはなくてもよい　というかパフォーマンスへ影響するので不要なら作ってはならない
+;対象が存在せずデイリーを開始できない場合は0を返すことでデイリーの発生をキャンセルする
+;---------------------
+@EVENT_DAILY_DERIVATION_LEWDNESS_CURSE_CORRUPTED_SETTARGET()
+FOR LOCAL, 0, CHARANUM
+	SIF !IS_FEMALE(LOCAL)
+		CONTINUE
+	SIF !GETBIT(TALENT:LOCAL:デイリー系, 素質_デイリー_淫紋)
+		CONTINUE
+	SIF RAND:3
+		CONTINUE
+	DAILY_TARGET:DAILY_TARGET_NUM = LOCAL
+	DAILY_TARGET_NUM ++
+NEXT
+
+SIF DAILY_TARGET_NUM < 1
+	RETURN 0
+
+
+
+;---------------------
+;本体
+;---------------------
+@EVENT_DAILY_DERIVATION_LEWDNESS_CURSE_CORRUPTED()
 #DIM 対象
-PRINTFORM %ANAME(対象)%に定着した
-CALL COLORPRINTFORM(@"淫紋", COLOR("桃"))
-PRINTFORML は、彼女に夜な夜な淫らな行いをさせる……
-SELECTCASE RAND:20
-	CASE 0
-		LOCALS = 悪魔
-		PRINTFORML %ANAME(対象)%は自らに淫紋を施した悪魔に抱かれている
-		PRINTFORML 人ならざる暴力的なサイズのペニスに、%ANAME(対象)%は目を白黒させながらよがっている
-		PRINTFORML 彼女の雌穴は完全に彼のモノの形を覚え、それを悦ばせるための鞘となっていた
-		PRINTFORML やがて悪魔が射精すると、彼女は背を反らし、目を♥にしながら絶頂する
-		PRINTFORML 行為が終わる頃には、%ANAME(対象)%の腹は妊娠したかのように膨れあがっていた……
-	CASE 1
-		LOCALS = 悪魔
-		PRINTFORML %ANAME(対象)%は自らに淫紋を施した悪魔に奉仕している
-		PRINTFORML 圧倒的なサイズのペニスを前に、雌と化した彼女がすることいえば一つだ
-		PRINTFORML 彼女はそれを舐めあげ、しゃぶり、玉を優しく揉んで、丹念に奉仕していく
-		PRINTFORML やがて激しく射精した悪魔は、口淫の興奮で浅ましくも排卵する%ANAME(対象)%の雌穴をたっぷりと貫いた……
-	CASE 2
-		LOCALS = 悪魔
-		PRINTFORML %ANAME(対象)%は自らに淫紋を施した悪魔に奉仕している
-		PRINTFORML 彼の尻穴を、足を舐め、へりくだった言葉を並べたてて「お慈悲」を請う
-		PRINTFORML %ANAME(対象)%の無様なさまをひとしきり楽しんだ悪魔は、彼女を四つん這いにさせ、後ろから貫く
-		PRINTFORML これ以上ないほど優秀な雄のものにされる悦びに、%ANAME(対象)%はだらしないヨガり声をあげて絶頂し続けた……
-	CASE 3
-		LOCALS = 浮浪者
-		PRINTFORML %ANAME(対象)%は河原に出かけ、浮浪者たちを誘ったようだ
-		PRINTFORML 女日照りの彼らは早速%ANAME(対象)%に群がり、その肉体を堪能し始める
-		PRINTFORML 肉穴や尻穴、口に汚らしい白濁が注がれるたび、淫紋が輝き、強烈な快感を%ANAME(対象)%に与える
-		PRINTFORML 性交の快感に何度も絶頂しながら、%ANAME(対象)%は黄ばんだ精液を何度も子宮で受け止めた……
-	CASE 4
-		LOCALS = 強姦魔
-		PRINTFORML %ANAME(対象)%は露出の高い格好で歩き回り、わざと強姦魔に押し倒された
-		PRINTFORML 嫌がる演技に彼は興奮し、%ANAME(対象)%の衣装を剥ぎ取ると、期待に濡れた秘部にいきなりペニスをねじ込んだ
-		PRINTFORML 挿入られただけで絶頂し腰を振ってヨガり始めた%ANAME(対象)%に男は面食らったようだが、好都合だとニヤリと笑う
-		PRINTFORML 結局%ANAME(対象)%は、男が満足するまで、慰み者にされ続けた……
-	CASE 5
-		LOCALS = 悪魔
-		PRINTFORML %ANAME(対象)%は自らに淫紋を施した悪魔に抱かれている
-		PRINTFORML 性交を通じ、今まで淫紋が集めてきた性のエネルギーが悪魔に吸収されていく
-		PRINTFORML エネルギーの回収が終わる頃には、散々犯された%ANAME(対象)%は精も根も尽き果てていた
-		PRINTFORML %ANAME(対象)%は悪魔に、今後も見知らぬ男とまぐわいエネルギーを集め、それを彼に捧げることを約束させられた……
-	CASE 6
-		LOCALS = セックスフレンド
-		PRINTFORML %ANAME(対象)%は名前も知らぬ男と宿で交わっている
-		PRINTFORML ペニスとセックスのテクだけで選んだ、性格は最低の男だ
-		PRINTFORML 男は当然のように避妊もせず%ANAME(対象)%と交わり、その子宮になんども白濁を吐き出していく
-		PRINTFORML %ANAME(対象)%も当然のようにソレを受け止め、だらしないアヘ顔を晒しながら何度も絶頂する
-		PRINTFORML コトが終わると、男は、ベッドの上で大股を広げて気絶した%ANAME(対象)%を放置して部屋を立ち去った……
-	CASE 7
-		LOCALS = 兵
-		PRINTFORML %ANAME(対象)%は兵士達の慰み者にしてもらっている
-		PRINTFORML 普段は武将として名をはせる%ANAME(対象)%が、夜は兵士の慰安のための穴だというのは、今や周知の事実となっていた
-		PRINTFORML 兵士達は次々と%ANAME(対象)%に一物をねじ込みながら、その穴に子種を吐き出していく
-		PRINTFORML 彼女の「仕事」は夜が明けるまで続き、その頃には精液で汚れていないところはないような有り様になっていた……
-	CASE 8
-		LOCALS = 露出狂
-		PRINTFORML %ANAME(対象)%は夜道で出会った露出狂とともに、露出行為を楽しんでいる
-		PRINTFORML 名も知らぬ男との変態的な行為に、%ANAME(対象)%はこれ以上ない高ぶりを覚えている
-		PRINTFORML ついに我慢できなくなった二人は、路地裏で行為に及び始めた
-		PRINTFORML 行為が終わった後、%ANAME(対象)%は秘部から子種を零しながら拠点へと戻った……
-	CASE 9
-		LOCALS = 部下
-		PRINTFORML %ANAME(対象)%は部下達の「ペット」にしてもらっている
-		PRINTFORML 彼らの肉棒をしゃぶり、秘部で欲望を受け止め、可愛がってもらうのだ
-		PRINTFORML 従順な奉仕に気をよくしたか、彼らは積極的に%ANAME(対象)%の肉体を使っていく
-		PRINTFORML 彼らは日頃の憂さ晴らしとばかりに、何十発という種を%ANAME(対象)%に植え付けていった……
-	CASE 10
-		LOCALS = 行きずりの男
-		PRINTFORML %ANAME(対象)%は行きずりの男を誘い、路地裏に連れ込んだ
-		PRINTFORML 彼の下に跪き、洗ってもいないペニスをしゃぶり、射精へと導く
-		PRINTFORML 尻を突き出し、濡れた秘部を見せつけ、腰をくねらせて誘う
-		PRINTFORML 男は猛然と腰を振りたくり、%ANAME(対象)%の子宮に何度も子種を放った……
-	CASE 11
-		LOCALS = 客
-		PRINTFORML %ANAME(対象)%は娼館で客をとった
-		PRINTFORML 彼女を買った男は、予想以上の上玉を抱けることにひどく気をよくしている
-		PRINTFORML %ANAME(対象)%の愛想の良い熱心な奉仕が、彼をさらに悦ばせた
-		PRINTFORML 彼は何度も%ANAME(対象)%と避妊無しで交わり、たっぷりと性欲を吐き出していった……
-	CASE 12
-		LOCALS = 行きずりの男
-		PRINTFORML %ANAME(対象)%は壁尻になったようだ
-		PRINTFORML 顔も知れぬ男が、自分勝手に%ANAME(対象)%の穴に挿入しては、ちり紙感覚で射精していく
-		PRINTFORML 次から次へねじ込まれるペニスに、%ANAME(対象)%は目を♥にしながらヨガり狂っている
-		PRINTFORML 客が絶えるころには、その下半身は白濁でどろどろになっていた……
-	CASE 13
-		LOCALS = 野犬
-		PRINTFORML %ANAME(対象)%は野良犬の群れと交わっている
-		PRINTFORML 彼らは%ANAME(対象)%を群れの最下層の存在として認識したらしく、気軽に交尾に使い捨てている
-		PRINTFORML 畜生風情にそのような扱いをされる屈辱とペニスに与えられる快楽に、%ANAME(対象)%は身悶えしてヨガる
-		PRINTFORML 犬に獣臭いスペルマを注がれると、%ANAME(対象)%は遠吠えするように絶頂した……
-	CASE 14
-		LOCALS = 客
-		PRINTFORML %ANAME(対象)%はストリッパーとして働いている
-		PRINTFORML 美しい肢体をもつ彼女の淫らな踊りは、客の歓心を捕らえて放さなかった
-		PRINTFORML ショーが終わった後、疼きを抱えた%ANAME(対象)%は、めぼしい客を誘って可愛がってもらった……
-	CASE 15
-		LOCALS = チンピラ
-		PRINTFORML %ANAME(対象)%はアダルトビデオに出演している
-		PRINTFORML 性交の快楽のみならず、多くの男のオナペットにされるのだという事実が彼女を昂ぶらせる
-		PRINTFORML 淫らに腰をくねらせ性器をぶつけ合う映像は、滅多にない傑作となった
-		PRINTFORML %ANAME(対象)%の痴態は多くの男を満足させ、彼女は一躍、女優としての人気を高めていった……
-	CASE 16
-		LOCALS = チンピラ
-		PRINTFORML %ANAME(対象)%は道行くチンピラを誘った
-		PRINTFORML チンピラは%ANAME(対象)%を事務所に連れ込み、仲間達と共に彼女を輪姦し始めた
-		PRINTFORML 次から次へねじ込まれ突き出されるペニスを、彼女は腰を振りしゃぶりたてることで満足させる
-		PRINTFORML 彼女はそのまま丸三日ほど、彼らに代わる代わる躾けられつづけた……
-	CASE 17
-		LOCALS = 行きずりの男
-		PRINTFORML %ANAME(対象)%は怪しげなパーティに参加した
-		PRINTFORML 多数の男女が交わる中で、%ANAME(対象)%の美しさは特に男達の目を惹いたようだ
-		PRINTFORML 何人もの男に身をゆだねながら、彼女は夢中で腰を振り続ける
-		PRINTFORML 次から次へ膣内射精されながら、彼女の夜は更けていった……
-	CASE 18
-		LOCALS = 中年の男
-		PRINTFORML とある店の地下で、首輪から番号札を下げた裸の女と共に%ANAME(対象)%が並んでいる
-		PRINTFORML 彼女たちはこれからオークションにかけられ、どこぞの男に一晩を買われるのだ
-		PRINTFORML %ANAME(対象)%の極上の肉体とムンムンと発せられるフェロモンに競りは大盛り上がりした
-		PRINTFORML 結局%ANAME(対象)%の一晩はとある中年男性に買われることになり、夜通したっぷりと可愛がられた……
-	CASE 19
-		LOCALS = ヤクザ風の男
-		PRINTFORML %ANAME(対象)%が酒場で酒を飲んでいるとヤクザ風の男に声をかけられた
-		PRINTFORML 彼は馴れ馴れしく体に手を這わせてきて、%ANAME(対象)%も満更でもない表情でされるがままでいる
-		PRINTFORML 酒場を離れて二人だけで盛り上がらないかと誘われた%ANAME(対象)%は返事代わりに彼にキスをした
-		PRINTFORML %ANAME(対象)%はラブホテルに連れ込まれ、避妊無しの種付けセックスで何度も絶頂した……
-ENDSELECT
-CALL FUCK_GANGBANG(対象, GET_SPERM_ID("行きずりの男"), @"%LOCALS%の\@ RAND:2 ? ペニス # 唇\@", @"%LOCALS%")
-PRINTFORMW
+FOR LOCAL, 0, DAILY_TARGET_NUM
+	対象 = DAILY_TARGET:LOCAL
+	PRINTFORM %ANAME(対象)%に定着した
+	CALL COLORPRINTFORM(@"淫紋", COLOR("桃"))
+	PRINTFORML は、彼女に夜な夜な淫らな行いをさせる……
+	SELECTCASE RAND:20
+		CASE 0
+			LOCALS = 悪魔
+			PRINTFORML %ANAME(対象)%は自らに淫紋を施した悪魔に抱かれている
+			PRINTFORML 人ならざる暴力的なサイズのペニスに、%ANAME(対象)%は目を白黒させながらよがっている
+			PRINTFORML 彼女の雌穴は完全に彼のモノの形を覚え、それを悦ばせるための鞘となっていた
+			PRINTFORML やがて悪魔が射精すると、彼女は背を反らし、目を♥にしながら絶頂する
+			PRINTFORML 行為が終わる頃には、%ANAME(対象)%の腹は妊娠したかのように膨れあがっていた……
+		CASE 1
+			LOCALS = 悪魔
+			PRINTFORML %ANAME(対象)%は自らに淫紋を施した悪魔に奉仕している
+			PRINTFORML 圧倒的なサイズのペニスを前に、雌と化した彼女がすることいえば一つだ
+			PRINTFORML 彼女はそれを舐めあげ、しゃぶり、玉を優しく揉んで、丹念に奉仕していく
+			PRINTFORML やがて激しく射精した悪魔は、口淫の興奮で浅ましくも排卵する%ANAME(対象)%の雌穴をたっぷりと貫いた……
+		CASE 2
+			LOCALS = 悪魔
+			PRINTFORML %ANAME(対象)%は自らに淫紋を施した悪魔に奉仕している
+			PRINTFORML 彼の尻穴を、足を舐め、へりくだった言葉を並べたてて「お慈悲」を請う
+			PRINTFORML %ANAME(対象)%の無様なさまをひとしきり楽しんだ悪魔は、彼女を四つん這いにさせ、後ろから貫く
+			PRINTFORML これ以上ないほど優秀な雄のものにされる悦びに、%ANAME(対象)%はだらしないヨガり声をあげて絶頂し続けた……
+		CASE 3
+			LOCALS = 浮浪者
+			PRINTFORML %ANAME(対象)%は河原に出かけ、浮浪者たちを誘ったようだ
+			PRINTFORML 女日照りの彼らは早速%ANAME(対象)%に群がり、その肉体を堪能し始める
+			PRINTFORML 肉穴や尻穴、口に汚らしい白濁が注がれるたび、淫紋が輝き、強烈な快感を%ANAME(対象)%に与える
+			PRINTFORML 性交の快感に何度も絶頂しながら、%ANAME(対象)%は黄ばんだ精液を何度も子宮で受け止めた……
+		CASE 4
+			LOCALS = 強姦魔
+			PRINTFORML %ANAME(対象)%は露出の高い格好で歩き回り、わざと強姦魔に押し倒された
+			PRINTFORML 嫌がる演技に彼は興奮し、%ANAME(対象)%の衣装を剥ぎ取ると、期待に濡れた秘部にいきなりペニスをねじ込んだ
+			PRINTFORML 挿入られただけで絶頂し腰を振ってヨガり始めた%ANAME(対象)%に男は面食らったようだが、好都合だとニヤリと笑う
+			PRINTFORML 結局%ANAME(対象)%は、男が満足するまで、慰み者にされ続けた……
+		CASE 5
+			LOCALS = 悪魔
+			PRINTFORML %ANAME(対象)%は自らに淫紋を施した悪魔に抱かれている
+			PRINTFORML 性交を通じ、今まで淫紋が集めてきた性のエネルギーが悪魔に吸収されていく
+			PRINTFORML エネルギーの回収が終わる頃には、散々犯された%ANAME(対象)%は精も根も尽き果てていた
+			PRINTFORML %ANAME(対象)%は悪魔に、今後も見知らぬ男とまぐわいエネルギーを集め、それを彼に捧げることを約束させられた……
+		CASE 6
+			LOCALS = セックスフレンド
+			PRINTFORML %ANAME(対象)%は名前も知らぬ男と宿で交わっている
+			PRINTFORML ペニスとセックスのテクだけで選んだ、性格は最低の男だ
+			PRINTFORML 男は当然のように避妊もせず%ANAME(対象)%と交わり、その子宮になんども白濁を吐き出していく
+			PRINTFORML %ANAME(対象)%も当然のようにソレを受け止め、だらしないアヘ顔を晒しながら何度も絶頂する
+			PRINTFORML コトが終わると、男は、ベッドの上で大股を広げて気絶した%ANAME(対象)%を放置して部屋を立ち去った……
+		CASE 7
+			LOCALS = 兵
+			PRINTFORML %ANAME(対象)%は兵士達の慰み者にしてもらっている
+			PRINTFORML 普段は武将として名をはせる%ANAME(対象)%が、夜は兵士の慰安のための穴だというのは、今や周知の事実となっていた
+			PRINTFORML 兵士達は次々と%ANAME(対象)%に一物をねじ込みながら、その穴に子種を吐き出していく
+			PRINTFORML 彼女の「仕事」は夜が明けるまで続き、その頃には精液で汚れていないところはないような有り様になっていた……
+		CASE 8
+			LOCALS = 露出狂
+			PRINTFORML %ANAME(対象)%は夜道で出会った露出狂とともに、露出行為を楽しんでいる
+			PRINTFORML 名も知らぬ男との変態的な行為に、%ANAME(対象)%はこれ以上ない高ぶりを覚えている
+			PRINTFORML ついに我慢できなくなった二人は、路地裏で行為に及び始めた
+			PRINTFORML 行為が終わった後、%ANAME(対象)%は秘部から子種を零しながら拠点へと戻った……
+		CASE 9
+			LOCALS = 部下
+			PRINTFORML %ANAME(対象)%は部下達の「ペット」にしてもらっている
+			PRINTFORML 彼らの肉棒をしゃぶり、秘部で欲望を受け止め、可愛がってもらうのだ
+			PRINTFORML 従順な奉仕に気をよくしたか、彼らは積極的に%ANAME(対象)%の肉体を使っていく
+			PRINTFORML 彼らは日頃の憂さ晴らしとばかりに、何十発という種を%ANAME(対象)%に植え付けていった……
+		CASE 10
+			LOCALS = 行きずりの男
+			PRINTFORML %ANAME(対象)%は行きずりの男を誘い、路地裏に連れ込んだ
+			PRINTFORML 彼の下に跪き、洗ってもいないペニスをしゃぶり、射精へと導く
+			PRINTFORML 尻を突き出し、濡れた秘部を見せつけ、腰をくねらせて誘う
+			PRINTFORML 男は猛然と腰を振りたくり、%ANAME(対象)%の子宮に何度も子種を放った……
+		CASE 11
+			LOCALS = 客
+			PRINTFORML %ANAME(対象)%は娼館で客をとった
+			PRINTFORML 彼女を買った男は、予想以上の上玉を抱けることにひどく気をよくしている
+			PRINTFORML %ANAME(対象)%の愛想の良い熱心な奉仕が、彼をさらに悦ばせた
+			PRINTFORML 彼は何度も%ANAME(対象)%と避妊無しで交わり、たっぷりと性欲を吐き出していった……
+		CASE 12
+			LOCALS = 行きずりの男
+			PRINTFORML %ANAME(対象)%は壁尻になったようだ
+			PRINTFORML 顔も知れぬ男が、自分勝手に%ANAME(対象)%の穴に挿入しては、ちり紙感覚で射精していく
+			PRINTFORML 次から次へねじ込まれるペニスに、%ANAME(対象)%は目を♥にしながらヨガり狂っている
+			PRINTFORML 客が絶えるころには、その下半身は白濁でどろどろになっていた……
+		CASE 13
+			LOCALS = 野犬
+			PRINTFORML %ANAME(対象)%は野良犬の群れと交わっている
+			PRINTFORML 彼らは%ANAME(対象)%を群れの最下層の存在として認識したらしく、気軽に交尾に使い捨てている
+			PRINTFORML 畜生風情にそのような扱いをされる屈辱とペニスに与えられる快楽に、%ANAME(対象)%は身悶えしてヨガる
+			PRINTFORML 犬に獣臭いスペルマを注がれると、%ANAME(対象)%は遠吠えするように絶頂した……
+		CASE 14
+			LOCALS = 客
+			PRINTFORML %ANAME(対象)%はストリッパーとして働いている
+			PRINTFORML 美しい肢体をもつ彼女の淫らな踊りは、客の歓心を捕らえて放さなかった
+			PRINTFORML ショーが終わった後、疼きを抱えた%ANAME(対象)%は、めぼしい客を誘って可愛がってもらった……
+		CASE 15
+			LOCALS = チンピラ
+			PRINTFORML %ANAME(対象)%はアダルトビデオに出演している
+			PRINTFORML 性交の快楽のみならず、多くの男のオナペットにされるのだという事実が彼女を昂ぶらせる
+			PRINTFORML 淫らに腰をくねらせ性器をぶつけ合う映像は、滅多にない傑作となった
+			PRINTFORML %ANAME(対象)%の痴態は多くの男を満足させ、彼女は一躍、女優としての人気を高めていった……
+		CASE 16
+			LOCALS = チンピラ
+			PRINTFORML %ANAME(対象)%は道行くチンピラを誘った
+			PRINTFORML チンピラは%ANAME(対象)%を事務所に連れ込み、仲間達と共に彼女を輪姦し始めた
+			PRINTFORML 次から次へねじ込まれ突き出されるペニスを、彼女は腰を振りしゃぶりたてることで満足させる
+			PRINTFORML 彼女はそのまま丸三日ほど、彼らに代わる代わる躾けられつづけた……
+		CASE 17
+			LOCALS = 行きずりの男
+			PRINTFORML %ANAME(対象)%は怪しげなパーティに参加した
+			PRINTFORML 多数の男女が交わる中で、%ANAME(対象)%の美しさは特に男達の目を惹いたようだ
+			PRINTFORML 何人もの男に身をゆだねながら、彼女は夢中で腰を振り続ける
+			PRINTFORML 次から次へ膣内射精されながら、彼女の夜は更けていった……
+		CASE 18
+			LOCALS = 中年の男
+			PRINTFORML とある店の地下で、首輪から番号札を下げた裸の女と共に%ANAME(対象)%が並んでいる
+			PRINTFORML 彼女たちはこれからオークションにかけられ、どこぞの男に一晩を買われるのだ
+			PRINTFORML %ANAME(対象)%の極上の肉体とムンムンと発せられるフェロモンに競りは大盛り上がりした
+			PRINTFORML 結局%ANAME(対象)%の一晩はとある中年男性に買われることになり、夜通したっぷりと可愛がられた……
+		CASE 19
+			LOCALS = ヤクザ風の男
+			PRINTFORML %ANAME(対象)%が酒場で酒を飲んでいるとヤクザ風の男に声をかけられた
+			PRINTFORML 彼は馴れ馴れしく体に手を這わせてきて、%ANAME(対象)%も満更でもない表情でされるがままでいる
+			PRINTFORML 酒場を離れて二人だけで盛り上がらないかと誘われた%ANAME(対象)%は返事代わりに彼にキスをした
+			PRINTFORML %ANAME(対象)%はラブホテルに連れ込まれ、避妊無しの種付けセックスで何度も絶頂した……
+	ENDSELECT
+	CALL FUCK_GANGBANG(対象, GET_SPERM_ID("行きずりの男"), @"%LOCALS%の\@ RAND:2 ? ペニス # 唇\@", @"%LOCALS%")
+	PRINTFORMW
+NEXT

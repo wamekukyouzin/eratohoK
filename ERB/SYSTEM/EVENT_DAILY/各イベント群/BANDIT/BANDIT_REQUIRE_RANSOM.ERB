@@ -1,49 +1,75 @@
-﻿@BANDIT_REQUIRE_RANSOM
-#DIM 対象
-#DIM 身代金
-#DIM LCOUNT
-#DIM 人数
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@EVENT_DAILY_BANDIT_REQUIRE_RANSOM_RATE()
+RETURN 0
+
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@EVENT_DAILY_BANDIT_REQUIRE_RANSOM_DECISION()
 #DIM 野盗
-VARSET 対象, -1
-VARSET 身代金
-VARSET LOCAL, -1
-VARSET 人数, 0
-
-;捕まってたら駄目
-SIF CFLAG:MASTER:捕虜先 != 0
-	RETURN -1
-
 野盗 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗))
-;野盗勢力がなかったら、オープニングで野盗なしにしてるってことなのでやめる
-SIF 野盗 == -1
-	RETURN -1
 
-;野盗に所属している場合は飛ばす
-SIF CFLAG:MASTER:所属 == 野盗
-	RETURN -1
-	
-FOR LCOUNT, 1, CHARANUM
-	IF CFLAG:LCOUNT:所属 == CFLAG:MASTER:所属 && CFLAG:LCOUNT:捕虜先 == 野盗 && IS_FEMALE(LCOUNT)
-		LOCAL:人数 = LCOUNT
-		人数 ++
+SIF 野盗 == -1
+	RETURN 0
+
+SIF IS_SP_COUNTRY(CFLAG:MASTER:所属)
+	RETURN 0
+
+RETURN 1
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@EVENT_DAILY_BANDIT_REQUIRE_RANSOM_GENRE()
+RETURN デイリー_ジャンル_特殊勢力
+
+;---------------------
+;特定の条件を満たすキャラをランダムに選択する場合に利用
+;他の関数は必須だが、これだけはなくてもよい　というかパフォーマンスへ影響するので不要なら作ってはならない
+;対象が存在せずデイリーを開始できない場合は0を返すことでデイリーの発生をキャンセルする
+;---------------------
+@EVENT_DAILY_BANDIT_REQUIRE_RANSOM_SETTARGET()
+#DIM 野盗
+野盗 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗))
+
+FOR LOCAL, 1, CHARANUM
+	IF CFLAG:LOCAL:所属 == CFLAG:MASTER:所属 && CFLAG:LOCAL:捕虜先 == 野盗 && IS_FEMALE(LOCAL)
+		DAILY_TARGET:DAILY_TARGET_NUM = LOCAL
+		DAILY_TARGET_NUM ++
 	ENDIF
 NEXT
 
-SIF 人数 == 0
-	RETURN -1
+SIF DAILY_TARGET_NUM < 1
+	RETURN 0
 
-対象 = LOCAL:(RAND:人数)
+RETURN 1
 
-SIF SP_TRAIN_COUNT:対象:特殊勢力_野盗 * 5 < RAND:100
-	RETURN
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@EVENT_DAILY_BANDIT_REQUIRE_RANSOM()
+#DIM 対象
+#DIM 身代金
+#DIM 野盗
+VARSET 対象, -1
+VARSET 身代金
+
+対象 = DAILY_TARGET:(RAND:DAILY_TARGET_NUM)
 
 ;身代金は各種能力合計の500倍かプレイヤーの給料5ターンぶんのうち高い方を採用
 身代金 = ABL:対象:Ｃ感 + ABL:対象:Ｂ感 + ABL:対象:Ａ感 + ABL:対象:Ｖ感 + ABL:対象:Ｍ感 + ABL:対象:欲望 + ABL:対象:性技 + ABL:対象:奉仕 + ABL:対象:性交 + ABL:対象:露出 + ABL:対象:精愛
 身代金 *= 500
 身代金 = MAX(GET_SUM_ECONOMY(CFLAG:MASTER:所属) * (ABL:MASTER:武闘 + ABL:MASTER:防衛 + ABL:MASTER:知略 + ABL:MASTER:政治 + 100) / 40000 * 5, 身代金)
-;こっからテキスト
-DAILY_NAME = 身代金の要求
-CALL DAILY_START()
+
 PRINTFORML %ANAME(MASTER)%が仕事をしていると、侍従が来客を告げた
 PRINTFORML 使いだと名乗る男が来たのだそうだが、どこから来たのか言わないのだという
 PRINTFORMW 怪訝に思った%ANAME(MASTER)%は、とりあえず会ってみることにした……
@@ -203,7 +229,7 @@ IF RESULT == 0 && MONEY >= 身代金
 		PRINTFORMW %ANAME(対象)%が戻ってきました
 		CALL TALENT_LOSE_PRIDE(対象)
 		RESETCOLOR
-		RETURN
+		RETURN 1
 	ENDIF
 
 	DRAWLINE
@@ -375,3 +401,4 @@ IF GROUPMATCH(RESULT, 1, 3)
 		RESETCOLOR
 	ENDIF
 ENDIF
+RETURN 1

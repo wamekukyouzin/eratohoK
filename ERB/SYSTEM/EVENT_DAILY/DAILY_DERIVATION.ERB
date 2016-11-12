@@ -1,71 +1,54 @@
 ﻿;共通デイリーイベント：派生処理
-@DAILY_DERIVATION
+@DAILY_DERIVATION(SLGフラグ)
+#DIM SLGフラグ
+#DIM EVENT_NUM
+#DIMS NAME_ENG
+#DIMS NAME_JAP
+#DIMS SLG
+#DIM EVENT_COUNT
+#DIM FIRST_LINE
+#DIM EVENT_ARRAY, VARSIZE("SHAFFLE_ARRAY")
 
-;金貸し（返済期限のカウント及び返済とその派生処理）
-;---------------------------------------------------------------------
-IF DVAR:金貸しフラグ != -1
-	;返済期限があればデクリメント
-	SIF DVAR:金貸し期限 > 0
-		DVAR:金貸し期限 --
+SIF !SLGフラグ && !IS_DAILY_EVENT_HAPPEN(MASTER)
+	RETURN 0
 
-	;返済日及び返済完了処理
-	SIF !DCONFIG:DCON_金貸し && ((DVAR:金貸し期限 == 0 && DVAR:金貸し総額 > 0) || (DVAR:金貸し期限 == -1 && DVAR:金貸し現在額 <= 0))
-		CALL LENDER_REPAYMENT(DVAR:金貸し期限 == -1 ? 1 # 0)
+SIF DAILY_CANCEL
+	RETURN 0
 
-	;身体で返済中（返済完了イベントは次のターンに）
-	SIF ID_TO_CHARA(DVAR:金貸し娘) != -1 && DVAR:金貸し現在額 > 0
-		CALL TRAIN_BY_LENDER(ID_TO_CHARA(DVAR:金貸し娘))
-ENDIF
-;---------------------------------------------------------------------
+EVENT_NUM = SLGフラグ ? VARSIZE("SLG_DAILY_EVENT_DERIVATION_NAME_ENG") # VARSIZE("DAILY_EVENT_DERIVATION_NAME_ENG")
+SLG = %SLGフラグ ? "SLG_" # ""%
 
-;薬売り（ヤク堕ち及びヤク漬け調教処理）
-;---------------------------------------------------------------------
-IF DVAR:薬売りフラグ != -1
-	;ヤク堕ち
-	FOR LOCAL, 0, CHARANUM
-		SIF GETBIT(TALENT:LOCAL:デイリー系, 素質_デイリー_薬売りの性奴隷) && CFLAG:(LOCAL):特殊状態 == 0 && CFLAG:(LOCAL):捕虜先 == 0 && !RAND:3
-			CALL SMUGGLER_SLAVE_TRAIN_MSG(LOCAL)
-	NEXT
+FOR LOCAL, 0, EVENT_NUM
+	IF SLGフラグ
+		NAME_ENG = %SLG_DAILY_EVENT_DERIVATION_NAME_ENG:LOCAL%
+		NAME_JAP = %SLG_DAILY_EVENT_DERIVATION_NAME:LOCAL%
+	ELSE
+		NAME_ENG = %DAILY_EVENT_DERIVATION_NAME_ENG:LOCAL%
+		NAME_JAP = %DAILY_EVENT_DERIVATION_NAME:LOCAL%
+	ENDIF
+	RESULT = 0
+	TRYCCALLFORM %SLG%EVENT_DAILY_DERIVATION_%NAME_ENG%_DISABLE()
+	SIF RESULT == 1
+		CONTINUE
 
-	;ヤク漬け調教
-	SIF ID_TO_CHARA(DVAR:薬売りターゲット) != -1
-		CALL SMUGGLER_TRAIN_MSG
-ENDIF
-;---------------------------------------------------------------------
+	TRYCALLFORM %SLG%EVENT_DAILY_DERIVATION_%NAME_ENG%_DECISION()
+	SIF RESULT == 0
+		CONTINUE
 
-;接待（貴族の愛人処理）
-;---------------------------------------------------------------------
-;貴族の愛人になったキャラがいる場合、確率で犯される描写を挿入
-FOR LOCAL, 0, CHARANUM
-	SIF GETBIT(TALENT:LOCAL:デイリー系, 素質_デイリー_貴族の愛人) && CFLAG:(LOCAL):特殊状態 == 0 && CFLAG:(LOCAL):捕虜先 == 0 && !RAND:3
-		CALL RECEPTION_SLAVE_TRAIN_MSG(LOCAL)
+	VARSET DAILY_TARGET, -1
+	VARSET DAILY_TARGET_NUM
+	RESULT = 1
+	TRYCALLFORM %SLG%EVENT_DAILY_DERIVATION_%NAME_ENG%_SETTARGET()
+	SIF RESULT == 0
+		CONTINUE
+
+	FIRST_LINE = LINECOUNT
+
+	CALL DAILY_START(NAME_JAP)
+	CALLFORM %SLG%EVENT_DAILY_DERIVATION_%NAME_ENG%()
+	SIF DAILY_CANCEL
+		RETURN
+	CATCH
+		DEBUGPRINTFORML %SLG%EVENT_DAILY_DERIVATION_%NAME_ENG%_DECISIONみつからず
+	ENDCATCH
 NEXT
-;---------------------------------------------------------------------
-
-;資金援助要求（借り物の返却処理）
-;---------------------------------------------------------------------
-;資金援助要求カウンタが残っていればデクリメント（0になるまでイベントは再発生しない）
-IF DVAR:資金援助要求カウンタ > 0
-	DVAR:資金援助要求カウンタ--
-ELSE
-	;担保を受け取っていてカウンタが0になったなら、返却期限を迎えたとみなす
-	SIF DVAR:資金援助担保
-		CALL DAILY_DIPLO_REQUEST_RETURN_HOSTAGE
-ENDIF
-
-
-;淫紋デイリー
-;---------------------------------------------------------------------
-;デイリー側でなんやかや
-CALL LEWDNESS_CURSE_DERIVATION
-
-
-;富豪
-;---------------------------------------------------------------------
-IF DVAR:富豪恨みカウンタ > 0
-	DVAR:富豪恨みカウンタ --
-	SIF DVAR:富豪恨みカウンタ == 0
-		CALL MILLIONARE_REVENGE
-ENDIF
-CALL MILLIONARE_DERIVATION_1
-CALL MILLIONARE_DERIVATION_2

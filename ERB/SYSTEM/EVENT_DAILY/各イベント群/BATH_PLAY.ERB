@@ -1,37 +1,74 @@
-﻿@BATH_PLAY
-#DIM 対象
-#DIM 候補, 3000
-#DIM 候補数
-VARSET 候補, -1
-VARSET 候補数
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@EVENT_DAILY_BATH_PLAY_RATE()
+RETURN 30
+
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@EVENT_DAILY_BATH_PLAY_DECISION()
+RETURN DAY >= 10
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@EVENT_DAILY_BATH_PLAY_GENRE()
+RETURN デイリー_ジャンル_エロ
+
+;---------------------
+;特定の条件を満たすキャラをランダムに選択する場合に利用
+;他の関数は必須だが、これだけはなくてもよい　というかパフォーマンスへ影響するので不要なら作ってはならない
+;対象が存在せずデイリーを開始できない場合は0を返すことでデイリーの発生をキャンセルする
+;---------------------
+@EVENT_DAILY_BATH_PLAY_SETTARGET()
 
 IF IS_MALE(MASTER)
 	FOR LOCAL, 0, CHARANUM
 		;女キャラ、かつ自国所属かつ捕虜でない、かつ「服従」or「恋慕＆貞操無頓着or解放or合意」or「恋人」or「性知識0」持ち、かつ動物でない
 		IF IS_FEMALE(LOCAL) && CFLAG:LOCAL:所属 == CFLAG:MASTER:所属 && !CFLAG:LOCAL:捕虜先 && (IS_SLAVE(LOCAL) || (IS_LOVER(LOCAL) && (TALENT:LOCAL:貞操無頓着 || TALENT:LOCAL:解放 || TALENT:LOCAL:合意)) || TALENT:LOCAL:恋人 == 1 || ABL:LOCAL:性知識 == 0) && !IS_ANIMAL(LOCAL)
-			候補:候補数 = LOCAL
-			候補数 ++
+			DAILY_TARGET:DAILY_TARGET_NUM = LOCAL
+			DAILY_TARGET_NUM ++
 		ENDIF
 	NEXT
 ELSE
 	FOR LOCAL, 0, CHARANUM
 		;男キャラ、かつ自国所属かつ捕虜でない、かつ性知識有り、かつ面識があり、かつ動物でない
 		IF IS_MALE(LOCAL) && CFLAG:LOCAL:所属 == CFLAG:MASTER:所属 && !CFLAG:LOCAL:捕虜先 && ABL:LOCAL:性知識 > 0 && CFLAG:LOCAL:面識 == 1 && !IS_ANIMAL(LOCAL)
-			候補:候補数 = LOCAL
-			候補数 ++
+			DAILY_TARGET:DAILY_TARGET_NUM = LOCAL
+			DAILY_TARGET_NUM ++
 		ENDIF
 	NEXT
 ENDIF
 
-SIF 候補数 < 1
-	RETURN -1
+SIF DAILY_TARGET_NUM < 1
+	RETURN 0
 
-CALL FISHER_YATES_SHAFFLE(候補数)
+RETURN 1
 
-対象 = 候補:(SHAFFLE_ARRAY:0)
 
-DAILY_NAME = 混浴の誘い
-CALL DAILY_START()
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@EVENT_DAILY_BATH_PLAY()
+#DIM 対象
+#DIM 候補, 3000
+#DIM 候補数
+VARSET 候補, -1
+VARSET 候補数
+
+
+CALL FISHER_YATES_SHAFFLE(DAILY_TARGET_NUM)
+
+対象 = DAILY_TARGET:(SHAFFLE_ARRAY:0)
 
 IF IS_MALE(MASTER)
 	PRINTFORML 深夜、自室で仕事をしているとドアをノックする音がした
@@ -48,7 +85,7 @@ IF IS_MALE(MASTER)
 	IF RESULT == 1
 		PRINTFORML 申し訳ないが、まだ仕事がある
 		PRINTFORMW 断ると%ANAME(対象)%は残念そうに去っていった
-		RETURN
+		RETURN 1
 	ELSE
 		PRINTFORML せっかくのお誘いだ、ご一緒させてもらうことにしよう
 		PRINTFORMW %ANAME(MASTER)%が了承すると、%ANAME(対象)%は嬉しそうに笑った
@@ -154,7 +191,7 @@ ELSE
 	IF RESULT == 1
 		PRINTFORML 申し訳ないが、まだ仕事がある
 		PRINTFORMW 断ると%ANAME(対象)%は残念そうに去っていった
-		RETURN
+		RETURN 1
 	ELSEIF RESULT == 0 && ABL:MASTER:露出 >= 3
 		PRINTFORML 彼の誘いに%ANAME(MASTER)%は小さく吐息を漏らし、頬を染めながらコクリと頷いた
 		PRINTFORMW その反応に彼はニヤニヤと笑いながら%ANAME(MASTER)%の手を引いた
@@ -294,4 +331,4 @@ ELSE
 	ENDIF
 ENDIF
 
-RETURN
+RETURN 1
