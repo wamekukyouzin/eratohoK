@@ -61,8 +61,34 @@ TALENT:対象:快感の否定 = 0
 PRINTFORMW 深夜……
 PRINTFORMW 拠点を見まわっていた%ANAME(対象)%は、怪しげな男が物陰に隠れているのを発見した
 PRINTFORMW どうやら街のごろつきのようだ。おおかた、金目のものでも求めて忍び込んだのだろう
-PRINTFORMW 尋問するため近づこうとした%ANAME(対象)%だったが、後頭部に強烈な衝撃を覚えた
-PRINTFORMW 何事かと確認する暇も与えられず、%ANAME(対象)%は意識を失った……
+PRINTFORMW 尋問するため近づこうとした%ANAME(対象)%だったが、突如現れた賊どもに囲まれた！
+CALL ASK_MULTI("応戦する")
+CALL EVENT_DAILY_DERIVATION_MILLIONAIRE_REVENGE_MINIGAME
+
+IF RESULT == 1
+	PRINTFORMW 「ちい、使えん奴らめ！」
+	PRINTFORML 賊どもを指揮していたのは、いつかの富豪の男だった
+	PRINTFORML 逃げようとした男を%ANAME(対象)%は素早く取り押さえる
+	PRINTFORML いつか斬られた恨みを晴らしにきたのだろう。あの件に関しては自業自得だ
+	PRINTFORML さて、どうしようか……
+	CALL ASK_MULTI("斬る", "見逃す")
+	SELECTCASE RESULT
+		CASE 0
+			PRINTFORMW 慈悲をかける必要もないだろう。暴れる男を斬り捨てた
+			PRINTFORML これで平和になるだろう……
+		CASE 1
+			PRINTFORMW こんなやつ、殺してやる価値もない
+			PRINTFORMW 放り出すと、男は尻尾を巻いて逃げ出した……
+			CALL ICPRINT("後日、口止め料として金<100000>が届けられた", "L", COLOR("注意"))
+			MONEY += 100000
+	ENDSELECT
+	DVAR:富豪恨み対象 = 0
+	DVAR:富豪恨みカウンタ = 0
+	DVAR:富豪 = -1
+	RETURN 1
+ENDIF
+
+PRINTFORMW 応戦していた%ANAME(対象)%だが、数に圧倒され気絶させられてしまった……
 PRINTFORMW ・
 PRINTFORMW ・
 PRINTFORMW ・
@@ -413,6 +439,43 @@ CFLAG:対象:特殊状態 = 0
 
 RETURN 1
 
+
+;---------------------
+;対応するデイリーのDISABLEを返す。設定しない場合、イベントは発生しない。
+;---------------------
+@EVENT_DAILY_DERIVATION_MILLIONAIRE_REVENGE_MINIGAME
+#DIM 回避
+#DIM 正解
+#DIMS 答え文字列 = "左", "右", "上", "下"
+#DIM 答え
+
+;5回、正しい選択肢を選ぶ
+FOR LOCAL, 0, 5
+
+	;答えを出しておく
+	答え = RAND:4
+	回避 = RAND:3
+
+	IF 回避
+		CALL COLORPRINTFORM(@"%答え文字列:答え%に避けろ！", COLOR("警告"), "L")
+	ELSE
+		CALL COLORPRINTFORM(@"%答え文字列:答え%を避けろ！", COLOR("警告"), "L")
+	ENDIF
+
+	FOR LOCAL:1, 0, VARSIZE("答え文字列")
+		PRINTFORML [{LOCAL:1}] %答え文字列:(LOCAL:1)%
+	NEXT
+
+	TINPUT 1500, -1, 1
+
+	;失敗したら強制終了
+	SIF (回避 && RESULT != 答え) || (!回避 && RESULT == 答え)
+		BREAK
+	SIF LOCAL != 4
+		PRINTFORML 賊はまだ襲い掛かってくる……！
+NEXT
+
+RETURN LOCAL == 5
 
 ;---------------------
 ;対応するデイリーのDISABLEを返す。設定しない場合、イベントは発生しない。
