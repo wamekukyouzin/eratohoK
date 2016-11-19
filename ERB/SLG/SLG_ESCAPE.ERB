@@ -370,103 +370,9 @@ IF ARG:1 == CFLAG:MASTER:所属
 
 	;手動
 	ELSE
-		;捕虜の場合
-		IF CFLAG:(ARG:2):捕虜先 == ARG:0 && ARG:0 >= 1
-			LOCAL:2 = GET_COUNTRY_BOSS(ARG:0)
-			LOCAL:3 = GET_COUNTRY_BOSS(CFLAG:(ARG:2):所属)
-			LOCALS:0 = 
-			LOCALS:1 = 
-			IF LOCAL:2 >= 0
-				LOCALS:0 = %NAME:(LOCAL:2)%の
-			ENDIF
-			IF LOCAL:3 >= 0
-				LOCALS:1 = %NAME:(LOCAL:3)%勢力の
-			ENDIF
-			PRINTFORML %LOCALS:0%捕虜となっていた%LOCALS:1%%NAME:(ARG:2)%を捕えました
-			PRINTFORML %NAME:(ARG:2)%の処遇を決めて下さい
-		ELSE
-			PRINTFORML 捕えた%NAME:(ARG:2)%の処遇を決めて下さい
-		ENDIF
-		CALL SHOW_SIMPLE_INFO(ARG:2)
-		IF LOCAL:5
-			PRINTL [0] 登用
-		ELSE
-			SETCOLOR COLOR("選択不可")
-			PRINTPLAIN [0] 登用
-			PRINTL 
-			RESETCOLOR
-		ENDIF
-		PRINTL [1] 解放
-		PRINTL [2] 投獄
-		PRINTL [3] 処刑
-		PRINTL [4] 軟禁
-
-		$INPUT_LOOP
-		INPUT
+		CALL SELECT_PRISONER_TREATMENT(ARG:0, ARG:1, ARG:2)
+		RETURN RESULT
 	ENDIF
-
-	IF RESULT == 0 && LOCAL:5
-		LOCAL:5 = 0
-		;登用に応じるかどうかを判定
-		IF JUDGE_ASSIGN(ARG:2, GET_COUNTRY_BOSS(ARG:1), GET_COUNTRY_BOSS(ARG:0))
-			CALL KOJO_EVENT(ARG:2, 332)
-			PRINTFORMW %NAME:(ARG:2)%を登用しました
-			CALL CHANGE_COUNTRY(ARG:2, ARG:1, 1)
-			;好感度を上昇、敵対値を減少
-			CALL CHANGE_RELATION_O_TO_C(ARG:2, ARG:1, 50, -50)
-		ELSE
-			CALL KOJO_EVENT(ARG:2, 333)
-			PRINTFORMW %NAME:(ARG:2)%は応じる気はないようです…
-			;好感度を上昇、敵対値を減少
-			CALL CHANGE_RELATION_O_TO_C(ARG:2, ARG:1, 50, -50)
-			GOTO RESELECT_LOOP
-		ENDIF
-		RETURN 0
-
-	ELSEIF RESULT == 1
-		CALL KOJO_EVENT(ARG:2, 334)
-		PRINTFORMW %NAME:(ARG:2)%を解放しました
-		IF CFLAG:(ARG:2):捕虜先 != 0
-			;捕虜設定を解除
-			CALL CAPTURE(ARG:2, 0)
-		ELSE
-			;状態フラグを逃走状態に
-			CFLAG:(ARG:2):特殊状態 = 1
-			;勢力を滅亡させた君主のIDを保存
-			CFLAG:(ARG:2):恨む君主 = COUNTRY_BOSS:(ARG:1)
-			;旧君主のIDを保存
-			CFLAG:(ARG:2):滅亡前の君主 = COUNTRY_BOSS:(ARG:0)
-		ENDIF
-
-		;好感度を上昇、敵対値を減少
-		CALL CHANGE_RELATION_O_TO_C(ARG:2, ARG:1, 50, -50)
-		RETURN 1
-
-	ELSEIF RESULT == 2
-		CALL KOJO_EVENT(ARG:2, 335)
-		PRINTFORMW %NAME:(ARG:2)%を投獄しました
-		CALL CAPTURE(ARG:2, ARG:1)
-		RETURN 2
-
-	ELSEIF RESULT == 4
-		CALL KOJO_EVENT(ARG:2, 335)
-		PRINTFORMW %NAME:(ARG:2)%を軟禁しました
-		CALL CAPTURE(ARG:2, ARG:1)
-		CFLAG:(ARG:2):監禁状態 = 1
-		RETURN 4
-
-	ELSEIF RESULT == 3
-		CALL KOJO_EVENT(ARG:2, 336)
-		PRINTFORMW ……………………
-		PRINTFORMW ……
-		PRINTFORMW %NAME:(ARG:2)%を処刑しました
-		CALL EXECUTION(ARG:2)
-		CALL CHANGE_COUNTRY(ARG:2, 0, 1, 1)
-		RETURN 3
-	ELSE
-		GOTO INPUT_LOOP
-	ENDIF
-
 ;滅亡させたのがCPU勢力
 ELSE
 	LOCAL:5 = GET_COUNTRY_BOSS(ARG:1)
@@ -599,6 +505,109 @@ ELSE
 			RETURN 1
 		ENDIF
 	ENDIF
+ENDIF
+
+;-------------------------------------------------
+;ARG:2番のキャラの、捕虜としての扱いを手動で決める関数(ARG:0=捕獲されたキャラの勢力、ARG:1=捕獲した勢力)
+;戦闘による捕獲の場合はARG:3に1を設定すること
+;戻り値 0=登用 1=解放 2=投獄 3=処刑
+;-------------------------------------------------
+@SELECT_PRISONER_TREATMENT(対象勢力, 捕獲勢力, 対象, 戦闘フラグ)
+#DIM 対象勢力
+#DIM 捕獲勢力
+#DIM 対象
+#DIM 戦闘フラグ
+#DIM 拒否フラグ
+
+拒否フラグ = 0
+
+
+$RESELECT_LOOP
+;捕虜の場合
+IF IS_COUNTRY(対象勢力) && CFLAG:対象:捕虜先 == 対象勢力
+	LOCAL:1 = GET_COUNTRY_BOSS(対象勢力)
+	LOCAL:2 = GET_COUNTRY_BOSS(CFLAG:対象:所属)
+	PRINTFORML %LOCAL:1 != -1 ? ANAME(LOCAL:1) + "の" # ""%捕虜となっていた%LOCAL:2 != -1 ? ANAME(LOCAL:2) + "所属の" # ""%%ANAME(対象)%を保護しました
+	PRINTFORML %ANAME(対象)%の処遇を決めて下さい
+ELSE
+	PRINTFORML %ANAME(対象)%の処遇を決めて下さい
+ENDIF
+CALL SHOW_SIMPLE_INFO(対象)
+IF !拒否フラグ
+	PRINTL [0] 登用
+ELSE
+	SETCOLOR COLOR("選択不可")
+	PRINTPLAIN [0] 登用
+	PRINTL 
+	RESETCOLOR
+ENDIF
+PRINTL [1] 解放
+PRINTL [2] 投獄
+PRINTL [3] 処刑
+PRINTL [4] 軟禁
+
+$INPUT_LOOP
+INPUT
+
+IF RESULT == 0 && !拒否フラグ
+	拒否フラグ = 1
+	;登用に応じるかどうかを判定
+	IF JUDGE_ASSIGN(対象, GET_COUNTRY_BOSS(捕獲勢力), GET_COUNTRY_BOSS(対象勢力))
+		CALL KOJO_EVENT(対象, 332)
+		PRINTFORMW %ANAME(対象)%を登用しました
+		CALL CHANGE_COUNTRY(対象, 捕獲勢力, 1)
+		;好感度を上昇、敵対値を減少
+		CALL CHANGE_RELATION_O_TO_C(対象, 捕獲勢力, 50, -50)
+	ELSE
+		CALL KOJO_EVENT(対象, 333)
+		PRINTFORMW %ANAME(対象)%は応じる気はないようです…
+		;好感度を上昇、敵対値を減少
+		CALL CHANGE_RELATION_O_TO_C(対象, 捕獲勢力, 50, -50)
+		GOTO RESELECT_LOOP
+	ENDIF
+	RETURN 0
+ELSEIF RESULT == 1
+	CALL KOJO_EVENT(対象, 334)
+	PRINTFORMW %ANAME(対象)%を解放しました
+	IF CFLAG:対象:捕虜先 != 0
+		;捕虜設定を解除
+		CALL CAPTURE(対象, 0)
+	ELSE
+		;状態フラグを逃走状態に
+		CFLAG:(対象):特殊状態 = 1
+		;勢力を滅亡させた君主のIDを保存
+		CFLAG:(対象):恨む君主 = COUNTRY_BOSS:(捕獲勢力)
+		;旧君主のIDを保存
+		CFLAG:(対象):滅亡前の君主 = COUNTRY_BOSS:(対象勢力)
+	ENDIF
+
+	;好感度を上昇、敵対値を減少
+	CALL CHANGE_RELATION_O_TO_C(対象, 捕獲勢力, 50, -50)
+	RETURN 1
+
+ELSEIF RESULT == 2
+	CALL KOJO_EVENT(対象, 335)
+	PRINTFORMW %ANAME(対象)%を投獄しました
+	CALL CAPTURE(対象, 捕獲勢力)
+	RETURN 2
+
+ELSEIF RESULT == 4
+	CALL KOJO_EVENT(対象, 335)
+	PRINTFORMW %ANAME(対象)%を軟禁しました
+	CALL CAPTURE(対象, 捕獲勢力)
+	CFLAG:対象:監禁状態 = 1
+	RETURN 4
+
+ELSEIF RESULT == 3
+	CALL KOJO_EVENT(対象, 336)
+	PRINTFORMW ……………………
+	PRINTFORMW ……
+	PRINTFORMW %ANAME(対象)%を処刑しました
+	CALL EXECUTION(対象)
+	CALL CHANGE_COUNTRY(対象, 0, 1, 1)
+	RETURN 3
+ELSE
+	GOTO INPUT_LOOP
 ENDIF
 
 ;-------------------------------------------------
