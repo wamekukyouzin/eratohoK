@@ -20,7 +20,7 @@ SELECTCASE ARG:0
 	CASE 4
 		CALL PRINTBUTTON_SHOP( 3, "{手引させる}", 7,  FLAG:拠点フェイズ選択コマンド == 1003)
 	CASE 5
-		CALL PRINTBUTTON_SHOP( 4, "{  あてがう}", 7,  FLAG:拠点フェイズ選択コマンド == 1004)
+		CALL PRINTBUTTON_SHOP( 4, "{  民の慰安}", 7,  FLAG:拠点フェイズ選択コマンド == 1004)
 	CASE 7
 		CALL PRINTBUTTON_SHOP(10, "{捕虜の調教}", 7,  FLAG:拠点フェイズ選択コマンド == 1010)
 	CASE 8
@@ -233,9 +233,6 @@ ENDIF
 IF FLAG:拠点フェイズ選択コマンド == 1010
 	CALL LIFE_MENU_PRISONER()
 	RETURN
-ELSEIF FLAG:拠点フェイズ選択コマンド == 1004
-	CALL LIFE_MENU_ATEGAU()
-	RETURN
 ELSEIF FLAG:拠点フェイズ選択コマンド == 1012
 	CALL LIFE_MENU_SETTOKU()
 	RETURN
@@ -300,6 +297,49 @@ ELSEIF FLAG:拠点フェイズ選択コマンド == 1001
 		SETCOLOR COLOR("オレンジ")
 	ENDIF
 	PRINTFORML (現在{選択人数}/8人)
+	RESETCOLOR
+	CALL PRINT_LIFE_MENU(3)
+	CALL REPEAT_DASH(0)
+	行数 = 4
+	LOCAL:21 = 1
+;民の慰安
+ELSEIF FLAG:拠点フェイズ選択コマンド == 1004
+	選択人数 = 0
+	FOR LOCAL:0, 0, CHARANUM
+		;選択可能な条件を満たしているかどうか判定
+		RESULT = 0
+		CALL CHECK_SELECTABLE1004(LOCAL:0)
+		IF RESULT == 1
+			;選択中の人数を数える
+			IF CFLAG:(LOCAL:0):閨に呼ぶで選択中
+				選択人数 ++
+				SIF 選択人数 > 3
+					CFLAG:(LOCAL:0):閨に呼ぶで選択中 = 0
+			ENDIF
+		ELSE
+			;条件を満たしていなければ強制的にＯＦＦ
+			CFLAG:(LOCAL:0):閨に呼ぶで選択中 = 0
+		ENDIF
+	NEXT
+	CALL PRINT_LIFE_MENU(0)
+	PRINTFORML ★★民を慰安するキャラを選択して下さい(最大3人まで)★★
+	CALL PRINT_LIFE_MENU(1)
+	CALL REPEAT_DASH(0)
+	CALL PRINT_LIFE_MENU(2)
+	PRINTPLAIN   
+	IF 選択人数 >= 1
+		PRINTBUTTON "55[このメンバーで決定]", 55
+		PRINT    
+	ELSE
+		SETCOLOR COLOR("選択不可")
+		PRINTPLAINFORM 55[このメンバーで決定]
+		PRINT    
+		RESETCOLOR
+	ENDIF
+	IF 選択人数 >= 8
+		SETCOLOR COLOR("オレンジ")
+	ENDIF
+	PRINTFORML (現在{選択人数}/3人)
 	RESETCOLOR
 	CALL PRINT_LIFE_MENU(3)
 	CALL REPEAT_DASH(0)
@@ -517,12 +557,16 @@ IF SHOP_AVAIL:(ARG:0)
 		FLAG:拠点フェイズページ = 1
 		FLAG:夜這い = 1
 		RETURN 0
-	;あてがう
+	;民の慰安
 	ELSEIF ARG:0 == 4
 		FLAG:拠点フェイズ選択コマンド = 1004
 		FLAG:拠点フェイズページ = 1
 		FLAG:夜這い = 0
 		RETURN 0
+	ELSEIF FLAG:拠点フェイズ選択コマンド == 1004 && ARG:0 == 55
+		CALL DECIDE_IAN_MEMBER(0)
+		SIF !RESULT
+			RETURN 0
 	;捕虜の調教
 	ELSEIF ARG:0 == 10
 		FLAG:拠点フェイズ選択コマンド = 1010
@@ -999,103 +1043,17 @@ ELSEIF FLAG:拠点フェイズ選択コマンド == 1003
 	REDRAW 1
 ;あてがう
 ELSEIF FLAG:拠点フェイズ選択コマンド == 1004
-	LOCAL:1 = 0
-	LOCALS:0 =
+	;参加キャラの数を数える
+	LOCAL:5 = 0
 	FOR LOCAL:0, 0, CHARANUM
-		IF CFLAG:(LOCAL):捕虜調教の助手
-			CFLAG:LOCAL:調教参加フラグ = 1
-			CFLAG:(LOCAL):捕虜調教の助手 = 0
-			SIF !LOCAL:1
-				LOCALS:0 = %ANAME(LOCAL)%
-			LOCAL:1++
+		IF CFLAG:(LOCAL:0):閨に呼ぶで選択中
+			LOCAL:5 ++
 		ENDIF
 	NEXT
-	;参加者なしなら戻す
-	IF LOCAL:1 == 0
-		PRINTFORMW 参加者を指定してください
-		RETURN 0
+	IF CFLAG:(ARG:0):閨に呼ぶで選択中 || LOCAL:5 < 3
+		;調教参加フラグを反転
+		CFLAG:(ARG:0):閨に呼ぶで選択中 = !CFLAG:(ARG:0):閨に呼ぶで選択中
 	ENDIF
-	;SHOW_INFOの初期画面を基本情報にする
-	FLAG:能力表示モード = 0
-
-	$SHOW_LOOP_INFO_ATEGAU
-
-	;対象キャラの情報を表示
-	DRAWLINE
-	CALL SHOW_INFO(ARG:0)
-	DRAWLINE
-	PRINTFORML %ANAME(ARG:0)%を%LOCALS:0%\@ LOCAL:1 > 1 ? たち # \@にあてがいます
-	PRINTFORML よろしいですか？
-	CALL ASK_YN
-	IF RESULT == 0
-		VARSET TMP_好感度
-		VARSET TMP_従属度
-		VARSET TMP_依存度
-		VARSET TMP_参加者
-		;捕虜逆調教モード
-		FLAG:調教モード = 5
-		;ウフフモード
-		FLAG:ウフフフラグ = 1
-		;あてがうフラグ
-		FLAG:あてがうフラグ = 1
-		;アイテムを一通り追加
-		ITEM:A_ローター = 1
-		ITEM:A_バイブ = 1
-		ITEM:A_アナルバイブ = 1
-		ITEM:A_ペニスバンド = 1
-		ITEM:A_オナホール = 1
-		ITEM:A_クリキャップ = 1
-		ITEM:A_ニプルキャップ = 1
-		ITEM:A_媚薬 = 99
-		ITEM:A_排卵誘発剤 = 99
-		ITEM:A_桃源香 = 99
-		;行動開始時の共通処理
-		;全ての参加キャラについて処理
-		LOCAL:2 = 0
-		FOR LOCAL:0, 0, CHARANUM
-			IF CFLAG:(LOCAL:0):調教参加フラグ
-				;現在の機嫌を保存
-				FOR LOCAL:1, 0, 10
-					CFLAG:(LOCAL:0):(LOCAL:1 + 190) = PALAM:(LOCAL:0):(LOCAL:1 + 10)
-				NEXT
-				;好感度等を保存
-				TMP_好感度:(LOCAL:2) = CFLAG:(LOCAL:0):好感度
-				TMP_従属度:(LOCAL:2) = CFLAG:(LOCAL:0):従属度
-				TMP_依存度:(LOCAL:2) = CFLAG:(LOCAL:0):依存度
-				TMP_参加者:(LOCAL:2) = LOCAL:0
-				;調教中は好感度を1000に
-				CFLAG:(LOCAL:0):好感度 = 1000
-				CFLAG:(LOCAL:0):従属度 = 1000
-				CFLAG:(LOCAL:0):依存度 = 1000
-				LOCAL:2 ++
-				;参加済みに
-				CFLAG:(LOCAL:0):行動済み = 1
-			ENDIF
-		NEXT
-		;あてがわれる側も参加済みに。
-		CFLAG:(ARG:0):行動済み = 1
-		;メッセージ表示
-		SELECTCASE RAND:3
-			CASE 0
-				PRINTFORML 優秀な人材は優秀な種から生まれる
-				PRINTFORML なので、%LOCALS:0%に種をつけてもらい、子を孕んでこい
-			CASE 1
-				PRINTFORML お前に%LOCALS:0%を慰安する任務を与える
-				PRINTFORML その身体で%LOCALS:0%をたっぷりと満足させてこい
-			CASE 2
-				PRINTFORML 手柄をあげた%LOCALS:0%に、お前を貸し出すことにした
-				PRINTFORML たっぷりと労をねぎらってこい
-		ENDSELECT
-		PRINTFORMW %ANAME(ARG:0)%にそう命令し、寝室へ送り出した……
-		TMP_MASTER = ARG:0
-		SWAPCHARA MASTER, TMP_MASTER
-		CALL KOJO_NTR_ATEGAU(MASTER, TMP_参加者:0)
-		;行動開始時の共通設定
-		CALL START_TRAIN_COMMON
-		REDRAW 1
-		RETURN 1
-	ENDIF
-	REDRAW 1
 ;地方へ派遣
 ELSEIF FLAG:拠点フェイズ選択コマンド == 1017
 	;対象キャラの情報を表示
@@ -1495,6 +1453,92 @@ FLAG:ウフフフラグ = 1
 ;行動開始時の共通処理
 CALL START_TRAIN_COMMON
 RETURN 1
+
+;-------------------------------------------------
+;「民の慰安」の処理
+;-------------------------------------------------
+@DECIDE_IAN_MEMBER(ARG:0)
+LOCAL:1 = 1
+FOR LOCAL:0, 0, CHARANUM
+	IF LOCAL:0 != MASTER && CFLAG:(LOCAL:0):閨に呼ぶで選択中
+		CFLAG:(LOCAL:0):調教参加フラグ  = 1
+		CFLAG:(LOCAL:0):93 = 1
+		LOCAL:1 = 0
+	ENDIF
+NEXT
+IF LOCAL:1
+	;参加キャラがいないなら処理せず0を返す
+	RETURN 0
+ENDIF
+
+LOCAL:1 = RAND(3, 5)
+LOCAL:2 = 0
+FOR LOCAL, 0, LOCAL:1
+	CALL CREATE_IAN_MOB
+	PRINTFORMW %ANAME(RESULT)%
+	SIF RESULT != -1
+		LOCAL:2 ++
+NEXT
+
+SIF LOCAL:2 == 0
+	THROW 民の慰安で民を生成できませんでした
+
+
+FLAG:調教モード = 7
+;ウフフフラグをONに
+FLAG:ウフフフラグ = 1
+
+;行動開始時の共通処理
+CALL START_TRAIN_COMMON
+RETURN 1
+;-------------------------------------------------
+;「民の慰安」のモブ追加処理
+;-------------------------------------------------
+@CREATE_IAN_MOB()
+CALL CREATE_RANDOM_CHARA(0, -1, 0)
+LOCAL = RESULT
+IF LOCAL == -1
+	RETURN -1
+ENDIF
+NO:LOCAL = GET_EMPTY_NO()
+NAME:LOCAL = 民
+CALLNAME:LOCAL = 民
+MAXBASE:LOCAL:体力 = 100000
+MAXBASE:LOCAL:気力 = 100000
+MAXBASE:LOCAL:精神力 = 1500
+BASE:LOCAL:体力 = MAXBASE:LOCAL:体力
+BASE:LOCAL:気力 = MAXBASE:LOCAL:気力
+BASE:LOCAL:精神力 = MAXBASE:LOCAL:精神力
+ABL:LOCAL:Ｃ感 = RAND(0,3)
+ABL:LOCAL:Ｖ感 = RAND(0,3)
+ABL:LOCAL:Ａ感 = RAND(0,3)
+ABL:LOCAL:Ｂ感 = RAND(0,3)
+ABL:LOCAL:Ｍ感 = RAND(0,3)
+ABL:LOCAL:欲望 = RAND(0,3)
+ABL:LOCAL:性技 = RAND(0,3)
+ABL:LOCAL:性知識 = RAND(1,5)
+ABL:LOCAL:奉仕 = RAND(0,3)
+ABL:LOCAL:性交 = RAND(0,3)
+ABL:LOCAL:露出 = RAND(0,3)
+ABL:LOCAL:射精 = RAND(0,3)
+ABL:LOCAL:排泄 = RAND(0,3)
+ABL:LOCAL:主導度Ｕ = 700
+ABL:LOCAL:主導度Ｎ = 300
+ABL:LOCAL:倒錯度 = 0
+EXP:LOCAL:絶頂経験 = 500
+ABL:LOCAL:武闘 = 30
+ABL:LOCAL:防衛 = 30
+ABL:LOCAL:知略 = 30
+ABL:LOCAL:政治 = 30
+ABL:LOCAL:料理 = 10
+ABL:LOCAL:肝臓 = 3
+TALENT:LOCAL:絶倫 = 1
+TALENT:LOCAL:陰毛現在値 = 陰毛_標準
+TALENT:LOCAL:陰毛目標値 = 陰毛_標準
+TALENT:LOCAL:Ｖ締まり = GET_DEFAULT_TIGHTNESS("普通")
+TALENT:LOCAL:Ａ締まり = GET_DEFAULT_TIGHTNESS("普通")
+CFLAG:LOCAL:慰安モブ = 1
+CFLAG:LOCAL:調教参加フラグ  = 1
 
 ;-------------------------------------------------
 ;「捕虜の調教」の処理
