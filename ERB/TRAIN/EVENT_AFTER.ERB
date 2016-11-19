@@ -13,25 +13,8 @@ VARSET PRISONER_TARGET, -1
 
 FLAG:夜這い = 0
 
-IF FLAG:調教モード == 7
-	LOCAL:3 = 0
-	LOCAL:4 = 0
-	;慰安モブを削除
-	LOCAL:2 = CHARANUM
-	FOR LOCAL:0, 0, LOCAL:2
-		LOCAL:1 = LOCAL:2 - LOCAL:0 - 1
-		IF CFLAG:(LOCAL:1):調教参加フラグ && !CFLAG:(LOCAL:1):慰安モブ
-			LOCAL:3 += SUM_EX(LOCAL:1) / 2
-			LOCAL:4 ++
-		ELSEIF CFLAG:(LOCAL:1):調教参加フラグ && CFLAG:(LOCAL:1):慰安モブ
-			LOCAL:3 += SUM_EX(LOCAL:1)
-			CALL DELETE_CHARA(LOCAL:1)
-		ENDIF
-	NEXT
-	LOCAL:3 *= 80 + (LOCAL:4) * 20
-	MONEY += LOCAL:3
-	PRINTFORMW 慰安により、金{LOCAL:3}を得ました
-ENDIF
+SIF FLAG:調教モード == 7
+	CALL EVENTEND_IAN
 
 ;初対面のキャラの対面済みフラグをＯＮ
 FOR LOCAL:0, 0, CHARANUM
@@ -179,6 +162,45 @@ ENDIF
 CALL CLEAR_MPLY
 CALL CLEAR_MTAR
 BEGIN TURNEND
+
+
+;-------------------------------------------------
+;慰安の処理
+;-------------------------------------------------
+@EVENTEND_IAN()
+#DIM 絶頂回数合計
+#DIM 報酬
+#DIM 経済追加
+#DIM 兵数追加
+#DIM 慰安参加者
+
+絶頂回数合計 = 0
+慰安参加者 = 0
+
+;慰安モブを削除
+LOCAL:2 = CHARANUM
+FOR LOCAL:0, 0, LOCAL:2
+	LOCAL:1 = LOCAL:2 - LOCAL:0 - 1
+	IF CFLAG:(LOCAL:1):調教参加フラグ && !CFLAG:(LOCAL:1):慰安モブ
+		絶頂回数合計 += SUM_EX(LOCAL:1)
+		慰安参加者 ++
+	ELSEIF CFLAG:(LOCAL:1):調教参加フラグ && CFLAG:(LOCAL:1):慰安モブ
+		絶頂回数合計 += SUM_EX(LOCAL:1)
+		CALL DELETE_CHARA(LOCAL:1)
+	ENDIF
+NEXT
+
+絶頂回数合計 = 絶頂回数合計 * (80 + 慰安参加者 * 20) / 100
+報酬 = 絶頂回数合計 * RAND(80, 120) + RAND(100, 1000)
+経済追加 = 絶頂回数合計 * RAND(800, 1200) / 2
+兵数追加 = 絶頂回数合計 * RAND(80, 120) / 10
+
+MONEY += 報酬
+FLAG:経済成長追加値 += 経済追加
+FLAG:兵数増加追加値 += 兵数追加
+CALL ICPRINT(@"慰安により、金<{報酬}>を得ました", COLOR("注意"), "W")
+
+
 
 ;-------------------------------------------------
 ;調教後自慰のチェック
