@@ -97,7 +97,7 @@ ENDIF
 CALL INITIALIZE_EQUIP()
 
 ;捕虜逆調教なら縛られた状態からスタート
-IF GROUPMATCH(FLAG:調教モード, 4, 5) && !GROUPMATCH(1, FLAG:あてがうフラグ, FLAG:閨逆調教)
+IF GROUPMATCH(FLAG:調教モード, 4, 5) && !GROUPMATCH(1, FLAG:閨逆調教)
 	CALL CLEAR_MPLY
 	CALL CLEAR_MTAR
 	FOR LOCAL:0, 0, CHARANUM
@@ -137,8 +137,9 @@ NEXT
 CALL CLEAR_MPLY
 CALL CLEAR_MTAR
 
-;主人公をプレイヤーに設定
-CALL ADD_MPLY(MASTER)
+;民の慰安以外は主人公をプレイヤーに設定
+SIF FLAG:調教モード != 7
+	CALL ADD_MPLY(MASTER)
 
 ;参加人数が1人ならターゲットを固定
 IF TFLAG:44 == 1
@@ -468,7 +469,7 @@ IF TFLAG:38
 ENDIF
 
 ;主人公が行動不能(逆調教除く)
-IF !GROUPMATCH(FLAG:調教モード, 4, 5) && !IS_PLAYABLE(MASTER)
+IF !GROUPMATCH(FLAG:調教モード, 4, 5, 7) && !IS_PLAYABLE(MASTER)
 	;ウフフ中は継続判定
 	IF FLAG:ウフフフラグ
 		FOR LOCAL:0, 0, CHARANUM
@@ -497,7 +498,7 @@ IF !GROUPMATCH(FLAG:調教モード, 4, 5) && !IS_PLAYABLE(MASTER)
 ENDIF
 
 ;逆調教で行動可能な調教者がいなければ終了
-IF GROUPMATCH(FLAG:調教モード, 4, 5)
+IF GROUPMATCH(FLAG:調教モード, 4, 5, 7)
 	LOCAL:10 = 0
 	FOR LOCAL:0, 0, CHARANUM
 		IF IS_AUTOSELECT(LOCAL:0)
@@ -680,6 +681,11 @@ IF FLAG:調教モード == 3
 ELSEIF FLAG:調教モード == 4 || FLAG:調教モード == 5
 	PRINTL 
 	PRINTFORMW (どうやら今日の調教は終了したようです…)
+	BEGIN AFTERTRAIN
+
+ELSEIF FLAG:調教モード == 7
+	PRINTL
+	PRINTFORMW (慰安の時間が終了しました…)
 	BEGIN AFTERTRAIN
 
 ;ウフフモードの場合
