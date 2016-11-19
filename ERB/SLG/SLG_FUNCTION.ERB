@@ -1707,6 +1707,9 @@ RETURNF MAX(SQRT(1000 * ARG:0) * 100, 1)
 #FUNCTION
 #DIM 利用値
 #DIM 補正値
+#DIM 上限
+
+上限 = 2000
 
 ;自勢力のキャラでない、MASTER自身の場合は補正なし
 SIF CFLAG:(ARG:1):所属 != CFLAG:MASTER:所属 || ARG:1 == MASTER
@@ -1721,26 +1724,33 @@ SIF CFLAG:MASTER:捕虜先 != 0 && CFLAG:MASTER:捕虜先 != CFLAG:(ARG:1):所�
 ;依存度が先行することはそんなないやろ………………
 利用値 = MAX(CFLAG:(ARG:1):好感度, CFLAG:(ARG:1):従属度, CFLAG:(ARG:1):依存度)
 
-;値500ごとにパワー1%の補正を得る。上限20%
-補正値 = MIN(利用値 / 500, 20 + (ID_TO_CHARA(FLAG:推しメン指定済み) == ARG:1) * 30)
+;正妻なら倍まで伸びる
+IF TALENT:(ARG:1):正妻
+	上限 = 10000
+ELSE
+	;陥落系素質はボーナスをかける
+	SIF TALENT:(ARG:1):親愛
+		上限 += 1000
+	SIF TALENT:(ARG:1):恋慕 || TALENT:(ARG:1):親友
+		上限 += 500
+	SIF TALENT:(ARG:1):恋人
+		上限 += 500
+	SIF TALENT:(ARG:1):隷属
+		上限 += 1000
+	SIF TALENT:(ARG:1):服従
+		上限 += 500
+	SIF TALENT:(ARG:1):烙印
+		上限 += 300
+ENDIF
 
-;陥落系素質はボーナスをかける
-SIF TALENT:(ARG:1):正妻
-	補正値 += 5
-SIF TALENT:(ARG:1):親愛
-	補正値 += 3
-SIF TALENT:(ARG:1):恋慕 || TALENT:(ARG:1):親友
-	補正値 += 1
-SIF TALENT:(ARG:1):恋人
-	補正値 += 1
-SIF TALENT:(ARG:1):隷属
-	補正値 += 3
-SIF TALENT:(ARG:1):服従
-	補正値 += 1
-SIF TALENT:(ARG:1):烙印
-	補正値 += 1
+;推しメンでもボーナスを得る
+SIF ID_TO_CHARA(FLAG:推しメン指定済み) == ARG:1
+	上限 += 5000
 
-RETURNF ABL_POWER(ARG:0) + ABL_POWER(ARG:0) * 補正値 / 100
+;値5ごとにパワーに0.01%の補正を得る。ただし上限（デフォ20%。素質による上限引き上げを無視すれば10000で到達）を超えない
+補正値 = 10000 + MIN(利用値 / 5, 上限)
+
+RETURNF ABL_POWER(ARG:0) * 補正値 / 10000
 
 ;-------------------------------------------------
 ;兵力の初期配置を行う関数
