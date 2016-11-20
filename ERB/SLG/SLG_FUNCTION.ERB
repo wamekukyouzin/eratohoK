@@ -2153,28 +2153,6 @@ ENDIF
 ;統治権を委譲する
 CITY_OWNER:(ARG:1) = ARG:0
 
-;-------------------------------------
-; 夜盗の状態
-; 0:沈静化
-; 1:出没中
-; 2:都市持ち
-;-----------------------------------------
-@GET_BANDIT_STATE()
-#FUNCTION
-	LOCAL:10 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗))
-	SIF LOCAL:10 < 0
-		RETURNF 0
-		
-	IF GET_OWN_CITY(LOCAL:10) > 0
-		RETURNF 2
-	ELSE
-		FOR LOCAL, 0, 10
-			SIF UNIT_SOLDIER:(LOCAL:10):(LOCAL:0) > 0 && UNIT_POSITION > UNIT_SOLDIER:(LOCAL:10):(LOCAL:0) && UNIT_SOLDIER:(LOCAL:10):(LOCAL:0) > 0
-				RETURNF 1
-		NEXT
-	ENDIF
-RETURNF 0
-
 ;-------------------------------------------------
 ;部隊能力に対する評価
 ;-------------------------------------------------
@@ -2222,32 +2200,6 @@ SELECTCASE TOSTR_UNIT_POWER(ARG:0)
 		RETURNF "神域"
 ENDSELECT
 RETURNF "不明"
-
-;-------------------------------------------------
-;ARG:0勢力のキャラのうち能力ARG:1が最も高いキャラ番号を返す（能力値はキャラクタ番号で参照すること）
-;ARG:2が1なら未行動キャラのみに絞る（デフォルトは0）
-;返り値 -1:存在しない（存在しない勢力か能力値を指定、もしくは全員行動済）, 0-:該当するキャラクタ番号
-;-------------------------------------------------
-@CALC_MOST_POWER_C(ARG:0, ARG:1, ARG:2 = 0)
-#FUNCTION
-#DIM 最高キャラ
-#DIM 最高値
-
-SIF !IS_COUNTRY(ARG:0) || ARG:1 == -1
-	RETURNF -1
-
-最高キャラ = -1
-最高値 = 0
-FOR LOCAL:0, 0, CHARANUM
-	IF CFLAG:(LOCAL:0):所属 == ARG:0 && (ARG:2 == 1 ? IS_FREE(LOCAL:0) # 1)
-		IF 最高値 < ABL:(LOCAL:0):(ARG:1)
-			最高キャラ = LOCAL:0
-			最高値 = ABL:(LOCAL:0):(ARG:1)
-		ENDIF
-	ENDIF
-NEXT
-
-RETURNF 最高キャラ
 
 ;-------------------------------------------------
 ;ARG:0のキャラにクールタイムARG:1を設定/加算する
