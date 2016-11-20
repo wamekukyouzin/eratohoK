@@ -119,14 +119,51 @@ ENDIF
 #DIM 行数;(LOCAL:20)
 #DIM 最大ページ数
 #DIM PRINTOPTION
+#DIM 最大人数
+最大人数 = MIN(CALC_SHOP_TIME() - SHOP_TIME, 3)
 
+選択人数 = 0
+FOR LOCAL:0, 0, CHARANUM
+	;選択可能な条件を満たしているかどうか判定
+	RESULT = 0
+	CALL CHECK_SELECTABLE1004(LOCAL:0)
+	IF RESULT == 1
+		;選択中の人数を数える
+		IF CFLAG:(LOCAL:0):閨に呼ぶで選択中
+			選択人数 ++
+			SIF 選択人数 > 最大人数
+				CFLAG:(LOCAL:0):閨に呼ぶで選択中 = 0
+		ENDIF
+	ELSE
+		;条件を満たしていなければ強制的にＯＦＦ
+		CFLAG:(LOCAL:0):閨に呼ぶで選択中 = 0
+	ENDIF
+NEXT
 CALL PRINT_LIFE_MENU(0)
-PRINTFORM ★★民の慰安に参加するキャラを選択して下さい★★
-CALL PRINTBUTTON_SHOP(55, "[これでよし]", 10)
-PRINTL
+PRINTFORML ★★慰安に行くキャラを選択して下さい(最大{最大人数}人)★★
 CALL PRINT_LIFE_MENU(1)
 CALL REPEAT_DASH(0)
-行数 = 2
+CALL PRINT_LIFE_MENU(2)
+PRINTFORM ※行動回数を参加人数分消費します  
+
+IF 選択人数 >= 1
+	PRINTBUTTON "55[このメンバーで決定]", 55
+	PRINT    
+ELSE
+	SETCOLOR COLOR("選択不可")
+	PRINTPLAINFORM 55[このメンバーで決定]
+	PRINT    
+	RESETCOLOR
+ENDIF
+IF 選択人数 >= 最大人数
+	SETCOLOR COLOR("オレンジ")
+ENDIF
+PRINTFORML (現在{選択人数}/{最大人数}人)
+RESETCOLOR
+CALL PRINT_LIFE_MENU(3)
+CALL REPEAT_DASH(0)
+行数 = 4
+LOCAL:21 = 1
 
 ;ページ数を計算
 LOCAL:12 = (LINES_SHOP_DRAW - 2 - 行数) * 2

@@ -250,6 +250,10 @@ ELSEIF FLAG:拠点フェイズ選択コマンド == 1026
 ELSEIF FLAG:拠点フェイズ選択コマンド == 1041
 	CALL LIFE_MENU_RELATION()
 	RETURN
+;民の慰安
+ELSEIF FLAG:拠点フェイズ選択コマンド == 1004
+	CALL LIFE_MENU_IAN
+	RETURN
 ENDIF
 
 ;会いに行く
@@ -297,49 +301,6 @@ ELSEIF FLAG:拠点フェイズ選択コマンド == 1001
 		SETCOLOR COLOR("オレンジ")
 	ENDIF
 	PRINTFORML (現在{選択人数}/8人)
-	RESETCOLOR
-	CALL PRINT_LIFE_MENU(3)
-	CALL REPEAT_DASH(0)
-	行数 = 4
-	LOCAL:21 = 1
-;民の慰安
-ELSEIF FLAG:拠点フェイズ選択コマンド == 1004
-	選択人数 = 0
-	FOR LOCAL:0, 0, CHARANUM
-		;選択可能な条件を満たしているかどうか判定
-		RESULT = 0
-		CALL CHECK_SELECTABLE1004(LOCAL:0)
-		IF RESULT == 1
-			;選択中の人数を数える
-			IF CFLAG:(LOCAL:0):閨に呼ぶで選択中
-				選択人数 ++
-				SIF 選択人数 > 3
-					CFLAG:(LOCAL:0):閨に呼ぶで選択中 = 0
-			ENDIF
-		ELSE
-			;条件を満たしていなければ強制的にＯＦＦ
-			CFLAG:(LOCAL:0):閨に呼ぶで選択中 = 0
-		ENDIF
-	NEXT
-	CALL PRINT_LIFE_MENU(0)
-	PRINTFORML ★★民を慰安するキャラを選択して下さい(最大3人まで)★★
-	CALL PRINT_LIFE_MENU(1)
-	CALL REPEAT_DASH(0)
-	CALL PRINT_LIFE_MENU(2)
-	PRINTPLAIN   
-	IF 選択人数 >= 1
-		PRINTBUTTON "55[このメンバーで決定]", 55
-		PRINT    
-	ELSE
-		SETCOLOR COLOR("選択不可")
-		PRINTPLAINFORM 55[このメンバーで決定]
-		PRINT    
-		RESETCOLOR
-	ENDIF
-	IF 選択人数 >= 8
-		SETCOLOR COLOR("オレンジ")
-	ENDIF
-	PRINTFORML (現在{選択人数}/3人)
 	RESETCOLOR
 	CALL PRINT_LIFE_MENU(3)
 	CALL REPEAT_DASH(0)
@@ -1482,10 +1443,13 @@ ENDIF
 
 行き先 = RESULT
 LOCAL:1 = 1
+;START_TRAIN_COMMONでSHOP_TIMEが+1されるので、それをひいておく
+SHOP_TIME --
 FOR LOCAL:0, 0, CHARANUM
 	IF CFLAG:(LOCAL:0):閨に呼ぶで選択中
 		CFLAG:(LOCAL:0):調教参加フラグ  = 1
 		CFLAG:(LOCAL:0):93 = 1
+		SHOP_TIME ++
 		LOCAL:1 = 0
 	ENDIF
 NEXT
