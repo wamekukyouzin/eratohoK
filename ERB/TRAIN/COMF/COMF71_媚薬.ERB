@@ -24,30 +24,33 @@ SIF RESULT == 0
 ;プレイヤーは最大で1人まで
 SIF MPLY_NUM <= 0 || MPLY_NUM > 1
 	RETURN 0
-;ターゲットは最大で1人まで
-SIF MTAR_NUM <= 0 || MTAR_NUM > 1
+;ターゲットは1人以上
+SIF MTAR_NUM <= 0 
 	RETURN 0
 ;プレイヤーが行動不能なら不可
 SIF !IS_PLAYABLE(MPLY:0)
 	RETURN 0
 ;媚薬が必要
-SIF ITEM:媚薬 <= 0 && ITEM:A_媚薬 <= 0
+SIF ITEM:媚薬 <= MTAR_NUM && ITEM:A_媚薬 <= MTAR_NUM
 	RETURN 0
-;既にターゲットが媚薬を使われているなら不可
-SIF TCVAR:(MTAR:0):60
-	RETURN 0
+
 ;プレイヤーが拘束中なら不可
 SIF IS_BIND(MPLY:0)
 	RETURN 0
 ;プレイヤーが足コキ・電気按摩中なら不可
 SIF IS_EQUIP_PLAYER(MPLY:0, 14, 103)
 	RETURN 0
-;ターゲットの口が塞がっているなら不可
-SIF IS_M_HOLD(MTAR:0)
-	RETURN 0
-;ターゲットからプレイヤーに挿入中で体位が後背位・背面座位なら不可
-SIF GROUPMATCH(GET_SEX_POSITION(MTAR:0, MPLY:0), 2, 4)
-	RETURN 0
+FOR LOCAL, 0, MTAR_NUM
+	;既にターゲットが媚薬を使われているなら不可
+	SIF TCVAR:(MTAR:LOCAL):60
+		RETURN 0
+	;ターゲットの口が塞がっているなら不可
+	SIF IS_M_HOLD(MTAR:LOCAL)
+		RETURN 0
+	;ターゲットからプレイヤーに挿入中で体位が後背位・背面座位なら不可
+	SIF GROUPMATCH(GET_SEX_POSITION(MTAR:LOCAL, MPLY:0), 2, 4)
+		RETURN 0
+NEXT
 RETURN 1
 
 ;-------------------------------------------------
@@ -59,45 +62,49 @@ CALL COM_ORDER_COMMON
 SIF RESULT == 0
 	RETURN 0
 
-;媚薬を１つ減少させる(追加アイテム使用時は減少させない)
+;媚薬を減少させる(追加アイテム使用時は減少させない)
 IF ITEM:A_媚薬 <= 0
-	ITEM:媚薬 = MAX(ITEM:媚薬 - 1, 0)
+	ITEM:媚薬 = MAX(ITEM:媚薬 - MTAR_NUM, 0)
 ENDIF
 
 ;●プレイヤー側の処理
 
-;●ターゲット側の処理
-;媚薬使用フラグを立てる
-TCVAR:(MTAR:0):60 = 1
+FOR LOCAL, 0, MTAR_NUM
 
-SOURCE:(MTAR:0):逸脱 = 100
+	;●ターゲット側の処理
+	;媚薬使用フラグを立てる
+	TCVAR:(MTAR:LOCAL):60 = 1
 
-SELECTCASE ABL:(MTAR:0):欲望
-	CASE 0
-		SOURCE:(MTAR:0):反感 = 400
-		SOURCE:(MTAR:0):不安 = 800
-	CASE 1
-		SOURCE:(MTAR:0):反感 = 300
-		SOURCE:(MTAR:0):不安 = 600
-	CASE 2
-		SOURCE:(MTAR:0):反感 = 250
-		SOURCE:(MTAR:0):不安 = 500
-	CASE 3
-		SOURCE:(MTAR:0):反感 = 150
-		SOURCE:(MTAR:0):不安 = 300
-	CASE 4
-		SOURCE:(MTAR:0):反感 = 80
-		SOURCE:(MTAR:0):不安 = 160
-	CASEELSE
-		SOURCE:(MTAR:0):反感 = MAX(50 - (ABL:(MTAR:0):欲望 - 5) * 20, 0)
-		SOURCE:(MTAR:0):不安 = MAX(100 - (ABL:(MTAR:0):欲望 - 5) * 20, 0)
-ENDSELECT
+	SOURCE:(MTAR:LOCAL):逸脱 = 100
 
-;主導権に応じた優越・屈従のソース追加
-CALL ADD_SOURCE_INITIATIVE_U(MTAR:0, 20, 80)
+	SELECTCASE ABL:(MTAR:LOCAL):欲望
+		CASE 0
+			SOURCE:(MTAR:LOCAL):反感 = 400
+			SOURCE:(MTAR:LOCAL):不安 = 800
+		CASE 1
+			SOURCE:(MTAR:LOCAL):反感 = 300
+			SOURCE:(MTAR:LOCAL):不安 = 600
+		CASE 2
+			SOURCE:(MTAR:LOCAL):反感 = 250
+			SOURCE:(MTAR:LOCAL):不安 = 500
+		CASE 3
+			SOURCE:(MTAR:LOCAL):反感 = 150
+			SOURCE:(MTAR:LOCAL):不安 = 300
+		CASE 4
+			SOURCE:(MTAR:LOCAL):反感 = 80
+			SOURCE:(MTAR:LOCAL):不安 = 160
+		CASEELSE
+			SOURCE:(MTAR:LOCAL):反感 = MAX(50 - (ABL:(MTAR:LOCAL):欲望 - 5) * 20, 0)
+			SOURCE:(MTAR:LOCAL):不安 = MAX(100 - (ABL:(MTAR:LOCAL):欲望 - 5) * 20, 0)
+	ENDSELECT
 
-;射精箇所と対象をセット
-CALL STACK_SPERM(MPLY:0, MTAR:0, 0)
+	;主導権に応じた優越・屈従のソース追加
+	CALL ADD_SOURCE_INITIATIVE_U(MTAR:LOCAL, 20, 80)
+
+	;射精箇所と対象をセット
+	CALL STACK_SPERM(MPLY:0, MTAR:LOCAL, 0)
+
+NEXT
 
 ;主導度変化基準値
 TFLAG:49 = 1
@@ -149,38 +156,48 @@ RETURN 1
 ;地の文(前文)
 ;-------------------------------------------------
 @COM_TEXT_BEFORE71
+IF MTAR_NUM > 1
+	LOCALS:0 = たち
+ELSE
+	LOCALS:0 = 
+ENDIF
 SELECTCASE GET_COM_INITIATIVE()
 	;プレイヤーに主導権
 	CASE 0
-		PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%に媚薬を飲ませ%TARGET_STR("た", "てきた")%…
+		PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%%LOCALS:0%に媚薬を飲ませ%TARGET_STR("た", "てきた")%…
 	;ターゲットに主導権
 	CASE 1
-		PRINTFORML %ANAME(MTAR:0)%は%ANAME(MPLY:0)%に媚薬を飲ませるように命令した
-		PRINTFORMW %ANAME(MPLY:0)%は言われるまま%ANAME(MTAR:0)%の口に媚薬を注ぎ込んだ…
+		PRINTFORML %ANAME(MTAR:0)%%LOCALS:0%は%ANAME(MPLY:0)%に媚薬を飲ませるように命令した
+		PRINTFORMW %ANAME(MPLY:0)%は言われるまま%ANAME(MTAR:0)%%LOCALS:0%の口に媚薬を注ぎ込んだ…
 	;第三者に主導権
 	CASEELSE
-		PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に対して、%ANAME(MTAR:0)%に媚薬を飲ませるように命令した
-		PRINTFORMW %ANAME(MPLY:0)%は言われるまま%ANAME(MTAR:0)%の口に媚薬を注ぎ、飲み込ませた…
+		PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に対して、%ANAME(MTAR:0)%%LOCALS:0%に媚薬を飲ませるように命令した
+		PRINTFORMW %ANAME(MPLY:0)%は言われるまま%ANAME(MTAR:0)%%LOCALS:0%の口に媚薬を注ぎ、飲み込ませた…
 ENDSELECT
 ;-------------------------------------------------
 ;地の文(実行後)
 ;-------------------------------------------------
 @COM_TEXT_AFTER71
+IF MTAR_NUM > 1
+	LOCALS:0 = たち
+ELSE
+	LOCALS:0 = 
+ENDIF
 IF MTAR:0 != MASTER
 	IF (TCVAR:(MTAR:0):52) || (TCVAR:(MTAR:0):53 == 1)
-		PRINTFORML 意識を失ったまま飲まされた薬によって、%ANAME(MTAR:0)%の体は熱く火照り始めている
+		PRINTFORML 意識を失ったまま飲まされた薬によって、%ANAME(MTAR:0)%%LOCALS:0%の体は熱く火照り始めている
 	ELSE
 		SIF TCVAR:(MTAR:0):51
 			PRINT 疲れて身動きできぬまま
 		SIF TALENT:(MTAR:0):妖術知識 || TALENT:(MTAR:0):技師
 			PRINT 飲まされた薬の効果に思い当り、
 		IF TALENT:(MTAR:0):恋慕
-			PRINTFORML 火照り始めた肉体を%ANAME(MTAR:0)%は持て余している
+			PRINTFORML 火照り始めた肉体を%ANAME(MTAR:0)%%LOCALS:0%は持て余している
 		;捕虜調教のメインターゲット
 		ELSEIF FLAG:調教モード == 2 && FINDELEMENT(PRISONER_TARGET, MTAR:0) != -1
-			PRINTFORML %ANAME(MTAR:0)%は%ANAME(MPLY:0)%に使われた媚薬によって、自分の意思とは無関係に身体が疼き始めている
+			PRINTFORML %ANAME(MTAR:0)%%LOCALS:0%は%ANAME(MPLY:0)%に使われた媚薬によって、自分の意思とは無関係に身体が疼き始めている
 		ELSE
-			PRINTFORML %ANAME(MTAR:0)%の体は媚薬によって、敏感になっている
+			PRINTFORML %ANAME(MTAR:0)%%LOCALS:0%の体は媚薬によって、敏感になっている
 		ENDIF
 	ENDIF
 ENDIF
