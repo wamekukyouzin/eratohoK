@@ -1424,8 +1424,21 @@ RETURN 1
 #DIM 行き先
 #DIM 人数
 #DIM メイン
+#DIM 放浪リスト, 3000
+#DIM 放浪者数
 #DIM FIRST_LINE
 FIRST_LINE = LINECOUNT
+
+;放浪者のリスト生成
+VARSET 放浪リスト
+VARSET 放浪者数
+FOR LOCAL, 0, CHARANUM
+	IF CFLAG:LOCAL:特殊状態 == 1 && !RAND:3
+		放浪リスト:放浪者数 = LOCAL
+		放浪者数 ++
+	ENDIF
+NEXT
+
 PRINTFORML どこに慰安しに行こうか……？
 FOR LOCAL, 0, VARSIZE("IAN_PLACE")
 	PRINTFORML [{LOCAL}] %IAN_PLACE:LOCAL%
@@ -1462,16 +1475,26 @@ IF 人数 == 0
 	RETURN 0
 ENDIF
 
-LOCAL:1 = RAND(3, 6)
 LOCAL:2 = 0
+;放浪者を追加
+IF 放浪者数 > 0
+	FOR LOCAL, 0, 放浪者数
+		IF RAND:放浪者数 == 0
+			CFLAG:(放浪リスト:LOCAL):慰安モブ = 1
+			CFLAG:(放浪リスト:LOCAL):調教参加フラグ  = 1
+			CFLAG:(放浪リスト:LOCAL):能力固定フラグ = 1
+			LOCAL:2 ++
+		ENDIF
+	NEXT
+ENDIF
+
+LOCAL:1 = RAND(3, 6) - LOCAL:2
 FOR LOCAL, 0, LOCAL:1
 	CALL CREATE_IAN_MOB(行き先)
-	SIF RESULT != -1
-		LOCAL:2 ++
+	SIF RESULT == -1
+		BREAK
 NEXT
 
-SIF LOCAL:2 == 0
-	THROW 民の慰安で民を生成できませんでした
 
 ITEM:A_ローター = 1
 ITEM:A_バイブ = 1
