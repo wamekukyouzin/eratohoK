@@ -531,6 +531,15 @@ IF SHOP_AVAIL:(ARG:0)
 		CALL DECIDE_IAN_MEMBER()
 		SIF !RESULT
 			RETURN 0
+	ELSEIF FLAG:拠点フェイズ選択コマンド == 1004 && ARG:0 == 56
+		LOCAL:1 = 0
+		FOR LOCAL, 0, CHARANUM
+			SIF CFLAG:LOCAL:閨に呼ぶで選択中
+				LOCAL:1 ++
+		NEXT
+		SIF FLAG:慰安避妊薬 || MONEY >= LOCAL:1 * 3000
+			FLAG:慰安避妊薬 = !FLAG:慰安避妊薬
+		RETURN 0
 	;捕虜の調教
 	ELSEIF ARG:0 == 10
 		FLAG:拠点フェイズ選択コマンド = 1010
@@ -1017,6 +1026,9 @@ ELSEIF FLAG:拠点フェイズ選択コマンド == 1004
 	IF CFLAG:(ARG:0):閨に呼ぶで選択中 || LOCAL:5 < MIN(CALC_SHOP_TIME() - SHOP_TIME, 3)
 		;調教参加フラグを反転
 		CFLAG:(ARG:0):閨に呼ぶで選択中 = !CFLAG:(ARG:0):閨に呼ぶで選択中
+		LOCAL:5 += CFLAG:(ARG:0):閨に呼ぶで選択中 == 0 ? -1 # 1
+		SIF FLAG:慰安避妊薬 && LOCAL:5 * 3000 > MONEY
+			FLAG:慰安避妊薬 = 0
 	ENDIF
 ;地方へ派遣
 ELSEIF FLAG:拠点フェイズ選択コマンド == 1017
@@ -1465,6 +1477,11 @@ FOR LOCAL:0, 0, CHARANUM
 		CFLAG:(LOCAL:0):調教参加フラグ  = 1
 		CFLAG:(LOCAL:0):能力固定フラグ = 1
 		人数 ++
+		IF FLAG:慰安避妊薬
+			PRINTFORML %ANAME(LOCAL:0)%は避妊薬を服用した
+			CFLAG:(LOCAL:0):避妊薬残ターン += 1
+			MONEY -= 3000
+		ENDIF
 		SIF LOCAL != MASTER && メイン == -1
 			メイン = LOCAL
 		SHOP_TIME ++
