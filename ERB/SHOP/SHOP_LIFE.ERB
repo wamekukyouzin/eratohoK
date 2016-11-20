@@ -1422,6 +1422,8 @@ RETURN 1
 ;-------------------------------------------------
 @DECIDE_IAN_MEMBER()
 #DIM 行き先
+#DIM 人数
+#DIM メイン
 #DIM FIRST_LINE
 FIRST_LINE = LINECOUNT
 PRINTFORML どこに慰安しに行こうか……？
@@ -1441,18 +1443,21 @@ ELSEIF !INRANGE(RESULT, 0, VARSIZE("IAN_PLACE") - 1)
 ENDIF
 
 行き先 = RESULT
-LOCAL:1 = 1
+人数 = 0
+メイン = -1
 ;START_TRAIN_COMMONでSHOP_TIMEが+1されるので、それをひいておく
 SHOP_TIME --
 FOR LOCAL:0, 0, CHARANUM
 	IF CFLAG:(LOCAL:0):閨に呼ぶで選択中
 		CFLAG:(LOCAL:0):調教参加フラグ  = 1
 		CFLAG:(LOCAL:0):能力固定フラグ = 1
+		人数 ++
+		SIF LOCAL != MASTER && メイン == -1
+			メイン = LOCAL
 		SHOP_TIME ++
-		LOCAL:1 = 0
 	ENDIF
 NEXT
-IF LOCAL:1
+IF 人数 == 0
 	;参加キャラがいないなら処理せず0を返す
 	RETURN 0
 ENDIF
@@ -1487,6 +1492,9 @@ ITEM:A_桃源香 = 99
 FLAG:調教モード = 7
 ;ウフフフラグをONに
 FLAG:ウフフフラグ = 1
+
+SIF メイン != -1
+	CALL SHOW_IAN_MESSAGE(メイン, 人数)
 
 ;行動開始時の共通処理
 CALL START_TRAIN_COMMON
