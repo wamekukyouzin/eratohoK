@@ -26,21 +26,6 @@ RETURNF 0
 ;各コマンドの分類
 #DIM COM_CATEGORY, 3000
 
-;行動可能なキャラの一覧
-#DIM CHARA_LIST, 8
-
-;行動可能なキャラの数
-#DIM CHARA_LIST_MAX
-
-;行動するキャラを選択するための乱数保存域
-#DIM 行動候補, 8
-
-;主人公と挿入状態にあるキャラの一覧
-#DIM INSERT_LIST, 8
-
-;主人公と挿入状態にあるキャラの数
-#DIM INSERT_LIST_MAX
-
 ;無限ループ回避用
 #DIM LOOP_CNT
 
@@ -51,14 +36,12 @@ $RESTARTED
 
 LOOP_CNT ++
 
-VARSET 行動候補, -1
 VARSET CATEGORY_PRIORITY, 0
 VARSET COM_PRIORITY, 0
 VARSET COM_PRIORITY_SUM, 0
 VARSET COM_CATEGORY, 0
 VARSET LOCAL, 0
-CHARA_LIST_MAX = 0
-INSERT_LIST_MAX = 0
+
 
 ;まずは中心となるキャラをランダムに1名選ぶ(主導権基準値によって確率に差異があっても良い？)
 ;そのキャラの好みを考慮してまずコマンドの分類を、次に実際のコマンド番号を決定
@@ -267,163 +250,23 @@ COM_CATEGORY:1213 = 7
 ;カテゴリ:説得
 COM_CATEGORY:298 = 8
 
-;●キャラの選択
-;行動可能なキャラ、主人公と挿入状態にあるキャラの数を調べる
-FOR LOCAL:0, 0, CHARANUM
-	IF IS_AUTOSELECT(LOCAL:0)
-		CHARA_LIST:(CHARA_LIST_MAX) = LOCAL:0
-		CHARA_LIST_MAX ++
-		IF IS_INSERT_MUTUAL(MASTER, LOCAL:0) >= 1
-			INSERT_LIST:(INSERT_LIST_MAX) = LOCAL:0
-			INSERT_LIST_MAX ++
-		ENDIF
-	ENDIF
-NEXT
-
-IF CHARA_LIST_MAX == 0
-	PRINTFORML (行動可能な者が一人もいません。何もしないが選択されます)
-	CALL CLEAR_MTAR()
-	CALL CLEAR_MPLY()
-	CALL ADD_MPLY(MASTER)
-	LOCAL:10 = 292
-	GOTO SKIPPED
-ENDIF
-
-;中心となるキャラの選択
-IF INSERT_LIST_MAX >= 1 && RAND:10 < 3
-	;主人公と挿入状態にあるキャラが1人以上いれば、30%の確率でその中から選択
-	LOCAL:5 = INSERT_LIST:(RAND:(INSERT_LIST_MAX))
+IF FLAG:調教モード == 7
+	CALL COM_AUTOSELECT_DECIDE_PLAYER_IAN
+	SIF RESULT == -1
+		GOTO SKIPPED
+	LOCAL:5 = RESULT
+	CALL COM_AUTOSELECT_DECIDE_TARGET_IAN(LOCAL:5)
+	LOCAL:98 = RESULT
 ELSE
-	;それ以外なら80%で主導度Ｕの値で補正した乱数
-	;挿入中のキャラは50%で回避
-	IF RAND:5
-		FOR LOCAL:0, 0, CHARA_LIST_MAX
-			SIF IS_INSERT_SINGLE(CHARA_LIST:(LOCAL:0)) >= 1 && !RAND:2
-				CONTINUE
-			行動候補:(LOCAL:0) = RAND:(1000 + ABL:(CHARA_LIST:(LOCAL:0)):主導度Ｕ / 2)
-		NEXT
-		LOCAL:5 = CHARA_LIST:(FINDELEMENT(行動候補, MAXARRAY(行動候補, 0, CHARA_LIST_MAX), 0, CHARA_LIST_MAX))
-	;20%の確率でランダム
-	ELSE
-		LOCAL:5 = CHARA_LIST:(RAND:CHARA_LIST_MAX)
-	ENDIF
+	CALL COM_AUTOSELECT_DECIDE_PLAYER
+	SIF RESULT == -1
+		GOTO SKIPPED
+	LOCAL:5 = RESULT
+	CALL COM_AUTOSELECT_DECIDE_TARGET
+	LOCAL:98 = RESULT
 ENDIF
-
-;ターゲットの選択
-;特殊勢力の男キャラ
-IF IS_SP_COUNTRY_CHARA(LOCAL:5) && IS_MALE(LOCAL:5)
-	;まんこがいたら（マスター含む）そいつら狙い
-	;もしいなければマスターねらい
-	LOCAL:98 = MASTER
-	FOR LOCAL:0, 0, CHARA_LIST_MAX
-		IF VAGINA(CHARA_LIST:(LOCAL:0))
-			WHILE 1
-				LOCAL:96 ++
-				;マスターがまんこなら33％
-				IF VAGINA(MASTER) && !RAND:3
-					LOCAL:98 = MASTER
-					GOTO CHOOSE_END
-				;マスターが処女なら100%
-				ELSEIF VIRGIN(MASTER) && VAGINA(MASTER)
-					LOCAL:98 = MASTER
-					GOTO CHOOSE_END
-				ELSE
-					LOCAL:97 = CHARA_LIST:(RAND:CHARA_LIST_MAX)
-					IF VAGINA(LOCAL:97) && LOCAL:97 != LOCAL:5
-						LOCAL:98 = LOCAL:97
-						GOTO CHOOSE_END
-					ENDIF
-				ENDIF
-				IF LOCAL:96 > 100
-					BREAK
-				ENDIF
-			WEND
-		ENDIF
-	NEXT
-;ふたなる
-ELSEIF PENIS(LOCAL:5) && VAGINA(LOCAL:5)
-	;ランダム狙い
-	;マスターは33%
-	;処女でマスターにペニスがあるなら必ずマスター狙い（うっかり他人が破るの防止）
-	LOCAL:98 = MASTER
-	WHILE 1
-		LOCAL:96 ++
-		LOCAL:98 = CHARA_LIST:(RAND:CHARA_LIST_MAX)
-		IF VIRGIN(LOCAL:5) && PENIS(MASTER)
-			LOCAL:98 = MASTER
-			GOTO CHOOSE_END
-		ENDIF
-		SIF !RAND:3
-			LOCAL:98 = MASTER
-		SIF LOCAL:98 != LOCAL:5
-			GOTO CHOOSE_END
-	WEND
-;チンポ
-ELSEIF PENIS(LOCAL:5)
-	;まんこがいたら（マスター含む）そいつら狙い
-	;もしいなければマスターねらい
-	LOCAL:98 = MASTER
-	FOR LOCAL:0, 0, CHARA_LIST_MAX
-		IF VAGINA(CHARA_LIST:(LOCAL:0))
-			WHILE 1
-				LOCAL:96 ++
-				;マスターが女なら33％
-				IF VAGINA(MASTER) && !RAND:3
-					LOCAL:98 = MASTER
-					GOTO CHOOSE_END
-				;マスターが処女なら積極的に狙う
-				ELSEIF VIRGIN(MASTER) && VAGINA(MASTER)
-					LOCAL:98 = MASTER
-					GOTO CHOOSE_END
-				ELSE
-					LOCAL:97 = CHARA_LIST:(RAND:CHARA_LIST_MAX)
-					IF VAGINA(LOCAL:97) && LOCAL:97 != LOCAL:5
-						LOCAL:98 = LOCAL:97
-						GOTO CHOOSE_END
-					ENDIF
-				ENDIF
-				IF LOCAL:96 > 100
-					BREAK
-				ENDIF
-			WEND
-		ENDIF
-	NEXT
-;まんこ
-ELSEIF VAGINA(LOCAL:5)
-	;ペニスがいたら（マスター含む）そいつらを狙う
-	;ただし処女でマスターがチンポついてるならマスター狙い強制
-	;もしいなければ0番、つまりマスターねらい
-	LOCAL:98 = MASTER
-	FOR LOCAL:0, 0, CHARA_LIST_MAX
-		IF PENIS(CHARA_LIST:(LOCAL:0))
-			WHILE 1
-				LOCAL:96 ++
-				;50%で強制マスター狙い
-				IF !RAND:2
-					LOCAL:98 = MASTER
-					GOTO CHOOSE_END
-				ELSEIF VIRGIN(LOCAL:5) && PENIS(MASTER)
-					LOCAL:98 = MASTER
-					GOTO CHOOSE_END
-				ELSE
-					LOCAL:97 = CHARA_LIST:(RAND:CHARA_LIST_MAX)
-					IF PENIS(LOCAL:97) && LOCAL:97 != LOCAL:5
-						LOCAL:98 = LOCAL:97
-						GOTO CHOOSE_END
-					ENDIF
-				ENDIF
-				IF LOCAL:96 > 100
-					BREAK
-				ENDIF
-			WEND
-		ENDIF
-	NEXT
-ENDIF
-
-
 
 $CHOOSE_END
-
 
 ;●性交を行う場合に、どのコマンドを選ぶか事前に決定しておく
 ;性別と経験に応じて可能なものからランダムに選択
@@ -785,7 +628,7 @@ IF TFLAG:55 <= 8 && ITEM:A_媚薬
 	COM_PRIORITY:71 += TFLAG:55 * 10
 ENDIF
 ;排卵誘発剤
-IF TFLAG:55 <= 8 && ITEM:A_排卵誘発剤 && FLAG:調教モード == 4
+IF TFLAG:55 <= 8 && ITEM:A_排卵誘発剤 && GROUPMATCH(FLAG:調教モード, 4, 7)
 	COM_PRIORITY:72 += -3 + GET_PERVERSION_RANK(LOCAL:5) + GET_INITIATIVE_U_RANK(LOCAL:5)
 	COM_PRIORITY:72 += (TALENT:(LOCAL:5):技師 != 0) * 3 + (TALENT:(LOCAL:5):好奇心 != 0) * 2 - (TALENT:(LOCAL:5):献身的 != 0) * 3
 	COM_PRIORITY:72 += ABL:(LOCAL:5):欲望 + ABL:(LOCAL:5):性技
@@ -1056,7 +899,7 @@ SELECTCASE LOCAL:6
 ENDSELECT
 
 ;麻薬
-IF TFLAG:55 <= 8 && ITEM:A_麻薬 && (FLAG:調教モード == 4 || flag:調教モード == 5)
+IF TFLAG:55 <= 8 && ITEM:A_麻薬 && (FLAG:調教モード == 4 || flag:調教モード == 5 || FLAG:調教モード == 7)
 	COM_PRIORITY:74 += -20 + GET_INITIATIVE_U_RANK(LOCAL:5)
 	COM_PRIORITY:74 += (TALENT:(LOCAL:5):技師 != 0) * 3 + GETBIT(TALENT:(LOCAL:5):淫乱系, 素質_淫乱_サド) * 3 + (TALENT:(LOCAL:5):倒錯的 != 0) * 3
 	COM_PRIORITY:74 += ABL:(LOCAL:5):欲望
@@ -1331,7 +1174,7 @@ IF IS_MALE(LOCAL:5)
 ENDIF
 
 ;特殊勢力のキャラか、特殊勢力に堕ちたキャラで逆調教でなければ、麻薬は使用しない
-IF !(GROUPMATCH(FLAG:調教モード, 4, 5) && (IS_SP_COUNTRY_CHARA(LOCAL:5) || IS_FALLEN_TO_SP_COUNTRY(LOCAL:5)))
+IF !(GROUPMATCH(FLAG:調教モード, 4, 5, 7) && (IS_SP_COUNTRY_CHARA(LOCAL:5) || IS_FALLEN_TO_SP_COUNTRY(LOCAL:5)))
 	COM_PRIORITY:74 = 0
 ENDIF
 
@@ -1435,7 +1278,7 @@ FOR LOCAL:0, 0, 5
 		;行動可能なキャラの数を調べる
 		LOCAL:2 = 0
 		FOR LOCAL:1, 0, CHARANUM
-			IF IS_AUTOSELECT(LOCAL:1) && !IS_MPLY(LOCAL:1) && !IS_MTAR(LOCAL:1)
+			IF IS_AUTOSELECT(LOCAL:1) && !IS_MPLY(LOCAL:1) && !IS_MTAR(LOCAL:1) && FLAG:調教モード != 7
 				LOCAL:2 ++
 			ENDIF
 		NEXT
@@ -1447,7 +1290,7 @@ FOR LOCAL:0, 0, 5
 			LOCAL:4 = 0
 			LOCAL:12 = -1
 			FOR LOCAL:1, 0, CHARANUM
-				IF IS_AUTOSELECT(LOCAL:1) && !IS_MPLY(LOCAL:1) && !IS_MTAR(LOCAL:1)
+				IF IS_AUTOSELECT(LOCAL:1) && !IS_MPLY(LOCAL:1) && !IS_MTAR(LOCAL:1) && FLAG:調教モード != 7
 					IF LOCAL:3 == LOCAL:4
 						LOCAL:12 = LOCAL:1
 						BREAK
@@ -2050,3 +1893,367 @@ FOR LOCAL:0, 0, MAX_MEQUIP
 		ENDIF
 	ENDIF
 NEXT
+
+;-------------------------------------------------
+;おまかせ時のプレイヤー選択
+;-------------------------------------------------
+@COM_AUTOSELECT_DECIDE_PLAYER
+;行動可能なキャラの一覧
+#DIM CHARA_LIST, 8
+
+;行動可能なキャラの数
+#DIM CHARA_LIST_MAX
+
+;主人公と挿入状態にあるキャラの一覧
+#DIM INSERT_LIST, 8
+
+;主人公と挿入状態にあるキャラの数
+#DIM INSERT_LIST_MAX
+
+#DIM 行動候補, 8
+
+VARSET 行動候補, -1
+CHARA_LIST_MAX = 0
+INSERT_LIST_MAX = 0
+
+;●キャラの選択
+;行動可能なキャラ、主人公と挿入状態にあるキャラの数を調べる
+FOR LOCAL:0, 0, CHARANUM
+	IF IS_AUTOSELECT(LOCAL:0)
+		CHARA_LIST:(CHARA_LIST_MAX) = LOCAL:0
+		CHARA_LIST_MAX ++
+		IF IS_INSERT_MUTUAL(MASTER, LOCAL:0) >= 1
+			INSERT_LIST:(INSERT_LIST_MAX) = LOCAL:0
+			INSERT_LIST_MAX ++
+		ENDIF
+	ENDIF
+NEXT
+
+IF CHARA_LIST_MAX == 0
+	PRINTFORML (行動可能な者が一人もいません。何もしないが選択されます)
+	CALL CLEAR_MTAR()
+	CALL CLEAR_MPLY()
+	CALL ADD_MPLY(MASTER)
+	LOCAL:10 = 292
+	RETURN -1
+ENDIF
+
+;中心となるキャラの選択
+IF INSERT_LIST_MAX >= 1 && RAND:10 < 3
+	;主人公と挿入状態にあるキャラが1人以上いれば、30%の確率でその中から選択
+	LOCAL:5 = INSERT_LIST:(RAND:(INSERT_LIST_MAX))
+ELSE
+	;それ以外なら80%で主導度Ｕの値で補正した乱数
+	;挿入中のキャラは50%で回避
+	IF RAND:5
+		FOR LOCAL:0, 0, CHARA_LIST_MAX
+			SIF IS_INSERT_SINGLE(CHARA_LIST:(LOCAL:0)) >= 1 && !RAND:2
+				CONTINUE
+			行動候補:(LOCAL:0) = RAND:(1000 + ABL:(CHARA_LIST:(LOCAL:0)):主導度Ｕ / 2)
+		NEXT
+		RETURN CHARA_LIST:(FINDELEMENT(行動候補, MAXARRAY(行動候補, 0, CHARA_LIST_MAX), 0, CHARA_LIST_MAX))
+	;20%の確率でランダム
+	ELSE
+		LOCAL:5 = CHARA_LIST:(RAND:CHARA_LIST_MAX)
+	ENDIF
+ENDIF
+RETURN LOCAL:5
+;-------------------------------------------------
+;おまかせ時のターゲット選択
+;-------------------------------------------------
+@COM_AUTOSELECT_DECIDE_TARGET(プレイヤー)
+#DIM プレイヤー
+;行動可能なキャラの一覧
+#DIM CHARA_LIST, 8
+
+;行動可能なキャラの数
+#DIM CHARA_LIST_MAX
+
+;主人公と挿入状態にあるキャラの一覧
+#DIM INSERT_LIST, 8
+
+;主人公と挿入状態にあるキャラの数
+#DIM INSERT_LIST_MAX
+
+#DIM 行動候補, 8
+
+VARSET 行動候補, -1
+CHARA_LIST_MAX = 0
+INSERT_LIST_MAX = 0
+
+;●キャラの選択
+;行動可能なキャラ、主人公と挿入状態にあるキャラの数を調べる　ただしプレイヤーは除く
+FOR LOCAL:0, 0, CHARANUM
+	IF IS_AUTOSELECT(LOCAL:0)
+		CHARA_LIST:(CHARA_LIST_MAX) = LOCAL:0
+		CHARA_LIST_MAX ++
+		IF IS_INSERT_MUTUAL(MASTER, LOCAL:0) >= 1
+			INSERT_LIST:(INSERT_LIST_MAX) = LOCAL:0
+			INSERT_LIST_MAX ++
+		ENDIF
+	ENDIF
+NEXT
+
+;ターゲットの選択
+;特殊勢力の男キャラ
+IF IS_SP_COUNTRY_CHARA(プレイヤー) && IS_MALE(プレイヤー)
+	;まんこがいたら（マスター含む）そいつら狙い
+	;もしいなければマスターねらい
+	LOCAL:98 = MASTER
+	FOR LOCAL:0, 0, CHARA_LIST_MAX
+		IF VAGINA(CHARA_LIST:(LOCAL:0))
+			WHILE 1
+				LOCAL:96 ++
+				;マスターがまんこなら33％
+				IF VAGINA(MASTER) && !RAND:3
+					RETURN MASTER
+				;マスターが処女なら100%
+				ELSEIF VIRGIN(MASTER) && VAGINA(MASTER)
+					RETURN MASTER
+				ELSE
+					LOCAL:97 = CHARA_LIST:(RAND:CHARA_LIST_MAX)
+					IF VAGINA(LOCAL:97) && LOCAL:97 != プレイヤー
+						RETURN LOCAL:97
+					ENDIF
+				ENDIF
+				IF LOCAL:96 > 100
+					BREAK
+				ENDIF
+			WEND
+		ENDIF
+	NEXT
+;ふたなる
+ELSEIF PENIS(プレイヤー) && VAGINA(プレイヤー)
+	;ランダム狙い
+	;マスターは33%
+	;処女でマスターにペニスがあるなら必ずマスター狙い（うっかり他人が破るの防止）
+	LOCAL:98 = MASTER
+	WHILE 1
+		LOCAL:96 ++
+		LOCAL:98 = CHARA_LIST:(RAND:CHARA_LIST_MAX)
+		IF VIRGIN(プレイヤー) && PENIS(MASTER)
+			RETURN MASTER
+		ENDIF
+		SIF !RAND:3
+			LOCAL:98 = MASTER
+		SIF LOCAL:98 != プレイヤー
+			RETURN LOCAL:98
+	WEND
+;チンポ
+ELSEIF PENIS(プレイヤー)
+	;まんこがいたら（マスター含む）そいつら狙い
+	;もしいなければマスターねらい
+	LOCAL:98 = MASTER
+	FOR LOCAL:0, 0, CHARA_LIST_MAX
+		IF VAGINA(CHARA_LIST:(LOCAL:0))
+			WHILE 1
+				LOCAL:96 ++
+				;マスターが女なら33％
+				IF VAGINA(MASTER) && !RAND:3
+					RETURN MASTER
+				;マスターが処女なら積極的に狙う
+				ELSEIF VIRGIN(MASTER) && VAGINA(MASTER)
+					RETURN MASTER
+				ELSE
+					LOCAL:97 = CHARA_LIST:(RAND:CHARA_LIST_MAX)
+					IF VAGINA(LOCAL:97) && LOCAL:97 != プレイヤー
+						RETURN LOCAL:97
+					ENDIF
+				ENDIF
+				IF LOCAL:96 > 100
+					BREAK
+				ENDIF
+			WEND
+		ENDIF
+	NEXT
+;まんこ
+ELSEIF VAGINA(プレイヤー)
+	;ペニスがいたら（マスター含む）そいつらを狙う
+	;ただし処女でマスターがチンポついてるならマスター狙い強制
+	;もしいなければ0番、つまりマスターねらい
+	LOCAL:98 = MASTER
+	FOR LOCAL:0, 0, CHARA_LIST_MAX
+		IF PENIS(CHARA_LIST:(LOCAL:0))
+			WHILE 1
+				LOCAL:96 ++
+				;50%で強制マスター狙い
+				IF !RAND:2
+					RETURN MASTER
+				ELSEIF VIRGIN(プレイヤー) && PENIS(MASTER)
+					RETURN MASTER
+				ELSE
+					LOCAL:97 = CHARA_LIST:(RAND:CHARA_LIST_MAX)
+					IF PENIS(LOCAL:97) && LOCAL:97 != プレイヤー
+						RETURN LOCAL:97
+					ENDIF
+				ENDIF
+				IF LOCAL:96 > 100
+					BREAK
+				ENDIF
+			WEND
+		ENDIF
+	NEXT
+ENDIF
+
+
+;-------------------------------------------------
+;慰安時のプレイヤー選択
+;-------------------------------------------------
+@COM_AUTOSELECT_DECIDE_PLAYER_IAN
+;行動可能なキャラの一覧
+#DIM CHARA_LIST, 8
+
+;行動可能なキャラの数
+#DIM CHARA_LIST_MAX
+
+;主人公と挿入状態にあるキャラの一覧
+#DIM INSERT_LIST, 8
+
+;主人公と挿入状態にあるキャラの数
+#DIM INSERT_LIST_MAX
+
+#DIM 行動候補, 8
+
+VARSET 行動候補, -1
+CHARA_LIST_MAX = 0
+INSERT_LIST_MAX = 0
+
+;●キャラの選択
+;行動可能なキャラ、主人公と挿入状態にあるキャラの数を調べる
+FOR LOCAL:0, 0, CHARANUM
+	IF IS_AUTOSELECT(LOCAL:0) && CFLAG:LOCAL:慰安モブ
+		CHARA_LIST:(CHARA_LIST_MAX) = LOCAL:0
+		CHARA_LIST_MAX ++
+	ENDIF
+NEXT
+
+IF CHARA_LIST_MAX == 0
+	PRINTFORML (行動可能な者が一人もいません。何もしないが選択されます)
+	CALL CLEAR_MTAR()
+	CALL CLEAR_MPLY()
+	CALL ADD_MPLY(MASTER)
+	LOCAL:10 = 292
+	RETURN -1
+ENDIF
+
+;それ以外なら80%で主導度Ｕの値で補正した乱数
+;挿入中のキャラは50%で回避
+IF RAND:5
+	FOR LOCAL:0, 0, CHARA_LIST_MAX
+		SIF IS_INSERT_SINGLE(CHARA_LIST:(LOCAL:0)) >= 1 && !RAND:2
+			CONTINUE
+		行動候補:(LOCAL:0) = RAND:(1000 + ABL:(CHARA_LIST:(LOCAL:0)):主導度Ｕ / 2)
+	NEXT
+	RETURN CHARA_LIST:(FINDELEMENT(行動候補, MAXARRAY(行動候補, 0, CHARA_LIST_MAX), 0, CHARA_LIST_MAX))
+;20%の確率でランダム
+ELSE
+	LOCAL:5 = CHARA_LIST:(RAND:CHARA_LIST_MAX)
+ENDIF
+RETURN LOCAL:5
+
+;-------------------------------------------------
+;慰安時のターゲット選択
+;-------------------------------------------------
+@COM_AUTOSELECT_DECIDE_TARGET_IAN(プレイヤー)
+#DIM プレイヤー
+;行動可能なキャラの一覧
+#DIM CHARA_LIST, 8
+
+;行動可能なキャラの数
+#DIM CHARA_LIST_MAX
+
+;主人公と挿入状態にあるキャラの一覧
+#DIM INSERT_LIST, 8
+
+;主人公と挿入状態にあるキャラの数
+#DIM INSERT_LIST_MAX
+
+#DIM 行動候補
+#DIM ループカウント
+CHARA_LIST_MAX = 0
+INSERT_LIST_MAX = 0
+
+;●キャラの選択
+;行動可能なキャラ、主人公と挿入状態にあるキャラの数を調べる　ただしプレイヤーと慰安用モブは除く
+FOR LOCAL:0, 0, CHARANUM
+	IF CFLAG:LOCAL:調教参加フラグ && !CFLAG:LOCAL:慰安モブ
+		CHARA_LIST:(CHARA_LIST_MAX) = LOCAL:0
+		CHARA_LIST_MAX ++
+	ENDIF
+NEXT
+
+IF CHARA_LIST_MAX == 0
+	PRINTFORML (ターゲットにできる者が一人もいません。何もしないが選択されます)
+	CALL CLEAR_MTAR()
+	CALL CLEAR_MPLY()
+	CALL ADD_MPLY(MASTER)
+	LOCAL:10 = 292
+	RETURN -1
+ENDIF
+
+;基本はランダム
+行動候補 = CHARA_LIST:(RAND:CHARA_LIST_MAX)
+ループカウント = 0
+
+;ターゲットの選択
+;特殊勢力の男キャラ
+IF IS_SP_COUNTRY_CHARA(プレイヤー) && IS_MALE(プレイヤー)
+	;まんこがいたらそいつら狙い
+	;もしいなければランダム
+	FOR LOCAL:0, 0, CHARA_LIST_MAX
+		IF VAGINA(CHARA_LIST:(LOCAL:0))
+			WHILE 1
+				ループカウント ++
+				行動候補 = CHARA_LIST:(RAND:CHARA_LIST_MAX)
+				IF VAGINA(行動候補) && 行動候補 != プレイヤー
+					RETURN 行動候補
+				ENDIF
+				IF ループカウント > 100
+					RETURN 行動候補
+				ENDIF
+			WEND
+		ENDIF
+	NEXT
+;ふたなり
+ELSEIF PENIS(プレイヤー) && VAGINA(プレイヤー)
+	;ランダム
+	RETURN 行動候補
+;チンポ
+ELSEIF PENIS(プレイヤー)
+	;まんこがいたらそいつら狙い
+	;もしいなければランダム
+	FOR LOCAL:0, 0, CHARA_LIST_MAX
+		IF VAGINA(CHARA_LIST:(LOCAL:0))
+			WHILE 1
+				ループカウント ++
+				行動候補 = CHARA_LIST:(RAND:CHARA_LIST_MAX)
+				IF VAGINA(行動候補) && 行動候補 != プレイヤー
+					RETURN 行動候補
+				ENDIF
+				IF ループカウント > 100
+					RETURN 行動候補
+				ENDIF
+			WEND
+		ENDIF
+	NEXT
+;まんこ
+ELSEIF VAGINA(プレイヤー)
+	;ちんぽがいたらそいつら狙い
+	;もしいなければランダム
+	FOR LOCAL:0, 0, CHARA_LIST_MAX
+		IF PENIS(CHARA_LIST:(LOCAL:0))
+			WHILE 1
+				ループカウント ++
+				行動候補 = CHARA_LIST:(RAND:CHARA_LIST_MAX)
+				IF PENIS(行動候補) && 行動候補 != プレイヤー
+					RETURN 行動候補
+				ENDIF
+				IF ループカウント > 100
+					PRINTFORM %ANAME(行動候補)%
+					RETURN 行動候補
+				ENDIF
+			WEND
+		ENDIF
+	NEXT
+ENDIF
+RETURN 行動候補

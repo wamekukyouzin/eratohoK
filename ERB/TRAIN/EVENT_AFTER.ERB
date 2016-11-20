@@ -13,6 +13,9 @@ VARSET PRISONER_TARGET, -1
 
 FLAG:夜這い = 0
 
+SIF FLAG:調教モード == 7
+	CALL EVENTEND_IAN
+
 ;初対面のキャラの対面済みフラグをＯＮ
 FOR LOCAL:0, 0, CHARANUM
 	SIF CFLAG:(LOCAL:0):調教参加フラグ && LOCAL:0 != MASTER && !CFLAG:(LOCAL:0):面識
@@ -62,20 +65,18 @@ FOR LOCAL:0, 0, CHARANUM
 NEXT
 
 
-IF !FLAG:あてがうフラグ
-	FOR LOCAL:0, 0, CHARANUM
-		IF (LOCAL == MASTER || CFLAG:(LOCAL:0):調教参加フラグ) && !IS_SP_CHARA(LOCAL:0)
-			;素質変化に関する処理(恋慕の取得など)
-			CALL TALENT_CHECK(LOCAL:0)
-		ENDIF
-	NEXT
-ENDIF
+FOR LOCAL:0, 0, CHARANUM
+	IF (LOCAL == MASTER || CFLAG:(LOCAL:0):調教参加フラグ) && !IS_SP_CHARA(LOCAL:0)
+		;素質変化に関する処理(恋慕の取得など)
+		CALL TALENT_CHECK(LOCAL:0)
+	ENDIF
+NEXT
 
 FOR LOCAL:0, 0, CHARANUM
 	IF LOCAL == MASTER || CFLAG:(LOCAL:0):調教参加フラグ
 		;性的嗜好の変化
 		;あてがった場合はロックフラグを立てる
-		CALL CHECK_SEXUAL_PREFERENCE(LOCAL:0, LOCAL == MASTER && FLAG:あてがうフラグ)
+		CALL CHECK_SEXUAL_PREFERENCE(LOCAL:0, LOCAL == MASTER)
 	ENDIF
 NEXT
 
@@ -129,124 +130,6 @@ NEXT
 ;閨逆調教フラグを折る
 FLAG:閨逆調教 = 0
 
-IF FLAG:あてがうフラグ
-	WHILE 1
-		LOCAL:1 = TMP_参加者:(RAND:10)
-		SIF LOCAL:1
-			BREAK
-	WEND
-	LOCAL = SUM_EX(MASTER)
-	SIF GETBIT(TALENT:MASTER:淫乱系, 素質_淫乱_淫乱)
-		LOCAL /= 2
-	SIF GETBIT(TALENT:MASTER:淫乱系, 素質_淫乱_精液便女)
-		LOCAL /= 3
-	CFLAG:MASTER:ＮＴＲ値 += SUM_EX(MASTER)
-	SETCOLOR COLOR("桃")
-	SELECTCASE CFLAG:MASTER:ＮＴＲ値
-		CASE IS > 500
-			IF TALENT:MASTER:ＮＴＲ && LOCAL:1 == ID_TO_CHARA(CFLAG:MASTER:ＮＴＲキャラ)
-				PRINTFORMW %ANAME(MASTER)%は、%ANAME(LOCAL:1)%に抱いてもらえたことにこの上ない幸せを覚えているようだ……
-				PRINTFORMW 二人は別れ際に、濃厚な接吻を交わした
-				CALL KOJO_NTR_GAIN(MASTER, LOCAL:1)
-			ELSE
-				IF GETBIT(TALENT:MASTER:淫乱系, 素質_淫乱_精液便女)
-					PRINTFORMW %ANAME(LOCAL:1)%に与えられる快楽に屈し、%ANAME(MASTER)%は%ANAME(LOCAL:1)%の専用肉便器になったようだ……
-					PRINTFORMW %ANAME(MASTER)%は、%ANAME(LOCAL:1)%に新たに忠誠を誓った
-				ELSEIF GETBIT(TALENT:MASTER:淫乱系, 素質_淫乱_淫乱)
-					PRINTFORMW %ANAME(LOCAL:1)%に与えられる快楽に屈し、%ANAME(MASTER)%は%ANAME(LOCAL:1)%のものになることを決めたようだ……
-					PRINTFORMW %ANAME(MASTER)%は、%ANAME(LOCAL:1)%に新たに忠誠を誓った
-				ELSEIF IS_SLAVE(MASTER)
-					PRINTFORMW %ANAME(LOCAL:1)%から与えられる快楽に屈し、%ANAME(MASTER)%は%ANAME(TMP_MASTER)%への忠誠を忘れたようだ……
-					PRINTFORMW %ANAME(MASTER)%は、%ANAME(LOCAL:1)%に新たに忠誠を誓った
-				ELSE
-					PRINTFORMW %ANAME(LOCAL:1)%と逢瀬を重ねることで、%ANAME(MASTER)%は%ANAME(LOCAL:1)%を慕い始めたようだ……
-					PRINTFORMW %ANAME(MASTER)%は、%ANAME(LOCAL:1)%に慕情をいだくようになった
-				ENDIF
-				CALL KOJO_NTR_GAIN(MASTER, LOCAL:1)
-				CALL LOSE_RELATION_TALENT(MASTER, 1)
-				TALENT:MASTER:ＮＴＲ = 1
-				CFLAG:MASTER:ＮＴＲキャラ = GET_ID(LOCAL:1)
-			ENDIF
-		CASE IS > 400
-			IF GETBIT(TALENT:MASTER:淫乱系, 素質_淫乱_精液便女)
-				PRINTFORMW %ANAME(LOCAL:1)%との行為の快感に、肉便器である%ANAME(MASTER)%はほぼ堕とされているようだ……
-				PRINTFORMW 自分専用になれという%ANAME(LOCAL:1)%の要求を、%ANAME(MASTER)%はほとんど拒んでいない
-			ELSEIF GETBIT(TALENT:MASTER:淫乱系, 素質_淫乱_淫乱)
-				PRINTFORMW %ANAME(LOCAL:1)%との行為の快感に、%ANAME(MASTER)%夢中になりつつあるようだ……
-				PRINTFORMW 自分のものになれという%ANAME(LOCAL:1)%の要求を、%ANAME(MASTER)%はほとんど拒んでいない
-			ELSEIF IS_SLAVE(MASTER)
-				PRINTFORMW %ANAME(LOCAL:1)%との行為の快感に、%ANAME(MASTER)%は抗えなくなりつつあるようだ……
-				PRINTFORMW %ANAME(MASTER)%が堕ちるのも時間の問題だろう
-			ELSE
-				PRINTFORMW %ANAME(LOCAL:1)%の方が魅力的だと、%ANAME(MASTER)%は感じているようだ……
-				PRINTFORMW %ANAME(MASTER)%の思いは、ほとんど%ANAME(LOCAL:1)%に傾いている
-			ENDIF
-			CALL KOJO_NTR_PROGRESS(MASTER, LOCAL:1)
-		CASE IS > 300
-			IF GETBIT(TALENT:MASTER:淫乱系, 素質_淫乱_精液便女)
-				PRINTFORMW 便器として%ANAME(LOCAL:1)%に奉仕できることを、%ANAME(MASTER)%は楽しみにしているようだ……
-			ELSEIF GETBIT(TALENT:MASTER:淫乱系, 素質_淫乱_淫乱)
-				PRINTFORMW %ANAME(LOCAL:1)%に抱かれることを、%ANAME(MASTER)%は楽しみにしているようだ……
-			ELSEIF IS_SLAVE(MASTER)
-				PRINTFORMW %ANAME(LOCAL:1)%との行為の快感が、%ANAME(MASTER)%の骨身に刻まれつつあるようだ……
-			ELSE
-				PRINTFORMW %ANAME(LOCAL:1)%との逢瀬を、%ANAME(MASTER)%は楽しみにしつつあるようだ……
-			ENDIF
-			PRINTFORMW あてがう頻度を下げないとまずいかもしれない
-			CALL KOJO_NTR_PROGRESS(MASTER, LOCAL:1)
-		CASE IS > 200
-			IF GETBIT(TALENT:MASTER:淫乱系, 素質_淫乱_精液便女)
-				PRINTFORMW 肉便器である%ANAME(MASTER)%の%ANAME(LOCAL:1)%への対応は、他の「利用者」たちと異なりつつある……
-			ELSEIF GETBIT(TALENT:MASTER:淫乱系, 素質_淫乱_淫乱)
-				PRINTFORMW %ANAME(LOCAL:1)%に抱かれることに、%ANAME(MASTER)%は積極的になりつつあるようだ……
-			ELSEIF IS_SLAVE(MASTER)
-				PRINTFORMW %ANAME(LOCAL:1)%との行為で得る快感に、%ANAME(MASTER)%は前向きになりつつあるようだ……
-			ELSE
-				PRINTFORMW %ANAME(LOCAL:1)%との逢瀬に、%ANAME(MASTER)%は前向きになりつつあるようだ……
-			ENDIF
-			CALL KOJO_NTR_PROGRESS(MASTER, LOCAL:1)
-		CASE IS > 100
-			IF　GETBIT(TALENT:MASTER:淫乱系, 素質_淫乱_精液便女)
-				PRINTFORMW 肉便器である%ANAME(MASTER)%は、%ANAME(LOCAL:1)%を、「他の利用者よりちょっと上手」と考えているようだ……
-			ELSEIF GETBIT(TALENT:MASTER:淫乱系, 素質_淫乱_淫乱)
-				PRINTFORMW %ANAME(MASTER)%は、%ANAME(LOCAL:1)%を「他の相手よりちょっと上手」と考えているようだ……
-			ELSEIF IS_SLAVE(MASTER)
-				PRINTFORMW %ANAME(LOCAL:1)%との行為に、%ANAME(MASTER)%は戸惑いつつも快感を覚えているようだ……
-			ELSE
-				PRINTFORMW %ANAME(LOCAL:1)%との逢瀬に、%ANAME(MASTER)%は戸惑いつつも快感を覚えているようだ……
-			ENDIF
-			CALL KOJO_NTR_PROGRESS(MASTER, LOCAL:1)
-		CASEELSE
-			IF GETBIT(TALENT:MASTER:淫乱系, 素質_淫乱_精液便女)
-				PRINTFORMW 肉便器である%ANAME(MASTER)%は、%ANAME(LOCAL:1)%を、「ただの利用者」と考えているようだ……
-			ELSEIF GETBIT(TALENT:MASTER:淫乱系, 素質_淫乱_淫乱)
-				PRINTFORMW %ANAME(MASTER)%は、%ANAME(LOCAL:1)%を「ただの閨の相手」と考えているようだ……
-			ELSEIF IS_SLAVE(MASTER)
-				PRINTFORMW %ANAME(TMP_MASTER)%に忠誠を誓ったとはいえ、他の者に抱かせるなどあんまりではないか
-				PRINTFORMW %ANAME(MASTER)%は悲しげな表情を浮かべている……
-			ELSE
-				PRINTFORMW 自分は%ANAME(TMP_MASTER)%を慕っていて、向こうだってそれを知っているだろうに、他の者に抱かせるなどあんまりだ
-				PRINTFORMW %ANAME(MASTER)%は悲しげな表情を浮かべている……
-			ENDIF
-			CALL KOJO_NTR_PROGRESS(MASTER, LOCAL:1)
-	ENDSELECT
-	RESETCOLOR
-
-	FOR LOCAL, 0, 10
-		LOCAL:1 = TMP_参加者:LOCAL
-		;今回の調教で獲得した好感度やら依存度やらを、保存しといた好感度やらに加算する
-		IF LOCAL:1
-			CFLAG:(LOCAL:1):好感度 = CFLAG:(LOCAL:1):好感度 + TMP_好感度:LOCAL - 1000
-			CFLAG:(LOCAL:1):依存度 = CFLAG:(LOCAL:1):依存度 + TMP_依存度:LOCAL - 1000
-			CFLAG:(LOCAL:1):従属度 = CFLAG:(LOCAL:1):従属度 + TMP_従属度:LOCAL - 1000
-		ENDIF
-	NEXT
-	CFLAG:MASTER:好感度 -= CFLAG:MASTER:好感度 / 10
-	CFLAG:MASTER:従属度 -= CFLAG:MASTER:従属度 / 10
-	CFLAG:MASTER:依存度 -= CFLAG:MASTER:依存度 / 10
-	SWAPCHARA MASTER, TMP_MASTER
-	FLAG:あてがうフラグ = 0
-ENDIF
 
 ;野盗の士官を斬り捨てたことによる入れ替え調教なら、キャラを戻しておく
 IF MASTER == ID_TO_CHARA(DVAR:要求野盗斬り捨て)
@@ -279,6 +162,55 @@ ENDIF
 CALL CLEAR_MPLY
 CALL CLEAR_MTAR
 BEGIN TURNEND
+
+
+;-------------------------------------------------
+;慰安の処理
+;-------------------------------------------------
+@EVENTEND_IAN()
+#DIM 絶頂回数合計
+#DIM 報酬
+#DIM 対象
+#DIM 経済追加
+#DIM 兵数追加
+#DIM 慰安参加者
+
+絶頂回数合計 = 0
+慰安参加者 = 0
+
+;慰安モブを削除
+LOCAL:2 = CHARANUM
+FOR LOCAL:0, 0, LOCAL:2
+	対象 = LOCAL:2 - LOCAL:0 - 1
+	;参加者の場合、減少
+	IF CFLAG:対象:調教参加フラグ && !CFLAG:対象:慰安モブ
+		IF SUM_EX(対象) > 50
+			絶頂回数合計 += 50 + (SUM_EX(対象) - 50) / 3
+		ELSE
+			絶頂回数合計 += SUM_EX(対象)
+		ENDIF
+		CFLAG:対象:好感度 -= 500 + SUM_EX(対象) * 50
+		CFLAG:対象:従属度 -= 500 + SUM_EX(対象) * 50
+		CFLAG:対象:依存度 -= 500 + SUM_EX(対象) * 50
+		慰安参加者 ++
+	ELSEIF CFLAG:対象:調教参加フラグ && CFLAG:対象:慰安モブ
+		絶頂回数合計 += SUM_EX(対象)
+		CFLAG:対象:慰安モブ = 0
+		SIF IS_SP_CHARA(対象)
+			CALL DELETE_CHARA(対象)
+	ENDIF
+NEXT
+絶頂回数合計 = 絶頂回数合計
+報酬 = 絶頂回数合計 * RAND(80, 120) + RAND(100, 1000)
+経済追加 = 絶頂回数合計 * RAND(800, 1200) / 2
+兵数追加 = 絶頂回数合計 * RAND(80, 120) / 10
+
+MONEY += 報酬
+FLAG:経済成長追加値 += 経済追加
+FLAG:兵数増加追加値 += 兵数追加
+CALL ICPRINT(@"慰安により、金<{報酬}>を得ました", "W", COLOR("注意"))
+
+
 
 ;-------------------------------------------------
 ;調教後自慰のチェック

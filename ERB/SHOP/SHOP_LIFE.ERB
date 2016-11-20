@@ -20,7 +20,7 @@ SELECTCASE ARG:0
 	CASE 4
 		CALL PRINTBUTTON_SHOP( 3, "{手引させる}", 7,  FLAG:拠点フェイズ選択コマンド == 1003)
 	CASE 5
-		CALL PRINTBUTTON_SHOP( 4, "{  あてがう}", 7,  FLAG:拠点フェイズ選択コマンド == 1004)
+		CALL PRINTBUTTON_SHOP( 4, "{  民の慰安}", 7,  FLAG:拠点フェイズ選択コマンド == 1004)
 	CASE 7
 		CALL PRINTBUTTON_SHOP(10, "{捕虜の調教}", 7,  FLAG:拠点フェイズ選択コマンド == 1010)
 	CASE 8
@@ -99,6 +99,9 @@ IF CFLAG:MASTER:行動不能状態　== 1 || COOLTIME:MASTER:0 > 1
 	SHOP_AVAIL:15 = 0
 	SHOP_AVAIL:20 = 0
 ENDIF
+
+SIF !CAN_ADD_RANDOM_CHARA()
+	SHOP_AVAIL:4 = 0
 
 SIF CONFIG:7 != 1
 	SHOP_AVAIL:13 = 0
@@ -233,9 +236,6 @@ ENDIF
 IF FLAG:拠点フェイズ選択コマンド == 1010
 	CALL LIFE_MENU_PRISONER()
 	RETURN
-ELSEIF FLAG:拠点フェイズ選択コマンド == 1004
-	CALL LIFE_MENU_ATEGAU()
-	RETURN
 ELSEIF FLAG:拠点フェイズ選択コマンド == 1012
 	CALL LIFE_MENU_SETTOKU()
 	RETURN
@@ -252,6 +252,10 @@ ELSEIF FLAG:拠点フェイズ選択コマンド == 1026
 ;関係一覧
 ELSEIF FLAG:拠点フェイズ選択コマンド == 1041
 	CALL LIFE_MENU_RELATION()
+	RETURN
+;民の慰安
+ELSEIF FLAG:拠点フェイズ選択コマンド == 1004
+	CALL LIFE_MENU_IAN
 	RETURN
 ENDIF
 
@@ -517,12 +521,16 @@ IF SHOP_AVAIL:(ARG:0)
 		FLAG:拠点フェイズページ = 1
 		FLAG:夜這い = 1
 		RETURN 0
-	;あてがう
+	;民の慰安
 	ELSEIF ARG:0 == 4
 		FLAG:拠点フェイズ選択コマンド = 1004
 		FLAG:拠点フェイズページ = 1
 		FLAG:夜這い = 0
 		RETURN 0
+	ELSEIF FLAG:拠点フェイズ選択コマンド == 1004 && ARG:0 == 55
+		CALL DECIDE_IAN_MEMBER()
+		SIF !RESULT
+			RETURN 0
 	;捕虜の調教
 	ELSEIF ARG:0 == 10
 		FLAG:拠点フェイズ選択コマンド = 1010
@@ -999,103 +1007,17 @@ ELSEIF FLAG:拠点フェイズ選択コマンド == 1003
 	REDRAW 1
 ;あてがう
 ELSEIF FLAG:拠点フェイズ選択コマンド == 1004
-	LOCAL:1 = 0
-	LOCALS:0 =
+	;参加キャラの数を数える
+	LOCAL:5 = 0
 	FOR LOCAL:0, 0, CHARANUM
-		IF CFLAG:(LOCAL):捕虜調教の助手
-			CFLAG:LOCAL:調教参加フラグ = 1
-			CFLAG:(LOCAL):捕虜調教の助手 = 0
-			SIF !LOCAL:1
-				LOCALS:0 = %ANAME(LOCAL)%
-			LOCAL:1++
+		IF CFLAG:(LOCAL:0):閨に呼ぶで選択中
+			LOCAL:5 ++
 		ENDIF
 	NEXT
-	;参加者なしなら戻す
-	IF LOCAL:1 == 0
-		PRINTFORMW 参加者を指定してください
-		RETURN 0
+	IF CFLAG:(ARG:0):閨に呼ぶで選択中 || LOCAL:5 < MIN(CALC_SHOP_TIME() - SHOP_TIME, 3)
+		;調教参加フラグを反転
+		CFLAG:(ARG:0):閨に呼ぶで選択中 = !CFLAG:(ARG:0):閨に呼ぶで選択中
 	ENDIF
-	;SHOW_INFOの初期画面を基本情報にする
-	FLAG:能力表示モード = 0
-
-	$SHOW_LOOP_INFO_ATEGAU
-
-	;対象キャラの情報を表示
-	DRAWLINE
-	CALL SHOW_INFO(ARG:0)
-	DRAWLINE
-	PRINTFORML %ANAME(ARG:0)%を%LOCALS:0%\@ LOCAL:1 > 1 ? たち # \@にあてがいます
-	PRINTFORML よろしいですか？
-	CALL ASK_YN
-	IF RESULT == 0
-		VARSET TMP_好感度
-		VARSET TMP_従属度
-		VARSET TMP_依存度
-		VARSET TMP_参加者
-		;捕虜逆調教モード
-		FLAG:調教モード = 5
-		;ウフフモード
-		FLAG:ウフフフラグ = 1
-		;あてがうフラグ
-		FLAG:あてがうフラグ = 1
-		;アイテムを一通り追加
-		ITEM:A_ローター = 1
-		ITEM:A_バイブ = 1
-		ITEM:A_アナルバイブ = 1
-		ITEM:A_ペニスバンド = 1
-		ITEM:A_オナホール = 1
-		ITEM:A_クリキャップ = 1
-		ITEM:A_ニプルキャップ = 1
-		ITEM:A_媚薬 = 99
-		ITEM:A_排卵誘発剤 = 99
-		ITEM:A_桃源香 = 99
-		;行動開始時の共通処理
-		;全ての参加キャラについて処理
-		LOCAL:2 = 0
-		FOR LOCAL:0, 0, CHARANUM
-			IF CFLAG:(LOCAL:0):調教参加フラグ
-				;現在の機嫌を保存
-				FOR LOCAL:1, 0, 10
-					CFLAG:(LOCAL:0):(LOCAL:1 + 190) = PALAM:(LOCAL:0):(LOCAL:1 + 10)
-				NEXT
-				;好感度等を保存
-				TMP_好感度:(LOCAL:2) = CFLAG:(LOCAL:0):好感度
-				TMP_従属度:(LOCAL:2) = CFLAG:(LOCAL:0):従属度
-				TMP_依存度:(LOCAL:2) = CFLAG:(LOCAL:0):依存度
-				TMP_参加者:(LOCAL:2) = LOCAL:0
-				;調教中は好感度を1000に
-				CFLAG:(LOCAL:0):好感度 = 1000
-				CFLAG:(LOCAL:0):従属度 = 1000
-				CFLAG:(LOCAL:0):依存度 = 1000
-				LOCAL:2 ++
-				;参加済みに
-				CFLAG:(LOCAL:0):行動済み = 1
-			ENDIF
-		NEXT
-		;あてがわれる側も参加済みに。
-		CFLAG:(ARG:0):行動済み = 1
-		;メッセージ表示
-		SELECTCASE RAND:3
-			CASE 0
-				PRINTFORML 優秀な人材は優秀な種から生まれる
-				PRINTFORML なので、%LOCALS:0%に種をつけてもらい、子を孕んでこい
-			CASE 1
-				PRINTFORML お前に%LOCALS:0%を慰安する任務を与える
-				PRINTFORML その身体で%LOCALS:0%をたっぷりと満足させてこい
-			CASE 2
-				PRINTFORML 手柄をあげた%LOCALS:0%に、お前を貸し出すことにした
-				PRINTFORML たっぷりと労をねぎらってこい
-		ENDSELECT
-		PRINTFORMW %ANAME(ARG:0)%にそう命令し、寝室へ送り出した……
-		TMP_MASTER = ARG:0
-		SWAPCHARA MASTER, TMP_MASTER
-		CALL KOJO_NTR_ATEGAU(MASTER, TMP_参加者:0)
-		;行動開始時の共通設定
-		CALL START_TRAIN_COMMON
-		REDRAW 1
-		RETURN 1
-	ENDIF
-	REDRAW 1
 ;地方へ派遣
 ELSEIF FLAG:拠点フェイズ選択コマンド == 1017
 	;対象キャラの情報を表示
@@ -1473,7 +1395,6 @@ LOCAL:1 = 1
 FOR LOCAL:0, 0, CHARANUM
 	IF LOCAL:0 != MASTER && CFLAG:(LOCAL:0):閨に呼ぶで選択中
 		CFLAG:(LOCAL:0):調教参加フラグ  = 1
-		CFLAG:(LOCAL:0):93 = 1
 		LOCAL:1 = 0
 	ENDIF
 NEXT
@@ -1497,6 +1418,112 @@ CALL START_TRAIN_COMMON
 RETURN 1
 
 ;-------------------------------------------------
+;「民の慰安」の処理
+;-------------------------------------------------
+@DECIDE_IAN_MEMBER()
+#DIM 行き先
+#DIM 人数
+#DIM メイン
+#DIM 放浪リスト, 3000
+#DIM 放浪者数
+#DIM FIRST_LINE
+FIRST_LINE = LINECOUNT
+
+;放浪者のリスト生成
+VARSET 放浪リスト
+VARSET 放浪者数
+FOR LOCAL, 0, CHARANUM
+	IF CFLAG:LOCAL:特殊状態 == 1 && !RAND:3
+		放浪リスト:放浪者数 = LOCAL
+		放浪者数 ++
+	ENDIF
+NEXT
+
+PRINTFORML どこに慰安しに行こうか……？
+FOR LOCAL, 0, VARSIZE("IAN_PLACE")
+	PRINTFORML [{LOCAL}] %IAN_PLACE:LOCAL%
+NEXT
+PRINTFORML [99] やっぱりやめる
+$INPUT_LOOP
+INPUT
+
+IF RESULT == 99
+	CLEARLINE LINECOUNT - FIRST_LINE
+	RETURN 0
+ELSEIF !INRANGE(RESULT, 0, VARSIZE("IAN_PLACE") - 1)
+	CLEARLINE 1
+	GOTO INPUT_LOOP
+ENDIF
+
+行き先 = RESULT
+人数 = 0
+メイン = -1
+;START_TRAIN_COMMONでSHOP_TIMEが+1されるので、それをひいておく
+SHOP_TIME --
+FOR LOCAL:0, 0, CHARANUM
+	IF CFLAG:(LOCAL:0):閨に呼ぶで選択中
+		CFLAG:(LOCAL:0):調教参加フラグ  = 1
+		CFLAG:(LOCAL:0):能力固定フラグ = 1
+		人数 ++
+		SIF LOCAL != MASTER && メイン == -1
+			メイン = LOCAL
+		SHOP_TIME ++
+	ENDIF
+NEXT
+IF 人数 == 0
+	;参加キャラがいないなら処理せず0を返す
+	RETURN 0
+ENDIF
+
+LOCAL:2 = 0
+;放浪者を追加
+IF 放浪者数 > 0
+	FOR LOCAL, 0, 放浪者数
+		IF RAND:放浪者数 == 0
+			CFLAG:(放浪リスト:LOCAL):慰安モブ = 1
+			CFLAG:(放浪リスト:LOCAL):調教参加フラグ  = 1
+			CFLAG:(放浪リスト:LOCAL):能力固定フラグ = 1
+			LOCAL:2 ++
+		ENDIF
+	NEXT
+ENDIF
+
+LOCAL:1 = RAND(3, 6) - LOCAL:2
+FOR LOCAL, 0, LOCAL:1
+	CALL CREATE_IAN_MOB(行き先)
+	SIF RESULT == -1
+		BREAK
+NEXT
+
+FLAG:慰安場所 = 行き先
+ITEM:A_ローター = 1
+ITEM:A_バイブ = 1
+ITEM:A_アナルバイブ = 1
+ITEM:A_ペニスバンド = 1
+ITEM:A_オナホール = 1
+ITEM:A_クリキャップ = 1
+ITEM:A_ニプルキャップ = 1
+ITEM:A_麻薬 = 99
+ITEM:A_縄 = 1
+ITEM:A_鞭 = 1
+ITEM:A_口枷 = 1
+ITEM:A_鼻フック = 1
+ITEM:A_コンドーム = 99
+ITEM:A_媚薬 = 99
+ITEM:A_排卵誘発剤 = 99
+ITEM:A_桃源香 = 99
+FLAG:調教モード = 7
+;ウフフフラグをONに
+FLAG:ウフフフラグ = 1
+
+SIF メイン != -1
+	CALL SHOW_IAN_MESSAGE(メイン, 人数)
+
+;行動開始時の共通処理
+CALL START_TRAIN_COMMON
+RETURN 1
+
+;-------------------------------------------------
 ;「捕虜の調教」の処理
 ;-------------------------------------------------
 @DECIDE_PRISONER_MEMBER()
@@ -1504,7 +1531,6 @@ CVARSET CFLAG, 6, 0
 FOR LOCAL:0, 0, CHARANUM
 	IF LOCAL:0 != MASTER && CFLAG:(LOCAL:0):捕虜調教の助手
 		CFLAG:(LOCAL:0):調教参加フラグ = 1
-		CFLAG:(LOCAL:0):93 = 1
 	ENDIF
 NEXT
 ;このターン調教された
