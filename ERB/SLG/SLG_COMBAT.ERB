@@ -630,33 +630,18 @@ SIF BATTLE_DEF:1 < 0
 @BATTLE_DIFFICULTY_CORRECTION(ARG:0, ARG:1, ARG:2, ARG:3)
 #DIM 補正倍率
 
-SELECTCASE CONFIG:314
-;EASY、許されるのは小学生まで
-CASE 0
-	補正倍率 = 7
-;NORMAL、変更なし
-CASE 1
-	補正倍率 = 10
-;HARD、ちょっと大変
-CASE 2
-	補正倍率 = 12
-;LUNATIC、仲間の力を信じましょう
-CASE 3
-	補正倍率 = 20
-CASEELSE
-	補正倍率 = 10
-ENDSELECT
+補正倍率 = GET_DIFFICULTY_CORRECTION()
 
 ;共に主人公の所属しない勢力であれば補正は計算しない
 SIF NOSAMES(CFLAG:MASTER:所属, ARG:0, ARG:3 < 0 ? CITY_OWNER:(ARG:2) # ARG:2)
-	補正倍率 = 10
+	補正倍率 = 100
 
 ;補正計算
 IF ARG:3 < 0 ? CITY_OWNER:(ARG:2) == CFLAG:MASTER:所属 # ARG:2 == CFLAG:MASTER:所属
-	BATTLE_ATC:0 = BATTLE_ATC:0 * 補正倍率 / 10
-	BATTLE_DEF:0 = BATTLE_DEF:0 * 補正倍率 / 10
-	BATTLE_INT:0 = BATTLE_INT:0 * 補正倍率 / 10
-	BATTLE_MAG:0 = BATTLE_MAG:0 * 補正倍率 / 10
+	BATTLE_ATC:0 = BATTLE_ATC:0 * 補正倍率 / 100
+	BATTLE_DEF:0 = BATTLE_DEF:0 * 補正倍率 / 100
+	BATTLE_INT:0 = BATTLE_INT:0 * 補正倍率 / 100
+	BATTLE_MAG:0 = BATTLE_MAG:0 * 補正倍率 / 100
 	;オーバフローして符号が反転する問題対策
 	;しかたないので負数なら整数の最大値ブチ込みます
 	SIF BATTLE_ATC:0 < 0
@@ -683,6 +668,32 @@ ELSEIF ARG:0 == CFLAG:MASTER:所属
 	SIF BATTLE_MAG:1 < 0
 		BATTLE_MAG:1 = __INT_MAX__
 ENDIF
+
+;-------------------------------------------------
+;難易度による補正を取得
+;-------------------------------------------------
+@GET_DIFFICULTY_CORRECTION()
+#FUNCTION
+SELECTCASE CONFIG:314
+;EASY 許されるのは小学生まで
+CASE 0
+	RETURNF 70
+;NORMAL 変更なし
+CASE 1
+	RETURNF 100
+;HARD 好感度でなんとかできんこともない
+CASE 2
+	RETURNF 120
+;LUNATIC 鍛えないと無理
+CASE 3
+	RETURNF 160
+;EXTRA たぶん無理じゃねぇかな
+CASE 4
+	RETURNF 200
+CASEELSE
+	RETURNF 100
+ENDSELECT
+
 
 ;-------------------------------------------------
 ;疲労度によるペナルティ
