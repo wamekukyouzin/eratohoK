@@ -262,7 +262,7 @@ ELSE
 	SIF RESULT == -1
 		GOTO SKIPPED
 	LOCAL:5 = RESULT
-	CALL COM_AUTOSELECT_DECIDE_TARGET
+	CALL COM_AUTOSELECT_DECIDE_TARGET(LOCAL:5)
 	LOCAL:98 = RESULT
 ENDIF
 
@@ -1913,6 +1913,7 @@ NEXT
 #DIM 行動候補, 8
 
 VARSET 行動候補, -1
+
 CHARA_LIST_MAX = 0
 INSERT_LIST_MAX = 0
 
@@ -1975,9 +1976,9 @@ RETURN LOCAL:5
 ;主人公と挿入状態にあるキャラの数
 #DIM INSERT_LIST_MAX
 
-#DIM 行動候補, 8
+#DIM 返却候補
+#DIM ループカウント
 
-VARSET 行動候補, -1
 CHARA_LIST_MAX = 0
 INSERT_LIST_MAX = 0
 
@@ -1994,16 +1995,19 @@ FOR LOCAL:0, 0, CHARANUM
 	ENDIF
 NEXT
 
+
+返却候補 = MASTER
+ループカウント = 0
 ;ターゲットの選択
 ;特殊勢力の男キャラ
 IF IS_SP_COUNTRY_CHARA(プレイヤー) && IS_MALE(プレイヤー)
 	;まんこがいたら（マスター含む）そいつら狙い
 	;もしいなければマスターねらい
-	LOCAL:98 = MASTER
+	返却候補 = MASTER
 	FOR LOCAL:0, 0, CHARA_LIST_MAX
 		IF VAGINA(CHARA_LIST:(LOCAL:0))
 			WHILE 1
-				LOCAL:96 ++
+				ループカウント ++
 				;マスターがまんこなら33％
 				IF VAGINA(MASTER) && !RAND:3
 					RETURN MASTER
@@ -2011,14 +2015,13 @@ IF IS_SP_COUNTRY_CHARA(プレイヤー) && IS_MALE(プレイヤー)
 				ELSEIF VIRGIN(MASTER) && VAGINA(MASTER)
 					RETURN MASTER
 				ELSE
-					LOCAL:97 = CHARA_LIST:(RAND:CHARA_LIST_MAX)
-					IF VAGINA(LOCAL:97) && LOCAL:97 != プレイヤー
-						RETURN LOCAL:97
+					返却候補 = CHARA_LIST:(RAND:CHARA_LIST_MAX)
+					IF VAGINA(返却候補) && 返却候補 != プレイヤー
+						RETURN 返却候補
 					ENDIF
 				ENDIF
-				IF LOCAL:96 > 100
+				SIF ループカウント > 100
 					BREAK
-				ENDIF
 			WEND
 		ENDIF
 	NEXT
@@ -2027,42 +2030,43 @@ ELSEIF PENIS(プレイヤー) && VAGINA(プレイヤー)
 	;ランダム狙い
 	;マスターは33%
 	;処女でマスターにペニスがあるなら必ずマスター狙い（うっかり他人が破るの防止）
-	LOCAL:98 = MASTER
+	返却候補 = MASTER
 	WHILE 1
-		LOCAL:96 ++
-		LOCAL:98 = CHARA_LIST:(RAND:CHARA_LIST_MAX)
+		ループカウント ++
+		返却候補 = CHARA_LIST:(RAND:CHARA_LIST_MAX)
 		IF VIRGIN(プレイヤー) && PENIS(MASTER)
 			RETURN MASTER
 		ENDIF
 		SIF !RAND:3
-			LOCAL:98 = MASTER
-		SIF LOCAL:98 != プレイヤー
-			RETURN LOCAL:98
+			返却候補 = MASTER
+		SIF 返却候補 != プレイヤー
+			RETURN 返却候補
+		SIF ループカウント > 100
+			BREAK
 	WEND
 ;チンポ
 ELSEIF PENIS(プレイヤー)
 	;まんこがいたら（マスター含む）そいつら狙い
 	;もしいなければマスターねらい
-	LOCAL:98 = MASTER
+	返却候補 = MASTER
 	FOR LOCAL:0, 0, CHARA_LIST_MAX
 		IF VAGINA(CHARA_LIST:(LOCAL:0))
 			WHILE 1
-				LOCAL:96 ++
-				;マスターが女なら33％
+				ループカウント ++
+				;マスターがまんこなら33％
 				IF VAGINA(MASTER) && !RAND:3
 					RETURN MASTER
-				;マスターが処女なら積極的に狙う
+				;マスターが処女なら100%
 				ELSEIF VIRGIN(MASTER) && VAGINA(MASTER)
 					RETURN MASTER
 				ELSE
-					LOCAL:97 = CHARA_LIST:(RAND:CHARA_LIST_MAX)
-					IF VAGINA(LOCAL:97) && LOCAL:97 != プレイヤー
-						RETURN LOCAL:97
+					返却候補 = CHARA_LIST:(RAND:CHARA_LIST_MAX)
+					IF VAGINA(返却候補) && 返却候補 != プレイヤー
+						RETURN 返却候補
 					ENDIF
 				ENDIF
-				IF LOCAL:96 > 100
+				SIF ループカウント > 100
 					BREAK
-				ENDIF
 			WEND
 		ENDIF
 	NEXT
@@ -2071,23 +2075,23 @@ ELSEIF VAGINA(プレイヤー)
 	;ペニスがいたら（マスター含む）そいつらを狙う
 	;ただし処女でマスターがチンポついてるならマスター狙い強制
 	;もしいなければ0番、つまりマスターねらい
-	LOCAL:98 = MASTER
+	返却候補 = MASTER
 	FOR LOCAL:0, 0, CHARA_LIST_MAX
 		IF PENIS(CHARA_LIST:(LOCAL:0))
 			WHILE 1
-				LOCAL:96 ++
+				ループカウント ++
 				;50%で強制マスター狙い
 				IF !RAND:2
 					RETURN MASTER
 				ELSEIF VIRGIN(プレイヤー) && PENIS(MASTER)
 					RETURN MASTER
 				ELSE
-					LOCAL:97 = CHARA_LIST:(RAND:CHARA_LIST_MAX)
-					IF PENIS(LOCAL:97) && LOCAL:97 != プレイヤー
-						RETURN LOCAL:97
+					返却候補 = CHARA_LIST:(RAND:CHARA_LIST_MAX)
+					IF PENIS(返却候補) && 返却候補 != プレイヤー
+						RETURN 返却候補
 					ENDIF
 				ENDIF
-				IF LOCAL:96 > 100
+				IF ループカウント > 100
 					BREAK
 				ENDIF
 			WEND
@@ -2095,6 +2099,7 @@ ELSEIF VAGINA(プレイヤー)
 	NEXT
 ENDIF
 
+RETURN MASTER
 
 ;-------------------------------------------------
 ;慰安時のプレイヤー選択
@@ -2256,4 +2261,5 @@ ELSEIF VAGINA(プレイヤー)
 		ENDIF
 	NEXT
 ENDIF
+
 RETURN 行動候補
