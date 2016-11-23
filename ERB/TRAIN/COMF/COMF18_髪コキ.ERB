@@ -3,11 +3,11 @@
 ;-------------------------------------------------
 ;コマンド名称
 ;-------------------------------------------------
-@COM_NAME16
+@COM_NAME18
 IF MPLY_NUM == 2
-	LOCALS:0 = Ｗオナホコキ
+	LOCALS:0 = Ｗ髪コキ
 ELSE
-	LOCALS:0 = オナホコキ
+	LOCALS:0 = 髪コキ
 ENDIF
 
 RESULTS:0 = %LOCALS:0%する
@@ -20,9 +20,9 @@ RESULTS:5 = %LOCALS:0%見せつけ
 ;-------------------------------------------------
 ;選択可否判定
 ;-------------------------------------------------
-@COM_ABLE16
+@COM_ABLE18
 ;共通部分
-CALL COM_ABLE_COMMON(16)
+CALL COM_ABLE_COMMON(18)
 SIF RESULT == 0
 	RETURN 0
 ;プレイヤーは最大で2人まで
@@ -31,9 +31,7 @@ SIF MPLY_NUM <= 0 || MPLY_NUM > 2
 ;ターゲットは最大で1人まで
 SIF MTAR_NUM <= 0 || MTAR_NUM > 1
 	RETURN 0
-;オナホールが必要
-SIF !ITEM:オナホール && !ITEM:A_オナホール
-	RETURN 0
+
 ;全プレイヤーについて判定
 FOR LOCAL:0, 0, MPLY_NUM
 	;行動不能なら不可
@@ -44,6 +42,9 @@ FOR LOCAL:0, 0, MPLY_NUM
 		RETURN 0
 	;挿入中はプレイヤーが一人の場合のみ許可
 	SIF IS_INSERT_SINGLE(MPLY:(LOCAL:0), "全") && MPLY_NUM >= 2
+		RETURN 0
+	;ミドル以上が必要
+	SIF TALENT:(MPLY:(LOCAL:0)):髪の長さ < 275
 		RETURN 0
 NEXT
 ;ターゲットに竿が必要
@@ -60,7 +61,7 @@ RETURN 1
 ;-------------------------------------------------
 ;メイン処理
 ;-------------------------------------------------
-@COM16
+@COM18
 ;実行判定
 CALL COM_ORDER_COMMON
 SIF RESULT == 0
@@ -88,22 +89,16 @@ FOR LOCAL:0, 0, MPLY_NUM
 	SOURCE:(LOCAL:2):性行動 = 210
 
 	;主導権に応じた優越・屈従のソース追加
-	CALL ADD_SOURCE_INITIATIVE_U(LOCAL:2, 160, 80)
+	CALL ADD_SOURCE_INITIATIVE_U(LOCAL:2, 180, 80)
 
 	;奉仕経験値を得られるコマンドのフラグ
 	TCVAR:(LOCAL:2):4 = 1
 
-	IF TALENT:(MPLY:0):技師
-		LOCAL:11 = 2400
-	ELSE
-		LOCAL:11 = 1600
-	ENDIF
-
 	;ターゲットに与える快感系ソースを計算
-	SOURCE:(MTAR:0):快Ｐ += SENSE_HOUSHI_P(LOCAL:2, MTAR:0, LOCAL:11) * LOCAL:10 / 100
+	SOURCE:(MTAR:0):快Ｐ += SENSE_HOUSHI_P(LOCAL:2, MTAR:0, 500) * LOCAL:10 / 100
 
 	;射精箇所と対象をセット
-	CALL STACK_SPERM(MTAR:0, LOCAL:2, 射精部位_オナホ)
+	CALL STACK_SPERM(MTAR:0, LOCAL:2, RAND:3 ? 射精部位_髪 # 射精部位_顔)
 NEXT
 
 ;●ターゲットについて判定
@@ -127,13 +122,13 @@ RETURN 1
 ;-------------------------------------------------
 ;継続コマンドかどうかを設定
 ;-------------------------------------------------
-@COM_IS_EQUIP16
+@COM_IS_EQUIP18
 RETURN 1
 
 ;-------------------------------------------------
 ;継続状態の処理
 ;-------------------------------------------------
-@COM_EQUIP16(ARG:0)
+@COM_EQUIP18(ARG:0)
 ;●人数補正の設定
 LOCAL:10 = 100
 
@@ -155,17 +150,11 @@ FOR LOCAL:0, 0, MEQUIP_PLAYER_NUM:(ARG:0)
 	;奉仕経験値を得られるコマンドのフラグ
 	TCVAR:(LOCAL:2):4 = 1
 
-	IF TALENT:(LOCAL:2):技師
-		LOCAL:11 = 750
-	ELSE
-		LOCAL:11 = 500
-	ENDIF
-
 	;ターゲットに与える快感系ソースを計算
-	SOURCE:(MTAR:0):快Ｐ += SENSE_HOUSHI_P(LOCAL:2, MTAR:0, LOCAL:11) * LOCAL:10 / 100
+	SOURCE:(MTAR:0):快Ｐ += SENSE_HOUSHI_P(LOCAL:2, MTAR:0, 500) * LOCAL:10 / 100
 
 	;射精箇所と対象をセット
-	CALL STACK_SPERM(MTAR:0, LOCAL:2, 射精部位_オナホ)
+	CALL STACK_SPERM(MTAR:0, LOCAL:2, RAND:3 ? 射精部位_髪 # 射精部位_顔)
 NEXT
 
 ;●ターゲットについて判定
@@ -175,24 +164,24 @@ SOURCE:(MTAR:0):性行動 += 60
 ;-------------------------------------------------
 ;継続中の表示
 ;-------------------------------------------------
-@EQUIP_MESSAGE16(ARG:0)
-RESULTS = %EQUIP_PLAYER_ANAME(ARG:0)%が%EQUIP_TARGET_ANAME(ARG:0)%にオナホコキ中
+@EQUIP_MESSAGE18(ARG:0)
+RESULTS = %EQUIP_PLAYER_ANAME(ARG:0)%が%EQUIP_TARGET_ANAME(ARG:0)%に髪コキ中
 
 ;-------------------------------------------------
 ;継続中の地の文(前文)
 ;-------------------------------------------------
-@COM_TEXT_BEFORE_EQUIP16(ARG:0)
-PRINTFORML %EQUIP_PLAYER_ANAME(ARG:0)%が%EQUIP_TARGET_ANAME(ARG:0)%のペニスをオナホでシゴき上げている…
+@COM_TEXT_BEFORE_EQUIP18(ARG:0)
+PRINTFORML %EQUIP_PLAYER_ANAME(ARG:0)%が%EQUIP_TARGET_ANAME(ARG:0)%のペニスに髪を絡めてシゴき上げている…
 
 ;-------------------------------------------------
 ;継続を解除したときの地の文
 ;-------------------------------------------------
-@COM_TEXT_RELEASE_EQUIP16(ARG:0)
+@COM_TEXT_RELEASE_EQUIP18(ARG:0)
 
 ;-------------------------------------------------
 ;固有の実行判定
 ;-------------------------------------------------
-@COM_ORDER_PLAYER16(ARG:0)
+@COM_ORDER_PLAYER18(ARG:0)
 ;実行値の設定
 TCVAR:(ARG:0):25 = 75
 
@@ -237,7 +226,7 @@ ENDIF
 ;	;アナルの汚れ
 ;	SIF STAIN:PLAYER:2 & 8
 ;		LOCAL:0 += 7
-;	SIF STAIN:PLAYER:2 & 16
+;	SIF STAIN:PLAYER:2 & 18
 ;		LOCAL:0 += 15
 ;
 ;	SIF TALENT:(ARG:0):汚臭鈍感
@@ -263,20 +252,20 @@ RETURN 1
 ;-------------------------------------------------
 ;地の文(前文)
 ;-------------------------------------------------
-@COM_TEXT_BEFORE16
+@COM_TEXT_BEFORE18
 ;プレイヤーが２人
 IF MPLY_NUM == 2
 	SELECTCASE GET_COM_INITIATIVE()
 		;プレイヤーに主導権
 		CASE 0
-			PRINTFORMW %ANAME(MPLY:0)%と%ANAME(MPLY:1)%は二人でオナホを握り締めると、%ANAME(MTAR:0)%のペニスに被せて激しく上下にシゴき上げ%TARGET_STR("た", "てきた")%…
+			PRINTFORMW %ANAME(MPLY:0)%と%ANAME(MPLY:1)%はそれぞれ髪を%ANAME(MTAR:0)%のペニスに絡め、いやらしくシゴき上げ%TARGET_STR("た", "てきた")%…
 		;ターゲットに主導権
 		CASE 1
-			PRINTFORMW %ANAME(MTAR:0)%は%ANAME(MPLY:0)%と%ANAME(MPLY:1)%にオナホを握らせると、それをペニスに被せさせ上下にシゴかせた…
+			PRINTFORMW %ANAME(MTAR:0)%は%ANAME(MPLY:0)%と%ANAME(MPLY:1)%に、髪をペニスに絡ませシゴかせた…
 		;第三者に主導権
 		CASEELSE
-			PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%と%ANAME(MPLY:1)%に、%ANAME(MTAR:0)%のペニスをオナホでシゴくように命令した
-			PRINTFORMW %ANAME(MPLY:0)%と%ANAME(MPLY:1)%は二人でオナホを握り締めると、%ANAME(MTAR:0)%のペニスに被せて上下にシゴき上げた…
+			PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%と%ANAME(MPLY:1)%に、%ANAME(MTAR:0)%のペニスに髪を絡めてシゴくように命令した
+			PRINTFORMW %ANAME(MPLY:0)%と%ANAME(MPLY:1)%はそれぞれ髪を%ANAME(MTAR:0)%のペニスに絡め、いやらしくシゴき上げた…
 	ENDSELECT
 
 ;プレイヤーが１人
@@ -284,13 +273,13 @@ ELSE
 	SELECTCASE GET_COM_INITIATIVE()
 		;プレイヤーに主導権
 		CASE 0
-			PRINTFORMW %ANAME(MPLY:0)%はオナホを握り締めると、%ANAME(MTAR:0)%のペニスに被せて激しく上下にシゴき上げ%TARGET_STR("た", "てきた")%…
+			PRINTFORMW %ANAME(MPLY:0)%は髪を%ANAME(MTAR:0)%のペニスに絡め、いやらしくシゴき上げ%TARGET_STR("た", "てきた")%…
 		;ターゲットに主導権
 		CASE 1
-			PRINTFORMW %ANAME(MTAR:0)%は%ANAME(MPLY:0)%にオナホを握らせると、それをペニスに被せさせ上下にシゴかせた…
+			PRINTFORMW %ANAME(MTAR:0)%は%ANAME(MPLY:0)%に、髪をペニスに絡ませシゴかせた…
 		;第三者に主導権
 		CASEELSE
-			PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に、%ANAME(MTAR:0)%のペニスをオナホでシゴくように命令した
-			PRINTFORMW %ANAME(MPLY:0)%はオナホを握り締めると、%ANAME(MTAR:0)%のペニスに被せて上下にシゴき上げた…
+			PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に、%ANAME(MTAR:0)%のペニスに髪を絡めてシゴくように命令した
+			PRINTFORMW %ANAME(MPLY:0)%は髪を%ANAME(MTAR:0)%のペニスに絡め、いやらしくシゴき上げた…
 	ENDSELECT
 ENDIF
