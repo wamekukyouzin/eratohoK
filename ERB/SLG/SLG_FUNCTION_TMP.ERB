@@ -483,7 +483,7 @@ FOR LOCAL, 0, MAX_COUNTRY
 		合計ポイント:LOCAL = 0
 		FOR LOCAL:1, 0, CHARANUM
 			SIF LOCAL == CFLAG:(LOCAL:1):所属
-				能力値:LOCAL += (ABL:(LOCAL:1):武闘 >= 60) + (ABL:(LOCAL:1):防衛 >= 60) + (ABL:(LOCAL:1):知略 >= 60) + (ABL:(LOCAL:1):政治 >= 60) + (ABL:(LOCAL:1):妖術 >= 0) + (ABL:(LOCAL:1):料理 >= 50) + (ABL:(LOCAL:1):歌唱 >= 50)
+				能力値:LOCAL += TMP_CHARA_STARS:(LOCAL:1)
 		NEXT
 	ENDIF
 NEXT
@@ -493,27 +493,27 @@ NEXT
 FOR LOCAL, 0, 勢力数
 	LOCAL:1 = FINDELEMENT(士官数, MAXARRAY(士官数))
 	士官数:(LOCAL:1) = __INT_MIN__
-	合計ポイント:(LOCAL:1) += LOCAL * 2 / 3
+	合計ポイント:(LOCAL:1) += LOCAL / 2
 
 	LOCAL:1 = FINDELEMENT(都市数, MAXARRAY(都市数))
 	都市数:(LOCAL:1) = __INT_MIN__
-	合計ポイント:(LOCAL:1) += LOCAL
+	合計ポイント:(LOCAL:1) += LOCAL * 3 / 2
 
 	LOCAL:1 = FINDELEMENT(能力値, MAXARRAY(能力値))
 	能力値:(LOCAL:1) = __INT_MIN__
-	合計ポイント:(LOCAL:1) += LOCAL * 2
+	合計ポイント:(LOCAL:1) += LOCAL
 
 	LOCAL:1 = FINDELEMENT(経済値, MAXARRAY(経済値))
 	経済値:(LOCAL:1) = __INT_MIN__
-	合計ポイント:(LOCAL:1) += LOCAL * 3 / 2
+	合計ポイント:(LOCAL:1) += LOCAL * 2
 
 	LOCAL:1 = FINDELEMENT(防衛値, MAXARRAY(防衛値))
 	防衛値:(LOCAL:1) = __INT_MIN__
-	合計ポイント:(LOCAL:1) += LOCAL / 2
+	合計ポイント:(LOCAL:1) += LOCAL / 4
 NEXT
 
 ;TMP_COUNTRY_STARSの数
-LOCAL:2 = 1
+LOCAL:2 = 5
 ;このTMP_COUNTRY_STARS数でのTMP_COUNTRY_STARS付与回数
 LOCAL:3 = 0
 
@@ -526,14 +526,17 @@ FOR LOCAL, 0, 勢力数
 	IF LOCAL:2 <= 勢力数 % 5
 		IF 勢力数 / 5 + 1 <= LOCAL:3
 			LOCAL:3 = 0
-			LOCAL:2 ++
+			LOCAL:2 --
 		ENDIF
-	ELSEIF 勢力数 / 5 <= LOCAL:3
-		LOCAL:3 = 0
-		LOCAL:2 ++
+	ELSE
+		IF 勢力数 / 5 <= LOCAL:3
+			LOCAL:3 = 0
+			LOCAL:2 --
+		ENDIF
 	ENDIF
 	;そのTMP_COUNTRY_STARS数でTMP_COUNTRY_STARSを与えた回数が勢力数の1/5より大きい、ないしそのTMP_COUNTRY_STARS数が総数の5で割ったあまりなら継続
 NEXT
+
 
 ;-----------------------------
 ;;勢力の難易度を表示
@@ -542,19 +545,20 @@ NEXT
 @TMP_PRINT_COUNTRY_DIFFICULTY(勢力番号)
 #DIM 勢力番号
 SELECTCASE TMP_COUNTRY_STARS:勢力番号
-	CASE 1
+	CASE 5
 		LOCAL:1 = COLOR("水色")
-	CASE 2
+	CASE 4
 		LOCAL:1 = COLOR("黄緑")
 	CASE 3
 		LOCAL:1 = COLOR("緑")
-	CASE 4
+	CASE 2
 		LOCAL:1 = COLOR("注意")
-	CASE 5
+	CASE 1
 		LOCAL:1 = COLOR("警告")
 ENDSELECT
+LOCAL:2 = 6 - TMP_COUNTRY_STARS:勢力番号
 FOR LOCAL, 0, 5
-	IF LOCAL < TMP_COUNTRY_STARS:勢力番号
+	IF LOCAL < LOCAL:2
 		CALL COLORPRINTFORM("★", LOCAL:1)
 	ELSE
 		PRINT ☆
@@ -568,20 +572,21 @@ NEXT
 @TMP_PRINT_COUNTRY_STARS(勢力番号)
 #DIM 勢力番号
 SELECTCASE TMP_COUNTRY_STARS:勢力番号
-	CASE 1
+	CASE 5
 		LOCAL:1 = COLOR("桃")
-	CASE 2
+	CASE 4
 		LOCAL:1 = COLOR("橙")
 	CASE 3
 		LOCAL:1 = COLOR("緑")
-	CASE 4
+	CASE 2
 		LOCAL:1 = COLOR("水色")
-	CASE 5
+	CASE 1
 		LOCAL:1 = COLOR("灰色")
+	CASEELSE
+		LOCAL:1 = 0X000000
 ENDSELECT
-LOCAL:2 = 6 - TMP_COUNTRY_STARS:勢力番号
 FOR LOCAL, 0, 5
-	IF LOCAL < LOCAL:2
+	IF LOCAL < TMP_COUNTRY_STARS:勢力番号
 		CALL COLORPRINTFORM("★", LOCAL:1)
 	ELSE
 		PRINT ☆
