@@ -1,8 +1,9 @@
 ﻿;情報表示に関わる関数
 
-@SHOW_INFO_WITH_UI(対象, ページ移動)
+@SHOW_INFO_WITH_UI(対象, ページ移動, 調教中 = 0)
 #DIM 対象
 #DIM ページ移動
+#DIM 調教中
 #DIM FIRST_LINE
 #DIM 現好みLV
 #DIM 経験数
@@ -16,7 +17,7 @@ ENDIF
 
 ;対象キャラの情報を表示
 DRAWLINE
-CALL SHOW_INFO(対象)
+CALL SHOW_INFO(対象, 調教中)
 DRAWLINE
 
 REDRAW 0
@@ -178,7 +179,8 @@ SETCOLOR LOCAL:0
 ;-------------------------------------------------
 ;ARG:0番のキャラの情報を表示
 ;-------------------------------------------------
-@SHOW_INFO(ARG:0)
+@SHOW_INFO(ARG:0, 調教中 = 0)
+#DIM 調教中
 IF FLAG:能力表示モード == 1
 	CALL SHOW_TENDENCY_SETTING(ARG:0)
 ELSEIF FLAG:能力表示モード == 2
@@ -271,6 +273,12 @@ ELSE
 	ENDIF
 
 	PRINTL 
+
+	IF 調教中
+		PRINTL □ 今回の調教 □
+		CALL NEW_PRINT_ORGASM(ARG:0)
+		PRINTL 
+	ENDIF
 
 	PRINTL □ 経験 □
 	CALL NEW_PRINT_EXP(ARG:0)
@@ -918,6 +926,78 @@ NEXT
 IF !表示
 	PRINT なし
 ENDIF
+
+;-------------------------------------------------
+;ARG:0番の今回の調教での射精・射精され・絶頂回数を表示
+;-------------------------------------------------
+@NEW_PRINT_ORGASM(対象)
+#DIM 対象
+#DIM 部位
+#DIM 改行用
+#DIM 表示フラグ
+表示フラグ = 0
+改行用 = 0
+FOR 部位, 0, CUM_SLOT_NUM
+	SIF CUM_GET_COUNT:対象:部位 <= 0
+		CONTINUE
+	IF 表示フラグ == 0
+		PRINTFORM %"射精された量:", 13, RIGHT%
+		表示フラグ = 1
+	ENDIF
+	SIF 改行用 > 0 && 改行用 % 5 == 0
+		PRINTL
+	SIF GROUPMATCH(部位, 射精部位_膣内, 射精部位_アナル)
+		SETCOLOR COLOR("ピンク")
+	PRINTFORM %CUM_SLOT_NAME:部位, 8, RIGHT%:{CUM_GET_COUNT:対象:部位, 4, RIGHT}
+	RESETCOLOR
+	改行用 ++
+NEXT
+IF 表示フラグ
+	PRINTL
+	表示フラグ = 0
+	改行用 = 0
+ENDIF
+
+FOR 部位, 0, CUM_SLOT_NUM
+	SIF CUM_TO_COUNT:対象:部位 <= 0
+		CONTINUE
+	IF 表示フラグ == 0
+		PRINTFORM %"射精した量:", 13, RIGHT%
+		表示フラグ = 1
+	ENDIF
+	SIF 改行用 > 0 && 改行用 % 5 == 0
+		PRINTL
+	SIF GROUPMATCH(部位, 射精部位_膣内, 射精部位_アナル)
+		SETCOLOR COLOR("ピンク")
+	PRINTFORM %CUM_SLOT_NAME:部位, 8, RIGHT%:{CUM_TO_COUNT:対象:部位, 4, RIGHT}
+	改行用 ++
+	RESETCOLOR
+NEXT
+IF 表示フラグ
+	PRINTL
+	表示フラグ = 0
+	改行用 = 0
+ENDIF
+
+FOR 部位, 0, VARSIZE("EX")
+	SIF EX:対象:部位 <= 0
+		CONTINUE
+	IF 表示フラグ == 0
+		PRINTFORM %"絶頂強度:", 13, RIGHT%
+		表示フラグ = 1
+	ENDIF
+	SIF 改行用 > 0 && 改行用 % 5 == 0
+		PRINTL
+
+	PRINTFORM %EXNAME:部位, 8, RIGHT%:{EX:対象:部位, 4, RIGHT}
+	改行用 ++
+NEXT
+IF 表示フラグ
+	PRINTL
+	表示フラグ = 0
+	改行用 = 0
+ENDIF
+
 ;-------------------------------------------------
 ;数値表示変更
 ;-------------------------------------------------
