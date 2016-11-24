@@ -791,151 +791,7 @@ FOR LOCAL:0, CHARANUM - 1, -1, -1
 	ENDIF
 NEXT
 
-;ランダムキャラの人数をカウント
-LOCAL:2 = 0
-FOR LOCAL:0, 0, CHARANUM
-	IF (IS_RANDOM_CHARA(LOCAL) || IS_CHILD(LOCAL)) && LOCAL:0 != MASTER
-		LOCAL:2 ++
-	ENDIF
-NEXT
-
-;ランダムキャラが存在する場合
-IF LOCAL:2 >= 1
-	;ページ数の計算
-	LOCAL:3 = (LOCAL:2 - 1) / 66 + 1
-	LOCAL:4 = 1
-	VARSET LOCAL, -1, 20, 30
-
-	DRAWLINE
-	PRINTFORML ランダムキャラおよび子供を5人まで引き継ぐことができます
-	PRINTFORML 引き継ぐキャラを選択して下さい
-	DRAWLINE
-	FIRST_LINE = LINECOUNT
-	$SHOW_LOOP_RCHARA
-
-	LOCAL:5 = 0
-	LOCAL:6 = (LOCAL:4 - 1) * 66
-	LOCAL:7 = LOCAL:4 * 66
-	LOCAL:8 = 0
-	FOR LOCAL:0, 0, CHARANUM
-		IF (IS_RANDOM_CHARA(LOCAL) || IS_CHILD(LOCAL)) && LOCAL:0 != MASTER && !TALENT:(LOCAL:0):特殊勢力素質
-			IF LOCAL:5 >= LOCAL:6 && LOCAL:5 < LOCAL:7
-				IF LOCAL:8 % 5 == 0 && LOCAL:8 >= 1
-					PRINTL 
-				ENDIF
-				FOR LOCAL:1, 20, 30
-					IF LOCAL:(LOCAL:1) == LOCAL:0
-						SETCOLOR COLOR("選択中")
-						BREAK
-					ENDIF
-				NEXT
-				LOCALS:0 = \{%ANAME(LOCAL:0), 12, LEFT%\}
-				PRINTBUTTON @"%LOCALS:0, 16, LEFT%", NO:(LOCAL:0) + 100
-				RESETCOLOR
-				LOCAL:8 ++
-			ENDIF
-			LOCAL:5 ++
-		ENDIF
-	NEXT
-	PRINTL 
-	DRAWLINE
-
-	;消去する行数を計算
-	LOCAL:15 = (LOCAL:8 - 1) / 5 + 4
-
-	IF LOCAL:3 >= 2
-		LOCAL:15 += 2
-
-		IF LOCAL:4 >= 2
-			PRINT [  8] 前のページ            
-		ELSE
-			PRINT                             
-		ENDIF
-		PRINTPLAINFORM page {LOCAL:4}/{LOCAL:3}                    
-		IF LOCAL:4 < LOCAL:3
-			PRINT [  9] 次のページ
-		ENDIF
-		PRINTL 
-		DRAWLINE
-	ENDIF
-
-	PRINTFORML [  0] 決定
-
-	REDRAW 0
-
-	$INPUT_LOOP_RCHARA
-	INPUT
-
-	IF RESULT == 8 && LOCAL:4 >= 2
-		LOCAL:4 --
-		CLEARLINE LINECOUNT - FIRST_LINE
-		GOTO SHOW_LOOP_RCHARA
-	ELSEIF RESULT == 9 && LOCAL:4 < LOCAL:3
-		LOCAL:4 ++
-		CLEARLINE LINECOUNT - FIRST_LINE
-		GOTO SHOW_LOOP_RCHARA
-	ELSEIF RESULT != 0
-		LOCAL:10 = NO_TO_CHARA(RESULT - 100)
-
-		IF (IS_RANDOM_CHARA(LOCAL:10) || IS_CHILD(LOCAL:10)) && LOCAL:10 != MASTER && !TALENT:(LOCAL:10):特殊勢力素質
-			;選択されたキャラなら選択解除
-			FOR LOCAL:0, 20, 25
-				IF LOCAL:(LOCAL:0) == LOCAL:10
-					LOCAL:(LOCAL:0) = -1
-					CLEARLINE LINECOUNT - FIRST_LINE
-					GOTO SHOW_LOOP_RCHARA
-				ENDIF
-			NEXT
-
-			;選択されていないキャラなら選択
-			FOR LOCAL:0, 20, 25
-				IF LOCAL:(LOCAL:0) < 0
-					LOCAL:(LOCAL:0) = LOCAL:10
-					CLEARLINE LINECOUNT - FIRST_LINE
-					GOTO SHOW_LOOP_RCHARA
-				ENDIF
-			NEXT
-
-			PRINTFORMW これ以上選択できません
-			CLEARLINE 2
-			GOTO INPUT_LOOP_RCHARA
-		ELSE
-			CLEARLINE 1
-			GOTO INPUT_LOOP_RCHARA
-		ENDIF
-	ENDIF
-
-	REDRAW 1
-
-	;選択キャラのリストをIDに変更、選択されたキャラの数をカウント
-	LOCAL:10 = 0
-	FOR LOCAL:0, 20, 30
-		IF LOCAL:(LOCAL:0) >= 0
-			LOCAL:(LOCAL:0) = GET_ID(LOCAL:(LOCAL:0))
-			LOCAL:10 ++
-		ENDIF
-	NEXT
-
-	;選択されていないランダムキャラの削除
-	LOCAL:11 = LOCAL:10 - 1
-	LOCAL:12 = CHARANUM
-	FOR LOCAL:0, 0, LOCAL:12
-		;前から削除していくとキャラ番号が順次変わってしまうため後ろから走査
-		LOCAL:5 = LOCAL:12 - LOCAL:0 - 1
-		IF !IS_FIXED_CHARA(LOCAL:5) && LOCAL:5 != MASTER
-			LOCAL:6 = 1
-			FOR LOCAL:1, 20, 30
-				IF GET_ID(LOCAL:5) == LOCAL:(LOCAL:1)
-					LOCAL:6 = 0
-					BREAK
-				ENDIF
-			NEXT
-			IF LOCAL:6
-				CALL DELETE_CHARA(LOCAL:5)
-			ENDIF
-		ENDIF
-	NEXT
-ENDIF
+CALL PASS_RANDOM_CHARA
 
 ;出産後のキャラがいる場合、状態をリセット
 FOR LOCAL:0, 0, CHARANUM
@@ -958,4 +814,49 @@ CALL NEWLOOP(1)
 RETURN 1
 
 
+
+
+;-------------------------------------------------
+;ランダム・子供キャラの引継ぎ設定
+;LOCAL地獄のRetardedコードだったのでリファクタ。
+;-------------------------------------------------
+@PASS_RANDOM_CHARA
+#DIM 頭数
+#DIM 対象
+#DIM 選択キャラID, 10
+;ランダムキャラの人数をカウント
+頭数 = 0
+FOR LOCAL:0, 0, CHARANUM
+	SIF (IS_RANDOM_CHARA(LOCAL) || IS_CHILD(LOCAL)) && LOCAL:0 != MASTER
+		LOCAL:2 ++
+	頭数 ++
+NEXT
+
+SIF 頭数 <= 0
+	RETURN
+
+;ランダムキャラが存在する場合
+DRAWLINE
+PRINTFORML ランダムキャラおよび子供を10人まで引き継ぐことができます
+PRINTFORML 引き継ぐキャラを選択して下さい
+DRAWLINE
+CALL SELECT_CHARA_LIST_MULTI_ONLY_LOGIC_SLG(VARSIZE("選択キャラID"), "!IS_CHILD&&!IS_RANDOM_CHARA", "")
+
+VARSET 選択キャラID
+
+;選択キャラのリストをIDに変更、選択されたキャラの数をカウント
+FOR LOCAL, 0, SELECTED_CHARA_NUM
+	選択キャラID:LOCAL = GET_ID(SELECTED_CHARA:LOCAL)
+NEXT
+
+;選択されていないランダムキャラの削除
+頭数 = CHARANUM
+
+FOR LOCAL:0, 0, 頭数
+	対象 = 頭数 - LOCAL:0 - 1
+	SIF IS_FIXED_CHARA(対象) || 対象 == MASTER
+		CONTINUE
+	SIF FINDELEMENT(選択キャラID, GET_ID(対象)) == -1
+		CALL DELETE_CHARA(対象)
+NEXT
 
