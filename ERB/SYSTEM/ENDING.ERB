@@ -19,392 +19,216 @@ RETURN 1
 ;-------------------------------------------------
 @ENDING_CHECK
 ;天下を統一した国家の番号
-#DIM UNIFY
+#DIM 統治勢力
+#DIM 統治君主
+#DIM 分割統治フラグ
 
-;クリア済みは除く
-IF !FLAG:クリアフラグ
-	;主人公が死亡した場合
-	IF FLAG:処刑エンドフラグ || FLAG:戦死エンドフラグ
-		DRAWLINE
+SIF FLAG:クリアフラグ
+	RETURN
 
-		;処刑
-		IF FLAG:処刑エンドフラグ
-			PRINTFORMW 処刑を命じられた%ANAME(MASTER)%の首元に、ひんやりと冷たい鉄の刀が押し当てられる…
-		;戦死
-		ELSEIF FLAG:戦死エンドフラグ
-			PRINTFORMW 戦いの中で致命傷を負った%ANAME(MASTER)%は、傷口から大量の血を噴き出し地面に倒れ伏していた
-			PRINTFORMW 馬のいななきや刀が触れ合う金属音、悲鳴や狂喜の入り混じった歓声が響く中、%ANAME(MASTER)%の意識は薄れていく…
-		ENDIF
+;主人公が死亡した場合
+IF FLAG:処刑エンドフラグ || FLAG:戦死エンドフラグ
+	CALL DEAD_END
+	RETURN
+ENDIF
 
-		PRINTL 
-		PRINTW ………………
-		PRINTW …………
-		PRINTW ……
-		PRINTL 
+;天下を統一した国家の番号を取得
+統治勢力 = GET_UNIFY_COUNTRY()
 
-		;好感度が最も高いキャラとその好感度を求める
-		LOCAL:1 = 0
-		LOCAL:2 = -1
-		FOR LOCAL:0, 0, CHARANUM
-			IF CFLAG:(LOCAL:0):2 > LOCAL:1 && LOCAL:0 != MASTER && GROUPMATCH(CFLAG:(LOCAL:0):特殊状態, 0, 1)
-				LOCAL:1 = CFLAG:(LOCAL:0):2
-				LOCAL:2 = LOCAL:0
-			ENDIF
-		NEXT
+;国家関係マップの作成
+CALL TMP_CREATE_RELATION_MAP
 
-		;好感度5000以上のキャラがいる場合
-		IF LOCAL:1 >= 5000
-			;口上の専用エンディングがあれば呼び出す
-			RESULT = 0
-			CALL KOJO_DEAD_ENDING(LOCAL:2)
-			IF !RESULT
-				PRINTFORMW ここに、%ANAME(MASTER)%の歴史は幕を閉じた…
-				PRINTFORMW                             - 終 -
-				WAIT
-			ENDIF
-		;好感度5000以上のキャラがいない場合
-		ELSE
-			PRINTFORMW ここに、%ANAME(MASTER)%の歴史は幕を閉じた…
-			PRINTFORMW                             - 終 -
-			WAIT
-		ENDIF
+;分割統治エンド
+IF !IS_COUNTRY(統治勢力) && CFLAG:MASTER:所属 >= 1 && IS_NOENEMY(CFLAG:MASTER:所属)
+	統治勢力 = CFLAG:MASTER:所属
+	分割統治フラグ = 1
+ENDIF
 
-		FOR LOCAL:0, 0, 10
-			PRINTL 
-		NEXT
-		;処刑エンドフラグをたてる。TURNEND末にてBEGIN TITLEされる（そうしないとBEGIN SHOPに上書きされる）
-		FLAG:処刑エンドフラグ = 1
-	ENDIF
+SIF !IS_COUNTRY(統治勢力)
+	RETURN
 
-	;天下を統一した国家の番号を取得
-	UNIFY = GET_UNIFY_COUNTRY()
+;無所属の都市の統合
+CALL UNIFY_FREE_CITY(統治勢力)
 
-	;一国による統一
-	IF UNIFY >= 1
-		;無所属の都市の統合
-		CALL UNIFY_FREE_CITY(UNIFY)
+統治君主 = GET_COUNTRY_BOSS(統治勢力)
 
-		LOCAL:3 = GET_COUNTRY_BOSS(UNIFY)
+PRINTL 
+CALL COLORPRINTFORM(@"%ANAME(統治君主)%が天下を統一しました！", COLOR("注意"), "W")
+PRINTL 
+CUSTOMDRAWLINE *-
+WAIT
 
-		PRINTL 
-		SETCOLOR COLOR("注意")
-		PRINTFORMW %NAME:(LOCAL:3)%が天下を統一しました！
-		RESETCOLOR
-		PRINTL 
-		
-		IF UNIFY == GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗))
-			CUSTOMDRAWLINE *-
-			WAIT
-			PRINTFORML 幻想郷に瞬く間に広がった野盗の勢力は、
-			PRINTFORMW あっという間に幻想郷全土を覆い尽くした
-			PRINTFORML 彼らの拠点には何人、いや何十人という少女が捕らえられ、彼らの性欲の犠牲となっている
-			PRINTFORMW だが、それを止める者はいない。彼らに刃向かう者は全て、滅ぼされてしまったのだから……
-			IF CFLAG:MASTER:所属 == UNIFY && IS_FEMALE(MASTER)
-				PRINTFORMW 
-				PRINTFORMW 幻想郷統一を祝う酒宴に、%ANAME(MASTER)%の姿もあった
-				PRINTFORMW 彼女は野盗勢力がここまで広まる立役者であり、この軍において、女でありながら比較的待遇は良い
-				PRINTFORMW ……女にしては、という但し書きつきであるが
-				PRINTFORML 酔っ払った野盗の一人が、意味深な目配せをする
-				PRINTFORML すると、%ANAME(MASTER)%は服を脱ぎ捨て、音をたてて彼の一物をしゃぶりはじめる
-				PRINTFORMW その様を見て興奮した別の男が、%ANAME(MASTER)%の秘部に肉棒をねじ込むと、%ANAME(MASTER)%はたまらないといった声を上げ、腰を振る
-				PRINTFORML ……野盗の中心にいるということは、一番深く彼らの思想に染まっているということでもある
-				PRINTFORMW 女は男の性奴隷。%ANAME(MASTER)%の頭には、それが心底まで刻み込まれているのだ……
-			ENDIF
-			PRINTFORML 
-			PRINTFORMW もはや救世主などない地に、ただただ女の嬌声と男の罵声が響き渡り続ける……
-			PRINTL 
-			ALIGNMENT CENTER
-			PRINTL ――――― つづく ―――――
-			ALIGNMENT LEFT
-			PRINTL 
-			WAIT
-			FOR LOCAL:0, 0, 20
-				PRINTL 
-			NEXT
-		ELSEIF UNIFY == GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_外来人))
-			CUSTOMDRAWLINE *-
-			WAIT
-			PRINTFORML 外来人たちの幻想郷侵攻計画は成功した
-			PRINTFORMW 彼らは科学の力で、幻想郷全土を支配下においた
-			PRINTFORML 今日も彼らは少女達を使い、非道な「実験」を繰り返している
-			PRINTFORML 彼らの研究所には、少女の悲鳴や嬌声が響き渡る
-			PRINTFORMW だが、それを止める者はいない。彼らに刃向かう者は全て、滅ぼされてしまったのだから……
-			IF CFLAG:MASTER:所属 == UNIFY && IS_FEMALE(MASTER)
-				PRINTFORMW 
-				PRINTFORMW 研究用奴隷たちのなかに、%ANAME(MASTER)%の姿もあった
-				PRINTFORMW 研究に協力的な模範的奴隷ということで、比較的待遇は良い
-				PRINTFORMW ……奴隷にしては、という但し書きつきであるが
-				PRINTFORML 今日の彼女に課せられたのは、異種生物との交配実験だ
-				PRINTFORMW 特殊な排卵誘発剤をあらかじめ下腹に子宮に注射されている%ANAME(MASTER)%は、妊娠の期待に下腹を疼かせている
-				PRINTFORML 彼女が実験室に入るなり、大型犬が彼女を組み伏せ、犯し始める
-				PRINTFORMW %ANAME(MASTER)%は、たまらないといった声をあげ、何度も放たれる精液を肉穴で受け止めていく 
-				PRINTFORMW 科学者たちは、それを無感動に眺め、時折記録をとっていた……
-			ENDIF
-			PRINTFORML 
-			PRINTFORMW もはや救世主などない地に、ただただ女の嬌声が響き渡り続ける……
-			PRINTL 
-			ALIGNMENT CENTER
-			PRINTL ――――― つづく ―――――
-			ALIGNMENT LEFT
-			PRINTL 
-			WAIT
-			FOR LOCAL:0, 0, 20
-				PRINTL 
-			NEXT
-		ELSEIF UNIFY == GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_ホフゴブリン))
-			CUSTOMDRAWLINE *-
-			WAIT
-			PRINTFORML ホフゴブリンたちの底力は、幻想郷を転覆させるほどのものだった
-			PRINTFORML 名だたる強者たちは数の暴力の前に駆逐され、彼らに捕らえられていった
-			PRINTFORMW ……そして、彼らが幻想郷の支配者となる日が、とうとう訪れた
-			PRINTFORML 彼らの拠点に、少女たちの嬌声が響き渡る
-			PRINTFORML 最初は抵抗していた彼女らも、ホフゴブリンの強烈な性欲による、徹底した調教の前に、いつしか屈していた
-			PRINTFORMW 今や彼女らは、彼らに使える無価値な性奴隷に過ぎない。そこに、かつての面影などなかった……
-			IF CFLAG:MASTER:所属 == UNIFY && IS_FEMALE(MASTER)
-				PRINTFORMW 
-				PRINTFORML ……奴隷どものなかに、%ANAME(MASTER)%の姿もあった
-				PRINTFORMW ホフゴブリンどもに取り囲まれながら、懸命に腰を振っている
-				PRINTFORML 膣穴がなかなかいい具合だと評判の彼女は、奴隷どもの中でも比較的ましな扱いを受けていた
-				PRINTFORMW ……奴隷にしては、という但し書きつきであるが
-				PRINTFORML 二穴に、そして口に肉棒を咥える彼女の頭の中には、種を付けられること、そして妊娠することへの期待しかなかった
-				PRINTFORMW 子宮を小突かれ絶頂する%ANAME(MASTER)%をよそに、ホフゴブリンは猛然と腰を振りたくって行く
-				PRINTFORMW %ANAME(MASTER)%は、たまらないといった声をあげ、何度も放たれる精液を肉穴で受け止めていく
-				PRINTFORMW 終わることのない悦びに、%ANAME(MASTER)%はこれからも浸り続けるのだ……
-			ENDIF
-			PRINTFORML 
-			PRINTFORMW もはや救世主などない地に、ただただ女の嬌声が響き渡り続ける……
-			PRINTL 
-			ALIGNMENT CENTER
-			PRINTL ――――― つづく ―――――
-			ALIGNMENT LEFT
-			PRINTL 
-			WAIT
-			FOR LOCAL:0, 0, 20
-				PRINTL 
-			NEXT
-		;外交禁止フラグが立っている国家が統一した場合、エンディングメッセージを表示させない
-		ELSEIF !COUNTRY_IS_CLOSED:UNIFY
-			CUSTOMDRAWLINE *-
-			WAIT
-			PRINTFORML 幻想郷を焼き尽くさんばかりに燃え広がった戦乱の炎は、
-			PRINTFORMW 一人の英雄の手によって打ち払われた。
-			IF NO:(LOCAL:3) == 0
-				PRINTFORMW その英雄の名は――……
-				PRINTW 
-			ELSE
-				PRINTFORMW その英雄の名は%NAME_FORMAL(LOCAL:3)%。
-			ENDIF
-			PRINTFORMW %TOSTR_THIRD(LOCAL:3)%の偉業は、長く後世に語り継がれることとなるだろう。
-			PRINTFORMW ここに天下は定まり、幻想郷にしばしの平穏の時代が訪れたのであった……
-			CUSTOMDRAWLINE *-
-			PRINTL 
-			PRINTW ……………………
-			PRINTL 
+IF IS_SP_COUNTRY(統治勢力)
+	TRYCCALLFORM %SP_COUNTRY_NAME_ENG:SP_COUNTRY_TO_CONST(統治勢力)%_ENDING
+	CATCH
+		CALL ENDING_TEXT(統治勢力)
+	ENDCATCH
+ELSE
+	CALL ENDING_TEXT(統治勢力, 分割統治フラグ)
+ENDIF
 
-			;主人公の所属する国家が統一した場合
-			IF UNIFY == CFLAG:MASTER:所属
-				;好感度が最も高いキャラとその好感度を求める
-				LOCAL:1 = 0
-				LOCAL:2 = -1
-				FOR LOCAL:0, 0, CHARANUM
-					IF CFLAG:(LOCAL:0):2 > LOCAL:1 && LOCAL:0 != MASTER && CFLAG:(LOCAL:0):特殊状態 == 0 && CFLAG:(LOCAL:0):所属 == CFLAG:MASTER:所属
-						LOCAL:1 = CFLAG:(LOCAL:0):2
-						LOCAL:2 = LOCAL:0
-					ENDIF
-				NEXT
+PRINTL
+ALIGNMENT CENTER
+PRINTL ――――― つづく ―――――
+ALIGNMENT LEFT
+PRINTL 
+WAIT
+FOR LOCAL:0, 0, 20
+	PRINTL 
+NEXT
 
-				;好感度5000以上のキャラがいる場合
-				IF LOCAL:1 >= 5000
-					;口上の専用エンディングがあれば呼び出す
-					RESULT = 0
-					CALL KOJO_SINGLE_ENDING(LOCAL:2)
-					IF !RESULT
-						PRINTFORMW ひっそりと祝賀の宴から抜け出した%CALLNAME:MASTER%と%ANAME(LOCAL:2)%は、共に星空を見上げていた。
-						PRINTFORMW ここに来るまで、二人で様々な苦難を乗り越えてきたが、今思えばあっという間だったような気もする。
-						PRINTFORMW 一つの時代が、一つの物語が、今、終わりを告げたのだ。
-						PRINTFORMW 不意に、%ANAME(LOCAL:2)%が%CALLNAME:MASTER%の手を、ぎゅっと、握った。
-						PRINTFORMW その手を%CALLNAME:MASTER%も握り返す。
-						PRINTFORMW 決して離れぬように、決して離さぬように……
-						IF TALENT:MASTER:3 || TALENT:(LOCAL:2):3
-							PRINTFORMW 優しい月の光に照らされながら――
-							PRINTFORMW 二人はお互いの確かな存在を感じ合っていた。
-						ELSE
-							PRINTFORMW 二人は、お互いの存在を確かめ合うように、抱きしめ合い――
-							PRINTFORMW そっと唇を重ねた。
-							;キスの共通処理
-							CALL KISS_COMMON(MASTER, @"%ANAME(LOCAL:2)%の唇", 喪失_和姦)
-							CALL KISS_COMMON(LOCAL:2, @"%ANAME(MASTER)%の唇", 喪失_和姦)
-							EXP:MASTER:キス経験 += 1
-							EXP:(LOCAL:2):キス経験 += 1
-						ENDIF
-					ENDIF
-				;好感度5000以上のキャラがいない場合
-				ELSE
-					PRINTFORMW ひっそりと祝賀の宴から抜け出した%CALLNAME:MASTER%は、一人天を見上げていた。
-					PRINTFORMW 天下が定まったこと、それ自体は喜ばしいことに違いない。
-					PRINTFORMW しかし、ずっと戦乱の中で居場所を見つけてきた%CALLNAME:MASTER%は、心の何処かで虚しさを感じていた。
-					PRINTFORMW これからの平穏な世の中に、自分のいるべき場所はあるのだろうか……？
-					PRINTL 
-					;好感度50以上のキャラがいる場合
-					IF LOCAL:1 >= 50
-						PRINTFORMW 誰かが%CALLNAME:MASTER%を呼ぶ声がする。
-						PRINTFORMW どうやら%ANAME(LOCAL:2)%が%CALLNAME:MASTER%を探しに来たようだ。
-						PRINTFORMW 新しい居場所……そんなものはこれから探していけばいいのだろう。
-						PRINTFORMW 戦いは終わった。時間はいくらでもある。
-						PRINTFORMW %CALLNAME:MASTER%は%ANAME(LOCAL:2)%に返事をすると、酔い潰れる覚悟で宴の席へ戻っていった。
-					ELSE
-						PRINTFORMW 宴はまだ続いているようだ。
-						PRINTFORMW ……こんな目出度い日に、辛気臭いことを考えても仕方ない。
-						PRINTFORMW %CALLNAME:MASTER%は酔い潰れる覚悟を決めると、宴の席へ戻っていった。
-					ENDIF
-				ENDIF
-				PRINTL 
-				ALIGNMENT CENTER
-				PRINTL ――――― つづく ―――――
-				ALIGNMENT LEFT
-				PRINTL 
-				WAIT
-				FOR LOCAL:0, 0, 20
-					PRINTL 
-				NEXT
-			ENDIF
-		ENDIF
+;野盗を削除
+SIF GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗)) != -1 && 統治勢力 != GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗))
+	CALL DESTROY_COUNTRY(GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗)))
 
-		;野盗を削除
-		SIF GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗)) != -1 && UNIFY != GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗))
-			CALL DESTROY_COUNTRY(GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗)))
-
+;部隊を解散
+FOR LOCAL:0, 1, MAX_COUNTRY
+	IF IS_COUNTRY(LOCAL:0)
 		;部隊を解散
-		CALL CLEAR_ALL_UNIT(UNIFY)
-		;守将を解除
-		VARSET CITY_COMMANDER, 0
-
-		;残党の一斉検挙
-		CALL CAPTURE_WANDERER(UNIFY)
-
-		;クリアフラグを立てる
-		FLAG:クリアフラグ = 1
+		CALL CLEAR_ALL_UNIT(LOCAL:0)
 	ENDIF
+NEXT
+;守将を解除
+VARSET CITY_COMMANDER, 0
 
-	;国家関係マップの作成
-	CALL TMP_CREATE_RELATION_MAP
+;残党の一斉検挙
+CALL CAPTURE_WANDERER(統治勢力)
 
-	;分割統治エンド
-	IF CFLAG:MASTER:所属 >= 1 && IS_NOENEMY(CFLAG:MASTER:所属) && !FLAG:クリアフラグ
-		;好感度が最も高いキャラとその好感度を求める
-		LOCAL:1 = 0
-		LOCAL:2 = -1
-		FOR LOCAL:0, 0, CHARANUM
-			IF CFLAG:(LOCAL:0):2 > LOCAL:1 && LOCAL:0 != MASTER && CFLAG:(LOCAL:0):特殊状態 == 0
-				LOCAL:1 = CFLAG:(LOCAL:0):2
-				LOCAL:2 = LOCAL:0
-			ENDIF
-		NEXT
+;クリアフラグを立てる
+FLAG:クリアフラグ = 1
 
-		LOCAL:3 = GET_COUNTRY_BOSS(CFLAG:MASTER:所属)
-		PRINTL 
-		SETCOLOR COLOR("注意")
-		PRINTFORMW もはや争うべき勢力はこの幻想郷に存在しません
-		PRINTFORMW 我が勢力は戦乱の時代を生き延びました！
-		RESETCOLOR
-		PRINTL 
-		CUSTOMDRAWLINE *-
+;-------------------------------------------------
+;死んだ場合
+;-------------------------------------------------
+@DEAD_END
+DRAWLINE
+
+;処刑
+IF FLAG:処刑エンドフラグ
+	PRINTFORMW 処刑を命じられた%ANAME(MASTER)%の首元に、ひんやりと冷たい鉄の刀が押し当てられる…
+;戦死
+ELSEIF FLAG:戦死エンドフラグ
+	PRINTFORMW 戦いの中で致命傷を負った%ANAME(MASTER)%は、傷口から大量の血を噴き出し地面に倒れ伏していた
+	PRINTFORMW 馬のいななきや刀が触れ合う金属音、悲鳴や狂喜の入り混じった歓声が響く中、%ANAME(MASTER)%の意識は薄れていく…
+ENDIF
+
+PRINTL 
+PRINTW ………………
+PRINTW …………
+PRINTW ……
+PRINTL 
+
+;好感度が最も高いキャラとその好感度を求める
+LOCAL:1 = 0
+LOCAL:2 = -1
+FOR LOCAL:0, 0, CHARANUM
+	IF CFLAG:(LOCAL:0):2 > LOCAL:1 && LOCAL:0 != MASTER && GROUPMATCH(CFLAG:(LOCAL:0):特殊状態, 0, 1)
+		LOCAL:1 = CFLAG:(LOCAL:0):2
+		LOCAL:2 = LOCAL:0
+	ENDIF
+NEXT
+
+;好感度5000以上のキャラがいる場合
+IF LOCAL:1 >= 5000
+	;口上の専用エンディングがあれば呼び出す
+	RESULT = 0
+	CALL KOJO_DEAD_ENDING(LOCAL:2)
+	IF !RESULT
+		PRINTFORMW ここに、%ANAME(MASTER)%の歴史は幕を閉じた…
+		PRINTFORMW                             - 終 -
 		WAIT
-		PRINTFORML 幻想郷を焼き尽くさんばかりに燃え広がった戦乱の炎は、
-		PRINTFORMW やがて君主同士が手を取り合い共存することで収まった。
-		FOR LOCAL:0, 1, MAX_COUNTRY
-			IF IS_COUNTRY(LOCAL:0) && LOCAL:0 != CFLAG:MASTER:所属
-				PRINTFORMW %NAME_FORMAL(GET_COUNTRY_BOSS(LOCAL:0))%。
-			ENDIF
-		NEXT
-		IF NO:(LOCAL:3) == MASTER
-			PRINTFORMW そしてもう一人――……
-			PRINTW 
+	ENDIF
+;好感度5000以上のキャラがいない場合
+ELSE
+	PRINTFORMW ここに、%ANAME(MASTER)%の歴史は幕を閉じた…
+	PRINTFORMW                             - 終 -
+	WAIT
+ENDIF
+
+FOR LOCAL:0, 0, 10
+	PRINTL 
+NEXT
+;処刑エンドフラグをたてる。TURNEND末にてBEGIN TITLEされる（そうしないとBEGIN SHOPに上書きされる）
+FLAG:処刑エンドフラグ = 1
+
+
+
+;-------------------------------------------------
+;エンディング用テキスト
+;-------------------------------------------------
+@ENDING_TEXT(統治国, 分割統治フラグ)
+#DIM 統治国
+#DIM 君主
+#DIM 分割統治フラグ
+君主 = GET_COUNTRY_BOSS(統治国)
+PRINTFORML 幻想郷を焼き尽くさんばかりに燃え広がった戦乱の炎は、
+IF 分割統治フラグ
+	PRINTFORMW 一人の英雄の手によって打ち払われた。
+ELSE
+	PRINTFORMW 一人の英雄の手によって治められた
+ENDIF
+PRINTFORMW その英雄の名は%NAME_FORMAL(君主)%。
+PRINTFORMW %PRONOUN(君主)%の偉業は、長く後世に語り継がれることとなるだろう。
+PRINTFORMW ここに天下は定まり、幻想郷にしばしの平穏の時代が訪れたのであった……
+
+SIF 統治国 != CFLAG:MASTER:所属
+	RETURN
+
+;主人公の所属する国家が統一した場合
+
+;好感度が最も高いキャラとその好感度を求める
+LOCAL:1 = 0
+LOCAL:2 = -1
+FOR LOCAL:0, 0, CHARANUM
+	IF CFLAG:(LOCAL:0):2 > LOCAL:1 && LOCAL:0 != MASTER && CFLAG:(LOCAL:0):特殊状態 == 0 && CFLAG:(LOCAL:0):所属 == CFLAG:MASTER:所属
+		LOCAL:1 = CFLAG:(LOCAL:0):2
+		LOCAL:2 = LOCAL:0
+	ENDIF
+NEXT
+
+;好感度5000以上のキャラがいる場合
+IF LOCAL:1 >= 5000
+	;口上の専用エンディングがあれば呼び出す
+	RESULT = 0
+	CALL KOJO_SINGLE_ENDING(LOCAL:2)
+	IF !RESULT
+		PRINTFORMW ひっそりと祝賀の宴から抜け出した%ANAME(MASTER)%と%ANAME(LOCAL:2)%は、共に星空を見上げていた。
+		PRINTFORMW ここに来るまで、二人で様々な苦難を乗り越えてきたが、今思えばあっという間だったような気もする。
+		PRINTFORMW 一つの時代が、一つの物語が、今、終わりを告げたのだ。
+		PRINTFORMW 不意に、%ANAME(LOCAL:2)%が%ANAME(MASTER)%の手を、ぎゅっと、握った。
+		PRINTFORMW その手を%ANAME(MASTER)%も握り返す。
+		PRINTFORMW 決して離れぬように、決して離さぬように……
+		IF TALENT:MASTER:3 || TALENT:(LOCAL:2):3
+			PRINTFORMW 優しい月の光に照らされながら――
+			PRINTFORMW 二人はお互いの確かな存在を感じ合っていた。
 		ELSE
-			PRINTFORMW そして%NAME_FORMAL(LOCAL:3)%。
+			PRINTFORMW 二人は、お互いの存在を確かめ合うように、抱きしめ合い――
+			PRINTFORMW そっと唇を重ねた。
+			;キスの共通処理
+			CALL KISS_COMMON(MASTER, @"%ANAME(LOCAL:2)%の唇", 喪失_和姦)
+			CALL KISS_COMMON(LOCAL:2, @"%ANAME(MASTER)%の唇", 喪失_和姦)
+			EXP:MASTER:キス経験 += 1
+			EXP:(LOCAL:2):キス経験 += 1
 		ENDIF
-		PRINTFORMW 力が支配する弱肉強食の世となった幻想郷。
-		PRINTFORMW そんな世にあっては類を見ない各勢力の理性的な対応は、後の世代に大きな影響を与えることになるだろう。
-		PRINTFORMW ここに戦乱は終焉を迎え、幻想郷にしばしの平穏の時代が訪れたのであった……
-		CUSTOMDRAWLINE *-
-		PRINTL 
-		PRINTW ……………………
-		PRINTL 
-		;好感度5000以上のキャラがいる場合
-		IF LOCAL:1 >= 5000 && INRANGE(LOCAL:2, 0, CHARANUM)
-			;口上の専用エンディングがあれば呼び出す
-			RESULT = 0
-			CALL KOJO_SINGLE_ENDING(LOCAL:2)
-			IF !RESULT
-				PRINTFORMW ひっそりと祝賀の宴から抜け出した%CALLNAME:MASTER%と%ANAME(LOCAL:2)%は、共に星空を見上げていた。
-				PRINTFORMW ここに来るまで、二人で様々な苦難を乗り越えてきたが、今思えばあっという間だったような気もする。
-				PRINTFORMW 一つの時代が、一つの物語が、今、終わりを告げたのだ。
-				PRINTFORMW 不意に、%ANAME(LOCAL:2)%が%CALLNAME:MASTER%の手を、ぎゅっと、握った。
-				PRINTFORMW その手を%CALLNAME:MASTER%も握り返す。
-				PRINTFORMW 決して離れぬように、決して離さぬように……
-				IF TALENT:MASTER:3 || TALENT:(LOCAL:2):3
-					PRINTFORMW 優しい月の光に照らされながら――
-					PRINTFORMW 二人はお互いの確かな存在を感じ合っていた。
-				ELSE
-					PRINTFORMW 二人は、お互いの存在を確かめ合うように、抱きしめ合い――
-					PRINTFORMW そっと唇を重ねた。
-					;キスの共通処理
-					CALL KISS_COMMON(MASTER, @"%ANAME(LOCAL:2)%の唇", 喪失_和姦)
-					CALL KISS_COMMON(LOCAL:2, @"%ANAME(MASTER)%の唇", 喪失_和姦)
-					EXP:MASTER:キス経験 += 1
-					EXP:(LOCAL:2):キス経験 += 1
-				ENDIF
-			ENDIF
-		;好感度5000以上のキャラがいない場合
-		ELSE
-			PRINTFORMW ひっそりと祝賀の宴から抜け出した%CALLNAME:MASTER%は、一人天を見上げていた。
-			PRINTFORMW 天下が定まったこと、それ自体は喜ばしいことに違いない。
-			PRINTFORMW しかし、ずっと戦乱の中で居場所を見つけてきた%CALLNAME:MASTER%は、心の何処かで虚しさを感じていた。
-			PRINTFORMW これからの平穏な世の中に、自分のいるべき場所はあるのだろうか……？
-			PRINTL 
-			;好感度50以上のキャラがいる場合
-			IF LOCAL:1 >= 50
-				PRINTFORMW 誰かが%CALLNAME:MASTER%を呼ぶ声がする。
-				PRINTFORMW どうやら%ANAME(LOCAL:2)%が%CALLNAME:MASTER%を探しに来たようだ。
-				PRINTFORMW 新しい居場所……そんなものはこれから探していけばいいのだろう。
-				PRINTFORMW 戦いは終わった。時間はいくらでもある。
-				PRINTFORMW %CALLNAME:MASTER%は%ANAME(LOCAL:2)%に返事をすると、酔い潰れる覚悟で宴の席へ戻っていった。
-			ELSE
-				PRINTFORMW 宴はまだ続いているようだ。
-				PRINTFORMW ……こんな目出度い日に、辛気臭いことを考えても仕方ない。
-				PRINTFORMW %CALLNAME:MASTER%は酔い潰れる覚悟を決めると、宴の席へ戻っていった。
-			ENDIF
-		ENDIF
-		PRINTL 
-		ALIGNMENT CENTER
-		PRINTL ――――― つづく ―――――
-		ALIGNMENT LEFT
-		PRINTL 
-		WAIT
-
-		FOR LOCAL:0, 0, 20
-			PRINTL 
-		NEXT
-
-		;野盗をここで削除
-		SIF GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗)) != -1 && CFLAG:MASTER:所属 != GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗))
-			CALL DESTROY_COUNTRY(GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗)))
-
-		FOR LOCAL:0, 1, MAX_COUNTRY
-			IF IS_COUNTRY(LOCAL:0)
-				;部隊を解散
-				CALL CLEAR_ALL_UNIT(LOCAL:0)
-			ENDIF
-		NEXT
-		;守将を解除
-		VARSET CITY_COMMANDER, 0
-
-		
-		;残党の一斉検挙
-		CALL CAPTURE_WANDERER(CFLAG:MASTER:所属)
-
-		;クリアフラグを立てる
-		FLAG:クリアフラグ = 1
+	ENDIF
+;好感度5000以上のキャラがいない場合
+ELSE
+	PRINTFORMW ひっそりと祝賀の宴から抜け出した%CALLNAME:MASTER%は、一人天を見上げていた。
+	PRINTFORMW 天下が定まったこと、それ自体は喜ばしいことに違いない。
+	PRINTFORMW しかし、ずっと戦乱の中で居場所を見つけてきた%CALLNAME:MASTER%は、心の何処かで虚しさを感じていた。
+	PRINTFORMW これからの平穏な世の中に、自分のいるべき場所はあるのだろうか……？
+	PRINTL 
+	;好感度50以上のキャラがいる場合
+	IF LOCAL:1 >= 50
+		PRINTFORMW 誰かが%CALLNAME:MASTER%を呼ぶ声がする。
+		PRINTFORMW どうやら%ANAME(LOCAL:2)%が%CALLNAME:MASTER%を探しに来たようだ。
+		PRINTFORMW 新しい居場所……そんなものはこれから探していけばいいのだろう。
+		PRINTFORMW 戦いは終わった。時間はいくらでもある。
+		PRINTFORMW %ANAME(MASTER)%は%ANAME(LOCAL:2)%に返事をすると、酔い潰れる覚悟で宴の席へ戻っていった。
+	ELSE
+		PRINTFORMW 宴はまだ続いているようだ。
+		PRINTFORMW ……こんな目出度い日に、辛気臭いことを考えても仕方ない。
+		PRINTFORMW %ANAME(MASTER)%は酔い潰れる覚悟を決めると、宴の席へ戻っていった。
 	ENDIF
 ENDIF
 
