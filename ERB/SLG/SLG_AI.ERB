@@ -535,25 +535,35 @@ CALL BATTLE_PREPARE_VARS_EACH(0, 0)
 FOR 都市, 1, GET_CITY_NUM() + 1
 	SIF !TMP_IS_INVADABLE:勢力:都市
 		CONTINUE
+
 	都市保有勢力 = CITY_OWNER:都市
 	都市保有君主 = GET_COUNTRY_BOSS(都市保有勢力)
+
 	攻撃候補スコア:都市 = TMP_OFFENSIVE_IMPORTANCE:勢力:都市 * RAND(80, 120)
+
 	;関係が悪いほど狙われやすい
 	関係性 = IS_COUNTRY(都市保有勢力) ? 1500 + REL_LIKE:君主:都市保有君主 - REL_HATE:君主:都市保有君主 # 1500
 	関係性 = 関係性 * 100 / 3000
+
 	攻撃候補スコア:都市 = 攻撃候補スコア:都市 * 関係性 / 100
 	;直接つながってないなら2/3
 	攻撃候補スコア:都市 = 攻撃候補スコア:都市 * (TMP_CONNECTED_TO_US:勢力:都市 + 2) / 3
 	;最大の飛び地に対する攻撃元の飛び地サイズの比
 	攻撃候補スコア:都市 = 攻撃候補スコア:都市 * MAX(TMP_ENCLAVE_SIZE:勢力:(TMP_IS_INVADABLE:勢力:都市), 1) / TMP_MAX_ENCLAVE_SIZE:勢力
-	;自国のほうが大きいなら、都市数の差5につき1.5倍狙いやすくする
-	;自国のほうが小さいなら、都市数の差3につき1.2倍狙いやすくする
+
+	;自国のほうが大きいなら、都市数の差1につき10%狙いやすくする
+	;自国のほうが小さいなら、都市数の差1につき6%狙いやすくする
 	IF IS_COUNTRY(都市保有勢力)
-		攻撃候補スコア:都市 = 攻撃候補スコア:都市 + 攻撃候補スコア:都市 / 2 * MAX((TMP_OWN_CITY:勢力 - TMP_OWN_CITY:都市保有勢力) / 5, 0)
-		攻撃候補スコア:都市 = 攻撃候補スコア:都市 + 攻撃候補スコア:都市 / 5 * MAX((TMP_OWN_CITY:都市保有勢力 - TMP_OWN_CITY:勢力) / 3, 0)
-		SIF TMP_COUNTRY_UNION_TARGET:勢力 == 都市保有勢力
+		IF TMP_OWN_CITY:勢力 > TMP_OWN_CITY:都市保有勢力
+			攻撃候補スコア:都市 = 攻撃候補スコア:都市 + 攻撃候補スコア:都市 * (TMP_OWN_CITY:勢力 - TMP_OWN_CITY:都市保有勢力) * 10 / 100
+		ELSE
+			攻撃候補スコア:都市 = 攻撃候補スコア:都市 + 攻撃候補スコア:都市 * (TMP_OWN_CITY:都市保有勢力 - TMP_OWN_CITY:勢力) * 6 / 100
+		ENDIF
+		;都市勢力が連合の討伐対象なら攻撃候補スコアを5倍に
+		SIF FINDELEMENT(TMP_COUNTRY_UNION_TARGET, 都市保有勢力) != -1
 			攻撃候補スコア:都市 *= 5
 	ENDIF
+
 	;主人公の都市に対しては難易度補正
 	SIF 都市保有勢力 == CFLAG:MASTER:所属
 		攻撃候補スコア:都市 = 攻撃候補スコア:都市 * GET_DIFFICULTY_CORRECTION() / 100
