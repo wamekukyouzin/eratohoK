@@ -53,6 +53,56 @@ FOR LOCAL:0, 1, MAX_COUNTRY
 		NEXT
 	ENDIF
 NEXT
+
+;-------------------------------------------------
+;部隊マップをする関数
+;-------------------------------------------------
+@TMP_MODIFY_UNIT_MAP(勢力, 部隊, 移動元, 移動先 = 0)
+#DIM 勢力
+#DIM 部隊
+#DIM 移動元
+#DIM 移動先
+#DIM 挿入位置
+#DIM 削除位置
+#DIM シフト
+
+SIF 移動元 == 0
+	GOTO DELETE_SKIPPED
+
+FOR 削除位置, 0, VARSIZE("TMP_UNIT_ONCITY_CNT", 1)
+	SIF TMP_UNIT_ONCITY_CNT:移動元:削除位置 != 勢力
+		CONTINUE
+	SIF TMP_UNIT_ONCITY_NUM:移動元:削除位置 != 部隊
+		CONTINUE
+	;ARRAY系命令が多次元配列に対応してないのほんまクソ
+	;おかげさまでこういうゴミみたいなコードがうまれる
+	FOR シフト, 削除位置, VARSIZE("TMP_UNIT_ONCITY_CNT", 1) - 1
+		TMP_UNIT_ONCITY_CNT:移動元:シフト = TMP_UNIT_ONCITY_CNT:移動元:(シフト + 1)
+		TMP_UNIT_ONCITY_NUM:移動元:シフト = TMP_UNIT_ONCITY_NUM:移動元:(シフト + 1)
+	NEXT
+	BREAK
+NEXT
+
+SIF 削除位置 == VARSIZE("TMP_UNIT_ONCITY_CNT")
+	THROW TMP_MODIFY_UNIT_MAPにて、該当都市に存在しない勢力/部隊を指定しました
+
+TMP_UNIT_ONCITY_CNT:移動元:(VARSIZE("TMP_UNIT_ONCITY_CNT", 1) - 1) = 0
+TMP_UNIT_ONCITY_NUM:移動元:(VARSIZE("TMP_UNIT_ONCITY_NUM", 1) - 1) = 0
+
+$DELETE_SKIPPED
+
+SIF 移動元 == 0
+	RETURN
+
+FOR 挿入位置, 0, VARSIZE("TMP_UNIT_ONCITY_CNT", 1)
+	SIF TMP_UNIT_ONCITY_CNT:移動先:挿入位置
+		CONTINUE
+	TMP_UNIT_ONCITY_CNT:移動先:挿入位置 = 勢力
+	TMP_UNIT_ONCITY_NUM:移動先:挿入位置 = 部隊
+	BREAK
+NEXT
+
+
 ;-------------------------------------------------
 ;君主のキャラ番号と略名マップを作成する関数
 ;ARG:0 略名を1文字にするフラグ
