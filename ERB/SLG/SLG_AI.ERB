@@ -44,9 +44,6 @@ FOR 都市, 1, GET_CITY_NUM() + 1
 	ENDIF
 NEXT
 
-;部隊マップの作成(処理の高速化)
-CALL TMP_CREATE_UNIT_MAP
-
 ;方針の設定
 CALL SLG_AI_SETDOCTRINE(勢力)
 
@@ -365,6 +362,7 @@ WHILE 1
 			攻撃兵数 -= 補充兵数
 			COUNTRY_SOLDIER:勢力 -= 補充兵数
 		ENDIF
+		CALL TMP_MODIFY_UNIT_MAP(勢力, 部隊, UNIT_POSITION:勢力:部隊, 救援候補)
 		UNIT_POSITION:勢力:部隊 = 救援候補
 		GOTO DONE
 		BREAK
@@ -630,9 +628,11 @@ FOR 候補, 0, 10
 	;;勝ってる要素が一定ないとキャンセル
 	;SIF カウント < 2
 	;	GOTO CALCEL
+	CALL TMP_MODIFY_UNIT_MAP(勢力, 部隊, UNIT_POSITION:勢力:部隊, TMP_IS_INVADABLE:勢力:攻撃候補)
 
 	UNIT_TARGET:勢力:部隊 = 攻撃候補
 	UNIT_POSITION:勢力:部隊 = TMP_IS_INVADABLE:勢力:攻撃候補
+
 	;DEBUGPRINTFORML 攻撃地点を%GET_CITYNAME(UNIT_TARGET:勢力:部隊)%に確定
 	;DEBUGPRINTFORML 出発地点を%GET_CITYNAME(UNIT_POSITION:勢力:部隊)%に確定
 	BREAK
@@ -706,6 +706,7 @@ FOR 項番, 0, 都市数
 			CONTINUE
 		SIF 部隊防衛フラグ:部隊
 			CONTINUE
+		CALL TMP_MODIFY_UNIT_MAP(勢力, 部隊, UNIT_POSITION:勢力:部隊, 都市)
 		UNIT_POSITION:勢力:部隊 = 都市
 		部隊防衛フラグ:部隊 = 1
 		BREAK
