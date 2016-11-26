@@ -208,11 +208,7 @@ PRINTL
 #DIM 最大ページ
 #DIM CONST 項目数 = 30
 #DIM スキル数
-#DIMS アクセサ
-#DIMS キャラ名
-#DIMS スキル名
 #DIM レベル
-#DIMS 説明
 #DIM 描画行
 
 最大ページ = SHOP_SKILL_NUM:ジャンル / 項目数 + 1
@@ -234,19 +230,8 @@ NEXT
 描画行 = 0
 FOR スキル, (SHOP_SKILL_PAGE:ジャンル - 1) * 項目数, MIN(SHOP_SKILL_PAGE:ジャンル * 項目数, SHOP_SKILL_NUM:ジャンル)
 
-	;描画内容を用意
-	アクセサ = SKILL_{SHOP_SKILL_NO_LIST:ジャンル:スキル}_%SKILL_GENRE_ENG:ジャンル%_{SHOP_SKILL_ID_LIST:ジャンル:スキル}_
-	CALLFORM %アクセサ%NAME
-	スキル名 = %(STRLENS(RESULTS:0) > 20 ? TOHALF(RESULTS:0) # RESULTS:0)%
-	キャラ名 = %SNAME(NO_TO_CHARA(SHOP_SKILL_NO_LIST:ジャンル:スキル))%
-	CALLFORM %アクセサ%LEVEL
+	CALLFORM SKILL_{SHOP_SKILL_NO_LIST:ジャンル:スキル}_%SKILL_GENRE_ENG:ジャンル%_{SHOP_SKILL_ID_LIST:ジャンル:スキル}_LEVEL
 	レベル = RESULT
-	CALLFORM %アクセサ%EXPLANATION
-	説明 = %RESULTS%
-
-	;スキル名と説明を削って行をはみ出さないように
-	スキル名 = %SUBSTRING(スキル名, 0, 20)%
-	説明 = %SUBSTRING(説明, 0, 54)%
 
 	;習得ボタンは一番左
 	IF SKILL_LEARN_PRICE:レベル > MONEY || スキル数 == MAX_SKILL_SLOT
@@ -257,8 +242,8 @@ FOR スキル, (SHOP_SKILL_PAGE:ジャンル - 1) * 項目数, MIN(SHOP_SKILL_PA
 		PRINTBUTTON "[習得]", スキル
 	ENDIF
 	;項目描画
-	PRINTFORM  %スキル名, 21, LEFT% LV{レベル} %キャラ名, MAX_CHARANAME_LENGTH/2, LEFT% %説明, 54, LEFT% 価格:{SKILL_LEARN_PRICE:レベル, 7, LEFT}
-
+	PRINTFORM 価格:{SKILL_LEARN_PRICE:レベル, 7, LEFT}
+	CALL SKILL_EXPLANATION(ジャンル, SHOP_SKILL_NO_LIST:ジャンル:スキル, SHOP_SKILL_ID_LIST:ジャンル:スキル)
 	PRINTL
 	描画行 ++
 NEXT
@@ -318,25 +303,11 @@ ENDIF
 FOR ジャンル, 0, VARSIZE("SKILL_GENRE_ENG")
 	FOR スキル, 0, MAX_SKILL_SLOT
 
-		アクセサ = SKILL_{SKILL_NO_SLOT:対象:ジャンル:スキル}_%SKILL_GENRE_ENG:ジャンル%_{SKILL_ID_SLOT:対象:ジャンル:スキル}_
 		;存在判定
-		TRYCCALLFORM %アクセサ%EXIST
+		TRYCCALLFORM SKILL_{SKILL_NO_SLOT:対象:ジャンル:スキル}_%SKILL_GENRE_ENG:ジャンル%_{SKILL_ID_SLOT:対象:ジャンル:スキル}_EXIST
 		CATCH
 			CONTINUE
 		ENDCATCH
-
-		;描画内容を用意
-		CALLFORM %アクセサ%NAME
-		スキル名 = %(STRLENS(RESULTS:0) > 20 ? TOHALF(RESULTS:0) # RESULTS:0)%
-		キャラ名 = %SNAME(NO_TO_CHARA(SKILL_NO_SLOT:対象:ジャンル:スキル))%
-		CALLFORM %アクセサ%LEVEL
-		レベル = RESULT
-		CALLFORM %アクセサ%EXPLANATION
-		説明 = %RESULTS%
-
-		;スキル名と説明を削って行をはみ出さないように
-		スキル名 = %SUBSTRING(スキル名, 0, 20)%
-		説明 = %SUBSTRING(説明, 0, 54)%
 
 		;習得ボタンは一番左
 		IF SKILL_FORGET_PRICE > MONEY || スキル数 == MAX_SKILL_SLOT
@@ -347,8 +318,7 @@ FOR ジャンル, 0, VARSIZE("SKILL_GENRE_ENG")
 			PRINTBUTTON "[忘却]", ジャンル * MAX_SKILL_SLOT + スキル
 		ENDIF
 		;項目描画
-		PRINTFORM  %スキル名, 21, LEFT% LV{レベル} %キャラ名, MAX_CHARANAME_LENGTH/2, LEFT% %説明, 54, LEFT% 価格:{SKILL_FORGET_PRICE, 7, LEFT}
-
+		CALL SKILL_EXPLANATION(ジャンル, SKILL_NO_SLOT:対象:ジャンル:スキル, SKILL_ID_SLOT:対象:ジャンル:スキル)
 		PRINTL
 		描画行 ++
 	NEXT
