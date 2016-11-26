@@ -194,6 +194,8 @@ CALL PRINT_TOGGLE_BUTTON(@"%"[ペニスサイズ]", 16, LEFT%", 1031, ペニス�
 CALL PRINT_TOGGLE_BUTTON(@"%"[性的嗜好]", 16, LEFT%", 1032, 性的嗜好引き継ぎ_TMP)
 CALL PRINT_TOGGLE_BUTTON(@"%"[妊娠記録]", 16, LEFT%", 1033, 妊娠記録引き継ぎ_TMP)
 PRINTL
+CALL PRINT_TOGGLE_BUTTON(@"%"[スキル]", 16, LEFT%", 1034, スキル引き継ぎ_TMP)
+PRINTL
 DRAWLINE
 PRINTBUTTON "[プリセットセーブ]", 9997
 PRINT 
@@ -255,6 +257,8 @@ SELECTCASE RESULT
 		性的嗜好引き継ぎ_TMP = !性的嗜好引き継ぎ_TMP
 	CASE 1033
 		妊娠記録引き継ぎ_TMP = !妊娠記録引き継ぎ_TMP
+	CASE 1034
+		スキル引き継ぎ_TMP = !スキル引き継ぎ_TMP
 	CASE 2000, 2001
 		RESULT = RESULT - 2000
 		FOR LOCAL, 0, VARSIZE("ABL")
@@ -493,6 +497,8 @@ IF INRANGE(対象, 0, CHARANUM)
 		設定済みフラグ  = 1
 	SIF 妊娠記録引き継ぎ_TMP
 		設定済みフラグ  = 1
+	SIF スキル引き継ぎ_TMP
+		設定済みフラグ = 1
 
 	陥落素質引き継ぎ:対象:0 = 陥落素質引き継ぎ_TMP
 	淫乱素質引き継ぎ:対象:0 = 淫乱素質引き継ぎ_TMP
@@ -510,7 +516,7 @@ IF INRANGE(対象, 0, CHARANUM)
 	バストサイズ引き継ぎ:対象:0 = バストサイズ引き継ぎ_TMP
 	ペニスサイズ引き継ぎ:対象:0 = ペニスサイズ引き継ぎ_TMP
 	妊娠記録引き継ぎ:対象:0 = 妊娠記録引き継ぎ_TMP
-	
+	スキル引き継ぎ:対象:0 = スキル引き継ぎ_TMP
 	引き継ぎ設定済み:対象:0 = 設定済みフラグ
 	
 ELSE
@@ -654,7 +660,7 @@ ELSEIF INRANGE(RESULT, 0, MAX_PASS_GLOBAL_SAvE)
 	バストサイズ引き継ぎ_G:(LOCAL:1) = バストサイズ引き継ぎ_TMP
 	ペニスサイズ引き継ぎ_G:(LOCAL:1) = ペニスサイズ引き継ぎ_TMP
 	妊娠記録引き継ぎ_G:(LOCAL:1) = 妊娠記録引き継ぎ_TMP
-	
+	スキル引き継ぎ_G:(LOCAL:1) = スキル引き継ぎ_TMP
 	PRINTFORML 名前を入力して下さい
 	INPUTS
 	IF RESULTS == ""
@@ -718,6 +724,7 @@ ELSEIF INRANGE(RESULT, 0, MAX_PASS_GLOBAL_SAvE)
 	バストサイズ引き継ぎ_TMP = バストサイズ引き継ぎ_G:(LOCAL:1)
 	ペニスサイズ引き継ぎ_TMP = ペニスサイズ引き継ぎ_G:(LOCAL:1)
 	妊娠記録引き継ぎ_TMP = 妊娠記録引き継ぎ_G:(LOCAL:1)
+	スキル引き継ぎ_TMP = スキル引き継ぎ_G:(LOCAL:1)
 	PRINTFORMW ロードしました
 ENDIF
 CLEARLINE LINECOUNT - FIRST_LINE
@@ -765,7 +772,7 @@ CVARSET アナル処女引き継ぎ, 0, 0
 CVARSET バストサイズ引き継ぎ, 0, 0
 CVARSET ペニスサイズ引き継ぎ, 0, 0
 CVARSET 妊娠記録引き継ぎ, 0, 0
-
+CVARSET スキル引き継ぎ, 0, 0
 CVARSET 引き継ぎ設定済み, 0, 0
 
 
@@ -807,6 +814,8 @@ CVARSET 引き継ぎ設定済み, 0, 0
 #DIM ペニスサイズ保存
 #DIM PREGNANT_RECORD_TIMES保存, PREGNANT_RECORD_MAX
 #DIM PREGNAMT_RECORD_FATHER保存, PREGNANT_RECORD_MAX
+#DIM SKILL_ID_SLOT保存, VARSIZE("SKILL_GENRE_ENG"), MAX_SKILLS
+#DIM SKILL_NO_SLOT保存, VARSIZE("SKILL_GENRE_ENG"), MAX_SKILLS
 VARSET ABL保存
 VARSET TALENT保存
 VARSET EXP保存
@@ -839,7 +848,8 @@ VARSET バストサイズ保存
 VARSET ペニスサイズ保存
 VARSET PREGNANT_RECORD_TIMES保存
 VARSET PREGNAMT_RECORD_FATHER保存
-
+VARSET SKILL_ID_SLOT保存, -1
+VARSET SKILL_NO_SLOT保存, -1
 ;デイリー系はPASS_CHARAで扱わない
 TALENT保存:GETNUM(TALENT, "デイリー系") = TALENT:対象:デイリー系
 
@@ -955,6 +965,15 @@ IF 妊娠記録引き継ぎ:対象:0
 	FOR LOCAL, 0, PREGNANT_RECORD_MAX
 		PREGNAMT_RECORD_FATHER保存:LOCAL = PREGNANT_RECORD_FATHER:対象:LOCAL
 		PREGNANT_RECORD_TIMES保存:LOCAL = PREGNANT_RECORD_TIMES:対象:LOCAL
+	NEXT
+ENDIF
+
+IF スキル引き継ぎ:対象:0
+	FOR LOCAL, 0, VARSIZE("SKILL_GENRE_ENG")
+		FOR LOCAL:1, 0, MAX_SKILLS
+			SKILL_NO_SLOT保存:LOCAL:(LOCAL:1) = SKILL_NO_SLOT:対象:LOCAL:(LOCAL:1)
+			SKILL_ID_SLOT保存:LOCAL:(LOCAL:1) = SKILL_ID_SLOT:対象:LOCAL:(LOCAL:1)
+		NEXT
 	NEXT
 ENDIF
 
@@ -1077,6 +1096,15 @@ IF 妊娠記録引き継ぎ:対象:0
 	FOR LOCAL, 0, PREGNANT_RECORD_MAX
 		PREGNANT_RECORD_FATHER:対象:LOCAL = PREGNAMT_RECORD_FATHER保存:LOCAL
 		PREGNANT_RECORD_TIMES:対象:LOCAL = PREGNANT_RECORD_TIMES保存:LOCAL
+	NEXT
+ENDIF
+
+IF スキル引き継ぎ:対象:0
+	FOR LOCAL, 0, VARSIZE("SKILL_GENRE_ENG")
+		FOR LOCAL:1, 0, MAX_SKILLS
+			SKILL_NO_SLOT:対象:LOCAL:(LOCAL:1) = SKILL_NO_SLOT保存:LOCAL:(LOCAL:1)
+			SKILL_ID_SLOT:対象:LOCAL:(LOCAL:1) = SKILL_ID_SLOT保存:LOCAL:(LOCAL:1)
+		NEXT
 	NEXT
 ENDIF
 
