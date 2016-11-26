@@ -128,6 +128,8 @@ FOR ジャンル, 0, SKILL_GENRE_NUM
 	NEXT
 NEXT
 
+TRYCALLFORM SKILL_INIT_{対象NO}_GENERAL
+
 ;---------------------------------
 ;スキルの説明
 ;---------------------------------
@@ -203,3 +205,34 @@ SIF 空きスロット == MAX_SKILL_SLOT
 	RETURNF -1
 
 RETURNF 空きスロット
+
+;---------------------------------------
+;汎用スキル初期化処理用、名前からスキル拾ってきて覚えさせるやつ
+;---------------------------------------
+@LEARN_SKILL_GELERAL_BY_NAME(対象, 汎用スキル名)
+#DIM 対象
+#DIMS 汎用スキル名
+#DIM ジャンル
+#DIM スキルID
+#DIM 空きスロット
+FOR ジャンル, 0, SKILL_GENRE_NUM
+	FOR スキルID, 0, MAX_SKILLS
+		TRYCCALLFORM SKILL_0_%SKILL_GENRE_ENG:ジャンル%_{スキルID}_NAME
+			SIF RESULTS == 汎用スキル名
+				GOTO FOUND
+		CATCH
+		ENDCATCH
+	NEXT
+NEXT
+
+SIF ジャンル == SKILL_GENRE_NUM
+	THROW %ANAME(対象)%に指定された%汎用スキル名%は存在しない
+
+$FOUND
+
+空きスロット = GET_EMPTY_SKILL_SLOT(対象, ジャンル)
+
+SIF 空きスロット == -1
+	RETURN
+
+CALL SKILL_LEARN(対象, ジャンル, 0, スキルID)
