@@ -100,7 +100,7 @@ CALLFORM SKILL_{SHOP_SKILL_NO_LIST:ジャンル:番号}_%SKILL_GENRE_ENG:ジャ�
 
 教師 = NO_TO_CHARA(SHOP_SKILL_NO_LIST:ジャンル:番号)
 
-IF 教師 == -1 || 教師 == 対象
+IF 教師 == -1 || 教師 == 対象　|| 教師 == NAME_TO_CHARA("あなた")
 	CALL COLORPRINTFORM(@"%ANAME(対象)%は『%スキル名%』を習得した！", COLOR("注意"), "W")
 ELSE
 	CALL COLORPRINTFORM(@"%ANAME(対象)%は%ANAME(教師)%から『%スキル名%』を習得した！", COLOR("注意"), "W")
@@ -111,7 +111,7 @@ MONEY -= SKILL_LEARN_PRICE:レベル
 CFLAG:対象:行動済み = 1
 CALL ADD_COOLTIME(対象, 1)
 
-IF 教師 != -1
+IF !GROUPMATCH(教師, -1, NAME_TO_CHARA("あなた"))
 	CFLAG:教師:行動済み = 1
 	CALL ADD_COOLTIME(教師, 1)
 ENDIF
@@ -347,16 +347,19 @@ VARSET SHOP_SKILL_ID_LIST
 VARSET SHOP_SKILL_NUM
 
 FOR キャラ, 0, CHARANUM
-	SIF CFLAG:キャラ:所属 != CFLAG:MASTER:所属
-		CONTINUE
-	SIF CFLAG:キャラ:捕虜先
-		CONTINUE
-	SIF !IS_FIXED_CHARA(キャラ)
-		CONTINUE
-	SIF !IS_LOVER(キャラ) && !IS_SLAVE(キャラ)
-		CONTINUE
-	SIF TMP_IS_FREE:キャラ:0
-		CONTINUE
+	;0番は汎用なのでスキップ
+	IF キャラ != NAME_TO_CHARA("あなた")
+		SIF CFLAG:キャラ:所属 != CFLAG:MASTER:所属
+			CONTINUE
+		SIF CFLAG:キャラ:捕虜先
+			CONTINUE
+		SIF !IS_FIXED_CHARA(キャラ)
+			CONTINUE
+		SIF !IS_LOVER(キャラ) && !IS_SLAVE(キャラ)
+			CONTINUE
+		SIF TMP_IS_FREE:キャラ:0
+			CONTINUE
+	ENDIF
 	FOR ジャンル, 0, VARSIZE("SKILL_GENRE_ENG")
 		FOR スキルID, 0, MAX_SKILLS
 			TRYCCALLFORM SKILL_{NO:キャラ}_%SKILL_GENRE_ENG:ジャンル%_{スキルID}_EXIST
