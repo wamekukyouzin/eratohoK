@@ -160,15 +160,17 @@ BATTLE_SKILL_SEALED:対象側:対象番号 = 1
 ;ジャンルごとで習得させていく
 FOR ジャンル, 0, SKILL_GENRE_NUM
 	FOR スキルID, 0, MAX_SKILL_SLOT
-		;0番は汎用にするので、「あなた」には何も学ばせないエスケープ
-		IF 対象NO == 0
-			SKILL_NO_SLOT:対象:ジャンル:スキルID = -1
-			SKILL_ID_SLOT:対象:ジャンル:スキルID = -1
-			CONTINUE
-		ENDIF
+		;0番は汎用にするので、「あなた」には何も学ばせない
+		SIF 対象NO == 0
+			GOTO CANCEL
 		TRYCCALLFORM SKILL_{対象NO}_%SKILL_GENRE_ENG:ジャンル%_{スキルID}_EXIST
-			SKILL_NO_SLOT:対象:ジャンル:スキルID = 対象NO
-			SKILL_ID_SLOT:対象:ジャンル:スキルID = スキルID
+			;初期状態で習得不可のスキルは弾く
+			TRYCCALLFORM SKILL_{対象NO}_%SKILL_GENRE_ENG:ジャンル%_{スキルID}_NO_LEARN_INIT
+				GOTO CANCEL
+			CATCH
+				SKILL_NO_SLOT:対象:ジャンル:スキルID = 対象NO
+				SKILL_ID_SLOT:対象:ジャンル:スキルID = スキルID
+			ENDCATCH
 		CATCH
 			$CANCEL
 			SKILL_NO_SLOT:対象:ジャンル:スキルID = -1
