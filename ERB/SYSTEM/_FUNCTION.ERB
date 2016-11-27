@@ -2130,6 +2130,51 @@ ELSEIF OPTION == "W"
 	PRINTFORMW
 ENDIF
 
+;-------------------------------------------------
+;/で区切った文字列を渡すと、その中から等確率で一つ返す
+;CONDITIONには何かしらの条件式を入力する。条件に応じて返却候補の文字列を拡張したい場合に使う。このへんはIFRANDと似たような感覚。
+;返却候補がなければ空文字列を返す。
+;-------------------------------------------------
+@SPLIT_RAND(ORIGSTR:0, CONDITION:0, ORIGSTR:1 = "", CONDITION:1 = 0, ORIGSTR:2 = "", CONDITION:2 = 0, ORIGSTR:3 = "", CONDITION:3 = 0, ORIGSTR:4 = "", CONDITION:4 = 0)
+#FUNCTIONS
+#DIMS ORIGSTR, 5
+#DIM CONDITION, 5
+#DIMS SEPSTR, 1000
+#DIM SEPNUM
+#DIMS RETCANDIDATE, 1000
+#DIM RETNUM
+#DIM RESULT_ORIG
+
+;RESULTを汚染する命令を使用するため退避
+RESULT_ORIG = RESULT
+
+VARSET SEPSTR
+VARSET SEPNUM
+VARSET RETCANDIDATE
+VARSET RETNUM
+
+FOR LOCAL, 0, VARSIZE("ORIGSTR")
+	;条件を満たしていないならダメ
+	SIF !CONDITION:LOCAL
+		CONTINUE
+	;分割
+	SPLIT ORIGSTR:LOCAL, "/" , SEPSTR
+	SEPNUM = RESULT
+
+	;分割したやつを返却候補に保存
+	FOR LOCAL:1, 0, SEPNUM
+		RETCANDIDATE:RETNUM = %SEPSTR:(LOCAL:1)%
+		RETNUM ++
+	NEXT
+NEXT
+
+SIF RETNUM == 0
+	THROW RAND_SPLITの返却候補が一つもありません
+
+;RESULT汚染対策
+RESULT = RESULT_ORIG
+
+RETURNF RETCANDIDATE:(RAND:RETNUM)
 
 
 ;-------------------------------------------------
