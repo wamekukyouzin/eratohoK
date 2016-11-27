@@ -784,61 +784,9 @@ ENDIF
 
 FOR LOCAL:0, 0, BATTLE_COMMANDER_NUM:発動側
 	発動キャラ = BATTLE_COMMANDER:(発動側):(LOCAL:0)
-	
 	SIF 発動キャラ < 0 || BATTLE_SKILL_SEALED:(発動側):(LOCAL:0) || BATTLE_SUMMONED_CHARA:(発動側):(LOCAL:0)
 		CONTINUE
-
 	CALL SKILL_COMBAT_INVOKE(発動キャラ, LOCAL, スキル_ジャンル_SP, 発動側, 発動勢力, 発動部隊, 対象勢力, 対象部隊)
-
-	;触手。パーティに女がいると援軍を得る
-	IF TALENT:発動キャラ:特殊勢力素質 == 特殊勢力_触手 && 20 > RAND:100
-		FOR LOCAL, 0, BATTLE_COMMANDER_NUM:発動側
-			LOCAL:1 = BATTLE_COMMANDER:発動側:LOCAL
-			IF LOCAL:1 >= 0 && IS_FEMALE(LOCAL:1) && BATTLE_武闘:発動側:LOCAL > 0
-				PRINTFORML %ANAME(LOCAL:1)%の身体に触手が群がっていく……！
-				PRINTFORML %ANAME(LOCAL:1)%を母体として、触手は増殖した！
-				LOCAL:6 = RAND(500, MAX(1000 + SP_COUNTRY_RANK:(特殊勢力_触手) * 500))
-				IF 発動部隊 >= 0
-					PRINTFORML %ANAME(GET_COUNTRY_BOSS(CFLAG:発動キャラ:所属)), 10, RIGHT%軍:{UNIT_SOLDIER:発動勢力:発動部隊, 6, RIGHT} → {UNIT_SOLDIER:発動勢力:発動部隊 + LOCAL:6, 6, RIGHT}
-					UNIT_SOLDIER:発動勢力:発動部隊 += LOCAL:6
-				ELSE
-					PRINTFORML %ANAME(GET_COUNTRY_BOSS(CFLAG:発動キャラ:所属)), 10, RIGHT%軍:{CITY_SOLDIER:発動勢力, 6, RIGHT} → {CITY_SOLDIER:発動勢力 + LOCAL:6, 6, RIGHT}
-					CITY_SOLDIER:発動勢力 += LOCAL:6
-				ENDIF
-				RESETCOLOR
-				BREAK
-			ENDIF
-		NEXT
-	ENDIF
-	
-	;サキュバス。暗殺
-	IF TALENT:発動キャラ:特殊勢力素質 == 特殊勢力_サキュバス && 5 + 2 * SP_COUNTRY_RANK:(特殊勢力_サキュバス) > RAND:100
-		LOCAL:1 = RAND:(BATTLE_COMMANDER_NUM:対象側)
-		対象キャラ = BATTLE_COMMANDER:対象側:(LOCAL:1)
-		IF 対象キャラ >= 0
-			PRINTFORML %ANAME(対象キャラ)%は、%ANAME(発動キャラ)%に見とれている！
-			PRINTFORML %ANAME(対象キャラ)%はこの戦闘に参加できない！
-			CALL ASSASINATE(対象側, LOCAL:1)
-		ENDIF
-	ENDIF
-
-
-	;野盗。対象部隊の女の数だけ強化される。強化量はSP_COUNTRY_RANK:(特殊勢力_野盗)に依存する。
-	IF TALENT:発動キャラ:特殊勢力素質 == 特殊勢力_野盗 && SP_COUNTRY_RANK:(特殊勢力_野盗) * 10 > RAND:100
-		LOCAL:2 = 0
-		FOR LOCAL:1, 0, (BATTLE_COMMANDER_NUM:対象側)
-			対象キャラ = BATTLE_COMMANDER:対象側:(LOCAL:1)
-			IF 対象キャラ >= 0 && IS_FEMALE(対象キャラ)
-				LOCAL:2 ++
-				PRINTFORML %ANAME(発動キャラ)%は、%ANAME(対象キャラ)%の姿にテンションをあげている！
-			ENDIF
-		NEXT
-		BATTLE_武闘パワー:発動側:LOCAL = BATTLE_武闘パワー:発動側:LOCAL * (100 + SP_COUNTRY_RANK:(特殊勢力_野盗) * LOCAL:2) / 100
-		BATTLE_防衛パワー:発動側:LOCAL = BATTLE_防衛パワー:発動側:LOCAL * (100 + SP_COUNTRY_RANK:(特殊勢力_野盗) * LOCAL:2) / 100
-		BATTLE_知略パワー:発動側:LOCAL = BATTLE_知略パワー:発動側:LOCAL * (100 + SP_COUNTRY_RANK:(特殊勢力_野盗) * LOCAL:2) / 100
-	ENDIF
-	
-	RESETCOLOR
 NEXT
 
 
@@ -869,37 +817,10 @@ VARSET 対象側キャラ, -1
 
 FOR LOCAL:0, 0, BATTLE_COMMANDER_NUM:発動側
 	発動キャラ = BATTLE_COMMANDER:発動側:LOCAL
-
 	SIF 発動キャラ < 0 || BATTLE_SKILL_SEALED:(発動側):(LOCAL:0) || BATTLE_SUMMONED_CHARA:(発動側):(LOCAL:0)
 		CONTINUE
-
 	CALL SKILL_COMBAT_INVOKE(発動キャラ, LOCAL, スキル_ジャンル_BASE, 発動側, 発動勢力, 発動部隊, 対象勢力, 対象部隊)
-
 NEXT
-
-FOR LOCAL:0, 0, 3
-	発動キャラ = 発動側キャラ:LOCAL
-	IF 発動キャラ >= 0
-		;外来人。敵部隊の自部隊より高い能力を、自部隊の能力以下にせしめる。発動判定は1回の戦闘で1度のみで、発動率はSP_COUNTRY_RANK:(特殊勢力_外来人)に依存する。
-		IF TALENT:発動キャラ:特殊勢力素質 == 特殊勢力_外来人
-			;SP_COUNTRY_RANK:(特殊勢力_外来人)に応じて確率が上昇。
-			IF SP_COUNTRY_RANK:(特殊勢力_外来人) * 10 > RAND:100
-				SETCOLOR COLOR("桃")
-				PRINTFORML %ANAME(発動キャラ)%は敵に怪しげな桃色の霧を吹きかける……！
-				SIF BATTLE_ATC:対象側 > BATTLE_ATC:発動側
-					BATTLE_ATC:対象側 = BATTLE_ATC:発動側 * 7 / 10
-				SIF BATTLE_DEF:対象側 > BATTLE_DEF:発動側
-					BATTLE_DEF:対象側 = BATTLE_DEF:発動側 * 7 / 10
-				SIF BATTLE_INT:対象側 > BATTLE_INT:発動側
-					BATTLE_INT:対象側 = BATTLE_INT:発動側 * 7 / 10
-				SETCOLOR COLOR("素質発動")
-			ENDIF
-			BREAK
-		ENDIF
-	ENDIF
-NEXT
-
-RESETCOLOR
 
 ;-------------------------------------------------
 ;計略の発動
