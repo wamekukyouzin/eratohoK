@@ -285,7 +285,7 @@ CALL KILL_EMPTY_LINE()
 #DIM 部隊現在地
 #DIM 部隊目的地
 #DIM 経路判定
-#DIM 敵存在フラグ
+
 FOR 部隊, 0, MAX_UNIT
 	SIF UNIT_POSITION:勢力:部隊 == 0
 		CONTINUE
@@ -299,25 +299,11 @@ FOR 部隊, 0, MAX_UNIT
 		CONTINUE
 	ENDIF
 
-	経路判定 = IS_ROOT(部隊現在地, 部隊目的地)
-	敵存在フラグ = TMP_IS_STAY_ENEMY_UNIT(部隊現在地, 勢力)
-
-	;中継点を通る
-	IF 経路判定 == 2
-		FOR ポジション, 0, MAX_UNIT_COMMANDER
-			士官 = GET_UNIT_COMMANDER(勢力, 部隊, ポジション)
-			IF 士官 >= 0 && GETBIT(TALENT:士官:ＳＬＧ素質, 素質_ＳＬＧ_疾風迅雷) && 30 > RAND:100
-				CALL COLORPRINTFORM(@"%ANAME(士官)%は迅速な部隊行動で一気に目的地に移動した！", COLOR("素質発動"), "L")
-				敵存在フラグ = 0
-				経路判定 = 0
-				CALL MOVE_UNIT(勢力, 部隊, 部隊目的地, 1)
-				BREAK
-			ENDIF
-		NEXT
-	ENDIF
-
-	SIF 敵存在フラグ
+	;敵がいたら移動できない
+	SIF TMP_IS_STAY_ENEMY_UNIT(部隊現在地, 勢力)
 		CONTINUE
+
+	経路判定 = IS_ROOT(部隊現在地, 部隊目的地)
 
 	IF 経路判定 == 1
 		CALL MOVE_UNIT(勢力, 部隊, 部隊目的地, 1)
