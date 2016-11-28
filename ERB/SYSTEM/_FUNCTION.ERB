@@ -43,6 +43,8 @@ ELSE
 	SEXUAL_EXPERIENCE:(ARG:0):初体験_アナル処女 = ----
 ENDIF
 
+CALL SKILL_INIT(ARG:0)
+
 ;汎用キャラなら口上パターンを設定
 IF IS_CHILD(ARG:0) || IS_RANDOM_CHARA(ARG:0)
 	CALL SET_KOJO_PATTERN(ARG:0)
@@ -313,6 +315,9 @@ FOR LOCAL, 0, PREGNANT_RECORD_MAX
 	PREGNANT_RECORD_FATHER:(ARG:0):LOCAL = 0
 	PREGNANT_RECORD_TIMES:(ARG:0):LOCAL = 0
 NEXT
+
+CALL SKILL_INIT(ARG:0)
+
 ;-------------------------------------------------
 ;TALENTの初期値を現在の値に設定する関数
 ;-------------------------------------------------
@@ -2029,9 +2034,9 @@ RETURN RESULT
 ;ARG:1　色 0~0xFFFFFF
 ;ARGS:1　オプション LかW
 ;-------------------------------------------------
-@COLORPRINTFORM(ARGS:0, ARG:0, ARGS:1 = "")
+@COLORPRINT(ARGS:0, ARG:0, ARGS:1 = "")
 SIF ARG:0 < 0 || ARG:0 > 0xFFFFFF
-	THROW "@COLORPRINTFORMの色指定に0~FFFFFFの範囲外の数値が投げられました"
+	THROW "@COLORPRINTの色指定に0~FFFFFFの範囲外の数値が投げられました"
 GETCOLOR
 LOCAL:0 = RESULT
 
@@ -2112,7 +2117,7 @@ WHILE 1
 WEND
 FOR LOCAL, 0, SEPNUM
 	IF SHORTHANDFLAG:LOCAL && COL:NOWCOL != 0
-		CALL COLORPRINTFORM(@"%SEPSTR:LOCAL%", COL:NOWCOL)
+		CALL COLORPRINT(@"%SEPSTR:LOCAL%", COL:NOWCOL)
 		SIF NOWCOL < VARSIZE("COL") - 1 && COL:(NOWCOL + 1) != 0
 			NOWCOL ++
 	ELSE
@@ -2124,6 +2129,52 @@ IF OPTION == "L"
 ELSEIF OPTION == "W"
 	PRINTFORMW
 ENDIF
+
+;-------------------------------------------------
+;/で区切った文字列を渡すと、その中から等確率で一つ返す
+;CONDITIONには何かしらの条件式を入力する。条件に応じて返却候補の文字列を拡張したい場合に使う。このへんはIFRANDと似たような感覚。
+;返却候補がなければ空文字列を返す。
+;-------------------------------------------------
+@SPLIT_RAND(ORIGSTR:0, CONDITION:0, ORIGSTR:1 = "", CONDITION:1 = 0, ORIGSTR:2 = "", CONDITION:2 = 0, ORIGSTR:3 = "", CONDITION:3 = 0, ORIGSTR:4 = "", CONDITION:4 = 0)
+#FUNCTIONS
+#DIMS ORIGSTR, 5
+#DIM CONDITION, 5
+#DIMS SEPSTR, 1000
+#DIM SEPNUM
+#DIMS RETCANDIDATE, 1000
+#DIM RETNUM
+#DIM RESULT_ORIG
+
+;RESULTを汚染する命令を使用するため退避
+RESULT_ORIG = RESULT
+
+VARSET SEPSTR
+VARSET SEPNUM
+VARSET RETCANDIDATE
+VARSET RETNUM
+
+FOR LOCAL, 0, VARSIZE("ORIGSTR")
+	;条件を満たしていないならダメ
+	SIF !CONDITION:LOCAL
+		CONTINUE
+	;分割
+	SPLIT ORIGSTR:LOCAL, "/" , SEPSTR
+	SEPNUM = RESULT
+
+	;分割したやつを返却候補に保存
+	FOR LOCAL:1, 0, SEPNUM
+		RETCANDIDATE:RETNUM = %SEPSTR:(LOCAL:1)%
+		RETNUM ++
+	NEXT
+NEXT
+
+SIF RETNUM == 0
+	THROW RAND_SPLITの返却候補が一つもありません
+
+;RESULT汚染対策
+RESULT = RESULT_ORIG
+
+RETURNF RETCANDIDATE:(RAND:RETNUM)
 
 
 ;-------------------------------------------------
@@ -2858,7 +2909,7 @@ TALENT:対象:Ｖ締まり -= 減少量
 変化後 = TOSTR_TIGHTNESS(TALENT:対象:Ｖ締まり)
 
 SIF 変化前 != 変化後
-	CALL COLORPRINTFORM(@"%ANAME(対象)%の膣の締まりが%変化後%になった", COLOR("注意"), "L")
+	CALL COLORPRINT(@"%ANAME(対象)%の膣の締まりが%変化後%になった", COLOR("注意"), "L")
 
 ;---------------------------
 ;対象の膣の締まりが悪化する処理
@@ -2882,7 +2933,7 @@ TALENT:対象:Ａ締まり -= 減少量
 変化後 = TOSTR_TIGHTNESS(TALENT:対象:Ａ締まり)
 
 SIF 変化前 != 変化後
-	CALL COLORPRINTFORM(@"%ANAME(対象)%のアナルの締まりが%変化後%になった", COLOR("注意"), "L")
+	CALL COLORPRINT(@"%ANAME(対象)%のアナルの締まりが%変化後%になった", COLOR("注意"), "L")
 
 ;---------------------------
 ;与えられた文字列に対するデフォルトの締まり具合を取得する関数
@@ -2950,7 +3001,7 @@ ENDSELECT
 @DAILY_START(EVENTNAME)
 #DIMS EVENTNAME
 DRAWLINE
-CALL COLORPRINTFORM(@"-デイリーイベント『%EVENTNAME%』発生-", COLOR("注意"), "L")
+CALL COLORPRINT(@"-デイリーイベント『%EVENTNAME%』発生-", COLOR("注意"), "L")
 FORCEWAIT
 DRAWLINE
 PRINTFORML ・
@@ -3192,14 +3243,5 @@ PRINTFORM {ABL:対象:料理, 3, LEFT}
 PRINT  歌唱:
 CALL PRINT_ALPHABET_RANK(ランク_ＳＬＧ, ABL:対象:歌唱)
 PRINTFORM {ABL:対象:歌唱, 3, LEFT}
-PRINTL
-PRINTFORM 所持SLG素質:
-LOCAL:1 = 0
-FOR LOCAL, 0, VARSIZE("SLG_TALENT_NAME")
-	IF GETBIT(TALENT:対象:ＳＬＧ素質, LOCAL)
-		PRINTFORM %SLG_TALENT_NAME:LOCAL% 
-		LOCAL:1 = 1
-	ENDIF
-NEXT
 PRINTL
 DRAWLINE
