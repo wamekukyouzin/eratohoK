@@ -1,0 +1,124 @@
+﻿@GET_DAILY_INDEX_FROM_ENG(ジャンル,アクセサ)
+#FUNCTION
+#DIM ジャンル
+#DIMS アクセサ
+FOR LOCAL, 0, VARSIZE("DAILY_EVENT_NAME_ENG", 1)
+	SIF DAILY_EVENT_NAME_ENG:ジャンル:LOCAL == アクセサ
+		RETURNF LOCAL
+NEXT
+RETURNF -1
+
+@DAILY_GET_DISABLE_CONFIG(アクセサ)
+#FUNCTION
+#DIMS アクセサ
+#DIM 番号
+番号 = FINDELEMENT(DAILY_DISABLE_NAME, アクセサ)
+SIF 番号 >= 0
+	RETURNF DAILY_DISABLE:LOCAL
+
+THROW DAILY_DISABLE_NAME上に存在しない名前%アクセサ%が渡されました
+
+
+@SLG_DAILY_GET_DISABLE_CONFIG(アクセサ)
+#FUNCTION
+#DIMS アクセサ
+#DIM 番号
+番号 = FINDELEMENT(SLG_DAILY_DISABLE_NAME, アクセサ)
+SIF 番号 >= 0
+	RETURNF SLG_DAILY_DISABLE:LOCAL
+
+THROW SLG_DAILY_DISABLE_NAME上に存在しない名前%アクセサ%が渡されました
+
+
+@DAILY_SET_DISABLE(アクセサ, 状態)
+#DIMS アクセサ
+#DIM 番号
+#DIM 状態
+番号 = FINDELEMENT(DAILY_DISABLE_NAME, アクセサ)
+SIF 番号 < 0
+	RETURN 0
+
+DAILY_DISABLE:番号 = 状態
+RETURN 1
+
+@SLG_DAILY_SET_DISABLE(アクセサ, 状態)
+#DIMS アクセサ
+#DIM 番号
+#DIM 状態
+番号 = FINDELEMENT(SLG_DAILY_DISABLE_NAME, アクセサ)
+SIF 番号 < 0
+	RETURN 0
+
+SLG_DAILY_DISABLE:番号 = 状態
+RETURN 1
+
+
+@REGISTER_DAILY(ジャンル, アクセサ, 名前)
+#DIM ジャンル
+#DIMS アクセサ
+#DIMS 名前
+#DIMS ＳＬＧ
+#DIMS 派生
+#DIM 番号
+SIF !INRANGE(ジャンル, デイリー_通常, デイリー_ＳＬＧ派生)
+	THROW DAILY_REGISTERに存在しないジャンル{ジャンル}が渡されました
+
+IF GROUPMATCH(ジャンル, デイリー_ＳＬＧ, デイリー_ＳＬＧ派生)
+	ＳＬＧ = SLG_
+ELSE
+	ＳＬＧ = 
+ENDIF
+
+IF GROUPMATCH(ジャンル, デイリー_通常派生, デイリー_ＳＬＧ派生)
+	派生 = DERIVATION_
+ELSE
+	派生 = 
+ENDIF
+
+IF GROUPMATCH(ジャンル, デイリー_通常, デイリー_ＳＬＧ)
+	TRYCCALLFORM %ＳＬＧ%EVENT_DAILY_%アクセサ%_%派生%RATE()
+	CATCH
+		SETCOLOR COLOR("警告")
+		PRINTFORMW DAILY_REGISTERに渡された%名前%,%アクセサ%のRATE関数が見つかりません
+		PRINTFORMW あなたがプレイヤーなら、パッチに抜けがないか、競合がないかを確認してください
+		PRINTFORMW あなたが開発者なら、RATE関数以下の必須関数を設定したかを確認してください
+		RETURN
+	ENDCATCH
+ELSE
+	TRYCCALLFORM %ＳＬＧ%EVENT_DAILY_%派生%%アクセサ%_DISABLE()
+	CATCH
+		SETCOLOR COLOR("警告")
+		PRINTFORMW DAILY_REGISTERに渡された%名前%,%アクセサ%のDISABLE関数が見つかりません
+		PRINTFORMW あなたがプレイヤーなら、パッチに抜けがないか、競合がないかを確認してください
+		PRINTFORMW あなたが開発者なら、RATE関数以下の必須関数を設定したかを確認してください
+		RETURN
+	ENDCATCH
+ENDIF
+
+DAILY_EVENT_NAME_ENG:ジャンル:(DAILY_EVENT_NUM:ジャンル) = %アクセサ%
+DAILY_EVENT_NAME:ジャンル:(DAILY_EVENT_NUM:ジャンル) = %名前%
+
+;派生形はDISABLE_NAMEに登録する必要がないのでFINALLYへ
+SIF GROUPMATCH(ジャンル, デイリー_通常派生, デイリー_ＳＬＧ派生)
+	GOTO FINALLY
+
+IF ジャンル == デイリー_通常
+	番号 = FINDELEMENT(DAILY_DISABLE_NAME, アクセサ)
+ELSE
+	番号 = FINDELEMENT(SLG_DAILY_DISABLE_NAME, アクセサ)
+ENDIF
+
+;登録済みならFINALLYへ
+SIF 番号 != -1
+	GOTO FINALLY
+
+IF ジャンル == デイリー_通常
+	DAILY_DISABLE_NAME:(DAILY_EVENT_NUM:ジャンル) = %アクセサ%
+ELSE
+	SLG_DAILY_DISABLE_NAME:(DAILY_EVENT_NUM:ジャンル) = %アクセサ%
+ENDIF
+
+
+$FINALLY
+
+DAILY_EVENT_NUM:ジャンル ++
