@@ -306,18 +306,9 @@ ELSEIF FLAG:観戦モード
 ;どちらでもなければ、設定する
 ELSEIF !FLAG:観戦モード
 	CALL SELECT_MASTER
-	IF ABL:MASTER:性知識 < 5
-		PRINTFORML 主人公の性知識Lvを最大(Lv5)にしますか？
-		PRINTFORML 　※Lv5未満の場合、一部のウフフコマンドの実行に制限が掛かります
-		PRINTFORML 　※性知識は特定のコマンドやアイテムなどで上げることが可能です
-		CALL ASK_YN()
-		IF RESULT == 0
-			ABL:MASTER:性知識 = 5
-			PRINTFORMW %ANAME(MASTER)%の性知識をLv5にしました
-		ENDIF
-	ENDIF
 ENDIF
 
+;旗揚げスタートなら、勢力を設定
 IF FLAG:OP選択勢力 == -4
 	CALL START_WITH_NEW_COUNTRY
 ENDIF
@@ -361,11 +352,11 @@ FOR LOCAL:0, 1, MAX_COUNTRY
 	MONEY:(LOCAL:0) += GET_SUM_ECONOMY(LOCAL:0) * 100 / (100 * 100)
 NEXT
 
-;一週目のみ、金1000をもらえる
-IF FLAG:周回数 == 1
-	CALL COLORPRINT("一週目ボーナス！", COLOR("注意"), "W")
-	PRINTFORMW 金1000が支給されます
-	MONEY += 1000
+
+;初期ボーナス
+IF !FLAG:観戦モード && FLAG:あなた新規作成 && MASTER == NAME_TO_CHARA("あなた")
+	CALL NEWLOOP_ANATA_BONUS
+	FLAG:あなた新規作成 = 0
 ENDIF
 
 RETURN 1
@@ -775,9 +766,9 @@ ENDIF
 ;主人公選択
 ;-------------------------------------------------
 @SELECT_MASTER
-#DIM 旧MASTER
-#DIM 選択MASTER
-#DIM 登録キャラを選択
+#DIM 旧MASTERID
+#DIM 選択MASTERID
+#DIM 引継ぎ使用可
 #DIM FIRSTLINE
 VARSET LOCAL
 LOADGLOBAL
@@ -785,50 +776,38 @@ LOADGLOBAL
 ;星評価を用意
 CALL TMP_PREPARE_CHARA_STARS()
 
-VARSET 旧MASTER
-VARSET 選択MASTER
-VARSET 登録キャラを選択
+VARSET 旧MASTERID
+VARSET 選択MASTERID
 
-;前週で「あなた」以外を主人公にしていたとき対策として、SWAPCHARAでMASTERを「あなた」に戻しておく。
-旧MASTER = NAME_TO_CHARA("あなた")
-SWAPCHARA MASTER, 旧MASTER
+IF FLAG:周回数 > 1
+	旧MASTERID = GET_ID(MASTER)
+	引継ぎ使用可 = CFLAG:MASTER:所属 == FLAG:OP選択勢力 || GET_COUNTRY_BOSS(CFLAG:MASTER:所属) != MASTER
+ELSE
+	旧MASTERID = 0
+	引継ぎ使用可 = 1
+ENDIF
 
 FIRSTLINE = LINECOUNT
 $SHOW_LOOP
 
 DRAWLINE
 PRINTL ★★主人公を選択して下さい★★
-PRINTL ※通常はプレイヤーの分身となる主人公を新規作成し、作成したキャラを選択します
+
 SIF FLAG:OP選択勢力 <= 0
 	PRINTL ※特殊なスタートを選択しているので、既存キャラ一覧に君主以外の全キャラが表示されます
 ;二週目以降で選択勢力と異なる勢力の君主の場合、前週と同じ選択をさせるとまずいので選択不可とする
-SIF FLAG:周回数 > 1 && CFLAG:旧MASTER:所属 != FLAG:OP選択勢力 && GET_COUNTRY_BOSS(CFLAG:旧MASTER:所属) == 旧MASTER
+SIF 旧MASTERID > 0 && !引継ぎ使用可
 	CALL COLORPRINT("※前周の主人公が選択した勢力以外の勢力の君主です。「前週と同じ」は利用できません", COLOR("注意"), "L")
 DRAWLINE
 
 ;ここから登録キャラの表示
-PRINTL ●登録キャラ
-PRINT    
-PRINTBUTTON "  0[新規作成    ]", 0
-;二週目以降なら
-IF FLAG:周回数 > 1 && !(CFLAG:旧MASTER:所属 != FLAG:OP選択勢力 && GET_COUNTRY_BOSS(CFLAG:旧MASTER:所属) == 旧MASTER)
-	PRINT    
-	PRINTBUTTON "98[前週と同じで]", 98
+PRINTBUTTON "[あなたを新規作成]", 0
+PRINTFORM ※ 現在の「あなた」のデータは削除されます
+;二週目以降で引継ぎが使用できるなら
+IF 旧MASTERID > 0 && !引継ぎ使用可
+	PRINTL
+	PRINTBUTTON "[前週の主人公を利用]", 98
 ENDIF
-;登録済みキャラを表示していく
-LOCAL:1 = 0
-FOR LOCAL:0, 0, MAX_MASTER
-	;体力が正なら登録キャラが存在すると判定
-	IF MASTER_MAXBASE:(LOCAL:0):0 > 0
-		IF LOCAL:1 % 4 == 0
-			PRINTL 
-			PRINT    
-		ENDIF
-		LOCALS:0 = {LOCAL:0 + 10, 3}[%MASTER_NAME:(LOCAL:0):0, 12, LEFT%]
-		PRINTBUTTON @"%LOCALS:0, 19, LEFT%", LOCAL:0 + 10
-		LOCAL:1 ++
-	ENDIF
-NEXT
 
 ;ここから固定キャラの表示
 PRINTL 
@@ -843,9 +822,8 @@ FOR LOCAL:0, 1, CHARANUM
 		CONTINUE
 	IF LOCAL:1 % 4 == 0 && LOCAL:1 >= 1
 		PRINTL 
-		PRINT    
 	ENDIF
-	LOCALS:0 = {NO:(LOCAL:0) + 100}[%ANAME(LOCAL:0), 12, LEFT%]
+	LOCALS:0 = [%ANAME(LOCAL:0), 12, LEFT%]
 	PRINTBUTTON @"%LOCALS:0, 19, LEFT%", NO:(LOCAL:0) + 100
 	LOCAL:1 ++
 NEXT
@@ -856,46 +834,23 @@ INPUT
 
 ;新規作成
 IF RESULT == 0
-	;空いている登録キャラ番号の取得
-	LOCAL:5 = -1
-	FOR LOCAL:0, 0, MAX_MASTER
-		IF MASTER_MAXBASE:(LOCAL:0):0 <= 0
-			LOCAL:5 = LOCAL:0
-			BREAK
-		ENDIF
-	NEXT
-	IF LOCAL:5 >= 0
-		CALL CREATE_MASTER(LOCAL:5)
-	ELSE
-		PRINTFORML 登録キャラの数が最大です
-		PRINTFORMW 先に不要な登録キャラを削除して下さい
-	ENDIF
-	;登録するなりキャンセルするなりしたら戻す
-	CLEARLINE LINECOUNT - FIRSTLINE
-	GOTO SHOW_LOOP
+	CALL INITIALIZE_CHARA(NAME_TO_CHARA("あなた"))
+	CALL MASTER_EDIT(NAME_TO_CHARA("あなた"))
+	選択MASTERID = GET_ID(RESULT)
+	FLAG:あなた新規作成 = 1
 ;前週と同じ
-ELSEIF RESULT == 98 && FLAG:周回数 > 1
-	IF  CFLAG:旧MASTER:所属 != FLAG:OP選択勢力 && GET_COUNTRY_BOSS(CFLAG:旧MASTER:所属) == 旧MASTER
+ELSEIF RESULT == 98 && 旧MASTERID > 0
+	IF !引継ぎ使用可
 		PRINTFORMW 前周の主人公が選択した勢力以外の勢力の君主です。「前週と同じ」は利用できません
 		CLEARLINE LINECOUNT - FIRSTLINE
 		GOTO SHOW_LOOP
 	ENDIF
-	選択MASTER = 旧MASTER
-;登録キャラを選択
-ELSEIF INRANGE(RESULT, 10, MAX_MASTER) && MASTER_MAXBASE:(RESULT - 10):0 > 0
-	;指定した番号の登録キャラを作成する。
-	;登録キャラを選択した場合も既存キャラを選択した場合も、SHOW_INFOで能力を表示したいので。
-	登録キャラを選択 = 1
-	MASTER_ID = RESULT - 10
-	ADDCHARA 0
-	選択MASTER = CHARANUM -1
-	CALL APPLY_MASTER_DATA(選択MASTER, MASTER_ID)
+	選択MASTERID = GET_ID(MASTER)
 ;既存のキャラを選択
 ELSE
 	LOCAL:2 = NO_TO_CHARA(RESULT - 100)
 	IF SELECT_MASTER_CAN_SELECT(LOCAL:2)
-		選択MASTER = LOCAL:2
-		MASTER_ID = -1
+		選択MASTERID = GET_ID(LOCAL:2)
 	ELSE
 		GOTO INPUT_LOOP1
 	ENDIF
@@ -908,22 +863,14 @@ CONFIG:6 = 1
 CALL TMP_PREPARE_CHARA_STARS()
 
 DRAWLINE
-CALL SHOW_INFO(選択MASTER)
+CALL SHOW_INFO(ID_TO_CHARA(選択MASTERID))
 DRAWLINE
 
 CONFIG:6 = LOCAL:0
 
-PRINTBUTTON " 0[このキャラを主人公にして開始]", 0
-;登録キャラを指定した場合、修正と削除ができる
-IF MASTER_ID >= 0
-	PRINT    
-	PRINTBUTTON " 1[修正]", 1
-	PRINT    
-	
-	PRINTBUTTON " 2[削除]", 2
-ENDIF
+PRINTBUTTON " [このキャラを主人公にして開始]", 0
 PRINTL 
-PRINTBUTTON " 9[戻る]", 9
+PRINTBUTTON " [戻る]", 9
 PRINTL 
 
 REDRAW 0
@@ -936,23 +883,16 @@ SELECTCASE RESULT
 	;このキャラを主人公にする
 	CASE 0
 		REDRAW 1
-		;MASTER(この時点では「あなた」）と選択したMASTERを入れ替える
-		SWAPCHARA MASTER, 選択MASTER
-		CALL NEWGAME_SWAP_RELATIONS(選択MASTER)
-		;登録キャラを選択していた場合、SHOW_INFO用にADDCHARAしている
-		;そのキャラと「あなた」を入れ替えているので、「あなた」がダブることになる
-		;なので入れ替えられた「あなた」を削除する
-		IF 登録キャラを選択
-			登録キャラを選択 = 0
-			CFLAG:MASTER:キャラＩＤ = CFLAG:(選択MASTER):キャラＩＤ
-			;DELETE_CHARAは対象のNO以降のキャラのNOを詰めてしまう
-			;なのでINT_MAXを放り込んでそれを無効化する
-			NO:(選択MASTER) = __INT_MAX__
-			CALL DELETE_CHARA(選択MASTER)
-			;あとスキルが初期化されてないのでしとく
-			CALL SKILL_INIT(MASTER)
+		;二週目以降なら、MASTERと「あなた」を入れ替えて元に戻す
+		;MASTERが「あなた」以外だと、並びがぐちゃぐちゃになってしまうので（IDの仕組みがあるし問題ないと思うけど）
+		IF 旧MASTERID > 0
+			SWAPCHARA MASTER, NAME_TO_CHARA("あなた")
+			CALL NEWGAME_SWAP_RELATIONS(ID_TO_CHARA(旧MASTERID))
 		ENDIF
-		
+		;MASTERと選択したMASTERを入れ替える
+		SWAPCHARA MASTER, ID_TO_CHARA(選択MASTERID)
+		CALL NEWGAME_SWAP_RELATIONS(ID_TO_CHARA(選択MASTERID))
+
 		;主人公の所属を選択した勢力にする
 		;既存勢力以外のスタートを選んでいる場合はとりあえず0にしておく
 		CALL CHANGE_COUNTRY(MASTER, MAX(FLAG:OP選択勢力, 0), 1)
@@ -963,12 +903,12 @@ SELECTCASE RESULT
 		FOR LOCAL:2, 0, VARSIZE("BASE")
 			BASE:MASTER:(LOCAL:2) = MAXBASE:MASTER:(LOCAL:2)
 		NEXT
+
 		;性知識の設定
 		IF ABL:MASTER:性知識 < 5
-			PRINTFORML 主人公の性知識Lvを最大(Lv5)にしますか？
-			PRINTFORML Lv5未満の場合、一部のウフフコマンドの実行に制限が掛かります
-			PRINTFORML 性知識は特定のコマンドやアイテムなどで上げることが可能です
-			PRINTFORML とはいえ結構な手間なので、5にしておくことをおすすめします
+			PRINTFORML 現在、%ANAME(MASTER)%の性知識は{ABL:MASTER:性知識}です
+			PRINTFORML Lv5(最大)未満の場合、一部のウフフコマンドの実行に制限が掛かります
+			PRINTFORML 後から上げられますが手間なので、ここで最大にしておきますか？　
 			CALL ASK_YN()
 			IF RESULT == 0
 				ABL:MASTER:性知識 = 5
@@ -978,37 +918,6 @@ SELECTCASE RESULT
 		RETURN
 	;戻る
 	CASE 9
-		;登録キャラを選択していた場合、ADDCHARAしているので削除しとく
-		;DELETE_CHARAはNOを詰める処理を含むので、対象のNOをINT_MAXにして防ぐ
-		IF 登録キャラを選択
-			登録キャラを選択 = 0
-			NO:(選択MASTER) = __INT_MAX__
-			CALL DELETE_CHARA(選択MASTER)
-		ENDIF
-		CLEARLINE LINECOUNT - FIRSTLINE
-		GOTO SHOW_LOOP
-	;修正（登録キャラ選択時のみ)
-	CASE 1
-		IF MASTER_ID >= 0
-			CALL CREATE_MASTER(MASTER_ID, 1)
-			SAVEGLOBAL
-			登録キャラを選択 = 0
-			NO:(選択MASTER) = __INT_MAX__
-			CALL DELETE_CHARA(選択MASTER)
-			CLEARLINE LINECOUNT - FIRSTLINE
-			GOTO SHOW_LOOP
-		ENDIF
-	;削除
-	CASE 2
-		PRINTL 本当に削除してもよろしいですか？
-		CALL ASK_YN()
-		IF RESULT == 0
-			CALL DELETE_MASTER(MASTER_ID)
-			登録キャラを選択 = 0
-			NO:(選択MASTER) = __INT_MAX__
-			CALL DELETE_CHARA(選択MASTER)
-			SAVEGLOBAL
-		ENDIF
 		CLEARLINE LINECOUNT - FIRSTLINE
 		GOTO SHOW_LOOP
 ENDSELECT
@@ -1166,6 +1075,66 @@ ELSE
 	GOTO SHOW_LOOP_CHARA
 ENDIF
 
+;-------------------------------------------------
+;「あなた」を新規に作成した場合のボーナス
+;-------------------------------------------------
+@NEWLOOP_ANATA_BONUS
+#DIM FIRST_LINE
+#DIM 選択ボーナス
+FIRST_LINE = LINECOUNT
+CALL COLORPRINT("あなた新規作成ボーナス！", COLOR("注意"), "L")
+PRINTFORML 「あなた」を新規に作成して主人公にしたので、ボーナスがもらえます
+PRINTFORML どれにしますか？(どれも後から手に入ります)
+
+CALL ASK_MULTI("素質「酒豪」", "素質「天の御遣い」", "素質「妖術知識」と妖術ステータス10", "スキル「超成長力」", "金200000", "いらない")
+選択ボーナス = RESULT
+SELECTCASE 選択ボーナス
+	CASE 0
+		PRINTFORML 酒に非常に強くなる素質「酒豪」にしますか？
+		PRINTFORML (ステータス「肝臓」が低い、または酒を飲まないプレイスタイルだと微妙です)
+		PRINTFORML (通常取得には大量の飲酒が必要なため、かかる手間はボーナス中でも随一です)
+	CASE 1
+		PRINTFORML 好感度を得やすくなる素質「天の御遣い」にしますか？
+		PRINTFORML (上昇好感度が低い場合にしか効果がありません)
+		PRINTFORML (屈服させるルートでキャラとかかわる場合無意味です)
+	CASE 2
+		PRINTFORML 触手が扱えるようになる素質「妖術知識」と、ＳＬＧステータス「妖術」10のセットにしますか？
+		PRINTFORML (「妖術知識」の取得は安価です)
+		PRINTFORML (妖術はとても鍛えにくいのですが、10程度だと効果のほどは微妙です)
+	CASE 3
+		PRINTFORML ＳＬＧステータスの成長が速くなり、毎ターン経験値が入るスキル「超成長力」にしますか？
+		PRINTFORML (育成は楽になりますが、このゲームは能力値が高いほどステータスを1伸ばす価値が低くなります)
+		PRINTFORML (十分に鍛えられたキャラだと、育成の手間とリターン自体が微妙です)
+	CASE 4
+		PRINTFORML 金は力。金200000にしますか？
+		PRINTFORML (序盤は非常に助かりますが、終盤は小銭となるでしょう)
+	CASE 5
+		PRINTFORML マジで？
+		PRINTFORML (実はあとから別のボーナス！　とかマジでないです)
+		PRINTFORML (縛りプレイ用。きみはもの好きなのか？)
+ENDSELECT
+
+CALL ASK_YN
+
+IF RESULT == 1
+	CLEARLINE LINECOUNT - FIRST_LINE
+	RESTART
+ENDIF
+
+SELECTCASE 選択ボーナス
+	CASE 0
+		TALENT:MASTER:酒豪 = 1
+	CASE 1
+		TALENT:MASTER:天の御遣い = 1
+	CASE 2
+		TALENT:MASTER:妖術知識 = 1
+		ABL:MASTER:妖術 = 10
+	CASE 3
+		CALL LEARN_SKILL_GENERAL_BY_NAME(MASTER, "超成長力")
+	CASE 4
+		MONEY += 200000
+	CASE 5
+ENDSELECT
 
 ;-------------------------------------------------
 ;登録キャラの扱いを設定する関数
