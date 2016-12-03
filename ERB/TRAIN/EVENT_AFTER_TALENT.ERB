@@ -177,13 +177,26 @@ IF !TALENT:(ARG:0):虚ろ
 	ENDSELECT
 ENDIF
 
-;堕とした人数が5人以上で、謎の魅力が付く
-IF !TALENT:MASTER:謎の魅力 && FLAG:陥落人数 >= 5
-	PRINTL 
-	SETCOLOR COLOR("注意")
-	PRINTFORMW %ANAME(MASTER)%は<謎の魅力>を身につけた
-	RESETCOLOR
-	TALENT:MASTER:謎の魅力 = 1
+;堕とした人数が5人ごとにボーナス
+IF FLAG:陥落人数 >= (FLAG:陥落ボーナス受領数 + 1) * 5 && !(ALLSAMES(TALENT:MASTER:謎の魅力, TALENT:MASTER:天の御遣い, TALENT:MASTER:技師, TALENT:MASTER:絶倫) && TALENT:MASTER:謎の魅力)
+	PRINTL
+	CALL COLORPRINT(@"今まで他人を陥落させてきた経験で、何か身につけられる気がする……", COLOR("注意"), "L")
+	CALL ASK_MULTI_JUDGE("謎の魅力", !TALENT:MASTER:謎の魅力, "天の御遣い", !TALENT:MASTER:天の御遣い, "技師", !TALENT:MASTER:技師, "絶倫", !TALENT:MASTER:絶倫)
+	SELECTCASE RESULT
+		CASE 0
+			CALL COLORPRINT(@"%ANAME(MASTER)%は<謎の魅力>を身につけた", COLOR("注意"), "W")
+			TALENT:MASTER:謎の魅力 = 1
+		CASE 1
+			CALL COLORPRINT(@"%ANAME(MASTER)%は<天の御遣い>を身につけた", COLOR("注意"), "W")
+			TALENT:MASTER:天の御遣い = 1
+		CASE 2
+			CALL COLORPRINT(@"%ANAME(MASTER)%は<技師>を身につけた", COLOR("注意"), "W")
+			TALENT:MASTER:技師 = 1
+		CASE 3
+			CALL COLORPRINT(@"%ANAME(MASTER)%は<絶倫>を身につけた", COLOR("注意"), "W")
+			TALENT:MASTER:絶倫 = 1
+	ENDSELECT
+	FLAG:陥落ボーナス受領数 ++
 ENDIF
 
 ;酔い累積値が150000以上で酒豪が付く	下戸の場合は下戸を失う
