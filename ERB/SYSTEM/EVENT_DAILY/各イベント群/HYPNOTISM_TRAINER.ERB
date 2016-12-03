@@ -1,0 +1,278 @@
+﻿;---------------------
+;発生確率(1000分率 100で10%)
+;---------------------
+@EVENT_DAILY_HYPNOTISM_TRAINER_RATE()
+RETURN (DVAR:前回催眠対象者 > 0 ? 150 # 30)
+
+;---------------------
+;確率以外の発生判定
+;---------------------
+@EVENT_DAILY_HYPNOTISM_TRAINER_DECISION()
+SIF DAY < 10
+	RETURN 0
+SIF DVAR:催眠トレーナー == 2
+	RETURN 0
+
+RETURN 1
+
+;---------------------
+;ジャンル
+;---------------------
+@EVENT_DAILY_HYPNOTISM_TRAINER_GENRE()
+RETURN デイリー_ジャンル_トレーナー
+
+;---------------------
+;本体
+;---------------------
+@EVENT_DAILY_HYPNOTISM_TRAINER
+#DIM 対象
+#DIM 対象素質
+#DIMS TN
+
+IF DVAR:催眠トレーナー == 1
+	PRINTFORMW 再び例の催眠術師がやって来た
+ELSE
+	PRINTFORML 催眠術師を名乗る男がやって来た
+	PRINTFORMW 金と引き換えに仲間の人格や素質を変えてくれると言う
+	CALL ICPRINT(@"料金は一回につき金<20000>", "L", COLOR("注意"))
+	PRINTFORML 確実では無い様だが、回数を重ねれば成功しやすくなるらしい
+	PRINTFORMW 見るからに胡散臭い男だがどことなく説得力を感じる
+ENDIF
+IF ID_TO_CHARA(DVAR:前回催眠対象者) == MASTER && IS_FEMALE(MASTER)
+	PRINTFORMW %ANAME(MASTER)%は彼の顔を見るとなぜか胸の奥が疼くのを感じた
+ENDIF
+PRINTFORML どうしよう？
+CALL ASK_MULTI_JUDGE(@"催眠を頼む", MONEY >= 20000,"追い出す", 1,"切り捨てる", 1)
+IF RESULT == 2
+	PRINTFORML そんな危ない男を放置はできない
+	PRINTFORMW %ANAME(MASTER)%は催眠術師を剣を抜いて男に斬りかかった！
+	PRINTFORML 
+	IF GETBIT(TALENT:MASTER:デイリー系, 素質_デイリー_催眠中毒)
+		PRINTFORML …しかし次の瞬間%ANAME(MASTER)%の思考は停止し、剣を落とし呆然とその場に立ち尽くした
+		PRINTFORMW すっかり男の催眠にハメられている%ANAME(MASTER)%はもはや彼に逆らうことは出来なくなっていたのだ
+		PRINTFORML 彼は冷汗をぬぐうと腹いせとばかりに%ANAME(MASTER)%に裸になるように命令する
+		PRINTFORML %ANAME(MASTER)%はただその命令に従い服を脱ぎすてると、男によく見える様にその裸体を露にした
+		PRINTFORMW 催眠術師は下卑た笑みを浮かべると尻を揉みながら%ANAME(MASTER)%を寝室へと連れ込んだ
+		PRINTFORML ・
+		PRINTFORML ・・
+		PRINTFORMW ・・・
+		PRINTFORML 数時間後、%ANAME(MASTER)%は男を見送っていた
+		PRINTFORML はて、彼と何をしていたのだったか？
+		PRINTFORMW 首をひねりながら仕事に戻る%ANAME(MASTER)%の太ももに、つつーっと精液が伝っていた
+	ELSE
+		PRINTFORML 男は悲鳴を上げながら倒れ伏した
+		PRINTFORMW 男の懐を漁ったが特に金目のものも怪しいものも見つからなかった
+		PRINTFORMW %ANAME(MASTER)%は男の死体を兵士に始末させ仕事に戻った
+		DVAR:催眠トレーナー = 2
+	ENDIF
+	RETURN
+ELSEIF RESULT == 1
+	PRINTFORML 生憎だが今そんなことは必要ない
+	PRINTFORMW 男は怪しげな笑みを浮かべて去って行った
+	DVAR:催眠トレーナー = 1
+	RETURN
+ENDIF
+
+PRINTFORML 催眠を頼むことにした
+PRINTFORMW 誰にしてもらおう？
+DRAWLINE
+;対象を決める
+CALL SELECT_CHARA_LIST_ONLY_LOGIC_SLG("育児対象, 別勢力, 動物", "捕虜")
+対象 = RESULT
+IF 対象 == -1
+	PRINTFORMW やはりやめておいた
+	DVAR:催眠トレーナー = 1
+	RETURN 1
+ENDIF
+IF 対象 == MASTER
+	PRINTFORMW 自分に施してもらう事にした
+ELSE
+	PRINTFORMW %ANAME(対象)%に施してもらう事にした
+ENDIF
+IF 対象 == ID_TO_CHARA(DVAR:前回催眠対象者) && IS_FEMALE(対象)
+	SIF 対象 != MASTER
+		PRINTFORMW %ANAME(対象)%は彼と瞳を合わせるとなにやらもじもじしだした
+	DVAR:催眠深度 ++
+ELSE
+	SIF IS_FEMALE(対象)
+		DVAR:前回催眠対象者 = GET_ID(対象)
+	DVAR:催眠深度 = 1
+	DVAR:催眠レイプ回数 = 0
+ENDIF
+PRINTFORMW さて、どのように変えてもらおうか？
+DRAWLINE
+;種類を決める
+LOCAL:3 = 0
+FOR LOCAL:0, 3, 300
+	TN = %TALENTNAME:(LOCAL:0)%
+	IF TN != ""
+		;非表示素質のスキップ
+		IF GROUPMATCH(TN, "絶壁", "貧乳", "巨乳", "爆乳", "超短小", "短小", "巨根", "超巨根")
+			CONTINUE
+		ELSEIF LOCAL:0 >= 150 && LOCAL:0 <= 179 && !GROUPMATCH(TN, "合意", "母性")
+			CONTINUE
+		ELSEIF LOCAL:0 >= 295 && LOCAL:0 <= 299
+			CONTINUE
+		ENDIF
+		LOCAL:3 ++
+	ENDIF
+NEXT
+LOCAL:3 = 0
+LOCAL:5 = 0
+FOR LOCAL:0, 3, 300
+	TN = %TALENTNAME:(LOCAL:0)%
+	IF TN != ""
+		;非表示素質のスキップ
+		IF GROUPMATCH(TN, "キス未経験", "アナル処女", "絶壁", "貧乳", "巨乳", "爆乳", "超短小", "短小", "巨根", "超巨根")
+			CONTINUE
+		ELSEIF LOCAL:0 > 85
+			CONTINUE
+		ENDIF
+		;改行判定
+		IF LOCAL:5 % 4 == 0
+			IF LOCAL:5 >= 1
+				PRINTL 
+			ENDIF
+			PRINT   
+		ENDIF
+		LOCAL:5 ++
+		IF TALENT:対象:(LOCAL:0)
+			SETCOLOR COLOR("選択中")
+		ENDIF
+		PRINTBUTTON @"{LOCAL:0, 3}\{%TN, 14%\}", LOCAL:0
+		RESETCOLOR
+		PRINT    
+		LOCAL:3 ++
+	ENDIF
+NEXT
+PRINTFORML [0] キャンセル
+DRAWLINE
+$INPUT_LOOP
+INPUT
+IF RESULT == 0
+	PRINTFORMW やはりやめておいた
+	RETURN
+ELSEIF TALENT:対象:RESULT == 1
+	PRINTFORMW その素質は既に持っている
+	GOTO INPUT_LOOP
+ELSEIF  RESULT < 10 || RESULT > 85
+	GOTO INPUT_LOOP
+ELSE
+	対象素質 = RESULT
+	TN = %TALENTNAME:対象素質%
+	PRINTFORMW [%TN%]を頼んだ
+ENDIF
+PRINTFORMW 彼は早速%ANAME(対象)%を使われていない部屋へ連れ込んだ
+PRINTFORML ・
+PRINTFORML ・
+PRINTFORMW ・
+IF GETBIT(TALENT:対象:デイリー系, 素質_デイリー_催眠中毒)
+	PRINTFORML 部屋に連れ込まれた%ANAME(対象)%はいつも通り催眠状態で男に犯されている
+	PRINTFORML ペニスで膣肉を抉られる度に%ANAME(対象)%の理性がブチブチと音を立てて破壊され快楽で上書きされる
+	PRINTFORML もはや身体は彼の玩具に成り下がり、乳首も陰核もビキビキに勃起しながらあられもなくイキ狂う
+	PRINTFORMW そして彼のザーメンが子宮に放たれると、待望の熱に獣の様な嬌声を上げて絶頂するのだった
+	DVAR:催眠深度 ++
+ELSEIF RAND:6 + DVAR:催眠深度 >= 5 && IS_FEMALE(対象)
+	SELECTCASE DVAR:催眠レイプ回数
+		CASE 0
+			PRINTFORML 「ぐぅぅ！なんてすばらしい雌穴だ！想像以上だぜ！」
+			PRINTFORML 男が覆い被さりながら激しく腰を振って%ANAME(対象)%を犯している
+			PRINTFORML ぐっちゅぐっちゅと卑猥な音を立てながら彼のペニスが%ANAME(対象)%の秘所を出入りする
+			PRINTFORMW 催眠状態の%ANAME(対象)%は朦朧とした表情で彼にしがみつきながらただ快楽のままに喘ぐ
+			PRINTFORML 「おら！このドスケベ雌穴が！もっと締め付けろ！」
+			PRINTFORML 上書きされる命令に%ANAME(対象)%は思考をチカチカさせながらもぎゅうっと膣を締め付ける
+			PRINTFORML 「おっ！おっ！いいぞ！くそっ、ご褒美に種付けしてやるぞ！子宮開けろ！おら！孕めぇ！」
+			PRINTFORMW 彼が大きく腰を突き出すと、びゅるるる！と大量の精液が%ANAME(対象)%の中へと放たれた
+			PRINTFORML すっかり調教されきっていた%ANAME(対象)%の身体はその一発で意識毎吹き飛ぶ様な快楽を受け、絶頂した
+			PRINTFORML %ANAME(対象)%は痙攣しながらも全身で彼にしがみついて、どくん♥どくん♥と胎内に注がれる子種を感じた
+			PRINTFORML 「ふぅ、たまらねぇぜ…なんだお前もまだ欲しいのか？へへっ、まだまだたっぷり可愛がってやるよ」
+			PRINTFORMW すっかり意識の底まで快楽を刻み込まれた%ANAME(対象)%は、自らおねだりしてその後も何度も彼に抱かれた
+			DVAR:催眠レイプ回数 ++
+			DVAR:催眠深度 ++
+		CASE 1
+			PRINTFORML …%ANAME(対象)%はまたも男に犯されている
+			PRINTFORML 「おら！おら！啼け、この雌豚が！おら！」
+			PRINTFORML 男は%ANAME(対象)%の髪を掴みながら背後から激しくペニスを打ち付けてくる
+			PRINTFORMW ぱぁん！ぱぁん！と肉と肉がぶつかる度に%ANAME(対象)%はヒィヒィとなさけなく喘いで身体を跳ねさせる
+			PRINTFORML %ANAME(対象)%は乱暴に犯されながらもだらしないアヘ顔を晒しながらされるがままにヨガリ狂っている
+			PRINTFORML 「うぅ、相変わらず締め付けやがる！おら！そんなにいいか！言ってみろ！」
+			PRINTFORML %ANAME(対象)%はイキっぱなしになりながら命ぜられるまま、下品に涎を垂らしたまま彼のペニスを称賛する
+			PRINTFORMW 一言あられもない言葉を吐く度に%ANAME(対象)%の理性がプツッと切れていき、より深い快感が走る
+			PRINTFORML 「いいぞ！さらに締め付けてきやがってっ！くぅ、そろそろイくぞ！おっ！おっ！おぉ！」
+			PRINTFORML 腰を鷲掴みにしながら男が動きを加速させると、%ANAME(対象)%は期待に一層嬌声を響かせ子宮を疼かせる
+			PRINTFORML そして待望の精液が奥深くで放たれると同時に、圧倒的な快楽の波で今日一番の絶頂に達した
+			PRINTFORMW その日もまた男が満足するまで何度も犯され意識の奥底まで快楽を染み込まされた
+			DVAR:催眠レイプ回数 ++
+			DVAR:催眠深度 ++
+		CASE 2
+			PRINTFORML 「おら！どうだ！雌犬にはふさわしい恰好だろうが！このっ！このっ！」
+			PRINTFORML 「んひ♥ひぃ♥あっ♥イっく♥あ♥イっひゃう♥ご主人様♥あひぃ♥またイくぅ♥」
+			PRINTFORML 宮殿の外の木陰で全裸に首輪だけつけられた%ANAME(対象)%が男に犯されながらアヘ顔を晒している
+			PRINTFORMW 今までの行為で味を占めた男は大胆にも%ANAME(対象)%を外に連れ出してレイプしている
+			PRINTFORML 人に見られるかもしれないという状況に%ANAME(対象)%はいつも以上に昂り、自ら腰を振ってしまう
+			PRINTFORML 「淫乱め！いつも以上に乱れやがって！躾けてやるぞ！おら！おら！おっ！おぉ！」
+			PRINTFORML 痛い程に勃起した乳首をひねられ、%ANAME(対象)%はたまらずイかされ反動で膣を思いきり締め上げる
+			PRINTFORMW その刺激に彼もますます興奮し、より激しく腰を打ち付け、より深くペニスをねじ込んできた
+			PRINTFORML 「んぐ♥ん♥ひぃぃ♥だめぇ♥ふかっ♥ふかいのぉ♥♥あぁ♥すごいぃ♥おちんぽぉ♥」
+			PRINTFORML もはや%ANAME(対象)%は人に見られるリスクも忘れ、ただの雌に成り下がって下品にヨガリ狂う
+			PRINTFORMW ひくつく秘所からは大量の愛液が溢れ、精液を搾り取ろうとより深くにペニスをいざなっている
+			PRINTFORML 「ぐぅ！生意気に締め付けやがって！おら！また出してやるぞ！子宮開けてイき狂え！」
+			PRINTFORML 何発目かの膣内射精を、%ANAME(対象)%は少しでも奥に注いでもらうために腰を突き出して待ち構える
+			PRINTFORML そして彼の特濃ザーメンを子宮に叩きつけられながら、%ANAME(対象)%は獣の様な嬌声を上げて絶頂した
+			PRINTFORMW %ANAME(対象)%はその日一日彼のペットとして連れ回され、たっぷりと調教を受ける事になった
+			DVAR:催眠レイプ回数 ++
+			DVAR:催眠深度 ++
+		CASE 3
+			PRINTFORML 「おら、いつも通り股を開いておねだりしろ」
+			PRINTFORML 部屋に入るなり、男は%ANAME(対象)%にそう告げた
+			PRINTFORML この男は何を言っているんだ？あまりに突然の言葉に、%ANAME(対象)%の思考が止まる
+			PRINTFORMW しかし次の瞬間、催眠状態に切り替わった%ANAME(対象)%は下品な雌の顔になった
+			PRINTFORML 「はい♥ご主人様♥前回から♥ずっとお待ちしていましたぁ♥♥」
+			PRINTFORML 彼を見つめる瞳に♥を浮かべ犬の様に舌を垂らしながら%ANAME(対象)%はスカートをたくし上げる
+			PRINTFORMW そこには下着はなく、秘所は期待にヒクヒク♥と痙攣し、愛液が垂れ流しになっていた
+			PRINTFORML 「私のはしたないご主人様専用おまんこを♥存分に使って無責任に種付けしてください♥♥♥」
+			PRINTFORML %ANAME(対象)%は息を荒げながら見せつける様に股を広げ、おちんぽをおねだりする
+			PRINTFORMW その様子に男は舌なめずりをすると、%ANAME(対象)%を押し倒しいきなりそのペニスを根元までねじ込んだ
+			PRINTFORML 「あっひぃいいん♥♥♥おちんぽぉ♥きたぁ♥♥」
+			PRINTFORML 度重なるレイプによって身体はすっかり彼のちんこを覚え込んでおり、挿入されるだけで歓喜に震えた
+			PRINTFORML ドチュンドチュンと一突きされる毎に愛液が飛び散り、%ANAME(対象)%のあられもない喘ぎ声が響き渡る
+			PRINTFORMW %ANAME(対象)%は連続でイキながら全身で彼にしがみ付き、膣を蠢かせ、より深くへとペニスを誘っていく
+			PRINTFORML 「くぅ！相変わらずたまんねぇ！おら！待望のザーメンだ！まず一発行くぞ！おぉぉ！」
+			PRINTFORML どびゅるる！と男の精液が胎内で弾ける感覚を味わいながら、%ANAME(対象)%は気を失う程の悦びに達した
+			PRINTFORMW %ANAME(対象)%の昂りはそれだけでは収まらず、その後も彼に犯されるままにひたすら肉欲に溺れていった
+			DVAR:催眠レイプ回数 ++
+			DVAR:催眠深度 ++
+		CASEELSE
+			PRINTFORML 部屋に連れ込まれた%ANAME(対象)%はいつも通り催眠状態で男に犯されている
+			PRINTFORML ペニスで膣肉を抉られる度に%ANAME(対象)%の理性がブチブチと音を立てて破壊され快楽で上書きされる
+			PRINTFORML もはや身体は彼の玩具に成り下がり、乳首も陰核もビキビキに勃起しながらあられもなくイキ狂う
+			PRINTFORMW そして彼のザーメンが子宮に放たれると、待望の熱に獣の様な嬌声を上げて絶頂するのだった
+			DVAR:催眠深度 ++
+	ENDSELECT
+	CALL FUCK(対象, "欲望, 奉仕, 精愛, 性技, 性交, Ｃ, Ｖ, Ｂ, Ｍ, キス, 口淫, Ｖ性交", "処女喪失, 膣内射精, キス喪失, 口内射精",  GET_SPERM_ID("催眠術師"), @"催眠術師の\@RAND:2 ? ペニス # 唇\@", @"催眠術師", "", 喪失_催眠)
+	PRINTFORML 
+	PRINTFORML 
+ENDIF
+IF RAND:10 + DVAR:催眠深度 >= 8
+	PRINTFORML 成功した様だ！
+	PRINTFORMW 男はニンマリと笑みを浮かべ謝礼を受け取ると足早に去って行った
+	TALENT:対象:対象素質 = 1
+	CALL COLORPRINT(@"%ANAME(対象)%は[%TN%]を得た", COLOR("注意"), "W")
+ELSE
+	PRINTFORML 失敗した様だ…
+	PRINTFORMW こういう事もあると男は言い訳をし、金を受け取ると足早に去って行った
+ENDIF
+MONEY -= 20000
+CALL ICPRINT(@"金<20000>を支払った", "W", COLOR("注意"))
+DVAR:催眠トレーナー = 1
+
+IF DVAR:催眠深度 >= 10 && !GETBIT(TALENT:対象:デイリー系, 素質_デイリー_催眠中毒) && IS_FEMALE(対象)
+	PRINTFORML ・
+	PRINTFORML ・
+	PRINTFORMW ・
+	PRINTFORMW 度重なる催眠により、%ANAME(対象)%は心の奥底まで彼に支配されてしまったようだ………
+	SETBIT TALENT:対象:デイリー系, 素質_デイリー_催眠中毒
+	CALL COLORPRINT(@"%ANAME(対象)%は催眠中毒になった", COLOR("ピンク"), "W")
+ENDIF
+
+RETURN 1
