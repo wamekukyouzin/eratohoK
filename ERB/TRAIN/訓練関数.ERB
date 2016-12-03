@@ -2,39 +2,28 @@
 #DIM 能力
 #DIM 育児フラグ
 #DIM 乱数基準値, 2
-#DIM ボーナス, 2
 #DIM 適正, 2
 ;コマンドの成否をTFLAG:18にセット
 CALL JUDGE_COM_RESULT(MTAR:0, 5, 5)
 
-乱数基準値:0 = MAX(100 - ABL:(MPLY:0):能力 / 2, 30)
-乱数基準値:1 = MAX(100 - ABL:(MTAR:0):能力 / 2, 30)
-ボーナス:0 = 乱数基準値:0 / 5
-ボーナス:1 = 乱数基準値:1 / 5
+乱数基準値:0 = MAX(100 - ABL:(MPLY:0):能力 / 3, 30)
+乱数基準値:1 = MAX(100 - ABL:(MTAR:0):能力 / 3, 30)
 IF ABL:(MPLY:0):能力 > ABL:(MTAR:0):能力 + 10
 	乱数基準値:0 -= 10
 	乱数基準値:1 += 10
-	ボーナス:0 = 0
-	ボーナス:1 += 5
 ELSEIF ABL:(MTAR:0):能力 > ABL:(MPLY:0):能力 + 10
 	乱数基準値:1 += 10
 	乱数基準値:0 -= 10
-	ボーナス:1 = 0
-	ボーナス:0 += 5
 ENDIF
 
 SELECTCASE TFLAG:18
 	CASE -1
 		乱数基準値:0 -= 10
 		乱数基準値:1 -= 10
-		ボーナス:0 = 0
-		ボーナス:1 = 0
 	CASE 0
 	CASEELSE
 		乱数基準値:0 += 10
 		乱数基準値:1 += 10
-		ボーナス:0 += 10
-		ボーナス:1 += 10
 ENDSELECT
 
 適正:0 = GROWTYPE_RATE(MPLY:0, ABLNAME:能力)
@@ -129,23 +118,36 @@ IF 育児フラグ == 0
 ENDIF
 
 IF !TALENT:(MTAR:0):幼児
+
 	LOCAL = (RAND:100 < 乱数基準値:0)
-	SIF ABL:(MPLY:0):能力 < ランク閾値:ランク_ＳＬＧ:ランク_D
-		LOCAL *= RAND:2 + 1
+
+	IF LOCAL
+		SELECTCASE ABL:(MPLY:0):能力
+			CASE IS < ランク閾値:ランク_ＳＬＧ:ランク_D
+				LOCAL += RAND:3
+			CASE IS < ランク閾値:ランク_ＳＬＧ:ランク_C
+				LOCAL += RAND:2
+		ENDSELECT
+	ENDIF
+
 	EXP:(MPLY:0):GET_EXP(能力) += LOCAL
+
 	LOCAL = (RAND:100 < 乱数基準値:1)
-	SIF ABL:(MTAR:0):能力 < ランク閾値:ランク_ＳＬＧ:ランク_D
-		LOCAL *= RAND:2 + 1
+
+	IF LOCAL
+		SELECTCASE ABL:(MTAR:0):能力
+			CASE IS < ランク閾値:ランク_ＳＬＧ:ランク_D
+				LOCAL += RAND:3
+			CASE IS < ランク閾値:ランク_ＳＬＧ:ランク_C
+				LOCAL += RAND:2
+		ENDSELECT
+	ENDIF
+
 	EXP:(MTAR:0):GET_EXP(能力) += LOCAL
-	SIF ボーナス:0
-		EXP:(MPLY:0):GET_EXP(能力) += RAND:100 < ボーナス:0
-	SIF ボーナス:1
-		EXP:(MTAR:0):GET_EXP(能力) += RAND:100 < ボーナス:1
+
 ELSE
 	FOR LOCAL, 0, 10
 		EXP:(MTAR:0):GET_EXP(能力) += (RAND:100 < 乱数基準値:1)
-		SIF ボーナス:1
-			EXP:(MTAR:0):GET_EXP(能力) += RAND:100 < ボーナス:1
 	NEXT
 ENDIF
 
