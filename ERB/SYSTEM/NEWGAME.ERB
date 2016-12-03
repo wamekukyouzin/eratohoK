@@ -4,6 +4,7 @@
 ;タイトル画面
 ;-------------------------
 @SYSTEM_TITLE
+RESETDATA
 DRAWLINE
 ALIGNMENT CENTER
 PRINTFORML 　　,,,,,,,,　 ,,, ,,,,,　 　,,,,,,,,,　,,,lll,,,,,, 　　,,,,,,,, 　　llll ,,,,,,, 　　　,,,,,,,,　　 
@@ -33,6 +34,8 @@ PRINTBUTTON " 0[最初から]", 0
 PRINTL 
 PRINTBUTTON " 1[続きから]", 1
 PRINTL 
+PRINTBUTTON " 2[カスタムキャラ]", 2
+PRINTL
 [IF_DEBUG]
 PRINTBUTTON "99[   DEBUG]", 99
 PRINTL 
@@ -45,6 +48,9 @@ IF RESULT == 0
 	BEGIN FIRST
 ELSEIF RESULT == 1
 	LOADGAME
+	RESTART
+ELSEIF RESULT == 2
+	CALL CUSTOM_CHARA_MENU
 	RESTART
 ELSEIF RESULT == 99
 	[IF_DEBUG]
@@ -121,6 +127,60 @@ PALAMLV:23 = 2500000000
 PALAMLV:24 = 5000000000
 PALAMLV:25 = 9999999999
 
+;COSの値を事前に計算してリストに記録する
+FOR LOCAL:0, 0, 360
+	COS_LIST:(LOCAL:0) = CALC_COS(LOCAL:0)
+NEXT
+
+;アイテムの開発期間を設定
+CALL SET_ITEMTERM
+
+;都市の文字色リセット
+CALL RESET_CITY_COLOR
+
+;ランダムキャラの名前候補リストを作成
+CALL CREATE_NAME_LIST
+
+;タトゥーのランダム入力内容リストを作成
+CALL CREATE_TATOO_LIST
+
+;精液マップを作成
+CALL CREATE_SPERM_MAP
+
+;デイリーマップを作製
+CALL CREATE_DAILY_MAP
+
+;ランク閾値の生成
+CALL INITIALIZE_RANK
+
+;能力値の最小・最大を設定
+FOR LOCAL:0, 0, 50
+	ABL_MIN:(LOCAL:0) = 0
+	ABL_MAX:(LOCAL:0) = 9999
+NEXT
+FOR LOCAL:0, 50, 70
+	ABL_MIN:(LOCAL:0) = 0
+	ABL_MAX:(LOCAL:0) = 300
+NEXT
+ABL_MAX:14 = 5
+ABL_MIN:60 = -99
+ABL_MIN:61 = -99
+ABL_MIN:90 = -1000
+ABL_MAX:90 = 1000
+ABL_MIN:91 = -1000
+ABL_MAX:91 = 1000
+ABL_MIN:92 = 0
+ABL_MAX:92 = 1000
+
+;AI用の各種変数を設定
+CALL AI_BASE_SETTING
+
+CALL TMP_CREATE_UNIT_MAP
+
+;-------------------------------------------------
+;ランク閾値の初期化
+;-------------------------------------------------
+@INITIALIZE_RANK
 ランク閾値:ランク_ＳＬＧ:ランク_S = 100
 ランク閾値:ランク_ＳＬＧ:ランク_A = 80
 ランク閾値:ランク_ＳＬＧ:ランク_B = 70
@@ -151,52 +211,6 @@ PALAMLV:25 = 9999999999
 ランク閾値:ランク_部隊:ランク_G = 0
 ランク閾値:ランク_部隊:ランク_無 = 0
 
-;COSの値を事前に計算してリストに記録する
-FOR LOCAL:0, 0, 360
-	COS_LIST:(LOCAL:0) = CALC_COS(LOCAL:0)
-NEXT
-
-;アイテムの開発期間を設定
-CALL SET_ITEMTERM
-
-;都市の文字色リセット
-CALL RESET_CITY_COLOR
-
-;ランダムキャラの名前候補リストを作成
-CALL CREATE_NAME_LIST
-
-;タトゥーのランダム入力内容リストを作成
-CALL CREATE_TATOO_LIST
-
-;精液マップを作成
-CALL CREATE_SPERM_MAP
-
-;デイリーマップを作製
-CALL CREATE_DAILY_MAP
-
-;能力値の最小・最大を設定
-FOR LOCAL:0, 0, 50
-	ABL_MIN:(LOCAL:0) = 0
-	ABL_MAX:(LOCAL:0) = 9999
-NEXT
-FOR LOCAL:0, 50, 70
-	ABL_MIN:(LOCAL:0) = 0
-	ABL_MAX:(LOCAL:0) = 300
-NEXT
-ABL_MAX:14 = 5
-ABL_MIN:60 = -99
-ABL_MIN:61 = -99
-ABL_MIN:90 = -1000
-ABL_MAX:90 = 1000
-ABL_MIN:91 = -1000
-ABL_MAX:91 = 1000
-ABL_MIN:92 = 0
-ABL_MAX:92 = 1000
-
-;AI用の各種変数を設定
-CALL AI_BASE_SETTING
-
-CALL TMP_CREATE_UNIT_MAP
 
 ;-------------------------------------------------
 ;ニューゲーム時の初期化処理
@@ -313,19 +327,22 @@ IF FLAG:OP選択勢力 == -4
 	CALL START_WITH_NEW_COUNTRY
 ENDIF
 
+;カスタムキャラの扱いの設定
+CALL CUSTOM_SETTING
+
 ;登録キャラの扱いを設定
-FOR LOCAL:0, 0, MAX_MASTER
-	;体力が正なら登録キャラが存在すると判定（主人公は除外）
-	IF MASTER_MAXBASE:(LOCAL:0):0 > 0 && MASTER_ID != LOCAL:0
-		LOCAL:1 ++
-	ENDIF
-NEXT
+;FOR LOCAL:0, 0, MAX_MASTER
+;	;体力が正なら登録キャラが存在すると判定（主人公は除外）
+;	IF MASTER_MAXBASE:(LOCAL:0):0 > 0 && MASTER_ID != LOCAL:0
+;		LOCAL:1 ++
+;	ENDIF
+;NEXT
 
 ;いたら扱いを選択
-SIF LOCAL:1 > 0
-	CALL SET_登録キャラ
+;SIF LOCAL:1 > 0
+;	CALL SET_登録キャラ
 
-LOCAL:1 = 0
+;LOCAL:1 = 0
 
 ;ランダムキャラを使用するかどうか
 CALL SELECT_RCHARA
@@ -1135,194 +1152,6 @@ SELECTCASE 選択ボーナス
 		MONEY += 200000
 	CASE 5
 ENDSELECT
-
-;-------------------------------------------------
-;登録キャラの扱いを設定する関数
-;-------------------------------------------------
-@SET_登録キャラ
-;勢力の数を数える
-LOCAL:2 = 0
-FOR LOCAL:0, 1, MAX_COUNTRY
-	IF IS_COUNTRY(LOCAL:0)
-		LOCAL:2 ++
-	ENDIF
-NEXT
-
-DRAWLINE
-PRINTL 選ばなかった登録キャラを登場させるかどうかを設定できます（現在は0人 or 全員）
-PRINTL [0] 登場させない
-PRINTL [1] 主人公勢力に組み込む
-IF LOCAL:2 >= 2
-	PRINTL [2] 主人公以外のランダムな勢力に組み込む
-	PRINTL [3] 選択した勢力に組み込む
-ELSE
-	SETCOLOR COLOR("選択不可")
-	PRINTPLAIN [2] 主人公以外のランダムな勢力に組み込む
-	PRINTL 
-	PRINTPLAIN [3] 選択した勢力に組み込む
-	PRINTL 
-	RESETCOLOR
-ENDIF
-
-$INPUT_LOOP_登録キャラ
-INPUT
-
-IF RESULT == 0
-	PRINTW 主人公以外の登録キャラは登場しません
-ELSEIF RESULT == 1
-	PRINTW 登録キャラを主人公勢力のキャラとして登場させます
-	;登録キャラの扱いを設定
-	FOR LOCAL:0, 0, 30
-		;体力が正なら登録キャラが存在すると判定（主人公は除外）
-		IF MASTER_MAXBASE:(LOCAL:0):0 > 0 && MASTER_ID != LOCAL:0
-			CALL ADD_VOID_CHARA()
-			LOCAL:1 = RESULT
-			;NOの設定
-			NO:(LOCAL:1) = FLAG:汎用武将カウント + MIN_NO_RANDOM_CHARA
-			FLAG:汎用武将カウント ++
-			CALL APPLY_MASTER_DATA(LOCAL:1, LOCAL:0)
-			CALL NEWCHARA_INIT(LOCAL:1)
-			CALL CHANGE_COUNTRY(LOCAL:1, CFLAG:MASTER:所属, 1)
-			FOR LOCAL:2, 0, VARSIZE("BASE")
-				BASE:(LOCAL:1):(LOCAL:2) = MAXBASE:(LOCAL:1):(LOCAL:2)
-			NEXT
-		ENDIF
-	NEXT
-
-ELSEIF RESULT == 2 && LOCAL:2 >= 2
-	PRINTW 登録キャラをランダムな勢力のキャラとして登場させます
-	;ランダムに勢力を選ぶ
-	;登録キャラの扱いを設定
-	FOR LOCAL:0, 0, 30
-		;体力が正なら登録キャラが存在すると判定（主人公は除外）
-		IF MASTER_MAXBASE:(LOCAL:0):0 > 0 && MASTER_ID != LOCAL:0
-			CALL ADD_VOID_CHARA()
-			LOCAL:1 = RESULT
-			;NOの設定
-			NO:(LOCAL:1) = FLAG:汎用武将カウント + MIN_NO_RANDOM_CHARA
-			FLAG:汎用武将カウント ++
-			CALL APPLY_MASTER_DATA(LOCAL:1, LOCAL:0)
-			CALL NEWCHARA_INIT(LOCAL:1)
-			;ループ用にしか使わないし直後に固定値代入しているので使い回し許してください（何でもしません）
-			FOR LOCAL:2, 0, VARSIZE("BASE")
-				BASE:(LOCAL:1):(LOCAL:2) = MAXBASE:(LOCAL:1):(LOCAL:2)
-			NEXT
-			$COUNTRY_LOOP
-			LOCAL:3 = RAND:MAX_COUNTRY
-			SIF !IS_COUNTRY(LOCAL:3) || LOCAL:3 == CFLAG:MASTER:所属
-				GOTO COUNTRY_LOOP
-			CALL CHANGE_COUNTRY(LOCAL:1, LOCAL:3, 1)
-		ENDIF
-	NEXT
-ELSEIF RESULT == 3 && LOCAL:2 >= 2
-	CALL SELECT_COUNTRY_登録キャラ
-ELSE
-	GOTO INPUT_LOOP_登録キャラ
-ENDIF
-
-;-------------------------------------------------
-;登録キャラを追加する勢力の選択
-;-------------------------------------------------
-@SELECT_COUNTRY_登録キャラ
-#DIM FIRST_LINE
-DRAWLINE
-PRINTL ★★登録キャラの所属勢力を選択して下さい★★
-DRAWLINE
-FOR LOCAL:0, 1, MAX_COUNTRY
-	IF COUNTRY_BOSS:(LOCAL:0) >= 1
-		LOCAL:2 = ID_TO_CHARA(COUNTRY_BOSS:(LOCAL:0))
-		PRINTFORM [{LOCAL:0 + 100, 3, RIGHT}] %NAME:(LOCAL:2)%
-		IF NAME:(LOCAL:2) != CALLNAME:(LOCAL:2)
-			PRINTFORM (%CALLNAME:(LOCAL:2)%)
-		ENDIF
-		PRINTL 
-	ENDIF
-NEXT
-DRAWLINE
-PRINTL [200] マップを見る
-
-$INPUT_LOOP
-INPUT
-
-IF RESULT == 200
-	DRAWLINE
-	CALL SET_CITY_COLOR_COUNTRY
-	CALL DRAWMAP
-	CALL RESET_CITY_COLOR
-	DRAWLINE
-	PRINTL 都市をクリックすることで、その勢力の情報を得ることができます
-	PRINTL [200] 戻る
-
-	REDRAW 0
-	FIRST_LINE = LINECOUNT
-	$INPUT_LOOP_MAP
-	INPUT
-
-	IF RESULT == 200
-		REDRAW 1
-		RESTART
-	ELSEIF RESULT >= 1001 && RESULT < 1000 + MAX_CITY
-		LOCAL:2 = CITY_OWNER:(RESULT - 1000)
-		LOCAL:3 = ID_TO_CHARA(COUNTRY_BOSS:(LOCAL:2))
-		IF LOCAL:2 > 0
-			CLEARLINE LINECOUNT - FIRST_LINE
-			CALL SET_CITY_COLOR_COUNTRY
-			CALL DRAWMAP
-			CALL RESET_CITY_COLOR
-			DRAWLINE
-			PRINTPLAIN この都市は　
-			PRINTFORM [{LOCAL:2 + 100, 3, RIGHT}] %NAME:(LOCAL:3)%
-			PRINTPLAIN 　の勢力下にあります
-			PRINTL 
-			PRINTL [200] 戻る
-			GOTO INPUT_LOOP_MAP
-		ENDIF
-	ELSEIF RESULT >= 100 && RESULT < 200
-		LOCAL:6 = RESULT - 100
-		LOCAL:5 = ID_TO_CHARA(COUNTRY_BOSS:(LOCAL:6))
-		IF LOCAL:5 > 0
-			;登録キャラの扱いを設定
-			FOR LOCAL:0, 0, 30
-				;体力が正なら登録キャラが存在すると判定（主人公は除外）
-				IF MASTER_MAXBASE:(LOCAL:0):0 > 0 && MASTER_ID != LOCAL:0
-					CALL ADD_VOID_CHARA()
-					LOCAL:1 = RESULT
-					CALL APPLY_MASTER_DATA(LOCAL:1, LOCAL:0)
-					CALL NEWCHARA_INIT(LOCAL:1)
-					CALL CHANGE_COUNTRY(LOCAL:1, CFLAG:(LOCAL:5):所属, 1)
-					FOR LOCAL:2, 0, VARSIZE("BASE")
-						BASE:(LOCAL:1):(LOCAL:2) = MAXBASE:(LOCAL:1):(LOCAL:2)
-					NEXT
-				ENDIF
-			NEXT
-			PRINTFORMW 登録キャラを%NAME:(LOCAL:5)%勢力の士官として登場させます
-			REDRAW 1
-			RETURN
-		ENDIF
-	ENDIF
-	CLEARLINE 1
-	GOTO INPUT_LOOP_MAP
-
-ELSEIF RESULT >= 100 && RESULT < 200
-	LOCAL:6 = RESULT - 100
-	LOCAL:5 = ID_TO_CHARA(COUNTRY_BOSS:(LOCAL:6))
-	IF LOCAL:5 > 0
-		;登録キャラの扱いを設定
-		FOR LOCAL:0, 0, 30
-			;体力が正なら登録キャラが存在すると判定（主人公は除外）
-			IF MASTER_MAXBASE:(LOCAL:0):0 > 0 && MASTER_ID != LOCAL:0
-				CALL ADD_VOID_CHARA()
-				LOCAL:1 = RESULT
-				CALL APPLY_MASTER_DATA(LOCAL:1, LOCAL:0)
-				CALL CHANGE_COUNTRY(LOCAL:1, CFLAG:(LOCAL:5):所属, 1)
-				CALL NEWCHARA_INIT(LOCAL:1)
-			ENDIF
-		NEXT
-		PRINTFORMW 登録キャラを%NAME:(LOCAL:5)%勢力の士官として登場させます
-		RETURN
-	ENDIF
-ENDIF
-GOTO INPUT_LOOP
 
 ;-------------------------------------------------
 ;ランダムキャラを使用するかどうか選択
