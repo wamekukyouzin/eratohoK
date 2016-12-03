@@ -1,0 +1,72 @@
+﻿@SLG_AI_RECRUITMENT(勢力)
+#DIM 勢力
+#DIM 君主
+#DIM 対象
+#DIM 候補
+#DIM 基礎額
+#DIM 評価値, VARSIZE("SCOUT_CANDIDATES")
+#DIM 支払額
+#DIM 確率
+VARSET 評価値, __INT_MIN__
+
+君主 = GET_COUNTRY_BOSS(勢力)
+
+;評価値を作成する
+;手持ちの金で払える限りで最も有能な奴を基本的には選ぶ　ただし好き嫌いも影響するのでうーん？
+FOR 候補, 0, VARSIZE("SCOUT_CANDIDATES")
+	対象 = ID_TO_CHARA(SCOUT_CANDIDATES:候補)
+	SIF 対象 == -1
+		CONTINUE
+	IF CFLAG:対象:特殊状態 != 1
+		SCOUT_CANDIDATES:候補 = 0
+		CONTINUE
+	ENDIF
+
+	基礎額 = SCOUT_CALC_PRICE_BASIS(対象)
+
+	;基本的に値段と同一
+	評価値:候補 = 基礎額
+
+	;君主からみたそいつへの関係性を考慮
+	評価値:候補 *= 1500 + REL_LIKE:君主:対象 - REL_HATE:君主:対象
+	評価値:候補 /= 1500
+
+	;金が足りなければ評価値は低い（確実な雇用を優先する）
+	SIF MONEY:勢力 < 基礎額
+		評価値:候補 = 評価値:候補 * MONEY:勢力 / 基礎額
+
+	評価値:候補 = 評価値:候補 * RAND(80, 120) / 100
+NEXT
+
+;1ターンあたり3人までトライする
+FOR LOCAL, 0, 3
+	候補 = FINDELEMENT(評価値, MAXARRAY(評価値))
+	対象 = ID_TO_CHARA(SCOUT_CANDIDATES:候補)
+	
+	SIF 対象 == -1
+		BREAK
+
+	支払額 = MIN(MONEY:勢力, 評価値)
+	基礎額 = SCOUT_CALC_PRICE_BASIS(対象)
+
+	;半額なきゃ諦める
+	IF 支払額 < 基礎額 / 2
+		評価値:候補 = __INT_MIN__
+		CONTINUE
+	ENDIF
+
+	確率 = 100 * 支払額 / 基礎額
+	確率 = 確率 * (1500 + REL_LIKE:対象:君主 - REL_HATE:対象:君主) / 1500
+
+
+	PRINTFORML %ANAME(君主)%は放浪中の%ANAME(対象)%に雇用の打診をした……
+	IF RAND:100 < 確率 
+		CALL COLORPRINT(@"%ANAME(対象)%は雇用の打診を受け入れた", COLOR("注意"), "L")
+		CALL COLORPRINT(@"%ANAME(対象)%が%ANAME(君主)%に移籍した", COLOR("注意"), "L")
+		CALL CHANGE_COUNTRY(対象, 勢力, 1)
+		SCOUT_CANDIDATES:候補 = 0
+	ELSE
+		評価値:候補 = __INT_MIN__
+	ENDIF
+NEXT
+
