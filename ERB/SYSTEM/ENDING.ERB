@@ -13,7 +13,7 @@ SIF FLAG:クリアフラグ
 	RETURN
 
 ;主人公が死亡した場合
-IF FLAG:処刑エンドフラグ || FLAG:戦死エンドフラグ
+IF FLAG:強制エンドフラグ || FLAG:戦死エンドフラグ
 	CALL DEAD_END
 	RETURN
 ENDIF
@@ -83,6 +83,42 @@ CALL CAPTURE_WANDERER(統治勢力)
 ;クリアフラグを立てる
 FLAG:クリアフラグ = 1
 
+FLAG:クリア直後フラグ = 1
+
+FOR LOCAL:0, 0, 10
+	PRINTL
+NEXT
+SETCOLOR COLOR("注意")
+PRINTFORMW この後、周回するかこのままゲームを続けるか選択できます
+PRINTFORMW 続ける場合、周回することはできません
+PRINTFORMW この時点でセーブしておくことをおすすめします
+RESETCOLOR
+DRAWLINE
+SAVEGAME
+
+CALL ENDING_SELECT
+RETURN RESULT
+;-------------------------------------------------
+;周回するかどうかの設定
+;-------------------------------------------------
+@ENDING_SELECT(ロード)
+#DIM ロード
+
+FLAG:クリア直後フラグ = 0
+
+IF ロード
+	PRINTFORML クリア直後のデータをロードしました
+ENDIF
+PRINTFORML 周回するか、ゲームを続けるか選択してください
+CALL ASK_MULTI("周回する", "ゲームを続ける（周回できません）")
+
+IF RESULT == 0
+	CALL GO_NEXT_LOOP
+	RETURN 1
+ENDIF
+RETURN 0
+
+
 ;-------------------------------------------------
 ;死んだ場合
 ;-------------------------------------------------
@@ -90,7 +126,7 @@ FLAG:クリアフラグ = 1
 DRAWLINE
 
 ;処刑
-IF FLAG:処刑エンドフラグ
+IF FLAG:強制エンドフラグ
 	PRINTFORMW 処刑を命じられた%ANAME(MASTER)%の首元に、ひんやりと冷たい鉄の刀が押し当てられる…
 ;戦死
 ELSEIF FLAG:戦死エンドフラグ
@@ -134,8 +170,8 @@ ENDIF
 FOR LOCAL:0, 0, 10
 	PRINTL 
 NEXT
-;処刑エンドフラグをたてる。TURNEND末にてBEGIN TITLEされる（そうしないとBEGIN SHOPに上書きされる）
-FLAG:処刑エンドフラグ = 1
+;強制エンドフラグをたてる。TURNEND末にてBEGIN TITLEされる（そうしないとBEGIN SHOPに上書きされる）
+FLAG:強制エンドフラグ = 1
 
 
 
@@ -572,11 +608,14 @@ FOR LOCAL:0, 0, CHARANUM
 	ENDIF
 NEXT
 
-CALL NEWLOOP(1)
+FLAG:クリア直後フラグ = 2
 
-RETURN 1
-
-
+PRINTFORMW 引継ぎ設定が終了しました
+PRINTFORMW タイトルに戻ります
+PRINTFORMW 99番にセーブしているので、それをロードしてください
+SAVEDATA 99, "引継ぎデータ"
+;強制エンドフラグをたてる。TURNEND末にてBEGIN TITLEされる（そうしないとBEGIN SHOPに上書きされる）
+FLAG:強制エンドフラグ = 1
 
 
 ;-------------------------------------------------
