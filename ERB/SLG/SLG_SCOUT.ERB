@@ -188,7 +188,6 @@ PRINTL
 @SCOUT_CALC_PRICE(対象)
 #FUNCTION
 #DIM 対象
-#DIM 三能力 = GETNUM(ABL, "武闘"), GETNUM(ABL, "防衛"), GETNUM(ABL, "知略"), GETNUM(ABL, "政治")
 #DIM 提示額
 #DIM 関係補正
 #DIM 好感度補正
@@ -197,18 +196,12 @@ PRINTL
 SIF !SCOUT_COUNT && TMP_CHARA_STARS:対象 < 8
 	RETURNF RAND(500, 1000)
 	
-;基本額は能力から算出
-提示額 = ABL:対象:武闘 + ABL:対象:防衛 + ABL:対象:知略 + ABL:対象:政治 + ABL:対象:料理 + ABL:対象:歌唱 + (ABL:対象:妖術 * 5)
-提示額 *= 100
+提示額 = SCOUT_CALC_PRICE_BASIS(対象)
 
-FOR LOCAL, 0, VARSIZE("三能力")
-	SIF ABL:対象:(三能力:LOCAL) >= ランク閾値:ランク_ＳＬＧ:ランク_B
-		提示額 += 3000
-NEXT
 
-;面識がないと高くなる
+;面識があると割引
 SIF !CFLAG:対象:面識
-	TIMES 提示額, 1.5
+	TIMES 提示額, 0.9
 
 ;REL_LIKEとREL_HATEの差に基づいて最大30%の補正
 関係補正 = REL_LIKE:対象:MASTER - REL_HATE:対象:MASTER
@@ -225,11 +218,36 @@ SIF !CFLAG:対象:面識
 ;20%オフからスタート、40日目で20％オンに
 提示額 = 提示額 * (100 + MIN(DAY - 20, 20)) / 100
 
+;都市数で補正する
+;10都市で100%として、90~110
+提示額 = 提示額 * (100 + MIN(GET_OWN_CITY(CFLAG:MASTER:所属) - 10, 10)) / 100
+
 ;乱数を乗せる
 提示額 = 提示額 * RAND(90, 110) / 100
 
-;購入回数で補正
-提示額 = 提示額 * (100 + MAX(SCOUT_COUNT - 1, 0) * 5) / 100
+;購入回数一回につき10%
+提示額 = 提示額 * (100 + SCOUT_COUNT * 10) / 100
+
+RETURNF 提示額
+
+;-------------------------------------------------
+;スカウト対象の額計算(能力部分)
+;AIなども利用する
+;-------------------------------------------------
+@SCOUT_CALC_PRICE_BASIS(対象)
+#FUNCTION
+#DIM 対象
+#DIM 四能力 = GETNUM(ABL, "武闘"), GETNUM(ABL, "防衛"), GETNUM(ABL, "知略"), GETNUM(ABL, "政治")
+#DIM 提示額
+
+;基本額は能力から算出
+提示額 = ABL:対象:武闘 + ABL:対象:防衛 + ABL:対象:知略 + ABL:対象:政治 + ABL:対象:料理 + ABL:対象:歌唱 + (ABL:対象:妖術 * 5)
+提示額 *= 50
+
+FOR LOCAL, 0, VARSIZE("四能力")
+	SIF ABL:対象:(四能力:LOCAL) >= ランク閾値:ランク_ＳＬＧ:ランク_B
+		提示額 += 3000
+NEXT
 
 RETURNF 提示額
 
