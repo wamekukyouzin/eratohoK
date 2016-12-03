@@ -188,7 +188,6 @@ PRINTL
 @SCOUT_CALC_PRICE(対象)
 #FUNCTION
 #DIM 対象
-#DIM 四能力 = GETNUM(ABL, "武闘"), GETNUM(ABL, "防衛"), GETNUM(ABL, "知略"), GETNUM(ABL, "政治")
 #DIM 提示額
 #DIM 関係補正
 #DIM 好感度補正
@@ -197,14 +196,8 @@ PRINTL
 SIF !SCOUT_COUNT && TMP_CHARA_STARS:対象 < 8
 	RETURNF RAND(500, 1000)
 	
-;基本額は能力から算出
-提示額 = ABL:対象:武闘 + ABL:対象:防衛 + ABL:対象:知略 + ABL:対象:政治 + ABL:対象:料理 + ABL:対象:歌唱 + (ABL:対象:妖術 * 5)
-提示額 *= 50
+提示額 = SCOUT_CALC_PRICE_BASIS(対象)
 
-FOR LOCAL, 0, VARSIZE("四能力")
-	SIF ABL:対象:(三能力:LOCAL) >= ランク閾値:ランク_ＳＬＧ:ランク_B
-		提示額 += 1000
-NEXT
 
 ;面識があると割引
 SIF !CFLAG:対象:面識
@@ -234,6 +227,27 @@ SIF !CFLAG:対象:面識
 
 ;購入回数一回につき10%
 提示額 = 提示額 * (100 + SCOUT_COUNT * 10) / 100
+
+RETURNF 提示額
+
+;-------------------------------------------------
+;スカウト対象の額計算(能力部分)
+;AIなども利用する
+;-------------------------------------------------
+@SCOUT_CALC_PRICE_BASIS(対象)
+#FUNCTION
+#DIM 対象
+#DIM 四能力 = GETNUM(ABL, "武闘"), GETNUM(ABL, "防衛"), GETNUM(ABL, "知略"), GETNUM(ABL, "政治")
+#DIM 提示額
+
+;基本額は能力から算出
+提示額 = ABL:対象:武闘 + ABL:対象:防衛 + ABL:対象:知略 + ABL:対象:政治 + ABL:対象:料理 + ABL:対象:歌唱 + (ABL:対象:妖術 * 5)
+提示額 *= 50
+
+FOR LOCAL, 0, VARSIZE("四能力")
+	SIF ABL:対象:(四能力:LOCAL) >= ランク閾値:ランク_ＳＬＧ:ランク_B
+		提示額 += 3000
+NEXT
 
 RETURNF 提示額
 
