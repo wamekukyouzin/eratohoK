@@ -87,52 +87,8 @@ LOCAL:2 = PALAM:(ARG:0):射精 + CUP:(ARG:0):射精
 
 ;射精した場合
 IF LOCAL:2 >= 10000 && SOURCE:(ARG:0):快Ｐ + NOWEX:(ARG:0):Ｖ絶頂 + NOWEX:(ARG:0):Ａ絶頂 > 0
-	IF LOCAL:10
-		PRINT /
-	ELSE
-		IF !TFLAG:3
-			TFLAG:3 = 1
-			PRINTL 
-		ENDIF
-		PRINTFORM %ANAME(ARG:0), 8, RIGHT%:
-	ENDIF
+	CALL PROCESS_EJACULATION(ARG:0, LOCAL:2, LOCAL:10)
 	LOCAL:10 = 1
-	LOCAL:15 = 1
-	;絶頂強度に応じてNOWEXをセットし、メッセージの表示を行う
-	IF LOCAL:2 >= 400000 || ((TALENT:(ARG:0):絶倫 || TCVAR:(ARG:0):66) && LOCAL:2 >= 100000) || (TALENT:(ARG:0):絶倫 && TCVAR:(ARG:0):66)
-		IF ARG:0 == MASTER
-			SETCOLOR 0x800080
-		ELSE
-			SETCOLOR 0xFF4000
-		ENDIF
-		NOWEX:(ARG:0):射精 = RAND(11, 16)
-		LOCALS:5 =  超々大量
-	ELSEIF LOCAL:2 >= 100000 || ((TALENT:(ARG:0):絶倫 || TCVAR:(ARG:0):66) && LOCAL:2 >= 20000)
-		IF ARG:0 == MASTER
-			SETCOLOR 0x6000FF
-		ELSE
-			SETCOLOR COLOR("オレンジ")
-		ENDIF
-		NOWEX:(ARG:0):射精 = RAND(7, 11)
-		LOCALS:5 = 超大量
-	ELSEIF LOCAL:2 >= 20000 || TALENT:(ARG:0):絶倫 || TCVAR:(ARG:0):66
-		IF ARG:0 == MASTER
-			SETCOLOR 0x0080FF
-		ELSE
-			SETCOLOR 0xFFC000
-		ENDIF
-		NOWEX:(ARG:0):射精 = RAND(4, 7)
-		LOCALS:5 = 大量
-	ELSE
-		IF ARG:0 == MASTER
-			SETCOLOR COLOR("シアン")
-		ELSE
-			SETCOLOR COLOR("注意")
-		ENDIF
-		NOWEX:(ARG:0):射精 = RAND:3 + 1
-	ENDIF
-	PRINTFORM %LOCALS:5%射精
-	EXP:(ARG:0):射精経験値 += NOWEX:(ARG:0):射精
 ENDIF
 
 ;●噴乳の判定と表示
@@ -493,16 +449,17 @@ IF LOCAL:10
 	PRINTL 
 ENDIF
 
-SIF LOCAL:15
-	CALL PROCESS_EJACULATION(ARG:0)
 
 ;-------------------------------------------------
 ;射精の内部処理
 ;-------------------------------------------------
-@PROCESS_EJACULATION(対象)
+@PROCESS_EJACULATION(対象, 強度, スラッシュ)
 #DIM 対象
 #DIM 射精相手
 #DIM 射精先
+#DIM 強度
+#DIMS 強度文字列
+#DIM スラッシュ
 #DIMS 射精文字列
 #DIM 愛情倍率
 #DIM 屈従倍率
@@ -511,11 +468,52 @@ SIF LOCAL:15
 
 VARSET LOCAL
 
-
-IF !TFLAG:3
-	TFLAG:3 = 1
-	PRINTL
+IF スラッシュ
+	PRINT /
+ELSE
+	IF !TFLAG:3
+		TFLAG:3 = 1
+		PRINTL 
+	ENDIF
+	PRINTFORM %ANAME(対象), 8, RIGHT%:
 ENDIF
+
+;絶頂強度に応じてNOWEXをセットし、メッセージの表示を行う
+IF 強度 >= 400000 || ((TALENT:(対象):絶倫 || TCVAR:(対象):66) && 強度 >= 100000) || (TALENT:(対象):絶倫 && TCVAR:(対象):66)
+	IF 対象 == MASTER
+		SETCOLOR 0x800080
+	ELSE
+		SETCOLOR 0xFF4000
+	ENDIF
+	NOWEX:(対象):射精 = RAND(11, 16)
+	強度文字列 =  超々大量
+ELSEIF 強度 >= 100000 || ((TALENT:(対象):絶倫 || TCVAR:(対象):66) && 強度 >= 20000)
+	IF 対象 == MASTER
+		SETCOLOR 0x6000FF
+	ELSE
+		SETCOLOR COLOR("オレンジ")
+	ENDIF
+	NOWEX:(対象):射精 = RAND(7, 11)
+	強度文字列 = 超大量
+ELSEIF 強度 >= 20000 || TALENT:(対象):絶倫 || TCVAR:(対象):66
+	IF 対象 == MASTER
+		SETCOLOR 0x0080FF
+	ELSE
+		SETCOLOR 0xFFC000
+	ENDIF
+	NOWEX:(対象):射精 = RAND(4, 7)
+	強度文字列 = 大量
+ELSE
+	IF 対象 == MASTER
+		SETCOLOR COLOR("シアン")
+	ELSE
+		SETCOLOR COLOR("注意")
+	ENDIF
+	NOWEX:(対象):射精 = RAND:3 + 1
+ENDIF
+PRINTFORM %強度文字列%射精
+RESETCOLOR
+EXP:(対象):射精経験値 += NOWEX:(対象):射精
 
 FOR LOCAL:0, 400, 420
 
@@ -679,9 +677,7 @@ FOR LOCAL:0, 400, 420
 	ENDIF
 
 	CUM_TO_COUNT:(対象):(射精先) += NOWEX:(対象):射精
-
-	PRINTFORM %ANAME(対象), 8, RIGHT%:
-
+	PRINTFORM (
 	SIF GROUPMATCH(射精先, 1, 2)
 		SETCOLOR COLOR("ピンク")
 	PRINTFORM %射精文字列%
@@ -689,7 +685,9 @@ FOR LOCAL:0, 400, 420
 
 	IF !GROUPMATCH(射精先, 射精部位_無駄, 射精部位_ゴム, 射精部位_オナホ)
 		CUM_GET_COUNT:(射精相手):(射精先) += NOWEX:(対象):射精
-		PRINTFORM (%ANAME(射精相手)%)
+		PRINTFORM :%ANAME(射精相手)%)
+	ELSE
+		PRINTFORM )
 	ENDIF
 
 	PRINTL
