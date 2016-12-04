@@ -349,21 +349,9 @@ RETURNF 0
 ;滅亡させたのが主人公の勢力
 IF ARG:1 == CFLAG:MASTER:所属
 	LOCAL:5 = 1
-
-	;自動(登用→解放)
-	IF CONFIG:301 == 1
-		IF LOCAL:5
-			RESULT = 0
-		ELSE
-			RESULT = 1
-		ENDIF
-	;自動(登用→投獄)
-	ELSEIF CONFIG:301 == 2
-		IF LOCAL:5
-			RESULT = 0
-		ELSE
-			RESULT = 2
-		ENDIF
+	;自動
+	IF GROUPMATCH(CONFIG:301, 1, 2)
+		CALL AUTO_PRISONER_TREATMENT(ARG:0, ARG:1, ARG:2)
 	;手動
 	ELSE
 		CALL SELECT_PRISONER_TREATMENT(ARG:0, ARG:1, ARG:2)
@@ -546,6 +534,10 @@ PRINTL [4] 軟禁
 $INPUT_LOOP
 INPUT
 
+
+
+RETURN RESULT
+
 IF RESULT == 0 && !拒否フラグ
 	拒否フラグ = 1
 	;登用に応じるかどうかを判定
@@ -605,6 +597,57 @@ ELSEIF RESULT == 3
 	RETURN 3
 ELSE
 	GOTO INPUT_LOOP
+ENDIF
+
+;-------------------------------------------------
+;CONFIG:301が立っているときの、プレイヤー勢力による捕虜の自動処遇
+;ARG:2番のキャラの、捕虜としての扱いを手動で決める関数(ARG:0=捕獲されたキャラの勢力、ARG:1=捕獲した勢力)
+;戦闘による捕獲の場合はARG:3に1を設定すること
+;戻り値 0=登用 1=解放 2=投獄 3=処刑
+;-------------------------------------------------
+@AUTO_PRISONER_TREATMENT(対象勢力, 捕獲勢力, 対象)
+#DIM 対象勢力
+#DIM 捕獲勢力
+#DIM 対象
+
+;登用に応じるかどうかを判定
+IF JUDGE_ASSIGN(対象, GET_COUNTRY_BOSS(捕獲勢力), GET_COUNTRY_BOSS(対象勢力))
+	CALL KOJO_EVENT(対象, 332)
+	PRINTFORMW %ANAME(対象)%を登用しました
+	CALL CHANGE_COUNTRY(対象, 捕獲勢力, 1)
+	;好感度を上昇、敵対値を減少
+	CALL CHANGE_RELATION_O_TO_C(対象, 捕獲勢力, 50, -50)
+	RETURN 0
+ENDIF
+
+CALL KOJO_EVENT(対象, 333)
+PRINTFORMW %ANAME(対象)%は登用に応じる気はないようです…
+;好感度を上昇、敵対値を減少
+CALL CHANGE_RELATION_O_TO_C(対象, 捕獲勢力, 50, -50)
+
+IF CONFIG:301 == 1
+	CALL KOJO_EVENT(対象, 334)
+	PRINTFORMW %ANAME(対象)%を解放しました
+	IF CFLAG:対象:捕虜先 != 0
+		;捕虜設定を解除
+		CALL CAPTURE(対象, 0)
+	ELSE
+		;状態フラグを逃走状態に
+		CFLAG:(対象):特殊状態 = 1
+		;勢力を滅亡させた君主のIDを保存
+		CFLAG:(対象):恨む君主 = COUNTRY_BOSS:(捕獲勢力)
+		;旧君主のIDを保存
+		CFLAG:(対象):滅亡前の君主 = COUNTRY_BOSS:(対象勢力)
+	ENDIF
+
+	;好感度を上昇、敵対値を減少
+	CALL CHANGE_RELATION_O_TO_C(対象, 捕獲勢力, 50, -50)
+	RETURN 1
+ELSEIF CONFIG:301 == 2
+	CALL KOJO_EVENT(対象, 335)
+	PRINTFORMW %ANAME(対象)%を投獄しました
+	CALL CAPTURE(対象, 捕獲勢力)
+	RETURN 2
 ENDIF
 
 ;-------------------------------------------------
