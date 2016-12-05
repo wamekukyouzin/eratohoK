@@ -21,6 +21,29 @@ ENDIF
 RETURN 0
 
 ;---------------------
+;特定の条件を満たすキャラをランダムに選択する場合に利用
+;他の関数は必須だが、これだけはなくてもよい　というかパフォーマンスへ影響するので不要なら作ってはならない
+;対象が存在せずデイリーを開始できない場合は0を返すことでデイリーの発生をキャンセルする
+;---------------------
+@EVENT_DAILY_DERIVATION_LENDER_REPAYMENT_SETTARGET()
+FOR LOCAL, 0, CHARANUM
+	SIF LOCAL == MASTER
+		CONTINUE
+	SIF CFLAG:LOCAL:所属 != CFLAG:MASTER:所属
+		CONTINUE
+	SIF !CFLAG:LCOAL:捕虜先
+		CONTINUE
+	SIF !IS_FEMALE(LOCAL)
+		CONTINUE
+	DAILY_TARGET:DAILY_TARGET_NUM = LOCAL
+	DAILY_TARGET_NUM ++
+NEXT
+
+
+RETURN 1
+
+
+;---------------------
 ;本体
 ;---------------------
 @EVENT_DAILY_DERIVATION_LENDER_REPAYMENT()
@@ -30,13 +53,22 @@ RETURN 0
 #DIM 担保
 VARSET 返済額
 VARSET 返済期限
+
+IF DAILY_TARGET_NUM > 0
+	担保 = DAILY_TARGET:(RAND:DAILY_TARGET_NUM)
+ELSE
+	担保 = -1
+ENDIF
+
 PRINTFORMW 今日は借りていた金の返済日だ
 PRINTFORMW 予定の時刻きっかりに、男は現れた……
 PRINTFORMW 「さて%ANAME(MASTER)%様。本日は返済日ですが、金のご用意はよろしいですかな？」
 PRINTFORMW さて、どうしようか……
 DRAWLINE
 PRINTFORML 現在の金:{MONEY}
+
 CALL ASK_MULTI_JUDGE(@"金{DVAR:金貸し総額}を返済する", MONEY >= DVAR:金貸し総額, "払えないと伝える", 1, "あなたにふさわしい方法を用意している", (DVAR:金貸しフラグ == 1 && MONEY >= DVAR:金貸し総額 * 3 / 2))
+
 IF RESULT == 0 && MONEY >= DVAR:金貸し総額
 	IF MONEY >= DVAR:金貸し総額 * 2
 		PRINTFORMW 「おや、申し訳ない。返済額に手違いがございました」
@@ -57,15 +89,13 @@ IF RESULT == 0 && MONEY >= DVAR:金貸し総額
 	PRINTFORMW 男はホクホクした顔で帰って行った……
 	DVAR:金貸し現在額 = 0
 	DVAR:金貸し総額 = 0
-	RETURN 1
 ELSEIF RESULT == 1
 	PRINTFORMW 実は返済できそうにない。申し訳ない。金はなるべく早く、必ず返す。%ANAME(MASTER)%は正直に伝えた
 	PRINTFORMW 「……ふーむ……。まあ、仕方ありますまい。返せないものは仕方ありませんからな」
 	PRINTFORMW こちらの誠意が伝わったようだ。%ANAME(MASTER)%は胸をなで下ろした
-	CALL LENDER_CHOOSE_GIRL
-	;女がいる場合、担保としてもっていく
-	IF RESULT != -1
-		担保 = RESULT
+
+	;担保がいる場合
+	IF 担保 >= 0
 		PRINTFORMW 「では、代わりの返済方法ですが……実は私、宿屋も営んでおりましてな？」
 		PRINTFORMW 「%ANAME(MASTER)%様のところの%ANAME(担保)%をそちらにしばらく預けていただければ、その給金を返済額として充てましょう」
 		PRINTFORMW 「お恥ずかしながら人手不足でしてな。そちらにとっても、悪い話ではないと思いますが……」
@@ -110,7 +140,7 @@ ELSEIF RESULT == 1
 ELSEIF RESULT == 2
 	PRINTFORMW ちゃんと全額支払おう、その言葉を聞いて頬を緩ませた刹那
 	PRINTFORML カシャッ
-	PRINTFORML かすかな音とともに金貸しの足元の床が開く。
+	PRINTFORML かすかな音とともに金貸しの足元の床が開く
 	PRINTFORMW 「っつ…こんなところに落とすとは、慰謝料を含めて少なくとも1000000は支払っていただきませんと」
 	PRINTFORML 手荒な行いをして申し訳ない
 	PRINTFORMW 何分あのまま支払うには広すぎるから特別に支払い場所を作らせていただいた
@@ -122,14 +152,14 @@ ELSEIF RESULT == 2
 	PRINTFORML 声はやがて小さくなり、床にまで貨幣ーそれも最も価値の低い小銭だ－が届く頃にはただ銭同士がぶつかる音がするだけとなった
 	PRINTFORMW 生をまっとうする最後の瞬間まで執着し続けたお金に囲まれていたのだ、安らかに逝けたであろう
 	PRINTFORML 小銭いっぱいの桶はその後、直轄の高炉でクズ金属として融かされたというが、
-	PRINTFORMW 融かされた金属の行方を知るものはいない。
+	PRINTFORMW 融かされた金属の行方を知るものはいない
 	PRINTFORMW ……
 	PRINTFORMW …
 	PRINTFORMW 
-	PRINTFORMW あ、ちゃんと部屋の改装費と小銭分のお金は支払ってね
+	PRINTFORMW 後日、部屋の改装費と小銭の請求がきた
 	PRINT 代金は計
 		CALL COLORPRINT(@"{DVAR:金貸し総額 * 3 / 2}", COLOR("注意"))
-	PRINTW でございます。
+	PRINTW だった……
 	MONEY -= DVAR:金貸し総額 * 3 / 2
 	DVAR:金貸しフラグ = -1
 ENDIF
