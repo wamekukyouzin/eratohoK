@@ -1,0 +1,84 @@
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@EVENT_DAILY_GOBLIN_OVULATION_RATE()
+RETURN 75
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@EVENT_DAILY_GOBLIN_OVULATION_DECISION()
+#DIM ゴブリン
+ゴブリン = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_ホフゴブリン))
+SIF ゴブリン == -1
+	RETURN 0
+
+RETURN 1
+
+;---------------------
+;特定の条件を満たすキャラをランダムに選択する場合に利用
+;他の関数は必須だが、これだけはなくてもよい　というかパフォーマンスへ影響するので不要なら作ってはならない
+;対象が存在せずデイリーを開始できない場合は0を返すことでデイリーの発生をキャンセルする
+;---------------------
+@EVENT_DAILY_GOBLIN_OVULATION_SETTARGET()
+#DIM ゴブリン
+ゴブリン = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_ホフゴブリン))
+FOR LOCAL, 0, CHARANUM
+	;ホフゴブリン勢力所属で捕虜でなく妊娠しておらず危険日である女性キャラ
+	SIF CFLAG:LOCAL:所属 != ゴブリン
+		CONTINUE
+	SIF CFLAG:LOCAL:捕虜先
+		CONTINUE
+	SIF CFLAG:LOCAL:妊娠期間
+		CONTINUE
+	SIF !IS_OVALUATION(LOCAL)
+		CONTINUE
+	DAILY_TARGET:DAILY_TARGET_NUM = LOCAL
+	DAILY_TARGET_NUM ++
+NEXT
+SIF DAILY_TARGET_NUM < 1
+	RETURN 0
+RETURN 1
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@EVENT_DAILY_GOBLIN_OVULATION_GENRE()
+RETURN デイリー_ジャンル_特殊勢力
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@EVENT_DAILY_GOBLIN_OVULATION
+#DIM 対象
+#DIM ゴブリン
+#DIM 勢力番号
+
+
+対象 = DAILY_TARGET:(RAND:DAILY_TARGET_NUM)
+
+PRINTFORML %ANAME(対象)%をホフゴブリンたちが取り囲んでいる
+PRINTFORMW 危険日である%ANAME(対象)%を輪姦し、孕ませようというのだ
+PRINTFORML 妊娠を確実なものとするために、%PRONOUN(対象)%には事前に排卵誘発剤が投与されてある
+PRINTFORMW これから犯され孕まされようというのに、奴隷として躾けられた%ANAME(対象)%は身体を疼かせている
+PRINTFORML 目の前に無数のペニスが差し出されると、%PRONOUN(対象)%は頬を上気させ、犯してくれるよう懇願する
+PRINTFORMW 言われるまでもないと、ホフゴブリンたちは%ANAME(対象)%に群がり、その肉穴に代わる代わる子種を注ぎ続けた……
+
+;避妊薬を無効化し、排卵誘発剤を使ってたことにする
+CFLAG:対象:避妊薬残ターン = 0
+TCVAR:対象:65 = 1
+
+CALL FUCK_SP(対象, "欲望, 精愛, 奉仕, 性交, Ｖ, 輪姦", "膣内射精, 処女喪失", 勢力番号, GET_SPERM_ID("ホフゴブリン"), @"ホフゴブリンの\@ RAND:2 ? 唇 # ペニス \@", "ホフゴブリン", "", 喪失_輪姦)
+
+FOR LOCAL, 0, 10
+	CALL FUCK_SP(対象, "", "膣内射精, 処女喪失", 勢力番号, GET_SPERM_ID("ホフゴブリン"), @"ホフゴブリンの\@ RAND:2 ? 唇 # ペニス \@", "ホフゴブリン", "", 喪失_輪姦)
+NEXT
+CALL COLORPRINT(@"%ANAME(対象)%の子宮に、濃厚な精液がたっぷりと注がれた", COLOR("ピンク"), "W")
+
+RETURN 1
