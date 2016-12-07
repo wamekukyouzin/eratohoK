@@ -1,0 +1,109 @@
+﻿;------------------------------------
+;そのキャラがデイリーイベントをもつか判断する関数
+;KOJO_EXISTとは別にこの関数も必要になるので注意
+;------------------------------------
+@KOJO_DAILY_EXIST_K87()
+;!!!!注意!!!!
+;デイリーイベントの存在判定に使ってるだけなので、この関数の中で処理をさせないでください
+
+;------------------------------------
+;そのキャラのデイリー本体を呼び出すハブとなる関数
+;------------------------------------
+@KOJO_DAILY_K87()
+#DIM 発生フラグ
+発生フラグ = 0
+
+;デイリーイベント
+DAILY_NAME = 金貸しの来訪
+CALL KOJO_DAILY_K87_LENDER
+SIF RESULT != -1
+	発生フラグ = 1
+SIF DAILY_CANCEL
+	RETURN 1
+
+;;デイリーイベント
+;DAILY_NAME = デイリーイベントの名前
+;CALL KOJO_DAILY_K87_NAMAE_OF_DAILY_EVENT
+;SIF RESULT != -1
+;	発生フラグ = 1
+;SIF DAILY_CANCEL
+;	RETURN 1
+
+RETURN 発生フラグ
+
+
+;------------------------------------
+;デイリーイベント本体
+;創意工夫
+;発生判定に失敗した場合（イベントが発生しない場合）はマイナス１を返すこと
+;-----------------------------------
+@KOJO_DAILY_K87_LENDER
+#DIM マミゾウ
+#DIM 返済期限
+#DIM 融資額
+#DIM 返済額
+
+;NAME_TO_CHARAに渡すキャラ名はCSTR:99です
+;たいていはキャラの名前です　CSVを参照
+;例：NAME_TO_CHARA("霊夢") NAME_TO_CHARA("マエリベリー")
+マミゾウ = NAME_TO_CHARA("マミゾウ")
+
+;発生判定をしてくれる便利な関数
+;ARG:0 キャラ名
+;ARG:1 確率(1000分率)
+;ARG:2 同勢力か		(1 同勢力か	0 別勢力		-1ないし未指定 問わない)
+;ARG:3 捕虜か			(1 捕虜		0 捕虜でない	-1ないし未指定 問わない)
+;ARG:4 面識があるか	(1 同勢力		0 別勢力		-1ないし未指定 問わない)
+;この関数が1を返さなければ（イベントが発生しないなら) -1を返す
+SIF !CHECK_KOJO_DAILY_HAPPEN(マミゾウ, 1000, 0, 0, 0)
+	RETURN -1
+
+SIF CFLAG:マミゾウ:特殊状態
+	RETURN -1
+
+SIF KDVAR:マミゾウ:マミゾウ_金貸し || KDVAR:マミゾウ:マミゾウ_金貸し_返済期限
+	RETURN -1
+
+	返済期限 = RAND(5, 10)
+	融資額 = MONEY / 10 + GET_SUM_ECONOMY(CFLAG:MASTER:所属) * (ABL:MASTER:武闘 + ABL:MASTER:防衛 + ABL:MASTER:知略 + ABL:MASTER:政治 + 100) / 40000 * (返済期限)
+	返済額 = 融資額 * 12 / 10
+
+CALL KOJO_DAILY_START()
+
+PRINTFORMW %ANAME(MASTER)%が仕事をしていると、侍従が来客を告げた
+PRINTFORMW なんでも「胡散臭げな妖獣が訪ねてきた」のだそうだ
+PRINTFORMW 何の用かと訝りながら、%ANAME(MASTER)%は、会うことにしてみた
+PRINTFORML ・
+PRINTFORML ・
+PRINTFORML ・
+PRINTFORMW 「これはこれは。おぬしが%ANAME(MASTER)%か。儂は%NAME_FORMAL(マミゾウ)%。金貸しをしておる」
+PRINTFORMW 「こんな時代じゃから、何かと入り用じゃろ？　儂が助けてやろうじゃなぁないか」
+CALL ICPRINT(@"「そうじゃな、金<{融資額}>の融資で、期限は<{返済期限}>期、返済額は<{返済額}>でどうじゃ？」", "W", COLOR("注意"))
+PRINTFORMW 徴兵に訓練、外交、何事にも金は必要だ
+PRINTFORMW 借金はあまりしたくないが、生き抜くために手段は選んでいられまい
+PRINTFORML さて、どうしようか……
+PRINTFORML
+CALL ASK_MULTI_JUDGE("借りる", 1, "やめておく", 1, "ひっとらえる", GET_COUNTRY_BOSS(CFLAG:マミゾウ:所属) != マミゾウ)
+
+IF RESULT == 1
+	PRINTFORMW 「そうかい、それは残念」
+	PRINTFORMW 「ま、今回は縁がなかったかの。それじゃ、儂はおいとまするよ」
+	PRINTFORMW %ANAME(マミゾウ)%は立ち去った……
+	KDVAR:マミゾウ:マミゾウ_金貸し = 1
+	RETURN
+ELSEIF RESULT == 2
+	PRINTFORMW 「な、なにをする！？」
+	PRINTFORMW 無許可の金融業は残念ながらご法度だ
+	PRINTFORMW 兵士に命じ、捕えさせた……
+	KDVAR:マミゾウ:マミゾウ_金貸し = 1
+	CALL CAPTURE(マミゾウ, CFLAG:MASTER:所属)
+	RETURN
+ENDIF
+
+MONEY += 融資額
+KDVAR:マミゾウ:マミゾウ_金貸し_返済額 = 返済額
+KDVAR:マミゾウ:マミゾウ_金貸し_返済期限 = 返済期限
+KDVAR:マミゾウ:マミゾウ_金貸し = 1
+PRINTFORMW 「契約成立じゃな」
+CALL ICPRINT(@"期限は<{返済期限}>期、返済額は<{返済額}>じゃからな、くれぐれもよろしく頼むよ", "W", COLOR("注意"))
+PRINTFORMW %ANAME(マミゾウ)%は立ち去った……
