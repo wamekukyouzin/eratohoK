@@ -1,0 +1,113 @@
+﻿;------------------------------------
+;そのキャラがデイリーイベントをもつか判断する関数
+;KOJO_EXISTとは別にこの関数も必要になるので注意
+;------------------------------------
+@KOJO_DAILY_EXIST_K61()
+;!!!!注意!!!!
+;デイリーイベントの存在判定に使ってるだけなので、この関数の中で処理をさせないでください
+
+;------------------------------------
+;そのキャラのデイリー本体を呼び出すハブとなる関数
+;------------------------------------
+@KOJO_DAILY_K61()
+#DIM 発生フラグ
+発生フラグ = 0
+
+;デイリーイベント
+DAILY_NAME = 考え事
+CALL KOJO_DAILY_K61_THINKING
+SIF RESULT != -1
+	発生フラグ = 1
+SIF DAILY_CANCEL
+	RETURN 1
+
+;;デイリーイベント
+;DAILY_NAME = デイリーイベントの名前
+;CALL KOJO_DAILY_K61_NAMAE_OF_DAILY_EVENT
+;SIF RESULT != -1
+;	発生フラグ = 1
+;SIF DAILY_CANCEL
+;	RETURN 1
+
+RETURN 発生フラグ
+
+
+;------------------------------------
+;デイリーイベント本体
+;創意工夫
+;発生判定に失敗した場合（イベントが発生しない場合）はマイナス１を返すこと
+;-----------------------------------
+@KOJO_DAILY_K61_THINKING
+#DIM さとり
+
+さとり = NAME_TO_CHARA("さとり")
+
+SIF !CHECK_KOJO_DAILY_HAPPEN(さとり, 50, 1, 0, 1)
+	RETURN -1
+
+SIF GROUPMATCH(MASTER, NAME_TO_CHARA("空"), NAME_TO_CHARA("燐"), NAME_TO_CHARA("こいし"))
+	RETURN -1
+
+SIF KDVAR:さとり:さとり_考え事
+	RETURN -1
+
+
+CALL KOJO_DAILY_START()
+
+PRINTFORML 廊下で%ANAME(さとり)%とすれ違った……
+
+CALL ASK_MULTI("挨拶する", "楽しいことを考える", "つらいことを考える", "いやらしいことを考える")
+
+SELECTCASE RESULT
+	CASE 0
+		PRINTFORMW 「……ええ、こんにちは」
+		PRINTFORMW 特になにごともなくすれ違った……
+		CFLAG:さとり:好感度 += 10
+	CASE 1
+		PRINTFORMW 「……ふふ」
+		PRINTFORMW 「楽しめましたよ」
+		PRINTFORMW 気に入ってもらえたようだ……
+		CFLAG:さとり:好感度 += 50
+	CASE 2
+		PRINTFORMW 「……なんでそんなことを？」
+		PRINTFORMW 「私が通りがかったからですか？」
+		PRINTFORMW 「心を読めても、理解しかねますよ」
+		PRINTFORMW 気に入られなかったようだ……
+		CFLAG:さとり:好感度 -= 100
+	CASE 3
+		IF ABL:さとり:欲望 >= ランク閾値:ランク_その他:ランク_B
+			PRINTFORMW 「……ええと」
+			PRINTFORMW 「それは、私と淫らなことをしたいということでしょうか？」
+			PRINTFORMW 「そういうことでしたら、夜にでも私の部屋にどうぞ……♥」
+			PRINTFORMW %ANAME(さとり)%は好色な笑みを浮かべていた……
+			IF !TALENT:さとり:合意
+				CALL COLORPRINT(@"%ANAME(さとり)%の合意を得た", COLOR("注意"), "W")
+				TALENT:さとり:合意 = 1
+			ENDIF
+			CFLAG:さとり:好感度 += 100
+		ELSEIF IS_LOVER(さとり)
+			PRINTFORMW 「……ええと」
+			PRINTFORMW 「……昼間からそういう思考を垂れ流すのはいかがなものかと」
+			PRINTFORMW 「その、そういうことがしたいのでしたら、夜に」
+			PRINTFORMW %ANAME(さとり)%の頬は紅潮していた……
+			CFLAG:さとり:好感度 += 50
+			CFLAG:さとり:依存度 += 50
+		ELSEIF IS_SLAVE(さとり)
+			PRINTFORMW 「……ええと」
+			PRINTFORMW 「……私を使いたいというのはわかりましたが、昼間からそういう思考を垂れ流すのはいかがなものかと」
+			PRINTFORMW 「その、そういうことがしたいのでしたら、夜に」
+			PRINTFORMW %ANAME(さとり)%の頬は紅潮していた……
+			CFLAG:さとり:従属度 += 50
+			CFLAG:さとり:依存度 += 50
+		ELSE
+			PRINTFORMW 「……はあ」
+			PRINTFORMW 「真昼間からそんなこと。不潔ですよ。軽蔑します」
+			PRINTFORMW 冷ややかな視線を向けられた……
+			CFLAG:さとり:好感度 -= 100
+			CFLAG:さとり:従属度 -= 100
+			CFLAG:さとり:依存度 -= 100
+		ENDIF
+ENDSELECT
+
+KDVAR:さとり:さとり_考え事 = 1
+RETURN
