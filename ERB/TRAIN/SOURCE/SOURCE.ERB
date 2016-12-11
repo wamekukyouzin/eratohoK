@@ -182,6 +182,30 @@ FOR LOCAL:0, 10, 16
 	PALAM:MASTER:LOCAL = 0
 NEXT
 
+;疲労回復判定
+FOR LOCAL:0, 0, CHARANUM
+	IF IS_PARTICIPATE_TRAIN(LOCAL:0) && TCVAR:(LOCAL:0):51
+		;毎ターンの自然回復
+		TCVAR:(LOCAL:0):26 -= 100
+
+		;疲労回復のソースによる回復
+		TCVAR:(LOCAL:0):26 -= SOURCE:(LOCAL:0):疲労回復
+
+		;疲労深度が0以下なら復帰
+		IF TCVAR:(LOCAL:0):26 <= 0
+			TCVAR:(LOCAL:0):51 = 0
+			BASE:(LOCAL:0):体力 = MAXBASE:(LOCAL:0):体力 * MAX(RAND:8 + 18 - TCVAR:(LOCAL:0):21 * 2, 2) / 100
+			CALL KOJO_EVENT(LOCAL:0, 19)
+			SETCOLOR COLOR("注意")
+			PRINTFORML %ANAME(LOCAL:0)%の疲労状態は落ち着いた！
+			RESETCOLOR
+		ENDIF
+	ENDIF
+NEXT
+
+
+
+
 ;気絶回復判定
 FOR LOCAL:0, 0, CHARANUM
 	IF IS_PARTICIPATE_TRAIN(LOCAL:0) && TCVAR:(LOCAL:0):52
@@ -250,6 +274,10 @@ FOR LOCAL:0, 0, CHARANUM
 				TCVAR:(LOCAL:0):51 = 1
 			ENDIF
 		ENDIF
+		;行動不能回数を加算
+		TCVAR:(LOCAL:0):21 ++
+		;行動不能深度
+		TCVAR:(LOCAL:0):26 = RAND:301 + 150 + TCVAR:(LOCAL:0):21 * 100
 		;行動不能になった時のEQUIP解除
 		CALL DOWN_RELEASE_EQUIP(LOCAL:0)
 	ENDIF
@@ -264,31 +292,13 @@ FOR LOCAL:0, 0, CHARANUM
 		IF FLAG:調教モード == 2 && LOCAL:0 != MASTER
 			CALL KOJO_EVENT(LOCAL:0, 18)
 			PRINTFORML %ANAME(LOCAL:0)%は快感のあまり気を失ってしまった…
-			;気力0による失神
-			TCVAR:(LOCAL:0):52 = 1
-			;気絶深度
-			TCVAR:(LOCAL:0):23 = RAND:301 + 150 + TCVAR:(LOCAL:0):22 * 100
-			;気絶回数を加算
-			TCVAR:(LOCAL:0):22 ++
 		;逆調教で主人公の場合
 		ELSEIF FLAG:調教モード == 4 && LOCAL:0 == MASTER
 			PRINTFORML %ANAME(LOCAL:0)%は快感のあまり気を失ってしまった…
-			;気力0による失神
-			TCVAR:(LOCAL:0):52 = 1
-			;気絶深度
-			TCVAR:(LOCAL:0):23 = RAND:301 + 150 + TCVAR:(LOCAL:0):22 * 100
-			;気絶回数を加算
-			TCVAR:(LOCAL:0):22 ++
 		;捕虜調教でない、あるいは捕虜調教でターゲットでない場合
 		ELSE
 			CALL KOJO_EVENT(LOCAL:0, 12)
 			PRINTFORML %ANAME(LOCAL:0)%は快感のあまり気を失ってしまった…
-			;気力0による失神
-			TCVAR:(LOCAL:0):52 = 1
-			;気絶深度
-			TCVAR:(LOCAL:0):23 = RAND:301 + 150 + TCVAR:(LOCAL:0):22 * 100
-			;気絶回数を加算
-			TCVAR:(LOCAL:0):22 ++
 			;調教参加キャラが１人の場合
 			IF TFLAG:44 == 1
 				;行動不能になったのがプレイヤーなら行動側反転
@@ -306,6 +316,12 @@ FOR LOCAL:0, 0, CHARANUM
 				CALL DEL_MPLY(LOCAL:0)
 			ENDIF
 		ENDIF
+		;気力0による失神
+		TCVAR:(LOCAL:0):52 = 1
+		;気絶深度
+		TCVAR:(LOCAL:0):23 = RAND:301 + 150 + TCVAR:(LOCAL:0):22 * 100
+		;気絶回数を加算
+		TCVAR:(LOCAL:0):22 ++
 		;行動不能になった時のEQUIP解除
 		CALL DOWN_RELEASE_EQUIP(LOCAL:0)
 	ENDIF
