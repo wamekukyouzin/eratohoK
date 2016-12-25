@@ -139,7 +139,62 @@ NEXT
 
 ;表示件数ゼロなら無しと表示しておく
 IF !LOCAL:3
-	PRINTFORML %"なし", 18, RIGHT%
+	PRINTFORML %"なし", 18, LEFT%
 ELSE
 	PRINTL
 ENDIF
+
+CALL SHOW_CHILDREN(ARG:0)
+
+;---------------------------------------------------------
+; ARG:0番のキャラの子供を一括表示する
+;---------------------------------------------------------
+@SHOW_CHILDREN(ARG:0)
+#DIM 表示回数
+#DIM 親種別
+#DIM 親ID
+#DIM ARG0_ID
+
+ARG0_ID = GET_ID(ARG:0)
+
+FOR 親種別, 0, 3
+	DRAWLINE
+	表示回数 = 0
+	SELECTCASE 親種別
+		CASE 0
+			PRINTFORML ○%CALLNAME:(ARG:0)%を遺伝上の父親に持つ子供○
+		CASE 1
+			PRINTFORML ○%CALLNAME:(ARG:0)%を父親に持つ子供○
+		CASE 2
+			PRINTFORML ○%CALLNAME:(ARG:0)%を母親に持つ子供○
+	ENDSELECT
+	FOR LOCAL, 0, CHARANUM
+		SELECTCASE 親種別
+			CASE 0
+				親ID = CFLAG:(LOCAL:0):遺伝上の父親
+			CASE 1
+				親ID = CFLAG:(LOCAL:0):父親
+			CASE 2
+				親ID = CFLAG:(LOCAL:0):母親
+		ENDSELECT
+		IF 親ID == ARG0_ID
+			IF 表示回数 >= 1
+				IF 表示回数 % 4 == 0
+					PRINTL 
+				ELSE
+					PRINT     
+				ENDIF
+			ENDIF
+			表示回数 ++
+			PRINTFORM %ANAME(LOCAL:0), 18, LEFT%
+		ENDIF
+	NEXT
+
+
+	;表示件数ゼロなら無しと表示しておく
+	IF !表示回数
+	PRINTFORML %"なし", 18, LEFT%
+	ELSE
+		PRINTL
+	ENDIF
+NEXT
