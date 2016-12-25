@@ -59,7 +59,7 @@ CUSTOMDRAWLINE =
 ;#; USETIME_AI = 0
 FOR LOCAL, 1, MAX_COUNTRY
 	IF IS_COUNTRY(LOCAL:LOCAL) && (LOCAL:LOCAL != CFLAG:MASTER:所属 || CONFIG:302 == 1)
-		IF !FLAG:戦死エンドフラグ && !FLAG:処刑エンドフラグ && (COUNTRY_EVENT_ID:(LOCAL:LOCAL) != SP_COUNTRY_ID:(特殊勢力_野盗) || GET_OWN_CITY(LOCAL:LOCAL) > 0)
+		IF !FLAG:戦死エンドフラグ && !FLAG:強制エンドフラグ && (COUNTRY_EVENT_ID:(LOCAL:LOCAL) != SP_COUNTRY_ID:(特殊勢力_野盗) || GET_OWN_CITY(LOCAL:LOCAL) > 0)
 			;#; USETIME = GETMILLISECOND();
 			CALL AI_ACTION(LOCAL:LOCAL)
 			DRAWLINE
@@ -99,7 +99,7 @@ IF DAY >= SLG_PP:1
 	ENDIF
 	FOR LOCAL, 1, MAX_COUNTRY + 1
 		IF IS_COUNTRY(LOCAL:LOCAL) && LOCAL:LOCAL != CFLAG:MASTER:所属
-			IF !FLAG:戦死エンドフラグ && !FLAG:処刑エンドフラグ && (COUNTRY_EVENT_ID:(LOCAL:LOCAL) != SP_COUNTRY_ID:(特殊勢力_野盗) || GET_OWN_CITY(LOCAL:LOCAL) > 0)
+			IF !FLAG:戦死エンドフラグ && !FLAG:強制エンドフラグ && (COUNTRY_EVENT_ID:(LOCAL:LOCAL) != SP_COUNTRY_ID:(特殊勢力_野盗) || GET_OWN_CITY(LOCAL:LOCAL) > 0)
 				SIF LOCAL:1
 					DRAWLINE
 				CALL COUNTRY_TURNEND(LOCAL:LOCAL)
@@ -120,21 +120,33 @@ IF DAY >= SLG_PP:1
 ENDIF
 
 IF DAY >= SLG_PP:1
-	LOCAL:1 = 0
 	CUSTOMDRAWLINE =
-	PRINTFORML 説得フェイズ
+	PRINTFORML 雇用・説得フェイズ
 	CUSTOMDRAWLINE =
 	;#; USETIME = GETMILLISECOND();
 	FOR LOCAL, 0, MAX_COUNTRY
 		SIF !IS_COUNTRY(LOCAL) || IS_SP_COUNTRY(LOCAL) || CFLAG:MASTER:所属 == LOCAL
 			CONTINUE
+		CALL SLG_AI_RECRUITMENT(LOCAL)
 		CALL SLG_AI_PERSUASION(LOCAL)
+	NEXT
+	;#; USETIME = GETMILLISECOND() - USETIME;
+	;#; DEBUGPRINTFORML PERSUASION TOTAL: {USETIME}ms
+ELSE
+	CUSTOMDRAWLINE =
+	PRINTFORML 雇用フェイズ
+	CUSTOMDRAWLINE =
+	;#; USETIME = GETMILLISECOND();
+	FOR LOCAL, 0, MAX_COUNTRY
+		SIF !IS_COUNTRY(LOCAL) || IS_SP_COUNTRY(LOCAL) || CFLAG:MASTER:所属 == LOCAL
+			CONTINUE
+		CALL SLG_AI_RECRUITMENT(LOCAL)
 	NEXT
 	;#; USETIME = GETMILLISECOND() - USETIME;
 	;#; DEBUGPRINTFORML PERSUASION TOTAL: {USETIME}ms
 ENDIF
 
-SIF FLAG:戦死エンドフラグ || FLAG:処刑エンドフラグ
+SIF FLAG:戦死エンドフラグ || FLAG:強制エンドフラグ
 	GOTO DEAD
 
 
@@ -142,9 +154,6 @@ SIF FLAG:戦死エンドフラグ || FLAG:処刑エンドフラグ
 
 ;同盟・連合の期限チェック
 CALL TREATY_TURNEND
-
-;風説流布
-CALL SPREAD_OF_RUMORS
 
 ;特殊勢力の蜂起判定
 ;まず呼び出し用文字列を用意
@@ -169,7 +178,7 @@ NEXT
 TRYCALLFORM SCENARIO_EVENT_%SCENARIOID%
 
 ;ランダムな謀反処理
-IF !SLG_DAILY_DISABLE:(FINDELEMENT(SLG_DAILY_EVENT_NAME_ENG, "RANDOM_RISE")) && !FLAG:クリアフラグ
+IF !SLG_DAILY_GET_DISABLE_CONFIG("RANDOM_RISE") && !FLAG:クリアフラグ
 	CALL SLG_RANDOM_INDEPENDENCE
 	CALL SLG_RANDOM_RISE
 ENDIF
@@ -196,14 +205,9 @@ $DEAD
 CALL ENDING_CHECK
 
 ;デッドエンディングなら戻る
-SIF FLAG:処刑エンドフラグ
-	RETURN
+SIF FLAG:強制エンドフラグ
+	RETURN 1
 
-;終了フラグが立っていないなら外交処理
-IF !FLAG:クリアフラグ
-	;敗将の逃走処理
-	CALL TURNEND_ESCAPE
-ENDIF
 
 ;各国軍の徴兵処理
 FOR LOCAL:0, 0, MAX_COUNTRY
@@ -211,9 +215,11 @@ FOR LOCAL:0, 0, MAX_COUNTRY
 		CALL COUNTRY_ADD_SOLDIER(LOCAL:0)
 NEXT
 
-;戦闘済みフラグの解除
+;疲労度の回復ならびに戦闘済みフラグの解除
 FOR LOCAL:0, 0, MAX_COUNTRY
 	FOR LOCAL:1, 0, 10
+		SIF !UNIT_FBATTLE:(LOCAL:0):(LOCAL:1)
+			UNIT_TIRED_COUNT:(LOCAL:0):(LOCAL:1) -= MAX(UNIT_TIRED_COUNT:(LOCAL:0):(LOCAL:1) - RAND:3 + 3, 0)
 		UNIT_FBATTLE:(LOCAL:0):(LOCAL:1) = 0
 	NEXT
 NEXT
@@ -259,190 +265,11 @@ CALL SINGLE_EMPTY_LINE()
 ;DEBUGPRINTFORML
 [ENDIF]
 
-;■部隊の移動
-FOR LCOUNT:0, 0, MAX_UNIT
-	;都市ID=0での行動を禁ずる
-	SIF UNIT_POSITION:(ARG:0):(LCOUNT:0) == 0
-		CONTINUE
-	IF UNIT_SOLDIER:(ARG:0):(LCOUNT:0) > 0
-		;DEBUGPRINTFORML %ANAME(GET_COUNTRY_BOSS(ARG:0))%勢力{LCOUNT:0}部隊の行動
-		LOCAL:2 = UNIT_POSITION:(ARG:0):(LCOUNT:0)
-		LOCAL:3 = UNIT_TARGET:(ARG:0):(LCOUNT:0)
-		IF LOCAL:3 > 0 && LOCAL:2 != LOCAL:3
-			;停戦中の都市が目標になっている場合
+CALL TURNEND_UNIT_MOVE(ARG:0)
 
-			IF TMP_COUNTRY_RELATION:(ARG:0):(CITY_OWNER:(LOCAL:3)) == 1
-				UNIT_TARGET:(ARG:0):(LCOUNT:0) = 0
-			ELSE
-				;経路の存在判定
-				LOCAL:4 = IS_ROOT(LOCAL:2, LOCAL:3)
-				;敵対国家の部隊が同じ位置にいるフラグ
-				LOCAL:5 = 0
-				FOR LCOUNT:1, 0, MAX_COUNTRY
-					;敵対国家の部隊について探索
-					IF IS_COUNTRY(LCOUNT:1) && !TMP_COUNTRY_RELATION:(ARG:0):(LCOUNT:1) && ARG:0 != LCOUNT:1 
-						FOR LCOUNT:2, 0, MAX_UNIT
-							;敵対国家の部隊がいたらフラグ立て
-							IF LOCAL:2 == UNIT_POSITION:(LCOUNT:1):(LCOUNT:2)
-								LOCAL:5 = 1
-							ENDIF
-						NEXT
-					ENDIF
-				NEXT
-				;中継点を通る場合、部隊に疾風迅雷所持者がいれば、30%の確率で中継点をすっとばす
-				IF LOCAL:4 == 2
-					FOR LCOUNT:1, 0, MAX_UNIT_COMMANDER
-						LOCAL:6 = GET_UNIT_COMMANDER(ARG:0, LCOUNT:0, LCOUNT:1)
-						IF LOCAL:6 >= 0 && GETBIT(TALENT:(LOCAL:6):ＳＬＧ素質, 素質_ＳＬＧ_疾風迅雷) && 30 > RAND:100
-							SETCOLOR COLOR("素質発動")
-							PRINTFORML %ANAME(LOCAL:6)%は迅速な部隊行動を見せる！
-							PRINTFORML 一気に目的地に移動した！
-							RESETCOLOR
-							;LOCAL:5は折らなくていい気がするんだけど、一応
-							LOCAL:5 = 0
-							LOCAL:4 = 0
-							UNIT_POSITION:(ARG:0):(LCOUNT:0) = LOCAL:3
-							SIF ARG:0 == CFLAG:MASTER:所属
-								UNIT_TARGET:(ARG:0):(LCOUNT:0) = 0
-							BREAK
-						ENDIF
-					NEXT
-				ENDIF
-				IF !LOCAL:5	
-					;直通
-					IF LOCAL:4 == 1
-						;移動させて目標を解除
-						UNIT_POSITION:(ARG:0):(LCOUNT:0) = LOCAL:3
-						UNIT_TARGET:(ARG:0):(LCOUNT:0) = 0
-					;中継地点を経由
-					ELSEIF LOCAL:4 == 2
-						;中継地点の取得
-						LOCAL:5 = GET_RELAYPOINT(LOCAL:2, LOCAL:3)
-						IF LOCAL:5 > 0
-							UNIT_POSITION:(ARG:0):(LCOUNT:0) = LOCAL:5
-						ELSE
-							UNIT_TARGET:(ARG:0):(LCOUNT:0) = 0
-						ENDIF
-					;直接の移動経路なし
-					ELSEIF ARG:0 == CFLAG:MASTER:所属
-						UNIT_TARGET:(ARG:0):(LCOUNT:0) = 0
-					ENDIF
-				ENDIF
-			ENDIF
-		ENDIF
-	ENDIF
-NEXT
+CALL TURNEND_UNIT_BATTLE(ARG:0)
 
-;部隊マップの作成(処理の高速化)
-CALL TMP_CREATE_UNIT_MAP
 
-;■戦闘処理
-LOCAL:20 = 0
-FOR LOCAL:0, 0, 10
-	;都市ID=0での行動を禁ずる
-	SIF UNIT_POSITION:(ARG:0):(LOCAL:0) == 0
-		CONTINUE
-	;LOCAL:0番の部隊が存在する場合
-	IF UNIT_SOLDIER:(ARG:0):(LOCAL:0) > 0
-		;同一の都市に存在する敵性部隊をリスト化
-		LOCAL:10 = UNIT_POSITION:(ARG:0):(LOCAL:0)
-		LOCAL:13 = 0
-		FOR LOCAL:1, 0, 20
-			LOCAL:11 = TMP_UNIT_ONCITY_CNT:(LOCAL:10):(LOCAL:1)
-			LOCAL:12 = TMP_UNIT_ONCITY_NUM:(LOCAL:10):(LOCAL:1)
-			IF LOCAL:11 > 0 && TMP_COUNTRY_RELATION:(ARG:0):(LOCAL:11) == 0 && UNIT_SOLDIER:(LOCAL:11):(LOCAL:12) > 0
-				LOCAL:(LOCAL:13 + 30) = LOCAL:11
-				LOCAL:(LOCAL:13 + 50) = LOCAL:12
-				LOCAL:13 ++
-			ENDIF
-		NEXT
-		;一つ以上の敵性部隊が存在する場合
-		IF LOCAL:13 >= 1
-			;行動済みなら敵の遊撃部隊とは戦わない
-			IF !UNIT_FBATTLE:(ARG:0):(LOCAL:0)
-				;●侵攻部隊-侵攻部隊の戦闘判定
-				LOCAL:14 = 0
-				;複数の敵性部隊が存在する場合
-				IF LOCAL:13 >= 2
-					;自勢力の場合
-					IF ARG:0 == CFLAG:MASTER:所属
-						PRINTFORM 我が軍の第{LOCAL:0 + 1}部隊
-						LOCALS:0 = %GET_UNIT_COMMANDER_NAME(ARG:0, LOCAL:0)%
-						IF LOCALS:0 != ""
-							PRINTFORM (%LOCALS:0%隊)
-						ENDIF
-						PRINTFORML の現在地である%GET_RELAYNAME(LOCAL:10)%には複数の敵部隊が存在します
-						PRINTL 攻撃する部隊を選択して下さい
-						FOR LOCAL:1, 0, LOCAL:13
-							LOCAL:16 = LOCAL:(LOCAL:1 + 30)
-							LOCAL:17 = LOCAL:(LOCAL:1 + 50)
-							PRINTFORM [{LOCAL:1, 2}] %NAME:GET_COUNTRY_BOSS(LOCAL:16), 6%軍 第{LOCAL:17 + 1}部隊  兵数:{UNIT_SOLDIER:(LOCAL:16):(LOCAL:17)}
-							LOCALS:0 = %GET_UNIT_COMMANDER_NAME(LOCAL:16, LOCAL:17)%
-							IF LOCALS:0 != ""
-								PRINTFORM   将:%LOCALS:0%
-							ENDIF
-							PRINTL
-						NEXT
-						PRINTL [99] 攻撃しない
-
-						$INPUT_LOOP_SETTARGET
-						INPUT
-
-						IF RESULT >= 0 && RESULT < LOCAL:13
-							LOCAL:14 = RESULT
-						ELSEIF RESULT == 99
-							LOCAL:14 = -1
-						ELSE
-							GOTO INPUT_LOOP_SETTARGET
-						ENDIF
-					;CPU勢力の場合
-					ELSE
-						;最も兵数の少ない部隊を自動選択
-						LOCAL:15 = 0
-						FOR LOCAL:1, 0, LOCAL:13
-							LOCAL:16 = LOCAL:(LOCAL:1 + 30)
-							LOCAL:17 = LOCAL:(LOCAL:1 + 50)
-							IF UNIT_SOLDIER:(LOCAL:16):(LOCAL:17) < LOCAL:15 || LOCAL:15 == 0
-								LOCAL:14 = LOCAL:1
-								LOCAL:15 = UNIT_SOLDIER:(LOCAL:16):(LOCAL:17)
-							ENDIF
-						NEXT
-					ENDIF
-				ENDIF
-				;LOCAL:14に指定された敵部隊を攻撃
-				IF LOCAL:14 >= 0
-					LOCAL:16 = LOCAL:(LOCAL:14 + 30)
-					LOCAL:17 = LOCAL:(LOCAL:14 + 50)
-					;戦闘処理本体
-					CALL BATTLE_UNIT_TO_UNIT(ARG:0, LOCAL:0, LOCAL:16, LOCAL:17)
-					CALL SINGLE_EMPTY_LINE()
-					;敵性部隊が１部隊だった場合、その部隊を撃破すれば続けて防衛部隊との戦闘に入る
-					IF LOCAL:13 == 1 && UNIT_SOLDIER:(LOCAL:16):(LOCAL:17) <= 0
-						;●侵攻部隊-防衛部隊の戦闘判定
-						LOCAL:5 = UNIT_POSITION:(ARG:0):(LOCAL:0)
-						LOCAL:6 = CITY_OWNER:(LOCAL:5)
-						IF LOCAL:5 > 0 && CITY_TYPE:(LOCAL:5) == 0 && LOCAL:6 != ARG:0 && TMP_COUNTRY_RELATION:(ARG:0):(LOCAL:6) == 0
-							;戦闘処理本体
-							CALL BATTLE_UNIT_TO_CITY(ARG:0, LOCAL:0, LOCAL:5)
-							CALL SINGLE_EMPTY_LINE()
-						ENDIF
-					ENDIF
-				ENDIF
-			ENDIF
-
-		;敵性部隊が存在しない場合
-		ELSE
-			;●侵攻部隊-防衛部隊の戦闘判定
-			LOCAL:5 = UNIT_POSITION:(ARG:0):(LOCAL:0)
-			LOCAL:6 = CITY_OWNER:(LOCAL:5)
-			IF LOCAL:5 > 0 && CITY_TYPE:(LOCAL:5) == 0 && LOCAL:6 != ARG:0 && TMP_COUNTRY_RELATION:(ARG:0):(LOCAL:6) == 0
-				;戦闘処理本体
-				CALL BATTLE_UNIT_TO_CITY(ARG:0, LOCAL:0, LOCAL:5)
-				CALL SINGLE_EMPTY_LINE()
-			ENDIF
-		ENDIF
-	ENDIF
-NEXT
 
 ;部隊の強制解散の処理
 FOR LOCAL:0, 0, 10
@@ -454,6 +281,167 @@ FOR LOCAL:0, 0, 10
 NEXT
 
 CALL KILL_EMPTY_LINE()
+
+;-------------------------------------------------
+;部隊の移動
+;-------------------------------------------------
+@TURNEND_UNIT_MOVE(勢力)
+#DIM 勢力
+#DIM 部隊
+#DIM ポジション
+#DIM 士官
+#DIM 中継点
+#DIM 部隊現在地
+#DIM 部隊目的地
+#DIM 経路判定
+
+FOR 部隊, 0, MAX_UNIT
+	SIF UNIT_POSITION:勢力:部隊 == 0
+		CONTINUE
+	SIF UNIT_SOLDIER:勢力:部隊 <= 0
+		CONTINUE
+	部隊現在地 = UNIT_POSITION:勢力:部隊
+	部隊目的地 = UNIT_TARGET:勢力:部隊
+	;停戦中の都市が目的地なら目的地を解除
+	IF TMP_COUNTRY_RELATION:勢力:(CITY_OWNER:部隊目的地) == 1
+		UNIT_TARGET:勢力:部隊 = 0
+		CONTINUE
+	ENDIF
+
+	;敵がいたら移動できない
+	SIF TMP_IS_STAY_ENEMY_UNIT(部隊現在地, 勢力)
+		CONTINUE
+
+	経路判定 = IS_ROOT(部隊現在地, 部隊目的地)
+
+	IF 経路判定 == 1
+		CALL MOVE_UNIT(勢力, 部隊, 部隊目的地, 1)
+	ELSEIF 経路判定 == 2
+		中継点 = GET_RELAYPOINT(部隊現在地, 部隊目的地)
+		IF 中継点 > 0
+			CALL MOVE_UNIT(勢力, 部隊, 中継点, 0)
+		ELSE
+			;ありえないはずだが念のため
+			UNIT_TARGET:勢力:部隊 = 0
+		ENDIF
+	;ありえないはずだが念のため
+	ELSE
+		UNIT_TARGET:勢力:部隊 = 0
+	ENDIF
+NEXT
+
+;-------------------------------------------------
+;部隊の戦闘
+;もともとの処理がゴミだったので関数として切り出してリファクタ。
+;-------------------------------------------------
+@TURNEND_UNIT_BATTLE(勢力)
+#DIM 勢力
+#DIM 部隊
+#DIM 敵部隊
+#DIM 敵勢力
+#DIM ループ
+#DIM 敵勢力リスト, VARSIZE("TMP_UNIT_ONCITY_CNT", 1)
+#DIM 敵部隊リスト, VARSIZE("TMP_UNIT_ONCITY_CNT", 1)
+#DIM 兵力リスト, VARSIZE("TMP_UNIT_ONCITY_CNT", 1)
+#DIM 敵の数
+#DIM 部隊現在地
+#DIM 攻撃対象
+
+VARSET 敵勢力リスト, 0
+VARSET 敵部隊リスト, -1
+VARSET 敵の数
+
+FOR 部隊, 0, MAX_UNIT
+	SIF UNIT_POSITION:勢力:部隊 == 0
+		CONTINUE
+	SIF UNIT_SOLDIER:勢力:部隊 <= 0
+		CONTINUE
+	;現在値にいる敵性部隊をリスト化
+	部隊現在地 = UNIT_POSITION:勢力:部隊
+	敵の数 = 0
+	FOR ループ, 0, VARSIZE("TMP_UNIT_ONCITY_CNT", 1)
+		敵勢力 = TMP_UNIT_ONCITY_CNT:部隊現在地:ループ
+		敵部隊 = TMP_UNIT_ONCITY_NUM:部隊現在地:ループ
+		IF 敵勢力 > 0 && UNIT_SOLDIER:敵勢力:敵部隊 > 0 && TMP_COUNTRY_RELATION:勢力:敵勢力 == 0
+			敵勢力リスト:敵の数 = 敵勢力
+			敵部隊リスト:敵の数 = 敵部隊
+			兵力リスト:敵の数 = UNIT_SOLDIER:敵勢力:敵部隊
+			敵の数 ++
+		ENDIF
+	NEXT
+	;敵がいなければ防衛戦
+	IF 敵の数 == 0
+		敵勢力 = CITY_OWNER:部隊現在地
+		IF 部隊現在地 > 0 && CITY_TYPE:部隊現在地 == 0 && 敵勢力 != 勢力 && TMP_COUNTRY_RELATION:勢力:敵勢力 == 0
+			;戦闘処理本体
+			CALL BATTLE_UNIT_TO_CITY(勢力, 部隊, 部隊現在地)
+			CALL SINGLE_EMPTY_LINE()
+		ENDIF
+		CONTINUE
+	ENDIF
+
+	;行動済みなら遊撃部隊と戦闘しない
+	SIF UNIT_FBATTLE:勢力:部隊
+		CONTINUE
+
+	IF 敵の数 == 1
+		攻撃対象 = 0
+	ELSE
+		IF 勢力 != CFLAG:MASTER:所属
+			攻撃対象 = FINDELEMENT(兵力リスト, MINARRAY(兵力リスト, 0, 敵の数))
+		ELSE
+			PRINTFORM 我が軍の第{部隊 + 1}部隊
+			LOCALS:0 = %GET_UNIT_COMMANDER_NAME(勢力, 部隊)%
+			IF LOCALS:0 != ""
+				PRINTFORM (%LOCALS:0%隊)
+			ENDIF
+			PRINTFORML の現在地である%GET_RELAYNAME(部隊現在地)%には複数の敵部隊が存在します
+			PRINTL 攻撃する部隊を選択して下さい
+			FOR ループ, 0, 敵の数
+				敵勢力 = 敵勢力リスト:ループ
+				敵部隊 = 敵部隊リスト:ループ
+				PRINTFORM [{ループ, 2}] %ANAME(GET_COUNTRY_BOSS(敵勢力)), 6%軍 第{敵部隊 + 1}部隊  兵数:{兵力リスト:ループ}
+				LOCALS:0 = %GET_UNIT_COMMANDER_NAME(LOCAL:16, LOCAL:17)%
+				IF LOCALS:0 != ""
+					PRINTFORM   将:%LOCALS:0%
+				ENDIF
+				PRINTL
+			NEXT
+			PRINTL [99] 攻撃しない
+
+			$INPUT_LOOP_SETTARGET
+			INPUT
+			IF INRANGE(RESULT, 0, 敵の数 - 1)
+				攻撃対象 = RESULT
+			ELSEIF RESULT == 99
+				攻撃対象 = -1
+			ELSE
+				GOTO INPUT_LOOP_SETTARGET
+			ENDIF
+		ENDIF
+	ENDIF
+
+	SIF 攻撃対象 < 0
+		CONTINUE
+	敵勢力 = 敵勢力リスト:攻撃対象
+	敵部隊 = 敵部隊リスト:攻撃対象
+
+	CALL BATTLE_UNIT_TO_UNIT(勢力, 部隊, 敵勢力リスト:攻撃対象, 敵部隊リスト:攻撃対象)
+	CALL SINGLE_EMPTY_LINE()
+
+	SIF 敵の数 != 1 || UNIT_SOLDIER:敵勢力:敵部隊 > 0
+		CONTINUE
+
+	;敵性部隊が１部隊だった場合、その部隊を撃破すれば続けて防衛部隊との戦闘に入る
+	敵勢力 = CITY_OWNER:部隊現在地
+	IF 部隊現在地 > 0 && CITY_TYPE:部隊現在地 == 0 && TMP_COUNTRY_RELATION:勢力:敵勢力 == 0
+		CALL BATTLE_UNIT_TO_CITY(勢力, 部隊, 部隊現在地)
+		CALL SINGLE_EMPTY_LINE()
+	ENDIF
+NEXT
+
+
+
 ;-------------------------------------------------
 ;同盟・連合の期限チェック
 ;-------------------------------------------------
@@ -644,7 +632,7 @@ ENDIF
 
 ;勢力ごとに計算
 FOR LOCAL:0, 0, MAX_COUNTRY
-	IF IS_COUNTRY(LOCAL:0) && GET_SUM_ECONOMY(LOCAL:0)
+	IF IS_COUNTRY(LOCAL:0) && GET_SUM_ECONOMY(LOCAL:0) && GET_OWN_CITY(LOCAL:0) > 0
 		LOCAL:5 = SQRT(ECONOMY_POWER:(LOCAL:0):0) * 50 + SQRT(ECONOMY_POWER:(LOCAL:0):1) * 30
 
 		;増加率に応じて減衰
@@ -775,9 +763,9 @@ FOR LOCAL:0, 0, CHARANUM
 			LOCAL:2 = GET_COUNTRY_BOSS(CFLAG:(LOCAL:0):所属)
 			SETCOLOR COLOR("オレンジ")
 			IF LOCAL:2 >= 0
-				PRINTFORMW %NAME:(LOCAL:0)%は%NAME:(LOCAL:2)%勢力を抜けだし、%ANAME(MASTER)%の元に駆け付けました
+				PRINTFORMW %ANAME(LOCAL:0)%は%ANAME(LOCAL:2)%勢力を抜けだし、%ANAME(MASTER)%の元に駆け付けました
 			ELSE
-				PRINTFORMW %NAME:(LOCAL:0)%は%ANAME(MASTER)%の元に駆け付けました
+				PRINTFORMW %ANAME(LOCAL:0)%は%ANAME(MASTER)%の元に駆け付けました
 			ENDIF
 			RESETCOLOR
 			CALL CHANGE_COUNTRY(LOCAL:0, CFLAG:MASTER:所属, 1)

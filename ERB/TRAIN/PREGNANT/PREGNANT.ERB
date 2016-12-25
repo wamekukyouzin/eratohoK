@@ -41,6 +41,9 @@ FOR LOCAL:0, 440, 460
 	ENDIF
 NEXT
 
+SIF IS_SP_CHARA(ARG:0)
+	RETURN
+
 ;既に妊娠状態なら判定スキップ
 IF CFLAG:(ARG:0):妊娠期間 >= 1
 	RETURN
@@ -83,8 +86,12 @@ ELSEIF TCVAR:(ARG:0):65
 	LOCAL:5 = 150
 ENDIF
 
+;危険日なら倍率ドン
+SIF IS_OVULATION(ARG:0)
+	LOCAL:5 /= 2
+
 ;★デバッグ用(100%妊娠)
-;LOCAL:5 = 1
+LOCAL:5 = 1
 
 IF RAND:(LOCAL:5) < SQRT(LOCAL:2 * 100 + 300)
 	;誰の子供かを判定
@@ -538,7 +545,7 @@ RETURN CHILD
 ;---------------------------------------------------------
 @IS_FOSTER_CHILD(ARG:0)
 #FUNCTION
-SIF CFLAG:(ARG:0):子の父親 < 0
+SIF CFLAG:(ARG:0):子の父親 < 0 && GROUPMATCH(GET_SPERM_NAME(CFLAG:(ARG:0):子の父親), "", "不明")
 	RETURNF 1
 SIF FLAG:観戦モード && RAND:4
 	RETURNF 1
@@ -1191,3 +1198,30 @@ FOR LOCAL, 0, 5
 NEXT
 
 CALL TRAIN_AUTO_ABLUP(ARG:1, 1)
+
+;-----------------------------------------
+;相手の子を産んだことがあるか調べる
+;相手専用を立てとくと、それ以外の子を産んだことがある場合に0が帰るようになる
+;-----------------------------------------
+@HAVE_GIVEN_BIRTH_ITS_CHILD(対象, 相手, 相手専用 = 0)
+#FUNCTION
+#DIM 対象
+#DIM 妊娠記録
+#DIM 相手
+#DIM 相手ID
+#DIM 相手の子産んだフラグ
+#DIM 相手専用
+
+相手ID = GET_ID(相手)
+相手の子産んだフラグ = 0
+
+FOR 妊娠記録, 0, PREGNANT_RECORD_MAX
+	;専用フラグが立っていて、相手以外の子を孕んでいる場合はダメ
+	IF 相手専用 && !GROUPMATCH(PREGNANT_RECORD_FATHER:対象:妊娠記録, 0, 相手ID)
+		RETURNF 0
+	ELSEIF PREGNANT_RECORD_FATHER:対象:妊娠記録 == 相手ID
+		相手の子産んだフラグ = 1
+	ENDIF
+NEXT
+
+RETURNF 相手の子産んだフラグ

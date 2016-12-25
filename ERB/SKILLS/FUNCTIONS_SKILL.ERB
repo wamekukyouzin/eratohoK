@@ -1,29 +1,97 @@
 ﻿;---------------------------------
-;SP, BASE, CAPTURE, ESCAPEスキル発動用 CAPTUREでは発動側が捕縛側、ESCAPEでは発動側が逃走側
+;指定した名前のパッシブスキルを探す
 ;---------------------------------
-@SKILL_COMBAT_TRY_INVOKE(発動者, 発動番号, ジャンル, スキル, 発動側, 発動勢力, 発動部隊, 対象勢力, 対象部隊)
+@PASSIVE_SKILL_NAME_TO_ID(スキル名)
+#FUNCTION
+#DIM 発動者
+#DIMS スキル名
+SELECTCASE スキル名
+	CASE "超成長力"
+		RETURNF 0
+	CASE "努力家"
+		RETURNF 1
+	CASE "治療"
+		RETURNF 2
+	CASE "明察"
+		RETURNF 3
+ENDSELECT
+
+RETURNF -1
+
+;---------------------------------
+;指定した名前のパッシブスキルがあるかを探す
+;---------------------------------
+@FIND_PASSIVE_SKILL(発動者, スキル名)
+#FUNCTION
+#DIM 発動者
+#DIMS スキル名
+#DIM スキルID
+#DIM パッシブ
+
+スキルID = PASSIVE_SKILL_NAME_TO_ID(スキル名)
+
+SIF スキルID == -1
+	THROW 該当する名前のスキルなし
+
+パッシブ = FINDELEMENT(SKILL_GENRE_ENG, "PASSIVE")
+
+FOR LOCAL, 0, MAX_SKILL_SLOT
+	SIF SKILL_NO_SLOT:発動者:パッシブ:LOCAL == 0 && SKILL_ID_SLOT:発動者:パッシブ:LOCAL == スキルID
+		RETURNF 1
+NEXT
+RETURNF 0
+
+
+;---------------------------------
+;SP, BASE, CAPTURE, ESCAPEスキル発動用
+;---------------------------------
+@SKILL_COMBAT_INVOKE(発動者, 発動番号, ジャンル, 発動側, 発動勢力, 発動部隊, 対象勢力, 対象部隊)
 #DIM 発動者
 #DIM 発動番号
-#DIM スキル
-#DIMS ジャンル
+#DIM ジャンル
 #DIM 発動側
 #DIM 発動勢力
 #DIM 発動部隊
 #DIM 対象勢力
 #DIM 対象部隊
-発動者 = NO:発動者
+
+SIF BATTLE_SKILL_SEALED:発動側:発動番号
+	RETURN 0
+
+FOR LOCAL, 0, MAX_SKILL_SLOT
+	SIF SKILL_NO_SLOT:発動者:ジャンル:LOCAL < 0
+		CONTINUE
+	SIF SKILL_ID_SLOT:発動者:ジャンル:LOCAL < 0
+		CONTINUE
+	CALL SKILL_COMBAT_TRY_INVOKE(発動者, 発動番号, ジャンル, SKILL_NO_SLOT:発動者:ジャンル:LOCAL, SKILL_ID_SLOT:発動者:ジャンル:LOCAL, 発動側, 発動勢力, 発動部隊, 対象勢力, 対象部隊)
+NEXT
+
+;---------------------------------
+;SP, BASE, CAPTURE, ESCAPEスキル発動用 CAPTUREでは発動側が捕縛側、ESCAPEでは発動側が逃走側
+;---------------------------------
+@SKILL_COMBAT_TRY_INVOKE(発動者, 発動番号, ジャンル, スキルNO, スキルID, 発動側, 発動勢力, 発動部隊, 対象勢力, 対象部隊)
+#DIM 発動者
+#DIM 発動番号
+#DIM ジャンル
+#DIM スキルNO
+#DIM スキルID
+#DIM 発動側
+#DIM 発動勢力
+#DIM 発動部隊
+#DIM 対象勢力
+#DIM 対象部隊
 
 SIF BATTLE_SKILL_SEALED:発動側:発動番号
 	RETURN -1
 
 ;存在判定
-TRYCCALLFORM SKILL_{発動者}_%ジャンル%_{スキル}_EXIST
+TRYCCALLFORM SKILL_{スキルNO}_%SKILL_GENRE_ENG:ジャンル%_{スキルID}_EXIST
 	CATCH
 		RETURN -1
 ENDCATCH
 SETCOLOR COLOR("スキル発動")
 ;対象選択
-TRYCCALLFORM SKILL_{発動者}_%ジャンル%_{スキル}_SETTARGET(発動者, 発動番号, 発動側, 発動勢力, 発動部隊, 対象勢力, 対象部隊)
+TRYCCALLFORM SKILL_{スキルNO}_%SKILL_GENRE_ENG:ジャンル%_{スキルID}_SETTARGET(発動者, 発動番号, 発動側, 発動勢力, 発動部隊, 対象勢力, 対象部隊)
 	IF !RESULT
 		RESETCOLOR
 		RETURN 0
@@ -31,16 +99,16 @@ TRYCCALLFORM SKILL_{発動者}_%ジャンル%_{スキル}_SETTARGET(発動者, �
 CATCH
 ENDCATCH
 ;発動判定
-CALLFORM SKILL_{発動者}_%ジャンル%_{スキル}_CAN_INVOKE(発動者, 発動番号, 発動側, 発動勢力, 発動部隊, 対象勢力, 対象部隊)
+CALLFORM SKILL_{スキルNO}_%SKILL_GENRE_ENG:ジャンル%_{スキルID}_CAN_INVOKE(発動者, 発動番号, 発動側, 発動勢力, 発動部隊, 対象勢力, 対象部隊)
 IF !RESULT
 	RESETCOLOR
 	RETURN 0
 ENDIF
 ;TRYCCALLFORM SKILL_{発動者}_%ジャンル%_{スキル}_INVOKE_TEXT(発動者)
 ;	CATCH
-		CALLFORM SKILL_PRINT_INVOKE(発動者, ジャンル, スキル)
+		CALLFORM SKILL_PRINT_INVOKE(発動者, ジャンル, スキルNO, スキルID)
 ;ENDCATCH
-CALLFORM SKILL_{発動者}_%ジャンル%_{スキル}_INVOKE(発動者, 発動番号, 発動側, 発動勢力, 発動部隊, 対象勢力, 対象部隊)
+CALLFORM SKILL_{スキルNO}_%SKILL_GENRE_ENG:ジャンル%_{スキルID}_INVOKE(発動者, 発動番号, 発動側, 発動勢力, 発動部隊, 対象勢力, 対象部隊)
 RESETCOLOR
 RETURN RESULT
 
@@ -50,12 +118,13 @@ RETURN RESULT
 ;---------------------------------
 ;スキル発動時のデフォルト地の文
 ;---------------------------------
-@SKILL_PRINT_INVOKE(発動者, ジャンル, スキル)
+@SKILL_PRINT_INVOKE(発動者, ジャンル, スキルNO, スキルID)
 #DIM 発動者
-#DIM スキル
-#DIMS ジャンル
-CALLFORM SKILL_{発動者}_%ジャンル%_{スキル}_NAME
-PRINTFORML %ANAME(NO_TO_CHARA(発動者))%のスキル「%RESULTS%」発動！
+#DIM スキルNO
+#DIM スキルID
+#DIM ジャンル
+CALLFORM SKILL_{スキルNO}_%SKILL_GENRE_ENG:ジャンル%_{スキルID}_NAME
+PRINTFORML %ANAME(発動者)%のスキル「%RESULTS%」発動！
 
 ;---------------------------------
 ;暗殺の効果用
@@ -77,3 +146,208 @@ BATTLE_妖術パワー:対象側:対象番号 = 0
 BATTLE_歌唱パワー:対象側:対象番号 = 0
 BATTLE_料理パワー:対象側:対象番号 = 0
 BATTLE_SKILL_SEALED:対象側:対象番号 = 1
+
+
+;---------------------------------
+;スキル発動時のデフォルト地の文
+;---------------------------------
+@SKILL_INIT(対象)
+#DIM 対象
+#DIM ジャンル
+#DIM 対象NO
+#DIM スキルID
+対象NO = NO:対象
+;ジャンルごとで習得させていく
+FOR ジャンル, 0, SKILL_GENRE_NUM
+	FOR スキルID, 0, MAX_SKILL_SLOT
+		;0番は汎用にするので、「あなた」には何も学ばせない
+		SIF 対象NO == 0
+			GOTO CANCEL
+		TRYCCALLFORM SKILL_{対象NO}_%SKILL_GENRE_ENG:ジャンル%_{スキルID}_EXIST
+			;初期状態で習得不可のスキルは弾く
+			TRYCCALLFORM SKILL_{対象NO}_%SKILL_GENRE_ENG:ジャンル%_{スキルID}_NO_LEARN_INIT
+				GOTO CANCEL
+			CATCH
+				SKILL_NO_SLOT:対象:ジャンル:スキルID = 対象NO
+				SKILL_ID_SLOT:対象:ジャンル:スキルID = スキルID
+			ENDCATCH
+		CATCH
+			$CANCEL
+			SKILL_NO_SLOT:対象:ジャンル:スキルID = -1
+			SKILL_ID_SLOT:対象:ジャンル:スキルID = -1
+		ENDCATCH
+	NEXT
+NEXT
+
+TRYCALLFORM SKILL_INIT_{対象NO}_GENERAL
+
+;---------------------------------
+;スキルの説明
+;---------------------------------
+@SKILL_EXPLANATION(ジャンル, スキルNO, スキルID, 説明削減 = 0)
+#DIM ジャンル
+#DIM スキルNO
+#DIM スキルID
+#DIMS アクセサ
+#DIMS キャラ名
+#DIMS スキル名
+#DIM レベル
+#DIMS 説明
+#DIM 説明削減
+
+;描画内容を用意
+アクセサ = SKILL_{スキルNO}_%SKILL_GENRE_ENG:ジャンル%_{スキルID}_
+CALLFORM %アクセサ%NAME
+スキル名 = %(STRLENS(RESULTS:0) > 20 ? TOHALF(RESULTS:0) # RESULTS:0)%
+IF スキルNO == 0
+	キャラ名 = 汎用
+ELSEIF スキルNO > 10000
+	キャラ名 = 特殊
+ELSE
+	キャラ名 = %SNAME(NO_TO_CHARA(スキルNO))%
+ENDIF
+CALLFORM %アクセサ%LEVEL
+レベル = RESULT
+CALLFORM %アクセサ%EXPLANATION
+説明 = %RESULTS%
+
+;スキル名と説明を削る
+スキル名 = %SUBSTRING(スキル名, 0, 20)%
+
+SIF 説明削減
+	説明 = %SUBSTRING(説明, 0, 50)%
+PRINTFORM %スキル名, 21, LEFT%LV{レベル, 2, LEFT}%SKILL_GENRE:ジャンル, 6, LEFT%%キャラ名, MAX_CHARANAME_LENGTH/2, LEFT% %説明%
+
+
+;---------------------------------
+;空きスロットにスキルのセット
+;習得できれば1が戻る　空きがなければ0
+;---------------------------------
+@SKILL_LEARN_BY_NAME(対象, ジャンル, スキルNO, スキル名)
+#DIM 対象
+#DIM ジャンル
+#DIM スキルNO
+#DIMS スキル名
+#DIM スキルID
+#DIM 空きスロット
+
+;いっぱいならだめ
+空きスロット = GET_EMPTY_SKILL_SLOT(対象, ジャンル)
+SIF 空きスロット == -1
+	RETURN 0
+
+FOR スキルID, 0, MAX_SKILLS
+	TRYCCALLFORM SKILL_{スキルNO}_%SKILL_GENRE_ENG:ジャンル%_{スキルID}_NAME
+		IF RESULTS == スキル名
+			CALL SKILL_LEARN(対象, ジャンル, スキルNO, スキルID)
+			RETURN RESULT
+		ENDIF
+	CATCH
+	ENDCATCH
+NEXT
+
+RETURN 0
+
+
+;---------------------------------
+;空きスロットにスキルのセット
+;習得できれば1が戻る　空きがなければ0
+;---------------------------------
+@SKILL_LEARN(対象, ジャンル, スキルNO, スキルID)
+#DIM 対象
+#DIM ジャンル
+#DIM スキルNO
+#DIM スキルID
+#DIM 空きスロット
+
+;いっぱいならだめ
+空きスロット = GET_EMPTY_SKILL_SLOT(対象, ジャンル)
+SIF 空きスロット == -1
+	RETURN 0
+
+;重複してたらダメでしょ
+SIF CHECK_SKILL_DUPLICATE(対象, ジャンル, スキルNO, スキルID)
+	RETURN 0
+
+SKILL_NO_SLOT:対象:ジャンル:空きスロット = スキルNO
+SKILL_ID_SLOT:対象:ジャンル:空きスロット = スキルID
+
+RETURN 1
+
+;---------------------------------
+;空きスロットの取得　空きがなければ-1
+;---------------------------------
+@GET_EMPTY_SKILL_SLOT(対象, ジャンル)
+#FUNCTION
+#DIM 対象
+#DIM ジャンル
+#DIM 空きスロット
+;空きスロットを探す
+FOR 空きスロット, 0, MAX_SKILL_SLOT
+	IF SKILL_NO_SLOT:対象:ジャンル:空きスロット < 0 && SKILL_ID_SLOT:対象:ジャンル:空きスロット < 0
+		空きスロット --
+		BREAK
+	ENDIF
+NEXT
+
+;いっぱいならだめ
+SIF 空きスロット == MAX_SKILL_SLOT
+	RETURNF -1
+
+RETURNF 空きスロット
+
+;---------------------------------------
+;汎用スキル初期化処理用、名前からスキル拾ってきて覚えさせるやつ
+;普通にやるぶんにはSKILL_LEARN_BY_NAMEつかえ
+;---------------------------------------
+@LEARN_SKILL_GENERAL_BY_NAME(対象, 汎用スキル名)
+#DIM 対象
+#DIMS 汎用スキル名
+#DIM ジャンル
+#DIM スキルID
+#DIM 空きスロット
+FOR ジャンル, 0, SKILL_GENRE_NUM
+	FOR スキルID, 0, MAX_SKILLS
+		TRYCCALLFORM SKILL_0_%SKILL_GENRE_ENG:ジャンル%_{スキルID}_NAME
+			SIF RESULTS == 汎用スキル名
+				GOTO FOUND
+		CATCH
+		ENDCATCH
+	NEXT
+NEXT
+
+SIF ジャンル == SKILL_GENRE_NUM
+	THROW %ANAME(対象)%に指定された%汎用スキル名%は存在しない
+
+$FOUND
+
+SIF CHECK_SKILL_DUPLICATE(対象, ジャンル, 0, スキルID)
+	RETURN 0
+
+空きスロット = GET_EMPTY_SKILL_SLOT(対象, ジャンル)
+
+SIF 空きスロット == -1
+	RETURN 0
+
+CALL SKILL_LEARN(対象, ジャンル, 0, スキルID)
+
+RETURN 1
+
+
+;---------------------------------------
+;指定したスキルをもう覚えているかを調べる
+;---------------------------------------
+@CHECK_SKILL_DUPLICATE(対象, ジャンル, スキルNO, スキルID)
+#FUNCTION
+#DIM 対象
+#DIM ジャンル
+#DIM スキルID
+#DIM スキルNO
+#DIM スキル
+
+FOR スキル, 0, MAX_SKILL_SLOT
+	SIF SKILL_NO_SLOT:対象:ジャンル:スキル == スキルNO && SKILL_ID_SLOT:対象:ジャンル:スキル == スキルID
+		RETURNF 1
+NEXT
+
+RETURNF 0

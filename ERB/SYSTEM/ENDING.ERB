@@ -1,0 +1,682 @@
+﻿;エンディングに関する処理
+
+;-------------------------------------------------
+;エンディングのチェック
+;-------------------------------------------------
+@ENDING_CHECK
+;天下を統一した国家の番号
+#DIM 統治勢力
+#DIM 統治君主
+#DIM 分割統治フラグ
+
+SIF FLAG:クリアフラグ
+	RETURN
+
+;主人公が死亡した場合
+IF FLAG:強制エンドフラグ || FLAG:戦死エンドフラグ
+	CALL DEAD_END
+	RETURN
+ENDIF
+
+;天下を統一した国家の番号を取得
+統治勢力 = GET_UNIFY_COUNTRY()
+
+;国家関係マップの作成
+CALL TMP_CREATE_RELATION_MAP
+
+;分割統治エンド
+IF !IS_COUNTRY(統治勢力) && CFLAG:MASTER:所属 >= 1 && IS_NOENEMY(CFLAG:MASTER:所属)
+	統治勢力 = CFLAG:MASTER:所属
+	分割統治フラグ = 1
+ENDIF
+
+SIF !IS_COUNTRY(統治勢力)
+	RETURN
+
+;無所属の都市の統合
+CALL UNIFY_FREE_CITY(統治勢力)
+
+統治君主 = GET_COUNTRY_BOSS(統治勢力)
+
+PRINTL 
+CALL COLORPRINT(@"%ANAME(統治君主)%が天下を統一しました！", COLOR("注意"), "W")
+PRINTL 
+CUSTOMDRAWLINE *-
+WAIT
+
+IF IS_SP_COUNTRY(統治勢力)
+	TRYCCALLFORM %SP_COUNTRY_NAME_ENG:SP_COUNTRY_TO_CONST(統治勢力)%_ENDING
+	CATCH
+		CALL ENDING_TEXT(統治勢力)
+	ENDCATCH
+ELSE
+	CALL ENDING_TEXT(統治勢力, 分割統治フラグ)
+ENDIF
+
+PRINTL
+ALIGNMENT CENTER
+PRINTL ――――― つづく ―――――
+ALIGNMENT LEFT
+PRINTL 
+WAIT
+FOR LOCAL:0, 0, 20
+	PRINTL 
+NEXT
+
+;野盗を削除
+SIF GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗)) != -1 && 統治勢力 != GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗))
+	CALL DESTROY_COUNTRY(GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗)))
+
+;部隊を解散
+FOR LOCAL:0, 1, MAX_COUNTRY
+	IF IS_COUNTRY(LOCAL:0)
+		;部隊を解散
+		CALL CLEAR_ALL_UNIT(LOCAL:0)
+	ENDIF
+NEXT
+;守将を解除
+VARSET CITY_COMMANDER, 0
+
+;残党の一斉検挙
+CALL CAPTURE_WANDERER(統治勢力)
+
+;クリアフラグを立てる
+FLAG:クリアフラグ = 1
+
+FLAG:クリア直後フラグ = 1
+
+FOR LOCAL:0, 0, 10
+	PRINTL
+NEXT
+IF !FLAG:観戦モード
+	SETCOLOR COLOR("注意")
+	PRINTFORMW この後、周回するかこのままゲームを続けるか選択できます
+	PRINTFORMW 続ける場合、周回することはできません
+	PRINTFORMW この時点でセーブしておくことをおすすめします
+	RESETCOLOR
+	DRAWLINE
+	SAVEGAME
+ENDIF
+CALL ENDING_SELECT
+RETURN RESULT
+;-------------------------------------------------
+;周回するかどうかの設定
+;-------------------------------------------------
+@ENDING_SELECT(ロード)
+#DIM ロード
+
+FLAG:クリア直後フラグ = 0
+
+IF ロード
+	PRINTFORML クリア直後のデータをロードしました
+ENDIF
+IF !FLAG:観戦モード
+	PRINTFORML 周回するか、ゲームを続けるか選択してください
+	CALL ASK_MULTI("周回する", "ゲームを続ける（周回できません）")
+ELSE
+	PRINTFORMW 観戦モードでは、このままゲーム続行はできません
+	PRINTFORMW 強制的に周回します
+	RESULT = 0
+ENDIF
+
+IF RESULT == 0
+	CALL GO_NEXT_LOOP
+	RETURN 1
+ENDIF
+
+SIF ロード
+	TIME = 0
+
+RETURN 0
+
+
+;-------------------------------------------------
+;死んだ場合
+;-------------------------------------------------
+@DEAD_END
+DRAWLINE
+
+;処刑
+IF FLAG:強制エンドフラグ
+	PRINTFORMW 処刑を命じられた%ANAME(MASTER)%の首元に、ひんやりと冷たい鉄の刀が押し当てられる…
+;戦死
+ELSEIF FLAG:戦死エンドフラグ
+	PRINTFORMW 戦いの中で致命傷を負った%ANAME(MASTER)%は、傷口から大量の血を噴き出し地面に倒れ伏していた
+	PRINTFORMW 馬のいななきや刀が触れ合う金属音、悲鳴や狂喜の入り混じった歓声が響く中、%ANAME(MASTER)%の意識は薄れていく…
+ENDIF
+
+PRINTL 
+PRINTW ………………
+PRINTW …………
+PRINTW ……
+PRINTL 
+
+;好感度が最も高いキャラとその好感度を求める
+LOCAL:1 = 0
+LOCAL:2 = -1
+FOR LOCAL:0, 0, CHARANUM
+	IF CFLAG:(LOCAL:0):2 > LOCAL:1 && LOCAL:0 != MASTER && GROUPMATCH(CFLAG:(LOCAL:0):特殊状態, 0, 1)
+		LOCAL:1 = CFLAG:(LOCAL:0):2
+		LOCAL:2 = LOCAL:0
+	ENDIF
+NEXT
+
+;好感度5000以上のキャラがいる場合
+IF LOCAL:1 >= 5000
+	;口上の専用エンディングがあれば呼び出す
+	RESULT = 0
+	CALL KOJO_DEAD_ENDING(LOCAL:2)
+	IF !RESULT
+		PRINTFORMW ここに、%ANAME(MASTER)%の歴史は幕を閉じた…
+		PRINTFORMW                             - 終 -
+		WAIT
+	ENDIF
+;好感度5000以上のキャラがいない場合
+ELSE
+	PRINTFORMW ここに、%ANAME(MASTER)%の歴史は幕を閉じた…
+	PRINTFORMW                             - 終 -
+	WAIT
+ENDIF
+
+FOR LOCAL:0, 0, 10
+	PRINTL 
+NEXT
+;強制エンドフラグをたてる。TURNEND末にてBEGIN TITLEされる（そうしないとBEGIN SHOPに上書きされる）
+FLAG:強制エンドフラグ = 1
+
+
+
+;-------------------------------------------------
+;エンディング用テキスト
+;-------------------------------------------------
+@ENDING_TEXT(統治国, 分割統治フラグ)
+#DIM 統治国
+#DIM 君主
+#DIM 分割統治フラグ
+君主 = GET_COUNTRY_BOSS(統治国)
+PRINTFORML 幻想郷を焼き尽くさんばかりに燃え広がった戦乱の炎は、
+IF 分割統治フラグ
+	PRINTFORMW 一人の英雄の手によって打ち払われた。
+ELSE
+	PRINTFORMW 一人の英雄の手によって治められた
+ENDIF
+PRINTFORMW その英雄の名は%NAME_FORMAL(君主)%。
+PRINTFORMW %PRONOUN(君主)%の偉業は、長く後世に語り継がれることとなるだろう。
+PRINTFORMW ここに天下は定まり、幻想郷にしばしの平穏の時代が訪れたのであった……
+
+SIF 統治国 != CFLAG:MASTER:所属
+	RETURN
+
+;主人公の所属する国家が統一した場合
+
+;好感度が最も高いキャラとその好感度を求める
+LOCAL:1 = 0
+LOCAL:2 = -1
+FOR LOCAL:0, 0, CHARANUM
+	IF CFLAG:(LOCAL:0):2 > LOCAL:1 && LOCAL:0 != MASTER && CFLAG:(LOCAL:0):特殊状態 == 0 && CFLAG:(LOCAL:0):所属 == CFLAG:MASTER:所属
+		LOCAL:1 = CFLAG:(LOCAL:0):2
+		LOCAL:2 = LOCAL:0
+	ENDIF
+NEXT
+
+;好感度5000以上のキャラがいる場合
+IF LOCAL:1 >= 5000
+	;口上の専用エンディングがあれば呼び出す
+	RESULT = 0
+	CALL KOJO_SINGLE_ENDING(LOCAL:2)
+	IF !RESULT
+		PRINTFORMW ひっそりと祝賀の宴から抜け出した%ANAME(MASTER)%と%ANAME(LOCAL:2)%は、共に星空を見上げていた。
+		PRINTFORMW ここに来るまで、二人で様々な苦難を乗り越えてきたが、今思えばあっという間だったような気もする。
+		PRINTFORMW 一つの時代が、一つの物語が、今、終わりを告げたのだ。
+		PRINTFORMW 不意に、%ANAME(LOCAL:2)%が%ANAME(MASTER)%の手を、ぎゅっと、握った。
+		PRINTFORMW その手を%ANAME(MASTER)%も握り返す。
+		PRINTFORMW 決して離れぬように、決して離さぬように……
+		IF TALENT:MASTER:3 || TALENT:(LOCAL:2):3
+			PRINTFORMW 優しい月の光に照らされながら――
+			PRINTFORMW 二人はお互いの確かな存在を感じ合っていた。
+		ELSE
+			PRINTFORMW 二人は、お互いの存在を確かめ合うように、抱きしめ合い――
+			PRINTFORMW そっと唇を重ねた。
+			;キスの共通処理
+			CALL KISS_COMMON(MASTER, @"%ANAME(LOCAL:2)%の唇", 喪失_和姦)
+			CALL KISS_COMMON(LOCAL:2, @"%ANAME(MASTER)%の唇", 喪失_和姦)
+			EXP:MASTER:キス経験 += 1
+			EXP:(LOCAL:2):キス経験 += 1
+		ENDIF
+	ENDIF
+;好感度5000以上のキャラがいない場合
+ELSE
+	PRINTFORMW ひっそりと祝賀の宴から抜け出した%CALLNAME:MASTER%は、一人天を見上げていた。
+	PRINTFORMW 天下が定まったこと、それ自体は喜ばしいことに違いない。
+	PRINTFORMW しかし、ずっと戦乱の中で居場所を見つけてきた%CALLNAME:MASTER%は、心の何処かで虚しさを感じていた。
+	PRINTFORMW これからの平穏な世の中に、自分のいるべき場所はあるのだろうか……？
+	PRINTL 
+	;好感度50以上のキャラがいる場合
+	IF LOCAL:1 >= 50
+		PRINTFORMW 誰かが%CALLNAME:MASTER%を呼ぶ声がする。
+		PRINTFORMW どうやら%ANAME(LOCAL:2)%が%CALLNAME:MASTER%を探しに来たようだ。
+		PRINTFORMW 新しい居場所……そんなものはこれから探していけばいいのだろう。
+		PRINTFORMW 戦いは終わった。時間はいくらでもある。
+		PRINTFORMW %ANAME(MASTER)%は%ANAME(LOCAL:2)%に返事をすると、酔い潰れる覚悟で宴の席へ戻っていった。
+	ELSE
+		PRINTFORMW 宴はまだ続いているようだ。
+		PRINTFORMW ……こんな目出度い日に、辛気臭いことを考えても仕方ない。
+		PRINTFORMW %ANAME(MASTER)%は酔い潰れる覚悟を決めると、宴の席へ戻っていった。
+	ENDIF
+ENDIF
+
+;-------------------------------------------------
+;天下を統一した勢力があればその勢力番号を返す関数
+;-------------------------------------------------
+@GET_UNIFY_COUNTRY(ARG:0)
+#FUNCTION
+LOCAL:2 = 0
+FOR LOCAL:0, 0, MAX_CITY
+	IF CITY_TYPE:(LOCAL:0) == 0 && GET_CITYNAME(LOCAL:0) != "無名"
+		IF CITY_OWNER:(LOCAL:0) != 0
+			IF LOCAL:2 == 0
+				LOCAL:2 = CITY_OWNER:(LOCAL:0)
+			ELSEIF CITY_OWNER:(LOCAL:0) != LOCAL:2
+				RETURNF 0
+			ENDIF
+		ENDIF
+	ENDIF
+NEXT
+RETURNF LOCAL:2
+
+;-------------------------------------------------
+;ARG:0勢力が同盟エンドの条件を満たしたかどうかを判定する関数
+;※使用前に TMP_CREATE_RELATION_MAP 関数を呼び出しておくこと！
+;-------------------------------------------------
+@IS_NOENEMY(ARG:0)
+#FUNCTION
+
+;全ての都市が無所属もしくは自勢力・永久同盟勢力の所有なら1を返す
+FOR LOCAL:0, 0, MAX_CITY
+	IF CITY_TYPE:(LOCAL:0) == 0 && GET_CITYNAME(LOCAL:0) != "無名"
+		IF CITY_OWNER:(LOCAL:0) != 0 && TMP_COUNTRY_RELATION:(CFLAG:MASTER:所属):(CITY_OWNER:(LOCAL:0)) < 4
+			RETURNF 0
+		ENDIF
+	ENDIF
+NEXT
+RETURNF 1
+
+;-------------------------------------------------
+;ARG:0勢力による統一時に呼び出す。もし無所属の都市が存在すれば統一した国家に統合し、メッセージを表示する
+;-------------------------------------------------
+@UNIFY_FREE_CITY(ARG:0)
+LOCAL:2 = 1
+FOR LOCAL:0, 0, MAX_CITY
+	IF CITY_TYPE:(LOCAL:0) == 0 && GET_CITYNAME(LOCAL:0) != "無名" && CITY_OWNER:(LOCAL:0) == 0
+		;統一したのが主人公勢力ならメッセージを表示
+		IF ARG:0 == CFLAG:MASTER:所属
+			IF LOCAL:2
+				LOCAL:2 = 0
+				PRINTL 
+				SETCOLOR COLOR("注意")
+				PRINTFORMW もはや大勢が決したため、無所属の都市は全て我が国に降伏しました
+				RESETCOLOR
+			ENDIF
+			PRINTFORML %GET_CITYNAME(LOCAL:0)%を我が国の支配下に置きました
+		ENDIF
+		CITY_OWNER:(LOCAL:0) = ARG:0
+	ENDIF
+NEXT
+IF !LOCAL:2
+	WAIT
+ENDIF
+
+;-------------------------------------------------
+;統一後に行う残党の一斉検挙 ARG:0に併合先の国家番号を設定
+;-------------------------------------------------
+@CAPTURE_WANDERER(ARG:0)
+;主人公勢力が検挙する場合メッセージと選択肢を表示
+IF ARG:0 == CFLAG:MASTER:所属
+	LOCAL:9 = 0
+	FOR LOCAL:0, 0, CHARANUM
+		;放浪中の士官がいるか調べる
+		IF CFLAG:(LOCAL:0):特殊状態 == 1
+			IF !LOCAL:9
+				LOCAL:9 = 1
+				SETCOLOR COLOR("注意")
+				PRINTW 残党および放浪中の士官を一斉に検挙しました
+				RESETCOLOR
+			ENDIF
+			PRINTFORML %NAME:(LOCAL:0)%を捕らえました
+		ENDIF
+	NEXT
+	IF LOCAL:9
+		PRINTL 
+		PRINTL 検挙した人間の処遇を決めて下さい
+		PRINTL [0] 全員を登用
+		PRINTL [1] 全員を投獄
+		PRINTL [2] 全員を軟禁
+		PRINTL [3] 個別に指示
+
+		REDRAW 0
+
+		$INPUT_LOOP_KENKYO
+		INPUT
+
+		IF RESULT == 0
+			PRINTW 全員を我が国の士官として迎えました
+			FOR LOCAL:0, 0, CHARANUM
+				IF CFLAG:(LOCAL:0):特殊状態 == 1
+					CALL CHANGE_COUNTRY(LOCAL:0, CFLAG:MASTER:所属, 1)
+				ENDIF
+			NEXT
+		ELSEIF RESULT == 1
+			PRINTW 全員を捕虜として投獄しました
+			FOR LOCAL:0, 0, CHARANUM
+				IF CFLAG:(LOCAL:0):特殊状態 == 1
+					CALL CHANGE_COUNTRY(LOCAL:0, 0, 1)
+					CALL CAPTURE(LOCAL:0, CFLAG:MASTER:所属)
+				ENDIF
+			NEXT
+		ELSEIF RESULT == 2
+			PRINTW 全員を捕虜として軟禁しました
+			FOR LOCAL:0, 0, CHARANUM
+				IF CFLAG:(LOCAL:0):特殊状態 == 1
+					CALL CHANGE_COUNTRY(LOCAL:0, 0, 1)
+					CALL CAPTURE(LOCAL:0, CFLAG:MASTER:所属)
+					CFLAG:(LOCAL:0):監禁状態 = 1
+				ENDIF
+			NEXT
+		ELSEIF RESULT == 3
+			CALL CAPTURE_WANDERER_EACH
+		ELSE
+			CLEARLINE 1
+			GOTO INPUT_LOOP_KENKYO
+		ENDIF
+
+		REDRAW 1
+	ENDIF
+
+;主人公勢力以外が検挙するなら自動で全員を登用
+ELSE
+	FOR LOCAL:0, 0, CHARANUM
+		IF CFLAG:(LOCAL:0):特殊状態 == 1
+			CALL CHANGE_COUNTRY(LOCAL:0, ARG:0, 1)
+		ENDIF
+	NEXT
+ENDIF
+
+;-------------------------------------------------
+;統一後の残党検挙で個別に扱いを設定
+;-------------------------------------------------
+@CAPTURE_WANDERER_EACH
+;キャラの扱い設定用変数
+#DIM CHARA_TREATMENT, 3000
+#DIM FIRST_LINE
+VARSET CHARA_TREATMENT, 0
+
+;●放浪士官の人数をカウント
+LOCAL:5 = 0
+FOR LOCAL:0, 0, CHARANUM
+	IF CFLAG:(LOCAL:0):特殊状態 == 1
+		LOCAL:5 ++
+	ENDIF
+NEXT
+
+;放浪士官が一人もいなければ戻る
+IF LOCAL:5 == 0
+	RETURN
+ENDIF
+
+;●表示部分
+LOCAL:10 = (LOCAL:5 - 1) / 22 + 1
+LOCAL:11 = 1
+FIRST_LINE = LINECOUNT
+$SHOW_LOOP
+
+DRAWLINE
+PRINTFORML 各士官の処遇を決めて下さい
+DRAWLINE
+
+LOCAL:7 = 0
+LOCAL:8 = 0
+LOCAL:12 = (LOCAL:11 - 1) * 22
+LOCAL:13 = LOCAL:11 * 22
+FOR LOCAL:0, 0, CHARANUM
+	IF CFLAG:(LOCAL:0):特殊状態 == 1
+		IF LOCAL:8 >= LOCAL:12 && LOCAL:8 < LOCAL:13
+			PRINTFORM %ANAME(LOCAL:0), MAX_CHARANAME_LENGTH, RIGHT% …… 
+			IF CHARA_TREATMENT:(LOCAL:0) == 0
+				SETCOLOR COLOR("選択中")
+				PRINTPLAIN [登用]
+				RESETCOLOR
+				PRINTBUTTON "[投獄]", LOCAL:0 * 2 + 101
+			ELSE
+				PRINTBUTTON "[登用]", LOCAL:0 * 2 + 100
+				SETCOLOR COLOR("選択中")
+				PRINTPLAIN [投獄]
+				RESETCOLOR
+			ENDIF
+			PRINTL 
+			LOCAL:7 ++
+		ENDIF
+		LOCAL:8 ++
+	ENDIF
+NEXT
+DRAWLINE
+
+IF LOCAL:10 >= 2
+	LOCAL:7 += 2
+
+	LOCALS:0 = 
+	IF LOCAL:11 >= 2
+		LOCALS:0 = [8] 前のページ
+	ENDIF
+	PRINTFORM %LOCALS:0, 25, LEFT%
+
+	LOCALS:0 = page{LOCAL:11}/{LOCAL:10}
+	PRINTPLAINFORM %LOCALS:0, 25, LEFT%
+
+	LOCALS:0 = 
+	IF LOCAL:11 < LOCAL:10
+		LOCALS:0 = [9] 次のページ
+	ENDIF
+	PRINTFORM %LOCALS:0, 25, LEFT%
+	PRINTL 
+	DRAWLINE
+ENDIF
+PRINT [1] 全員を登用に設定
+PRINTPLAIN     
+PRINT [2] 全員を投獄に設定
+PRINTL 
+DRAWLINE
+PRINTL [0] 決定
+
+REDRAW 2
+
+$INPUT_LOOP
+INPUT
+
+IF RESULT == 0
+	FOR LOCAL:0, 0, CHARANUM
+		IF CFLAG:(LOCAL:0):特殊状態 == 1
+			CFLAG:(LOCAL:0):恨む君主 = 0
+			CFLAG:(LOCAL:0):滅亡前の君主 = 0
+			IF CHARA_TREATMENT:(LOCAL:0) == 0
+				CALL CHANGE_COUNTRY(LOCAL:0, CFLAG:MASTER:所属, 1)
+			ELSE
+				CALL CHANGE_COUNTRY(LOCAL:0, 0, 1)
+				CALL CAPTURE(LOCAL:0, CFLAG:MASTER:所属)
+			ENDIF
+		ENDIF
+	NEXT
+	REDRAW 1
+	RETURN
+ELSEIF RESULT == 1
+	VARSET CHARA_TREATMENT, 0
+ELSEIF RESULT == 2
+	VARSET CHARA_TREATMENT, 1
+ELSEIF RESULT == 8 && LOCAL:11 >= 2
+	LOCAL:11 --
+ELSEIF RESULT == 9 && LOCAL:11 < LOCAL:10
+	LOCAL:11 ++
+ELSEIF RESULT >= 100
+	LOCAL:5 = (RESULT - 100) / 2
+	LOCAL:6 = (RESULT - 100) % 2
+	IF LOCAL:5 < CHARANUM && CFLAG:(LOCAL:5):特殊状態 == 1
+		IF CHARA_TREATMENT:(LOCAL:5) != LOCAL:6
+			CHARA_TREATMENT:(LOCAL:5) = LOCAL:6
+		ENDIF
+	ENDIF
+ELSE
+	CLEARLINE 1
+	GOTO INPUT_LOOP
+ENDIF
+CLEARLINE LINECOUNT - FIRST_LINE
+GOTO SHOW_LOOP
+
+;-------------------------------------------------
+;統一後の周回処理
+;-------------------------------------------------
+@GO_NEXT_LOOP
+#DIM LCOUNT, 2
+#DIM FIRST_LINE
+VARSET LOCAL, 0
+
+;出産後のキャラがいる場合、状態をリセット
+FOR LOCAL:0, 0, CHARANUM
+	IF CFLAG:(LOCAL:0):育児期間 >= 1
+		;出産後の各種初期化処理
+		CALL RESET_MOTHER_STATE(LOCAL:0, 0)
+	ENDIF
+NEXT
+
+;キャラの情報を一部リセット
+FOR LOCAL:0, 0, CHARANUM
+	CFLAG:(LOCAL:0):所属 = 0
+	CFLAG:(LOCAL:0):捕虜先 = 0
+	CFLAG:(LOCAL:0):捕虜の扱い = 0
+	CFLAG:(LOCAL:0):特殊状態 = 0
+	CFLAG:(LOCAL:0):恨む君主 = 0
+	CFLAG:(LOCAL:0):滅亡前の君主 = 0
+	CFLAG:(LOCAL:0):監禁状態 = 0
+	CFLAG:(LOCAL:0):外交要求成功フラグ = 0
+	CFLAG:(LOCAL:0):外交調教経過ターン = 0
+	SIF !GETBIT(TALENT:(LOCAL:0):淫乱系, 素質_淫乱_薬物中毒)
+		CFLAG:(LOCAL:0):薬物依存 = 0
+	SIF !TALENT:(LOCAL:0):ＮＴＲ
+		CFLAG:(LOCAL:0):ＮＴＲ値 = 0
+	TALENT:(LOCAL:0):虚ろ = 0
+	TALENT:(LOCAL:0):崩壊 = 0
+	PALAM:(LOCAL:0):怒主 = 0
+	PALAM:(LOCAL:0):怒外 = 0
+	PALAM:(LOCAL:0):哀主 = 0
+	PALAM:(LOCAL:0):哀外 = 0
+	PALAM:(LOCAL:0):怖主 = 0
+	PALAM:(LOCAL:0):怖外 = 0
+	CFLAG:(LOCAL:0):崩壊 = 0
+	TALENT:(LOCAL:0):デイリー系 = 0
+	BASE:(LOCAL:0):精神力 = MAXBASE:(LOCAL:0):精神力
+NEXT
+
+;キャラ間の好感度・敵対度のクリア
+FOR LOCAL:0, 0, CHARANUM
+	FOR LOCAL:1, 0, VARSIZE("REL_LIKE")
+		REL_LIKE:(LOCAL:0):(LOCAL:1) = 0
+		REL_HATE:(LOCAL:0):(LOCAL:1) = 0
+	NEXT
+NEXT
+
+;イベントキャラの削除
+FOR LOCAL:0, CHARANUM - 1, -1, -1
+	IF IS_SP_CHARA(LOCAL)
+		CALL DELETE_CHARA(LOCAL:0)
+	ENDIF
+NEXT
+
+
+DRAWLINE
+PRINTL 今の状況を引き継いで新たに幻想郷に嵐を巻き起こすことができます
+PRINTFORML まず、キャラの引き継ぎ設定を行います
+
+CALL PASS_CHARA_CHARASELECT()
+FOR LOCAL, 0, CHARANUM
+	SIF LOCAL != NAME_TO_CHARA("あなた")
+	CALL PASS_CHARA(LOCAL)
+NEXT
+DRAWLINE
+PRINTFORMW キャラの引き継ぎ処理が終了しました
+
+PRINTL アイテム/資金引継ぎの設定を行います
+PRINTL アイテム/資金を引き継ぎますか？
+PRINTL 資金は1/10、最大でも1000000になります
+CALL ASK_YN()
+
+IF RESULT == 1
+	;初期化
+	MONEY = 0
+	VARSET ITEMSALES, 1, 0, 200
+	VARSET ITEMSALES, 0, 200, 300
+	VARSET ITEM, 0
+	REDRAW 1
+ENDIF
+
+MONEY = MIN(MONEY / 10, 1000000)
+
+ITEMSALES:太平要術の書 = 1
+ITEM:太平要術の書 = 0
+
+CALL PASS_RANDOM_CHARA
+
+
+
+FLAG:クリア直後フラグ = 2
+DRAWLINE
+
+SETCOLOR COLOR("注意")
+PRINTFORMW 引継ぎ設定が終了しました
+PRINTFORMW Emueraの仕様上ここから新規ゲーム開始が難しいため、いったんゲームを終了します
+PRINTFORMW 99番に引継ぎデータができてるので、それをロードしてください
+RESETCOLOR
+
+SAVEDATA 99, "引継ぎデータ"
+QUIT
+
+;-------------------------------------------------
+;ランダム・子供キャラの引継ぎ設定
+;LOCAL地獄のRetardedコードだったのでリファクタ。
+;-------------------------------------------------
+@PASS_RANDOM_CHARA
+#DIM 頭数
+#DIM 対象
+#DIM 選択キャラID, 10
+;ランダムキャラの人数をカウント
+頭数 = 0
+FOR LOCAL:0, 0, CHARANUM
+	SIF (IS_RANDOM_CHARA(LOCAL) || IS_CHILD(LOCAL)) && LOCAL:0 != MASTER
+		頭数 ++
+NEXT
+
+SIF 頭数 <= 0
+	RETURN
+
+;ランダムキャラが存在する場合
+DRAWLINE
+PRINTFORML ランダムキャラおよび子供を10人まで引き継ぐことができます
+PRINTFORML 引き継ぐキャラを選択して下さい
+DRAWLINE
+CALL SELECT_CHARA_LIST_MULTI_ONLY_LOGIC_SLG(VARSIZE("選択キャラID"), "!IS_CHILD&&!IS_RANDOM_CHARA", "")
+
+VARSET 選択キャラID
+
+;選択キャラのリストをIDに変更、選択されたキャラの数をカウント
+FOR LOCAL, 0, SELECTED_CHARA_NUM
+	選択キャラID:LOCAL = GET_ID(SELECTED_CHARA:LOCAL)
+NEXT
+
+;選択されていないランダムキャラの削除
+頭数 = CHARANUM
+
+FOR LOCAL:0, 0, 頭数
+	対象 = 頭数 - LOCAL:0 - 1
+	SIF IS_FIXED_CHARA(対象) || 対象 == MASTER
+		CONTINUE
+	SIF FINDELEMENT(選択キャラID, GET_ID(対象)) == -1
+		CALL DELETE_CHARA(対象)
+NEXT
+

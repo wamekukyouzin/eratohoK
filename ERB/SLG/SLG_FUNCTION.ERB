@@ -448,7 +448,7 @@ RETURNF LOCAL:2
 ;-------------------------------------------------
 @PRINT_UNIT_INFO(ARG:0, ARG:1, ARG:2 = 0, ARG:3 = 1)
 IF ARG:2
-	CALL COLORPRINTFORM(@"?? %"????軍", 10, LEFT% ★:%"??", 4, LEFT% 兵:%"????", 6, LEFT%攻:%"????", 5, LEFT%防:%"????", 5, LEFT%知:%"????", 5, LEFT%", COLOR("選択不可"), "L")
+	CALL COLORPRINT(@"?? %"????軍", 10, LEFT% ★:%"??", 4, LEFT% 兵:%"????", 6, LEFT%攻:%"????", 5, LEFT%防:%"????", 5, LEFT%知:%"????", 5, LEFT%", COLOR("選択不可"), "L")
 	RETURN
 ENDIF
 LOCAL:1 = GET_COUNTRY_BOSS(ARG:0)
@@ -846,12 +846,19 @@ OWNER1 = CITY_OWNER:(ARG:0)
 SIF IS_STAY_ENEMY_UNIT(ARG:0, OWNER1, 1) == 1
 	RETURNF 6
 
+RET = 0
+
 ; 隣接都市を走査
 FOR LOCAL:0, 0, 10
 	LOCAL:5 = CITY_ROOT:(ARG:0):(LOCAL:0)
 
 	SIF LOCAL:5 == -1
 		BREAK
+
+	; 敵部隊がいれば危険度5
+	IF IS_STAY_ENEMY_UNIT(LOCAL:5, OWNER1, 1) == 1
+		RETURNF 5
+	ENDIF
 
 	IF CITY_TYPE:(LOCAL:5) == 0
 	; 都市の場合
@@ -873,12 +880,6 @@ FOR LOCAL:0, 0, 10
 		ENDSELECT
 	ELSE
 	; 中継地の場合
-		
-		; 敵部隊がいれば危険度5
-		IF IS_STAY_ENEMY_UNIT(LOCAL:5, OWNER1, 1) == 1
-			RETURNF 5
-		ENDIF
-
 		; そうでなければ隣の都市をチェック
 		FOR LOCAL:1, 0, 10
 			LOCAL:6 = CITY_ROOT:(LOCAL:5):(LOCAL:1)
@@ -892,13 +893,13 @@ FOR LOCAL:0, 0, 10
 			IF CITY_TYPE:(LOCAL:6) == 0
 				; 敵なら危険度3以上
 				SIF TMP_COUNTRY_RELATION:OWNER1:OWNER2 == 0 && IS_COUNTRY(OWNER2)
-					RETURNF 3
+					RET = MAX(RET, 3)
 				;自国なら0
 				SIF TMP_COUNTRY_RELATION:OWNER1:OWNER2 == 5
-					RET = 0
+					RET = MAX(RET, 0)
 				;その都市の所有国と同盟していて、かつ自国と同盟していない国があるなら、殴ってきうるので危険度1とする
 				SIF IS_COUNTRY(LOCAL:1) && !GROUPMATCH(LOCAL:1, OWNER1, OWNER2) && GROUPMATCH(TMP_COUNTRY_RELATION:OWNER2:(LOCAL:1), 3, 4)　&& TMP_COUNTRY_RELATION:OWNER1:(LOCAL:1) == 0
-					RETURNF 1
+					RET = MAX(RET, 1)
 			ENDIF
 		NEXT
 	ENDIF
@@ -933,7 +934,8 @@ FOR LOCAL:0, 0, 10
 	; 中継地ならもう1段掘り下げ
 		FOR LOCAL:1, 0, 10
 			LOCAL:6 = CITY_ROOT:(LOCAL:5):(LOCAL:1)
-			SIF LOCAL:6 == 0
+
+			SIF LOCAL:6 == -1
 				BREAK
 			
 			; 都市かつ通行可能であれば1
@@ -1310,14 +1312,8 @@ REL_HATE:(ARG:0):(ARG:1) = LIMIT(REL_HATE:(ARG:0):(ARG:1) + ARG:3 * (300 - LOCAL
 ;ARG:0勢力の所属人物からARG:1勢力の所属人物に対する好感度をARG:2、敵対値をARG:3だけ加算する関数(君主は影響強め)
 ;-------------------------------------------------
 @CHANGE_RELATION_C_TO_C(ARG:0, ARG:1, ARG:2, ARG:3)
-;#; #DIMS BOSSNAMEFROM
-;#; #DIMS BOSSNAMETO
-;#;LOCAL:5 = GET_COUNTRY_BOSS(ARG:0)
-LOCAL:6 = GET_COUNTRY_BOSS(ARG:1)
-;#; BOSSNAMEFROM '= (ARG:0 == 0) ? "無所属" # NAME:(GET_COUNTRY_BOSS(ARG:0))
-;#; BOSSNAMETO   '= (ARG:1 == 0) ? "無所属" # NAME:(GET_COUNTRY_BOSS(ARG:1))
-;;#; DEBUGPRINTFORML CHANGE_RELATION_C_TO_C %BOSSNAMEFROM + " -> " + BOSSNAMETO% 好:{ARG:2} 敵:{ARG:3}
-
+SIF !IS_COUNTRY(ARG:0) || !IS_COUNTRY(ARG:1)
+	RETURN
 FOR LOCAL:0, 0, CHARANUM
 	IF CFLAG:(LOCAL:0):所属 == ARG:0
 		FOR LOCAL:1, 0, CHARANUM
@@ -1340,8 +1336,9 @@ NEXT
 ;ARG:0勢力の所属人物からキャラARG:1に対する好感度をARG:2、敵対値をARG:3だけ加算する関数(君主は影響強め)
 ;-------------------------------------------------
 @CHANGE_RELATION_C_TO_O(ARG:0, ARG:1, ARG:2, ARG:3)
+SIF !IS_COUNTRY(ARG:0)
+	RETURN
 LOCAL:5 = GET_COUNTRY_BOSS(ARG:0)
-
 FOR LOCAL:0, 0, CHARANUM
 	IF CFLAG:(LOCAL:0):所属 == ARG:0
 		LOCAL:1 = RELATION:(LOCAL:0):(ARG:1) ? RELATION:(LOCAL:0):(ARG:1) # 100
@@ -1354,8 +1351,9 @@ NEXT
 ;キャラARG:0からARG:1勢力の所属キャラに対する好感度をARG:2、敵対値をARG:3だけ加算する関数(君主は影響強め)
 ;-------------------------------------------------
 @CHANGE_RELATION_O_TO_C(ARG:0, ARG:1, ARG:2, ARG:3)
+SIF !IS_COUNTRY(ARG:1)
+	RETURN
 LOCAL:5 = GET_COUNTRY_BOSS(ARG:1)
-
 FOR LOCAL:0, 0, CHARANUM
 	IF CFLAG:(LOCAL:0):所属 == ARG:1
 		LOCAL:2 = ARG:2
@@ -1522,8 +1520,8 @@ RETURN RESULT
 #DIM 都市
 参加君主:0 = GET_COUNTRY_BOSS(参加勢力:0)
 参加君主:1 = GET_COUNTRY_BOSS(参加勢力:1)
-CALL COLORPRINTFORM(@"%ANAME(参加君主:0)%・%ANAME(参加君主:1)%同盟は解散しました", COLOR("注意"), "L")
-CALL COLORPRINTFORM(@"%ANAME(参加君主:1)%の都市にいる%ANAME(参加君主:0)%の部隊、%ANAME(参加君主:0)%の都市にいる%ANAME(参加君主:1)%の部隊は移動します", COLOR("注意"), "L")
+CALL COLORPRINT(@"%ANAME(参加君主:0)%・%ANAME(参加君主:1)%同盟は解散しました", COLOR("注意"), "L")
+CALL COLORPRINT(@"%ANAME(参加君主:1)%の都市にいる%ANAME(参加君主:0)%の部隊、%ANAME(参加君主:0)%の都市にいる%ANAME(参加君主:1)%の部隊は移動します", COLOR("注意"), "L")
 FOR 都市, 1, GET_CITY_NUM() + 1
 	SIF GROUPMATCH(CITY_OWNER:都市, 参加勢力:0, 参加勢力:1)
 		移動先都市:(CITY_OWNER:都市 == 参加勢力:0 ? 0 # 1) = 都市
@@ -1550,7 +1548,7 @@ TREATY_A_TERM:条約 = 0
 #DIM 条約
 参加君主:0 = GET_COUNTRY_BOSS(参加勢力:0)
 参加君主:1 = GET_COUNTRY_BOSS(参加勢力:1)
-CALL COLORPRINTFORM(@"%ANAME(参加君主:0)%・%ANAME(参加君主:1)%の停戦条約は失効しました", COLOR("注意"), "L")
+CALL COLORPRINT(@"%ANAME(参加君主:0)%・%ANAME(参加君主:1)%の停戦条約は失効しました", COLOR("注意"), "L")
 TREATY_C_COUNTRY:条約:0 = 0
 TREATY_C_COUNTRY:条約:1 = 0
 TREATY_C_TERM:条約 = 0
@@ -1562,9 +1560,19 @@ TREATY_C_TERM:条約 = 0
 #DIM 条約
 #DIM 君主
 君主 = GET_COUNTRY_BOSS(TREATY_U_TARGET:条約)
-CALL COLORPRINTFORM(@"%ANAME(君主)%討伐条約は失効しました", COLOR("注意"), "L")
+CALL COLORPRINT(@"%ANAME(君主)%討伐条約は失効しました", COLOR("注意"), "L")
 TREATY_U_TARGET:条約 = 0
 TREATY_U_TERM:条約 = 0
+
+FOR LOCAL, 0, MAX_TREATY_COUNTRY
+	IF TREATY_U_COUNTRY:条約:LOCAL == CFLAG:MASTER:所属
+		FOR LOCAL:1, 0, MAX_TREATY_COUNTRY
+			SIF IS_COUNTRY(TREATY_U_COUNTRY:条約:(LOCAL:1))
+				CALL GO_TO_MASTERS_COUNTRY(TREATY_U_COUNTRY:条約:(LOCAL:1))
+		NEXT
+	ENDIF
+NEXT
+
 FOR LOCAL, 0, MAX_TREATY_COUNTRY
 	TREATY_U_COUNTRY:条約:LOCAL = 0
 NEXT
@@ -1709,6 +1717,9 @@ RETURNF MAX(SQRT(1000 * ARG:0) * 100, 1)
 #DIM 補正値
 #DIM 上限
 
+SIF ARG:1 == MASTER
+	RETURNF ABL_POWER_MASTER(ARG:0)
+
 上限 = 2000
 
 ;自勢力のキャラでない、MASTER自身の場合は補正なし
@@ -1753,6 +1764,20 @@ SIF ID_TO_CHARA(FLAG:推しメン指定キャラ) == ARG:1
 RETURNF MAX(ABL_POWER(ARG:0) * 補正値 / 10000, 1)
 
 ;-------------------------------------------------
+;主人公版ABL_POWER_X
+;-------------------------------------------------
+@ABL_POWER_MASTER(ARG:0)
+#FUNCTION
+
+#DIM 補正値
+
+;陥落ひとりあたま0.5% ただし上限は100% つまり200人まで
+補正値 = 10000 + MIN(FLAG:陥落人数 * 50, 10000)
+
+RETURNF MAX(ABL_POWER(ARG:0) * 補正値 / 10000, 1)
+
+
+;-------------------------------------------------
 ;兵力の初期配置を行う関数
 ;-------------------------------------------------
 @INIT_ARMY
@@ -1781,6 +1806,23 @@ FOR LOCAL:0, 0, MAX_COUNTRY
 		NEXT
 	ENDIF
 NEXT
+
+
+;-------------------------------------------------
+;部隊を移動させる関数
+;TMP_UNIT_MAPを操作する。その必要がない場面ではUNIT_POSITIONを直接書き換えてよい
+;-------------------------------------------------
+@MOVE_UNIT(勢力, 部隊, 移動先, TARGET削除 = 0)
+#DIM 勢力
+#DIM 部隊
+#DIM 移動先
+#DIM TARGET削除
+CALL TMP_MODIFY_UNIT_MAP(勢力, 部隊, UNIT_POSITION:勢力:部隊, 移動先)
+UNIT_POSITION:勢力:部隊 = 移動先
+
+SIF TARGET削除
+	UNIT_TARGET:勢力:部隊 = 0
+
 
 ;-------------------------------------------------
 ;ARG:0勢力のARG:1部隊を解散させる関数
@@ -2207,13 +2249,13 @@ RETURNF "不明"
 @SET_COOLTIME(ARG:0, ARG:1, ARG:2 = 1)
 COOLTIME:(ARG:0):0 = ARG:1
 SIF ARG:2
-	CALL COLORPRINTFORM(@"%ANAME(ARG:0)%のクールタイムが{ARG:1}ターンになった", COLOR("注意"), "W")
+	CALL COLORPRINT(@"%ANAME(ARG:0)%のクールタイムが{ARG:1}ターンになった", COLOR("注意"), "W")
 CALL FORCE_FREE(ARG:0)
 
 @ADD_COOLTIME(ARG:0, ARG:1, ARG:2 = 1)
 COOLTIME:(ARG:0):0 += ARG:1
 SIF ARG:2
-	CALL COLORPRINTFORM(@"%ANAME(ARG:0)%に{ARG:1}ターンのクールタイムが加算された", COLOR("注意"), "W")
+	CALL COLORPRINT(@"%ANAME(ARG:0)%に{ARG:1}ターンのクールタイムが加算された", COLOR("注意"), "W")
 CALL FORCE_FREE(ARG:0)
 
 

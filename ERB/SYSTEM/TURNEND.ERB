@@ -98,7 +98,7 @@ ENDIF
 $SKIPPED
 
 ;デッドエンディングならBEGIN TITLE
-IF FLAG:処刑エンドフラグ == 1
+IF FLAG:強制エンドフラグ == 1
 	BEGIN TITLE
 ;強制調教フラグが立っているなら即時調教モードに入る
 ELSEIF FLAG:強制調教フラグ == 1
@@ -198,15 +198,6 @@ NEXT
 CALL EVENT_DAILY
 CALL EVENT_KOJO_DAILY
 
-;奴隷市場の商品リストを更新
-CALL SLAVEMARKET_PREPARE_GOODS
-;スカウトの対象リストを更新
-CALL SCOUT_PREPARE_CANDIDATES
-;特別訓練の価格を更新
-CALL CALC_SPECIAL_TRAIN_PRICE
-;このターンの特別訓練実施回数をリセット
-SPECIAL_TRAIN_COUNT_THIS_TURN = 0
-
 $SKIPPED
 
 ;統一後の場合
@@ -273,7 +264,7 @@ FOR LOCAL:0, 0, MAX_COUNTRY
 NEXT
 
 ;デッドエンディングなら戻る
-IF FLAG:処刑エンドフラグ == 1
+IF FLAG:強制エンドフラグ == 1
 	RETURN
 ENDIF
 
@@ -303,6 +294,18 @@ VARSET LOCAL, 0
 
 ;主人公用の捕虜状態からの脱出イベント呼び出し
 CALL GREAT_ESCAPE
+
+;奴隷市場の商品リストを更新
+CALL SLAVEMARKET_PREPARE_GOODS
+;スカウトの対象リストを更新
+CALL SCOUT_PREPARE_CANDIDATES
+;特別訓練の価格を更新
+;次のターンの特別訓練価格になるので、いったんDAYを1増やした（次のターンの値で）計算し、戻す
+DAY ++
+CALL CALC_SPECIAL_TRAIN_PRICE
+DAY --
+;このターンの特別訓練実施回数をリセット
+SPECIAL_TRAIN_COUNT_THIS_TURN = 0
 
 ;口上呼び出し
 FOR LOCAL:0, 0, CHARANUM
@@ -366,8 +369,8 @@ FOR LOCAL:0, 0, CHARANUM
 	
 	
 	IF TALENT:LOCAL:蓬莱人 && CFLAG:LOCAL:特殊状態 == 2
-		CALL COLORPRINTFORM("リザレクション！", COLOR("注意"), "W")
-		CALL COLORPRINTFORM(@"%NAME_FORMAL(LOCAL)%が蘇りました", COLOR("注意"), "W")
+		CALL COLORPRINT("リザレクション！", COLOR("注意"), "W")
+		CALL COLORPRINT(@"%NAME_FORMAL(LOCAL)%が蘇りました", COLOR("注意"), "W")
 		CALL CHANGE_COUNTRY(LOCAL, 0, 1)
 	ENDIF
 	
@@ -381,16 +384,16 @@ FOR LOCAL:0, 0, CHARANUM
 		ELSE
 			IF GET_COUNTRY_BOSS(CFLAG:(LOCAL):所属) != LOCAL
 				IF !CFLAG:(LOCAL:1):捕虜先 && CFLAG:(LOCAL:1):特殊状態 == 2 && !CFLAG:LOCAL:特殊状態
-					CALL COLORPRINTFORM(@"%ANAME(LOCAL:1)%が死亡したことを儚み、%ANAME(LOCAL)%も後を追いました", COLOR("警告"), "W")
+					CALL COLORPRINT(@"%ANAME(LOCAL:1)%が死亡したことを儚み、%ANAME(LOCAL)%も後を追いました", COLOR("警告"), "W")
 					CALL CHANGE_COUNTRY(LOCAL, 0, 1, 1)
 				ELSEIF !CFLAG:(LOCAL:1):捕虜先 && CFLAG:(LOCAL:1):特殊状態 == 1 && !CFLAG:LOCAL:特殊状態
-					CALL COLORPRINTFORM(@"放浪している%ANAME(LOCAL:1)%を追い、%ANAME(LOCAL)%も放浪しました", COLOR("警告"), "W")
+					CALL COLORPRINT(@"放浪している%ANAME(LOCAL:1)%を追い、%ANAME(LOCAL)%も放浪しました", COLOR("警告"), "W")
 					CALL CHANGE_COUNTRY(LOCAL, 0, 1)
 				ELSEIF !CFLAG:LOCAL:捕虜先 && CFLAG:(LOCAL:1):所属 != CFLAG:LOCAL:所属 && CFLAG:LOCAL:特殊状態 != 2
-					CALL COLORPRINTFORM(@"別勢力にいる%ANAME(LOCAL:1)%を追い、%ANAME(LOCAL)%が\@ GET_COUNTRY_BOSS(CFLAG:(LOCAL:1):所属) != -1 ? %ANAME(GET_COUNTRY_BOSS(CFLAG:(LOCAL:1):所属))%に # \@移籍しました", COLOR("警告"), "W")
+					CALL COLORPRINT(@"別勢力にいる%ANAME(LOCAL:1)%を追い、%ANAME(LOCAL)%が\@ GET_COUNTRY_BOSS(CFLAG:(LOCAL:1):所属) != -1 ? %ANAME(GET_COUNTRY_BOSS(CFLAG:(LOCAL:1):所属))%に # \@移籍しました", COLOR("警告"), "W")
 					CALL CHANGE_COUNTRY(LOCAL, CFLAG:(LOCAL:1):所属, 1)
 				ELSEIF CFLAG:(LOCAL:1):捕虜先 && IS_COUNTRY(CFLAG:LOCAL:所属)
-					CALL COLORPRINTFORM(@"%ANAME(LOCAL:1)%が牢につながれたままであることに、%ANAME(LOCAL)%は不満を募らせています……", COLOR("警告"), "W")
+					CALL COLORPRINT(@"%ANAME(LOCAL:1)%が牢につながれたままであることに、%ANAME(LOCAL)%は不満を募らせています……", COLOR("警告"), "W")
 					CFLAG:LOCAL:好感度 = 0
 					CFLAG:LOCAL:従属度 = 0
 					CFLAG:LOCAL:依存度 = 0
@@ -510,18 +513,27 @@ FOR LOCAL:0, 0, CHARANUM
 	ENDIF
 	CFLAG:(LOCAL:0):崩壊 = LIMIT(CFLAG:(LOCAL:0):崩壊, 0, 10000)
 
-	;超成長力があればランダムに能力経験値獲得(主人公は除外)
-	IF (GETBIT(TALENT:(LOCAL:0):ＳＬＧ素質, 素質_ＳＬＧ_超成長力) || GETBIT(TALENT:(LOCAL:0):ＳＬＧ素質, 素質_ＳＬＧ_努力家)) && LOCAL:0 != MASTER
-		FOR LOCAL:1, 0, 4
-			IF RAND:4 == 0
-				LOCAL:2 = RAND:2 + 60
-			ELSE
-				LOCAL:2 = RAND:3 + 50
-			ENDIF
-			IF ABL:(LOCAL:0):(LOCAL:2) < 80
-				EXP:(LOCAL:0):(LOCAL:2 + 20) ++
-			ENDIF
-		NEXT
+	;超成長力か努力家があればランダムに能力経験値獲得
+	IF FIND_PASSIVE_SKILL(LOCAL:0, "超成長力")|| FIND_PASSIVE_SKILL(LOCAL:0, "努力家")
+		LOCAL:1 = RAND(1, 4)
+		SELECTCASE IFRAND("0TO6", 1, "7", TALENT:LOCAL:妖術知識)
+			CASE 0
+				LOCAL:2 = GETNUM(EXP, "武闘経験値")
+			CASE 1
+				LOCAL:2 = GETNUM(EXP, "防衛経験値")
+			CASE 3
+				LOCAL:2 = GETNUM(EXP, "知略経験値")
+			CASE 4
+				LOCAL:2 = GETNUM(EXP, "政治経験値")
+			CASE 5
+				LOCAL:2 = GETNUM(EXP, "料理経験値")
+			CASE 6
+				LOCAL:2 = GETNUM(EXP, "歌唱経験値")
+			CASE 7
+				LOCAL:2 = GETNUM(EXP, "妖術経験値")
+				LOCAL:1 *= 20
+		ENDSELECT
+		EXP:(LOCAL:0):(LOCAL:2) += LOCAL:1
 		CALL TRAIN_AUTO_ABLUP(LOCAL:0, 1)
 	ENDIF
 

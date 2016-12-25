@@ -28,10 +28,13 @@ RETURN デイリー_ジャンル_エロ
 
 ;募金額は現在資金の大体1割
 ;抱いた回数が増えると募金額が減る（最低5%）
-;最低額を10000に設定
+;最低額を10000に設定、最大額をDAY*1000に設定
 募金額 = MAX(MONEY * MIN(((10 + RAND:11 + RAND:11) - DVAR:募金抱いた回数)/ 2, 5) / 100, 10000)
-SIF DVAR:募金抱いた回数 >= 5
-	募金額 = 募金額 / 3
+SIF 募金額 > 1000 * DAY
+	募金額 = 1000 * DAY
+SIF DVAR:募金抱いた回数 > 0
+	募金額 = 募金額 / DVAR:募金抱いた回数
+;初遭遇
 IF DVAR:募金 == 0
 	PRINTFORMW 仕事をしていると部下が来客を告げた
 	PRINTFORMW 何やら市民団体の者らしいが
@@ -47,6 +50,31 @@ IF DVAR:募金 == 0
 	PRINTFORML 「それで、私達の団体も一生懸命活動しているのですが……」
 	PRINTFORMW 「少々活動資金が心もとなくなってきているのです。元々、皆さんの善意により成り立っている活動ですので……」
 	PRINTFORMW なるほど、つまり活動資金の援助を申し込みに来たようだ
+;8回以上抱いている場合、1/2の確率でただ抱かれに来る
+ELSEIF DVAR:募金抱いた回数 >= 8 && RAND:2 == 0
+	PRINTFORML 例の慈善団体の娘が会いに来た様だ
+	PRINTFORMW しかしいつもと様子が違う
+	PRINTFORML 「お久しぶりです、ご主人様ぁ」
+	PRINTFORML 彼女はあなたの顔を見ると恍惚の表情を見せ媚びるような声を出した
+	PRINTFORMW 火照りきって息を荒げるその様子は、まるで発情した雌犬の様だ
+	PRINTFORML 「んっ、ごめんなさい…我慢できなくなって、また、ご慈悲が欲しくなっちゃって…」
+	PRINTFORML 彼女はそう言いながら衣服をたくし上げる
+	PRINTFORMW 下着は履いておらず、まる出しの秘所はすでに愛液を滴らせていた
+	PRINTFORML 「お願いします…」
+	PRINTFORMW いつもとは違う"お願い"に、あなたは苦笑しながらも彼女を抱き寄せた
+	PRINTFORML 
+	SELECTCASE RAND:3
+		CASE 0
+			PRINTFORMW すっかりあなた好みになった身体をたっぷりと味わった
+		CASE 1
+			PRINTFORMW あなたの一物にピッタリの蜜壺を飽きるまで楽しんだ
+		CASE 2
+			PRINTFORMW 可愛らしくあなたを求めてくる彼女を一晩中可愛がった
+	ENDSELECT
+	PRINTFORML 
+	PRINTFORMW …翌朝、彼女は見送るあなたを名残惜しそうに見つめながら帰っていった
+	RETURN -1
+;2回目以降
 ELSEIF DVAR:募金 == 1
 	PRINTFORML 例の慈善団体の娘が、また募金を求めにきたようだ
 	SELECTCASE DVAR:募金抱いた回数
@@ -66,7 +94,7 @@ ELSEIF DVAR:募金 == 1
 	PRINTFORMW 
 ENDIF
 	PRINTFORM 彼女が求めてきた金額は
-	CALL COLORPRINTFORM(@"{募金額}", COLOR("注意"))
+	CALL COLORPRINT(@"{募金額}", COLOR("注意"))
 	PRINTFORMW 程のようだ
 	PRINTFORML 言うまでもなく大金だ、見返りも期待できるほどの物はないだろう
 PRINTFORMW さて、どうしようか……
@@ -100,33 +128,33 @@ IF RESULT == 1
 ELSEIF RESULT == 0
 	;お金が足りないパターン、無いと思うけど一応
 	IF MONEY <= 募金額
-		PRINTFORMW 募金しようとしたが金が足りなかった
+		PRINTFORML 募金しようとしたが金が足りなかった
 		PRINTFORMW 娘はガッカリしながらもお気持ちだけでもありがとうございますと告げ、去って行った
 	ELSEIF DVAR:募金抱いた回数 == 0
-		PRINTFORMW 子供を出されてしまってはどうしようもない
+		PRINTFORML 子供を出されてしまってはどうしようもない
 		PRINTFORMW 寄付してやることにしよう
-		PRINTFORMW 「ありがとうございます！%ANAME(MASTER)%様のおかげで多くの子供たちが救われます！」
+		PRINTFORML 「ありがとうございます！%ANAME(MASTER)%様のおかげで多くの子供たちが救われます！」
 		PRINTFORMW 娘はパッと笑顔になり、%ANAME(MASTER)%の手を強く握って感謝の気持ちを伝えてきた
 		PRINTFORML 
-		CALL COLORPRINTFORM(@"{募金額}", COLOR("注意"))
+		CALL COLORPRINT(@"{募金額}", COLOR("注意"))
 		PRINTFORMW の金を募金した
 		MONEY -= 募金額
-		CALL COLORPRINTFORM(@"%ANAME(GET_COUNTRY_BOSS(CFLAG:MASTER:所属))%の評判がわずかに上がりました", COLOR("注意"))
+		CALL COLORPRINT(@"%ANAME(GET_COUNTRY_BOSS(CFLAG:MASTER:所属))%の評判がわずかに上がりました", COLOR("注意"))
 		PRINTFORMW
 		FOR LOCAL, 0, MAX_COUNTRY
 			SIF IS_COUNTRY(LOCAL)
 				CALL CHANGE_RELATION_C_TO_C(LOCAL, CFLAG:MASTER:所属, 15, -15)
 		NEXT
 	ELSEIF DVAR:募金抱いた回数 < 5
-		PRINTFORMW また抱いてもいいが、今はそんな気分ではない
+		PRINTFORML また抱いてもいいが、今はそんな気分ではない
 		PRINTFORMW 素直に募金だけしてやることにした
-		PRINTFORMW 「あっ…いえ、はい…あ、ありがとうございます……」
+		PRINTFORML 「あっ…いえ、はい…あ、ありがとうございます……」
 		PRINTFORMW 彼女はどこか拍子抜けしたような、あるいはおあずけを食らったような表情をしていた
 		PRINTFORML 
-		CALL COLORPRINTFORM(@"{募金額}", COLOR("注意"))
+		CALL COLORPRINT(@"{募金額}", COLOR("注意"))
 		PRINTFORMW の金を募金した
 		MONEY -= 募金額
-		CALL COLORPRINTFORM(@"%ANAME(GET_COUNTRY_BOSS(CFLAG:MASTER:所属))%の評判がわずかに上がりました", COLOR("注意"))
+		CALL COLORPRINT(@"%ANAME(GET_COUNTRY_BOSS(CFLAG:MASTER:所属))%の評判がわずかに上がりました", COLOR("注意"))
 		PRINTFORMW
 		FOR LOCAL, 0, MAX_COUNTRY
 			SIF IS_COUNTRY(LOCAL)
@@ -209,12 +237,12 @@ ELSEIF RESULT == 0
 			PRINTFORMW あるべきはずの下着の感触はそこにはなく、淫らな水音を立てるぬかるみがあった…
 		ENDIF
 		PRINTFORML 
-		CALL COLORPRINTFORM(@"{募金額}", COLOR("注意"))
+		CALL COLORPRINT(@"{募金額}", COLOR("注意"))
 		PRINTFORMW の金を募金した
 		DVAR:募金抱いた回数 ++
 		MONEY -= 募金額
 		;募金したんだし評判は上げておく
-		CALL COLORPRINTFORM(@"%ANAME(GET_COUNTRY_BOSS(CFLAG:MASTER:所属))%の評判がわずかに上がりました", COLOR("注意"))
+		CALL COLORPRINT(@"%ANAME(GET_COUNTRY_BOSS(CFLAG:MASTER:所属))%の評判がわずかに上がりました", COLOR("注意"))
 		PRINTFORMW
 		FOR LOCAL, 0, MAX_COUNTRY
 			SIF IS_COUNTRY(LOCAL)
@@ -249,7 +277,7 @@ ELSEIF RESULT == 2
 			PRINTFORMW 資金援助と引き換えに娘の身体を堪能した
 			SELECTCASE RAND:4
 				CASE 0
-				PRINTFORMW 彼女の肉体は生娘とは思えないほど敏感でおおいにあなたを愉しませた
+				PRINTFORMW 彼女の肉体は実に敏感でおおいにあなたを愉しませた
 				CASE 1
 				PRINTFORMW まだ幼さを残した発展途上の肉体をじっくりと可愛がってやった
 				CASE 2
@@ -361,9 +389,9 @@ ELSEIF RESULT == 2
 			PRINTFORMW 自らの抱える恥じらいだとか、そういったものと決別したのだろう
 			PRINTFORMW もちろんだと%ANAME(MASTER)%は頷き、期待に身体を疼かせる娘をソファに押し倒した……
 			PRINTFORMW 吹っ切れたからか、彼女は今までよりも激しく乱れてみせた……
-			CALL COLORPRINTFORM(@"少女を陥落させました", COLOR("注意"), "W")
+			CALL COLORPRINT(@"少女を陥落させました", COLOR("注意"), "W")
 	ENDSELECT
-	CALL COLORPRINTFORM(@"{募金額}", COLOR("注意"))
+	CALL COLORPRINT(@"{募金額}", COLOR("注意"))
 	PRINTFORMW の金を募金した
 	MONEY -= 募金額
 	DVAR:募金抱いた回数 ++

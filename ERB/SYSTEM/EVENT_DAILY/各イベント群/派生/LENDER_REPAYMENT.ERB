@@ -2,8 +2,7 @@
 ;対応するデイリーのDISABLEを返す。設定しない場合、イベントは発生しない。
 ;---------------------
 @EVENT_DAILY_DERIVATION_LENDER_REPAYMENT_DISABLE()
-RETURN DAILY_DISABLE:(FINDELEMENT(DAILY_EVENT_NAME_ENG, "LENDER"))
-
+RETURN DAILY_GET_DISABLE_CONFIG("LENDER")
 
 ;---------------------
 ;発生判定
@@ -22,6 +21,29 @@ ENDIF
 RETURN 0
 
 ;---------------------
+;特定の条件を満たすキャラをランダムに選択する場合に利用
+;他の関数は必須だが、これだけはなくてもよい　というかパフォーマンスへ影響するので不要なら作ってはならない
+;対象が存在せずデイリーを開始できない場合は0を返すことでデイリーの発生をキャンセルする
+;---------------------
+@EVENT_DAILY_DERIVATION_LENDER_REPAYMENT_SETTARGET()
+FOR LOCAL, 0, CHARANUM
+	SIF LOCAL == MASTER
+		CONTINUE
+	SIF CFLAG:LOCAL:所属 != CFLAG:MASTER:所属
+		CONTINUE
+	SIF !CFLAG:LOCAL:捕虜先
+		CONTINUE
+	SIF !IS_FEMALE(LOCAL)
+		CONTINUE
+	DAILY_TARGET:DAILY_TARGET_NUM = LOCAL
+	DAILY_TARGET_NUM ++
+NEXT
+
+
+RETURN 1
+
+
+;---------------------
 ;本体
 ;---------------------
 @EVENT_DAILY_DERIVATION_LENDER_REPAYMENT()
@@ -31,42 +53,49 @@ RETURN 0
 #DIM 担保
 VARSET 返済額
 VARSET 返済期限
+
+IF DAILY_TARGET_NUM > 0
+	担保 = DAILY_TARGET:(RAND:DAILY_TARGET_NUM)
+ELSE
+	担保 = -1
+ENDIF
+
 PRINTFORMW 今日は借りていた金の返済日だ
 PRINTFORMW 予定の時刻きっかりに、男は現れた……
 PRINTFORMW 「さて%ANAME(MASTER)%様。本日は返済日ですが、金のご用意はよろしいですかな？」
 PRINTFORMW さて、どうしようか……
 DRAWLINE
 PRINTFORML 現在の金:{MONEY}
+
 CALL ASK_MULTI_JUDGE(@"金{DVAR:金貸し総額}を返済する", MONEY >= DVAR:金貸し総額, "払えないと伝える", 1, "あなたにふさわしい方法を用意している", (DVAR:金貸しフラグ == 1 && MONEY >= DVAR:金貸し総額 * 3 / 2))
+
 IF RESULT == 0 && MONEY >= DVAR:金貸し総額
 	IF MONEY >= DVAR:金貸し総額 * 2
 		PRINTFORMW 「おや、申し訳ない。返済額に手違いがございました」
 		PRINTFORM 「本当の返済額は金
-		CALL COLORPRINTFORM(@"{DVAR:金貸し総額 * 2}", COLOR("注意"))
+		CALL COLORPRINT(@"{DVAR:金貸し総額 * 2}", COLOR("注意"))
 		PRINTFORMW ですな。まぁお持ちのようですから問題ありますまい？」
 		PRINTFORM 法外じゃないかという暇すら与えず、男は本当に金
-		CALL COLORPRINTFORM(@"{DVAR:金貸し総額 * 2}", COLOR("注意"))
+		CALL COLORPRINT(@"{DVAR:金貸し総額 * 2}", COLOR("注意"))
 		PRINTFORMW をもっていってしまった……
 		MONEY -= DVAR:金貸し総額 * 2
 	ELSE
 		PRINTFORMW 「ふむ。では確かに
 		PRINTFORM 男に金
-		CALL COLORPRINTFORM(@"{DVAR:金貸し総額}", COLOR("注意"))
+		CALL COLORPRINT(@"{DVAR:金貸し総額}", COLOR("注意"))
 		PRINTFORMW を返済した……
 	ENDIF
 	PRINTFORMW 「では私はこれで。今後ともごひいきに」
 	PRINTFORMW 男はホクホクした顔で帰って行った……
 	DVAR:金貸し現在額 = 0
 	DVAR:金貸し総額 = 0
-	RETURN 1
 ELSEIF RESULT == 1
 	PRINTFORMW 実は返済できそうにない。申し訳ない。金はなるべく早く、必ず返す。%ANAME(MASTER)%は正直に伝えた
 	PRINTFORMW 「……ふーむ……。まあ、仕方ありますまい。返せないものは仕方ありませんからな」
 	PRINTFORMW こちらの誠意が伝わったようだ。%ANAME(MASTER)%は胸をなで下ろした
-	CALL LENDER_CHOOSE_GIRL
-	;女がいる場合、担保としてもっていく
-	IF RESULT != -1
-		担保 = RESULT
+
+	;担保がいる場合
+	IF 担保 >= 0
 		PRINTFORMW 「では、代わりの返済方法ですが……実は私、宿屋も営んでおりましてな？」
 		PRINTFORMW 「%ANAME(MASTER)%様のところの%ANAME(担保)%をそちらにしばらく預けていただければ、その給金を返済額として充てましょう」
 		PRINTFORMW 「お恥ずかしながら人手不足でしてな。そちらにとっても、悪い話ではないと思いますが……」
@@ -111,7 +140,7 @@ ELSEIF RESULT == 1
 ELSEIF RESULT == 2
 	PRINTFORMW ちゃんと全額支払おう、その言葉を聞いて頬を緩ませた刹那
 	PRINTFORML カシャッ
-	PRINTFORML かすかな音とともに金貸しの足元の床が開く。
+	PRINTFORML かすかな音とともに金貸しの足元の床が開く
 	PRINTFORMW 「っつ…こんなところに落とすとは、慰謝料を含めて少なくとも1000000は支払っていただきませんと」
 	PRINTFORML 手荒な行いをして申し訳ない
 	PRINTFORMW 何分あのまま支払うには広すぎるから特別に支払い場所を作らせていただいた
@@ -123,14 +152,14 @@ ELSEIF RESULT == 2
 	PRINTFORML 声はやがて小さくなり、床にまで貨幣ーそれも最も価値の低い小銭だ－が届く頃にはただ銭同士がぶつかる音がするだけとなった
 	PRINTFORMW 生をまっとうする最後の瞬間まで執着し続けたお金に囲まれていたのだ、安らかに逝けたであろう
 	PRINTFORML 小銭いっぱいの桶はその後、直轄の高炉でクズ金属として融かされたというが、
-	PRINTFORMW 融かされた金属の行方を知るものはいない。
+	PRINTFORMW 融かされた金属の行方を知るものはいない
 	PRINTFORMW ……
 	PRINTFORMW …
 	PRINTFORMW 
-	PRINTFORMW あ、ちゃんと部屋の改装費と小銭分のお金は支払ってね
+	PRINTFORMW 後日、部屋の改装費と小銭の請求がきた
 	PRINT 代金は計
-		CALL COLORPRINTFORM(@"{DVAR:金貸し総額 * 3 / 2}", COLOR("注意"))
-	PRINTW でございます。
+		CALL COLORPRINT(@"{DVAR:金貸し総額 * 3 / 2}", COLOR("注意"))
+	PRINTW だった……
 	MONEY -= DVAR:金貸し総額 * 3 / 2
 	DVAR:金貸しフラグ = -1
 ENDIF
@@ -141,7 +170,7 @@ RETURN 1
 ;対応するデイリーのDISABLEを返す。設定しない場合、イベントは発生しない。
 ;---------------------
 @EVENT_DAILY_DERIVATION_LENDER_REPAYMENT_DONE_DISABLE()
-RETURN DAILY_DISABLE:(FINDELEMENT(DAILY_EVENT_NAME_ENG, "LENDER"))
+RETURN DAILY_GET_DISABLE_CONFIG("LENDER")
 
 
 ;---------------------
@@ -202,7 +231,7 @@ IF LOCAL != MASTER
 				PRINTFORMW %ANAME(LOCAL)%はありがとうございましたと、恭しく礼の言葉まで述べて見せた
 		ENDSELECT
 		PRINTFORMW 我に返った%ANAME(MASTER)%が、これはどういうことだと問い詰めようとするころには、男は逃げてしまっていた……
-		CALL COLORPRINTFORM(@"%ANAME(LOCAL)%が復帰しました", COLOR("注意"), "W")
+		CALL COLORPRINT(@"%ANAME(LOCAL)%が復帰しました", COLOR("注意"), "W")
 		SETCOLOR COLOR("警告")
 		IF !GETBIT(TALENT:LOCAL:淫乱系, 素質_淫乱_淫乱)
 			PRINTFORML %ANAME(LOCAL)%は＜淫乱＞を得た
@@ -222,7 +251,7 @@ IF LOCAL != MASTER
 		返済額 = RAND(100000, MAX(100001, MIN(200000, DVAR:金貸し総額)))
 		PRINTFORMW 「実は%ANAME(LOCAL)%のことですが、ひどいへまをしてしまいましてな」
 		PRINTFORM 「新たに借金が金
-		CALL COLORPRINTFORM(@"{返済額}", COLOR("注意"))
+		CALL COLORPRINT(@"{返済額}", COLOR("注意"))
 		PRINTFORMW ほど生じましたので、もう少しお借りする旨をお伝えしにまいりました」
 		PRINTFORMW なんということだ、借金を返したつもりが、逆に増えてしまうとは
 		PRINTFORMW とはいえ、仕方のないことだ。%ANAME(MASTER)%は同意するしかなかった……
@@ -260,7 +289,7 @@ ELSE
 		PRINTFORMW 仕事で大きなヘマをしてしまった%ANAME(MASTER)%は、金貸しに呼び出された
 		PRINTFORMW 「まあ、ヘマについては揉み消しましたが。火消しにばらまいた金は、払ってもらいますぞ？
 		PRINTFORM %ANAME(MASTER)%に、新たに借金として金
-		CALL COLORPRINTFORM(@"{返済額}", COLOR("注意"))
+		CALL COLORPRINT(@"{返済額}", COLOR("注意"))
 		PRINTFORMW が課せられた……
 		DVAR:金貸し現在額 = 返済額
 		DVAR:金貸し総額 = 返済額

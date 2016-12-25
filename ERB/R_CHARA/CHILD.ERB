@@ -31,6 +31,9 @@ CALL CHILD_SETTING
 ;初期設定(※素質決定後に行う)
 CALL NEWCHARA_INIT(TARGET)
 
+CALL RANDOM_CHARA_SKILL_SETTING
+CALL CHILD_SKILL_SETTING
+
 ;ターゲットの再設定
 TARGET = LOCAL:0
 RETURN CHARANUM - 1
@@ -239,7 +242,7 @@ SELECTCASE CFLAG:20
 		SETBIT TALENT:特殊勢力陥落系, 特殊勢力_外来人
 	CASE GET_SPERM_ID("ホフゴブリン")
 		SETBIT TALENT:特殊勢力陥落系, 特殊勢力_ホフゴブリン
-	CASE GET_SPERM_ID("犬"), GET_SPERM_ID("豚")
+	CASE GET_SPERM_ID("犬"), GET_SPERM_ID("豚"), GET_SPERM_ID("馬")
 		TALENT:動物耳 = 1
 		TALENT:しっぽ = 1
 	CASE GET_SPERM_ID("野盗")
@@ -442,3 +445,94 @@ ELSE
 		TALENT:(ARG:2) = 1
 	ENDIF
 ENDIF
+
+;-------------------------
+;子供にスキルを設定するでござるの巻
+;-------------------------
+@CHILD_SKILL_SETTING
+#DIM 父親
+#DIM 母親
+#DIM ジャンル
+#DIM スキルID
+#DIM 試行回数
+#DIM スキルID群, SKILL_GENRE_NUM, MAX_SKILLS
+#DIM スキルレベル群, SKILL_GENRE_NUM, MAX_SKILLS
+#DIM スキル数, SKILL_GENRE_NUM
+#DIM 習得確率
+#DIM スキル位置
+VARSET スキルID群
+VARSET スキルレベル群
+VARSET スキル数
+父親 = ID_TO_CHARA(CFLAG:20)
+母親 = ID_TO_CHARA(CFLAG:21)
+
+;見つからなければキャンセル（別段問題はないが軽量化のため）
+;あと父親がNO0の場合もキャンセル　これは汎用スキル覚えてしまうので
+SIF 父親 < 0 || NO:父親 == 0
+	GOTO FATHER_CANCEL
+
+FOR ジャンル, 0, SKILL_GENRE_NUM
+	FOR スキルID, 0, MAX_SKILLS
+		TRYCCALLFORM SKILL_{NO:父親}_%SKILL_GENRE_ENG:ジャンル%_{スキルID}_EXIST
+			TRYCCALLFORM SKILL_{NO:父親}_%SKILL_GENRE_ENG:ジャンル%_{スキルID}_CANT_TELL
+			CATCH
+				CONTINUE
+			ENDCATCH
+			スキルID群:ジャンル:(スキル数:ジャンル) = スキルID
+			CALLFORM SKILL_{NO:父親}_%SKILL_GENRE_ENG:ジャンル%_{スキルID}_LEVEL
+			スキルレベル群:ジャンル:(スキル数:ジャンル) = RESULT
+			スキル数:ジャンル ++
+		CATCH
+		ENDCATCH
+	NEXT
+NEXT
+
+$FATHER_CANCEL
+
+;見つからなければキャンセル（別段問題はないが軽量化のため）
+;あと父親がNO0の場合もキャンセル　これは汎用スキル覚えてしまうので
+
+SIF 母親 < 0 || NO:母親 == 0
+	GOTO MOTHER_CANCEL
+
+FOR ジャンル, 0, SKILL_GENRE_NUM
+	FOR スキルID, 0, MAX_SKILLS
+		TRYCCALLFORM SKILL_{NO:母親}_%SKILL_GENRE_ENG:ジャンル%_{スキルID}_EXIST
+			TRYCCALLFORM SKILL_{NO:母親}_%SKILL_GENRE_ENG:ジャンル%_{スキルID}_CANT_TELL
+			CATCH
+				CONTINUE
+			ENDCATCH
+			スキルID群:ジャンル:(スキル数:ジャンル) = スキルID
+			CALLFORM SKILL_{NO:母親}_%SKILL_GENRE_ENG:ジャンル%_{スキルID}_LEVEL
+			スキルレベル群:ジャンル:(スキル数:ジャンル) = RESULT
+			スキル数:ジャンル ++
+		CATCH
+		ENDCATCH
+	NEXT
+NEXT
+
+$MOTHER_CANCEL
+
+FOR 試行回数, 0, 4
+	ジャンル = RAND:SKILL_GENRE_NUM
+	;汎用スキルは今んとこ全ジャンルあるのでここは大丈夫
+	SIF スキル数:ジャンル == 0
+		CONTINUE
+	スキル位置 = RAND:(スキル数:ジャンル + 1)
+	SELECTCASE スキルレベル群:ジャンル:スキル位置
+		CASE 5
+			習得確率 = 10
+		CASE 4
+			習得確率 = 20
+		CASE 3
+			習得確率 = 40
+		CASE 2
+			習得確率 = 60
+		CASE 1
+			習得確率 = 80
+	ENDSELECT
+	SIF 習得確率 <= RAND:100
+		CONTINUE
+	CALL SKILL_LEARN(TARGET, ジャンル, 0, スキルID群:ジャンル:スキル位置)
+NEXT
+

@@ -32,6 +32,9 @@ CALL RANDOM_CHARA_NAMING(ARG:3)
 ;初期設定(※素質決定後に行う)
 CALL NEWCHARA_INIT(TARGET)
 
+;スキルの習得
+CALL RANDOM_CHARA_SKILL_SETTING()
+
 ;ターゲットの再設定
 TARGET = LOCAL:0
 
@@ -43,7 +46,7 @@ RETURN CHARANUM - 1
 ;-------------------------
 @RANDOM_CHARA_SETTING(ARG:0, ARG:1, ARG:2)
 IF ARG:2 >= 5
-	THROW @"@RANDOM_CHARA_SETTING 関数に設定された性別が不正です(ARG:2 = {ARG:2})"
+	THROW @"RANDOM_CHARA_SETTING 関数に設定された性別が不正です(ARG:2 = {ARG:2})"
 ENDIF
 
 ;性別を指定の通りに設定、指定がない場合は設定された男性率に応じて性別をランダムに決定
@@ -642,6 +645,59 @@ CALL SET_INMOU_RANDOM(TARGET)
 
 TALENT:TARGET:Ｖ締まり = GET_RANDOM_TIGHTNESS()
 TALENT:TARGET:Ａ締まり = GET_RANDOM_TIGHTNESS()
+
+;-------------------------
+;汎用武将にスキルを設定する
+;-------------------------
+@RANDOM_CHARA_SKILL_SETTING()
+#DIM スキルID群, SKILL_GENRE_NUM, MAX_SKILLS
+#DIM スキルレベル群, SKILL_GENRE_NUM, MAX_SKILLS
+#DIM スキル数, SKILL_GENRE_NUM
+#DIM ジャンル
+#DIM スキルID
+#DIM スキル位置
+#DIM 試行回数
+#DIM 習得確率
+VARSET スキルID群
+VARSET スキルレベル群
+VARSET スキル数
+
+FOR ジャンル, 0, SKILL_GENRE_NUM
+	FOR スキルID, 0, MAX_SKILLS
+		TRYCCALLFORM SKILL_0_%SKILL_GENRE_ENG:ジャンル%_{スキルID}_EXIST
+			スキルID群:ジャンル:(スキル数:ジャンル) = スキルID
+			CALLFORM SKILL_0_%SKILL_GENRE_ENG:ジャンル%_{スキルID}_LEVEL
+			スキルレベル群:ジャンル:(スキル数:ジャンル) = RESULT
+			スキル数:ジャンル ++
+		CATCH
+		ENDCATCH
+	NEXT
+NEXT
+
+FOR 試行回数, 0, 4
+	ジャンル = RAND:SKILL_GENRE_NUM
+	;汎用スキルは今んとこ全ジャンルあるのでここは大丈夫
+	SIF スキル数:ジャンル == 0
+		CONTINUE
+	スキル位置 = RAND:(スキル数:ジャンル + 1)
+	SELECTCASE スキルレベル群:ジャンル:スキル位置
+		CASE 5
+			習得確率 = 3
+		CASE 4
+			習得確率 = 10
+		CASE 3
+			習得確率 = 20
+		CASE 2
+			習得確率 = 30
+		CASE 1
+			習得確率 = 50
+	ENDSELECT
+	SIF 習得確率 <= RAND:100
+		CONTINUE
+	CALL SKILL_LEARN(TARGET, ジャンル, 0, スキルID群:ジャンル:スキル位置)
+NEXT
+
+
 
 ;-------------------------
 ;バストサイズをランダムに設定する関数

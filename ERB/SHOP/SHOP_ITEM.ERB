@@ -179,7 +179,7 @@ ELSEIF RESULT >= 100 && RESULT < 300 && ITEMNAME:RESULT != ""
 			RESTART
 		;購入アイテム(その場使用)
 		ELSEIF LOCAL:2 >= 280 && LOCAL:2 < 300
-			IF ITEMNAME:(LOCAL:2) == "犬" || ITEMNAME:(LOCAL:2) == "豚"
+			IF GROUPMATCH(LOCAL:2, GETNUM(ITEM, "犬"), GETNUM(ITEM, "豚"), GETNUM(ITEM, "馬"))
 				PRINTFORMW %ITEMNAME:(LOCAL:2)%を購入しました
 				MONEY -= LOCAL:3
 				CALL ADD_ANIMAL(ITEMNAME:(LOCAL:2), CFLAG:MASTER:所属)
@@ -526,6 +526,7 @@ ITEMTERM:291 = 4
 ITEMTERM:292 = 4
 ITEMTERM:293 = 10
 ITEMTERM:294 = 6
+ITEMTERM:295 = 8
 ;-------------------------------------------------
 ;ARG:0番のアイテムの真の購入価格を取得
 ;-------------------------------------------------
@@ -626,10 +627,9 @@ RETURN 20000
 @GET_PRICE293
 RETURN 50000
 
-;能動受動の書
+;主導半減法
 @GET_PRICE294
 RETURN 20000
-
 
 ;-------------------------------------------------
 ;アイテムの開発条件
@@ -855,6 +855,14 @@ RETURN 0
 
 ;能動受動
 @ITEM_ABLE294
+IF ITEM:太平淫術の書
+	RETURN 1
+ENDIF
+RETURN 0
+
+;馬
+@ITEM_ABLE295
+;太平淫術の書を持っている
 IF ITEM:太平淫術の書
 	RETURN 1
 ENDIF
@@ -1210,14 +1218,14 @@ SELECTCASE RESULT
 		変化前 = %TOSTR_TIGHTNESS(TALENT:(ARG:0):Ｖ締まり)%
 		TALENT:(ARG:0):Ｖ締まり = LIMIT(TALENT:(ARG:0):Ｖ締まり + 100, 締まり_最低値, 締まり_最高値)
 		変化後 = %TOSTR_TIGHTNESS(TALENT:(ARG:0):Ｖ締まり)%
-		CALL COLORPRINTFORM(@"%ANAME(ARG:0)%の膣穴をトレーニングしました！", COLOR("注意"), "W")
-		CALL COLORPRINTFORM(@"変化前:%変化前%　→　変化後:%変化後%", COLOR("注意"), "W")
+		CALL COLORPRINT(@"%ANAME(ARG:0)%の膣穴をトレーニングしました！", COLOR("注意"), "W")
+		CALL COLORPRINT(@"変化前:%変化前%　→　変化後:%変化後%", COLOR("注意"), "W")
 	CASE 1
 		変化前 = %TOSTR_TIGHTNESS(TALENT:(ARG:0):Ａ締まり)%
 		TALENT:(ARG:0):Ａ締まり = LIMIT(TALENT:(ARG:0):Ａ締まり + 100, 締まり_最低値, 締まり_最高値)
 		変化後 = %TOSTR_TIGHTNESS(TALENT:(ARG:0):Ａ締まり)%
-		CALL COLORPRINTFORM(@"%ANAME(ARG:0)%の尻穴をトレーニングしました！", COLOR("注意"), "W")
-		CALL COLORPRINTFORM(@"変化前:%変化前%　→　変化後:%変化後%", COLOR("注意"), "W")
+		CALL COLORPRINT(@"%ANAME(ARG:0)%の尻穴をトレーニングしました！", COLOR("注意"), "W")
+		CALL COLORPRINT(@"変化前:%変化前%　→　変化後:%変化後%", COLOR("注意"), "W")
 	CASE 2
 		CALL GET_PRICE289
 		MONEY += RESULT
@@ -1256,7 +1264,7 @@ SELECTCASE RESULT
 				LOCAL = GETNUM(TALENT, "爆乳")
 				TALENT:(ARG:0):爆乳 = 1
 		ENDSELECT
-		CALL COLORPRINTFORM(@"%ANAME(ARG:0)%の胸が\@ LOCAL == -1 ? 普通 # %TALENTNAME:LOCAL% \@になりました！", COLOR("注意"), "W")
+		CALL COLORPRINT(@"%ANAME(ARG:0)%の胸が\@ LOCAL == -1 ? 普通 # %TALENTNAME:LOCAL% \@になりました！", COLOR("注意"), "W")
 ENDSELECT
 
 ;増茎
@@ -1290,7 +1298,7 @@ SELECTCASE RESULT
 				LOCAL = GETNUM(TALENT, "超巨根")
 				TALENT:(ARG:0):超巨根 = 1
 		ENDSELECT
-		CALL COLORPRINTFORM(@"%ANAME(ARG:0)%のペニスが\@ LOCAL == -1 ? 普通 # %TALENTNAME:LOCAL% \@になりました！", COLOR("注意"), "W")
+		CALL COLORPRINT(@"%ANAME(ARG:0)%のペニスが\@ LOCAL == -1 ? 普通 # %TALENTNAME:LOCAL% \@になりました！", COLOR("注意"), "W")
 ENDSELECT
 
 ;避妊薬
@@ -1319,7 +1327,7 @@ IF CFLAG:(ARG:0):育児期間 == 0
 	CALL RESET_MOTHER_STATE(ARG:0, 0)
 ENDIF
 
-;●能動受動の書
+;主導半減法
 @ITEM_EFFECT294(ARG:0)
 ABL:(ARG:0):主導度Ｕ /= 2
 ABL:(ARG:0):主導度Ｎ /= 2
@@ -1337,12 +1345,11 @@ ABL:(ARG:0):性知識 = 5
 PRINTFORMW %ANAME(ARG:0)%の性知識が上昇しました(Lv5)
 
 ;-------------------------------------------------
-;犬と豚を追加する
+;動物を追加する
 ;-------------------------------------------------
 @ADD_ANIMAL(ARGS:0, ARG:0)
 CALL ADD_VOID_CHARA()
 LOCAL = RESULT
-CALL NEWCHARA_INIT(LOCAL)
 NAME:LOCAL = %ARGS:0%
 CALLNAME:LOCAL = %ARGS:0%
 MAXBASE:LOCAL:体力 = 3000
@@ -1378,6 +1385,8 @@ TALENT:LOCAL:絶倫 = 1
 TALENT:(LOCAL:0):合意 = 1
 TALENT:LOCAL:陰毛現在値 = 陰毛_標準
 TALENT:LOCAL:陰毛目標値 = 陰毛_標準
+TALENT:LOCAL:Ｖ締まり = GET_DEFAULT_TIGHTNESS("普通")
+TALENT:LOCAL:Ａ締まり = GET_DEFAULT_TIGHTNESS("普通")
 CFLAG:(LOCAL):好感度 = 3000
 CFLAG:(LOCAL):従属度 = 10000
 CFLAG:(LOCAL):依存度 = 5000
@@ -1390,4 +1399,6 @@ SELECTCASE ARGS:0
 		TALENT:LOCAL:犬 = 1
 	CASE "豚"
 		TALENT:LOCAL:豚 = 1
+	CASE "馬"
+		TALENT:LOCAL:馬 = 1
 ENDSELECT

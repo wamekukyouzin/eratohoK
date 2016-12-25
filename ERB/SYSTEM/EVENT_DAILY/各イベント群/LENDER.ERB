@@ -2,7 +2,7 @@
 ;発生確率(1000分率 100で10%)
 ;---------------------
 @EVENT_DAILY_LENDER_RATE()
-	RETURN RAND:1000 < 20
+	RETURN 20
 
 ;---------------------
 ;確率以外の発生判定
@@ -57,11 +57,11 @@ IF DVAR:金貸し期限 == 0 && DVAR:金貸し現在額 == 0 && DVAR:金貸し�
 	PRINTFORMW 「わたくし、金貸しをしておりましてな。このたびは%ANAME(MASTER)%様のお手伝いをさせていただきたく」
 	PRINTFORMW つまり、資金援助の申し出だろう。といっても金貸しだ。当然、融資という形になるのだろうが……
 	PRINTFORM 「そうですな、金
-	CALL COLORPRINTFORM(@"{融資額}", COLOR("注意"))
+	CALL COLORPRINT(@"{融資額}", COLOR("注意"))
 	PRINTFORM の融資で、返済額は
-	CALL COLORPRINTFORM(@"{返済額}", COLOR("注意"))
+	CALL COLORPRINT(@"{返済額}", COLOR("注意"))
 	PRINTFORM 、返済時期は
-	CALL COLORPRINTFORM(@"{返済期限}期", COLOR("注意"))
+	CALL COLORPRINT(@"{返済期限}期", COLOR("注意"))
 	PRINTFORMW でいかがですかな？」
 	PRINTFORMW 「%ANAME(MASTER)%様も、何かとご入り用でしょう？」
 	PRINTFORMW その通りだ。徴兵に訓練、外交、何事にも金は必要だ
@@ -78,13 +78,13 @@ IF DVAR:金貸し期限 == 0 && DVAR:金貸し現在額 == 0 && DVAR:金貸し�
 	ELSEIF RESULT == 0
 		PRINTFORMW 「契約成立ですな」
 		PRINTFORM 「返済額は
-		CALL COLORPRINTFORM(@"{返済額}", COLOR("注意"))
+		CALL COLORPRINT(@"{返済額}", COLOR("注意"))
 		PRINTFORM 、返済期限は
-		CALL COLORPRINTFORM(@"{返済期限}期", COLOR("注意"))
+		CALL COLORPRINT(@"{返済期限}期", COLOR("注意"))
 		PRINTFORMW ですからな。お間違いないよう」
 		PRINTFORMW 種々の書類に記入させたあと、男は立ち去っていった……
 		PRINTFORM 金
-		CALL COLORPRINTFORM(@"{融資額}", COLOR("注意"))
+		CALL COLORPRINT(@"{融資額}", COLOR("注意"))
 		PRINTFORMW を手に入れた
 		MONEY += 融資額
 		DVAR:金貸し期限 = 返済期限
@@ -96,14 +96,20 @@ IF DVAR:金貸し期限 == 0 && DVAR:金貸し現在額 == 0 && DVAR:金貸し�
 		PRINTFORMW 「おやおや！　なんてことをなさるのです！　怪我をしたら困るでしょう」
 		PRINTFORMW 斬りかかった%ANAME(MASTER)%だが、男は見た目から想像つかない俊敏さでかわしてみせた
 		PRINTFORM 「まったく信じられない方だ。慰謝料として、金
-		CALL COLORPRINTFORM(@"{融資額}", COLOR("注意"))
+		CALL COLORPRINT(@"{融資額}", COLOR("注意"))
 		PRINTFORMW を払っていただきますぞ？
-		CALL LENDER_CHOOSE_GIRL
-		担保 = RESULT
+		VARSET DAILY_TARGET
+		VARSET DAILY_TARGET_NUM
+		CALL EVENT_DAILY_DERIVATION_LENDER_REPAYMENT_SETTARGET()
+		IF DAILY_TARGET_NUM > 0
+			担保 = DAILY_TARGET:(RAND:DAILY_TARGET_NUM)
+		ELSE
+			担保 = -1
+		ENDIF
 		DVAR:金貸しフラグ = 1
 		IF MONEY >= 融資額
 			PRINTFORM 男は本当に、金
-			CALL COLORPRINTFORM(@"{融資額}", COLOR("注意"))
+			CALL COLORPRINT(@"{融資額}", COLOR("注意"))
 			PRINTFORMW をもっていってしまった……
 			MONEY -= 融資額
 			RETURN 1
@@ -126,43 +132,3 @@ IF DVAR:金貸し期限 == 0 && DVAR:金貸し現在額 == 0 && DVAR:金貸し�
 		ENDIF
 	ENDIF
 ENDIF
-
-@LENDER_CHOOSE_GIRL
-#DIM 女いるフラグ
-#DIM 担保
-#DIM 好感度ランキング, 5
-#DIM LCOUNT, 3
-VARSET 女いるフラグ
-VARSET 好感度ランキング, -1
-担保 = -1
-FOR LCOUNT:0, 0, CHARANUM
-	IF LCOUNT != MASTER && CFLAG:LCOUNT:所属 == CFLAG:MASTER:所属 && CFLAG:LCOUNT:捕虜先 == 0 && IS_FEMALE(LCOUNT)
-		女いるフラグ = 1
-	ENDIF
-NEXT
-;女がいる場合、担保の選択開始
-IF 女いるフラグ
-	;担保にする女を選択
-	;自国仕官の好感度高い女上位5人からランダム
-	FOR LCOUNT:0, 0, CHARANUM
-		IF (LCOUNT:0) != MASTER && CFLAG:(LCOUNT:0):所属 == CFLAG:MASTER:所属 &&  CFLAG:LCOUNT:捕虜先 == 0 && IS_FEMALE(LCOUNT:0)
-			FOR LCOUNT:1, 0, 5
-				IF 好感度ランキング:(LCOUNT:1) == -1 || CFLAG:(LCOUNT:0):好感度 >= CFLAG:(好感度ランキング:(LCOUNT:1)):好感度
-					FOR LCOUNT:2, 3, LCOUNT:1 - 1, -1
-						好感度ランキング:(LCOUNT:2 + 1) = 好感度ランキング:(LCOUNT:2)
-					NEXT
-					好感度ランキング:(LCOUNT:1) = LCOUNT:0
-					BREAK
-				ENDIF
-			NEXT
-		ENDIF
-	NEXT
-	CALL FISHER_YATES_SHAFFLE(5)
-	FOR LCOUNT, 0, 5
-		IF 好感度ランキング:(SHAFFLE_ARRAY:LCOUNT) != -1
-			担保 = 好感度ランキング:(SHAFFLE_ARRAY:LCOUNT)
-			BREAK
-		ENDIF
-	NEXT
-ENDIF
-RETURN 担保

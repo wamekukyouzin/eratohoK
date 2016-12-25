@@ -134,56 +134,69 @@ IF !TALENT:(ARG:0):虚ろ
 		;恋慕
 		CASE 1
 			IF TALENT:(ARG:0):一線越えない
-				CALL COLORPRINTFORM(@"%ANAME(ARG:0)%は<一線越えない>を失った", COLOR("注意"), "W")
+				CALL COLORPRINT(@"%ANAME(ARG:0)%は<一線越えない>を失った", COLOR("注意"), "W")
 				TALENT:(ARG:0):一線越えない = 0
 			ENDIF
 			IF TALENT:(ARG:0):無関心
-				CALL COLORPRINTFORM(@"%ANAME(ARG:0)%は<無関心>を失った", COLOR("注意"), "W")
+				CALL COLORPRINT(@"%ANAME(ARG:0)%は<無関心>を失った", COLOR("注意"), "W")
 				TALENT:(ARG:0):無関心 = 0
 			ENDIF
 		;親愛
 		CASE 2
 			IF TALENT:(ARG:0):孤高
-				CALL COLORPRINTFORM(@"%ANAME(ARG:0)%は<孤高>を失った", COLOR("注意"), "W")
+				CALL COLORPRINT(@"%ANAME(ARG:0)%は<孤高>を失った", COLOR("注意"), "W")
 				TALENT:(ARG:0):孤高 = 0
 			ENDIF
 		;従属
 		CASE 3
 			IF TALENT:(ARG:0):一線越えない
-				CALL COLORPRINTFORM(@"%ANAME(ARG:0)%は<一線越えない>を失った", COLOR("注意"), "W")
+				CALL COLORPRINT(@"%ANAME(ARG:0)%は<一線越えない>を失った", COLOR("注意"), "W")
 				TALENT:(ARG:0):一線越えない = 0
 			ENDIF
 			IF TALENT:(ARG:0):反抗的
-				CALL COLORPRINTFORM(@"%ANAME(ARG:0)%は<反抗的>を失った", COLOR("注意"), "W")
+				CALL COLORPRINT(@"%ANAME(ARG:0)%は<反抗的>を失った", COLOR("注意"), "W")
 				TALENT:(ARG:0):反抗的 = 0
 			ENDIF
 		;隷属
 		CASE 4
 			IF TALENT:(ARG:0):抑圧
-				CALL COLORPRINTFORM(@"%ANAME(ARG:0)%は<抑圧>を失った", COLOR("注意"), "W")
+				CALL COLORPRINT(@"%ANAME(ARG:0)%は<抑圧>を失った", COLOR("注意"), "W")
 				TALENT:(ARG:0):抑圧 = 0
 			ENDIF
 		;淫乱
 		CASE 5
 			;対象が特殊勢力の陥落系か雌犬か肉便器か苗床を所持しているか、遠隔調教のターゲット実行回数が20回以上か、ＮＴＲ値が300より上なら貞操観念を喪失
 			IF TALENT:(ARG:0):貞操観念 && (IS_FALLEN_TO_SP_COUNTRY(ARG:0) || GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_雌犬) || GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_精液便女) || GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_苗床) || COM_EXP:(ARG:0):398 >= 200 || CFLAG:(ARG:0):ＮＴＲ値 > 300)
-				CALL COLORPRINTFORM(@"%ANAME(ARG:0)%は<貞操観念>を失った", COLOR("注意"), "W")
+				CALL COLORPRINT(@"%ANAME(ARG:0)%は<貞操観念>を失った", COLOR("注意"), "W")
 				TALENT:(ARG:0):貞操観念 = 0
 			ENDIF
 			IF TALENT:(ARG:0):快感の否定
-				CALL COLORPRINTFORM(@"%ANAME(ARG:0)%は<快感の否定>を失った", COLOR("注意"), "W")
+				CALL COLORPRINT(@"%ANAME(ARG:0)%は<快感の否定>を失った", COLOR("注意"), "W")
 				TALENT:(ARG:0):快感の否定 = 0
 			ENDIF
 	ENDSELECT
 ENDIF
 
-;堕とした人数が5人以上で、謎の魅力が付く
-IF !TALENT:MASTER:謎の魅力 && FLAG:陥落人数 >= 5
-	PRINTL 
-	SETCOLOR COLOR("注意")
-	PRINTFORMW %ANAME(MASTER)%は<謎の魅力>を身につけた
-	RESETCOLOR
-	TALENT:MASTER:謎の魅力 = 1
+;堕とした人数が5人ごとにボーナス
+IF FLAG:陥落人数 >= (FLAG:陥落ボーナス受領数 + 1) * 5 && !(ALLSAMES(TALENT:MASTER:謎の魅力, TALENT:MASTER:天の御遣い, TALENT:MASTER:技師, TALENT:MASTER:絶倫) && TALENT:MASTER:謎の魅力)
+	PRINTL
+	CALL COLORPRINT(@"今まで他人を陥落させてきた経験で、何か身につけられる気がする……", COLOR("注意"), "L")
+	CALL ASK_MULTI_JUDGE("謎の魅力", !TALENT:MASTER:謎の魅力, "天の御遣い", !TALENT:MASTER:天の御遣い, "技師", !TALENT:MASTER:技師, "絶倫", !TALENT:MASTER:絶倫)
+	SELECTCASE RESULT
+		CASE 0
+			CALL COLORPRINT(@"%ANAME(MASTER)%は<謎の魅力>を身につけた", COLOR("注意"), "W")
+			TALENT:MASTER:謎の魅力 = 1
+		CASE 1
+			CALL COLORPRINT(@"%ANAME(MASTER)%は<天の御遣い>を身につけた", COLOR("注意"), "W")
+			TALENT:MASTER:天の御遣い = 1
+		CASE 2
+			CALL COLORPRINT(@"%ANAME(MASTER)%は<技師>を身につけた", COLOR("注意"), "W")
+			TALENT:MASTER:技師 = 1
+		CASE 3
+			CALL COLORPRINT(@"%ANAME(MASTER)%は<絶倫>を身につけた", COLOR("注意"), "W")
+			TALENT:MASTER:絶倫 = 1
+	ENDSELECT
+	FLAG:陥落ボーナス受領数 ++
 ENDIF
 
 ;酔い累積値が150000以上で酒豪が付く	下戸の場合は下戸を失う
@@ -390,10 +403,10 @@ ELSEIF !GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_苗床) && ABL:(ARG:0):�
 	PRINTFORMW %ANAME(ARG:0)%は<苗床>になった
 	RESETCOLOR
 	SETBIT TALENT:(ARG:0):淫乱系, 素質_淫乱_苗床
-;[生ハメ依存] Ｖ(Ａ）感Ａランク以上、Ｖ（Ａ）性交経験500以上、今回の絶頂回数100以上
+;[生ハメ依存] Ｖ(Ａ）感Ａランク以上、Ｖ（Ａ）性交経験200以上、今回の絶頂回数100以上
 {
 ELSEIF !GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_生ハメ依存) && 
-((ABL:(ARG:0):Ｖ感 >= ランク閾値:ランク_その他:ランク_A && EXP:(ARG:0):Ｖ性交経験 >= 500 ) || (ABL:(ARG:0):Ａ感 >= ランク閾値:ランク_その他:ランク_A && EXP:(ARG:0):Ａ性交経験 >= 500))
+((ABL:(ARG:0):Ｖ感 >= ランク閾値:ランク_その他:ランク_A && EXP:(ARG:0):Ｖ性交経験 >= 200 ) || (ABL:(ARG:0):Ａ感 >= ランク閾値:ランク_その他:ランク_A && EXP:(ARG:0):Ａ性交経験 >= 200))
  && SUM_EX(ARG:0) >= 100
 }
 	PRINTFORMW %ANAME(ARG:0)%の様子がおかしい…

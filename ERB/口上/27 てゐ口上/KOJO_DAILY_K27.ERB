@@ -20,6 +20,20 @@ SIF RESULT != -1
 SIF DAILY_CANCEL
 	RETURN 1
 
+DAILY_NAME = 落とし物
+CALL KOJO_DAILY_K27_LOST_PROPERTY
+SIF RESULT != -1
+	発生フラグ = 1
+SIF DAILY_CANCEL
+	RETURN 1
+
+DAILY_NAME = ピンチ
+CALL KOJO_DAILY_K27_PINCH
+SIF RESULT != -1
+	発生フラグ = 1
+SIF DAILY_CANCEL
+	RETURN 1
+
 ;;デイリーイベント
 ;DAILY_NAME = デイリーイベントの名前
 ;CALL KOJO_DAILY_K27_NAMAE_OF_DAILY_EVENT
@@ -49,6 +63,9 @@ SIF GROUPMATCH(MASTER, NAME_TO_CHARA("鈴仙"), NAME_TO_CHARA("永琳"), NAME_TO
 SIF KDVAR:てゐ:てゐ_ラッキー
 	RETURN -1
 
+SIF MONEY < 1000
+	RETURN -1
+
 代金 = MIN(MONEY / 5, 10000)
 
 CALL KOJO_DAILY_START()
@@ -61,14 +78,14 @@ PRINTFORMW 途方にくれていたところ、妖怪兎に出くわした
 PRINTFORMW こちらに敵意はないようだが……
 PRINTFORMW 「ははぁ、さては迷子になったわけだ」
 PRINTFORM 「運が良かったね、この
-CALL COLORPRINTFORM(NAME_FORMAL(てゐ), COLOR("注意"))
+CALL COLORPRINT(NAME_FORMAL(てゐ), COLOR("注意"))
 PRINTFORMW 様が、無事に出口に送り届けてやろうじゃないか」
 PRINTFORMW どうやらこのあたりの地理に詳しいらしい。地獄に仏とはこのことだ
 PRINTFORMW ……それにしても、少女はにこにこと笑っているが、どこか信用ならないように感じる……
 PRINTFORMW 「……で？　いくら出してくれんの？」
 PRINTFORMW 「いやだなぁ、まさかタダで道案内してもらおうなんて思ってないよね？」
 PRINTFORM 「そうだなぁ、金
-CALL COLORPRINTFORM(TOSTR(代金), COLOR("注意"))
+CALL COLORPRINT(TOSTR(代金), COLOR("注意"))
 PRINTFORMW くらいで受けてあげるよ。どう？」
 PRINTFORMW ……なるほど、そういうことか
 PRINTFORMW %PRONOUN(てゐ)%からすると、今の自分は絶好の金づるなのだろう
@@ -83,7 +100,7 @@ IF RESULT == 0
 	PRINTFORMW 「ふふふ、まいどあり」
 	PRINTFORMW 「んじゃ案内したげるよ。ついてきてね」
 	PRINTFORMW %ANAME(てゐ)%のおかげで、無事に出口まで辿りつけた……
-	CALL COLORPRINTFORM(@"{代金}を支払いました", COLOR("警告"), "W")
+	CALL COLORPRINT(@"{代金}を支払いました", COLOR("警告"), "W")
 	MONEY -= 代金
 	CFLAG:てゐ:好感度 += 300
 ELSE
@@ -93,10 +110,165 @@ ELSE
 	CALL ADD_COOLTIME(MASTER, 3)
 ENDIF
 
-CALL COLORPRINTFORM(@"%ANAME(てゐ)%の面識を得ました", COLOR("注意"), "W")
+CALL COLORPRINT(@"%ANAME(てゐ)%の面識を得ました", COLOR("注意"), "W")
 CFLAG:てゐ:面識 = 1
 
 KDVAR:てゐ:てゐ_ラッキー = 1
 
 RETURN 
 
+;------------------------------------
+;デイリーイベント本体
+;創意工夫
+;発生判定に失敗した場合（イベントが発生しない場合）はマイナス１を返すこと
+;-----------------------------------
+@KOJO_DAILY_K27_LOST_PROPERTY
+#DIM てゐ
+
+てゐ = NAME_TO_CHARA("てゐ")
+
+SIF !CHECK_KOJO_DAILY_HAPPEN(てゐ, 300, 1, 0, 1)
+	RETURN -1
+
+SIF !IS_MALE(MASTER)
+	RETURN -1
+
+SIF GROUPMATCH(MASTER, NAME_TO_CHARA("鈴仙"), NAME_TO_CHARA("永琳"), NAME_TO_CHARA("輝夜"))
+	RETURN -1
+
+SIF !GETBIT(TALENT:てゐ:淫乱系, 素質_淫乱_淫乱)
+	RETURN -1
+
+SIF KDVAR:てゐ:てゐ_落とし物
+	RETURN -1
+
+
+CALL KOJO_DAILY_START()
+
+PRINTFORML 廊下を歩いていると、何か落ちているのを見つけた……
+PRINTFORML 拾ってみると、なんと女ものの下着だ！
+PRINTFORMW なぜこんなところにあるのだろう、いやそれ以前に、どうしよう……
+
+CALL ASK_MULTI("くすねる", "そのままにしておく", "女性兵士に持ち主を探させる")
+
+IF RESULT == 1
+	PRINTFORMW 盗みはよくない
+	PRINTFORMW かといって誰かに探させようにも、なぜ自分が持っているのかと疑われそうだ
+	PRINTFORMW 触らぬ神にたたりなし。そのままにしておくことにした……
+	KDVAR:てゐ:てゐ_落とし物 = -1
+	RETURN
+ELSEIF RESULT == 2
+	PRINTFORMW 誰のものだか知らないが、ないと困るだろう
+	PRINTFORMW 女性兵士に渡して、持ち主を探してもらうことにした……
+	KDVAR:てゐ:てゐ_落とし物 = -1
+	RETURN
+ENDIF
+
+PRINTFORMW せっかくだ。拾わない手はない
+PRINTFORMW あたりに人がいないことを確認すると、それを素早く拾い上げ、そのまま部屋に急いで戻った……
+
+KDVAR:てゐ:てゐ_落とし物 = 1
+
+;------------------------------------
+;デイリーイベント本体
+;創意工夫
+;発生判定に失敗した場合（イベントが発生しない場合）はマイナス１を返すこと
+;-----------------------------------
+@KOJO_DAILY_K27_PINCH
+#DIM てゐ
+
+てゐ = NAME_TO_CHARA("てゐ")
+
+
+SIF !CHECK_KOJO_DAILY_HAPPEN(てゐ, 150, 1, 0, 1)
+	RETURN -1
+
+SIF !IS_MALE(MASTER)
+	RETURN -1
+
+SIF GROUPMATCH(MASTER, NAME_TO_CHARA("鈴仙"), NAME_TO_CHARA("永琳"), NAME_TO_CHARA("輝夜"))
+	RETURN -1
+
+SIF !GETBIT(TALENT:てゐ:淫乱系, 素質_淫乱_淫乱)
+	RETURN -1
+
+SIF KDVAR:てゐ:てゐ_落とし物 <= 0
+	RETURN -1
+
+SIF KDVAR:てゐ:てゐ_ピンチ
+	RETURN -1
+
+CALL KOJO_DAILY_START()
+
+PRINTFORMW 「やっほ、お邪魔してるよ」
+PRINTFORMW 自室に戻ると、%ANAME(てゐ)%がいた
+PRINTFORMW 指に布のようなものをひっかけて、くるくると回している……
+PRINTFORMW ……以前くすねた、落とし物の下着だ！
+PRINTFORMW 「ねぇねぇ、なんで%ANAME(MASTER)%の部屋にこんなものがあるの？」
+PRINTFORMW 「要らないよね？ %ANAME(MASTER)%は男だし」
+PRINTFORML 「どーこで手に入れたのかなー」
+PRINTFORML
+
+$ASK_LOOP
+CALL ASK_YN("知らない", "くすねたんだ")
+
+IF RESULT == 0
+	PRINTFORMW 「ふーん」
+	PRINTFORML 「で？　実のとこは？」
+	GOTO ASK_LOOP
+ENDIF
+
+PRINTFORMW もう勘弁するしかなさそうだ
+PRINTFORMW 諦めた%ANAME(MASTER)%は、素直に告白することにした……
+PRINTFORMW 「へー、盗んだんだ」
+PRINTFORMW 「最低だなー、困ってるだろうなぁ、無くしちゃった子」
+PRINTFORMW 「まさか盗まれてるなんて思ってないだろうしー」
+PRINTFORMW 「……ところで」
+PRINTFORML %ANAME(てゐ)%が自らのスカートの裾をつまみ上げる。そしておもむろに持ち上げた
+PRINTFORMW ……本来ならば下着のあるべきところには、何もない
+PRINTFORMW 彼女の秘部はむき出しになっている……
+PRINTFORMW 「誰かさんが私の下着を盗んだせいで、こうして何も着けずに過ごさなくちゃいけなかったんだー」
+PRINTFORMW 「大変だったよ？　いつ誰に見られるんじゃないかって、ドキドキしちゃってさ」
+PRINTFORMW 「ほら、触ってみてよ、もうこんな風になっちゃって……♥」
+PRINTFORML そう言って、%ANAME(てゐ)%は%ANAME(MASTER)%の指を自らの秘部に導く
+PRINTFORMW そこは確かに濡れており、くちゅりと音を立てた
+PRINTFORMW 「あはっ……ねぇ、下着ドロボーさん」
+PRINTFORMW 「このこと黙っておいてあげるからさ、可愛い可愛いてゐちゃんをちょっと助けてくれない？」
+PRINTFORMW 「さみしくて泣いちゃってるてゐちゃんのやらしー身体を慰めてあげる、簡単なお仕事なんだけど……♥」
+PRINTL 
+CALL ASK_YN("手を出す", "出さない")
+
+IF RESULT == 1
+	PRINTFORMW 「え……本気？」
+	PRINTFORMW 「この据え膳で断るって、どんなヘタレなわけ？」
+	PRINTFORMW 「あーあ、しらけちゃった。じゃあもういいよ、おつかれ」
+	PRINTFORMW 言うだけ言って、%ANAME(てゐ)%は立ち去った……
+	CALL COLORPRINT(@"%ANAME(てゐ)%が下着の件を言いふらしたため、女性陣からの好感度が下がりました", COLOR("警告"), "W")
+	FOR LOCAL, 0, CHARANUM
+		SIF CFLAG:LOCAL:所属 == CFLAG:MASTER:所属
+			CFLAG:LOCAL:好感度 -= 1000
+	NEXT
+	KDVAR:てゐ:てゐ_ピンチ = 1
+	RETURN
+ENDIF
+
+PRINTFORMW 「あはっ♥　そう言ってくれると思ってたぁ♥」
+PRINTFORMW 「じゃ、楽しませてよね♥　ドロボーさん♥」
+PRINTFORMW こんな手の込んだ小生意気ないたずらをする娘にはお仕置きが必要だろう
+PRINTFORMW 淫らにこちらを誘う%ANAME(てゐ)%を押し倒した……
+CFLAG:てゐ:好感度 += 300
+;全員の調教参加フラグをクリア
+CVARSET CFLAG, 6, 0
+CFLAG:てゐ:調教参加フラグ = 1
+CFLAG:てゐ:調教中帰らない = 1
+CFLAG:てゐ:強制友好化 = 1
+TALENT:てゐ:チョロイン = 1
+TALENT:てゐ:合意 = 1
+BASE:てゐ:体力 = MAXBASE:てゐ:体力
+BASE:てゐ:気力 = MAXBASE:てゐ:気力
+;強制逆調教フラグをオン
+FLAG:強制調教フラグ = 1
+;それ以降のデイリーイベント発生を潰す
+DAILY_CANCEL = 1
+;フラグ
+KDVAR:てゐ:てゐ_ピンチ = 1

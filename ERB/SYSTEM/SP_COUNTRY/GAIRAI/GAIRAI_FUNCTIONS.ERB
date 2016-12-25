@@ -122,7 +122,8 @@ TALENT:LOCAL:陰毛目標値 = 陰毛_標準
 TALENT:LOCAL:Ｖ締まり = GET_DEFAULT_TIGHTNESS("普通")
 TALENT:LOCAL:Ａ締まり = GET_DEFAULT_TIGHTNESS("普通")
 CFLAG:LOCAL:1 = LOCAL:4
-CALL NEWCHARA_INIT(LOCAL)
+CALL SKILL_LEARN(LOCAL, FINDELEMENT(SKILL_GENRE_ENG, "BASE"), SKILL_SP_COUNTRY_NO:特殊勢力_外来人, 0)
+
 COUNTRY_BOSS:(LOCAL:4) = GET_ID(LOCAL)
 
 FOR LCOUNT, 0, 4 + SP_COUNTRY_RANK:特殊勢力_外来人
@@ -164,7 +165,7 @@ FOR LCOUNT, 0, 4 + SP_COUNTRY_RANK:特殊勢力_外来人
 	TALENT:LOCAL:Ａ締まり = GET_DEFAULT_TIGHTNESS("普通")
 	;所属を野盗勢力にする
 	CFLAG:LOCAL:1 = LOCAL:4
-	CALL NEWCHARA_INIT(LOCAL)
+	CALL SKILL_LEARN(LOCAL, FINDELEMENT(SKILL_GENRE_ENG, "BASE"), SKILL_SP_COUNTRY_NO:特殊勢力_外来人, 0)
 NEXT
 SP_COUNTRY_APPEARED:特殊勢力_外来人 = 1
 
@@ -191,11 +192,24 @@ SIF 外来 == -1 || !条件
 RETURN -1
 
 FOR LOCAL, 0, CHARANUM
-	;SPキャラでない、MASTERでない、君主でない、捕虜でないか外来勢力の捕虜、外来人所属でない、死んでいない、所属があるor放浪している（未登場でない）
-	IF !IS_SP_CHARA(LOCAL) && LOCAL != MASTER && LOCAL != GET_COUNTRY_BOSS(CFLAG:LOCAL:所属) && (!CFLAG:LOCAL:捕虜先 || CFLAG:LOCAL:捕虜先 == 外来) && CFLAG:LOCAL:1 != 外来 && CFLAG:LOCAL:特殊状態 != 2 && (CFLAG:LOCAL:所属 || CFLAG:LOCAL:特殊状態 == 1)
-		候補:候補数 = LOCAL
-		候補数 ++
-	ENDIF
+	SIF IS_SP_CHARA(LOCAL)
+		CONTINUE
+	SIF LOCAL == MASTER
+		CONTINUE
+	SIF LOCAL == GET_COUNTRY_BOSS(CFLAG:LOCAL:所属)
+		CONTINUE
+	SIF CFLAG:LOCAL:捕虜先 && CFLAG:LOCAL:捕虜先 != 外来
+		CONTINUE
+	SIF CFLAG:LOCAL:所属 == 外来
+		CONTINUE
+	SIF CFLAG:LOCAL:所属 == 2
+		CONTINUE
+	SIF !CFLAG:LOCAL:所属 && CFLAG:LOCAL:特殊状態 != 1
+		CONTINUE
+	SIF TALENT:LOCAL:幼児
+		CONTINUE
+	候補:候補数 = LOCAL
+	候補数 ++
 NEXT
 
 SIF 候補数 <= 0
@@ -224,7 +238,7 @@ IF CFLAG:対象:捕虜先 == 外来
 		PRINTFORMW ただ言われるがままに自らの秘部を激しく慰め始めた……
 	ENDIF
 	PRINTFORML
-	CALL COLORPRINTFORM(@"%ANAME(対象)%が外来人の奴隷となりました", COLOR("警告"), "W")
+	CALL COLORPRINT(@"%ANAME(対象)%が外来人の奴隷となりました", COLOR("警告"), "W")
 	RESETCOLOR
 	SETBIT TALENT:対象:特殊勢力陥落系, 特殊勢力_外来人
 	CALL CHANGE_COUNTRY(対象, 外来, 1)
@@ -239,7 +253,7 @@ ELSE
 	PRINTFORMW 研究対象を確保できたと、外来人たちはそのまま%ANAME(対象)%を持ち帰った
 	PRINTFORMW %ANAME(対象)%が我にかえったころには、もう手遅れだった
 	PRINTFORML
-	CALL COLORPRINTFORM(@"%ANAME(対象)%が外来人に囚われました", COLOR("警告"), "W")
+	CALL COLORPRINT(@"%ANAME(対象)%が外来人に囚われました", COLOR("警告"), "W")
 	RESETCOLOR
 	CALL CAPTURE(対象, 外来)
 ENDIF
@@ -302,3 +316,26 @@ ELSE
 	CALL CAPTURE(MASTER, ARG:0)
 	RETURN 2
 ENDIF
+
+;--------------------------------------
+;エンディング
+;--------------------------------------
+@GAIRAI_ENDING
+PRINTFORML 外来人たちの幻想郷侵攻計画は成功した
+PRINTFORMW 彼らは科学の力で、幻想郷全土を支配下においた
+PRINTFORML 今日も彼らは少女達を使い、非道な「実験」を繰り返している
+PRINTFORML 彼らの研究所には、少女の悲鳴や嬌声が響き渡る
+PRINTFORMW だが、それを止める者はいない。彼らに刃向かう者は全て、滅ぼされてしまったのだから……
+IF CFLAG:MASTER:所属 == GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:特殊勢力_外来人) && IS_FEMALE(MASTER)
+	PRINTFORMW 
+	PRINTFORMW 研究用奴隷たちのなかに、%ANAME(MASTER)%の姿もあった
+	PRINTFORMW 研究に協力的な模範的奴隷ということで、比較的待遇は良い
+	PRINTFORMW ……奴隷にしては、という但し書きつきであるが
+	PRINTFORML 今日の彼女に課せられたのは、異種生物との交配実験だ
+	PRINTFORMW 特殊な排卵誘発剤をあらかじめ下腹に子宮に注射されている%ANAME(MASTER)%は、妊娠の期待に下腹を疼かせている
+	PRINTFORML 彼女が実験室に入るなり、大型犬が彼女を組み伏せ、犯し始める
+	PRINTFORMW %ANAME(MASTER)%は、たまらないといった声をあげ、何度も放たれる精液を肉穴で受け止めていく 
+	PRINTFORMW 科学者たちは、それを無感動に眺め、時折記録をとっていた……
+ENDIF
+PRINTFORML 
+PRINTFORMW もはや救世主などない地に、ただただ女の嬌声が響き渡り続ける……

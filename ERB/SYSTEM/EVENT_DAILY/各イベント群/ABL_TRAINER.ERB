@@ -1,0 +1,153 @@
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@EVENT_DAILY_ABL_TRAINER_RATE()
+RETURN 25
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@EVENT_DAILY_ABL_TRAINER_DECISION()
+;RETURN DAY >= 15
+RETURN 1
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@EVENT_DAILY_ABL_TRAINER_GENRE()
+RETURN デイリー_ジャンル_トレーナー
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@EVENT_DAILY_ABL_TRAINER()
+#DIM 対象
+#DIM 訓練番号 = GETNUM(ABL, "武闘"), GETNUM(ABL, "防衛"), GETNUM(ABL, "知略"), GETNUM(ABL, "政治"), GETNUM(ABL, "料理"), GETNUM(ABL, "歌唱")
+#DIM 訓練対象
+#DIM 対象経験値
+#DIM 効果量
+#DIM 代金
+
+代金 = GET_OWN_CITY(CFLAG:MASTER:所属) * 3000
+
+IF DVAR:素質トレーナー == 0
+	PRINTFORML %ANAME(MASTER)%が仕事をしていると、侍従が来客を告げた
+	PRINTFORML なんでも「やけにうるさい男が来た」のだそうだ
+	PRINTFORMW どれくらいうるさいのかと思った%ANAME(MASTER)%は、会うことにしてみた
+	PRINTFORML ・
+	PRINTFORML ・
+	PRINTFORML ・
+	PRINTFORML 「ウオーーーッ！！！！　君が%ANAME(MASTER)%か！！！！！　会えて光栄だ！！！！！！！！」
+	PRINTFORMW 「私は『ムキムキマッチョ☆筋肉マッスル塾』塾長！！！　男山　隆太郎だ！！！！！！！！」
+	PRINTFORML 「実は今日は！！　君にいい話を持ってきた！！！　まぁ聞いてくれ！！！！！！！！！」
+	PRINTFORML 「僕は色んな人に訓練をつけて回っている！！！！！　戦いに役立つ訓練だよ！！！！！！！！！！」
+	PRINTFORMW 「こんなご時世だ！！！！！！　身を守るためにも是非とも覚えてみないか！！！！！！？」
+ELSE
+	PRINTFORML 「やあ！！！！！！！！！　また会ったな！！！！！！！！！！！！！！！！」
+	PRINTFORML 「覚えているかい！！！！？！？　ムキムキ筋肉♂マッスルハート塾の男山だ！！！！！！」
+	PRINTFORMW 「訓練をつけに教えに来たぞ！！！！！！！！！！！！！！！！！！！！！！！！！！！」
+ENDIF
+CALL ICPRINT(@"「まぁ正直安くはない！！！！　金<{代金}>だ！！！！！！！！！", "W", COLOR("注意"))
+PRINTFORMW 「どうだ！！！？　いい話だと思わないか！！！！！！？！！！？！？！！！？？？？」
+PRINTFORML 男は終始うるさかったが、持ってきた話自体は悪いものではなかった
+PRINTFORML 確かに安くはないが、効果があるなら考える価値はあるかもしれない
+PRINTFORMW さて、どうするか……
+PRINTFORML
+
+CALL ASK_MULTI_JUDGE("おしえてもらう！！！！！！！！！！！！！！", MONEY >= 代金, "暑苦しいのでやめておく", 1)
+
+IF RESULT == 1
+	$CANCEL
+	PRINTFORMW 「ムムムッ！！！！！！？　そうか！！！！！！　そういうこともあるよな！！！！！」
+	PRINTFORMW 「それならば仕方あるまい！！！！！　私は立ち去るとするよ！！！！！！！！！！！」
+	RETURN 0
+ENDIF
+
+$TRAIN_LOOP
+PRINTFORML 「あいわかった！！！！！！！！！　では誰を訓練するか決めてシルブプレ！！！！！！！！！！！」
+DRAWLINE
+
+;対象を決める
+CALL SELECT_CHARA_LIST_SLG
+
+SIF RESULT == -1
+	GOTO CANCEL
+
+対象 = RESULT
+
+PRINTFORMW 「%ANAME(対象)%さんか！！！！！！！　あい分かった！！！！！！！！！！！！１！！！！！」
+PRINTFORMW 「では何を教えたいのか決めてシルブプレ！！！！！！！！！！！！！！！！！！！！！！！！」
+PRINTFORML 現在の金:{MONEY}
+DRAWLINE
+FOR LOCAL, 0, VARSIZE("訓練番号")
+	PRINTFORML [{LOCAL}] %ABLNAME:(訓練番号:LOCAL)%
+NEXT
+PRINTFORML [99] 戻る！！！！！！！！！！！！！！！！！！！！
+
+$INPUT_LOOP
+INPUT
+
+IF RESULT == 99
+	GOTO TRAIN_LOOP
+ELSEIF RESULT < 0 || VARSIZE("訓練番号") <= RESULT
+	GOTO INPUT_LOOP
+ENDIF
+
+MONEY -= 代金
+
+訓練対象 = 訓練番号:RESULT
+対象経験値 = GET_EXP(訓練対象)
+
+効果量 = ABLUP_NEED_EXP_SLG(ABL:対象:訓練対象)
+SELECTCASE ABL:対象:訓練対象
+	CASE IS >= ランク閾値:ランク_ＳＬＧ:ランク_A
+		効果量 = RAND(効果量, 効果量 * 5 + 1)
+	CASE IS >= ランク閾値:ランク_ＳＬＧ:ランク_C
+		効果量 = RAND(効果量 * 5, 効果量 * 15 + 1)
+	CASE IS >= ランク閾値:ランク_ＳＬＧ:ランク_F
+		効果量 = RAND(効果量 * 10, 効果量 * 20 + 1)
+	CASEELSE
+		効果量 = RAND(効果量 * 20, 効果量 * 25 + 1)
+ENDSELECT
+
+;出てきてんのは本来必要なアレの100倍
+効果量 /= 100
+
+EXP:対象:対象経験値 += 効果量
+
+PRINTFORMW 「%ABLNAME:訓練対象%の訓練か！！！！！！！！おっけー！！！！！！！！　任せとけ！！！！！！！！！！！！！！！！」
+PRINTFORMW 「じゃあちょっと%ANAME(対象)%さんをお借りするよ！！！！！！！！！！！！！　ちょっと待っててな！！！！！！！！！！！！！１」
+PRINTFORMW ・
+PRINTFORMW ・
+PRINTFORMW ・
+SELECTCASE RAND:3
+	CASE 0	
+		PRINTFORMW 「いいか！！！！！！！！！！！！！　筋肉だ！！！！！！！！！！！！！１　筋肉が全てなんだ！！！！！！！」
+		PRINTFORMW 「筋肉に全てを捧げろ！！！！！！！！！１　ｳｵｰｰｯ！！！！！　マッスルマッスル！！！！！！！！！！！！！」
+	CASE 1
+		PRINTFORMW 「いいか！！！！！！！！！！！　筋肉がコツだ！！！！！！！！！！　頑張れ！！！！！！！１」
+		PRINTFORMW 「持てる筋肉を全て使え！！！！！！！！！！！！！！！　ぬおおおおおおお！！！！！！！！！」
+	CASE 2
+		PRINTFORMW 「筋肉！！！！！！！！１　肉！！！！！！！！　マッスル！！！！！！！！　ぬうう！！！！！」
+		PRINTFORMW 「どうした！！！！　声が小さいぞ！！！！！！！！　ほら！！！！　恥ずかしがらないで！！！！！！！」
+		PRINTFORMW 「筋肉！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！１１」
+ENDSELECT
+PRINTFORMW ・
+PRINTFORMW ・
+PRINTFORMW ・
+PRINTFORMW 「ふう！！！！！！！！！！　いい汗かいた！！！！！！！！！」
+PRINTFORMW 「結果！？　バッチリだったよ！！！！！！！！！　飲み込みが早くて素晴らしい！！！！！！！！！！」
+PRINTFORMW 「じゃあ僕は失礼するよ！！！！！！！！！！！！　また会えるといいな！！！！！！！！！１」
+PRINTFORMW 男は立ち去っていった！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
+
+CALL PRINT_ADD_EXP(対象, EXPNAME:対象経験値, 効果量, 1)
+CALL TRAIN_AUTO_ABLUP(対象)
+
+DVAR:素質トレーナー = 1
+RETURN 1
+

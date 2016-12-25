@@ -4,42 +4,53 @@
 ;コマンド実行時の自動能力上昇 ARG:0……キャラ番号 ARG:1……1ならメッセージを非表示
 ;-------------------------------------------------
 @TRAIN_AUTO_ABLUP(ARG:0, ARG:1 = 0)
+#DIM 初期値
+#DIM 終値
+#DIM 能力
+#DIM 必要経験値
+#DIM 対応経験値
 ;能力固定フラグが立っているなら処理しない
 IF CFLAG:(ARG:0):能力固定フラグ
 	RETURN
 ENDIF
 
-FOR LOCAL:0, 0, 70
-	IF ABLNAME:(LOCAL:0) == "性知識"
+FOR 能力, 0, 70
+	初期値 = ABL:(ARG:0):能力
+	終値 = ABL:(ARG:0):能力
+	IF ABLNAME:能力 == "性知識"
 		;性知識は別枠
 		CALL TRAIN_AUTO_ABLUP_KNOWLEDGE(ARG:0, ARG:1)
-	ELSE
-		;能力に対応する経験値の名称を取得
-		RESULTS = 
-		TRYCALLFORM ABLUP_EXPNAME{LOCAL:0}
-		IF RESULTS != ""
+		CONTINUE
+	ENDIF
 
-			LOCAL:1 = NAME_TO_NUM("EXP", RESULTS)
+	;能力に対応する経験値の名称を取得
+	RESULTS = 
+	TRYCALLFORM ABLUP_EXPNAME{能力}
+	SIF RESULTS == ""
+		CONTINUE
 
-			WHILE ABL:(ARG:0):(LOCAL:0) < 9999
-				;必要な経験値の計算
-				RESULT = 0
-				TRYCALLFORM CALC_ABLUP_EXP{LOCAL:0}(ARG:0)
-				LOCAL:5 = RESULT
+	対応経験値 = NAME_TO_NUM("EXP", RESULTS)
 
-				IF LOCAL:5 >= 0 && EXP:(ARG:0):(LOCAL:1) >= LOCAL:5
-					ABL:(ARG:0):(LOCAL:0) ++
-					EXP:(ARG:0):(LOCAL:1) -= LOCAL:5
-					IF ARG:1 == 0
-						SETCOLOR COLOR("オレンジ")
-						PRINTFORML %ANAME(ARG:0)%の%ABLNAME:(LOCAL:0)%が上昇しました(Lv{ABL:(ARG:0):(LOCAL:0)})
-						RESETCOLOR
-					ENDIF
-				ELSE
-					BREAK
-				ENDIF
-			WEND
-		ENDIF
+	WHILE ABL:(ARG:0):能力 < 9999
+		;必要な経験値の計算
+		RESULT = 0
+		TRYCALLFORM CALC_ABLUP_EXP{能力}(ARG:0)
+		必要経験値 = RESULT
+
+		SIF 必要経験値 < 0 || EXP:(ARG:0):対応経験値 < 必要経験値
+			BREAK
+		終値 ++
+		EXP:(ARG:0):対応経験値 -= 必要経験値
+	WEND
+
+	SIF 初期値 == 終値
+		CONTINUE
+
+	ABL:(ARG:0):能力 = 終値
+	IF !ARG:1
+		SETCOLOR COLOR("オレンジ")
+		PRINTFORML %ANAME(ARG:0)%の%ABLNAME:(能力)%が上昇しました(Lv{初期値}→{終値})
+		RESETCOLOR
 	ENDIF
 NEXT
 

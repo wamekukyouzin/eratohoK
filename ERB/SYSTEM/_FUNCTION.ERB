@@ -43,6 +43,10 @@ ELSE
 	SEXUAL_EXPERIENCE:(ARG:0):初体験_アナル処女 = ----
 ENDIF
 
+TALENT:(ARG:0):危険日 = RAND:10
+
+CALL SKILL_INIT(ARG:0)
+
 ;汎用キャラなら口上パターンを設定
 IF IS_CHILD(ARG:0) || IS_RANDOM_CHARA(ARG:0)
 	CALL SET_KOJO_PATTERN(ARG:0)
@@ -153,8 +157,8 @@ NEXT
 ;-------------------------------------------------
 @INITIALIZE_CHARA(ARG:0)
 
-;CSVが存在しない場合および「あなた」である場合
-IF !EXISTCSV(NO:(ARG:0)) || ARG:0 == NAME_TO_CHARA("あなた")
+;CSVが存在しない場合
+IF !EXISTCSV(NO:(ARG:0))
 	;初期化しない(できない)
 	RETURN
 ENDIF
@@ -313,6 +317,11 @@ FOR LOCAL, 0, PREGNANT_RECORD_MAX
 	PREGNANT_RECORD_FATHER:(ARG:0):LOCAL = 0
 	PREGNANT_RECORD_TIMES:(ARG:0):LOCAL = 0
 NEXT
+
+TALENT:(ARG:0):危険日 = RAND:10
+
+CALL SKILL_INIT(ARG:0)
+
 ;-------------------------------------------------
 ;TALENTの初期値を現在の値に設定する関数
 ;-------------------------------------------------
@@ -584,6 +593,22 @@ RETURN 0
 @CLEAR_MPLY
 VARSET MPLY, -1
 MPLY_NUM = 0
+
+;-------------------------------------------------
+;そのキャラが調教に参加しているか調べる関数
+;-------------------------------------------------
+@IS_PARTICIPATE_TRAIN(対象)
+#FUNCTION
+#DIM 対象
+IF 対象 != MASTER
+	RETURNF CFLAG:対象:調教参加フラグ
+ELSE
+	IF FLAG:調教モード == 調教_慰安
+		RETURNF CFLAG:対象:調教参加フラグ
+	ELSE
+		RETURNF 1
+	ENDIF
+ENDIF
 
 ;-------------------------------------------------
 ;そのARG:0番のキャラが担当してる説得相手のキャラ番号を返す関数
@@ -1212,7 +1237,7 @@ RETURNF IS_MALE(ARG:0) == IS_MALE(ARG:1)
 ;-------------------------------------------------
 @IS_ANIMAL(ARG:0)
 #FUNCTION
-RETURNF TALENT:(ARG:0):犬 || TALENT:(ARG:0):豚
+RETURNF TALENT:(ARG:0):犬 || TALENT:(ARG:0):豚 || TALENT:(ARG:0):馬
 
 ;-------------------------------------------------
 ;ARG:0番のキャラが固定キャラ（ランダムキャラ、子供、特殊キャラ)なら1を返す関数
@@ -1342,15 +1367,6 @@ SELECTCASE ARG:0
 ENDSELECT
 RETURNF "不明"
 
-;-------------------------------------------------
-;ARG:0番のキャラの三人称を文字列として返す
-;-------------------------------------------------
-@TOSTR_THIRD(ARG:0)
-#FUNCTIONS
-IF IS_MALE(ARG:0)
-	RETURNF "彼"
-ENDIF
-RETURNF "彼女"
 
 ;-------------------------------------------------
 ;バストサイズの数値を文字列に直す
@@ -1415,7 +1431,7 @@ RETURN
 
 
 ;-------------------------------------------------
-;バストサイズの数値を文字列に直す
+;ペニスサイズの数値を文字列に直す
 ;-2:絶壁～2:爆乳
 ;-------------------------------------------------
 @TOSTR_PENISSIZE(ARG:0)
@@ -1434,12 +1450,12 @@ ENDSELECT
 RETURNF "並根"
 
 ;-------------------------------------------------
-;キャラARG:0のバストサイズを数値に変換する
+;キャラARG:0のペニスサイズを数値に変換する
 ;-2:絶壁～2:爆乳
 ;-------------------------------------------------
 @GET_PENISSIZE_NUM(ARG:0)
 #FUNCTION
-IF IS_FEMALE(ARG:0)
+IF !PENIS(ARG:0)
 	RETURNF -2
 ELSEIF TALENT:(ARG:0):超短小
 	RETURNF -2
@@ -1461,7 +1477,7 @@ TALENT:(ARG:0):超短小 = 0
 TALENT:(ARG:0):短小 = 0
 TALENT:(ARG:0):巨根 = 0
 TALENT:(ARG:0):超巨根 = 0
-SIF IS_FEMALE(ARG:0)
+SIF !PENIS(ARG:0)
 	RETURN
 SELECTCASE ARG:1
 	CASE -2
@@ -2038,9 +2054,9 @@ RETURN RESULT
 ;ARG:1　色 0~0xFFFFFF
 ;ARGS:1　オプション LかW
 ;-------------------------------------------------
-@COLORPRINTFORM(ARGS:0, ARG:0, ARGS:1 = "")
+@COLORPRINT(ARGS:0, ARG:0, ARGS:1 = "")
 SIF ARG:0 < 0 || ARG:0 > 0xFFFFFF
-	THROW "@COLORPRINTFORMの色指定に0~FFFFFFの範囲外の数値が投げられました"
+	THROW "@COLORPRINTの色指定に0~FFFFFFの範囲外の数値が投げられました"
 GETCOLOR
 LOCAL:0 = RESULT
 
@@ -2121,7 +2137,7 @@ WHILE 1
 WEND
 FOR LOCAL, 0, SEPNUM
 	IF SHORTHANDFLAG:LOCAL && COL:NOWCOL != 0
-		CALL COLORPRINTFORM(@"%SEPSTR:LOCAL%", COL:NOWCOL)
+		CALL COLORPRINT(@"%SEPSTR:LOCAL%", COL:NOWCOL)
 		SIF NOWCOL < VARSIZE("COL") - 1 && COL:(NOWCOL + 1) != 0
 			NOWCOL ++
 	ELSE
@@ -2133,6 +2149,52 @@ IF OPTION == "L"
 ELSEIF OPTION == "W"
 	PRINTFORMW
 ENDIF
+
+;-------------------------------------------------
+;/で区切った文字列を渡すと、その中から等確率で一つ返す
+;CONDITIONには何かしらの条件式を入力する。条件に応じて返却候補の文字列を拡張したい場合に使う。このへんはIFRANDと似たような感覚。
+;返却候補がなければ空文字列を返す。
+;-------------------------------------------------
+@SPLIT_RAND(ORIGSTR:0, CONDITION:0, ORIGSTR:1 = "", CONDITION:1 = 0, ORIGSTR:2 = "", CONDITION:2 = 0, ORIGSTR:3 = "", CONDITION:3 = 0, ORIGSTR:4 = "", CONDITION:4 = 0)
+#FUNCTIONS
+#DIMS ORIGSTR, 5
+#DIM CONDITION, 5
+#DIMS SEPSTR, 1000
+#DIM SEPNUM
+#DIMS RETCANDIDATE, 1000
+#DIM RETNUM
+#DIM RESULT_ORIG
+
+;RESULTを汚染する命令を使用するため退避
+RESULT_ORIG = RESULT
+
+VARSET SEPSTR
+VARSET SEPNUM
+VARSET RETCANDIDATE
+VARSET RETNUM
+
+FOR LOCAL, 0, VARSIZE("ORIGSTR")
+	;条件を満たしていないならダメ
+	SIF !CONDITION:LOCAL
+		CONTINUE
+	;分割
+	SPLIT ORIGSTR:LOCAL, "/" , SEPSTR
+	SEPNUM = RESULT
+
+	;分割したやつを返却候補に保存
+	FOR LOCAL:1, 0, SEPNUM
+		RETCANDIDATE:RETNUM = %SEPSTR:(LOCAL:1)%
+		RETNUM ++
+	NEXT
+NEXT
+
+SIF RETNUM == 0
+	THROW RAND_SPLITの返却候補が一つもありません
+
+;RESULT汚染対策
+RESULT = RESULT_ORIG
+
+RETURNF RETCANDIDATE:(RAND:RETNUM)
 
 
 ;-------------------------------------------------
@@ -2297,7 +2359,13 @@ ELSE
 ENDIF
 RESETCOLOR
 PRINT  
-IF ID_TO_CHARA(FLAG:推しメン指定キャラ) == ARG:0
+IF TALENT:(ARG:0):崩壊
+	SETCOLOR COLOR("警告")
+	PRINT 崩
+ELSEIF TALENT:(ARG:0):虚ろ
+	SETCOLOR COLOR("警告")
+	PRINT 虚
+ELSEIF ID_TO_CHARA(FLAG:推しメン指定キャラ) == ARG:0
 	SETCOLOR COLOR("注意")
 	PRINT 推
 ELSEIF GETBIT(TALENT:(ARG:0):特殊勢力陥落系, 特殊勢力_外来人)
@@ -2352,7 +2420,11 @@ ELSE
 ENDIF
 RESETCOLOR
 PRINT  
-IF CFLAG:(ARG:0):行動不能状態 == 1
+
+IF CFLAG:(ARG:0):行動不能状態 == 4
+	SETCOLOR COLOR("緑")
+	PRINTPLAIN 幼
+ELSEIF CFLAG:(ARG:0):行動不能状態 == 1
 	SETCOLOR COLOR("妊娠")
 	PRINTPLAIN 臨
 ELSEIF TALENT:(ARG:0):妊娠
@@ -2361,6 +2433,9 @@ ELSEIF TALENT:(ARG:0):妊娠
 ELSEIF CFLAG:(ARG:0):避妊薬残ターン
 	SETCOLOR COLOR("妊娠")
 	PRINTPLAIN 避
+ELSEIF IS_OVULATION(ARG:0)
+	SETCOLOR COLOR("ピンク")
+	PRINTPLAIN 危
 ELSEIF CFLAG:(ARG:0):行動不能状態 == 2
 	SETCOLOR 0xFFC0C0
 	PRINTPLAIN 育
@@ -2370,9 +2445,6 @@ ELSEIF CFLAG:(ARG:0):行動不能状態 == 3
 ELSEIF COOLTIME:(ARG:0):0
 	SETCOLOR COLOR("警告")
 	PRINTFORM %TOFULL(TOSTR(COOLTIME:(ARG:0):0))%
-ELSEIF CFLAG:(ARG:0):行動不能状態 == 4
-	SETCOLOR COLOR("緑")
-	PRINTPLAIN 幼
 ELSE
 	PRINTPLAIN   
 ENDIF
@@ -2527,8 +2599,7 @@ ADDCHARA CSVNO
 CALL NEWCHARA_INIT(CHARANUM - 1)
 RETURN CHARANUM - 1
 
-;ランダムキャラ、子供以外で同じシナリオ中で同じデータが複数人が出てくるなどでCSVから生成することができないキャラを追加する際
-;そのキャラの種別であいているNOを取得するための関数
+;特殊キャラ用の空きNOを取得する関数
 @GET_EMPTY_NO()
 #FUNCTION
 ;範囲の最低値を入れる
@@ -2541,11 +2612,12 @@ FOR LOCAL:0, 0, CHARANUM
 NEXT
 RETURNF LOCAL:1
 
-;ランダムキャラを追加するためのひな形を用意する関数　になるかと思ってた
-;ARG:0 危険！使わないこと
+;特殊キャラのひな型となるキャラを生成する関数
+;
 @ADD_VOID_CHARA()
 ADDVOIDCHARA
 NO:(CHARANUM - 1) = GET_EMPTY_NO()
+CALL NEWCHARA_INIT(CHARANUM - 1)
 RETURN CHARANUM - 1
 
 ;-------------------------------------------------
@@ -2867,7 +2939,7 @@ TALENT:対象:Ｖ締まり -= 減少量
 変化後 = TOSTR_TIGHTNESS(TALENT:対象:Ｖ締まり)
 
 SIF 変化前 != 変化後
-	CALL COLORPRINTFORM(@"%ANAME(対象)%の膣の締まりが%変化後%になった", COLOR("注意"), "L")
+	CALL COLORPRINT(@"%ANAME(対象)%の膣の締まりが%変化後%になった", COLOR("注意"), "L")
 
 ;---------------------------
 ;対象の膣の締まりが悪化する処理
@@ -2891,7 +2963,7 @@ TALENT:対象:Ａ締まり -= 減少量
 変化後 = TOSTR_TIGHTNESS(TALENT:対象:Ａ締まり)
 
 SIF 変化前 != 変化後
-	CALL COLORPRINTFORM(@"%ANAME(対象)%のアナルの締まりが%変化後%になった", COLOR("注意"), "L")
+	CALL COLORPRINT(@"%ANAME(対象)%のアナルの締まりが%変化後%になった", COLOR("注意"), "L")
 
 ;---------------------------
 ;与えられた文字列に対するデフォルトの締まり具合を取得する関数
@@ -2959,7 +3031,7 @@ ENDSELECT
 @DAILY_START(EVENTNAME)
 #DIMS EVENTNAME
 DRAWLINE
-CALL COLORPRINTFORM(@"-デイリーイベント『%EVENTNAME%』発生-", COLOR("注意"), "L")
+CALL COLORPRINT(@"-デイリーイベント『%EVENTNAME%』発生-", COLOR("注意"), "L")
 FORCEWAIT
 DRAWLINE
 PRINTFORML ・
@@ -3202,13 +3274,15 @@ PRINT  歌唱:
 CALL PRINT_ALPHABET_RANK(ランク_ＳＬＧ, ABL:対象:歌唱)
 PRINTFORM {ABL:対象:歌唱, 3, LEFT}
 PRINTL
-PRINTFORM 所持SLG素質:
-LOCAL:1 = 0
-FOR LOCAL, 0, VARSIZE("SLG_TALENT_NAME")
-	IF GETBIT(TALENT:対象:ＳＬＧ素質, LOCAL)
-		PRINTFORM %SLG_TALENT_NAME:LOCAL% 
-		LOCAL:1 = 1
-	ENDIF
-NEXT
-PRINTL
 DRAWLINE
+
+@IS_OVULATION(対象)
+#FUNCTION
+#DIM 対象
+#DIM 下一桁
+SIF !VAGINA(対象)
+	RETURNF 0
+
+下一桁 = DAY % 10
+
+RETURNF 下一桁 == TALENT:対象:危険日

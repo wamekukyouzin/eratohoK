@@ -205,15 +205,16 @@ RETURNF 0
 ;-------------------------------------------------
 ;「民の慰安」のモブ追加処理
 ;-------------------------------------------------
-@CREATE_IAN_MOB(行き先)
+@CREATE_IAN_MOB(行き先, 人数)
 #DIM 行き先
+#DIM 人数
 #DIM 種類
 #DIM 男女
 #DIMS 名前
 #DIM 対象
 種類 = CREATE_IAN_MOB_GET_CHARA(行き先)
 男女 = CREATE_IAN_MOB_GET_SEX(種類)
-名前 = %CREATE_IAN_MOB_GET_NAME(種類, 男女)%
+名前 = %CREATE_IAN_MOB_GET_NAME(種類, 男女)%%TOFULL(TOSTR(人数))%
 
 CALL CREATE_RANDOM_CHARA(0, -1, 0)
 FLAG:汎用武将カウント --
@@ -359,8 +360,21 @@ SELECTCASE 行き先
 		 @"{慰安_キャラ_死神}", 1,
 		 @"{慰安_キャラ_幽霊}", RAND:100 < 30)
 }
-
-
+	CASE 慰安_行き先_紅魔館
+{
+		RETURNF IFRAND(
+		@"{慰安_キャラ_ホフゴブリン}", 1,
+		@"{慰安_キャラ_妖精}", RAND:100 < 30
+		)
+}
+	CASE 慰安_行き先_月の都
+{
+		RETURNF IFRAND(
+		@"{慰安_キャラ_月人}, {慰安_キャラ_月兎}", 1
+		)
+}
+	CASE 慰安_行き先_天界
+		RETURNF 慰安_キャラ_天人
 ENDSELECT
 RETURNF 慰安_キャラ_民
 
@@ -371,7 +385,7 @@ RETURNF 慰安_キャラ_民
 #FUNCTION
 #DIM 種類
 SELECTCASE 種類
-	CASE 慰安_キャラ_貴族, 慰安_キャラ_天狗, 慰安_キャラ_死神, 慰安_キャラ_河童, 慰安_キャラ_民, 慰安_キャラ_露出狂, 慰安_キャラ_子供
+	CASE 慰安_キャラ_貴族, 慰安_キャラ_天狗, 慰安_キャラ_死神, 慰安_キャラ_河童, 慰安_キャラ_民, 慰安_キャラ_露出狂, 慰安_キャラ_子供, 慰安_キャラ_月人, 慰安_キャラ_月兎, 慰安_キャラ_天人
 		RETURNF IFRAND("0", 1, "1", RAND:100 < 50, "2", RAND:100 < 20)
 	CASE 慰安_キャラ_妖精
 		RETURNF 1
@@ -431,6 +445,14 @@ SELECTCASE 種類
 		RETURNF "死神"
 	CASE 慰安_キャラ_幽霊
 		RETURNF "幽霊"
+	CASE 慰安_キャラ_ホフゴブリン
+		RETURNF "ホフゴブリン"
+	CASE 慰安_キャラ_月人
+		RETURNF "月人"
+	CASE 慰安_キャラ_月兎
+		RETURNF "月兎"
+	CASE 慰安_キャラ_天人
+		RETURNF 性別 == 0 ? "天人" # "天女"
 ENDSELECT
 
 ;-------------------------------------------------
@@ -450,6 +472,12 @@ SELECTCASE 種類
 		ABL:対象:倒錯度 = RAND(0, 300)
 		TALENT:対象:貞操無頓着 = 1
 		TALENT:対象:貞操観念 = 0
+		COM_TENDENCY:対象:36 = 1
+		COM_TENDENCY:対象:46 = 1
+		COM_TENDENCY:対象:55 = 1
+		COM_TENDENCY:対象:56 = 1
+		COM_TENDENCY:対象:57 = 1
+		COM_TENDENCY:対象:58 = 1
 	CASE 慰安_キャラ_ごろつき, 慰安_キャラ_兵士
 		ABL:対象:奉仕 = 1
 		ABL:対象:性技 = RAND(0, 4)
@@ -488,6 +516,15 @@ SELECTCASE 種類
 		TALENT:対象:貞操観念 = 0
 		TALENT:対象:プライド高い = 1
 		TALENT:対象:プライド低い = 0
+		IF 種類 == 慰安_キャラ_河童
+			TALENT:対象:技師 = 1
+			COM_TENDENCY:対象:60 = 1
+			COM_TENDENCY:対象:61 = 1
+			COM_TENDENCY:対象:62 = 1
+			COM_TENDENCY:対象:63 = 1
+			COM_TENDENCY:対象:64 = 1
+			COM_TENDENCY:対象:65 = 1
+		ENDIF
 	CASE 慰安_キャラ_鬼
 		ABL:対象:Ｃ感 = RAND(0,2)
 		ABL:対象:Ｖ感 = RAND(0,2)
@@ -516,13 +553,26 @@ SELECTCASE 種類
 		TALENT:対象:恥じらい = 0
 		TALENT:対象:好奇心 = 1
 		TALENT:対象:解放 = 1
-	CASE 慰安_キャラ_兎
+		COM_TENDENCY:対象:85 = 1
+		COM_TENDENCY:対象:86 = 1
+		COM_TENDENCY:対象:93 = 1
+		COM_TENDENCY:対象:410 = 1
+		COM_TENDENCY:対象:411 = 1
+		COM_TENDENCY:対象:112 = 1
+		COM_TENDENCY:対象:114 = 1
+	CASE 慰安_キャラ_兎, 慰安_キャラ_月兎
 		ABL:対象:欲望 = RAND(5,10)
 		ABL:対象:性技 = RAND:2
 		ABL:対象:性交 = RAND(5,10)
 		ABL:対象:射精 = RAND(5,9)
 		TALENT:対象:貞操無頓着 = 1
 		TALENT:対象:貞操観念 = 0
+		COM_TENDENCY:対象:36 = 2
+		COM_TENDENCY:対象:46 = 2
+		COM_TENDENCY:対象:55 = 2
+		COM_TENDENCY:対象:56 = 2
+		COM_TENDENCY:対象:57 = 2
+		COM_TENDENCY:対象:58 = 2
 	CASE 慰安_キャラ_野盗
 		ABL:対象:Ｃ感 = RAND(1, 5)
 		ABL:対象:欲望 = 5
@@ -576,6 +626,41 @@ SELECTCASE 種類
 		TALENT:対象:貞操観念 = 0
 		TALENT:対象:プライド高い = 1
 		TALENT:対象:プライド低い = 0
+	CASE 慰安_キャラ_ホフゴブリン
+		ABL:対象:Ｃ感 = 4
+		ABL:対象:欲望 = 6
+		ABL:対象:性技 = 4
+		ABL:対象:性知識 = 5
+		ABL:対象:奉仕 = 2
+		ABL:対象:性交 = 4
+		ABL:対象:露出 = 1
+		ABL:対象:射精 = 4
+		ABL:対象:排泄 = 2
+		ABL:対象:主導度Ｕ = 700
+		ABL:対象:主導度Ｎ = 300
+		ABL:対象:倒錯度 = 300
+		EXP:対象:絶頂経験 = 500
+		TALENT:対象:特殊勢力素質 = 特殊勢力_ホフゴブリン
+		COM_TENDENCY:対象:36 = 1
+		COM_TENDENCY:対象:46 = 1
+		COM_TENDENCY:対象:55 = 1
+		COM_TENDENCY:対象:56 = 1
+		COM_TENDENCY:対象:57 = 1
+		COM_TENDENCY:対象:58 = 1
+	CASE 慰安_キャラ_天人, 慰安_キャラ_月人
+		ABL:対象:欲望 = 5
+		ABL:対象:性技 = 5
+		ABL:対象:性知識 = 5
+		ABL:対象:奉仕 = 5
+		ABL:対象:性交 = 0
+		ABL:対象:射精 = 0
+		ABL:対象:排泄 = 2
+		ABL:対象:主導度Ｕ = 700
+		ABL:対象:倒錯度 = 600
+		TALENT:対象:技師 = 1
+		TALENT:対象:プライド高い = 1
+		TALENT:対象:プライド低い = 0
+		TALENT:対象:反抗的 = 1
 	CASEELSE
 		;デフォ
 ENDSELECT

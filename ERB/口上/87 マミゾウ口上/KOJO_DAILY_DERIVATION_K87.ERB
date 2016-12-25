@@ -1,0 +1,102 @@
+﻿@KOJO_DAILY_DERIVATION_K87()
+
+
+DAILY_NAME = 返済期限
+CALL KOJO_DAILY_DERIVATION_K87_REPAYMENT()
+
+;----------------------------------
+;武者修行からの帰還
+;----------------------------------
+@KOJO_DAILY_DERIVATION_K87_REPAYMENT()
+
+#DIM マミゾウ
+#DIM 担保
+
+マミゾウ = NAME_TO_CHARA("マミゾウ")
+
+SIF マミゾウ == -1
+	RETURN -1
+
+SIF CFLAG:マミゾウ:捕虜先 || CFLAG:マミゾウ:特殊状態
+	RETURN -1
+
+SIF KDVAR:マミゾウ:マミゾウ_金貸し_返済期限 == 0
+	RETURN -1
+
+KDVAR:マミゾウ:マミゾウ_金貸し_返済期限 --
+
+SIF KDVAR:マミゾウ:マミゾウ_金貸し_返済期限
+	RETURN 
+
+IF CFLAG:マミゾウ:所属 == CFLAG:MASTER:所属
+	PRINTFORMW 所属が同じになったので、%ANAME(マミゾウ)%に借りていた金のことはチャラになったようだ……
+	KDVAR:マミゾウ:マミゾウ_金貸し_返済額 = 0
+	RETURN
+ENDIF
+
+CALL KOJO_DAILY_START
+PRINTFORMW %ANAME(マミゾウ)%がやってきた……
+PRINTFORMW 「久しぶりじゃな。さて、貸した金を返してもらおうか？」
+
+CALL ASK_MULTI_JUDGE("返す", MONEY >= KDVAR:マミゾウ:マミゾウ_金貸し_返済額, "返せない", 1)
+
+IF RESULT == 0
+	MONEY -= KDVAR:マミゾウ:マミゾウ_金貸し_返済額
+	CALL ICPRINT(@"金<{KDVAR:マミゾウ:マミゾウ_金貸し_返済額}>、耳をそろえて返した……", "L", COLOR("注意"))
+	PRINTFORMW 「ん、確かに」
+	PRINTFORMW 「それじゃ儂はこれで、機会があったらまた会おう」
+	PRINTFORMW %ANAME(マミゾウ)%は立ち去った……
+	KDVAR:マミゾウ:マミゾウ_金貸し_返済額 = 0
+	RETURN
+ENDIF
+
+PRINTFORML すまないが返せない……素直にそう伝えた
+PRINTFORMW %ANAME(マミゾウ)%は呆れた表情を浮かべる
+PRINTFORMW 「返せないとな……？　ならなぜ借りた？」
+PRINTFORMW 「まあ、仕方ない。返せんものを返せと言っても仕方がないからのう。……ただし、代わりのものはいただくぞい？」
+
+CALL DAILY_EVENT_RAND_CHARASELECT()
+
+担保 = RESULT
+{
+SELECTCASE IFRAND(
+                  "0", GET_COUNTRY_BOSS(CFLAG:MASTER:所属) == MASTER,
+                  "1", 担保 != MASTER,
+                  "2", GET_COUNTRY_BOSS(CFLAG:MASTER:所属) != MASTER)
+}
+	;主人公が君主、かつほかのマミゾウが選択されなかった
+	;スケベするだけ
+	CASE 0
+		PRINTFORMW 「そうじゃな……では代わりに、お前さんの貞操をいただこうか」
+		PRINTFORMW 「なに、悪いようにはせんよ。じっとしておればいい……くく」
+		PRINTFORMW とんでもないことを言い始めた……だが、非はこちらにある。拒否するわけにもいくまい
+		PRINTFORMW あきらめて身を任せることにした……
+		$START
+		;全員の調教参加フラグをクリア
+		CVARSET CFLAG, 6, 0
+		CFLAG:マミゾウ:調教参加フラグ = 1
+		CFLAG:マミゾウ:好感度 += 200
+		CFLAG:マミゾウ:強制友好化 = 1
+		BASE:マミゾウ:体力 = MAXBASE:マミゾウ:体力
+		BASE:マミゾウ:気力 = MAXBASE:マミゾウ:気力
+		;強制逆調教フラグをオン
+		FLAG:強制調教フラグ = 2
+		;それ以降のデイリーイベント発生を潰す
+		DAILY_CANCEL = 1
+	CASE 1
+		PRINTFORMW 「そうじゃな……お前さんの仲間の身柄でよかろ」
+		PRINTFORMW 「悪いが、%ANAME(担保)%を連れていくぞい」
+		PRINTFORMW 戦力を失うのは厳しい……だが、致し方あるまい
+		PRINTFORMW 連れていかれる%ANAME(担保)%を見送った……
+		CALL CHANGE_COUNTRY(担保, CFLAG:マミゾウ:所属, 1)
+		CALL COLORPRINT(@"%ANAME(担保)%が、マミゾウの所属である%ANAME(GET_COUNTRY_BOSS(CFLAG:マミゾウ:所属))%に移籍しました", COLOR("警告"), "W")
+	CASE 2
+		PRINTFORMW 「そうじゃな……では代わりに、お前さんの身柄と貞操をいただこうか」
+		PRINTFORMW 「なに、悪いようにはせんよ。おとなしくしておいてくれればの。……くく」
+		PRINTFORMW 何をされるのか……だが、しかたがない
+		PRINTFORMW あきらめて身を任せ、その後連れていかれることにした……
+		CALL CAPTURE(MASTER, CFLAG:マミゾウ:所属)
+		GOTO START
+ENDSELECT
+
+RETURN 

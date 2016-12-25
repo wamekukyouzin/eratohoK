@@ -41,7 +41,7 @@ CALL BATTLE_CALC(ARG:0, ARG:1, ARG:2, ARG:3)
 
 ;■ダメージの適用
 ;自勢力のみ詳細を表示(ただし捕虜になっていると見られない)
-LOCAL = FLAG:観戦モード || (CFLAG:MASTER:所属 >= 1 && CFLAG:MASTER:捕虜先 == 0 && (ARG:0 == CFLAG:MASTER:所属 || LOCAL:6 == CFLAG:MASTER:所属))
+LOCAL = FLAG:観戦モード || (CFLAG:MASTER:所属 >= 1 && CFLAG:MASTER:捕虜先 == 0 && (ARG:0 == CFLAG:MASTER:所属 || ARG:2 == CFLAG:MASTER:所属))
 CALL DECREASE_SOLDIER(ARG:0, ARG:1, BATTLE_DMG:0, LOCAL)
 CALL DECREASE_SOLDIER(ARG:2, ARG:3, BATTLE_DMG:1, LOCAL)
 
@@ -71,7 +71,7 @@ IF UNIT_SOLDIER:(ARG:0):(ARG:1) <= 0
 		ELSE
 			LOCALS:2 = <%LOCALS:2%>
 		ENDIF
-		CALL COLORPRINTFORM(@"%LOCALS:2%部隊が潰走しました……", COLOR("警告"), "W")
+		CALL COLORPRINT(@"%LOCALS:2%部隊が潰走しました……", COLOR("警告"), "W")
 	ELSE
 		PRINTFORML %BATTLE_NAME:0%軍は潰走しました
 	ENDIF
@@ -81,23 +81,8 @@ IF UNIT_SOLDIER:(ARG:0):(ARG:1) <= 0
 		CALL CHANGE_RELATION_C_TO_C(ARG:0, ARG:2, (-10 * AI_RELATION:(LOCAL:1):0 / 100), (50 * 100 / AI_RELATION:(LOCAL:1):0))
 	ENDIF
 
-	IF IS_COUNTRY(ARG:2) && FINDELEMENT(TREATY_U_TARGET, ARG:2) != -1
-		LOCAL:1 = FINDELEMENT(TREATY_U_TARGET, ARG:2)
-		FOR LOCAL, 0, MAX_TREATY_COUNTRY
-			SIF TREATY_U_COUNTRY:(LOCAL:1):LOCAL == ARG:0
-				BREAK
-		NEXT
-		PRINTFORML 連合討伐対象である%BATTLE_NAME:1%を撃破したことで、連合参加国からの%BATTLE_NAME:0%の評価が向上した
-		CALL ICPRINT(@"また、報奨金として金<5000>が与えられた", "L", COLOR("注意"))
-		IF LOCAL != MAX_TREATY_COUNTRY
-			FOR LOCAL, 0, MAX_TREATY_COUNTRY
-				LOCAL:2 = TREATY_U_COUNTRY:(LOCAL:1):LOCAL
-				SIF IS_COUNTRY(LOCAL:2) && LOCAL:2 != ARG:0
-					CALL CHANGE_RELATION_C_TO_C(LOCAL:2, ARG:0, 30, -30)
-			NEXT
-		ENDIF
-		MONEY:(ARG:0) += 5000
-	ENDIF
+	SIF IS_COUNTRY(ARG:0) && FINDELEMENT(TREATY_U_TARGET, ARG:0) != -1
+		CALL SLG_COMBAT_BEAT_TREATY_TARGET(ARG:2, ARG:0)
 
 	;将の捕獲
 	CALL UNIT_BREAK(1, ARG:2, ARG:3, ARG:0, ARG:1)
@@ -116,7 +101,7 @@ IF UNIT_SOLDIER:(ARG:2):(ARG:3) <= 0
 		ELSE
 			LOCALS:2 = <%LOCALS:2%>
 		ENDIF
-		CALL COLORPRINTFORM(@"%LOCALS:2%部隊が潰走しました……", COLOR("警告"), "W")
+		CALL COLORPRINT(@"%LOCALS:2%部隊が潰走しました……", COLOR("警告"), "W")
 	ELSE
 		PRINTFORML %BATTLE_NAME:1%軍は潰走しました
 	ENDIF
@@ -125,6 +110,10 @@ IF UNIT_SOLDIER:(ARG:2):(ARG:3) <= 0
 	ELSE
 		CALL CHANGE_RELATION_C_TO_C(ARG:2, ARG:0, (-10 * AI_RELATION:(LOCAL:2):0 / 100), (50 * 100 / AI_RELATION:(LOCAL:2):0))
 	ENDIF
+
+	SIF IS_COUNTRY(ARG:2) && FINDELEMENT(TREATY_U_TARGET, ARG:2) != -1
+		CALL SLG_COMBAT_BEAT_TREATY_TARGET(ARG:0, ARG:2)
+
 	;将の捕獲
 	CALL UNIT_BREAK(0, ARG:0, ARG:1, ARG:2, ARG:3)
 	;壊滅した部隊の後始末
@@ -222,12 +211,16 @@ IF CITY_SOLDIER:(ARG:2) <= 0
 	ENDIF
 	;DEBUGPRINTFORML {DAY,3}【略奪】\@LOCAL:6 ? %NAME:(GET_COUNTRY_BOSS(LOCAL:6))% # 無所属\@＞%NAME:(GET_COUNTRY_BOSS(ARG:0))%:{LOCAL:10}
 	IF IS_COUNTRY(CITY_OWNER:(ARG:2)) && CITY_OWNER:(ARG:2) == CFLAG:MASTER:所属 && !FLAG:観戦モード
-		CALL COLORPRINTFORM(@"%BATTLE_NAME:0%軍に%GET_CITYNAME(ARG:2)%を奪われました！", COLOR("警告"), "W")
+		CALL COLORPRINT(@"%BATTLE_NAME:0%軍に%GET_CITYNAME(ARG:2)%を奪われました！", COLOR("警告"), "W")
 	ELSEIF ARG:0 == CFLAG:MASTER:所属
-		CALL COLORPRINTFORM(@"%GET_CITYNAME(ARG:2)%を占領しました！", COLOR("注意"), "W")
+		CALL COLORPRINT(@"%GET_CITYNAME(ARG:2)%を占領しました！", COLOR("注意"), "W")
 	ELSE
 		PRINTFORML %BATTLE_NAME:0%軍が%GET_CITYNAME(ARG:2)%を占領しました
 	ENDIF
+
+	SIF IS_COUNTRY(CITY_OWNER:(ARG:2)) && FINDELEMENT(TREATY_U_TARGET, CITY_OWNER:(ARG:2)) != -1
+		CALL SLG_COMBAT_BEAT_TREATY_TARGET(ARG:0, CITY_OWNER:(ARG:2))
+
 
 	;部隊壊滅時の士官の捕獲
 	CALL UNIT_BREAK(0, ARG:0, ARG:1, ARG:2, -1)
@@ -256,24 +249,6 @@ IF CITY_SOLDIER:(ARG:2) <= 0
 		CALL CHANGE_RELATION_C_TO_C(LOCAL:6, ARG:0, (-10 * AI_RELATION:(LOCAL:2):(LOCAL:1) / 100), (100 * 100 / AI_RELATION:(LOCAL:2):(LOCAL:1)))
 	ELSE
 		CALL CHANGE_RELATION_C_TO_C(LOCAL:6, ARG:0, (-10 * AI_RELATION:(LOCAL:2):0 / 100), (100 * 100 / AI_RELATION:(LOCAL:2):0))
-	ENDIF
-
-	IF IS_COUNTRY(LOCAL:6) && FINDELEMENT(TREATY_U_TARGET, LOCAL:6) != -1
-		LOCAL:1 = FINDELEMENT(TREATY_U_TARGET, LOCAL:6)
-		FOR LOCAL, 0, MAX_TREATY_COUNTRY
-			SIF TREATY_U_COUNTRY:(LOCAL:1):LOCAL == ARG:0
-				BREAK
-		NEXT
-		PRINTFORML 連合討伐対象である%BATTLE_NAME:1%を撃破したことで、連合参加国からの%BATTLE_NAME:0%の評価が向上した
-		CALL ICPRINT(@"また、報奨金として金<5000>が与えられた", "L", COLOR("注意"))
-		IF LOCAL != MAX_TREATY_COUNTRY
-			FOR LOCAL, 0, MAX_TREATY_COUNTRY
-				LOCAL:2 = TREATY_U_COUNTRY:(LOCAL:1):LOCAL
-				SIF IS_COUNTRY(LOCAL:2) && LOCAL:2 != ARG:0
-					CALL CHANGE_RELATION_C_TO_C(LOCAL:2, ARG:0, 10, -10)
-			NEXT
-		ENDIF
-		MONEY:(ARG:0) += 5000
 	ENDIF
 
 	;勢力の滅亡判定
@@ -343,10 +318,15 @@ ELSE
 			ELSE
 				LOCALS:2 = <%LOCALS:2%>
 			ENDIF
-			CALL COLORPRINTFORM(@"%LOCALS:2%部隊が潰走しました……", COLOR("警告"), "W")
+			CALL COLORPRINT(@"%LOCALS:2%部隊が潰走しました……", COLOR("警告"), "W")
 		ELSE
 			PRINTFORML %BATTLE_NAME:0%軍は潰走しました
 		ENDIF
+
+		;このパターンのみ、倒した側がIS_COUNTRYであるかのチェックも行う(都市側が無所属である可能性もあるので)
+		SIF IS_COUNTRY(ARG:0) && IS_COUNTRY(CITY_OWNER:(ARG:2)) && FINDELEMENT(TREATY_U_TARGET, ARG:0) != -1
+			CALL SLG_COMBAT_BEAT_TREATY_TARGET(CITY_OWNER:(ARG:2), ARG:0)
+
 		;都市所有勢力が居た場合のみ
 		IF LOCAL:5 >= 0
 			;部隊壊滅時の士官の捕獲
@@ -653,10 +633,10 @@ IF ARG:3 < 0 ? CITY_OWNER:(ARG:2) == CFLAG:MASTER:所属 # ARG:2 == CFLAG:MASTER
 	SIF BATTLE_MAG:0 < 0
 		BATTLE_MAG:0 = __INT_MAX__
 ELSEIF ARG:0 == CFLAG:MASTER:所属
-	BATTLE_ATC:1 = BATTLE_ATC:1 * 補正倍率 / 10
-	BATTLE_DEF:1 = BATTLE_DEF:1 * 補正倍率 / 10
-	BATTLE_INT:1 = BATTLE_INT:1 * 補正倍率 / 10
-	BATTLE_MAG:1 = BATTLE_MAG:1 * 補正倍率 / 10
+	BATTLE_ATC:1 = BATTLE_ATC:1 * 補正倍率 / 100
+	BATTLE_DEF:1 = BATTLE_DEF:1 * 補正倍率 / 100
+	BATTLE_INT:1 = BATTLE_INT:1 * 補正倍率 / 100
+	BATTLE_MAG:1 = BATTLE_MAG:1 * 補正倍率 / 100
 	;オーバフローして符号が反転する問題対策
 	;しかたないので負数なら整数の最大値ブチ込みます
 	SIF BATTLE_ATC:1 < 0
@@ -804,124 +784,9 @@ ENDIF
 
 FOR LOCAL:0, 0, BATTLE_COMMANDER_NUM:発動側
 	発動キャラ = BATTLE_COMMANDER:(発動側):(LOCAL:0)
-	
 	SIF 発動キャラ < 0 || BATTLE_SKILL_SEALED:(発動側):(LOCAL:0) || BATTLE_SUMMONED_CHARA:(発動側):(LOCAL:0)
 		CONTINUE
-
-	;スキル呼び出し
-	FOR LOCAL:1, 0, MAX_SKILLS
-		CALL SKILL_COMBAT_TRY_INVOKE(発動キャラ, LOCAL:0, "SP", LOCAL:1, 発動側, 発動勢力, 発動部隊, 対象勢力, 対象部隊)
-		SIF RESULT == -1
-			BREAK
-	NEXT
-	SETCOLOR COLOR("素質発動")
-
-	発動キャラ素質 = BATTLE_素質:発動側:LOCAL
-
-	;弁舌。兵力を奪う。
-	IF GETBIT(発動キャラ素質, 素質_ＳＬＧ_弁舌) && 15 > RAND:100
-		LOCAL:6 = RAND(1, 20)
-		;勢力番号取得
-		LOCAL:6 = GET_SOLDIER(対象勢力, 対象部隊) * RAND(1, 20) / 100
-		PRINTFORML \@ GET_COUNTRY_BOSS(LOCAL:5) >= 0 ? %ANAME(GET_COUNTRY_BOSS(LOCAL:5))% # 敵 \@軍の兵は、%ANAME(発動キャラ)%の弁舌に騙され、次々と寝返っている！
-		CALL DECREASE_SOLDIER(対象勢力, 対象部隊, LOCAL:6, 1)
-		CALL INCREASE_SOLDIER(発動勢力, 発動部隊, LOCAL:6, 1)
-	ENDIF
-
-	;斉射。敵部隊を1割（最大2000）削る
-	IF GETBIT(発動キャラ素質, 素質_ＳＬＧ_斉射) && 25 > RAND:100
-		PRINTFORML %ANAME(発動キャラ)%は敵部隊に一斉掃射を仕掛けた！
-		LOCAL:6 = MIN(GET_SOLDIER(対象勢力, 対象部隊) * 10 / 100 , 2000)
-		CALL DECREASE_SOLDIER(対象勢力, 対象部隊, LOCAL:6, 1)
-	ENDIF
-	
-	;ホフゴブリン。援軍を呼ぶ。
-	IF TALENT:発動キャラ:特殊勢力素質 == 特殊勢力_ホフゴブリン && 25 > RAND:100
-		PRINTFORML %ANAME(発動キャラ)%は仲間を呼んだ！
-		LOCAL:6 = RAND(500, MAX(500 + SP_COUNTRY_RANK:(特殊勢力_ホフゴブリン) * 500))
-		PRINTFORML 援軍が現れた！
-		IF 発動部隊 >= 0
-			PRINTFORML %ANAME(GET_COUNTRY_BOSS(CFLAG:発動キャラ:所属)), 10, RIGHT%軍:{UNIT_SOLDIER:発動勢力:発動部隊, 6, RIGHT} → {UNIT_SOLDIER:発動勢力:発動部隊 + LOCAL:6, 6, RIGHT}
-			UNIT_SOLDIER:発動勢力:発動部隊 += LOCAL:6
-		ELSE
-			PRINTFORML %ANAME(GET_COUNTRY_BOSS(CFLAG:発動キャラ:所属)), 10, RIGHT%軍:{CITY_SOLDIER:発動勢力, 6, RIGHT} → {CITY_SOLDIER:発動勢力 + LOCAL:6, 6, RIGHT}
-			CITY_SOLDIER:発動勢力 += LOCAL:6
-		ENDIF
-	ENDIF
-
-	SIF FINDELEMENT(BATTLE_COMMANDER_NUM, 0) != -1
-		CONTINUE
-	;-----------ここから対象をとる素質------------------
-	;暗殺。相手武将の中から一人選択し、その能力を一時的に0にする（戦闘参加不能と解釈）
-	IF GETBIT(発動キャラ素質, 素質_ＳＬＧ_暗殺) && 15 > RAND:100
-		LOCAL:1 = RAND:(BATTLE_COMMANDER_NUM:対象側)
-		対象キャラ = BATTLE_COMMANDER:対象側:(LOCAL:1)
-		IF 対象キャラ >= 0
-			PRINTFORML %ANAME(発動キャラ)%は、%ANAME(対象キャラ)%に暗殺をしかけた！
-			PRINTFORML %ANAME(対象キャラ)%はこの戦闘に参加できない！
-		ENDIF
-	ENDIF
-
-	;封魔。対象の素質発動を封じる。
-	IF GETBIT(発動キャラ素質, 素質_ＳＬＧ_封魔) && 20 > RAND:100
-		LOCAL:1 = RAND:(BATTLE_COMMANDER_NUM:対象側)
-		対象キャラ = BATTLE_COMMANDER:対象側:(LOCAL:1)
-		IF 対象キャラ >= 0
-			PRINTFORML %ANAME(発動キャラ)%は%ANAME(対象キャラ)%に封魔の術をかけた！
-			PRINTFORML %ANAME(対象キャラ)%はこの戦闘で素質を発動できない！
-			BATTLE_SKILL_SEALED:(対象側):(LOCAL:1) = 1
-		ENDIF
-	ENDIF
-
-	;触手。パーティに女がいると援軍を得る
-	IF TALENT:発動キャラ:特殊勢力素質 == 特殊勢力_触手 && 20 > RAND:100
-		FOR LOCAL, 0, BATTLE_COMMANDER_NUM:発動側
-			LOCAL:1 = BATTLE_COMMANDER:発動側:LOCAL
-			IF LOCAL:1 >= 0 && IS_FEMALE(LOCAL:1) && BATTLE_武闘:発動側:LOCAL > 0
-				PRINTFORML %ANAME(LOCAL:1)%の身体に触手が群がっていく……！
-				PRINTFORML %ANAME(LOCAL:1)%を母体として、触手は増殖した！
-				LOCAL:6 = RAND(500, MAX(1000 + SP_COUNTRY_RANK:(特殊勢力_触手) * 500))
-				IF 発動部隊 >= 0
-					PRINTFORML %ANAME(GET_COUNTRY_BOSS(CFLAG:発動キャラ:所属)), 10, RIGHT%軍:{UNIT_SOLDIER:発動勢力:発動部隊, 6, RIGHT} → {UNIT_SOLDIER:発動勢力:発動部隊 + LOCAL:6, 6, RIGHT}
-					UNIT_SOLDIER:発動勢力:発動部隊 += LOCAL:6
-				ELSE
-					PRINTFORML %ANAME(GET_COUNTRY_BOSS(CFLAG:発動キャラ:所属)), 10, RIGHT%軍:{CITY_SOLDIER:発動勢力, 6, RIGHT} → {CITY_SOLDIER:発動勢力 + LOCAL:6, 6, RIGHT}
-					CITY_SOLDIER:発動勢力 += LOCAL:6
-				ENDIF
-				RESETCOLOR
-				BREAK
-			ENDIF
-		NEXT
-	ENDIF
-	
-	;サキュバス。暗殺
-	IF TALENT:発動キャラ:特殊勢力素質 == 特殊勢力_サキュバス && 5 + 2 * SP_COUNTRY_RANK:(特殊勢力_サキュバス) > RAND:100
-		LOCAL:1 = RAND:(BATTLE_COMMANDER_NUM:対象側)
-		対象キャラ = BATTLE_COMMANDER:対象側:(LOCAL:1)
-		IF 対象キャラ >= 0
-			PRINTFORML %ANAME(対象キャラ)%は、%ANAME(発動キャラ)%に見とれている！
-			PRINTFORML %ANAME(対象キャラ)%はこの戦闘に参加できない！
-			CALL ASSASINATE(対象側, LOCAL:1)
-		ENDIF
-	ENDIF
-
-
-	;野盗。対象部隊の女の数だけ強化される。強化量はSP_COUNTRY_RANK:(特殊勢力_野盗)に依存する。
-	IF TALENT:発動キャラ:特殊勢力素質 == 特殊勢力_野盗 && SP_COUNTRY_RANK:(特殊勢力_野盗) * 10 > RAND:100
-		LOCAL:2 = 0
-		FOR LOCAL:1, 0, (BATTLE_COMMANDER_NUM:対象側)
-			対象キャラ = BATTLE_COMMANDER:対象側:(LOCAL:1)
-			IF 対象キャラ >= 0 && IS_FEMALE(対象キャラ)
-				LOCAL:2 ++
-				PRINTFORML %ANAME(発動キャラ)%は、%ANAME(対象キャラ)%の姿にテンションをあげている！
-			ENDIF
-		NEXT
-		BATTLE_武闘パワー:発動側:LOCAL = BATTLE_武闘パワー:発動側:LOCAL * (100 + SP_COUNTRY_RANK:(特殊勢力_野盗) * LOCAL:2) / 100
-		BATTLE_防衛パワー:発動側:LOCAL = BATTLE_防衛パワー:発動側:LOCAL * (100 + SP_COUNTRY_RANK:(特殊勢力_野盗) * LOCAL:2) / 100
-		BATTLE_知略パワー:発動側:LOCAL = BATTLE_知略パワー:発動側:LOCAL * (100 + SP_COUNTRY_RANK:(特殊勢力_野盗) * LOCAL:2) / 100
-	ENDIF
-	
-	RESETCOLOR
+	CALL SKILL_COMBAT_INVOKE(発動キャラ, LOCAL, スキル_ジャンル_SP, 発動側, 発動勢力, 発動部隊, 対象勢力, 対象部隊)
 NEXT
 
 
@@ -952,138 +817,10 @@ VARSET 対象側キャラ, -1
 
 FOR LOCAL:0, 0, BATTLE_COMMANDER_NUM:発動側
 	発動キャラ = BATTLE_COMMANDER:発動側:LOCAL
-
 	SIF 発動キャラ < 0 || BATTLE_SKILL_SEALED:(発動側):(LOCAL:0) || BATTLE_SUMMONED_CHARA:(発動側):(LOCAL:0)
 		CONTINUE
-
-	;スキル呼び出し
-	FOR LOCAL:1, 0, MAX_SKILLS
-		CALL SKILL_COMBAT_TRY_INVOKE(発動キャラ, LOCAL:0, "BASE", LOCAL:1, 発動側, 発動勢力, 発動部隊, 対象勢力, 対象部隊)
-		SIF RESULT == -1
-			BREAK
-	NEXT
-
-	SETCOLOR COLOR("素質発動")
-
-	;威圧。敵の防御力を下げる。
-	発動キャラ素質 = BATTLE_素質:発動側:LOCAL
-	IF GETBIT(発動キャラ素質, 素質_ＳＬＧ_威圧) && 20 > RAND:100
-		PRINTFORML %ANAME(発動キャラ)%の存在感が敵にプレッシャーを与える！
-		TIMES BATTLE_DEF:対象側, 0.8
-	ENDIF
-
-	;策士。計略が発動する。
-	;相手のBATTLE_INTの1.3倍がこちらのBATTLE_INTより高い場合、そちらを利用する（反計を防止）
-	IF GETBIT(発動キャラ素質, 素質_ＳＬＧ_策士) && 10 > RAND:100
-		PRINTFORML %ANAME(発動キャラ)%は策を張り巡らせる……！
-		BATTLE_INT:発動側 = MAX(BATTLE_INT:発動側, BATTLE_INT:対象側 * 13 / 10)
-		BATTLE_FORCE_SCHEME = 発動側
-	ENDIF
-
-	;ステゴロ。両軍割合ダメージ。一応自軍に有利。
-	IF GETBIT(発動キャラ素質, 素質_ＳＬＧ_ステゴロ) && 30 > RAND:100
-		PRINTFORML %ANAME(発動キャラ)%は大暴れしている！
-		BATTLE_RATE_DMG:発動側 += RAND(10,15)
-		BATTLE_RATE_DMG:対象側 += RAND(5,10)
-	ENDIF
-	;突貫。攻撃力が増えるが防御力が減る。
-	IF GETBIT(発動キャラ素質, 素質_ＳＬＧ_突貫) && 15 > RAND:100
-		PRINTFORML %ANAME(発動キャラ)%は捨て身の陣をしいた！
-		TIMES BATTLE_ATC:発動側, 1.3
-		TIMES BATTLE_DEF:発動側, 0.7
-	ENDIF
-	;下克上等。相手より弱ければ弱いほど発動率は高まる。野戦部隊にのみ発動する。
-	IF GETBIT(発動キャラ素質, 素質_ＳＬＧ_下克上等) && BATTLE_F_UNIT:対象側
-		LOCAL:1 = (100 - (BATTLE_ATC:発動側 + BATTLE_DEF:発動側 + BATTLE_INT:発動側 + BATTLE_MAG:発動側) * 100  / (BATTLE_ATC:対象側 + BATTLE_DEF:対象側 + BATTLE_INT:対象側 + BATTLE_MAG:対象側)) / 2
-		IF LOCAL:1 > RAND:100
-			PRINTFORML %ANAME(発動キャラ)%の下克上等！
-			PRINTFORML 自らは強く、相手は弱くなる！
-			TIMES BATTLE_ATC:発動側 , 1.50
-			TIMES BATTLE_DEF:発動側 , 1.50
-			TIMES BATTLE_INT:発動側 , 1.50
-			TIMES BATTLE_MAG:発動側 , 1.50
-			TIMES BATTLE_ATC:対象側 , 0.75
-			TIMES BATTLE_DEF:対象側 , 0.75
-			TIMES BATTLE_INT:対象側 , 0.75
-			TIMES BATTLE_MAG:対象側 , 0.75
-		ENDIF
-	ENDIF
-	;魔力転換。攻撃力の2割を割合ダメージ基礎値とする。
-	IF GETBIT(発動キャラ素質, 素質_ＳＬＧ_魔力転換) && 15 > RAND:100
-		PRINTFORML %ANAME(発動キャラ)%は攻撃力を魔力に転換した！
-		BATTLE_MAG:発動側 += BATTLE_ATC:発動側 * 2 / 10
-		BATTLE_ATC:発動側 = BATTLE_ATC:発動側 * 8 / 10
-	ENDIF
-	
-	;バンドガール。歌唱（料理も）の補正が二重にかかる。
-	IF GETBIT(発動キャラ素質, 素質_ＳＬＧ_バンドガール) && 5 > RAND:100
-		PRINTFORML %ANAME(発動キャラ)%は楽器演奏で士気を高めた！
-		IF 発動部隊 < 0
-			BATTLE_ATC:発動側 = BATTLE_ATC:発動側 * SUPPORT_LEVEL(発動側, 勢力) / 1000
-			BATTLE_DEF:発動側 = BATTLE_DEF:発動側 * SUPPORT_LEVEL(発動側, 勢力) / 1000
-			BATTLE_INT:発動側 = BATTLE_INT:発動側 * SUPPORT_LEVEL(発動側, 勢力) / 1000
-		ELSE
-			BATTLE_ATC:発動側 = BATTLE_ATC:発動側 * SUPPORT_LEVEL(発動側, 勢力) / 1000
-			BATTLE_DEF:発動側 = BATTLE_DEF:発動側 * SUPPORT_LEVEL(発動側, 勢力) / 1000
-			BATTLE_INT:発動側 = BATTLE_INT:発動側 * SUPPORT_LEVEL(発動側, 勢力) / 1000
-		ENDIF
-	ENDIF
-	
-	;哨戒。被害軽減率を得る。
-	IF GETBIT(発動キャラ素質, 素質_ＳＬＧ_哨戒) && 15 > RAND:100
-		PRINTFORML %ANAME(発動キャラ)%は周囲を警戒している！
-		BATTLE_RATE_GRD:発動側 += 20
-	ENDIF
-	
-	;防衛戦術。自軍が都市である場合のみ、防御力が上昇し被害軽減率を得る。
-	IF 発動部隊 < 0 && GETBIT(発動キャラ素質, 素質_ＳＬＧ_防衛戦術) && 25 > RAND:100
-		PRINTFORML %ANAME(発動キャラ)%は防衛に巧みな戦術を発揮した！
-		TIMES BATTLE_DEF:発動側 , 1.20
-		BATTLE_RATE_GRD:発動側 += 30
-	ENDIF
-	
-	;統率力。攻撃力・防御力・知略が上昇
-	IF GETBIT(発動キャラ素質, 素質_ＳＬＧ_統率力) && 15 > RAND:100
-		PRINTFORML %ANAME(発動キャラ)%は優れた統率力を発揮した！
-		TIMES BATTLE_ATC:発動側, 1.20
-		TIMES BATTLE_DEF:発動側, 1.20
-		TIMES BATTLE_INT:発動側, 1.20
-	ENDIF
-	
-	;遅滞戦術。互いの被害を軽減する。
-	;ものごっつい戦力差がある場合は普通にすりつぶされる。
-	IF GETBIT(発動キャラ素質, 素質_ＳＬＧ_遅滞戦術) && 15 > RAND:100
-		PRINTFORML %ANAME(発動キャラ)%は時間稼ぎを始めた！
-		PRINTFORML この戦闘での互いの被害が小さくなる！
-		BATTLE_RATE_GRD_B:発動側 += 50
-		BATTLE_RATE_GRD_B:対象側 += 50
-	ENDIF
-	RESETCOLOR
+	CALL SKILL_COMBAT_INVOKE(発動キャラ, LOCAL, スキル_ジャンル_BASE, 発動側, 発動勢力, 発動部隊, 対象勢力, 対象部隊)
 NEXT
-
-FOR LOCAL:0, 0, 3
-	発動キャラ = 発動側キャラ:LOCAL
-	IF 発動キャラ >= 0
-		;外来人。敵部隊の自部隊より高い能力を、自部隊の能力以下にせしめる。発動判定は1回の戦闘で1度のみで、発動率はSP_COUNTRY_RANK:(特殊勢力_外来人)に依存する。
-		IF TALENT:発動キャラ:特殊勢力素質 == 特殊勢力_外来人
-			;SP_COUNTRY_RANK:(特殊勢力_外来人)に応じて確率が上昇。
-			IF SP_COUNTRY_RANK:(特殊勢力_外来人) * 10 > RAND:100
-				SETCOLOR COLOR("桃")
-				PRINTFORML %ANAME(発動キャラ)%は敵に怪しげな桃色の霧を吹きかける……！
-				SIF BATTLE_ATC:対象側 > BATTLE_ATC:発動側
-					BATTLE_ATC:対象側 = BATTLE_ATC:発動側 * 7 / 10
-				SIF BATTLE_DEF:対象側 > BATTLE_DEF:発動側
-					BATTLE_DEF:対象側 = BATTLE_DEF:発動側 * 7 / 10
-				SIF BATTLE_INT:対象側 > BATTLE_INT:発動側
-					BATTLE_INT:対象側 = BATTLE_INT:発動側 * 7 / 10
-				SETCOLOR COLOR("素質発動")
-			ENDIF
-			BREAK
-		ENDIF
-	ENDIF
-NEXT
-
-RESETCOLOR
 
 ;-------------------------------------------------
 ;計略の発動
@@ -1130,13 +867,13 @@ ELSE
 		明察キャラ = BATTLE_COMMANDER:対象側:LOCAL
 		SIF 明察キャラ < 0 || BATTLE_SKILL_SEALED:対象側:(LOCAL:0) || BATTLE_SUMMONED_CHARA:(発動側):(LOCAL:0)
 			CONTINUE
-		IF GETBIT(BATTLE_素質:対象側:LOCAL, 素質_ＳＬＧ_明察) && 25 > RAND:100
+		IF FIND_PASSIVE_SKILL(明察キャラ, "明察") && 30 > RAND:100
 			SETCOLOR COLOR("黄緑")
-			PRINTFORM 《貫計》
+			PRINTFORM 《明察》
 			PRINTFORML %ANAME(明察キャラ)%は敵部隊の計略を見透かした
-			BATTLE_RATE_DMG:対象側 += 20
-			BATTLE_RATE_ATC:対象側 += 50
-			BATTLE_RATE_GRD:対象側 += 50
+			BATTLE_RATE_DMG:対象側 += 10
+			BATTLE_RATE_ATC:対象側 += 25
+			BATTLE_RATE_GRD:対象側 += 20
 			RESETCOLOR
 			RETURN
 		ENDIF
@@ -1445,29 +1182,17 @@ SIF GROUPMATCH(CONFIG:306, 2, 3)
 	GOTO CAPTURE_SKILL_USED
 
 FOR LOCAL:0, 0, BATTLE_COMMANDER_NUM:勝利側
-	SIF BATTLE_COMMANDER:勝利側:LOCAL < 0
+	LOCAL:1 = BATTLE_COMMANDER:勝利側:LOCAL
+	SIF LOCAL:1 < 0
 		CONTINUE
-	FOR LOCAL:1, 0, MAX_SKILLS
-		CALL SKILL_COMBAT_TRY_INVOKE(BATTLE_COMMANDER:勝利側:LOCAL, LOCAL, "CAPTURE", LOCAL:1, 勝利側, 勝利勢力, 勝利部隊, 敗北勢力, 敗北部隊)
-		SIF RESULT == -1
-			BREAK
-	NEXT
+	CALL SKILL_COMBAT_INVOKE(LOCAL:1, LOCAL, スキル_ジャンル_CAPTURE, 勝利側, 勝利勢力, 勝利部隊, 敗北勢力, 敗北部隊)
 NEXT
 
 FOR LOCAL:0, 0, BATTLE_COMMANDER_NUM:敗北側
-	SIF	!CAN_CAPTURE(BATTLE_COMMANDER:敗北側:LOCAL)
+	LOCAL:1 = BATTLE_COMMANDER:敗北側:LOCAL
+	SIF	!CAN_CAPTURE(LOCAL:1)
 		CONTINUE
-	FOR LOCAL:1, 0, MAX_SKILLS
-		CALL SKILL_COMBAT_TRY_INVOKE(BATTLE_COMMANDER:敗北側:LOCAL, LOCAL, "ESCAPE", LOCAL:1, 敗北側, 敗北勢力, 敗北部隊, 勝利勢力, 勝利部隊)
-		SIF RESULT == -1
-			BREAK
-	NEXT
-	IF GETBIT(TALENT:(BATTLE_COMMANDER:敗北側:LOCAL):ＳＬＧ素質, 素質_ＳＬＧ_早足) && RAND:3
-		SETCOLOR COLOR("素質発動")
-		PRINTFORML %ANAME(BATTLE_COMMANDER:敗北側:LOCAL)%は早足を利用して逃げ回る！
-		RESETCOLOR
-		CAPTURE_RATE:LOCAL /= 2
-	ENDIF
+	CALL SKILL_COMBAT_INVOKE(LOCAL:1, LOCAL, スキル_ジャンル_ESCAPE, 敗北側, 敗北勢力, 敗北部隊, 勝利勢力, 勝利部隊)
 NEXT
 
 $CAPTURE_SKILL_USED
@@ -1479,9 +1204,9 @@ FOR LOCAL, 0, BATTLE_COMMANDER_NUM:敗北側
 		CONTINUE
 	IF CAN_CAPTURE(LOCAL:4) && RAND:1000 < CAPTURE_RATE:LOCAL 
 		IF COUNTRY_L == CFLAG:MASTER:所属
-			CALL COLORPRINTFORM(@"%NAME:(LOCAL:4)%は捕らえられました…", COLOR("警告"), "W")
+			CALL COLORPRINT(@"%NAME:(LOCAL:4)%は捕らえられました…", COLOR("警告"), "W")
 		ELSEIF COUNTRY_W == CFLAG:MASTER:所属
-			CALL COLORPRINTFORM(@"%NAME:(LOCAL:4)%を捕らえました！", COLOR("注意"), "W")
+			CALL COLORPRINT(@"%NAME:(LOCAL:4)%を捕らえました！", COLOR("注意"), "W")
 		ELSE
 			PRINTFORML %NAME:(LOCAL:4)%は捕らえられた模様です
 		ENDIF
@@ -1513,30 +1238,25 @@ FOR LOCAL, 0, BATTLE_COMMANDER_NUM:敗北側
 		IF TALENT:(LOCAL:4):蓬莱人 && !RAND:3
 			COOLTIME:(LOCAL:4):0 = 0
 			SETCOLOR COLOR("素質発動")
-			PRINTFORML 蓬莱人である%NAME:(LOCAL:4)%の怪我は、あっという間にふさがりました
-			PRINTFORML クールタイムが無効化されました
+			PRINTFORML 蓬莱人である%NAME:(LOCAL:4)%の怪我は、あっという間にふさがった
+			PRINTFORML クールタイムが無効化された
 			RESETCOLOR
 			CONTINUE
 		ENDIF
 		RESETCOLOR
 		LOCAL:5 = 0
-		;治療持ちが同じ勢力にいる場合は確率、本人が治療持ちの場合は確定で、負傷を軽減
-		FOR LOCAL:1, 0, CHARANUM
-			IF COOLTIME:(LOCAL:4):0 > 1 && (GETBIT(TALENT:(LOCAL:1):ＳＬＧ素質, 素質_ＳＬＧ_治療) && CFLAG:(LOCAL:1):所属 == CFLAG:(LOCAL:4):所属 && CFLAG:(LOCAL:1):捕虜先 == 0 && RAND:100 < 10) || (GETBIT(TALENT:(LOCAL:4):ＳＬＧ素質, 素質_ＳＬＧ_治療) && !LOCAL:5)
-				IF GETBIT(TALENT:(LOCAL:4):ＳＬＧ素質, 素質_ＳＬＧ_治療)
-					COOLTIME:(LOCAL:4):0 = 1
-					LOCAL:5 = 1
-					SETCOLOR COLOR("素質発動")
-					PRINTFORML %NAME:(LOCAL:4)%は怪我を自ら治療しました
-					PRINTFORML 全治{COOLTIME:(LOCAL:4):0}ターンになりました
-					RESETCOLOR
-				ELSE
-					COOLTIME:(LOCAL:4):0 = MAX(1, COOLTIME:(LOCAL:4):0 - (RAND:2 + 1))
-					SETCOLOR COLOR("素質発動")
-					PRINTFORML %NAME:(LOCAL:1)%の治療により、%NAME:(LOCAL:4)%の怪我は軽く済みました
-					PRINTFORML 全治{COOLTIME:(LOCAL:4):0}ターンになりました
-					RESETCOLOR
-				ENDIF
+		FOR LOCAL:1, 0, BATTLE_COMMANDER_NUM:敗北側
+			LOCAL:2 = BATTLE_COMMANDER:敗北側:(LOCAL:1)
+			SIF LOCAL:2 < 0
+				CONTINUE
+			SIF !FIND_PASSIVE_SKILL(LOCAL:2, "治療")
+				CONTINUE
+			;治療もちが同じ部隊にいれば確率で、本人の場合は確定で、負傷を軽減する
+			IF LOCAL:2 == LOCAL:4 || RAND:100 < 15
+				COOLTIME:(LOCAL:4):0 = MAX(COOLTIME:(LOCAL:4):0 - 2, 1)
+				SETCOLOR COLOR("スキル発動")
+				PRINTFORML %ANAME(LOCAL:2)%の治療で、%ANAME(LOCAL:4)%の怪我が軽くなった
+				PRINTFORML 全治{COOLTIME:(LOCAL:4):0}ターンになった！
 			ENDIF
 		NEXT
 	ENDIF
@@ -1582,7 +1302,7 @@ FOR LOCAL,0, BATTLE_COMMANDER_NUM:勝利側
 			GROW_ABL:LOCAL = GETNUM(ABL, "政治")
 		CASE IS < 90
 			GROW_ABL:LOCAL = GETNUM(ABL, "歌唱")
-		CASE IS < 99
+		CASE IS < 100
 			GROW_ABL:LOCAL = GETNUM(ABL, "料理")
 		CASEELSE
 			GROW_ABL:LOCAL = GETNUM(ABL, "妖術")
@@ -1605,7 +1325,7 @@ FOR LOCAL,0, BATTLE_COMMANDER_NUM:勝利側
 	SIF GROW_ABL:LOCAL == GETNUM(ABL, "妖術")
 		GROW_AMOUNT:LOCAL *= 20
 
-	SIF GETBIT(TALENT:(LOCAL:1):ＳＬＧ素質, 素質_ＳＬＧ_超成長力)
+	SIF FIND_PASSIVE_SKILL(LOCAL:1, "努力家")
 		GROW_AMOUNT:LOCAL += RAND(0, LOCAL:2)
 	IF TALENT:(LOCAL:1):習得早い
 		SELECTCASE RAND:100
@@ -1616,27 +1336,6 @@ FOR LOCAL,0, BATTLE_COMMANDER_NUM:勝利側
 		ENDSELECT
 	ENDIF
 NEXT
-
-FOR LOCAL, 0, BATTLE_COMMANDER_NUM:勝利側
-	SIF BATTLE_COMMANDER:勝利側:LOCAL < 0
-		CONTINUE
-	FOR LOCAL:1, 0, MAX_SKILLS
-		CALL SKILL_COMBAT_TRY_INVOKE(BATTLE_COMMANDER:勝利側:LOCAL, LOCAL:0, "GROW", LOCAL:1, 勝利側, 勝利勢力, 勝利部隊, 敗北勢力, 敗北部隊)
-		SIF RESULT == -1
-			BREAK
-	NEXT
-NEXT
-
-FOR LOCAL, 0, BATTLE_COMMANDER_NUM:敗北側
-	SIF BATTLE_COMMANDER:敗北側:LOCAL < 0
-		CONTINUE
-	FOR LOCAL:1, 0, MAX_SKILLS
-		CALL SKILL_COMBAT_TRY_INVOKE(BATTLE_COMMANDER:敗北側:LOCAL, LOCAL:0, "GROW", LOCAL:1, 敗北側, 敗北勢力, 敗北部隊, 勝利勢力, 勝利部隊)
-		SIF RESULT == -1
-			BREAK
-	NEXT
-NEXT
-
 
 FOR LOCAL, 0, BATTLE_COMMANDER_NUM:勝利側
 	SIF GROW_AMOUNT:LOCAL <= 0

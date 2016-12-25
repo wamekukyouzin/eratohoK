@@ -19,7 +19,7 @@ ENDIF
 
 ;外交の処理
 SIF DAY >= SLG_PP:0 && !IS_SP_COUNTRY(勢力)
-	CALL SLG_NEW_DIPLOMACY(勢力)
+	CALL SLG_AI_DIPLOMACY(勢力)
 
 
 ;都市をもたない（野盗など）ならスキップする
@@ -30,7 +30,7 @@ SIF TMP_OWN_CITY:勢力 < 1
 SIF DAY < SLG_PP:1
 	GOTO NORMAL_AI_THINK_ENDED
 
-CALL AI_DEPLOY_ARMY(勢力, 0)
+CALL AI_DEPLOY_ARMY(勢力)
 
 ;防衛を全て解除
 FOR 都市, 1, GET_CITY_NUM() + 1
@@ -43,9 +43,6 @@ FOR 都市, 1, GET_CITY_NUM() + 1
 		ENDIF
 	ENDIF
 NEXT
-
-;部隊マップの作成(処理の高速化)
-CALL TMP_CREATE_UNIT_MAP
 
 ;方針の設定
 CALL SLG_AI_SETDOCTRINE(勢力)
@@ -365,7 +362,7 @@ WHILE 1
 			攻撃兵数 -= 補充兵数
 			COUNTRY_SOLDIER:勢力 -= 補充兵数
 		ENDIF
-		UNIT_POSITION:勢力:部隊 = 救援候補
+		CALL MOVE_UNIT(勢力, 部隊, 救援候補, 1)
 		GOTO DONE
 		BREAK
 	NEXT
@@ -402,81 +399,41 @@ WEND
 RETURN 攻撃兵数
 
 ;-------------------------------------------------
-;ARG:0勢力が国庫を消費して徴兵を行うかの判定
-;TODO リファクタ。古いものを大体そのまま使いまわしているので可読性に欠ける。
-;ARG:1 判定タイミング(0:侵攻判定前, 1:侵攻判定終了後)
+;国庫を消費して徴兵を行うかの判定
 ;-------------------------------------------------
-@AI_DEPLOY_ARMY(ARG:0, ARG:1)
-;自国の経済／兵数／徴兵限界／温存兵率／支配都市数
-#DIM ECONOMY
-#DIM MILITARY
-#DIM MILITARY_LIMIT
-#DIM MILITARY_PERCENTAGE
-#DIM OWN_CITY
-#DIM SELECTOR, 10
-#DIM DEPLOY_COUNT
-#DIM DOCTRINE, 2, 9
+@AI_DEPLOY_ARMY(勢力)
+#DIM 勢力
+#DIM 雇用レート
+#DIM 雇用兵数限界
+#DIM 雇用兵数
+#DIM 兵数限界
 
-VARSET ECONOMY
-VARSET MILITARY
-VARSET MILITARY_LIMIT
-VARSET MILITARY_PERCENTAGE
-VARSET OWN_CITY
-VARSET SELECTOR
-VARSET DEPLOY_COUNT
+雇用レート = SLG_EXTRA_DRAFT_CALC_RATE(勢力)
+;雇用兵数は最大でも(国庫-残しとくぶん) / 雇用レート
+雇用兵数限界 = (MONEY:勢力 - MONEY:勢力 * AI_DEPLOY:(COUNTRY_AI_TYPE:勢力):1 / 100) / 雇用レート
+;兵数限界は徴兵による限界に、勢力ごとの特色を足したもの
+兵数限界 = TMP_SUM_ECONOMY:勢力 / 10 * AI_DEPLOY:(COUNTRY_AI_TYPE:勢力):0 / 100
 
-;各政策に対応する、徴兵量の比率を設定する
-;DOCTRINE:0は徴兵前、DOCTORINE:1は徴兵後に参照される
-DOCTRINE:0:0 = 100, 110, 95
-DOCTRINE:1:0 = 100, 95, 110
-
-
-ECONOMY = TMP_SUM_ECONOMY:(ARG:0)
-MILITARY_LIMIT = ECONOMY / 10
-
-OWN_CITY = MATCH(CITY_OWNER, ARG:0)
-
-;動員レート：現在の経済規模の1～5%を消費することで兵力限界の2～10%の兵力を得る
-;最大判定回数の決定
-SELECTOR:0 = AI_DEPLOY:(COUNTRY_AI_TYPE:(ARG:0)):(ARG:1 ? 3 # 1)
-SELECTOR:1 = RAND:(SELECTOR:0 / 2 + 1) + RAND:(SELECTOR:0 / 2 + SELECTOR:0 % 2 + 1)
-
-SIF !SELECTOR:1
-	RETURN 0
-
-FOR SELECTOR:3, 0, SELECTOR:1
-	DEPLOY_COUNT ++
-	;現在の国庫が既定値（現在の経済規模のN%）未満であれば動員しない
-	SIF MONEY:(ARG:0) < AI_DEPLOY:(COUNTRY_AI_TYPE:(ARG:0)):4 * ECONOMY * (RAND:41 + 80) / (100 * 100 * 100)
-		BREAK
-
-	MILITARY = TMP_SUM_SOLDIER:(ARG:0)
-	MILITARY_PERCENTAGE = MILITARY * 100 / MILITARY_LIMIT
-	;既に動員上限を超えていれば雇用しない
-	SIF MILITARY_PERCENTAGE > AI_DEPLOY:(COUNTRY_AI_TYPE:(ARG:0)):(ARG:1 ? 2 # 0)
-		BREAK
-
-	;動員に支払う額、現在の経済値の1～5%
-	SELECTOR:8 = RAND:3 + RAND:3 + 1 
-	SELECTOR:9 = SELECTOR:8 * ECONOMY / (100 * 100)
-	;金がないなら動員しない（上の段階で弾かれるのが普通）
-	SIF MONEY:(ARG:0) < SELECTOR:9
-		BREAK
-	MONEY:(ARG:0) -= SELECTOR:9
-
-	;動員処理
-	SELECTOR:2 = SELECTOR:8 * MILITARY_LIMIT * DOCTRINE:(ARG:1 ? 1 # 0):(COUNTRY_POLICY:(ARG:0)) / (100 * 100)
-	COUNTRY_SOLDIER:(ARG:0) += SELECTOR:2
-	TMP_SUM_SOLDIER:(ARG:0) += SELECTOR:2
-	SELECTOR:4 += SELECTOR:2
-	SELECTOR:5 += SELECTOR:9
-
-NEXT
-IF SELECTOR:4
-	;DEBUGPRINTFORML {DAY, 3}【緊急動員（\@ARG:1 ? 防 # 攻 \@）】%NAME:(GET_COUNTRY_BOSS(ARG:0))%:支払{SELECTOR:5}/{ECONOMY / 100}→徴兵{SELECTOR:4}/{MILITARY_LIMIT}
-	SIF ARG:0 == CFLAG:MASTER:所属 || FLAG:観戦モード
-		PRINTFORML %NAME:(GET_COUNTRY_BOSS(ARG:0))%は{SELECTOR:5}の資金を払い\@ARG:1 ? 防衛 # 侵攻 \@のために兵を{SELECTOR:4}動員しました
+;限界に現在の兵力を足した奴が兵数限界を越えなければ、その分だけ雇用する
+IF 雇用兵数限界 + TMP_SUM_SOLDIER:勢力 < 兵数限界
+	雇用兵数 = 雇用兵数限界
+;越えていれば、兵数限界を超えない程度に雇用する
+ELSE
+	雇用兵数 = 兵数限界 - TMP_SUM_SOLDIER:勢力
 ENDIF
+
+SIF 雇用兵数 <= 0
+	RETURN
+
+MONEY:勢力 -= 雇用レート * 雇用兵数
+COUNTRY_SOLDIER:勢力 += 雇用兵数
+TMP_SUM_SOLDIER:勢力 += 雇用兵数
+
+
+;DEBUGPRINTFORML {DAY, 3}【緊急動員（\@ARG:1 ? 防 # 攻 \@）】%NAME:(GET_COUNTRY_BOSS(ARG:0))%:支払{SELECTOR:5}/{ECONOMY / 100}→徴兵{SELECTOR:4}/{MILITARY_LIMIT}
+SIF 勢力 == CFLAG:MASTER:所属 || FLAG:観戦モード
+		PRINTFORML %ANAME(GET_COUNTRY_BOSS(勢力))%は{雇用レート * 雇用兵数}の資金を払い兵を{雇用兵数}動員しました
+
 
 ;-------------------------------------------------
 ;部隊を生成する
@@ -575,25 +532,38 @@ CALL BATTLE_PREPARE_VARS_EACH(0, 0)
 FOR 都市, 1, GET_CITY_NUM() + 1
 	SIF !TMP_IS_INVADABLE:勢力:都市
 		CONTINUE
+
 	都市保有勢力 = CITY_OWNER:都市
 	都市保有君主 = GET_COUNTRY_BOSS(都市保有勢力)
+
 	攻撃候補スコア:都市 = TMP_OFFENSIVE_IMPORTANCE:勢力:都市 * RAND(80, 120)
+
 	;関係が悪いほど狙われやすい
 	関係性 = IS_COUNTRY(都市保有勢力) ? 1500 + REL_LIKE:君主:都市保有君主 - REL_HATE:君主:都市保有君主 # 1500
 	関係性 = 関係性 * 100 / 3000
+
 	攻撃候補スコア:都市 = 攻撃候補スコア:都市 * 関係性 / 100
 	;直接つながってないなら2/3
 	攻撃候補スコア:都市 = 攻撃候補スコア:都市 * (TMP_CONNECTED_TO_US:勢力:都市 + 2) / 3
 	;最大の飛び地に対する攻撃元の飛び地サイズの比
 	攻撃候補スコア:都市 = 攻撃候補スコア:都市 * MAX(TMP_ENCLAVE_SIZE:勢力:(TMP_IS_INVADABLE:勢力:都市), 1) / TMP_MAX_ENCLAVE_SIZE:勢力
-	;自国のほうが大きいなら、都市数の差5につき1.5倍狙いやすくする
-	;自国のほうが小さいなら、都市数の差3につき1.2倍狙いやすくする
+
+	;自国のほうが大きいなら、都市数の差1につき10%狙いやすくする
+	;自国のほうが小さいなら、都市数の差1につき6%狙いやすくする
 	IF IS_COUNTRY(都市保有勢力)
-		攻撃候補スコア:都市 = 攻撃候補スコア:都市 + 攻撃候補スコア:都市 / 2 * MAX((TMP_OWN_CITY:勢力 - TMP_OWN_CITY:都市保有勢力) / 5, 0)
-		攻撃候補スコア:都市 = 攻撃候補スコア:都市 + 攻撃候補スコア:都市 / 5 * MAX((TMP_OWN_CITY:都市保有勢力 - TMP_OWN_CITY:勢力) / 3, 0)
+		IF TMP_OWN_CITY:勢力 > TMP_OWN_CITY:都市保有勢力
+			攻撃候補スコア:都市 = 攻撃候補スコア:都市 + 攻撃候補スコア:都市 * (TMP_OWN_CITY:勢力 - TMP_OWN_CITY:都市保有勢力) * 10 / 100
+		ELSE
+			攻撃候補スコア:都市 = 攻撃候補スコア:都市 + 攻撃候補スコア:都市 * (TMP_OWN_CITY:都市保有勢力 - TMP_OWN_CITY:勢力) * 6 / 100
+		ENDIF
+		;都市勢力が連合の討伐対象なら攻撃候補スコアを5倍に
 		SIF TMP_COUNTRY_UNION_TARGET:勢力 == 都市保有勢力
 			攻撃候補スコア:都市 *= 5
+	;無所属都市は優先的に狙う
+	ELSE
+		攻撃候補スコア:都市 *= 2
 	ENDIF
+
 	;主人公の都市に対しては難易度補正
 	SIF 都市保有勢力 == CFLAG:MASTER:所属
 		攻撃候補スコア:都市 = 攻撃候補スコア:都市 * GET_DIFFICULTY_CORRECTION() / 100
@@ -660,9 +630,9 @@ FOR 候補, 0, 10
 	;;勝ってる要素が一定ないとキャンセル
 	;SIF カウント < 2
 	;	GOTO CALCEL
-
+	CALL MOVE_UNIT(勢力, 部隊, TMP_IS_INVADABLE:勢力:攻撃候補, 1)
 	UNIT_TARGET:勢力:部隊 = 攻撃候補
-	UNIT_POSITION:勢力:部隊 = TMP_IS_INVADABLE:勢力:攻撃候補
+
 	;DEBUGPRINTFORML 攻撃地点を%GET_CITYNAME(UNIT_TARGET:勢力:部隊)%に確定
 	;DEBUGPRINTFORML 出発地点を%GET_CITYNAME(UNIT_POSITION:勢力:部隊)%に確定
 	BREAK
@@ -736,7 +706,7 @@ FOR 項番, 0, 都市数
 			CONTINUE
 		SIF 部隊防衛フラグ:部隊
 			CONTINUE
-		UNIT_POSITION:勢力:部隊 = 都市
+		CALL MOVE_UNIT(勢力, 部隊, 都市, 1)
 		部隊防衛フラグ:部隊 = 1
 		BREAK
 	NEXT

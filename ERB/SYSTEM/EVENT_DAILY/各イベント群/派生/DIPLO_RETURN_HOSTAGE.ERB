@@ -2,8 +2,7 @@
 ;対応するデイリーのDISABLEを返す。設定しない場合、イベントは発生しない。
 ;---------------------
 @EVENT_DAILY_DERIVATION_RETURN_HOSTAGE_DISABLE()
-RETURN DAILY_DISABLE:(FINDELEMENT(DAILY_EVENT_NAME_ENG, "REQUEST_CHARA"))
-
+RETURN DAILY_GET_DISABLE_CONFIG("REQUEST_MONEY")
 
 ;---------------------
 ;発生判定
@@ -13,13 +12,9 @@ RETURN DAILY_DISABLE:(FINDELEMENT(DAILY_EVENT_NAME_ENG, "REQUEST_CHARA"))
 @EVENT_DAILY_DERIVATION_RETURN_HOSTAGE_DECISION()
 #DIM 君主
 
-;士官要求カウンタが残っていればデクリメント（0になるまでイベントは再発生しない）
-SIF DVAR:士官要求カウンタ > 0
-	DVAR:士官要求カウンタ--
-
 ;資金援助要求カウンタが残っていればデクリメント（0になるまでイベントは再発生しない）
 IF DVAR:資金援助要求カウンタ > 0
-	DVAR:資金援助要求カウンタ--
+	DVAR:資金援助要求カウンタ --
 	;カウンタが0になったなら、返却期限を迎えたとみなす
 	IF DVAR:資金援助要求カウンタ == 0 && DVAR:資金援助担保
 		君主 = GET_COUNTRY_BOSS(DVAR:資金援助担保)
@@ -93,8 +88,8 @@ IF CFLAG:対象:捕虜先 == CFLAG:MASTER:所属
 		PRINTFORML
 		PRINTFORMW 拠点に戻った%ANAME(MASTER)%は、牢につながれた%ANAME(対象)%を見、舌なめずりした
 		PRINTFORMW 邪魔者もいなくなった今、こいつをどのように調理してやろうか……
-		CALL COLORPRINTFORM(@"%ANAME(君主)%との関係が非常に悪化しました", COLOR("警告"), "W")
-		CALL COLORPRINTFORM(@"%ANAME(対象)%が無所属の自国捕虜となりました", COLOR("警告"), "W")
+		CALL COLORPRINT(@"%ANAME(君主)%との関係が非常に悪化しました", COLOR("警告"), "W")
+		CALL COLORPRINT(@"%ANAME(対象)%が無所属の自国捕虜となりました", COLOR("警告"), "W")
 		CALL CHANGE_RELATION_C_TO_C(DVAR:資金援助担保, CFLAG:MASTER:所属, -1000, 800)
 		CALL CHANGE_COUNTRY(対象, 0, 1)
 		CALL CAPTURE(対象, CFLAG:MASTER:所属)
@@ -102,8 +97,8 @@ IF CFLAG:対象:捕虜先 == CFLAG:MASTER:所属
 	ELSEIF RESULT == 1
 		PRINTFORMW %ANAME(MASTER)%は%ANAME(君主)%に%ANAME(対象)%を返却した
 		PRINTFORMW 幽閉していたのもあって心証は最高とはいかなかったが、一応、感謝はされたようだ……
-		CALL COLORPRINTFORM(@"%ANAME(君主)%との関係が多少改善されました", COLOR("注意"), "W")
-		CALL COLORPRINTFORM(@"%ANAME(対象)%が帰って行きました", COLOR("警告"), "W")
+		CALL COLORPRINT(@"%ANAME(君主)%との関係が多少改善されました", COLOR("注意"), "W")
+		CALL COLORPRINT(@"%ANAME(対象)%が帰って行きました", COLOR("警告"), "W")
 		CALL CHANGE_RELATION_C_TO_C(DVAR:資金援助担保, CFLAG:MASTER:所属, 300, -100)
 		CALL CHANGE_COUNTRY(対象, DVAR:資金援助担保, 1)
 		CLEARBIT TALENT:対象:デイリー系, 素質_デイリー_借り物
@@ -113,7 +108,7 @@ ELSEIF CFLAG:対象:特殊状態 == 2
 	PRINTFORMW ……%ANAME(対象)%は、残念ながら死亡してしまった
 	PRINTFORMW 言い逃れるわけにもいかず、%ANAME(MASTER)%は正直に伝えた
 	PRINTFORMW 話を聞いた%ANAME(君主)%は激怒し、お前達に預けたのが間違いだったと非難した……
-	CALL COLORPRINTFORM(@"%ANAME(君主)%との関係がかなり悪化しました", COLOR("警告"), "W")
+	CALL COLORPRINT(@"%ANAME(君主)%との関係がかなり悪化しました", COLOR("警告"), "W")
 	CALL CHANGE_RELATION_C_TO_C(DVAR:資金援助担保, CFLAG:MASTER:所属, -800, 700)
 	CLEARBIT TALENT:対象:デイリー系, 素質_デイリー_借り物
 ;他国の捕虜にされている
@@ -121,8 +116,8 @@ ELSEIF CFLAG:対象:捕虜先
 	PRINTFORMW ……%ANAME(対象)%は今、%ANAME(GET_COUNTRY_BOSS(CFLAG:対象:捕虜先))%に幽閉されている
 	PRINTFORMW 言い逃れるわけにもいかず、%ANAME(MASTER)%は正直に伝えた
 	PRINTFORMW 話を聞いた%ANAME(君主)%は怒り、なぜ身柄を確かにしておいてくれなかったのだと非難した……
-	CALL COLORPRINTFORM(@"%ANAME(君主)%との関係が悪化しました", COLOR("警告"), "W")
-	CALL COLORPRINTFORM(@"%ANAME(対象)%が担保ではなくなりました", COLOR("警告"), "W")
+	CALL COLORPRINT(@"%ANAME(君主)%との関係が悪化しました", COLOR("警告"), "W")
+	CALL COLORPRINT(@"%ANAME(対象)%が担保ではなくなりました", COLOR("警告"), "W")
 	CALL CHANGE_RELATION_C_TO_C(DVAR:資金援助担保, CFLAG:MASTER:所属, -500, 500)
 	;CHANGE_COUNTRYすると捕虜先消えるのでこうする
 	CFLAG:対象:所属 = DVAR:資金援助担保
@@ -132,8 +127,8 @@ ELSEIF CFLAG:対象:所属 != CFLAG:MASTER:所属
 	PRINTFORMW ……%ANAME(対象)%は今、\@ IS_COUNTRY(CFLAG:対象:所属) ? %ANAME(GET_COUNTRY_BOSS(CFLAG:対象:所属))%に仕えている # 放浪している \@
 	PRINTFORMW 言い逃れるわけにもいかず、%ANAME(MASTER)%は正直に伝えた
 	PRINTFORMW 話を聞いた%ANAME(君主)%は怒り、なぜ身柄を確かにしておいてくれなかったのだと非難した……
-	CALL COLORPRINTFORM(@"%ANAME(君主)%との関係が悪化しました", COLOR("警告"), "W")
-	CALL COLORPRINTFORM(@"%ANAME(対象)%が担保ではなくなりました", COLOR("警告"), "W")
+	CALL COLORPRINT(@"%ANAME(君主)%との関係が悪化しました", COLOR("警告"), "W")
+	CALL COLORPRINT(@"%ANAME(対象)%が担保ではなくなりました", COLOR("警告"), "W")
 	CALL CHANGE_RELATION_C_TO_C(DVAR:資金援助担保, CFLAG:MASTER:所属, -500, 500)
 	CLEARBIT TALENT:対象:デイリー系, 素質_デイリー_借り物
 ;帰りたくない・恋慕ルート
@@ -142,23 +137,34 @@ ELSEIF IS_LOVER(対象)
 	PRINTFORMW %ANAME(MASTER)%と触れあう中で、慕うようになったと
 	PRINTFORMW できればこのまま、%ANAME(MASTER)%に仕えたいというのだが……
 	PRINTFORML
-	CALL ASK_MULTI("ダメ元で残留を頼んでみる", "諦めて国元へ返す")
+	CALL ASK_MULTI("ダメ元で残留を頼んでみる", "諦めて国元へ返す", "写真を送りつける")
 	IF RESULT == 0
 		PRINTFORMW %ANAME(MASTER)%としても、%ANAME(対象)%を失うことは色々つらい
 		PRINTFORMW そのことを、%ANAME(君主)%に素直に、誠実に伝えた
 		PRINTFORMW 話を聞いた%ANAME(君主)%は、複雑な思いだったようだが、
 		PRINTFORMW それなら祝福するしかあるまいと、最終的には移籍を受け入れてくれた……
-		CALL COLORPRINTFORM(@"%ANAME(君主)%との関係がやや改善されました", COLOR("注意"), "W")
-		CALL COLORPRINTFORM(@"%ANAME(対象)%が正式に自国に移籍しました", COLOR("注意"), "W")
+		CALL COLORPRINT(@"%ANAME(君主)%との関係がやや改善されました", COLOR("注意"), "W")
+		CALL COLORPRINT(@"%ANAME(対象)%が正式に自国に移籍しました", COLOR("注意"), "W")
 		CALL CHANGE_RELATION_C_TO_C(DVAR:資金援助担保, CFLAG:MASTER:所属, 300, -300)
 		CLEARBIT TALENT:対象:デイリー系, 素質_デイリー_借り物
 	ELSEIF RESULT == 1
 		PRINTFORMW %ANAME(MASTER)%は%ANAME(君主)%に%ANAME(対象)%を返却した
 		PRINTFORMW %ANAME(対象)%は寂しがったが、少なくとも%ANAME(君主)%には感謝された……
-		CALL COLORPRINTFORM(@"%ANAME(君主)%との関係が改善されました", COLOR("注意"), "W")
-		CALL COLORPRINTFORM(@"%ANAME(対象)%が帰って行きました", COLOR("警告"), "W")
+		CALL COLORPRINT(@"%ANAME(君主)%との関係が改善されました", COLOR("注意"), "W")
+		CALL COLORPRINT(@"%ANAME(対象)%が帰って行きました", COLOR("警告"), "W")
 		CALL CHANGE_RELATION_C_TO_C(DVAR:資金援助担保, CFLAG:MASTER:所属, 500, -500)
 		CALL CHANGE_COUNTRY(対象, DVAR:資金援助担保, 1)
+		CLEARBIT TALENT:対象:デイリー系, 素質_デイリー_借り物
+	ELSEIF RESULT == 2
+		PRINTFORMW %ANAME(MASTER)%としても、%ANAME(対象)%を失うことは色々つらい
+		PRINTFORMW %ANAME(対象)%を説得するということで、%ANAME(君主)%に一旦帰ってもらった
+		PRINTFORMW 後日、%ANAME(君主)%へ%ANAME(対象)%から一通の封筒が届いた
+		PRINTFORMW そこには%ANAME(MASTER)%の横で幸せそうな笑顔をした%ANAME(対象)%の写った一枚の写真があった
+		PRINTFORMW 裏には謝罪の言葉から始まり、もう%ANAME(MASTER)%と離れられないこと
+		PRINTFORMW そして資金のために送り出したことへの批判が綴られていた……
+		CALL COLORPRINT(@"%ANAME(君主)%との関係がこじれきりました", COLOR("警告"), "W")
+		CALL COLORPRINT(@"%ANAME(対象)%が正式に自国に移籍しました", COLOR("注意"), "W")
+		CALL CHANGE_RELATION_C_TO_C(DVAR:資金援助担保, CFLAG:MASTER:所属, -1500, 1500)
 		CLEARBIT TALENT:対象:デイリー系, 素質_デイリー_借り物
 	ENDIF
 ;帰りたくない・屈服ルート
@@ -167,24 +173,35 @@ ELSEIF IS_SLAVE(対象)
 	PRINTFORMW %ANAME(MASTER)%と触れあう中で、忠誠を誓ったのだと
 	PRINTFORMW できればこのまま、%ANAME(MASTER)%に仕えたいというのだが……
 	PRINTFORML
-	CALL ASK_MULTI(@"%ANAME(対象)%を奪い取る", "諦めて国元へ返す")
+	CALL ASK_MULTI(@"%ANAME(対象)%を奪い取る", "諦めて国元へ返す", "写真を送りつける")
 	IF RESULT == 0
 		PRINTFORMW %ANAME(MASTER)%としても、%ANAME(対象)%のような優秀なしもべは手元に置いておきたい
 		PRINTFORMW そのことを、%ANAME(君主)%に一方的に伝えた
 		PRINTFORMW さらに、%ANAME(対象)%が屈服した証を見せつけるように、%ANAME(君主)%の前で自らに奉仕させた
 		PRINTFORMW %ANAME(君主)%は呆然とし、そしてその後激怒し、
 		PRINTFORMW お前達の顔などもう見たくもないと叫んで、部屋を後にした……
-		CALL COLORPRINTFORM(@"%ANAME(君主)%との関係がこじれきりました", COLOR("警告"), "W")
-		CALL COLORPRINTFORM(@"%ANAME(対象)%が正式に自国に移籍しました", COLOR("注意"), "W")
+		CALL COLORPRINT(@"%ANAME(君主)%との関係がこじれきりました", COLOR("警告"), "W")
+		CALL COLORPRINT(@"%ANAME(対象)%が正式に自国に移籍しました", COLOR("注意"), "W")
 		CALL CHANGE_RELATION_C_TO_C(DVAR:資金援助担保, CFLAG:MASTER:所属, -1500, 1500)
 		CLEARBIT TALENT:対象:デイリー系, 素質_デイリー_借り物
 	ELSEIF RESULT == 1
 		PRINTFORMW %ANAME(MASTER)%は%ANAME(君主)%に%ANAME(対象)%を返却した
 		PRINTFORMW %ANAME(対象)%は寂しがったが、少なくとも%ANAME(君主)%には感謝された……
-		CALL COLORPRINTFORM(@"%ANAME(君主)%との関係が改善されました", COLOR("注意"), "W")
-		CALL COLORPRINTFORM(@"%ANAME(対象)%が帰って行きました", COLOR("警告"), "W")
+		CALL COLORPRINT(@"%ANAME(君主)%との関係が改善されました", COLOR("注意"), "W")
+		CALL COLORPRINT(@"%ANAME(対象)%が帰って行きました", COLOR("警告"), "W")
 		CALL CHANGE_RELATION_C_TO_C(DVAR:資金援助担保, CFLAG:MASTER:所属, 500, -500)
 		CALL CHANGE_COUNTRY(対象, DVAR:資金援助担保, 1)
+		CLEARBIT TALENT:対象:デイリー系, 素質_デイリー_借り物
+	ELSEIF RESULT == 2
+		PRINTFORMW %ANAME(MASTER)%としても、%ANAME(対象)%のような優秀なしもべは手元に置いておきたい
+		PRINTFORMW %ANAME(対象)%を説得するということで、%ANAME(君主)%に一旦帰ってもらった
+		PRINTFORMW 後日、%ANAME(君主)%へ%ANAME(対象)%から一通の封筒が届いた
+		PRINTFORMW そこには%ANAME(MASTER)%と繋がっている%ANAME(対象)%が写った一枚の写真があった
+		PRINTFORMW 裏には謝罪の言葉から始まり、もう%ANAME(MASTER)%と離れられないこと
+		PRINTFORMW そして資金のために送り出したことへの批判が綴られていた……
+		CALL COLORPRINT(@"%ANAME(君主)%との関係がこじれきりました", COLOR("警告"), "W")
+		CALL COLORPRINT(@"%ANAME(対象)%が正式に自国に移籍しました", COLOR("注意"), "W")
+		CALL CHANGE_RELATION_C_TO_C(DVAR:資金援助担保, CFLAG:MASTER:所属, -1500, 1500)
 		CLEARBIT TALENT:対象:デイリー系, 素質_デイリー_借り物
 	ENDIF
 ;帰れ
@@ -193,8 +210,8 @@ ELSE
 	PRINTFORMW %ANAME(君主)%から感謝された……
 
 
-	CALL COLORPRINTFORM(@"%ANAME(君主)%との関係が改善されました", COLOR("注意"), "W")
-	CALL COLORPRINTFORM(@"%ANAME(対象)%が帰って行きました", COLOR("警告"), "W")
+	CALL COLORPRINT(@"%ANAME(君主)%との関係が改善されました", COLOR("注意"), "W")
+	CALL COLORPRINT(@"%ANAME(対象)%が帰って行きました", COLOR("警告"), "W")
 	CALL CHANGE_RELATION_C_TO_C(DVAR:資金援助担保, CFLAG:MASTER:所属, 500, -500)
 	CALL CHANGE_COUNTRY(対象, DVAR:資金援助担保, 1)
 	CLEARBIT TALENT:対象:デイリー系, 素質_デイリー_借り物
