@@ -1451,35 +1451,40 @@ MONEY += LOCAL:1
 #DIM SPOUT_MILK
 ;まずテキストを書く
 ;まだまだ募集中です
-SELECTCASE RAND:7
-		CASE 0
-			PRINTFORML %ANAME(ARG:0)%は強引に搾乳機械に取り付けられ乳を吸われている
-		CASE 1
-			PRINTFORML 搾乳機から与えられる刺激に%ANAME(ARG:0)%は呻きながら母乳を噴き出している
-		CASE 2
-			PRINTFORML %ANAME(ARG:0)%はアルコール綿で念入りに乳首を殺菌されている
-			PRINTFORML 家畜の様に扱われる事への抵抗も搾乳が始まるとすぐに消え去った
-		CASE 3
-			PRINTFORML 下準備として%ANAME(ARG:0)%の乳房を念入りにマッサージした
-			PRINTFORML 前絞りを捨ててから搾乳機を取り付けると勢いよく母乳が噴き出した
-		CASE 4
-			PRINTFORML %ANAME(ARG:0)%は搾乳機を目にしただけで乳房が熱くなるのを感じた
-			PRINTFORML 本人の意志とは無関係にその体はより家畜らしくなりつつある
-		CASE 5
-			PRINTFORML %ANAME(ARG:0)%は搾乳後の手入れを受けている
-			PRINTFORML 殺菌消毒や触診、搾乳記録等を取られる事に羞恥を覚えたが顔を背ける程度しか許されていなかった
-		CASE 6
-			PRINTFORML 搾乳機が取り外される
-			PRINTFORML ノルマが終わったのかと思う%ANAME(ARG:0)%であったがその乳房を念入りにマッサージされた
-			PRINTFORML 息を荒げる%ANAME(ARG:0)%に再び搾乳機が取り付けられると先程よりも勢い良く母乳が噴き出し始めた
-ENDSELECT
+IF TALENT:(ARG:0):母乳体質 || CFLAG:(ARG:0):一時的母乳体質
+	SELECTCASE RAND:7
+			CASE 0
+				PRINTFORML %ANAME(ARG:0)%は強引に搾乳機械に取り付けられ乳を吸われている
+			CASE 1
+				PRINTFORML 搾乳機から与えられる刺激に%ANAME(ARG:0)%は呻きながら母乳を噴き出している
+			CASE 2
+				PRINTFORML %ANAME(ARG:0)%はアルコール綿で念入りに乳首を殺菌されている
+				PRINTFORML 家畜の様に扱われる事への抵抗も搾乳が始まるとすぐに消え去った
+			CASE 3
+				PRINTFORML 下準備として%ANAME(ARG:0)%の乳房を念入りにマッサージした
+				PRINTFORML 前絞りを捨ててから搾乳機を取り付けると勢いよく母乳が噴き出した
+			CASE 4
+				PRINTFORML %ANAME(ARG:0)%は搾乳機を目にしただけで乳房が熱くなるのを感じた
+				PRINTFORML 本人の意志とは無関係にその体はより家畜らしくなりつつある
+			CASE 5
+				PRINTFORML %ANAME(ARG:0)%は搾乳後の手入れを受けている
+				PRINTFORML 殺菌消毒や触診、搾乳記録等を取られる事に羞恥を覚えたが顔を背ける程度しか許されていなかった
+			CASE 6
+				PRINTFORML 搾乳機が取り外される
+				PRINTFORML ノルマが終わったのかと思う%ANAME(ARG:0)%であったがその乳房を念入りにマッサージされた
+				PRINTFORML 息を荒げる%ANAME(ARG:0)%に再び搾乳機が取り付けられると先程よりも勢い良く母乳が噴き出し始めた
+	ENDSELECT
+ELSE
+	PRINTFORML %ANAME(ARG:0)%は母乳体質に作り替える手術を受けている……
+ENDIF
+
 ;次に具体的な処理を書く　このバリアントでは珠ではなく経験で能力を管理することに注意
 ;念のため一度感情を初期化
 CFLAG:(ARG:0):捕虜怒 = 0
 CFLAG:(ARG:0):捕虜哀 = 0
 CFLAG:(ARG:0):捕虜怖 = 0
 ;母乳が出ないキャラは搾乳されると母乳が出る体質になっていく 先に処理
-IF (!TALENT:(ARG:0):母乳体質 || CFLAG:(ARG:0):一時的母乳体質) && TALENT:(ARG:0):性別 != 0
+IF (!TALENT:(ARG:0):母乳体質 || CFLAG:(ARG:0):一時的母乳体質) && (!IS_MALE(ARG:0) || (IS_MALE(ARG:0) && TALENT:(ARG:0):孕み可能))
 	EXP:(ARG:0):搾乳経験値 += (1 + RAND:3)
 	SIF TALENT:(ARG:0):Ｂ敏感
 		EXP:(ARG:0):搾乳経験値 += 1
@@ -1518,7 +1523,7 @@ IF TALENT:(ARG:0):母乳体質
 	PRINTFORML %ANAME(ARG:0)%から{MILK_AMOUNT}ccの母乳を搾り出した。
 	PRINTFORML {VALUE}の買値が付いた。
 	MONEY += VALUE
-ELSEIF TALENT:(ARG:0):性別 == 0
+ELSEIF IS_MALE(ARG:0) && !TALENT:(ARG:0):母乳体質
 	SPOUT_MILK = 0
 	CALL FUCK(ARG:0, "Ｂ感")
 	PRINTFORML だが、%ANAME(ARG:0)%は男だ。母乳を絞ることができるはずがない。
