@@ -64,29 +64,24 @@ RETURN RAND:100 < 10 && GET_SOLDIER(発動勢力, 発動部隊) > 0 && GET_SOLDI
 対象側 = !発動側
 PRINTFORML 目にもとまらぬ先制攻撃！
 
-;自部隊が都市防衛をしている場合のみ、防御側に入れないと配列マイナス参照でエラー落ちする。
-;BATTLE_CALCは攻撃側が都市であることを考慮していない。
-IF 発動部隊 < 0
-	CALL BATTLE_PREPARE_VARS(対象勢力, 対象部隊, 発動勢力, 発動部隊)
-	LOCAL:2 = BATTLE_INT:発動側
-	LOCAL:3 = BATTLE_INT:対象側
-	BATTLE_INT:発動側 = 1
-	BATTLE_INT:対象側 = 1
-	CALL BATTLE_CALC_CORE(対象勢力, 対象部隊, 発動勢力, 発動部隊)
-	LOCAL:1 = 0
-ELSE
+IF 発動側 == 0
 	CALL BATTLE_PREPARE_VARS(発動勢力, 発動部隊, 対象勢力, 対象部隊)
-	LOCAL:2 = BATTLE_INT:発動側
-	LOCAL:3 = BATTLE_INT:対象側
-	BATTLE_INT:発動側 = 1
-	BATTLE_INT:対象側 = 1
+ELSE
+	CALL BATTLE_PREPARE_VARS(対象勢力, 対象部隊, 発動勢力, 発動部隊)
+ENDIF
+
+BATTLE_INT:発動側 = 1
+BATTLE_INT:対象側 = 1
+
+IF 発動側 == 0
 	CALL BATTLE_CALC_CORE(発動勢力, 発動部隊, 対象勢力, 対象部隊)
-	LOCAL:1 = 1
+ELSE
+	CALL BATTLE_CALC_CORE(対象勢力, 対象部隊, 発動勢力, 発動部隊)
 ENDIF
 
 VARSET BATTLE_RATE_DMG
 
-CALL DECREASE_SOLDIER(対象勢力, 対象部隊, MAX(BATTLE_DMG:(LOCAL:1) / 5, 100), 1)
+CALL DECREASE_SOLDIER(対象勢力, 対象部隊, MAX(BATTLE_DMG:対象側 / 5, 100), 1)
 
 
 @SKILL_13_SP_0_EXPLANATION
