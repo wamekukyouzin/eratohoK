@@ -1,0 +1,194 @@
+﻿;---------------------
+;発生確率(1000分率 100で10%)
+;---------------------
+@EVENT_DAILY_BANDIT_EXECUTION_RATE()
+RETURN 15
+
+;---------------------
+;確率以外の発生判定
+;---------------------
+@EVENT_DAILY_BANDIT_EXECUTION_DECISION()
+#DIM 野盗
+野盗 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_野盗))
+SIF 野盗 == -1
+	RETURN 0
+SIF DAY < 12
+	RETURN 0
+
+RETURN 1
+
+;---------------------
+;ジャンル
+;---------------------
+@EVENT_DAILY_BANDIT_EXECUTION_GENRE()
+RETURN デイリー_ジャンル_特殊勢力
+
+;---------------------
+;本体
+;---------------------
+@EVENT_DAILY_BANDIT_EXECUTION
+#DIM 対象
+
+PRINTFORMW 部下が領内で野盗の集団を発見した様だ
+PRINTFORML どうしよう？
+CALL ASK_MULTI(@"警備を強化する" ,"捕らえに向かう")
+	IF RESULT == 0
+		PRINTFORMW 周辺の警備を強化して襲撃に備えた
+		PRINTFORMW そのおかげか、野盗の被害は発生しなかった
+	ELSE
+		PRINTFORML 今まで散々暴れてくれた連中だ
+		PRINTFORMW ただ蹴散らすだけでは飽き足らない、捕らえる事にした
+		PRINTFORML 誰を向かわせようか？
+		CALL SELECT_CHARA_LIST_SLG()
+		対象 = RESULT 
+		IF RESULT < 0
+			PRINTFORMW やはりやめておこう
+			PRINTFORMW 周辺の警備を強化して襲撃に備えた
+			PRINTFORMW そのおかげか、野盗の被害は発生しなかった
+			RETURN
+		ELSEIF 対象 == MASTER
+			PRINTFORMW %ANAME(対象)%自ら向かう事にした
+		ELSE
+			PRINTFORMW %ANAME(対象)%を向かわせた
+		ENDIF
+		PRINTFORML ・
+		PRINTFORML ・
+		PRINTFORMW ・
+		IF ((ABL:対象:武闘 + ABL:対象:防衛) / 2) * (RAND:8 + 1) < (40 + (DAY / 2)) * (RAND:7 + 1)
+			PRINTFORML しかし待ち伏せされていた！
+			PRINTFORMW 部隊は返り討ちにされてしまった…
+			PRINTFORMW %ANAME(対象)%はボロボロになりながらも何とか逃げ帰った
+			CALL ADD_COOLTIME(対象, 3)
+		ELSE
+			PRINTFORMW 成功した！
+			PRINTFORML %ANAME(対象)%は見事野盗の集団を撃破した
+			PRINTFORML 半数近くの野盗を捕らえる事が出来た
+			PRINTFORMW 見せしめとして処刑することにしよう
+			PRINTFORMW しかし、中には少女の野盗も混ざっていた
+			PRINTFORML どうしよう？
+			CALL ASK_MULTI_JUDGE(@"纏めて処刑する", 1,"兵士に与える", 1,"犯す", PENIS(対象))
+				IF RESULT == 0
+					PRINTFORML しかし野盗は野盗だ、慈悲はない
+					PRINTFORMW まとめて処刑して首を晒した
+					CALL COLORPRINT(@"その苛烈な処分は多少の賛否を生んだが、おおむね好意的に受け止められた", COLOR("注意"))
+					PRINTFORMW 
+					FOR LOCAL, 1, MAX_COUNTRY
+						CALL CHANGE_RELATION_C_TO_C(LOCAL, CFLAG:MASTER:所属, 40, 20)
+					NEXT
+				ELSEIF RESULT == 1
+					PRINTFORML どうせなら処刑よりも有効活用しよう
+					PRINTFORMW 少女の野盗は慰安の為に兵士たちに与える事にした
+					CALL COLORPRINT(@"彼女たちは兵の間で大好評となり、噂を聞いて志願兵が増加した", COLOR("注意"))
+					PRINTFORMW 
+					COUNTRY_SOLDIER:(CFLAG:MASTER:所属) += (50 + RAND:50) * DAY
+				ELSE
+					PRINTFORML 折角なので使わせてもらおう
+					PRINTFORMW %ANAME(対象)%は野盗の少女を持ち帰り楽しませてもらう事にした
+					PRINTFORML 
+					SELECTCASE RAND:10
+						CASE 0
+							PRINTFORML 服をはぎ取ると想像以上に豊満な肉体が露になり思わず笑みがこぼれる
+							PRINTFORML 必死で抵抗する彼女を乱暴に組み伏せ性器に指を這わせると、敏感に身体を震わせた
+							PRINTFORMW ペニスをねじ込むと彼女は嬌声交じりの悲鳴を上げながら大きく身体を弓ぞりに反らした
+							PRINTFORML きつく締め付けてくる蜜壺と彼女の悔しそうな表情を堪能しながら激しく腰を打ち付ける
+							PRINTFORML やがて我慢できずに膣内射精すると、彼女は大きな嬌声を上げて全身を痙攣させた
+							PRINTFORMW 思わぬ上玉に%ANAME(対象)%はご機嫌となって一晩中たっぷりと楽しませてもらった
+						CASE 1
+							PRINTFORML 彼女を壁に手を突かせ尻を突き出させ、背後から激しくガン突きしている
+							PRINTFORML 柔らかなお尻に腰を打ち付ける度にぱぁん！ぱぁん！と鳴り響き、彼女の呻き声が上がる
+							PRINTFORMW 膣肉は想像以上に絶品で、一突き毎に愛液を溢れさせ、ペニスへの締め付けを増してくる
+							PRINTFORML 我慢できずに一発目を放つと、彼女は大きく身を反らして悲鳴に近い嬌声を漏らした
+							PRINTFORML 媚肉はぎゅうぎゅうと蠢いて竿を締め付け、貪欲に一滴残らず搾り取ろうとしてくる
+							PRINTFORMW その極上の蜜壺に%ANAME(対象)%は夢中となって、時間を忘れて何度も堪能させてもらった
+						CASE 2
+							PRINTFORML 乱暴にするつもりで服をはぎ取るとあちこち傷だらけの肌が露になった
+							PRINTFORML 涙を流しながら震える彼女の顔を見ると急に同情心がわき、%ANAME(対象)%は優しく肌に手を這わせた
+							PRINTFORMW 彼女が落ち着き準備が整うまで、時間をかけて丁寧に愛撫を繰り返してやる
+							PRINTFORML 次第に彼女は%ANAME(対象)%の愛撫に身を委ねはじめ、震える喉からは甘い吐息が漏れ出してきた
+							PRINTFORML 彼女を優しく寝かせてペニスを秘所に押し当てると、ぎゅっと手を掴みながら見上げてきた
+							PRINTFORMW 想定外の形になりながらも彼女を優しく愛してやり、二人で汗だくになりながら絡み合った
+						CASE 3
+							PRINTFORML 目隠しをした上で縛り上げ、身動きできなくした彼女をオナホの様に扱う
+							PRINTFORML 乱暴にドスドスと子宮を突き上げると、彼女はヒィヒィとヨガリ全身を痙攣させる
+							PRINTFORMW 彼女は逃れようと身もだえするが、それがかえって%ANAME(対象)%のペニスを心地よく刺激してきた
+							PRINTFORML 一つ大きく突き上げると、彼女はビクン！と身体を反らして無様な喘ぎ声を漏らした
+							PRINTFORML 絶頂したかを尋ねても必死で否定する彼女を攻め立てると先程より敏感に身体を跳ねさせた
+							PRINTFORMW %ANAME(対象)%は想定以上の極上肉オナホを一晩かけてたっぷりと調教してやった
+						CASE 4
+							PRINTFORML 彼女をベッドに縛り付けて無理矢理媚薬を飲ませて繰り返し犯し続けた
+							PRINTFORML 始めは抵抗してた彼女も何度目かの絶頂を迎える頃にはもはや快楽に身体を震わせるだけになった
+							PRINTFORMW 媚肉はどんどんと良くなっていき、生き物のようにペニスに絡みついてきて腰が浮きそうになる
+							PRINTFORML 痙攣してヨガル彼女にキスをしてやると、いきなり首に手を回され舌を絡まされた
+							PRINTFORML 驚いて瞳を覗くとすっかり快楽の虜になっている様な発情した表情で♥が浮かんでいた
+							PRINTFORMW 可愛く喘ぐ彼女と一緒にいろいろなプレイを楽しみ、ねだられるままに何度も精を放った
+						CASE 5
+							PRINTFORML 暴れる彼女をベッドに押し倒し、四つん這いの姿勢で乱暴にレイプする
+							PRINTFORML その膣穴は正に名器で、ペニス全体に絡みつき、腰をより激しく深くねじ込むのを止められない
+							PRINTFORMW 犯されている彼女は四肢をガクガク震わせながらもシーツをギュッと掴んで歯を喰いしばっている
+							PRINTFORML しかし%ANAME(対象)%が天井を擦り上げてやると、電流が流れた様にビクンと身体を跳ねさせた
+							PRINTFORML 言い訳する彼女を無視し、弱点を抉ってやるとその度に痙攣して次第に甘い喘ぎを漏らしだした
+							PRINTFORMW その内彼女は合い腰を打ち出し、射精を予告しても抵抗せずに受け入れる様になっていった
+						CASE 6
+							PRINTFORML %ANAME(対象)%の部屋の中から少女のあられもない喘ぎ声が響いている
+							PRINTFORML 彼女はあまり抵抗もせず、犯し始めてすぐにヨガリだして自分から合い腰を打って乱れている
+							PRINTFORMW 我慢できずに一発目を放つと、彼女はぎゅうっと%ANAME(対象)%にしがみつきながら共に絶頂に達した
+							PRINTFORML 一息ついて彼女を抱きしめながらピロートークをしていると、涙ながらに身の上を語りだした
+							PRINTFORML 曰く、野盗に攫われてからずっと性奴隷扱いだった、今や犯されている方が落ち着く、と
+							PRINTFORMW 今だけは他に何も考えずにすむ様に、%ANAME(対象)%は彼女と共に灼ける様な肉欲に溺れていった
+						CASE 7
+							PRINTFORML %ANAME(対象)%は彼女に立場を理解させる為、裸に剥いて首輪をつけて散歩に出かけた
+							PRINTFORML 宮殿内で兵士たちに出会う度に彼らの目の前で乱暴に彼女を犯し、容赦なく膣出しを繰り返す
+							PRINTFORMW 始めは睨み付けていた彼女も何度目かには、涙ながらにもうやめてくれと懇願するようになった
+							PRINTFORML やめる代わりに忠誠の証としてペニスを差し出すと、彼女は躊躇いながらも亀頭にキスをした
+							PRINTFORML 満足した%ANAME(対象)%は彼女を部屋に連れ戻すとベッドに寝かせ、優しく愛撫しながら抱いてやった
+							PRINTFORMW 彼女はもはや抵抗せずにされるがままに身をくねらせ%ANAME(対象)%のすべてを受け入れた
+						CASE 8
+							PRINTFORML %ANAME(対象)%は彼女を散々犯した後、ベッドに転がしたまま一息をついている
+							PRINTFORML 日頃から野盗たちの相手で慣らされていたのか、その身体は幼いながらも充分楽しませてくれた
+							PRINTFORMW 息を荒げながら横たわって秘所から精液を垂らす少女の姿は、再び股間の一物をそそり立たせる
+							PRINTFORML %ANAME(対象)%が次を命じると、彼女は躊躇いながらも自ら身体を開き優しくしてほしいと懇願してきた
+							PRINTFORML その態度に同情した%ANAME(対象)%が優しく抱いてやると、彼女は今度は甘える様な喘ぎ声を漏らした
+							PRINTFORMW 年相応に身体を震わせながら可愛く喘ぐ彼女に、当初の目的を忘れて夢中になった
+						CASE 9
+							PRINTFORML %ANAME(対象)%は彼女に覆い被さりながら深々とペニスの奥へとねじ込み腰を振っている
+							PRINTFORML 彼女は意外にも処女であり、苦痛に顔を歪ませて呻きながら%ANAME(対象)%の両腕を握りしめている
+							PRINTFORMW その表情ときつきつの蜜壺を楽しみながら、まだ誰も入った事のない彼女の奥深くを蹂躙していく
+							PRINTFORML 最奥で腰を止めた後、ゆったりと愛撫しながら愛の言葉を囁くと、彼女はゾクゾクと背筋を震わせた
+							PRINTFORML しばし続けると彼女の緊張も解れていき、甘える様な喘ぎ声が微かに喉から漏れ聞こえてきた
+							PRINTFORMW 彼女を気に入った%ANAME(対象)%は、一晩かけてじっくり心身ともに自分好みに調教していった
+					ENDSELECT
+					CALL FUCK(対象, "性技, 性交, Ｃ, 射精", "童貞喪失, キス喪失", 0, "野盗の少女の唇", "", @"野盗の少女の膣", 喪失_強姦)
+					PRINTFORML 
+					PRINTFORMW 存分に楽しんだ後、彼女を解放してやった
+					IF ABL:対象:性技 + RAND:4 >= 7
+						PRINTFORML しかし彼女はメロメロになった様で、仕えさせてほしいと懇願してきた
+						PRINTFORMW その様子に満足した%ANAME(対象)%は彼女を部下にしてやることにした
+						IF DVAR:野盗少女部下 == 0
+							CALL CREATE_RANDOM_CHARA(0,0,1)
+							LOCAL = RESULT
+							SIF LOCAL == -1
+								GOTO CREATE_MISS
+							CALL CHANGE_COUNTRY(LOCAL, CFLAG:MASTER:所属, 1)
+							TALENT:対象:処女 = 0
+							TALENT:対象:キス未経験 = 0
+							TALENT:対象:合意 = 1
+							CFLAG:対象:好感度 = 1000
+							CFLAG:対象:依存度 = 500
+							CFLAG:対象:従属度 = 1000
+							CALL COLORPRINT(@"%ANAME(LOCAL)%が仲間に加わりました", COLOR("注意")) 
+							PRINTFORMW 
+							DVAR:野盗少女部下 = 1
+						ELSE
+							$CREATE_MISS
+							PRINTFORMW 彼女が熱心に働いてくれたおかげで、%ANAME(対象)%の力になった
+							CALL PRINT_ADD_EXP(対象, "武闘経験値", RAND:20 + 6, 1)
+							CALL PRINT_ADD_EXP(対象, "防衛経験値", RAND:20 + 6, 1)
+							PRINTFORMW 
+						ENDIF
+					ELSE
+						PRINTFORMW 彼女は一度%ANAME(対象)%を振り返ったが、何も言わずにそのまま逃げ去って行った
+					ENDIF
+				ENDIF
+		ENDIF
+	ENDIF
+RETURN 1
