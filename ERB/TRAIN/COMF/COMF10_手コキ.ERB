@@ -4,7 +4,8 @@
 ;コマンド名称
 ;-------------------------------------------------
 @COM_NAME10
-IF MTAR_NUM == 2
+
+IF MTAR_NUM > 1
 	LOCALS:0 = 同時手コキ
 ELSEIF MPLY_NUM == 3
 	LOCALS:0 = Ｔ手コキ
@@ -54,12 +55,11 @@ SIF RESULT == 0
 ;プレイヤーは最大で3人まで
 SIF MPLY_NUM <= 0 || MPLY_NUM > 3
 	RETURN 0
-;ターゲットは最大で2人まで
-SIF MTAR_NUM <= 0 || MTAR_NUM > 2
+;ターゲットは最大でプレイヤーの二倍まで
+SIF MTAR_NUM <= 0 || MTAR_NUM > MPLY_NUM * 2
 	RETURN 0
-;複数-複数は不可
-SIF MPLY_NUM >= 2 && MTAR_NUM >= 2
-	RETURN 0
+
+
 ;全プレイヤーについて判定
 FOR LOCAL:0, 0, MPLY_NUM
 	;行動不能なら不可
@@ -71,18 +71,18 @@ FOR LOCAL:0, 0, MPLY_NUM
 	;挿入中はプレイヤーが一人の場合のみ許可
 	SIF IS_INSERT_SINGLE(MPLY:(LOCAL:0), "全") && MPLY_NUM >= 2
 		RETURN 0
-NEXT
-;全ターゲットについて判定
-FOR LOCAL:0, 0, MTAR_NUM
-	;竿が必要
-	SIF !PENIS(MTAR:(LOCAL:0))
-		RETURN 0
-	;竿が挿入中なら1-1限定
-	SIF IS_INSERT_SINGLE(MTAR:(LOCAL:0), "Ｐ") && (MPLY_NUM >= 2 || MTAR_NUM >= 2)
-		RETURN 0
-	;ターゲットが触手オナホされているなら1-1限定
-	SIF IS_EQUIP_TARGET(MTAR:(LOCAL:0), 205) && (MPLY_NUM >= 2 || MTAR_NUM >= 2)
-		RETURN 0
+	;全ターゲットについて判定
+	FOR LOCAL:1, 0, MTAR_NUM
+		;竿が必要
+		SIF !PENIS(MTAR:(LOCAL:1))
+			RETURN 0
+		;竿が挿入中なら1-1限定
+		SIF IS_INSERT_SINGLE(MTAR:(LOCAL:1), "Ｐ") && (MPLY_NUM >= 2 || MTAR_NUM >= 2)
+			RETURN 0
+		;ターゲットが触手オナホされているなら1-1限定
+		SIF IS_EQUIP_TARGET(MTAR:(LOCAL:1), 205) && (MPLY_NUM >= 2 || MTAR_NUM >= 2)
+			RETURN 0
+	NEXT
 NEXT
 RETURN 1
 
@@ -354,8 +354,8 @@ RETURN 1
 ;地の文(前文)
 ;-------------------------------------------------
 @COM_TEXT_BEFORE10
-;ターゲットが２人
-IF MTAR_NUM == 2
+;ターゲットが複数
+IF MTAR_NUM > 1
 	LOCALS:0 = 
 	IF GETBIT(TALENT:(MPLY:0):淫乱系, 素質_淫乱_淫乱) && MPLY:0 != MASTER
 		LOCALS:0 = うっとりとした表情を浮かべながら、
@@ -365,18 +365,22 @@ IF MTAR_NUM == 2
 	ELSE
 		LOCALS:1 = 
 	ENDIF
-
+	IF MPLY_NUM > 1
+		LOCALS:2 = たち
+	ELSE
+		LOCALS:2 = 
+	ENDIF
 	SELECTCASE GET_COM_INITIATIVE()
 		;プレイヤーに主導権
 		CASE 0
-			PRINTFORMW %ANAME(MPLY:0)%は%LOCALS:0%左右の手で%ANAME(MTAR:0)%と%ANAME(MTAR:1)%の%LOCALS:1%ペニスを激しくシゴ%TARGET_STR("きたてた", "いてきた")%…
+			PRINTFORMW %ANAME(MPLY:0)%%LOCALS:2%は%LOCALS:0%左右の手で%ANAME(MTAR:0)%たちの%LOCALS:1%ペニスを激しくシゴ%TARGET_STR("きたてた", "いてきた")%…
 		;ターゲットに主導権
 		CASE 1
-			PRINTFORMW %ANAME(MPLY:0)%は%LOCALS:0%左右の手で%ANAME(MTAR:0)%と%ANAME(MTAR:1)%の%LOCALS:1%ペニスを擦りあげて奉仕している…
+			PRINTFORMW %ANAME(MPLY:0)%%LOCALS:2%は%LOCALS:0%左右の手で%ANAME(MTAR:0)%たちの%LOCALS:1%ペニスを擦りあげて奉仕している…
 		;第三者に主導権
 		CASEELSE
-			PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に、%ANAME(MTAR:0)%と%ANAME(MTAR:1)%の%LOCALS:1%ペニスに手で奉仕するように命令した
-			PRINTFORMW %ANAME(MPLY:0)%は%LOCALS:0%左右の手で%ANAME(MTAR:0)%と%ANAME(MTAR:1)%の竿をシゴき上げた…
+			PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に、%ANAME(MTAR:0)%たちの%LOCALS:1%ペニスに手で奉仕するように命令した
+			PRINTFORMW %ANAME(MPLY:0)%%LOCALS:2%は%LOCALS:0%左右の手で%ANAME(MTAR:0)%たちの竿をシゴき上げた…
 	ENDSELECT
 
 ;プレイヤーが３人
@@ -386,17 +390,22 @@ ELSEIF MPLY_NUM == 3
 	ELSE
 		LOCALS:1 = 
 	ENDIF
+	IF MTAR_NUM > 1
+		LOCALS:2 = たち
+	ELSE
+		LOCALS:2 = 
+	ENDIF
 	SELECTCASE GET_COM_INITIATIVE()
 		;プレイヤーに主導権
 		CASE 0
-			PRINTFORMW %ANAME(MPLY:0)%、%ANAME(MPLY:1)%、%ANAME(MPLY:2)%の三人は、一斉に%ANAME(MTAR:0)%の%LOCALS:1%竿や玉に指を絡めて責め立て%TARGET_STR("た", "てきた")%…
+			PRINTFORMW %ANAME(MPLY:0)%、%ANAME(MPLY:1)%、%ANAME(MPLY:2)%の三人は、一斉に%ANAME(MTAR:0)%%LOCALS:2%の%LOCALS:1%竿や玉に指を絡めて責め立て%TARGET_STR("た", "てきた")%…
 		;ターゲットに主導権
 		CASE 1
-			PRINTFORMW %ANAME(MPLY:0)%、%ANAME(MPLY:1)%、%ANAME(MPLY:2)%の三人は、協力しながら%ANAME(MTAR:0)%の%LOCALS:1%竿や玉に指を絡めて奉仕している…
+			PRINTFORMW %ANAME(MPLY:0)%、%ANAME(MPLY:1)%、%ANAME(MPLY:2)%の三人は、協力しながら%ANAME(MTAR:0)%%LOCALS:2%の%LOCALS:1%竿や玉に指を絡めて奉仕している…
 		;第三者に主導権
 		CASEELSE
-			PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%、%ANAME(MPLY:1)%、%ANAME(MPLY:2)%の三人に、%ANAME(MTAR:0)%の%LOCALS:1%ペニスを手でシゴくように命令した
-			PRINTFORMW %ANAME(MPLY:0)%たちは、全員で%ANAME(MTAR:0)%の竿や玉に指を絡めて責め立てた…
+			PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%、%ANAME(MPLY:1)%、%ANAME(MPLY:2)%の三人に、%ANAME(MTAR:0)%%LOCALS:2%の%LOCALS:1%ペニスを手でシゴくように命令した
+			PRINTFORMW %ANAME(MPLY:0)%たちは、全員で%ANAME(MTAR:0)%%LOCALS:2%の竿や玉に指を絡めて責め立てた…
 	ENDSELECT
 
 ;プレイヤーが２人
@@ -406,17 +415,22 @@ ELSEIF MPLY_NUM == 2
 	ELSE
 		LOCALS:1 = 
 	ENDIF
+	IF MTAR_NUM > 1
+		LOCALS:2 = たち
+	ELSE
+		LOCALS:2 = 
+	ENDIF
 	SELECTCASE GET_COM_INITIATIVE()
 		;プレイヤーに主導権
 		CASE 0
-			PRINTFORMW %ANAME(MPLY:0)%と%ANAME(MPLY:1)%は二人で分担しながら、それぞれの指で%ANAME(MTAR:0)%の%LOCALS:1%竿や玉を弄り回し責め立て%TARGET_STR("た", "てきた")%…
+			PRINTFORMW %ANAME(MPLY:0)%と%ANAME(MPLY:1)%は二人で分担しながら、それぞれの指で%ANAME(MTAR:0)%%LOCALS:2%の%LOCALS:1%竿や玉を弄り回し責め立て%TARGET_STR("た", "てきた")%…
 		;ターゲットに主導権
 		CASE 1
-			PRINTFORMW %ANAME(MPLY:0)%と%ANAME(MPLY:1)%は二人で分担しながら、それぞれの指で%ANAME(MTAR:0)%の%LOCALS:1%竿や玉に奉仕している…
+			PRINTFORMW %ANAME(MPLY:0)%と%ANAME(MPLY:1)%は二人で分担しながら、それぞれの指で%ANAME(MTAR:0)%%LOCALS:2%の%LOCALS:1%竿や玉に奉仕している…
 		;第三者に主導権
 		CASEELSE
-			PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%と%ANAME(MPLY:1)%に、%ANAME(MTAR:0)%の%LOCALS:1%ペニスを手でシゴくように命令した
-			PRINTFORMW %ANAME(MPLY:0)%と%ANAME(MPLY:1)%は二人で分担しながら、それぞれの指で%ANAME(MTAR:0)%の竿や玉を弄り回し責め立てた…
+			PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%と%ANAME(MPLY:1)%に、%ANAME(MTAR:0)%%LOCALS:2%の%LOCALS:1%ペニスを手でシゴくように命令した
+			PRINTFORMW %ANAME(MPLY:0)%と%ANAME(MPLY:1)%は二人で分担しながら、それぞれの指で%ANAME(MTAR:0)%%LOCALS:2%の竿や玉を弄り回し責め立てた…
 	ENDSELECT
 
 ;プレイヤーが１人(触手オナホ中)
