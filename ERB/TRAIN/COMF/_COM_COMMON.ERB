@@ -406,12 +406,19 @@ IF IS_EQUIP_TARGET(ARG:0, 75)
 	ARG:2 = 14
 ENDIF
 
-;既に膣射・腸射、ゴム先が指定されていれば戻る
+;既にゴム先が指定されていれば戻る
 FOR LOCAL:0, 0, 20
-	IF GROUPMATCH(TCVAR:(ARG:0):(LOCAL:0 + 420), 1, 2, 14)
+	SIF TCVAR:(ARG:0):(LOCAL:0 + 400) == ARG:1 && GROUPMATCH(TCVAR:(ARG:0):(LOCAL:0 + 420), 14)
 		RETURN
-	ENDIF
 NEXT
+
+;膣、アナル、ゴム以外は、すでに膣、アナル、ゴムが指定されていたら駄目
+IF !GROUPMATCH(ARG:2, 1, 2, 14)
+	FOR LOCAL:0, 0, 20
+		SIF GROUPMATCH(TCVAR:(ARG:0):(LOCAL:0 + 420), 1, 2, 14)
+			RETURN
+	NEXT
+ENDIF
 
 ;上書きしない場合、既に射精箇所が設定されていたら戻る
 IF !ARG:3
@@ -422,24 +429,23 @@ IF !ARG:3
 	NEXT
 ENDIF
 
-;もしARG:2が膣orアナルorゴムなら今までの指定をリセットして新たに上書き
+;もしARG:2が膣orアナルorゴムで、かつそのキャラの射精先が登録済みなら今までの指定をリセット
 IF ARG:2 == 14 || ARG:2 == 1 || ARG:2 == 2
 	FOR LOCAL:0, 0, 20
-		TCVAR:(ARG:0):(LOCAL:0 + 400) = -1
-		TCVAR:(ARG:0):(LOCAL:0 + 420) = 0
-	NEXT
-	TCVAR:(ARG:0):400 = ARG:1
-	TCVAR:(ARG:0):420 = ARG:2
-
-ELSE
-	FOR LOCAL:0, 0, 20
-		IF GROUPMATCH(TCVAR:(ARG:0):(LOCAL:0 + 400), -1, ARG:1)
-			TCVAR:(ARG:0):(LOCAL:0 + 400) = ARG:1
-			TCVAR:(ARG:0):(LOCAL:0 + 420) = ARG:2
-			BREAK
+		IF TCVAR:(ARG:0):(LOCAL:0 + 400) == ARG:1
+			TCVAR:(ARG:0):(LOCAL:0 + 400) = -1
+			TCVAR:(ARG:0):(LOCAL:0 + 420) = 0
 		ENDIF
 	NEXT
 ENDIF
+FOR LOCAL:0, 0, 20
+	IF GROUPMATCH(TCVAR:(ARG:0):(LOCAL:0 + 400), -1, ARG:1)
+		TCVAR:(ARG:0):(LOCAL:0 + 400) = ARG:1
+		TCVAR:(ARG:0):(LOCAL:0 + 420) = ARG:2
+		BREAK
+	ENDIF
+NEXT
+
 
 ;-------------------------------------------------
 ;キャラARG:0について、射精対象に関する設定を強制的にクリアする関数
