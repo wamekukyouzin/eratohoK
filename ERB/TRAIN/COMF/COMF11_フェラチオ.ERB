@@ -5,20 +5,25 @@
 ;-------------------------------------------------
 @COM_NAME11
 ;挿入中
-IF IS_INSERT_SINGLE(MTAR:0, "Ｐ")
-	LOCALS:1 = お掃除
-ELSE
-	LOCALS:1 = 
-ENDIF
+FOR LOCAL, 0, MTAR_NUM
+	IF IS_INSERT_SINGLE(MTAR:LOCAL, "Ｐ")
+		LOCALS:1 = お掃除
+		BREAK
+	ELSE
+		LOCALS:1 = 
+	ENDIF
+NEXT
 
-IF MPLY_NUM == 3 && MTAR_NUM == 1
+IF MTAR_NUM > 3
+	LOCALS:0 = %LOCALS:1%輪フェラ
+ELSEIF MTAR_NUM == 3
+	LOCALS:0 = %LOCALS:1%三本フェラ
+ELSEIF MTAR_NUM == 2
+	LOCALS:0 = %LOCALS:1%二本フェラ
+ELSEIF MPLY_NUM == 3 && MTAR_NUM == 1
 	LOCALS:0 = Ｔ%LOCALS:1%フェラ
 ELSEIF MPLY_NUM == 2 && MTAR_NUM == 1
 	LOCALS:0 = Ｗ%LOCALS:1%フェラ
-ELSEIF MTAR_NUM == 3 && MPLY_NUM == 1
-	LOCALS:0 = 三本フェラ
-ELSEIF MTAR_NUM == 2 && MPLY_NUM == 1
-	LOCALS:0 = 二本フェラ
 ELSE
 	;プレイヤーからターゲットに顔面騎乗中 or ターゲットからプレイヤーにクンニ中
 	IF IS_RIDE(MPLY:0, MTAR:0) || SEARCH_EQUIP(2, MTAR:0, MPLY:0) >= 0
@@ -51,56 +56,49 @@ SIF RESULT == 0
 ;プレイヤーは最大で3人まで
 SIF MPLY_NUM <= 0 || MPLY_NUM > 3
 	RETURN 0
-;ターゲットは最大で3人まで
-SIF MTAR_NUM <= 0 || MTAR_NUM > 3
+;ターゲットが必要
+SIF MTAR_NUM <= 0
 	RETURN 0
-IF MPLY_NUM > 1
-	;プレイヤーが複数のときはターゲットは1人でないといけない
-	SIF MTAR_NUM != 1
-		RETURN 0
-	;当然される奴にチンポがないとダメ
-	SIF !PENIS(MTAR:0) && !TCVAR:(MTAR:0):61
-		RETURN 0
-;逆もしかり
-ELSEIF MTAR_NUM > 1
-	SIF MPLY_NUM != 1
-		RETURN 0
-	FOR LOCAL:0, 0, MTAR_NUM
-		SIF !PENIS(MTAR:(LOCAL:0)) && !TCVAR:(MTAR:(LOCAL:0)):61
-			RETURN 0
-	NEXT
-ELSEIF MTAR_NUM == 1
-	SIF !PENIS(MTAR:0) && !TCVAR:(MTAR:0):61
-		RETURN 0
-ENDIF
 
-;ターゲットが触手オナホされているなら不可
-SIF IS_EQUIP_TARGET(MTAR:0, 205)
-	RETURN 0
-;全プレイヤーについて判定
-FOR LOCAL:0, 0, MPLY_NUM
+FOR LOCAL, 0, MPLY_NUM
 	;行動不能なら不可
 	SIF !IS_PLAYABLE(MPLY:(LOCAL:0))
 		RETURN 0
-	;拘束中なら1-1のみ
+	;拘束中なら実行者は1のみ
 	SIF IS_BIND(MPLY:(LOCAL:0)) && MPLY_NUM >= 2
 		RETURN 0
-	;プレイヤーからターゲットに挿入中なら不可
-	SIF GROUPMATCH(IS_INSERT_MUTUAL(MPLY:(LOCAL:0), MTAR:0), 1, 2)
-		RETURN 0
-	;性技が２以下の場合、挿入されている相手へのフェラは1-1のみ可能
-	SIF IS_INSERT_SINGLE(MTAR:0, "全") && MPLY_NUM >= 2 && ABL:(MPLY:(LOCAL:0)):性技 <= 2
-		RETURN 0
+
 	;顔面騎乗されている、キス中、口枷装着中なら不可
 	SIF IS_RIDDEN(MPLY:(LOCAL:0)) || IS_EQUIP(MPLY:(LOCAL:0), 20) || IS_EQUIP_TARGET(MPLY:(LOCAL:0), 86)
 		RETURN 0
 	;胸愛撫・足舐め中は不可
 	SIF IS_EQUIP_PLAYER(MPLY:(LOCAL:0), 1, 104)
 		RETURN 0
-	;ターゲットからプレイヤーに足舐め中なら不可
-	SIF SEARCH_EQUIP(104, MTAR:0, MPLY:(LOCAL:0)) >= 0
+	FOR LOCAL:1, 0, MTAR_NUM
+		;シックスナインまたは相互フェラになるときは、プレイヤーもターゲットも一人でないと駄目
+		SIF (MPLY_NUM > 1 || MTAR_NUM > 1) && (IS_RIDE(MPLY:LOCAL, MTAR:(LOCAL:1)) || SEARCH_EQUIP(2, MTAR:(LOCAL:1), MPLY:LOCAL) >= 0 || SEARCH_EQUIP(11, MPLY:LOCAL, MTAR:(LOCAL:1)) >= 0)
+			RETURN 0
+		;プレイヤーからターゲットに挿入中なら不可
+		SIF GROUPMATCH(IS_INSERT_MUTUAL(MPLY:(LOCAL), MTAR:(LOCAL:1)), 1, 2)
+			RETURN 0
+		;性技が２以下の場合、挿入されている相手へのフェラは1-1のみ可能
+		SIF IS_INSERT_SINGLE(MTAR:(LOCAL:1), "全") && MPLY_NUM > 1 && ABL:(MPLY:(LOCAL:0)):性技 <= 2
+			RETURN 0
+		;ターゲットからプレイヤーに足舐め中なら不可
+		SIF SEARCH_EQUIP(104, MTAR:(LOCAL:1), MPLY:(LOCAL:0)) >= 0
+			RETURN 0
+	NEXT
+NEXT
+
+FOR LOCAL, 0, MTAR_NUM
+	;される側全員にペニスが必要
+	SIF !PENIS(MTAR:LOCAL)
+		RETURN 0
+	;ターゲットが触手オナホされているなら不可
+	SIF IS_EQUIP_TARGET(MTAR:LOCAL, 205)
 		RETURN 0
 NEXT
+
 IF MPLY_NUM == 1 && MTAR_NUM == 1
 	;プレイヤーとターゲットが共に拘束中なら不可
 	SIF IS_BIND(MPLY:0) && IS_BIND(MTAR:0)
@@ -448,6 +446,12 @@ LOCAL:6 = SEARCH_EQUIP(102, MPLY:0, MTAR:0)
 LOCAL:7 = SEARCH_EQUIP(11, MTAR:0, MPLY:0)
 LOCAL:8 = SEARCH_EQUIP(2, MTAR:0, MPLY:0)
 
+IF MTAR_NUM == 1
+	LOCALS:6 = 
+ELSE
+	LOCALS:6 = たち
+ENDIF
+
 IF PENIS(MTAR:0)
 	LOCALS:3 = 竿
 	LOCALS:4 = ペニス
@@ -472,24 +476,24 @@ IF MPLY_NUM == 3
 		;プレイヤーに主導権
 		CASE 0
 			IF PENIS(MTAR:0)
-				PRINTFORML %ANAME(MPLY:(LOCAL:1))%と%ANAME(MPLY:(LOCAL:2))%は左右から顔を寄せ、二人で%ANAME(MTAR:0)%の%LOCALS:1%竿に舌を這わせて責め立て%TARGET_STR("た", "てきた")%
+				PRINTFORML %ANAME(MPLY:(LOCAL:1))%と%ANAME(MPLY:(LOCAL:2))%は左右から顔を寄せ、二人で%ANAME(MTAR:0)%%LOCALS:6%の%LOCALS:1%竿に舌を這わせて責め立て%TARGET_STR("た", "てきた")%
 				PRINTFORMW さらに%ANAME(MPLY:(LOCAL:0))%が正面から亀頭を舐め回して刺激している…
 			ELSE
-				PRINTFORML %ANAME(MPLY:(LOCAL:1))%と%ANAME(MPLY:(LOCAL:2))%は左右から顔を寄せ、二人で%ANAME(MTAR:0)%の張り型にいやらしく舌を絡め%TARGET_STR("た", "てきた")%
+				PRINTFORML %ANAME(MPLY:(LOCAL:1))%と%ANAME(MPLY:(LOCAL:2))%は左右から顔を寄せ、二人で%ANAME(MTAR:0)%%LOCALS:6%の張り型にいやらしく舌を絡め%TARGET_STR("た", "てきた")%
 				PRINTFORMW さらに%ANAME(MPLY:(LOCAL:0))%が正面から張り型の先をチロチロと舌先で舐め回している…
 			ENDIF
 		;ターゲットに主導権
 		CASE 1
-			PRINTFORML %ANAME(MPLY:(LOCAL:1))%と%ANAME(MPLY:(LOCAL:2))%は左右から顔を寄せ、二人で%ANAME(MTAR:0)%の%LOCALS:1%%LOCALS:3%に舌を絡めて奉仕した
+			PRINTFORML %ANAME(MPLY:(LOCAL:1))%と%ANAME(MPLY:(LOCAL:2))%は左右から顔を寄せ、二人で%ANAME(MTAR:0)%%LOCALS:6%の%LOCALS:1%%LOCALS:3%に舌を絡めて奉仕した
 			PRINTFORMW さらに%ANAME(MPLY:(LOCAL:0))%が正面から%LOCALS:3%の先っぽの部分にチロチロと舌を這わせている…
 		;第三者に主導権
 		CASEELSE
-			PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%、%ANAME(MPLY:1)%、%ANAME(MPLY:2)%の三人に、%ANAME(MTAR:0)%の%LOCALS:5%ように命令した
+			PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%、%ANAME(MPLY:1)%、%ANAME(MPLY:2)%の三人に、%ANAME(MTAR:0)%%LOCALS:6%の%LOCALS:5%ように命令した
 			IF PENIS(MTAR:0)
-				PRINTFORML %ANAME(MPLY:(LOCAL:1))%と%ANAME(MPLY:(LOCAL:2))%は左右から顔を寄せ、二人で%ANAME(MTAR:0)%の%LOCALS:1%竿に舌を這わせた
+				PRINTFORML %ANAME(MPLY:(LOCAL:1))%と%ANAME(MPLY:(LOCAL:2))%は左右から顔を寄せ、二人で%ANAME(MTAR:0)%%LOCALS:6%の%LOCALS:1%竿に舌を這わせた
 				PRINTFORMW さらに%ANAME(MPLY:(LOCAL:0))%が正面から亀頭を舐め回して刺激している…
 			ELSE
-				PRINTFORML %ANAME(MPLY:(LOCAL:1))%と%ANAME(MPLY:(LOCAL:2))%は左右から顔を寄せ、二人で%ANAME(MTAR:0)%の張り型に舌を這わせた
+				PRINTFORML %ANAME(MPLY:(LOCAL:1))%と%ANAME(MPLY:(LOCAL:2))%は左右から顔を寄せ、二人で%ANAME(MTAR:0)%%LOCALS:6%の張り型に舌を這わせた
 				PRINTFORMW さらに%ANAME(MPLY:(LOCAL:0))%が正面から張り型の先をチロチロと舌先で舐め回している…
 			ENDIF
 	ENDSELECT
@@ -505,20 +509,20 @@ ELSEIF MPLY_NUM == 2
 		;プレイヤーに主導権
 		CASE 0
 			IF PENIS(MTAR:0)
-				PRINTFORMW %ANAME(MPLY:0)%と%ANAME(MPLY:1)%は左右から顔を寄せ、二人で%ANAME(MTAR:0)%の%LOCALS:1%%LOCALS:4%に舌を這わせて責め立て%TARGET_STR("た", "てきた")%…
+				PRINTFORMW %ANAME(MPLY:0)%と%ANAME(MPLY:1)%は左右から顔を寄せ、二人で%ANAME(MTAR:0)%%LOCALS:6%の%LOCALS:1%%LOCALS:4%に舌を這わせて責め立て%TARGET_STR("た", "てきた")%…
 			ELSE
-				PRINTFORMW %ANAME(MPLY:0)%と%ANAME(MPLY:1)%は左右から顔を寄せ、二人で%ANAME(MTAR:0)%の%LOCALS:1%%LOCALS:4%を、見せつけるようにいやらしく舐め回し%TARGET_STR("た", "てきた")%…
+				PRINTFORMW %ANAME(MPLY:0)%と%ANAME(MPLY:1)%は左右から顔を寄せ、二人で%ANAME(MTAR:0)%%LOCALS:6%の%LOCALS:1%%LOCALS:4%を、見せつけるようにいやらしく舐め回し%TARGET_STR("た", "てきた")%…
 			ENDIF
 		;ターゲットに主導権
 		CASE 1
-			PRINTFORMW %ANAME(MPLY:0)%と%ANAME(MPLY:1)%は左右から顔を寄せ、二人で協力して%ANAME(MTAR:0)%の%LOCALS:1%%LOCALS:4%を舐めしゃぶった…
+			PRINTFORMW %ANAME(MPLY:0)%と%ANAME(MPLY:1)%は左右から顔を寄せ、二人で協力して%ANAME(MTAR:0)%%LOCALS:6%の%LOCALS:1%%LOCALS:4%を舐めしゃぶった…
 		;第三者に主導権
 		CASEELSE
-			PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%と%ANAME(MPLY:1)%に、%ANAME(MTAR:0)%の%LOCALS:5%ように命令した
+			PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%と%ANAME(MPLY:1)%に、%ANAME(MTAR:0)%%LOCALS:6%の%LOCALS:5%ように命令した
 			IF PENIS(MTAR:0)
-				PRINTFORMW %ANAME(MPLY:0)%と%ANAME(MPLY:1)%は左右から顔を寄せ、二人で%ANAME(MTAR:0)%の%LOCALS:4%に舌を這わせて責め立てた…
+				PRINTFORMW %ANAME(MPLY:0)%と%ANAME(MPLY:1)%は左右から顔を寄せ、二人で%ANAME(MTAR:0)%%LOCALS:6%の%LOCALS:4%に舌を這わせて責め立てた…
 			ELSE
-				PRINTFORMW %ANAME(MPLY:0)%と%ANAME(MPLY:1)%は左右から顔を寄せ、二人で%ANAME(MTAR:0)%の%LOCALS:4%を、見せつけるようにいやらしく舐め回した…
+				PRINTFORMW %ANAME(MPLY:0)%と%ANAME(MPLY:1)%は左右から顔を寄せ、二人で%ANAME(MTAR:0)%%LOCALS:6%の%LOCALS:4%を、見せつけるようにいやらしく舐め回した…
 			ENDIF
 	ENDSELECT
 
@@ -581,14 +585,14 @@ ELSEIF IS_EQUIP_TARGET(MPLY:0, 85)
 	SELECTCASE GET_COM_INITIATIVE()
 		;プレイヤーに主導権
 		CASE 0
-			PRINTFORMW %ANAME(MPLY:0)%は自身の%LOCALS:0%に%ANAME(MTAR:0)%の%LOCALS:1%%LOCALS:4%を挿れさせ、じゅるじゅると音を立ててしゃぶった…
+			PRINTFORMW %ANAME(MPLY:0)%は自身の%LOCALS:0%に%ANAME(MTAR:0)%%LOCALS:6%の%LOCALS:1%%LOCALS:4%を挿れさせ、じゅるじゅると音を立ててしゃぶった…
 		;ターゲットに主導権
 		CASE 1
-			PRINTFORMW %ANAME(MTAR:0)%は身動きの取れない%ANAME(MPLY:0)%の%LOCALS:0%に無理やり%LOCALS:1%%LOCALS:4%を押し込み舐めさせた…
+			PRINTFORMW %ANAME(MTAR:0)%%LOCALS:6%は身動きの取れない%ANAME(MPLY:0)%の%LOCALS:0%に無理やり%LOCALS:1%%LOCALS:4%を押し込み舐めさせた…
 		;第三者に主導権
 		CASEELSE
-			PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に、%ANAME(MTAR:0)%の%LOCALS:1%%LOCALS:4%を口で気持ち良くするように命令した
-			PRINTFORMW %ANAME(MPLY:0)%は差し出された%ANAME(MTAR:0)%の%LOCALS:1%%LOCALS:4%を%LOCALS:0%で咥え込み、じゅるじゅると音を立ててしゃぶった…
+			PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に、%ANAME(MTAR:0)%%LOCALS:6%の%LOCALS:1%%LOCALS:4%を口で気持ち良くするように命令した
+			PRINTFORMW %ANAME(MPLY:0)%は差し出された%ANAME(MTAR:0)%%LOCALS:6%の%LOCALS:1%%LOCALS:4%を%LOCALS:0%で咥え込み、じゅるじゅると音を立ててしゃぶった…
 	ENDSELECT
 
 	;縄で縛るの地の文をカットする
@@ -700,6 +704,39 @@ ELSE
 				CASEELSE
 					PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に、%ANAME(MTAR:0)%と%ANAME(MTAR:1)%と%ANAME(MTAR:2)%の%LOCALS:4%を口で気持ち良くするように命令した
 					PRINTFORM %ANAME(MPLY:0)%は%ANAME(MTAR:0)%の%LOCALS:1%%LOCALS:4%を%LOCALS:0%咥え込み、
+					IF ABL:(MPLY:0):性技 >= 3
+						PRINTFORMW 巧みな舌使いで舐めしゃぶった…
+					ELSE
+						PRINTFORMW 不慣れな舌使いで舐め回した…
+					ENDIF
+			ENDSELECT
+		CASEELSE
+			IF IS_PIERCED(MTAR:0, ピアス_ペニス) && IS_PIERCED(MTAR:1, ピアス_ペニス) && IS_PIERCED(MTAR:2, ピアス_ペニス)
+				LOCALS:1 = ピアスの取り付けられた
+			ELSE
+				LOCALS:1 = 
+			ENDIF
+			SELECTCASE GET_COM_INITIATIVE()
+				;プレイヤーに主導権
+				CASE 0
+					PRINTFORM %ANAME(MPLY:0)%は%ANAME(MTAR:0)%たちの%LOCALS:1%%LOCALS:4%を%LOCALS:0%咥え込み、
+					IF ABL:(MPLY:0):性技 >= 3
+						PRINTFORMW 巧みな舌使いで舐めしゃぶっ%TARGET_STR("た", "てきた")%…
+					ELSE
+						PRINTFORMW 不慣れな舌使いで責めたて%TARGET_STR("た", "てきた")%…
+					ENDIF
+				;ターゲットに主導権
+				CASE 1
+					PRINTFORM %ANAME(MPLY:0)%は%ANAME(MTAR:0)%たちの%LOCALS:1%%LOCALS:4%を%LOCALS:0%咥え込み、
+					IF ABL:(MPLY:0):性技 >= 3
+						PRINTFORMW 巧みな舌使いで奉仕している…
+					ELSE
+						PRINTFORMW 不慣れな舌使いで奉仕している…
+					ENDIF
+				;第三者に主導権
+				CASEELSE
+					PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に、%ANAME(MTAR:0)%たちの%LOCALS:4%を口で気持ち良くするように命令した
+					PRINTFORM %ANAME(MPLY:0)%は%ANAME(MTAR:0)%たちの%LOCALS:1%%LOCALS:4%を%LOCALS:0%咥え込み、
 					IF ABL:(MPLY:0):性技 >= 3
 						PRINTFORMW 巧みな舌使いで舐めしゃぶった…
 					ELSE
