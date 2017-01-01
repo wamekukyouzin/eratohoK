@@ -321,13 +321,10 @@ IF RESULT == -1
 ENDIF
 
 
-;特殊勢力君主スタートならなにもしない
-IF MATCH(SP_COUNTRY_START, 特殊勢力スタート_君主)
 ;観戦モードの場合、前の週でキャラを変更したとき用に、「あなた」と主人公を入れ替えて戻す処理だけは必要
-ELSEIF FLAG:観戦モード
+IF FLAG:観戦モード
 	SWAPCHARA NAME_TO_CHARA("あなた"), MASTER
-;どちらでもなければ、設定する
-ELSEIF !FLAG:観戦モード
+ELSE
 	CALL SELECT_MASTER
 ENDIF
 
@@ -747,26 +744,6 @@ IF SP_COUNTRY_RANK:LOCAL == 0
 	CALL SP_COUNTRY_START_SETTING(LOCAL)
 ENDIF
 
-LOCAL:1 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:LOCAL)
-
-;君主スタート時の設定
-IF SP_COUNTRY_START:LOCAL == 特殊勢力スタート_君主
-	LOCAL:2 = NAME_TO_CHARA("あなた")
-	LOCAL:3 = GET_COUNTRY_BOSS(LOCAL:1)
-	;前の週の主人公と「あなた」を入れ替え、「あなた」と君主を入れ替え、君主のNOとIDを「あなた」に設定、「あなた」のNOをINT_MAXにして削除
-	SWAPCHARA MASTER, LOCAL:2
-	SWAPCHARA MASTER, LOCAL:3
-	CFLAG:MASTER:キャラＩＤ = CFLAG:(LOCAL:3):キャラＩＤ
-	COUNTRY_BOSS:(LOCAL:1) = GET_ID(MASTER)
-	TALENT:MASTER:特殊勢力素質 = 0
-	NO:MASTER = NO:(LOCAL:3)
-	CSTR:MASTER:99 = あなた
-	NO:(LOCAL:3) = __INT_MAX__
-	CALL DELETE_CHARA(LOCAL:3)
-ENDIF
-
-
-	
 
 
 
@@ -789,7 +766,8 @@ VARSET 選択MASTERID
 
 IF FLAG:周回数 > 1
 	旧MASTERID = GET_ID(MASTER)
-	引継ぎ使用可 = (CFLAG:MASTER:所属 == FLAG:OP選択勢力 || GET_COUNTRY_BOSS(CFLAG:MASTER:所属) != MASTER)
+	;勢力君主でないか、君主でも自分が収める勢力でスタートするなら引き継いで利用できる。ただし特殊勢力素質がある場合は問答無用でNG
+	引継ぎ使用可 = (CFLAG:MASTER:所属 == FLAG:OP選択勢力 || GET_COUNTRY_BOSS(CFLAG:MASTER:所属) != MASTER) && TALENT:MASTER:特殊勢力素質 == 0
 ELSE
 	旧MASTERID = 0
 	引継ぎ使用可 = 1
@@ -810,7 +788,12 @@ DRAWLINE
 
 ;ここから登録キャラの表示
 PRINTBUTTON "[あなたを新規作成]", 0
-PRINTFORM   ※ 現在の「あなた」のデータは削除されます
+PRINTFORM ※ 現在の「あなた」のデータをリセットします
+IF FINDELEMENT(SP_COUNTRY_START, 特殊勢力スタート_君主) != -1
+	PRINTL
+	PRINTBUTTON "[特殊勢力の固有君主を利用]", 1
+	PRINTFORM ※次の周回時、引き続いて利用できません
+ENDIF
 ;二週目以降で引継ぎが使用できるなら
 IF 旧MASTERID > 0 && 引継ぎ使用可
 	PRINTL
@@ -845,6 +828,11 @@ IF RESULT == 0
 	CALL MASTER_EDIT(NAME_TO_CHARA("あなた"))
 	選択MASTERID = GET_ID(RESULT)
 	FLAG:あなた新規作成 = 1
+;固有君主利用
+ELSEIF RESULT == 1 && FINDELEMENT(SP_COUNTRY_START, 特殊勢力スタート_君主) != -1
+	SP_COUNTRY_START_CHANGE_BOSS = 0
+	SWAPCHARA MASTER, NAME_TO_CHARA("あなた")
+	RETURN
 ;前週と同じ
 ELSEIF RESULT == 98 && 旧MASTERID > 0
 	IF !引継ぎ使用可
@@ -922,6 +910,8 @@ SELECTCASE RESULT
 				PRINTFORMW %ANAME(MASTER)%の性知識をLv5にしました
 			ENDIF
 		ENDIF
+		SIF FINDELEMENT(SP_COUNTRY_START, 特殊勢力スタート_君主) != -1
+			SP_COUNTRY_START_CHANGE_BOSS = 1
 		RETURN
 	;戻る
 	CASE 9
