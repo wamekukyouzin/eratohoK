@@ -21,6 +21,8 @@ SELECTCASE ARG:0
 		CALL PRINTBUTTON_SHOP( 3, "{手引させる}", 7,  FLAG:拠点フェイズ選択コマンド == 1003)
 	CASE 5
 		CALL PRINTBUTTON_SHOP( 4, "{  民の慰安}", 7,  FLAG:拠点フェイズ選択コマンド == 1004)
+	CASE 6
+		CALL PRINTBUTTON_SHOP( 5, "{  あてがう}", 7,  FLAG:拠点フェイズ選択コマンド == 1005)
 	CASE 7
 		CALL PRINTBUTTON_SHOP(10, "{捕虜の調教}", 7,  FLAG:拠点フェイズ選択コマンド == 1010)
 	CASE 8
@@ -256,6 +258,10 @@ ELSEIF FLAG:拠点フェイズ選択コマンド == 1041
 ;民の慰安
 ELSEIF FLAG:拠点フェイズ選択コマンド == 1004
 	CALL LIFE_MENU_IAN
+	RETURN
+;あてがう
+ELSEIF FLAG:拠点フェイズ選択コマンド == 1005
+	CALL LIFE_MENU_ATEGAU
 	RETURN
 ENDIF
 
@@ -532,6 +538,26 @@ IF SHOP_AVAIL:(ARG:0)
 		SIF !RESULT
 			RETURN 0
 	ELSEIF FLAG:拠点フェイズ選択コマンド == 1004 && ARG:0 == 57
+		LOCAL:1 = 0
+		FOR LOCAL, 0, CHARANUM
+			SIF CFLAG:LOCAL:閨に呼ぶで選択中
+				LOCAL:1 ++
+		NEXT
+		SIF FLAG:慰安避妊薬 || MONEY >= LOCAL:1 * 3000
+			FLAG:慰安避妊薬 = !FLAG:慰安避妊薬
+		RETURN 0
+		RETURN 0
+	;あてがう
+	ELSEIF ARG:0 == 5
+		FLAG:拠点フェイズ選択コマンド = 1005
+		FLAG:拠点フェイズページ = 1
+		FLAG:夜這い = 0
+		RETURN 0
+	ELSEIF FLAG:拠点フェイズ選択コマンド == 1005 && ARG:0 == 55
+		CALL DECIDE_ATEGAU_MEMBER()
+		SIF !RESULT
+			RETURN 0
+	ELSEIF FLAG:拠点フェイズ選択コマンド == 1005 && ARG:0 == 57
 		LOCAL:1 = 0
 		FOR LOCAL, 0, CHARANUM
 			SIF CFLAG:LOCAL:閨に呼ぶで選択中
@@ -1012,7 +1038,7 @@ ELSEIF FLAG:拠点フェイズ選択コマンド == 1003
 			RETURN 1
 	ENDIF
 	REDRAW 1
-;あてがう
+;慰安
 ELSEIF FLAG:拠点フェイズ選択コマンド == 1004
 	;参加キャラの数を数える
 	LOCAL:5 = 0
@@ -1022,6 +1048,22 @@ ELSEIF FLAG:拠点フェイズ選択コマンド == 1004
 		ENDIF
 	NEXT
 	IF CFLAG:(ARG:0):閨に呼ぶで選択中 || LOCAL:5 < MIN(CALC_SHOP_TIME() - SHOP_TIME, 3)
+		;調教参加フラグを反転
+		CFLAG:(ARG:0):閨に呼ぶで選択中 = !CFLAG:(ARG:0):閨に呼ぶで選択中
+		LOCAL:5 += CFLAG:(ARG:0):閨に呼ぶで選択中 == 0 ? -1 # 1
+		SIF FLAG:慰安避妊薬 && LOCAL:5 * 3000 > MONEY
+			FLAG:慰安避妊薬 = 0
+	ENDIF
+;あてがう
+ELSEIF FLAG:拠点フェイズ選択コマンド == 1005
+	;参加キャラの数を数える
+	LOCAL:5 = 0
+	FOR LOCAL:0, 0, CHARANUM
+		IF CFLAG:(LOCAL:0):閨に呼ぶで選択中 || CFLAG:(LOCAL:0):慰安モブ
+			LOCAL:5 ++
+		ENDIF
+	NEXT
+	IF !CFLAG:(ARG:0):慰安モブ && (CFLAG:(ARG:0):閨に呼ぶで選択中 || LOCAL:5 < MIN(CALC_SHOP_TIME() - SHOP_TIME, 8))
 		;調教参加フラグを反転
 		CFLAG:(ARG:0):閨に呼ぶで選択中 = !CFLAG:(ARG:0):閨に呼ぶで選択中
 		LOCAL:5 += CFLAG:(ARG:0):閨に呼ぶで選択中 == 0 ? -1 # 1
@@ -1217,7 +1259,7 @@ IF FLAG:拠点フェイズ選択コマンド == 1002 || FLAG:拠点フェイズ�
 
 	;参加キャラの数を数える
 	LOCAL:5 = 0
-	IF FLAG:拠点フェイズ選択コマンド == 1010 || FLAG:拠点フェイズ選択コマンド == 1004
+	IF FLAG:拠点フェイズ選択コマンド == 1010
 		FOR LOCAL:0, 0, CHARANUM
 			IF CFLAG:(LOCAL:0):捕虜調教の助手
 				LOCAL:5 ++
@@ -1237,6 +1279,29 @@ IF FLAG:拠点フェイズ選択コマンド == 1002 || FLAG:拠点フェイズ�
 			;夜這い参加フラグを反転
 			CFLAG:(ARG:0):夜這いの助手 = !CFLAG:(ARG:0):夜這いの助手
 		ENDIF
+	ENDIF
+ENDIF
+
+;あてがう
+IF FLAG:拠点フェイズ選択コマンド == 1005
+	RESULT = 0
+	TRYCALLFORM CHECK_SELECTABLE_ATEGAU(ARG:0)
+	SIF RESULT != 1
+		RETURN 0
+
+	;参加キャラの数を数える
+	LOCAL:5 = 0
+	FOR LOCAL:0, 0, CHARANUM
+		IF CFLAG:(LOCAL:0):閨に呼ぶで選択中 || CFLAG:(ARG:0):慰安モブ
+			LOCAL:5 ++
+		ENDIF
+	NEXT
+	IF !CFLAG:(ARG:0):閨に呼ぶで選択中 && (CFLAG:(ARG:0):慰安モブ || LOCAL:5 < MIN(CALC_SHOP_TIME() - SHOP_TIME, 8))
+		;調教参加フラグを反転
+		CFLAG:(ARG:0):慰安モブ = !CFLAG:(ARG:0):慰安モブ
+		LOCAL:5 += CFLAG:(ARG:0):慰安モブ == 0 ? -1 # 1
+		SIF FLAG:慰安避妊薬 && LOCAL:5 * 3000 > MONEY
+			FLAG:慰安避妊薬 = 0
 	ENDIF
 ENDIF
 
@@ -1287,29 +1352,6 @@ IF FLAG:拠点フェイズ選択コマンド == 1003
 		CFLAG:(ARG:0):夜這いの助手 = !CFLAG:(ARG:0):夜這いの助手
 	ENDIF
 ENDIF
-
-;あてがう
-IF FLAG:拠点フェイズ選択コマンド == 1004
-	;選択可能な条件を満たしていないキャラなら戻る
-	RESULT = 0
-	TRYCALLFORM CHECK_SELECTABLE_ATEGAU(ARG:0)
-	IF RESULT != 1
-		RETURN 0
-	ENDIF
-
-	;参加キャラの数を数える
-	LOCAL:5 = 0
-	FOR LOCAL:0, 0, CHARANUM
-		IF CFLAG:(LOCAL:0):捕虜調教の助手
-			LOCAL:5 ++
-		ENDIF
-	NEXT
-	IF LOCAL:5 < 3 || CFLAG:(ARG:0):捕虜調教の助手
-		;調教参加フラグを反転
-		CFLAG:(ARG:0):捕虜調教の助手 = !CFLAG:(ARG:0):捕虜調教の助手
-	ENDIF
-ENDIF
-
 
 RETURN 0
 
@@ -1496,6 +1538,9 @@ IF 人数 == 0
 	RETURN 0
 ENDIF
 
+;全員の慰安モブフラグをクリア（あてがうメニューで操作されるため）
+CVARSET CFLAG, GETNUM(CFLAG, "慰安モブ") , 0
+
 LOCAL:2 = 0
 ;放浪者を追加
 IF 放浪者数 > 0
@@ -1517,6 +1562,7 @@ FOR LOCAL, 0, LOCAL:1
 		BREAK
 NEXT
 
+FLAG:あてがうフラグ = 0
 FLAG:慰安場所 = 行き先
 ITEM:A_ローター = 1
 ITEM:A_バイブ = 1
@@ -1547,6 +1593,76 @@ SIF メイン != -1
 ;行動開始時の共通処理
 CALL START_TRAIN_COMMON
 RETURN 1
+
+;-------------------------------------------------
+;「あてがう」の処理
+;-------------------------------------------------
+@DECIDE_ATEGAU_MEMBER()
+#DIM あてがう先
+#DIM あてがわれる側
+#DIM 参加人数
+
+
+あてがう先 = 0
+あてがわれる側 = 0
+参加人数 = 0
+FOR LOCAL:0, 0, CHARANUM
+	IF CFLAG:(LOCAL:0):閨に呼ぶで選択中 || CFLAG:(LOCAL:0):慰安モブ
+		CFLAG:(LOCAL:0):調教参加フラグ  = 1
+		CFLAG:(LOCAL:0):能力固定フラグ = 1
+		CFLAG:(LOCAL:0):強制友好化 = 1
+		IF CFLAG:(LOCAL:0):閨に呼ぶで選択中
+			あてがわれる側 ++
+		ELSE
+			あてがう先 ++
+		ENDIF
+		IF FLAG:慰安避妊薬
+			PRINTFORML %ANAME(LOCAL:0)%は避妊薬を服用した
+			CFLAG:(LOCAL:0):避妊薬残ターン += 1
+			MONEY -= 3000
+		ENDIF
+		参加人数 ++
+	ENDIF
+NEXT
+IF あてがわれる側 == 0 || あてがう先 == 0
+	;参加キャラがいないなら処理せず0を返す
+	RETURN 0
+ENDIF
+
+;START_TRAIN_COMMONでSHOP_TIMEが+1されるので、それをひいておく
+SHOP_TIME --
+
+SHOP_TIME += 参加人数
+
+FLAG:あてがうフラグ = 1
+ITEM:A_ローター = 1
+ITEM:A_バイブ = 1
+ITEM:A_アナルバイブ = 1
+ITEM:A_ペニスバンド = 1
+ITEM:A_オナホール = 1
+ITEM:A_クリキャップ = 1
+ITEM:A_ニプルキャップ = 1
+ITEM:A_麻薬 = 99
+ITEM:A_縄 = 1
+ITEM:A_鞭 = 1
+ITEM:A_目隠し = 1
+ITEM:A_口枷 = 1
+ITEM:A_鼻フック = 1
+ITEM:A_マジック = 1
+ITEM:A_ローション = 99
+ITEM:A_コンドーム = 99
+ITEM:A_媚薬 = 99
+ITEM:A_排卵誘発剤 = 99
+ITEM:A_桃源香 = 99
+FLAG:調教モード = 7
+;ウフフフラグをONに
+FLAG:ウフフフラグ = 1
+
+;行動開始時の共通処理
+CALL START_TRAIN_COMMON
+RETURN 1
+
+
 
 ;-------------------------------------------------
 ;「捕虜の調教」の処理
