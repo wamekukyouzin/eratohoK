@@ -13,9 +13,13 @@ VARSET PRISONER_TARGET, -1
 
 FLAG:夜這い = 0
 
-SIF FLAG:調教モード == 7
-	CALL EVENTEND_IAN
-
+IF FLAG:調教モード == 7
+	IF FLAG:あてがうフラグ
+		CALL EVENTEND_ATEGAU
+	ELSE
+		CALL EVENTEND_IAN
+	ENDIF
+ENDIF
 
 DRAWLINE
 PRINTL 今回の調教
@@ -242,6 +246,48 @@ MONEY += 報酬
 FLAG:経済成長追加値 += 経済追加
 FLAG:兵数増加追加値 += 兵数追加
 CALL ICPRINT(@"慰安により、金<{報酬}>を得ました", "W", COLOR("注意"))
+
+
+
+;-------------------------------------------------
+;あてがうの処理
+;-------------------------------------------------
+@EVENTEND_ATEGAU()
+#DIM 絶頂回数合計
+#DIM 減少量
+#DIM 増加量
+#DIM 対象
+
+;好感度関連の処理
+FOR 対象, 0, CHARANUM
+	;参加者の場合、減少
+	IF IS_PARTICIPATE_TRAIN(対象) && 対象 != MASTER && !CFLAG:対象:慰安モブ
+		IF SUM_EX(対象) > 50
+			絶頂回数合計 += 50 + (SUM_EX(対象) - 50) / 5
+		ELSE
+			絶頂回数合計 += SUM_EX(対象)
+		ENDIF
+		減少量 = MIN(300 + SUM_EX(対象) * 20, CFLAG:対象:好感度 / 3)
+		CFLAG:対象:好感度 = MAX(CFLAG:対象:好感度 - 減少量, -1000)
+
+		減少量 = MIN(300 + SUM_EX(対象) * 20, CFLAG:対象:従属度 / 3)
+		CFLAG:対象:従属度 = MAX(CFLAG:対象:従属度 - 減少量, -1000)
+
+		減少量 = MIN(300 + SUM_EX(対象) * 20, CFLAG:対象:依存度 / 3)
+		CFLAG:対象:依存度 = MAX(CFLAG:対象:依存度 - 減少量, -1000)
+	ENDIF
+NEXT
+
+FOR 対象, 0, CHARANUM
+	IF CFLAG:対象:調教参加フラグ && CFLAG:対象:慰安モブ
+		増加量 = LIMIT(10 + 絶頂回数合計 + SUM_EX(対象), 0, 1000)
+		CFLAG:対象:好感度 += 増加量
+		CFLAG:対象:従属度 += 増加量
+		CFLAG:対象:依存度 += 増加量
+		CFLAG:対象:慰安モブ = 0
+		CALL ICPRINT(@"閨の楽しみを提供したことで、%ANAME(対象)%の好感を得ました", "W", COLOR("注意"))
+	ENDIF
+NEXT
 
 
 
