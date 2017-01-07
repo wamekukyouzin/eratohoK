@@ -1,0 +1,391 @@
+﻿;-------------------------------------------------
+;データのセーブ
+;-------------------------------------------------
+@SAVE_GAME()
+#DIM FIRST_LINE
+#DIM CONST 最大ページ数 = 10
+#DIM CONST セーブ数 = 20
+#DIM 現在ページ数
+#DIM ロード可能, 200
+#DIMS セーブ名, 200
+
+IF 現在ページ数 <= 0
+	現在ページ数 = 1
+ELSEIF 現在ページ数 > 最大ページ数
+	現在ページ数 = 最大ページ数
+ENDIF
+
+FOR LOCAL, 0, VARSIZE("ロード可能")
+	CHKDATA LOCAL
+	;CHKDATAは読めるデータのとき0を返す　どうかしてるぜ
+	ロード可能:LOCAL = (RESULT == 0)
+	IF RESULT != 1
+		セーブ名:LOCAL = %RESULTS%
+	ELSE
+		セーブ名:LOCAL = ----
+	ENDIF
+NEXT
+
+FIRST_LINE = LINECOUNT
+
+$SHOW_LOOP
+
+DRAWLINE
+FOR LOCAL, (現在ページ数 - 1) * セーブ数, 現在ページ数 * セーブ数
+	IF ロード可能:LOCAL
+		RESETCOLOR
+	ELSE
+		SETCOLOR COLOR("選択不可")
+	ENDIF
+	PRINTFORML [{LOCAL, 3, LEFT}] %セーブ名:LOCAL%
+NEXT
+RESETCOLOR
+
+DRAWLINE
+PRINTBUTTON "[前のページ]", 9997
+PRINTFORM  Page{現在ページ数}/{最大ページ数} 
+PRINTBUTTON "[次のページ]", 9998
+PRINTL
+DRAWLINE
+PRINTBUTTON "[戻る]", 9999
+
+
+INPUT
+
+;セーブ
+IF INRANGE(RESULT, 0, VARSIZE("ロード可能") - 1)
+	LOCAL = RESULT
+	IF ロード可能:LOCAL
+		CALL COLORPRINT(@"{LOCAL}番にはロード可能なセーブデータがあります　上書きしますか？", COLOR("注意"), "L")
+		CALL ASK_YN
+		IF RESULT == 1
+			CLEARLINE LINECOUNT - FIRST_LINE
+			GOTO SHOW_LOOP
+		ENDIF
+	ENDIF
+	DUMPRAND
+	SAVEDATA LOCAL, SAVEDATA_NAME_STR()
+	PRINTFORML セーブしました
+	RETURN 1
+ELSEIF RESULT == 9997
+	現在ページ数 = ROUND_DECREMENT(現在ページ数, 1, 最大ページ数)
+ELSEIF RESULT == 9998
+	現在ページ数 = ROUND_INCREMENT(現在ページ数, 1, 最大ページ数)
+ELSEIF RESULT == 9999
+	RETURN 0
+ENDIF
+
+CLEARLINE LINECOUNT - FIRST_LINE
+GOTO SHOW_LOOP
+
+;-------------------------------------------------
+;データのロード
+;-------------------------------------------------
+@LOAD_GAME()
+#DIM FIRST_LINE
+#DIM CONST 最大ページ数 = 10
+#DIM CONST セーブ数 = 20
+#DIM 現在ページ数
+#DIM ロード可能, 200
+#DIMS セーブ名, 200
+#DIM オートセーブロード可能, AUTOSAVE_DOMAIN_NUM
+#DIMS オートセーブ名, AUTOSAVE_DOMAIN_NUM
+
+IF 現在ページ数 <= 0
+	現在ページ数 = 1
+ELSEIF 現在ページ数 > 最大ページ数
+	現在ページ数 = 最大ページ数
+ENDIF
+
+FOR LOCAL, 0, VARSIZE("ロード可能")
+	CHKDATA LOCAL
+	;CHKDATAは読めるデータのとき0を返す　どうかしてるぜ
+	ロード可能:LOCAL = (RESULT == 0)
+	IF RESULT != 1
+		セーブ名:LOCAL = %RESULTS%
+	ELSE
+		セーブ名:LOCAL = ----
+	ENDIF
+NEXT
+
+FOR LOCAL, 0, AUTOSAVE_DOMAIN_NUM
+	CHKDATA 1000 + LOCAL
+	オートセーブロード可能:LOCAL = (RESULT == 0)
+	IF RESULT != 1
+		オートセーブ名:LOCAL = %RESULTS%
+	ELSE
+		オートセーブ名:LOCAL = ----
+	ENDIF
+NEXT
+
+FIRST_LINE = LINECOUNT
+
+$SHOW_LOOP
+
+DRAWLINE
+FOR LOCAL, (現在ページ数 - 1) * セーブ数, 現在ページ数 * セーブ数
+	IF ロード可能:LOCAL
+		RESETCOLOR
+	ELSE
+		SETCOLOR COLOR("選択不可")
+	ENDIF
+	CALL PRINTBUTTON_EXL(@"[{LOCAL, 3, LEFT}] %セーブ名:LOCAL%", LOCAL, ロード可能)
+NEXT
+RESETCOLOR
+
+DRAWLINE
+FOR LOCAL, 0, AUTOSAVE_DOMAIN_NUM
+	IF オートセーブロード可能:LOCAL
+		RESETCOLOR
+	ELSE
+		SETCOLOR COLOR("選択不可")
+	ENDIF
+	PRINTFORML [{1000 + LOCAL}] %オートセーブ名:LOCAL%
+	RESETCOLOR
+NEXT
+DRAWLINE
+
+PRINTBUTTON "[前のページ]", 9997
+PRINTFORM  Page{現在ページ数}/{最大ページ数} 
+PRINTBUTTON "[次のページ]", 9998
+PRINTL
+DRAWLINE
+PRINTBUTTON "[戻る]", 9999
+
+INPUT
+
+;ロード
+IF INRANGE(RESULT, 0, VARSIZE("ロード可能") - 1)
+	LOCAL = RESULT
+	IF !ロード可能:LOCAL
+		CLEARLINE LINECOUNT - FIRST_LINE
+		GOTO SHOW_LOOP
+	ENDIF
+	LOADDATA LOCAL
+ELSEIF INRANGE(RESULT, 1000, 1000 + AUTOSAVE_DOMAIN_NUM - 1)
+	LOCAL = RESULT
+	IF !オートセーブロード可能:(LOCAL - 1000)
+		CLEARLINE LINECOUNT - FIRST_LINE
+		GOTO SHOW_LOOP
+	ENDIF
+	LOADDATA LOCAL
+ELSEIF RESULT == 9997
+	現在ページ数 = ROUND_DECREMENT(現在ページ数, 1, 最大ページ数)
+ELSEIF RESULT == 9998
+	現在ページ数 = ROUND_INCREMENT(現在ページ数, 1, 最大ページ数)
+ELSEIF RESULT == 9999
+	RETURN 0
+ENDIF
+
+CLEARLINE LINECOUNT - FIRST_LINE
+GOTO SHOW_LOOP
+
+;-------------------------------------------------
+;セーブデータ用の文字列用意
+;-------------------------------------------------
+@SAVEDATA_NAME_STR()
+#FUNCTIONS
+#DIMS データ名
+
+データ名 = %GETTIMES()%
+
+IF FLAG:クリア直後フラグ
+	データ名 = %データ名% 引継ぎ
+ENDIF
+
+データ名 = %データ名% シナリオ%SCENARIOID%
+
+IF TIME == 0
+	データ名 = %データ名% 拠 残行動:{CALC_SHOP_TIME() - SHOP_TIME}
+ELSE
+	データ名 = %データ名% 戦
+ENDIF
+
+データ名 = %データ名% {DAY}期
+IF CFLAG:MASTER:所属
+	データ名 = %データ名% %SNAME(GET_COUNTRY_BOSS(CFLAG:MASTER:所属)) + "勢力", MAX_CHARANAME_LENGTH / 2, LEFT%
+ELSE
+	データ名 = %データ名% %"放浪中", MAX_CHARANAME_LENGTH / 2, LEFT%
+ENDIF
+
+データ名 = %データ名% %ANAME(MASTER), MAX_CHARANAME_LENGTH, LEFT%
+
+RETURNF データ名
+
+
+;-------------------------------------------------
+;オートセーブ時の処理
+;-------------------------------------------------
+@SYSTEM_AUTOSAVE
+DUMPRAND
+SAVEDATA 1000 + AUTOSAVE_DOMAIN, "オート " + SAVEDATA_NAME_STR()
+AUTOSAVE_DOMAIN = ROUND_INCREMENT(AUTOSAVE_DOMAIN, 0, AUTOSAVE_DOMAIN_NUM - 1)
+SAVEGLOBAL
+
+;-------------------------------------------------
+;ロード時の処理(※複数定義可能)
+;-------------------------------------------------
+@EVENTLOAD
+;セーブデータのアップデート
+CALL UPDATE
+
+;マップを準備
+CALL MAPSETUP
+
+;ロード時の初期化処理
+CALL INITIALIZE_COMMON
+
+IF FLAG:クリア直後フラグ
+	FLAG:クリア直後フラグ = 0
+	CALL PASS_SETTING
+	CALL NEWLOOP(1)
+ENDIF
+
+
+;-------------------------------------------------
+;クリアデータをロードしたときの引継ぎ処理
+;-------------------------------------------------
+@PASS_SETTING
+#DIM LCOUNT, 2
+#DIM FIRST_LINE
+#DIM MONEY保存
+#DIM ITEMSALES保存, VARSIZE("ITEMSALES")
+#DIM ITEM保存, VARSIZE("ITEM")
+VARSET LOCAL, 0
+
+;出産後のキャラがいる場合、状態をリセット
+FOR LOCAL:0, 0, CHARANUM
+	IF CFLAG:(LOCAL:0):育児期間 >= 1
+		;出産後の各種初期化処理
+		CALL RESET_MOTHER_STATE(LOCAL:0, 0)
+	ENDIF
+NEXT
+
+;キャラの情報を一部リセット
+FOR LOCAL:0, 0, CHARANUM
+	CFLAG:(LOCAL:0):所属 = 0
+	CFLAG:(LOCAL:0):捕虜先 = 0
+	CFLAG:(LOCAL:0):捕虜の扱い = 0
+	CFLAG:(LOCAL:0):特殊状態 = 0
+	CFLAG:(LOCAL:0):恨む君主 = 0
+	CFLAG:(LOCAL:0):滅亡前の君主 = 0
+	CFLAG:(LOCAL:0):監禁状態 = 0
+	CFLAG:(LOCAL:0):外交要求成功フラグ = 0
+	CFLAG:(LOCAL:0):外交調教経過ターン = 0
+	SIF !GETBIT(TALENT:(LOCAL:0):淫乱系, 素質_淫乱_薬物中毒)
+		CFLAG:(LOCAL:0):薬物依存 = 0
+	SIF !TALENT:(LOCAL:0):ＮＴＲ
+		CFLAG:(LOCAL:0):ＮＴＲ値 = 0
+	TALENT:(LOCAL:0):虚ろ = 0
+	TALENT:(LOCAL:0):崩壊 = 0
+	PALAM:(LOCAL:0):怒主 = 0
+	PALAM:(LOCAL:0):怒外 = 0
+	PALAM:(LOCAL:0):哀主 = 0
+	PALAM:(LOCAL:0):哀外 = 0
+	PALAM:(LOCAL:0):怖主 = 0
+	PALAM:(LOCAL:0):怖外 = 0
+	CFLAG:(LOCAL:0):崩壊 = 0
+	TALENT:(LOCAL:0):デイリー系 = 0
+	BASE:(LOCAL:0):精神力 = MAXBASE:(LOCAL:0):精神力
+NEXT
+
+;キャラ間の好感度・敵対度のクリア
+FOR LOCAL:0, 0, CHARANUM
+	FOR LOCAL:1, 0, VARSIZE("REL_LIKE")
+		REL_LIKE:(LOCAL:0):(LOCAL:1) = 0
+		REL_HATE:(LOCAL:0):(LOCAL:1) = 0
+	NEXT
+NEXT
+
+;特殊キャラの削除　ただし主人公だったら削除しない（引継ぎ後に問題になるので）
+FOR LOCAL:0, CHARANUM - 1, -1, -1
+	IF IS_SP_CHARA(LOCAL) && LOCAL != MASTER
+		CALL DELETE_CHARA(LOCAL:0)
+	ENDIF
+NEXT
+
+
+DRAWLINE
+PRINTL 引継ぎ用データをロードしました
+PRINTL 新たに幻想郷に嵐を巻き起こすことができます
+
+CALL PASS_RANDOM_CHARA
+
+CALL PASS_CHARA_CHARASELECT()
+FOR LOCAL, 0, CHARANUM
+	SIF LOCAL != NAME_TO_CHARA("あなた")
+	CALL PASS_CHARA(LOCAL)
+NEXT
+DRAWLINE
+PRINTFORMW キャラの引き継ぎ処理が終了しました
+
+PRINTL アイテム/資金引継ぎの設定を行います
+PRINTL アイテム/資金を引き継ぎますか？
+PRINTL 資金は1/10、最大でも1000000になります
+
+;保存しておく
+MONEY保存 = MONEY
+ARRAYCOPY "ITEMSALES", "ITEMSALES保存"
+ARRAYCOPY "ITEM", "ITEM保存"
+
+CALL ASK_YN()
+
+IF RESULT == 1
+	;初期化
+	MONEY = 0
+	VARSET ITEMSALES, 1, 0, 200
+	VARSET ITEMSALES, 0, 200, 300
+	VARSET ITEM, 0
+	REDRAW 1
+ENDIF
+
+MONEY = MIN(MONEY / 10, 1000000)
+
+ITEMSALES:太平要術の書 = 1
+ITEM:太平要術の書 = 0
+
+DRAWLINE
+
+;-------------------------------------------------
+;ランダム・子供キャラの引継ぎ設定
+;LOCAL地獄のRetardedコードだったのでリファクタ。
+;-------------------------------------------------
+@PASS_RANDOM_CHARA
+#DIM 頭数
+#DIM 対象
+#DIM 選択キャラID, 10
+;ランダムキャラの人数をカウント
+頭数 = 0
+FOR LOCAL:0, 0, CHARANUM
+	SIF (IS_RANDOM_CHARA(LOCAL) || IS_CHILD(LOCAL)) && LOCAL:0 != MASTER
+		頭数 ++
+NEXT
+
+SIF 頭数 <= 0
+	RETURN
+
+;ランダムキャラが存在する場合
+DRAWLINE
+PRINTFORML ランダムキャラおよび子供を10人まで引き継ぐことができます
+PRINTFORML 引き継ぐキャラを選択して下さい
+DRAWLINE
+CALL SELECT_CHARA_LIST_MULTI_ONLY_LOGIC_SLG(VARSIZE("選択キャラID"), "!IS_CHILD&&!IS_RANDOM_CHARA", "")
+
+VARSET 選択キャラID
+
+;選択キャラのリストをIDに変更、選択されたキャラの数をカウント
+FOR LOCAL, 0, SELECTED_CHARA_NUM
+	選択キャラID:LOCAL = GET_ID(SELECTED_CHARA:LOCAL)
+NEXT
+
+;選択されていないランダムキャラの削除
+頭数 = CHARANUM
+
+FOR LOCAL:0, 0, 頭数
+	対象 = 頭数 - LOCAL:0 - 1
+	SIF IS_FIXED_CHARA(対象) || 対象 == MASTER
+		CONTINUE
+	SIF FINDELEMENT(選択キャラID, GET_ID(対象)) == -1
+		CALL DELETE_CHARA(対象)
+NEXT
+
