@@ -24,9 +24,10 @@ SIF RESULT == 0
 SIF MPLY:0 != MASTER || MPLY_NUM != 1
 	RETURN 0
 
-;ターゲット1人以上
-SIF MTAR_NUM <= 0
+;プレイヤーに主導権が必要
+SIF GET_COM_INITIATIVE() != 0
 	RETURN 0
+
 ;プレイヤーが行動不能なら不可
 SIF !IS_PLAYABLE(MPLY:0)
 	RETURN 0
@@ -60,18 +61,6 @@ FOR LOCAL:0, 0, MPLY_NUM
 	SIF IS_BIND(MPLY:(LOCAL:0))
 		RETURN 0
 NEXT
-;全てのターゲットについて判定
-FOR LOCAL:0, 0, MTAR_NUM
-	;顔面騎乗されているなら不可
-	SIF IS_RIDDEN(MTAR:(LOCAL:0))
-		RETURN 0
-	;挿入中なら不可
-	SIF IS_INSERT_SINGLE(MTAR:(LOCAL:0), "全")
-		RETURN 0
-	;キス中なら不可
-	SIF IS_EQUIP(MTAR:(LOCAL:0), 20)
-		RETURN 0
-NEXT
 RETURN 1
 
 ;-------------------------------------------------
@@ -98,18 +87,19 @@ FOR LOCAL:0, 0, MPLY_NUM
 	CALL ADD_SOURCE_INITIATIVE_U(LOCAL:2, 50, 160)
 NEXT
 
-;●全ターゲットについて処理
-FOR LOCAL:0, 0, MTAR_NUM
-	LOCAL:2 = MTAR:(LOCAL:0)
+;●プレイヤー以外の全参加者について処理
+FOR LOCAL:0, 0, CHARANUM
+	SIF !IS_PARTICIPATE_TRAIN(LOCAL) || LOCAL:0 == MPLY:0
+		CONTINUE
 
-	DOWNBASE:(LOCAL:2):体力 += 80
+	DOWNBASE:LOCAL:体力 += 80
 
-	SOURCE:(LOCAL:2):逸脱 = 80
-	SOURCE:(LOCAL:2):露出 = 1500
-	SOURCE:(LOCAL:2):不安 = 30
+	SOURCE:LOCAL:逸脱 = 80
+	SOURCE:LOCAL:露出 = 1500
+	SOURCE:LOCAL:不安 = 30
 
 	;主導権に応じた優越・屈従のソース追加
-	CALL ADD_SOURCE_INITIATIVE_U(LOCAL:2, 160, 80)
+	CALL ADD_SOURCE_INITIATIVE_U(LOCAL, 160, 80)
 NEXT
 
 ;主導度変化基準値
@@ -155,57 +145,50 @@ FOR LOCAL:0, 0, MEQUIP_PLAYER_NUM:(ARG:0)
 	TCVAR:(LOCAL:2):50 += 3
 NEXT
 
-;●全ターゲットについて判定
-FOR LOCAL:0, 0, MEQUIP_TARGET_NUM:(ARG:0)
-	LOCAL:2 = MEQUIP_TARGET:(ARG:0):(LOCAL:0)
 
-	DOWNBASE:(LOCAL:2):体力 += 40
+;●プレイヤー以外の全参加者について処理
+FOR LOCAL:0, 0, CHARANUM
+	SIF !IS_PARTICIPATE_TRAIN(LOCAL) || LOCAL:0 == MPLY:0
+		CONTINUE
 
-	SOURCE:(LOCAL:2):逸脱 += 10
-	SOURCE:(LOCAL:2):露出 += 1000
-	SOURCE:(LOCAL:2):不安 += 10
-	
+	DOWNBASE:LOCAL:体力 += 40
+
+	SOURCE:LOCAL:逸脱 = 10
+	SOURCE:LOCAL:露出 = 1000
+	SOURCE:LOCAL:不安 = 10
+
 	;主導権に応じた優越・屈従のソース追加
-	CALL ADD_SOURCE_INITIATIVE_U(LOCAL:2, 80, 20)
+	CALL ADD_SOURCE_INITIATIVE_U(LOCAL, 80, 20)
 
 	;倒錯度変化基準値
-	TCVAR:(LOCAL:2):50 += 3
+	TCVAR:LOCAL:50 += 3
 NEXT
 
 ;-------------------------------------------------
 ;継続中の表示
 ;-------------------------------------------------
 @EQUIP_MESSAGE112(ARG:0)
-LOCALS:0 = %EQUIP_TARGET_ANAME(ARG:0)%
-RESULTS = %LOCALS:0%が露出プレイ中
+RESULTS = 露出プレイ中
 
 ;-------------------------------------------------
 ;継続中の地の文(前文)
 ;-------------------------------------------------
 @COM_TEXT_BEFORE_EQUIP112(ARG:0)
-LOCAL:1 = 1
-FOR LOCAL, 0, MEQUIP_TARGET_NUM:(ARG:0)
-	IF !IS_EQUIP_TARGET(MEQUIP_TARGET:(ARG:0):(LOCAL:0), 114)
-		LOCAL:1 = 0
-		BREAK
-	ENDIF
-NEXT
+
 LOCALS:0 = %EQUIP_TARGET_ANAME(ARG:0)%
 
 SELECTCASE TFLAG:103
 	CASE 2
 		SELECTCASE RAND:4
 			CASE 0
-				PRINTFORML 集まった男達は、目をハートにして%LOCALS:0%を眺めている…
+				PRINTFORML 集まった男達は、目をハートにして痴態を眺めている…
 			CASE 1
-				PRINTFORML 集まった男達は、%LOCALS:0%の痴態を肴にペニスを扱いている…
+				PRINTFORML 集まった男達は、痴態を肴にペニスを扱いている…
 			CASE 2
-				PRINTFORML 集まった男達は、%LOCALS:0%に卑猥なヤジを投げかけている…
+				PRINTFORML 集まった男達は、卑猥なヤジを投げかけている…
 			CASE 3
-				PRINTFORML 集まった男達は、%LOCALS:0%の裸身を間近で眺めている…
+				PRINTFORML 集まった男達は、裸身を間近で眺めている…
 		ENDSELECT
-		SIF LOCAL:1
-			PRINTFORML 卑猥な落書きを施された%LOCALS:0%に、いっそう興奮しているようだ……
 	CASE 1
 		SELECTCASE RAND:3
 			CASE 0
@@ -216,8 +199,8 @@ SELECTCASE TFLAG:103
 				PRINTFORML 物陰から人の気配を感じる…
 		ENDSELECT
 		IF RAND:100 < 20
-			PRINTFORMW 通りすがりの男達が、%LOCALS:0%を見つけたようだ
-			PRINTFORMW %ANAME(MASTER)%が男達に許可を出すと、男達はニヤニヤと笑いながら%LOCALS:0%の痴態を眺め始めた…
+			PRINTFORMW 通りすがりの男達が、%ANAME(MASTER)%たちを見つけた
+			PRINTFORMW %ANAME(MASTER)%が男達に許可を出すと、男達はニヤニヤと笑いながら痴態を眺め始めた…
 			TFLAG:103 = 2
 		ENDIF
 	CASE 0
@@ -240,14 +223,9 @@ ENDSELECT
 ;継続を解除したときの地の文
 ;-------------------------------------------------
 @COM_TEXT_RELEASE_EQUIP112(ARG:0)
-IF MEQUIP_TARGET_NUM:(ARG:0) > 1
-	LOCALS:0 = %EQUIP_TARGET_ANAME(ARG:0)%たち
-ELSE
-	LOCALS:0 = %EQUIP_TARGET_ANAME(ARG:0)%
-ENDIF
 TFLAG:54 = 0
 TFLAG:103 = 0
-PRINTFORMW %LOCALS:0%を連れて屋内に戻った
+PRINTFORMW 屋内に戻った
 
 ;-------------------------------------------------
 ;固有の実行判定
@@ -280,23 +258,6 @@ RETURN 1
 @COM_TEXT_BEFORE112
 
 LOCALS:0 = %ANAME(MPLY:0)%
-;ターゲットが２人
-IF MTAR_NUM >= 2
-	LOCALS:1 = %ANAME(MTAR:0)%たち
-;ターゲットが１人
-ELSE
-	LOCALS:1 = %ANAME(MTAR:0)%
-ENDIF
 
-SELECTCASE GET_COM_INITIATIVE()
-	;プレイヤーに主導権
-	CASE 0
-		PRINTFORMW %LOCALS:0%は%LOCALS:1%に首輪を嵌め、屋外へと出た…
-	;ターゲットに主導権
-	CASE 1
-		PRINTFORMW %LOCALS:1%は%LOCALS:0%に首輪を嵌めてもらい、屋外へと出た…
-	;第三者に主導権
-	CASEELSE
-		PRINTFORML %ANAME(TFLAG:45)%は%LOCALS:0%に、%LOCALS:1%に首輪を嵌めるよう命令した
-		PRINTFORMW %LOCALS:0%は言われるまま%LOCALS:1%に首輪を嵌め、屋外へと出た…
-ENDSELECT
+PRINTFORMW %LOCALS:0%は屋外で行為をすることにした…
+
