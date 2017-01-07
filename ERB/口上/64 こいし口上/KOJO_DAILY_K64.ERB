@@ -19,6 +19,14 @@ SIF RESULT != -1
 	発生フラグ = 1
 SIF DAILY_CANCEL
 	RETURN 1
+
+;なわ遊び
+DAILY_NAME = なわ遊び
+CALL KOJO_DAILY_K64_NAWAASOBI
+SIF RESULT != -1
+	発生フラグ = 1
+SIF DAILY_CANCEL
+	RETURN 1
 RETURN 発生フラグ
 
 ;----------------------------------
@@ -253,4 +261,78 @@ MARK:こいし:既成事実 = 3
 ;性知識なしルート用
 SIF ABL:こいし:性知識 < 2
 	ABL:こいし:性知識 = 2
+
+;----------------------------------
+;なわ遊び
+;----------------------------------
+@KOJO_DAILY_K64_NAWAASOBI
+#DIM こいし
+
+こいし = NAME_TO_CHARA("こいし")
+
+
+;こいしが同一勢力で、捕虜でなく、面識があり、好感度1000以上、3.0%
+SIF !(CHECK_KOJO_DAILY_HAPPEN(こいし, 30, 1, 0, 1) && CFLAG:こいし:好感度 >= 1000)
+	RETURN -1
+
+SIF !GROUPMATCH(TALENT:MASTER:性別, 0, 1)
+	RETURN -1
+
+SIF !(IS_SLAVE(こいし) || IS_LOVER(こいし))
+	RETURN -1
+
+SIF ABL:こいし:欲望 < 3
+	RETURN -1
+
+CALL KOJO_DAILY_START()
+PRINTFORMW {KDVAR:こいし_なわ遊び}
+IF KDVAR:こいし:こいし_なわ遊び == 0
+	PRINTFORMW 「%ANAME(MASTER)%。面白いものを見せてあげようか？」
+	PRINTFORMW %ANAME(MASTER)%の部屋を、無邪気な笑みを讃えた%ANAME(こいし)%が訪ねてきた
+	PRINTFORMW 面白いものとは何だろう？
+	PRINTFORMW 「ハッ★」
+	PRINTFORMW おおっ！？こいしのサードアイから伸びるコードが星型を象った！！
+	PRINTFORMW 「えいっ♥」
+	PRINTFORMW 今度はハート形だ！
+	PRINTFORMW 「ストリングスパイダーベイビー！！」
+	PRINTFORMW そんな複雑なこともできるのか！
+	PRINTFORMW 「えへへ。すごいでしょ。コードでなんでもできるんだよ。」
+	PRINTFORMW 器用なものだ。なるほど、そういえばコードで攻撃しているところもみたこともある。幾らでも自由に操れるのだろう。
+	PRINTFORMW 「実はね。もっとすごいこともできるんだよ。試してみる？」
+	PRINTFORML すごいこと？何をする気なのだろうか？
+ELSE
+	PRINTFORMW 「%ANAME(MASTER)%。また『すごいこと』してあげようか？」
+	PRINTFORMW ニコニコ。いや、ニヤニヤしながら%ANAME(こいし)%が訪ねてきた
+	PRINTFORML さて、どうしようか……
+ENDIF
+
+PRINTFORML
+CALL ASK_YN("お願いします", "やめておくよ")
+
+IF RESULT == 1
+	PRINTFORMW 「もう！ノリが悪いんだから！」
+	PRINTFORMW ほっぺをハリセンボンのように膨らませてプリプリ怒りながら%ANAME(こいし)%は立ち去った……
+	RETURN
+ENDIF
+
+PRINTFORMW 「えへへ。今の言葉を忘れないよ」
+PRINTFORMW そう言った刹那、コードがムチのようにしなり、一瞬で%ANAME(MASTER)%の身体を拘束し、そのままベッドに放り投げられてしまった。
+PRINTFORMW 「もちろん%ANAME(MASTER)%を拘束するくらい容易いことよ。じゃあ『すごいこと』をしてあげるね」
+PRINTFORMW そう言うと舌なめずりしながら%ANAME(こいし)%は%ANAME(MASTER)%に、優しく覆い被さってきた。
+
+;全員の調教参加フラグをクリア
+CVARSET CFLAG, 6, 0
+CFLAG:こいし:調教参加フラグ = 1
+CFLAG:こいし:好感度 += 200
+CFLAG:こいし:強制友好化 = 1
+BASE:こいし:体力 = MAXBASE:こいし:体力
+BASE:こいし:気力 = MAXBASE:こいし:気力
+;強制逆調教フラグをオン
+FLAG:強制調教フラグ = 2
+;それ以降のデイリーイベント発生を潰す
+DAILY_CANCEL = 1
+;フラグ
+KDVAR:こいし:こいし_なわ遊び = 1
+KDVAR:こいし:こいし_なわ遊び_遊び中 = 1
+RETURN
 
