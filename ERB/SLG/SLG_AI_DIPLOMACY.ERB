@@ -478,6 +478,9 @@ DIPLOMACY_HATE:勢力 ++
 勢力君主 = GET_COUNTRY_BOSS(勢力)
 相手勢力君主 = GET_COUNTRY_BOSS(相手勢力)
 
+SIF DAY < SLG_PP:1
+	RETURNF 0
+
 ;同時に成立する連合は一つ
 SIF MATCH(TREATY_U_TARGET, 0) != MAX_TREATY_U
 	RETURNF 0
@@ -494,7 +497,7 @@ ENDIF
 FOR LOCAL, 0, MAX_COUNTRY
 	SIF !IS_COUNTRY(LOCAL) || GROUPMATCH(LOCAL, 勢力, 相手勢力) || TMP_COUNTRY_RELATION:LOCAL:相手勢力 != 0
 		CONTINUE
-	SIF SLG_AI_DIPLOMACY_DOES_PARTICIPATE_UNION(LOCAL, 相手勢力, 0)
+	SIF SLG_AI_DIPLOMACY_DOES_PARTICIPATE_UNION(LOCAL, 相手勢力, 勢力, 0)
 		見積もり勢力数 ++
 NEXT
 
@@ -508,36 +511,69 @@ RETURNF 0
 ;------------------------
 ;発議された連合への参加判定
 ;------------------------
-@SLG_AI_DIPLOMACY_DOES_PARTICIPATE_UNION(勢力, 相手勢力, 参加勢力数 = 0)
+@SLG_AI_DIPLOMACY_DOES_PARTICIPATE_UNION(勢力, 相手勢力, 宣言勢力, 参加勢力数 = 0)
 #FUNCTION
 #DIM 勢力
 #DIM 相手勢力
+#DIM 宣言勢力
 #DIM 参加勢力数
 #DIM 勢力君主
 #DIM 相手勢力君主
+#DIM 宣言勢力君主
 #DIM 嫌悪感
+#DIM 宣言勢力への嫌悪感
 #DIM CONST 理由_嫌い = 1
 #DIM CONST 理由_経済 = 2
 #DIM CONST 理由_武力 = 3
 #DIM CONST 理由_領土 = 4
+#DIM 参加難易度
 
 勢力君主 = GET_COUNTRY_BOSS(勢力)
 相手勢力君主 = GET_COUNTRY_BOSS(相手勢力)
+宣言勢力君主 = GET_COUNTRY_BOSS(宣言勢力)
 
 SIF TMP_COUNTRY_RELATION:勢力:相手勢力 != 0
 	RETURNF 0
 
 嫌悪感 = REL_HATE:勢力君主:相手勢力君主 - REL_LIKE:勢力君主:相手勢力君主 + DIPLOMACY_HATE:相手勢力 * (CFLAG:MASTER:所属 == 相手勢力 ? 30 # 10)
+宣言勢力への嫌悪感 = REL_HATE:勢力君主:宣言勢力君主 - REL_LIKE:勢力君主:宣言勢力君主 + DIPLOMACY_HATE:宣言勢力 * (CFLAG:MASTER:所属 == 宣言勢力 ? 30 # 10)
 
-IF TMP_SUM_ECONOMY:勢力 * 3 < TMP_SUM_ECONOMY:相手勢力 && !RAND:(2 + 参加勢力数 / 2)
+;宣言勢力が嫌いだとあまり参加したがらない。またあまりにも嫌いだと絶対に参加しない
+SELECTCASE 宣言勢力への嫌悪感
+	CASE IS < 300
+		参加難易度 = 1
+	CASE IS < 600
+		参加難易度 = 2
+	CASE IS < 900
+		参加難易度 = 3
+	CASE IS < 1200
+		参加難易度 = 4
+	CASEELSE
+		RETURNF 0
+ENDSELECT
+
+;宣言勢力への嫌悪から設定された参加難易度は、討伐対象への嫌悪感で軽減（？）される
+SELECTCASE 嫌悪感
+	CASE IS > 1200
+		RETURNF 理由_嫌い
+	CASE IS > 900
+		参加難易度 = MIN(参加難易度 - 3, 1)
+	CASE IS > 600
+		参加難易度 = MIN(参加難易度 - 2, 1)
+	CASE IS > 300
+		参加難易度 = MIN(参加難易度 - 1, 1)
+ENDSELECT
+
+IF TMP_SUM_ECONOMY:勢力 * 3 * 参加難易度 < TMP_SUM_ECONOMY:相手勢力 && !RAND:(2 + 参加勢力数 / 2)
 	RETURNF 理由_経済
-ELSEIF TMP_SUM_SOLDIER:勢力 * 3 < TMP_SUM_SOLDIER:相手勢力 && !RAND:(2 + 参加勢力数 / 2)
+ELSEIF TMP_SUM_SOLDIER:勢力 * 3 * 参加難易度 < TMP_SUM_SOLDIER:相手勢力 && !RAND:(2 + 参加勢力数 / 2)
 	RETURNF 理由_武力
-ELSEIF TMP_OWN_CITY:勢力 * 3 < TMP_OWN_CITY:相手勢力 && !RAND:(2 + 参加勢力数 / 2)
+ELSEIF TMP_OWN_CITY:勢力 * 3 * 参加難易度 < TMP_OWN_CITY:相手勢力 && !RAND:(2 + 参加勢力数 / 2)
 	RETURNF 理由_領土
-ELSEIF RAND:MAX(嫌悪感 - 参加勢力数 * 50, 1) > 300
+ELSEIF RAND:MAX(嫌悪感 - 参加勢力数 * 50 - 50 * (参加難易度 - 1), 1) > 300
 	RETURNF 理由_嫌い
 ENDIF
+
 RETURNF 0
 
 ;------------------------
@@ -586,7 +622,7 @@ FOR LOCAL, 0, MAX_COUNTRY
 			PRINTFORML 不参加を表明しました
 		ENDIF
 	ELSE
-		参加フラグ:LOCAL = SLG_AI_DIPLOMACY_DOES_PARTICIPATE_UNION(勢力, 相手勢力, 参加勢力数)
+		参加フラグ:LOCAL = SLG_AI_DIPLOMACY_DOES_PARTICIPATE_UNION(LOCAL, 相手勢力, 勢力, 参加勢力数)
 		SIF !参加フラグ:LOCAL
 			CONTINUE
 		PRINTFORM %ANAME(GET_COUNTRY_BOSS(LOCAL))%は
