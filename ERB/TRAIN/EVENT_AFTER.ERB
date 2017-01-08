@@ -301,6 +301,7 @@ NEXT
 @EVENTEND_VIDEO()
 #DIM 絶頂回数合計
 #DIM ビデオレター可能
+#DIM 上映可能
 
 絶頂回数合計 = 0
 FOR LOCAL, 0, CHARANUM
@@ -314,51 +315,84 @@ NEXT
 
 
 ビデオレター可能 = 0
+上映可能 = 0
 
 IF FLAG:調教モード == 調教_捕虜調教
+	;自勢力以外のどっかの勢力の捕虜で、君主以外ならビデオレターできる
+	FOR LOCAL, 0, VARSIZE("PRISONER_TARGET")
+		SIF PRISONER_TARGET:LOCAL == -1
+			CONTINUE
+		LOCAL:1 = PRISONER_TARGET:LOCAL
+		SIF !IS_COUNTRY(CFLAG:(LOCAL:1):所属) || CFLAG:(LOCAL:1):所属 == CFLAG:MASTER:所属 || GET_COUNTRY_BOSS(CFLAG:(LOCAL:1):所属) == LOCAL:1
+			CONTINUE
+		ビデオレター可能 = 1
+	NEXT
+	;自勢力以外のどっかの勢力の捕虜なら上映できる
 	FOR LOCAL, 0, VARSIZE("PRISONER_TARGET")
 		SIF PRISONER_TARGET:LOCAL == -1
 			CONTINUE
 		LOCAL:1 = PRISONER_TARGET:LOCAL
 		SIF !IS_COUNTRY(CFLAG:(LOCAL:1):所属) || CFLAG:(LOCAL:1):所属 == CFLAG:MASTER:所属
 			CONTINUE
-		ビデオレター可能 = 1
+		上映可能 = 1
 	NEXT
 ENDIF
 
+
+
 DRAWLINE
 PRINTFORML 今回撮影したビデオを、どのように使おうか……
-CALL ASK_MULTI_JUDGE("売る", 1, "兵の募集に使用", 1, "ビデオレターを送る", ビデオレター可能)
+CALL ASK_MULTI_JUDGE("保存", 1, "裏ルートに流す", 1, "軍事キャンペーンに使用", 1, "ビデオレターを送る", ビデオレター可能, "所属勢力で上映する", 上映可能)
 
 SELECTCASE RESULT
 	CASE 0
-		PRINTFORML 裏のルートに流すことにした……
-		CALL ICPRINT(@"金<{絶頂回数合計 * 50}>を得た", "W", COLOR("注意"))
-		MONEY += 絶頂回数合計 * 50
+		PRINTFORML 個人用に保存しておくことにした……
 	CASE 1
-		PRINTFORML 軍の兵士募集キャンペーンに利用することにした……
-		CALL ICPRINT(@"兵<{絶頂回数合計 * 5}>が集まった", "W", COLOR("注意"))
+		PRINTFORML 裏のルートに流すことにした……
+		CALL ICPRINT(@"金<{SQRT(絶頂回数合計) * 100}>を得た", "W", COLOR("注意"))
+		MONEY += SQRT(絶頂回数合計) * 100
 	CASE 2
+		PRINTFORML 軍の兵士募集キャンペーンに利用することにした……
+		CALL ICPRINT(@"兵<{SQRT(絶頂回数合計) * 50}>が集まった", "W", COLOR("注意"))
+	CASE 3
 		PRINTFORML 捕虜が元気にしている旨を知らせてやるべく、ビデオレターを送った……
 		FOR LOCAL, 0, VARSIZE("PRISONER_TARGET")
 			SIF PRISONER_TARGET:LOCAL == -1
 				CONTINUE
 			LOCAL:1 = PRISONER_TARGET:LOCAL
-			SIF !IS_COUNTRY(CFLAG:(LOCAL:1):所属) || CFLAG:(LOCAL:1):所属 == CFLAG:MASTER:所属
+			SIF !IS_COUNTRY(CFLAG:(LOCAL:1):所属) || CFLAG:(LOCAL:1):所属 == CFLAG:MASTER:所属 || GET_COUNTRY_BOSS(CFLAG:(LOCAL:1):所属) == LOCAL:1
 				CONTINUE
 			LOCAL:2 = GET_COUNTRY_BOSS(CFLAG:(LOCAL:1):所属)
 			IF IS_SLAVE(LOCAL:2)
 				CALL COLORPRINT(@"%ANAME(LOCAL:2)%は自分も%ANAME(LOCAL:1)%のようにしてほしいと思ったようだ……", COLOR("注意"), "W")
-				CALL CHANGE_RELATION_C_TO_C(CFLAG:(LOCAL:1):所属, CFLAG:MASTER:所属, 絶頂回数合計 / 3, 絶頂回数合計 / 3 * -1)
+				CALL CHANGE_RELATION_C_TO_C(CFLAG:(LOCAL:1):所属, CFLAG:MASTER:所属, SQRT(絶頂回数合計) * 2, SQRT(絶頂回数合計) * -2)
 			ELSEIF IS_LOVER(LOCAL:2)
 				CALL COLORPRINT(@"%ANAME(LOCAL:2)%はそんなものを送りつけてきた%ANAME(MASTER)%に呆れているようだ……", COLOR("注意"), "W")
 			ELSE
 				CALL COLORPRINT(@"%ANAME(LOCAL:2)%はそんなものを送りつけてきた%ANAME(MASTER)%に激怒したようだ……", COLOR("注意"), "W")
-				CALL CHANGE_RELATION_C_TO_C(CFLAG:(LOCAL:1):所属, CFLAG:MASTER:所属, 絶頂回数合計 * -1, 絶頂回数合計)
+				CALL CHANGE_RELATION_C_TO_C(CFLAG:(LOCAL:1):所属, CFLAG:MASTER:所属, SQRT(絶頂回数合計) * -2, SQRT(絶頂回数合計) * 2)
+			ENDIF
+		NEXT
+	CASE 4
+		PRINTFORML 所属勢力にて、痴態を大々的に上映してやることにした……
+		FOR LOCAL, 0, VARSIZE("PRISONER_TARGET")
+			SIF PRISONER_TARGET:LOCAL == -1
+				CONTINUE
+			LOCAL:1 = PRISONER_TARGET:LOCAL
+			SIF !IS_COUNTRY(CFLAG:(LOCAL:1):所属) || GET_COUNTRY_BOSS(CFLAG:(LOCAL:1):所属) == CFLAG:MASTER:所属
+				CONTINUE
+			IF GET_COUNTRY_BOSS(CFLAG:(LOCAL:1):所属) == LOCAL:1
+				PRINTFORMW 君主である%ANAME(LOCAL:1)%の淫らな行為についての噂は、あっという間に広まったようだ……
+				PRINTFORMW %ANAME(LOCAL:1)%への部下からの人望が損なわれた……
+				CALL CHANGE_RELATION_C_TO_O(CFLAG:(LOCAL:1):所属, LOCAL:1, SQRT(絶頂回数合計) * -2, SQRT(絶頂回数合計) * 2)
+			ELSE
+				PRINTFORMW 武将である%ANAME(LOCAL:1)%の淫らな行為についての噂は、あっという間に広まったようだ……
+				PRINTFORMW 民は少なからず動揺し、反対に「いいものを見せてくれた」%ANAME(MASTER)%に感謝しているようだ……
+				PRINTFORMW 経済を{SQRT(絶頂回数合計)}吸収した
+				CALL SHIFT_ECONOMY(CFLAG:(LOCAL:1):所属, CFLAG:MASTER:所属, SQRT(絶頂回数合計) * 100)
 			ENDIF
 		NEXT
 ENDSELECT
-
 
 ;-------------------------------------------------
 ;調教後自慰のチェック
