@@ -3,21 +3,21 @@
 ;-------------------------------------------------
 ;コマンド名称
 ;-------------------------------------------------
-@COM_NAME112
-LOCALS:0 = 露出プレイ
-RESULTS:0 = %LOCALS:0%に出かける
-RESULTS:1 = %LOCALS:0%に出かけさせられる
-RESULTS:2 = %LOCALS:0%に出かけさせる
-RESULTS:3 = %LOCALS:0%に出かけられる
-RESULTS:4 = %LOCALS:0%に出かけさせる
+@COM_NAME115
+LOCALS:0 = ビデオ撮影
+RESULTS:0 = %LOCALS:0%を行う
+RESULTS:1 = %LOCALS:0%させられる
+RESULTS:2 = %LOCALS:0%させる
+RESULTS:3 = %LOCALS:0%される
+RESULTS:4 = %LOCALS:0%させる
 RESULTS:5 = %LOCALS:0%見せつけ
 
 ;-------------------------------------------------
 ;選択可否判定
 ;-------------------------------------------------
-@COM_ABLE112
+@COM_ABLE115
 ;共通部分
-CALL COM_ABLE_COMMON(112)
+CALL COM_ABLE_COMMON(115)
 SIF RESULT == 0
 	RETURN 0
 ;プレイヤーは1人, MASTER
@@ -32,11 +32,11 @@ SIF GET_COM_INITIATIVE() != 0
 SIF !IS_PLAYABLE(MPLY:0)
 	RETURN 0
 
-;宮殿以外or既に露出プレイ中なら不可
-SIF TFLAG:54 > 0
+;既に撮影しているならダメ
+SIF TFLAG:70 > 0
 	RETURN 0
 
-SIF ITEM:首輪 == 0
+SIF ITEM:ビデオカメラ == 0 || ITEM:ビデオテープ == 0
 	RETURN 0
 
 
@@ -44,18 +44,6 @@ SIF ITEM:首輪 == 0
 FOR LOCAL:0, 0, MPLY_NUM
 	;顔面騎乗されているなら不可
 	SIF IS_RIDDEN(MPLY:(LOCAL:0))
-		RETURN 0
-	;口枷装着中なら不可
-	SIF IS_EQUIP_TARGET(MPLY:(LOCAL:0), 86)
-		RETURN 0
-	;キス中なら不可
-	SIF IS_EQUIP(MPLY:(LOCAL:0), 20)
-		RETURN 0
-	;フェラ・パイズリ・亀頭フェラ中なら不可
-	SIF IS_EQUIP_PLAYER(MPLY:(LOCAL:0), 11, 12, 107)
-		RETURN 0
-	;イラマ・触手口辱されているなら不可
-	SIF IS_EQUIP_TARGET(MPLY:(LOCAL:0), 90, 210)
 		RETURN 0
 	;拘束されているなら不可
 	SIF IS_BIND(MPLY:(LOCAL:0))
@@ -66,22 +54,20 @@ RETURN 1
 ;-------------------------------------------------
 ;メイン処理
 ;-------------------------------------------------
-@COM112
+@COM115
 ;実行判定
 CALL COM_ORDER_COMMON
 SIF RESULT == 0
 	RETURN 0
 
+ITEM:ビデオテープ --
+
 ;●全プレイヤーについて処理
 FOR LOCAL:0, 0, MPLY_NUM
 	LOCAL:2 = MPLY:(LOCAL:0)
 
-	DOWNBASE:(LOCAL:2):体力 += 40
-
 	SOURCE:(LOCAL:2):嗜虐 = 20
 	SOURCE:(LOCAL:2):露出 = 800
-	SOURCE:(LOCAL:2):逸脱 = 20
-	SOURCE:(LOCAL:2):不安 = 30
 
 	;主導権に応じた優越・屈従のソース追加
 	CALL ADD_SOURCE_INITIATIVE_U(LOCAL:2, 50, 160)
@@ -95,7 +81,7 @@ FOR LOCAL:0, 0, CHARANUM
 	DOWNBASE:LOCAL:体力 += 80
 
 	SOURCE:LOCAL:逸脱 = 80
-	SOURCE:LOCAL:露出 = 1500
+	SOURCE:LOCAL:露出 = 1000
 	SOURCE:LOCAL:不安 = 30
 
 	;主導権に応じた優越・屈従のソース追加
@@ -111,8 +97,14 @@ TFLAG:50 = 2
 ;レズ・ＢＬ経験基準値
 TFLAG:51 = 4
 
-TFLAG:54 = 8
-TFLAG:103 = 0
+TFLAG:70 = 1
+TFLAG:71 = 0
+
+FOR LOCAL, 0, CHARANUM
+	SIF !IS_PARTICIPATE_TRAIN()
+		CONTINUE
+		TFLAG:71 += SUM_EX(LOCAL)
+NEXT
 
 RETURN 1
 
@@ -120,13 +112,13 @@ RETURN 1
 ;-------------------------------------------------
 ;継続コマンドかどうかを設定
 ;-------------------------------------------------
-@COM_IS_EQUIP112
+@COM_IS_EQUIP115
 ;継続コマンドかつフィルタリング不可
 RETURN 2
 ;-------------------------------------------------
 ;継続状態の処理
 ;-------------------------------------------------
-@COM_EQUIP112(ARG:0)
+@COM_EQUIP115(ARG:0)
 ;●全プレイヤーについて判定
 FOR LOCAL:0, 0, MEQUIP_PLAYER_NUM:(ARG:0)
 	LOCAL:2 = MEQUIP_PLAYER:(ARG:0):(LOCAL:0)
@@ -154,8 +146,10 @@ FOR LOCAL:0, 0, CHARANUM
 	DOWNBASE:LOCAL:体力 += 40
 
 	SOURCE:LOCAL:逸脱 = 10
-	SOURCE:LOCAL:露出 = 1000
+	SOURCE:LOCAL:露出 = 700
 	SOURCE:LOCAL:不安 = 10
+
+	EXP:LOCAL:撮影経験 ++
 
 	;主導権に応じた優越・屈従のソース追加
 	CALL ADD_SOURCE_INITIATIVE_U(LOCAL, 80, 20)
@@ -167,70 +161,29 @@ NEXT
 ;-------------------------------------------------
 ;継続中の表示
 ;-------------------------------------------------
-@EQUIP_MESSAGE112(ARG:0)
-RESULTS = 露出プレイ中
+@EQUIP_MESSAGE115(ARG:0)
+RESULTS = ビデオ撮影中
 
 ;-------------------------------------------------
 ;継続中の地の文(前文)
 ;-------------------------------------------------
-@COM_TEXT_BEFORE_EQUIP112(ARG:0)
+@COM_TEXT_BEFORE_EQUIP115(ARG:0)
+SIF MTAR:0 >= 0
+	PRINTFORM %ANAME(MTAR:0)%の
 
-LOCALS:0 = %EQUIP_TARGET_ANAME(ARG:0)%
-
-SELECTCASE TFLAG:103
-	CASE 2
-		SELECTCASE RAND:4
-			CASE 0
-				PRINTFORML 集まった男達は、目をハートにして痴態を眺めている…
-			CASE 1
-				PRINTFORML 集まった男達は、痴態を肴にペニスを扱いている…
-			CASE 2
-				PRINTFORML 集まった男達は、卑猥なヤジを投げかけている…
-			CASE 3
-				PRINTFORML 集まった男達は、裸身を間近で眺めている…
-		ENDSELECT
-	CASE 1
-		SELECTCASE RAND:3
-			CASE 0
-				PRINTFORML 物陰から熱い視線を感じる…
-			CASE 1
-				PRINTFORML 物陰から、男達が視線を送っている…
-			CASE 2
-				PRINTFORML 物陰から人の気配を感じる…
-		ENDSELECT
-		IF RAND:100 < 20
-			PRINTFORMW 通りすがりの男達が、%ANAME(MASTER)%たちを見つけた
-			PRINTFORMW %ANAME(MASTER)%が男達に許可を出すと、男達はニヤニヤと笑いながら痴態を眺め始めた…
-			TFLAG:103 = 2
-		ENDIF
-	CASE 0
-		SELECTCASE RAND:3
-			CASE 0
-				PRINTFORML あたりに人の気配はないようだ…
-			CASE 1
-				PRINTFORML 近くを誰かが通りかかったようだ…
-			CASE 2
-				PRINTFORML 屋外のさわやかな風が吹き抜けた…
-		ENDSELECT
-		IF RAND:100 < 20
-			PRINTFORMW 近くの物陰から、人の気配を感じる…
-			PRINTFORMW どうやらでばがめに覗かれているようだ…
-			TFLAG:103 = 1
-		ENDIF
-ENDSELECT
+PRINTFORML 痴態をカメラが撮影している…
 
 ;-------------------------------------------------
 ;継続を解除したときの地の文
 ;-------------------------------------------------
-@COM_TEXT_RELEASE_EQUIP112(ARG:0)
-TFLAG:54 = 0
-TFLAG:103 = 0
-PRINTFORMW 屋内に戻った
+@COM_TEXT_RELEASE_EQUIP115(ARG:0)
+
+PRINTFORMW 撮影を終えた
 
 ;-------------------------------------------------
 ;固有の実行判定
 ;-------------------------------------------------
-@COM_ORDER_PLAYER112(ARG:0)
+@COM_ORDER_PLAYER115(ARG:0)
 ;実行値の設定
 TCVAR:(ARG:0):25 = 110
 
@@ -255,9 +208,8 @@ RETURN 1
 ;-------------------------------------------------
 ;地の文(前文)
 ;-------------------------------------------------
-@COM_TEXT_BEFORE112
+@COM_TEXT_BEFORE115
 
 LOCALS:0 = %ANAME(MPLY:0)%
 
-PRINTFORMW %LOCALS:0%は屋外で行為をすることにした…
-
+PRINTFORMW %LOCALS:0%はビデオを回し始めた…

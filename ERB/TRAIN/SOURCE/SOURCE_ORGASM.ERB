@@ -50,7 +50,7 @@ FOR LOCAL:0, 0, 5
 			PRINT 最強
 			;最強絶頂箇所の数を加算
 			LOCAL:6 ++
-		ELSEIF LOCAL:2 >= 100000
+		ELSEIF LOCAL:2 >= 200000
 			IF ARG:0 == MASTER
 				SETCOLOR 0x6000FF
 			ELSE
@@ -58,7 +58,7 @@ FOR LOCAL:0, 0, 5
 			ENDIF
 			NOWEX:(ARG:0):(LOCAL:0) = 4
 			PRINT 超強
-		ELSEIF LOCAL:2 >= 20000
+		ELSEIF LOCAL:2 >= 50000
 			IF ARG:0 == MASTER
 				SETCOLOR 0x0080FF
 			ELSE
@@ -116,7 +116,7 @@ IF LOCAL:2 >= 10000 && SOURCE:(ARG:0):快Ｂ + SOURCE:(ARG:0):快Ｖ + SOURCE:(A
 		ENDIF
 		NOWEX:(ARG:0):噴乳 = 9
 		PRINT 超々大量
-	ELSEIF LOCAL:2 >= 200000
+	ELSEIF LOCAL:2 >= 500000
 		IF ARG:0 == MASTER
 			SETCOLOR 0x6000FF
 		ELSE
@@ -124,7 +124,7 @@ IF LOCAL:2 >= 10000 && SOURCE:(ARG:0):快Ｂ + SOURCE:(ARG:0):快Ｖ + SOURCE:(A
 		ENDIF
 		NOWEX:(ARG:0):噴乳 = 4
 		PRINT 超大量
-	ELSEIF LOCAL:2 >= 20000
+	ELSEIF LOCAL:2 >= 100000
 		IF ARG:0 == MASTER
 			SETCOLOR 0x0080FF
 		ELSE
@@ -163,9 +163,9 @@ ENDIF
 ;●潮吹きの判定と表示
 LOCAL:11 = 0
 IF CONFIG:9 == 1 && NOWEX:(ARG:0):射精 == 0
-	IF (NOWEX:(ARG:0):Ｃ絶頂 >= 2 || NOWEX:(ARG:0):Ｖ絶頂 >= 2) && PALAM:(ARG:0):潮吹き + CUP:(ARG:0):潮吹き >= 5000
+	IF (NOWEX:(ARG:0):Ｃ絶頂 >= 2 || NOWEX:(ARG:0):Ｖ絶頂 >= 2) && PALAM:(ARG:0):潮吹き + CUP:(ARG:0):潮吹き >= 10000
 		LOCAL:11 = 1
-	ELSEIF (NOWEX:(ARG:0):Ｃ絶頂 >= 1 || NOWEX:(ARG:0):Ｖ絶頂 >= 1) && PALAM:(ARG:0):潮吹き + CUP:(ARG:0):潮吹き >= 10000
+	ELSEIF (NOWEX:(ARG:0):Ｃ絶頂 >= 1 || NOWEX:(ARG:0):Ｖ絶頂 >= 1) && PALAM:(ARG:0):潮吹き + CUP:(ARG:0):潮吹き >= 20000
 		LOCAL:11 = 1
 	ENDIF
 ENDIF
@@ -320,8 +320,8 @@ FOR LOCAL:0, 0, 7
 		ENDSELECT
 		
 		;絶頂強度に基づく補正
-		LOCAL:2 *= NOWEX:(ARG:0):(LOCAL:0)
-		LOCAL:3 *= NOWEX:(ARG:0):(LOCAL:0)
+		LOCAL:2 *= MAX(NOWEX:(ARG:0):(LOCAL:0) / 2, 1)
+		LOCAL:3 *= MAX(NOWEX:(ARG:0):(LOCAL:0) / 2, 1)
 
 		IF LOCAL == 5
 			;射精による体力・気力の消耗を計算
@@ -369,10 +369,6 @@ FOR LOCAL:0, 0, 7
 					LOCAL:2 = LOCAL:2 / (MIN(ABL:(ARG:0):噴乳 - 5, 55) + 5)
 					LOCAL:3 = LOCAL:3 / (MIN(ABL:(ARG:0):噴乳 - 5, 55) * 2 + 10)
 			ENDSELECT
-		ELSE
-			;絶頂による体力・気力の消耗を計算
-			LOCAL:2 = CALC_ORGASM_LOSEBASE_EXP_CORRECTION(ARG:0, LOCAL:2)
-			LOCAL:3 = CALC_ORGASM_LOSEBASE_EXP_CORRECTION(ARG:0, LOCAL:3)
 		ENDIF
 		;欲望Lvによる補正
 		IF ABL:(ARG:0):欲望 < 5
@@ -439,29 +435,14 @@ IF LOCAL:10 && !(TALENT:(ARG:0):絶倫 && TCVAR:(ARG:0):66)
 		LOCAL:8 /= 10
 		LOCAL:9 /= 10
 	ENDIF
-	BASE:(ARG:0):体力 -= LOCAL:8
-	BASE:(ARG:0):気力 -= LOCAL:9
-	PRINTFORM  体力-{LOCAL:8} 気力-{LOCAL:9}
+	DOWNBASE:(ARG:0):体力 += LOCAL:8
+	DOWNBASE:(ARG:0):気力 += LOCAL:9
+;	PRINTFORM  体力-{LOCAL:8} 気力-{LOCAL:9}
 ENDIF
 
 IF LOCAL:10
 	PRINTL 
 ENDIF
-
-
-;-------------------------------------------------
-;絶頂時における体力気力消費量の、絶頂経験での補正
-;絶頂経験に反比例して減る
-;かつ、気力消費の軽減補正はは体力の消費軽減の半分
-;体力消費が50%になるとき、つまり体力消費への軽減が50%であるとき、気力消費は75%、つまり25％軽減
-;-------------------------------------------------
-@CALC_ORGASM_LOSEBASE_EXP_CORRECTION(対象, 消費量)
-#FUNCTION
-#DIM 対象
-#DIM 消費量
-#DIM 気力フラグ
-
-RETURNF 消費量 * (10000 / MAX(EXP:対象:絶頂経験 / 20, 1)) / 10000
 
 ;-------------------------------------------------
 ;射精の内部処理
@@ -900,7 +881,7 @@ FOR LOCAL:0, 0, CHARANUM
 		ENDIF
 
 		;絶頂強度に応じて欲望経験値を加算
-		EXP:(LOCAL:0):欲望経験値 += NOWEX:(ARG:0):(ARG:1) * 3
+		EXP:(LOCAL:0):欲望経験値 += NOWEX:(ARG:0):(ARG:1)
 	ENDIF
 NEXT
 
