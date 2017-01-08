@@ -1,0 +1,114 @@
+﻿;----------------------------
+;仕分けのバイト
+;スロットとビンゴと比較して実力でなんとかなるやつ
+;----------------------------
+@GAMBLING_SORT()
+#DIMS CONST 柄 = "◆", "✕", "△", "★", "●", "■", "犯"
+#DIMS フィールド, 7
+#DIM START_LINE
+#DIM PLAY_AREA_LINE
+#DIMS 今回の柄
+#DIM 残り時間
+#DIM 前回時間
+#DIM スコア
+#DIM ゲーム中
+#DIM 選択回数
+VARSET 今回の柄
+VARSET スコア
+VARSET ゲーム中
+VARSET 選択回数
+
+CALL FISHER_YATES_SHAFFLE(VARSIZE("柄"))
+
+FOR LOCAL, 0, VARSIZE("柄")
+	フィールド:LOCAL = %柄:(SHAFFLE_ARRAY:LOCAL)%
+NEXT
+
+START_LINE = LINECOUNT
+
+$MAIN
+
+CALL PRINT_CASINO_SORTING_README
+CALL PRINTBUTTON_EXL("[プレイ開始]", 999, !ゲーム中)
+DRAWLINE
+PRINTL
+
+PLAY_AREA_LINE = LINECOUNT
+
+$SHOW_PLAY_AREA
+
+PRINTFORM スコア:{スコア}
+SIF ゲーム中
+	PRINTFORM     NOW:%今回の柄%を選べ！
+PRINTL
+
+FOR LOCAL, 0, VARSIZE("フィールド")
+	PRINTBUTTON @"[%フィールド:LOCAL%]", LOCAL
+	PRINT    
+NEXT
+
+IF !ゲーム中
+	INPUT
+ELSE
+	TINPUT 残り時間, -1
+	IF RESULT == -1
+		CALL COLORPRINT("!!!!!TIME UP!!!!!", COLOR("注意"), "W")
+		PRINTFORMW 「スコアは……{スコア}ですか」
+		IF スコア >= 30
+			PRINTFORMW 「おめでとうございます、%ANAME(MASTER)%様の勝利です」
+			RETURN 1
+		ELSE
+			RETURN 0
+		ENDIF
+	ENDIF
+ENDIF
+
+IF RESULT == 999 && !ゲーム中
+	PRINTFORMW 「では、ゲームを開始します……」
+	PRINTFORMW 「3」
+	PRINTFORMW 「2」
+	PRINTFORMW 「1」
+	ゲーム中 = 1
+	今回の柄 = %柄:(RAND:(VARSIZE("柄")))%
+	前回時間 = GETMILLISECOND()
+	残り時間 = 30000
+	CLEARLINE LINECOUNT - PLAY_AREA_LINE
+	GOTO SHOW_PLAY_AREA
+ENDIF
+
+IF INRANGE(RESULT, 0, VARSIZE("フィールド"))
+	残り時間 = 残り時間 - (GETMILLISECOND() - 前回時間)
+	前回時間 = GETMILLISECOND()
+	IF フィールド:RESULT == 今回の柄
+		スコア ++
+	ELSE
+		IF 今回の柄 == "犯"
+			PRINTFORMW 犯の字を間違えてしまった！
+			RETURN 2
+		ELSE
+			スコア --
+		ENDIF
+	ENDIF
+	選択回数 ++
+	IF 選択回数 % 10 == 0
+		CALL FISHER_YATES_SHAFFLE(VARSIZE("柄"))
+
+		FOR LOCAL, 0, VARSIZE("柄")
+			フィールド:LOCAL = %柄:(SHAFFLE_ARRAY:LOCAL)%
+		NEXT
+	ENDIF
+	今回の柄 = %柄:(RAND:(VARSIZE("柄")))%
+	CLEARLINE LINECOUNT - PLAY_AREA_LINE
+	GOTO SHOW_PLAY_AREA
+ENDIF
+
+
+@PRINT_CASINO_SORTING_README()
+DRAWLINE
+PRINTFORML 「表示された柄を素早く選択してください」
+PRINTFORML 「正しい柄を選べば+1点、間違えると-1点です」
+PRINTFORML 「制限時間は30秒。終わった時点でスコアが30あれば%ANAME(MASTER)%様の勝利です」
+PRINTFORML 「ただし、『犯』の柄が表示されたときに間違えますと、
+PRINTFORML その時点でゲーム終了、ペナルティつきで我々の勝利となりますのでご注意を」
+DRAWLINE
+

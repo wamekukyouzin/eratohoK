@@ -1,0 +1,173 @@
+﻿;ビンゴ
+;10/25ひいてビンゴしたら勝ち ただし25個中3つ犯になる
+;34%くらいの確率で犯をひくことになる
+@GAMBLING_BINGO
+#DIM オープン, 5, 5
+#DIM フィールド, 5, 5
+#DIM プール, 25
+#DIM 玉数
+#DIM ゲーム中
+#DIM START_LINE
+#DIM PLAY_AREA_LINE
+VARSET LOCAL, 0
+VARSET ゲーム中
+VARSET プール
+VARSET フィールド
+VARSET オープン
+VARSET 玉数
+
+オープン:2:2 = 1
+フィールド:2:2 = 0
+
+;フィールドに数値を並べる
+CALL FISHER_YATES_SHAFFLE(VARSIZE("フィールド") * VARSIZE("フィールド", 1))
+LOCAL:2 = 0
+FOR LOCAL, 0, VARSIZE("フィールド")
+	FOR LOCAL:1, 0, VARSIZE("フィールド", 1)
+		IF フィールド:LOCAL:(LOCAL:1) == 0
+			フィールド:LOCAL:(LOCAL:1) = SHAFFLE_ARRAY:(LOCAL:2) + 1
+			LOCAL:2 ++
+		ENDIF
+	NEXT
+NEXT
+
+;プールの数字を用意
+;先に「犯」を埋め込む
+LOCAL:1 = 0
+WHILE LOCAL:1 < 3
+	LOCAL = RAND(VARSIZE("プール"))
+	IF プール:LOCAL == 0
+		プール:LOCAL = -1
+		LOCAL:1 ++
+	ENDIF
+WEND
+
+
+;プールを数字で埋めていく
+;「犯」が埋まっているところに入るべきだった数字は除外される
+CALL FISHER_YATES_SHAFFLE(VARSIZE("プール"))
+
+FOR LOCAL, 0, VARSIZE("プール")
+	SIF プール:LOCAL == 0
+		プール:LOCAL = SHAFFLE_ARRAY:LOCAL + 1
+NEXT
+
+
+START_LINE = LINECOUNT
+
+$MAIN
+
+CALL PRINT_CASINO_BINGO_README()
+CALL PRINTBUTTON_EXL("[プレイ開始]", 999, !ゲーム中)
+DRAWLINE
+
+PLAY_AREA_LINE = LINECOUNT
+
+$PLAY_AREA
+PRINTFORML 現在の玉数:{玉数}
+
+PRINTL
+FOR LOCAL, 0, VARSIZE("フィールド")
+	FOR LOCAL:1, 0, VARSIZE("フィールド", 1)
+		IF オープン:LOCAL:(LOCAL:1)
+			LOCALS = ○
+		ELSE
+			IF フィールド:LOCAL:(LOCAL:1) < 10
+				LOCALS = %TOFULL(TOSTR(フィールド:LOCAL:(LOCAL:1)))%
+			ELSE
+				LOCALS = %TOSTR(フィールド:LOCAL:(LOCAL:1))%
+			ENDIF
+		ENDIF
+		CALL COLORPRINT(LOCALS, (オープン:LOCAL:(LOCAL:1) ? COLOR("注意") # COLOR("選択不可")))
+		PRINTFORM 　
+	NEXT
+	PRINTL
+	PRINTL
+NEXT
+DRAWLINE
+CALL PRINTBUTTON_EX("[次の玉]", 997, ゲーム中)
+INPUT
+
+IF !ゲーム中
+	SELECTCASE RESULT
+		CASE 999
+			PRINTFORMW 「では、ゲームをはじめましょう」
+			ゲーム中 = 1
+			CLEARLINE LINECOUNT - START_LINE
+			GOTO MAIN
+	ENDSELECT
+ELSE
+	SELECTCASE RESULT
+		CASE 997
+			PRINTFORMW 「では……」
+			PRINTFORMW 「次の玉は……\@プール:玉数 == -1 ? 『犯』 # %TOSTR(プール:玉数)%\@！」
+			IF プール:玉数 == -1
+				PRINTFORMW 「おや……『犯』ですか……」
+				RETURN 2
+			ENDIF
+			FOR LOCAL, 0, VARSIZE("フィールド")
+				FOR LOCAL:1, 0, VARSIZE("フィールド", 1)
+					IF フィールド:LOCAL:(LOCAL:1) == プール:玉数
+						オープン:LOCAL:(LOCAL:1) = 1
+						BREAK
+					ENDIF
+				NEXT
+			NEXT
+			玉数++
+			;ビンゴ判定
+			;まずは行
+			FOR LOCAL, 0, VARSIZE("オープン")
+				FOR LOCAL:1, 0, VARSIZE("オープン", 1)
+					SIF !オープン:LOCAL:(LOCAL:1)
+						GOTO ROW_END
+				NEXT
+				PRINTFORMW 「おめでとうございます！　ビンゴです」
+				RETURN 1
+			NEXT
+			$ROW_END
+			;列
+			FOR LOCAL, 0, VARSIZE("オープン", 1)
+				FOR LOCAL:1, 0, VARSIZE("オープン")
+					SIF !オープン:LOCAL:(LOCAL:1)
+						GOTO COLUMN_END
+				NEXT
+				PRINTFORMW 「おめでとうございます！　ビンゴです」
+				RETURN 1
+			NEXT
+			$COLUMN_END
+			;ナナメ
+			FOR LOCAL, 0, VARSIZE("オープン")
+				SIF !オープン:LOCAL:LOCAL
+					GOTO NANAME_END1
+			NEXT
+			PRINTFORMW 「おめでとうございます！　ビンゴです」
+			RETURN 1
+			$NANAME_END1
+			FOR LOCAL, VARSIZE("オープン") - 1, -1, -1
+				SIF !オープン:LOCAL:LOCAL
+					GOTO NANAME_END2
+			NEXT
+			PRINTFORMW 「おめでとうございます！　ビンゴです」
+			RETURN 1
+			$NANAME_END2
+			IF 玉数 == 10
+				PRINTFORMW 「全ての玉が出尽くしました……」
+				PRINTFORMW 「ゲーム終了です」
+				PRINTFORMW 「ビンゴはありませんでしたので、我々の勝利ですね」
+				RETURN 0
+			ENDIF
+			CLEARLINE LINECOUNT - PLAY_AREA_LINE
+			GOTO PLAY_AREA
+	ENDSELECT
+ENDIF
+
+
+
+@PRINT_CASINO_BINGO_README()
+DRAWLINE
+PRINTFORML 「オーソドックスなビンゴゲームです」
+PRINTFORML 「10個の玉が出るまでに、縦、横、斜めを揃えれば%ANAME(MASTER)%様の勝利です」
+PRINTFORML 「揃わなければ、我々の勝利となります」
+PRINTFORML 「ただし、途中で『犯』の玉が出た場合、強制的に我々の勝利です」
+PRINTFORML 「またその場合は、ちょっとした『ペナルティ』を受けていただくことになります」
+DRAWLINE
