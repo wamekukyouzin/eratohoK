@@ -1,10 +1,10 @@
-﻿;Ａ対面座位
+﻿;Ａ後背位
 
 ;-------------------------------------------------
 ;コマンド名称
 ;-------------------------------------------------
-@COM_NAME42
-LOCALS:0 = Ａ対面座位
+@COM_NAME47
+LOCALS:0 = Ａ側位
 
 RESULTS:0 = %LOCALS:0%で挿入
 RESULTS:1 = %LOCALS:0%で挿入させられる
@@ -16,9 +16,9 @@ RESULTS:5 = %LOCALS:0%見せつけ
 ;-------------------------------------------------
 ;選択可否判定
 ;-------------------------------------------------
-@COM_ABLE42
+@COM_ABLE47
 ;共通部分
-CALL COM_ABLE_COMMON(42)
+CALL COM_ABLE_COMMON(47)
 SIF RESULT == 0
 	RETURN 0
 ;プレイヤーは最大で1人まで
@@ -38,8 +38,8 @@ LOCAL:0 = IS_INSERT_MUTUAL(MPLY:0, MTAR:0)
 ;ターゲットからプレイヤーに挿入中なら不可
 SIF LOCAL:0 == 3 || LOCAL:0 == 4
 	RETURN 0
-;ターゲットのＶが他のキャラの竿で埋まっているなら不可
-SIF IS_INSERT_SINGLE(MTAR:0, "Ｖ") && LOCAL:0 != 1
+;ターゲットのＶが他のキャラの竿で埋まっていて、体位が騎乗位以外なら不可
+SIF IS_INSERT_SINGLE(MTAR:0, "Ｖ") && LOCAL:0 != 1 && !GROUPMATCH(GET_SEX_POSITION_SINGLE(MTAR:0, "Ｖ"), 5)
 	RETURN 0
 ;ターゲットのＡがプレイヤーの竿以外で埋まっているなら不可
 SIF IS_A_HOLD(MTAR:0) && LOCAL:0 != 2
@@ -56,12 +56,6 @@ SIF IS_RIDDEN(MTAR:0)
 ;ターゲットが顔面騎乗中なら不可
 SIF IS_RIDE(MTAR:0)
 	RETURN 0
-;プレイヤーが土下座しているなら不可
-SIF IS_EQUIP_PLAYER(MPLY:0, 110)
-	RETURN 0
-;ターゲットが土下座しているなら不可
-SIF IS_EQUIP_PLAYER(MTAR:0, 110)
-	RETURN 0
 ;プレイヤーが拘束中なら不可
 SIF IS_BIND(MPLY:0)
 	RETURN 0
@@ -70,6 +64,12 @@ SIF IS_EQUIP_PLAYER(MPLY:0, 21) || IS_EQUIP_TARGET(MPLY:0, 21) || IS_EQUIP_PLAYE
 	RETURN 0
 ;プレイヤーが貝合わせ中・双頭バイブ使用中なら不可
 SIF IS_EQUIP_PLAYER(MTAR:0, 21) || IS_EQUIP_TARGET(MTAR:0, 21) || IS_EQUIP_PLAYER(MTAR:0, 22) || IS_EQUIP_TARGET(MTAR:0, 22)
+	RETURN 0
+;ターゲットがプレイヤーに胸愛撫中なら不可
+SIF SEARCH_EQUIP(1, MTAR:0, MPLY:0) >= 0
+	RETURN 0
+;ターゲットがプレイヤー／ターゲットがプレイヤーに乳首吸い中なら不可
+SIF SEARCH_EQUIP_IC(9, MTAR:0, MPLY:0) >= 0
 	RETURN 0
 ;ターゲットがプレイヤーにＷ手コキ、Ｔ手コキ中なら不可
 LOCAL:0 = SEARCH_EQUIP(10, MTAR:0, MPLY:0)
@@ -95,7 +95,7 @@ RETURN 1
 ;-------------------------------------------------
 ;メイン処理
 ;-------------------------------------------------
-@COM42
+@COM47
 ;実行判定
 CALL COM_ORDER_COMMON
 SIF RESULT == 0
@@ -103,44 +103,44 @@ SIF RESULT == 0
 
 ;既に挿入中なら現在の体位を取得
 TFLAG:17 = 0
-IF IS_INSERT_MUTUAL(MPLY:0, MTAR:0) == 2
+IF IS_INSERT_MUTUAL(MPLY:0, MTAR:0) == 1
 	SELECTCASE GET_SEX_POSITION(MPLY:0, MTAR:0)
 		CASE 1
-			TFLAG:17 = 2
+			TFLAG:17 = 3
 		CASE 2
 			TFLAG:17 = 3
 		CASE 3
-			TFLAG:17 = 1
+			TFLAG:17 = 3
 		CASE 4
-			TFLAG:17 = 3
+			TFLAG:17 = 2
 		CASE 5
-			TFLAG:17 = 2
+			TFLAG:17 = 3
 		CASE 6
-			TFLAG:17 = 3
-		CASE 7
-			TFLAG:17 = 3
-		CASE 8
 			TFLAG:17 = 2
+		CASE 7
+			TFLAG:17 = 1
+		CASE 8
+			TFLAG:17 = 3
 	ENDSELECT
 ENDIF
 IF TFLAG:17 == 0
 	SELECTCASE PREVCOM
 		CASE 40
-			TFLAG:17 = 2
+			TFLAG:17 = 3
 		CASE 41
 			TFLAG:17 = 3
 		CASE 42
-			TFLAG:17 = 1
+			TFLAG:17 = 3
 		CASE 43
-			TFLAG:17 = 3
-		CASE 44
 			TFLAG:17 = 2
-		CASE 45
+		CASE 44
 			TFLAG:17 = 3
+		CASE 45
+			TFLAG:17 = 2
+		CASE 46
+			TFLAG:17 = 1
 		CASE 47
 			TFLAG:17 = 3
-		CASE 48
-			TFLAG:17 = 2
 	ENDSELECT
 ENDIF
 
@@ -148,17 +148,16 @@ ENDIF
 CALL CLEAR_INSERT_FLAG(MPLY:0, "Ｐ")
 
 ;●プレイヤー側の処理
-DOWNBASE:(MPLY:0):体力 += 140
+DOWNBASE:(MPLY:0):体力 += 160
 
 EXP:(MPLY:0):性技経験値 += 1
 EXP:(MPLY:0):性交経験値 += 2
 
-SOURCE:(MPLY:0):快Ｐ = SENSE_SEX_PLAYER_P(MTAR:0, MPLY:0, 900)
-SOURCE:(MPLY:0):露出 = 50
+SOURCE:(MPLY:0):快Ｐ = SENSE_SEX_PLAYER_P(MTAR:0, MPLY:0, 1500)
 SOURCE:(MPLY:0):性行動 = 240
 
 IF MTAR:0 == MASTER
-	CALL ADD_SOURCE_AIZYOU(MPLY:0, 130)
+	CALL ADD_SOURCE_AIZYOU(MPLY:0, 20)
 ELSEIF MPLY:0 != MASTER
 	SOURCE:(MPLY:0):露出 += 200
 ENDIF
@@ -167,23 +166,23 @@ ENDIF
 CALL COM_COMMON_ASEX_P(MPLY:0, MTAR:0)
 
 ;主導権に応じた優越・屈従のソース追加
-CALL ADD_SOURCE_INITIATIVE_U(MPLY:0, 150, 80)
+CALL ADD_SOURCE_INITIATIVE_U(MPLY:0, 200, 80)
 
 ;奉仕経験値を得られるコマンドのフラグ
 TCVAR:(MPLY:0):4 = 1
 
 ;●ターゲット側の処理
-DOWNBASE:(MTAR:0):体力 += 120
+DOWNBASE:(MTAR:0):体力 += 140
 
 EXP:(MTAR:0):性技経験値 += 1
 EXP:(MTAR:0):性交経験値 += 2
 
-SOURCE:(MTAR:0):快Ａ = SENSE_SEX_TARGET(MPLY:0, MTAR:0, 900)
-SOURCE:(MTAR:0):露出 = 200
+SOURCE:(MTAR:0):快Ａ = SENSE_SEX_TARGET(MPLY:0, MTAR:0, 1500)
+SOURCE:(MTAR:0):露出 = 400
 SOURCE:(MTAR:0):性行動 = 240
 
 IF MPLY:0 == MASTER
-	CALL ADD_SOURCE_AIZYOU(MTAR:0, 130)
+	CALL ADD_SOURCE_AIZYOU(MTAR:0, 20)
 ELSEIF MTAR:0 != MASTER
 	SOURCE:(MTAR:0):露出 += 200
 ENDIF
@@ -191,37 +190,8 @@ ENDIF
 ;性交系の共通処理
 CALL COM_COMMON_ASEX_A(MTAR:0, MPLY:0)
 
-;快Ｃの補正
-IF PALAM:(MTAR:0):潤滑 < PALAMLV:1
-	TIMES SOURCE:(MTAR:0):快Ｃ, 0.30
-ELSEIF PALAM:(MTAR:0):潤滑 < PALAMLV:3
-	TIMES SOURCE:(MTAR:0):快Ｃ, 0.70
-ELSEIF PALAM:(MTAR:0):潤滑 < PALAMLV:5
-	TIMES SOURCE:(MTAR:0):快Ｃ, 1.00
-ELSEIF PALAM:(MTAR:0):潤滑 < PALAMLV:7
-	TIMES SOURCE:(MTAR:0):快Ｃ, 1.20
-ELSEIF PALAM:(MTAR:0):潤滑 >= PALAMLV:7
-	TIMES SOURCE:(MTAR:0):快Ｃ, 1.40
-ENDIF
-
-IF MPLY:0 == MASTER
-	IF CFLAG:(MTAR:0):2 <= 100
-		TIMES SOURCE:(MTAR:0):快Ｃ, 0.50
-	ELSEIF CFLAG:(MTAR:0):2 <= 300
-		TIMES SOURCE:(MTAR:0):快Ｃ, 0.70
-	ELSEIF CFLAG:(MTAR:0):2 <= 500
-		TIMES SOURCE:(MTAR:0):快Ｃ, 0.80
-	ELSEIF CFLAG:(MTAR:0):2 <= 800
-		TIMES SOURCE:(MTAR:0):快Ｃ, 1.00
-	ELSEIF CFLAG:(MTAR:0):2 <= 1500
-		TIMES SOURCE:(MTAR:0):快Ｃ, 1.30
-	ELSE
-		SOURCE:(MTAR:0):快Ｃ = SOURCE:(MTAR:0):快Ｃ * ((CFLAG:(MTAR:0):2 - 1500) / 200 + 150) / 100
-	ENDIF
-ENDIF
-
 ;主導権に応じた優越・屈従のソース追加
-CALL ADD_SOURCE_INITIATIVE_U(MTAR:0, 150, 100)
+CALL ADD_SOURCE_INITIATIVE_U(MTAR:0, 120, 180)
 
 ;奉仕経験値を得られるコマンドのフラグ
 TCVAR:(MTAR:0):4 = 1
@@ -230,34 +200,31 @@ TCVAR:(MTAR:0):4 = 1
 STAIN:(MTAR:0):3 |= STAIN:(MPLY:0):2
 STAIN:(MPLY:0):2 |= STAIN:(MTAR:0):3
 
-;射精箇所と対象をセット(ターゲット側)
-CALL STACK_SPERM(MTAR:0, MPLY:0, 0)
-
 ;体位フラグのセット
-TCVAR:(MPLY:0):31 = 3
-TCVAR:(MTAR:0):35 = 3
+TCVAR:(MPLY:0):31 = 2
+TCVAR:(MTAR:0):35 = 2
 
 ;主導度変化基準値
-TFLAG:49 = 2
+TFLAG:49 = 3
 
 ;倒錯度変化基準値
 TFLAG:50 = 3
 
 ;レズ・ＢＬ経験基準値
-TFLAG:51 = 7
+TFLAG:51 = 3
 
 RETURN 1
 
 ;-------------------------------------------------
 ;継続コマンドかどうかを設定
 ;-------------------------------------------------
-@COM_IS_EQUIP42
+@COM_IS_EQUIP47
 RETURN 1
 
 ;-------------------------------------------------
 ;継続状態の処理
 ;-------------------------------------------------
-@COM_EQUIP42(ARG:0)
+@COM_EQUIP47(ARG:0)
 LOCAL:2 = MEQUIP_PLAYER:(ARG:0):0
 LOCAL:3 = MEQUIP_TARGET:(ARG:0):0
 
@@ -270,8 +237,7 @@ DOWNBASE:(LOCAL:2):体力 += 20
 EXP:(LOCAL:2):性技経験値 += 1
 EXP:(LOCAL:2):性交経験値 += 1
 
-SOURCE:(LOCAL:2):快Ｐ += SENSE_SEX_PLAYER_P(LOCAL:3, LOCAL:2, 450)
-SOURCE:(LOCAL:2):露出 += 25
+SOURCE:(LOCAL:2):快Ｐ += SENSE_SEX_PLAYER_P(LOCAL:3, LOCAL:2, 750)
 SOURCE:(LOCAL:2):性行動 += 80
 
 ;Ａ性交の共通処理
@@ -288,8 +254,8 @@ DOWNBASE:(LOCAL:3):体力 += 30
 EXP:(LOCAL:3):性技経験値 += 1
 EXP:(LOCAL:3):性交経験値 += 1
 
-SOURCE:(LOCAL:3):快Ａ += SENSE_SEX_TARGET(LOCAL:2, LOCAL:3, 450)
-SOURCE:(LOCAL:3):露出 += 100
+SOURCE:(LOCAL:3):快Ａ += SENSE_SEX_TARGET(LOCAL:2, LOCAL:3, 750)
+SOURCE:(LOCAL:3):露出 += 200
 SOURCE:(LOCAL:3):性行動 += 80
 
 ;Ａ性交の共通処理
@@ -308,13 +274,21 @@ CALL SUM_SOURCE(LOCAL:3)
 ;-------------------------------------------------
 ;継続中の表示
 ;-------------------------------------------------
-@EQUIP_MESSAGE42(ARG:0)
-RESULTS = %EQUIP_PLAYER_ANAME(ARG:0)%が%EQUIP_TARGET_ANAME(ARG:0)%のアナルに対面座位で挿入中
+@EQUIP_MESSAGE47(ARG:0)
+RESULTS = %EQUIP_PLAYER_ANAME(ARG:0)%が%EQUIP_TARGET_ANAME(ARG:0)%のアナルに側位で挿入中
 
 ;-------------------------------------------------
 ;継続中の地の文(前文)
 ;-------------------------------------------------
-@COM_TEXT_BEFORE_EQUIP42(ARG:0)
+@COM_TEXT_BEFORE_EQUIP47(ARG:0)
+	IF ABL:(MEQUIP_TARGET:(ARG:0):0):Ａ感 >= 3
+		LOCALS:0 = 十分に開発されたアナル
+	ELSEIF ABL:(MEQUIP_TARGET:(ARG:0):0):Ａ感 >= 2
+		LOCALS:0 = 開発途上のアナル
+	ELSE
+		LOCALS:0 = キツく閉じたアナル
+	ENDIF
+
 	SELECTCASE RAND:2
 		CASE 0
 			PRINTFORML %EQUIP_TARGET_ANAME(ARG:0)%の尻穴が%EQUIP_PLAYER_ANAME(ARG:0)%の%BAR_NAME(MEQUIP_PLAYER:(ARG:0):0)%を咥え込んでいる…
@@ -322,34 +296,54 @@ RESULTS = %EQUIP_PLAYER_ANAME(ARG:0)%が%EQUIP_TARGET_ANAME(ARG:0)%のアナル�
 			LOCAL:0 = MEQUIP_TARGET:(ARG:0):0
 			;ターゲットが行動不能
 			IF !IS_PLAYABLE(LOCAL:0)
-				PRINTFORML %EQUIP_PLAYER_ANAME(ARG:0)%は気絶した%EQUIP_TARGET_ANAME(ARG:0)%を抱きしめたまま、激しく腰を突き上げ尻穴を責めている…
+				SELECTCASE RAND:2
+					CASE 0
+						PRINTFORML %EQUIP_PLAYER_ANAME(ARG:0)%は気絶した%EQUIP_TARGET_ANAME(ARG:0)%を横に寝そべらせ、尻穴を後ろから激しく突いている…
+					CASE 1
+						PRINTFORML %EQUIP_PLAYER_ANAME(ARG:0)%はぐったりしている%EQUIP_TARGET_ANAME(ARG:0)%を横に寝そべらせ、%LOCALS:0%に後ろから何度も腰を打ち付けている…
+				ENDSELECT
 			ELSE
 				SELECTCASE GET_COM_INITIATIVE()
 					;プレイヤーに主導権
 					CASE 0
-						PRINTFORML %EQUIP_PLAYER_ANAME(ARG:0)%は%EQUIP_TARGET_ANAME(ARG:0)%を抱きしめたまま、さらに激しく腰を突き上げて尻穴を突いている…
+						SELECTCASE RAND:2
+							CASE 0
+								PRINTFORML %EQUIP_PLAYER_ANAME(ARG:0)%は横向きに寝そべる%EQUIP_TARGET_ANAME(ARG:0)%の腰を掴み、激しく尻穴を突いている…
+							CASE 1
+								PRINTFORML %EQUIP_PLAYER_ANAME(ARG:0)%は横向きに寝そべる%EQUIP_TARGET_ANAME(ARG:0)%の%LOCALS:0%に突き入れ、何度も腰を打ち付けている…
+						ENDSELECT
 					;ターゲットに主導権
 					CASE 1
-						PRINTFORML %EQUIP_TARGET_ANAME(ARG:0)%は%EQUIP_PLAYER_ANAME(ARG:0)%を抱きしめる腕に力を入れると、自ら快感を貪るように激しく尻を上下させている…
+						PRINTFORML %EQUIP_TARGET_ANAME(ARG:0)%は%EQUIP_PLAYER_ANAME(ARG:0)%に、もっと激しく腰を動かすように要求し
+						SELECTCASE RAND:2
+							CASE 0
+								PRINTFORML %EQUIP_PLAYER_ANAME(ARG:0)%は横向きに寝そべる%EQUIP_TARGET_ANAME(ARG:0)%の腰を掴みなおすと、何度も腰を打ち付けて%EQUIP_TARGET_ANAME(ARG:0)%の尻穴を突いている…
+							CASE 1
+								PRINTFORML %EQUIP_PLAYER_ANAME(ARG:0)%は横向きに寝そべる%EQUIP_TARGET_ANAME(ARG:0)%の腰を掴みなおすと、何度も腰を打ち付け%LOCALS:0%に突き入れている…
+						ENDSELECT
 					;第三者に主導権
 					CASEELSE
-						PRINTFORML %ANAME(TFLAG:45)%は%EQUIP_TARGET_ANAME(ARG:0)%に対面座位で挿入する%EQUIP_PLAYER_ANAME(ARG:0)%に対し、もっと激しく腰を動かすように命令し
-						PRINTFORML %EQUIP_PLAYER_ANAME(ARG:0)%は%EQUIP_TARGET_ANAME(ARG:0)%の体を抱きしめ直すと、さらに力を込めて%EQUIP_TARGET_ANAME(ARG:0)%の尻穴を突き上げている…
+						PRINTFORML %ANAME(TFLAG:45)%は%EQUIP_TARGET_ANAME(ARG:0)%に側位で挿入している%EQUIP_PLAYER_ANAME(ARG:0)%に対し、もっと激しく腰を動かすように命令し
+						SELECTCASE RAND:2
+							CASE 0
+								PRINTFORML %EQUIP_PLAYER_ANAME(ARG:0)%は言われるまま腰の動きを激しくし、何度も%EQUIP_TARGET_ANAME(ARG:0)%の尻穴を突いている…
+							CASE 1
+								PRINTFORML %EQUIP_PLAYER_ANAME(ARG:0)%は言われるまま腰の動きを激しくし、何度も%EQUIP_TARGET_ANAME(ARG:0)%の%LOCALS:0%に突き入れている…
+						ENDSELECT
 				ENDSELECT
 			ENDIF
 	ENDSELECT
 
-
 ;-------------------------------------------------
 ;継続を解除したときの地の文
 ;-------------------------------------------------
-@COM_TEXT_RELEASE_EQUIP42(ARG:0)
+@COM_TEXT_RELEASE_EQUIP47(ARG:0)
 PRINTFORMW %EQUIP_PLAYER_ANAME(ARG:0)%は%EQUIP_TARGET_ANAME(ARG:0)%の尻穴から%BAR_NAME(MEQUIP_PLAYER:(ARG:0):0)%を引き抜いた…
 
 ;-------------------------------------------------
 ;固有の実行判定(プレイヤー側)
 ;-------------------------------------------------
-@COM_ORDER_PLAYER42(ARG:0)
+@COM_ORDER_PLAYER47(ARG:0)
 ;実行値の設定
 TCVAR:(ARG:0):25 = 100
 
@@ -360,7 +354,7 @@ RETURN 1
 ;-------------------------------------------------
 ;地の文(前文)
 ;-------------------------------------------------
-@COM_TEXT_BEFORE42
+@COM_TEXT_BEFORE47
 IF ABL:(MTAR:0):Ａ感 >= 3
 	LOCALS:0 = 十分に開発されたアナル
 ELSEIF ABL:(MTAR:0):Ａ感 >= 2
@@ -382,6 +376,7 @@ ELSEIF TALENT:(MTAR:0):豊尻
 ELSE
 	LOCALS:2 = 
 ENDIF
+
 ;ペニスバンド装着中
 IF TCVAR:(MPLY:0):61
 	;既に挿入済みの場合
@@ -389,42 +384,43 @@ IF TCVAR:(MPLY:0):61
 		SELECTCASE GET_COM_INITIATIVE()
 			;プレイヤーに主導権
 			CASE 0
-				;前回が対面座位
+				;前回が後背位
 				IF TFLAG:17 == 1
-					PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%を抱きしめたまま、%LOCALS:1%さらに激しく腰を突き上げて尻穴を突い%TARGET_STR("た", "てきた")%…
-				;正常位・騎乗位
+					PRINTFORMW %ANAME(MPLY:0)%は横向きに寝そべらせた%ANAME(MTAR:0)%の%STR_BODY("腰：外見", MTAR:0)%を掴むと、%LOCALS:2%さらに激しく腰を動かして尻穴を突い%TARGET_STR("た", "てきた")%…
+				;背面座位・背面騎乗位
 				ELSEIF TFLAG:17 == 2
-					PRINTFORMW %ANAME(MPLY:0)%は挿入したまま%ANAME(MTAR:0)%の体を抱きしめると、%LOCALS:1%再び腰を動かし始めた…
-				;後背位・背面座位・背面騎乗位
+					PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%を横に寝そべらせ後ろからぴったり寄り添うと、側位の体勢で再び腰を動かし始めた…
+				;正常位・対面座位・騎乗位
 				ELSEIF TFLAG:17 == 3
-					PRINTFORMW %ANAME(MPLY:0)%は挿入したまま%ANAME(MTAR:0)%の体を正面に向けると、%LOCALS:1%%ANAME(MTAR:0)%を抱きしめて腰を突き上げ%TARGET_STR("た", "てきた")%…
+					PRINTFORMW %ANAME(MPLY:0)%は挿入したまま%ANAME(MTAR:0)%を横に寝そべらせ後ろからぴったり寄り添うと、側位の体勢で再び腰を動かし始めた…
 				ENDIF
 			;ターゲットに主導権
 			CASE 1
-				;前回が対面座位
+				;前回が後背位
 				IF TFLAG:17 == 1
-					PRINTFORMW %ANAME(MTAR:0)%は%ANAME(MPLY:0)%を抱きしめる腕に力を入れると、%LOCALS:1%自ら快感を貪るように激しく尻を上下させ%PLAYER_STR("た", "てきた")%…
-				;正常位・騎乗位
+					PRINTFORML %ANAME(MTAR:0)%は%ANAME(MPLY:0)%に見せつけるように%STR_BODY("腰：外見", MTAR:0)%を振りながら、もっと激しく腰を動かすように要求した
+					PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%の腰を掴みなおすと、%LOCALS:1%側位の姿勢で何度も腰を打ち付けて%ANAME(MTAR:0)%の尻穴を突いた…
+				;背面座位・背面騎乗位
 				ELSEIF TFLAG:17 == 2
-					PRINTFORMW %ANAME(MTAR:0)%は挿入したまま%ANAME(MPLY:0)%の体を抱きしめると、%LOCALS:1%密着したまま自ら快感を貪るように尻を動かし始めた…
-				;後背位・背面座位・背面騎乗位
+					PRINTFORMW %ANAME(MTAR:0)%は自ら横に寝そべると、%LOCALS:1%%ANAME(MPLY:0)%に側位で腰を振らせた…
+				;正常位・対面座位・騎乗位
 				ELSEIF TFLAG:17 == 3
-					PRINTFORMW %ANAME(MTAR:0)%は%ANAME(MPLY:0)%の正面に向き直りその体を抱きしめると、%LOCALS:1%密着したまま自ら快感を貪るように尻を動かし始めた…
+					PRINTFORMW %ANAME(MTAR:0)%は体をひねって自ら横に寝そべると、%LOCALS:1%今度は%ANAME(MPLY:0)%に側位で腰を振らせた…
 				ENDIF
 			;第三者に主導権
 			CASEELSE
-				;前回が対面座位
+				;前回が後背位
 				IF TFLAG:17 == 1
-					PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MTAR:0)%に対面座位で挿入する%ANAME(MPLY:0)%に対し、もっと激しく腰を動かすように命令した
-					PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%の体を抱きしめ直すと、%LOCALS:1%さらに力を込めて%ANAME(MTAR:0)%の尻穴を突き上げ始めた…
-				;正常位・騎乗位
+					PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MTAR:0)%に側位で挿入している%ANAME(MPLY:0)%に対し、もっと激しく腰を動かすように命令した
+					PRINTFORMW %ANAME(MPLY:0)%は言われるまま腰の動きを激しくし、何度も%ANAME(MTAR:0)%の尻穴を突いた…
+				;背面座位・背面騎乗位
 				ELSEIF TFLAG:17 == 2
-					PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に対し、体位を対面座位に変えて再び腰を動かすように命令した
-					PRINTFORMW %ANAME(MPLY:0)%は挿入したまま%ANAME(MTAR:0)%の体を抱きしめると、%LOCALS:1%再び腰を動かし始めた…
-				;後背位・背面座位・背面騎乗位
+					PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に対し、体位を側位に変えて再び腰を動かすように命令した
+					PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%を横に寝そべらせ後ろからぴったり寄り添うと、%LOCALS:1%再び腰を動かし始めた…
+				;正常位・対面座位・騎乗位
 				ELSEIF TFLAG:17 == 3
-					PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に対し、体位を対面座位に変えて再び腰を動かすように命令した
-					PRINTFORMW %ANAME(MPLY:0)%は挿入したまま%ANAME(MTAR:0)%の体を正面に向けると、%LOCALS:1%%ANAME(MTAR:0)%を抱きしめて腰を突き上げた…
+					PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に対し、体位を側位に変えて再び腰を動かすように命令した
+					PRINTFORMW %ANAME(MPLY:0)%は挿入したまま%ANAME(MTAR:0)%を横に寝そべらせ後ろからぴったり寄り添うと、%LOCALS:1%再び腰を動かし始めた…
 				ENDIF
 		ENDSELECT
 
@@ -432,14 +428,14 @@ IF TCVAR:(MPLY:0):61
 		SELECTCASE GET_COM_INITIATIVE()
 			;プレイヤーに主導権
 			CASE 0
-				PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%を抱きしめながら%LOCALS:1%張り型を%LOCALS:0%へと挿入し、腰を突き上げ%TARGET_STR("た", "てきた")%…
+				PRINTFORMW %ANAME(MPLY:0)%は張り型を横に寝そべらせた%ANAME(MTAR:0)%の%LOCALS:0%に突き入れ、何度も腰を打ち付け%TARGET_STR("た", "てきた")%…
 			;ターゲットに主導権
 			CASE 1
-				PRINTFORMW %ANAME(MTAR:0)%は%ANAME(MPLY:0)%を抱きしめながら%LOCALS:1%張り型を自らの%LOCALS:0%で咥え込み、腰を動かした…
+				PRINTFORMW %ANAME(MTAR:0)%は%ANAME(MPLY:0)%に%STR_BODY("腰：外見", MTAR:0)%を向け、側位の姿勢で%LOCALS:0%に張り型を挿入させた…
 			;第三者に主導権
 			CASEELSE
-				PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に、対面座位で%ANAME(MTAR:0)%の尻穴に挿入するように命令した
-				PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%を抱きしめながら%LOCALS:1%張り型を%LOCALS:0%へと挿入し、腰を突き上げた…
+				PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に、側位で%ANAME(MTAR:0)%の尻穴を犯すように命令した
+				PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%を横向きに寝そべらせると、装着した張り型を%ANAME(MTAR:0)%の%LOCALS:0%に突き入れて腰を振った…
 		ENDSELECT
 	ENDIF
 
@@ -450,42 +446,43 @@ ELSE
 		SELECTCASE GET_COM_INITIATIVE()
 			;プレイヤーに主導権
 			CASE 0
-				;前回が対面座位
+				;前回が後背位
 				IF TFLAG:17 == 1
-					PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%を抱きしめたまま、%LOCALS:1%さらに激しく腰を突き上げて尻穴を突い%TARGET_STR("た", "てきた")%…
-				;正常位・騎乗位
+					PRINTFORMW %ANAME(MPLY:0)%は横向きに寝そべらせた%ANAME(MTAR:0)%の%STR_BODY("腰：外見", MTAR:0)%を掴むと、%LOCALS:2%さらに激しく腰を動かして尻穴を突い%TARGET_STR("た", "てきた")%…
+				;背面座位・背面騎乗位
 				ELSEIF TFLAG:17 == 2
-					PRINTFORMW %ANAME(MPLY:0)%は挿入したまま%ANAME(MTAR:0)%の体を抱きしめると、%LOCALS:1%再び腰を動かし始めた…
-				;後背位・背面座位・背面騎乗位
+					PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%を横に寝そべらせ後ろからぴったり寄り添うと、側位の体勢で再び腰を動かし始めた…
+				;正常位・対面座位・騎乗位
 				ELSEIF TFLAG:17 == 3
-					PRINTFORMW %ANAME(MPLY:0)%は挿入したまま%ANAME(MTAR:0)%の体を正面に向けると、%LOCALS:1%%ANAME(MTAR:0)%を抱きしめて腰を突き上げ%TARGET_STR("た", "てきた")%…
+					PRINTFORMW %ANAME(MPLY:0)%を横に寝そべらせ後ろからぴったり寄り添うと、側位の体勢で再び腰を動かし始めた…
 				ENDIF
 			;ターゲットに主導権
 			CASE 1
-				;前回が対面座位
+				;前回が後背位
 				IF TFLAG:17 == 1
-					PRINTFORMW %ANAME(MTAR:0)%は%ANAME(MPLY:0)%を抱きしめる腕に力を入れると、%LOCALS:1%尻穴を締め付けながら腰を振り%ANAME(MPLY:0)%ペニスを擦り上げ%PLAYER_STR("た", "てきた")%…
-				;正常位・騎乗位
+					PRINTFORML %ANAME(MTAR:0)%は%ANAME(MPLY:0)%に見せつけるように%STR_BODY("腰：外見", MTAR:0)%を振りながら、もっと激しく腰を動かすように要求した
+					PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%を掴みなおすと、側位の姿勢で何度も腰を打ち付けて%ANAME(MTAR:0)%の尻穴を突いた…
+				;背面座位・背面騎乗位
 				ELSEIF TFLAG:17 == 2
-					PRINTFORMW %ANAME(MTAR:0)%は挿入したまま%ANAME(MPLY:0)%の体を抱きしめると、%LOCALS:1%密着したまま尻を振って%ANAME(MPLY:0)%ペニスを擦り上げ%PLAYER_STR("た", "てきた")%…
-				;後背位・背面座位・背面騎乗位
+					PRINTFORMW %ANAME(MTAR:0)%は自ら横に寝そべると、%LOCALS:1%%ANAME(MPLY:0)%に後背位で腰を振らせた…
+				;正常位・対面座位・騎乗位
 				ELSEIF TFLAG:17 == 3
-					PRINTFORMW %ANAME(MTAR:0)%は%ANAME(MPLY:0)%の正面に向き直りその体を抱きしめると、%LOCALS:1%密着したまま尻を振って%ANAME(MPLY:0)%ペニスを擦り上げ%PLAYER_STR("た", "てきた")%…
+					PRINTFORMW %ANAME(MTAR:0)%は体をひねって自ら横に寝そべると、%LOCALS:1%今度は%ANAME(MPLY:0)%に側位で腰を振らせた…
 				ENDIF
 			;第三者に主導権
 			CASEELSE
-				;前回が対面座位
+				;前回が後背位
 				IF TFLAG:17 == 1
-					PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MTAR:0)%に対面座位で挿入する%ANAME(MPLY:0)%に対し、もっと激しく腰を動かすように命令した
-					PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%の体を抱きしめ直すと、%LOCALS:1%さらに力を込めて%ANAME(MTAR:0)%の尻穴を突き上げ始めた…
-				;正常位・騎乗位
+					PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MTAR:0)%に側位で挿入している%ANAME(MPLY:0)%に対し、もっと激しく腰を動かすように命令した
+					PRINTFORMW %ANAME(MPLY:0)%は言われるまま腰の動きを激しくし、何度も%ANAME(MTAR:0)%の尻穴を突いた…
+				;背面座位・背面騎乗位
 				ELSEIF TFLAG:17 == 2
-					PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に対し、体位を対面座位に変えて再び腰を動かすように命令した
-					PRINTFORMW %ANAME(MPLY:0)%は挿入したまま%ANAME(MTAR:0)%の体を抱きしめると、%LOCALS:1%再び腰を動かし始めた…
-				;後背位・背面座位・背面騎乗位
+					PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に対し、体位を側位に変えて再び腰を動かすように命令した
+					PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%を横に寝そべらせ後ろからぴったり寄り添うと、再び腰を動かし始めた…
+				;正常位・対面座位・騎乗位
 				ELSEIF TFLAG:17 == 3
-					PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に対し、体位を対面座位に変えて再び腰を動かすように命令した
-					PRINTFORMW %ANAME(MPLY:0)%は挿入したまま%ANAME(MTAR:0)%の体を正面に向けると、%LOCALS:1%%ANAME(MTAR:0)%を抱きしめて腰を突き上げた…
+					PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に対し、体位を側位に変えて再び腰を動かすように命令した
+					PRINTFORMW %ANAME(MPLY:0)%は挿入したまま%ANAME(MTAR:0)%を横に寝そべらせ後ろからぴったり寄り添うと、再び腰を動かし始めた…
 				ENDIF
 		ENDSELECT
 
@@ -493,14 +490,14 @@ ELSE
 		SELECTCASE GET_COM_INITIATIVE()
 			;プレイヤーに主導権
 			CASE 0
-				PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%を抱きしめながら%LOCALS:1%%LOCALS:0%へと挿入し、腰を突き上げ%TARGET_STR("た", "てきた")%…
+				PRINTFORMW %ANAME(MPLY:0)%は横向きに寝そべらせた%ANAME(MTAR:0)%の%LOCALS:1%%LOCALS:0%にペニスを突き入れ、何度も腰を打ち付け%TARGET_STR("た", "てきた")%…
 			;ターゲットに主導権
 			CASE 1
-				PRINTFORMW %ANAME(MTAR:0)%は%ANAME(MPLY:0)%を抱きしめながら腰を降ろして、%LOCALS:1%%LOCALS:0%で%ANAME(MPLY:0)%のペニスを飲み込ん%TARGET_STR("だ", "できた")%…
+				PRINTFORMW %ANAME(MTAR:0)%は%ANAME(MPLY:0)%に%STR_BODY("腰：外見", MTAR:0)%を向け、%LOCALS:1%後ろから%LOCALS:0%にペニスを挿入させた…
 			;第三者に主導権
 			CASEELSE
-				PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に、対面座位で%ANAME(MTAR:0)%の尻穴を犯すように命令した
-				PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%を抱きしめながら%LOCALS:1%%LOCALS:0%へと挿入し、腰を突き上げた…
+				PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に、側位で%ANAME(MTAR:0)%の尻穴を犯すように命令した
+				PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%を横向きに寝そべらせると、装着した張り型を%ANAME(MTAR:0)%の%LOCALS:0%にペニス突き入れて腰を振った…
 		ENDSELECT
 	ENDIF
 ENDIF
@@ -509,6 +506,6 @@ SIF TALENT:(MTAR:0):豊尻
 ;--------------------------------------------------------
 ;地の文(パラメータ・刻印変動後)
 ;--------------------------------------------------------
-@COM_TEXT_LAST42
+@COM_TEXT_LAST47
 SIF IS_PIERCED(MPLY:0, ピアス_ペニス)
 	PRINTFORML %ANAME(MPLY:0)%のペニスに取り付けられたピアスが、%ANAME(MTAR:0)%のアヌスをごりごりと抉っていく……
