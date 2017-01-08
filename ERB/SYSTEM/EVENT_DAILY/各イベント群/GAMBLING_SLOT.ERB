@@ -1,0 +1,196 @@
+﻿
+;-----------------------------------
+;イカサマルーレット
+;リーチしてると三つめがたまに「滑る」
+;目 "○", "◎", "✕", "△", "★", "犯", "７"
+;-----------------------------------
+@GAMBLING_SLOT()
+#DIMS リール, 3, 20
+#DIM プレイ中
+#DIM START_LINE
+#DIM REEL_LINE
+#DIM ライン, 3
+#DIM 回転中, 3
+#DIM 残回転, 3
+#DIM リーチ
+
+VARSET リール
+VARSET プレイ中
+VARSET 回転中
+VARSET 残回転
+VARSET リーチ
+
+REDRAW 0
+;マシンのセットアップ
+FOR LOCAL, 0, VARSIZE("リール")
+	;各リールには１つだけ、犯と７を含ませる
+	LOCAL:1 = (RAND:(VARSIZE("リール", 1) - 1))
+	リール:LOCAL:(LOCAL:1) = ７
+	リール:LOCAL:(IFRAND("0TO" + TOSTR(VARSIZE("リール", 1) - 1), 1, "D" + TOSTR(LOCAL:1))) = 犯
+	FOR LOCAL:1, 0, VARSIZE("リール", 1)
+		SIF リール:LOCAL:(LOCAL:1) != ""
+			CONTINUE
+		SELECTCASE RAND:100
+			CASE 0 TO 39
+				リール:LOCAL:(LOCAL:1) = ○
+			CASE 40 TO 59
+				リール:LOCAL:(LOCAL:1) = ✕
+			CASE 60 TO 79
+				リール:LOCAL:(LOCAL:1) = △
+			CASE 80 TO 89
+				リール:LOCAL:(LOCAL:1) = ★
+			CASEELSE
+				リール:LOCAL:(LOCAL:1) = ◎
+		ENDSELECT
+	NEXT
+NEXT
+
+FOR LOCAL, 0, VARSIZE("ライン")
+	ライン:LOCAL = 1
+NEXT
+
+START_LINE = LINECOUNT
+
+$MAIN
+CALL PRINT_CASINO_SLOT_README()
+CALL PRINTBUTTON_EXL("[プレイ開始]", 999, !プレイ中)
+DRAWLINE
+
+REEL_LINE = LINECOUNT
+
+$SHOW_LINES
+
+IF リーチ && プレイ中
+	CALL COLORPRINT("リーチ！！", COLOR("注意"), "L")
+ELSE
+	PRINTFORML
+ENDIF
+
+FOR LOCAL:1, 0, 3
+	SIF LOCAL:1 == 1
+		SETCOLOR COLOR("注意")
+	LOCAL:2 = LOCAL:1 - 1
+	PRINTFORM  
+	FOR LOCAL, 0, VARSIZE("リール")
+		PRINTFORM %リール:LOCAL:(ライン:LOCAL + LOCAL:2)%
+			SIF LOCAL != VARSIZE("リール") - 1
+				PRINTFORM  - 
+	NEXT
+	RESETCOLOR
+	PRINTL
+NEXT
+
+FOR LOCAL, 0, VARSIZE("回転中")
+	CALL PRINTBUTTON_EX("[○]", LOCAL, 回転中:LOCAL)
+	PRINT  
+NEXT
+
+SIF プレイ中 && MATCH(回転中, 1) == 0 && MATCH(残回転, 0) == VARSIZE("残回転")
+	GOTO GAME_END
+
+
+$INPUT
+IF !プレイ中
+	INPUT
+ELSE
+	TINPUT 100, -1, 0, ""
+	IF RESULT == -1
+		FOR LOCAL, 0, VARSIZE("ライン")
+			IF 回転中:LOCAL || 残回転:LOCAL
+				ライン:LOCAL = ROUND_INCREMENT(ライン:LOCAL, 1, VARSIZE("リール", 1) - 2)
+				残回転:LOCAL = MIN_DECREASE(残回転:LOCAL, 1, 0)
+			ENDIF
+		NEXT
+		;リーチ判定
+		IF MATCH(回転中, 0) == VARSIZE("回転中") - 1
+{
+			IF (回転中:0 == 0 && 回転中:1 == 0 && 残回転:0 == 0 && 残回転:1 == 0 && リール:0:(ライン:0) == リール:1:(ライン:1)) || 
+			    (回転中:1 == 0 && 回転中:2 == 0 && 残回転:1 == 0 && 残回転:2 == 0 && リール:1:(ライン:1) == リール:2:(ライン:2)) || 
+			    (回転中:0 == 0 && 回転中:2 == 0 && 残回転:0 == 0 && 残回転:2 == 0 && リール:0:(ライン:0) == リール:2:(ライン:2))
+}
+				リーチ = 1
+			ELSE
+				リーチ = 0
+			ENDIF
+		ENDIF
+		CLEARLINE LINECOUNT - REEL_LINE
+		GOTO SHOW_LINES
+	ENDIF
+ENDIF
+
+;プレイ開始
+IF RESULT == 999 && !プレイ中
+	プレイ中 = 1
+	VARSET 回転中, 1
+	VARSET 残回転, 0
+	VARSET リーチ, 0
+	CLEARLINE LINECOUNT - START_LINE
+	GOTO MAIN
+ENDIF
+
+;ボタンを押した
+IF INRANGE(RESULT, 0, VARSIZE("リール"))
+	LOCAL:1 = RESULT
+	回転中:(LOCAL:1) = !回転中:(LOCAL:1)
+
+	;残回転の発動判定
+	;リーチ
+	IF リーチ
+		;犯以外でリーチしていて、このまま止まれば揃うという状況なら30%で「滑る」。
+		;7が揃いそうな場合は50%になる
+		IF ALLSAMES(リール:0:(ライン:0), リール:1:(ライン:1), リール:2:(ライン:2)) && リール:0:(ライン:0) != "犯" && (30 + (リール:0:(ライン:0) == "7" * 20) > RAND:100)
+			残回転:(LOCAL:1) = RAND(1, 4)
+		ENDIF
+	;非リーチ
+	ELSE
+		;止まったやつのむこう2つに「犯」が含まれる場合、75%
+		;そうでなく、犯で止めていないなら10%
+		LOCAL:2 = ROUND_INCREMENT(ライン:(LOCAL:1), 0, VARSIZE("リール") - 1)
+		LOCAL:3 = ROUND_INCREMENT(LOCAL:2, 0, VARSIZE("リール") - 1)
+		IF GROUPMATCH("犯", リール:(LOCAL:1):(LOCAL:2), リール:(LOCAL:1):(LOCAL:3)) && RAND:4
+			残回転:(LOCAL:1) = RAND(1, 3)
+		ELSEIF !RAND:10 && リール:(LOCAL:1):(ライン:(LOCAL:1)) != "犯"
+			残回転:(LOCAL:1) = RAND(1, 3)
+		ENDIF
+	ENDIF
+
+		;リーチ判定
+	IF MATCH(回転中, 0) == VARSIZE("回転中") - 1
+{
+		SIF (回転中:0 == 0 && 回転中:1 == 0 && 残回転:0 == 0 && 残回転:1 == 0 && リール:0:(ライン:0) == リール:1:(ライン:1)) || 
+		    (回転中:1 == 0 && 回転中:2 == 0 && 残回転:1 == 0 && 残回転:2 == 0 && リール:1:(ライン:1) == リール:2:(ライン:2)) || 
+		    (回転中:0 == 0 && 回転中:2 == 0 && 残回転:0 == 0 && 残回転:2 == 0 && リール:0:(ライン:0) == リール:2:(ライン:2))
+}
+			リーチ = 1
+	ENDIF
+ENDIF
+
+IF MATCH(回転中, 1) == 0 && MATCH(残回転, 0) == VARSIZE("残回転")
+	$GAME_END
+	WAIT
+	IF GROUPMATCH("犯", リール:0:(ライン:0), リール:1:(ライン:1), リール:2:(ライン:2))
+		PRINTFORMW 犯の字が出てしまった……
+		RETURN 2
+	ELSEIF ALLSAMES(リール:0:(ライン:0), リール:1:(ライン:1), リール:2:(ライン:2))
+		PRINTFORMW 「おめでとうございます！　%リール:0:(ライン:0)%が揃いましたね」
+		RETURN 1
+	ELSE
+		PRINTFORMW 「何もそろいませんでしたねぇ……」
+		RETURN 0
+	ENDIF
+	プレイ中 = 0
+	CLEARLINE LINECOUNT - START_LINE
+	GOTO MAIN
+ENDIF
+
+
+CLEARLINE LINECOUNT - REEL_LINE
+GOTO SHOW_LINES
+
+
+@PRINT_CASINO_SLOT_README()
+DRAWLINE
+PRINTFORML 「一般的なスロットです」
+PRINTFORML 「何かの絵柄をそろえれば%ANAME(MASTER)%様の勝利、そうでなければこちらの勝利です」
+PRINTFORML 「そして『犯』の柄が一つでも出た場合……ペナルティ付きで、こちらの勝利となります」
+DRAWLINE
