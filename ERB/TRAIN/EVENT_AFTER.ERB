@@ -291,13 +291,23 @@ NEXT
 
 FOR 対象, 0, CHARANUM
 	IF CFLAG:対象:調教参加フラグ && CFLAG:対象:慰安モブ
-		増加量 = LIMIT(10 + 絶頂回数合計 + SUM_EX(対象), 0, 1000)
-		CFLAG:対象:好感度 += 増加量
-		CFLAG:対象:従属度 += 増加量
-		CFLAG:対象:依存度 += 増加量
-		CFLAG:対象:慰安モブ = 0
-		CALL ICPRINT(@"閨の楽しみを提供したことで、%ANAME(対象)%の好感を得ました", "W", COLOR("注意"))
+		IF SUM_EX(対象) > 50
+			絶頂回数合計 += 50 + (SUM_EX(対象) - 50) / 5
+		ELSE
+			絶頂回数合計 += SUM_EX(対象)
+		ENDIF
 	ENDIF
+NEXT
+
+FOR 対象, 0, CHARANUM
+	SIF !CFLAG:対象:調教参加フラグ || !CFLAG:対象:慰安モブ
+		CONTINUE
+	増加量 = LIMIT(100 + 絶頂回数合計, 0, 1000)
+	CFLAG:対象:好感度 += 増加量
+	CFLAG:対象:従属度 += 増加量
+	CFLAG:対象:依存度 += 増加量
+	CFLAG:対象:慰安モブ = 0
+	CALL ICPRINT(@"閨の楽しみを提供したことで、%ANAME(対象)%の好感を得ました", "W", COLOR("注意"))
 NEXT
 
 
@@ -308,12 +318,17 @@ NEXT
 #DIM 絶頂回数合計
 #DIM ビデオレター可能
 #DIM 上映可能
+#DIM 女優
 
+
+女優 = -1
 絶頂回数合計 = 0
 FOR LOCAL, 0, CHARANUM
 	SIF !IS_PARTICIPATE_TRAIN(LOCAL)
 		CONTINUE
 	絶頂回数合計 += SUM_EX(LOCAL)
+	SIF GETBIT(TALENT:LOCAL:淫乱系, 素質_淫乱_ＡＶ女優)
+		女優 = LOCAL
 NEXT
 
 ;撮影開始時からの差分を求める
@@ -355,10 +370,18 @@ SELECTCASE RESULT
 		PRINTFORML 個人用に保存しておくことにした……
 	CASE 1
 		PRINTFORML 裏のルートに流すことにした……
+		IF 女優 >= 0
+			PRINTFORML ＡＶ女優として有名な%ANAME(女優)%の出演作ということで、人気を博したようだ……
+			TIMES 絶頂回数合計, 1.25
+		ENDIF
 		CALL ICPRINT(@"金<{SQRT(絶頂回数合計) * 100}>を得た", "W", COLOR("注意"))
 		MONEY += SQRT(絶頂回数合計) * 100
 	CASE 2
 		PRINTFORML 軍の兵士募集キャンペーンに利用することにした……
+		IF 女優 >= 0
+			PRINTFORML ＡＶ女優として有名な%ANAME(女優)%の出演作ということで、人気を博したようだ……
+			TIMES 絶頂回数合計, 1.25
+		ENDIF
 		CALL ICPRINT(@"兵<{SQRT(絶頂回数合計) * 50}>が集まった", "W", COLOR("注意"))
 	CASE 3
 		PRINTFORML 捕虜が元気にしている旨を知らせてやるべく、ビデオレターを送った……
@@ -393,7 +416,7 @@ SELECTCASE RESULT
 				CALL CHANGE_RELATION_C_TO_O(CFLAG:(LOCAL:1):所属, LOCAL:1, SQRT(絶頂回数合計) * -2, SQRT(絶頂回数合計) * 2)
 			ELSE
 				PRINTFORMW 武将である%ANAME(LOCAL:1)%の淫らな行為についての噂は、あっという間に広まったようだ……
-				PRINTFORMW 民は少なからず動揺し、反対に「いいものを見せてくれた」%ANAME(MASTER)%に感謝しているようだ……
+				PRINTFORMW 民は少なからず動揺し、反対に「いいもの」を見せてくれた%ANAME(MASTER)%に感謝しているようだ……
 				PRINTFORMW 経済を{SQRT(絶頂回数合計)}吸収した
 				CALL SHIFT_ECONOMY(CFLAG:(LOCAL:1):所属, CFLAG:MASTER:所属, SQRT(絶頂回数合計) * 100)
 			ENDIF
