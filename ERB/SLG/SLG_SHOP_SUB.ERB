@@ -110,8 +110,9 @@ PRINTFORML %TOSTR_SPACE(ARG:2)%将:%GET_UNIT_COMMANDER_CALLNAME(ARG:0, ARG:1)%
 
 ;-------------------------------------------------
 ;ARG:0勢力のARG:1番部隊に対する設定
+;ARG:2は侵攻ボタンから飛んできたフラグ
 ;-------------------------------------------------
-@UNIT_SETTING(ARG:0, ARG:1)
+@UNIT_SETTING(ARG:0, ARG:1, ARG:2 = 0)
 ;部隊がいる都市の勢力との関係を取得
 CALL CHECK_COUNTRY_RELATION(ARG:0, CITY_OWNER:(UNIT_POSITION:(ARG:0):(ARG:1)))
 LOCAL:5 = RESULT:0
@@ -124,8 +125,13 @@ PRINT
 CALL SHOW_UNIT_INFO(ARG:0, ARG:1, 4)
 DRAWLINE
 
-PRINTBUTTON " 0[移動／目標設定]", 0
-PRINTL 
+IF ARG:2 == 0
+	PRINTBUTTON " 0[移動／目標設定]", 0
+	PRINTL 
+ELSE
+	PRINTBUTTON " 0[この部隊で決定]", 0
+	PRINTL 
+ENDIF
 IF LOCAL:5 >= 2
 	PRINTBUTTON " 1[兵数の変更]", 1
 	PRINTL 
@@ -156,7 +162,7 @@ PRINTL
 $INPUT_LOOP1
 INPUT
 
-IF RESULT == 0
+IF RESULT == 0 && ARG:2 == 0
 	DRAWLINE
 	CALL SET_CITY_COLOR_COUNTRY
 	CALL SET_CITY_COLOR_UNIT
@@ -240,7 +246,9 @@ IF RESULT == 0
 		ENDIF
 	ENDIF
 	GOTO INPUT_LOOP2
-
+;侵攻・移動ボタンから飛んできた
+ELSEIF RESULT == 0 && ARG:2 == 1
+	RETURN 1
 ;兵数の変更
 ELSEIF RESULT == 1 && LOCAL:5 >= 2
 	LOCAL:2 = UNIT_SOLDIER:(ARG:0):(ARG:1)
