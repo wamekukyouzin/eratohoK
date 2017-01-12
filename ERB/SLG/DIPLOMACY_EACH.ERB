@@ -1253,119 +1253,58 @@ WEND
 ;醜聞を流す
 ;-------------------------------------------------
 @DIPLOMACY_CREATE_SCANDAL(ARG:0)
-#DIM 所要
-所要 = MAX(GET_OWN_CITY(CFLAG:MASTER:所属) * 500, 3000)
-VARSET LOCAL,0
-LOCAL:4 = GET_COUNTRY_BOSS(CFLAG:MASTER:所属)
-LOCAL:5 = GET_COUNTRY_BOSS(ARG:0)
+#DIM 君主
+#DIM 相手君主
+#DIM FIRST_LINE
+#DIM CONST 支払額リスト = 1, 5, 50, 100, 500, 1000, 2500, 5000, 10000, 15000, 20000, 30000, 40000, 50000
+#DIM 支払額
+#DIM 効果
+FIRST_LINE = LINECOUNT
+
+君主 = GET_COUNTRY_BOSS(CFLAG:MASTER:所属)
+相手君主 = GET_COUNTRY_BOSS(ARG:0)
 DRAWLINE
-PRINTFORML %ANAME(LOCAL:5)%に関する醜聞を他国に流し、関係を悪化させます
-PRINTFORML その代わり、%ANAME(LOCAL:5)%と自国との関係がこじれます
-PRINTFORML 政治力の高い相手なら、出所がバレてさらに関係が悪化するでしょう
-CALL ICPRINT(@"また、国庫<{所要}>が必要です", "L", COLOR("注意"))
-CALL ICPRINT(@"本当に醜聞を流して大丈夫ですか？ 現在の国庫:<{MONEY:(CFLAG:MASTER:所属)}>", "L", COLOR("注意"))
-CALL ASK_YN
-IF RESULT == 0
-	IF 所要 > MONEY:(CFLAG:MASTER:所属)
-		PRINTFORMW 国庫の資金が足りなかった……
-		RETURN 0
-	ELSE
-		PRINTFORM %ANAME(LOCAL:5)%が、
-		SELECTCASE RAND:13
-			CASE 0
-				PRINTFORM とんでもないオナニー中毒だ
-			CASE 1
-				PRINTFORM 無実の人を捕らえては処刑している
-			CASE 2
-				IF IS_MALE(LOCAL:5)
-					PRINTFORM 少女をさらっては手込めにしている
-				ELSE
-					PRINTFORM 少年をさらっては食い散らかしている
-				ENDIF
-			CASE 3
-				IF IS_MALE(LOCAL:5)
-					PRINTFORM 女を囲ってハーレムを作り上げている
-				ELSE
-					PRINTFORM 男をはべらして毎夜乱交している
-				ENDIF
-			CASE 4
-				PRINTFORM むやみに高い税をかけて民を苦しめている
-			CASE 5
-				PRINTFORM 逆らう家臣は皆処刑している
-			CASE 6
-				PRINTFORM 民が飢えているにもかかわらず、自らは豪遊している
-			CASE 7
-				PRINTFORM 色事にうつつをぬかし、政治をおろそかにしている
-			CASE 8
-				PRINTFORM 実はとても尻穴が敏感だ
-			CASE 9
-				PRINTFORM 正気を失っており、まともに政治ができない状態だ
-			CASE 10
-				IF IS_MALE(LOCAL:5)
-					PRINTFORM 女とみれば誰でも犯すヤリチンだ
-				ELSE
-					PRINTFORM 男とみれば誰にでも股をひらくヤリマンだ
-				ENDIF
-			CASE 11
-				IF IS_MALE(LOCAL:5)
-					PRINTFORM 男娼として働いている
-				ELSE
-					PRINTFORM 娼婦として働いている
-				ENDIF
-			CASE 12
-				PRINTFORM 未だにたまにおねしょする
-			CASE 13
-				PRINTFORM 怪しげな薬物に依存している
-		ENDSELECT
-		PRINTFORML という噂を流しました……
-		PRINTFORML 各国は少なからず動揺したようです
-		;先に政治と料理による補正値を計算
-		CALL TMP_CREATE_IS_FREE_MAP
-		LOCAL:0 = SQRT(TMP_GET_POLITICS_POWER(CFLAG:MASTER:所属)) / 10
-		LOCAL:1 = SQRT(TMP_GET_COOKING_POWER(CFLAG:MASTER:所属)) / 10
-		FOR LOCAL, 0, MAX_COUNTRY
-			;基礎値取得
-			LOCAL:3 = RAND:MAX(所要 / 500, 1) + 20
-			IF IS_COUNTRY(LOCAL)
-				;プレイヤー国家の場合
-				IF CFLAG:MASTER:所属 == LOCAL
-					;政治と料理が高いほど割る数が大きい = 悪感情を得ずに済む
-					LOCAL:3 = LOCAL:3 * 10280 / MAX(LOCAL:0 + LOCAL:1, 1)
-					LOCAL:6 = SQRT(TMP_GET_POLITICS_POWER(CFLAG:(LOCAL:5):所属)) / 10
-					;ただし相手の方が政治力が高いとバレる
-					IF LOCAL:6 > LOCAL:0
-						PRINTFORML 噂の出所が%ANAME(LOCAL:5)%にバレたようだ……
-						LOCAL:3 *= 2
-					ENDIF
-					CALL CHANGE_RELATION_C_TO_C(ARG:0, LOCAL, 0, LOCAL:3)
-				ELSE
-					;政治と料理が高いほどかける数が大きい = 悪感情を得させやすい
-					LOCAL:3 = LOCAL:3 * (LOCAL:0 + LOCAL:1) / 10280
-					IF COUNTRY_AI_TYPE:(ARG:0) == AI_外交
-						TIMES LOCAL:3, 0.80
-					ELSEIF COUNTRY_AI_TYPE:(ARG:0) == AI_好戦
-						TIMES LOCAL:3, 1.20
-					ENDIF
-					SIF LOCAL == ARG:0
-						CONTINUE
-					PRINTFORM %ANAME(GET_COUNTRY_BOSS(LOCAL)) + "との関係", 20, LEFT%:
-					CALL TMP_PRINT_COUNTRY_RELATION2(GET_COUNTRY_BOSS(LOCAL), GET_COUNTRY_BOSS(ARG:0))
-					CALL CHANGE_RELATION_C_TO_C(LOCAL, ARG:0, -1 * LOCAL:3, LOCAL:3)
-					PRINT →
-					CALL TMP_PRINT_COUNTRY_RELATION2(GET_COUNTRY_BOSS(LOCAL), GET_COUNTRY_BOSS(ARG:0))
-					PRINTL
-				ENDIF
-			ENDIF
-		NEXT
-		PRINTW
-		PRINTFORML 国庫:{MONEY:(CFLAG:MASTER:所属)} → {MONEY:(CFLAG:MASTER:所属) - 所要}
-		MONEY:(CFLAG:MASTER:所属) -= 所要
-		PRINTFORMW 
-		RETURN 1
-	ENDIF
-ELSE
+PRINTFORML 国庫を消費し、%ANAME(相手君主)%に関する醜聞を他勢力に流します。
+PRINTFORML 他勢力から%ANAME(相手君主)%への関係が悪化しますが、%ANAME(相手君主)%と自国の関係も悪化します
+PRINTFORML いくら消費しますか？(手入力・ボタンから入力, 0以下でキャンセル, 最大50000)
+FOR LOCAL, 0, VARSIZE("支払額リスト")
+	SIF MONEY:(CFLAG:MASTER:所属) < 支払額リスト:LOCAL
+		BREAK
+	PRINTFORM [{支払額リスト:LOCAL}払う] 
+NEXT
+PRINTFORML
+PRINTFORML [{MONEY:(CFLAG:MASTER:所属)}払う]
+PRINTFORM [0] 戻る
+INPUT
+
+IF RESULT <= 0
 	RETURN 0
+ELSEIF MONEY:(CFLAG:MASTER:所属) < RESULT || RESULT > 50000
+	CLEARLINE LINECOUNT - FIRST_LINE
+	RESTART
 ENDIF
+支払額 = RESULT
+CALL ICPRINT(@"%ANAME(MASTER)%は金<{支払額}>を支払い、%ANAME(相手君主)%の醜聞を流した……", "W", COLOR("注意"))
+MONEY:(CFLAG:MASTER:所属) -= 支払額
+効果 = CALC_SEND_MONEY_EFFECT(支払額)
+;好感度上昇・敵対値下降基準値
+LOCAL:1 = SQRT(TMP_GET_COOKING_POWER(CFLAG:MASTER:所属)) / 10
+LOCAL:2 = SQRT(TMP_GET_POLITICS_POWER(CFLAG:MASTER:所属)) / 10
+
+
+効果 = MAX(効果 * (LOCAL:1 + LOCAL:2 + 100) / 100, 5)
+
+FOR LOCAL, 0 ,MAX_COUNTRY
+	SIF !IS_COUNTRY(LOCAL)
+		CONTINUE
+	IF LOCAL == CFLAG:MASTER:所属
+		CALL CHANGE_RELATION_C_TO_C(ARG:0, CFLAG:MASTER:所属, -効果, 効果)
+	ELSE
+		CALL CHANGE_RELATION_C_TO_C(LOCAL, ARG:0, -効果, 効果)
+	ENDIF
+NEXT
+
+RETURN 1
 
 
 ;-------------------------------------------------
