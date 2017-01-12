@@ -91,6 +91,8 @@ GOTO SHOW_LOOP
 #DIM オートセーブロード可能, AUTOSAVE_DOMAIN_NUM
 #DIMS オートセーブ名, AUTOSAVE_DOMAIN_NUM
 
+LOADGLOBAL
+
 IF 現在ページ数 <= 0
 	現在ページ数 = 1
 ELSEIF 現在ページ数 > 最大ページ数
@@ -134,15 +136,23 @@ NEXT
 RESETCOLOR
 
 DRAWLINE
-FOR LOCAL, 0, AUTOSAVE_DOMAIN_NUM
+LOCAL = ROUND_DECREMENT(AUTOSAVE_DOMAIN, 0, AUTOSAVE_DOMAIN_NUM - 1)
+LOCAL:1 = LOCAL
+DO
 	IF オートセーブロード可能:LOCAL
 		RESETCOLOR
 	ELSE
 		SETCOLOR COLOR("選択不可")
 	ENDIF
-	PRINTFORML [{1000 + LOCAL}] %オートセーブ名:LOCAL%
+	PRINTFORM [{1000 + LOCAL}] %オートセーブ名:LOCAL%
+	IF LOCAL == ROUND_DECREMENT(AUTOSAVE_DOMAIN, 0, AUTOSAVE_DOMAIN_NUM - 1)
+		CALL COLORPRINT("  最新", COLOR("注意"), "L")
+	ELSE
+		PRINTL
+	ENDIF
 	RESETCOLOR
-NEXT
+	LOCAL = ROUND_DECREMENT(LOCAL, 0, AUTOSAVE_DOMAIN_NUM - 1)
+LOOP LOCAL != LOCAL:1
 DRAWLINE
 
 PRINTBUTTON "[前のページ]", 9997
@@ -201,6 +211,7 @@ ELSE
 	データ名 = %データ名% 戦
 ENDIF
 
+
 データ名 = %データ名% {DAY}期
 IF CFLAG:MASTER:所属
 	データ名 = %データ名% %SNAME(GET_COUNTRY_BOSS(CFLAG:MASTER:所属)) + "勢力", MAX_CHARANAME_LENGTH / 2, LEFT%
@@ -210,8 +221,66 @@ ENDIF
 
 データ名 = %データ名% %ANAME(MASTER), MAX_CHARANAME_LENGTH, LEFT%
 
+SIF TIME == 0 && SAVEDATA_NAME_STR_LAST_COMMAND() != ""
+	データ名 = %データ名% 最終:%SAVEDATA_NAME_STR_LAST_COMMAND()%
+
 RETURNF データ名
 
+;-------------------------------------------------
+;拠点フェイズ時、最終実行コマンド表示用
+;-------------------------------------------------
+@SAVEDATA_NAME_STR_LAST_COMMAND()
+#FUNCTIONS 
+SELECTCASE FLAG:拠点フェイズ選択コマンド
+	CASE 1000
+		IF CFLAG:MASTER:行動不能状態 == 2
+			RETURNF "子育て"
+		ELSE
+			RETURNF "会う"
+		ENDIF
+	CASE 1001
+		RETURNF "閨"
+	CASE 1002
+		RETURNF "夜這い"
+	CASE 1003
+		RETURNF "手引き"
+	CASE 1004
+		RETURNF "慰安"
+	CASE 1005
+		RETURNF "あてがう"
+	CASE 1010
+		RETURNF "捕虜調教"
+	CASE 1011
+		RETURNF "投獄"
+	CASE 1012
+		RETURNF "説得"
+	CASE 1013
+		RETURNF "捕虜設定"
+	CASE 1015
+		RETURNF "労働"
+	CASE 1016
+		RETURNF "士官募集"
+	CASE 1017
+		RETURNF "地方派遣"
+	CASE 1019
+		RETURNF "デート"
+	CASE 1020
+		RETURNF "諸国訪問"
+	CASE 1025
+		RETURNF "婚姻の儀"
+	CASE 1026
+		RETURNF "料理長"
+	CASE 1029
+		RETURNF "推しメン"
+	CASE 1025
+		RETURNF "能力表示"
+	CASE 1026
+		RETURNF "関係一覧"
+	CASE 1051
+		RETURNF "スキル習得"
+ENDSELECT
+
+RETURNF ""
 
 ;-------------------------------------------------
 ;オートセーブ時の処理
@@ -221,6 +290,17 @@ DUMPRAND
 SAVEDATA 1000 + AUTOSAVE_DOMAIN, "オート " + SAVEDATA_NAME_STR()
 AUTOSAVE_DOMAIN = ROUND_INCREMENT(AUTOSAVE_DOMAIN, 0, AUTOSAVE_DOMAIN_NUM - 1)
 SAVEGLOBAL
+
+;-------------------------------------------------
+;クイックセーブ時の処理
+;-------------------------------------------------
+@QUICK_SAVE
+DUMPRAND
+SAVEDATA 9999, "クイック " + SAVEDATA_NAME_STR()
+SAVEGLOBAL
+
+@QUICK_LOAD
+LOADDATA 9999
 
 ;-------------------------------------------------
 ;ロード時の処理(※複数定義可能)
