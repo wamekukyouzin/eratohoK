@@ -1699,82 +1699,74 @@ CLEARLINE 1
 GOTO INPUT_LOOP
 
 ;-------------------------------------------------
-;能力値がARG:0のときの実際の影響力を返す関数
-;ただし、好感度による補正は考慮しない(考慮する場合は@ABL_POWER_X)
-;-------------------------------------------------
-@ABL_POWER(ARG:0)
-#FUNCTION
-RETURNF MAX(SQRT(1000 * ARG:0) * 100, 1)
-
-;-------------------------------------------------
 ;能力値がARG:0のときの実際の影響力を返す関数  ARG:1は対象のキャラ番号
-;好感度の影響を加味した値を返す
-;情報表示は@ABL_POWER、実際の計算には@ABL_POWER_Xを使う(好感度による影響値は情報としては見せない)
 ;-------------------------------------------------
-@ABL_POWER_X(ARG:0, ARG:1)
+@ABL_SQRT(ARG:0, ARG:1 = -1)
 #FUNCTION
 #DIM 利用値
 #DIM 補正値
 #DIM 上限
+#DIM 基礎値
+#DIM 返却値
 
-SIF ARG:1 == MASTER
-	RETURNF ABL_POWER_MASTER(ARG:0)
+基礎値 = MAX(SQRT(1000 * ARG:0) * 100, 1)
 
-上限 = 2000
-
-;自勢力のキャラでない、MASTER自身の場合は補正なし
-SIF CFLAG:(ARG:1):所属 != CFLAG:MASTER:所属 || ARG:1 == MASTER
-	RETURNF ABL_POWER(ARG:0)
-
-;主人公が他国の捕虜となっている場合は補正を掛けない
-;心配でメシも喉を通らない的な？
-SIF CFLAG:MASTER:捕虜先 != 0 && CFLAG:MASTER:捕虜先 != CFLAG:(ARG:1):所属
-	RETURNF ABL_POWER(ARG:0)
-
-;好感度、従属度、依存度の中から一番高いやつを利用する
-;依存度が先行することはそんなないやろ………………
-利用値 = MAX(CFLAG:(ARG:1):好感度, CFLAG:(ARG:1):従属度, CFLAG:(ARG:1):依存度)
-
-;正妻なら倍まで伸びる
-IF TALENT:(ARG:1):正妻
-	上限 = 10000
-ELSE
-	;陥落系素質はボーナスをかける
-	SIF TALENT:(ARG:1):親愛
-		上限 += 1000
-	SIF TALENT:(ARG:1):恋慕 || TALENT:(ARG:1):親友
-		上限 += 500
-	SIF TALENT:(ARG:1):恋人
-		上限 += 500
-	SIF TALENT:(ARG:1):隷属
-		上限 += 1000
-	SIF TALENT:(ARG:1):服従
-		上限 += 500
-	SIF TALENT:(ARG:1):烙印
-		上限 += 300
+;妊娠・臨月・育児まわりの補正
+IF ARG:1 > 0
+	IF CFLAG:(ARG:0):行動不能状態 == 1
+		TIMES 基礎値, 0.5
+	ELSEIF TALENT:(ARG:0):妊娠
+		TIMES 基礎値, 0.75
+	ELSEIF CFLAG:(ARG:0):行動不能状態 == 2
+		TIMES 基礎値, 0.9
+	ENDIF
 ENDIF
 
-;推しメンでもボーナスを得る
-SIF ID_TO_CHARA(FLAG:推しメン指定キャラ) == ARG:1
-	上限 += 5000
+;補正値　万分率
+;主人公の場合
+IF ARG:1 == MASTER
+	;陥落ひとりあたま0.5% ただし上限は100% つまり200人まで
+	補正値 = 10000 + MIN(FLAG:陥落人数 * 50, 10000)
+;キャラ番号が-1、勢力が異なる、主人公が捕虜の場合は補正無
+ELSEIF ARG:1 < 0 || CFLAG:MASTER:所属 != CFLAG:(ARG:1):所属 || (CFLAG:MASTER:捕虜先 != 0 && CFLAG:MASTER:所属 == CFLAG:(ARG:1):所属)
+	補正値 = 10000
+;主人公勢力
+ELSE
+	補正値 = 10000
+	上限 = 2000
+	;好感度、従属度、依存度の中から一番高いやつを利用する
+	;依存度が先行することはそんなないやろ………………
+	利用値 = MAX(CFLAG:(ARG:1):好感度, CFLAG:(ARG:1):従属度, CFLAG:(ARG:1):依存度)
 
-;値5ごとにパワーに0.01%の補正を得る。ただし上限（デフォ20%。素質による上限引き上げを無視すれば10000で到達）を超えない
-補正値 = 10000 + MIN(利用値 / 5, 上限)
+	;正妻なら倍まで伸びる
+	IF TALENT:(ARG:1):正妻
+		上限 = 10000
+	ELSE
+		;陥落系素質はボーナスをかける
+		SIF TALENT:(ARG:1):親愛
+			上限 += 1000
+		SIF TALENT:(ARG:1):恋慕 || TALENT:(ARG:1):親友
+			上限 += 500
+		SIF TALENT:(ARG:1):恋人
+			上限 += 500
+		SIF TALENT:(ARG:1):隷属
+			上限 += 1000
+		SIF TALENT:(ARG:1):服従
+			上限 += 500
+		SIF TALENT:(ARG:1):烙印
+			上限 += 300
+	ENDIF
 
-RETURNF MAX(ABL_POWER(ARG:0) * 補正値 / 10000, 1)
+	;推しメンでもボーナスを得る
+	SIF ID_TO_CHARA(FLAG:推しメン指定キャラ) == ARG:1
+		上限 += 5000
 
-;-------------------------------------------------
-;主人公版ABL_POWER_X
-;-------------------------------------------------
-@ABL_POWER_MASTER(ARG:0)
-#FUNCTION
+	;値5ごとにパワーに0.01%の補正を得る。ただし上限（デフォ20%。素質による上限引き上げを無視すれば10000で到達）を超えない
+	補正値 = 10000 + MIN(利用値 / 5, 上限)
+ENDIF
 
-#DIM 補正値
 
-;陥落ひとりあたま0.5% ただし上限は100% つまり200人まで
-補正値 = 10000 + MIN(FLAG:陥落人数 * 50, 10000)
-
-RETURNF MAX(ABL_POWER(ARG:0) * 補正値 / 10000, 1)
+RETURNF MAX(基礎値 * 補正値 / 10000, 1)
 
 
 ;-------------------------------------------------
@@ -2199,7 +2191,7 @@ CITY_OWNER:(ARG:1) = ARG:0
 ;-------------------------------------------------
 @TOSTR_UNIT_POWER(ARG:0)
 #FUNCTIONS
-IF ARG:0 <= ABL_POWER(50)
+IF ARG:0 <= ABL_SQRT(50, -1)
 	RETURNF "最低"
 ELSEIF ARG:0 < 6400
 	RETURNF "烏合の衆"
