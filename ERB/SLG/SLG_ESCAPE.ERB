@@ -3,28 +3,32 @@
 ;-------------------------------------------------
 ;ARG:1勢力がARG:0勢力を滅亡させた時の敗将の処理
 ;-------------------------------------------------
-@LOSERS_ACTION(ARG:0, ARG:1)
-LOCAL:5 = GET_COUNTRY_BOSS(ARG:0)
-LOCAL:6 = GET_COUNTRY_BOSS(ARG:1)
+@LOSERS_ACTION(滅亡勢力, 滅ぼした勢力)
+#DIM 滅亡勢力
+#DIM 滅ぼした勢力
+#DIM 滅亡君主
+#DIM 滅ぼした君主
 
-IF ARG:0 == CFLAG:MASTER:所属
-	IF IS_SP_COUNTRY(ARG:1)
-		TRYCCALLFORM MASTER_CAPTURED_%SP_COUNTRY_NAME_ENG:SP_COUNTRY_TO_CONST(ARG:1)%(ARG:1)
-			;主人公の勢力に仕官していたか捕虜になっていたキャラは全員捕えらえる
-			FOR LOCAL:0, 0 , CHARANUM
-				IF (CFLAG:(LOCAL:0):所属 == ARG:0 ||CFLAG:(LOCAL:0):捕虜先 == ARG:0)
-					CALL CHANGE_COUNTRY(LOCAL:0, 0, 1)
-					CALL CAPTURE(LOCAL:0, ARG:1)
-				ENDIF
-			NEXT
-			RETURN 1
-		CATCH
-		ENDCATCH
-	ENDIF
+滅亡君主 = GET_COUNTRY_BOSS(滅亡勢力)
+滅ぼした君主 = GET_COUNTRY_BOSS(滅ぼした勢力)
+
+;プレイヤー勢力が特殊勢力に滅ぼされた場合は特殊イベント
+IF 滅亡勢力 == CFLAG:MASTER:所属 && IS_SP_COUNTRY(滅ぼした勢力)
+	TRYCCALLFORM MASTER\CAPTURED_%SP_COUNTRY_NAME_ENG:SP_COUNTRY_TO_CONST(滅ぼした勢力)%(滅ぼした勢力)
+		;プレイヤー勢力の所属キャラ、ないしプレイヤー勢力の捕虜は全て無所属となり、特殊勢力に囚われる
+		FOR LOCAL, 0, CHARANUM
+			IF CFLAG:LOCAL:所属 == 滅亡勢力 || CFLAG:LOCAL:捕虜先 == 滅亡勢力
+				CALL CHANGE_COUNTRY(LOCAL, 0, 1)
+				CALL CAPTURE(LOCAL, 滅ぼした勢力)
+			ENDIF
+		NEXT
+		RETURN 1
+	CATCH
+	ENDCATCH
 ENDIF
 
 ;主人公勢力の手で滅亡させた場合
-IF ARG:1 == CFLAG:MASTER:所属
+IF 滅ぼした勢力 == CFLAG:MASTER:所属
 	WAIT
 	PRINTL 
 	PRINTW ………………
@@ -32,188 +36,80 @@ IF ARG:1 == CFLAG:MASTER:所属
 	PRINTL 
 ENDIF
 
-;滅亡した勢力の士官のうち、他のCPU勢力の捕虜となっていたキャラは、滅亡と同時に囚われていた勢力の士官になる
-FOR LOCAL:0, 0, CHARANUM
-	IF LOCAL:0 != MASTER && CFLAG:(LOCAL:0):所属 == ARG:0 && CFLAG:(LOCAL:0):捕虜先 && CFLAG:(LOCAL:0):捕虜先 != CFLAG:MASTER:所属
-		;滅亡する軍の捕虜となっていた（自国の捕虜となっていた）場合は、TREAT_PRISONERで判定
-		IF CFLAG:(LOCAL:0):捕虜先 == ARG:0
-			CALL TREAT_PRISONER(ARG:0, ARG:1, LOCAL:0)
-		ELSE
-			;滅亡した勢力の士官のうち、囚われているのが特殊勢力の場合はなにもしない。
-			IF IS_SP_COUNTRY(CFLAG:(LOCAL:0):捕虜先)
-			;滅亡した勢力の士官のうち、他のCPU勢力の捕虜となっていたキャラは、登用判定を通す。
-			ELSEIF GET_COUNTRY_BOSS(CFLAG:(LOCAL:0):捕虜先) != -1 && JUDGE_ASSIGN(LOCAL:0, CFLAG:(LOCAL:0):捕虜先, CFLAG:(LOCAL:0):所属) && !IS_SP_COUNTRY(CFLAG:(LOCAL:0):捕虜先)
-				SETCOLOR COLOR("注意")
-				PRINTFORML 囚われていた%ANAME(LOCAL:0)%は、%ANAME(GET_COUNTRY_BOSS(CFLAG:(LOCAL:0):捕虜先))%に仕えることになったようだ
-				RESETCOLOR
-				CALL CHANGE_COUNTRY(LOCAL:0, CFLAG:(LOCAL:0):捕虜先, 1)
-			;登用判定にひっかからなければ放浪
-			ELSE
-				;フェイルセーフ
-				SETCOLOR COLOR("注意")
-				PRINTFORML 囚われていた%ANAME(LOCAL:0)%は、放浪したようだ
-				RESETCOLOR
-				CALL CHANGE_COUNTRY(LOCAL:0, 0)
-			ENDIF
-		ENDIF
-	ENDIF
-NEXT
-
-;●まず君主について処理する
-;逃走判定
-CALL JUDGE_ESCAPE(ARG:0, ARG:1, LOCAL:5, 1)
-
-;逃走に失敗した場合
-IF CFLAG:(LOCAL:5):特殊状態 == 0
-	;扱いを決定
-	CALL TREAT_PRISONER(ARG:0, ARG:1, LOCAL:5)
-	PRINTL 
-
-	;登用した場合
-	IF RESULT == 0
-		LOCAL:7 = 0
-	;解放した場合
-	ELSEIF RESULT == 1
-		LOCAL:7 = 1
-	;投獄した場合
-	ELSEIF RESULT == 2
-		LOCAL:7 = 2
-	;処刑した場合
+;滅亡した勢力の士官のうち、特殊な処理が必要なもの
+;ただし主人公勢力の捕虜は除外（調教する楽しみ）
+FOR LOCAL, 0, CHARANUM
+	SIF LOCAL == MASTER
+		CONTINUE
+	SIF CFLAG:LOCAL:所属 != 滅亡勢力
+		CONTINUE
+	SIF !CFLAG:LOCAL:捕虜先
+		CONTINUE
+	SIF CFLAG:LOCAL:捕虜先 == CFLAG:MASTER:所属
+		CONTINUE
+	;特殊勢力の捕虜にはなにもしない(調教堕ち)
+	SIF IS_SP_COUNTRY(CFLAG:LOCAL:捕虜先)
+		CONTINUE
+	;滅亡した勢力自身の捕虜は、TREAT_PRISONERで判断(捕まったキャラとして考える)
+	;現状ではプレイヤー自ら投獄していた場合
+	IF CFLAG:LOCAL:捕虜先 == 滅亡勢力
+		CALL TREAT_PRISONER(LOCAL, 滅亡勢力, 滅ぼした勢力)
+	;他のCPU勢力の捕虜になっていたら登用判定を行う。失敗したら解放・放浪
+	ELSEIF JUDGE_ASSIGN(LOCAL, CFLAG:(LOCAL:0):所属, CFLAG:(LOCAL:0):捕虜先)
+		CALL COLORPRINT(@"囚われていた%ANAME(LOCAL)%は、%ANAME(GET_COUNTRY_BOSS(CFLAG:(LOCAL:0):捕虜先))%に登用された", COLOR("注意"), "L")
+		CALL CHANGE_COUNTRY(LOCAL, CFLAG:LOCAL:捕虜先, 1)
 	ELSE
-		LOCAL:7 = 2
-	ENDIF
-;逃走に成功した場合
-ELSEIF CFLAG:(ARG:2):特殊状態 == 1
-	LOCAL:7 = 1
-;死亡／削除待ちの場合
-ELSE
-	LOCAL:7 = 2
-ENDIF
-
-;君主と共にARG:1勢力に仕えるパターン(君主を登用)
-IF LOCAL:7 == 0
-	LOCAL:1 = 0
-	LOCAL:2 = CFLAG:MASTER:所属
-
-	IF ARG:0 == CFLAG:MASTER:所属
-		IF MASTER == LOCAL:5
-			PRINTFORMW 君主が登用に応じたため、%ANAME(MASTER)%に仕えていた全ての士官が%NAME:(LOCAL:6)%勢力に編入されます
-			PRINTFORMW 以降は%NAME:(LOCAL:6)%勢力として行動します
-		ELSE
-			PRINTFORMW 君主が登用に応じたため、%ANAME(MASTER)%を含む全ての士官が%NAME:(LOCAL:6)%勢力に編入されます
-			PRINTFORMW 以降は%NAME:(LOCAL:6)%勢力として行動します
-		ENDIF
-	ENDIF
-
-	FOR LOCAL:0, 0, CHARANUM
-		IF CFLAG:(LOCAL:0):所属 == ARG:0
-			;MASTER所属の国が吸収する
-			IF ARG:1 == LOCAL:2
-				IF !LOCAL:1
-					LOCAL:1 = 1
-					PRINTFORMW 君主が登用に応じたため、%NAME:(LOCAL:5)%に仕えていた士官は全員我が国に編入されます
-				ENDIF
-				;捕虜状態でない
-				IF !CFLAG:(LOCAL:0):捕虜先
-					PRINTFORML %NAME:(LOCAL:0)%が我が国の士官として加わりました
-					CALL CHANGE_COUNTRY(LOCAL:0, ARG:1, 1)
-				;すでに捕虜にしてた(ここで登用に応じるかチェックしても面白い？)
-				ELSEIF CFLAG:(LOCAL:0):捕虜先 == CFLAG:MASTER:所属
-					PRINTL 
-					PRINTFORML %NAME:(LOCAL:0)%は現在我が国が投獄しています
-					PRINTFORML 牢から出して士官として登用しますか？
-					CALL ASK_YN("はい", "いいえ(現在の所属が無所属になります)")
-					IF RESULT == 0
-						PRINTFORML %NAME:(LOCAL:0)%が我が国の士官として復帰しました
-						CALL CHANGE_COUNTRY(LOCAL:0, ARG:1, 1)
-					ELSE
-						PRINTFORML %NAME:(LOCAL:0)%は無所属の捕虜としてこのまま牢屋に閉じ込めておきます
-						CALL CHANGE_COUNTRY(LOCAL:0, 0)
-						CALL CAPTURE(LOCAL:0, CFLAG:MASTER:所属)
-					ENDIF
-					PRINTL 
-				;他国が捕虜にしてる(通常AI国はすでに滅亡国の捕虜を取り込みしてるはず？なので特殊勢力に囚われてる可能性？)
-				ELSE
-					PRINTFORML %NAME:(LOCAL:0)%が我が国所属となりましたが、他国で捕虜となったままです
-					CALL CHANGE_COUNTRY(LOCAL:0, ARG:1)
-				ENDIF
-			;AI国が吸収する
-			ELSE
-				;捕虜状態でないor吸収する国がすでに捕虜にしてた
-				IF !CFLAG:(LOCAL:0):捕虜先 || CFLAG:(LOCAL:0):捕虜先 == ARG:1
-					CALL CHANGE_COUNTRY(LOCAL:0, ARG:1, 1)
-				;他国が捕虜にしてる(ここで捕虜解除してしまうと、第三勢力が持ってる捕虜ごと奪われてしまう)
-				ELSE
-					CALL CHANGE_COUNTRY(LOCAL:0, ARG:1)
-				ENDIF
-			ENDIF
-		ENDIF
-	NEXT
-	IF LOCAL:1
-		WAIT
-	ENDIF
-
-;君主と共に別の勢力へ移動するパターン(君主を解放・君主が逃亡)
-;各々が独立して行動するパターン(君主を投獄・処刑)
-ELSEIF LOCAL:7 == 1 || LOCAL:7 == 2
-	;士官の逃走判定(主人公は後回し)
-	FOR LOCAL:0, 0, CHARANUM
-		IF CFLAG:(LOCAL:0):所属 == ARG:0 && LOCAL:0 != LOCAL:5 && LOCAL:0 != MASTER
-			IF CFLAG:(LOCAL:0):捕虜先 != 0
-				;捕虜なら無所属に
-				CALL CHANGE_COUNTRY(LOCAL:0, 0)
-			ELSE
-				CALL JUDGE_ESCAPE(ARG:0, ARG:1, LOCAL:0, 1)
-			ENDIF
-		ENDIF
-	NEXT
-	FOR LOCAL:0, 0, CHARANUM
-		IF CFLAG:(LOCAL:0):所属 == ARG:0 && LOCAL:0 != LOCAL:5 && LOCAL:0 != MASTER
-			;逃走に失敗した場合
-			IF CFLAG:(LOCAL:0):特殊状態 == 0
-				CALL TREAT_PRISONER(ARG:0, ARG:1, LOCAL:0)
-			ENDIF
-		ENDIF
-	NEXT
-
-	IF CFLAG:MASTER:所属 == ARG:0 && MASTER != LOCAL:5
-		IF CFLAG:MASTER:捕虜先 != 0
-			;捕虜なら無所属に
-			CALL CHANGE_COUNTRY(MASTER, 0)
-		ELSE
-			;主人公の逃走判定
-			CALL JUDGE_ESCAPE(ARG:0, ARG:1, MASTER, 1)
-			;逃走に失敗した場合
-			IF CFLAG:MASTER:特殊状態 != 1
-				CALL TREAT_PRISONER(ARG:0, ARG:1, MASTER)
-			ENDIF
-		ENDIF
-	ENDIF
-ENDIF
-
-;ARG:0勢力の捕虜となっていたキャラの処理
-LOCAL:2 = 0
-FOR LOCAL:0, 0, CHARANUM
-	IF CFLAG:(LOCAL:0):捕虜先 == ARG:0
-		;滅亡させた側の勢力の士官なら、そのまま元の勢力に戻る
-		IF CFLAG:(LOCAL:0):所属 == ARG:1
-			CALL CAPTURE(LOCAL:0, 0)
-			SETCOLOR COLOR("注意")
-			PRINTFORML %NAME:(LOCAL:5)%勢力に囚えられていた%ANAME(LOCAL:0)%は、元の勢力に復帰した
-			RESETCOLOR
-			LOCAL:2 = 1
-		ENDIF
+		CALL COLORPRINT(@"%ANAME(GET_COUNTRY_BOSS(CFLAG:(LOCAL:0):捕虜先))%に囚われていた%ANAME(LOCAL)%は解放され、放浪した", COLOR("注意"), "L")
+		CALL CHANGE_COUNTRY(LOCAL:0, 0)
 	ENDIF
 NEXT
-IF LOCAL:2
-	WAIT
+
+;●まず君主について処理する(主人公を含む)
+;逃走判定
+PRINTFORML ----君主の逃亡----
+CALL JUDGE_ESCAPE(滅亡君主, 滅亡勢力, 滅ぼした勢力)
+
+;逃走失敗
+IF RESULT == 1
+	CALL TREAT_PRISONER(滅亡君主, 滅亡勢力, 滅ぼした勢力)
 ENDIF
+
+
+PRINTFORML ----士官の逃亡----
+;その他士官(主人公は最後)
 FOR LOCAL:0, 0, CHARANUM
-	IF CFLAG:(LOCAL:0):捕虜先 == ARG:0
-		;第三勢力の士官なら、滅ぼした側が扱いを決定
-		CALL TREAT_PRISONER(ARG:0, ARG:1, LOCAL:0)
+	SIF CFLAG:LOCAL:所属 != 滅亡勢力 || LOCAL == 滅亡君主 || LOCAL == MASTER
+		CONTINUE
+	CALL JUDGE_ESCAPE(LOCAL, 滅亡勢力, 滅ぼした勢力)
+	SIF RESULT == 1
+		CALL TREAT_PRISONER(LOCAL, 滅亡勢力, 滅ぼした勢力)
+NEXT
+
+;滅亡した勢力の捕虜の処理
+;滅ぼした側の士官が先
+FOR LOCAL:0, 0, CHARANUM
+	IF CFLAG:(LOCAL:0):捕虜先 == 滅亡勢力 && CFLAG:LOCAL:所属 == 滅ぼした勢力
+		CALL CAPTURE(LOCAL:0, 0)
+		CALL COLORPRINT(@"%ANAME(滅亡君主)%勢力に囚えられていた%ANAME(LOCAL:0)%は、元の勢力に復帰した", COLOR("注意"), "L")
 	ENDIF
 NEXT
+;第三勢力の士官なら、滅ぼした側が扱いを決定
+FOR LOCAL:0, 0, CHARANUM
+	SIF CFLAG:(LOCAL:0):捕虜先 == 滅亡勢力
+		CALL TREAT_PRISONER(LOCAL, 滅亡勢力, 滅ぼした勢力)
+NEXT
+
+;主人公が士官の場合はラストになる
+IF CFLAG:MASTER:所属 == 滅亡勢力 && MASTER != 滅亡君主
+	IF CFLAG:MASTER:捕虜先
+		CALL CHANGE_COUNTRY(MASTER, 0)
+	ELSE
+		CALL JUDGE_ESCAPE(MASTER, 滅亡勢力, 滅ぼした勢力)
+		SIF RESULT == 1
+			CALL TREAT_PRISONER(MASTER, 滅亡勢力, 滅ぼした勢力)
+	ENDIF
+ENDIF
+
 
 ;削除待ち状態のキャラを一斉削除
 LOCAL:2 = CHARANUM
@@ -224,9 +120,9 @@ FOR LOCAL:0, 0, LOCAL:2
 	ENDIF
 NEXT
 
-;ARG:0勢力に所属していたキャラを無所属にする
+;これでもなお所属が滅亡勢力のままなら、一気に無所属にする
 FOR LOCAL:0, 0, CHARANUM
-	IF CFLAG:(LOCAL:0):所属 == ARG:0
+	IF CFLAG:(LOCAL:0):所属 == 滅亡勢力
 		CFLAG:(LOCAL:0):所属 = 0
 	ENDIF
 NEXT
@@ -235,71 +131,91 @@ NEXT
 ;ARG:2番のキャラの、勢力滅亡時の逃走判定(ARG:0=滅亡した勢力、ARG:1=滅亡させた勢力)
 ;ARG:3……0=戦闘中、1=滅亡時
 ;-------------------------------------------------
-@JUDGE_ESCAPE(ARG:0, ARG:1, ARG:2, ARG:3)
-IF ARG:3 == 0
-	LOCAL:10 = 330
-ELSE
-	LOCAL:10 = 331
+@JUDGE_ESCAPE(対象, 滅亡勢力, 滅ぼした勢力)
+#DIM 対象
+#DIM 滅亡勢力
+#DIM 滅ぼした勢力
+#DIM 滅亡君主
+#DIM 滅ぼした君主
+#DIM 捕縛率
+
+
+滅亡君主 = GET_COUNTRY_BOSS(滅亡勢力)
+滅ぼした君主 = GET_COUNTRY_BOSS(滅ぼした勢力)
+
+;主人公は逃げられない
+SIF 対象 == MASTER
+	RETURN 1
+
+;主人公勢力が滅ぼし、対象が陥落済み
+IF 滅ぼした勢力 == CFLAG:MASTER:所属 && (IS_LOVER(対象) || IS_SLAVE(対象))
+	CALL KOJO_EVENT(対象, 331)
+	PRINTFORML %ANAME(対象)%は自ら捕縛されにきました
+	RETURN 1
+;むしろ滅ぼした側の方が好き
+ELSEIF REL_LIKE:対象:滅ぼした勢力 - REL_LIKE:対象:滅亡勢力 > 300 && REL_HATE:対象:滅ぼした勢力 - REL_HATE:対象:滅亡勢力 < 300
+	IF 滅ぼした勢力 == CFLAG:MASTER:所属
+		CALL KOJO_EVENT(対象, 331)
+		PRINTFORML %ANAME(対象)%は大人しく捕縛されました
+	ELSE
+		PRINTFORML %ANAME(対象)%は捕らえられたようです…
+	ENDIF
+	RETURN 1
 ENDIF
 
-LOCAL:5 = GET_COUNTRY_BOSS(ARG:1)
-LOCAL:6 = REL_LIKE:(ARG:2):(LOCAL:5)
-LOCAL:7 = REL_HATE:(ARG:2):(LOCAL:5)
-
-;主人公は逃走不可
-IF ARG:2 == MASTER
-
-;相手君主への好感度が300以上、敵対値が300未満なら大人しく捕まる
-ELSEIF LOCAL:6 >= 300 && LOCAL:7 < 300
-	IF ARG:1 == CFLAG:MASTER:所属
-		CALL KOJO_EVENT(ARG:2, LOCAL:10)
-		PRINTFORML %NAME:(ARG:2)%を捕らえました
-	ENDIF
-
-;滅亡させたのが主人公勢力で[恋慕][服従]がある
-ELSEIF ARG:1 == CFLAG:MASTER:所属 && (TALENT:(ARG:2):恋慕 || TALENT:(ARG:2):服従)
-	CALL KOJO_EVENT(ARG:2, LOCAL:10)
-	PRINTFORML %NAME:(ARG:2)%を捕らえました
-
-;上記の条件を満たさなければ逃走を試みる
-ELSE
-	;LOCAL:8は捕縛される確率
-	;君主なら基礎確率がない
-	IF ARG:2 == GET_COUNTRY_BOSS(ARG:0)
-		LOCAL:8 = 0
-	ELSE
-		LOCAL:8 = 10
-	ENDIF
-	;三能力が高いほど逃げられやすくなる
-	LOCAL:8 += (600 - (ABL:(ARG:2):武闘 * 2 + ABL:(ARG:2):防衛 * 2 + ABL:(ARG:2):知略 + ABL:(ARG:2):政治)) / 7
-
-	;部隊に所属していなければ逃走確率上昇
-	IF IS_FREE(ARG:2)
-		LOCAL:8 -= 10
-	ENDIF
-
-	;イベントキャラは捕まらない
-	IF IS_SP_CHARA(ARG:2)
-		LOCAL:8 = 0
-	ELSE
-		LOCAL:8 = LIMIT(LOCAL:8, 30, 90)
-	ENDIF
-
-	IF RAND:100 < LOCAL:8
-		IF ARG:1 == CFLAG:MASTER:所属
-			CALL KOJO_EVENT(ARG:2, LOCAL:10)
-			PRINTFORML %NAME:(ARG:2)%を捕らえました
+SELECTCASE CONFIG:306
+	CASE 1
+		IF 対象 == 滅亡君主
+			捕縛率 = 0
+		ELSE
+			捕縛率 = 2000
 		ENDIF
-	ELSE
-		PRINTFORML %NAME:(ARG:2)%は逃走したようです…
-		;状態フラグを逃走状態に
-		CFLAG:(ARG:2):特殊状態 = 1
-		;勢力を滅亡させた君主のIDを保存
-		CFLAG:(ARG:2):恨む君主 = COUNTRY_BOSS:(ARG:1)
-		;旧君主のIDを保存
-		CFLAG:(ARG:2):滅亡前の君主 = COUNTRY_BOSS:(ARG:0)
-	ENDIF
+	CASEELSE
+		IF 対象 == 滅亡君主
+			捕縛率 = 1000
+		ELSE
+			捕縛率 = 3000
+		ENDIF
+ENDSELECT
+
+;四能力が高いほど捕縛率への補正が小さくなる（逃げられやすくなる）
+捕縛率 += (6000 - (ABL:対象:武闘 * 2 + ABL:対象:防衛 * 2 + ABL:対象:知略 + ABL:対象:政治) * 10)
+
+;部隊にいないと逃げやすい
+SIF IS_FREE(対象)
+	捕縛率 -= 1000
+
+;イベントキャラは捕まらない
+IF IS_SP_CHARA(対象)
+	捕縛率 = 0
+ELSE
+	SELECTCASE CONFIG:306
+		CASE 1
+			捕縛率 = LIMIT(捕縛率, 0, 6000)
+		CASEELSE
+			捕縛率 = LIMIT(捕縛率, 2000, 9000)
+	ENDSELECT
 ENDIF
+
+IF RAND:10000 < 捕縛率
+	IF 滅ぼした勢力 == CFLAG:MASTER:所属
+		CALL KOJO_EVENT(対象, 331)
+		PRINTFORML %ANAME(対象)%を捕縛しました
+	ELSE
+		PRINTFORML %ANAME(対象)%は捕らえられたようです…
+	ENDIF
+	RETURN 1
+ENDIF
+
+PRINTFORML %ANAME(対象)%は逃走したようです…
+;状態フラグを逃走状態に
+CFLAG:対象:特殊状態 = 1
+;勢力を滅亡させた君主のIDを保存
+CFLAG:対象:恨む君主 = 滅ぼした君主
+;旧君主のIDを保存
+CFLAG:対象:滅亡前の君主 = 滅亡君主
+RETURN 0
+
 
 ;-------------------------------------------------
 ;ARG:0番のキャラの逃走先を決定する関数
@@ -341,155 +257,143 @@ ENDIF
 RETURNF 0
 
 ;-------------------------------------------------
-;ARG:2番のキャラの、捕虜としての扱いを決める関数(ARG:0=捕獲されたキャラの勢力、ARG:1=捕獲した勢力)
-;戦闘による捕獲の場合はARG:3に1を設定すること
+;捕らえた捕虜の扱いを決定する
 ;戻り値 0=登用 1=解放 2=投獄 3=処刑
 ;-------------------------------------------------
-@TREAT_PRISONER(ARG:0, ARG:1, ARG:2, ARG:3 = 0)
+@TREAT_PRISONER(対象, 敗北勢力, 勝利勢力)
+#DIM 対象
+#DIM 敗北勢力
+#DIM 勝利勢力
+#DIM 敗北君主
+#DIM 勝利君主
+#DIM 友好度
+#DIM 敵対度
+
+勝利君主 = GET_COUNTRY_BOSS(勝利勢力)
+敗北君主 = GET_COUNTRY_BOSS(敗北勢力)
+
 ;滅亡させたのが主人公の勢力
-IF ARG:1 == CFLAG:MASTER:所属
-	LOCAL:5 = 1
+IF 勝利勢力 == CFLAG:MASTER:所属
 	;自動
 	IF GROUPMATCH(CONFIG:301, 1, 2)
-		CALL AUTO_PRISONER_TREATMENT(ARG:0, ARG:1, ARG:2)
+		CALL AUTO_PRISONER_TREATMENT(対象, 敗北勢力, 勝利勢力)
 	;手動
 	ELSE
-		CALL SELECT_PRISONER_TREATMENT(ARG:0, ARG:1, ARG:2)
+		CALL SELECT_PRISONER_TREATMENT(対象, 敗北勢力, 勝利勢力)
 	ENDIF
-
 	RETURN RESULT
-;滅亡させたのがCPU勢力
-ELSE
-	LOCAL:5 = GET_COUNTRY_BOSS(ARG:1)
+ENDIF
 
-	;外来勢力(ID:299)、ホフゴブリン、野盗なら必ず投獄
-	IF IS_SP_COUNTRY(ARG:1)
-		IF ARG:2 == MASTER
-			CALL MASTER_CAPTURED(ARG:1)
-			RETURN RESULT
-		ENDIF
-		CALL CAPTURE(ARG:2, ARG:1)
-		;野盗勢力に囚われた場合はイベントに送る
-		SIF COUNTRY_EVENT_ID:(ARG:1) == SP_COUNTRY_ID:(特殊勢力_野盗) && TRAIN_IS_SHOW_TEXT(ARG:2)
-			CALL TREAT_PRISONER_BANDIT(ARG:2)
-		RETURN 2
-
-	;登用を再優先(主人公はここでは処理しない)
-	ELSEIF ARG:2 != MASTER && JUDGE_ASSIGN(ARG:2, ARG:1, ARG:0)
-		IF ARG:2 == GET_COUNTRY_BOSS(ARG:0)
-			PRINTFORMW 君主である%NAME:(ARG:2)%は%NAME:(LOCAL:5)%の前に引きずり出された…
-			PRINTFORMW %NAME:(ARG:2)%は頭を垂れて%NAME:(LOCAL:5)%に忠誠を誓いました
-		;主人公以外で士官の場合
-		ELSE
-			IF CFLAG:(ARG:2):所属 == CFLAG:MASTER:所属
-				SETCOLOR COLOR("警告")
-				PRINTFORMW %NAME:(ARG:2)%が登用に応じたようです…
-			ELSE
-				SETCOLOR COLOR("注意")
-				PRINTFORML %NAME:(ARG:2)%は登用に応じたようです
-			ENDIF
-			RESETCOLOR
-		ENDIF
-		CALL CHANGE_COUNTRY(ARG:2, ARG:1, 1)
-		RETURN 0
-
-	;登用できなかった場合
-	ELSE
-		LOCAL:6 = REL_LIKE:(LOCAL:5):(ARG:2)
-		LOCAL:7 = REL_HATE:(LOCAL:5):(ARG:2)
-
-		;主人公の場合はここで登用処理	
-		IF ARG:2 == MASTER
-			CALL MASTER_CAPTURED(ARG:1)
-			;登用に応じた
-			IF RESULT == 1
-				CALL CHANGE_COUNTRY(MASTER, ARG:1, 1)
-				RETURN 0
-			;解放された
-			ELSEIF RESULT == 2
-				CALL CAPTURE(MASTER, 0, 1)
-				RETURN 1
-			;投獄された
-			ELSEIF RESULT == 3
-				CALL CAPTURE(MASTER, ARG:1)
-				RETURN 2
-			;処刑
-			ELSE
-				FLAG:強制エンドフラグ = 1
-				RETURN 3
-			ENDIF
-
-		;好感度が低く敵対値が特に高い場合は処刑(処刑禁止の設定なら処刑しない)
-		ELSEIF LOCAL:6 < 100 && LOCAL:7 >= 800 && (CONFIG:304 == 0 || (CONFIG:304 == 2 && !IS_FIXED_CHARA(ARG:2)))
-			;主人公勢力が滅亡した場合
-			IF ARG:0 == CFLAG:MASTER:所属
-				;主人公以外で君主の場合
-				IF ARG:2 == GET_COUNTRY_BOSS(ARG:0)
-					PRINTFORMW 君主である%NAME:(ARG:2)%は%NAME:(LOCAL:5)%の前に引きずり出された…
-					PRINTFORMW %NAME:(ARG:2)%にあまり良い感情を持たない%NAME:(LOCAL:5)%は、躊躇なく部下に%NAME:(ARG:2)%の処刑を命じた
-					PRINTFORMW ………………
-					CALL EXECUTION(ARG:2)
-				;主人公以外で士官の場合
-				ELSE
-					IF CFLAG:(ARG:2):捕虜先 == ARG:0 && ARG:0 >= 0
-						LOCALS:0 = %NAME:GET_COUNTRY_BOSS(CFLAG:(ARG:2):捕虜先)%
-						PRINTFORMW 捕虜となっていた%LOCALS:0%勢力の%NAME:(ARG:2)%は処刑されたようです…
-						CALL EXECUTION(ARG:2)
-					ELSE
-						PRINTFORMW %NAME:(ARG:2)%は処刑されたようです…
-						CALL EXECUTION(ARG:2)
-					ENDIF
-				ENDIF
-			ELSE
-				SETCOLOR COLOR("注意")
-				PRINTFORMW %NAME:(ARG:2)%が処刑されたという報告が入っています
-				CALL EXECUTION(ARG:2)
-				RESETCOLOR
-			ENDIF
-			;状態フラグを死亡状態に
-			CFLAG:(ARG:2):特殊状態 = 2
-			RETURN 3
-
-		;戦闘による捕縛ならば投獄
-		ELSEIF ARG:3
-			CALL CAPTURE(ARG:2, ARG:1)
-
-		;それ以外は解放
-		ELSE
-			;主人公勢力が滅亡した場合
-			IF ARG:0 == CFLAG:MASTER:所属
-				;主人公以外で君主の場合
-				IF ARG:2 == GET_COUNTRY_BOSS(ARG:0)
-					PRINTFORMW 君主である%NAME:(ARG:2)%は%NAME:(LOCAL:5)%の前に引きずり出された…
-					PRINTFORMW だが%NAME:(LOCAL:5)%に%NAME:(ARG:2)%の首を獲る気はないようだ
-					PRINTFORMW %NAME:(ARG:2)%は解放されました
-				;主人公以外で士官の場合
-				ELSE
-					IF CFLAG:(ARG:2):捕虜先 == ARG:0 && ARG:0 >= 0
-						LOCALS:0 = %NAME:GET_COUNTRY_BOSS(CFLAG:(ARG:2):捕虜先)%
-						PRINTFORMW 捕虜となっていた%LOCALS:0%勢力の%NAME:(ARG:2)%は解放されたようです
-					ELSE
-						PRINTFORMW %NAME:(ARG:2)%は解放されたようです
-					ENDIF
-				ENDIF
-			ENDIF
-
-			IF CFLAG:(ARG:2):捕虜先 != 0
-				;捕虜設定を解除
-				CALL CAPTURE(ARG:2, 0)
-			ELSE
-				;状態フラグを逃走状態に
-				CFLAG:(ARG:2):特殊状態 = 1
-				;勢力を滅亡させた君主のIDを設定
-				CFLAG:(ARG:2):恨む君主 = COUNTRY_BOSS:(ARG:1)
-				;旧君主のIDを設定
-				CFLAG:(ARG:2):滅亡前の君主 = COUNTRY_BOSS:(ARG:0)
-				;好感度を上昇、敵対値を減少
-				CALL CHANGE_RELATION_O_TO_C(ARG:2, ARG:1, 80, -80)
-			ENDIF
-			RETURN 1
-		ENDIF
+IF IS_SP_COUNTRY(勝利勢力)
+	IF 対象 == MASTER
+		CALL MASTER_CAPTURED(勝利勢力)
+		RETURN RESULT
 	ENDIF
+	CALL CAPTURE(対象, 勝利勢力)
+	SIF COUNTRY_EVENT_ID:勝利勢力 == SP_COUNTRY_ID:特殊勢力_野盗 && TRAIN_IS_SHOW_TEXT(対象)
+		CALL TREAT_PRISONER_BANDIT(対象)
+	RETURN 2
+ENDIF
+
+;主人公の場合は専用の処理
+IF 対象 == MASTER
+	CALL MASTER_CAPTURED(勝利勢力)
+	RETURN RESULT
+;主人公以外は登用を試みる
+ELSEIF JUDGE_ASSIGN(対象, 敗北勢力, 勝利勢力)
+	IF 対象 == 敗北君主
+		PRINTFORMW 君主である%ANAME(対象)%は%ANAME(勝利君主)%の前に引きずり出された…
+		PRINTFORMW %ANAME(対象)%は頭を垂れて%ANAME(勝利君主)%に忠誠を誓いました
+	ELSE
+		IF CFLAG:対象:所属 == CFLAG:MASTER:所属
+			SETCOLOR COLOR("警告")
+			PRINTFORMW %ANAME(対象)%が登用に応じました
+		ELSE
+			SETCOLOR COLOR("注意")
+			PRINTFORML %ANAME(対象)%は登用に応じたようです
+		ENDIF
+		RESETCOLOR
+	ENDIF
+	CALL CHANGE_COUNTRY(対象, 勝利勢力, 1)
+	RETURN 0
+
+ENDIF
+
+;登用に失敗
+友好度 = REL_LIKE:勝利君主:対象
+敵対度 = REL_HATE:勝利君主:対象
+
+;好感度が低く敵対値が特に高い場合は処刑(処刑禁止の設定なら処刑しない)
+IF 友好度 < 100 && 敵対度 >= 800 && (CONFIG:304 == 0 || (CONFIG:304 == 2 && !IS_FIXED_CHARA(対象)))
+	;主人公勢力所属
+	IF 敗北勢力 == CFLAG:MASTER:所属
+		SETCOLOR COLOR("警告")
+		;君主
+		IF 対象 == 敗北君主
+			PRINTFORMW 君主である%ANAME(対象)%は%ANAME(勝利君主)%の前に引きずり出された…
+			PRINTFORMW %ANAME(対象)%にあまり良い感情を持たない%ANAME(勝利君主)%は、躊躇なく部下に%ANAME(対象)%の処刑を命じた
+			PRINTFORMW ………………
+		ELSEIF CFLAG:対象:捕虜先 == 敗北勢力
+			LOCALS:0 = %ANAME(GET_COUNTRY_BOSS(CFLAG:対象:捕虜先))%
+			PRINTFORMW 捕虜となっていた%LOCALS:0%勢力の%ANAME(対象)%は処刑されたようです…
+		ELSE
+			PRINTFORMW %ANAME(対象)%は処刑されたようです…
+		ENDIF
+		RESETCOLOR
+	ELSE
+		CALL COLORPRINT(@"%ANAME(対象)%が処刑されたという報告が入っています", COLOR("注意"), "L")
+	ENDIF
+	CALL EXECUTION(対象)
+	CFLAG:対象:特殊状態 = 2
+	RETURN 3
+;好感度が特に高く敵対値が低い場合は解放
+ELSEIF 友好度 >= 800 && 敵対度 < 100
+	IF 敗北勢力 == CFLAG:MASTER:所属
+		IF 対象 == 敗北君主
+			PRINTFORMW 君主である%ANAME(対象)%は%ANAME(勝利君主)%の前に引きずり出された…
+			PRINTFORMW だが%ANAME(勝利君主)%に%ANAME(対象)%の首を獲る気はないようだ
+			PRINTFORMW %ANAME(対象)%は解放されました
+		ELSEIF CFLAG:対象:捕虜先 == 敗北勢力
+			LOCALS:0 = %ANAME(GET_COUNTRY_BOSS(CFLAG:対象:捕虜先))%
+			PRINTFORMW 捕虜となっていた%LOCALS:0%勢力の%ANAME(対象)%は解放されたようです
+		ELSE
+			PRINTFORMW %ANAME(対象)%は解放されたようです
+		ENDIF
+	ELSE
+		PRINTFORMW %ANAME(対象)%は解放されたようです
+	ENDIF
+	;対象が無所属、ないし所属勢力の都市0（滅亡時）なら放浪させる
+	IF !IS_COUNTRY(CFLAG:対象:所属) || GET_OWN_CITY(CFLAG:対象:所属) == 0
+		SIF CFLAG:対象:捕虜先
+			CALL CAPTURE(対象, 0)
+		CFLAG:対象:特殊状態 = 1
+		;勢力を滅亡させた君主のIDを設定
+		CFLAG:対象:恨む君主 = 勝利君主
+		;旧君主のIDを設定
+		CFLAG:対象:滅亡前の君主 = 敗北君主
+	ELSE
+		;好感度を上昇、敵対値を減少
+		CALL CHANGE_RELATION_O_TO_C(対象, 勝利勢力, 50, -50)
+	ENDIF
+	RETURN 1
+;そうでないなら投獄
+ELSE
+	IF 敗北勢力 == CFLAG:MASTER:所属
+		IF 対象 == 敗北君主
+			PRINTFORMW 君主である%ANAME(対象)%は%ANAME(勝利君主)%の前に引きずり出された…
+			PRINTFORMW だが%ANAME(勝利君主)%に%ANAME(対象)%の首を獲る気はないようだ
+			PRINTFORMW %ANAME(対象)%は投獄されました
+		ELSEIF CFLAG:対象:捕虜先 == 敗北勢力
+			LOCALS:0 = %ANAME(GET_COUNTRY_BOSS(CFLAG:対象:捕虜先))%
+			PRINTFORMW 捕虜となっていた%LOCALS:0%勢力の%ANAME(対象)%は、引き続き投獄されたようです
+		ELSE
+			PRINTFORMW %ANAME(対象)%は投獄されたようです
+		ENDIF
+	ELSE
+		PRINTFORMW %ANAME(対象)%は投獄されたようです
+	ENDIF
+	CALL CAPTURE(対象, 勝利勢力)
+	RETURN 2
 ENDIF
 
 ;-------------------------------------------------
@@ -497,11 +401,10 @@ ENDIF
 ;戦闘による捕獲の場合はARG:3に1を設定すること
 ;戻り値 0=登用 1=解放 2=投獄 3=処刑
 ;-------------------------------------------------
-@SELECT_PRISONER_TREATMENT(対象勢力, 捕獲勢力, 対象, 戦闘フラグ)
+@SELECT_PRISONER_TREATMENT(対象, 対象勢力, 捕獲勢力)
 #DIM 対象勢力
 #DIM 捕獲勢力
 #DIM 対象
-#DIM 戦闘フラグ
 #DIM 拒否フラグ
 
 拒否フラグ = 0
@@ -537,7 +440,7 @@ INPUT
 IF RESULT == 0 && !拒否フラグ
 	拒否フラグ = 1
 	;登用に応じるかどうかを判定
-	IF JUDGE_ASSIGN(対象, 捕獲勢力, 対象勢力)
+	IF JUDGE_ASSIGN(対象, 対象勢力, 捕獲勢力)
 		CALL KOJO_EVENT(対象, 332)
 		PRINTFORMW %ANAME(対象)%を登用しました
 		CALL CHANGE_COUNTRY(対象, 捕獲勢力, 1)
@@ -601,13 +504,13 @@ ENDIF
 ;戦闘による捕獲の場合はARG:3に1を設定すること
 ;戻り値 0=登用 1=解放 2=投獄 3=処刑
 ;-------------------------------------------------
-@AUTO_PRISONER_TREATMENT(対象勢力, 捕獲勢力, 対象)
+@AUTO_PRISONER_TREATMENT(対象, 対象勢力, 捕獲勢力)
 #DIM 対象勢力
 #DIM 捕獲勢力
 #DIM 対象
 
 ;登用に応じるかどうかを判定
-IF JUDGE_ASSIGN(対象, 捕獲勢力, 対象勢力)
+IF JUDGE_ASSIGN(対象, 対象勢力, 捕獲勢力)
 	CALL KOJO_EVENT(対象, 332)
 	PRINTFORMW %ANAME(対象)%を登用しました
 	CALL CHANGE_COUNTRY(対象, 捕獲勢力, 1)
@@ -648,169 +551,186 @@ ENDIF
 
 ;-------------------------------------------------
 ;主人公がARG:0勢力に捕らえられた場合の処理
-;戻り値 0=処刑 1=部下になる 2=解放される 3=投獄される
+;戻り値 0=登用 1=解放 2=投獄 3=処刑
 ;-------------------------------------------------
-@MASTER_CAPTURED(ARG:0)
-LOCAL:5 = GET_COUNTRY_BOSS(ARG:0)
-LOCAL:6 = REL_LIKE:(LOCAL:5):MASTER
-LOCAL:7 = REL_HATE:(LOCAL:5):MASTER
+@MASTER_CAPTURED(勢力)
+#DIM 勢力
+#DIM 君主
+#DIM 友好度
+#DIM 敵対度
+
+君主 = GET_COUNTRY_BOSS(勢力)
+友好度 = REL_LIKE:君主:MASTER
+敵対度 = REL_HATE:君主:MASTER
 
 FLAG:逆調教メイン調教者 = 0
 
-TRYCCALLFORM MASTER_CAPTURED_%SP_COUNTRY_NAME_ENG:SP_COUNTRY_TO_CONST(ARG:0)%(ARG:0)
+TRYCCALLFORM MASTER_CAPTURED_%SP_COUNTRY_NAME_ENG:SP_COUNTRY_TO_CONST(勢力)%(勢力)
 	RETURN RESULT
 CATCH
 ENDCATCH
 
-
-IF CFLAG:MASTER:捕虜先 != 0
-	PRINTFORMW 捕虜として捕えられていた%ANAME(MASTER)%は、%NAME:(LOCAL:5)%の前に引き立てられた…
+IF CFLAG:MASTER:捕虜先
+	PRINTFORMW 捕虜として捕えられていた%ANAME(MASTER)%は、%ANAME(君主)%の前に引き立てられた…
 ELSE
-	PRINTFORMW 捕らえられた%ANAME(MASTER)%は%NAME:(LOCAL:5)%の前に引きずり出された…
+	PRINTFORMW 捕らえられた%ANAME(MASTER)%は%ANAME(君主)%の前に引きずり出された…
 ENDIF
 
-;王からの好感度が低く敵対値が特に高い場合で、王の好感度・依存度が共に500未満なら選択肢を表示せずに処刑
-IF LOCAL:6 < 100 && LOCAL:7 >= 800 && CFLAG:(LOCAL:5):2 < 500 && CFLAG:(LOCAL:5):3 < 500
-	PRINTFORMW %ANAME(MASTER)%にあまり良い感情を持たない%NAME:(LOCAL:5)%は、躊躇なく部下に%ANAME(MASTER)%の処刑を命じた
-	LOCAL:8 = 1
+;王からの好感度が低く敵対値が特に高い場合で、王の好感度・依存度・依存度が共に500未満なら選択肢を表示せずに処刑
+IF 友好度 < 100 && 敵対度 >= 800 && MAX(CFLAG:君主:好感度, CFLAG:君主:依存度, CFLAG:君主:従属度) < 500
+	PRINTFORMW %ANAME(MASTER)%にあまり良い感情を持たない%ANAME(君主)%は、躊躇なく部下に%ANAME(MASTER)%の処刑を命じた
 	CALL EXECUTION(MASTER)
-;捕虜の場合
-ELSEIF CFLAG:MASTER:捕虜先 != 0
-	PRINTFORML %NAME:(LOCAL:5)%は%ANAME(MASTER)%に対し、力を貸す気はないかと持ち掛けてきた
-	PRINTL [0] 私で宜しければ喜んで
-	PRINTL [1] 解放して欲しい
-
-	$INPUT_LOOP2
-	INPUT
-
-	IF RESULT == 0
-		PRINTFORML %CALLNAME:MASTER%は%NAME:(LOCAL:5)%の家臣となりました
-		PRINTFORMW 以降は%NAME:(LOCAL:5)%勢力として行動します
-		RETURN 1
-	ELSEIF RESULT == 1
-		PRINTFORMW %ANAME(MASTER)%が仕官を拒むと、%NAME:(LOCAL:5)%は少し残念そうにしながらも%ANAME(MASTER)%を解放した
-		RETURN 2
-	ENDIF
-	GOTO INPUT_LOOP2
-
-ELSE
-	PRINTFORML 曰く、忠誠を誓い力を貸すならば命は助ける、とのことだが
-	PRINTL [0] 寛大な処置に感謝します
-	PRINTL [1] ……斬れ
-	LOCAL:8 = 0
-
-	$INPUT_LOOP
-	INPUT
-
-	IF RESULT == 0
-		PRINTFORML %CALLNAME:MASTER%は%NAME:(LOCAL:5)%の家臣となりました
-		PRINTFORMW 以降は%NAME:(LOCAL:5)%勢力として行動します
-		RETURN 1
-	ELSEIF RESULT != 1
-		GOTO INPUT_LOOP
-	ENDIF
-ENDIF
-
-;以下は処刑が仮決定したときの処理
-
-;王の好感度が500以上かつ主導度Ｕ100以上または<サド>
-IF !LOCAL:8 && ((CFLAG:(LOCAL:5):2 >= 500 && (ABL:(LOCAL:5):主導度Ｕ >= 100 || GETBIT(TALENT:(LOCAL:5):淫乱系, 素質_淫乱_サド))))
-	PRINTFORMW %ANAME(MASTER)%が仕官を拒むと、%NAME:(LOCAL:5)%は不敵な笑みを浮かべ、%ANAME(MASTER)%を投獄するように命じた…
-	SETCOLOR COLOR("注意")
-	PRINTFORMW %ANAME(MASTER)%は%NAME:(LOCAL:5)%の捕虜となりました
-	RESETCOLOR
-	FLAG:逆調教メイン調教者 = GET_ID(LOCAL:5)
+	FLAG:強制エンドフラグ = 1
 	RETURN 3
 ENDIF
 
-LOCAL:6 = -1
-LOCAL:7 = 0
+IF CFLAG:MASTER:捕虜先
+	PRINTFORML %ANAME(君主)%は%ANAME(MASTER)%に対し、力を貸す気はないかと持ち掛けてきた
+	CALL ASK_MULTI("私でよければ喜んで", "お断りだ", "解放してほしい")
+
+	SELECTCASE RESULT 
+		CASE 0
+			PRINTFORML %ANAME(MASTER)%は%ANAME(君主)%の士官になりました
+			PRINTFORMW 以降は%ANAME(君主)%勢力として行動します
+			CALL CHANGE_COUNTRY(MASTER, 勢力, 1)
+			RETURN 1
+		CASE 1
+			IF 友好度 > 300 && 敵対度 < 300
+				PRINTFORMW %ANAME(MASTER)%が仕官を拒むと、%ANAME(君主)%は少し残念そうにしながらも%ANAME(MASTER)%を解放した
+				CALL CAPTURE(MASTER, 0)
+				RETURN 1
+			ELSE
+				PRINTFORMW %ANAME(MASTER)%が仕官を拒むと、%ANAME(君主)%は%ANAME(MASTER)%を投獄した
+				CALL CAPTURE(MASTER, 勢力)
+				RETURN 2
+			ENDIF
+		CASE 2
+			IF 友好度 > 300 && 敵対度 < 300
+				PRINTFORMW %ANAME(MASTER)%が解放してくれと頼むと、%ANAME(君主)%は少し残念そうにしながらも%ANAME(MASTER)%を解放した
+				CALL CAPTURE(MASTER, 0)
+				RETURN 1
+			ELSE
+				PRINTFORMW %ANAME(MASTER)%が解放してくれと頼むと、%ANAME(君主)%は首を横に振り、%ANAME(MASTER)%を投獄した
+				CALL CAPTURE(MASTER, 勢力)
+				RETURN 2
+			ENDIF
+	ENDSELECT
+ELSE
+	PRINTFORML 忠誠を誓い力を貸すならば命は助ける、とのことだが
+	CALL ASK_MULTI("受け入れる", "拒否する", "解放してほしい")
+	SELECTCASE RESULT
+		CASE 0
+			PRINTFORML %ANAME(MASTER)%は%ANAME(君主)%の士官になりました
+			PRINTFORMW 以降は%ANAME(君主)%勢力として行動します
+			CALL CHANGE_COUNTRY(MASTER, 勢力, 1)
+			RETURN 1
+		CASE 2
+			IF 友好度 > 300 && 敵対度 < 300
+				PRINTFORMW %ANAME(MASTER)%が解放してくれと頼むと、%ANAME(君主)%は少し残念そうにしながらも%ANAME(MASTER)%を解放した
+				CALL CAPTURE(MASTER, 0)
+				RETURN 1
+			ELSE
+				PRINTFORMW %ANAME(MASTER)%が解放してくれと頼むと、%ANAME(君主)%は首を横に振り、%ANAME(MASTER)%を投獄した
+				CALL CAPTURE(MASTER, 勢力)
+				RETURN 2
+			ENDIF
+		CASE 1
+			CALL MASTER_CAPTURED_DOES_EXECUTE(勢力)
+			IF RESULT == 1
+				PRINTFORMW %ANAME(MASTER)%が仕官を拒むと、%ANAME(君主)%は残念そうにしながらも部下に%ANAME(MASTER)%の処刑を命じた
+				CALL EXECUTION(MASTER)
+				FLAG:強制エンドフラグ = 1
+				RETURN 3
+			ELSE
+				CALL CAPTURE(MASTER, 勢力)
+				RETURN 2
+			ENDIF
+	ENDSELECT
+ENDIF
+
+;-------------------------------------------------
+;主人公がARG:0勢力に捕らえられ、登用を拒否した場合の処刑判定
+;戻り値 0=投獄 1=処刑
+;-------------------------------------------------
+@MASTER_CAPTURED_DOES_EXECUTE(勢力)
+#DIM 勢力
+#DIM 君主
+#DIM 友好度
+#DIM 敵対度
+#DIM 好感度保存	
+#DIM 申し出キャラ
+君主 = GET_COUNTRY_BOSS(勢力)
+友好度 = REL_LIKE:君主:MASTER
+敵対度 = REL_HATE:君主:MASTER
+
+
+申し出キャラ = -1
+好感度保存 = 0
 FOR LOCAL:0, 0, CHARANUM
 	;ARG:0勢力の中に主人公への好感度500以上かつ主導度Ｕ100以上または<サド>のキャラがいる場合
-	IF CFLAG:(LOCAL:0):所属 == ARG:0 && CFLAG:(LOCAL:0):捕虜先 == 0 && CFLAG:(LOCAL:0):2 >= 500 && (ABL:(LOCAL:0):主導度Ｕ >= 100 || GETBIT(TALENT:(LOCAL:0):淫乱系, 素質_淫乱_サド))
-		IF CFLAG:(LOCAL:0):2 > LOCAL:7
+	IF CFLAG:(LOCAL:0):所属 == 勢力 && !CFLAG:(LOCAL:0):捕虜先 && CFLAG:(LOCAL:0):好感度 >= 500 && (ABL:(LOCAL:0):主導度Ｕ >= 100 || GETBIT(TALENT:(LOCAL:0):淫乱系, 素質_淫乱_サド))
+		IF CFLAG:(LOCAL:0):好感度 > 好感度保存
 			;条件を満たすキャラのうち、好感度が最大のキャラを探索
-			LOCAL:6 = LOCAL:0
-			LOCAL:7 = CFLAG:(LOCAL:0):2
+			申し出キャラ = LOCAL
+			好感度保存 = CFLAG:LOCAL:好感度
 		ENDIF
 	ENDIF
 NEXT
 
 ;条件を満たすキャラが見つかった場合
-IF LOCAL:6 >= 0
-	IF LOCAL:8
-		PRINTFORML すると、それを見ていた%NAME:(LOCAL:6)%が%NAME:(LOCAL:5)%に対して、自分に%NAME:MASTER%の処置を任せてほしいと申し出た
-	ELSE
-		PRINTFORML %ANAME(MASTER)%が仕官を拒むと、それを見ていた%NAME:(LOCAL:6)%が%NAME:(LOCAL:5)%に対して、
-		PRINTFORMW 自分に説得を任せてほしいと申し出た
-	ENDIF
-	PRINTFORMW %NAME:(LOCAL:5)%は%NAME:(LOCAL:6)%の言葉を聞き入れて、%ANAME(MASTER)%の処遇を%NAME:(LOCAL:6)%に任せた…
-	SETCOLOR COLOR("注意")
-	PRINTFORMW %ANAME(MASTER)%は%NAME:(LOCAL:5)%の捕虜となりました
-	RESETCOLOR
-	FLAG:逆調教メイン調教者 = GET_ID(LOCAL:6)
-	RETURN 3
+IF 申し出キャラ >= 0
+	PRINTFORML %ANAME(MASTER)%が仕官を拒むと、それを見ていた%ANAME(申し出キャラ)%が%ANAME(君主)%に対して、
+	PRINTFORMW 自分に説得を任せてほしいと申し出た
+	PRINTFORMW %ANAME(君主)%は%ANAME(申し出キャラ)%の言葉を聞き入れて、%ANAME(MASTER)%の処遇を%ANAME(申し出キャラ)%に任せた…
+	CALL COLORPRINT(@"%ANAME(MASTER)%は%ANAME(君主)%の捕虜となりました", COLOR("注意"), "W")
+	FLAG:逆調教メイン調教者 = GET_ID(申し出キャラ)
+	RETURN 0
 ENDIF
 
-;王の好感度 or 依存度が1500以上
-IF !LOCAL:8 && CFLAG:(LOCAL:5):2 >= 500 || CFLAG:(LOCAL:5):3 >= 500
-	PRINTFORMW %NAME:(LOCAL:5)%には%ANAME(MASTER)%を斬ることが出来ないようだ…
-	PRINTFORMW %NAME:(LOCAL:5)%は部下に対し、%ANAME(MASTER)%を投獄するように命じた
-	SETCOLOR COLOR("注意")
-	PRINTFORMW %ANAME(MASTER)%は%NAME:(LOCAL:5)%の捕虜となりました
-	RESETCOLOR
-	RETURN 3
+IF MAX(CFLAG:君主:好感度, CFLAG:君主:依存度, CFLAG:君主:従属度) >= 1500
+	PRINTFORMW %ANAME(君主)%には%ANAME(MASTER)%を斬ることが出来ないようだ…
+	PRINTFORMW %ANAME(君主)%は部下に対し、%ANAME(MASTER)%を投獄するように命じた
+	CALL COLORPRINT(@"%ANAME(MASTER)%は%ANAME(君主)%の捕虜となりました", COLOR("注意"), "W")
+	RETURN 0
 ENDIF
 
-LOCAL:6 = -1
-LOCAL:7 = 0
+申し出キャラ = -1
+好感度保存 = 0
 FOR LOCAL:0, 0, CHARANUM
-	;ARG:0勢力の中に主人公への好感度 or 依存度が1500以上のキャラがいる場合
-	IF CFLAG:(LOCAL:0):所属 == ARG:0 && CFLAG:(LOCAL:0):捕虜先 == 0 && (CFLAG:(LOCAL:0):2 >= 1500 || CFLAG:(LOCAL:0):3 >= 1500)
-		IF CFLAG:(LOCAL:0):2 > LOCAL:7
+	IF CFLAG:(LOCAL:0):所属 == 勢力 && !CFLAG:(LOCAL:0):捕虜先 && CFLAG:(LOCAL:0):好感度 >= 1500
+		IF CFLAG:(LOCAL:0):好感度 > 好感度保存
 			;条件を満たすキャラのうち、好感度が最大のキャラを探索
-			LOCAL:6 = LOCAL:0
-			LOCAL:7 = CFLAG:(LOCAL:0):2
+			申し出キャラ = LOCAL
+			好感度保存 = CFLAG:LOCAL:好感度
 		ENDIF
 	ENDIF
 NEXT
 
 ;条件を満たすキャラが見つかった場合
-IF LOCAL:6 >= 0
-	IF !LOCAL:8
-		PRINTFORMW %ANAME(MASTER)%が仕官を拒むと、%NAME:(LOCAL:5)%は残念そうにしながらも部下に%ANAME(MASTER)%の処刑を命じた
-	ENDIF
-	PRINTFORMW すると、それを見ていた%ANAME(LOCAL:6)%が%NAME:(LOCAL:5)%に駆け寄り、必死になって%ANAME(MASTER)%の助命を嘆願した…
-	PRINTFORML %NAME:(LOCAL:6)%の勢いに押された%NAME:(LOCAL:5)%は、
+IF 申し出キャラ >= 0
+	PRINTFORMW %ANAME(MASTER)%が仕官を拒むと、%ANAME(君主)%は部下に%ANAME(MASTER)%の処刑を命じた
+	PRINTFORMW すると、それを見ていた%ANAME(申し出キャラ)%が%ANAME(君主)%に駆け寄り、必死になって%ANAME(MASTER)%の助命を嘆願した…
+	PRINTFORML %ANAME(申し出キャラ)%の勢いに押された%ANAME(君主)%は、
 	PRINTFORMW どうやら%ANAME(MASTER)%の首を取らずに捕虜として投獄しておくことにしたようだ
-	SETCOLOR COLOR("注意")
-	PRINTFORMW %ANAME(MASTER)%は%NAME:(LOCAL:5)%の捕虜となりました
-	RESETCOLOR
-	RETURN 3
+	CALL COLORPRINT(@"%ANAME(MASTER)%は%ANAME(君主)%の捕虜となりました", COLOR("注意"), "W")
+	RETURN 0
 ENDIF
 
 ;3能力に応じた確率で
-IF !LOCAL:8 && ABL:MASTER:武闘 + ABL:MASTER:知略 + ABL:MASTER:政治 >= RAND:300
-	PRINTFORMW %NAME:(LOCAL:5)%は、%ANAME(MASTER)%のような人材を斬るのを惜しんだようだ
-	PRINTFORMW %NAME:(LOCAL:5)%は部下に対し、%ANAME(MASTER)%を投獄するように命じた
-	SETCOLOR COLOR("注意")
-	PRINTFORMW %ANAME(MASTER)%は%NAME:(LOCAL:5)%の捕虜となりました
-	RESETCOLOR
-	RETURN 3
+IF ABL:MASTER:武闘 + ABL:MASTER:防衛 + ABL:MASTER:知略 + ABL:MASTER:政治 >= RAND:400
+	PRINTFORMW %ANAME(君主)%は、%ANAME(MASTER)%のような人材を斬るのを惜しんだようだ
+	PRINTFORMW %ANAME(君主)%は部下に対し、%ANAME(MASTER)%を投獄するように命じた
+	CALL COLORPRINT(@"%ANAME(MASTER)%は%ANAME(君主)%の捕虜となりました", COLOR("注意"), "W")
+	RETURN 0
 ENDIF
 
-;処刑が本決定
-IF !LOCAL:8
-	PRINTFORMW %ANAME(MASTER)%が仕官を拒むと、%NAME:(LOCAL:5)%は残念そうにしながらも部下に%ANAME(MASTER)%の処刑を命じた
-	CALL EXECUTION(MASTER)
-ENDIF
-RETURN 0
+RETURN 1
 
 ;-------------------------------------------------
 ;ARG:0番のキャラが登用に応じるかどうかを判定(ARG:1=登用側の勢力、ARG:2=ARG:0の所属する勢力
 ;戻り値 0=拒否 1=応じる
 ;-------------------------------------------------
-@JUDGE_ASSIGN(対象, 捕縛勢力, 所属勢力)
+@JUDGE_ASSIGN(対象, 所属勢力, 捕縛勢力)
 #FUNCTION
 #DIM 対象
 #DIM 捕縛勢力
