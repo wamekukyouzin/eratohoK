@@ -125,9 +125,14 @@ PRINT
 CALL SHOW_UNIT_INFO(ARG:0, ARG:1, 4)
 DRAWLINE
 
-IF ARG:2 == 0
+IF ARG:2 == 0 && LOCAL:5 >= 1
 	PRINTBUTTON " 0[移動／目標設定]", 0
 	PRINTL 
+ELSEIF ARG:2 == 0 && LOCAL:5 < 2
+	SETCOLOR COLOR("選択不可")
+	PRINTPLAIN  0[移動／目標設定]
+	PRINTL
+	RESETCOLOR
 ELSE
 	PRINTBUTTON " 0[この部隊で決定]", 0
 	PRINTL 
@@ -162,7 +167,7 @@ PRINTL
 $INPUT_LOOP1
 INPUT
 
-IF RESULT == 0 && ARG:2 == 0
+IF RESULT == 0 && ARG:2 == 0 && LOCAL:5 >= 1
 	DRAWLINE
 	CALL SET_CITY_COLOR_COUNTRY
 	CALL SET_CITY_COLOR_UNIT
@@ -172,7 +177,7 @@ IF RESULT == 0 && ARG:2 == 0
 
 	PRINTFORML 部隊{ARG:1 + 1}の移動先を決めて下さい
 	IF LOCAL:5 >= 2
-		PRINTFORML 自勢力の都市、同盟・連合勢力の都市、部隊の現在位置に隣接した都市のみが選択可能です
+		PRINTFORML 自勢力の都市、同盟・連合勢力の都市、ならびにそれらに隣接した敵対都市のみが選択可能です
 	ELSE
 		PRINTFORML 部隊の現在位置に隣接した都市のみが選択可能です
 	ENDIF
@@ -192,8 +197,19 @@ IF RESULT == 0 && ARG:2 == 0
 		CALL CHECK_COUNTRY_RELATION(ARG:0, CITY_OWNER:(LOCAL:2))
 		LOCAL:7 = RESULT:0
 
+		;停戦中の勢力への移動
+		IF LOCAL:7 == 1
+			PRINTFORMW 停戦中の勢力の都市へ部隊を移動させることはできません
+			RESTART
+
+		;現在位置と同じ場所を選択
+		ELSEIF LOCAL:2 == UNIT_POSITION:(ARG:0):(ARG:1)
+			UNIT_TARGET:(ARG:0):(ARG:1) = 0
+			PRINTFORMW 目標の設定を解除します
+			RESTART
+
 		;自勢力・友好勢力から自勢力・友好勢力への移動
-		IF LOCAL:5 >= 2 && LOCAL:7 >= 2
+		ELSEIF LOCAL:5 >= 2 && LOCAL:7 >= 7
 			LOCAL:3 = UNIT_POSITION:(ARG:0):(ARG:1)
 			LOCAL:4 = UNIT_TARGET:(ARG:0):(ARG:1)
 			UNIT_POSITION:(ARG:0):(ARG:1) = LOCAL:2
@@ -209,37 +225,8 @@ IF RESULT == 0 && ARG:2 == 0
 			WAIT
 			RESTART
 
-		;停戦中の勢力への移動
-		ELSEIF LOCAL:7 == 1
-			PRINTFORMW 停戦中の勢力の都市へ部隊を移動させることはできません
-			RESTART
-
-		;現在位置と同じ場所を選択
-		ELSEIF LOCAL:2 == UNIT_POSITION:(ARG:0):(ARG:1)
-			UNIT_TARGET:(ARG:0):(ARG:1) = 0
-			PRINTFORMW 目標の設定を解除します
-			RESTART
-
-		;連合に参加している場合
-		ELSEIF LOCAL:6 > 0
-			;部隊の現在位置に隣接した都市を選択
-			IF IS_ROOT(LOCAL:2, UNIT_POSITION:(ARG:0):(ARG:1))
-				;現在いる都市が自勢力／有効勢力／連合の対象敵勢力／中継地点のいずれでもない場合
-				IF LOCAL:5 <= 1 && CITY_OWNER:(UNIT_POSITION:(ARG:0):(ARG:1)) != LOCAL:6
-					;このときは自由に移動可能(ハマり防止)
-					UNIT_TARGET:(ARG:0):(ARG:1) = LOCAL:2
-					PRINTFORMW 目標を%GET_RELAYNAME(LOCAL:2)%に設定します
-					RESTART
-				;それ以外は、選択都市が自勢力／有効勢力／連合の対象敵勢力／中継地点のいずれかなら移動可能
-				ELSEIF CITY_OWNER:(LOCAL:2) == LOCAL:6 || CITY_TYPE:(LOCAL:2) == 1 || LOCAL:7 >= 2
-					UNIT_TARGET:(ARG:0):(ARG:1) = LOCAL:2
-					PRINTFORMW 目標を%GET_RELAYNAME(LOCAL:2)%に設定します
-					RESTART
-				ENDIF
-			ENDIF
-
-		;部隊の現在位置に隣接した都市を選択
-		ELSEIF IS_ROOT(LOCAL:2, UNIT_POSITION:(ARG:0):(ARG:1))
+		;敵対する（攻め込める）都市を選択
+		ELSEIF IS_INVADABLE(LOCAL:2, UNIT_POSITION:(ARG:0):(ARG:1))
 			UNIT_TARGET:(ARG:0):(ARG:1) = LOCAL:2
 			PRINTFORMW 目標を%GET_RELAYNAME(LOCAL:2)%に設定します
 			RESTART
@@ -306,16 +293,18 @@ ELSEIF RESULT == 3 && LOCAL:5 >= 2
 ;強制解散
 ELSEIF RESULT == 4 && LOCAL:5 < 2
 	PRINTFORML 部隊{ARG:1 + 1}を戦線から離脱させ、解散させます
-	PRINTFORML 解散までに3期掛かります。宜しいですか？
+	PRINTFORML 兵は戻らず、武将に3ターンのクールタイムがつきます。よろしいですか？
 	CALL ASK_YN
 	IF RESULT == 0
-		UNIT_POSITION:(ARG:0):(ARG:1) = 0
-		UNIT_TARGET:(ARG:0):(ARG:1) = 0
-		UNIT_BREAK_TERM:(ARG:0):(ARG:1) = 3
+		UNIT_SOLDIER:(ARG:0):(ARG:1) = 0
+		FOR LOCAL, 0, GET_UNIT_COMMANDER_NUM(ARG:0, ARG:1)
+			LOCAL:1 = UNIT_COMMANDER:(ARG:0):(ARG:1)
+			CALL ADD_COOLTIME(LOCAL:1, 3)
+		NEXT
+		CALL CLEAR_UNIT(ARG:0, ARG:1)
 		RETURN
 	ENDIF
 	RESTART
-
 ELSEIF RESULT == 9
 	RETURN
 ENDIF
@@ -588,13 +577,17 @@ GOTO INPUT_LOOP2
 ;-------------------------------------------------
 ;ARG:0勢力のARG:1番に部隊を新規作成
 ;-------------------------------------------------
-@CREATE_UNIT(ARG:0, ARG:1)
+@CREATE_UNIT(ARG:0, ARG:1, ARG:2 = 0)
 DRAWLINE
 CALL SET_CITY_COLOR_COUNTRY
 CALL SET_CITY_COLOR_UNIT
 CALL DRAWMAP
 CALL RESET_CITY_COLOR
 DRAWLINE
+
+SIF ARG:2 != 0
+	GOTO POSITIONING_CANCEL
+
 PRINTL 部隊を編成する都市を設定して下さい
 PRINTBUTTON " 0[キャンセル]", 0
 PRINTL 
@@ -616,6 +609,8 @@ ELSEIF RESULT >= 1001 && RESULT <= 1001 + CITY_NUM
 ELSE
 	GOTO INPUT_LOOP0
 ENDIF
+
+$POSITIONING_CANCEL
 
 DRAWLINE
 PRINTFORML 部隊の兵数を入力して下さい(残存兵数:{COUNTRY_SOLDIER:(ARG:0)})
