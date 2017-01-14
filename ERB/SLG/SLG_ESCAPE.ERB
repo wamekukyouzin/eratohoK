@@ -375,7 +375,7 @@ ELSE
 		RETURN 2
 
 	;登用を再優先(主人公はここでは処理しない)
-	ELSEIF ARG:2 != MASTER && JUDGE_ASSIGN(ARG:2, GET_COUNTRY_BOSS(ARG:1), GET_COUNTRY_BOSS(ARG:0))
+	ELSEIF ARG:2 != MASTER && JUDGE_ASSIGN(ARG:2, ARG:1, ARG:0)
 		IF ARG:2 == GET_COUNTRY_BOSS(ARG:0)
 			PRINTFORMW 君主である%NAME:(ARG:2)%は%NAME:(LOCAL:5)%の前に引きずり出された…
 			PRINTFORMW %NAME:(ARG:2)%は頭を垂れて%NAME:(LOCAL:5)%に忠誠を誓いました
@@ -537,7 +537,7 @@ INPUT
 IF RESULT == 0 && !拒否フラグ
 	拒否フラグ = 1
 	;登用に応じるかどうかを判定
-	IF JUDGE_ASSIGN(対象, GET_COUNTRY_BOSS(捕獲勢力), GET_COUNTRY_BOSS(対象勢力))
+	IF JUDGE_ASSIGN(対象, 捕獲勢力, 対象勢力)
 		CALL KOJO_EVENT(対象, 332)
 		PRINTFORMW %ANAME(対象)%を登用しました
 		CALL CHANGE_COUNTRY(対象, 捕獲勢力, 1)
@@ -607,7 +607,7 @@ ENDIF
 #DIM 対象
 
 ;登用に応じるかどうかを判定
-IF JUDGE_ASSIGN(対象, GET_COUNTRY_BOSS(捕獲勢力), GET_COUNTRY_BOSS(対象勢力))
+IF JUDGE_ASSIGN(対象, 捕獲勢力, 対象勢力)
 	CALL KOJO_EVENT(対象, 332)
 	PRINTFORMW %ANAME(対象)%を登用しました
 	CALL CHANGE_COUNTRY(対象, 捕獲勢力, 1)
@@ -807,107 +807,51 @@ ENDIF
 RETURN 0
 
 ;-------------------------------------------------
-;ARG:0番のキャラが登用に応じるかどうかを判定(ARG:1=登用側の君主のキャラ番号、ARG:2=ARG:0の君主(or 旧君主)のキャラ番号)
+;ARG:0番のキャラが登用に応じるかどうかを判定(ARG:1=登用側の勢力、ARG:2=ARG:0の所属する勢力
 ;戻り値 0=拒否 1=応じる
 ;-------------------------------------------------
-@JUDGE_ASSIGN(ARG:0, ARG:1, ARG:2)
+@JUDGE_ASSIGN(対象, 捕縛勢力, 所属勢力)
 #FUNCTION
-LOCAL:5 = GET_COUNTRY_FROM_BOSS_ID(GET_ID(ARG:1))
-LOCAL:6 = GET_COUNTRY_FROM_BOSS_ID(GET_ID(ARG:2))
-
-LOCAL:10 = 200
+#DIM 対象
+#DIM 捕縛勢力
+#DIM 所属勢力
+#DIM 捕縛君主
+#DIM 所属君主
+#DIM 基準値
+捕縛君主 = GET_COUNTRY_BOSS(捕縛勢力)
+所属君主 = GET_COUNTRY_BOSS(所属勢力)
 
 ;特殊勢力所属なら1/2で判定を無視して応じる
-SIF RAND:2 && IS_SP_COUNTRY(LOCAL:6)
-RETURNF 1
-
-;登用側の君主への好感度と敵対度の補正
-LOCAL:10 += REL_LIKE:(ARG:0):(ARG:1) * 2 - REL_HATE:(ARG:0):(ARG:1)
-
-;主人公が登用側の勢力に所属している場合
-IF CFLAG:MASTER:所属 == LOCAL:5
-	;好感度・依存度・従属度による補正
-	LOCAL:10 += (CFLAG:(ARG:0):2 + MAX(CFLAG:(ARG:0):3, 0) + MAX(CFLAG:(ARG:0):4, 0)) / 20
-	LOCAL:10 += (TALENT:(ARG:0):恋慕 != 0) * 250
-	LOCAL:10 += (TALENT:(ARG:0):親愛 != 0) * 500
-	LOCAL:10 += (TALENT:(ARG:0):服従 != 0) * 250
-	LOCAL:10 += (TALENT:(ARG:0):隷属 != 0) * 500
-	LOCAL:10 += (TALENT:(ARG:0):親友 != 0) * 150
-	LOCAL:10 += (TALENT:(ARG:0):恋人 != 0) * 80
-	LOCAL:10 += (TALENT:(ARG:0):烙印 != 0) * 80
-ENDIF
-
-;自身が君主の場合
-IF ARG:0 == ARG:2
-	LOCAL:10 -= 200
-
-;君主が不在／死亡した場合
-ELSEIF ARG:2 < 0 || CFLAG:(ARG:2):特殊状態 == 2
-	LOCAL:10 += 200
-
-;君主が存命中で登用側の勢力に仕えている場合
-ELSEIF CFLAG:(ARG:2):所属 == LOCAL:5
-	;現在の君主への好感度と敵対度の補正(＋補正)
-	LOCAL:10 += REL_LIKE:(ARG:0):(ARG:2) * 2 - REL_HATE:(ARG:0):(ARG:2)
-
-	;主人公がARG:0の君主であるか、主人公がARG:0と同じ勢力に所属している場合
-	IF ARG:2 == MASTER || (LOCAL:6 >= 1 && CFLAG:MASTER:所属 == LOCAL:6)
-		;好感度・依存度・従属度による補正(＋補正)
-		LOCAL:10 += (CFLAG:(ARG:0):2 + MAX(CFLAG:(ARG:0):3, 0) + MAX(CFLAG:(ARG:0):4, 0)) / 20
-		LOCAL:10 += (TALENT:(ARG:0):恋慕 != 0) * 250
-		LOCAL:10 += (TALENT:(ARG:0):親愛 != 0) * 500
-		LOCAL:10 += (TALENT:(ARG:0):服従 != 0) * 250
-		LOCAL:10 += (TALENT:(ARG:0):隷属 != 0) * 500
-		LOCAL:10 += (TALENT:(ARG:0):親友 != 0) * 150
-		LOCAL:10 += (TALENT:(ARG:0):恋人 != 0) * 80
-		LOCAL:10 += (TALENT:(ARG:0):烙印 != 0) * 80
-	ENDIF
-
-	;君主の素質による補正
-	LOCAL:10 += (TALENT:(ARG:2):謎の魅力 != 0) * 80
-	LOCAL:10 += (TALENT:(ARG:2):魅惑 != 0) * 40
-	LOCAL:10 += (TALENT:(ARG:2):人気 != 0) * 40
-
-;君主が存命中で登用側の勢力に仕えていない場合
-ELSE
-	;現在の君主への好感度と敵対度の補正(－補正)
-	LOCAL:10 -= REL_LIKE:(ARG:0):(ARG:2) * 2 - REL_HATE:(ARG:0):(ARG:2)
-
-	;主人公がARG:0の君主であるか、主人公がARG:0と同じ勢力に所属している場合
-	IF ARG:2 == MASTER || (LOCAL:6 >= 1 && CFLAG:MASTER:所属 == LOCAL:6)
-		;好感度・依存度・従属度による補正(－補正)
-		LOCAL:10 -= (CFLAG:(ARG:0):2 + MAX(CFLAG:(ARG:0):3, 0) + MAX(CFLAG:(ARG:0):4, 0)) / 20
-		LOCAL:10 -= (TALENT:(ARG:0):恋慕 != 0) * 250
-		LOCAL:10 -= (TALENT:(ARG:0):親愛 != 0) * 500
-		LOCAL:10 -= (TALENT:(ARG:0):服従 != 0) * 250
-		LOCAL:10 -= (TALENT:(ARG:0):隷属 != 0) * 500
-		LOCAL:10 -= (TALENT:(ARG:0):親友 != 0) * 150
-		LOCAL:10 -= (TALENT:(ARG:0):恋人 != 0) * 80
-		LOCAL:10 -= (TALENT:(ARG:0):烙印 != 0) * 80
-	ENDIF
-
-	;君主の素質による補正
-	LOCAL:10 -= (TALENT:(ARG:2):謎の魅力 != 0) * 80
-	LOCAL:10 -= (TALENT:(ARG:2):魅惑 != 0) * 40
-	LOCAL:10 -= (TALENT:(ARG:2):人気 != 0) * 40
-ENDIF
-
-;本人の素質による補正
-LOCAL:10 += (TALENT:(ARG:0):臆病 != 0) * 50
-LOCAL:10 -= (TALENT:(ARG:0):反抗的 != 0) * 70
-LOCAL:10 -= (TALENT:(ARG:0):気丈 != 0) * 50
-LOCAL:10 -= (TALENT:(ARG:0):プライド高い != 0) * 100
-LOCAL:10 += (TALENT:(ARG:0):プライド低い != 0) * 100
-LOCAL:10 -= (TALENT:(ARG:0):自制心 != 0) * 70
-LOCAL:10 -= (TALENT:(ARG:0):献身的 != 0) * 50
-
-;登用側の君主の素質による補正
-LOCAL:10 += (TALENT:(ARG:1):謎の魅力 != 0) * 100
-LOCAL:10 += (TALENT:(ARG:1):魅惑 != 0) * 60
-LOCAL:10 += (TALENT:(ARG:1):人気 != 0) * 60
-
-;判定値が0以上なら登用に応じる
-IF LOCAL:10 >= 0
+SIF RAND:2 && IS_SP_COUNTRY(所属勢力)
 	RETURNF 1
+
+;登用側が特殊勢力で、特殊勢力に堕ちていないなら却下する
+SIF RAND:2 && IS_SP_COUNTRY(捕縛勢力) && !IS_FALLEN_TO_SP_COUNTRY(対象)
+	RETURNF 0
+
+;基本は30%。1000分率
+基準値 = 3000
+
+;登用側への君主の好感度・敵対度で補正する
+基準値 += REL_LIKE:対象:捕縛君主 * 2 - REL_HATE:対象:捕縛君主
+
+;所属側への好感度・敵対度で補正する
+基準値 -= REL_LIKE:対象:所属君主 * 3 - REL_HATE:対象:所属君主
+
+;主人公が登用側
+IF CFLAG:MASTER:所属 == 捕縛勢力
+	基準値 += MAX(CFLAG:対象:好感度, CFLAG:対象:依存度, CFLAG:対象:従属度)
+;主人公が所属側
+ELSEIF CFLAG:MASTER:所属 == 所属勢力
+	基準値 -= MAX(CFLAG:対象:好感度, CFLAG:対象:依存度, CFLAG:対象:従属度)
 ENDIF
-RETURNF 0
+
+;自分が君主
+IF 対象 == 所属君主
+	基準値 -= 1000
+;所属無
+ELSEIF 所属勢力 == 0
+	基準値 += 2000
+ENDIF
+
+RETURNF RAND:10000 < 基準値
