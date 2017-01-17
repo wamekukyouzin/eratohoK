@@ -722,7 +722,7 @@ LOCAL:5 = GET_COUNTRY_BOSS(ARG:0)
 
 PRINTFORMW %ANAME(MASTER)%は%NAME:(LOCAL:5)%に対して、人質をよこせと要求した
 
-CALL DIPLOMACY_REQUEST_COMMON(ARG:0, 50)
+CALL DIPLOMACY_REQUEST_COMMON(ARG:0, 70)
 LOCAL:2 = RESULT
 SIF LOCAL:2 <= 0
 	RETURN 0
@@ -902,7 +902,7 @@ ENDIF
 
 PRINTFORMW %ANAME(MASTER)%は%NAME:(LOCAL:5)%に対して、体を好きにさせろと要求した
 
-CALL DIPLOMACY_REQUEST_COMMON(ARG:0, 60, 1)
+CALL DIPLOMACY_REQUEST_COMMON(ARG:0, 80, 1)
 LOCAL:2 = RESULT
 SIF LOCAL:2 <= 0
 	RETURN 0
@@ -912,6 +912,147 @@ PRINTFORML %NAME:(LOCAL:5)%が「捕虜の調教」メニューから調教可�
 RESETCOLOR
 PRINTFORMW (条件を満たしている間は常に調教可能になります)
 CFLAG:(LOCAL:5):外交調教経過ターン = 1
+
+;-------------------------------------------------
+;部下を調教する
+;-------------------------------------------------
+@DIPLOMACY_REQUEST_TRAIN_BUKA(ARG:0)
+#DIM FIRST_LINE
+LOCAL:4 = GET_COUNTRY_BOSS(CFLAG:MASTER:所属)
+LOCAL:5 = GET_COUNTRY_BOSS(ARG:0)
+
+IF COUNTRY_EVENT_ID:(ARG:0) == SP_COUNTRY_ID:(特殊勢力_野盗)
+	PRINTFORMW 野盗は突っぱねてきました
+	RETURN 0
+ENDIF
+
+
+PRINTFORMW %ANAME(MASTER)%は%ANAME(LOCAL:5)%に対して、部下を調教させろと要求した
+
+CALL DIPLOMACY_REQUEST_COMMON(ARG:0, 60, 1)
+LOCAL:2 = RESULT
+SIF LOCAL:2 <= 0
+	RETURN 0
+
+
+
+;ページ数を計算
+LOCAL:12 = (24 - LOCAL:20) * 2
+LOCAL:10 = 0
+FOR LOCAL:0, 0, CHARANUM
+	SIF CFLAG:(LOCAL:0):所属 == ARG:0 && CFLAG:(LOCAL:0):捕虜先 == 0 && LOCAL:0 != LOCAL:5　&& !IS_SP_CHARA(LOCAL:0)
+		LOCAL:10 ++
+NEXT
+LOCAL:10 = MAX((LOCAL:10 - 1) / LOCAL:12 + 1, 1)
+LOCAL:11 = 1
+
+$SHOW_LOOP1
+
+DRAWLINE
+PRINTL 調教するキャラを選んで下さい
+DRAWLINEF
+FIRST_LINE = LINECOUNT
+$SHOW_LOOP2
+
+;キャラリストの表示
+LOCAL:13 = 0
+LOCAL:14 = 0
+LOCAL:15 = (LOCAL:11 - 1) * LOCAL:12
+LOCAL:16 = LOCAL:11 * LOCAL:12
+LOCAL:17 = 0
+FOR LOCAL:0, 0, CHARANUM
+	IF CFLAG:(LOCAL:0):所属 == ARG:0 && CFLAG:(LOCAL:0):捕虜先 == 0 && LOCAL:0 != LOCAL:5　&& !IS_SP_CHARA(LOCAL:0)
+		IF LOCAL:13 >= LOCAL:15 && LOCAL:13 < LOCAL:16
+			IF LOCAL:14 % 2 != 0
+				PRINTPLAIN 　
+			ELSEIF LOCAL:14 >= 1
+				PRINTL 
+				LOCAL:17 ++
+			ENDIF
+			CALL PRINT_PARTNER_DATA(LOCAL:0)
+			LOCAL:14 ++
+		ENDIF
+		LOCAL:13 ++
+	ENDIF
+NEXT
+IF LOCAL:14 >= 1
+	PRINTL 
+	LOCAL:17 ++
+ENDIF
+
+IF LOCAL:10 >= 2
+	LOCAL:17 += 2
+	DRAWLINE
+	PRINTPLAIN   
+	IF LOCAL:11 >= 2
+		PRINTBUTTON "54[前のページ]", 54
+	ELSE
+		SETCOLOR COLOR("選択不可")
+		PRINTPLAIN 54[前のページ]
+		RESETCOLOR
+	ENDIF
+	PRINTFORM           page{LOCAL:11, 2, RIGHT}/{LOCAL:10, 2, LEFT}         
+	IF LOCAL:11 < LOCAL:10
+		PRINTBUTTON "56[次のページ]", 56
+	ELSE
+		SETCOLOR COLOR("選択不可")
+		PRINTPLAIN 56[次のページ]
+		RESETCOLOR
+	ENDIF
+	PRINTL 
+ENDIF
+
+DRAWLINE
+PRINT    
+PRINTBUTTON "0[キャンセル]", 0
+PRINTL 
+
+REDRAW 0
+
+$INPUT_LOOP
+INPUT
+
+IF RESULT == 0
+	REDRAW 1
+	RETURN 0
+ELSEIF RESULT == 54
+	LOCAL:11 = MAX(LOCAL:11 - 1, 1)
+	CLEARLINE LINECOUNT - FIRST_LINE
+	GOTO SHOW_LOOP2
+ELSEIF RESULT == 56
+	LOCAL:11 = MIN(LOCAL:11 + 1, LOCAL:10)
+	CLEARLINE LINECOUNT - FIRST_LINE
+	GOTO SHOW_LOOP2
+ELSE
+	LOCAL:30 = NO_TO_CHARA(RESULT - 100)
+	IF LOCAL:30 >= 0 && CFLAG:(LOCAL:30):所属 == ARG:0 && CFLAG:(LOCAL:30):捕虜先 == 0 && LOCAL:30 != LOCAL:5　&& !IS_SP_CHARA(LOCAL:30)
+		DRAWLINE
+		CALL SHOW_INFO(LOCAL:30)
+		DRAWLINE
+		PRINTL このキャラを調教しますか？
+		CALL ASK_YN()
+		IF RESULT == 0
+			SETCOLOR COLOR("注意")
+			PRINTFORML %ANAME(LOCAL:30)%が「捕虜の調教」メニューから調教可能になりました
+			RESETCOLOR
+			PRINTFORMW (条件を満たしている間は常に調教可能になります)
+			CFLAG:(LOCAL:30):外交調教経過ターン = 1
+			REDRAW 1
+			;快楽で言うことを聞かせた場合、ご褒美の処理
+			SIF LOCAL:2 == 2
+				CALL DIPLOMACY_REQUEST_PRIZE(ARG:0)
+			;薬物で言うことを聞かせた場合、ドラッグの処理
+			SIF LOCAL:2 == 3
+				CALL DIPLOMACY_REQUEST_DRUG(ARG:0)
+			RETURN 1
+		ELSE
+			REDRAW 1
+			GOTO SHOW_LOOP1
+		ENDIF
+	ENDIF
+ENDIF
+CLEARLINE 1
+GOTO INPUT_LOOP
 
 ;-------------------------------------------------
 ;外交による調教要求フラグの解除判定
@@ -927,14 +1068,15 @@ CALL TMP_CREATE_POLITICS_POWER_MAP
 FOR LOCAL:0, 0, CHARANUM
 	IF CFLAG:(LOCAL:0):外交調教経過ターン
 		;対象が他勢力の君主でなければ解除
-		IF CFLAG:MASTER:所属 == CFLAG:(LOCAL:0):所属 || GET_COUNTRY_BOSS(CFLAG:(LOCAL:0):所属) != LOCAL:0
-			CFLAG:(LOCAL:0):外交調教経過ターン = 0
-			PRINTL 
-			SETCOLOR COLOR("注意")
-			PRINTFORMW %ANAME(LOCAL:0)%が他勢力の君主ではなくなったため、「捕虜の調教」の調教対象から外れました…
-			RESETCOLOR
-			CONTINUE
-		ENDIF
+		;君主以外も調教できるようになった都合、廃止
+		;IF CFLAG:MASTER:所属 == CFLAG:(LOCAL:0):所属 || GET_COUNTRY_BOSS(CFLAG:(LOCAL:0):所属) != LOCAL:0
+		;	CFLAG:(LOCAL:0):外交調教経過ターン = 0
+		;	PRINTL 
+		;	SETCOLOR COLOR("注意")
+		;	PRINTFORMW %ANAME(LOCAL:0)%が他勢力の君主ではなくなったため、「捕虜の調教」の調教対象から外れました…
+		;	RESETCOLOR
+		;	CONTINUE
+		;ENDIF
 
 		;あなたがいずれの勢力にも属していなければ解除
 		;IS_COUNTRYの性質上、領土のない野盗に所属している場合は解除されず
@@ -952,15 +1094,15 @@ FOR LOCAL:0, 0, CHARANUM
 		;【条件A】国力による重圧に屈している
 		;強要時より基礎判定値は下げています
 		;好感度による難易度補正の都合上判定値を引き下げ、ついでにターン経過とともに難易度が上がるように
-		SIF DIPLOMACY_REQUEST_CHECK(CFLAG:MASTER:所属, CFLAG:(LOCAL:0):所属, 30 + CFLAG:(LOCAL:0):外交調教経過ターン * 2, 1)
+		SIF DIPLOMACY_REQUEST_CHECK(CFLAG:MASTER:所属, CFLAG:(LOCAL:0):所属, 30 + CFLAG:(LOCAL:0):外交調教経過ターン * 2)
 			SETBIT TRAIN_FLAG , 0
 
-		;【条件B】隷従系陥落素質の所持、もしくは被虐の悦楽に染まり「ご褒美」のために体を売った
-		SIF TALENT:(LOCAL:0):烙印 || TALENT:(LOCAL:0):服従 || TALENT:(LOCAL:0):隷属 || (GETBIT(TALENT:(LOCAL:0):淫乱系, 素質_淫乱_マゾ) && TALENT:(LOCAL:0):恋慕) && CFLAG:(LOCAL:0):外交要求成功フラグ == 2
+		;【条件B】隷従系陥落素質の所持、もしくは君主で被虐の悦楽に染まり「ご褒美」のために体を売った
+		SIF TALENT:(LOCAL:0):烙印 || TALENT:(LOCAL:0):服従 || TALENT:(LOCAL:0):隷属 || (GET_COUNTRY_BOSS(CFLAG:(LOCAL:0)) == LOCAL:0) && (GETBIT(TALENT:(LOCAL:0):淫乱系, 素質_淫乱_マゾ) && TALENT:(LOCAL:0):恋慕) && CFLAG:(LOCAL:0):外交要求成功フラグ == 2
 			SETBIT TRAIN_FLAG , 1
 
-		;【条件C】薬キメにハマって薬のために体を売っていた（ぉ
-		SIF CFLAG:(LOCAL:0):薬物依存 >= REL_HATE:(LOCAL:0):(MASTER) && CFLAG:(LOCAL:0):外交要求成功フラグ == 3
+		;【条件C】君主であり、薬キメにハマって薬のために体を売っていた（ぉ
+		SIF LOCAL:0 == GET_COUNTRY_BOSS(CFLAG:(LOCAL:0):所属) && CFLAG:(LOCAL:0):薬物依存 >= REL_HATE:(LOCAL:0):(MASTER) && CFLAG:(LOCAL:0):外交要求成功フラグ == 3
 			SETBIT TRAIN_FLAG , 2
 
 		;【条件A】【条件B】【条件C】のいずれも満たさずターンが経過していたら外れる
