@@ -1762,7 +1762,7 @@ PRINTPLAIN
 IF CFLAG:(ARG:0):外交調教経過ターン
 	PRINTBUTTON " 1[許してやる]", 1
 	SIF IS_FEMALE(ARG:0)
-		PRINTBUTTON " 2[パレード]", 2
+		PRINTBUTTON " 2[みせしめ]", 2
 ELSE
 	PRINTBUTTON " 1[牢屋から出す]", 1
 	PRINTPLAIN  
@@ -1862,13 +1862,53 @@ ELSEIF RESULT == 2 && !FLAG:クリアフラグ && !CFLAG:(ARG:0):外交調教経
 ;パレード
 ELSEIF RESULT == 2 && !FLAG:クリアフラグ && CFLAG:(ARG:0):外交調教経過ターン && IS_FEMALE(ARG:0)
 	REDRAW 1
-	CALL PARADE(ARG:0)
-	CALL KOJO_EVENT(ARG:0, 346)
-	CFLAG:(ARG:0):行動済み = 1
-	LINES_SHOP = LINECOUNT
-	PRISONER_TARGET:(FINDELEMENT(PRISONER_TARGET, ARG:0)) = -1
-	SHOP_TIME += 1
-	BEGIN TURNEND
+
+	CFLAG:(ARG:0):調教参加フラグ = 1
+	CFLAG:(ARG:0):能力固定フラグ = 1
+	CFLAG:(ARG:0):強制友好化 = 1
+
+	;全員の慰安モブフラグをクリア（あてがうメニューで操作されるため）
+	CVARSET CFLAG, GETNUM(CFLAG, "慰安モブ") , 0
+
+	LOCAL:1 = RAND(3, 6) - LOCAL:2
+	FOR LOCAL, 0, LOCAL:1
+		CALL CREATE_IAN_MOB(慰安_行き先_一般住宅街, LOCAL + 1)
+		SIF RESULT == -1
+			BREAK
+	NEXT
+
+	FLAG:あてがうフラグ = 0
+	FLAG:慰安場所 = 慰安_行き先_一般住宅街
+	ITEM:A_ローター = 1
+	ITEM:A_バイブ = 1
+	ITEM:A_アナルバイブ = 1
+	ITEM:A_ペニスバンド = 1
+	ITEM:A_オナホール = 1
+	ITEM:A_クリキャップ = 1
+	ITEM:A_ニプルキャップ = 1
+	ITEM:A_麻薬 = 99
+	ITEM:A_縄 = 1
+	ITEM:A_鞭 = 1
+	ITEM:A_目隠し = 1
+	ITEM:A_口枷 = 1
+	ITEM:A_鼻フック = 1
+	ITEM:A_マジック = 1
+	ITEM:A_ローション = 99
+	ITEM:A_コンドーム = 99
+	ITEM:A_媚薬 = 99
+	ITEM:A_排卵誘発剤 = 99
+	ITEM:A_桃源香 = 99
+	FLAG:調教モード = 7
+	;ウフフフラグをONに
+	FLAG:ウフフフラグ = 1
+
+	PRINTFORMW 裸にした%ANAME(ARG:0)%を町の広場まで連れてきた
+	PRINTFORMW 領民を慰めるのに、せいぜい役立ってもらうとしよう……
+
+	;行動開始時の共通処理
+	CALL START_TRAIN_COMMON
+	RETURN 1
+
 ELSEIF RESULT == 3 && !CFLAG:(ARG:0):外交調教経過ターン
 	IF TALENT:(ARG:0):妊娠
 		PRINTFORMW 妊娠中のキャラは性奴隷にすることが出来ません
