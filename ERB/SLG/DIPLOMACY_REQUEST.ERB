@@ -950,7 +950,7 @@ $SHOW_LOOP1
 
 DRAWLINE
 PRINTL 調教するキャラを選んで下さい
-DRAWLINEF
+DRAWLINE
 FIRST_LINE = LINECOUNT
 $SHOW_LOOP2
 
@@ -1066,60 +1066,68 @@ CALL TMP_CREATE_SUM_SOLDIER_MAP
 CALL TMP_CREATE_POLITICS_POWER_MAP
 
 FOR LOCAL:0, 0, CHARANUM
-	IF CFLAG:(LOCAL:0):外交調教経過ターン
-		;対象が他勢力の君主でなければ解除
-		;君主以外も調教できるようになった都合、廃止
-		;IF CFLAG:MASTER:所属 == CFLAG:(LOCAL:0):所属 || GET_COUNTRY_BOSS(CFLAG:(LOCAL:0):所属) != LOCAL:0
-		;	CFLAG:(LOCAL:0):外交調教経過ターン = 0
-		;	PRINTL 
-		;	SETCOLOR COLOR("注意")
-		;	PRINTFORMW %ANAME(LOCAL:0)%が他勢力の君主ではなくなったため、「捕虜の調教」の調教対象から外れました…
-		;	RESETCOLOR
-		;	CONTINUE
-		;ENDIF
+	SIF !CFLAG:(LOCAL:0):外交調教経過ターン
+		CONTINUE
 
-		;あなたがいずれの勢力にも属していなければ解除
-		;IS_COUNTRYの性質上、領土のない野盗に所属している場合は解除されず
-		IF !IS_COUNTRY(CFLAG:MASTER:所属)
-			CFLAG:(LOCAL:0):外交調教経過ターン = 0
-			PRINTL
-			SETCOLOR COLOR("注意")
-			PRINTFORMW %ANAME(LOCAL:0)%はあなたが無所属となったため、「捕虜の調教」の調教対象から外れました…
-			RESETCOLOR
-			CONTINUE
-		ENDIF
-
-		TRAIN_FLAG = 0
-
-		;【条件A】国力による重圧に屈している
-		;強要時より基礎判定値は下げています
-		;好感度による難易度補正の都合上判定値を引き下げ、ついでにターン経過とともに難易度が上がるように
-		SIF DIPLOMACY_REQUEST_CHECK(CFLAG:MASTER:所属, CFLAG:(LOCAL:0):所属, 30 + CFLAG:(LOCAL:0):外交調教経過ターン * 2)
-			SETBIT TRAIN_FLAG , 0
-
-		;【条件B】隷従系陥落素質の所持、もしくは君主で被虐の悦楽に染まり「ご褒美」のために体を売った
-		SIF TALENT:(LOCAL:0):烙印 || TALENT:(LOCAL:0):服従 || TALENT:(LOCAL:0):隷属 || (GET_COUNTRY_BOSS(CFLAG:(LOCAL:0)) == LOCAL:0) && (GETBIT(TALENT:(LOCAL:0):淫乱系, 素質_淫乱_マゾ) && TALENT:(LOCAL:0):恋慕) && CFLAG:(LOCAL:0):外交要求成功フラグ == 2
-			SETBIT TRAIN_FLAG , 1
-
-		;【条件C】君主であり、薬キメにハマって薬のために体を売っていた（ぉ
-		SIF LOCAL:0 == GET_COUNTRY_BOSS(CFLAG:(LOCAL:0):所属) && CFLAG:(LOCAL:0):薬物依存 >= REL_HATE:(LOCAL:0):(MASTER) && CFLAG:(LOCAL:0):外交要求成功フラグ == 3
-			SETBIT TRAIN_FLAG , 2
-
-		;【条件A】【条件B】【条件C】のいずれも満たさずターンが経過していたら外れる
-		IF !TRAIN_FLAG && CFLAG:(LOCAL:0):外交調教経過ターン > 4
-			CFLAG:(LOCAL:0):外交調教経過ターン = 0
-			PRINTL 
-			PRINTFORML %ANAME(LOCAL:0)%はこれ以上%ANAME(MASTER)%に体を許すつもりはないと通告してきた…
-			SETCOLOR COLOR("注意")
-			PRINTFORMW %ANAME(LOCAL:0)%が「捕虜の調教」の調教対象から外れました…
-			RESETCOLOR
-			CONTINUE
-		ENDIF
-		
-		DEBUGPRINTFORML %ANAME(LOCAL:0)%:外交調教継続({CFLAG:(LOCAL:0):外交調教経過ターン}ターン目)
-		SIF CFLAG:(LOCAL:0):外交調教経過ターン
-			CFLAG:(LOCAL:0):外交調教経過ターン ++
+	IF !IS_COUNTRY(CFLAG:(LOCAL:0):所属)
+		CFLAG:(LOCAL:0):外交調教経過ターン = 0
+		PRINTL 
+		SETCOLOR COLOR("注意")
+		PRINTFORMW %ANAME(LOCAL:0)%がどこにも所属しなくなったため、「捕虜の調教」の調教対象から外れました…
+		RESETCOLOR
+		CONTINUE
 	ENDIF
+
+	IF CFLAG:(LOCAL:0):所属 == CFLAG:MASTER:所属
+		CFLAG:(LOCAL:0):外交調教経過ターン = 0
+		PRINTL 
+		SETCOLOR COLOR("注意")
+		PRINTFORMW %ANAME(LOCAL:0)%が%ANAME(MASTER)%と所属を同じくするようになったので、「捕虜の調教」の調教対象から外れました…
+		RESETCOLOR
+		CONTINUE
+	ENDIF
+
+	;あなたがいずれの勢力にも属していなければ解除
+	;IS_COUNTRYの性質上、領土のない野盗に所属している場合は解除されず
+	IF !IS_COUNTRY(CFLAG:MASTER:所属)
+		CFLAG:(LOCAL:0):外交調教経過ターン = 0
+		PRINTL
+		SETCOLOR COLOR("注意")
+		PRINTFORMW %ANAME(LOCAL:0)%はあなたが無所属となったため、「捕虜の調教」の調教対象から外れました…
+		RESETCOLOR
+		CONTINUE
+	ENDIF
+
+	TRAIN_FLAG = 0
+
+	;【条件A】国力による重圧に屈している
+	;強要時より基礎判定値は下げています
+	;好感度による難易度補正の都合上判定値を引き下げ、ついでにターン経過とともに難易度が上がるように
+	SIF DIPLOMACY_REQUEST_CHECK(CFLAG:MASTER:所属, CFLAG:(LOCAL:0):所属, 30 + CFLAG:(LOCAL:0):外交調教経過ターン * 2)
+		SETBIT TRAIN_FLAG , 0
+
+	;【条件B】隷従系陥落素質の所持、もしくは君主で被虐の悦楽に染まり「ご褒美」のために体を売った
+	SIF TALENT:(LOCAL:0):烙印 || TALENT:(LOCAL:0):服従 || TALENT:(LOCAL:0):隷属 || (GET_COUNTRY_BOSS(CFLAG:(LOCAL:0)) == LOCAL:0) && (GETBIT(TALENT:(LOCAL:0):淫乱系, 素質_淫乱_マゾ) && TALENT:(LOCAL:0):恋慕) && CFLAG:(LOCAL:0):外交要求成功フラグ == 2
+		SETBIT TRAIN_FLAG , 1
+
+	;【条件C】君主であり、薬キメにハマって薬のために体を売っていた（ぉ
+	SIF LOCAL:0 == GET_COUNTRY_BOSS(CFLAG:(LOCAL:0):所属) && CFLAG:(LOCAL:0):薬物依存 >= REL_HATE:(LOCAL:0):(MASTER) && CFLAG:(LOCAL:0):外交要求成功フラグ == 3
+		SETBIT TRAIN_FLAG , 2
+
+	;【条件A】【条件B】【条件C】のいずれも満たさずターンが経過していたら外れる
+	IF !TRAIN_FLAG && CFLAG:(LOCAL:0):外交調教経過ターン > 4
+		CFLAG:(LOCAL:0):外交調教経過ターン = 0
+		PRINTL 
+		PRINTFORML %ANAME(LOCAL:0)%はこれ以上%ANAME(MASTER)%に体を許すつもりはないと通告してきた…
+		SETCOLOR COLOR("注意")
+		PRINTFORMW %ANAME(LOCAL:0)%が「捕虜の調教」の調教対象から外れました…
+		RESETCOLOR
+		CONTINUE
+	ENDIF
+	
+	DEBUGPRINTFORML %ANAME(LOCAL:0)%:外交調教継続({CFLAG:(LOCAL:0):外交調教経過ターン}ターン目)
+	SIF CFLAG:(LOCAL:0):外交調教経過ターン
+		CFLAG:(LOCAL:0):外交調教経過ターン ++
 NEXT
 
 ;-------------------------------------------------
