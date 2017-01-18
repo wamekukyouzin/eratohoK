@@ -30,6 +30,8 @@ FOR 計画, 0, AI_DIPLOMACY_PROPERTY:(COUNTRY_AI_TYPE:勢力):AI_外交_行動�
 			CALL SLG_DIPLOMACY_CREATE_SCANDAL(勢力, AI_DIPLOMACY_TARGET:勢力:計画)
 		CASE AI_外交計画_連合
 			CALL SLG_DIPLOMACY_CREATE_UNION(勢力, AI_DIPLOMACY_TARGET:勢力:計画)
+		CASE AI_外交計画_要求
+			CALL SLG_DIPLOMACY_REQUEST(勢力, AI_DIPLOMACY_TARGET:勢力:計画)
 	ENDSELECT
 NEXT
 
@@ -53,7 +55,8 @@ NEXT
 #DIM CONST 理由_嫌い = 1
 #DIM CONST 理由_好かれ = 2
 #DIM CONST 理由_嫌われ = 3
-#DIM CONST 理由_経済 = 4
+#DIM CONST 理由_経済強い = 4
+#DIM CONST 理由_経済弱い = 5
 VARSET 勢力リスト
 VARSET 関係性リスト, 1500
 VARSET 逆関係性リスト, 1500
@@ -94,21 +97,24 @@ FOR 計画, 0, MIN(AI_DIPLOMACY_PROPERTY:(COUNTRY_AI_TYPE:勢力):AI_外交_行�
 	SIF 勢力数 <= 0
 		BREAK
 	SELECTCASE RAND:100
-		CASE IS < 15
+		CASE IS < 10
 			勢力インデックス = FINDELEMENT(逆関係性リスト, MAXARRAY(逆関係性リスト, 0, 勢力数), 0, 勢力数 + 1)
 			理由 = 理由_好かれ
-		CASE IS < 40
+		CASE IS < 30
 			勢力インデックス = FINDELEMENT(逆関係性リスト, MINARRAY(逆関係性リスト, 0, 勢力数), 0, 勢力数 + 1)
 			理由 = 理由_嫌われ
-		CASE IS < 65
+		CASE IS < 50
 			勢力インデックス = FINDELEMENT(関係性リスト, MAXARRAY(関係性リスト, 0, 勢力数), 0, 勢力数 + 1)
 			理由 = 理由_好き
-		CASE IS < 80
+		CASE IS < 75
 			勢力インデックス = FINDELEMENT(関係性リスト, MINARRAY(関係性リスト, 0, 勢力数), 0, 勢力数 + 1)
 			理由 = 理由_嫌い
+		CASE IS < 90
+			勢力インデックス = FINDELEMENT(経済力リスト, MAXARRAY(経済力リスト, 0, 勢力数), 0, 勢力数 + 1)
+			理由 = 理由_経済強い
 		CASEELSE
-			勢力インデックス = FINDELEMENT(経済力リスト, MINARRAY(経済力リスト, 0, 勢力数), 0, 勢力数 + 1)
-			理由 = 理由_経済
+			勢力インデックス = FINDELEMENT(経済力リスト, MAXARRAY(経済力リスト, 0, 勢力数), 0, 勢力数 + 1)
+			理由 = 理由_経済弱い
 	ENDSELECT
 
 	相手勢力 = 勢力リスト:勢力インデックス
@@ -150,7 +156,7 @@ FOR 計画, 0, MIN(AI_DIPLOMACY_PROPERTY:(COUNTRY_AI_TYPE:勢力):AI_外交_行�
 					CALL CLEAR_AI_DIPLOMACY_PLAN(勢力, 相手勢力)
 				ENDIF
 			ENDIF
-		CASE 理由_経済
+		CASE 理由_経済強い
 			IF REL_HATE:GET_COUNTRY_BOSS(勢力):GET_COUNTRY_BOSS(相手勢力) > REL_LIKE:GET_COUNTRY_BOSS(勢力):GET_COUNTRY_BOSS(相手勢力) + 300 && SLG_AI_DIPLOMACY_DOES_CREATE_UNION(勢力, 相手勢力)
 				AI_DIPLOMACY_PLAN:勢力:計画 = AI_外交計画_連合
 			ELSE
@@ -171,8 +177,28 @@ FOR 計画, 0, MIN(AI_DIPLOMACY_PROPERTY:(COUNTRY_AI_TYPE:勢力):AI_外交_行�
 					ENDIF
 				ENDIF
 			ENDIF
+		CASE 理由_経済弱い
+;				IF RAND:3000 < 関係性リスト:勢力インデックス
+;					SELECTCASE IFRAND("0TO74", 1, "75TO89", 逆関係性リスト:勢力インデックス > 1500 && TMP_COUNTRY_RELATION:勢力:相手勢力 == 0  && 勢力数 >= 2, "90TO99", 逆関係性リスト:勢力インデックス > 1800 && TMP_COUNTRY_RELATION:勢力:相手勢力 <= 2 && 勢力数 >= 2)
+;						CASE IS < 75
+;							AI_DIPLOMACY_PLAN:勢力:計画 = AI_外交計画_会談
+;						CASE IS < 90
+;							AI_DIPLOMACY_PLAN:勢力:計画 = AI_外交計画_停戦
+;						CASEELSE
+;							AI_DIPLOMACY_PLAN:勢力:計画 = AI_外交計画_同盟
+;					ENDSELECT
+;				ELSE
+					SELECTCASE RAND:100
+;					;IFRAND("0TO59", 1, "60TO89", 関係性リスト:勢力インデックス < 1200, "90TO99", 関係性リスト:勢力インデックス < 900)
+						CASE 0 TO 69
+							AI_DIPLOMACY_PLAN:勢力:計画 = AI_外交計画_会談
+						CASE 70 TO 79
+							AI_DIPLOMACY_PLAN:勢力:計画 = AI_外交計画_悪評
+						CASE 80 TO 99
+							AI_DIPLOMACY_PLAN:勢力:計画 = AI_外交計画_要求
+					ENDSELECT
+;				ENDIF
 	ENDSELECT
-
 	勢力数 --
 	;重複して登録されることがないよう消しとく
 	ARRAYSHIFT 勢力リスト,     -1, 0, 勢力インデックス
@@ -464,6 +490,107 @@ NEXT
 
 DIPLOMACY_HATE:勢力 ++
 
+
+;------------------------
+;要求
+;------------------------
+@SLG_DIPLOMACY_REQUEST(勢力, 相手勢力)
+#DIM 勢力
+#DIM 相手勢力
+#DIM 君主
+#DIM 相手勢力君主
+#DIM CONST 要求_兵士 = 0
+#DIM CONST 要求_経済 = 1
+#DIM CONST 要求_士官 = 2
+#DIMS CONST 要求内容 = "兵士", "経済", "士官"
+#DIM 内容
+#DIM 計画
+#DIM 士官, 3000
+#DIM 士官数
+#DIM 効果量
+#DIM 拒否フラグ
+
+拒否フラグ = 0
+
+君主 = GET_COUNTRY_BOSS(勢力)
+相手勢力君主 = GET_COUNTRY_BOSS(相手勢力)
+
+;通りそうにないなら戻す
+;IF !DIPLOMACY_REQUEST_CHECK(勢力, 相手勢力, 30)
+;	CALL CLEAR_AI_DIPLOMACY_PLAN(勢力, 相手勢力)
+;	RETURN
+;ENDIF
+
+
+SELECTCASE IFRAND("0TO49", 1, "50TO79", DIPLOMACY_REQUEST_CHECK(勢力, 相手勢力, 50), "80TO99", DIPLOMACY_REQUEST_CHECK(勢力, 相手勢力, 70))
+	CASE 0 TO 49
+		内容 = 要求_兵士
+		拒否フラグ = !DIPLOMACY_REQUEST_CHECK(勢力, 相手勢力, 30 + RAND(-10, 10))
+	CASE 50 TO 79
+		内容 = 要求_経済
+		拒否フラグ = !DIPLOMACY_REQUEST_CHECK(勢力, 相手勢力, 50 + RAND(-10, 15))
+	CASEELSE
+		内容 = 要求_士官
+		拒否フラグ = !DIPLOMACY_REQUEST_CHECK(勢力, 相手勢力, 70 + RAND(-10, 20))
+ENDSELECT
+
+
+IF CFLAG:MASTER:所属 == 勢力
+	PRINTFORML %ANAME(君主)%が%ANAME(相手勢力君主)%に%要求内容:内容%を要求してきました
+	CALL ASK_YN("受け入れる", "断る")
+	IF RESULT == 0
+		拒否フラグ = 0
+	ELSE
+		拒否フラグ = 1
+	ENDIF
+ELSE
+	PRINTFORML %ANAME(君主)%が、%ANAME(相手勢力君主)%に%要求内容:内容%を要求しました
+ENDIF
+
+IF 拒否フラグ
+	PRINTFORML %ANAME(相手勢力君主)%は拒否しました
+	CALL CHANGE_RELATION_C_TO_C(勢力, 相手勢力, -50, 50)
+	DIPLOMACY_HATE:勢力 += 3
+	CALL CLEAR_AI_DIPLOMACY_PLAN(勢力, 相手勢力)
+	RETURN
+ENDIF
+
+PRINTFORML %ANAME(相手勢力君主)%は受け入れました
+
+
+SELECTCASE 内容
+	CASE 要求_兵士
+		効果量 = MIN(TMP_SUM_ECONOMY:相手勢力 * 8 / 1000, TMP_SUM_SOLDIER:相手勢力 * 2 / 3)
+		TMP_SUM_SOLDIER:勢力 += 効果量
+		TMP_SUM_SOLDIER:相手勢力 -= -効果量
+		CALL SHIFT_SOLDIER(相手勢力, 勢力, 効果量)
+		PRINTFORML %ANAME(相手勢力君主)%は%ANAME(君主)%に兵{効果量}を提供しました
+	CASE 要求_経済
+		効果量 = TMP_SUM_ECONOMY:相手勢力 / 20 / 100 * 100
+		TMP_SUM_ECONOMY:勢力 += 効果量
+		TMP_SUM_ECONOMY:相手勢力 -= -効果量
+		CALL SHIFT_ECONOMY(相手勢力, 勢力, 効果量)
+		PRINTFORML %ANAME(相手勢力君主)%は%ANAME(君主)%に経済{効果量}を提供しました
+	CASE 要求_士官
+		VARSET 士官
+		VARSET 士官数
+		FOR LOCAL, 0, CHARANUM
+			SIF !CFLAG:LOCAL:所属 != 相手勢力 || CFLAG:LOCAL:捕虜先 || IS_SP_CHARA(LOCAL) || IS_ANIMAL(LOCAL) || GET_COUNTRY_BOSS(相手勢力) == LOCAL
+				CONTINUE
+			士官:士官数 = LOCAL
+			士官数 ++
+		NEXT
+		効果量 = 士官:(RAND:士官数)
+		PRINTFORML %ANAME(効果量)%が%ANAME(勢力)%に移籍しました
+		CALL CHANGE_COUNTRY(効果量, 勢力, 1)
+ENDSELECT
+
+
+DIPLOMACY_HATE:勢力 += 3
+CALL CLEAR_AI_DIPLOMACY_PLAN(勢力, 相手勢力)
+
+
+
 ;------------------------
 ;連合の実行判定
 ;------------------------
@@ -532,6 +659,9 @@ RETURNF 0
 相手勢力君主 = GET_COUNTRY_BOSS(相手勢力)
 宣言勢力君主 = GET_COUNTRY_BOSS(宣言勢力)
 
+SIF IS_SP_COUNTRY(勢力)
+	RETURNF 0
+
 SIF TMP_COUNTRY_RELATION:勢力:相手勢力 != 0
 	RETURNF 0
 
@@ -598,7 +728,7 @@ VARSET 連合番号
 CALL CLEAR_AI_DIPLOMACY_PLAN(勢力, 相手勢力)
 
 ;組めないならスルー
-SIF SLG_AI_DIPLOMACY_DOES_CREATE_UNION(勢力, 相手勢力)
+SIF !SLG_AI_DIPLOMACY_DOES_CREATE_UNION(勢力, 相手勢力)
 	RETURN
 
 勢力君主 = GET_COUNTRY_BOSS(勢力)
