@@ -1,0 +1,652 @@
+;-------------------------------------------------
+;「民の慰安」の処理
+;-------------------------------------------------
+@DECIDE_IAN_MEMBER()
+#DIM 行き先
+#DIM 人数
+#DIM メイン
+#DIM 放浪リスト, 3000
+#DIM 放浪者数
+#DIM FIRST_LINE
+FIRST_LINE = LINECOUNT
+
+;放浪者のリスト生成
+VARSET 放浪リスト
+VARSET 放浪者数
+FOR LOCAL, 0, CHARANUM
+	IF CFLAG:LOCAL:特殊状態 == 1 && !RAND:3
+		放浪リスト:放浪者数 = LOCAL
+		放浪者数 ++
+	ENDIF
+NEXT
+
+PRINTFORML どこに慰安しに行こうか……？
+FOR LOCAL, 0, VARSIZE("IAN_PLACE")
+	PRINTFORML [{LOCAL}] %IAN_PLACE:LOCAL%
+NEXT
+PRINTFORML [99] やっぱりやめる
+$INPUT_LOOP
+INPUT
+
+IF RESULT == 99
+	CLEARLINE LINECOUNT - FIRST_LINE
+	RETURN 0
+ELSEIF !INRANGE(RESULT, 0, VARSIZE("IAN_PLACE") - 1)
+	CLEARLINE 1
+	GOTO INPUT_LOOP
+ENDIF
+
+行き先 = RESULT
+人数 = 0
+メイン = -1
+;START_TRAIN_COMMONでSHOP_TIMEが+1されるので、それをひいておく
+SHOP_TIME --
+FOR LOCAL:0, 0, CHARANUM
+	IF CFLAG:(LOCAL:0):閨に呼ぶで選択中
+		CFLAG:(LOCAL:0):調教参加フラグ  = 1
+		CFLAG:(LOCAL:0):能力固定フラグ = 1
+		CFLAG:(LOCAL:0):強制友好化 = 1
+
+		人数 ++
+		IF FLAG:慰安避妊薬
+			PRINTFORML %ANAME(LOCAL:0)%は避妊薬を服用した
+			CFLAG:(LOCAL:0):避妊薬残ターン += 1
+			MONEY -= 3000
+		ENDIF
+		SIF LOCAL != MASTER && メイン == -1
+			メイン = LOCAL
+		SHOP_TIME ++
+	ENDIF
+NEXT
+IF 人数 == 0
+	;参加キャラがいないなら処理せず0を返す
+	RETURN 0
+ENDIF
+
+;全員の慰安モブフラグをクリア（あてがうメニューで操作されるため）
+CVARSET CFLAG, GETNUM(CFLAG, "慰安モブ") , 0
+
+LOCAL:2 = 0
+;放浪者を追加
+IF 放浪者数 > 0
+	FOR LOCAL, 0, 放浪者数
+		IF RAND:放浪者数 == 0
+			CFLAG:(放浪リスト:LOCAL):慰安モブ = 1
+			CFLAG:(放浪リスト:LOCAL):調教参加フラグ  = 1
+			CFLAG:(放浪リスト:LOCAL):能力固定フラグ = 1
+			CFLAG:(放浪リスト:LOCAL):強制友好化 = 1
+			LOCAL:2 ++
+		ENDIF
+	NEXT
+ENDIF
+
+LOCAL:1 = RAND(3, 6) - LOCAL:2
+FOR LOCAL, 0, LOCAL:1
+	CALL CREATE_IAN_MOB(行き先, LOCAL + 1)
+	SIF RESULT == -1
+		BREAK
+NEXT
+
+FLAG:あてがうフラグ = 0
+FLAG:慰安場所 = 行き先
+ITEM:A_ローター = 1
+ITEM:A_バイブ = 1
+ITEM:A_アナルバイブ = 1
+ITEM:A_ペニスバンド = 1
+ITEM:A_オナホール = 1
+ITEM:A_クリキャップ = 1
+ITEM:A_ニプルキャップ = 1
+ITEM:A_麻薬 = 99
+ITEM:A_縄 = 1
+ITEM:A_鞭 = 1
+ITEM:A_目隠し = 1
+ITEM:A_口枷 = 1
+ITEM:A_鼻フック = 1
+ITEM:A_マジック = 1
+ITEM:A_ローション = 99
+ITEM:A_コンドーム = 99
+ITEM:A_媚薬 = 99
+ITEM:A_排卵誘発剤 = 99
+ITEM:A_桃源香 = 99
+FLAG:調教モード = 7
+;ウフフフラグをONに
+FLAG:ウフフフラグ = 1
+
+SIF メイン != -1
+	CALL SHOW_IAN_MESSAGE(メイン, 人数)
+
+;行動開始時の共通処理
+CALL START_TRAIN_COMMON
+RETURN 1
+
+
+;-------------------------------------------------
+;「民の慰安」のモブ追加処理
+;-------------------------------------------------
+@CREATE_IAN_MOB(行き先, 人数)
+#DIM 行き先
+#DIM 人数
+#DIM 種類
+#DIM 男女
+#DIMS 名前
+#DIM 対象
+種類 = CREATE_IAN_MOB_GET_CHARA(行き先)
+男女 = CREATE_IAN_MOB_GET_SEX(種類)
+名前 = %CREATE_IAN_MOB_GET_NAME(種類, 男女)%%TOFULL(TOSTR(人数))%
+
+CALL CREATE_RANDOM_CHARA(0, -1, 0)
+FLAG:汎用武将カウント --
+対象 = RESULT
+IF LOCAL == -1
+	RETURN -1
+ENDIF
+
+NO:対象 = GET_EMPTY_NO()
+NAME:対象 = %名前%
+CALLNAME:対象 = %名前%
+CSTR:対象:0 =
+CSTR:対象:1 =
+TALENT:対象:性別 = 男女
+MAXBASE:対象:体力 = 99999999
+MAXBASE:対象:気力 = 99999999
+MAXBASE:対象:精神力 = 1500
+BASE:対象:体力 = MAXBASE:対象:体力
+BASE:対象:気力 = MAXBASE:対象:気力
+BASE:対象:精神力 = MAXBASE:対象:精神力
+ABL:対象:性知識 = 5
+ABL:対象:Ｃ感 = RAND(0,3)
+ABL:対象:Ｖ感 = RAND(0,3)
+ABL:対象:Ａ感 = RAND(0,3)
+ABL:対象:Ｂ感 = RAND(0,3)
+ABL:対象:Ｍ感 = RAND(0,3)
+ABL:対象:欲望 = RAND(0,3)
+ABL:対象:性技 = RAND(0,3)
+ABL:対象:性知識 = 5
+ABL:対象:奉仕 = RAND(0,3)
+ABL:対象:性交 = RAND(0,3)
+ABL:対象:レズ = RAND:2
+ABL:対象:精愛 = RAND:2
+ABL:対象:露出 = RAND:2
+ABL:対象:射精 = RAND:2
+ABL:対象:排泄 = RAND:2
+ABL:対象:主導度Ｕ = RAND(-300, 300)
+ABL:対象:主導度Ｎ = RAND(-300, 300)
+ABL:対象:倒錯度 = RAND(0, 300)
+EXP:対象:絶頂経験 = 500
+ABL:対象:武闘 = 30
+ABL:対象:防衛 = 30
+ABL:対象:知略 = 30
+ABL:対象:政治 = 30
+ABL:対象:料理 = 10
+ABL:対象:肝臓 = 3
+TALENT:対象:絶倫 = 1
+TALENT:対象:陰毛現在値 = 陰毛_標準
+TALENT:対象:陰毛目標値 = 陰毛_標準
+TALENT:対象:Ｖ締まり = GET_DEFAULT_TIGHTNESS("普通")
+TALENT:対象:Ａ締まり = GET_DEFAULT_TIGHTNESS("普通")
+TALENT:(対象):処女 = 0
+TALENT:(対象):キス未経験 = 0
+TALENT:(対象):童貞 = 0
+TALENT:(対象):アナル処女 = 1
+SEXUAL_EXPERIENCE:(対象):初体験_処女 = 不明
+SEXUAL_EXPERIENCE:(対象):初体験_ファーストキス = 不明
+SEXUAL_EXPERIENCE:(対象):初体験_童貞 = 不明
+SEXUAL_EXPERIENCE:(対象):初体験_アナル処女 = ----
+CALL CREATE_IAN_MOB_SET_STATUS(種類, 対象)
+CFLAG:対象:慰安モブ = 1
+CFLAG:対象:調教参加フラグ  = 1
+CFLAG:対象:強制友好化 = 1
+
+;-------------------------------------------------
+;「民の慰安」のモブ種類取得処理
+;-------------------------------------------------
+@CREATE_IAN_MOB_GET_CHARA(行き先)
+#FUNCTION
+#DIM 行き先
+SELECTCASE 行き先
+	CASE 慰安_行き先_スラム
+{
+		RETURNF IFRAND(
+		 @"{慰安_キャラ_貧民}, {慰安_キャラ_浮浪者}, {慰安_キャラ_ごろつき}", 1,
+		 @"{慰安_キャラ_民}", RAND:100 < 20,
+		 @"{慰安_キャラ_露出狂}", RAND:100 < 20)
+}
+	CASE 慰安_行き先_一般住宅街
+{
+		RETURNF IFRAND(
+		 @"{慰安_キャラ_民}", 1,
+		 @"{慰安_キャラ_貧民}, {慰安_キャラ_浮浪者}, {慰安_キャラ_ごろつき}", RAND:100 < 20,
+		 @"{慰安_キャラ_露出狂}", RAND:100 < 10,
+		 @"{慰安_キャラ_貴族}, {慰安_キャラ_富豪}", RAND:100 < 10,
+		 @"{慰安_キャラ_妖怪}", RAND:100 < 20,
+		 @"{慰安_キャラ_子供}", RAND:100 < 30)
+}
+	CASE 慰安_行き先_貴族の居住地
+{
+		RETURNF IFRAND(
+		 @"{慰安_キャラ_貴族}, {慰安_キャラ_富豪}, {慰安_キャラ_資産家}", 1,
+		 @"{慰安_キャラ_民}", RAND:100 < 15,
+		 @"{慰安_キャラ_子供}", RAND:100 < 15)
+}
+	CASE 慰安_行き先_妖怪の山
+{
+		RETURNF IFRAND(
+		 @"{慰安_キャラ_天狗}, {慰安_キャラ_河童}", 1,
+		 @"{慰安_キャラ_妖怪}", RAND:100 < 20)
+}
+	CASE 慰安_行き先_旧地獄
+{
+		RETURNF IFRAND(
+		 @"{慰安_キャラ_鬼}", 1,
+		 @"{慰安_キャラ_妖怪}", RAND:100 < 20)
+}
+	CASE 慰安_行き先_竹林
+{
+		RETURNF IFRAND(
+		 @"{慰安_キャラ_兎}", 1,
+		 @"{慰安_キャラ_妖怪}", RAND:100 < 20)
+}
+	CASE 慰安_行き先_野盗のアジト
+{
+		RETURNF IFRAND(
+		 @"{慰安_キャラ_野盗}", 1,
+		 @"{慰安_キャラ_ごろつき}, {慰安_キャラ_浮浪者}", RAND:100 < 20)
+}
+	CASE 慰安_行き先_子供たちの秘密基地
+		RETURNF 慰安_キャラ_子供
+	CASE 慰安_行き先_兵舎
+		RETURNF 慰安_キャラ_兵士
+	CASE 慰安_行き先_犬舎
+		RETURNF 慰安_キャラ_犬
+	CASE 慰安_行き先_畜舎
+		RETURNF 慰安_キャラ_豚
+	CASE 慰安_行き先_魔界
+{
+		RETURNF IFRAND(
+		 @"{慰安_キャラ_悪魔}", 1,
+		 @"{慰安_キャラ_妖怪}", RAND:100 < 15)
+}
+	CASE 慰安_行き先_魔法の森
+{
+		RETURNF IFRAND(
+		 @"{慰安_キャラ_妖精}", 1,
+		 @"{慰安_キャラ_妖怪}", RAND:100 < 15)
+}
+	CASE 慰安_行き先_彼岸
+{
+		RETURNF IFRAND(
+		 @"{慰安_キャラ_死神}", 1,
+		 @"{慰安_キャラ_幽霊}", RAND:100 < 30)
+}
+	CASE 慰安_行き先_紅魔館
+{
+		RETURNF IFRAND(
+		@"{慰安_キャラ_ホフゴブリン}", 1,
+		@"{慰安_キャラ_妖精}", RAND:100 < 30
+		)
+}
+	CASE 慰安_行き先_月の都
+{
+		RETURNF IFRAND(
+		@"{慰安_キャラ_月人}, {慰安_キャラ_月兎}", 1
+		)
+}
+	CASE 慰安_行き先_天界
+		RETURNF 慰安_キャラ_天人
+ENDSELECT
+RETURNF 慰安_キャラ_民
+
+;-------------------------------------------------
+;「民の慰安」のモブ種類に応じた性別の取得処理
+;-------------------------------------------------
+@CREATE_IAN_MOB_GET_SEX(種類)
+#FUNCTION
+#DIM 種類
+SELECTCASE 種類
+	CASE 慰安_キャラ_貴族, 慰安_キャラ_天狗, 慰安_キャラ_死神, 慰安_キャラ_河童, 慰安_キャラ_民, 慰安_キャラ_露出狂, 慰安_キャラ_子供, 慰安_キャラ_月人, 慰安_キャラ_月兎, 慰安_キャラ_天人
+		SELECTCASE CONFIG:14
+			CASE 0
+				RETURNF IFRAND("0", 1, "1", RAND:100 < 50, "2", RAND:100 < 20)
+			CASE 1
+				RETURNF 0
+			CASE 2
+				RETURNF 1
+			CASE 3
+				RETURNF 2
+		ENDSELECT
+	CASE 慰安_キャラ_妖精
+		RETURNF 1
+	CASE 慰安_キャラ_ホフゴブリン
+		RETURNF 1
+	CASEELSE
+		RETURNF 0
+ENDSELECT
+
+;-------------------------------------------------
+;「民の慰安」のモブ種類に応じた名前の取得処理
+;-------------------------------------------------
+@CREATE_IAN_MOB_GET_NAME(種類, 性別)
+#FUNCTIONS
+#DIM 種類
+#DIM 性別
+SELECTCASE 種類
+	CASE 慰安_キャラ_民
+		RETURNF "領民"
+	CASE 慰安_キャラ_貧民
+		RETURNF "貧民"
+	CASE 慰安_キャラ_浮浪者
+		RETURNF "浮浪者"
+	CASE 慰安_キャラ_ごろつき
+		RETURNF "ごろつき"
+	CASE 慰安_キャラ_富豪
+		RETURNF "富豪"
+	CASE 慰安_キャラ_貴族
+		RETURNF 性別 == 0 ? "貴族" # "貴婦人"
+	CASE 慰安_キャラ_資産家
+		RETURNF "資産家"
+	CASE 慰安_キャラ_天狗
+		RETURNF "天狗"
+	CASE 慰安_キャラ_河童
+		RETURNF "河童"
+	CASE 慰安_キャラ_鬼
+		RETURNF "鬼"
+	CASE 慰安_キャラ_妖怪
+		RETURNF "妖怪"
+	CASE 慰安_キャラ_露出狂
+		RETURNF 性別 == 0 ? "露出狂" # "痴女"
+	CASE 慰安_キャラ_兎
+		RETURNF "兎"
+	CASE 慰安_キャラ_野盗
+		RETURNF "野盗"
+	CASE 慰安_キャラ_子供
+		RETURNF "子供"
+	CASE 慰安_キャラ_兵士
+		RETURNF "兵士"
+	CASE 慰安_キャラ_犬
+		RETURNF "犬"
+	CASE 慰安_キャラ_豚
+		RETURNF "豚"
+	CASE 慰安_キャラ_悪魔
+		RETURNF "悪魔"
+	CASE 慰安_キャラ_妖精
+		RETURNF "妖精"
+	CASE 慰安_キャラ_死神
+		RETURNF "死神"
+	CASE 慰安_キャラ_幽霊
+		RETURNF "幽霊"
+	CASE 慰安_キャラ_ホフゴブリン
+		RETURNF "ホフゴブリン"
+	CASE 慰安_キャラ_月人
+		RETURNF "月人"
+	CASE 慰安_キャラ_月兎
+		RETURNF "月兎"
+	CASE 慰安_キャラ_天人
+		RETURNF 性別 == 0 ? "天人" # "天女"
+ENDSELECT
+
+;-------------------------------------------------
+;「民の慰安」のモブ種類に応じた能力セット処理
+;-------------------------------------------------
+@CREATE_IAN_MOB_SET_STATUS(種類, 対象)
+#DIM 種類
+#DIM 対象
+SELECTCASE 種類
+	CASE 慰安_キャラ_貧民, 慰安_キャラ_浮浪者
+		ABL:対象:奉仕 = 0
+		ABL:対象:性技 = RAND:2
+		ABL:対象:欲望 = RAND(3, 7)
+		ABL:対象:性交 = RAND(4, 7)
+		ABL:対象:射精 = RAND(4, 7)
+		ABL:対象:主導度Ｕ = RAND(0, 500)
+		ABL:対象:倒錯度 = RAND(0, 300)
+		TALENT:対象:貞操無頓着 = 1
+		TALENT:対象:貞操観念 = 0
+		COM_TENDENCY:対象:36 = 1
+		COM_TENDENCY:対象:46 = 1
+		COM_TENDENCY:対象:55 = 1
+		COM_TENDENCY:対象:56 = 1
+		COM_TENDENCY:対象:57 = 1
+		COM_TENDENCY:対象:58 = 1
+	CASE 慰安_キャラ_ごろつき, 慰安_キャラ_兵士
+		ABL:対象:奉仕 = 1
+		ABL:対象:性技 = RAND(0, 4)
+		ABL:対象:欲望 = RAND(3, 7)
+		ABL:対象:性交 = RAND(3, 5)
+		ABL:対象:射精 = RAND(3, 5)
+		ABL:対象:主導度Ｕ = RAND(0, 500)
+		ABL:対象:倒錯度 = RAND(0, 300)
+		TALENT:対象:貞操無頓着 = 1
+		TALENT:対象:貞操観念 = 0
+	CASE 慰安_キャラ_富豪, 慰安_キャラ_貴族, 慰安_キャラ_資産家
+		ABL:対象:欲望 = RAND(2,6)
+		ABL:対象:性技 = RAND(2,5)
+		ABL:対象:奉仕 = RAND(0,3)
+		ABL:対象:性交 = RAND(1,3)
+		ABL:対象:レズ = RAND(0,2)
+		ABL:対象:精愛 = RAND(1,3)
+		ABL:対象:露出 = RAND:2
+		ABL:対象:射精 = RAND(0,2)
+		ABL:対象:排泄 = RAND(0,2)
+		ABL:対象:主導度Ｕ = RAND(0, 500)
+		ABL:対象:倒錯度 = RAND(0, 500)
+		TALENT:対象:プライド高い = 1
+		TALENT:対象:プライド低い = 0
+	CASE 慰安_キャラ_天狗, 慰安_キャラ_河童, 慰安_キャラ_死神, 慰安_キャラ_幽霊
+		ABL:対象:欲望 = RAND(4,7)
+		ABL:対象:性技 = RAND(3,8)
+		ABL:対象:奉仕 = RAND(1,4)
+		ABL:対象:性交 = RAND(0,4)
+		ABL:対象:精愛 = RAND(0,2)
+		ABL:対象:射精 = RAND(0,3)
+		ABL:対象:排泄 = RAND(0,2)
+		ABL:対象:主導度Ｕ = RAND(300, 500)
+		ABL:対象:倒錯度 = RAND(300, 500)
+		TALENT:対象:貞操無頓着 = 1
+		TALENT:対象:貞操観念 = 0
+		TALENT:対象:プライド高い = 1
+		TALENT:対象:プライド低い = 0
+		IF 種類 == 慰安_キャラ_河童
+			TALENT:対象:技師 = 1
+			COM_TENDENCY:対象:60 = 1
+			COM_TENDENCY:対象:61 = 1
+			COM_TENDENCY:対象:62 = 1
+			COM_TENDENCY:対象:63 = 1
+			COM_TENDENCY:対象:64 = 1
+			COM_TENDENCY:対象:65 = 1
+		ENDIF
+	CASE 慰安_キャラ_鬼
+		ABL:対象:Ｃ感 = RAND(0,2)
+		ABL:対象:Ｖ感 = RAND(0,2)
+		ABL:対象:Ａ感 = RAND(0,2)
+		ABL:対象:Ｂ感 = RAND(0,2)
+		ABL:対象:Ｍ感 = RAND(0,2)
+		ABL:対象:欲望 = RAND(4,8)
+		ABL:対象:性技 = RAND(1,4)
+		ABL:対象:奉仕 = RAND:2
+		ABL:対象:性交 = RAND(5,8)
+		ABL:対象:射精 = RAND(0,5)
+		ABL:対象:主導度Ｕ = RAND(300, 700)
+		TALENT:対象:貞操無頓着 = 1
+		TALENT:対象:貞操観念 = 0
+		TALENT:対象:プライド高い = 1
+		TALENT:対象:プライド低い = 0
+	CASE 慰安_キャラ_露出狂
+		ABL:対象:欲望 = RAND(5,8)
+		ABL:対象:露出 = RAND(5,10)
+		ABL:対象:排泄 = RAND(4,8)
+		ABL:対象:主導度Ｕ = RAND(600, 1000)
+		ABL:対象:倒錯度 = RAND(600, 1000)
+		TALENT:対象:貞操無頓着 = 1
+		TALENT:対象:貞操観念 = 0
+		TALENT:対象:恥薄い = 1
+		TALENT:対象:恥じらい = 0
+		TALENT:対象:好奇心 = 1
+		TALENT:対象:解放 = 1
+		COM_TENDENCY:対象:85 = 1
+		COM_TENDENCY:対象:86 = 1
+		COM_TENDENCY:対象:93 = 1
+		COM_TENDENCY:対象:410 = 1
+		COM_TENDENCY:対象:411 = 1
+		COM_TENDENCY:対象:112 = 1
+		COM_TENDENCY:対象:114 = 1
+	CASE 慰安_キャラ_兎, 慰安_キャラ_月兎
+		ABL:対象:欲望 = RAND(5,10)
+		ABL:対象:性技 = RAND:2
+		ABL:対象:性交 = RAND(5,10)
+		ABL:対象:射精 = RAND(5,9)
+		TALENT:対象:貞操無頓着 = 1
+		TALENT:対象:貞操観念 = 0
+		COM_TENDENCY:対象:36 = 2
+		COM_TENDENCY:対象:46 = 2
+		COM_TENDENCY:対象:55 = 2
+		COM_TENDENCY:対象:56 = 2
+		COM_TENDENCY:対象:57 = 2
+		COM_TENDENCY:対象:58 = 2
+	CASE 慰安_キャラ_野盗
+		ABL:対象:Ｃ感 = RAND(1, 5)
+		ABL:対象:欲望 = 5
+		ABL:対象:性技 = RAND(2, 5)
+		ABL:対象:奉仕 = 3
+		ABL:対象:性交 = 5
+		ABL:対象:露出 = 2
+		ABL:対象:射精 = 3
+		ABL:対象:排泄 = 2
+		ABL:対象:主導度Ｕ = 500
+		ABL:対象:主導度Ｎ = 300
+		ABL:対象:倒錯度 = 300
+		TALENT:対象:特殊勢力素質 = 特殊勢力_野盗
+	CASE 慰安_キャラ_子供, 慰安_キャラ_妖精
+		ABL:対象:性知識 = RAND(1, 3)
+		ABL:対象:欲望 = RAND:3
+		ABL:対象:性技 = RAND:3
+		ABL:対象:性交 = RAND:2
+		ABL:対象:射精 = RAND:2
+		TALENT:(対象):処女 = 1
+		SEXUAL_EXPERIENCE:(対象):初体験_処女 = ----
+		TALENT:(対象):キス未経験 = 1
+		SEXUAL_EXPERIENCE:(対象):初体験_ファーストキス = ----
+		TALENT:(対象):童貞 = 1
+		SEXUAL_EXPERIENCE:(対象):初体験_童貞 = ----
+		TALENT:(対象):アナル処女 = 1
+		SEXUAL_EXPERIENCE:(対象):初体験_アナル処女 = ----
+	CASE 慰安_キャラ_犬, 慰安_キャラ_豚
+		ABL:対象:Ｃ感 = RAND(3, 6)
+		ABL:対象:欲望 = RAND(3, 8)
+		ABL:対象:性技 = RAND:3
+		ABL:対象:奉仕 = RAND(2, 5)
+		ABL:対象:性交 = RAND(5, 8)
+		ABL:対象:射精 = RAND(3, 8)
+		TALENT:対象:動物耳 = 1
+		TALENT:対象:しっぽ = 1
+		TALENT:対象:(種類 == 慰安_キャラ_犬 ? GETNUM(TALENT, "犬") # GETNUM(TALENT, "豚")) = 1
+	CASE 慰安_キャラ_悪魔
+		ABL:対象:欲望 = RAND(4,7)
+		ABL:対象:性技 = RAND(3,8)
+		ABL:対象:奉仕 = RAND(1,4)
+		ABL:対象:性交 = RAND(0,4)
+		ABL:対象:精愛 = RAND(0,2)
+		ABL:対象:射精 = RAND(0,3)
+		ABL:対象:排泄 = RAND(0,2)
+		ABL:対象:主導度Ｕ = RAND(300, 500)
+		ABL:対象:倒錯度 = RAND(300, 500)
+		TALENT:対象:Ｓ気質 = 1
+		SETBIT TALENT:対象:淫乱系, 素質_淫乱_サド
+		TALENT:対象:貞操無頓着 = 1
+		TALENT:対象:貞操観念 = 0
+		TALENT:対象:プライド高い = 1
+		TALENT:対象:プライド低い = 0
+	CASE 慰安_キャラ_ホフゴブリン
+		ABL:対象:Ｃ感 = 4
+		ABL:対象:欲望 = 6
+		ABL:対象:性技 = 4
+		ABL:対象:性知識 = 5
+		ABL:対象:奉仕 = 2
+		ABL:対象:性交 = 4
+		ABL:対象:露出 = 1
+		ABL:対象:射精 = 4
+		ABL:対象:排泄 = 2
+		ABL:対象:主導度Ｕ = 700
+		ABL:対象:主導度Ｎ = 300
+		ABL:対象:倒錯度 = 300
+		EXP:対象:絶頂経験 = 500
+		TALENT:対象:特殊勢力素質 = 特殊勢力_ホフゴブリン
+		COM_TENDENCY:対象:36 = 1
+		COM_TENDENCY:対象:46 = 1
+		COM_TENDENCY:対象:55 = 1
+		COM_TENDENCY:対象:56 = 1
+		COM_TENDENCY:対象:57 = 1
+		COM_TENDENCY:対象:58 = 1
+	CASE 慰安_キャラ_天人, 慰安_キャラ_月人
+		ABL:対象:欲望 = 5
+		ABL:対象:性技 = 5
+		ABL:対象:性知識 = 5
+		ABL:対象:奉仕 = 5
+		ABL:対象:性交 = 0
+		ABL:対象:射精 = 0
+		ABL:対象:排泄 = 2
+		ABL:対象:主導度Ｕ = 700
+		ABL:対象:倒錯度 = 600
+		TALENT:対象:技師 = 1
+		TALENT:対象:プライド高い = 1
+		TALENT:対象:プライド低い = 0
+		TALENT:対象:反抗的 = 1
+	CASEELSE
+		;デフォ
+ENDSELECT
+
+;-------------------------------------------------
+;「民の慰安」開始時のメッセージ表示処理
+;-------------------------------------------------
+@SHOW_IAN_MESSAGE(対象, 人数)
+#DIM 対象
+#DIM 人数
+SELECTCASE IFRAND("0TO2", 1, "3", IS_FEMALE(対象))
+	CASE 0
+		PRINTFORML 民を喜ばせることが勢力を強くする
+		PRINTFORML なので、お前の身体で民を喜ばせてこい
+	CASE 1
+		PRINTFORML 民衆にもガス抜きは必須だ
+		PRINTFORML お前が責任もって「抜いて」やれ
+	CASE 2
+		PRINTFORML お前に民を慰安する任務を与える
+		PRINTFORML しっかりと満足させてやれ
+	CASE 3
+		PRINTFORML 優秀な士官の子は優秀になるに決まっている
+		PRINTFORML だから孕まされてこい
+ENDSELECT
+PRINTFORMW そう命じ、%ANAME(対象) + (人数 > 1 ? "たち" # "")%を送り出した……
+
+SIF RAND:3
+	RETURN
+
+IF GETBIT(TALENT:対象:淫乱系, 素質_淫乱_淫乱) && !RAND:3
+	PRINTFORMW %ANAME(対象)%は淫らな行為を期待し、身体を疼かせているようだ……
+ELSEIF GETBIT(TALENT:対象:淫乱系, 素質_淫乱_精液便女) && !RAND:3
+	PRINTFORMW 便女として扱われる期待に、%ANAME(対象)%は興奮を隠せないでいる……
+ELSEIF GETBIT(TALENT:対象:淫乱系, 素質_淫乱_娼婦) && !RAND:3
+	PRINTFORMW 娼婦とは若干異なる仕事に%ANAME(対象)%は戸惑いを覚えているようだが、それでも前向きな姿勢をみせている……
+ELSEIF GETBIT(TALENT:対象:淫乱系, 素質_淫乱_マゾ) && !RAND:3
+	PRINTFORMW %ANAME(対象)%は誰かに虐げられることを期待し、身体を疼かせているようだ……
+ELSEIF GETBIT(TALENT:対象:淫乱系, 素質_淫乱_孕みたがり) && !RAND:3
+	PRINTFORMW 任務の結果子を宿すことを想像し、%ANAME(対象)%は興奮を覚えているようだ……
+ELSEIF IS_LOVER(対象) && !RAND:3
+	SELECTCASE ABL:対象:欲望
+		CASE IS > ランク閾値:ランク_その他:ランク_B
+			PRINTFORMW %ANAME(MASTER)%以外に抱かれるというのに、%ANAME(対象)%は興奮を覚えているようだ……
+		CASE IS > ランク閾値:ランク_その他:ランク_D
+			PRINTFORMW %ANAME(対象)%は%ANAME(MASTER)%以外に抱かれることを拒もうとしているが、身体は意志とかかわらず高ぶっている……
+		CASEELSE
+			PRINTFORMW %ANAME(対象)%は%ANAME(MASTER)%の命令の意図を理解できず悲しんでいるが、それでも受け入れた……
+	ENDSELECT
+ELSEIF IS_SLAVE(対象) && !RAND:3
+	SELECTCASE ABL:対象:欲望
+		CASE IS > ランク閾値:ランク_その他:ランク_B
+			PRINTFORMW %ANAME(MASTER)%の命令以前に、誰かに抱かれるということに、%ANAME(対象)%は興奮を覚えているようだ……
+		CASE IS > ランク閾値:ランク_その他:ランク_D
+			PRINTFORMW %ANAME(対象)%は%ANAME(MASTER)%の命令であると言っているが、身体はそんなことと関係なしに高ぶっている……
+		CASEELSE
+			PRINTFORMW %ANAME(対象)%は%ANAME(MASTER)%の命令ならば仕方がないと受け入れた……
+	ENDSELECT
+ELSEIF !RAND:3
+	PRINTFORMW %ANAME(対象)%は、任務ならば仕方がないと受け入れた……
+ENDIF
