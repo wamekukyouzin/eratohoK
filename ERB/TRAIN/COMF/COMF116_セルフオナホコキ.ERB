@@ -1,0 +1,364 @@
+﻿;自慰
+
+;-------------------------------------------------
+;コマンド名称
+;-------------------------------------------------
+@COM_NAME116
+LOCALS:0 = 
+IF TFLAG:70
+	LOCALS:0 = 撮影
+ELSEIF TFLAG:103 == 2
+	LOCALS:0 = 公開
+ELSEIF TFLAG:54 == 8
+	LOCALS:0 = 野外
+ENDIF
+
+LOCALS:0 '= LOCALS:0 + "オナホ自慰"
+
+RESULTS:0 = %LOCALS:0%を見せつける
+RESULTS:1 = %LOCALS:0%させられる
+RESULTS:2 = %LOCALS:0%させる
+RESULTS:3 = %LOCALS:0%を見せつけられる
+RESULTS:4 = %LOCALS:0%させる
+RESULTS:5 = %LOCALS:0%見せつけ
+
+;-------------------------------------------------
+;選択可否判定
+;-------------------------------------------------
+@COM_ABLE116
+;共通部分
+CALL COM_ABLE_COMMON(116)
+SIF RESULT == 0
+	RETURN 0
+;プレイヤーは1人以上
+SIF MPLY_NUM <= 0
+	RETURN 0
+;ターゲットは1人以上
+SIF MTAR_NUM <= 0
+	RETURN 0
+;プレイヤーが行動不能なら不可
+SIF !IS_PLAYABLE(MPLY:0)
+	RETURN 0
+;オナホールが必要
+SIF !ITEM:オナホール && !ITEM:A_オナホール
+	RETURN 0
+;多対多は不可
+SIF MPLY_NUM >= 2 && MTAR_NUM >= 2
+	RETURN 0
+
+FOR LOCAL, 0, MPLY_NUM
+	;拘束中なら不可
+	SIF IS_BIND(MPLY:(LOCAL:0))
+		RETURN 0
+
+	;プレイヤーに竿が必要
+	SIF !PENIS(MPLY:(LOCAL:0))
+		RETURN 0
+	;プレイヤーの竿が挿入中なら不可
+	SIF IS_INSERT_SINGLE(MPLY:(LOCAL:0), "Ｐ")
+		RETURN 0
+	;プレイヤーがオナホコキされているなら不可
+	SIF IS_EQUIP_TARGET(MPLY:(LOCAL:0), 16)
+		RETURN 0
+
+	;プレイヤーが触手オナホされているなら不可
+	SIF IS_EQUIP_TARGET(MPLY:(LOCAL:0), 205)
+		RETURN 0
+NEXT
+
+
+RETURN 1
+
+;-------------------------------------------------
+;メイン処理
+;-------------------------------------------------
+@COM116
+;実行判定
+CALL COM_ORDER_COMMON
+SIF RESULT == 0
+	RETURN 0
+
+;各プレイヤーの絡むオナホコキ・触手オナニーの継続状態を解除
+FOR LOCAL:0, 0, MPLY_NUM
+	CALL RELEASE_EQUIP_EX(116, MPLY:(LOCAL:0), -1)
+	CALL RELEASE_EQUIP_EX(211, MPLY:(LOCAL:0), -1)
+NEXT
+
+;●全てのプレイヤーについて処理
+FOR LOCAL:0, 0, MPLY_NUM
+	LOCAL:2 = MPLY:(LOCAL:0)
+
+	EXP:(LOCAL:2):自慰経験値 += 3
+
+	SOURCE:(LOCAL:2):露出 = 1300
+	SOURCE:(LOCAL:2):逸脱 = 116
+	SOURCE:(LOCAL:2):性行動 = 240
+
+	LOCAL:3 = 500
+
+	SELECTCASE ABL:(LOCAL:2):自慰
+		CASE 0
+			TIMES LOCAL:3, 1.00
+		CASE 1
+			TIMES LOCAL:3, 1.20
+		CASE 2
+			TIMES LOCAL:3, 1.50
+		CASE 3
+			TIMES LOCAL:3, 1.80
+		CASE 4
+			TIMES LOCAL:3, 2.00
+		CASEELSE
+			LOCAL:3 = LOCAL:3 * (420 + (ABL:(LOCAL:2):自慰 - 5)) / 200
+	ENDSELECT
+
+	SOURCE:(LOCAL:2):快Ｐ = SENSE_HOUSHI_P(LOCAL:2, LOCAL:2, LOCAL:3 * 3 / 2)
+
+	;射精箇所と対象をセット
+	CALL STACK_SPERM(LOCAL:2, LOCAL:2, 射精部位_オナホ)
+NEXT
+
+;主導権の所在を取得
+LOCAL:11 = GET_COM_INITIATIVE()
+
+;●全てのターゲットについて処理
+FOR LOCAL:0, 0, MTAR_NUM
+	LOCAL:1 = MTAR:(LOCAL:0)
+
+	SOURCE:(LOCAL:1):性行動 = 120
+
+	;ターゲットに主導権
+	IF LOCAL:11 == 1 || LOCAL:11 == 2
+		SOURCE:(LOCAL:1):嗜虐 = 60
+	;ターゲットに主導権がない
+	ELSE
+		SOURCE:(LOCAL:1):逸脱 = 60
+		SOURCE:(LOCAL:1):恐怖 = MAX(116 - 30 * ABL:(LOCAL:1):欲望, 0)
+	ENDIF
+
+	;主導権に応じた優越・屈従のソース追加
+	CALL ADD_SOURCE_INITIATIVE_U(LOCAL:1, 80, 80)
+NEXT
+
+;主導度変化基準値
+TFLAG:49 = 3
+
+;倒錯度変化基準値
+TFLAG:50 = 1
+
+;レズ・ＢＬ経験基準値
+TFLAG:51 = 1
+
+RETURN 1
+
+;-------------------------------------------------
+;継続コマンドかどうかを設定
+;-------------------------------------------------
+@COM_IS_EQUIP116
+RETURN 1
+
+;-------------------------------------------------
+;継続状態の処理
+;-------------------------------------------------
+@COM_EQUIP116(ARG:0)
+;●全プレイヤーについて処理
+FOR LOCAL:0, 0, MEQUIP_PLAYER_NUM:(ARG:0)
+	LOCAL:2 = MEQUIP_PLAYER:(ARG:0):(LOCAL:0)
+
+	EXP:(LOCAL:2):自慰経験値 += 1
+
+	SOURCE:(LOCAL:2):露出 += 600
+	SOURCE:(LOCAL:2):逸脱 += 50
+	SOURCE:(LOCAL:2):性行動 += 80
+
+	LOCAL:3 = 500
+
+	SELECTCASE ABL:(LOCAL:2):自慰
+		CASE 0
+			TIMES LOCAL:3, 1.00
+		CASE 1
+			TIMES LOCAL:3, 1.20
+		CASE 2
+			TIMES LOCAL:3, 1.50
+		CASE 3
+			TIMES LOCAL:3, 1.80
+		CASE 4
+			TIMES LOCAL:3, 2.00
+		CASEELSE
+			LOCAL:3 = LOCAL:3 * (420 + (ABL:(LOCAL:2):自慰 - 5)) / 200
+	ENDSELECT
+
+	SOURCE:(LOCAL:2):快Ｐ += SENSE_HOUSHI_P(LOCAL:2, LOCAL:2, LOCAL:3 * 3 / 2)
+
+	CALL STACK_SPERM(LOCAL:2, LOCAL:2, 射精部位_オナホ)
+NEXT
+
+;●全ターゲットについて処理
+FOR LOCAL:0, 0, MEQUIP_TARGET_NUM:(ARG:0)
+	LOCAL:2 = MEQUIP_TARGET:(ARG:0):(LOCAL:0)
+
+	SOURCE:(LOCAL:2):性行動 += 40
+NEXT
+
+;-------------------------------------------------
+;継続中の表示
+;-------------------------------------------------
+@EQUIP_MESSAGE116(ARG:0)
+
+LOCALS:0 = 
+IF TFLAG:70
+	LOCALS:0 = 撮影
+ELSEIF TFLAG:103 == 2
+	LOCALS:0 = 公開
+ELSEIF TFLAG:54 == 8
+	LOCALS:0 = 野外
+ENDIF
+
+LOCALS:0 '= LOCALS:0 + "オナホ自慰"
+
+RESULTS = %EQUIP_PLAYER_ANAME(ARG:0)%が%LOCALS:0%中
+
+;-------------------------------------------------
+;継続中の地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE_EQUIP116(ARG:0)
+LOCAL:1 = 1
+FOR LOCAL:0, 0, MEQUIP_PLAYER_NUM:(ARG:0)
+	IF !PENIS(MEQUIP_PLAYER:(ARG:0):(LOCAL:0))
+		LOCAL:1 = 0
+	ENDIF
+NEXT
+
+PRINTFORML %EQUIP_PLAYER_ANAME(ARG:0)%は自らオナホールに腰を振っている…
+
+;-------------------------------------------------
+;継続を解除したときの地の文
+;-------------------------------------------------
+@COM_TEXT_RELEASE_EQUIP116(ARG:0)
+
+;-------------------------------------------------
+;固有の実行判定
+;-------------------------------------------------
+@COM_ORDER_PLAYER116(ARG:0)
+;実行値の設定
+TCVAR:(ARG:0):25 = 85
+
+;共通部分
+CALL COM_ORDER(ARG:0)
+
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲望Lv{ABL:(ARG:0):欲望}", ABL:(ARG:0):欲望 * 3)
+CALL COM_ORDER_ELEMENT(ARG:0, @"露出Lv{ABL:(ARG:0):露出}", ABL:(ARG:0):露出 * 3)
+CALL COM_ORDER_ELEMENT(ARG:0, @"自慰Lv{ABL:(ARG:0):自慰}", ABL:(ARG:0):自慰 * 4)
+
+LOCAL:0 = GET_PALAMLV(PALAM:(ARG:0):欲情)
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲情Lv{LOCAL:0}", MIN(LOCAL:0 * 1, 10))
+
+IF TALENT:(ARG:0):恥じらい
+	CALL COM_ORDER_ELEMENT(ARG:0, "恥じらい", -15)
+ENDIF
+IF TALENT:(ARG:0):恥薄い
+	CALL COM_ORDER_ELEMENT(ARG:0, "恥薄い", 8)
+ENDIF
+IF TALENT:(ARG:0):自制心
+	CALL COM_ORDER_ELEMENT(ARG:0, "自制心", -10)
+ENDIF
+IF TALENT:(ARG:0):目立ちたがり
+	CALL COM_ORDER_ELEMENT(ARG:0, "目立ちたがり", 6)
+ENDIF
+IF TALENT:(ARG:0):自慰しやすい
+	CALL COM_ORDER_ELEMENT(ARG:0, "自慰しやすい", 10)
+ENDIF
+IF TALENT:(ARG:0):快感の否定
+	CALL COM_ORDER_ELEMENT(ARG:0, "快感の否定", -5)
+ENDIF
+
+IF !TALENT:(ARG:0):合意
+	CALL COM_ORDER_ELEMENT(ARG:0, "合意なし", -10)
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE116
+LOCALS:3 = 
+
+;プレイヤーが竿あり・竿なし混合かどうかを判定
+LOCAL:1 = 0
+FOR LOCAL:0, 1, MPLY_NUM
+	IF PENIS(MPLY:(LOCAL:0)) != PENIS(MPLY:0)
+		LOCAL:1 = 1
+		BREAK
+	ENDIF
+NEXT
+
+LOCALS:0 = 自らオナホールに腰を振
+
+IF MTAR_NUM == 1
+	LOCALS:1 = %ANAME(MTAR:0)%
+ELSEIF MTAR_NUM == 2
+	LOCALS:1 = %ANAME(MTAR:0)%と%ANAME(MTAR:1)%
+ELSE
+	LOCALS:1 = %ANAME(MTAR:0)%たち
+ENDIF
+
+IF MPLY_NUM == 1
+	LOCALS:2 = %ANAME(MPLY:0)%
+ELSEIF MPLY_NUM == 2
+	LOCALS:2 = %ANAME(MPLY:0)%と%ANAME(MPLY:1)%
+ELSE
+	LOCALS:2 = %ANAME(MPLY:0)%たち
+ENDIF
+
+IF TFLAG:70
+	LOCALS:3 = カメラに見えるように、
+ELSEIF TFLAG:103 == 2
+	LOCALS:3 = 皆の見ている前で、
+ELSEIF TFLAG:54 == 8
+	LOCALS:3 = 誰に見られているとも知らない中で、
+ELSE
+	LOCALS:3 = 
+ENDIF
+
+SELECTCASE GET_COM_INITIATIVE()
+	;プレイヤーに主導権
+	CASE 0
+		PRINTFORMW %LOCALS:2%は%LOCALS:3%%LOCALS:1%の目の前で%LOCALS:0%る様子を見せつけ%TARGET_STR("た", "てきた")%…
+	;ターゲットに主導権
+	CASE 1
+		PRINTFORML %LOCALS:1%は%LOCALS:2%に、オナホールを使ってオナニーするように命令した
+		PRINTFORMW %LOCALS:2%は言われるまま、%LOCALS:3%%LOCALS:1%の目の前で%LOCALS:0%った…
+	;第三者に主導権
+	CASEELSE
+		PRINTFORML %ANAME(TFLAG:45)%は%LOCALS:2%に対して、%LOCALS:1%の前でオナホールを使ってオナニーするように命令した
+		PRINTFORMW %LOCALS:2%は言われるまま、%LOCALS:3%%LOCALS:1%の目の前で見せつけるように%LOCALS:0%った…
+ENDSELECT
+
+;--------------------------------------------------------
+;地の文(パラメータ・刻印変動後)
+;--------------------------------------------------------
+@COM_TEXT_LAST116
+FOR LOCAL:0, 0, MPLY_NUM
+	LOCAL:1 = MPLY:(LOCAL:0)
+
+	IF LOCAL:1 != MASTER && !CFLAG:(LOCAL:1):TEXT_LAST非表示 && IS_INITIATIVE(LOCAL:1)
+		IF ABL:(LOCAL:1):自慰 >= 5
+			PRINTFORML %ANAME(LOCAL:1)%はすっかりオナホールの虜になり、激しく腰を振って自ら快感を貪っている
+		ELSEIF ABL:(LOCAL:1):露出 >= 5
+			PRINTFORML %ANAME(LOCAL:1)%は見られることで興奮しているのか、上気した顔でオナホールに腰を振っている
+		ELSEIF ABL:(LOCAL:1):自慰 >= 2
+			;捕虜調教のメインターゲット
+			IF FLAG:調教モード == 2 && FINDELEMENT(PRISONER_TARGET, MTAR:0) != -1
+				PRINTFORML %ANAME(LOCAL:1)%は屈辱に顔を歪めながらも、自ら快感を求めてオナホールに腰を振っている
+			ELSE
+				PRINTFORML %ANAME(LOCAL:1)%は恥ずかしそうにしているが、無意識に快感を求めるようにオナホールに腰を振っている
+			ENDIF
+		ELSE
+			;捕虜調教のメインターゲット
+			IF FLAG:調教モード == 2 && FINDELEMENT(PRISONER_TARGET, MTAR:0) != -1
+				PRINTFORML %ANAME(LOCAL:1)%は屈辱に耐えながら、おぼつかない腰使いでオナホールを犯し始めた
+			ELSE
+				PRINTFORML %ANAME(LOCAL:1)%は恥ずかしさのあまり目を逸らしながら、おぼつかない腰使いでオナホールを犯し始めた
+			ENDIF
+		ENDIF
+	ENDIF
+NEXT
