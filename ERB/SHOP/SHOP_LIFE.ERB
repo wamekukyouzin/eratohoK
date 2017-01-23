@@ -1470,126 +1470,6 @@ FLAG:ウフフフラグ = 1
 CALL START_TRAIN_COMMON
 RETURN 1
 
-;-------------------------------------------------
-;「民の慰安」の処理
-;-------------------------------------------------
-@DECIDE_IAN_MEMBER()
-#DIM 行き先
-#DIM 人数
-#DIM メイン
-#DIM 放浪リスト, 3000
-#DIM 放浪者数
-#DIM FIRST_LINE
-FIRST_LINE = LINECOUNT
-
-;放浪者のリスト生成
-VARSET 放浪リスト
-VARSET 放浪者数
-FOR LOCAL, 0, CHARANUM
-	IF CFLAG:LOCAL:特殊状態 == 1 && !RAND:3
-		放浪リスト:放浪者数 = LOCAL
-		放浪者数 ++
-	ENDIF
-NEXT
-
-PRINTFORML どこに慰安しに行こうか……？
-FOR LOCAL, 0, VARSIZE("IAN_PLACE")
-	PRINTFORML [{LOCAL}] %IAN_PLACE:LOCAL%
-NEXT
-PRINTFORML [99] やっぱりやめる
-$INPUT_LOOP
-INPUT
-
-IF RESULT == 99
-	CLEARLINE LINECOUNT - FIRST_LINE
-	RETURN 0
-ELSEIF !INRANGE(RESULT, 0, VARSIZE("IAN_PLACE") - 1)
-	CLEARLINE 1
-	GOTO INPUT_LOOP
-ENDIF
-
-行き先 = RESULT
-人数 = 0
-メイン = -1
-;START_TRAIN_COMMONでSHOP_TIMEが+1されるので、それをひいておく
-SHOP_TIME --
-FOR LOCAL:0, 0, CHARANUM
-	IF CFLAG:(LOCAL:0):閨に呼ぶで選択中
-		CFLAG:(LOCAL:0):調教参加フラグ  = 1
-		CFLAG:(LOCAL:0):能力固定フラグ = 1
-		CFLAG:(LOCAL:0):強制友好化 = 1
-
-		人数 ++
-		IF FLAG:慰安避妊薬
-			PRINTFORML %ANAME(LOCAL:0)%は避妊薬を服用した
-			CFLAG:(LOCAL:0):避妊薬残ターン += 1
-			MONEY -= 3000
-		ENDIF
-		SIF LOCAL != MASTER && メイン == -1
-			メイン = LOCAL
-		SHOP_TIME ++
-	ENDIF
-NEXT
-IF 人数 == 0
-	;参加キャラがいないなら処理せず0を返す
-	RETURN 0
-ENDIF
-
-;全員の慰安モブフラグをクリア（あてがうメニューで操作されるため）
-CVARSET CFLAG, GETNUM(CFLAG, "慰安モブ") , 0
-
-LOCAL:2 = 0
-;放浪者を追加
-IF 放浪者数 > 0
-	FOR LOCAL, 0, 放浪者数
-		IF RAND:放浪者数 == 0
-			CFLAG:(放浪リスト:LOCAL):慰安モブ = 1
-			CFLAG:(放浪リスト:LOCAL):調教参加フラグ  = 1
-			CFLAG:(放浪リスト:LOCAL):能力固定フラグ = 1
-			CFLAG:(放浪リスト:LOCAL):強制友好化 = 1
-			LOCAL:2 ++
-		ENDIF
-	NEXT
-ENDIF
-
-LOCAL:1 = RAND(3, 6) - LOCAL:2
-FOR LOCAL, 0, LOCAL:1
-	CALL CREATE_IAN_MOB(行き先, LOCAL + 1)
-	SIF RESULT == -1
-		BREAK
-NEXT
-
-FLAG:あてがうフラグ = 0
-FLAG:慰安場所 = 行き先
-ITEM:A_ローター = 1
-ITEM:A_バイブ = 1
-ITEM:A_アナルバイブ = 1
-ITEM:A_ペニスバンド = 1
-ITEM:A_オナホール = 1
-ITEM:A_クリキャップ = 1
-ITEM:A_ニプルキャップ = 1
-ITEM:A_麻薬 = 99
-ITEM:A_縄 = 1
-ITEM:A_鞭 = 1
-ITEM:A_目隠し = 1
-ITEM:A_口枷 = 1
-ITEM:A_鼻フック = 1
-ITEM:A_マジック = 1
-ITEM:A_ローション = 99
-ITEM:A_コンドーム = 99
-ITEM:A_媚薬 = 99
-ITEM:A_排卵誘発剤 = 99
-ITEM:A_桃源香 = 99
-FLAG:調教モード = 7
-;ウフフフラグをONに
-FLAG:ウフフフラグ = 1
-
-SIF メイン != -1
-	CALL SHOW_IAN_MESSAGE(メイン, 人数)
-
-;行動開始時の共通処理
-CALL START_TRAIN_COMMON
-RETURN 1
 
 ;-------------------------------------------------
 ;「あてがう」の処理
@@ -1606,7 +1486,6 @@ RETURN 1
 FOR LOCAL:0, 0, CHARANUM
 	IF CFLAG:(LOCAL:0):閨に呼ぶで選択中 || CFLAG:(LOCAL:0):慰安モブ
 		CFLAG:(LOCAL:0):調教参加フラグ  = 1
-		CFLAG:(LOCAL:0):能力固定フラグ = 1
 		CFLAG:(LOCAL:0):強制友好化 = 1
 		IF CFLAG:(LOCAL:0):閨に呼ぶで選択中
 			あてがわれる側 ++
@@ -1865,7 +1744,6 @@ ELSEIF RESULT == 2 && !FLAG:クリアフラグ && CFLAG:(ARG:0):外交調教経�
 	CVARSET CFLAG, GETNUM(CFLAG, "閨に呼ぶで選択中"), 0
 	CFLAG:(ARG:0):閨に呼ぶで選択中 = 1
 	CFLAG:(ARG:0):調教参加フラグ = 1
-	CFLAG:(ARG:0):能力固定フラグ = 1
 	CFLAG:(ARG:0):強制友好化 = 1
 
 	;全員の慰安モブフラグをクリア（あてがうメニューで操作されるため）
