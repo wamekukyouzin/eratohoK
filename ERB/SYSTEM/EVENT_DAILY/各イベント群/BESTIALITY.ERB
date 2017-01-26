@@ -1,0 +1,286 @@
+﻿;---------------------
+;発生確率(1000分率 100で10%)
+;---------------------
+@EVENT_DAILY_BESTIALITY_RATE()
+RETURN 30
+
+;---------------------
+;確率以外の発生判定
+;---------------------
+@EVENT_DAILY_BESTIALITY_DECISION()
+
+SIF DVAR:動物遣い == 3
+	RETURN 0
+
+LOCAL:1 = 0
+
+;捕虜か仲間に女がいるか判定、いない場合はキャンセル
+FOR LOCAL, 0, CHARANUM
+	IF (CFLAG:LOCAL:捕虜先 == CFLAG:MASTER:所属 && IS_FEMALE(LOCAL)) || (CFLAG:LOCAL:所属 == CFLAG:MASTER:所属 && IS_FEMALE(LOCAL))
+		LOCAL:1 ++
+	ENDIF
+NEXT
+
+SIF LOCAL:1 == 0
+	RETURN 0
+
+RETURN 1
+
+;---------------------
+;特定の条件を満たすキャラをランダムに選択する場合に利用
+;他の関数は必須だが、これだけはなくてもよい　というかパフォーマンスへ影響するので不要なら作ってはならない
+;対象が存在せずデイリーを開始できない場合は0を返すことでデイリーの発生をキャンセルする
+;---------------------
+@EVENT_DAILY_BESTIALITY_SETTARGET()
+#DIM 対象
+#DIM 候補, 3000
+#DIM 候補乱数, 3000
+#DIM 候補数
+VARSET 候補, -1
+VARSET 候補乱数, __INT_MIN__
+VARSET 候補数
+;好感度に基づいて候補配列を用意
+FOR LOCAL, 0, CHARANUM
+	;女で、所属がMASTERと同一で、捕虜でなく、君主でない、あるいは捕虜のキャラ
+	IF (IS_FEMALE(LOCAL) && CFLAG:LOCAL:所属 == CFLAG:MASTER:所属 && !CFLAG:LOCAL:捕虜先) || (IS_FEMALE(LOCAL) && CFLAG:LOCAL:捕虜先 == CFLAG:MASTER:所属) 
+		候補:候補数 = LOCAL
+		候補乱数:候補数 = RAND:(MAX(CFLAG:LOCAL:好感度, 100))
+		;恋慕系なら乱数に補正がかかる（かかってしまう？）
+		SIF IS_LOVER(LOCAL)
+			候補乱数:候補数 += 1000
+		候補数 ++
+	ENDIF
+NEXT
+;候補がいなければ戻す
+SIF 候補数 < 1
+	RETURN 0
+;好感度に基づいて出した候補乱数のうち、一番高い値を出したキャラを対象とする。
+対象 = 候補:(FINDELEMENT(候補乱数, MAXARRAY(候補乱数, 0, 候補数), 0, 候補数))
+
+SIF 対象 < 0
+	RETURN 0
+
+DAILY_TARGET:0 = 対象
+DAILY_TARGET_NUM = 1
+
+RETURN 1
+
+;---------------------
+;ジャンル
+;---------------------
+@EVENT_DAILY_BESTIALITY_GENRE()
+RETURN デイリー_ジャンル_エロ
+
+;---------------------
+;本体
+;---------------------
+@EVENT_DAILY_BESTIALITY
+#DIM 対象
+#DIM 捕虜番号, 3000
+
+IF DVAR:動物遣い == 0
+	PRINTFORMW 調教師を名乗る男がやってきた
+	PRINTFORML 彼は獣姦用の動物を調教することを生業としているらしい
+	PRINTFORML こにには調教の土台としてうってつけの女がいると聞いてやって来たと告げる
+	PRINTFORMW 男は不敵に笑うと動物の調教の為に女を使わせてもらえれば謝礼をすると言ってきた
+	DVAR:動物遣い = 1
+ELSEIF DVAR:動物遣い > 0
+	PRINTFORMW 再び調教師がやってきた
+	IF DVAR:動物遣い == 2
+		PRINTFORML %ANAME(MASTER)%は前回この男にされた仕打ちを思い出しきつく睨み付ける
+		PRINTFORMW しかし彼は不敵に笑うだけで、また女を調教に使用させてくれと言ってきた
+	ELSEIF DVAR:動物遣い == 1
+		PRINTFORMW 彼は相変わらず不敵に笑い、また女を調教に使用させてくれと言ってきた
+	ENDIF
+ENDIF
+PRINTFORML どうしよう？
+CALL ASK_MULTI(@"取引する" ,"斬りつける" ,"追い払う")
+IF RESULT == 2
+	PRINTFORML そんなことはさせられない
+	PRINTFORMW %ANAME(MASTER)%は男を追い払った
+	DVAR:動物遣い = 1
+	RETURN
+ELSEIF RESULT == 1
+	PRINTFORML %ANAME(MASTER)%は男を斬りつけた！
+	PRINTFORMW しかし男は華麗に剣を躱すと、では勝負して決めましょうと告げかかってきた
+	PRINTFORML ・
+	PRINTFORML ・
+	PRINTFORMW ・
+	IF ABL:MASTER:武闘 * (RAND:8 + 1) >= 50 * (RAND:9 + 1)
+		PRINTFORMW 勝った！
+		PRINTFORMW 男は地に伏せている
+		PRINTFORML どうしよう？
+		CALL ASK_MULTI(@"さらし首にする", "国外追放")
+		IF RESULT == 0
+			PRINTFORMW 二度と同じ様な輩が出ないように首を晒した
+			PRINTFORMW %ANAME(MASTER)%の行為に他国の評判が上がった
+			FOR LOCAL, 1, MAX_COUNTRY
+				CALL CHANGE_RELATION_C_TO_C(LOCAL, CFLAG:MASTER:所属, 20)
+			NEXT
+		ELSEIF RESUlT == 1
+			PRINTFORMW 国外に追放した
+			PRINTFORMW 二度と会うこともないだろう…
+		ENDIF
+		DVAR:動物遣い = 3
+		RETURN 1
+	ELSE
+		対象 = DAILY_TARGET:0
+		PRINTFORMW 負けてしまった…
+		PRINTFORMW 男は勝負の代償だと言うと%ANAME(対象)%を連れて行った
+		DVAR:動物遣い = 2
+	ENDIF
+ELSEIF RESULT == 0
+	PRINTFORMW 取引することにした
+	PRINTFORML 仲間と捕虜、どちらを提供しようか？
+	CALL ASK_MULTI(@"仲間" ,"捕虜")
+	IF RESULT == 0
+		PRINTFORML 誰を使わせようか？
+		CALL SELECT_CHARA_LIST_ONLY_LOGIC_SEX("BEASTALITY_A", "BEASTALITY")
+		対象 = RESULT
+		IF RESULT < 0
+			PRINTFORMW やはりやめておいた
+			DVAR:動物遣い = 1
+			RETURN
+		ELSEIF RESULT == MASTER
+			PRINTFORMW %ANAME(対象)%はゴクリと生唾を飲むと、自ら名乗り出た
+		ELSE
+			PRINTFORMW %ANAME(対象)%を指定した
+			IF GETBIT(TALENT:対象:淫乱系, 素質_淫乱_雌犬)
+				PRINTFORMW %ANAME(対象)%は指名されると舌なめずりをしながら頷いた
+			ELSEIF GETBIT(TALENT:対象:淫乱系, 素質_淫乱_淫乱)
+				PRINTFORMW %ANAME(対象)%は指名されると驚きつつもその瞳には期待の色が見えた
+			ELSEIF IS_SLAVE(対象)
+				PRINTFORMW %ANAME(対象)%は指名されると泣きそうになりながらも%ANAME(対象)%の強い言葉に小さく頷いた
+			ELSE
+				PRINTFORML %ANAME(対象)%は指名されると激しく抵抗した
+				PRINTFORMW しかし男は無理矢理彼女を引きずって行った
+				CFLAG:対象:好感度 -= 1000
+			ENDIF
+		ENDIF
+	ELSEIF RESULT == 1
+		PRINTFORML 誰を使わせようか？
+		CALL SELECT_CHARA_LIST_ONLY_LOGIC_SEX("BEASTALITY_B", "BEASTALITY")
+		対象 = RESULT
+		IF RESULT < 0
+			PRINTFORMW やはりやめておいた
+			DVAR:動物遣い = 1
+			RETURN
+		ELSE
+			PRINTFORML %ANAME(対象)%は指名されると激しく抵抗した
+			PRINTFORMW しかし男は無理矢理彼女を引きずって行った
+			CFLAG:対象:好感度 -= 1000
+		ENDIF
+	ENDIF
+ENDIF
+PRINTFORML 
+PRINTFORM %ANAME(対象)%は
+SELECTCASE RAND:3
+	CASE 0
+		PRINTFORMW 豚に犯されている……
+		SELECTCASE RAND:5
+			CASE 0
+				PRINTFORML 目が血走った豚が%ANAME(対象)%に伸し掛かり、嘶きながら腰を振る
+				PRINTFORML %ANAME(対象)%はドリルちんぽを子宮にねじ込まれ、衝撃で目を白黒させて痙攣している
+				PRINTFORML 豚がカクカクと腰を振る度に子宮内をペニスで舐め上げられ、獣の様に喘いでしまう
+				PRINTFORML %ANAME(対象)%は人外のセックスに抗えずに何度もイかされ、たっぷりと種付けされてしまった
+			CASE 1
+				PRINTFORML 一匹の豚が嘶きながら%ANAME(対象)%の中にビュービューと射精している
+				PRINTFORML こってりザーメンで子宮の隅々まで犯されていく感覚に%ANAME(対象)%は白目を剥いてヨガり狂う
+				PRINTFORML 豚は射精しながら腰を振り、その衝撃に%ANAME(対象)%は無様なアヘ顔で連続絶頂してしまう
+				PRINTFORML やがて満足した豚から解放された時には、%ANAME(対象)%の下腹部はぽっこりと膨れ上がっていた
+			CASE 2
+				PRINTFORML 太った豚が%ANAME(対象)%の子宮までちんぽをねじ込みながら勢いよく射精している
+				PRINTFORML どぷんどぷんと大量の精液を流し込まれ、あまりの熱量に%ANAME(対象)%はヒィヒィと喘がされる
+				PRINTFORML 豚の射精はとてつもなく長く、%ANAME(対象)%は何度も絶頂させられてしまいひたすら身悶える
+				PRINTFORML ようやく射精が終わった頃には頭の中までザーメンに浸されたような感覚に陥っていた
+			CASE 3
+				PRINTFORML 性欲旺盛な豚たちは次々と%ANAME(対象)%に伸し掛かってはドリルちんぽをねじ込んでくる
+				PRINTFORML 畜生に種付けされる%ANAME(対象)%は涙を流して悲鳴を上げるが豚たちは容赦なく交尾を続ける
+				PRINTFORML %ANAME(対象)%のお腹はすでにボテッと膨れ上がり、秘所からは大量の精液が漏れ出している
+				PRINTFORML 豚たちの饗宴は夜通し続けられ、すっかり%ANAME(対象)%に彼らの匂いが染み込んでしまっていた
+			CASE 4
+				PRINTFORML 仰向けになった%ANAME(対象)%に巨大な豚が伸し掛かり激しく腰を振っている
+				PRINTFORML 子宮まで突き刺さったペニスのせいで禄に抵抗も出来ず%ANAME(対象)%は涙を流して喘ぐしかない
+				PRINTFORML やがて豚が嘶くとどろりとしたザーメンが胎内に放たれ、%ANAME(対象)%は涙を流してアクメった
+				PRINTFORML 射精を終えた豚は%ANAME(対象)%を確実に孕ませるべくスライム状の粘液で秘所に蓋をしていった
+		ENDSELECT
+		CALL FUCK(対象, "欲望, 奉仕, 精愛, 性技, 性交, Ｃ, Ｖ, Ｍ, 獣姦, 獣姦, Ｖ性交, Ｖ拡張", "処女喪失, 膣内射精", GET_SPERM_ID("豚"), @"豚の\@RAND:2 ? ペニス # 唇\@", @"豚", "", 喪失_強姦)
+	CASE 1
+		PRINTFORML 馬に犯されている……
+		SELECTCASE RAND:5
+			CASE 0
+				PRINTFORML 巨大なペニスで膣肉をギチギチに圧迫されている%ANAME(対象)%はビクンビクンと痙攣する
+				PRINTFORML 一突き毎にゴスン！ゴスン！と子宮が潰れる様なストロークに%ANAME(対象)%は目を白黒させて喘ぐ
+				PRINTFORML %ANAME(対象)%を気に入った彼は種付けを繰り返し、その度に灼ける様な衝撃で意識を飛んでしまう
+				PRINTFORML 解放される頃には足腰が立たない程になっており膣穴はだらしなく広がり切っていた
+			CASE 1
+				PRINTFORML 拘束台に取り付けられた%ANAME(対象)%は、乱暴にペニスをねじ込まれ痙攣しながら呻く
+				PRINTFORML 遠慮しらずの野性的なピストンに火が出そうな衝撃を受けて%ANAME(対象)%はヨガリ狂ってしまう
+				PRINTFORML 不意に馬が嘶くと共にペニスが膨れ上がると強烈な熱と共に大量の精液が吐き出された
+				PRINTFORML 子宮全体にぶちまけられる強烈な熱量に%ANAME(対象)%は意識を飛ばしながら絶頂させられた
+			CASE 2
+				PRINTFORML %ANAME(対象)%は張り子の馬に貼り付けられた格好で馬のペニスをねじ込まれている
+				PRINTFORML 人の腕ほどのペニスで子宮までガン突きされて一突き毎に視界に火花が散ってしまう
+				PRINTFORML %ANAME(対象)%の事などお構いなしの野性的な交尾によって雌として躾けられていくのを感じる
+				PRINTFORML 彼が満足するまで延々と犯され続け、子宮の隅々まで馬のザーメンを染み込まされた
+			CASE 3
+				PRINTFORML 久々の交尾に興奮した馬は%ANAME(対象)%に馬乗りになって激しく腰を振っている
+				PRINTFORML 巨大なペニスで体内を蹂躙される衝撃に%ANAME(対象)%は涙を流して呻きながらも必死で許しを請う
+				PRINTFORML しかし馬の耳に届くはずもなく、返事代わりに肉欲任せの強烈な突きを食らってしまう
+				PRINTFORML 小一時間もそうしているとすっかり%ANAME(対象)%は雌として躾けられ、だらしなくアヘっていた
+			CASE 4
+				PRINTFORML 寝台に仰向けに固定されている%ANAME(対象)%の前に一匹の巨大な馬が連れてこられる
+				PRINTFORML 股間のモノはドクドクと脈打っており、否応なく今からそれで犯される事を想像してしまう
+				PRINTFORML 調教師に促された馬は%ANAME(対象)%に跨るとゆっくりとズヌヌヌ！とペニスをねじ込んできた
+				PRINTFORML 脳が溶け、身体が灼ける様な交尾によって%ANAME(対象)%は一晩たっぷりと躾けられた
+		ENDSELECT
+		CALL FUCK(対象, "欲望, 奉仕, 精愛, 性技, 性交, Ｃ, Ｖ, Ｍ, 獣姦, 獣姦, Ｖ性交, Ｖ拡張", "処女喪失, 膣内射精", GET_SPERM_ID("馬"), @"馬の\@RAND:2 ? ペニス # 唇\@", @"馬", "", 喪失_強姦)
+	CASE 2
+		PRINTFORML 犬に犯されている……
+		SELECTCASE RAND:5
+			CASE 0
+				PRINTFORML 目を血走らせた巨大な犬が息を荒げながら%ANAME(対象)%に跨り激しく腰を振る
+				PRINTFORML 鎖で繋がれた%ANAME(対象)%は犬の様に四つん這いの姿勢で呻きながら手足をガクガク震わせている
+				PRINTFORML 調教されているだけあり犬は的確に女の弱点を抉り、%ANAME(対象)%は屈辱と快楽で顔を真っ赤にして震える
+				PRINTFORML やがて犬が大きく吠えると共に射精すると%ANAME(対象)%はいけない事だと理解しながらも絶頂してしまった
+			CASE 1
+				PRINTFORML 一匹の犬とつながったまま彼の膣内射精を受けて%ANAME(対象)%はビクビクと喘ぐ
+				PRINTFORML 長い射精はすでに数分間も続き、子宮に与えられる強烈な熱で%ANAME(対象)%は何度もイかされている
+				PRINTFORML ようやく射精が終わりペニスを引き抜かれると、秘所からドロリとした精液が大量に溢れ出してきた
+				PRINTFORML 彼の精液は特製であり人間でも孕ませられると説明され、%ANAME(対象)%は恐怖を感じながら痙攣していた
+			CASE 2
+				PRINTFORML 張り子に固定され口枷されながら犯されている%ANAME(対象)%は悲痛な呻き声を上げる
+				PRINTFORML 畜生のグロテスクなペニスで蹂躙されている事実に%ANAME(対象)%は身も心も衝撃で焼焦げそうになる
+				PRINTFORML しかしその野性的な突き上げで一突き毎に身体を雌に躾けられ子宮がキュンキュン疼いてしまう
+				PRINTFORML 彼は%ANAME(対象)%を気に入った様で夜通し交尾を続け何度もその精を奥深くまでぶちまけられた
+			CASE 3
+				PRINTFORML 犬の群れの中でドロドロになりながら犯され、アヒアヒとだらしなく舌を垂らす
+				PRINTFORML 夜通し彼らに輪姦された%ANAME(対象)%はすっかり雌犬に成り下がっておりペニスを受け入れている
+				PRINTFORML 逞しい雄と交尾してその種を注がれると言う雌の本能のままに腰を振り絶頂しそして種付けされる
+				PRINTFORML もはやどちらが調教されているのかわからないままに%ANAME(対象)%はその後もひたすら犯された
+			CASE 4
+				PRINTFORML 首輪をつけられた%ANAME(対象)%が多数の雄犬に群がられて悲鳴を上げている
+				PRINTFORML 彼らは代わる代わる伸し掛かると容赦なくペニスをねじ込み当り前の様に種付けしていく
+				PRINTFORML 揃ってペニスはたくましく、獣特有の激しいセックスは否応なく%ANAME(対象)%を感じさせイかされてしまう
+				PRINTFORML 気づけば%ANAME(対象)%は無様な喘ぎ声を上げながら身を震わせ、だらしない笑みを浮かべていた
+		ENDSELECT
+		CALL FUCK(対象, "欲望, 奉仕, 精愛, 性技, 性交, Ｃ, Ｖ, Ｍ, 獣姦, 獣姦, Ｖ性交, Ｖ拡張", "処女喪失, 膣内射精", GET_SPERM_ID("犬"), @"犬の\@RAND:2 ? ペニス # 唇\@", @"犬", "", 喪失_強姦)
+ENDSELECT
+PRINTFORML 
+PRINTFORMW 調教を終えた男は満足して帰って行った
+PRINTFORMW 謝礼として金5000を手に入れた
+MONEY += 5000
+
+RETURN 1
+
+@SELECT_CHARA_LIST_SHOW_LOGIC_BEASTALITY_A(対象)
+#DIM 対象
+RETURN CFLAG:対象:行動不能状態 != 4 && CFLAG:対象:所属 == CFLAG:MASTER:所属 && !IS_ANIMAL(対象) && !IS_MALE(対象)
+
+@SELECT_CHARA_LIST_SHOW_LOGIC_BEASTALITY_B(対象)
+#DIM 対象
+RETURN CFLAG:対象:行動不能状態 != 4 && CFLAG:対象:所属 != CFLAG:MASTER:所属 && !IS_ANIMAL(対象) && !IS_MALE(対象)
+
+@SELECT_CHARA_LIST_SELECT_LOGIC_BEASTALITY(対象)
+#DIM 対象
+RETURN CFLAG:対象:捕虜先 == 0
