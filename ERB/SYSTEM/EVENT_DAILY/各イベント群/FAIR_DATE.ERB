@@ -1,0 +1,192 @@
+﻿;---------------------
+;発生確率(1000分率 100で10%)
+;---------------------
+@EVENT_DAILY_FAIR_DATE_RATE()
+RETURN 25
+
+;---------------------
+;確率以外の発生判定
+;---------------------
+@EVENT_DAILY_FAIR_DATE_DECISION()
+SIF !IS_MALE(MASTER)
+	RETURN 0
+
+RETURN 1
+
+;---------------------
+;特定の条件を満たすキャラをランダムに選択する場合に利用
+;他の関数は必須だが、これだけはなくてもよい　というかパフォーマンスへ影響するので不要なら作ってはならない
+;対象が存在せずデイリーを開始できない場合は0を返すことでデイリーの発生をキャンセルする
+;---------------------
+@EVENT_DAILY_FAIR_DATE_SETTARGET()
+
+FOR LOCAL, 0, CHARANUM
+	;女キャラ、かつ自国所属かつ捕虜でない、かつ動物でない
+	IF IS_FEMALE(LOCAL) && CFLAG:LOCAL:所属 == CFLAG:MASTER:所属 && !CFLAG:LOCAL:捕虜先 && !IS_ANIMAL(LOCAL) && CFLAG:LOCAL:面識 && CFLAG:LOCAL:好感度 > 0
+		DAILY_TARGET:DAILY_TARGET_NUM = LOCAL
+		DAILY_TARGET_NUM ++
+	ENDIF
+NEXT
+
+SIF DAILY_TARGET_NUM < 1
+	RETURN 0
+
+RETURN 1
+
+;---------------------
+;ジャンル
+;---------------------
+@EVENT_DAILY_FAIR_DATE_GENRE()
+RETURN デイリー_ジャンル_その他
+
+;---------------------
+;本体
+;---------------------
+@EVENT_DAILY_FAIR_DATE
+#DIM 対象
+
+対象 = DAILY_TARGET:(RAND:DAILY_TARGET_NUM)
+
+PRINTFORML 浴衣姿の%ANAME(対象)%と出会った
+PRINTFORMW これから縁日に出かけるのだという
+IF CFLAG:対象:好感度 >= 500 
+	PRINTFORMW %ANAME(MASTER)%も一緒に行かないかと誘われた
+ELSE
+	PRINTFORMW 暇なので彼女について行こうかな？
+ENDIF
+PRINTFORML どうしよう？
+CALL ASK_MULTI(@"一緒に行く" ,"見送る")
+IF RESULT == 1
+	PRINTFORMW 疲れているので見送る事にした
+	IF CFLAG:対象:好感度 >= 500
+		PRINTFORMW 彼女は残念そうだったが楽しんでくると微笑みながら出ていった
+	ENDIF
+	RETURN
+ELSE
+	PRINTFORMW 一緒に行こうと言うと彼女はにこっと笑った
+ENDIF
+PRINTFORML 
+PRINTFORML 縁日は人でごった返していた
+PRINTFORMW はぐれない様にくっついていると彼女の柔らかい匂いが鼻腔をくすぐった
+PRINTFORML 彼女は仕事を忘れ、ただの少女の様にはしゃいでいる
+PRINTFORMW 普段と違うその姿に色気を感じてついつい見とれてしまう
+PRINTFORML ボーっとしていると彼女に突っつかれ、慌てて我に返った
+PRINTFORML 彼女は%ANAME(対象)%をからかうように笑って見せる
+PRINTFORMW 気恥ずかしさを誤魔化しながら二人で縁日を見て回った…
+PRINTFORML 
+SELECTCASE RAND:9
+	;食べ歩き
+	CASE 0
+		PRINTFORML 美味しそうな匂いがあちこちから漂ってきた
+		PRINTFORML 焼きそば、たこ焼き、綿あめ、チョコバナナ
+		PRINTFORMW 彼女にねだられるままに食べ歩きながら屋台を巡った
+		IF MONEY >= 1000
+			MONEY -= 1000
+			CFLAG:対象:好感度 += 100
+			PRINTFORMW 金1000を消費した
+			PRINTFORMW 好感度が100上がった
+		ENDIF
+	;射的
+	CASE 1
+		PRINTFORML 射的小屋を見つけた
+		PRINTFORMW 彼女に景品の人形をねだられ、挑戦することにした
+		PRINTFORML 
+		IF ABL:MASTER:武闘 / 10 + RAND:5 >= RAND:7
+			PRINTFORML 見事景品を手に入れた！
+			PRINTFORMW 彼女に人形を渡すと嬉しそうに笑ってくれた
+			CFLAG:対象:好感度 += 150
+			PRINTFORMW 好感度が150上がった
+		ELSE
+			PRINTFORML 成功しなかった…
+			PRINTFORMW 彼女は残念そうにしながらも慰めてくれた
+			CFLAG:対象:好感度 += 50
+			PRINTFORMW 好感度が50上がった
+		ENDIF
+	;金魚すくい
+	CASE 2
+		PRINTFORML 金魚すくいに誘われた
+		PRINTFORMW 彼女と競争することになった
+		PRINTFORML 
+		IF ABL:MASTER:知略 / 10 + RAND:5 >= RAND:7
+			PRINTFORML 見事競争に勝利した！
+			PRINTFORMW どうやって金魚を育てようか相談しながら屋台巡りを続けた
+			CFLAG:対象:好感度 += 150
+			PRINTFORMW 好感度が150上がった
+		ELSE
+			PRINTFORML 彼女にはかなわなかった
+			PRINTFORMW 彼女に金魚の育て方を相談されながら屋台巡りを続けた
+			CFLAG:対象:好感度 += 50
+			PRINTFORMW 好感度が50上がった
+		ENDIF
+	;くじびき
+	CASE 3
+		PRINTFORML くじ引き屋を見つけた
+		PRINTFORMW 運試しにやってみようと誘われた
+		PRINTFORML 
+		IF RAND:3 == 0
+			PRINTFORML 見事当たりを引いた！
+			PRINTFORMW 景品を彼女に上げると嬉しそうに微笑んだ
+			CFLAG:対象:好感度 += 150
+			PRINTFORMW 好感度が150上がった
+		ELSE
+			PRINTFORML 残念、外れだった
+			PRINTFORMW 当たりを引いてご満悦な彼女と再び屋台巡りに戻った
+			CFLAG:対象:好感度 += 50
+			PRINTFORMW 好感度が50上がった
+		ENDIF
+	;食べ歩き2
+	CASE 4
+		PRINTFORML 美味しそうな匂いがあちこちから漂ってきた
+		PRINTFORML アメリカンドッグ、かき氷、じゃがバター
+		PRINTFORMW 二人で好みの食べ物を買っては食べ合いっこしながら屋台を巡った
+		IF MONEY >= 1000
+			MONEY -= 1000
+			CFLAG:対象:好感度 += 100
+			PRINTFORMW 金1000を消費した
+			PRINTFORMW 好感度が100上がった
+		ENDIF
+	;お面屋
+	CASE 5
+		PRINTFORML お面屋を見つけた
+		PRINTFORMW 懐かしいモノや見た事のない仮面まで様々なお面が売っている
+		PRINTFORML 彼女とお面の比べあいをして気に入ったのを購入した
+		PRINTFORMW 雰囲気が出るわねと笑う彼女と共に再び屋台巡りに戻った
+		CFLAG:対象:好感度 += 80
+		PRINTFORMW 好感度が80上がった
+	;小休止
+	CASE 6
+		PRINTFORML 屋台巡りに疲れた%ANAME(対象)%達は少し休むことにした
+		PRINTFORMW 丁度良くベンチを見つけたので二人で腰かけ話をする
+		PRINTFORML 彼女は久しぶりの縁日にはしゃぎっぱなしだ
+		PRINTFORMW しばらく休んだ後再び彼女に引っ張られて屋台巡りに戻った
+		CFLAG:対象:好感度 += 80
+		PRINTFORMW 好感度が80上がった
+	;人混みの中
+	CASE 7
+		PRINTFORML 縁日は人でごった返していた
+		PRINTFORMW 少し目を離すと彼女と離れ離れになりそうだ
+		PRINTFORML 彼女がそっとあなたの手を握ってきた
+		PRINTFORML あなたは何も言わずにしっかりと彼女の手を握り返した
+		PRINTFORMW 手と繋ぎながら二人で屋台を巡った
+		CFLAG:対象:好感度 += 80
+		PRINTFORMW 好感度が80上がった
+	;ヨーヨー釣り
+	CASE 8
+		PRINTFORML ヨーヨー釣りをしている子どもを見かけた
+		PRINTFORML それを見た彼女にやってみたいとねだられた
+		PRINTFORMW 多数のヨーヨーの中から彼女好みのヨーヨーを狙った
+		PRINTFORML 
+		IF ABL:MASTER:防衛 / 10 + RAND:5 >= RAND:7
+			PRINTFORML 見事釣り上げた！
+			PRINTFORMW 彼女に渡すと嬉しそうに笑い子供の様にはしゃぎだした
+			CFLAG:対象:好感度 += 150
+			PRINTFORMW 好感度が150上がった
+		ELSE
+			PRINTFORML しかし上手くできなかった
+			PRINTFORMW 残念そうにする彼女と共に屋台巡りに戻った
+			CFLAG:対象:好感度 += 50
+			PRINTFORMW 好感度が50上がった
+		ENDIF
+ENDSELECT
+
+RETURN 1
