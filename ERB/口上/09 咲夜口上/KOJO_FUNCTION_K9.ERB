@@ -1,13 +1,341 @@
 ﻿;─────────────────────────────────────── 
-;●咲夜口上用の分岐条件
+;●口上用の選択肢表示用関数（お嬢様にも流用したい）
+;　選択肢0～5に選択肢を入力。0番～5番まで1～6個の選択肢を作れる
+;　結果は呼び出し後に分岐させて処理するためRESULTに返す
+;　選択肢のない数字を入力したら選択肢に戻される
 ;─────────────────────────────────────── 
-@CHECK_K9(ARGS:0)
-#FUNCTION
+@KOJO_ASK(選択肢:0, 選択肢:1, 選択肢:2, 選択肢:3, 選択肢:4, 選択肢:5)
+#DIMS 選択肢, 6
+#DIM SAVE_REDRAW
+#DIM SAVE_COLOR
+#DIM SAVE_LINE
+
+;REDRAW状態を保存
+CURRENTREDRAW
+SAVE_REDRAW = RESULT
+REDRAW 0
+
+;現在の文字色を保存
+GETCOLOR
+SAVE_COLOR = RESULT
+RESETCOLOR
+
+;質問文の下に空行
+PRINTL 
+
+;現在行を保存（質問文の下の空行は残す）
+SAVE_LINE = LINECOUNT
+
+;選択肢表示（文字列が空でなければ）
+FOR SAVE_REDRAW, 0, 6
+	IF 選択肢:(SAVE_REDRAW) != ""
+		PRINTBUTTON @"{SAVE_REDRAW, 2, RIGHT}[%選択肢:(SAVE_REDRAW)%]", SAVE_REDRAW
+		PRINTL 
+	ENDIF
+NEXT
+
+$INPUT_LOOP
+;初期値0
+INPUT 0
+
+;指定外
+IF RESULT < 0 || RESULT > 5
+	;入力値の表示をクリア
+	CLEARLINE 1
+	GOTO INPUT_LOOP
+;指定内
+ELSE
+	;選択肢と入力値の表示をクリアして選択結果のみ表示する
+	;入力クリック直後の入力値表示代わりなのでWAITしない
+	CLEARLINE LINECOUNT - SAVE_LINE
+	SETCOLOR COLOR("選択不可")
+	PRINTFORML ➡%選択肢:(RESULT)%
+ENDIF
+
+PRINTL 
+
+;REDRAW状態と文字色を戻す
+REDRAW SAVE_REDRAW
+SETCOLOR SAVE_COLOR
+
+RETURN RESULT
+
+;─────────────────────────────────────── 
+;●咲夜口上の使用可否・初期化
+;─────────────────────────────────────── 
+@KOJO_ASK_RESET_K9
 #DIM 咲夜
+
 咲夜 = NAME_TO_CHARA("咲夜")
-;主人公に服従系陥落、あるいは、主人公が君主で咲夜が君主でなく同盟以上の関係（自勢力を含む）
-IF ARGS:0 == "敬語"
-	IF IS_SLAVE(咲夜) || ( GET_COUNTRY_BOSS(CFLAG:MASTER:所属) == MASTER && GET_COUNTRY_BOSS(CFLAG:咲夜:所属) != 咲夜 && CHECK_COUNTRY_RELATION_F(CFLAG:MASTER:所属, CFLAG:咲夜:所属) >= 2 ) || CSTR:MASTER:99 == "レミリア" || CSTR:MASTER:99 == "パチュリー"
+
+;咲夜口上用のデータを初期化
+;0=未設定 1=使用しない 2=使用する
+咲夜_口上デイリー入力系使用 = 0
+;入力系デイリー親しい呼びかた用
+咲夜_主人公への呼称 '= ""
+咲夜_主人公への呼称フリガナ '= ""
+;入力系デイリーえっちな呼びかた用
+咲夜_淫語Ｐ '= "あれ"
+咲夜_淫語Ｖ '= "なか"
+咲夜_淫語Ｃ '= "そこ"
+咲夜_淫語Ａ '= "そこ"
+咲夜_淫語Ｂ '= "そこ"
+;0=未設定 1=低頻度 2=高頻度
+咲夜_淫語頻度 = 0
+;プレイヤー側の初回実行判定（スキンヘッドチェック用）
+咲夜_髪梳き初回 = 0
+;おもいで語りデイリー用
+咲夜_告白成功期 = 0
+咲夜_告白成功場所 = 0
+咲夜_告白成功したキャラ = 0
+
+RESETCOLOR
+PRINTL 
+
+PRINTFORML 咲夜口上使用の設定
+CALL KOJO_ASK("使用しない", "使用する")
+PRINTFORMW 咲夜口上の使用を設定した
+
+;使用しない
+IF RESULT == 0
+	CFLAG:咲夜:400 = 1
+;使用する
+ELSEIF RESULT == 1
+	CFLAG:咲夜:400 = 2
+ENDIF
+
+PRINTL 
+
+PRINTFORM 咲夜口上デイリー入力系使用の設定
+SETCOLOR COLOR("選択不可")
+PRINTFORML  - あなたへの優先呼称やあなた好みの淫語を入力するイベント
+RESETCOLOR
+CALL KOJO_ASK("使用しない", "使用する")
+PRINTFORMW 咲夜口上デイリー入力系使用を設定した
+
+;使用しない
+IF RESULT == 0
+	咲夜_口上デイリー入力系使用 = 1
+;使用する
+ELSEIF RESULT == 1
+	咲夜_口上デイリー入力系使用 = 2
+ENDIF
+
+PRINTL 
+
+RETURN 0
+
+
+;─────────────────────────────────────── 
+;●咲夜の呼称（咲夜から咲夜_対象へ）
+;　使い方：%CALLNAME_K9(咲夜_対象)%　%CALLNAME_K9(咲夜_対象, "ぁ")%
+;　覚書　：第二引数に"ぁ"とつけると
+;　フリガナ（CSTR:MASTER:6や咲夜_主人公への呼称フリガナや君主等への特殊呼称）がある場合
+;　対応する小書き母音をつける（甘え感を出す）
+;─────────────────────────────────────── 
+@CALLNAME_K9(咲夜_対象, 小書き)
+#FUNCTIONS
+#DIM 咲夜
+#DIM 咲夜_対象
+#DIMS 小書き
+#DIMS 最終的な呼称
+#DIMS 最終的な呼称フリガナ
+
+;リセット
+咲夜 = NAME_TO_CHARA("咲夜")
+最終的な呼称 '= ""
+
+;慰安中モブ相手
+IF FLAG:調教モード == 調教_慰安 && CFLAG:(咲夜_対象):慰安モブ
+	最終的な呼称 '= "皆様"
+	最終的な呼称フリガナ '= "ミナサマ"
+
+;主人公で呼称指定済み
+ELSEIF 咲夜_対象 == MASTER && KDVAR:咲夜:咲夜_親しい呼びかた
+	最終的な呼称 '= 咲夜_主人公への呼称
+	最終的な呼称フリガナ '= 咲夜_主人公への呼称フリガナ
+
+;同一勢力君主の男対象
+ELSEIF GET_COUNTRY_BOSS(CFLAG:咲夜:所属) == 咲夜_対象 && IS_MALE(咲夜_対象)
+	最終的な呼称 '= "ご主人様"
+	最終的な呼称フリガナ '= "ゴシュジンサマ"
+
+;咲夜_対象が主人公＆咲夜が服従系陥落＆対象が男
+ELSEIF 咲夜_対象 == MASTER && IS_SLAVE(咲夜) && IS_MALE(咲夜_対象)
+	IF ANAME(咲夜_対象) == "あなた"
+		最終的な呼称 '= "ご主人様"
+		最終的な呼称フリガナ '= "ゴシュジンサマ"
+	ELSE
+		最終的な呼称 '= ANAME(咲夜_対象) + "様"
+		IF CSTR:咲夜_対象:6 != ""
+			最終的な呼称フリガナ '= CSTR:咲夜_対象:6 + "サマ"
+		ELSE
+			最終的な呼称フリガナ '= ""
+		ENDIF
+	ENDIF
+
+;レミリア
+ELSEIF ANAME(咲夜_対象) == "レミリア"
+	最終的な呼称 '= "お嬢様"
+	最終的な呼称フリガナ '= "オジョウサマ"
+
+;同一勢力君主の女対象
+ELSEIF GET_COUNTRY_BOSS(CFLAG:咲夜:所属) == 咲夜_対象 && IS_FEMALE(咲夜_対象)
+	IF ANAME(咲夜_対象) == "あなた"
+		最終的な呼称 '= "お嬢様"
+		最終的な呼称フリガナ '= "オジョウサマ"
+	ELSE
+		最終的な呼称 '= ANAME(咲夜_対象) + "様"
+		IF CSTR:咲夜_対象:6 != ""
+			最終的な呼称フリガナ '= CSTR:咲夜_対象:6 + "サマ"
+		ELSE
+			最終的な呼称フリガナ '= ""
+		ENDIF
+	ENDIF
+
+;咲夜_対象が主人公＆咲夜が服従系陥落＆対象が女
+ELSEIF 咲夜_対象 == MASTER && IS_SLAVE(咲夜) && IS_FEMALE(咲夜_対象)
+	IF ANAME(咲夜_対象) == "あなた"
+		最終的な呼称 '= "お嬢様"
+		最終的な呼称フリガナ '= "オジョウサマ"
+	ELSE
+		最終的な呼称 '= ANAME(咲夜_対象) + "様"
+		IF CSTR:咲夜_対象:6 != ""
+			最終的な呼称フリガナ '= CSTR:咲夜_対象:6 + "サマ"
+		ELSE
+			最終的な呼称フリガナ '= ""
+		ENDIF
+	ENDIF
+
+ELSEIF ANAME(咲夜_対象) == "フラン" 
+	最終的な呼称 '= "妹様"
+	最終的な呼称フリガナ '= "イモウトサマ"
+
+ELSEIF ANAME(咲夜_対象) == "パチュリー" 
+	最終的な呼称 '= "パチュリー様"
+	最終的な呼称フリガナ '= "パチュリーサマ"
+
+ELSEIF ANAME(咲夜_対象) == "霖之助" 
+	最終的な呼称 '= "店主"
+	最終的な呼称フリガナ '= "テンシュ"
+
+;敬語の場合
+ELSEIF CHECK_K9("敬語", 咲夜_対象)
+	IF ANAME(咲夜_対象) == "あなた"
+		IF IS_MALE(咲夜_対象)
+			最終的な呼称 '= "貴方"
+			最終的な呼称フリガナ '= "アナタ"
+		ELSE
+			最終的な呼称 '= "貴女"
+			最終的な呼称フリガナ '= "アナタ"
+		ENDIF
+	ELSE
+		最終的な呼称 '= ANAME(咲夜_対象) + "様"
+		IF CSTR:咲夜_対象:6 != ""
+			最終的な呼称フリガナ '= CSTR:咲夜_対象:6 + "サマ"
+		ELSE
+			最終的な呼称フリガナ '= ""
+		ENDIF
+	ENDIF
+
+;それ以外
+ELSE
+	IF ANAME(咲夜_対象) == "あなた"
+		IF IS_MALE(咲夜_対象)
+			最終的な呼称 '= "貴方"
+			最終的な呼称フリガナ '= "アナタ"
+		ELSE
+			最終的な呼称 '= "貴女"
+			最終的な呼称フリガナ '= "アナタ"
+		ENDIF
+	ELSE
+		最終的な呼称 '= ANAME(咲夜_対象)
+		IF CSTR:咲夜_対象:6 != ""
+			最終的な呼称フリガナ '= CSTR:咲夜_対象:6
+		ELSE
+			最終的な呼称フリガナ '= ""
+		ENDIF
+	ENDIF
+ENDIF
+
+IF 小書き == "ぁ" && 最終的な呼称フリガナ != ""
+	最終的な呼称 '= 最終的な呼称 + SMALLSCRIPT(最終的な呼称フリガナ)
+ENDIF
+
+RETURNF 最終的な呼称
+
+;─────────────────────────────────────── 
+;●咲夜口上の分岐条件まとめ
+;　IF文を短縮したり見やすくするための条件まとめ
+;　よく使う条件が増えたらその都度追加
+;　条件=わかりやすそうな条件名 咲夜_対象=略すと主人公
+;　CHECK_K9("敬語", 咲夜_対象)……咲夜が敬語を使う固定キャラや君主や服従陥落があるか等 
+;　CHECK_K9("面識", 咲夜_対象)……既知と扱う固定キャラか、面識はあるかの確認
+;　CHECK_K9("陥落", 咲夜_対象)……咲夜_対象が主人公か＆恋慕系服従系の陥落があるか確認する
+;　CHECK_K9("紅魔館", 咲夜_対象)……紅魔館のメンバーかどうか（既知かつ好意的扱い）
+;─────────────────────────────────────── 
+@CHECK_K9(条件, 咲夜_対象)
+#FUNCTION
+#DIMS 条件
+#DIM 咲夜_対象
+#DIM 咲夜
+
+;咲夜_対象は未指定だと主人公
+IF !咲夜_対象
+	咲夜_対象 = MASTER
+ENDIF
+
+咲夜 = NAME_TO_CHARA("咲夜")
+
+;〇敬語
+IF 条件 == "敬語"
+	;慰安はサービスなので敬語にする
+	IF FLAG:調教モード == 調教_慰安
+		RETURNF 1
+	;咲夜_対象があなたで咲夜が服従系陥落（デイリー「主の主は」発生済みを含む）
+	ELSEIF 咲夜_対象 == MASTER && IS_SLAVE(咲夜)
+		RETURNF 1
+	;咲夜_対象が君主＆咲夜が君主でない＆同盟以上の関係（自勢力を含む）
+	ELSEIF GET_COUNTRY_BOSS(CFLAG:咲夜_対象:所属) == 咲夜_対象 && GET_COUNTRY_BOSS(CFLAG:咲夜:所属) != 咲夜 && CHECK_COUNTRY_RELATION_F(CFLAG:咲夜_対象:所属, CFLAG:咲夜:所属) >= 2
+		RETURNF 1
+	;咲夜_対象がお嬢様orパチュリー様or妹様
+	ELSEIF ANAME(咲夜_対象) == "レミリア" || ANAME(咲夜_対象) == "パチュリー" || ANAME(咲夜_対象) == "フラン"
+		RETURNF 1
+	;それ以外
+	ELSE
+		RETURNF 0
+	ENDIF
+ENDIF
+
+;〇面識
+IF 条件 == "面識"
+	;咲夜_対象があなたで咲夜と面識がある（面識を得るデイリーの発生も含む）
+	IF 咲夜_対象 == MASTER && CFLAG:咲夜:面識
+		RETURNF 1
+	;固定キャラで紅魔館キャラの場合
+	ELSEIF ANAME(咲夜_対象) == "レミリア" || ANAME(咲夜_対象) == "パチュリー" || ANAME(咲夜_対象) == "フラン" || ANAME(咲夜_対象) == "小悪魔" || ANAME(咲夜_対象) == "美鈴"
+		RETURNF 1
+	;固定キャラで咲夜が知人として扱いそうなキャラの場合（特殊な呼び方などのあるキャラ）
+	ELSEIF ANAME(咲夜_対象) == "霊夢" || ANAME(咲夜_対象) == "魔理沙" || ANAME(咲夜_対象) == "霖之助"
+		RETURNF 1
+	;それ以外
+	ELSE
+		RETURNF 0
+	ENDIF
+ENDIF
+
+;〇陥落
+IF 条件 == "陥落"
+	;咲夜_対象があなたで恋慕系か服従系の陥落
+	IF 咲夜_対象 == MASTER && ( IS_SLAVE(咲夜) || IS_LOVER(咲夜) )
+		RETURNF 1
+	ENDIF
+ENDIF
+
+;〇紅魔館
+IF 条件 == "紅魔館"
+	;咲夜_対象が固定キャラで紅魔館キャラの場合（一応咲夜自身も）
+	IF ANAME(咲夜_対象) == "レミリア" || ANAME(咲夜_対象) == "パチュリー" || ANAME(咲夜_対象) == "フラン" || ANAME(咲夜_対象) == "小悪魔" || ANAME(咲夜_対象) == "美鈴" || ANAME(咲夜_対象) == "咲夜"
 		RETURNF 1
 	ENDIF
 ENDIF
@@ -15,72 +343,1587 @@ ENDIF
 RETURNF 0
 
 ;─────────────────────────────────────── 
-;●咲夜口上用の分岐条件 ARGS:0=常体語 ARGS:1=敬語
-;　ちょっと語尾を変えるくらいならこっちで
+;●敬語か常体語かでちょっと分岐
+;　使い方：%POLITE_K9("そうよね", "そうですよね")%
 ;─────────────────────────────────────── 
-@POLITE_K9(常体語, 敬語)
+@POLITE_K9(常体語, 敬語, 咲夜_対象)
 #FUNCTIONS
 #DIM 咲夜
+#DIM 咲夜_対象
 #DIMS 常体語
 #DIMS 敬語
+
+;咲夜_対象は未指定だと主人公
+IF !咲夜_対象
+	咲夜_対象 = MASTER
+ENDIF
+
 咲夜 = NAME_TO_CHARA("咲夜")
-;１．主人公に服従系陥落
-;２．主人公が君主で咲夜が君主でなく同盟以上の関係（自勢力を含む）
-;３．レミリア
-IF IS_SLAVE(咲夜) || ( GET_COUNTRY_BOSS(CFLAG:MASTER:所属) == MASTER && GET_COUNTRY_BOSS(CFLAG:咲夜:所属) != 咲夜 && CHECK_COUNTRY_RELATION_F(CFLAG:MASTER:所属, CFLAG:咲夜:所属) >= 2 ) || CSTR:MASTER:99 == "レミリア" || CSTR:MASTER:99 == "パチュリー"
+
+IF CHECK_K9("敬語", 咲夜_対象)
 	RETURNF 敬語
 ENDIF
 RETURNF 常体語
 
+
 ;─────────────────────────────────────── 
-;●主人公への名前の呼び方
+;●文末を決める
+;　使い方：鍵括弧前は%BREAK_K9("末")%　そうでなければ%BREAK_K9("中")%
+;　覚書　：文末というか句読点・感嘆符・ハート
+;　機嫌とか快楽度合いとかコマンド種を見て「。」つけるか「！」や「❤」つけるか決める
+;　鍵括弧の直前以外は！や❤の後に全角スペースを入れるため、中か末かの指定がいる
+;　促音「っ」をつけたりつけなかったりするので、元テキストの末尾につけてしまうと「っっ」になる
 ;─────────────────────────────────────── 
-@CALLMASTER_K9(咲夜)
+@BREAK_K9(位置, 咲夜_対象)
 #FUNCTIONS
+#DIMS 位置
+#DIMS 区切り
+#DIMS 表示テキスト
 #DIM 咲夜
-;１．服従系陥落で男あなた
-;２．同一勢力君主の男あなた
-IF ( IS_SLAVE(咲夜) || GET_COUNTRY_BOSS(CFLAG:咲夜:所属) == MASTER ) && IS_MALE(MASTER)
-	LOCALS:0 = ご主人様
-;１．咲夜が服従系陥落で女あなた
-;２．同一勢力君主の女あなた
-;３．レミリアで女あなた
-ELSEIF ( IS_SLAVE(咲夜) || GET_COUNTRY_BOSS(CFLAG:咲夜:所属) == MASTER || CSTR:MASTER:99 == "レミリア" ) && IS_FEMALE(MASTER)
-	LOCALS:0 = お嬢様
-ELSEIF CSTR:MASTER:99 == "パチュリー" 
-	LOCALS:0 = パチュリー様
-ELSEIF CSTR:MASTER:99 == "美鈴" 
-	LOCALS:0 = 美鈴
-ELSEIF CSTR:MASTER:99 == "霖之助" 
-	LOCALS:0 = 店主
-;主人公が君主で咲夜が君主でなく同盟以上の関係
-ELSEIF CHECK_K9("敬語")
-	IF CSTR:MASTER:99 == "あなた"
-		IF IS_MALE(MASTER)
-			LOCALS:0 = 貴方
-		ELSE
-			LOCALS:0 = 貴女
-		ENDIF
-	ELSE
-		LOCALS:0 = %ANAME(MASTER)%様
+#DIM 咲夜_対象
+#DIMS 咲夜機嫌
+#DIM 咲夜_最大快楽部位の値
+
+;咲夜_対象は未指定だと主人公
+IF !咲夜_対象
+	咲夜_対象 = MASTER
+ENDIF
+
+咲夜 = NAME_TO_CHARA("咲夜")
+咲夜機嫌 '= TOSTR_EMOTION(咲夜)
+咲夜_最大快楽部位の値 = MAX(PALAM:咲夜:快Ｃ, PALAM:咲夜:快Ｖ, PALAM:咲夜:快Ａ, PALAM:咲夜:快Ｂ, PALAM:咲夜:快Ｍ)
+
+表示テキスト '= ""
+
+;▼日常コマンド失敗時
+IF TFLAG:18 == -1 || TFLAG:17 == -1
+	表示テキスト '= SPLIT_R("……：：：：：")
+	IF 位置 == "中"
+		表示テキスト '= 表示テキスト + "。"
 	ENDIF
-;それ以外
-ELSE
-	IF CSTR:MASTER:99 == "あなた"
-		IF IS_MALE(MASTER)
-			LOCALS:0 = 貴方
+
+;▼不機嫌
+ELSEIF GROUPMATCH(咲夜機嫌,"恨","怒","憤","鬱","悲","憂","狂","恐","怯")
+	表示テキスト '= SPLIT_R("……：：：：：")
+	表示テキスト '= 表示テキスト + SPLIT_R("っ：：：：：")
+	IF 位置 == "中"
+		表示テキスト '= 表示テキスト + "。"
+	ENDIF
+
+;▼気力切れ/酔い限界
+ELSEIF TCVAR:咲夜:52 || TCVAR:咲夜:53 == 1
+	;咲夜_対象が主人公ではないか、陥落ではない、あるいは捕虜スカ触手系
+	 IF !CHECK_K9("陥落", 咲夜_対象) || ((SELECTCOM >= 80 && SELECTCOM <= 99) || (SELECTCOM >= 130 && SELECTCOM <= 159) || (SELECTCOM >= 200 && SELECTCOM <= 219))
+		表示テキスト '= SPLIT_R("……：：：：：")
+		表示テキスト '= 表示テキスト + SPLIT_R("っ：：：：：")
+		IF 位置 == "中"
+			表示テキスト '= 表示テキスト + "。"
+		ENDIF
+	;咲夜_対象が主人公かつ陥落、捕虜スカ触手系ではない
+	ELSE
+		表示テキスト '= SPLIT_R("……：：：：：")
+		表示テキスト '= 表示テキスト + SPLIT_R("っ：：：：：")
+		IF 位置 == "中"
+			表示テキスト '= 表示テキスト + SPLIT_R("。：❤　")
 		ELSE
-			LOCALS:0 = 貴女
+			表示テキスト '= 表示テキスト + SPLIT_R("：❤")
+		ENDIF
+	ENDIF
+
+;▼体力切れ 
+ELSEIF TCVAR:咲夜:51 || (BASE:咲夜:体力 <= (MAXBASE:咲夜:体力 / 3))
+	IF 咲夜_最大快楽部位の値 >= 9000
+		表示テキスト '= SPLIT_R("……：")
+		表示テキスト '= 表示テキスト + SPLIT_R("っ：")
+		IF 位置 == "中"
+			表示テキスト '= 表示テキスト + "。"
 		ENDIF
 	ELSE
-		LOCALS:0 = %ANAME(MASTER)%
+		表示テキスト '= SPLIT_R("……：")
+		表示テキスト '= 表示テキスト + SPLIT_R("っ：：：：：")
+		IF 位置 == "中"
+			表示テキスト '= 表示テキスト + "。"
+		ENDIF
+	ENDIF
+
+;▼閨で咲夜が受け
+;　受けかどうかはNIGHTのカテゴリ分岐で保存される
+ELSEIF FLAG:ウフフフラグ && 咲夜_咲夜が受け
+	;▽～1500　あっ……ん……
+	IF 咲夜_最大快楽部位の値 < 1500
+		;咲夜_対象が主人公ではないか、陥落ではない、あるいは捕虜スカ触手系
+		 IF !CHECK_K9("陥落", 咲夜_対象) || ((SELECTCOM >= 80 && SELECTCOM <= 99) || (SELECTCOM >= 130 && SELECTCOM <= 159) || (SELECTCOM >= 200 && SELECTCOM <= 219))
+			表示テキスト '= SPLIT_R("……：")
+			表示テキスト '= 表示テキスト + SPLIT_R("っ：：：：：")
+			IF 位置 == "中"
+				表示テキスト '= 表示テキスト + "。"
+			ENDIF
+		;咲夜_対象が主人公かつ陥落、捕虜スカ触手系ではない
+		ELSE
+			表示テキスト '= SPLIT_R("……：")
+			表示テキスト '= 表示テキスト + SPLIT_R("っ：：：：：")
+			IF 位置 == "中"
+				表示テキスト '= 表示テキスト + SPLIT_R("。：❤　")
+			ELSE
+				表示テキスト '= 表示テキスト + SPLIT_R("：❤")
+			ENDIF
+		ENDIF
+
+	;▽1500～5000　ああっ、う、あ❤　……っ、ん
+	ELSEIF 咲夜_最大快楽部位の値 >= 1500 && 咲夜_最大快楽部位の値 < 5000
+		;咲夜_対象が主人公ではないか、陥落ではない、あるいは捕虜スカ触手系
+		 IF !CHECK_K9("陥落", 咲夜_対象) || ((SELECTCOM >= 80 && SELECTCOM <= 99) || (SELECTCOM >= 130 && SELECTCOM <= 159) || (SELECTCOM >= 200 && SELECTCOM <= 219))
+			表示テキスト '= SPLIT_R("……：：：")
+			表示テキスト '= 表示テキスト + SPLIT_R("っ：：：：")
+			IF 位置 == "中"
+				表示テキスト '= 表示テキスト + "。"
+			ENDIF
+		;咲夜_対象が主人公かつ陥落、捕虜スカ触手系ではない
+		ELSE
+			表示テキスト '= SPLIT_R("……：：：")
+			表示テキスト '= 表示テキスト + SPLIT_R("っ：：：：")
+			IF 位置 == "中"
+				表示テキスト '= 表示テキスト + SPLIT_R("。：❤　")
+			ELSE
+				表示テキスト '= 表示テキスト + SPLIT_R("：❤")
+			ENDIF
+		ENDIF
+
+	;▽5000～9000　あっ。だめっ！　も、もうっ。はあぁぁん❤
+	ELSEIF 咲夜_最大快楽部位の値 >= 5000 && 咲夜_最大快楽部位の値 < 9000
+		;咲夜_対象が主人公ではないか、陥落ではない、あるいは捕虜スカ触手系
+		 IF !CHECK_K9("陥落", 咲夜_対象) || ((SELECTCOM >= 80 && SELECTCOM <= 99) || (SELECTCOM >= 130 && SELECTCOM <= 159) || (SELECTCOM >= 200 && SELECTCOM <= 219))
+			表示テキスト '= SPLIT_R("っ：：：")
+			IF 位置 == "中"
+				表示テキスト '= 表示テキスト + SPLIT_R("。：。：。：！　")
+			ELSE
+				表示テキスト '= 表示テキスト + SPLIT_R("：：：！")
+			ENDIF
+		;咲夜_対象が主人公かつ陥落、捕虜スカ触手系ではない
+		ELSE
+			表示テキスト '= SPLIT_R("っ：")
+			IF 位置 == "中"
+				表示テキスト '= 表示テキスト + SPLIT_R("。：。：。：！　：❤　：❤　")
+			ELSE
+				表示テキスト '= 表示テキスト + SPLIT_R("：：：！：❤：❤")
+			ENDIF
+		ENDIF
+
+	;▽9000～　いくうううう❤　いっちゃうう～っ！
+	ELSE
+		;咲夜_対象が主人公ではないか、陥落ではない、あるいは捕虜スカ触手系
+		 IF !CHECK_K9("陥落", 咲夜_対象) || ((SELECTCOM >= 80 && SELECTCOM <= 99) || (SELECTCOM >= 130 && SELECTCOM <= 159) || (SELECTCOM >= 200 && SELECTCOM <= 219))
+			表示テキスト '= SPLIT_R("――：～：ー：……：：：：：：：：：：：：：：：")
+			表示テキスト '= 表示テキスト + SPLIT_R("っ：っ：っ：")
+			IF 位置 == "中"
+				表示テキスト '= 表示テキスト + SPLIT_R("。：！　")
+			ELSE
+				表示テキスト '= 表示テキスト + SPLIT_R("：！")
+			ENDIF
+		;咲夜_対象が主人公かつ陥落、捕虜スカ触手系ではない
+		ELSE
+			表示テキスト '= SPLIT_R("――：～：ー：……：：：：：：：：：：：：：：：")
+			表示テキスト '= 表示テキスト + SPLIT_R("っ：っ：っ：")
+			IF 位置 == "中"
+				表示テキスト '= 表示テキスト + SPLIT_R("。：！　：！　：❤　：❤　：❤　")
+			ELSE
+				表示テキスト '= 表示テキスト + SPLIT_R("：！：！：❤：❤：❤")
+			ENDIF
+		ENDIF
+	ENDIF
+
+;▼閨で咲夜が攻め
+ELSEIF FLAG:ウフフフラグ
+	;▽～5000
+	IF 咲夜_最大快楽部位の値 < 5000
+		;咲夜_対象が主人公ではないか、陥落ではない、あるいは捕虜スカ触手系
+		IF !CHECK_K9("陥落", 咲夜_対象) || ((SELECTCOM >= 80 && SELECTCOM <= 99) || (SELECTCOM >= 130 && SELECTCOM <= 159) || (SELECTCOM >= 200 && SELECTCOM <= 219))
+			表示テキスト '= SPLIT_R("……：……っ：：：：：：：")
+			IF 位置 == "中"
+				表示テキスト '= 表示テキスト + "。"
+			ENDIF
+		;咲夜_対象が主人公かつ陥落、捕虜スカ触手系ではない
+		ELSE
+			表示テキスト '= SPLIT_R("……：：：：：")
+			IF 位置 == "中"
+				表示テキスト '= 表示テキスト + SPLIT_R("。：❤　")
+			ELSE
+				表示テキスト '= 表示テキスト + SPLIT_R("：❤")
+			ENDIF
+		ENDIF
+
+	;▽5000～9000
+	ELSEIF 咲夜_最大快楽部位の値 >= 5000 && 咲夜_最大快楽部位の値 < 9000
+		;咲夜_対象が主人公ではないか、陥落ではない、あるいは捕虜スカ触手系
+		IF !CHECK_K9("陥落", 咲夜_対象) || ((SELECTCOM >= 80 && SELECTCOM <= 99) || (SELECTCOM >= 130 && SELECTCOM <= 159) || (SELECTCOM >= 200 && SELECTCOM <= 219))
+			表示テキスト '= SPLIT_R("……っ：っ：：：：：：：：")
+			IF 位置 == "中"
+				表示テキスト '= "。"
+			ENDIF
+		;咲夜_対象が主人公かつ陥落、捕虜スカ触手系ではない
+		ELSE
+			表示テキスト '= SPLIT_R("っ：：：：：")
+			IF 位置 == "中"
+				表示テキスト '= SPLIT_R("。：❤　")
+			ELSE
+				表示テキスト '= SPLIT_R("：❤")
+			ENDIF
+		ENDIF
+
+	;▽9000～
+	ELSE
+		;咲夜_対象が主人公ではないか、陥落ではない、あるいは捕虜スカ触手系
+		IF !CHECK_K9("陥落", 咲夜_対象) || ((SELECTCOM >= 80 && SELECTCOM <= 99) || (SELECTCOM >= 130 && SELECTCOM <= 159) || (SELECTCOM >= 200 && SELECTCOM <= 219))
+			表示テキスト '= SPLIT_R("っ：：：：：")
+			IF 位置 == "中"
+				表示テキスト '= 表示テキスト + SPLIT_R("。：。：。：。：。：！")
+			ELSE
+				表示テキスト '= 表示テキスト + SPLIT_R("：：：：：！")
+			ENDIF
+		;咲夜_対象が主人公かつ陥落、捕虜スカ触手系ではない
+		ELSE
+			表示テキスト '= SPLIT_R("っ：：：：：")
+			IF 位置 == "中"
+				表示テキスト '= 表示テキスト + SPLIT_R("。：。：。：！：❤　：❤　：❤　")
+			ELSE
+				表示テキスト '= 表示テキスト + SPLIT_R("：：：！：❤：❤：❤")
+			ENDIF
+		ENDIF
+	ENDIF
+
+;▼日常
+ELSE
+	;咲夜_対象が主人公ではないか、陥落ではない
+	IF !CHECK_K9("陥落", 咲夜_対象)
+		表示テキスト '= SPLIT_R("……：：：：：")
+		IF 位置 == "中"
+			表示テキスト '= 表示テキスト + "。"
+		ENDIF
+	;咲夜_対象が主人公かつ陥落
+	ELSE
+		表示テキスト '= SPLIT_R("……：：：：：")
+		IF 位置 == "中"
+			表示テキスト '= 表示テキスト + SPLIT_R("。：❤　")
+		ELSE
+			表示テキスト '= 表示テキスト + SPLIT_R("：❤")
+		ENDIF
 	ENDIF
 ENDIF
 
-RETURNF LOCALS:0
+RETURNF 表示テキスト
 
 ;─────────────────────────────────────── 
-;●既成事実ごとのおもてなし　%CAKE_K9(MARK:咲夜:既成事実)%
+;●咲夜の淫語
+;　使い方：%CALL_DIRTY_K9("Ｐ", "ぁ")%
+;　覚書　：第二引数に"ぁ"をつけるとプレイヤーの入力した淫語に
+;　小書き母音をつけて甘えボイス感を出す
+;─────────────────────────────────────── 
+@CALL_DIRTY_K9(部位, 小書き)
+#FUNCTIONS
+#DIMS 部位
+#DIMS 小書き
+#DIMS 表示テキスト
+
+表示テキスト '= ""
+
+;ロードデータ用初期化
+IF 咲夜_淫語Ｐ == ""
+	咲夜_淫語Ｐ '= "あれ"
+	咲夜_淫語Ｖ '= "なか"
+	咲夜_淫語Ｃ '= "そこ"
+	咲夜_淫語Ａ '= "そこ"
+	咲夜_淫語Ｂ '= "そこ"
+ENDIF
+
+IF 小書き == "ぁ"
+	IF 部位 == "Ｐ"
+		IF 咲夜_淫語頻度 != 2
+			SELECTCASE RAND:3
+				CASE 1
+					表示テキスト '= 咲夜_淫語Ｐ + SMALLSCRIPT(咲夜_淫語Ｐ)
+				CASEELSE
+					表示テキスト '= "それぇ"
+			ENDSELECT
+		ELSE
+			表示テキスト '= 咲夜_淫語Ｐ + SMALLSCRIPT(咲夜_淫語Ｐ)
+		ENDIF
+	ELSEIF 部位 == "Ｖ"
+		IF 咲夜_淫語頻度 != 2
+			SELECTCASE RAND:3
+				CASE 1
+					表示テキスト '= 咲夜_淫語Ｖ + SMALLSCRIPT(咲夜_淫語Ｖ)
+				CASEELSE
+					表示テキスト '= "なかぁ"
+			ENDSELECT
+		ELSE
+			表示テキスト '= 咲夜_淫語Ｖ + SMALLSCRIPT(咲夜_淫語Ｖ)
+		ENDIF
+	ELSEIF 部位 == "Ｃ"
+		IF 咲夜_淫語頻度 != 2
+			SELECTCASE RAND:3
+				CASE 1
+					表示テキスト '= 咲夜_淫語Ｃ + SMALLSCRIPT(咲夜_淫語Ｃ)
+				CASEELSE
+					表示テキスト '= "そこぉ"
+			ENDSELECT
+		ELSE
+			表示テキスト '= 咲夜_淫語Ｃ + SMALLSCRIPT(咲夜_淫語Ｃ)
+		ENDIF
+	ELSEIF 部位 == "Ａ"
+		IF 咲夜_淫語頻度 != 2
+			SELECTCASE RAND:3
+				CASE 1
+					表示テキスト '= 咲夜_淫語Ａ + SMALLSCRIPT(咲夜_淫語Ｖ)
+				CASEELSE
+					表示テキスト '= "そこぉ"
+			ENDSELECT
+		ELSE
+			表示テキスト '= 咲夜_淫語Ａ + SMALLSCRIPT(咲夜_淫語Ａ)
+		ENDIF
+	ELSEIF 部位 == "Ｂ"
+		IF 咲夜_淫語頻度 != 2
+			SELECTCASE RAND:3
+				CASE 1
+					表示テキスト '= 咲夜_淫語Ｂ + SMALLSCRIPT(咲夜_淫語Ｂ)
+				CASEELSE
+					表示テキスト '= "そこぉ"
+			ENDSELECT
+		ELSE
+			表示テキスト '= 咲夜_淫語Ｂ + SMALLSCRIPT(咲夜_淫語Ｂ)
+		ENDIF
+	ENDIF
+ELSE
+	IF 部位 == "Ｐ"
+		IF 咲夜_淫語頻度 != 2
+			SELECTCASE RAND:3
+				CASE 1
+					表示テキスト '= 咲夜_淫語Ｐ
+				CASEELSE
+					表示テキスト '= "それ"
+			ENDSELECT
+		ELSE
+			表示テキスト '= 咲夜_淫語Ｐ
+		ENDIF
+	ELSEIF 部位 == "Ｖ"
+		IF 咲夜_淫語頻度 != 2
+			SELECTCASE RAND:3
+				CASE 1
+					表示テキスト '= 咲夜_淫語Ｖ
+				CASEELSE
+					表示テキスト '= "なか"
+			ENDSELECT
+		ELSE
+			表示テキスト '= 咲夜_淫語Ｖ
+		ENDIF
+	ELSEIF 部位 == "Ｃ"
+		IF 咲夜_淫語頻度 != 2
+			SELECTCASE RAND:3
+				CASE 1
+					表示テキスト '= 咲夜_淫語Ｃ
+				CASEELSE
+					表示テキスト '= "そこ"
+			ENDSELECT
+		ELSE
+			表示テキスト '= 咲夜_淫語Ｃ
+		ENDIF
+	ELSEIF 部位 == "Ａ"
+		IF 咲夜_淫語頻度 != 2
+			SELECTCASE RAND:3
+				CASE 1
+					表示テキスト '= 咲夜_淫語Ａ
+				CASEELSE
+					表示テキスト '= "そこ"
+			ENDSELECT
+		ELSE
+			表示テキスト '= 咲夜_淫語Ａ
+		ENDIF
+	ELSEIF 部位 == "Ｂ"
+		IF 咲夜_淫語頻度 != 2
+			SELECTCASE RAND:3
+				CASE 1
+					表示テキスト '= 咲夜_淫語Ｂ
+				CASEELSE
+					表示テキスト '= "そこ"
+			ENDSELECT
+		ELSE
+			表示テキスト '= 咲夜_淫語Ｂ
+		ENDIF
+	ENDIF
+ENDIF
+
+RETURNF 表示テキスト
+
+;─────────────────────────────────────── 
+;●小書き文字をつける（お嬢様にも流用したい）
+;　使い方：PRINTFORML 「%CSTR:MASTER:6%%SMALLSCRIPT(CSTR:MASTER:6)%」
+;　結果　：「咲夜ぁ」（主人公が咲夜のとき）
+;　覚書　：フリガナを保存した変数を参照して最後の一文字に合うように「ぁぃぅぇぉ」をつける
+;　おうち帰るぅのような甘え声にしたいときに使う目的
+;　現在は主人公のCSTR:6（名フリガナ）が存在しない可能性が高い
+;　固定キャラならCSTR:6が存在する可能性が高い
+;　呼称や淫語を入力する追加イベントの結果として使っている
+;　STRFINDUの指定に正規表現使えたら短く書けそうだけどうまくいかなかった
+;　ベタ書きのほうが処理は早そうな気もするからいいかな？
+;─────────────────────────────────────── 
+@SMALLSCRIPT(ARGS:0)
+#FUNCTIONS
+#DIM STR_INDEX
+#DIMS STR_SMALL
+
+STR_INDEX = 0
+STR_SMALL '= ""
+
+STRLENSU ARGS:0
+STR_INDEX = RESULT:0 - 1
+
+STRFINDU ARGS:0, "あ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぁ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "か", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぁ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "さ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぁ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "た", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぁ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "な", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぁ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "は", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぁ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ま", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぁ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "や", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぁ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ら", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぁ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "わ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぁ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "が", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぁ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ざ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぁ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "だ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぁ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ば", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぁ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ぱ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぁ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ぁ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぁ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ア", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぁ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "カ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぁ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "サ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぁ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "タ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぁ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ナ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぁ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ハ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぁ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "マ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぁ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ヤ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぁ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ラ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぁ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ワ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぁ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ガ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぁ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ザ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぁ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ダ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぁ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "バ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぁ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "パ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぁ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ァ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぁ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "い", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぃ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "き", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぃ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "し", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぃ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ち", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぃ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "に", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぃ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ひ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぃ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "み", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぃ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "り", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぃ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ぎ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぃ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "じ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぃ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ぢ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぃ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "び", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぃ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ぴ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぃ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ぃ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぃ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "イ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぃ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "キ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぃ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "シ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぃ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "チ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぃ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ニ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぃ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ヒ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぃ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ミ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぃ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "リ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぃ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ギ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぃ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ジ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぃ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ヂ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぃ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ビ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぃ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ピ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぃ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ィ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぃ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "う", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぅ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "く", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぅ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "す", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぅ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "つ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぅ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ぬ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぅ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ふ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぅ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "む", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぅ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ゆ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぅ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "る", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぅ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ぐ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぅ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ず", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぅ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "づ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぅ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ぶ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぅ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ぷ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぅ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ん", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぅ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ぅ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぅ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ウ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぅ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ク", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぅ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ス", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぅ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ツ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぅ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ヌ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぅ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "フ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぅ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ム", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぅ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ユ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぅ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ル", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぅ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "グ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぅ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ズ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぅ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ヅ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぅ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ブ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぅ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "プ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぅ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ン", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぅ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ゥ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぅ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "え", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぇ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "け", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぇ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "せ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぇ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "て", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぇ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ね", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぇ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "へ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぇ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "め", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぇ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "れ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぇ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "げ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぇ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ぜ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぇ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "で", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぇ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "べ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぇ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ぺ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぇ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ぇ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぇ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "エ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぇ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ケ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぇ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "セ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぇ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "テ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぇ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ネ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぇ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ヘ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぇ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "メ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぇ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "レ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぇ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ゲ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぇ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ゼ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぇ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "デ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぇ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ベ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぇ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ペ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぇ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ェ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぇ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "お", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぉ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "こ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぉ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "そ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぉ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "と", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぉ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "の", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぉ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ほ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぉ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "も", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぉ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "よ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぉ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ろ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぉ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "を", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぉ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ご", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぉ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ぞ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぉ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ど", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぉ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ぼ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぉ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ぽ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぉ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ぉ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぉ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "オ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぉ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "コ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぉ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ソ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぉ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ト", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぉ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ノ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぉ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ホ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぉ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "モ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぉ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ヨ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぉ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ロ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぉ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ヲ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぉ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ゴ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぉ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ゾ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぉ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ド", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぉ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ボ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぉ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ポ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぉ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+STRFINDU ARGS:0, "ォ", STR_INDEX
+SIF RESULT:0 >= 1
+	STR_SMALL '= "ぉ"
+SIF STR_SMALL != ""
+	RETURNF STR_SMALL
+
+RETURNF STR_SMALL
+
+;─────────────────────────────────────── 
+;●咲夜の台詞上の髪色 %HAIR_NAME_K9(MASTER)%ね
+;─────────────────────────────────────── 
+@HAIR_NAME_K9(ARG:0)
+#FUNCTIONS
+#DIMS 表示テキスト
+表示テキスト '= ""
+
+;スキンヘッド
+IF TALENT:(ARG:0):髪の長さ < 25
+	表示テキスト '= "髪の毛、剃ってるの"
+	RETURNF LOCALS:0
+ENDIF
+
+;髪の色指定あり
+IF TALENT:(ARG:0):302 != 0
+	;銀髪
+	IF RGB_TO_S(TALENT:(ARG:0):302) < 10 && RGB_TO_V(TALENT:(ARG:0):302) >= 80
+		IF TALENT:(ARG:0):髪の長さ >= 475
+			表示テキスト '= "真っ白で長くて、綺麗な髪"
+		ELSEIF TALENT:(ARG:0):髪の長さ
+			表示テキスト '= "真っ白でフワフワの髪"
+		ENDIF
+	ELSEIF RGB_TO_S(TALENT:(ARG:0):302) < 10 && RGB_TO_V(TALENT:(ARG:0):302) >= 50
+		IF TALENT:(ARG:0):髪の長さ >= 475
+			表示テキスト '= "長くて綺麗な銀髪。お揃い"
+		ELSEIF TALENT:(ARG:0):髪の長さ
+			表示テキスト '= "銀髪。お揃い"
+		ENDIF
+	;どちらでもない
+	ELSEIF RGB_TO_S(TALENT:(ARG:0):302) < 30 && RGB_TO_V(TALENT:(ARG:0):302) < 30
+		IF TALENT:(ARG:0):髪の長さ >= 475
+			表示テキスト '= "艶々の黒髪で綺麗。伸ばしているの"
+		ELSEIF TALENT:(ARG:0):髪の長さ
+			表示テキスト '= "髪、黒くて艶々"
+		ENDIF
+	;明度高め
+	ELSEIF RGB_TO_S(TALENT:(ARG:0):302) < 35 && RGB_TO_V(TALENT:(ARG:0):302) >= 75
+		;赤
+		IF (RGB_TO_H(TALENT:(ARG:0):302) >= 330 && RGB_TO_H(TALENT:(ARG:0):302) <= 360) || (RGB_TO_H(TALENT:(ARG:0):302) >= 0 && RGB_TO_H(TALENT:(ARG:0):302) < 30)
+			IF TALENT:(ARG:0):髪の長さ >= 475
+				表示テキスト '= "髪、長くて美味しそうな桃色"
+			ELSEIF TALENT:(ARG:0):髪の長さ
+				表示テキスト '= "髪、美味しそうな桃色"
+			ENDIF
+		;黄
+		ELSEIF RGB_TO_H(TALENT:(ARG:0):302) >= 30 && RGB_TO_H(TALENT:(ARG:0):302) < 90
+			IF TALENT:(ARG:0):髪の長さ >= 475
+				表示テキスト '= "長くて綺麗。フワフワの金髪"
+			ELSEIF TALENT:(ARG:0):髪の長さ
+				表示テキスト '= "フワフワの金髪"
+			ENDIF
+		;緑
+		ELSEIF RGB_TO_H(TALENT:(ARG:0):302) >= 90 && RGB_TO_H(TALENT:(ARG:0):302) < 150
+			IF TALENT:(ARG:0):髪の長さ >= 475
+				表示テキスト '= "素敵、長くてフワフワの緑髪"
+			ELSEIF TALENT:(ARG:0):髪の長さ
+				表示テキスト '= "綺麗。フワフワの緑髪"
+			ENDIF
+		;シアン
+		ELSEIF RGB_TO_H(TALENT:(ARG:0):302) >= 150 && RGB_TO_H(TALENT:(ARG:0):302) < 210
+			IF TALENT:(ARG:0):髪の長さ >= 475
+				表示テキスト '= "髪、素敵。長くてフワフワの水色"
+			ELSEIF TALENT:(ARG:0):髪の長さ
+				表示テキスト '= "髪、綺麗。フワフワの水色"
+			ENDIF
+		;青
+		ELSEIF RGB_TO_H(TALENT:(ARG:0):302) >= 210 && RGB_TO_H(TALENT:(ARG:0):302) < 270
+			IF TALENT:(ARG:0):髪の長さ >= 475
+				表示テキスト '= "素敵、長くてフワフワの青髪"
+			ELSEIF TALENT:(ARG:0):髪の長さ
+				表示テキスト '= "綺麗。フワフワの青髪"
+			ENDIF
+		;紫
+		ELSEIF RGB_TO_H(TALENT:(ARG:0):302) >= 270 && RGB_TO_H(TALENT:(ARG:0):302) < 330
+			IF TALENT:(ARG:0):髪の長さ >= 475
+				表示テキスト '= "素敵、長くてフワフワの紫髪"
+			ELSEIF TALENT:(ARG:0):髪の長さ
+				表示テキスト '= "綺麗。フワフワの紫髪"
+			ENDIF
+		ENDIF
+	;色が派手で暗め
+	ELSEIF RGB_TO_S(TALENT:(ARG:0):302) > 70 && RGB_TO_V(TALENT:(ARG:0):302) < 50
+		;赤
+		IF (RGB_TO_H(TALENT:(ARG:0):302) >= 330 && RGB_TO_H(TALENT:(ARG:0):302) <= 360) || (RGB_TO_H(TALENT:(ARG:0):302) >= 0 && RGB_TO_H(TALENT:(ARG:0):302) < 30)
+			IF TALENT:(ARG:0):髪の長さ >= 475
+				表示テキスト '= "長くて豪華な髪。赤がかっているの"
+			ELSEIF TALENT:(ARG:0):髪の長さ
+				表示テキスト '= "綺麗な髪。赤がかかっているの"
+			ENDIF
+		;黄
+		ELSEIF RGB_TO_H(TALENT:(ARG:0):302) >= 30 && RGB_TO_H(TALENT:(ARG:0):302) < 90
+			IF TALENT:(ARG:0):髪の長さ >= 475
+				表示テキスト '= "長くて艶々の茶髪"
+			ELSEIF TALENT:(ARG:0):髪の長さ
+				表示テキスト '= "艶々の茶髪"
+			ENDIF
+		;緑
+		ELSEIF RGB_TO_H(TALENT:(ARG:0):302) >= 90 && RGB_TO_H(TALENT:(ARG:0):302) < 150
+			IF TALENT:(ARG:0):髪の長さ >= 475
+				表示テキスト '= "長くて艶々の緑髪"
+			ELSEIF TALENT:(ARG:0):髪の長さ
+				表示テキスト '= "艶々の緑髪"
+			ENDIF
+		;シアン
+		ELSEIF RGB_TO_H(TALENT:(ARG:0):302) >= 150 && RGB_TO_H(TALENT:(ARG:0):302) < 210
+			IF TALENT:(ARG:0):髪の長さ >= 475
+				表示テキスト '= "長くて綺麗。水色がかかっているの"
+			ELSEIF TALENT:(ARG:0):髪の長さ
+				表示テキスト '= "綺麗。水色がかかっているの"
+			ENDIF
+		;青
+		ELSEIF RGB_TO_H(TALENT:(ARG:0):302) >= 210 && RGB_TO_H(TALENT:(ARG:0):302) < 270
+			IF TALENT:(ARG:0):髪の長さ >= 475
+				表示テキスト '= "長くて綺麗な青髪"
+			ELSEIF TALENT:(ARG:0):髪の長さ
+				表示テキスト '= "綺麗な青髪"
+			ENDIF
+		;紫
+		ELSEIF RGB_TO_H(TALENT:(ARG:0):302) >= 270 && RGB_TO_H(TALENT:(ARG:0):302) < 330
+			IF TALENT:(ARG:0):髪の長さ >= 475
+				表示テキスト '= "長くて綺麗な紫髪"
+			ELSEIF TALENT:(ARG:0):髪の長さ
+				表示テキスト '= "綺麗な紫髪"
+			ENDIF
+		ENDIF
+	;色が認識できる程度で暗め
+	ELSEIF RGB_TO_S(TALENT:(ARG:0):302) > 30 && RGB_TO_V(TALENT:(ARG:0):302) < 30
+		;赤
+		IF (RGB_TO_H(TALENT:(ARG:0):302) >= 330 && RGB_TO_H(TALENT:(ARG:0):302) <= 360) || (RGB_TO_H(TALENT:(ARG:0):302) >= 0 && RGB_TO_H(TALENT:(ARG:0):302) < 30)
+			IF TALENT:(ARG:0):髪の長さ >= 475
+				表示テキスト '= "長くて豪華な髪。赤がかっているの"
+			ELSEIF TALENT:(ARG:0):髪の長さ
+				表示テキスト '= "綺麗な髪。赤がかかっているの"
+			ENDIF
+		;黄
+		ELSEIF RGB_TO_H(TALENT:(ARG:0):302) >= 30 && RGB_TO_H(TALENT:(ARG:0):302) < 90
+			IF TALENT:(ARG:0):髪の長さ >= 475
+				表示テキスト '= "長くて艶々の茶髪"
+			ELSEIF TALENT:(ARG:0):髪の長さ
+				表示テキスト '= "艶々の茶髪"
+			ENDIF
+		;緑
+		ELSEIF RGB_TO_H(TALENT:(ARG:0):302) >= 90 && RGB_TO_H(TALENT:(ARG:0):302) < 150
+			IF TALENT:(ARG:0):髪の長さ >= 475
+				表示テキスト '= "長くて艶々の緑髪"
+			ELSEIF TALENT:(ARG:0):髪の長さ
+				表示テキスト '= "艶々の緑髪"
+			ENDIF
+		;シアン
+		ELSEIF RGB_TO_H(TALENT:(ARG:0):302) >= 150 && RGB_TO_H(TALENT:(ARG:0):302) < 210
+			IF TALENT:(ARG:0):髪の長さ >= 475
+				表示テキスト '= "長くて綺麗。水色がかかっているの"
+			ELSEIF TALENT:(ARG:0):髪の長さ
+				表示テキスト '= "髪、綺麗。水色がかかっているの"
+			ENDIF
+		;青
+		ELSEIF RGB_TO_H(TALENT:(ARG:0):302) >= 210 && RGB_TO_H(TALENT:(ARG:0):302) < 270
+			IF TALENT:(ARG:0):髪の長さ >= 475
+				表示テキスト '= "長くて綺麗な青髪"
+			ELSEIF TALENT:(ARG:0):髪の長さ
+				表示テキスト '= "綺麗な青髪"
+			ENDIF
+		;紫
+		ELSEIF RGB_TO_H(TALENT:(ARG:0):302) >= 270 && RGB_TO_H(TALENT:(ARG:0):302) < 330
+			IF TALENT:(ARG:0):髪の長さ >= 475
+				表示テキスト '= "長くて綺麗な紫髪"
+			ELSEIF TALENT:(ARG:0):髪の長さ
+				表示テキスト '= "綺麗な紫髪"
+			ENDIF
+		ENDIF
+	;どれにもあてはまらない
+	ELSE
+		;赤
+		IF (RGB_TO_H(TALENT:(ARG:0):302) >= 330 && RGB_TO_H(TALENT:(ARG:0):302) <= 360) || (RGB_TO_H(TALENT:(ARG:0):302) >= 0 && RGB_TO_H(TALENT:(ARG:0):302) < 30)
+			IF TALENT:(ARG:0):髪の長さ >= 475
+				表示テキスト '= "長くて豪華な赤毛"
+			ELSEIF TALENT:(ARG:0):髪の長さ
+				表示テキスト '= "華やかな赤毛"
+			ENDIF
+		;黄
+		ELSEIF RGB_TO_H(TALENT:(ARG:0):302) >= 30 && RGB_TO_H(TALENT:(ARG:0):302) < 90
+			IF TALENT:(ARG:0):髪の長さ >= 475
+				表示テキスト '= "長くて華やかな金髪"
+			ELSEIF TALENT:(ARG:0):髪の長さ
+				表示テキスト '= "華やかな金髪"
+			ENDIF
+		;緑
+		ELSEIF RGB_TO_H(TALENT:(ARG:0):302) >= 90 && RGB_TO_H(TALENT:(ARG:0):302) < 150
+			IF TALENT:(ARG:0):髪の長さ >= 475
+				表示テキスト '= "長くて鮮やかな緑髪"
+			ELSEIF TALENT:(ARG:0):髪の長さ
+				表示テキスト '= "鮮やかな緑髪"
+			ENDIF
+		;シアン
+		ELSEIF RGB_TO_H(TALENT:(ARG:0):302) >= 150 && RGB_TO_H(TALENT:(ARG:0):302) < 210
+			IF TALENT:(ARG:0):髪の長さ >= 475
+				表示テキスト '= "髪、長くて綺麗。鮮やかな水色"
+			ELSEIF TALENT:(ARG:0):髪の長さ
+				表示テキスト '= "髪、鮮やかな水色"
+			ENDIF
+		;青
+		ELSEIF RGB_TO_H(TALENT:(ARG:0):302) >= 210 && RGB_TO_H(TALENT:(ARG:0):302) < 270
+			IF TALENT:(ARG:0):髪の長さ >= 475
+				表示テキスト '= "長くて鮮やかな青髪"
+			ELSEIF TALENT:(ARG:0):髪の長さ
+				表示テキスト '= "鮮やかな青髪"
+			ENDIF
+		;紫
+		ELSEIF RGB_TO_H(TALENT:(ARG:0):302) >= 270 && RGB_TO_H(TALENT:(ARG:0):302) < 330
+			IF TALENT:(ARG:0):髪の長さ >= 475
+				表示テキスト '= "長くて鮮やかな紫髪"
+			ELSEIF TALENT:(ARG:0):髪の長さ
+				表示テキスト '= "鮮やかな紫髪"
+			ENDIF
+		ENDIF
+	ENDIF
+;髪の色指定なし（誤魔化す）
+ELSE
+	IF TALENT:(ARG:0):髪の長さ >= 475
+		表示テキスト '= "髪、長くて艶々"
+	ELSE
+		表示テキスト '= "髪、艶々"
+	ENDIF
+ENDIF
+
+IF CHECK_K9("敬語")
+	表示テキスト '= 表示テキスト + "です"
+ENDIF
+
+RETURNF 表示テキスト
+
+;─────────────────────────────────────── 
+;●咲夜の既成事実ごとのおもてなし　%CAKE_K9(MARK:咲夜:既成事実)%
 ;　生菓子は控え目で焼き菓子中心、中世～近代西洋イメージ
 ;　レミリアが紅茶好きなので英国系そうだが吸血鬼のイメージは東側らしいので曖昧
 ;─────────────────────────────────────── 
@@ -88,6 +1931,7 @@ RETURNF LOCALS:0
 #FUNCTIONS
 #DIMS 菓子
 菓子 = 
+;DATAFORM文にしてみたら元テキストのカラーが変わってしまうようなのでそのまま
 IF ARG:0 < 1
 	;まだあまり準備していない
 	SELECTCASE RAND:4
@@ -188,1376 +2032,30 @@ ENDIF
 RETURNF 菓子
 
 ;─────────────────────────────────────── 
-;●台詞上のコマンド名・実行
-;　%KOJO_COM_NAME_PLAYER_K9(SELECTCOM)%たい
-;　使うコマンドによってはとんでもないことを言い出すかもしれない
+;●咲夜の開始口上用キャラクター描写
+;　出会いシチュが多いので共通描写をまとめただけ
+;　CALL KOJO_DESCRIPTION_CHARA_K9("容姿")
+;　CALL KOJO_DESCRIPTION_CHARA_K9("能力")
+;　CALL KOJO_DESCRIPTION_CHARA_K9("職業")
 ;─────────────────────────────────────── 
-@KOJO_COM_NAME_PLAYER_K9(コマンド番号)
-#FUNCTIONS
-#DIM コマンド番号
+@KOJO_DESCRIPTION_CHARA_K9(表示テキスト)
+#DIMS 表示テキスト
 #DIM 咲夜
+
 咲夜 = NAME_TO_CHARA("咲夜")
 
-IF コマンド番号 == 0
-	RETURNF "触り"
-ELSEIF コマンド番号 == 1
-	IF IS_MTAR(MASTER) && TALENT:MASTER:絶壁
-		RETURNF "乳首に触り"
-	ELSE
-		RETURNF "おっぱいを触り"
-	ENDIF
-ELSEIF コマンド番号 == 2
-	RETURNF "あそこを舐め"
-ELSEIF コマンド番号 == 3
-	RETURNF "ナカに指を挿れ"
-ELSEIF コマンド番号 == 4
-	RETURNF "お尻の穴に指を挿れ"
-ELSEIF コマンド番号 == 5
-	RETURNF "体を擦りつけ"
-ELSEIF コマンド番号 == 6
-	RETURNF "尻尾をナカに挿れ"
-ELSEIF コマンド番号 == 7
-	RETURNF "尻尾をお尻の穴に挿れ"
-ELSEIF コマンド番号 == 8
-	RETURNF "お尻の穴を舐め"
-ELSEIF コマンド番号 == 9
-	RETURNF "乳首を吸い"
-ELSEIF コマンド番号 == 10
-	RETURNF "手で扱き"
-ELSEIF コマンド番号 == 11
-	RETURNF "咥え"
-ELSEIF コマンド番号 == 12
-	IF IS_MTAR(MASTER) && TALENT:咲夜:絶壁
-		RETURNF "乳首で扱き"
-	ELSE
-		RETURNF "おっぱいで扱き"
-	ENDIF
-ELSEIF コマンド番号 == 13
-	RETURNF "素股し"
-ELSEIF コマンド番号 == 14
-	RETURNF "足で扱き"
-ELSEIF コマンド番号 == 15
-	RETURNF "お尻で扱き"
-ELSEIF コマンド番号 == 16
-	RETURNF "玩具で扱き"
-ELSEIF コマンド番号 == 17
-	RETURNF "尻尾で扱き"
-ELSEIF コマンド番号 == 20
-	RETURNF "キスし"
-ELSEIF コマンド番号 == 21
-	RETURNF "貝合わせし"
-ELSEIF コマンド番号 == 22
-	RETURNF "どっちも挿れられる玩具で繋がり"
-ELSEIF コマンド番号 == 30
-	RETURNF "抱き合って繋がり"
-ELSEIF コマンド番号 == 31
-	RETURNF "後ろから犯し"
-ELSEIF コマンド番号 == 32
-	RETURNF "抱き合って繋がり"
-ELSEIF コマンド番号 == 33
-	RETURNF "後ろから繋がり"
-ELSEIF コマンド番号 == 34
-	RETURNF "跨って繋がり"
-ELSEIF コマンド番号 == 35
-	RETURNF "跨って繋がり"
-ELSEIF コマンド番号 == 36
-	RETURNF "二人のを一度に挿れ"
-ELSEIF コマンド番号 == 40
-	RETURNF "抱き合ってお尻の穴で繋がり"
-ELSEIF コマンド番号 == 41
-	RETURNF "後ろからお尻の穴を犯し"
-ELSEIF コマンド番号 == 42
-	RETURNF "抱き合ってお尻の穴で繋がり"
-ELSEIF コマンド番号 == 43
-	RETURNF "後ろからお尻の穴で繋がり"
-ELSEIF コマンド番号 == 44
-	RETURNF "跨ってお尻の穴で繋がり"
-ELSEIF コマンド番号 == 45
-	RETURNF "跨ってお尻の穴で繋がり"
-ELSEIF コマンド番号 == 46
-	RETURNF "二人のを一度にお尻の穴に挿れ"
-ELSEIF コマンド番号 == 50
-	RETURNF "玩具を着け"
-ELSEIF コマンド番号 == 51
-	RETURNF "酒恥肉倫し"
-ELSEIF コマンド番号 == 55
-	RETURNF "順番にナカに挿れ"
-ELSEIF コマンド番号 == 56
-	RETURNF "順番にお尻の穴に挿れ"
-ELSEIF コマンド番号 == 57
-	RETURNF "輪姦し"
-ELSEIF コマンド番号 == 58
-	RETURNF "お尻の穴を輪姦し"
-ELSEIF コマンド番号 == 60
-	RETURNF "玩具でクリをいじめ"
-ELSEIF コマンド番号 == 61
-	RETURNF "玩具でナカをいじめ"
-ELSEIF コマンド番号 == 62
-	RETURNF "玩具でお尻の穴をいじめ"
-ELSEIF コマンド番号 == 63
-	RETURNF "玩具でクリをいじめ"
-ELSEIF コマンド番号 == 64
-	RETURNF "玩具で乳首をいじめ"
-ELSEIF コマンド番号 == 65
-	RETURNF "拡げ"
-ELSEIF コマンド番号 == 66
-	RETURNF "お尻の穴を拡げ"
-ELSEIF コマンド番号 == 70
-	RETURNF "潤滑を使い"
-ELSEIF コマンド番号 == 71
-	RETURNF "媚薬を使い"
-ELSEIF コマンド番号 == 72
-	RETURNF "赤ちゃんを孕ませ"
-ELSEIF コマンド番号 == 73
-	RETURNF "体力をつけ"
-ELSEIF コマンド番号 == 74
-	RETURNF "夢を見れる薬を使い"
-ELSEIF コマンド番号 == 75
-	RETURNF "コンドームを使い"
-ELSEIF コマンド番号 == 76
-	RETURNF "桃源香を使い"
-ELSEIF コマンド番号 == 80
-	RETURNF "脅し"
-ELSEIF コマンド番号 == 81
-	RETURNF "お尻を叩き"
-ELSEIF コマンド番号 == 82
-	RETURNF "鞭を使い"
-ELSEIF コマンド番号 == 83
-	RETURNF "針を使い"
-ELSEIF コマンド番号 == 84
-	RETURNF "目隠しを使い"
-ELSEIF コマンド番号 == 85
-	RETURNF "縄を使い"
-ELSEIF コマンド番号 == 86
-	RETURNF "口枷を使い"
-ELSEIF コマンド番号 == 87
-	RETURNF "腕で犯し"
-ELSEIF コマンド番号 == 88
-	RETURNF "お尻の穴を腕で犯し"
-ELSEIF コマンド番号 == 89
-	RETURNF "顔を叩き"
-ELSEIF コマンド番号 == 90
-	RETURNF "喉を犯し"
-ELSEIF コマンド番号 == 91
-	RETURNF "ピアシングし"
-ELSEIF コマンド番号 == 92
-	RETURNF "タトゥーし"
-ELSEIF コマンド番号 == 93
-	RETURNF "鼻フックを着けさせ"
-ELSEIF コマンド番号 == 94
-	RETURNF "首絞めし"
-ELSEIF コマンド番号 == 97
-	RETURNF "お腹を殴り"
-ELSEIF コマンド番号 == 98
-	RETURNF "遠隔調教し"
-ELSEIF コマンド番号 == 100
-	RETURNF "ひとりえっちし"
-ELSEIF コマンド番号 == 101
-	RETURNF "顔に跨り"
-ELSEIF コマンド番号 == 102
-	RETURNF "顔に跨ってお尻の穴を押し付け"
-ELSEIF コマンド番号 == 103
-	RETURNF "電気按摩し"
-ELSEIF コマンド番号 == 104
-	RETURNF "足を舐め"
-ELSEIF コマンド番号 == 105
-	RETURNF "二人で顔に跨り"
-ELSEIF コマンド番号 == 106
-	RETURNF "さきっぽだけ手で擦り"
-ELSEIF コマンド番号 == 107
-	RETURNF "さきっぽだけ口で責め"
-ELSEIF コマンド番号 == 108
-	RETURNF "尻尾を自分のナカに挿れ"
-ELSEIF コマンド番号 == 109
-	RETURNF "尻尾を自分のお尻の穴に挿れ"
-ELSEIF コマンド番号 == 110
-	RETURNF "土下座し"
-ELSEIF コマンド番号 == 111
-	RETURNF "おねだりし"
-ELSEIF コマンド番号 == 112
-	RETURNF "露出プレイがし"
-ELSEIF コマンド番号 == 113
-	RETURNF "陰毛管理をし"
-ELSEIF コマンド番号 == 114
-	RETURNF "身体に落書きし"
-ELSEIF コマンド番号 == 130
-	RETURNF "おしっこがし"
-ELSEIF コマンド番号 == 131
-	RETURNF "おしっこを掛け"
-ELSEIF コマンド番号 == 132
-	RETURNF "おしっこを飲ませ"
-ELSEIF コマンド番号 == 140
-	RETURNF "利尿剤を使い"
-ELSEIF コマンド番号 == 141
-	RETURNF "浣腸をし"
-ELSEIF コマンド番号 == 142
-	RETURNF "浣腸して栓をし"
-ELSEIF コマンド番号 == 150
-	RETURNF "おならをし"
-ELSEIF コマンド番号 == 151
-	RETURNF "顔に跨っておならをし"
-ELSEIF コマンド番号 == 200
-	RETURNF "触手を呼び"
-ELSEIF コマンド番号 == 201
-	RETURNF "触手にナカを犯させ"
-ELSEIF コマンド番号 == 202
-	RETURNF "触手にお尻の穴を犯させ"
-ELSEIF コマンド番号 == 203
-	RETURNF "触手にクリトリスを責めさせ"
-ELSEIF コマンド番号 == 204
-	IF IS_MTAR(MASTER) && TALENT:MASTER:絶壁
-		RETURNF "触手に乳首を触らせ"
-	ELSE
-		RETURNF "触手におっぱいを触らせ"
-	ENDIF
-ELSEIF コマンド番号 == 205
-	RETURNF "触手に咥えさせ"
-ELSEIF コマンド番号 == 206
-	RETURNF "触手に扱かせ"
-ELSEIF コマンド番号 == 207
-	IF IS_MTAR(MASTER) && TALENT:MASTER:絶壁
-		RETURNF "触手に乳首を吸わせ"
-	ELSE
-		RETURNF "触手におっぱいを吸わせ"
-	ENDIF
-ELSEIF コマンド番号 == 208
-	RETURNF "触手で縛り"
-ELSEIF コマンド番号 == 210
-	RETURNF "触手に口を犯させ"
-ELSEIF コマンド番号 == 211
-	RETURNF "触手でひとりえっちし"
-ELSEIF コマンド番号 == 212
-	RETURNF "触手を産ませ"
-ELSEIF コマンド番号 == 213
-	RETURNF "触手をお尻の穴で産ませ"
-ELSEIF コマンド番号 == 291
-	RETURNF "おまかせし"
-ELSEIF コマンド番号 == 292
-	RETURNF "休ませ"
-ELSEIF コマンド番号 == 298
-	RETURNF "忠誠を誓わせ"
-ELSEIF コマンド番号 == 299
-	RETURNF "忠誠を誓わされ"
-;閨口上ここまで
-ELSEIF コマンド番号 == 300
-	RETURNF "お話し"
-ELSEIF コマンド番号 == 301
-	RETURNF "訓練し"
-ELSEIF コマンド番号 == 303
-	RETURNF "兵法のお勉強をし"
-ELSEIF コマンド番号 == 304
-	RETURNF "仕事を終わらせてしまい"
-ELSEIF コマンド番号 == 305
-	RETURNF "この辺りの見回りをしておき"
-ELSEIF コマンド番号 == 306
-	RETURNF "歌い"
-ELSEIF コマンド番号 == 307
-	RETURNF "料理がし"
-ELSEIF コマンド番号 == 309
-	RETURNF "ちょっとえっちなお話がし"
-ELSEIF コマンド番号 == 310
-	RETURNF "お酒を飲み"
-ELSEIF コマンド番号 == 311
-	RETURNF "蜂蜜水が飲み"
-ELSEIF コマンド番号 == 320
-	RETURNF "いちゃいちゃし"
-ELSEIF コマンド番号 == 321
-	RETURNF "頭を撫で"
-ELSEIF コマンド番号 == 322
-	RETURNF "髪をとかし"
-ELSEIF コマンド番号 == 323
-	RETURNF "髪をとかし"
-ELSEIF コマンド番号 == 324
-	RETURNF "いちゃいちゃし"
-ELSEIF コマンド番号 == 325
-	RETURNF "いちゃいちゃし"
-ELSEIF コマンド番号 == 326
-	RETURNF "赤ちゃんの音を聴き"
-ELSEIF コマンド番号 == 330
-	RETURNF "ご奉仕し"
-ELSEIF コマンド番号 == 340
-	RETURNF "ちゅっちゅってし"
-ELSEIF コマンド番号 == 341
-	RETURNF "キスし"
-ELSEIF コマンド番号 == 342
-	RETURNF "大人のキスし"
-ELSEIF コマンド番号 == 350
-	RETURNF "服を見に行き"
-ELSEIF コマンド番号 == 351
-	RETURNF "食事し"
-ELSEIF コマンド番号 == 352
-	RETURNF "本を見に行き"
-ELSEIF コマンド番号 == 354
-	RETURNF "水浴びし"
-ELSEIF コマンド番号 == 355
-	RETURNF "泳ぎ"
-ELSEIF コマンド番号 == 356
-	RETURNF "草遊びし"
-ELSEIF コマンド番号 == 357
-	RETURNF "狩りをし"
-ELSEIF コマンド番号 == 358
-	RETURNF "背中を流し"
-ELSEIF コマンド番号 == 390
-	RETURNF "二人で出掛け"
-ELSEIF コマンド番号 == 391
-	RETURNF "どこか別のところへ行き"
-ELSEIF コマンド番号 == 392
-	RETURNF "帰り"
-;日常口上ここまで
-ELSEIF コマンド番号 == 393
-	RETURNF "好きにし"
-ELSEIF コマンド番号 == 399
-	RETURNF "告白され"
-ELSEIF コマンド番号 == 500
-	RETURNF "武術を教え"
-ELSEIF コマンド番号 == 501
-	RETURNF "兵法を教え"
-ELSEIF コマンド番号 == 502
-	RETURNF "政治を教え"
-ELSEIF コマンド番号 == 503
-	RETURNF "歌の練習をし"
-ELSEIF コマンド番号 == 504
-	RETURNF "料理を教え"
-ELSEIF コマンド番号 == 550
-	RETURNF "ちょっとえっちなことを教え"
-ELSEIF コマンド番号 == 551
-	RETURNF "仲間に誘い"
-ELSEIF コマンド番号 == 552
-	RETURNF "店主と別れさせ"
-ELSEIF コマンド番号 == 553
-	RETURNF "藍と別れさせ"
-ELSEIF コマンド番号 == 554
-	RETURNF "記憶を断ち切らせ"
-ELSEIF コマンド番号 == 555
-	RETURNF "拉致し"
-ENDIF
-RETURNF "休み"
+IF 表示テキスト == "容姿"
+	PRINTFORMDL 青いフレンチメイド服を着てホワイトブリムを頭に飾り
+	PRINTFORMDW 銀髪ボブの両サイドを三つ編みにして緑のリボンで結んだ女だ
 
-;─────────────────────────────────────── 
-;●台詞上のコマンド名・対象
-;　%KOJO_COM_NAME_TARGET_K9(SELECTCOM)%たい
-;─────────────────────────────────────── 
-@KOJO_COM_NAME_TARGET_K9(コマンド番号)
-#FUNCTIONS
-#DIM コマンド番号
-#DIM 咲夜
-咲夜 = NAME_TO_CHARA("咲夜")
+ELSEIF 表示テキスト == "能力"
+	PRINTFORMDL こちらを見つめる%PRONOUN(咲夜)%のツリ目がちな青い瞳が、一瞬赤く光ったように見え
+	PRINTFORMDW 直後、湯気を立てる紅茶と%CAKE_K9(MARK:咲夜:既成事実)%が忽然とテーブルに現れた
 
-IF コマンド番号 == 0
-	RETURNF "触られ"
-ELSEIF コマンド番号 == 1
-	IF IS_MTAR(MASTER) && TALENT:MASTER:絶壁
-		RETURNF "乳首を触られ"
-	ELSE
-		RETURNF "おっぱいを触られ"
-	ENDIF
-ELSEIF コマンド番号 == 2
-	RETURNF "あそこを舐められ"
-ELSEIF コマンド番号 == 3
-	RETURNF "ナカに指を挿れられ"
-ELSEIF コマンド番号 == 4
-	RETURNF "お尻の穴に指を挿れられ"
-ELSEIF コマンド番号 == 5
-	RETURNF "体を擦りつけられ"
-ELSEIF コマンド番号 == 6
-	RETURNF "尻尾をナカに挿れられ"
-ELSEIF コマンド番号 == 7
-	RETURNF "尻尾をお尻の穴に挿れられ"
-ELSEIF コマンド番号 == 8
-	RETURNF "お尻の穴を舐められ"
-ELSEIF コマンド番号 == 9
-	RETURNF "乳首を吸われ"
-ELSEIF コマンド番号 == 10
-	RETURNF "手で扱かれ"
-ELSEIF コマンド番号 == 11
-	RETURNF "咥えられ"
-ELSEIF コマンド番号 == 12
-	IF IS_MTAR(MASTER) && TALENT:咲夜:絶壁
-		RETURNF "乳首で扱かれ"
-	ELSE
-		RETURNF "おっぱいで扱かれ"
-	ENDIF
-ELSEIF コマンド番号 == 13
-	RETURNF "素股され"
-ELSEIF コマンド番号 == 14
-	RETURNF "足で扱かれ"
-ELSEIF コマンド番号 == 15
-	RETURNF "お尻で扱かれ"
-ELSEIF コマンド番号 == 16
-	RETURNF "玩具で扱かれ"
-ELSEIF コマンド番号 == 17
-	RETURNF "尻尾で扱かれ"
-ELSEIF コマンド番号 == 20
-	RETURNF "キスされ"
-ELSEIF コマンド番号 == 21
-	RETURNF "貝合わせされ"
-ELSEIF コマンド番号 == 22
-	RETURNF "どっちも挿れられる玩具で繋がり"
-ELSEIF コマンド番号 == 30
-	RETURNF "抱き合って繋がり"
-ELSEIF コマンド番号 == 31
-	RETURNF "後ろから犯され"
-ELSEIF コマンド番号 == 32
-	RETURNF "抱き合って繋がり"
-ELSEIF コマンド番号 == 33
-	RETURNF "後ろから繋がり"
-ELSEIF コマンド番号 == 34
-	RETURNF "跨って繋がり"
-ELSEIF コマンド番号 == 35
-	RETURNF "跨って繋がり"
-ELSEIF コマンド番号 == 36
-	RETURNF "二人のを一度に挿れられ"
-ELSEIF コマンド番号 == 40
-	RETURNF "抱き合ってお尻の穴で繋がり"
-ELSEIF コマンド番号 == 41
-	RETURNF "後ろからお尻の穴を犯され"
-ELSEIF コマンド番号 == 42
-	RETURNF "抱き合ってお尻の穴で繋がり"
-ELSEIF コマンド番号 == 43
-	RETURNF "後ろからお尻の穴で繋がり"
-ELSEIF コマンド番号 == 44
-	RETURNF "跨ってお尻の穴で繋がり"
-ELSEIF コマンド番号 == 45
-	RETURNF "跨ってお尻の穴で繋がり"
-ELSEIF コマンド番号 == 46
-	RETURNF "二人のを一度にお尻の穴に挿れられ"
-ELSEIF コマンド番号 == 50
-	RETURNF "玩具を着けられ"
-ELSEIF コマンド番号 == 51
-	RETURNF "酒恥肉倫され"
-ELSEIF コマンド番号 == 55
-	RETURNF "順番にナカに挿れられ"
-ELSEIF コマンド番号 == 56
-	RETURNF "順番にお尻の穴に挿れられ"
-ELSEIF コマンド番号 == 57
-	RETURNF "輪姦され"
-ELSEIF コマンド番号 == 58
-	RETURNF "お尻の穴を輪姦され"
-ELSEIF コマンド番号 == 60
-	RETURNF "玩具でクリをいじめられ"
-ELSEIF コマンド番号 == 61
-	RETURNF "玩具でナカをいじめられ"
-ELSEIF コマンド番号 == 62
-	RETURNF "玩具でお尻をいじめられ"
-ELSEIF コマンド番号 == 63
-	RETURNF "玩具でクリいじめられ"
-ELSEIF コマンド番号 == 64
-	RETURNF "玩具で乳首いじめられ"
-ELSEIF コマンド番号 == 65
-	RETURNF "拡げられ"
-ELSEIF コマンド番号 == 66
-	RETURNF "お尻の穴を拡げられ"
-ELSEIF コマンド番号 == 70
-	RETURNF "潤滑を使われ"
-ELSEIF コマンド番号 == 71
-	RETURNF "媚薬を使われ"
-ELSEIF コマンド番号 == 72
-	RETURNF "赤ちゃんを孕まされ"
-ELSEIF コマンド番号 == 73
-	RETURNF "勃ったまま戻らなくされ"
-ELSEIF コマンド番号 == 74
-	RETURNF "イきっぱなしになる薬を使われ"
-ELSEIF コマンド番号 == 75
-	RETURNF "コンドームを使われ"
-ELSEIF コマンド番号 == 76
-	RETURNF "桃源香を使われ"
-ELSEIF コマンド番号 == 80
-	RETURNF "脅され"
-ELSEIF コマンド番号 == 81
-	RETURNF "お尻を叩かれ"
-ELSEIF コマンド番号 == 82
-	RETURNF "鞭を使われ"
-ELSEIF コマンド番号 == 83
-	RETURNF "針を使われ"
-ELSEIF コマンド番号 == 84
-	RETURNF "目隠しを使われ"
-ELSEIF コマンド番号 == 85
-	RETURNF "縄を使われ"
-ELSEIF コマンド番号 == 86
-	RETURNF "口枷を使われ"
-ELSEIF コマンド番号 == 87
-	RETURNF "腕で犯され"
-ELSEIF コマンド番号 == 88
-	RETURNF "お尻の穴を腕で犯され"
-ELSEIF コマンド番号 == 89
-	RETURNF "顔を叩かれ"
-ELSEIF コマンド番号 == 90
-	RETURNF "喉を犯され"
-ELSEIF コマンド番号 == 91
-	RETURNF "ピアシングされ"
-ELSEIF コマンド番号 == 92
-	RETURNF "タトゥーされ"
-ELSEIF コマンド番号 == 93
-	RETURNF "鼻フックを着けられ"
-ELSEIF コマンド番号 == 94
-	RETURNF "首絞めされ"
-ELSEIF コマンド番号 == 97
-	RETURNF "お腹を殴られ"
-ELSEIF コマンド番号 == 98
-	RETURNF "遠隔調教され"
-ELSEIF コマンド番号 == 100
-	RETURNF "ひとりえっちを見せつけられ"
-ELSEIF コマンド番号 == 101
-	RETURNF "顔に跨がられ"
-ELSEIF コマンド番号 == 102
-	RETURNF "お尻の穴に奉仕し"
-ELSEIF コマンド番号 == 103
-	RETURNF "足でいじめられ"
-ELSEIF コマンド番号 == 104
-	RETURNF "足を舐められ"
-ELSEIF コマンド番号 == 105
-	RETURNF "二人で顔に跨られ"
-ELSEIF コマンド番号 == 106
-	RETURNF "さきっぽだけ手で擦られ"
-ELSEIF コマンド番号 == 107
-	RETURNF "さきっぽだけ口で責められ"
-ELSEIF コマンド番号 == 108
-	RETURNF "尻尾を自分のナカに挿れられ"
-ELSEIF コマンド番号 == 109
-	RETURNF "尻尾を自分のお尻の穴に挿れられ"
-ELSEIF コマンド番号 == 110
-	RETURNF "土下座され"
-ELSEIF コマンド番号 == 111
-	RETURNF "おねだりされ"
-ELSEIF コマンド番号 == 112
-	RETURNF "露出プレイさせられ"
-ELSEIF コマンド番号 == 113
-	RETURNF "陰毛を管理され"
-ELSEIF コマンド番号 == 114
-	RETURNF "身体に落書きされ"
-ELSEIF コマンド番号 == 130
-	RETURNF "おしっこさせ"
-ELSEIF コマンド番号 == 131
-	RETURNF "おしっこを掛けられ"
-ELSEIF コマンド番号 == 132
-	RETURNF "おしっこを飲まされ"
-ELSEIF コマンド番号 == 140
-	RETURNF "利尿剤を使われ"
-ELSEIF コマンド番号 == 141
-	RETURNF "浣腸をされ"
-ELSEIF コマンド番号 == 142
-	RETURNF "浣腸されて栓をされ"
-ELSEIF コマンド番号 == 150
-	RETURNF "おならをされ"
-ELSEIF コマンド番号 == 151
-	RETURNF "顔に跨られておならをされ"
-ELSEIF コマンド番号 == 200
-	RETURNF "触手を呼ばれ"
-ELSEIF コマンド番号 == 201
-	RETURNF "触手にナカを犯され"
-ELSEIF コマンド番号 == 202
-	RETURNF "触手にお尻の穴を犯され"
-ELSEIF コマンド番号 == 203
-	RETURNF "触手にクリトリスを責められ"
-ELSEIF コマンド番号 == 204
-	IF IS_MTAR(MASTER) && TALENT:MASTER:絶壁
-		RETURNF "触手に乳首を弄られ"
-	ELSE
-		RETURNF "触手におっぱいを弄られ"
-	ENDIF
-ELSEIF コマンド番号 == 205
-	RETURNF "触手に咥えられ"
-ELSEIF コマンド番号 == 206
-	RETURNF "触手に扱かれ"
-ELSEIF コマンド番号 == 207
-	IF IS_MTAR(MASTER) && TALENT:MASTER:絶壁
-		RETURNF "触手に乳首を吸われ"
-	ELSE
-		RETURNF "触手におっぱいを吸われ"
-	ENDIF
-ELSEIF コマンド番号 == 208
-	RETURNF "触手で縛られ"
-ELSEIF コマンド番号 == 210
-	RETURNF "触手に口を犯され"
-ELSEIF コマンド番号 == 211
-	RETURNF "触手でひとりえっちするところを見せつけられ"
-ELSEIF コマンド番号 == 212
-	RETURNF "触手を産まされ"
-ELSEIF コマンド番号 == 213
-	RETURNF "触手をお尻の穴で産まされ"
-ELSEIF コマンド番号 == 291
-	RETURNF "おまかせされ"
-ELSEIF コマンド番号 == 292
-	RETURNF "休ませてもらい"
-ELSEIF コマンド番号 == 298
-	RETURNF "忠誠を誓わされ"
-ELSEIF コマンド番号 == 299
-	RETURNF "忠誠を誓わせ"
-;閨口上ここまで
-ELSEIF コマンド番号 == 300
-	RETURNF "お話し"
-ELSEIF コマンド番号 == 301
-	RETURNF "訓練し"
-ELSEIF コマンド番号 == 303
-	RETURNF "兵法を学び"
-ELSEIF コマンド番号 == 304
-	RETURNF "仕事をこなし"
-ELSEIF コマンド番号 == 305
-	RETURNF "見回りがし"
-ELSEIF コマンド番号 == 306
-	RETURNF "歌い"
-ELSEIF コマンド番号 == 307
-	RETURNF "料理がし"
-ELSEIF コマンド番号 == 309
-	RETURNF "ちょっとえっちな話がし"
-ELSEIF コマンド番号 == 310
-	RETURNF "お酒を飲み"
-ELSEIF コマンド番号 == 311
-	RETURNF "蜂蜜水が飲み"
-ELSEIF コマンド番号 == 320
-	RETURNF "いちゃいちゃし"
-ELSEIF コマンド番号 == 321
-	RETURNF "頭を撫で"
-ELSEIF コマンド番号 == 322
-	RETURNF "髪をとかされ"
-ELSEIF コマンド番号 == 323
-	RETURNF "櫛で髪をとかされ"
-ELSEIF コマンド番号 == 324
-	RETURNF "好きって言い"
-ELSEIF コマンド番号 == 325
-	RETURNF "見てい"
-ELSEIF コマンド番号 == 326
-	RETURNF "赤ちゃんの音を聴き"
-ELSEIF コマンド番号 == 330
-	RETURNF "ご奉仕され"
-ELSEIF コマンド番号 == 340
-	RETURNF "ちゅっちゅってされ"
-ELSEIF コマンド番号 == 341
-	RETURNF "キスされ"
-ELSEIF コマンド番号 == 342
-	RETURNF "大人のキスがされ"
-ELSEIF コマンド番号 == 350
-	RETURNF "服を見に行き"
-ELSEIF コマンド番号 == 351
-	RETURNF "食事し"
-ELSEIF コマンド番号 == 352
-	RETURNF "本を見に行き"
-ELSEIF コマンド番号 == 354
-	RETURNF "水浴びし"
-ELSEIF コマンド番号 == 355
-	RETURNF "泳ぎ"
-ELSEIF コマンド番号 == 356
-	RETURNF "花冠を作るところが見"
-ELSEIF コマンド番号 == 357
-	RETURNF "狩りをし"
-ELSEIF コマンド番号 == 358
-	RETURNF "背中を流され"
-ELSEIF コマンド番号 == 390
-	RETURNF "二人で出掛け"
-ELSEIF コマンド番号 == 391
-	RETURNF "どこか別のところへ行き"
-ELSEIF コマンド番号 == 392
-	RETURNF "帰り"
-;日常口上ここまで
-ELSEIF コマンド番号 == 393
-	RETURNF "好きにし"
-ELSEIF コマンド番号 == 399
-	RETURNF "告白され"
-ELSEIF コマンド番号 == 500
-	RETURNF "武術を教え"
-ELSEIF コマンド番号 == 501
-	RETURNF "兵法を教え"
-ELSEIF コマンド番号 == 502
-	RETURNF "政治を教え"
-ELSEIF コマンド番号 == 503
-	RETURNF "歌の練習をし"
-ELSEIF コマンド番号 == 504
-	RETURNF "料理を作り"
-ELSEIF コマンド番号 == 550
-	RETURNF "えっちなことを教えられ"
-ELSEIF コマンド番号 == 551
-	RETURNF "仲間に誘い"
-ELSEIF コマンド番号 == 552
-	RETURNF "店主と別れさせ"
-ELSEIF コマンド番号 == 553
-	RETURNF "藍と別れさせ"
-ELSEIF コマンド番号 == 554
-	RETURNF "記憶を断ち切らせ"
-ELSEIF コマンド番号 == 555
-	RETURNF "拉致され"
-ENDIF
-RETURNF "休ませて貰い"
+ELSEIF 表示テキスト == "職業"
+	PRINTFORMDL %ANAME(咲夜)%は微笑を浮かべ、パフスリーブから伸びるほっそりとした白い腕で%ANAME(MASTER)%をテーブルへと招いた
 
-;─────────────────────────────────────── 
-;●台詞上の髪色 %HAIR_NAME_K9(MASTER)%ね
-;─────────────────────────────────────── 
-@HAIR_NAME_K9(ARG:0)
-	#FUNCTIONS
-	LOCALS:0 =
-
-	;スキンヘッド
-	IF TALENT:(ARG:0):髪の長さ < 25
-		LOCALS:0 = 髪の毛、剃ってるの
-		RETURNF LOCALS:0
-	ENDIF
-
-	;髪の色指定あり
-	IF TALENT:(ARG:0):302 != 0
-		;銀髪
-		IF RGB_TO_S(TALENT:(ARG:0):302) < 10 && RGB_TO_V(TALENT:(ARG:0):302) >= 80
-			;ミドル未満
-			IF TALENT:(ARG:0):髪の長さ >= 475
-				LOCALS:0 = 真っ白で長くて、綺麗な髪
-			;ロング
-			ELSEIF TALENT:(ARG:0):髪の長さ
-				LOCALS:0 = 真っ白でフワフワの髪
-			ENDIF
-		ELSEIF RGB_TO_S(TALENT:(ARG:0):302) < 10 && RGB_TO_V(TALENT:(ARG:0):302) >= 50
-			IF TALENT:(ARG:0):髪の長さ >= 475
-				LOCALS:0 = 伸ばしているのね、銀髪。お揃い
-			ELSEIF TALENT:(ARG:0):髪の長さ
-				LOCALS:0 = 銀髪。お揃い
-			ENDIF
-		;どちらでもない
-		ELSEIF RGB_TO_S(TALENT:(ARG:0):302) < 30 && RGB_TO_V(TALENT:(ARG:0):302) < 30
-			IF TALENT:(ARG:0):髪の長さ >= 475
-				LOCALS:0 = 艶々の黒髪で綺麗だわ。伸ばしているの
-			ELSEIF TALENT:(ARG:0):髪の長さ
-				LOCALS:0 = 髪、黒くて艶々
-			ENDIF
-		;明度高め
-		ELSEIF RGB_TO_S(TALENT:(ARG:0):302) < 35 && RGB_TO_V(TALENT:(ARG:0):302) >= 75
-			;赤
-			IF (RGB_TO_H(TALENT:(ARG:0):302) >= 330 && RGB_TO_H(TALENT:(ARG:0):302) <= 360) || (RGB_TO_H(TALENT:(ARG:0):302) >= 0 && RGB_TO_H(TALENT:(ARG:0):302) < 30)
-				IF TALENT:(ARG:0):髪の長さ >= 475
-					LOCALS:0 = 髪、長くて美味しそうな桃色
-				ELSEIF TALENT:(ARG:0):髪の長さ
-					LOCALS:0 = 髪、美味しそうな桃色
-				ENDIF
-			;黄
-			ELSEIF RGB_TO_H(TALENT:(ARG:0):302) >= 30 && RGB_TO_H(TALENT:(ARG:0):302) < 90
-				IF TALENT:(ARG:0):髪の長さ >= 475
-					LOCALS:0 = 長くて綺麗だわ。フワフワの金髪
-				ELSEIF TALENT:(ARG:0):髪の長さ
-					LOCALS:0 = フワフワの金髪
-				ENDIF
-			;緑
-			ELSEIF RGB_TO_H(TALENT:(ARG:0):302) >= 90 && RGB_TO_H(TALENT:(ARG:0):302) < 150
-				IF TALENT:(ARG:0):髪の長さ >= 475
-					LOCALS:0 = 素敵だわ、長くてフワフワの緑髪
-				ELSEIF TALENT:(ARG:0):髪の長さ
-					LOCALS:0 = 綺麗よ。フワフワの緑髪
-				ENDIF
-			;シアン
-			ELSEIF RGB_TO_H(TALENT:(ARG:0):302) >= 150 && RGB_TO_H(TALENT:(ARG:0):302) < 210
-				IF TALENT:(ARG:0):髪の長さ >= 475
-					LOCALS:0 = 髪、素敵だわ。長くてフワフワの水色
-				ELSEIF TALENT:(ARG:0):髪の長さ
-					LOCALS:0 = 髪、綺麗よ。フワフワの水色
-				ENDIF
-			;青
-			ELSEIF RGB_TO_H(TALENT:(ARG:0):302) >= 210 && RGB_TO_H(TALENT:(ARG:0):302) < 270
-				IF TALENT:(ARG:0):髪の長さ >= 475
-					LOCALS:0 = 素敵だわ、長くてフワフワの青髪
-				ELSEIF TALENT:(ARG:0):髪の長さ
-					LOCALS:0 = 綺麗よ。フワフワの青髪
-				ENDIF
-			;紫
-			ELSEIF RGB_TO_H(TALENT:(ARG:0):302) >= 270 && RGB_TO_H(TALENT:(ARG:0):302) < 330
-				IF TALENT:(ARG:0):髪の長さ >= 475
-					LOCALS:0 = 素敵だわ、長くてフワフワの紫髪
-				ELSEIF TALENT:(ARG:0):髪の長さ
-					LOCALS:0 = 綺麗だわ。フワフワの紫髪
-				ENDIF
-			ENDIF
-		;色が派手で暗め
-		ELSEIF RGB_TO_S(TALENT:(ARG:0):302) > 70 && RGB_TO_V(TALENT:(ARG:0):302) < 50
-			;赤
-			IF (RGB_TO_H(TALENT:(ARG:0):302) >= 330 && RGB_TO_H(TALENT:(ARG:0):302) <= 360) || (RGB_TO_H(TALENT:(ARG:0):302) >= 0 && RGB_TO_H(TALENT:(ARG:0):302) < 30)
-				IF TALENT:(ARG:0):髪の長さ >= 475
-					LOCALS:0 = 髪、長くて豪華だわ。赤がかっているの
-				ELSEIF TALENT:(ARG:0):髪の長さ
-					LOCALS:0 = 髪、綺麗だわ。赤がかかっているの
-				ENDIF
-			;黄
-			ELSEIF RGB_TO_H(TALENT:(ARG:0):302) >= 30 && RGB_TO_H(TALENT:(ARG:0):302) < 90
-				IF TALENT:(ARG:0):髪の長さ >= 475
-					LOCALS:0 = 長くて艶々の茶髪
-				ELSEIF TALENT:(ARG:0):髪の長さ
-					LOCALS:0 = 艶々の茶髪
-				ENDIF
-			;緑
-			ELSEIF RGB_TO_H(TALENT:(ARG:0):302) >= 90 && RGB_TO_H(TALENT:(ARG:0):302) < 150
-				IF TALENT:(ARG:0):髪の長さ >= 475
-					LOCALS:0 = 長くて艶々の緑髪
-				ELSEIF TALENT:(ARG:0):髪の長さ
-					LOCALS:0 = 艶々の緑髪
-				ENDIF
-			;シアン
-			ELSEIF RGB_TO_H(TALENT:(ARG:0):302) >= 150 && RGB_TO_H(TALENT:(ARG:0):302) < 210
-				IF TALENT:(ARG:0):髪の長さ >= 475
-					LOCALS:0 = 長くて綺麗だわ。水色がかかっているの
-				ELSEIF TALENT:(ARG:0):髪の長さ
-					LOCALS:0 = 髪、綺麗だわ。水色がかかっているの
-				ENDIF
-			;青
-			ELSEIF RGB_TO_H(TALENT:(ARG:0):302) >= 210 && RGB_TO_H(TALENT:(ARG:0):302) < 270
-				IF TALENT:(ARG:0):髪の長さ >= 475
-					LOCALS:0 = 長くて綺麗な青髪
-				ELSEIF TALENT:(ARG:0):髪の長さ
-					LOCALS:0 = 髪、綺麗な青髪
-				ENDIF
-			;紫
-			ELSEIF RGB_TO_H(TALENT:(ARG:0):302) >= 270 && RGB_TO_H(TALENT:(ARG:0):302) < 330
-				IF TALENT:(ARG:0):髪の長さ >= 475
-					LOCALS:0 = 長くて綺麗な紫髪
-				ELSEIF TALENT:(ARG:0):髪の長さ
-					LOCALS:0 = 髪、綺麗な紫髪
-				ENDIF
-			ENDIF
-		;色が認識できる程度で暗め
-		ELSEIF RGB_TO_S(TALENT:(ARG:0):302) > 30 && RGB_TO_V(TALENT:(ARG:0):302) < 30
-			;赤
-			IF (RGB_TO_H(TALENT:(ARG:0):302) >= 330 && RGB_TO_H(TALENT:(ARG:0):302) <= 360) || (RGB_TO_H(TALENT:(ARG:0):302) >= 0 && RGB_TO_H(TALENT:(ARG:0):302) < 30)
-				IF TALENT:(ARG:0):髪の長さ >= 475
-					LOCALS:0 = 髪、長くて豪華だわ。赤がかっているの
-				ELSEIF TALENT:(ARG:0):髪の長さ
-					LOCALS:0 = 髪、綺麗だわ。赤がかかっているの
-				ENDIF
-			;黄
-			ELSEIF RGB_TO_H(TALENT:(ARG:0):302) >= 30 && RGB_TO_H(TALENT:(ARG:0):302) < 90
-				IF TALENT:(ARG:0):髪の長さ >= 475
-					LOCALS:0 = 長くて艶々の茶髪
-				ELSEIF TALENT:(ARG:0):髪の長さ
-					LOCALS:0 = 艶々の茶髪
-				ENDIF
-			;緑
-			ELSEIF RGB_TO_H(TALENT:(ARG:0):302) >= 90 && RGB_TO_H(TALENT:(ARG:0):302) < 150
-				IF TALENT:(ARG:0):髪の長さ >= 475
-					LOCALS:0 = 長くて艶々の緑髪
-				ELSEIF TALENT:(ARG:0):髪の長さ
-					LOCALS:0 = 艶々の緑髪
-				ENDIF
-			;シアン
-			ELSEIF RGB_TO_H(TALENT:(ARG:0):302) >= 150 && RGB_TO_H(TALENT:(ARG:0):302) < 210
-				IF TALENT:(ARG:0):髪の長さ >= 475
-					LOCALS:0 = 長くて綺麗だわ。水色がかかっているの
-				ELSEIF TALENT:(ARG:0):髪の長さ
-					LOCALS:0 = 髪、綺麗だわ。水色がかかっているの
-				ENDIF
-			;青
-			ELSEIF RGB_TO_H(TALENT:(ARG:0):302) >= 210 && RGB_TO_H(TALENT:(ARG:0):302) < 270
-				IF TALENT:(ARG:0):髪の長さ >= 475
-					LOCALS:0 = 長くて綺麗な青髪
-				ELSEIF TALENT:(ARG:0):髪の長さ
-					LOCALS:0 = 髪、綺麗な青髪
-				ENDIF
-			;紫
-			ELSEIF RGB_TO_H(TALENT:(ARG:0):302) >= 270 && RGB_TO_H(TALENT:(ARG:0):302) < 330
-				IF TALENT:(ARG:0):髪の長さ >= 475
-					LOCALS:0 = 長くて綺麗な紫髪
-				ELSEIF TALENT:(ARG:0):髪の長さ
-					LOCALS:0 = 髪、綺麗な紫髪
-				ENDIF
-			ENDIF
-		;どれにもあてはまらない
-		ELSE
-			;赤
-			IF (RGB_TO_H(TALENT:(ARG:0):302) >= 330 && RGB_TO_H(TALENT:(ARG:0):302) <= 360) || (RGB_TO_H(TALENT:(ARG:0):302) >= 0 && RGB_TO_H(TALENT:(ARG:0):302) < 30)
-				IF TALENT:(ARG:0):髪の長さ >= 475
-					LOCALS:0 = 髪、長くて豪華な赤毛
-				ELSEIF TALENT:(ARG:0):髪の長さ
-					LOCALS:0 = 髪、華やかな赤毛
-				ENDIF
-			;黄
-			ELSEIF RGB_TO_H(TALENT:(ARG:0):302) >= 30 && RGB_TO_H(TALENT:(ARG:0):302) < 90
-				IF TALENT:(ARG:0):髪の長さ >= 475
-					LOCALS:0 = 長くて華やかな金髪
-				ELSEIF TALENT:(ARG:0):髪の長さ
-					LOCALS:0 = 華やかな金髪
-				ENDIF
-			;緑
-			ELSEIF RGB_TO_H(TALENT:(ARG:0):302) >= 90 && RGB_TO_H(TALENT:(ARG:0):302) < 150
-				IF TALENT:(ARG:0):髪の長さ >= 475
-					LOCALS:0 = 長くて鮮やかな緑髪
-				ELSEIF TALENT:(ARG:0):髪の長さ
-					LOCALS:0 = 鮮やかな緑髪
-				ENDIF
-			;シアン
-			ELSEIF RGB_TO_H(TALENT:(ARG:0):302) >= 150 && RGB_TO_H(TALENT:(ARG:0):302) < 210
-				IF TALENT:(ARG:0):髪の長さ >= 475
-					LOCALS:0 = 長くて綺麗だわ。鮮やかな水色
-				ELSEIF TALENT:(ARG:0):髪の長さ
-					LOCALS:0 = 髪、鮮やかな水色
-				ENDIF
-			;青
-			ELSEIF RGB_TO_H(TALENT:(ARG:0):302) >= 210 && RGB_TO_H(TALENT:(ARG:0):302) < 270
-				IF TALENT:(ARG:0):髪の長さ >= 475
-					LOCALS:0 = 長くて鮮やかな青髪
-				ELSEIF TALENT:(ARG:0):髪の長さ
-					LOCALS:0 = 鮮やかな青髪
-				ENDIF
-			;紫
-			ELSEIF RGB_TO_H(TALENT:(ARG:0):302) >= 270 && RGB_TO_H(TALENT:(ARG:0):302) < 330
-				IF TALENT:(ARG:0):髪の長さ >= 475
-					LOCALS:0 = 長くて鮮やかな紫髪
-				ELSEIF TALENT:(ARG:0):髪の長さ
-					LOCALS:0 = 鮮やかな紫髪
-				ENDIF
-			ENDIF
-		ENDIF
-	;髪の色指定なし（誤魔化す）
-	ELSE
-		IF TALENT:(ARG:0):髪の長さ >= 475
-			LOCALS:0 = 髪、長くて艶々
-		ELSE
-			LOCALS:0 = 髪、艶々
-		ENDIF
-	ENDIF
-
-	RETURNF LOCALS:0
-
-;─────────────────────────────────────── 
-;●口上を表示する
-;─────────────────────────────────────── 
-@KOJO_COM_DISPLAY_K9
-#DIM 咲夜
-#DIMS 咲夜機嫌
-咲夜 = NAME_TO_CHARA("咲夜")
-SETCOLOR 咲夜_口上カラー
-
-咲夜機嫌 = %TOSTR_EMOTION(咲夜)%
-咲夜_表示台詞 = 
-FOR LOCAL:0, 0, 10
-	;───────────────────────────────────── 
-	;今回チェックする入力台詞が空でなければ
-	;───────────────────────────────────── 
-	IF 咲夜_入力台詞:(LOCAL:0) != ""
-		;─────────────────────────────────── 
-		;○文節　既に表示台詞があれば文節を締めてから
-		;─────────────────────────────────── 
-		IF 咲夜_表示台詞 != ""
-			;───────────────────────────────── 
-			;日常コマンド失敗時はハートをつけない
-			;───────────────────────────────── 
-			IF TFLAG:18 == -1 || TFLAG:17 == -1
-				IF RAND:100 <= 50
-					咲夜_表示台詞 = %咲夜_表示台詞%……
-				ELSE
-					咲夜_表示台詞 = %咲夜_表示台詞%。
-				ENDIF
-			;───────────────────────────────── 
-			;イきそう台詞
-			;感嘆符やハートが多い。咲夜が受けかつ咲夜絶頂時の喘ぎor咲夜が攻めかつ咲夜に主導権がありかつ主人公絶頂時の追い立て
-			;───────────────────────────────── 
-			ELSEIF ( NOWEX:咲夜:射精 > 0 || NOWEX:咲夜:Ｃ絶頂 > 0 || NOWEX:咲夜:Ｖ絶頂 > 0 || NOWEX:咲夜:Ａ絶頂 > 0 || NOWEX:咲夜:Ｂ絶頂 > 0 || NOWEX:咲夜:Ｍ絶頂 > 0 ) || ( IS_INITIATIVE(咲夜) && ( NOWEX:MASTER:射精 > 0 || NOWEX:MASTER:Ｃ絶頂 > 0 || NOWEX:MASTER:Ｖ絶頂 > 0 || NOWEX:MASTER:Ａ絶頂 > 0 || NOWEX:MASTER:Ｂ絶頂 > 0 || NOWEX:MASTER:Ｍ絶頂 > 0 ) )
-				;不機嫌ならハートはつけない
-				IF GROUPMATCH(咲夜機嫌, "恨", "怒", "憤", "鬱", "悲", "憂", "狂", "恐", "怯")
-					IF RAND:100 <= 30
-						咲夜_表示台詞 = %咲夜_表示台詞%！　
-					ELSEIF RAND:100 <= 50
-						咲夜_表示台詞 = %咲夜_表示台詞%……
-					ELSE
-						咲夜_表示台詞 = %咲夜_表示台詞%。
-					ENDIF
-				;52=気力切れ 53離脱1=酔い限界
-				ELSEIF TCVAR:咲夜:52 || TCVAR:咲夜:53 == 1
-					IF RAND:100 <= 30
-						IF (SELECTCOM >= 80 && SELECTCOM <= 99) || (SELECTCOM >= 130 && SELECTCOM <= 159) || (SELECTCOM >= 200 && SELECTCOM <= 219)
-							咲夜_表示台詞 = %咲夜_表示台詞%！　
-						ELSE
-							咲夜_表示台詞 = %咲夜_表示台詞%❤　
-						ENDIF
-					ELSEIF RAND:100 <= 50
-						咲夜_表示台詞 = %咲夜_表示台詞%！　
-					ELSEIF RAND:100 <= 50
-						咲夜_表示台詞 = %咲夜_表示台詞%……
-					ELSE
-						咲夜_表示台詞 = %咲夜_表示台詞%。
-					ENDIF
-				;51=体力切れ 
-				ELSEIF TCVAR:咲夜:51
-					IF RAND:100 <= 10
-						咲夜_表示台詞 = %咲夜_表示台詞%！　
-					ELSEIF RAND:100 <= 50
-						咲夜_表示台詞 = %咲夜_表示台詞%……
-					ELSE
-						咲夜_表示台詞 = %咲夜_表示台詞%。
-					ENDIF
-				;咲夜がターゲットで捕虜系スカ系触手系以外
-				ELSEIF FLAG:ウフフフラグ && IS_MTAR(咲夜) && (IS_LOVER(咲夜) || IS_SLAVE(咲夜)) && !(SELECTCOM >= 80 && SELECTCOM <= 99) && !(SELECTCOM >= 130 && SELECTCOM <= 159) && !(SELECTCOM >= 200 && SELECTCOM <= 219)
-					IF RAND:100 <= 30
-						咲夜_表示台詞 = %咲夜_表示台詞%❤　
-					ELSEIF RAND:100 <= 50
-						咲夜_表示台詞 = %咲夜_表示台詞%！　
-					ELSEIF RAND:100 <= 50
-						咲夜_表示台詞 = %咲夜_表示台詞%……
-					ELSE
-						咲夜_表示台詞 = %咲夜_表示台詞%。
-					ENDIF
-				;咲夜がプレイヤー
-				ELSEIF FLAG:ウフフフラグ && IS_MPLY(咲夜) && (IS_LOVER(咲夜) || IS_SLAVE(咲夜))
-					IF RAND:100 <= 5
-						咲夜_表示台詞 = %咲夜_表示台詞%……
-					ELSE
-						咲夜_表示台詞 = %咲夜_表示台詞%。
-					ENDIF
-				ELSEIF IS_LOVER(咲夜) || IS_SLAVE(咲夜) && ( GROUPMATCH(SELECTCOM, 320, 321, 322, 323) || GROUPMATCH(SELECTCOM, 324, 325, 326) )
-					IF RAND:100 <= 10
-						咲夜_表示台詞 = %咲夜_表示台詞%❤　
-					ELSEIF RAND:100 <= 50
-						咲夜_表示台詞 = %咲夜_表示台詞%……
-					ELSE
-						咲夜_表示台詞 = %咲夜_表示台詞%。
-					ENDIF
-				ELSE
-					IF RAND:100 <= 50
-						咲夜_表示台詞 = %咲夜_表示台詞%！　
-					ELSEIF RAND:100 <= 50
-						咲夜_表示台詞 = %咲夜_表示台詞%……
-					ELSE
-						咲夜_表示台詞 = %咲夜_表示台詞%。
-					ENDIF
-				ENDIF
-			;───────────────────────────────── 
-			;イきそうでない台詞
-			;───────────────────────────────── 
-			ELSE
-				;不機嫌ならハートはつけない
-				IF GROUPMATCH(咲夜機嫌, "恨", "怒", "憤", "鬱", "悲", "憂", "狂", "恐", "怯")
-					IF RAND:100 <= 20
-						咲夜_表示台詞 = %咲夜_表示台詞%……
-					ELSE
-						咲夜_表示台詞 = %咲夜_表示台詞%。
-					ENDIF
-				;52:気力切れ 53:離脱1=酔い限界
-				ELSEIF TCVAR:咲夜:52 || TCVAR:咲夜:53 == 1
-					IF RAND:100 <= 30
-						IF (SELECTCOM >= 80 && SELECTCOM <= 99) || (SELECTCOM >= 130 && SELECTCOM <= 159) || (SELECTCOM >= 200 && SELECTCOM <= 219)
-							咲夜_表示台詞 = %咲夜_表示台詞%！　
-						ELSE
-							咲夜_表示台詞 = %咲夜_表示台詞%❤　
-						ENDIF
-					ELSEIF RAND:100 <= 20
-						咲夜_表示台詞 = %咲夜_表示台詞%……
-					ELSE
-						咲夜_表示台詞 = %咲夜_表示台詞%。
-					ENDIF
-				;51=体力切れ 
-				ELSEIF TCVAR:咲夜:51
-					IF RAND:100 <= 50
-						咲夜_表示台詞 = %咲夜_表示台詞%……
-					ELSE
-						咲夜_表示台詞 = %咲夜_表示台詞%。
-					ENDIF
-				ELSEIF FLAG:ウフフフラグ && IS_MTAR(咲夜) && (IS_LOVER(咲夜) || IS_SLAVE(咲夜)) && !(SELECTCOM >= 80 && SELECTCOM <= 99) && !(SELECTCOM >= 130 && SELECTCOM <= 159) && !(SELECTCOM >= 200 && SELECTCOM <= 219)
-					IF RAND:100 <= 30
-						咲夜_表示台詞 = %咲夜_表示台詞%❤　
-					ELSEIF RAND:100 <= 30
-						咲夜_表示台詞 = %咲夜_表示台詞%……
-					ELSE
-						咲夜_表示台詞 = %咲夜_表示台詞%。
-					ENDIF
-				ELSEIF IS_LOVER(咲夜) || IS_SLAVE(咲夜) && ( GROUPMATCH(SELECTCOM, 320, 321, 322, 323) || GROUPMATCH(SELECTCOM, 324, 325, 326) )
-					IF RAND:100 <= 5
-						咲夜_表示台詞 = %咲夜_表示台詞%❤　
-					ELSEIF RAND:100 <= 20
-						咲夜_表示台詞 = %咲夜_表示台詞%……
-					ELSE
-						咲夜_表示台詞 = %咲夜_表示台詞%。
-					ENDIF
-				ELSE
-					IF RAND:100 <= 20
-						咲夜_表示台詞 = %咲夜_表示台詞%……
-					ELSE
-						咲夜_表示台詞 = %咲夜_表示台詞%。
-					ENDIF
-				ENDIF
-			ENDIF
-		ENDIF
-		;表示台詞に代入（既に表示台詞があれば足す）
-		咲夜_表示台詞 = %咲夜_表示台詞%%咲夜_入力台詞:(LOCAL:0)%
-		;─────────────────────────────────── 
-		;○文末　文字数が一定量に達したら文末を足して表示、表示したら表示台詞をクリア
-		;─────────────────────────────────── 
-		STRLENFORM %咲夜_表示台詞%
-		IF RESULT >= 30 + RAND:20
-			PRINTFORM 「%咲夜_表示台詞%
-			;───────────────────────────────── 
-			;日常コマンド失敗時はハートをつけない
-			;───────────────────────────────── 
-			IF TFLAG:18 == -1 || TFLAG:17 == -1
-				IF RAND:100 <= 50
-					PRINTFORML ……」
-				ELSE
-					PRINTFORML 」
-				ENDIF
-			;───────────────────────────────── 
-			;イきそう台詞
-			;───────────────────────────────── 
-			ELSEIF ( NOWEX:咲夜:射精 > 0 || NOWEX:咲夜:Ｃ絶頂 > 0 || NOWEX:咲夜:Ｖ絶頂 > 0 || NOWEX:咲夜:Ａ絶頂 > 0 || NOWEX:咲夜:Ｂ絶頂 > 0 || NOWEX:咲夜:Ｍ絶頂 > 0 ) || ( IS_INITIATIVE(咲夜) && ( NOWEX:MASTER:射精 > 0 || NOWEX:MASTER:Ｃ絶頂 > 0 || NOWEX:MASTER:Ｖ絶頂 > 0 || NOWEX:MASTER:Ａ絶頂 > 0 || NOWEX:MASTER:Ｂ絶頂 > 0 || NOWEX:MASTER:Ｍ絶頂 > 0 ) )
-				;不機嫌ならハートはつけない
-				IF GROUPMATCH(咲夜機嫌, "恨", "怒", "憤", "鬱", "悲", "憂", "狂", "恐", "怯")
-					IF RAND:100 <= 50
-						PRINTFORML ！」
-					ELSEIF RAND:100 <= 50
-						PRINTFORML ……」
-					ELSE
-						PRINTFORML 」
-					ENDIF
-				;52:気力切れ 53:離脱1=酔い限界
-				ELSEIF TCVAR:咲夜:52 || TCVAR:咲夜:53 == 1
-					IF RAND:100 <= 30
-						IF (SELECTCOM >= 80 && SELECTCOM <= 99) || (SELECTCOM >= 130 && SELECTCOM <= 159) || (SELECTCOM >= 200 && SELECTCOM <= 219)
-							PRINTFORML ！」
-						ELSE
-							PRINTFORML ❤」
-						ENDIF
-					ELSEIF RAND:100 <= 50
-						PRINTFORML ！」
-					ELSEIF RAND:100 <= 50
-						PRINTFORML ……」
-					ELSE
-						PRINTFORML 」
-					ENDIF
-				;51=体力切れ 
-				ELSEIF TCVAR:咲夜:51
-					IF RAND:100 <= 50
-						PRINTFORML ！」
-					ELSEIF RAND:100 <= 50
-						PRINTFORML ……」
-					ELSE
-						PRINTFORML 」
-					ENDIF
-				ELSEIF FLAG:ウフフフラグ && IS_MTAR(咲夜) && (IS_LOVER(咲夜) || IS_SLAVE(咲夜)) && !(SELECTCOM >= 80 && SELECTCOM <= 99) && !(SELECTCOM >= 130 && SELECTCOM <= 159) && !(SELECTCOM >= 200 && SELECTCOM <= 219)
-					IF RAND:100 <= 30
-						PRINTFORML ❤」
-					ELSEIF RAND:100 <= 50
-						PRINTFORML ！」
-					ELSEIF RAND:100 <= 50
-						PRINTFORML ……」
-					ELSE
-						PRINTFORML 」
-					ENDIF
-				ELSEIF FLAG:ウフフフラグ && IS_MPLY(咲夜) && (IS_LOVER(咲夜) || IS_SLAVE(咲夜))
-					IF RAND:100 <= 5
-						PRINTFORML ……」
-					ELSE
-						PRINTFORML 」
-					ENDIF
-				ELSEIF IS_LOVER(咲夜) || IS_SLAVE(咲夜) && ( GROUPMATCH(SELECTCOM, 320, 321, 322, 323) || GROUPMATCH(SELECTCOM, 324, 325, 326) )
-					IF RAND:100 <= 5
-						PRINTFORML ❤」
-					ELSEIF RAND:100 <= 50
-						PRINTFORML ！」
-					ELSEIF RAND:100 <= 50
-						PRINTFORML ……」
-					ELSE
-						PRINTFORML 」
-					ENDIF
-				ELSE
-					IF RAND:100 <= 50
-						PRINTFORML ！」
-					ELSEIF RAND:100 <= 50
-						PRINTFORML ……」
-					ELSE
-						PRINTFORML 」
-					ENDIF
-				ENDIF
-			;───────────────────────────────── 
-			;イきそうでない台詞
-			;───────────────────────────────── 
-			ELSE
-				;不機嫌だとハートがつかない
-				IF GROUPMATCH(咲夜機嫌, "恨", "怒", "憤", "鬱", "悲", "憂", "狂", "恐", "怯")
-					IF RAND:100 <= 20
-						PRINTFORML ……」
-					ELSE
-						PRINTFORML 」
-					ENDIF
-				;52:気力切れ 53:離脱1=酔い限界
-				ELSEIF TCVAR:咲夜:52 || TCVAR:咲夜:53 == 1
-					IF RAND:100 <= 30
-						IF (SELECTCOM >= 80 && SELECTCOM <= 99) || (SELECTCOM >= 130 && SELECTCOM <= 159) || (SELECTCOM >= 200 && SELECTCOM <= 219)
-							PRINTFORML ！」
-						ELSE
-							PRINTFORML ❤」
-						ENDIF
-					ELSEIF RAND:100 <= 20
-						PRINTFORML ……」
-					ELSE
-						PRINTFORML 」
-					ENDIF
-				;51=体力切れ 
-				ELSEIF TCVAR:咲夜:51
-					IF RAND:100 <= 50
-						PRINTFORML ……」
-					ELSE
-						PRINTFORML 」
-					ENDIF
-				ELSEIF FLAG:ウフフフラグ && IS_MTAR(咲夜) && (IS_LOVER(咲夜) || IS_SLAVE(咲夜)) && !(SELECTCOM >= 80 && SELECTCOM <= 99) && !(SELECTCOM >= 130 && SELECTCOM <= 159) && !(SELECTCOM >= 200 && SELECTCOM <= 219)
-					IF RAND:100 <= 30
-						PRINTFORML ❤」
-					ELSEIF RAND:100 <= 20
-						PRINTFORML ……」
-					ELSE
-						PRINTFORML 」
-					ENDIF
-				ELSEIF IS_LOVER(咲夜) || IS_SLAVE(咲夜) && ( GROUPMATCH(SELECTCOM, 320, 321, 322, 323) || GROUPMATCH(SELECTCOM, 324, 325, 326) )
-					IF RAND:100 <= 5
-						PRINTFORML ❤」
-					ELSEIF RAND:100 <= 20
-						PRINTFORML ……」
-					ELSE
-						PRINTFORML 」
-					ENDIF
-				ELSE
-					IF RAND:100 <= 20
-						PRINTFORML ……」
-					ELSE
-						PRINTFORML 」
-					ENDIF
-				ENDIF
-			ENDIF
-			咲夜_表示台詞 = 
-		ENDIF
-	ENDIF
-NEXT
-
-;─────────────────────────────────────── 
-;○余り　文字数一定量に達さなかった台詞が表示されずに残っている
-;─────────────────────────────────────── 
-IF 咲夜_表示台詞 != ""
-	PRINTFORM 「%咲夜_表示台詞%
-	;───────────────────────────────────── 
-	;日常コマンド失敗時はハートをつけない
-	;───────────────────────────────────── 
-	IF TFLAG:18 == -1 || TFLAG:17 == -1
-		IF RAND:100 <= 50
-			PRINTFORML ……」
-		ELSE
-			PRINTFORML 」
-		ENDIF
-	;───────────────────────────────────── 
-	;イきそう台詞
-	;───────────────────────────────────── 
-	ELSEIF ( NOWEX:咲夜:射精 > 0 || NOWEX:咲夜:Ｃ絶頂 > 0 || NOWEX:咲夜:Ｖ絶頂 > 0 || NOWEX:咲夜:Ａ絶頂 > 0 || NOWEX:咲夜:Ｂ絶頂 > 0 || NOWEX:咲夜:Ｍ絶頂 > 0 ) || ( IS_INITIATIVE(咲夜) && ( NOWEX:MASTER:射精 > 0 || NOWEX:MASTER:Ｃ絶頂 > 0 || NOWEX:MASTER:Ｖ絶頂 > 0 || NOWEX:MASTER:Ａ絶頂 > 0 || NOWEX:MASTER:Ｂ絶頂 > 0 || NOWEX:MASTER:Ｍ絶頂 > 0 ) )
-		;不機嫌ならハートはつけない
-		IF GROUPMATCH(咲夜機嫌, "恨", "怒", "憤", "鬱", "悲", "憂", "狂", "恐", "怯")
-			IF RAND:100 <= 50
-				PRINTFORML ！」
-			ELSEIF RAND:100 <= 50
-				PRINTFORML ……」
-			ELSE
-				PRINTFORML 」
-			ENDIF
-		;52:気力切れ 53:離脱 1=酔い限界
-		ELSEIF TCVAR:咲夜:52 || TCVAR:咲夜:53 == 1
-			IF RAND:100 <= 30
-				IF (SELECTCOM >= 80 && SELECTCOM <= 99) || (SELECTCOM >= 130 && SELECTCOM <= 159) || (SELECTCOM >= 200 && SELECTCOM <= 219)
-					PRINTFORML ！」
-				ELSE
-					PRINTFORML ❤」
-				ENDIF
-			ELSEIF RAND:100 <= 50
-				PRINTFORML ！」
-			ELSEIF RAND:100 <= 50
-				PRINTFORML ……」
-			ELSE
-				PRINTFORML 」
-			ENDIF
-		;51=体力切れ 
-		ELSEIF TCVAR:咲夜:51
-			IF RAND:100 <= 30
-				PRINTFORML ！」
-			ELSEIF RAND:100 <= 50
-				PRINTFORML ……」
-			ELSE
-				PRINTFORML 」
-			ENDIF
-		ELSEIF FLAG:ウフフフラグ && IS_MTAR(咲夜) && (IS_LOVER(咲夜) || IS_SLAVE(咲夜)) && !(SELECTCOM >= 80 && SELECTCOM <= 99) && !(SELECTCOM >= 130 && SELECTCOM <= 159) && !(SELECTCOM >= 200 && SELECTCOM <= 219)
-			IF RAND:100 <= 30
-				PRINTFORML ❤」
-			ELSEIF RAND:100 <= 50
-				PRINTFORML ！」
-			ELSEIF RAND:100 <= 50
-				PRINTFORML ……」
-			ELSE
-				PRINTFORML 」
-			ENDIF
-		ELSEIF FLAG:ウフフフラグ && IS_MPLY(咲夜) && (IS_LOVER(咲夜) || IS_SLAVE(咲夜))
-			IF RAND:100 <= 5
-				PRINTFORML ……」
-			ELSE
-				PRINTFORML 」
-			ENDIF
-		ELSEIF IS_LOVER(咲夜) || IS_SLAVE(咲夜) && ( GROUPMATCH(SELECTCOM, 320, 321, 322, 323) || GROUPMATCH(SELECTCOM, 324, 325, 326) )
-			IF RAND:100 <= 10
-				PRINTFORML ❤」
-			ELSEIF RAND:100 <= 50
-				PRINTFORML ！」
-			ELSEIF RAND:100 <= 50
-				PRINTFORML ……」
-			ELSE
-				PRINTFORML 」
-			ENDIF
-		ELSE
-			IF RAND:100 <= 50
-				PRINTFORML ！」
-			ELSEIF RAND:100 <= 50
-				PRINTFORML ……」
-			ELSE
-				PRINTFORML 」
-			ENDIF
-		ENDIF
-	;───────────────────────────────────── 
-	;イきそうでない台詞
-	;───────────────────────────────────── 
-	ELSE
-		;不機嫌だとハートがつかない
-		IF GROUPMATCH(咲夜機嫌, "恨", "怒", "憤", "鬱", "悲", "憂", "狂", "恐", "怯")
-			IF RAND:100 <= 20
-				PRINTFORML ……」
-			ELSE
-				PRINTFORML 」
-			ENDIF
-		;52:気力切れ 53:離脱 1=酔い限界
-		ELSEIF TCVAR:咲夜:52 || TCVAR:咲夜:53 == 1
-			IF RAND:100 <= 30
-				IF (SELECTCOM >= 80 && SELECTCOM <= 99) || (SELECTCOM >= 130 && SELECTCOM <= 159) || (SELECTCOM >= 200 && SELECTCOM <= 219)
-					PRINTFORML ！」
-				ELSE
-					PRINTFORML ❤」
-				ENDIF
-			ELSEIF RAND:100 <= 20
-				PRINTFORML ……」
-			ELSE
-				PRINTFORML 」
-			ENDIF
-		;51=体力切れ 
-		ELSEIF TCVAR:咲夜:51
-			IF RAND:100 <= 50
-				PRINTFORML ……」
-			ELSE
-				PRINTFORML 」
-			ENDIF
-		ELSEIF FLAG:ウフフフラグ && IS_MTAR(咲夜) && (IS_LOVER(咲夜) || IS_SLAVE(咲夜)) && !(SELECTCOM >= 80 && SELECTCOM <= 99) && !(SELECTCOM >= 130 && SELECTCOM <= 159) && !(SELECTCOM >= 200 && SELECTCOM <= 219)
-			IF RAND:100 <= 30
-				PRINTFORML ❤」
-			ELSEIF RAND:100 <= 20
-				PRINTFORML ……」
-			ELSE
-				PRINTFORML 」
-			ENDIF
-		ELSEIF IS_LOVER(咲夜) || IS_SLAVE(咲夜) && ( GROUPMATCH(SELECTCOM, 320, 321, 322, 323) || GROUPMATCH(SELECTCOM, 324, 325, 326) )
-			IF RAND:100 <= 5
-				PRINTFORML ❤」
-			ELSEIF RAND:100 <= 20
-				PRINTFORML ……」
-			ELSE
-				PRINTFORML 」
-			ENDIF
-		ELSE
-			IF RAND:100 <= 20
-				PRINTFORML ……」
-			ELSE
-				PRINTFORML 」
-			ENDIF
-		ENDIF
-	ENDIF
-	咲夜_表示台詞 = 
 ENDIF
 
-RESETCOLOR
-RETURN 0
+RETURN
 

@@ -476,19 +476,30 @@ IF IS_PREGNANT_MSG(MOTHER)
 	PRINTL 
 	PRINTL 
 	IF !FLAG:観戦モード && CFLAG:MASTER:所属 == CFLAG:MOTHER:所属
+		IF CONFIG:16 == 1
+			GOTO AUTO_RECRUIT
+		ELSE
+			GOTO AUTO_CANCEL
+		ENDIF
 		;観戦でない
 		DRAWLINE
 		FLAG:能力表示モード = 0
 		CALL SHOW_INFO(CHILD, 0)
 		DRAWLINE
 		PRINTFORMW この子を将来、自国の仕官となるように教育しますか？
-		CALL ASK_YN
-		IF RESULT == 1
+		CALL ASK_MULTI("する", "する（今後自動的に士官にする）", "しない", "しない（今後自動的に無視する）")
+		IF GROUPMATCH(RESULT, 2, 3)
+			SIF RESULT == 3
+				CONFIG:16 = 2
+			$AUTO_CANCEL
 			PRINTFORMW 教育するのはやめておきます
 			CALL DELETE_CHARA(CHILD)
 			;仕官させないフラグ
 			RETURN -1
 		ELSE
+			SIF RESULT == 1
+				CONFIG:16 = 1
+			$AUTO_RECRUIT
 			;片親がMASTER
 			IF CFLAG:CHILD:父親 == GET_ID(MASTER) || CFLAG:CHILD:母親 == GET_ID(MASTER)
 				;手動での命名処理

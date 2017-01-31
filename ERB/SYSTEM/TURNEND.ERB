@@ -21,7 +21,7 @@ ELSE
 ENDIF
 
 ;逆調教要求日数が残っている場合
-IF DIPLOMACY_TRAINED_DAY > 0 && !FLAG:強制調教フラグ && !FLAG:調教要求フラグ
+IF DIPLOMACY_TRAINED_DAY > 0 && !FLAG:ターンエンド調教 && !FLAG:調教要求フラグ
 	DIPLOMACY_TRAINED_DAY --
 	;全員の調教参加フラグを解除
 	CVARSET CFLAG, 6, 0
@@ -40,6 +40,7 @@ IF DIPLOMACY_TRAINED_DAY < 0 && !FLAG:調教要求フラグ
 	DIPLOMACY_TRAINED_DAY ++
 	;捕虜逆調教モード
 	FLAG:調教モード = 調教_慰安
+	FLAG:慰安モード = 3
 	FLAG:慰安場所 = 慰安_行き先_貴族の居住地
 	;ウフフモード
 	FLAG:ウフフフラグ = 1
@@ -58,7 +59,7 @@ IF DIPLOMACY_TRAINED_DAY < 0 && !FLAG:調教要求フラグ
 	;全員の調教参加フラグを解除
 	CVARSET CFLAG, 6, 0
 	CFLAG:DIPLOMACY_TRAINING_CHARA:調教参加フラグ = 1
-	CFLAG:DIPLOMACY_TRAINING_CHARA:慰安モブ = 1
+	CFLAG:DIPLOMACY_TRAINING_CHARA:慰安参加者 = 1
 	CFLAG:DIPLOMACY_TRAINING_CHARA:行動済み = 1
 	CFLAG:GET_COUNTRY_BOSS(CFLAG:MASTER:所属):調教参加フラグ = 1
 	PRINTFORMW %ANAME(GET_COUNTRY_BOSS(CFLAG:MASTER:所属))%は外交交渉の見返りとして、%ANAME(DIPLOMACY_TRAINING_CHARA)%の寝室へ向かった……
@@ -84,29 +85,22 @@ $SKIPPED
 ;デッドエンディングならBEGIN TITLE
 IF FLAG:強制エンドフラグ == 1
 	BEGIN TITLE
-;強制調教フラグが立っているなら即時調教モードに入る
-ELSEIF FLAG:強制調教フラグ == 1
-	FLAG:強制調教フラグ = 0
-	FLAG:調教モード = 1
+;ターンエンド調教が立っているなら即時調教モードに入る
+ELSEIF FLAG:ターンエンド調教
+	SELECTCASE FLAG:ターンエンド調教
+		CASE 1
+			FLAG:調教モード = 1
+		CASE 2
+			FLAG:調教モード = 5
+			FLAG:ウフフフラグ = 1
+		CASE 3
+			FLAG:調教モード = 7
+			FLAG:慰安モード = 3
+	ENDSELECT
+	FLAG:ターンエンド調教 = 0
 	FLAG:ウフフフラグ = 1
 	FLAG:夜這い = 0
 	;時間の処理をしないと、「拠点フェイズの終了時にここに到達、調教→調教終了でSLGフェイズのターンエンドが呼ばれ、次期の拠点フェイズに飛ぶ」みたいな挙動になる
-	IF TIME == 0
-		IF !FLAG:クリアフラグ
-			TIME = 1
-			DAY --
-		ENDIF
-	ELSEIF TIME == 1
-		TIME = 0
-		SHOP_TIME = CALC_SHOP_TIME()
-	ENDIF
-	FLAG:イベント発生禁止 = 1
-	CALL START_TRAIN_COMMON
-ELSEIF FLAG:強制調教フラグ == 2
-	FLAG:強制調教フラグ = 0
-	FLAG:調教モード = 5
-	FLAG:ウフフフラグ = 1
-	FLAG:夜這い = 0
 	IF TIME == 0
 		IF !FLAG:クリアフラグ
 			TIME = 1
@@ -187,7 +181,7 @@ $SKIPPED
 ;統一後の場合
 IF FLAG:クリアフラグ
 	;一期終了時の処理
-	SIF !FLAG:強制調教フラグ
+	SIF !FLAG:ターンエンド調教
 		CALL TURNEND_COMMON
 	;クールタイムのリセット
 	CVARSET COOLTIME, 0
@@ -256,7 +250,7 @@ ENDIF
 CALL EVENT_DAILY(1)
 
 ;一期終了時の処理
-SIF !FLAG:強制調教フラグ
+SIF !FLAG:ターンエンド調教
 	CALL TURNEND_COMMON
 
 $SKIPPED
@@ -710,8 +704,8 @@ ELSE
 					ENDSELECT
 				PRINTFORML 
 				PRINTFORMW %ANAME(MASTER)%は散々凌辱された後、牢屋に放り込まれた
-				CALL FUCK_GANGBANG(MASTER, GET_SPERM_ID("誰とも知らぬ兵士"), @"誰とも知らぬ兵士の\@ RAND:2 ? ペニス # 唇\@", "誰とも知らぬ兵士たち")
-				CALL FUCK_GANGBANG(MASTER, GET_SPERM_ID("誰とも知らぬ兵士"), @"誰とも知らぬ兵士の\@ RAND:2 ? ペニス # 唇\@", "誰とも知らぬ兵士たち")
+				CALL FUCK_GANGBANG(MASTER, GET_SPERM_ID("兵士"), @"誰とも知らぬ兵士の\@ RAND:2 ? ペニス # 唇\@", "誰とも知らぬ兵士たち")
+				CALL FUCK_GANGBANG(MASTER, GET_SPERM_ID("兵士"), @"誰とも知らぬ兵士の\@ RAND:2 ? ペニス # 唇\@", "誰とも知らぬ兵士たち")
 			ELSE
 				PRINTFORMW 脱出に失敗してしまった……
 				PRINTFORMW 見つかった%ANAME(MASTER)%はキツイ拷問を受けた後、牢屋に戻された
