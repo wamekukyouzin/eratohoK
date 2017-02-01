@@ -1759,119 +1759,79 @@ ENDIF
 ;;;;;ARG:0 捕虜となっている個人
 ;-------------------------------------------------
 @PRISONER_CHANGE_RELATION(ARG:0)
-#DIM 対国ＬＩＫＥ  ;とられた国全員→とった国全員へのLIKE変動
-#DIM 対国ＨＡＴＥ  ;とられた国全員→とった国全員へのHATE変動
-#DIM 捕虜ＬＩＫＥ  ;捕虜個人→とった国全員へのLIKE変動
-#DIM 捕虜ＨＡＴＥ  ;捕虜個人→とった国全員へのHATE変動
-;;;;;関係の変化量は、国家ボスに対してのみ1倍、以外は2分の１になる（使用関数の仕様）
-;;;;;捕虜10人とって拷問してたら １ターンで最終的に「拷問の対国LIKE/HATEx10人」分関係が動きます
-;;;;;MASTER国所属でない勢力での捕虜について：現状ではNPC間のHATEがひどいので０にしている
-;;;;;ほかの数値も好きに調整してほしい
+#DIM LIKE
+#DIM HATE
 
-対国ＬＩＫＥ = 0
-対国ＨＡＴＥ = 0
-捕虜ＬＩＫＥ = 0
-捕虜ＨＡＴＥ = 0
+LIKE = 0
+HATE = 0
 
-SIF CFLAG:(ARG:0):捕虜先 == 0	;捕虜なんかじゃないわよっ！
-	RETURN					;カエレ! （・∀・）
-SIF COUNTRY_EVENT_ID:(CFLAG:(ARG:0):所属) >= SP_COUNTRY_ID:(特殊勢力_外来人) || COUNTRY_EVENT_ID:(CFLAG:(ARG:0):捕虜先) >= SP_COUNTRY_ID:(特殊勢力_外来人)	;外来人299,ゴブ300 以降の勢力に関係する場合処理しない
+SIF CFLAG:(ARG:0):捕虜先 == 0
 	RETURN
-SIF CFLAG:(ARG:0):解放カウンタ == 0	;解放カウンタ０＝捕虜なりたて は捕虜処置選択前なのでスルー
+SIF CFLAG:(ARG:0):解放カウンタ == 0
 	RETURN
 
 ;MASTER所属国でない勢力に捕虜にされている
-IF CFLAG:(ARG:0):捕虜先 != CFLAG:(MASTER):所属
-	対国ＬＩＫＥ = 0
-	対国ＨＡＴＥ = 0
-	捕虜ＬＩＫＥ = 0
-	捕虜ＨＡＴＥ = 0
+SIF CFLAG:(ARG:0):捕虜先 != CFLAG:(MASTER):所属
+	RETURN
 
 ;MASTERが待遇決める＆投獄
-ELSEIF CFLAG:(ARG:0):捕虜先 == CFLAG:(MASTER):所属 && CFLAG:(ARG:0):監禁状態 == 0 
+IF CFLAG:(ARG:0):監禁状態 == 0
 	SELECTCASE CFLAG:(ARG:0):捕虜の扱い
 		;拘留
 		CASE 0
-			対国ＬＩＫＥ =  0
-			対国ＨＡＴＥ =  4
-
+			LIKE = 0
+			HATE = 4
 		;拷問
 		CASE 2
-			対国ＬＩＫＥ = -8
-			対国ＨＡＴＥ =  8
-			捕虜ＬＩＫＥ = -8
-			捕虜ＨＡＴＥ =  12
-
+			LIKE = -8
+			HATE = 8
 		;Ｃ開発
 		CASE 3
-			対国ＬＩＫＥ = -4
-			対国ＨＡＴＥ =  4
-			捕虜ＬＩＫＥ = -6
-			捕虜ＨＡＴＥ =  8
-			
+			LIKE = -6
+			HATE = 8
 		;Ｂ開発
 		CASE 4
-			対国ＬＩＫＥ = -4
-			対国ＨＡＴＥ =  4
-			捕虜ＬＩＫＥ = -6
-			捕虜ＨＡＴＥ =  8
-			
+			LIKE = -6
+			HATE = 8
 		;性処理
 		CASE 5
-			対国ＬＩＫＥ = -16
-			対国ＨＡＴＥ =  20
-			捕虜ＬＩＫＥ = -20
-			捕虜ＨＡＴＥ =  30
-			
+			LIKE = -16
+			HATE = 20
 		;触手調教
 		CASE 6
-			対国ＬＩＫＥ = -4
-			対国ＨＡＴＥ =  4
-			捕虜ＬＩＫＥ = -30
-			捕虜ＨＡＴＥ =  30
-		
+			LIKE = -30
+			HATE = 30
 		;娼館
 		CASE 7
-			対国ＬＩＫＥ = -16
-			対国ＨＡＴＥ =  20
-			捕虜ＬＩＫＥ = -16
-			捕虜ＨＡＴＥ =  30
-		
+			LIKE = -30
+			HATE = 30
 		;さく乳
 		CASE 8
-			対国ＬＩＫＥ = -4
-			対国ＨＡＴＥ =  4
-			捕虜ＬＩＫＥ = -12
-			捕虜ＨＡＴＥ =  24
-
+			LIKE = -20
+			HATE = 20
 	ENDSELECT
-
 ;MASTERが待遇決める＆軟禁
-ELSEIF CFLAG:(ARG:0):捕虜先 == CFLAG:(MASTER):所属 && CFLAG:(ARG:0):監禁状態 == 1
-			対国ＬＩＫＥ =  0
-			対国ＨＡＴＥ =  4
-			捕虜ＬＩＫＥ = 10
-			捕虜ＨＡＴＥ =  0
+ELSE
+	LIKE = 5
+	HATE = -5
 ENDIF
 
-;PRINTFORML 捕虜 %NAME:(ARG:0),12,LEFT% 関係変動 所属国家間（ LIKE {対国ＬＩＫＥ}　HATE {対国ＨＡＴＥ} ）　捕虜個人（LIKE {捕虜ＬＩＫＥ}　HATE {捕虜ＨＡＴＥ} ）
-;PRINTFORML 前　%NAME:(ARG:0)% → %NAME:(MASTER)% L{REL_LIKE:(ARG:0):(MASTER)}  H{REL_HATE:(ARG:0):(MASTER)}
 
-IF CFLAG:(ARG:0):所属 != 0		;国対国は、所属国が無所属になってない場合のみ
-	LOCAL:0 = GET_COUNTRY_BOSS(CFLAG:(ARG:0):捕虜先)	;捕虜にした国のボス
-	LOCAL:1 = GET_COUNTRY_BOSS(CFLAG:(ARG:0):所属) ;本来の所属国
+IF CFLAG:(ARG:0):所属 != 0
+	LOCAL:0 = GET_COUNTRY_BOSS(CFLAG:(ARG:0):捕虜先)
+	LOCAL:1 = GET_COUNTRY_BOSS(CFLAG:(ARG:0):所属)
 
-	CALL CHANGE_RELATION_C_TO_C( CFLAG:(ARG:0):所属, CFLAG:(ARG:0):捕虜先, 対国ＬＩＫＥ, 対国ＨＡＴＥ )
+	SIF REL_LIKE:(LOCAL:1):(LOCAL:0) > 300 && LIKE > 0
+		LIKE = 0
+	SIF REL_HATE:(LOCAL:1):(LOCAL:0) < 300 && HATE < 0
+		HATE = 0
 
-;	SIF 対国ＨＡＴＥ >=8  && CFLAG:(ARG:0):捕虜先 == CFLAG:(MASTER):所属
-;		PRINTFORML 捕虜として拘束されている %NAME:(ARG:0)% への待遇に %NAME:(LOCAL:1)% が抗議しています...
+	CALL CHANGE_RELATION_C_TO_C(CFLAG:(ARG:0):所属, CFLAG:(ARG:0):捕虜先, LIKE, HATE)
 
-;捕虜個人への 国対国の影響を相殺させる 以下の@CHANGE_RELATION_O_TO_C の影響のみにしたい　奇数変化だと端数でてる
-捕虜ＬＩＫＥ -= 対国ＬＩＫＥ
-捕虜ＨＡＴＥ -= 対国ＨＡＴＥ
-
+	LIKE /= 2
+	HATE /= 2
 ENDIF
 
-	CALL CHANGE_RELATION_O_TO_C( ARG:0, CFLAG:(ARG:0):捕虜先, 捕虜ＬＩＫＥ, 捕虜ＨＡＴＥ )
+CALL CHANGE_RELATION_O_TO_C(ARG:0, CFLAG:(ARG:0):捕虜先, LIKE, HATE)
 
 ;PRINTFORML 後　%NAME:(ARG:0)% → %NAME:(MASTER)% L{REL_LIKE:(ARG:0):(MASTER)}  H{REL_HATE:(ARG:0):(MASTER)}
