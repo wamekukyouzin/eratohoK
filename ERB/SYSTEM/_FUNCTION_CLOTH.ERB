@@ -1,0 +1,165 @@
+﻿;-------------------------------------------------
+;ARG:0番の衣装を表示
+;-------------------------------------------------
+@SHOW_CLOTH(ARG:0)
+PRINTFORML ◆%ANAME(ARG:0)%の衣装◆
+FOR LOCAL, 0, CLOTH_PART_NUM
+	CALL GET_CLOTH_NAME(LOCAL, CLOTH:(ARG:0):LOCAL)
+	PRINTFORML   %CLOTH_PART_NAME:LOCAL, 10, LEFT% - %RESULTS%
+NEXT
+
+
+
+;-------------------------------------------------
+;指定キャラの指定部位に指定IDの衣装を装着する
+;-------------------------------------------------
+@SET_CLOTH(対象, 部位, ID)
+#DIM 対象
+#DIM 部位
+#DIM ID
+TRYCCALLFORM CLOTH_NAME_%CLOTH_PART_NAME_ENG:部位%_{ID}
+CATCH
+	ID = 0
+ENDCATCH
+
+SELECTCASE 部位
+	CASE 衣装部位_上着上, 衣装部位_上着下
+		CALL SET_CLOTH(対象, 衣装部位_上下服, 0)
+	CASE 衣装部位_上下服
+		CALL SET_CLOTH(対象, 衣装部位_上着上, 0)
+		CALL SET_CLOTH(対象, 衣装部位_上着下, 0)
+	CASE 衣装部位_下着上, 衣装部位_下着下
+		CALL SET_CLOTH(対象, 衣装部位_上下下着, 0)
+	CASE 衣装部位_上下下着
+		CALL SET_CLOTH(対象, 衣装部位_下着上, 0)
+		CALL SET_CLOTH(対象, 衣装部位_下着下, 0)
+ENDSELECT
+
+CLOTH:対象:部位 = ID
+
+RETURN 1
+
+;-------------------------------------------------
+;衣装名を取得するラッパ関数
+;-------------------------------------------------
+@GET_CLOTH_NAME(部位, ID)
+#DIM 部位
+#DIM ID
+
+TRYCCALLFORM CLOTH_NAME_%CLOTH_PART_NAME_ENG:部位%_{ID}()
+CATCH
+	RESULTS = なし
+ENDCATCH
+
+
+;-------------------------------------------------
+;着用衣装表示（ボタンつき）
+;-------------------------------------------------
+@SHOW_CLOTH_SETTING(対象)
+#DIM 対象
+
+PRINTFORML ◆%ANAME(対象)%の衣装◆
+FOR LOCAL, 0, CLOTH_PART_NUM
+	PRINTBUTTON @"%"[" + CLOTH_PART_NAME:LOCAL + "]", 12, LEFT%", LOCAL + 100
+	CALL GET_CLOTH_NAME(LOCAL, CLOTH:対象:LOCAL)
+	PRINTFORML %RESULTS%
+NEXT
+
+;-------------------------------------------------
+;衣装設定メニュー
+;-------------------------------------------------
+@CLOTH_SETTING_MENU(対象)
+#DIM 対象
+#DIM FIRST_LINE
+FIRST_LINE = LINECOUNT
+
+CALL SHOW_CLOTH_SETTING(対象)
+PRINTBUTTON "[戻る]", 999
+
+$INPUT_LOOP
+INPUT
+
+IF RESULT == 999
+	RETURN
+ELSEIF RESULT < 100 && RESULT >= CLOTH_PART_NUM + 100
+	CLEARLINE 1
+	GOTO INPUT_LOOP
+ENDIF
+CALL CLOTH_CHANGE_MENU(対象, RESULT - 100)
+
+CLEARLINE LINECOUNT - FIRST_LINE
+
+RESTART
+
+;-------------------------------------------------
+;衣装用メニュー その２
+;-------------------------------------------------
+@CLOTH_CHANGE_MENU(対象, 部位)
+#DIM 対象
+#DIM 部位
+#DIM 利用可否, MAX_CLOTH_ID
+#DIM 衣装数
+#DIM FIRST_LINE
+#DIM ページ数
+#DIM ページ
+#DIM CONST ページごと衣装数 = 15
+VARSET 利用可否, 0
+利用可否:0 = 1
+衣装数 = 1
+FOR LOCAL, 1, MAX_CLOTH_ID
+	TRYCCALLFORM CLOTH_NAME_%CLOTH_PART_NAME_ENG:部位%_{LOCAL}()
+		利用可否:LOCAL = 1
+		衣装数 ++
+	CATCH
+		利用可否:LOCAL = 0
+	ENDCATCH
+NEXT
+
+ページ数 = 衣装数 / ページごと衣装数 + 1
+ページ = 1
+
+
+DRAWLINE
+
+FIRST_LINE = LINECOUNT
+$SHOW_LOOP
+
+衣装数 = 0
+FOR LOCAL, 0, MAX_CLOTH_ID
+	SIF 利用可否:LOCAL == 0
+		CONTINUE
+	衣装数 ++
+	SIF 衣装数 < ページごと衣装数 * (ページ - 1) || 衣装数 >= ページ * ページごと衣装数
+		CONTINUE
+	CALL GET_CLOTH_NAME(部位, LOCAL)
+	PRINTBUTTON @"[%RESULTS, 20, LEFT%]", LOCAL
+	IF CLOTH:対象:部位 == LOCAL
+		PRINT  着用中
+	ENDIF
+	PRINTL
+NEXT
+DRAWLINE
+IF ページ数 > 1
+	PRINTBUTTON "[前のページ]", 9997
+	PRINTFORM  {ページ}/{ページ数}
+	PRINTBUTTON "[次のページ]", 9998
+	PRINTL
+ENDIF
+PRINTBUTTON "[戻る]", 9999
+
+$INPUT_LOOP
+
+INPUT
+
+IF RESULT == 9999
+	RETURN
+ELSEIF RESULT == 9997 && ページ数 > 1
+	ページ = ROUND_INCREMENT(ページ, 1, ページ数)
+ELSEIF RESULT == 9998 && ページ数 > 1
+	ページ = ROUND_DECREMENT(ページ, 1, ページ数)
+ELSEIF RESULT > 0 && RESULT < MAX_CLOTH_ID && 利用可否:RESULT
+	CALL SET_CLOTH(対象, 部位, RESULT)
+ENDIF
+
+CLEARLINE LINECOUNT - FIRST_LINE
+GOTO SHOW_LOOP
