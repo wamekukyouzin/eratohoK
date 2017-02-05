@@ -1,61 +1,54 @@
 ﻿;─────────────────────────────────────── 
-;●「捕虜調教」開始
+;●「捕虜調教」の開始時
 ;─────────────────────────────────────── 
 @KOJO_TRAIN_START_B_K10
+#DIM レミリア_対象
 #DIM レミリア
+
+レミリア_対象 = MASTER
 レミリア = NAME_TO_CHARA("レミリア")
 
+;レミリア口上の使用可否設定と初期化
+SIF CFLAG:レミリア:400 == 0
+	CALL KOJO_ASK_RESET_K10
+
+;口上を使用しない設定なら戻る
 SIF CFLAG:レミリア:400 == 1
 	RETURN 0
 
-RESETCOLOR
-DRAWLINE
 SETCOLOR レミリア_口上カラー
 
-IF TALENT:レミリア:虚ろ
-	PRINTFORML 「あ……うー……」
-	PRINTFORMDL %ANAME(レミリア)%は乱れた服装で人形のように手足を投げ出している…
-	GOTO END
-ENDIF
-
 ;─────────────────────────────────────── 
-;初回
+;○初回
 ;─────────────────────────────────────── 
-IF CFLAG:202 == 0
+IF CFLAG:レミリア:202 == 0
 
+	;捕虜調教口上初回呼び出しフラグオン
 	CFLAG:レミリア:202 = 1
 
-	IF CFLAG:レミリア:400 == 0
-		PRINTFORMDL 口上の使用の設定する
-		PRINTFORMDL 
-		PRINTDL [0] 口上を使用しない
-		PRINTDL [1] レミリア口上
-		$INPUT_LOOP
-		INPUT
-		IF RESULT == 0
-			PRINTFORMDW 口上を使用しない
-			CFLAG:レミリア:400 = 1
-			GOTO END
-		ELSEIF RESULT == 1
-			PRINTFORMDW レミリア口上を使用する
-			CFLAG:レミリア:400 = 2
-			RESETCOLOR
-			DRAWLINE
-			SETCOLOR レミリア_口上カラー
-		ELSE
-			GOTO INPUT_LOOP
-		ENDIF
+	;───────────────────────────────────── 
+	;▼虚ろ
+	;───────────────────────────────────── 
+	IF TALENT:レミリア:虚ろ
+		PRINTFORML 「あ……うー……」
+		PRINTFORMDL %ANAME(レミリア)%は乱れた服装で人形のように手足を投げ出している……
+		WAIT
+		RESETCOLOR
+		RETURN 0
 	ENDIF
 
-	;初対面の場合
-	IF !CFLAG:レミリア:面識
+	;───────────────────────────────────── 
+	;▼通常初対面
+	;　面識がなく紅魔館メンバーや知人キャラでない場合
+	;───────────────────────────────────── 
+	IF !CHECK_K10("面識")
 		PRINTFORMDL 齢500年という吸血鬼は、華奢で色白な少女だった
 		PRINTFORMDL その髪までが、夜に浮かぶ月のように青みがかった銀で、淡く儚げだ
 		PRINTFORMDW 有機的に揺らめく背中の蝙蝠羽だけが人ではないことを示している
 		PRINTL 
 		PRINTFORML 「私はおまえに従わない。おまえを殺して逃げもしない」
 		PRINTFORMDL %PRONOUN(レミリア)%は自らの裸体を隠そうともせず、毅然と言い放った
-		PRINTFORMDW 紅の瞳は真っ直ぐに%CALLMASTER_K10(レミリア)%を睨んでいる
+		PRINTFORMDW 紅の瞳は真っ直ぐに%CALLNAME_K10(レミリア_対象)%を睨んでいる
 		PRINTL 
 		PRINTFORML 「私には庇護する者達がいる。私は彼女らのため牙にも羽にもなる」
 		PRINTFORML 「それが高貴なる吸血鬼、%NAME_FORMAL(レミリア)%の義務」
@@ -65,17 +58,19 @@ IF CFLAG:202 == 0
 		PRINTL 
 		PRINTFORMDL 戦場では屍の山を築くという%PRONOUN(レミリア)%を子どもと見過ごすわけにもいかないが
 		PRINTFORMDL さて、どのように従わせるべきだろうか
-
-	;既に会ったことがある場合
+	;───────────────────────────────────── 
+	;▼通常初対面ではない
+	;　面識があるまたは紅魔館メンバーや知人キャラの場合
+	;───────────────────────────────────── 
 	ELSE
 		IF IS_SLAVE(レミリア) || IS_LOVER(レミリア)
-			PRINTFORML 「%CALLMASTER_K10(レミリア)%じゃない」
+			PRINTFORML 「%CALLNAME_K10(レミリア_対象)%じゃない」
 			PRINTFORML 「こんなところに閉じ込められたから、何かと思ったら囚人ごっこ？」
 			PRINTFORMW 「暇潰しになる？　面白いなら付き合ってあげる」
 			PRINTFORML 
 			PRINTFORML 「妹の気持ちも、知りたいし」
 		ELSE
-			PRINTFORML 「%CALLMASTER_K10(レミリア)%じゃない」
+			PRINTFORML 「%CALLNAME_K10(レミリア_対象)%じゃない」
 			PRINTFORML 「この私に確認もなく、何を勝手に閉じ込めているの」
 			PRINTFORMW 「囚人ごっこを許可した憶えはないわ」
 			PRINTL 
@@ -84,41 +79,59 @@ IF CFLAG:202 == 0
 			PRINTFORML 「こんな遊びに力を使って、欲しい血の量を増やしたくないの」
 		ENDIF
 	ENDIF
+	WAIT
+	RESETCOLOR
+	RETURN 0
 
 ;─────────────────────────────────────── 
-;開始時
+;○二回目以降　デレ不足
 ;─────────────────────────────────────── 
-ELSEIF IS_SLAVE(レミリア) || IS_LOVER(レミリア)
-	PRINTFORML 「%CALLMASTER_K10(レミリア)%。まだ遊ぶの？」
-	PRINTFORML 「お人形遊びの人形役が私だなんて、%CALLMASTER_K10(レミリア)%にしか許さないわよ」
-	PRINTFORML 「光栄に思いなさい。感謝して、私のものだと心に刻むのよ」
-	PRINTFORMW %ANAME(レミリア)%はまるで自分が調教しているかのような口振りだ
-	PRINTL 
-	PRINTFORML しかし注意して見ると、紅い瞳はわずかに潤んで頬は紅潮している
-	PRINTFORML 窓のない牢内には愛液の匂いが篭っており、欲望を持て余して独り慰めていたのは明白だ
+ELSE
 
-ELSEIF CFLAG:レミリア:依存度 >= 300
-	PRINTFORML 「そろそろ吸血鬼らしく霧散すべき？」
-	PRINTFORML 「まぁ私の寿命は人間と違って短くないわ」
-	PRINTFORML 「皆が無事なら、多少の暇潰しは構わない」
+	;───────────────────────────────────── 
+	;▼虚ろ
+	;───────────────────────────────────── 
+	IF TALENT:レミリア:虚ろ
+		PRINTFORML 「あ……うー……」
+		PRINTFORMDL %ANAME(レミリア)%は乱れた服装で人形のように手足を投げ出している……
+		WAIT
+		RESETCOLOR
+		RETURN 0
+	ENDIF
+
+	;───────────────────────────────────── 
+	;▼通常
+	;───────────────────────────────────── 
+	IF CHECK_K10("陥落", レミリア_対象)
+		PRINTFORML 「%CALLNAME_K10(レミリア_対象)%。まだ遊ぶの？」
+		PRINTFORML 「お人形遊びの人形役が私だなんて、%CALLNAME_K10(レミリア_対象)%にしか許さないわよ」
+		PRINTFORML 「光栄に思いなさい。感謝して、私のものだと心に刻むのよ」
+		PRINTFORMDW %ANAME(レミリア)%はまるで自分が調教しているかのような口振りだ
+		PRINTL 
+		PRINTFORMDL しかし注意して見ると、紅い瞳はわずかに潤んで頬は紅潮している
+		PRINTFORMDL 窓のない牢内には愛液の匂いが篭っており、欲望を持て余して独り慰めていたのは明白だ
+	ELSE
+		PRINTFORML 「そろそろ吸血鬼らしく霧散すべき？」
+		PRINTFORML 「まぁ私の寿命は人間と違って短くないわ」
+		PRINTFORML 「皆が無事なら、多少の暇潰しは構わない」
+	ENDIF
+	WAIT
+	RESETCOLOR
+	RETURN 0
 
 ENDIF
 
 ;─────────────────────────────────────── 
-;終了
-;─────────────────────────────────────── 
-$END
-WAIT
-RESETCOLOR
-RETURN 0
-
-;─────────────────────────────────────── 
-;●「捕虜調教」終了
+;●「捕虜調教」の終了時
 ;─────────────────────────────────────── 
 @KOJO_TRAIN_END_B_K10
+#DIM レミリア_対象
 #DIM レミリア
+
+レミリア_対象 = MASTER
 レミリア = NAME_TO_CHARA("レミリア")
 
+;口上を使用しない設定なら戻る
 SIF CFLAG:レミリア:400 == 1
 	RETURN 0
 
@@ -129,37 +142,50 @@ PRINTL
 ;─────────────────────────────────────── 
 ;行動不能
 ;─────────────────────────────────────── 
+;離脱済み
+IF TCVAR:レミリア:53 > 1
+	RESETCOLOR
+	RETURN 0
+ENDIF
+
+;虚ろ
 IF TALENT:レミリア:虚ろ
 	PRINTFORML 「うー……ぁ……」
 	PRINTFORMDL %ANAME(レミリア)%はぼうっとしてる
-	GOTO END
+	WAIT
+	RESETCOLOR
+	RETURN 0
 ENDIF
 
 ;酒酔いによる行動不能
 IF TCVAR:レミリア:53 == 1
-	PRINTFORML 「……うー……❤　もう……飲めにゃ……ひ」
-	PRINTFORMDL %ANAME(レミリア)%は潰れてしまった
-	GOTO END
-ELSEIF TCVAR:レミリア:53
-	GOTO END
+	PRINTFORML 「んはぁ……もうらめ……気持ちいいわぁ❤」
+	PRINTFORMDL %ANAME(レミリア)%はぐでんぐでんになって赤ら顔をにやつかせながら寝ている
+	WAIT
+	RESETCOLOR
+	RETURN 0
 ENDIF
 
 ;快感のあまり気絶
 IF TCVAR:レミリア:52 || BASE:レミリア:気力 <= 300
-	PRINTFORML 「……ふあ❤　う……」
+	PRINTFORML 「んう……ぁふ❤　ふあぁ……」
 	PRINTFORMDL %ANAME(レミリア)%はくったりした手足を時々ぴくつかせて、恍惚と笑んでいる
-	GOTO END
+	WAIT
+	RESETCOLOR
+	RETURN 0
 ENDIF
 
 ;疲労による行動不能
 IF TCVAR:レミリア:51
-	PRINTFORML 「う……ん……」
+	PRINTFORML 「う……んん……」
 	PRINTFORMDL %ANAME(レミリア)%は疲れ果てた顔で眠っている
-	GOTO END
+	WAIT
+	RESETCOLOR
+	RETURN 0
 ENDIF
 
 ;─────────────────────────────────────── 
-;終了時(1回のみ)
+;○初回
 ;─────────────────────────────────────── 
 ;初めて依存度が300以上になった
 IF CFLAG:203 < 2 && CFLAG:2 >= 300
@@ -172,9 +198,9 @@ ELSEIF CFLAG:203 < 1
 	PRINTFORML 「何だったの……あぁ。あちこち痛いわ、変なところが」
 
 ;─────────────────────────────────────── 
-;終了時(2回目以降)
+;○二回目以降
 ;─────────────────────────────────────── 
-ELSEIF IS_SLAVE(レミリア) || IS_LOVER(レミリア)
+ELSEIF CHECK_K10("陥落", レミリア_対象)
 	PRINTFORML 「変な人ね。こんな遊びも愉しいけれど」
 
 ELSE
@@ -182,10 +208,7 @@ ELSE
 
 ENDIF
 
-;─────────────────────────────────────── 
 ;終了
-;─────────────────────────────────────── 
-$END
 WAIT
 RESETCOLOR
 RETURN 0

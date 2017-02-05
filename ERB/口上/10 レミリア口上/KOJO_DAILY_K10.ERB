@@ -149,7 +149,7 @@ ENDIF
 SIF !CHECK_KOJO_DAILY_HAPPEN(レミリア, 35, 1, 0, 1)
 	RETURN -1
 
-SIF GROUPMATCH(MASTER, NAME_TO_CHARA("美鈴"), NAME_TO_CHARA("咲夜"), NAME_TO_CHARA("小悪魔"), NAME_TO_CHARA("咲夜"), NAME_TO_CHARA("フランドール"))
+SIF GROUPMATCH(MASTER, NAME_TO_CHARA("美鈴"), NAME_TO_CHARA("咲夜"), NAME_TO_CHARA("小悪魔"), NAME_TO_CHARA("フランドール"))
 	RETURN -1
 
 SIF !IS_LOVER(レミリア)
@@ -192,3 +192,400 @@ ENDSELECT
 
 KDVAR:レミリア:レミリア_あいにくの天気 = 1
 RETURN 
+
+;----------------------------------
+;愛称を教えて
+;----------------------------------
+@KOJO_DAILY_K10_ASK_MASTER_NAME
+#DIM レミリア_対象
+#DIM レミリア
+#DIMS NOW_CALLNAME_MASTER_K10
+#DIMS NOW_CALLNAME_MASTER_RUBY_K10
+
+;リセット
+レミリア_対象 = MASTER
+レミリア = NAME_TO_CHARA("レミリア")
+
+;レミリア口上デイリー入力系使用の設定が「使用する」でなければ戻る
+SIF レミリア_口上デイリー入力系使用 != 2
+	RETURN -1
+
+;レミリアと同じ勢力、レミリアが捕虜でない、100%
+SIF !(CHECK_KOJO_DAILY_HAPPEN(レミリア, 1000, 1, 0))
+	RETURN -1
+
+SIF !TALENT:レミリア:恋人 && !TALENT:レミリア:烙印
+	RETURN -1
+
+;一回きり
+SIF KDVAR:レミリア:レミリア_愛称を教えて
+	RETURN -1
+
+CALL KOJO_DAILY_START()
+
+SETCOLOR レミリア_口上カラー
+
+PRINTFORML 「%CALLNAME_K10(レミリア_対象)%」
+PRINTFORMDW 拠点の見回りをしていると、バルコニーからこちらに手招きしている%ANAME(レミリア)%が目に入った
+PRINTL 
+PRINTFORML 「ちょっとこっちへ来て。聞きたいことがあるの」
+PRINTFORML 「ねぇ、%CALLNAME_K10(レミリア_対象)%って誰かに愛称をつけてもらったことはある？」
+PRINTFORMDW %ANAME(レミリア)%はバルコニーから落ちそうに身を乗り出して、目を輝かせている
+PRINTL 
+PRINTFORML 「気に入ってる呼ばれ方があったら、私にも教えてよ」
+
+;CALLNAME_K10で現在呼称判定とフリガナの再取得が行われているのでここでリセット
+NOW_CALLNAME_MASTER_K10 '= CALLNAME_K10(レミリア_対象)
+NOW_CALLNAME_MASTER_RUBY_K10 '= レミリア_主人公への呼称フリガナ
+
+LOCAL:0 = LINECOUNT
+$SHOW_LOOP
+
+RESETCOLOR
+DRAWLINE
+
+SETCOLOR COLOR("選択不可")
+PRINTFORM 教えたい名称を入力・または決定
+PRINTL 
+PRINTFORM 現在の%ANAME(レミリア)%から%ANAME(レミリア_対象)%への呼称         : 
+RESETCOLOR
+
+PRINTFORM %NOW_CALLNAME_MASTER_K10, 20, LEFT%
+PRINTBUTTON "  [入力]", "入力"
+PRINTL 
+
+SETCOLOR COLOR("選択不可")
+PRINTFORM 現在の%ANAME(レミリア)%から%ANAME(レミリア_対象)%への呼称フリガナ : 
+RESETCOLOR
+
+PRINTFORM %NOW_CALLNAME_MASTER_RUBY_K10, 20, LEFT%
+PRINTBUTTON "  [入力]", "入力フリガナ"
+PRINTBUTTON "  [決定]", "決定"
+
+PRINTL 
+DRAWLINE
+
+;入力・初期値は"決定"
+INPUTS 決定
+
+IF RESULTS == "決定"
+	レミリア_主人公への呼称 '= NOW_CALLNAME_MASTER_K10
+	レミリア_主人公への呼称フリガナ '= NOW_CALLNAME_MASTER_RUBY_K10
+	CLEARLINE LINECOUNT - LOCAL:0
+	PRINTL 
+
+ELSEIF RESULTS == "入力"
+	CLEARLINE 1
+	SETCOLOR COLOR("選択不可")
+	PRINTFORML 呼称入力中
+	RESETCOLOR
+	IF RESULTS != NOW_CALLNAME_MASTER_K10
+		INPUTS %NOW_CALLNAME_MASTER_K10%
+		LOCALS:0 '= RESULTS
+		;半角を1字と数えてLOCALS:0の0字目から20字目までを切り出す
+		SUBSTRING LOCALS:0, 0, 20
+		NOW_CALLNAME_MASTER_K10 '= LOCALS:0
+	ENDIF
+	CLEARLINE LINECOUNT - LOCAL:0
+	GOTO SHOW_LOOP
+
+ELSEIF RESULTS == "入力フリガナ"
+	CLEARLINE 1
+	SETCOLOR COLOR("選択不可")
+	PRINTFORML 呼称フリガナ入力中
+	RESETCOLOR
+	IF RESULTS != NOW_CALLNAME_MASTER_RUBY_K10
+		INPUTS %NOW_CALLNAME_MASTER_RUBY_K10%
+		LOCALS:0 '= RESULTS
+		;半角を1字と数えてLOCALS:0の0字目から20字目までを切り出す
+		SUBSTRING LOCALS:0, 0, 20
+		NOW_CALLNAME_MASTER_RUBY_K10 '= LOCALS:0
+	ENDIF
+	CLEARLINE LINECOUNT - LOCAL:0
+	GOTO SHOW_LOOP
+
+ELSE
+	CLEARLINE LINECOUNT - LOCAL:0
+	GOTO SHOW_LOOP
+ENDIF
+
+;※ここでフラグを立てないと下記テキスト内で変更後の呼称に対応できない
+KDVAR:レミリア:レミリア_愛称を教えて = 1
+
+SETCOLOR COLOR("選択不可")
+PRINTFORML ➡%CALLNAME_K10(レミリア_対象)%（%レミリア_主人公への呼称フリガナ%）
+PRINTL 
+
+SETCOLOR レミリア_口上カラー
+
+IF レミリア_主人公への呼称 == "" && レミリア_主人公への呼称フリガナ == ""
+	PRINTFORMDW %ANAME(レミリア_対象)%は%ANAME(レミリア)%にこれまで通り『%CALLNAME_K10(レミリア_対象)%（%レミリア_主人公への呼称フリガナ%）』と呼ぶように伝えた
+	PRINTL 
+	PRINTFORML 「ないの？　つまんないわ」
+	PRINTFORMW 「でも、%CALLNAME_K10(レミリア_対象)%って呼ぶのも好きよ。そのままでもいいわね」
+	PRINTL 
+	PRINTFORML 「じゃ、また遊びに来なさい。待っているわ。%CALLNAME_K10(レミリア_対象)%」
+	PRINTFORMDL %ANAME(レミリア)%は大きく手を振って部屋に戻った
+ELSE
+	PRINTFORMDW %ANAME(レミリア_対象)%は%ANAME(レミリア)%に『%CALLNAME_K10(レミリア_対象)%（%レミリア_主人公への呼称フリガナ%）』と呼ぶように伝えた
+	PRINTL 
+	PRINTFORML 「%CALLNAME_K10(レミリア_対象)%？　それがお気に入り？」
+	PRINTFORMW 「わかったわ。%CALLNAME_K10(レミリア_対象)%ね、%CALLNAME_K10(レミリア_対象)%。憶えたわ」
+	PRINTL 
+	PRINTFORML 「じゃ、また遊びに来なさい。待っているわ。%CALLNAME_K10(レミリア_対象)%」
+	PRINTFORMDL %ANAME(レミリア)%は大きく手を振って部屋に戻った
+ENDIF
+WAIT
+RESETCOLOR
+CFLAG:レミリア:好感度 = CFLAG:レミリア:好感度 + 100
+CFLAG:レミリア:依存度 = CFLAG:レミリア:依存度 + 100
+CFLAG:レミリア:従属度 = CFLAG:レミリア:従属度 + 100
+
+;----------------------------------
+;ご褒美をあげる
+;----------------------------------
+@KOJO_DAILY_K10_ASK_DIRTY_NAME
+#DIM レミリア_対象
+#DIM レミリア
+#DIMS BEFORE_DIRTY_P
+#DIMS BEFORE_DIRTY_V
+#DIMS BEFORE_DIRTY_A
+#DIMS BEFORE_DIRTY_C
+#DIMS BEFORE_DIRTY_B
+#DIMS NOW_DIRTY_P
+#DIMS NOW_DIRTY_V
+#DIMS NOW_DIRTY_A
+#DIMS NOW_DIRTY_C
+#DIMS NOW_DIRTY_B
+
+;リセット
+レミリア_対象 = MASTER
+レミリア = NAME_TO_CHARA("レミリア")
+
+;レミリア口上デイリー入力系使用の設定が「使用する」でなければ戻る
+SIF レミリア_口上デイリー入力系使用 != 2
+	RETURN -1
+
+;レミリアと同じ勢力、レミリアが捕虜でない、50%
+SIF !(CHECK_KOJO_DAILY_HAPPEN(レミリア, 500, 1, 0))
+	RETURN -1
+
+;奴隷でも恋人でもない、または合意がなければ戻る
+SIF ( !IS_SLAVE(レミリア) && !IS_LOVER(レミリア) ) || !TALENT:レミリア:合意
+	RETURN -1
+
+;一回きり
+SIF KDVAR:レミリア:レミリア_ご褒美をあげる
+	RETURN -1
+
+CALL KOJO_DAILY_START()
+
+SETCOLOR レミリア_口上カラー
+
+;ロードデータ用の初期化
+レミリア_淫語頻度 = 0
+レミリア_淫語Ｐ '= "あれ"
+レミリア_淫語Ｖ '= "なか"
+レミリア_淫語Ｃ '= "そこ"
+レミリア_淫語Ａ '= "そこ"
+レミリア_淫語Ｂ '= "そこ"
+
+;リセット
+BEFORE_DIRTY_P '= レミリア_淫語Ｐ
+BEFORE_DIRTY_V '= レミリア_淫語Ｖ
+BEFORE_DIRTY_A '= レミリア_淫語Ａ
+BEFORE_DIRTY_C '= レミリア_淫語Ｃ
+BEFORE_DIRTY_B '= レミリア_淫語Ｂ
+NOW_DIRTY_P '= レミリア_淫語Ｐ
+NOW_DIRTY_V '= レミリア_淫語Ｖ
+NOW_DIRTY_A '= レミリア_淫語Ａ
+NOW_DIRTY_C '= レミリア_淫語Ｃ
+NOW_DIRTY_B '= レミリア_淫語Ｂ
+
+PRINTFORMDL 目を覚ますと、ドアの隙間から手紙が差し込まれていた
+PRINTFORMDL 封蝋に%ANAME(レミリア)%の指輪印章が捺されている
+PRINTFORMDW 部屋への招待状――どうやら呼び出しの手紙のようだ
+PRINTL 
+PRINTFORML 「来たわね、%CALLNAME_K10(レミリア_対象)%。喜びなさい」
+PRINTFORMDL %ANAME(レミリア_対象)%が部屋に入ると、%ANAME(レミリア)%は目を輝かせて微笑んだ
+PRINTFORMDW いつもより豪華な菓子がテーブルに飾られている
+PRINTL 
+PRINTFORML 「あなたにご褒美をあげる――今日からこの、%ANAME(レミリア)%が」
+PRINTFORML 「%CALLNAME_K10(レミリア_対象)%の大好きな、卑しい言葉を使ってあげるわ！」
+PRINTFORMDW %ANAME(レミリア)%は得意満面で声高らかに言い放った
+PRINTL 
+PRINTFORML 「……？　喜ばないの？　反応が薄いわね」
+PRINTFORML 「たまに私に言ってもらおうとしてなかった？」
+PRINTFORML 「何か特別な意味があるかと思っていたのだけど……違ったの？」
+PRINTFORMDW %ANAME(レミリア)%はきょとんとして首を傾げている
+PRINTL 
+PRINTFORML 「あまり卑しい言葉は使いたくないのだけど」
+PRINTFORML 「%CALLNAME_K10(レミリア_対象)%が気持ちよくなるなら、私も愉しいし」
+PRINTFORMW 「好きな呼び方を言ってみていいのよ？　言いなさい」
+
+LOCAL:0 = LINECOUNT
+$SHOW_LOOP
+RESETCOLOR
+DRAWLINE
+CALL ICPRINT("<教えたい名称を><全角仮名><で入力・または決定する（平仮名・片仮名はどちらでも可能）>", "L", COLOR("選択不可"), COLOR("オレンジ"), COLOR("選択不可"))
+PRINTL 
+PRINTFORM   Ｐ呼称 : 
+RESETCOLOR
+PRINTFORM %NOW_DIRTY_P, 20, LEFT%
+PRINTBUTTON "  [入力]", "入力Ｐ"
+PRINTL 
+PRINTFORM   Ｖ呼称 : 
+RESETCOLOR
+PRINTFORM %NOW_DIRTY_V, 20, LEFT%
+PRINTBUTTON "  [入力]", "入力Ｖ"
+PRINTL 
+PRINTFORM   Ｃ呼称 : 
+RESETCOLOR
+PRINTFORM %NOW_DIRTY_C, 20, LEFT%
+PRINTBUTTON "  [入力]", "入力Ｃ"
+PRINTL 
+PRINTFORM   Ａ呼称 : 
+RESETCOLOR
+PRINTFORM %NOW_DIRTY_A, 20, LEFT%
+PRINTBUTTON "  [入力]", "入力Ａ"
+PRINTL 
+PRINTFORM   Ｂ呼称 : 
+RESETCOLOR
+PRINTFORM %NOW_DIRTY_B, 20, LEFT%
+PRINTBUTTON "  [入力]", "入力Ｂ"
+
+PRINTBUTTON "  [決定]", "決定"
+PRINTL 
+DRAWLINE
+
+;初期値指定入力
+INPUTS 決定
+
+IF RESULTS == "決定"
+	レミリア_淫語Ｐ '= NOW_DIRTY_P
+	レミリア_淫語Ｖ '= NOW_DIRTY_V
+	レミリア_淫語Ａ '= NOW_DIRTY_A
+	レミリア_淫語Ｃ '= NOW_DIRTY_C
+	レミリア_淫語Ｂ '= NOW_DIRTY_B
+	CLEARLINE LINECOUNT - LOCAL:0
+	PRINTL 
+
+ELSEIF RESULTS == "入力Ｐ"
+	CLEARLINE 1
+	SETCOLOR COLOR("選択不可")
+	PRINTL Ｐ呼称入力中
+	RESETCOLOR
+	IF RESULTS != NOW_DIRTY_P
+		INPUTS %NOW_DIRTY_P%
+		LOCALS:0 = %RESULTS%
+		;半角を1字と数えてLOCALS:0の0字目から20字目までを切り出す
+		SUBSTRING LOCALS:0, 0, 20
+		NOW_DIRTY_P '= LOCALS:0
+	ENDIF
+	CLEARLINE LINECOUNT - LOCAL:0
+	GOTO SHOW_LOOP
+
+ELSEIF RESULTS == "入力Ｖ"
+	CLEARLINE 1
+	SETCOLOR COLOR("選択不可")
+	PRINTL Ｖ呼称入力中
+	RESETCOLOR
+	IF RESULTS != NOW_DIRTY_V
+		INPUTS %NOW_DIRTY_V%
+		LOCALS:0 = %RESULTS%
+		SUBSTRING LOCALS:0, 0, 20
+		NOW_DIRTY_V '= LOCALS:0
+	ENDIF
+	CLEARLINE LINECOUNT - LOCAL:0
+	GOTO SHOW_LOOP
+
+ELSEIF RESULTS == "入力Ａ"
+	CLEARLINE 1
+	SETCOLOR COLOR("選択不可")
+	PRINTL Ａ呼称入力中
+	RESETCOLOR
+	IF RESULTS != NOW_DIRTY_A
+		INPUTS %NOW_DIRTY_A%
+		LOCALS:0 = %RESULTS%
+		SUBSTRING LOCALS:0, 0, 20
+		NOW_DIRTY_A '= LOCALS:0
+	ENDIF
+	CLEARLINE LINECOUNT - LOCAL:0
+	GOTO SHOW_LOOP
+
+ELSEIF RESULTS == "入力Ｃ"
+	CLEARLINE 1
+	SETCOLOR COLOR("選択不可")
+	PRINTL Ｃ呼称入力中
+	RESETCOLOR
+	IF RESULTS != NOW_DIRTY_C
+		INPUTS %NOW_DIRTY_C%
+		LOCALS:0 = %RESULTS%
+		SUBSTRING LOCALS:0, 0, 20
+		NOW_DIRTY_C '= LOCALS:0
+	ENDIF
+	CLEARLINE LINECOUNT - LOCAL:0
+	GOTO SHOW_LOOP
+
+ELSEIF RESULTS == "入力Ｂ"
+	CLEARLINE 1
+	SETCOLOR COLOR("選択不可")
+	PRINTL Ｂ呼称入力中
+	RESETCOLOR
+	IF RESULTS != NOW_DIRTY_B
+		INPUTS %NOW_DIRTY_B%
+		LOCALS:0 = %RESULTS%
+		SUBSTRING LOCALS:0, 0, 20
+		NOW_DIRTY_B '= LOCALS:0
+	ENDIF
+	CLEARLINE LINECOUNT - LOCAL:0
+	GOTO SHOW_LOOP
+
+ELSE
+	CLEARLINE LINECOUNT - LOCAL:0
+	GOTO SHOW_LOOP
+ENDIF
+
+SETCOLOR COLOR("選択不可")
+PRINTFORML ➡Ｐ呼称 : %レミリア_淫語Ｐ%
+PRINTFORML   Ｖ呼称 : %レミリア_淫語Ｖ%
+PRINTFORML   Ａ呼称 : %レミリア_淫語Ａ%
+PRINTFORML   Ｃ呼称 : %レミリア_淫語Ｃ%
+PRINTFORML   Ｂ呼称 : %レミリア_淫語Ｂ%
+PRINTL 
+
+SETCOLOR レミリア_口上カラー
+
+IF NOW_DIRTY_P == BEFORE_DIRTY_P && NOW_DIRTY_V == BEFORE_DIRTY_V && NOW_DIRTY_A == BEFORE_DIRTY_A && NOW_DIRTY_C == BEFORE_DIRTY_C && NOW_DIRTY_B == BEFORE_DIRTY_B
+	PRINTFORMDW %ANAME(レミリア_対象)%は%ANAME(レミリア)%に全てこれまで通りに呼んで欲しいと伝えた
+	PRINTL 
+	PRINTFORML 「なあに。いらないの？　つまんないわ。せっかく愉しませてあげたかったのに」
+	PRINTFORML 「でも、%CALLNAME_K10(レミリア_対象)%は高貴な私が好きということね。それならそれでいいのよ」
+	PRINTFORML 「せっかく来てくれたんだもの。寛いでいって」
+	PRINTFORMDL %ANAME(レミリア)%はひとり満足そうに言い、用件は済んだとばかりにお茶を飲み始めた
+ELSE
+	PRINTFORMDW %ANAME(レミリア_対象)%は%ANAME(レミリア)%に呼び方を伝えた
+	PRINTL 
+	PRINTFORML 「それが%CALLNAME_K10(レミリア_対象)%の好きな呼び方なのね。憶えたわ」
+	PRINTFORML 「たくさん呼んでもらえると嬉しいの？」
+	CALL KOJO_ASK("そのとおり", "そうでもない")
+	IF RESULT == 0
+		PRINTFORML 「いいわ。次の機会を愉しみにしていなさい」
+		PRINTFORML 「%CALLNAME_K10(レミリア_対象)%をたくさん悦ばせてあげる」
+		PRINTFORML 「せっかく来てくれたんだもの。寛いでいって」
+		PRINTFORMDL %ANAME(レミリア)%はひとり満足そうに言い、用件は済んだとばかりにお茶を飲み始めた
+		レミリア_淫語頻度 = 2
+	ELSE 
+		PRINTFORML 「複雑なのね。わかったわ。次の機会を愉しみにしていなさい」
+		PRINTFORML 「せっかく来てくれたんだもの。寛いでいって」
+		PRINTFORMDL %ANAME(レミリア)%はひとり満足そうに言い、用件は済んだとばかりにお茶を飲み始めた
+		レミリア_淫語頻度 = 1
+	ENDIF
+ENDIF
+WAIT
+RESETCOLOR
+CFLAG:レミリア:好感度 = CFLAG:レミリア:好感度 + 100
+CFLAG:レミリア:依存度 = CFLAG:レミリア:依存度 + 100
+CFLAG:レミリア:従属度 = CFLAG:レミリア:従属度 + 100
+KDVAR:レミリア:レミリア_ご褒美をあげる = 1
+
