@@ -21,92 +21,90 @@ PRINTL
 FLAG:OPランダムキャラ使用 = 0
 
 @SCENARIO_PLACEMENT_20
-#DIM S20_choose_country_num
-#DIM S20_choose_country, 20, 2
-#DIM CONST S20_start_area = 0
-#DIM CONST S20_start_monarch = 1
-VARSET LOCAL
-LOCAL:40 = 0
-PRINTFORML 君主になるキャラを主要なキャラのみに絞りますか？
-PRINTFORML (旧作を除く東方キャラに絞られます)
-CALL ASK_YN
-SIF RESULT == 0
-	LOCAL:40 = 1
-
-
-;勢力設定
+#DIM 勢力数
+#DIM 振り分け
 COUNTRY_BOSS:0 = 0
 COUNTRY_COLOR:0 = GETDEFCOLOR()
 
-;作成する国の数
-S20_choose_country_num = 5 + RAND:11
 
-VARSET S20_choose_country, -1
+CALL ASK_YN("旧作キャラも君主になりうる", "旧作キャラは君主にならない")
+SCVAR:0 = RESULT
 
-FOR LOCAL,0,S20_choose_country_num
+CALL ASK_MULTI("勢力数ふつう", "勢力数おおめ", "勢力数ひかえめ")
+SELECTCASE RESULT
+	CASE 0
+		勢力数 = 12 + RAND:5 + RAND:5 + RAND:5
+	CASE 1
+		勢力数 = MIN(18 + RAND:7 + RAND:7 + RAND:7, MAX_COUNTRY)
+	CASE 2
+		勢力数 = 6 + RAND:3 + RAND:3 + RAND:3
+ENDSELECT
 
-	;国の君主を選択
-	LOCAL:32 = -1
-	FOR LOCAL:1,0,MIN_NO_SP_CHARA
-		LOCAL:32 = RAND:CHARANUM
-		IF LOCAL:32 >= 0 && CSTR:(LOCAL:32):99 != "あなた"
-			IF LOCAL:40 ;ハイを選んでいた場合、真っ白でない固有カラー持ち以外は弾く
-				IF CHARA_DIPRO_COLOR_F(CSTR:(LOCAL:32):99)== 0xffffff
-					CONTINUE
-				ENDIF
-			ENDIF
-			LOCAL:33 = 0
-			FOR LOCAL:2,0,20
-				IF LOCAL:32 == S20_choose_country:(LOCAL:2):S20_start_monarch
-					LOCAL:33 = 1
-				ENDIF
-			NEXT
-			IF !LOCAL:33
-				S20_choose_country:(LOCAL):S20_start_monarch = LOCAL:32
-				BREAK
-			ENDIF
-		ENDIF
-	NEXT
+CALL FISHER_YATES_SHAFFLE(CHARANUM)
+VARSET 振り分け
 
-	;国の開始位置を選択
-	LOCAL:32 = -1
-	FOR LOCAL:1,0,MIN_NO_SP_CHARA
-		LOCAL:32 = RAND:99 + 1
-		IF LOCAL:32 > 0
-			LOCAL:33 = 0
-			FOR LOCAL:2,0,20
-				IF LOCAL:32 == S20_choose_country:(LOCAL:2):S20_start_area
-					LOCAL:33 = 1
-				ENDIF
-			NEXT
-			IF !LOCAL:33
-				S20_choose_country:(LOCAL):S20_start_area = LOCAL:32
-				BREAK
-			ENDIF
-		ENDIF
+;君主の設定
+FOR LOCAL, 0, CHARANUM
+	LOCAL:1 = SHAFFLE_ARRAY:LOCAL
+	SIF !IS_FIXED_CHARA(LOCAL:1)
+		CONTINUE
+	SIF LOCAL:1 == NAME_TO_CHARA("あなた")
+		CONTINUE
+	SIF SCVAR:0 && TALENT:(LOCAL:1):キャラ区分
+		CONTINUE
+	COUNTRY_BOSS:(振り分け + 1) = GET_ID(LOCAL:1)
+	CALL CHANGE_COUNTRY(LOCAL:1, 振り分け + 1, 1)
+	振り分け ++
+	SIF 振り分け == 勢力数
+		BREAK
+NEXT
+
+
+CALL FISHER_YATES_SHAFFLE(GET_CITY_NUM() + 1)
+;初期都市の設定
+FOR LOCAL, 1, 勢力数 + 1
+	FOR LOCAL:1, 0, GET_CITY_NUM() + 1
+		LOCAL:2 = SHAFFLE_ARRAY:(LOCAL:1)
+		SIF LOCAL:2 == 0 || CITY_OWNER:(LOCAL:2) != 0
+			CONTINUE
+		CITY_OWNER:(LOCAL:2) = LOCAL
+		SIF CITY_ECONOMY_LIMIT:(LOCAL:2) <= 100000
+			CITY_ECONOMY_LIMIT:(LOCAL:2) = 100000
+		CITY_ECONOMY:(LOCAL:2) = MIN(CITY_ECONOMY_LIMIT:(LOCAL:2), 100000)
+		BREAK
 	NEXT
 NEXT
 
-LOCAL:33 = 0
-FOR LOCAL,0,S20_choose_country_num
-	IF S20_choose_country:(LOCAL):S20_start_monarch >= 0 && S20_choose_country:(LOCAL):S20_start_area > 0
-		LOCAL:33++
+;勢力色の設定
+FOR LOCAL, 1, 勢力数 + 1
+	COUNTRY_COLOR:LOCAL = RAND:16 * (16 * 256 * 256) + RAND:16 * (16 * 256) + RAND:16 * 16
+	;黒すぎたらどれか一系統を明るくして、多少なりとも分かりやすくする
+	IF (COUNTRY_COLOR:(LOCAL:0) >> 16 & 0xFF) <= 0x50 && (COUNTRY_COLOR:(LOCAL:0) >> 8 & 0xFF) <= 0x50 && (COUNTRY_COLOR:(LOCAL:0) & 0xFF) <= 0x50
+		SELECTCASE RAND:3
+			CASE 0
+				LOCAL:2 = RAND(0x30, 0x60)
+			CASE 1
+				LOCAL:2 = RAND(0x30, 0x60) << 8
+			CASE 2
+				LOCAL:2 = RAND(0x30, 0x60) << 16
+		ENDSELECT
+		COUNTRY_COLOR:(LOCAL:0) += LOCAL:2
+	;白すぎたらどれか一系統を暗めに
+	ELSEIF (COUNTRY_COLOR:(LOCAL:0) >> 16 & 0xFF) >= 0xC0 && (COUNTRY_COLOR:(LOCAL:0) >> 8 & 0xFF) >= 0xC0 && (COUNTRY_COLOR:(LOCAL:0) & 0xFF) >= 0xC0
+		SELECTCASE RAND:3
+			CASE 0
+				LOCAL:2 = RAND(0x30, 0x50)
+			CASE 1
+				LOCAL:2 = RAND:0x50 << 8
+			CASE 2
+				LOCAL:2 = RAND(0x30, 0x50) << 16
+		ENDSELECT
+		COUNTRY_COLOR:(LOCAL:0) -= LOCAL:2
 	ENDIF
 NEXT
-IF LOCAL:33 <= 1
-	PRINTFORMW 国の作成に失敗しました
-	RETURN
-ENDIF
 
-;選択した国の作成
-FOR LOCAL,0,S20_choose_country_num
-	SIF S20_choose_country:(LOCAL):S20_start_monarch < 0 || S20_choose_country:(LOCAL):S20_start_area <= 0
-		CONTINUE
-	COUNTRY_BOSS:(LOCAL+1) = GET_ID(S20_choose_country:(LOCAL):S20_start_monarch)
-	COUNTRY_COLOR:(LOCAL+1) = RAND:(256*256*256)
-	
-	CITY_OWNER:(S20_choose_country:(LOCAL):S20_start_area) = (LOCAL+1)
-	CFLAG:(S20_choose_country:(LOCAL):S20_start_monarch):1 = (LOCAL+1)
+FOR LOCAL, 1, 勢力数 + 1
+	COUNTRY_SOLDIER:LOCAL = 8000
 NEXT
 
 ;指定されなかったキャラは放浪 「あなた」は除外（MASTER入れ替えたときに放浪するのを防ぐ）。
