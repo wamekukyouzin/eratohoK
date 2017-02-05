@@ -1,68 +1,61 @@
 ﻿;─────────────────────────────────────── 
-;●「捕虜逆調教(通常)」開始
+;●「捕虜逆調教」開始時
 ;─────────────────────────────────────── 
 @KOJO_TRAIN_START_C_K10
+#DIM レミリア_対象
 #DIM レミリア
+
+レミリア_対象 = MASTER
 レミリア = NAME_TO_CHARA("レミリア")
 
+;レミリア口上の使用可否設定と初期化
+SIF CFLAG:レミリア:400 == 0
+	CALL KOJO_ASK_RESET_K10
+
+;口上を使用しない設定なら戻る
 SIF CFLAG:レミリア:400 == 1
 	RETURN 0
 
-RESETCOLOR
-DRAWLINE
 SETCOLOR レミリア_口上カラー
 
-IF TALENT:レミリア:虚ろ
-	PRINTFORML 「……う……ぅう……ん……」
-	PRINTFORMDL %ANAME(レミリア)%は虚ろな瞳で近付いてきた…
-	GOTO END
-ENDIF
-
 ;─────────────────────────────────────── 
-;初回
+;○初回
 ;─────────────────────────────────────── 
-IF CFLAG:204 == 0
+IF CFLAG:レミリア:204 == 0
 
+	;逆調教口上初回呼び出しフラグオン
 	CFLAG:レミリア:204 = 1
 
-	IF CFLAG:レミリア:400 == 0
-		PRINTFORMDL 口上の使用の設定する
-		PRINTFORMDL 
-		PRINTDL [0] 口上を使用しない
-		PRINTDL [1] レミリア口上
-		$INPUT_LOOP
-		INPUT
-		IF RESULT == 0
-			PRINTFORMDW 口上を使用しない
-			CFLAG:レミリア:400 = 1
-			GOTO END
-		ELSEIF RESULT == 1
-			PRINTFORMDW レミリア口上を使用する
-			CFLAG:レミリア:400 = 2
-			RESETCOLOR
-			DRAWLINE
-			SETCOLOR レミリア_口上カラー
-		ELSE
-			GOTO INPUT_LOOP
-		ENDIF
+	;───────────────────────────────────── 
+	;▼虚ろ
+	;───────────────────────────────────── 
+	IF TALENT:レミリア:虚ろ
+		PRINTFORML 「……う……ぅう……ん……」
+		PRINTFORMDL %ANAME(レミリア)%は虚ろな瞳で近付いてきた……
+		WAIT
+		RESETCOLOR
+		RETURN 0
 	ENDIF
 
-	IF IS_SLAVE(レミリア) || IS_LOVER(レミリア)
+	;───────────────────────────────────── 
+	;▼通常
+	;───────────────────────────────────── 
+	IF CHECK_K10("陥落", レミリア_対象)
 		PRINTFORMW 「これって何になるのかしら。躾……お仕置き。裁判？　お人形遊び？」
 		PRINTL 
-		PRINTFORML 「なんでもいいわ。とにかく、私は%CALLMASTER_K10(レミリア)%が欲しいの」
+		PRINTFORML 「なんでもいいわ。とにかく、私は%CALLNAME_K10(レミリア_対象)%が欲しいの」
 		PRINTFORML 「私に忠誠を誓いなさい！　その血を自ら私に捧げなさい」
 		PRINTFORMW 「でないとグールにしてしまうわよ」
 		PRINTL 
 		PRINTFORML 「いい？　逆らっても死ぬだけ。おまえは私のもの」
 		PRINTFORML 「ちゃんと言うことを聞けたら、紅い血を吸い尽して殺してしまったりはしないわ」
 		PRINTFORMW 「一生私の傍で飼って、可愛がりながら啜ってあげる」
-		IF IS_MALE(MASTER) && MARK:レミリア:既成事実 < 3
+		IF IS_MALE(レミリア_対象) && MARK:レミリア:既成事実 < 3
 			PRINTL 
 			PRINTFORML 「男のひとって、気持ちよくなると白い血が出るんでしょ？」
 			PRINTFORML 「本で読んだのよ。とりあえずそれでいいから、寄越しなさい」
 			PRINTFORMW 「食べられるかもしれないし」
-		ELSEIF IS_FEMALE(MASTER) && MARK:レミリア:既成事実 < 3
+		ELSEIF IS_FEMALE(レミリア_対象) && MARK:レミリア:既成事実 < 3
 			PRINTL 
 			PRINTFORML 「女の子は気持ちよくなると、股から透明な血が出るでしょ？」
 			PRINTFORMW 「本で読んで、試したら私もできたのよ。それでいいから、寄越しなさい」
@@ -73,7 +66,7 @@ IF CFLAG:204 == 0
 	ELSE
 		PRINTFORMW 「これって何になるのかしら。躾……お仕置き。裁判？　お人形遊び？」
 		PRINTL 
-		PRINTFORML 「なんでもいいわ。私は%CALLMASTER_K10(レミリア)%を死なせたくないの」
+		PRINTFORML 「なんでもいいわ。私は%CALLNAME_K10(レミリア_対象)%を死なせたくないの」
 		PRINTFORML 「人間を従わせるために、どうしてこれが有効なのかはよくわからないけれど……」
 		PRINTFORMW 「私に忠誠を誓いなさい！」
 		PRINTL 
@@ -81,15 +74,30 @@ IF CFLAG:204 == 0
 	ENDIF
 
 ;─────────────────────────────────────── 
-;二回目以降
+;○二回目以降
 ;─────────────────────────────────────── 
 ELSE
+
+	;───────────────────────────────────── 
+	;▼虚ろ
+	;───────────────────────────────────── 
+	IF TALENT:レミリア:虚ろ
+		PRINTFORML 「……う……ぅう……ん……」
+		PRINTFORMDL %ANAME(レミリア)%は虚ろな瞳で近付いてきた……
+		WAIT
+		RESETCOLOR
+		RETURN 0
+	ENDIF
+
+	;───────────────────────────────────── 
+	;▼通常
+	;───────────────────────────────────── 
 	IF IS_SLAVE(レミリア) || IS_LOVER(レミリア)
 		PRINTDATA
 			DATAFORM 「躾するわ。
 			DATAFORM 「お仕置きよ。
 			DATAFORM 「裁判ごっこするわよ。
-			DATAFORM 「お人形遊びしましょ。%CALLMASTER_K10(レミリア)%がお人形ね。
+			DATAFORM 「お人形遊びしましょ。%CALLNAME_K10(レミリア_対象)%がお人形ね。
 		ENDDATA
 		PRINTDATAL
 			DATAFORM さ、始めましょ」
@@ -102,12 +110,10 @@ ELSE
 			DATAFORM 「さっさと頷けばすぐ終わるのよ？」
 		ENDDATA
 	ENDIF
+
 ENDIF
 
-;─────────────────────────────────────── 
 ;終了
-;─────────────────────────────────────── 
-$END
 WAIT
 RESETCOLOR
 RETURN 0
@@ -116,9 +122,13 @@ RETURN 0
 ;●「捕虜逆調教(通常)」終了
 ;─────────────────────────────────────── 
 @KOJO_TRAIN_END_C_K10
+#DIM レミリア_対象
 #DIM レミリア
+
+レミリア_対象 = MASTER
 レミリア = NAME_TO_CHARA("レミリア")
 
+;口上を使用しない設定なら戻る
 SIF CFLAG:レミリア:400 == 1
 	RETURN 0
 
@@ -129,88 +139,107 @@ PRINTL
 ;─────────────────────────────────────── 
 ;行動不能
 ;─────────────────────────────────────── 
+;離脱済み
+IF TCVAR:レミリア:53 > 1
+	RESETCOLOR
+	RETURN 0
+ENDIF
+
 IF TALENT:レミリア:虚ろ
 	PRINTFORML 「うー……ぁ……」
 	PRINTFORMDL %ANAME(レミリア)%はぼうっとしてる
-	GOTO END
+	WAIT
+	RESETCOLOR
+	RETURN 0
 ENDIF
 
 ;酒酔いによる行動不能
 IF TCVAR:レミリア:53 == 1
 	PRINTFORML 「……ううー……❤　もう……飲めにゃ……ひ」
 	PRINTFORMDL %ANAME(レミリア)%は潰れてしまった
-	GOTO END
-ELSEIF TCVAR:レミリア:53
-	GOTO END
+	WAIT
+	RESETCOLOR
+	RETURN 0
 ENDIF
 
 ;快感のあまり気絶
 IF TCVAR:レミリア:52 || BASE:レミリア:気力 <= 300
 	PRINTFORML 「……ふあ❤　う……」
 	PRINTFORMDL %ANAME(レミリア)%はくったりした手足を時々ぴくつかせて、恍惚と笑んでいる
-	GOTO END
+	WAIT
+	RESETCOLOR
+	RETURN 0
 ENDIF
 
 ;疲労による行動不能
 IF TCVAR:レミリア:51
 	PRINTFORML 「う……んん……」
 	PRINTFORMDL %ANAME(レミリア)%は疲れ果てた顔で眠っている
-	GOTO END
+	WAIT
+	RESETCOLOR
+	RETURN 0
 ENDIF
 
 ;─────────────────────────────────────── 
 ;主人公の行動不能
 ;─────────────────────────────────────── 
-IF TALENT:MASTER:虚ろ
+IF TALENT:レミリア_対象:虚ろ
 	PRINTFORML 「つまんないわね。もう動かないお人形になっちゃったの？」
-	PRINTFORMDL %ANAME(レミリア)%は%ANAME(MASTER)%の虚ろな瞳を小突き回して、諦めたように立ち去った
-	GOTO END
+	PRINTFORMDL %ANAME(レミリア)%は%ANAME(レミリア_対象)%の虚ろな瞳を小突き回して、諦めたように立ち去った
+	WAIT
+	RESETCOLOR
+	RETURN 0
 ENDIF
 
 ;酒酔いによる行動不能
-IF TCVAR:MASTER:53
+IF TCVAR:レミリア_対象:53
 	PRINTFORML 「これ以上したら起きちゃう？　うーむ。驚かせたくもあるけど……」
 	PRINTFORML 「本人に気付かせないまま、いやらしい身体にしちゃうのも面白そうね」
 	PRINTFORML 「隠しちゃおうっと」
-	PRINTFORMDL %ANAME(レミリア)%は酔い潰れた%ANAME(MASTER)%の介抱をし始めた
-	GOTO END
+	PRINTFORMDL %ANAME(レミリア)%は酔い潰れた%ANAME(レミリア_対象)%の介抱をし始めた
+	WAIT
+	RESETCOLOR
+	RETURN 0
 ENDIF
 
 ;快感のあまり気絶
-IF TCVAR:MASTER:52 || BASE:MASTER:気力 <= 300
+IF TCVAR:レミリア_対象:52 || BASE:レミリア_対象:気力 <= 300
 	PRINTFORML 「ちょっと、どうしたの？　気持ち良さそうな顔してるじゃない。動きなさいよ」
 	PRINTFORML 「私はまだ遊びたいのよ。尽くしなさい！」
 	PRINTFORML 「……ぴくりともしないわね。これじゃ面白くないわ。また遊んであげる」
-	PRINTFORMDL %ANAME(レミリア)%は失神している%ANAME(MASTER)%に溜息を吐いて立ち去った
-	GOTO END
+	PRINTFORMDL %ANAME(レミリア)%は失神している%ANAME(レミリア_対象)%に溜息を吐いて立ち去った
+	WAIT
+	RESETCOLOR
+	RETURN 0
 ENDIF
 
 ;疲労による行動不能
-IF TCVAR:MASTER:51
+IF TCVAR:レミリア_対象:51
 	PRINTFORML 「これはもうだめね、限界みたいだわ」
 	PRINTFORML 「血が出ないんじゃ搾っても仕方ないわね。いくらグールにならないとは言っても」
 	PRINTFORML 「また遊んであげる」
-	PRINTFORMDL %ANAME(レミリア)%は疲れ果てた%ANAME(MASTER)%に溜息を吐いて立ち去った
-	GOTO END
+	PRINTFORMDL %ANAME(レミリア)%は疲れ果てた%ANAME(レミリア_対象)%に溜息を吐いて立ち去った
+	WAIT
+	RESETCOLOR
+	RETURN 0
 ENDIF
 
 IF CFLAG:レミリア:好感度 >= 800
 	PRINTDATAL
 		DATAFORM 「おやすみなさい」
 		DATAFORM 「そろそろ満足したから休ませてあげるわ」
-		DATAFORM 「朝になっちゃうわね。日が昇る前に眠らなくちゃ。おやすみなさい%CALLMASTER_K10(レミリア)%」
+		DATAFORM 「朝になっちゃうわね。日が昇る前に眠らなくちゃ。おやすみなさい%CALLNAME_K10(レミリア_対象)%」
 	ENDDATA
+
 ELSE
 	PRINTDATAL
 		DATAFORM 「日が昇る前に眠らなくちゃ。おやすみなさい」
-		DATAFORM 「なんだかいつもより眠いわ。おやすみなさい%CALLMASTER_K10(レミリア)%」
+		DATAFORM 「なんだかいつもより眠いわ。おやすみなさい%CALLNAME_K10(レミリア_対象)%」
 	ENDDATA
+
 ENDIF
 
-;─────────────────────────────────────── 
 ;終了
-;─────────────────────────────────────── 
-$END
 WAIT
 RESETCOLOR
 RETURN 0
