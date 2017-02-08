@@ -1,0 +1,194 @@
+﻿;_KOJO_SYSTEM.ERBから呼ばれる口上用関数
+;実行前・実行後・第三者実行前・第三者実行後に呼ばれるコマンド口上の関数
+;同じカテゴリ分岐を通るのでカテゴリ分岐を下部の@KOJO_COM_CHECK_K9にまとめた
+;─────────────────────────────────────── 
+;●実行前
+;─────────────────────────────────────── 
+@KOJO_COM_BEFORE_K9
+#DIM 咲夜_対象
+#DIM 咲夜
+
+;咲夜口上非表示をチェックする前に咲夜をとっておく
+咲夜 = NAME_TO_CHARA("咲夜")
+
+;咲夜口上非表示
+SIF CFLAG:咲夜:400 == 1
+	RETURN 0
+
+;口上カラーのセット
+SETCOLOR 咲夜_口上カラー
+
+;普段は主人公が対象
+咲夜_対象 = MASTER
+
+;カテゴリを決定して各口上を呼び出す
+CALL KOJO_COM_CHECK_K9("前", 咲夜_対象)
+
+;口上カラーのリセット
+RESETCOLOR
+
+;描写のオンオフを渡す
+RETURN RESULT
+
+;─────────────────────────────────────── 
+;●実行後
+;─────────────────────────────────────── 
+@KOJO_COM_AFTER_K9
+#DIM 咲夜_対象
+#DIM 咲夜
+
+咲夜 = NAME_TO_CHARA("咲夜")
+
+SIF CFLAG:咲夜:400 == 1
+	RETURN 0
+
+SETCOLOR 咲夜_口上カラー
+
+咲夜_対象 = MASTER
+
+CALL KOJO_COM_CHECK_K9("後", 咲夜_対象)
+
+RESETCOLOR
+
+RETURN RESULT
+
+;─────────────────────────────────────── 
+;●第三者実行前
+;─────────────────────────────────────── 
+@KOJO_COM_THIRD_BEFORE_K9
+#DIM 咲夜_対象
+#DIM 咲夜
+
+咲夜 = NAME_TO_CHARA("咲夜")
+
+SIF CFLAG:咲夜:400 == 1
+	RETURN 0
+
+SETCOLOR 咲夜_口上カラー
+
+;暫定でメイン相手を主導権所有者に決定
+咲夜_対象 = FLAG:主導権所有者
+;主導権者が咲夜本人あるいはいなければ
+IF 咲夜_対象 == 咲夜 || 咲夜_対象 == -1
+	;咲夜が実行のとき対象
+	IF IS_MPLY(咲夜)
+		咲夜_対象 = MTAR:0
+	;そうでなければ実行
+	ELSE
+		咲夜_対象 = MPLY:0
+	ENDIF
+ENDIF
+
+CALL KOJO_COM_CHECK_K9("前", 咲夜_対象)
+
+RESETCOLOR
+
+RETURN RESULT
+
+;─────────────────────────────────────── 
+;●第三者実行後
+;─────────────────────────────────────── 
+@KOJO_COM_THIRD_AFTER_K9
+#DIM 咲夜
+#DIM 咲夜_対象
+
+咲夜 = NAME_TO_CHARA("咲夜")
+
+SIF CFLAG:咲夜:400 == 1
+	RETURN 0
+
+SETCOLOR 咲夜_口上カラー
+
+咲夜_対象 = FLAG:主導権所有者
+;主導権者が咲夜本人あるいはいなければ
+IF 咲夜_対象 == 咲夜 || 咲夜_対象 == -1
+	IF IS_MPLY(咲夜)
+		咲夜_対象 = MTAR:0
+	ELSE
+		咲夜_対象 = MPLY:0
+	ENDIF
+ENDIF
+
+CALL KOJO_COM_CHECK_K9("後", 咲夜_対象)
+
+RESETCOLOR
+
+RETURN RESULT
+
+;─────────────────────────────────────── 
+;●カテゴリ分岐
+;　前後 = 実行前か実行後か
+;　咲夜_対象 = 普段はMASTER 第三者なら相手を渡しておく
+;─────────────────────────────────────── 
+@KOJO_COM_CHECK_K9(前後, 咲夜_対象)
+#DIMS 前後
+#DIM 咲夜_対象
+#DIM 咲夜
+#DIMS 咲夜口上カテゴリ
+
+咲夜 = NAME_TO_CHARA("咲夜")
+咲夜口上カテゴリ '= ""
+
+;怒り哀しみによる離脱済み
+;IF TCVAR:咲夜:53 > 1
+;ENDIF
+
+;虚ろ崩壊
+IF TALENT:咲夜:虚ろ || TALENT:咲夜:崩壊
+	咲夜口上カテゴリ '= "虚ろ"
+
+;快楽失神or酒酔睡眠や離脱状態（KOJO_SYSTEM.ERBで、TCVAR:52 || TCVAR:53なら口上が抑制されるため、体力不足以外は死に分岐）
+ELSEIF TCVAR:咲夜:51 || TCVAR:咲夜:52 || TCVAR:咲夜:53 == 1
+	咲夜口上カテゴリ '= "失神"
+
+;ターゲットなら喋れない苦痛系コマンド 87フィスト 88Ａフィスト 94首絞め 97腹パン
+ELSEIF ( IS_MTAR(咲夜) && GROUPMATCH(SELECTCOM, 87, 88, 94, 97) ) || IS_EQUIP_TARGET(咲夜, 87, 88, 94, 97)
+	咲夜口上カテゴリ '= "叫び"
+
+;キス等の喋れないコマンド（単発継続）
+ELSEIF GROUPMATCH(SELECTCOM, 20, 340, 341, 342) || IS_EQUIP(咲夜, 20, 340, 341, 342)
+	咲夜口上カテゴリ '= "口塞"
+
+;ターゲットなら喋れないコマンド 86口枷 90イラマチオ 101顔面騎乗 102Ａ顔面騎乗 105Ｗ顔面騎乗 132口内放尿 210触手口辱
+ELSEIF ( IS_MTAR(咲夜) && GROUPMATCH(SELECTCOM, 86, 90, 101, 102, 105, 132, 210) ) || IS_EQUIP_TARGET(咲夜, 86, 90, 101, 102, 105, 132, 210)
+	咲夜口上カテゴリ '= "口塞"
+
+;プレイヤーなら喋れないコマンド 2クンニ 8アナル舐め 9乳首吸い 11フェラ 104足舐め 330日常フェラ
+ELSEIF ( IS_MPLY(咲夜) && GROUPMATCH(SELECTCOM, 2, 8, 9, 11, 20, 104, 107, 330) ) || IS_EQUIP_PLAYER(咲夜, 2, 8, 9, 11, 20, 104, 107, 330)
+	咲夜口上カテゴリ '= "口塞"
+
+;閨コマンド
+ELSEIF SELECTCOM >= 0 && SELECTCOM <= 299
+	咲夜口上カテゴリ '= "閨"
+
+;日常コマンド（なりゆきまかせ未満）
+ELSEIF SELECTCOM >= 300 && SELECTCOM < 393
+	咲夜口上カテゴリ '= "日常"
+
+ENDIF
+
+;カテゴリによる分岐
+IF 前後 == "前"
+	IF 咲夜口上カテゴリ == "虚ろ"
+		CALL KOJO_K9_HOLLOW(咲夜_対象)
+	ELSEIF 咲夜口上カテゴリ == "失神"
+		CALL KOJO_K9_SYNCOPE(咲夜_対象)
+	ELSEIF 咲夜口上カテゴリ == "叫び"
+		CALL KOJO_K9_SHOUT(咲夜_対象)
+	ELSEIF 咲夜口上カテゴリ == "口塞"
+		CALL KOJO_K9_CANNOT_TALK(咲夜_対象)
+	ELSEIF 咲夜口上カテゴリ == "閨"
+		CALL KOJO_K9_NIGHT(咲夜_対象,"前")
+	ELSEIF 咲夜口上カテゴリ == "日常"
+		CALL KOJO_K9_NOON(咲夜_対象,"前")
+	ENDIF
+ELSE
+	IF 咲夜口上カテゴリ == "閨"
+		CALL KOJO_K9_NIGHT(咲夜_対象,"後")
+	ELSEIF 咲夜口上カテゴリ == "日常"
+		CALL KOJO_K9_NOON(咲夜_対象,"後")
+	ENDIF
+ENDIF
+
+RETURN RESULT
+
