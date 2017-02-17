@@ -59,24 +59,6 @@ FOR LOCAL:0, 0, PREGNANT_RECORD_MAX
 	ENDIF
 NEXT
 
-;FOR LOCAL:0, 0, LOCAL:20
-;	LOCAL:3 = LOCAL:(LOCAL:0 + 100)
-;	LOCAL:4 = LOCAL:(LOCAL:0 + 200)
-;	IF LOCAL:500 >= 1
-;		IF LOCAL:500 % 3 == 0
-;			PRINTL 
-;		ELSE
-;			PRINT     
-;		ENDIF
-;	ENDIF
-;	LOCAL:500 ++
-;	PRINTFORM %ANAME(ID_TO_CHARA(LOCAL:3)), 18, RIGHT%{LOCAL:4, 6, RIGHT}
-;NEXT
-;IF LOCAL:20 >= 1
-;	PRINTL 
-;	PRINTL 
-;ENDIF
-
 LOCAL:500 = 0
 
 FOR LOCAL, 0, PREGNANT_RECORD_MAX
@@ -146,6 +128,8 @@ ENDIF
 
 CALL SHOW_CHILDREN(ARG:0)
 
+CALL SHOW_SIBLING(ARG:0)
+
 ;---------------------------------------------------------
 ; ARG:0番のキャラの子供を一括表示する
 ;---------------------------------------------------------
@@ -194,3 +178,82 @@ FOR 親種別, 0, 2
 		PRINTL
 	ENDIF
 NEXT
+
+;---------------------------------------------------------
+; 対象のきょうだいを表示する
+;---------------------------------------------------------
+@SHOW_SIBLING(対象)
+#DIM 対象
+#DIM 父ID
+#DIM 母ID
+#DIM 相手父ID
+#DIM 相手母ID
+#DIM 表示回数
+#DIM 表示種別
+
+父ID = CFLAG:対象:父親
+母ID = CFLAG:対象:母親
+
+IF ALLSAMES(-1, 父ID, 母ID)
+	DRAWLINE
+	PRINTFORML 〇%ANAME(対象)%の兄弟・姉妹〇
+	PRINTFORML 両親ともに不明のため、わからない
+	RETURN
+ENDIF
+
+FOR 表示種別, 0, 3
+	DRAWLINE
+	SELECTCASE 表示種別
+		CASE 0
+			PRINTFORML 〇%ANAME(対象)%の兄弟・姉妹〇
+		CASE 1
+			PRINTFORML 〇%ANAME(対象)%の異母兄弟・姉妹〇
+		CASE 2
+			PRINTFORML 〇%ANAME(対象)%の異父兄弟・姉妹〇
+	ENDSELECT
+	表示回数 = 0
+
+	FOR LOCAL, 0, CHARANUM
+		SIF LOCAL == 対象
+			CONTINUE
+		相手父ID = CFLAG:LOCAL:父親
+		相手母ID = CFLAG:LOCAL:母親
+
+
+		SIF ALLSAMES(-1, 相手父ID, 相手母ID)
+			CONTINUE
+
+		SELECTCASE 表示種別
+			CASE 0
+				;兄弟でない == 父と母いずれかが異なる　父母不明は別人とみなす
+				SIF 父ID != 相手父ID || (父ID <= 0 && 父相手ID <= 0)  || 母ID != 相手母ID || (母ID <= 0 && 母相手ID <= 0)
+					CONTINUE
+			CASE 1
+				;異母兄弟でない == 父が違うまたは母が同じ(ただし母が不明の場合別とみなす)
+				SIF 父ID != 相手父ID || (母ID <= 0 && 母相手ID <= 0 && 母ID == 相手母ID)
+					CONTINUE
+			CASE 2
+				;異父兄弟でない == 母が違うまたは父が同じ（父が不明なら別人とみなす）
+				SIF 母ID != 相手母ID || (父ID <= 0 && 父相手ID <= 0 && 父ID == 相手父ID)
+					CONTINUE
+		ENDSELECT
+		IF 表示回数 >= 1
+			IF 表示回数 % 4 == 0
+				PRINTL 
+			ELSE
+				PRINT     
+			ENDIF
+		ENDIF
+		表示回数 ++
+		PRINTFORM %SNAME(LOCAL:0), 18, LEFT%
+	NEXT
+
+
+	;表示件数ゼロなら無しと表示しておく
+	IF !表示回数
+		PRINTFORML %"なし", 18, LEFT%
+	ELSE
+		PRINTL
+	ENDIF
+NEXT
+
