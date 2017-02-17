@@ -226,15 +226,15 @@ FOR 表示種別, 0, 3
 		SELECTCASE 表示種別
 			CASE 0
 				;兄弟でない == 父と母いずれかが異なる　父母不明は別人とみなす
-				SIF 父ID != 相手父ID || (父ID <= 0 && 父相手ID <= 0)  || 母ID != 相手母ID || (母ID <= 0 && 母相手ID <= 0)
+				SIF !IS_PURE_BROTHER(対象, LOCAL)
 					CONTINUE
 			CASE 1
-				;異母兄弟でない == 父が違うまたは母が同じ(ただし母が不明の場合別とみなす)
-				SIF 父ID != 相手父ID || (母ID <= 0 && 母相手ID <= 0 && 母ID == 相手母ID)
+				;異母兄弟
+				SIF !(HAS_SAME_FATHER(対象, LOCAL) && !HAS_SAME_MOTHER(対象, LOCAL))
 					CONTINUE
 			CASE 2
-				;異父兄弟でない == 母が違うまたは父が同じ（父が不明なら別人とみなす）
-				SIF 母ID != 相手母ID || (父ID <= 0 && 父相手ID <= 0 && 父ID == 相手父ID)
+				;異父兄弟
+				SIF !(!HAS_SAME_FATHER(対象, LOCAL) && HAS_SAME_MOTHER(対象, LOCAL))
 					CONTINUE
 		ENDSELECT
 		IF 表示回数 >= 1
@@ -257,3 +257,42 @@ FOR 表示種別, 0, 3
 	ENDIF
 NEXT
 
+;キャラふたりの父親が同一であるか判定する
+@HAS_SAME_FATHER(ARG:0, ARG:1)
+#FUNCTION
+#DIM 父ID, 2
+SIF ARG:0 == ARG:1
+	RETURNF 0
+父ID:0 = CFLAG:(ARG:0):父親
+父ID:1 = CFLAG:(ARG:1):父親
+IF 父ID:0 == 父ID:1 
+	IF 父ID:0 > 0 && 父ID:1 > 0
+		RETURNF 1
+	ELSEIF 父ID:0 < 0 && 父ID:1 < 0 && BROTHER_SPERM_FLAG:(父ID:0 * -1) == 1
+		RETURNF 1
+	ENDIF
+ENDIF
+RETURNF 0
+
+;キャラふたりの母親が同一であるか判定する
+@HAS_SAME_MOTHER(ARG:0, ARG:1)
+#FUNCTION
+#DIM 母ID, 2
+SIF ARG:0 == ARG:1
+	RETURNF 0
+母ID:0 = CFLAG:(ARG:0):母親
+母ID:1 = CFLAG:(ARG:1):母親
+IF 母ID:0 == 母ID:1 
+	IF 母ID:0 > 0 && 母ID:1 > 0
+		RETURNF 1
+	ELSEIF 母ID:0 < 0 && 母ID:1 < 0 && BROTHER_SPERM_FLAG:(母ID:0 * -1) == 1
+		RETURNF 1
+	ENDIF
+ENDIF
+RETURNF 0
+
+
+;キャラふたりが兄弟であるか判定する
+@IS_PURE_BROTHER(ARG:0, ARG:1)
+#FUNCTION
+RETURNF HAS_SAME_FATHER(ARG:0, ARG:1) && HAS_SAME_MOTHER(ARG:0, ARG:1)
