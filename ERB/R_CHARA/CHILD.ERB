@@ -34,6 +34,7 @@ CALL NEWCHARA_INIT(TARGET)
 CALL RANDOM_CHARA_SKILL_SETTING
 CALL CHILD_SKILL_SETTING
 CALL RANDOM_CHARA_CLOTH_SETTING()
+CALL CHILD_TAG_SETTING()
 ;ターゲットの再設定
 TARGET = LOCAL:0
 RETURN CHARANUM - 1
@@ -538,3 +539,38 @@ FOR 試行回数, 0, 4
 	CALL SKILL_LEARN(TARGET, ジャンル, 0, スキルID群:ジャンル:スキル位置)
 NEXT
 
+;-------------------------
+;子供にタグを設定するでござるの巻
+;-------------------------
+@CHILD_TAG_SETTING
+#DIM 父親
+#DIM 母親
+#DIM 候補, MAX_TAG
+#DIM 候補数
+父親 = ID_TO_CHARA(CFLAG:20)
+母親 = ID_TO_CHARA(CFLAG:21)
+VARSET 候補, -1
+VARSET 候補数
+SIF 父親 < 0
+	GOTO FATHER_CANCEL
+FOR LOCAL, 0, MAX_TAG
+	IF TAG:父親:LOCAL != -1 && RAND:2 && 候補数 < MAX_TAG
+		候補:候補数 = TAG:父親:LOCAL
+		候補数 ++
+	ENDIF
+NEXT
+
+$FATHER_CANCEL
+
+SIF 母親 < 0
+	GOTO FATHER_CANCEL
+FOR LOCAL, 0, MAX_TAG
+	IF TAG:母親:LOCAL != -1 && RAND:2 && 候補数 < MAX_TAG
+		候補:候補数 = TAG:母親:LOCAL
+		候補数 ++
+	ENDIF
+NEXT
+
+FOR LOCAL, 0, MAX_TAG
+	TAG:TARGET:LOCAL = 候補:LOCAL
+NEXT
