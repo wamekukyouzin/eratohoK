@@ -18,6 +18,9 @@ SELECTCASE RESULT
 	;名前
 	CASE 0 TO 10
 		CALL MASTER_EDIT_PROCESS_NAME(対象, RESULT)
+	;種族
+	CASE 4000 TO 4999
+		CALL MASTER_EDIT_PROCESS_TAG(対象, RESULT - 4000)
 	;性別
 	CASE 100 TO 110
 		CALL MASTER_EDIT_PROCESS_SEX(対象, RESULT - 100)
@@ -65,6 +68,17 @@ SELECTCASE 番号
 		INPUTS
 		CSTR:対象:98 = %RESULTS%
 ENDSELECT
+
+
+;-------------------------
+;タグ処理
+;-------------------------
+@MASTER_EDIT_PROCESS_TAG(対象, 番号)
+#DIM 対象
+#DIM 番号
+SIF !INRANGE(番号, 0, VARSIZE("TAG_NAME"))
+	RETURN 0
+CALL INVERT_TAG(対象, 番号)
 
 ;-------------------------
 ;性別処理
@@ -292,6 +306,10 @@ PRINTFORML 名前
 CALL MASTER_EDIT_NAME(対象)
 
 DRAWLINE
+PRINTFORML 種族
+CALL MASTER_EDIT_TAG(対象)
+
+DRAWLINE
 PRINTFORML 性別
 CALL MASTER_EDIT_SEX(対象)
 
@@ -333,6 +351,18 @@ PRINTFORM 愛称 - %CSTR:対象:98, 20, LEFT%
 PRINTBUTTON "[入力]", 2
 PRINTL
 PRINTFORML ※あまり長いと表示崩れします
+
+;-------------------------
+;タグUI
+;-------------------------
+@MASTER_EDIT_TAG(対象)
+#DIM 対象
+FOR LOCAL, 0, VARSIZE("TAG_NAME")
+	CALL PRINT_TOGGLE_BUTTON(@"[%TAG_NAME:LOCAL%]", 4000 + LOCAL, HAS_TAG(対象, LOCAL))
+NEXT
+PRINTL
+PRINTFORML ※最大{MAX_TAG}個まで
+PRINTFORML ※矛盾したタグが付与できる？　まぁ気にするなよ
 
 ;-------------------------
 ;性別UI
