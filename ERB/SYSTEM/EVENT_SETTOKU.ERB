@@ -1,194 +1,105 @@
 ﻿;-------------------------------------------------
 ;説得イベント(@EVENT_PRISONERから流用)
 ;-------------------------------------------------
-@EVENT_SETTOKU
+@SHOP_LIFE_SETTOKU(対象)
+#DIM 説得者, 3
+#DIM 説得者数
+#DIM 対象
+VARSET 説得者, -1
+VARSET 説得者数
 FOR LOCAL:0, 0, CHARANUM
-	RESULT = 0
-	;軟禁状態チェック
-	CALL CHECK_SELECTABLE1012(LOCAL:0)
-	IF RESULT
-		;説得担当がいる
-		IF CFLAG:(LOCAL:0):説得担当者
-			DRAWLINE
-			CALL SETTOKU_RELATION_UP_CHECK(LOCAL:0, ID_TO_CHARA(CFLAG:(LOCAL:0):説得担当者))
-			PRINTW
-			PRINTL
-		ENDIF
-	;軟禁状態じゃない
-	ELSE
-		;担当者初期化
-		CFLAG:(LOCAL:0):説得担当者 = 0
+	IF CFLAG:LOCAL:捕虜調教の助手
+		説得者:説得者数 = LOCAL
+		説得者数 ++
 	ENDIF
 NEXT
 
+SIF 説得者:0 == -1
+	RETURN 0
+
+FOR LOCAL, 0, VARSIZE("説得者")
+	SIF 説得者:LOCAL == -1
+		BREAK
+	CALL DO_SETTOKU(対象, 説得者:LOCAL)
+NEXT
+
+RETURN 1
+
+
+;戦略
+;判定値を以下を基準に算出
+;1.互いの自身の君主への印象
+;2.互いの相手の君主への印象
+;3.互いの政治力
+;4.互いの知略
+;判定値が大きいほど有利
+@DO_SETTOKU(対象, 説得者)
+#DIM 説得者
+#DIM 対象
+#DIM 説得者君主
+#DIM 対象君主
+#DIM 判定基礎値,2
+#DIM 判定値
+VARSET 判定基礎値
+説得者君主 = GET_COUNTRY_BOSS(CFLAG:説得者:所属)
+対象君主 = GET_COUNTRY_BOSS(CFLAG:対象:所属)
+
+;説得側の判定値
+SIF 対象君主 > 0
+	判定基礎値:0 -= SETTOKU_REL_EFFECT(説得者, 対象君主)
+判定基礎値:0 += SETTOKU_REL_EFFECT(説得者, 説得者君主)
+判定基礎値:0 += ABL_SQRT(ABL:説得者:政治, 説得者) / 1000
+判定基礎値:0 += ABL_SQRT(ABL:説得者:知略, 説得者) / 1000
+
+;対象側の判定値
+判定基礎値:1 -= SETTOKU_REL_EFFECT(対象, 説得者君主)
+SIF 対象君主 > 0
+	判定基礎値:1 += SETTOKU_REL_EFFECT(対象, 対象君主)
+判定基礎値:1 += ABL_SQRT(ABL:対象:政治, 対象) / 1000
+判定基礎値:1 += ABL_SQRT(ABL:対象:知略, 対象) / 1000
+
+判定値 = 判定基礎値:0 - 判定基礎値:1
+
+PRINTFORML -<%ANAME(説得者)%>の<%ANAME(対象)%>への説得-
+SELECTCASE 判定値
+	CASE IS < -50
+		PRINTFORMW %ANAME(説得者)%は逆に感化された
+	CASE -31 TO -50
+		PRINTFORMW %ANAME(説得者)%は丸め込まれてしまった
+	CASE -30 TO -11
+		PRINTFORMW %ANAME(説得者)%は説得に失敗した
+	CASE - 10 TO 10
+		PRINTFORMW %ANAME(説得者)%は一応説得に成功した
+	CASE 11 TO 30
+		PRINTFORMW %ANAME(説得者)%は順調に説得できた
+	CASE 31 TO 50
+		PRINTFORMW %ANAME(説得者)%はかなり順調に説得できた
+	CASE IS > 50
+		PRINTFORMW %ANAME(説得者)%は%ANAME(対象)%を感化させたようだ
+ENDSELECT
+
+CALL CHANGE_RELATION_O_TO_O(対象, 説得者, 判定値 / 2, -判定値 / 2)
+CALL CHANGE_RELATION_O_TO_C(対象, CFLAG:説得者:所属, 判定値, -判定値)
+
+SIF 判定値 > 0
+	CALL CHANGE_RELATION_O_TO_C(説得者, CFLAG:説得者:所属, 判定値 / 3, -判定値 / 3)
+
+IF SETTOKU_REL_EFFECT(対象, 説得者君主) > 75 && 判定値 > 30 && ABL_SQRT(ABL:説得者:政治, 説得者) / 1000 + ABL_SQRT(ABL:説得者:知略, 説得者) / 1000 > 100 - MAX(SETTOKU_REL_EFFECT(対象, 説得者君主), 40)
+	CALL COLORPRINT(@"説得の末、%ANAME(対象)%は移籍の意思を固めた……", COLOR("注意"), "W")
+	CALL CHANGE_COUNTRY(対象, CFLAG:説得者:所属, 1)
+ENDIF
+
+CFLAG:対象:行動済み = 1
+CFLAG:説得者:行動済み = 1
+
+RETURN 1
+
+
 ;-------------------------------------------------
-;印象ベクトル
 ;(ARG:0)のキャラから(ARG:1)のキャラに対する
-;好印象0～1500を悪印象0～1500で減衰100％～0％させたものを返す
 ;-------------------------------------------------
-@RELATION_VECTOR(ARG:0, ARG:1)
+@SETTOKU_REL_EFFECT(ARG:0, ARG:1)
 #FUNCTION
-LOCAL:0 = REL_LIKE:(ARG:0):(ARG:1) * (1500 - REL_HATE:(ARG:0):(ARG:1)) / 1500
-RETURNF LOCAL:0
+RETURNF (REL_LIKE:(ARG:0):(ARG:1) - REL_HATE:(ARG:0):(ARG:1)) * 100 / 1500
 
-;-------------------------------------------------
-;説得させるでの好・悪印象変動の処理
-;ARG:0……説得される人（軟禁者）
-;ARG:1……説得する人（説得者）
-;-------------------------------------------------
-@SETTOKU_RELATION_UP_CHECK(ARG:0, ARG:1)
-#DIM 印象差, 2, 2
-#DIM 影響値, 2
-#DIM 効果定数
-
-;※バランス調整用
-;この値を小さくすればするほど効果はでかくなる(正の数)
-効果定数 = 500
-
-;●お互いの君主に対する印象の差を2次元配列で保存
-;第1引数 どっち側の君主への　0:(ARG:0側への)・1:(ARG:1側への)
-;第2引数 0:好印象　1:悪印象
-
-FOR LOCAL:0, 0, 2
-	印象差:(LOCAL:0):0 = 0
-	印象差:(LOCAL:0):1 = 0
-	IF CFLAG:(ARG:(LOCAL:0)):所属
-		印象差:(LOCAL:0):0 = REL_LIKE:(ARG:1):(GET_COUNTRY_BOSS(CFLAG:(ARG:(LOCAL:0)):所属)) - REL_LIKE:(ARG:0):(GET_COUNTRY_BOSS(CFLAG:(ARG:(LOCAL:0)):所属))
-		印象差:(LOCAL:0):1 = REL_HATE:(ARG:1):(GET_COUNTRY_BOSS(CFLAG:(ARG:(LOCAL:0)):所属)) - REL_HATE:(ARG:0):(GET_COUNTRY_BOSS(CFLAG:(ARG:(LOCAL:0)):所属))
-	ENDIF
-NEXT
-
-;●双方にかかる影響を算出
-;正の値でARG:1側
-;負の値でARG:0側への影響を表す
-
-;軟禁者(ARG:0)側に加わる影響力
-影響値:0 = 0
-
-;軟禁者→説得者への印象度に説得者の政治力で倍率
-影響値:0 += RELATION_VECTOR(ARG:0, ARG:1) * (ABL:(ARG:1):52 + 50) / 100
-
-;説得者が君主
-IF ARG:1 == GET_COUNTRY_BOSS(CFLAG:(ARG:1):所属)
-	;軟禁者→説得者をもう一度（倍すりゃいい）
-	影響値:0 = 影響値:0 * 2	
-
-ELSE
-	;軟禁者→説得者の君主 /2
-	影響値:0 += RELATION_VECTOR(ARG:0, GET_COUNTRY_BOSS(CFLAG:(ARG:1):所属)) / 2
-ENDIF
-
-;軟禁者→軟禁者の君主 /2
-SIF CFLAG:(ARG:0):所属
-	影響値:0 -= RELATION_VECTOR(ARG:0, GET_COUNTRY_BOSS(CFLAG:(ARG:0):所属)) / 2
-
-;説得者(ARG:1)側に加わる影響力
-影響値:1 = 0
-
-;説得者→軟禁者への印象度に軟禁者の政治力で倍率
-影響値:1 -= RELATION_VECTOR(ARG:1, ARG:0) * (ABL:(ARG:0):52 + 50) / 100
-
-;説得者が君主でない
-IF ARG:1 != GET_COUNTRY_BOSS(CFLAG:(ARG:1):所属)
-	;説得者→説得者の君主 /2
-	影響値:1 += RELATION_VECTOR(ARG:1, GET_COUNTRY_BOSS(CFLAG:(ARG:1):所属)) / 2
-ENDIF
-
-;説得者→軟禁者の君主 /2
-SIF CFLAG:(ARG:0):所属
-	影響値:1 -= RELATION_VECTOR(ARG:1, GET_COUNTRY_BOSS(CFLAG:(ARG:0):所属)) / 2
-
-;●影響を比べて結果判定と地の文
-;ぜんたいかフラグリセット
-LOCAL:5 = 0
-
-PRINTFORML <%ANAME(ARG:1)%>が<%ANAME(ARG:0)%>を説得している。
-IF (影響値:0 - 影響値:1) < 50
-	PRINTFORML 説得は難航しているようだ。
-ELSEIF 50 <= (影響値:0 - 影響値:1) && (影響値:0 - 影響値:1) < 150
-	PRINTFORML 説得の進展はまずまずのようだ。
-ELSEIF 150 <= (影響値:0 - 影響値:1) && (影響値:0 - 影響値:1) < 250
-	PRINTFORML 説得は順調のようだ。
-ELSE
-	PRINTFORML 説得はかなり順調のようだ。
-ENDIF
-
-;軟禁者がなびいてこない
-IF 影響値:0 <= 0
-
-	;更に説得者も反発
-	IF 0 < 影響値:1
-		PRINTFORM 説得は失敗に終わった……
-		CALL CHANGE_RELATION_O_TO_O(ARG:0, ARG:1, MIN(影響値:0 / 10, 0), MAX(-(影響値:0) / 10, 0))
-		CALL CHANGE_RELATION_O_TO_O(ARG:1, ARG:0, MIN(-(影響値:1) / 10, 0), MAX(影響値:1 / 10, 0))
-		影響値:0 = 0
-		影響値:1 = 0
-		
-	;説得者が軟禁者に影響を受ける
-	ELSEIF 影響値:0 < 影響値:1
-		PRINTFORM %ANAME(ARG:1)%は%ANAME(ARG:0)%に丸め込まれてしまった。
-		CALL CHANGE_RELATION_O_TO_O(ARG:1, ARG:0, MAX(-(影響値:1) / 10, 0), MIN(影響値:1 / 10, 0))
-		;軟禁者が受ける影響を0に
-		影響値:0 = 0
-		
-	;説得者が軟禁者に影響を受け、変動対象は勢力全体に及ぶ　逐電の可能性あってもいいかも
-	ELSE
-		PRINTFORM %ANAME(ARG:1)%は%ANAME(ARG:0)%に感化されてしまった。
-		;軟禁者が受ける影響を0に
-		影響値:0 = 0
-		;ぜんたいかフラグ
-		LOCAL:5 = 1
-	ENDIF
-
-;軟禁者がなびいてきた
-ELSEIF 0 < 影響値:0
-
-	;お互いに歩み寄りすぎてしまったモード
-	IF 影響値:1 <= 0
-		PRINTFORM %ANAME(ARG:0)%と%ANAME(ARG:1)%はお互い歩み寄っているようだ。
-		CALL CHANGE_RELATION_O_TO_O(ARG:0, ARG:1, MAX(影響値:0 / 10, 0), MIN(-(影響値:0) / 10, 0))
-		CALL CHANGE_RELATION_O_TO_O(ARG:1, ARG:0, MAX(-(影響値:1) / 10, 0), MIN(影響値:1 / 10, 0))
-		
-	;軟禁者が説得者に影響を受ける
-	ELSEIF 影響値:0 < 影響値:1
-		PRINTFORM %ANAME(ARG:0)%は気持ちが揺らいでるようだ。
-		CALL CHANGE_RELATION_O_TO_O(ARG:0, ARG:1, MAX(影響値:0 / 10, 0), MIN(-(影響値:0) / 10, 0))
-		;説得者が受ける影響を0に
-		影響値:1 = 0
-		
-	;軟禁者が説得者に影響を受け、変動対象は勢力全体に及ぶ
-	ELSE
-		PRINTFORM %ANAME(ARG:0)%は気持ちが傾いてるようだ。
-		;説得者が受ける影響を0に
-		影響値:1 = 0
-		;ぜんたいかフラグ
-		LOCAL:5 = 1
-	ENDIF
-ENDIF
-
-;●最終処理
-FOR LOCAL:0, 0, 2
-	;影響値を定数内に納める
-	影響値:(LOCAL:0) = LIMIT(影響値:(LOCAL:0), -(効果定数), 効果定数)
-	FOR LOCAL:1, 0, 2
-		;勢力自体がなかったらスキップ
-		IF CFLAG:(ARG:(LOCAL:1)):所属
-			;自勢力に対してなら好印象は増えないし悪印象は減らない
-			IF LOCAL:0 == LOCAL:1
-				LOCAL:2 = MIN(影響値:(LOCAL:0) * 印象差:(LOCAL:1):0 / 効果定数, 0)
-				LOCAL:3 = MAX(影響値:(LOCAL:0) * 印象差:(LOCAL:1):1 / 効果定数, 0)
-			;相手勢力に対してなら好印象は減らないし悪印象は増えない
-			ELSE
-				LOCAL:2 = MAX(影響値:(LOCAL:0) * 印象差:(LOCAL:1):0 / 効果定数, 0)
-				LOCAL:3 = MIN(影響値:(LOCAL:0) * 印象差:(LOCAL:1):1 / 効果定数, 0)
-			ENDIF
-			;ぜんたいかチェック
-			IF LOCAL:5 
-				CALL CHANGE_RELATION_O_TO_C(ARG:(LOCAL:0), CFLAG:(ARG:(LOCAL:1)):所属, LOCAL:2, LOCAL:3)
-			ELSE
-				CALL CHANGE_RELATION_O_TO_O(ARG:(LOCAL:0), GET_COUNTRY_BOSS(CFLAG:(ARG:(LOCAL:1)):所属), LOCAL:2, LOCAL:3)
-			ENDIF
-		ENDIF
-	NEXT
-NEXT
 
