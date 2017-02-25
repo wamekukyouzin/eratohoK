@@ -234,6 +234,9 @@ CALL ADDITIONAL_CHARA_SETTING
 ;ロード時とニューゲーム時の共通初期化処理
 CALL INITIALIZE_COMMON
 
+;INITIALIZE_COMMONのあとに呼ばないとCREATE_SPERM_MAPが呼ばれてないのでこまる
+CALL INIT_CHARA_SIBLING_RELATION()
+
 ;0～199番のアイテムを売りに出す
 VARSET ITEMSALES, 1, 0, 200
 
@@ -249,7 +252,6 @@ FLAG:周回数 = 0
 ;-------------------------------------------------
 @ADDITIONAL_CHARA_SETTING
 CFLAG:(NAME_TO_CHARA("アリス")):母親 = GET_ID(NAME_TO_CHARA("神綺"))
-
 
 ;-------------------------------------------------
 ;ARG:0 = 1 で周回モード
@@ -501,6 +503,7 @@ NEXT
 ;ランダム系シナリオ等でPLACEMENT呼び出し後に「戻る」したときのため、キャラの所属を消去
 FOR LOCAL, 0, CHARANUM
 	CFLAG:LOCAL:所属 = 0
+	CFLAG:LOCAL:特殊状態 = 0
 NEXT
 
 ;シナリオ12「悪の栄えたためしなし」でPLACEMENT呼び出し後に「戻る」したときのため、出現フラグをリセット
@@ -779,12 +782,15 @@ SIF FLAG:OP選択勢力 <= 0
 	PRINTL ※特殊なスタートを選択しているので、既存キャラ一覧に君主以外の全キャラが表示されます
 ;二週目以降で選択勢力と異なる勢力の君主の場合、前週と同じ選択をさせるとまずいので選択不可とする
 SIF 旧MASTERID > 0 && !引継ぎ使用可
-	CALL COLORPRINT("※前周の主人公が選択した勢力以外の勢力の君主です。「前週と同じ」は利用できません", COLOR("注意"), "L")
+	CALL COLORPRINT(@"※前周の主人公%ANAME(MASTER)%が君主をしていますが、該当勢力以外を選択しているため、「前週と同じ」が利用できません", COLOR("注意"), "L")
 DRAWLINE
 
 ;ここから登録キャラの表示
 PRINTBUTTON "[あなたを新規作成]", 0
 PRINTFORM ※ 現在の「あなた」のデータをリセットします
+SIF FLAG:あなた作成済み && MASTER != NAME_TO_CHARA("あなた")
+	PRINTL
+	PRINTBUTTON "[あなたを選択]", 2
 IF FINDELEMENT(SP_COUNTRY_START, 特殊勢力スタート_君主) != -1
 	PRINTL
 	PRINTBUTTON "[特殊勢力の固有君主を利用]", 1
@@ -793,7 +799,7 @@ ENDIF
 ;二週目以降で引継ぎが使用できるなら
 IF 旧MASTERID > 0 && 引継ぎ使用可
 	PRINTL
-	PRINTBUTTON "[前週の主人公を利用]", 98
+	PRINTBUTTON @"[前週の主人公 %ANAME(MASTER)% でプレイ]", 98
 ENDIF
 
 ;ここから固定キャラの表示
@@ -831,6 +837,8 @@ ELSEIF RESULT == 1 && FINDELEMENT(SP_COUNTRY_START, 特殊勢力スタート_君
 	SP_COUNTRY_START_CHANGE_BOSS = 0
 	SWAPCHARA MASTER, NAME_TO_CHARA("あなた")
 	RETURN
+ELSEIF RESULT == 2 && FLAG:あなた作成済み && MASTER != NAME_TO_CHARA("あなた")
+	選択MASTERID = GET_ID(NAME_TO_CHARA("あなた"))
 ;前週と同じ
 ELSEIF RESULT == 98 && 旧MASTERID > 0
 	IF !引継ぎ使用可
@@ -872,6 +880,8 @@ INPUT
 SELECTCASE RESULT
 	;このキャラを主人公にする
 	CASE 0
+		SIF FLAG:あなた新規作成
+			FLAG:あなた作成済み = 1
 		REDRAW 1
 		;二週目以降なら、MASTERと「あなた」を入れ替えて元に戻す
 		;MASTERが「あなた」以外だと、並びがぐちゃぐちゃになってしまうので（IDの仕組みがあるし問題ないと思うけど）

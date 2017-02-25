@@ -13,11 +13,6 @@ IF P_TIMES <= 0
 	RETURN
 ENDIF
 
-;父親不明(=0)の場合、-1として記録
-IF FATHER_ID == 0
-	FATHER_ID = -1
-ENDIF
-
 ;既に同一のIDが記録されているか調べる
 FOR LOCAL:0, 0, PREGNANT_RECORD_MAX
 	IF PREGNANT_RECORD_FATHER:MOTHER:(LOCAL:0) == FATHER_ID
@@ -48,45 +43,28 @@ VARSET LOCAL, 0
 DRAWLINE
 PRINTFORML ○%ANAME(ARG:0)%の妊娠記録○
 
-FOR LOCAL:0, 0, PREGNANT_RECORD_MAX
-	LOCAL:1 = PREGNANT_RECORD_FATHER:(ARG:0):(LOCAL:0)
-	IF LOCAL:1 != 0
-		;父親が不明または既に削除されている場合
-		IF LOCAL:1 == -1 || (LOCAL:1 > 0 && ID_TO_CHARA(LOCAL:1) == -1)
-			;「その他」の項目に回数を加算する
-			その他 ++
-		ENDIF
-	ENDIF
-NEXT
-
-;FOR LOCAL:0, 0, LOCAL:20
-;	LOCAL:3 = LOCAL:(LOCAL:0 + 100)
-;	LOCAL:4 = LOCAL:(LOCAL:0 + 200)
-;	IF LOCAL:500 >= 1
-;		IF LOCAL:500 % 3 == 0
-;			PRINTL 
-;		ELSE
-;			PRINT     
+;FOR LOCAL:0, 0, PREGNANT_RECORD_MAX
+;	LOCAL:1 = PREGNANT_RECORD_FATHER:(ARG:0):(LOCAL:0)
+;	LOCAL:2 = PREGNANT_RECORD_TIMES:(ARG:0):(LOCAL:0)
+;	;父親が不明または既に削除されている場合
+;	IF LOCAL:1 == 0 || (LOCAL:1 > 0 && ID_TO_CHARA(LOCAL:1) == -1)
+;		IF LOCAL:2 > 0
+;			;「その他」の項目に回数を加算する
+;			その他 += LOCAL:2
 ;		ENDIF
 ;	ENDIF
-;	LOCAL:500 ++
-;	PRINTFORM %ANAME(ID_TO_CHARA(LOCAL:3)), 18, RIGHT%{LOCAL:4, 6, RIGHT}
 ;NEXT
-;IF LOCAL:20 >= 1
-;	PRINTL 
-;	PRINTL 
-;ENDIF
 
 LOCAL:500 = 0
 
 FOR LOCAL, 0, PREGNANT_RECORD_MAX
 	LOCAL:1 = PREGNANT_RECORD_FATHER:(ARG:0):(LOCAL:0)
 	LOCAL:2 = PREGNANT_RECORD_TIMES:(ARG:0):(LOCAL:0)
-	IF LOCAL:1 != 0
+	IF LOCAL:2 > 0
 		LOCAL:3 = 1
 		;父親が不明または既に削除されている場合、その他扱いなのでCONTINUE
-		SIF LOCAL:1 == -1 || (LOCAL:1 > 0 && ID_TO_CHARA(LOCAL:1) == -1)
-			CONTINUE
+		;SIF LOCAL:1 == 0 || (LOCAL:1 > 0 && ID_TO_CHARA(LOCAL:1) == -1)
+		;	CONTINUE
 		IF LOCAL:500 >= 1
 			IF LOCAL:500 % 4 == 0
 				PRINTL 
@@ -99,17 +77,14 @@ FOR LOCAL, 0, PREGNANT_RECORD_MAX
 		SIF LOCAL:1 > 0
 			PRINTFORM %SNAME(ID_TO_CHARA(LOCAL:1)), 18, LEFT%{LOCAL:2, 4, RIGHT}
 		;父親が特殊精液の場合
-		SIF LOCAL:1 < 0 && GET_SPERM_NAME(LOCAL:1) != ""
+		SIF LOCAL:1 <= 0 && GET_SPERM_NAME(LOCAL:1) != ""
 			PRINTFORM %GET_SPERM_NAME(LOCAL:1), 18, LEFT%{LOCAL:2, 4, RIGHT}
 	ENDIF
 NEXT
 
-SIF その他 > 0
-	PRINTFORM %"不明・その他", 18, LEFT%{その他, 6, RIGHT}
-
 ;表示件数ゼロなら無しと表示しておく
 IF !LOCAL:3
-	PRINTFORML %"なし", 18, RIGHT%
+	PRINTFORML なし
 ELSE
 	PRINTL
 ENDIF
@@ -139,12 +114,14 @@ NEXT
 
 ;表示件数ゼロなら無しと表示しておく
 IF !LOCAL:3
-	PRINTFORML %"なし", 18, LEFT%
+	PRINTFORML なし
 ELSE
 	PRINTL
 ENDIF
 
 CALL SHOW_CHILDREN(ARG:0)
+
+CALL SHOW_SIBLING(ARG:0)
 
 ;---------------------------------------------------------
 ; ARG:0番のキャラの子供を一括表示する
@@ -194,3 +171,121 @@ FOR 親種別, 0, 2
 		PRINTL
 	ENDIF
 NEXT
+
+;---------------------------------------------------------
+; 対象のきょうだいを表示する
+;---------------------------------------------------------
+@SHOW_SIBLING(対象)
+#DIM 対象
+#DIM 父ID
+#DIM 母ID
+#DIM 相手父ID
+#DIM 相手母ID
+#DIM 表示回数
+#DIM 表示種別
+
+父ID = CFLAG:対象:父親
+母ID = CFLAG:対象:母親
+
+IF ALLSAMES(0, 父ID, 母ID)
+	DRAWLINE
+	PRINTFORML 〇%ANAME(対象)%の兄弟・姉妹〇
+	PRINTFORML 両親ともに不明のため、わからない
+	RETURN
+ENDIF
+
+FOR 表示種別, 0, 3
+	DRAWLINE
+	SELECTCASE 表示種別
+		CASE 0
+			PRINTFORML 〇%ANAME(対象)%の兄弟・姉妹〇
+		CASE 1
+			PRINTFORML 〇%ANAME(対象)%の異母兄弟・姉妹〇
+		CASE 2
+			PRINTFORML 〇%ANAME(対象)%の異父兄弟・姉妹〇
+	ENDSELECT
+	表示回数 = 0
+
+	FOR LOCAL, 0, CHARANUM
+		SIF LOCAL == 対象
+			CONTINUE
+		相手父ID = CFLAG:LOCAL:父親
+		相手母ID = CFLAG:LOCAL:母親
+
+
+		SIF ALLSAMES(0, 相手父ID, 相手母ID)
+			CONTINUE
+
+		SELECTCASE 表示種別
+			CASE 0
+				;兄弟でない == 父と母いずれかが異なる　父母不明は別人とみなす
+				SIF !IS_PURE_BROTHER(対象, LOCAL)
+					CONTINUE
+			CASE 1
+				;異母兄弟
+				SIF !(HAS_SAME_FATHER(対象, LOCAL) && !HAS_SAME_MOTHER(対象, LOCAL))
+					CONTINUE
+			CASE 2
+				;異父兄弟
+				SIF !(!HAS_SAME_FATHER(対象, LOCAL) && HAS_SAME_MOTHER(対象, LOCAL))
+					CONTINUE
+		ENDSELECT
+		IF 表示回数 >= 1
+			IF 表示回数 % 4 == 0
+				PRINTL 
+			ELSE
+				PRINT     
+			ENDIF
+		ENDIF
+		表示回数 ++
+		PRINTFORM %SNAME(LOCAL:0), 18, LEFT%
+	NEXT
+
+
+	;表示件数ゼロなら無しと表示しておく
+	IF !表示回数
+		PRINTFORML なし
+	ELSE
+		PRINTL
+	ENDIF
+NEXT
+
+;キャラふたりの父親が同一であるか判定する
+@HAS_SAME_FATHER(ARG:0, ARG:1)
+#FUNCTION
+#DIM 父ID, 2
+SIF ARG:0 == ARG:1
+	RETURNF 0
+父ID:0 = CFLAG:(ARG:0):父親
+父ID:1 = CFLAG:(ARG:1):父親
+IF 父ID:0 == 父ID:1 
+	IF 父ID:0 > 0 && 父ID:1 > 0
+		RETURNF 1
+	ELSEIF 父ID:0 < 0 && 父ID:1 < 0 && BROTHER_SPERM_FLAG:(父ID:0 * -1) == 1
+		RETURNF 1
+	ENDIF
+ENDIF
+RETURNF 0
+
+;キャラふたりの母親が同一であるか判定する
+@HAS_SAME_MOTHER(ARG:0, ARG:1)
+#FUNCTION
+#DIM 母ID, 2
+SIF ARG:0 == ARG:1
+	RETURNF 0
+母ID:0 = CFLAG:(ARG:0):母親
+母ID:1 = CFLAG:(ARG:1):母親
+IF 母ID:0 == 母ID:1 
+	IF 母ID:0 > 0 && 母ID:1 > 0
+		RETURNF 1
+	ELSEIF 母ID:0 < 0 && 母ID:1 < 0 && BROTHER_SPERM_FLAG:(母ID:0 * -1) == 1
+		RETURNF 1
+	ENDIF
+ENDIF
+RETURNF 0
+
+
+;キャラふたりが兄弟であるか判定する
+@IS_PURE_BROTHER(ARG:0, ARG:1)
+#FUNCTION
+RETURNF HAS_SAME_FATHER(ARG:0, ARG:1) && HAS_SAME_MOTHER(ARG:0, ARG:1)

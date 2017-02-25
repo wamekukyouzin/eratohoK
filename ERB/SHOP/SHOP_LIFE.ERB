@@ -854,6 +854,7 @@ IF FLAG:拠点フェイズ選択コマンド == 1000
 				CFLAG:ARG:行動済み = 1
 				SHOP_TIME ++
 				CALL 教育(ARG, MASTER, CFLAG:ARG:教育方針)
+				LINES_SHOP = LINECOUNT
 				BEGIN TURNEND
 			ELSEIF  RESULT == 2
 			;処理なしで戻れる？
@@ -1530,6 +1531,7 @@ ITEM:A_コンドーム = 99
 ITEM:A_媚薬 = 99
 ITEM:A_排卵誘発剤 = 99
 ITEM:A_桃源香 = 99
+ITEM:A_絶倫丸 = 99
 FLAG:調教モード = 7
 ;ウフフフラグをONに
 FLAG:ウフフフラグ = 1
@@ -2351,7 +2353,6 @@ ENDSELECT
 ;クリアフラグ立ってたらなし
 SIF FLAG:クリアフラグ
 	RETURN 0
-LINES_SHOP = LINECOUNT
 
 余剰 = CALC_SHOP_TIME() - SHOP_TIME
 DRAWLINE
@@ -2370,24 +2371,26 @@ SELECTCASE RAND:100
 			CASE 4
 				LOCAL = GETNUM(EXP, "政治経験値")
 		ENDSELECT
-		CALL PRINT_ADD_EXP(MASTER, EXPNAME:LOCAL, LIMIT(余剰 / 4, 1, 5), 1)
+		CALL PRINT_ADD_EXP(MASTER, EXPNAME:LOCAL, LIMIT(余剰 / 2, 1, 5), 1)
 		CALL TRAIN_AUTO_ABLUP(MASTER)
 		WAIT
 	CASE IS < 70
 		PRINTFORMW 余った行動回数で仲間と交友を深めた……
 		FOR LOCAL, 1, CHARANUM
 			IF CFLAG:LOCAL:所属 == CFLAG:MASTER:所属 && !CFLAG:LOCAL:捕虜先
-				CALL CHANGE_RELATION_O_TO_O(LOCAL, MASTER, 余剰 / 4, 余剰 / 4 * -1)
-				CALL CHANGE_RELATION_O_TO_O(MASTER, LOCAL, 余剰 / 4, 余剰 / 4 * -1)
+				CALL CHANGE_RELATION_O_TO_O(LOCAL, MASTER, MIN(余剰, 5), MAX(-余剰, -5))
+				CALL CHANGE_RELATION_O_TO_O(MASTER, LOCAL, MIN(余剰, 5), MAX(-余剰, -5))
 			ENDIF
 		NEXT
 	CASEELSE
-		LOCAL = LIMIT(余剰 / 4, 1, 5) * 500
+		LOCAL = LIMIT(余剰 / 2, 1, 5) * 500
 		PRINTFORMW 余った行動回数で小遣いを稼いだ……
 		PRINTFORM 金
 		CALL COLORPRINT(@"{LOCAL}", COLOR("注意"))
 		PRINTFORMW を手に入れた
 ENDSELECT
+LINES_SHOP = LINECOUNT
+
 ;-------------------------------------------------
 ;活動可能回数の計算
 ;ARG:0 = 一人追放しての計算

@@ -11,9 +11,13 @@
 FIRST_LINE = LINECOUNT
 
 ;主人公なら性癖設定画面の表示を禁止
-IF 対象 == MASTER && FLAG:能力表示モード == 1
+SIF 対象 == MASTER && FLAG:能力表示モード == 1
 	FLAG:能力表示モード = 0
-ENDIF
+
+
+SIF !IS_FIXED_CHARA(対象) && FLAG:能力表示モード == 6
+	FLAG:能力表示モード = 0
+
 
 ;対象キャラの情報を表示
 DRAWLINE
@@ -33,9 +37,12 @@ ELSE
 	CALL PRINTBUTTON_EX(" 1[性癖設定]", 1, 1, FLAG:能力表示モード == 1)
 ENDIF
 CALL PRINTBUTTON_EX(" 2[能力詳細]", 2, 1, FLAG:能力表示モード == 2)
-CALL PRINTBUTTON_EX(" 3[妊娠記録]", 3, 1, FLAG:能力表示モード == 3)
+CALL PRINTBUTTON_EX(" 3[家系表示]", 3, 1, FLAG:能力表示モード == 3)
 CALL PRINTBUTTON_EX(" 4[スキル表示]", 4, 1, FLAG:能力表示モード == 4)
 CALL PRINTBUTTON_EX(" 5[衣装表示]", 5, 1, FLAG:能力表示モード == 5)
+SIF IS_FIXED_CHARA(対象)
+	CALL PRINTBUTTON_EX(" 6[説明表示]", 6, 1, FLAG:能力表示モード == 6)
+
 IF ページ移動
 	PRINTL
 	PRINTBUTTON " 7[前のキャラ]", 7
@@ -86,7 +93,7 @@ ENDIF
 IF RESULT == 9
 	REDRAW 1
 	RETURN
-ELSEIF RESULT >= 0 && RESULT <= 5 && FLAG:能力表示モード != RESULT && !(RESULT == 1 && 対象 == MASTER)
+ELSEIF RESULT >= 0 && RESULT <= 6 && FLAG:能力表示モード != RESULT && !(RESULT == 1 && 対象 == MASTER) && !(RESULT == 6 && !IS_FIXED_CHARA(対象))
 	FLAG:能力表示モード = RESULT
 	CLEARLINE LINECOUNT - FIRST_LINE
 	RESTART
@@ -200,6 +207,13 @@ ELSEIF FLAG:能力表示モード == 5
 	CALL SHOW_CLOTH_SETTING(ARG:0, GROUPMATCH(CFLAG:MASTER:所属, CFLAG:(ARG:0):所属, CFLAG:(ARG:0):捕虜先) && !調教中)
 ELSEIF FLAG:能力表示モード == 10
 	CALL SHOW_RELATION_LIST(ARG:0)
+ELSEIF FLAG:能力表示モード == 6
+	PRINTFORML %NAME_FORMAL(ARG:0)%
+	DRAWLINE
+	TRYCCALLFORM SHOW_CHARA_EXPLANATION_{NO:(ARG:0)}
+	CATCH
+		PRINTFORML 説明なし
+	ENDCATCH
 ELSE
 	CALL SHOW_HEADER(ARG:0)
 	IF 調教中
@@ -427,12 +441,6 @@ PRINTFORM 捕虜:%LOCALS:0, MAX_CHARANAME_LENGTH+6, LEFT%
 
 CALL PRINT_SEX(ARG:0, 0, 0, 10)
 
-IF CSTR:(ARG:0):8 != ""
-	PRINTFORM 種族:%CSTR:(ARG:0):8, 10, LEFT%
-ELSE
-	PRINTFORM 種族:%"不明", 10, LEFT%
-ENDIF
-
 LOCALS:0 = 区分:
 IF ARG:0 != MASTER
 	IF IS_FIXED_CHARA(ARG:0)
@@ -454,7 +462,21 @@ RESETCOLOR
 
 PRINTL
 
+
+CALL SHOW_TAG(ARG:0)
+PRINTL
+
 DRAWLINE
+
+;-------------------------------------------------
+;ARG:0番のキャラのタグを表示
+;-------------------------------------------------
+@SHOW_TAG(ARG:0)
+FOR LOCAL, 0, MAX_TAG
+	SIF TAG:(ARG:0):LOCAL == -1
+		CONTINUE
+	PRINTPLAINFORM [%TAG_NAME:(TAG:(ARG:0):LOCAL)%]	
+NEXT
 
 ;-------------------------------------------------
 ;ARG:0番のキャラの両親を表示

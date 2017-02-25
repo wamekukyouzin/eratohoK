@@ -236,6 +236,11 @@ NEXT
 ;統計情報の記憶
 CALL STATS_SAVE
 
+;自動送金
+SIF !FLAG:クリアフラグ
+	CALL AUTO_SENDMONEY
+
+
 ;外交済みフラグの解除
 VARSET DONE_DIPLOMACY_FRIENDSHIP, 0
 VARSET DONE_DIPLOMACY_REQUEST, 0
@@ -360,6 +365,12 @@ FOR 部隊, 0, MAX_UNIT
 		CONTINUE
 	SIF UNIT_SOLDIER:勢力:部隊 <= 0
 		CONTINUE
+
+	;行動済みなら戦闘しない
+	;別の部隊に攻撃された場合にここに該当する
+	SIF UNIT_FBATTLE:勢力:部隊
+		CONTINUE
+
 	;現在値にいる敵性部隊をリスト化
 	部隊現在地 = UNIT_POSITION:勢力:部隊
 	敵の数 = 0
@@ -373,20 +384,9 @@ FOR 部隊, 0, MAX_UNIT
 			敵の数 ++
 		ENDIF
 	NEXT
-	;敵がいなければ防衛戦
-	IF 敵の数 == 0
-		敵勢力 = CITY_OWNER:部隊現在地
-		IF 部隊現在地 > 0 && CITY_TYPE:部隊現在地 == 0 && 敵勢力 != 勢力 && TMP_COUNTRY_RELATION:勢力:敵勢力 == 0
-			;戦闘処理本体
-			CALL BATTLE_UNIT_TO_CITY(勢力, 部隊, 部隊現在地)
-			CALL SINGLE_EMPTY_LINE()
-		ENDIF
-		CONTINUE
-	ENDIF
-
-	;行動済みなら遊撃部隊と戦闘しない
-	SIF UNIT_FBATTLE:勢力:部隊
-		CONTINUE
+	;敵がいなければ、防衛部隊との戦闘に入る判定まで飛ぶ
+	SIF 敵の数 == 0
+		GOTO VS_CASTLE
 
 	IF 敵の数 == 1
 		攻撃対象 = 0
@@ -427,10 +427,12 @@ FOR 部隊, 0, MAX_UNIT
 	CALL BATTLE_UNIT_TO_UNIT(勢力, 部隊, 敵勢力リスト:攻撃対象, 敵部隊リスト:攻撃対象)
 	CALL SINGLE_EMPTY_LINE()
 
+	;敵性部隊が１部隊だった場合、その部隊を撃破すれば続けて防衛部隊との戦闘に入る
 	SIF 敵の数 != 1 || UNIT_SOLDIER:敵勢力:敵部隊 > 0
 		CONTINUE
 
-	;敵性部隊が１部隊だった場合、その部隊を撃破すれば続けて防衛部隊との戦闘に入る
+	$VS_CASTLE
+
 	敵勢力 = CITY_OWNER:部隊現在地
 	IF 部隊現在地 > 0 && CITY_TYPE:部隊現在地 == 0 && TMP_COUNTRY_RELATION:勢力:敵勢力 == 0
 		CALL BATTLE_UNIT_TO_CITY(勢力, 部隊, 部隊現在地)
