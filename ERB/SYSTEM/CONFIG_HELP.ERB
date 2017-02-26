@@ -1,16 +1,52 @@
-﻿;-------------------------------------------------
+﻿@CREATE_HELP_MAP()
+CALL REGISTER_HELP("ゲームの流れ",			"ABOUT_GAME_FLOW", 1)
+CALL REGISTER_HELP("能力値の意味",			"ABOUT_ABL", 1)
+CALL REGISTER_HELP("各フェイズのコマンド",	"ABOUT_PHASE_COMMAND", 2)
+CALL REGISTER_HELP("基本戦術",			"BASIC_STRATEGY", 1)
+CALL REGISTER_HELP("士官を増やす",			"GET_OFFICER", 1)
+CALL REGISTER_HELP("クールタイム",			"ABOUT_COOLTIME", 1)
+CALL REGISTER_HELP("外交について",			"ABOUT_DIPLOMACY", 1)
+CALL REGISTER_HELP("捕虜調教のやりかた",	"HOW_TO_TRAIN_HOSTAGE", 1)
+CALL REGISTER_HELP("士官の陥落",			"GET_TALENT", 1)
+CALL REGISTER_HELP("陥落素質",			"SPECIAL_TALENT", 2)
+CALL REGISTER_HELP("デイリーイベント",		"ABOUT_DAILY_EVENT", 1)
+CALL REGISTER_HELP("士官の鍛えかた",		"HOW_TO_BUILD_CHARA", 1)
+CALL REGISTER_HELP("士官がすぐ怒って帰る",	"THEY_GET_MAD", 1)
+CALL REGISTER_HELP("士官がすぐ気絶する",	"THEY_EASYLY_GET_UNCONSCIOUS", 1)
+CALL REGISTER_HELP("好感度補正",			"ABOUT_LOVE_POWER", 1)
+CALL REGISTER_HELP("士官が捕虜になった",	"THEY_GET_CAPTURED", 1)
+CALL REGISTER_HELP("各勢力にすごく嫌われる",	"THEY_HATE_ME", 1)
+CALL REGISTER_HELP("特殊な勢力",			"SP_COUNTRY", 1)
+CALL REGISTER_HELP("兵が増えない",			"SOLDIER_DOESNT_INCREASE", 1)
+CALL REGISTER_HELP("外交要求が通らない",	"THEY_WONT_ACCEPT_REQUEST", 1)
+CALL REGISTER_HELP("謀反と蜂起", "THEY_REBEL_AGAINST_ME", 1)
+
+@REGISTER_HELP(HELPNAME, HELPNAME_ENG, HELPPAGENUM)
+#DIMS HELPNAME
+#DIMS HELPNAME_ENG
+#DIM HELPPAGENUM
+HELP_CONTENT_NAME:HELP_CONTENT_NUM '= HELPNAME
+HELP_CONTENT_NAME_ENG:HELP_CONTENT_NUM '= HELPNAME_ENG
+HELP_PAGE_NUM:HELP_CONTENT_NUM = HELPPAGENUM
+HELP_CONTENT_NUM ++
+
+;-------------------------------------------------
 ;攻略情報メニュー
 ;-------------------------------------------------
 @CONFIG_HELPMENU
 #DIM FIRSTLINE
 #DIM FIRSTLINE2
 
-
+;今見てるメニューのページ
 #DIM MENUPAGE
-#DIM HELPNUM
+;今見てるヘルプのHELP_CONTENT_系変数におけるインデックス
+#DIM HELPINDEX
+;今見てるヘルプ項目のページ
+#DIM HELPPAGE
+;現在のREDRAWを保存
 #DIM NOWREDRAW
 
-;ページ数
+;メニューのページ数
 #DIM PAGENUM
 
 ;ヘルプの行数
@@ -20,12 +56,13 @@
 
 FIRSTLINE = LINECOUNT
 MENUPAGE = 1
-HELPNUM = 0
+HELPINDEX = 0
+HELPPAGE = 1
 CURRENTREDRAW
 NOWREDRAW = RESULT:0
 
 CONTENTPERPAGE = 5
-PAGENUM = VARSIZE("HELP_CONTENT_TITLE") / CONTENTPERPAGE + 1
+PAGENUM = HELP_CONTENT_NUM / CONTENTPERPAGE + 1
 
 ;カスタマイズ用……ヘルプの最大行数
 MAXHELPLINE = 35
@@ -42,8 +79,8 @@ PRINTL
 
 DRAWLINE
 
-FOR LOCAL, CONTENTPERPAGE * (MENUPAGE - 1), MIN(VARSIZE("HELP_CONTENT_TITLE"), CONTENTPERPAGE * MENUPAGE)
-	CALL HELP_COLORBUTTON(HELPNUM, LOCAL, HELP_CONTENT_TITLE:LOCAL)
+FOR LOCAL, CONTENTPERPAGE * (MENUPAGE - 1), MIN(HELP_CONTENT_NUM, CONTENTPERPAGE * MENUPAGE)
+	CALL HELP_COLORBUTTON(HELPINDEX, LOCAL, HELP_CONTENT_NAME:LOCAL)
 NEXT
 
 IF LINECOUNT - FIRSTLINE < CONTENTPERPAGE + 3
@@ -55,7 +92,7 @@ ENDIF
 
 DRAWLINE
 FIRSTLINE2 = LINECOUNT
-CALL SHOW_HELP_CONTENT_VIEW(HELPNUM)
+CALL SHOW_HELP_CONTENT_VIEW(HELPINDEX, HELPPAGE)
 
 IF LINECOUNT - FIRSTLINE2 < MAXHELPLINE + 3
 	LOCAL:1 = MAXHELPLINE - (LINECOUNT - FIRSTLINE2)
@@ -63,13 +100,17 @@ IF LINECOUNT - FIRSTLINE2 < MAXHELPLINE + 3
 		PRINTL 
 	NEXT
 ENDIF
-
+DRAWLINE
+PRINTBUTTON "    2000[前のページ]", 2000
+PRINTFORM     ページ {HELPPAGE} / {HELP_PAGE_NUM:HELPINDEX}
+PRINTBUTTON "    2001[次のページ]", 2001
+PRINTL
 DRAWLINE
 PRINTBUTTON " 999[      戻る]", 999
 PRINTL 
 
 $INPUT_LOOP
-INPUT 99
+INPUT
 
 IF RESULT == 999
 	REDRAW NOWREDRAW
@@ -90,8 +131,19 @@ ELSEIF RESULT == 1001
 	ENDIF
 	CLEARLINE LINECOUNT - FIRSTLINE
 
-ELSEIF INRANGE(RESULT, 0, VARSIZE("HELP_CONTENT_TITLE") - 1)
-	HELPNUM = RESULT
+ELSEIF RESULT == 2000
+	HELPPAGE --
+	SIF HELPPAGE < 1
+		HELPPAGE = HELP_PAGE_NUM:HELPINDEX
+	CLEARLINE LINECOUNT - FIRSTLINE
+
+ELSEIF RESULT == 2001
+	HELPPAGE ++
+	SIF HELPPAGE > HELP_PAGE_NUM:HELPINDEX
+		HELPPAGE = 1
+	CLEARLINE LINECOUNT - FIRSTLINE
+ELSEIF INRANGE(RESULT, 0, HELP_CONTENT_NUM - 1)
+	HELPINDEX = RESULT
 	CLEARLINE LINECOUNT - FIRSTLINE
 ELSE
 	GOTO INPUT_LOOP
@@ -101,15 +153,18 @@ GOTO SHOW_LOOP
 ;-------------------------------------------------
 ;ヘルプのコンテント部分の表示
 ;-------------------------------------------------
-@SHOW_HELP_CONTENT_VIEW(ページ番号)
+@SHOW_HELP_CONTENT_VIEW(名前インデックス, ページ番号)
+#DIM 名前インデックス
 #DIM ページ番号
-
-SIF !INRANGE(ページ番号, 0, VARSIZE("HELP_CONTENT_TITLE") - 1)
-	ページ番号 = 0
-
-PRINTFORML %HELP_CONTENT_TITLE:ページ番号%
+SIF !INRANGE(名前インデックス, 0, HELP_CONTENT_NUM - 1)
+	名前インデックス = 0
+SIF ページ番号 > HELP_PAGE_NUM:名前インデックス
+	ページ番号 = 1
+SIF ページ番号 < 1
+	ページ番号 = HELP_PAGE_NUM:名前インデックス
+PRINTFORML %HELP_CONTENT_NAME:名前インデックス%
 DRAWLINE
-TRYCALLFORM DRAW_HELP_CONTENT_%HELP_CONTENT_TITLE_ENG:ページ番号%
+TRYCALLFORM DRAW_HELP_CONTENT_%HELP_CONTENT_NAME_ENG:名前インデックス%_{ページ番号}
 
 
 ;-------------------------------------------------
@@ -210,257 +265,6 @@ FOR LOCAL, 0, SEPNUM
 NEXT
 
 PRINTL
-
-;-------------------------------------------------
-;各情報
-;ARG:0 = 現在表示しているヘルプの番号
-;-------------------------------------------------
-@CONFIG_HELP(ARG:0)
-SELECTCASE ARG:0
-	CASE 0
-		PRINTL   各情報
-		DRAWLINE
-		PRINTL   上のメニューをクリックするとここに攻略情報が表示される
-	CASE 1
-		PRINTL   序盤の動きは？
-		DRAWLINE
-		PRINTL   金は力で兵は力。軍事活動解禁までになるべく兵を増やしたい
-		PRINTL   なのでまず労働で金か兵を稼いでいく。あとはめぼしい女の子といちゃいちゃしておこう
-		PRINTL   いちゃつくときは訓練コマンドを活用しよう。能力も好感度も上がって一石二鳥
-		PRINTL  
-		PRINTL   稼いだ金は戦略フェイズで国庫に入れて徴兵がおすすめ。兵は力である
-		PRINTL   近場に厄介な勢力がある場合ほどほどに。外交解禁後に金をやって停戦するため
-		PRINTL   余裕があれば特別訓練で武闘と防衛を底上げしておく。能力値50くらいまでは伸びがよい
-		PRINTL   一人に特化するのでなく、まんべんなく鍛えるのがポイント
-		PRINTL   ただしだんだん料金が値上がりするので、財布と要相談
-		PRINTL   スカウトは初回だけ★７以下がとても安い。頭数を揃えるためにも忘れずスカウトしよう
-		PRINTL  
-		PRINTL   外交が解禁になったら、近場の厄介そうな国と積極的に会談していく
-		PRINTL   金があればいいが、なければ体を捧げて仲良くなって停戦か同盟を狙う
-		PRINTL  
-		PRINTL   軍事が解禁になったら、積極的に領土を拡大していく。領土があれば金が入る。金は力である
-		PRINTL   部隊を作って攻める際は忘れず武将を配置しよう。武将なしの部隊はすさまじく弱い
-		PRINTL   侵攻先は無所属都市がおすすめ。勢力配下の都市には守将が配置されることがあり、そうなると硬い
-		PRINTL   調子に乗って領土を広げすぎると戦線が拡大して収拾がつかなくなる。気を付けよう
-	CASE 2
-		PRINTL   敵が強い！
-		DRAWLINE
-		PRINTFORML   ALL Aの武将一人よりALL Cの武将二人のほうが強く、ALL Eの武将三人はもっと強い
-		PRINTFORML   なのでまずは部隊の枠を武将で埋めること
-		PRINTFORML   
-		PRINTFORML   武将で埋めたら次に兵をそろえる。足りなければ金を稼いで徴兵しよう
-		PRINTFORML   特に都市攻めでは、都市側に補正がかかり能力で勝てないので、数で潰そう
-		PRINTFORML   
-		PRINTFORML   戦闘の際はスキルに気を付けよう。「暗殺」や能力ダウンが特に厄介
-		PRINTFORML   逆に、相手にそれを当てられればきわめて有利になるといえる
-		PRINTFORML   
-		PRINTFORML   また、疲労度には注意しよう
-		PRINTFORML   部隊には疲労度があり、これが高いと部隊は弱体化する
-		PRINTFORML   これは解体によってリセットできる。連戦した部隊は定期的に解体してやる必要がある
-
-
-
-	CASE 9
-		PRINTL   陥落素質の取得条件は？
-		DRAWLINE
-		PRINTFORM   %HELP_CONTENTS("恋慕")%好感度
-		PRINTFORM   %HELP_NUMBERCOLOR("1500")%以上 依存度
-		PRINTFORM   %HELP_NUMBERCOLOR("300")%以上 異性であるか、対象が両刀か恋人
-		PRINTL   
-		PRINTL   
-		PRINTFORM   %HELP_CONTENTS("親友")%好感度
-		PRINTFORM   %HELP_NUMBERCOLOR("1500")%以上 依存度
-		PRINTFORM   %HELP_NUMBERCOLOR("300")%以上 恋慕の条件を満たさない
-		PRINTL   
-		PRINTL   
-		PRINTFORM   %HELP_CONTENTS("親愛")%好感度
-		PRINTFORM   %HELP_NUMBERCOLOR("10000")%以上 依存度
-		PRINTFORM   %HELP_NUMBERCOLOR("3000")%以上 奉仕
-		PRINTFORM   %HELP_NUMBERCOLOR("5")%以上 恋慕
-		PRINTL   
-		PRINTL   
-		PRINTFORM   %HELP_CONTENTS("服従")%従属度
-		PRINTFORM   %HELP_NUMBERCOLOR("1500")%以上 依存度
-		PRINTFORM   %HELP_NUMBERCOLOR("300")%以上
-		PRINTL   
-		PRINTL   
-		PRINTFORM   %HELP_CONTENTS("隷属")%従属度
-		PRINTFORM   %HELP_NUMBERCOLOR("10000")%以上 依存度
-		PRINTFORM   %HELP_NUMBERCOLOR("3000")%以上 奉仕
-		PRINTFORM   %HELP_NUMBERCOLOR("5")%以上 服従
-		PRINTL 
-
-
-	CASE 13
-		PRINTL   あの素質の効果は？①
-		DRAWLINE
-		PRINTFORM   %HELP_CONTENTS("天の御遣い")%好感度が上がりやすい
-		PRINTL 
-		PRINTL 
-		PRINTFORM   %HELP_CONTENTS("技師")%アイテム開発の必要資金・ターンを緩和し、道具系のコマンドの効果を上げる
-		PRINTL 
-		PRINTL 
-		PRINTFORM   %HELP_CONTENTS("治療")%同じ勢力の武将が戦闘に敗北しクールタイムを付与された場合、確率で軽減する
-		PRINTL 
-		PRINTL 
-		PRINTFORM   %HELP_CONTENTS("超成長力")%能力の伸びが早い。主人公でなければ、
-		PRINTFORM   %HELP_NUMBERCOLOR("1")%期ごとに
-		PRINTFORM   %HELP_NUMBERCOLOR("80")%未満の能力に経験値が入る
-		PRINTL 
-		PRINTL 
-		PRINTFORM   %HELP_CONTENTS("努力家")%超成長力の経験値取得処理に加え、各種訓練における取得経験値に抑制がかかる時期が遅くてすむ
-		PRINTL 
-		PRINTL 
-		PRINTFORM   %HELP_CONTENTS("策士")%計略の発動率にボーナス
-		PRINTL 
-		PRINTL 
-		PRINTFORM   %HELP_CONTENTS("明察")%相手の計略を無効化
-		PRINTL 
-		PRINTL 
-		PRINTFORM   %HELP_CONTENTS("ステゴロ")%戦闘時、互いの被害が増加
-		PRINTL 
-		PRINTL 
-		PRINTFORM   %HELP_CONTENTS("威圧")%敵部隊の防御力を下げる。
-		PRINTL 
-		PRINTL 
-		PRINTFORM   %HELP_CONTENTS("下克上等")%自部隊が相手部隊より弱い場合、与被害/受被害に補正がかかる
-		PRINTL 
-		PRINTL 
-		PRINTFORM   %HELP_CONTENTS("魔力転換")%部隊攻撃力のうちいくらかを割合ダメージに転換する
-		PRINTL 
-		PRINTL 
-		PRINTFORM   %HELP_CONTENTS("突貫")%部隊防御力を犠牲に、部隊攻撃力を上昇させる
-		PRINTL 
-		PRINTL 
-		PRINTFORM   %HELP_CONTENTS("バンドガール")%歌唱・料理による部隊能力の補正を二重にかける。補正がない部隊だと無意味
-		PRINTL 
-
-	CASE 14
-		PRINTL   あの素質の効果は？②
-		DRAWLINE
-		PRINTFORM   %HELP_CONTENTS("哨戒")%部隊の受被害をわずかに軽減する
-		PRINTL   
-		PRINTL   
-		PRINTFORM   %HELP_CONTENTS("防衛戦術")%都市防衛時にのみ発動。防御力が上昇し、受被害を軽減する
-		PRINTL   
-		PRINTL   
-		PRINTFORM   %HELP_CONTENTS("暗殺")%相手部隊のランダムな武将を、その戦闘に参加できなくする
-		PRINTL   
-		PRINTL   
-		PRINTFORM   %HELP_CONTENTS("弁舌")%相手部隊の兵をいくらか引き抜く
-		PRINTL   
-		PRINTL   
-		PRINTFORM   %HELP_CONTENTS("早足")%部隊敗北時、捕縛されにくい
-		PRINTL   
-		PRINTL   
-		PRINTFORM   %HELP_CONTENTS("風説流布")%ターン終了時と外交時、自国の評価を上げることがある
-		PRINTL   
-		PRINTL   
-		PRINTFORM   %HELP_CONTENTS("手練手管")%外交「会談」の「楽しみを提供」で提供されたとき、効果量を上昇させる
-		PRINTL   
-		PRINTL   
-		PRINTFORM   %HELP_CONTENTS("疾風迅雷")%部隊移動時、中継点をすっ飛ばして移動することがある
-		PRINTL   
-		PRINTL   
-		PRINTFORM   %HELP_CONTENTS("封魔")%相手部隊のランダムな武将の、戦闘中の素質発動を封じる
-		PRINTL   
-		PRINTL  
-		PRINTFORM   %HELP_CONTENTS("統率力")%部隊の攻撃力と防御力と知略を上昇させる
-		PRINTL  
-		PRINTL  
-		PRINTFORM   %HELP_CONTENTS("遅滞戦術")%その戦闘での両軍被害を極端に低減する
-		PRINTL  
-		PRINTL  
-		PRINTFORM   %HELP_CONTENTS("斉射")%敵部隊に割合ダメージ（上限あり）
-;カスタマイズ用
-	CASE 15
-		PRINTL   特殊な勢力について……
-		DRAWLINE
-		PRINTL   野盗
-		PRINTL   ランダム都市を奪い蜂起。
-		PRINTL   領地を全てロストしても滅ばない特殊な勢力。
-		PRINTL   領地なしの状態だと、ランダムな中継地点に部隊を配置し始める。
-		PRINTL   滅ぼせないのだが、ここ以外の他勢力が滅べばゲームクリア扱いになる。
-		PRINTL   所属キャラ「野盗」は、敵部隊の女の数だけ強くなる能力をもつ。
-		PRINTL
-		PRINTL   ホフゴブリン
-		PRINTL   レミリアが所持する紅魔館、ないしランダムな都市を奪い蜂起。
-		PRINTL   能力は低めだが、毎ターン数が増える。
-		PRINTL   しかも定期イベントでも増える。数の暴力な勢力。
-		PRINTL   所属キャラ「ホフゴブリン」は、戦闘中に味方を呼び、部隊兵数を増やす。
-		PRINTL
-		PRINTL   外来人
-		PRINTL   博麗大結界、ないしランダムな都市を奪い蜂起。
-		PRINTL   能力は低いが、非常に強力な特殊能力を持つ、ピーキーな勢力。
-		PRINTL   定期イベントでは、対象を強制的に捕虜にする。捕虜が対象になると士官にする。
-		PRINTL   所属キャラ「外来人」は、敵部隊の能力を自部隊以下にする。
-		PRINTL
-		PRINTL   触手
-		PRINTL   ランダムな都市を奪い蜂起。
-		PRINTL   ホフゴブリンに似ているが、能力はやや高め。
-		PRINTL   定期イベントでは、ランダムな捕虜か士官に触手産卵を行う。
-		PRINTL   精神力の低いキャラが崩壊することがあるので注意。
-		PRINTL   所属キャラ「触手兵」は、自部隊に女がいる場合に部隊兵数を増やす。
-
-	CASE 16
-		PRINTL   特殊な勢力について……
-		DRAWLINE
-		PRINTL   自警団
-		PRINTL   人里周辺、ないしランダムな都市を奪い蜂起。
-		PRINTL   一切エロいことをしてこない健全集団。
-		PRINTL   捕虜を引き込みはするが、エロいことはやっぱりしない。
-		PRINTL   所属キャラに特殊能力はないが、蜂起時に奪おうとするエリアが
-		PRINTL   人里あたりの優良都市なので、勢力を広げがち。
-		PRINTL  
-		PRINTL   サキュバス
-		PRINTL   ランダムな都市を奪い蜂起。
-		PRINTL   ふたなりとレズをテーマにした集団。
-		PRINTL   所属キャラ「サキュバス」は、ＳＬＧ素質「暗殺」に相当する能力をもつ。
-		PRINTL   定期イベントでは、捕虜や堕としたキャラの能力を君主が吸収する。
-		PRINTL   際限なく強くなるので、とっとと倒してしまいたいところ。
-		PRINTL
-	CASE 17
-		PRINTL   実は（？）有用なキャラクター
-		DRAWLINE
-		PRINTFORML   %HELP_CONTENTS("チルノ")%天才型で「超成長力」「努力家」所持。すぐオールAになる。
-		PRINTL   
-		PRINTFORML   %HELP_CONTENTS("美鈴")%高い防衛をもつ。自領土での戦闘時はスキルでさらに強化。
-		PRINTL   
-		PRINTFORML   %HELP_CONTENTS("萃香")%高い武闘をもつ。さらにスキルで超強化。
-		PRINTL   
-		PRINTFORML   %HELP_CONTENTS("ミスティア")%一人の部隊相手に確勝できるスキルを所持。都市キラー。
-		PRINTL   
-		PRINTFORML   %HELP_CONTENTS("慧音")%高水準の能力に、プラス効果のみのパルプンテスキルを所持。
-		PRINTL  
-		PRINTFORML   %HELP_CONTENTS("幽香")%確実に発動する武闘バフスキルを所持。
-		PRINTL   
-		PRINTFORML   %HELP_CONTENTS("阿求")%人間「以外」特攻スキル所持。人間以外だらけなので強烈。さらに「超成長力」も所持。
-		PRINTL   
-		PRINTFORML   %HELP_CONTENTS("天子")%最高クラスの防衛とそれをバフするスキルで圧倒的防御力を実現。都市防衛の要。
-		PRINTL   
-		PRINTFORML   %HELP_CONTENTS("こいし")%部隊の被害絶対軽減するガール。
-		PRINTL   
-		PRINTFORML   %HELP_CONTENTS("ナズーリン")%国庫の金を増やすレアスキルを所持。貧乏勢力の友。
-		PRINTL   
-		PRINTFORML   %HELP_CONTENTS("星/白蓮")%高確率で発動する自己バフ持ち。
-		PRINTL   
-		PRINTFORML   %HELP_CONTENTS("華扇/魔眼")%敵の被害軽減をリセットするスキル所持。チルノや輝夜のスキルと同時発動すると強烈。
-		PRINTL   
-		PRINTFORML   %HELP_CONTENTS("雷鼓")%全体武闘バフスキルを三つ所持。本人の能力も高水準。
-		PRINTL   
-		PRINTFORML   %HELP_CONTENTS("サリエル")%「いざ倒れ逝く～」で負けたら「死なばもろとも」で殴る嫌がらせコンボを所持。
-
-
-;カスタマイズ用
-;	CASE 15
-;		PRINTL   14 特殊な勢力について……
-;		DRAWLINE
-;		PRINTFORML   テキストテキストテキスト
-	CASEELSE
-
-ENDSELECT
-
-RETURN
 
 ;-------------------------------------------------
 ;デザイン統一用関数
