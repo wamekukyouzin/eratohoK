@@ -21,6 +21,8 @@ FOR LOCAL, 0, VARSIZE("説得者")
 	SIF 説得者:LOCAL == -1
 		BREAK
 	CALL DO_SETTOKU(対象, 説得者:LOCAL)
+	SIF RESULT == 2
+		BREAK
 NEXT
 
 RETURN 1
@@ -45,9 +47,8 @@ VARSET 判定基礎値
 対象君主 = GET_COUNTRY_BOSS(CFLAG:対象:所属)
 
 ;説得側の判定値
-SIF 対象君主 > 0
-	判定基礎値:0 -= SETTOKU_REL_EFFECT(説得者, 対象君主)
-判定基礎値:0 += SETTOKU_REL_EFFECT(説得者, 説得者君主)
+判定基礎値:0 += SETTOKU_REL_EFFECT(説得者, 説得者君主) / 2
+判定基礎値:0 += SETTOKU_REL_EFFECT(説得者, 対象) / 2
 判定基礎値:0 += ABL_SQRT(ABL:説得者:政治, 説得者) / 1000
 判定基礎値:0 += ABL_SQRT(ABL:説得者:知略, 説得者) / 1000
 
@@ -55,38 +56,50 @@ SIF 対象君主 > 0
 判定基礎値:1 -= SETTOKU_REL_EFFECT(対象, 説得者君主)
 SIF 対象君主 > 0
 	判定基礎値:1 += SETTOKU_REL_EFFECT(対象, 対象君主)
+判定基礎値:1 -= SETTOKU_REL_EFFECT(対象, 説得者) / 2
 判定基礎値:1 += ABL_SQRT(ABL:対象:政治, 対象) / 1000
 判定基礎値:1 += ABL_SQRT(ABL:対象:知略, 対象) / 1000
 
-判定値 = 判定基礎値:0 - 判定基礎値:1
-
 PRINTFORML -<%ANAME(説得者)%>の<%ANAME(対象)%>への説得-
+判定値 = (判定基礎値:0 - 判定基礎値:1) * RAND(80, 120)
+
+CALL FIND_GENERAL_SKILL(説得者, "弁舌")
+SIF RESULT
+	判定値 += RAND(5, 15)
+CALL FIND_GENERAL_SKILL(説得者, "風説流布")
+SIF RESULT
+	判定値 += RAND(5, 15)
+
 SELECTCASE 判定値
-	CASE IS < -50
+	CASE IS <= -50
 		PRINTFORMW %ANAME(説得者)%は逆に感化された
-	CASE -31 TO -50
+	CASE IS <= -30
 		PRINTFORMW %ANAME(説得者)%は丸め込まれてしまった
-	CASE -30 TO -11
+	CASE IS < 0
 		PRINTFORMW %ANAME(説得者)%は説得に失敗した
-	CASE - 10 TO 10
-		PRINTFORMW %ANAME(説得者)%は一応説得に成功した
-	CASE 11 TO 30
+	CASE IS <= 15
+		PRINTFORMW %ANAME(説得者)%は説得に成功した
+	CASE IS <= 30
 		PRINTFORMW %ANAME(説得者)%は順調に説得できた
-	CASE 31 TO 50
+	CASE IS <= 50
 		PRINTFORMW %ANAME(説得者)%はかなり順調に説得できた
 	CASE IS > 50
 		PRINTFORMW %ANAME(説得者)%は%ANAME(対象)%を感化させたようだ
 ENDSELECT
 
-CALL CHANGE_RELATION_O_TO_O(対象, 説得者, 判定値 / 2, -判定値 / 2)
-CALL CHANGE_RELATION_O_TO_C(対象, CFLAG:説得者:所属, 判定値, -判定値)
-
-SIF 判定値 > 0
+IF 判定値 > 0
+	CALL CHANGE_RELATION_O_TO_C(対象, CFLAG:説得者:所属, 判定値, -判定値)
+	CALL CHANGE_RELATION_O_TO_O(対象, 説得者, 判定値 / 2, -判定値 / 2)
 	CALL CHANGE_RELATION_O_TO_C(説得者, CFLAG:説得者:所属, 判定値 / 3, -判定値 / 3)
+ELSEIF 判定値 < 0
+	CALL CHANGE_RELATION_O_TO_C(対象, CFLAG:説得者:所属, 判定値 / 2, -判定値 / 2)
+	CALL CHANGE_RELATION_O_TO_O(対象, 説得者, RAND(5, 10) -RAND(5, 10))
+ENDIF
 
 IF SETTOKU_REL_EFFECT(対象, 説得者君主) > 75 && 判定値 > 30 && ABL_SQRT(ABL:説得者:政治, 説得者) / 1000 + ABL_SQRT(ABL:説得者:知略, 説得者) / 1000 > 100 - MAX(SETTOKU_REL_EFFECT(対象, 説得者君主), 40)
 	CALL COLORPRINT(@"説得の末、%ANAME(対象)%は移籍の意思を固めた……", COLOR("注意"), "W")
 	CALL CHANGE_COUNTRY(対象, CFLAG:説得者:所属, 1)
+	RETURN 2
 ENDIF
 
 CFLAG:対象:行動済み = 1
@@ -100,6 +113,6 @@ RETURN 1
 ;-------------------------------------------------
 @SETTOKU_REL_EFFECT(ARG:0, ARG:1)
 #FUNCTION
-RETURNF (REL_LIKE:(ARG:0):(ARG:1) - REL_HATE:(ARG:0):(ARG:1)) * 100 / 1500
+RETURNF MAX((REL_LIKE:(ARG:0):(ARG:1) - REL_HATE:(ARG:0):(ARG:1)) * 100 / 1500, 0)
 
 
