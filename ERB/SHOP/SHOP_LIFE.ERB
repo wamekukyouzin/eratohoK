@@ -94,9 +94,9 @@ HAS_WIFE = 0
 IF CFLAG:MASTER:行動不能状態　== 1 || COOLTIME:MASTER:0 > 1
 	SHOP_AVAIL:0 = 0
 	SHOP_AVAIL:1 = 0
+	SHOP_AVAIL:2 = 0
+	SHOP_AVAIL:3 = 0
 	SHOP_AVAIL:10 = 0
-	SHOP_AVAIL:12 = 0
-	SHOP_AVAIL:15 = 0
 	SHOP_AVAIL:20 = 0
 ENDIF
 
@@ -592,8 +592,6 @@ IF SHOP_AVAIL:(ARG:0)
 	ELSEIF ARG:0 == 12
 		FLAG:拠点フェイズ選択コマンド = 1012
 		FLAG:拠点フェイズページ = 1
-		;選択軟禁者（被説得者）の選択を解除
-		FLAG:72 = 0
 		FLAG:夜這い = 0
 		RETURN 0
 	;捕虜の扱い
@@ -695,14 +693,10 @@ IF SHOP_AVAIL:(ARG:0)
 	;前のページ
 	ELSEIF ARG:0 == 54
 		FLAG:拠点フェイズページ --
-		;選択軟禁者（被説得者）の選択を解除
-		FLAG:72 = 0
 		RETURN 0
 	;次のページ
 	ELSEIF ARG:0 == 56
 		FLAG:拠点フェイズページ ++
-		;選択軟禁者（被説得者）の選択を解除
-		FLAG:72 = 0
 		RETURN 0
 	;関係一覧の「への」「からの」切り替え
 	ELSEIF ARG:0 == 57 && FLAG:拠点フェイズ選択コマンド == 1041
@@ -932,9 +926,13 @@ ELSEIF FLAG:拠点フェイズ選択コマンド == 1010
 	ENDIF
 ;説得させる
 ELSEIF FLAG:拠点フェイズ選択コマンド == 1012
-	;説得対象のIDを水色に反転させるために保存
-	FLAG:72 = GET_ID(ARG:0)
-	
+	CALL SHOP_LIFE_SETTOKU(ARG:0)
+	IF !RESULT
+		REDRAW 1
+	ELSE
+		SHOP_TIME ++
+		BEGIN TURNEND
+	ENDIF
 ;夜這い
 ELSEIF FLAG:拠点フェイズ選択コマンド == 1002
 	;SHOW_INFOの初期画面を基本情報にする
@@ -971,16 +969,19 @@ ELSEIF FLAG:拠点フェイズ選択コマンド == 1002
 			FLAG:夜這い = 1
 			;行動開始時の共通設定
 			CALL START_TRAIN_COMMON
-			好感度他減少 = MAX(200 - ABL:ARG:欲望 * 20 - ABL:ARG:奉仕 * 20 ,0)
+			好感度他減少 = LIMIT(RAND(100, 200) - ABL:ARG:欲望 * 20 - ABL:ARG:奉仕 * 20 ,0, 100)
 			SIF YOBAI_ABLE(ARG) == 2
 				好感度他減少 = 0
 			SIF TALENT:ARG:烙印
 				好感度他減少 /= 2
-			CFLAG:(ARG:0):2 -= 好感度他減少
-			CFLAG:(ARG:0):3 -= 好感度他減少
-			CFLAG:(ARG:0):4 -= 好感度他減少
+			SIF CFLAG:(ARG:0):好感度 > 0
+				CFLAG:(ARG:0):好感度 -= 好感度他減少
+			SIF CFLAG:(ARG:0):従属度 > 0
+				CFLAG:(ARG:0):従属度 -= 好感度他減少
+			SIF CFLAG:(ARG:0):依存度 > 0
+				CFLAG:(ARG:0):依存度 -= 好感度他減少
 			;相手国との関係悪化（適当）
-			CALL CHANGE_RELATION_C_TO_C(CFLAG:ARG:所属, CFLAG:MASTER:所属, 好感度他減少 / 10 * (-1), 好感度他減少 / 10)
+			CALL CHANGE_RELATION_C_TO_C(CFLAG:ARG:所属, CFLAG:MASTER:所属, RAND(50, 100) * -1, RAND(50, 100))
 			REDRAW 1
 			RETURN 1
 	ENDIF
@@ -1022,16 +1023,19 @@ ELSEIF FLAG:拠点フェイズ選択コマンド == 1003
 
 			;行動開始時の共通設定
 			CALL START_TRAIN_COMMON
-			好感度他減少 = MAX(200 - ABL:ARG:欲望 * 20 - ABL:ARG:奉仕 * 20 ,0)
-			SIF TEBIKI_ABLE(ARG) == 2
+			好感度他減少 = LIMIT(RAND(100, 200) - ABL:ARG:欲望 * 20 - ABL:ARG:奉仕 * 20 ,0, 100)
+			SIF YOBAI_ABLE(ARG) == 2
 				好感度他減少 = 0
 			SIF TALENT:ARG:烙印
 				好感度他減少 /= 2
-			CFLAG:(ARG:0):2 -= 好感度他減少
-			CFLAG:(ARG:0):3 -= 好感度他減少
-			CFLAG:(ARG:0):4 -= 好感度他減少
+			SIF CFLAG:(ARG:0):好感度 > 0
+				CFLAG:(ARG:0):好感度 -= 好感度他減少
+			SIF CFLAG:(ARG:0):従属度 > 0
+				CFLAG:(ARG:0):従属度 -= 好感度他減少
+			SIF CFLAG:(ARG:0):依存度 > 0
+				CFLAG:(ARG:0):依存度 -= 好感度他減少
 			;相手国との関係悪化（適当）
-			CALL CHANGE_RELATION_C_TO_C(CFLAG:ARG:所属, CFLAG:MASTER:所属, 好感度他減少 / 10 * (-1), 好感度他減少 / 10)
+			CALL CHANGE_RELATION_C_TO_C(CFLAG:ARG:所属, CFLAG:MASTER:所属, RAND(50, 100) * -1, RAND(50, 100))
 			REDRAW 1
 			RETURN 1
 	ENDIF
@@ -1238,8 +1242,7 @@ RETURN 0
 ;ARG:0はキャラ番号、再描画が必要な場合は1を返す
 ;-------------------------------------------------
 @USERSHOP_LIFE_CHARA2(ARG:0)
-#DIM 選択軟禁者
-#DIM 選択説得者
+
 
 ;キャラが存在しなければ戻る
 IF ARG:0 < 0 || ARG:0 >= CHARANUM
@@ -1305,27 +1308,22 @@ ENDIF
 
 ;説得させる
 IF FLAG:拠点フェイズ選択コマンド == 1012
-	選択軟禁者 = ID_TO_CHARA(FLAG:72)
-	選択説得者 = ARG:0
 	;選択可能な条件を満たしていないキャラなら戻る
 	RESULT = 0
-	TRYCALLFORM CHECK_SELECTABLE_SETTOKU(選択説得者)
+	TRYCALLFORM CHECK_SELECTABLE_SETTOKU(ARG:0)
 	IF RESULT != 1
 		RETURN 0
 	ENDIF
-	
-	;選択説得者が説得中の相手(LOCAL:0)
-	LOCAL:0 = SETTOKU_CHARA(選択説得者)
-	;説得対象が選択されていない or 既に担当している（解除する）
-	IF 選択軟禁者 < 0 || LOCAL:0 == 選択軟禁者
-		SIF LOCAL:0 >= 0
-			CFLAG:(LOCAL:0):説得担当者 = 0
-	ELSE
-		;すでにいる担当の相手と交換
-		SIF LOCAL:0 >= 0
-			CFLAG:(LOCAL:0):説得担当者 = CFLAG:選択軟禁者:説得担当者
-		;最終処理
-		CFLAG:(選択軟禁者):説得担当者 = GET_ID(選択説得者)
+
+	LOCAL:5 = 0
+	FOR LOCAL:0, 0, CHARANUM
+		IF CFLAG:(LOCAL:0):捕虜調教の助手
+			LOCAL:5 ++
+		ENDIF
+	NEXT
+	IF CFLAG:(ARG:0):捕虜調教の助手 || LOCAL:5 < 3
+		;調教参加フラグを反転
+		CFLAG:(ARG:0):捕虜調教の助手 = !CFLAG:(ARG:0):捕虜調教の助手
 	ENDIF
 ENDIF
 
@@ -1645,7 +1643,7 @@ IF CFLAG:(ARG:0):外交調教経過ターン
 	SIF IS_FEMALE(ARG:0)
 		PRINTBUTTON " 2[みせしめ]", 2
 ELSE
-	PRINTBUTTON " 1[牢屋から出す]", 1
+	PRINTBUTTON " 1[軟禁に変更]", 1
 	PRINTPLAIN  
 	;クリア後は解放禁止 
 	IF !FLAG:クリアフラグ && CFLAG:(ARG:0):所属 == CFLAG:MASTER:所属
