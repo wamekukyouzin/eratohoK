@@ -1,0 +1,115 @@
+﻿;-------------------------------------------------
+;「料理長」の名称
+;-------------------------------------------------
+@SHOP_LIFE_NAME43
+RESULTS:0 '= "料理長"
+
+;-------------------------------------------------
+;「料理長」の選択可否
+;-------------------------------------------------
+@SHOP_LIFE_CHECK43
+SIF CFLAG:MASTER:捕虜先
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;「料理長」の選択可能キャラ存在判定
+;-------------------------------------------------
+@SHOP_LIFE_CHECKCHARA43(ARG:0)
+;非主人公、捕虜でない、イベキャラでない、育児されている子供でない
+RETURN ARG:0 != MASTER && CFLAG:(ARG:0):所属 == CFLAG:MASTER:所属 && CFLAG:(ARG:0):捕虜先 == 0 && !IS_SP_CHARA(ARG:0) && CFLAG:(ARG:0):行動不能状態 != 4
+
+;-------------------------------------------------
+;「料理長」の入力処理
+;-------------------------------------------------
+@SHOP_LIFE_EVENTBUY43
+FLAG:拠点フェイズページ = 1
+FLAG:夜這い = 0
+RETURN 0
+
+;-------------------------------------------------
+;「料理長」の右カラムキャラリストボタン表示に追尾させる情報
+;　デフォルトの情報を表示しない場合はRETURN 1
+;-------------------------------------------------
+@SHOP_LIFE_BUTTON_ADD43(ARG:0)
+PRINTPLAIN  
+PRINTFORM 料:
+CALL PRINT_ALPHABET_RANK(ランク_ＳＬＧ, ABL:(ARG:0):料理)
+PRINTFORM  {ABL:(ARG:0):料理, 2, RIGHT} 
+RETURN 1
+
+;-------------------------------------------------
+;「料理長」の右カラムキャラリスト１のボタン（関数未指定なら選択中色なし表示）
+;-------------------------------------------------
+@SHOP_LIFE_LIST1_BUTTON43(ARG:0, ARG:1)
+;キャラ, 選択中カラー表示フラグ, ボタン番号に追加する数値, CHECKCHARAの戻り値, 行動済みマークをオフにするフラグ
+CALL COLUMN_RIGHT_CHARALIST_BUTTON(ARG:0, ARG:0 == ID_TO_CHARA(FLAG:料理長), 100, ARG:1, 1)
+RETURN 0
+
+;-------------------------------------------------
+;「料理長」の右カラム表示処理
+;-------------------------------------------------
+@SHOP_LIFE_EVENTBUY_SHOW43
+#DIM 選択人数
+#DIM 最大ページ数
+#DIM PRINTOPTION
+
+IF GET_COOK()
+	選択人数 = 1
+ELSE
+	選択人数 = 0
+ENDIF
+
+;タイトル
+CALL COLUMN_RIGHT_TITLE("料理長選択", TOSTR(選択人数), "1", "0", "0")
+CALL COLUMN_RIGHT_PRINTL
+CALL COLUMN_RIGHT_LINE
+CALL COLUMN_RIGHT_PRINTL
+
+CALL COLORPRINT("料理長は拠点フェイズの行動後に体力・気力を回復してくれます", COLOR("注釈"))
+CALL COLUMN_RIGHT_PRINTL
+CALL COLORPRINT("回復量は料理長の料理の能力値に応じます  ※料理長は部隊への参加ができません", COLOR("注釈"))
+CALL COLUMN_RIGHT_PRINTL
+CALL COLORPRINT("現在の料理長は", COLOR("注釈"))
+IF GET_COOK() != -1
+	FONTSTYLE 1
+	SETCOLOR COLOR("オレンジ")
+	PRINTFORM  %ANAME(GET_COOK())% 
+	FONTSTYLE 0
+	RESETCOLOR
+	CALL COLORPRINT("です", COLOR("注釈"))
+ELSE
+	FONTSTYLE 1
+	CALL COLORPRINT(" いません ", COLOR("注釈"))
+	FONTSTYLE 0
+ENDIF
+CALL COLUMN_RIGHT_PRINTL
+
+CALL COLORPRINT("現在料理長になっているキャラを選択することで解除できます", COLOR("注釈"))
+CALL COLUMN_RIGHT_PRINTL
+CALL COLUMN_RIGHT_LINE
+CALL COLUMN_RIGHT_PRINTL
+
+;標準的なキャラリストとページ移動
+;ARG:0=3 リスト１行に並べるボタン数を3に変える
+CALL COLUMN_RIGHT_CHARALIST(3)
+
+RETURN 0
+
+;-------------------------------------------------
+;「料理長」のリスト１入力処理
+;-------------------------------------------------
+@SHOP_LIFE_USERSHOP43(ARG:0)
+DRAWLINE
+IF ARG:0 == GET_COOK()
+	PRINTFORMW %ANAME(ARG:0)%を料理長から解任しました
+	CALL SET_COOK(-1)
+ELSE
+	LINES_SHOP = LINECOUNT
+	PRINTFORMW %ANAME(ARG:0)%を料理長に任命しました
+	PRINTFORMW %ANAME(ARG:0)%の料理の値に応じ、拠点フェイズの行動後、%ANAME(MASTER)%の体力が回復します
+	PRINTFORMW ただし、%ANAME(ARG:0)%が捕虜になると効果がなくなります
+	CALL SET_COOK(ARG:0)
+ENDIF
+RETURN 1
+

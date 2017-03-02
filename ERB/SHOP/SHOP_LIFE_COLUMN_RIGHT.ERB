@@ -1,0 +1,116 @@
+﻿;-------------------------------------------------
+;右カラムでPRINTL の代わりに使用する
+;使用）CALL COLUMN_RIGHT_PRINTL
+;想定）COLUMN_LEFT_MENU_SHOW(1)の行番号指定をなくす
+;備考）COLUMN_LEFT_MENU_SHOW(1～)の互換（ただしタイトル前は不要）
+;-------------------------------------------------
+@COLUMN_RIGHT_PRINTL
+;改行に伴う処理であるため改行を行う
+PRINTL 
+;カラムの行番号を計算して返す
+LOCAL:0 = LINECOUNT - FIRST_COLUMN_RIGHT_LINE
+;最大行数に到達していなければメニューを表示する
+IF LOCAL:0 < LINES_SHOP_DRAW
+	CALL COLUMN_LEFT_MENU_SHOW(LOCAL:0)
+ENDIF
+
+;-------------------------------------------------
+;右カラム用タイトル
+;注釈をなるべく柔軟に表示するため全て文字列で渡す
+;使用）CALL COLUMN_RIGHT_TITLE("対象者選択", TOSTER(選択人数), "8", "1", "30,000", "文字数足りれば")
+;-------------------------------------------------
+@COLUMN_RIGHT_TITLE(選択対象, 選択人数, 最大人数, 消費行動回数, 消費金額, 追加の注釈)
+#DIMS 選択対象
+#DIMS 選択人数
+#DIMS 最大人数
+#DIMS 消費行動回数
+#DIMS 消費金額
+#DIMS 追加の注釈
+TRYCALLFORM SHOP_LIFE_NAME{FLAG:拠点フェイズ選択コマンド}
+LOCALS:0 '= "★" + RESULTS:0
+PRINTFORM %LOCALS:0, 12, LEFT%
+
+IF 選択対象 != "" 
+	PRINTPLAIN   
+	CALL COLORPRINT(選択対象, COLOR("注釈"))
+ENDIF
+
+;選択人数も最大人数も指定されている
+IF 選択人数 != "" && 最大人数 != "" 
+	PRINTPLAIN   
+	;最大人数が1人なら選択人数を無視する
+	IF TOINT(最大人数) == 1
+		CALL COLORPRINT("選択人数:", COLOR("注釈"))
+		CALL COLORPRINT("1", COLOR("選択中"))
+		CALL COLORPRINT("人", COLOR("注釈"))
+	;選択人数が最大人数以上なら選択中色で表示
+	ELSEIF TOINT(選択人数) >= TOINT(最大人数)
+		CALL COLORPRINT("選択人数:", COLOR("注釈"))
+		CALL COLORPRINT(選択人数, COLOR("選択中"))
+		CALL COLORPRINT("/", COLOR("注釈"))
+		CALL COLORPRINT(最大人数, COLOR("選択中"))
+		CALL COLORPRINT("人", COLOR("注釈"))
+	;それ以外なら選択人数は注釈色、最大人数は選択中色で表示
+	ELSE
+		CALL COLORPRINT("選択人数:", COLOR("注釈"))
+		CALL COLORPRINT(選択人数, COLOR("注釈"))
+		CALL COLORPRINT("/", COLOR("注釈"))
+		CALL COLORPRINT(最大人数, COLOR("選択中"))
+		CALL COLORPRINT("人", COLOR("注釈"))
+	ENDIF
+;最大人数のみ指定されている
+ELSEIF 最大人数 != "" 
+	;最大人数が1人ならそのまま表示し他は無視する
+	IF TOINT(最大人数) == 1
+		PRINTPLAIN   
+		CALL COLORPRINT("選択人数:", COLOR("注釈"))
+		CALL COLORPRINT("1", COLOR("選択中"))
+		CALL COLORPRINT("人", COLOR("注釈"))
+	ENDIF
+ENDIF
+
+IF 消費行動回数 != "" 
+	PRINTPLAIN   
+	CALL COLORPRINT("行動消費:", COLOR("注釈"))
+	CALL COLORPRINT(消費行動回数, COLOR("選択中"))
+ENDIF
+
+IF 消費金額 != ""
+	PRINTPLAIN   
+	CALL COLORPRINT(@"消費金額:", COLOR("注釈"))
+	CALL COLORPRINT(消費金額, COLOR("選択中"))
+ENDIF
+
+IF 追加の注釈 != ""
+	PRINTPLAIN   
+	CALL COLORPRINT(追加の注釈, COLOR("注釈"))
+ENDIF
+RETURN
+
+;-------------------------------------------------
+;右カラム用ライン
+;使用）CALL COLUMN_RIGHT_LINE
+;想定）右カラムの幅を調整したい時はここで-の数を調整
+;　　　線の改行は上記の右カラム用改行で強制的に行う
+;備考）REPEAT_DASH(0)の互換
+;-------------------------------------------------
+@COLUMN_RIGHT_LINE
+LOCAL:0 = 91
+;区切りとして多用されているため
+;ボタンやテキストを目立たせるために暗めにする
+SETCOLOR COLOR("灰色")
+PRINTFORM %TOSTR_REPEAT("-", LOCAL:0)%
+RESETCOLOR
+
+;-------------------------------------------------
+;数字を文字列化し３桁カンマ %NUM_FORMAT(MONEY)%
+;-------------------------------------------------
+@NUM_FORMAT(ARG:0)
+#FUNCTIONS
+IF ARG:0 == 0
+	LOCALS:0 '= "0"
+ELSE
+	LOCALS:0 '= TOSTR(ARG:0, "#,###")
+ENDIF
+RETURNF LOCALS:0
+

@@ -1,4 +1,62 @@
-﻿@SHOP_FAVORITE(対象)
+﻿;-------------------------------------------------
+;「推しメン」の名称
+;-------------------------------------------------
+@SHOP_LIFE_NAME64
+RESULTS:0 '= "推しメン"
+
+;-------------------------------------------------
+;「推しメン」の選択可否
+;-------------------------------------------------
+@SHOP_LIFE_CHECK64
+SIF CFLAG:MASTER:捕虜先
+	RETURN 0
+SIF FLAG:推しメン指定キャラ
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;「推しメン」の選択可能キャラ存在判定
+;-------------------------------------------------
+@SHOP_LIFE_CHECKCHARA64(ARG:0)
+;非主人公、捕虜でない
+RETURN ARG:0 != MASTER && CFLAG:(ARG:0):所属 == CFLAG:MASTER:所属 && CFLAG:(ARG:0):捕虜先 == 0 && !IS_ANIMAL(ARG:0)
+
+;-------------------------------------------------
+;「推しメン」の入力処理
+;-------------------------------------------------
+@SHOP_LIFE_EVENTBUY64
+FLAG:拠点フェイズページ = 1
+FLAG:夜這い = 0
+RETURN 0
+
+;-------------------------------------------------
+;「推しメン」の右カラム表示処理
+;-------------------------------------------------
+@SHOP_LIFE_EVENTBUY_SHOW64
+CALL COLUMN_RIGHT_TITLE("対象者選択", "0", "1", "0", "0")
+;注釈をオレンジにして目立たせたいので分ける
+CALL COLORPRINT("  1回限り", COLOR("選択中"))
+CALL COLUMN_RIGHT_PRINTL
+CALL COLUMN_RIGHT_LINE
+CALL COLUMN_RIGHT_PRINTL
+
+CALL COLORPRINT("能力値を再振りできるが", COLOR("注釈"))
+CALL COLORPRINT("一回限り", COLOR("選択中"))
+CALL COLORPRINT("で", COLOR("注釈"))
+CALL COLORPRINT("一人", COLOR("選択中"))
+CALL COLORPRINT("しか選ぶことができないため注意", COLOR("注釈"))
+CALL COLUMN_RIGHT_PRINTL
+CALL COLUMN_RIGHT_LINE
+CALL COLUMN_RIGHT_PRINTL
+
+;標準的なキャラリストとページ移動
+CALL COLUMN_RIGHT_CHARALIST
+RETURN 0
+
+;-------------------------------------------------
+;「推しメン」のリスト１入力処理
+;-------------------------------------------------
+@SHOP_LIFE_USERSHOP64(対象)
 #DIM FIRST_LINE
 #DIM 対象
 #DIM 元の能力, 7
@@ -19,6 +77,8 @@ VARSET 振り分け後
 元の能力:5 = ABL:対象:歌唱
 元の能力:6 = ABL:対象:料理
 ポイント = SUMARRAY(元の能力)
+
+FLAG:能力表示モード = 0
 
 FIRST_LINE = LINECOUNT
 REDRAW 0
@@ -79,7 +139,7 @@ DRAWLINE
 PRINTFORML [0] 決定
 PRINTFORML [999] 戻る
 $INPUT_LOOP_1
-INPUT
+INPUT 999
 IF RESULT == 999
 	REDRAW 1
 	RETURN 0
@@ -98,9 +158,9 @@ ELSEIF RESULT == 0
 		ABL:対象:歌唱 = 振り分け後:5
 		ABL:対象:料理 = 振り分け後:6
 		PRINTFORMW %ANAME(対象)%を推しメンにしました！
-		FLAG:拠点フェイズ選択コマンド = 1000
+		FLAG:拠点フェイズ選択コマンド = 11
 		FLAG:推しメン指定キャラ = GET_ID(対象)
-		RETURN 0
+		RETURN 1
 	ELSEIF RESULT == 1
 		CLEARLINE LINECOUNT - FIRST_LINE
 		GOTO SHOW_LOOP
@@ -132,6 +192,9 @@ ENDIF
 CLEARLINE LINECOUNT - FIRST_LINE
 GOTO SHOW_LOOP
 
+;-------------------------------------------------
+;「推しメン」の処理用ボタン
+;-------------------------------------------------
 @PRINTBUTTON_FAVORITE(文字列, 番号, 現在値, ポイント, 変化量)
 #DIMS 文字列
 #DIM 番号
@@ -146,6 +209,9 @@ ELSE
 	RESETCOLOR
 ENDIF
 
+;-------------------------------------------------
+;「推しメン」の処理の選択可否
+;-------------------------------------------------
 @FAVORITE_CAN_CHOOSE(現在値, ポイント, 変化量)
 #FUNCTION
 #DIM 現在値
@@ -159,3 +225,4 @@ SIF 変化量 + 現在値 < 0
 	RETURNF 0
 
 RETURNF 1
+

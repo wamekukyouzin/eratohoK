@@ -1,0 +1,137 @@
+﻿;-------------------------------------------------
+;「説得させる」の名称
+;-------------------------------------------------
+@SHOP_LIFE_NAME32
+RESULTS:0 '= "説得させる"
+
+;-------------------------------------------------
+;「説得させる」の選択可否判定
+;-------------------------------------------------
+@SHOP_LIFE_CHECK32
+SIF CFLAG:MASTER:捕虜先
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;「説得させる」の選択可能キャラ存在判定（説得される側）
+;-------------------------------------------------
+@SHOP_LIFE_CHECKCHARA32(ARG:0)
+;非主人公、主人公勢力に所属していない、主人公勢力の捕虜
+RETURN CHECK91(ARG:0, 2, ARG:0 != MASTER && CFLAG:(ARG:0):所属 != CFLAG:MASTER:所属 && CFLAG:(ARG:0):捕虜先 == CFLAG:MASTER:所属)
+
+;-------------------------------------------------
+;「説得させる」の選択可能キャラ存在判定（説得する側）
+;-------------------------------------------------
+@SHOP_LIFE_CHECKCHARA_SUB32(ARG:0)
+;捕虜でない、通常状態または育児中、同一勢力
+RETURN CHECK91(ARG:0, 2, CFLAG:(ARG:0):捕虜先 == 0 && GROUPMATCH(CFLAG:(ARG:0):行動不能状態, 0, 2) && CFLAG:(ARG:0):所属 == CFLAG:MASTER:所属)
+
+;-------------------------------------------------
+;関数名変更にともなうSHOPフォルダ外ファイルからの呼び出し対応
+;※SYSTEM\EVENT_SETTOKU.ERB	@EVENT_SETTOKU	CALL CHECK_SELECTABLE1012(LOCAL:0)されている
+;※SYSTEM\TURNEND.ERB からCALL CHECK_SELECTABLE_SETTOKU(LOCAL:10)されている
+;-------------------------------------------------
+@CHECK_SELECTABLE1012(ARG:0)
+CALL SHOP_LIFE_CHECKCHARA32(ARG:0)
+
+@CHECK_SELECTABLE_SETTOKU(ARG:0)
+CALL SHOP_LIFE_CHECKCHARA_SUB32(ARG:0)
+
+;-------------------------------------------------
+;「説得させる」の入力処理
+;-------------------------------------------------
+@SHOP_LIFE_EVENTBUY32
+FLAG:拠点フェイズページ = 1
+FLAG:夜這い = 0
+RETURN 0
+
+;-------------------------------------------------
+;「説得させる」の右カラムキャラリスト２のボタン（関数未指定なら選択中色なし表示）
+;-------------------------------------------------
+@SHOP_LIFE_LIST2_BUTTON32(ARG:0, ARG:1)
+;キャラ, 選択中カラー表示フラグ, ボタン番号に追加する数値, CHECKCHARAの戻り値
+CALL COLUMN_RIGHT_CHARALIST_BUTTON(ARG:0, CFLAG:(ARG:0):捕虜調教の助手, 1100, ARG:1)
+RETURN 0
+
+;-------------------------------------------------
+;「説得させる」の右カラム表示処理
+;-------------------------------------------------
+@SHOP_LIFE_EVENTBUY_SHOW32
+;タイトル
+CALL COLUMN_RIGHT_TITLE("説得担当者を先に選択", "0", "1", "対象と担当者に1CT", "")
+CALL COLUMN_RIGHT_PRINTL
+CALL COLUMN_RIGHT_LINE
+CALL COLUMN_RIGHT_PRINTL
+
+;右カラムの上下２のキャラリスト上とページ移動を呼ぶ
+CALL COLUMN_RIGHT_CHARALIST_TOP
+CALL COLUMN_RIGHT_PRINTL
+CALL COLUMN_RIGHT_LINE
+CALL COLUMN_RIGHT_PRINTL
+
+;現在参加している助手の数を数える
+LOCAL:1 = 0
+FOR LOCAL:0, 0, CHARANUM
+	;選択可能な条件を満たしているかどうかを判定
+	TRYCALLFORM SHOP_LIFE_CHECKCHARA_SUB{FLAG:拠点フェイズ選択コマンド}(LOCAL:0)
+	IF RESULT == 1
+		;選択中の人数を数える
+		IF CFLAG:(LOCAL:0):捕虜調教の助手
+			LOCAL:1 ++
+		ENDIF
+	ELSE
+		;条件を満たしていなければ強制的にＯＦＦ
+		CFLAG:(LOCAL:0):捕虜調教の助手 = 0
+	ENDIF
+NEXT
+
+PRINTFORM 最大3人で説得できます
+SIF LOCAL:1 >= 3 
+	SETCOLOR COLOR("オレンジ")
+PRINTFORM (現在{LOCAL:1}/ 3 人)
+RESETCOLOR
+CALL COLUMN_RIGHT_PRINTL
+CALL COLUMN_RIGHT_LINE
+CALL COLUMN_RIGHT_PRINTL
+
+;右カラムの上下２のキャラリスト下とページ移動を呼ぶ
+CALL COLUMN_RIGHT_CHARALIST_BOTTOM
+RETURN 0
+
+;-------------------------------------------------
+;「説得させる」のリスト１入力処理
+;-------------------------------------------------
+@SHOP_LIFE_USERSHOP32(ARG:0)
+DRAWLINE
+;SYSTEM/EVENT_SETTOKU.ERB/説得イベントの呼び出し
+CALL SHOP_LIFE_SETTOKU(ARG:0)
+IF !RESULT
+	REDRAW 1
+ELSE
+	SHOP_TIME ++
+	BEGIN TURNEND
+ENDIF
+
+;-------------------------------------------------
+;「説得させる」のリスト２入力処理
+;-------------------------------------------------
+@SHOP_LIFE_USERSHOP_SUB32(ARG:0)
+;選択可能な条件を満たしていないキャラなら戻る
+RESULT = 0
+TRYCALLFORM SHOP_LIFE_CHECKCHARA_SUB{FLAG:拠点フェイズ選択コマンド}(ARG:0)
+IF RESULT != 1
+	RETURN 0
+ENDIF
+
+LOCAL:5 = 0
+FOR LOCAL:0, 0, CHARANUM
+	IF CFLAG:(LOCAL:0):捕虜調教の助手
+		LOCAL:5 ++
+	ENDIF
+NEXT
+
+IF CFLAG:(ARG:0):捕虜調教の助手 || LOCAL:5 < 3
+	;調教参加フラグを反転
+	CFLAG:(ARG:0):捕虜調教の助手 = !CFLAG:(ARG:0):捕虜調教の助手
+ENDIF
+

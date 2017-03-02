@@ -1,0 +1,161 @@
+﻿;-------------------------------------------------
+;「閨に呼ぶ」の名称
+;-------------------------------------------------
+@SHOP_LIFE_NAME12
+RESULTS:0 '= "閨に呼ぶ"
+
+;-------------------------------------------------
+;「閨に呼ぶ」の選択可否
+;-------------------------------------------------
+@SHOP_LIFE_CHECK12
+SIF CFLAG:MASTER:行動不能状態 == 1 || COOLTIME:MASTER:0 > 1
+	RETURN 0
+SIF CFLAG:MASTER:捕虜先
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;「閨に呼ぶ」の選択可能キャラ存在判定
+;-------------------------------------------------
+@SHOP_LIFE_CHECKCHARA12(ARG:0)
+;捕虜として捕まっている場合
+IF CFLAG:(ARG:0):捕虜先
+	;非主人公、通常状態または育児中、合意、主人公勢力の捕虜かつ軟禁中
+	RETURN CHECK91(ARG:0, 2, ARG:0 != MASTER && GROUPMATCH(CFLAG:(ARG:0):行動不能状態, 0, 2) && (TALENT:(ARG:0):合意 || TALENT:(ARG:0):親友) && CFLAG:(ARG:0):捕虜先 == CFLAG:MASTER:所属 && CFLAG:(ARG:0):監禁状態 == 1)
+ELSE
+	;捕虜でない、非主人公、通常状態または育児中、合意か親友ないし所属が特殊勢力なら対応する特殊勢力陥落素質持ち、同一勢力
+	RETURN CHECK91(ARG:0, 2, ARG:0 != MASTER && GROUPMATCH(CFLAG:(ARG:0):行動不能状態, 0, 2) && (TALENT:(ARG:0):合意 || TALENT:(ARG:0):親友 || (IS_SP_COUNTRY(CFLAG:(ARG:0):所属) && GETBIT(TALENT:(ARG:0):特殊勢力陥落系, SP_COUNTRY_TO_CONST(CFLAG:(ARG:0):所属)))) && CFLAG:(ARG:0):所属 == CFLAG:MASTER:所属)
+ENDIF
+
+;-------------------------------------------------
+;「閨に呼ぶ」の入力処理
+;-------------------------------------------------
+@SHOP_LIFE_EVENTBUY12
+FLAG:拠点フェイズページ = 1
+FLAG:夜這い = 0
+RETURN 0
+
+;-------------------------------------------------
+;「閨に呼ぶ」の右カラムキャラリスト１のボタン（関数未指定なら選択中色なし表示）
+;-------------------------------------------------
+@SHOP_LIFE_LIST1_BUTTON12(ARG:0, ARG:1)
+;キャラ, 選択中カラー表示フラグ, ボタン番号に追加する数値, CHECKCHARAの戻り値, 行動済みマークをオフにするフラグ
+CALL COLUMN_RIGHT_CHARALIST_BUTTON(ARG:0, CFLAG:(ARG:0):閨に呼ぶで選択中, 100, ARG:1)
+RETURN 0
+
+;-------------------------------------------------
+;「閨に呼ぶ」の右カラム表示処理
+;-------------------------------------------------
+@SHOP_LIFE_EVENTBUY_SHOW12
+#DIM 選択人数
+
+選択人数 = 0
+
+FOR LOCAL:0, 0, CHARANUM
+	;選択可能な条件を満たしているかどうか判定
+	RESULT = 0
+	TRYCALLFORM SHOP_LIFE_CHECKCHARA{FLAG:拠点フェイズ選択コマンド}(LOCAL:0)
+	IF RESULT == 1
+		;選択中の人数を数える
+		IF CFLAG:(LOCAL:0):閨に呼ぶで選択中
+			選択人数 ++
+		ENDIF
+	ELSE
+		;条件を満たしていなければ強制的にＯＦＦ
+		CFLAG:(LOCAL:0):閨に呼ぶで選択中 = 0
+	ENDIF
+NEXT
+
+;タイトル表示
+CALL COLUMN_RIGHT_TITLE("対象者選択", TOSTR(選択人数), "8", "1", "0")
+CALL COLUMN_RIGHT_PRINTL
+CALL COLUMN_RIGHT_LINE
+CALL COLUMN_RIGHT_PRINTL
+
+IF 選択人数 >= 1
+	PRINTBUTTON "[このメンバーで決定]", 1
+	PRINTPLAIN   
+	PRINTBUTTON "[このメンバーに逆調教]", 2
+ELSE
+	SETCOLOR COLOR("選択不可")
+	PRINTPLAINFORM [このメンバーで決定]
+	PRINTPLAIN   
+	PRINTPLAINFORM [このメンバーに逆調教]
+	RESETCOLOR
+ENDIF
+CALL COLUMN_RIGHT_PRINTL
+CALL COLUMN_RIGHT_LINE
+CALL COLUMN_RIGHT_PRINTL
+
+;標準的なキャラリストとページ移動を呼ぶ
+CALL COLUMN_RIGHT_CHARALIST
+
+RETURN 0
+
+;-------------------------------------------------
+;「閨に呼ぶ」の右カラムボタンの入力処理
+;-------------------------------------------------
+@SHOP_LIFE_EVENTBUY_SUB12(ARG:0)
+;このメンバーで決定
+IF ARG:0 == 1
+	CALL DECIDE_YOTOGI_MEMBER(0)
+	IF !RESULT
+		RETURN 0
+	ENDIF
+;このメンバーに逆調教
+ELSEIF ARG:0 == 2
+	CALL DECIDE_YOTOGI_MEMBER(1)
+	IF !RESULT
+		RETURN 2
+	ENDIF
+ENDIF
+RETURN 0
+
+;-------------------------------------------------
+;「閨に呼ぶ」のリスト１入力処理
+;-------------------------------------------------
+@SHOP_LIFE_USERSHOP12(ARG:0)
+;参加キャラの数を数える
+LOCAL:5 = 0
+FOR LOCAL:0, 0, CHARANUM
+	IF CFLAG:(LOCAL:0):閨に呼ぶで選択中
+		LOCAL:5 ++
+	ENDIF
+NEXT
+IF CFLAG:(ARG:0):閨に呼ぶで選択中 || LOCAL:5 < 8
+	;調教参加フラグを反転
+	CFLAG:(ARG:0):閨に呼ぶで選択中 = !CFLAG:(ARG:0):閨に呼ぶで選択中
+ENDIF
+RETURN 0
+
+;-------------------------------------------------
+;「閨に呼ぶ」の処理(ARG:0 = 1なら逆調教）
+;-------------------------------------------------
+@DECIDE_YOTOGI_MEMBER(ARG:0)
+LOCAL:1 = 1
+FOR LOCAL:0, 0, CHARANUM
+	IF LOCAL:0 != MASTER && CFLAG:(LOCAL:0):閨に呼ぶで選択中
+		CFLAG:(LOCAL:0):調教参加フラグ  = 1
+		LOCAL:1 = 0
+	ENDIF
+NEXT
+IF LOCAL:1
+	;参加キャラがいないなら処理せず0を返す
+	RETURN 0
+ENDIF
+
+IF ARG:0
+	FLAG:調教モード = 5
+	FLAG:閨逆調教 = 1
+ELSE
+	FLAG:調教モード = 1
+ENDIF
+
+;ウフフフラグをONに
+FLAG:ウフフフラグ = 1
+
+;行動開始時の共通処理
+CALL START_TRAIN_COMMON
+RETURN 1
+
+

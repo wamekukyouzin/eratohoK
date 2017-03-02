@@ -1,0 +1,829 @@
+﻿;-------------------------------------------------
+;「捕虜の調教」の名称
+;-------------------------------------------------
+@SHOP_LIFE_NAME31
+RESULTS:0 '= "捕虜の調教"
+
+;-------------------------------------------------
+;「捕虜の調教」の選択可否判定
+;-------------------------------------------------
+@SHOP_LIFE_CHECK31
+SIF CFLAG:MASTER:行動不能状態 == 1 || COOLTIME:MASTER:0 > 1
+	RETURN 0
+SIF CFLAG:MASTER:捕虜先
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;「捕虜の調教」の選択可能キャラ存在判定
+;-------------------------------------------------
+@SHOP_LIFE_CHECKCHARA31(ARG:0)
+;非主人公、主人公勢力の捕虜、牢獄で監禁中
+RETURN CHECK91(ARG:0, 2, (ARG:0 != MASTER && CFLAG:(ARG:0):捕虜先 == CFLAG:MASTER:所属 && CFLAG:(ARG:0):監禁状態 == 0) || CFLAG:(ARG:0):外交調教経過ターン)
+RETURN 0
+
+;-------------------------------------------------
+;「捕虜の調教」の助手の選択可能キャラ存在判定
+;-------------------------------------------------
+@SHOP_LIFE_CHECKCHARA_SUB31(ARG:0)
+;閨に呼ぶの選択可能キャラ存在判定
+CALL SHOP_LIFE_CHECKCHARA12(ARG:0)
+RETURN CHECK91(ARG:0, 2, RESULT)
+RETURN 0
+
+;-------------------------------------------------
+;「捕虜の調教」の入力処理
+;-------------------------------------------------
+@SHOP_LIFE_EVENTBUY31
+FLAG:拠点フェイズページ = 1
+FLAG:夜這い = 0
+RETURN 0
+
+;-------------------------------------------------
+;「捕虜の調教」の右カラムキャラリスト１のボタン（関数未指定なら選択中色なし表示）
+;-------------------------------------------------
+@SHOP_LIFE_LIST1_BUTTON31(ARG:0, ARG:1)
+;キャラ, 選択中カラー表示フラグ, ボタン番号に追加する数値, CHECKCHARAの戻り値
+CALL COLUMN_RIGHT_CHARALIST_BUTTON(ARG:0, FINDELEMENT(PRISONER_TARGET, ARG:0) != -1, 100, ARG:1)
+RETURN
+
+;-------------------------------------------------
+;「捕虜の調教」の右カラムキャラリスト２のボタン（関数未指定なら選択中色なし表示）
+;-------------------------------------------------
+@SHOP_LIFE_LIST2_BUTTON31(ARG:0, ARG:1)
+;キャラ, 選択中カラー表示フラグ, ボタン番号に追加する数値, CHECKCHARAの戻り値
+CALL COLUMN_RIGHT_CHARALIST_BUTTON(ARG:0, CFLAG:(ARG:0):捕虜調教の助手, 1100, ARG:1)
+RETURN 0
+
+;-------------------------------------------------
+;「捕虜の調教」の右カラム表示処理
+;-------------------------------------------------
+@SHOP_LIFE_EVENTBUY_SHOW31
+#DIM 選択人数
+選択人数 = INRANGEARRAY(PRISONER_TARGET, 0, CHARANUM + 1)
+
+CALL COLUMN_RIGHT_TITLE("対象者選択", TOSTR(選択人数), TOSTR(VARSIZE("PRISONER_TARGET")), "1", "0", "助手選択可  管理も可")
+CALL COLUMN_RIGHT_PRINTL
+CALL COLUMN_RIGHT_LINE
+CALL COLUMN_RIGHT_PRINTL
+
+IF 選択人数 >= 1
+	PRINTBUTTON "[このメンバーで決定]", 1
+ELSE
+	SETCOLOR COLOR("選択不可")
+	PRINTPLAINFORM [このメンバーで決定]
+	RESETCOLOR
+ENDIF
+PRINTPLAIN   
+CALL COLORPRINT(@"管理(軟禁/解放/兵士の性奴隷化/処刑等)も選択可  管理は行動消費なし", COLOR("注釈"))
+CALL COLUMN_RIGHT_PRINTL
+CALL COLUMN_RIGHT_LINE
+CALL COLUMN_RIGHT_PRINTL
+
+;右カラムの上下２のキャラリスト上とページ移動を呼ぶ
+CALL COLUMN_RIGHT_CHARALIST_TOP
+CALL COLUMN_RIGHT_PRINTL
+CALL COLUMN_RIGHT_LINE
+CALL COLUMN_RIGHT_PRINTL
+
+;助手を数える
+LOCAL:1 = 0
+FOR LOCAL:0, 0, CHARANUM
+	;選択可能な条件を満たしているかどうかを判定
+	TRYCALLFORM SHOP_LIFE_CHECKCHARA_SUB{FLAG:拠点フェイズ選択コマンド}(LOCAL:0)
+	IF RESULT == 1
+		;選択中の人数を数える
+		IF CFLAG:(LOCAL:0):捕虜調教の助手
+			LOCAL:1 ++
+		ENDIF
+	ELSE
+		;条件を満たしていなければ強制的にＯＦＦ
+		CFLAG:(LOCAL:0):捕虜調教の助手 = 0
+	ENDIF
+NEXT
+
+PRINTFORM 助手を最大4人まで連れて行く事が可能です
+SIF LOCAL:1 >= 4
+	SETCOLOR COLOR("オレンジ")
+PRINTFORM (現在{LOCAL:1}/4人)
+RESETCOLOR
+CALL COLUMN_RIGHT_PRINTL
+CALL COLUMN_RIGHT_LINE
+CALL COLUMN_RIGHT_PRINTL
+
+;右カラムの上下２のキャラリスト下とページ移動を呼ぶ
+CALL COLUMN_RIGHT_CHARALIST_BOTTOM
+RETURN 0
+
+;-------------------------------------------------
+;「捕虜の調教」の右カラムボタンの入力処理
+;-------------------------------------------------
+@SHOP_LIFE_EVENTBUY_SUB31(ARG:0)
+;このメンバーで決定
+IF ARG:0 == 1
+	SELECTCASE INRANGEARRAY(PRISONER_TARGET, 0, CHARANUM + 1)
+		CASE 0
+			;ないと思うんだけど一応
+		CASE 1
+			CALL PRISONER_TRAIT(PRISONER_TARGET:0)
+		CASEELSE
+			CALL DECIDE_PRISONER_MEMBER()
+	ENDSELECT
+	IF !RESULT
+		RETURN 0
+	ENDIF
+ENDIF
+RETURN 0
+
+;-------------------------------------------------
+;「捕虜の調教」のリスト１入力処理
+;-------------------------------------------------
+@SHOP_LIFE_USERSHOP31(ARG:0)
+LOCAL = FINDELEMENT(PRISONER_TARGET, ARG:0)
+;いたら消す
+IF LOCAL != -1
+	PRISONER_TARGET:LOCAL = -1
+	;配列のケツ以外を消した場合は、その一個後ろからケツまでを、一個手前にずらす
+	SIF LOCAL != VARSIZE("PRISONER_TARGET") -1
+		ARRAYSHIFT PRISONER_TARGET, -1, -1, LOCAL, VARSIZE("PRISONER_TARGET")
+;いなかったら追加する
+ELSE
+	FOR LOCAL, 0, VARSIZE("PRISONER_TARGET")
+		IF PRISONER_TARGET:LOCAL == -1
+			PRISONER_TARGET:LOCAL = ARG:0
+			BREAK
+		ENDIF
+	NEXT
+ENDIF
+RETURN 0
+
+;-------------------------------------------------
+;「捕虜の調教」のリスト２入力処理
+;-------------------------------------------------
+@SHOP_LIFE_USERSHOP_SUB31(ARG:0)
+;参加キャラの数を数える
+LOCAL:5 = 0
+FOR LOCAL:0, 0, CHARANUM
+	IF CFLAG:(LOCAL:0):捕虜調教の助手
+		LOCAL:5 ++
+	ENDIF
+NEXT
+IF CFLAG:(ARG:0):捕虜調教の助手 || LOCAL:5 < 4
+	;調教参加フラグを反転
+	CFLAG:(ARG:0):捕虜調教の助手 = !CFLAG:(ARG:0):捕虜調教の助手
+ENDIF
+RETURN 0
+
+;-------------------------------------------------
+;「捕虜の調教」の処理
+;-------------------------------------------------
+@DECIDE_PRISONER_MEMBER()
+CVARSET CFLAG, 6, 0
+FOR LOCAL:0, 0, CHARANUM
+	IF LOCAL:0 != MASTER && CFLAG:(LOCAL:0):捕虜調教の助手
+		CFLAG:(LOCAL:0):調教参加フラグ = 1
+	ENDIF
+NEXT
+;このターン調教された
+FOR LOCAL:0, 0, VARSIZE("PRISONER_TARGET")
+	IF PRISONER_TARGET:LOCAL != -1
+		CFLAG:(PRISONER_TARGET:LOCAL):調教参加フラグ = 1
+	ENDIF
+NEXT
+;調教初期設定
+IF INRANGEARRAY(PRISONER_TARGET, 0, CHARANUM + 1) == 1
+	CALL TRAIN_TARGET_SETTING(PRISONER_TARGET:0)
+ENDIF
+;初期のウフフフラグをＯＮにする
+FLAG:ウフフフラグ = 1
+;捕虜調教モード
+FLAG:調教モード = 2
+;行動開始時の共通設定
+CALL START_TRAIN_COMMON
+REDRAW 1
+RETURN 1
+
+;-------------------------------------------------
+;「捕虜の調教」で対象が一人のとき、別の捕虜が身代わりになろうとする
+;-------------------------------------------------
+@PRISONER_SCAPEGOAT(対象)
+#DIM 対象
+#DIM 候補
+#DIM 判定値, 3000
+VARSET 判定値, __INT_MIN__
+FOR LOCAL, 0, CHARANUM
+	SIF GROUPMATCH(LOCAL, 対象, MASTER)
+		CONTINUE
+	SIF GROUPMATCH(1, TALENT:LOCAL:崩壊, TALENT:LOCAL:虚ろ)
+		CONTINUE
+	SIF CFLAG:(LOCAL):所属 == CFLAG:MASTER:所属
+		CONTINUE
+	IF CFLAG:対象:捕虜先 && CFLAG:LOCAL:捕虜先 == CFLAG:対象:捕虜先
+		SIF REL_LIKE:LOCAL:対象 > 0
+			判定値:LOCAL += RAND(REL_LIKE:LOCAL:対象, REL_LIKE:LOCAL:対象 * 2) 
+		SIF RELATION:LOCAL:対象 >= 100
+			判定値:LOCAL += (RELATION:LOCAL:対象 - 100) * 10
+		SIF CFLAG:LOCAL:所属 != CFLAG:対象:所属
+			判定値:LOCAL = 判定値:LOCAL * 2 / 3
+	ENDIF
+NEXT
+
+候補 = FINDELEMENT(判定値, MAXARRAY(判定値, 0, CHARANUM), 0, CHARANUM)
+
+
+IF 判定値:候補 > RAND:10000
+	PRINTFORMW %ANAME(MASTER)%が%ANAME(対象)%の調教を開始しようとすると、%ANAME(候補)%がすがりついてきた
+	PRINTFORML 自分が代わりになる、だから%ANAME(対象)%のことは見逃して欲しい、ということだそうだが……
+	CALL ASK_MULTI("受け入れる", @"受け入れつつ、%ANAME(対象)%に見せつける", "無視する")
+	SELECTCASE RESULT
+		CASE 0
+			PRINTFORMW そこまでいうなら、認めてやろう
+			PRINTFORMW %ANAME(MASTER)%は%ANAME(候補)%を調教することにした……
+			PRISONER_TARGET:FINDELEMENT(PRISONER_TARGET, 対象) = 候補
+		CASE 1
+			PRINTFORMW そこまでいうなら、認めてやろう
+			PRINTFORMW ただし、%ANAME(候補)%が犯される様を、%ANAME(対象)%に見せつけてやろう
+			PRINTFORMW どんな顔をするか、今から楽しみだ……
+			PRISONER_TARGET:FINDELEMENT(PRISONER_TARGET, 対象) = 候補
+			CFLAG:対象:捕虜調教の助手 = 1
+			CFLAG:対象:調教中帰らない = 1
+		CASE 2
+			PRINTFORMW 何を馬鹿なことを言っているのだろう
+			PRINTFORMW %ANAME(MASTER)%は%ANAME(候補)%を無視し、%ANAME(対象)%の調教にとりかかった
+	ENDSELECT
+ELSE
+	RETURN 0
+ENDIF
+
+;-------------------------------------------------
+;捕虜の調教でターゲットが一人だけのときの処理（旧仕様の捕虜の調教で捕虜をクリックしたときの処理）
+;-------------------------------------------------
+@PRISONER_TRAIT(ARG:0)
+;SHOW_INFOの初期画面を基本情報にする
+FLAG:能力表示モード = 0
+
+$SHOW_LOOP_INFO_C
+
+;対象キャラの情報を表示
+DRAWLINE
+CALL SHOW_INFO(ARG:0)
+DRAWLINE
+
+PRINTFORML %ANAME(ARG:0)%をどうしますか？
+PRINTBUTTON " 0[調教する]", 0
+PRINTPLAIN  
+IF CFLAG:(ARG:0):外交調教経過ターン
+	PRINTBUTTON " 1[許してやる]", 1
+	SIF IS_FEMALE(ARG:0)
+		PRINTBUTTON " 2[みせしめ]", 2
+ELSE
+	PRINTBUTTON " 1[軟禁に変更]", 1
+	PRINTPLAIN  
+	;クリア後は解放禁止 
+	IF !FLAG:クリアフラグ && CFLAG:(ARG:0):所属 == CFLAG:MASTER:所属
+		PRINTBUTTON " 2[国から追放]", 2
+	ELSEIF !FLAG:クリアフラグ
+		PRINTBUTTON " 2[解放する]", 2
+	ELSE
+		SETCOLOR COLOR("選択不可")
+		PRINTPLAIN  2[解放する]
+		RESETCOLOR
+	ENDIF
+	PRINTPLAIN  
+	PRINTBUTTON " 3[性奴隷にする]", 3
+	PRINTPLAIN  
+	PRINTBUTTON " 4[処刑する]", 4
+	IF ITEM:触手部屋
+		PRINTPLAIN  
+		PRINTBUTTON " 5[触手処刑]", 5
+	ENDIF
+ENDIF
+PRINTL 
+PRINTBUTTON " 9[キャンセル]", 9
+
+REDRAW 0
+
+$INPUT_LOOP_TREAT
+INPUT
+
+IF RESULT == 0
+	CALL PRISONER_SCAPEGOAT(ARG:0)
+	CALL DECIDE_PRISONER_MEMBER()
+ELSEIF RESULT == 1
+	IF CFLAG:(ARG:0):外交調教経過ターン
+		PRINTFORML %ANAME(ARG:0)%の体を自由にする権利を手放します
+		PRINTFORML よろしいですか？
+		CALL ASK_YN
+		IF RESULT == 0
+			CFLAG:(ARG:0):外交調教経過ターン = 0
+			PRISONER_TARGET:(FINDELEMENT(PRISONER_TARGET, ARG:0)) = -1
+			REDRAW 1
+			RETURN 1
+		ENDIF
+		GOTO SHOW_LOOP_INFO_C
+	;他国の士官
+	ELSEIF CFLAG:(ARG:0):所属 != CFLAG:MASTER:所属
+		PRINTFORML %ANAME(ARG:0)%を牢屋から出して、部屋を与え軟禁します
+		PRINTFORML よろしいですか？
+		CALL ASK_YN
+		IF RESULT == 0
+			CFLAG:(ARG:0):監禁状態 = 1
+			PRISONER_TARGET:(FINDELEMENT(PRISONER_TARGET, ARG:0)) = -1
+			REDRAW 1
+			RETURN 1
+		ENDIF
+		GOTO SHOW_LOOP_INFO_C
+	ELSE
+		PRINTFORML %ANAME(ARG:0)%を牢屋から出します
+		PRINTFORML よろしいですか？
+		CALL ASK_YN
+		IF RESULT == 0
+			CALL CAPTURE(ARG:0, 0, TALENT:(ARG:0):崩壊)
+			PRISONER_TARGET:(FINDELEMENT(PRISONER_TARGET, ARG:0)) = -1
+			REDRAW 1
+			RETURN 1
+		ENDIF
+		GOTO SHOW_LOOP_INFO_C
+	ENDIF
+ELSEIF RESULT == 2 && !FLAG:クリアフラグ && !CFLAG:(ARG:0):外交調教経過ターン
+	IF CFLAG:(ARG:0):所属 == CFLAG:MASTER:所属
+		PRINTFORML 本当に%ANAME(ARG:0)%を国から追放しますか？
+		IF CALC_SHOP_TIME(!IS_ANIMAL(ARG:0)) == SHOP_TIME
+			SETCOLOR COLOR("警告")
+			PRINTFORML 追放した場合、最大行動回数減少により直ちに今期の拠点フェイズが終了します！
+			RESETCOLOR
+		ENDIF
+	ELSE
+		PRINTFORML 本当に%ANAME(ARG:0)%を解放しますか？
+	ENDIF
+	CALL ASK_YN
+	IF RESULT == 0
+		CALL KOJO_EVENT(ARG:0, 340)
+		PRINTFORMW %ANAME(ARG:0)%を\@ CFLAG:(ARG:0):所属 == CFLAG:MASTER:所属 ? 追放 # 解放 \@しました
+		SIF CFLAG:(ARG:0):所属 == CFLAG:MASTER:所属
+			CALL CHANGE_COUNTRY(ARG:0, 0, 1)
+		CALL CAPTURE(ARG:0, 0, TALENT:(ARG:0):崩壊)
+		REDRAW 1
+		PRISONER_TARGET:(FINDELEMENT(PRISONER_TARGET, ARG:0)) = -1
+		IF CALC_SHOP_TIME() == SHOP_TIME
+			PRINTFORMW 人数不足による仕事のしわ寄せにより自由時間がなくなったので拠点フェイズを終了します。
+			BEGIN TURNEND
+		ENDIF
+		RETURN 1
+	ENDIF
+	GOTO SHOW_LOOP_INFO_C
+;パレード
+ELSEIF RESULT == 2 && !FLAG:クリアフラグ && CFLAG:(ARG:0):外交調教経過ターン && IS_FEMALE(ARG:0)
+	REDRAW 1
+	CVARSET CFLAG, GETNUM(CFLAG, "閨に呼ぶで選択中"), 0
+	CFLAG:(ARG:0):閨に呼ぶで選択中 = 1
+	CFLAG:(ARG:0):調教参加フラグ = 1
+	CFLAG:(ARG:0):強制友好化 = 1
+
+	;全員の慰安参加者フラグをクリア（あてがうメニューで操作されるため）
+	CVARSET CFLAG, GETNUM(CFLAG, "慰安参加者") , 0
+
+	LOCAL:1 = RAND(3, 6) - LOCAL:2
+	FOR LOCAL, 0, LOCAL:1
+		CALL CREATE_IAN_MOB(慰安_行き先_一般住宅街, LOCAL + 1)
+		SIF RESULT == -1
+			BREAK
+	NEXT
+
+	FLAG:慰安モード = 3
+	FLAG:慰安場所 = 慰安_行き先_一般住宅街
+	ITEM:A_ローター = 1
+	ITEM:A_バイブ = 1
+	ITEM:A_アナルバイブ = 1
+	ITEM:A_ペニスバンド = 1
+	ITEM:A_オナホール = 1
+	ITEM:A_クリキャップ = 1
+	ITEM:A_ニプルキャップ = 1
+	ITEM:A_麻薬 = 99
+	ITEM:A_縄 = 1
+	ITEM:A_鞭 = 1
+	ITEM:A_目隠し = 1
+	ITEM:A_口枷 = 1
+	ITEM:A_鼻フック = 1
+	ITEM:A_マジック = 1
+	ITEM:A_ローション = 99
+	ITEM:A_コンドーム = 99
+	ITEM:A_媚薬 = 99
+	ITEM:A_排卵誘発剤 = 99
+	ITEM:A_桃源香 = 99
+	FLAG:調教モード = 7
+	;ウフフフラグをONに
+	FLAG:ウフフフラグ = 1
+
+	PRINTFORMW 裸にした%ANAME(ARG:0)%を町の広場まで連れてきた
+	PRINTFORMW 領民を慰めるのに、せいぜい役立ってもらうとしよう……
+
+	;行動開始時の共通処理
+	CALL START_TRAIN_COMMON
+	RETURN 1
+
+ELSEIF RESULT == 3 && !CFLAG:(ARG:0):外交調教経過ターン
+	IF TALENT:(ARG:0):妊娠
+		PRINTFORMW 妊娠中のキャラは性奴隷にすることが出来ません
+		GOTO SHOW_LOOP_INFO_C
+	ENDIF
+
+	;性奴隷としての価値を取得
+	CALL GET_SELLING_VALUE(ARG:0)
+	LOCAL:11 = RESULT
+
+	PRINTFORML 捕虜を性奴隷にすると調教具合に応じて兵力を得られますが、
+	PRINTFORML 性奴隷にしたキャラは削除され、さらに他国からの評価が大きく下がります
+	PRINTFORML %ANAME(ARG:0)%を性奴隷にすることで見込まれる兵数の増加は{LOCAL:11}です
+	PRINTFORML 本当に%ANAME(ARG:0)%を性奴隷にしますか？
+	LOCAL:10 = GET_COMMANDER_NUM(CFLAG:MASTER:所属)
+	IF CALC_SHOP_TIME(!IS_ANIMAL(ARG:0)) == SHOP_TIME
+		SETCOLOR COLOR("警告")
+		PRINTFORML 性奴隷にした場合、最大行動回数減少により直ちに今期の拠点フェイズが終了します！
+		RESETCOLOR
+	ENDIF
+	CALL ASK_YN
+	IF RESULT == 0
+		CALL KOJO_EVENT(ARG:0, 342)
+		PRINTFORML %ANAME(ARG:0)%を性奴隷にしました
+		SETCOLOR COLOR("注意")
+		PRINTFORMW 我が国の兵数が{LOCAL:11}だけ増加しました
+		RESETCOLOR
+
+		;兵力の獲得 一時的に兵数の限界を超えられる
+		COUNTRY_SOLDIER:(CFLAG:MASTER:所属) += LOCAL:11
+
+		;他国からの評価を下げる
+		FOR LOCAL:1, 1, MAX_COUNTRY
+			IF IS_COUNTRY(LOCAL:1) && LOCAL:1 != CFLAG:MASTER:所属
+				IF LOCAL:1 == CFLAG:(ARG:0):所属
+					CALL CHANGE_RELATION_C_TO_C(LOCAL:1, CFLAG:MASTER:所属, -100, 150)
+				ELSE
+					CALL CHANGE_RELATION_C_TO_C(LOCAL:1, CFLAG:MASTER:所属, -20, 30)
+				ENDIF
+			ENDIF
+		NEXT
+
+		;固定キャラの場合
+		IF IS_FIXED_CHARA(ARG:0)
+			;死亡扱いにする
+			CALL CHANGE_COUNTRY(ARG:0, 0, 1, 1)
+		;汎用キャラの場合
+		ELSE
+			CALL FORCE_FREE(ARG:0)
+			;キャラを削除し番号を詰める
+			CALL DELETE_CHARA(ARG:0)
+		ENDIF
+		PRISONER_TARGET:(FINDELEMENT(PRISONER_TARGET, ARG:0)) = -1
+		IF CALC_SHOP_TIME() == SHOP_TIME
+			PRINTFORMW 人数不足による仕事のしわ寄せにより自由時間がなくなったので拠点フェイズを終了します。
+			BEGIN TURNEND
+		ENDIF
+		REDRAW 1
+		RETURN 1
+	ENDIF
+	GOTO SHOW_LOOP_INFO_C
+ELSEIF RESULT == 4 && !CFLAG:(ARG:0):外交調教経過ターン
+	IF TALENT:(ARG:0):妊娠
+		PRINTFORML 処刑場につれて来られた%ANAME(ARG:0)%は、泣きながら命乞いを始めた
+		PRINTFORML 『二度と逆らわない、どんな事でもするから、お腹の子だけは助けて』と、必死の形相で懇願している
+		PRINTFORML 本当に%ANAME(ARG:0)%を処刑しますか？
+		IF CALC_SHOP_TIME(!IS_ANIMAL(ARG:0)) == SHOP_TIME
+			SETCOLOR COLOR("警告")
+			PRINTFORML 処刑した場合、最大行動回数減少により直ちに今期の拠点フェイズが終了します！
+			RESETCOLOR
+		ENDIF
+		CALL ASK_YN("慈悲をかける", "災いの種は早いうちに摘んでおく")
+		IF RESULT != 0
+			CALL KOJO_EVENT(ARG:0, 341)
+			PRINTFORMW ……………………
+			PRINTFORMW ……
+			PRINTFORMW %ANAME(ARG:0)%を“お腹の子共々”処刑しました
+			CALL EXECUTION(ARG:0)
+			;他国からの評価を下げる
+			PRINTFORMW この鬼畜の所業に各勢力から非難の声が殺到しています
+			FOR LOCAL:1, 1, MAX_COUNTRY
+				IF IS_COUNTRY(LOCAL:1) && LOCAL:1 != CFLAG:MASTER:所属
+					IF LOCAL:1 == CFLAG:(ARG:0):所属
+						CALL CHANGE_RELATION_C_TO_C(LOCAL:1, CFLAG:MASTER:所属, -200, 300)
+					ELSE
+						CALL CHANGE_RELATION_C_TO_C(LOCAL:1, CFLAG:MASTER:所属, -100, 150)
+					ENDIF
+				ENDIF
+			NEXT
+			CALL CHANGE_COUNTRY(ARG:0, 0, 1, 1)
+			PRISONER_TARGET:(FINDELEMENT(PRISONER_TARGET, ARG:0)) = -1
+			IF CALC_SHOP_TIME() == SHOP_TIME
+				PRINTFORMW 人数不足による仕事のしわ寄せにより自由時間がなくなったので拠点フェイズを終了します。
+				BEGIN TURNEND
+			ENDIF
+			REDRAW 1
+			RETURN 1
+		ELSE
+			CALL KOJO_EVENT(ARG:0, 344)
+			PRINTFORMW ……………………
+			PRINTFORMW ……
+			PRINTFORMW 執行人に処刑の中止を命じました
+			;固定キャラで反抗的、プライド高い、一線越えない、孤高の内どれかを持っていたら
+			IF IS_FIXED_CHARA(ARG:0) && (TALENT:(ARG:0):反抗的 || TALENT:(ARG:0):プライド高い || TALENT:(ARG:0):一線越えない || TALENT:(ARG:0):孤高)
+				PRINTFORMW %ANAME(ARG:0)%はその場に蹲り、尊い命の宿ったお腹を両腕で守るように抱え、震える声ですすり泣いた
+				;連続処刑すん止めで荒稼ぎできないように
+				SIF TALENT:(ARG:0):子供人質 == 0
+					PRINTFORMW %ANAME(ARG:0)%　従属度+500
+			;そうでもないキャラは従属多目
+			ELSE
+				PRINTFORMW 慈悲をかけられた%ANAME(ARG:0)%は%ANAME(MASTER)%の足元に土下座し、震える声で服従を誓った
+				;連続処刑すん止めで荒稼ぎできないように
+				IF TALENT:(ARG:0):子供人質 == 0
+					PRINTFORMW %ANAME(ARG:0)%　従属度+1000
+					CFLAG:(ARG:0):4 += 500
+				ENDIF
+			ENDIF
+			;従属度換算とトラウマ経験の仕上げ、更に好感度はマイナス2000(あたりまえだ)、非強キャラは従属度合計で+1000
+			IF TALENT:(ARG:0):子供人質 == 0
+				PRINTFORMW %ANAME(ARG:0)%　好感度 - 2000
+				PRINTFORMW %ANAME(ARG:0)%　トラウマ経験 + 16
+				EXP:(ARG:0):トラウマ経験 += 16
+				CFLAG:(ARG:0):4 += 500
+				CFLAG:(ARG:0):2 -= 2000
+			ENDIF
+			;【育児中】または【妊娠】中は反発系素質を軽減する一時素質【子供人質】を入手、あとトラウマと従属も
+			TALENT:(ARG:0):子供人質 = 1
+			PRINTFORMW %ANAME(ARG:0)%は【子供を人質】にとられた…
+		ENDIF
+	ELSE
+		PRINTFORML 本当に%ANAME(ARG:0)%を処刑しますか？
+		IF CALC_SHOP_TIME(!IS_ANIMAL(ARG:0)) == SHOP_TIME
+			SETCOLOR COLOR("警告")
+			PRINTFORML 処刑した場合、最大行動回数減少により直ちに今期の拠点フェイズが終了します！
+			RESETCOLOR
+		ENDIF
+		CALL ASK_YN
+		IF RESULT == 0
+			CALL KOJO_EVENT(ARG:0, 341)
+			PRINTFORMW ……………………
+			PRINTFORMW ……
+			PRINTFORMW %ANAME(ARG:0)%を処刑しました
+			CALL EXECUTION(ARG:0)
+			CALL CHANGE_COUNTRY(ARG:0, 0, 1, 1)
+			PRISONER_TARGET:(FINDELEMENT(PRISONER_TARGET, ARG:0)) = -1
+			IF CALC_SHOP_TIME() == SHOP_TIME
+				PRINTFORMW 人数不足による仕事のしわ寄せにより自由時間がなくなったので拠点フェイズを終了します。
+				BEGIN TURNEND
+			ENDIF
+			REDRAW 1
+			RETURN 1
+		ENDIF
+	ENDIF
+	GOTO SHOW_LOOP_INFO_C
+ELSEIF RESULT == 5 && !CFLAG:(ARG:0):外交調教経過ターン && ITEM:触手部屋
+	IF ID_TO_CHARA(FLAG:触手部屋管理者) < 0
+		PRINTL 触手部屋の管理者がいないため実行できません
+		PRINTW 先に触手部屋の管理者を設定して下さい
+	ELSEIF !IS_SYOKUSYU_MANAGE(ID_TO_CHARA(FLAG:触手部屋管理者))
+		PRINTL 設定された触手部屋の管理者(%ANAME(ID_TO_CHARA(FLAG:触手部屋管理者))%)が、現在管理可能な状況にありません
+		PRINTW 触手部屋の管理者を設定し直して下さい
+	ELSE
+		PRINTFORML 触手部屋の管理者である%ANAME(ID_TO_CHARA(FLAG:触手部屋管理者))%が処刑を実行します
+		IF TALENT:(ARG:0):妊娠
+			PRINTFORML 触手に形作られた処刑部屋につれて来られた%ANAME(ARG:0)%は、泣きながら命乞いを始めた
+			PRINTFORML 『二度と逆らわない、どんな事でもするから、お腹の子だけは助けて』と、必死の形相で懇願している
+			PRINTFORML 本当に%ANAME(ARG:0)%を処刑しますか？
+			IF CALC_SHOP_TIME(!IS_ANIMAL(ARG:0)) == SHOP_TIME
+				SETCOLOR COLOR("警告")
+				PRINTFORML 処刑した場合、最大行動回数減少により直ちに今期の拠点フェイズが終了します！
+				RESETCOLOR
+			ENDIF
+			CALL ASK_YN("慈悲をかける", "災いの種は早いうちに摘んでおく")
+			IF RESULT != 0
+				CALL KOJO_EVENT(ARG:0, 343)
+				PRINTFORMW ……………………
+				PRINTFORMW ……
+				PRINTFORMW %ANAME(ARG:0)%を“お腹の子共々”処刑しました
+				;他国からの評価を下げる
+				PRINTFORMW この鬼畜の所業に各勢力から非難の声が殺到しています
+				FOR LOCAL:1, 1, MAX_COUNTRY
+					IF IS_COUNTRY(LOCAL:1) && LOCAL:1 != CFLAG:MASTER:所属
+						IF LOCAL:1 == CFLAG:(ARG:0):所属
+							CALL CHANGE_RELATION_C_TO_C(LOCAL:1, CFLAG:MASTER:所属, -200, 300)
+						ELSE
+							CALL CHANGE_RELATION_C_TO_C(LOCAL:1, CFLAG:MASTER:所属, -100, 150)
+						ENDIF
+					ENDIF
+				NEXT
+				CALL CHANGE_COUNTRY(ARG:0, 0, 1, 1)
+				PRISONER_TARGET:(FINDELEMENT(PRISONER_TARGET, ARG:0)) = -1
+				;手に入る妖術経験値を計算して取得＆表示
+				PRINTFORML <%ANAME(ID_TO_CHARA(FLAG:触手部屋管理者))%>
+				IF TALENT:(ARG:0):崩壊
+					LOCAL:7 = 15
+				ELSE
+					LOCAL:7 = 30 + BASE:(ARG:0):精神力 / 20 + ABL:(ARG:0):触手 * 10
+					IF TALENT:(ARG:0):虚ろ
+						LOCAL:7 = MAX(LOCAL:7 / 4, 20)
+					ENDIF
+				ENDIF
+				CALL PRINT_ADD_EXP(ID_TO_CHARA(FLAG:触手部屋管理者), "妖術経験値", LOCAL:7)
+				CALL TRAIN_AUTO_ABLUP(ID_TO_CHARA(FLAG:触手部屋管理者))
+				WAIT
+				IF CALC_SHOP_TIME() == SHOP_TIME
+					PRINTFORMW 人数不足による仕事のしわ寄せにより自由時間がなくなったので拠点フェイズを終了します。
+					BEGIN TURNEND
+				ENDIF
+				REDRAW 1
+				RETURN 1
+			ELSE
+				CALL KOJO_EVENT(ARG:0, 345)
+				PRINTFORMW ……………………
+				PRINTFORMW ……
+				PRINTFORMW 飢えた触手達に処刑の中止を命じました
+				PRINTFORMW %ANAME(ARG:0)%は%ANAME(MASTER)%の足元に土下座し、震えながら服従を誓った
+				;固定キャラで反抗的、プライド高い、一線越えない、孤高の内どれかを持っていたら
+				IF IS_FIXED_CHARA(ARG:0) && (TALENT:(ARG:0):反抗的 || TALENT:(ARG:0):プライド高い || TALENT:(ARG:0):一線越えない || TALENT:(ARG:0):孤高)
+					PRINTFORMW %ANAME(ARG:0)%はその場に蹲り、尊い命の宿ったお腹を両腕で守るように抱え、震える声ですすり泣いた
+					;連続処刑すん止めで荒稼ぎできないように
+					SIF TALENT:(ARG:0):子供人質 == 0
+						PRINTFORMW %ANAME(ARG:0)%　従属度+500
+				;そうでもないキャラは従属多目
+				ELSE
+					PRINTFORMW 慈悲をかけられた%ANAME(ARG:0)%は%ANAME(MASTER)%の足元に土下座し、震える声で服従を誓った
+					;連続処刑すん止めで荒稼ぎできないように
+					IF TALENT:(ARG:0):子供人質 == 0
+						PRINTFORMW %ANAME(ARG:0)%　従属度+1000
+						CFLAG:(ARG:0):4 += 500
+					ENDIF
+				ENDIF
+				;従属度換算とトラウマ経験の仕上げ、更に好感度はマイナス2000(あたりまえだ)、非強キャラは従属度合計で+1000
+				IF TALENT:(ARG:0):子供人質 == 0
+					PRINTFORMW %ANAME(ARG:0)%　好感度 - 2000
+					PRINTFORMW %ANAME(ARG:0)%　トラウマ経験 + 16
+					EXP:(ARG:0):トラウマ経験 += 16
+					CFLAG:(ARG:0):4 += 500
+					CFLAG:(ARG:0):2 -= 2000
+				ENDIF
+				;【育児中】または【妊娠】中は反発系素質を軽減する一時素質【子供人質】を入手、あとトラウマと従属も
+				TALENT:(ARG:0):子供人質 = 1
+				PRINTFORMW %ANAME(ARG:0)%は【子供を人質】にとられた…
+			ENDIF
+		ELSE
+			PRINTFORML 本当に%ANAME(ARG:0)%を処刑しますか？
+			IF CALC_SHOP_TIME(!IS_ANIMAL(ARG:0)) == SHOP_TIME
+				SETCOLOR COLOR("警告")
+				PRINTFORML 処刑した場合、最大行動回数減少により直ちに今期の拠点フェイズが終了します！
+				RESETCOLOR
+			ENDIF
+			CALL ASK_YN
+			IF RESULT == 0
+				CALL KOJO_EVENT(ARG:0, 343)
+				PRINTFORMW ……………………
+				PRINTFORMW ……
+				PRINTFORMW %ANAME(ARG:0)%を処刑しました
+				PRINTL
+				CALL CHANGE_COUNTRY(ARG:0, 0, 1, 1)
+				PRISONER_TARGET:(FINDELEMENT(PRISONER_TARGET, ARG:0)) = -1
+				;手に入る妖術経験値を計算して取得＆表示
+				PRINTFORML <%ANAME(ID_TO_CHARA(FLAG:触手部屋管理者))%>
+				IF TALENT:(ARG:0):崩壊
+					LOCAL:7 = 15
+				ELSE
+					LOCAL:7 = 30 + BASE:(ARG:0):精神力 / 20 + ABL:(ARG:0):触手 * 10
+					IF TALENT:(ARG:0):虚ろ
+						LOCAL:7 = MAX(LOCAL:7 / 4, 20)
+					ENDIF
+				ENDIF
+				CALL PRINT_ADD_EXP(ID_TO_CHARA(FLAG:触手部屋管理者), "妖術経験値", LOCAL:7)
+				CALL TRAIN_AUTO_ABLUP(ID_TO_CHARA(FLAG:触手部屋管理者))
+				WAIT
+				IF CALC_SHOP_TIME() == SHOP_TIME
+					PRINTFORMW 人数不足による仕事のしわ寄せにより自由時間がなくなったので拠点フェイズを終了します。
+					BEGIN TURNEND
+				ENDIF
+				REDRAW 1
+				RETURN 1
+			ENDIF
+		ENDIF
+	ENDIF
+	GOTO SHOW_LOOP_INFO_C
+ELSEIF RESULT != 9
+	CLEARLINE 1
+	GOTO INPUT_LOOP_TREAT
+ENDIF
+
+
+RETURN 1
+
+;-------------------------------------------------
+;ランダムキャラを性奴隷にしたときの兵数増加量を計算して返す関数 ARG:0=キャラ番号
+;-------------------------------------------------
+@GET_SELLING_VALUE(ARG:0)
+LOCAL:5 = 500
+LOCAL:6 = 100
+
+LOCAL:5 += ABL:(ARG:0):Ｃ感 * 50
+LOCAL:5 += ABL:(ARG:0):Ｖ感 * 50
+LOCAL:5 += ABL:(ARG:0):Ａ感 * 50
+LOCAL:5 += ABL:(ARG:0):Ｂ感 * 50
+LOCAL:5 += ABL:(ARG:0):Ｍ感 * 50
+LOCAL:5 += ABL:(ARG:0):欲望 * 150
+LOCAL:5 += ABL:(ARG:0):性技 * 200
+LOCAL:5 += ABL:(ARG:0):奉仕 * 100
+LOCAL:5 += ABL:(ARG:0):性交 * 100
+LOCAL:5 += ABL:(ARG:0):レズ * 50
+LOCAL:5 += ABL:(ARG:0):ＢＬ * 50
+LOCAL:5 += ABL:(ARG:0):露出 * 100
+LOCAL:5 += ABL:(ARG:0):自慰 * 100
+LOCAL:5 += ABL:(ARG:0):精愛 * 100
+LOCAL:5 += ABL:(ARG:0):射精 * 100
+LOCAL:5 += ABL:(ARG:0):噴乳 * 100
+LOCAL:5 += ABL:(ARG:0):排泄 * 100
+LOCAL:5 += ABL:(ARG:0):触手 * 200
+LOCAL:5 += ABL:(ARG:0):出産 * 300
+LOCAL:5 += ABL:(ARG:0):倒錯度 / 2
+LOCAL:5 += SQRT(MAX(CFLAG:(ARG:0):3 * 100, 0))
+
+IF !VAGINA(ARG:0)
+	LOCAL:6 -= 40
+	LOCAL:5 += ABL:(ARG:0):Ａ感 * 100
+ELSE
+	IF TALENT:(ARG:0):処女
+		LOCAL:6 += 40
+	ENDIF
+ENDIF
+
+IF TALENT:(ARG:0):臆病
+	LOCAL:6 -= 5
+ENDIF
+
+IF TALENT:(ARG:0):反抗的
+	LOCAL:6 += 15
+ENDIF
+
+IF TALENT:(ARG:0):気丈
+	LOCAL:6 += 20
+ENDIF
+
+IF TALENT:(ARG:0):素直
+	LOCAL:6 -= 10
+ENDIF
+
+IF TALENT:(ARG:0):プライド高い
+	LOCAL:6 += 20
+ENDIF
+
+IF TALENT:(ARG:0):生意気
+	LOCAL:6 += 10
+ENDIF
+
+IF TALENT:(ARG:0):プライド低い
+	LOCAL:6 -= 5
+ENDIF
+
+IF TALENT:(ARG:0):自制心
+	LOCAL:6 += 20
+ENDIF
+
+IF TALENT:(ARG:0):無関心
+	LOCAL:6 += 5
+ENDIF
+
+IF TALENT:(ARG:0):保守的
+	LOCAL:6 += 5
+ENDIF
+
+IF TALENT:(ARG:0):恥じらい
+	LOCAL:6 += 5
+ENDIF
+
+IF TALENT:(ARG:0):献身的
+	LOCAL:6 -= 5
+ENDIF
+
+IF TALENT:(ARG:0):快感に素直
+	LOCAL:6 -= 10
+ENDIF
+
+IF TALENT:(ARG:0):快感の否定
+	LOCAL:6 += 10
+ENDIF
+
+IF TALENT:(ARG:0):謎の魅力
+	LOCAL:6 += 25
+ENDIF
+
+LOCAL:5 = LOCAL:5 * LOCAL:6 / 100
+
+IF TALENT:(ARG:0):崩壊
+	TIMES LOCAL:5, 0.20
+ELSEIF TALENT:(ARG:0):虚ろ
+	TIMES LOCAL:5, 0.50
+ENDIF
+
+IF LOCAL:5 >= 2000
+	LOCAL:5 = (LOCAL:5 - 2000) * 3 / 4 + 2000
+ENDIF
+IF LOCAL:5 >= 5000
+	LOCAL:5 = (LOCAL:5 - 5000) * 3 / 4 + 5000
+ENDIF
+
+RETURN LOCAL:5
+
