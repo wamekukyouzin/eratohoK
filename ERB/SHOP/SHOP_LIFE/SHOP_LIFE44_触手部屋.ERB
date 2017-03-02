@@ -1,0 +1,135 @@
+﻿;-------------------------------------------------
+;「触手部屋」の名称
+;料理長のページと表示を合わせるため右カラムキャラリストでの表示に改変しました
+;メニュー表示も合わせましたが戻した方が良いことがある場合はお知らせください
+;-------------------------------------------------
+@SHOP_LIFE_NAME44
+RESULTS:0 '= "触手部屋"
+
+;-------------------------------------------------
+;「触手部屋」の選択可否
+;-------------------------------------------------
+@SHOP_LIFE_CHECK44
+SIF !ITEM:触手部屋
+	RETURN 0
+SIF CFLAG:MASTER:捕虜先
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;「触手部屋」の選択可能キャラ存在判定
+;-------------------------------------------------
+@SHOP_LIFE_CHECKCHARA44(ARG:0)
+SIF !IS_SYOKUSYU_MANAGE(ARG:0)
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;「触手部屋」の入力処理
+;-------------------------------------------------
+@SHOP_LIFE_EVENTBUY44
+FLAG:拠点フェイズページ = 1
+FLAG:夜這い = 0
+RETURN 0
+
+;-------------------------------------------------
+;「触手部屋」の右カラムキャラリストボタン表示に追尾させる情報
+;　この追記後デフォルトの情報を表示しない場合はRETURN 1
+;-------------------------------------------------
+@SHOP_LIFE_BUTTON_ADD44(ARG:0)
+PRINTPLAIN  
+PRINTFORM 妖:
+CALL PRINT_ALPHABET_RANK(ランク_ＳＬＧ, ABL:(ARG:0):妖術)
+PRINTFORM  {ABL:(ARG:0):妖術, 2, RIGHT} 
+RETURN 1
+
+;-------------------------------------------------
+;「触手部屋」の右カラムキャラリスト１のボタン（関数未指定なら選択中色なし表示）
+;-------------------------------------------------
+@SHOP_LIFE_LIST1_BUTTON44(ARG:0, ARG:1)
+;キャラ, 選択中カラー表示フラグ, ボタン番号に追加する数値, CHECKCHARAの戻り値, 行動済みマークをオフにするフラグ
+CALL COLUMN_RIGHT_CHARALIST_BUTTON(ARG:0, ARG:0 == ID_TO_CHARA(FLAG:触手部屋管理者), 100, ARG:1, 1)
+RETURN 0
+
+;-------------------------------------------------
+;「触手部屋」の右カラム表示処理
+;-------------------------------------------------
+@SHOP_LIFE_EVENTBUY_SHOW44
+;触手部屋の管理が可能なキャラの数を数える
+LOCAL:9 = 0
+FOR LOCAL:0, 0, CHARANUM
+	IF IS_SYOKUSYU_MANAGE(LOCAL:0)
+		LOCAL:9 ++
+	ENDIF
+NEXT
+
+;タイトル
+CALL COLUMN_RIGHT_TITLE("管理者選択", "0", "1", "0", "0")
+CALL COLUMN_RIGHT_PRINTL
+CALL COLUMN_RIGHT_LINE
+CALL COLUMN_RIGHT_PRINTL
+
+CALL COLORPRINT("触手部屋の管理を行うには  <妖術知識>・性知識Lv5以上・主人公以外なら触手Lv5以上  が必要です", COLOR("注釈"))
+CALL COLUMN_RIGHT_PRINTL
+CALL COLORPRINT("触手部屋の管理を行うと、毎ターン若干の妖術経験値と触手経験値を得られます", COLOR("注釈"))
+CALL COLUMN_RIGHT_PRINTL
+CALL COLORPRINT("現在の管理者は", COLOR("注釈"))
+IF ID_TO_CHARA(FLAG:触手部屋管理者) == -1
+	FONTSTYLE 1
+	CALL COLORPRINT(" いません ", COLOR("注釈"))
+	FONTSTYLE 0
+ELSEIF IS_SYOKUSYU_MANAGE(ID_TO_CHARA(FLAG:触手部屋管理者))
+	FONTSTYLE 1
+	SETCOLOR COLOR("オレンジ")
+	PRINTFORM  %ANAME(ID_TO_CHARA(FLAG:触手部屋管理者))% 
+	FONTSTYLE 0
+	RESETCOLOR
+	CALL COLORPRINT(@"です", COLOR("注釈"))
+ELSE
+	FONTSTYLE 1
+	SETCOLOR COLOR("オレンジ")
+	PRINTFORM  %ANAME(ID_TO_CHARA(FLAG:触手部屋管理者))% 
+	FONTSTYLE 0
+	RESETCOLOR
+	CALL COLORPRINT(@"ですが、現在は", COLOR("注釈"))
+	CALL COLORPRINT(@"管理不能", COLOR("選択中"))
+	CALL COLORPRINT(@"です", COLOR("注釈"))
+ENDIF
+CALL COLUMN_RIGHT_PRINTL
+CALL COLUMN_RIGHT_LINE
+CALL COLUMN_RIGHT_PRINTL
+
+;標準的なキャラリストとページ移動
+;ARG:0=3 リスト１行に並べるボタン数を3に変える
+CALL COLUMN_RIGHT_CHARALIST(3)
+
+RETURN 0
+
+;-------------------------------------------------
+;「触手部屋」のリスト１入力処理
+;-------------------------------------------------
+@SHOP_LIFE_USERSHOP44(ARG:0)
+DRAWLINE
+IF ARG:0 >= 0 && IS_SYOKUSYU_MANAGE(ARG:0)
+	IF ARG:0 == ID_TO_CHARA(FLAG:触手部屋管理者)
+		PRINTFORMW %ANAME(ARG:0)%を触手部屋の管理者から外しました
+		FLAG:触手部屋管理者 = 0
+	ELSE
+		PRINTFORMW %ANAME(ARG:0)%を触手部屋の管理者に設定しました
+		FLAG:触手部屋管理者 = GET_ID(ARG:0)
+	ENDIF
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;キャラARG:0が触手部屋を管理可能であるかどうかを判定する関数
+;-------------------------------------------------
+@IS_SYOKUSYU_MANAGE(ARG:0)
+#FUNCTION
+IF CFLAG:(ARG:0):所属 == CFLAG:MASTER:所属 && CFLAG:(ARG:0):捕虜先 == 0
+	IF TALENT:(ARG:0):妖術知識 && ABL:(ARG:0):性知識 >= 5 && (ARG:0 == MASTER || ABL:(ARG:0):触手 >= 5)
+		RETURNF 1
+	ENDIF
+ENDIF
+RETURNF 0
+

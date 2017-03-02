@@ -1,8 +1,52 @@
-﻿
+﻿;-------------------------------------------------
+;「デート」の名称
 ;-------------------------------------------------
-;デート
+@SHOP_LIFE_NAME61
+RESULTS:0 '= "デート"
+
 ;-------------------------------------------------
-@SHOP_DATE(対象)
+;「デート」の選択可否判定
+;-------------------------------------------------
+@SHOP_LIFE_CHECK61
+;デート代不足
+SIF MONEY < 10000
+	RETURN 0
+SIF CFLAG:MASTER:捕虜先
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;「デート」の選択可能キャラ存在判定（誘えるキャラ）
+;-------------------------------------------------
+@SHOP_LIFE_CHECKCHARA61(ARG:0)
+;非主人公、同一勢力、捕虜でない、動物でない、通常状態または育児中
+RETURN ARG:0 != MASTER && CFLAG:(ARG:0):所属 == CFLAG:MASTER:所属 && CFLAG:(ARG:0):捕虜先 == 0 && !IS_ANIMAL(ARG:0) && GROUPMATCH(CFLAG:(ARG:0):行動不能状態, 0, 2)
+
+;-------------------------------------------------
+;「デート」の入力処理
+;-------------------------------------------------
+@SHOP_LIFE_EVENTBUY61
+FLAG:拠点フェイズページ = 1
+FLAG:夜這い = 0
+RETURN 0
+
+;-------------------------------------------------
+;「デート」の表示処理
+;-------------------------------------------------
+@SHOP_LIFE_EVENTBUY_SHOW61
+;タイトル
+CALL COLUMN_RIGHT_TITLE("対象者選択", "0", "1", "1～全", "10,000～", "自勢力のみ可")
+CALL COLUMN_RIGHT_PRINTL
+CALL COLUMN_RIGHT_LINE
+CALL COLUMN_RIGHT_PRINTL
+;右カラムの標準的なキャラリストとページ移動呼び出し
+CALL COLUMN_RIGHT_CHARALIST
+RETURN
+
+;-------------------------------------------------
+;「デート」のリスト１入力処理
+;-------------------------------------------------
+@SHOP_LIFE_USERSHOP61(ARG:0)
 #DIM 対象, 1
 #DIM 結果, 1
 #DIM 全消費, 1
@@ -14,15 +58,17 @@
 ;好感度+ 200+RAND:100
 ;行先は湖、森、人里etc
 
+FLAG:能力表示モード = 0
+
 イベント発生 = 0
 LOCAL:5 = 0
 DRAWLINE
 PRINTFORML 行動回数とお金を消費し、%ANAME(対象)%とデートします。
-PRINTFORML 1回デートする毎に金10000を消費します。
+PRINTFORML 1回デートする毎に金10,000を消費します。
 PRINTFORML どこに誘いますか？
 PRINTFORML 
 PRINTFORML 残行動:{CALC_SHOP_TIME() - SHOP_TIME}
-PRINTFORML 所持金:{MONEY}
+PRINTFORML 所持金:%NUM_FORMAT(MONEY)%
 DRAWLINE
 PRINTBUTTON @"%"[湖]", 12, LEFT%", 1
 PRINTBUTTON "[行動全消費]", 11
@@ -42,7 +88,7 @@ PRINTL   自宅に誘います。料理値が高いほど相手に好印象を�
 DRAWLINE
 PRINTBUTTON "[0] - 戻る", 0
 $INPUT_LOOP
-INPUT
+INPUT 0
 
 内容 = RESULT
 ;0だったら戻す
@@ -200,3 +246,6 @@ ENDIF
 RESULT = 1
 
 BEGIN TURNEND
+
+RETURN 1
+

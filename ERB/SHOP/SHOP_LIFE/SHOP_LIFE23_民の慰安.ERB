@@ -1,5 +1,158 @@
 ﻿;-------------------------------------------------
-;「民の慰安」の処理
+;「民の慰安」の名称
+;-------------------------------------------------
+@SHOP_LIFE_NAME23
+RESULTS:0 '= "民の慰安"
+
+;-------------------------------------------------
+;「民の慰安」の選択可否
+;-------------------------------------------------
+@SHOP_LIFE_CHECK23
+SIF CFLAG:MASTER:捕虜先
+	RETURN 0
+SIF !CAN_ADD_RANDOM_CHARA()
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;「民の慰安」の選択可能キャラ存在判定（ヤられる側）
+;-------------------------------------------------
+@SHOP_LIFE_CHECKCHARA23(ARG:0)
+;主人公
+IF ARG:0 == MASTER
+	SIF COOLTIME:MASTER:0 < 2 && CFLAG:(ARG:0):行動不能状態 != 1
+		RETURN CHECK91(ARG:0, 2, 1)
+;主人公でない
+ELSE
+	;閨に呼ぶの選択可能キャラ存在判定
+	CALL SHOP_LIFE_CHECKCHARA12(ARG:0)
+	RETURN CHECK91(ARG:0, 2, RESULT && !IS_ANIMAL(ARG:0))
+ENDIF
+RETURN 0
+
+;-------------------------------------------------
+;「民の慰安」の入力処理
+;-------------------------------------------------
+@SHOP_LIFE_EVENTBUY23
+FLAG:拠点フェイズページ = 1
+FLAG:夜這い = 0
+RETURN 0
+
+;-------------------------------------------------
+;「民の慰安」の右カラムキャラリスト１のボタン（関数未指定なら選択中色なし表示）
+;-------------------------------------------------
+@SHOP_LIFE_LIST1_BUTTON23(ARG:0, ARG:1)
+;キャラ, 選択中カラー表示フラグ, ボタン番号に追加する数値, CHECKCHARAの戻り値, 行動済みマークをオフにするフラグ
+CALL COLUMN_RIGHT_CHARALIST_BUTTON(ARG:0, CFLAG:(ARG:0):閨に呼ぶで選択中, 100, ARG:1)
+RETURN 0
+
+;-------------------------------------------------
+;「民の慰安」の右カラム表示処理
+;-------------------------------------------------
+@SHOP_LIFE_EVENTBUY_SHOW23
+#DIM 選択人数
+#DIM 最大人数
+最大人数 = MIN(CALC_SHOP_TIME() - SHOP_TIME, 3)
+
+選択人数 = 0
+FOR LOCAL:0, 0, CHARANUM
+	;選択可能な条件を満たしているかどうか判定
+	RESULT = 0
+	TRYCALLFORM SHOP_LIFE_CHECKCHARA{FLAG:拠点フェイズ選択コマンド}(LOCAL:0)
+	IF RESULT == 1
+		;選択中の人数を数える
+		IF CFLAG:(LOCAL:0):閨に呼ぶで選択中
+			選択人数 ++
+			SIF 選択人数 > 最大人数
+				CFLAG:(LOCAL:0):閨に呼ぶで選択中 = 0
+		ENDIF
+	ELSE
+		;条件を満たしていなければ強制的にＯＦＦ
+		CFLAG:(LOCAL:0):閨に呼ぶで選択中 = 0
+	ENDIF
+NEXT
+
+SIF 選択人数 * 3000 > MONEY
+	FLAG:慰安避妊薬 = 0
+
+;右カラムタイトル表示
+CALL COLUMN_RIGHT_TITLE("実行者選択", TOSTR(選択人数), TOSTR(最大人数), "人数", "避妊時のみ3,000×人数")
+CALL COLUMN_RIGHT_PRINTL
+CALL COLUMN_RIGHT_LINE
+CALL COLUMN_RIGHT_PRINTL
+IF 選択人数 >= 1
+	PRINTBUTTON "[このメンバーで決定]", 1
+ELSE
+	SETCOLOR COLOR("選択不可")
+	PRINTPLAINFORM [このメンバーで決定]
+	RESETCOLOR
+ENDIF
+
+PRINTPLAIN   
+IF FLAG:慰安避妊薬
+	PRINTBUTTON "[避妊あり]", 2
+ELSE
+	IF MONEY > 選択人数 * 3000
+		PRINTBUTTON "[避妊なし]", 2
+	ELSE
+		SETCOLOR COLOR("選択不可")
+		PRINTPLAINFORM [避妊なし]
+		RESETCOLOR
+	ENDIF
+ENDIF
+CALL COLUMN_RIGHT_PRINTL
+CALL COLUMN_RIGHT_LINE
+CALL COLUMN_RIGHT_PRINTL
+
+;標準的なキャラリストとページ移動
+CALL COLUMN_RIGHT_CHARALIST
+
+RETURN 0
+
+;-------------------------------------------------
+;「民の慰安」の右カラムボタンの入力処理
+;-------------------------------------------------
+@SHOP_LIFE_EVENTBUY_SUB23(ARG:0)
+;このメンバーで決定
+IF ARG:0 == 1
+	CALL DECIDE_IAN_MEMBER()
+	SIF !RESULT
+		RETURN 0
+;避妊ありなし
+ELSEIF ARG:0 == 2
+	LOCAL:1 = 0
+	FOR LOCAL, 0, CHARANUM
+		SIF CFLAG:LOCAL:閨に呼ぶで選択中
+			LOCAL:1 ++
+	NEXT
+	SIF FLAG:慰安避妊薬 || MONEY >= LOCAL:1 * 3000
+		FLAG:慰安避妊薬 = !FLAG:慰安避妊薬
+	RETURN 0
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;「民の慰安」のリスト１入力処理
+;-------------------------------------------------
+@SHOP_LIFE_USERSHOP23(ARG:0)
+;参加キャラの数を数える
+LOCAL:5 = 0
+FOR LOCAL:0, 0, CHARANUM
+	IF CFLAG:(LOCAL:0):閨に呼ぶで選択中
+		LOCAL:5 ++
+	ENDIF
+NEXT
+IF CFLAG:(ARG:0):閨に呼ぶで選択中 || LOCAL:5 < MIN(CALC_SHOP_TIME() - SHOP_TIME, 3)
+	;調教参加フラグを反転
+	CFLAG:(ARG:0):閨に呼ぶで選択中 = !CFLAG:(ARG:0):閨に呼ぶで選択中
+	LOCAL:5 += CFLAG:(ARG:0):閨に呼ぶで選択中 == 0 ? -1 # 1
+	SIF FLAG:慰安避妊薬 && LOCAL:5 * 3000 > MONEY
+		FLAG:慰安避妊薬 = 0
+ENDIF
+RETURN 0
+
+;-------------------------------------------------
+;「民の慰安」の右カラムボタンの入力処理本体
 ;-------------------------------------------------
 @DECIDE_IAN_MEMBER()
 #DIM 行き先
@@ -42,6 +195,7 @@ FOR LOCAL, 0, CHARANUM
 	ENDIF
 NEXT
 
+DRAWLINE
 PRINTFORML どこに慰安しに行こうか……？
 FOR LOCAL, 0, VARSIZE("IAN_PLACE")
 	PRINTFORML [{LOCAL}] %IAN_PLACE:LOCAL%
@@ -123,6 +277,7 @@ ITEM:A_媚薬 = 99
 ITEM:A_排卵誘発剤 = 99
 ITEM:A_桃源香 = 99
 ITEM:A_絶倫丸 = 99
+
 FLAG:調教モード = 7
 ;ウフフフラグをONに
 FLAG:ウフフフラグ = 1
@@ -623,7 +778,7 @@ SELECTCASE 種類
 ENDSELECT
 
 ;-------------------------------------------------
-;「民の慰安」開始時のメッセージ表示処理
+;「民の慰安」開始時のメッセージ
 ;-------------------------------------------------
 @SHOW_IAN_MESSAGE(対象, 人数)
 #DIM 対象
@@ -678,3 +833,4 @@ ELSEIF IS_SLAVE(対象) && !RAND:3
 ELSEIF !RAND:3
 	PRINTFORMW %ANAME(対象)%は、任務ならば仕方がないと受け入れた……
 ENDIF
+
