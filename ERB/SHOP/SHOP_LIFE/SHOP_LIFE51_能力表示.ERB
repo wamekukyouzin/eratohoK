@@ -1,0 +1,261 @@
+﻿;-------------------------------------------------
+;「能力表示」の名称
+;-------------------------------------------------
+@SHOP_LIFE_NAME51
+RESULTS:0 '= "能力表示"
+
+;-------------------------------------------------
+;「能力表示」の選択可否
+;-------------------------------------------------
+@SHOP_LIFE_CHECK51
+RETURN 1
+
+;-------------------------------------------------
+;「能力表示」の選択可能キャラ存在判定
+;-------------------------------------------------
+@SHOP_LIFE_CHECKCHARA51(ARG:0)
+;同一勢力or共闘勢力or自国の捕虜
+;最後に&& CFLAG:(ARG:0):捕虜先としてるのは、マスターが未所属捕虜で能力表示を開いた場合、「どこの勢力の捕虜にもなっていない」キャラが引っかかるから
+SIF ARG:0 == MASTER
+	RETURN 1
+SELECTCASE FLAG:能力表示フィルタ
+	;従来
+	CASE 0
+		RETURN TMP_COUNTRY_RELATION:(CFLAG:MASTER:所属):(CFLAG:(ARG:0):所属) >= 2 || (CFLAG:(ARG:0):捕虜先 == CFLAG:MASTER:所属 && CFLAG:(ARG:0):捕虜先)
+	;自国のみ
+	CASE 1
+		RETURN CFLAG:MASTER:所属 && CFLAG:MASTER:所属 == CFLAG:(ARG:0):所属
+	;捕虜も
+	CASE 2
+		RETURN CFLAG:MASTER:所属 && (CFLAG:MASTER:所属 == CFLAG:(ARG:0):所属 || CFLAG:MASTER:所属 == CFLAG:(ARG:0):捕虜先)
+	;ぜんぶ
+	CASE 3
+		RETURN 1
+ENDSELECT
+RETURN 1
+
+;-------------------------------------------------
+;「能力表示」の入力処理
+;-------------------------------------------------
+@SHOP_LIFE_EVENTBUY51
+FLAG:拠点フェイズページ = 1
+FLAG:夜這い = 0
+RETURN 0
+
+;-------------------------------------------------
+;「能力表示」の右カラムキャラリスト１のボタン（関数未指定なら選択中色なし表示）
+;-------------------------------------------------
+@SHOP_LIFE_LIST1_BUTTON51(ARG:0, ARG:1)
+;キャラ, 選択中カラー表示フラグ, ボタン番号に追加する数値, CHECKCHARAの戻り値, 行動済みマークをオフにするフラグ
+CALL COLUMN_RIGHT_CHARALIST_BUTTON(ARG:0, CFLAG:(ARG:0):閨に呼ぶで選択中, 100, ARG:1, 1)
+RETURN 0
+
+;-------------------------------------------------
+;「能力表示」の右カラム表示処理
+;-------------------------------------------------
+@SHOP_LIFE_EVENTBUY_SHOW51
+;タイトル
+CALL COLUMN_RIGHT_TITLE("対象者選択", "0", "1", "0", "0")
+CALL COLUMN_RIGHT_PRINTL
+CALL COLUMN_RIGHT_LINE
+CALL COLUMN_RIGHT_PRINTL
+PRINTBUTTON @"[%CHARALIST_MODE(), 14, LEFT%]", 1
+PRINTPLAIN   
+PRINTBUTTON @"[%"能力一覧表示", 14, LEFT%]", 2
+CALL COLUMN_RIGHT_PRINTL
+CALL COLUMN_RIGHT_LINE
+CALL COLUMN_RIGHT_PRINTL
+CALL COLUMN_RIGHT_CHARALIST
+RETURN
+
+;-------------------------------------------------
+;「能力表示」の右カラムボタンの入力処理
+;-------------------------------------------------
+@SHOP_LIFE_EVENTBUY_SUB51(ARG:0)
+;能力表示フィルタ
+IF ARG:0 == 1
+	FLAG:能力表示フィルタ = ROUND_INCREMENT(FLAG:能力表示フィルタ, 0, 3)
+	RETURN 0
+;能力一覧表示
+ELSEIF ARG:0 == 2
+	;SIF FLAG:拠点フェイズ選択コマンド == 51 || FLAG:汎用武将カウント == 1025
+	CALL SHOP_LIFE_CHARA_TABLE
+ENDIF
+
+;-------------------------------------------------
+;「能力表示」のリスト１入力処理
+;-------------------------------------------------
+@SHOP_LIFE_USERSHOP51(ARG:0)
+;SHOW_INFOの初期画面を基本情報にする
+CALL CREATE_SELECTOR_SORT_LIST
+LOCAL:1 = 0
+FLAG:能力表示モード = 0
+FOR LOCAL, 0, CHARANUM
+	SIF SHOP_CHARA_LIST:(LOCAL) == -1
+		CONTINUE
+	TRYCALLFORM SHOP_LIFE_CHECKCHARA{FLAG:拠点フェイズ選択コマンド}(SHOP_CHARA_LIST:(LOCAL))
+	IF !RESULT
+		SHOP_CHARA_LIST:LOCAL = -1
+		CONTINUE
+	ENDIF
+NEXT
+CALL SHOW_INFO_WITH_UI(ARG:0, 1)
+REDRAW 1
+RETURN 1
+
+;-------------------------------------------------
+;「能力表示」のメニュー表示で使用するフィルタリングのモード文字列
+;-------------------------------------------------
+@CHARALIST_MODE
+#FUNCTIONS
+SELECTCASE FLAG:能力表示フィルタ
+	CASE 0
+		RETURNF "士官+捕虜+友好"
+	CASE 1
+		RETURNF "士官"
+	CASE 2
+		RETURNF "士官+捕虜"
+	CASE 3
+		RETURNF "全て"
+ENDSELECT
+
+;-------------------------------------------------
+;「能力表示」の処理
+;ARG:0=対象のキャラ番号、ARG:1=ページ移動を許可するかどうか
+;-------------------------------------------------
+@SELECTED_SHOWDATA(ARG:0, ARG:1 = 0)
+#DIM 現好みLV
+#DIM 経験数
+
+PRINTBUTTON " 9[戻る]", 9
+PRINT   
+CALL PRINTBUTTON_EX(" 0[基本情報]", 0, 1, FLAG:能力表示モード == 0)
+IF ARG:0 == MASTER
+	SETCOLOR COLOR("選択不可")
+	PRINTFORM  1[性癖設定]
+	RESETCOLOR
+ELSE
+	CALL PRINTBUTTON_EX(" 1[性癖設定]", 1, 1, FLAG:能力表示モード == 1)
+ENDIF
+CALL PRINTBUTTON_EX(" 2[能力詳細]", 2, 1, FLAG:能力表示モード == 2)
+CALL PRINTBUTTON_EX(" 3[妊娠記録]", 3, 1, FLAG:能力表示モード == 3)
+CALL PRINTBUTTON_EX(" 4[スキル表示]", 4, 1, FLAG:能力表示モード == 4)
+IF ARG:1
+	PRINTL
+	PRINTBUTTON " 7[前のキャラ]", 7
+	PRINTBUTTON " 8[次のキャラ]", 8
+ENDIF
+PRINTL 
+
+$INPUT_LOOP
+INPUT 9
+
+IF FLAG:能力表示モード == 1
+	;「性癖設定」専用の入力処理
+	IF RESULT == 101
+		FLAG:性癖設定ページ数 --
+		RETURN 1
+	ELSEIF RESULT == 102
+		FLAG:性癖設定ページ数 ++
+		RETURN 1
+	ELSEIF RESULT >= 1000 && RESULT < 1900
+		現好みLV = COM_TENDENCY:(ARG:0):(RESULT - 1000)
+		経験数 = COM_EXP:(ARG:0):(RESULT - 1000) /10
+		IF (現好みLV == 0 && 経験数 >= 10) || (現好みLV == 1 && 経験数 >= 35) || (現好みLV == 2 && 経験数 >= 100)
+			COM_TENDENCY:(ARG:0):(RESULT - 1000) ++
+		ENDIF
+		RETURN 1
+	ELSEIF RESULT >= 2000 && RESULT < 2900
+		IF COM_TENDENCY:(ARG:0):(RESULT - 2000) >= 1
+			COM_TENDENCY:(ARG:0):(RESULT - 2000) --
+		ENDIF
+		RETURN 1
+	ELSEIF RESULT == 3000 || RESULT == 4000 || RESULT == 5000 || RESULT == 6000 || RESULT == 7000 || RESULT == 8000
+		CALL 性癖一括変更(ARG,RESULT)
+		RETURN 1
+	ENDIF
+ENDIF
+
+IF RESULT == 9
+	RETURN 0
+ELSEIF RESULT >= 0 && RESULT <= 4 && FLAG:能力表示モード != RESULT && !(RESULT == 1 && ARG:0 == MASTER)
+	FLAG:能力表示モード = RESULT
+	RETURN 1
+ELSEIF RESULT == 7 && ARG:1
+	RETURN 2
+ELSEIF RESULT == 8 && ARG:1
+	RETURN 3
+;★
+ELSEIF RESULT == 1000
+	FLAG:能力表示モード = 10
+	RETURN 1
+ENDIF
+
+CLEARLINE 1
+GOTO INPUT_LOOP
+
+
+;-------------------------------------------------
+;「能力表示」の処理「性癖設定」の一括指定
+;性癖の一括上昇・下降 ARG=キャラ番号 ARG:1
+;-------------------------------------------------
+@性癖一括変更(ARG,ARG:1)
+#DIM 現好みLV
+#DIM 経験数
+SELECTCASE ARG:1
+	CASE 3000
+		FOR LOCAL,0,300
+			$LOOP
+			現好みLV = COM_TENDENCY:(ARG:0):LOCAL
+			経験数 = COM_EXP:(ARG:0):LOCAL / 10
+			IF TRAINNAME:LOCAL == ""
+				CONTINUE
+			ELSEIF (現好みLV == 0 && 経験数 >= 10) || (現好みLV == 1 && 経験数 >= 35) || (現好みLV == 2 && 経験数 >= 100)
+				COM_TENDENCY:(ARG:0):LOCAL ++
+				SIF COM_TENDENCY:(ARG:0):LOCAL < 2
+					GOTO LOOP
+			ENDIF
+		NEXT
+	CASE 4000
+		FOR LOCAL,0,300
+			SIF COM_TENDENCY:(ARG:0):LOCAL
+				COM_TENDENCY:(ARG:0):LOCAL --
+		NEXT
+	CASE 5000
+		FOR LOCAL,300,600
+			$LOOP2
+			現好みLV = COM_TENDENCY:(ARG:0):LOCAL
+			経験数 = COM_EXP:(ARG:0):LOCAL / 10
+			IF TRAINNAME:(LOCAL - 300)== ""
+				CONTINUE
+			ELSEIF (現好みLV == 0 && 経験数 >= 10) || (現好みLV == 1 && 経験数 >= 35) || (現好みLV == 2 && 経験数 >= 100)
+				COM_TENDENCY:(ARG:0):LOCAL ++
+				SIF COM_TENDENCY:(ARG:0):LOCAL < 2
+					GOTO LOOP2
+			ENDIF
+		NEXT
+	CASE 6000
+		FOR LOCAL,300,600
+			SIF COM_TENDENCY:(ARG:0):LOCAL
+				COM_TENDENCY:(ARG:0):LOCAL --
+		NEXT
+	CASE 7000
+		FOR LOCAL,600,900
+			$LOOP3
+			現好みLV = COM_TENDENCY:(ARG:0):LOCAL
+			経験数 = COM_EXP:(ARG:0):LOCAL / 10
+			IF TRAINNAME:(LOCAL - 600)== ""
+				CONTINUE
+			ELSEIF (現好みLV == 0 && 経験数 >= 10) || (現好みLV == 1 && 経験数 >= 35) || (現好みLV == 2 && 経験数 >= 100)
+				COM_TENDENCY:(ARG:0):LOCAL ++
+				SIF COM_TENDENCY:(ARG:0):LOCAL < 2
+					GOTO LOOP3
+			ENDIF
+		NEXT
+	CASE 8000
+		FOR LOCAL,600,900
+			SIF COM_TENDENCY:(ARG:0):LOCAL
+				COM_TENDENCY:(ARG:0):LOCAL --
+		NEXT
+ENDSELECT
+

@@ -1,0 +1,194 @@
+﻿;-------------------------------------------------
+;左カラムカテゴリの設定
+;-------------------------------------------------
+@COLUMN_LEFT_CATEGORY_NAME
+COLUMN_LEFT_CATEGORY_NAME:1 '= "親交"
+COLUMN_LEFT_CATEGORY_NAME:2 '= "謀略"
+COLUMN_LEFT_CATEGORY_NAME:3 '= "捕虜"
+COLUMN_LEFT_CATEGORY_NAME:4 '= "政務"
+COLUMN_LEFT_CATEGORY_NAME:5 '= "情報"
+COLUMN_LEFT_CATEGORY_NAME:6 '= "特殊"
+COLUMN_LEFT_CATEGORY_NAME:7 '= "売買"
+COLUMN_LEFT_CATEGORY_NAME:8 '= "進行"
+COLUMN_LEFT_CATEGORY_NAME:9 '= "設定"
+
+;-------------------------------------------------
+;左カラムカテゴリ表示
+;ARGS:0=表示するテキスト（全角２文字まで）
+; 　　　空指定""なら同幅のスペース表示
+;-------------------------------------------------
+@COLUMN_LEFT_CATEGORY_NAME_SHOW(ARGS:0)
+;空指定なら同幅のスペース
+IF ARGS:0 == ""
+	LOCALS:0 '= TOSTR_SPACE(6)
+	PRINTFORM %LOCALS:0%
+;指定があれば色付けして表示
+ELSE
+	SETCOLOR COLOR("注釈")
+	PRINTFORM %TOSTR_SPACE(1)%
+	PRINTFORM %ARGS:0, 4, LEFT%
+	PRINTFORM %TOSTR_SPACE(1)%
+	RESETCOLOR
+ENDIF
+RETURN
+
+;-------------------------------------------------
+;左カラムメニューボタン
+;ARG:0=SHOP_AVAIL
+;ARGS:0=表示テキスト　空指定""なら同幅のスペース表示
+;ARG:1=1で選択中カラーに着色（ARG:1=FLAG:拠点フェイズ選択コマンド番号を代入する想定）
+;-------------------------------------------------
+@COLUMN_LEFT_PRINTBUTTON(ARG:0, ARGS:0, ARG:1)
+#DIM EXTERNAL_LINK
+
+SIF ARG:0 < 0 || 99 < ARG:0
+	THROW COLUMN_LEFT_PRINTBUTTONの項番が0～99の範囲にありません
+
+;空指定なら同幅のスペース
+IF ARGS:0 == ""
+	PRINTPLAINFORM %TOSTR_SPACE(12)%
+;選択不可（表示が制限されていない場合）
+ELSEIF !SHOP_AVAIL:(ARG:0)
+	SETCOLOR COLOR("選択不可")
+	PRINTPLAINFORM [%ARGS:0, 10%]
+	RESETCOLOR
+;現在選択中（選択式ではない行動も着色するように変更したためボタンに）
+ELSEIF ARG:1
+	SETCOLOR COLOR("選択中")
+	PRINTBUTTON @"[%ARGS:0, 10%]", ARG:0
+	RESETCOLOR
+;通常のボタン
+ELSE
+	PRINTBUTTON @"[%ARGS:0, 10%]", ARG:0
+ENDIF
+
+;-------------------------------------------------
+;左カラムの配列：行番号にカテゴリとメニューを保存
+;※SHOP_AVAILを参照して選択不可のメニューを非表示にしている
+;　参照をやめればこれまで通り選択不可のメニューは
+;　ボタン側で表示制限されているときにグレー表示される
+;-------------------------------------------------
+@COLUMN_LEFT_MENULINE_SAVE
+#DIM COLUMN_LEFT_CATEGORY_SAVEFLAG, 10
+
+;リセット 各行のカテゴリ番号とメニュー番号を保存する配列（配列番号＝行番号）
+;セーブするほどではないが一時的に保存して@COLUMN_LEFT_MENU_SHOWで使用するので
+;SHOP_LIFE_VARIABLE.ERHで宣言している
+VARSET COLUMN_LEFT_CATEGORY_NUM, 0
+VARSET COLUMN_LEFT_MENU_NUM, 0
+
+;リセット カテゴリの保存済みフラグ
+VARSET COLUMN_LEFT_CATEGORY_SAVEFLAG, 0
+
+;カテゴリ名称の読み込み
+CALL COLUMN_LEFT_CATEGORY_NAME
+
+;行番号
+LOCAL:0 = 1
+;何らかのカテゴリを保存したフラグ
+LOCAL:4 = 0
+;カテゴリ番号7まで
+FOR LOCAL:1, 1, 8
+	;LOCAL:1番のカテゴリが存在
+	IF COLUMN_LEFT_CATEGORY_NAME:(LOCAL:1) != ""
+		;メニュー番号
+		FOR LOCAL:2, 1, 10
+			;カテゴリ番号を10の位として、1～9番までチェック
+			LOCAL:3 = LOCAL:1 * 10 + LOCAL:2
+			;メニュー名称で存在チェック
+			RESULTS:0 '= ""
+			TRYCALLFORM SHOP_LIFE_NAME{LOCAL:3}
+			;選択不可のメニューもグレー表示したい場合は && SHOP_AVAIL:(LOCAL:3)を削る
+			IF RESULTS:0 != "" && SHOP_AVAIL:(LOCAL:3)
+				;カテゴリ保存済みでない場合
+				IF COLUMN_LEFT_CATEGORY_SAVEFLAG:(LOCAL:1) != 1
+					;ふたつめ以降のカテゴリなら空行を挟む
+					IF LOCAL:4 == 1
+						LOCAL:0 ++
+					ENDIF
+					LOCAL:4 = 1
+					;配列番号=行番号にカテゴリ番号を保存
+					COLUMN_LEFT_CATEGORY_NUM:(LOCAL:0) = LOCAL:1
+					;現在のカテゴリ保存済みフラグを立てる
+					COLUMN_LEFT_CATEGORY_SAVEFLAG:(LOCAL:1) = 1
+					;何らかのカテゴリ保存済みフラグを立てる
+				ENDIF
+				;配列番号=行番号にメニュー番号を保存
+				COLUMN_LEFT_MENU_NUM:(LOCAL:0) = LOCAL:3
+				LOCAL:0 ++
+			ENDIF
+		NEXT
+	ENDIF
+NEXT
+
+;-------------------------------------------------
+;左カラムメニュー表示ボタン呼び出し ARG:0は行数
+;
+; 0～10番）右カラムのボタンに自由に使えるように使用しない
+;11～79番）メニュー番号
+;　　　　　10の位をカテゴリ番号に、1～9をメニュー番号にすると
+;　　　　　COMFのように自動的に読み込まれるが
+;　　　　　行数があふれた場合の処理はしていないので要確認
+;　　81番）固定行・休憩　80番台を独占していてもったいない
+;　　　　　とりあえずページ番号はわかりやすい90番代にしたが
+;　　　　　90番台が不足するなら96～99は80番台に変更するとよさげ
+;  91～番）固定行・設定系
+;　　　　　91 設定・92 セーブ・93 ロード・94 QSAVE・95 QLOAD
+;　　　　　96 右カラムリスト２前ページ・97 右カラムリスト２次ページ
+;　　　　　98 右カラムリスト１前ページ・99 右カラムリスト１次ページ
+;-------------------------------------------------
+@COLUMN_LEFT_MENU_SHOW(ARG:0)
+SELECTCASE ARG:0
+	;固定行・残り行動回数
+	CASE 0
+		;捕虜時は表示しない
+		IF CFLAG:MASTER:捕虜先 == 0
+			PRINT  残行動回数:
+			CALL COLORPRINT(@"{CALC_SHOP_TIME() - SHOP_TIME, 6}", 0xC0CAA0)
+		ELSE
+			CALL COLORPRINT("            投獄中", 0xB0BA90)
+		ENDIF
+	;固定行・休憩
+	CASE 33
+		;捕虜でない
+		IF CFLAG:MASTER:捕虜先 == 0
+			CALL COLUMN_LEFT_CATEGORY_NAME_SHOW(COLUMN_LEFT_CATEGORY_NAME:8)
+			TRYCALLFORM SHOP_LIFE_NAME81
+			CALL COLUMN_LEFT_PRINTBUTTON( 81, RESULTS:0, FLAG:拠点フェイズ選択コマンド == 81)
+		;捕虜
+		ELSE
+			CALL COLUMN_LEFT_CATEGORY_NAME_SHOW("")
+			CALL COLUMN_LEFT_PRINTBUTTON( 0, "", 0)
+		ENDIF
+	;固定行・設定
+	CASE 35
+		CALL COLUMN_LEFT_CATEGORY_NAME_SHOW(COLUMN_LEFT_CATEGORY_NAME:9)
+		CALL COLUMN_LEFT_PRINTBUTTON( 91, "設定", FLAG:拠点フェイズ選択コマンド == 91)
+	;固定行・セーブ
+	CASE 36
+		CALL COLUMN_LEFT_CATEGORY_NAME_SHOW("")
+		CALL COLUMN_LEFT_PRINTBUTTON( 92, "セーブ", FLAG:拠点フェイズ選択コマンド == 92)
+	;固定行・ロード
+	CASE 37
+		CALL COLUMN_LEFT_CATEGORY_NAME_SHOW("")
+		CALL COLUMN_LEFT_PRINTBUTTON( 93, "ロード", FLAG:拠点フェイズ選択コマンド == 93)
+	;可変行・他カテゴリ名とメニューボタン
+	CASEELSE
+		;カテゴリ
+		IF COLUMN_LEFT_CATEGORY_NUM:(ARG:0) != 0
+			CALL COLUMN_LEFT_CATEGORY_NAME_SHOW(COLUMN_LEFT_CATEGORY_NAME:(COLUMN_LEFT_CATEGORY_NUM:(ARG:0)))
+		ELSE
+			CALL COLUMN_LEFT_CATEGORY_NAME_SHOW("")
+		ENDIF
+		;メニューボタン
+		IF COLUMN_LEFT_MENU_NUM:(ARG:0) != 0
+			TRYCALLFORM SHOP_LIFE_NAME{COLUMN_LEFT_MENU_NUM:(ARG:0)}
+			CALL COLUMN_LEFT_PRINTBUTTON( COLUMN_LEFT_MENU_NUM:(ARG:0), RESULTS:0, FLAG:拠点フェイズ選択コマンド == COLUMN_LEFT_MENU_NUM:(ARG:0))
+		ELSE
+			CALL COLUMN_LEFT_PRINTBUTTON( 0, "", 0)
+		ENDIF
+ENDSELECT
+
+RESETCOLOR
+PRINT    
+

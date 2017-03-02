@@ -1,0 +1,94 @@
+﻿;-------------------------------------------------
+;「地方へ派遣」の名称
+;-------------------------------------------------
+@SHOP_LIFE_NAME45
+RESULTS:0 '= "地方へ派遣"
+
+;-------------------------------------------------
+;「地方へ派遣」の選択可否
+;-------------------------------------------------
+@SHOP_LIFE_CHECK45
+SIF CFLAG:MASTER:捕虜先
+	RETURN 0
+RETURN 0
+
+;-------------------------------------------------
+;「地方へ派遣」の選択可能キャラ存在判定
+;-------------------------------------------------
+@SHOP_LIFE_CHECKCHARA45(ARG:0)
+;非主人公、同一勢力、汎用キャラ、君主でない、捕虜でない、部隊に所属していない、借り物でない、好感度300必要
+{
+RETURN ARG:0 != MASTER && CFLAG:(ARG:0):所属 == CFLAG:MASTER:所属 && (IS_CHILD(ARG:0) || IS_RANDOM_CHARA(ARG:0)) && GET_COUNTRY_BOSS(CFLAG:(ARG:0):所属) != ARG:0 &&
+CFLAG:(ARG:0):捕虜先 == 0 && TMP_IS_FREE:(ARG:0):0 == 0 && CFLAG:(ARG:0):2 >= 300 && !GETBIT(TALENT:(ARG:0):デイリー系, 素質_デイリー_借り物) && !IS_ANIMAL(ARG:0)
+}
+
+;-------------------------------------------------
+;「地方へ派遣」の入力処理
+;-------------------------------------------------
+@SHOP_LIFE_EVENTBUY45
+FLAG:拠点フェイズページ = 1
+FLAG:夜這い = 0
+RETURN 0
+
+;-------------------------------------------------
+;「地方へ派遣」の右カラム表示処理
+;-------------------------------------------------
+@SHOP_LIFE_EVENTBUY_SHOW45
+PRINTFORM 汎用キャラを地方へ派遣し、能力に応じて経済力と兵力を得ます
+CALL COLUMN_RIGHT_PRINTL
+SETCOLOR COLOR("オレンジ")
+PRINT 派遣したキャラは削除され二度と戻って来ません
+RESETCOLOR
+CALL COLUMN_RIGHT_PRINTL
+CALL COLUMN_RIGHT_LINE
+CALL COLUMN_RIGHT_PRINTL
+;標準的なキャラリストとページ移動
+CALL COLUMN_RIGHT_CHARALIST
+RETURN 0
+
+
+;-------------------------------------------------
+;「地方へ派遣」のリスト１入力処理
+;-------------------------------------------------
+@SHOP_LIFE_USERSHOP45(ARG:0)
+;対象キャラの情報を表示
+DRAWLINE
+CALL SHOW_INFO(ARG:0)
+DRAWLINE
+
+;LOCAL:10に自勢力の士官数を格納、行動回数の監視が目的
+LOCAL:10 = GET_COMMANDER_NUM(CFLAG:MASTER:所属)
+PRINTFORML 本当に%ANAME(ARG:0)%を派遣しますか？
+;「士官人数が減少すると最大行動回数が減少する」かつ「減少後の最大行動回数が現在の行動回数と一致」する場合警告を表示
+IF !(LOCAL:10 % 5) && (LOCAL:10 / 5) == SHOP_TIME
+	SETCOLOR COLOR("警告")
+	PRINTFORML 派遣を行った場合、最大行動回数減少により直ちに今期の拠点フェイズが終了します！
+	RESETCOLOR
+ENDIF
+CALL ASK_YN
+IF RESULT == 0
+	;兵数の増加量(武闘・知略・歌唱)
+	LOCAL:6 = (ABL:(ARG:0):武闘 + ABL:(ARG:0):防衛 + ABL:(ARG:0):知略 + ABL:(ARG:0):歌唱) * 13 + 300
+	;経済規模の増加量(政治・料理)
+	LOCAL:7 = (ABL:(ARG:0):政治 + ABL:(ARG:0):料理) * 10 + 200
+
+	;兵数の増加(一時的に兵数の限界を超えられる)
+	COUNTRY_SOLDIER:(CFLAG:MASTER:所属) += LOCAL:6
+	;経済規模の増加
+	CALL GROW_COUNTRY_ECONOMY(CFLAG:MASTER:所属, LOCAL:7)
+
+	PRINTFORML %ANAME(ARG:0)%を地方へ派遣しました
+	SETCOLOR COLOR("注意")
+	PRINTFORMW 我が国の兵数が{LOCAL:6}、経済規模が合計{LOCAL:7 / 100}だけ増加しました
+	RESETCOLOR
+
+	;キャラを削除し番号を詰める
+	CALL DELETE_CHARA(ARG:0)
+	
+	IF CALC_SHOP_TIME() == SHOP_TIME
+		PRINTFORMW 人数不足による仕事のしわ寄せにより自由時間がなくなったので拠点フェイズを終了します。
+		BEGIN TURNEND
+	ENDIF
+ENDIF
+RETURN 1
+
