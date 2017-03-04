@@ -18,14 +18,177 @@ RETURN 1
 ;「捕虜の扱い」の選択可能キャラ存在判定
 ;-------------------------------------------------
 @SHOP_LIFE_CHECKCHARA33(ARG:0)
-;非主人公、主人公勢力の捕虜、牢獄で監禁中
-RETURN (ARG:0 != MASTER && CFLAG:(ARG:0):捕虜先 == CFLAG:MASTER:所属 && CFLAG:(ARG:0):監禁状態 == 0) || CFLAG:(ARG:0):外交調教経過ターン
+;主人公ならだめ
+SIF ARG:0 == MASTER
+	RETURN 0
+
+;主人公勢力の捕虜、あるいは外交調教の対象
+RETURN CFLAG:(ARG:0):捕虜先 == CFLAG:MASTER:所属 || CFLAG:(ARG:0):外交調教経過ターン
+
 RETURN 0
 
 ;-------------------------------------------------
 ;「捕虜の扱い」の入力処理
 ;-------------------------------------------------
 @SHOP_LIFE_EVENTBUY33
-CALL SETSTATE_PRISONER
+FLAG:拠点フェイズページ = 1
+FLAG:夜這い = 0
 RETURN 0
+
+;-------------------------------------------------
+;「捕虜の扱い」の右カラムボタン入力値をキャラ番号に変換する処理のオフ判定
+;-------------------------------------------------
+@SHOP_LIFE_USERSHOP_COLUMN_RIGHT_CONVERT_CHARANUM_OFF_CHECK33
+
+;-------------------------------------------------
+;「捕虜の扱い」の右カラムキャラリスト１のボタン
+;-------------------------------------------------
+@SHOP_LIFE_LIST1_BUTTON33(ARG:0, ARG:1)
+#DIM SYOKUSYU_FLAG
+;触手調教選択可否
+SYOKUSYU_FLAG = ITEM:触手部屋 && ID_TO_CHARA(FLAG:触手部屋管理者) >= 0 && IS_SYOKUSYU_MANAGE(ID_TO_CHARA(FLAG:触手部屋管理者))
+
+CALL COLUMN_RIGHT_LINE
+CALL COLUMN_RIGHT_PRINTL
+
+PRINTFORM %ANAME(ARG:0), 16, LEFT%
+CALL SHOP_LIFE_BUTTON33(ARG:0, CFLAG:(ARG:0):監禁状態 == 0 && CFLAG:(ARG:0):捕虜の扱い == 0, 1, "監禁")
+CALL SHOP_LIFE_BUTTON33(ARG:0, CFLAG:(ARG:0):監禁状態 == 1 && CFLAG:(ARG:0):捕虜の扱い == 0, 2, "軟禁")
+CALL SHOP_LIFE_BUTTON33(ARG:0, CFLAG:(ARG:0):監禁状態 == 0 && CFLAG:(ARG:0):捕虜の扱い == 2, 3, "拷問")
+CALL SHOP_LIFE_BUTTON33(ARG:0, CFLAG:(ARG:0):監禁状態 == 0 && CFLAG:(ARG:0):捕虜の扱い == 3, 4, "Ｃ開発")
+CALL SHOP_LIFE_BUTTON33(ARG:0, CFLAG:(ARG:0):監禁状態 == 0 && CFLAG:(ARG:0):捕虜の扱い == 4, 5, "Ｂ開発")
+CALL SHOP_LIFE_BUTTON33(ARG:0, CFLAG:(ARG:0):監禁状態 == 0 && CFLAG:(ARG:0):捕虜の扱い == 5, 6, "性処理")
+IF SYOKUSYU_FLAG
+	CALL SHOP_LIFE_BUTTON33(ARG:0, CFLAG:(ARG:0):監禁状態 == 0 && CFLAG:(ARG:0):捕虜の扱い == 6, 7, "触手調教")
+ENDIF
+CALL SHOP_LIFE_BUTTON33(ARG:0, CFLAG:(ARG:0):監禁状態 == 0 && CFLAG:(ARG:0):捕虜の扱い == 7, 8, "娼館")
+CALL SHOP_LIFE_BUTTON33(ARG:0, CFLAG:(ARG:0):監禁状態 == 0 && CFLAG:(ARG:0):捕虜の扱い == 8, 9, "搾乳")
+CALL COLUMN_RIGHT_PRINTL
+
+SETCOLOR COLOR("注釈")
+PRINTFORM 精神力:
+RESETCOLOR
+CALL PRINT_GRADATIONBAR(BASE:(ARG:0):精神力, MAXBASE:(ARG:0):精神力, 10, 0x5E9AFF)
+SETCOLOR COLOR("注釈")
+;精神力1/3以下なら強調
+SIF BASE:(ARG:0):精神力 <= MAXBASE:(ARG:0):精神力 / 3
+	SETCOLOR COLOR("選択中")
+PRINTFORM {BASE:(ARG:0):精神力,6, RIGHT}
+SETCOLOR COLOR("注釈")
+PRINTFORM /{MAXBASE:(ARG:0):精神力, 6, RIGHT}
+RESETCOLOR
+RETURN 0
+
+;-------------------------------------------------
+;「捕虜の扱い」の右カラム表示処理
+;-------------------------------------------------
+@SHOP_LIFE_EVENTBUY_SHOW33
+#DIM SYOKUSYU_FLAG
+SYOKUSYU_FLAG = 0
+;触手調教選択可否
+SYOKUSYU_FLAG = ITEM:触手部屋 && ID_TO_CHARA(FLAG:触手部屋管理者) >= 0 && IS_SYOKUSYU_MANAGE(ID_TO_CHARA(FLAG:触手部屋管理者))
+;タイトル
+CALL COLUMN_RIGHT_TITLE("扱いを選択", "", "", "0", "0")
+CALL COLUMN_RIGHT_PRINTL
+CALL COLUMN_RIGHT_LINE
+CALL COLUMN_RIGHT_PRINTL
+
+;一括指定ボタン
+SETCOLOR COLOR("注釈")
+PRINTFORM %"一括指定", 16% 
+RESETCOLOR
+
+PRINTBUTTON "[監禁]", 0
+PRINTPLAIN  
+PRINTBUTTON "[軟禁]", 1
+PRINTPLAIN  
+PRINTBUTTON "[拷問]", 2
+PRINTPLAIN  
+PRINTBUTTON "[Ｃ開発]", 3
+PRINTPLAIN  
+PRINTBUTTON "[Ｂ開発]", 4
+PRINTPLAIN  
+PRINTBUTTON "[性処理]", 5
+IF SYOKUSYU_FLAG
+	PRINTPLAIN  
+	PRINTBUTTON "[触手調教]",6
+ENDIF
+PRINTPLAIN  
+PRINTBUTTON "[娼館]",7
+PRINTPLAIN  
+PRINTBUTTON "[搾乳]",8
+CALL COLUMN_RIGHT_PRINTL
+
+;標準的なキャラリストとページ移動 １列1ボタン,1ボタン3行
+;ボタンにラインを含むため開始前にラインをひかない
+CALL COLUMN_RIGHT_CHARALIST(1, 3)
+RETURN 0
+
+;-------------------------------------------------
+;「捕虜の扱い」の右カラムボタンの入力処理補佐
+;-------------------------------------------------
+@SHOP_LIFE_EVENTBUY_SUB33(ARG:0)
+;一括ボタンが押された場合
+FOR LOCAL:0, 0, CHARANUM
+	TRYCALLFORM SHOP_LIFE_CHECKCHARA{FLAG:拠点フェイズ選択コマンド}(LOCAL:0)
+	IF RESULT
+		;軟禁の場合
+		IF ARG:0 == 1
+			CFLAG:(LOCAL:0):監禁状態 = 1
+			CFLAG:(LOCAL:0):捕虜の扱い = 0
+		;それ以外
+		ELSE
+			CFLAG:(LOCAL:0):監禁状態 = 0
+			CFLAG:(LOCAL:0):捕虜の扱い = ARG:0
+		ENDIF
+	ENDIF
+NEXT
+RETURN 0
+
+;-------------------------------------------------
+;「捕虜の扱い」のリスト１入力処理
+;　SHOP_LIFE_USERSHOP_COLUMN_RIGHT_CONVERT_CHARANUM_OFF_CHECKを指定しているためARG:0=入力値
+;-------------------------------------------------
+@SHOP_LIFE_USERSHOP33(ARG:0)
+#DIM 項目番号
+#DIM キャラ番号
+
+項目番号 = ARG:0 / 1000
+キャラ番号 = ARG:0 - (1000 * 項目番号)
+
+RESULT = 0
+TRYCALLFORM SHOP_LIFE_CHECKCHARA{FLAG:拠点フェイズ選択コマンド}(キャラ番号)
+IF RESULT
+	;軟禁のとき
+	IF 項目番号 == 2
+		CFLAG:(キャラ番号):監禁状態 = 1
+		CFLAG:(キャラ番号):捕虜の扱い = 0
+	;それ以外
+	ELSE
+		項目番号 = 項目番号 - 1
+		CFLAG:(キャラ番号):監禁状態 = 0
+		CFLAG:(キャラ番号):捕虜の扱い = 項目番号
+	ENDIF
+ENDIF
+
+RETURN 0
+
+;-------------------------------------------------
+;扱い指定専用ボタン表示
+;0:捕虜のキャラ番号 1:扱いの種別番号 2:ボタン表示文字列
+;-------------------------------------------------
+@SHOP_LIFE_BUTTON33(キャラ番号, 選択中色フラグ, 種別指定番号, ボタン表示文字列)
+#DIM キャラ番号
+#DIM 選択中色フラグ
+#DIM 種別指定番号
+#DIMS ボタン表示文字列
+
+PRINTPLAIN  
+IF 選択中色フラグ
+	SETCOLOR COLOR("選択中")
+	PRINTPLAINFORM \[%ボタン表示文字列%\]
+	RESETCOLOR
+ELSE
+	PRINTBUTTON @"\[%ボタン表示文字列%\]", キャラ番号 + (種別指定番号 * 1000)
+ENDIF
 
