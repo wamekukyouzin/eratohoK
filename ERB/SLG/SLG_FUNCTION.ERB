@@ -1725,6 +1725,7 @@ GOTO INPUT_LOOP
 #DIM 補正値
 #DIM 上限
 #DIM 基礎値
+#DIM 難易度補正
 #DIM 返却値
 
 基礎値 = MAX(SQRT(1000 * ARG:0) * 100, 1)
@@ -1750,8 +1751,15 @@ ENDIF
 IF ARG:1 == MASTER
 	;陥落ひとりあたま0.5% ただし上限は100% つまり200人まで
 	補正値 = 10000 + MIN(FLAG:陥落人数 * 50, 10000)
-;キャラ番号が-1、勢力が異なる、主人公が捕虜の場合は補正無
-ELSEIF ARG:1 < 0 || CFLAG:MASTER:所属 != CFLAG:(ARG:1):所属 || (CFLAG:MASTER:捕虜先 != 0 && CFLAG:MASTER:所属 == CFLAG:(ARG:1):所属)
+;キャラ指定がなければ100%
+ELSEIF ARG:1 < 0
+	補正値 = 10000
+;違う勢力 CONFIG:314の難易度補正が乗る
+ELSEIF CFLAG:MASTER:所属 != CFLAG:(ARG:1):所属
+	難易度補正 = (GET_DIFFICULTY_CORRECTION() - 100) / 3
+	補正値 = 10000 + 10000 * 難易度補正 / 100
+;同一勢力でも主人子が捕虜の間はダメ
+ELSEIF (CFLAG:MASTER:捕虜先 != 0 && CFLAG:MASTER:所属 == CFLAG:(ARG:1):所属)
 	補正値 = 10000
 ;主人公勢力
 ELSE
