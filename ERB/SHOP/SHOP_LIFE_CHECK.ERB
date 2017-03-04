@@ -1,0 +1,47 @@
+﻿;共有されている選択可否判定と選択可能キャラ存在判定
+;-------------------------------------------------
+;「閨に呼ぶ」の選択可能キャラ存在判定リスト１
+;-------------------------------------------------
+@SHOP_LIFE_CHECKCHARA_NEYA(ARG:0)
+;捕虜として捕まっている場合
+IF CFLAG:(ARG:0):捕虜先
+	;非主人公、通常状態または育児中、合意、主人公勢力の捕虜かつ軟禁中
+	RETURN CHECK91(ARG:0, 2, ARG:0 != MASTER && GROUPMATCH(CFLAG:(ARG:0):行動不能状態, 0, 2) && (TALENT:(ARG:0):合意 || TALENT:(ARG:0):親友) && CFLAG:(ARG:0):捕虜先 == CFLAG:MASTER:所属 && CFLAG:(ARG:0):監禁状態 == 1)
+ELSE
+	;捕虜でない、非主人公、通常状態または育児中、合意か親友ないし所属が特殊勢力なら対応する特殊勢力陥落素質持ち、同一勢力
+	RETURN CHECK91(ARG:0, 2, ARG:0 != MASTER && GROUPMATCH(CFLAG:(ARG:0):行動不能状態, 0, 2) && (TALENT:(ARG:0):合意 || TALENT:(ARG:0):親友 || (IS_SP_COUNTRY(CFLAG:(ARG:0):所属) && GETBIT(TALENT:(ARG:0):特殊勢力陥落系, SP_COUNTRY_TO_CONST(CFLAG:(ARG:0):所属)))) && CFLAG:(ARG:0):所属 == CFLAG:MASTER:所属)
+ENDIF
+
+;-------------------------------------------------
+;「能力表示」の選択可能キャラ存在判定リスト１
+;-------------------------------------------------
+@SHOP_LIFE_CHECKCHARA_NOURYOKU(ARG:0)
+;同一勢力or共闘勢力or自国の捕虜
+;最後に&& CFLAG:(ARG:0):捕虜先としてるのは、マスターが未所属捕虜で能力表示を開いた場合、「どこの勢力の捕虜にもなっていない」キャラが引っかかるから
+SIF ARG:0 == MASTER
+	RETURN 1
+SELECTCASE FLAG:能力表示フィルタ
+	;従来
+	CASE 0
+		RETURN TMP_COUNTRY_RELATION:(CFLAG:MASTER:所属):(CFLAG:(ARG:0):所属) >= 2 || (CFLAG:(ARG:0):捕虜先 == CFLAG:MASTER:所属 && CFLAG:(ARG:0):捕虜先)
+	;自国のみ
+	CASE 1
+		RETURN CFLAG:MASTER:所属 && CFLAG:MASTER:所属 == CFLAG:(ARG:0):所属
+	;捕虜も
+	CASE 2
+		RETURN CFLAG:MASTER:所属 && (CFLAG:MASTER:所属 == CFLAG:(ARG:0):所属 || CFLAG:MASTER:所属 == CFLAG:(ARG:0):捕虜先)
+	;ぜんぶ
+	CASE 3
+		RETURN 1
+ENDSELECT
+RETURN 1
+
+;-------------------------------------------------
+;「手引させる」選択可能キャラ存在判定リスト２
+;-------------------------------------------------
+@SHOP_LIFE_CHECKCHARA_SUB_NAITSUU(ARG:0)
+;捕虜でない、非主人公、通常状態または育児中、烙印、別勢力
+SIF TMP_COUNTRY_IS_NEIBORING:(CFLAG:MASTER:所属):(CFLAG:(ARG:0):所属)
+	RETURN CHECK91(ARG:0, 2, ARG:0 != MASTER && !CFLAG:(ARG:0):捕虜先 && GROUPMATCH(CFLAG:(ARG:0):行動不能状態, 0, 2) && TALENT:(ARG:0):烙印) && CFLAG:MASTER:所属 != CFLAG:(ARG:0):所属
+RETURN 0
+
