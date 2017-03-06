@@ -266,9 +266,7 @@ ENDIF
 ;-------------------------------------------------
 @TURNEND_COMMON
 VARSET LOCAL, 0
-
-;主人公用の捕虜状態からの脱出イベント呼び出し
-CALL GREAT_ESCAPE
+VARSET PRISONER_TARGET, -1
 
 ;奴隷市場の商品リストを更新
 CALL SLAVEMARKET_PREPARE_GOODS
@@ -279,38 +277,8 @@ CALL SCOUT_PREPARE_CANDIDATES
 DAY ++
 CALL CALC_SPECIAL_TRAIN_PRICE
 DAY --
-;このターンの特別訓練実施回数をリセット
-SPECIAL_TRAIN_COUNT_THIS_TURN = 0
 
-;口上呼び出し
-FOR LOCAL:0, 0, CHARANUM
-	IF CFLAG:(LOCAL:0):所属 == CFLAG:MASTER:所属 && LOCAL:0 != MASTER
-		CALL KOJO_EVENT(LOCAL:0, 31)
-	ENDIF
-NEXT
-
-VARSET PRISONER_TARGET, -1
-
-
-IF CFLAG:MASTER:所属 <= 0
-	WAIT
-;給料の支給(観戦中・捕虜のときはスキップ)◆
-ELSEIF CFLAG:MASTER:捕虜先 == 0
-	DRAWLINE
-	LOCAL:0 = CALC_SALARY()
-	MONEY += LOCAL:0
-	PRINTFORML %CALLNAME:MASTER%に今期分の俸給が支払われました
-	PRINTFORMW 所持金＋{LOCAL:0}
-ENDIF
-
-;各勢力都市の経済規模変動及び税収処理
-CALL VARY_ECONOMY
-CALL GAIN_COUNTRY_TAX
-
-;経済成長・兵数増強の補正値をクリア
-FLAG:経済成長追加値 = 0
-FLAG:兵数増加追加値 = 0
-
+;雇用カウンターの操作
 PLAYER_HIRED_COUNTER = MAX(0, PLAYER_HIRED_COUNTER - 1)
 COUNTRY_PLAYER_BELONGED_COUNTER++
 IF COUNTRY_PLAYER_BELONGED_COUNTER == 2 
@@ -327,6 +295,62 @@ FOR LOCAL:0, CHARANUM - 1, -1, -1
 		CALL DELETE_CHARA(LOCAL:0)
 	ENDIF
 NEXT
+
+;このターンの特別訓練実施回数をリセット
+SPECIAL_TRAIN_COUNT_THIS_TURN = 0
+
+;子育てモードのコマンド実行回数をクリア
+CVARSET CFLAG, 27, 0
+
+;捕虜用変数のクリア
+CVARSET CFLAG, 30, 0
+CVARSET CFLAG, 31, 0
+CVARSET CFLAG, 32, 0
+
+;各子育てコマンドの選択回数をクリア
+FOR LOCAL:0, 110, 130
+	CVARSET CFLAG, LOCAL:0, 0
+NEXT
+
+;口上呼び出し
+FOR LOCAL:0, 0, CHARANUM
+	IF CFLAG:(LOCAL:0):所属 == CFLAG:MASTER:所属 && LOCAL:0 != MASTER
+		CALL KOJO_EVENT(LOCAL:0, 31)
+	ENDIF
+NEXT
+
+;触手部屋の管理者に経験値を加算
+IF ITEM:触手部屋 && ID_TO_CHARA(FLAG:触手部屋管理者) >= 0 && IS_SYOKUSYU_MANAGE(ID_TO_CHARA(FLAG:触手部屋管理者))
+	EXP:(ID_TO_CHARA(FLAG:触手部屋管理者)):触手経験値 += 2
+	EXP:(ID_TO_CHARA(FLAG:触手部屋管理者)):妖術経験値 += 2
+	CALL TRAIN_AUTO_ABLUP(ID_TO_CHARA(FLAG:触手部屋管理者), 1)
+ENDIF
+
+CUSTOMDRAWLINE =
+PRINTFORML 各種報告
+CUSTOMDRAWLINE =
+
+;主人公用の捕虜状態からの脱出イベント呼び出し
+CALL GREAT_ESCAPE
+
+IF CFLAG:MASTER:所属 <= 0
+	WAIT
+;給料の支給(観戦中・捕虜のときはスキップ)◆
+ELSEIF CFLAG:MASTER:捕虜先 == 0
+	LOCAL:0 = CALC_SALARY()
+	MONEY += LOCAL:0
+	PRINTFORML %CALLNAME:MASTER%に今期分の俸給が支払われました
+	PRINTFORMW 所持金＋{LOCAL:0}
+	DRAWLINE
+ENDIF
+
+;各勢力都市の経済規模変動及び税収処理
+CALL VARY_ECONOMY
+CALL GAIN_COUNTRY_TAX
+
+;経済成長・兵数増強の補正値をクリア
+FLAG:経済成長追加値 = 0
+FLAG:兵数増加追加値 = 0
 
 FOR LOCAL:0, 0, CHARANUM
 	;全員の体力・気力を最大まで回復
@@ -357,12 +381,6 @@ FOR LOCAL:0, 0, CHARANUM
 		FOR LOCAL:1, 0, VARSIZE("SP_TRAIN_COUNT")
 			SP_TRAIN_COUNT:LOCAL:(LOCAL:1) = MAX(SP_TRAIN_COUNT:LOCAL:(LOCAL:1), 0)
 		NEXT
-	ENDIF
-
-	;本の効果の残りターンを減らす
-	CFLAG:(LOCAL:0):本の効果残ターン = MAX(CFLAG:(LOCAL:0):本の効果残ターン - 1, 0)
-	IF CFLAG:(LOCAL:0):本の効果残ターン == 0
-		CFLAG:(LOCAL:0):本の効果 = 0
 	ENDIF
 
 	CFLAG:(LOCAL:0):避妊薬残ターン = MAX(CFLAG:(LOCAL:0):避妊薬残ターン - 1, 0)
@@ -500,13 +518,6 @@ FOR LOCAL:0, 0, CHARANUM
 
 NEXT
 
-;触手部屋の管理者に経験値を加算
-IF ITEM:触手部屋 && ID_TO_CHARA(FLAG:触手部屋管理者) >= 0 && IS_SYOKUSYU_MANAGE(ID_TO_CHARA(FLAG:触手部屋管理者))
-	EXP:(ID_TO_CHARA(FLAG:触手部屋管理者)):触手経験値 += 2
-	EXP:(ID_TO_CHARA(FLAG:触手部屋管理者)):妖術経験値 += 2
-	CALL TRAIN_AUTO_ABLUP(ID_TO_CHARA(FLAG:触手部屋管理者), 1)
-ENDIF
-
 ;外交による調教要求フラグの解除判定
 CALL CHECK_DIPLOMACY_TRAIN_FLAG
 
@@ -536,18 +547,6 @@ FOR LOCAL:0, 0, CHARANUM
 	CALL TALENT_CHECK(LOCAL:0)
 NEXT
 
-;子育てモードのコマンド実行回数をクリア
-CVARSET CFLAG, 27, 0
-
-;捕虜用変数のクリア
-CVARSET CFLAG, 30, 0
-CVARSET CFLAG, 31, 0
-CVARSET CFLAG, 32, 0
-
-;各子育てコマンドの選択回数をクリア
-FOR LOCAL:0, 110, 130
-	CVARSET CFLAG, LOCAL:0, 0
-NEXT
 
 ;-------------------------------------------------
 ;料理長による回復
