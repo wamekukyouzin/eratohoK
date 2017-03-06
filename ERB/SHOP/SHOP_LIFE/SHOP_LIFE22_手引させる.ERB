@@ -8,6 +8,17 @@ RESULTS:0 '= "手引させる"
 ;「手引させる」の選択可否
 ;-------------------------------------------------
 @SHOP_LIFE_CHECK22
+FOR LOCAL, 0, MAX_COUNTRY
+	SIF !IS_COUNTRY(LOCAL) || LOCAL == CFLAG:MASTER:所属
+		CONTINUE
+	SIF TMP_COUNTRY_IS_NEIBORING:(CFLAG:MASTER:所属):LOCAL
+		GOTO FOUND
+NEXT
+
+RETURN 0
+
+$FOUND
+
 SIF CFLAG:MASTER:捕虜先
 	RETURN 0
 SIF CFLAG:MASTER:行動不能状態 == 1 || COOLTIME:MASTER:0 > 1
@@ -18,7 +29,7 @@ SIF CFLAG:MASTER:行動不能状態 == 1 || COOLTIME:MASTER:0 > 1
 ;内通者の選択可能キャラ存在チェック
 LOCAL:1 = 0
 FOR LOCAL:0, 1, CHARANUM
-	TRYCALLFORM SHOP_LIFE_CHECKCHARA_SUB22(LOCAL:0)
+	CALL SHOP_LIFE_CHECKCHARA_SUB_NAITSUU(LOCAL:0)
 	IF RESULT
 		LOCAL:1 = 1
 		BREAK
@@ -56,10 +67,14 @@ RETURN 0
 ;「手引させる」の内通者の選択可能キャラ存在判定
 ;-------------------------------------------------
 @SHOP_LIFE_CHECKCHARA_SUB22(ARG:0)
-;捕虜でない、非主人公、通常状態または育児中、烙印、別勢力
-SIF TMP_COUNTRY_IS_NEIBORING:(CFLAG:MASTER:所属):(CFLAG:(ARG:0):所属)
-	RETURN CHECK91(ARG:0, 2, ARG:0 != MASTER && !CFLAG:(ARG:0):捕虜先 && GROUPMATCH(CFLAG:(ARG:0):行動不能状態, 0, 2) && TALENT:(ARG:0):烙印) && CFLAG:MASTER:所属 != CFLAG:(ARG:0):所属
-RETURN 0
+CALL SHOP_LIFE_CHECKCHARA_SUB_NAITSUU(ARG:0)
+RETURN RESULT
+
+;-------------------------------------------------
+;「夜這いする」の追加チェック
+;-------------------------------------------------
+@SHOP_LIFE_CHECK_ADDITIONAL_CHECK22()
+RETURN !FLAG:クリアフラグ
 
 ;-------------------------------------------------
 ;「手引させる」の陥落/能力判定
@@ -94,7 +109,7 @@ SIF (LOCAL:1 > ABL:ARG:武闘 * LOCAL:3 / 2 && LOCAL:2 > ABL:ARG:知略 * LOCAL:
 RETURNF 0
 
 ;-------------------------------------------------
-;「手引させる」の入力処理
+;「手引させるの左カラムメニューの入力処理
 ;-------------------------------------------------
 @SHOP_LIFE_EVENTBUY22
 FLAG:拠点フェイズページ = 1
@@ -119,10 +134,10 @@ NEXT
 ;内通者が指定されていない
 IF LOCAL:1 == 0
 	;キャラ, 選択中カラー表示フラグなし, ボタン番号に追加する数値, 強制的に選択不可色表示
-	CALL COLUMN_RIGHT_CHARALIST_BUTTON(ARG:0, 0, 100, 2)
+	CALL COLUMN_RIGHT_CHARALIST_BUTTON(ARG:0, 0, 100, 2, 0, "TOP")
 ELSE
 	;キャラ, 選択中カラー表示フラグなし, ボタン番号に追加する数値, CHECKCHARAの戻り値
-	CALL COLUMN_RIGHT_CHARALIST_BUTTON(ARG:0, 0, 100, ARG:1)
+	CALL COLUMN_RIGHT_CHARALIST_BUTTON(ARG:0, 0, 100, ARG:1, 0, "TOP")
 ENDIF
 RETURN
 
@@ -131,8 +146,25 @@ RETURN
 ;-------------------------------------------------
 @SHOP_LIFE_LIST2_BUTTON22(ARG:0, ARG:1)
 ;キャラ, 選択中カラー表示フラグ, ボタン番号に追加する数値, CHECKCHARAの戻り値
-CALL COLUMN_RIGHT_CHARALIST_BUTTON(ARG:0, CFLAG:(ARG:0):夜這いの助手, 1100, ARG:1)
+CALL COLUMN_RIGHT_CHARALIST_BUTTON(ARG:0, CFLAG:(ARG:0):夜這いの助手, 1100, ARG:1, 0, "BOTTOM")
 RETURN 0
+
+;-------------------------------------------------
+;「夜這い」の右カラムキャラリストボタン（上）表示に追尾させる情報
+;　デフォルトの情報を表示しない場合はRETURN 1
+;-------------------------------------------------
+@SHOP_LIFE_BUTTON_ADD_TOP22(ARG:0)
+CALL SHOP_LIFE_BUTTON_ADD_TOP31(ARG:0)
+RETURN 1
+
+;-------------------------------------------------
+;「夜這い」の右カラムキャラリストボタン（上）表示に追尾させる情報
+;　デフォルトの情報を表示しない場合はRETURN 1
+;-------------------------------------------------
+@SHOP_LIFE_BUTTON_ADD_BOTTOM22(ARG:0)
+CALL SHOP_LIFE_BUTTON_ADD_BOTTOM31(ARG:0)
+RETURN 1
+
 
 ;-------------------------------------------------
 ;「手引させる」の右カラム表示処理

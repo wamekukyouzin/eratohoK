@@ -1,55 +1,10 @@
 ﻿;拠点フェイズにおけるショップ画面の処理
 
 ;-------------------------------------------------
-;メニューの選択可否とメニューの選択可能キャラ存在判定を
-;SHOP_AVAILに保存する
-;-------------------------------------------------
-@CHECK_CHECKCHARA_SAVE
-#DIM CHECK_SAVE_COUNTER
-#DIM CHECKCHARA_SAVE_COUNTER
-
-VARSET SHOP_AVAIL, 0
-
-FOR CHECK_SAVE_COUNTER, 0, 99
-	IF CHECK_SAVE_COUNTER <= 10 || CHECK_SAVE_COUNTER >= 90
-		SHOP_AVAIL:(CHECK_SAVE_COUNTER) = 1
-	ELSE
-		RESULTS:0 '= ""
-		TRYCALLFORM SHOP_LIFE_NAME{CHECK_SAVE_COUNTER}
-		;メニュー名称が存在するなら
-		IF RESULTS:0 != ""
-			;選択可能キャラ存在判定
-			FOR CHECKCHARA_SAVE_COUNTER, 0, CHARANUM
-				RESULT = 0
-				TRYCCALLFORM SHOP_LIFE_CHECKCHARA{CHECK_SAVE_COUNTER}(CHECKCHARA_SAVE_COUNTER)
-					;このキャラは0:選択不可で非表示 1:選択可 2:選択不可色で表示のどれかが戻る
-					SHOP_AVAIL:(CHECK_SAVE_COUNTER) = RESULT
-				CATCH
-					SHOP_AVAIL:(CHECK_SAVE_COUNTER) = 1
-				ENDCATCH
-				;存在判定がなかった、または、1選択可のキャラがいたらループを抜ける
-				IF SHOP_AVAIL:(CHECK_SAVE_COUNTER) == 1
-					BREAK
-				ENDIF
-			NEXT
-			;メニューの選択可否判定
-			RESULT = 0
-			;選択可否判定が存在し、不可の場合のみ上書きする
-			TRYCCALLFORM SHOP_LIFE_CHECK{CHECK_SAVE_COUNTER}
-				IF RESULT == 0
-					SHOP_AVAIL:(CHECK_SAVE_COUNTER) = 0
-				ENDIF
-			CATCH
-			ENDCATCH
-		ENDIF
-	ENDIF
-NEXT
-
-;-------------------------------------------------
 ;左右カラム表示開始
 ;使用）CALL START_COLUMN
 ;想定）コンテンツ表示時・ページ移動時
-;備考）COLUMN_LEFT_MENU_SHOW(0)の互換
+;備考）行番号リセットとCOLUMN_LEFT_MENU_SHOW(0)の互換
 ;-------------------------------------------------
 @START_COLUMN
 FIRST_COLUMN_RIGHT_LINE = LINECOUNT
@@ -71,19 +26,25 @@ CALL CREATE_SELECTOR_SORT_LIST
 ;全員の調教参加フラグをクリア
 CVARSET CFLAG, 6, 0
 
-;メニュー番号範囲外なら、メニューの選択状態を会いに行くにリセット
+TRYCCALLFORM SHOP_LIFE_EVENTBUY_COLUMN_RIGHT_OFF_CHECK{FLAG:拠点フェイズ選択コマンド}
+	;右カラムオフなら最新の右カラムに表示のあるメニュー番号でFLAG:拠点フェイズ選択コマンドをリセット
+	FLAG:拠点フェイズ選択コマンド = COLUMN_RIGHT_MENU_SAVE_NUM
+CATCH
+ENDCATCH
+
+;メニュー番号範囲外なら、メニューの選択状態をリセット
 IF FLAG:拠点フェイズ選択コマンド < 1 || FLAG:拠点フェイズ選択コマンド > 99
-	FLAG:拠点フェイズ選択コマンド = 11
+	FLAG:拠点フェイズ選択コマンド = DEFAULT_MENU_NUM
 ENDIF
 
-;メニュー番号範囲内だが実行不能なら、メニューの選択状態を会いに行くにリセット
+;メニュー番号範囲内だが実行不能なら、メニューの選択状態をリセット
 IF FLAG:拠点フェイズ選択コマンド >= 1 || FLAG:拠点フェイズ選択コマンド <= 99 && !SHOP_AVAIL:(FLAG:拠点フェイズ選択コマンド)
-	FLAG:拠点フェイズ選択コマンド = 11
+	FLAG:拠点フェイズ選択コマンド = DEFAULT_MENU_NUM
 ENDIF
 
-;休憩やシステム設定なら会いに行くにリセット
-IF FLAG:拠点フェイズ選択コマンド == 81 || FLAG:拠点フェイズ選択コマンド > 90
-	FLAG:拠点フェイズ選択コマンド = 11
+;システム設定ならリセット
+IF FLAG:拠点フェイズ選択コマンド > 90
+	FLAG:拠点フェイズ選択コマンド = DEFAULT_MENU_NUM
 ENDIF
 
 ;会いに行くにリセットしてもメニュー実行不能なら、メニューの選択状態を解除
@@ -97,12 +58,12 @@ CALL COLUMN_LEFT_MENULINE_SAVE
 ;左右カラムの行番号をリセットし、ひとつめのメニュー（残行動回数表示）を表示
 CALL START_COLUMN
 
-;表示処理
-;各メニューの右カラムの表示内容を呼び出す
-;右カラム用改行関数に付随する左メニューの表示も行う
+;右カラムの表示処理呼び出し（右カラム用改行関数に付随する左メニューの表示も行う）
 TRYCCALLFORM SHOP_LIFE_EVENTBUY_SHOW{FLAG:拠点フェイズ選択コマンド}
 CATCH
-	;表示処理が存在しなければ右カラムは白紙のページ
+	;白紙のページの場合
+	;今回のメニュー番号が右カラムオフかつ
+	;最新の右カラムに表示のあるメニュー番号も実行不可になっていた場合
 	CALL COLUMN_RIGHT_CLEAR
 ENDCATCH
 
@@ -115,7 +76,16 @@ ENDCATCH
 @EVENTBUY_LIFE(ARG:0)
 ;左カラムの入力処理
 IF SHOP_AVAIL:(ARG:0) && ARG:0 > 10 && ARG:0 <= 90
+	;メニュー移動したのでメニュー用の汎用変数をリセット
+	VARSET MENUVAR, 0
+	;入力値をメニュー番号に受け取る
 	FLAG:拠点フェイズ選択コマンド = ARG:0
+	TRYCCALLFORM SHOP_LIFE_EVENTBUY_COLUMN_RIGHT_OFF_CHECK{FLAG:拠点フェイズ選択コマンド}
+	CATCH
+		;右カラムオンなら、最新の右カラムとしてメニュー番号を保存する
+		COLUMN_RIGHT_MENU_SAVE_NUM = FLAG:拠点フェイズ選択コマンド
+	ENDCATCH
+	;入力処理呼び出し
 	TRYCALLFORM SHOP_LIFE_EVENTBUY{ARG:0}
 	RETURN RESULT
 ;右カラムの入力処理
@@ -149,14 +119,22 @@ ENDIF
 ;-------------------------------------------------
 ;ショップ画面の入力処理(拠点フェイズ 100～9999)
 ;ARG:0に入力した値が入る
-;再描画が必要なときは1、不要なときは0を返すこと
 ;-------------------------------------------------
 @USERSHOP_LIFE(ARG:0)
 LOCAL:0 = 0
-CALL USERSHOP_LIFE_CHARA1(NO_TO_CHARA(ARG:0 - 100))
-LOCAL:0 |= RESULT
-CALL USERSHOP_LIFE_CHARA2(NO_TO_CHARA(ARG:0 - 1100))
-LOCAL:0 |= RESULT
+;右カラムボタン入力値をキャラ番号に変換する処理のオフ判定があれば
+TRYCCALLFORM SHOP_LIFE_USERSHOP_COLUMN_RIGHT_CONVERT_CHARANUM_OFF_CHECK{FLAG:拠点フェイズ選択コマンド}
+	;入力値をそのまま受け取って直接呼ぶ
+	TRYCALLFORM SHOP_LIFE_USERSHOP{FLAG:拠点フェイズ選択コマンド}(ARG:0)
+	LOCAL:0 |= RESULT
+;なければ
+CATCH
+	;通常のキャラリストをキャラ関係の入力処理を通して呼ぶ
+	CALL USERSHOP_LIFE_CHARA1(NO_TO_CHARA(ARG:0 - 100))
+	LOCAL:0 |= RESULT
+	CALL USERSHOP_LIFE_CHARA2(NO_TO_CHARA(ARG:0 - 1100))
+	LOCAL:0 |= RESULT
+ENDCATCH
 RETURN LOCAL:0
 
 ;-------------------------------------------------
@@ -268,26 +246,4 @@ DO
 	行動回数 ++
 LOOP 士官数 >= NOW
 RETURNF 行動回数
-
-;-------------------------------------------------
-;行動済みチェック
-;ARG:0　対象キャラ
-;ARG:1　ARG:2が真だった時に返す値
-;ARG:2　行動済み以外の条件式
-;-------------------------------------------------
-@CHECK91(ARG:0, ARG:1, ARG:2)
-#FUNCTION
-SIF ARG:2 <= 0
-	RETURNF ARG:2
-IF !CFLAG:(ARG:0):行動済み
-	RETURNF ARG:2
-ELSE
-	IF CONFIG:13 == 1
-		RETURNF 0
-	ELSEIF ARG:2 == 1
-		RETURNF ARG:1
-	ELSE
-		RETURNF ARG:2
-	ENDIF
-ENDIF
 

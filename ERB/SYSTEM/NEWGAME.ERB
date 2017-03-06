@@ -298,8 +298,10 @@ TRYCALLFORM SCENARIO_INTRO_%SCENARIOID%
 
 PRINTFORML このシナリオで遊びますか？
 CALL ASK_YN
-SIF RESULT == 1
+IF RESULT == 1
+	FLAG:周回数 --
 	RESTART
+ENDIF
 
 ;シナリオ初期勢力配置
 TRYCCALLFORM SCENARIO_PLACEMENT_%SCENARIOID%
@@ -313,9 +315,10 @@ $SELECT_COUNTRY
 CALL SELECT_COUNTRY
 
 ;戻った場合
-SIF RESULT == -1
+IF RESULT == -1
+	FLAG:周回数 --
 	RESTART
-
+ENDIF
 
 ;観戦モードの場合、前の週でキャラを変更したとき用に、「あなた」と主人公を入れ替えて戻す処理だけは必要
 IF FLAG:観戦モード
@@ -369,6 +372,9 @@ NEXT
 
 ;カスタムキャラの扱いの設定
 CALL CUSTOM_SETTING
+
+;キャラエディット
+CALL CHARA_EDIT
 
 ;初期ボーナス
 IF !FLAG:観戦モード && FLAG:あなた新規作成 && MASTER == NAME_TO_CHARA("あなた")
@@ -791,9 +797,10 @@ DRAWLINE
 ;ここから登録キャラの表示
 PRINTBUTTON "[あなたを新規作成]", 0
 PRINTFORM ※ 現在の「あなた」のデータをリセットします
-SIF FLAG:あなた作成済み && MASTER != NAME_TO_CHARA("あなた")
+IF FLAG:あなた作成済み && MASTER != NAME_TO_CHARA("あなた")
 	PRINTL
 	PRINTBUTTON "[あなたを選択]", 2
+ENDIF
 IF FINDELEMENT(SP_COUNTRY_START, 特殊勢力スタート_君主) != -1
 	PRINTL
 	PRINTBUTTON "[特殊勢力の固有君主を利用]", 1
@@ -1058,7 +1065,6 @@ IF RESULT == 0
 	COUNTRY_SOLDIER:勢力 = GET_SUM_ECONOMY(勢力) / 20
 	CITY_SOLDIER:都市 = 500
 	CALL CHANGE_COUNTRY(MASTER, 勢力, 1)
-	PRINTFORML %ANAME(MASTER)%
 	FOR LOCAL, 0, CHARANUM
 		IF 士官:LOCAL == 1
 			CALL CHANGE_COUNTRY(LOCAL, 勢力, 1)
@@ -1172,3 +1178,34 @@ ELSE
 		FLAG:ランダムキャラ使用 = 0
 	ENDIF
 ENDIF
+
+;-------------------------------------------------
+;キャラエディット
+;-------------------------------------------------
+@CHARA_EDIT
+#DIM FIRST_LINE
+DRAWLINE
+PRINTFORML キャラをエディットすることができます
+PRINTFORML エディットしますか？（注意！　動作保証外になります）
+CALL ASK_YN()
+
+SIF RESULT == 1
+	RETURN
+
+FIRST_LINE = LINECOUNT
+
+$SHOW_LOOP
+
+DRAWLINE
+PRINTFORML 気が済んだら「やっぱりやめる」を選択してください
+DRAWLINE
+CALL SELECT_CHARA_LIST("NONE", "NONE")
+SIF RESULT == -1
+	RETURN
+LOCAL = RESULT
+CALL REVERSE_APPLY_CUSTOM_DATA(MAX_CUSTOM_CHARA - 1, LOCAL)
+CALL CREATE_CUSTOM(MAX_CUSTOM_CHARA - 1, 1)
+SIF RESULT == 1
+	CALL APPLY_CUSTOM_DATA(LOCAL, MAX_CUSTOM_CHARA - 1)
+CLEARLINE LINECOUNT - FIRST_LINE
+GOTO SHOW_LOOP

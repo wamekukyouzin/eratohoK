@@ -15,9 +15,188 @@ SIF CFLAG:MASTER:捕虜先
 RETURN 1
 
 ;-------------------------------------------------
-;「士官を募る」の入力処理
+;「士官を募るの左カラムメニューの入力処理
 ;-------------------------------------------------
 @SHOP_LIFE_EVENTBUY46
-CALL RECRUIT_RANDOM_CHARA
+FLAG:拠点フェイズページ = 1
+FLAG:夜這い = 0
+MENUVAR:1 = 0
+MENUVAR:2 = 0
+MENUVAR:3 = 0
+RETURN 0
+
+;-------------------------------------------------
+;「士官を募る」の右カラムボタン入力値をキャラ番号に変換する処理のオフ判定
+;-------------------------------------------------
+@SHOP_LIFE_USERSHOP_COLUMN_RIGHT_CONVERT_CHARANUM_OFF_CHECK46
+
+;-------------------------------------------------
+;「士官を募る」の右カラム表示処理
+;-------------------------------------------------
+@SHOP_LIFE_EVENTBUY_SHOW46
+
+;タイトル
+CALL COLUMN_RIGHT_TITLE("募集要項の設定", "", "", "全", "0")
+CALL COLUMN_RIGHT_PRINTL
+CALL COLUMN_RIGHT_LINE
+CALL COLUMN_RIGHT_PRINTL
+
+PRINTBUTTON "[この条件で募集]", 0
+PRINTPLAIN   
+CALL COLORPRINT("期の初めのみ募集できます", COLOR("注釈"))
+CALL COLUMN_RIGHT_PRINTL
+CALL COLUMN_RIGHT_LINE
+CALL COLUMN_RIGHT_PRINTL
+
+CALL COLORPRINT("才能:", COLOR("注釈"))
+CALL PRINT_SELECT_BUTTON(" [多能]", 110, MENUVAR:1 == 0)
+CALL PRINT_SELECT_BUTTON(" [武官]", 111, MENUVAR:1 == 1)
+CALL PRINT_SELECT_BUTTON(" [軍師]", 112, MENUVAR:1 == 2)
+CALL PRINT_SELECT_BUTTON(" [政務]", 113, MENUVAR:1 == 3)
+CALL PRINT_SELECT_BUTTON(" [芸能]", 114, MENUVAR:1 == 4)
+CALL PRINT_SELECT_BUTTON(" [料理]", 115, MENUVAR:1 == 5)
+CALL COLUMN_RIGHT_PRINTL
+CALL COLUMN_RIGHT_PRINTL
+
+CALL COLORPRINT("性別:", COLOR("注釈"))
+CALL PRINT_SELECT_BUTTON(" [不問]", 120, MENUVAR:2 == 0)
+CALL PRINT_SELECT_BUTTON(" [男性]", 121, MENUVAR:2 == 1)
+CALL PRINT_SELECT_BUTTON(" [女性]", 122, MENUVAR:2 == 2)
+CALL PRINT_SELECT_BUTTON(" [女双]", 123, MENUVAR:2 == 3)
+CALL PRINT_SELECT_BUTTON(" [男双]", 124, MENUVAR:2 == 4)
+CALL PRINT_SELECT_BUTTON(" [男娘]", 125, MENUVAR:2 == 5)
+CALL PRINT_SELECT_BUTTON(" [男娘双]", 126, MENUVAR:2 == 6)
+CALL COLUMN_RIGHT_PRINTL
+CALL COLUMN_RIGHT_PRINTL
+
+CALL COLORPRINT("名前:", COLOR("注釈"))
+CALL PRINT_SELECT_BUTTON(" [和名]", 130, MENUVAR:3 == 0)
+CALL PRINT_SELECT_BUTTON(" [洋風]", 131, MENUVAR:3 == 1)
+CALL PRINT_SELECT_BUTTON(" [中華]", 132, MENUVAR:3 == 2)
+
+;残りは空行
+CALL COLUMN_RIGHT_CLEAR
+
+;-------------------------------------------------
+;「士官を募る」の右カラムボタンの入力処理補佐
+;-------------------------------------------------
+@SHOP_LIFE_EVENTBUY_SUB46(ARG:0)
+;この条件で募集以外の数字なら戻る
+SIF ARG:0 != 0
+	RETURN 0
+
+MENUVAR:11 = -1
+MENUVAR:12 = 0
+
+LOCAL:0 = GET_COMMANDER_NUM(CFLAG:MASTER:所属)
+
+;君主が[動物耳]or[尻尾]を持つならケモ率高め
+LOCAL:4 = GET_COUNTRY_BOSS(CFLAG:MASTER:所属)
+IF LOCAL:4 >= 0 && (TALENT:(LOCAL:4):動物耳 || TALENT:(LOCAL:4):しっぽ)
+	LOCAL:5 = 75
+ELSE
+	LOCAL:5 = 1
+ENDIF
+
+$INPUT_LOOP_NEWCHARA
+
+;指定の条件でランダムキャラを作成
+CALL CREATE_RANDOM_CHARA(LOCAL:5, MENUVAR:1, MENUVAR:2 - 1, MENUVAR:3)
+LOCAL:2 = RESULT
+
+;士官の作成に失敗した場合
+IF LOCAL:2 < 0
+	PRINTW 残念ながら目ぼしい士官は見つかりませんでした…
+
+;成功
+ELSE
+	DRAWLINE
+	PRINTFORML %ANAME(LOCAL:2)%が仕官を求めてきました
+
+	$INPUT_LOOP_SELECT
+
+	;SHOW_INFOの初期画面を基本情報にする
+	FLAG:能力表示モード = 0
+
+	;キャラの情報を表示
+	DRAWLINE
+	CALL SHOW_INFO(LOCAL:2)
+	DRAWLINE
+
+	PRINTBUTTON "[このキャラを登用]", 0
+	PRINT    
+	PRINTBUTTON "[別のキャラを探す]", 1
+	PRINT    
+	IF MENUVAR:11 == -1
+	ELSEIF MENUVAR:12
+		PRINTBUTTON "[進む]", 2
+	ELSE
+		PRINTBUTTON "[戻る]", 2
+	ENDIF
+	
+	PRINT    
+	PRINTBUTTON "[中止]", 9
+	PRINTL 
+
+	$INPUT_LOOP_TREAT
+	INPUT
+
+	IF RESULT == 0
+		CALL CHANGE_COUNTRY(LOCAL:2, CFLAG:MASTER:所属)
+		PRINTFORMW %ANAME(LOCAL:2)%が我が国の士官になりました
+		IF MENUVAR:11 != -1
+			CALL DELETE_CHARA(MENUVAR:11)
+		ENDIF
+		;このターンにおける登用済みフラグをON
+		SHOP_TIME = CALC_SHOP_TIME()
+		;クリアしない
+		LINES_SHOP = LINECOUNT
+		BEGIN TURNEND
+	ELSEIF RESULT == 1
+		IF MENUVAR:11 != -1
+			;いらないキャラを削除
+			CALL DELETE_CHARA(MENUVAR:11)
+		ENDIF
+		MENUVAR:11 = CHARANUM - 1
+		MENUVAR:12 = 0
+		GOTO INPUT_LOOP_NEWCHARA
+	ELSEIF RESULT == 2
+		IF MENUVAR:12
+			MENUVAR:12 = 0
+		ELSE
+			MENUVAR:12 = 1
+		ENDIF
+			;スワップ
+			LOCAL:21 = MENUVAR:11
+			MENUVAR:11    = LOCAL:2
+			LOCAL:2 = LOCAL:21
+		GOTO INPUT_LOOP_SELECT
+	ELSEIF RESULT == 9
+		;PRINTW 今回は登用を見送ることにしました
+		;作成したキャラを削除
+		CALL DELETE_CHARA(CHARANUM - 1)
+		IF MENUVAR:11 != -1
+			CALL DELETE_CHARA(CHARANUM - 1)
+		ENDIF
+	ELSE
+		GOTO INPUT_LOOP_TREAT
+	ENDIF
+ENDIF
+
 RETURN 1
+
+;-------------------------------------------------
+;「士官を募る」のリスト１入力処理
+;　キャラ番号への変換オフのためARG:0=入力値
+;-------------------------------------------------
+@SHOP_LIFE_USERSHOP46(ARG:0)
+IF ARG:0 >= 110 && ARG:0 <= 115
+	MENUVAR:1 = ARG:0 - 110
+ELSEIF ARG:0 >= 120 && ARG:0 <= 126
+	MENUVAR:2 = ARG:0 - 120
+ELSEIF ARG:0 >= 130 && ARG:0 <= 132
+	MENUVAR:3 = ARG:0 - 130
+ENDIF
+
+RETURN 0
 
