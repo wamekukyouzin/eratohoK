@@ -43,12 +43,12 @@ IF FLAG:拠点フェイズ選択コマンド >= 1 || FLAG:拠点フェイズ選�
 ENDIF
 
 ;システム設定ならリセット
-IF FLAG:拠点フェイズ選択コマンド > 90
+IF FLAG:拠点フェイズ選択コマンド > COLUMN_LEFT_MENU_END_VALUE
 	FLAG:拠点フェイズ選択コマンド = DEFAULT_MENU_NUM
 ENDIF
 
-;会いに行くにリセットしてもメニュー実行不能なら、メニューの選択状態を解除
-IF FLAG:拠点フェイズ選択コマンド == 11 && !SHOP_AVAIL:(FLAG:拠点フェイズ選択コマンド)
+;デフォルトメニューにリセットしてもメニュー実行不能なら、メニューの選択状態を解除
+IF FLAG:拠点フェイズ選択コマンド == DEFAULT_MENU_NUM && !SHOP_AVAIL:(FLAG:拠点フェイズ選択コマンド)
 	FLAG:拠点フェイズ選択コマンド = 0
 ENDIF
 
@@ -75,7 +75,7 @@ ENDCATCH
 ;-------------------------------------------------
 @EVENTBUY_LIFE(ARG:0)
 ;左カラムの入力処理
-IF SHOP_AVAIL:(ARG:0) && ARG:0 > 10 && ARG:0 <= 90
+IF SHOP_AVAIL:(ARG:0) && ARG:0 >= COLUMN_LEFT_MENU_START_VALUE && ARG:0 <= COLUMN_LEFT_MENU_END_VALUE
 	;メニュー移動したのでメニュー用の汎用変数をリセット
 	VARSET MENUVAR, 0
 	;入力値をメニュー番号に受け取る
@@ -88,10 +88,12 @@ IF SHOP_AVAIL:(ARG:0) && ARG:0 > 10 && ARG:0 <= 90
 	;入力処理呼び出し
 	TRYCALLFORM SHOP_LIFE_EVENTBUY{ARG:0}
 	RETURN RESULT
-;右カラムの入力処理
-ELSEIF ARG:0 <= 10
+
+;右カラムの入力処理補助
+ELSEIF ARG:0 < COLUMN_LEFT_MENU_START_VALUE
 	TRYCALLFORM SHOP_LIFE_EVENTBUY_SUB{FLAG:拠点フェイズ選択コマンド}(ARG:0)
 	RETURN RESULT
+
 ;共通処理
 ELSE
 	;前のページ
@@ -130,9 +132,9 @@ TRYCCALLFORM SHOP_LIFE_USERSHOP_COLUMN_RIGHT_CONVERT_CHARANUM_OFF_CHECK{FLAG:拠
 ;なければ
 CATCH
 	;通常のキャラリストをキャラ関係の入力処理を通して呼ぶ
-	CALL USERSHOP_LIFE_CHARA1(NO_TO_CHARA(ARG:0 - 100))
+	CALL USERSHOP_LIFE_CHARA1(NO_TO_CHARA(ARG:0 - SHOP_LIFE_LIST1_ADD_INPUT))
 	LOCAL:0 |= RESULT
-	CALL USERSHOP_LIFE_CHARA2(NO_TO_CHARA(ARG:0 - 1100))
+	CALL USERSHOP_LIFE_CHARA2(NO_TO_CHARA(ARG:0 - SHOP_LIFE_LIST2_ADD_INPUT))
 	LOCAL:0 |= RESULT
 ENDCATCH
 RETURN LOCAL:0

@@ -148,7 +148,7 @@ ELSE
 	NEXT
 	;捕虜が一人でもいればラインを引く
 	IF LOCAL:5 >= 1
-		DRAWLINE
+		CALL SINGLE_DRAWLINE
 	ENDIF
 ENDIF
 
@@ -190,7 +190,7 @@ ELSEIF CFLAG:MASTER:捕虜先 != 0
 	LOCAL:0 = CONFIG:302
 	CONFIG:302 = 1
 
-	DRAWLINE
+	CALL SINGLE_DRAWLINE
 
 	;戦略フェイズの処理
 	CALL SLG_TURNEND
@@ -266,9 +266,7 @@ ENDIF
 ;-------------------------------------------------
 @TURNEND_COMMON
 VARSET LOCAL, 0
-
-;主人公用の捕虜状態からの脱出イベント呼び出し
-CALL GREAT_ESCAPE
+VARSET PRISONER_TARGET, -1
 
 ;奴隷市場の商品リストを更新
 CALL SLAVEMARKET_PREPARE_GOODS
@@ -279,38 +277,8 @@ CALL SCOUT_PREPARE_CANDIDATES
 DAY ++
 CALL CALC_SPECIAL_TRAIN_PRICE
 DAY --
-;このターンの特別訓練実施回数をリセット
-SPECIAL_TRAIN_COUNT_THIS_TURN = 0
 
-;口上呼び出し
-FOR LOCAL:0, 0, CHARANUM
-	IF CFLAG:(LOCAL:0):所属 == CFLAG:MASTER:所属 && LOCAL:0 != MASTER
-		CALL KOJO_EVENT(LOCAL:0, 31)
-	ENDIF
-NEXT
-
-VARSET PRISONER_TARGET, -1
-
-
-IF CFLAG:MASTER:所属 <= 0
-	WAIT
-;給料の支給(観戦中・捕虜のときはスキップ)◆
-ELSEIF CFLAG:MASTER:捕虜先 == 0
-	DRAWLINE
-	LOCAL:0 = CALC_SALARY()
-	MONEY += LOCAL:0
-	PRINTFORML %CALLNAME:MASTER%に今期分の俸給が支払われました
-	PRINTFORMW 所持金＋{LOCAL:0}
-ENDIF
-
-;各勢力都市の経済規模変動及び税収処理
-CALL VARY_ECONOMY
-CALL GAIN_COUNTRY_TAX
-
-;経済成長・兵数増強の補正値をクリア
-FLAG:経済成長追加値 = 0
-FLAG:兵数増加追加値 = 0
-
+;雇用カウンターの操作
 PLAYER_HIRED_COUNTER = MAX(0, PLAYER_HIRED_COUNTER - 1)
 COUNTRY_PLAYER_BELONGED_COUNTER++
 IF COUNTRY_PLAYER_BELONGED_COUNTER == 2 
@@ -328,6 +296,125 @@ FOR LOCAL:0, CHARANUM - 1, -1, -1
 	ENDIF
 NEXT
 
+;このターンの特別訓練実施回数をリセット
+SPECIAL_TRAIN_COUNT_THIS_TURN = 0
+
+;子育てモードのコマンド実行回数をクリア
+CVARSET CFLAG, 27, 0
+
+;捕虜用変数のクリア
+CVARSET CFLAG, 30, 0
+CVARSET CFLAG, 31, 0
+CVARSET CFLAG, 32, 0
+
+;各子育てコマンドの選択回数をクリア
+FOR LOCAL:0, 110, 130
+	CVARSET CFLAG, LOCAL:0, 0
+NEXT
+
+;口上呼び出し
+FOR LOCAL:0, 0, CHARANUM
+	IF CFLAG:(LOCAL:0):所属 == CFLAG:MASTER:所属 && LOCAL:0 != MASTER
+		CALL KOJO_EVENT(LOCAL:0, 31)
+	ENDIF
+NEXT
+
+;触手部屋の管理者に経験値を加算
+IF ITEM:触手部屋 && ID_TO_CHARA(FLAG:触手部屋管理者) >= 0 && IS_SYOKUSYU_MANAGE(ID_TO_CHARA(FLAG:触手部屋管理者))
+	EXP:(ID_TO_CHARA(FLAG:触手部屋管理者)):触手経験値 += 2
+	EXP:(ID_TO_CHARA(FLAG:触手部屋管理者)):妖術経験値 += 2
+	CALL TRAIN_AUTO_ABLUP(ID_TO_CHARA(FLAG:触手部屋管理者), 1)
+ENDIF
+
+;キャラクタの能力をどうこうする処理
+CALL TURNEND_CHARA_PROCESS
+
+CUSTOMDRAWLINE =
+PRINTFORML 各種報告
+CUSTOMDRAWLINE =
+
+;主人公用の捕虜状態からの脱出イベント呼び出し
+CALL GREAT_ESCAPE
+
+IF CFLAG:MASTER:所属 <= 0
+	WAIT
+;給料の支給(観戦中・捕虜のときはスキップ)◆
+ELSEIF CFLAG:MASTER:捕虜先 == 0
+	CALL SINGLE_DRAWLINE
+	PRINTFORML 給与/徴税報告
+	CALL SINGLE_DRAWLINE
+	LOCAL:0 = CALC_SALARY()
+	MONEY += LOCAL:0
+	PRINTFORML %CALLNAME:MASTER%に今期分の俸給が支払われました
+	PRINTFORMW 所持金＋{LOCAL:0}
+ENDIF
+
+;各勢力都市の経済規模変動及び税収処理
+CALL VARY_ECONOMY
+CALL GAIN_COUNTRY_TAX
+
+;経済成長・兵数増強の補正値をクリア
+FLAG:経済成長追加値 = 0
+FLAG:兵数増加追加値 = 0
+
+;外交による調教要求フラグの解除判定
+CALL CHECK_DIPLOMACY_TRAIN_FLAG
+
+;朝のイベント
+;CALL EVENT_MORNING
+
+;アイテム開発イベント
+CALL ITEM_DEVELOPMENT
+
+;妊娠出産関連の処理(触手)
+CALL TURNEND_PREGNANT_PHASE
+
+;特殊な朝イベント
+;CALL EVENT_MORNING_SP
+
+CALL SINGLE_DRAWLINE
+PRINTFORML 特殊勢力による調教報告
+CALL SINGLE_DRAWLINE
+
+;特殊勢力による調教
+FOR LOCAL, 0, MAX_COUNTRY
+	CALL SP_TRAIN(LOCAL)
+NEXT
+
+CALL SINGLE_DRAWLINE
+PRINTFORML 素質獲得報告
+CALL SINGLE_DRAWLINE
+
+FOR LOCAL:0, 0, CHARANUM
+	;恋慕などの素質変化の処理(二回目)
+	CALL TALENT_CHECK(LOCAL:0)
+NEXT
+
+
+;-------------------------------------------------
+;料理長による回復
+;-------------------------------------------------
+@COOK_HEAL(対象 = 0)
+#DIM 対象
+IF GET_COOK() != -1
+	LOCAL = GET_COOK()
+	IF LOCAL != 0 && !CFLAG:(LOCAL):捕虜先 && CFLAG:(LOCAL):所属 == CFLAG:MASTER:所属
+		BASE:対象:体力 = MIN(BASE:対象:体力 + (ABL:LOCAL:料理 / 10 * 100 + RAND:100), MAXBASE:対象:体力)
+		BASE:対象:気力 = MIN(BASE:対象:気力 + (ABL:LOCAL:料理 / 10 * 100 + RAND:100), MAXBASE:対象:気力)
+		PRINTFORML %ANAME(LOCAL)%の料理で、%ANAME(対象)%の体力と気力が回復しました
+	ELSE
+		SETCOLOR COLOR("注意")
+		PRINTFORML 料理長が国内にいない（捕虜になっている、国外に追放された）ため、その恩恵をうけられません
+		PRINTFORMW !料理長を解除しました!
+		RESETCOLOR
+		CALL SET_COOK(-1)
+	ENDIF
+ENDIF
+
+;-------------------------------------------------
+;キャラの能力の変動
+;-------------------------------------------------
+@TURNEND_CHARA_PROCESS
 FOR LOCAL:0, 0, CHARANUM
 	;全員の体力・気力を最大まで回復
 	BASE:(LOCAL:0):0 = MAXBASE:(LOCAL:0):0
@@ -348,35 +435,6 @@ FOR LOCAL:0, 0, CHARANUM
 		CALL COLORPRINT(@"%NAME_FORMAL(LOCAL)%が蘇りました", COLOR("注意"), "W")
 		CALL CHANGE_COUNTRY(LOCAL, 0, 1)
 	ENDIF
-	
-	;NTR周り
-	IF TALENT:LOCAL:ＮＴＲ
-		LOCAL:1 = ID_TO_CHARA(CFLAG:LOCAL:ＮＴＲキャラ)
-		IF LOCAL:1 == -1
-			CFLAG:LOCAL:ＮＴＲキャラ = 0
-			CFLAG:LOCAL:ＮＴＲ値 = 0
-			TALENT:LOCAL:ＮＴＲ = 0
-		ELSE
-			IF GET_COUNTRY_BOSS(CFLAG:(LOCAL):所属) != LOCAL
-				IF !CFLAG:(LOCAL:1):捕虜先 && CFLAG:(LOCAL:1):特殊状態 == 2 && !CFLAG:LOCAL:特殊状態
-					CALL COLORPRINT(@"%ANAME(LOCAL:1)%が死亡したことを儚み、%ANAME(LOCAL)%も後を追いました", COLOR("警告"), "W")
-					CALL CHANGE_COUNTRY(LOCAL, 0, 1, 1)
-				ELSEIF !CFLAG:(LOCAL:1):捕虜先 && CFLAG:(LOCAL:1):特殊状態 == 1 && !CFLAG:LOCAL:特殊状態
-					CALL COLORPRINT(@"放浪している%ANAME(LOCAL:1)%を追い、%ANAME(LOCAL)%も放浪しました", COLOR("警告"), "W")
-					CALL CHANGE_COUNTRY(LOCAL, 0, 1)
-				ELSEIF !CFLAG:LOCAL:捕虜先 && CFLAG:(LOCAL:1):所属 != CFLAG:LOCAL:所属 && CFLAG:LOCAL:特殊状態 != 2
-					CALL COLORPRINT(@"別勢力にいる%ANAME(LOCAL:1)%を追い、%ANAME(LOCAL)%が\@ GET_COUNTRY_BOSS(CFLAG:(LOCAL:1):所属) != -1 ? %ANAME(GET_COUNTRY_BOSS(CFLAG:(LOCAL:1):所属))%に # \@移籍しました", COLOR("警告"), "W")
-					CALL CHANGE_COUNTRY(LOCAL, CFLAG:(LOCAL:1):所属, 1)
-				ELSEIF CFLAG:(LOCAL:1):捕虜先 && IS_COUNTRY(CFLAG:LOCAL:所属)
-					CALL COLORPRINT(@"%ANAME(LOCAL:1)%が牢につながれたままであることに、%ANAME(LOCAL)%は不満を募らせています……", COLOR("警告"), "W")
-					CFLAG:LOCAL:好感度 = 0
-					CFLAG:LOCAL:従属度 = 0
-					CFLAG:LOCAL:依存度 = 0
-					CALL CHANGE_RELATION_O_TO_O(LOCAL, GET_COUNTRY_BOSS(CFLAG:LOCAL:所属), -30, 30)
-				ENDIF
-			ENDIF
-		ENDIF
-	ENDIF
 
 	;このターン～系フラグを折る
 	CFLAG:(LOCAL:0):行動済み = 0
@@ -386,12 +444,6 @@ FOR LOCAL:0, 0, CHARANUM
 		FOR LOCAL:1, 0, VARSIZE("SP_TRAIN_COUNT")
 			SP_TRAIN_COUNT:LOCAL:(LOCAL:1) = MAX(SP_TRAIN_COUNT:LOCAL:(LOCAL:1), 0)
 		NEXT
-	ENDIF
-
-	;本の効果の残りターンを減らす
-	CFLAG:(LOCAL:0):本の効果残ターン = MAX(CFLAG:(LOCAL:0):本の効果残ターン - 1, 0)
-	IF CFLAG:(LOCAL:0):本の効果残ターン == 0
-		CFLAG:(LOCAL:0):本の効果 = 0
 	ENDIF
 
 	CFLAG:(LOCAL:0):避妊薬残ターン = MAX(CFLAG:(LOCAL:0):避妊薬残ターン - 1, 0)
@@ -529,74 +581,7 @@ FOR LOCAL:0, 0, CHARANUM
 
 NEXT
 
-;触手部屋の管理者に経験値を加算
-IF ITEM:触手部屋 && ID_TO_CHARA(FLAG:触手部屋管理者) >= 0 && IS_SYOKUSYU_MANAGE(ID_TO_CHARA(FLAG:触手部屋管理者))
-	EXP:(ID_TO_CHARA(FLAG:触手部屋管理者)):触手経験値 += 2
-	EXP:(ID_TO_CHARA(FLAG:触手部屋管理者)):妖術経験値 += 2
-	CALL TRAIN_AUTO_ABLUP(ID_TO_CHARA(FLAG:触手部屋管理者), 1)
-ENDIF
 
-;外交による調教要求フラグの解除判定
-CALL CHECK_DIPLOMACY_TRAIN_FLAG
-
-;朝のイベント
-;CALL EVENT_MORNING
-
-;アイテム開発イベント
-CALL ITEM_DEVELOPMENT
-
-;妊娠出産関連の処理(触手)
-CALL TURNEND_PREGNANT_CHECK_SYOKUSYU
-
-;妊娠出産関連の処理(一般)
-CALL TURNEND_PREGNANT_CHECK
-
-;特殊な朝イベント
-;CALL EVENT_MORNING_SP
-
-;特殊勢力による調教
-FOR LOCAL, 0, MAX_COUNTRY
-	CALL SP_TRAIN(LOCAL)
-NEXT
-
-
-FOR LOCAL:0, 0, CHARANUM
-	;恋慕などの素質変化の処理(二回目)
-	CALL TALENT_CHECK(LOCAL:0)
-NEXT
-
-;子育てモードのコマンド実行回数をクリア
-CVARSET CFLAG, 27, 0
-
-;捕虜用変数のクリア
-CVARSET CFLAG, 30, 0
-CVARSET CFLAG, 31, 0
-CVARSET CFLAG, 32, 0
-
-;各子育てコマンドの選択回数をクリア
-FOR LOCAL:0, 110, 130
-	CVARSET CFLAG, LOCAL:0, 0
-NEXT
-
-;-------------------------------------------------
-;料理長による回復
-;-------------------------------------------------
-@COOK_HEAL(対象 = 0)
-#DIM 対象
-IF GET_COOK() != -1
-	LOCAL = GET_COOK()
-	IF LOCAL != 0 && !CFLAG:(LOCAL):捕虜先 && CFLAG:(LOCAL):所属 == CFLAG:MASTER:所属
-		BASE:対象:体力 = MIN(BASE:対象:体力 + (ABL:LOCAL:料理 / 10 * 100 + RAND:100), MAXBASE:対象:体力)
-		BASE:対象:気力 = MIN(BASE:対象:気力 + (ABL:LOCAL:料理 / 10 * 100 + RAND:100), MAXBASE:対象:気力)
-		PRINTFORML %ANAME(LOCAL)%の料理で、%ANAME(対象)%の体力と気力が回復しました
-	ELSE
-		SETCOLOR COLOR("注意")
-		PRINTFORML 料理長が国内にいない（捕虜になっている、国外に追放された）ため、その恩恵をうけられません
-		PRINTFORMW !料理長を解除しました!
-		RESETCOLOR
-		CALL SET_COOK(-1)
-	ENDIF
-ENDIF
 
 ;-------------------------------------------------
 ;脱出イベント
@@ -605,7 +590,7 @@ ENDIF
 
 SIF !(CFLAG:MASTER:捕虜先 && RAND:100 < 15)
 	RETURN -1
-DRAWLINE
+CALL SINGLE_DRAWLINE
 PRINTFORMW 囚われていた%ANAME(MASTER)%だが、看守の隙を見つけた
 PRINTFORMW 今ならば脱出できるかもしれない……
 CALL ASK_MULTI(@"脱出を試みる", "危険な真似はよそう")
@@ -696,5 +681,5 @@ ELSE
 			ENDIF
 		ENDSELECT
 	ENDIF
-DRAWLINE
+CALL SINGLE_DRAWLINE
 RETURN 0

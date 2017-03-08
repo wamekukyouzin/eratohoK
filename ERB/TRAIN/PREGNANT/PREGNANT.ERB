@@ -335,8 +335,6 @@ IF IS_CONFISCATE_CHILD(ARG:0)
 	SETCOLOR COLOR("注意")
 	PRINTFORMW そろそろ%ANAME(ARG:0)%の子供が産まれそうです
 	RESETCOLOR
-	PRINTFORMW ………………
-	PRINTFORMW ……
 	PRINTFORMW %ANAME(ARG:0)%は無事に出産を終えました
 	PRINTFORMW 生まれた子供は没収されてしまったようだ……
 	仕官させないフラグ = 1
@@ -473,8 +471,6 @@ IF IS_PREGNANT_MSG(MOTHER)
 	ELSE
 		PRINTFORMW 元気な女の子です
 	ENDIF
-	PRINTL 
-	PRINTL 
 	IF !FLAG:観戦モード && (CFLAG:MASTER:所属 == CFLAG:MOTHER:所属 || CFLAG:MASTER:所属 == CFLAG:MOTHER:捕虜先)
 		IF CONFIG:16 == 1
 			GOTO AUTO_RECRUIT
@@ -482,10 +478,9 @@ IF IS_PREGNANT_MSG(MOTHER)
 			GOTO AUTO_CANCEL
 		ENDIF
 		;観戦でない
-		DRAWLINE
 		FLAG:能力表示モード = 0
 		CALL SHOW_INFO_WITH_UI(CHILD, 0, 0)
-		DRAWLINE
+		CALL SINGLE_DRAWLINE
 		PRINTFORMW この子を将来、自国の仕官となるように教育しますか？
 		CALL ASK_MULTI("する", "する（今後自動的に士官にする）", "しない", "しない（今後自動的に無視する）")
 		IF GROUPMATCH(RESULT, 2, 3)
@@ -527,12 +522,22 @@ RETURN CHILD
 #FUNCTION
 
 SIF FLAG:観戦モード
-RETURNF 1
+	RETURNF 1
 
+;主人公の勢力の捕虜になっている場合、没収されない
 SIF CFLAG:(ARG:0):捕虜先 && CFLAG:(ARG:0):捕虜先 == CFLAG:MASTER:所属
 	RETURNF 0
 
+;特殊勢力所属で、かつその特殊勢力が主人公のところでなければ、没収される
 SIF IS_SP_COUNTRY(CFLAG:(ARG:0):所属) && CFLAG:(ARG:0):所属 != CFLAG:MASTER:所属
+	RETURNF 1
+
+;特殊勢力の捕虜で、かつその特殊勢力が主人公のところでなければ、没収される
+SIF IS_SP_COUNTRY(CFLAG:(ARG:0):捕虜先) && CFLAG:(ARG:0):所属 != CFLAG:MASTER:所属
+	RETURNF 1
+
+;捕虜で、かつその勢力が主人公の勢力でない場合、没収される
+SIF CFLAG:(ARG:0):捕虜先 && CFLAG:(ARG:0):捕虜先 != CFLAG:MASTER:所属
 	RETURNF 1
 
 RETURNF 0
@@ -642,12 +647,22 @@ IF TALENT:(ARG:0):幼児 && CFLAG:(ARG:0):子の成長度 >= 15 && IS_CHILD(ARG:
 ENDIF
 
 ;---------------------------------------------------------
+;ターンエンド時に行う妊娠関連の処理(ハブ)
+;---------------------------------------------------------
+@TURNEND_PREGNANT_PHASE
+CALL SINGLE_DRAWLINE
+PRINTFORML 妊娠・出産報告
+CALL SINGLE_DRAWLINE
+CALL TURNEND_PREGNANT_CHECK
+CALL TURNEND_PREGNANT_CHECK_SYOKUSYU
+
+;---------------------------------------------------------
 ;ターンエンド時に行う妊娠出産関連の処理(触手出産)
 ;---------------------------------------------------------
 @TURNEND_PREGNANT_CHECK_SYOKUSYU
+
 FOR LOCAL:0, 0, CHARANUM
 	IF CFLAG:(LOCAL:0):触手産卵実行者 || CFLAG:(LOCAL:0):触手Ａ産卵実行者
-		PRINTL 
 		SETCOLOR COLOR("注意")
 		PRINTFORMW %ANAME(LOCAL:0)%に産み付けられた触手の子供は、瞬く間に大きく育ち%ANAME(LOCAL:0)%のお腹から這い出そうとしています
 		SIF GETBIT(TALENT:(LOCAL:0):淫乱系, 素質_淫乱_苗床)
@@ -808,7 +823,7 @@ ENDIF
 
 
 ;胸サイズが変動している場合(再度妊娠していた場合は除く)
-IF CFLAG:(ARG:0):出産前バストサイズ && !TALENT:(ARG:0):妊娠
+IF GET_BUSTSIZE_NUM(ARG:0) > CFLAG:(ARG:0):出産前バストサイズ
 	IF ARG:1 && IS_PREGNANT_MSG(ARG:0)
 		PRINTL 
 		SETCOLOR COLOR("注意")
@@ -824,6 +839,8 @@ IF CFLAG:(ARG:0):出産前バストサイズ && !TALENT:(ARG:0):妊娠
 			TALENT:(ARG:0):絶壁 = 1
 		CASE -1
 			TALENT:(ARG:0):貧乳 = 1
+		CASE 0
+			CALL SET_BUSTSIZE(ARG:0, 0)
 		CASE 1
 			TALENT:(ARG:0):巨乳 = 1
 		CASE 2
@@ -876,9 +893,9 @@ ENDIF
 FIRST_LINE = LINECOUNT
 $SHOW_LOOP
 
-DRAWLINE
+CALL SINGLE_DRAWLINE
 PRINTFORML ★★★この子にどんな名前を付けますか？★★★
-DRAWLINE
+CALL SINGLE_DRAWLINE
 
 ;命名
 PRINTFORM   姓:%CSTR:(ARG:0):0, 10, LEFT%%CSTR:(ARG:0):5, 10, LEFT%
