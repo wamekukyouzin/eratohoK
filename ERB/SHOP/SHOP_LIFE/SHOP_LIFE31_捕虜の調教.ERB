@@ -44,7 +44,7 @@ RETURN 0
 ;-------------------------------------------------
 @SHOP_LIFE_LIST1_BUTTON31(ARG:0, ARG:1)
 ;キャラ, 選択中カラー表示フラグ, ボタン番号に追加する数値, CHECKCHARAの戻り値
-CALL COLUMN_RIGHT_CHARALIST_BUTTON(ARG:0, FINDELEMENT(PRISONER_TARGET, ARG:0) != -1, 100, ARG:1, 0, "TOP")
+CALL COLUMN_RIGHT_CHARALIST_BUTTON(ARG:0, FINDELEMENT(PRISONER_TARGET, ARG:0) != -1, SHOP_LIFE_LIST1_ADD_INPUT, ARG:1, 0, "TOP")
 RETURN
 
 ;-------------------------------------------------
@@ -52,7 +52,7 @@ RETURN
 ;-------------------------------------------------
 @SHOP_LIFE_LIST2_BUTTON31(ARG:0, ARG:1)
 ;キャラ, 選択中カラー表示フラグ, ボタン番号に追加する数値, CHECKCHARAの戻り値
-CALL COLUMN_RIGHT_CHARALIST_BUTTON(ARG:0, CFLAG:(ARG:0):捕虜調教の助手, 1100, ARG:1, 0, "BOTTOM")
+CALL COLUMN_RIGHT_CHARALIST_BUTTON(ARG:0, CFLAG:(ARG:0):捕虜調教の助手, SHOP_LIFE_LIST2_ADD_INPUT, ARG:1, 0, "BOTTOM")
 RETURN 0
 
 ;-------------------------------------------------
@@ -60,94 +60,16 @@ RETURN 0
 ;　デフォルトの情報を表示しない場合はRETURN 1
 ;-------------------------------------------------
 @SHOP_LIFE_BUTTON_ADD_TOP31(ARG:0)
-PRINTPLAIN  
-IF ARG:0 == MASTER
-	PRINT   
-ELSEIF CFLAG:(ARG:0):所属 == CFLAG:MASTER:所属
-	SETCOLOR 0x97f8e8
-	PRINT 自
-ELSEIF CFLAG:(ARG:0):所属 != 0
-	SETCOLOR 0x28cc28
-	PRINT 他
-ELSE
-	SETCOLOR 0x808080
-	PRINT 無
-ENDIF
-IF TALENT:(ARG:0):崩壊
-	SETCOLOR COLOR("警告")
-	PRINT 崩
-ELSEIF TALENT:(ARG:0):虚ろ
-	SETCOLOR COLOR("警告")
-	PRINT 虚
-ELSEIF TALENT:(ARG:0):隷属
-	SETCOLOR 0x00FFFF
-	PRINT 隷
-ELSEIF TALENT:(ARG:0):服従
-	SETCOLOR 0x00D0D0
-	PRINT 酔
-ELSE
-	PRINT   
-ENDIF
-IF TALENT:(ARG:0):正妻
-	SETCOLOR 0xF5CE13
-	PRINT 妻
-ELSEIF TALENT:(ARG:0):恋人
-	SETCOLOR 0xFF80C0
-	PRINT 恋
-ELSEIF TALENT:(ARG:0):烙印
-	SETCOLOR 0x00FF80
-	PRINT 印
-ELSE
-	PRINT   
-ENDIF
-RESETCOLOR
-
-PRINTFORM 精:
-CALL PRINT_GRADATIONBAR(BASE:(ARG:0):精神力, MAXBASE:(ARG:0):精神力, 10, 0x5E9AFF)
-PRINTFORM {BASE:(ARG:0):精神力,6, RIGHT}/{MAXBASE:(ARG:0):精神力, 6, RIGHT}  
-PRINTFORM 好:
-IF CFLAG:(ARG:0):好感度 > 99999
-	PRINTFORM %"多い", 6, RIGHT%
-ELSE
-	PRINTFORM {CFLAG:(ARG:0):好感度, 6, RIGHT} 
-ENDIF
-PRINTFORM 依:
-IF CFLAG:(ARG:0):依存度 > 99999
-	PRINTFORM %"多い", 6, RIGHT%
-ELSE
-	PRINTFORM {CFLAG:(ARG:0):依存度, 6, RIGHT} 
-ENDIF
-PRINTFORM 従:
-IF CFLAG:(ARG:0):従属度 > 99999
-	PRINTFORM %"多い", 6, RIGHT%
-ELSE
-	PRINTFORM {CFLAG:(ARG:0):従属度, 6, RIGHT} 
-ENDIF
-
-RETURN 1
+CALL SHOP_LIFE_BUTTON_ADD_TOP_PRISONER(ARG:0)
+RETURN RESULT
 
 ;-------------------------------------------------
 ;「捕虜の調教」の右カラムキャラリストボタン（上）表示に追尾させる情報
 ;　デフォルトの情報を表示しない場合はRETURN 1
 ;-------------------------------------------------
 @SHOP_LIFE_BUTTON_ADD_BOTTOM31(ARG:0)
-#DIM 表示能力 = GETNUM(ABL, "欲望"), GETNUM(ABL, "性知識"), GETNUM(ABL, "奉仕"), GETNUM(ABL, "性技"), GETNUM(ABL, "性交")
-PRINTPLAIN  
-FOR LOCAL, 0, VARSIZE("表示能力")
-	PRINTFORM %SUBSTRINGU(ABLNAME:(表示能力:LOCAL), 0, 2)%:
-	IF 表示能力:LOCAL == GETNUM(ABL, "性知識")
-		CALL PRINT_ALPHABET_RANK(ランク_性知識, ABL:(ARG:0):(表示能力:LOCAL))
-	ELSE
-		CALL PRINT_ALPHABET_RANK(ランク_その他, ABL:(ARG:0):(表示能力:LOCAL))
-	ENDIF
-	PRINTFORM {ABL:(ARG:0):(表示能力:LOCAL), 3}
-	PRINT  
-NEXT
-
-RESETCOLOR
-RETURN 1
-
-
+CALL SHOP_LIFE_BUTTON_ADD_BOTTOM_PRISONER(ARG:0)
+RETURN RESULT
 
 ;-------------------------------------------------
 ;「捕虜の調教」の右カラム表示処理
@@ -223,8 +145,8 @@ IF ARG:0 == 1
 		CASEELSE
 			CALL DECIDE_PRISONER_MEMBER()
 	ENDSELECT
-	IF !RESULT
-		RETURN 0
+	IF RESULT
+		RETURN 1
 	ENDIF
 ENDIF
 RETURN 0
@@ -408,13 +330,17 @@ IF RESULT == 0
 	CALL PRISONER_SCAPEGOAT(ARG:0)
 	CALL DECIDE_PRISONER_MEMBER()
 ELSEIF RESULT == 1
+	;外交
 	IF CFLAG:(ARG:0):外交調教経過ターン
 		PRINTFORML %ANAME(ARG:0)%の体を自由にする権利を手放します
 		PRINTFORML よろしいですか？
 		CALL ASK_YN
 		IF RESULT == 0
+			PRINTFORMW %ANAME(ARG:0)%を許してやりました
 			CFLAG:(ARG:0):外交調教経過ターン = 0
-			PRISONER_TARGET:(FINDELEMENT(PRISONER_TARGET, ARG:0)) = -1
+			IF FINDELEMENT(PRISONER_TARGET, ARG:0) != -1
+				PRISONER_TARGET:(FINDELEMENT(PRISONER_TARGET, ARG:0)) = -1
+			ENDIF
 			REDRAW 1
 			RETURN 1
 		ENDIF
@@ -425,19 +351,26 @@ ELSEIF RESULT == 1
 		PRINTFORML よろしいですか？
 		CALL ASK_YN
 		IF RESULT == 0
+			PRINTFORMW %ANAME(ARG:0)%を軟禁しました
 			CFLAG:(ARG:0):監禁状態 = 1
-			PRISONER_TARGET:(FINDELEMENT(PRISONER_TARGET, ARG:0)) = -1
+			IF FINDELEMENT(PRISONER_TARGET, ARG:0) != -1
+				PRISONER_TARGET:(FINDELEMENT(PRISONER_TARGET, ARG:0)) = -1
+			ENDIF
 			REDRAW 1
 			RETURN 1
 		ENDIF
 		GOTO SHOW_LOOP_INFO_C
+	;自国
 	ELSE
 		PRINTFORML %ANAME(ARG:0)%を牢屋から出します
 		PRINTFORML よろしいですか？
 		CALL ASK_YN
 		IF RESULT == 0
+			PRINTFORMW %ANAME(ARG:0)%を牢屋から解放しました
 			CALL CAPTURE(ARG:0, 0, TALENT:(ARG:0):崩壊)
-			PRISONER_TARGET:(FINDELEMENT(PRISONER_TARGET, ARG:0)) = -1
+			IF FINDELEMENT(PRISONER_TARGET, ARG:0) != -1
+				PRISONER_TARGET:(FINDELEMENT(PRISONER_TARGET, ARG:0)) = -1
+			ENDIF
 			REDRAW 1
 			RETURN 1
 		ENDIF
@@ -446,10 +379,12 @@ ELSEIF RESULT == 1
 ELSEIF RESULT == 2 && !FLAG:クリアフラグ && !CFLAG:(ARG:0):外交調教経過ターン
 	IF CFLAG:(ARG:0):所属 == CFLAG:MASTER:所属
 		PRINTFORML 本当に%ANAME(ARG:0)%を国から追放しますか？
-		IF CALC_SHOP_TIME(!IS_ANIMAL(ARG:0)) == SHOP_TIME
-			SETCOLOR COLOR("警告")
-			PRINTFORML 追放した場合、最大行動回数減少により直ちに今期の拠点フェイズが終了します！
-			RESETCOLOR
+		IF CFLAG:(ARG:0):所属 == CFLAG:MASTER:所属
+			IF CALC_SHOP_TIME(!IS_ANIMAL(ARG:0)) == SHOP_TIME
+				SETCOLOR COLOR("警告")
+				PRINTFORML 追放した場合、最大行動回数減少により直ちに今期の拠点フェイズが終了します！
+				RESETCOLOR
+			ENDIF
 		ENDIF
 	ELSE
 		PRINTFORML 本当に%ANAME(ARG:0)%を解放しますか？
@@ -462,15 +397,18 @@ ELSEIF RESULT == 2 && !FLAG:クリアフラグ && !CFLAG:(ARG:0):外交調教経
 			CALL CHANGE_COUNTRY(ARG:0, 0, 1)
 		CALL CAPTURE(ARG:0, 0, TALENT:(ARG:0):崩壊)
 		REDRAW 1
-		PRISONER_TARGET:(FINDELEMENT(PRISONER_TARGET, ARG:0)) = -1
+		IF FINDELEMENT(PRISONER_TARGET, ARG:0) != -1
+			PRISONER_TARGET:(FINDELEMENT(PRISONER_TARGET, ARG:0)) = -1
+		ENDIF
 		IF CALC_SHOP_TIME() == SHOP_TIME
 			PRINTFORMW 人数不足による仕事のしわ寄せにより自由時間がなくなったので拠点フェイズを終了します。
+			LINES_SHOP = LINECOUNT
 			BEGIN TURNEND
 		ENDIF
 		RETURN 1
 	ENDIF
 	GOTO SHOW_LOOP_INFO_C
-;パレード
+;パレード→慰安に変更された
 ELSEIF RESULT == 2 && !FLAG:クリアフラグ && CFLAG:(ARG:0):外交調教経過ターン && IS_FEMALE(ARG:0)
 	REDRAW 1
 	CVARSET CFLAG, GETNUM(CFLAG, "閨に呼ぶで選択中"), 0
@@ -532,13 +470,18 @@ ELSEIF RESULT == 3 && !CFLAG:(ARG:0):外交調教経過ターン
 
 	PRINTFORML 捕虜を性奴隷にすると調教具合に応じて兵力を得られますが、
 	PRINTFORML 性奴隷にしたキャラは削除され、さらに他国からの評価が大きく下がります
-	PRINTFORML %ANAME(ARG:0)%を性奴隷にすることで見込まれる兵数の増加は{LOCAL:11}です
+	PRINTFORM %ANAME(ARG:0)%を性奴隷にすることで見込まれる兵数の増加は
+	CALL COLORPRINT(@"{LOCAL:11}", COLOR("選択中"))
+	PRINTFORMW です
+	PRINTL 
 	PRINTFORML 本当に%ANAME(ARG:0)%を性奴隷にしますか？
-	LOCAL:10 = GET_COMMANDER_NUM(CFLAG:MASTER:所属)
-	IF CALC_SHOP_TIME(!IS_ANIMAL(ARG:0)) == SHOP_TIME
-		SETCOLOR COLOR("警告")
-		PRINTFORML 性奴隷にした場合、最大行動回数減少により直ちに今期の拠点フェイズが終了します！
-		RESETCOLOR
+
+	IF CFLAG:(ARG:0):所属 == CFLAG:MASTER:所属
+		IF CALC_SHOP_TIME(!IS_ANIMAL(ARG:0)) == SHOP_TIME
+			SETCOLOR COLOR("警告")
+			PRINTFORML 性奴隷にした場合、最大行動回数減少により直ちに今期の拠点フェイズが終了します！
+			RESETCOLOR
+		ENDIF
 	ENDIF
 	CALL ASK_YN
 	IF RESULT == 0
@@ -572,9 +515,12 @@ ELSEIF RESULT == 3 && !CFLAG:(ARG:0):外交調教経過ターン
 			;キャラを削除し番号を詰める
 			CALL DELETE_CHARA(ARG:0)
 		ENDIF
-		PRISONER_TARGET:(FINDELEMENT(PRISONER_TARGET, ARG:0)) = -1
+		IF FINDELEMENT(PRISONER_TARGET, ARG:0) != -1
+			PRISONER_TARGET:(FINDELEMENT(PRISONER_TARGET, ARG:0)) = -1
+		ENDIF
 		IF CALC_SHOP_TIME() == SHOP_TIME
-			PRINTFORMW 人数不足による仕事のしわ寄せにより自由時間がなくなったので拠点フェイズを終了します。
+			PRINTFORMW 人数不足による仕事のしわ寄せにより自由時間がなくなったので拠点フェイズを終了します
+			LINES_SHOP = LINECOUNT
 			BEGIN TURNEND
 		ENDIF
 		REDRAW 1
@@ -585,11 +531,14 @@ ELSEIF RESULT == 4 && !CFLAG:(ARG:0):外交調教経過ターン
 	IF TALENT:(ARG:0):妊娠
 		PRINTFORML 処刑場につれて来られた%ANAME(ARG:0)%は、泣きながら命乞いを始めた
 		PRINTFORML 『二度と逆らわない、どんな事でもするから、お腹の子だけは助けて』と、必死の形相で懇願している
+		PRINTL 
 		PRINTFORML 本当に%ANAME(ARG:0)%を処刑しますか？
-		IF CALC_SHOP_TIME(!IS_ANIMAL(ARG:0)) == SHOP_TIME
-			SETCOLOR COLOR("警告")
-			PRINTFORML 処刑した場合、最大行動回数減少により直ちに今期の拠点フェイズが終了します！
-			RESETCOLOR
+		IF CFLAG:(ARG:0):所属 == CFLAG:MASTER:所属
+			IF CALC_SHOP_TIME(!IS_ANIMAL(ARG:0)) == SHOP_TIME
+				SETCOLOR COLOR("警告")
+				PRINTFORML 処刑した場合、最大行動回数減少により直ちに今期の拠点フェイズが終了します！
+				RESETCOLOR
+			ENDIF
 		ENDIF
 		CALL ASK_YN("慈悲をかける", "災いの種は早いうちに摘んでおく")
 		IF RESULT != 0
@@ -597,8 +546,11 @@ ELSEIF RESULT == 4 && !CFLAG:(ARG:0):外交調教経過ターン
 			PRINTFORMW ……………………
 			PRINTFORMW ……
 			PRINTFORMW %ANAME(ARG:0)%を“お腹の子共々”処刑しました
+			PRINTL 
 			CALL EXECUTION(ARG:0)
+			WAIT
 			;他国からの評価を下げる
+			PRINTL 
 			PRINTFORMW この鬼畜の所業に各勢力から非難の声が殺到しています
 			FOR LOCAL:1, 1, MAX_COUNTRY
 				IF IS_COUNTRY(LOCAL:1) && LOCAL:1 != CFLAG:MASTER:所属
@@ -610,9 +562,12 @@ ELSEIF RESULT == 4 && !CFLAG:(ARG:0):外交調教経過ターン
 				ENDIF
 			NEXT
 			CALL CHANGE_COUNTRY(ARG:0, 0, 1, 1)
-			PRISONER_TARGET:(FINDELEMENT(PRISONER_TARGET, ARG:0)) = -1
+			IF FINDELEMENT(PRISONER_TARGET, ARG:0) != -1
+				PRISONER_TARGET:(FINDELEMENT(PRISONER_TARGET, ARG:0)) = -1
+			ENDIF
 			IF CALC_SHOP_TIME() == SHOP_TIME
-				PRINTFORMW 人数不足による仕事のしわ寄せにより自由時間がなくなったので拠点フェイズを終了します。
+				PRINTFORMW 人数不足による仕事のしわ寄せにより自由時間がなくなったので拠点フェイズを終了します
+				LINES_SHOP = LINECOUNT
 				BEGIN TURNEND
 			ENDIF
 			REDRAW 1
@@ -651,10 +606,12 @@ ELSEIF RESULT == 4 && !CFLAG:(ARG:0):外交調教経過ターン
 		ENDIF
 	ELSE
 		PRINTFORML 本当に%ANAME(ARG:0)%を処刑しますか？
-		IF CALC_SHOP_TIME(!IS_ANIMAL(ARG:0)) == SHOP_TIME
-			SETCOLOR COLOR("警告")
-			PRINTFORML 処刑した場合、最大行動回数減少により直ちに今期の拠点フェイズが終了します！
-			RESETCOLOR
+		IF CFLAG:(ARG:0):所属 == CFLAG:MASTER:所属
+			IF CALC_SHOP_TIME(!IS_ANIMAL(ARG:0)) == SHOP_TIME
+				SETCOLOR COLOR("警告")
+				PRINTFORML 処刑した場合、最大行動回数減少により直ちに今期の拠点フェイズが終了します！
+				RESETCOLOR
+			ENDIF
 		ENDIF
 		CALL ASK_YN
 		IF RESULT == 0
@@ -662,11 +619,17 @@ ELSEIF RESULT == 4 && !CFLAG:(ARG:0):外交調教経過ターン
 			PRINTFORMW ……………………
 			PRINTFORMW ……
 			PRINTFORMW %ANAME(ARG:0)%を処刑しました
+			PRINTL 
 			CALL EXECUTION(ARG:0)
+			WAIT
 			CALL CHANGE_COUNTRY(ARG:0, 0, 1, 1)
-			PRISONER_TARGET:(FINDELEMENT(PRISONER_TARGET, ARG:0)) = -1
+			IF FINDELEMENT(PRISONER_TARGET, ARG:0) != -1
+				PRISONER_TARGET:(FINDELEMENT(PRISONER_TARGET, ARG:0)) = -1
+			ENDIF
 			IF CALC_SHOP_TIME() == SHOP_TIME
-				PRINTFORMW 人数不足による仕事のしわ寄せにより自由時間がなくなったので拠点フェイズを終了します。
+				PRINTL 
+				PRINTFORMW 人数不足による仕事のしわ寄せにより自由時間がなくなったので拠点フェイズを終了します
+				LINES_SHOP = LINECOUNT
 				BEGIN TURNEND
 			ENDIF
 			REDRAW 1
@@ -679,18 +642,22 @@ ELSEIF RESULT == 5 && !CFLAG:(ARG:0):外交調教経過ターン && ITEM:触手�
 		PRINTL 触手部屋の管理者がいないため実行できません
 		PRINTW 先に触手部屋の管理者を設定して下さい
 	ELSEIF !IS_SYOKUSYU_MANAGE(ID_TO_CHARA(FLAG:触手部屋管理者))
-		PRINTL 設定された触手部屋の管理者(%ANAME(ID_TO_CHARA(FLAG:触手部屋管理者))%)が、現在管理可能な状況にありません
+		PRINTFORML 設定された触手部屋の管理者(%ANAME(ID_TO_CHARA(FLAG:触手部屋管理者))%)が、現在管理可能な状況にありません
 		PRINTW 触手部屋の管理者を設定し直して下さい
 	ELSE
-		PRINTFORML 触手部屋の管理者である%ANAME(ID_TO_CHARA(FLAG:触手部屋管理者))%が処刑を実行します
+		PRINTFORMW 触手部屋の管理者である%ANAME(ID_TO_CHARA(FLAG:触手部屋管理者))%が処刑を実行します
 		IF TALENT:(ARG:0):妊娠
+			PRINTL 
 			PRINTFORML 触手に形作られた処刑部屋につれて来られた%ANAME(ARG:0)%は、泣きながら命乞いを始めた
-			PRINTFORML 『二度と逆らわない、どんな事でもするから、お腹の子だけは助けて』と、必死の形相で懇願している
+			PRINTFORMW 『二度と逆らわない、どんな事でもするから、お腹の子だけは助けて』と、必死の形相で懇願している
+			PRINTL 
 			PRINTFORML 本当に%ANAME(ARG:0)%を処刑しますか？
-			IF CALC_SHOP_TIME(!IS_ANIMAL(ARG:0)) == SHOP_TIME
-				SETCOLOR COLOR("警告")
-				PRINTFORML 処刑した場合、最大行動回数減少により直ちに今期の拠点フェイズが終了します！
-				RESETCOLOR
+			IF CFLAG:(ARG:0):所属 == CFLAG:MASTER:所属
+				IF CALC_SHOP_TIME(!IS_ANIMAL(ARG:0)) == SHOP_TIME
+					SETCOLOR COLOR("警告")
+					PRINTFORML 処刑した場合、最大行動回数減少により直ちに今期の拠点フェイズが終了します！
+					RESETCOLOR
+				ENDIF
 			ENDIF
 			CALL ASK_YN("慈悲をかける", "災いの種は早いうちに摘んでおく")
 			IF RESULT != 0
@@ -710,7 +677,9 @@ ELSEIF RESULT == 5 && !CFLAG:(ARG:0):外交調教経過ターン && ITEM:触手�
 					ENDIF
 				NEXT
 				CALL CHANGE_COUNTRY(ARG:0, 0, 1, 1)
-				PRISONER_TARGET:(FINDELEMENT(PRISONER_TARGET, ARG:0)) = -1
+				IF FINDELEMENT(PRISONER_TARGET, ARG:0) != -1
+					PRISONER_TARGET:(FINDELEMENT(PRISONER_TARGET, ARG:0)) = -1
+				ENDIF
 				;手に入る妖術経験値を計算して取得＆表示
 				PRINTFORML <%ANAME(ID_TO_CHARA(FLAG:触手部屋管理者))%>
 				IF TALENT:(ARG:0):崩壊
@@ -725,7 +694,8 @@ ELSEIF RESULT == 5 && !CFLAG:(ARG:0):外交調教経過ターン && ITEM:触手�
 				CALL TRAIN_AUTO_ABLUP(ID_TO_CHARA(FLAG:触手部屋管理者))
 				WAIT
 				IF CALC_SHOP_TIME() == SHOP_TIME
-					PRINTFORMW 人数不足による仕事のしわ寄せにより自由時間がなくなったので拠点フェイズを終了します。
+					PRINTFORMW 人数不足による仕事のしわ寄せにより自由時間がなくなったので拠点フェイズを終了します
+					LINES_SHOP = LINECOUNT
 					BEGIN TURNEND
 				ENDIF
 				REDRAW 1
@@ -765,10 +735,12 @@ ELSEIF RESULT == 5 && !CFLAG:(ARG:0):外交調教経過ターン && ITEM:触手�
 			ENDIF
 		ELSE
 			PRINTFORML 本当に%ANAME(ARG:0)%を処刑しますか？
-			IF CALC_SHOP_TIME(!IS_ANIMAL(ARG:0)) == SHOP_TIME
-				SETCOLOR COLOR("警告")
-				PRINTFORML 処刑した場合、最大行動回数減少により直ちに今期の拠点フェイズが終了します！
-				RESETCOLOR
+			IF CFLAG:(ARG:0):所属 == CFLAG:MASTER:所属
+				IF CALC_SHOP_TIME(!IS_ANIMAL(ARG:0)) == SHOP_TIME
+					SETCOLOR COLOR("警告")
+					PRINTFORML 処刑した場合、最大行動回数減少により直ちに今期の拠点フェイズが終了します！
+					RESETCOLOR
+				ENDIF
 			ENDIF
 			CALL ASK_YN
 			IF RESULT == 0
@@ -778,7 +750,9 @@ ELSEIF RESULT == 5 && !CFLAG:(ARG:0):外交調教経過ターン && ITEM:触手�
 				PRINTFORMW %ANAME(ARG:0)%を処刑しました
 				PRINTL
 				CALL CHANGE_COUNTRY(ARG:0, 0, 1, 1)
-				PRISONER_TARGET:(FINDELEMENT(PRISONER_TARGET, ARG:0)) = -1
+				IF FINDELEMENT(PRISONER_TARGET, ARG:0) != -1
+					PRISONER_TARGET:(FINDELEMENT(PRISONER_TARGET, ARG:0)) = -1
+				ENDIF
 				;手に入る妖術経験値を計算して取得＆表示
 				PRINTFORML <%ANAME(ID_TO_CHARA(FLAG:触手部屋管理者))%>
 				IF TALENT:(ARG:0):崩壊
@@ -793,7 +767,8 @@ ELSEIF RESULT == 5 && !CFLAG:(ARG:0):外交調教経過ターン && ITEM:触手�
 				CALL TRAIN_AUTO_ABLUP(ID_TO_CHARA(FLAG:触手部屋管理者))
 				WAIT
 				IF CALC_SHOP_TIME() == SHOP_TIME
-					PRINTFORMW 人数不足による仕事のしわ寄せにより自由時間がなくなったので拠点フェイズを終了します。
+					PRINTFORMW 人数不足による仕事のしわ寄せにより自由時間がなくなったので拠点フェイズを終了します
+					LINES_SHOP = LINECOUNT
 					BEGIN TURNEND
 				ENDIF
 				REDRAW 1
