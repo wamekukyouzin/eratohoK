@@ -176,7 +176,8 @@ PRINTFORM (現在{LOCAL:1}/2人)
 RESETCOLOR
 
 PRINTFORM  ポイント:{LOCAL:2}
-
+PRINTFORM  
+PRINTBUTTON "[助手自動選択]", 1
 CALL COLUMN_RIGHT_PRINTL
 CALL COLUMN_RIGHT_LINE
 CALL COLUMN_RIGHT_PRINTL
@@ -185,6 +186,53 @@ CALL COLUMN_RIGHT_PRINTL
 CALL COLUMN_RIGHT_CHARALIST_BOTTOM(1)
 
 RETURN 0
+
+;-------------------------------------------------
+;「夜這いする」の右カラムボタンの入力処理補佐
+;-------------------------------------------------
+@SHOP_LIFE_EVENTBUY_SUB21(ARG:0)
+#DIM 候補値, 3000
+#DIM 候補, 3000
+#DIM 候補数
+#DIM 助手数
+VARSET 候補値, __INT_MIN__
+VARSET 候補, -1
+VARSET 候補数
+VARSET 助手数
+CVARSET CFLAG, GETNUM(CFLAG, "夜這いの助手"), 0
+
+;最適メンバーの決定
+SIF ARG:0 != 1
+	RETURN 0
+
+FOR LOCAL:0, 1, CHARANUM
+	;選択可能な条件を満たしているかどうかを判定
+	TRYCALLFORM SHOP_LIFE_CHECKCHARA_SUB{FLAG:拠点フェイズ選択コマンド}(LOCAL:0)
+	IF RESULT == 1
+		候補:候補数 = LOCAL
+		候補値:候補数 = YOBAI_ZYOSYU_CALC_POINT(LOCAL)
+		候補数 ++
+	ENDIF
+NEXT
+
+PRINTFORML 候補数　{候補数}
+
+WHILE 1
+	LOCAL = FINDELEMENT(候補値, MAXARRAY(候補値), 0, 候補数)
+	SIF 候補値:LOCAL == __INT_MIN__ || 候補:LOCAL == -1
+		BREAK
+	CFLAG:(候補:LOCAL):夜這いの助手 = 1
+	PRINTFORMW %ANAME(候補:LOCAL)% 助手数{助手数}
+
+	候補値:LOCAL = __INT_MIN__
+	候補:LOCAL = -1
+	助手数 ++
+	SIF 助手数 >= 2
+		BREAK
+WEND
+
+RETURN 0
+
 
 ;-------------------------------------------------
 ;「夜這いする」のリスト１入力処理
