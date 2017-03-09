@@ -45,13 +45,74 @@ FLAG:拠点フェイズページ = 1
 FLAG:夜這い = 0
 RETURN 0
 
+
+;-------------------------------------------------
+;「説得させる」の右カラムキャラリスト１のボタン（関数未指定なら選択中色なし表示）
+;-------------------------------------------------
+@SHOP_LIFE_LIST1_BUTTON32(ARG:0, ARG:1)
+;キャラ, 選択中カラー表示フラグ, ボタン番号に追加する数値, CHECKCHARAの戻り値
+CALL COLUMN_RIGHT_CHARALIST_BUTTON(ARG:0, 0, SHOP_LIFE_LIST1_ADD_INPUT, ARG:1, 0, "TOP")
+RETURN
+
 ;-------------------------------------------------
 ;「説得させる」の右カラムキャラリスト２のボタン（関数未指定なら選択中色なし表示）
 ;-------------------------------------------------
 @SHOP_LIFE_LIST2_BUTTON32(ARG:0, ARG:1)
 ;キャラ, 選択中カラー表示フラグ, ボタン番号に追加する数値, CHECKCHARAの戻り値
-CALL COLUMN_RIGHT_CHARALIST_BUTTON(ARG:0, CFLAG:(ARG:0):捕虜調教の助手, SHOP_LIFE_LIST2_ADD_INPUT, ARG:1)
+CALL COLUMN_RIGHT_CHARALIST_BUTTON(ARG:0, CFLAG:(ARG:0):捕虜調教の助手, SHOP_LIFE_LIST2_ADD_INPUT, ARG:1, 0, "BOTTOM")
 RETURN 0
+
+;-------------------------------------------------
+;「捕虜の調教」の右カラムキャラリストボタン（上）表示に追尾させる情報
+;　デフォルトの情報を表示しない場合はRETURN 1
+;-------------------------------------------------
+@SHOP_LIFE_BUTTON_ADD_TOP32(ARG:0)
+#DIM 説得者君主
+#DIM 対象君主
+#DIM 忠誠
+#DIM 誘惑
+説得者君主 = GET_COUNTRY_BOSS(CFLAG:MASTER:所属)
+対象君主 = GET_COUNTRY_BOSS(CFLAG:(ARG:0):所属)
+IF 対象君主 == -1
+	忠誠 = 0
+ELSE
+	忠誠 = SETTOKU_REL_EFFECT(ARG:0, 対象君主)
+ENDIF
+
+IF 説得者君主 == -1
+	誘惑 = 0
+ELSE
+	誘惑 = SETTOKU_REL_EFFECT(ARG:0, 説得者君主)
+ENDIF
+
+PRINTFORM 政:{ABL:(ARG:0):政治} 
+PRINTFORM 忠誠:
+CALL PRINT_GRADATIONBAR(忠誠, 100, 10, 0xFF5E7E, , 1)
+PRINTFORM  誘惑:
+CALL PRINT_GRADATIONBAR(誘惑, 100, 10, 0x60A74E)
+RETURN 1
+
+;-------------------------------------------------
+;「捕虜の調教」の右カラムキャラリストボタン（上）表示に追尾させる情報
+;　デフォルトの情報を表示しない場合はRETURN 1
+;-------------------------------------------------
+@SHOP_LIFE_BUTTON_ADD_BOTTOM32(ARG:0)
+#DIM 説得者君主
+#DIM 忠誠
+説得者君主 = GET_COUNTRY_BOSS(CFLAG:MASTER:所属)
+
+IF 説得者君主 == -1
+	忠誠 = 0
+ELSE
+	忠誠 = SETTOKU_REL_EFFECT(ARG:0, 説得者君主)
+ENDIF
+
+PRINTFORM 政:{ABL:(ARG:0):政治} 
+PRINTFORM 忠誠:
+CALL PRINT_GRADATIONBAR(忠誠, 100, 10, 0xFF5E7E, , 1)
+
+RETURN 1
+
 
 ;-------------------------------------------------
 ;「説得させる」の右カラム表示処理
@@ -64,7 +125,7 @@ CALL COLUMN_RIGHT_LINE
 CALL COLUMN_RIGHT_PRINTL
 
 ;右カラムの上下２のキャラリスト上とページ移動を呼ぶ
-CALL COLUMN_RIGHT_CHARALIST_TOP
+CALL COLUMN_RIGHT_CHARALIST_TOP(1)
 CALL COLUMN_RIGHT_PRINTL
 CALL COLUMN_RIGHT_LINE
 CALL COLUMN_RIGHT_PRINTL
@@ -95,7 +156,7 @@ CALL COLUMN_RIGHT_LINE
 CALL COLUMN_RIGHT_PRINTL
 
 ;右カラムの上下２のキャラリスト下とページ移動を呼ぶ
-CALL COLUMN_RIGHT_CHARALIST_BOTTOM
+CALL COLUMN_RIGHT_CHARALIST_BOTTOM(2)
 RETURN 0
 
 ;-------------------------------------------------
