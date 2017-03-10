@@ -20,6 +20,13 @@ SIF RESULT != -1
 SIF DAILY_CANCEL
 	RETURN 1
 
+DAILY_NAME = 流行り屋台
+CALL KOJO_DAILY_K25_UNAGI_STALL
+SIF RESULT != -1
+	発生フラグ = 1
+SIF DAILY_CANCEL
+	RETURN 1
+
 ;;デイリーイベント
 ;DAILY_NAME = デイリーイベントの名前
 ;CALL KOJO_DAILY_K25_NAMAE_OF_DAILY_EVENT
@@ -228,3 +235,83 @@ CFLAG:ミスティア:好感度 += 300
 ABL:MASTER:歌唱 += 5
 ABL:ミスティア:歌唱 += 5
 KDVAR:ミスティア:ミスティア_作詞 = 1
+
+;------------------------------------
+;作詞
+;アホみてぇな中身なのに内部処理は妙に大がかりなんDA
+;-----------------------------------
+@KOJO_DAILY_K25_UNAGI_STALL
+#DIM ミスティア
+
+ミスティア = NAME_TO_CHARA("ミスティア")
+
+;ミスティアが別勢力で捕虜でなく面識なし
+SIF !CHECK_KOJO_DAILY_HAPPEN(ミスティア, 50, 0, 0, 0)
+	RETURN -1
+
+;カルテットと天敵はだめ
+SIF GROUPMATCH(MASTER, NAME_TO_CHARA("大妖精"), NAME_TO_CHARA("チルノ"), NAME_TO_CHARA("リグル"), NAME_TO_CHARA("幽々子"))
+	RETURN -1
+
+SIF GET_COUNTRY_BOSS(CFLAG:ミスティア:所属) == ミスティア
+	RETURN -1
+
+SIF KDVAR:ミスティア:ミスティア_屋台
+	RETURN -1
+
+CALL KOJO_DAILY_START()
+
+PRINTFORML ……領地の見回りをしていると、なんだか美味しそうな香りが漂ってきた
+PRINTFORML どうやら屋台の営業をしているようだ
+PRINTFORML 営業許可を出した覚えはないが……
+PRINTL
+CALL ASK_YN("見に行く", "まあいいだろう")
+
+IF RESULT == 1
+	PRINTFORML 目くじらをたてるほどのことでもないだろう
+	PRINTFORMW 放っておくことにした
+	KDVAR:ミスティア:ミスティア_屋台 = 1
+	RETURN 0
+ENDIF
+
+PRINTFORML 無許可営業は見過ごせない
+PRINTFORMW 見に行くことにした……
+PRINTFORMW 「あっ、お客さん？　いらっしゃい！」
+PRINTFORML 暖簾をくぐると、夜雀の少女が出迎えた
+PRINTFORML 少女は%NAME_FORMAL(ミスティア)%と名乗った
+PRINTFORML どうやら八目鰻を焼いて出しているらしい
+PRINTFORMW %ANAME(MASTER)%は自分の身分を明かし、このあたりでの営業に許可が必要なことを告げた
+PRINTFORML 「えっ！　そうなの？　ごめんなさい、知らなくって……」
+PRINTFORML %ANAME(ミスティア)%は眉尻をたれ下げ、申し訳なさそうな表情を浮かべている
+PRINTFORML この様子だと、本当に知らなかったのだろう
+PRINTFORMW 悪気はなかったようだが、どうしたものか……
+PRINTFORML 
+CALL ASK_MULTI("鰻で手を打つ", "営業代を回収", "捕らえる")
+
+SELECTCASE RESULT
+	CASE 0
+		PRINTFORMW 「……ありがたいけど、いいの？」
+		PRINTFORML 無許可営業は問題だが、故意でないなら仕方あるまい
+		PRINTFORML 鰻一匹で手を打つと伝えると、%ANAME(ミスティア)%は笑顔で仕込みを始め、焼き立てを渡してくれた
+		PRINTFORMW 「ありがと！　熱いから気を付けて食べてね！」
+		PRINTFORMW 鰻はなかなかの味だった……
+		CFLAG:ミスティア:好感度 += 300
+	CASE 1
+		PRINTFORMW 「だよね……うーん、捕まらないだけましかぁ」
+		PRINTFORMW 故意でないとはいえ規則は規則だ。営業代は払ってもらわなくてはならない
+		PRINTFORMW そう伝えると、%ANAME(ミスティア)%は素直に金を差し出した……
+		CALL ICPRINT("金<3000>を得ました", "W", COLOR("注意"))
+		MONEY += 3000
+	CASE 2
+		PRINTFORMW 「えっ？　ちょ、ちょっと！」
+		PRINTFORMW 悪気の有無など関係ない。違反は違反なのだ
+		PRINTFORMW %ANAME(MASTER)%は%ANAME(ミスティア)%を捕らえると、牢獄へと連行した……
+		CALL CAPTURE(ミスティア, CFLAG:MASTER:所属)
+		CFLAG:ミスティア:好感度 -= 500
+		CFLAG:ミスティア:従属度 -= 500
+ENDSELECT
+
+
+
+CFLAG:ミスティア:面識 = 1
+KDVAR:ミスティア:ミスティア_屋台 = 1
