@@ -1,0 +1,32 @@
+﻿;-------------------------------------------------
+;人質の解放を要求する
+;-------------------------------------------------
+@DIPLOMACY_REQUEST_RELEASE(ARG:0)
+LOCAL:4 = GET_COUNTRY_BOSS(CFLAG:MASTER:所属)
+LOCAL:5 = GET_COUNTRY_BOSS(ARG:0)
+
+PRINTFORMW %ANAME(MASTER)%は%NAME:(LOCAL:5)%に対して、無条件で人質を解放するよう要求した
+
+CALL DIPLOMACY_REQUEST_COMMON(ARG:0, 50)
+LOCAL:2 = RESULT
+SIF LOCAL:2 <= 0
+	RETURN 0
+
+PRINTFORML %NAME:(LOCAL:5)%は囚えていた我が国の捕虜を全員解放した…
+SETCOLOR COLOR("注意")
+FOR LOCAL:0, 0, CHARANUM
+	IF CFLAG:(LOCAL:0):所属 == CFLAG:MASTER:所属 && CFLAG:(LOCAL:0):捕虜先 == ARG:0
+		CALL CAPTURE(LOCAL:0, 0)
+		PRINTFORML %ANAME(LOCAL:0)%は解放されました
+	ENDIF
+NEXT
+WAIT
+
+;快楽で言うことを聞かせた場合、ご褒美の処理
+SIF LOCAL:2 == 2
+	CALL DIPLOMACY_REQUEST_PRIZE(ARG:0)
+;薬物で言うことを聞かせた場合、ドラッグの処理
+SIF LOCAL:2 == 3
+	CALL DIPLOMACY_REQUEST_DRUG(ARG:0)
+RETURN 1
+

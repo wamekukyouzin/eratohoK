@@ -1,0 +1,170 @@
+﻿;-------------------------------------------------
+;外交併合を行う
+;-------------------------------------------------
+@DIPLOMACY_PERSONAL_UNION(相手勢力)
+#DIM 勢力
+#DIM 相手勢力
+#DIM 君主
+#DIM 相手君主
+#DIM 相手外交計画
+#DIM 判定値
+#DIM 成功フラグ
+#DIM 期間
+勢力 = CFLAG:MASTER:所属
+
+IF CHECK_COUNTRY_RELATION_F(勢力, 相手勢力) != 3
+	PRINTFORMW 外交併合は、現在同盟中の勢力にしか提案することができません
+	RETURN 0
+ENDIF
+
+IF IS_SP_COUNTRY(相手勢力)
+	PRINTFORMW こんな連中と併合するわけにはいきません
+	RETURN 0
+ENDIF
+
+君主 = GET_COUNTRY_BOSS(CFLAG:MASTER:所属)
+相手君主 = GET_COUNTRY_BOSS(相手勢力)
+
+;勢力同士の隣接関係マップを作成
+CALL TMP_CREATE_COUNTRY_NEIBORING_MAP
+
+IF !TMP_COUNTRY_IS_NEIBORING:勢力:相手勢力
+	PRINTW 隣接していない勢力と外交併合を行うことはできません
+	RETURN 0
+ENDIF
+
+PRINTFORMW %ANAME(君主)%は%ANAME(相手君主)%に対して、外交併合する提案をした
+
+成功フラグ = 0
+
+;条件1　自勢力に対する好意-敵意が1350以上。
+IF REL_LIKE:相手君主:君主 - REL_HATE:相手君主:君主 > 1350
+	成功フラグ = 1
+;条件2　相手が隷属しており、自勢力の経済力が相手勢力の8倍
+ELSEIF TALENT:相手君主:隷属 && GET_SUM_ECONOMY(勢力) > GET_SUM_ECONOMY(相手勢力) * 8
+	成功フラグ = 1
+;条件3　自勢力の経済力ならびに政治力が、それぞれ相手勢力の4倍
+ELSEIF GET_SUM_ECONOMY(勢力) > GET_SUM_ECONOMY(相手勢力) * 4 && TMP_GET_POLITICS_POWER(勢力) > TMP_GET_POLITICS_POWER(相手勢力) * 3
+	成功フラグ = 1
+ENDIF
+
+IF !成功フラグ
+	PRINTFORMW 残念ながら、%ANAME(相手君主)%は我が国の外交併合に応じませんでした…
+	;併合提案による外交印象の悪化
+	DIPLOMACY_HATE:勢力 += 2
+	RETURN 1
+ENDIF
+PRINTFORMW 素晴らしい！%ANAME(相手君主)%は我が国と１つになりました
+RESETCOLOR
+
+;兵数の移動
+CALL CLEAR_ALL_UNIT(相手勢力)
+COUNTRY_SOLDIER:勢力 += COUNTRY_SOLDIER:相手勢力
+COUNTRY_SOLDIER:相手勢力 = 0
+
+;領地の接収
+PRINTL 
+SETCOLOR COLOR("注意")
+PRINTFORML %ANAME(相手君主)%の所領だった都市は我が国の領土となりました
+RESETCOLOR
+FOR LOCAL:0, 0, MAX_CITY
+	IF CITY_OWNER:(LOCAL:0) == 相手勢力
+		CITY_OWNER:(LOCAL:0) = 勢力
+		PRINTFORML %GET_CITYNAME(LOCAL:0)%を我が国の支配下に置きました
+	ENDIF
+NEXT
+WAIT
+
+PRINTL 
+PRINTFORMW %ANAME(相手君主)%軍の兵士が我が国の兵力として加わりました
+
+;自動で登用
+IF CONFIG:303 == 0
+	;士官の組み込み
+	PRINTL 
+	SETCOLOR COLOR("注意")
+	PRINTFORML %ANAME(相手君主)%に仕えていた士官は我が国の士官として組み込まれました
+	RESETCOLOR
+	FOR LOCAL:0, 0, CHARANUM
+		;SIF CFLAG:(LOCAL:0):捕虜先 == 相手勢力:0
+		;	CALL CHANGE_COUNTRY(LOCAL:0, 相手勢力, 1)
+		IF CFLAG:(LOCAL:0):所属 == 相手勢力
+			IF !CFLAG:(LOCAL:0):捕虜先 || CFLAG:(LOCAL:0):捕虜先 == CFLAG:MASTER:所属
+				CALL CHANGE_COUNTRY(LOCAL:0, CFLAG:MASTER:所属, 1)
+				PRINTFORML %NAME:(LOCAL:0)%を登用しました
+			ELSE
+				CALL CHANGE_COUNTRY(LOCAL:0, CFLAG:MASTER:所属)
+				SETCOLOR COLOR("シアン")
+				PRINTFORML %ANAME(LOCAL:0)%は%ANAME(GET_COUNTRY_BOSS(CFLAG:(LOCAL:0):捕虜先))%に囚われています
+				RESETCOLOR
+			ENDIF
+		ENDIF
+	NEXT
+	WAIT
+
+;自動で投獄
+ELSEIF CONFIG:303 == 1
+	;士官の組み込み
+	PRINTL 
+	SETCOLOR COLOR("注意")
+	PRINTFORML %ANAME(相手君主)%に仕えていた士官を投獄しました
+	RESETCOLOR
+	FOR LOCAL:0, 0, CHARANUM
+		;SIF CFLAG:(LOCAL:0):捕虜先 == 相手勢力
+		;	CALL CHANGE_COUNTRY(LOCAL:0, 相手勢力, 1)
+		IF CFLAG:(LOCAL:0):所属 == 相手勢力
+			IF !CFLAG:(LOCAL:0):捕虜先 || CFLAG:(LOCAL:0):捕虜先 == CFLAG:MASTER:所属
+				CALL CHANGE_COUNTRY(LOCAL:0, 0, 1)
+				CALL CAPTURE(LOCAL:0, CFLAG:MASTER:所属)
+				PRINTFORML %ANAME(LOCAL:0)%を投獄しました
+			ELSE
+				CALL CHANGE_COUNTRY(LOCAL:0, CFLAG:MASTER:所属)
+				SETCOLOR COLOR("シアン")
+				PRINTFORML %ANAME(LOCAL:0)%は%ANAME(GET_COUNTRY_BOSS(CFLAG:(LOCAL:0):捕虜先))%に囚われています
+				RESETCOLOR
+			ENDIF
+		ENDIF
+	NEXT
+	WAIT
+
+;手動で選択
+ELSE
+	CALL DIPLOMACY_SURRENDER_SET_TREATMENT(相手勢力)
+ENDIF
+
+;相手勢力勢力の捕虜となっていたキャラの処理
+;相手勢力勢力が捕虜持ってるか
+IF CMATCH(CFLAG:捕虜先, 相手勢力)
+	PRINTL
+	PRINTFORMW %ANAME(相手君主)%に囚われていた捕虜を見つけました
+	LOCAL:2 = 0
+	FOR LOCAL:0, 0, CHARANUM
+		IF CFLAG:(LOCAL:0):捕虜先 == 相手勢力
+			;自陣営の士官なら、そのまま元に戻る
+			IF CFLAG:(LOCAL:0):所属 == CFLAG:MASTER:所属
+				CALL CAPTURE(LOCAL:0, 0)
+				SETCOLOR COLOR("注意")
+				PRINTFORML %ANAME(相手君主)%勢力に囚えられていた%ANAME(LOCAL:0)%は、我が国に復帰した
+				RESETCOLOR
+				LOCAL:2 = 1
+			ENDIF
+		ENDIF
+	NEXT
+	IF LOCAL:2
+		WAIT
+	ENDIF
+	FOR LOCAL:0, 0, CHARANUM
+		IF CFLAG:(LOCAL:0):捕虜先 == 相手勢力
+			;第三勢力の士官なら、TREAT_PRISONERで扱いを決定
+			CALL TREAT_PRISONER(LOCAL:0, 相手勢力, 勢力)
+		ENDIF
+	NEXT
+ENDIF
+
+;旧勢力の後始末
+CALL DESTROY_COUNTRY(相手勢力)
+;外交併合による外交印象の悪化
+DIPLOMACY_HATE:(CFLAG:MASTER:所属) += 3
+
+RETURN 1
+

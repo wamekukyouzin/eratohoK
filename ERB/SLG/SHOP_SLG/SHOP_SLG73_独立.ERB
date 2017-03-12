@@ -1,0 +1,133 @@
+﻿;-------------------------------------------------
+;「独立する」の名称
+;-------------------------------------------------
+@SHOP_SLG_NAME73
+RESULTS:0 '= "独立する"
+
+;-------------------------------------------------
+;「独立する」の選択可否
+;-------------------------------------------------
+@SHOP_SLG_CHECK73
+SIF CFLAG:MASTER:所属 == 0
+	RETURN 0
+SIF GET_NEW_COUNTRY() == -1
+	RETURN 0
+SIF GET_COUNTRY_BOSS(CFLAG:MASTER:所属) == MASTER
+	RETURN 0
+SIF CFLAG:MASTER:行動不能状態 != 0
+	RETURN 0
+SIF GET_OWN_CITY(CFLAG:MASTER:所属) < 2
+	RETURN 0
+SIF IS_SP_COUNTRY(CFLAG:MASTER:所属)
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;「独立する」の左カラムメニューの入力処理
+;-------------------------------------------------
+@SHOP_SLG_EVENTBUY73
+CALL PLAYER_INDEPENDENCE
+RETURN 1
+
+;-------------------------------------------------
+;「独立する」本体
+;-------------------------------------------------
+@PLAYER_INDEPENDENCE
+;選択したキャラのリスト
+#DIM SELECT_LIST, 3000
+#DIM FIRST_LINE
+#DIM 旧勢力
+#DIM 新勢力
+#DIM 君主
+#DIM 都市
+VARSET LOCAL, 0
+VARSET SELECT_LIST, 0
+
+旧勢力 = CFLAG:MASTER:所属
+君主 = GET_COUNTRY_BOSS(CFLAG:MASTER:所属)
+
+CALL SINGLE_DRAWLINE
+CALL SET_CITY_COLOR_COUNTRY
+CALL SET_CITY_COLOR_UNIT
+CALL DRAWMAP
+CALL RESET_CITY_COLOR
+CALL SINGLE_DRAWLINE
+PRINTL 旗揚げする都市を選んで下さい
+PRINTL 現在所属している勢力の都市のみ指定可能です
+CALL SINGLE_DRAWLINE
+PRINTBUTTON " 0[キャンセル]", 0
+PRINTL 
+
+REDRAW 0
+
+$INPUT_LOOP_CITY
+INPUT
+
+IF RESULT == 0
+	REDRAW 1
+	RETURN
+ELSEIF RESULT >= 1001 && RESULT <= 1001 + CITY_NUM
+	都市 = RESULT - 1000
+	;指定された都市が存在し、主人公勢力の支配下にある場合
+	IF GET_RELAYNAME(都市) != "無名" && CITY_TYPE:(都市) == 0 && CITY_OWNER:(都市) == 旧勢力
+		REDRAW 1
+		PRINTFORMW %GET_RELAYNAME(都市)%で旗揚げします
+	ELSE
+		CLEARLINE 1
+		GOTO INPUT_LOOP_CITY
+	ENDIF
+ELSE
+	CLEARLINE 1
+	GOTO INPUT_LOOP_CITY
+ENDIF
+
+CALL SINGLE_DRAWLINE
+PRINTFORML 関係性の深いキャラを新たな勢力に誘うことができます
+PRINTFORML 新たな勢力の士官として加えるキャラを選択して下さい
+CALL SINGLE_DRAWLINE
+CALL SELECT_CHARA_LIST_MULTI_ONLY_LOGIC_SLG(-1, "PLAYER_INDEPENDENCE", "NONE")
+新勢力 = GET_NEW_COUNTRY()
+
+;部隊の解散
+CALL CLEAR_ALL_UNIT(旧勢力, 1)
+
+;初期設定
+CITY_OWNER:都市 = 新勢力
+COUNTRY_BOSS:新勢力 = GET_ID(MASTER)
+COUNTRY_COLOR:新勢力 = COLOR("注意")
+
+;兵力の移動
+COUNTRY_SOLDIER:新勢力 += COUNTRY_SOLDIER:旧勢力 / GET_OWN_CITY(旧勢力) + 1
+COUNTRY_SOLDIER:旧勢力 -= COUNTRY_SOLDIER:新勢力
+COUNTRY_SOLDIER:新勢力 += CITY_SOLDIER:都市
+CITY_SOLDIER:都市 = 0
+
+CITY_SOLDIER:都市 = MIN(COUNTRY_SOLDIER:新勢力, 500)
+COUNTRY_SOLDIER:新勢力 -= CITY_SOLDIER:都市
+
+CALL CHANGE_COUNTRY(MASTER, 新勢力, 1)
+
+;士官を移動
+FOR LOCAL, 0, SELECTED_CHARA_NUM
+	CALL CHANGE_COUNTRY(SELECTED_CHARA:LOCAL, 新勢力, 1)
+NEXT
+
+
+CALL SINGLE_DRAWLINE
+PRINTL 新しい勢力の色を選んで下さい
+CALL SINGLE_DRAWLINE
+CALL CHANGE_COUNTRY_COLOR(新勢力, 1)
+
+SETCOLOR COLOR("注意")
+PRINTL 
+PRINTFORMW %ANAME(MASTER)%は%GET_RELAYNAME(都市)%を占拠し独立しました！
+PRINTL 
+RESETCOLOR
+
+;元の君主との関係を大幅に悪化させる
+CALL CHANGE_RELATION_O_TO_C(旧勢力, 新勢力, -200, 500)
+
+@SELECT_CHARA_LIST_SHOW_LOGIC_PLAYER_INDEPENDENCE(対象)
+#DIM 対象
+RETURN GET_COUNTRY_BOSS(CFLAG:対象:所属) != 対象 && CFLAG:対象:行動不能状態 != 4 && CFLAG:対象:所属 == CFLAG:MASTER:所属 && !IS_ANIMAL(対象) && (IS_LOVER(対象) || IS_SLAVE(対象))
+

@@ -1,0 +1,75 @@
+﻿;-------------------------------------------------
+;「防衛解除」の名称
+;-------------------------------------------------
+@SHOP_SLG_NAME32
+RESULTS:0 '= "防衛解除"
+
+;-------------------------------------------------
+;「防衛解除」の選択可否
+;-------------------------------------------------
+@SHOP_SLG_CHECK32
+SIF FLAG:クリアフラグ
+	RETURN 0
+SIF FLAG:観戦モード
+	RETURN 0
+SIF CFLAG:MASTER:所属 == 0
+	RETURN 0
+SIF CONFIG:302 != 0
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;「防衛解除」の左カラムメニューの入力処理
+;-------------------------------------------------
+@SHOP_SLG_EVENTBUY32
+CALL MINIMIZE_GUARD
+RETURN 1
+
+;-------------------------------------------------
+;「防衛解除」本体
+;-------------------------------------------------
+@MINIMIZE_GUARD
+CALL SINGLE_DRAWLINE
+SETCOLOR 0xFF6000
+PRINT 敵部隊が存在する都市を除く
+RESETCOLOR
+PRINTL 全ての都市の防衛兵数を500にし、守将を解除します
+PRINTL よろしいですか？
+
+CALL ASK_YN("はい", "キャンセル")
+IF RESULT == 0
+	;部隊マップを作成
+	CALL TMP_CREATE_UNIT_MAP
+	FOR LOCAL:0, 0, MAX_CITY
+		IF CITY_OWNER:(LOCAL:0) == CFLAG:MASTER:所属 && GET_CITYNAME(LOCAL:0) != "無名" && !TMP_IS_STAY_ENEMY_UNIT(LOCAL:0, CFLAG:MASTER:所属)
+			IF CITY_SOLDIER:(LOCAL:0) > 500
+				COUNTRY_SOLDIER:(CFLAG:MASTER:所属) += CITY_SOLDIER:(LOCAL:0) - 500
+				CITY_SOLDIER:(LOCAL:0) = 500
+			ENDIF
+			;このターンに割り当てたわけでなければクールタイム付与
+			SIF GET_CITY_COMMANDER(LOCAL:0, 0) >= 0 && !ASSIGNED_THIS_TURN:(GET_CITY_COMMANDER(LOCAL:0, 0)):0
+				COOLTIME:GET_CITY_COMMANDER(LOCAL:0, 0):0 = 1
+			SIF GET_CITY_COMMANDER(LOCAL:0, 1) >= 0 && !ASSIGNED_THIS_TURN:(GET_CITY_COMMANDER(LOCAL:0, 1)):0
+				COOLTIME:GET_CITY_COMMANDER(LOCAL:0, 1):0 = 1
+			CITY_COMMANDER:(LOCAL:0) = 0
+		ENDIF
+	NEXT
+ENDIF
+
+@SINGLE_MINIMIZE(ARG)
+IF TMP_IS_STAY_ENEMY_UNIT(ARG, CFLAG:MASTER:所属)
+	PRINTW 敵部隊が存在する都市には実行できません
+ELSEIF CITY_OWNER:(ARG) == CFLAG:MASTER:所属 && GET_CITYNAME(ARG) != "無名"
+	IF CITY_SOLDIER:(ARG) > 500
+		COUNTRY_SOLDIER:(CFLAG:MASTER:所属) += CITY_SOLDIER:(ARG) - 500
+		CITY_SOLDIER:(ARG) = 500
+	ENDIF
+	;このターンに割り当てたわけでなければクールタイム付与
+	SIF GET_CITY_COMMANDER(ARG, 0) >= 0 && !ASSIGNED_THIS_TURN:(GET_CITY_COMMANDER(ARG:0, 0)):0
+		COOLTIME:GET_CITY_COMMANDER(ARG, 0):0 = 1
+	SIF GET_CITY_COMMANDER(ARG, 1) >= 0 && !ASSIGNED_THIS_TURN:(GET_CITY_COMMANDER(ARG:0, 1)):0
+		COOLTIME:GET_CITY_COMMANDER(ARG, 1):0 = 1
+	CITY_COMMANDER:(ARG) = 0
+	PRINTW この都市の防衛を解除しました
+ENDIF
+

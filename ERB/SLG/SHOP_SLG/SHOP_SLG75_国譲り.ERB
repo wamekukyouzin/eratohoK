@@ -1,0 +1,65 @@
+﻿;-------------------------------------------------
+;「国譲り」の名称
+;-------------------------------------------------
+@SHOP_SLG_NAME75
+RESULTS:0 '= "国譲り"
+
+;-------------------------------------------------
+;「国譲り」の選択可否
+;-------------------------------------------------
+@SHOP_SLG_CHECK75
+SIF CFLAG:MASTER:行動不能状態 != 0
+	RETURN 0
+SIF IS_SP_COUNTRY(CFLAG:MASTER:所属)
+	RETURN 0
+SIF GET_COUNTRY_BOSS(CFLAG:MASTER:所属) != MASTER
+	RETURN 0
+SIF GET_COMMANDER_NUM(CFLAG:MASTER:所属) < 2
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;「国譲り」の左カラムメニューの入力処理
+;-------------------------------------------------
+@SHOP_SLG_EVENTBUY75
+CALL PLAYER_GIVE_COUNTRY
+RETURN 1
+
+;-------------------------------------------------
+;「国譲り」本体
+;-------------------------------------------------
+@PLAYER_GIVE_COUNTRY
+#DIM 勢力
+#DIM 君主
+#DIM 国譲りフラグ
+CALL SINGLE_DRAWLINE
+PRINTFORML 君主から退き、新たな君主を立てます
+PRINTFORML 新君主は陥落している士官の中から選べます
+PRINTFORML 本当に国譲りを実行しますか？
+
+CALL ASK_YN()
+SIF RESULT == 1
+	RETURN
+
+;全部隊の解散
+CALL CLEAR_ALL_UNIT(CFLAG:MASTER:所属, 1)
+
+勢力 = CFLAG:MASTER:所属
+君主 = GET_COUNTRY_BOSS(CFLAG:MASTER:所属)
+国譲りフラグ = IS_LOVER(君主) || IS_SLAVE(君主)
+
+;調教参加フラグをクリア
+CVARSET CFLAG, 6, 0
+
+CALL SINGLE_DRAWLINE
+PRINTFORML 新たな君主を決めて下さい
+CALL SINGLE_DRAWLINE
+CALL SELECT_CHARA_LIST_ONLY_LOGIC_SLG("PLAYER_INDEPENDENCE", "NONE")
+
+SIF RESULT == -1
+	RETURN
+
+COUNTRY_BOSS:(CFLAG:MASTER:所属) = GET_ID(RESULT)
+
+CALL COLORPRINT(@"%ANAME(GET_COUNTRY_BOSS(CFLAG:MASTER:所属))%が新たな君主となりました！", COLOR("注意"), "W")
+
