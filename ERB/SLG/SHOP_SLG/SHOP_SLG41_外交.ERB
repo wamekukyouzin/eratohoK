@@ -1,7 +1,36 @@
 ﻿;外交関係の基本部分
 
 ;-------------------------------------------------
-;外交を行う勢力の選択
+;「外交」の名称
+;-------------------------------------------------
+@SHOP_SLG_NAME41
+RESULTS:0 '= "外交"
+
+;-------------------------------------------------
+;「外交」の選択可否
+;-------------------------------------------------
+@SHOP_SLG_CHECK41
+SIF FLAG:クリアフラグ
+	RETURN 0
+SIF FLAG:観戦モード
+	RETURN 0
+SIF CFLAG:MASTER:所属 == 0
+	RETURN 0
+SIF DAY < SLG_PP:0
+	RETURN 0
+SIF COUNTRY_IS_CLOSED:(CFLAG:MASTER:所属)
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;「外交」の左カラムメニューの入力処理
+;-------------------------------------------------
+@SHOP_SLG_EVENTBUY41
+CALL DIPLOMACY
+RETURN 1
+
+;-------------------------------------------------
+;「外交」本体
 ;-------------------------------------------------
 @DIPLOMACY
 IF DAY < SLG_PP:0
@@ -20,9 +49,8 @@ CALL TMP_CREATE_COUNTRY_NEIBORING_MAP
 CALL SINGLE_DRAWLINE
 PRINTL 外交を行う勢力を選択して下さい
 CALL SINGLE_DRAWLINE
-PRINTFORM %"君主",10,LEFT%
+PRINTFORM %"君主",18,LEFT%
 PRINTFORM %"関係",10, RIGHT%
-PRINTFORM %"隣接",6, RIGHT%
 PRINTFORM %"印象",6, RIGHT%
 PRINTFORM %"友好", 7, RIGHT%
 PRINTFORM %"敵対", 7, RIGHT%
@@ -37,18 +65,17 @@ FOR LOCAL:0, 1, MAX_COUNTRY
 		;外交禁止フラグが立っているならグレー表示
 		IF COUNTRY_IS_CLOSED:(LOCAL:0)
 			SETCOLOR COLOR("選択不可")
-			PRINTPLAINFORM [%LOCALS:0, MAX_CHARANAME_LENGTH / 2, LEFT%]
+			PRINTPLAINFORM [%LOCALS:0, 16, LEFT%]
 			RESETCOLOR
 		ELSE
 			SETCOLOR COUNTRY_COLOR:(LOCAL:0)
-			PRINTBUTTON @"[%LOCALS:0, MAX_CHARANAME_LENGTH / 2, LEFT%]", LOCAL:0
+			PRINTBUTTON @"[%LOCALS:0, 16, LEFT%]", LOCAL:0
 			RESETCOLOR
 		ENDIF
 
 		CALL TMP_SETCOLOR_COUNTRY_RELATION(CFLAG:MASTER:所属, LOCAL:0)
 		PRINTFORM %TMP_TOSTR_COUNTRY_RELATION(CFLAG:MASTER:所属, LOCAL:0, 1), 10, RIGHT%
 		RESETCOLOR
-		PRINTFORM %TMP_COUNTRY_IS_NEIBORING:(CFLAG:MASTER:所属):LOCAL == 1 ? "〇" # "×", 6, RIGHT%
 		LOCAL:4 = GET_COUNTRY_BOSS(CFLAG:MASTER:所属)
 		LOCAL:5 = GET_COUNTRY_BOSS(LOCAL:0)
 		PRINT    
@@ -605,78 +632,23 @@ FOR LOCAL:1, 1, MAX_CITY
 NEXT
 
 ;-------------------------------------------------
-;自動送金設定画面
+;ARG:1の値分だけ勢力ARG:0との好感度を上昇させ敵対値を低下させる処理
 ;-------------------------------------------------
-@AUTO_SENDMONEY_SETTING
-#DIM FIRST_LINE
+@DIPLOMACY_IMPROVE_RELATION(ARG:0, ARG:1)
+#DIM 君主
+#DIM 自勢力君主
+#DIM 好感度
+#DIM 敵対度
+君主  = GET_COUNTRY_BOSS(ARG:0)
+自勢力君主 = GET_COUNTRY_BOSS(CFLAG:MASTER:所属)
+好感度 = REL_LIKE:君主:自勢力君主
+敵対度 = REL_HATE:君主:自勢力君主
 
-FIRST_LINE = LINECOUNT
+CALL CHANGE_RELATION_C_TO_C(CFLAG:MASTER:所属, ARG:0, ARG:1, -ARG:1)
+CALL CHANGE_RELATION_C_TO_C(ARG:0, CFLAG:MASTER:所属, ARG:1, -ARG:1)
 
-CALL SINGLE_DRAWLINE
-PRINTFORML 徴税し国庫が増えたタイミングで、自動で各勢力と会談し送金することができます
-PRINTFORML 国庫が設定額に不足していた場合、あるだけ支払います
-PRINTFORML 徴兵などでも必要になるので、余裕を持たせたほうがよいでしょう
-CALL SINGLE_DRAWLINE
-
-FOR LOCAL, 0, MAX_COUNTRY
-	SIF !IS_COUNTRY(LOCAL) || LOCAL == CFLAG:MASTER:所属 || COUNTRY_IS_CLOSED:LOCAL
-		CONTINUE
-	PRINTFORML [{LOCAL, 2, LEFT}] %ANAME(GET_COUNTRY_BOSS(LOCAL)), MAX_CHARANAME_LENGTH, LEFT% 送金額:\@ AUTO_INVEST_PRICE:LOCAL > 0 ? {AUTO_INVEST_PRICE:LOCAL} # なし \@
-NEXT
-CALL SINGLE_DRAWLINE
-PRINTFORML [98]一括設定
-PRINTFORML [99]戻る
-
-INPUT
-
-IF RESULT == 99
-	RETURN
-ELSEIF RESULT == 98
-	CALL AUTO_SENDMONEY_SETTING_SET_PRICE
-	VARSET AUTO_INVEST_PRICE, RESULT
-ELSEIF IS_COUNTRY(RESULT) && RESULT != CFLAG:MASTER:所属 && !COUNTRY_IS_CLOSED:RESULT
-	LOCAL = RESULT
-	CALL AUTO_SENDMONEY_SETTING_SET_PRICE
-	AUTO_INVEST_PRICE:LOCAL = RESULT
-ENDIF
-CLEARLINE LINECOUNT - FIRST_LINE
-RESTART
-
-;-------------------------------------------------
-;自動送金価格設定
-;-------------------------------------------------
-@AUTO_SENDMONEY_SETTING_SET_PRICE
-#DIM FIRST_LINE
-FIRST_LINE = LINECOUNT
-PRINTFORML いくらに設定しますか？(1～50000、0でキャンセル)
-INPUT
-IF RESULT < 0 || RESULT > 50000
-	CLEARLINE LINECOUNT - FIRST_LINE
-	RESTART
-ENDIF
-PRINTFORML {RESULT}に設定しました
-RETURN RESULT
-
-;-------------------------------------------------
-;自動送金
-;-------------------------------------------------
-@AUTO_SENDMONEY
-#DIM 送金額
-
-FOR LOCAL, 0, MAX_COUNTRY
-	SIF !IS_COUNTRY(LOCAL) || LOCAL == CFLAG:MASTER:所属 || COUNTRY_IS_CLOSED:LOCAL || AUTO_INVEST_PRICE:LOCAL == 0
-		CONTINUE
-	SIF DONE_DIPLOMACY_FRIENDSHIP:LOCAL
-		CONTINUE
-	SIF MONEY:(CFLAG:MASTER:所属) <= 0
-		BREAK
-
-	送金額 = MIN(AUTO_INVEST_PRICE:LOCAL, MONEY:(CFLAG:MASTER:所属))
-	CALL SEND_MONEY(LOCAL, 送金額)
-	DONE_DIPLOMACY_FRIENDSHIP:LOCAL = 1
-	IF MONEY:(CFLAG:MASTER:所属) <= 0
-		PRINTFORML (国庫が尽きたので、自動送金を終了します)
-		BREAK
-	ENDIF
-NEXT
+SETCOLOR COLOR("注意")
+PRINTFORML 好感度:{好感度, 4, RIGHT} → {REL_LIKE:君主:自勢力君主, 4, RIGHT}
+PRINTFORML 敵対度:{敵対度, 4, RIGHT} → {REL_HATE:君主:自勢力君主, 4, RIGHT}
+RESETCOLOR
 
