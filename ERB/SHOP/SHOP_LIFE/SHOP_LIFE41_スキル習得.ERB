@@ -19,7 +19,7 @@ RETURN 1
 ;-------------------------------------------------
 @SHOP_LIFE_CHECKCHARA41(ARG:0)
 ;捕虜でない、同一勢力、通常状態または育児中
-RETURN CHECK91(ARG:0, 2, CFLAG:(ARG:0):所属 == CFLAG:MASTER:所属 && !CFLAG:(ARG:0):捕虜先 && !IS_ANIMAL(ARG:0) && GROUPMATCH(CFLAG:(ARG:0):行動不能状態 && COOLTIME:(ARG:0):0 == 0, 0, 2))
+RETURN CHECK91(ARG:0, 2, CFLAG:(ARG:0):所属 == CFLAG:MASTER:所属 && !CFLAG:(ARG:0):捕虜先 && !IS_ANIMAL(ARG:0) && GROUPMATCH(CFLAG:(ARG:0):行動不能状態, 0, 2))
 
 ;-------------------------------------------------
 ;「スキル習得の左カラムメニューの入力処理
@@ -65,7 +65,6 @@ CALL ICPRINT(@"金を消費し、<%ANAME(対象)%>にスキルを習得・忘却
 
 PRINTL
 PRINTFORML ※%ANAME(MASTER)%が親しく、かつ手の空いている相手でないと、スキルを教えてもらえません
-PRINTFORML ※時間が経過し、教える/教わるキャラにクールタイムがつきます
 CALL SINGLE_DRAWLINE
 CALL SHOP_LIFE_SKILL_PRINT_TABS(ジャンル)
 
@@ -153,12 +152,10 @@ ENDIF
 MONEY -= SKILL_LEARN_PRICE:レベル
 
 CFLAG:対象:行動済み = 1
-CALL ADD_COOLTIME(対象, 1)
 
-IF !GROUPMATCH(教師, -1, NAME_TO_CHARA("あなた"))
+SIF !GROUPMATCH(教師, -1, NAME_TO_CHARA("あなた"))
 	CFLAG:教師:行動済み = 1
-	CALL ADD_COOLTIME(教師, 1)
-ENDIF
+
 
 RETURN 1
 
@@ -396,10 +393,6 @@ FOR キャラ, 0, CHARANUM
 		SIF CFLAG:キャラ:捕虜先
 			CONTINUE
 		SIF !IS_FIXED_CHARA(キャラ)
-			CONTINUE
-		SIF !IS_LOVER(キャラ) && !IS_SLAVE(キャラ)
-			CONTINUE
-		SIF TMP_IS_FREE:キャラ:0
 			CONTINUE
 	ENDIF
 	FOR ジャンル, 0, SKILL_GENRE_NUM
