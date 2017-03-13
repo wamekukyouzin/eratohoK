@@ -20,6 +20,14 @@ SIF RESULT != -1
 SIF DAILY_CANCEL
 	RETURN 1
 
+
+DAILY_NAME = 仄暗い水の底から
+CALL KOJO_DAILY_K75_FROM_THE_DEEP()
+SIF RESULT != -1
+	発生フラグ = 1
+SIF DAILY_CANCEL
+	RETURN 1
+
 ;;デイリーイベント
 ;DAILY_NAME = デイリーイベントの名前
 ;CALL KOJO_DAILY_K75_NAMAE_OF_DAILY_EVENT
@@ -145,3 +153,46 @@ TALENT:水蜜:チョロイン = 1
 KDVAR:水蜜:水蜜_水蜜桃 = 1
 
 RETURN 
+
+;------------------------------------
+;デイリーイベント本体
+;創意工夫
+;発生判定に失敗した場合（イベントが発生しない場合）はマイナス１を返すこと
+;-----------------------------------
+@KOJO_DAILY_K75_FROM_THE_DEEP()
+#DIM 水蜜
+#DIM 白蓮
+
+水蜜 = NAME_TO_CHARA("水蜜")
+白蓮 = NAME_TO_CHARA("白蓮")
+
+;水蜜が同一勢力、白蓮が別勢力
+SIF !(CHECK_KOJO_DAILY_HAPPEN(水蜜, 250, 1, 0) && CHECK_KOJO_DAILY_HAPPEN(白蓮, 1000, 0))
+	RETURN -1
+
+;開始イベント、終了イベント後ならだめ
+SIF GROUPMATCH(KDVAR:水蜜:水蜜_仄暗い水の底から, 1, 2)
+	RETURN -1
+
+;爆発カウント最低4必要
+SIF KDVAR:水蜜:水蜜_水底爆発カウント < 4
+	RETURN -1
+
+CALL KOJO_DAILY_START()
+PRINTFORML 「沈めたい……」
+PRINTFORMW 自室で一人、%ANAME(水蜜)%はそのようにつぶやいた
+PRINTFORML 船幽霊である彼女にとって、船を沈めたり沈んだりすることは呼吸や食事に等しい
+PRINTFORML あまりにも物騒なそれは、普段であれば%ANAME(白蓮)%の力によって抑制されている
+PRINTFORMW だが、今はその%ANAME(白蓮)%がいない
+PRINTFORML いかに意思の強い者でも、それで呼吸を止められたりはしない
+PRINTFORMW %ANAME(水蜜)%のこれも同じことだ。%PRONOUN(水蜜)%は限界を迎えていた
+PRINTFORMW 「また、あそこ、いこっかな」
+PRINTFORML 衝動に侵されぼんやりとした頭で、%PRONOUN(水蜜)%はそのようにつぶやいた
+PRINTFORML そうしてふらりと部屋を、拠点を後にすると、一人どこかへ出かけていった
+PRINTFORMW 誰にもとがめられることなく、沈め沈められることのできる場所へ……
+PRINTFORML 
+CALL COLORPRINT(@"%ANAME(水蜜)%が行方不明になりました", COLOR("警告"), "W")
+KDVAR:水蜜:水蜜_仄暗い水の底から = 1
+KDVAR:水蜜:水蜜_水底滞在カウント = 5
+CALL CHANGE_COUNTRY(水蜜, 0)
+CFLAG:水蜜:特殊状態 = 0

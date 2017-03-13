@@ -11,6 +11,31 @@ SIF RESULT != -1
 	発生フラグ = 1
 SIF DAILY_CANCEL
 	RETURN 1
+
+;雨宿り狼
+DAILY_NAME = 雨宿り狼
+CALL KOJO_DAILY_K94_KAGEROU_RAINYDAY
+SIF RESULT != -1
+	発生フラグ = 1
+SIF DAILY_CANCEL
+	RETURN 1
+
+;お昼寝狼
+DAILY_NAME = お昼寝狼
+CALL KOJO_DAILY_K94_KAGEROU_OHIRUNE
+SIF RESULT != -1
+	発生フラグ = 1
+SIF DAILY_CANCEL
+	RETURN 1
+
+;焼肉デート
+DAILY_NAME = 焼肉デート
+CALL KOJO_DAILY_K94_KAGEROU_YAKINIKU
+SIF RESULT != -1
+	発生フラグ = 1
+SIF DAILY_CANCEL
+	RETURN 1
+
 RETURN 発生フラグ
 
 ;----------------------------------
@@ -20,16 +45,14 @@ RETURN 発生フラグ
 #DIM 影狼
 影狼 = NAME_TO_CHARA("影狼")
 
-SIF 影狼 == -1
+;影狼と面識がなく、影狼と所属が異なり、影狼が捕虜でなく、死んでいない場合5%で発生
+SIF !(CHECK_KOJO_DAILY_HAPPEN(影狼, 50, 0, 0, 0))
 	RETURN -1
 
 ;散歩できるのは一回きり
 SIF KDVAR:影狼:影狼_月夜の散歩
 	RETURN -1
 
-;影狼と面識がなく、影狼と所属が異なり、影狼が捕虜でなく、死んでいない場合5%で発生
-SIF !(RAND:1000 < 50 && !CFLAG:影狼:面識 && CFLAG:影狼:所属 != CFLAG:MASTER:所属 && !CFLAG:影狼:捕虜先 && CFLAG:影狼:特殊状態 != 2)
-	RETURN -1
 
 ;主人公は男であること
 SIF !IS_MALE(MASTER)
@@ -107,4 +130,340 @@ ELSE
 	CFLAG:影狼:好感度 = MAX(CFLAG:影狼:好感度, 300)
 	CFLAG:影狼:面識 = 1
 	KDVAR:影狼:影狼_月夜の散歩 = 1
+ENDIF
+
+;----------------------------------
+;雨宿り狼
+;----------------------------------
+@KOJO_DAILY_K94_KAGEROU_RAINYDAY
+#DIM 影狼
+影狼 = NAME_TO_CHARA("影狼")
+
+;影狼と面識があり、影狼と所属が異なり、影狼が捕虜でなく、死んでいない場合5%で発生
+;コメントでは「面識がなく」ってなってたけど、内容的にどうも面識ある感じなので変更
+SIF !CHECK_KOJO_DAILY_HAPPEN(影狼, 50, 0, 0, 1)
+	RETURN -1
+
+;雨宿りは一回限り
+SIF KDVAR:影狼:影狼_雨宿り狼
+	RETURN -1
+
+;主人公は男であること
+SIF !IS_MALE(MASTER)
+	RETURN -1
+
+CALL KOJO_DAILY_START()
+PRINTFORMW ポツポツと雨音が聞こえてくる
+PRINTFORMW 折角の休日なのに憂鬱な午後だ
+PRINTFORMW %ANAME(MASTER)%は窓の外を見ながらため息を吐く
+PRINTFORMW 朝からずっとこの調子だ
+PRINTFORMW 天気のせいか気分も落ち込み、何をする気も起きない
+PRINTFORMW こうしてボーっとしていると今が戦争中だと忘れそうになる
+PRINTFORMW しばらく雨を見るでもなく眺めていると、ふと何かに気づいた
+PRINTFORMW 窓枠の外、微かに何かが覗いている
+PRINTFORMW なんだろう？目を凝らして見てみると動物の耳の様に見えた
+PRINTFORMW しかしそうだとしたら位置がおかしい
+PRINTFORMW %ANAME(MASTER)%は重い体を起こし、窓辺に近づいた
+PRINTFORMW 
+PRINTFORMW 「…あら、%ANAME(MASTER)%。こんにちは」
+PRINTFORMW 耳の持ち主は狼女だった
+PRINTFORMW 彼女は%ANAME(MASTER)%を認めると、大きな耳をピクピクと揺らして挨拶してきた
+PRINTFORMW 「ここ、%ANAME(MASTER)%の屋敷だったんだ。へぇー」
+PRINTFORMW 彼女は何やら感心した様に屋敷を眺める
+PRINTFORMW 「あっ、軒下をお借りしてるわ。さっき、傘が壊れちゃってさ」
+PRINTFORMW その腕にはボロボロになった傘がぶら下げられていた
+PRINTFORMW いつからいたのだろうか？服の裾はすっかり雨に濡れている
+PRINTFORMW チラッと胸元を見ると微かに透けていた
+PRINTFORMW 「ごめんなさいね、もう少し雨宿りさせてくれない？」
+IF CFLAG:影狼:所属 != 0
+	PRINTFORMW 知らぬ顔ではないが、彼女は敵国の武将だ
+ELSE
+	PRINTFORMW 彼女は確か、現在放浪の身のはずだ
+ENDIF
+PRINTFORMW どうしよう？
+CALL ASK_MULTI(@"家に上げる" ,"傘を渡す" ,"家に連れ込む")
+IF RESULT == 0
+	PRINTFORMW 雨の中、女性を外に放置はできない
+	PRINTFORMW %ANAME(MASTER)%は彼女を家の中に招いた
+	PRINTFORMW 「えっ、いいの？」
+	PRINTFORMW %ANAME(MASTER)%がもう一度招くと彼女は嬉しそうに耳をピクピクと揺らした
+	PRINTFORMW 「えへへ、ありがとう。優しいんだ」
+	PRINTFORMW 普段のどことなく凛とした印象とは違う人懐っこそうな笑顔を見せた
+	PRINTFORMW 屋敷に上げ、タオルを渡す
+	PRINTFORMW 彼女はその長い髪と耳、そして大きな尻尾を丹念に拭いていく
+	PRINTFORMW 何気ない動作のはずだが、どことなく艶のある仕草に思わず見とれてしまう
+	PRINTFORMW 「はい、ありがとう。…？どうかした？」
+	PRINTFORMW ハッと我に返りタオルを受け取ると、彼女を居間に招き入れた
+	PRINTFORMW 温かいお茶を差し出す
+	PRINTFORMW 「わぁ、ありがと、何から何まで。」
+	PRINTFORMW 彼女はお茶を受け取るとふぅふぅと冷ましてからゆっくりと飲んだ
+	PRINTFORMW どうやら口にあった様で可愛らしいため息をついて尻尾をふりふりと振っていた
+	PRINTFORMW 「ふふっ」
+	PRINTFORMW 彼女がこちらを見つめて小さく笑う
+	PRINTFORMW 「傘が壊れてどうしようかって思ってたけど、そのおかげでちょっと良い事に巡り合えたわ」
+	PRINTFORMW 「こういうのってなんて言うんだっけ？…怪我の功名？」
+	PRINTFORMW なんだか少し違う気がする
+	PRINTFORMW しかし彼女に喜ばれて悪い気はしなかった
+	PRINTFORMW 
+	PRINTFORMW ポツポツと雨音のする午後
+	PRINTFORMW 二人でしばし談笑に興じた
+	CFLAG:影狼:好感度 += 300
+	KDVAR:影狼:影狼_雨宿り狼 = 1
+ELSEIF RESULT == 1
+	PRINTFORMW それほど親しくない相手にこのまま居着かれては困る
+	PRINTFORMW %ANAME(MASTER)%は無言で傘を差し出した
+	PRINTFORMW 「あら、貸してくれるの？でも、今度いつここまで来れるか…」
+	PRINTFORMW 返さなくて良いと半ば押し付ける様に傘を渡す
+	PRINTFORMW 「うん、ありがと。機会があったら返すわね」
+	PRINTFORMW 彼女はバサッと傘を広げ、雨の中に歩き出す
+	PRINTFORMW しばらく歩くとこちらを振り返り、ペコッと頭を下げると雨の中へと消えていった
+	PRINTFORMW どうやら悪い子ではないようだった
+	PRINTFORMW %ANAME(MASTER)%は窓枠に肘をついて彼女が消えた景色をしばしボーっと眺めていた
+	CFLAG:影狼:好感度 += 150
+	KDVAR:影狼:影狼_雨宿り狼 = 1
+ELSEIF RESULT == 0
+	PRINTFORMW その扇情的な姿に思わずムラッと来た%ANAME(MASTER)%は彼女を家の中に招いた
+	PRINTFORMW 「えっ、いいの？」
+	PRINTFORMW %ANAME(MASTER)%がもう一度招くと彼女は嬉しそうに耳をピクピクと揺らした
+	PRINTFORMW 「えへへ、ありがとう。優しいんだ」
+	PRINTFORMW 普段のどことなく凛とした印象とは違う人懐っこそうな笑顔を見せた
+	PRINTFORMW その笑顔にもう一度ムラムラと劣情がこみ上げてくる
+	PRINTFORMW 彼女を屋敷に上げ、温かいお茶を出した
+	PRINTFORMW 彼女は何も疑うことなく寛いでいる
+	PRINTFORMW …
+	CALL ASK_MULTI(@"押し倒す" ,"我慢する")
+	IF RESULT == 1
+		PRINTFORMW いや、やはりだめだ
+		PRINTFORMW %ANAME(MASTER)%は押し倒したくなる衝動にかられたが、グッと堪えた
+		PRINTFORMW 代わりに彼女から漂う柔らかい、花の様な香りをしっかりと記憶した
+		PRINTFORMW 
+		PRINTFORMW 「それじゃあ、今日はありがとう。ごちそうさまでした」
+		PRINTFORMW 宵の口、雨が上がったのを確認して彼女は帰っていった
+		PRINTFORMW %ANAME(MASTER)%はその後ろ姿が見えなくなるまで見送った
+		CFLAG:影狼:好感度 += 300
+		KDVAR:影狼:影狼_雨宿り狼 = 1
+	ELSEIF RESULT == 0
+		PRINTFORMW 我慢の限界に達した%ANAME(MASTER)%は彼女を腕を掴むとそのまま押し倒した
+		PRINTFORMW ドサッと倒れ込んだ彼女は%ANAME(MASTER)%の下で驚き固まっている
+		PRINTFORMW 「えっ…」
+		PRINTFORMW %ANAME(MASTER)%は昂る欲望のままに彼女の服に手をかけた
+		IF CFLAG:影狼:好感度 > 1500
+			PRINTFORMW 「あっ…」
+			PRINTFORMW 意外なことに、彼女は抵抗しなかった
+			PRINTFORMW これからされる事はわかっている様だが顔を真っ赤にしつつもされるがままだ
+			PRINTFORMW スルスルと服を一枚ずつ脱がし、遂に裸の彼女が露となる
+			PRINTFORMW 「…え、えと。わ、私は…いいよ…？」
+			PRINTFORMW 耳まで真っ赤になり瞳を潤ませた彼女が、微かに声を震わせ、そう呟いた
+			PRINTFORMW その肉体の美しさと少女のような可愛らしさにもはや止まることは出来なかった
+			PRINTFORMW 「あっ…！」
+			PRINTFORMW 肌に触れると吸い付く様な柔らかい弾力が伝わり、彼女は小さく喘いだ
+			PRINTFORMW 「あぅぅ…ね、ねぇ…続きは、お布団で…したいの…」
+			PRINTFORMW 彼女は恥ずかしそうに顔を両手で隠しながら懇願してきた
+			PRINTFORMW %ANAME(MASTER)%は彼女の頭をそっと撫でると抱き抱え、寝室へと連れ込んだ
+			PRINTFORML 
+			PRINTFORML 「♥♥♥♥♥♥♥♥」
+			PRINTFORMW 
+			PRINTFORMW ポツポツと雨音の響く午後
+			PRINTFORMW 雨音に交じって、屋敷から艶めかしい女の喘ぎが響いていた
+			CALL FUCK_RAPE(影狼, GET_ID(MASTER), @"%ANAME(MASTER)%の唇", @"%ANAME(MASTER)%")
+			CALL FUCK(MASTER, "性技, 性交, Ｃ, 射精", "童貞喪失, キス喪失", 0, @"%ANAME(影狼)%の唇", "", @"%ANAME(影狼)%の膣", 喪失_和姦)
+			PRINTFORMW 
+			PRINTFORMW 翌朝、目覚めた時には彼女は既にいなかった
+			PRINTFORMW しかし布団からは、微かに彼女のあの柔らかく、花の様な香りが漂っていた
+			CFLAG:影狼:好感度 += 500
+			KDVAR:影狼:影狼_雨宿り狼 = 1
+		ELSEIF ABL:MASTER:武闘 * RAND:5 + 1 <= ABL:影狼:武闘 * RAND:8 + 1
+			PRINTFORMW 「やだっ！ちょ、やめなさいよ！」
+			PRINTFORMW しかし彼女に抵抗されてしまった
+			PRINTFORMW 彼女は激しく抵抗して%ANAME(MASTER)%を振りほどくと一目散に家の外まで逃げていった
+			PRINTFORMW 追いかけようとしたが狼相手では流石に追いつけなかった…
+			CFLAG:影狼:好感度 -= 1500
+			KDVAR:影狼:影狼_雨宿り狼 = 1
+		ELSE
+			PRINTFORMW 「やだっ！ちょ、やめなさいよ！」
+			PRINTFORMW 当然彼女は激しく抵抗してきた
+			PRINTFORMW しかし%ANAME(MASTER)%は無理矢理押さえつけると強引に服をはぎ取った
+			PRINTFORMW 「っ…！」
+			PRINTFORMW すべての服をはぎ取ると、遂に裸の彼女が露になった
+			PRINTFORMW 彼女は耳まで真っ赤になり瞳を潤ませながら%ANAME(MASTER)%の下で身をよじらせる
+			PRINTFORMW しかし身をよじらせる度にその女らしい肉体が否応なく雌を主張する
+			PRINTFORMW 「この…！」
+			PRINTFORMW 微かに身を震わせながらも睨み付けてくる彼女の表情にもはや我慢できなかった
+			PRINTFORMW 「あっ…！」
+			PRINTFORMW 肌に触れると吸い付く様な柔らかい弾力が伝わり、彼女は小さく喘いだ
+			PRINTFORMW 「こ、のぉ…ふぅ…やめっ…なさいよ！…あっ！」
+			PRINTFORMW 恥ずかしそうに身をくねらせ逃げようとする彼女を抱き止めながら体中に指を這わす
+			PRINTFORMW 元々敏感な体質なのか、身体は素直に反応し、愛撫に合わせて可愛らしくビクビクと震えた
+			PRINTFORMW %ANAME(MASTER)%は暴れる彼女を抱きかかえると、寝室へと連れ込んだ
+			PRINTFORMW 
+			PRINTFORMW ポツポツと雨音の響く午後
+			PRINTFORMW 雨音に交じって、屋敷からくぐもった女の呻き声が響いていた
+			CALL FUCK_RAPE(影狼, GET_ID(MASTER), @"%ANAME(MASTER)%の唇", @"%ANAME(MASTER)%")
+			CALL FUCK(MASTER, "性技, 性交, Ｃ, 射精", "童貞喪失, キス喪失", 0, @"%ANAME(影狼)%の唇", "", @"%ANAME(影狼)%の膣", 喪失_和姦)
+			PRINTFORMW 
+			PRINTFORMW たっぷりと楽しませてもらった後、彼女を解放した
+			PRINTFORMW 彼女は恨めしそうに%ANAME(MASTER)%を睨みつけた後、泣きながら走り去っていった
+			CFLAG:影狼:好感度 -= 1500
+			KDVAR:影狼:影狼_雨宿り狼 = 1
+		ENDIF
+	ENDIF
+ENDIF
+
+;----------------------------------
+;お昼寝狼
+;----------------------------------
+@KOJO_DAILY_K94_KAGEROU_OHIRUNE
+#DIM 影狼
+影狼 = NAME_TO_CHARA("影狼")
+
+SIF !CHECK_KOJO_DAILY_HAPPEN(影狼, 30, 1, 0)
+	RETURN -1
+
+;主人公は男であること
+SIF !IS_MALE(MASTER)
+	RETURN -1
+
+CALL KOJO_DAILY_START()
+IF KDVAR:影狼:影狼_お昼寝狼 == 0
+	PRINTFORMW ある日、宮殿を歩いているとお昼寝中の影狼を見かけた
+	PRINTFORMW 日のあたる窓際で気持ちよさそうに眠っている
+	PRINTFORMW いつもと違う隙だらけのその姿が珍しくついまじまじと見つめてしまう
+	PRINTFORMW 「んんっ…」
+	PRINTFORMW 小さく吐息を漏らして身をよじらせた
+	PRINTFORMW 耳がピクピクっと動いだ
+	PRINTFORMW まるで小動物の様な仕草がとても可愛らしい
+	PRINTFORMW どうしよう？
+	CALL ASK_MULTI(@"立ち去る" ,"眺める")
+	IF RESULT == 0
+		PRINTFORMW 邪魔してもいけない
+		PRINTFORMW %ANAME(MASTER)%はもう一度彼女の寝顔を見つめた後、上着をかけてやりそっと立ち去った
+	ELSEIF RESULT == 1
+		PRINTFORMW めったに見れないその姿を、もう少し眺めていくことにした
+		PRINTFORMW %ANAME(MASTER)%はそっと彼女の近くに座り、特等席でその寝顔を眺めさせてもらった
+		PRINTFORMW 「…んぅ…すぅ」
+		PRINTFORMW また一つ、小さな吐息を漏らした
+		PRINTFORMW この上なく幸せそうに寝ている
+		PRINTFORMW 狼なのにこんなに隙だらけなのはいかがなものかと思ったが
+		PRINTFORMW 彼女が安心できて証拠だと考えれば可愛らしかった
+		PRINTFORMW またピクピクっと耳が動いた
+		PRINTFORMW どんな夢を見ているのだろうか？
+		PRINTFORMW ふと嬉しそうに口角が上がり、ツーッと一滴涎が垂れた
+		PRINTFORMW どうやら、見ている夢の内容はわかった
+		PRINTFORMW 彼女らしいというかなんというか、%ANAME(MASTER)%は思わず小さく笑った
+		PRINTFORMW しばらく彼女の表情豊かな寝顔を楽しませてもらった後、上着をかけてやりそっと立ち去った
+	ENDIF
+	PRINTFORMW 
+	PRINTFORMW 仕事が終わって部屋に戻ったら先程の上着が置かれていた
+	PRINTFORMW どうやら彼女が返してくれたらしい
+	PRINTFORMW ふわりと、微かに彼女の香りがした気がした
+	CFLAG:影狼:好感度 += 150
+	KDVAR:影狼:影狼_お昼寝狼 = 1
+ELSE
+	PRINTFORMW 宮殿を歩いているとまたお昼寝中の影狼を見かけた
+	PRINTFORMW 以前見かけた時と同じ場所だ
+	PRINTFORMW お気に入りの場所なのだろうか？
+	PRINTFORMW 確かにここはポカポカしていて気持ちが良さそうだ
+	PRINTFORMW 「んっ～…？%ANAME(MASTER)%？」
+	PRINTFORMW おっと起こしてしまったらしい
+	PRINTFORMW 彼女は眠そうに眼をこすりながら%ANAME(MASTER)%の顔を見てきた
+	PRINTFORMW 「え、えっとぉ、これは、そのぉ…」
+	PRINTFORMW 彼女は恥ずかしそうにもじもじとしている
+	PRINTFORMW どうしよう？
+	CALL ASK_MULTI(@"寝させる" ,"一緒に寝る" ,"からかう")
+	IF RESULT == 2
+		PRINTFORMW %ANAME(MASTER)%はつい彼女をからかった
+		PRINTFORMW あまりに隙だらけで狼女には見えなかったぞ、と
+		PRINTFORMW すると彼女は耳をピンと立て、顔を真っ赤にして%ANAME(MASTER)%をポカポカと殴って来た
+		PRINTFORMW その仕草もまた可愛らしく、%ANAME(MASTER)%はまた笑ってしまう
+		PRINTFORMW しばらく彼女と平和なやり取りをした後、お昼ご飯を奢って機嫌を直してもらった
+	ELSEIF RESULT == 0
+		PRINTFORMW 邪魔をして悪かったと言い%ANAME(MASTER)%はその場を後にした
+		PRINTFORMW 「あっ、えっと…誰にも言わない？」
+		PRINTFORMW 彼女はまるで悪戯がばれた子供の様に恥ずかしそうに尋ねて来る
+		PRINTFORMW 自然と笑みがこぼれた%ANAME(MASTER)%は言わないと約束した
+		PRINTFORMW 「そっか…あ、ありがと…ふぁぁっ…」
+		PRINTFORMW 彼女は安心したかのように大きくあくびをすると再び横になった
+		PRINTFORMW その寝顔をひとしきり眺めた後、%ANAME(MASTER)%はその場を後にした
+	ELSEIF RESULT == 1
+		PRINTFORMW そういえば自分もかなり眠かった
+		PRINTFORMW 丁度良いので一緒にここで寝てもいいかと尋ねる
+		PRINTFORMW 「えっ？え、えぇ、いいけど…」
+		PRINTFORMW 彼女は吃驚した様子で答える
+		PRINTFORMW %ANAME(MASTER)%は荷物を置いて寝転ぶ
+		PRINTFORMW おぉ、確かにここは寝心地がとても良い
+		PRINTFORMW 「いいでしょ？お気に入りの場所なんだぁ…」
+		PRINTFORMW 隣で横になった彼女がなんだか嬉しそうに話す
+		PRINTFORMW すでにまた眠くなっている様でうつらうつらとしている
+		PRINTFORMW 「ふあぁぁ…」
+		PRINTFORMW 影狼が大きくあくびをした
+		PRINTFORMW それに釣られて%ANAME(MASTER)%も一つ、あくびをしてしまう
+		PRINTFORMW 「んー…」
+		PRINTFORMW 幸せそうな寝顔の彼女を眺めながら、%ANAME(MASTER)%も眠りに落ちた
+		PRINTFORMW 
+		PRINTFORMW 小一時間ほどのお昼寝の後、目を覚ました
+		PRINTFORMW すでに彼女はおらず、微かに彼女の残り香だけが残っていた
+	ENDIF
+	CFLAG:影狼:好感度 += 200
+ENDIF
+
+;----------------------------------
+;焼肉デート
+;----------------------------------
+@KOJO_DAILY_K94_KAGEROU_YAKINIKU
+#DIM 影狼
+影狼 = NAME_TO_CHARA("影狼")
+
+SIF !CHECK_KOJO_DAILY_HAPPEN(影狼, 30, 1, 0, 1)
+	RETURN -1
+
+;主人公は男であること
+SIF !IS_MALE(MASTER)
+	RETURN -1
+
+CALL KOJO_DAILY_START()
+IF KDVAR:影狼:影狼_焼肉デート == 0
+	PRINTFORMW 「なんだか、お肉が食べたい気分」
+	PRINTFORMW 仕事中、二人きりの時に唐突にそう言われた
+	PRINTFORMW 「最近戦争やらなんやらで疲れてるじゃない？こういう時はこー、ガッツリといきたくない？」
+	PRINTFORMW 確かにそうかもしれないが
+	PRINTFORMW 今は仕事に集中する様に言う
+	PRINTFORMW 「えー、お肉食べたいなぁ…」
+	PRINTFORMW 彼女はまるで子犬の様な、媚びる様な視線を寄越す
+	PRINTFORMW 尻尾はしゅんと垂れ下がっている
+	PRINTFORMW どうしよう？
+	CALL ASK_MULTI(@"焼肉に誘う" ,"お預けする")
+	IF RESULT == 1
+		PRINTFORMW お預けを宣言すると彼女はしょんぼりしながら仕事に戻った
+	ELSEIF RESULT == 0
+		PRINTFORMW まぁたまには良いだろう
+		PRINTFORMW 「ほんとに！？やったぁ！」
+		PRINTFORMW %ANAME(MASTER)%が焼肉に誘うと彼女は飛び上がって喜んだ
+		PRINTFORMW 「%ANAME(MASTER)%大好きィ！」
+		PRINTFORMW 尻尾をブンブンと振り回しながら抱きついてきた
+		PRINTFORMW むにぃと柔らかいお肉が頬に当たる
+		PRINTFORMW 「えへへ、それじゃあさっさと仕事を終わらせましょ！」
+		PRINTFORMW 彼女は何時もの倍は張り切って仕事に打ち込んだ
+		PRINTFORMW 
+		PRINTFORMW 仕事の後、二人で焼肉デートに行った
+		PRINTFORMW 色気もムードも無かったが、喜ぶ彼女の様子にたまにはこんなのも悪くないと思った
+		PRINTFORMW 「ごちそうさま！また来ましょうね♥」
+		PRINTFORMW お腹いっぱい食べてご満悦の彼女と腕を組みながら帰路についた
+		PRINTFORMW しかしまた来るかどうかは財布と相談することにする
+		CFLAG:影狼:好感度 += 300
+		KDVAR:影狼:影狼_焼肉デート = 1
+	ENDIF
+ELSE
+	PRINTFORMW 「やっき肉♪やっき肉ぅ♪」
+	PRINTFORMW 今日は以前から約束していた焼肉デートの日だ
+	PRINTFORMW 影狼が子供の様にはしゃいでいる
+	PRINTFORMW 普段のお姉さんぶった振舞いとのギャップが凄い
+	PRINTFORMW 「%ANAME(MASTER)%は嬉しくないの？」
+	PRINTFORMW ボンヤリ眺めていると、首をかしげて覗き込んできた
+	PRINTFORMW いや、自分も楽しみだ
+	PRINTFORMW そう告げると彼女はニッコリと笑って尻尾を振った
+	PRINTFORMW 「そうよねぇ、私なんて今日の為にしばらくダイエットしてたわ」
+	PRINTFORMW 影狼は何故か誇らしげに胸を張った
+	PRINTFORMW そんな彼女を見てもはや野生の欠片もないなと内心笑ってしまった
+	PRINTFORMW 仕事を早めに切り上げると、二人で色気もムードも無い焼肉デートを楽しんだ
+	CFLAG:影狼:好感度 += 300
 ENDIF
