@@ -1,12 +1,5 @@
 ﻿;戦略フェイズのショップ画面
 ;-------------------------------------------------
-;左右カラム表示開始（MAPがあるので拠点と違ってひとつめのメニューを置かない）
-;使用）CALL START_COLUMN
-;-------------------------------------------------
-@START_COLUMN_SLG
-FIRST_COLUMN_RIGHT_LINE_SLG = LINECOUNT
-
-;-------------------------------------------------
 ;ショップ画面の表示処理(戦略フェイズ)
 ;-------------------------------------------------
 @SHOW_SHOP_SLG
@@ -18,14 +11,15 @@ CALL COLUMN_LEFT_MENULINE_SAVE_SLG
 
 MAP_LINES = MENU_HEIGHT
 
-CALL START_COLUMN_SLG
+;行番号のリセット
+FIRST_COLUMN_RIGHT_LINE_SLG = LINECOUNT
 
 ;ロードデータ用のエラー回避
 IF FLAG:戦略フェイズページ == 0
 	FLAG:戦略フェイズページ = 1
 ENDIF
 
-;右カラムの表示処理呼び出し
+;右カラムの表示処理呼び出しがあるコンテンツ
 TRYCCALLFORM SHOP_SLG_EVENTBUY_SHOW{FLAG:戦略フェイズ選択コマンド}
 CATCH
 	;マップとコマンドボタンを表示
@@ -43,59 +37,47 @@ ENDCATCH
 ;処理を行った場合は1を、行わなかった場合は0を返すこと
 ;-------------------------------------------------
 @EVENTBUY_SLG(ARG:0)
+;一応エラー回避
+;コンテンツ内の最大ページ数が取れていないが
+;ページ移動をクリックされた場合用
+SIF SHOP_SLG_LIST1_MAXPAGE == 0
+	SHOP_SLG_LIST1_MAXPAGE = 1
+
 ;入力処理
 IF SHOP_AVAIL:(ARG:0) && ARG:0 >= COLUMN_LEFT_MENU_START_VALUE && ARG:0 <= COLUMN_LEFT_MENU_END_VALUE
-	SELECTCASE ARG:0
-		CASE COLUMN_LEFT_MENU_START_VALUE TO COLUMN_LEFT_MENU_END_VALUE
-			;入力値をメニュー番号に受け取る
-			FLAG:戦略フェイズ選択コマンド = ARG:0
-			;入力処理呼び出し
-			TRYCALLFORM SHOP_SLG_EVENTBUY{FLAG:戦略フェイズ選択コマンド}
-			RETURN RESULT
-		CASEELSE
-			RETURN 0
-	ENDSELECT
+	FLAG:戦略フェイズ選択コマンド = ARG:0
+	TRYCCALLFORM SHOP_SLG_EVENTBUY{FLAG:戦略フェイズ選択コマンド}
+		RETURN RESULT
+	CATCH
+		RETURN 0
+	ENDCATCH
 ELSE
 	SELECTCASE ARG:0
 		;前のページ
 		CASE SHOP_SLG_LIST1_PAGE_BACK
 			FLAG:戦略フェイズページ --
-			SIF SHOP_SLG_LIST1_MAXPAGE == 0
-				SHOP_SLG_LIST1_MAXPAGE = 1
 			IF FLAG:戦略フェイズページ < 1
 				FLAG:戦略フェイズページ = SHOP_SLG_LIST1_MAXPAGE
 			ENDIF
 			RETURN 0
-
 		;次のページ
 		CASE SHOP_SLG_LIST1_PAGE_NEXT
 			FLAG:戦略フェイズページ ++
-			SIF SHOP_SLG_LIST1_MAXPAGE == 0
-				SHOP_SLG_LIST1_MAXPAGE = 1
 			IF FLAG:戦略フェイズページ > SHOP_SLG_LIST1_MAXPAGE
 				FLAG:戦略フェイズページ = 1
 			ENDIF
 			RETURN 0
-
 		;最初のページ
 		CASE SHOP_SLG_LIST1_PAGE_RESET
 			FLAG:戦略フェイズページ = 1
-			SIF SHOP_SLG_LIST1_MAXPAGE == 0
-				SHOP_SLG_LIST1_MAXPAGE = 1
 			RETURN 0
-
 		;最後のページ
 		CASE SHOP_SLG_LIST1_PAGE_MAX
 			FLAG:戦略フェイズページ = SHOP_SLG_LIST1_MAXPAGE
-			SIF SHOP_SLG_LIST1_MAXPAGE == 0
-				SHOP_SLG_LIST1_MAXPAGE = 1
 			RETURN 0
-
-		CASEELSE
-			RETURN 0
-
 	ENDSELECT
 ENDIF
+RETURN 0
 
 ;-------------------------------------------------
 ;ショップ画面の入力処理(戦略フェイズ 100～)
