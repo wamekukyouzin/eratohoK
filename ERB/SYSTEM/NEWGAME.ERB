@@ -1025,66 +1025,31 @@ ENDIF
 
 CALL SINGLE_DRAWLINE
 PRINTL 自勢力の士官として加えるキャラを4名まで選択できます
-PRINTL なお、君主はリストから除外されています
+PRINTL なお、君主は選択できません
 CALL SINGLE_DRAWLINE
-REDRAW 0
+CALL SELECT_CHARA_LIST_MULTI_ONLY_LOGIC_SLG(4, "START_WITH_NEW_COUNTRY", "NONE")
 
-FIRST_LINE = LINECOUNT
-$SHOW_LOOP_CHARA
-VARSET LOCAL
-消去行 = 0
-FOR LOCAL, 1, CHARANUM
-	;君主以外の固定キャラ
-	IF GET_COUNTRY_BOSS(CFLAG:LOCAL:所属) != LOCAL && IS_FIXED_CHARA(LOCAL) && LOCAL != NAME_TO_CHARA("あなた")
-		IF LOCAL:1 % 4 == 0 && LOCAL:1 >= 1
-			PRINTL 
-			消去行 ++
-		ENDIF
-		LOCALS:0 = {NO:(LOCAL:0) + 100}[%ANAME(LOCAL:0), 12, LEFT%]
-		SIF 士官:LOCAL
-			SETCOLOR COLOR("選択中")
-		PRINTBUTTON @"%LOCALS:0, 19, LEFT%", NO:(LOCAL:0) + 100
-		RESETCOLOR
-		LOCAL:1 ++
-	ENDIF
+FLAG:OP選択勢力 = 勢力
+CITY_OWNER:都市 = 勢力
+COUNTRY_BOSS:勢力 = GET_ID(MASTER)
+COUNTRY_COLOR:勢力 = TALENT:MASTER:髪色 == 0 ? 0x404040 # TALENT:MASTER:髪色
+;経済規模に対する最大兵数の半分を得る
+COUNTRY_SOLDIER:勢力 = GET_SUM_ECONOMY(勢力) / 20
+CITY_SOLDIER:都市 = 500
+CALL CHANGE_COUNTRY(MASTER, 勢力, 1)
+FOR LOCAL, 0, SELECTED_CHARA_NUM
+	CALL CHANGE_COUNTRY(SELECTED_CHARA:LOCAL, 勢力, 1)
 NEXT
-PRINTL
-CALL SINGLE_DRAWLINE
-PRINTBUTTON "[これでよし]", 0
-PRINTL
-消去行 += 4
-$INPUT_LOOP
-INPUT
-IF RESULT == 0
-	FLAG:OP選択勢力 = 勢力
-	CITY_OWNER:都市 = 勢力
-	COUNTRY_BOSS:勢力 = GET_ID(MASTER)
-	COUNTRY_COLOR:勢力 = TALENT:MASTER:髪色 == 0 ? 0x404040 # TALENT:MASTER:髪色
-	;経済規模に対する最大兵数の半分を得る
-	COUNTRY_SOLDIER:勢力 = GET_SUM_ECONOMY(勢力) / 20
-	CITY_SOLDIER:都市 = 500
-	CALL CHANGE_COUNTRY(MASTER, 勢力, 1)
-	FOR LOCAL, 0, CHARANUM
-		IF 士官:LOCAL == 1
-			CALL CHANGE_COUNTRY(LOCAL, 勢力, 1)
-		ENDIF
-	NEXT
-	REDRAW 1
-	RETURN
-ELSE
-	対象 = NO_TO_CHARA(RESULT - 100)
-	IF 対象 >= 0 && GET_COUNTRY_BOSS(CFLAG:対象:所属) != 対象 && IS_FIXED_CHARA(対象) && 対象 != NAME_TO_CHARA("あなた")
-		;指定人数4人以下または指定済みならインバート
-		IF MATCH(士官, 1) < 4 || 士官:対象
-			士官:対象 = !士官:対象
-		ELSE
-			PRINTFORML 4人まで指定できます
-		ENDIF
-	ENDIF
-	CLEARLINE LINECOUNT - FIRST_LINE
-	GOTO SHOW_LOOP_CHARA
-ENDIF
+REDRAW 1
+RETURN
 
+;-------------------------------------------------
+;旗揚げスタート時用、SELECT_CHARA_LIST_MULTIの表示ロジック
+;君主と「あなた」と主人公以外の固定キャラ
+;-------------------------------------------------
+@SELECT_CHARA_LIST_SHOW_LOGIC_START_WITH_NEW_COUNTRY(対象)
+#DIM 対象
+RETURN GET_COUNTRY_BOSS(CFLAG:対象:所属) != 対象 && IS_FIXED_CHARA(対象) && 対象 != NAME_TO_CHARA("あなた") && 対象 != MASTER
 ;-------------------------------------------------
 ;「あなた」を新規に作成した場合のボーナス
 ;-------------------------------------------------
