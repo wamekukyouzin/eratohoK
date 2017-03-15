@@ -1,0 +1,97 @@
+﻿;-------------------------------------------------
+;数期間の調教を要求
+;ARG:0は相手の勢力番号、ARG:1は要求の重さ。要求を飲むと1、断ると0を返す
+;-------------------------------------------------
+@DIPLOMACY_REQUESTED_TRAIN(ARG:0, ARG:1)
+#DIM TRAINING_DAY
+
+;自国・相手勢力の君主のキャラ番号をそれぞれ取得
+LOCAL:4 = GET_COUNTRY_BOSS(CFLAG:MASTER:所属)
+LOCAL:5 = GET_COUNTRY_BOSS(ARG:0)
+
+;常に主人公が対象
+IF CONFIG:307 == 1
+	LOCAL:6 = MASTER
+;常に君主が対象
+ELSEIF CONFIG:307 == 2
+	LOCAL:6 = LOCAL:4
+;対象が状況によって変化
+ELSE
+	;対象キャラ判定値。正なら君主、負なら主人公が要求の対象になる
+	LOCAL:10 = 0
+
+	;●対象キャラの決定(君主 or 主人公)
+	;君主に対するイメージが悪いほど君主を辱める方向に傾く
+	IF REL_LIKE:(LOCAL:5):(LOCAL:4) >= 800
+		LOCAL:10 -= 20
+	ELSEIF REL_LIKE:(LOCAL:5):(LOCAL:4) >= 300
+		LOCAL:10 -= 10
+	ENDIF
+	IF REL_HATE:(LOCAL:5):(LOCAL:4) >= 800
+		LOCAL:10 += 30
+	ELSEIF REL_HATE:(LOCAL:5):(LOCAL:4) >= 300
+		LOCAL:10 += 15
+	ENDIF
+
+	;主人公との関係の深さに応じて主人公の奉仕を求める方に傾く
+	IF TALENT:(LOCAL:5):親愛
+		LOCAL:10 -= 40
+	ELSEIF TALENT:(LOCAL:5):恋慕
+		LOCAL:10 -= 20
+	ELSEIF TALENT:(LOCAL:5):恋人
+		LOCAL:10 -= 10
+	ELSEIF TALENT:(LOCAL:5):親友
+		LOCAL:10 += 20
+	ELSEIF CFLAG:(LOCAL:5):2 >= 500
+		LOCAL:10 -= 5
+	ENDIF
+
+	;性別による判定
+	IF IS_MALE(LOCAL:5)
+		SIF IS_FEMALE(MASTER)
+			LOCAL:10 -= 10
+		SIF IS_FEMALE(LOCAL:4)
+			LOCAL:10 += 10
+	ENDIF
+	IF IS_FEMALE(LOCAL:5)
+		SIF IS_MALE(MASTER)
+			LOCAL:10 -= 10
+		SIF IS_MALE(LOCAL:4)
+			LOCAL:10 += 10
+	ENDIF
+
+	IF LOCAL:10 >= 0
+		LOCAL:6 = LOCAL:4
+	ELSE
+		LOCAL:6 = MASTER
+	ENDIF
+ENDIF
+
+;対象キャラは君主またはあなた
+;内容は別の関数を使い、能力・素質に応じて分岐
+
+;要求の重さと対象キャラへの判定値の大きさに応じて日数を算出　最大7日間
+TRAINING_DAY = MIN(MAX(ABS(LOCAL:10)*(ARG:1), 1), 7)
+
+PRINTFORML %NAME:(LOCAL:5)%は%ANAME(LOCAL:6)%に対して、こちらの提案を飲む代わりに{TRAINING_DAY}日間調教させろと要求してきた
+
+CALL ASK_YN("受け入れる", "断る")
+IF RESULT == 1
+	RETURN 0
+ENDIF
+
+IF LOCAL:6 == MASTER
+	;逆調教要求日数を設定
+	DIPLOMACY_TRAINED_DAY = TRAINING_DAY
+	DIPLOMACY_TRAINING_CHARA = LOCAL:5
+	PRINTL 
+ELSE
+	PRINTFORMW %ANAME(MASTER)%は%ANAME(LOCAL:6)%に対して、要求を飲むように説得した…
+	;逆調教要求日数を設定
+	DIPLOMACY_TRAINED_DAY -= TRAINING_DAY
+	DIPLOMACY_TRAINING_CHARA = LOCAL:5
+	PRINTL 
+ENDIF
+
+RETURN 1
+
