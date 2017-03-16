@@ -31,7 +31,7 @@ FOR LOCAL:0, 1, MAX_COUNTRY
 NEXT
 
 ;※条件は降伏勧告より緩和、引数で要求内容辺り参照して変化できるようにしたいなぁ
-LOCAL:10 = DIPLOMACY_REQUEST_CHECK(CFLAG:MASTER:所属, ARG:0, ARG:2)
+LOCAL:10 = DIPLOMACY_REQUEST_CHECK(CFLAG:MASTER:所属, ARG:0, ARG:2, 1)
 
 ;既に要求を飲んだことがあり、前回と同様の方法が通用する場合
 IF (LOCAL:10 && CFLAG:(LOCAL:5):外交要求成功フラグ == 1) || ((CFLAG:(LOCAL:5):外交要求成功フラグ == 2 && (TALENT:(LOCAL:5):烙印 || TALENT:(LOCAL:5):服従 || TALENT:(LOCAL:5):隷属 || (GETBIT(TALENT:(LOCAL:5):淫乱系, 素質_淫乱_マゾ) && TALENT:(LOCAL:5):恋慕)))) || (CFLAG:(LOCAL:5):外交要求成功フラグ == 3 && GETBIT(TALENT:(LOCAL:5):淫乱系, 素質_淫乱_薬物中毒))
@@ -768,7 +768,7 @@ RETURNF LOCAL:3
 ;ARG:0勢力がARG:1勢力に行った要求が通るかの判定
 ;TMP_CREATE_SUM_ECONOMY_MAP TMP_CREATE_SUM_SOLDIER_MAP TMP_CREATE_POLITICS_POWER_MAPの呼び出しが必要
 ;----------------------------------
-@DIPLOMACY_REQUEST_CHECK(勢力, 要求先, ノルマ)
+@DIPLOMACY_REQUEST_CHECK(勢力, 要求先, ノルマ, スコア表示 = 0)
 #FUNCTION
 #DIM 勢力
 #DIM 要求先
@@ -776,6 +776,7 @@ RETURNF LOCAL:3
 #DIM 要求先君主
 #DIM ノルマ
 #DIM スコア, 3
+#DIM スコア表示
 #DIM 最終値
 #DIM 経済差
 #DIM 兵力差
@@ -790,7 +791,6 @@ RETURNF LOCAL:3
 経済差 = TMP_SUM_ECONOMY:勢力 - TMP_SUM_ECONOMY:要求先
 経済差 /= 100
 スコア:0 = SQRT(ABS(経済差)) * 40 / 100
-
 兵力差 = TMP_SUM_SOLDIER:勢力 - TMP_SUM_SOLDIER:要求先
 兵力差 /= 100
 スコア:1 = SQRT(ABS(兵力差)) * 30 / 100
@@ -816,6 +816,14 @@ SELECTCASE REL_LIKE:要求先君主:君主 - REL_HATE:要求先君主:君主
 ENDSELECT
 
 DEBUGPRINTFORML %ANAME(君主), MAX_CHARANAME_LENGTH%,%ANAME(要求先君主), MAX_CHARANAME_LENGTH%,{スコア:0, 3},{スコア:1, 3},{スコア:2, 3},{最終値, 3}
+IF スコア表示
+	PRINTFORML 経済差:{スコア:0 * (経済差 >= 0 ? 1 # -1)}
+	PRINTFORML 兵力差:{スコア:1 * (兵力差 >= 0 ? 1 # -1)}
+	PRINTFORML 政治差:{スコア:2 * (政治力差 >= 0 ? 1 # -1)}
+	PRINTFORML ３合計:{最終値}
+	PRINTFORML 必要値:{ノルマ}
+ENDIF
+
 
 RETURNF ノルマ <= 最終値
 
