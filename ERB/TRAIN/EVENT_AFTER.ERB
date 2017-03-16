@@ -230,6 +230,7 @@ BEGIN TURNEND
 #DIM 対象
 #DIM 経済追加
 #DIM 兵数追加
+#DIM 最低保証
 #DIM 慰安参加者
 
 絶頂回数合計 = 0
@@ -246,14 +247,33 @@ FOR LOCAL:0, 0, LOCAL:2
 		ELSE
 			絶頂回数合計 += SUM_EX(対象)
 		ENDIF
-		減少量 = MIN(300 + SUM_EX(対象) * 20, CFLAG:対象:好感度 / 3)
-		CFLAG:対象:好感度 = MAX(CFLAG:対象:好感度 - 減少量, -1000)
 
+		減少量 = MIN(300 + SUM_EX(対象) * 20, CFLAG:対象:好感度 / 3)
+		IF TALENT:対象:親愛
+			最低保証 = MIN(10000, CFLAG:対象:好感度)
+		ELSEIF TALENT:対象:恋慕
+			最低保証 = MIN(1500, CFLAG:対象:好感度)
+		ELSE
+			最低保証 = MIN(-1000, CFLAG:対象:好感度)
+		ENDIF
+		CFLAG:対象:好感度 = MAX(CFLAG:対象:好感度 - 減少量, 最低保証)
+		PRINTFORML %ANAME(対象)%の好感度 -{減少量} (現在:{CFLAG:対象:好感度})
+
+		IF TALENT:対象:隷属
+			最低保証 = MIN(10000, CFLAG:対象:従属度)
+		ELSEIF TALENT:対象:服従
+			最低保証 = MIN(1500, CFLAG:対象:従属度)
+		ELSE
+			最低保証 = MIN(-1000, CFLAG:対象:従属度)
+		ENDIF
 		減少量 = MIN(300 + SUM_EX(対象) * 20, CFLAG:対象:従属度 / 3)
 		CFLAG:対象:従属度 = MAX(CFLAG:対象:従属度 - 減少量, -1000)
+		PRINTFORML %ANAME(対象)%の従属度 -{減少量} (現在:{CFLAG:対象:従属度})
 
+		最低保証 = MIN(-1000, CFLAG:対象:依存度)
 		減少量 = MIN(300 + SUM_EX(対象) * 20, CFLAG:対象:依存度 / 3)
-		CFLAG:対象:依存度 = MAX(CFLAG:対象:依存度 - 減少量, -1000)
+		CFLAG:対象:依存度 = MAX(CFLAG:対象:依存度 - 減少量, 最低保証)
+		PRINTFORML %ANAME(対象)%の依存度 -{減少量} (現在:{CFLAG:対象:依存度})
 
 		慰安参加者 ++
 	ELSEIF CFLAG:対象:調教参加フラグ && CFLAG:対象:慰安参加者
