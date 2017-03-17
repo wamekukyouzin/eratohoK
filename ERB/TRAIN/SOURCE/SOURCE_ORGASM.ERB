@@ -428,8 +428,8 @@ RESETCOLOR
 
 IF LOCAL:10
 	;絶頂による体力・気力の消耗
-	LOCAL:8 = LOCAL:30 / 100
-	LOCAL:9 = LOCAL:31 / 100
+	LOCAL:8 = LOCAL:30 / 200
+	LOCAL:9 = LOCAL:31 / 200
 	DOWNBASE:(ARG:0):体力 += LOCAL:8
 	DOWNBASE:(ARG:0):気力 += LOCAL:9
 ;	PRINTFORM  体力-{LOCAL:8} 気力-{LOCAL:9}
@@ -519,13 +519,32 @@ FOR LOCAL:0, 400, 420
 	愛情倍率 = 20
 	屈従倍率 = 20
 	恐怖倍率 = 20
-
+	SELECTCASE ABL:(射精相手):精愛
+		CASE 0
+			LOCAL:12 = 0
+		CASE 1
+			LOCAL:12 = 20
+		CASE 2
+			LOCAL:12 = 50
+		CASE 3
+			LOCAL:12 = 80
+		CASE 4
+			LOCAL:12 = 120
+		CASEELSE
+			LOCAL:12 = MIN(ABL:(射精相手):精愛 * 3 + 150, 2000)
+	ENDSELECT
 	SELECTCASE 射精先
 		;膣内
 		CASE 1
 			愛情倍率 = 80
 			屈従倍率 = 60
 			恐怖倍率 = 200
+			IF IS_OVULATION(射精相手)
+				TIMES 愛情倍率, 1.5
+				TIMES 屈従倍率, 1.5
+				TIMES 恐怖倍率, 1.5
+				TIMES LOCAL:12, 1.5
+			ENDIF
 			EXP:射精相手:膣内射精経験 += NOWEX:対象:射精
 			射精文字列 = 膣内射精
 		;アナル
@@ -624,25 +643,12 @@ FOR LOCAL:0, 400, 420
 		SOURCE:(射精相手):恐怖 += NOWEX:(対象):射精 * 恐怖倍率 * LOCAL:16 / 100
 	ENDIF
 
-	SELECTCASE ABL:(射精相手):精愛
-		CASE 0
-			LOCAL:12 = 0
-		CASE 1
-			LOCAL:12 = 20
-		CASE 2
-			LOCAL:12 = 50
-		CASE 3
-			LOCAL:12 = 80
-		CASE 4
-			LOCAL:12 = 120
-		CASEELSE
-			LOCAL:12 = MIN(ABL:(射精相手):精愛 * 3 + 150, 2000)
-	ENDSELECT
+
 
 	SOURCE:(射精相手):中毒充足 += NOWEX:(対象):射精 * LOCAL:12
 
 	;膣内射精かどうかを見る(膣がない場合は腸内射精も見る) コンドームの場合INJECTIONさせない
-	IF (射精先 == 1 || (!VAGINA(射精相手) && 射精先 == 2)) && !IS_EQUIP_TARGET(対象, 75)
+	IF (射精先 == 1 || (!VAGINA(射精相手) && 射精先 == 2)) && !IS_EQUIP_PLAYER(対象, 75)
 		;中出し量の記録
 		IF IS_ANIMAL(対象)
 			IF TALENT:(対象):犬
@@ -703,6 +709,7 @@ SELECTCASE ARG:1
 	;Ｃ絶頂
 	CASE 0
 		SOURCE:(ARG:0):露出 += LOCAL:2 * 200 / 100
+		SOURCE:(ARG:0):屈従 += LOCAL:2 * 50 / 100
 		LOCAL:3 = LOCAL:2 * 100 / 100 + 100
 		LOCAL:4 = LOCAL:2 * 60 / 100
 		IF GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_淫核)
@@ -712,6 +719,7 @@ SELECTCASE ARG:1
 	CASE 1
 		SOURCE:(ARG:0):愛情 += LOCAL:2 * 100 / 100
 		SOURCE:(ARG:0):露出 += LOCAL:2 * 300 / 100
+		SOURCE:(ARG:0):屈従 += LOCAL:2 * 150 / 100
 		SOURCE:(ARG:0):欲情追加 += LOCAL:2 * 1000 / 100
 		LOCAL:3 = LOCAL:2 * 100 / 100 + 100
 		LOCAL:4 = LOCAL:2 * 100 / 100
@@ -730,6 +738,7 @@ SELECTCASE ARG:1
 	;Ｂ絶頂
 	CASE 3
 		SOURCE:(ARG:0):露出 += LOCAL:2 * 200 / 100
+		SOURCE:(ARG:0):屈従 += LOCAL:2 * 80 / 100
 		LOCAL:3 = LOCAL:2 * 100 / 100 + 100
 		LOCAL:4 = LOCAL:2 * 60 / 100
 		IF GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_淫乳)
@@ -738,6 +747,7 @@ SELECTCASE ARG:1
 	;Ｍ絶頂
 	CASE 4
 		SOURCE:(ARG:0):愛情 += LOCAL:2 * 100 / 100
+		SOURCE:(ARG:0):屈従 += LOCAL:2 * 50 / 100
 		LOCAL:3 = LOCAL:2 * 100 / 100 + 100
 		LOCAL:4 = LOCAL:2 * 60 / 100
 		IF GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_蕩唇)
@@ -755,7 +765,7 @@ SELECTCASE ARG:1
 		FOR LOCAL:0, 0, 20
 			;膣内射精の場合(コンドームつけてたらだめ）
 			LOCAL:6 = TCVAR:(ARG:0):(LOCAL:0 + 400)
-			IF TCVAR:(ARG:0):(LOCAL:0 + 420) == 1 && !IS_EQUIP_TARGET(LOCAL:6, 75)
+			IF TCVAR:(ARG:0):(LOCAL:0 + 420) == 1 && !IS_EQUIP_PLAYER(LOCAL:6, 75)
 				;獣変化中
 				IF CFLAG:(ARG:0):獣変化フラグ
 					SOURCE:(ARG:0):歓喜 += 3000
@@ -786,7 +796,7 @@ SELECTCASE ARG:1
 					TCVAR:(ARG:0):56 = 1
 				ENDIF
 			;膣内射精したがゴムつけている
-			ELSEIF TCVAR:(ARG:0):(LOCAL:0 + 420) == 1 && IS_EQUIP_TARGET(LOCAL:6, 75)
+			ELSEIF TCVAR:(ARG:0):(LOCAL:0 + 420) == 1 && IS_EQUIP_PLAYER(LOCAL:6, 75)
 				;受精中毒
 				IF GETBIT(TALENT:(LOCAL:6):淫乱系, 素質_淫乱_孕みたがり)
 					SOURCE:(LOCAL:6):反感 += 500

@@ -1,0 +1,86 @@
+﻿;-------------------------------------------------
+;会談する
+;-------------------------------------------------
+@DIPLOMACY_TALK(ARG:0)
+#DIM 君主
+#DIM FIRST_LINE, 2
+#DIM CONST 支払額 = 1, 5, 50, 100, 500, 1000, 2500, 5000, 10000, 15000, 20000, 30000, 40000, 50000
+FIRST_LINE:0 = LINECOUNT
+君主 = GET_COUNTRY_BOSS(ARG:0)
+
+PRINTFORML %ANAME(君主)%と会談することにした……
+PRINTFORML 昔から接待といえば、金か「楽しみ」が常道だ
+PRINTFORML %ANAME(君主)%を満足させるには、どちらかを用意すべきだろう……
+CALL SINGLE_DRAWLINE
+CALL ASK_MULTI_JUDGE(@"国庫から資金援助 現在:{MONEY:(CFLAG:MASTER:所属)}", 1, "「楽しみ」を用意(相手に性知識3が必要)", ABL:君主:性知識 >= 3, "戻る", 1)
+SIF RESULT == 2
+	RETURN 0
+IF RESULT == 1
+	CALL DIPLOMACY_TALK_SEX(君主)
+	IF RESULT == -1
+		CLEARLINE LINECOUNT - FIRST_LINE:0
+		RESTART
+	ELSE
+		PRINTL 
+	ENDIF
+	;好感度上昇・敵対値下降基準値
+	LOCAL:2 = RESULT
+	LOCAL = SQRT(TMP_GET_POLITICS_POWER(CFLAG:MASTER:所属)) / 10
+	LOCAL:1 = SQRT(TMP_GET_COOKING_POWER(CFLAG:MASTER:所属)) / 10
+
+	LOCAL:2 = MAX(LOCAL:2 * (LOCAL + LOCAL:1 + 100) / 100, 5)
+
+	;互いの国同士の好感度を上昇させ敵対値を低下させる
+	CALL DIPLOMACY_IMPROVE_RELATION(ARG:0, LOCAL:2)
+ELSEIF RESULT == 0
+	FIRST_LINE:1 = LINECOUNT
+	$SEND_MONEY_LOOP
+	PRINTFORML いくら送ろうか……(手入力・ボタンから入力、0以下でキャンセル, 最大50000)
+	CALL ICPRINT(@"現在の国庫:<{MONEY:(CFLAG:MASTER:所属)}>", "L", COLOR("注意"))
+	FOR LOCAL, 0, VARSIZE("支払額")
+		SIF MONEY:(CFLAG:MASTER:所属) < 支払額:LOCAL
+			BREAK
+		PRINTBUTTON @"[{支払額:LOCAL}払う]", 支払額:LOCAL
+		PRINTL
+	NEXT
+	PRINTFORML
+	PRINTBUTTON @"[{MONEY:(CFLAG:MASTER:所属)}払う]", MONEY:(CFLAG:MASTER:所属)
+	PRINTFORM [0] 戻る
+	INPUT
+	IF RESULT <= 0
+		CLEARLINE LINECOUNT - FIRST_LINE:0
+		RESTART
+	ELSEIF MONEY:(CFLAG:MASTER:所属) < RESULT || RESULT > 50000
+		CLEARLINE LINECOUNT - FIRST_LINE:1
+		GOTO SEND_MONEY_LOOP
+	ENDIF
+	CALL SEND_MONEY(ARG:0, RESULT)
+	WAIT
+ENDIF
+
+RETURN 1
+
+;-------------------------------------------------
+;送金処理用関数
+;-------------------------------------------------
+@CALC_SEND_MONEY_EFFECT(ARG:0)
+#FUNCTION
+RETURNF LIMIT(SQRT(ARG:0 * 2) * RAND(900, 1100) / 1000, 0, 300)
+
+;-------------------------------------------------
+;送金処理
+;-------------------------------------------------
+@SEND_MONEY(ARG:0, ARG:1)
+CALL ICPRINT(@"%ANAME(MASTER)%は%ANAME(GET_COUNTRY_BOSS(ARG:0))%に国庫から金<{ARG:1}>を送った……", "L", COLOR("注意"))
+MONEY:(CFLAG:MASTER:所属) -= ARG:1
+LOCAL = CALC_SEND_MONEY_EFFECT(ARG:1)
+;好感度上昇・敵対値下降基準値
+LOCAL:1 = SQRT(TMP_GET_COOKING_POWER(CFLAG:MASTER:所属)) / 10
+LOCAL:2 = SQRT(TMP_GET_POLITICS_POWER(CFLAG:MASTER:所属)) / 10
+
+
+LOCAL:3 = MAX(LOCAL * (LOCAL:1 + LOCAL:2 + 100) / 100, 5)
+
+;互いの国同士の好感度を上昇させ敵対値を低下させる
+CALL DIPLOMACY_IMPROVE_RELATION(ARG:0, LOCAL:3)
+

@@ -484,7 +484,6 @@ FOR LOCAL:0, 0, MAX_COUNTRY
 		UNIT_POSITION:(LOCAL:0):(LOCAL:1) = 0
 		UNIT_TARGET:(LOCAL:0):(LOCAL:1) = 0
 		UNIT_COMMANDER:(LOCAL:0):(LOCAL:1) = 0
-		UNIT_BREAK_TERM:(LOCAL:0):(LOCAL:1) = 0
 	NEXT
 NEXT
 VARSET TREATY_A_TERM, 0
@@ -1026,66 +1025,31 @@ ENDIF
 
 CALL SINGLE_DRAWLINE
 PRINTL 自勢力の士官として加えるキャラを4名まで選択できます
-PRINTL なお、君主はリストから除外されています
+PRINTL なお、君主は選択できません
 CALL SINGLE_DRAWLINE
-REDRAW 0
+CALL SELECT_CHARA_LIST_MULTI_ONLY_LOGIC_SLG(4, "START_WITH_NEW_COUNTRY", "NONE")
 
-FIRST_LINE = LINECOUNT
-$SHOW_LOOP_CHARA
-VARSET LOCAL
-消去行 = 0
-FOR LOCAL, 1, CHARANUM
-	;君主以外の固定キャラ
-	IF GET_COUNTRY_BOSS(CFLAG:LOCAL:所属) != LOCAL && IS_FIXED_CHARA(LOCAL) && LOCAL != NAME_TO_CHARA("あなた")
-		IF LOCAL:1 % 4 == 0 && LOCAL:1 >= 1
-			PRINTL 
-			消去行 ++
-		ENDIF
-		LOCALS:0 = {NO:(LOCAL:0) + 100}[%ANAME(LOCAL:0), 12, LEFT%]
-		SIF 士官:LOCAL
-			SETCOLOR COLOR("選択中")
-		PRINTBUTTON @"%LOCALS:0, 19, LEFT%", NO:(LOCAL:0) + 100
-		RESETCOLOR
-		LOCAL:1 ++
-	ENDIF
+FLAG:OP選択勢力 = 勢力
+CITY_OWNER:都市 = 勢力
+COUNTRY_BOSS:勢力 = GET_ID(MASTER)
+COUNTRY_COLOR:勢力 = TALENT:MASTER:髪色 == 0 ? 0x404040 # TALENT:MASTER:髪色
+;経済規模に対する最大兵数の半分を得る
+COUNTRY_SOLDIER:勢力 = GET_SUM_ECONOMY(勢力) / 20
+CITY_SOLDIER:都市 = 500
+CALL CHANGE_COUNTRY(MASTER, 勢力, 1)
+FOR LOCAL, 0, SELECTED_CHARA_NUM
+	CALL CHANGE_COUNTRY(SELECTED_CHARA:LOCAL, 勢力, 1)
 NEXT
-PRINTL
-CALL SINGLE_DRAWLINE
-PRINTBUTTON "[これでよし]", 0
-PRINTL
-消去行 += 4
-$INPUT_LOOP
-INPUT
-IF RESULT == 0
-	FLAG:OP選択勢力 = 勢力
-	CITY_OWNER:都市 = 勢力
-	COUNTRY_BOSS:勢力 = GET_ID(MASTER)
-	COUNTRY_COLOR:勢力 = TALENT:MASTER:髪色 == 0 ? 0x404040 # TALENT:MASTER:髪色
-	;経済規模に対する最大兵数の半分を得る
-	COUNTRY_SOLDIER:勢力 = GET_SUM_ECONOMY(勢力) / 20
-	CITY_SOLDIER:都市 = 500
-	CALL CHANGE_COUNTRY(MASTER, 勢力, 1)
-	FOR LOCAL, 0, CHARANUM
-		IF 士官:LOCAL == 1
-			CALL CHANGE_COUNTRY(LOCAL, 勢力, 1)
-		ENDIF
-	NEXT
-	REDRAW 1
-	RETURN
-ELSE
-	対象 = NO_TO_CHARA(RESULT - 100)
-	IF 対象 >= 0 && GET_COUNTRY_BOSS(CFLAG:対象:所属) != 対象 && IS_FIXED_CHARA(対象) && 対象 != NAME_TO_CHARA("あなた")
-		;指定人数4人以下または指定済みならインバート
-		IF MATCH(士官, 1) < 4 || 士官:対象
-			士官:対象 = !士官:対象
-		ELSE
-			PRINTFORML 4人まで指定できます
-		ENDIF
-	ENDIF
-	CLEARLINE LINECOUNT - FIRST_LINE
-	GOTO SHOW_LOOP_CHARA
-ENDIF
+REDRAW 1
+RETURN
 
+;-------------------------------------------------
+;旗揚げスタート時用、SELECT_CHARA_LIST_MULTIの表示ロジック
+;君主と「あなた」と主人公以外の固定キャラ
+;-------------------------------------------------
+@SELECT_CHARA_LIST_SHOW_LOGIC_START_WITH_NEW_COUNTRY(対象)
+#DIM 対象
+RETURN GET_COUNTRY_BOSS(CFLAG:対象:所属) != 対象 && IS_FIXED_CHARA(対象) && 対象 != NAME_TO_CHARA("あなた") && 対象 != MASTER
 ;-------------------------------------------------
 ;「あなた」を新規に作成した場合のボーナス
 ;-------------------------------------------------
@@ -1098,36 +1062,38 @@ CALL COLORPRINT("あなた新規作成ボーナス！", COLOR("注意"), "L")
 PRINTFORML 「あなた」を新規に作成して主人公にしたので、ボーナスがもらえます
 PRINTFORML どれにしますか？(どれも後から手に入ります)
 
-CALL ASK_MULTI("素質【酒豪】", "素質【天の御遣い】", "素質【妖術知識】と妖術ステータス10", "素質【技師】", "スキル【超成長力】", "素質【絶倫】", "金200000", "いらない")
+CALL ASK_MULTI("素質【酒豪】", "素質【天の御遣い】", "素質【君主の器】", "素質【求心力】", "素質【妖術知識】と妖術ステータス10", "素質【技師】", "スキル【超成長力】", "素質【絶倫】", "金100000","いらない")
 選択ボーナス = RESULT
 SELECTCASE 選択ボーナス
 	CASE 0
 		PRINTFORML 酒に非常に強くなる素質「酒豪」にしますか？
-		PRINTFORML (ステータス「肝臓」が低い、または酒を飲まないプレイスタイルだと微妙です)
-		PRINTFORML (通常取得には大量の飲酒が必要なため、かかる手間はボーナス中でも随一です)
+		PRINTFORML (通常取得には大量の飲酒が必要なため、かかる金と手間はボーナス中でも随一です)
 	CASE 1
 		PRINTFORML 好感度を得やすくなる素質「天の御遣い」にしますか？
-		PRINTFORML (上昇好感度が低い場合にしか効果がありません)
-		PRINTFORML (屈服させるルートでキャラとかかわる場合、無意味というかむしろ邪魔です)
+		PRINTFORML (恋慕させるルートに入りやすくなります)
 	CASE 2
-		PRINTFORML 触手が扱えるようになる素質「妖術知識」と、ＳＬＧステータス「妖術」10のセットにしますか？
-		PRINTFORML (「妖術知識」の取得は安価です)
-		PRINTFORML (妖術はとても鍛えにくく貴重ですが、10程度では効果のほどは微妙です)
+		PRINTFORML 従属度を得やすくなる素質「君主の器」にしますか？
+		PRINTFORML (屈服させるルートに入りやすくなります)
 	CASE 3
-		PRINTFORML アイテム開発が早くなり、効果が高まる素質「技師」にしますか？
-		PRINTFORML (開発加速の方は勢力の誰かが持っていれば発揮されるので、必ずしも主人公には不要です)
+		PRINTFORML 依存度を得やすくなる素質「求心力」にしますか？
+		PRINTFORML (恋慕・従属どちらのルートでも必要な値なので便利です)
 	CASE 4
-		PRINTFORML ＳＬＧステータスの成長が速くなり、毎ターン経験値が入るスキル「超成長力」にしますか？
-		PRINTFORML (育成は楽になりますが、このゲームは能力値が高いほどステータス1あたりの価値が低くなります)
-		PRINTFORML (そのため、十分に鍛えられたキャラだと、育成の手間に対するリターン自体が微妙です)
+		PRINTFORML 触手が扱えるようになる素質「妖術知識」と、ＳＬＧステータス「妖術」10のセットにしますか？
+		PRINTFORML (妖術知識取得自体は安価ですが、妖術はとても鍛えにくいので10でも貴重です）
 	CASE 5
-		PRINTFORML 調教による体力・気力の減少が非常に少なくなる素質「絶倫」にしますか？
-		PRINTFORML (めちゃくちゃ便利ですが、絶頂回数を重ねると消費体力・気力は減っていきます)
-		PRINTFORML (また、開発が必要ですが、一時的に絶倫の効果を得るアイテムもあります)
+		PRINTFORML アイテム開発が早くなり、効果が高まる素質「技師」にしますか？
+		PRINTFORML (多くのアイテムは開発→購入というプロセスを経るので、持っておくと便利です)
 	CASE 6
-		PRINTFORML 金は力。金200000にしますか？
-		PRINTFORML (序盤は非常に助かりますが、終盤は小銭となるでしょう)
+		PRINTFORML ＳＬＧステータスの成長が速くなり、毎ターン経験値が入るスキル「超成長力」にしますか？
+		PRINTFORML （育成が目に見えて楽になるので、ひとかどの武将・知将になりたいならぜひ欲しいスキルです）
 	CASE 7
+		PRINTFORML 調教による体力・気力の減少が非常に少なくなる素質「絶倫」にしますか？
+		PRINTFORML （調教による体力気力消費が激しめなので、あるとかなり便利です）
+	CASE 8
+		PRINTFORML 金は力。金10万にしますか？
+		PRINTFORML （士官の雇用、兵の雇用、アイテム購入に訓練……金はいくらあっても足りません)
+		PRINTFORML （序盤にこれだけの額があれば、士官をかき集めるには十分でしょう）
+	CASE 9
 		PRINTFORML マジで……？
 		PRINTFORML (実はあとから別のボーナス！　とかマジでないです)
 		PRINTFORML (縛りプレイ用。きみはもの好きなのか？)
@@ -1146,17 +1112,21 @@ SELECTCASE 選択ボーナス
 	CASE 1
 		TALENT:MASTER:天の御遣い = 1
 	CASE 2
+		TALENT:MASTER:君主の器 = 1
+	CASE 3
+		TALENT:MASTER:求心力 = 1
+	CASE 4
 		TALENT:MASTER:妖術知識 = 1
 		ABL:MASTER:妖術 = 10
-	CASE 3
-		TALENT:MASTER:技師 = 1
-	CASE 4
-		CALL LEARN_SKILL_GENERAL_BY_NAME(MASTER, "超成長力")
 	CASE 5
-		TALENT:MASTER:絶倫 = 1
+		TALENT:MASTER:技師 = 1
 	CASE 6
-		MONEY += 200000
+		CALL LEARN_SKILL_GENERAL_BY_NAME(MASTER, "超成長力")
 	CASE 7
+		TALENT:MASTER:絶倫 = 1
+	CASE 8
+		MONEY += 100000
+	CASE 9
 ENDSELECT
 
 ;-------------------------------------------------

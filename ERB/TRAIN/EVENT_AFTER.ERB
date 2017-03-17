@@ -111,9 +111,12 @@ FOR LOCAL:0, 0, CHARANUM
 		CFLAG:(LOCAL:0):酔い累積値 += PALAM:(LOCAL:0):酔い
 NEXT
 
+
 FOR LOCAL:0, 0, CHARANUM
 	SIF CFLAG:LOCAL:強制友好化
 		CFLAG:LOCAL:強制友好化 = 0
+	SIF CFLAG:LOCAL:調教中BASE減らない
+		CFLAG:LOCAL:調教中BASE減らない = 0
 NEXT
 
 ;非ウフフ限定
@@ -227,15 +230,12 @@ BEGIN TURNEND
 #DIM 対象
 #DIM 経済追加
 #DIM 兵数追加
-#DIM 慰安参加者
+#DIM 最低保証
 
 絶頂回数合計 = 0
-慰安参加者 = 0
 
 ;慰安参加者を削除
-LOCAL:2 = CHARANUM
-FOR LOCAL:0, 0, LOCAL:2
-	対象 = LOCAL:2 - LOCAL:0 - 1
+FOR 対象, 0, CHARANUM
 	;参加者の場合、減少
 	IF IS_PARTICIPATE_TRAIN(対象) && 対象 != MASTER && !CFLAG:対象:慰安参加者
 		IF SUM_EX(対象) > 50
@@ -243,17 +243,35 @@ FOR LOCAL:0, 0, LOCAL:2
 		ELSE
 			絶頂回数合計 += SUM_EX(対象)
 		ENDIF
-		減少量 = MIN(300 + SUM_EX(対象) * 20, CFLAG:対象:好感度 / 3)
-		CFLAG:対象:好感度 = MAX(CFLAG:対象:好感度 - 減少量, -1000)
 
-		減少量 = MIN(300 + SUM_EX(対象) * 20, CFLAG:対象:従属度 / 3)
+		減少量 = LIMIT(300 + SUM_EX(対象) * 20, 0, CFLAG:対象:好感度 / 3)
+		IF TALENT:対象:親愛
+			最低保証 = MIN(10000, CFLAG:対象:好感度)
+		ELSEIF TALENT:対象:恋慕
+			最低保証 = MIN(1500, CFLAG:対象:好感度)
+		ELSE
+			最低保証 = MIN(-1000, CFLAG:対象:好感度)
+		ENDIF
+		CFLAG:対象:好感度 = MAX(CFLAG:対象:好感度 - 減少量, 最低保証)
+		PRINTFORML %ANAME(対象)%の好感度 -{減少量} (現在:{CFLAG:対象:好感度})
+
+		最低保証 = MIN(-1000, CFLAG:対象:依存度)
+		減少量 = LIMIT(300 + SUM_EX(対象) * 20, 0, CFLAG:対象:依存度 / 3)
+		CFLAG:対象:依存度 = MAX(CFLAG:対象:依存度 - 減少量, 最低保証)
+		PRINTFORML %ANAME(対象)%の依存度 -{減少量} (現在:{CFLAG:対象:依存度})
+
+		IF TALENT:対象:隷属
+			最低保証 = MIN(10000, CFLAG:対象:従属度)
+		ELSEIF TALENT:対象:服従
+			最低保証 = MIN(1500, CFLAG:対象:従属度)
+		ELSE
+			最低保証 = MIN(-1000, CFLAG:対象:従属度)
+		ENDIF
+		減少量 = LIMIT(300 + SUM_EX(対象) * 20, 0, CFLAG:対象:従属度 / 3)
 		CFLAG:対象:従属度 = MAX(CFLAG:対象:従属度 - 減少量, -1000)
+		PRINTFORML %ANAME(対象)%の従属度 -{減少量} (現在:{CFLAG:対象:従属度})
 
-		減少量 = MIN(300 + SUM_EX(対象) * 20, CFLAG:対象:依存度 / 3)
-		CFLAG:対象:依存度 = MAX(CFLAG:対象:依存度 - 減少量, -1000)
-
-		慰安参加者 ++
-	ELSEIF CFLAG:対象:調教参加フラグ && CFLAG:対象:慰安参加者
+	ELSEIF IS_PARTICIPATE_TRAIN(対象) && CFLAG:対象:慰安参加者
 		IF SUM_EX(対象) > 50
 			絶頂回数合計 += 50 + (SUM_EX(対象) - 50) / 5
 		ELSE
@@ -667,6 +685,14 @@ ENDIF
 ;相手の素質で変動
 ;※操作キャラによってはめっちゃ楽になるので無くてもいいかも
 IF TALENT:(ARG:1):天の御遣い
+	好印象増加値 += 2
+	悪印象減少値 += 2
+ENDIF
+IF TALENT:(ARG:1):君主の器
+	好印象増加値 += 2
+	悪印象減少値 += 2
+ENDIF
+IF TALENT:(ARG:1):求心力
 	好印象増加値 += 2
 	悪印象減少値 += 2
 ENDIF

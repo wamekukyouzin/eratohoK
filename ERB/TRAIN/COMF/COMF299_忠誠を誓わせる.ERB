@@ -29,8 +29,8 @@ SIF MPLY:0 != MASTER
 ;主人公に主導権があるとき限定
 SIF IS_INITIATIVE(MASTER) == 0
 	RETURN 0
-;既に烙印or恋人で捕虜でないなら不可
-SIF (TALENT:(MTAR:0):烙印 || TALENT:(MTAR:0):恋人) && CFLAG:(MTAR:0):捕虜先 != CFLAG:MASTER:所属
+;既に烙印or恋人で自勢力所属なら不可
+SIF (TALENT:(MTAR:0):烙印 || TALENT:(MTAR:0):恋人) && CFLAG:(MTAR:0):所属 == CFLAG:MASTER:所属
 	RETURN 0
 ;プレイヤーの口が塞がっているなら不可
 SIF IS_M_HOLD(MPLY:0)
@@ -85,7 +85,7 @@ IF TCVAR:(MTAR:0):24 >= TCVAR:(MTAR:0):25
 	CALL KOJO_EVENT(MTAR:0, 50)
 
 	LOCALS:0 = 
-	IF !TALENT:(MTAR:0):烙印
+	IF !TALENT:(MTAR:0):烙印 && !TALENT:(MTAR:0):恋人
 		TALENT:(MTAR:0):烙印 = 1
 		LOCALS:0 += "<烙印>"
 	ENDIF
@@ -115,7 +115,9 @@ IF TCVAR:(MTAR:0):24 >= TCVAR:(MTAR:0):25
 
 	IF CFLAG:(MTAR:0):捕虜先 == CFLAG:MASTER:所属
 		PRINTFORMW %ANAME(MTAR:0)%が我が国の士官になりました
-		CALL CHANGE_COUNTRY(MTAR:0, CFLAG:MASTER:所属, 1)
+		PRINTFORML %ANAME(MTAR:0)%を牢獄から出してやりますか？
+		CALL ASK_YN("出す", "牢獄での調教を続ける(後から解放可)")
+		CALL CHANGE_COUNTRY(MTAR:0, CFLAG:MASTER:所属, !RESULT)
 	ENDIF
 
 ;判定失敗

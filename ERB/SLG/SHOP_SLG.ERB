@@ -1,0 +1,156 @@
+﻿;戦略フェイズのショップ画面
+;-------------------------------------------------
+;ショップ画面の表示処理(戦略フェイズ)
+;-------------------------------------------------
+@SHOW_SHOP_SLG
+;コマンドの選択可否判定
+CALL CHECK_SAVE_SLG
+
+;カテゴリ番号とメニュー番号を保存する配列のリセット
+CALL COLUMN_LEFT_MENULINE_SAVE_SLG
+
+MAP_LINES = MENU_HEIGHT
+
+;行番号のリセット
+FIRST_COLUMN_RIGHT_LINE_SLG = LINECOUNT
+
+;ロードデータ用のエラー回避
+IF FLAG:戦略フェイズページ == 0
+	FLAG:戦略フェイズページ = 1
+ENDIF
+
+;右カラムの表示処理呼び出しがあるコンテンツ
+TRYCCALLFORM SHOP_SLG_EVENTBUY_SHOW{FLAG:戦略フェイズ選択コマンド}
+CATCH
+	;マップとコマンドボタンを表示
+	CALL SET_CITY_COLOR_COUNTRY
+	CALL SET_CITY_COLOR_UNIT
+	CALL DRAWMAP(1, 1)
+	CALL RESET_CITY_COLOR
+	;都市の情報を表示
+	CALL SHOW_CITY_INFO(SHOWN_CITY)
+ENDCATCH
+
+;-------------------------------------------------
+;ショップ画面の入力処理(戦略フェイズ 0～99)
+;ARG:0に入力した値が入る
+;処理を行った場合は1を、行わなかった場合は0を返すこと
+;-------------------------------------------------
+@EVENTBUY_SLG(ARG:0)
+;一応エラー回避
+;コンテンツ内の最大ページ数が取れていないが
+;ページ移動をクリックされた場合用
+SIF SHOP_SLG_LIST1_MAXPAGE == 0
+	SHOP_SLG_LIST1_MAXPAGE = 1
+
+;入力処理
+IF SHOP_AVAIL:(ARG:0) && ARG:0 >= COLUMN_LEFT_MENU_START_VALUE && ARG:0 <= COLUMN_LEFT_MENU_END_VALUE
+	FLAG:戦略フェイズ選択コマンド = ARG:0
+	TRYCCALLFORM SHOP_SLG_EVENTBUY{FLAG:戦略フェイズ選択コマンド}
+		RETURN RESULT
+	CATCH
+		RETURN 0
+	ENDCATCH
+ELSE
+	SELECTCASE ARG:0
+		;前のページ
+		CASE SHOP_SLG_LIST1_PAGE_BACK
+			FLAG:戦略フェイズページ --
+			IF FLAG:戦略フェイズページ < 1
+				FLAG:戦略フェイズページ = SHOP_SLG_LIST1_MAXPAGE
+			ENDIF
+			RETURN 0
+		;次のページ
+		CASE SHOP_SLG_LIST1_PAGE_NEXT
+			FLAG:戦略フェイズページ ++
+			IF FLAG:戦略フェイズページ > SHOP_SLG_LIST1_MAXPAGE
+				FLAG:戦略フェイズページ = 1
+			ENDIF
+			RETURN 0
+		;最初のページ
+		CASE SHOP_SLG_LIST1_PAGE_RESET
+			FLAG:戦略フェイズページ = 1
+			RETURN 0
+		;最後のページ
+		CASE SHOP_SLG_LIST1_PAGE_MAX
+			FLAG:戦略フェイズページ = SHOP_SLG_LIST1_MAXPAGE
+			RETURN 0
+	ENDSELECT
+ENDIF
+RETURN 0
+
+;-------------------------------------------------
+;ショップ画面の入力処理(戦略フェイズ 100～)
+;ARG:0に入力した値が入る
+;処理を行った場合は1を、行わなかった場合は0を返すこと
+;-------------------------------------------------
+@USERSHOP_SLG(ARG:0)
+
+;都市情報
+IF ARG:0 >= 1000 && ARG:0 < 1000 + MAX_CITY
+	SHOWN_CITY = ARG:0 - 1000
+	REDRAW 0
+	CLEARLINE LINECOUNT - LINES_SHOP
+;防衛兵数の設定
+ELSEIF ARG:0 >= 200 && ARG:0 < 200 + MAX_CITY && CONFIG:302 == 0
+	LOCAL:5 = ARG:0 - 200
+	;表示する都市をその都市に（都市管理画面や直打ちしたとき用）
+	SHOWN_CITY = LOCAL:5
+	IF CFLAG:MASTER:所属 >= 1 && CITY_OWNER:(LOCAL:5) == CFLAG:MASTER:所属
+		;敵部隊のいる都市は変更不可
+		CALL GET_STAY_ENEMY_UNIT(LOCAL:5)
+		IF RESULT:0 >= 0
+			PRINTFORMW 敵部隊が存在する都市の兵数は変更できません
+		ELSE
+			CALL SHOP_CITY_SOLDIER(LOCAL:5)
+		ENDIF
+		RETURN 1
+	ENDIF
+	RETURN 0
+;守将の設定
+ELSEIF ARG:0 >= 400 && ARG:0 < 400 + MAX_CITY && CONFIG:302 == 0
+	LOCAL:5 = RESULT - 400
+	;表示する都市をその都市に（都市管理画面や直打ちしたとき用）
+	SHOWN_CITY = LOCAL:5
+	IF CFLAG:MASTER:所属 >= 1 && CITY_OWNER:(LOCAL:5) == CFLAG:MASTER:所属
+		;敵部隊のいる都市は変更不可
+		CALL GET_STAY_ENEMY_UNIT(LOCAL:5)
+		IF RESULT:0 >= 0
+			PRINTFORMW 敵部隊が存在する都市の守将は変更できません
+		ELSE
+			CALL SHOP_CITY_COMMANDER(LOCAL:5)
+		ENDIF
+		RETURN 1
+	ENDIF
+	RETURN 0
+;勢力色変更
+ELSEIF ARG:0 >= 600 && ARG:0 < 600 + MAX_COUNTRY
+	LOCAL:5 = ARG:0 - 600
+	IF LOCAL:5 == 0
+		CALL CHANGE_COUNTRY_COLOR(LOCAL:5)
+		RETURN 1
+	ENDIF
+	IF IS_COUNTRY(LOCAL:5)
+		CALL CHANGE_COUNTRY_COLOR(LOCAL:5)
+		RETURN 1
+	ENDIF
+	RETURN 0
+;一か所だけ防衛解除
+ELSEIF ARG:0 > 800 && ARG:0 < 800 + MAX_CITY
+	CALL SINGLE_MINIMIZE(ARG:0 - 800)
+;侵攻・移動ボタン
+ELSEIF ARG:0 > 2000 && ARG:0 < 2000 + MAX_CITY
+	IF CHECK_COUNTRY_RELATION_F(CITY_OWNER:(ARG:0 - 2000), CFLAG:MASTER:所属) >= 2
+		CALL MOVETO(ARG:0 - 2000)
+	ELSE
+		CALL INVADE(ARG:0 - 2000)
+	ENDIF
+	RETURN 1
+;部隊編成ボタン
+ELSEIF ARG:0 >= 2500 && ARG:0 < 2500 + MAX_UNIT && IS_COUNTRY(CFLAG:MASTER:所属) && UNIT_SOLDIER:(CFLAG:MASTER:所属):(ARG:0 - 2500) > 0
+	CALL UNIT_SETTING(CFLAG:MASTER:所属, ARG:0 - 2500)
+ELSE
+	RETURN 0
+ENDIF
+RETURN 1
+

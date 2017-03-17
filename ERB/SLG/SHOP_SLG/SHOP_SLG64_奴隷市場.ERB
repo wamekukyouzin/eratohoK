@@ -1,0 +1,368 @@
+﻿;-------------------------------------------------
+;「奴隷市場」の名称
+;-------------------------------------------------
+@SHOP_SLG_NAME64
+RESULTS:0 '= "奴隷市場"
+
+;-------------------------------------------------
+;「奴隷市場」の選択可否
+;-------------------------------------------------
+@SHOP_SLG_CHECK64
+SIF !IS_SLAVEMARKET_AVAILABLE()
+	RETURN 0
+SIF CFLAG:MASTER:所属 == 0
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;「奴隷市場」の左カラムメニューの入力処理
+;-------------------------------------------------
+@SHOP_SLG_EVENTBUY64
+CALL SLAVEMARKET
+RETURN 1
+
+;-------------------------------------------------
+;「奴隷市場」本体
+;-------------------------------------------------
+@SLAVEMARKET
+#DIM 対象
+#DIM 対象添え字
+#DIM FIRST_LINE
+CALL SINGLE_DRAWLINE
+PRINTFORML 「よぉ～こそ！　イキのいいのを揃えてますよぉ？」
+PRINTFORML %ANAME(MASTER)%は奴隷市場を訪れた
+PRINTFORML ボロボロの服を着た女達が檻に入れられ、並べられている
+PRINTFORML 係の者は、使えそうな奴隷のリストを渡してきた……
+PRINTFORML 所持金:{MONEY}
+CALL SINGLE_DRAWLINE
+
+VARSET SHOP_CHARA_LIST, -1
+FOR LOCAL, 0, VARSIZE("SLAVEMARKET_GOODS")
+	SHOP_CHARA_LIST:LOCAL = ID_TO_CHARA(SLAVEMARKET_GOODS:LOCAL)
+NEXT
+
+FOR LOCAL, 0, VARSIZE("SLAVEMARKET_GOODS")
+	LOCAL:1 = ID_TO_CHARA(SLAVEMARKET_GOODS:LOCAL)
+	SIF LOCAL:1 == -1
+		CONTINUE
+	;人質解放要求などにより既に捕虜でなくなっている場合、パージ
+	IF !IS_SP_COUNTRY(CFLAG:(LOCAL:1):捕虜先) && !IS_SP_COUNTRY(CFLAG:(LOCAL:1):所属)
+		SLAVEMARKET_GOODS:LOCAL = 0
+		CONTINUE
+	ENDIF
+	CALL SLAVEMARKET_SHOW_INFO(LOCAL:1, LOCAL)
+	CALL SINGLE_DRAWLINE
+NEXT
+
+PRINTL 
+PRINTFORML [99] 戻る
+
+$INPUT_LOOP
+INPUT
+IF RESULT == 99
+	RETURN 0
+ENDIF
+
+IF RESULT < 0
+	CLEARLINE 1
+	GOTO INPUT_LOOP
+ELSEIF 100 <= RESULT && RESULT < VARSIZE("SLAVEMARKET_GOODS") + 100
+	対象添え字 = RESULT - 100
+	対象 = ID_TO_CHARA(SLAVEMARKET_GOODS:対象添え字)
+	IF 対象 == -1
+		CLEARLINE 1
+		GOTO INPUT_LOOP
+	ENDIF
+	CALL SINGLE_DRAWLINE
+	CALL SHOW_INFO_WITH_UI(対象, 1)
+	CLEARLINE LINECOUNT - FIRST_LINE
+	RESTART
+ELSEIF VARSIZE("SLAVEMARKET_GOODS") <= RESULT || MONEY < SLAVEMARKET_PRICE:RESULT
+		CLEARLINE 1
+		GOTO INPUT_LOOP
+ENDIF
+
+対象 = ID_TO_CHARA(SLAVEMARKET_GOODS:RESULT)
+対象添え字 = RESULT
+
+
+IF 対象 == -1
+	CLEARLINE 1
+	GOTO INPUT_LOOP
+ENDIF
+
+対象 = ID_TO_CHARA(SLAVEMARKET_GOODS:RESULT)
+対象添え字 = RESULT
+PRINTFORML 「へへ、そいつぁ%NAME_FORMAL(対象)%ってぇ奴隷でさ」
+PRINTFORML 「今なら{SLAVEMARKET_PRICE:対象添え字}でお譲りいたしやすよ」
+SIF 対象添え字 == SLAVEMARKET_SPECIALGOODS
+	PRINTFORML 「ちょっと"訳あり"でしてね、特売ってことで値引きさせていただいてやす」
+IF IS_LOVER(対象)
+	PRINTFORML 「……ん？　高いって？」
+	PRINTFORML 「そりゃもちろん、コイツがアンタの"コレ"だって知ってるからに決まってんでしょォ？」
+	PRINTFORML 「高いってんなら、自分のオンナが他のオトコに売られるとこでも見てるんだなァ、ヒヒッ！」
+ENDIF
+PRINTFORML 「で？　どうされます？」
+PRINTL
+CALL ASK_MULTI_JUDGE(@"%ANAME(対象)%を買う", MONEY >= SLAVEMARKET_PRICE:対象添え字, "やめておく", 1)
+IF RESULT == 1
+	CLEARLINE LINECOUNT - FIRST_LINE
+	RESTART
+ENDIF
+
+MONEY -= SLAVEMARKET_PRICE:対象添え字
+PRINTFORMW 「ひひ、じゃあ商談成立だ」
+PRINTFORMW 「じゃ、持ってってくんなせぇ」
+
+;確率でエロイベント　特売なら確定
+IF IS_FEMALE(対象) && (20 > RAND:100 || 対象添え字 == SLAVEMARKET_SPECIALGOODS)
+	PRINTFORML
+	PRINTFORMW ……男が連れてきた%ANAME(対象)%の姿を見、%ANAME(MASTER)%は目を疑った
+	PRINTFORML 丸裸の%ANAME(対象)%は目隠しをされ、手足には枷が嵌められている
+	PRINTFORMW 剥き出しの身体には、痛々しいピアスが取り付けられている
+	PRINTFORML 全身白濁にまみれており、穴からも粘つく汁がどろどろと零れている
+	PRINTFORMW あちこちに書かれた正の字が、%ANAME(対象)%のされたことを物語っていた
+	PRINTFORMW そんな悲惨な様だというのに、%ANAME(対象)%はえへらえへらと笑っている
+	PRINTFORMW ……これは楽しくて笑っているのではない。何か怪しげな薬の作用だ……
+	PRINTFORML
+	PRINTFORML 「あ～、市場に並べてる間も、奴隷としてあっしらが使わせていただいてますんでね」
+	PRINTFORML 「洗浄はセルフサービスですんで、すいやせんけどね」
+	PRINTFORMW 「おっと、返品は受け付けませんよ、残念ですけどねぇ」
+	SIF 対象 == SLAVEMARKET_SPECIALGOODS
+		PRINTFORMW 「ま、特売になるにはそれなりの理由があるってことですよ、へへへ」
+	IF IS_LOVER(対象)
+		PRINTFORMW 「別に構わんでしょ～？　恋人とカンドーノサイカイができたんだから」
+		PRINTFORMW 「これに懲りたら、もっと大事にしてやることですな、げひゃひゃひゃ！」
+	ENDIF
+	PRINTFORMW 男を斬り捨ててやりたいが、この市場には多くの衛兵がいる。暴れれば自分が危ない
+	PRINTFORMW 歯を噛みしめながら、%ANAME(MASTER)%は%ANAME(対象)%を受け取った……
+	CALL FUCK_GANGBANG(対象, GET_SPERM_ID("奴隷商人"), @"奴隷商人の\@RAND:2 ? ペニス # 唇\@", "奴隷商人")
+	CFLAG:対象:薬物依存 += RAND(30, 50)
+	CALL SET_PIERCE_RANDOM(対象, 0)
+ENDIF
+
+IF IS_LOVER(対象)
+	PRINTFORMW 「ひひ、これに懲りたら、もっと大事にしてやることですな、ひゃひゃひゃ！」
+ELSE
+	PRINTFORML 「えっへへへ、毎度ォ」
+	PRINTFORMW 「そのオモチャと仲良くやることですな！　げへへへ」
+ENDIF
+
+
+
+PRINTFORMW %ANAME(対象)%を受け取り、市場を後にした……
+;別勢力に所属（特殊勢力以外）
+IF IS_COUNTRY(CFLAG:対象:所属) && !IS_SP_COUNTRY(CFLAG:対象:所属) && CFLAG:対象:所属 != CFLAG:MASTER:所属
+	PRINTFORMW ……%ANAME(対象)%は%ANAME(GET_COUNTRY_BOSS(CFLAG:対象:所属))%の所属だ
+	PRINTFORMW 返してやるのが人の道であるように思えるが……
+	PRINTFORML どうしますか？
+	CALL SINGLE_DRAWLINE
+	CALL ASK_MULTI("返してやる", "士官として働いてもらう", "奴隷として監禁する")
+	IF RESULT == 0
+		PRINTFORMW %ANAME(対象)%を%ANAME(GET_COUNTRY_BOSS(CFLAG:対象:所属))%に返してやることにした
+		PRINTFORMW %ANAME(GET_COUNTRY_BOSS(CFLAG:対象:所属))%から深く感謝された……
+		CALL CHANGE_RELATION_C_TO_C(CFLAG:対象:所属, CFLAG:MASTER:所属, 600, -600)
+		CFLAG:対象:好感度 = MAX(500, CFLAG:対象:好感度 + 500)
+		CFLAG:対象:従属度 = MAX(500, CFLAG:対象:従属度 + 500)
+		CFLAG:対象:依存度 = MAX(100, CFLAG:対象:依存度 + 100)
+		CALL CAPTURE(対象, 0)
+	ELSEIF RESULT == 1
+		PRINTFORMW %ANAME(GET_COUNTRY_BOSS(CFLAG:対象:所属))%にせっかく買ったものをただで返してやるほどの義理はない
+		PRINTFORMW 士官としての待遇を条件に、%ANAME(対象)%に協力を約束させた……
+		CALL CHANGE_COUNTRY(対象, CFLAG:MASTER:所属, 1)
+		CFLAG:対象:好感度 = MAX(0, CFLAG:対象:好感度 + 500)
+		CFLAG:対象:従属度 = MAX(0, CFLAG:対象:従属度 + 500)
+		CFLAG:対象:依存度 = MAX(0, CFLAG:対象:依存度 + 100)
+	ELSE
+		PRINTFORMW いやいや、金を出して買ったのだから、もう%ANAME(対象)%は自分のものだ
+		PRINTFORMW どのように使ってやろうか考えながら、%ANAME(MASTER)%は市場を後にした……
+		CALL CHANGE_COUNTRY(LOCAL:0, 0, 1)
+		CALL CAPTURE(対象, CFLAG:MASTER:所属)
+	ENDIF
+;どこにも所属していないか、特殊勢力所属
+ELSEIF CFLAG:対象:所属 != CFLAG:MASTER:所属
+	PRINTFORML ……%ANAME(対象)%の待遇はどうしようか？
+	CALL SINGLE_DRAWLINE
+	CALL ASK_MULTI("士官として迎え入れる", "監禁しておく")
+	IF RESULT == 0
+		PRINTFORMW %ANAME(対象)%は%ANAME(GET_COUNTRY_BOSS(CFLAG:MASTER:所属))%の士官として働くことになった……
+		CALL CHANGE_COUNTRY(対象, CFLAG:MASTER:所属, 1)
+		CFLAG:対象:好感度 = MAX(500, CFLAG:対象:好感度 + 500)
+		CFLAG:対象:従属度 = MAX(500, CFLAG:対象:従属度 + 500)
+		CFLAG:対象:依存度 = MAX(100, CFLAG:対象:依存度 + 100)
+	ELSE
+		PRINTFORMW %ANAME(対象)%を逃げ出さないように監禁しておくことにした……
+		CALL CHANGE_COUNTRY(対象, 0, 1)
+		CALL CAPTURE(対象, CFLAG:MASTER:所属)
+	ENDIF
+;自国の士官
+ELSE
+	CFLAG:対象:好感度 = MAX(500, CFLAG:対象:好感度 + 500)
+	CFLAG:対象:従属度 = MAX(500, CFLAG:対象:従属度 + 500)
+	CFLAG:対象:依存度 = MAX(100, CFLAG:対象:依存度 + 100)
+	CALL CHANGE_COUNTRY(対象, CFLAG:MASTER:所属, 1)
+ENDIF
+
+;捕虜状態から解放、部隊から除外、買ったキャラを配列から削除
+;念のため放浪フラグを折る
+CFLAG:対象:特殊状態 = 0
+CALL FORCE_FREE(対象)
+SLAVEMARKET_GOODS:対象添え字 = 0
+
+;-------------------------------------------------
+;奴隷市場の商品の情報表示＋ボタン生成
+;-------------------------------------------------
+@SLAVEMARKET_SHOW_INFO(対象, 番号)
+#DIM 対象
+#DIM 番号
+IF MONEY >= SLAVEMARKET_PRICE:番号
+	PRINTBUTTON @"%"[" + ANAME(対象) + "]", MAX_CHARANAME_LENGTH + 2, LEFT%", 番号
+	PRINTFORM  販売額:{SLAVEMARKET_PRICE:番号, 8, LEFT}
+	PRINTBUTTON "[能力表示]", 番号 + 100
+	SIF SLAVEMARKET_SPECIALGOODS == 番号
+		CALL COLORPRINT("特売！", COLOR("桃"))
+ELSE
+	SETCOLOR COLOR("選択不可")
+	PRINTPLAINFORM %"[" + ANAME(対象) + "]", MAX_CHARANAME_LENGTH + 2, LEFT%
+	RESETCOLOR
+	PRINTFORM  販売額:{SLAVEMARKET_PRICE:番号, 8, LEFT}
+	SIF SLAVEMARKET_SPECIALGOODS == 番号
+		CALL COLORPRINT("特売！  ", COLOR("桃"))
+	CALL COLORPRINT("資金不足のため購入不可", COLOR("警告"))
+ENDIF
+PRINTL
+PRINT 性知識:
+PRINTFORM {ABL:対象:性知識, 2, RIGHT}
+PRINT  欲望:
+CALL PRINT_ALPHABET_RANK(ランク_その他, ABL:対象:欲望)
+PRINTFORM {ABL:対象:欲望, 2, RIGHT}
+PRINT  性技:
+CALL PRINT_ALPHABET_RANK(ランク_その他, ABL:対象:性技)
+PRINTFORM {ABL:対象:性技, 3, RIGHT}
+PRINT  奉仕:
+CALL PRINT_ALPHABET_RANK(ランク_その他, ABL:対象:奉仕)
+PRINTFORM {ABL:対象:奉仕, 3, RIGHT}
+PRINT  性交:
+CALL PRINT_ALPHABET_RANK(ランク_その他, ABL:対象:性交)
+PRINTFORM {ABL:対象:性交, 3, RIGHT}
+PRINT  精愛:
+CALL PRINT_ALPHABET_RANK(ランク_その他, ABL:対象:精愛)
+PRINTFORM {ABL:対象:精愛, 3, RIGHT}
+PRINTL
+PRINTFORM 所持素質:
+LOCAL:1 = 0
+FOR LOCAL, 0, VARSIZE("SEX_TALENT_NAME")
+	IF GETBIT(TALENT:対象:淫乱系, LOCAL)
+		PRINTFORM %SEX_TALENT_NAME:LOCAL% 
+		LOCAL:1 = 1
+	ENDIF
+NEXT
+FOR LOCAL, 0, VARSIZE("SP_FALLEN_TALENT_NAME")
+	IF GETBIT(TALENT:対象:特殊勢力陥落系, LOCAL)
+		PRINTFORM %SP_FALLEN_TALENT_NAME:LOCAL% 
+		LOCAL:1 = 1
+	ENDIF
+NEXT
+SIF !LOCAL:1
+	PRINT なし
+PRINTL
+
+;-------------------------------------------------
+;奴隷市場が利用できるかを返す関数
+;-------------------------------------------------
+@IS_SLAVEMARKET_AVAILABLE
+#FUNCTION
+
+;プレイヤーが特殊勢力所属なら駄目
+SIF IS_SP_COUNTRY(CFLAG:MASTER:所属)
+	RETURNF 0
+
+;商品がいればok
+FOR LOCAL, 0, SLAVEMARKET_MAX_GOODS
+	SIF ID_TO_CHARA(SLAVEMARKET_GOODS:LOCAL) != -1
+		RETURNF 1
+NEXT
+
+RETURNF 0
+
+;-------------------------------------------------
+;奴隷市場用、奴隷の金額計算関数
+;-------------------------------------------------
+@SLAVEMARKET_CALC_PRICE(対象)
+#FUNCTION
+#DIM 対象
+#DIM 額
+
+;基礎値に能力とスケベ能力を加算する
+額 = MIN(ABL:対象:武闘 + ABL:対象:防衛 + ABL:対象:知略 + ABL:対象:政治 + ABL:対象:歌唱 + ABL:対象:料理, 1000) * 50
+額 += ABL:対象:性知識 * 1000
+額 += MIN(ABL:対象:欲望 + ABL:対象:性技 + ABL:対象:奉仕 + ABL:対象:性交, 50) * 1000
+額 += MIN(ABL:対象:露出 + ABL:対象:精愛 + ABL:対象:自慰, 10) * 500
+額 += MIN(ABL:対象:Ｃ感 + ABL:対象:Ｖ感 + ABL:対象:Ａ感 + ABL:対象:Ｂ感 + ABL:対象:Ｍ感, 40) * 500
+;自国所属と特殊勢力陥落済みは高い
+SIF CFLAG:対象:所属 == CFLAG:MASTER:所属
+	額 += 5000
+FOR LOCAL, 0, MAX_SP_COUNTRY
+	SIF GETBIT(TALENT:対象:特殊勢力陥落系, LOCAL)
+		額 += 3000
+NEXT
+
+;恋人だと足下見られる
+SIF IS_LOVER(対象)
+	額 += 20000
+
+RETURNF 額
+
+;-------------------------------------------------
+;奴隷市場用、そのターンの商品の準備
+;-------------------------------------------------
+@SLAVEMARKET_PREPARE_GOODS
+#DIM カウンタ
+#DIM 候補, 3000
+#DIM 候補数
+#DIM 自警団
+VARSET 候補, -1
+VARSET 候補数
+VARSET カウンタ
+VARSET SLAVEMARKET_GOODS
+VARSET SLAVEMARKET_SPECIALGOODS
+
+;自警団はエスケープする
+自警団 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_自警団))
+
+;対象を選出
+FOR LOCAL, 0, CHARANUM
+	;SPキャラは対象としない（野盗そのものがリストアップされるのを防ぐ
+	SIF IS_SP_CHARA(LOCAL)
+		BREAK
+	;自警団関係者も対象としない
+	SIF GROUPMATCH(自警団, CFLAG:LOCAL:所属, CFLAG:LOCAL:捕虜先)
+		CONTINUE
+	;特殊勢力の捕虜。ないし特殊勢力所属で捕虜でない
+	IF IS_SP_COUNTRY(CFLAG:LOCAL:捕虜先) || (IS_SP_COUNTRY(CFLAG:LOCAL:所属) && !CFLAG:LOCAL:捕虜先)
+		候補:候補数 = LOCAL
+		候補数++
+	ENDIF
+NEXT
+
+;候補がいなければなしで。
+IF 候補数 < 1
+	RETURN 0
+ENDIF
+
+;作成した候補配列からランダムで商品とする。
+;この関数をどこで呼び出してもキャラ番号ズレバグが起こらないよう、商品はキャラ番号でなくIDで保存する。
+CALL FISHER_YATES_SHAFFLE(候補数)
+
+FOR LOCAL, 0, MIN(候補数, SLAVEMARKET_MAX_GOODS)
+	SLAVEMARKET_GOODS:LOCAL = GET_ID(候補:(SHAFFLE_ARRAY:LOCAL))
+	SLAVEMARKET_PRICE:LOCAL = SLAVEMARKET_CALC_PRICE(候補:(SHAFFLE_ARRAY:LOCAL))
+NEXT
+
+IF !RAND:3
+	SLAVEMARKET_SPECIALGOODS = RAND:MIN(候補数, SLAVEMARKET_MAX_GOODS)
+	SLAVEMARKET_PRICE:SLAVEMARKET_SPECIALGOODS /= 2
+ELSE
+	SLAVEMARKET_SPECIALGOODS = SLAVEMARKET_MAX_GOODS
+ENDIF
+RETURN 1

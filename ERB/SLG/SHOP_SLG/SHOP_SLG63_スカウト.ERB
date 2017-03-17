@@ -1,0 +1,453 @@
+﻿;-------------------------------------------------
+;「スカウト」の名称
+;-------------------------------------------------
+@SHOP_SLG_NAME63
+RESULTS:0 '= "スカウト"
+
+;-------------------------------------------------
+;「スカウト」の選択可否
+;-------------------------------------------------
+@SHOP_SLG_CHECK63
+SIF CFLAG:MASTER:所属 == 0
+	RETURN 0
+;プレイヤーが特殊勢力所属なら駄目
+SIF IS_SP_COUNTRY(CFLAG:MASTER:所属)
+	RETURN 0
+;候補がいればok
+FOR LOCAL, 0, VARSIZE("SCOUT_CANDIDATES")
+	SIF ID_TO_CHARA(SCOUT_CANDIDATES:LOCAL) != -1
+		RETURN 1
+NEXT
+RETURN 0
+
+;-------------------------------------------------
+;「スカウト」の左カラムメニューの入力処理
+;-------------------------------------------------
+@SHOP_SLG_EVENTBUY63
+CALL SLG_SCOUT
+RETURN 1
+
+;-------------------------------------------------
+;「スカウト」本体
+;-------------------------------------------------
+@SLG_SCOUT
+#DIM 対象
+#DIM 対象添え字
+#DIM FIRST_LINE
+FIRST_LINE = LINECOUNT
+VARSET SHOP_CHARA_LIST, -1
+FOR LOCAL, 0, VARSIZE("SCOUT_CANDIDATES")
+	SHOP_CHARA_LIST:LOCAL = ID_TO_CHARA(SCOUT_CANDIDATES:LOCAL)
+NEXT
+
+CALL SINGLE_DRAWLINE
+PRINTFORML  自国の強化のため、在野の人材をスカウトしてこよう……
+PRINTFORML  いま候補に挙がっている人材は以下の通りだが、誰をスカウトしようか……
+SIF !SCOUT_COUNT
+	CALL COLORPRINT("初回スカウトのため、★７以下のキャラの提示額が大幅割引（外交解禁まで！）", COLOR("注意"), "L")
+SETCOLOR COLOR("選択不可")
+PRINTFORM  所持金:
+SETCOLOR COLOR("選択中")
+IF STRLENS(NUM_FORMAT(MONEY)) <= 11
+	PRINTFORML %NUM_FORMAT(MONEY), 11%
+ELSE
+	PRINTFORML %NUM_FORMAT(MONEY)%
+ENDIF
+RESETCOLOR
+CALL SINGLE_DRAWLINE
+
+FOR LOCAL, 0, VARSIZE("SCOUT_CANDIDATES")
+	LOCAL:1 = ID_TO_CHARA(SCOUT_CANDIDATES:LOCAL)
+	IF LOCAL:1 == -1
+		CONTINUE
+	ENDIF
+	;何らかの理由で（データ操作とか）放浪していない場合、パージ
+	IF CFLAG:(LOCAL:1):特殊状態 != 1
+		SCOUT_CANDIDATES:(LOCAL) = 0
+		CONTINUE
+	ENDIF
+	CALL SCOUT_SHOW_INFO(LOCAL:1, LOCAL)
+	SETCOLOR COLOR("灰色")
+	CALL SINGLE_DRAWLINE
+	RESETCOLOR
+NEXT
+PRINTPLAIN  
+PRINTBUTTON @"[%"戻る", MAX_CHARANAME_LENGTH, LEFT%]", 99
+
+$INPUT_LOOP
+INPUT
+IF RESULT == 99
+	RETURN 0
+ENDIF
+
+IF RESULT < 0
+	CLEARLINE 1
+	GOTO INPUT_LOOP
+ELSEIF 100 <= RESULT && RESULT < VARSIZE("SCOUT_CANDIDATES") + 100
+	対象添え字 = RESULT - 100
+	対象 = ID_TO_CHARA(SCOUT_CANDIDATES:対象添え字)
+	IF 対象 == -1
+		CLEARLINE 1
+		GOTO INPUT_LOOP
+	ENDIF
+	CALL SINGLE_DRAWLINE
+	CALL SHOW_INFO_WITH_UI(対象, 1)
+	CLEARLINE LINECOUNT - FIRST_LINE
+	RESTART
+ELSEIF VARSIZE("SCOUT_CANDIDATES") <= RESULT
+		CLEARLINE 1
+		GOTO INPUT_LOOP
+ENDIF
+
+対象 = ID_TO_CHARA(SCOUT_CANDIDATES:RESULT)
+対象添え字 = RESULT
+
+
+IF 対象 == -1
+	CLEARLINE 1
+	GOTO INPUT_LOOP
+ENDIF
+
+PRINTFORML %ANAME(対象)%に仕官しないかともちかけた……
+PRINTFORML %ANAME(対象)%は金%NUM_FORMAT(SCOUT_PRICE:対象添え字)%を要求してきた
+PRINTL
+CALL ASK_MULTI_JUDGE(@"要求額を支払う", SCOUT_PRICE:対象添え字 <= MONEY, "支払い金額を入力する", 1, "やめる", 1)
+IF RESULT == 2
+	CLEARLINE LINECOUNT - FIRST_LINE
+	RESTART
+ENDIF
+
+IF RESULT == 0
+	LOCAL = SCOUT_PRICE:対象添え字
+ELSE
+	PRINTFORM いくら支払う……？ (所持金:{MONEY}) 要求額:
+	PRINTBUTTON @"[{SCOUT_PRICE:対象添え字}]", SCOUT_PRICE:対象添え字
+	$PAYMENT_LOOP
+	INPUT
+	LOCAL = RESULT
+	SIF LOCAL > MONEY
+		GOTO PAYMENT_LOOP
+ENDIF
+
+IF !SCOUT_JUDGE_PAYMENT_DISCOUNT(対象, SCOUT_PRICE:対象添え字, LOCAL)
+	PRINTFORMW %ANAME(対象)%に、そんな額では仕官できないと返された……
+	SCOUT_CANDIDATES:対象添え字 = 0
+	RESTART
+ENDIF
+
+PRINTFORML 戦力補強のためなら安いものだ……
+PRINTFORML %ANAME(対象)%に金{LOCAL}を支払った
+
+LOCAL:1 = SCOUT_JUDGE_PAYMENT_PLUS(対象, SCOUT_PRICE:対象添え字, LOCAL)
+
+IF LOCAL:1 && SCOUT_COUNT
+	PRINTFORML %ANAME(対象)%はこんなにもらえるなんて！　と喜んでいるようだ……
+	PRINTFORML %ANAME(対象)%の能力が上昇した
+	FOR LOCAL:2, 0, LOCAL:1
+		SELECTCASE RAND:6
+			CASE 0
+				ABL:対象:武闘 ++
+			CASE 1
+				ABL:対象:防衛 ++
+			CASE 1
+				ABL:対象:知略 ++
+			CASE 2
+				ABL:対象:政治 ++
+			CASE 3
+				ABL:対象:歌唱 ++
+			CASE 4
+				ABL:対象:料理 ++
+		ENDSELECT
+	NEXT
+ENDIF
+
+PRINTFORML %ANAME(対象)%と固い握手を交わした……
+CALL COLORPRINT(@"%ANAME(対象)%が仲間になりました", COLOR("注意"), "W")
+
+MONEY -= LOCAL
+CALL CHANGE_COUNTRY(対象, CFLAG:MASTER:所属, 1)
+CFLAG:対象:好感度 = MAX(500, CFLAG:対象:好感度 + 500)
+CFLAG:対象:従属度 = MAX(500, CFLAG:対象:従属度 + 300)
+CFLAG:対象:依存度 = MAX(100, CFLAG:対象:依存度 + 100)
+
+PRINTFORML ……%ANAME(対象)%を……
+CALL ASK_YN("この場で投獄する", "そんなことはしない")
+
+IF RESULT == 0
+	PRINTFORMW %ANAME(MASTER)%は兵に命じ、%ANAME(対象)%を投獄した！
+	PRINTFORMW %ANAME(対象)%はこの扱いを大変不服に感じ、憤っているようだ……
+	CALL CAPTURE(対象, CFLAG:MASTER:所属)
+	CFLAG:対象:好感度 = MAX(-1000, CFLAG:対象:好感度 - 1000)
+	CFLAG:対象:従属度 = MAX(-1000, CFLAG:対象:従属度 - 1000)
+	CFLAG:対象:依存度 = MAX(-1000, CFLAG:対象:依存度 - 1000)
+ENDIF
+
+
+SCOUT_CANDIDATES:(対象添え字) = 0
+
+;回数増やして再計算
+SCOUT_COUNT ++
+FOR LOCAL, 0, VARSIZE("SCOUT_CANDIDATES")
+	対象 = ID_TO_CHARA(SCOUT_CANDIDATES:LOCAL)
+	SIF 対象 != -1
+		SCOUT_PRICE:LOCAL = SCOUT_CALC_PRICE(対象)
+NEXT
+RETURN
+
+;-------------------------------------------------
+;スカウト対象の情報表示＋ボタン生成
+;-------------------------------------------------
+@SCOUT_SHOW_INFO(対象, 番号)
+#DIM 対象
+#DIM 番号
+
+PRINTPLAIN  
+PRINTBUTTON @"[%ANAME(対象), MAX_CHARANAME_LENGTH, LEFT%]", 番号
+PRINTPLAIN   
+PRINTBUTTON "[能力表示]", 番号 + 100
+SIF MONEY < SCOUT_PRICE:番号
+	CALL COLORPRINT("資金不足", COLOR("警告"))
+PRINTL 
+;提示額の縦列を目立たせ右揃えに
+SETCOLOR COLOR("選択不可")
+PRINTFORM  提示額:
+RESETCOLOR
+PRINTFORM  %NUM_FORMAT(SCOUT_PRICE:番号), 10%
+SETCOLOR COLOR("選択不可")
+PRINTFORM /  
+RESETCOLOR
+;星は目立つので名前が目立たなくならないよう少し下げ
+CALL TMP_PRINT_CHARA_STARS_NUM(対象)
+PRINT   武:
+CALL PRINT_ALPHABET_RANK(ランク_ＳＬＧ, ABL:対象:武闘)
+PRINTFORM {ABL:対象:武闘, 3, LEFT}
+PRINT  防:
+CALL PRINT_ALPHABET_RANK(ランク_ＳＬＧ, ABL:対象:防衛)
+PRINTFORM {ABL:対象:防衛, 3, LEFT}
+PRINT  知:
+CALL PRINT_ALPHABET_RANK(ランク_ＳＬＧ, ABL:対象:知略)
+PRINTFORM {ABL:対象:知略, 3, LEFT}
+PRINT  政:
+CALL PRINT_ALPHABET_RANK(ランク_ＳＬＧ, ABL:対象:政治)
+PRINTFORM {ABL:対象:政治, 3, LEFT}
+PRINT  妖:
+CALL PRINT_ALPHABET_RANK(ランク_ＳＬＧ, ABL:対象:妖術)
+PRINTFORM {ABL:対象:妖術, 3, LEFT}
+PRINT  料:
+CALL PRINT_ALPHABET_RANK(ランク_ＳＬＧ, ABL:対象:料理)
+PRINTFORM {ABL:対象:料理, 3, LEFT}
+PRINT  歌唱:
+CALL PRINT_ALPHABET_RANK(ランク_ＳＬＧ, ABL:対象:歌唱)
+PRINTFORM {ABL:対象:歌唱, 3, LEFT}
+PRINT  野心:
+CALL PRINT_ALPHABET_RANK(ランク_ＳＬＧ, ABL:対象:野心)
+PRINTFORM {ABL:対象:野心, 3, LEFT}
+
+PRINTL 
+
+
+;-------------------------------------------------
+;スカウト対象の額計算
+;-------------------------------------------------
+@SCOUT_CALC_PRICE(対象)
+#FUNCTION
+#DIM 対象
+#DIM 提示額
+#DIM 関係補正
+#DIM 好感度補正
+
+;初回購入なら★7以下は値下げ
+SIF !SCOUT_COUNT && TMP_CHARA_STARS:対象 < 8
+	RETURNF RAND(500, 1000)
+	
+提示額 = SCOUT_CALC_PRICE_BASIS(対象)
+
+
+;面識があると割引
+SIF !CFLAG:対象:面識
+	TIMES 提示額, 0.9
+
+;REL_LIKEとREL_HATEの差に基づいて最大30%の補正
+関係補正 = REL_LIKE:対象:MASTER - REL_HATE:対象:MASTER
+関係補正 /= 50
+関係補正 = 100 - 関係補正
+
+提示額 = 提示額 * 関係補正 / 100
+
+;好感度に基づいて補正
+好感度補正 = 100 - MIN(MAX(CFLAG:対象:好感度, CFLAG:対象:従属度) / 100, 30)
+提示額 = 提示額 * 好感度補正 / 100
+
+;日数で補正する
+;20%オフからスタート、70日目で50％オンに
+提示額 = 提示額 * (100 + MIN(DAY - 20, 50)) / 100
+
+;都市数で補正する
+;10都市で100%として、90~150
+提示額 = 提示額 * (100 + MIN(GET_OWN_CITY(CFLAG:MASTER:所属) - 10, 50)) / 100
+
+;乱数を乗せる
+提示額 = 提示額 * RAND(90, 110) / 100
+
+;購入回数一回につき10%
+提示額 = 提示額 * (100 + SCOUT_COUNT * 10) / 100
+
+RETURNF 提示額
+
+;-------------------------------------------------
+;スカウト対象の額計算(能力部分)
+;AIなども利用する
+;-------------------------------------------------
+@SCOUT_CALC_PRICE_BASIS(対象)
+#FUNCTION
+#DIM 対象
+#DIM 四能力 = GETNUM(ABL, "武闘"), GETNUM(ABL, "防衛"), GETNUM(ABL, "知略"), GETNUM(ABL, "政治")
+#DIM 提示額
+
+;基本額は能力から算出
+提示額 = ABL:対象:武闘 + ABL:対象:防衛 + ABL:対象:知略 + ABL:対象:政治 + ABL:対象:料理 + ABL:対象:歌唱 + (ABL:対象:妖術 * 5)
+提示額 *= 30
+
+FOR LOCAL, 0, VARSIZE("四能力")
+	SIF ABL:対象:(四能力:LOCAL) >= ランク閾値:ランク_ＳＬＧ:ランク_B
+		提示額 += 3000
+NEXT
+
+RETURNF MAX(提示額, 1)
+
+;-------------------------------------------------
+;スカウト用、そのターンの候補の準備
+;-------------------------------------------------
+@SCOUT_PREPARE_CANDIDATES
+#DIM カウンタ
+#DIM 候補, 3000
+#DIM 候補数
+VARSET 候補, -1
+VARSET 候補数
+VARSET カウンタ
+VARSET SCOUT_CANDIDATES
+VARSET SCOUT_PRICE
+
+;外交解禁で初回購入フラグを立てる
+SIF !SCOUT_COUNT && DAY >= SLG_PP:1
+	SCOUT_COUNT = 1
+
+;対象を選出
+FOR LOCAL, 0, CHARANUM
+	;SPキャラは対象としない（野盗そのものがリストアップされるのを防ぐ
+	SIF IS_SP_CHARA(LOCAL)
+		CONTINUE
+	;関係性があまりにも悪いキャラも対象としない
+	SIF REL_LIKE:LOCAL:MASTER - REL_HATE:LOCAL:MASTER <= -1000
+		CONTINUE
+	;放浪中でないとだめ
+	SIF CFLAG:LOCAL:特殊状態 != 1
+		CONTINUE
+	候補:候補数 = LOCAL
+	候補数 ++
+NEXT
+
+;候補がいなければなしで。
+IF 候補数 < 1
+	RETURN 0
+ENDIF
+
+;作成した候補配列からランダムで商品とする。
+;この関数をどこで呼び出してもキャラ番号ズレバグが起こらないよう、対象はキャラ番号でなくIDで保存する。
+CALL FISHER_YATES_SHAFFLE(候補数)
+
+FOR LOCAL, 0, MIN(候補数, VARSIZE("SCOUT_CANDIDATES"))
+	SCOUT_CANDIDATES:LOCAL = GET_ID(候補:(SHAFFLE_ARRAY:LOCAL))
+	SCOUT_PRICE:LOCAL = SCOUT_CALC_PRICE(候補:(SHAFFLE_ARRAY:LOCAL))
+NEXT
+
+
+;-------------------------------------------------
+;スカウト対象がどこまで値引きを許すか
+;-------------------------------------------------
+@SCOUT_JUDGE_PAYMENT_DISCOUNT(対象, 提示額, 支払額)
+#FUNCTION
+#DIM 対象
+#DIM 提示額
+#DIM 支払額
+#DIM 倍率
+#DIM 関係補正
+
+倍率 = RAND(90, 100)
+
+SIF TALENT:対象:プライド低い
+	倍率 -= 5
+SIF TALENT:対象:プライド高い
+	倍率 += 5
+SIF TALENT:対象:素直
+	倍率 -= 5
+SIF TALENT:対象:反抗的
+	倍率 += 5
+SIF TALENT:対象:無関心
+	倍率 -= 5
+SIF TALENT:対象:孤高
+	倍率 += 20
+
+SIF IS_LOVER(対象) || IS_SLAVE(対象)
+	倍率 -= 10
+
+倍率 -= MIN(MAX(CFLAG:対象:好感度, CFLAG:対象:従属度) / 100, 50)
+
+;REL_LIKEとREL_HATEの差に基づいて最大15%の補正
+関係補正 = REL_LIKE:対象:MASTER - REL_HATE:対象:MASTER
+関係補正 /= 100
+関係補正 = 100 - 関係補正
+
+倍率 = 倍率 * 関係補正 / 100
+
+;最大100
+倍率 = MIN(倍率, 100)
+
+SIF 支払額 >= 提示額 * 倍率 / 100
+	RETURNF 1
+
+RETURNF 0
+
+;-------------------------------------------------
+;上乗せした時スカウト対象がやる気を出すか、どれくらいだすのか
+;-------------------------------------------------
+@SCOUT_JUDGE_PAYMENT_PLUS(対象, 提示額, 支払額)
+#FUNCTION
+#DIM 対象
+#DIM 提示額
+#DIM 支払額
+#DIM 倍率
+#DIM 関係補正
+
+倍率 = 100
+
+倍率 = TMP_CHARA_STARS:対象 * 5
+
+SIF TALENT:対象:プライド低い
+	倍率 -= 5
+SIF TALENT:対象:プライド高い
+	倍率 += 5
+SIF TALENT:対象:素直
+	倍率 -= 5
+SIF TALENT:対象:反抗的
+	倍率 += 5
+SIF TALENT:対象:無関心
+	倍率 -= 5
+SIF TALENT:対象:孤高
+	倍率 += 20
+
+SIF IS_LOVER(対象) || IS_SLAVE(対象)
+	倍率 -= 25
+
+;REL_LIKEとREL_HATEの差に基づいて最大15%の補正
+関係補正 = REL_LIKE:対象:MASTER - REL_HATE:対象:MASTER
+関係補正 /= 100
+関係補正 = 100 - 関係補正
+
+倍率 = 倍率 * 関係補正 / 100
+
+倍率 = LIMIT(倍率, 120, 200)
+
+提示額 = 提示額 * 倍率 / 100
+
+RETURNF LIMIT((支払額 - 提示額) / 300, 0, 50)

@@ -1,0 +1,75 @@
+﻿;-------------------------------------------------
+;「国庫入金」の名称
+;-------------------------------------------------
+@SHOP_SLG_NAME61
+RESULTS:0 '= "国庫入金"
+
+;-------------------------------------------------
+;「国庫入金」の選択可否
+;-------------------------------------------------
+@SHOP_SLG_CHECK61
+SIF FLAG:クリアフラグ
+	RETURN 0
+SIF FLAG:観戦モード
+	RETURN 0
+SIF CFLAG:MASTER:所属 == 0
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;「国庫入金」の左カラムメニューの入力処理
+;-------------------------------------------------
+@SHOP_SLG_EVENTBUY61
+CALL SLG_TREASURY_DEPOSIT
+RETURN 1
+
+
+;-------------------------------------------------
+;「国庫入金」本体
+;-------------------------------------------------
+@SLG_TREASURY_DEPOSIT
+#DIM FIRST_LINE
+#DIM レート
+レート = GET_SUM_ECONOMY(CFLAG:MASTER:所属) / 100000 + 1
+FIRST_LINE = LINECOUNT
+CALL SINGLE_DRAWLINE
+PRINTFORML 個人資金を国庫に入金することができます
+PRINTFORML ただし、国庫を個人資金として引き出すことはできません
+PRINTFORM 現在のレートは個人資金
+CALL COLORPRINT(@"{レート}", COLOR("注意"))
+PRINTFORM につき、国庫
+CALL COLORPRINT("1", COLOR("注意"))
+PRINTFORML です
+PRINTFORML 国庫としていくらを得ますか？(0、負数入力でキャンセル)
+CALL SINGLE_DRAWLINE
+FOR LOCAL, 1, 10
+	SIF レート * POWER(10, LOCAL) <= MONEY
+		PRINTFORML [{POWER(10, LOCAL), 10}] 個人資金{レート * POWER(10, LOCAL), 10}
+NEXT
+PRINTFORML [{MONEY / レート, 10}] 個人資金{MONEY / レート * レート, 10}
+PRINTFORML [0] 戻る
+INPUT
+IF RESULT <= 0
+	RETURN 0
+ELSEIF RESULT * レート <= MONEY
+	LOCAL = RESULT
+	PRINTFORM 個人資金
+	CALL COLORPRINT(@"{レート * LOCAL}", COLOR("注意"))
+	PRINTFORM を入金して、国庫
+	CALL COLORPRINT(@"{LOCAL}", COLOR("注意"))
+	PRINTFORML を得ます
+	PRINTFORML よろしいですか？
+	CALL ASK_YN()
+	IF RESULT == 1
+		RESTART
+	ELSE
+		PRINTFORM 国庫
+		CALL COLORPRINT(@"{LOCAL}", COLOR("注意"))
+		PRINTFORML を得ました
+		MONEY -= LOCAL * レート
+		MONEY:(CFLAG:MASTER:所属) += LOCAL
+		RETURN 0
+	ENDIF
+ENDIF
+RESTART
+

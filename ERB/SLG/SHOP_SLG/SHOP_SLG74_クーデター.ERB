@@ -1,0 +1,126 @@
+﻿;-------------------------------------------------
+;「クーデター」の名称
+;-------------------------------------------------
+@SHOP_SLG_NAME74
+RESULTS:0 '= "クーデター"
+
+;-------------------------------------------------
+;「クーデター」の選択可否
+;-------------------------------------------------
+@SHOP_SLG_CHECK74
+#DIM KANRAKU_NUM
+SIF CFLAG:MASTER:所属 == 0
+	RETURN 0
+SIF CFLAG:MASTER:行動不能状態 != 0
+	RETURN 0
+SIF IS_SP_COUNTRY(CFLAG:MASTER:所属)
+	RETURN 0
+SIF GET_COUNTRY_BOSS(CFLAG:MASTER:所属) == MASTER
+	RETURN 0
+;[恋慕][親友][服従]のいずれかを持っている士官の数をカウント
+KANRAKU_NUM = 0
+FOR LOCAL:0, 0, CHARANUM
+	IF LOCAL:0 != MASTER && LOCAL:0 != GET_COUNTRY_BOSS(CFLAG:MASTER:所属) && CFLAG:(LOCAL:0):所属 == CFLAG:MASTER:所属
+		IF TALENT:(LOCAL:0):恋慕 || TALENT:(LOCAL:0):親友 || TALENT:(LOCAL:0):服従
+			KANRAKU_NUM ++
+		ENDIF
+	ENDIF
+NEXT
+;自国の半数以上の士官が陥落済みならクーデターが可能
+SIF KANRAKU_NUM * 2 >= GET_COMMANDER_NUM(CFLAG:MASTER:所属) - 1
+	RETURN 1
+;王様が親愛か隷属でもオッケー
+SIF TALENT:(GET_COUNTRY_BOSS(CFLAG:MASTER:所属)):親愛 || TALENT:(GET_COUNTRY_BOSS(CFLAG:MASTER:所属)):隷属
+	RETURN 1
+RETURN 0
+
+;-------------------------------------------------
+;「クーデター」の左カラムメニューの入力処理
+;-------------------------------------------------
+@SHOP_SLG_EVENTBUY74
+CALL PLAYER_COUP
+RETURN 1
+
+;-------------------------------------------------
+;「クーデター」本体
+;-------------------------------------------------
+@PLAYER_COUP
+#DIM 勢力
+#DIM 君主
+#DIM 国譲りフラグ
+PRINTFORML 現在の君主を捕らえて新たな君主を立てます
+PRINTFORML もし現在の君主が強く陥落しているなら、平和裏に代替わりできるでしょう
+PRINTFORML 新君主は%ANAME(MASTER)%自身がなるか、陥落している士官の中から選べます
+PRINTFORML 本当にクーデターを実行しますか？
+
+CALL ASK_YN()
+SIF RESULT == 1
+	RETURN
+
+;全部隊の解散
+CALL CLEAR_ALL_UNIT(CFLAG:MASTER:所属, 1)
+
+勢力 = CFLAG:MASTER:所属
+君主 = GET_COUNTRY_BOSS(CFLAG:MASTER:所属)
+国譲りフラグ = TALENT:君主:親愛 || TALENT:君主:隷属
+
+;調教参加フラグをクリア
+CVARSET CFLAG, 6, 0
+
+CALL SINGLE_DRAWLINE
+PRINTFORML 新たな君主を決めて下さい キャンセルで%ANAME(MASTER)%が就任します
+CALL SINGLE_DRAWLINE
+CALL SELECT_CHARA_LIST_ONLY_LOGIC_SLG("PLAYER_INDEPENDENCE", "NONE")
+
+SIF RESULT == -1
+RESULT = MASTER
+
+COUNTRY_BOSS:(CFLAG:MASTER:所属) = GET_ID(RESULT)
+
+CALL COLORPRINT(@"%ANAME(GET_COUNTRY_BOSS(CFLAG:MASTER:所属))%が新たな君主となりました！", COLOR("注意"), "W")
+
+CALL SINGLE_DRAWLINE
+PRINTL 新しい勢力の色を選んで下さい
+CALL SINGLE_DRAWLINE
+CALL CHANGE_COUNTRY_COLOR(CFLAG:MASTER:所属, 1)
+CALL SINGLE_DRAWLINE
+
+PRINTL 
+SETCOLOR COLOR("注意")
+PRINTFORMW 混乱の影響で、我が勢力の兵力が減少しました
+PRINTFORMW 軍を再編するため、我が軍の全部隊を解散させました
+RESETCOLOR
+
+FOR LOCAL:0, 0, MAX_CITY
+	SIF CITY_OWNER:LOCAL == CFLAG:MASTER:所属
+		TIMES CITY_SOLDIER:LOCAL, 0.8
+NEXT
+
+CALL CLEAR_ALL_UNIT(CFLAG:MASTER:所属, 1)
+TIMES COUNTRY_SOLDIER:(CFLAG:MASTER:所属), 0.8
+
+;旧君主が部隊に配属されている場合強制解除
+CALL FORCE_FREE(君主)
+
+IF 国譲りフラグ
+	CALL COLORPRINT(@"%ANAME(MASTER)%の説得で、%ANAME(君主)%は代替わりに同意した……", COLOR("注意"), "W")
+ELSEIF MIN(MAX(ABL:君主:武闘, ABL:君主:防衛, ABL:君主:知略, ABL:君主:政治), 80) < RAND:100
+	CALL COLORPRINT(@"現君主である%ANAME(君主)%の身柄を確保した！", COLOR("注意"), "W")
+	PRINTFORML 
+	CALL CHANGE_COUNTRY(君主, 0, 1)
+	CALL SELECT_PRISONER_TREATMENT(君主, CFLAG:君主:所属, 勢力)
+;君主が逃亡
+ELSE
+	CALL COLORPRINT(@"現君主である%ANAME(君主)%の確保に失敗しました…", COLOR("注意"), "L")
+	IF GET_NEW_COUNTRY() == -1 || ABL:君主:野心 < RAND:100
+		$INDEPENDENCE_FAILED
+		PRINTFORMW %ANAME(君主)%は放浪した模様です
+		CALL CHANGE_COUNTRY(君主, 0, 1)
+		CALL CHANGE_RELATION_O_TO_C(君主, CFLAG:MASTER:所属, -500, 1000)
+	ELSE
+		CALL NPC_INDEPENDENCE(君主)
+		SIF RESULT == -1
+			GOTO INDEPENDENCE_FAILED
+	ENDIF
+ENDIF
+

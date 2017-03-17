@@ -53,7 +53,7 @@ FOR LOCAL, 0, CHARANUM
 	IF CFLAG:LOCAL:捕虜先 == 滅亡勢力
 		CALL TREAT_PRISONER(LOCAL, 滅亡勢力, 滅ぼした勢力)
 	;他のCPU勢力の捕虜になっていたら登用判定を行う。失敗したら解放・放浪
-	ELSEIF JUDGE_ASSIGN(LOCAL, CFLAG:(LOCAL:0):所属, CFLAG:(LOCAL:0):捕虜先)
+	ELSEIF JUDGE_ASSIGN(LOCAL, CFLAG:(LOCAL:0):所属, CFLAG:(LOCAL:0):捕虜先) == 1
 		CALL COLORPRINT(@"囚われていた%ANAME(LOCAL)%は、%ANAME(GET_COUNTRY_BOSS(CFLAG:(LOCAL:0):捕虜先))%に登用された", COLOR("注意"), "L")
 		CALL CHANGE_COUNTRY(LOCAL, CFLAG:LOCAL:捕虜先, 1)
 	ELSE
@@ -266,6 +266,8 @@ RETURNF 0
 #DIM 勝利君主
 #DIM 友好度
 #DIM 敵対度
+#DIM 要求額
+#DIM 支払限度
 
 勝利君主 = GET_COUNTRY_BOSS(勝利勢力)
 敗北君主 = GET_COUNTRY_BOSS(敗北勢力)
@@ -297,24 +299,40 @@ ENDIF
 IF 対象 == MASTER
 	CALL MASTER_CAPTURED(勝利勢力)
 	RETURN RESULT
-;主人公以外は登用を試みる
-ELSEIF JUDGE_ASSIGN(対象, 敗北勢力, 勝利勢力)
-	IF 対象 == 敗北君主
-		PRINTFORMW 君主である%ANAME(対象)%は%ANAME(勝利君主)%の前に引きずり出された…
-		PRINTFORMW %ANAME(対象)%は頭を垂れて%ANAME(勝利君主)%に忠誠を誓いました
-	ELSE
-		IF CFLAG:対象:所属 == CFLAG:MASTER:所属
-			SETCOLOR COLOR("警告")
-			PRINTFORMW %ANAME(対象)%が登用に応じました
-		ELSE
-			SETCOLOR COLOR("注意")
-			PRINTFORML %ANAME(対象)%は登用に応じたようです
-		ENDIF
-		RESETCOLOR
-	ENDIF
-	CALL CHANGE_COUNTRY(対象, 勝利勢力, 1)
-	RETURN 0
-
+ELSE
+	;主人公以外は登用を試みる
+	SELECTCASE JUDGE_ASSIGN(対象, 敗北勢力, 勝利勢力)
+		CASE 1
+			$ASSIGN_ACCEPT
+			IF 対象 == 敗北君主
+				PRINTFORMW 君主である%ANAME(対象)%は%ANAME(勝利君主)%の前に引きずり出された…
+				PRINTFORMW %ANAME(対象)%は頭を垂れて%ANAME(勝利君主)%に忠誠を誓いました
+			ELSE
+				IF CFLAG:対象:所属 == CFLAG:MASTER:所属
+					SETCOLOR COLOR("警告")
+					PRINTFORMW %ANAME(対象)%が登用に応じました
+				ELSE
+					SETCOLOR COLOR("注意")
+					PRINTFORML %ANAME(対象)%は登用に応じたようです
+				ENDIF
+				RESETCOLOR
+			ENDIF
+			CALL CHANGE_COUNTRY(対象, 勝利勢力, 1)
+			RETURN 0
+		CASE 2
+			IF 対象 != 敗北君主
+				要求額 = JUDGE_ASSIGN_REQUIRE_MONEY(対象, 敗北勢力, 勝利勢力)
+				支払限度 = MIN(MONEY:勝利勢力, SCOUT_CALC_PRICE_BASIS(対象) * (1500 + REL_LIKE:勝利君主:対象 - REL_HATE:勝利君主:対象) / 1500)
+				PRINTFORML %ANAME(対象)%は金{要求額}を要求したようです
+				IF 要求額　<= 支払限度
+					MONEY:勝利勢力 -= 要求額
+					PRINTFORML %ANAME(勝利君主)%は受け入れました
+					GOTO ASSIGN_ACCEPT
+				ELSE
+					PRINTFORML %ANAME(勝利君主)%は拒否しました
+				ENDIF
+			ENDIF
+	ENDSELECT
 ENDIF
 
 ;登用に失敗
@@ -404,7 +422,7 @@ ENDIF
 #DIM 捕獲勢力
 #DIM 対象
 #DIM 拒否フラグ
-
+#DIM 要求額
 拒否フラグ = 0
 
 
@@ -438,19 +456,32 @@ INPUT
 IF RESULT == 0 && !拒否フラグ
 	拒否フラグ = 1
 	;登用に応じるかどうかを判定
-	IF JUDGE_ASSIGN(対象, 対象勢力, 捕獲勢力)
-		CALL KOJO_EVENT(対象, 332)
-		PRINTFORMW %ANAME(対象)%を登用しました
-		CALL CHANGE_COUNTRY(対象, 捕獲勢力, 1)
-		;好感度を上昇、敵対値を減少
-		CALL CHANGE_RELATION_O_TO_C(対象, 捕獲勢力, 50, -50)
-	ELSE
-		CALL KOJO_EVENT(対象, 333)
-		PRINTFORMW %ANAME(対象)%は応じる気はないようです…
-		;好感度を上昇、敵対値を減少
-		CALL CHANGE_RELATION_O_TO_C(対象, 捕獲勢力, 50, -50)
-		GOTO RESELECT_LOOP
-	ENDIF
+	SELECTCASE JUDGE_ASSIGN(対象, 対象勢力, 捕獲勢力)
+		CASE 1
+			$ACCEPT
+			CALL KOJO_EVENT(対象, 332)
+			PRINTFORMW %ANAME(対象)%を登用しました
+			CALL CHANGE_COUNTRY(対象, 捕獲勢力, 1)
+			;好感度を上昇、敵対値を減少
+			CALL CHANGE_RELATION_O_TO_C(対象, 捕獲勢力, 50, -50)
+		CASE 2
+			要求額 = JUDGE_ASSIGN_REQUIRE_MONEY(対象, 対象勢力,　捕獲勢力)
+			CALL ICPRINT(@"%ANAME(対象)%は金<{要求額}>を要求してきました", "L", COLOR("注意"))
+			PRINTFORML 現在の所持金:{MONEY}
+			CALL ASK_MULTI_JUDGE("払う", 要求額 <= MONEY, "払わない")
+			IF RESULT == 0
+				MONEY -= 要求額
+				GOTO ACCEPT
+			ENDIF
+			GOTO DENY
+		CASE 0
+			$DENY
+			CALL KOJO_EVENT(対象, 333)
+			PRINTFORMW %ANAME(対象)%は応じる気はないようです…
+			;好感度を上昇、敵対値を減少
+			CALL CHANGE_RELATION_O_TO_C(対象, 捕獲勢力, 50, -50)
+			GOTO RESELECT_LOOP
+	ENDSELECT
 	RETURN 0
 ELSEIF RESULT == 1
 	CALL KOJO_EVENT(対象, 334)
@@ -508,7 +539,7 @@ ENDIF
 #DIM 対象
 
 ;登用に応じるかどうかを判定
-IF JUDGE_ASSIGN(対象, 対象勢力, 捕獲勢力)
+IF JUDGE_ASSIGN(対象, 対象勢力, 捕獲勢力) == 1
 	CALL KOJO_EVENT(対象, 332)
 	PRINTFORMW %ANAME(対象)%を登用しました
 	CALL CHANGE_COUNTRY(対象, 捕獲勢力, 1)
@@ -736,6 +767,7 @@ RETURN 1
 #DIM 捕縛君主
 #DIM 所属君主
 #DIM 基準値
+#DIM 乱数
 捕縛君主 = GET_COUNTRY_BOSS(捕縛勢力)
 所属君主 = GET_COUNTRY_BOSS(所属勢力)
 
@@ -751,10 +783,12 @@ SIF RAND:2 && IS_SP_COUNTRY(捕縛勢力) && !IS_FALLEN_TO_SP_COUNTRY(対象)
 基準値 = 3000
 
 ;登用側への君主の好感度・敵対度で補正する
-基準値 += REL_LIKE:対象:捕縛君主 * 2 - REL_HATE:対象:捕縛君主
+SIF 捕縛君主 >= 0
+	基準値 += REL_LIKE:対象:捕縛君主 * 2 - REL_HATE:対象:捕縛君主
 
 ;所属側への好感度・敵対度で補正する
-基準値 -= REL_LIKE:対象:所属君主 * 3 - REL_HATE:対象:所属君主
+SIF 所属君主 >= 0
+	基準値 -= REL_LIKE:対象:所属君主 * 3 - REL_HATE:対象:所属君主
 
 ;主人公が登用側
 IF CFLAG:MASTER:所属 == 捕縛勢力
@@ -772,4 +806,37 @@ ELSEIF 所属勢力 == 0
 	基準値 += 2000
 ENDIF
 
-RETURNF RAND:10000 < 基準値
+乱数 = RAND:10000
+
+;基準値を満たさないが、乱数の3/4よりは大きいなら金を要求する
+SIF INRANGE(基準値, 乱数 / 2, 乱数)
+	RETURNF 2
+RETURNF 乱数 < 基準値
+
+;-------------------------------------------------
+;ARG:0番のキャラが条件付きで登用に応じるときの判定(ARG:1=登用側の勢力、ARG:2=ARG:0の所属する勢力
+;戻り値 0=拒否 1=応じる
+;-------------------------------------------------
+@JUDGE_ASSIGN_REQUIRE_MONEY(対象, 所属勢力, 捕縛勢力)
+#FUNCTION
+#DIM 対象
+#DIM 捕縛勢力
+#DIM 所属勢力
+#DIM 捕縛君主
+#DIM 所属君主
+#DIM 要求額
+捕縛君主 = GET_COUNTRY_BOSS(捕縛勢力)
+所属君主 = GET_COUNTRY_BOSS(所属勢力)
+
+;ベースはスカウトした時の額ないし（国庫の10%と10000とでやすい方）を要求する
+要求額 = MAX(SCOUT_CALC_PRICE_BASIS(対象), MIN(MONEY:捕縛勢力 / 10, 10000))
+
+;登用側への君主の好感度・敵対度で補正する
+SIF 捕縛君主 >= 0
+	要求額 = 要求額 * (3000 - REL_LIKE:対象:捕縛君主 + REL_HATE:対象:捕縛君主) / 3000
+
+;登用側への君主の好感度・敵対度で補正する
+SIF 所属君主 >= 0
+	要求額 = 要求額 * (3000 - REL_HATE:対象:所属君主 + REL_LIKE:対象:所属君主) / 3000
+
+RETURNF 要求額

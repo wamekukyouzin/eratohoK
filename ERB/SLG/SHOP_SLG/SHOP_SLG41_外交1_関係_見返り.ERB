@@ -1,0 +1,168 @@
+﻿;外交で相手から見返りを要求された場合の処理
+
+;-------------------------------------------------
+;ARG:0勢力が主人公勢力に要求を行った場合の処理
+;ARG:1は要求の重さ 0=軽度 1=中度 2=重度
+;要求を飲むと1、断ると0、要求できる内容がない場合は-1を返す
+;-------------------------------------------------
+@DIPLOMACY_REQUESTED(ARG:0, ARG:1)
+;要求種別の最大数
+#DIM CONST MAX_REQUEST_TYPE = 20
+
+;各要求を行う確率
+#DIM REQUEST_RATE, 20
+
+VARSET REQUEST_RATE, 0
+
+;自国の君主のキャラ番号を取得
+LOCAL:4 = GET_COUNTRY_BOSS(CFLAG:MASTER:所属)
+
+;相手勢力の君主のキャラ番号を取得
+LOCAL:5 = GET_COUNTRY_BOSS(ARG:0)
+
+;要求可能な士官の人数を確認
+LOCAL:30 = 0
+LOCAL:31 = 0
+FOR LOCAL:0, 0, CHARANUM
+	IF CFLAG:(LOCAL:0):所属 == CFLAG:MASTER:所属 && LOCAL:0 != MASTER && LOCAL:0 != LOCAL:4
+		LOCAL:2 = MAX(ABL:(LOCAL:0):武闘, ABL:(LOCAL:0):防衛, ABL:(LOCAL:0):知略, ABL:(LOCAL:0):政治, ABL:(LOCAL:0):歌唱, ABL:(LOCAL:0):料理)
+		IF LOCAL:2 >= 80
+			LOCAL:30 ++
+			LOCAL:31 ++
+		ELSEIF LOCAL:2 >= 65
+			LOCAL:30 ++
+		ENDIF
+	ENDIF
+NEXT
+
+;●各要求の確率を変数 REQUEST_RATE に設定
+;0=兵を要求
+;1=経済力を要求
+;2=士官を要求
+;10=性的行為を要求
+;11=数期間の調教を要求
+
+IF GET_SUM_SOLDIER(CFLAG:MASTER:所属) >= GET_SUM_ECONOMY(ARG:0) * 30 / 1000
+	REQUEST_RATE:0 = 60
+ENDIF
+IF GET_SUM_ECONOMY(ARG:0) - GET_OWN_CITY(ARG:0) * 50 >= 300
+	REQUEST_RATE:1 = 30
+ENDIF
+IF ABL:(LOCAL:5):欲望 >= 3 && ABL:(LOCAL:5):性知識 >= 3
+	REQUEST_RATE:10 = 50 + ABL:(LOCAL:5):欲望 * 10
+ENDIF
+
+;要求強度:軽
+IF ARG:1 == 0
+	IF LOCAL:30
+		REQUEST_RATE:2 = 15
+	ENDIF
+
+;要求強度:中
+ELSEIF ARG:1 == 1
+	IF LOCAL:31
+		REQUEST_RATE:2 = 25
+	ENDIF
+
+;要求強度:重
+ELSE
+	IF LOCAL:31
+		REQUEST_RATE:2 = 60
+	ENDIF
+	IF ABL:(LOCAL:5):欲望 >= 3 && ABL:(LOCAL:5):性知識 >= 3
+		;REQUEST_RATE:11 = 50 + ABL:(LOCAL:5):欲望 * 10
+	ENDIF
+ENDIF
+
+;要求内容を指定された確率に基づいて決定
+LOCAL:1 = 0
+FOR LOCAL:0, 0, MAX_REQUEST_TYPE
+	LOCAL:1 += REQUEST_RATE:(LOCAL:0)
+NEXT
+;要求できる内容がない場合は-1を返す
+IF LOCAL:1 <= 0
+	RETURN -1
+ENDIF
+LOCAL:1 = RAND:(LOCAL:1)
+LOCAL:10 = -1
+FOR LOCAL:0, 0, MAX_REQUEST_TYPE
+	LOCAL:1 -= REQUEST_RATE:(LOCAL:0)
+	IF LOCAL:1 < 0
+		LOCAL:10 = LOCAL:0
+		BREAK
+	ENDIF
+NEXT
+
+;設定：性的な要求は条件を満たせば常時
+IF CONFIG:308 == 0
+	IF ABL:(LOCAL:5):欲望 >= 3 && ABL:(LOCAL:5):性知識 >= 3
+		IF DIPLOMACY_TRAINED_DAY == 0 && RAND:2
+			LOCAL:10 = 11
+		ELSE
+			LOCAL:10 = 10
+		ENDIF
+	ENDIF
+;設定：性的な要求は条件を満たせば常時＆欲望条件無視
+ELSEIF CONFIG:308 == 2
+	IF ABL:(LOCAL:5):性知識 >= 3
+		IF DIPLOMACY_TRAINED_DAY == 0 && RAND:2
+			LOCAL:10 = 11
+		ELSE
+			LOCAL:10 = 10
+		ENDIF
+	ENDIF
+;設定：条件無視で100％性的な要求
+ELSEIF CONFIG:308 == 3
+	IF DIPLOMACY_TRAINED_DAY == 0 && RAND:2
+		LOCAL:10 = 11
+	ELSE
+		LOCAL:10 = 10
+	ENDIF
+ENDIF
+
+;要求の具体的な内容を設定
+LOCAL:20 = 0
+SELECTCASE LOCAL:10
+	;兵を要求
+	CASE 0
+		CALL DIPLOMACTY_REQUESTED_SOLDIER(ARG:0, ARG:1)
+		LOCAL:20 = RESULT
+
+	;経済力を要求
+	CASE 1
+		CALL DIPLOMACTY_REQUESTED_ECONOMY(ARG:0, ARG:1)
+		LOCAL:20 = RESULT
+
+	;士官を要求
+	CASE 2
+		CALL DIPLOMACTY_REQUESTED_CHARA(ARG:0, ARG:1)
+		LOCAL:20 = RESULT
+
+	;性的行為を要求
+	CASE 10
+		CALL DIPLOMACY_REQUESTED_SEX(ARG:0, ARG:1)
+		LOCAL:20 = RESULT
+
+	;数期間の調教を要求
+	CASE 11
+		CALL DIPLOMACY_REQUESTED_TRAIN(ARG:0, ARG:1)
+		LOCAL:20 = RESULT
+
+	;エラーチェック
+	CASEELSE
+		;エラーメッセージを出力
+		THROW 外交の要求種別が不正です(種別番号 LOCAL:10={LOCAL:10})
+ENDSELECT
+
+IF LOCAL:20
+	PRINTFORMW %NAME:(LOCAL:4)%が要求を飲むと、%NAME:(LOCAL:5)%はようやくこちらの提案を承諾した…
+	IF LOCAL:10 == 10 || LOCAL:10 == 11
+		RETURN 2
+	ENDIF
+	RETURN 1
+ENDIF
+
+PRINTFORMW 交渉は成立しなかった…
+
+RETURN 0
+

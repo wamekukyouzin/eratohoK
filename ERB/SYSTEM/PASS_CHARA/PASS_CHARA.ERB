@@ -31,6 +31,7 @@ VARSET キャラカウンタ
 表示終了位置 = 表示ページ * 60
 
 CALL SINGLE_DRAWLINE
+PRINTFORML 次の週にキャラの能力を引き継げます
 PRINTFORML 設定するキャラを選んで下さい  
 PRINTBUTTON "[まとめて設定]", 3
 PRINTBUTTON "[まとめて解除]", 4
@@ -126,6 +127,10 @@ $SHOW_LOOP
 REDRAW 1
 PRINTFORML 引き継ぎたい要素を選択してください
 CALL SINGLE_DRAWLINE
+PRINTL □性別□
+CALL PRINT_TOGGLE_BUTTON(@"[性別]", 0, 性別引き継ぎ_TMP)
+PRINTL
+CALL SINGLE_DRAWLINE
 PRINTL □体力□
 FOR LOCAL, 0, 5
 	SIF BASENAME:LOCAL != ""
@@ -206,6 +211,8 @@ PRINTBUTTON "[これでよい]", 9999
 
 INPUT
 SELECTCASE RESULT
+	CASE 0
+		性別引き継ぎ_TMP = !性別引き継ぎ_TMP
 	CASE IS < 200
 		RESULT = RESULT - 100
 		SIF BASENAME:RESULT != ""
@@ -298,6 +305,7 @@ GOTO SHOW_LOOP
 ;-------------------------------------------
 @PASS_CHARA_COPY_ORIGINAL_TO_TMP(対象)
 #DIM 対象
+VARSET 性別引き継ぎ_TMP
 VARSET ABL引き継ぎ_TMP
 VARSET TALENT引き継ぎ_TMP
 VARSET EXP引き継ぎ_TMP
@@ -343,7 +351,7 @@ IF INRANGE(対象, 0, CHARANUM)
 	FOR LOCAL, 0, VARSIZE("BASE引き継ぎ")
 		BASE引き継ぎ_TMP:LOCAL = BASE引き継ぎ:対象:LOCAL
 	NEXT
-
+	性別引き継ぎ_TMP = 性別引き継ぎ:対象:0
 	陥落素質引き継ぎ_TMP = 陥落素質引き継ぎ:対象:0
 	淫乱素質引き継ぎ_TMP = 淫乱素質引き継ぎ:対象:0
 	締まり引き継ぎ_TMP = 締まり引き継ぎ:対象:0
@@ -388,6 +396,8 @@ ELSE
 		SIF (CMATCH(BASE引き継ぎ:LOCAL, 1)) == CHARANUM
 			BASE引き継ぎ_TMP:LOCAL = 1
 	NEXT
+	SIF (CMATCH(性別引き継ぎ:0, 1)) == CHARANUM
+		性別引き継ぎ_TMP = 1
 	SIF (CMATCH(陥落素質引き継ぎ:0, 1)) == CHARANUM
 		陥落素質引き継ぎ_TMP = 1
 	SIF (CMATCH(淫乱素質引き継ぎ:0, 1)) == CHARANUM
@@ -461,7 +471,8 @@ IF INRANGE(対象, 0, CHARANUM)
 			設定済みフラグ = 1
 		BASE引き継ぎ:対象:LOCAL = BASE引き継ぎ_TMP:LOCAL
 	NEXT
-
+	SIF 性別引き継ぎ_TMP
+		設定済みフラグ  = 1
 	SIF 陥落素質引き継ぎ_TMP
 		設定済みフラグ  = 1
 	SIF 淫乱素質引き継ぎ_TMP
@@ -496,7 +507,7 @@ IF INRANGE(対象, 0, CHARANUM)
 		設定済みフラグ = 1
 	SIF 衣装引き継ぎ_TMP
 		設定済みフラグ = 1
-
+	性別引き継ぎ:対象:0 = 性別引き継ぎ_TMP
 	陥落素質引き継ぎ:対象:0 = 陥落素質引き継ぎ_TMP
 	淫乱素質引き継ぎ:対象:0 = 淫乱素質引き継ぎ_TMP
 	締まり引き継ぎ:対象:0 = 締まり引き継ぎ_TMP
@@ -548,7 +559,8 @@ ELSE
 		SIF MATCH(CFLAG引き継ぎ_TMP:LOCAL, 1)
 			設定済みフラグ = 1
 	NEXT
-
+	SIF 性別引き継ぎ_TMP
+		設定済みフラグ = 1
 	SIF 陥落素質引き継ぎ_TMP
 		設定済みフラグ  = 1
 	SIF 淫乱素質引き継ぎ_TMP
@@ -583,7 +595,7 @@ ELSE
 		設定済みフラグ = 1
 	SIF 衣装引き継ぎ_TMP
 		設定済みフラグ = 1
-
+	CVARSET 性別引き継ぎ, 0, 性別引き継ぎ_TMP
 	CVARSET 陥落素質引き継ぎ, 0, 陥落素質引き継ぎ_TMP
 	CVARSET 淫乱素質引き継ぎ, 0, 淫乱素質引き継ぎ_TMP
 	CVARSET 締まり引き継ぎ, 0, 締まり引き継ぎ_TMP
@@ -642,7 +654,7 @@ ELSEIF INRANGE(RESULT, 0, MAX_PASS_GLOBAL_SAvE)
 		EXP引き継ぎ_G:(LOCAL:1):LOCAL = EXP引き継ぎ_TMP:LOCAL
 	NEXT
 
-
+	性別引き継ぎ_G:(LOCAL:1) = 性別引き継ぎ_TMP
 	陥落素質引き継ぎ_G:(LOCAL:1) = 陥落素質引き継ぎ_TMP
 	淫乱素質引き継ぎ_G:(LOCAL:1) = 淫乱素質引き継ぎ_TMP
 	締まり引き継ぎ_G:(LOCAL:1) = 締まり引き継ぎ_TMP
@@ -706,7 +718,7 @@ ELSEIF INRANGE(RESULT, 0, MAX_PASS_GLOBAL_SAvE)
 		EXP引き継ぎ_TMP:LOCAL = EXP引き継ぎ_G:(LOCAL:1):LOCAL
 	NEXT
 
-
+	性別引き継ぎ_TMP = 性別引き継ぎ_G:(LOCAL:1)
 	陥落素質引き継ぎ_TMP = 陥落素質引き継ぎ_G:(LOCAL:1)
 	淫乱素質引き継ぎ_TMP = 淫乱素質引き継ぎ_G:(LOCAL:1)
 	締まり引き継ぎ_TMP = 締まり引き継ぎ_G:(LOCAL:1)
@@ -754,7 +766,7 @@ NEXT
 FOR LOCAL, 0, VARSIZE("CFLAG引き継ぎ")
 	CVARSET CFLAG引き継ぎ, LOCAL, 0
 NEXT
-
+CVARSET 性別引き継ぎ, 0, 0
 CVARSET 陥落素質引き継ぎ, 0, 0
 CVARSET 淫乱素質引き継ぎ, 0, 0
 CVARSET 締まり引き継ぎ, 0, 0
@@ -781,6 +793,7 @@ CVARSET 引き継ぎ設定済み, 0, 0
 ;-------------------------------------------
 @PASS_CHARA(対象)
 #DIM 対象
+#DIM 性別保存
 #DIM ABL保存, VARSIZE("ABL引き継ぎ")
 #DIM TALENT保存, VARSIZE("TALENT引き継ぎ")
 #DIM EXP保存, VARSIZE("EXP引き継ぎ")
@@ -815,6 +828,7 @@ CVARSET 引き継ぎ設定済み, 0, 0
 #DIM SKILL_ID_SLOT保存, SKILL_GENRE_NUM, MAX_SKILL_SLOT
 #DIM SKILL_NO_SLOT保存, SKILL_GENRE_NUM, MAX_SKILL_SLOT
 #DIM 衣装保存, CLOTH_PART_NUM
+VARSET 性別保存
 VARSET ABL保存
 VARSET TALENT保存
 VARSET EXP保存
@@ -897,6 +911,9 @@ IF 陥落素質引き継ぎ:対象:0
 		TALENT保存:LOCAL = TALENT:対象:LOCAL
 	NEXT
 ENDIF
+
+SIF 性別引き継ぎ:対象:0
+	性別保存 = TALENT:対象:性別
 
 SIF 淫乱素質引き継ぎ:対象:0
 	淫乱素質保存 = TALENT:対象:淫乱系
@@ -1037,6 +1054,9 @@ FOR LOCAL, 0, VARSIZE("BASE引き継ぎ")
 		MAXBASE:対象:LOCAL = BASE保存:LOCAL
 NEXT
 
+SIF 性別引き継ぎ:対象:0
+	TALENT:対象:性別 = 性別保存
+
 ;陥落素質を戻す
 IF 陥落素質引き継ぎ:対象:0
 	FOR LOCAL, 150, 157
@@ -1144,5 +1164,5 @@ GETNUM(TALENT, "崩壊"), GETNUM(TALENT, "虚ろ"), GETNUM(TALENT, "正妻"), GE
 GETNUM(TALENT, "触手妊娠"), GETNUM(TALENT, "Ａ触手妊娠"), GETNUM(TALENT, "子供人質"), 
 GETNUM(TALENT, "爆乳"), GETNUM(TALENT, "巨乳"), GETNUM(TALENT, "貧乳"), GETNUM(TALENT, "絶壁"),
 GETNUM(TALENT, "超短小"), GETNUM(TALENT, "短小"), GETNUM(TALENT, "巨根"), GETNUM(TALENT, "超巨根"),
-GETNUM(TALENT, "ＮＴＲ"), GETNUM(TALENT, "孕み可能"), GETNUM(TALENT, "母性"))
+GETNUM(TALENT, "孕み可能"), GETNUM(TALENT, "母性"))
 }

@@ -1,0 +1,193 @@
+﻿;-------------------------------------------------
+;カテゴリータイトル
+;　ARGS:0=表示するテキスト（全角３文字まで）
+;-------------------------------------------------
+@SMALL_TITLE(ARGS:0)
+	SETCOLOR 0x708090
+	;テキスト表示に半角4マス
+	;左右に2スペースで総半角8マス
+	PRINTFORM %TOSTR_SPACE(2)%
+	PRINTFORM %ARGS:0, 4, LEFT%
+	PRINTFORM %TOSTR_SPACE(2)%
+	RESETCOLOR
+RETURN
+
+;-------------------------------------------------
+;カテゴリータイトルに対応するインデント
+;　ARG:0=1　ABLやEXPなどの間に入れるスペース
+;-------------------------------------------------
+@SMALL_TITLE_SPACE(ARG:0)
+#FUNCTIONS
+IF ARG:0 == 1
+	PRINTFORM %TOSTR_SPACE(4)%
+ELSE
+	PRINTFORM %TOSTR_SPACE(8)%
+ENDIF
+RETURNF
+
+;-------------------------------------------------
+;グラデーションバー（三角矢印型・好みのユニコードに変えてください）
+;　GBAR_NOW			現在値　BASE:(ARG:0):気力など
+;　GBAR_MAX			最大値　MAXBASE:(ARG:0):気力など
+;　GBAR_MAX_SQUARE	バーの幅（ユニコードの個数）
+;　GBAR_ONCOLOR		オンの色（グラデーションは自動的にかける）
+;　GBAR_OFFCOLOR	オフの色・指定不要（オフの色はそのまま表示・デフォルトで0x222222）
+;　GBAR_ANGLE		色相をどちらの角度に動かすか・指定不要（0=プラス 1=マイナス デフォルト0）
+;					そのままでは自然な色相にならないとき用
+;-------------------------------------------------
+@PRINT_GRADATIONBAR(GBAR_NOW, GBAR_MAX, GBAR_MAX_SQUARE, GBAR_ONCOLOR, GBAR_OFFCOLOR, GBAR_ANGLE)
+#DIM GBAR_NOW
+#DIM GBAR_MAX
+#DIM GBAR_MIN
+#DIM GBAR_MAX_SQUARE
+#DIM GBAR_ONCOLOR
+#DIM GBAR_OFFCOLOR
+#DIM GBAR_ANGLE
+#DIM GBAR_H
+#DIM GBAR_S
+#DIM GBAR_V
+#DIM GBAR_ONE_SQUARE
+#DIM GBAR_NOW_SQUARE
+
+;バーの初期値調整
+;最小値はデフォルトで０
+GBAR_MIN = 0
+GBAR_ONE_SQUARE = 0
+GBAR_NOW_SQUARE = 0
+
+IF !GBAR_OFFCOLOR
+	GBAR_OFFCOLOR = 0x222222
+ENDIF
+
+;カラー初期値調整
+GBAR_H = RGB_TO_H(GBAR_ONCOLOR) - (GBAR_MAX_SQUARE / 2)
+GBAR_S = RGB_TO_S(GBAR_ONCOLOR) - GBAR_MAX_SQUARE * 2
+GBAR_V = RGB_TO_V(GBAR_ONCOLOR)
+IF GBAR_H <= 3
+	GBAR_H = 359
+ENDIF
+IF GBAR_S <= 10
+	GBAR_S = 10
+ENDIF
+IF GBAR_V >= 80
+	GBAR_V = 80
+ENDIF
+
+;もしバーのGBAR_MAX（最大値）がBAR_MAX_SQUARE（バー幅・ユニコード個数）より小さいなら
+IF GBAR_MAX < GBAR_MAX_SQUARE
+	;最大値はユニコード個数で上書き
+	GBAR_MAX = GBAR_MAX_SQUARE
+ENDIF
+
+;GBAR_ONE_SQUARE（ひとつのマスに色をつけるにつき、数値いくつ分増えたとみなすのか）を求める
+GBAR_ONE_SQUARE = GBAR_MAX / GBAR_MAX_SQUARE
+
+;１未満になってしまうなら１
+IF GBAR_ONE_SQUARE < 1
+	GBAR_ONE_SQUARE = 1
+ENDIF
+
+;GBAR_NOW（現在値）は何マス分かを求める
+GBAR_NOW_SQUARE = GBAR_NOW / GBAR_ONE_SQUARE
+
+;もし現在値が１未満なら０
+IF GBAR_NOW_SQUARE < 1
+	GBAR_NOW_SQUARE = 0
+ENDIF
+
+;GBAR_MAX_SQUARE（バーの幅・ユニコード個数）まで繰り返し
+FOR LOCAL:0, 0, GBAR_MAX_SQUARE
+	;GBAR_NOW_SQUARE（現在値のマス数）以下ならオンカラー（色付け）
+	IF LOCAL:0 < GBAR_NOW_SQUARE
+		SETCOLOR HSV_TO_RGB(LIMIT(GBAR_H, 0, 359), LIMIT(GBAR_S, 0, 100), LIMIT(GBAR_V, 0, 100))
+		PRINTFORM %UNICODE(0x25B6)%
+		;マスを表示するたびに色相・彩度・輝度を動かしてグラデーションをかける
+		IF GBAR_ANGLE
+			GBAR_H -= 3
+			GBAR_V -= 2
+			GBAR_S += 2
+			IF GBAR_H <= 2
+				GBAR_H = 359
+			ENDIF
+			IF GBAR_S >= 100
+				GBAR_S = 100
+			ENDIF
+		ELSE
+			GBAR_H += 3
+			GBAR_V -= 2
+			GBAR_S += 2
+			IF GBAR_H >= 358
+				GBAR_H = 1
+			ENDIF
+			IF GBAR_S >= 100
+				GBAR_S = 100
+			ENDIF
+		ENDIF
+	;GBAR_NOW_SQUARE（現在値のマス数）以上ならオフカラー（グレー）
+	ELSE
+		SETCOLOR GBAR_OFFCOLOR
+		PRINTFORM %UNICODE(0x25B6)%
+	ENDIF
+NEXT
+RESETCOLOR
+
+RETURN 0
+
+;-------------------------------------------------
+;向かい合う矢印を表示するバー　グラデーションはしない
+;GBAR_LEFT 左側矢印に用いる数値
+;GBAR_RIGHT 右側矢印に用いる数値
+;GBAR_MAX_SQUARE 合計の矢印数
+;GBAR_LEFT/RIGHTCOLOR それぞれ矢印に用いる色
+;-------------------------------------------------
+@PRINT_VERSUSBAR(GBAR_LEFT, GBAR_RIGHT, GBAR_MAX_SQUARE, GBAR_LEFTCOLOR, GBAR_RIGHTCOLOR)
+#DIM GBAR_LEFT
+#DIM GBAR_RIGHT
+#DIM GBAR_LEFT_SQUARE
+#DIM GBAR_MAX_SQUARE
+#DIM GBAR_LEFTCOLOR
+#DIM GBAR_RIGHTCOLOR
+#DIM GBAR_ONE_SQUARE
+
+;両方ゼロならともに最大に
+IF ALLSAMES(0, GBAR_LEFT, GBAR_RIGHT)
+	GBAR_LEFT = GBAR_MAX_SQUARE
+	GBAR_RIGHT = GBAR_MAX_SQUARE
+ENDIF
+
+;もし左右の値の合計が三角形合計より小さければ、GBAR_MAX_SQUAREをかけることで無理やりええかんじにする
+IF GBAR_LEFT + GBAR_RIGHT < GBAR_MAX_SQUARE
+	GBAR_LEFT = GBAR_LEFT * GBAR_MAX_SQUARE
+	GBAR_RIGHT = GBAR_RIGHT * GBAR_MAX_SQUARE
+ENDIF
+
+;GBAR_ONE_SQUARE（ひとつのマスに色をつけるにつき、数値いくつ分増えたとみなすのか）を求める
+GBAR_ONE_SQUARE = (GBAR_LEFT + GBAR_RIGHT) / GBAR_MAX_SQUARE
+
+;１未満になってしまうなら１
+IF GBAR_ONE_SQUARE < 1
+	GBAR_ONE_SQUARE = 1
+ENDIF
+
+;GBAR_LEFT（現在値）は何マス分かを求める
+GBAR_LEFT_SQUARE = GBAR_LEFT / GBAR_ONE_SQUARE
+
+;もし現在値が１未満なら０
+IF GBAR_LEFT_SQUARE < 1
+	GBAR_LEFT_SQUARE = 0
+ENDIF
+
+;GBAR_MAX_SQUARE（バーの幅・ユニコード個数）まで繰り返し
+FOR LOCAL:0, 0, GBAR_MAX_SQUARE
+	;GBAR_NOW_SQUARE（現在値のマス数）以下ならオンカラー（色付け）
+	IF LOCAL:0 < GBAR_LEFT_SQUARE
+		SETCOLOR GBAR_LEFTCOLOR
+		PRINTFORM %UNICODE(0x25B6)%
+	ELSE
+		SETCOLOR GBAR_RIGHTCOLOR
+		PRINTFORM %UNICODE(0x25C0)%
+	ENDIF
+NEXT
+RESETCOLOR
+
+RETURN 0

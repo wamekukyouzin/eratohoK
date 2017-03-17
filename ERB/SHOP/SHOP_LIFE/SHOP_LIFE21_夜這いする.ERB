@@ -31,8 +31,8 @@ RETURN 1
 @SHOP_LIFE_CHECKCHARA21(ARG:0)
 ;隣接している都市がある
 IF TMP_COUNTRY_IS_NEIBORING:(CFLAG:MASTER:所属):(CFLAG:(ARG:0):所属)
-	;非主人公、捕虜ではない、別勢力、君主ではない、どこかの勢力に所属している（放浪、未登場、死亡済みではない）
-	IF (ARG:0 != MASTER && !CFLAG:(ARG:0):捕虜先 && CFLAG:MASTER:所属 != CFLAG:(ARG:0):所属 && GET_ID(ARG:0) != COUNTRY_BOSS:(CFLAG:(ARG:0):所属) && CFLAG:(ARG:0):所属 && !IS_SP_CHARA(ARG:0))
+	;非主人公、捕虜ではない、別勢力、どこかの勢力に所属している（放浪、未登場、死亡済みではない）
+	IF (ARG:0 != MASTER && !CFLAG:(ARG:0):捕虜先 && CFLAG:MASTER:所属 != CFLAG:(ARG:0):所属 && CFLAG:(ARG:0):所属 && !IS_SP_CHARA(ARG:0))
 		SIF YOBAI_ABLE(ARG:0)
 			RETURN CHECK91(ARG:0, 2, 1)
 		RETURN 2
@@ -65,22 +65,34 @@ ENDIF
 ;-------------------------------------------------
 @YOBAI_ABLE(ARG)
 #FUNCTION
-SIF TALENT:(ARG:0):親愛 || TALENT:(ARG:0):恋慕 || TALENT:(ARG:0):隷属 || TALENT:(ARG:0):服従
-	RETURNF 2
-LOCAL:1 = ABL:MASTER:武闘
-LOCAL:2 = ABL:MASTER:知略
-LOCAL:3 = 3
-SIF TALENT:(ARG:0):烙印
-	LOCAL:3 = 2
+LOCAL:1 = YOBAI_ZYOSYU_CALC_POINT(MASTER)
 FOR LOCAL,1, CHARANUM
-	IF CFLAG:LOCAL:夜這いの助手
-		LOCAL:1 += ABL:LOCAL:武闘
-		LOCAL:2 += ABL:LOCAL:知略
-	ENDIF
+	SIF CFLAG:LOCAL:夜這いの助手
+		LOCAL:1 += YOBAI_ZYOSYU_CALC_POINT(LOCAL)
 NEXT
-SIF LOCAL:1 + LOCAL:2 > ABL:ARG:武闘 * LOCAL:3 + ABL:ARG:知略 * LOCAL:3
-	RETURNF 1
-RETURNF 0
+RETURNF LOCAL:1 > YOBAI_TARGET_CALC_POINT(ARG)
+
+;-------------------------------------------------
+;「夜這いする」の能力判定用関数
+;-------------------------------------------------
+@YOBAI_ZYOSYU_CALC_POINT(ARG)
+#FUNCTION
+RETURNF ABL:ARG:武闘 + ABL:ARG:知略
+
+;-------------------------------------------------
+;「夜這いする」の能力判定用関数
+;-------------------------------------------------
+@YOBAI_TARGET_CALC_POINT(ARG)
+#FUNCTION
+SIF GROUPMATCH(1, TALENT:ARG:親愛, TALENT:ARG:恋慕, TALENT:ARG:隷属, TALENT:ARG:服従)
+	RETURNF 0
+LOCAL = 3
+SIF TALENT:(ARG:0):烙印
+	LOCAL = 2
+SIF GET_COUNTRY_BOSS(CFLAG:(ARG:0):所属) == ARG:0
+	LOCAL++
+RETURNF (ABL:ARG:武闘 + ABL:ARG:知略) * LOCAL
+
 
 ;-------------------------------------------------
 ;「夜這いするの左カラムメニューの入力処理
@@ -111,6 +123,7 @@ RETURN 0
 ;　デフォルトの情報を表示しない場合はRETURN 1
 ;-------------------------------------------------
 @SHOP_LIFE_BUTTON_ADD_TOP21(ARG:0)
+PRINTFORM P:{YOBAI_TARGET_CALC_POINT(ARG:0), 3, RIGHT}
 CALL SHOP_LIFE_BUTTON_ADD_TOP_PRISONER(ARG:0)
 RETURN RESULT
 
@@ -119,6 +132,7 @@ RETURN RESULT
 ;　デフォルトの情報を表示しない場合はRETURN 1
 ;-------------------------------------------------
 @SHOP_LIFE_BUTTON_ADD_BOTTOM21(ARG:0)
+PRINTFORM P:{YOBAI_ZYOSYU_CALC_POINT(ARG:0), 3, RIGHT}
 CALL SHOP_LIFE_BUTTON_ADD_BOTTOM_PRISONER(ARG:0)
 RETURN RESULT
 
@@ -141,6 +155,7 @@ CALL COLUMN_RIGHT_PRINTL
 
 ;助手を数える
 LOCAL:1 = 0
+LOCAL:2 = YOBAI_ZYOSYU_CALC_POINT(MASTER)
 FOR LOCAL:0, 0, CHARANUM
 	;選択可能な条件を満たしているかどうかを判定
 	TRYCALLFORM SHOP_LIFE_CHECKCHARA_SUB{FLAG:拠点フェイズ選択コマンド}(LOCAL:0)
@@ -148,6 +163,7 @@ FOR LOCAL:0, 0, CHARANUM
 		;選択中の人数を数える
 		IF CFLAG:(LOCAL:0):夜這いの助手
 			LOCAL:1 ++
+			LOCAL:2 += YOBAI_ZYOSYU_CALC_POINT(LOCAL)
 		ENDIF
 	ELSE
 		;条件を満たしていなければ強制的にＯＦＦ
@@ -161,6 +177,9 @@ SIF LOCAL:1 >= 2
 PRINTFORM (現在{LOCAL:1}/2人)
 RESETCOLOR
 
+PRINTFORM  ポイント:{LOCAL:2}
+PRINTFORM  
+PRINTBUTTON "[助手自動選択]", 1
 CALL COLUMN_RIGHT_PRINTL
 CALL COLUMN_RIGHT_LINE
 CALL COLUMN_RIGHT_PRINTL
@@ -169,6 +188,50 @@ CALL COLUMN_RIGHT_PRINTL
 CALL COLUMN_RIGHT_CHARALIST_BOTTOM(1)
 
 RETURN 0
+
+;-------------------------------------------------
+;「夜這いする」の右カラムボタンの入力処理補佐
+;-------------------------------------------------
+@SHOP_LIFE_EVENTBUY_SUB21(ARG:0)
+#DIM 候補値, 3000
+#DIM 候補, 3000
+#DIM 候補数
+#DIM 助手数
+VARSET 候補値, __INT_MIN__
+VARSET 候補, -1
+VARSET 候補数
+VARSET 助手数
+CVARSET CFLAG, GETNUM(CFLAG, "夜這いの助手"), 0
+
+;最適メンバーの決定
+SIF ARG:0 != 1
+	RETURN 0
+
+FOR LOCAL:0, 1, CHARANUM
+	;選択可能な条件を満たしているかどうかを判定
+	TRYCALLFORM SHOP_LIFE_CHECKCHARA_SUB{FLAG:拠点フェイズ選択コマンド}(LOCAL:0)
+	IF RESULT == 1
+		候補:候補数 = LOCAL
+		候補値:候補数 = YOBAI_ZYOSYU_CALC_POINT(LOCAL)
+		候補数 ++
+	ENDIF
+NEXT
+
+WHILE 1
+	LOCAL = FINDELEMENT(候補値, MAXARRAY(候補値), 0, 候補数)
+	SIF 候補値:LOCAL == __INT_MIN__ || 候補:LOCAL == -1
+		BREAK
+	CFLAG:(候補:LOCAL):夜這いの助手 = 1
+
+	候補値:LOCAL = __INT_MIN__
+	候補:LOCAL = -1
+	助手数 ++
+	SIF 助手数 >= 2
+		BREAK
+WEND
+
+RETURN 0
+
 
 ;-------------------------------------------------
 ;「夜這いする」のリスト１入力処理

@@ -1,0 +1,431 @@
+﻿;-------------------------------------------------
+;性的行為の要求の処理
+;ARG:0は相手の勢力番号、ARG:1は要求の重さ。要求を飲むと1、断ると0を返す
+;-------------------------------------------------
+@DIPLOMACY_REQUESTED_SEX(ARG:0, ARG:1)
+;自国・相手勢力の君主のキャラ番号をそれぞれ取得
+LOCAL:4 = GET_COUNTRY_BOSS(CFLAG:MASTER:所属)
+LOCAL:5 = GET_COUNTRY_BOSS(ARG:0)
+
+;常に主人公が対象
+IF CONFIG:307 == 1
+	LOCAL:6 = MASTER
+;常に君主が対象
+ELSEIF CONFIG:307 == 2
+	LOCAL:6 = LOCAL:4
+;対象が状況によって変化
+ELSE
+	;対象キャラ判定値。正なら君主、負なら主人公が要求の対象になる
+	LOCAL:10 = 0
+
+	;●対象キャラの決定(君主 or 主人公)
+	;君主に対するイメージが悪いほど君主を辱める方向に傾く
+	IF REL_LIKE:(LOCAL:5):(LOCAL:4) >= 800
+		LOCAL:10 -= 20
+	ELSEIF REL_LIKE:(LOCAL:5):(LOCAL:4) >= 300
+		LOCAL:10 -= 10
+	ENDIF
+	IF REL_HATE:(LOCAL:5):(LOCAL:4) >= 800
+		LOCAL:10 += 30
+	ELSEIF REL_HATE:(LOCAL:5):(LOCAL:4) >= 300
+		LOCAL:10 += 15
+	ENDIF
+
+	;主人公との関係の深さに応じて主人公の奉仕を求める方に傾く
+	IF TALENT:(LOCAL:5):親愛
+		LOCAL:10 -= 40
+	ELSEIF TALENT:(LOCAL:5):恋慕
+		LOCAL:10 -= 20
+	ELSEIF TALENT:(LOCAL:5):恋人
+		LOCAL:10 -= 10
+	ELSEIF TALENT:(LOCAL:5):親友
+		LOCAL:10 += 20
+	ELSEIF CFLAG:(LOCAL:5):2 >= 500
+		LOCAL:10 -= 5
+	ENDIF
+
+	;性別による判定
+	IF IS_MALE(LOCAL:5)
+		SIF IS_FEMALE(MASTER)
+			LOCAL:10 -= 10
+		SIF IS_FEMALE(LOCAL:4)
+			LOCAL:10 += 10
+	ENDIF
+	
+	IF IS_FEMALE(LOCAL:5)
+		SIF IS_MALE(MASTER)
+			LOCAL:10 -= 10
+		SIF IS_MALE(LOCAL:4)
+			LOCAL:10 += 10
+	ENDIF
+
+	IF LOCAL:10 >= 0
+		LOCAL:6 = LOCAL:4
+	ELSE
+		LOCAL:6 = MASTER
+	ENDIF
+ENDIF
+
+;●内容の決定(キス、足舐め、フェラ・パイズリ・クンニ)
+LOCAL:11 = 0
+LOCAL:12 = 0
+
+SIF TALENT:(LOCAL:5):素直
+	LOCAL:12 += 10
+SIF TALENT:(LOCAL:5):臆病
+	LOCAL:12 += 10
+SIF TALENT:(LOCAL:5):貞操観念
+	LOCAL:12 += 10
+SIF TALENT:(LOCAL:5):貞操無頓着
+	LOCAL:12 -= 10
+SIF TALENT:(LOCAL:5):生意気
+	LOCAL:11 += 10
+SIF TALENT:(LOCAL:5):プライド高い
+	LOCAL:11 += 10
+
+IF GETBIT(TALENT:(LOCAL:5):淫乱系, 素質_淫乱_サド)
+	LOCAL:11 += 20
+ELSEIF GETBIT(TALENT:(LOCAL:5):淫乱系, 素質_淫乱_マゾ)
+	LOCAL:11 -= 20
+ELSEIF ABL:(LOCAL:5):主導度Ｕ >= 500
+	LOCAL:11 += 15
+ELSEIF ABL:(LOCAL:5):主導度Ｕ >= 300
+	LOCAL:11 += 10
+ELSEIF ABL:(LOCAL:5):主導度Ｕ >= 100
+	LOCAL:11 += 5
+ELSEIF ABL:(LOCAL:5):主導度Ｕ > -100
+	LOCAL:11 += 0
+ELSEIF ABL:(LOCAL:5):主導度Ｕ > -300
+	LOCAL:11 -= 5
+ELSEIF ABL:(LOCAL:5):主導度Ｕ > -500
+	LOCAL:11 -= 10
+ELSE
+	LOCAL:11 -= 15
+ENDIF
+
+IF ABL:(LOCAL:5):倒錯度 >= 800
+	LOCAL:12 -= 15
+ELSEIF ABL:(LOCAL:5):倒錯度 >= 500
+	LOCAL:12 -= 10
+ELSEIF ABL:(LOCAL:5):倒錯度 >= 300
+	LOCAL:12 -= 5
+ENDIF
+
+IF ARG:1 == 1
+	LOCAL:12 -= 10
+ELSEIF ARG:1 == 2
+	LOCAL:12 -= 20
+ENDIF
+
+IF LOCAL:12 >= 5 && LOCAL:6 == MASTER
+	LOCAL:15 = 0
+ELSEIF LOCAL:11 >= 15 && RAND:2
+	LOCAL:15 = 1
+ELSEIF LOCAL:12 <= -15 && RAND:2
+	LOCAL:15 = 2
+ELSEIF !RAND:3
+	IF RAND:2 && (PENIS(MASTER) && VAGINA(LOCAL:5)) || (VAGINA(MASTER) && PENIS(LOCAL:5))
+		LOCAL:15 = 30
+	ELSE
+		LOCAL:15 = 50
+	ENDIF
+ELSEIF PENIS(LOCAL:5)
+	LOCAL:15 = 10
+	IF (TALENT:(LOCAL:6):巨乳 || TALENT:(LOCAL:6):爆乳) && RAND:3 >= 1
+		LOCAL:15 = 11
+	ENDIF
+ELSE
+	LOCAL:15 = 20
+ENDIF
+
+SELECTCASE LOCAL:15
+	CASE 0
+		PRINTFORML %NAME:(LOCAL:5)%は%ANAME(LOCAL:6)%に対して、こちらの提案を飲む代わりにこの場でキスをしろと要求してきた
+	CASE 1
+		PRINTFORML %NAME:(LOCAL:5)%は%ANAME(LOCAL:6)%に対して、こちらの提案を飲む代わりにこの場で足を舐めろと要求してきた
+	CASE 2
+		PRINTFORML %NAME:(LOCAL:5)%は%ANAME(LOCAL:6)%に対して、こちらの提案を飲む代わりにこの場でオナニーしろと要求してきた
+	CASE 10
+		PRINTFORML %NAME:(LOCAL:5)%は%ANAME(LOCAL:6)%に対して、こちらの提案を飲む代わりにフェラで奉仕しろと要求してきた
+	CASE 11
+		PRINTFORML %NAME:(LOCAL:5)%は%ANAME(LOCAL:6)%に対して、こちらの提案を飲む代わりにパイズリで奉仕しろと要求してきた
+	CASE 20
+		PRINTFORML %NAME:(LOCAL:5)%は%ANAME(LOCAL:6)%に対して、こちらの提案を飲む代わりにクンニで奉仕しろと要求してきた
+	CASE 30
+		PRINTFORML %NAME:(LOCAL:5)%は%ANAME(LOCAL:6)%に対して、こちらの提案を飲む代わりに一晩%NAME:(LOCAL:5)%の慰み者になるように要求してきた
+	CASE 50
+		PRINTFORML %NAME:(LOCAL:5)%は%ANAME(LOCAL:6)%に対して、こちらの提案を飲む代わりに兵達の相手をしろと要求してきた
+ENDSELECT
+
+CALL ASK_YN("受け入れる", "断る")
+IF RESULT == 1
+	RETURN 0
+ENDIF
+
+IF LOCAL:6 != MASTER
+	PRINTFORMW %ANAME(MASTER)%は%ANAME(LOCAL:6)%に対して、要求を飲むように説得した…
+	PRINTL 
+ENDIF
+
+SELECTCASE LOCAL:15
+	CASE 0
+		IF LOCAL:11 >= 20
+			PRINTFORML %ANAME(LOCAL:6)%が要求通り%ANAME(LOCAL:5)%に口付けると、%ANAME(LOCAL:5)%は%ANAME(LOCAL:6)%の頭の後ろに手を回し、
+			PRINTFORMW 舌を入れて貪るように%ANAME(LOCAL:6)%の口内を舐め回してきた
+			PRINTFORMW %ANAME(LOCAL:6)%は息苦しさに口を離そうとしたが、%ANAME(LOCAL:5)%に頭をしっかりと抱え込まれて逃げることが出来ない
+			PRINTFORMW やがて%ANAME(LOCAL:5)%が満足するまで、%ANAME(LOCAL:6)%は延々と%ANAME(LOCAL:5)%に抱き締められてキスをされ続けた
+		ELSE
+			PRINTFORML %ANAME(LOCAL:6)%が要求通り%ANAME(LOCAL:5)%に口付けると、%ANAME(LOCAL:5)%は%ANAME(LOCAL:6)%の口内に舌を挿し入れ、
+			PRINTFORMW 誘うように%ANAME(LOCAL:6)%の舌を絡め取った
+			PRINTFORMW %ANAME(LOCAL:6)%は%ANAME(LOCAL:5)%に促されるまま、自らも舌を絡めて深い口付けを交わした
+			PRINTFORMW しばらくして%ANAME(LOCAL:6)%が口を離すと、%ANAME(LOCAL:5)%は物足りないといった表情でさらなるキスをねだってきた
+			PRINTFORMW やがて%ANAME(LOCAL:5)%が満足するまで、%ANAME(LOCAL:6)%は延々と%ANAME(LOCAL:5)%にキスを強要され続けた
+		ENDIF
+		IF TALENT:(LOCAL:4):恋慕 || TALENT:(LOCAL:4):恋人
+			PRINTL 
+			PRINTFORMW ふと背筋に寒気を感じて振り向くと、%ANAME(LOCAL:4)%が%ANAME(LOCAL:6)%のことを恨めしげに睨みつけていた
+			PRINTFORMW 冷や汗を流す%ANAME(LOCAL:6)%をよそに、%ANAME(LOCAL:5)%はクスクスと楽しそうに微笑んでいた
+			PALAM:(LOCAL:4):怒主 += 5000
+		ENDIF
+		PRINTL 
+
+		PRINTFORML <%ANAME(LOCAL:6)%>
+		CALL PRINT_ADD_EXP(LOCAL:6, "キス経験", 3)
+		CALL TRAIN_AUTO_ABLUP(LOCAL:6)
+		PRINTL 
+
+		PRINTFORML <%ANAME(LOCAL:5)%>
+		CALL PRINT_ADD_EXP(LOCAL:5, "キス経験", 3)
+		CALL TRAIN_AUTO_ABLUP(LOCAL:5)
+		PRINTL 
+
+		PRINTFORMW ………………
+
+	CASE 1
+		PRINTFORMW %ANAME(LOCAL:5)%はその場で%ANAME(LOCAL:6)%を自分の前に跪かせると、靴を脱いでムレて臭い立つ足を%ANAME(LOCAL:6)%の鼻に押し当ててきた
+		PRINTFORMW あまりの臭気に顔を背ける%ANAME(LOCAL:6)%に対し、%ANAME(LOCAL:5)%は舐めて奉仕するように命令した
+		PRINTFORMW %ANAME(LOCAL:6)%は止むを得ず、口を開いて%ANAME(LOCAL:5)%の足を舐め始めた
+		PRINTFORMW えづきそうになりながらも必死に奉仕する%ANAME(LOCAL:6)%の姿を見ながら、%ANAME(LOCAL:5)%は満足そうな笑みを浮かべた
+		PRINTFORMW ………………
+
+	CASE 2
+		IF PENIS(LOCAL:6)
+			PRINTFORMW %ANAME(LOCAL:5)%は、まず%ANAME(LOCAL:6)%に対して服を脱いで裸になるように命令した
+			PRINTFORMW %ANAME(LOCAL:6)%は止むを得ず、%ANAME(LOCAL:5)%やその部下たちに見られながら服を脱ぎ裸体を晒した
+			IF LOCAL:6 != MASTER && ABL:(LOCAL:6):欲望 < 3
+				PRINTFORMW %ANAME(LOCAL:6)%は恥ずかしさに耐えながら、自身の肉棒を握り、ゆっくりと前後にシゴき始めた
+				PRINTFORML %ANAME(LOCAL:5)%やその部下たちのクスクスという笑い声を聞きながら、
+				PRINTFORMW %ANAME(LOCAL:6)%は目を伏せひたすら自らのペニスをシゴき続ける…
+				PRINTFORMW やがて、絶頂に達した%ANAME(LOCAL:6)%のペニスから、大量の精液が吹き上がり床へと飛び散った
+				PRINTFORMW 息を荒げながら、快感と屈辱に震える%ANAME(LOCAL:6)%を見て、%ANAME(LOCAL:5)%は満足そうな笑みを浮かべた
+				PALAM:(LOCAL:6):怒外 += 5000
+			ELSE
+				IF ABL:(LOCAL:6):露出 >= 3
+					PRINTFORMW %ANAME(LOCAL:6)%は恥ずかしさに興奮しながら、自身の肉棒を握り、激しく前後にシゴき始めた
+				ELSE
+					PRINTFORMW %ANAME(LOCAL:6)%は自身の肉棒を握ると、ゆっくりと前後にシゴき始めた
+				ENDIF
+				PRINTFORMW %ANAME(LOCAL:6)%がペニスを擦り上げるたび、周囲から%ANAME(LOCAL:5)%やその部下たちのクスクスという笑い声が響く…
+				PRINTFORMW やがて、%ANAME(LOCAL:6)%が絶頂に達すると、ペニスから大量の精液が吹き上がり床へと飛び散った
+				PRINTFORMW 息を荒げながら快感に震える%ANAME(LOCAL:6)%を見て、%ANAME(LOCAL:5)%は満足そうな笑みを浮かべた
+			ENDIF
+			PRINTL 
+			CALL FUCK(LOCAL:6, "露出, 自慰, 射精, 性技, 欲望")
+		ELSE
+			PRINTFORMW %ANAME(LOCAL:5)%は、まず%ANAME(LOCAL:6)%に対して服を脱いで裸になるように命令した
+			PRINTFORMW %ANAME(LOCAL:6)%は止むを得ず、%ANAME(LOCAL:5)%やその部下たちに見られながら服を脱ぎ裸体を晒した
+			IF LOCAL:6 != MASTER && ABL:(LOCAL:6):欲望 < 3
+				PRINTFORMW %ANAME(LOCAL:6)%は恥ずかしさに耐えながら、自身の秘部を指で弄り始めた
+				PRINTFORMW %ANAME(LOCAL:5)%やその部下たちのクスクスという笑い声を聞かされながら、
+				PRINTFORMW %ANAME(LOCAL:6)%は涙目になって必死に自分の体を慰め続ける…
+				PRINTFORMW やがて、%ANAME(LOCAL:6)%は甘い声を漏らしながら、小さく震えて絶頂した
+				PRINTFORMW 息を荒げながら、虚ろな目で快感の余韻に震える%ANAME(LOCAL:6)%を見て、%ANAME(LOCAL:5)%は満足そうな笑みを浮かべた
+				PALAM:(LOCAL:6):怒外 += 5000
+			ELSE
+				IF ABL:(LOCAL:6):露出 >= 3
+					PRINTFORMW %ANAME(LOCAL:6)%は恥ずかしさに興奮しながら、自身の秘部を指で弄り始めた
+				ELSE
+					PRINTFORMW %ANAME(LOCAL:6)%は恥ずかしさに耐えながら、自身の秘部を指で弄り始めた
+				ENDIF
+				PRINTFORMW %ANAME(LOCAL:5)%やその部下たちのクスクスという笑い声を聞くと、
+				PRINTFORMW 羞恥のあまり%ANAME(LOCAL:6)%の体が自然と熱くなってしまう…
+				PRINTFORMW やがて、%ANAME(LOCAL:6)%は甘い声を漏らしながら、衆目の前でビクビクと震えて絶頂した
+				PRINTFORMW 息を荒げながら快感の余韻に震える%ANAME(LOCAL:6)%を見て、%ANAME(LOCAL:5)%は満足そうな笑みを浮かべた
+			ENDIF
+			CALL FUCK(LOCAL:6, "欲望, 自慰, Ｃ, Ｂ, 露出, 性技")
+		ENDIF
+		PRINTL 
+		PRINTFORMW ………………
+
+	CASE 10
+		PRINTFORMW %ANAME(LOCAL:6)%は%ANAME(LOCAL:5)%の私室に連れ込まれた…
+		PRINTFORMW ………………
+		PRINTFORMW %ANAME(LOCAL:5)%は寝台の端に腰掛けると、%ANAME(LOCAL:6)%を自分の前に跪かせた
+		PRINTFORMW %ANAME(LOCAL:5)%は服の中からイチモツを取り出すと、%ANAME(LOCAL:6)%に舐めて気持ち良くするように命令した
+		IF LOCAL:6 != MASTER && ABL:(LOCAL:6):欲望 < 3
+			PRINTFORMW %ANAME(LOCAL:6)%が戸惑っていると、%ANAME(LOCAL:5)%は%ANAME(LOCAL:6)%の頭を掴み、口の中に無理やり竿をねじ込んだ
+			PRINTFORMW 苦しそうに呻く%ANAME(LOCAL:6)%を省みることなく、%ANAME(LOCAL:5)%は何度も喉奥までペニスを突き込んでいく
+			PRINTFORMW やがて%ANAME(LOCAL:5)%がペニスを喉奥に突き入れたまま射精すると、%ANAME(LOCAL:6)%激しくむせ返り、蹲った
+			PALAM:(LOCAL:6):怒外 += 5000
+		ELSE
+			PRINTFORMW %ANAME(LOCAL:6)%が%ANAME(LOCAL:5)%のペニスに舌を絡ませると、%ANAME(LOCAL:5)%は満足そうな表情を浮かべ%ANAME(LOCAL:6)%の頭を撫でた
+			PRINTFORMW やがて感極まった%ANAME(LOCAL:5)%は%ANAME(LOCAL:6)%の頭を強引に掴み、竿を%ANAME(LOCAL:6)%の口の中に突き入れて射精した
+			IF ABL:(LOCAL:6):精愛 >= 2
+				PRINTFORMW 一滴もこぼさずに飲むようにと命令された%ANAME(LOCAL:6)%は、むせ返るような精液の臭いに恍惚としながら%ANAME(LOCAL:5)%の精を飲み下した
+			ELSE
+				PRINTFORMW 一滴もこぼさずに飲むようにと命令された%ANAME(LOCAL:6)%は、むせ返るような精液の臭いに耐えながら%ANAME(LOCAL:5)%の精を飲み込んだ
+			ENDIF
+		ENDIF
+		PRINTL 
+		CALL FUCK(LOCAL:5, "Ｃ, 欲望, 射精")
+		CALL FUCK(LOCAL:6, "欲望, 奉仕, 性技, 精愛, 口淫", "キス喪失, 口内射精", 0, @"%ANAME(LOCAL:5)%のペニス", "", "", 喪失_外交)
+		PRINTFORMW ………………
+
+	CASE 11
+		PRINTFORMW %ANAME(LOCAL:6)%は%ANAME(LOCAL:5)%の私室に連れ込まれた…
+		PRINTFORMW ………………
+		PRINTFORMW %ANAME(LOCAL:5)%は寝台の端に腰掛けると、%ANAME(LOCAL:6)%を自分の前に跪かせた
+		PRINTFORMW %ANAME(LOCAL:5)%は服の中からイチモツを取り出すと、%ANAME(LOCAL:6)%に胸で気持ち良くするように命令した
+		IF LOCAL:6 != MASTER && ABL:(LOCAL:6):欲望 < 3
+			;胸が普通サイズ以上
+			IF GET_BUSTSIZE_NUM(LOCAL:6) >= 0
+				PRINTFORMW %ANAME(LOCAL:6)%が戸惑っていると、%ANAME(LOCAL:5)%は%ANAME(LOCAL:6)%を押し倒し、胸の間に無理やりペニスを突き入れた
+				PRINTFORMW 強く胸を掴まれて痛みに呻く%ANAME(LOCAL:6)%だったが、%ANAME(LOCAL:5)%はお構いなしに%ANAME(LOCAL:6)%の胸でオナニーをし続ける
+				PRINTFORMW やがて感極まった%ANAME(LOCAL:5)%の大量の白濁液が顔面へとぶちまけられ、%ANAME(LOCAL:6)%は嫌悪感と屈辱のあまり涙を浮かべた
+			;貧乳以下
+			ELSE
+				PRINTFORMW %ANAME(LOCAL:6)%が戸惑っていると、%ANAME(LOCAL:5)%は%ANAME(LOCAL:6)%を押し倒し、胸に無理やりペニスを擦りつけ始めた
+				PRINTFORMW 胸にグリグリとイチモツを押し付けられ痛みに呻く%ANAME(LOCAL:6)%だったが、%ANAME(LOCAL:5)%はお構いなしに%ANAME(LOCAL:6)%の胸でオナニーをし続ける
+				PRINTFORMW やがて感極まった%ANAME(LOCAL:5)%の大量の白濁液が顔面へとぶちまけられ、%ANAME(LOCAL:6)%は嫌悪感と屈辱のあまり涙を浮かべた
+			ENDIF
+			PALAM:(LOCAL:6):怒外 += 5000
+			PRINTL 
+		ELSE
+			;胸が普通サイズ以上
+			IF GET_BUSTSIZE_NUM(LOCAL:6) >= 0
+				PRINTFORML %ANAME(LOCAL:6)%が言われるまま胸の谷間で%ANAME(LOCAL:5)%のペニスを挟むと、
+				PRINTFORMW %ANAME(LOCAL:5)%は意地の悪い笑みを浮かべながら%ANAME(LOCAL:6)%の乳首を摘み上げてきた
+				PRINTFORMW %ANAME(LOCAL:6)%は逆らうことも出来ず、乳首への快感に耐えながら必死に胸を揺り動かして%ANAME(LOCAL:5)%のイチモツに奉仕し続けた
+			;貧乳以下
+			ELSE
+				PRINTFORML %ANAME(LOCAL:6)%が言われるまま薄い胸を%ANAME(LOCAL:5)%のペニスに擦りつけると、
+				PRINTFORMW %ANAME(LOCAL:5)%は意地の悪い笑みを浮かべながら%ANAME(LOCAL:6)%の乳首をクリクリと弄り回してきた
+				PRINTFORMW %ANAME(LOCAL:6)%は逆らうことも出来ず、乳首への快感に耐えながら必死に胸を擦りつけて%ANAME(LOCAL:5)%のイチモツに奉仕し続けた
+			ENDIF
+			PRINTFORML やがて感極まった%ANAME(LOCAL:5)%に白濁を顔面へとぶちまけられながら、
+			IF TALENT:(LOCAL:6):母乳体質
+				PRINTFORMW %ANAME(LOCAL:6)%も乳首で達してしまい、大量の母乳を噴き出しながらビクビクと体を震わせた
+			ELSE
+				PRINTFORMW %ANAME(LOCAL:6)%も乳首で達してしまいビクビクと体を震わせた
+			ENDIF
+			PRINTL 
+		ENDIF
+		CALL FUCK(LOCAL:5, "Ｃ, 欲望, 射精")
+		CALL FUCK(LOCAL:6, "欲望, 奉仕, 性技, 精愛, Ｂ")
+		PRINTL 
+		PRINTFORMW ………………
+
+	CASE 20
+		PRINTFORMW %ANAME(LOCAL:6)%は%ANAME(LOCAL:5)%の私室に連れ込まれた…
+		PRINTFORMW ………………
+		PRINTFORMW %ANAME(LOCAL:5)%は寝台の端に腰掛けると、%ANAME(LOCAL:6)%を自分の前に跪かせた
+		PRINTFORMW %ANAME(LOCAL:5)%は股を開いて、%ANAME(LOCAL:6)%に舐めて気持ち良くするように命令した
+		IF LOCAL:6 != MASTER && ABL:(LOCAL:6):欲望 < 3
+			PRINTFORMW %ANAME(LOCAL:6)%が戸惑っていると、%ANAME(LOCAL:5)%は%ANAME(LOCAL:6)%の頭を掴み、強引にワレメに口を押し当てさせた
+			PRINTFORMW まるで顔でオナニーするかのようにワレメを擦りつけられ、%ANAME(LOCAL:6)%は苦しそうに呻いた
+			PALAM:(LOCAL:6):怒外 += 5000
+		ELSE
+			PRINTFORMW %ANAME(LOCAL:6)%が舌を出して奉仕を始めると、%ANAME(LOCAL:5)%は興奮した様子で%ANAME(LOCAL:6)%の頭を掴み、股間に強く押し当ててきた
+			PRINTFORMW %ANAME(LOCAL:6)%は%ANAME(LOCAL:5)%の愛液にまみれながら、%ANAME(LOCAL:5)%が満足するまでひたすら奉仕を続けた
+		ENDIF
+		PRINTL 
+
+		CALL FUCK(LOCAL:5, "Ｃ, 欲望")
+		CALL FUCK(LOCAL:6, "欲望, 奉仕, 性技, 精愛, 口淫", "キス喪失", 0, @"%ANAME(LOCAL:5)%の秘貝", "", "", 喪失_外交)
+
+		PRINTFORMW ………………
+	CASE 30
+		IF PENIS(LOCAL:5) && VAGINA(LOCAL:6)
+			PRINTFORML %ANAME(LOCAL:5)%はさっそく、%ANAME(LOCAL:6)%の服を脱がせ、自らも服を脱いだ
+			PRINTFORML %ANAME(LOCAL:5)%の股座にある逸物は、快楽への期待で早くもいきり勃っている……
+			SELECTCASE RAND:7
+				CASE 0
+					PRINTFORML %ANAME(LOCAL:5)%は、%ANAME(LOCAL:6)%を四つん這いにさせ、後ろからその雌穴を貫いた
+				CASE 1
+					PRINTFORML %ANAME(LOCAL:5)%は、%ANAME(LOCAL:6)%を仰向けにさせ、覆い被さって上から何度も雌穴を突いた
+				CASE 2
+					PRINTFORML %ANAME(LOCAL:5)%は、%ANAME(LOCAL:6)%に壁に手をついて尻を向けさせ、後ろからその雌穴を貫いた
+				CASE 3
+					PRINTFORML %ANAME(LOCAL:5)%は、%ANAME(LOCAL:6)%と向かい合い、立ったまま雌穴を貫いた
+				CASE 4
+					PRINTFORML %ANAME(LOCAL:5)%は座り、%ANAME(LOCAL:6)%を向かい合った体勢で跨がらせ、下から何度も突き上げた
+				CASE 5
+					PRINTFORML %ANAME(LOCAL:5)%は座り、%ANAME(LOCAL:6)%を後ろ向きの体勢で跨がらせ、下から何度も突き上げた
+				CASE 6
+					PRINTFORML %ANAME(LOCAL:5)%は仰向けに寝ると、%ANAME(LOCAL:6)%を己の上に跨がらせ、自ら腰を振らせた
+			ENDSELECT
+			PRINTFORML やがて%ANAME(LOCAL:5)%は、%ANAME(LOCAL:6)%の膣内にたっぷりと射精した
+			PRINTFORML ペニスを引き抜かれた淫裂からは、白いものがどろりとこぼれ落ちている……
+			
+			PRINTL 
+			CALL FUCK(LOCAL:5, "Ｃ, 欲望, 性交, 射精, Ｖ挿入", "童貞喪失", 0, "", "", @"%ANAME(LOCAL:6)%の膣", 喪失_外交)
+			CALL FUCK(LOCAL:6, "欲望, 奉仕, 性交, 精愛, Ｖ, 苦痛快楽, マゾ, Ｖ性交", "処女喪失, 膣内射精", GET_ID(LOCAL:5), "", ANAME(LOCAL:5), "", 喪失_外交)
+
+			PRINTFORMW ………………
+		ELSEIF PENIS(LOCAL:6) && VAGINA(LOCAL:5)
+			PRINTFORML %ANAME(LOCAL:5)%はさっそく、%ANAME(LOCAL:6)%の服を脱がせ、自らも服を脱いだ
+			PRINTFORML %ANAME(LOCAL:6)%の股座にある逸物は、快楽への期待で早くもいきり勃っている……
+			PRINTFORML これは期待できそうだと、%ANAME(LOCAL:5)%は舌なめずりした
+			SELECTCASE RAND:7
+				CASE 0
+					PRINTFORML %ANAME(LOCAL:5)%は自ら%ANAME(LOCAL:6)%に尻を向け、腰をくねらせて性交をねだった
+				CASE 1
+					PRINTFORML %ANAME(LOCAL:5)%は自ら仰向けに横たわり、股を開き秘裂を指で開いて性交をねだった
+				CASE 2
+					PRINTFORML %ANAME(LOCAL:5)%は自ら壁に手をついて%ANAME(LOCAL:6)%に尻を向け、後ろから雌穴を貫くようねだった
+				CASE 3
+					PRINTFORML %ANAME(LOCAL:5)%は%ANAME(LOCAL:6)%と向かい合い、立ったままの姿勢で犯すよう命じた
+				CASE 4
+					PRINTFORML %ANAME(LOCAL:5)%は%ANAME(LOCAL:6)%を座らせ、向かい合った体勢で跨がると、下から突き上げるようねだった
+				CASE 5
+					PRINTFORML %ANAME(LOCAL:5)%は%ANAME(LOCAL:6)%を座らせ、後ろ向きの体勢で跨がると、下から何度も突き上げるようねだった
+				CASE 6
+					PRINTFORML %ANAME(LOCAL:5)%は%ANAME(LOCAL:6)%を仰向けに寝かせ、その上に跨がると、亀頭に己の雌穴の入り口を擦りつける
+			ENDSELECT
+			PRINTFORML %ANAME(LOCAL:6)%は命じられるがまま、%ANAME(LOCAL:5)%に挿入した……
+			PRINTFORML やがて%ANAME(LOCAL:6)%が限界を迎えると、%ANAME(LOCAL:5)%はそのまま膣内で射精させた……
+			PRINTFORML ペニスを引き抜かれた淫裂からは、白い物がどろりとこぼれ落ちている……
+			
+			PRINTL 
+			CALL FUCK(LOCAL:5, "欲望, 奉仕, 性交, 精愛, Ａ, 苦痛快楽, マゾ, Ａ性交", "Ａ処女喪失, 腸内射精", GET_ID(LOCAL:5), "", ANAME(LOCAL:5), "", 喪失_外交)
+			CALL FUCK(LOCAL:6, "Ｃ, 欲望, 性交, 射精, Ａ挿入", "童貞喪失", 0, "", "", @"%ANAME(LOCAL:6)%のアナル", 喪失_外交)
+			PRINTFORMW ………………
+		ENDIF
+	CASE 50
+		IF IS_MALE(LOCAL:6)
+			PRINTFORML %ANAME(LOCAL:5)%はさっそく、%ANAME(LOCAL:6)%の服を脱がせ、自らも服を脱いだ
+			PRINTFORML %ANAME(LOCAL:5)%の秘所は、快楽への期待で早くも濡れ始めている……
+			PRINTFORML 不意に、%ANAME(LOCAL:5)%はぱんぱんと手を叩いた
+			PRINTFORML すると、艶やかな女兵士達がぞろぞろとなだれ込んできた
+			PRINTFORML そのまま、%ANAME(LOCAL:6)%は、慰安として兵士達に提供されてしまった……
+			CALL FUCK(LOCAL:5, "欲望, Ｃ, Ｂ, 自慰", "")
+			CALL FUCK(LOCAL:6, "欲望, 奉仕, 性技, Ｃ, Ｂ, Ｍ, 射精, 苦痛快楽, 緊縛, マゾ, キス, 口淫, 輪姦, Ｖ挿入, Ａ挿入", "キス喪失, 童貞喪失", GET_SPERM_ID("兵士"), @"%ANAME(LOCAL:5)%の私兵の秘貝", "", @"%ANAME(LOCAL:5)%の私兵の膣", 喪失_外交)
+			PRINTFORML やがてコトが終わると、そこには精根尽き果て陰茎から種を弱々しく零す%ANAME(LOCAL:6)%と、
+			PRINTFORML %ANAME(LOCAL:6)%の痴態を肴に何度も自慰をし、ぐったりと疲れた%ANAME(LOCAL:5)%が残されていた
+			PRINTL 
+		ELSEIF VAGINA(LOCAL:6)
+			PRINTFORML %ANAME(LOCAL:5)%はさっそく、%ANAME(LOCAL:6)%の服を脱がせ、自らも服を脱いだ
+			PRINTFORML %ANAME(LOCAL:5)%の股座にある逸物は、快楽への期待で早くもいきり勃っている……
+			PRINTFORML 不意に、%ANAME(LOCAL:5)%はぱんぱんと手を叩いた
+			PRINTFORML すると、屈強な兵士達がぞろぞろとなだれ込んできた
+			PRINTFORML そのまま、%ANAME(LOCAL:6)%は、慰安として兵士達に提供されてしまった……
+			CALL FUCK(LOCAL:5, "欲望, Ｃ, Ｂ, 自慰", "")
+			CALL FUCK(LOCAL:6, "欲望, 奉仕, 性技, Ｃ, Ｖ, Ａ, Ｂ, Ｍ, Ｖ拡張, Ａ拡張, 性交, 自慰, 精愛, 露出, 排泄, 射精, 苦痛快楽, 緊縛, マゾ, キス, 口淫, 輪姦, Ｖ性交, Ａ性交", "キス喪失, 処女喪失, Ａ処女喪失, 膣内射精, 腸内射精, 口内射精", GET_SPERM_ID("兵士"), @"%ANAME(LOCAL:5)%の私兵のペニス", @"%ANAME(LOCAL:5)%の私兵", "", 喪失_外交)
+			PRINTFORML やがてコトが終わると、そこには全身あらゆる穴から種を零す%ANAME(LOCAL:6)%と、
+			PRINTFORML %ANAME(LOCAL:6)%の痴態を肴に何度も自慰をし、ぐったりと疲れた%ANAME(LOCAL:5)%が残されていた
+			PRINTL 
+		ENDIF
+ENDSELECT
+
+RETURN 1
+

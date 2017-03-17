@@ -1,0 +1,78 @@
+﻿;-------------------------------------------------
+;「訓練する」の名称
+;-------------------------------------------------
+@SHOP_SLG_NAME78
+RESULTS:0 '= "訓練する"
+
+;-------------------------------------------------
+;「訓練する」の選択可否
+;-------------------------------------------------
+@SHOP_SLG_CHECK78
+SIF FLAG:観戦モード
+	RETURN 0
+SIF CFLAG:MASTER:所属 != 0
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;「訓練する」の左カラムメニューの入力処理
+;-------------------------------------------------
+@SHOP_SLG_EVENTBUY78
+CALL SLG_TRAIN
+RETURN 1
+
+;-------------------------------------------------
+;「訓練する」本体
+;-------------------------------------------------
+@SLG_TRAIN
+#DIM 訓練能力
+#DIM 訓練経験値
+#DIM アップ量
+CALL SINGLE_DRAWLINE
+PRINTFORML 余暇を利用し、能力を鍛えます
+PRINTFORML 何を伸ばしますか？
+CALL ASK_MULTI("武闘", "防衛", "知略", "政治", "料理", "歌唱", "戻る")
+SELECTCASE RESULT
+	CASE 0
+		訓練能力 = GETNUM(ABL, "武闘")
+		訓練経験値 = GETNUM(EXP, "武闘経験値")
+	CASE 1
+		訓練能力 = GETNUM(ABL, "防衛")
+		訓練経験値 = GETNUM(EXP, "防衛経験値")
+	CASE 2
+		訓練能力 = GETNUM(ABL, "知略")
+		訓練経験値 = GETNUM(EXP, "知略経験値")
+	CASE 3
+		訓練能力 = GETNUM(ABL, "政治")
+		訓練経験値 = GETNUM(EXP, "政治経験値")
+	CASE 4
+		訓練能力 = GETNUM(ABL, "料理")
+		訓練経験値 = GETNUM(EXP, "料理経験値")
+	CASE 5
+		訓練能力 = GETNUM(ABL, "歌唱")
+		訓練経験値 = GETNUM(EXP, "歌唱経験値")
+	CASE 6
+		RETURN 0
+ENDSELECT
+
+LOCAL:2 = ABLUP_NEED_EXP_SLG(ABL:(LOCAL:1):訓練能力)
+SELECTCASE ABL:(LOCAL:1):訓練能力
+	CASE IS >= ランク閾値:ランク_ＳＬＧ:ランク_A
+		アップ量 = 10
+	CASE IS >= ランク閾値:ランク_ＳＬＧ:ランク_B
+		アップ量 = RAND(0, LOCAL:2 / 2)
+	CASE IS >= ランク閾値:ランク_ＳＬＧ:ランク_C
+		アップ量 = RAND(0, LOCAL:2)
+	CASE IS >= ランク閾値:ランク_ＳＬＧ:ランク_F
+		アップ量 = RAND(0, LOCAL:2 * 2)
+	CASEELSE
+		アップ量 = RAND(LOCAL:2, LOCAL:2 * 2)
+ENDSELECT
+
+CALL COLORPRINT(@"%ABLNAME:(訓練能力)%の訓練を行った！", COLOR("注意"), "W")
+CALL PRINT_ADD_EXP(MASTER, EXPNAME:(訓練経験値), アップ量 / 100, 1)
+CALL TRAIN_AUTO_ABLUP(MASTER)
+PRINTFORMW いい汗をかいた……
+RESULT = 1
+BEGIN TURNEND
+
