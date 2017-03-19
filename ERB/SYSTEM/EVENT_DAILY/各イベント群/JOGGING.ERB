@@ -1,0 +1,161 @@
+﻿;---------------------
+;発生確率(1000分率 100で10%)
+;---------------------
+@EVENT_DAILY_JOGGING_RATE()
+RETURN 30
+
+;---------------------
+;確率以外の発生判定
+;---------------------
+@EVENT_DAILY_JOGGING_DECISION()
+SIF !IS_MALE(MASTER)
+	RETURN 0
+
+RETURN 1
+
+;---------------------
+;ジャンル
+;---------------------
+@EVENT_DAILY_JOGGING_GENRE()
+RETURN デイリー_ジャンル_エロ
+
+;---------------------
+;特定の条件を満たすキャラをランダムに選択する場合に利用
+;他の関数は必須だが、これだけはなくてもよい　というかパフォーマンスへ影響するので不要なら作ってはならない
+;対象が存在せずデイリーを開始できない場合は0を返すことでデイリーの発生をキャンセルする
+;---------------------
+@EVENT_DAILY_JOGGING_SETTARGET()
+
+;同じ国に所属している妊娠中でも捕虜でもない女キャラ、対象がいない場合はイベントキャンセル
+FOR LOCAL, 0, CHARANUM
+	IF CFLAG:(LOCAL):所属 == CFLAG:MASTER:所属 && !(CFLAG:(LOCAL):行動不能状態 == 1) && !CFLAG:(LOCAL):捕虜先 && IS_FEMALE(LOCAL) && !IS_ANIMAL(LOCAL)
+		DAILY_TARGET:DAILY_TARGET_NUM = LOCAL 
+		DAILY_TARGET_NUM ++
+	ENDIF
+NEXT
+
+SIF DAILY_TARGET_NUM == 0
+	RETURN 0
+
+RETURN 1
+
+;---------------------
+;本体
+;---------------------
+@EVENT_DAILY_JOGGING
+#DIM 対象
+
+CALL FISHER_YATES_SHAFFLE(DAILY_TARGET_NUM)
+
+対象 = DAILY_TARGET:(SHAFFLE_ARRAY:0)
+
+;セリフを削除
+;口上デイリーじゃないんだからさぁ
+PRINTFORML ランニング姿の%ANAME(対象)%に出会った
+PRINTFORML 今からジョギングに行くらしい
+PRINTFORMW 彼女は%ANAME(MASTER)%も一緒にどうかと誘ってきた
+PRINTFORML どうしよう？
+CALL ASK_MULTI("走る" ,"断る")
+IF RESULT == 1
+	PRINTFORML 断った
+	PRINTFORMW 彼女は残念そうにしていたが、元気に走り去っていった
+ELSEIF RESULT == 0
+	PRINTFORML 折角なので走る事にした
+	PRINTFORMW %ANAME(MASTER)%は彼女と一緒に宮殿の周りを走った
+	PRINTFORML ・
+	PRINTFORML ・
+	PRINTFORMW ・
+	IF (MAXBASE:MASTER:体力 / 100) * (RAND:10 + 1) >= (MAXBASE:対象:体力 / 100) * (RAND:10 + 1)
+		PRINTFORML 息を切らせた%ANAME(対象)%がぐったりと木陰に横たわっている
+		PRINTFORMW 汗だくでシャツを透けさせながら、赤ら顔でそう漏らす彼女の姿はやたらと色っぽい
+		PRINTFORML どうしよう？
+		CALL ASK_MULTI(@"水を渡す" ,"襲い掛かる")
+		IF RESULT == 0
+			PRINTFORML %ANAME(MASTER)%は%ANAME(対象)%に水を渡した
+			PRINTFORMW 彼女は笑顔でお礼を言うと、美味しそうに飲んだ
+			CFLAG:対象:好感度 += 150
+			CALL COLORPRINT(@"%ANAME(対象)%の好感度が150上がった", COLOR("注意"))
+			PRINTFORMW 
+		ELSE
+			PRINTFORML %ANAME(MASTER)%は我慢できずに%ANAME(対象)%に覆い被さった
+			PRINTFORMW 彼女は驚き戸惑っていたが、%ANAME(MASTER)%の股間の膨らみを目にして真っ赤になった
+			IF !(CFLAG:対象:好感度 >= 1500 || CFLAG:対象:従属度 >= 1500 || TALENT:対象:合意 == 1)
+				PRINTFORML %ANAME(MASTER)%が%ANAME(対象)%の身体に手を伸ばそうとした瞬間、彼女は悲鳴を上げた
+				PRINTFORMW 彼女は怯んだ%ANAME(MASTER)%を突き飛ばすと、一目散に走り去った
+				CFLAG:対象:好感度 -= 500
+				CALL COLORPRINT(@"%ANAME(対象)%の好感度が500下がった…", COLOR("注意"))
+				PRINTFORMW 
+			ELSE
+				PRINTFORML %ANAME(MASTER)%が%ANAME(対象)%の身体に手を伸ばすと彼女は小さく喘ぎ声を漏らした
+				PRINTFORML そのままゆっくりと愛撫を続けても彼女は抵抗せずにされるがままに身をくねらせる
+				PRINTFORML 息を荒げ頬を赤らめ身悶えるその表情に一物ははち切れんばかりになる
+				PRINTFORMW 我慢できずに%ANAME(対象)%の服に手をかけると、彼女は恥ずかしそうにしながら頷いた
+				PRINTFORML 
+				PRINTFORML %ANAME(MASTER)%は%ANAME(対象)%を近くの茂みの奥に連れ込んで激しくまぐわっている
+				PRINTFORMW 彼女の身体は火照り切っており、突き上げる毎に敏感に反応してヨガる
+				PRINTFORML 感じすぎて喘ぎっぱなしの%ANAME(対象)%の姿は%ANAME(MASTER)%の興奮を煽り、腰の動きを加速させる
+				PRINTFORMW 奥を小突きながら突起をこねくり回すと彼女は切なそうに身をくねらせ膣をキュッと締めた
+				PRINTFORML その内%ANAME(対象)%は自ら%ANAME(MASTER)%にしがみつきながら色っぽい雌の顔を見せつけキスをしてきた
+				PRINTFORML %ANAME(MASTER)%もお返しとばかりに腰をより深く打ち込みながら、彼女と激しく舌を絡ませる
+				PRINTFORMW 密着してお互いの汗を混ぜ合わせながら、肉欲を貪る様にただただ肉体を重ねあわせる
+				PRINTFORML %ANAME(対象)%がビクビクと痙攣しだすと、それに合わせて膣全体が蠢き射精を促してくる
+				PRINTFORMW %ANAME(MASTER)%はぎゅっと%ANAME(対象)%を抱きしめ、彼女が絶頂すると同時に思い切りザーメンを放った
+				PRINTFORML …絶頂を終えた彼女はその余韻で力なく%ANAME(MASTER)%にもたれるように倒れ込んできた
+				PRINTFORML %ANAME(対象)%は恍惚とした表情で瞳を潤ませ、心底気持ちよさそうに放心している
+				PRINTFORML しかし昂った%ANAME(MASTER)%は一度では収まらず、我慢できずに彼女にキスをして次を求めた
+				PRINTFORMW %ANAME(MASTER)%のおねだりに彼女は蠱惑的な笑みを浮かべると、くいくい♥っと腰を揺すって来た
+				PRINTFORMW その日の午後は二人で汗だくになりながら、ひたすら野外でのセックスを楽しんだ
+				CALL FUCK_MAKELOVE(対象, GET_ID(MASTER), @"%ANAME(MASTER)%の唇", ANAME(MASTER))
+				CALL FUCK(MASTER, "Ｃ, 射精, Ｖ挿入", "童貞喪失", 0, "", "", @"%ANAME(対象)%の膣")
+				CFLAG:対象:好感度 += 300
+				CALL COLORPRINT(@"%ANAME(対象)%の好感度が300上がった", COLOR("注意"))
+				PRINTFORMW 
+			ENDIF
+		ENDIF
+	ELSE
+		PRINTFORML %ANAME(MASTER)%は%ANAME(対象)%の体力に振り回されて疲れ果てた…
+		PRINTFORML これ以上走れなくなり、風が良く通る木陰で休むことにした
+		PRINTFORMW 汗を流して笑う彼女に「だらしがないぞ」とからかわれてしまった
+		IF (CFLAG:対象:好感度 >= 1300 || CFLAG:対象:従属度 >= 1300 || TALENT:対象:合意 == 1 || ABL:対象:欲望 >= 2) && ABL:対象:性知識 >= 2 && TALENT:対象:処女 == 0
+			PRINTFORMW %ANAME(MASTER)%が木に持たれて息を整えていると、突然%ANAME(対象)%に覆い被さられた
+			PRINTFORML 戸惑っていると彼女は怪しく舌なめずりをしながらズイッ迫って来た
+			PRINTFORML ジョギングで火照った身体を静めてほしいと囁きながら身体を押し付けて来る
+			PRINTFORML その感触と鼻腔をくすぐる汗の匂いに、思わず身体が反応してしまった
+			PRINTFORMW %ANAME(MASTER)%が準備万端だと知った彼女は悦んで押し倒してきた
+			PRINTFORML 
+			PRINTFORML 人気のない茂みの奥からあられもない女の喘ぎ声が漏れ聞こえてくる
+			PRINTFORML %ANAME(MASTER)%に跨った%ANAME(対象)%が、髪を振り乱しながら激しく腰を振っている
+			PRINTFORMW 汗を飛び散らせながら乱れる姿は非常に艶めかしくて、釘付けになる
+			PRINTFORML %ANAME(対象)%が腰を上下させる度に竿全体を強烈にしごかれ、たまらず呻いてしまう
+			PRINTFORML 彼女はそんな%ANAME(MASTER)%の様子を見て妖艶な笑みを浮かべて腰をくねくねと回しだす
+			PRINTFORMW 亀頭を舐めまわされるような感覚に%ANAME(MASTER)%が再び呻くと、彼女は小悪魔の様に笑った
+			PRINTFORML %ANAME(対象)%は%ANAME(MASTER)%にキスを浴びせながら激しく腰を振って射精を促してくる
+			PRINTFORML もはや我慢は限界に達し、ペニスははち切れんばかりに膨張して射精寸前だ
+			PRINTFORMW 最後に彼女が一際深く腰を沈めるとと同時に、%ANAME(MASTER)%は思い切り射精した
+			PRINTFORML %ANAME(対象)%はそれを直接子宮で受け止めながら、歓喜の声を上げて身を仰け反らせた
+			PRINTFORML 疲れマラのせいか、普段より大量の精液を勢いよく放ちながら%ANAME(MASTER)%は身を震わせる
+			PRINTFORML それに合わせて彼女もビクビクと身を震わせ、瞳に♥を浮かべながら色っぽくヨガる
+			PRINTFORMW ようやく射精を終えると彼女がくたっと%ANAME(MASTER)%の上に倒れ込んできた
+			PRINTFORMW …%ANAME(MASTER)%達はしばらくの間息を整えながら、繋がったまま抱きしめ合っていた
+			PRINTFORML しばらくすると%ANAME(対象)%がスリスリと体をこすり付けながらもの欲しそうに見上げてきた
+			PRINTFORML その表情はすっかり発情した雌のもので、無言でも次をねだっているのがわかった
+			PRINTFORMW %ANAME(MASTER)%が返事代わりに軽く突き上げると、%ANAME(対象)%は悦びの声を上げて身体を震わせた
+			PRINTFORMW その日の午後は汗だくになりながら二人でただひたすら獣の様にお互いを求め続けた
+			CALL FUCK_MAKELOVE(対象, GET_ID(MASTER), @"%ANAME(MASTER)%の唇", ANAME(MASTER))
+			CALL FUCK(MASTER, "Ｃ, 射精, Ｖ挿入", "童貞喪失", 0, "", "", @"%ANAME(対象)%の膣")
+			CFLAG:対象:好感度 += 300
+			CALL COLORPRINT(@"%ANAME(対象)%の好感度が300上がった", COLOR("注意"))
+			PRINTFORMW 
+		ELSE
+			CFLAG:対象:好感度 += 150
+			CALL COLORPRINT(@"%ANAME(対象)%の好感度が150上がった", COLOR("注意"))
+			PRINTFORMW 
+		ENDIF
+	ENDIF
+	CFLAG:対象:面識 = 1
+	MAXBASE:MASTER:体力 += 100
+	CALL COLORPRINT(@"%ANAME(MASTER)%の体力が100上がった", COLOR("注意"))
+	PRINTFORMW 
+ENDIF
+
+RETURN 1
