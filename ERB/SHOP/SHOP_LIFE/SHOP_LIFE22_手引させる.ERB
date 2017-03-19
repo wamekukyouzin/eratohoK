@@ -81,32 +81,35 @@ RETURN !FLAG:クリアフラグ
 ;-------------------------------------------------
 @TEBIKI_ABLE(ARG:0)
 #FUNCTION
-SIF TALENT:(ARG:0):親愛 || TALENT:(ARG:0):恋慕 || TALENT:(ARG:0):隷属 || TALENT:(ARG:0):服従
-	RETURNF 2
-LOCAL:1 = ABL:MASTER:武闘
-LOCAL:2 = ABL:MASTER:知略
-LOCAL:3 = 2
-SIF TALENT:(ARG:0):烙印
-	LOCAL:3 = 1
-
-LOCAL:4 = 0
+LOCAL:1 = TEBIKI_ZYOSYU_CALC_POINT(MASTER)
 FOR LOCAL,1, CHARANUM
-	IF CFLAG:LOCAL:夜這いの助手
-		LOCAL:1 += ABL:LOCAL:武闘
-		LOCAL:2 += ABL:LOCAL:知略
-		IF CFLAG:LOCAL:所属 != CFLAG:(ARG:0):所属
-			RETURNF 0
-		ENDIF
-		LOCAL:4 = 1
-	ENDIF
+	SIF CFLAG:LOCAL:夜這いの助手
+		LOCAL:1 += TEBIKI_ZYOSYU_CALC_POINT(LOCAL)
 NEXT
+RETURNF LOCAL:1 > TEBIKI_TARGET_CALC_POINT(ARG)
 
-;内通者がいなければ0で戻す
-SIF LOCAL:4 == 0
+;-------------------------------------------------
+;「夜這いする」の能力判定用関数
+;-------------------------------------------------
+@TEBIKI_ZYOSYU_CALC_POINT(ARG)
+#FUNCTION
+RETURNF ABL:ARG:武闘 + ABL:ARG:知略
+
+;-------------------------------------------------
+;「夜這いする」の能力判定用関数
+;-------------------------------------------------
+@TEBIKI_TARGET_CALC_POINT(ARG)
+#FUNCTION
+SIF GROUPMATCH(1, TALENT:ARG:親愛, TALENT:ARG:恋慕, TALENT:ARG:隷属, TALENT:ARG:服従)
 	RETURNF 0
-SIF (LOCAL:1 > ABL:ARG:武闘 * LOCAL:3 / 2 && LOCAL:2 > ABL:ARG:知略 * LOCAL:3) || (LOCAL:1 > ABL:ARG:武闘 * LOCAL:3 && LOCAL:2 > ABL:ARG:知略 * LOCAL:3 / 2) 
-	RETURNF 1
-RETURNF 0
+
+LOCAL = (ABL:ARG:武闘 + ABL:ARG:知略)
+
+SIF TALENT:(ARG:0):烙印
+	RETURNF LOCAL
+SIF GET_COUNTRY_BOSS(CFLAG:(ARG:0):所属) == ARG:0
+	RETURNF LOCAL * 2
+RETURNF LOCAL * 3 / 2
 
 ;-------------------------------------------------
 ;「手引させるの左カラムメニューの入力処理
@@ -154,6 +157,7 @@ RETURN 0
 ;　デフォルトの情報を表示しない場合はRETURN 1
 ;-------------------------------------------------
 @SHOP_LIFE_BUTTON_ADD_TOP22(ARG:0)
+PRINTFORM P:{TEBIKI_TARGET_CALC_POINT(ARG:0), 3, RIGHT}
 CALL SHOP_LIFE_BUTTON_ADD_TOP_PRISONER(ARG:0)
 RETURN RESULT
 
@@ -162,6 +166,7 @@ RETURN RESULT
 ;　デフォルトの情報を表示しない場合はRETURN 1
 ;-------------------------------------------------
 @SHOP_LIFE_BUTTON_ADD_BOTTOM22(ARG:0)
+PRINTFORM P:{TEBIKI_ZYOSYU_CALC_POINT(ARG:0), 3, RIGHT}
 CALL SHOP_LIFE_BUTTON_ADD_BOTTOM_PRISONER(ARG:0)
 RETURN RESULT
 
