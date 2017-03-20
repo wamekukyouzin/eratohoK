@@ -40,62 +40,62 @@ RETURN デイリー_ジャンル_特殊勢力
 外来人 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_外来人))
 
 PRINTFORML 外来人の実験施設の一つを見つけた
-PRINTFORML 近くの村人たちを攫っては非道実験を行っているようだ
+PRINTFORML 近くの村人たちを攫っては非道な実験を行っているようだ
 PRINTFORMW どうしよう？
 CALL ASK_MULTI(@"潜入する" ,"やめておく")
-	IF RESULT == 1
-		PRINTFORMW やめておいた
+IF RESULT == 1
+	PRINTFORMW やめておいた
+ELSE
+	PRINTFORML 放ってはおけない
+	PRINTFORML 潜入して施設を破壊することにした
+	PRINTFORMW 誰を潜入させようか？
+	CALL SINGLE_DRAWLINE
+	CALL SELECT_CHARA_LIST_ONLY_LOGIC_SEX("GAIRAI_EXPERIMENT", "GAIRAI_EXPERIMENT")
+	対象 = RESULT
+	IF 対象 == -1
+		PRINTFORML ……いや、やはり危険だ
+		PRINTFORMW やめておくことにした
+		RETURN -1
 	ELSE
-		PRINTFORML 放ってはおけない
-		PRINTFORML 潜入して施設を破壊することにした
-		PRINTFORMW 誰を潜入させようか？
-		CALL SINGLE_DRAWLINE
-		CALL SELECT_CHARA_LIST_ONLY_LOGIC_SEX("GAIRAI_EXPERIMENT", "GAIRAI_EXPERIMENT")
-		対象 = RESULT
-		IF 対象 == -1
-			PRINTFORML ……いや、やはり危険だ
-			PRINTFORMW やめておくことにした
-			RETURN -1
+		IF 対象 == MASTER
+			PRINTFORMW %ANAME(対象)%自ら潜入することにした
 		ELSE
-			IF 対象 == MASTER
-				PRINTFORMW %ANAME(対象)%自ら潜入することにした
-			ELSE
-				PRINTFORMW %ANAME(対象)%を潜入させることにした
-			ENDIF
-			PRINTFORML ・
-			PRINTFORML ・
-			PRINTFORMW ・
-			IF (ABL:対象:武闘 + ABL:対象:知略) / 10 > RAND:10 + 11
-				PRINTFORML やった！
-				PRINTFORMW 首尾よく潜入に成功した%ANAME(対象)%はその施設を破壊することに成功した
-				FOR LOCAL, 1, MAX_COUNTRY
-					SIF LOCAL != 外来人 && IS_COUNTRY(LOCAL)
-						CALL CHANGE_RELATION_C_TO_C(LOCAL, CFLAG:MASTER:1, 100, -100)
-				NEXT
-				CALL COLORPRINT(@"この成果に他勢力の評価が上がった", カラー_注意)
-				PRINTFORMW 
-				CALL CHANGE_RELATION_C_TO_C(外来人, CFLAG:MASTER:1, -500, 500)
-				CALL COLORPRINT(@"しかし外来人たちの目の敵にされてしまった", カラー_警告)
-				PRINTFORMW 
-			ELSE
-				PRINTFORML しまった！
-				PRINTFORML 作戦に失敗した%ANAME(対象)%は捕らえられてしまった
-				PRINTFORMW 外来人たちはこの侵入者を新しい発明品の実験台にすることにした
-				CALL GAIRAI_SPY_RAPE(対象)
-				PRINTFORML 
-				PRINTFORMW 散々犯された後、%ANAME(対象)%は何とか逃げ出せた
-				FOR LOCAL, 0, CHARANUM
-					IF CFLAG:(LOCAL):所属 == 外来人 && !IS_ANIMAL(LOCAL) && TALENT:LOCAL:特殊勢力素質 == 特殊勢力_外来人
-						ABL:LOCAL:武闘 += (RAND:3 + 1)
-						ABL:LOCAL:知略 += (RAND:3 + 1)
-						ABL:LOCAL:政治 += (RAND:3 + 1)
-					ENDIF
-				NEXT
-				CALL COLORPRINT(@"しかし実験のデータにより彼らの勢力が強化されてしまった", カラー_ピンク)
-				PRINTFORMW 
-			ENDIF
+			PRINTFORMW %ANAME(対象)%を潜入させることにした
+		ENDIF
+		PRINTFORML ・
+		PRINTFORML ・
+		PRINTFORMW ・
+		IF (ABL:対象:武闘 + ABL:対象:知略) / 10 > RAND:10 + 11
+			PRINTFORML やった！
+			PRINTFORMW 首尾よく潜入に成功した%ANAME(対象)%はその施設を破壊することに成功した
+			FOR LOCAL, 1, MAX_COUNTRY
+				SIF LOCAL != 外来人 && IS_COUNTRY(LOCAL)
+					CALL CHANGE_RELATION_C_TO_C(LOCAL, CFLAG:MASTER:1, 100, -100)
+			NEXT
+			CALL COLORPRINT(@"この成果に他勢力の評価が上がった", カラー_注意)
+			PRINTFORMW 
+			CALL CHANGE_RELATION_C_TO_C(外来人, CFLAG:MASTER:1, -500, 500)
+			CALL COLORPRINT(@"しかし外来人たちの目の敵にされてしまった", カラー_警告)
+			PRINTFORMW 
+		ELSE
+			PRINTFORML しまった！
+			PRINTFORML 作戦に失敗した%ANAME(対象)%は捕らえられてしまった
+			PRINTFORMW 外来人たちはこの侵入者を新しい発明品の実験台にすることにした
+			CALL GAIRAI_SPY_RAPE(対象)
+			PRINTFORML 
+			PRINTFORMW 散々犯された後、%ANAME(対象)%は何とか逃げ出せた
+			FOR LOCAL, 0, CHARANUM
+				IF CFLAG:(LOCAL):所属 == 外来人 && !IS_ANIMAL(LOCAL) && TALENT:LOCAL:特殊勢力素質 == 特殊勢力_外来人
+					ABL:LOCAL:武闘 += (RAND:3 + 1)
+					ABL:LOCAL:知略 += (RAND:3 + 1)
+					ABL:LOCAL:政治 += (RAND:3 + 1)
+				ENDIF
+			NEXT
+			CALL COLORPRINT(@"しかし実験のデータにより彼らの勢力が強化されてしまった", カラー_ピンク)
+			PRINTFORMW 
 		ENDIF
 	ENDIF
+ENDIF
 
 RETURN 1
 
