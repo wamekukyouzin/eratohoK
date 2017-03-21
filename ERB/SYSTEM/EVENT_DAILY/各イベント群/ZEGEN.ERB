@@ -40,181 +40,181 @@ PRINTFORML 人攫い組織の情報を掴んだ
 PRINTFORML この組織は国々をまたにかけて暗躍しているらしい
 PRINTFORMW どうしよう？
 CALL ASK_MULTI(@"捜査する" ,"取引する" ,"無視する")
-	IF RESULT == 2
-		PRINTFORMW 無視した
+IF RESULT == 2
+	PRINTFORMW 無視した
+ELSEIF RESULT == 1
+	PRINTFORML 取引することにした
+	PRINTFORMW 組織に使いを出した
+	PRINTFORML ・
+	PRINTFORML ・
+	PRINTFORMW ・
+	PRINTFORML 組織の者がやってきた
+	PRINTFORMW どうしよう？
+	CALL ASK_MULTI_JUDGE(@"村娘を売る", 1,"他国の捕虜を買う", 1,"自分を売る", IS_FEMALE(MASTER) && !TALENT:MASTER:処女)
+	IF RESULT == 0
+		PRINTFORMW 村娘を売った
+		金額 = 3000 + 1000 * (DAY / 5)
+		MONEY += 金額 
+		FOR LOCAL, 1, MAX_COUNTRY
+			CALL CHANGE_RELATION_C_TO_C(LOCAL, CFLAG:MASTER:1, -50, 50)
+		NEXT
+		CALL COLORPRINT(@"金{金額}を手に入れた", カラー_シアン)
+		PRINTFORML 
+		CALL COLORPRINT(@"噂が広がり他国の評判が下がった", カラー_警告)
+		PRINTFORMW 
 	ELSEIF RESULT == 1
-		PRINTFORML 取引することにした
-		PRINTFORMW 組織に使いを出した
+		PRINTFORML 他国の捕虜を攫ってきてもらうことにした
+		$SHOW_LOOP
+		PRINTFORMW 誰を捕ってきてもらおうか？
+		FOR LOCAL, 0, CHARANUM
+			IF CFLAG:LOCAL:捕虜先 != 0 && CFLAG:LOCAL:捕虜先 != CFLAG:MASTER:所属 && !IS_SP_CHARA(LOCAL)
+				捕虜番号:(LOCAL:1) = LOCAL
+				IF SLAVE_TRADER_PRICE(LOCAL) <= MONEY
+					PRINTFORM [{LOCAL:1}]%ANAME(LOCAL), 16, RIGHT% - 金{SLAVE_TRADER_PRICE(LOCAL), 6, RIGHT}
+				ELSE
+					SETCOLOR カラー_選択不可
+					PRINTPLAINFORM [{LOCAL:1}]%ANAME(LOCAL), 16, RIGHT% - 金{SLAVE_TRADER_PRICE(LOCAL), 6, RIGHT}
+					RESETCOLOR
+				ENDIF
+				PRINTL
+				LOCAL:1 ++
+			ENDIF
+		NEXT
+		CALL SINGLE_DRAWLINE
+		PRINTFORML [1000] やめておく
+		$INPUT_LOOP
+		INPUT
+		IF RESULT == 1000
+			PRINTFORML やはりやめておこう
+			PRINTFORMW 人攫いは肩をすくめて去っていった
+			RETURN 1
+		ELSEIF RESULT < 0 || RESULT >= LOCAL:1 || SLAVE_TRADER_PRICE(捕虜番号:RESULT) > MONEY
+			GOTO INPUT_LOOP
+		ELSE
+			対象 = 捕虜番号:(RESULT)
+			PRINTFORMW 「%ANAME(対象)%を捕まえてくればいいのですね？」
+			CALL ASK_MULTI(@"頼む" ,"考え直す")
+			IF RESULT == 1
+				PRINTFORMW いや、やはりもう一度考え直そう
+				CALL SINGLE_DRAWLINE
+				GOTO SHOW_LOOP
+			ELSE
+				PRINTFORMW 人攫いを頼んだ
+				PRINTFORML ・
+				PRINTFORML ・
+				PRINTFORMW ・
+				PRINTFORML 彼らは見事に彼女を攫ってきてくれた
+				PRINTFORMW 高い買い物だったがあなたは満足して彼女を見下ろした
+				CFLAG:対象:捕虜先 = CFLAG:MASTER:所属
+				MONEY -= SLAVE_TRADER_PRICE(対象)
+				FOR LOCAL, 1, MAX_COUNTRY
+					SIF IS_COUNTRY(LOCAL)
+						CALL CHANGE_RELATION_C_TO_C(LOCAL, CFLAG:MASTER:所属, -100, 100)
+				NEXT
+				CALL COLORPRINT(@"金{SLAVE_TRADER_PRICE(対象)}を支払った", カラー_注意)
+				PRINTFORML 
+				CALL COLORPRINT(@"人攫い組織とのつながりがばれて他国の評判が下がった", カラー_警告)
+				PRINTFORMW 
+			ENDIF
+		ENDIF
+	ELSE
+		PRINTFORML 自分を売ることにした
+		PRINTFORMW 遊郭で働かされた
+		CALL ZEGEN_SEXWORK(MASTER)
+		金額 = 1000 + (ABL:MASTER:性交 + ABL:MASTER:性技 + ABL:MASTER:奉仕 + ABL:MASTER:Ｖ感) * 500
+		MONEY += 金額 
+		CALL COLORPRINT(@"金{金額}を手に入れた", カラー_シアン)
+		PRINTFORMW
+	ENDIF
+ELSE
+	PRINTFORML 捜査することにした
+	PRINTFORML 怪しまれないように女性一人に任せよう
+	PRINTFORMW 誰にする？
+	CALL SINGLE_DRAWLINE
+	CALL SELECT_CHARA_LIST_ONLY_LOGIC_SLG("ZEGEN", "ZEGEN")
+	対象 = RESULT
+	IF RESULT == -1
+		PRINTFORMW ……いや、やはり危険だ
+		PRINTFORMW やめておくことにしよう……
+		RETURN 1
+	ELSEIF 対象 == MASTER
+		PRINTFORMW %ANAME(対象)%自ら捜査することにした
+	ELSE
+		PRINTFORMW %ANAME(対象)%を捜査に向かわせた
+	ENDIF
+	CALL DAILY_EVENT_RAND_CITYSELECT(0)
+	対象都市 = RESULT
+	PRINTFORML 村娘に紛れて潜入に成功した
+	PRINTFORML 他の娘と共に遊郭に連れていかれた
+	PRINTFORMW どうしよう？
+	CALL ASK_MULTI(@"武力制圧する" ,"客から情報を得る" ,"娘たちを逃がす")
+	IF RESULT == 0
+		PRINTFORMW 武力で制圧を試みた
 		PRINTFORML ・
 		PRINTFORML ・
 		PRINTFORMW ・
-		PRINTFORML 組織の者がやってきた
-		PRINTFORMW どうしよう？
-		CALL ASK_MULTI_JUDGE(@"村娘を売る", 1,"他国の捕虜を買う", 1,"自分を売る", IS_FEMALE(MASTER) && !TALENT:MASTER:処女)
-			IF RESULT == 0
-				PRINTFORMW 村娘を売った
-				金額 = 3000 + 1000 * (DAY / 5)
-				MONEY += 金額 
-				FOR LOCAL, 1, MAX_COUNTRY
-					CALL CHANGE_RELATION_C_TO_C(LOCAL, CFLAG:MASTER:1, -50, 50)
-				NEXT
-				CALL COLORPRINT(@"金{金額}を手に入れた", COLOR("シアン"))
-				PRINTFORML 
-				CALL COLORPRINT(@"噂が広がり他国の評判が下がった", COLOR("警告"))
+		IF ABL:対象:武闘 * (RAND:5 + 1) > 40 * (RAND:9 + 1)
+			PRINTFORML 拠点を制圧した！
+			PRINTFORMW これで国内での連中の活動は減るだろう
+			IF 対象都市 > 0
+				CITY_GUARD:対象都市 += 20
+				CALL COLORPRINT(@"%CITY_NAME:対象都市%の防衛率が20上昇し、{CITY_GUARD:対象都市}になった", カラー_シアン)
 				PRINTFORMW 
-			ELSEIF RESULT == 1
-				PRINTFORML 他国の捕虜を攫ってきてもらうことにした
-				$SHOW_LOOP
-				PRINTFORMW 誰を捕ってきてもらおうか？
-				FOR LOCAL, 0, CHARANUM
-					IF CFLAG:LOCAL:捕虜先 != 0 && CFLAG:LOCAL:捕虜先 != CFLAG:MASTER:所属 && !IS_SP_CHARA(LOCAL)
-						捕虜番号:(LOCAL:1) = LOCAL
-						IF SLAVE_TRADER_PRICE(LOCAL) <= MONEY
-							PRINTFORM [{LOCAL:1}]%ANAME(LOCAL), 16, RIGHT% - 金{SLAVE_TRADER_PRICE(LOCAL), 6, RIGHT}
-						ELSE
-							SETCOLOR COLOR("選択不可")
-							PRINTPLAINFORM [{LOCAL:1}]%ANAME(LOCAL), 16, RIGHT% - 金{SLAVE_TRADER_PRICE(LOCAL), 6, RIGHT}
-							RESETCOLOR
-						ENDIF
-						PRINTL
-						LOCAL:1 ++
-					ENDIF
-				NEXT
-				CALL SINGLE_DRAWLINE
-				PRINTFORML [1000] やめておく
-				$INPUT_LOOP
-				INPUT
-				IF RESULT == 1000
-					PRINTFORML やはりやめておこう
-					PRINTFORMW 人攫いは肩をすくめて去っていった
-					RETURN 1
-				ELSEIF RESULT < 0 || RESULT >= LOCAL:1 || SLAVE_TRADER_PRICE(捕虜番号:RESULT) > MONEY
-					GOTO INPUT_LOOP
-				ELSE
-					対象 = 捕虜番号:(RESULT)
-					PRINTFORMW 「%ANAME(対象)%を捕まえてくればいいのですね？」
-					CALL ASK_MULTI(@"頼む" ,"考え直す")
-					IF RESULT == 1
-						PRINTFORMW いや、やはりもう一度考え直そう
-						CALL SINGLE_DRAWLINE
-						GOTO SHOW_LOOP
-					ELSE
-						PRINTFORMW 人攫いを頼んだ
-						PRINTFORML ・
-						PRINTFORML ・
-						PRINTFORMW ・
-						PRINTFORML 彼らは見事に彼女を攫ってきてくれた
-						PRINTFORMW 高い買い物だったがあなたは満足して彼女を見下ろした
-						CFLAG:対象:捕虜先 = CFLAG:MASTER:所属
-						MONEY -= SLAVE_TRADER_PRICE(対象)
-						FOR LOCAL, 1, MAX_COUNTRY
-							SIF IS_COUNTRY(LOCAL)
-								CALL CHANGE_RELATION_C_TO_C(LOCAL, CFLAG:MASTER:所属, -100, 100)
-						NEXT
-						CALL COLORPRINT(@"金{SLAVE_TRADER_PRICE(対象)}を支払った", COLOR("注意"))
-						PRINTFORML 
-						CALL COLORPRINT(@"人攫い組織とのつながりがばれて他国の評判が下がった", COLOR("警告"))
-						PRINTFORMW 
-					ENDIF
-				ENDIF
-			ELSE
-				PRINTFORML 自分を売ることにした
-				PRINTFORMW 遊郭で働かされた
-				CALL ZEGEN_SEXWORK(MASTER)
-				金額 = 1000 + (ABL:MASTER:性交 + ABL:MASTER:性技 + ABL:MASTER:奉仕 + ABL:MASTER:Ｖ感) * 500
-				MONEY += 金額 
-				CALL COLORPRINT(@"金{金額}を手に入れた", COLOR("シアン"))
-				PRINTFORMW
 			ENDIF
-	ELSE
-		PRINTFORML 捜査することにした
-		PRINTFORML 怪しまれないように女性一人に任せよう
-		PRINTFORMW 誰にする？
-		CALL SINGLE_DRAWLINE
-		CALL SELECT_CHARA_LIST_ONLY_LOGIC_SLG("ZEGEN", "ZEGEN")
-		対象 = RESULT
-		IF RESULT == -1
-			PRINTFORMW ……いや、やはり危険だ
-			PRINTFORMW やめておくことにしよう……
-			RETURN 1
-		ELSEIF 対象 == MASTER
-			PRINTFORMW %ANAME(対象)%自ら捜査することにした
 		ELSE
-			PRINTFORMW %ANAME(対象)%を捜査に向かわせた
+			PRINTFORML 失敗してしまった……
+			PRINTFORMW 薬を打たれて夢見心地になった%ANAME(対象)%は、客の相手をさせられることになった
+			CALL ZEGEN_SEXWORK(対象)
+			CFLAG:対象:薬物依存 += RAND(30, 60)
+			PRINTFORMW その後、%ANAME(対象)%は何とか逃げ出した
 		ENDIF
-		CALL DAILY_EVENT_RAND_CITYSELECT(0)
-		対象都市 = RESULT
-		PRINTFORML 村娘に紛れて潜入に成功した
-		PRINTFORML 他の娘と共に遊郭に連れていかれた
-		PRINTFORMW どうしよう？
-		CALL ASK_MULTI(@"武力制圧する" ,"客から情報を得る" ,"娘たちを逃がす")
-			IF RESULT == 0
-				PRINTFORMW 武力で制圧を試みた
-				PRINTFORML ・
-				PRINTFORML ・
-				PRINTFORMW ・
-				IF ABL:対象:武闘 * (RAND:5 + 1) > 40 * (RAND:9 + 1)
-					PRINTFORML 拠点を制圧した！
-					PRINTFORMW これで国内での連中の活動は減るだろう
-					IF 対象都市 > 0
-						CITY_GUARD:対象都市 += 20
-						CALL COLORPRINT(@"%CITY_NAME:対象都市%の防衛率が20上昇し、{CITY_GUARD:対象都市}になった", COLOR("シアン"))
-						PRINTFORMW 
-					ENDIF
-				ELSE
-					PRINTFORML 失敗してしまった……
-					PRINTFORMW 薬を打たれて夢見心地になった%ANAME(対象)%は、客の相手をさせられることになった
-					CALL ZEGEN_SEXWORK(対象)
-					CFLAG:対象:薬物依存 += RAND(30, 60)
-					PRINTFORMW その後、%ANAME(対象)%は何とか逃げ出した
-				ENDIF
-			ELSEIF RESULT == 2
-				PRINTFORMW 娘たちを逃がすことにした
-				PRINTFORML ・
-				PRINTFORML ・
-				PRINTFORMW ・
-				IF ABL:対象:知略 * (RAND:5 + 1) > 40 * (RAND:9 + 1)
-					PRINTFORML 成功した！
-					PRINTFORMW 救出した娘たちは家族たちと再会出来て泣いて喜んでいた
-					FOR LOCAL, 1, MAX_COUNTRY
-						SIF IS_COUNTRY(LOCAL)
-							CALL CHANGE_RELATION_C_TO_C(LOCAL, CFLAG:MASTER:1, 50, -50)
-					NEXT
-					CALL COLORPRINT(@"娘たちを助けたことで他国の評判が上がった", COLOR("シアン"))
-					PRINTFORMW 
-				ELSE
-					PRINTFORML 失敗してしまった……
-					PRINTFORMW 薬を打たれて夢見心地になった%ANAME(対象)%は、客の相手をさせられることになった
-					CALL ZEGEN_SEXWORK(対象)
-					CFLAG:対象:薬物依存 += RAND(30, 60)
-					PRINTFORMW その後、%ANAME(対象)%は何とか逃げ出した
-				ENDIF
-			ELSE
-				PRINTFORMW 客の相手をして情報を得ることにした
-				CALL ZEGEN_SEXWORK(対象)
-				PRINTFORML ・
-				PRINTFORML ・
-				PRINTFORMW ・
-				IF (ABL:対象:性交 + ABL:対象:性技 + ABL:対象:奉仕 + ABL:対象:Ｖ感) > 10 + DAY / 10
-					PRINTFORML %ANAME(対象)%の奉仕に満足した客はべらべらと情報を話してくれた
-					PRINTFORMW その情報を手に遊郭を抜け出した%ANAME(対象)%は奴らの組織を摘発した
-					IF 対象都市 > 0
-						CITY_GUARD:対象都市 += 25
-						CALL COLORPRINT(@"%CITY_NAME:対象都市%の防衛率が25上昇し、{CITY_GUARD:対象都市}になった", COLOR("シアン"))
-						PRINTFORML 
-					ENDIF
-					FOR LOCAL, 1, MAX_COUNTRY
-						SIF IS_COUNTRY(LOCAL)
-							CALL CHANGE_RELATION_C_TO_C(LOCAL, CFLAG:MASTER:1, 100, -100)
-					NEXT
-					CALL COLORPRINT(@"組織摘発により他国の評判が上がった", COLOR("シアン"))
-					PRINTFORMW 
-				ELSE
-					PRINTFORML しかし客を満足させられず情報も得られなかった
-					PRINTFORMW その後、%ANAME(対象)%は何とか逃げ出した
-				ENDIF
+	ELSEIF RESULT == 2
+		PRINTFORMW 娘たちを逃がすことにした
+		PRINTFORML ・
+		PRINTFORML ・
+		PRINTFORMW ・
+		IF ABL:対象:知略 * (RAND:5 + 1) > 40 * (RAND:9 + 1)
+			PRINTFORML 成功した！
+			PRINTFORMW 救出した娘たちは家族たちと再会出来て泣いて喜んでいた
+			FOR LOCAL, 1, MAX_COUNTRY
+				SIF IS_COUNTRY(LOCAL)
+					CALL CHANGE_RELATION_C_TO_C(LOCAL, CFLAG:MASTER:1, 50, -50)
+			NEXT
+			CALL COLORPRINT(@"娘たちを助けたことで他国の評判が上がった", カラー_シアン)
+			PRINTFORMW 
+		ELSE
+			PRINTFORML 失敗してしまった……
+			PRINTFORMW 薬を打たれて夢見心地になった%ANAME(対象)%は、客の相手をさせられることになった
+			CALL ZEGEN_SEXWORK(対象)
+			CFLAG:対象:薬物依存 += RAND(30, 60)
+			PRINTFORMW その後、%ANAME(対象)%は何とか逃げ出した
+		ENDIF
+	ELSE
+		PRINTFORMW 客の相手をして情報を得ることにした
+		CALL ZEGEN_SEXWORK(対象)
+		PRINTFORML ・
+		PRINTFORML ・
+		PRINTFORMW ・
+		IF (ABL:対象:性交 + ABL:対象:性技 + ABL:対象:奉仕 + ABL:対象:Ｖ感) > 10 + DAY / 10
+			PRINTFORML %ANAME(対象)%の奉仕に満足した客はべらべらと情報を話してくれた
+			PRINTFORMW その情報を手に遊郭を抜け出した%ANAME(対象)%は奴らの組織を摘発した
+			IF 対象都市 > 0
+				CITY_GUARD:対象都市 += 25
+				CALL COLORPRINT(@"%CITY_NAME:対象都市%の防衛率が25上昇し、{CITY_GUARD:対象都市}になった", カラー_シアン)
+				PRINTFORML 
 			ENDIF
+			FOR LOCAL, 1, MAX_COUNTRY
+				SIF IS_COUNTRY(LOCAL)
+					CALL CHANGE_RELATION_C_TO_C(LOCAL, CFLAG:MASTER:1, 100, -100)
+			NEXT
+			CALL COLORPRINT(@"組織摘発により他国の評判が上がった", カラー_シアン)
+			PRINTFORMW 
+		ELSE
+			PRINTFORML しかし客を満足させられず情報も得られなかった
+			PRINTFORMW その後、%ANAME(対象)%は何とか逃げ出した
+		ENDIF
 	ENDIF
+ENDIF
 
 RETURN 1
 

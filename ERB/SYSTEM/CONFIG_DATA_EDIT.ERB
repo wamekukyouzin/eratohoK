@@ -39,6 +39,12 @@ PRINTBUTTON "10[ランダムキャラ追加]", 10
 PRINTL
 PRINTBUTTON "11[兵を増やす]", 11
 PRINTL
+PRINTBUTTON "12[複数キャラクターをランダムで死亡させる]", 12
+PRINTL
+PRINTBUTTON "13[ランダムキャラ複数追加]", 13
+PRINTL
+PRINTBUTTON "14[カスタムキャラのクローンを複数生成]", 14
+PRINTL
 CALL SINGLE_DRAWLINE
 PRINTBUTTON " 99[戻る]", 99
 PRINTL 
@@ -126,7 +132,7 @@ ELSEIF RESULT == 6 && IS_COUNTRY(CFLAG:MASTER:所属)
 			LOCALS:0 = {LOCAL:0, 2}[%NAME:GET_COUNTRY_BOSS(LOCAL:0)%]
 			;外交禁止フラグが立っているならグレー表示
 			IF COUNTRY_IS_CLOSED:(LOCAL:0)
-				SETCOLOR COLOR("選択不可")
+				SETCOLOR カラー_選択不可
 				PRINTPLAINFORM %LOCALS:0, 22, LEFT%
 				RESETCOLOR
 			ELSE
@@ -294,6 +300,12 @@ ELSEIF RESULT == 11
 	ELSE
 		GOTO INPUT_LOOP_SOLDIER
 	ENDIF
+ELSEIF RESULT == 12
+	CALL CONFIG_DATA_EDIT_RANDOM_DEAD
+ELSEIF RESULT == 13
+	CALL CONFIG_DATA_EDIT_ADD_RANDOM_CHARA_MULTI
+ELSEIF RESULT == 14
+	CALL CONFIG_DATA_EDIT_CUSTOM_CHARA_MULTI
 ELSE
 	CLEARLINE 1
 	GOTO INPUT_LOOP
@@ -1450,7 +1462,7 @@ SELECTCASE MODE
 					ENDIF
 					LOCAL:5 ++
 					IF TALENT:(ARG:0):(LOCAL:0)
-						SETCOLOR COLOR("選択中")
+						SETCOLOR カラー_選択中
 					ENDIF
 					PRINTBUTTON @"{LOCAL:0, 3}\{%TN, 14%\}", LOCAL:0
 					RESETCOLOR
@@ -1483,7 +1495,7 @@ SELECTCASE MODE
 ;		IF INI_TALENT:(ARG:0):302 != 0
 ;			PRINTBUTTON "318[初期化]", 318
 ;		ELSE
-;			SETCOLOR COLOR("選択不可")
+;			SETCOLOR カラー_選択不可
 ;			PRINTPLAIN 318[初期化]
 ;			RESETCOLOR
 ;		ENDIF
@@ -1551,7 +1563,7 @@ SELECTCASE MODE
 					ENDIF
 					LOCAL:5 ++
 					IF GETBIT(TALENT:(ARG:0):GETNUM(TALENT, "淫乱系"), LOCAL:0)
-						SETCOLOR COLOR("選択中")
+						SETCOLOR カラー_選択中
 					ENDIF
 					PRINTBUTTON @"{LOCAL:0, 3}\{%STN, 14%\}", LOCAL:0
 					RESETCOLOR
@@ -1605,7 +1617,7 @@ SELECTCASE MODE
 					ENDIF
 					LOCAL:5 ++
 					IF GETBIT(TALENT:(ARG:0):GETNUM(TALENT, "デイリー系"), LOCAL:0)
-						SETCOLOR COLOR("選択中")
+						SETCOLOR カラー_選択中
 					ENDIF
 					PRINTBUTTON @"{LOCAL:0, 3}\{%STN, 14%\}", LOCAL:0
 					RESETCOLOR
@@ -1659,7 +1671,7 @@ SELECTCASE MODE
 					ENDIF
 					LOCAL:5 ++
 					IF GETBIT(TALENT:(ARG:0):GETNUM(TALENT, "特殊勢力陥落系"), LOCAL:0)
-						SETCOLOR COLOR("選択中")
+						SETCOLOR カラー_選択中
 					ENDIF
 					PRINTBUTTON @"{LOCAL:0, 3}\{%STN, 14%\}", LOCAL:0
 					RESETCOLOR
@@ -1722,7 +1734,7 @@ SELECTCASE MODE
 		IF !TALENT:(ARG:0):キス未経験
 			PRINTBUTTON "110[キスに関する経験を全て初期化]", 110
 		ELSE
-			SETCOLOR COLOR("選択不可")
+			SETCOLOR カラー_選択不可
 			PRINTPLAIN 110[キスに関する経験を全て初期化]
 			RESETCOLOR
 			PRINT   ※キスに関する経験はありません
@@ -1808,7 +1820,7 @@ SELECTCASE MODE
 			PRINTFORM %NAME_FORMAL(GET_COUNTRY_BOSS(CFLAG:(ARG:0):所属)), 22, LEFT%
 		ENDIF
 		IF F_COUNTRY_BOSS
-			SETCOLOR COLOR("選択不可")
+			SETCOLOR カラー_選択不可
 			PRINTPLAIN ※君主は変更不可※
 			RESETCOLOR
 		ELSE
@@ -1825,7 +1837,7 @@ SELECTCASE MODE
 				PRINTFORM %NAME_FORMAL(GET_COUNTRY_BOSS(CFLAG:(ARG:0):捕虜先)), 22, LEFT%
 			ENDIF
 			IF F_COUNTRY_BOSS
-				SETCOLOR COLOR("選択不可")
+				SETCOLOR カラー_選択不可
 				PRINTPLAIN ※君主は変更不可※
 				RESETCOLOR
 			ELSE
@@ -1912,7 +1924,7 @@ SELECTCASE MODE
 			PRINTPLAIN           
 			IF !TALENT:(ARG:0):親友
 				IF !IS_SAMESEX(MASTER, ARG:0) || TALENT:(ARG:0):両刀
-					SETCOLOR COLOR("選択不可")
+					SETCOLOR カラー_選択不可
 					PRINTPLAIN 103[親友を付ける]
 					RESETCOLOR
 				ELSE
@@ -2998,3 +3010,220 @@ ELSE
 ENDIF
 
 RETURN 0
+
+@CONFIG_DATA_EDIT_RANDOM_DEAD
+#DIM LOOP_C
+#DIM 種別
+#DIM 割合
+#DIM 削除しない
+
+PRINTFORML ある種別に属する全てのキャラクターを、乱数の結果次第で死亡させます
+PRINTFORML （「MASTER」「君主」「捕虜」「妊娠中」「動物」は対象外）
+PRINTFORML 固定キャラ以外の場合、キャラクターデータ自体を削除することも可能です
+PRINTFORML
+
+PRINTFORML キャラクターの種別は？
+CALL ASK_MULTI("（キャンセル）", "全て", "固定キャラ", "ランダムキャラ（子供以外）", "子供", "特殊キャラ（動物以外）")
+IF RESULT == 0
+	PRINTFORML キャンセルしました
+	RETURN
+ENDIF
+種別 = RESULT
+
+SIF 種別 == 1
+	PRINT 固定キャラ以外の場合、
+IF 種別 != 2
+	PRINTFORML キャラクターデータ自体を削除しますか？
+	CALL ASK_YN("削除する（二度と復活できません）", "「特殊状態」等の書き換えのみ（復活可能）")
+	削除しない = RESULT
+ENDIF
+
+PRINTFORML 死亡状態にする確率（パーセント）は？（101以上または0以下入力でキャンセルできます）
+PRINTFORML [0] [50] [100]
+INPUT
+IF RESULT <= 0 || RESULT > 100
+	PRINTFORML キャンセルしました
+	RETURN
+ENDIF
+割合 = RESULT
+
+FOR LOOP_C, CHARANUM - 1, -1, -1
+	SIF (LOOP_C == MASTER) || (GET_COUNTRY_FROM_BOSS_ID(GET_ID(LOOP_C)) > 0) || CFLAG:LOOP_C:捕虜先 || TALENT:LOOP_C:妊娠
+		CONTINUE
+	SIF (種別 == 2) && !IS_FIXED_CHARA(LOOP_C)
+		CONTINUE
+	SIF (種別 == 3) && !IS_RANDOM_CHARA(LOOP_C)
+		CONTINUE
+	SIF (種別 == 4) && !IS_CHILD(LOOP_C)
+		CONTINUE
+	SIF (種別 == 5) && !IS_SP_CHARA(LOOP_C)
+		CONTINUE
+	SIF IS_ANIMAL(LOOP_C) ; IS_ANIMAL が真の場合は IS_SP_CHARA も真のはずだけど一応単独でチェックしておく
+		CONTINUE
+	SIF RAND:100 >= 割合
+		CONTINUE
+	CALL FORCE_FREE(LOOP_C)
+	IF IS_FIXED_CHARA(LOOP_C) || 削除しない
+		IF  (CFLAG:LOOP_C:特殊状態 != 2)
+			PRINTFORML %ANAME(LOOP_C)%を死亡状態にします。
+			CALL CHANGE_COUNTRY(LOOP_C, 0, 1, 1)
+		ENDIF
+	ELSE
+		PRINTFORML %ANAME(LOOP_C)%を削除します。
+		CALL DELETE_CHARA(LOOP_C)
+	ENDIF
+NEXT
+
+@CONFIG_DATA_EDIT_ADD_RANDOM_CHARA_MULTI
+#DIM 所属
+#DIM 人数
+#DIM LOOP1
+#DIM 性別
+#DIM 特殊
+
+IF !CAN_ADD_RANDOM_CHARA()
+	PRINTFORML ランダムキャラが満員なので追加できないよ
+	RETURN
+ENDIF
+
+PRINTFORML ランダムキャラを複数追加します（名前や能力の傾向は指定できません）
+PRINTFORML 特殊キャラ扱いにすることも可能です
+PRINTFORML
+
+PRINTFORML キャラクターの性別は？
+CALL ASK_MULTI("（キャンセル）", "問わない", "男性", "女性", "女双", "男双", "男の娘", "男の娘双")
+IF RESULT == 0
+	PRINTFORML キャンセルしました
+	RETURN
+ENDIF
+性別 = RESULT - 2
+
+PRINTFORML キャラクターの種別は？（※ 特殊キャラの放浪はおすすめできないかもしれません）
+CALL ASK_YN("ランダムキャラ", "特殊キャラ扱い")
+特殊 = RESULT
+
+PRINTFORML 所属は？
+CALL ASK_YN("放浪", "MASTERと同じ")
+所属 = RESULT
+SIF 所属
+	所属 = CFLAG:MASTER:所属
+
+PRINTFORML 追加する人数は？（0以下入力でキャンセルできます）
+PRINTFORML [0] [5] [10] [20]
+INPUT
+IF RESULT <= 0
+	PRINTFORML キャンセルしました
+	RETURN
+ENDIF
+人数 = RESULT
+FOR LOOP1, 0, 人数
+	CALL CREATE_RANDOM_CHARA(,,性別)
+	IF RESULT < 0
+		PRINTFORML {LOOP1}人 生成しました
+		RETURN
+	ELSE
+		IF 特殊
+			; @VIGILANTE_INIT を参考にする。
+			FLAG:汎用武将カウント --
+			NO:RESULT = GET_EMPTY_NO()
+			;CALL NEWCHARA_INIT(RESULT)
+		ENDIF
+		CALL CHANGE_COUNTRY(RESULT, 所属)
+	ENDIF
+NEXT
+PRINTFORML {人数}人 生成しました
+
+@CONFIG_DATA_EDIT_CUSTOM_CHARA_MULTI
+#DIM 所属
+#DIM 人数
+#DIM LOOP1
+#DIM カスタム
+#DIM 対象
+
+IF !CAN_ADD_RANDOM_CHARA()
+	PRINTFORML ランダムキャラが満員なので追加できないよ
+	RETURN
+ENDIF
+
+PRINTFORML カスタムキャラのクローンを複数生成します
+PRINTFORML 放浪させるか、MASTERと同じ所属にするかを選べます
+PRINTFORML
+
+; @CUSTOM_CHARA_MENU を参考にする。
+
+PRINTFORML ここでは「新規作成」を選ばないで下さい。
+CALL SHOW_CUSTOM_CHARACTERS
+CALL SINGLE_DRAWLINE
+PRINTBUTTON "[キャンセル]", 99
+
+$INPUT_1
+INPUT
+
+IF RESULT == 99
+	RETURN
+ELSEIF INRANGE(RESULT, 0, EDITABLE_CUSTOM_CHARA)
+	IF CUSTOM_EXISTS(RESULT)
+		カスタム = RESULT
+	ELSE
+		PRINTFORML ここで新規作成はできません。ごめんね
+		GOTO INPUT_1
+	ENDIF
+ELSE
+	GOTO INPUT_1
+ENDIF
+
+
+
+; @MODIFY_CUSTOM_DATA(番号) を参考にする。
+; ただし、ランダムキャラが既に満員の場合に以下の処理を行うとFLAG:汎用武将カウントが狂うので、関数の先頭でお断りしてます。どうせ追加できないし。
+
+ADDVOIDCHARA
+対象 = CHARANUM - 1
+CALL APPLY_CUSTOM_DATA(対象, カスタム)
+
+NO:対象 = FLAG:汎用武将カウント + MIN_NO_RANDOM_CHARA ; 一時的に設定する。何も設定しないと CALL DELETE_CHARA の中でTHROWされる。
+FLAG:汎用武将カウント ++ ; 一時的に設定する。ランダムキャラを CALL DELETE_CHARA すると -- されるので。
+CFLAG:(対象):キャラＩＤ = FLAG:998 + 1 ; 一時的に設定する。何も設定しないと[家系表示]が不適切
+
+CALL SINGLE_DRAWLINE
+CALL SHOW_INFO_WITH_UI(対象)
+CALL SINGLE_DRAWLINE
+
+CALL DELETE_CHARA(CHARANUM - 1)
+
+
+
+PRINTFORML 所属は？
+CALL ASK_YN("放浪", "MASTERと同じ")
+所属 = RESULT
+SIF 所属
+	所属 = CFLAG:MASTER:所属
+
+PRINTFORML 追加する人数は？（0以下入力でキャンセルできます）
+PRINTFORML [0] [5] [10] [20]
+INPUT
+IF RESULT <= 0
+	PRINTFORML キャンセルしました
+	RETURN
+ENDIF
+人数 = RESULT
+FOR LOOP1, 0, 人数
+	IF !CAN_ADD_RANDOM_CHARA()
+		PRINTFORML {LOOP1}人 生成しました
+		RETURN
+	ELSE
+		; @CUSTOM_SETTING を参考にする。
+		ADDVOIDCHARA
+		対象 = CHARANUM - 1
+		;口上が設定されてしまうのでNEWCHARA_INITはNO設定の前に行う
+		CALL NEWCHARA_INIT(対象)
+		CALL APPLY_CUSTOM_DATA(対象, カスタム)
+		;NOの設定
+		NO:対象 = FLAG:汎用武将カウント + MIN_NO_RANDOM_CHARA
+		FLAG:汎用武将カウント ++
+
+		CALL CHANGE_COUNTRY(対象, 所属)
+	ENDIF
+NEXT
+PRINTFORML {人数}人 生成しました
+

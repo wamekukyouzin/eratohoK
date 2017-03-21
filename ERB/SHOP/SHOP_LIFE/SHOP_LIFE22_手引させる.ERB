@@ -54,8 +54,8 @@ SIF !TMP_COUNTRY_IS_NEIBORING:(CFLAG:MASTER:所属):(CFLAG:(ARG:0):所属)
 SIF CFLAG:(ARG:0):夜這いの助手
 	RETURN 0
 
-;非主人公、捕虜ではない、別勢力、君主ではない、どこかの勢力に所属している（放浪、未登場、死亡済みではない）
-IF (ARG:0 != MASTER && !CFLAG:(ARG:0):捕虜先 && CFLAG:MASTER:所属 != CFLAG:(ARG:0):所属 && GET_ID(ARG:0) != COUNTRY_BOSS:(CFLAG:(ARG:0):所属) && CFLAG:(ARG:0):所属 && !IS_SP_CHARA(CFLAG:(ARG:0):所属))
+;非主人公、捕虜ではない、別勢力、どこかの勢力に所属している（放浪、未登場、死亡済みではない）
+IF (ARG:0 != MASTER && !CFLAG:(ARG:0):捕虜先 && CFLAG:MASTER:所属 != CFLAG:(ARG:0):所属 && CFLAG:(ARG:0):所属 && !IS_SP_CHARA(CFLAG:(ARG:0):所属))
 	IF TEBIKI_ABLE(ARG:0)
 		RETURN CHECK91(ARG:0, 2, 1)
 	ENDIF
@@ -81,32 +81,44 @@ RETURN !FLAG:クリアフラグ
 ;-------------------------------------------------
 @TEBIKI_ABLE(ARG:0)
 #FUNCTION
-SIF TALENT:(ARG:0):親愛 || TALENT:(ARG:0):恋慕 || TALENT:(ARG:0):隷属 || TALENT:(ARG:0):服従
-	RETURNF 2
-LOCAL:1 = ABL:MASTER:武闘
-LOCAL:2 = ABL:MASTER:知略
-LOCAL:3 = 2
-SIF TALENT:(ARG:0):烙印
-	LOCAL:3 = 1
-
-LOCAL:4 = 0
+LOCAL:1 = TEBIKI_ZYOSYU_CALC_POINT(MASTER)
+LOCAL:2 = 0
 FOR LOCAL,1, CHARANUM
 	IF CFLAG:LOCAL:夜這いの助手
-		LOCAL:1 += ABL:LOCAL:武闘
-		LOCAL:2 += ABL:LOCAL:知略
-		IF CFLAG:LOCAL:所属 != CFLAG:(ARG:0):所属
+		LOCAL:1 += TEBIKI_ZYOSYU_CALC_POINT(LOCAL)
+		LOCAL:2 = 1
+		SIF CFLAG:LOCAL:所属 != CFLAG:ARG:所属
 			RETURNF 0
-		ENDIF
-		LOCAL:4 = 1
 	ENDIF
 NEXT
 
-;内通者がいなければ0で戻す
-SIF LOCAL:4 == 0
+SIF LOCAL:2 == 0
 	RETURNF 0
-SIF (LOCAL:1 > ABL:ARG:武闘 * LOCAL:3 / 2 && LOCAL:2 > ABL:ARG:知略 * LOCAL:3) || (LOCAL:1 > ABL:ARG:武闘 * LOCAL:3 && LOCAL:2 > ABL:ARG:知略 * LOCAL:3 / 2) 
-	RETURNF 1
-RETURNF 0
+
+RETURNF LOCAL:1 > TEBIKI_TARGET_CALC_POINT(ARG)
+
+;-------------------------------------------------
+;「夜這いする」の能力判定用関数
+;-------------------------------------------------
+@TEBIKI_ZYOSYU_CALC_POINT(ARG)
+#FUNCTION
+RETURNF ABL:ARG:武闘 + ABL:ARG:知略
+
+;-------------------------------------------------
+;「夜這いする」の能力判定用関数
+;-------------------------------------------------
+@TEBIKI_TARGET_CALC_POINT(ARG)
+#FUNCTION
+SIF GROUPMATCH(1, TALENT:ARG:親愛, TALENT:ARG:恋慕, TALENT:ARG:隷属, TALENT:ARG:服従)
+	RETURNF 0
+
+LOCAL = (ABL:ARG:武闘 + ABL:ARG:知略)
+
+SIF TALENT:(ARG:0):烙印
+	RETURNF LOCAL
+SIF GET_COUNTRY_BOSS(CFLAG:(ARG:0):所属) == ARG:0
+	RETURNF LOCAL * 2
+RETURNF LOCAL * 3 / 2
 
 ;-------------------------------------------------
 ;「手引させるの左カラムメニューの入力処理
@@ -154,6 +166,7 @@ RETURN 0
 ;　デフォルトの情報を表示しない場合はRETURN 1
 ;-------------------------------------------------
 @SHOP_LIFE_BUTTON_ADD_TOP22(ARG:0)
+PRINTFORM P:{TEBIKI_TARGET_CALC_POINT(ARG:0), 3, RIGHT}
 CALL SHOP_LIFE_BUTTON_ADD_TOP_PRISONER(ARG:0)
 RETURN RESULT
 
@@ -162,6 +175,7 @@ RETURN RESULT
 ;　デフォルトの情報を表示しない場合はRETURN 1
 ;-------------------------------------------------
 @SHOP_LIFE_BUTTON_ADD_BOTTOM22(ARG:0)
+PRINTFORM P:{TEBIKI_ZYOSYU_CALC_POINT(ARG:0), 3, RIGHT}
 CALL SHOP_LIFE_BUTTON_ADD_BOTTOM_PRISONER(ARG:0)
 RETURN RESULT
 
@@ -182,6 +196,7 @@ CALL COLUMN_RIGHT_PRINTL
 
 ;助手を数える
 LOCAL:1 = 0
+LOCAL:2 = TEBIKI_ZYOSYU_CALC_POINT(MASTER)
 FOR LOCAL:0, 0, CHARANUM
 	;選択可能な条件を満たしているかどうかを判定
 	TRYCALLFORM SHOP_LIFE_CHECKCHARA_SUB{FLAG:拠点フェイズ選択コマンド}(LOCAL:0)
@@ -189,6 +204,7 @@ FOR LOCAL:0, 0, CHARANUM
 		;選択中の人数を数える
 		IF CFLAG:(LOCAL:0):夜這いの助手
 			LOCAL:1 ++
+			LOCAL:2 += TEBIKI_ZYOSYU_CALC_POINT(LOCAL:0)
 		ENDIF
 	ELSE
 		;条件を満たしていなければ強制的にＯＦＦ
@@ -197,6 +213,8 @@ FOR LOCAL:0, 0, CHARANUM
 NEXT
 
 PRINT 誰に手引きさせますか？
+PRINTFORM  ポイント:{LOCAL:2}
+
 CALL COLUMN_RIGHT_PRINTL
 CALL COLUMN_RIGHT_LINE
 CALL COLUMN_RIGHT_PRINTL
@@ -248,19 +266,22 @@ IF RESULT == 0
 
 	;行動開始時の共通設定
 	CALL START_TRAIN_COMMON
-	好感度他減少 = LIMIT(RAND(100, 200) - ABL:ARG:欲望 * 20 - ABL:ARG:奉仕 * 20 ,0, 100)
-	SIF TEBIKI_ABLE(ARG) == 2
-		好感度他減少 = 0
-	SIF TALENT:ARG:烙印
-		好感度他減少 /= 2
-	SIF CFLAG:(ARG:0):好感度 > 0
-		CFLAG:(ARG:0):好感度 -= 好感度他減少
-	SIF CFLAG:(ARG:0):従属度 > 0
-		CFLAG:(ARG:0):従属度 -= 好感度他減少
-	SIF CFLAG:(ARG:0):依存度 > 0
-		CFLAG:(ARG:0):依存度 -= 好感度他減少
-	;相手国との関係悪化（適当）
-	CALL CHANGE_RELATION_C_TO_C(CFLAG:ARG:所属, CFLAG:MASTER:所属, RAND(50, 100) * -1, RAND(50, 100))
+	IF !GROUPMATCH(1, TALENT:ARG:親愛, TALENT:ARG:恋慕, TALENT:ARG:隷属, TALENT:ARG:服従)
+		好感度他減少 = LIMIT(RAND(100, 200) - ABL:ARG:欲望 * 20 - ABL:ARG:奉仕 * 20 ,0, 100)
+		SIF TALENT:ARG:烙印
+			好感度他減少 /= 2
+		SIF CFLAG:(ARG:0):好感度 > 0
+			CFLAG:(ARG:0):好感度 -= 好感度他減少
+		SIF CFLAG:(ARG:0):従属度 > 0
+			CFLAG:(ARG:0):従属度 -= 好感度他減少
+		SIF CFLAG:(ARG:0):依存度 > 0
+			CFLAG:(ARG:0):依存度 -= 好感度他減少
+		;相手国との関係悪化（適当）
+		CALL CHANGE_RELATION_C_TO_C(CFLAG:ARG:所属, CFLAG:MASTER:所属, RAND(50, 100) * -1, RAND(50, 100))
+		;対象が君主ならおかわり
+		SIF GET_COUNTRY_BOSS(CFLAG:(ARG:0):所属) == ARG:0
+			CALL CHANGE_RELATION_C_TO_C(CFLAG:ARG:所属, CFLAG:MASTER:所属, RAND(100, 150) * -1, RAND(100, 150))
+	ENDIF
 	REDRAW 1
 	RETURN 1
 ENDIF

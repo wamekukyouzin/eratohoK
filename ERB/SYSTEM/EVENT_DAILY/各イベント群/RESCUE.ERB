@@ -41,80 +41,80 @@ RETURN デイリー_ジャンル_エロ
 PRINTFORML 敵国に捕まった仲間を救出する作戦を提案された
 PRINTFORML どうしよう？
 CALL ASK_MULTI(@"ＹＥＳ" ,"ＮＯ")
-	IF RESULT == 1
-		PRINTFORMW 危険だ、今は機を窺おう
+IF RESULT == 1
+	PRINTFORMW 危険だ、今は機を窺おう
+	RETURN 1
+ELSE
+	PRINTFORMW 仲間を見捨てることはできない、救出作戦を行うことにした
+	$RESCUE_LOOP 
+	PRINTFORML 誰を救出に向かおうか？
+	CALL SINGLE_DRAWLINE
+	FOR LOCAL, 0, CHARANUM
+		IF CFLAG:LOCAL:所属 == CFLAG:MASTER:所属 && CFLAG:LOCAL:捕虜先 != 0 && CFLAG:LOCAL:捕虜先 != CFLAG:MASTER:所属
+			捕虜番号:(LOCAL:1) = LOCAL
+			PRINTFORM [{LOCAL:1}]%ANAME(LOCAL)%
+			PRINTL
+			LOCAL:1 ++
+		ENDIF
+	NEXT
+	CALL SINGLE_DRAWLINE
+	PRINTFORML [1000] やめておく
+	$INPUT_LOOP
+	INPUT
+	IF RESULT == 1000
+		$CANCEL
+		PRINTFORMW やはり危険だ、今は機を窺おう
 		RETURN 1
+	ELSEIF RESULT < 0 || RESULT >= LOCAL:1
+		GOTO INPUT_LOOP
 	ELSE
-		PRINTFORMW 仲間を見捨てることはできない、救出作戦を行うことにした
-		$RESCUE_LOOP 
-		PRINTFORML 誰を救出に向かおうか？
-		CALL SINGLE_DRAWLINE
-		FOR LOCAL, 0, CHARANUM
-			IF CFLAG:LOCAL:所属 == CFLAG:MASTER:所属 && CFLAG:LOCAL:捕虜先 != 0 && CFLAG:LOCAL:捕虜先 != CFLAG:MASTER:所属
-				捕虜番号:(LOCAL:1) = LOCAL
-				PRINTFORM [{LOCAL:1}]%ANAME(LOCAL)%
-				PRINTL
-				LOCAL:1 ++
-			ENDIF
-		NEXT
-		CALL SINGLE_DRAWLINE
-		PRINTFORML [1000] やめておく
-		$INPUT_LOOP
-		INPUT
-		IF RESULT == 1000
-			$CANCEL
-			PRINTFORMW やはり危険だ、今は機を窺おう
-			RETURN 1
-		ELSEIF RESULT < 0 || RESULT >= LOCAL:1
-			GOTO INPUT_LOOP
+		対象 = 捕虜番号:(RESULT)
+		PRINTFORMW %ANAME(対象)%を救出することにした
+		PRINTFORML 誰が救出に向かおうか？
+		CALL SELECT_CHARA_LIST_ONLY_LOGIC_SLG("RESCUE", "RESCUE")
+		SIF RESULT == -1
+			GOTO CANCEL
+		実行者 = RESULT
+		IF 実行者 == MASTER
+			PRINTFORMW %ANAME(実行者)%自ら向かうことにした
 		ELSE
-			対象 = 捕虜番号:(RESULT)
-			PRINTFORMW %ANAME(対象)%を救出することにした
-			PRINTFORML 誰が救出に向かおうか？
-			CALL SELECT_CHARA_LIST_ONLY_LOGIC_SLG("RESCUE", "RESCUE")
-			SIF RESULT == -1
-				GOTO CANCEL
-			実行者 = RESULT
+			PRINTFORMW %ANAME(実行者)%を向かわせることにした
+		ENDIF
+		PRINTFORML ・
+		PRINTFORML ・
+		PRINTFORMW ・
+		IF (ABL:実行者:武闘 + ABL:実行者:知略 + ABL:実行者:政治) / 10 >= RAND:30 + DAY / 10
+			PRINTFORML やった！
+			PRINTFORML 救出作戦は成功した！
+			PRINTFORMW 捕まっていた%ANAME(対象)%を連れ戻した
+			CFLAG:対象:捕虜先 = 0
 			IF 実行者 == MASTER
-				PRINTFORMW %ANAME(実行者)%自ら向かうことにした
-			ELSE
-				PRINTFORMW %ANAME(実行者)%を向かわせることにした
+				PRINTFORMW %ANAME(対象)%の%ANAME(実行者)%への評価が大きく上がった
+				CFLAG:対象:好感度 += 500
 			ENDIF
-			PRINTFORML ・
-			PRINTFORML ・
-			PRINTFORMW ・
-			IF (ABL:実行者:武闘 + ABL:実行者:知略 + ABL:実行者:政治) / 10 >= RAND:30 + DAY / 10
-				PRINTFORML やった！
-				PRINTFORML 救出作戦は成功した！
-				PRINTFORMW 捕まっていた%ANAME(対象)%を連れ戻した
-				CFLAG:対象:捕虜先 = 0
-				IF 実行者 == MASTER
-					PRINTFORMW %ANAME(対象)%の%ANAME(実行者)%への評価が大きく上がった
-					CFLAG:対象:好感度 += 500
-				ENDIF
+		ELSE
+			PRINTFORML しまった！
+			PRINTFORMW 作戦に失敗した……
+			IF IS_MALE(実行者)
+				PRINTFORML %ANAME(実行者)%は命からがら逃げ帰った
+				CALL ADD_COOLTIME(実行者, 3)
 			ELSE
-				PRINTFORML しまった！
-				PRINTFORMW 作戦に失敗した……
-				IF IS_MALE(実行者)
-					PRINTFORML %ANAME(実行者)%は命からがら逃げ帰った
-					CALL ADD_COOLTIME(実行者, 3)
+				PRINTFORML %ANAME(実行者)%はスパイとして敵兵に捕まってしまった
+				PRINTFORMW 気丈に睨み付ける%ANAME(実行者)%に対し、彼らはニヤニヤと笑いながら尋問の為に連れて行った……
+				PRINTFORML 
+				CALL RESCUE_RAPE(実行者)
+				PRINTFORML 
+				IF RAND:3 == 0
+					PRINTFORMW その後、%ANAME(実行者)%も%ANAME(対象)%同様、捕虜にされてしまった
+					CFLAG:実行者:捕虜先 = CFLAG:対象:捕虜先
 				ELSE
-					PRINTFORML %ANAME(実行者)%はスパイとして敵兵に捕まってしまった
-					PRINTFORMW 気丈に睨み付ける%ANAME(実行者)%に対し、彼らはニヤニヤと笑いながら尋問の為に連れて行った……
-					PRINTFORML 
-					CALL RESCUE_RAPE(実行者)
-					PRINTFORML 
-					IF RAND:3 == 0
-						PRINTFORMW その後、%ANAME(実行者)%も%ANAME(対象)%同様、捕虜にされてしまった
-						CFLAG:実行者:捕虜先 = CFLAG:対象:捕虜先
-					ELSE
-						PRINTFORML 散々凌辱されたが、%ANAME(実行者)%は何とか逃げ帰った
-						CALL ADD_COOLTIME(実行者, 3)
-					ENDIF
+					PRINTFORML 散々凌辱されたが、%ANAME(実行者)%は何とか逃げ帰った
+					CALL ADD_COOLTIME(実行者, 3)
 				ENDIF
 			ENDIF
 		ENDIF
 	ENDIF
+ENDIF
 
 RETURN 1
 
