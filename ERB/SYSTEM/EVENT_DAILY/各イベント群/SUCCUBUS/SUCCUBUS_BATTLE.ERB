@@ -1,0 +1,208 @@
+﻿;---------------------
+;発生確率(1000分率 100で10%)
+;---------------------
+@EVENT_DAILY_SUCCUBUS_BATTLE_RATE()
+RETURN 45
+
+;---------------------
+;確率以外の発生判定
+;---------------------
+@EVENT_DAILY_SUCCUBUS_BATTLE_DECISION()
+#DIM サキュバス
+サキュバス = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_サキュバス))
+SIF サキュバス == -1
+	RETURN 0
+SIF CFLAG:MASTER:所属 == サキュバス
+	RETURN 0
+
+RETURN 1
+
+;---------------------
+;ジャンル
+;---------------------
+@EVENT_DAILY_SUCCUBUS_BATTLE_GENRE()
+RETURN デイリー_ジャンル_特殊勢力
+
+;---------------------
+;本体
+;---------------------
+@EVENT_DAILY_SUCCUBUS_BATTLE
+#DIM 兵数
+#DIM サキュバス
+
+サキュバス = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_サキュバス))
+
+PRINTFORML ある日出合い頭にサキュバスに勝負を挑まれた
+PRINTFORMW 彼女は舌なめずりをしながら%ANAME(MASTER)%を見ている…
+PRINTFORML どうしよう？
+CALL ASK_MULTI(@"弾幕ごっこを挑む" ,"あえて誘いに乗る" ,"逃げる")
+IF RESULT == 2
+	PRINTFORML その視線に危険を察知した%ANAME(MASTER)%は逃げる事にした
+	PRINTFORMW しばらく彼女が背後から罵倒しながら追いかけてきていたが、何とか振り切った…
+	RETURN 1
+ELSEIF RESULT == 1
+	PRINTFORMW %ANAME(MASTER)%は彼女の誘いに乗った
+	PRINTFORMW %ANAME(MASTER)%を見つめる彼女の瞳が怪しく光った…
+	PRINTFORML 
+	CALL SUCCUBUS_BATTLE_SEX()
+	PRINTFORML 
+	PRINTFORMW 満足した彼女は%ANAME(MASTER)%を放置して去って行った
+	RETURN 1
+ENDIF
+
+PRINTFORML その視線に危険を察知したが、逃げたら別の者が犠牲になるかもしれない
+PRINTFORMW そう思った%ANAME(MASTER)%は覚悟を決めてここで彼女を倒す事にした
+PRINTFORML ・
+PRINTFORML ・
+PRINTFORMW ・
+IF (ABL:MASTER:武闘 + ABL:MASTER:知略) * (RAND:10 + 1) >= (100 + DAY / 5) * (RAND:10 + 1)
+	PRINTFORMW 勝った！
+	IF !IS_MALE(MASTER)
+		PRINTFORMW サキュバスは涙を流しながら逃げ去って行った
+		CALL PRINT_ADD_EXP(MASTER, "武闘経験値", RAND:5 + 6, 1)
+		CALL PRINT_ADD_EXP(MASTER, "知略経験値", RAND:5 + 6, 1)
+		CALL TRAIN_AUTO_ABLUP(MASTER)
+	ELSE
+		PRINTFORML ボロボロになったサキュバスが横たわり、涙目で%ANAME(MASTER)%を見上げている
+		PRINTFORMW 心なしかその視線には期待の色が含まれているように見える…
+		PRINTFORML どうしよう？
+		CALL ASK_MULTI(@"犯す" ,"兵に与える" ,"放置する")
+		IF RESULT == 2
+			PRINTFORML あいにく好みじゃない
+			PRINTFORMW %ANAME(MASTER)%は彼女を放置して立ち去った
+		ELSEIF RESULT == 1
+			PRINTFORML 彼女の期待通りの扱いをしてやろう
+			PRINTFORMW %ANAME(MASTER)%は彼女を引きずり持ち帰った
+			PRINTFORML …彼女を肉便器として兵舎に設置した
+			兵数 = MIN(1000 * (DAY / 10), 10000)
+			SIF 兵数 == 0
+				兵数 = 1000
+			COUNTRY_SOLDIER:(CFLAG:対象:所属) += 兵数
+			CALL COLORPRINT(@"兵士たちに大変好評で、噂によって志願兵が{兵数}人増えた", カラー_注意, "W")
+			PRINTFORMW 彼女自身も日々喜んでいる様だ
+			CALL CHANGE_RELATION_C_TO_C(サキュバス, CFLAG:MASTER:所属, 30, -30)
+			CALL COLORPRINT("…なぜかサキュバス勢力の評価が上がったようだ", カラー_注意, "W")
+		ELSEIF RESULT == 0
+			PRINTFORML …よく見れば流石サキュバスだけあって極上の身体をしている
+			PRINTFORML %ANAME(MASTER)%は我慢できず、彼女の期待通りに覆いかぶさった
+			PRINTFORMW 彼女は抵抗もせず期待の混じった声で黄色い悲鳴を上げた
+			PRINTFORML 
+			PRINTFORML %ANAME(MASTER)%は彼女を物陰に連れ込み犯している
+			PRINTFORML 見た目通りその身体は極上で肌も胸も雌穴もすべてが%ANAME(MASTER)%を夢中にさせる
+			PRINTFORMW 彼女は%ANAME(MASTER)%にされるがままに身をくねらせ脳に響く様なあられもない嬌声を上げる
+			PRINTFORML 腰を打ち付ける度にペニス事引き抜かれそうになる様な感触に思わず呻いてしまう
+			PRINTFORML 彼女は全身で絡みつき、自信を打倒した%ANAME(MASTER)%の逞しい子種をおねだりしてきた
+			PRINTFORMW すっかり彼女のペースにはまりながらもその極上の女体を存分に堪能させてもらった
+			CALL FUCK(MASTER, "性技, 性交, Ｃ, 射精", "童貞喪失, キス喪失", 0, "サキュバスの唇", "", "サキュバスの膣", 喪失_和姦)
+			PRINTFORML 
+			PRINTFORMW 散々彼女を犯した後、満足そうな彼女を放置して立ち去った
+		ENDIF
+		CALL PRINT_ADD_EXP(MASTER, "武闘経験値", RAND:5 + 6, 1)
+		CALL PRINT_ADD_EXP(MASTER, "知略経験値", RAND:5 + 6, 1)
+		CALL TRAIN_AUTO_ABLUP(MASTER)
+	ENDIF
+ELSE
+	PRINTFORMW 負けてしまった…
+	PRINTFORMW 横たわる%ANAME(MASTER)%を見つめる彼女の瞳が怪しく光った…
+	PRINTFORML 
+	CALL SUCCUBUS_BATTLE_SEX(MASTER)
+	PRINTFORML 
+	PRINTFORMW 満足した彼女は%ANAME(MASTER)%を放置して去って行った
+ENDIF
+RETURN 1
+
+;-----------------------------------------------------------
+;サキュバスのセックス
+;-----------------------------------------------------------
+@SUCCUBUS_BATTLE_SEX()
+
+IF IS_MALE(MASTER)
+	PRINTFORMW %ANAME(MASTER)%はサキュバスに逆レイプされている…
+	PRINTFORML 
+	SELECTCASE RAND:5
+		CASE 0
+			PRINTFORML 彼女は%ANAME(MASTER)%に跨り深々とペニスを咥えこんで激しく腰を振る
+			PRINTFORML その蜜壺は正に男を絞る取る為のような極上の感触で竿全体に絡みついてくる
+			PRINTFORML 気を抜けば射精しそうな快楽に%ANAME(MASTER)%はたまらずうめき声を上げ腰を浮かしてしまう
+			PRINTFORML そんな%ANAME(MASTER)%の様子を楽しむ様に彼女は腰を巧みにくねらせ射精を促してきた
+			PRINTFORMW 結局%ANAME(MASTER)%は限界一杯まで彼女に搾り取られてしまう事になった…
+		CASE 1
+			PRINTFORML 彼女は%ANAME(MASTER)%を抑え込み舌を絡ませながら巧みに腰を上下させる
+			PRINTFORML サキュバス雌穴は天然の肉オナホであり一物に抗い難い快楽を与えて来る
+			PRINTFORML %ANAME(MASTER)%は必死で逃れようとするもあまりの快楽に無意識に腰を浮かせてしまっていた
+			PRINTFORML 彼女が射精を促すべくスパートを駆け出すとともはや逃れることは出来なかった
+			PRINTFORMW %ANAME(MASTER)%は我慢できずに彼女の中へと何度も精を放たされてしまった…
+		CASE 2
+			PRINTFORML 横たわる%ANAME(MASTER)%に跨った彼女はあられもない嬌声を上げて身をくねらせる
+			PRINTFORML その極上の身体と技の前に、ボロボロのはずの身体も本能に抗えず反応してしまう
+			PRINTFORML 膣口はきつく締まり竿全体を絞り上げ、奥の肉壁は柔らかく亀頭に絡みついてくる
+			PRINTFORML %ANAME(MASTER)%が我慢できずに射精すると彼女は悦びの声を上げてビクビクと痙攣した
+			PRINTFORMW もはや%ANAME(MASTER)%に抗う術はなく、彼女の為にひたすら射精を繰り返した…
+		CASE 3
+			PRINTFORML %ANAME(MASTER)%の肉体は操られ自ら四つん這いの彼女にガン突きしている
+			PRINTFORML 犯されるシチュに興奮するのか、彼女は一突きされる度にあられもなくヨガリ狂う
+			PRINTFORML 腰を打ち付ける度に亀頭が天井に擦れ、その感触に%ANAME(MASTER)%も彼女も身を震わせる
+			PRINTFORML %ANAME(MASTER)%の限界が近づいてくると彼女は膣をキュッと締め付け膣出しをねだってきた
+			PRINTFORMW まるで彼女の為のディルドーの様にたっぷりと搾り取られてしまった…
+		CASE 4
+			PRINTFORML %ANAME(MASTER)%は彼女に散々搾り取られて息も絶え絶えに横たわっている
+			PRINTFORML 彼女はというと満足気な表情で%ANAME(MASTER)%の腕に抱かれながら胸に擦り寄っている
+			PRINTFORML 確かに%ANAME(MASTER)%たちの身体の相性は抜群だったようで行為中は夢中になってしまった
+			PRINTFORML 彼女は頬を赤らめ、「これだけ濃いのを出されたら孕んじゃうかも♥」と囁いてきた
+			PRINTFORMW 彼女に気に入られた%ANAME(MASTER)%は直ぐには解放されず一日中つき合わされた…
+	ENDSELECT
+	CALL FUCK(MASTER, "性技, 性交, Ｃ, 射精", "童貞喪失, キス喪失", 0, "サキュバスの唇", "", "サキュバスの膣", 喪失_強姦)
+	CALL FUCK(MASTER, "性技, 性交, Ｃ, 射精", "童貞喪失, キス喪失", 0, "サキュバスの唇", "", "サキュバスの膣", 喪失_強姦)
+ELSE
+	PRINTFORMW %ANAME(MASTER)%はサキュバスの淫気に操られている…
+	PRINTFORML 
+	SELECTCASE RAND:5
+		CASE 0
+			PRINTFORML 彼女プロデュースの衣装を身にまとった%ANAME(MASTER)%は、共に男漁りに向かった
+			PRINTFORML 男たちが極上の女である%ANAME(MASTER)%達の誘いを断れるはずもなく、ホイホイついてきた
+			PRINTFORMW %ANAME(MASTER)%達はそれぞれ男に抱かれながらホテルに向かい、早速セックスする事になった
+			PRINTFORML サキュバスの手で%ANAME(MASTER)%は通常の何倍も敏感にされており、すぐにイキっぱなしになる
+			PRINTFORML %ANAME(MASTER)%は元からそうであったかのように淫らに身体をくねらせあられもなくヨガり狂った
+			PRINTFORMW その後も、彼女が満足するまで両手で数え切れないほどの男たちの相手をさせられた…
+			CALL FUCK(MASTER, "欲望, 奉仕, 性技, 性交, 精愛, Ｃ, Ｖ, Ｂ, Ｍ, Ｖ性交, キス, 口淫", "キス喪失, 処女喪失, 膣内射精, 口内射精", GET_SPERM_ID("ならず者"), @"行きずりの男の\@RAND:2 ? ペニス # 唇\@", "行きずりの男", "", 喪失_和姦)
+			CALL FUCK(MASTER, "欲望, 奉仕, 性技, 性交, 精愛, Ｃ, Ｖ, Ｂ, Ｍ, Ｖ性交, キス, 口淫", "キス喪失, 処女喪失, 膣内射精, 口内射精", GET_SPERM_ID("ならず者"), @"行きずりの男の\@RAND:2 ? ペニス # 唇\@", "行きずりの男", "", 喪失_和姦)
+		CASE 1
+			PRINTFORML 浮浪者の溜まり場を訪れた%ANAME(MASTER)%達は彼らに奉仕することになった
+			PRINTFORML 最初は戸惑っていた彼らもすぐに淫気に当てられ本能のままにその性欲をぶつけてきた
+			PRINTFORMW チンカスまみれのくっさいペニスを咥え込まされた%ANAME(MASTER)%は発情した様に瞳に♥を浮かべる
+			PRINTFORML 大量のペニスに囲まれた%ANAME(MASTER)%達は手も口も両方の穴も全てを使いそれらに奉仕していく
+			PRINTFORML 女日照りの彼らは直ぐに射精し、黄ばんだ精液で全身をドロドロに汚されてしまう
+			PRINTFORMW %ANAME(MASTER)%は無数の浮浪者の精液で子宮をパンパンに膨らませるまで犯される事になった…
+			CALL FUCK(MASTER, "欲望, 奉仕, 性技, 性交, 精愛, Ｃ, Ｖ, Ｂ, Ａ, Ｍ, Ｖ性交, キス, 口淫, 輪姦", "キス喪失, 処女喪失, Ａ処女喪失, 膣内射精, 腸内射精, 口内射精", GET_SPERM_ID("浮浪者"), @"浮浪者の\@RAND:2 ? ペニス # 唇\@", "浮浪者", "", 喪失_輪姦)
+			CALL FUCK(MASTER, "欲望, 奉仕, 性技, 性交, 精愛, Ｃ, Ｖ, Ｂ, Ａ, Ｍ, Ｖ性交, キス, 口淫, 輪姦", "キス喪失, 処女喪失, Ａ処女喪失, 膣内射精, 腸内射精, 口内射精", GET_SPERM_ID("浮浪者"), @"浮浪者の\@RAND:2 ? ペニス # 唇\@", "浮浪者", "", 喪失_輪姦)
+		CASE 2
+			PRINTFORML 彼女は%ANAME(MASTER)%に憑依すると歓楽街に向かい、立ちんぼをしだした
+			PRINTFORML 抗議する%ANAME(MASTER)%をよそに彼女は道行く男達を誘っては路地裏に連れ込みセックスする
+			PRINTFORMW 1回金100という捨て値で%ANAME(MASTER)%を抱けるとあって客は止まらず次々と犯され汚されてしまう
+			PRINTFORML 体の自由は聞かずとも感覚を共有している%ANAME(MASTER)%は問答無用の快感にイキ狂わされる
+			PRINTFORML もはや操られているのか自分で腰を振っているのかもわからずちんぽを咥え込んでいく
+			PRINTFORMW 何十人もの男を相手にした後ようやくサキュバスは満足して%ANAME(MASTER)%の身体を解放した…
+			CALL FUCK(MASTER, "欲望, 奉仕, 性技, 性交, 精愛, Ｃ, Ｖ, Ｂ, Ａ, Ｍ, Ｖ性交, Ａ性交, キス, 口淫, 売春", "キス喪失, 処女喪失, Ａ処女喪失, 膣内射精, 腸内射精, 口内射精", GET_SPERM_ID("行きずりの男"), @"行きずりの男の\@RAND:2 ? ペニス # 唇\@", "行きずりの男", "", 喪失_売春)
+			CALL FUCK(MASTER, "欲望, 奉仕, 性技, 性交, 精愛, Ｃ, Ｖ, Ｂ, Ａ, Ｍ, Ｖ性交, Ａ性交, キス, 口淫, 売春", "キス喪失, 処女喪失, Ａ処女喪失, 膣内射精, 腸内射精, 口内射精", GET_SPERM_ID("行きずりの男"), @"行きずりの男の\@RAND:2 ? ペニス # 唇\@", "行きずりの男", "", 喪失_売春)
+		CASE 3
+			PRINTFORML %ANAME(MASTER)%の頭の中はセックスとちんぽでいっぱいとなり彼女と共に逆ナンに向かった
+			PRINTFORML それぞれ好みの相手を見つけると色気全開で擦り寄り、おねだりする様にホテルへと誘う
+			PRINTFORMW 彼らは服を脱ぎ棄てベッドに寝転ぶ%ANAME(MASTER)%達に生唾を飲むと獣の様に襲い掛かって来た
+			PRINTFORML 想像以上に逞しい男根で乱暴に貫かれながら、%ANAME(MASTER)%は快楽のあまり白目を剥いてヨガる
+			PRINTFORML 子宮も一突きでオトされて、見ず知らずの彼の子種を求めて子宮口をぱくつかせていた
+			PRINTFORMW すっかり淫乱雌となった%ANAME(MASTER)%は、行きずりの男との本気セックスを楽しんだ…
+			CALL FUCK(MASTER, "欲望, 奉仕, 性技, 性交, 精愛, Ｃ, Ｖ, Ｂ, Ｍ, Ｖ性交, キス, 口淫", "キス喪失, 処女喪失, 膣内射精, 口内射精", GET_SPERM_ID("ならず者"), @"行きずりの男の\@RAND:2 ? ペニス # 唇\@", "行きずりの男", "", 喪失_和姦)
+			CALL FUCK(MASTER, "欲望, 奉仕, 性技, 性交, 精愛, Ｃ, Ｖ, Ｂ, Ｍ, Ｖ性交, キス, 口淫", "キス喪失, 処女喪失, 膣内射精, 口内射精", GET_SPERM_ID("ならず者"), @"行きずりの男の\@RAND:2 ? ペニス # 唇\@", "行きずりの男", "", 喪失_和姦)
+		CASE 4
+			PRINTFORML 二人で近くで遊んでいた男の子たちを誘惑し、手頃な空き家に連れ込んだ
+			PRINTFORML %ANAME(MASTER)%達が裸になると、彼らは初めて間近で見るであろう女体に釘付けとなった
+			PRINTFORMW その股間が一律膨れ上がるのを見た%ANAME(MASTER)%は子宮は疼かせながら寝転び彼らを誘った
+			PRINTFORML 男の子たちは我先にと%ANAME(MASTER)%達に群がりその幼い性欲を夢中になってぶつけてくる
+			PRINTFORML 腰を振る度に彼らは雄となっていき、その様子に%ANAME(MASTER)%はゾクゾクと背筋を震わせた
+			PRINTFORMW %ANAME(MASTER)%達はまるで盛った猿のようにまぐわい続け何度も何度も絶頂に達した…
+			CALL FUCK(MASTER, "欲望, 奉仕, 性技, 性交, 精愛, Ｃ, Ｖ, Ｂ, Ｍ, Ｖ性交, キス, 口淫, 輪姦", "キス喪失, 処女喪失, 膣内射精, 口内射精", GET_SPERM_ID("子供"), @"子どもの\@RAND:2 ? ペニス # 唇\@", "子ども", "", 喪失_輪姦)
+			CALL FUCK(MASTER, "欲望, 奉仕, 性技, 性交, 精愛, Ｃ, Ｖ, Ｂ, Ｍ, Ｖ性交, キス, 口淫, 輪姦", "キス喪失, 処女喪失, 膣内射精, 口内射精", GET_SPERM_ID("子供"), @"子どもの\@RAND:2 ? ペニス # 唇\@", "子ども", "", 喪失_輪姦)
+	ENDSELECT
+ENDIF
+
+RETURN 1

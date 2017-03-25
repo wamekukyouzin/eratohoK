@@ -1,0 +1,204 @@
+﻿;---------------------
+;発生確率(1000分率 100で10%)
+;---------------------
+@EVENT_DAILY_SUCCUBUS_DISTURBANCE_RATE()
+RETURN 55
+
+;---------------------
+;確率以外の発生判定
+;---------------------
+@EVENT_DAILY_SUCCUBUS_DISTURBANCE_DECISION()
+#DIM サキュバス
+サキュバス = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_サキュバス))
+SIF サキュバス == -1
+	RETURN 0
+SIF CFLAG:MASTER:所属 == サキュバス
+	RETURN 0
+
+RETURN 1
+
+;---------------------
+;ジャンル
+;---------------------
+@EVENT_DAILY_SUCCUBUS_DISTURBANCE_GENRE()
+RETURN デイリー_ジャンル_特殊勢力
+
+;---------------------
+;本体
+;---------------------
+@EVENT_DAILY_SUCCUBUS_DISTURBANCE
+#DIM 対象都市
+#DIM サキュバス
+サキュバス = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_サキュバス))
+
+CALL DAILY_EVENT_RAND_CITYSELECT(0)
+対象都市 = RESULT
+SIF 対象都市 < 0
+	RETURN
+PRINTFORML サキュバス達の影響か、近頃幻想郷の風紀が乱れている…
+PRINTFORML 街中でも人気のない場所を覗くと男女がまぐわっていたりする
+PRINTFORMW 今のところ大きな害はなく、また経済には好影響が出ているようだ
+PRINTFORML どうしよう？
+CALL ASK_MULTI(@"厳しく取り締まる" ,"様子を見る" ,"自分もハメを外す" ,"サキュバスを探す")
+
+IF RESULT == 1
+	PRINTFORMW しばらく様子を見る事にした…
+	$SUCCUBUS_KEKKA
+	LOCAL:1 = RAND(CITY_ECONOMY_LIMIT:(対象都市) / 100 * 100 / 10 , CITY_ECONOMY_LIMIT:(対象都市) / 100 * 100 / 10 + 1000)
+	IF CITY_ECONOMY:対象都市 == CITY_ECONOMY_LIMIT:対象都市
+		CITY_ECONOMY_LIMIT:対象都市 += LOCAL:1
+		CALL COLORPRINT(@"%CITY_NAME:対象都市%の経済規模の上限が{LOCAL:1 / 100}上昇し、{CITY_ECONOMY_LIMIT:対象都市 / 100}になった！", カラー_注意, "L")
+	ELSE
+		SIF CITY_ECONOMY:対象都市 + LOCAL:1 >= CITY_ECONOMY_LIMIT:対象都市
+			LOCAL:1 = MIN(LOCAL:1, CITY_ECONOMY_LIMIT:対象都市 - CITY_ECONOMY)
+		CITY_ECONOMY:対象都市 += LOCAL:1
+		CALL COLORPRINT(@"%CITY_NAME:対象都市%の経済規模が{LOCAL:1 / 100}上昇し、{CITY_ECONOMY:対象都市 / 100}になった！", カラー_注意, "L")
+	ENDIF
+	FOR LOCAL, 1, MAX_COUNTRY
+		IF IS_COUNTRY(LOCAL) && LOCAL != サキュバス
+			CALL CHANGE_RELATION_C_TO_C(LOCAL, CFLAG:MASTER:所属, -30, 30)
+		ELSE
+			CALL CHANGE_RELATION_C_TO_C(LOCAL, CFLAG:MASTER:所属, 100, -100)
+		ENDIF
+	NEXT
+	CALL COLORPRINT("その後しばらく風紀は乱れ続け、他国の評価が下がってしまった", カラー_注意, "L")
+	CALL COLORPRINT("しかしサキュバス達からは好意的に受け取られたようだ", カラー_注意, "W")
+ELSEIF RESULT == 0
+	PRINTFORMW 厳しく取り締まった…
+	LOCAL:1 = RAND(CITY_ECONOMY_LIMIT:(対象都市) / 100 * 100 / 10 , CITY_ECONOMY_LIMIT:(対象都市) / 100 * 100 / 10 + 1000)
+	CITY_ECONOMY:対象都市 -= LOCAL:1
+	CALL COLORPRINT(@"%CITY_NAME:対象都市%の経済規模が{LOCAL:1 / 100}減少し、{CITY_ECONOMY:対象都市 / 100}になった…", カラー_注意, "L")
+	FOR LOCAL, 1, MAX_COUNTRY
+		IF IS_COUNTRY(LOCAL) && LOCAL != サキュバス
+			CALL CHANGE_RELATION_C_TO_C(LOCAL, CFLAG:MASTER:所属, 30, -30)
+		ELSE
+			CALL CHANGE_RELATION_C_TO_C(LOCAL, CFLAG:MASTER:所属, -100, 100)
+		ENDIF
+	NEXT
+	CALL COLORPRINT("風紀を厳格に取り締まる姿勢は他国の評価につながった", カラー_注意, "L")
+	CALL COLORPRINT("しかしサキュバス達からは不評だったようだ", カラー_注意, "W")
+ELSEIF RESULT == 3
+	PRINTFORMW %ANAME(MASTER)%は元凶であろうサキュバスを探した
+	PRINTFORML ・
+	PRINTFORML ・
+	PRINTFORMW ・
+	PRINTFORML しかし見つからなかった
+	PRINTFORMW これ以上深入りすると自分もサキュバスの影響を受けてしまいそうだが…
+	PRINTFORMW どうしよう？
+	CALL ASK_YN("まだ探す" ,"やめておく")
+	IF RESULT == 1
+		PRINTFORML やめておいた
+		PRINTFORMW 仕方がないのでしばらく様子を見る事にした…
+		GOTO SUCCUBUS_KEKKA
+	ELSEIF RESULT == 0
+		PRINTFORMW 諦めきれずまだ探す事にした
+		PRINTFORML 
+		PRINTFORMW …気づくと%ANAME(MASTER)%もサキュバスの影響を受け頭の中は快楽を求めて一杯になっていた
+		PRINTFORMW %ANAME(MASTER)%は発情したような表情で街に繰り出した
+		GOTO SUCCUBUS_SEX
+	ENDIF
+ELSEIF RESULT == 2
+	PRINTFORML どうやら自分もサキュバスの影響を受けてしまった様だ
+	PRINTFORMW %ANAME(MASTER)%はこの状況を好ましくとらえ羽目を外す事にした
+	$SUCCUBUS_SEX
+	PRINTFORML 
+	IF IS_MALE(MASTER)
+		SELECTCASE RAND:5
+			CASE 0
+				PRINTFORML %ANAME(MASTER)%は町娘をナンパした
+				PRINTFORML いかにも生娘といった様子の少女だったが、彼女もまた熱に浮かされた様に%ANAME(MASTER)%の誘いに乗って来た
+				PRINTFORML その熱っぽい視線に我慢できなかった%ANAME(MASTER)%は彼女の腰に手を回して早速ホテルへと連れ込んだ
+				PRINTFORMW 誰にも汚された事のない彼女の無垢な身体を思う存分味わい、一晩かけて%ANAME(MASTER)%好みに躾けてやった
+				CALL FUCK(MASTER, "性技, 性交, Ｃ, 射精", "童貞喪失, キス喪失", 0, "行きずりの女の唇", "", "行きずりの女の膣", 喪失_和姦)
+				CALL FUCK(MASTER, "性技, 性交, Ｃ, 射精", "童貞喪失, キス喪失", 0, "行きずりの女の唇", "", "行きずりの女の膣", 喪失_和姦)
+			CASE 1
+				PRINTFORML %ANAME(MASTER)%はある娘に夜這いを掛けた
+				PRINTFORML 昼間に街中で見かけた時から目を奪われ、どうしても手を掛けたいと思っていた少女だ
+				PRINTFORML 娘はひどく抵抗してきたが、%ANAME(MASTER)%はその表情に興奮しより激しく一物をいきり立たせて彼女を犯した
+				PRINTFORMW 犯している内に彼女もまた淫気に当てられたのか最後には自ら%ANAME(MASTER)%にしがみついておねだりしてきた
+				CALL FUCK(MASTER, "性技, 性交, Ｃ, 射精", "童貞喪失, キス喪失", 0, "行きずりの女の唇", "", "行きずりの女の膣", 喪失_強姦)
+				CALL FUCK(MASTER, "性技, 性交, Ｃ, 射精", "童貞喪失, キス喪失", 0, "行きずりの女の唇", "", "行きずりの女の膣", 喪失_強姦)
+			CASE 2
+				PRINTFORML %ANAME(MASTER)%は逆ナンしてきた娘とホテルにいる
+				PRINTFORML 彼女は盛りのついた雌犬の様に%ANAME(MASTER)%に擦り寄り、乱暴に好きなように犯してほしいとねだってきた
+				PRINTFORML 勿論そのつもりの%ANAME(MASTER)%は彼女をベッドに押し倒すと、早速いきり立った一物を彼女にねじ込んだ
+				PRINTFORMW 結局その日は一晩中、二人で時間を忘れてただひたすらにお互いを求めて肉欲を貪り合った
+				CALL FUCK(MASTER, "性技, 性交, Ｃ, 射精", "童貞喪失, キス喪失", 0, "行きずりの女の唇", "", "行きずりの女の膣", 喪失_和姦)
+				CALL FUCK(MASTER, "性技, 性交, Ｃ, 射精", "童貞喪失, キス喪失", 0, "行きずりの女の唇", "", "行きずりの女の膣", 喪失_和姦)
+			CASE 3
+				PRINTFORML %ANAME(MASTER)%は退治した妖怪の少女を犯している
+				PRINTFORML 人間に比べ引き締まった身体は%ANAME(MASTER)%の一物を激しく締め上げ、一突き毎に可愛い喘ぎ声を上げる
+				PRINTFORML 口では抵抗している彼女も淫気の影響を受けている様で、軽く小突いてやるだけで激しく身を震わせた
+				PRINTFORMW %ANAME(MASTER)%は彼女が心から"改心"して従順になるまで時間を掛けてじっくりと躾けてやった
+				CALL FUCK(MASTER, "性技, 性交, Ｃ, 射精", "童貞喪失, キス喪失", 0, "妖怪の少女の唇", "", "妖怪の少女の膣", 喪失_強姦)
+				CALL FUCK(MASTER, "性技, 性交, Ｃ, 射精", "童貞喪失, キス喪失", 0, "妖怪の少女の唇", "", "妖怪の少女の膣", 喪失_強姦)
+			CASE 4
+				PRINTFORML %ANAME(MASTER)%は捕虜の女兵士を"尋問"している
+				PRINTFORML 彼女ははじめ抵抗して必死で口をつぐんでいたが、本人も気づかぬ内に雌の顔で喘ぎだした
+				PRINTFORML 女の弱点を見つけた%ANAME(MASTER)%がそこを攻め立てるとあられもなく強制を響かせながら大きく仰け反った
+				PRINTFORMW %ANAME(MASTER)%は彼女に対しどんなに鍛えても所詮女は女なのだとペニスで教え込んでやった
+				CALL FUCK(MASTER, "性技, 性交, Ｃ, 射精", "童貞喪失, キス喪失", 0, "女兵士の唇", "", "女兵士の膣", 喪失_強姦)
+				CALL FUCK(MASTER, "性技, 性交, Ｃ, 射精", "童貞喪失, キス喪失", 0, "女兵士の唇", "", "女兵士の膣", 喪失_強姦)
+		ENDSELECT
+	ELSE
+		SELECTCASE RAND:5
+			CASE 0
+				PRINTFORML %ANAME(MASTER)%は宿舎で兵士の相手をしている
+				PRINTFORML 建前は日頃の苦労をねぎらう慰安として、本音としてはその逞しい身体で滅茶苦茶にしてもらう為
+				PRINTFORMW 鬱憤がたまっている兵士にとって%ANAME(MASTER)%を抱けるのは肉体的にも精神的にも極上の褒美となった
+				PRINTFORML %ANAME(MASTER)%は代わる代わるちんぽをねじ込まれ、好き放題に犯されながらあられもなくヨガりまくる
+				PRINTFORML もちろん彼らが避妊など考えるはずもなくその溜まりに溜まった濃い雄汁はすべて子宮に注がれた
+				PRINTFORMW 夜が明けるまで無数の兵士とまぐわい続けた%ANAME(MASTER)%は、快楽と疲労のあまりしばらく動けなかった…
+				CALL FUCK(MASTER, "欲望, 奉仕, 性技, 性交, 精愛, Ｃ, Ｖ, Ｂ, Ａ, Ｍ, Ｖ性交, Ａ性交, キス, 口淫, 輪姦", "キス喪失, 処女喪失, Ａ処女喪失, 膣内射精, 腸内射精, 口内射精", GET_SPERM_ID("兵士"), @"兵士の\@RAND:2 ? ペニス # 唇\@", @"兵士", "", 喪失_輪姦)
+				CALL FUCK(MASTER, "欲望, 奉仕, 性技, 性交, 精愛, Ｃ, Ｖ, Ｂ, Ａ, Ｍ, Ｖ性交, Ａ性交, キス, 口淫, 輪姦", "キス喪失, 処女喪失, Ａ処女喪失, 膣内射精, 腸内射精, 口内射精", GET_SPERM_ID("兵士"), @"兵士の\@RAND:2 ? ペニス # 唇\@", @"兵士", "", 喪失_輪姦)
+			CASE 1
+				PRINTFORML %ANAME(MASTER)%は歓楽街でヤクザらしき男と共にいる
+				PRINTFORML 普段は着ない様なあられもない衣装を身にまとい、媚びる様な雌の視線で彼に絡みつく
+				PRINTFORMW 面識などはなく、先程口説かれたばかりの男だがその雄臭さだけで%ANAME(MASTER)%を期待させるには十分だった
+				PRINTFORML 彼は%ANAME(MASTER)%を自分の女の様に扱い、欲望を隠さない下卑た笑みを浮かべてホテルに連れ込んだ
+				PRINTFORML 部屋に入ると早速押し倒され、期待以上の逞しさと巧みさで何度も女の悦びを刻み込まれた
+				PRINTFORMW ホテルから出るころにはすっかり彼にメロメロとなっていた%ANAME(MASTER)%は自ら彼と連絡先を交換した…
+				CALL FUCK(MASTER, "欲望, 奉仕, 性技, 性交, 精愛, Ｃ, Ｖ, Ｂ, Ｍ, Ｖ性交, キス, 口淫", "キス喪失, 処女喪失, 膣内射精, 口内射精", GET_SPERM_ID("やくざ"), @"ヤクザの\@RAND:2 ? ペニス # 唇\@", @"ヤクザ", "", 喪失_和姦)
+				CALL FUCK(MASTER, "欲望, 奉仕, 性技, 性交, 精愛, Ｃ, Ｖ, Ｂ, Ｍ, Ｖ性交, キス, 口淫", "キス喪失, 処女喪失, 膣内射精, 口内射精", GET_SPERM_ID("やくざ"), @"ヤクザの\@RAND:2 ? ペニス # 唇\@", @"ヤクザ", "", 喪失_和姦)
+			CASE 2
+				PRINTFORML %ANAME(MASTER)%は安宿で男に跨り腰を振っている
+				PRINTFORML 見るからにチンピラ風の男は、もっと上手く奉仕する様に%ANAME(MASTER)%を罵倒しながら突き上げて来る
+				PRINTFORMW チンピラ風情に横柄に命令される屈辱感は興奮した%ANAME(MASTER)%は、従順に彼に従い必死で腰を振る
+				PRINTFORML 彼にナンパされた%ANAME(MASTER)%は、そのチャラさと性欲を隠そうとしない口調に子宮を疼かせ誘われた
+				PRINTFORML 期待通りにまるで肉オナホの様な扱いをされて%ANAME(MASTER)%は悦び、雌犬の様に彼に媚びヨガりまくった
+				PRINTFORMW 事後、彼はさっさと居なくなり、%ANAME(MASTER)%はベッドの上で余韻で痙攣しながらアヘ顔を晒していた…
+				CALL FUCK(MASTER, "欲望, 奉仕, 性技, 性交, 精愛, Ｃ, Ｖ, Ｂ, Ｍ, Ｖ性交, キス, 口淫", "キス喪失, 処女喪失, 膣内射精, 口内射精", GET_SPERM_ID("チンピラ"), @"チンピラの\@RAND:2 ? ペニス # 唇\@", @"チンピラ", "", 喪失_和姦)
+				CALL FUCK(MASTER, "欲望, 奉仕, 性技, 性交, 精愛, Ｃ, Ｖ, Ｂ, Ｍ, Ｖ性交, キス, 口淫", "キス喪失, 処女喪失, 膣内射精, 口内射精", GET_SPERM_ID("チンピラ"), @"チンピラの\@RAND:2 ? ペニス # 唇\@", @"チンピラ", "", 喪失_和姦)
+			CASE 3
+				PRINTFORML %ANAME(MASTER)%はスラム街に足を運んだ
+				PRINTFORML そこでもサキュバスの影響が出ており、すぐに目を血走らせ股間を膨らませた浮浪者に囲まれた
+				PRINTFORMW 普段なら悲鳴を上げて逃げる所だが%ANAME(MASTER)%は舌なめずりをすると自ら服を脱ぎ去って彼らを誘った
+				PRINTFORML 女に飢えた彼らは躊躇なく%ANAME(MASTER)%に襲い掛かり、その極上の身体に容赦なく肉欲をぶつけてくる
+				PRINTFORML 無数の汚らしいペニスに囲まれた%ANAME(MASTER)%は瞳に♥を浮かべながら全身を使ってそれらに奉仕した
+				PRINTFORMW 黄ばんだ精液で全てを汚されきった後、また奉仕に来ることを約束させられてようやく解放された…
+				CALL FUCK(MASTER, "欲望, 奉仕, 性技, 性交, 精愛, Ｃ, Ｖ, Ｂ, Ａ, Ｍ, Ｖ性交, Ａ性交, キス, 口淫, 輪姦", "キス喪失, 処女喪失, Ａ処女喪失, 膣内射精, 腸内射精, 口内射精", GET_SPERM_ID("浮浪者"), @"浮浪者の\@RAND:2 ? ペニス # 唇\@", @"浮浪者", "", 喪失_輪姦)
+				CALL FUCK(MASTER, "欲望, 奉仕, 性技, 性交, 精愛, Ｃ, Ｖ, Ｂ, Ａ, Ｍ, Ｖ性交, Ａ性交, キス, 口淫, 輪姦", "キス喪失, 処女喪失, Ａ処女喪失, 膣内射精, 腸内射精, 口内射精", GET_SPERM_ID("浮浪者"), @"浮浪者の\@RAND:2 ? ペニス # 唇\@", @"浮浪者", "", 喪失_輪姦)
+			CASE 4
+				PRINTFORML コートを羽織った%ANAME(MASTER)%が息を荒げながら夜道を歩く
+				PRINTFORML %ANAME(MASTER)%はコートの下に何一つ身に着けておらず、人とすれ違う度に裸体を露出しセックスに誘う
+				PRINTFORMW 殆どの相手はただ硬直したり逃げるだけだが、そんな彼らの視線や反応もまた%ANAME(MASTER)%を興奮させる
+				PRINTFORML また時折誘いに乗る男が現れると共に近くの物陰に向かっては思う存分行きずりセックスを楽しむ
+				PRINTFORML 野外での露出セックスによる背徳感と露出感に、%ANAME(MASTER)%はいつも以上に興奮してヨガリ狂った
+				PRINTFORMW そうして一晩かけて何度も犯され満足した%ANAME(MASTER)%は何食わぬ顔で帰宅し何時もの仕事に戻った…
+				CALL FUCK(MASTER, "欲望, 奉仕, 性技, 性交, 精愛, Ｃ, Ｖ, Ｂ, Ａ, Ｍ, Ｖ性交, Ａ性交, キス, 口淫", "キス喪失, 処女喪失, Ａ処女喪失, 膣内射精, 腸内射精, 口内射精", GET_SPERM_ID("行きずりの男"), @"行きずりの男の\@RAND:2 ? ペニス # 唇\@", @"行きずりの男", "", 喪失_和姦)
+				CALL FUCK(MASTER, "欲望, 奉仕, 性技, 性交, 精愛, Ｃ, Ｖ, Ｂ, Ａ, Ｍ, Ｖ性交, Ａ性交, キス, 口淫", "キス喪失, 処女喪失, Ａ処女喪失, 膣内射精, 腸内射精, 口内射精", GET_SPERM_ID("行きずりの男"), @"行きずりの男の\@RAND:2 ? ペニス # 唇\@", @"行きずりの男", "", 喪失_和姦)
+		ENDSELECT
+	ENDIF
+	PRINTFORMW 
+	FOR LOCAL, 1, MAX_COUNTRY
+		IF IS_COUNTRY(LOCAL) && LOCAL != サキュバス
+			CALL CHANGE_RELATION_C_TO_C(LOCAL, CFLAG:MASTER:所属, -45, 45)
+		ELSE
+			CALL CHANGE_RELATION_C_TO_C(LOCAL, CFLAG:MASTER:所属, 150, -150)
+		ENDIF
+	NEXT
+	CALL COLORPRINT("その後しばらく風紀は乱れ続け、他国の評価が下がってしまった", カラー_注意, "L")
+	CALL COLORPRINT("しかしサキュバス達からは好意的に受け取られたようだ", カラー_注意, "W")
+ENDIF
+
+RETURN 1
