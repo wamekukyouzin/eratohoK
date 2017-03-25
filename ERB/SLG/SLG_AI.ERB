@@ -409,19 +409,21 @@ RETURN 攻撃兵数
 #DIM 雇用兵数限界
 #DIM 雇用兵数
 #DIM 兵数限界
-
+#DIM 留保額
 雇用レート = SLG_EXTRA_DRAFT_CALC_RATE(勢力)
 ;雇用兵数は最大でも(国庫-残しとくぶん) / 雇用レート
-雇用兵数限界 = (MONEY:勢力 - MONEY:勢力 * AI_DEPLOY:(COUNTRY_AI_TYPE:勢力):1 / 100) / 雇用レート
+;勢力が劣っている場合、留保額は小さくなる（徴兵に力を注ぐ）
+留保額 = MONEY:勢力 * AI_DEPLOY:(COUNTRY_AI_TYPE:勢力):(TMP_COUNTRY_STARS:勢力 > 2 ? 1 # 2) / 100
+雇用兵数限界 = (MONEY:勢力 - 留保額) / 雇用レート
 ;兵数限界は徴兵による限界に、勢力ごとの特色を足したもの
 兵数限界 = TMP_SUM_ECONOMY:勢力 / 10 * AI_DEPLOY:(COUNTRY_AI_TYPE:勢力):0 / 100
 
-;限界に現在の兵力を足した奴が兵数限界を越えなければ、その分だけ雇用する
-IF 雇用兵数限界 + TMP_SUM_SOLDIER:勢力 < 兵数限界
-	雇用兵数 = 雇用兵数限界
-;越えていれば、兵数限界を超えない程度に雇用する
+;（雇用できる数＋現在の兵力）が経済力ベースの兵数限界を越えていて、かつ★３以上の勢力なら、兵数限界を超えないよう徴兵
+IF 雇用兵数限界 + TMP_SUM_SOLDIER:勢力 > 兵数限界 && TMP_COUNTRY_STARS:勢力 > 2
+	雇用兵数 = 兵数限界 - TMP_SUM_SOLDIER:勢力 
+;上記条件を満たさないなら、雇用できるだけ雇用する
 ELSE
-	雇用兵数 = 兵数限界 - TMP_SUM_SOLDIER:勢力
+	雇用兵数 = 雇用兵数限界
 ENDIF
 
 SIF 雇用兵数 <= 0
