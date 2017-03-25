@@ -1,0 +1,137 @@
+﻿;------------------------------------
+;そのキャラがデイリーイベントをもつか判断する関数
+;KOJO_EXISTとは別にこの関数も必要になるので注意
+;------------------------------------
+@KOJO_DAILY_EXIST_K36()
+;!!!!注意!!!!
+;デイリーイベントの存在判定に使ってるだけなので、この関数の中で処理をさせないでください
+
+;------------------------------------
+;そのキャラのデイリー本体を呼び出すハブとなる関数
+;------------------------------------
+@KOJO_DAILY_K36()
+#DIM 発生フラグ
+発生フラグ = 0
+
+;デイリーイベント
+DAILY_NAME = 理想の形
+CALL KOJO_DAILY_K36_YOUR_IDEAL
+SIF RESULT != -1
+	発生フラグ = 1
+SIF DAILY_CANCEL
+	RETURN 1
+
+;;デイリーイベント
+;DAILY_NAME = デイリーイベントの名前
+;CALL KOJO_DAILY_K36_NAMAE_OF_DAILY_EVENT
+;SIF RESULT != -1
+;	発生フラグ = 1
+;SIF DAILY_CANCEL
+;	RETURN 1
+
+RETURN 発生フラグ
+
+
+;------------------------------------
+;デイリーイベント本体
+;創意工夫
+;発生判定に失敗した場合（イベントが発生しない場合）はマイナス１を返すこと
+;-----------------------------------
+@KOJO_DAILY_K36_YOUR_IDEAL
+#DIM 映姫
+
+映姫 = NAME_TO_CHARA("四季映姫")
+
+;四季映姫が同じ勢力で捕虜でなく1000%
+SIF !CHECK_KOJO_DAILY_HAPPEN(映姫, 1000, 1, 0)
+	RETURN -1
+
+SIF KDVAR:映姫:四季映姫_理想の形
+	RETURN -1
+
+SIF ABL:MASTER:武闘 + ABL:MASTER:知略 + ABL:MASTER:防衛 + ABL:MASTER:政治 < 280
+	RETURN -1
+
+SIF GET_OWN_CITY(CFLAG:MASTER:所属) < 8
+	RETURN -1
+
+SIF MASTER == NAME_TO_CHARA("小町")
+	RETURN -1
+
+SIF !IS_LOVER(映姫) && !IS_SLAVE(映姫)
+	RETURN -1
+
+KDVAR:映姫:四季映姫_理想の形 = 1
+
+CALL KOJO_DAILY_START()
+PRINTFORMW 自室で仕事をしていた%ANAME(MASTER)%のもとに、%ANAME(映姫)%が訪ねてきた
+PRINTFORMW 「%ANAME(MASTER)%。一つ、聞かせてください」
+PRINTFORMW 「貴方はこの幻想郷でもかなりの人材です。そして私たちは力をつけている。郷をまとめる日も近いでしょう」
+PRINTFORMW 「そして……その向こうに、貴方は何を見ているのですか？」
+PRINTFORML 「貴方の理想を、訊かせてもらいましょう」
+PRINTFORML 
+CALL ASK_MULTI("平和", "力", "金", "快楽")
+
+SELECTCASE RESULT
+	CASE 0
+		PRINTFORMW 「なるほど」
+		PRINTFORMW 「それは、今のように争いあう状態を脱却したからといって、必ずしも実現されるものではありません」
+		PRINTFORMW 「物理的に争っていなかったとしても、人々の心が安らかであるとは限りませんから」
+		PRINTFORMW 「厳しい道となりましょうが……私は気に入りましたよ」
+		PRINTFORMW 「ええ。私も%ANAME(MASTER)%の理想のため、尽力しましょう」
+		PRINTFORMW どうやら、%ANAME(映姫)%に気に入られたようだ……
+		CFLAG:映姫:好感度 += 300
+	CASE 1
+		PRINTFORMW 「なるほど」
+		PRINTFORMW 「覇を唱えたいと……それもまた、理想の一つでしょう」
+		PRINTFORMW 「閻魔としては諸手を挙げて肯定しがたい答えでしたが……嘘をつかない誠実さは評価しましょう」
+		PRINTFORMW 「聞かせてくれて、どうもありがとうございました」
+		PRINTFORMW %ANAME(映姫)%は立ち去った……
+	CASE 2
+		PRINTFORMW 「なるほど」
+		PRINTFORMW 「いい答えだと思いますよ……いささか即物的ですが」
+		PRINTFORMW 「ん？　どうしたのです、妙な顔をして」
+		PRINTFORMW 「ああ、金稼ぎそのものを悪とは考えませんよ、我々彼岸の者は」
+		PRINTFORMW 「でなければ、どうして三途の渡り賃などという制度がありましょうか？」
+		PRINTFORMW 「金は、金を稼ぐことそのものが善行となるような仕組みになっているのですよ」
+		PRINTFORMW 「そういうわけですから、懸命に稼ぐことです。それが貴方の、善行にもつながりましょう」
+		PRINTFORMW どうやら、%ANAME(映姫)%に気に入られたようだ……
+		CFLAG:映姫:好感度 += 300
+	CASE 3
+		IF IS_LOVER(映姫)
+			PRINTFORMW 「……はぁー」
+			PRINTFORMW 「貴方という人は……自分に正直すぎやしませんか」
+			PRINTFORMW 「いいですか？　快楽は確かに悪いことではありませんが、なにごとも追求しすぎれば退廃を招きます」
+			PRINTFORMW 「退廃に追い込まれた者が死後行くところといったら、言わなくともわかるでしょう？」
+			PRINTFORMW 「%ANAME(MASTER)%にそのような末路をたどらせるわけにはいきません。しばらく禁欲ですからねっ」
+			PRINTFORMW %ANAME(映姫)%はぷりぷりしながら去っていった……
+			CFLAG:映姫:好感度 -= 300
+			SIF TALENT:映姫:合意
+				CALL COLORPRINT(@"%ANAME(映姫)%の合意を失いました", カラー_注意, "W")
+			TALENT:映姫:合意 = 0
+		ELSEIF IS_SLAVE(映姫)
+			PRINTFORMW 「……ふふ、そうきましたか」
+			PRINTFORML 快楽だ……そう答えると、%ANAME(映姫)%は笑みを浮かべた
+			PRINTFORMW 「ええ、ええ、そうでしょうね、私のようなちんちくりんの、気難しい閻魔すら堕落させてしまうような人ですものね」
+			PRINTFORMW 「周囲の者を巻き添えにしながら、自ら退廃に突き進んでいく……そういう人ですよ、貴方は」
+			PRINTFORMW 「その道の最後に待つのは破滅です。恨みを買ったものに殺されるか、どこかで野たれ死ぬか……」
+			PRINTFORMW 「いずれにせよ、行くのは地獄以外に無いでしょうね」
+			PRINTFORML %ANAME(映姫)%の笑みは、だんだんと妖艶なものに変わっていく
+			PRINTFORML 閻魔としての表情から、女の表情に変わっていく
+			PRINTFORMW 「恐れ……てはいないでしょうね、そんな先のことよりも、粘膜を触れ合わせる気持ちよさがほしいのでしょう？」
+			PRINTFORMW 「分かりますよ、だって私も、そういう風にされたんですから、ほかならぬ貴方に、ね」
+			PRINTFORML 言いながら、%ANAME(映姫)%は衣服を脱ぎ捨てていく
+			PRINTFORML 産まれたままの姿になりながら、しなだれかかってきた……
+			PRINTFORMW 「さあ、二人で一緒に理想を追求しましょうか、貴方の身体が朽ちるまで」
+			PRINTFORMW 「断りはしないでしょう？　断ろうものなら……地獄に落としてあげますよ」
+			PRINTFORML もちろん、断ろうはずもない
+			PRINTFORML %ANAME(映姫)%とたっぷり楽しんだ……
+			IF IS_MALE(MASTER)
+				CALL FUCK(MASTER, "Ｃ, 射精, 欲望, Ｖ挿入", "キス喪失, 童貞喪失", 0, @"%ANAME(映姫)%の唇", "", @"%ANAME(映姫)%の膣", 喪失_和姦)
+				CALL FUCK(映姫, "Ｖ, Ｃ, Ｂ, Ｍ, 奉仕, 性交, 欲望, 性技, 精愛, Ｖ性交, キス, 口淫", "キス喪失, 膣内射精, 処女喪失", GET_ID(MASTER), @"%ANAME(MASTER)%のペニス", ANAME(MASTER), "", 喪失_和姦)
+			ELSE
+				CALL FUCK(MASTER, "欲望, 性技, Ｃ, Ｖ, Ａ, Ｂ, Ｍ, レズ, キス", "キス喪失", 0, @"%ANAME(映姫)%の唇", "", "", 喪失_和姦)
+				CALL FUCK(MASTER, "欲望, 性技, Ｃ, Ｖ, Ａ, Ｂ, Ｍ, レズ, キス", "キス喪失", 0, @"%ANAME(MASTER)%の唇", "", "", 喪失_和姦)
+			ENDIF
+		ENDIF
+ENDSELECT
