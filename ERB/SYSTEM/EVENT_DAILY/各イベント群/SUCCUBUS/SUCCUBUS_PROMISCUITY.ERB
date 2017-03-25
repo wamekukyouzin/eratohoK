@@ -1,0 +1,132 @@
+﻿;---------------------
+;発生確率(1000分率 100で10%)
+;---------------------
+@EVENT_DAILY_SUCCUBUS_PROMISCUITY_RATE()
+RETURN 55
+
+;---------------------
+;確率以外の発生判定
+;---------------------
+@EVENT_DAILY_SUCCUBUS_PROMISCUITY_DECISION()
+#DIM サキュバス
+サキュバス = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_サキュバス))
+SIF サキュバス == -1
+	RETURN 0
+SIF CFLAG:MASTER:所属 == サキュバス
+	RETURN 0
+
+RETURN 1
+
+;---------------------
+;ジャンル
+;---------------------
+@EVENT_DAILY_SUCCUBUS_PROMISCUITY_GENRE()
+RETURN デイリー_ジャンル_特殊勢力
+
+;---------------------
+;本体
+;---------------------
+@EVENT_DAILY_SUCCUBUS_PROMISCUITY
+#DIM 対象
+#DIM サキュバス
+#DIM 兵数
+
+サキュバス = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_サキュバス))
+
+PRINTFORML 領内でサキュバスの目撃情報が頻発している
+PRINTFORML 同時に複数の若い男女が夜な夜な出歩いているらしい
+PRINTFORMW しかし今のところ何か害があるようでも無い様だが…
+PRINTFORML どうしよう？
+CALL ASK_MULTI(@"調査する" ,"巡回を強化する(金消費)" ,"放置する")
+IF RESULT == 2
+	PRINTFORMW 放置した
+	$HOUTI_LOOP
+	兵数 = 1000 + (RAND:10 + DAY / 5) * 500
+	COUNTRY_SOLDIER:サキュバス += 兵数
+	CALL COLORPRINT(@"サキュバス達のところに人が集まり、兵数が{兵数}人増えたようだ", カラー_注意, "W")
+ELSEIF RESULT == 1
+	PRINTFORML 被害が起きてからでは遅い
+	PRINTFORMW 金はかかるが夜間の巡回の強化を命じた
+	LOCAL = 3000 + (RAND:10 + DAY / 5) * 500
+	IF MONEY >= LOCAL
+		CALL COLORPRINT(@"金{LOCAL}を消費した", カラー_注意, "W")
+	ELSE
+		PRINTFORMW …しかし金が足りず上手くいかなかった
+		CALL COLORPRINT(@"サキュバス達のところに人が集まり、兵数が{兵数}人増えたようだ", カラー_注意, "W")
+	ENDIF
+ELSEIF RESULT == 0
+	PRINTFORML 放置はできない
+	PRINTFORMW 調査する事にした
+	PRINTFORML 誰を選ぼうか？
+	CALL SELECT_CHARA_LIST_SLG()
+	対象 = RESULT
+	IF RESULT < 0
+		PRINTFORMW やはりやめておいた
+		GOTO HOUTI_LOOP
+	ELSEIF 対象 == 対象
+		PRINTFORMW %ANAME(対象)%自ら調査する事にした
+	ELSE
+		PRINTFORMW %ANAME(対象)%に任せる事にした
+	ENDIF
+	PRINTFORML ・
+	PRINTFORML ・
+	PRINTFORMW ・
+	PRINTFORML 調査を進めると、若者たちの集会を見つけた
+	PRINTFORMW なんとそれはサキュバス主催の乱交パーティーだった
+	PRINTFORMW %ANAME(対象)%に気づいた彼女は宴に参加させるべく淫気を飛ばして誘惑してきた！
+	PRINTFORML 
+	IF (MAXBASE:対象:精神力 / 100) * (RAND:10 + 1) >= (10 + DAY / 8) * (RAND:10 + 1) && !GETBIT(TALENT:対象:淫乱系, 素質_淫乱_淫乱) && !GETBIT(TALENT:対象:淫乱系, 素質_淫乱_精液便女)
+		PRINTFORMW しかし%ANAME(対象)%は何とか堪えてみせた！
+		PRINTFORMW %ANAME(対象)%は戸惑うサキュバスに飛び掛かり、見事打倒す事に成功した！
+		FOR LOCAL, 1, MAX_COUNTRY
+			IF IS_COUNTRY(LOCAL) && LOCAL != サキュバス
+				CALL CHANGE_RELATION_C_TO_C(LOCAL, CFLAG:対象:所属, 50, -50)
+			ELSE
+				CALL CHANGE_RELATION_C_TO_C(LOCAL, CFLAG:対象:所属, -200, 200)
+			ENDIF
+		NEXT
+		CALL COLORPRINT(@"%ANAME(対象)%の活躍は他国に知れ渡り評価が上がった", カラー_注意, "L")
+		CALL COLORPRINT("しかしサキュバス達からはブーイングが上がった", カラー_注意, "W")
+	ELSE
+		PRINTFORMW %ANAME(対象)%はサキュバスの淫気に抗えなかった…
+		PRINTFORML あっと言う間に頭の中がセックスの事でいっぱいになってしまう
+		PRINTFORML サキュバスはニヤリと笑い、%ANAME(対象)%の耳元で一緒に楽しみましょうと囁いた
+		PRINTFORMW %ANAME(対象)%はすっかり任務の事も忘れ、本能のままに目の前の宴に混ざった…
+		IF IS_MALE(対象)
+			PRINTFORML %ANAME(対象)%は多数の女たちと獣の様にまぐわっている
+			PRINTFORML 彼女たちは一様に盛りきった表情をしており、%ANAME(対象)%のチンポを求めて身体を絡めて来る
+			PRINTFORMW いずれの子もびしょ濡れの秘所をひくつかせ全身から言いようのない雌の匂いを漂わせる
+			PRINTFORML %ANAME(対象)%は本能のままに手当たり次第に女を押し倒してははち切れんばかりの一物をねじ込む
+			PRINTFORML どの女も極上の雌穴になっており、%ANAME(対象)%は嬌声を上げて乱れる彼女達を思うが儘に味わった
+			PRINTFORMW 女の奥深くに子種を放ってはまた次の女を捕まえ、あるいは捕まえられて即座にまぐわう
+			PRINTFORML その有様は正に本能のままの獣の交尾であり、サキュバスは嬉しそうにそれを眺めていた
+			PRINTFORMW しかし%ANAME(対象)%は彼女の視線も気にせずに、ただひたすら貪る様に肉欲に溺れていった…
+			CALL FUCK(対象, "性技, 性交, Ｃ, 射精", "童貞喪失, キス喪失", 0, "行きずりの女の唇", "", "行きずりの女の膣", 喪失_乱交)
+			CALL FUCK(対象, "性技, 性交, Ｃ, 射精", "童貞喪失, キス喪失", 0, "行きずりの女の唇", "", "行きずりの女の膣", 喪失_乱交)
+			CALL FUCK(対象, "性技, 性交, Ｃ, 射精", "童貞喪失, キス喪失", 0, "行きずりの女の唇", "", "行きずりの女の膣", 喪失_乱交)
+		ELSE
+			PRINTFORML %ANAME(対象)%は多数の男たちと獣の様にまぐわっている
+			PRINTFORML 彼等はまさに獣の様相で、%ANAME(対象)%の事などお構いなしに押し倒してはちんこをねじ込んでくる
+			PRINTFORMW 淫気の影響か、%ANAME(対象)%の雌穴は最初から出来上がっており乱暴な挿入も受け入れ軽くイってしまう
+			PRINTFORML 肉欲のままに子宮まで響く様な激しいピストンに%ANAME(対象)%はたまらずヨガり、身体を跳ねさせる
+			PRINTFORML 逞しい男根で貫かれる%ANAME(対象)%の表情は雌の悦びに満ちており、自ら彼にしがみついて子種をねだる
+			PRINTFORMW 勿論彼らも避妊など考えておらず、%ANAME(対象)%の奥深く、胎内に直接その欲望全てを叩きつけてきた
+			PRINTFORML 射精を終えた男が退くと膣出しと絶頂の余韻に浸る間もなく、次のペニスがねじ込まれてくる
+			PRINTFORML 男たちは%ANAME(対象)%の身体に夢中になって群がり、無数のペニスに囲まれ雄臭さに頭がクラクラする
+			PRINTFORMW %ANAME(対象)%はイキ狂いながらも愛おしい男根たちを全身を使って扱き、次々にその欲望を浴びせられた
+			PRINTFORML その有様は正に本能のままの獣の交尾であり、サキュバスは嬉しそうにそれを眺めていた
+			PRINTFORMW しかし%ANAME(対象)%は彼女の視線も気にせずに、ただひたすら貪る様に肉欲に溺れていった…
+			CALL FUCK(対象, "欲望, 奉仕, 性技, 性交, 精愛, Ｃ, Ｖ, Ｂ, Ｍ, Ｖ性交, キス, 口淫, 輪姦", "キス喪失, 処女喪失, 膣内射精, 口内射精", GET_SPERM_ID("行きずりの男"), @"行きずりの男の\@RAND:2 ? ペニス # 唇\@", "行きずりの男", "", 喪失_乱交)
+			CALL FUCK(対象, "欲望, 奉仕, 性技, 性交, 精愛, Ｃ, Ｖ, Ｂ, Ｍ, Ｖ性交, キス, 口淫, 輪姦", "キス喪失, 処女喪失, 膣内射精, 口内射精", GET_SPERM_ID("行きずりの男"), @"行きずりの男の\@RAND:2 ? ペニス # 唇\@", "行きずりの男", "", 喪失_乱交)
+			CALL FUCK(対象, "欲望, 奉仕, 性技, 性交, 精愛, Ｃ, Ｖ, Ｂ, Ｍ, Ｖ性交, キス, 口淫, 輪姦", "キス喪失, 処女喪失, 膣内射精, 口内射精", GET_SPERM_ID("行きずりの男"), @"行きずりの男の\@RAND:2 ? ペニス # 唇\@", "行きずりの男", "", 喪失_乱交)
+		ENDIF
+		PRINTFORML 
+		PRINTFORML 気づけば宮殿の前まで戻っていた
+		PRINTFORMW %ANAME(対象)%はいまいち先程までの記憶があいまいなまま、門をくぐった…
+		兵数 = (1000 + (RAND:10 + DAY / 5) * 500) * 2
+		COUNTRY_SOLDIER:サキュバス += 兵数
+		CALL COLORPRINT(@"サキュバス達のところに人が集まり、兵数が{兵数}人増えた様だ", カラー_注意, "W")
+	ENDIF
+ENDIF
+
+RETURN 1
