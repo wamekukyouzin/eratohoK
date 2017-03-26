@@ -309,6 +309,49 @@ SKILL_ID_SLOT:対象:ジャンル:空きスロット = スキルID
 RETURN 1
 
 ;---------------------------------
+;指定スキルを忘れる
+;忘れたら1が戻る　そもそも空なら0
+;---------------------------------
+@SKILL_FORGET(対象, ジャンル, スロット)
+#DIM 対象
+#DIM ジャンル
+#DIM スロット
+
+SIF GROUPMATCH(-1, SKILL_NO_SLOT:対象:ジャンル:スロット, SKILL_ID_SLOT:対象:ジャンル:スロット)
+	RETURN 0
+
+SKILL_NO_SLOT:対象:ジャンル:スロット = -1
+SKILL_ID_SLOT:対象:ジャンル:スロット = -1
+
+RETURN 1
+
+;---------------------------------
+;指定したNOの指定した名前のスキルを忘れる
+;忘れたら1が戻る
+;---------------------------------
+@SKILL_FORGET_BY_NAME(対象, ジャンル, スキルNO, スキル名)
+#DIM 対象
+#DIM ジャンル
+#DIM スキルNO
+#DIMS スキル名
+#DIM スロット
+
+FOR スロット, 0, MAX_SKILL_SLOT
+	SIF GROUPMATCH(-1, SKILL_NO_SLOT:対象:ジャンル:スロット, SKILL_ID_SLOT:対象:ジャンル:スロット)
+		CONTINUE
+	TRYCCALLFORM SKILL_{SKILL_NO_SLOT:対象:ジャンル:スロット}_%SKILL_GENRE_ENG:ジャンル%_{SKILL_ID_SLOT:対象:ジャンル:スロット}_NAME
+		IF RESULTS == スキル名
+			CALL SKILL_FORGET(対象, ジャンル, スロット)
+			RETURN RESULT
+		ENDIF
+	CATCH
+	ENDCATCH
+NEXT
+
+RETURN 0
+
+
+;---------------------------------
 ;空きスロットの取得　空きがなければ-1
 ;---------------------------------
 @GET_EMPTY_SKILL_SLOT(対象, ジャンル)
