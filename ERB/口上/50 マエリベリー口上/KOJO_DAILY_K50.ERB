@@ -1,0 +1,94 @@
+﻿;------------------------------------
+;そのキャラがデイリーイベントをもつか判断する関数
+;KOJO_EXISTとは別にこの関数も必要になるので注意
+;------------------------------------
+@KOJO_DAILY_EXIST_K50()
+;!!!!注意!!!!
+;デイリーイベントの存在判定に使ってるだけなので、この関数の中で処理をさせないでください
+
+;------------------------------------
+;そのキャラのデイリー本体を呼び出すハブとなる関数
+;------------------------------------
+@KOJO_DAILY_K50()
+#DIM 発生フラグ
+発生フラグ = 0
+
+;デイリーイベント
+DAILY_NAME = お腹のたるみは心のたるみ
+CALL KOJO_DAILY_K50_YOU_ARE_FAT
+SIF RESULT != -1
+	発生フラグ = 1
+SIF DAILY_CANCEL
+	RETURN 1
+
+
+RETURN 発生フラグ
+
+
+;------------------------------------
+;デイリーイベント本体
+;創意工夫
+;発生判定に失敗した場合（イベントが発生しない場合）はマイナス１を返すこと
+;-----------------------------------
+@KOJO_DAILY_K50_YOU_ARE_FAT
+#DIM メリー
+
+メリー = NAME_TO_CHARA("マエリベリー")
+
+SIF !CHECK_KOJO_DAILY_HAPPEN(メリー, 50, 1, 0)
+	RETURN -1
+
+SIF !IS_LOVER(メリー)
+	RETURN -1
+
+SIF KDVAR:メリー:メリー_腹回り
+	RETURN -1
+
+KDVAR:メリー:メリー_腹回り = 1
+
+CALL KOJO_DAILY_START()
+PRINTFORMW 「うーん……」
+PRINTFORML なにやら、%ANAME(メリー)%が鏡の前で悩んでいるようだが……
+CALL ASK_YN("声をかける", "放っておく")
+
+IF RESULT == 1
+	PRINTFORMW 気にすることでもないだろう
+	PRINTFORMW 放っておくことにした
+	RETURN 1
+ENDIF
+
+PRINTFORMW 「あっ、%ANAME(MASTER)%……」
+PRINTFORMW 「いやね？　その、最近、ご飯が美味しいの」
+PRINTFORMW 「幻想郷だと食材はみんな天然モノだし……やっぱり合成食材とは格が違うし……」
+PRINTFORMW 「そんなのもあって、その……ねぇ？」
+PRINTFORML つまり、太ったらしい。見た目は変わっていないように思えるが……
+PRINTFORMW 年頃の娘には、僅かな数字の変化が気になるのだろう
+PRINTFORMW 「ちょっと危機感を覚えてるんだけど」
+PRINTFORMW 「何かいい方法、知らない？」
+PRINTFORML そう言われても困るが、さてどうしようか……
+
+CALL ASK_MULTI("腹を揉む", "そうかな", "運動かな")
+
+SELECTCASE RESULT
+	CASE 0
+		PRINTFORML 太ったといっても、どんなものだろう
+		PRINTFORMW 試しに%ANAME(メリー)%の腹をつまんでみた……
+		PRINTFORMW 「きゃ……！　ち、ちょっと、何するのよ！」
+		PRINTFORMW 「最ッ低！」
+		PRINTFORMW どうやら、怒らせてしまったようだ……
+		CFLAG:メリー:好感度 -= 300
+	CASE 1
+		PRINTFORML そもそもそんなに太ったろうか
+		PRINTFORMW そうでもないと思うが……
+		PRINTFORMW 「そう思ってるから困ってるんじゃない」
+		PRINTFORMW 「はーぁ、どうしよ……」
+		PRINTFORMW 満足のいく答えではなかったようだ……
+	CASE 2
+		PRINTFORMW とりあえず、軽い運動から初めてみてはどうだろう……
+		PRINTFORMW 「そうね、それが一番かしらね」
+		PRINTFORMW 「それじゃ、ちょっと付き合ってくれない？」
+		PRINTFORMW %ANAME(メリー)%に付き合って、拠点の周りをジョギングした……
+		CALL COLORPRINT("少し体力がついた", カラー_注意, "W")
+		MAXBASE:MASTER:体力 += 50
+		MAXBASE:メリー:体力 += 50
+ENDSELECT
