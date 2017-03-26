@@ -1,0 +1,62 @@
+﻿@KOJO_DAILY_EXIST_K141()
+
+@KOJO_DAILY_K141()
+#DIM 発生フラグ
+発生フラグ = 0
+
+;たずねびと
+DAILY_NAME = 捜索願
+CALL KOJO_DAILY_K141_WHERE_IS_MY_SISTER
+SIF RESULT != -1
+	発生フラグ = 1
+SIF DAILY_CANCEL
+	RETURN 1
+RETURN 発生フラグ
+;------------------------------------
+;捜索願
+;-----------------------------------
+@KOJO_DAILY_K141_WHERE_IS_MY_SISTER
+#DIM 命蓮
+#DIM 白蓮
+命蓮 = NAME_TO_CHARA("命蓮")
+白蓮 = NAME_TO_CHARA("白蓮")
+
+SIF !(CHECK_KOJO_DAILY_HAPPEN(命蓮, 1000, 1, 0, 1) && CHECK_KOJO_DAILY_HAPPEN(白蓮, 0))
+	RETURN -1
+
+;発生済みなら駄目
+SIF KDVAR:命蓮:命蓮_捜索願
+	RETURN -1
+
+
+;自分の勢力の捕虜なら駄目
+SIF CFLAG:白蓮:捕虜先 == CFLAG:MASTER:所属
+	RETURN -1
+
+;天子が死んでたら駄目
+SIF CFLAG:白蓮:特殊状態 == 2
+	RETURN -1
+
+CALL KOJO_DAILY_START()
+PRINTFORML 部屋で仕事をしていると、%ANAME(命蓮)%が訪ねてきた
+PRINTFORMW 「%ANAME(MASTER)%、少しいいかな？　実はお願いがあるんだ」
+CALL ICPRINT(@"「僕の姉……つまり、<%NAME_FORMAL(白蓮)%>のことだ」", "W", カラー_注意)
+PRINTFORMW 「%PRONOUN(白蓮)%を探してくれないか？」
+PRINTFORML 「なんの因果か、こうして幻想郷に蘇ったんだ」
+PRINTFORMW 「かつて一人遺すことになってしまった姉に、挨拶くらいはしておきたいじゃないか」
+PRINTFORMW 「もちろん、作戦なんかもあるだろうから、無理にとはいわない」
+PRINTFORMW 「ただまあ……もののついででいいから、考えておいてくれないかな」
+PRINTFORML 
+CALL ASK_YN("わかった", "無理だ")
+SELECTCASE RESULT
+	CASE 0
+		PRINTFORMW 「ありがとう。感謝するよ」
+		PRINTFORMW 「じゃあ、すまないがよろしく頼む。僕も可能な限り協力しよう」
+		PRINTFORML 深々とお辞儀をし、%ANAME(命蓮)%は立ち去った……
+		KDVAR:命蓮:命蓮_捜索願 = 1
+	CASE 1
+		PRINTFORMW 「そうか……」
+		PRINTFORMW 「まあ、仕方がない。結局は自分の話だ、自分で何とかするさ。忙しいところ済まなかった」
+		PRINTFORML %ANAME(命蓮)%は立ち去った……
+		KDVAR:命蓮:命蓮_捜索願 = 2
+ENDSELECT
