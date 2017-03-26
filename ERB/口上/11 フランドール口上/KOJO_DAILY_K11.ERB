@@ -1,0 +1,110 @@
+﻿;------------------------------------
+;そのキャラがデイリーイベントをもつか判断する関数
+;KOJO_EXISTとは別にこの関数も必要になるので注意
+;------------------------------------
+@KOJO_DAILY_EXIST_K11()
+;!!!!注意!!!!
+;デイリーイベントの存在判定に使ってるだけなので、この関数の中で処理をさせないでください
+
+;------------------------------------
+;そのキャラのデイリー本体を呼び出すハブとなる関数
+;------------------------------------
+@KOJO_DAILY_K11()
+#DIM 発生フラグ
+発生フラグ = 0
+
+;デイリーイベント
+DAILY_NAME = 質問
+CALL KOJO_DAILY_K11_QUESTION
+SIF RESULT != -1
+	発生フラグ = 1
+SIF DAILY_CANCEL
+	RETURN 1
+
+;;デイリーイベント
+;DAILY_NAME = デイリーイベントの名前
+;CALL KOJO_DAILY_K11_NAMAE_OF_DAILY_EVENT
+;SIF RESULT != -1
+;	発生フラグ = 1
+;SIF DAILY_CANCEL
+;	RETURN 1
+
+RETURN 発生フラグ
+
+
+;------------------------------------
+;デイリーイベント本体
+;創意工夫
+;発生判定に失敗した場合（イベントが発生しない場合）はマイナス１を返すこと
+;-----------------------------------
+@KOJO_DAILY_K11_QUESTION
+#DIM フランドール
+#DIM レミリア
+
+フランドール = NAME_TO_CHARA("フランドール")
+レミリア = NAME_TO_CHARA("レミリア")
+
+SIF !CHECK_KOJO_DAILY_HAPPEN(フランドール, 30, 1, 0, 1) || !CHECK_KOJO_DAILY_HAPPEN(レミリア, 1000)
+	RETURN -1
+
+SIF KDVAR:フランドール:フランドール_質問
+	RETURN -1
+
+
+KDVAR:フランドール:フランドール_質問 = 1
+
+CALL KOJO_DAILY_START()
+PRINTFORMW 「ねぇねぇ、%ANAME(MASTER)%」
+PRINTFORMW %ANAME(フランドール)%と遊んでいると、ふいに尋ねられた
+PRINTFORMW 「アイツと%ANAME(MASTER)%と、どっちが強いの？」
+PRINTFORML ……アイツというのは、%ANAME(レミリア)%のことだろう
+PRINTFORML %ANAME(フランドール)%も大概だが、%PRONOUN(レミリア)%もずいぶん強力な吸血鬼だ
+PRINTFORML 強いといっても色々あろうが、さて……
+
+CALL ASK_MULTI("自分かな", @"%ANAME(レミリア)%かな", "わからないな")
+
+IF GROUPMATCH(RESULT, 1, 2)
+	PRINTFORMW 「ふーん」
+	PRINTFORMW あまり興味を引かなかったようだ
+	PRINTFORMW 話題はそれ以上続かなかった……
+	RETURN
+ENDIF
+
+PRINTFORMW 「へぇ、ホント？」
+PRINTFORMW 「なら……私とどっちが強いかな、弾幕ごっこしようよ！」
+PRINTFORMW 言うなり%ANAME(フランドール)%は、明らかに本気の弾幕をぶっ放してきた
+PRINTFORMW こっちも真面目にやらないと怪我をする……！
+
+IF ABL:MASTER:武闘 + ABL:MASTER:知略 / 3 < ABL:フランドール:武闘
+	PRINTFORMW 「うーん、大したことなかったや」
+	PRINTFORMW 「これなら、アイツの方が強いんじゃないかなぁ？」
+	PRINTFORML ……負けてしまった
+	PRINTFORML 流石に吸血鬼、むちゃくちゃな強さだった
+	PRINTFORMW とりあえず、怪我を治療することにした……
+	CALL ADD_COOLTIME(MASTER, 3)
+	RETURN
+ENDIF
+
+PRINTFORMW 「うーん……やられちゃった」
+PRINTFORMW ひやひやさせられた……
+PRINTFORML 力まかせな単純な弾幕だからなんとかなった
+PRINTFORMW もう少し理詰めで来られていたら危なかったかもしれない……
+PRINTFORMW 「確かに、アイツよりも強いみたいだねー」
+PRINTFORMW 「だって私はアイツより強いし、その私に勝つんだからそうなるよね」
+PRINTFORMW 「うーん、頑張らなくちゃなー」
+PRINTFORMW とんだ災難だったが、%ANAME(フランドール)%はやる気をだしたようだ
+PRINTFORMW ならよしとするか……
+
+CALL COLORPRINT(@"%ANAME(フランドール)%の能力が上昇しました", カラー_注意, "W")
+
+ABL:フランドール:武闘 += 3
+ABL:フランドール:知略 += 3
+CFLAG:フランドール:好感度 += 100
+
+CALL SKILL_FORGET_BY_NAME(フランドール, スキル_ジャンル_SP, NO:フランドール, "狂気")
+SIF RESULT
+	CALL COLORPRINT(@"%ANAME(フランドール)%はスキル「狂気」を忘れた！", カラー_注意, "W")
+
+CALL SKILL_LEARN_BY_NAME(フランドール, スキル_ジャンル_SP, NO:フランドール, "レーヴァテイン")
+SIF RESULT
+	CALL COLORPRINT(@"%ANAME(フランドール)%はスキル「レーヴァテイン」を習得した！", カラー_注意, "W")
