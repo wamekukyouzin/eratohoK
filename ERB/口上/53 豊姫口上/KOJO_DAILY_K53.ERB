@@ -1,0 +1,75 @@
+﻿;------------------------------------
+;そのキャラがデイリーイベントをもつか判断する関数
+;KOJO_EXISTとは別にこの関数も必要になるので注意
+;------------------------------------
+@KOJO_DAILY_EXIST_K53()
+;!!!!注意!!!!
+;デイリーイベントの存在判定に使ってるだけなので、この関数の中で処理をさせないでください
+
+;------------------------------------
+;そのキャラのデイリー本体を呼び出すハブとなる関数
+;------------------------------------
+@KOJO_DAILY_K53()
+#DIM 発生フラグ
+発生フラグ = 0
+
+;デイリーイベント
+DAILY_NAME = 美食家（桃）
+CALL KOJO_DAILY_K53_GOURMET
+SIF RESULT != -1
+	発生フラグ = 1
+SIF DAILY_CANCEL
+	RETURN 1
+
+;;デイリーイベント
+;DAILY_NAME = デイリーイベントの名前
+;CALL KOJO_DAILY_K53_NAMAE_OF_DAILY_EVENT
+;SIF RESULT != -1
+;	発生フラグ = 1
+;SIF DAILY_CANCEL
+;	RETURN 1
+
+RETURN 発生フラグ
+
+
+;------------------------------------
+;デイリーイベント本体
+;創意工夫
+;発生判定に失敗した場合（イベントが発生しない場合）はマイナス１を返すこと
+;-----------------------------------
+@KOJO_DAILY_K53_GOURMET
+#DIM 豊姫
+#DIM 天子
+豊姫 = NAME_TO_CHARA("豊姫")
+天子 = NAME_TO_CHARA("天子")
+SIF !(CHECK_KOJO_DAILY_HAPPEN(豊姫, 50, 1) && CHECK_KOJO_DAILY_HAPPEN(天子, 1000, 1, 0))
+	RETURN -1
+
+;一度しか発生しないイベントならこんな感じ
+SIF KDVAR:豊姫:豊姫_美食家
+	RETURN -1
+
+
+
+KDVAR:豊姫:豊姫_美食家 = 1
+
+CALL KOJO_DAILY_START()
+
+PRINTFORMW %ANAME(豊姫)%と%ANAME(天子)%が何か話しているようだ……
+PRINTFORML 珍しい取り合わせに思えるが……
+CALL ASK_YN("声をかける", "放っておく")
+
+IF RESULT == 1
+	PRINTFORML そういうこともあるだろう
+	PRINTFORMW 放っておくことにした……
+	RETURN 1
+ENDIF
+
+PRINTFORML 「あら、%ANAME(MASTER)%」
+PRINTFORML 「いえね、地上にも桃があるっていうから、ちょっと気になって」
+PRINTFORMW 「こちらの%ANAME(天子)%さんが持ってるっていうから、譲ってもらってたの」
+PRINTFORMW 見てみれば、%PRONOUN(豊姫)%の片手には食べかけの桃が握られている……
+PRINTFORMW 「なんでも、この天界の桃っていうのには特別な力があるそうね」
+PRINTFORMW 「それかどうかしらないけど、なんだか力が湧いてきた気がするわ」
+CALL COLORPRINT(@"%ANAME(豊姫)%の体力が少し増えた", カラー_注意, "W")
+MAXBASE:豊姫:体力 += 100
