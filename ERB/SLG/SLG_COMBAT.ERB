@@ -737,7 +737,18 @@ ENDIF
 @BATTLE_SCHEME(ARG:0, ARG:1, ARG:2, ARG:3)
 #DIM SCHEME_BASE
 #DIM 発動者
-SCHEME_BASE = ABL_SQRT(50, -1) * 3
+#DIM 攻撃側知略
+#DIM 防御側知略
+
+;防御側は都市だった場合ざっくり1.5倍して3人いるものと無理やりみなす
+攻撃側知略 = BATTLE_INT:0
+防御側知略 = BATTLE_INT:1
+SIF ARG:3 < 0
+	TIMES 防御側知略, 1.5
+
+;基準値は能力50の武将の数から算出する 都市戦においては4人いるものとして発生しにくく
+SCHEME_BASE = ABL_SQRT(50, -1) * (ARG:3 < 0 ? 4 # 3)
+
 ;BATTLE_FORCE_SCHEMEによる強制策略
 IF BATTLE_FORCE_SCHEME == 0
 	CALL TRY_SCHEME(0, 1, ARG:0, ARG:1, ARG:2, ARG:3)
@@ -748,8 +759,8 @@ ELSEIF BATTLE_FORCE_SCHEME == 1
 ENDIF
 
 ;両軍の差が大きいほど発生しやすくなる
-IF MAX(BATTLE_INT:0, BATTLE_INT:1) - MIN(BATTLE_INT:0, BATTLE_INT:1) >= RAND:SCHEME_BASE
-	発動者 = FINDELEMENT(BATTLE_INT, MAX(BATTLE_INT:0, BATTLE_INT:1))
+IF MAX(攻撃側知略, 防御側知略) - MIN(攻撃側知略, 防御側知略) >= RAND:SCHEME_BASE
+	発動者 = 攻撃側知略 > 防御側知略 ? 0 # 1
 	;計略の発動
 	CALL TRY_SCHEME(発動者, !発動者, ARG:0, ARG:1, ARG:2, ARG:3)
 ENDIF
