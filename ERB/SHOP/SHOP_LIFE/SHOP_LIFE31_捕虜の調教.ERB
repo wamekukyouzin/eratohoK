@@ -19,8 +19,17 @@ RETURN 1
 ;-------------------------------------------------
 @SHOP_LIFE_CHECKCHARA31(ARG:0)
 ;非主人公、主人公勢力の捕虜、牢獄で監禁中
-RETURN CHECK91(ARG:0, 2, (ARG:0 != MASTER && CFLAG:(ARG:0):捕虜先 == CFLAG:MASTER:所属 && CFLAG:(ARG:0):監禁状態 == 0) || CFLAG:(ARG:0):外交調教経過ターン)
-RETURN 0
+RETURN (ARG:0 != MASTER && CFLAG:(ARG:0):捕虜先 == CFLAG:MASTER:所属 && CFLAG:(ARG:0):監禁状態 == 0) || CFLAG:(ARG:0):外交調教経過ターン
+
+;-------------------------------------------------
+;「捕虜の調教」の追加チェック
+;-------------------------------------------------
+@SHOP_LIFE_CHECK_ADDITIONAL_CHECK31()
+FOR LOCAL, 0, CHARANUM
+	SIF CFLAG:LOCAL:捕虜先 == CFLAG:MASTER:所属
+		RETURN 1
+NEXT
+
 
 ;-------------------------------------------------
 ;「捕虜の調教」の助手の選択可能キャラ存在判定
@@ -91,7 +100,16 @@ ELSE
 	RESETCOLOR
 ENDIF
 PRINTPLAIN   
-CALL COLORPRINT(@"管理(軟禁/解放/兵士の性奴隷化/処刑等)は1人選択時に実行可  行動消費なし", カラー_注釈)
+CALL COLORPRINT(@"管理(軟禁/解放/兵士の性奴隷化/処刑等)は行動消費なし", カラー_注釈)
+CALL COLUMN_RIGHT_PRINTL
+CALL COLUMN_RIGHT_LINE
+CALL COLUMN_RIGHT_PRINTL
+CALL COLORPRINT(@"一括管理", カラー_注釈)
+PRINTPLAIN   
+PRINTBUTTON "[解放]", 2
+PRINTBUTTON "[追放]", 3
+PRINTBUTTON "[軟禁]", 4
+PRINTBUTTON "[処刑]", 5
 CALL COLUMN_RIGHT_PRINTL
 CALL COLUMN_RIGHT_LINE
 CALL COLUMN_RIGHT_PRINTL
@@ -136,19 +154,23 @@ RETURN 0
 ;-------------------------------------------------
 @SHOP_LIFE_EVENTBUY_SUB31(ARG:0)
 ;このメンバーで決定
-IF ARG:0 == 1
-	SELECTCASE INRANGEARRAY(PRISONER_TARGET, 0, CHARANUM + 1)
-		CASE 0
-			;ないと思うんだけど一応
-		CASE 1
-			CALL PRISONER_TRAIT(PRISONER_TARGET:0)
-		CASEELSE
-			CALL DECIDE_PRISONER_MEMBER()
-	ENDSELECT
-	IF RESULT
-		RETURN 1
-	ENDIF
-ENDIF
+SELECTCASE ARG:0 
+	CASE 1
+		SELECTCASE INRANGEARRAY(PRISONER_TARGET, 0, CHARANUM + 1)
+			CASE 0
+				;ないと思うんだけど一応
+			CASE 1
+				CALL PRISONER_TRAIT(PRISONER_TARGET:0)
+			CASEELSE
+				CALL DECIDE_PRISONER_MEMBER()
+		ENDSELECT
+		IF RESULT
+			RETURN 1
+		ENDIF
+	CASE 2, 3, 4, 5, 6
+		CALL PRISONER_BULK_MANAGEMENT(ARG:0)
+		RETURN RESULT
+ENDSELECT
 RETURN 0
 
 ;-------------------------------------------------
@@ -218,6 +240,77 @@ FLAG:調教モード = 2
 CALL START_TRAIN_COMMON
 REDRAW 1
 RETURN 1
+
+;-------------------------------------------------
+;捕虜の調教の一括管理
+;-------------------------------------------------
+@PRISONER_BULK_MANAGEMENT(ARG:0)
+#DIMS 内容
+#DIMS 内容英
+#DIM 対象
+SELECTCASE ARG:0
+	CASE 2
+		内容 = 解放
+		内容英 = PURGE
+	CASE 3
+		内容 = 追放
+		内容英 = BANISH
+	CASE 4
+		内容 = 軟禁
+		内容英 = NANKIN
+	CASE 5
+		内容 = 処刑
+		内容英 = EXECUTE
+ENDSELECT
+
+CALL SINGLE_DRAWLINE
+PRINTFORML %内容%する対象を選択してください
+PRINTFORML （一括管理では、処刑時のイベント等は発生しません）
+CALL SINGLE_DRAWLINE
+CALL SELECT_CHARA_LIST_MULTI_ONLY_LOGIC_SLG(-1, "PRISONER_MANAGE_" + 内容英, "NONE")
+
+SIF SELECTED_CHARA_NUM == 0
+	RETURN 0
+
+FOR LOCAL, 0, SELECTED_CHARA_NUM
+	対象 = SELECTED_CHARA:LOCAL
+	PRINTFORML %ANAME(対象)%を%内容%しました
+	SELECTCASE ARG:0
+		CASE 2
+			CALL CAPTURE(対象, 0, TALENT:対象:崩壊)
+		CASE 3
+			CALL CHANGE_COUNTRY(対象, 0, 1)
+			CALL CAPTURE(対象, 0, TALENT:対象:崩壊)
+		CASE 4
+			CFLAG:対象:監禁状態 = 1
+		CASE 5
+			CALL CHANGE_COUNTRY(対象, 0, 1, 1)
+	ENDSELECT
+NEXT
+
+IF CALC_SHOP_TIME() <= SHOP_TIME
+	PRINTFORML 人数不足による仕事のしわ寄せにより自由時間がなくなったので拠点フェイズを終了します
+	LINES_SHOP = LINECOUNT
+	BEGIN TURNEND
+ENDIF
+
+RETURN 1
+
+@SELECT_CHARA_LIST_SHOW_LOGIC_PRISONER_MANAGE_PURGE(対象)
+#DIM 対象
+RETURN CFLAG:対象:捕虜先 == CFLAG:MASTER:所属 && !CFLAG:対象:監禁状態
+
+@SELECT_CHARA_LIST_SHOW_LOGIC_PRISONER_MANAGE_BANISH(対象)
+#DIM 対象
+RETURN ALLSAMES(CFLAG:対象:捕虜先, CFLAG:対象:所属, CFLAG:MASTER:所属)
+
+@SELECT_CHARA_LIST_SHOW_LOGIC_PRISONER_MANAGE_NANKIN(対象)
+#DIM 対象
+RETURN CFLAG:対象:捕虜先 == CFLAG:MASTER:所属 && CFLAG:対象:所属 != CFLAG:MASTER:所属 && !CFLAG:対象:監禁状態
+
+@SELECT_CHARA_LIST_SHOW_LOGIC_PRISONER_MANAGE_EXECUTE(対象)
+#DIM 対象
+RETURN CFLAG:対象:捕虜先 == CFLAG:MASTER:所属 && !CFLAG:対象:監禁状態
 
 ;-------------------------------------------------
 ;「捕虜の調教」で対象が一人のとき、別の捕虜が身代わりになろうとする
