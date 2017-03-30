@@ -37,7 +37,7 @@ NEXT
 @SHOP_LIFE_CHECKCHARA_SUB31(ARG:0)
 ;閨に呼ぶの選択可能キャラ存在判定
 CALL SHOP_LIFE_CHECKCHARA_NEYA(ARG:0)
-RETURN CHECK91(ARG:0, 2, RESULT)
+RETURN CHECK91(ARG:0, 2, RESULT && SHOP_LIFE_CHECKCHARA_ZYOSYU(ARG:0))
 RETURN 0
 
 ;-------------------------------------------------
@@ -141,6 +141,8 @@ SIF LOCAL:1 >= 4
 	SETCOLOR カラー_オレンジ
 PRINTFORM (現在{LOCAL:1}/4人)
 RESETCOLOR
+PRINTPLAIN   
+PRINTBUTTON @"[%ZYOSYU_MODE()%]", 7
 CALL COLUMN_RIGHT_PRINTL
 CALL COLUMN_RIGHT_LINE
 CALL COLUMN_RIGHT_PRINTL
@@ -170,6 +172,8 @@ SELECTCASE ARG:0
 	CASE 2, 3, 4, 5, 6
 		CALL PRISONER_BULK_MANAGEMENT(ARG:0)
 		RETURN RESULT
+	CASE 7
+		FLAG:助手フィルタ = ROUND_INCREMENT(FLAG:助手フィルタ, 0, 3)
 ENDSELECT
 RETURN 0
 
@@ -363,6 +367,38 @@ IF 判定値:候補 > RAND:10000
 ELSE
 	RETURN 0
 ENDIF
+
+;-------------------------------------------------
+;「捕虜の調教とかの」のメニュー表示で使用するフィルタリングのモード文字列
+;-------------------------------------------------
+@ZYOSYU_MODE
+#FUNCTIONS
+SELECTCASE FLAG:助手フィルタ
+	CASE 0
+		RETURNF "全"
+	CASE 1
+		RETURNF "男"
+	CASE 2
+		RETURNF "女"
+	CASE 3
+		RETURNF "双"
+ENDSELECT
+
+;-------------------------------------------------
+;「捕虜の調教とかの」のメニュー表示で、フィルタに性別が適合するか
+;-------------------------------------------------
+@SHOP_LIFE_CHECKCHARA_ZYOSYU(ARG:0)
+#FUNCTION
+SELECTCASE FLAG:助手フィルタ
+	CASE 0
+		RETURNF 1
+	CASE 1
+		RETURNF IS_MALE(ARG:0)
+	CASE 2
+		RETURNF IS_FEMALE(ARG:0)
+	CASE 3
+		RETURNF (HAS_PENIS(ARG:0) && IS_FEMALE(ARG:0)) || (HAS_VAGINA(ARG:0) && IS_MALE(ARG:0))
+ENDSELECT
 
 ;-------------------------------------------------
 ;捕虜の調教でターゲットが一人だけのときの処理（旧仕様の捕虜の調教で捕虜をクリックしたときの処理）
