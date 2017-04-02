@@ -1,10 +1,10 @@
-﻿;ニプルキャップ
+﻿;搾乳機
 
 ;-------------------------------------------------
 ;コマンド名称
 ;-------------------------------------------------
-@COM_NAME64
-LOCALS:0 = ニプルキャップ
+@COM_NAME67
+LOCALS:0 = 搾乳機
 
 RESULTS:0 = %LOCALS:0%で責める
 RESULTS:1 = %LOCALS:0%で奉仕する
@@ -16,9 +16,9 @@ RESULTS:5 = %LOCALS:0%見せつけ
 ;-------------------------------------------------
 ;選択可否判定
 ;-------------------------------------------------
-@COM_ABLE64
+@COM_ABLE67
 ;共通部分
-CALL COM_ABLE_COMMON(64)
+CALL COM_ABLE_COMMON(67)
 SIF RESULT == 0
 	RETURN 0
 ;プレイヤーは最大で1人まで
@@ -30,8 +30,8 @@ SIF MTAR_NUM <= 0
 ;プレイヤーが行動不能なら不可
 SIF !IS_PLAYABLE(MPLY:0)
 	RETURN 0
-;ニプルキャップが必要
-SIF !ITEM:ニプルキャップ && !ITEM:A_ニプルキャップ
+;搾乳機が必要
+SIF !ITEM:搾乳機 && !ITEM:A_搾乳機
 	RETURN 0
 
 ;プレイヤーが顔面騎乗されているなら不可
@@ -41,10 +41,13 @@ SIF IS_RIDDEN(MPLY:0)
 SIF IS_BIND(MPLY:0)
 	RETURN 0
 FOR LOCAL, 0, MTAR_NUM
+	;母乳体質が必要
+	SIF !TALENT:(MTAR:LOCAL):母乳体質
+		RETURN 0
 	;ターゲットからプレイヤーに挿入中で体位が後背位・背面座位なら不可
 	SIF GROUPMATCH(GET_SEX_POSITION(MTAR:LOCAL, MPLY:0), 2, 4)
 		RETURN 0
-	;搾乳機含め既に装着中なら不可
+	;にプルキャプ含め既に装着中なら不可
 	SIF IS_EQUIP_TARGET(MTAR:LOCAL, 64, 67)
 		RETURN 0
 	;プレイヤーからターゲットに尻コキ中なら不可
@@ -60,7 +63,7 @@ RETURN 1
 ;-------------------------------------------------
 ;メイン処理
 ;-------------------------------------------------
-@COM64
+@COM67
 ;実行判定
 CALL COM_ORDER_COMMON
 SIF RESULT == 0
@@ -92,8 +95,10 @@ FOR LOCAL, 0, MTAR_NUM
 	SOURCE:(LOCAL:2):性行動 = 180
 	IF TALENT:(MPLY:0):技師
 		SOURCE:(LOCAL:2):快Ｂ = SENSE_HOUSHI(MPLY:0, LOCAL:2, 900)
+		SOURCE:(LOCAL:2):搾乳 = SENSE_HOUSHI(MPLY:0, LOCAL:2, 1000)
 	ELSE
 		SOURCE:(LOCAL:2):快Ｂ = SENSE_HOUSHI(MPLY:0, LOCAL:2, 600)
+		SOURCE:(LOCAL:2):搾乳 = SENSE_HOUSHI(MPLY:0, LOCAL:2, 700)
 	ENDIF
 
 	;主導権に応じた優越・屈従のソース追加
@@ -114,13 +119,13 @@ RETURN 1
 ;-------------------------------------------------
 ;継続コマンドかどうかを設定
 ;-------------------------------------------------
-@COM_IS_EQUIP64
+@COM_IS_EQUIP67
 RETURN 1
 
 ;-------------------------------------------------
 ;継続状態の処理
 ;-------------------------------------------------
-@COM_EQUIP64(ARG:0)
+@COM_EQUIP67(ARG:0)
 LOCAL:2 = MEQUIP_PLAYER:(ARG:0):0
 SOURCE:(LOCAL:2):性行動 += 30
 
@@ -128,8 +133,10 @@ FOR LOCAL:0, 0, MEQUIP_TARGET_NUM:(ARG:0)
 	LOCAL:3 = MEQUIP_TARGET:(ARG:0):(LOCAL:0)
 	IF TALENT:(LOCAL:2):技師
 		SOURCE:(LOCAL:3):快Ｂ += SENSE_HOUSHI(LOCAL:2, LOCAL:3, 600)
+		SOURCE:(LOCAL:3):搾乳 += SENSE_HOUSHI(LOCAL:2, LOCAL:3, 600)
 	ELSE
 		SOURCE:(LOCAL:3):快Ｂ += SENSE_HOUSHI(LOCAL:2, LOCAL:3, 400)
+		SOURCE:(LOCAL:3):搾乳 += SENSE_HOUSHI(LOCAL:2, LOCAL:3, 400)
 	ENDIF
 	SOURCE:(LOCAL:3):露出 += 20
 	SOURCE:(LOCAL:3):逸脱 += 50
@@ -139,25 +146,25 @@ NEXT
 ;-------------------------------------------------
 ;継続中の表示
 ;-------------------------------------------------
-@EQUIP_MESSAGE64(ARG:0)
-RESULTS = %EQUIP_TARGET_ANAME(ARG:0)%にニプルキャップを装着中
+@EQUIP_MESSAGE67(ARG:0)
+RESULTS = %EQUIP_TARGET_ANAME(ARG:0)%に搾乳機を装着中
 
 ;-------------------------------------------------
 ;継続中の地の文(前文)
 ;-------------------------------------------------
-@COM_TEXT_BEFORE_EQUIP64(ARG:0)
-PRINTFORML 振動するキャップが%EQUIP_TARGET_ANAME(ARG:0)%の乳首を責め続けている…
+@COM_TEXT_BEFORE_EQUIP67(ARG:0)
+PRINTFORML 搾乳機が%EQUIP_TARGET_ANAME(ARG:0)%から母乳を吸い上げている…
 
 ;-------------------------------------------------
 ;継続を解除したときの地の文
 ;-------------------------------------------------
-@COM_TEXT_RELEASE_EQUIP64(ARG:0)
-PRINTFORMW %EQUIP_TARGET_ANAME(ARG:0)%の乳首を責め立てるキャップを外した
+@COM_TEXT_RELEASE_EQUIP67(ARG:0)
+PRINTFORMW %EQUIP_TARGET_ANAME(ARG:0)%の母乳を搾り取る搾乳機を外した
 
 ;-------------------------------------------------
 ;固有の実行判定
 ;-------------------------------------------------
-@COM_ORDER_PLAYER64(ARG:0)
+@COM_ORDER_PLAYER67(ARG:0)
 ;実行値の設定
 TCVAR:(ARG:0):25 = 65
 
@@ -189,20 +196,23 @@ RETURN 1
 ;-------------------------------------------------
 ;地の文(前文)
 ;-------------------------------------------------
-@COM_TEXT_BEFORE64
+@COM_TEXT_BEFORE67
 IF IS_PIERCED(MTAR:0, ピアス_乳首)
 	LOCALS:0 = ピアスの取り付けられた
 ELSE
 	LOCALS:0 = 
 ENDIF
 
-IF TALENT:(MTAR:0):小柄体型
-	LOCALS:0 = %LOCALS:0%可愛らしい乳首
-ELSEIF PALAM:(MTAR:0):欲情 >= PALAMLV:5
-	LOCALS:0 = %LOCALS:0%欲情してツンと立ち上がった乳首
-ELSE
-	LOCALS:0 = %LOCALS:0%乳首
-ENDIF
+SELECTCASE GET_BUSTSIZE_NUM(MTAR:0)
+	CASE -2, -1
+		LOCALS:0 = 小ぶりながらもミルクを蓄えた乳房
+	CASE 0
+		LOCALS:0 = 程よいサイズのミルクを蓄えた乳房
+	CASE 1
+		LOCALS:0 = たわわに実るミルクを蓄えた乳房
+	CASE 2
+		LOCALS:0 = はち切れんばかりのミルクを蓄えた乳房
+ENDSELECT
 
 IF MTAR_NUM >= 2
 	LOCALS:1 = %ANAME(MTAR:0)%たち
@@ -213,17 +223,17 @@ ENDIF
 SELECTCASE GET_COM_INITIATIVE()
 	;プレイヤーに主導権
 	CASE 0
-		PRINTFORMW %ANAME(MPLY:0)%は%LOCALS:1%の%LOCALS:0%に震えるキャップを取り付け%TARGET_STR("た", "てきた")%…
+		PRINTFORMW %ANAME(MPLY:0)%は%LOCALS:1%の%LOCALS:0%に搾乳機を取り付け%TARGET_STR("た", "てきた")%…
 	;ターゲットに主導権
 	CASE 1
-		PRINTFORMW %LOCALS:1%は%ANAME(MPLY:0)%にキャップを握らせ、自身の乳首に取り付けさせた…
+		PRINTFORMW %LOCALS:1%は%ANAME(MPLY:0)%に搾乳機を握らせ、自身の%LOCALS:0%に取り付けさせた…
 	;第三者に主導権
 	CASEELSE
-		PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に対して、%LOCALS:1%にニプルキャップを取り付けるように命令した
-		PRINTFORMW %ANAME(MPLY:0)%は%LOCALS:1%の%LOCALS:0%に震えるキャップを取り付けた…
+		PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に対して、%LOCALS:1%に搾乳機を取り付けるように命令した
+		PRINTFORMW %ANAME(MPLY:0)%は%LOCALS:1%の%LOCALS:0%に搾乳機を取り付けた…
 ENDSELECT
 
 ;--------------------------------------------------------
 ;地の文(パラメータ・刻印変動後)
 ;--------------------------------------------------------
-@COM_TEXT_LAST64
+@COM_TEXT_LAST67
