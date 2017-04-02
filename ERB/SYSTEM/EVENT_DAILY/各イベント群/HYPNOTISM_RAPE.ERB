@@ -1,695 +1,654 @@
-﻿;---------------------
-;発生確率(1000分率 100で10%)
-;---------------------
-@EVENT_DAILY_HYPNOTISM_RAPE_RATE()
-RETURN (DVAR:催眠術 == 2 ? 150 # 30)
-
-;---------------------
-;確率以外の発生判定
-;---------------------
-@EVENT_DAILY_HYPNOTISM_RAPE_DECISION()
-SIF DAY < 10
-	RETURN 0
-;MASTERが男
-SIF !(IS_MALE(MASTER))
-	RETURN 0
-SIF DVAR:催眠術 == -1
-	RETURN 0 
-
-RETURN 1
-
-;---------------------
-;ジャンル
-;---------------------
-@EVENT_DAILY_HYPNOTISM_RAPE_GENRE()
-RETURN デイリー_ジャンル_エロ
-
-;---------------------
-;本体
-;---------------------
-@EVENT_DAILY_HYPNOTISM_RAPE
-#DIM 対象
-
-;催眠術を学んでおり、実行したことがあり、確率でシスターがくる
-IF DVAR:催眠術 == 2 && DVAR:催眠経験値 > 0 && RAND:8 == 0
-	CALL HYPNOTISM_RAPE_SISTER
-ELSEIF DVAR:催眠経験値 + RAND:30 > 50
-	CALL HYPNOTISM_RAPE_FUMBLE
-ELSEIF GROUPMATCH(DVAR:催眠術, 0, 1)
-	CALL HYPNOTISM_RAPE_CONTRACT
-	SIF RESULT == 0
-		RETURN 1
-	CALL HYPNOTISM_RAPE_PRACTICE(1)
-ELSEIF DVAR:催眠術 == 2
-	CALL HYPNOTISM_RAPE_PRACTICE(0)
-ENDIF
-
-RETURN 1
-
-
-;---------------------
-;シスターがくるイベント
-;---------------------
-@HYPNOTISM_RAPE_SISTER
-PRINTFORML ある日、シスターがやってきた
-PRINTFORML 彼女は%ANAME(MASTER)%が悪魔と契約して催眠術を手に入れたのを知っていた
-PRINTFORMW そのままでは%ANAME(MASTER)%はいつかとんでもない目に合うと忠告される
-PRINTFORML どうしよう？
-CALL ASK_MULTI("忠告に従う" ,"催眠レイプ" ,"追い払う")
-IF RESULT == 2
-	PRINTFORML 大きなお世話だ
-	PRINTFORMW 彼女を追い払った
-ELSEIF RESULT == 0
-	PRINTFORML 彼女の言葉に嘘はなさそうだ
-	PRINTFORML 忠告に従う事にした
-	PRINTFORMW %ANAME(MASTER)%と悪魔との契約は破棄し、催眠術を失った
-	DVAR:催眠術 = -1
-	DVAR:催眠経験値 = 0
-ELSE
-	IF DVAR:シスター == 0
-		PRINTFORML 長々とした説教にイラついていた%ANAME(MASTER)%だが
-		PRINTFORMW 彼女が中々良いボディラインをしているのに気付いた
-		PRINTFORML %ANAME(MASTER)%は彼女の言葉に感銘を受け従う振りをして近づき、催眠術を掛けた
-		PRINTFORMW …なんとも呆気なく彼女は催眠状態に陥った
-	ELSE
-		PRINTFORML %ANAME(MASTER)%は前回彼女が晒した醜態を思い出し笑ってしまった
-		PRINTFORML 怒って詰め寄ってくる彼女に対し、再び催眠術を掛けた
-		PRINTFORMW …やはり呆気なく催眠状態に陥った
-	ENDIF
-	PRINTFORML 抱き寄せて身体をまさぐると、彼女は熱っぽく喘いだ
-	PRINTFORMW %ANAME(MASTER)%はほくそ笑むと彼女を寝室に連れ込んだ
-	PRINTFORML 
-	SELECTCASE RAND:5
-		CASE 0
-			PRINTFORMW 彼女の身体は聖職者にあるまじき豊満さと感度で%ANAME(MASTER)%をとても楽しませてくれた
-		CASE 1
-			PRINTFORMW ビッチの様な台詞を彼女に吐かせ、その様を嘲りながらたっぷりと犯してやった
-		CASE 2
-			PRINTFORMW 変わらずに説教を続ける彼女に生返事をしながら、存分に種付けレイプを楽しんだ
-		CASE 3
-			PRINTFORMW 雌犬の様に発情し種付けをおねだりする彼女に応えて一晩じゅう調教を続けた
-		CASE 4
-			PRINTFORMW 身体の感度を何倍にも引き上げると、彼女は何度も無様に潮吹きアクメを繰り返した
-	ENDSELECT
-	CALL FUCK(MASTER, "性技, 性交, Ｃ, 射精", "童貞喪失, キス喪失", 0, "シスターの唇", "", @"シスターの膣", 喪失_催眠)
-	PRINTFORML 
-	PRINTFORMW 彼女は翌日、何事もなかったかのように%ANAME(MASTER)%に別れを告げた
-	PRINTFORMW 帰り際にたっぷりと射精した下腹部を撫でたが、彼女はキョトンとするだけだった
-	DVAR:催眠経験値 += RAND:5 + 1
-	DVAR:シスター = 1
-ENDIF
-RETURN 1
-
-;---------------------
-;確率で発動する喪失イベント
-;---------------------
-@HYPNOTISM_RAPE_FUMBLE
-PRINTFORML ある日、普通の催眠レイプにも飽きた%ANAME(MASTER)%は派手な事をしようと思いついた
-PRINTFORMW %ANAME(MASTER)%は女性達でごった返す銭湯に乗り込み、その場の全員に催眠を掛けた！
-PRINTFORML …しかしなぜか催眠術は発動しなかった
-PRINTFORMW 戸惑いながら何度も発動させようとするが何も起きない
-PRINTFORML そんなことをしている内に女性たちに囲まれ、捕まってしまった
-PRINTFORMW どんな弁明も意味をなさず、彼女たちに袋叩きにされてしまった………
-FOR LOCAL, 0, CHARANUM
-	SIF !IS_ANIMAL(LOCAL)
-		CFLAG:(LOCAL):好感度 -= 1000
-NEXT
-CALL COLORPRINT(@"この事は自国内にとどまらず幻想郷中に広まり、%ANAME(MASTER)%の評判は大幅に下がった", カラー_注意)
-PRINTFORMW 
-IF MASTER != GET_COUNTRY_BOSS(CFLAG:MASTER:所属) && CFLAG:GET_COUNTRY_BOSS(CFLAG:MASTER:所属):好感度 < 0
-	CALL COLORPRINT(@"%ANAME(GET_COUNTRY_BOSS(CFLAG:MASTER:所属))%は%ANAME(MASTER)%を唾棄すべき存在として罵り、国外に追放した", カラー_注意)
-	PRINTFORMW 
-	CALL CHANGE_COUNTRY(MASTER, 0)
-ENDIF
-CALL ADD_COOLTIME(MASTER, 3)
-CALL COLORPRINT(@"これ以降、%ANAME(MASTER)%は一切の催眠術を失ってしまった…", カラー_注意)
-PRINTFORMW 
-DVAR:催眠術 = -1
-DVAR:催眠経験値 = 0
-RETURN
-
-
-;---------------------
-;契約
-;---------------------
-@HYPNOTISM_RAPE_CONTRACT
-
-IF DVAR:催眠術 == 0
-	PRINTFORML ある日、夢の中に悪魔が現れた
-	PRINTFORMW 彼は%ANAME(MASTER)%の力と引き換えに催眠術を授けてくれると言う
-	PRINTFORMW 悪魔との取引だ、かなりリスクが高そうだが…
-ELSEIF DVAR:催眠術 == 1
-	PRINTFORML 再びあの悪魔が現れ契約を迫って来た
-	PRINTFORMW 契約内容は同じく力と引き換えに催眠術を授けてくれるというものだ
-ENDIF
-PRINTFORML どうしよう？
-CALL ASK_YN("取引する", "追い払う")
-IF RESULT == 1
-	PRINTFORML 流石に悪魔と契約するつもりなどない
-	PRINTFORMW 追い払った
-	DVAR:催眠術 = 1
-	RETURN 0
-ENDIF
-PRINTFORML 悪魔の力の魅力に負けた%ANAME(MASTER)%は契約することにした
-PRINTFORMW 悪魔はニヤリと笑うと%ANAME(MASTER)%に手をかざした
-PRINTFORMW すると%ANAME(MASTER)%は力が抜けていく感覚と催眠術を使えるのだという確信を得た
-ABL:MASTER:武闘 -= ABL:MASTER:武闘 / 6
-SIF ABL:MASTER:武闘 <= 0
-	ABL:MASTER:武闘 = 1
-ABL:MASTER:防衛 -= ABL:MASTER:防衛 / 6
-SIF ABL:MASTER:防衛 <= 0
-	ABL:MASTER:防衛 = 1
-ABL:MASTER:知略 -= ABL:MASTER:知略 / 6
-SIF ABL:MASTER:知略 <= 0
-	ABL:MASTER:知略 = 1
-ABL:MASTER:政治 -= ABL:MASTER:政治 / 6
-SIF ABL:MASTER:政治 <= 0
-	ABL:MASTER:政治 = 1
-CALL COLORPRINT(@"%ANAME(MASTER)%の能力が大幅にダウンした", カラー_注意)
-PRINTFORMW 
-CALL COLORPRINT(@"%ANAME(MASTER)%は【催眠術】を手に入れた", カラー_注意)
-PRINTFORMW 
-DVAR:催眠術 = 2
-PRINTFORMW 悪魔は不気味に笑いながら霧の様に消え去った…
-RETURN 1
-
-;---------------------
-;催眠実行
-;---------------------
-@HYPNOTISM_RAPE_PRACTICE(契約後)
-#DIM 契約後
-#DIM 実行メニュー
-#DIM 対象
-IF 契約後 == 1
-	PRINTFORMW 早速試しに行こうか？
-ELSE
-	PRINTFORML 仕事が一段落した
-	PRINTFORMW 今日も催眠に行こうか？
-ENDIF
-
-CALL ASK_YN("催眠に行く", "やめておく")
-
-IF RESULT == 1
-	PRINTFORMW 今日は疲れているのでやめておいた
-	RETURN
-ENDIF
-
-PRINTFORML もちろん催眠術を楽しませてもらおう
-PRINTFORMW さて、誰を狙おうか？
-CALL SINGLE_DRAWLINE
-CALL SELECT_CHARA_LIST_ONLY_LOGIC_SEX("HYPONOTISM_RAPE", "NONE")
-IF RESULT == -1
-	PRINTFORMW やはり今日は疲れているのでやめておいた
-	RETURN
-ENDIF
-対象 = RESULT
-PRINTFORML %ANAME(対象)%にしよう
-PRINTFORMW %ANAME(MASTER)%は標的を定めると早速出かけた
-PRINTFORML ・
-PRINTFORML ・
-PRINTFORMW ・
-PRINTFORML 上手い具合に彼女が一人の時に遭遇した
-PRINTFORMW %ANAME(MASTER)%は彼女に親しげに話しかけると、催眠術を仕掛けた
-PRINTFORML すると彼女の瞳から光が消え、呆然としてその場で立ち尽くした
-PRINTFORMW どうやら催眠状態になったらしい
-PRINTFORML どうしよう？
-CALL ASK_MULTI("肉体開発する", "レイプする", "隷属させる")
-SELECTCASE RESULT
-	CASE 0
-		CALL HYPNOTISM_RAPE_PRACTICE_INVESTMENT(対象)
-	CASE 1
-		CALL HYPNOTISM_RAPE_PRACTICE_RAPE(対象)
-	CASE 2
-		CALL HYPONOTISM_RAPE_PRACTICE_ENSLAVEMENT(対象)
-ENDSELECT
-
-RETURN
-
-
-
-;-------------------------
-;肉体開発
-;-------------------------
-@HYPNOTISM_RAPE_PRACTICE_INVESTMENT(対象)
-#DIM 対象
-#DIM 実行メニュー
-PRINTFORMW 肉体を%ANAME(MASTER)%好みに開発することにした
-PRINTFORML どうしよう？
-CALL ASK_MULTI("タトゥーを刻む", "ピアスをつける", "肉体敏感化")
-実行メニュー = RESULT
-SELECTCASE 実行メニュー
-	CASE 0
-		PRINTFORMW %ANAME(MASTER)%は%ANAME(対象)%におしゃれさせてやることにした……
-	CASE 1
-		PRINTFORML %ANAME(MASTER)%は%ANAME(対象)%におしゃれさせてやることにした……
-	CASE 2
-		PRINTFORMW 今後の楽しみの為に肉体を敏感にしてやるにした……
-ENDSELECT
-;確率判定失敗
-IF DVAR:催眠経験値 + RAND:30 < 10
-	PRINTFORML しかし直前で彼女が意識を取り戻してしまった
-	PRINTFORMW %ANAME(MASTER)%はとっさに逃げだした！
-	PRINTFORML 
-	IF RAND:5 > 0
-		PRINTFORML 無事に逃げ切れた…
-		PRINTFORMW こういう事もあるだろう、催眠はまた次回楽しむ事にして宮殿に戻った
-		DVAR:催眠経験値 += RAND:3 + 1
-	ELSE
-		PRINTFORML 逃げきれなかった…
-		PRINTFORMW 捕まってしまった%ANAME(MASTER)%は尋問を受け、すべてばれてしまった
-		FOR LOCAL, 0, CHARANUM
-			SIF !IS_ANIMAL(LOCAL)
-				CFLAG:(LOCAL):好感度 -= 500
-		NEXT
-		CALL COLORPRINT(@"この事は自国内にとどまらず幻想郷中に広まり、%ANAME(MASTER)%の評判は大幅に下がった", カラー_注意)
-		PRINTFORMW 
-	ENDIF
-	RETURN
-ENDIF
-
-PRINTFORML 彼女は%ANAME(MASTER)%の命令通りのポーズをとり大人しくしている
-
-SELECTCASE 実行メニュー
-	CASE 0
-		$SHOW_LOOP
-		PRINTFORML どこに彫り入れてやろうか？
-		PRINTFORML
-		FOR LOCAL, 0, VARSIZE("TATOO")
-			IF CAN_TATOO(対象, LOCAL)
-				PRINTBUTTON @"[{LOCAL:0}] %GET_TATOO_NAME(LOCAL:0), 8, LEFT%", LOCAL:0
-				PRINTBUTTON @"[{LOCAL:0 + 100}] %GET_TATOO_NAME(LOCAL:0) + "(ランダム)", 20, LEFT%", LOCAL:0 + 100
-				PRINTL
-			ELSE
-				SETCOLOR カラー_選択不可
-				PRINTPLAINFORM [{LOCAL:0}] %GET_TATOO_NAME(LOCAL:0)%には既にタトゥーが入っている
-				RESETCOLOR
-				PRINTL
-			ENDIF
-		NEXT
-		PRINTFORML [99] 戻る
-		$INPUT_LOOP
-		INPUT
-		LOCAL:1 = RESULT
-		IF LOCAL:1 == 99
-			PRINTFORMW やはりやめておいた
-			PRINTFORMW %ANAME(MASTER)%は彼女の催眠を解くとその場を立ち去った
-			RETURN
-		ELSEIF 0 <= LOCAL:1 && LOCAL:1 < VARSIZE("TATOO") && CAN_TATOO(対象, LOCAL:1)
-			PRINTFORML 何と彫り入れようか……(未入力でキャンセル)
-			INPUTS
-			SIF RESULTS == ""
-				GOTO SHOW_LOOP
-			CALL SET_TATOO(対象, LOCAL:1, RESULTS:0)
-		ELSEIF 100 <= LOCAL:1 && LOCAL:1 < VARSIZE("TATOO") + 100 && CAN_TATOO(対象, LOCAL:1 - 100)
-			$RANDOM_LOOP
-			LOCALS:0 = %STR_FOR_TATOO(LOCAL:1 - 100)%
-			PRINTFORML 「%LOCALS:0%」を彫り入れるのはどうだろう……
-			CALL ASK_MULTI("彫る", "別ので", "やめる")
-			IF RESULT == 0
-				CALL SET_TATOO(対象, LOCAL:1 - 100, LOCALS:0)
-			ELSEIF RESULT == 1
-				GOTO RANDOM_LOOP
-			ELSEIF RESULT == 2
-				GOTO SHOW_LOOP
-			ENDIF
-		ELSE
-			GOTO INPUT_LOOP
-		ENDIF
-		PRINTFORML 彼女にお似合いのタトゥーを入れてやった
-		PRINTFORMW 出来栄えに満足した%ANAME(MASTER)%は彼女の催眠を解くとその場を立ち去った
-	CASE 1
-		PRINTFORML どこにピアスをつけてやろうか？
-		PRINTFORML
-		FOR LOCAL, 0, ピアス_最大ビット + 1
-			IF IS_PIERCED(対象, LOCAL)
-				PRINTFORML [{LOCAL:0}] %GET_PIERCE_NAME(LOCAL:0)%のピアスを外す
-			ELSE
-				IF IS_HOLED(対象, LOCAL)
-					SIF CAN_PIERCE(対象, LOCAL)
-						PRINTFORML [{LOCAL:0}] %GET_PIERCE_NAME(LOCAL:0)%にピアスをつける
-				ELSE
-					SIF CAN_PIERCE(対象, LOCAL)
-						PRINTFORML [{LOCAL:0}] %GET_PIERCE_NAME(LOCAL:0)%にピアス穴を開け、ピアスをつける
-				ENDIF
-			ENDIF
-		NEXT
-		PRINTFORML [99] 戻る
-		$INPUT_LOOP_02
-		INPUT
-		IF RESULT == 99
-			PRINTFORMW やはりやめておいた
-			PRINTFORMW %ANAME(MASTER)%は彼女の催眠を解くとその場を立ち去った
-			RETURN
-		ELSEIF IS_PIERCED(対象, RESULT)
-			CALL REMOVE_PIERCE(対象, RESULT)
-			PRINTFORML 彼女に似合わないピアスを取り除いてやった
-			PRINTFORMW 出来栄えに満足した%ANAME(MASTER)%は彼女の催眠を解くとその場を立ち去った
-		ELSEIF CAN_PIERCE(対象, RESULT)
-			CALL SET_PIERCE(対象, RESULT)
-			PRINTFORML 彼女にお似合いのピアスをつけてやった
-			PRINTFORMW 出来栄えに満足した%ANAME(MASTER)%は彼女の催眠を解くとその場を立ち去った
-		ELSE
-			GOTO INPUT_LOOP_02
-		ENDIF
-	CASE 2
-		PRINTFORML どの部位を開発してやろうか？
-		CALL ASK_MULTI_JUDGE("口", 1, "胸", 1, "女性器", 1, "お尻", 1, "クリ", !HAS_PENIS(対象), "ペニス", HAS_PENIS(対象))
-		SELECTCASE RESULT
-			CASE 0
-				PRINTFORML %ANAME(MASTER)%が命ずると彼女はあーんと口を開いた
-				PRINTFORML 指で口内を弄りながら催眠術で繰り返し敏感になる様に仕込んでいく
-				PRINTFORMW 次第に彼女は息を荒げだしトロンとした表情になっていった
-				LOCALS:0 = 口
-				LOCAL = TALENT:対象:Ｍ鈍感
-				IF LOCAL
-					TALENT:対象:Ｍ鈍感 = 0
-				ELSE
-					TALENT:対象:Ｍ敏感 = 1
-				ENDIF
-				CALL PRINT_ADD_EXP(対象, "Ｍ感経験値", RAND:5 + 6, 1)
-			CASE 1
-				PRINTFORML %ANAME(MASTER)%が命ずると彼女は胸をはだけた
-				PRINTFORML 揉みしだきながら催眠術で繰り返し敏感になる様に仕込んでいく
-				PRINTFORMW 次第に彼女は息を荒げだし乳首がビンビンに勃起しだした
-				LOCALS:0 = 胸
-				LOCAL = TALENT:対象:Ｂ鈍感
-				IF LOCAL
-					TALENT:対象:Ｂ鈍感 = 0
-				ELSE
-					TALENT:対象:Ｂ敏感 = 1
-				ENDIF
-				CALL PRINT_ADD_EXP(対象, "Ｂ感経験値", RAND:5 + 6, 1)
-			CASE 2
-				PRINTFORML %ANAME(MASTER)%が命ずると彼女は下着を脱ぎ去り股を開いた
-				PRINTFORML 指先をねじ込み刺激しながら催眠術で繰り返し敏感になる様に仕込んでいく
-				PRINTFORMW 次第に彼女は息を荒げだし愛液がとめどなくあふれだしてきた
-				LOCALS:0 = ヴァギナ
-				LOCAL = TALENT:対象:Ｖ鈍感
-				IF LOCAL
-					TALENT:対象:Ｖ鈍感 = 0
-				ELSE
-					TALENT:対象:Ｖ敏感 = 1
-				ENDIF
-				CALL PRINT_ADD_EXP(対象, "Ｖ感経験値", RAND:5 + 6, 1)
-			CASE 3
-				PRINTFORML %ANAME(MASTER)%が命ずると彼女は下着を脱いでお尻を突き出した
-				PRINTFORML 両手で激しく揉み上げながら催眠術で繰り返し敏感になる様に仕込んでいく
-				PRINTFORMW 次第に彼女は息を荒げだしビクビクと全身を痙攣させだした
-				LOCALS:0 = アナル
-				LOCAL = TALENT:対象:Ａ鈍感
-				IF LOCAL
-					TALENT:対象:Ａ鈍感 = 0
-				ELSE
-					TALENT:対象:Ａ敏感 = 1
-				ENDIF
-				CALL PRINT_ADD_EXP(対象, "Ａ感経験値", RAND:5 + 6, 1)
-			CASE 4
-				PRINTFORML %ANAME(MASTER)%が命じると彼女は下着を脱ぎ秘部を晒した
-				PRINTFORML 秘部を自ら刺激させ、自らの体を開発させる
-				PRINTFORMW 次第に彼女は息を荒げだし、秘核をビンビンに勃起させた
-				LOCALS:0 = クリトリス
-				LOCAL = TALENT:対象:Ｃ鈍感
-				IF LOCAL
-					TALENT:対象:Ｃ鈍感 = 0
-				ELSE
-					TALENT:対象:Ｃ敏感 = 1
-				ENDIF
-			CASE 5
-				PRINTFORML %ANAME(MASTER)%が命じると彼女は下着を脱ぎ秘部を晒した
-				PRINTFORML 秘部を自ら刺激させ、自らの体を開発させる
-				PRINTFORMW 次第に彼女は息を荒げだし、ペニスをビンビンに勃起させた
-				LOCALS:0 = ペニス
-				LOCAL = TALENT:対象:Ｃ鈍感
-				IF LOCAL
-					TALENT:対象:Ｃ鈍感 = 0
-				ELSE
-					TALENT:対象:Ｃ敏感 = 1
-				ENDIF
-		ENDSELECT
-		CALL TRAIN_AUTO_ABLUP(対象)
-		CALL COLORPRINT(@"%ANAME(対象)%の%LOCALS:0%が\@ LOCAL ? 人並みに # 人一倍 \@敏感になった……", カラー_注意, "W")
-ENDSELECT
-PRINTFORML 
-PRINTFORMW ひとまず催眠を終えた%ANAME(MASTER)%は今夜の事を忘れさせ彼女を家に帰した
-PRINTFORMW 催眠を行ったことで能力が成長した気がした
-DVAR:催眠経験値 += RAND:3 + 1
-
-@SELECT_CHARA_LIST_SHOW_LOGIC_HYPONOTISM_RAPE(対象)
-#DIM 対象
-RETURN CFLAG:対象:行動不能状態 != 4 && CFLAG:対象:所属 != CFLAG:MASTER:所属 && !IS_ANIMAL(対象) && !IS_MALE(対象) && CFLAG:対象:捕虜先 == 0 && !IS_SP_CHARA(対象) && (IS_COUNTRY(CFLAG:対象:所属) || CFLAG:対象:特殊状態 == 1)
-
-
-;-------------------------
-;レイプ
-;-------------------------
-@HYPNOTISM_RAPE_PRACTICE_RAPE(対象)
-#DIM 対象
-#DIM 実行メニュー
-PRINTFORMW 彼女の肉体を前にしておあずけなんて考えられなかった
-PRINTFORML どんなシチュエーションでレイプしよう？
-CALL ASK_MULTI("認識操作レイプ" ,"肉体掌握レイプ" ,"淫乱化レイプ")
-実行メニュー = RESULT
-SELECTCASE 実行メニュー
-	CASE 0
-		PRINTFORMW 記憶を操って楽しむ事にした
-	CASE 1
-		PRINTFORMW 肉体を掌握して楽しむ事にした
-	CASE 2
-		PRINTFORMW 淫乱化して楽しませてもらう事にした
-ENDSELECT
-
-IF DVAR:催眠経験値 + RAND:30 < 20
-	PRINTFORML しかし直前で彼女が意識を取り戻してしまった
-	PRINTFORMW %ANAME(MASTER)%はとっさに逃げだした！
-	PRINTFORML 
-	IF RAND:5 > 0
-		PRINTFORML 無事に逃げ切れた…
-		PRINTFORMW こういう事もあるだろう、催眠はまた次回楽しむ事にして宮殿に戻った
-		DVAR:催眠経験値 += RAND:3 + 1
-	ELSE
-		PRINTFORML 逃げきれなかった…
-		PRINTFORMW 捕まってしまった%ANAME(MASTER)%は尋問を受け、すべてばれてしまった
-		FOR LOCAL, 0, CHARANUM
-			SIF !IS_ANIMAL(LOCAL)
-				CFLAG:(LOCAL):好感度 -= 500
-		NEXT
-		CALL COLORPRINT(@"この事は自国内にとどまらず幻想郷中に広まり、%ANAME(MASTER)%の評判は大幅に下がった", カラー_注意)
-		PRINTFORMW 
-	ENDIF
-	RETURN
-ENDIF
-
-PRINTFORML 
-PRINTFORMW %ANAME(対象)%は惚けた表情で%ANAME(MASTER)%の催眠を受け入れている…
-SELECTCASE 実行メニュー
-	CASE 0
-		PRINTFORML 彼女に偽りの記憶を植え付けた
-		PRINTFORML 意識を揺り起こすと彼女はきょとんとした表情で%ANAME(MASTER)%と周囲を見回した
-		PRINTFORMW 催眠の効果を確かめる為、彼女に自分の立場を確認する
-		SELECTCASE RAND:5
-			CASE 0
-				PRINTFORML 彼女はその問いに首をかしげつつも当たり前の様に、自分は%ANAME(MASTER)%のペットだと答えた
-				PRINTFORMW %ANAME(MASTER)%はその答えに催眠成功を確信し、内心ほくそ笑みながら彼女と共に夜の街に向かった
-				PRINTFORML 
-				PRINTFORML 真っ裸に首輪だけつけた彼女が四つん這いで夜の街を歩いている
-				PRINTFORML 息を荒げながら涎を垂らし%ANAME(MASTER)%を見つめるその表情はまさに発情した雌犬のものだ
-				PRINTFORMW %ANAME(MASTER)%が命令すればその通りに動き、ご褒美をもらおうと甘える様な声で媚びを売ってくる
-				PRINTFORML いよいよ%ANAME(MASTER)%がペニスを取り出し差し出すと、彼女は悦んで服従のポーズをとった
-				PRINTFORML おおっぴろげになった秘所は物欲しげにぱくぱくとひくついて、愛液を溢れだしていた
-				PRINTFORMW %ANAME(MASTER)%はこのいやらしいペットの心身奥深くまで躾ける様に、たっぷりと種付けしてやった
-			CASE 1
-				PRINTFORML 彼女はその問いに首をかしげつつも当たり前の様に、自分は%ANAME(MASTER)%の娼婦だと答えた
-				PRINTFORMW %ANAME(MASTER)%はその答えに催眠成功を確信し、内心ほくそ笑みながら彼女と共にホテルに向かった
-				PRINTFORML 
-				PRINTFORML 彼女は本物の娼婦の様に全身を使ってたっぷりと%ANAME(MASTER)%に奉仕してくれた
-				PRINTFORML チップ代わりに膣出ししてやると彼女は嬉しそうに啼き何度も何度も絶頂を繰り返した
-				PRINTFORMW 流石に疲れ果てた%ANAME(MASTER)%達は休憩として抱き合いながらピロートークを楽しんでいた
-				PRINTFORML うっとりとして見つめてくる彼女にキスをしてやると嬉しそうに微笑み身体を擦り寄らせてきた
-				PRINTFORML その様子に再び一物が元気になった%ANAME(MASTER)%が覆い被さると彼女は両手を開いて招いてきた
-				PRINTFORMW 熱っぽく絡みついてくる彼女と共に汗だくになりながら、極上の一夜を過ごした
-			CASE 2
-				PRINTFORML 彼女はその問いに首をかしげつつも当たり前の様に、自分は%ANAME(MASTER)%の妻だと答えた
-				PRINTFORMW %ANAME(MASTER)%はその答えに催眠成功を確信し、内心ほくそ笑みながら彼女と共に自宅へと向かった
-				PRINTFORML 
-				PRINTFORML 彼女を自宅に連れ込んだ%ANAME(MASTER)%は、早速ベッドに押し倒した
-				PRINTFORML 艶めかしい声を上げ身をくねらせる彼女の全身にキスを繰り返しながら服を脱がしていく
-				PRINTFORMW 彼女は%ANAME(MASTER)%に抱かれながら恍惚とした表情でヨガり子種をねだりながら何度も絶頂した
-				PRINTFORML たっぷりとセックスを終えた後も、彼女との新婚生活を楽しませてもらった
-				PRINTFORML 料理中、食事中、洗濯物の取り込み中に、そしてお風呂でもイチャイチャエッチを繰り返す
-				PRINTFORMW %ANAME(MASTER)%は飽きることなく可愛い新妻の全身に自分の匂いとＤＮＡを染み込ませていった
-			CASE 3
-				PRINTFORML 彼女はその問いに首をかしげつつも当たり前の様に、自分は%ANAME(MASTER)%の部下だと答えた
-				PRINTFORMW %ANAME(MASTER)%はその答えに催眠成功を確信し、内心ほくそ笑みながら彼女と共に夜の街に向かった
-				PRINTFORML 
-				PRINTFORML %ANAME(MASTER)%は立場を利用して彼女をホテルに連れ込むと教育と称して犯してやった
-				PRINTFORML 敏感になって一突き毎にイきまくる彼女にだらしがないと叱責してより激しく突き上げる
-				PRINTFORMW 彼女はヒィヒィとヨガリ狂いながら嬌声交じりの震える声で申し訳ありませんと謝罪する
-				PRINTFORML こうなったら一晩中訓練だと告げると彼女は感極まった様に全身を痙攣させ潮を吹いた
-				PRINTFORML 生意気な避妊要求に懲罰として膣出しすると、彼女は全身で%ANAME(MASTER)%に抱き着いて絶頂した
-				PRINTFORMW 翌朝訓練終了を告げると、彼女は下半身をブルブルと震わせながら%ANAME(MASTER)%に敬礼した
-			CASE 4
-				PRINTFORML 彼女はその問いに首をかしげつつも当たり前の様に、自分は%ANAME(MASTER)%の奴隷だと答えた
-				PRINTFORMW %ANAME(MASTER)%はその答えに催眠成功を確信し、内心ほくそ笑みながら彼女と共に自宅へと向かった
-				PRINTFORML 
-				PRINTFORML %ANAME(MASTER)%は彼女を自室に連れ込むと早速押し倒して乱暴に服をはぎ取った
-				PRINTFORML 彼女は奴隷らしく身を震わせながらも抵抗せず、恥ずかしそうに上目遣いで見つめてきた
-				PRINTFORMW そのしおらしい姿に%ANAME(MASTER)%のペニスは強烈に勃起し我慢できずに激しく犯した
-				PRINTFORML 彼女はされるがままにヨガリ狂い、甘える様に全身で%ANAME(MASTER)%にしがみついてきた
-				PRINTFORML %ANAME(MASTER)%は欲望のままに滅茶苦茶に彼女を犯し、濃厚に舌を絡ませながら共に絶頂に達した
-				PRINTFORMW 恍惚とした表情を浮かべる彼女に%ANAME(MASTER)%の興奮は収まらず、一晩中たっぷりと種付けしてやった
-		ENDSELECT
-	CASE 1
-		PRINTFORMW 彼女の肉体を掌握した
-		PRINTFORML 意識を揺り起こすと彼女はキョトンとした表情で%ANAME(MASTER)%と周囲を見回した
-		PRINTFORMW 催眠の効果を確かめる為、彼女の胸に手を伸ばし揉み上げた
-		PRINTFORML 彼女は当然驚き悲鳴を上げた…が、身体の方は微動だにしなかった
-		PRINTFORML 混乱して慌てふためく彼女を無視して柔らかい胸の感触を楽しませてもらう
-		PRINTFORMW これだけやって動けないなら成功だろうと確信した%ANAME(MASTER)%は、睨み付けてくる彼女を連れて夜の街に向かった
-		SELECTCASE RAND:5
-			CASE 0
-				PRINTFORML %ANAME(MASTER)%は彼女を浮浪者の溜まり場に連れて行き、公開レイプを行った
-				PRINTFORML 浮浪者たちの目の前で犯される屈辱に、彼女は歯を喰いしばりながら痙攣している
-				PRINTFORML %ANAME(MASTER)%がアクメを強制すると彼女は涙を流しながら悲鳴と共に何度も潮吹き絶頂を晒した
-				PRINTFORMW 彼女の悲痛な表情に興奮した%ANAME(MASTER)%は浮浪者たちのおかずとして繰り返し犯してやった
-			CASE 1
-				PRINTFORML %ANAME(MASTER)%は彼女に連続オナニーを命令して、強制絶頂を繰り返させている
-				PRINTFORML イキっぱなしの彼女は上から下から体液を垂れ流しながら無様なアクメ顔を晒している
-				PRINTFORML 何十回目かの絶頂で止めた時には、彼女は痙攣しっぱなしで地べたに横たわっていた
-				PRINTFORMW %ANAME(MASTER)%は絶頂の連続ですっかりトロケきった肉体を、思う存分堪能させてもらった
-			CASE 2
-				PRINTFORML 路地裏から彼女のあられもない嬌声と悲痛な悲鳴が交互に響いてくる
-				PRINTFORML %ANAME(MASTER)%は彼女を乱暴に犯しながら一突き毎に絶頂する命令を繰り返している
-				PRINTFORML 彼女は必死で抵抗するが、突き上げる度に涎と愛液をまき散らしながら無様に絶頂した
-				PRINTFORMW 彼女の無様な姿と痙攣する膣肉は%ANAME(MASTER)%を大変満足させ、その最奥に何度も精を放った
-			CASE 3
-				PRINTFORML 彼女をホテルに連れ込んだ%ANAME(MASTER)%は首輪をつけて奉仕させている
-				PRINTFORML 彼女は%ANAME(MASTER)%を涙目で睨みつけながら激しく腰を振ってペニスを奥深くまで咥え込む
-				PRINTFORML 戯れに乳首をひねってやると、無様な声を漏らしてビクンと身体を跳ねながら絶頂した
-				PRINTFORMW 必死で逃れようとする彼女の表情を楽しみながら何度も子宮へ直接精液を放ってやった
-			CASE 4
-				PRINTFORML %ANAME(MASTER)%は彼女をホテルの一室に連れ込み、カメラの前で犯している
-				PRINTFORML 彼女は%ANAME(MASTER)%に突き上げられながらカメラ目線で命令のままに卑猥な台詞を吐いている
-				PRINTFORML 一突きする度に彼女は壊れた人形の様に絶頂し、カメラに向けてだらしがないアヘ顔を晒す
-				PRINTFORMW 泣きじゃくりながら絶頂する彼女の姿を満足するまでカメラに納めさせてもらった
-		ENDSELECT
-	CASE 2
-		PRINTFORMW 彼女の意識を改変して淫乱化した
-		PRINTFORML 意識を揺り起こすと彼女はキョトンとした表情で%ANAME(MASTER)%と周囲を見回した
-		PRINTFORMW 催眠の効果を確かめる為、%ANAME(MASTER)%は彼女にレイプしてもいいかと尋ねた
-		SELECTCASE RAND:5
-			CASE 0
-				PRINTFORML すると彼女は発情した様な表情になり、淫靡な笑みを浮かべて頷いた
-				PRINTFORMW %ANAME(MASTER)%は彼女の腰を抱くとイチャイチャしながらホテルへと連れ込んだ
-				PRINTFORML 
-				PRINTFORML %ANAME(MASTER)%は彼女とハメ撮りセックスを行っている
-				PRINTFORML 彼女はノリノリでカメラの前でポーズをとりながら%ANAME(MASTER)%に犯されてヨガり狂う
-				PRINTFORML おねだりされるままに子宮に射精すると、彼女はだらしないアヘ顔を晒しながら絶頂した
-				PRINTFORMW すっかりハメ撮りに夢中になった彼女と一晩中たっぷりとセックスを楽しんだ
-			CASE 1
-				PRINTFORML すると彼女はキョトンとした表情になり、当たり前だという様に頷いた
-				PRINTFORMW %ANAME(MASTER)%は彼女の腰を抱くとイチャイチャしながら温泉宿に向かった
-				PRINTFORML 
-				PRINTFORML %ANAME(MASTER)%は彼女と温泉エッチしている
-				PRINTFORML 彼女はバシャバシャとお湯を跳ねさせながら悦びの声を響かせて艶めかしく腰を振る
-				PRINTFORML 火照り切った彼女の笑顔はこの上なく淫らで全身をくねらせて%ANAME(MASTER)%の目と一物を楽しませた
-				PRINTFORMW たまらず最奥までペニスをねじ込み精を放ってやると、彼女は全身を震わせながらアクメった
-			CASE 2
-				PRINTFORML すると彼女はトロンとした表情となり、自ら%ANAME(MASTER)%に絡みついてきた
-				PRINTFORMW %ANAME(MASTER)%は彼女と恋人の様にキスを交わしながらホテルへと連れ込んだ
-				PRINTFORML 
-				PRINTFORML バニー姿の彼女が%ANAME(MASTER)%の上で激しく跳ねている
-				PRINTFORML 彼女は熱っぽく%ANAME(MASTER)%の名を呼びながら腰を振り、深々とペニスを咥え込んでいく
-				PRINTFORML その熱心な奉仕に%ANAME(MASTER)%が激しく突き上げて応えてやると、彼女はビクビクッ！と仰け反った
-				PRINTFORMW ひたすら%ANAME(MASTER)%を求めてくる甘えん坊な可愛いうさぎにたっぷりとご褒美をくれてやった
-			CASE 3
-				PRINTFORML すると彼女は息を荒げだし、瞳に♥を浮かべてコクコクと頷いた
-				PRINTFORMW %ANAME(MASTER)%はすっかり雌犬になった彼女の身体を弄繰り回しながら自宅に連れ込んだ
-				PRINTFORML 
-				PRINTFORML %ANAME(MASTER)%は彼女に首輪とリードをつけペットを躾ける様に犯している
-				PRINTFORML 四つん這いの彼女に背後から激しく腰を打ち付けると、彼女は嬉しそうにヒィヒィと喘ぐ
-				PRINTFORML 淫乱っぷりを叱りながら尻を叩くと、彼女は謝罪しながらも膣肉をキュンと締め付けてきた
-				PRINTFORMW %ANAME(MASTER)%はこのだらしがない雌犬を一晩中調教し、子宮にたっぷりとマーキングしてやった
-			CASE 4
-				PRINTFORML すると彼女は一瞬硬直した後、自ら服を開いて下着を脱いでお尻を突き出してきた
-				PRINTFORMW %ANAME(MASTER)%はその場で滅茶苦茶に犯したい衝動をグッとこらえ、急いで路地裏に連れ込んだ
-				PRINTFORML 
-				PRINTFORML 彼女と路地裏セックスを楽しんだ%ANAME(MASTER)%は、歓楽街をデートしている
-				PRINTFORML 彼女の乳首は服の上からわかる程に勃っており、裾からはポタポタと精液がこぼれている
-				PRINTFORML そのあられもない様子をなじると彼女はゾクゾクと背筋を震わせ我慢できない様に縋り付いてきた
-				PRINTFORMW 我慢できなくなった%ANAME(MASTER)%は彼女を路地裏に連れ込むとそこでまたたっぷりと犯してやった
-		ENDSELECT
-ENDSELECT
-CALL FUCK_RAPE(対象, GET_ID(MASTER), @"%ANAME(MASTER)%の\@ RAND:2 ? ペニス # 唇\@", @"%ANAME(MASTER)%")
-CALL FUCK(対象, "性技, 性交, Ｃ, 射精", "童貞喪失, キス喪失", 0, @"%ANAME(対象)%の唇", "", @"%ANAME(対象)%の膣", 喪失_催眠)
-PRINTFORML 
-PRINTFORMW 存分に楽しませてもらった後、今夜の事を忘れさせ彼女を家に帰した
-PRINTFORMW 催眠を行ったことで能力が成長した気がした
-DVAR:催眠経験値 += RAND:5 + 2
-
-;-------------------------
-;隷属
-;-------------------------
-@HYPONOTISM_RAPE_PRACTICE_ENSLAVEMENT(対象)
-#DIM 対象
-
-PRINTFORML 彼女を隷属させる事にした
-PRINTFORMW 催眠を更に強くかけていき、彼女の意識の奥深くまで自分への隷属を染み込ませていった…
-PRINTFORML ・
-PRINTFORML ・
-PRINTFORMW ・
-IF DVAR:催眠経験値 + RAND:40 >= 50
-	PRINTFORMW 成功した！
-	PRINTFORML 経験を積んだ強力な催眠の効果により、彼女の身も心も支配下に置いた
-	PRINTFORMW 試しに催眠状態を解いてもそれは変わらず、媚びを売る様な視線を向けてきた
-	CALL COLORPRINT(@"%ANAME(対象)%は%ANAME(MASTER)%の奴隷になりました", カラー_ピンク)
-	PRINTFORMW 
-	CFLAG:対象:依存度 += 1000
-	CFLAG:対象:従属度 += 3000
-	TALENT:対象:服従 = 1
-	IF GET_COUNTRY_BOSS(CFLAG:対象:所属) != 対象
-		CALL CHANGE_COUNTRY(対象, CFLAG:MASTER:所属)
-		CALL COLORPRINT(@"%ANAME(対象)%は%ANAME(MASTER)%の勢力に加わりました", カラー_注意)
-		PRINTFORMW 
-	ENDIF
-	TALENT:対象:合意 = 1
-	DVAR:催眠経験値 += RAND:7 + 3
-	PRINTFORML 
-	PRINTFORML 目的の女を手に入れご満悦の%ANAME(MASTER)%はこの能力にすっかりのめり込んだ
-	PRINTFORMW しかしこのまま使い続ければいつかしっぺ返しが来そうだ…
-	PRINTFORML どうしよう？
-	CALL ASK_YN("まだまだ能力を使わせてもらう", "能力を破棄する")
-	IF RESULT == 1
-		PRINTFORML もう充分だ
-		PRINTFORML そう思った%ANAME(MASTER)%は能力を破棄した
-		PRINTFORMW 以降、催眠術は一切使えなくなった…
-		DVAR:催眠術 = -1
-		DVAR:催眠経験値 = 0
-	ELSE
-		PRINTFORML いや、まだだ
-		PRINTFORML 高い代償を支払ったのだからまだまだ楽しませてもらう
-		PRINTFORMW %ANAME(MASTER)%はほくそ笑みながら彼女を連れて夜の街に消えた
-	ENDIF
-ELSE
-	PRINTFORMW しかし流石に厳しかったのか失敗してしまった…
-	PRINTFORML 逃げようとしたが催眠失敗の反動か、身体が動かずに捕まってしまった
-	PRINTFORMW 捕まった%ANAME(MASTER)%は徹底的に拷問を受ける事になった
-	FOR LOCAL, 0, CHARANUM
-		SIF !IS_ANIMAL(LOCAL)
-			CFLAG:(LOCAL):好感度 -= 500
-	NEXT
-	CALL COLORPRINT(@"この事は自国内にとどまらず幻想郷中に広まり、%ANAME(MASTER)%の評判は大幅に下がった", カラー_注意)
-	PRINTFORMW 
-	IF MASTER != GET_COUNTRY_BOSS(CFLAG:MASTER:所属) && CFLAG:GET_COUNTRY_BOSS(CFLAG:MASTER:所属):好感度 < 0
-		CALL COLORPRINT(@"%ANAME(GET_COUNTRY_BOSS(CFLAG:MASTER:所属))%は%ANAME(MASTER)%を唾棄すべき存在として罵り、国外に追放した", カラー_注意)
-		PRINTFORMW 
-		CFLAG:MASTER:所属 = 0
-	ENDIF
-	CALL ADD_COOLTIME(MASTER, 3)
-	MONEY = 0
-	CALL COLORPRINT(@"所持金をすべて失ってしまった", カラー_注意)
-	PRINTFORMW 
-	CALL COLORPRINT(@"これ以降、%ANAME(MASTER)%は一切の催眠術を失ってしまった…", カラー_注意)
-	PRINTFORMW 
-	DVAR:催眠術 = -1
-	DVAR:催眠経験値 = 0
-ENDIF
+﻿;;---------------------
+;;発生確率(1000分率 100で10%)
+;;---------------------
+;@EVENT_DAILY_HYPNOTISM_RAPE_RATE()
+;RETURN (DVAR:催眠術 == 2 ? 150 # 30)
+;
+;;---------------------
+;;確率以外の発生判定
+;;---------------------
+;@EVENT_DAILY_HYPNOTISM_RAPE_DECISION()
+;SIF DAY < 10
+;	RETURN 0
+;;MASTERが男
+;SIF !(IS_MALE(MASTER))
+;	RETURN 0
+;SIF DVAR:催眠術 == -1
+;	RETURN 0 
+;
+;RETURN 1
+;
+;;---------------------
+;;ジャンル
+;;---------------------
+;@EVENT_DAILY_HYPNOTISM_RAPE_GENRE()
+;RETURN デイリー_ジャンル_エロ
+;
+;;---------------------
+;;本体
+;;---------------------
+;@EVENT_DAILY_HYPNOTISM_RAPE
+;#DIM 対象
+;
+;;催眠術を学んでおり、実行したことがあり、確率でシスターがくる
+;IF DVAR:催眠術 == 2 && DVAR:催眠経験値 > 0 && RAND:8 == 0
+;	CALL HYPNOTISM_RAPE_SISTER
+;;ELSEIF DVAR:催眠経験値 + RAND:30 > 100
+;;	CALL HYPNOTISM_RAPE_FUMBLE
+;ELSEIF GROUPMATCH(DVAR:催眠術, 0, 1)
+;	CALL HYPNOTISM_RAPE_CONTRACT
+;	SIF RESULT == 0
+;		RETURN 1
+;	CALL HYPNOTISM_RAPE_PRACTICE(1)
+;ELSEIF DVAR:催眠術 == 2
+;	CALL HYPNOTISM_RAPE_PRACTICE(0)
+;ENDIF
+;
+;RETURN 1
+;
+;
+;;---------------------
+;;シスターがくるイベント
+;;---------------------
+;@HYPNOTISM_RAPE_SISTER
+;PRINTFORML ある日、シスターがやってきた
+;PRINTFORML 彼女は%ANAME(MASTER)%が悪魔と契約して催眠術を手に入れたのを知っていた
+;PRINTFORMW そのままでは%ANAME(MASTER)%はいつかとんでもない目に合うと忠告される
+;PRINTFORML どうしよう？
+;CALL ASK_MULTI("忠告に従う" ,"催眠レイプ" ,"追い払う")
+;IF RESULT == 2
+;	PRINTFORML 大きなお世話だ
+;	PRINTFORMW 彼女を追い払った
+;ELSEIF RESULT == 0
+;	PRINTFORML 彼女の言葉に嘘はなさそうだ
+;	PRINTFORML 忠告に従う事にした
+;	PRINTFORMW %ANAME(MASTER)%と悪魔との契約は破棄し、催眠術を失った
+;	DVAR:催眠術 = -1
+;	DVAR:催眠経験値 = 0
+;ELSE
+;	IF DVAR:シスター == 0
+;		PRINTFORML 長々とした説教にイラついていた%ANAME(MASTER)%だが
+;		PRINTFORMW 彼女が中々良いボディラインをしているのに気付いた
+;		PRINTFORML %ANAME(MASTER)%は彼女の言葉に感銘を受け従う振りをして近づき、催眠術を掛けた
+;		PRINTFORMW …なんとも呆気なく彼女は催眠状態に陥った
+;	ELSE
+;		PRINTFORML %ANAME(MASTER)%は前回彼女が晒した醜態を思い出し笑ってしまった
+;		PRINTFORML 怒って詰め寄ってくる彼女に対し、再び催眠術を掛けた
+;		PRINTFORMW …やはり呆気なく催眠状態に陥った
+;	ENDIF
+;	PRINTFORML 抱き寄せて身体をまさぐると、彼女は熱っぽく喘いだ
+;	PRINTFORMW %ANAME(MASTER)%はほくそ笑むと彼女を寝室に連れ込んだ
+;	PRINTFORML 
+;	SELECTCASE RAND:5
+;		CASE 0
+;			PRINTFORMW 彼女の身体は聖職者にあるまじき豊満さと感度で%ANAME(MASTER)%をとても楽しませてくれた
+;		CASE 1
+;			PRINTFORMW ビッチの様な台詞を彼女に吐かせ、その様を嘲りながらたっぷりと犯してやった
+;		CASE 2
+;			PRINTFORMW 変わらずに説教を続ける彼女に生返事をしながら、存分に種付けレイプを楽しんだ
+;		CASE 3
+;			PRINTFORMW 雌犬の様に発情し種付けをおねだりする彼女に応えて一晩じゅう調教を続けた
+;		CASE 4
+;			PRINTFORMW 身体の感度を何倍にも引き上げると、彼女は何度も無様に潮吹きアクメを繰り返した
+;	ENDSELECT
+;	CALL FUCK(MASTER, "性技, 性交, Ｃ, 射精", "童貞喪失, キス喪失", 0, "シスターの唇", "", @"シスターの膣", 喪失_催眠)
+;	PRINTFORML 
+;	PRINTFORMW 彼女は翌日、何事もなかったかのように%ANAME(MASTER)%に別れを告げた
+;	PRINTFORMW 帰り際にたっぷりと射精した下腹部を撫でたが、彼女はキョトンとするだけだった
+;	DVAR:催眠経験値 += RAND:5 + 1
+;	DVAR:シスター = 1
+;ENDIF
+;RETURN 1
+;
+;;---------------------
+;;確率で発動する喪失イベント
+;;---------------------
+;@HYPNOTISM_RAPE_FUMBLE
+;PRINTFORML ある日、普通の催眠レイプにも飽きた%ANAME(MASTER)%は派手な事をしようと思いついた
+;PRINTFORMW %ANAME(MASTER)%は女性達でごった返す銭湯に乗り込み、その場の全員に催眠を掛けた！
+;PRINTFORML …しかしなぜか催眠術は発動しなかった
+;PRINTFORMW 戸惑いながら何度も発動させようとするが何も起きない
+;PRINTFORML そんなことをしている内に女性たちに囲まれ、捕まってしまった
+;PRINTFORMW どんな弁明も意味をなさず、彼女たちに袋叩きにされてしまった………
+;CALL ADD_COOLTIME(MASTER, 3)
+;CALL COLORPRINT(@"これ以降、%ANAME(MASTER)%は一切の催眠術を失ってしまった…", カラー_注意)
+;PRINTFORMW 
+;DVAR:催眠術 = -1
+;DVAR:催眠経験値 = 0
+;RETURN 1
+;
+;;---------------------
+;;契約
+;;---------------------
+;@HYPNOTISM_RAPE_CONTRACT
+;
+;IF DVAR:催眠術 == 0
+;	PRINTFORML ある日、夢の中に悪魔が現れた
+;	PRINTFORMW 彼は巨額と引き換えに、あらゆるものを従えうる強力な催眠術を授けてくれるという
+;	CALL ICPRINT("具体的には、金<30000>をよこせとのことだ", "W", カラー_注意)
+;ELSEIF DVAR:催眠術 == 1
+;	PRINTFORML 再びあの悪魔が現れ契約を迫って来た
+;	PRINTFORMW 契約内容は同じく金30000と引き換えに催眠術を授けてくれるというものだ
+;ENDIF
+;PRINTFORML どうしよう？
+;CALL ASK_MULTI_JUDGE("取引する", MONEY >= 30000, "追い払う", 1)
+;IF RESULT == 1
+;	PRINTFORML 流石に悪魔と契約するつもりなどない
+;	PRINTFORMW 追い払った
+;	DVAR:催眠術 = 1
+;	RETURN 0
+;ENDIF
+;PRINTFORML 悪魔の力の魅力に負けた%ANAME(MASTER)%は契約することにした
+;PRINTFORMW 悪魔はニヤリと笑うと%ANAME(MASTER)%に手をかざした
+;PRINTFORMW すると%ANAME(MASTER)%は力が湧いてくる感覚と、催眠術を使えるのだという確信を得た
+;CALL COLORPRINT(@"%ANAME(MASTER)%は【催眠術】を手に入れた", カラー_注意, "W")
+;CALL COLORPRINT("金30000を支払った", カラー_注意, "W")
+;PRINTFORMW 
+;DVAR:催眠術 = 2
+;PRINTFORMW 悪魔は不気味に笑いながら霧の様に消え去った…
+;PRINTFORMW 後になって調べると、財布から金がなくなっていた
+;RETURN 1
+;
+;;---------------------
+;;催眠実行
+;;---------------------
+;@HYPNOTISM_RAPE_PRACTICE(契約後)
+;#DIM 契約後
+;#DIM 実行メニュー
+;#DIM 対象
+;IF 契約後 == 1
+;	PRINTFORMW 早速試しに行こうか？
+;ELSE
+;	PRINTFORML 仕事が一段落した
+;	PRINTFORMW 今日も催眠に行こうか？
+;ENDIF
+;
+;CALL ASK_YN("催眠に行く", "やめておく")
+;
+;IF RESULT == 1
+;	PRINTFORMW 今日は疲れているのでやめておいた
+;	RETURN
+;ENDIF
+;
+;PRINTFORML もちろん催眠術を楽しませてもらおう
+;PRINTFORMW さて、誰を狙おうか？
+;CALL SINGLE_DRAWLINE
+;CALL SELECT_CHARA_LIST_ONLY_LOGIC_SEX("HYPONOTISM_RAPE", "NONE")
+;IF RESULT == -1
+;	PRINTFORMW やはり今日は疲れているのでやめておいた
+;	RETURN
+;ENDIF
+;対象 = RESULT
+;PRINTFORML %ANAME(対象)%にしよう
+;PRINTFORMW %ANAME(MASTER)%は標的を定めると早速出かけた
+;PRINTFORML ・
+;PRINTFORML ・
+;PRINTFORMW ・
+;PRINTFORML 上手い具合に彼女が一人の時に遭遇した
+;PRINTFORMW %ANAME(MASTER)%は彼女に親しげに話しかけると、催眠術を仕掛けた
+;PRINTFORML すると彼女の瞳から光が消え、呆然としてその場で立ち尽くした
+;PRINTFORMW どうやら催眠状態になったらしい
+;PRINTFORML どうしよう？
+;CALL ASK_MULTI("肉体開発する", "レイプする", "隷属させる")
+;SELECTCASE RESULT
+;	CASE 0
+;		CALL HYPNOTISM_RAPE_PRACTICE_INVESTMENT(対象)
+;	CASE 1
+;		CALL HYPNOTISM_RAPE_PRACTICE_RAPE(対象)
+;	CASE 2
+;		CALL HYPONOTISM_RAPE_PRACTICE_ENSLAVEMENT(対象)
+;ENDSELECT
+;
+;RETURN
+;
+;
+;
+;;-------------------------
+;;肉体開発
+;;-------------------------
+;@HYPNOTISM_RAPE_PRACTICE_INVESTMENT(対象)
+;#DIM 対象
+;#DIM 実行メニュー
+;PRINTFORMW 肉体を%ANAME(MASTER)%好みに開発することにした
+;PRINTFORML どうしよう？
+;CALL ASK_MULTI("タトゥーを刻む", "ピアスをつける", "肉体敏感化")
+;実行メニュー = RESULT
+;SELECTCASE 実行メニュー
+;	CASE 0
+;		PRINTFORMW %ANAME(MASTER)%は%ANAME(対象)%におしゃれさせてやることにした……
+;	CASE 1
+;		PRINTFORML %ANAME(MASTER)%は%ANAME(対象)%におしゃれさせてやることにした……
+;	CASE 2
+;		PRINTFORMW 今後の楽しみの為に肉体を敏感にしてやるにした……
+;ENDSELECT
+;;確率判定失敗
+;IF MIN(DVAR:催眠経験値) < 10
+;	PRINTFORML しかし直前で彼女が意識を取り戻してしまった
+;	PRINTFORMW %ANAME(MASTER)%はとっさに逃げだした！
+;	PRINTFORML 
+;	IF RAND:5 > 0
+;		PRINTFORML 無事に逃げ切れた…
+;		PRINTFORMW こういう事もあるだろう、催眠はまた次回楽しむ事にして宮殿に戻った
+;		DVAR:催眠経験値 += RAND:3 + 1
+;	ELSE
+;		PRINTFORML 逃げきれなかった…
+;		PRINTFORMW 捕まってしまった%ANAME(MASTER)%は尋問を受け、すべてばれてしまった
+;		FOR LOCAL, 0, CHARANUM
+;			SIF !IS_ANIMAL(LOCAL)
+;				CFLAG:(LOCAL):好感度 -= 500
+;		NEXT
+;		CALL COLORPRINT(@"この事は自国内にとどまらず幻想郷中に広まり、%ANAME(MASTER)%の評判は大幅に下がった", カラー_注意)
+;		PRINTFORMW 
+;	ENDIF
+;	RETURN
+;ENDIF
+;
+;PRINTFORML 彼女は%ANAME(MASTER)%の命令通りのポーズをとり大人しくしている
+;
+;SELECTCASE 実行メニュー
+;	CASE 0
+;		$SHOW_LOOP
+;		PRINTFORML どこに彫り入れてやろうか？
+;		PRINTFORML
+;		FOR LOCAL, 0, VARSIZE("TATOO")
+;			IF CAN_TATOO(対象, LOCAL)
+;				PRINTBUTTON @"[{LOCAL:0}] %GET_TATOO_NAME(LOCAL:0), 8, LEFT%", LOCAL:0
+;				PRINTBUTTON @"[{LOCAL:0 + 100}] %GET_TATOO_NAME(LOCAL:0) + "(ランダム)", 20, LEFT%", LOCAL:0 + 100
+;				PRINTL
+;			ELSE
+;				SETCOLOR カラー_選択不可
+;				PRINTPLAINFORM [{LOCAL:0}] %GET_TATOO_NAME(LOCAL:0)%には既にタトゥーが入っている
+;				RESETCOLOR
+;				PRINTL
+;			ENDIF
+;		NEXT
+;		PRINTFORML [99] 戻る
+;		$INPUT_LOOP
+;		INPUT
+;		LOCAL:1 = RESULT
+;		IF LOCAL:1 == 99
+;			PRINTFORMW やはりやめておいた
+;			PRINTFORMW %ANAME(MASTER)%は彼女の催眠を解くとその場を立ち去った
+;			RETURN
+;		ELSEIF 0 <= LOCAL:1 && LOCAL:1 < VARSIZE("TATOO") && CAN_TATOO(対象, LOCAL:1)
+;			PRINTFORML 何と彫り入れようか……(未入力でキャンセル)
+;			INPUTS
+;			SIF RESULTS == ""
+;				GOTO SHOW_LOOP
+;			CALL SET_TATOO(対象, LOCAL:1, RESULTS:0)
+;		ELSEIF 100 <= LOCAL:1 && LOCAL:1 < VARSIZE("TATOO") + 100 && CAN_TATOO(対象, LOCAL:1 - 100)
+;			$RANDOM_LOOP
+;			LOCALS:0 = %STR_FOR_TATOO(LOCAL:1 - 100)%
+;			PRINTFORML 「%LOCALS:0%」を彫り入れるのはどうだろう……
+;			CALL ASK_MULTI("彫る", "別ので", "やめる")
+;			IF RESULT == 0
+;				CALL SET_TATOO(対象, LOCAL:1 - 100, LOCALS:0)
+;			ELSEIF RESULT == 1
+;				GOTO RANDOM_LOOP
+;			ELSEIF RESULT == 2
+;				GOTO SHOW_LOOP
+;			ENDIF
+;		ELSE
+;			GOTO INPUT_LOOP
+;		ENDIF
+;		PRINTFORML 彼女にお似合いのタトゥーを入れてやった
+;		PRINTFORMW 出来栄えに満足した%ANAME(MASTER)%は彼女の催眠を解くとその場を立ち去った
+;	CASE 1
+;		PRINTFORML どこにピアスをつけてやろうか？
+;		PRINTFORML
+;		FOR LOCAL, 0, ピアス_最大ビット + 1
+;			IF IS_PIERCED(対象, LOCAL)
+;				PRINTFORML [{LOCAL:0}] %GET_PIERCE_NAME(LOCAL:0)%のピアスを外す
+;			ELSE
+;				IF IS_HOLED(対象, LOCAL)
+;					SIF CAN_PIERCE(対象, LOCAL)
+;						PRINTFORML [{LOCAL:0}] %GET_PIERCE_NAME(LOCAL:0)%にピアスをつける
+;				ELSE
+;					SIF CAN_PIERCE(対象, LOCAL)
+;						PRINTFORML [{LOCAL:0}] %GET_PIERCE_NAME(LOCAL:0)%にピアス穴を開け、ピアスをつける
+;				ENDIF
+;			ENDIF
+;		NEXT
+;		PRINTFORML [99] 戻る
+;		$INPUT_LOOP_02
+;		INPUT
+;		IF RESULT == 99
+;			PRINTFORMW やはりやめておいた
+;			PRINTFORMW %ANAME(MASTER)%は彼女の催眠を解くとその場を立ち去った
+;			RETURN
+;		ELSEIF IS_PIERCED(対象, RESULT)
+;			CALL REMOVE_PIERCE(対象, RESULT)
+;			PRINTFORML 彼女に似合わないピアスを取り除いてやった
+;			PRINTFORMW 出来栄えに満足した%ANAME(MASTER)%は彼女の催眠を解くとその場を立ち去った
+;		ELSEIF CAN_PIERCE(対象, RESULT)
+;			CALL SET_PIERCE(対象, RESULT)
+;			PRINTFORML 彼女にお似合いのピアスをつけてやった
+;			PRINTFORMW 出来栄えに満足した%ANAME(MASTER)%は彼女の催眠を解くとその場を立ち去った
+;		ELSE
+;			GOTO INPUT_LOOP_02
+;		ENDIF
+;	CASE 2
+;		PRINTFORML どの部位を開発してやろうか？
+;		CALL ASK_MULTI_JUDGE("口", 1, "胸", 1, "女性器", 1, "お尻", 1, "クリ", !HAS_PENIS(対象), "ペニス", HAS_PENIS(対象))
+;		SELECTCASE RESULT
+;			CASE 0
+;				PRINTFORML %ANAME(MASTER)%が命ずると彼女はあーんと口を開いた
+;				PRINTFORML 指で口内を弄りながら催眠術で繰り返し敏感になる様に仕込んでいく
+;				PRINTFORMW 次第に彼女は息を荒げだしトロンとした表情になっていった
+;				LOCALS:0 = 口
+;				LOCAL = TALENT:対象:Ｍ鈍感
+;				IF LOCAL
+;					TALENT:対象:Ｍ鈍感 = 0
+;				ELSE
+;					TALENT:対象:Ｍ敏感 = 1
+;				ENDIF
+;				CALL PRINT_ADD_EXP(対象, "Ｍ感経験値", RAND:5 + 6, 1)
+;			CASE 1
+;				PRINTFORML %ANAME(MASTER)%が命ずると彼女は胸をはだけた
+;				PRINTFORML 揉みしだきながら催眠術で繰り返し敏感になる様に仕込んでいく
+;				PRINTFORMW 次第に彼女は息を荒げだし乳首がビンビンに勃起しだした
+;				LOCALS:0 = 胸
+;				LOCAL = TALENT:対象:Ｂ鈍感
+;				IF LOCAL
+;					TALENT:対象:Ｂ鈍感 = 0
+;				ELSE
+;					TALENT:対象:Ｂ敏感 = 1
+;				ENDIF
+;				CALL PRINT_ADD_EXP(対象, "Ｂ感経験値", RAND:5 + 6, 1)
+;			CASE 2
+;				PRINTFORML %ANAME(MASTER)%が命ずると彼女は下着を脱ぎ去り股を開いた
+;				PRINTFORML 指先をねじ込み刺激しながら催眠術で繰り返し敏感になる様に仕込んでいく
+;				PRINTFORMW 次第に彼女は息を荒げだし愛液がとめどなくあふれだしてきた
+;				LOCALS:0 = ヴァギナ
+;				LOCAL = TALENT:対象:Ｖ鈍感
+;				IF LOCAL
+;					TALENT:対象:Ｖ鈍感 = 0
+;				ELSE
+;					TALENT:対象:Ｖ敏感 = 1
+;				ENDIF
+;				CALL PRINT_ADD_EXP(対象, "Ｖ感経験値", RAND:5 + 6, 1)
+;			CASE 3
+;				PRINTFORML %ANAME(MASTER)%が命ずると彼女は下着を脱いでお尻を突き出した
+;				PRINTFORML 両手で激しく揉み上げながら催眠術で繰り返し敏感になる様に仕込んでいく
+;				PRINTFORMW 次第に彼女は息を荒げだしビクビクと全身を痙攣させだした
+;				LOCALS:0 = アナル
+;				LOCAL = TALENT:対象:Ａ鈍感
+;				IF LOCAL
+;					TALENT:対象:Ａ鈍感 = 0
+;				ELSE
+;					TALENT:対象:Ａ敏感 = 1
+;				ENDIF
+;				CALL PRINT_ADD_EXP(対象, "Ａ感経験値", RAND:5 + 6, 1)
+;			CASE 4
+;				PRINTFORML %ANAME(MASTER)%が命じると彼女は下着を脱ぎ秘部を晒した
+;				PRINTFORML 秘部を自ら刺激させ、自らの体を開発させる
+;				PRINTFORMW 次第に彼女は息を荒げだし、秘核をビンビンに勃起させた
+;				LOCALS:0 = クリトリス
+;				LOCAL = TALENT:対象:Ｃ鈍感
+;				IF LOCAL
+;					TALENT:対象:Ｃ鈍感 = 0
+;				ELSE
+;					TALENT:対象:Ｃ敏感 = 1
+;				ENDIF
+;			CASE 5
+;				PRINTFORML %ANAME(MASTER)%が命じると彼女は下着を脱ぎ秘部を晒した
+;				PRINTFORML 秘部を自ら刺激させ、自らの体を開発させる
+;				PRINTFORMW 次第に彼女は息を荒げだし、ペニスをビンビンに勃起させた
+;				LOCALS:0 = ペニス
+;				LOCAL = TALENT:対象:Ｃ鈍感
+;				IF LOCAL
+;					TALENT:対象:Ｃ鈍感 = 0
+;				ELSE
+;					TALENT:対象:Ｃ敏感 = 1
+;				ENDIF
+;		ENDSELECT
+;		CALL TRAIN_AUTO_ABLUP(対象)
+;		CALL COLORPRINT(@"%ANAME(対象)%の%LOCALS:0%が\@ LOCAL ? 人並みに # 人一倍 \@敏感になった……", カラー_注意, "W")
+;ENDSELECT
+;PRINTFORML 
+;PRINTFORMW ひとまず催眠を終えた%ANAME(MASTER)%は今夜の事を忘れさせ彼女を家に帰した
+;PRINTFORMW 催眠を行ったことで能力が成長した気がした
+;DVAR:催眠経験値 += RAND:3 + 1
+;
+;@SELECT_CHARA_LIST_SHOW_LOGIC_HYPONOTISM_RAPE(対象)
+;#DIM 対象
+;RETURN CFLAG:対象:行動不能状態 != 4 && CFLAG:対象:所属 != CFLAG:MASTER:所属 && !IS_ANIMAL(対象) && !IS_MALE(対象) && CFLAG:対象:捕虜先 == 0 && !IS_SP_CHARA(対象) && (IS_COUNTRY(CFLAG:対象:所属) || CFLAG:対象:特殊状態 == 1)
+;
+;
+;;-------------------------
+;;レイプ
+;;-------------------------
+;@HYPNOTISM_RAPE_PRACTICE_RAPE(対象)
+;#DIM 対象
+;#DIM 実行メニュー
+;PRINTFORMW 彼女の肉体を前にしておあずけなんて考えられなかった
+;PRINTFORML どんなシチュエーションでレイプしよう？
+;CALL ASK_MULTI("認識操作", "肉体掌握", "淫乱化")
+;実行メニュー = RESULT
+;SELECTCASE 実行メニュー
+;	CASE 0
+;		PRINTFORMW 記憶を操って楽しむ事にした
+;	CASE 1
+;		PRINTFORMW 肉体を掌握して楽しむ事にした
+;	CASE 2
+;		PRINTFORMW 淫乱化して楽しませてもらう事にした
+;ENDSELECT
+;
+;IF DVAR:催眠経験値 + RAND:30 < 20
+;	PRINTFORML しかし直前で彼女が意識を取り戻してしまった
+;	PRINTFORMW %ANAME(MASTER)%はとっさに逃げだした！
+;	PRINTFORML 
+;	IF RAND:5 > 0
+;		PRINTFORML 無事に逃げ切れた…
+;		PRINTFORMW こういう事もあるだろう、催眠はまた次回楽しむ事にして宮殿に戻った
+;		DVAR:催眠経験値 += RAND:3 + 1
+;	ELSE
+;		PRINTFORML 逃げきれなかった…
+;		PRINTFORMW 捕まってしまった%ANAME(MASTER)%は袋叩きにされた……
+;		CALL ADD_COOLTIME(MASTER, 3)
+;	ENDIF
+;	RETURN 1
+;ENDIF
+;
+;PRINTFORML 
+;PRINTFORMW %ANAME(対象)%は惚けた表情で%ANAME(MASTER)%の催眠を受け入れている…
+;SELECTCASE 実行メニュー
+;	CASE 0
+;		PRINTFORML 彼女に偽りの記憶を植え付けた
+;		PRINTFORML 意識を揺り起こすと彼女はきょとんとした表情で%ANAME(MASTER)%と周囲を見回した
+;		PRINTFORMW 催眠の効果を確かめる為、彼女に自分の立場を確認する
+;		SELECTCASE RAND:5
+;			CASE 0
+;				PRINTFORML 彼女はその問いに首をかしげつつも当たり前の様に、自分は%ANAME(MASTER)%のペットだと答えた
+;				PRINTFORMW %ANAME(MASTER)%はその答えに催眠成功を確信し、内心ほくそ笑みながら彼女と共に夜の街に向かった
+;				PRINTFORML 
+;				PRINTFORML 真っ裸に首輪だけつけた彼女が四つん這いで夜の街を歩いている
+;				PRINTFORML 息を荒げながら涎を垂らし%ANAME(MASTER)%を見つめるその表情はまさに発情した雌犬のものだ
+;				PRINTFORMW %ANAME(MASTER)%が命令すればその通りに動き、ご褒美をもらおうと甘える様な声で媚びを売ってくる
+;				PRINTFORML いよいよ%ANAME(MASTER)%がペニスを取り出し差し出すと、彼女は悦んで服従のポーズをとった
+;				PRINTFORML おおっぴろげになった秘所は物欲しげにぱくぱくとひくついて、愛液を溢れだしていた
+;				PRINTFORMW %ANAME(MASTER)%はこのいやらしいペットの心身奥深くまで躾ける様に、たっぷりと種付けしてやった
+;			CASE 1
+;				PRINTFORML 彼女はその問いに首をかしげつつも当たり前の様に、自分は%ANAME(MASTER)%の娼婦だと答えた
+;				PRINTFORMW %ANAME(MASTER)%はその答えに催眠成功を確信し、内心ほくそ笑みながら彼女と共にホテルに向かった
+;				PRINTFORML 
+;				PRINTFORML 彼女は本物の娼婦の様に全身を使ってたっぷりと%ANAME(MASTER)%に奉仕してくれた
+;				PRINTFORML チップ代わりに膣出ししてやると彼女は嬉しそうに啼き何度も何度も絶頂を繰り返した
+;				PRINTFORMW 流石に疲れ果てた%ANAME(MASTER)%達は休憩として抱き合いながらピロートークを楽しんでいた
+;				PRINTFORML うっとりとして見つめてくる彼女にキスをしてやると嬉しそうに微笑み身体を擦り寄らせてきた
+;				PRINTFORML その様子に再び一物が元気になった%ANAME(MASTER)%が覆い被さると彼女は両手を開いて招いてきた
+;				PRINTFORMW 熱っぽく絡みついてくる彼女と共に汗だくになりながら、極上の一夜を過ごした
+;			CASE 2
+;				PRINTFORML 彼女はその問いに首をかしげつつも当たり前の様に、自分は%ANAME(MASTER)%の妻だと答えた
+;				PRINTFORMW %ANAME(MASTER)%はその答えに催眠成功を確信し、内心ほくそ笑みながら彼女と共に自宅へと向かった
+;				PRINTFORML 
+;				PRINTFORML 彼女を自宅に連れ込んだ%ANAME(MASTER)%は、早速ベッドに押し倒した
+;				PRINTFORML 艶めかしい声を上げ身をくねらせる彼女の全身にキスを繰り返しながら服を脱がしていく
+;				PRINTFORMW 彼女は%ANAME(MASTER)%に抱かれながら恍惚とした表情でヨガり子種をねだりながら何度も絶頂した
+;				PRINTFORML たっぷりとセックスを終えた後も、彼女との新婚生活を楽しませてもらった
+;				PRINTFORML 料理中、食事中、洗濯物の取り込み中に、そしてお風呂でもイチャイチャエッチを繰り返す
+;				PRINTFORMW %ANAME(MASTER)%は飽きることなく可愛い新妻の全身に自分の匂いとＤＮＡを染み込ませていった
+;			CASE 3
+;				PRINTFORML 彼女はその問いに首をかしげつつも当たり前の様に、自分は%ANAME(MASTER)%の部下だと答えた
+;				PRINTFORMW %ANAME(MASTER)%はその答えに催眠成功を確信し、内心ほくそ笑みながら彼女と共に夜の街に向かった
+;				PRINTFORML 
+;				PRINTFORML %ANAME(MASTER)%は立場を利用して彼女をホテルに連れ込むと教育と称して犯してやった
+;				PRINTFORML 敏感になって一突き毎にイきまくる彼女にだらしがないと叱責してより激しく突き上げる
+;				PRINTFORMW 彼女はヒィヒィとヨガリ狂いながら嬌声交じりの震える声で申し訳ありませんと謝罪する
+;				PRINTFORML こうなったら一晩中訓練だと告げると彼女は感極まった様に全身を痙攣させ潮を吹いた
+;				PRINTFORML 生意気な避妊要求に懲罰として膣出しすると、彼女は全身で%ANAME(MASTER)%に抱き着いて絶頂した
+;				PRINTFORMW 翌朝訓練終了を告げると、彼女は下半身をブルブルと震わせながら%ANAME(MASTER)%に敬礼した
+;			CASE 4
+;				PRINTFORML 彼女はその問いに首をかしげつつも当たり前の様に、自分は%ANAME(MASTER)%の奴隷だと答えた
+;				PRINTFORMW %ANAME(MASTER)%はその答えに催眠成功を確信し、内心ほくそ笑みながら彼女と共に自宅へと向かった
+;				PRINTFORML 
+;				PRINTFORML %ANAME(MASTER)%は彼女を自室に連れ込むと早速押し倒して乱暴に服をはぎ取った
+;				PRINTFORML 彼女は奴隷らしく身を震わせながらも抵抗せず、恥ずかしそうに上目遣いで見つめてきた
+;				PRINTFORMW そのしおらしい姿に%ANAME(MASTER)%のペニスは強烈に勃起し我慢できずに激しく犯した
+;				PRINTFORML 彼女はされるがままにヨガリ狂い、甘える様に全身で%ANAME(MASTER)%にしがみついてきた
+;				PRINTFORML %ANAME(MASTER)%は欲望のままに滅茶苦茶に彼女を犯し、濃厚に舌を絡ませながら共に絶頂に達した
+;				PRINTFORMW 恍惚とした表情を浮かべる彼女に%ANAME(MASTER)%の興奮は収まらず、一晩中たっぷりと種付けしてやった
+;		ENDSELECT
+;	CASE 1
+;		PRINTFORMW 彼女の肉体を掌握した
+;		PRINTFORML 意識を揺り起こすと彼女はキョトンとした表情で%ANAME(MASTER)%と周囲を見回した
+;		PRINTFORMW 催眠の効果を確かめる為、彼女の胸に手を伸ばし揉み上げた
+;		PRINTFORML 彼女は当然驚き悲鳴を上げた…が、身体の方は微動だにしなかった
+;		PRINTFORML 混乱して慌てふためく彼女を無視して柔らかい胸の感触を楽しませてもらう
+;		PRINTFORMW これだけやって動けないなら成功だろうと確信した%ANAME(MASTER)%は、睨み付けてくる彼女を連れて夜の街に向かった
+;		SELECTCASE RAND:5
+;			CASE 0
+;				PRINTFORML %ANAME(MASTER)%は彼女を浮浪者の溜まり場に連れて行き、公開レイプを行った
+;				PRINTFORML 浮浪者たちの目の前で犯される屈辱に、彼女は歯を喰いしばりながら痙攣している
+;				PRINTFORML %ANAME(MASTER)%がアクメを強制すると彼女は涙を流しながら悲鳴と共に何度も潮吹き絶頂を晒した
+;				PRINTFORMW 彼女の悲痛な表情に興奮した%ANAME(MASTER)%は浮浪者たちのおかずとして繰り返し犯してやった
+;			CASE 1
+;				PRINTFORML %ANAME(MASTER)%は彼女に連続オナニーを命令して、強制絶頂を繰り返させている
+;				PRINTFORML イキっぱなしの彼女は上から下から体液を垂れ流しながら無様なアクメ顔を晒している
+;				PRINTFORML 何十回目かの絶頂で止めた時には、彼女は痙攣しっぱなしで地べたに横たわっていた
+;				PRINTFORMW %ANAME(MASTER)%は絶頂の連続ですっかりトロケきった肉体を、思う存分堪能させてもらった
+;			CASE 2
+;				PRINTFORML 路地裏から彼女のあられもない嬌声と悲痛な悲鳴が交互に響いてくる
+;				PRINTFORML %ANAME(MASTER)%は彼女を乱暴に犯しながら一突き毎に絶頂する命令を繰り返している
+;				PRINTFORML 彼女は必死で抵抗するが、突き上げる度に涎と愛液をまき散らしながら無様に絶頂した
+;				PRINTFORMW 彼女の無様な姿と痙攣する膣肉は%ANAME(MASTER)%を大変満足させ、その最奥に何度も精を放った
+;			CASE 3
+;				PRINTFORML 彼女をホテルに連れ込んだ%ANAME(MASTER)%は首輪をつけて奉仕させている
+;				PRINTFORML 彼女は%ANAME(MASTER)%を涙目で睨みつけながら激しく腰を振ってペニスを奥深くまで咥え込む
+;				PRINTFORML 戯れに乳首をひねってやると、無様な声を漏らしてビクンと身体を跳ねながら絶頂した
+;				PRINTFORMW 必死で逃れようとする彼女の表情を楽しみながら何度も子宮へ直接精液を放ってやった
+;			CASE 4
+;				PRINTFORML %ANAME(MASTER)%は彼女をホテルの一室に連れ込み、カメラの前で犯している
+;				PRINTFORML 彼女は%ANAME(MASTER)%に突き上げられながらカメラ目線で命令のままに卑猥な台詞を吐いている
+;				PRINTFORML 一突きする度に彼女は壊れた人形の様に絶頂し、カメラに向けてだらしがないアヘ顔を晒す
+;				PRINTFORMW 泣きじゃくりながら絶頂する彼女の姿を満足するまでカメラに納めさせてもらった
+;		ENDSELECT
+;	CASE 2
+;		PRINTFORMW 彼女の意識を改変して淫乱化した
+;		PRINTFORML 意識を揺り起こすと彼女はキョトンとした表情で%ANAME(MASTER)%と周囲を見回した
+;		PRINTFORMW 催眠の効果を確かめる為、%ANAME(MASTER)%は彼女にレイプしてもいいかと尋ねた
+;		SELECTCASE RAND:5
+;			CASE 0
+;				PRINTFORML すると彼女は発情した様な表情になり、淫靡な笑みを浮かべて頷いた
+;				PRINTFORMW %ANAME(MASTER)%は彼女の腰を抱くとイチャイチャしながらホテルへと連れ込んだ
+;				PRINTFORML 
+;				PRINTFORML %ANAME(MASTER)%は彼女とハメ撮りセックスを行っている
+;				PRINTFORML 彼女はノリノリでカメラの前でポーズをとりながら%ANAME(MASTER)%に犯されてヨガり狂う
+;				PRINTFORML おねだりされるままに子宮に射精すると、彼女はだらしないアヘ顔を晒しながら絶頂した
+;				PRINTFORMW すっかりハメ撮りに夢中になった彼女と一晩中たっぷりとセックスを楽しんだ
+;			CASE 1
+;				PRINTFORML すると彼女はキョトンとした表情になり、当たり前だという様に頷いた
+;				PRINTFORMW %ANAME(MASTER)%は彼女の腰を抱くとイチャイチャしながら温泉宿に向かった
+;				PRINTFORML 
+;				PRINTFORML %ANAME(MASTER)%は彼女と温泉エッチしている
+;				PRINTFORML 彼女はバシャバシャとお湯を跳ねさせながら悦びの声を響かせて艶めかしく腰を振る
+;				PRINTFORML 火照り切った彼女の笑顔はこの上なく淫らで全身をくねらせて%ANAME(MASTER)%の目と一物を楽しませた
+;				PRINTFORMW たまらず最奥までペニスをねじ込み精を放ってやると、彼女は全身を震わせながらアクメった
+;			CASE 2
+;				PRINTFORML すると彼女はトロンとした表情となり、自ら%ANAME(MASTER)%に絡みついてきた
+;				PRINTFORMW %ANAME(MASTER)%は彼女と恋人の様にキスを交わしながらホテルへと連れ込んだ
+;				PRINTFORML 
+;				PRINTFORML バニー姿の彼女が%ANAME(MASTER)%の上で激しく跳ねている
+;				PRINTFORML 彼女は熱っぽく%ANAME(MASTER)%の名を呼びながら腰を振り、深々とペニスを咥え込んでいく
+;				PRINTFORML その熱心な奉仕に%ANAME(MASTER)%が激しく突き上げて応えてやると、彼女はビクビクッ！と仰け反った
+;				PRINTFORMW ひたすら%ANAME(MASTER)%を求めてくる甘えん坊な可愛いうさぎにたっぷりとご褒美をくれてやった
+;			CASE 3
+;				PRINTFORML すると彼女は息を荒げだし、瞳に♥を浮かべてコクコクと頷いた
+;				PRINTFORMW %ANAME(MASTER)%はすっかり雌犬になった彼女の身体を弄繰り回しながら自宅に連れ込んだ
+;				PRINTFORML 
+;				PRINTFORML %ANAME(MASTER)%は彼女に首輪とリードをつけペットを躾ける様に犯している
+;				PRINTFORML 四つん這いの彼女に背後から激しく腰を打ち付けると、彼女は嬉しそうにヒィヒィと喘ぐ
+;				PRINTFORML 淫乱っぷりを叱りながら尻を叩くと、彼女は謝罪しながらも膣肉をキュンと締め付けてきた
+;				PRINTFORMW %ANAME(MASTER)%はこのだらしがない雌犬を一晩中調教し、子宮にたっぷりとマーキングしてやった
+;			CASE 4
+;				PRINTFORML すると彼女は一瞬硬直した後、自ら服を開いて下着を脱いでお尻を突き出してきた
+;				PRINTFORMW %ANAME(MASTER)%はその場で滅茶苦茶に犯したい衝動をグッとこらえ、急いで路地裏に連れ込んだ
+;				PRINTFORML 
+;				PRINTFORML 彼女と路地裏セックスを楽しんだ%ANAME(MASTER)%は、歓楽街をデートしている
+;				PRINTFORML 彼女の乳首は服の上からわかる程に勃っており、裾からはポタポタと精液がこぼれている
+;				PRINTFORML そのあられもない様子をなじると彼女はゾクゾクと背筋を震わせ我慢できない様に縋り付いてきた
+;				PRINTFORMW 我慢できなくなった%ANAME(MASTER)%は彼女を路地裏に連れ込むとそこでまたたっぷりと犯してやった
+;		ENDSELECT
+;ENDSELECT
+;CALL FUCK_RAPE(対象, GET_ID(MASTER), @"%ANAME(MASTER)%の\@ RAND:2 ? ペニス # 唇\@", @"%ANAME(MASTER)%")
+;CALL FUCK(対象, "性技, 性交, Ｃ, 射精", "童貞喪失, キス喪失", 0, @"%ANAME(対象)%の唇", "", @"%ANAME(対象)%の膣", 喪失_催眠)
+;PRINTFORML 
+;PRINTFORMW 存分に楽しませてもらった後、今夜の事を忘れさせ彼女を家に帰した
+;PRINTFORMW 催眠を行ったことで能力が成長した気がした
+;DVAR:催眠経験値 += RAND:5 + 2
+;
+;;-------------------------
+;;隷属
+;;-------------------------
+;@HYPONOTISM_RAPE_PRACTICE_ENSLAVEMENT(対象)
+;#DIM 対象
+;
+;PRINTFORML 彼女を隷属させる事にした
+;PRINTFORMW 催眠を更に強くかけていき、彼女の意識の奥深くまで自分への隷属を染み込ませていった…
+;PRINTFORML ・
+;PRINTFORML ・
+;PRINTFORMW ・
+;IF DVAR:催眠経験値 + RAND:40 <= 50
+;	PRINTFORMW しかし流石に厳しかったのか失敗してしまった…
+;	PRINTFORML 逃げようとしたが催眠失敗の反動か、身体が動かずに捕まってしまった
+;	PRINTFORMW 捕まった%ANAME(MASTER)%は袋叩きにされた……
+;	CALL ADD_COOLTIME(MASTER, 3)
+;	CALL COLORPRINT(@"これ以降、%ANAME(MASTER)%は一切の催眠術を失ってしまった…", カラー_注意)
+;	PRINTFORMW 
+;	DVAR:催眠術 = -1
+;	DVAR:催眠経験値 = 0
+;	RETURN 1
+;ENDIF
+;
+;PRINTFORMW 成功した！
+;PRINTFORML 経験を積んだ強力な催眠の効果により、彼女の身も心も支配下に置いた
+;PRINTFORMW 試しに催眠状態を解いてもそれは変わらず、媚びを売る様な視線を向けてきた
+;CALL COLORPRINT(@"%ANAME(対象)%は%ANAME(MASTER)%の奴隷になりました", カラー_ピンク)
+;PRINTFORMW 
+;CFLAG:対象:依存度 += 1000
+;CFLAG:対象:従属度 += 3000
+;TALENT:対象:服従 = 1
+;IF GET_COUNTRY_BOSS(CFLAG:対象:所属) != 対象
+;	CALL CHANGE_COUNTRY(対象, CFLAG:MASTER:所属)
+;	CALL COLORPRINT(@"%ANAME(対象)%は%ANAME(MASTER)%の勢力に加わりました", カラー_注意)
+;	PRINTFORMW 
+;ENDIF
+;TALENT:対象:合意 = 1
+;DVAR:催眠経験値 += RAND:7 + 3
+;PRINTFORML 
+;PRINTFORML 目的の女を手に入れご満悦の%ANAME(MASTER)%はこの能力にすっかりのめり込んだ
+;PRINTFORMW しかしこのまま使い続ければいつかしっぺ返しが来そうだ…
+;PRINTFORML どうしよう？
+;CALL ASK_MULTI(@"まだまだ能力を使わせてもらう" ,"能力を破棄する")
+;IF RESULT == 1
+;	PRINTFORML もう充分だ
+;	PRINTFORML そう思った%ANAME(MASTER)%は能力を破棄した
+;	PRINTFORMW 以降、催眠術は一切使えなくなった…
+;	DVAR:催眠術 = -1
+;	DVAR:催眠経験値 = 0
+;ELSE
+;	PRINTFORML いや、まだだ
+;	PRINTFORML 高い代償を支払ったのだからまだまだ楽しませてもらう
+;	PRINTFORMW %ANAME(MASTER)%はほくそ笑みながら彼女を連れて夜の街に消えた
+;ENDIF
+;
