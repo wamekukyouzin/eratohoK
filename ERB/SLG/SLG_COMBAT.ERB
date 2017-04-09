@@ -416,6 +416,8 @@ ENDIF
 CALL BATTLE_BASE_SKILL(0, ARG:0, ARG:1, ARG:2, ARG:3)
 CALL BATTLE_BASE_SKILL(1, ARG:2, ARG:3, ARG:0, ARG:1)
 
+PRINTL ----------補正の計算----------
+
 ;コア計算
 CALL BATTLE_CALC_CORE(ARG:0, ARG:1, ARG:2, ARG:3)
 
@@ -475,6 +477,7 @@ ENDIF
 #DIM 攻防差基礎被ダメージ, 2
 #DIM 兵数比基礎被ダメージ, 2
 #DIM 割合被ダメージ, 2
+#DIM 兵数比
 #DIM 被ダメージ比, 2
 #DIM 過剰被ダメージ
 
@@ -541,17 +544,19 @@ SIF BATTLE_MAG:1 > 0
 ;PRINTFORML 乱数適用:0 {最終被ダメージ:0}
 ;PRINTFORML 乱数適用:1 {最終被ダメージ:1}
 
-;ダメージの比が1.00以上2.00以下の場合、反比例でダメージを3倍まで増やす。
-;「兵数・能力の似通った部隊が延々殴り合う」のを防止する。
+;ダメージの比が1.00以上2.00以下、かつ兵数比が2.00以下の場合の場合、反比例でダメージを4倍まで増やす。
 ;かといって即死されても困るので元兵力の半分までに制限する。
+;「兵数・能力の似通った部隊が延々殴り合う」のを防止する。
+;兵数比で条件をかけているのは、「能力的に劣るが兵数で圧倒する部隊」と「兵数で劣るが能力で圧倒する部隊」がぶつかった場合に、後者の兵が不自然に削れるのを防ぐため。
 被ダメージ比 = MAX(最終被ダメージ:0 * 100 / 最終被ダメージ:1, 最終被ダメージ:1 * 100 / 最終被ダメージ:0)
-IF 被ダメージ比 < 200
+兵数比 = MAX(BATTLE_SOL:0 * 100 / BATTLE_SOL:1, BATTLE_SOL:1 * 100 / BATTLE_SOL:0)
+IF 被ダメージ比 < 200 && 兵数比 < 200
 	;PRINTFORML 被ダメ比 {被ダメージ比}
 	;小さいほうが出ていた場合は大きい方に変換
 	SIF 被ダメージ比 < 100
 		被ダメージ比 = 200 - 被ダメージ比
-	最終被ダメージ:0 = MIN(最終被ダメージ:0 * (30000 / 被ダメージ比) / 100, BATTLE_SOL:0 / 2)
-	最終被ダメージ:1 = MIN(最終被ダメージ:1 * (30000 / 被ダメージ比) / 100, BATTLE_SOL:1 / 2)
+	最終被ダメージ:0 = MIN(最終被ダメージ:0 * (40000 / 被ダメージ比) / 100, BATTLE_SOL:0 / 2)
+	最終被ダメージ:1 = MIN(最終被ダメージ:1 * (40000 / 被ダメージ比) / 100, BATTLE_SOL:1 / 2)
 	;PRINTFORML 比率適用:0 {最終被ダメージ:0}
 	;PRINTFORML 比率適用:1 {最終被ダメージ:1}
 ENDIF
@@ -599,7 +604,7 @@ BATTLE_DMG:1 = 最終被ダメージ:1
 
 ;-------------------------------------------------
 ;戦力比計算
-;兵数の多い方の戦力が、(兵数比の平方根)倍になる 
+;兵数の多い方の戦力が、(兵数比 * 10)%増える
 ;100をかけるのはEMUERAが少数を扱えないため。100をかけて少数第二位まで一時的に整数にし、消えないようにする
 ;引数 0:攻撃側勢力 1:攻撃側部隊 2:対象勢力 3:対象部隊 ※ARG:3が0未満の場合、防衛部隊とみなし、ARG:2を都市番号として使用
 ;-------------------------------------------------
@@ -609,22 +614,49 @@ BATTLE_DMG:1 = 最終被ダメージ:1
 兵数比:0 = BATTLE_SOL:0 * 100 / MAX(BATTLE_SOL:1, 1)
 兵数比:1 = BATTLE_SOL:1 * 100 / MAX(BATTLE_SOL:0, 1)
 
+
 IF 兵数比:0 > 兵数比:1
-	BATTLE_ATC:0 = BATTLE_ATC:0 * SQRT(兵数比:0 * 100) / 100
-	BATTLE_DEF:0 = BATTLE_DEF:0 * SQRT(兵数比:0 * 100) / 100
+	PRINTFORML 兵数補正:%BATTLE_NAME:0 + "軍", MAX_CHARANAME_LENGTH, LEFT% 強化{兵数比:0 / 10, 2}％ + {兵数比:0 * 10 - 1000} + 割合ダメージ{MIN(兵数比:0 / 10 - 10, 20), 2}％
+	;兵数比*10%を加算。兵数比が本来の100倍の値で入っているので、100%分も10000で表現して桁を合わせる。
+	BATTLE_ATC:0 = BATTLE_ATC:0 * (10000 + (兵数比:0 * 10)) / 10000
+	BATTLE_DEF:0 = BATTLE_DEF:0 * (10000 + (兵数比:0 * 10)) / 10000
 	;単にx倍だと弱い部隊が報われないので固定値も足しておく
-	;0.1倍相手より多い度に500増える
-	BATTLE_ATC:0 += 5000 * (兵数比:0 * 10 - 1000) / 1000
-	BATTLE_DEF:0 += 5000 * (兵数比:0 * 10 - 1000) / 1000
+	;0.1倍相手より多い度に1000増える
+	BATTLE_ATC:0 += 10 * (兵数比:0 * 10 - 1000)
+	BATTLE_DEF:0 += 10 * (兵数比:0 * 10 - 1000)
 	;1.4倍の場合4が入る。最大は3倍のときの20
 	BATTLE_RATE_DMG:0 += MIN(兵数比:0 / 10 - 10, 20)
 ELSE
-	BATTLE_ATC:1 = BATTLE_ATC:1 * SQRT(兵数比:1 * 100) / 100
-	BATTLE_DEF:1 = BATTLE_DEF:1 * SQRT(兵数比:1 * 100) / 100
-	BATTLE_ATC:1 += 5000 * (兵数比:1 * 10 - 1000) / 1000
-	BATTLE_DEF:1 += 5000 * (兵数比:1 * 10 - 1000) / 1000
+	PRINTFORML 兵数補正:%BATTLE_NAME:1 + "軍", MAX_CHARANAME_LENGTH, LEFT% 強化{兵数比:1 / 10, 2}％ + {兵数比:1 * 10 - 1000} + 割合ダメージ{MIN(兵数比:1 / 10 - 10, 20), 2}％
+	;兵数比*10%を加算。兵数比が本来の100倍の値で入っているので、100%分も10000で表現して桁を合わせる。
+	BATTLE_ATC:1 = BATTLE_ATC:1 * (10000 + (兵数比:1 * 10)) / 10000
+	BATTLE_DEF:1 = BATTLE_DEF:1 * (10000 + (兵数比:1 * 10)) / 10000
+	;単にx倍だと弱い部隊が報われないので固定値も足しておく
+	;0.1倍相手より多い度に1000増える
+	BATTLE_ATC:1 += 10 * (兵数比:1* 10 - 1000)
+	BATTLE_DEF:1 += 10 * (兵数比:1 * 10 - 1000)
+	;1.4倍の場合4が入る。最大は3倍のときの20
 	BATTLE_RATE_DMG:1 += MIN(兵数比:1 / 10 - 10, 20)
 ENDIF
+
+
+
+;IF 兵数比:0 > 兵数比:1
+;	BATTLE_ATC:0 = BATTLE_ATC:0 * SQRT(兵数比:0 * 100) / 100
+;	BATTLE_DEF:0 = BATTLE_DEF:0 * SQRT(兵数比:0 * 100) / 100
+;	;単にx倍だと弱い部隊が報われないので固定値も足しておく
+;	;0.1倍相手より多い度に500増える
+;	BATTLE_ATC:0 += 5000 * (兵数比:0 * 10 - 1000) / 1000
+;	BATTLE_DEF:0 += 5000 * (兵数比:0 * 10 - 1000) / 1000
+;	;1.4倍の場合4が入る。最大は3倍のときの20
+;	BATTLE_RATE_DMG:0 += MIN(兵数比:0 / 10 - 10, 20)
+;ELSE
+;	BATTLE_ATC:1 = BATTLE_ATC:1 * SQRT(兵数比:1 * 100) / 100
+;	BATTLE_DEF:1 = BATTLE_DEF:1 * SQRT(兵数比:1 * 100) / 100
+;	BATTLE_ATC:1 += 5000 * (兵数比:1 * 10 - 1000) / 1000
+;	BATTLE_DEF:1 += 5000 * (兵数比:1 * 10 - 1000) / 1000
+;	BATTLE_RATE_DMG:1 += MIN(兵数比:1 / 10 - 10, 20)
+;ENDIF
 
 ;オーバフローして符号が反転する問題対策
 ;しかたないので負数なら整数の最大値ブチ込みます
@@ -714,21 +746,26 @@ ENDSELECT
 ;-------------------------------------------------
 @BATTLE_TIREDNESS_CORRECTION(ARG:0, ARG:1, ARG:2, ARG:3)
 
-BATTLE_ATC:0 = BATTLE_ATC:0 * MAX(100 - UNIT_TIRED_COUNT:(ARG:0):(ARG:1), 0) / 100
-BATTLE_DEF:0 = BATTLE_DEF:0 * MAX(100 - UNIT_TIRED_COUNT:(ARG:0):(ARG:1), 0) / 100
-BATTLE_INT:0 = BATTLE_INT:0 * MAX(100 - UNIT_TIRED_COUNT:(ARG:0):(ARG:1), 0) / 100
-BATTLE_MAG:0 = BATTLE_MAG:0 * MAX(100 - UNIT_TIRED_COUNT:(ARG:0):(ARG:1), 0) / 100
+IF UNIT_TIRED_COUNT:(ARG:0):(ARG:1) > 0
+	BATTLE_ATC:0 = BATTLE_ATC:0 * MAX(100 - UNIT_TIRED_COUNT:(ARG:0):(ARG:1), 0) / 100
+	BATTLE_DEF:0 = BATTLE_DEF:0 * MAX(100 - UNIT_TIRED_COUNT:(ARG:0):(ARG:1), 0) / 100
+	BATTLE_INT:0 = BATTLE_INT:0 * MAX(100 - UNIT_TIRED_COUNT:(ARG:0):(ARG:1), 0) / 100
+	BATTLE_MAG:0 = BATTLE_MAG:0 * MAX(100 - UNIT_TIRED_COUNT:(ARG:0):(ARG:1), 0) / 100
+	PRINTFORML 疲労補正:%BATTLE_NAME:0 + "軍", MAX_CHARANAME_LENGTH, LEFT% 弱体{UNIT_TIRED_COUNT:(ARG:0):(ARG:1), 2}％
+ENDIF
 
-IF ARG:3 > 0
+IF ARG:3 > 0 && UNIT_TIRED_COUNT:(ARG:2):(ARG:3) > 0
 	BATTLE_ATC:1 = BATTLE_ATC:1 * MAX(100 - UNIT_TIRED_COUNT:(ARG:2):(ARG:3), 0) / 100
 	BATTLE_DEF:1 = BATTLE_DEF:1 * MAX(100 - UNIT_TIRED_COUNT:(ARG:2):(ARG:3), 0) / 100
 	BATTLE_INT:1 = BATTLE_INT:1 * MAX(100 - UNIT_TIRED_COUNT:(ARG:2):(ARG:3), 0) / 100
 	BATTLE_MAG:1 = BATTLE_MAG:1 * MAX(100 - UNIT_TIRED_COUNT:(ARG:2):(ARG:3), 0) / 100
+	PRINTFORML 疲労補正:%BATTLE_NAME:1 + "軍", MAX_CHARANAME_LENGTH, LEFT% 弱体{UNIT_TIRED_COUNT:(ARG:2):(ARG:3), 2}％
 ELSEIF CITY_IS_ATTACKED:(ARG:2)
 	BATTLE_ATC:1 = BATTLE_ATC:1 * MAX(100 - CITY_IS_ATTACKED:(ARG:2), 0) / 100
 	BATTLE_DEF:1 = BATTLE_DEF:1 * MAX(100 - CITY_IS_ATTACKED:(ARG:2), 0) / 100
 	BATTLE_INT:1 = BATTLE_INT:1 * MAX(100 - CITY_IS_ATTACKED:(ARG:2), 0) / 100
 	BATTLE_MAG:1 = BATTLE_MAG:1 * MAX(100 - CITY_IS_ATTACKED:(ARG:2), 0) / 100
+	PRINTFORML 疲労補正:%BATTLE_NAME:1 + "軍", MAX_CHARANAME_LENGTH, LEFT% 弱体{CITY_IS_ATTACKED:(ARG:2), 2}％
 ENDIF
 
 ;-------------------------------------------------
