@@ -496,6 +496,7 @@ NEXT
 CALL BATTLE_SOLDIER_RATE_CORRECTION(ARG:0, ARG:1, ARG:2, ARG:3)
 CALL BATTLE_DIFFICULTY_CORRECTION(ARG:0, ARG:1, ARG:2, ARG:3)
 CALL BATTLE_TIREDNESS_CORRECTION(ARG:0, ARG:1, ARG:2, ARG:3)
+CALL BATTLE_COMMANDER_POWER_CORRECTION(ARG:0, ARG:1, ARG:2, ARG:3)
 
 ;PRINTFORML 攻撃0={BATTLE_ATC:0, 8}   防御0={BATTLE_DEF:0, 8}
 ;PRINTFORMW 攻撃1={BATTLE_ATC:1, 8}   防御1={BATTLE_DEF:1, 8}
@@ -767,6 +768,62 @@ ELSEIF CITY_IS_ATTACKED:(ARG:2)
 	BATTLE_MAG:1 = BATTLE_MAG:1 * MAX(100 - CITY_IS_ATTACKED:(ARG:2), 0) / 100
 	PRINTFORML 疲労補正:%BATTLE_NAME:1 + "軍", MAX_CHARANAME_LENGTH, LEFT% 弱体{CITY_IS_ATTACKED:(ARG:2), 2}％
 ENDIF
+
+;-------------------------------------------------
+;士官の能力差による補正
+;-------------------------------------------------
+@BATTLE_COMMANDER_POWER_CORRECTION(ARG:0, ARG:1, ARG:2, ARG:3)
+#DIM 武闘最大,2
+#DIM 防衛最大,2
+#DIM 知略最大,2
+#DIM 武闘比, 2
+#DIM 防衛比, 2
+#DIM 知略比, 2
+IF BATTLE_COMMANDER_NUM:0 > 0
+	武闘最大:0 = MAX(BATTLE_武闘パワー:0:0, BATTLE_武闘パワー:0:1, BATTLE_武闘パワー:0:2, 1)
+	防衛最大:0 = MAX(BATTLE_防衛パワー:0:0, BATTLE_防衛パワー:0:1, BATTLE_防衛パワー:0:2, 1)
+	知略最大:0 = MAX(BATTLE_知略パワー:0:0, BATTLE_知略パワー:0:1, BATTLE_知略パワー:0:2, 1)
+ELSE
+	武闘最大:0 = ABL_SQRT(10, -1)
+	防衛最大:0 = ABL_SQRT(10, -1)
+	知略最大:0 = ABL_SQRT(10, -1)
+ENDIF
+
+IF BATTLE_COMMANDER_NUM:1 > 0
+	武闘最大:1 = MAX(BATTLE_武闘パワー:1:0, BATTLE_武闘パワー:1:1, BATTLE_武闘パワー:1:2, 1)
+	防衛最大:1 = MAX(BATTLE_防衛パワー:1:0, BATTLE_防衛パワー:1:1, BATTLE_防衛パワー:1:2, 1)
+	知略最大:1 = MAX(BATTLE_知略パワー:1:0, BATTLE_知略パワー:1:1, BATTLE_知略パワー:1:2, 1)
+ELSE
+	武闘最大:1 = ABL_SQRT(10, -1)
+	防衛最大:1 = ABL_SQRT(10, -1)
+	知略最大:1 = ABL_SQRT(10, -1)
+ENDIF
+
+;比は元の値の100倍とする（小数点二けたまで保持する）
+武闘比:0 = 武闘最大:0 * 100 / 武闘最大:1
+武闘比:1 = 武闘最大:1 * 100 / 武闘最大:0
+防衛比:0 = 防衛最大:0 * 100 / 防衛最大:1
+防衛比:1 = 防衛最大:1 * 100 / 防衛最大:0
+知略比:0 = 知略最大:0 * 100 / 知略最大:1
+知略比:1 = 知略最大:1 * 100 / 知略最大:0
+
+;補正は比0.1ごとに5%
+LOCAL = FINDELEMENT(武闘比, MAXARRAY(武闘比))
+LOCAL:1 = MIN((武闘比:LOCAL - 100) / 2, 50)
+BATTLE_ATC:LOCAL = BATTLE_ATC:LOCAL * (100 + LOCAL:1) / 100
+;PRINTFORML 武闘補正:%BATTLE_NAME:LOCAL + "軍", MAX_CHARANAME_LENGTH, LEFT% 攻撃強化{LOCAL:1, 2}％
+PRINTFORML 武闘により%BATTLE_NAME:LOCAL%軍攻撃力強化
+LOCAL = FINDELEMENT(防衛比, MAXARRAY(防衛比))
+LOCAL:1 = MIN((防衛比:LOCAL - 100) / 2, 50)
+BATTLE_DEF:LOCAL = BATTLE_DEF:LOCAL * (100 + LOCAL:1) / 100
+;PRINTFORML 防衛補正:%BATTLE_NAME:LOCAL + "軍", MAX_CHARANAME_LENGTH, LEFT% 防御強化{LOCAL:1, 2}％
+PRINTFORML 防衛により%BATTLE_NAME:LOCAL%軍防御力強化
+
+LOCAL = FINDELEMENT(知略比, MAXARRAY(知略比))
+LOCAL:1 = MIN((知略比:LOCAL - 100) / 2, 50)
+BATTLE_INT:LOCAL = BATTLE_INT:LOCAL * (100 + LOCAL:1) / 100
+;PRINTFORML 知略補正:%BATTLE_NAME:LOCAL + "軍", MAX_CHARANAME_LENGTH, LEFT% 知略強化{LOCAL:1, 2}％
+PRINTFORML 知略により%BATTLE_NAME:LOCAL%軍知略強化
 
 ;-------------------------------------------------
 ;計略が発動するかを判定する
