@@ -614,30 +614,20 @@ BATTLE_DMG:1 = 最終被ダメージ:1
 兵数比:0 = BATTLE_SOL:0 * 100 / MAX(BATTLE_SOL:1, 1)
 兵数比:1 = BATTLE_SOL:1 * 100 / MAX(BATTLE_SOL:0, 1)
 
+LOCAL = FINDELEMENT(兵数比, MAXARRAY(兵数比))
 
-IF 兵数比:0 > 兵数比:1
-	PRINTFORML 兵数補正:%BATTLE_NAME:0 + "軍", MAX_CHARANAME_LENGTH, LEFT% 強化{兵数比:0 / 10, 2}％ + {兵数比:0 * 10 - 1000} + 割合ダメージ{MIN(兵数比:0 / 10 - 10, 20), 2}％
-	;兵数比*10%を加算。兵数比が本来の100倍の値で入っているので、100%分も10000で表現して桁を合わせる。
-	BATTLE_ATC:0 = BATTLE_ATC:0 * (10000 + (兵数比:0 * 10)) / 10000
-	BATTLE_DEF:0 = BATTLE_DEF:0 * (10000 + (兵数比:0 * 10)) / 10000
-	;単にx倍だと弱い部隊が報われないので固定値も足しておく
-	;0.1倍相手より多い度に1000増える
-	BATTLE_ATC:0 += 10 * (兵数比:0 * 10 - 1000)
-	BATTLE_DEF:0 += 10 * (兵数比:0 * 10 - 1000)
-	;1.4倍の場合4が入る。最大は3倍のときの20
-	BATTLE_RATE_DMG:0 += MIN(兵数比:0 / 10 - 10, 20)
-ELSE
-	PRINTFORML 兵数補正:%BATTLE_NAME:1 + "軍", MAX_CHARANAME_LENGTH, LEFT% 強化{兵数比:1 / 10, 2}％ + {兵数比:1 * 10 - 1000} + 割合ダメージ{MIN(兵数比:1 / 10 - 10, 20), 2}％
-	;兵数比*10%を加算。兵数比が本来の100倍の値で入っているので、100%分も10000で表現して桁を合わせる。
-	BATTLE_ATC:1 = BATTLE_ATC:1 * (10000 + (兵数比:1 * 10)) / 10000
-	BATTLE_DEF:1 = BATTLE_DEF:1 * (10000 + (兵数比:1 * 10)) / 10000
-	;単にx倍だと弱い部隊が報われないので固定値も足しておく
-	;0.1倍相手より多い度に1000増える
-	BATTLE_ATC:1 += 10 * (兵数比:1* 10 - 1000)
-	BATTLE_DEF:1 += 10 * (兵数比:1 * 10 - 1000)
-	;1.4倍の場合4が入る。最大は3倍のときの20
-	BATTLE_RATE_DMG:1 += MIN(兵数比:1 / 10 - 10, 20)
-ENDIF
+;LOCAL:1 = MIN((兵数比:LOCAL - 100) / 10, 20)
+LOCAL:2 = MIN(兵数比:LOCAL * 50 - 5000, 30000)
+LOCAL:3 = MIN((兵数比:LOCAL - 100) / 20, 10)
+;PRINTFORML 兵数差により%BATTLE_NAME:LOCAL%軍強化 強化{LOCAL:2} + 割合ダメージ{LOCAL:3}％
+
+PRINTFORML 兵数差により%BATTLE_NAME:LOCAL%軍強化
+;BATTLE_ATC:LOCAL = BATTLE_ATC:LOCAL * (100 + LOCAL:1) / 100
+;BATTLE_DEF:LOCAL = BATTLE_DEF:LOCAL * (100 + LOCAL:1) / 100
+BATTLE_ATC:LOCAL += LOCAL:2
+BATTLE_DEF:LOCAL += LOCAL:2
+;1.4倍の場合4が入る。最大は3倍のときの20
+BATTLE_RATE_DMG:LOCAL += LOCAL:3
 
 
 
@@ -657,17 +647,6 @@ ENDIF
 ;	BATTLE_DEF:1 += 5000 * (兵数比:1 * 10 - 1000) / 1000
 ;	BATTLE_RATE_DMG:1 += MIN(兵数比:1 / 10 - 10, 20)
 ;ENDIF
-
-;オーバフローして符号が反転する問題対策
-;しかたないので負数なら整数の最大値ブチ込みます
-SIF BATTLE_ATC:0 < 0
-	BATTLE_ATC:0 = __INT_MAX__
-SIF BATTLE_DEF:0 < 0
-	BATTLE_DEF:0 = __INT_MAX__
-SIF BATTLE_ATC:1 < 0
-	BATTLE_ATC:1 = 0
-SIF BATTLE_DEF:1 < 0
-	BATTLE_DEF:1 = 0
 
 ;-------------------------------------------------
 ;敵軍補正
