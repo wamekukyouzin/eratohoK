@@ -51,29 +51,12 @@ VARSET 判定基礎値
 
 ;説得側の判定値
 ;君主の場合は忠誠最大として扱う
-IF 説得者 != 説得者君主
-	判定基礎値:0 += SETTOKU_REL_EFFECT(説得者, 説得者君主) / 2
-ELSE
-	判定基礎値:0 += 50
-ENDIF
-判定基礎値:0 += SETTOKU_REL_EFFECT(説得者, 対象) / 2
-判定基礎値:0 += ABL_SQRT(ABL:説得者:政治, 説得者) / 1000
-判定基礎値:0 += ABL_SQRT(ABL:説得者:知略, 説得者) / 1000
 
-;対象側の判定値
-判定基礎値:1 -= SETTOKU_REL_EFFECT(対象, 説得者君主)
-IF 対象君主 >= 0
-	IF 対象 != 対象君主
-		判定基礎値:1 += SETTOKU_REL_EFFECT(対象, 対象君主) / 2
-	ELSE
-		判定基礎値:1 += 50
-	ENDIF
-ENDIF
-判定基礎値:1 += ABL_SQRT(ABL:対象:政治, 対象) / 1000
-判定基礎値:1 += ABL_SQRT(ABL:対象:知略, 対象) / 1000
+判定基礎値:0 = CALC_SETTOKU_EFFECT_TARGET(説得者, 対象)
+判定基礎値:1 = CALC_SETTOKU_EFFECT_TARGET(対象, 説得者)
 
 PRINTFORML -<%ANAME(説得者)%>の<%ANAME(対象)%>への説得-
-判定値 = (判定基礎値:0 - 判定基礎値:1) * RAND(80, 120) / 50
+判定値 = (判定基礎値:0 - 判定基礎値:1) * 2
 
 CALL FIND_GENERAL_SKILL(説得者, "弁舌")
 SIF RESULT
@@ -133,4 +116,34 @@ RETURN 1
 #FUNCTION
 RETURNF MAX((REL_LIKE:(ARG:0):(ARG:1) - REL_HATE:(ARG:0):(ARG:1)) * 100 / 1500, 0)
 
+;-------------------------------------------------
+;(ARG:0)がARG:1を説得する場合の説得能力を算出
+;-------------------------------------------------
+@CALC_SETTOKU_EFFECT(ARG:0, ARG:1)
+#FUNCTION
+RETURNF SETTOKU_BASE_EFFECT(ARG:0) + SETTOKU_REL_EFFECT(ARG:0, ARG:1) / 2
 
+;-------------------------------------------------
+;(ARG:0)がARG:1に説得される場合の説得能力を算出
+;-------------------------------------------------
+@CALC_SETTOKU_EFFECT_TARGET(ARG:0, ARG:1)
+#FUNCTION
+#DIM 君主
+君主 = GET_COUNTRY_BOSS(CFLAG:(ARG:1):所属)
+RETURNF SETTOKU_BASE_EFFECT(ARG:0) - (君主 >= 0 ? SETTOKU_REL_EFFECT(ARG:1, 君主) # 0)
+
+
+;-------------------------------------------------
+;(ARG:0)のキャラの基礎説得能力を算出
+;-------------------------------------------------
+@SETTOKU_BASE_EFFECT(ARG:0)
+#FUNCTION
+#DIM 君主
+君主 = GET_COUNTRY_BOSS(CFLAG:(ARG:0):所属)
+LOCAL = 0
+IF ARG:0 != 君主 && 君主 >= 0
+	LOCAL += SETTOKU_REL_EFFECT(ARG:0, 君主) / 2
+ELSE
+	LOCAL += 50
+ENDIF
+RETURNF LOCAL + ABL_SQRT(ABL:(ARG:0):政治, ARG:0) / 1000 + ABL_SQRT(ABL:(ARG:0):知略, ARG:0) / 1000
