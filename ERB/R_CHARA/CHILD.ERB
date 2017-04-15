@@ -458,35 +458,39 @@ ENDIF
 #DIM ジャンル
 #DIM スキルID
 #DIM 試行回数
-#DIM スキルID群, SKILL_GENRE_NUM, MAX_SKILLS
-#DIM スキルレベル群, SKILL_GENRE_NUM, MAX_SKILLS
+#DIM スキルNO群, SKILL_GENRE_NUM, MAX_SKILL_SLOT * 2
+#DIM スキルID群, SKILL_GENRE_NUM, MAX_SKILL_SLOT * 2
+#DIM スキルレベル群, SKILL_GENRE_NUM, MAX_SKILL_SLOT * 2
 #DIM スキル数, SKILL_GENRE_NUM
+#DIM スキル数合計
 #DIM 習得確率
 #DIM スキル位置
+VARSET スキルNO群
 VARSET スキルID群
 VARSET スキルレベル群
 VARSET スキル数
+VARSET スキル数合計
 父親 = ID_TO_CHARA(CFLAG:20)
 母親 = ID_TO_CHARA(CFLAG:21)
 
-;見つからなければキャンセル（別段問題はないが軽量化のため）
-;あと父親がNO0の場合もキャンセル　これは汎用スキル覚えてしまうので
-SIF 父親 < 0 || NO:父親 == 0
+;見つからなければキャンセル
+SIF 父親 < 0
 	GOTO FATHER_CANCEL
 
 FOR ジャンル, 0, SKILL_GENRE_NUM
-	FOR スキルID, 0, MAX_SKILLS
-		TRYCCALLFORM SKILL_{NO:父親}_%SKILL_GENRE_ENG:ジャンル%_{スキルID}_EXIST
-			TRYCCALLFORM SKILL_{NO:父親}_%SKILL_GENRE_ENG:ジャンル%_{スキルID}_CANT_TELL
-			CATCH
-				CONTINUE
-			ENDCATCH
-			スキルID群:ジャンル:(スキル数:ジャンル) = スキルID
-			CALLFORM SKILL_{NO:父親}_%SKILL_GENRE_ENG:ジャンル%_{スキルID}_LEVEL
-			スキルレベル群:ジャンル:(スキル数:ジャンル) = RESULT
-			スキル数:ジャンル ++
-		CATCH
-		ENDCATCH
+	FOR スキルID, 0, MAX_SKILL_SLOT
+		SIF スキル数:ジャンル >= MAX_SKILLS
+			BREAK
+		SIF SKILL_ID_SLOT:父親:ジャンル:スキルID == -1
+			CONTINUE
+		SIF SKILL_NO_SLOT:父親:ジャンル:スキルID == -1
+			CONTINUE
+		スキルNO群:ジャンル:(スキル数:ジャンル) = SKILL_NO_SLOT:父親:ジャンル:スキルID
+		スキルID群:ジャンル:(スキル数:ジャンル) = SKILL_ID_SLOT:父親:ジャンル:スキルID
+		CALLFORM SKILL_{SKILL_NO_SLOT:父親:ジャンル:スキルID}_%SKILL_GENRE_ENG:ジャンル%_{SKILL_ID_SLOT:父親:ジャンル:スキルID}_LEVEL
+		スキルレベル群:ジャンル:(スキル数:ジャンル) = RESULT
+		スキル数:ジャンル ++
+		スキル数合計 ++
 	NEXT
 NEXT
 
@@ -495,48 +499,46 @@ $FATHER_CANCEL
 ;見つからなければキャンセル（別段問題はないが軽量化のため）
 ;あと父親がNO0の場合もキャンセル　これは汎用スキル覚えてしまうので
 
-SIF 母親 < 0 || NO:母親 == 0
+SIF 母親 < 0
 	GOTO MOTHER_CANCEL
 
 FOR ジャンル, 0, SKILL_GENRE_NUM
-	FOR スキルID, 0, MAX_SKILLS
-		TRYCCALLFORM SKILL_{NO:母親}_%SKILL_GENRE_ENG:ジャンル%_{スキルID}_EXIST
-			TRYCCALLFORM SKILL_{NO:母親}_%SKILL_GENRE_ENG:ジャンル%_{スキルID}_CANT_TELL
-			CATCH
-				CONTINUE
-			ENDCATCH
-			スキルID群:ジャンル:(スキル数:ジャンル) = スキルID
-			CALLFORM SKILL_{NO:母親}_%SKILL_GENRE_ENG:ジャンル%_{スキルID}_LEVEL
-			スキルレベル群:ジャンル:(スキル数:ジャンル) = RESULT
-			スキル数:ジャンル ++
-		CATCH
-		ENDCATCH
+	FOR スキルID, 0, MAX_SKILL_SLOT
+		SIF スキル数:ジャンル >= MAX_SKILLS
+			BREAK
+		SIF SKILL_ID_SLOT:母親:ジャンル:スキルID == -1
+			CONTINUE
+		SIF SKILL_NO_SLOT:母親:ジャンル:スキルID == -1
+			CONTINUE
+		スキルNO群:ジャンル:(スキル数:ジャンル) = SKILL_NO_SLOT:母親:ジャンル:スキルID
+		スキルID群:ジャンル:(スキル数:ジャンル) = SKILL_ID_SLOT:母親:ジャンル:スキルID
+		CALLFORM SKILL_{SKILL_NO_SLOT:母親:ジャンル:スキルID}_%SKILL_GENRE_ENG:ジャンル%_{SKILL_ID_SLOT:母親:ジャンル:スキルID}_LEVEL
+		スキルレベル群:ジャンル:(スキル数:ジャンル) = RESULT
+		スキル数:ジャンル ++
+		スキル数合計 ++
 	NEXT
 NEXT
 
 $MOTHER_CANCEL
 
-FOR 試行回数, 0, 4
+FOR 試行回数, 0, スキル数合計 / 2
 	ジャンル = RAND:SKILL_GENRE_NUM
-	;汎用スキルは今んとこ全ジャンルあるのでここは大丈夫
 	SIF スキル数:ジャンル == 0
 		CONTINUE
-	スキル位置 = RAND:(スキル数:ジャンル + 1)
+	スキル位置 = RAND:(スキル数:ジャンル)
 	SELECTCASE スキルレベル群:ジャンル:スキル位置
 		CASE 5
 			習得確率 = 10
 		CASE 4
-			習得確率 = 20
+			習得確率 = 25
 		CASE 3
 			習得確率 = 40
-		CASE 2
+		CASE 1, 2
 			習得確率 = 60
-		CASE 1
-			習得確率 = 80
 	ENDSELECT
 	SIF 習得確率 <= RAND:100
 		CONTINUE
-	CALL SKILL_LEARN(TARGET, ジャンル, 0, スキルID群:ジャンル:スキル位置)
+	CALL SKILL_LEARN(TARGET, ジャンル, スキルNO群:ジャンル:スキル位置, スキルID群:ジャンル:スキル位置)
 NEXT
 
 ;-------------------------
