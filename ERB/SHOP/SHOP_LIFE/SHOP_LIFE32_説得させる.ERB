@@ -51,7 +51,7 @@ RETURN 0
 ;-------------------------------------------------
 @SHOP_LIFE_LIST1_BUTTON32(ARG:0, ARG:1)
 ;キャラ, 選択中カラー表示フラグ, ボタン番号に追加する数値, CHECKCHARAの戻り値
-CALL COLUMN_RIGHT_CHARALIST_BUTTON(ARG:0, 0, SHOP_LIFE_LIST1_ADD_INPUT, ARG:1, 0, "TOP")
+CALL COLUMN_RIGHT_CHARALIST_BUTTON(ARG:0, MENUVAR:0 == ARG:0, SHOP_LIFE_LIST1_ADD_INPUT, ARG:1, 0, "TOP")
 RETURN
 
 ;-------------------------------------------------
@@ -131,10 +131,18 @@ RETURN 1
 ;-------------------------------------------------
 @SHOP_LIFE_EVENTBUY_SHOW32
 ;タイトル
-CALL COLUMN_RIGHT_TITLE("説得担当者を先に選択", "0", "1", "対象と担当者に1CT", "")
+CALL COLUMN_RIGHT_TITLE("対象と担当者を選択", "0", "1", "対象と担当者に1CT", "")
 CALL COLUMN_RIGHT_PRINTL
 CALL COLUMN_RIGHT_LINE
 CALL COLUMN_RIGHT_PRINTL
+IF MENUVAR:0 >= 1
+	PRINTBUTTON "[このメンバーで決定]", 1
+ELSE
+	SETCOLOR カラー_選択不可
+	PRINTPLAINFORM [このメンバーで決定]
+	RESETCOLOR
+ENDIF
+PRINTPLAIN   
 CALL COLORPRINT(@"忠誠は所属勢力の君主への忠誠、誘惑はこちらへの気持ちの傾きを表す", カラー_注釈)
 CALL COLUMN_RIGHT_PRINTL
 CALL COLUMN_RIGHT_LINE
@@ -167,6 +175,9 @@ SIF LOCAL:1 >= 3
 	SETCOLOR カラー_オレンジ
 PRINTFORM (現在{LOCAL:1}/ 3 人)
 RESETCOLOR
+PRINTFORM  
+PRINTBUTTON "[自動選択]", 2
+CALL COLORPRINT("(対象を選択してから押すとより正確)", カラー_注釈)
 CALL COLUMN_RIGHT_PRINTL
 CALL COLUMN_RIGHT_LINE
 CALL COLUMN_RIGHT_PRINTL
@@ -175,19 +186,30 @@ CALL COLUMN_RIGHT_CHARALIST_BOTTOM(1)
 RETURN 0
 
 ;-------------------------------------------------
+;「説得させる」の右カラムボタンの入力処理補佐
+;-------------------------------------------------
+@SHOP_LIFE_EVENTBUY_SUB32(ARG:0)
+;このメンバーで決定
+SELECTCASE ARG:0 
+	CASE 1
+		CALL SHOP_LIFE_SETTOKU(MENUVAR:0)
+		IF !RESULT
+			REDRAW 1
+		ELSE
+			SHOP_TIME ++
+			LINES_SHOP = LINECOUNT
+			BEGIN TURNEND
+		ENDIF
+	CASE 2
+		CALL SHOP_LIFE_SETTOKU_SELECT_BEST_MEMBER(MENUVAR:0)
+ENDSELECT
+RETURN 0
+
+;-------------------------------------------------
 ;「説得させる」のリスト１入力処理
 ;-------------------------------------------------
 @SHOP_LIFE_USERSHOP32(ARG:0)
-CALL SINGLE_DRAWLINE
-;SYSTEM/EVENT_SETTOKU.ERB/説得イベントの呼び出し
-CALL SHOP_LIFE_SETTOKU(ARG:0)
-IF !RESULT
-	REDRAW 1
-ELSE
-	SHOP_TIME ++
-	LINES_SHOP = LINECOUNT
-	BEGIN TURNEND
-ENDIF
+MENUVAR:0 = ARG:0
 
 ;-------------------------------------------------
 ;「説得させる」のリスト２入力処理
@@ -212,3 +234,45 @@ IF CFLAG:(ARG:0):捕虜調教の助手 || LOCAL:5 < 3
 	CFLAG:(ARG:0):捕虜調教の助手 = !CFLAG:(ARG:0):捕虜調教の助手
 ENDIF
 
+;-------------------------------------------------
+;「説得させる」の対象自動選択
+;-------------------------------------------------
+@SHOP_LIFE_SETTOKU_SELECT_BEST_MEMBER(対象)
+#DIM 対象
+#DIM 候補, 3000
+#DIM 候補値, 3000
+#DIM 候補数
+#DIM 説得者数
+VARSET 候補, -1
+VARSET 候補値, __INT_MIN__
+VARSET 候補数
+VARSET 説得者数
+CVARSET CFLAG, GETNUM(CFLAG, "捕虜調教の助手"), 0
+
+FOR LOCAL:0, 0, CHARANUM
+	;選択可能な条件を満たしているかどうかを判定
+	TRYCALLFORM SHOP_LIFE_CHECKCHARA_SUB{FLAG:拠点フェイズ選択コマンド}(LOCAL:0)
+	IF RESULT == 1
+		候補:候補数 = LOCAL
+		候補値:候補数 = CALC_SETTOKU_EFFECT(LOCAL, 対象) - (対象 > 0 ? CALC_SETTOKU_EFFECT_TARGET(対象, LOCAL) # 0)
+		候補数 ++
+	ENDIF
+NEXT
+
+SIF 候補数 == 0
+	RETURN 0
+
+WHILE 1
+	LOCAL = FINDELEMENT(候補値, MAXARRAY(候補値), 0, 候補数)
+	SIF 候補値:LOCAL == __INT_MIN__ || 候補:LOCAL == -1
+		BREAK
+	CFLAG:(候補:LOCAL):捕虜調教の助手 = 1
+
+	候補値:LOCAL = __INT_MIN__
+	候補:LOCAL = -1
+	説得者数 ++
+	SIF 説得者数 >= 3
+		BREAK
+WEND
+
+RETURN 0
