@@ -1,0 +1,107 @@
+﻿;@fn AIによる訓練
+;@param 勢力 訓練を行う勢力の番号
+@SLG_AI_TRAIN(勢力)
+#DIM 勢力
+#DIM 対象
+#DIM 上昇能力
+#DIM 上昇量
+
+AI_TRAIN_TERM:勢力 --
+
+;説得期限切れ + 士官がいるようならプラン生成
+SIF AI_TRAIN_TERM:勢力 <= 0 && CMATCH(CFLAG:所属, 勢力) > 1
+	CALL AI_TRAIN_CREATE_PLAN(勢力)
+
+FOR LOCAL, 0, AI_TRAIN_MAX_TARGET
+	対象 = ID_TO_CHARA(AI_TRAIN_TARGET:勢力:LOCAL)
+	SIF 対象 == -1
+		CONTINUE
+	IF CFLAG:対象:所属 != 勢力 || CFLAG:対象:捕虜先
+		AI_TRAIN_TARGET:勢力:LOCAL = 0
+		CONTINUE
+	ENDIF
+	
+	上昇能力 = IFRAND(@"{GETNUM(ABL, "武闘")}, {GETNUM(ABL, "防衛")}, {GETNUM(ABL, "知略")}, {GETNUM(ABL, "政治")}", 1, @"{GETNUM(ABL, "料理")}, {GETNUM(ABL, "歌唱")}", RAND:100 > 50, @"{GETNUM(ABL, "妖術")}", TALENT:対象:妖術知識 && RAND:100 > 30)
+	上昇量 = RAND:3
+	
+	SELECTCASE ABL:対象:上昇能力
+		CASE IS >= ランク閾値:ランク_ＳＬＧ:ランク_A
+			上昇量 = 1
+		CASE IS < ランク閾値:ランク_ＳＬＧ:ランク_C
+			上昇量 += RAND:2
+	ENDSELECT
+
+	SIF FIND_PASSIVE_SKILL(対象, "超成長力")
+		上昇量 ++
+
+	SIF FIND_PASSIVE_SKILL(対象, "努力家")
+		上昇量 ++
+
+	;妖術の必要経験値高いので
+	SIF 上昇能力 == GETNUM(ABL, "妖術")
+		上昇量 *= 10
+
+	EXP:対象:GET_EXP(上昇能力) += 上昇量
+
+	CALL TRAIN_AUTO_ABLUP(対象)
+
+NEXT
+
+;@fn AIによる訓練対象リストを生成する
+;@param 勢力 対象リストを生成する勢力
+@AI_TRAIN_CREATE_PLAN(勢力)
+#DIM 勢力
+#DIM 勢力君主
+#DIM 士官リスト, 3000
+#DIM 能力値リスト, 3000
+#DIM 士官数
+#DIM 訓練対象者数
+#DIM 対象
+#DIM 対象位置
+#DIM 訓練者数最大
+VARSET 士官リスト, -1
+VARSET 能力値リスト, __INT_MIN__
+VARSET 士官数
+VARSET 訓練対象者数
+
+FOR 対象, 0, AI_TRAIN_MAX_TARGET
+	AI_TRAIN_TARGET:勢力:対象 = 0
+NEXT
+
+FOR 対象, 0, CHARANUM
+	IF CFLAG:対象:所属 == 勢力 && !CFLAG:対象:捕虜先
+		士官リスト:士官数 = 対象
+		能力値リスト:士官数 = ABL:対象:武闘 + ABL:対象:知略 + ABL:対象:防衛 + ABL:対象:妖術 + ABL:対象:料理 + ABL:対象:歌唱 + ABL:対象:政治
+		士官数 ++
+	ENDIF
+NEXT
+
+SIF 士官数 == 0
+	RETURN
+
+;まず能力が最低のキャラ
+IF 士官数 > 0
+	対象位置 = FINDELEMENT(能力値リスト, MINARRAY(能力値リスト, 0, 士官数), 0, 士官数)
+	対象 = GET_ID(士官リスト:対象位置)
+	AI_TRAIN_TARGET:勢力:訓練対象者数 = 対象
+	ARRAYSHIFT 士官リスト, -1, -1, 対象位置
+	ARRAYSHIFT 能力値リスト, -1, __INT_MIN__ , 対象位置
+	士官数 --
+	訓練対象者数 ++
+ENDIF
+
+;あと適宜ランダムに
+WHILE 0 < 士官数 && 訓練対象者数 < AI_TRAIN_MAX_TARGET
+	対象位置 = RAND:士官数
+	対象 = GET_ID(士官リスト:対象位置)
+	AI_TRAIN_TARGET:勢力:訓練対象者数 = 対象
+	ARRAYSHIFT 士官リスト, -1, -1, 対象位置
+	ARRAYSHIFT 能力値リスト, -1, __INT_MIN__ , 対象位置
+	士官数 --
+	訓練対象者数 ++
+WEND
+
+SIF 訓練対象者数 > 0
+	AI_TRAIN_TERM:勢力 = RAND(3, 5)
+
+RETURN
