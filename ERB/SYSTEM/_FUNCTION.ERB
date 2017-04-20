@@ -13,34 +13,43 @@ CALL INIT_TENDENCY(ARG:0)
 
 FOR LOCAL, 0, VARSIZE("SEXUAL_EXPERIENCE_SITUATION")
 	SEXUAL_EXPERIENCE_SITUATION:(ARG:0):LOCAL = 0
+	SEXUAL_LAST_EXPERIENCE_SITUATION:(ARG:0):LOCAL = 0
 NEXT
 
 ;キス未経験でないならキス経験を不明として記録
 IF !TALENT:(ARG:0):キス未経験
 	SEXUAL_EXPERIENCE:(ARG:0):初体験_ファーストキス = 不明
+	SEXUAL_LAST_EXPERIENCE:(ARG:0):初体験_ファーストキス = 不明
 ELSE
 	SEXUAL_EXPERIENCE:(ARG:0):初体験_ファーストキス = ----
+	SEXUAL_LAST_EXPERIENCE:(ARG:0):初体験_ファーストキス = ----
 ENDIF
 
 IF HAS_VAGINA(ARG:0) && !TALENT:(ARG:0):処女
 	SEXUAL_EXPERIENCE:(ARG:0):初体験_処女 = 不明
+	SEXUAL_LAST_EXPERIENCE:(ARG:0):初体験_処女 = 不明
 ELSE
 	TALENT:(ARG:0):処女 = 1
 	SEXUAL_EXPERIENCE:(ARG:0):初体験_処女 = ----
+	SEXUAL_LAST_EXPERIENCE:(ARG:0):初体験_処女 = ----
 ENDIF
 
 IF HAS_PENIS(ARG:0) && !TALENT:(ARG:0):童貞
 	SEXUAL_EXPERIENCE:(ARG:0):初体験_童貞 = 不明
+	SEXUAL_LAST_EXPERIENCE:(ARG:0):初体験_童貞 = 不明
 ELSE
 	TALENT:(ARG:0):童貞 = 1
 	SEXUAL_EXPERIENCE:(ARG:0):初体験_童貞 = ----
+	SEXUAL_LAST_EXPERIENCE:(ARG:0):初体験_童貞 = ----
 ENDIF
 
 IF !TALENT:(ARG:0):アナル処女
 	SEXUAL_EXPERIENCE:(ARG:0):初体験_アナル処女 = 不明
+	SEXUAL_LAST_EXPERIENCE:(ARG:0):初体験_アナル処女 = 不明
 ELSE
 	TALENT:(ARG:0):アナル処女 = 1
 	SEXUAL_EXPERIENCE:(ARG:0):初体験_アナル処女 = ----
+	SEXUAL_LAST_EXPERIENCE:(ARG:0):初体験_アナル処女 = ----
 ENDIF
 
 TALENT:(ARG:0):危険日 = RAND:5
@@ -285,6 +294,7 @@ NEXT
 
 FOR LOCAL:0, 0, VARSIZE("SEXUAL_EXPERIENCE_SITUATION")
 	SEXUAL_EXPERIENCE_SITUATION:(ARG:0):LOCAL = 0
+	SEXUAL_LAST_EXPERIENCE_SITUATION:(ARG:0):LOCAL = 0
 NEXT
 
 IF TALENT:(ARG:0):キス未経験
@@ -292,6 +302,8 @@ IF TALENT:(ARG:0):キス未経験
 ELSE
 	SEXUAL_EXPERIENCE:(ARG:0):初体験_ファーストキス = 不明
 	SEXUAL_EXPERIENCE_SITUATION:(ARG:0):初体験_ファーストキス = 0
+	SEXUAL_LAST_EXPERIENCE:(ARG:0):初体験_ファーストキス = 不明
+	SEXUAL_LAST_EXPERIENCE_SITUATION:(ARG:0):初体験_ファーストキス = 0
 ENDIF
 
 IF TALENT:(ARG:0):童貞
@@ -299,6 +311,8 @@ IF TALENT:(ARG:0):童貞
 ELSE
 	SEXUAL_EXPERIENCE:(ARG:0):初体験_童貞 = 不明
 	SEXUAL_EXPERIENCE_SITUATION:(ARG:0):初体験_童貞 = 0
+	SEXUAL_LAST_EXPERIENCE:(ARG:0):初体験_童貞 = 不明
+	SEXUAL_LAST_EXPERIENCE_SITUATION:(ARG:0):初体験_童貞 = 0
 ENDIF
 
 IF TALENT:(ARG:0):処女
@@ -306,6 +320,8 @@ IF TALENT:(ARG:0):処女
 ELSE
 	SEXUAL_EXPERIENCE:(ARG:0):初体験_処女 = 不明
 	SEXUAL_EXPERIENCE_SITUATION:(ARG:0):初体験_処女 = 0
+	SEXUAL_LAST_EXPERIENCE:(ARG:0):初体験_処女 = 不明
+	SEXUAL_LAST_EXPERIENCE_SITUATION:(ARG:0):初体験_処女 = 0
 ENDIF
 
 IF TALENT:(ARG:0):アナル処女
@@ -313,6 +329,8 @@ IF TALENT:(ARG:0):アナル処女
 ELSE
 	SEXUAL_EXPERIENCE:(ARG:0):初体験_アナル処女 = 不明
 	SEXUAL_EXPERIENCE_SITUATION:(ARG:0):初体験_アナル処女 = 0
+	SEXUAL_LAST_EXPERIENCE:(ARG:0):初体験_アナル処女 = 不明
+	SEXUAL_LAST_EXPERIENCE_SITUATION:(ARG:0):初体験_アナル処女 = 0
 ENDIF
 
 FOR LOCAL, 0, VARSIZE("COM_EXP")
@@ -1750,10 +1768,16 @@ RETURNF 100
 #DIM 対象
 #DIMS 相手
 #DIM シチュ
-SIF !TALENT:対象:キス未経験
-	RETURN 0
+
 SIF TCVAR:対象:催眠中
 	シチュ = 喪失_催眠
+
+SEXUAL_LAST_EXPERIENCE:対象:初体験_ファーストキス = %相手%
+SEXUAL_LAST_EXPERIENCE_SITUATION:対象:初体験_ファーストキス = シチュ
+
+SIF !TALENT:対象:キス未経験
+	RETURN 0
+
 IF ARG:2
 	SETCOLOR カラー_注意
 	PRINTFORM %ANAME(対象)%は
@@ -1769,7 +1793,6 @@ SEXUAL_EXPERIENCE_SITUATION:対象:初体験_ファーストキス = シチュ
 TALENT:対象:キス未経験 = 0
 
 
-
 ;-------------------------------------------------
 ;童貞喪失の共通処理
 ;対象が相手（文字列）で童貞喪失
@@ -1779,10 +1802,18 @@ TALENT:対象:キス未経験 = 0
 #DIM 対象
 #DIMS 相手
 #DIM シチュ
-SIF !HAS_PENIS(対象) || !TALENT:対象:童貞
+SIF !HAS_PENIS(対象)
 	RETURN 0
+
 SIF TCVAR:対象:催眠中
 	シチュ = 喪失_催眠
+
+SEXUAL_LAST_EXPERIENCE:対象:初体験_童貞 = %相手%
+SEXUAL_LAST_EXPERIENCE_SITUATION:対象:初体験_童貞 = シチュ
+
+SIF !TALENT:対象:童貞
+	RETURN 0
+
 IF ARG:2
 	SETCOLOR カラー_注意
 	PRINTFORM %ANAME(対象)%は
@@ -1807,10 +1838,19 @@ TALENT:対象:童貞 = 0
 #DIM 対象
 #DIMS 相手
 #DIM シチュ
-SIF !HAS_VAGINA(対象) || !TALENT:対象:処女
+
+SIF !HAS_VAGINA(対象)
 	RETURN 0
+
+SEXUAL_LAST_EXPERIENCE:対象:初体験_処女 = %相手%
+SEXUAL_LAST_EXPERIENCE_SITUATION:対象:初体験_処女 = シチュ
+
 SIF TCVAR:対象:催眠中
 	シチュ = 喪失_催眠
+
+SIF !TALENT:対象:処女
+	RETURN 0
+
 IF ARG:2
 	SETCOLOR カラー_注意
 	PRINTFORM %ANAME(対象)%は
@@ -1836,10 +1876,14 @@ TALENT:対象:処女 = 0
 #DIMS 相手
 #DIM シチュ
 
-SIF !TALENT:対象:アナル処女
-	RETURN 0
 SIF TCVAR:対象:催眠中
 	シチュ = 喪失_催眠
+
+SEXUAL_LAST_EXPERIENCE:対象:初体験_アナル処女 = %相手%
+SEXUAL_LAST_EXPERIENCE_SITUATION:対象:初体験_アナル処女 = シチュ
+
+SIF !TALENT:対象:アナル処女
+	RETURN 0
 
 IF ARG:2
 	SETCOLOR カラー_注意
@@ -1852,6 +1896,7 @@ ENDIF
 
 SEXUAL_EXPERIENCE:対象:初体験_アナル処女 = %相手%
 SEXUAL_EXPERIENCE_SITUATION:対象:初体験_アナル処女 = シチュ
+
 
 TALENT:対象:アナル処女 = 0
 
@@ -1875,6 +1920,8 @@ ENDSELECT
 
 SEXUAL_EXPERIENCE:対象:初体験 = ----
 SEXUAL_EXPERIENCE_SITUATION:対象:初体験 = 0
+SEXUAL_LAST_EXPERIENCE:対象:初体験 = ----
+SEXUAL_LAST_EXPERIENCE_SITUATION:対象:初体験 = 0
 TALENT:対象:変更素質 = 1
 
 ;-------------------------------------------------
