@@ -4,90 +4,30 @@
 ;-------------------------------------------------
 @NEWLOOP(ARG:0=0)
 
+;変数の初期化
 CALL NEWLOOP_RESET_VARS
 
 ;周回数が1増える
 FLAG:周回数++
 
-;シナリオ側で特殊キャラを生成しており、かつ一週目、「戻る」したときのため、特殊キャラを全て削除する
-LOCAL:2 = CHARANUM
-FOR LOCAL:0, 0, LOCAL:2
-	LOCAL:1 = LOCAL:2 - LOCAL:0 - 1
-	IF CFLAG:(LOCAL:1):所属 == ARG:0 && IS_SP_CHARA(LOCAL:1)
-		CALL DELETE_CHARA(LOCAL:1)
-	ENDIF
-NEXT
+;特殊キャラすべて削除
+CALL NEWLOOP_DELETE_ALL_SP_CHARA()
 
+;シナリオ選択から勢力選択まで
+CALL STARTUP_SCENARIO
 
-;シナリオ選択
-CALL SELECT_SCENARIO
-
-SIF RESULT == -1
-	RETURN 0
-
-TRYCALLFORM SCENARIO_NAME_%SCENARIOID%
-LOCALS '= RESULTS
-PRINTFORML シナリオ 「%LOCALS%」 で開始します
-
-;シナリオマップ選択処理
-TRYCALLFORM SCENARIO_MAPSELECT_%SCENARIOID%
-
-;マップ初期化
-CALL MAPSETUP(1)
-CALL MAP_INIT
-
-;シナリオイントロ
-TRYCALLFORM SCENARIO_INTRO_%SCENARIOID%
-
-PRINTFORML このシナリオで遊びますか？
-CALL ASK_YN
-IF RESULT == 1
+IF RESULT == 0
 	FLAG:周回数 --
 	RESTART
 ENDIF
-
-;シナリオ初期勢力配置
-TRYCCALLFORM SCENARIO_PLACEMENT_%SCENARIOID%
-CATCH
-	CALL SCENARIO_PLACEMENT_DEFAULT
-ENDCATCH
-
-$SELECT_COUNTRY
-
-;勢力選択
-CALL SELECT_COUNTRY
-
-;戻った場合
-IF RESULT == -1
-	FLAG:周回数 --
-	RESTART
-ENDIF
-
-;観戦モードの場合、前の週でキャラを変更したとき用に、「あなた」と主人公を入れ替えて戻す処理だけは必要
-IF FLAG:観戦モード
-	SWAPCHARA NAME_TO_CHARA("あなた"), MASTER
-ELSE
-	CALL SELECT_MASTER
-	;戻った場合
-	SIF RESULT == -1
-		GOTO SELECT_COUNTRY
-ENDIF
-
-;旗揚げスタートなら、勢力を設定
-IF FLAG:OP選択勢力 == -4
-	CALL START_WITH_NEW_COUNTRY
-ENDIF
-
 
 ;ランダムキャラを使用するかどうか
 CALL SELECT_RCHARA
 
 ;特殊勢力の設定
 CALL SP_COUNTRY_SETTING
-
 CALL SP_COUNTRY_START_INITIALIZE
 
-TRYCALLFORM SCENARIO_%SCENARIOID%_AFTERSELECT
 
 ;開始時の国庫を設定
 ;シナリオに応じて
@@ -130,6 +70,20 @@ SIF IS_COUNTRY(CFLAG:MASTER:所属)
 	COUNTRY_POLICY:(CFLAG:MASTER:所属) = 政策_経済
 
 RETURN 1
+
+
+;-------------------------------------
+;シナリオ側で特殊キャラを生成しており、かつ一週目、「戻る」したときのため、特殊キャラを全て削除する
+;-------------------------------------
+@NEWLOOP_DELETE_ALL_SP_CHARA
+LOCAL:2 = CHARANUM
+FOR LOCAL:0, 0, LOCAL:2
+	LOCAL:1 = LOCAL:2 - LOCAL:0 - 1
+	IF CFLAG:(LOCAL:1):所属 == ARG:0 && IS_SP_CHARA(LOCAL:1)
+		CALL DELETE_CHARA(LOCAL:1)
+	ENDIF
+NEXT
+
 
 ;-------------------------------------
 ;新しく周回する時用、変数のリセット処理
@@ -266,6 +220,71 @@ MAPID '= "DEFAULT"
 ;各勢力の国庫を空に（プレイヤーの懐はそのまま）
 VARSET MONEY, 0, 1
 
+
+;-------------------------------------------------
+;シナリオに関連するスタートアップ処理
+;-------------------------------------------------
+@STARTUP_SCENARIO
+;シナリオ選択
+CALL SELECT_SCENARIO
+
+SIF RESULT == 0
+	RETURN 0
+
+TRYCALLFORM SCENARIO_NAME_%SCENARIOID%
+LOCALS '= RESULTS
+PRINTFORML シナリオ 「%LOCALS%」 で開始します
+
+;シナリオマップ選択処理
+TRYCALLFORM SCENARIO_MAPSELECT_%SCENARIOID%
+
+;マップ初期化
+CALL MAPSETUP(1)
+CALL MAP_INIT
+
+;シナリオイントロ
+TRYCALLFORM SCENARIO_INTRO_%SCENARIOID%
+
+PRINTFORML このシナリオで遊びますか？
+CALL ASK_YN()
+SIF RESULT == 1
+	RETURN 0
+
+;シナリオ初期勢力配置
+TRYCCALLFORM SCENARIO_PLACEMENT_%SCENARIOID%
+CATCH
+	CALL SCENARIO_PLACEMENT_DEFAULT
+ENDCATCH
+
+$SELECT_COUNTRY
+
+;勢力選択
+CALL SELECT_COUNTRY
+
+;戻った場合
+SIF RESULT == 0
+	RETURN 0
+
+
+;観戦モードの場合、前の週でキャラを変更したとき用に、「あなた」と主人公を入れ替えて戻す処理だけは必要
+IF FLAG:観戦モード
+	SWAPCHARA NAME_TO_CHARA("あなた"), MASTER
+ELSE
+	CALL SELECT_MASTER
+	;戻った場合
+	SIF RESULT == 0
+		GOTO SELECT_COUNTRY
+ENDIF
+
+;旗揚げスタートなら、勢力を設定
+SIF FLAG:OP選択勢力 == -4
+	CALL START_WITH_NEW_COUNTRY
+
+;その他勢力選択後にシナリオ側でやりたいこと
+TRYCALLFORM SCENARIO_%SCENARIOID%_AFTERSELECT
+
+
+
 ;-------------------------------------------------
 ;シナリオ選択
 ;-------------------------------------------------
@@ -292,7 +311,7 @@ NEXT
 
 IF FLAG:周回数 == 1
 	CALL SINGLE_DRAWLINE
-	PRINTBUTTON "99[タイトルに戻る]", 99
+	PRINTBUTTON "99[戻る]", 99
 ENDIF
 
 $INPUT_LOOP
@@ -300,7 +319,7 @@ INPUT
 IN = RESULT
 FOR LOCAL:0 , 0, SCENARIO_NUMBER
 	IF IN == 99 && FLAG:周回数 == 1
-		RETURN -1
+		RETURN 0
 	ENDIF
 	IF IN == SCENARIO_SELECT:(LOCAL:0)
 		SCENARIOID '= SCENARIO_ID:LOCAL
@@ -621,7 +640,7 @@ ELSEIF RESULT == 98 && 旧MASTERID > 0
 	ENDIF
 	選択MASTERID = GET_ID(MASTER)
 ELSEIF RESULT == 9999
-	RETURN -1
+	RETURN 0
 ;既存のキャラを選択
 ELSE
 	LOCAL:2 = NO_TO_CHARA(RESULT - 100)
@@ -690,7 +709,7 @@ SELECTCASE RESULT
 		ENDIF
 		SIF FINDELEMENT(SP_COUNTRY_START, 特殊勢力スタート_君主) != -1
 			SP_COUNTRY_START_CHANGE_BOSS = 1
-		RETURN
+		RETURN 1
 	;戻る
 	CASE 9
 		CLEARLINE LINECOUNT - FIRSTLINE
