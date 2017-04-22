@@ -557,7 +557,7 @@ IF 旧MASTERID > 0 && !引継ぎ使用可
 	IF TALENT:MASTER:特殊勢力素質
 		CALL COLORPRINT("前の週で特殊勢力の固有キャラを利用したため、「前週と同じ」が利用できません", カラー_注意, "L")
 	ELSE
-		CALL COLORPRINT(@"※前周の主人公%ANAME(MASTER)%が君主をしていますが、該当勢力以外を選択しているため、「前週と同じ」が利用できません", カラー_注意, "L")
+		CALL COLORPRINT(@"※前周の主人公%ANAME(MASTER)%が別勢力で君主をしているため、「前週と同じ」が利用できません", カラー_注意, "L")
 	ENDIF
 ENDIF
 CALL SINGLE_DRAWLINE
@@ -567,7 +567,7 @@ PRINTBUTTON "[あなたを新規作成]", 0
 PRINTFORM ※ 現在の「あなた」のデータをリセットします
 IF FLAG:あなた作成済み && MASTER != NAME_TO_CHARA("あなた")
 	PRINTL
-	PRINTBUTTON "[あなたを選択]", 2
+	PRINTBUTTON @"[%ANAME(NAME_TO_CHARA("あなた"))%を選択]", 2
 ENDIF
 IF FINDELEMENT(SP_COUNTRY_START, 特殊勢力スタート_君主) != -1
 	PRINTL
@@ -580,28 +580,15 @@ IF 旧MASTERID > 0 && 引継ぎ使用可
 	PRINTBUTTON @"[前週の主人公 %ANAME(MASTER)% でプレイ]", 98
 ENDIF
 
-;ここから固定キャラの表示
 PRINTL 
 CALL SINGLE_DRAWLINE
-PRINTL ●既存のキャラ
-LOCAL:1 = 0
-;選択勢力と同一勢力所属のキャラを選べる
-;放浪や旗揚げ、特殊スタートの場合、君主以外を選べる
-FOR LOCAL:0, 1, CHARANUM
-	SIF !SELECT_MASTER_CAN_SELECT(LOCAL:0)
-		CONTINUE
-	IF LOCAL:1 % 4 == 0 && LOCAL:1 >= 1
-		PRINTL 
-	ENDIF
-	LOCALS:0 = [%ANAME(LOCAL:0), 12, LEFT%]
-	PRINTBUTTON @"%LOCALS:0, 19, LEFT%", NO:(LOCAL:0) + 100
-	LOCAL:1 ++
-NEXT
+PRINTBUTTON "[勢力所属の固有キャラを使用]", 99
 PRINTL 
 CALL SINGLE_DRAWLINE
 PRINTBUTTON "[戻る]", 9999
 PRINTL
-$INPUT_LOOP1
+
+$INPUT_LOOP
 INPUT
 
 ;新規作成
@@ -621,13 +608,13 @@ IF RESULT == 0
 ELSEIF RESULT == 1 && FINDELEMENT(SP_COUNTRY_START, 特殊勢力スタート_君主) != -1
 	SP_COUNTRY_START_CHANGE_BOSS = 0
 	SWAPCHARA MASTER, NAME_TO_CHARA("あなた")
-	RETURN
+	RETURN 1
 ELSEIF RESULT == 2 && FLAG:あなた作成済み && MASTER != NAME_TO_CHARA("あなた")
 	選択MASTERID = GET_ID(NAME_TO_CHARA("あなた"))
 ;前週と同じ
 ELSEIF RESULT == 98 && 旧MASTERID > 0
 	IF !引継ぎ使用可
-		PRINTFORMW 前周の主人公が選択した勢力以外の勢力の君主です。「前週と同じ」は利用できません
+		PRINTFORMW 前周の主人公が、選択した勢力以外の勢力の君主です。「前週と同じ」は利用できません
 		CLEARLINE LINECOUNT - FIRSTLINE
 		GOTO SHOW_LOOP
 	ENDIF
@@ -636,12 +623,9 @@ ELSEIF RESULT == 9999
 	RETURN 0
 ;既存のキャラを選択
 ELSE
-	LOCAL:2 = NO_TO_CHARA(RESULT - 100)
-	IF SELECT_MASTER_CAN_SELECT(LOCAL:2)
-		選択MASTERID = GET_ID(LOCAL:2)
-	ELSE
-		GOTO INPUT_LOOP1
-	ENDIF
+	CALL SINGLE_DRAWLINE()
+	CALL SELECT_CHARA_LIST_ONLY_LOGIC_SLG("SELECT_MASTER", "NONE")
+	選択MASTERID = GET_ID(RESULT)
 ENDIF
 
 
@@ -712,23 +696,25 @@ CLEARLINE 1
 GOTO INPUT_LOOP2
 
 
+@SELECT_CHARA_LIST_SHOW_LOGIC_SELECT_MASTER(対象)
+#DIM 対象
+;固定キャラでないなら弾く
+SIF !IS_FIXED_CHARA(対象)
+	RETURN 0
+;どこかの勢力を選択した場合は、そこ所属のキャラ以外は弾く。
+SIF FLAG:OP選択勢力 > 0 && CFLAG:対象:所属 != FLAG:OP選択勢力
+	RETURN 0
+;特殊なスタートを選択した場合、君主は弾く。
+SIF FLAG:OP選択勢力 <= 0 && GET_COUNTRY_BOSS(CFLAG:対象:所属) == 対象
+	RETURN 0
+RETURN 1
+
 ;-------------------------------------------------
 ;主人公選択時、そのキャラが選択できるか
 ;-------------------------------------------------
 @SELECT_MASTER_CAN_SELECT(対象)
 #FUNCTION
 #DIM 対象
-;固定キャラでないなら弾く
-SIF !IS_FIXED_CHARA(対象)
-	RETURNF 0
-;どこかの勢力を選択した場合は、そこ所属のキャラ以外は弾く。
-SIF FLAG:OP選択勢力 > 0 && CFLAG:対象:所属 != FLAG:OP選択勢力
-	RETURNF 0
-;特殊なスタートを選択した場合、君主は弾く。
-SIF FLAG:OP選択勢力 <= 0 && GET_COUNTRY_BOSS(CFLAG:対象:所属) == 対象
-	RETURNF 0
-
-RETURNF 1
 
 ;-------------------------------------------------
 ;君主である固定キャラ使用時に、他勢力との関係をMASTERに移しておく関数
