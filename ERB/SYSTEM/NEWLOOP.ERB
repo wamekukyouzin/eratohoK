@@ -1,0 +1,957 @@
+﻿
+;-------------------------------------------------
+;ARG:0 = 1 で周回モード
+;-------------------------------------------------
+@NEWLOOP(ARG:0=0)
+
+;変数の初期化
+CALL NEWLOOP_RESET_VARS
+
+;周回数が1増える
+FLAG:周回数++
+
+;特殊キャラすべて削除
+CALL NEWLOOP_DELETE_ALL_SP_CHARA(ARG:0)
+
+;シナリオ選択から勢力選択まで
+CALL STARTUP_SCENARIO
+
+IF RESULT == 0
+	FLAG:周回数 --
+	RESTART
+ENDIF
+
+;ランダムキャラを使用するかどうか
+CALL SELECT_RCHARA
+
+;特殊勢力の設定
+CALL SP_COUNTRY_SETTING
+CALL SP_COUNTRY_START_INITIALIZE
+
+
+;カスタムキャラの扱いの設定
+CALL CUSTOM_SETTING
+
+;キャラエディット
+CALL CHARA_EDIT
+
+;初期ボーナス
+IF !FLAG:観戦モード && FLAG:あなた新規作成 && MASTER == NAME_TO_CHARA("あなた")
+	CALL NEWLOOP_ANATA_BONUS
+	FLAG:あなた新規作成 = 0
+ENDIF
+
+;もろもろ終わってからのリセット処理
+CALL NEWLOOP_ADDITIONAL_RESET_VARS
+
+RETURN 1
+
+
+;-------------------------------------
+;シナリオ側で特殊キャラを生成しており、かつ一週目、「戻る」したときのため、特殊キャラを全て削除する
+;-------------------------------------
+@NEWLOOP_DELETE_ALL_SP_CHARA(ARG:0)
+LOCAL:2 = CHARANUM
+FOR LOCAL:0, 0, LOCAL:2
+	LOCAL:1 = LOCAL:2 - LOCAL:0 - 1
+	IF CFLAG:(LOCAL:1):所属 == ARG:0 && IS_SP_CHARA(LOCAL:1)
+		CALL DELETE_CHARA(LOCAL:1)
+	ENDIF
+NEXT
+
+
+;-------------------------------------
+;新しく周回する時用、変数のリセット処理
+;-------------------------------------
+@NEWLOOP_RESET_VARS
+;日付を1日目に戻す
+DAY = 1
+
+;触手部屋の管理者を初期化
+FLAG:触手部屋管理者 = 0
+
+;フェイズを拠点フェイズにする
+TIME = 0
+
+;シナリオ専用変数をリセット
+VARSET SCVAR, 0
+
+;デイリーイベント変数をリセット
+VARSET DVAR, 0
+VARSET DSTR, 
+VARSET SDVAR, 0
+VARSET SDSTR, 
+;口上用デイリーイベント変数をリセット
+FOR LOCAL, 0, VARSIZE("KDVAR")
+	CVARSET KDVAR, LOCAL, 0
+	CVARSET KDSTR, LOCAL, 
+NEXT
+
+;特殊勢力関係の変数をリセット
+VARSET SP_COUNTRY_START
+VARSET SP_COUNTRY_RANK
+VARSET SP_COUNTRY_APPEARED
+VARSET SP_COUNTRY_BOSSNAME
+VARSET SP_COUNTRY_BOSSNAME_LAST_NAME
+VARSET SP_COUNTRY_BOSSNAME_FIRST_NAME
+VARSET SP_COUNTRY_INITIAL_RISE
+VARSET BANDIT_HAS_INITIAL_CITIES
+
+FOR LOCAL, 0, VARSIZE("SP_TRAIN_COUNT")
+	CVARSET SP_TRAIN_COUNT, LOCAL, 0
+NEXT
+
+;捕虜について削除
+VARSET PRISONER_TARGET, -1
+
+;スカウト回数をリセット
+VARSET SCOUT_COUNT, 0
+
+;特別訓練回数をリセット
+VARSET SPECIAL_TRAIN_COUNT, 0
+
+;変数の初期化
+TARGET = -1
+ASSI = -1
+
+;クリアフラグを解除
+FLAG:クリアフラグ = 0
+FLAG:クリア直後フラグ = 0
+FLAG:強制エンドフラグ = 0
+SHOP_TIME = 0
+
+;料理長をリセット（料理長がランダムキャラや出産キャラで、かつそのキャラを引き継がなかったときのため）
+CALL SET_COOK(-1)
+
+;観戦モードフラグを0
+FLAG:観戦モード = 0
+
+;SHOW_INFOの初期画面を基本情報にする
+FLAG:能力表示モード = 0
+
+
+;SLG関連の変数をクリア
+STATS_TIME = 0
+VARSET STATS_BOSS_ID_LIST, 0
+VARSET STATS_GDP, 0
+VARSET STATS_ARMY, 0
+VARSET CITY_ROUTE, 0
+VARSET CITY_TYPE, 0
+VARSET CITY_ECONOMY, 0
+VARSET CITY_SOLDIER, 0
+VARSET CITY_GUARD, 0
+VARSET CITY_OWNER, 0
+VARSET CITY_COMMANDER, 0
+VARSET COUNTRY_BOSS, 0
+VARSET COUNTRY_COLOR, 0
+VARSET COUNTRY_SOLDIER, 0
+VARSET COUNTRY_AI_TYPE, 0
+VARSET COUNTRY_NOTARGET_TERM, 0
+VARSET COUNTRY_IS_CLOSED, 0
+VARSET COUNTRY_EVENT_ID, 0
+VARSET AUTO_INVEST_PRICE, 0
+FOR LOCAL:0, 0, MAX_COUNTRY
+	FOR LOCAL:1, 0, 10
+		UNIT_SOLDIER:(LOCAL:0):(LOCAL:1) = 0
+		UNIT_POSITION:(LOCAL:0):(LOCAL:1) = 0
+		UNIT_TARGET:(LOCAL:0):(LOCAL:1) = 0
+		UNIT_COMMANDER:(LOCAL:0):(LOCAL:1) = 0
+	NEXT
+NEXT
+VARSET TREATY_A_TERM, 0
+VARSET TREATY_U_TERM, 0
+VARSET TREATY_U_TARGET, 0
+VARSET TREATY_C_TERM, 0
+VARSET DIPLOMACY_HATE, 0
+VARSET COUNTRY_NOTDIPLOMACY_TERM, 0
+FOR LOCAL:0, 0, MAX_TREATY_A
+	FOR LOCAL:1, 0, MAX_TREATY_COUNTRY
+		TREATY_A_COUNTRY:(LOCAL:0):(LOCAL:1) = 0
+	NEXT
+NEXT
+FOR LOCAL:0, 0, MAX_TREATY_U
+	FOR LOCAL:1, 0, MAX_TREATY_COUNTRY
+		TREATY_U_COUNTRY:(LOCAL:0):(LOCAL:1) = 0
+	NEXT
+NEXT
+FOR LOCAL:0, 0, MAX_TREATY_C
+	FOR LOCAL:1, 0, MAX_TREATY_COUNTRY
+		TREATY_C_COUNTRY:(LOCAL:0):(LOCAL:1) = 0
+	NEXT
+NEXT
+
+;ランダム系シナリオ等でPLACEMENT呼び出し後に「戻る」したときのため、キャラの所属を消去
+FOR LOCAL, 0, CHARANUM
+	CFLAG:LOCAL:所属 = 0
+	CFLAG:LOCAL:特殊状態 = 0
+NEXT
+
+;シナリオ12「悪の栄えたためしなし」でPLACEMENT呼び出し後に「戻る」したときのため、出現フラグをリセット
+VARSET SP_COUNTRY_APPEARED, 0
+
+;マップIDをリセット
+MAPID '= "DEFAULT"
+
+;各勢力の国庫を空に（プレイヤーの懐はそのまま）
+VARSET MONEY, 0, 1
+
+
+;-------------------------------------------------
+;もろもろの処理後に行う変数リセット処理
+;-------------------------------------------------
+@NEWLOOP_ADDITIONAL_RESET_VARS
+;開始時の国庫を設定
+;シナリオに応じて
+FOR LOCAL:0, 1, MAX_COUNTRY
+	SIF !IS_COUNTRY(LOCAL:0)
+		CONTINUE
+	MONEY:(LOCAL:0) += GET_SUM_ECONOMY(LOCAL:0) * 100 / (100 * 100)
+NEXT
+
+;奴隷市場の商品リストを更新
+CALL SLAVEMARKET_PREPARE_GOODS
+;スカウトの対象リストを更新
+CALL SCOUT_PREPARE_CANDIDATES
+;特別訓練の価格を更新
+CALL CALC_SPECIAL_TRAIN_PRICE
+;このターンの特別訓練実施回数をリセット
+SPECIAL_TRAIN_COUNT_THIS_TURN = 0
+
+;引き継ぎキャラの所属を主人公勢力にする
+FOR LOCAL:0, 0, CHARANUM
+	IF IS_CHILD(LOCAL) || IS_RANDOM_CHARA(LOCAL)
+		CALL CHANGE_COUNTRY(LOCAL:0, CFLAG:MASTER:所属, 1)
+	ENDIF
+NEXT
+
+;主人公の所属勢力の政策を経済に
+SIF IS_COUNTRY(CFLAG:MASTER:所属)
+	COUNTRY_POLICY:(CFLAG:MASTER:所属) = 政策_経済
+
+
+;-------------------------------------------------
+;シナリオに関連するスタートアップ処理
+;-------------------------------------------------
+@STARTUP_SCENARIO
+;シナリオ選択
+CALL SELECT_SCENARIO
+
+SIF RESULT == 0
+	RETURN 0
+
+TRYCALLFORM SCENARIO_NAME_%SCENARIOID%
+LOCALS '= RESULTS
+PRINTFORML シナリオ 「%LOCALS%」 で開始します
+
+;シナリオマップ選択処理
+TRYCALLFORM SCENARIO_MAPSELECT_%SCENARIOID%
+
+;マップ初期化
+CALL MAPSETUP(1)
+CALL MAP_INIT
+
+;シナリオイントロ
+TRYCALLFORM SCENARIO_INTRO_%SCENARIOID%
+
+PRINTFORML このシナリオで遊びますか？
+CALL ASK_YN()
+SIF RESULT == 1
+	RETURN 0
+
+;シナリオ初期勢力配置
+TRYCCALLFORM SCENARIO_PLACEMENT_%SCENARIOID%
+CATCH
+	CALL SCENARIO_PLACEMENT_DEFAULT
+ENDCATCH
+
+$SELECT_COUNTRY
+
+;勢力選択
+CALL SELECT_COUNTRY
+
+;戻った場合
+SIF RESULT == 0
+	RETURN 0
+
+
+;観戦モードの場合、前の週でキャラを変更したとき用に、「あなた」と主人公を入れ替えて戻す処理だけは必要
+IF FLAG:観戦モード
+	SWAPCHARA NAME_TO_CHARA("あなた"), MASTER
+ELSE
+	CALL SELECT_MASTER
+	;戻った場合
+	SIF RESULT == 0
+		GOTO SELECT_COUNTRY
+ENDIF
+
+;旗揚げスタートなら、勢力を設定
+SIF FLAG:OP選択勢力 == -4
+	CALL START_WITH_NEW_COUNTRY
+
+;その他勢力選択後にシナリオ側でやりたいこと
+TRYCALLFORM SCENARIO_%SCENARIOID%_AFTERSELECT
+
+RETURN 1
+
+
+;-------------------------------------------------
+;シナリオ選択
+;-------------------------------------------------
+@SELECT_SCENARIO
+#DIM IN
+CALL CREATE_SCENARIO_INDEX
+PRINTL ★★シナリオを選択して下さい★★
+CALL SINGLE_DRAWLINE
+FOR LOCAL:0, 0, SCENARIO_NUMBER
+	SIF SCENARIO_SELECT:(LOCAL:0) == -1
+		BREAK
+		
+		LOCALS:0  '= ""
+		LOCALS:0  += "[●"
+		RESULTS:0 '= ""
+		TRYCALLFORM SCENARIO_NAME_%SCENARIO_ID:(LOCAL:0)%
+		LOCALS:0 = %LOCALS:0%%RESULTS:0, 26, LEFT%
+		LOCALS:0 += "]"
+		LOCALS:0 = {SCENARIO_SELECT:(LOCAL:0),3 , RIGHT}%LOCALS:0%
+		
+		PRINTBUTTON LOCALS:0, SCENARIO_SELECT:(LOCAL:0)
+		PRINTL
+NEXT
+
+IF FLAG:周回数 == 1
+	CALL SINGLE_DRAWLINE
+	PRINTBUTTON "99[戻る]", 99
+ENDIF
+
+$INPUT_LOOP
+INPUT
+IN = RESULT
+FOR LOCAL:0 , 0, SCENARIO_NUMBER
+	IF IN == 99 && FLAG:周回数 == 1
+		RETURN 0
+	ENDIF
+	IF IN == SCENARIO_SELECT:(LOCAL:0)
+		SCENARIOID '= SCENARIO_ID:LOCAL
+		RETURN 1
+	ENDIF
+NEXT
+CLEARLINE 1
+GOTO INPUT_LOOP
+
+;-------------------------------------------------
+;勢力選択
+;-------------------------------------------------
+@SELECT_COUNTRY
+#DIM FIRST_LINE
+#DIM 選択勢力
+#DIM ボス
+
+CALL TMP_PREPARE_COUNTRY_STARS
+
+選択勢力 = 0
+FIRST_LINE = LINECOUNT
+$SHOW_LOOP
+
+CALL SINGLE_DRAWLINE
+PRINT ★★所属勢力選択★★
+PRINTPLAIN   
+PRINTBUTTON "98[観戦]", 98
+PRINTPLAIN   
+PRINTBUTTON "99[放浪]", 99
+IF GET_NEW_COUNTRY() != -1
+	PRINTPLAIN   
+	PRINTBUTTON "100[特殊]", 100
+	PRINTPLAIN   
+	PRINTBUTTON "101[旗揚げ]", 101
+ENDIF
+PRINTPLAIN   
+PRINTBUTTON "999[戻る]", 999
+PRINTL 
+CALL SINGLE_DRAWLINE
+CALL SET_CITY_COLOR_COUNTRY
+CALL DRAWMAP
+CALL RESET_CITY_COLOR
+CALL SINGLE_DRAWLINE
+
+ボス = ID_TO_CHARA(COUNTRY_BOSS:選択勢力)
+
+IF ボス < 0
+	PRINTL 都市をクリックすることで、その勢力の情報を得ることができます
+	PRINTL 
+ELSE
+	CALL ICPRINT(@"この都市は<%NAME_FORMAL(ボス)%>の勢力下にあります", "L", COUNTRY_COLOR:選択勢力)
+	;星表示
+	CALL SINGLE_DRAWLINE
+	PRINTFORM 難易度:
+	CALL TMP_PRINT_COUNTRY_DIFFICULTY(選択勢力)
+	PRINTL
+	;所属キャラ一覧表示
+	CALL SINGLE_DRAWLINE
+	PRINTFORML 都市数: {GET_OWN_CITY(選択勢力), 3, LEFT} 経済力: {GET_SUM_ECONOMY(選択勢力) / 100, 7, LEFT} 防衛力: {GET_SUM_GUARD(選択勢力), 7, LEFT}
+	PRINTFORM 所属キャラ:
+
+	;ボスだけ特殊表示
+	CALL COLORPRINT(@"%ANAME(ボス)%   ", COUNTRY_COLOR:選択勢力)
+	LOCAL:1 = STRLENS(LOCALS:0)
+
+	FOR LOCAL, 0, CHARANUM
+		SIF LOCAL == ボス || CFLAG:LOCAL:所属 != 選択勢力
+			CONTINUE
+		PRINTFORM %ANAME(LOCAL)%   
+	NEXT
+	PRINTL
+
+	;その勢力がプレイ可能か調べる。未定義なら全勢力プレイ可能とする
+	TRYCCALLFORM IS_COUNTRY_PLAYABLE_%SCENARIOID%(選択勢力)
+		IF !RESULT
+			CALL COLORPRINT(@"このシナリオでは、その勢力でプレイすることはできません", カラー_注意)
+		ELSE
+			PRINTBUTTON " 0[この勢力で開始]", 0
+			PRINTL
+		ENDIF
+	CATCH
+		PRINTBUTTON " 0[この勢力で開始]", 0
+		PRINTL
+	ENDCATCH
+ENDIF
+
+REDRAW 0
+
+$INPUT_LOOP
+INPUT
+
+IF RESULT == 0
+	IF ボス >= 0
+		TRYCCALLFORM IS_COUNTRY_PLAYABLE_%SCENARIOID%(選択勢力)
+			SIF RESULT
+				GOTO SELECTABLE
+			PRINTFORMW このシナリオでは、その勢力でプレイすることはできません
+		CATCH
+			$SELECTABLE
+			FLAG:OP選択勢力 = 選択勢力
+			PRINTFORMW %ANAME(ボス)%勢力で開始します
+			RETURN 1
+		ENDCATCH
+	ENDIF
+ELSEIF RESULT == 98
+	FLAG:OP選択勢力 = -1
+	FLAG:観戦モード = 1
+	TIME = 1
+	PRINTFORMW 観戦モードで開始します
+	RETURN 1
+ELSEIF RESULT == 99
+	FLAG:OP選択勢力 = 0
+	TIME = 1
+	PRINTFORMW 放浪状態から開始します
+	RETURN 1
+ELSEIF RESULT == 100 && GET_NEW_COUNTRY() != -1
+	FLAG:OP選択勢力 = -3
+	CALL SP_COUNTRY_START_SELECT()
+	IF RESULT == 0
+		FLAG:OP選択勢力 = 0
+		RETURN 0
+	ENDIF
+	RETURN 1
+ELSEIF RESULT == 101 && GET_NEW_COUNTRY() != -1
+	FLAG:OP選択勢力 = -4
+	PRINTFORMW 旗揚げして開始します
+	RETURN
+ELSEIF RESULT == 999
+	RETURN 0
+;都市をクリック
+ELSEIF RESULT >= 1000 && RESULT < 1000 + MAX_CITY
+	LOCAL:3 = RESULT - 1000
+	LOCAL:4 = CITY_OWNER:(LOCAL:3)
+	IF IS_COUNTRY(LOCAL:4)
+		選択勢力 = LOCAL:4
+		CLEARLINE LINECOUNT - FIRST_LINE
+		GOTO SHOW_LOOP
+	ELSEIF GET_RELAYNAME(LOCAL:3) != "無名" && LOCAL:4 == 0
+		選択勢力 = 0
+		CLEARLINE LINECOUNT - FIRST_LINE
+		GOTO SHOW_LOOP
+	ENDIF
+ENDIF
+CLEARLINE 1
+GOTO INPUT_LOOP
+
+;-------------------------------------------------
+;特殊勢力の選択
+;-------------------------------------------------
+@SP_COUNTRY_START_SELECT()
+#DIM FIRST_LINE
+PRINTFORMW 特殊な勢力で開始します
+PRINTFORMW どれで開始しますか？
+
+FOR LOCAL, 0, MAX_SP_COUNTRY
+	SIF SP_COUNTRY_NAME:LOCAL != ""
+		PRINTFORML [{LOCAL}] %SP_COUNTRY_NAME:LOCAL%
+NEXT
+CALL SINGLE_DRAWLINE
+PRINTFORML [999] 戻る
+
+$INPUT_LOOP2
+INPUT
+
+LOCAL = RESULT
+
+SIF LOCAL == 999
+	RETURN 0
+
+SIF SP_COUNTRY_NAME:LOCAL == ""
+	GOTO INPUT_LOOP2
+
+PRINTFORML どういう境遇でスタートしますか？
+CALL ASK_MULTI("士官(調教を受けない)", "奴隷(最初から合意もち)", "捕虜(無所属・捕虜からスタート)", "君主")
+SELECTCASE RESULT
+	CASE 0
+		PRINTFORMW 士官としてスタートします
+	CASE 1
+		PRINTFORMW 奴隷としてスタートします
+	CASE 2
+		PRINTFORMW 捕虜としてスタートします
+	CASE 3
+		PRINTFORMW 君主としてスタートします
+ENDSELECT
+
+SP_COUNTRY_START:LOCAL = RESULT + 1
+
+;この時点で設定していない（シナリオの初期設定時点で設定していない）なら決めておく
+IF SP_COUNTRY_RANK:LOCAL == 0
+	FIRST_LINE = LINECOUNT
+	$SHOW_LOOP
+	CALL SP_COUNTRY_START_SETTING(LOCAL)
+ENDIF
+
+RETURN 1
+
+
+;-------------------------------------------------
+;主人公選択
+;-------------------------------------------------
+@SELECT_MASTER
+#DIM 旧MASTERID
+#DIM 選択MASTERID
+#DIM 引継ぎ使用可
+#DIM FIRSTLINE
+VARSET LOCAL
+LOADGLOBAL
+
+;星評価を用意
+CALL TMP_PREPARE_CHARA_STARS()
+
+VARSET 旧MASTERID
+VARSET 選択MASTERID
+
+IF FLAG:周回数 > 1
+	旧MASTERID = GET_ID(MASTER)
+	;勢力君主でないか、君主でも自分が収める勢力でスタートするなら引き継いで利用できる。ただし特殊勢力素質がある場合は問答無用でNG
+	引継ぎ使用可 = (CFLAG:MASTER:所属 == FLAG:OP選択勢力 || GET_COUNTRY_BOSS(CFLAG:MASTER:所属) != MASTER) && TALENT:MASTER:特殊勢力素質 == 0
+ELSE
+	旧MASTERID = 0
+	引継ぎ使用可 = 1
+ENDIF
+
+FIRSTLINE = LINECOUNT
+$SHOW_LOOP
+
+CALL SINGLE_DRAWLINE
+PRINTL ★★主人公を選択して下さい★★
+
+SIF FLAG:OP選択勢力 <= 0
+	PRINTL ※特殊なスタートを選択しているので、既存キャラ一覧に君主以外の全キャラが表示されます
+;二週目以降で選択勢力と異なる勢力の君主の場合、前週と同じ選択をさせるとまずいので選択不可とする
+IF 旧MASTERID > 0 && !引継ぎ使用可
+	IF TALENT:MASTER:特殊勢力素質
+		CALL COLORPRINT("前の週で特殊勢力の固有キャラを利用したため、「前週と同じ」が利用できません", カラー_注意, "L")
+	ELSE
+		CALL COLORPRINT(@"※前周の主人公%ANAME(MASTER)%が別勢力で君主をしているため、「前週と同じ」が利用できません", カラー_注意, "L")
+	ENDIF
+ENDIF
+CALL SINGLE_DRAWLINE
+
+;ここから登録キャラの表示
+PRINTBUTTON "[あなたを新規作成]", 0
+PRINTFORM ※ 現在の「あなた」のデータをリセットします
+IF FLAG:あなた作成済み && MASTER != NAME_TO_CHARA("あなた")
+	PRINTL
+	PRINTBUTTON @"[%ANAME(NAME_TO_CHARA("あなた"))%を選択]", 2
+ENDIF
+IF FINDELEMENT(SP_COUNTRY_START, 特殊勢力スタート_君主) != -1
+	PRINTL
+	PRINTBUTTON "[特殊勢力の固有君主を利用]", 1
+	PRINTFORM ※次の周回時、引き続いて利用できません
+ENDIF
+;二週目以降で引継ぎが使用できるなら
+IF 旧MASTERID > 0 && 引継ぎ使用可
+	PRINTL
+	PRINTBUTTON @"[前週の主人公 %ANAME(MASTER)% でプレイ]", 98
+ENDIF
+
+PRINTL 
+CALL SINGLE_DRAWLINE
+PRINTBUTTON "[勢力所属の固有キャラを使用]", 99
+PRINTL 
+CALL SINGLE_DRAWLINE
+PRINTBUTTON "[戻る]", 9999
+PRINTL
+
+$INPUT_LOOP
+INPUT
+
+;新規作成
+IF RESULT == 0
+	LOCAL:1 = NAME_TO_CHARA("あなた")
+	CSTR:(LOCAL:1):0 = 
+	CSTR:(LOCAL:1):1 = あなた
+	CSTR:(LOCAL:1):98 = 
+	FOR LOCAL, 0, MAX_TAG
+		TAG:(LOCAL:1):LOCAL = -1
+	NEXT
+	CALL INITIALIZE_CHARA(LOCAL:1)
+	CALL MASTER_EDIT(LOCAL:1)
+	選択MASTERID = GET_ID(RESULT)
+	FLAG:あなた新規作成 = 1
+;固有君主利用
+ELSEIF RESULT == 1 && FINDELEMENT(SP_COUNTRY_START, 特殊勢力スタート_君主) != -1
+	SP_COUNTRY_START_CHANGE_BOSS = 0
+	SWAPCHARA MASTER, NAME_TO_CHARA("あなた")
+	RETURN 1
+ELSEIF RESULT == 2 && FLAG:あなた作成済み && MASTER != NAME_TO_CHARA("あなた")
+	選択MASTERID = GET_ID(NAME_TO_CHARA("あなた"))
+;前週と同じ
+ELSEIF RESULT == 98 && 旧MASTERID > 0
+	IF !引継ぎ使用可
+		PRINTFORMW 前周の主人公が、選択した勢力以外の勢力の君主です。「前週と同じ」は利用できません
+		CLEARLINE LINECOUNT - FIRSTLINE
+		GOTO SHOW_LOOP
+	ENDIF
+	選択MASTERID = GET_ID(MASTER)
+ELSEIF RESULT == 9999
+	RETURN 0
+;既存のキャラを選択
+ELSE
+	CALL SINGLE_DRAWLINE()
+	CALL SELECT_CHARA_LIST_ONLY_LOGIC_SLG("SELECT_MASTER", "NONE")
+	選択MASTERID = GET_ID(RESULT)
+ENDIF
+
+
+CALL TMP_PREPARE_CHARA_STARS()
+
+CALL SINGLE_DRAWLINE
+CALL SHOW_INFO(ID_TO_CHARA(選択MASTERID))
+CALL SINGLE_DRAWLINE
+
+PRINTBUTTON " [このキャラを主人公にして開始]", 0
+PRINTL 
+PRINTBUTTON " [戻る]", 9
+PRINTL 
+
+REDRAW 0
+
+$INPUT_LOOP2
+INPUT
+
+;
+SELECTCASE RESULT
+	;このキャラを主人公にする
+	CASE 0
+		SIF FLAG:あなた新規作成
+			FLAG:あなた作成済み = 1
+		REDRAW 1
+		;二週目以降なら、MASTERと「あなた」を入れ替えて元に戻す
+		;MASTERが「あなた」以外だと、並びがぐちゃぐちゃになってしまうので（IDの仕組みがあるし問題ないと思うけど）
+		IF 旧MASTERID > 0
+			SWAPCHARA MASTER, NAME_TO_CHARA("あなた")
+			CALL NEWGAME_SWAP_RELATIONS(ID_TO_CHARA(旧MASTERID))
+		ENDIF
+		;MASTERと選択したMASTERを入れ替える
+		SWAPCHARA MASTER, ID_TO_CHARA(選択MASTERID)
+		CALL NEWGAME_SWAP_RELATIONS(ID_TO_CHARA(選択MASTERID))
+
+		;主人公の所属を選択した勢力にする
+		;既存勢力以外のスタートを選んでいる場合はとりあえず0にしておく
+		CALL CHANGE_COUNTRY(MASTER, MAX(FLAG:OP選択勢力, 0), 1)
+		;放浪する可能性があるのでへし折る
+		CFLAG:MASTER:特殊状態 = 0
+
+		;体力気力精神力の現在値を最大値に変更
+		FOR LOCAL:2, 0, VARSIZE("BASE")
+			BASE:MASTER:(LOCAL:2) = MAXBASE:MASTER:(LOCAL:2)
+		NEXT
+
+		;性知識の設定
+		IF ABL:MASTER:性知識 < 5
+			PRINTFORML 現在、%ANAME(MASTER)%の性知識は{ABL:MASTER:性知識}です
+			PRINTFORML Lv5(最大)未満の場合、一部のウフフコマンドの実行に制限が掛かります
+			PRINTFORML 後から上げられますが手間なので、ここで最大にしておきますか？　
+			CALL ASK_YN()
+			IF RESULT == 0
+				ABL:MASTER:性知識 = 5
+				PRINTFORMW %ANAME(MASTER)%の性知識をLv5にしました
+			ENDIF
+		ENDIF
+		SIF FINDELEMENT(SP_COUNTRY_START, 特殊勢力スタート_君主) != -1
+			SP_COUNTRY_START_CHANGE_BOSS = 1
+		RETURN 1
+	;戻る
+	CASE 9
+		CLEARLINE LINECOUNT - FIRSTLINE
+		GOTO SHOW_LOOP
+ENDSELECT
+CLEARLINE 1
+GOTO INPUT_LOOP2
+
+
+@SELECT_CHARA_LIST_SHOW_LOGIC_SELECT_MASTER(対象)
+#DIM 対象
+;固定キャラでないなら弾く
+SIF !IS_FIXED_CHARA(対象)
+	RETURN 0
+;どこかの勢力を選択した場合は、そこ所属のキャラ以外は弾く。
+SIF FLAG:OP選択勢力 > 0 && CFLAG:対象:所属 != FLAG:OP選択勢力
+	RETURN 0
+;特殊なスタートを選択した場合、君主は弾く。
+SIF FLAG:OP選択勢力 <= 0 && GET_COUNTRY_BOSS(CFLAG:対象:所属) == 対象
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;主人公選択時、そのキャラが選択できるか
+;-------------------------------------------------
+@SELECT_MASTER_CAN_SELECT(対象)
+#FUNCTION
+#DIM 対象
+
+;-------------------------------------------------
+;君主である固定キャラ使用時に、他勢力との関係をMASTERに移しておく関数
+;SWAP_CHARAと併用する
+;ARG:0 = 交換対象
+;-------------------------------------------------
+@NEWGAME_SWAP_RELATIONS(ARG:0)
+#DIM REL_LIKE_COPY,1
+#DIM REL_HATE_COPY,1
+FOR LOCAL, 0, 1000
+	REL_LIKE_COPY = REL_LIKE:(ARG:0):LOCAL
+	REL_HATE_COPY = REL_HATE:(ARG:0):LOCAL
+	REL_LIKE:(ARG:0):LOCAL = REL_LIKE:MASTER:LOCAL
+	REL_HATE:(ARG:0):LOCAL = REL_HATE:MASTER:LOCAL
+	REL_LIKE:MASTER:LOCAL = REL_LIKE_COPY
+	REL_HATE:MASTER:LOCAL = REL_HATE_COPY
+NEXT
+FOR LOCAL, 0, CHARANUM
+	REL_LIKE_COPY = REL_LIKE:(LOCAL):MASTER
+	REL_HATE_COPY = REL_HATE:(LOCAL):MASTER
+	REL_LIKE:(LOCAL):MASTER = REL_LIKE:(LOCAL):(ARG:0)
+	REL_HATE:(LOCAL):MASTER = REL_HATE:(LOCAL):(ARG:0)
+	REL_LIKE:(LOCAL):(ARG:0) = REL_LIKE_COPY
+	REL_HATE:(LOCAL):(ARG:0) = REL_HATE_COPY
+NEXT
+
+
+;-------------------------------------------------
+;旗揚げスタート時用、勢力の設定
+;-------------------------------------------------
+@START_WITH_NEW_COUNTRY
+#DIM FIRST_LINE
+#DIM 勢力
+#DIM 都市
+#DIM 対象
+#DIM 消去行
+#DIM 士官, 3000
+勢力 = GET_NEW_COUNTRY()
+
+CALL SINGLE_DRAWLINE
+CALL SET_CITY_COLOR_COUNTRY
+CALL SET_CITY_COLOR_UNIT
+CALL DRAWMAP
+CALL RESET_CITY_COLOR
+CALL SINGLE_DRAWLINE
+PRINTL 旗揚げする都市を選択してください
+PRINTL 無所属な（白っぽい色の）都市のみ指定可能です
+CALL SINGLE_DRAWLINE
+PRINTL 
+
+
+$INPUT_LOOP_CITY
+INPUT
+
+IF RESULT >= 1001 && RESULT <= 1001 + CITY_NUM
+	LOCAL:5 = RESULT - 1000
+	;指定された都市が存在し、無所属である場合
+	IF GET_RELAYNAME(LOCAL:5) != "無名" && CITY_TYPE:(LOCAL:5) == 0 && CITY_OWNER:(LOCAL:5) == 0
+		REDRAW 1
+		PRINTFORMW %GET_RELAYNAME(LOCAL:5)%で旗揚げします
+		都市 = LOCAL:5
+	ELSE
+		CLEARLINE 1
+		GOTO INPUT_LOOP_CITY
+	ENDIF
+ELSE
+	CLEARLINE 1
+	GOTO INPUT_LOOP_CITY
+ENDIF
+
+CALL SINGLE_DRAWLINE
+PRINTL 自勢力の士官として加えるキャラを4名まで選択できます
+PRINTL なお、君主は選択できません
+CALL SINGLE_DRAWLINE
+CALL SELECT_CHARA_LIST_MULTI_ONLY_LOGIC_SLG(4, "START_WITH_NEW_COUNTRY", "NONE")
+
+FLAG:OP選択勢力 = 勢力
+CITY_OWNER:都市 = 勢力
+COUNTRY_BOSS:勢力 = GET_ID(MASTER)
+COUNTRY_COLOR:勢力 = TALENT:MASTER:髪色 == 0 ? 0x404040 # TALENT:MASTER:髪色
+;経済規模に対する最大兵数の半分を得る
+COUNTRY_SOLDIER:勢力 = GET_SUM_ECONOMY(勢力) / 20
+CITY_SOLDIER:都市 = 500
+CALL CHANGE_COUNTRY(MASTER, 勢力, 1)
+FOR LOCAL, 0, SELECTED_CHARA_NUM
+	CALL CHANGE_COUNTRY(SELECTED_CHARA:LOCAL, 勢力, 1)
+NEXT
+REDRAW 1
+RETURN
+
+;-------------------------------------------------
+;旗揚げスタート時用、SELECT_CHARA_LIST_MULTIの表示ロジック
+;君主と「あなた」と主人公以外の固定キャラ
+;-------------------------------------------------
+@SELECT_CHARA_LIST_SHOW_LOGIC_START_WITH_NEW_COUNTRY(対象)
+#DIM 対象
+RETURN GET_COUNTRY_BOSS(CFLAG:対象:所属) != 対象 && IS_FIXED_CHARA(対象) && 対象 != NAME_TO_CHARA("あなた") && 対象 != MASTER
+;-------------------------------------------------
+;「あなた」を新規に作成した場合のボーナス
+;-------------------------------------------------
+@NEWLOOP_ANATA_BONUS
+#DIM FIRST_LINE
+#DIM 選択ボーナス
+FIRST_LINE = LINECOUNT
+CALL SINGLE_DRAWLINE
+CALL COLORPRINT("あなた新規作成ボーナス！", カラー_注意, "L")
+PRINTFORML 「あなた」を新規に作成して主人公にしたので、ボーナスがもらえます
+PRINTFORML どれにしますか？(どれも後から手に入ります)
+
+CALL ASK_MULTI("素質【酒豪】", "素質【天の御遣い】", "素質【君主の器】", "素質【求心力】", "素質【妖術知識】と妖術ステータス10", "素質【技師】", "スキル【超成長力】", "素質【絶倫】", "金100000", "アイテム【催眠術】", "いらない")
+選択ボーナス = RESULT
+SELECTCASE 選択ボーナス
+	CASE 0
+		PRINTFORML 酒に非常に強くなる素質「酒豪」にしますか？
+		PRINTFORML (通常取得には大量の飲酒が必要なため、かかる金と手間はボーナス中でも随一です)
+	CASE 1
+		PRINTFORML 好感度を得やすくなる素質「天の御遣い」にしますか？
+		PRINTFORML (恋慕させるルートに入りやすくなります)
+	CASE 2
+		PRINTFORML 従属度を得やすくなる素質「君主の器」にしますか？
+		PRINTFORML (屈服させるルートに入りやすくなります)
+	CASE 3
+		PRINTFORML 依存度を得やすくなる素質「求心力」にしますか？
+		PRINTFORML (恋慕・従属どちらのルートでも必要な値なので便利です)
+	CASE 4
+		PRINTFORML 触手が扱えるようになる素質「妖術知識」と、ＳＬＧステータス「妖術」10のセットにしますか？
+		PRINTFORML (妖術知識取得自体は安価ですが、妖術はとても鍛えにくいので10でも貴重です）
+	CASE 5
+		PRINTFORML アイテム開発が早くなり、効果が高まる素質「技師」にしますか？
+		PRINTFORML (多くのアイテムは開発→購入というプロセスを経るので、持っておくと便利です)
+	CASE 6
+		PRINTFORML ＳＬＧステータスの成長が速くなり、毎ターン経験値が入るスキル「超成長力」にしますか？
+		PRINTFORML （育成が目に見えて楽になるので、ひとかどの武将・知将になりたいならぜひ欲しいスキルです）
+	CASE 7
+		PRINTFORML 調教による体力・気力の減少が非常に少なくなる素質「絶倫」にしますか？
+		PRINTFORML （調教による体力気力消費が激しめなので、あるとかなり便利です）
+	CASE 8
+		PRINTFORML 金は力。金10万にしますか？
+		PRINTFORML （士官の雇用、兵の雇用、アイテム購入に訓練……金はいくらあっても足りません)
+		PRINTFORML （序盤にこれだけの額があれば、士官をかき集めるには十分でしょう）
+	CASE 9
+		PRINTFORML 発動することでコマンド実行判定にボーナスのかかる「催眠術」を習得しますか？
+		PRINTFORML （購入までの前提条件が多く、最も取得の面倒なアイテムの一つです）
+		PRINTFORML （練習が必要ですが、十分に鍛わるとたいていのキャラに容易に好き放題できるようになります）
+	CASE 10
+		PRINTFORML マジで……？
+		PRINTFORML (実はあとから別のボーナス！　とかマジでないです)
+		PRINTFORML (縛りプレイ用。きみはもの好きなのか？)
+ENDSELECT
+
+CALL ASK_YN
+
+IF RESULT == 1
+	CLEARLINE LINECOUNT - FIRST_LINE
+	RESTART
+ENDIF
+
+SELECTCASE 選択ボーナス
+	CASE 0
+		TALENT:MASTER:酒豪 = 1
+	CASE 1
+		TALENT:MASTER:天の御遣い = 1
+	CASE 2
+		TALENT:MASTER:君主の器 = 1
+	CASE 3
+		TALENT:MASTER:求心力 = 1
+	CASE 4
+		TALENT:MASTER:妖術知識 = 1
+		ABL:MASTER:妖術 = 10
+	CASE 5
+		TALENT:MASTER:技師 = 1
+	CASE 6
+		CALL LEARN_SKILL_GENERAL_BY_NAME(MASTER, "超成長力")
+	CASE 7
+		TALENT:MASTER:絶倫 = 1
+	CASE 8
+		MONEY += 100000
+	CASE 9
+		ITEM:GETNUM(ITEM, "催眠術") = 1
+	CASE 10
+ENDSELECT
+
+;-------------------------------------------------
+;ランダムキャラを使用するかどうか選択
+;-------------------------------------------------
+@SELECT_RCHARA
+IF FLAG:OPランダムキャラ使用 == -1
+	FLAG:ランダムキャラ使用 = 0
+ELSEIF FLAG:OPランダムキャラ使用 == 1
+	FLAG:ランダムキャラ使用 = 1
+ELSE
+	CALL SINGLE_DRAWLINE
+	PRINTFORML このシナリオではランダムキャラを使用できます
+	PRINTFORML ランダムキャラを使用しますか？
+	CALL ASK_YN
+	IF RESULT == 0
+		FLAG:ランダムキャラ使用 = 1
+	ELSE
+		FLAG:ランダムキャラ使用 = 0
+	ENDIF
+ENDIF
+
+;-------------------------------------------------
+;キャラエディット
+;-------------------------------------------------
+@CHARA_EDIT
+#DIM FIRST_LINE
+CALL SINGLE_DRAWLINE
+PRINTFORML キャラをエディットすることができます
+PRINTFORML エディットしますか？（注意！　動作保証外になります）
+CALL ASK_YN()
+
+SIF RESULT == 1
+	RETURN
+
+FIRST_LINE = LINECOUNT
+
+$SHOW_LOOP
+
+CALL SINGLE_DRAWLINE
+PRINTFORML 気が済んだら「やっぱりやめる」を選択してください
+CALL SINGLE_DRAWLINE
+CALL SELECT_CHARA_LIST("NONE", "NONE")
+SIF RESULT == -1
+	RETURN
+LOCAL = RESULT
+CALL REVERSE_APPLY_CUSTOM_DATA(MAX_CUSTOM_CHARA - 1, LOCAL)
+CALL CREATE_CUSTOM(MAX_CUSTOM_CHARA - 1, 1)
+SIF RESULT == 1
+	CALL APPLY_CUSTOM_DATA(LOCAL, MAX_CUSTOM_CHARA - 1)
+CLEARLINE LINECOUNT - FIRST_LINE
+GOTO SHOW_LOOP
