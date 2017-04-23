@@ -1,0 +1,117 @@
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@KOJO_DAILY_K27_LUCKY_ENDING_RATE(対象)
+#DIM 対象
+RETURN 150
+
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@KOJO_DAILY_K27_LUCKY_ENDING_DECISION(対象)
+#DIM 対象
+
+SIF GROUPMATCH(MASTER, NAME_TO_CHARA("鈴仙"), NAME_TO_CHARA("永琳"), NAME_TO_CHARA("輝夜"))
+	RETURN 0
+
+SIF KDVAR:対象:てゐ_ラッキー == -1
+	RETURN 0
+
+SIF KDVAR:対象:てゐ_ラッキー * 10 < RAND:100
+	RETURN 0
+
+RETURN CHECK_KOJO_DAILY_HAPPEN(対象, 0, 0, 0)
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@KOJO_DAILY_K27_LUCKY_ENDING_GENRE(対象)
+#DIM 対象
+RETURN デイリー_ジャンル_その他
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@KOJO_DAILY_K27_LUCKY_ENDING(対象)
+#DIM 対象
+
+KDVAR:対象:てゐ_ラッキー = -1
+
+CALL KOJO_DAILY_START
+PRINTFORMW 竹林を歩いていると、誰かにつけられているのを感じた……
+PRINTFORMW 曲者め！　と%ANAME(MASTER)%が近くの草むらへ石を投げつけると、ふぎゃっと声が聞こえてきた
+PRINTFORMW ……見れば、%ANAME(対象)%ではないか！
+PRINTFORMW 「いちち……何すんのさ」
+PRINTFORML 何といわれても、そっちこそ何をしているのか
+PRINTFORMW 尋ねると、%PRONOUN(対象)%はニヤリと不敵に笑う
+PRINTFORMW 「いやさ、方向感覚って案外簡単になくなるんだよねぇ」
+PRINTFORMW 「特に、以前あった目印が実はズレてたり、いつもの獣道が実は別のだったり」
+PRINTFORMW 「そういうことをしてやると、人ってのは簡単に迷っちゃうもんなわけ」
+PRINTFORMW 「で、そこで迷ったところに、先回りしてた私が登場」
+PRINTFORMW 「善良な私は小銭をちょうだいしつつ、迷い人を竹林の外まで送り届けると……まぁそういう次第で」
+PRINTFORMW 「尾行がバレるとは思ってなかったけどねー。私もヤキが回ったかなぁ」
+PRINTFORMW %ANAME(対象)%は悪びれずに言う。今までのはマッチポンプだったということだ
+PRINTFORMW %ANAME(MASTER)%自身は小銭をとられた程度ではあるが、同じ手口で何人も無駄金を払わされていることだろう
+PRINTFORML どうしたものか……
+PRINTFORML
+CALL ASK_MULTI_JUDGE("無罪放免", 1, "引っ捕らえる", GET_COUNTRY_BOSS(CFLAG:対象:所属) != 対象, "売上をよこせ", 1, "なんか教えて", 1, "犯す", IS_MALE(MASTER))
+
+SELECTCASE RESULT
+	CASE 0
+		PRINTFORMW 「え？　マジで？　あんたお人好しだねぇ」
+		PRINTFORMW 「じゃ、私はこれで。じゃーね」
+		PRINTFORMW 詐欺というにも可愛らしいようなやり口だ。咎めるほどのこともあるまい
+		PRINTFORMW 放してやると、%ANAME(対象)%はすたこらと駆け出していった……
+		CFLAG:対象:好感度 += 300
+	CASE 1
+		PRINTFORMW 「やれやれ、まぁそうなるよね」
+		PRINTFORMW 「参っちゃったなー」
+		PRINTFORMW 詐欺というにもセコい手口だが、罪は罪だ
+		PRINTFORMW %ANAME(対象)%に縄をかけると、牢獄まで連行した……
+		CALL CAPTURE(対象, CFLAG:MASTER:所属)
+	CASE 2
+		PRINTFORMW 「えー、半分くらいで勘弁してくれるとありがたいんだけど」
+		PRINTFORMW 「ダメ？　じゃあ三分の二で……」
+		PRINTFORMW 本当に賢いものというのは、労せずして結果だけ得るのだ
+		PRINTFORMW そういうわけで、%ANAME(対象)%が稼いできた金をせしめた……
+		CALL COLORPRINT("金10000を得た", カラー_注意, "W")
+		MONEY += 10000
+	CASE 3
+		PRINTFORMW 「なんかって何さ……んー、そうだなぁ」
+		PRINTFORMW 「私が教えられるのっていったら、ずる賢さと逃げ足だけど、それでいいなら」
+		PRINTFORMW %ANAME(対象)%に教えを請うた……
+		CALL PRINT_ADD_EXP(MASTER, "知略経験値", 15, 1)
+		CALL TRAIN_AUTO_ABLUP(MASTER)
+		CALL SKILL_LEARN_BY_NAME(MASTER, スキル_ジャンル_ESCAPE, NO:対象, "狡兎三窟")
+		SIF RESULT
+			CALL COLORPRINT(@"%ANAME(MASTER)%はスキル「狡兎三窟」を習得した！", カラー_注意, "W")
+		PRINTFORMW 「じゃ、私はこれで。じゃーね」
+		PRINTFORMW %ANAME(対象)%はすたこらと駆け出していった……
+	CASE 4
+		PRINTFORMW 「は？　私みたいなちんちくりん相手に、あんた正気……ちょ！　やめっ、脱がすなバカ！」
+		PRINTFORMW 悪いことをしたら罰が当たる。きちんと教えてやらねばなるまい
+		PRINTFORMW %ANAME(MASTER)%は%ANAME(対象)%の衣服を剥ぎ取った……
+		PRINTFORML
+		CALL FUCK_RAPE(対象, GET_ID(MASTER), @"%ANAME(MASTER)%のペニス", @"%ANAME(MASTER)%")
+		PRINTFORML
+		PRINTFORMW 「はひ、ひぃっ、ひぃ……♥」
+		PRINTFORMW 「もう、やぁ、かんべんしてぇ……っ」
+		PRINTFORML 体格の小ささから想像はついたが、あまり体力のあるほうではないらしい
+		PRINTFORMW 最初は抵抗していたものの、あっという間にしおらしくなった
+		PRINTFORMW もう悪いことをするなよ、と強めに言うと、%ANAME(対象)%は力なく頷いた……
+		CFLAG:対象:従属度 += 1000
+		CFLAG:対象:依存度 += 300
+		TALENT:対象:チョロイン = 1
+		TALENT:対象:素直 = 1
+		TALENT:対象:プライド低い = 1
+		TALENT:対象:生意気 = 0
+ENDSELECT
+
+RETURN 1

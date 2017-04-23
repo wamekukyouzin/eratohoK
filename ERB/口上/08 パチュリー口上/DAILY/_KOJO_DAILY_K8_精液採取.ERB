@@ -1,0 +1,161 @@
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@KOJO_DAILY_K8_GATHER_SPERM_RATE(対象)
+#DIM 対象
+RETURN 50
+
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@KOJO_DAILY_K8_GATHER_SPERM_DECISION(対象)
+#DIM 対象
+RETURN CHECK_KOJO_DAILY_HAPPEN(対象, 1, 0) && IS_MALE(MASTER) && CFLAG:対象:好感度 >= 1000
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@KOJO_DAILY_K8_GATHER_SPERM_GENRE(対象)
+#DIM 対象
+RETURN デイリー_ジャンル_エロ
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@KOJO_DAILY_K8_GATHER_SPERM(対象)
+#DIM 対象
+
+IF IS_SLAVE(対象)
+	LOCALS:0 = ご主人様
+ELSE
+	LOCALS:0 = %ANAME(MASTER)%
+ENDIF
+
+CALL KOJO_DAILY_START()
+PRINTFORML %ANAME(MASTER)%が仕事をしていると、%ANAME(対象)%が訪ねてきた
+IF KDVAR:対象:パチュリー_精液採取 == 0
+	PRINTFORML 「ねえ、折り入ってお願いがあるのだけど」
+	PRINTFORML 「ちょっと人払いをして、話せるかしら？」
+	PRINTFORML
+	CALL ASK_YN("構わない", "今は忙しい")
+	IF RESULT == 1
+		PRINTFORMW 「……そう」
+		PRINTFORMW 「なら構わないわ。また今度」
+		PRINTFORMW 対象は立ち去った……
+		RETURN 1
+	ELSE
+		PRINTFORML 別に構わない……
+		PRINTFORMW %ANAME(MASTER)%は部下達を下がらせ、%ANAME(対象)%と二人きりになった
+		PRINTFORMW 「……ありがとう。それでその話っていうのが……そうね、どう言えばいいかしら」
+		PRINTFORMW 「実は、その……なんというか、言いにくい話なのだけど」
+		PRINTFORMW やけに歯切れの悪い様子を見せながら、%ANAME(対象)%はぽつりと呟く
+		PRINTFORML
+		PRINTFORMW 「……精液を、もらえないかしら」
+		PRINTFORML
+		PRINTFORML ぽかんとする%ANAME(MASTER)%を見、言い訳するように、%ANAME(対象)%はまくしたてる
+		PRINTFORMW 「いや、違うわよ。変なことに使うわけじゃないわ」
+		PRINTFORMW 「でも、魔法の実験のために必要なの」
+		PRINTFORMW 「それでその……そういうことを頼めそうな知り合いが、%LOCALS:0%しかいなかったから」
+		PRINTFORMW 「私だって、こんな間抜けなことを他人に頼む日が来ようとは思ってなかったけど……」
+		PRINTFORML
+		PRINTFORMW 「もちろんただでとは言わないわ。提供してくれたサンプルの量に応じて、報酬は払う」
+		PRINTFORMW 「それに、まぁ……手伝ってあげないでもないわ」
+		PRINTFORMW 「でも、嫌だというなら構わないわ。そもそもが無茶なお願いだしね」
+		PRINTFORMW 「私としては、実験ができるとありがたいのだけど。考えてもらえるかしら？」
+		PRINTFORML なるほど、どうやらからかわれているのではなく、本当に精液が必要なようだ
+		PRINTFORML ずいぶんとんでもない話だが、困っているのなら手伝ってやるべきだろうか……
+	ENDIF
+ELSE
+	PRINTFORML 「……ありがとう、実はその、また精液が必要になったの」
+	PRINTFORML 「手伝ってもらえるかしら？
+ENDIF
+PRINTL
+CALL ASK_YN("手伝う", "忙しいから……")
+IF RESULT == 1
+	PRINTFORMW 「……そう。それなら仕方ないわ」
+	PRINTFORMW 「そこらの男で……というのも気分が悪いし、別の触媒を探すことにするわ」
+	PRINTFORMW 「変な話をしてごめんなさいね」
+	PRINTFORMW %ANAME(対象)%は立ち去った……
+	KDVAR:対象:パチュリー_精液採取 = 2
+ELSE
+	PRINTFORMW 「……そう。ありがとう」
+	CFLAG:対象:好感度 += 100
+	;全員の調教参加フラグをクリア
+	CVARSET CFLAG, 6, 0
+	CFLAG:対象:調教参加フラグ = 1
+	CFLAG:対象:調教中帰らない = 1
+	BASE:対象:体力 = MAXBASE:対象:体力
+	BASE:対象:気力 = MAXBASE:対象:気力
+	;ターンエンド調教をオン
+	FLAG:ターンエンド調教 = 1
+	;それ以降のデイリーイベント発生を潰す
+	DAILY_CANCEL = 1
+	;フラグ
+	KDVAR:対象:パチュリー_精液採取 = 1
+	KDVAR:対象:パチュリー_精液採取_調教中 = 1
+	CALL ADD_EVENTTRAIN_CALLEE("KOJO_DAILY_K8_GATHER_SPERM")
+	CALL ADD_EVENTEND_CALLEE("KOJO_DAILY_K8_GATHER_SPERM")
+	CALL SINGLE_DRAWLINE
+	PRINTFORML
+ENDIF
+
+RETURN 1
+
+
+@EVENTTRAIN_KOJO_DAILY_K8_GATHER_SPERM
+PRINTFORMW 「それじゃあ、申し訳ないけれどお願いするわ」
+PRINTFORMW 「……といっても、無理は禁物よ？　あんまり量をとっても使い切れないし」
+PRINTFORMW 「出せる程度に出してもらえたら、それでいいから」
+PRINTFORMW 「だからまぁ、その、……お手柔らかにね」
+
+@EVENTEND_KOJO_DAILY_K8_GATHER_SPERM
+#DIM 対象
+#DIM 報酬
+対象 = NAME_TO_CHARA("対象")
+報酬 = MIN(KDVAR:対象:パチュリー_精液採取量 * 100, 10000)
+
+PRINTFORMW 「……ふぅ。こんなものかしら」
+PRINTFORM 「今回の採取量は
+CALL COLORPRINT(@"{KDVAR:対象:パチュリー_精液採取量}", カラー_注意)
+PRINTFORMW ね」
+SELECTCASE KDVAR:対象:パチュリー_精液採取量
+	CASE 0
+		PRINTFORMW 「……って、一回も射精してないじゃない……」
+		PRINTFORMW 「引き受けたからには、それなりに協力してもらいたいものね」
+		PRINTFORMW 「……それとも、私とするのはきもちよくなかった？」
+	CASE IS <= 5
+		PRINTFORMW 「……もう少し提供してもらわないと、足りないのだけど……」
+		PRINTFORMW 「まあ、手伝ってもらってる身で偉そうなことは言えないわね」
+	CASE IS <= 15
+		PRINTFORMW 「まあ、こんなところかしらね」
+		PRINTFORMW 「これだけの量があれば、実験に事欠くことはないわ」
+	CASE IS <= 25
+		PRINTFORMW 「……ずいぶん出したのね、……きもちよかった？」
+		PRINTFORMW 「多すぎても使い切れないし、保存の効くものでもないから、無駄にしてしまうかもしれないけど」
+		PRINTFORMW 「まあ……きもちよくなってくれたのなら、いいけど」
+	CASEELSE
+		PRINTFORMW 「その……提供してくれって言った身でなんだけど」
+		PRINTFORMW 「身体に異常はない？　こんな大量に射精したら、命に関わりそうなものだけど……」
+		PRINTFORMW 「無茶はしないでよ？　倒れられたりしたら、夢見が悪いわ」
+ENDSELECT
+IF KDVAR:対象:パチュリー_精液採取量 > 0
+	PRINTFORM 「それじゃ、これ、報酬の金
+	CALL COLORPRINT(@"{報酬}", カラー_注意)
+	PRINTFORMW ね」
+	PRINTFORMW 「今後もよろしくお願いするわ……」
+	PRINTFORMW 対象は早々に服を着替え、採取した精液を詰めた瓶片手に研究室へと向かっていった……
+ELSE
+	PRINTFORMW 「ともかく、これじゃ報酬は渡せないわ」
+	PRINTFORMW 「……はあ。しかたない、他の触媒を探すしかないわね……」
+	PRINTFORMW 対象は早々に服を着替え、研究室へと向かっていった……
+ENDIF
+MONEY += 報酬
+KDVAR:対象:パチュリー_精液採取_調教中 = 0
+KDVAR:対象:パチュリー_精液採取量 = 0

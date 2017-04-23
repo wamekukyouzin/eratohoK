@@ -1,0 +1,175 @@
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@KOJO_DAILY_K10_INVITATION_FROM_REMILLIA_RATE(対象)
+#DIM 対象
+RETURN 50
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@KOJO_DAILY_K10_INVITATION_FROM_REMILLIA_DECISION(対象)
+#DIM 対象
+#DIM 紅魔館
+紅魔館 = GET_CITYNUMBER("紅魔館")
+
+;対象と別勢力で、捕虜でなく、面識もない 5%
+SIF CFLAG:対象:特殊状態 == 2
+	RETURN 0
+
+;一回きり
+SIF KDVAR:対象:レミリア_レミリアからの勧誘
+	RETURN 0
+
+;主人公は男であること
+SIF !IS_MALE(MASTER)
+	RETURN 0
+
+;対象が君主であり、主人公が君主でない
+SIF GET_COUNTRY_BOSS(CFLAG:対象:所属) != 対象 || GET_COUNTRY_BOSS(CFLAG:MASTER:所属) == MASTER
+	RETURN 0
+
+SIF 紅魔館 == -1
+	RETURN 0
+
+RETURN CHECK_KOJO_DAILY_HAPPEN(対象, 0, 0, 0)
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@KOJO_DAILY_K10_INVITATION_FROM_REMILLIA_GENRE(対象)
+#DIM 対象
+RETURN デイリー_ジャンル_エロ
+
+;---------------------
+;特定の条件を満たすキャラをランダムに選択する場合に利用
+;他の関数は必須だが、これだけはなくてもよい　というかパフォーマンスへ影響するので不要なら作ってはならない
+;対象が存在せずデイリーを開始できない場合は0を返すことでデイリーの発生をキャンセルする
+;---------------------
+@KOJO_DAILY_K10_INVITATION_FROM_REMILLIA_SETTARGET(対象)
+#DIM 対象
+FOR LOCAL, 0, CHARANUM
+
+NEXT
+RETURN 1
+
+;---------------------
+;イベントの進行度合いに応じてイベント名を変更したい場合に利用
+;変更する必要がない場合、この関数は不要
+;---------------------
+@KOJO_DAILY_K10_INVITATION_FROM_REMILLIA_NAME(対象)
+#DIM 対象
+RESULTS = ""
+
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@KOJO_DAILY_K10_INVITATION_FROM_REMILLIA(対象)
+#DIM 対象
+#DIM 紅魔館
+紅魔館 = GET_CITYNUMBER("紅魔館")
+RETURN 1
+
+
+;------------------------------------
+;レミリアからの勧誘
+;-----------------------------------
+@KOJO_DAILY_K10_INVITATION_FROM_REMILLIA
+#DIM ボス
+#DIM 対象
+#DIM 紅魔館
+
+紅魔館 = GET_CITYNUMBER("紅魔館")
+ボス = GET_COUNTRY_BOSS(CFLAG:MASTER:所属)
+
+CALL KOJO_DAILY_START()
+
+PRINTFORML %ANAME(MASTER)%が仕事をしていると、部下が手紙を持ってきた
+PRINTFORM 差出人は
+CALL COLORPRINT(@"%NAME_FORMAL(対象)%", カラー_注意)
+PRINTFORMW 。強力な吸血鬼として聞いたことがあるが、面識はないはずだ
+PRINTFORMW 何の用だろうと思って読んでみると、パーティの誘いだった
+PRINTFORML 君主ならまだしも、自分のような一介の士官を招いてどうするつもりだろう……
+PRINTFORML 疑問でしかないが、紅魔館といえば立派なお屋敷だと聞くし、そこでのパーティといえば各勢力の有力者たちがそろい踏みとなるだろう
+PRINTFORMW 出席して顔を売っておくのもいいかもしれない……
+PRINTFORML さて、どうしようか……
+PRINTFORML
+CALL ASK_YN("出席する", "やめておく")
+IF RESULT == 1
+	PRINTFORML お偉方の遊びに付き合ってやる必要もあるまい
+	PRINTFORML そう考えた%ANAME(MASTER)%は、欠席にマルを付けて返事を出した……
+	KDVAR:対象:レミリア_レミリアからの勧誘 = 1
+	RETURN 0
+ENDIF
+PRINTFORML 折角誘われたのだ。行ってみるのも悪くないだろう……
+PRINTFORML ・
+PRINTFORML ・
+PRINTFORML ・
+PRINTFORML 紅魔館とやらは、噂に聞く以上に赤く、そして大きかった
+PRINTFORMW 驚いたのは、その外見以上に中が広々としていたことだ。一体どういう仕組みなのだろう
+PRINTFORML それはともかく、パーティはなかなかの賑わいを見せていた
+PRINTFORMW 有力者の集いかと思いきや、案外見境なく声をかけていたらしく、妖精まで紛れ込んでいたが……
+PRINTFORMW 「紅魔館へようこそ、客人。楽しんでくれているかしら？」
+PRINTFORML 一人で酒を楽しんでいると、声をかけられる。青い髪に赤い瞳。背中には蝙蝠の翼。
+PRINTFORMW 噂に聞く%NAME_FORMAL(対象)%その人だった
+PRINTFORMW 挨拶しようとすると、彼女はそれを止める
+PRINTFORMW 「堅苦しい挨拶は抜きよ。それより少しお話ししましょう。ついてらっしゃい」
+PRINTFORML %ANAME(MASTER)%は%ANAME(対象)%に手を引かれ、バルコニーへと連れ出された
+PRINTFORMW 今夜は月が綺麗に出ている代わりに肌寒く、そのためかバルコニーには誰もいない
+PRINTFORMW ……密談にはちょうどいい場所だ
+PRINTFORMW 「私がただ楽しみのためにパーティを開いただなんて、もちろん思ってはないでしょうね？」
+PRINTFORML 頷いた。いくら社交的でも、見も知りもしない一介の士官にわざわざ招待状を送りつけるようなことはするまい
+PRINTFORMW まして彼女は、いかにも気位の高そうなタイプだ。つまらない者が自分の館に入ることなど、許しはしないだろうし……
+PRINTFORMW 「%ANAME(MASTER)%、優秀な武将だと聞いているわ」
+PRINTFORMW 「私はそういう人間を手に入れるためなら、金も手間も惜しまない主義よ」
+PRINTFORMW 「どうかしら。うちに来ない？　待遇も、%ANAME(ボス)%よりずっとよくしてあげる」
+PRINTFORMW 「女がお望みなら、それも……ね」
+PRINTFORMW 「ふふ、私も、どうせ成すなら優秀な子のほうがいいもの」
+PRINTFORML %ANAME(対象)%の笑みは、外見とは不釣り合いな、妖艶なものだった
+PRINTFORMW 女というのはつまり、彼女自身のことを示しているのだろう
+PRINTFORMW ……それにしても、何かあると思っていたが、まさか引き抜きをかけられるとは
+PRINTFORML 驚くほどのことではない。幻想郷は混迷の時代にある。勢力が生き延びるには、優秀な人材は必須だ
+PRINTFORML こちらとしても、生き延びていくために、少しでも強力な勢力についておくのが得策だ
+PRINTFORML わざわざこうして声をかけてくるほどだ。話を受ければ、その見返りは大層大きいだろう
+PRINTFORMW 一方で、今の主君の方面との人間関係は、間違いなくこじれてしまうだろう
+PRINTFORMW さて、どうしようか……
+CALL SINGLE_DRAWLINE
+PRINTFORML %ANAME(対象)%の領地数:{GET_OWN_CITY(CFLAG:対象:所属)} %ANAME(ボス)%の領地数:{GET_OWN_CITY(CFLAG:MASTER:所属)}
+PRINTFORML 
+CALL ASK_YN("話にのる", "やめておく")
+IF RESULT == 0
+	PRINTFORMW 「そう言ってくれると思ってたわ」
+	PRINTFORMW 「それじゃあ……よろしくお願いするわね」
+	PRINTFORMW 差し出された手を、%ANAME(MASTER)%は堅く握りしめた……
+	LOCAL:0 = MIN((ABL:MASTER:武闘 + ABL:MASTER:知略 + ABL:MASTER:政治 + ABL:MASTER:防衛) * 200, 50000)
+	CALL COLORPRINT(@"支度金として金{LOCAL:0}を受け取りました", カラー_注意, "W")
+	CALL COLORPRINT(@"%ANAME(対象)%の合意を得ました", カラー_ピンク, "W")
+	CALL COLORPRINT(@"%ANAME(ボス)%との外交関係が、非常にこじれました", カラー_警告, "W")
+	MONEY += LOCAL:0
+	TALENT:対象:合意 = 1
+	TALENT:対象:チョロイン = 1
+	CFLAG:対象:面識 = 1
+	CFLAG:対象:好感度 = MAX(CFLAG:対象:好感度, 800)
+	CFLAG:対象:依存度 = MAX(CFLAG:対象:依存度, 200)
+	CALL CHANGE_RELATION_O_TO_O(ボス, 対象, -500, 500)
+	CALL CHANGE_RELATION_O_TO_O(ボス, MASTER, -500, 500)
+	CALL CHANGE_COUNTRY(MASTER, CFLAG:対象:所属, 1)
+	KDVAR:対象:レミリア_レミリアからの勧誘 = 1
+ELSE
+	PRINTFORMW 「あら、そう」
+	PRINTFORMW 「ちょっと意外だわ。乗ってくれるものとばかり思ってたけど」
+	PRINTFORMW 「ま、仕方ないわね。そういうことなら、諦めるわ」
+	PRINTFORML この手の話を断った以上、刃傷沙汰になるのを覚悟していたが、%ANAME(対象)%はあっさりと諦めた
+	PRINTFORMW 意外に思っていると、%ANAME(対象)%は唇を尖らせる
+	PRINTFORMW 「パーティに招いた客に暴力を振るうほど、私は無粋ではないわよ」
+	PRINTFORMW 「寒いところに連れ出して悪かったわね。パーティを楽しんでちょうだい」
+	PRINTFORMW その後、ホールに戻った%ANAME(MASTER)%は、今の話のことを胸にしまってパーティを楽しんだ……
+	KDVAR:対象:レミリア_レミリアからの勧誘 = 2
+ENDIF

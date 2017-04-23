@@ -1,0 +1,161 @@
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@KOJO_DAILY_K34_COMPETE_RATE(対象)
+#DIM 対象
+RETURN 30
+
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@KOJO_DAILY_K34_COMPETE_DECISION(対象)
+#DIM 対象
+
+;マスターが男でないと出ない
+SIF !IS_MALE(MASTER)
+	RETURN 0
+
+;終わらせたら出ない
+SIF KDVAR:対象:幽香_江戸の華
+	RETURN 0
+
+RETURN CHECK_KOJO_DAILY_HAPPEN(対象, 0, 0)
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@KOJO_DAILY_K34_COMPETE_GENRE(対象)
+#DIM 対象
+RETURN デイリー_ジャンル_エロ
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@KOJO_DAILY_K34_COMPETE(対象)
+#DIM 対象
+#DIM 判定値
+
+PRINTFORMW 「ふうん、あなたが%ANAME(MASTER)%？　シケた顔してるのね」
+PRINTFORML %ANAME(MASTER)%の拠点が、突如として現れた女に攻撃された
+PRINTFORML たった一人で挑んできたその女は、衛兵を次から次へとなぎ倒し、とうとう%ANAME(MASTER)%の下にまで辿り着いた
+PRINTFORMW その立ち居振る舞いを見るだけで、相当の使い手だということが分かる……
+PRINTFORMW 「腕が立つと聞いていたのだけれど……期待外れね」
+PRINTFORM 「私は
+CALL COLORPRINT(@"%NAME_FORMAL(対象)%", カラー_注意)
+PRINTFORMW 。まあ、あなたごときに覚えてもらう価値も感じないけれど」
+PRINTFORML %NAME_FORMAL(対象)%……幻想郷でも指折りの強者だ
+PRINTFORMW だが、こんな暴力的な手段にまで出て、一体何の用だというのだろう
+PRINTFORMW 「別に大したことじゃないわ。私は私より強い奴がいるというのが許せないの」
+PRINTFORMW 「だから、その可能性があるやつがいたら、潰して回ってるってだけのことよ」
+PRINTFORMW 「……まぁ、あなたはその心配もなさそうだけれどね」
+PRINTFORML ……つまり、武者修行というわけか
+PRINTFORMW 「どう？　私と戦ってみる？　まあ、結果は見えているけれど」
+PRINTFORM 「それでもあなたが勝てたなら、
+CALL COLORPRINT(@"何をしてもいいわよ", カラー_注意, )
+PRINTFORMW 」
+PRINTFORM 「その代わり、私が勝ったら……そうね、
+CALL COLORPRINT(@"有り金すべてをいただくわ", カラー_注意, )
+PRINTFORMW 」
+PRINTFORMW 「別にお金なんていらないんだけど、大抵の奴は金を奪われると悔しそうな顔をするのよねぇ♪」
+PRINTFORML 余裕を漂わせる%ANAME(対象)%の強さは、底が知れなかった
+PRINTFORML そうそう勝てる相手でもないだろうが、どうしようか……
+PRINTFORML 
+CALL ASK_YN("受けて立つ", "帰ってもらう")
+
+IF RESULT == 1
+	PRINTFORMW 相手が相手だ。あまりにも分が悪い。帰ってもらうことにした
+	PRINTFORMW 「ふうん……戦う前から逃げ出すわけ。本当に期待外れだったようね」
+	PRINTFORMW 「ま、そういうことなら相手する価値もないわ。邪魔したわね」
+	PRINTFORMW %ANAME(対象)%は立ち去っていった……
+	KDVAR:対象:幽香_江戸の華 = 1
+ELSE
+	PRINTFORMW 「ふん。結果は見えてるわ」
+	PRINTFORMW 対象を引き連れ、拠点の中庭に出た……
+	PRINTFORML ・
+	PRINTFORML ・
+	PRINTFORML ・
+	;勇儀と武闘が等しいと50%。以降1勝るごとに5％。
+	判定値 = (ABL:MASTER:武闘 + 10 - ABL:対象:武闘) * 5
+	IF RAND:100 > 判定値
+		PRINTFORMW 「ざまぁないわね」
+		PRINTFORML ……やはり、%ANAME(対象)%は強かった
+		PRINTFORMW しかしまさか、拳一つすら当てられないとは……
+		PRINTFORMW 「はーあ。つまらないこと。退屈させた罰として、お金はもらっておくわ」
+		PRINTFORMW 「命を奪われないだけ、ありがたいと思うことね」
+		CALL COLORPRINT(@"所持金を全て奪われました", カラー_警告, "W")
+		PRINTFORMW 「じゃ、私はこれで。もう会うことはないでしょうけど」
+		PRINTFORMW %ANAME(対象)%は立ち去っていった……
+		MONEY = 0
+		KDVAR:対象:幽香_江戸の華 = 1
+	ELSE
+		PRINTFORMW 「嘘でしょう……この私が……！」
+		PRINTFORML どうにかなった……ぎりぎりだったが
+		PRINTFORML %ANAME(対象)%の拳は予想以上だった。一発でもまともに受けていればやられていただろう
+		PRINTFORMW ……あんなワンパターンな拳を、まともに受けるやつがいるかという話だが
+		PRINTFORMW 「ふん……約束は約束だわ。好きにするといい」
+		PRINTFORMW 言い逃れられるかと思ったが、案外律儀なほうらしい
+		PRINTFORMW さて、どうしようか……
+		PRINTL
+		CALL ASK_MULTI_JUDGE("部下にする", GET_COUNTRY_BOSS(CFLAG:対象:所属) != 対象, "投獄する", GET_COUNTRY_BOSS(CFLAG:対象:所属) != 対象, "処刑", GET_COUNTRY_BOSS(CFLAG:対象:所属) != 対象,  "有り金を奪う", 1, "犯す", 1)
+		SELECTCASE RESULT
+			CASE 0
+				PRINTFORMW 「……はぁ？　部下？　私を？」
+				PRINTFORMW 「……はっ。せいぜい、飼い犬にのど笛噛み千切られないように気をつけることね」
+				CALL COLORPRINT(@"%ANAME(対象)%が部下になりました", カラー_注意, "W")
+				CALL CHANGE_COUNTRY(対象, CFLAG:MASTER:所属, 1)
+				CFLAG:対象:好感度 += 500
+				KDVAR:対象:幽香_江戸の華 = 1
+			CASE 1
+				PRINTFORMW 「ふん……まあ、そうでしょうね。あれだけ暴れれば」
+				PRINTFORMW 「好きにすればいいわ」
+				PRINTFORMW %ANAME(対象)%は兵士達に連行されていった……
+				CALL COLORPRINT(@"%ANAME(対象)%を捕虜にしました", カラー_注意, "W")
+				CALL CAPTURE(対象, CFLAG:MASTER:所属)
+				KDVAR:対象:幽香_江戸の華 = 1
+			CASE 2
+				PRINTFORMW 「……っ！」
+				PRINTFORMW 「……ふん、私も運が尽きたかしら。はっ、好きにすればいいわ」
+				PRINTFORMW %ANAME(対象)%は兵士達に連行されていった……
+				CALL COLORPRINT(@"%ANAME(対象)%を処刑しました", カラー_注意, "W")
+				PRINTL
+				CALL EXECUTION(対象)
+				PRINTL
+				CALL CHANGE_COUNTRY(対象, 0, 1, 1)
+				CFLAG:対象:所属 = 0
+				CFLAG:対象:特殊状態 = 2
+				KDVAR:対象:幽香_江戸の華 = 1
+			CASE 3
+				PRINTFORMW 「金、ね。ふん、あなたも私と似たような考えってわけ」
+				PRINTFORMW 「ほら、持って行けばいいわ」
+				CALL COLORPRINT(@"金100000を得ました", カラー_注意, "W")
+				MONEY += 100000
+				PRINTFORMW 「じゃ、私はこれで。次は戦場で会いましょう」
+				PRINTFORMW %ANAME(対象)%は立ち去っていった……
+				KDVAR:対象:幽香_江戸の華 = 1
+			CASE 4
+				PRINTFORMW 「なッ……ちょっと、待ちなさい……！」
+				PRINTFORMW 暴れる%ANAME(対象)%を押さえ、その服を剥ぎ取っていった……
+				PRINTFORML
+				CALL FUCK_RAPE(対象, GET_ID(MASTER), @"%ANAME(MASTER)%のペニス", @"%ANAME(MASTER)%")
+				PRINTFORML 
+				PRINTFORMW 「あーッ……あぁ、あがっ、あぁッ……♥」
+				PRINTFORMW 下品な喘ぎ声をあげ、開かれた大股から白濁を垂れ流すばかりになった%ANAME(対象)%を、拠点の外に追い出した……
+				KDVAR:対象:幽香_江戸の華 = 2
+		ENDSELECT
+	ENDIF
+ENDIF
+
+CALL COLORPRINT(@"%ANAME(対象)%の面識を得ました", カラー_注意, "W")
+CFLAG:対象:面識 = 1
+
+
+
+RETURN 1
+

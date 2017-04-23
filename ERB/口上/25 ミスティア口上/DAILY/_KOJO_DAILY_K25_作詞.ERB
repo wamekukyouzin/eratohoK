@@ -1,0 +1,229 @@
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@KOJO_DAILY_K25_COMPOSE_RATE(対象)
+#DIM 対象
+RETURN 50
+
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@KOJO_DAILY_K25_COMPOSE_DECISION(対象)
+#DIM 対象
+
+SIF KDVAR:対象:ミスティア_作詞
+	RETURN 0
+
+RETURN CHECK_KOJO_DAILY_HAPPEN(対象, 1, 0, 1)
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@KOJO_DAILY_K25_COMPOSE_GENRE(対象)
+#DIM 対象
+RETURN デイリー_ジャンル_その他
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@KOJO_DAILY_K25_COMPOSE(対象)
+#DIM 対象
+#DIM 選択肢, 5
+#DIMS 歌詞, 5, 5
+#DIM 正解パターン, 5, 5
+#DIM 候補パターン
+#DIM 制限時間 = 10000
+#DIM FIRST_LINE
+#DIM 現在ミリ秒
+
+歌詞:0:0 = はるすぎて
+歌詞:0:1 = TO
+歌詞:0:2 = ヒト
+歌詞:0:3 = この
+歌詞:0:4 = このかみをぬいてな
+
+歌詞:1:0 = なつきにけらし
+歌詞:1:1 = ヒト
+歌詞:1:2 = このかみをぬいてな
+歌詞:1:3 = げんそうきょうでは
+歌詞:1:4 = BE
+
+歌詞:2:0 = かつらに
+歌詞:2:1 = しろたえの
+歌詞:2:2 = ヒト
+歌詞:2:3 = OR
+歌詞:2:4 = じょうしきに
+
+歌詞:3:0 = とらわれては
+歌詞:3:1 = にんげんを
+歌詞:3:2 = NOT TO
+歌詞:3:3 = ころもほすてふ
+歌詞:3:4 = しようと
+
+歌詞:4:0 = あまのかぐやま
+歌詞:4:1 = BE
+歌詞:4:2 = おもったのじゃ
+歌詞:4:3 = いけないのですね
+歌詞:4:4 = さらえ
+
+正解パターン:0:0 = 0
+正解パターン:0:1 = 0
+正解パターン:0:2 = 1
+正解パターン:0:3 = 3
+正解パターン:0:4 = 0
+
+正解パターン:1:0 = 2
+正解パターン:1:1 = 1
+正解パターン:1:2 = 2
+正解パターン:1:3 = 1
+正解パターン:1:4 = 4
+
+正解パターン:2:0 = 4
+正解パターン:2:1 = 2
+正解パターン:2:2 = 0
+正解パターン:2:3 = 4
+正解パターン:2:4 = 2
+
+正解パターン:3:0 = 1
+正解パターン:3:1 = 4
+正解パターン:3:2 = 3
+正解パターン:3:3 = 2
+正解パターン:3:4 = 1
+
+正解パターン:4:0 = 3
+正解パターン:4:1 = 3
+正解パターン:4:2 = 4
+正解パターン:4:3 = 0
+正解パターン:4:4 = 3
+
+対象 = NAME_TO_CHARA("対象")
+
+CALL KOJO_DAILY_START()
+
+PRINTFORMW 「うーん……決まらないなぁ……」
+PRINTFORMW %ANAME(対象)%が何やら唸っているのを見かけた……
+PRINTL
+CALL ASK_YN("声をかける", "放っておく")
+
+IF RESULT == 1
+	PRINTFORMW 考え事を邪魔するのも無粋だろう
+	PRINTFORMW そっとしておくことにした……
+	KDVAR:対象:ミスティア_作詞 = 1
+	RETURN
+ENDIF
+
+PRINTFORMW 「あっ、%ANAME(MASTER)%」
+PRINTFORMW 「実は、新しい曲の作詞をしてるんだけど……いい感じのが思いつかなくて」
+PRINTFORMW 「一緒に考えてくれない？」
+PRINTFORML
+CALL ASK_YN("いいよ", "忙しいんだ")
+
+IF RESULT == 1
+	PRINTFORMW 残念だが今は忙しい
+	PRINTFORMW 断った……
+	KDVAR:対象:ミスティア_作詞 = 1
+	RETURN 1
+ENDIF
+
+PRINTFORMW 「ほんと！？　ありがと！」
+PRINTFORMW 「じゃあちょっと挑戦してみてね！　準備できた！？」
+PRINTFORMW 「いっくよー！」
+
+PRINTL
+CALL COLORPRINT("時間内にいい感じの歌詞を作れ！！", カラー_注意, "L")
+PRINTL
+
+FIRST_LINE = LINECOUNT
+
+;TINPUTが残り時間を返さないので苦肉の策
+;なぜ苦肉の策かというと、GETMILLISECONDは精度があまり良くないため
+現在ミリ秒 = GETMILLISECOND()
+
+FOR LOCAL, 0, VARSIZE("正解パターン", 1)
+
+	FOR LOCAL:1, 0, VARSIZE("歌詞", 1)
+		PRINTFORML [{LOCAL:1}] %歌詞:LOCAL:(LOCAL:1)%
+	NEXT
+
+	$INPUT_LOOP
+
+	TINPUT 制限時間, -1, 1, ""
+
+	;時間切れ
+	IF RESULT == -1
+		PRINTFORMW 必死に考えてみたが、良い詩が浮かばなかった……
+		PRINTFORMW 「うーん……やっぱり難しい？」
+		PRINTFORMW 「今日は調子が悪いみたいだね、また今度手伝ってくれると嬉しいな」
+		PRINTFORMW 今日のところはお開きにしよう……
+		RETURN
+	ENDIF
+	
+	IF !INRANGE(RESULT, 0, 4)
+		制限時間 = GETMILLISECOND() - 現在ミリ秒
+		現在ミリ秒 = GETMILLISECOND()
+		GOTO INPUT_LOOP
+	ENDIF
+
+	選択肢:LOCAL = RESULT
+	CLEARLINE LINECOUNT - FIRST_LINE
+	制限時間 -= GETMILLISECOND() - 現在ミリ秒
+	現在ミリ秒 = GETMILLISECOND()
+
+NEXT
+
+PRINTFORMW 作り終えた！
+PRINTFORMW 早速%ANAME(対象)%に歌ってもらうとしよう……
+
+PRINTFORML
+FOR LOCAL, 0, VARSIZE("選択肢")
+	PRINTFORMW 「%歌詞:LOCAL:(選択肢:LOCAL)%～♪」
+NEXT
+PRINTFORMW
+
+FOR LOCAL, 0, VARSIZE("正解パターン", 1)
+	IF 選択肢:0 == 正解パターン:LOCAL:0
+		候補パターン = LOCAL
+		BREAK
+	ENDIF
+NEXT
+
+FOR LOCAL, 0, VARSIZE("正解パターン", 1)
+	IF 選択肢:LOCAL != 正解パターン:候補パターン:LOCAL
+		PRINTFORMW 「……うーん……」
+		PRINTFORMW 「なんていうか、ちょっと違うかな」
+		PRINTFORMW 「まぁ、そんなポンポンいいの作られても私の立場がないし、気にしないで」
+		PRINTFORMW 「また挑戦してくれると嬉しいな！」
+		PRINTFORMW どうやら%ANAME(対象)%を納得させる出来ではなかったようだ
+		PRINTFORMW 今日のところはお開きにしよう……
+		RETURN
+	ENDIF
+NEXT
+
+PRINTFORMW 「すごーい！　ばっちりだよ、ばっちり！」
+PRINTFORMW どうやら%ANAME(対象)%を満足させる出来のものが作れたようだ……
+PRINTFORMW 「これなら次のライブで歌えるよ！　さっそく練習してくる！」
+PRINTFORMW 「ありがとね、%ANAME(MASTER)%！」
+PRINTFORMW %ANAME(対象)%は勢いよく走り去っていった……
+PRINTL
+CALL COLORPRINT(@"%ANAME(対象)%の好感度が上昇しました", カラー_注意, "W")
+CALL COLORPRINT(@"%ANAME(MASTER)%の歌唱が8上昇しました", カラー_注意, "W")
+CALL COLORPRINT(@"%ANAME(対象)%の歌唱が8上昇しました", カラー_注意, "W")
+
+CFLAG:対象:好感度 += 300
+ABL:MASTER:歌唱 += 8
+ABL:対象:歌唱 += 8
+
+CALL SKILL_LEARN_BY_NAME(対象, スキル_ジャンル_SP, NO:対象, "ヒューマンケージ")
+SIF RESULT
+	CALL COLORPRINT(@"%ANAME(対象)%はスキル「ヒューマンケージ」を習得した！", カラー_注意, "W")
+
+KDVAR:対象:ミスティア_作詞 = 1
+
+RETURN 1

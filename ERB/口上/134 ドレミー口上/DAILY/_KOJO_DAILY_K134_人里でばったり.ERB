@@ -1,0 +1,97 @@
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@KOJO_DAILY_K134_HITOZATO_RATE(対象)
+#DIM 対象
+RETURN 30
+
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@KOJO_DAILY_K134_HITOZATO_DECISION(対象)
+#DIM 対象
+;ドレミーと所属が同じ、ドレミーが捕虜でなく、面識があり、3%
+SIF  !TALENT:対象:恋慕
+	RETURN 0
+;一回きり
+SIF KDVAR:対象:ドレミー_人里
+	RETURN 0
+
+RETURN CHECK_KOJO_DAILY_HAPPEN(対象, 1, 0, 1)
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@KOJO_DAILY_K134_HITOZATO_GENRE(対象)
+#DIM 対象
+RETURN デイリー_ジャンル_その他
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@KOJO_DAILY_K134_HITOZATO(対象)
+#DIM 対象
+#DIM 経験値
+;インデントもついでに修正
+
+PRINTFORMW
+PRINTFORMW 仕事がひと段落し、%ANAME(MASTER)%は警邏という名目で城下町を散歩している
+PRINTFORML 周囲を見渡すと、活気のある店が立ち並ぶ大通りに様々な役人職人がけたたましく働いている……
+PRINTFORMW そんな生活音を聞いていると…
+CALL ASK_YN("詩を詠みたくなる", "帰って稽古がしたくなる")
+IF RESULT == 1
+	SELECTCASE RAND:100
+	CASE IS < 40
+		経験値 = GET_EXP(GETNUM(ABL, "武闘"))
+	CASE IS < 70
+		経験値 = GET_EXP(GETNUM(ABL, "防衛"))
+	CASE IS < 90
+		経験値 = GET_EXP(GETNUM(ABL, "知略"))
+	CASEELSE
+		経験値 = GET_EXP(GETNUM(ABL, "政治"))
+	ENDSELECT
+	PRINTFORML 一人で自分の戦い方を見直しながら武器を振った……
+	CALL PRINT_ADD_EXP(MASTER, EXPNAME:経験値, RAND:5 + 1, 1)
+	PRINTFORML 彼らを守る為にも強くならねば……
+	PRINTFORMW %ANAME(MASTER)%は帰って訓練に励んだ
+ELSE
+	PRINTFORML 『乱世 三月…彩雲の下』 
+	PRINTFORMW 『桃花を背に美酒を断ち、西の方…八百万を率いて戦塵に臨む…』
+	PRINTFORMW 『………』
+	PRINTFORMW 我ながら少し気の利いた詩にニヤケつつ、一辺の平穏を感じる%ANAME(MASTER)%
+	PRINTFORML
+	PRINTFORML 
+	PRINTFORMW 「ははぁん、随分と高尚な事を仰られているけど…似合わないわよ？」
+	PRINTFORMW 『！？』
+	PRINTFORML 気が付くと直ぐ隣で%ANAME(対象)%がニヤケながら歩いていた
+	PRINTFORMW 「そんな豆鉄砲を食らった顔をされるとは…いやはや驚かすつもりは無かったのですが…」
+	PRINTFORMW いつから傍に居たのかと尋ねる%ANAME(MASTER)%
+	PRINTFORML 「貴方が柄でもない詩を詠いはじめる少し前からですね」
+	PRINTFORMW 「丁度、用事で来ていましてね…後ろ姿を見かけたので付いて来ていたのですよ」
+	PRINTFORML 少し前の自分の視界の狭さを咎めたい気持ちで胸が一杯だった
+	PRINTFORMW よりにもよって見られた相手が%ANAME(対象)%だったからか恥ずかしさで無言で悶えた……
+	PRINTFORML
+	PRINTFORML
+	PRINTFORML 「それにしても…あなた、美酒を断つなんて出来ないでしょう？」
+	PRINTFORML 「えぇまぁ突っ込みどころ満載で自惚れの強い詩ですこと」
+	PRINTFORMW ニヤニヤと笑いながら顔を覗いてくる%ANAME(対象)%
+	PRINTFORML 「…それはそうと、あそこに良い甘味処があるのでご一緒にどうです？」
+	PRINTFORMW そう言って%ANAME(対象)%が指差す方向には繁盛している店が見える……
+	PRINTFORML 「お洒落な詩人さん？」
+	PRINTFORML 『～～～！』
+	PRINTFORMW その後もしばらく%ANAME(対象)%にからかわれた……
+	PRINTFORMW
+	CALL COLORPRINT(@"好感度が 200上がった", カラー_注意)
+	PRINTFORMW
+	CFLAG:対象:好感度 += 500
+	KDVAR:対象:ドレミー_人里 = 1
+ENDIF
+
+RETURN 1

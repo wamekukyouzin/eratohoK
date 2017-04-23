@@ -1,0 +1,176 @@
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@KOJO_DAILY_K2_GAMBLE_FOR_FREEDOM_RATE(対象)
+#DIM 対象
+RETURN 150
+
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@KOJO_DAILY_K2_GAMBLE_FOR_FREEDOM_DECISION(対象)
+#DIM 対象
+SIF !CHECK_KOJO_DAILY_HAPPEN(対象, 0, 1)
+	RETURN 0
+
+SIF CFLAG:MASTER:所属 == CFLAG:対象:捕虜先 || IS_SLAVE(対象)
+	RETURN 0
+
+SIF KDVAR:対象:魔理沙_解放のための賭け
+	RETURN 0
+
+RETURN 1
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@KOJO_DAILY_K2_GAMBLE_FOR_FREEDOM_GENRE(対象)
+#DIM 対象
+RETURN デイリー_ジャンル_エロ
+
+;---------------------
+;特定の条件を満たすキャラをランダムに選択する場合に利用
+;他の関数は必須だが、これだけはなくてもよい　というかパフォーマンスへ影響するので不要なら作ってはならない
+;対象が存在せずデイリーを開始できない場合は0を返すことでデイリーの発生をキャンセルする
+;---------------------
+@KOJO_DAILY_K2_GAMBLE_FOR_FREEDOM_SETTARGET(対象)
+#DIM 対象
+#DIM 霊夢
+#DIM アリス
+#DIM パチュリー
+#DIM にとり
+霊夢 = NAME_TO_CHARA("霊夢")
+アリス = NAME_TO_CHARA("アリス")
+パチュリー = NAME_TO_CHARA("パチュリー")
+にとり = NAME_TO_CHARA("にとり")
+
+IF 霊夢 > 0 && CFLAG:霊夢:捕虜先 == CFLAG:対象:捕虜先
+	DAILY_TARGET:0 = 霊夢
+	DAILY_TARGET_NUM ++
+ENDIF
+
+IF アリス > 0 && CFLAG:アリス:捕虜先 == CFLAG:対象:捕虜先
+	DAILY_TARGET:0 = アリス
+	DAILY_TARGET_NUM ++
+ENDIF
+IF パチュリー > 0 && CFLAG:パチュリー:捕虜先 == CFLAG:対象:捕虜先
+	DAILY_TARGET:0 = パチュリー
+	DAILY_TARGET_NUM ++
+ENDIF
+IF にとり > 0 && CFLAG:にとり:捕虜先 == CFLAG:対象:捕虜先
+	DAILY_TARGET:0 = にとり
+	DAILY_TARGET_NUM ++
+ENDIF
+
+RETURN DAILY_TARGET_NUM > 0
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@KOJO_DAILY_K2_GAMBLE_FOR_FREEDOM(対象)
+#DIM 対象
+#DIM 候補
+候補 = DAILY_TARGET:0
+PRINTFORML %ANAME(MASTER)%が牢獄に向かうと、%ANAME(対象)%は懇願してきた
+PRINTFORMW 「なぁ、おまえ、%ANAME(候補)%のことも捕まえてるんだろ？」
+PRINTFORML 「頼む、あいつのことは見逃してやってくれないか？」
+PRINTFORMW 「私のことは別に、何をしてもいいからさ……頼むよ」
+PRINTFORML 友達思いなことだ。別に聞いてやる義理もないが……
+CALL ASK_MULTI("解放する", "断る", "賭けをする")
+SELECTCASE RESULT
+	CASE 0
+		PRINTFORMW 「えっ……ほんとか？」
+		PRINTFORML 本当もなにも、そっちが言い出したことだろう
+		PRINTFORML 冗談だったというなら取り下げるが……
+		PRINTFORMW 「い、いやその、まさか本当に解放してくれるなんてな。ダメ元で言っただけだったから」
+		PRINTFORMW 「感謝する。お前、案外いい奴なんだな」
+		PRINTFORML 人を監禁している時点で、いい奴とは言わない気もする
+		PRINTFORMW ともかく、%ANAME(候補)%のことは解放してやることとしよう……
+		CALL COLORPRINT(@"%ANAME(候補)%を解放しました", カラー_注意, "W")
+		CALL COLORPRINT(@"%ANAME(対象)%の好感度が上昇しました", カラー_注意, "W")
+		CALL CAPTURE(候補, 0)
+		CFLAG:対象:好感度 += 300
+	CASE 1
+		PRINTFORMW 彼女の友情は美しいが、こちらに何のメリットもないことだ
+		PRINTFORMW %ANAME(MASTER)%は頼みを無視することにした……
+	CASE 2
+		PRINTFORML 考えてやってもいいが、ただ解放するだけでは面白くない
+		PRINTFORMW 賭けをしようじゃないかと伝えた
+		PRINTFORML 「賭けだって……？　変なことを言う奴だな」
+		PRINTFORMW 「いいぜ、乗った。で？　何をやれってんだ？　剣闘士みたく戦えばいいのか？」
+		PRINTFORML もちろん、大切な捕虜にそんな危険なことはさせられない
+		PRINTFORMW ただ、ほんの三十分ほど、絶頂を堪えてもらうだけだ
+		PRINTFORML 堪えられたら、%ANAME(候補)%も%ANAME(対象)%も解放する
+		PRINTFORMW ただし、もし絶頂すれば、%ANAME(候補)%の解放はなし。%ANAME(対象)%には服従してもらう……
+		PRINTFORMW 「あ、足下を見やがって……！」
+		PRINTFORML %ANAME(対象)%は怒りを覚えているようだった
+		PRINTFORMW 断るなら、二人とも牢につながれたままだ。そう伝えると、渋々といった様子で首を縦に振る
+		PRINTFORML 「……とっとと済ませろよな」
+		PRINTFORML いつまでかたくなな態度をとれるか、見せてもらおうじゃないか
+		PRINTFORMW 嗜虐的な笑みを浮かべ、%ANAME(MASTER)%は%ANAME(対象)%を押し倒した……
+		PRINTFORMW ・
+		PRINTFORMW ・
+		PRINTFORMW ・
+		
+		LOCAL:1 = ABL:MASTER:性技 + ABL:対象:欲望 + ABL:対象:Ｃ感 + ABL:対象:Ｂ感
+		
+		SELECTCASE LOCAL:1
+			CASE IS < 6
+				PRINTFORMW 「……いやあの、あれだけ自信満々だったのに、それっぽっちかよ」
+				PRINTFORML %ANAME(MASTER)%は頑張った。なんとしても%ANAME(対象)%をイカせようとした
+				PRINTFORML ……が、そのための技術が足りていなかったようだ
+				PRINTFORMW 「なんか拍子抜けなんだが……まあいいや、それじゃ、約束通り、解放してもらおうか」
+				PRINTFORMW ほぞを噛みながら、%ANAME(MASTER)%は二人を解放した……
+				CALL COLORPRINT(@"%ANAME(候補)%を解放しました", カラー_注意, "W")
+				CALL COLORPRINT(@"%ANAME(対象)%を解放しました", カラー_注意, "W")
+				CALL CAPTURE(候補, 0)
+				CALL CAPTURE(対象, 0)
+			CASE IS < 12
+				PRINTFORMW 「あ……やめ、やめ、あっ、あっあ……、ッ……！」
+				PRINTFORMW 「やめろ、マジで、触るなッ……あッ……あぁあ……っ！」
+				PRINTFORML 残り十分ほどで、%ANAME(対象)%の身体は大きく震えた
+				PRINTFORMW 絶頂したのかと耳元でささやいてやると、%ANAME(対象)%はぶんぶんと首を横に振る
+				PRINTFORMW 強情なやつめと秘部を弄くってやると、彼女の身体は分かりやすく痙攣した
+				PRINTFORMW 「ぅあ……くそっ、くそぅ……」
+				PRINTFORMW 涙を流して悔しがる%ANAME(対象)%に、賭けは自分の勝ちだと伝えた……
+				CALL FUCK(対象, "欲望, Ｃ, Ｂ")
+				CALL COLORPRINT(@"%ANAME(対象)%を屈服させました", カラー_注意, "W")
+				CFLAG:対象:従属度 = MAX(1500, CFLAG:対象:従属度)
+				CFLAG:対象:依存度 = MAX(300, CFLAG:対象:依存度)
+				TALENT:対象:服従 = 1
+			CASEELSE
+				PRINTFORMW 「あぁっ♥　うぁあ、っ♥　あっ、あぁーッ♥」
+				PRINTFORMW 「あくぅっ！？　あぁっ、そこ、そこぉ……っ♥　あぅうっ♥」
+				PRINTFORMW 最初は強がっていた%ANAME(対象)%だが、%ANAME(MASTER)%が少し弄ってやると、あっという間に快楽に堕ちた
+				PRINTFORMW とっくに三十分は過ぎているのだが、%ANAME(対象)%はやめろなどとは言わない
+				PRINTFORMW 「んくぅ……♥　んっ、んぅッ……ぷはぁ……♥」
+				PRINTFORML その唇に口づけてやると、彼女は自ら積極的に舌を絡めてくる
+				PRINTFORMW その瞳に、%ANAME(候補)%のことなどは映っていなかった。もはや快楽への期待があるばかりだ。
+				PRINTFORMW そろそろ頃合いか……そう判断した%ANAME(MASTER)%は、%ANAME(対象)%を勧誘する
+				PRINTFORML %ANAME(GET_COUNTRY_BOSS(CFLAG:MASTER:所属))%の軍に加われば、こういうことをいくらでもしてやる
+				PRINTFORMW 今回はこうして指で弄っただけだが、もっとすごいこともしてやろうと
+				PRINTFORMW 「なるっ♥　なるから、もっとしてっ♥　もっときもちいいことぉっ♥」
+				PRINTFORML 一も二もなく、%ANAME(対象)%は頷いた。ちょろいものだった
+				PRINTFORMW 涎を垂らしながら可愛らしく喘ぐ彼女を、%ANAME(MASTER)%は思い切りイかせてやった……
+				CALL FUCK(対象, "欲望, Ｃ, Ｂ, Ｍ")
+				CALL COLORPRINT(@"%ANAME(対象)%を屈服させました", カラー_注意, "W")
+				CALL COLORPRINT(@"%ANAME(対象)%が仲間になりました", カラー_注意, "W")
+				CALL COLORPRINT(@"%ANAME(対象)%が女として目覚めました", カラー_注意, "W")
+				CFLAG:対象:従属度 = MAX(3000, CFLAG:対象:従属度)
+				CFLAG:対象:依存度 = MAX(600, CFLAG:対象:依存度)
+				CALL CHANGE_COUNTRY(対象, CFLAG:MASTER:所属, 1)
+				TALENT:対象:服従 = 1
+				SETBIT TALENT:対象:淫乱系, 素質_淫乱_淫乱
+		ENDSELECT
+ENDSELECT
+
+KDVAR:対象:魔理沙_解放のための賭け = 1
+RETURN 1
+

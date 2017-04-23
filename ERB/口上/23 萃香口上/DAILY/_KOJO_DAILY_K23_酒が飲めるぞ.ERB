@@ -1,0 +1,120 @@
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@KOJO_DAILY_K23_ALCOHOL_RATE(対象)
+#DIM 対象
+RETURN 35
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@KOJO_DAILY_K23_ALCOHOL_DECISION(対象)
+#DIM 対象
+
+SIF CFLAG:対象:特殊状態 != 1
+	RETURN 0
+
+SIF GROUPMATCH(MASTER, NAME_TO_CHARA("霊夢"), NAME_TO_CHARA("華扇"), NAME_TO_CHARA("紫"), NAME_TO_CHARA("天子"), NAME_TO_CHARA("勇儀"))
+	RETURN 0
+
+;一度しか発生しないイベントならこんな感じ
+SIF KDVAR:対象:萃香_アル中
+	RETURN 0
+
+
+RETURN CHECK_KOJO_DAILY_HAPPEN(対象, 0, 0)
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@KOJO_DAILY_K23_ALCOHOL_GENRE(対象)
+#DIM 対象
+RETURN デイリー_ジャンル_その他
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@KOJO_DAILY_K23_ALCOHOL(対象)
+#DIM 対象
+
+KDVAR:対象:萃香_アル中 = 1
+
+CALL KOJO_DAILY_START()
+PRINTFORMW 「ちょっと、そこのアンタ」
+PRINTFORML %ANAME(MASTER)%が街を巡回していると、不意に声をかけられた
+PRINTFORMW 見ると、少女がこちらを見つめていた
+CALL ICPRINT(@"%PRONOUN(対象)%は……確か<%NAME_FORMAL(対象)%>、幻想郷縁起にも掲載される有名な鬼だ。なぜこんなところに？", "W", カラー_注意)
+PRINTFORMW 「や、実はさ、今私は放浪中の身でさ、そこらへんぶらついてるんだけどさぁ」
+PRINTFORMW 「路銀もないのに酒が底をつきちゃって……瓢箪から出る酒は飽きちゃったし、そういうわけで、お酒持ってない？」
+CALL ICPRINT("「そうだなぁ、<日本酒みっつ>、くれたらお礼するよ。嘘じゃないよ、なんせ私は鬼だからさ", "W", カラー_注意)
+PRINTFORML ……まさか、酒をたかられる日がこようとは思っていなかった。それも理由が「路銀がないから」とは、だいぶ情けない
+PRINTFORML しかし、%PRONOUN(対象)%は鬼だ。嘘はつくまい
+PRINTFORML さて、どうするか……
+
+CALL ASK_MULTI_JUDGE("恵んでやる", ITEM:日本酒 >= 3, "無理", 1)
+
+IF RESULT == 1
+	PRINTFORMW 「そうか、そうかぁ……まぁ、仕方ないかね」
+	PRINTFORMW 「それじゃ、他の誰かに頼むとしよう、邪魔して悪かったよ」
+	PRINTFORMW 言うだけ言って、%ANAME(対象)%は霧のように消えてしまった……
+	RETURN 1
+ENDIF
+
+PRINTFORMW 「さっすが！　それじゃあ早速いただくよ」
+PRINTFORMW 言うなり、%PRONOUN(対象)%は酒盛りを初めてしまった……
+PRINTFORML ・
+PRINTFORML ・
+PRINTFORML ・
+PRINTFORML 日本酒も三瓶ともなればなかなかのアルコール量になるはずだが、%ANAME(対象)%はあっさり飲み干してしまった
+PRINTFORMW やはり鬼ということか……
+PRINTFORMW 「ふう、飲んだ飲んだ。やっぱり日本酒はいいよ」
+PRINTFORMW 「それじゃ、礼をしてやろうかな。何にする？」
+PRINTFORML さて、どうしよう……
+
+CALL ASK_MULTI_JUDGE("力が欲しい", 1, "技を教えて", GET_EMPTY_SKILL_SLOT(MASTER, スキル_ジャンル_SP) != -1, "金は無いと言っていたな……", 0, "仲間になって", 1, "噂を広めて", 1, "いらない", 1)
+
+SELECTCASE RESULT
+	CASE 0
+		PRINTFORMW 「そんなんでいいのかい？　お安い御用だよ」
+		PRINTFORMW %ANAME(対象)%に訓練してもらった……
+		CALL COLORPRINT(@"%ANAME(MASTER)%の武闘が3上昇した！", カラー_注意, "W")
+		ABL:MASTER:武闘 += 3
+	CASE 1
+		PRINTFORMW 「ふうん？　まぁいいよ」
+		PRINTFORMW 「それじゃ、私の必殺技を教えてあげるとしよう」
+		PRINTFORMW 「うまいこと使いこなしなよ」
+		CALL SKILL_LEARN_BY_NAME(MASTER, スキル_ジャンル_SP, NO:対象, "戸隠山投げ")
+		CALL COLORPRINT(@"%ANAME(MASTER)%はスキル「戸隠山投げ」を習得した！", カラー_注意, "W")
+	CASE 2
+		;死に分岐
+	CASE 3
+		PRINTFORMW 「あん？　あんたの仲間？」
+		PRINTFORMW 「ふーん、まぁいいよ、あんた親切だし、いいことがありそうだ」
+		PRINTFORMW 「私の力、存分に使うといいよ」
+		CALL COLORPRINT(@"%ANAME(対象)%が仲間になりました", カラー_注意, "W")
+		CALL CHANGE_COUNTRY(対象, CFLAG:MASTER:所属, 1)
+		CFLAG:対象:好感度 += 500
+		RETURN 1
+	CASE 4
+		PRINTFORMW 「噂？　ああ、つまり外交的地位を得たいわけだ」
+		PRINTFORMW 「私は霧になれるし、そういうのは大得意だよ。ま、ちょっと待ってな」
+		CALL COLORPRINT(@"%ANAME(対象)%が噂を広め、%ANAME(MASTER)%の評価が上昇しました", カラー_注意, "W")
+		FOR LOCAL, 0, MAX_COUNTRY
+			SIF IS_COUNTRY(LOCAL)
+				CALL CHANGE_RELATION_C_TO_C(LOCAL, CFLAG:MASTER:所属, 100, -100)
+		NEXT
+	CASE 5
+		PRINTFORMW 「へっ？　あ、そう、それならまぁいいけど」
+		PRINTFORMW 「無欲だねぇ、変なの」
+ENDSELECT
+
+PRINTFORMW 「じゃ、私はこれで」
+PRINTFORMW %ANAME(対象)%は去っていった……
+
+RETURN 1

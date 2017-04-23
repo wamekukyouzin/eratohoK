@@ -1,0 +1,223 @@
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@KOJO_DAILY_K64_OYATU_THIEF_RATE(対象)
+#DIM 対象
+RETURN 60
+
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@KOJO_DAILY_K64_OYATU_THIEF_DECISION(対象)
+#DIM 対象
+
+;対象が君主ではない
+SIF GET_COUNTRY_BOSS(CFLAG:対象:所属) == 対象
+	RETURN -1
+
+;おわってたら出ない
+SIF KDVAR:対象:こいし_おやつ泥棒 == -1
+	RETURN -1
+
+
+RETURN CHECK_KOJO_DAILY_HAPPEN(対象, 0, 0, -1)
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@KOJO_DAILY_K64_OYATU_THIEF_GENRE(対象)
+#DIM 対象
+RETURN デイリー_ジャンル_エロ
+
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@KOJO_DAILY_K64_OYATU_THIEF(対象)
+#DIM 対象
+#DIM 判定値
+#DIM 快楽堕ちした
+
+
+判定値 = MIN(ABL:MASTER:知略 + KDVAR:対象:こいし_おやつ泥棒 * 20, 40)
+
+
+;判定失敗
+IF KDVAR:対象:こいし_おやつ泥棒 == 0 || (RAND:100 >= 判定値 && KDVAR:対象:こいし_おやつ泥棒 != 5)
+	CALL COLORPRINT(@"アレッ！！！！！！！！？", カラー_警告, "W")
+	PRINTFORML 楽しみにしておいたおやつが無くなっている！
+	PRINTFORMW 確かに戸棚にしまっておいたはずなのに！
+	PRINTFORML %ANAME(MASTER)%は慌てて部下や同僚に聞いて回るが、誰も食べていないという
+	PRINTFORML まさかおやつに足が生えて逃げていったりはするまいし、誰かが食べてしまったのだろう
+	PRINTFORMW 許すまじ、おやつ泥棒……！
+	CALL ADD_COOLTIME(MASTER, 1)
+	KDVAR:対象:こいし_おやつ泥棒 ++
+	RETURN 1
+ENDIF
+
+
+;判定をクリアしたらとっ捕まえる。
+PRINTFORML 静まりかえった夜の宮廷。そこに、怪しく動く影があった
+PRINTFORMW 影は戸棚を開き……%ANAME(MASTER)%のおやつを取り出した！
+PRINTFORMW ――そこまでだ！
+PRINTFORMW 「いったーい！　放してよー！」
+PRINTFORM %ANAME(MASTER)%は飛びかかり、影を押さえつける。影の正体は――
+CALL COLORPRINT(@"%NAME_FORMAL(対象)%", カラー_注意)
+PRINTFORMW だ！
+PRINTFORML なるほど、無意識を操る彼女の能力なら、宮廷に忍び込んでおやつをつまみ食いすることなど容易だ
+PRINTFORMW そのことを理解すると同時に、%ANAME(MASTER)%の背筋が寒くなる
+PRINTFORMW この子の能力をもってすれば、要人暗殺すらも赤子の手をひねるようなものなのでは？
+PRINTFORMW 「ねー、放してってばー。盗み食いしたのは謝るからー」
+PRINTFORML 対象はじたばたと暴れている。ただのおやつ泥棒なら笑って許してやってもいいが……本当にいいのだろうか
+PRINTFORML 彼女の能力が、%ANAME(GET_COUNTRY_BOSS(CFLAG:MASTER:所属))%に牙をむくことにならないだろうか……？
+PRINTFORML
+CALL ASK_MULTI_JUDGE("許してやる", 1, "衛兵を呼ぶ", 1, "おやつをあげる", 1, "「おやつ」をあげる", HAS_PENIS(MASTER))
+IF RESULT == 0
+	PRINTFORMW いやいや。無邪気な子のようだし、杞憂だろう
+	PRINTFORMW そう考えた%ANAME(MASTER)%は、%ANAME(対象)%を放してやった
+	PRINTFORMW 「ありがと！　今度お礼するね！」
+	PRINTFORMW %ANAME(対象)%はぺこりとお辞儀すると、そのまま消え去った。無意識に潜んだのだろう……
+	PRINTFORML
+	IF GET_COUNTRY_BOSS(CFLAG:対象:所属) != -1
+		PRINTFORML
+		PRINTFORMW 後日、%ANAME(GET_COUNTRY_BOSS(CFLAG:対象:所属))%から、お詫びの銘菓が届いた
+		PRINTFORMW まぁまぁの味だった……
+		CALL CHANGE_RELATION_C_TO_C(CFLAG:対象:所属, CFLAG:MASTER:所属, 200, -200)
+	ELSE
+		PRINTFORMW 後日、%ANAME(MASTER)%の枕元に、飴ちゃんが置かれていた
+		PRINTFORMW いちご味だった……
+	ENDIF
+	CFLAG:対象:好感度 += 200
+ELSEIF RESULT == 1
+	PRINTFORMW この子がもし、悪意を覚えたら。大層危険なことになる……
+	PRINTFORMW そう考えた%ANAME(MASTER)%は、衛兵を呼びつけ、%ANAME(対象)%を投獄させた……
+	CALL CAPTURE(対象, CFLAG:MASTER:所属)
+	CFLAG:対象:好感度 -= 300
+	CALL CHANGE_RELATION_O_TO_O(対象, MASTER, -300, 300)
+ELSEIF RESULT == 2
+	PRINTFORML この子もお腹を空かせているのだろう
+	PRINTFORMW 戸棚からドーナツを取り出し、半分こした……
+	PRINTFORMW 「これくれるの？」
+	PRINTFORMW 「わーい、ありがと！」
+	PRINTFORMW ドーナツを食べ終えると、%ANAME(対象)%はいつの間にか消え去っていた……
+	IF GET_COUNTRY_BOSS(CFLAG:対象:所属) != -1
+		PRINTFORML
+		PRINTFORMW 後日、%ANAME(GET_COUNTRY_BOSS(CFLAG:対象:所属))%から、お詫びの銘菓が届いた
+		PRINTFORMW まぁまぁの味だった……
+		CALL CHANGE_RELATION_C_TO_C(CFLAG:対象:所属, CFLAG:MASTER:所属, 100, -100)
+	ELSE
+		PRINTFORMW 後日、%ANAME(MASTER)%の枕元に、飴ちゃんが置かれていた
+		PRINTFORMW いちご味だった……
+	ENDIF
+	CFLAG:対象:好感度 += 250
+ELSEIF RESULT == 3
+	PRINTFORMW そんなにおやつが欲しいなら食べさせてやろう
+	PRINTFORMW そう考えた%ANAME(MASTER)%は、%ANAME(対象)%の下の口におやつをあてがった……
+	IF ABL:対象:性知識 == 0
+		;無知ックス(データ操作前提)
+		PRINTFORMW 「その棒をお股の穴に入れると美味しいの？分かった、やってみる…」
+		IF ABL:MASTER:性技 >= RAND:3
+			;無知なので中出し性行為に溺れるハードルが低い
+			PRINTFORML …
+			PRINTFORML ……
+			PRINTFORMW ………
+			PRINTFORMW 静まり返った夜の宮廷に寝具が軋む音と%ANAME(対象)%の嬌声が響き渡る
+			CALL KOJO_DAILY_K64_FUCK(対象)
+			PRINTFORMW 「あっ！あんっ！%ANAME(MASTER)%の言う通り、味はしないけどとてもいい気分になっちゃった…%UNICODE(0x2661)%」
+			PRINTFORMW %ANAME(MASTER)%は最後にデザートもやろうと腰の動きを速め、白濁の液体を%ANAME(対象)%の膣内に吐き出した…
+			CALL COLORPRINT(@"%ANAME(MASTER)%の性技に%ANAME(対象)%が満足しました", カラー_注意, "W")
+			PRINTFORMW 「あのね、もっと対象におやつを食べさせてくれる…？」
+			PRINTFORMW %ANAME(対象)%は%ANAME(MASTER)%とこれからも一緒に居たいようだ………
+			CALL COLORPRINT(@"%ANAME(対象)%が仲間になりました", カラー_注意, "W")
+			CALL CHANGE_COUNTRY(対象, CFLAG:MASTER:所属, 1)
+			CFLAG:対象:好感度 += 1000
+			CALL CHANGE_RELATION_O_TO_O(対象, MASTER, 1000, -600)
+			快楽堕ちした = 1
+		ELSE
+			;お仕置きが痛くて泣いちゃうルート
+			PRINTFORML …
+			PRINTFORML ……
+			PRINTFORMW ………
+			PRINTFORMW 静まり返った夜の宮廷に寝具が軋む音と%ANAME(対象)%の悲鳴が響き渡る
+			CALL KOJO_DAILY_K64_FUCK(対象)
+			PRINTFORMW 「いたいっ！うぅ…いやだよう…何でこんなことするの…」
+			PRINTFORMW %ANAME(MASTER)%はお前への罰だと腰の動きを速め、白濁の液体を%ANAME(対象)%の膣内に吐き出した…
+			CALL COLORPRINT(@"%ANAME(MASTER)%の乱暴に%ANAME(対象)%は悲しくなりました", カラー_注意, "W")
+			PRINTFORMW 「おやつのことは謝るからぁ…もう痛いのは止めて…」
+			PRINTFORMW 泣いて許しを乞う%ANAME(対象)%は%ANAME(MASTER)%に投獄されました………
+			CALL CAPTURE(対象, CFLAG:MASTER:所属)
+			;無知なので投獄されたのと同じくらいの印象
+			CFLAG:対象:好感度 -= 300
+			CALL CHANGE_RELATION_O_TO_O(対象, MASTER, -300, 300)
+			快楽堕ちした = 0
+		ENDIF
+	ELSE
+		;通常ルート（性知識2だとセックスは知ってるので）
+		PRINTFORMW 「やだ！！　お姉ちゃん助けて！きゃあ！」
+		IF ABL:MASTER:性技 >= RAND:5
+			;セックスや避妊の必要性は知ってるけど快楽には勝てなかったよ…ルート
+			PRINTFORML …
+			PRINTFORML ……
+			PRINTFORMW ………
+			PRINTFORMW 静まり返った夜の宮廷に寝具が軋む音と%ANAME(対象)%の嬌声が響き渡る
+			CALL KOJO_DAILY_K64_FUCK(対象)
+			PRINTFORMW 「あっ！あんっ！うぅ…いやなのに、気持ち良いよう…%UNICODE(0x2661)%」
+			PRINTFORMW %ANAME(MASTER)%は最後にデザートもやろうと腰の動きを速め、白濁の液体を%ANAME(対象)%の膣内に吐き出した…
+			CALL COLORPRINT(@"%ANAME(MASTER)%の性技に%ANAME(対象)%が満足しました", カラー_注意, "W")
+			PRINTFORMW 「ねぇ、もっと対象におやつを食べさせてくれない…？」
+			PRINTFORMW %ANAME(対象)%は%ANAME(MASTER)%とこれからも一緒に居たいようだ………
+			CALL COLORPRINT(@"%ANAME(対象)%が仲間になりました", カラー_注意, "W")
+			CALL CHANGE_COUNTRY(対象, CFLAG:MASTER:所属, 1)
+			CFLAG:対象:好感度 += 1000
+			CALL CHANGE_RELATION_O_TO_O(対象, MASTER, 1000, -600)
+			快楽堕ちした = 1
+		ELSE
+			;そりゃおやつの代償に中出しされたら怒るよねルート
+			PRINTFORML …
+			PRINTFORML ……
+			PRINTFORMW ………
+			PRINTFORMW 静まり返った夜の宮廷に寝具が軋む音と%ANAME(対象)%の悲鳴が響き渡る
+			CALL KOJO_DAILY_K64_FUCK(対象)
+			PRINTFORMW 「痛っ！私はおやつを食べただけなのにどうしてこんなひどい事をするの」
+			PRINTFORMW %ANAME(MASTER)%はお前への罰だと腰の動きを速め、白濁の液体を%ANAME(対象)%の膣内に吐き出した…
+			CALL COLORPRINT(@"%ANAME(MASTER)%の乱暴に%ANAME(対象)%は悲しくなりました", カラー_注意, "W")
+			PRINTFORMW 「もうこんなこと嫌だよ…助けてお姉ちゃん…」
+			PRINTFORMW 泣いて許しを乞う%ANAME(対象)%は%ANAME(MASTER)%に投獄されました………
+			CALL CAPTURE(対象, CFLAG:MASTER:所属)
+			CFLAG:対象:好感度 -= 500
+			CALL CHANGE_RELATION_O_TO_O(対象, MASTER, -500, 500)
+			快楽堕ちした = 0
+		ENDIF
+	ENDIF
+	IF 快楽堕ちした && !TALENT:対象:合意
+		CALL COLORPRINT(@"%ANAME(対象)%の合意を得ました", カラー_ピンク, "W")
+		CFLAG:対象:面識 = 1
+		TALENT:対象:合意 = 1
+		TALENT:対象:チョロイン = 1
+	ELSEIF !CFLAG:対象:面識
+		CALL COLORPRINT(@"%ANAME(対象)%の面識を得ました", カラー_注意, "W")
+		CFLAG:対象:面識 = 1
+	ENDIF
+ENDIF
+KDVAR:対象:こいし_おやつ泥棒 = -1
+RETURN 1
+
+
+;----------------------------------
+;セックス
+;----------------------------------
+@KOJO_DAILY_K64_FUCK(対象)
+#DIM 対象
+CALL FUCK(MASTER, "Ｃ, 欲望, 性交, 射精, Ｖ挿入", "童貞, キス喪失", 0, @"%ANAME(対象)%の唇", "", @"%ANAME(対象)%の膣", 喪失_強姦)
+CALL FUCK(対象, "欲望, Ｃ, Ｂ, Ｖ, 奉仕, 性交, 性技, 精愛, 口淫, Ｖ性交", "膣内射精, 処女喪失, キス喪失, 口内射精", GET_ID(MASTER), @"%ANAME(MASTER)%の\@ RAND:2 ? 唇 # ペニス \@", ANAME(MASTER), "", 喪失_強姦)
+
+;性知識なしルート用
+SIF ABL:対象:性知識 < 2
+	ABL:対象:性知識 = 2

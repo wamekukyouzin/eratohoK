@@ -1,0 +1,110 @@
+﻿;---------------------
+;対応するデイリーのDISABLEを返す。設定しない場合、イベントは発生しない。
+;---------------------
+@KOJO_DAILY_K87_DERIVATION_REPAYMENT_DISABLE(対象)
+#DIM 対象
+RETURN KOJO_DAILY_GET_DISABLE_CONFIG(対象, "LENDER")
+
+
+;---------------------
+;発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@KOJO_DAILY_K87_DERIVATION_REPAYMENT_DECISION(対象)
+#DIM 対象
+
+SIF CFLAG:対象:捕虜先 || CFLAG:対象:特殊状態
+	RETURN 0
+
+SIF KDVAR:対象:マミゾウ_金貸し_返済期限 == 0
+	RETURN 0
+
+KDVAR:対象:マミゾウ_金貸し_返済期限 --
+
+SIF KDVAR:対象:マミゾウ_金貸し_返済期限
+	RETURN 0
+
+IF CFLAG:対象:所属 == CFLAG:MASTER:所属
+	CALL SINGLE_DRAWLINE
+	PRINTFORMW 所属が同じになったので、%ANAME(対象)%に借りていた金のことはチャラになったようだ……
+	CALL SINGLE_DRAWLINE
+	KDVAR:対象:マミゾウ_金貸し_返済額 = 0
+	RETURN 1
+ENDIF
+
+RETURN 1
+
+
+;---------------------
+;本体
+;---------------------
+@KOJO_DAILY_K87_DERIVATION_REPAYMENT(対象)
+#DIM 対象
+#DIM 担保
+
+
+PRINTFORMW %ANAME(対象)%がやってきた……
+PRINTFORMW 「久しぶりじゃな。さて、貸した金を返してもらおうか？」
+
+CALL ASK_MULTI_JUDGE("返す", MONEY >= KDVAR:対象:マミゾウ_金貸し_返済額, "返せない", 1)
+
+IF RESULT == 0
+	MONEY -= KDVAR:対象:マミゾウ_金貸し_返済額
+	CALL ICPRINT(@"金<{KDVAR:対象:マミゾウ_金貸し_返済額}>、耳をそろえて返した……", "L", カラー_注意)
+	PRINTFORMW 「ん、確かに」
+	PRINTFORMW 「それじゃ儂はこれで、機会があったらまた会おう」
+	PRINTFORMW %ANAME(対象)%は立ち去った……
+	KDVAR:対象:マミゾウ_金貸し_返済額 = 0
+	RETURN
+ENDIF
+
+PRINTFORML すまないが返せない……素直にそう伝えた
+PRINTFORMW %ANAME(対象)%は呆れた表情を浮かべる
+PRINTFORMW 「返せないとな……？　ならなぜ借りた？」
+PRINTFORMW 「まあ、仕方ない。返せんものを返せと言っても仕方がないからのう。……ただし、代わりのものはいただくぞい？」
+
+CALL DAILY_EVENT_RAND_CHARASELECT()
+
+担保 = RESULT
+{
+SELECTCASE IFRAND(
+                  "0", GET_COUNTRY_BOSS(CFLAG:MASTER:所属) == MASTER,
+                  "1", 担保 != MASTER,
+                  "2", GET_COUNTRY_BOSS(CFLAG:MASTER:所属) != MASTER)
+}
+	;主人公が君主、かつほかの対象が選択されなかった
+	;スケベするだけ
+	CASE 0
+		PRINTFORMW 「そうじゃな……では代わりに、お前さんの貞操をいただこうか」
+		PRINTFORMW 「なに、悪いようにはせんよ。じっとしておればいい……くく」
+		PRINTFORMW とんでもないことを言い始めた……だが、非はこちらにある。拒否するわけにもいくまい
+		PRINTFORMW あきらめて身を任せることにした……
+		$START
+		;全員の調教参加フラグをクリア
+		CVARSET CFLAG, 6, 0
+		CFLAG:対象:調教参加フラグ = 1
+		CFLAG:対象:好感度 += 200
+		CFLAG:対象:強制友好化 = 1
+		BASE:対象:体力 = MAXBASE:対象:体力
+		BASE:対象:気力 = MAXBASE:対象:気力
+		;強制逆調教フラグをオン
+		FLAG:ターンエンド調教 = 2
+		;それ以降のデイリーイベント発生を潰す
+		DAILY_CANCEL = 1
+	CASE 1
+		PRINTFORMW 「そうじゃな……お前さんの仲間の身柄でよかろ」
+		PRINTFORMW 「悪いが、%ANAME(担保)%を連れていくぞい」
+		PRINTFORMW 戦力を失うのは厳しい……だが、致し方あるまい
+		PRINTFORMW 連れていかれる%ANAME(担保)%を見送った……
+		CALL CHANGE_COUNTRY(担保, CFLAG:対象:所属, 1)
+		CALL COLORPRINT(@"%ANAME(担保)%が、対象の所属である%ANAME(GET_COUNTRY_BOSS(CFLAG:対象:所属))%に移籍しました", カラー_警告, "W")
+	CASE 2
+		PRINTFORMW 「そうじゃな……では代わりに、お前さんの身柄と貞操をいただこうか」
+		PRINTFORMW 「なに、悪いようにはせんよ。おとなしくしておいてくれればの。……くく」
+		PRINTFORMW 何をされるのか……だが、しかたがない
+		PRINTFORMW あきらめて身を任せ、その後連れていかれることにした……
+		CALL CAPTURE(MASTER, CFLAG:対象:所属)
+		GOTO START
+ENDSELECT
+
+RETURN 1

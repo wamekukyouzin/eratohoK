@@ -1,0 +1,76 @@
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@KOJO_DAILY_K141_WHERE_IS_MY_SISTER_RATE(対象)
+#DIM 対象
+RETURN 1000
+
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@KOJO_DAILY_K141_WHERE_IS_MY_SISTER_DECISION(対象)
+#DIM 対象
+#DIM 白蓮
+白蓮 = NAME_TO_CHARA("白蓮")
+
+;発生済みなら駄目
+SIF KDVAR:対象:命蓮_捜索願
+	RETURN 0
+
+;自分の勢力の捕虜なら駄目
+SIF CFLAG:白蓮:捕虜先 == CFLAG:MASTER:所属
+	RETURN 0
+
+;天子が死んでたら駄目
+SIF CFLAG:白蓮:特殊状態 == 2
+	RETURN 0
+
+RETURN CHECK_KOJO_DAILY_HAPPEN(対象, 1, 0, 1) && CHECK_KOJO_DAILY_HAPPEN(白蓮)
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@KOJO_DAILY_K141_WHERE_IS_MY_SISTER_GENRE(対象)
+#DIM 対象
+RETURN デイリー_ジャンル_その他
+
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@KOJO_DAILY_K141_WHERE_IS_MY_SISTER(対象)
+#DIM 対象
+#DIM 白蓮
+白蓮 = NAME_TO_CHARA("白蓮")
+PRINTFORML 部屋で仕事をしていると、%ANAME(対象)%が訪ねてきた
+PRINTFORMW 「%ANAME(MASTER)%、少しいいかな？　実はお願いがあるんだ」
+CALL ICPRINT(@"「僕の姉……つまり、<%NAME_FORMAL(白蓮)%>のことだ」", "W", カラー_注意)
+PRINTFORMW 「%PRONOUN(白蓮)%を探してくれないか？」
+PRINTFORML 「なんの因果か、こうして幻想郷に蘇ったんだ」
+PRINTFORMW 「かつて一人遺すことになってしまった姉に、挨拶くらいはしておきたいじゃないか」
+PRINTFORMW 「もちろん、作戦なんかもあるだろうから、無理にとはいわない」
+PRINTFORMW 「ただまあ……もののついででいいから、考えておいてくれないかな」
+PRINTFORML 
+CALL ASK_YN("わかった", "無理だ")
+SELECTCASE RESULT
+	CASE 0
+		PRINTFORMW 「ありがとう。感謝するよ」
+		PRINTFORMW 「じゃあ、すまないがよろしく頼む。僕も可能な限り協力しよう」
+		PRINTFORML 深々とお辞儀をし、%ANAME(対象)%は立ち去った……
+		KDVAR:対象:命蓮_捜索願 = 1
+	CASE 1
+		PRINTFORMW 「そうか……」
+		PRINTFORMW 「まあ、仕方がない。結局は自分の話だ、自分で何とかするさ。忙しいところ済まなかった」
+		PRINTFORML %ANAME(対象)%は立ち去った……
+		KDVAR:対象:命蓮_捜索願 = 2
+ENDSELECT
+
+RETURN 1
+

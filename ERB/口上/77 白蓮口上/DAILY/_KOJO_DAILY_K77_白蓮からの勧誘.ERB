@@ -1,0 +1,94 @@
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@KOJO_DAILY_K77_INVITATION_FROM_BYAKUREN_RATE(対象)
+#DIM 対象
+RETURN 150
+
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@KOJO_DAILY_K77_INVITATION_FROM_BYAKUREN_DECISION(対象)
+#DIM 対象
+#DIM 神子
+
+神子 = NAME_TO_CHARA("神子")
+
+
+SIF KDVAR:対象:白蓮_白蓮からの勧誘
+	RETURN 0
+
+SIF GET_COUNTRY_BOSS(CFLAG:MASTER:所属) != 神子
+	RETURN 0
+
+SIF GET_COUNTRY_BOSS(CFLAG:対象:所属) != 対象
+	RETURN 0
+
+SIF MASTER != NAME_TO_CHARA("あなた")
+	RETURN 0
+
+SIF ABL:MASTER:武闘 + ABL:MASTER:知略 + ABL:MASTER:政治 + ABL:MASTER:防衛 < 250
+	RETURN 0
+
+RETURN CHECK_KOJO_DAILY_HAPPEN(対象, 0, -1)
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@KOJO_DAILY_K77_INVITATION_FROM_BYAKUREN_GENRE(対象)
+#DIM 対象
+RETURN デイリー_ジャンル_その他
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@KOJO_DAILY_K77_INVITATION_FROM_BYAKUREN(対象)
+#DIM 対象
+#DIM 神子
+神子 = NAME_TO_CHARA("神子")
+CFLAG:対象:面識 = 1
+
+PRINTFORML ある日、%ANAME(MASTER)%の元を一人の女性が訪ねてきた
+PRINTFORML 立ち居振る舞いから、かなりの実力者だということがうかがえる
+PRINTFORML 「初めまして、%ANAME(MASTER)%様。私は%NAME_FORMAL(対象)%。ご覧の通り、尼僧をしております」
+PRINTFORMW 「今日お邪魔したのは、他でもありません。%ANAME(MASTER)%にご助力いただきたいのです」
+PRINTFORML 「幻想郷に広がった戦火。消し止めるためには、力ある者の手助けが要る」
+PRINTFORMW 「あなたの助けを得られれば、幻想郷の平和は近づく。だからこうして、私自らうかがいました」
+PRINTFORMW 「そして、あなたが仕える%NAME_FORMAL(神子)%……彼女が手を染める道教は、邪悪で危険な術です」
+PRINTFORMW 「%ANAME(MASTER)%様にもきっと、災厄をもたらすでしょう」
+PRINTFORMW 「どうか……お願いします」
+PRINTFORMW 言うと、%ANAME(対象)%は深々と頭を下げた。真摯な態度だ。裏はあるまい
+PRINTFORML それにしても、引き抜きとは。驚くことではない。幻想郷は混迷の時代にある。生き延びるには、優秀な人材は必須だ
+PRINTFORML ……こちらにとっての問題は、彼女がついていくに足るだけの人物かということ、
+PRINTFORMW 仮に彼女を選んだとして、%ANAME(神子)%と敵対することになるということだ
+PRINTFORML さて、どうしようか……
+PRINTFORML 
+CALL ASK_YN("話にのる", "やめておく")
+IF RESULT == 0
+	PRINTFORMW 「本当ですか？　ありがとうございます！」
+	PRINTFORMW 「では……これから、よろしくお願いしますね」
+	PRINTFORMW 差し出された手を、%ANAME(MASTER)%は堅く握りしめた……
+	CALL COLORPRINT(@"%ANAME(対象)%の勢力に移籍しました", カラー_ピンク, "W")
+	CALL COLORPRINT(@"%ANAME(神子)%との関係が、非常にこじれました", カラー_警告, "W")
+	CFLAG:対象:好感度 += 500
+	CFLAG:対象:依存度 += 100
+	CALL CHANGE_RELATION_O_TO_O(神子, MASTER, -500, 500)
+	CALL CHANGE_RELATION_O_TO_O(神子, 対象, -500, 500)
+	CALL CHANGE_COUNTRY(MASTER, CFLAG:対象:所属, 1)
+	KDVAR:対象:白蓮_白蓮からの勧誘 = 1
+ELSE
+	PRINTFORMW 「……そうですか」
+	PRINTFORMW 「残念ですが、仕方ありませんね。敵としてまみえないことを祈るばかりです」
+	PRINTFORMW 「お時間を頂戴して、どうもすみませんでした。では」
+	PRINTFORMW 対象は立ち去っていった……
+	KDVAR:対象:白蓮_白蓮からの勧誘 = 2
+ENDIF
+
+RETURN 1

@@ -1,0 +1,84 @@
+﻿;---------------------
+;対応するデイリーのDISABLEを返す。設定しない場合、イベントは発生しない。
+;---------------------
+@KOJO_DAILY_K32_DERIVATION_MIZUASOBI_DISABLE(対象)
+#DIM 対象
+RETURN KOJO_DAILY_GET_DISABLE_CONFIG(対象, "MIZUASOBI")
+
+;---------------------
+;発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@KOJO_DAILY_K32_DERIVATION_MIZUASOBI_DECISION(対象)
+#DIM 対象
+
+;対象のデイリー「水遊び」で遊んでいない、またはイベント終了済みなら駄目
+SIF KDVAR:対象:文_水遊び != 1
+	RETURN -1
+
+RETURN CHECK_KOJO_DAILY_HAPPEN(対象, 1, 0, 1)
+
+;---------------------
+;本体
+;---------------------
+@KOJO_DAILY_K32_DERIVATION_MIZUASOBI(対象)
+#DIM 対象
+
+PRINTFORML %ANAME(MASTER)%が寝込んでいると、部屋の扉がノックされた
+PRINTFORMW 入ってきたのは%ANAME(対象)%だった
+PRINTFORMW 「あー……%ANAME(MASTER)%、具合はどうですか？」
+PRINTFORMW 「その、すみません、私が無理言って誘ったせいで風邪なんて」
+PRINTFORML
+CALL ASK_YN("ずいぶんしおらしいな", @"%ANAME(対象)%のせいではない")
+SELECTCASE RESULT
+	CASE 0
+		CFLAG:対象:好感度 += 100
+		PRINTFORML %ANAME(対象)%にしてはずいぶんしおらしい態度じゃないか
+		PRINTFORMW そういってからかうと、%ANAME(対象)%は口を尖らせた
+		PRINTFORMW 「失敬な。私にも申し訳ないと思う気持ちくらいありますよ」
+		PRINTFORMW 「まぁ、軽口がたたけるだけの元気はあるってことですかね」
+		PRINTFORMW 「それより、お腹は空いていませんか？　お粥を作ってきてあげましたよ。栄養重視なので、味は保証しませんが」
+	CASE 1
+		PRINTFORMW 「そう言ってもらえると、ありがたいですね」
+		PRINTFORML 口ではそう言う%ANAME(対象)%だったが、その表情はどこか曇っていた
+		PRINTFORMW 「あの、お腹は空いていませんか？　お粥を作ってきました。栄養重視なので、味は保証しませんが」
+ENDSELECT
+PRINTFORML
+CALL ASK_YN("ありがたく受け取る", "腹は減っていない")
+SELECTCASE RESULT
+	CASE 0
+		PRINTFORML ありがたい。ちょうど腹が減っていたところだった
+		PRINTFORML %ANAME(対象)%によそってもらい、粥を口に運んだ
+		PRINTFORMW 「どうでしょうか……？」
+		PRINTFORML
+		CALL ASK_YN("うまい", "まずい")
+		SELECTCASE RESULT
+			CASE 0
+				PRINTFORML 味は保証しないと言っていたが、正直、美味い
+				PRINTFORML そう伝えると、%ANAME(対象)%の表情はずいぶん明るくなった
+				PRINTFORMW 「ふふ、そうでしょうそうでしょう、この私が作ったんですからね」
+				PRINTFORMW 「ささ、食べるものは食べたんですから、ゆっくり寝て英気を養ってくださいな」
+				PRINTFORML %ANAME(対象)%に無理矢理に寝かしつけられた……
+				CALL COLORPRINT("お粥のおかげで、風邪が完治しました", カラー_注意, "W")
+				CALL COLORPRINT("クールタイムが0になりました", カラー_注意, "W")
+				CFLAG:対象:好感度 += 300
+				COOLTIME:MASTER:0 = 0
+			CASE 1
+				PRINTFORML 作ってもらってなんだが、正直、まずい
+				PRINTFORML そう伝えると、%ANAME(対象)%は顔を真っ赤にした
+				PRINTFORMW 「むむむ……！　人がせっかく心配して作ってあげたというのに、なんという言い方ですか！」
+				PRINTFORMW 「見てなさいよ、絶対に%ANAME(MASTER)%を唸らせる粥を作ってきてあげますからね！」
+				PRINTFORML ぷんすかと怒りながら、%ANAME(対象)%は部屋を出て行った……
+				CALL COLORPRINT(@"%ANAME(対象)%が料理の特訓をしたようです", カラー_注意, "W")
+				CALL COLORPRINT(@"%ANAME(対象)%の料理が5成長しました", カラー_注意, "W")
+				CFLAG:対象:好感度 -= 300
+				ABL:対象:料理 += 5
+		ENDSELECT
+	CASE 1
+		PRINTFORMW 「む、そうですか……」
+		PRINTFORMW 「それは仕方ないですね。では、ゆっくり寝て英気を養ってくださいな」
+		PRINTFORMW %ANAME(対象)%は部屋を後にした……
+ENDSELECT
+KDVAR:対象:文_水遊び = 2
+
+RETURN 1

@@ -1,0 +1,71 @@
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@KOJO_DAILY_K52_PUNISHMENT_FOR_ME_RATE(対象)
+#DIM 対象
+RETURN 125
+
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@KOJO_DAILY_K52_PUNISHMENT_FOR_ME_DECISION(対象)
+#DIM 対象
+
+;紫と衣玖は駄目（女なので、上の条件で弾かれるはずだけど）
+SIF GROUPMATCH(MASTER, NAME_TO_CHARA("紫"), NAME_TO_CHARA("衣玖"))
+	RETURN 0
+
+RETURN CHECK_KOJO_DAILY_HAPPEN(対象, 1, 0, 1) && IS_SLAVE(対象) && COOLTIME:対象:0 >= 2 && IS_MALE(MASTER)
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@KOJO_DAILY_K52_PUNISHMENT_FOR_ME_GENRE(対象)
+#DIM 対象
+RETURN デイリー_ジャンル_エロ
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@KOJO_DAILY_K52_PUNISHMENT_FOR_ME(対象)
+#DIM 対象
+
+PRINTFORML 負傷した%ANAME(対象)%を見舞いにいくと、%PRONOUN(対象)%は申し訳なさそうな表情を見せた……
+PRINTFORMW 「%ANAME(MASTER)%、ごめんなさい、やらかしちゃったわ……」
+PRINTFORMW 「普段だったら別にどうってことないんだけど、不注意だったわ」
+PRINTFORMW 「……ね、私、失敗しちゃったから……"お仕置き"、してくれない……？」
+PRINTFORMW 何を言っているのかと訝る%ANAME(MASTER)%だが、%ANAME(対象)%は本気のようだ
+PRINTFORML さて、どうするか……
+PRINTFORML
+CALL ASK_YN("お仕置きする", "やめておく")
+IF RESULT == 1
+	PRINTFORMW 「……そう」
+	PRINTFORMW 「優しいご主人様ね。それはそれで嬉しいことだわ」
+	PRINTFORMW 「……ちょっと物足りないけど」
+	PRINTFORML %ANAME(対象)%はそれきり、お仕置きのことについては言わなかった……
+	RETURN 1
+ENDIF
+PRINTFORML %ANAME(対象)%がそう望むなら、そうしてやろう……
+PRINTFORMW %ANAME(MASTER)%は、恍惚の表情を浮かべる%ANAME(対象)%に覆い被さった……
+CFLAG:対象:従属度 += 300
+CFLAG:対象:依存度 += 300
+ABL:対象:主導度Ｕ -= 100
+;全員の調教参加フラグをクリア
+CVARSET CFLAG, 6, 0
+CFLAG:対象:調教参加フラグ = 1
+CFLAG:対象:調教中帰らない = 1
+CFLAG:対象:強制友好化 = 1
+BASE:対象:体力 = MAXBASE:対象:体力
+BASE:対象:気力 = MAXBASE:対象:気力
+;強制逆調教フラグをオン
+FLAG:ターンエンド調教 = 1
+;それ以降のデイリーイベント発生を潰す
+DAILY_CANCEL = 1
+RETURN 1

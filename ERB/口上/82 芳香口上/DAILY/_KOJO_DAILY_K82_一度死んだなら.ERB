@@ -1,0 +1,130 @@
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@KOJO_DAILY_K82_REBORN_UNDEAD_RATE(対象)
+#DIM 対象
+RETURN 1000 - MIN(KDVAR:対象:芳香_一度死んだなら * 50 + 500, 999)
+
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@KOJO_DAILY_K82_REBORN_UNDEAD_DECISION(対象)
+#DIM 対象
+#DIM 青娥
+
+青娥 = NAME_TO_CHARA("青娥")
+
+;これで対象が死んでないとダメってことになる筈
+SIF CFLAG:対象:特殊状態 != 2
+	RETURN 0
+
+;左は対象をモノにしているかどうか
+;右は青娥が捕まっていたりどこにも所属していたりしないかどうか
+;つまり、青娥が拘束されているか、どの勢力にも所属していないのに加え、自分が対象をモノにしてない場合はこのイベントが起きないって意味になる筈
+SIF !(IS_LOVER(対象) || IS_SLAVE(対象)) && (CFLAG:青娥:捕虜先 || !IS_COUNTRY(CFLAG:青娥:所属))
+	RETURN 0
+
+RETURN 1
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@KOJO_DAILY_K82_REBORN_UNDEAD_GENRE(対象)
+#DIM 対象
+RETURN デイリー_ジャンル_その他
+
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@KOJO_DAILY_K82_REBORN_UNDEAD(対象)
+#DIM 対象
+#DIM 青娥
+
+青娥 = NAME_TO_CHARA("青娥")
+
+
+;毎回あんな長文垂れ流されたって困る　何度も発生させる（ry
+IF KDVAR:対象:芳香_一度死んだなら
+	IF !(IS_SLAVE(対象) || IS_LOVER(対象))
+		CALL COLORPRINT(@"再び%ANAME(対象)%が蘇り、%ANAME(青娥)%の元に推参しました", カラー_警告, "W")
+		CALL CHANGE_COUNTRY(対象, CFLAG:青娥:所属)
+	ELSE
+		CALL COLORPRINT(@"再び%ANAME(対象)%が蘇り、%ANAME(MASTER)%の元に推参しました", カラー_警告, "W")
+		CALL CHANGE_COUNTRY(対象, CFLAG:MASTER:所属)
+	ENDIF
+ELSE
+	PRINTFORML 無縁塚。身元の分からない死体が量産される乱世、石を踏まないことが困難になりつつある目下過剰人口状態の土地
+	PRINTFORMW そこで、ぽわりぽわりと人魂が浮かび上がって地面に吸い込まれていった
+	PRINTFORML 何も起こらずにしばらく後、大地が僅かに盛りあがって指先が突き出た
+	PRINTFORML もがくように手、腕と這い出ていき、肩が露出すると一息に人影が飛び出す
+	PRINTFORML それは場に見合った姿をしていて、しかし不相応にも生きたように動く
+	PRINTFORMW 名は対象。とっくの昔に死んでいて、少し前にもう一度殺された筈の人物である
+	PRINTFORML 「あー……ここ、は……何処だ！」
+	PRINTFORML 「……おお、やられたんだっけ……？」
+	PRINTFORML 「うん、そうだな、確かにそうだった、その通りだ」
+	PRINTFORMW そこまで一人ごちて、対象は気付いた
+	PRINTFORML ――腐臭が体に染みついている、それに土やら血やらで肌は汚れて服は襤褸と変わりない
+	PRINTFORMW ――振り向いて見下ろした、先刻這い出た穴では乱雑に埋め立てられた惨死体を蛆が這い回っている
+	PRINTFORML 自分の体にも蛆がひっついている気がして、%ANAME(対象)%は高く飛び上がり、体に響くように着地した
+	PRINTFORMW 予感は間違っていなかったようで、%ANAME(対象)%の体からは土と一緒に何匹かの虫が落ちて、何処ぞへと逃げ出した
+	PRINTFORML 「むぅ、やっぱり死ぬのはいかんな。最悪だ」
+	PRINTFORMW 「早く帰って、水の一つでも浴びたいところだなー……着替えもしたいし」
+	PRINTFORMW 「……帰るって、何処に？」
+	PRINTFORMW 「あれ？　あー、えーっと……」
+	IF !(IS_SLAVE(対象) || IS_LOVER(対象)) || MASTER == NAME_TO_CHARA("青娥")
+		PRINTFORMW 「……%ANAME(青娥)%」
+		PRINTFORML 「そうだ、私の居るべき場所なんて今も昔も%ANAME(青娥)%の元一つだろう？」
+		PRINTFORML 「何悩んでたんだ私……さっさと帰ろう！」
+		CALL COLORPRINT(@"宮古対象が蘇り、%ANAME(青娥)%の元に推参しました", カラー_警告, "W")
+		CALL CHANGE_COUNTRY(対象, CFLAG:青娥:所属)
+	ELSE
+		PRINTFORMW 「……%ANAME(MASTER)%？」
+		PRINTFORML 「おお、そうだそうだった！　%ANAME(MASTER)%のところしかないな！」
+		PRINTFORML 「……？　誰か、忘れてる、よう、な？」
+		PRINTFORML 「まあいい！　いざ行かん、我が君の元へ！」
+		CALL COLORPRINT(@"宮古対象が蘇り、%ANAME(MASTER)%の元に推参しました", カラー_警告, "W")
+		PRINTFORMW
+		CALL CHANGE_COUNTRY(対象, CFLAG:MASTER:所属)
+		PRINTFORML 「%ANAME(MASTER)%、久しいな！」
+		PRINTFORMW %ANAME(MASTER)%が散歩をしていると、死亡した筈の%ANAME(対象)%が現われた
+		PRINTFORML なぜ%ANAME(対象)%がここに……生き返ったのか？　自力で蘇生を？　と問うと
+		PRINTFORML 「死んで死んだら不死の名折れだ！」
+		PRINTFORMW 答えになっていない返事を返された
+		PRINTFORML 「まあ、そんなことはどうでもいい。湯浴みの用意と、それと何か食べ物が欲しい！　服も頼む！」
+		PRINTFORML そう言われてようやく%ANAME(対象)%の惨状に気付いた%ANAME(MASTER)%は、彼女が望む諸々を与えるよう手配した
+		IF CFLAG:青娥:所属 == CFLAG:MASTER:所属 && !(IS_LOVER(青娥) || IS_SLAVE(青娥))
+			PRINTFORMW
+			PRINTFORML 「すっかり寝取られちゃいましたわ」
+			IF CFLAG:青娥:面識
+				PRINTFORMW とりあえず汚れを落としに行くと言った%ANAME(対象)%を見送ると、%ANAME(青娥)%が後ろに立っていた
+			ELSE
+				PRINTFORML とりあえず汚れを落としに行くと言った%ANAME(対象)%を見送ると、青ずくめの女性が後ろに立っていた
+				PRINTFORM 「あ、私は道仙の
+				CALL COLORPRINT(@"%NAME_FORMAL(青娥)%", カラー_注意)
+				PRINTFORML と申します。人は青娥娘々と呼びますが」
+				CFLAG:青娥:面識 = 1
+				PRINTFORMW 「貴方には%ANAME(対象)%のご主人様と言った方がいいかしら。あの様子だともう"元"かもしれないけど？」
+			ENDIF
+			PRINTFORML 「あの娘が一番に思い出すのが私じゃないだなんて、嫉妬しちゃいそう」
+			PRINTFORMW 確かに、自分の部下を奪われていい気はしないだろうが……
+			PRINTFORML 「――まあ、小姑みたいにとやかく口を出す気はありませんけど」
+			PRINTFORML 「結局、最後には私の手に戻ってきますから。貴方が何をしたって、ね」
+			PRINTFORML 「ええ、ですからどうぞ、私のことはお気になさらず。存分に愛を育んでくださいまし」
+			PRINTFORMW 最後に清楚な笑みを浮かべると、言いたいことは言い終わったとばかりに、%ANAME(青娥)%は優雅に会釈をして立ち去った……
+		ENDIF
+	ENDIF
+ENDIF
+
+KDVAR:対象:芳香_一度死んだなら += 1
+
+RETURN 1
+
+

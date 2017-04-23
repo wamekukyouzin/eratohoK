@@ -1,0 +1,74 @@
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@KOJO_DAILY_K86_NATURAL_BORN_ADMINISTRATOR_RATE(対象)
+#DIM 対象
+RETURN 1000
+
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@KOJO_DAILY_K86_NATURAL_BORN_ADMINISTRATOR_DECISION(対象)
+#DIM 対象
+
+SIF KDVAR:対象:神子_天職の為政者
+	RETURN 0
+
+SIF GET_COUNTRY_BOSS(CFLAG:対象:所属) != 対象
+	RETURN 0
+
+SIF GET_OWN_CITY(CFLAG:対象:所属) != 1
+	RETURN 0
+
+RETURN CHECK_KOJO_DAILY_HAPPEN(対象)
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@KOJO_DAILY_K86_NATURAL_BORN_ADMINISTRATOR_GENRE(対象)
+#DIM 対象
+RETURN デイリー_ジャンル_その他
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@KOJO_DAILY_K86_NATURAL_BORN_ADMINISTRATOR(対象)
+#DIM 対象
+PRINTFORMW 「……ふむ、さすがに人外の跋扈する郷、一筋縄ではいかぬか」
+PRINTFORMW 勢力図を眺めながら、%ANAME(対象)%はひとりごちる
+PRINTFORMW 戦況は%PRONOUN(対象)%にとってかなりまずく、あと一息で押しつぶされそうだ
+PRINTFORMW だが、%ANAME(対象)%は不敵な笑みを浮かべていた
+PRINTFORMW 「面白い。そうでなくては、張り合いがないものな」
+PRINTFORMW 「どれ、私も一つ、本気を出してやるとしよう」
+PRINTFORMW 「私の政の腕が勝つか、それとも……勝負といこうか、幻想郷よ？」
+
+CALL COLORPRINT(@"%ANAME(対象)%が本気を出しました", カラー_注意, "W")
+CALL COLORPRINT(@"%ANAME(対象)%の能力が上昇しました", カラー_注意, "W")
+
+ABL:対象:武闘 += 10
+ABL:対象:防衛 += 5
+ABL:対象:知略 += 5
+TALENT:対象:妖術知識 = 1
+ABL:対象:妖術 += 5
+
+CALL SKILL_LEARN_BY_NAME(対象, スキル_ジャンル_SP, NO:対象, "たわむれはおわりじゃ！")
+SIF RESULT
+	CALL COLORPRINT(@"%ANAME(対象)%がスキル＜たわむれはおわりじゃ！＞を習得しました", カラー_注意, "W")
+
+CALL SKILL_LEARN_BY_NAME(対象, スキル_ジャンル_SP, NO:対象, "東方のインフルーエンス")
+SIF RESULT
+	CALL COLORPRINT(@"%ANAME(対象)%がスキル＜東方のインフルーエンス＞を習得しました", カラー_注意, "W")
+
+COUNTRY_SOLDIER:(CFLAG:対象:所属) += 10000
+
+KDVAR:対象:神子_天職の為政者 = 1
+
+RETURN 1
+

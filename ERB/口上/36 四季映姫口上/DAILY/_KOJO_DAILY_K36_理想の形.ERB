@@ -1,0 +1,130 @@
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@KOJO_DAILY_K36_YOUR_IDEAL_RATE(対象)
+#DIM 対象
+RETURN 1000
+
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@KOJO_DAILY_K36_YOUR_IDEAL_DECISION(対象)
+#DIM 対象
+
+SIF KDVAR:対象:四季映姫_理想の形
+	RETURN -1
+
+SIF ABL:MASTER:武闘 + ABL:MASTER:知略 + ABL:MASTER:防衛 + ABL:MASTER:政治 < 280
+	RETURN -1
+
+SIF GET_OWN_CITY(CFLAG:MASTER:所属) < 8
+	RETURN -1
+
+SIF MASTER == NAME_TO_CHARA("小町")
+	RETURN -1
+
+SIF !IS_LOVER(対象) && !IS_SLAVE(対象)
+	RETURN -1
+
+RETURN CHECK_KOJO_DAILY_HAPPEN(対象, 1, 0)
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@KOJO_DAILY_K36_YOUR_IDEAL_GENRE(対象)
+#DIM 対象
+RETURN デイリー_ジャンル_エロ
+
+
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@KOJO_DAILY_K36_YOUR_IDEAL(対象)
+#DIM 対象
+
+
+KDVAR:対象:四季映姫_理想の形 = 1
+
+PRINTFORMW 自室で仕事をしていた%ANAME(MASTER)%のもとに、%ANAME(対象)%が訪ねてきた
+PRINTFORMW 「%ANAME(MASTER)%。一つ、聞かせてください」
+PRINTFORMW 「貴方はこの幻想郷でもかなりの人材です。そして私たちは力をつけている。郷をまとめる日も近いでしょう」
+PRINTFORMW 「そして……その向こうに、貴方は何を見ているのですか？」
+PRINTFORML 「貴方の理想を、訊かせてもらいましょう」
+PRINTFORML 
+CALL ASK_MULTI("平和", "力", "金", "快楽")
+
+SELECTCASE RESULT
+	CASE 0
+		PRINTFORMW 「なるほど」
+		PRINTFORMW 「それは、今のように争いあう状態を脱却したからといって、必ずしも実現されるものではありません」
+		PRINTFORMW 「物理的に争っていなかったとしても、人々の心が安らかであるとは限りませんから」
+		PRINTFORMW 「厳しい道となりましょうが……私は気に入りましたよ」
+		PRINTFORMW 「ええ。私も%ANAME(MASTER)%の理想のため、尽力しましょう」
+		PRINTFORMW どうやら、%ANAME(対象)%に気に入られたようだ……
+		CFLAG:対象:好感度 += 300
+	CASE 1
+		PRINTFORMW 「なるほど」
+		PRINTFORMW 「覇を唱えたいと……それもまた、理想の一つでしょう」
+		PRINTFORMW 「閻魔としては諸手を挙げて肯定しがたい答えでしたが……嘘をつかない誠実さは評価しましょう」
+		PRINTFORMW 「聞かせてくれて、どうもありがとうございました」
+		PRINTFORMW %ANAME(対象)%は立ち去った……
+	CASE 2
+		PRINTFORMW 「なるほど」
+		PRINTFORMW 「いい答えだと思いますよ……いささか即物的ですが」
+		PRINTFORMW 「ん？　どうしたのです、妙な顔をして」
+		PRINTFORMW 「ああ、金稼ぎそのものを悪とは考えませんよ、我々彼岸の者は」
+		PRINTFORMW 「でなければ、どうして三途の渡り賃などという制度がありましょうか？」
+		PRINTFORMW 「金は、金を稼ぐことそのものが善行となるような仕組みになっているのですよ」
+		PRINTFORMW 「そういうわけですから、懸命に稼ぐことです。それが貴方の、善行にもつながりましょう」
+		PRINTFORMW どうやら、%ANAME(対象)%に気に入られたようだ……
+		CFLAG:対象:好感度 += 300
+	CASE 3
+		IF IS_LOVER(対象)
+			PRINTFORMW 「……はぁー」
+			PRINTFORMW 「貴方という人は……自分に正直すぎやしませんか」
+			PRINTFORMW 「いいですか？　快楽は確かに悪いことではありませんが、なにごとも追求しすぎれば退廃を招きます」
+			PRINTFORMW 「退廃に追い込まれた者が死後行くところといったら、言わなくともわかるでしょう？」
+			PRINTFORMW 「%ANAME(MASTER)%にそのような末路をたどらせるわけにはいきません。しばらく禁欲ですからねっ」
+			PRINTFORMW %ANAME(対象)%はぷりぷりしながら去っていった……
+			CFLAG:対象:好感度 -= 300
+			SIF TALENT:対象:合意
+				CALL COLORPRINT(@"%ANAME(対象)%の合意を失いました", カラー_注意, "W")
+			TALENT:対象:合意 = 0
+		ELSEIF IS_SLAVE(対象)
+			PRINTFORMW 「……ふふ、そうきましたか」
+			PRINTFORML 快楽だ……そう答えると、%ANAME(対象)%は笑みを浮かべた
+			PRINTFORMW 「ええ、ええ、そうでしょうね、私のようなちんちくりんの、気難しい閻魔すら堕落させてしまうような人ですものね」
+			PRINTFORMW 「周囲の者を巻き添えにしながら、自ら退廃に突き進んでいく……そういう人ですよ、貴方は」
+			PRINTFORMW 「その道の最後に待つのは破滅です。恨みを買ったものに殺されるか、どこかで野たれ死ぬか……」
+			PRINTFORMW 「いずれにせよ、行くのは地獄以外に無いでしょうね」
+			PRINTFORML %ANAME(対象)%の笑みは、だんだんと妖艶なものに変わっていく
+			PRINTFORML 閻魔としての表情から、女の表情に変わっていく
+			PRINTFORMW 「恐れ……てはいないでしょうね、そんな先のことよりも、粘膜を触れ合わせる気持ちよさがほしいのでしょう？」
+			PRINTFORMW 「分かりますよ、だって私も、そういう風にされたんですから、ほかならぬ貴方に、ね」
+			PRINTFORML 言いながら、%ANAME(対象)%は衣服を脱ぎ捨てていく
+			PRINTFORML 産まれたままの姿になりながら、しなだれかかってきた……
+			PRINTFORMW 「さあ、二人で一緒に理想を追求しましょうか、貴方の身体が朽ちるまで」
+			PRINTFORMW 「断りはしないでしょう？　断ろうものなら……地獄に落としてあげますよ」
+			PRINTFORML もちろん、断ろうはずもない
+			PRINTFORML %ANAME(対象)%とたっぷり楽しんだ……
+			IF IS_MALE(MASTER)
+				CALL FUCK(MASTER, "Ｃ, 射精, 欲望, Ｖ挿入", "キス喪失, 童貞喪失", 0, @"%ANAME(対象)%の唇", "", @"%ANAME(対象)%の膣", 喪失_和姦)
+				CALL FUCK(対象, "Ｖ, Ｃ, Ｂ, Ｍ, 奉仕, 性交, 欲望, 性技, 精愛, Ｖ性交, キス, 口淫", "キス喪失, 膣内射精, 処女喪失", GET_ID(MASTER), @"%ANAME(MASTER)%のペニス", ANAME(MASTER), "", 喪失_和姦)
+			ELSE
+				CALL FUCK(MASTER, "欲望, 性技, Ｃ, Ｖ, Ａ, Ｂ, Ｍ, レズ, キス", "キス喪失", 0, @"%ANAME(対象)%の唇", "", "", 喪失_和姦)
+				CALL FUCK(対象, "欲望, 性技, Ｃ, Ｖ, Ａ, Ｂ, Ｍ, レズ, キス", "キス喪失", 0, @"%ANAME(MASTER)%の唇", "", "", 喪失_和姦)
+			ENDIF
+		ENDIF
+ENDSELECT
+
+RETURN 1
+
+

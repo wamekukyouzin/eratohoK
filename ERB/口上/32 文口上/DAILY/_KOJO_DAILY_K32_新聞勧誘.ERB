@@ -1,0 +1,140 @@
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@KOJO_DAILY_K32_INVITATION_FROM_AYA_RATE(対象)
+#DIM 対象
+RETURN 40
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@KOJO_DAILY_K32_INVITATION_FROM_AYA_DECISION(対象)
+#DIM 対象
+
+SIF KDVAR:対象:文_新聞勧誘
+	RETURN 0
+
+;主人公は男であること
+SIF !IS_MALE(MASTER)
+	RETURN 0
+
+;主人公が君主でない
+SIF GET_COUNTRY_BOSS(CFLAG:MASTER:所属) == MASTER
+	RETURN 0
+
+;三能力の合計が200以上
+SIF ABL:MASTER:武闘 + ABL:MASTER:知略 + ABL:MASTER:政治 + ABL:MASTER:防衛 < 200
+	RETURN 0
+	
+
+SIF !IS_COUNTRY(CFLAG:対象:所属)
+	RETURN 0
+
+RETURN CHECK_KOJO_DAILY_HAPPEN(対象, 0, 0, -1)
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@KOJO_DAILY_K32_INVITATION_FROM_AYA_GENRE(対象)
+#DIM 対象
+RETURN デイリー_ジャンル_エロ
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@KOJO_DAILY_K32_INVITATION_FROM_AYA(対象)
+#DIM 対象
+#DIM ボス
+
+
+ボス = GET_COUNTRY_BOSS(CFLAG:MASTER:所属)
+
+CALL KOJO_DAILY_START()
+
+PRINTFORML %ANAME(MASTER)%が仕事をしていると、部下が来客を告げた……
+PRINTFORMW 「どうも！　こんにちは！　清く正しい射命丸です！」
+PRINTFORMW 「新聞はいかがですか？　今ならお得な割引キャンペーン中ですよ！」
+PRINTFORML 通せと伝えるより先に、%ANAME(対象)%は部屋に入っていた
+PRINTFORMW %ANAME(MASTER)%は部下を下げさせ、来客用の椅子に%ANAME(対象)%を座らせる
+PRINTFORMW 「人払いしちゃうんですか？　不用心ですねぇ、私が害意を抱いていたらどうするつもりです？」
+PRINTFORML 流石にここまで堂々と要人暗殺に及ぶ奴もいるまい
+PRINTFORMW それに、いざという時は自分一人で厄介事を退けるくらいの腕はあるつもりだ……
+PRINTFORMW そう返すと、%ANAME(対象)%はニヤリと笑った
+PRINTFORMW 「ふぅん、それなりに考えの回るほうなのかしらね、わざわざ足を運んだのは無駄じゃなかったかしら」
+PRINTFORMW 彼女の雰囲気が変わった。こちらの方が素なのだろう。特に気にすることもなく、話を促す
+PRINTFORMW 「%ANAME(MASTER)%。優秀な武将だそうね？」
+PRINTFORML 優秀かどうかはともかく、そこらの凡百に後れをとるつもりはなかった
+PRINTFORMW 「こんな時代だからね、そういう人材を得るためなら、私は手間暇を惜しむつもりはないわ」
+PRINTFORMW 「もちろん、ただでとは言わない。そうね、幾ばくかの支度金、それに、女なんてどう？　英雄色を好むともいうしね」
+PRINTFORML 口端から舌をちろりとうかがわせる対象は、快活な新聞記者としての印象とは裏腹な、妖艶な雰囲気を纏っていた
+PRINTFORMW 女というのは、つまり彼女のことなのだろう
+PRINTFORML ……それにしても、何の密談かと思ったら、どうやら自分を引き抜きにきたらしい
+PRINTFORML 驚くようなことではない。幻想郷は混迷を極めている。生き延びるには、優秀な人材は必須だ
+PRINTFORMW こちらとしても、生き残っていくためには、少しでも強力な勢力の庇護を求めるのが得策だ
+PRINTFORMW ……だが、この話を受ければ、今の主君の方面との人間関係は、間違いなくこじれてしまうだろう
+PRINTFORML さて、どうしようか……
+CALL SINGLE_DRAWLINE
+PRINTFORML %ANAME(対象)%の領地数:{GET_OWN_CITY(CFLAG:対象:所属)} %ANAME(ボス)%の領地数:{GET_OWN_CITY(CFLAG:MASTER:所属)}
+PRINTFORML 
+CALL ASK_YN("話を受ける", "断る")
+IF RESULT == 1
+	PRINTFORMW 「……あら、そう？　それは残念」
+	PRINTFORML %ANAME(ボス)%を裏切るわけにはいかない……
+	PRINTFORMW そう答えると、%ANAME(対象)%は案外あっさりと引いてみせた
+	PRINTFORMW 「そうですか、それなら仕方ありませんね！　対象々。新聞はいい新聞なんですが、必要とされない方に押しつけることもないでしょう」
+	PRINTFORMW 「では私はこれで！　……次に会うとき、敵同士になっていないことを祈ってるわよ？」
+	PRINTFORMW 不敵な笑みを浮かべ、%ANAME(対象)%は風のように立ち去っていった……
+	;フラグ
+	KDVAR:対象:文_新聞勧誘 = 1
+ELSE
+	PRINTFORMW 「……ふふ、そう言ってくれると思ってたわ」
+	PRINTFORMW 「これから、どうぞよろしく」
+	PRINTFORMW 差し出された手を握る。柔らかく、温かい手だった
+	LOCAL:0 = MIN((ABL:MASTER:武闘 + ABL:MASTER:知略 + ABL:MASTER:政治) * 200, 50000)
+	CALL COLORPRINT(@"支度金として金{LOCAL:0}を受け取りました", カラー_注意, "W")
+	CALL COLORPRINT(@"%ANAME(対象)%の合意を得ました", カラー_ピンク, "W")
+	CALL COLORPRINT(@"%ANAME(ボス)%との外交関係が、非常にこじれました", カラー_警告, "W")
+	MONEY += LOCAL:0
+	TALENT:対象:合意 = 1
+	TALENT:対象:チョロイン = 1
+	CFLAG:対象:面識 = 1
+	CFLAG:対象:好感度 = MAX(CFLAG:対象:好感度, 800)
+	CFLAG:対象:従属度 = MAX(CFLAG:対象:従属度, 600)
+	CFLAG:対象:依存度 = MAX(CFLAG:対象:依存度, 200)
+	CALL CHANGE_RELATION_O_TO_O(ボス, 対象, -500, 500)
+	CALL CHANGE_RELATION_O_TO_O(ボス, MASTER, -500, 500)
+	CALL CHANGE_COUNTRY(MASTER, CFLAG:対象:所属, 1)
+	PRINTFORMW 「それじゃあ、約束の『女』だけど……」
+	PRINTFORMW 纏う衣服を、%ANAME(対象)%は脱ぎ捨てていく
+	PRINTFORMW 「ふふ、天狗の閨技、たっぷりと味わわせてあげる……」
+	PRINTFORMW %ANAME(MASTER)%は力を抜き、%ANAME(対象)%に身をゆだねた……
+	;天狗の閨技
+	ABL:対象:性知識 = MAX(ABL:対象:性知識, 4)
+	ABL:対象:欲望 = MAX(ABL:対象:欲望, 3)
+	ABL:対象:性技 = MAX(ABL:対象:性技, 3)
+	ABL:対象:奉仕 = MAX(ABL:対象:奉仕, 2)
+	ABL:対象:性交 = MAX(ABL:対象:性交, 2)
+	ABL:対象:精愛 = MAX(ABL:対象:精愛, 1)
+	TALENT:対象:快感に素直 = 1
+	;全員の調教参加フラグをクリア
+	CVARSET CFLAG, 6, 0
+	CFLAG:対象:調教参加フラグ = 1
+	CFLAG:対象:調教中帰らない = 1
+	CFLAG:対象:強制友好化 = 1
+	BASE:対象:体力 = MAXBASE:対象:体力
+	BASE:対象:気力 = MAXBASE:対象:気力
+	;強制逆調教フラグをオン
+	FLAG:ターンエンド調教 = 1
+	;それ以降のデイリーイベント発生を潰す
+	DAILY_CANCEL = 1
+	;フラグ
+	KDVAR:対象:文_新聞勧誘 = 2
+ENDIF
+
+RETURN 1

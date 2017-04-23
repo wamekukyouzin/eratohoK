@@ -1,0 +1,116 @@
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@KOJO_DAILY_K11_QUESTION_RATE(対象)
+#DIM 対象
+RETURN 30
+
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@KOJO_DAILY_K11_QUESTION_DECISION(対象)
+#DIM 対象
+#DIM レミリア
+レミリア = NAME_TO_CHARA("レミリア")
+
+SIF KDVAR:対象:フランドール_質問
+	RETURN 0
+
+RETURN CHECK_KOJO_DAILY_HAPPEN(対象, 1, 0, 1) && CHECK_KOJO_DAILY_HAPPEN(レミリア)
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@KOJO_DAILY_K11_QUESTION_GENRE(対象)
+#DIM 対象
+RETURN デイリー_ジャンル_その他
+
+
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@KOJO_DAILY_K11_QUESTION(対象)
+#DIM 対象
+
+RETURN 1
+
+
+;------------------------------------
+;デイリーイベント本体
+;創意工夫
+;発生判定に失敗した場合（イベントが発生しない場合）はマイナス１を返すこと
+;-----------------------------------
+@KOJO_DAILY_K11_QUESTION
+#DIM 対象
+#DIM レミリア
+
+対象 = NAME_TO_CHARA("対象")
+レミリア = NAME_TO_CHARA("レミリア")
+
+KDVAR:対象:フランドール_質問 = 1
+
+CALL KOJO_DAILY_START()
+PRINTFORMW 「ねぇねぇ、%ANAME(MASTER)%」
+PRINTFORMW %ANAME(対象)%と遊んでいると、ふいに尋ねられた
+PRINTFORMW 「アイツと%ANAME(MASTER)%と、どっちが強いの？」
+PRINTFORML ……アイツというのは、%ANAME(レミリア)%のことだろう
+PRINTFORML %ANAME(対象)%も大概だが、%PRONOUN(レミリア)%もずいぶん強力な吸血鬼だ
+PRINTFORML 強いといっても色々あろうが、さて……
+
+CALL ASK_MULTI("自分かな", @"%ANAME(レミリア)%かな", "わからないな")
+
+IF GROUPMATCH(RESULT, 1, 2)
+	PRINTFORMW 「ふーん」
+	PRINTFORMW あまり興味を引かなかったようだ
+	PRINTFORMW 話題はそれ以上続かなかった……
+	RETURN 1
+ENDIF
+
+PRINTFORMW 「へぇ、ホント？」
+PRINTFORMW 「なら……私とどっちが強いかな、弾幕ごっこしようよ！」
+PRINTFORMW 言うなり%ANAME(対象)%は、明らかに本気の弾幕をぶっ放してきた
+PRINTFORMW こっちも真面目にやらないと怪我をする……！
+
+IF ABL:MASTER:武闘 + ABL:MASTER:知略 / 3 < ABL:対象:武闘
+	PRINTFORMW 「うーん、大したことなかったや」
+	PRINTFORMW 「これなら、アイツの方が強いんじゃないかなぁ？」
+	PRINTFORML ……負けてしまった
+	PRINTFORML 流石に吸血鬼、むちゃくちゃな強さだった
+	PRINTFORMW とりあえず、怪我を治療することにした……
+	CALL ADD_COOLTIME(MASTER, 3)
+	RETURN 1
+ENDIF
+
+PRINTFORMW 「うーん……やられちゃった」
+PRINTFORMW ひやひやさせられた……
+PRINTFORML 力まかせな単純な弾幕だからなんとかなった
+PRINTFORMW もう少し理詰めで来られていたら危なかったかもしれない……
+PRINTFORMW 「確かに、アイツよりも強いみたいだねー」
+PRINTFORMW 「だって私はアイツより強いし、その私に勝つんだからそうなるよね」
+PRINTFORMW 「うーん、頑張らなくちゃなー」
+PRINTFORMW とんだ災難だったが、%ANAME(対象)%はやる気をだしたようだ
+PRINTFORMW ならよしとするか……
+
+CALL COLORPRINT(@"%ANAME(対象)%の能力が上昇しました", カラー_注意, "W")
+
+ABL:対象:武闘 += 3
+ABL:対象:知略 += 3
+CFLAG:対象:好感度 += 100
+
+CALL SKILL_FORGET_BY_NAME(対象, スキル_ジャンル_SP, NO:対象, "狂気")
+SIF RESULT
+	CALL COLORPRINT(@"%ANAME(対象)%はスキル「狂気」を忘れた！", カラー_注意, "W")
+
+CALL SKILL_LEARN_BY_NAME(対象, スキル_ジャンル_SP, NO:対象, "レーヴァテイン")
+SIF RESULT
+	CALL COLORPRINT(@"%ANAME(対象)%はスキル「レーヴァテイン」を習得した！", カラー_注意, "W")
+
+RETURN 1
