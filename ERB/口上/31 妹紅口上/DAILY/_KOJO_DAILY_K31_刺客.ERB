@@ -1,0 +1,166 @@
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@KOJO_DAILY_K31_DIE_KAGUYA_RATE(対象)
+#DIM 対象
+RETURN 30
+
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@KOJO_DAILY_K31_DIE_KAGUYA_DECISION(対象)
+#DIM 対象
+#DIM 輝夜
+#DIM 判定値
+輝夜 = NAME_TO_CHARA("輝夜")
+
+
+;いちどきり
+SIF	KDVAR:対象:妹紅_刺客
+	RETURN 0
+
+;対象が君主ならだめ
+SIF GET_COUNTRY_BOSS(CFLAG:対象:所属) == 対象
+	RETURN 0
+
+;駄目キャラリスト
+SIF GROUPMATCH(MASTER, NAME_TO_CHARA("てゐ"), NAME_TO_CHARA("鈴仙"), NAME_TO_CHARA("輝夜"), NAME_TO_CHARA("永琳"), NAME_TO_CHARA("慧音"))
+	RETURN 0
+
+RETURN CHECK_KOJO_DAILY_HAPPEN(対象, 0, 0) && CHECK_KOJO_DAILY_HAPPEN(輝夜, 1, 0)
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@KOJO_DAILY_K31_DIE_KAGUYA_GENRE(対象)
+#DIM 対象
+RETURN デイリー_ジャンル_エロ
+
+
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@KOJO_DAILY_K31_DIE_KAGUYA(対象)
+#DIM 対象
+#DIM 輝夜
+#DIM 判定値
+輝夜 = NAME_TO_CHARA("輝夜")
+
+PRINTFORMW 「%ANAME(輝夜)%！　殺しに来てやったぞ！」
+PRINTFORML 拠点で仕事をしていると、えらく物騒な怒声が聞こえてきた
+PRINTFORML 何事かと思って表に出ると、全身に炎を纏った少女が襲撃に来ていた
+PRINTFORML 衛兵たちは何をしているのか……と思いきや、%PRONOUN(対象)%の周りに倒れ伏している
+PRINTFORML 華奢な見ためのわりに、かなりの実力者のようだ
+PRINTFORMW 「そこのお前！　%ANAME(輝夜)%はどこだ、隠し立てすると容赦しないぞ！」
+PRINTFORMW 「%ANAME(対象)%が来たと伝えろ！　そうしたら出てくるだろうさ！」
+PRINTFORML 襲撃者の少女の狙いは%ANAME(輝夜)%らしい。殺すと言っていたあたり、刺客かなにかだろう
+PRINTFORML 蓬莱人である%ANAME(輝夜)%をそうそう殺せるとも思えないが
+PRINTFORML どうしたものか……
+PRINTFORML 
+CALL ASK_YN("追い返す", "通す")
+
+IF RESULT == 1
+	PRINTFORMW 「えっ……通してくれるんだ……いやありがたいんだけど、ええ……？」
+	PRINTFORMW 「普通そこは邪魔するんじゃ……？　いやまあ、いいんだけどさ」
+	PRINTFORMW その後、%ANAME(対象)%が%ANAME(輝夜)%といい勝負をし、両方死んでよみがえったという話を聞いた
+	PRINTFORMW どうやら%ANAME(対象)%も蓬莱人だったようだ……
+	CALL ADD_COOLTIME(対象, 3)
+	CALL ADD_COOLTIME(輝夜, 3)
+	KDVAR:対象:妹紅_刺客 = 1
+	RETURN 1
+ENDIF
+
+
+PRINTFORML はいそうですかと通すわけにはいかない
+PRINTFORMW 追い返すことにした……
+PRINTFORMW 「ふうん？　いい度胸してるじゃない」
+PRINTFORMW 「なら……お前も永遠の苦輪に悩むがいい！」
+PRINTFORMW 
+PRINTFORMW 
+PRINTFORMW 
+;勇儀式
+判定値 = (ABL:MASTER:武闘 + 10 - ABL:対象:武闘) * 5
+
+
+
+IF RAND:100 > 判定値
+	PRINTFORMW 「まっ、こんなもんかな」
+	PRINTFORMW ……%ANAME(対象)%は強かった
+	PRINTFORML というか、攻撃を加えてもあっという間に回復してしまう
+	PRINTFORMW %PRONOUN(対象)%も蓬莱人だったのだ……
+	PRINTFORMW 「それじゃ、次は%ANAME(輝夜)%……と言いたいところだけど、ちょっと疲れた」
+	PRINTFORMW 「今日のところは帰ってあげるよ、それじゃ」
+	PRINTFORMW 暴れるだけ暴れて、%ANAME(対象)%は立ち去っていった……
+	CALL ADD_COOLTIME(MASTER, 3)
+	KDVAR:対象:妹紅_刺客 = 1
+	RETURN 1
+ENDIF
+
+PRINTFORMW 「うぐぐ……くそう……！」
+PRINTFORML どうにかなった……ぎりぎりだったが
+PRINTFORML %PRONOUN(対象)%も蓬莱人だったようだ、攻撃をしてもすぐに回復してしまう
+PRINTFORML が、体力はそういかないらしい。しばらく戦っていると、勝手にスタミナ切れを起こして倒れた
+PRINTFORMW ともあれ、こちらの勝ちだ……
+PRINTFORMW 「ふん……不本意だけど、負けは負けか」
+PRINTFORMW 「わかった、今回は私の負け、好きにすればいい」
+PRINTFORMW %ANAME(対象)%は逃げようともせず、地面に伏している。潔いタイプのようだ
+PRINTFORML さて、どうしようか……
+PRINTL
+CALL ASK_MULTI_JUDGE("部下にする", 1, "投獄する", 1, "蓬莱人相手に処刑は無意味だろう", 0, "有り金を奪う", 1, "輝夜のところに連れていく", 1, "犯す", HAS_PENIS(MASTER))
+
+SELECTCASE RESULT
+	CASE 0
+		PRINTFORMW 「は？　部下？　私を？」
+		PRINTFORMW 「冗談じゃない、それって%ANAME(輝夜)%の仲間になれってことでしょ」
+		PRINTFORMW 確かに見た目はそうだが、誰しも味方には油断するものだ
+		PRINTFORMW 寝首をかくには最適では？　……そのように説得した
+		PRINTFORMW 「なるほど……一理あるかもね」
+		PRINTFORMW 「わかった。%ANAME(MASTER)%だっけ？　あなたの部下になってあげる」
+		CALL COLORPRINT(@"%ANAME(対象)%が部下になりました", カラー_注意, "W")
+		CALL CHANGE_COUNTRY(対象, CFLAG:MASTER:所属, 1)
+		CFLAG:対象:好感度 += 500
+		KDVAR:対象:妹紅_刺客 = 1
+	CASE 1
+		PRINTFORMW 「ま、そりゃそうか、あれだけ暴れればね」
+		PRINTFORMW 「好きにすればいいよ」
+		PRINTFORMW %ANAME(対象)%は兵士達に連行されていった……
+		CALL COLORPRINT(@"%ANAME(対象)%を捕虜にしました", カラー_注意, "W")
+		CALL CAPTURE(対象, CFLAG:MASTER:所属)
+		KDVAR:対象:妹紅_刺客 = 1
+	CASE 3
+		PRINTFORMW 「あ、ちょ、財布は勘弁してくれないかな……」
+		PRINTFORMW 「駄目？　そんなー……」
+		CALL COLORPRINT(@"金30000を得ました", カラー_注意, "W")
+		MONEY += 30000
+		KDVAR:対象:妹紅_刺客 = 1
+	CASE 4
+		PRINTFORMW 「……は？　え？　何で今さら？」
+		PRINTFORMW 「だったら戦う必要なかったじゃん……えぇ……なんなの……」
+		PRINTFORMW 「いや、どっちにしろ今日はいいよ、もうスタミナ切れだし、こんなんじゃ殺し合えないし」
+		PRINTFORMW 「それじゃ」
+		PRINTFORMW %ANAME(対象)%は立ち去っていった……
+		KDVAR:対象:妹紅_刺客 = 1
+	CASE 5
+		PRINTFORMW 「え、あ、ちょっ、や、やだ……！」
+		PRINTFORMW 破れた服から覗く白い肌、そそるものがある
+		PRINTFORMW %ANAME(対象)%に覆いかぶさり、その細身の体を味わい尽くすことにした……
+		PRINTFORML
+		CALL FUCK_RAPE(対象, GET_ID(MASTER), @"%ANAME(MASTER)%のペニス", @"%ANAME(MASTER)%")
+		PRINTFORML 
+		PRINTFORMW 「ぅあっ、あ、あぁッ……♥」
+		PRINTFORMW 始めは嫌がっていた%ANAME(対象)%も、%ANAME(MASTER)%が満足するころには、あでやかな喘ぎをあげるようになっていた
+		PRINTFORMW 快楽の余韻に浸る%ANAME(対象)%を、拠点の外に追い出した……
+		KDVAR:対象:妹紅_刺客 = 2
+ENDSELECT
+
+
+RETURN 1
+

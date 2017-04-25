@@ -1,0 +1,91 @@
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@KOJO_DAILY_K27_LUCKY_NORMAL_RATE(対象)
+#DIM 対象
+RETURN 75
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@KOJO_DAILY_K27_LUCKY_NORMAL_DECISION(対象)
+#DIM 対象
+
+SIF GROUPMATCH(MASTER, NAME_TO_CHARA("鈴仙"), NAME_TO_CHARA("永琳"), NAME_TO_CHARA("輝夜"))
+	RETURN 0
+
+SIF KDVAR:対象:てゐ_ラッキー == -1
+	RETURN 0
+
+RETURN CHECK_KOJO_DAILY_HAPPEN(対象, 0, 0, 0)
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@KOJO_DAILY_K27_LUCKY_NORMAL_GENRE(対象)
+#DIM 対象
+RETURN デイリー_ジャンル_その他
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@KOJO_DAILY_K27_LUCKY_NORMAL(対象)
+#DIM 対象
+#DIM 代金
+
+代金 = MIN(MONEY / 5, RAND(500, 1000))
+
+
+IF KDVAR:対象:てゐ_ラッキー == 0
+	PRINTFORMW しまった……
+	PRINTFORMW 迷いの竹林を歩いているうちに、どうやら道に迷ってしまったようだ
+	PRINTFORMW ここは一度迷ってしまうとそうそう出られないと聞く。どうしたものか……
+	PRINTFORMW 「あれ？　どしたのあんた」
+	PRINTFORMW 途方にくれていたところ、妖怪兎に出くわした
+	PRINTFORMW こちらに敵意はないようだが……
+	PRINTFORMW 「ははぁ、さては迷子になったわけだ」
+	CALL ICPRINT(@"「運が良かったね、この<%NAME_FORMAL(対象)%>様が、無事に出口に送り届けてやろうじゃないか」", "W", カラー_注意)
+	PRINTFORMW どうやらこのあたりの地理に詳しいらしい。地獄に仏とはこのことだ
+	PRINTFORMW ……それにしても、少女はにこにこと笑っているが、どこか信用ならないように感じる……
+	PRINTFORMW 「……で？　いくら出してくれんの？」
+	PRINTFORMW 「いやだなぁ、まさかタダで道案内してもらおうなんて思ってないよね？」
+	CALL ICPRINT(@"「そうだなぁ、金<{代金}>くらいで受けてあげるよ、どう？」", "W", カラー_注意)
+	PRINTFORMW ……なるほど、そういうことか
+	PRINTFORMW %PRONOUN(対象)%からすると、今の自分は絶好の金づるなのだろう
+	PRINTFORMW とはいえ、案内してもらわないと出られないのも確かだ
+ELSE
+	PRINTFORMW 「およ？　あんたまた迷ったの？」
+	PRINTFORMW ……そのとおりだ
+	PRINTFORMW また竹林で迷い、また%ANAME(対象)%と出くわした……
+	PRINTFORMW 「んじゃ、また案内してあげましょうかね」
+	CALL ICPRINT(@"「そうだなぁ、金<{代金}>くらいで受けてあげるよ、どう？」", "W", カラー_注意)
+ENDIF
+PRINTFORMW さて、どうするか……
+PRINTFORML
+CALL ASK_YN("払う", "自力でなんとかする")
+
+IF RESULT == 0
+	PRINTFORML 背に腹は代えられない……
+	PRINTFORMW おとなしく払うことにした
+	PRINTFORMW 「ふふふ、まいどあり」
+	PRINTFORMW 「んじゃ案内したげるよ。ついてきてね」
+	PRINTFORMW %ANAME(対象)%のおかげで、無事に出口まで辿りつけた……
+	CALL COLORPRINT(@"{代金}を支払いました", カラー_警告, "W")
+	MONEY -= 代金
+	CFLAG:対象:好感度 += 100
+	KDVAR:対象:てゐ_ラッキー ++
+ELSE
+	PRINTFORMW 「ふーん？　まぁそれならそれでいいけど」
+	PRINTFORMW 「そんじゃま、頑張ってねー」
+	PRINTFORMW %ANAME(対象)%はさっさと立ち去ってしまった……
+	CALL ADD_COOLTIME(MASTER, 1)
+	KDVAR:対象:てゐ_ラッキー = -1
+ENDIF
+
+RETURN 1

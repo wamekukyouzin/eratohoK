@@ -1,0 +1,117 @@
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@KOJO_DAILY_K43_GENEROSITY_RATE(対象)
+#DIM 対象
+RETURN 20
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@KOJO_DAILY_K43_GENEROSITY_DECISION(対象)
+#DIM 対象
+#DIM 早苗
+#DIM 諏訪子
+
+早苗 = NAME_TO_CHARA("早苗")
+諏訪子 = NAME_TO_CHARA("諏訪子")
+
+SIF !(IS_LOVER(対象) || IS_SLAVE(対象)) || !(IS_SLAVE(諏訪子) || IS_LOVER(諏訪子)) || !(IS_SLAVE(早苗)　|| IS_LOVER(早苗))
+	RETURN 0
+
+SIF !IS_MALE(MASTER)
+	RETURN 0
+
+RETURN CHECK_KOJO_DAILY_HAPPEN(対象, 1, 0, 1) && CHECK_KOJO_DAILY_HAPPEN(諏訪子, 1, 0, 1) && CHECK_KOJO_DAILY_HAPPEN(早苗, 1, 0, 1)
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@KOJO_DAILY_K43_GENEROSITY_GENRE(対象)
+#DIM 対象
+RETURN デイリー_ジャンル_エロ
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@KOJO_DAILY_K43_GENEROSITY(対象)
+#DIM 対象
+#DIM 早苗
+#DIM 諏訪子
+
+早苗 = NAME_TO_CHARA("早苗")
+諏訪子 = NAME_TO_CHARA("諏訪子")
+
+
+IF KDVAR:対象:神奈子_度量
+	PRINTFORMW %ANAME(対象)%、%ANAME(諏訪子)%、%ANAME(早苗)%の三人がまた寝室を訪ねてきた
+	PRINTFORMW 「また、相手してくれるかい……？」
+ELSE
+	PRINTFORMW %ANAME(対象)%、%ANAME(諏訪子)%、%ANAME(早苗)%の三人が寝室を訪ねてきた
+	PRINTFORMW 何事かと思っていると、%ANAME(対象)%が言う
+	PRINTFORMW 「%ANAME(MASTER)%、ちょっと話があるんだ」
+	PRINTFORMW 「いやさ、私ら二柱と早苗をモノにするなんて、あんたは大したやつだよ」
+	PRINTFORMW 「なんせ神と現人神だよ？　普通のことじゃないね」
+	PRINTFORMW 「……ただ、そうやって何人も娶るような男には、女を寂しがらせずにつなぎ留めておくだけの度量ってもんが必要だ。そう思わないかい？」
+	PRINTFORMW 「そこで、%ANAME(MASTER)%がちゃんとできるかどうか、私達でテストしてやろうって話になったのさ」
+	PRINTFORMW ……テストというが、要するに抱いてくれということなのだろう
+	PRINTFORMW 期待しているのか、その頬は上気しているが……
+ENDIF
+PRINTFORML
+CALL ASK_YN("抱く", "今日はやめておく")
+
+IF RESULT == 1
+	PRINTFORMW 「ん……そうかい、そりゃ残念だ」
+	PRINTFORMW 「仕方ないね、それなら帰るけど……今度また、ちゃんと楽しませておくれよ？」
+	PRINTFORMW 三人は帰っていった……
+	KDVAR:対象:神奈子_度量 = 1
+	RETURN
+ENDIF
+
+PRINTFORMW 「そうこなくっちゃ」
+PRINTFORMW 「さぁ、みんな揃ってかわいがっておくれよ……♥」
+PRINTFORMW 三人を寝床に招き寄せた……
+
+KDVAR:対象:神奈子_度量 = 1
+
+;全員の調教参加フラグをクリア
+CVARSET CFLAG, 6, 0
+
+TALENT:対象:合意 = 1
+TALENT:諏訪子:合意 = 1
+TALENT:早苗:合意 = 1
+TALENT:対象:チョロイン = 1
+TALENT:諏訪子:チョロイン = 1
+TALENT:早苗:チョロイン = 1
+
+CFLAG:対象:調教参加フラグ = 1
+CFLAG:対象:調教中帰らない = 1
+CFLAG:対象:強制友好化 = 1
+BASE:対象:体力 = MAXBASE:対象:体力
+BASE:対象:気力 = MAXBASE:対象:気力
+
+CFLAG:諏訪子:調教参加フラグ = 1
+CFLAG:諏訪子:調教中帰らない = 1
+CFLAG:諏訪子:強制友好化 = 1
+BASE:諏訪子:体力 = MAXBASE:諏訪子:体力
+BASE:諏訪子:気力 = MAXBASE:諏訪子:気力
+
+CFLAG:早苗:調教参加フラグ = 1
+CFLAG:早苗:調教中帰らない = 1
+CFLAG:早苗:強制友好化 = 1
+BASE:早苗:体力 = MAXBASE:早苗:体力
+BASE:早苗:気力 = MAXBASE:早苗:気力
+
+;強制逆調教フラグをオン
+FLAG:ターンエンド調教 = 1
+;それ以降のデイリーイベント発生を潰す
+DAILY_CANCEL = 1
+
+RETURN 1
+

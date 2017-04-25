@@ -1,0 +1,78 @@
+﻿;---------------------
+;対応するデイリーのDISABLEを返す。設定しない場合、イベントは発生しない。
+;---------------------
+@KOJO_DAILY_K51_DERIVATION_WHERE_IS_TENSHI_DISABLE(対象)
+#DIM 対象
+RETURN KOJO_DAILY_GET_DISABLE_CONFIG(対象, "WHERE_IS_TENSHI")
+
+
+;---------------------
+;発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@KOJO_DAILY_K51_DERIVATION_WHERE_IS_TENSHI_DECISION(対象)
+#DIM 対象
+#DIM 天子
+天子 = NAME_TO_CHARA("天子")
+
+SIF 天子 == -1
+	RETURN 0
+
+;監視中でなければ戻る
+SIF KDVAR:対象:衣玖_たずねびと != 1
+	RETURN 0
+
+SIF !ALLSAMES(CFLAG:MASTER:所属, CFLAG:天子:所属, CFLAG:対象:所属)
+	RETURN 0
+
+IF CFLAG:対象:所属 != CFLAG:MASTER:所属
+	PRINTFORML 所属が別になったので、%ANAME(対象)%は%ANAME(MASTER)%への頼みを取り下げたようだ……
+	KDVAR:対象:衣玖_たずねびと = 2
+	RETURN 0
+ENDIF
+
+RETURN CHECK_KOJO_DAILY_HAPPEN(対象, -1, 0)
+
+;---------------------
+;特定の条件を満たすキャラをランダムに選択する場合に利用
+;他の関数は必須だが、これだけはなくてもよい　というかパフォーマンスへ影響するので不要なら作ってはならない
+;対象が存在せずデイリーを開始できない場合は0を返すことでデイリーの発生をキャンセルする
+;---------------------
+@KOJO_DAILY_K51_DERIVATION_WHERE_IS_TENSHI_SETTARGET(対象)
+#DIM 対象
+FOR LOCAL, 0, CHARANUM
+
+NEXT
+RETURN 1
+
+;---------------------
+;イベントの進行度合いに応じてイベント名を変更したい場合に利用
+;変更する必要がない場合、この関数は不要
+;---------------------
+@KOJO_DAILY_K51_DERIVATION_WHERE_IS_TENSHI_NAME(対象)
+#DIM 対象
+RESULTS = ""
+
+;---------------------
+;本体
+;---------------------
+@KOJO_DAILY_K51_DERIVATION_WHERE_IS_TENSHI(対象)
+#DIM 対象
+#DIM 天子
+天子 = NAME_TO_CHARA("天子")
+
+PRINTFORML 部屋で仕事をしていると、%ANAME(対象)%が訪ねてきた
+PRINTFORMW 「%ANAME(MASTER)%さん、総領娘様の件はありがとうございました」
+PRINTFORMW 「総領娘様も、もう少し落ちついてくださればいいのですが……」
+PRINTFORMW 「ああ、そんな話はどうでもいいことでしたね。それで、ほんの気持ち程度ですがお礼をと思いまして……」
+PRINTFORMW 「お仕事中、失礼しました。では」
+PRINTFORML こちらに小包を渡すと、%ANAME(対象)%は部屋から立ち去った
+PRINTFORML 彼女の態度は、心なしか柔らかになっていた……
+CALL COLORPRINT(@"%ANAME(対象)%の好感度が上昇しました", カラー_注意, "W")
+CALL COLORPRINT(@"金5000を得ました", カラー_注意, "W")
+CFLAG:対象:好感度 += 700
+CFLAG:対象:依存度 += 200
+MONEY += 5000
+KDVAR:対象:衣玖_たずねびと = 2
+
+RETURN 1

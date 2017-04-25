@@ -1,0 +1,59 @@
+﻿;---------------------
+;対応するデイリーのDISABLEを返す。設定しない場合、イベントは発生しない。
+;---------------------
+@KOJO_DAILY_K141_DERIVATION_WHERE_IS_MY_SISTER_DISABLE(対象)
+#DIM 対象
+RETURN KOJO_DAILY_GET_DISABLE_CONFIG(対象, "WHERE_IS_MY_SISTER")
+
+
+;---------------------
+;発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@KOJO_DAILY_K141_DERIVATION_WHERE_IS_MY_SISTER_DECISION(対象)
+#DIM 対象
+#DIM 白蓮
+白蓮 = NAME_TO_CHARA("白蓮")
+
+;監視中でなければ戻る
+SIF KDVAR:対象:命蓮_捜索願 != 1
+	RETURN 0
+
+IF CFLAG:対象:所属 != CFLAG:MASTER:所属
+	CALL SINGLE_DRAWLINE
+	PRINTFORML 所属が別になったので、%ANAME(対象)%は%ANAME(MASTER)%への頼みを取り下げたようだ……
+	CALL SINGLE_DRAWLINE
+	KDVAR:対象:命蓮_捜索願 = 2
+	RETURN 0
+ENDIF
+
+SIF !ALLSAMES(CFLAG:MASTER:所属, CFLAG:白蓮:所属, CFLAG:対象:所属)
+	RETURN 0
+
+RETURN CHECK_KOJO_DAILY_HAPPEN(対象, 1, 0)
+
+;----------------------------------
+;「たずねびと」の派生イベント
+;----------------------------------
+@KOJO_DAILY_K141_DERIVATION_WHERE_IS_MY_SISTER()
+#DIM 対象
+#DIM 白蓮
+白蓮 = NAME_TO_CHARA("白蓮")
+
+PRINTFORML 部屋で仕事をしていると、%ANAME(対象)%が訪ねてきた
+PRINTFORMW 「%ANAME(MASTER)%、姉の件はありがとう」
+PRINTFORMW 「久々に話せて嬉しかった」
+PRINTFORMW 「何かお礼を、と思ったが、あいにく僕は僧侶で、金品のたぐいは持っていない」
+PRINTFORMW 「その代わり、君に力を貸すと約束しよう」
+PRINTFORML 言うだけ言って、%ANAME(対象)%は部屋から立ち去った
+PRINTFORML 彼の態度は、心なしか柔らかになっていた……
+CALL COLORPRINT(@"%ANAME(対象)%の好感度が上昇しました", カラー_注意, "W")
+CALL COLORPRINT(@"%ANAME(対象)%の能力が上昇しました", カラー_注意, "W")
+CFLAG:対象:好感度 += 700
+CFLAG:対象:依存度 += 200
+ABL:対象:武闘 += 5
+CALL LEARN_SKILL_GENERAL_BY_NAME(対象, "統率力")
+SIF RESULT 
+	CALL COLORPRINT(@"%ANAME(対象)%はスキル「統率力」を習得した！", カラー_注意, "W")
+KDVAR:対象:命蓮_捜索願 = 2
+RETURN 1

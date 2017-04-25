@@ -1,0 +1,91 @@
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@KOJO_DAILY_K87_LENDER_RATE(対象)
+#DIM 対象
+RETURN 100
+
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@KOJO_DAILY_K87_LENDER_DECISION(対象)
+#DIM 対象
+
+SIF CFLAG:対象:特殊状態
+	RETURN 0
+
+SIF IS_SP_COUNTRY(CFLAG:MASTER:所属)
+	RETURN 0
+
+SIF KDVAR:対象:マミゾウ_金貸し || KDVAR:対象:マミゾウ_金貸し_返済期限
+	RETURN 0
+
+
+RETURN CHECK_KOJO_DAILY_HAPPEN(対象, 0, 0, 0)
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@KOJO_DAILY_K87_LENDER_GENRE(対象)
+#DIM 対象
+RETURN デイリー_ジャンル_その他
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@KOJO_DAILY_K87_LENDER(対象)
+#DIM 対象
+#DIM 返済期限
+#DIM 融資額
+#DIM 返済額
+
+返済期限 = RAND(5, 10)
+融資額 = MONEY / 10 + GET_SUM_ECONOMY(CFLAG:MASTER:所属) * (ABL:MASTER:武闘 + ABL:MASTER:防衛 + ABL:MASTER:知略 + ABL:MASTER:政治 + 100) / 40000 * (返済期限)
+返済額 = 融資額 * 12 / 10
+
+PRINTFORMW %ANAME(MASTER)%が仕事をしていると、侍従が来客を告げた
+PRINTFORMW なんでも「胡散臭げな妖獣が訪ねてきた」のだそうだ
+PRINTFORMW 何の用かと訝りながら、%ANAME(MASTER)%は、会うことにしてみた
+PRINTFORML ・
+PRINTFORML ・
+PRINTFORML ・
+PRINTFORMW 「これはこれは。おぬしが%ANAME(MASTER)%か。儂は%NAME_FORMAL(対象)%。金貸しをしておる」
+PRINTFORMW 「こんな時代じゃから、何かと入り用じゃろ？　儂が助けてやろうじゃなぁないか」
+CALL ICPRINT(@"「そうじゃな、金<{融資額}>の融資で、期限は<{返済期限}>期、返済額は<{返済額}>でどうじゃ？」", "W", カラー_注意)
+PRINTFORMW 徴兵に訓練、外交、何事にも金は必要だ
+PRINTFORMW 借金はあまりしたくないが、生き抜くために手段は選んでいられまい
+PRINTFORML さて、どうしようか……
+PRINTFORML
+CALL ASK_MULTI_JUDGE("借りる", 1, "やめておく", 1, "ひっとらえる", GET_COUNTRY_BOSS(CFLAG:対象:所属) != 対象)
+
+IF RESULT == 1
+	PRINTFORMW 「そうかい、それは残念」
+	PRINTFORMW 「ま、今回は縁がなかったかの。それじゃ、儂はおいとまするよ」
+	PRINTFORMW %ANAME(対象)%は立ち去った……
+	KDVAR:対象:マミゾウ_金貸し = 1
+	RETURN 1
+ELSEIF RESULT == 2
+	PRINTFORMW 「な、なにをする！？」
+	PRINTFORMW 無許可の金融業は残念ながらご法度だ
+	PRINTFORMW 兵士に命じ、捕えさせた……
+	KDVAR:対象:マミゾウ_金貸し = 1
+	CALL CAPTURE(対象, CFLAG:MASTER:所属)
+	RETURN 1
+ENDIF
+
+MONEY += 融資額
+KDVAR:対象:マミゾウ_金貸し_返済額 = 返済額
+KDVAR:対象:マミゾウ_金貸し_返済期限 = 返済期限
+KDVAR:対象:マミゾウ_金貸し = 1
+PRINTFORMW 「契約成立じゃな」
+CALL ICPRINT(@"期限は<{返済期限}>期、返済額は<{返済額}>じゃからな、くれぐれもよろしく頼むよ", "W", カラー_注意)
+PRINTFORMW %ANAME(対象)%は立ち去った……
+
+
+RETURN 1
