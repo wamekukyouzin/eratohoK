@@ -13,34 +13,43 @@ CALL INIT_TENDENCY(ARG:0)
 
 FOR LOCAL, 0, VARSIZE("SEXUAL_EXPERIENCE_SITUATION")
 	SEXUAL_EXPERIENCE_SITUATION:(ARG:0):LOCAL = 0
+	SEXUAL_LAST_EXPERIENCE_SITUATION:(ARG:0):LOCAL = 0
 NEXT
 
 ;キス未経験でないならキス経験を不明として記録
 IF !TALENT:(ARG:0):キス未経験
-	SEXUAL_EXPERIENCE:(ARG:0):初体験_ファーストキス = 不明
+	SEXUAL_EXPERIENCE:(ARG:0):初体験_キス = 不明
+	SEXUAL_LAST_EXPERIENCE:(ARG:0):初体験_キス = 不明
 ELSE
-	SEXUAL_EXPERIENCE:(ARG:0):初体験_ファーストキス = ----
+	SEXUAL_EXPERIENCE:(ARG:0):初体験_キス = ----
+	SEXUAL_LAST_EXPERIENCE:(ARG:0):初体験_キス = ----
 ENDIF
 
 IF HAS_VAGINA(ARG:0) && !TALENT:(ARG:0):処女
 	SEXUAL_EXPERIENCE:(ARG:0):初体験_処女 = 不明
+	SEXUAL_LAST_EXPERIENCE:(ARG:0):初体験_処女 = 不明
 ELSE
 	TALENT:(ARG:0):処女 = 1
 	SEXUAL_EXPERIENCE:(ARG:0):初体験_処女 = ----
+	SEXUAL_LAST_EXPERIENCE:(ARG:0):初体験_処女 = ----
 ENDIF
 
 IF HAS_PENIS(ARG:0) && !TALENT:(ARG:0):童貞
 	SEXUAL_EXPERIENCE:(ARG:0):初体験_童貞 = 不明
+	SEXUAL_LAST_EXPERIENCE:(ARG:0):初体験_童貞 = 不明
 ELSE
 	TALENT:(ARG:0):童貞 = 1
 	SEXUAL_EXPERIENCE:(ARG:0):初体験_童貞 = ----
+	SEXUAL_LAST_EXPERIENCE:(ARG:0):初体験_童貞 = ----
 ENDIF
 
 IF !TALENT:(ARG:0):アナル処女
 	SEXUAL_EXPERIENCE:(ARG:0):初体験_アナル処女 = 不明
+	SEXUAL_LAST_EXPERIENCE:(ARG:0):初体験_アナル処女 = 不明
 ELSE
 	TALENT:(ARG:0):アナル処女 = 1
 	SEXUAL_EXPERIENCE:(ARG:0):初体験_アナル処女 = ----
+	SEXUAL_LAST_EXPERIENCE:(ARG:0):初体験_アナル処女 = ----
 ENDIF
 
 TALENT:(ARG:0):危険日 = RAND:5
@@ -285,13 +294,16 @@ NEXT
 
 FOR LOCAL:0, 0, VARSIZE("SEXUAL_EXPERIENCE_SITUATION")
 	SEXUAL_EXPERIENCE_SITUATION:(ARG:0):LOCAL = 0
+	SEXUAL_LAST_EXPERIENCE_SITUATION:(ARG:0):LOCAL = 0
 NEXT
 
 IF TALENT:(ARG:0):キス未経験
-	CALL VIRGINIZE(ARG:0, 初体験_ファーストキス)
+	CALL VIRGINIZE(ARG:0, 初体験_キス)
 ELSE
-	SEXUAL_EXPERIENCE:(ARG:0):初体験_ファーストキス = 不明
-	SEXUAL_EXPERIENCE_SITUATION:(ARG:0):初体験_ファーストキス = 0
+	SEXUAL_EXPERIENCE:(ARG:0):初体験_キス = 不明
+	SEXUAL_EXPERIENCE_SITUATION:(ARG:0):初体験_キス = 0
+	SEXUAL_LAST_EXPERIENCE:(ARG:0):初体験_キス = 不明
+	SEXUAL_LAST_EXPERIENCE_SITUATION:(ARG:0):初体験_キス = 0
 ENDIF
 
 IF TALENT:(ARG:0):童貞
@@ -299,6 +311,8 @@ IF TALENT:(ARG:0):童貞
 ELSE
 	SEXUAL_EXPERIENCE:(ARG:0):初体験_童貞 = 不明
 	SEXUAL_EXPERIENCE_SITUATION:(ARG:0):初体験_童貞 = 0
+	SEXUAL_LAST_EXPERIENCE:(ARG:0):初体験_童貞 = 不明
+	SEXUAL_LAST_EXPERIENCE_SITUATION:(ARG:0):初体験_童貞 = 0
 ENDIF
 
 IF TALENT:(ARG:0):処女
@@ -306,6 +320,8 @@ IF TALENT:(ARG:0):処女
 ELSE
 	SEXUAL_EXPERIENCE:(ARG:0):初体験_処女 = 不明
 	SEXUAL_EXPERIENCE_SITUATION:(ARG:0):初体験_処女 = 0
+	SEXUAL_LAST_EXPERIENCE:(ARG:0):初体験_処女 = 不明
+	SEXUAL_LAST_EXPERIENCE_SITUATION:(ARG:0):初体験_処女 = 0
 ENDIF
 
 IF TALENT:(ARG:0):アナル処女
@@ -313,6 +329,8 @@ IF TALENT:(ARG:0):アナル処女
 ELSE
 	SEXUAL_EXPERIENCE:(ARG:0):初体験_アナル処女 = 不明
 	SEXUAL_EXPERIENCE_SITUATION:(ARG:0):初体験_アナル処女 = 0
+	SEXUAL_LAST_EXPERIENCE:(ARG:0):初体験_アナル処女 = 不明
+	SEXUAL_LAST_EXPERIENCE_SITUATION:(ARG:0):初体験_アナル処女 = 0
 ENDIF
 
 FOR LOCAL, 0, VARSIZE("COM_EXP")
@@ -335,29 +353,30 @@ CALL CLOTH_INIT(ARG:0)
 ;TALENTの初期値を現在の値に設定する関数
 ;-------------------------------------------------
 ;@SET_INI_TALENT(ARG:0, ARGS:1)
-;LOCAL:0 = NAME_TO_NUM("TALENT", ARGS:1)
+;LOCAL:0 = GETNUM(TALENT, ARGS:1)
 ;INI_TALENT:(ARG:0):(LOCAL:0) = TALENT:(ARG:0):(LOCAL:0)
 
 ;-------------------------------------------------
 ;ABLの初期値を現在の値に設定する関数
 ;-------------------------------------------------
 ;@SET_INI_ABL(ARG:0, ARGS:1)
-;LOCAL:0 = NAME_TO_NUM("ABL", ARGS:1)
+;LOCAL:0 = GETNUM(ABL, ARGS:1)
 ;INI_ABL:(ARG:0):(LOCAL:0) = ABL:(ARG:0):(LOCAL:0)
 
 ;-------------------------------------------------
 ;ARG:0番のキャラについて、NAME（名）を返す関数
 ;引数を省略するとエラーになる
+;ARG:1を渡すことで複数表示に対応
 ;-------------------------------------------------
-@ANAME(ARG:0 = -999)
+@ANAME(ARG:0 = -999, ARG:1 = 1)
 #FUNCTIONS
 IF ARG:0 == -999
 	THROW 関数@ANAMEに引数が設定されていません
 ENDIF
 IF CSTR:(ARG:0):98 != ""
-	RETURNF @"%CSTR:(ARG:0):98%"
+	RETURNF @"%CSTR:(ARG:0):98%\@ARG:1 > 1 ? たち # \@"
 ENDIF
-RETURNF @"%NAME:(ARG:0)%"
+RETURNF @"%NAME:(ARG:0)%\@ARG:1 > 1 ? たち # \@"
 
 ;-------------------------------------------------
 ;ARG:0番のキャラについて、NAME（名）を返す関数 ただし長い場合はTOHALFをかける　それでも長い（TOHALFがかからない文字）ならSUBSTRING
@@ -743,43 +762,6 @@ FOR LOCAL:0, 1, 26
 	ENDIF
 NEXT
 RETURNF LOCAL:1
-
-;-------------------------------------------------
-;各変数の名称を元に、定義番号を返す関数
-;ARGS:0 = TALENT/ABL/PALAM/EXPのいずれか  ARGS:1 = 定義された変数の名称
-;-------------------------------------------------
-@NAME_TO_NUM(ARGS:0, ARGS:1)
-#FUNCTION
-IF ARGS:0 == "TALENT"
-	FOR LOCAL:0, 0, VARSIZE("TALENT")
-		IF TALENTNAME:(LOCAL:0) == ARGS:1
-			RETURNF LOCAL:0
-		ENDIF
-	NEXT
-	THROW "@NAME_TO_NUMのキー%ARGS:0%で使用された名称%ARGS:1%は未定義です"
-ELSEIF ARGS:0 == "ABL"
-	FOR LOCAL:0, 0, VARSIZE("ABL")
-		IF ABLNAME:(LOCAL:0) == ARGS:1
-			RETURNF LOCAL:0
-		ENDIF
-	NEXT
-	THROW "@NAME_TO_NUMのキー%ARGS:0%で使用された名称%ARGS:1%は未定義です"
-ELSEIF ARGS:0 == "PALAM"
-	FOR LOCAL:0, 0, VARSIZE("PALAM")
-		IF PALAMNAME:(LOCAL:0) == ARGS:1
-			RETURNF LOCAL:0
-		ENDIF
-	NEXT
-	THROW "@NAME_TO_NUMのキー%ARGS:0%で使用された名称%ARGS:1%は未定義です"
-ELSEIF ARGS:0 == "EXP"
-	FOR LOCAL:0, 0, VARSIZE("EXP")
-		IF EXPNAME:(LOCAL:0) == ARGS:1
-			RETURNF LOCAL:0
-		ENDIF
-	NEXT
-	THROW "@NAME_TO_NUMのキー%ARGS:0%で使用された名称%ARGS:1%は未定義です"
-ENDIF
-THROW "@NAME_TO_NUMのキー%ARGS:0%を解釈出来ません"
 
 ;-------------------------------------------------
 ;整数ARG:0の下からARG:1番目に小数点を打ち、その値を文字列として返す関数
@@ -1750,10 +1732,16 @@ RETURNF 100
 #DIM 対象
 #DIMS 相手
 #DIM シチュ
-SIF !TALENT:対象:キス未経験
-	RETURN 0
+
 SIF TCVAR:対象:催眠中
 	シチュ = 喪失_催眠
+
+SEXUAL_LAST_EXPERIENCE:対象:初体験_キス = %相手%
+SEXUAL_LAST_EXPERIENCE_SITUATION:対象:初体験_キス = シチュ
+
+SIF !TALENT:対象:キス未経験
+	RETURN 0
+
 IF ARG:2
 	SETCOLOR カラー_注意
 	PRINTFORM %ANAME(対象)%は
@@ -1763,11 +1751,10 @@ IF ARG:2
 	RESETCOLOR
 ENDIF
 
-SEXUAL_EXPERIENCE:対象:初体験_ファーストキス = %相手%
-SEXUAL_EXPERIENCE_SITUATION:対象:初体験_ファーストキス = シチュ
+SEXUAL_EXPERIENCE:対象:初体験_キス = %相手%
+SEXUAL_EXPERIENCE_SITUATION:対象:初体験_キス = シチュ
 
 TALENT:対象:キス未経験 = 0
-
 
 
 ;-------------------------------------------------
@@ -1779,10 +1766,18 @@ TALENT:対象:キス未経験 = 0
 #DIM 対象
 #DIMS 相手
 #DIM シチュ
-SIF !HAS_PENIS(対象) || !TALENT:対象:童貞
+SIF !HAS_PENIS(対象)
 	RETURN 0
+
 SIF TCVAR:対象:催眠中
 	シチュ = 喪失_催眠
+
+SEXUAL_LAST_EXPERIENCE:対象:初体験_童貞 = %相手%
+SEXUAL_LAST_EXPERIENCE_SITUATION:対象:初体験_童貞 = シチュ
+
+SIF !TALENT:対象:童貞
+	RETURN 0
+
 IF ARG:2
 	SETCOLOR カラー_注意
 	PRINTFORM %ANAME(対象)%は
@@ -1807,10 +1802,19 @@ TALENT:対象:童貞 = 0
 #DIM 対象
 #DIMS 相手
 #DIM シチュ
-SIF !HAS_VAGINA(対象) || !TALENT:対象:処女
+
+SIF !HAS_VAGINA(対象)
 	RETURN 0
+
+SEXUAL_LAST_EXPERIENCE:対象:初体験_処女 = %相手%
+SEXUAL_LAST_EXPERIENCE_SITUATION:対象:初体験_処女 = シチュ
+
 SIF TCVAR:対象:催眠中
 	シチュ = 喪失_催眠
+
+SIF !TALENT:対象:処女
+	RETURN 0
+
 IF ARG:2
 	SETCOLOR カラー_注意
 	PRINTFORM %ANAME(対象)%は
@@ -1836,10 +1840,14 @@ TALENT:対象:処女 = 0
 #DIMS 相手
 #DIM シチュ
 
-SIF !TALENT:対象:アナル処女
-	RETURN 0
 SIF TCVAR:対象:催眠中
 	シチュ = 喪失_催眠
+
+SEXUAL_LAST_EXPERIENCE:対象:初体験_アナル処女 = %相手%
+SEXUAL_LAST_EXPERIENCE_SITUATION:対象:初体験_アナル処女 = シチュ
+
+SIF !TALENT:対象:アナル処女
+	RETURN 0
 
 IF ARG:2
 	SETCOLOR カラー_注意
@@ -1852,6 +1860,7 @@ ENDIF
 
 SEXUAL_EXPERIENCE:対象:初体験_アナル処女 = %相手%
 SEXUAL_EXPERIENCE_SITUATION:対象:初体験_アナル処女 = シチュ
+
 
 TALENT:対象:アナル処女 = 0
 
@@ -1869,13 +1878,44 @@ SELECTCASE 初体験
 		変更素質 = GETNUM(TALENT, "童貞")
 	CASE 初体験_アナル処女
 		変更素質 = GETNUM(TALENT, "アナル処女")
-	CASE 初体験_ファーストキス
+	CASE 初体験_キス
 		変更素質 = GETNUM(TALENT, "キス未経験")
 ENDSELECT
 
 SEXUAL_EXPERIENCE:対象:初体験 = ----
 SEXUAL_EXPERIENCE_SITUATION:対象:初体験 = 0
+SEXUAL_LAST_EXPERIENCE:対象:初体験 = ----
+SEXUAL_LAST_EXPERIENCE_SITUATION:対象:初体験 = 0
 TALENT:対象:変更素質 = 1
+
+;-------------------------------------------------
+;desc  :対象の処女を喪失させる。
+;param :対象:対象キャラ番号
+;param :初体験:対象キャラ番号
+;param :相手:FIRST_EXPERIENCEならびにLAST_EXPERIENCEに記録する文字列
+;-------------------------------------------------
+@VIRGINIZE_LOST(対象, 初体験, 相手 = "不明")
+#DIM 対象
+#DIM 初体験
+#DIM 変更素質
+#DIMS 相手
+SELECTCASE 初体験
+	CASE 初体験_処女
+		変更素質 = GETNUM(TALENT, "処女")
+	CASE 初体験_童貞
+		変更素質 = GETNUM(TALENT, "童貞")
+	CASE 初体験_アナル処女
+		変更素質 = GETNUM(TALENT, "アナル処女")
+	CASE 初体験_キス
+		変更素質 = GETNUM(TALENT, "キス未経験")
+ENDSELECT
+
+SEXUAL_EXPERIENCE:対象:初体験 '= 相手
+SEXUAL_EXPERIENCE_SITUATION:対象:初体験 = 0
+SEXUAL_LAST_EXPERIENCE:対象:初体験 '= 相手
+SEXUAL_LAST_EXPERIENCE_SITUATION:対象:初体験 = 0
+TALENT:対象:変更素質 = 0
+
 
 ;-------------------------------------------------
 ;調教モードの値からシチュエーションを取得してくる
@@ -1946,7 +1986,7 @@ TALENT:(ARG:0):恋人 = 0
 ;-------------------------------------------------
 @PRINT_ADD_EXP(ARG:0, ARGS:1, ARG:2, ARG:3 = 0)
 IF ARG:2 >= 1
-	LOCAL:0 = NAME_TO_NUM("EXP", ARGS:1)
+	LOCAL:0 = GETNUM(EXP, ARGS:1)
 	IF ARG:3
 		PRINTFORML %ANAME(ARG:0)%の%ARGS:1%＋{ARG:2}
 	ELSE
@@ -3055,6 +3095,19 @@ ENDSELECT
 #DIMS EVENTNAME
 CALL SINGLE_DRAWLINE
 CALL COLORPRINT(@"-デイリーイベント『%EVENTNAME%』発生-", カラー_注意, "L")
+FORCEWAIT
+CALL SINGLE_DRAWLINE
+PRINTFORML ・
+PRINTFORML ・
+PRINTFORML ・
+
+;-------------------------------------------------
+;デイリーイベント開始時の汎用演出。
+;-------------------------------------------------	
+@DAILY_START_DERIVATION(EVENTNAME)
+#DIMS EVENTNAME
+CALL SINGLE_DRAWLINE
+CALL COLORPRINT(@"-派生デイリーイベント『%EVENTNAME%』発生-", カラー_注意, "L")
 FORCEWAIT
 CALL SINGLE_DRAWLINE
 PRINTFORML ・

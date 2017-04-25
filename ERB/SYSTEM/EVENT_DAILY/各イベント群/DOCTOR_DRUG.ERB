@@ -36,6 +36,7 @@ RETURN デイリー_ジャンル_トレーナー
 ;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
 ;---------------------
 @EVENT_DAILY_DOCTOR_DRUG()
+#DIM 対象
 
 CALL COLORPRINT(@"外界の医者が訪ねてきました", カラー_注意)
 PRINTFORML
@@ -45,166 +46,105 @@ PRINTFORMW 「人生崩壊する前に、あんなもんとはさっさと縁を
 PRINTFORMW 「俺の治療法なら、薬への依存を断ち切ることができる」
 PRINTFORMW 「まあ、未認可なやり方だがな。どうだ？」
 PRINTL 
-PRINTFORML ★★薬物に依存しつつあるキャラを１人だけ治療することができます★★
-PRINTFORML ★★治療するキャラを選んで下さい（素質「薬物依存」もちは赤表示）★★
 CALL SINGLE_DRAWLINE
 
-;全員の調教参加フラグをクリア
-CVARSET CFLAG, 6, 0
+CALL SELECT_CHARA_LIST_ONLY_LOGIC_SEX("DOCTOR_DRUG", "DEFAULT", "DOCTOR_DRUG")
 
-;ページ数の計算
-LOCAL:6 = (LOCAL:2 - 1) / 44 + 1
-LOCAL:7 = 1
-
-$SHOW_LOOP
-
-;キャラリストの表示
-LOCAL:8 = 0
-LOCAL:9 = 0
-LOCAL:10 = (LOCAL:7 - 1) * 44
-LOCAL:11 = LOCAL:7 * 44
-LOCAL:12 = 4
-FOR LOCAL:0, 0, CHARANUM
-	IF (CFLAG:(LOCAL:0):所属 == CFLAG:MASTER:所属 && !CFLAG:(LOCAL:0):捕虜先) && (CFLAG:(LOCAL:0):薬物依存)
-		IF LOCAL:8 >= LOCAL:10 && LOCAL:8 < LOCAL:11
-			IF LOCAL:9 % 2 != 0
-				PRINTPLAIN 　
-			ELSEIF LOCAL:9 >= 1
-				PRINTL 
-				LOCAL:12 ++
-			ENDIF
-			IF GETBIT(TALENT:(LOCAL:0):淫乱系, 素質_淫乱_薬物中毒)
-				SETCOLOR カラー_警告
-			ENDIF
-			CALL PRINT_PARTNER_DATA(LOCAL:0)
-			RESETCOLOR
-			LOCAL:9 ++
-		ENDIF
-		LOCAL:8 ++
-	ENDIF
-NEXT
-PRINTL 
-CALL SINGLE_DRAWLINE
-
-IF LOCAL:6 >= 2
-	LOCAL:12 += 2
-	IF LOCAL:7 > 1
-		PRINT [  8] 前のページ            
-	ELSE
-		PRINT                             
-	ENDIF
-	LOCALS:0 = page{LOCAL:7}/{LOCAL:6}
-	PRINTPLAINFORM %LOCALS:0, 28, LEFT%
-	IF LOCAL:7 < LOCAL:6
-		PRINT [  9] 後のページ
-	ENDIF
-	PRINTL 
-	CALL SINGLE_DRAWLINE
-ENDIF
-
-PRINTL [  0] 治療しない
-
-REDRAW 0
-
-$INPUT_LOOP
 INPUT
 
 ;治療しない
-IF RESULT == 0
+IF RESULT == -1
 	REDRAW 1
 	PRINTFORML %ANAME(MASTER)%は治療を断った
 	PRINTFORMW 「そうか。……まあ、仕方がないな」
-;前のページ
-ELSEIF RESULT == 8 && LOCAL:7 > 1
-	LOCAL:7 = MAX(1, LOCAL:7 - 1)
-
-	CLEARLINE LOCAL:12
-	GOTO SHOW_LOOP
-;後のページ
-ELSEIF RESULT == 9 && LOCAL:7 < LOCAL:6
-	LOCAL:7 = MIN(LOCAL:6, LOCAL:7 + 1)
-	CLEARLINE LOCAL:12
-	GOTO SHOW_LOOP
-ELSE
-	LOCAL:5 = NO_TO_CHARA(RESULT - 100)
-	IF LOCAL:5 >= 0 && (CFLAG:(LOCAL:5):所属 == CFLAG:MASTER:所属 || CFLAG:(LOCAL:5):捕虜先 == CFLAG:MASTER:所属) && (CFLAG:(LOCAL:5):薬物依存)
-		REDRAW 1
-		IF !IS_FEMALE(LOCAL:5) || 15 < RAND:100 || CONFIG:200
-			IF (LOCAL:5)  != MASTER
-				PRINTFORMW 「%ANAME(LOCAL:5)%さんを治療するのか？　よし分かった」
-				PRINTFORMW 「少し外していてくれ。すぐ終わる」
-			ELSE
-				PRINTFORMW 「あんた自身を治療するのか？　よし分かった」
-				PRINTFORMW 「ちょっとこっちに来てくれ。すぐ終わる」
-			ENDIF
-			PRINTFORML
-			PRINTFORML
-			PRINTFORML
-			SETCOLOR カラー_注意
-			IF GETBIT(TALENT:(LOCAL:5):淫乱系, 素質_淫乱_薬物中毒)
-				PRINTFORMW %ANAME(LOCAL:5)%は<薬物中毒>を失った
-			ELSE
-				PRINTFORMW %ANAME(LOCAL:5)%は薬物への依存心を断ち切った
-			ENDIF
-			RESETCOLOR
-			PRINTFORML
-			PRINTFORML
-			PRINTFORML
-			CLEARBIT TALENT:(LOCAL:5):淫乱系, 素質_淫乱_薬物中毒
-			CFLAG:(LOCAL:5):薬物依存 = 0
-			PRINTFORMW 「これでもう大丈夫だ。……もう二度と手を出すなよ？」
-			PRINTFORMW 医者は立ち去っていった……
-		ELSE
-			IF LOCAL:5  != MASTER
-				PRINTFORMW 「%ANAME(LOCAL:5)%さんを治療するのか？　よし分かった」
-				PRINTFORMW 「少し外していてくれ。すぐ終わる」
-				PRINTFORMW 訝りながらも、%ANAME(MASTER)%は席を外した……
-			ELSE
-				PRINTFORMW 「あんた自身を治療するのか？　よし分かった」
-				PRINTFORMW 「ちょっとこっちに来てくれ。すぐ終わる」
-				PRINTFORMW 訝りながらも、%ANAME(MASTER)%はついていった……
-			ENDIF
-			PRINTFORML
-			PRINTFORML
-			PRINTFORML
-			PRINTFORMW 「はんっ、まさかあんな簡単に騙されるとはな」
-			PRINTFORMW 医者と名乗っていた男は服を脱ぎ捨て、診察台の上で猛然と腰を振っている
-			PRINTFORMW その下では、治療を受けているはずの%ANAME(LOCAL:5)%が、同じく一糸まとわぬ姿で横たわっている
-			PRINTFORMW 激しく肉棒を出し入れされる秘部からは、既に何発と放たれた白濁が垂れ落ちている
-			PRINTFORMW たまらないといわんばかりの声をあげて喘ぐ%ANAME(LOCAL:5)%だが、その瞳はどこか虚ろだ
-			PRINTFORMW 「あんなんで騙せるんだから、チョロいもんだ……ウッ」
-			PRINTFORMW 男が呻き、%ANAME(LOCAL:5)%の一番深いところで精を解き放つと、%ANAME(LOCAL:5)%は自ら彼に抱きつきながら絶頂した
-			PRINTFORMW 「おお、可愛いなぁお前、締まりもいいし、俺専用の便器にしてやってもいいぞ？　そうしたら、クスリも打ち放題だ」
-			PRINTFORMW 「ほれ、追加のオクスリだ。コイツも効くぜ？」
-			PRINTFORMW いいながら、男は嬌声を垂れ流す%ANAME(LOCAL:5)%の舌の上に錠剤を載せた。%ANAME(LOCAL:5)%は従順にそれを呑み込む
-			PRINTFORMW 二人の回りには、使用済みの注射器や薬の箱が散乱している。%ANAME(LOCAL:5)%に打ち込まれた、覚醒剤や麻薬の類が……
-			PRINTFORMW 「っと、そろそろ時間切れだな。オラさっさと服着ろ。……おっと、その下着は寄越せ」
-			PRINTFORMW 「ククッ、ザーメンまみれのマンコ晒したまんま、お仲間とご対面しろよ」
-			PRINTFORMW 舐め腐った要求にも、%ANAME(LOCAL:5)%はふぬけた顔で頷く……
-			CALL FUCK_RAPE(LOCAL:5, GET_SPERM_ID("医者"), @"闇医者の\@RAND:2 ? ペニス # 唇\@", "闇医者")
-			PRINTFORML
-			PRINTFORML
-			PRINTFORM
-			IF LOCAL:5 != MASTER
-				PRINTFORMW 「すまないが、%ANAME(LOCAL:5)%さんの治療は完全には終わらなかったんだ」
-				PRINTFORMW 医者にそう言われ、%ANAME(MASTER)%は落胆する。まあ、どだい難しい話なのだろうし、責めるのは酷だ
-				PRINTFORMW 「もし良かったら、今後も来させてもらう。%ANAME(LOCAL:5)%さんのことは無料で"治療"するよ」
-				PRINTFORMW 願ってもないことだ。%ANAME(MASTER)%はもちろんだと頷いた
-				PRINTFORMW 立ち去っていく医者に、%ANAME(LOCAL:5)%はやけに深々と頭を下げていた……
-			ELSE
-				PRINTFORMW 「すまないが、%ANAME(LOCAL:5)%さんの治療は完全には終わらなかったんだ」
-				PRINTFORMW 医者はいかにもすまなそうに、部下たちに説明する。
-				PRINTFORMW 彼が治療のためちゃんと努力したと信じ込んでいる部下たちは、落胆こそすれ、彼の説明を疑うことはなかった
-				PRINTFORMW 「もし良かったら、今後も来させてもらう。%ANAME(LOCAL:5)%さんのことは無料で"治療"するよ」
-				PRINTFORMW 部下たちに見えない角度で、%ANAME(LOCAL:5)%の尻を撫で回しながら、医者は言う
-				PRINTFORMW 立ち去っていく医者に、%ANAME(LOCAL:5)%は深々と頭を下げた……
-			ENDIF
-			CFLAG:(LOCAL:5):薬物依存 += RAND(50, 100)
-			WAIT
-		ENDIF
-	ELSE
-		CLEARLINE 1
-		GOTO INPUT_LOOP
-	ENDIF
+	RETURN 1
 ENDIF
+
+対象 = RESULT
+
+IF !IS_FEMALE(対象) || 15 < RAND:100
+	IF (対象)  != MASTER
+		PRINTFORMW 「%ANAME(対象)%さんを治療するのか？　よし分かった」
+		PRINTFORMW 「少し外していてくれ。すぐ終わる」
+	ELSE
+		PRINTFORMW 「あんた自身を治療するのか？　よし分かった」
+		PRINTFORMW 「ちょっとこっちに来てくれ。すぐ終わる」
+	ENDIF
+	PRINTFORML
+	PRINTFORML
+	PRINTFORML
+	SETCOLOR カラー_注意
+	IF GETBIT(TALENT:(対象):淫乱系, 素質_淫乱_薬物中毒)
+		PRINTFORMW %ANAME(対象)%は<薬物中毒>を失った
+	ELSE
+		PRINTFORMW %ANAME(対象)%は薬物への依存心を断ち切った
+	ENDIF
+	RESETCOLOR
+	PRINTFORML
+	PRINTFORML
+	PRINTFORML
+	CLEARBIT TALENT:(対象):淫乱系, 素質_淫乱_薬物中毒
+	CFLAG:(対象):薬物依存 = 0
+	PRINTFORMW 「これでもう大丈夫だ。……もう二度と手を出すなよ？」
+	PRINTFORMW 医者は立ち去っていった……
+	RETURN 1
+ENDIF
+
+	IF 対象  != MASTER
+		PRINTFORMW 「%ANAME(対象)%さんを治療するのか？　よし分かった」
+		PRINTFORMW 「少し外していてくれ。すぐ終わる」
+		PRINTFORMW 訝りながらも、%ANAME(MASTER)%は席を外した……
+	ELSE
+		PRINTFORMW 「あんた自身を治療するのか？　よし分かった」
+		PRINTFORMW 「ちょっとこっちに来てくれ。すぐ終わる」
+		PRINTFORMW 訝りながらも、%ANAME(MASTER)%はついていった……
+	ENDIF
+	PRINTFORML
+	PRINTFORML
+	PRINTFORML
+	PRINTFORMW 「はんっ、まさかあんな簡単に騙されるとはな」
+	PRINTFORMW 医者と名乗っていた男は服を脱ぎ捨て、診察台の上で猛然と腰を振っている
+	PRINTFORMW その下では、治療を受けているはずの%ANAME(対象)%が、同じく一糸まとわぬ姿で横たわっている
+	PRINTFORMW 激しく肉棒を出し入れされる秘部からは、既に何発と放たれた白濁が垂れ落ちている
+	PRINTFORMW たまらないといわんばかりの声をあげて喘ぐ%ANAME(対象)%だが、その瞳はどこか虚ろだ
+	PRINTFORMW 「あんなんで騙せるんだから、チョロいもんだ……ウッ」
+	PRINTFORMW 男が呻き、%ANAME(対象)%の一番深いところで精を解き放つと、%ANAME(対象)%は自ら彼に抱きつきながら絶頂した
+	PRINTFORMW 「おお、可愛いなぁお前、締まりもいいし、俺専用の便器にしてやってもいいぞ？　そうしたら、クスリも打ち放題だ」
+	PRINTFORMW 「ほれ、追加のオクスリだ。コイツも効くぜ？」
+	PRINTFORMW いいながら、男は嬌声を垂れ流す%ANAME(対象)%の舌の上に錠剤を載せた。%ANAME(対象)%は従順にそれを呑み込む
+	PRINTFORMW 二人の回りには、使用済みの注射器や薬の箱が散乱している。%ANAME(対象)%に打ち込まれた、覚醒剤や麻薬の類が……
+	PRINTFORMW 「っと、そろそろ時間切れだな。オラさっさと服着ろ。……おっと、その下着は寄越せ」
+	PRINTFORMW 「ククッ、ザーメンまみれのマンコ晒したまんま、お仲間とご対面しろよ」
+	PRINTFORMW 舐め腐った要求にも、%ANAME(対象)%はふぬけた顔で頷く……
+	CALL FUCK_RAPE(対象, GET_SPERM_ID("医者"), @"闇医者の\@RAND:2 ? ペニス # 唇\@", "闇医者")
+	PRINTFORML
+	PRINTFORML
+	PRINTFORM
+	IF 対象 != MASTER
+		PRINTFORMW 「すまないが、%ANAME(対象)%さんの治療は完全には終わらなかったんだ」
+		PRINTFORMW 医者にそう言われ、%ANAME(MASTER)%は落胆する。まあ、どだい難しい話なのだろうし、責めるのは酷だ
+		PRINTFORMW 「もし良かったら、今後も来させてもらう。%ANAME(対象)%さんのことは無料で"治療"するよ」
+		PRINTFORMW 願ってもないことだ。%ANAME(MASTER)%はもちろんだと頷いた
+		PRINTFORMW 立ち去っていく医者に、%ANAME(対象)%はやけに深々と頭を下げていた……
+	ELSE
+		PRINTFORMW 「すまないが、%ANAME(対象)%さんの治療は完全には終わらなかったんだ」
+		PRINTFORMW 医者はいかにもすまなそうに、部下たちに説明する
+		PRINTFORMW 彼が治療のためちゃんと努力したと信じ込んでいる部下たちは、落胆こそすれ、彼の説明を疑うことはなかった
+		PRINTFORMW 「もし良かったら、今後も来させてもらう。%ANAME(対象)%さんのことは無料で"治療"するよ」
+		PRINTFORMW 部下たちに見えない角度で、%ANAME(対象)%の尻を撫で回しながら、医者は言う
+		PRINTFORMW 立ち去っていく医者に、%ANAME(対象)%は深々と頭を下げた……
+	ENDIF
+	CFLAG:(対象):薬物依存 += RAND(50, 100)
+	WAIT
 RETURN 1
+
+@SELECT_CHARA_LIST_SHOW_LOGIC_DOCTOR_DRUG(対象)
+#DIM 対象
+CALL SELECT_CHARA_LIST_SHOW_LOGIC_DEFAULT(対象)
+RETURN RESULT && CFLAG:対象:薬物依存 > 0
+
+@SELECT_CHARA_LIST_COLOR_LOGIC_DOCTOR_DRUG(対象)
+#DIM 対象
+SIF GETBIT(TALENT:対象:淫乱系, 素質_淫乱_薬物中毒)
+	RETURN カラー_警告
+RETURN GETDEFCOLOR()

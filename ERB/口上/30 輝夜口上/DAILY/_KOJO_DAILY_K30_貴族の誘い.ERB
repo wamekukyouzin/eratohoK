@@ -1,0 +1,342 @@
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@KOJO_DAILY_K30_INVITATION_FROM_KAGUYA_RATE(対象)
+#DIM 対象
+RETURN 25
+
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@KOJO_DAILY_K30_INVITATION_FROM_KAGUYA_DECISION(対象)
+#DIM 対象
+#DIM 永琳
+#DIM てゐ
+#DIM 鈴仙
+永琳 = NAME_TO_CHARA("永琳")
+鈴仙 = NAME_TO_CHARA("鈴仙")
+てゐ = NAME_TO_CHARA("てゐ")
+
+SIF !ALLSAMES(CFLAG:対象:所属, CFLAG:永琳:所属, CFLAG:てゐ:所属, CFLAG:鈴仙:所属)
+	RETURN 0
+
+SIF MASTER == NAME_TO_CHARA("妹紅")
+	RETURN 0
+
+SIF !IS_MALE(MASTER)
+	RETURN 0
+
+SIF ABL:MASTER:武闘 + ABL:MASTER:知略 + ABL:MASTER:政治 + ABL:MASTER:防衛 < 250
+	RETURN 0
+
+SIF GET_COUNTRY_BOSS(CFLAG:MASTER:所属) == MASTER
+	RETURN 0
+
+SIF KDVAR:対象:輝夜_貴族の誘い
+	RETURN 0
+
+RETURN CHECK_KOJO_DAILY_HAPPEN(対象, 0, 0, 0) && CHECK_KOJO_DAILY_HAPPEN(永琳, -1, 0) && CHECK_KOJO_DAILY_HAPPEN(てゐ, -1, 0) && CHECK_KOJO_DAILY_HAPPEN(鈴仙, -1, 0)
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@KOJO_DAILY_K30_INVITATION_FROM_KAGUYA_GENRE(対象)
+#DIM 対象
+RETURN デイリー_ジャンル_その他
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@KOJO_DAILY_K30_INVITATION_FROM_KAGUYA(対象)
+#DIM 対象
+
+RETURN 1
+
+
+;------------------------------------
+;デイリーイベント本体
+;創意工夫
+;発生判定に失敗した場合（イベントが発生しない場合）はマイナス１を返すこと
+;-----------------------------------
+@KOJO_DAILY_K30_INVITATION_FROM_KAGUYA
+#DIM 対象
+#DIM 永琳
+#DIM てゐ
+#DIM 鈴仙
+#DIM ボス
+対象 = NAME_TO_CHARA("対象")
+永琳 = NAME_TO_CHARA("永琳")
+鈴仙 = NAME_TO_CHARA("鈴仙")
+てゐ = NAME_TO_CHARA("てゐ")
+ボス = GET_COUNTRY_BOSS(CFLAG:MASTER:所属)
+
+CALL COLORPRINT(NAME_FORMAL(対象), カラー_注意)
+PRINTFORMW の拠点にて行われる宴の、招待状が送られてきた
+PRINTFORMW %ANAME(対象)%といえば、月の都に関係する人物で、永遠亭の姫である人物だ
+PRINTFORML ……そんな有力者が、自分のようなただの士官を招いてどうするつもりだろう……
+PRINTFORML 疑問でしかないが、有力者に顔を売っておくのも悪くはないだろう……
+PRINTFORML
+CALL ASK_YN("出席する", "やめておく")
+
+IF RESULT == 1
+	PRINTFORML ……えらいがたの遊びに付き合うこともあるまい
+	PRINTFORMW そう考えた%ANAME(MASTER)%は、欠席にマルをつけて返事を出した……
+	KDVAR:対象:輝夜_貴族の誘い = 1
+	RETURN 1
+ENDIF
+
+PRINTFORMW せっかくの機会だ。行ってみるとしよう……
+PRINTFORML ・
+PRINTFORML ・
+PRINTFORML ・
+PRINTFORML 永遠亭とやらは竹林の奥深く、話に聞くよりも辺鄙なところにあった
+PRINTFORMW ……そして、宴の準備など何一つされていなかった
+PRINTFORMW 「はじめまして、貴方が%ANAME(MASTER)%ね。……私が誰かは、知っているでしょう？」
+PRINTFORM 初めて見る相手だが、その図抜けた美しさでわかる。彼女こそ
+CALL COLORPRINT(NAME_FORMAL(対象), カラー_注意)
+PRINTFORMW だろう……
+PRINTFORMW 「まずは来てくれてありがとう。だけどもちろん、一介の士官を宴になんて招いたりしないわ、わざわざ」
+PRINTFORMW 「貴方もそれは理解してたでしょう？　……まさか、本当に宴会に混ざろうとしてたわけじゃないわよね？」
+PRINTFORMW なるほど、招待状自体が方便だったということか
+PRINTFORMW %PRONOUN(対象)%に害意があるかないかで、ここからどう動くかが変わるが……
+PRINTFORMW 「心配しないで、今日は貴方に、とっても素敵な話を用意したの。……%ANAME(永琳)%」
+PRINTFORMW 「はい」
+PRINTFORMW 呼ばれ、%PRONOUN(対象)%の後ろに控えていた銀髪の女性が進み出る
+PRINTFORMW 「%ANAME(MASTER)%様。貴方は優秀な武将だと、聞き及んでいます」
+PRINTFORMW 「姫は聡い方です。そういった人材の必要性を理解しており、また手元におくために、手段を選ばない」
+PRINTFORMW 密談の場などもうける以上、平和な話ではないと思っていたが……
+PRINTFORMW つまり%ANAME(対象)%は、今の主人を裏切り、自分につけと言っているのだ
+PRINTFORMW 提案のようだが、状況から考えると、選択肢は少ないように思える……
+PRINTFORMW 「%ANAME(永琳)%。そういうのはなしだと言っておいたはずだけど？」
+PRINTFORMW 「ごめんなさいね、別に、脅すつもりはないのよ？　これから働いてもらう人を、無下には扱わないわ」
+PRINTFORMW 「今いるところより、ずっといい待遇で迎えてあげる。金、それから……そうね、色なんてどうかしら？」
+PRINTFORM 「
+CALL COLORPRINT(NAME_FORMAL(てゐ), カラー_注意)
+PRINTFORM 、
+CALL COLORPRINT(NAME_FORMAL(鈴仙), カラー_注意)
+PRINTFORM 、
+CALL COLORPRINT(NAME_FORMAL(永琳), カラー_注意)
+PRINTFORMW 。好きなのを選んでいいわよ。あげるわ」
+PRINTFORMW %ANAME(対象)%はさらりと、とんでもないことを言ってのけた
+PRINTFORMW %PRONOUN(対象)%の後ろに並ぶ、三人の女性。そのうち一人を情婦にしてやろうというのだ……
+PRINTFORMW ……それにしても、何かあると思っていたが、まさか引き抜きをかけられるとは
+PRINTFORMW 驚くほどのことではない。幻想郷は混迷の時代にある。そういう手段にでる勢力がいてもおかしくはない
+PRINTFORMW こちらとしても、生き延びるためには、少しでも強力な勢力についておくのが得策だ
+PRINTFORMW 一方で、この話を受ければ、今の主君の方面との関係は、間違いなくこじれるだろう
+PRINTFORMW さて、どうするか……
+CALL SINGLE_DRAWLINE
+PRINTFORML %ANAME(対象)%の領地数:{GET_OWN_CITY(CFLAG:対象:所属)} %ANAME(ボス)%の領地数:{GET_OWN_CITY(CFLAG:MASTER:所属)}
+PRINTFORML 
+CALL ASK_YN("話にのる", "やめておく")
+
+IF RESULT == 1
+	PRINTFORMW 「あら……そう」
+	PRINTFORMW 「大した度胸ね、敵陣まっただ中で、この話を断るなんて」
+	PRINTFORMW 「ま、別に害意はないんだけどね。そういうことなら諦めるわ」
+	PRINTFORMW 刃傷沙汰は覚悟の上だったが、%ANAME(対象)%は案外あっさりと諦めてみせた
+	PRINTFORMW 「ここで殺したら、手に入らないもの。頷かないなら、%ANAME(ボス)%をねじ伏せて奪えばいいだけ。違う？」
+	PRINTFORMW 「まぁそういうわけだから、次に会うときは容赦しないわよ……くくっ」
+	PRINTFORMW その後、%ANAME(MASTER)%は無事に拠点まで帰り着いた……
+	KDVAR:対象:輝夜_貴族の誘い = 2
+	RETURN 1
+ENDIF
+
+PRINTFORMW 「そう言ってくれると思ってたわ」
+PRINTFORMW 「ふふ、よろしくお願いするわね？」
+PRINTFORMW %ANAME(MASTER)%は頷き返した……
+LOCAL:0 = MIN((ABL:MASTER:武闘 + ABL:MASTER:知略 + ABL:MASTER:政治 + ABL:MASTER:防衛) * 200, 50000)
+MONEY += LOCAL:0
+CALL CHANGE_RELATION_O_TO_O(ボス, 対象, -500, 500)
+CALL CHANGE_RELATION_O_TO_O(ボス, MASTER, -500, 500)
+CALL CHANGE_COUNTRY(MASTER, CFLAG:対象:所属, 1)
+CALL COLORPRINT(@"支度金として金{LOCAL:0}を受け取りました", カラー_注意, "W")
+CALL COLORPRINT(@"%ANAME(ボス)%との外交関係が、非常にこじれました", カラー_警告, "W")
+PRINTFORMW 「……それで、約束の『色』のほうだけれど」
+PRINTFORMW 「誰にするの？　どうぞご自由に」
+PRINTFORML
+CALL ASK_MULTI(ANAME(てゐ), ANAME(鈴仙), ANAME(永琳), ANAME(対象))
+LOCAL:0 = RESULT
+SELECTCASE LOCAL
+	CASE 0
+		LOCAL = てゐ
+	CASE 1
+		LOCAL = 鈴仙
+	CASE 2
+		LOCAL = 永琳
+	CASE 3
+		LOCAL = 対象
+ENDSELECT
+
+SELECTCASE LOCAL
+	CASE てゐ, 鈴仙, 永琳
+		PRINTFORMW 「ふぅん……%ANAME(LOCAL)%がお好み？」
+		PRINTFORMW 「ま、貴方の趣味に興味はないけど。わかったわ、今日から%ANAME(LOCAL)%は貴方のものよ」
+		PRINTFORMW 「煮るなり焼くなり、好きにしなさいな。貴方が女をどう扱うかに興味はないから」
+		PRINTFORMW それきり退屈げな表情を浮かべた%ANAME(対象)%の代わりに、%ANAME(LOCAL)%が一歩前に進み出る……
+		SELECTCASE LOCAL
+			CASE てゐ
+				PRINTFORMW 「まぁよろしく。それにしても私を選ぶとはねー。あんたひょっとしてロリコンってやつ？」
+				PRINTFORMW 「別にいーけど。我らが姫様の命令だ、あんたのモノになってあげるよ、しばらくは」
+			CASE 鈴仙
+				PRINTFORMW 「私……ですか、師匠でもてゐでもなく……はぁ」
+				PRINTFORMW 「えーっと、……その、精一杯努めさせていただきます。よろしくお願いします」
+			CASE 永琳
+				PRINTFORMW 「姫もお戯れが過ぎるわ……そうね、終わらない一生の、ほんの一瞬の些細な間違いだとでも思っておくことにするわ」
+				PRINTFORMW 「生きている間は貴方のものになってあげるから、せめて退屈はさせないでちょうだいね」
+		ENDSELECT
+		CALL COLORPRINT(@"%ANAME(LOCAL)%の合意を得ました", カラー_ピンク, "W")
+		TALENT:LOCAL:合意 = 1
+		TALENT:LOCAL:チョロイン = 1
+	CASE 対象
+		PRINTFORMW 「……へぇ、私？」
+		PRINTFORMW %ANAME(対象)%は薄っすらとした笑みを浮かべ、じっとこちらを見つめてきた
+		IF IS_LOVER(対象)
+			PRINTFORMW 「別にこんな機会でなくても、貴方だったら別にいいのだけど」
+			PRINTFORMW 「まあ、それがお望みなら、いいわよ」
+			PRINTFORMW 「でも、優しくしてね？」
+			CALL COLORPRINT(@"%ANAME(対象)%の合意を得ました", カラー_ピンク, "W")
+			CFLAG:対象:好感度 += 500
+			TALENT:LOCAL:合意 = 1
+			TALENT:LOCAL:チョロイン = 1
+		ELSEIF IS_SLAVE(対象)
+			PRINTFORMW 「別にこんな機会でなくても、貴方だったらいつでもいいのに」
+			PRINTFORMW 「それとも、それだけ私を欲してくださってるということかしら？」
+			PRINTFORMW 「なんでもいいわ。私は貴方のものだもの」
+			PRINTFORMW 「どうぞ私めをお使いくださいませ、ご主人様……♥」
+			PRINTFORMW 期待するようにしなだれかかる%ANAME(対象)%を抱きしめた……
+			CALL COLORPRINT(@"%ANAME(対象)%の合意を得ました", カラー_ピンク, "W")
+			CFLAG:対象:依存度 += 500
+			TALENT:対象:合意 = 1
+			TALENT:LOCAL:チョロイン = 1
+			TALENT:LOCAL:プライド高い = 0
+			TALENT:LOCAL:孤高 = 0
+			TALENT:LOCAL:貞操観念 = 0
+		ELSE
+			PRINTFORML
+			PRINTFORMW ……そして、いきなり強烈な平手を食らわせてきた
+			PRINTFORML
+			PRINTFORMW 「貴族どもが、ひいては帝までがこぞって求めたこの私を？」
+			PRINTFORMW 「この%NAME_FORMAL(対象)%を、貴方ごときが？　こんなに簡単に、手に入れられると？」
+			PRINTFORMW 「ずいぶんと、コケにされたものね。まったく、本当に、笑えない冗談だわ」
+			PRINTFORMW 「私は優秀な者は好きよ？　でも、それを理由に思い上がるような愚か者は、無能よりもよほど嫌い」
+			PRINTFORMW 「……ま、私の魅力に虜になるのは仕方のないことね。その点に免じて、今のは不問にしてあげる」
+			PRINTFORMW 「でも、とっても不愉快だったわ。今の失言で失った信用を取り戻せるよう、せいぜい努めなさい、卑しい豚」
+			PRINTFORMW それきり、%ANAME(対象)%は何も言わなかった
+			IF ((IS_LOVER(てゐ) || IS_SLAVE(てゐ)) && (IS_LOVER(鈴仙) || IS_SLAVE(鈴仙)) && (IS_LOVER(永琳) || IS_SLAVE(永琳)))
+				PRINTFORML
+				PRINTFORMW ……そんな%ANAME(対象)%を、%ANAME(永琳)%達が取り囲み、床に押さえつける
+				PRINTFORMW 突然のことに、%ANAME(対象)%は動揺しているようだ
+				PRINTFORMW 「%ANAME(永琳)%、どういうつもり！？」
+				PRINTFORMW 「ごめんなさいね輝夜、でも貴女も彼の良さを知るべきよ」
+				PRINTFORMW 「すいません姫様……」
+				PRINTFORMW 「や、まあなんていうか姫様、諦めて受け入れたほうがいいんじゃない？」
+				PRINTFORML 彼女らの反応に、%ANAME(対象)%は部下の背信を悟ったようだった
+				PRINTFORML 拘束から逃れようと暴れるが、三人に勝てるはずもない
+				PRINTFORMW 身動きを封じられた%ANAME(対象)%に、%ANAME(MASTER)%はゆっくりと歩み寄る
+				PRINTFORMW 「来ないで！　あなた、いったい誰に向かって……」
+				PRINTFORMW %ANAME(対象)%は怒りの籠った目でこちらを見ている。まあ、そうもなるだろう
+				PRINTFORML さて、どうしようか…
+				PRINTFORML
+				CALL ASK_MULTI_JUDGE("犯す", IS_MALE(MASTER), "投獄する", 1, "処刑", GET_COUNTRY_BOSS(対象) != 対象)
+				SELECTCASE RESULT
+					CASE 0
+						PRINTFORMW 「この……いい加減に、しなさいッ……ひッ」
+						PRINTFORMW なおも抵抗しようとする%ANAME(対象)%だったが、服越しにもわかるほど勃起した%ANAME(MASTER)%のペニスを見、小さな悲鳴をあげる
+						PRINTFORMW この後の展開を察したのだろう、その瞳には恐怖の色が浮かんでいる
+						PRINTFORMW 「やめて……嫌、お願い、ねぇ」
+						PRINTFORMW 先ほどまでの威厳はどこへやら、%ANAME(対象)%は無力な少女として怯え、許しを乞うている
+						PRINTFORMW 「さあ、どうぞ、%ANAME(MASTER)%。この子も、%ANAME(MASTER)%の良さをしればきっと変われると思うわ」
+						PRINTFORMW 「私たちにしてくれるように、姫様のことも愛してさしあげてくださいね？」
+						PRINTFORMW %ANAME(MASTER)%の情婦たちは意に介さず、%ANAME(対象)%の服をはだけ、股を開かせる
+						PRINTFORMW %ANAME(MASTER)%は%ANAME(対象)%ににじり寄り、ゆっくりと覆いかぶさった……
+						PRINTFORMW 「うそ、嘘よこんなの、いや、やめて、いやぁぁああッ……！」
+						PRINTFORML 
+						CALL FUCK(対象, "欲望, 性技, Ｃ, Ｖ, Ａ, Ｂ, Ｍ, Ｖ拡張, Ａ拡張, 性交, 自慰, 精愛, 露出, 排泄, 射精, 苦痛快楽, 緊縛, マゾ, キス, 口淫, Ｖ性交, Ａ性交", "キス喪失, 処女喪失, Ａ処女喪失, CFLAG減少, 膣内射精, 腸内射精, 口内射精", GET_ID(MASTER), @"%ANAME(MASTER)%のペニス", ANAME(MASTER))
+						PRINTFORMW 「嫌、そんな、あ、穢れがッ、あ、あぁぁあああッ……！」
+						PRINTFORML 
+						CALL FUCK(対象, "欲望, 性技, Ｃ, Ｖ, Ａ, Ｂ, Ｍ, Ｖ拡張, Ａ拡張, 性交, 自慰, 精愛, 露出, 排泄, 射精, 苦痛快楽, 緊縛, マゾ, キス, 口淫, Ｖ性交, Ａ性交", "キス喪失, 処女喪失, Ａ処女喪失, CFLAG減少, 膣内射精, 腸内射精, 口内射精", GET_ID(MASTER), @"%ANAME(MASTER)%のペニス", ANAME(MASTER))
+						PRINTFORMW 「うぁッ、はッ♥　あッ、く、誰が、ァッ、ああッ！」
+						PRINTFORML 
+						CALL FUCK(対象, "欲望, 性技, Ｃ, Ｖ, Ａ, Ｂ, Ｍ, Ｖ拡張, Ａ拡張, 性交, 自慰, 精愛, 露出, 排泄, 射精, 苦痛快楽, 緊縛, マゾ, キス, 口淫, Ｖ性交, Ａ性交", "キス喪失, 処女喪失, Ａ処女喪失, CFLAG減少, 膣内射精, 腸内射精, 口内射精", GET_ID(MASTER), @"%ANAME(MASTER)%のペニス", ANAME(MASTER))
+						PRINTFORMW 「違うッ、そんな、感じてなんかッ♥　ぅァ、やめッ……！」
+						PRINTFORML 
+						CALL FUCK(対象, "欲望, 性技, Ｃ, Ｖ, Ａ, Ｂ, Ｍ, Ｖ拡張, Ａ拡張, 性交, 自慰, 精愛, 露出, 排泄, 射精, 苦痛快楽, 緊縛, マゾ, キス, 口淫, Ｖ性交, Ａ性交", "キス喪失, 処女喪失, Ａ処女喪失, CFLAG減少, 膣内射精, 腸内射精, 口内射精", GET_ID(MASTER), @"%ANAME(MASTER)%のペニス", ANAME(MASTER))
+						PRINTFORMW 「お願い、もう射精さないでッ……あぁッ……♥」
+						PRINTFORML 
+						CALL FUCK(対象, "欲望, 性技, Ｃ, Ｖ, Ａ, Ｂ, Ｍ, Ｖ拡張, Ａ拡張, 性交, 自慰, 精愛, 露出, 排泄, 射精, 苦痛快楽, 緊縛, マゾ, キス, 口淫, Ｖ性交, Ａ性交", "キス喪失, 処女喪失, Ａ処女喪失, CFLAG減少, 膣内射精, 腸内射精, 口内射精", GET_ID(MASTER), @"%ANAME(MASTER)%のペニス", ANAME(MASTER))
+						PRINTFORMW 「ひッ、はぁッ♥　あっ、くぁッ、あぁ♥　んんんッ♥」
+						PRINTFORML 
+						CALL FUCK(対象, "欲望, 性技, Ｃ, Ｖ, Ａ, Ｂ, Ｍ, Ｖ拡張, Ａ拡張, 性交, 自慰, 精愛, 露出, 排泄, 射精, 苦痛快楽, 緊縛, マゾ, キス, 口淫, Ｖ性交, Ａ性交", "キス喪失, 処女喪失, Ａ処女喪失, CFLAG減少, 膣内射精, 腸内射精, 口内射精", GET_ID(MASTER), @"%ANAME(MASTER)%のペニス", ANAME(MASTER))
+						PRINTFORMW 「お、ねがいします……挿れてください……ッ、私のおまんこに、おちんちんくださいぃッ……！」
+						PRINTFORML 
+						CALL FUCK(対象, "欲望, 性技, Ｃ, Ｖ, Ａ, Ｂ, Ｍ, Ｖ拡張, Ａ拡張, 性交, 自慰, 精愛, 露出, 排泄, 射精, 苦痛快楽, 緊縛, マゾ, キス, 口淫, Ｖ性交, Ａ性交", "キス喪失, 処女喪失, Ａ処女喪失, CFLAG減少, 膣内射精, 腸内射精, 口内射精", GET_ID(MASTER), @"%ANAME(MASTER)%のペニス", ANAME(MASTER))
+						PRINTFORMW 「うぁッ♥　あッ、んぁあッ♥　あっ、きもちっ、気持ちいい、気持ちいいぃッ♥」
+						PRINTFORML 
+						PRINTFORML 
+						PRINTFORML 
+						FOR LOCAL, 0, 3
+							CALL FUCK(対象, "欲望, 性技, Ｃ, Ｖ, Ａ, Ｂ, Ｍ, Ｖ拡張, Ａ拡張, 性交, 自慰, 精愛, 露出, 排泄, 射精, 苦痛快楽, 緊縛, マゾ, キス, 口淫, Ｖ性交, Ａ性交", "キス喪失, 処女喪失, Ａ処女喪失, CFLAG減少, 膣内射精, 腸内射精, 口内射精", GET_ID(MASTER), @"%ANAME(MASTER)%のペニス", ANAME(MASTER))
+						NEXT
+						PRINTFORML 
+						PRINTFORML 
+						PRINTFORML 
+						PRINTFORMW 数時間後、%ANAME(対象)%は床に打ち捨てられたように転がっていた
+						PRINTFORMW 豪奢な着物は体液でどろどろになり、黒髪にも白濁がこびりついている
+						PRINTFORMW 股間からは\@TALENT:対象:処女 ? 血と # \@愛液と精液の混ざった液体がごぽごぽと逆流している
+						PRINTFORMW あらゆる尊厳を剥ぎ取られ、穴という穴を犯されて、%ANAME(対象)%は今や蹂躙されるだけの雌に堕ちている
+						PRINTFORMW 虚ろなその瞳には、先ほどまで自分が使っていた玉座に座る%ANAME(MASTER)%と、
+						PRINTFORMW %ANAME(MASTER)%に奉仕し、絡み合い、恍惚の表情を浮かべるかつての部下たちが映っている
+						PRINTFORMW 自分が何もかも失ったことを、%ANAME(対象)%は改めて悟る
+						PRINTFORMW そして、ふらふらと起き上がり、%ANAME(MASTER)%に懇願する……
+						PRINTFORMW 「%ANAME(MASTER)%様……私が間違っていました、どうか、私も、%ANAME(MASTER)%様のモノにしてくださいっ……♥」
+						PRINTFORMW %ANAME(対象)%は脚を広げて座る%ANAME(MASTER)%のもとに跪くと、忠誠の証として、愛液まみれのモノを自らしゃぶり始める
+						PRINTFORMW %ANAME(MASTER)%はニヤリと笑い、%ANAME(対象)%も他の情婦同様に可愛がってやることにした……
+						CALL FUCK(対象, "欲望, 性技, Ｃ, Ｖ, Ａ, Ｂ, Ｍ, Ｖ拡張, Ａ拡張, 性交, 自慰, 精愛, 露出, 排泄, 射精, 苦痛快楽, 緊縛, マゾ, キス, 口淫, Ｖ性交, Ａ性交", "キス喪失, 処女喪失, Ａ処女喪失, CFLAG減少, 膣内射精, 腸内射精, 口内射精", GET_ID(MASTER), @"%ANAME(MASTER)%のペニス", ANAME(MASTER))
+						CALL COLORPRINT(@"%ANAME(対象)%を手なずけました", カラー_注意, "W")
+						CFLAG:対象:好感度 += 1000
+						CFLAG:対象:依存度 += 500
+						CFLAG:対象:従属度 += 1500
+						TALENT:対象:服従 = 1
+						TALENT:対象:合意 = 1
+						TALENT:対象:孤高 = 0
+						TALENT:対象:プライド高い = 0
+						TALENT:対象:プライド低い = 1
+						TALENT:対象:貞操観念 = 0
+						TALENT:対象:男嫌い = 0
+						TALENT:対象:チョロイン = 1
+					CASE 1
+						PRINTFORMW なに、じっくりと手なずけてやればいいだろう
+						PRINTFORMW %ANAME(永琳)%たちに命じ、%ANAME(対象)%を投獄させた……
+						CALL CAPTURE(対象, CFLAG:MASTER:所属)
+					CASE 2
+						PRINTFORMW クーデターは成功だ
+						PRINTFORMW もはや%ANAME(対象)%は必要ない
+						PRINTFORMW 部下に命じ、処刑させることにした……
+						CALL EXECUTION(対象)
+						CALL CHANGE_COUNTRY(対象, 0, 1, 1)
+				ENDSELECT
+			ELSE
+				PRINTFORMW %ANAME(MASTER)%は促されるままに退出した……
+				CALL COLORPRINT(@"%ANAME(対象)%の反感を買いました", カラー_警告, "W")
+				CFLAG:対象:好感度 = -500
+				CFLAG:対象:依存度 = -500
+				CFLAG:対象:従属度 = -500
+				TALENT:対象:孤高 = 1
+				TALENT:対象:プライド高い = 1
+				TALENT:対象:抑圧 = 1
+				TALENT:対象:一線越えない = 1
+				TALENT:対象:気丈 = 1
+				TALENT:対象:反抗的 = 1
+			ENDIF
+		ENDIF
+		KDVAR:対象:輝夜_貴族の誘い = 1
+ENDSELECT
+
+KDVAR:対象:輝夜_貴族の誘い = 1
+RETURN 1

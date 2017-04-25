@@ -1,0 +1,141 @@
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@KOJO_DAILY_K84_SCAPE_GOAT_RATE(対象)
+#DIM 対象
+RETURN 300
+
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@KOJO_DAILY_K84_SCAPE_GOAT_DECISION(対象)
+#DIM 対象
+#DIM 布都
+#DIM 神子
+布都 = NAME_TO_CHARA("布都")
+神子 = NAME_TO_CHARA("神子")
+
+SIF KDVAR:対象:屠自古_身代わり
+	RETURN 0
+
+SIF !CHECK_KOJO_DAILY_HAPPEN(布都, 0, 1) && !CHECK_KOJO_DAILY_HAPPEN(神子, 0, 1)
+	RETURN 0
+
+SIF GROUPMATCH(MASTER, 布都, 神子)
+	RETURN 0
+
+SIF !ALLSAMES(CFLAG:MASTER:所属, CFLAG:対象:捕虜先, CFLAG:布都:捕虜先) && !ALLSAMES(CFLAG:MASTER:所属, CFLAG:対象:捕虜先, CFLAG:神子:捕虜先)
+	RETURN 0
+
+SIF IS_SLAVE(対象) || IS_LOVER(対象)
+	RETURN 0
+
+
+RETURN CHECK_KOJO_DAILY_HAPPEN(対象, 0, 1, 1)
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@KOJO_DAILY_K84_SCAPE_GOAT_GENRE(対象)
+#DIM 対象
+RETURN デイリー_ジャンル_その他
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@KOJO_DAILY_K84_SCAPE_GOAT(対象)
+#DIM 対象
+#DIM 布都
+#DIM 神子
+#DIM 身代わり
+
+布都 = NAME_TO_CHARA("布都")
+神子 = NAME_TO_CHARA("神子")
+
+IF CFLAG:神子:捕虜先 == CFLAG:対象:捕虜先
+	身代わり = 神子
+ELSEIF CFLAG:布都:捕虜先 == CFLAG:布都:捕虜先
+	身代わり = 布都
+ELSE
+	RETURN 1
+ENDIF
+
+PRINTFORMW 牢の見回りをしていると、投獄している%ANAME(対象)%が声をかけてきた
+PRINTFORMW 「なぁ……お前、%ANAME(身代わり)%のことも牢に入れてるんだろ？」
+PRINTFORMW 「捕虜の立場でこういうことを言うのもなんだけど、解放してやってくれないか？」
+PRINTL
+CALL ASK_YN("わかった", "駄目だ")
+
+IF RESULT == 0
+	PRINTFORMW 「え……え？　いいのか？」
+	PRINTFORML いいのかもなにも、自分が言い出したことだろう……
+	PRINTFORMW それとも冗談だったのかと聞くと、%ANAME(対象)%は慌てて首を振った
+	PRINTFORMW 「い、いや、冗談じゃない。解放してくれるならありがたい」
+	PRINTFORMW 「その……ありがとう」
+	CALL COLORPRINT(@"%ANAME(身代わり)%を解放しました", カラー_注意, "W")
+	CALL CAPTURE(身代わり, 0)
+	CFLAG:対象:好感度 += 300
+	KDVAR:対象:屠自古_身代わり = 1
+	RETURN 1
+ENDIF
+
+PRINTFORML 何を言っているのだろう。せっかく捕まえた捕虜を、ただで逃がすはずがないではないか
+PRINTFORMW 呆れながら返すと、%ANAME(対象)%は食い下がってきた
+PRINTFORMW 「それは分かってる。だからその……私が代わりに何でもする。お前に従うから……頼む」
+PRINTFORMW なるほど。%ANAME(身代わり)%と引き換えに%ANAME(対象)%を確実に得られるのなら、悪い取引ではないだろう
+PRINTFORMW さて、どうするか……
+PRINTFORML 
+CALL ASK_MULTI("武将として働いてもらう", "情婦にする", "駄目だ")
+SELECTCASE RESULT
+	CASE 0
+		PRINTFORMW 「……分かった。今後はお前のために戦おう」
+		PRINTFORMW 武将として働け……そう伝えると、%ANAME(対象)%は頷いた
+		PRINTFORMW どことなく安心したように見える……
+		CALL COLORPRINT(@"%ANAME(身代わり)%を解放しました", カラー_注意, "W")
+		CALL CAPTURE(身代わり, 0)
+		CALL COLORPRINT(@"%ANAME(対象)%を解放しました", カラー_注意, "W")
+		CALL COLORPRINT(@"%ANAME(対象)%が武将として参加しました", カラー_注意, "W")
+		CALL CHANGE_COUNTRY(対象, CFLAG:MASTER:所属, 1)
+		CFLAG:対象:好感度 += 500
+		CFLAG:対象:依存度 += 100
+		TALENT:対象:チョロイン = 1
+		TALENT:対象:反抗的 = 0
+		KDVAR:対象:屠自古_身代わり = 1
+	CASE 1
+		PRINTFORMW 「……っ」
+		PRINTFORMW 情婦になれ……そう伝えると、%ANAME(対象)%は躊躇するような表情を浮かべた
+		PRINTFORMW 嫌ならこの話はなしだ。念を押すと、%PRONOUN(対象)%は諦めたように頷いた
+		PRINTFORMW 「分かった……私は、お前のものだ」
+		PRINTFORMW 「どうぞ、私の身体を、好きにお使い下さい……」
+		IF HAS_PENIS(MASTER)
+			PRINTFORMW 恭しく頭を下げる%ANAME(対象)%に覆い被さった……
+			CALL FUCK(対象, "Ｃ, Ｖ, Ｂ, 欲望, 精愛, 奉仕, 奉仕, 性交, キス, 口淫, Ｖ性交", "膣内射精, キス喪失, 処女喪失, 口内射精",　GET_ID(MASTER), @"%ANAME(MASTER)%のペニス", ANAME(MASTER), "", 喪失_調教)
+		ENDIF
+		CALL COLORPRINT(@"%ANAME(身代わり)%を解放しました", カラー_注意, "W")
+		CALL CAPTURE(身代わり, 0)
+		CALL COLORPRINT(@"%ANAME(対象)%を解放しました", カラー_注意, "W")
+		CALL COLORPRINT(@"%ANAME(対象)%に忠誠を誓わせました", カラー_注意)
+		CALL CHANGE_COUNTRY(対象, CFLAG:MASTER:所属, 1)
+		TALENT:対象:服従 = 1
+		TALENT:対象:チョロイン = 1
+		TALENT:対象:合意 = 1
+		TALENT:対象:反抗的 = 0
+		CFLAG:対象:従属度 = MAX(CFLAG:対象:従属度, 1500)
+		CFLAG:対象:依存度 = MAX(CFLAG:対象:依存度, 300)
+		KDVAR:対象:屠自古_身代わり = 1
+	CASE 2
+		PRINTFORMW だから、何をどうしたところで、捕虜をほいほいと逃すはずがないだろう……
+		PRINTFORMW 「……そうか、分かった。元々ダメ元で言ったことだ、忘れてくれ……」
+		PRINTFORMW それきり、対象は黙り込んだ……
+		KDVAR:対象:屠自古_身代わり = 1
+ENDSELECT
+
+RETURN 1
+

@@ -1,0 +1,139 @@
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@KOJO_DAILY_K83_I_GIVE_YOU_EVERYTHING_I_HAVE_RATE(対象)
+#DIM 対象
+RETURN 1000
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@KOJO_DAILY_K83_I_GIVE_YOU_EVERYTHING_I_HAVE_DECISION(対象)
+#DIM 対象
+#DIM 芳香
+
+芳香 = NAME_TO_CHARA("芳香")
+
+SIF MASTER == 芳香
+	RETURN 0
+
+SIF !IS_SLAVE(対象)
+	RETURN 0
+
+SIF IS_SLAVE(芳香) || IS_LOVER(芳香)
+	RETURN 0
+
+SIF !IS_MALE(MASTER)
+	RETURN 0
+
+SIF KDVAR:対象:青娥_全てをあなたに
+	RETURN 0
+
+RETURN CHECK_KOJO_DAILY_HAPPEN(対象, 1, 0, 1) && CHECK_KOJO_DAILY_HAPPEN(芳香, 1)
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@KOJO_DAILY_K83_I_GIVE_YOU_EVERYTHING_I_HAVE_GENRE(対象)
+#DIM 対象
+RETURN デイリー_ジャンル_エロ
+
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@KOJO_DAILY_K83_I_GIVE_YOU_EVERYTHING_I_HAVE(対象)
+#DIM 対象
+#DIM 芳香
+
+芳香 = NAME_TO_CHARA("芳香")
+
+PRINTFORMW 「%ANAME(MASTER)%様、少しよろしいですか？」
+PRINTFORML 自室で仕事をしていると、%ANAME(対象)%が壁をすり抜けて部屋に入ってくるところだった
+PRINTFORMW 躾けてやった甲斐あって、こちらを見る彼女の目はすっかり従順なものになっている……
+PRINTFORMW 「言うまでもないことですが、私は%ANAME(MASTER)%様の忠実なしもべ、永遠の忠誠を誓う身ですわ」
+PRINTFORMW 「ですから、私のもつ全ては、貴方様のもの……カラダも、知識も、なにもかも」
+PRINTFORMW 「そう……私の、キョンシーも、もちろん」
+PRINTFORML %ANAME(対象)%が扉に向けて目配せすると、%ANAME(芳香)%が入ってきた
+PRINTFORML 男の情欲をそそるような、淫らな衣装に身を包んでいる……
+PRINTFORMW 心なしか、その肢体も男好きのするものになっているような気がするが……？
+PRINTFORMW 「あなたにお仕えするのですもの、それに相応しい姿にいたしませんと……ね？」
+PRINTFORMW 「%ANAME(MASTER)%様、どうか、私と%ANAME(芳香)%、二人とも可愛がってくださいまし……」
+PRINTFORML ……つまりは自分が可愛がってほしいから、%ANAME(芳香)%を捧げるということらしい
+PRINTFORMW まあ、彼女が心まで%ANAME(MASTER)%のものになっているということを示してはいるだろう
+PRINTFORMW %ANAME(対象)%はすっかりそのつもりらしく、%ANAME(芳香)%と対になるような淫らな衣装に身を包んでいる
+PRINTFORML どうしたものか……
+PRINTFORML
+CALL ASK_MULTI("可愛がってやる", "今忙しいから……", "張り倒す")
+SELECTCASE RESULT
+	CASE 1
+		PRINTFORMW 「あぁん……そんな……」
+		PRINTFORMW 「焦らしたいと、そういう趣向ですのね？　もう……」
+		PRINTFORMW 「必要とあらば、いつでも呼んでくださいまし、%ANAME(対象)%は貴方様のものですので……」
+		PRINTFORMW 残念ながら今はそんな気分ではない
+		PRINTFORMW 二人を帰らせた……
+	CASE 2
+		PRINTFORMW 「あぁっ……！」
+		PRINTFORML 誰がいつそんなことを頼んだ
+		PRINTFORMW 自分のものだというのなら、勝手なことをするな……
+		PRINTFORMW そう主張し、%ANAME(対象)%の頬を張り倒した
+		PRINTFORMW 「はい、申し訳ございません……」
+		PRINTFORMW 「差し出がましいことをいたしました、失礼いたします……」
+		PRINTFORMW 痛みに頬を押さえる%ANAME(対象)%の表情は、どこか恍惚としたものに思えた……
+		CFLAG:対象:従属度 += 300
+	CASE 0
+		PRINTFORMW そこまで言うなら、たっぷりと愉しませてもらおう……
+		PRINTFORMW 二人をベッドに押し倒した……
+		CALL COLORPRINT(@"%ANAME(芳香)%が服従を誓いました", カラー_注意, "W")
+		CALL COLORPRINT(@"%ANAME(芳香)%の合意を得ました", カラー_注意, "W")
+
+		;全員の調教参加フラグをクリア
+		CVARSET CFLAG, 6, 0
+
+		CFLAG:対象:従属度 += 500
+		CFLAG:対象:依存度 += 300
+		TALENT:対象:チョロイン = 1
+		CFLAG:対象:調教参加フラグ = 1
+		CFLAG:対象:調教中帰らない = 1
+		CFLAG:対象:強制友好化 = 1
+		BASE:対象:体力 = MAXBASE:対象:体力
+		BASE:対象:気力 = MAXBASE:対象:気力
+
+		CFLAG:芳香:従属度 = MAX(CFLAG:芳香:従属度, 1500)
+		CFLAG:芳香:依存度 = MAX(CFLAG:芳香:依存度, 300)
+		TALENT:芳香:服従 = 1
+		TALENT:芳香:反抗的 = 0
+		TALENT:芳香:チョロイン = 1
+		TALENT:芳香:濡れにくい = 0
+		TALENT:芳香:保守的 = 0
+		TALENT:芳香:自制心 = 0
+		CFLAG:芳香:調教参加フラグ = 1
+		CFLAG:芳香:調教中帰らない = 1
+		CFLAG:芳香:強制友好化 = 1
+		BASE:芳香:体力 = MAXBASE:芳香:体力
+		BASE:芳香:気力 = MAXBASE:芳香:気力
+		TALENT:芳香:Ｃ鈍感 = 0
+		TALENT:芳香:Ｂ鈍感 = 0
+		TALENT:芳香:Ｖ鈍感 = 0
+		TALENT:芳香:Ａ鈍感 = 0
+		TALENT:芳香:Ｃ敏感 = 1
+		TALENT:芳香:Ｂ敏感 = 1
+		TALENT:芳香:Ｖ敏感 = 1
+		TALENT:芳香:Ａ敏感 = 1
+		CALL SET_BUSTSIZE(芳香, 1)
+		TALENT:芳香:美尻 = 1
+		TALENT:芳香:美脚 = 1
+		;強制逆調教フラグをオン
+		FLAG:ターンエンド調教 = 1
+		;それ以降のデイリーイベント発生を潰す
+		DAILY_CANCEL = 1
+ENDSELECT
+
+KDVAR:対象:青娥_全てをあなたに = 1
+RETURN 1

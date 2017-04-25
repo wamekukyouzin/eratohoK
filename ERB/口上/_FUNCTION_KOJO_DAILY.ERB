@@ -1,0 +1,272 @@
+﻿;-------------------------------------------------
+;口上デイリーイベント開始時の汎用演出。
+;-------------------------------------------------	
+@KOJO_DAILY_START(ARGS:0)
+CALL SINGLE_DRAWLINE
+CALL COLORPRINT(@"-口上デイリーイベント『%ARGS:0%』発生-", カラー_注意, "L")
+FORCEWAIT
+CALL SINGLE_DRAWLINE
+PRINTFORML ・
+PRINTFORML ・
+PRINTFORML ・
+
+
+;-------------------------------------------------
+;口上デイリーイベント開始時の汎用演出。
+;-------------------------------------------------	
+@KOJO_DAILY_START_DERIVATION(ARGS:0)
+CALL SINGLE_DRAWLINE
+CALL COLORPRINT(@"-派生口上デイリーイベント『%ARGS:0%』発生-", カラー_注意, "L")
+FORCEWAIT
+CALL SINGLE_DRAWLINE
+PRINTFORML ・
+PRINTFORML ・
+PRINTFORML ・
+
+;-------------------------------------------------
+;desc  :口上デイリーのインデックスを英語名から取得する
+;param :対象    :対象キャラ
+;PARAM :ジャンル:口上デイリーのジャンル
+;param :アクセサ:口上デイリーの英語名
+;return:口上デイリーのインデックス
+;-------------------------------------------------
+@GET_KOJO_DAILY_INDEX_FROM_ENG(対象, ジャンル,アクセサ)
+#FUNCTION
+#DIM 対象
+#DIM 対象NO
+#DIM ジャンル
+#DIMS アクセサ
+
+対象NO = NO:対象
+
+FOR LOCAL, 0, VARSIZE("KOJO_DAILY_EVENT_NAME_ENG", 2)
+	SIF KOJO_DAILY_EVENT_NAME_ENG:対象NO:ジャンル:LOCAL == アクセサ
+		RETURNF LOCAL
+NEXT
+RETURNF -1
+
+;-------------------------------------------------
+;desc  :口上デイリーのオンオフを英語名から取得する
+;param :対象    :対象キャラ
+;param :アクセサ:口上デイリーの英語名
+;return:口上デイリーのオンオフ
+;-------------------------------------------------
+@KOJO_DAILY_GET_DISABLE_CONFIG(対象, アクセサ)
+#FUNCTION
+#DIM 対象
+#DIM 対象NO
+#DIMS アクセサ
+#DIM 番号
+
+対象NO = NO:対象
+
+番号 = -1
+FOR LOCAL, 0, VARSIZE("KOJO_DAILY_DISABLE_NAME", 1)
+	IF KOJO_DAILY_DISABLE_NAME:対象NO:LOCAL == アクセサ
+		番号 = LOCAL
+		BREAK
+	ENDIF
+NEXT
+SIF 番号 >= 0
+	RETURNF KOJO_DAILY_DISABLE:対象NO:番号
+THROW KOJO_DAILY_DISABLE_NAME上に存在しない名前%アクセサ%が渡されました
+
+;-------------------------------------------------
+;desc  :口上デイリーのオンオフを英語名から取得する
+;param :対象    :対象キャラ
+;param :アクセサ:口上デイリーの英語名
+;return:口上デイリーのオンオフ
+;-------------------------------------------------
+@SLG_KOJO_DAILY_GET_DISABLE_CONFIG(対象, アクセサ)
+#FUNCTION
+#DIM 対象
+#DIM 対象NO
+#DIMS アクセサ
+#DIM 番号
+
+対象NO = NO:対象
+
+番号 = -1
+FOR LOCAL, 0, VARSIZE("SLG_KOJO_DAILY_DISABLE_NAME", 1)
+	IF SLG_KOJO_DAILY_DISABLE_NAME:対象NO:LOCAL == アクセサ
+		番号 = LOCAL
+		BREAK
+	ENDIF
+NEXT
+SIF 番号 >= 0
+	RETURNF SLG_KOJO_DAILY_DISABLE:対象NO:番号
+THROW SLG_KOJO_DAILY_DISABLE_NAME上に存在しない名前%アクセサ%が渡されました
+
+;-------------------------------------------------
+;desc  :指定したキャラの指定した英語名の口上デイリーのオンオフを指定する
+;param :対象:対象キャラ
+;param :アクセサ:口上デイリーの英語名
+;param :状態:オンオフ
+;return:戻り値:オンオフに成功したか（変動したかは問わない）
+;-------------------------------------------------
+@KOJO_DAILY_SET_DISABLE(対象, アクセサ, 状態)
+#DIM 対象
+#DIM 対象NO
+#DIMS アクセサ
+#DIM 番号
+#DIM 状態
+対象NO = NO:対象
+番号 = -1
+FOR LOCAL, 0, VARSIZE("KOJO_DAILY_DISABLE_NAME", 1)
+	IF KOJO_DAILY_DISABLE_NAME:対象NO:LOCAL == アクセサ
+		番号 = LOCAL
+		BREAK
+	ENDIF
+NEXT
+
+SIF 番号 < 0
+	RETURN 0
+
+KOJO_DAILY_DISABLE:対象NO:番号 = 状態
+RETURN 1
+
+;-------------------------------------------------
+;desc  :指定したキャラの指定した英語名のSLG口上デイリーのオンオフを指定する
+;param :対象    :対象キャラ
+;param :アクセサ:SLG口上デイリーの英語名
+;param :状態    :オンオフ
+;return:戻り値  :オンオフに成功したか（変動したかは問わない）
+;-------------------------------------------------
+@SLG_KOJO_DAILY_SET_DISABLE(対象, アクセサ, 状態)
+#DIM 対象
+#DIM 対象NO
+#DIMS アクセサ
+#DIM 番号
+#DIM 状態
+対象NO = NO:対象
+番号 = -1
+FOR LOCAL, 0, VARSIZE("SLG_KOJO_DAILY_DISABLE_NAME", 1)
+	IF SLG_KOJO_DAILY_DISABLE_NAME:対象NO:LOCAL == アクセサ
+		番号 = LOCAL
+		BREAK
+	ENDIF
+NEXT
+
+SIF 番号 < 0
+	RETURN 0
+
+SLG_KOJO_DAILY_DISABLE:対象NO:番号 = 状態
+RETURN 1
+
+;-------------------------------------------------
+;desc  :デイリーのマップを生成するためのハブ
+;-------------------------------------------------
+@CREATE_KOJO_DAILY_MAP()
+FOR LOCAL, 0, CHARANUM
+	SIF !IS_FIXED_CHARA(LOCAL)
+		CONTINUE
+	TRYCALLFORM CREATE_KOJO_DAILY_MAP_K{NO:LOCAL}(LOCAL)
+NEXT
+
+
+;-------------------------------------------------
+;desc  :口上デイリーを登録する
+;param :対象:対象キャラ
+;param :ジャンル:デイリーのジャンル
+;param :アクセサ:口上デイリーの英語名
+;param :名前:口上デイリーの日本語名
+;-------------------------------------------------
+@REGISTER_KOJO_DAILY(対象, ジャンル, アクセサ, 名前)
+#DIM 対象
+#DIM 対象NO
+#DIM ジャンル
+#DIMS アクセサ
+#DIMS 名前
+#DIMS ＳＬＧ
+#DIMS 派生
+#DIM 番号
+
+対象NO = NO:対象
+
+SIF !INRANGE(ジャンル, デイリー_通常, デイリー_ＳＬＧ派生)
+	THROW KOJO_DAILY_REGISTERに存在しないジャンル{ジャンル}が渡されました
+
+SIF !IS_FIXED_CHARA(対象)
+	RETURN
+
+IF GROUPMATCH(ジャンル, デイリー_ＳＬＧ, デイリー_ＳＬＧ派生)
+	ＳＬＧ = SLG_
+ELSE
+	ＳＬＧ = 
+ENDIF
+
+IF GROUPMATCH(ジャンル, デイリー_通常派生, デイリー_ＳＬＧ派生)
+	派生 = DERIVATION_
+ELSE
+	派生 = 
+ENDIF
+
+IF GROUPMATCH(ジャンル, デイリー_通常, デイリー_ＳＬＧ)
+	TRYCCALLFORM %ＳＬＧ%KOJO_DAILY_K{対象NO}_%派生%%アクセサ%_RATE(対象)
+	CATCH
+		SETCOLOR カラー_警告
+		PRINTFORMW KOJO_DAILY_REGISTERに渡された%名前%,%アクセサ%のRATE関数が見つかりません
+		PRINTFORMW あなたがプレイヤーなら、パッチに抜けがないか、競合がないかを確認してください
+		PRINTFORMW あなたが開発者なら、RATE関数以下の必須関数を設定したかを確認してください
+		RETURN
+	ENDCATCH
+ELSE
+	TRYCCALLFORM %ＳＬＧ%KOJO_DAILY_K{対象NO}_%派生%%アクセサ%_DISABLE(対象)
+	CATCH
+		SETCOLOR カラー_警告
+		PRINTFORMW KOJO_DAILY_REGISTERに渡された%名前%,%アクセサ%のDISABLE関数が見つかりません
+		PRINTFORMW あなたがプレイヤーなら、パッチに抜けがないか、競合がないかを確認してください
+		PRINTFORMW あなたが開発者なら、RATE関数以下の必須関数を設定したかを確認してください
+		RETURN
+	ENDCATCH
+ENDIF
+
+KOJO_DAILY_EVENT_NAME_ENG:対象NO:ジャンル:(KOJO_DAILY_EVENT_NUM:対象NO:ジャンル) = %アクセサ%
+KOJO_DAILY_EVENT_NAME:対象NO:ジャンル:(KOJO_DAILY_EVENT_NUM:対象NO:ジャンル) = %名前%
+
+;派生形はDISABLE_NAMEに登録する必要がないのでFINALLYへ
+SIF GROUPMATCH(ジャンル, デイリー_通常派生, デイリー_ＳＬＧ派生)
+	GOTO FINALLY
+
+番号 = -1
+IF ジャンル == デイリー_通常
+	FOR LOCAL, 0, VARSIZE("KOJO_DAILY_DISABLE_NAME", 1)
+		IF KOJO_DAILY_DISABLE_NAME:対象NO:LOCAL == アクセサ
+			番号 = LOCAL
+			BREAK
+		ENDIF
+	NEXT
+ELSE
+	FOR LOCAL, 0, VARSIZE("SLG_KOJO_DAILY_DISABLE_NAME", 1)
+		IF SLG_KOJO_DAILY_DISABLE_NAME:対象NO:LOCAL == アクセサ
+			番号 = LOCAL
+			BREAK
+		ENDIF
+	NEXT
+ENDIF
+
+;登録済みならFINALLYへ
+SIF 番号 != -1
+	GOTO FINALLY
+
+;まだ登録していないなら、空いている番号を探して登録
+IF ジャンル == デイリー_通常
+	FOR LOCAL, 0, VARSIZE("KOJO_DAILY_DISABLE_NAME", 1)
+		IF KOJO_DAILY_DISABLE_NAME:対象NO:LOCAL == ""
+			KOJO_DAILY_DISABLE_NAME:対象NO:LOCAL = %アクセサ%
+			BREAK
+		ENDIF
+	NEXT
+ELSE
+	FOR LOCAL, 0, VARSIZE("SLG_KOJO_DAILY_DISABLE_NAME", 1)
+		IF SLG_KOJO_DAILY_DISABLE_NAME:対象NO:LOCAL == ""
+			SLG_KOJO_DAILY_DISABLE_NAME:対象NO:LOCAL =  %アクセサ%
+			BREAK
+		ENDIF
+	NEXT
+ENDIF
+
+$FINALLY
+
+KOJO_DAILY_EVENT_NUM:対象NO:ジャンル ++
+

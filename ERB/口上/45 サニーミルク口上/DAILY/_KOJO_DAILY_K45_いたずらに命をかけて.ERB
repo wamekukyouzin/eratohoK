@@ -1,0 +1,115 @@
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@KOJO_DAILY_K45_TRICK_RATE(対象)
+#DIM 対象
+RETURN 60
+
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@KOJO_DAILY_K45_TRICK_DECISION(対象)
+#DIM 対象
+#DIM スター
+#DIM ルナ
+#DIM 判定値
+ルナ = NAME_TO_CHARA("ルナチャイルド")
+スター = NAME_TO_CHARA("スターサファイア")
+
+SIF GROUPMATCH(MASTER, スター, ルナ, NAME_TO_CHARA("大妖精"), NAME_TO_CHARA("チルノ"), NAME_TO_CHARA("クラウンピース"))
+	RETURN 0
+
+SIF KDVAR:対象:サニー_いたずらに命をかけて == -1
+	RETURN 0
+
+SIF !ALLSAMES(CFLAG:対象:所属, CFLAG:スター:所属, CFLAG:ルナ:所属)
+	RETURN 0
+
+;上で同一勢力判定してるのでこれでいい
+SIF GROUPMATCH(GET_COUNTRY_BOSS(CFLAG:対象:所属), 対象,　スター, ルナ)
+	RETURN 0
+
+RETURN CHECK_KOJO_DAILY_HAPPEN(対象, 0, 0) && CHECK_KOJO_DAILY_HAPPEN(スター, 0, 0) && CHECK_KOJO_DAILY_HAPPEN(ルナ, 0, 0)
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@KOJO_DAILY_K45_TRICK_GENRE(対象)
+#DIM 対象
+RETURN デイリー_ジャンル_その他
+
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@KOJO_DAILY_K45_TRICK(対象)
+#DIM 対象
+#DIM スター
+#DIM ルナ
+#DIM 判定値
+ルナ = NAME_TO_CHARA("ルナチャイルド")
+スター = NAME_TO_CHARA("スターサファイア")
+
+判定値 = LIMIT(ABL:MASTER:知略 - (ABL:対象:知略 + ABL:ルナ:知略 + ABL:スター:知略), 20, 100)
+
+判定値 += KDVAR:対象:サニー_いたずらに命をかけて * 8
+
+
+IF KDVAR:対象:サニー_いたずらに命をかけて == 0 || 判定値 < RAND:100
+	CALL COLORPRINT(@"あれっ？？？？", カラー_警告, "W")
+	PRINTFORML いつもの道を歩いていたはずなのに、気がついたら全く知らないところに出ていた
+	PRINTFORML ついでにいうと、振り返った道にも見覚えがない
+	PRINTFORMW なんと、迷子になってしまったようだ……
+	PRINTFORMW 結局、拠点に戻るころには日がとっぷり暮れてしまった
+	PRINTFORMW 「いぇーい、大成功！」
+	PRINTFORMW 「まさか気づかないなんてねー」
+	PRINTFORMW 「まぁ私たちに気づけるほうが珍しいんだけどね」
+	CALL ADD_COOLTIME(MASTER, 1)
+	KDVAR:対象:サニー_いたずらに命をかけて　++
+	RETURN 1
+ENDIF
+
+PRINTFORML いつもの道を歩いていたはずなのに、気がついたら全く知らないところに出ていた……
+PRINTFORML それは妖精のしわざだと、%ANAME(MASTER)%は見破った！
+PRINTFORMW いたずらをしていた妖精三匹を捕らえた！
+PRINTFORMW 「あわわわバレちゃった！　ちょっとルナ、ちゃんと気配消したの！？」
+PRINTFORMW 「対象こそ！　　ちゃんと光曲げてたんでしょうね！？」
+PRINTFORMW 「……」
+PRINTFORMW 「スター！　何逃げようとしてんのよ！」
+PRINTFORML ……会話からするに、どうやらそれぞれ光と音と気配に関連した能力をもつらしい
+PRINTFORMW 妖精だからいたずらくらいにしか使えないが、もう少し知恵のある輩であれば、いくらでも悪用できるだろう
+PRINTFORMW 危険だ。どうしたものか……
+PRINTFORML
+CALL ASK_YN("まあ、逃がしてやろう", "牢に放り込んでおく")
+
+IF RESULT == 0
+	PRINTFORMW 「えっ、いいの？　やった！」
+	PRINTFORMW 「ありがと！　この恩は……まぁ忘れるかもしんないけど！」
+	PRINTFORMW 三匹はそろってどこかへ飛んでいった……
+	CFLAG:対象:好感度 += 100
+	CFLAG:スター:好感度 += 100
+	CFLAG:ルナ:好感度 += 100
+	IF IS_COUNTRY(CFLAG:対象:所属)
+		CALL COLORPRINT(@"三匹が所属する、%ANAME(GET_COUNTRY_BOSS(CFLAG:対象:所属))%との関係が改善されました", カラー_注意, "W")
+		CALL CHANGE_RELATION_C_TO_C(CFLAG:対象:所属, CFLAG:MASTER:所属, 300, -300)
+	ENDIF
+ELSE
+	PRINTFORMW 「えっ、ろ、牢屋は勘弁！　やだー！」
+	PRINTFORMW 三匹まとめて牢屋に放り込んでおいた……
+	CALL CAPTURE(対象, CFLAG:MASTER:所属)
+	CALL CAPTURE(スター, CFLAG:MASTER:所属)
+	CALL CAPTURE(ルナ, CFLAG:MASTER:所属)
+ENDIF
+CFLAG:対象:面識 = 1
+CFLAG:ルナ:面識 = 1
+CFLAG:スター:面識 = 1
+KDVAR:対象:サニー_いたずらに命をかけて = -1
+
+RETURN 1

@@ -1,0 +1,85 @@
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@KOJO_DAILY_K9_LOYALTY_FROM_SAKUYA_RATE(対象)
+#DIM 対象
+RETURN 1000
+
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@KOJO_DAILY_K9_LOYALTY_FROM_SAKUYA_DECISION(対象)
+#DIM 対象
+#DIM レミリア
+レミリア = NAME_TO_CHARA("レミリア")
+
+SIF !(CHECK_KOJO_DAILY_HAPPEN(レミリア, 1, 0))
+	RETURN 0
+
+SIF IS_SLAVE(対象) || IS_LOVER(対象) || TALENT:対象:合意
+	RETURN 0
+
+;一回きり
+SIF KDVAR:対象:咲夜_主の主は
+	RETURN 0
+
+;レミリアがIS_SLAVEでないとだめ
+SIF !IS_SLAVE(レミリア)
+	RETURN 0
+
+;紅魔館メンバーはだめ
+SIF GROUPMATCH(CSTR:MASTER:99, "レミリア", "パチュリー", "美鈴", "小悪魔", "フランドール")
+	RETURN 0
+
+
+RETURN CHECK_KOJO_DAILY_HAPPEN(対象, 1, 0)
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@KOJO_DAILY_K9_LOYALTY_FROM_SAKUYA_GENRE(対象)
+#DIM 対象
+RETURN デイリー_ジャンル_その他
+
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@KOJO_DAILY_K9_LOYALTY_FROM_SAKUYA(対象)
+#DIM 対象
+#DIM レミリア
+レミリア = NAME_TO_CHARA("レミリア")
+対象 = NAME_TO_CHARA("対象")
+
+;面識を得る
+CFLAG:対象:面識 = 1
+
+
+PRINTFORMW 「失礼いたします。ご主人様、少々お時間よろしいでしょうか？」
+PRINTFORML うやうやしげな様子で、%ANAME(対象)%が部屋を訪ねてきた
+PRINTFORML ご主人様とは何事かと問うと、%ANAME(対象)%は慇懃に語り始める
+PRINTFORMW 「我があるじ、レミリア・スカーレットは、あなた様に忠誠を誓いました」
+PRINTFORMW 「あるじのあるじは、またあるじです。私も、%ANAME(MASTER)%様に忠誠を誓います」
+PRINTFORMW 「なんなりとご命令ください。戦も、お望みでしたら伽も、完璧にこなしてみせますわ」
+PRINTFORMW 「取り急ぎは以上です。夜の慰みが必要でしたら、いつでもお呼びくださいませ」
+PRINTFORML 言うだけ言って、時を止めたのか、%ANAME(対象)%は消えてしまった
+PRINTFORML 折角の申し出だ、有効に活用させてもらおう……
+CALL COLORPRINT(@"%ANAME(対象)%が忠誠を誓いました", カラー_注意, "W")
+CALL COLORPRINT(@"%ANAME(対象)%の合意を得ました", カラー_注意, "W")
+
+CFLAG:対象:従属度 = MAX(CFLAG:対象:従属度 + 1500, 1500)
+CFLAG:対象:依存度 = MAX(CFLAG:対象:依存度 + 300, 300)
+TALENT:対象:合意 = 1
+TALENT:対象:チョロイン = 1
+TALENT:対象:服従 = 1
+KDVAR:対象:咲夜_主の主は = 1
+
+RETURN 1
+

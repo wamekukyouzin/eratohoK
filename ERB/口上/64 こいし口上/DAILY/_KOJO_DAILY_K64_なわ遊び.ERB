@@ -1,0 +1,95 @@
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@KOJO_DAILY_K64_NAWAASOBI_RATE(対象)
+#DIM 対象
+RETURN 30
+
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@KOJO_DAILY_K64_NAWAASOBI_DECISION(対象)
+#DIM 対象
+
+SIF !(IS_SLAVE(対象) || IS_LOVER(対象))
+	RETURN 0
+
+SIF ABL:対象:欲望 < 3
+	RETURN 0
+
+RETURN CHECK_KOJO_DAILY_HAPPEN(対象, 1, 0, 1) && CFLAG:対象:好感度 >= 1000
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@KOJO_DAILY_K64_NAWAASOBI_GENRE(対象)
+#DIM 対象
+RETURN デイリー_ジャンル_エロ
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@KOJO_DAILY_K64_NAWAASOBI(対象)
+#DIM 対象
+
+IF KDVAR:対象:こいし_なわ遊び == 0
+	PRINTFORMW 「%ANAME(MASTER)%。面白いものを見せてあげようか？」
+	PRINTFORMW %ANAME(MASTER)%の部屋を、無邪気な笑みを讃えた%ANAME(対象)%が訪ねてきた
+	PRINTFORMW 面白いものとは何だろう？
+	PRINTFORMW 「ハッ★」
+	PRINTFORMW おおっ！？対象のサードアイから伸びるコードが星型を象った！！
+	PRINTFORMW 「えいっ♥」
+	PRINTFORMW 今度はハート形だ！
+	PRINTFORMW 「ストリングスパイダーベイビー！！」
+	PRINTFORMW そんな複雑なこともできるのか！
+	PRINTFORMW 「えへへ。すごいでしょ。コードでなんでもできるんだよ。」
+	PRINTFORMW 器用なものだ。なるほど、そういえばコードで攻撃しているところもみたこともある。幾らでも自由に操れるのだろう
+	PRINTFORMW 「実はね。もっとすごいこともできるんだよ。試してみる？」
+	PRINTFORML すごいこと？何をする気なのだろうか？
+ELSE
+	PRINTFORMW 「%ANAME(MASTER)%。また『すごいこと』してあげようか？」
+	PRINTFORMW ニコニコ。いや、ニヤニヤしながら%ANAME(対象)%が訪ねてきた
+	PRINTFORML さて、どうしようか……
+ENDIF
+
+PRINTFORML
+CALL ASK_YN("お願いします", "やめておくよ")
+
+IF RESULT == 1
+	PRINTFORMW 「もう！ノリが悪いんだから！」
+	PRINTFORMW ほっぺをハリセンボンのように膨らませてプリプリ怒りながら%ANAME(対象)%は立ち去った……
+	RETURN 1
+ENDIF
+
+PRINTFORMW 「えへへ。今の言葉を忘れないよ」
+PRINTFORMW そう言った刹那、コードがムチのようにしなり、一瞬で%ANAME(MASTER)%の身体を拘束し、そのままベッドに放り投げられてしまった
+PRINTFORMW 「もちろん%ANAME(MASTER)%を拘束するくらい容易いことよ。じゃあ『すごいこと』をしてあげるね」
+PRINTFORMW そう言うと舌なめずりしながら%ANAME(対象)%は%ANAME(MASTER)%に、優しく覆い被さってきた
+
+;全員の調教参加フラグをクリア
+CVARSET CFLAG, 6, 0
+CFLAG:対象:調教参加フラグ = 1
+CFLAG:対象:好感度 += 200
+CFLAG:対象:強制友好化 = 1
+BASE:対象:体力 = MAXBASE:対象:体力
+BASE:対象:気力 = MAXBASE:対象:気力
+;強制逆調教フラグをオン
+FLAG:ターンエンド調教 = 2
+;それ以降のデイリーイベント発生を潰す
+DAILY_CANCEL = 1
+;フラグ
+KDVAR:対象:こいし_なわ遊び = 1
+KDVAR:対象:こいし_なわ遊び_遊び中 = 1
+RETURN 1
+
+
+
+RETURN 1
+

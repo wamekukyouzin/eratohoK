@@ -244,6 +244,7 @@ ENDIF
 
 ;デイリーイベント
 CALL EVENT_DAILY(1)
+CALL EVENT_KOJO_DAILY(1)
 
 ;一期終了時の処理
 SIF !FLAG:ターンエンド調教
@@ -314,6 +315,7 @@ NEXT
 ;口上呼び出し
 FOR LOCAL:0, 0, CHARANUM
 	IF CFLAG:(LOCAL:0):所属 == CFLAG:MASTER:所属 && LOCAL:0 != MASTER
+		CALL SINGLE_DRAWLINE()
 		CALL KOJO_EVENT(LOCAL:0, 31)
 	ENDIF
 NEXT
@@ -333,7 +335,7 @@ PRINTFORML 各種報告
 CUSTOMDRAWLINE =
 
 ;主人公用の捕虜状態からの脱出イベント呼び出し
-CALL GREAT_ESCAPE
+CALL MASTER_ESCAPE_FROM_PRISON
 
 IF CFLAG:MASTER:所属 <= 0
 	WAIT
@@ -582,100 +584,108 @@ NEXT
 ;-------------------------------------------------
 ;脱出イベント
 ;-------------------------------------------------
-@GREAT_ESCAPE
+@MASTER_ESCAPE_FROM_PRISON
 
 SIF !(CFLAG:MASTER:捕虜先 && RAND:100 < 15)
 	RETURN -1
+
 CALL SINGLE_DRAWLINE
 PRINTFORMW 囚われていた%ANAME(MASTER)%だが、看守の隙を見つけた
 PRINTFORMW 今ならば脱出できるかもしれない……
 CALL ASK_YN("脱出を試みる", "危険な真似はよそう")
+
 IF RESULT == 1
 	PRINTFORMW 失敗したらどんな酷い目に合わされるかもわからない
 	PRINTFORMW 今はまだ大人しくしていたほうが良さそうだ……
-ELSE
-	PRINTFORMW この機を逃す手はない！
-	PRINTFORMW %ANAME(MASTER)%は脱出を試みた
-	PRINTFORML ・
-	PRINTFORML ・
-	PRINTFORMW ・
-		SELECTCASE RAND:5
-		CASE IS <= 3
-			IF !CFLAG:MASTER:所属
-				PRINTFORMW 脱出に成功した！
-				PRINTFORMW %ANAME(MASTER)%は放浪する事にしました
-			ELSE
-				PRINTFORMW 脱出に成功した！
-				PRINTFORMW %ANAME(MASTER)%は勢力に復帰しました
-			ENDIF
-			CALL CAPTURE(MASTER, 0)
-		CASEELSE
-			IF IS_FEMALE(MASTER)
-				PRINTFORMW 脱出に失敗してしまった……
-				PRINTFORMW 兵士達に見つかった%ANAME(MASTER)%は、仕置きと称して連れて行かれた
-				PRINTFORML 
-					SELECTCASE RAND:5
-						CASE 0
-							PRINTFORMW %ANAME(MASTER)%は兵舎の隅にある飼育場に連れてこられた
-							PRINTFORML 手足を縛られ、素っ裸の状態で豚の群れの中に放り込まれると
-							PRINTFORMW たちまち盛りのついた豚達に群がられ、いきなり濡れていない膣にペニスを挿入された
-							PRINTFORML 痛みと嫌悪感で悲鳴を上げる%ANAME(MASTER)%だったが、盛りのついた畜生に気遣う心などあるはずもなく
-							PRINTFORMW 目の前の雌を確実に孕ませようとする豚の激しいピストンで、膣を蹂躙されていく
-							PRINTFORML 必死で逃れようとする%ANAME(MASTER)%の努力も空しく、がっちりと奥深くまで挿入されており、それもかなわない
-							PRINTFORMW やがて豚が一際大きな鳴き声を上げると、ぶびゅるぶびゅるとねっとりとした精液が%ANAME(MASTER)%の中へと放たれた
-							PRINTFORMW そのおぞましい感触に%ANAME(MASTER)%は涙ながらに許しを請うが、兵士達はその姿を見てゲラゲラと笑うばかりだった
-							PRINTFORMW その後も%ANAME(MASTER)%は数えきれないほどの豚に種付けされ、身体の中も外もドロドロにされてしまった
-						CASE 1
-							PRINTFORMW %ANAME(MASTER)%は男囚用の牢獄に連れてこられた
-							PRINTFORML 牢の中には大量の囚人がいる。彼らは%ANAME(MASTER)%を見ると　女だ！犯させろ！　と狂気に近い叫びをあげる
-							PRINTFORMW 何をされるか悟った%ANAME(MASTER)%は顔をひきつらせ許しを請うが、兵士達は無視して牢に%ANAME(MASTER)%を放り込んだ
-							PRINTFORML 牢獄の中は薄暗く、怯える%ANAME(MASTER)%は、周囲の暗がりから注がれる無数の飢えた視線を感じた
-							PRINTFORMW 危機を感じ逃れようとする%ANAME(MASTER)%に、無数の手が伸びてきて床に押さえつけると、その服を乱暴に剥ぎ取っていく
-							PRINTFORML 絶叫を上げて抵抗する%ANAME(MASTER)%だが、屈強な男たちに囲まれてはなすすべもなく、全身を好き放題に弄られる
-							PRINTFORMW やがて一際体躯の良い男が押さえつけられた%ANAME(MASTER)%の前に現れ、その凶悪なペニスを露わにした
-							PRINTFORMW これ以上は止める様に震える声で説得する%ANAME(MASTER)%だったが、それがむしろ彼らの加虐心に火をつけてしまった
-							PRINTFORMW 男達は泣き喚く%ANAME(MASTER)%を容赦なく犯しつくし、兵士に回収される頃には%ANAME(MASTER)%はボロボロにされてしまっていた
-						CASE 2
-							PRINTFORMW %ANAME(MASTER)%は牢屋ではなく拷問部屋に連れてこられた
-							PRINTFORMW %ANAME(MASTER)%が拷問器具の数々に釘付けになっていると、隣の部屋から耳を覆いたくなる様な悲鳴が聞こえてきた
-							PRINTFORML 使ってみたかった道具があるんだと兵士達は笑い、いかにも女性用といった器具を%ANAME(MASTER)%の前に並べる
-							PRINTFORMW 一つ一つ丁寧に使い方を説明され、何をされるのか想像してしまった%ANAME(MASTER)%はガクガクと身体を震わせる
-							PRINTFORML その姿に兵士達はニヤニヤと笑い、俺たちに奉仕するならやめてやってもいいぞと優しく囁いた
-							PRINTFORMW 再び隣の部屋から聞こえてきた悲鳴に、%ANAME(MASTER)%の抵抗心は折れてしまい、奉仕させてくださいとすがりついた
-							PRINTFORML ニヤケる兵士達がペニスを露出し%ANAME(MASTER)%に押し付けると、%ANAME(MASTER)%はひざまづいて口と手を使いそれを扱き出した
-							PRINTFORMW %ANAME(MASTER)%は必死で兵士達に奉仕し、彼らが射精すると、両手と口で受け止め下品な音を立てながら飲み干していく
-							PRINTFORMW 精液でドロドロになった%ANAME(MASTER)%だが、それで彼らが収まるはずもなく、その後は雌穴と尻穴も使い兵士達に奉仕し続けた
-						CASE 3
-							PRINTFORMW %ANAME(MASTER)%は裸に剥かれると、首輪とリードを付けた格好で連れ回された
-							PRINTFORMW  他の兵士に出会うたびに好奇と欲情の混じった視線を投げられるが、身体を隠す事も許されず羞恥で顔を真っ赤にする
-							PRINTFORML 更に、首輪をつけたのだからそれらしく四つん這いで歩け　と命令される
-							PRINTFORML 睨みつける%ANAME(MASTER)%に対し、兵士達は剣を突き付け、脱走の罪で処刑されたくなければ大人しく従うように脅す
-							PRINTFORMW ここは大人しく従うしかないと自分に言い聞かせ、%ANAME(MASTER)%は震える身体で四つん這いになる
-							PRINTFORML その恰好のまま、犬の散歩の様に兵舎内を練り歩かされ、屈辱と羞恥で%ANAME(MASTER)%の頭は沸騰しそうになる
-							PRINTFORMW 気付かぬうちに雌穴から愛液が垂れだしており　そのことを兵に指摘されると、ブルブルと身体を震わせ弁明の言葉をぼそぼそと呟く
-							PRINTFORML しかし兵士達は%ANAME(MASTER)%の言葉を無視して、お待ちかねの物だぞと、%ANAME(MASTER)%の雌穴にペニスをぶち込んだ
-							PRINTFORMW 想像以上に昂ぶっていた%ANAME(MASTER)%の身体はビクンと跳ね上がり、あられもない喘ぎ声をあげてしまった
-							PRINTFORMW その後も繰り返し、まるで動物の交尾の様な濃厚な種付けをされてしまった
-						CASE 4
-							PRINTFORMW %ANAME(MASTER)%は見せしめとして、晒し台に拘束された
-							PRINTFORML 必死で抜け出そうともがくが、頭を両手をがっちりと拘束されており抜け出せそうもない
-							PRINTFORMW その姿に兵士達は、まるで自ら尻を振って誘っているようだと、嘲りの声を上げる
-							PRINTFORMW やがて一人の兵士が%ANAME(MASTER)%の腰を掴み、汗で濡れだしている秘所にペニスを擦り付けてくる
-							PRINTFORML 必死でやめる様に説得する%ANAME(MASTER)%に、兵士はもうこんなことはしないと誓うなら許してやると告げる
-							PRINTFORMW %ANAME(MASTER)%が、ここで犯されるよりはと誓いの言葉を言おうとした瞬間、ずん！と強烈な衝撃が下半身に走った
-							PRINTFORML 電撃が走ったような激しい衝撃に%ANAME(MASTER)%が悲鳴を上げる。目がチカチカして一瞬何が起こったのかわからなかったが
-							PRINTFORMW 膣から伝わりだした熱ですぐに挿入されたのだとわかった。兵士は%ANAME(MASTER)%との約束など守るつもりはなかったのだ
-							PRINTFORMW 屈辱で涙目になる%ANAME(MASTER)%を嘲笑いながら、兵士達は散々%ANAME(MASTER)%を犯しつくした
-					ENDSELECT
-				PRINTFORML 
-				PRINTFORMW %ANAME(MASTER)%は散々凌辱された後、牢屋に放り込まれた
-				CALL FUCK_GANGBANG(MASTER, GET_SPERM_ID("兵士"), @"誰とも知らぬ兵士の\@ RAND:2 ? ペニス # 唇\@", "誰とも知らぬ兵士たち")
-				CALL FUCK_GANGBANG(MASTER, GET_SPERM_ID("兵士"), @"誰とも知らぬ兵士の\@ RAND:2 ? ペニス # 唇\@", "誰とも知らぬ兵士たち")
-			ELSE
-				PRINTFORMW 脱出に失敗してしまった……
-				PRINTFORMW 見つかった%ANAME(MASTER)%はキツイ拷問を受けた後、牢屋に戻された
-			ENDIF
-		ENDSELECT
+	CALL SINGLE_DRAWLINE
+	RETURN
+ENDIF
+
+
+PRINTFORMW この機を逃す手はない！
+PRINTFORMW %ANAME(MASTER)%は脱出を試みた
+PRINTFORML ・
+PRINTFORML ・
+PRINTFORMW ・
+
+IF RAND:5 <= 3
+	IF !CFLAG:MASTER:所属
+		PRINTFORMW 脱出に成功した！
+		PRINTFORMW %ANAME(MASTER)%は放浪する事にしました
+	ELSE
+		PRINTFORMW 脱出に成功した！
+		PRINTFORMW %ANAME(MASTER)%は勢力に復帰しました
 	ENDIF
-CALL SINGLE_DRAWLINE
+	CALL CAPTURE(MASTER, 0)
+	CALL SINGLE_DRAWLINE
+	RETURN
+ENDIF
+
+IF IS_MALE(MASTER)
+	PRINTFORMW 脱出に失敗してしまった……
+	PRINTFORMW 見つかった%ANAME(MASTER)%はキツイ拷問を受けた後、牢屋に戻された
+ENDIF
+
+PRINTFORMW 脱出に失敗してしまった……
+PRINTFORMW 兵士達に見つかった%ANAME(MASTER)%は、仕置きと称して連れて行かれた
+PRINTFORML 
+SELECTCASE RAND:5
+	CASE 0
+		PRINTFORMW %ANAME(MASTER)%は兵舎の隅にある飼育場に連れてこられた
+		PRINTFORML 手足を縛られ、素っ裸の状態で豚の群れの中に放り込まれると
+		PRINTFORMW たちまち盛りのついた豚達に群がられ、いきなり濡れていない膣にペニスを挿入された
+		PRINTFORML 痛みと嫌悪感で悲鳴を上げる%ANAME(MASTER)%だったが、盛りのついた畜生に気遣う心などあるはずもなく
+		PRINTFORMW 目の前の雌を確実に孕ませようとする豚の激しいピストンで、膣を蹂躙されていく
+		PRINTFORML 必死で逃れようとする%ANAME(MASTER)%の努力も空しく、がっちりと奥深くまで挿入されており、それもかなわない
+		PRINTFORMW やがて豚が一際大きな鳴き声を上げると、ぶびゅるぶびゅるとねっとりとした精液が%ANAME(MASTER)%の中へと放たれた
+		PRINTFORMW そのおぞましい感触に%ANAME(MASTER)%は涙ながらに許しを請うが、兵士達はその姿を見てゲラゲラと笑うばかりだった
+		PRINTFORMW その後も%ANAME(MASTER)%は数えきれないほどの豚に種付けされ、身体の中も外もドロドロにされてしまった
+	CASE 1
+		PRINTFORMW %ANAME(MASTER)%は男囚用の牢獄に連れてこられた
+		PRINTFORML 牢の中には大量の囚人がいる。彼らは%ANAME(MASTER)%を見ると　女だ！犯させろ！　と狂気に近い叫びをあげる
+		PRINTFORMW 何をされるか悟った%ANAME(MASTER)%は顔をひきつらせ許しを請うが、兵士達は無視して牢に%ANAME(MASTER)%を放り込んだ
+		PRINTFORML 牢獄の中は薄暗く、怯える%ANAME(MASTER)%は、周囲の暗がりから注がれる無数の飢えた視線を感じた
+		PRINTFORMW 危機を感じ逃れようとする%ANAME(MASTER)%に、無数の手が伸びてきて床に押さえつけると、その服を乱暴に剥ぎ取っていく
+		PRINTFORML 絶叫を上げて抵抗する%ANAME(MASTER)%だが、屈強な男たちに囲まれてはなすすべもなく、全身を好き放題に弄られる
+		PRINTFORMW やがて一際体躯の良い男が押さえつけられた%ANAME(MASTER)%の前に現れ、その凶悪なペニスを露わにした
+		PRINTFORMW これ以上は止める様に震える声で説得する%ANAME(MASTER)%だったが、それがむしろ彼らの加虐心に火をつけてしまった
+		PRINTFORMW 男達は泣き喚く%ANAME(MASTER)%を容赦なく犯しつくし、兵士に回収される頃には%ANAME(MASTER)%はボロボロにされてしまっていた
+	CASE 2
+		PRINTFORMW %ANAME(MASTER)%は牢屋ではなく拷問部屋に連れてこられた
+		PRINTFORMW %ANAME(MASTER)%が拷問器具の数々に釘付けになっていると、隣の部屋から耳を覆いたくなる様な悲鳴が聞こえてきた
+		PRINTFORML 使ってみたかった道具があるんだと兵士達は笑い、いかにも女性用といった器具を%ANAME(MASTER)%の前に並べる
+		PRINTFORMW 一つ一つ丁寧に使い方を説明され、何をされるのか想像してしまった%ANAME(MASTER)%はガクガクと身体を震わせる
+		PRINTFORML その姿に兵士達はニヤニヤと笑い、俺たちに奉仕するならやめてやってもいいぞと優しく囁いた
+		PRINTFORMW 再び隣の部屋から聞こえてきた悲鳴に、%ANAME(MASTER)%の抵抗心は折れてしまい、奉仕させてくださいとすがりついた
+		PRINTFORML ニヤケる兵士達がペニスを露出し%ANAME(MASTER)%に押し付けると、%ANAME(MASTER)%はひざまづいて口と手を使いそれを扱き出した
+		PRINTFORMW %ANAME(MASTER)%は必死で兵士達に奉仕し、彼らが射精すると、両手と口で受け止め下品な音を立てながら飲み干していく
+		PRINTFORMW 精液でドロドロになった%ANAME(MASTER)%だが、それで彼らが収まるはずもなく、その後は雌穴と尻穴も使い兵士達に奉仕し続けた
+	CASE 3
+		PRINTFORMW %ANAME(MASTER)%は裸に剥かれると、首輪とリードを付けた格好で連れ回された
+		PRINTFORMW  他の兵士に出会うたびに好奇と欲情の混じった視線を投げられるが、身体を隠す事も許されず羞恥で顔を真っ赤にする
+		PRINTFORML 更に、首輪をつけたのだからそれらしく四つん這いで歩け　と命令される
+		PRINTFORML 睨みつける%ANAME(MASTER)%に対し、兵士達は剣を突き付け、脱走の罪で処刑されたくなければ大人しく従うように脅す
+		PRINTFORMW ここは大人しく従うしかないと自分に言い聞かせ、%ANAME(MASTER)%は震える身体で四つん這いになる
+		PRINTFORML その恰好のまま、犬の散歩の様に兵舎内を練り歩かされ、屈辱と羞恥で%ANAME(MASTER)%の頭は沸騰しそうになる
+		PRINTFORMW 気付かぬうちに雌穴から愛液が垂れだしており　そのことを兵に指摘されると、ブルブルと身体を震わせ弁明の言葉をぼそぼそと呟く
+		PRINTFORML しかし兵士達は%ANAME(MASTER)%の言葉を無視して、お待ちかねの物だぞと、%ANAME(MASTER)%の雌穴にペニスをぶち込んだ
+		PRINTFORMW 想像以上に昂ぶっていた%ANAME(MASTER)%の身体はビクンと跳ね上がり、あられもない喘ぎ声をあげてしまった
+		PRINTFORMW その後も繰り返し、まるで動物の交尾の様な濃厚な種付けをされてしまった
+	CASE 4
+		PRINTFORMW %ANAME(MASTER)%は見せしめとして、晒し台に拘束された
+		PRINTFORML 必死で抜け出そうともがくが、頭を両手をがっちりと拘束されており抜け出せそうもない
+		PRINTFORMW その姿に兵士達は、まるで自ら尻を振って誘っているようだと、嘲りの声を上げる
+		PRINTFORMW やがて一人の兵士が%ANAME(MASTER)%の腰を掴み、汗で濡れだしている秘所にペニスを擦り付けてくる
+		PRINTFORML 必死でやめる様に説得する%ANAME(MASTER)%に、兵士はもうこんなことはしないと誓うなら許してやると告げる
+		PRINTFORMW %ANAME(MASTER)%が、ここで犯されるよりはと誓いの言葉を言おうとした瞬間、ずん！と強烈な衝撃が下半身に走った
+		PRINTFORML 電撃が走ったような激しい衝撃に%ANAME(MASTER)%が悲鳴を上げる。目がチカチカして一瞬何が起こったのかわからなかったが
+		PRINTFORMW 膣から伝わりだした熱ですぐに挿入されたのだとわかった。兵士は%ANAME(MASTER)%との約束など守るつもりはなかったのだ
+		PRINTFORMW 屈辱で涙目になる%ANAME(MASTER)%を嘲笑いながら、兵士達は散々%ANAME(MASTER)%を犯しつくした
+ENDSELECT
+CALL FUCK_GANGBANG(MASTER, GET_SPERM_ID("兵士"), @"誰とも知らぬ兵士の\@ RAND:2 ? ペニス # 唇\@", "誰とも知らぬ兵士たち")
+CALL FUCK_GANGBANG(MASTER, GET_SPERM_ID("兵士"), @"誰とも知らぬ兵士の\@ RAND:2 ? ペニス # 唇\@", "誰とも知らぬ兵士たち")
+
+PRINTFORML 
+PRINTFORMW %ANAME(MASTER)%は散々凌辱された後、牢屋に放り込まれた
+
 RETURN 0

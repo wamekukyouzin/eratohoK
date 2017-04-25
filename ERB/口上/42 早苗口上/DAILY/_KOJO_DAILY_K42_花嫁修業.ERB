@@ -1,0 +1,94 @@
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@KOJO_DAILY_K42_HANAYOME_SYUGYOU_RATE(対象)
+#DIM 対象
+RETURN 30
+
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@KOJO_DAILY_K42_HANAYOME_SYUGYOU_DECISION(対象)
+#DIM 対象
+#DIM 神奈子
+#DIM 諏訪子
+
+神奈子 = NAME_TO_CHARA("神奈子")
+諏訪子 = NAME_TO_CHARA("諏訪子")
+
+SIF !ALLSAMES(CFLAG:対象:所属, CFLAG:神奈子:所属, CFLAG:諏訪子:所属)
+	RETURN 0
+
+SIF !IS_LOVER(対象)
+	RETURN 0
+
+RETURN CHECK_KOJO_DAILY_HAPPEN(対象, -1, 0, 1) && CHECK_KOJO_DAILY_HAPPEN(神奈子, -1, 0, -1) && CHECK_KOJO_DAILY_HAPPEN(諏訪子, -1, 0, -1)
+
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@KOJO_DAILY_K42_HANAYOME_SYUGYOU_GENRE(対象)
+#DIM 対象
+RETURN デイリー_ジャンル_エロ
+
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@KOJO_DAILY_K42_HANAYOME_SYUGYOU(対象)
+#DIM 対象
+#DIM 神奈子
+#DIM 諏訪子
+
+神奈子 = NAME_TO_CHARA("神奈子")
+諏訪子 = NAME_TO_CHARA("諏訪子")
+
+
+LOCALS:0 = \@ RAND:2 ? %ANAME(神奈子)% # %ANAME(諏訪子)% \@
+
+SELECTCASE IFRAND("0, 1, 2, 3, 4", 1, "5", RAND:2)
+	CASE 0
+		PRINTFORMW 「こんな時代だからね、想い人を煩わせないよう、自分の身は自分の身で守れるようになりな」
+		PRINTFORMW 「はい、%LOCALS:0%様！」
+		PRINTFORMW %ANAME(対象)%は%LOCALS:0%から戦いの指導を受けている……
+		CALL PRINT_ADD_EXP(対象, "武闘経験値", 5, 1)
+	CASE 1
+		PRINTFORMW 「こんな時代だからね、家を守れるくらい賢い女でなくちゃいけないよ」
+		PRINTFORMW 「はい、%LOCALS:0%様！」
+		PRINTFORMW %ANAME(対象)%は%LOCALS:0%から戦略の指導を受けている……
+		CALL PRINT_ADD_EXP(対象, "知略経験値", 5, 1)
+	CASE 2
+		PRINTFORMW 「いざというときは、ダンナの手綱を握れるようにならないとね」
+		PRINTFORMW 「はい、%LOCALS:0%様！」
+		PRINTFORMW %ANAME(対象)%は%LOCALS:0%から政治の指導を受けている……
+		CALL PRINT_ADD_EXP(対象, "政治経験値", 5, 1)
+	CASE 3
+		;どうでもいいけどかなすわの料理初期ステは対象よりだいぶ低いんだよね……
+		PRINTFORMW 「男は胃袋でつかむ！　これが基本だね」
+		PRINTFORMW 「はい、%LOCALS:0%様！」
+		PRINTFORMW %ANAME(対象)%は%LOCALS:0%から料理の指導を受けている……
+		CALL PRINT_ADD_EXP(対象, "料理経験値", 5, 1)
+	CASE 4
+		PRINTFORMW 「やっぱり声だね、声のいいのは七難隠すよ」
+		PRINTFORMW 「はい、%LOCALS:0%様！」
+		PRINTFORMW %ANAME(対象)%は%LOCALS:0%から歌の指導を受けている……
+		CALL PRINT_ADD_EXP(対象, "歌唱経験値", 5, 1)
+	CASE 5
+		PRINTFORMW 「閨のことができれば、男は放っておかなくなるさ……ほらほらっ」
+		PRINTFORMW 「あっ！　はっ、はいっ、%LOCALS:0%様ぁっ……♥」
+		PRINTFORMW %ANAME(対象)%は%LOCALS:0%から閨の指導を受けている……
+		CALL FUCK(対象, "Ｃ, Ｖ, Ｂ, Ａ, 欲望, 性技, 奉仕, 性交, 精愛")
+ENDSELECT
+
+CALL TRAIN_AUTO_ABLUP(対象)
+
+
+RETURN 1

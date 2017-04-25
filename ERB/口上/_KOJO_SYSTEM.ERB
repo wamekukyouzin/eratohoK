@@ -667,40 +667,6 @@ ENDIF
 RETURNF 1
 
 ;-------------------------------------------------
-;口上デイリーイベント用の関数。ARG:0はキャラ番号。
-;呼び出されたKOJO_DAILY_K内で、自作したイベント本体の関数を呼び出してください
-;-------------------------------------------------	
-@KOJO_DAILY(ARG:0)
-SIF KOJO_DAILY_DISABLE:(NO:(ARG:0))
-	RETURN
-LOCAL:5 = KOJO_NO(ARG:0)
-CALL IS_KOJO(LOCAL:5)
-IF RESULT
-	TRYCCALLFORM KOJO_DAILY_K{LOCAL:5}()
-	RETURN RESULT
-	CATCH
-		RETURN 0
-	ENDCATCH
-ELSE
-	RETURN 0
-ENDIF
-
-;-------------------------------------------------
-;口上デイリーイベントの派生イベント用の関数。ARG:0はキャラ番号。
-;呼び出されたKOJO_DAILY_K_DERIVATION内で、自作したイベント本体の関数を呼び出してください
-;-------------------------------------------------	
-@KOJO_DAILY_DERIVATION
-FOR LOCAL:0, 1, CHARANUM
-	SIF !IS_FIXED_CHARA(LOCAL:0) || KOJO_DAILY_DISABLE:(NO:(LOCAL:0))
-		CONTINUE
-	LOCAL:5 = KOJO_NO(LOCAL:0)
-	CALL IS_KOJO(LOCAL:5)
-	IF RESULT
-		TRYCALLFORM KOJO_DAILY_DERIVATION_K{LOCAL:5}()
-	ENDIF
-NEXT
-
-;-------------------------------------------------
 ;デートイベント用の関数。ARG:0はキャラ番号で、ARG:1は行き先。
 ;呼び出されたDATE_EVENT_K内で、自作したイベント本体の関数を呼び出してください
 ;行き先を参照する場合はDATE_EVENT_Kに渡ってるARG:1を利用すると良いでしょう。
@@ -721,12 +687,11 @@ ENDIF
 ;-------------------------------------------------
 ;ARG:0が口上デイリーイベントを実施できるかの簡易チェック関数。
 ;細かな条件は自分で設定してね
-;ARG:1 「千分率での」確率
-;ARG:2 0 MASTERと別勢力である 1 MASTERと同一勢力である　-1 どちらでもよい
-;ARG:3 0 捕虜でない 1 捕虜である -1 どちらでもよい
-;ARG:4 0 面識がない 1 面識がある -1 どちらでもよい
+;ARG:1 0 MASTERと別勢力である 1 MASTERと同一勢力である　-1 どちらでもよい
+;ARG:2 0 捕虜でない 1 捕虜である -1 どちらでもよい
+;ARG:3 0 面識がない 1 面識がある -1 どちらでもよい
 ;-------------------------------------------------
-@CHECK_KOJO_DAILY_HAPPEN(ARG:0, ARG:1, ARG:2 = -1, ARG:3 = -1, ARG:4 = -1)
+@CHECK_KOJO_DAILY_HAPPEN(ARG:0, ARG:1 = -1, ARG:2 = -1, ARG:3 = -1)
 #FUNCTION
 #DIM EVENT_ODDS
 EVENT_ODDS = KOJO_DAILY_EVENT_ODDS
@@ -744,11 +709,8 @@ SIF CFLAG:(ARG:0):特殊状態 == 2
 ;未登場もだめ
 SIF CFLAG:(ARG:0):所属 == 0 && CFLAG:(ARG:0):特殊状態 == 0 && !CFLAG:(ARG:0):捕虜先
 	RETURNF 0
-;確率判定
-SIF RAND:1000 >= (ARG:1 * EVENT_ODDS)
-	RETURNF 0
 ;所属判定
-SELECTCASE ARG:2
+SELECTCASE ARG:1
 	CASE -1
 	CASE 0
 		SIF CFLAG:(ARG:0):所属 == CFLAG:MASTER:所属
@@ -760,7 +722,7 @@ SELECTCASE ARG:2
 		RETURNF 0
 ENDSELECT
 ;捕虜判定
-SELECTCASE ARG:3
+SELECTCASE ARG:2
 	CASE -1
 	CASE 0
 		SIF CFLAG:(ARG:0):捕虜先
@@ -772,7 +734,7 @@ SELECTCASE ARG:3
 		RETURNF 0
 ENDSELECT
 ;面識判定
-SELECTCASE ARG:4
+SELECTCASE ARG:3
 	CASE -1
 	CASE 0
 		SIF CFLAG:(ARG:0):面識
@@ -784,16 +746,3 @@ SELECTCASE ARG:4
 		RETURNF 0
 ENDSELECT
 RETURNF 1
-
-;-------------------------------------------------
-;口上デイリーイベント開始時の汎用演出。
-;-------------------------------------------------	
-@KOJO_DAILY_START()
-CALL SINGLE_DRAWLINE
-CALL COLORPRINT(@"-口上デイリーイベント『%DAILY_NAME%』発生-", カラー_注意, "L")
-FORCEWAIT
-CALL SINGLE_DRAWLINE
-PRINTFORML ・
-PRINTFORML ・
-PRINTFORML ・
-

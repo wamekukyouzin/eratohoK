@@ -1,0 +1,90 @@
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@KOJO_DAILY_K32_MIZUASOBI_RATE(対象)
+#DIM 対象
+RETURN 35
+
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@KOJO_DAILY_K32_MIZUASOBI_DECISION(対象)
+#DIM 対象
+
+;好感度が必要
+SIF CFLAG:対象:好感度 >= 500
+	RETURN 0
+
+;一回きり
+SIF KDVAR:対象:文_水遊び
+	RETURN 0
+
+
+RETURN CHECK_KOJO_DAILY_HAPPEN(対象,  1, 0, 1)
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@KOJO_DAILY_K32_MIZUASOBI_GENRE(対象)
+#DIM 対象
+RETURN デイリー_ジャンル_その他
+
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@KOJO_DAILY_K32_MIZUASOBI(対象)
+#DIM 対象
+
+RETURN 1
+
+
+;----------------------------------
+;水遊び
+;----------------------------------
+@KOJO_DAILY_K32_MIZUASOBI
+#DIM 対象
+対象 = NAME_TO_CHARA("対象")
+
+
+
+PRINTFORMW 「はぁ～、暑い……あの、%ANAME(MASTER)%、もう帰りませんか？」
+PRINTFORMW 「空を飛んでる間はいいけれど、こうやって地を歩くと、本当にこの暑さが嫌になってくるわ……」
+PRINTFORML うだるように暑い中、%ANAME(MASTER)%と%ANAME(対象)%は領地の見回りをしていた
+PRINTFORML %ANAME(対象)%は大汗をかいている。暑がりなのだそうだ
+PRINTFORMW 襟元をぱたぱたとあおぐものだから、目のやり場に困ってしまうが……
+PRINTFORML 「ん……あ、ちょっと、%ANAME(MASTER)%、見てくださいよ、ちょうどいいところに川がありましたよ」
+PRINTFORMW 「この暑さ、そして涼しげな川！　するべきことといったら一つですよねぇ？」
+PRINTFORMW 「さ、さ、参りましょう、この程度ならサボりのうちにも入りませんって！　ね？」
+PRINTFORML %ANAME(対象)%の言うとおり、目の前には行水におあつらえ向きの小川が横たわっている
+PRINTFORML 
+PRINTFORML さて、どうしたものか……
+PRINTFORML
+CALL ASK_YN("水遊びする", "やめておく")
+IF RESULT == 0
+	PRINTFORML 「さすが%ANAME(MASTER)%！　そう言ってくれると思いましたよ！」
+	PRINTFORML 「そうと決まればさあ、善は急げですよ！」
+	PRINTFORML 対象に手を引かれ、水遊びを楽しんだ……
+	PRINTFORMW
+	PRINTFORMW
+	PRINTFORMW
+	PRINTFORML 拠点に戻った%ANAME(MASTER)%は、なんだか寒気を覚えた
+	PRINTFORML どうやら風邪をひいてしまったようだ……
+	CALL ADD_COOLTIME(MASTER, 3)
+	KDVAR:対象:文_水遊び = 1
+ELSE
+	PRINTFORMW 「えぇー？　ちょっとくらいいいじゃないですか、ね？」
+	PRINTFORMW 「……駄目？　はぁ、しょうがないか……」
+	PRINTFORML 仕事をさぼるわけにはいかない
+	PRINTFORMW 誘惑を断ち切り、見回りに戻ることにした……
+	KDVAR:対象:文_水遊び = 2
+ENDIF
+
+RETURN 1
