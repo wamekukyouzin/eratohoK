@@ -1,4 +1,7 @@
 # 更新履歴
+## 2017年4月26日 ver1.2.2
+FIX:スキル「風説流布」で発動側の能力が下がる問題
+
 ## 2017年4月26日 ver1.2.1
 FIX:BATTLE_SUMMONにおいて、BATTLE_COMMANDER_NUMを正常に参照できないため分身ないし召喚スキル全てが正常に動作していない問題
 FIX:CHECK_SEXUAL_PREFERENCEが重複している問題
