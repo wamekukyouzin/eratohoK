@@ -1351,7 +1351,7 @@ ELSE
 ENDIF
 
 CALL AUTO_SET_THIRD_PERSON(MAIN_PLAYER, MAIN_TARGET, LOCAL:9)
-
+CALL AUTO_SET_REMOVE_MAIN(MAIN_PLAYER, MAIN_TARGET, LOCAL:9)
 ;ここまできてコマンドが実行できなければやり直し
 ;代わる代わる挿入など、最初の方の優先度判定でのCOM_ABLEを回避してきたやつが未だに実行不可なら、ここでひっかけて殺す
 COM_ENABLE = 1
@@ -2352,6 +2352,7 @@ FOR LOCAL:0, 0, 5
 		ENDIF
 	ENDIF
 	$DECIDED
+
 	;コマンド判定フラグON
 	COM_ENABLE = 1
 
@@ -2374,5 +2375,46 @@ FOR LOCAL:0, 0, 5
 	ELSE
 		;コマンド判定フラグOFF
 		COM_ENABLE = 0
+		SIF 成功時BREAK
+			BREAK
 	ENDIF
 NEXT
+
+;-------------------------------------------------
+;desc  :自動調教時、主導者が第三者に命じる形になるようにする処理
+;param :主導者:その回におけるメイン行動者
+;PARAM :対象者:その回におけるメイン対象者
+;-------------------------------------------------
+@AUTO_SET_REMOVE_MAIN(主導者, 対象者, コマンド)
+#DIM 主導者
+#DIM 対象者
+#DIM コマンド
+#DIM MTARフラグ
+
+IF IS_MTAR(主導者) && MTAR_NUM > 1 && !RAND:4
+	CALL DEL_MTAR(主導者)
+	MTARフラグ = 1
+ELSEIF IS_MPLY(主導者) && MPLY_NUM > 1 && !RAND:4
+	CALL DEL_MPLY(主導者)
+	MTARフラグ = 0
+ENDIF
+
+;コマンド判定フラグON
+COM_ENABLE = 1
+
+RESULT = 0
+TRYCALLFORM COM_ABLE{コマンド % 1000}
+IF !RESULT
+	;ダメならプレイヤー／ターゲットを戻す
+	IF MTARフラグ
+		CALL ADD_MTAR(主導者)
+	ELSE
+		CALL ADD_MPLY(主導者)
+	ENDIF
+
+	;コマンド判定フラグOFF
+	COM_ENABLE = 0
+ELSE
+	;コマンド判定フラグOFF
+	COM_ENABLE = 0
+ENDIF
