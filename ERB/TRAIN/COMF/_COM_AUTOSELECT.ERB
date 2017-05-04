@@ -2000,10 +2000,13 @@ RETURN 行動候補
 #DIM 対象者
 #DIM 今回候補
 #DIM 対象
+#DIM 成功時BREAK
 
 FOR LOCAL:0, 0, 5
 	SIF !RAND:5
 		CONTINUE
+
+	成功時BREAK = 0
 	;行動可能なキャラの数を調べる
 	行動可能者 = 0
 	FOR 対象, 0, CHARANUM
@@ -2029,16 +2032,31 @@ FOR LOCAL:0, 0, 5
 			LOCAL:4 ++
 		ENDIF
 	NEXT
+
 	SIF 今回候補 < -1
 		CONTINUE
-	;慰安する側なら、もう一人の慰安する側に合わせる
-	IF FLAG:調教モード == 調教_慰安 && !CFLAG:今回候補:慰安参加者
-		IF IS_MTAR(対象者)
-			CALL ADD_MTAR(今回候補)
-		ELSE
-			CALL ADD_MPLY(今回候補)
+	
+	IF FLAG:調教モード == 調教_慰安
+		;慰安する側なら、「もう一人の慰安する側に合わせる」か、「主導者の側に入り、主導者を削除（命じられるシチュになる）」になる
+		IF !CFLAG:今回候補:慰安参加者
+			IF !RAND:4
+				IF IS_MTAR(主導者)
+					CALL ADD_MTAR(今回候補)
+					CALL DEL_MTAR(今回候補)
+				ELSE
+					CALL ADD_MPLY(今回候補)
+					CALL DEL_MPLY(主導者)
+				ENDIF
+				成功時BREAK = 1
+			ELSE
+				IF IS_MTAR(対象者)
+					CALL ADD_MTAR(今回候補)
+				ELSE
+					CALL ADD_MPLY(今回候補)
+				ENDIF
+			ENDIF
+			GOTO DECIDED
 		ENDIF
-		GOTO DECIDED
 	ENDIF
 	;純粋な性別による判定とペニスがあるかの判定の二つを織り交ぜ、ふたなりの挙動に揺らぎをもたせる
 	IF RAND:2
