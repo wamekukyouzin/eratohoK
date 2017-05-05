@@ -8,21 +8,20 @@ RESULTS:0 '= "婚姻の儀"
 ;「婚姻の儀」の選択可否
 ;-------------------------------------------------
 @SHOP_LIFE_CHECK65
-#DIM HAS_WIFE
 SIF MONEY < 100000
 	RETURN 0
 SIF CFLAG:MASTER:捕虜先
 	RETURN 0
 ;既に婚姻している場合婚姻は不可能
-HAS_WIFE = 0
-FOR LOCAL:0, 0, CHARANUM
-	IF TALENT:(LOCAL:0):正妻
-		HAS_WIFE ++
-		BREAK
-	ENDIF
-NEXT
-SIF HAS_WIFE
-	RETURN 0
+;HAS_WIFE = 0
+;FOR LOCAL:0, 0, CHARANUM
+;	IF TALENT:(LOCAL:0):正妻
+;		HAS_WIFE ++
+;		BREAK
+;	ENDIF
+;NEXT
+;SIF HAS_WIFE
+;	RETURN 0
 RETURN 1
 
 ;-------------------------------------------------
@@ -45,11 +44,14 @@ RETURN 0
 ;-------------------------------------------------
 @SHOP_LIFE_EVENTBUY_SHOW65
 CALL COLUMN_RIGHT_TITLE("配偶者選択", "0", "1", "0", "100,000")
-CALL COLORPRINT(@"  1回限り", カラー_選択中)
 CALL COLUMN_RIGHT_PRINTL
 CALL COLUMN_RIGHT_LINE
 CALL COLUMN_RIGHT_PRINTL
-CALL COLORPRINT(@" 好感度の高いキャラを一人だけ正妻または夫にすることができます", カラー_注釈)
+IF HAS_WIFE()
+	CALL COLORPRINT(@" 好感度の高いキャラを妾または夫にすることができます", カラー_注釈)
+ELSE
+	CALL COLORPRINT(@" 好感度の高いキャラを一人だけ正妻または夫にすることができます", カラー_注釈)
+ENDIF
 CALL COLUMN_RIGHT_PRINTL
 CALL COLUMN_RIGHT_LINE
 CALL COLUMN_RIGHT_PRINTL
@@ -71,7 +73,11 @@ ENDIF
 IF IS_HUSBAND(ARG:0)
 	LOCALS:0 = 夫
 ELSE
-	LOCALS:0 = 正妻
+	IF HAS_WIFE()
+		LOCALS:0 = 妾
+	ELSE
+		LOCALS:0 = 正妻
+	ENDIF
 ENDIF
 
 PRINTFORML %ANAME(ARG:0)%を%LOCALS:0%として迎えます
@@ -81,7 +87,11 @@ IF RESULT == 1
 	RETURN 0
 ENDIF
 
-TALENT:(ARG:0):正妻 = 1
+IF HAS_WIFE()
+	TALENT:(ARG:0):妾  1
+ELSE
+	TALENT:(ARG:0):正妻 = 1
+ENDIF
 MONEY -= 100000
 
 ;口上の表示
@@ -94,8 +104,10 @@ CUSTOMDRAWLINE *-
 WAIT
 PRINTFORMW 式の当日、多くの観衆に祝福されながら、%ANAME(MASTER)%は%ANAME(ARG:0)%を%LOCALS:0%として迎えることを宣言した
 
-;口上の表示
-CALL KOJO_EVENT(ARG:0, 91)
+IF !HAS_WIFE()
+	;口上の表示
+	CALL KOJO_EVENT(ARG:0, 91)
+ENDIF
 
 PRINTL 
 SETCOLOR カラー_注意
@@ -117,3 +129,15 @@ ELSEIF GROUPMATCH(TALENT:MASTER:性別, 4, 5) && GROUPMATCH(TALENT:(ARG:0):性�
 ENDIF
 RETURNF 0
 
+;-------------------------------------------------
+;desc  :正妻が存在するか
+;return:戻り値:正妻が存在するか
+;-------------------------------------------------
+@HAS_WIFE()
+#FUNCTION 
+FOR LOCAL:0, 0, CHARANUM
+	IF TALENT:(LOCAL:0):正妻
+		RETURNF 1
+	ENDIF
+NEXT
+RETURN 0
