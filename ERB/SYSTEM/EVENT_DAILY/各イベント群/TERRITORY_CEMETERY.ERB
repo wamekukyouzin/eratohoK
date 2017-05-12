@@ -1,0 +1,193 @@
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@EVENT_DAILY_TERRITORY_CEMETERY_RATE()
+RETURN 50
+
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@EVENT_DAILY_TERRITORY_CEMETERY_DECISION()
+#DIM 墓地
+墓地 = GET_CITYNUMBER("墓地")
+
+SIF 墓地 == -1
+	RETURN 0
+SIF CITY_OWNER:墓地 != CFLAG:MASTER:所属
+	RETURN 0
+SIF DVAR:墓地の怪 == 1
+	RETURN 0
+
+RETURN 1
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@EVENT_DAILY_TERRITORY_CEMETERY_GENRE()
+RETURN デイリー_ジャンル_エロ
+
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@EVENT_DAILY_TERRITORY_CEMETERY
+#DIM 青娥
+#DIM 墓地
+
+墓地 = GET_CITYNUMBER("墓地")
+
+青娥 = NAME_TO_CHARA("青娥")
+
+LOCAL:0 = 0
+
+PRINTFORML 近頃墓地にお化けが出るという噂が立っている
+PRINTFORML 墓地のお化けというと何人か心当たりがあるが…
+PRINTFORMW 今回はそのいずれとも違う者らしい
+PRINTFORML どうしよう？
+CALL ASK_MULTI_JUDGE("調査に向かう", 1,"放置する", 1,"青娥に話を聞く", CFLAG:青娥:所属 == CFLAG:MASTER:所属 && CFLAG:青娥:捕虜先 == 0)
+IF RESULT == 1
+	PRINTFORML どうせ大袈裟な怪談だろう
+	PRINTFORMW %ANAME(MASTER)%はとりあわず仕事に戻った
+	RETURN
+ELSEIF RESULT == 0
+	PRINTFORML ただの怪談かもしれないが気になった
+	PRINTFORMW %ANAME(MASTER)%は調査に向かう事にした
+ELSEIF RESULT == 2
+	PRINTFORML 墓地と言えば青娥が詳しそうだ
+	PRINTFORML %ANAME(MASTER)%が話を聞きに行くと彼女は快く出迎えてくれた
+	PRINTFORML 相変わらず綺麗だが…どこか胡散臭い笑顔だった
+	PRINTFORMW 墓地の噂を話すと彼女は一しきり聞いた後クスクスと笑った
+	PRINTFORML %ANAME(MASTER)%がムッとすると彼女は謝り自分の仕業ではないと言う
+	PRINTFORML そして何やらお札を渡してきた
+	PRINTFORMW きっと役に立つというが…見るからに怪しげなオーラを放っている
+	PRINTFORML どうしよう？
+	CALL ASK_YN("貰っておく" ,"断る")
+	IF RESULT == 0
+		PRINTFORML しかしここは彼女の助言を聞いておくことにした
+		PRINTFORMW %ANAME(MASTER)%はお札を受け取って墓地へ向かった
+		LOCAL:0 = 1
+	ELSEIF RESULT == 1
+		PRINTFORML あからさまに怪しい…
+		PRINTFORMW %ANAME(MASTER)%は断って一人で墓地へ向かう事にした
+	ENDIF
+ENDIF
+PRINTFORML 
+PRINTFORML 墓地に一見異常はなさそうだったが見回りを行う事にした
+PRINTFORML しばらく見て回っていると暗がりから怪しげな声が聞こえてきた
+PRINTFORMW 警戒していると暗がりの奥からカタカタと音を鳴らしながら骸骨が飛び出してきた！
+IF LOCAL:0 == 1
+	PRINTFORMW %ANAME(MASTER)%は剣とお札を構えて迎え撃った！
+ELSE
+	PRINTFORMW %ANAME(MASTER)%は剣を抜いて迎え撃った！
+ENDIF
+PRINTFORML ・
+PRINTFORML ・
+PRINTFORMW ・
+IF ABL:MASTER:武闘 / 10 + RAND:10 + (LOCAL:0 * 5) >= 10
+	PRINTFORML %ANAME(MASTER)%は骸骨の背後にいた別の気配を感じ攻撃した！
+	PRINTFORML するとキャー！という悲鳴が上がり、何者かがドサリと地面に倒れ込んだ
+	PRINTFORMW そして同時に骸骨が動きを止めた
+	IF LOCAL:0 == 1
+		PRINTFORMW 青娥からもらったお札も役に立った、後でお礼を言うとしよう
+	ENDIF
+	PRINTFORML どうやらこの死霊術師が操っていた様だ
+	PRINTFORMW ここに住み着いた彼女がこうして侵入者を追い払っていたらしい
+	IF IS_MALE(MASTER)
+		PRINTFORMW …目を回して倒れている彼女をよく見ると中々可愛い
+		PRINTFORML どうしよう？
+		CALL ASK_YN("捕まえる" ,"犯す")
+		IF RESULT == 0
+			PRINTFORMW 今回は素直に捕まえる事にした
+		ELSEIF RESULT == 1
+			PRINTFORML 今なら周りに誰もいない
+			PRINTFORMW %ANAME(MASTER)%は彼女を抱え上げると近くの空き家へと運んだ
+			PRINTFORML 
+			PRINTFORMW 空き家にはちょうど良いベッドがあり%ANAME(MASTER)%はそこに彼女を押し倒した
+			PRINTFORML 非力な彼女の抵抗を軽く押さえつけ服をはぎ取ると服の上からではわからなかった豊満な肉体が溢れ出た
+			PRINTFORML 顔を真っ赤にして恥ずかしがり口ごもる彼女の仕草に%ANAME(MASTER)%は不覚にも可愛さを感じて勃起してしまう
+			PRINTFORML 震える彼女に圧し掛かりながら雪のように白い肌に指を這わせると、「ひゃあん」と可愛らしい喘ぎが漏れた
+			PRINTFORMW 目をつぶって必死で堪えようとする彼女の敏感な処を丹念に愛撫してやるとゾクゾクと背筋を震わせ身悶える
+			PRINTFORML 首筋につーっと舌を這わせると震える喉から甘い喘ぎ声が溢れ、耳たぶを甘噛みするときゅっと内股を閉じた
+			PRINTFORML %ANAME(MASTER)%がそこに強引に指を突っ込んで割れ目の入り口を擦り上げると彼女は涙を流しながら首を小さく振る
+			PRINTFORML 涙が溢れそうな瞳をじっくりと見つめると彼女は耳まで真っ赤になって目を泳がせた
+			PRINTFORMW どうやら人見知りするらしく、こういった事の経験も今までなかったようだ
+			PRINTFORML その反応にますます強直は硬さを増し、いよいよ我慢できなくなった%ANAME(MASTER)%は彼女の足を抱えて開かせた
+			PRINTFORML これからを想像して硬く緊張しつつも釘付けになっている彼女の顔を見ながらゆっくりとペニスをねじ込んだ
+			PRINTFORML 「あっ…！つっ！うっ……！」
+			PRINTFORMW 新品の、きつすぎる穴にズズズッ…とゆっくり腰を沈めていくと彼女はうめき声を上げながらしがみ付いてくる
+			PRINTFORML 「っ…！あっ！はぁ…あっ！いっ、いたいっ…っ！」
+			PRINTFORML ギュッと爪を食い込ませてくる彼女に構わず%ANAME(MASTER)%はそのままグリグリと腰を押し込んでペニスをねじ込む
+			PRINTFORML 無理矢理入れても根元までは流石に無理だったが、中々の締め付けに%ANAME(MASTER)%は我慢できずにピストンを始める
+			PRINTFORMW 彼女は痛みのあまり必死でシーツを掴みながら悲鳴を上げ、全身をピンと伸ばしてブルブルと震わせている
+			PRINTFORML 乳首や陰核を弄りながら徐々に腰の動きを加速させていくと次第に雌穴がほぐれ、血に交じって蜜が溢れてきた
+			PRINTFORML 「ふうっ…！うっ…！うぅっ…あっ！いっ！」
+			PRINTFORMW 相変わらず彼女は苦痛に顔を歪めて呻くが、その中に微かに甘い喘ぎ声が混ざりだしていた
+			PRINTFORML 締め付けに我慢できずに一発目を放とうと深く腰を沈めて彼女を抱きしめ射精を予告すると一瞬悲鳴を上げた
+			PRINTFORML しかし%ANAME(MASTER)%は彼女の言葉には耳を貸さずに思う存分その最奥目掛けて精を放った
+			PRINTFORML 彼女はビクンと体を仰け反らせ、その反動で膣全体が痙攣し竿を刺激して尿道に残る一滴まで射精を催促される
+			PRINTFORMW その想定外の心地よさに%ANAME(MASTER)%も思わず低く唸りながら搾り取られるままに射精を続けた
+			PRINTFORML 「っ！っ！っ～～～～！…はぁ！はぁ！はぁ…っ……」
+			PRINTFORML 射精を終えて%ANAME(MASTER)%がペニスを引き抜くと彼女はしばらく痙攣した後くてっと力なくベッドに倒れ込んだ
+			PRINTFORMW 先程と違いすっかり開いてひくつくまんこからはドロリと精液と血が溢れ出ており、とても官能的だった
+			PRINTFORMW …彼女の具合が気に入った%ANAME(MASTER)%は彼女が反省するまで夜通しその肉体を味わわせてもらった
+			CALL FUCK(MASTER, "性技, 性交, Ｃ, 射精", "童貞喪失, キス喪失", 0, "死霊術師の唇", "", "死霊術師の膣", 喪失_強姦)
+			PRINTFORML 
+			PRINTFORMW 善行を積んで満足した%ANAME(MASTER)%は彼女を捕らえて警邏に引き渡した
+		ENDIF
+	ELSE
+		PRINTFORMW %ANAME(MASTER)%は彼女を捕らえた
+	ENDIF
+	PRINTFORML 以降、墓地でのお化けの目撃情報はなくなった
+	CITY_GUARD:墓地 += 25
+	CALL COLORPRINT("事件を解決して領地の安全を高めた事で墓地の防衛値が上昇した", カラー_注意, "W")
+ELSE
+	PRINTFORMW 負けてしまった……
+	IF IS_MALE(MASTER)
+		PRINTFORML 闇夜に浮かび上がってけたけた笑う骸骨に恐れをなした%ANAME(MASTER)%は悲鳴を上げながら逃げ出した
+	ELSE
+		PRINTFORML %ANAME(MASTER)%が倒れると骸骨の背後から怪しげな男が現れた
+		PRINTFORML どうやらこの死霊術師が骸骨を操っていたらしい
+		PRINTFORMW %ANAME(MASTER)%は骸骨に抱えられて何処かへと運ばれた…
+		PRINTFORML 
+		PRINTFORML 彼のアジトに連れ込まれた%ANAME(MASTER)%は実験台という名目で犯されてしまった
+		PRINTFORML キョンシーに使う札を貼られた%ANAME(MASTER)%は抵抗できず、彼に跨って言いなりのまま腰を振っている
+		PRINTFORML 命令順守だけではなく感覚鋭敏化の札も同時に貼られており、%ANAME(MASTER)%は腰を振る度に情けない声を漏らす
+		PRINTFORMW %ANAME(MASTER)%はペニスが自分の中を押し広げて出入りする感覚をダイレクトに感じてたまらず身悶えてしまう
+		PRINTFORML 彼は横たわってその様子を見て満足そうにニヤつきながら気まぐれに乳首や陰核をコリコリと転がしてくる
+		PRINTFORML 軽く触れられるだけで神経そのものを愛撫されたような衝撃が走り、嬌声と共にビクンと痙攣させられる
+		PRINTFORMW 既に肉体は快楽で飽和状態にあり、絶え間なく与えられる刺激にただただ無様に反応して彼を喜ばせた
+		PRINTFORML それでも%ANAME(MASTER)%は何とか理性をギリギリのところで保ち、涙を流しアヘ顔を晒しながらも彼を睨み付ける
+		PRINTFORML しかし時折彼が突き上げてくると一瞬で儚い理性の壁も吹っ飛んでしまい、潮を吹いて絶頂させられる
+		PRINTFORML 一度絶頂する度に%ANAME(MASTER)%の理性は根元から溶けていき次第に抵抗心も失われていってしまう
+		PRINTFORMW 彼はその様子を楽しむかのように一気に支配するのではなく少しずつ少しずつ体と心を調教し続けた
+		PRINTFORML …何度絶頂したのかも数え切れなくなった頃、%ANAME(MASTER)%はあられもなくヨガリ狂いながら腰を振っていた
+		PRINTFORML 幸福に満ち恍惚と言った表情の%ANAME(MASTER)%の、足元には先程まで張られていた命令の札が落ちている
+		PRINTFORML もはや%ANAME(MASTER)%は身も心もすっかりオトされ、自らの意思で腰を振ってあられもなく快楽をおねだりている
+		PRINTFORMW びゅるるる！と勢いよくご主人様の精液が放たれるとその度に思考が弾け、この上ない幸せに達する
+		PRINTFORML %ANAME(MASTER)%の子宮はすっかり降りて彼のペニスに吸い付く様にしながら貪欲に一滴残らずザーメンを飲み干す
+		PRINTFORML 彼の指が、舌が肌を這う度に全身に強烈なシビレが走り%ANAME(MASTER)%は絶頂しながら更に絶頂を繰り返す
+		PRINTFORML 彼はすっかり満足したようで%ANAME(MASTER)%の忠誠心と性的感覚を試すかのように様々なプレイを命じてきた
+		PRINTFORMW %ANAME(MASTER)%にとっては彼に従い褒められ可愛がられる事が何よりの幸福であるため何の躊躇なくそれに従った
+		PRINTFORMW …彼の実験は明け方まで延々と続き、%ANAME(MASTER)%の身体は好き放題に弄ばれてしまった
+		CALL FUCK(MASTER, "欲望, 奉仕, 性技, 性交, 精愛, Ｃ, Ｖ, Ｂ, Ｍ, Ａ, Ｖ性交, Ａ性交", "キス喪失, 処女喪失, 膣内射精, Ａ処女喪失, 腸内射精, 口内射精", GET_SPERM_ID("野良妖怪"), @"野良妖怪の\@RAND:2 ? ペニス # 唇\@", "野良妖怪", "", 喪失_強姦)
+		CALL FUCK(MASTER, "欲望, 奉仕, 性技, 性交, 精愛, Ｃ, Ｖ, Ｂ, Ｍ, Ａ, Ｖ性交, Ａ性交", "キス喪失, 処女喪失, 膣内射精, Ａ処女喪失, 腸内射精, 口内射精", GET_SPERM_ID("野良妖怪"), @"野良妖怪の\@RAND:2 ? ペニス # 唇\@", "野良妖怪", "", 喪失_強姦)
+		PRINTFORML 
+		PRINTFORMW 翌朝、ボロボロになった%ANAME(MASTER)%が墓地の隅っこに放置されていた
+	ENDIF
+	IF CITY_GUARD:墓地 > 25
+		CITY_GUARD:墓地 -= 25
+	ELSE
+		CITY_GUARD:墓地 -= CITY_GUARD:墓地
+	ENDIF
+	CALL COLORPRINT("事件は解決できず領民の不安が高まった結果、墓地の防衛値が減少した…", カラー_注意, "W")
+ENDIF
+DVAR:墓地の怪 = 1
+
+RETURN 1

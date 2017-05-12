@@ -1,0 +1,197 @@
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@EVENT_DAILY_TERRITORY_SPA_TOWN_RATE()
+RETURN 50
+
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@EVENT_DAILY_TERRITORY_SPA_TOWN_DECISION()
+#DIM 温泉街
+温泉街 = GET_CITYNUMBER("旧都温泉街")
+
+SIF 温泉街 == -1
+	RETURN 0
+SIF CITY_OWNER:温泉街 != CFLAG:MASTER:所属
+	RETURN 0
+
+RETURN 1
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@EVENT_DAILY_TERRITORY_SPA_TOWN_GENRE()
+RETURN デイリー_ジャンル_エロ
+
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@EVENT_DAILY_TERRITORY_SPA_TOWN
+#DIM 対象
+
+対象 = 0
+
+PRINTFORML 温泉割引券を手に入れた
+PRINTFORML 最近戦争や政治で忙しくて疲れがたまっている
+PRINTFORMW たまには羽を伸ばしても罰は当たらないだろう
+PRINTFORML どうしよう？
+CALL ASK_MULTI("一人で行く" ,"誰かを誘う" ,"やっぱりやめる")
+IF RESULT == 2
+	PRINTFORML いや、やはり今は忙しい
+	PRINTFORMW %ANAME(MASTER)%は割引券をデスクの奥へしまった
+	RETURN
+ELSEIF RESULT == 0
+	PRINTFORML 一人でのんびりと楽しむことにしよう
+	PRINTFORMW %ANAME(MASTER)%はウキウキ気分で温泉街へ向かった
+ELSEIF RESULT == 1
+	PRINTFORML 折角なので誰かを誘う事にした
+	PRINTFORMW 誰を誘おうか？
+	CALL SELECT_CHARA_LIST_ONLY_LOGIC_SEX("DAILY_TERRITORY_SPA_TOWN", "DAILY_TERRITORY_SPA_TOWN")
+	IF RESULT == -1
+		PRINTFORMW やはり一人で向かう事にした
+	ELSE
+		対象 = RESULT
+		PRINTFORML %ANAME(対象)%を誘う事にした
+		PRINTFORM %ANAME(MASTER)%の誘いに
+		IF IS_FEMALE(対象)
+			PRINTFORMW 彼女は喜んで付き合ってくれた
+		ELSE
+			PRINTFORMW 彼は喜んで付き合ってくれた
+		ENDIF
+	ENDIF
+ENDIF
+IF 対象 != 0
+	PRINTFORMW 二人で楽しい旅行を過ごす事が出来た
+	IF (IS_MALE(MASTER) && IS_FEMALE(対象)) || (IS_FEMALE(MASTER) && IS_MALE(対象))
+		IF IS_MALE(MASTER) && (IS_SLAVE(対象) || IS_LOVER(対象))
+			PRINTFORML 二人きりで露天風呂を楽しんでいると良い雰囲気になった
+			PRINTFORML 彼女を見つめると頬を染めながら期待する様な視線を向けられた
+			PRINTFORMW どちらからともなく相手に寄りかかると、身体を重ねた
+			PRINTFORML 
+			SELECTCASE RAND:5
+				CASE 0
+					PRINTFORML %ANAME(MASTER)%は湯船に浸かりながら彼女と激しくまぐわっている
+					PRINTFORML 彼女は%ANAME(MASTER)%に跨りながらいつも以上にあられもなく喘ぎ腰をくねらせる
+					PRINTFORML 胸や肌を愛撫しながら突き上げてやると喜びの声を上げて膣を締め付けてきた
+					PRINTFORMW 身体の外と中から伝わってくる熱に夢中になった%ANAME(MASTER)%達はたっぷりと楽しんだ
+				CASE 1
+					PRINTFORML 湯の飛び散る音と彼女の喘ぎ声がリズミカルに響いている
+					PRINTFORML 彼女の身体はすっかり蕩け切りペニスをいつもより奥深くまで受け入れる
+					PRINTFORML 軽く小突くだけで激しく全身を震わせ膣肉がぐにぐにと収縮して刺激してきた
+					PRINTFORMW 彼女のトロトロになった甘い身体を全身隅々まで味わい何度も精を吐き出した
+				CASE 2
+					PRINTFORML %ANAME(MASTER)%達は深く繋がったまま抱きしってキスを交わしている
+					PRINTFORML 緩やかに腰を揺らすと膣肉の感触が敏感につながり彼女は微かに喘ぎ声を漏らす
+					PRINTFORML 密着したまま舌を絡ませていると温泉の熱も合わさり頭がボーっとしてくる
+					PRINTFORMW ゆったりとした濃厚なセックスで%ANAME(MASTER)%達はのぼせる程お互いを求め続けた
+				CASE 3
+					PRINTFORML 湯船でたっぷりと楽しんだ%ANAME(MASTER)%達はシャワーを浴びている
+					PRINTFORML シャワーを浴びて吐息を漏らす彼女の仕草に%ANAME(MASTER)%は再びムラッと来た
+					PRINTFORML %ANAME(MASTER)%が腰を抱くと彼女は困った様にはにかみながらも満更でもなさそうだった
+					PRINTFORMW 二人で互いの身体を求めて絡ませあいながらそのまま二回戦に突入した
+				CASE 4
+					PRINTFORML 彼女に浴槽の縁に手を突かせ背後から激しくガン突きしてやる
+					PRINTFORML 湯船の熱でほぐれきっていた彼女は一突き毎に敏感に痙攣し嬌声を上げた
+					PRINTFORML 彼女は激しい攻めにだらしない表情でもっともっととおねだりする様に腰を振る
+					PRINTFORMW %ANAME(MASTER)%もまた熱に当てられ疲れ果てるまで思う存分彼女と交わった
+			ENDSELECT
+			CALL FUCK(MASTER, "性技, 性交, Ｃ, 射精", "童貞喪失, キス喪失", 0, "%ANAME(対象)%の唇", "", "%ANAME(対象)%の膣", 喪失_和姦)
+			CALL FUCK(対象, "欲望, 奉仕, 精愛, 性技, 性交, Ｃ, Ｖ, Ｂ, Ｍ, キス, 口淫, Ｖ性交", "処女喪失, 膣内射精, キス喪失, 口内射精", GET_ID(MASTER), @"%ANAME(MASTER)%の唇", @"%ANAME(MASTER)%", "", 喪失_和姦)
+		ELSE
+			PRINTFORMW 少々気恥しかったが二人でのんびり露天風呂も楽しんだ
+		ENDIF
+	ELSE
+		PRINTFORMW 温泉に浸かりながら日頃の愚痴や趣味の話に盛り上がった
+	ENDIF
+	CFLAG:対象:好感度 += 100 + RAND:200
+ELSEIF IS_MALE(MASTER)
+	PRINTFORML 一人で温泉を楽しんでいるとある女性と知り合った
+	PRINTFORML 夫との仲が冷え切っており一人で旅行する事になったのだと寂しそうに告げる
+	PRINTFORMW 彼女の話を聞いている内に%ANAME(MASTER)%はすっかりほだされその手を握っていた
+	PRINTFORML 
+	SELECTCASE RAND:5
+		CASE 0
+			PRINTFORML %ANAME(MASTER)%達は一緒に温泉に入りそのまま交わっている
+			PRINTFORML 彼女の人妻特有の熟れた肉体は更に熱でトロけ切り、ねっとりと絡みついてくる
+			PRINTFORML 久しぶりのセックスに彼女はあられもなくヨガリ狂い激しく身をくねらせ%ANAME(MASTER)%を求めてきた
+			PRINTFORMW その淫乱さに%ANAME(MASTER)%も夢中になって腰を振り、湯船の中で何度も彼女の中に精を放った
+		CASE 1
+			PRINTFORML %ANAME(MASTER)%達は宿を共にしそのまま温泉で激しくまぐわった
+			PRINTFORML 服の下の少々だらしない肉体がかえってたまらず%ANAME(MASTER)%は夢中で彼女に食らいつく
+			PRINTFORML 随分お預けだったようで彼女は狂ったようにヨガリ与えられる快楽のままに何度も潮を吹いた
+			PRINTFORMW %ANAME(MASTER)%も彼女の熟れた肉体にむしゃぶりつくようにしてたっぷりと味わわせてもらった
+		CASE 2
+			PRINTFORML 一緒に温泉を巡る内に意気投合した%ANAME(MASTER)%達は夜を共にした
+			PRINTFORML 彼女と%ANAME(MASTER)%の相性は抜群に良く、しばし時間を忘れて貪る様に互いを求め続けた
+			PRINTFORML %ANAME(MASTER)%に跨り浴衣をはだけさせて髪を振り乱して乱れる彼女の淫靡さに夢中で腰を打ち付ける
+			PRINTFORMW 汗だくになった%ANAME(MASTER)%達は一緒にシャワーを浴びてから濃厚なキスを交わして別れた
+		CASE 3
+			PRINTFORML 一緒に温泉巡りを楽しんだ後%ANAME(MASTER)%は彼女を宿に誘った
+			PRINTFORML はじめ彼女は背徳感に躊躇していたが再度誘うと最終的ににっこりとほほえんだ
+			PRINTFORML 部屋に入るとどちらからともなく唇を重ね、互いの身体を絡ませながら布団の上に倒れ込んだ
+			PRINTFORMW %ANAME(MASTER)%達は一晩かけてたっぷりと愛し合った後、連絡先を交換してから別れを告げた
+		CASE 4
+			PRINTFORML 流れのままに宿を共にした%ANAME(MASTER)%達は一緒に横になっている
+			PRINTFORML 久しぶりのまぐわいだった彼女は非常に乱れその熟れた肉体で存分に楽しませてくれた
+			PRINTFORML 布団の中で彼女の熱い視線を感じ、軽くキスをしてやると足を絡ませながら次を求めてきた
+			PRINTFORMW %ANAME(MASTER)%達は他の事はすべて忘れ、一晩中ただひたすら灼ける様な快楽に身を委ねた
+	ENDSELECT
+	CALL FUCK(MASTER, "性技, 性交, Ｃ, 射精", "童貞喪失, キス喪失", 0, "人妻の唇", "", "人妻の膣", 喪失_和姦)
+ELSE
+	PRINTFORML 一人で温泉を楽しんでいるとある男性と知り合った
+	PRINTFORML 妻との仲が冷え切っており一人で旅行する事になったのだと寂しそうに告げる
+	PRINTFORML 彼の話を聞いている内に%ANAME(MASTER)%はすっかりほだされその手を握っていた
+	PRINTFORML 
+	SELECTCASE RAND:5
+		CASE 0
+			PRINTFORML %ANAME(MASTER)%は宿に連れ込まれるなり押し倒され、犯されながらあられもなく喘いでいる
+			PRINTFORML 野太いペニスでグリグリと子宮口を刺激されると視界が真っ白になり全身にシビレが走る
+			PRINTFORML 彼はその反応を楽しむ様にねっとりと攻めを繰り返し、%ANAME(MASTER)%の身体は雌として躾けられてしまった
+			PRINTFORMW 一晩かけて彼にメロメロにされた%ANAME(MASTER)%は別れ際連絡先を聞かれ、悦んで交換した
+		CASE 1
+			PRINTFORML %ANAME(MASTER)%は彼に誘われ温泉に浸かりながら激しく抱かれて悦びの声を響かせている
+			PRINTFORML 熱のこもった身体は何時もより敏感で、深々と突き刺さったペニスの感触を直に感じてしまう
+			PRINTFORML じゅぷじゅぷと肉棒が出入りする度に肉を抉られる感覚に%ANAME(MASTER)%は無様にアヘ顔を晒してヨガリ狂った
+			PRINTFORMW のぼせるまで犯された後彼の部屋に連れ込まれ、そこでもたっぷりと可愛がられた
+		CASE 2
+			PRINTFORML 彼に誘われて宿を共にした%ANAME(MASTER)%は一緒に温泉に浸かりながらイチャイチャしている
+			PRINTFORML キスを交わしながら全身をねっとりと愛撫され、温泉の熱も相まって頭がボーっとしてくる
+			PRINTFORML 彼に命ぜられた%ANAME(MASTER)%は息を荒げて期待に胸を高まらせながら浴槽の縁に手をついて尻を突き出した
+			PRINTFORMW %ANAME(MASTER)%は彼の逞しいペニスで散々イかされまくり、身も心も彼の愛人として悦んだ
+		CASE 3
+			PRINTFORML 二人で温泉巡りを楽しんだ後、%ANAME(MASTER)%は彼の部屋に誘われそのまま激しく交わっていた
+			PRINTFORML 不倫セックスをしている背徳感に官能がうずき、%ANAME(MASTER)%達は汗だくになって激しくまぐわう
+			PRINTFORML %ANAME(MASTER)%は激しく突き上げられながら浴衣をはだけさせて、イキっぱなしのまま愛の言葉を並べたてた
+			PRINTFORMW 夜が明けるまで交わった後、もう一度温泉で汗を流してから再会を約束して別れた
+		CASE 4
+			PRINTFORML どちらからともなく%ANAME(MASTER)%達は一緒に温泉を巡ることにし、そのまま彼の宿に入った
+			PRINTFORML 彼の熟練のテクニックと逞しい男根はすぐに%ANAME(MASTER)%を魅了し幾度となく雌の悦びに達する
+			PRINTFORML ご無沙汰だった彼は猿の様に激しく腰を振り続け、また%ANAME(MASTER)%も求められる事に悦んでヨガリ狂った
+			PRINTFORMW 子宮から溢れる程種付けされた%ANAME(MASTER)%は彼の子供を孕んだらどうしようと頬を染めた
+	ENDSELECT
+	CALL FUCK(MASTER, "欲望, 奉仕, 性技, 性交, 精愛, Ｃ, Ｖ, Ｂ, Ｍ, Ｖ性交, 口淫", "キス喪失, 処女喪失, 膣内射精, 口内射精", GET_SPERM_ID("行きずりの男"), @"行きずりの男の\@RAND:2 ? ペニス # 唇\@", "行きずりの男", "", 喪失_和姦)
+ENDIF
+PRINTFORML 
+PRINTFORML 楽しい旅行ですっかり疲れも取れた
+PRINTFORMW また来ることにしよう
+SIF COOLTIME:MASTER:0 > 0
+	COOLTIME:MASTER:0 = 0
+
+RETURN 1
+
+@SELECT_CHARA_LIST_SHOW_LOGIC_DAILY_TERRITORY_SPA_TOWN(対象)
+#DIM 対象
+RETURN 対象 != MASTER && CFLAG:対象:所属 == CFLAG:MASTER:所属 && CFLAG:対象:行動不能状態 != 4 && !IS_ANIMAL(対象)
+
+@SELECT_CHARA_LIST_SELECT_LOGIC_DAILY_TERRITORY_SPA_TOWN(対象)
+#DIM 対象
+RETURN CFLAG:対象:捕虜先 == 0
