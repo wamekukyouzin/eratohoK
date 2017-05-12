@@ -1,0 +1,186 @@
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@EVENT_DAILY_TERRITORY_RABBIT_VILLAGE_RATE()
+RETURN 50
+
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@EVENT_DAILY_TERRITORY_RABBIT_VILLAGE_DECISION()
+#DIM 兎集落
+兎集落 = GET_CITYNUMBER("素兎の集落")
+
+SIF 兎集落 == -1
+	RETURN 0
+SIF CITY_OWNER:兎集落 != CFLAG:MASTER:所属
+	RETURN 0
+SIF DVAR:兎の宴 == 2
+	RETURN 0
+
+RETURN 1
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@EVENT_DAILY_TERRITORY_RABBIT_VILLAGE_GENRE()
+RETURN デイリー_ジャンル_エロ
+
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@EVENT_DAILY_TERRITORY_RABBIT_VILLAGE
+#DIM 対象
+#DIM 金額
+
+対象 = NAME_TO_CHARA("てゐ")
+
+LOCAL:0 = 0
+
+IF DVAR:兎の宴 == 0
+	DVAR:兎の宴 = 1
+	PRINTFORML 部下からある噂を聞いた
+	PRINTFORML この時期、竹林の何処かにある兎の集落でお祭りが開かれているらしい
+	PRINTFORMW 妖怪兎だけでなく、誰でも参加していいとの事だが…
+ELSE
+	PRINTFORML 再び兎の宴が開かれているとの話を耳にした
+	PRINTFORMW 前回は参加できなかったが
+ENDIF
+PRINTFORML どうしよう？
+CALL ASK_MULTI_JUDGE("行ってみる", 1,"無視する", 1,"てゐに案内を頼む", CFLAG:対象:所属 == CFLAG:MASTER:所属 && CFLAG:対象:捕虜先 == 0)
+IF RESULT == 1
+	PRINTFORML 興味はあるが今は忙しい
+	PRINTFORMW 参加を断念する事にした
+	RETURN
+ELSEIF RESULT == 0
+	PRINTFORML 兎のお祭りとは面白そうだ
+	PRINTFORMW 興味がわいた%ANAME(MASTER)%は集落を目指した
+	PRINTFORML ・
+	PRINTFORML ・
+	PRINTFORMW ・
+	SIF ABL:MASTER:知略 >= 70
+		LOCAL:0 = 1
+	IF LOCAL:0 + RAND:6 < 3
+		PRINTFORML しかし迷ってしまった
+		PRINTFORMW 一日中竹林をさまよった後ようやく宮殿に戻れた
+		RETURN
+	ENDIF
+ELSEIF RESULT == 2
+	金額 = MAX(MONEY / 8, 500)
+	SIF IS_SLAVE(対象)
+		金額 = 金額 / 100
+	PRINTFORML 案内を頼むと彼女は小さな賽銭箱を差し出してきた
+	PRINTFORMW 案内料という訳か
+	PRINTFORML どうしよう？
+	CALL ASK_MULTI_JUDGE(@"案内料{金額}を払う", 金額 <= MONEY,"やめておく", 1,"主従を教え込む", HAS_PENIS(MASTER))
+	IF RESULT == 1
+		PRINTFORML そこまでして行きたくはない
+		PRINTFORMW %ANAME(MASTER)%が断ると彼女は残念そうに去って行った
+		RETURN
+	ELSEIF RESULT == 0
+		PRINTFORML 彼女らしい要求だ
+		PRINTFORMW %ANAME(MASTER)%が案内料を支払うと彼女はニコッと笑顔になった
+		MONEY -= 金額
+		PRINTFORMW …てゐに案内されて兎の集落に向かった
+	ELSEIF RESULT == 2
+		PRINTFORML この守銭奴には主従を教え込む必要がある
+		PRINTFORMW %ANAME(MASTER)%は部屋に財布があると嘘をついて彼女を寝室に連れ込んだ
+		PRINTFORML 
+		IF (ABL:MASTER:性技 + ABL:MASTER:性交 + RAND:5 > ABL:対象:性技 + ABL:対象:性交 + RAND:5) || IS_SLAVE(対象)
+			PRINTFORML 非力な彼女を押し倒すのは簡単だった
+			PRINTFORML %ANAME(MASTER)%は小さいながらも果実の様に甘く柔らかい身体を存分に躾けた
+			PRINTFORML 最初は抵抗してた彼女も次第に身体をくねらせ甘い吐息を漏らしだし
+			PRINTFORMW 最後には自ら必死で%ANAME(MASTER)%にしがみついてあられもなくおねだりしてきた
+			CALL FUCK(MASTER, "性技, 性交, Ｃ, 射精", "童貞喪失, キス喪失", 0, @"%ANAME(対象)%の唇", "", @"%ANAME(対象)%の膣", 喪失_強姦)
+			CALL FUCK(対象, "欲望, 奉仕, 精愛, 性技, 性交, Ｃ, Ｖ, Ｍ, キス, 口淫, Ｖ性交", "処女喪失, 膣内射精, キス喪失, 口内射精", GET_ID(MASTER), @"%ANAME(MASTER)%の唇", @"%ANAME(MASTER)%", "", 喪失_強姦)
+			PRINTFORML 
+			PRINTFORML すっきりしたので彼女に案内させた
+			PRINTFORMW 彼女はまだ熱冷めやらぬ様子で道中チラチラとこちらを窺ってきた
+		ELSE
+			PRINTFORML しかし彼女の方が上手だった
+			PRINTFORMW %ANAME(MASTER)%はプライドをボロボロにされてしまった…
+			CALL FUCK(MASTER, "性技, 性交, Ｃ, 射精", "童貞喪失, キス喪失", 0, @"%ANAME(対象)%の唇", "", @"%ANAME(対象)%の膣", 喪失_強姦)
+			CALL FUCK(対象, "欲望, 性技, 性交, Ｃ, Ｖ, Ｖ性交", "処女喪失, 膣内射精", GET_ID(MASTER), "", @"%ANAME(MASTER)%", "", 喪失_強姦)
+			RETURN
+		ENDIF
+	ENDIF
+ENDIF
+PRINTFORML 兎の里にたどり着いた%ANAME(MASTER)%はその光景に驚いた
+PRINTFORML そこかしこで妖怪兎が交尾をしているではないか
+PRINTFORML どうやらお祭りとはこの事だったらしい
+PRINTFORMW あちこちの物陰や家の中から艶めかしい喘ぎ声が響いてくる…
+IF IS_MALE(MASTER)
+	PRINTFORML ふと一匹の妖怪兎と目が合った
+	PRINTFORML 彼女は頬を赤らめ息を荒げ、明らかに発情している様子だ
+	PRINTFORML %ANAME(MASTER)%を見た彼女は目を輝かせスカートをたくし上げて見せた
+	PRINTFORML その下には下着も履いておらず、割れ目はひくつき蜜を溢れさせていた
+	PRINTFORMW %ANAME(MASTER)%はその淫靡な姿に我慢できず彼女を捕まえると近くの空き家に連れ込んだ
+	PRINTFORML 
+	PRINTFORML %ANAME(MASTER)%は早速彼女を押し倒すと濡れそぼった秘所を広げ舌を這わせた
+	PRINTFORML 綺麗な割れ目を軽くなぞると彼女はやや羞恥の混ざった様な甘い嬌声を上げる
+	PRINTFORMW 溢れる蜜はとても甘く夢中になって舐め上げるとその度に彼女は身体を震わせ喘ぐ
+	PRINTFORML いよいよ%ANAME(MASTER)%がいきり立った一物をあてがうと彼女はギュッとしがみ付いてきた
+	PRINTFORML その小さな体を抱きしめながら一気に突き入れると彼女はビクンと大きく身を仰け反らせる
+	PRINTFORMW どうやら処女だったらしく膜が破れる感触が伝わってきた
+	PRINTFORML しかし兎の特性なのか彼女は苦痛もさほど感じていない様でトロンとした表情で見つめてきた
+	PRINTFORML それならばと%ANAME(MASTER)%がキツキツの膣を激しく突き上げてやると彼女はヒィヒィとヨガリ出す
+	PRINTFORML 膣は狭いが良く収縮し、竿全体を包み込むようにしながら心地よい締め付けが伝わって来る
+	PRINTFORMW 一際深くねじ込むと鈴口が子宮口に当たり、その衝撃で彼女は大きく嬌声を上げて潮を吹いた
+	PRINTFORML コツンコツンと連続で小突いてやると彼女は獣の様な嬌声を響かせ全身を痙攣させ続けた
+	PRINTFORML 可愛い反応をもっと堪能したかったがもはや我慢も限界に達しだしたまらず腰を加速させてしまう
+	PRINTFORML 彼女を抱きしめキスをしながら激しく腰を打ち付けると、彼女の膣の収縮も激しくなっていく
+	PRINTFORMW %ANAME(MASTER)%達二人はただひたすらにお互いを求めて高みに昇っていき、そして同時に絶頂に達した
+	PRINTFORMW …その後も興奮冷めやらぬ%ANAME(MASTER)%達は日が暮れるまで何度も何度も交尾を繰り返した
+	CALL FUCK(MASTER, "性技, 性交, Ｃ, 射精", "童貞喪失, キス喪失", 0, "妖怪兎の唇", "", "妖怪兎の膣", 喪失_和姦)
+	CALL FUCK(MASTER, "性技, 性交, Ｃ, 射精", "童貞喪失, キス喪失", 0, "妖怪兎の唇", "", "妖怪兎の膣", 喪失_和姦)
+	PRINTFORML 
+ELSE
+	PRINTFORML %ANAME(MASTER)%が呆然としているとクイっと裾を引っ張られた
+	PRINTFORML 何事かと振り向くと一匹の妖怪兎が%ANAME(MASTER)%の服の裾を掴んでいた
+	PRINTFORML 目を輝かせ股間を膨らませており、見るからに発情しているとわかる
+	PRINTFORML 彼は%ANAME(MASTER)%に抱きついて股間を擦りつけながら交尾に誘ってきた
+	PRINTFORMW その誘いに%ANAME(MASTER)%は逃げるに逃げられず彼の家に連れ込まれてしまった
+	PRINTFORML 
+	PRINTFORML 彼は小柄な見かけからは想像できないほど逞しいペニスを持っていた
+	PRINTFORML ボロンと突き出されたその凶器に%ANAME(MASTER)%はたじろぎながらも釘付けになってしまう
+	PRINTFORMW %ANAME(MASTER)%が怯んだ隙に彼は息を荒げながら押し倒してきて、乱暴に服をはぎ取られた
+	PRINTFORML 里に来てから充満していたセックスの匂いで知らず知らず%ANAME(MASTER)%の股間は濡れていた
+	PRINTFORML 彼は%ANAME(MASTER)%も乗り気だと喜び両足の間に入り込んでくるとペニスの先を割れ目にあてがった
+	PRINTFORML そして%ANAME(MASTER)%が制止する間もなくズドン！とその凶悪な一物を根元まで思いきりねじ込んできた
+	PRINTFORMW その強烈な衝撃に%ANAME(MASTER)%は一瞬意識を飛ばし、大きく身を仰け反らせてしまった
+	IF TALENT:MASTER:処女
+		PRINTFORML 彼は%ANAME(MASTER)%の股間から流れる血を見て処女と交尾できることに喜びの声を上げキスをしてきた
+		PRINTFORML しかし%ANAME(MASTER)%はそれどころではなく、ショックで真っ白になりながらビクンビクンと痙攣している
+		PRINTFORMW ペニスは%ANAME(MASTER)%の膣の奥深くまで突き刺さり、激しい苦痛と未知の感覚をもたらしていた
+	ELSE
+		PRINTFORML プシッと潮を吹いて痙攣する%ANAME(MASTER)%に彼は根元まで挿入できた子は初めてだとキスをしてきた
+		PRINTFORML %ANAME(MASTER)%は犬の様に舌を垂らしながら激しく息を荒げねじこまれた凶悪な衝撃で目を白黒させている
+		PRINTFORMW ペニスは%ANAME(MASTER)%の膣の奥深くまで突き刺せり、強烈な圧迫感と子宮の疼きをもたらしていた
+	ENDIF
+	PRINTFORML %ANAME(MASTER)%が衝撃で呻いているのにもかかわらず、彼は早速腰を振りだした
+	PRINTFORML 凶悪なペニスが激しく体内を出入りする度に%ANAME(MASTER)%はアヒィアヒィと無様に喘がされる
+	PRINTFORMW ペニスが引き抜かれると内臓ごとぐちゅぐちゅと引き抜かれるような衝撃で全身にシビレが走り
+	PRINTFORML そして返しの強烈な突き入れで子宮からの運手まで貫かれる様な衝撃で視界が飛びそうになる
+	PRINTFORML どっちゅ！どっちゅ！と腰を打ち付けられる度に結合部からは愛液が飛び散り両足が大きく揺れる
+	PRINTFORMW %ANAME(MASTER)%はもはや抵抗できずただただ与えられる刺激に反応して喘ぎ、震え、ヨガリ狂うしかなかった
+	PRINTFORML 次第に彼の腰の動きは加速していき、%ANAME(MASTER)%は雌の本能で彼の射精が近い事を感じ取った
+	PRINTFORML 身体は既に彼を受け入れており、種付けを期待して膣肉全体が震え子宮は降りれる所まで降りている
+	PRINTFORML そして彼が雄叫びと共に一際深くペニスをねじ込むと同時に%ANAME(MASTER)%達は一緒に絶頂に達した
+	PRINTFORMW 彼のザーメンはペニスの大きさに相応しい量と熱を持っており一発で胎内が満たされるほどだった
+	PRINTFORMW …彼は初めて存分に犯せる%ANAME(MASTER)%を気に入った様で、日が暮れてもまだ延々と犯されてしまった
+	CALL FUCK(MASTER, "欲望, 奉仕, 精愛, 性技, 性交, Ｃ, Ｖ, Ｂ, Ａ, Ｍ, キス, 口淫, Ｖ性交, Ａ性交", "処女喪失, Ａ処女喪失, 膣内射精, キス喪失, 腸内射精, 口内射精", GET_SPERM_ID("野良妖怪"), @"妖怪兎の\@RAND:2 ? ペニス # 唇\@", "妖怪兎", "",  喪失_強姦)
+	CALL FUCK(MASTER, "欲望, 奉仕, 精愛, 性技, 性交, Ｃ, Ｖ, Ｂ, Ａ, Ｍ, キス, 口淫, Ｖ性交, Ａ性交", "処女喪失, Ａ処女喪失, 膣内射精, キス喪失, 腸内射精, 口内射精", GET_SPERM_ID("野良妖怪"), @"妖怪兎の\@RAND:2 ? ペニス # 唇\@", "妖怪兎", "",  喪失_強姦)
+ENDIF
+PRINTFORML 
+PRINTFORMW たっぷり楽しんだ%ANAME(MASTER)%は翌日妖怪兎と別れて里を立ち去った
+DVAR:兎の宴 = 2
+
+RETURN 1

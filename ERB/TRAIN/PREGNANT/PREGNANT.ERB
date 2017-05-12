@@ -128,7 +128,7 @@ CALL TMP_CREATE_RELATION_MAP
 ;母親のチェックをする
 FOR LOCAL:0, 0, CHARANUM
 	;死亡したキャラは処理しない
-	IF CFLAG:(LOCAL:0):特殊状態 == 2
+	IF CFLAG:(LOCAL:0):特殊状態 == 特殊状態_死亡
 		CONTINUE
 	ENDIF
 	CALL TURNEND_PREGNANT_CHECK_MOTHER(LOCAL:0)
@@ -137,7 +137,7 @@ NEXT
 ;子供の処理をする
 FOR LOCAL:0, 0, CHARANUM
 	;死亡したキャラは処理しない
-	IF CFLAG:(LOCAL:0):特殊状態 == 2
+	IF CFLAG:(LOCAL:0):特殊状態 == 特殊状態_死亡
 		CONTINUE
 	ENDIF
 	CALL TURNEND_PREGNANT_CHECK_CHILD(LOCAL:0)
@@ -162,17 +162,17 @@ IF CFLAG:(ARG:0):妊娠期間 >= 1
 		;7期で出産する
 		CALL BIRTH_CHILD(ARG:0)
 	;妊娠4期目
-	ELSEIF CFLAG:(ARG:0):妊娠期間 >= 4 && CFLAG:(ARG:0):行動不能状態 != 1
+	ELSEIF CFLAG:(ARG:0):妊娠期間 >= 4 && CFLAG:(ARG:0):行動不能状態 != 行動不能_臨月
 		;4期たったら臨月となり通常の活動ができなくなる
 		IF IS_PREGNANT_MSG(ARG:0)
 			CALL KOJO_EVENT(ARG:0, 41)
-			SIF CFLAG:(ARG:0):行動不能状態 == 2
+			SIF CFLAG:(ARG:0):行動不能状態 == 行動不能_育児
 				CALL KOJO_EVENT(ID_TO_CHARA(CFLAG:(ARG:0):育児対象), 46)
 			CALL SINGLE_EMPTY_LINE()
 		ENDIF
 
 		;臨月状態に設定
-		CFLAG:(ARG:0):行動不能状態 = 1
+		CFLAG:(ARG:0):行動不能状態 = 行動不能_臨月
 
 	;妊娠2期目(ここでようやく妊娠判明)
 	ELSEIF CFLAG:(ARG:0):妊娠期間 >= 2 && !TALENT:(ARG:0):妊娠
@@ -257,7 +257,7 @@ CALL RECORD_FATHER_FROM_CREAMPIE_HISTORY(ARG:0)
 IF IS_PREGNANT_MSG(ARG:0)
 	CALL KOJO_EVENT(ARG:0, 40)
 	;育児中に妊娠したら子供がそれにリアクションをするイベントを挿し込む
-	SIF CFLAG:(ARG:0):行動不能状態 == 2
+	SIF CFLAG:(ARG:0):行動不能状態 == 行動不能_育児
 		CALL KOJO_EVENT(ID_TO_CHARA(CFLAG:(ARG:0):育児対象), 45)
 ENDIF
 
@@ -351,14 +351,14 @@ ELSE
 	;捕虜でないなら育児状態に設定
 	IF CFLAG:(ARG:0):捕虜先 == 0
 		;育児をするなら育児休暇
-		CFLAG:(ARG:0):行動不能状態 = 2
+		CFLAG:(ARG:0):行動不能状態 = 行動不能_育児
 		CFLAG:(ARG:0):育児対象 = GET_ID(子供)
 	ELSE
 		;育児をしないなら休暇終了
 		CFLAG:(ARG:0):行動不能状態 = 0
 	ENDIF
 	;子供を被育児状態に設定
-	CFLAG:子供:行動不能状態 = 4
+	CFLAG:子供:行動不能状態 == 行動不能_子供
 ENDIF
 EXP:(ARG:0):出産経験 += 1
 EXP:(ARG:0):出産経験値 += 1
@@ -569,7 +569,7 @@ RETURNF RAND:4
 @TURNEND_PREGNANT_CHECK_CHILD(ARG:0)
 
 ;被育児状態の子供
-IF CFLAG:(ARG:0):行動不能状態 == 4
+IF CFLAG:(ARG:0):行動不能状態 == 行動不能_子供
 	;一部能力の初期値を現在の値で上書き
 	;CALL SET_INI_ABL(ARG:0, "武闘")
 	;CALL SET_INI_ABL(ARG:0, "知略")
@@ -733,7 +733,7 @@ FOR LOCAL:0, 0, CHARANUM
 			RESETCOLOR
 
 			;妊娠関係のフラグをクリア
-			SIF CFLAG:(LOCAL:0):行動不能状態 == 1
+			SIF CFLAG:(LOCAL:0):行動不能状態 == 行動不能_臨月
 				CFLAG:(LOCAL:0):行動不能状態 = 0
 			CFLAG:(LOCAL:0):妊娠期間 = 0
 			CFLAG:(LOCAL:0):子の遺伝上の父親 = 0
@@ -790,7 +790,7 @@ LOCAL:5 = ID_TO_CHARA(CFLAG:(ARG:0):育児対象)
 
 ;育児中
 IF LOCAL:5 >= 0
-	IF CFLAG:(ARG:0):行動不能状態 == 1
+	IF CFLAG:(ARG:0):行動不能状態 == 行動不能_臨月
 		;例外状況として、子育て中に臨月になる場合がある　それ用の分岐
 		IF ARG:1 && IS_PREGNANT_MSG(ARG:0)
 			SETCOLOR カラー_注意

@@ -18,6 +18,10 @@ RETURN (60 <= ABL:MASTER:武闘) * (20 + (ABL:MASTER:武闘 - 60) * 5)
 SIF KDVAR:対象:勇儀_力比べ == -1
 	RETURN 0
 
+;勇儀が放浪してないとだめ
+SIF CFLAG:対象:特殊状態 != 特殊状態_放浪
+	RETURN 0
+
 ;マスターが男でないと出ない
 SIF !IS_MALE(MASTER)
 	RETURN 0
@@ -41,13 +45,6 @@ RETURN デイリー_ジャンル_その他
 @KOJO_DAILY_K60_COMPETE(対象)
 #DIM 対象
 #DIM 判定値
-#DIM 拉致
-
-IF CFLAG:対象:所属 && GET_COUNTRY_BOSS(CFLAG:MASTER:所属) != MASTER
-	拉致 = 1
-ELSE
-	拉致 = 0
-ENDIF
 
 PRINTFORMW 「%ANAME(MASTER)%、だっけ？　ってのはいるかい！？」
 PRINTFORMW %ANAME(MASTER)%が仕事に忙殺されているさなか、急に誰かが入ってきた
@@ -68,14 +65,7 @@ CALL COLORPRINT(@"アンタの頼みを一つ聞いてやろう", カラー_注�
 PRINTFORMW 」
 PRINTFORMW 「嘘じゃないよ？　鬼は嘘が嫌いなんだ。信用してくれていい」
 PRINTFORMW 「そうだ、ハンデもつけてあげるよ。私は片手に杯をもって、酒を一滴もこぼさないよう立ち回る」
-PRINTFORM 「その代わり……私が勝ったら、
-IF 拉致
-	CALL COLORPRINT(@"配下になってもらおうか", カラー_注意)
-	PRINTFORMW 」
-ELSE
-	CALL COLORPRINT(@"有り金全て", カラー_注意)
-	PRINTFORMW いただこうか」
-ENDIF
+CALL ICPRINT(@"「その代わり……私が勝ったら、<有り金すべて>いただこうか」", "W", カラー_注意)
 PRINTFORMW 何を言っているんだと思ったが、どうやら%ANAME(対象)%は本気であるようだった
 PRINTFORML ……鬼といえば、昔話でおなじみの、力自慢の妖怪だ。ハンデをつけても、勝つのは容易ではあるまい
 PRINTFORML しかし――もし勝てば、頼みを何でも一つ。
@@ -103,7 +93,7 @@ ELSE
 		PRINTFORMW 「それでもいいさ、アンタの勝ちってことに変わりはない」
 		PRINTFORMW 「さて……まさか正直、負けるとは思ってなかったけど。頼みを一つ、なんでも聞いてやろう」
 		PRINTL
-		CALL ASK_MULTI_JUDGE("部下になって", GET_COUNTRY_BOSS(CFLAG:対象:所属) != 対象, "カキタレになって", GET_COUNTRY_BOSS(CFLAG:対象:所属) != 対象, "力が欲しい", 1, "金くれ", 1)
+		CALL ASK_MULTI("部下になって", "カキタレになって", "投獄する", "力が欲しい", "金くれ")
 		SELECTCASE RESULT
 			CASE 0
 				PRINTFORMW 「あぁ、そういうことならこっちも大歓迎だよ」
@@ -121,6 +111,13 @@ ELSE
 				TALENT:対象:合意 = 1
 				TALENT:対象:チョロイン = 1
 			CASE 2
+				PRINTFORMW これだけの実力者をのさばらせるのは危険だ
+				PRINTFORMW %ANAME(対象)%を投獄することにした
+				PRINTFORMW 「あん？　まぁ、是非もなし」
+				PRINTFORMW 「せいぜいまともな待遇を期待してるよ」
+				CALL COLORPRINT(@"%ANAME(対象)%を投獄しました", カラー_注意, "W")
+				CALL CAPTURE(対象, CFLAG:MASTER:所属)
+			CASE 3
 				PRINTFORMW 「ほう、私に勝っておいて、まだ力を欲するときた！　はは、アンタみたいな武辺者は大好きだよ」
 				PRINTFORMW 「じゃあそうだな、鬼流の喧嘩の仕方を伝授してあげるよ」
 				CALL COLORPRINT(@"%ANAME(対象)%に喧嘩の仕方を教わりました", カラー_注意, "W")
@@ -132,7 +129,7 @@ ELSE
 				ABL:MASTER:武闘 += 3
 				PRINTFORMW 「じゃ、私はこれで。楽しかったよ！」
 				PRINTFORMW %ANAME(対象)%は立ち去っていった……
-			CASE 3
+			CASE 4
 				PRINTFORMW 「金か。堅実でいい望みじゃないか」
 				PRINTFORMW 「鬼退治して財宝を得るってのは、昔話の定番だしね」
 				PRINTFORMW 「わかった！　ほら、あるだけ持って行きなよ」
@@ -146,24 +143,12 @@ ELSE
 		PRINTFORML ……やはり、鬼には勝てなかった
 		PRINTFORMW 杯の酒をこぼさないようにするというのは相当なハンデだと思うが、それでもなお駄目だとは……
 		PRINTFORMW 「さてと、悪いけど約束は約束だ」
-		IF 拉致
-			PRINTFORMW 「あんたの身体を、もらうことにするよ」
-			PRINTFORM 「くく、悪いようにはしないさ。
-			CALL COLORPRINT(@"10", カラー_注意)
-			PRINTFORMW 期くらいしたら、放浪してもらっても構わないよ」
-			PRINTFORMW 「ま、そういうことだから、これからよろしく！」
-			PRINTFORMW %ANAME(対象)%に無理矢理引っ張られた……
-			CALL COLORPRINT(@"%ANAME(対象)%の配下にされました", カラー_警告, "W")
-			CALL CHANGE_COUNTRY(MASTER, CFLAG:対象:所属, 1)
-			PLAYER_HIRED_COUNTER = 10
-		ELSE
-			PRINTFORMW 「有り金全部、もらっていくよ」
-			PRINTFORMW 「昔なら命をもらってたとこだからさ、ま、拾いもんだと思いなよ」
-			CALL COLORPRINT(@"所持金を全て奪われました", カラー_警告, "W")
-			PRINTFORMW 「じゃ、私はこれで。楽しかったよ！」
-			PRINTFORMW %ANAME(対象)%は立ち去っていった……
-			MONEY = 0
-		ENDIF
+		PRINTFORMW 「有り金全部、もらっていくよ」
+		PRINTFORMW 「昔なら命をもらってたとこだからさ、ま、拾いもんだと思いなよ」
+		CALL COLORPRINT(@"所持金を全て奪われました", カラー_警告, "W")
+		PRINTFORMW 「じゃ、私はこれで。楽しかったよ！」
+		PRINTFORMW %ANAME(対象)%は立ち去っていった……
+		MONEY = 0
 	ENDIF
 ENDIF
 
