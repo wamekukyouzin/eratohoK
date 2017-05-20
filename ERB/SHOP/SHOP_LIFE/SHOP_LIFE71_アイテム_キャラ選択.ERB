@@ -635,12 +635,54 @@ IF CFLAG:(ARG:0):育児期間 == 0
 	CALL RESET_MOTHER_STATE(ARG:0, 0)
 ENDIF
 
-;●主導半減法
+;●主導操作の法
 @ITEM_EFFECT294(ARG:0)
-ABL:(ARG:0):主導度Ｕ /= 2
-ABL:(ARG:0):主導度Ｎ /= 2
-PRINTFORMW %TOSTR_SPACE(6)%%ANAME(ARG:0)%の主導度Ｕが{ABL:(ARG:0):主導度Ｕ}になりました
-PRINTFORMW %TOSTR_SPACE(6)%%ANAME(ARG:0)%の主導度Ｎが{ABL:(ARG:0):主導度Ｎ}になりました
+#DIM FIRST_LINE
+#DIM 操作項目
+#DIM 操作後値
+FIRST_LINE = LINECOUNT
+PRINTFORML %ANAME(ARG:0)%に主導操作を行う……
+PRINTFORML [0] 主導度Ｕ
+PRINTFORML [1] 主導度Ｎ
+PRINTFORML [2] 倒錯度
+
+INPUT
+
+IF !INRANGE(RESULT, 0, 2)
+	CLEARLINE LINECOUNT - FIRST_LINE
+	RESTART
+ENDIF
+
+操作項目 = RESULT
+
+PRINTFORML いくらにしようか……
+
+IF GROUPMATCH(操作項目, 0, 1)
+	PRINTFORML (-1000 ～ 1000で入力、範囲外でキャンセル)
+ELSE
+	PRINTFORML (0 ～ 1000で入力、範囲外でキャンセル)
+ENDIF
+
+INPUT
+
+IF (GROUPMATCH(操作項目, 0, 1) && !INRANGE(RESULT, -1000, 1000)) || (操作項目 == 3 && !INRANGE(RESULT, 0, 1000))
+	CLEARLINE LINECOUNT - FIRST_LINE
+	RESTART
+ENDIF
+
+操作後値 = RESULT
+
+SELECTCASE 操作項目
+	CASE 0
+		PRINTFORMW %ANAME(対象)%の主導度Ｕが{操作後値}になりました
+		ABL:(ARG:0):主導度Ｕ = 操作後値
+	CASE 1
+		PRINTFORMW %ANAME(対象)%の主導度Ｎが{操作後値}になりました
+		ABL:(ARG:0):主導度Ｎ = 操作後値
+	CASE 2
+		PRINTFORMW %ANAME(対象)%の倒錯度が{操作後値}になりました
+		ABL:(ARG:0):倒錯度 = 操作後値
+ENDSELECT
 
 ;●太平要術の書
 @ITEM_EFFECT141(ARG:0)
