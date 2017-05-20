@@ -21,11 +21,11 @@ RESULTS:5 = %LOCALS:0%見せつけ
 CALL COM_ABLE_COMMON(81)
 SIF RESULT == 0
 	RETURN 0
-;プレイヤーは最大で1人まで
-SIF MPLY_NUM <= 0 || MPLY_NUM > 1
+;プレイヤーが必要
+SIF MPLY_NUM <= 0
 	RETURN 0
-;ターゲットは最大で2人まで
-SIF MTAR_NUM <= 0 || MTAR_NUM > 2
+;ターゲットは最大でプレイヤー*2人まで
+SIF MTAR_NUM <= 0 || MTAR_NUM > MPLY_NUM * 2
 	RETURN 0
 ;プレイヤーが行動不能なら不可
 SIF !IS_PLAYABLE(MPLY:0)
@@ -72,16 +72,18 @@ SIF RESULT == 0
 	RETURN 0
 
 ;●プレイヤーについて処理
-DOWNBASE:(MPLY:0):体力 += 100
-EXP:(MPLY:0):嗜虐経験値 += RAND:3 + 1
+FOR LOCAL:0, 0, MPLY_NUM
+	LOCAL:1 = MPLY:(LOCAL:0)
+	DOWNBASE:(LOCAL:1):体力 += 100
+	EXP:(LOCAL:1):嗜虐経験値 += RAND:3 + 1
 
-SOURCE:(MPLY:0):嗜虐 = 150
-SOURCE:(MPLY:0):逸脱 = 50
-SOURCE:(MPLY:0):接触 = 30
-
+	SOURCE:(LOCAL:1):嗜虐 = 150
+	SOURCE:(LOCAL:1):逸脱 = 50
+	SOURCE:(LOCAL:1):接触 = 30
+	CALL ADD_SOURCE_INITIATIVE_U(LOCAL:1, 150, 50)
+NEXT
 
 ;主導権に応じた優越・屈従のソース追加
-CALL ADD_SOURCE_INITIATIVE_U(MPLY:0, 150, 50)
 
 ;●全ターゲットについて処理
 FOR LOCAL:0, 0, MTAR_NUM
@@ -89,8 +91,11 @@ FOR LOCAL:0, 0, MTAR_NUM
 
 	DOWNBASE:(LOCAL:1):体力 += 60
 	
-	SIF TALENT:(LOCAL:1):美尻 || TALENT:(LOCAL:1):豊尻
-		SOURCE:(MPLY:0):嗜虐 += 30
+	IF TALENT:(LOCAL:1):美尻 || TALENT:(LOCAL:1):豊尻
+		FOR LOCAL:2, 0, MPLY_NUM
+			SOURCE:(MPLY:(LOCAL:2)):嗜虐 += 30
+		NEXT
+	ENDIF
 
 	SOURCE:(LOCAL:1):苦痛 = 50 + MIN(ABL:(MPLY:0):武闘, 90) * 3
 	SOURCE:(LOCAL:1):露出 = 100
@@ -108,9 +113,11 @@ FOR LOCAL:0, 0, MTAR_NUM
 	;主導権に応じた優越・屈従のソース追加
 	CALL ADD_SOURCE_INITIATIVE_U(LOCAL:1, 0, 150)
 
-	IF GETBIT(TALENT:(MPLY:0):淫乱系, 素質_淫乱_サド)
-		TIMES SOURCE:(LOCAL:1):苦痛, 1.50
-	ENDIF
+	FOR LOCAL:2, 0, MPLY_NUM
+		IF GETBIT(TALENT:(MPLY:(LOCAL:2)):淫乱系, 素質_淫乱_サド)
+			TIMES SOURCE:(LOCAL:1):苦痛, 1.50
+		ENDIF
+	NEXT
 NEXT
 
 ;主導度変化基準値
@@ -187,39 +194,48 @@ RETURN 1
 ;地の文(前文)
 ;-------------------------------------------------
 @COM_TEXT_BEFORE81
-;ターゲットが２人
-IF MTAR_NUM == 2
+;ターゲットの数で分岐
+IF MTAR_NUM > 3
+	LOCALS:0 = %ANAME(MTAR:0)%たち
+	LOCALS:1 = 順番に
+	LOCALS:2 = 尻
+
+ELSEIF MTAR_NUM == 2
 	LOCALS:0 = %ANAME(MTAR:0)%と%ANAME(MTAR:1)%
 	LOCALS:1 = 交互に
-	LOCALS:3 = 尻
+	LOCALS:2 = 尻
 
-;ターゲットが１人
 ELSE
 	LOCALS:0 = %ANAME(MTAR:0)%
 	LOCALS:1 = 
-	LOCALS:3  = %STR_BODY("尻：長", MTAR:0)%
+	LOCALS:2  = %STR_BODY("尻：長", MTAR:0)%
 ENDIF
 
-;IF TALENT:(MTAR:0):美尻
-;	LOCALS:2 = 美しい
-;ELSEIF TALENT:(MTAR:0):豊尻
-;	LOCALS:2 = 豊かな
-;ELSE
-;	LOCALS:2 = 
-;ENDIF
+;ターゲットの数で分岐
+IF MPLY > 3
+	LOCALS:3 = %ANAME(MPLY:0)%たち
+
+ELSEIF MPLY == 2
+	LOCALS:3 = %ANAME(MPLY:0)%と%ANAME(MPLY:1)%
+
+ELSE
+	LOCALS:3 = %ANAME(MPLY:0)%
+
+ENDIF
+
 
 SELECTCASE GET_COM_INITIATIVE()
 	;プレイヤーに主導権
 	CASE 0
-		PRINTFORMW %ANAME(MPLY:0)%は%LOCALS:0%の%LOCALS:3%を%LOCALS:1%、赤く腫れ上がるほどに何度も叩い%TARGET_STR("た", "てきた")%…
+		PRINTFORMW %LOCALS:3%は%LOCALS:0%の%LOCALS:2%を%LOCALS:1%、赤く腫れ上がるほどに何度も叩い%TARGET_STR("た", "てきた")%…
 	;ターゲットに主導権
 	CASE 1
-		PRINTFORML %LOCALS:0%は%ANAME(MPLY:0)%に自身の%LOCALS:3%を向け、それを手で叩くように命令した
-		PRINTFORMW %ANAME(MPLY:0)%は言われるまま、%LOCALS:0%の尻を%LOCALS:1%何度も叩いた…
+		PRINTFORML %LOCALS:0%は%ANAME(MPLY:0)%に自身の%LOCALS:2%を向け、それを手で叩くように命令した
+		PRINTFORMW %LOCALS:3%は言われるまま、%LOCALS:0%の尻を%LOCALS:1%何度も叩いた…
 	;第三者に主導権
 	CASEELSE
-		PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に対して、%LOCALS:0%の尻を叩くように命令した
-		PRINTFORMW %ANAME(MPLY:0)%は言われるまま、%LOCALS:0%の%LOCALS:3%を%LOCALS:1%何度も叩いた…
+		PRINTFORML %ANAME(TFLAG:45)%は%LOCALS:3%に対して、%LOCALS:0%の尻を叩くように命令した
+		PRINTFORMW %ANAME(MPLY:0)%は言われるまま、%LOCALS:0%の%LOCALS:2%を%LOCALS:1%何度も叩いた…
 ENDSELECT
 
 ;--------------------------------------------------------
