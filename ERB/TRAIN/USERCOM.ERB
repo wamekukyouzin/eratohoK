@@ -4,54 +4,22 @@
 ;実行可能なコマンドの記録
 ;-------------------------------------------------
 @CREATE_COMABLE_LIST
-#DIM COM_START
-#DIM COM_END
-
-;子育てモードは500～599
-IF FLAG:調教モード == 3
-	COM_START = 500
-	COM_END = 599
-;ウフフ中は0～299
-ELSEIF FLAG:ウフフフラグ
-	COM_START = 0
-	COM_END = 300
-;非ウフフ中は300～499
-ELSE
-	COM_START = 300
-	COM_END = 500
-ENDIF
 
 ;リストのクリア
 VARSET COM_LIST, -1
 
 LOCAL:1 = 0
 ;モード別のコマンドを走査
-FOR LOCAL:0, COM_START, COM_END
-	;コマンドの名称が定義されている場合
-	IF TRAINNAME:(LOCAL:0) != ""
-		;実行可能かどうかを判定
-		CALL CHECK_COMABLE(LOCAL:0)
-		IF RESULT
-			;COM_LISTに実行可能コマンドを記録
-			COM_LIST:(LOCAL:1) = LOCAL:0
-		ENDIF
-		;リストの記録位置を一つ進める
-		LOCAL:1 ++
-	ENDIF
-NEXT
-;共通コマンドを走査
-FOR LOCAL:0, 550, 600
-	;コマンドの名称が定義されている場合
-	IF TRAINNAME:(LOCAL:0) != ""
-		;実行可能かどうかを判定
-		CALL CHECK_COMABLE(LOCAL:0)
-		IF RESULT
-			;COM_LISTに実行可能コマンドを記録
-			COM_LIST:(LOCAL:1) = LOCAL:0
-		ENDIF
-		;リストの記録位置を一つ進める
-		LOCAL:1 ++
-	ENDIF
+FOR LOCAL:0, 0, VARSIZE("TRAINNAME")
+	SIF TRAINNAME:(LOCAL:0) == ""
+		CONTINUE
+	;実行可能かどうかを判定
+	CALL CHECK_COMABLE(LOCAL:0)
+	;COM_LISTに実行可能コマンドを記録
+	SIF RESULT
+		COM_LIST:(LOCAL:1) = LOCAL:0
+	;リストの記録位置を一つ進める
+	LOCAL:1 ++
 NEXT
 
 ;-------------------------------------------------
@@ -433,7 +401,7 @@ IF FLAG:ウフフフラグ
 		LOCALS:0 += "絶"
 	SIF TCVAR:(ARG:0):麻薬
 		LOCALS:0 += "麻"
-	SIF TCVAR:(ARG:0):68
+	SIF TFLAG:69
 		LOCALS:0 += "香"
 	SIF TCVAR:(ARG:0):催眠中 > 0
 		LOCALS:0 += "催"
