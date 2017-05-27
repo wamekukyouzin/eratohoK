@@ -1,339 +1,309 @@
-﻿;;---------------------
-;;基本的な発生確率(1000分率 100で10%)
-;;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
-;;---------------------
-;@KOJO_DAILY_KXX_YY_RATE(対象)
-;#DIM 対象
-;RETURN 0
-;
-;
-;;---------------------
-;;確率以外の発生判定
-;;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
-;;---------------------
-;@KOJO_DAILY_KXX_YY_DECISION(対象)
-;#DIM 対象
-;RETURN 1
-;
-;;---------------------
-;;ジャンル
-;;コンフィグ設定で使用
-;;---------------------
-;@KOJO_DAILY_KXX_YY_GENRE(対象)
-;#DIM 対象
-;RETURN デイリー_ジャンル_エロ
-;
-;;---------------------
-;;特定の条件を満たすキャラをランダムに選択する場合に利用
-;;他の関数は必須だが、これだけはなくてもよい　というかパフォーマンスへ影響するので不要なら作ってはならない
-;;対象が存在せずデイリーを開始できない場合は0を返すことでデイリーの発生をキャンセルする
-;;---------------------
-;@KOJO_DAILY_KXX_YY_SETTARGET(対象)
-;#DIM 対象
-;FOR LOCAL, 0, CHARANUM
-;
-;NEXT
-;RETURN 1
-;
-;;---------------------
-;;イベントの進行度合いに応じてイベント名を変更したい場合に利用
-;;変更する必要がない場合、この関数は不要
-;;---------------------
-;@KOJO_DAILY_KXX_YY_NAME(対象)
-;#DIM 対象
-;RESULTS = ""
-;
-;
-;;---------------------
-;;本体
-;;イベントが発生した場合は1、発生しなかった場合は0を返す
-;;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
-;;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
-;;---------------------
-;@KOJO_DAILY_KXX_YY(対象)
-;#DIM 対象
-;
-;RETURN 1
-;
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@KOJO_DAILY_K134_DATING_BATTLE_RATE(対象)
+#DIM 対象
 
-;他ゲーパロ感が抜けたら取り込み予定
+RETURN 1000
 
 
-;;----------------------------------
-;;デートバトル！　某地底ゲームの骨イベントから(めちゃ長い)
-;;----------------------------------
-;@KOJO_DAILY_K134_Dating_Battle
-;#DIM ドレミ
-;ドレミ = NAME_TO_CHARA("ドレミー")
-;
-;;ドレミーと所属が同じ、ドレミーが捕虜でなく、面識があり、恋慕持ちで100%発生
-;SIF  !(CHECK_KOJO_DAILY_HAPPEN(ドレミ, 1000, 1, 0, 1) && TALENT:ドレミ:恋慕)
-;	RETURN 0
-;
-;;最初に断るor最後まで行くと発生しない
-;SIF KDVAR:ドレミ:ドレミー_デートバトル！ == -1
-;	RETURN 0
-;
-;;ネトラレミー中は起きない(ないと思うけど)
-;SIF KDVAR:ドレミ:ドレミー_ネトラレミー > 0
-;	RETURN 0
-;
-;CALL KOJO_DAILY_START()
-;
-;SELECTCASE KDVAR:ドレミ:ドレミー_デートバトル！
-;CASE 0
-;	PRINTFORML
-;	PRINTFORMW 私室で書類仕事をしていると、コンコンと扉からノック音が聞こえた
-;	PRINTFORMW 許可を出すと%ANAME(ドレミ)%が部屋に入ってきた
-;	PRINTFORMW 仕事を続けながら要件を聞くと%ANAME(ドレミ)%は恐る恐る口を開いた
-;	PRINTFORMW 「…その…ですね…」
-;	PRINTFORMW 「あの…ですね」
-;	PRINTFORMW 妙にそわそわしつつ本題を言い出せないでいる様子である
-;	PRINTFORMW 仕方なく仕事を進める手を止め、来客用の椅子に移った…
-;	PRINTFORML 
-;	PRINTFORMW 「ちっ、近くに美味しい料理のお店が出来たらしいのだけど」
-;	PRINTFORMW 「明日…いっしょに……どうですか……？」
-;	PRINTFORMW どうやらデートのお誘いのようだ
-;	PRINTFORMW どうする？
-;	PRINTFORML 
-;	CALL ASK_YN("誘いに乗る", "誘いを断る")
-;	IF RESULT == 1
-;		PRINTFORML 「そうですか……」
-;		PRINTFORML 残念ながら今は忙しい
-;		PRINTFORMW %ANAME(MASTER)%はやんわりと%ANAME(ドレミ)%の誘いを断った……
-;		;断ると以後発生しなくなる
-;		KDVAR:ドレミ:ドレミー_デートバトル！ = -1
-;	ELSE
-;		PRINTFORML 「でっ、ではまた今夜……(やった！)」
-;		PRINTFORMW そう言って%ANAME(ドレミ)%は%ANAME(MASTER)%の部屋から去っていった
-;		PRINTFORMW ……
-;		PRINTFORMW 外から歓喜の声が聞こえた…
-;		KDVAR:ドレミ:ドレミー_デートバトル！ = 1
-;	ENDIF
-;CASE 1
-;	PRINTFORML 
-;	PRINTFORMW 今日は%ANAME(ドレミ)%とのデートだ
-;	PRINTFORMW 「お待たせ%ANAME(MASTER)%」
-;	PRINTFORMW 待ち合わせの場所で暫く待っていると%ANAME(ドレミ)%がやって来た
-;	PRINTFORML %ANAME(ドレミ)%はいつもの帽子ではなくグレーのハットをかぶり、Ｉラインの白いフリルのワンピースに黒いベストを羽織っていた
-;	PRINTFORMW ネックレスが胸元のワンポイントになっていて、持っているバッグはベストに合わせて黒く、茶色いウェスタンブーツを履いていた
-;	PRINTFORMW 「(私が夢の世界で事前に調べた所、デートには"デートポイント"なるものが存在するらしい)」
-;	PRINTFORMW 「(ステップ１、デートポイントを集めるのよ私っ)」
-;	PRINTFORML 
-;	PRINTFORML デートスタート！！
-;	PRINTFORMW 
-;	PRINTFORML 
-;		SETCOLOR カラー_シアン
-;		PRINTFORML 天気：晴れ　　　　　曜日：木曜　　　　　想い：恋慕
-;		RESETCOLOR
-;	PRINTFORMW 
-;		SETCOLOR カラー_オレンジ
-;		PRINTFORML Emotion [_,.．-ｰ''"´`ｰ-､_ _,.．-ｰ''"´`ｰ-､_ _,.．-]
-;		RESETCOLOR
-;	PRINTFORMW 
-;		SETCOLOR カラー_ピンク
-;		PRINTFORML Love    [♥♥♥♥♥♥♥♥♥♥♥♥♥♥♥♥♥♥♥♥♥♥--------------------]
-;		RESETCOLOR
-;	PRINTFORMW 
-;		SETCOLOR カラー_パ青
-;		PRINTFORML Date    [------------------------------------------]
-;		RESETCOLOR
-;	PRINTFORMW 
-;	PRINTFORML 「(なるほど…これが私のデートポイントね…)」
-;	PRINTFORMW 「(次はステップ２…これは確か…『素敵なファッションを披露しよう』ね……えっ？！)」
-;	PRINTFORML %ANAME(ドレミ)%は%ANAME(MASTER)%の服装をチェックし始めた…
-;	PRINTFORML 「…%ANAME(MASTER)%の服装、普段と違うけど…もしかして」
-;	PRINTFORML 「%ANAME(MASTER)%は今日のデート……気合入れてるのかしら？」
-;	PRINTFORMW 
-;		CALL ASK_YN("はい", "いいえ")
-;		IF RESULT == 0
-;			PRINTFORMW ！！！！！！！！！！！！！
-;			PRINTFORMW 「(やっぱり、%ANAME(MASTER)%はデートのプロって事なのねっ)」
-;			PRINTFORML 「ふふんっ、そうなんだ～。　へぇ～」
-;			PRINTFORMW 驚いたことを隠すように軽口を叩く%ANAME(ドレミ)%
-;		ELSE
-;			PRINTFORMW ！！！！！！！！！！！！！
-;			PRINTFORML 「(なんてことなの！　%ANAME(MASTER)%の服装はいつも高水準ということ！？)」
-;			PRINTFORMW 「(%ANAME(MASTER)%がこんなにお洒落だなんて知らなかったわ…っ)」
-;			PRINTFORML 「ふふんっ、そうなんだ～。　へぇ～」
-;			PRINTFORMW 驚いたことを隠すように軽口を叩く%ANAME(ドレミ)%
-;		ENDIF 
-;	PRINTFORML
-;		SETCOLOR カラー_パ青
-;		PRINTFORML Date    [■■■■■--------------------------------]
-;		RESETCOLOR
-;	PRINTFORML
-;	PRINTFORMW 「(これはなかなかのデートパワーね……でも私も負けられないわ)」
-;	PRINTFORML 「ところで%ANAME(MASTER)%、私の恰好はどう？　お好き？」
-;	PRINTFORMW %ANAME(ドレミ)%はスカートの袖を掴みくるんっと回った
-;	PRINTFORML 
-;	CALL ASK_YN("好きだ", "嫌いだ")
-;		IF RESULT == 0
-;			PRINTFORMW 「ふふっ、ありがと♪(やったっ！)」
-;			PRINTFORMW 「それじゃあ一緒に行きましょ？」
-;			PRINTFORMW %ANAME(ドレミ)%は緊張を抑える為に%ANAME(MASTER)%の腕に抱き着き歩き始めた…
-;		ELSE
-;			PRINTFORMW 「そうですか…(そんな…)」
-;			PRINTFORMW 「(んんっ？　そういえば今日行くお店の向かい側は服屋だったわね…)」
-;			PRINTFORMW 「(まさか…！！！)」
-;			PRINTFORMW 「(服屋で%ANAME(MASTER)%が私の服をチョイスし直して『お前をオレ色に染めてやる』って事！？)」
-;			PRINTFORMW 「(とんでもないデートパワーね…流石ね%ANAME(MASTER)%)」
-;			PRINTFORMW 「それじゃあ後で%ANAME(MASTER)%に服を買って貰おうかしら？」
-;			PRINTFORMW %ANAME(ドレミ)%は緊張を抑える為に%ANAME(MASTER)%の腕に抱き着き歩き始めた…
-;		ENDIF
-;	PRINTFORML 
-;		SETCOLOR カラー_パ青
-;		PRINTFORML Date    [■■■■■■■■■■----------------------]
-;		RESETCOLOR
-;	PRINTFORML
-;	PRINTFORMW 「そうそう、ここのお店」
-;	PRINTFORMW %ANAME(MASTER)%達は街を楽しんだ後、本来の目的だった料理店へやってきた
-;	PRINTFORMW ……………
-;	PRINTFORMW ……
-;	PRINTFORMW 「ふふっ？　おいしいでしょ？」
-;	PRINTFORMW %ANAME(ドレミ)%とコース料理を楽しんでいると、%ANAME(MASTER)%の苦手な料理が運ばれてきた
-;	PRINTFORMW 「おやおや、次はこれですね…」
-;	PRINTFORML %ANAME(ドレミ)%はどうやら%ANAME(MASTER)%が苦手な料理と気付いていないようだが……
-;	PRINTFORML 
-;	CALL ASK_YN("我慢して食べる", "苦手なので食べない")
-;		IF RESULT == 0
-;			PRINTFORML %ANAME(MASTER)%は我慢して一口食べてみた…
-;			PRINTFORMW 反射的に渋い顔になってしまった…
-;			PRINTFORML 「(……？　%ANAME(MASTER)%ったらどうかしてのか…ああぁ！)」
-;			PRINTFORML 「(この料理は確か%ANAME(MASTER)%の苦手だった筈……！)」
-;			PRINTFORMW 「(それなのに…私に気を遣わせない為に我慢して食べてるのね……ここは私が助けなきゃ)」
-;			PRINTFORML 「ねっ、ねぇ%ANAME(MASTER)%。　がっつくようなんだけど…その料理って私の大好物なのよねぇ～」
-;			PRINTFORMW 「だからちょっと多めに貰っても良いかしら？　なんなら全部貰っても良いんだけどハハハ」
-;			PRINTFORMW %ANAME(MASTER)%は料理をすべて%ANAME(ドレミ)%に食べさせた…
-;			PRINTFORML 「(ふぅ…少し焦りましたが、どうやら私達って結構デキるわね♪)」
-;		ELSE
-;			PRINTFORMW %ANAME(MASTER)%はこの料理が苦手であると%ANAME(ドレミ)%にキッパリ告げた
-;			PRINTFORMW 「そうだったの…それはごめんなさい…(やってしまった…彼の好みを忘れてしまうなんて…)」
-;			PRINTFORML 「(…いや違う、これは我慢しないで正直に自分の気持ちを伝えたって事じゃない！)」
-;			PRINTFORMW 「(つまり今後もお互いの気持ちは包み隠さず伝えようって事なのね！)」
-;			PRINTFORML 「ふふっ…」
-;			PRINTFORMW %ANAME(ドレミ)%は%ANAME(MASTER)%の苦手料理を一人で全部食べたが普段よりもおいしく感じたようだ
-;			PRINTFORMW 「(ふぅ…少し焦りましたが、どうやら私達ってイイ感じじゃない♪)」
-;		ENDIF
-;	PRINTFORML 
-;		SETCOLOR カラー_パ青
-;		PRINTFORML Date    [■■■■■■■■■■■■■■■------------]
-;		RESETCOLOR
-;	PRINTFORMW 
-;	PRINTFORML ひとしきりに料理を楽しんだのち%ANAME(MASTER)%達は夜の公園で休んでいた…
-;	PRINTFORMW ガス灯の暖かな光が%ANAME(MASTER)%達の座るベンチを照らし出している
-;	PRINTFORMW 「ふふっ…風が気持ち良い夜ですね」
-;	PRINTFORMW %ANAME(ドレミ)%は%ANAME(MASTER)%の肩に沿って隣に座っている
-;	PRINTFORMW 「……ねぇ%ANAME(MASTER)%、プレゼントがあるの」
-;	PRINTFORMW そう言って%ANAME(ドレミ)%は自身のバックから"何か"を取り出した
-;	PRINTFORML
-;	PRINTFORML ドロドロと絶えず黒い液体が滴るドッジボール程のサイズの球体
-;	PRINTFORMW 半透明な"ソレ"の内側には魚や植物、生物の目のようなものが蠢いている……
-;	PRINTFORMW 恐る恐る謎の物体の正体を訪ねる%ANAME(MASTER)%
-;	PRINTFORMW 「ふふっ、これは"胎児の夢"です」
-;	PRINTFORMW 「しかもこの夢はただの夢じゃありません、この夢はもはや芸術！」
-;	PRINTFORMW 「ありとあらゆる夢の粋を集め熟成した極上の夢…」
-;	PRINTFORMW 「そして夢のマスターシェフである私が調理！」
-;	PRINTFORMW 「さぁ%ANAME(MASTER)%、お食べになってみてください！」
-;	PRINTFORML
-;	CALL ASK_YN("食べる…？", "食べたくない")
-;		IF RESULT == 0
-;			PRINTFORML %ANAME(MASTER)%は夢の塊に手を入れてみた……
-;			PRINTFORML ヌメヌメ…いやドロドロ？　名状しがたい感触がする
-;			PRINTFORMW 手で液体か固体か分からない夢をすくい口に含んだ……
-;			PRINTFORML 味も匂いも特にない…口に入れたものの食感は無い
-;			PRINTFORMW 気になって数回手に取り食べてみたが特に何も感じなかった
-;			PRINTFORML 「気に入って頂けたようですね！」
-;			PRINTFORML 夢を食べる%ANAME(MASTER)%の姿を見て感激する%ANAME(ドレミ)%
-;			PRINTFORMW 「ついに私以外の方にも夢の美味しさが分かって貰えたなんて！」
-;		ELSE
-;			PRINTFORMW 「ふふっ、まぁまぁそう言わずまずは一口」
-;			PRINTFORML %ANAME(ドレミ)%が夢の塊に手を入れ、ドロドロの指を%ANAME(MASTER)%の口へ近付けてきた
-;			PRINTFORMW %ANAME(MASTER)%は意を決し%ANAME(ドレミ)%の指に付着した夢を舐めてみた……
-;			PRINTFORML 味も匂いも特にない…口に入れたものの食感は無い
-;			PRINTFORMW 気になって他の指についた夢も舐めてみたが特に何も感じなかった
-;			PRINTFORML 「気に入って頂けたようですね！」
-;			PRINTFORML 夢を食べる%ANAME(MASTER)%の姿を見て感激する%ANAME(ドレミ)%
-;			PRINTFORMW 「ついに私以外の方にも夢の美味しさが分かって貰えたなんて！」
-;		ENDIF
-;	PRINTFORML 
-;		SETCOLOR カラー_パ青
-;		PRINTFORML Date    [■■■■■■■■■■■■■■■■■■------]
-;		RESETCOLOR
-;	PRINTFORML 
-;	PRINTFORMW 「うわぁっ！！！」
-;	PRINTFORML 
-;		SETCOLOR カラー_パ青
-;		PRINTFORML Date    [■■■■■■■■■■■■■■■■■■■■--]
-;		RESETCOLOR
-;	PRINTFORML 
-;	PRINTFORMW 「これはっ！！！」
-;	PRINTFORML 
-;		SETCOLOR カラー_パ青
-;		PRINTFORML Date    [■■■■■■■■■■■■■■■■■■■■■]
-;		RESETCOLOR
-;	PRINTFORML 
-;	PRINTFORMW 「はぁぁんんっ！！！！！」
-;	PRINTFORML 
-;		SETCOLOR カラー_パ青
-;		PRINTFORML Date    [■■■■■■■■■■■■■■■■■■■■■■■■■■■■
-;		RESETCOLOR
-;	PRINTFORML 
-;	PRINTFORMW
-;	PRINTFORML 
-;		SETCOLOR カラー_パ青
-;		PRINTFORML Date    [■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
-;		RESETCOLOR
-;	PRINTFORML 
-;	PRINTFORMW
-;	PRINTFORML 
-;		SETCOLOR カラー_パ青
-;		PRINTFORML Date    [■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
-;		RESETCOLOR
-;	PRINTFORML 
-;	PRINTFORMW 
-;	PRINTFORMW 
-;	PRINTFORMW 
-;	PRINTFORMW 
-;	PRINTFORML ……………………
-;	PRINTFORML ………
-;	PRINTFORMW …
-;	PRINTFORML %ANAME(MASTER)%
-;	PRINTFORMW これではっきりしたわ…
-;	PRINTFORML 
-;	PRINTFORML 私はもう
-;	PRINTFORMW あなたに夢中なの
-;	PRINTFORML 
-;	PRINTFORML あなたの言うこと
-;	PRINTFORML あなたのやること
-;	PRINTFORMW 何もかも…
-;	PRINTFORML
-;	PRINTFORML 私は……もう……
-;	PRINTFORMW 
-;	PRINTFORML ……………………
-;	PRINTFORML ………
-;	PRINTFORMW …
-;	PRINTFORML 
-;	PRINTFORML 「おやおや、やっとお目覚めになられましたね」
-;	PRINTFORMW 目を覚ますと柔らかい感触が頭に感じられる…どうやら膝枕されているようだ
-;	PRINTFORML 「夜風の気持ち良さでうっかり寝ちゃいましたか？」
-;	PRINTFORML 「フフッ、まさに貴方の槐安は今作られていたようですね」
-;	PRINTFORMW %ANAME(ドレミ)%は落ち着いた様子で%ANAME(MASTER)%の頭を摩っている
-;	PRINTFORML 「もう少しお眠りになりますか？　きっと良い夢が見られますよ」
-;	CALL ASK_YN("寝る", "寝ない")
-;		IF RESULT == 0
-;			PRINTFORMW もう少しこの心地良さを味わいたい
-;			PRINTFORMW %ANAME(MASTER)%はしばらくそのまま寝ることにした
-;			PRINTFORML 「ふふっ……%ANAME(MASTER)%……」
-;		ELSE
-;			PRINTFORMW 寝ても起きても夢心地だ
-;			PRINTFORMW %ANAME(MASTER)%は起きて%ANAME(ドレミ)%の手を取った
-;			PRINTFORML 「では帰りましょうか」
-;		ENDIF
-;	PRINTFORML 
-;	PRINTFORML ……デート終了
-;	CALL COLORPRINT(@"好感度が 200上がった", カラー_注意)
-;	PRINTFORMW
-;	CFLAG:ドレミ:好感度 += 200
-;	KDVAR:ドレミ:ドレミー_デートバトル！ = -1
-;ENDSELECT
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@KOJO_DAILY_K134_DATING_BATTLE_DECISION(対象)
+#DIM 対象
+
+SIF TALENT:対象:恋慕
+	RETURN 0
+
+SIF KDVAR:対象:ドレミー_デートバトル！ == -1
+	RETURN 0
+
+
+;ネトラレミー中は起きない(ないと思うけど)
+SIF KDVAR:対象:ドレミー_ネトラレミー > 0
+	RETURN 0
+
+RETURN CHECK_KOJO_DAILY_HAPPEN(対象, 1, 0, 1)
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@KOJO_DAILY_K134_DATING_BATTLE_GENRE(対象)
+#DIM 対象
+RETURN デイリー_ジャンル_その他
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@KOJO_DAILY_K134_DATING_BATTLE(対象)
+#DIM 対象
+
+SELECTCASE KDVAR:対象:ドレミー_デートバトル！
+	CASE 0
+		PRINTFORML
+		PRINTFORMW 私室で書類仕事をしていると、コンコンと扉からノック音が聞こえた
+		PRINTFORMW 許可を出すと%ANAME(対象)%が部屋に入ってきた
+		PRINTFORMW 仕事を続けながら要件を聞くと%ANAME(対象)%は恐る恐る口を開いた
+		PRINTFORMW 「…その…ですね…」
+		PRINTFORMW 「あの…ですね」
+		PRINTFORMW 妙にそわそわしつつ本題を言い出せないでいる様子である
+		PRINTFORMW 仕方なく仕事を進める手を止め、来客用の椅子に移った…
+		PRINTFORML 
+		PRINTFORMW 「ちっ、近くに美味しい料理のお店が出来たらしいのだけど」
+		PRINTFORMW 「明日…いっしょに……どうですか……？」
+		PRINTFORMW どうやらデートのお誘いのようだ
+		PRINTFORMW どうする？
+		PRINTFORML 
+		CALL ASK_YN("誘いに乗る", "誘いを断る")
+		IF RESULT == 1
+			PRINTFORML 「そうですか……」
+			PRINTFORML 残念ながら今は忙しい
+			PRINTFORMW %ANAME(MASTER)%はやんわりと%ANAME(対象)%の誘いを断った……
+		;断ると以後発生しなくなる
+			KDVAR:対象:ドレミー_デートバトル！ = -1
+		ELSE
+			PRINTFORML 「でっ、ではまた今夜……(やった！)」
+			PRINTFORMW そう言って%ANAME(対象)%は%ANAME(MASTER)%の部屋から去っていった
+			PRINTFORMW ……
+			PRINTFORMW 外から歓喜の声が聞こえた…
+			KDVAR:対象:ドレミー_デートバトル！ = 1
+		ENDIF
+	CASE 1
+		PRINTFORML 
+		PRINTFORMW 今日は%ANAME(対象)%とのデートだ
+		PRINTFORMW 「お待たせ%ANAME(MASTER)%」
+		PRINTFORMW 待ち合わせの場所で暫く待っていると%ANAME(対象)%がやって来た
+		PRINTFORML %ANAME(対象)%はいつもの帽子ではなくグレーのハットをかぶり、Ｉラインの白いフリルのワンピースに黒いベストを羽織っていた
+		PRINTFORMW ネックレスが胸元のワンポイントになっていて、持っているバッグはベストに合わせて黒く、茶色いウェスタンブーツを履いていた
+		PRINTFORMW 「(私が夢の世界で事前に調べた所、デートには"デートポイント"なるものが存在するらしい)」
+		PRINTFORMW 「(ステップ１、デートポイントを集めるのよ私っ)」
+		PRINTFORML 
+		PRINTFORML デートスタート！！
+		PRINTFORMW 
+		PRINTFORML 
+		SETCOLOR カラー_シアン
+		PRINTFORML 天気：晴れ　　　　　曜日：木曜　　　　　想い：恋慕
+		RESETCOLOR
+		PRINTFORMW 
+		SETCOLOR カラー_オレンジ
+		PRINTFORML Emotion [_,.．-ｰ''"´`ｰ-､_ _,.．-ｰ''"´`ｰ-､_ _,.．-]
+		RESETCOLOR
+		PRINTFORMW 
+		SETCOLOR カラー_ピンク
+		PRINTFORML Love    [♥♥♥♥♥♥♥♥♥♥♥♥♥♥♥♥♥♥♥♥♥♥--------------------]
+		RESETCOLOR
+		PRINTFORMW 
+		SETCOLOR カラー_パ青
+		PRINTFORML Date    [------------------------------------------]
+		RESETCOLOR
+		PRINTFORMW 
+		PRINTFORML 「(なるほど…これが私のデートポイントね…)」
+		PRINTFORMW 「(次はステップ２…これは確か…『素敵なファッションを披露しよう』ね……えっ？！)」
+		PRINTFORML %ANAME(対象)%は%ANAME(MASTER)%の服装をチェックし始めた…
+		PRINTFORML 「…%ANAME(MASTER)%の服装、普段と違うけど…もしかして」
+		PRINTFORML 「%ANAME(MASTER)%は今日のデート……気合入れてるのかしら？」
+		PRINTFORMW 
+		CALL ASK_YN("はい", "いいえ")
+		IF RESULT == 0
+			PRINTFORMW ！！！！！！！！！！！！！
+			PRINTFORMW 「(やっぱり、%ANAME(MASTER)%はデートのプロって事なのねっ)」
+			PRINTFORML 「ふふんっ、そうなんだ～。　へぇ～」
+			PRINTFORMW 驚いたことを隠すように軽口を叩く%ANAME(対象)%
+		ELSE
+			PRINTFORMW ！！！！！！！！！！！！！
+			PRINTFORML 「(なんてことなの！　%ANAME(MASTER)%の服装はいつも高水準ということ！？)」
+			PRINTFORMW 「(%ANAME(MASTER)%がこんなにお洒落だなんて知らなかったわ…っ)」
+			PRINTFORML 「ふふんっ、そうなんだ～。　へぇ～」
+			PRINTFORMW 驚いたことを隠すように軽口を叩く%ANAME(対象)%
+		ENDIF 
+		PRINTFORML
+		SETCOLOR カラー_パ青
+		PRINTFORML Date    [■■■■■--------------------------------]
+		RESETCOLOR
+		PRINTFORML
+		PRINTFORMW 「(これはなかなかのデートパワーね……でも私も負けられないわ)」
+		PRINTFORML 「ところで%ANAME(MASTER)%、私の恰好はどう？　お好き？」
+		PRINTFORMW %ANAME(対象)%はスカートの袖を掴みくるんっと回った
+		PRINTFORML 
+		CALL ASK_YN("好きだ", "嫌いだ")
+		IF RESULT == 0
+			PRINTFORMW 「ふふっ、ありがと♪(やったっ！)」
+			PRINTFORMW 「それじゃあ一緒に行きましょ？」
+			PRINTFORMW %ANAME(対象)%は緊張を抑える為に%ANAME(MASTER)%の腕に抱き着き歩き始めた…
+		ELSE
+			PRINTFORMW 「そうですか…(そんな…)」
+			PRINTFORMW 「(んんっ？　そういえば今日行くお店の向かい側は服屋だったわね…)」
+			PRINTFORMW 「(まさか…！！！)」
+			PRINTFORMW 「(服屋で%ANAME(MASTER)%が私の服をチョイスし直して『お前をオレ色に染めてやる』って事！？)」
+			PRINTFORMW 「(とんでもないデートパワーね…流石ね%ANAME(MASTER)%)」
+			PRINTFORMW 「それじゃあ後で%ANAME(MASTER)%に服を買って貰おうかしら？」
+			PRINTFORMW %ANAME(対象)%は緊張を抑える為に%ANAME(MASTER)%の腕に抱き着き歩き始めた…
+		ENDIF
+		PRINTFORML 
+		SETCOLOR カラー_パ青
+		PRINTFORML Date    [■■■■■■■■■■----------------------]
+		RESETCOLOR
+		PRINTFORML
+		PRINTFORMW 「そうそう、ここのお店」
+		PRINTFORMW %ANAME(MASTER)%達は街を楽しんだ後、本来の目的だった料理店へやってきた
+		PRINTFORMW ……………
+		PRINTFORMW ……
+		PRINTFORMW 「ふふっ？　おいしいでしょ？」
+		PRINTFORMW %ANAME(対象)%とコース料理を楽しんでいると、%ANAME(MASTER)%の苦手な料理が運ばれてきた
+		PRINTFORMW 「おやおや、次はこれですね…」
+		PRINTFORML %ANAME(対象)%はどうやら%ANAME(MASTER)%が苦手な料理と気付いていないようだが……
+		PRINTFORML 
+		CALL ASK_YN("我慢して食べる", "苦手なので食べない")
+		IF RESULT == 0
+			PRINTFORML %ANAME(MASTER)%は我慢して一口食べてみた…
+			PRINTFORMW 反射的に渋い顔になってしまった…
+			PRINTFORML 「(……？　%ANAME(MASTER)%ったらどうかしてのか…ああぁ！)」
+			PRINTFORML 「(この料理は確か%ANAME(MASTER)%の苦手だった筈……！)」
+			PRINTFORMW 「(それなのに…私に気を遣わせない為に我慢して食べてるのね……ここは私が助けなきゃ)」
+			PRINTFORML 「ねっ、ねぇ%ANAME(MASTER)%。　がっつくようなんだけど…その料理って私の大好物なのよねぇ～」
+			PRINTFORMW 「だからちょっと多めに貰っても良いかしら？　なんなら全部貰っても良いんだけどハハハ」
+			PRINTFORMW %ANAME(MASTER)%は料理をすべて%ANAME(対象)%に食べさせた…
+			PRINTFORML 「(ふぅ…少し焦りましたが、どうやら私達って結構デキるわね♪)」
+		ELSE
+			PRINTFORMW %ANAME(MASTER)%はこの料理が苦手であると%ANAME(対象)%にキッパリ告げた
+			PRINTFORMW 「そうだったの…それはごめんなさい…(やってしまった…彼の好みを忘れてしまうなんて…)」
+			PRINTFORML 「(…いや違う、これは我慢しないで正直に自分の気持ちを伝えたって事じゃない！)」
+			PRINTFORMW 「(つまり今後もお互いの気持ちは包み隠さず伝えようって事なのね！)」
+			PRINTFORML 「ふふっ…」
+			PRINTFORMW %ANAME(対象)%は%ANAME(MASTER)%の苦手料理を一人で全部食べたが普段よりもおいしく感じたようだ
+			PRINTFORMW 「(ふぅ…少し焦りましたが、どうやら私達ってイイ感じじゃない♪)」
+		ENDIF
+		PRINTFORML 
+		SETCOLOR カラー_パ青
+		PRINTFORML Date    [■■■■■■■■■■■■■■■------------]
+		RESETCOLOR
+		PRINTFORMW 
+		PRINTFORML ひとしきりに料理を楽しんだのち%ANAME(MASTER)%達は夜の公園で休んでいた…
+		PRINTFORMW ガス灯の暖かな光が%ANAME(MASTER)%達の座るベンチを照らし出している
+		PRINTFORMW 「ふふっ…風が気持ち良い夜ですね」
+		PRINTFORMW %ANAME(対象)%は%ANAME(MASTER)%の肩に沿って隣に座っている
+		PRINTFORMW 「……ねぇ%ANAME(MASTER)%、プレゼントがあるの」
+		PRINTFORMW そう言って%ANAME(対象)%は自身のバックから"何か"を取り出した
+		PRINTFORML
+		PRINTFORML ドロドロと絶えず黒い液体が滴るドッジボール程のサイズの球体
+		PRINTFORMW 半透明な"ソレ"の内側には魚や植物、生物の目のようなものが蠢いている……
+		PRINTFORMW 恐る恐る謎の物体の正体を訪ねる%ANAME(MASTER)%
+		PRINTFORMW 「ふふっ、これは"胎児の夢"です」
+		PRINTFORMW 「しかもこの夢はただの夢じゃありません、この夢はもはや芸術！」
+		PRINTFORMW 「ありとあらゆる夢の粋を集め熟成した極上の夢…」
+		PRINTFORMW 「そして夢のマスターシェフである私が調理！」
+		PRINTFORMW 「さぁ%ANAME(MASTER)%、お食べになってみてください！」
+		PRINTFORML
+		CALL ASK_YN("食べる…？", "食べたくない")
+		IF RESULT == 0
+			PRINTFORML %ANAME(MASTER)%は夢の塊に手を入れてみた……
+			PRINTFORML ヌメヌメ…いやドロドロ？　名状しがたい感触がする
+			PRINTFORMW 手で液体か固体か分からない夢をすくい口に含んだ……
+			PRINTFORML 味も匂いも特にない…口に入れたものの食感は無い
+			PRINTFORMW 気になって数回手に取り食べてみたが特に何も感じなかった
+			PRINTFORML 「気に入って頂けたようですね！」
+			PRINTFORML 夢を食べる%ANAME(MASTER)%の姿を見て感激する%ANAME(対象)%
+			PRINTFORMW 「ついに私以外の方にも夢の美味しさが分かって貰えたなんて！」
+		ELSE
+			PRINTFORMW 「ふふっ、まぁまぁそう言わずまずは一口」
+			PRINTFORML %ANAME(対象)%が夢の塊に手を入れ、ドロドロの指を%ANAME(MASTER)%の口へ近付けてきた
+			PRINTFORMW %ANAME(MASTER)%は意を決し%ANAME(対象)%の指に付着した夢を舐めてみた……
+			PRINTFORML 味も匂いも特にない…口に入れたものの食感は無い
+			PRINTFORMW 気になって他の指についた夢も舐めてみたが特に何も感じなかった
+			PRINTFORML 「気に入って頂けたようですね！」
+			PRINTFORML 夢を食べる%ANAME(MASTER)%の姿を見て感激する%ANAME(対象)%
+			PRINTFORMW 「ついに私以外の方にも夢の美味しさが分かって貰えたなんて！」
+		ENDIF
+		PRINTFORML 
+		SETCOLOR カラー_パ青
+		PRINTFORML Date    [■■■■■■■■■■■■■■■■■■------]
+		RESETCOLOR
+		PRINTFORML 
+		PRINTFORMW 「うわぁっ！！！」
+		PRINTFORML 
+		SETCOLOR カラー_パ青
+		PRINTFORML Date    [■■■■■■■■■■■■■■■■■■■■--]
+		RESETCOLOR
+		PRINTFORML 
+		PRINTFORMW 「これはっ！！！」
+		PRINTFORML 
+		SETCOLOR カラー_パ青
+		PRINTFORML Date    [■■■■■■■■■■■■■■■■■■■■■]
+		RESETCOLOR
+		PRINTFORML 
+		PRINTFORMW 「はぁぁんんっ！！！！！」
+		PRINTFORML 
+		SETCOLOR カラー_パ青
+		PRINTFORML Date    [■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+		RESETCOLOR
+		PRINTFORML 
+		PRINTFORMW
+		PRINTFORML 
+		SETCOLOR カラー_パ青
+		PRINTFORML Date    [■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+		RESETCOLOR
+		PRINTFORML 
+		PRINTFORMW
+		PRINTFORML 
+		SETCOLOR カラー_パ青
+		PRINTFORML Date    [■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+		RESETCOLOR
+		PRINTFORML 
+		PRINTFORMW 
+		PRINTFORMW 
+		PRINTFORMW 
+		PRINTFORMW 
+		PRINTFORML ……………………
+		PRINTFORML ………
+		PRINTFORMW …
+		PRINTFORML %ANAME(MASTER)%
+		PRINTFORMW これではっきりしたわ…
+		PRINTFORML 
+		PRINTFORML 私はもう
+		PRINTFORMW あなたに夢中なの
+		PRINTFORML 
+		PRINTFORML あなたの言うこと
+		PRINTFORML あなたのやること
+		PRINTFORMW 何もかも…
+		PRINTFORML
+		PRINTFORML 私は……もう……
+		PRINTFORMW 
+		PRINTFORML ……………………
+		PRINTFORML ………
+		PRINTFORMW …
+		PRINTFORML 
+		PRINTFORML 「おやおや、やっとお目覚めになられましたね」
+		PRINTFORMW 目を覚ますと柔らかい感触が頭に感じられる…どうやら膝枕されているようだ
+		PRINTFORML 「夜風の気持ち良さでうっかり寝ちゃいましたか？」
+		PRINTFORML 「フフッ、まさに貴方の槐安は今作られていたようですね」
+		PRINTFORMW %ANAME(対象)%は落ち着いた様子で%ANAME(MASTER)%の頭を摩っている
+		PRINTFORML 「もう少しお眠りになりますか？　きっと良い夢が見られますよ」
+		CALL ASK_YN("寝る", "寝ない")
+		IF RESULT == 0
+			PRINTFORMW もう少しこの心地良さを味わいたい
+			PRINTFORMW %ANAME(MASTER)%はしばらくそのまま寝ることにした
+			PRINTFORML 「ふふっ……%ANAME(MASTER)%……」
+		ELSE
+			PRINTFORMW 寝ても起きても夢心地だ
+			PRINTFORMW %ANAME(MASTER)%は起きて%ANAME(対象)%の手を取った
+			PRINTFORML 「では帰りましょうか」
+		ENDIF
+		PRINTFORML 
+		PRINTFORML ……デート終了
+		CALL COLORPRINT(@"好感度が 200上がった", カラー_注意)
+		PRINTFORMW
+		CFLAG:対象:好感度 += 200
+		KDVAR:対象:ドレミー_デートバトル！ = -1
+ENDSELECT
+
+
+
+RETURN 1
+
