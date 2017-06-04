@@ -892,22 +892,23 @@ ENDIF
 #DIM 発動キャラ
 #DIM 対象キャラ
 #DIM 発動キャラ素質
-;[五斗米道]による特殊計略
-;FOR LOCAL:0, 0, 3
-;	LOCAL:2 = 発動側:(LOCAL:0)
-;	IF LOCAL:2 >= 0 && TALENT:(LOCAL:2):五斗米道
-;		SETCOLOR カラー_警告
-;		PRINTFORML %ANAME(LOCAL:2)%は<<五斗米道>>の力で自軍の被害を軽減した！
-;		BATTLE_RATE_GRD:(ARG:0) = 70
-;		RESETCOLOR
-;		BREAK
-;	ENDIF
-;NEXT
+#DIM シャッフル保存, MAX_UNIT_COMMANDER
+
 対象側 = !発動側
 
+SIF BATTLE_COMMANDER_NUM:発動側 == 0
+	RETURN 
+
+CALL FISHER_YATES_SHAFFLE(BATTLE_COMMANDER_NUM:発動側)
+
 FOR LOCAL:0, 0, BATTLE_COMMANDER_NUM:発動側
-	発動キャラ = BATTLE_COMMANDER:(発動側):(LOCAL:0)
-	SIF 発動キャラ < 0 || BATTLE_SKILL_SEALED:(発動側):(LOCAL:0) || BATTLE_SUMMONED_CHARA:(発動側):(LOCAL:0)
+	シャッフル保存:LOCAL = SHAFFLE_ARRAY:LOCAL
+NEXT
+
+
+FOR LOCAL:0, 0, BATTLE_COMMANDER_NUM:発動側
+	発動キャラ = BATTLE_COMMANDER:(発動側):(シャッフル保存:LOCAL)
+	SIF 発動キャラ < 0 || BATTLE_SKILL_SEALED:(発動側):(シャッフル保存:LOCAL) || BATTLE_SUMMONED_CHARA:(発動側):(シャッフル保存:LOCAL)
 		CONTINUE
 	CALL SKILL_COMBAT_INVOKE(発動キャラ, LOCAL, スキル_ジャンル_SP, 発動側, 発動勢力, 発動部隊, 対象勢力, 対象部隊)
 NEXT
@@ -932,15 +933,24 @@ NEXT
 #DIM 発動キャラ
 #DIM 対象キャラ
 #DIM 発動キャラ素質
-
+#DIM シャッフル保存, MAX_UNIT_COMMANDER
 VARSET 発動側キャラ, -1
 VARSET 対象側キャラ, -1
 
 対象側 = !発動側
 
+SIF BATTLE_COMMANDER_NUM:発動側 == 0
+	RETURN 
+
+CALL FISHER_YATES_SHAFFLE(BATTLE_COMMANDER_NUM:発動側)
+
 FOR LOCAL:0, 0, BATTLE_COMMANDER_NUM:発動側
-	発動キャラ = BATTLE_COMMANDER:発動側:LOCAL
-	SIF 発動キャラ < 0 || BATTLE_SKILL_SEALED:(発動側):(LOCAL:0) || BATTLE_SUMMONED_CHARA:(発動側):(LOCAL:0)
+	シャッフル保存:LOCAL = SHAFFLE_ARRAY:LOCAL
+NEXT
+
+FOR LOCAL:0, 0, BATTLE_COMMANDER_NUM:発動側
+	発動キャラ = BATTLE_COMMANDER:(発動側):(シャッフル保存:LOCAL)
+	SIF 発動キャラ < 0 || BATTLE_SKILL_SEALED:(発動側):(シャッフル保存:LOCAL) || BATTLE_SUMMONED_CHARA:(発動側):(シャッフル保存:LOCAL)
 		CONTINUE
 	CALL SKILL_COMBAT_INVOKE(発動キャラ, LOCAL, スキル_ジャンル_BASE, 発動側, 発動勢力, 発動部隊, 対象勢力, 対象部隊)
 NEXT
