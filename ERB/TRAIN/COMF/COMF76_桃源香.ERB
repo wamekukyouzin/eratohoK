@@ -25,7 +25,7 @@ SIF RESULT == 0
 	SIF MPLY_NUM <= 0 || MPLY_NUM > 1
 		RETURN 0
 	;ターゲットは最大で1人まで
-	SIF MTAR_NUM <= 0 || MTAR_NUM > 1
+	SIF MTAR_NUM > 1
 		RETURN 0
 	;プレイヤーが行動不能なら不可
 	SIF !IS_PLAYABLE(MPLY:0)
@@ -34,7 +34,7 @@ SIF RESULT == 0
 	SIF ITEM:桃源香 <= 0 && ITEM:A_桃源香 <= 0
 		RETURN 0
 	;既にターゲットが桃源香を使われているなら不可
-	SIF TCVAR:(MTAR:0):68
+	SIF TFLAG:69
 		RETURN 0
 	;プレイヤーが拘束中なら不可
 	SIF IS_BIND(MPLY:0)
@@ -64,46 +64,43 @@ IF ITEM:A_桃源香 <= 0
 ENDIF
 
 
-;●参加者全員の処理
 ;桃源香使用フラグを立てる
-FOR 対象, 0, CHARANUM
-	IF IS_PARTICIPATE_TRAIN(対象)
-		TCVAR:(対象):68 = 1
-	ENDIF
-NEXT
+TFLAG:69 = 1
 
 ;●プレイヤー側の処理
 
 SOURCE:(MPLY:0):逸脱 = 50
 
 
-;●ターゲット側の処理
+IF MTAR_NUM > 0
+	;●ターゲット側の処理
 
-SOURCE:(MTAR:0):逸脱 = 100
+	SOURCE:(MTAR:0):逸脱 = 100
 
-SELECTCASE ABL:(MTAR:0):欲望
-	CASE 0
-		SOURCE:(MTAR:0):反感 = 200
-		SOURCE:(MTAR:0):不安 = 400
-	CASE 1
-		SOURCE:(MTAR:0):反感 = 150
-		SOURCE:(MTAR:0):不安 = 300
-	CASE 2
-		SOURCE:(MTAR:0):反感 = 80
-		SOURCE:(MTAR:0):不安 = 150
-	CASE 3
-		SOURCE:(MTAR:0):反感 = 50
-		SOURCE:(MTAR:0):不安 = 100
-	CASEELSE
-		SOURCE:(MTAR:0):反感 = MAX(30 - (ABL:(MTAR:0):欲望 - 5) * 20, 0)
-		SOURCE:(MTAR:0):不安 = MAX(50 - (ABL:(MTAR:0):欲望 - 5) * 20, 0)
-ENDSELECT
+	SELECTCASE ABL:(MTAR:0):欲望
+		CASE 0
+			SOURCE:(MTAR:0):反感 = 200
+			SOURCE:(MTAR:0):不安 = 400
+		CASE 1
+			SOURCE:(MTAR:0):反感 = 150
+			SOURCE:(MTAR:0):不安 = 300
+		CASE 2
+			SOURCE:(MTAR:0):反感 = 80
+			SOURCE:(MTAR:0):不安 = 150
+		CASE 3
+			SOURCE:(MTAR:0):反感 = 50
+			SOURCE:(MTAR:0):不安 = 100
+		CASEELSE
+			SOURCE:(MTAR:0):反感 = MAX(30 - (ABL:(MTAR:0):欲望 - 5) * 20, 0)
+			SOURCE:(MTAR:0):不安 = MAX(50 - (ABL:(MTAR:0):欲望 - 5) * 20, 0)
+	ENDSELECT
 
-;主導権に応じた優越・屈従のソース追加
-CALL ADD_SOURCE_INITIATIVE_U(MTAR:0, 30, 40)
+	;主導権に応じた優越・屈従のソース追加
+	CALL ADD_SOURCE_INITIATIVE_U(MTAR:0, 30, 40)
 
-;射精箇所と対象をセット
-CALL STACK_SPERM(MPLY:0, MTAR:0, 0)
+	;射精箇所と対象をセット
+	CALL STACK_SPERM(MPLY:0, MTAR:0, 0)
+ENDIF
 
 ;主導度変化基準値
 TFLAG:49 = 1
@@ -155,23 +152,33 @@ RETURN 1
 ;地の文(前文)
 ;-------------------------------------------------
 @COM_TEXT_BEFORE76
+IF MTAR_NUM <= 0
+	PRINTFORMW %ANAME(MPLY:0)%は桃源香の封を解い%TARGET_STR("た", "てきた")%…
+	RETURN
+ENDIF
 SELECTCASE GET_COM_INITIATIVE()
 	;プレイヤーに主導権
 	CASE 0
 		PRINTFORMW %ANAME(MPLY:0)%は桃源香の封を解い%TARGET_STR("た", "てきた")%…
 	;ターゲットに主導権
 	CASE 1
-		PRINTFORML %ANAME(MTAR:0)%は%ANAME(MPLY:0)%に桃源香をように命令した
+		PRINTFORML %ANAME(MTAR:0)%は%ANAME(MPLY:0)%に桃源香を使うように命令した
 		PRINTFORMW %ANAME(MPLY:0)%は言われるまま香炉の封を解いた…
 	;第三者に主導権
 	CASEELSE
 		PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に対して、桃源香を使うように命令した
 		PRINTFORMW %ANAME(MPLY:0)%は言われるまま香炉の封を解いた…
 ENDSELECT
+
 ;-------------------------------------------------
 ;地の文(実行後)
 ;-------------------------------------------------
 @COM_TEXT_AFTER76
+IF MTAR_NUM <= 0
+	PRINTFORML 辺りに充満する妖艶な香りが、その場に居る者の肉体と思考を桃色に染め上げていく…
+	RETURN
+ENDIF
+
 IF MTAR:0 != MASTER
 	IF (TCVAR:(MTAR:0):52) || (TCVAR:(MTAR:0):53 == 1)
 		PRINTFORML 意識を失っているか否かに関わらず、充満する桃色の香りが%ANAME(MTAR:0)%たちの体を熱く火照らせていく…
@@ -185,3 +192,11 @@ IF MTAR:0 != MASTER
 		ENDIF
 	ENDIF
 ENDIF
+
+;-------------------------------------------------
+
+;コマンド区分
+;-------------------------------------------------
+
+@COM_AVAILABLE_WHEN76
+RETURN コマンド_ウフフ

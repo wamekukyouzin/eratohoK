@@ -1,0 +1,396 @@
+﻿;Ａ屈曲位
+
+;-------------------------------------------------
+;コマンド名称
+;-------------------------------------------------
+@COM_NAME49
+LOCALS:0 = Ａ駅弁
+
+RESULTS:0 = %LOCALS:0%で挿入
+RESULTS:1 = %LOCALS:0%で挿入させられる
+RESULTS:2 = %LOCALS:0%で挿入させる
+RESULTS:3 = %LOCALS:0%で挿入される
+RESULTS:4 = %LOCALS:0%で挿入させる
+RESULTS:5 = %LOCALS:0%見せつけ
+
+;-------------------------------------------------
+;選択可否判定
+;-------------------------------------------------
+@COM_ABLE49
+;共通部分
+CALL COM_ABLE_COMMON(49)
+SIF RESULT == 0
+	RETURN 0
+;プレイヤーは最大で1人まで
+SIF MPLY_NUM <= 0 || MPLY_NUM > 1
+	RETURN 0
+;ターゲットは最大で1人まで
+SIF MTAR_NUM <= 0 || MTAR_NUM > 1
+	RETURN 0
+;プレイヤーが行動不能なら不可
+SIF !IS_PLAYABLE(MPLY:0)
+	RETURN 0
+;実行者に竿がなく、ペニスバンド装着中でもないと不可
+SIF !HAS_PENIS(MPLY:0) && !IS_EQUIP_PLAYER((MPLY:0), 50)
+	RETURN 0
+;プレイヤーとターゲットの挿入関係を取得
+LOCAL:0 = IS_INSERT_MUTUAL(MPLY:0, MTAR:0)
+;ターゲットからプレイヤーに挿入中なら不可
+SIF LOCAL:0 == 3 || LOCAL:0 == 4
+	RETURN 0
+;ターゲットのＶが他のキャラの竿で埋まっているなら不可
+SIF IS_INSERT_SINGLE(MTAR:0, "Ｖ") && LOCAL:0 != 1
+	RETURN 0
+;ターゲットのＡがプレイヤーの竿以外で埋まっているなら不可
+SIF IS_A_HOLD(MTAR:0) && LOCAL:0 != 2
+	RETURN 0
+;プレイヤーが顔面騎乗されているなら不可
+SIF IS_RIDDEN(MPLY:0)
+	RETURN 0
+;プレイヤーが顔面騎乗中なら不可
+SIF IS_RIDE(MPLY:0)
+	RETURN 0
+;ターゲットが顔面騎乗中なら不可
+SIF IS_RIDE(MTAR:0)
+	RETURN 0
+;プレイヤーが土下座しているなら不可
+SIF IS_EQUIP_PLAYER(MPLY:0, 110)
+	RETURN 0
+;ターゲットが土下座しているなら不可
+SIF IS_EQUIP_PLAYER(MTAR:0, 110)
+	RETURN 0
+;プレイヤーが拘束中なら不可
+SIF IS_BIND(MPLY:0)
+	RETURN 0
+;プレイヤーが貝合わせ中・双頭バイブ使用中なら不可
+SIF IS_EQUIP_PLAYER(MPLY:0, 21) || IS_EQUIP_TARGET(MPLY:0, 21) || IS_EQUIP_PLAYER(MPLY:0, 22) || IS_EQUIP_TARGET(MPLY:0, 22)
+	RETURN 0
+;プレイヤーが貝合わせ中・双頭バイブ使用中なら不可
+SIF IS_EQUIP_PLAYER(MTAR:0, 21) || IS_EQUIP_TARGET(MTAR:0, 21) || IS_EQUIP_PLAYER(MTAR:0, 22) || IS_EQUIP_TARGET(MTAR:0, 22)
+	RETURN 0
+;ターゲットがプレイヤーにＷ手コキ、Ｔ手コキ中なら不可
+LOCAL:0 = SEARCH_EQUIP(10, MTAR:0, MPLY:0)
+SIF LOCAL:0 >= 0 && MEQUIP_PLAYER_NUM:(LOCAL:0) >= 2
+	RETURN 0
+;プレイヤーが素股・足コキ・尻コキ・イラマ・電気按摩中なら不可
+SIF IS_EQUIP_PLAYER(MPLY:0, 13, 14, 15, 90, 103)
+	RETURN 0
+;プレイヤーがフェラ・パイズリ・素股・足コキ・尻コキ・オナホコキ・電気按摩・触手オナホされているなら不可
+SIF IS_EQUIP_TARGET(MPLY:0, 11, 12, 13, 14, 15, 16, 103, 107, 205)
+	RETURN 0
+;プレイヤーがセルフオナホ中ならダメ
+SIF IS_EQUIP_PLAYER(MPLY:0, 116)
+	RETURN 0
+;ターゲットがクンニされているなら不可
+SIF IS_EQUIP_TARGET(MTAR:0, 2)
+	RETURN 0
+;ターゲットからプレイヤーにイラマ中なら不可
+SIF SEARCH_EQUIP(90, MTAR:0, MPLY:0) >= 0
+	RETURN 0
+;ターゲットからプレイヤーに足舐め中なら不可
+SIF SEARCH_EQUIP(104, MTAR:0, MPLY:0) >= 0
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;メイン処理
+;-------------------------------------------------
+@COM49
+;実行判定
+CALL COM_ORDER_COMMON
+SIF RESULT == 0
+	RETURN 0
+
+;既に挿入中なら現在の体位を取得
+TFLAG:17 = 0
+IF IS_INSERT_MUTUAL(MPLY:0, MTAR:0) == 2
+	SELECTCASE GET_SEX_POSITION(MPLY:0, MTAR:0)
+		CASE 1
+			TFLAG:17 = 1
+		CASE 2
+			TFLAG:17 = 3
+		CASE 3
+			TFLAG:17 = 2
+		CASE 4
+			TFLAG:17 = 3
+		CASE 5
+			TFLAG:17 = 2
+		CASE 6
+			TFLAG:17 = 3
+		CASE 7
+			TFLAG:17 = 3
+		CASE 8
+			TFLAG:17 = 1
+	ENDSELECT
+ENDIF
+IF TFLAG:17 == 0
+	SELECTCASE PREVCOM
+		CASE 40
+			TFLAG:17 = 1
+		CASE 41
+			TFLAG:17 = 3
+		CASE 42
+			TFLAG:17 = 2
+		CASE 43
+			TFLAG:17 = 3
+		CASE 44
+			TFLAG:17 = 2
+		CASE 45
+			TFLAG:17 = 3
+		CASE 47
+			TFLAG:17 = 3
+		CASE 48
+			TFLAG:17 = 1
+	ENDSELECT
+ENDIF
+
+;挿入関係を一時リセット
+CALL CLEAR_INSERT_FLAG(MPLY:0, "Ｐ")
+
+;●プレイヤー側の処理
+DOWNBASE:(MPLY:0):体力 += 160
+
+EXP:(MPLY:0):性技経験値 += 1
+EXP:(MPLY:0):性交経験値 += 2
+
+SOURCE:(MPLY:0):快Ｐ = SENSE_SEX_PLAYER_P(MTAR:0, MPLY:0, 1500)
+SOURCE:(MPLY:0):露出 = 100
+SOURCE:(MPLY:0):性行動 = 240
+
+IF MTAR:0 == MASTER
+	CALL ADD_SOURCE_AIZYOU(MPLY:0, 100)
+ELSEIF MPLY:0 != MASTER
+	SOURCE:(MPLY:0):露出 += 200
+ENDIF
+
+;性交系の共通処理
+CALL COM_COMMON_ASEX_P(MPLY:0, MTAR:0)
+
+;主導権に応じた優越・屈従のソース追加
+CALL ADD_SOURCE_INITIATIVE_U(MPLY:0, 150, 80)
+
+;奉仕経験値を得られるコマンドのフラグ
+TCVAR:(MPLY:0):4 = 1
+
+;●ターゲット側の処理
+DOWNBASE:(MTAR:0):体力 += 140
+
+EXP:(MTAR:0):性技経験値 += 1
+EXP:(MTAR:0):性交経験値 += 2
+
+SOURCE:(MTAR:0):快Ａ = SENSE_SEX_TARGET(MPLY:0, MTAR:0, 1500)
+SOURCE:(MTAR:0):露出 = 200
+SOURCE:(MTAR:0):性行動 = 240
+
+IF MPLY:0 == MASTER
+	CALL ADD_SOURCE_AIZYOU(MTAR:0, 100)
+ELSEIF MTAR:0 != MASTER
+	SOURCE:(MTAR:0):露出 += 200
+ENDIF
+
+;性交系の共通処理
+CALL COM_COMMON_ASEX_A(MTAR:0, MPLY:0)
+
+;主導権に応じた優越・屈従のソース追加
+CALL ADD_SOURCE_INITIATIVE_U(MTAR:0, 150, 100)
+
+;奉仕経験値を得られるコマンドのフラグ
+TCVAR:(MTAR:0):4 = 1
+
+;奴隷のＶ⇔調教者のＰの汚れが移動
+STAIN:(MTAR:0):3 |= STAIN:(MPLY:0):2
+STAIN:(MPLY:0):2 |= STAIN:(MTAR:0):3
+
+;射精箇所と対象をセット(ターゲット側)
+CALL STACK_SPERM(MTAR:0, MPLY:0, 0)
+
+;体位フラグのセット
+TCVAR:(MPLY:0):31 = 1
+TCVAR:(MTAR:0):35 = 1
+
+;主導度変化基準値
+TFLAG:49 = 2
+
+;倒錯度変化基準値
+TFLAG:50 = 3
+
+;レズ・ＢＬ経験基準値
+TFLAG:51 = 4
+
+RETURN 1
+
+;-------------------------------------------------
+;継続コマンドかどうかを設定
+;-------------------------------------------------
+@COM_IS_EQUIP49
+RETURN 1
+
+;-------------------------------------------------
+;継続状態の処理
+;-------------------------------------------------
+@COM_EQUIP49(ARG:0)
+LOCAL:2 = MEQUIP_PLAYER:(ARG:0):0
+LOCAL:3 = MEQUIP_TARGET:(ARG:0):0
+
+;ソースを退避
+CALL PUTOUT_SOURCE(LOCAL:2)
+CALL PUTOUT_SOURCE(LOCAL:3)
+
+DOWNBASE:(LOCAL:2):体力 += 20
+
+EXP:(LOCAL:2):性技経験値 += 1
+EXP:(LOCAL:2):性交経験値 += 1
+
+SOURCE:(LOCAL:2):快Ｐ += SENSE_SEX_PLAYER_P(LOCAL:3, LOCAL:2, 750)
+SOURCE:(LOCAL:2):露出 += 50
+SOURCE:(LOCAL:2):性行動 += 80
+
+;Ａ性交の共通処理
+CALL COM_COMMON_ASEX_P(LOCAL:2, LOCAL:3)
+
+;奉仕経験値を得られるコマンドのフラグ
+TCVAR:(LOCAL:2):4 = 1
+
+;倒錯度変化基準値
+TCVAR:(LOCAL:2):50 += 3
+
+DOWNBASE:(LOCAL:3):体力 += 30
+
+EXP:(LOCAL:3):性技経験値 += 1
+EXP:(LOCAL:3):性交経験値 += 1
+
+SOURCE:(LOCAL:3):快Ａ += SENSE_SEX_TARGET(LOCAL:2, LOCAL:3, 750)
+SOURCE:(LOCAL:3):露出 += 200
+SOURCE:(LOCAL:3):性行動 += 80
+
+;Ａ性交の共通処理
+CALL COM_COMMON_ASEX_A(LOCAL:3, LOCAL:2)
+
+;奉仕経験値を得られるコマンドのフラグ
+TCVAR:(LOCAL:3):4 = 1
+
+;倒錯度変化基準値
+TCVAR:(LOCAL:3):50 += 3
+
+;退避したソースを加算
+CALL SUM_SOURCE(LOCAL:2)
+CALL SUM_SOURCE(LOCAL:3)
+
+;-------------------------------------------------
+;継続中の表示
+;-------------------------------------------------
+@EQUIP_MESSAGE49(ARG:0)
+RESULTS = %EQUIP_PLAYER_ANAME(ARG:0)%が%EQUIP_TARGET_ANAME(ARG:0)%のアナルに駅弁で挿入中
+
+;-------------------------------------------------
+;継続中の地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE_EQUIP49(ARG:0)
+
+SELECTCASE RAND:2
+	CASE 0
+		PRINTFORML %EQUIP_TARGET_ANAME(ARG:0)%の尻穴が%EQUIP_PLAYER_ANAME(ARG:0)%の%BAR_NAME(MEQUIP_PLAYER:(ARG:0):0)%を咥え込んでいる…
+	CASE 1
+		LOCAL:0 = MEQUIP_TARGET:(ARG:0):0
+		;ターゲットが行動不能
+		IF !IS_PLAYABLE(LOCAL:0)
+			PRINTFORML %EQUIP_PLAYER_ANAME(ARG:0)%はぐったりとしている%EQUIP_TARGET_ANAME(ARG:0)%を持ち上げて挿入したまま、さらに激しく腰を動かし尻穴を突いている…
+		ELSE
+			SELECTCASE GET_COM_INITIATIVE()
+				;プレイヤーに主導権
+				CASE 0
+					PRINTFORML %EQUIP_PLAYER_ANAME(ARG:0)%は%EQUIP_TARGET_ANAME(ARG:0)%の尻穴に挿入したまま、さらに激しく腰を動かしている…
+				;ターゲットに主導権
+				CASE 1
+					PRINTFORML %EQUIP_TARGET_ANAME(ARG:0)%は%EQUIP_PLAYER_ANAME(ARG:0)%の腰に足を絡めながら、さらに激しく腰を動かすように要求した
+					PRINTFORML %EQUIP_PLAYER_ANAME(ARG:0)%は%EQUIP_TARGET_ANAME(ARG:0)%に求められるまま、下から何度も腰を打ち付けて%EQUIP_TARGET_ANAME(ARG:0)%の尻穴を突いている…
+				;第三者に主導権
+				CASEELSE
+					PRINTFORML %ANAME(TFLAG:45)%は%EQUIP_TARGET_ANAME(ARG:0)%に駅弁で挿入している%EQUIP_PLAYER_ANAME(ARG:0)%に対し、もっと激しく腰を動かすように命令した
+					PRINTFORML %EQUIP_PLAYER_ANAME(ARG:0)%は言われるがまま、下から激しく何度も%EQUIP_TARGET_ANAME(ARG:0)%の尻穴を突いている…
+			ENDSELECT
+		ENDIF
+ENDSELECT
+
+;-------------------------------------------------
+;継続を解除したときの地の文
+;-------------------------------------------------
+@COM_TEXT_RELEASE_EQUIP49(ARG:0)
+PRINTFORMW %EQUIP_PLAYER_ANAME(ARG:0)%は%EQUIP_TARGET_ANAME(ARG:0)%の尻穴から%BAR_NAME(MEQUIP_PLAYER:(ARG:0):0)%を引き抜いた…
+
+;-------------------------------------------------
+;固有の実行判定(プレイヤー側)
+;-------------------------------------------------
+@COM_ORDER_PLAYER49(ARG:0)
+;実行値の設定
+TCVAR:(ARG:0):25 = 90
+
+;アナルセックス共通
+CALL COM_ORDER_ASEX_P(ARG:0)
+RETURN 1
+
+;-------------------------------------------------
+;地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE49
+IF ABL:(MTAR:0):Ａ感 >= 3
+	LOCALS:0 = 十分に開発されたアナル
+ELSEIF ABL:(MTAR:0):Ａ感 >= 2
+	LOCALS:0 = 開発途上のアナル
+ELSE
+	LOCALS:0 = キツく閉じたアナル
+ENDIF
+
+IF TALENT:(MTAR:0):美尻
+	LOCALS:1 = %STR_BODY("尻：尻肉：長：愛撫：感触", MTAR:0)%を割り開き、
+ELSEIF TALENT:(MTAR:0):豊尻
+	LOCALS:1 = %STR_BODY("尻肉：長", MTAR:0)%をかきわけ、
+ELSE
+	LOCALS:1 = 
+ENDIF
+
+;ペニスバンド装着中
+IF IS_EQUIP_PLAYER((MPLY:0), 50)
+		SELECTCASE GET_COM_INITIATIVE()
+			;プレイヤーに主導権
+			CASE 0
+				PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%を持ち上げると、%LOCALS:1%装着した張り型を%ANAME(MTAR:0)%の%LOCALS:0%に突き入れ%TARGET_STR("た", "てきた")%…
+			;ターゲットに主導権
+			CASE 1
+				PRINTFORMW %ANAME(MTAR:0)%は%ANAME(MPLY:0)%に自らを持ち上げさせ、%LOCALS:1%自身の%LOCALS:0%へと張り型を導いて挿入させた…
+			;第三者に主導権
+			CASEELSE
+				PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に、駅弁で%ANAME(MTAR:0)%の尻穴を犯すように命令した
+				PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%を持ち上げると、%LOCALS:1%装着した張り型を%ANAME(MTAR:0)%の%LOCALS:0%に突き入れた…
+		ENDSELECT
+
+;ペニスバンド不使用
+ELSE
+	SELECTCASE GET_COM_INITIATIVE()
+		;プレイヤーに主導権
+		CASE 0
+			PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%を持ち上げると、%ANAME(MTAR:0)%の%LOCALS:0%にペニスを突き入れ腰を動かし%TARGET_STR("た", "てきた")%…
+		;ターゲットに主導権
+		CASE 1
+			PRINTFORMW  %ANAME(MTAR:0)%は%ANAME(MPLY:0)%に自らを持ち上げさせ、%LOCALS:1%ペニスを自身の%LOCALS:0%へと導いて挿入させた…
+		;第三者に主導権
+		CASEELSE
+			PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に、駅弁で%ANAME(MTAR:0)%の尻穴を犯すように命令した
+			PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%を持ち上げると、%LOCALS:1%ペニスを%ANAME(MTAR:0)%の%LOCALS:0%に突き入れて腰を動かした…
+	ENDSELECT
+ENDIF
+
+;--------------------------------------------------------
+;地の文(パラメータ・刻印変動後)
+;--------------------------------------------------------
+@COM_TEXT_LAST49
+SIF IS_PIERCED(MPLY:0, ピアス_ペニス)
+	PRINTFORML %ANAME(MPLY:0)%のペニスに取り付けられたピアスが、%ANAME(MTAR:0)%のアヌスをごりごりと抉っていく……
+
+;-------------------------------------------------
+
+;コマンド区分
+;-------------------------------------------------
+
+@COM_AVAILABLE_WHEN49
+RETURN コマンド_ウフフ

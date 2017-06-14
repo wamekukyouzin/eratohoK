@@ -1,0 +1,191 @@
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@EVENT_DAILY_TERRITORY_KOUMAKAN_RATE()
+RETURN 50
+
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@EVENT_DAILY_TERRITORY_KOUMAKAN_DECISION()
+#DIM 紅魔館
+#DIM ホフゴブリン
+紅魔館 = GET_CITYNUMBER("紅魔館")
+ホフゴブリン = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:特殊勢力_ホフゴブリン)
+
+SIF 紅魔館 == -1
+	RETURN 0
+SIF CITY_OWNER:紅魔館 != CFLAG:MASTER:所属
+	RETURN 0
+SIF GET_COUNTRY_BOSS(CFLAG:MASTER:所属) == MASTER
+	RETURN 0
+SIF CFLAG:MASTER:所属 == ホフゴブリン
+	RETURN 0
+
+RETURN 1
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@EVENT_DAILY_TERRITORY_KOUMAKAN_GENRE()
+RETURN デイリー_ジャンル_エロ
+
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@EVENT_DAILY_TERRITORY_KOUMAKAN
+#DIM 紅魔館
+紅魔館 = GET_CITYNUMBER("紅魔館")
+
+IF IS_MALE(MASTER)
+	PRINTFORML 紅魔館で働くメイド妖精達の監督指導を命ぜられた
+	PRINTFORML …指導中、一匹の妖精がミスをした
+	SELECTCASE RAND:3
+		CASE 0
+			PRINTFORMW 紅茶を零してカーペットを汚してしまった様だ
+		CASE 1
+			PRINTFORMW 弾幕をぶつけて窓ガラスを割ってしまった様だ
+		CASE 2
+			PRINTFORMW 蛇口を閉め忘れ部屋を水浸しにしてしまった様だ
+	ENDSELECT
+	PRINTFORML どうしよう？
+	CALL ASK_MULTI("優しく指導する" ,"厳しく指導する" ,"お仕置きする")
+	IF RESULT == 0
+		PRINTFORML 誰にでもミスはある
+		PRINTFORMW %ANAME(MASTER)%は落ち込む彼女を慰めながら指導した
+		FOR LOCAL, 0, CHARANUM
+			IF CFLAG:(LOCAL):所属 == CFLAG:MASTER:所属 && !CFLAG:(LOCAL):捕虜先 && !IS_ANIMAL(LOCAL)
+				CFLAG:(LOCAL):好感度 += 20 + RAND:20 
+			ENDIF
+		NEXT
+		CALL COLORPRINT("部下を思いやる態度が知れ渡り仲間の評価が上がった", カラー_注意, "W")
+	ELSEIF RESULT == 1
+		PRINTFORML こんなミスを繰り返させてはならない
+		PRINTFORMW %ANAME(MASTER)%は震える彼女を叱りつけながら指導した
+		LOCAL:1 = (CITY_ECONOMY_LIMIT:(紅魔館) / 100 * 100 / 10 + RAND:1000) / 4
+		IF CITY_ECONOMY:紅魔館 == CITY_ECONOMY_LIMIT:紅魔館
+			CITY_ECONOMY_LIMIT:紅魔館 += LOCAL:1
+			CALL COLORPRINT(@"メイド達の働きが良くなり%CITY_NAME:紅魔館%の経済規模の上限が{LOCAL:1 / 100}上昇し、{CITY_ECONOMY_LIMIT:紅魔館 / 100}になった！", カラー_注意, "W")
+		ELSE
+			SIF CITY_ECONOMY:紅魔館 + LOCAL:1 >= CITY_ECONOMY_LIMIT:紅魔館
+				LOCAL:1 = MIN(LOCAL:1, CITY_ECONOMY_LIMIT:紅魔館 - CITY_ECONOMY:紅魔館)
+			CITY_ECONOMY:紅魔館 += LOCAL:1
+			CALL COLORPRINT(@"メイド達の働きが良くなり%CITY_NAME:紅魔館%の経済規模が{LOCAL:1 / 100}上昇し、{CITY_ECONOMY:紅魔館 / 100}になった！", カラー_注意, "W")
+		ENDIF
+	ELSEIF RESULT == 2
+		PRINTFORML %ANAME(MASTER)%はため息をつきながらしょんぼりする彼女を見る
+		PRINTFORML 妖精にしては生意気にも服の上からでも凹凸のはっきりした体のラインが目についた
+		PRINTFORMW ムラッと来た%ANAME(MASTER)%は彼女にお仕置きをする事にして自室に連れ込んだ
+		PRINTFORML 
+		SELECTCASE RAND:5
+			CASE 0
+				PRINTFORML 妖精メイドが%ANAME(MASTER)%の上で小さな体を大きく揺らして喘いでいる
+				PRINTFORML 彼女は快楽に素直で少し仕込んでやるだけで今では自分から腰を振っている
+				PRINTFORML 膣肉は軽く痙攣しながら竿全体を締め付け、いやらしく精子をおねだりしてきた
+				PRINTFORMW 思わぬ極上の女体に%ANAME(MASTER)%は無責任種付けセックスを存分に楽しませてもらった
+			CASE 1
+				PRINTFORML 彼女は%ANAME(MASTER)%に激しくプレスされながら全身を震わせヨガっている
+				PRINTFORML 先程まで処女だったのに今やすっかり雌に目覚めた彼女は瞳に♥を浮かべ喘ぐ
+				PRINTFORML 快楽に悶える可愛い表情を楽しみながら、彼女の中を奥深くまで蹂躙していった
+				PRINTFORMW %ANAME(MASTER)%は彼女におねだりされるままに飽きるまで何度も精を放ってやった
+			CASE 2
+				PRINTFORML お仕置きを終えた彼女が%ANAME(MASTER)%の腕に抱かれながら息を荒げている
+				PRINTFORML 妖精ゆえか彼女はすぐに快楽にド嵌りし、最後には派手に中イキしていた
+				PRINTFORML 頭を撫でてやるとうっとりとした表情になり%ANAME(MASTER)%に甘える様にすり寄って来た
+				PRINTFORMW %ANAME(MASTER)%がお仕置きの再開を告げると彼女は期待に頬を染めて尻を突き出した
+			CASE 3
+				PRINTFORML %ANAME(MASTER)%は壁際で彼女に尻を突き出させて背後から激しく犯している
+				PRINTFORML 前戯も無しの挿入と乱暴な突き上げに彼女は呻き声を上げながら涙を流す
+				PRINTFORML 許しを請う彼女の表情に嗜虐心を煽られた%ANAME(MASTER)%はより激しくお仕置きを続けた
+				PRINTFORMW たっぷりとお仕置きをした%ANAME(MASTER)%は崩れ落ちた彼女を放置して部屋を出た
+			CASE 4
+				PRINTFORML 彼女を組み伏せた%ANAME(MASTER)%は服を着せたまま乱暴にペニスをねじ込んだ
+				PRINTFORML 泣き喚く彼女を無視しザラザラする膣の感触に夢中になって腰を打ち付ける
+				PRINTFORML 逃れようと身をくねらせる彼女だがそれがかえってペニスに心地よく絡みついた
+				PRINTFORMW 時間を忘れて何度も交わっていると次第に彼女の喉から甘い吐息が漏れていた
+		ENDSELECT
+		CALL FUCK(MASTER, "性技, 性交, Ｃ, 射精", "童貞喪失, キス喪失", 0, "妖精メイドの唇", "", "妖精メイドの膣", 喪失_調教)
+		PRINTFORML 
+		PRINTFORML %ANAME(MASTER)%のお仕置きにより彼女はすっかり一人前のメイド妖精となった
+		PRINTFORMW しかし時折粗相をしては期待を秘めた瞳で%ANAME(MASTER)%を見つめてくるようになった
+	ENDIF
+ELSE
+	PRINTFORML 紅魔館で働くホフゴブリン達の監督指導を命ぜられた
+	PRINTFORML …仕事中、一匹のゴブリンがサボっているのを見つけた
+	PRINTFORMW %ANAME(MASTER)%が叱りつけると彼はご褒美を求めてきた
+	PRINTFORML どうしよう？
+	CALL ASK_MULTI_JUDGE("給料を与える", MONEY >= 1000,"罰を与える", 1,"望むものを聞く", 1)
+	IF RESULT == 0
+		PRINTFORML 望み通り給料を与える約束をした
+		PRINTFORML すると彼は他のゴブリンと同じく熱心に働きだした
+		MONEY -= 1000
+		LOCAL:1 = (CITY_ECONOMY_LIMIT:(紅魔館) / 100 * 100 / 10 + RAND:1000) / 4
+		IF CITY_ECONOMY:紅魔館 == CITY_ECONOMY_LIMIT:紅魔館
+			CITY_ECONOMY_LIMIT:紅魔館 += LOCAL:1
+			CALL COLORPRINT(@"金1000を消費し、%CITY_NAME:紅魔館%の経済規模の上限が{LOCAL:1 / 100}上昇し、{CITY_ECONOMY_LIMIT:紅魔館 / 100}になった！", カラー_注意, "W")
+		ELSE
+			SIF CITY_ECONOMY:紅魔館 + LOCAL:1 >= CITY_ECONOMY_LIMIT:紅魔館
+				LOCAL:1 = MIN(LOCAL:1, CITY_ECONOMY_LIMIT:紅魔館 - CITY_ECONOMY)
+			CITY_ECONOMY:紅魔館 += LOCAL:1
+			CALL COLORPRINT(@"金1000を消費し、%CITY_NAME:紅魔館%の経済規模が{LOCAL:1 / 100}上昇し、{CITY_ECONOMY:紅魔館 / 100}になった！", カラー_注意, "W")
+		ENDIF
+	ELSEIF RESULT == 1
+		PRINTFORMW %ANAME(MASTER)%は厳しい罰を与える事にした
+		CALL COLORPRINT("おやつ抜き！", カラー_警告, "W")
+		PRINTFORMW すると彼は勿論、他のゴブリン達も震えあがって仕事を一層頑張った
+		LOCAL:1 = 3 + 3 * RAND:5
+		CITY_GUARD:紅魔館 = MAX(CITY_GUARD:紅魔館 + LOCAL:1, 1)
+		CALL COLORPRINT(@"%CITY_NAME:紅魔館%の防衛率が{LOCAL:1}上昇した", カラー_注意, "W")
+	ELSEIF RESULT == 2
+		PRINTFORML 望むものを聞いた%ANAME(MASTER)%に対し彼はニヤリと笑った
+		PRINTFORMW %ANAME(MASTER)%は訝しんだが彼は口が上手く、紅魔館の隅にある一室に連れ込まれた
+		PRINTFORML 
+		PRINTFORML 部屋に連れ込まれた%ANAME(MASTER)%はいきなり彼に押し倒されてしまった！
+		PRINTFORML 驚き抵抗する%ANAME(MASTER)%だったが彼のいきりたったペニスを突き出されギョッとした
+		PRINTFORML ペニスから漂う鼻にツンとくる雄臭さに思わず子宮がきゅんと疼いてしまった
+		PRINTFORMW そして抵抗を忘れた隙に服をはぎ取られ、そのままペニスをねじ込まれ悲鳴を上げた
+		PRINTFORML 
+		SELECTCASE RAND:5
+			CASE 0
+				PRINTFORML 体格に似合わぬ凶暴な一物で容赦なく膣肉を抉られ、%ANAME(MASTER)%は白目を剥いて獣の様に喘ぐ
+				PRINTFORML 女の弱点を知り尽くした彼の攻めは耐えきれるものではなくあられもなく身悶えてしまう
+				PRINTFORML 彼が腰を振る度にドスンドスンと子宮を激しく小突かれ脳天まで響く程の快楽に思考が弾ける
+				PRINTFORMW おちんぽ様に屈服した%ANAME(MASTER)%は圧倒的な快楽の波に溺れて徐々に馬鹿になりながらイキ狂った
+			CASE 1
+				PRINTFORML 子宮まで潰す様な雄々しいピストンは一突き毎に%ANAME(MASTER)%の心も体も卑しい雌に変えていく
+				PRINTFORML 全身が痺れて抵抗も出来ないまま何度目かの絶頂と共に濃厚なゴブリン汁が勢いよく放たれる
+				PRINTFORML %ANAME(MASTER)%はお腹の中に注ぎ込まれる灼熱の精液を感じながらアヘアヘとだらしなく舌を垂らした
+				PRINTFORMW 真の女の悦びを覚えてしまった%ANAME(MASTER)%は後はもう犯されるままにただひたすらにイキまくった
+			CASE 2
+				PRINTFORML %ANAME(MASTER)%は彼の強烈な攻めに両足をビクンビクンと跳ねさせながら無様にヨガリ狂っている
+				PRINTFORML ばっちゅ♥ばっちゅ♥とペニスを打ち込まれる度に%ANAME(MASTER)%は豚の様に喘ぎながらアクメ顔を晒す
+				PRINTFORML 小さな子鬼に好き放題身体を弄ばれてしまう屈辱感が官能を刺激しゾクゾクと背筋を震わせた
+				PRINTFORMW どぷどぷどぷと彼のザーメンが胎内に注がれると%ANAME(MASTER)%は嬌声を響かせて最高の悦びに達した
+			CASE 3
+				PRINTFORML 首輪をつけられた%ANAME(MASTER)%は雌犬さながらの四つん這いで激しく犯されながら身悶えている
+				PRINTFORML お尻を叩かれながら子宮までガン突きされ続け%ANAME(MASTER)%の抵抗心は既に快楽で上書きされていた
+				PRINTFORML %ANAME(MASTER)%は"ご主人様"の逞しい肉棒でゴリゴリと卑しい膣穴を抉られながら感謝の声を響かせた
+				PRINTFORMW すっかり立場が逆になってしまった%ANAME(MASTER)%は彼のチンポで立派な雌犬になる様に調教された
+			CASE 4
+				PRINTFORML %ANAME(MASTER)%は容赦ない種付けプレスを受けながら何度目かの膣出しであられもなく喘いでいる
+				PRINTFORML 濃厚なザーメンが胎内の隅々まで染み込んでくる感覚に%ANAME(MASTER)%は意識を飛ばしながら絶頂する
+				PRINTFORML 彼は射精しながらも腰を振り続け絶頂中で敏感な膣肉を抉られた%ANAME(MASTER)%は無様にイキ狂った
+				PRINTFORMW その後も絶倫ちんぽでたっぷりと躾けられた%ANAME(MASTER)%はすっかり彼にメロメロにされてしまった
+		ENDSELECT
+		CALL FUCK(MASTER, "欲望, 奉仕, 性技, 性交, 精愛, Ｃ, Ｖ, Ｂ, Ｍ, Ｖ性交, 口淫", "キス喪失, 処女喪失, 膣内射精, 口内射精", GET_SPERM_ID("ホフゴブリン"), @"ホフゴブリンの\@RAND:2 ? ペニス # 唇\@", "ホフゴブリン", "", 喪失_調教)
+		PRINTFORML 
+		PRINTFORML 彼は満足するまで%ANAME(MASTER)%に種付けしまくった後、とっとと去って行った
+		PRINTFORML 精液の匂いが充満した部屋には痙攣しっぱなしで横たわる%ANAME(MASTER)%が一人残された
+		PRINTFORMW %ANAME(MASTER)%は全身がドロドロに汚されていたにもかかわらずその表情は悦びに満ちていた
+	ENDIF
+ENDIF
+
+RETURN 1

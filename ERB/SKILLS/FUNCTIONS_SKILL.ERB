@@ -127,6 +127,12 @@ TRYCCALLFORM SKILL_{スキルNO}_%SKILL_GENRE_ENG:ジャンル%_{スキルID}_SE
 	ENDIF
 CATCH
 ENDCATCH
+;発動率判定
+CALLFORM SKILL_{スキルNO}_%SKILL_GENRE_ENG:ジャンル%_{スキルID}_RATE
+IF RAND:1000 >= RESULT * BATTLE_SKILL_RATE:発動側:発動番号 / 100
+	RESETCOLOR
+	RETURN 0
+ENDIF
 ;発動判定
 CALLFORM SKILL_{スキルNO}_%SKILL_GENRE_ENG:ジャンル%_{スキルID}_CAN_INVOKE(発動者, 発動番号, 発動側, 発動勢力, 発動部隊, 対象勢力, 対象部隊)
 IF !RESULT
@@ -160,7 +166,7 @@ PRINTFORML %ANAME(発動者)%のスキル「%RESULTS%」発動！
 ;---------------------------------
 ;暗殺の効果用
 ;---------------------------------
-@ASSASINATE(対象側, 対象番号)
+@SKILL_ASSASINATE(対象側, 対象番号)
 #DIM 対象側
 #DIM 対象番号
 BATTLE_武闘:対象側:対象番号 = 0
@@ -176,7 +182,17 @@ BATTLE_知略パワー:対象側:対象番号 = 0
 BATTLE_妖術パワー:対象側:対象番号 = 0
 BATTLE_歌唱パワー:対象側:対象番号 = 0
 BATTLE_料理パワー:対象側:対象番号 = 0
+BATTLE_SKILL_RATE:対象側:対象番号 = 0
 BATTLE_SKILL_SEALED:対象側:対象番号 = 1
+
+;---------------------------------
+;闇討ちの効果用
+;---------------------------------
+@SKILL_SNEAK_ATTACK(対象側, 対象番号)
+#DIM 対象側
+#DIM 対象番号
+TIMES BATTLE_武闘:対象側:対象番号, 0.875
+TIMES BATTLE_防衛:対象側:対象番号, 0.875
 
 ;---------------------------------
 ;召喚系スキル
@@ -206,6 +222,7 @@ FOR LOCAL:0, 0, VARSIZE("BATTLE_COMMANDER", 1)
 	BATTLE_歌唱パワー:発動側:LOCAL = ABL_POWER(BATTLE_歌唱:発動側:LOCAL, BATTLE_COMMANDER:発動側:LOCAL)
 	BATTLE_料理パワー:発動側:LOCAL = ABL_POWER(BATTLE_料理:発動側:LOCAL, BATTLE_COMMANDER:発動側:LOCAL)
 	BATTLE_妖術パワー:発動側:LOCAL = ABL_POWER(BATTLE_妖術:発動側:LOCAL, BATTLE_COMMANDER:発動側:LOCAL)
+	BATTLE_SKILL_RATE:発動側:LOCAL = 0
 	BATTLE_SUMMONED_CHARA:発動側:LOCAL = 1
 	BATTLE_COMMANDER_NUM:発動側 ++
 	RETURN 1
@@ -248,7 +265,7 @@ TRYCALLFORM SKILL_INIT_{対象NO}_GENERAL
 ;---------------------------------
 ;スキルの説明
 ;---------------------------------
-@SKILL_EXPLANATION(ジャンル, スキルNO, スキルID, 説明削減 = 0)
+@SKILL_EXPLANATION(ジャンル, スキルNO, スキルID, 説明削減 = 0, スペース)
 #DIM ジャンル
 #DIM スキルNO
 #DIM スキルID
@@ -258,7 +275,8 @@ TRYCALLFORM SKILL_INIT_{対象NO}_GENERAL
 #DIMS レベル
 #DIMS 説明
 #DIM 説明削減
-
+#DIMS 発動率
+#DIM スペース
 ;描画内容を用意
 アクセサ = SKILL_{スキルNO}_%SKILL_GENRE_ENG:ジャンル%_{スキルID}_
 CALLFORM %アクセサ%NAME
@@ -283,8 +301,17 @@ CALLFORM %アクセサ%EXPLANATION
 スキル名 = %SUBSTRING(スキル名, 0, 20)%
 
 SIF 説明削減
-	説明 = %SUBSTRING(説明, 0, 50)%
-PRINTFORM %スキル名, 21, LEFT%LV%レベル, 3, LEFT%%SKILL_GENRE:ジャンル, 6, LEFT%%キャラ名, MAX_CHARANAME_LENGTH/2, LEFT% %説明%
+	説明 = %SUBSTRING(説明, 0, 80)%
+
+IF ジャンル == スキル_ジャンル_PASSIVE
+	発動率 =  --
+ELSE
+	CALLFORM %アクセサ%RATE
+	発動率 = %DECIMAL_STRING(RESULT, 1)%
+ENDIF
+
+PRINTFORML %スキル名, 21, LEFT%LV%レベル, 3, LEFT% 発動率%発動率, 6, LEFT%%SKILL_GENRE:ジャンル, 6, LEFT%%キャラ名, MAX_CHARANAME_LENGTH/2, LEFT%
+PRINTFORML %TOSTR_SPACE(スペース)%%説明%
 
 
 ;---------------------------------

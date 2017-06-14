@@ -1,0 +1,79 @@
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@KOJO_DAILY_K132_ODANGO_RATE(対象)
+#DIM 対象
+RETURN 50
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@KOJO_DAILY_K132_ODANGO_DECISION(対象)
+#DIM 対象
+
+SIF KDVAR:対象:清蘭_商品開発
+	RETURN 0
+
+SIF GROUPMATCH(MASTER, NAME_TO_CHARA("豊姫"), NAME_TO_CHARA("サグメ"), NAME_TO_CHARA("依姫"), NAME_TO_CHARA("鈴瑚"))
+	RETURN 0
+
+;好感度500が必要
+SIF CFLAG:対象:好感度 < 500
+	RETURN 0
+
+RETURN CHECK_KOJO_DAILY_HAPPEN(対象, 1, 0, 1)
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@KOJO_DAILY_K132_ODANGO_GENRE(対象)
+#DIM 対象
+RETURN デイリー_ジャンル_その他
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@KOJO_DAILY_K132_ODANGO(対象)
+#DIM 対象
+
+PRINTFORMW %ANAME(MASTER)%が仕事をしていると、%ANAME(対象)%が訪ねてきた
+PRINTFORMW 「ねぇ%ANAME(MASTER)%、ちょっと手伝ってくれない？」
+PRINTFORMW どうやら団子屋の新商品を開発しているようだ
+PRINTFORML さて、どうしようか……
+PRINTL
+CALL ASK_YN("付き合う", "今は忙しい")
+
+IF RESULT == 1
+	PRINTFORMW 「あー、そうなの？」
+	PRINTFORMW 「しょうがないわね、一人で何とかしてみるわ」
+	PRINTFORMW %ANAME(対象)%は一人で厨房に向かった……
+ELSE
+	PRINTFORMW 「ほんと！？じゃあさっそく…」
+	PRINTFORMW 二人で厨房に向かった…
+	IF ABL:MASTER:料理 + ABL:対象:料理 < 70
+		PRINTFORMW いいアイディアは出なかった…
+		CALL PRINT_ADD_EXP(MASTER, "料理経験値", RAND(1, 3), 1)
+		CALL PRINT_ADD_EXP(対象, "料理経験値", RAND(1, 3), 1)
+		CALL TRAIN_AUTO_ABLUP(MASTER)
+		CALL TRAIN_AUTO_ABLUP(対象)
+	ELSE
+		PRINTFORMW 商品の開発に成功した！
+		PRINTFORMW 団子はブームになり、領民や士官達がこぞって買い求めた
+		PRINTFORMW 「ありがとう%ANAME(MASTER)%！おかげで大繁盛よ！」
+		PRINTFORMW 清蘭から売り上げの一部を貰った…
+		CALL COLORPRINT(@"金50000を得ました", カラー_注意, "W")
+		MONEY += 50000
+		CALL COLORPRINT(@"%ANAME(対象)%と%ANAME(MASTER)%の料理の腕が上がった", カラー_注意, "W")
+		ABL:MASTER:料理 += 3
+		ABL:対象:料理 += 3
+	ENDIF
+	KDVAR:対象:清蘭_商品開発 = 1
+ENDIF
+
+RETURN 1

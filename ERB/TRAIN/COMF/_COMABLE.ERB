@@ -78,7 +78,7 @@ NEXT
 ;ホモフィルタ
 IF CONFIG:201
 	;尻尾Ａ、フェラ、尻コキ、キス、各種挿入系、イラマの場合、MTARとMPLY両方に男が含まれてると不可
-	IF GROUPMATCH(ARG, 6, 7, 11, 15, 20, 40, 41, 42, 43, 44, 45, 46, 56, 58, 90)
+	IF GROUPMATCH(ARG, 6, 7, 11, 15, 20, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 53, 56, 58, 90, 161)
 		FOR LOCAL:0, 0, MPLY_NUM
 			IF IS_MALE(MPLY:(LOCAL:0))
 				FOR LOCAL:1, 0, MTAR_NUM
@@ -91,58 +91,51 @@ IF CONFIG:201
 	ENDIF
 ENDIF
 
+CALL CHECK_COM_AVAILABLE(ARG:0)
+RETURN RESULT
 
-;共通コマンドは常に可能
-IF ARG >= 550 && ARG <= 599
-	RETURN 1
-ENDIF
+;-------------------------------------------------
+;desc  :状況に応じ、渡されたコマンドが実行可能か判別する
+;param :コマンド:コマンドの番号
+;return:戻り値:実行可能なら1
+;-------------------------------------------------
+@CHECK_COM_AVAILABLE(コマンド)
+#DIM コマンド
+CALLFORM COM_AVAILABLE_WHEN{コマンド}
 
-;子育てモードは子育てコマンドのみ
-IF FLAG:調教モード == 3
-	IF ARG >= 500 && ARG <= 549
+SELECTCASE RESULT
+	CASE コマンド_ウフフ
+		RETURN FLAG:ウフフフラグ
+	CASE コマンド_育児
+		RETURN FLAG:調教モード == 調教_子育て
+	CASE コマンド_日常
+		RETURN !FLAG:ウフフフラグ
+	CASE コマンド_共通
 		RETURN 1
-	ENDIF
-
-;ウフフ中はウフフコマンドのみ
-ELSEIF FLAG:ウフフフラグ
-	IF ARG >= 0 && ARG <= 299
-		RETURN 1
-	ENDIF
-
-;非ウフフ中は日常コマンドのみ
-ELSE
-	IF ARG >= 300 && ARG <= 499
-		RETURN 1
-	ENDIF
-ENDIF
-
+ENDSELECT
 RETURN 0
 
 ;-------------------------------------------------
 ;キャラARG:0にコマンドARG:1の知識を獲得させる(ウフフコマンドのみ 0～299)
 ;-------------------------------------------------
 @SET_COM_KNOWLEDGE(ARG:0, ARG:1)
-IF ARG:1 >= 0 && ARG:1 <= 299
-	CALL CHECK_COM_KNOWLEDGE(ARG:0, ARG:1)
-	IF !RESULT
-		PRINTFORML %ANAME(ARG:0)%は「%TRAINNAME:(ARG:1)%」の知識を得ました
-	ENDIF
-	CFLAG:(ARG:0):(ARG:1 / 60 + 100) |= (1 << (ARG:1 % 60))
+
+CALL CHECK_COM_KNOWLEDGE(ARG:0, ARG:1)
+IF !RESULT
+	PRINTFORML %ANAME(ARG:0)%は「%TRAINNAME:(ARG:1)%」の知識を得ました
 ENDIF
+COM_KNOWLEDGE:(ARG:0):(ARG:1) = 1
+
 
 ;-------------------------------------------------
 ;キャラARG:0がARG:1番のコマンドを主導実行できる知識があるかどうかを判定
 ;実行可能なら1、不可能なら0が返る
 ;-------------------------------------------------
 @CHECK_COM_KNOWLEDGE(ARG:0, ARG:1)
-IF ARG:1 < 0 || ARG:1 > 999
-	RETURN 0
-ELSEIF ARG:1 > 299
-	RETURN 1
-ENDIF
 
-;そのコマンドの知識を持っているならOK
-IF CFLAG:(ARG:0):(ARG:1 / 60 + 100) & (1 << (ARG:1 % 60))
+;そのコマンドの知識を持っている、ないし性知識がコマンドの性知識に達していればOK
+
+IF COM_KNOWLEDGE:(ARG:0):(ARG:1)
 	RETURN 1
 ENDIF
 
