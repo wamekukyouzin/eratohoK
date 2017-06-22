@@ -1,230 +1,255 @@
 ﻿;反乱の構文を独立させました
 ;RETURN 0 説得に成功 1 反乱した 2 何らかの理由で反乱を中止した
-;ARG:0 独立するキャラ
-;ARG:1 奪う都市数 0なら所属勢力の1/3、1以上を指定してかつARG:2が立っていなければ、最大でも離反元の半分に調整される
-;ARG:2 奪取都市数固定フラグ　立てる場合、事前にGET_OWN_CITYなどで離反元の所有都市数が奪取都市数を越えているか確認すること
-@NPC_INDEPENDENCE(ARG:0, ARG:1 = 0, ARG:2 = 0)
+;離反者 独立するキャラ
+;奪取都市数 奪う都市数 0なら所属勢力の1/3、1以上を指定してかつ奪取都市数固定が立っていなければ、最大でも離反元の半分に調整される
+;奪取都市数固定 奪取都市数固定フラグ　立てる場合、事前にGET_OWN_CITYなどで離反元の所有都市数が奪取都市数を越えているか確認すること
+@NPC_INDEPENDENCE(離反者, 奪取都市数 = 0, 奪取都市数固定 = 0)
+#DIM 離反者
+#DIM 奪取都市数
+#DIM 奪取都市数固定
+#DIM 離反元君主
+#DIM 離反元勢力
+#DIM 新勢力
+#DIM 新勢力カラー
+#DIM プレイヤー対応
+#DIM CONST 対応_怒り = 3
+#DIM CONST 対応_拒否 = 2
+#DIM CONST 対応_受諾 = 1
+#DIM CONST 対応_無関係 = 0
+
+#DIM 武将数
+#DIM 奪取武将数
+#DIM 奪取武将
 
 ;捕虜、無所属ならRETURN
-IF CFLAG:(ARG:0):捕虜先 || !IS_COUNTRY(CFLAG:(ARG:0):所属)
+IF CFLAG:(離反者):捕虜先 || !IS_COUNTRY(CFLAG:(離反者):所属)
 	RETURN -1
 ENDIF
+
 ;離反元君主のキャラ番号
-LOCAL:2 = GET_COUNTRY_BOSS(CFLAG:(ARG:0):所属)
+離反元君主 = GET_COUNTRY_BOSS(CFLAG:(離反者):所属)
 ;離反元国家の番号
-LOCAL:3 = CFLAG:(ARG:0):所属
+離反元勢力 = CFLAG:(離反者):所属
 ;新しい勢力を取得
-LOCAL:4 = GET_NEW_COUNTRY()
+新勢力 = GET_NEW_COUNTRY()
 
 ;新勢力が作れない（すでにいっぱい）ならRETURN
-SIF LOCAL:4 == -1
+SIF 新勢力 == -1
 	RETURN -1
 
 ;離反元が都市数2以上であること
-SIF GET_OWN_CITY(LOCAL:3) < 2
+SIF GET_OWN_CITY(離反元勢力) < 2
 	RETURN -1
 
-;ARG:2が立っていなくて、奪取都市数が離反元国家の所有都市数の半分以上なら、半分に調整する
-SIF GET_OWN_CITY(LOCAL:3) / 2 <= ARG:1 && !ARG:2
-	ARG:1 = GET_OWN_CITY(LOCAL:3) / 2
+;奪取都市数固定が立っていなくて、奪取都市数が離反元国家の所有都市数の半分以上なら、半分に調整する
+SIF GET_OWN_CITY(離反元勢力) / 2 <= 奪取都市数 && !奪取都市数固定
+	奪取都市数 = GET_OWN_CITY(離反元勢力) / 2
 
-;ARG:1が立っていない場合、所属勢力の1/3を持って行く（最低1)
-SIF ARG:1 == 0
-	ARG:1 = MAX(GET_OWN_CITY(LOCAL:3) / 3, 1)
+;奪取都市数が立っていない場合、所属勢力の1/3を持って行く（最低1)
+SIF 奪取都市数 == 0
+	奪取都市数 = MAX(GET_OWN_CITY(離反元勢力) / 3, 1)
 
-;ARG:1が離反元国家の所有都市数以上ならやめる
-SIF GET_OWN_CITY(LOCAL:3) <= ARG:1
+;奪取都市数が離反元国家の所有都市数以上ならやめる
+SIF GET_OWN_CITY(離反元勢力) <= 奪取都市数
 	RETURN -1
 
 ;国家色は関数にて自動決定
 
-CALL CHARA_DIPRO_COLOR(CSTR:(ARG:0):99)
-LOCAL:10 = RESULT
+CALL CHARA_DIPRO_COLOR(CSTR:(離反者):99)
+新勢力カラー = RESULT
 
 ;色設定がなかったら髪の色
-SIF LOCAL:10 == 0XFFFFFF
-	LOCAL:10 = TALENT:(ARG:0):髪色
+SIF 新勢力カラー == 0XFFFFFF
+	新勢力カラー = TALENT:(離反者):髪色
 
 ;髪の色すら設定されてなければRETURN
-SIF LOCAL:10 == 0
+SIF 新勢力カラー == 0
 	RETURN -1
 
-COUNTRY_COLOR:(LOCAL:4) = LOCAL:10
+COUNTRY_COLOR:(新勢力) = 新勢力カラー
 
+;プレイヤーの態度をプレイヤー対応に格納
+プレイヤー対応 = 対応_無関係
 
-
-
-;プレイヤーの態度をLOCAL:10に格納
-;出力 0:離反について出奔,1:元君主のもとに留まる,2:説得を行うも失敗
-LOCAL:10 = 1
 ;プレイヤーが離反者の所属国家の君主でなく、かつ離反者の同僚である
-IF LOCAL:2 != MASTER && CFLAG:MASTER:所属 == CFLAG:(ARG:0):所属
-	;それなりに仲が良いと、一緒に来ないかと尋ねられる
-	;汎用化したので、セリフはそれっぽい地の文に置き換え
-	IF CFLAG:(ARG:0):2 >= 300
-		CALL SINGLE_DRAWLINE
-		PRINTFORML ある日、%ANAME(ARG:0)%に急に呼び出された
-		PRINTFORMW 人払いをした彼女の部屋で、%ANAME(ARG:0)%に告げられる
-		PRINTFORML
-		PRINTFORML 自分は%ANAME(LOCAL:2)%から離反しようと考えている。%ANAME(MASTER)%は使えそうだし、是非とも連れて行きたい
-		PRINTFORML いきなりの話だし、主君を裏切るわけだから迷うだろうが、すぐ返事が欲しい
-		PRINTFORMW 答えるまで帰すわけにはいかない。%ANAME(MASTER)%が%ANAME(LOCAL:2)%に密告しないとも限らないからだ……
-		PRINTFORML
-		PRINTFORML えらいことを聞いてしまった。これは、返事をするまで帰れないだろう
-		PRINTFORMW 今後の身の振り方に関わってくることだ、慎重に選ばなくては……
-		CALL ASK_MULTI(@"%ANAME(ARG:0)%につく", @"%ANAME(LOCAL:2)%側に残る", "馬鹿なことはやめろと説得する")
-		IF RESULT == 0
-			CALL CHANGE_COUNTRY(MASTER, LOCAL:4, 1)
-			PRINTFORML お前ならそう言ってくれると思っていた……%ANAME(ARG:0)%は凶悪な笑みをにやりと浮かべてみせた
-			PRINTFORML いっちょやってやろう、%ANAME(ARG:0)%は%ANAME(MASTER)%と固い握手を交わした……
-			PRINTFORMW なんだかえらいことに首を突っ込んでしまった気がする。大丈夫だろうか……
-			LOCAL:10 = 0
-		ELSEIF RESULT == 1
-			PRINTFORMW %ANAME(LOCAL:2)%を裏切るわけにはいかない……そう告げると、%ANAME(ARG:0)%は露骨に失望した表情を浮かべた
-			PRINTFORML それならとっとと出て行け、後悔するな、これから作る国は、お前の国などあっという間に食い尽くす、そのように告げられた
-			PRINTFORML それっきり%ANAME(ARG:0)%はこちらに興味を失ったのか、そっぽを向いてしまった
-			PRINTFORMW ここで%ANAME(MASTER)%に危害を加えるつもりはないようだが、次に会うときは敵同士になるだろう……
-			PRINTL
-			LOCAL:10 = 1
-		ELSEIF RESULT == 2
-			PRINTFORM バカなことはやめろ……
-			;何らかのあなたに対する陥落素質があれば思いとどまる
-			IF (IS_LOVER(ARG:0) || IS_SLAVE(ARG:0))
-				PRINTFORMW %ANAME(MASTER)%が必死に説得すると、%ANAME(ARG:0)%はため息をついた
-				PRINTFORML %ANAME(MASTER)%にそんなことを言われるとは思っていなかった
-				PRINTFORML しかし、%ANAME(MASTER)%の言うことを断りたくはない。仕方がないから今回は我慢する
-				PRINTFORMW その代わりに、自分を色々と満足させてくれると嬉しい……
-				PRINTFORMW どうやら%ANAME(ARG:0)%は離反をあきらめてくれたようだ……
-				RETURN
-			;なければd100が現在の好感度の1/10より大きければキレる
-			ELSEIF RAND:100 > CFLAG:(ARG:0):2 / 10
-				PRINTFORMW %ANAME(MASTER)%が必死に説得すると、%ANAME(ARG:0)%は逆上した
-				PRINTFORML なんでお前にそんなことを言われなくてはならないのか
-				PRINTFORML そういうことなら%ANAME(MASTER)%は必要ない。自分が巻き起こす旋風に巻き込まれて消えてしまえばいい
-				PRINTFORMW 出て行け、自分の前から消えろ……
-				PRINTFORML そう言って怒りを収めることなく%ANAME(ARG:0)%はあなたを部屋から追い出した
-				PRINTFORMW 次に%ANAME(ARG:0)%と出会うのは戦場か、それとも……
-				PRINTL
-				LOCAL:10 = 2
-			;そうでなければ普通に別れる、なお台詞はコピペのままで終わらせたくなかったのでちょこちょこ変えてみた
-			ELSE
-				PRINTFORMW %ANAME(MASTER)%が必死に説得すると、%ANAME(ARG:0)%は嫌悪の表情を浮かべた
-				PRINTFORML こっちにつくつもりがないなら、出て行ってくれ
-				PRINTFORMW %ANAME(MASTER)%が%ANAME(LOCAL:2)%にご執心なのは分かった。今のうちにせいぜい乳繰り合っているがいい……
-				PRINTFORMW 違う、そう反論しようとするよりも早く%ANAME(ARG:0)%は言葉を続けた
-				PRINTFORMW すぐに自分の国が、色ボケしている%ANAME(LOCAL:2)%もろともお前たちを滅ぼすだろう……
-				PRINTFORML 怒りの表情を隠さない%ANAME(ARG:0)%の姿を背に、%ANAME(MASTER)%は部屋から出て行った
-				PRINTFORMW %ANAME(MASTER)%と刃を交えるとき、お互いどのような顔をしているのだろうか……
-				PRINTL
-				LOCAL:10 = 1
-			ENDIF
-		ENDIF
-	ENDIF
+IF 離反元君主 != MASTER && CFLAG:MASTER:所属 == CFLAG:(離反者):所属
+	CALL NPC_INDEPENDENCE_EVENT(離反者, 離反元君主, 新勢力)
+	SIF RESULT == 0
+		RETURN
+	プレイヤー対応 = RESULT
 ENDIF
+
+
 CALL SINGLE_DRAWLINE
+CALL COLORPRINT(@"%NAME_FORMAL(離反者)%が挙兵し、%NAME_FORMAL(離反元君主)%の勢力から独立しました！", カラー_警告, "W")
 
-SETCOLOR カラー_警告
-PRINTFORMW ！%NAME_FORMAL(ARG:0)%が挙兵し、%NAME_FORMAL(LOCAL:2)%の勢力から独立しました！
-RESETCOLOR
-WAIT
-
-COUNTRY_BOSS:(LOCAL:4) = GET_ID(ARG:0)
-CALL CHANGE_COUNTRY(ARG:0, LOCAL:4, 1)
+COUNTRY_BOSS:(新勢力) = GET_ID(離反者)
+CALL CHANGE_COUNTRY(離反者, 新勢力, 1)
 	;離反元勢力の都市の守将を解除
 FOR LOCAL:0, 0, MAX_CITY
-	IF CITY_OWNER:(LOCAL:0) == LOCAL:3
+	IF CITY_OWNER:(LOCAL:0) == 離反元勢力
 		CITY_COMMANDER:(LOCAL:0) = 0
 	ENDIF
 NEXT
 ;都市をかすめ取る
-CALL STEAL_CITIES(LOCAL:3, LOCAL:4, ARG:1)
+CALL STEAL_CITIES(離反元勢力, 新勢力, 奪取都市数)
 
-;離反元所属武将の一部をかすめ取る処理。
-;LOCAL 1:離反者 , 2:離反元勢力君主 , 3:離反元勢力 , 5:離反元の未陥落者数 , 6:離反元の陥落済人数（プレイヤーが離反元勢力にいなければ5に併合）
-;      7:離反元から引きぬく人数 , 10:離反勧誘の返答
-;
-LOCAL:5 = 0
-LOCAL:6 = 0
-;所属武将の数を調べる
+;武将数をカウントする
+武将数 = 0
 FOR LOCAL:0, 0, CHARANUM
-	;離反元所属で、捕虜でなく、プレイヤーでも離反者でも君主でないキャラ
-	IF CFLAG:(LOCAL:0):所属 == LOCAL:3 && CFLAG:(LOCAL:0):9 == 0 && !GROUPMATCH(LOCAL:0 , MASTER , ARG:0 , LOCAL:2)
-	;DEBUGPRINTFORML CHARAMATCH:{LOCAL:0}
-		;イベントキャラは除外
-		IF IS_SP_CHARA(LOCAL:0)
-			CONTINUE
+	;離反元所属でないとだめ
+	SIF CFLAG:(LOCAL:0):所属 != 離反元勢力
+		CONTINUE
+	;捕虜ならだめ
+	SIF CFLAG:(LOCAL:0):捕虜先
+		CONTINUE
+	;主人公、離反者、君主はだめ
+	SIF GROUPMATCH(LOCAL:0, MASTER, 離反者, 離反元君主)
+		CONTINUE
+	;特殊キャラもダメ
+	SIF IS_SP_CHARA(LOCAL:0)
+		CONTINUE
+	武将数 ++
+NEXT
+
+SIF 武将数 <= 0
+	GOTO STEAL_COMMANDER_END
+
+;25～50%の武将を奪う。最大10
+奪取武将数 = MIN(武将数 * RAND(25, 50) / 100, 10)
+CALL FISHER_YATES_SAFFLE(CHARANUM)
+FOR LOCAL, 0, CHARANUM
+	SIF 奪取武将数 == 0
+		BREAK
+	奪取武将 = SHAFFLE_ARRAY:LOCAL
+	;離反元所属でないとだめ
+	SIF CFLAG:(奪取武将):所属 != 離反元勢力
+		CONTINUE
+	;捕虜ならだめ
+	SIF CFLAG:(奪取武将):捕虜先
+		CONTINUE
+	;主人公、離反者、君主はだめ
+	SIF GROUPMATCH(奪取武将, MASTER, 離反者, 離反元君主)
+		CONTINUE
+	;特殊キャラもダメ
+	SIF IS_SP_CHARA(奪取武将)
+		CONTINUE
+	;プレイヤーがかかわる場合の陥落済みキャラの扱い
+	IF (IS_LOVER(奪取武将) || IS_SLAVE(奪取武将)) && プレイヤー対応 != 対応_無関係
+		;裏切る場合、陥落済みキャラはついてくる
+		IF プレイヤー対応 == 対応_受諾
+			CALL CHANGE_COUNTRY(奪取武将, 新勢力, 1)
+			奪取武将数 --
+		;怒らせた場合は拉致してくる
+		ELSEIF プレイヤー対応 == 対応_怒り
+			CALL CAPTURE(奪取武将, 新勢力)
+			奪取武将数 --
 		ENDIF
-		;恋慕系か隷属系でないなら組み込み、恋慕なら拉致、プレイヤーのいない勢力では組み込み
-		;(陥落済かつ「離反に同調」か「離反せず離反元に残る」)
-		IF (IS_LOVER(LOCAL:0) || IS_SLAVE(LOCAL:0) || TALENT:(LOCAL:0):親友) && (!LOCAL:10 || (LOCAL:10 && CFLAG:MASTER:所属 == LOCAL:3))
-			LOCAL:6 ++
+		;拒否した場合はなにもしてこない
+	;1/2の確率で同調OR拉致
+	ELSEIF RAND:2
+		IF REL_LIKE:奪取武将:離反元君主 - REL_HATE:奪取武将:離反元君主 > 0
+			CALL CAPTURE(奪取武将, 新勢力)
 		ELSE
-			LOCAL:5 ++
+			CALL CHANGE_COUNTRY(奪取武将, 新勢力, 1)
 		ENDIF
+		奪取武将数 --
 	ENDIF
 NEXT
-;DEBUGPRINTFORML PICK :{LOCAL:5}
-;DEBUGPRINTFORML STEAL:{LOCAL:6}
 
-;引き抜き・拉致対象武将が0より大きいなら、ループ回しながらランダムにもっていく
-;拉致は多くて1/3まで。ただしいずれも候補が一人以上いるなら最低一人は持っていく可能性がある
-IF LOCAL:5 > 0 || LOCAL:6 > 0
-	LOCAL:5 = LOCAL:5 ? MAX(LOCAL:5 / 3 , 1) # 0
-	;あなたが裏切るなら恋慕・隷属は全員付いてくる
-	IF LOCAL:10 == 1
-		LOCAL:6 = LOCAL:6 ? MAX(RAND:(LOCAL:6 + 1) / 3 , 1) # 0
-	;怒らせると陥落済の人を余分に拉致して行きます。これは後でおしおきですね
-	ELSEIF LOCAL:10 == 2
-		LOCAL:6 = LOCAL:6 ? MAX(RAND:(LOCAL:6 + 1) * 2 / 3 , 1) # 0
-	ENDIF
-	;LOCAL:7に引抜き及び拉致する人数を合計しておき、合計人数が75％以上（残選択数が25％以下）であればそこで諦める
-	LOCAL:7 = LOCAL:5 + LOCAL:6
-	;最大周回を5回に設定
-	LOCAL:11 = 5
-	WHILE (100 - ((LOCAL:5 + LOCAL:6) * 100 / LOCAL:7) < 75 && LOCAL:11 > 0)
-		;判定するキャラ順をシャッフル、再挑戦するたびに順番は変わります
-		CALL FISHER_YATES_SHAFFLE(CHARANUM)
-		FOR LOCAL:99, 0, CHARANUM
-			LOCAL:0 = SHAFFLE_ARRAY:(LOCAL:99)
-			;離反元所属で、捕虜でなく、プレイヤーでも離反者でも君主でないキャラ
-			IF CFLAG:(LOCAL:0):所属 == LOCAL:3 && CFLAG:(LOCAL:0):9 == 0 && !GROUPMATCH(LOCAL:0 , MASTER , ARG:0 , LOCAL:2)
-				;陥落済かつ「離反に同調」か「離反せず離反元に残る」ではないなら1/2で引き抜かれる
-				IF !((IS_LOVER(LOCAL:0) || IS_SLAVE(LOCAL:0) || TALENT:(LOCAL:0):親友) && (!LOCAL:10 || (LOCAL:10 && CFLAG:MASTER:所属 == LOCAL:3))) && RAND:2 == 0  && LOCAL:5 > 0
-					CALL CHANGE_COUNTRY(LOCAL:0, LOCAL:4, 1)
-					LOCAL:5 --
-				;離反せず離反元に残るなら陥落済みキャラは1/2で拉致される
-				ELSEIF RAND:2 == 0 && (IS_LOVER(LOCAL:0) || IS_SLAVE(LOCAL:0) || TALENT:(LOCAL:0):親友) && LOCAL:6 > 0 && INRANGE(LOCAL:10 , 1 , 2)
-					CFLAG:(LOCAL:0):9 = LOCAL:4
-					LOCAL:6 --
-				;離反に同調すれば陥落済キャラは同行
-				ELSEIF (IS_LOVER(LOCAL:0) || IS_SLAVE(LOCAL:0) || TALENT:(LOCAL:0):親友) && LOCAL:6 > 0 && LOCAL:10 == 0
-					CALL CHANGE_COUNTRY(LOCAL:0, LOCAL:4, 1)
-					LOCAL:6 --
-				ENDIF
-			ENDIF
-		NEXT
-		LOCAL:11 --
-	WEND
-ENDIF
+$STEAL_COMMANDER_END
+
 ;離反元勢力の部隊を解散
-CALL CLEAR_ALL_UNIT(LOCAL:3, 1)
+CALL CLEAR_ALL_UNIT(離反元勢力, 1)
 ;仲はまぁ、悪くもなりますわな
-CALL CHANGE_RELATION_C_TO_C(LOCAL:3, LOCAL:4, -200, 600)
-CALL CHANGE_RELATION_C_TO_C(LOCAL:4, LOCAL:3, -200, 600)
+CALL CHANGE_RELATION_C_TO_C(離反元勢力, 新勢力, -200, 600)
+CALL CHANGE_RELATION_C_TO_C(新勢力, 離反元勢力, -200, 600)
 
 ;反乱勢力の都市を表示
 FOR LOCAL:0, 0, MAX_CITY
-	IF CITY_OWNER:(LOCAL:0) == LOCAL:4
-		PRINTFORML %GET_CITYNAME(LOCAL:0)%が%ANAME(ARG:0)%の支配下におかれました
+	IF CITY_OWNER:(LOCAL:0) == 新勢力
+		PRINTFORML %GET_CITYNAME(LOCAL:0)%が%ANAME(離反者)%の支配下におかれました
 	ENDIF
 NEXT
 ;反乱勢力に流れた人材
 FOR LOCAL:0, 0, CHARANUM
-	IF CFLAG:(LOCAL:0):所属 == LOCAL:4 && LOCAL:0 != ARG:0
-		PRINTFORML %ANAME(LOCAL:0)%が%ANAME(ARG:0)%の下につきました
-	ELSEIF CFLAG:(LOCAL:0):9 == LOCAL:4
+	IF CFLAG:(LOCAL:0):所属 == 新勢力 && LOCAL:0 != 離反者
+		PRINTFORML %ANAME(LOCAL:0)%が%ANAME(離反者)%の下につきました
+	ELSEIF CFLAG:(LOCAL:0):9 == 新勢力
 		SETCOLOR カラー_警告
-		PRINTFORML %ANAME(LOCAL:0)%が%ANAME(ARG:0)%に拉致されました
+		PRINTFORML %ANAME(LOCAL:0)%が%ANAME(離反者)%に拉致されました
 		RESETCOLOR
 	ENDIF
 NEXT
+
+
+@NPC_INDEPENDENCE_EVENT(離反者, 離反元君主, 新勢力)
+#DIM 離反者
+#DIM 離反元君主
+#DIM 新勢力
+#DIM CONST 対応_怒り = 3
+#DIM CONST 対応_拒否 = 2
+#DIM CONST 対応_受諾 = 1
+#DIM CONST 対応_無関係 = 0
+
+;それなりに仲が良いと、一緒に来ないかと尋ねられる
+;汎用化したので、セリフはそれっぽい地の文に置き換え
+IF CFLAG:(離反者):好感度 >= 300
+	CALL SINGLE_DRAWLINE
+	PRINTFORML ある日、%ANAME(離反者)%に急に呼び出された
+	PRINTFORMW 人払いをした彼女の部屋で、%ANAME(離反者)%に告げられる
+	PRINTFORML
+	PRINTFORML 自分は%ANAME(離反元君主)%から離反しようと考えている。%ANAME(MASTER)%は使えそうだし、是非とも連れて行きたい
+	PRINTFORML いきなりの話だし、主君を裏切るわけだから迷うだろうが、すぐ返事が欲しい
+	PRINTFORMW 答えるまで帰すわけにはいかない。%ANAME(MASTER)%が%ANAME(離反元君主)%に密告しないとも限らないからだ……
+	PRINTFORML
+	PRINTFORML えらいことを聞いてしまった。これは、返事をするまで帰れないだろう
+	PRINTFORMW 今後の身の振り方に関わってくることだ、慎重に選ばなくては……
+	CALL ASK_MULTI(@"%ANAME(離反者)%につく", @"%ANAME(離反元君主)%側に残る", "馬鹿なことはやめろと説得する")
+	IF RESULT == 0
+		CALL CHANGE_COUNTRY(MASTER, 新勢力, 1)
+		PRINTFORML お前ならそう言ってくれると思っていた……%ANAME(離反者)%は凶悪な笑みをにやりと浮かべてみせた
+		PRINTFORML いっちょやってやろう、%ANAME(離反者)%は%ANAME(MASTER)%と固い握手を交わした……
+		PRINTFORMW なんだかえらいことに首を突っ込んでしまった気がする。大丈夫だろうか……
+		RETURN 対応_受諾
+	ELSEIF RESULT == 1
+		PRINTFORMW %ANAME(離反元君主)%を裏切るわけにはいかない……そう告げると、%ANAME(離反者)%は露骨に失望した表情を浮かべた
+		PRINTFORML それならとっとと出て行け、後悔するな、これから作る国は、お前の国などあっという間に食い尽くす、そのように告げられた
+		PRINTFORML それっきり%ANAME(離反者)%はこちらに興味を失ったのか、そっぽを向いてしまった
+		PRINTFORMW ここで%ANAME(MASTER)%に危害を加えるつもりはないようだが、次に会うときは敵同士になるだろう……
+		PRINTL
+		RETURN 対応_拒否
+	ELSEIF RESULT == 2
+		PRINTFORM バカなことはやめろ……
+		;何らかのあなたに対する陥落素質があれば思いとどまる
+		IF (IS_LOVER(離反者) || IS_SLAVE(離反者))
+			PRINTFORMW %ANAME(MASTER)%が必死に説得すると、%ANAME(離反者)%はため息をついた
+			PRINTFORML %ANAME(MASTER)%にそんなことを言われるとは思っていなかった
+			PRINTFORML しかし、%ANAME(MASTER)%の言うことを断りたくはない。仕方がないから今回は我慢する
+			PRINTFORMW その代わりに、自分を色々と満足させてくれると嬉しい……
+			PRINTFORMW どうやら%ANAME(離反者)%は離反をあきらめてくれたようだ……
+			RETURN
+		;なければd100が現在の好感度の1/10より大きければキレる
+		ELSEIF RAND:100 > CFLAG:(離反者):好感度 / 10
+			PRINTFORMW %ANAME(MASTER)%が必死に説得すると、%ANAME(離反者)%は逆上した
+			PRINTFORML なんでお前にそんなことを言われなくてはならないのか
+			PRINTFORML そういうことなら%ANAME(MASTER)%は必要ない。自分が巻き起こす旋風に巻き込まれて消えてしまえばいい
+			PRINTFORMW 出て行け、自分の前から消えろ……
+			PRINTFORML そう言って怒りを収めることなく%ANAME(離反者)%はあなたを部屋から追い出した
+			PRINTFORMW 次に%ANAME(離反者)%と出会うのは戦場か、それとも……
+			PRINTL
+			RETURN 対応_怒り
+		;そうでなければ普通に別れる、なお台詞はコピペのままで終わらせたくなかったのでちょこちょこ変えてみた
+		ELSE
+			PRINTFORMW %ANAME(MASTER)%が必死に説得すると、%ANAME(離反者)%は嫌悪の表情を浮かべた
+			PRINTFORML こっちにつくつもりがないなら、出て行ってくれ
+			PRINTFORMW %ANAME(MASTER)%が%ANAME(離反元君主)%にご執心なのは分かった。今のうちにせいぜい乳繰り合っているがいい……
+			PRINTFORMW 違う、そう反論しようとするよりも早く%ANAME(離反者)%は言葉を続けた
+			PRINTFORMW すぐに自分の国が、色ボケしている%ANAME(離反元君主)%もろともお前たちを滅ぼすだろう……
+			PRINTFORML 怒りの表情を隠さない%ANAME(離反者)%の姿を背に、%ANAME(MASTER)%は部屋から出て行った
+			PRINTFORMW %ANAME(MASTER)%と刃を交えるとき、お互いどのような顔をしているのだろうか……
+			PRINTL
+			RETURN 対応_拒否
+		ENDIF
+	ENDIF
+ENDIF
