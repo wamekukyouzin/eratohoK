@@ -62,9 +62,7 @@ CALL CHARA_DIPRO_COLOR(CSTR:(離反者):99)
 SIF 新勢力カラー == 0XFFFFFF
 	新勢力カラー = TALENT:(離反者):髪色
 
-;髪の色すら設定されてなければRETURN
-SIF 新勢力カラー == 0
-	RETURN -1
+新勢力カラー = RAND:255 << 16 + RAND:255 << 8 + RAND:255
 
 COUNTRY_COLOR:(新勢力) = 新勢力カラー
 
@@ -74,7 +72,7 @@ COUNTRY_COLOR:(新勢力) = 新勢力カラー
 ;プレイヤーが離反者の所属国家の君主でなく、かつ離反者の同僚である
 IF 離反元君主 != MASTER && CFLAG:MASTER:所属 == CFLAG:(離反者):所属
 	CALL NPC_INDEPENDENCE_EVENT(離反者, 離反元君主, 新勢力)
-	SIF RESULT == 0
+	SIF RESULT == -1
 		RETURN
 	プレイヤー対応 = RESULT
 ENDIF
@@ -192,64 +190,65 @@ NEXT
 #DIM CONST 対応_受諾 = 1
 #DIM CONST 対応_無関係 = 0
 
+SIF CFLAG:離反者:好感度 <= 300
+	RETURN 0
+
 ;それなりに仲が良いと、一緒に来ないかと尋ねられる
-;汎用化したので、セリフはそれっぽい地の文に置き換え
-IF CFLAG:(離反者):好感度 >= 300
-	CALL SINGLE_DRAWLINE
-	PRINTFORML ある日、%ANAME(離反者)%に急に呼び出された
-	PRINTFORMW 人払いをした彼女の部屋で、%ANAME(離反者)%に告げられる
-	PRINTFORML
-	PRINTFORML 自分は%ANAME(離反元君主)%から離反しようと考えている。%ANAME(MASTER)%は使えそうだし、是非とも連れて行きたい
-	PRINTFORML いきなりの話だし、主君を裏切るわけだから迷うだろうが、すぐ返事が欲しい
-	PRINTFORMW 答えるまで帰すわけにはいかない。%ANAME(MASTER)%が%ANAME(離反元君主)%に密告しないとも限らないからだ……
-	PRINTFORML
-	PRINTFORML えらいことを聞いてしまった。これは、返事をするまで帰れないだろう
-	PRINTFORMW 今後の身の振り方に関わってくることだ、慎重に選ばなくては……
-	CALL ASK_MULTI(@"%ANAME(離反者)%につく", @"%ANAME(離反元君主)%側に残る", "馬鹿なことはやめろと説得する")
-	IF RESULT == 0
-		CALL CHANGE_COUNTRY(MASTER, 新勢力, 1)
-		PRINTFORML お前ならそう言ってくれると思っていた……%ANAME(離反者)%は凶悪な笑みをにやりと浮かべてみせた
-		PRINTFORML いっちょやってやろう、%ANAME(離反者)%は%ANAME(MASTER)%と固い握手を交わした……
-		PRINTFORMW なんだかえらいことに首を突っ込んでしまった気がする。大丈夫だろうか……
-		RETURN 対応_受諾
-	ELSEIF RESULT == 1
-		PRINTFORMW %ANAME(離反元君主)%を裏切るわけにはいかない……そう告げると、%ANAME(離反者)%は露骨に失望した表情を浮かべた
-		PRINTFORML それならとっとと出て行け、後悔するな、これから作る国は、お前の国などあっという間に食い尽くす、そのように告げられた
-		PRINTFORML それっきり%ANAME(離反者)%はこちらに興味を失ったのか、そっぽを向いてしまった
-		PRINTFORMW ここで%ANAME(MASTER)%に危害を加えるつもりはないようだが、次に会うときは敵同士になるだろう……
+
+CALL SINGLE_DRAWLINE
+PRINTFORML ある日、%ANAME(離反者)%に急に呼び出された
+PRINTFORMW 人払いをした%PRONOUN(離反者)%の部屋で、%ANAME(離反者)%に告げられる
+PRINTFORML
+PRINTFORML 自分は%ANAME(離反元君主)%から離反しようと考えている。%ANAME(MASTER)%は使えそうだし、是非とも連れて行きたい
+PRINTFORML いきなりの話だし、主君を裏切るわけだから迷うだろうが、すぐ返事が欲しい
+PRINTFORMW 答えるまで帰すわけにはいかない。%ANAME(MASTER)%が%ANAME(離反元君主)%に密告しないとも限らないからだ……
+PRINTFORML
+PRINTFORML えらいことを聞いてしまった。これは、返事をするまで帰れないだろう
+PRINTFORMW 今後の身の振り方に関わってくることだ、慎重に選ばなくては……
+CALL ASK_MULTI(@"%ANAME(離反者)%につく", @"%ANAME(離反元君主)%側に残る", "馬鹿なことはやめろと説得する")
+IF RESULT == 0
+	CALL CHANGE_COUNTRY(MASTER, 新勢力, 1)
+	PRINTFORML お前ならそう言ってくれると思っていた……%ANAME(離反者)%は凶悪な笑みをにやりと浮かべてみせた
+	PRINTFORML いっちょやってやろう、%ANAME(離反者)%は%ANAME(MASTER)%と固い握手を交わした……
+	PRINTFORMW なんだかえらいことに首を突っ込んでしまった気がする。大丈夫だろうか……
+	RETURN 対応_受諾
+ELSEIF RESULT == 1
+	PRINTFORMW %ANAME(離反元君主)%を裏切るわけにはいかない……そう告げると、%ANAME(離反者)%は露骨に失望した表情を浮かべた
+	PRINTFORML それならとっとと出て行け、後悔するな、これから作る国は、お前の国などあっという間に食い尽くす、そのように告げられた
+	PRINTFORML それっきり%ANAME(離反者)%はこちらに興味を失ったのか、そっぽを向いてしまった
+	PRINTFORMW ここで%ANAME(MASTER)%に危害を加えるつもりはないようだが、次に会うときは敵同士になるだろう……
+	PRINTL
+	RETURN 対応_拒否
+ELSEIF RESULT == 2
+	PRINTFORM バカなことはやめろ……
+	;何らかのあなたに対する陥落素質があれば思いとどまる
+	IF (IS_LOVER(離反者) || IS_SLAVE(離反者))
+		PRINTFORMW %ANAME(MASTER)%が必死に説得すると、%ANAME(離反者)%はため息をついた
+		PRINTFORML %ANAME(MASTER)%にそんなことを言われるとは思っていなかった
+		PRINTFORML しかし、%ANAME(MASTER)%の言うことを断りたくはない。仕方がないから今回は我慢する
+		PRINTFORMW その代わりに、自分を色々と満足させてくれると嬉しい……
+		PRINTFORMW どうやら%ANAME(離反者)%は離反をあきらめてくれたようだ……
+		RETURN -1
+	;なければd100が現在の好感度の1/10より大きければキレる
+	ELSEIF RAND:100 > CFLAG:(離反者):好感度 / 10
+		PRINTFORMW %ANAME(MASTER)%が必死に説得すると、%ANAME(離反者)%は逆上した
+		PRINTFORML なんでお前にそんなことを言われなくてはならないのか
+		PRINTFORML そういうことなら%ANAME(MASTER)%は必要ない。自分が巻き起こす旋風に巻き込まれて消えてしまえばいい
+		PRINTFORMW 出て行け、自分の前から消えろ……
+		PRINTFORML そう言って怒りを収めることなく%ANAME(離反者)%はあなたを部屋から追い出した
+		PRINTFORMW 次に%ANAME(離反者)%と出会うのは戦場か、それとも……
+		PRINTL
+		RETURN 対応_怒り
+	;そうでなければ普通に別れる、なお台詞はコピペのままで終わらせたくなかったのでちょこちょこ変えてみた
+	ELSE
+		PRINTFORMW %ANAME(MASTER)%が必死に説得すると、%ANAME(離反者)%は嫌悪の表情を浮かべた
+		PRINTFORML こっちにつくつもりがないなら、出て行ってくれ
+		PRINTFORMW %ANAME(MASTER)%が%ANAME(離反元君主)%にご執心なのは分かった。今のうちにせいぜい乳繰り合っているがいい……
+		PRINTFORMW 違う、そう反論しようとするよりも早く%ANAME(離反者)%は言葉を続けた
+		PRINTFORMW すぐに自分の国が、色ボケしている%ANAME(離反元君主)%もろともお前たちを滅ぼすだろう……
+		PRINTFORML 怒りの表情を隠さない%ANAME(離反者)%の姿を背に、%ANAME(MASTER)%は部屋から出て行った
+		PRINTFORMW %ANAME(MASTER)%と刃を交えるとき、お互いどのような顔をしているのだろうか……
 		PRINTL
 		RETURN 対応_拒否
-	ELSEIF RESULT == 2
-		PRINTFORM バカなことはやめろ……
-		;何らかのあなたに対する陥落素質があれば思いとどまる
-		IF (IS_LOVER(離反者) || IS_SLAVE(離反者))
-			PRINTFORMW %ANAME(MASTER)%が必死に説得すると、%ANAME(離反者)%はため息をついた
-			PRINTFORML %ANAME(MASTER)%にそんなことを言われるとは思っていなかった
-			PRINTFORML しかし、%ANAME(MASTER)%の言うことを断りたくはない。仕方がないから今回は我慢する
-			PRINTFORMW その代わりに、自分を色々と満足させてくれると嬉しい……
-			PRINTFORMW どうやら%ANAME(離反者)%は離反をあきらめてくれたようだ……
-			RETURN
-		;なければd100が現在の好感度の1/10より大きければキレる
-		ELSEIF RAND:100 > CFLAG:(離反者):好感度 / 10
-			PRINTFORMW %ANAME(MASTER)%が必死に説得すると、%ANAME(離反者)%は逆上した
-			PRINTFORML なんでお前にそんなことを言われなくてはならないのか
-			PRINTFORML そういうことなら%ANAME(MASTER)%は必要ない。自分が巻き起こす旋風に巻き込まれて消えてしまえばいい
-			PRINTFORMW 出て行け、自分の前から消えろ……
-			PRINTFORML そう言って怒りを収めることなく%ANAME(離反者)%はあなたを部屋から追い出した
-			PRINTFORMW 次に%ANAME(離反者)%と出会うのは戦場か、それとも……
-			PRINTL
-			RETURN 対応_怒り
-		;そうでなければ普通に別れる、なお台詞はコピペのままで終わらせたくなかったのでちょこちょこ変えてみた
-		ELSE
-			PRINTFORMW %ANAME(MASTER)%が必死に説得すると、%ANAME(離反者)%は嫌悪の表情を浮かべた
-			PRINTFORML こっちにつくつもりがないなら、出て行ってくれ
-			PRINTFORMW %ANAME(MASTER)%が%ANAME(離反元君主)%にご執心なのは分かった。今のうちにせいぜい乳繰り合っているがいい……
-			PRINTFORMW 違う、そう反論しようとするよりも早く%ANAME(離反者)%は言葉を続けた
-			PRINTFORMW すぐに自分の国が、色ボケしている%ANAME(離反元君主)%もろともお前たちを滅ぼすだろう……
-			PRINTFORML 怒りの表情を隠さない%ANAME(離反者)%の姿を背に、%ANAME(MASTER)%は部屋から出て行った
-			PRINTFORMW %ANAME(MASTER)%と刃を交えるとき、お互いどのような顔をしているのだろうか……
-			PRINTL
-			RETURN 対応_拒否
-		ENDIF
 	ENDIF
 ENDIF
