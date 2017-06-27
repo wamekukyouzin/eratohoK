@@ -696,6 +696,68 @@ ENDIF
 RETURNF -1
 
 ;-------------------------------------------------
+;渡された勢力にAIタイプを設定する
+;-------------------------------------------------
+@SET_COUNTRY_AI_TYPE(ARG:0)
+#DIM 君主
+#DIM 能力, 4
+#DIM ソート, 4
+君主 = GET_COUNTRY_BOSS(ARG:0)
+
+能力:0 = ABL:君主:武闘
+能力:1 = ABL:君主:防衛
+能力:2 = ABL:君主:知略
+能力:3 = ABL:君主:政治
+
+;最高値を求めるだけならFINDELEMENT(MAXARRAY)で十分なんだが
+ARRAYCOPY "能力", "ソート"
+ARRAYSORT ソート, BACK
+
+IF ソート:0 < ソート:1 + 7
+	COUNTRY_AI_TYPE:(ARG:0) = AI_通常
+ELSEIF ソート:0 == ABL:君主:武闘 && ABL:君主:武闘 > ABL:君主:知略 + 30
+	COUNTRY_AI_TYPE:(ARG:0) = AI_蛮行
+ELSEIF ソート:0 == ABL:君主:武闘
+	IF ソート:1 == ABL:君主:防衛 && ソート:0 < ソート:1 + 10
+		COUNTRY_AI_TYPE:(ARG:0) = AI_防衛
+	ELSE
+		COUNTRY_AI_TYPE:(ARG:0) = AI_好戦
+	ENDIF
+ELSEIF ソート:0 == ABL:君主:防衛
+	COUNTRY_AI_TYPE:(ARG:0) = AI_防衛
+ELSEIF ソート:0 == ABL:君主:知略
+	COUNTRY_AI_TYPE:(ARG:0) = AI_外交
+ELSEIF ソート:0 == ABL:君主:政治
+	COUNTRY_AI_TYPE:(ARG:0) = AI_内政
+ELSE 
+	COUNTRY_AI_TYPE:(ARG:0) = AI_通常
+ENDIF
+
+;-------------------------------------------------
+;渡されたAIタイプを文字列にする
+;-------------------------------------------------
+@TOSTR_AI_TYPE(ARG:0)
+#FUNCTIONS
+SELECTCASE ARG:0
+	CASE AI_通常
+		RETURNF "通常"
+	CASE AI_好戦
+		RETURNF "好戦"
+	CASE AI_防衛
+		RETURNF "防衛"
+	CASE AI_外交
+		RETURNF "外交"
+	CASE AI_内政
+		RETURNF "内政"
+	CASE AI_蛮行
+		RETURNF "蛮行"
+	CASEELSE
+		RETURNF "不明"
+ENDSELECT
+
+RETURNF "通常"
+
+;-------------------------------------------------
 ;ARG:0番の勢力の政策を文字列として返す関数
 ;-------------------------------------------------
 @TOSTR_POLICY(ARG:0)
