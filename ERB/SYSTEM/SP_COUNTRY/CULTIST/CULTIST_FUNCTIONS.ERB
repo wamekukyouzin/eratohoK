@@ -1,0 +1,232 @@
+﻿;--------------------------------------
+;ターンエンド時の外来兵の処理
+;--------------------------------------
+@TURNEND_CULTIST
+#DIM 狂信者
+
+狂信者 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:特殊勢力_狂信者)
+
+;8ターンに1回、儀式
+CALL CULTIST_RITUAL(DAY % 8 == 0)
+
+;--------------------------------------
+;滅亡時の処理
+;--------------------------------------
+@CULTIST_DESTROY_MSG
+CALL SINGLE_DRAWLINE
+SETCOLOR カラー_注意
+PRINTFORML
+PRINTFORML
+PRINTFORML
+PRINTFORMW 滅びを悟った狂信者たちの教祖は、自らの肉体を捨て去り魂を次のステージへと踏み出したようです
+PRINTFORMW 狂信者たちも後を追ったため、彼らは解散しました！
+PRINTFORML
+PRINTFORML
+PRINTFORML
+RESETCOLOR
+CALL SINGLE_DRAWLINE
+
+;--------------------------------------
+;外来勢力の初期化処理
+;--------------------------------------
+@CULTIST_INIT(ARG:0)
+#DIM LCOUNT
+VARSET LOCAL
+
+SIF GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:特殊勢力_狂信者) != -1
+	RETURN 0
+
+SIF SP_COUNTRY_RANK:特殊勢力_狂信者 == 0
+	RETURN 0
+
+SIF GET_NEW_COUNTRY() == -1
+	RETURN 0
+
+CALL CREATE_SP_COUNTRY(特殊勢力_狂信者)
+
+RETURN RESULT
+
+;-----------------------------------
+;外来勢力に捕らえられたときのイベント
+;-----------------------------------
+@MASTER_CAPTURED_CULTIST(ARG:0)
+PRINTFORMW 捕らえられた%ANAME(MASTER)%は狂信者たちに取り囲まれた
+IF GETBIT(TALENT:MASTER:特殊勢力陥落系, 特殊勢力_狂信者)
+	PRINTFORML 君は我々の仲間ではないか、どうして異端者どもに加わっていたんだ
+	PRINTFORMW さあ、また神に仕えようではないか
+	PRINTFORMW 狂信者たちは当然のように、%ANAME(MASTER)%を仲間に加えようとしてくるが……
+	CALL ASK_YN("受け入れる", "拒否する")
+	IF RESULT == 0
+		PRINTFORMW もちろん、神に逆らおうなどと考えるはずもない
+		PRINTFORMW %ANAME(MASTER)%の身体は疼き、自ら彼らに加わることに同意した
+		PRINTFORMW 彼らの用意した法衣を身にまとうと、深い悦びが%ANAME(MASTER)%を包む
+		PRINTFORMW 俗世の穢れた空気を吸わぬよう誂えられた覆面をかぶり、%ANAME(MASTER)%は再び彼らの一員となった……
+		SETCOLOR カラー_注意
+		PRINTFORMW %ANAME(MASTER)%は再び、狂信者たちに加わりました
+		RESETCOLOR
+	ELSE
+		PRINTFORMW 思想を押し付けるな。%ANAME(MASTER)%は主張した
+		PRINTFORMW 狂信者たちにはその態度が理解できないようだった
+		PRINTFORMW 異端者に紛れて毒されたか、我々の正しい教義を教え込んでやらねばならない
+		PRINTFORMW わきたつ狂信者たちは、%ANAME(MASTER)%を取り押さえ、枷で縛り、牢獄へと放り込んだ……
+	ENDIF
+ELSE
+	PRINTFORML 異端者は本来、牢に放り込み、我々の教義を爪先から頭のてっぺんまで刷り込むことになっている
+	PRINTFORMW だがお前は見どころがありそうだと呟いた
+	PRINTFORMW 自ら教義を受け入れるというのなら、異端者であった罪を許し、牢獄行きは免除するとのことだが……
+	PRINTFORMW 受け入れますか？
+	CALL ASK_YN("受け入れる", "拒否する")
+	IF RESULT == 0
+		PRINTFORMW 投獄されるよりはマシだろう。%ANAME(MASTER)%が頷くと、狂信者たちは満足げに頷いた
+		PRINTFORMW では法衣を身にまとえといわれ、%ANAME(MASTER)%はおとなしく従う
+		PRINTFORMW 俗世の穢れた空気を吸わぬよう誂えられた覆面をかぶり、%ANAME(MASTER)%は彼らの一員となった……
+		SETCOLOR カラー_注意
+		PRINTFORMW %ANAME(MASTER)%は再び、狂信者たちに加わりました
+		RESETCOLOR
+	ELSE
+		PRINTFORMW お前達になど手を貸すか。%ANAME(MASTER)%は毅然として言い放つ	
+		PRINTFORMW その業を牢獄で清めるがよいと、彼らはそのまま%ANAME(MASTER)%を投獄した……
+	ENDIF
+ENDIF
+IF RESULT == 0
+	SETBIT TALENT:MASTER:特殊勢力陥落系, 特殊勢力_狂信者
+	CFLAG:MASTER:所属 = ARG:0
+	FOR LOCAL:0, 0, CHARANUM
+		IF TALENT:(LOCAL:0):特殊勢力素質 == 特殊勢力_狂信者
+			TALENT:(LOCAL:0):合意 = 1
+			CFLAG:(LOCAL:0):2 = MAX(CFLAG:(LOCAL:0):2, 500)
+			CFLAG:(LOCAL:0):3 = MAX(CFLAG:(LOCAL:0):3, 500)
+		ENDIF
+	NEXT
+	RETURN 0
+ELSE
+	CALL CAPTURE(MASTER, ARG:0)
+	RETURN 2
+ENDIF
+
+;--------------------------------------
+;エンディング
+;--------------------------------------
+@CULTIST_ENDING
+PRINTFORML 狂信者たちは布教に成功した
+PRINTFORMW 方法はどうあれ、彼らはその思想を幻想郷の隅々にまで浸透させたのだ
+PRINTFORML 今日も彼らの儀式は行われている
+PRINTFORML あちこちで男と女が交わり、人ならざるものが呼び出されては、贄の少女に神聖な種を植え付けていく
+PRINTFORML これこそが、彼らの望んでいた楽園だった……
+IF CFLAG:MASTER:所属 == GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:特殊勢力_狂信者) && IS_FEMALE(MASTER)
+	PRINTFORMW 
+	PRINTFORMW 信者たちの中に、%ANAME(MASTER)%の姿もあった
+	PRINTFORMW 模範的な信者ということで名を馳せ、今や幹部にまで上り詰めている
+	PRINTFORMW ……そして、女信者として最高の名誉、神との交わりの栄誉を賜るに至った
+	PRINTFORMW 特殊な排卵誘発剤を飲んだ%ANAME(MASTER)%は、神の子を宿す悦びに下腹を疼かせている
+	PRINTFORML 儀式より呼び出された巨大な肉塊――彼らの「神」が、%ANAME(MASTER)%に覆い被さり、肉穴にグロテスクなモノをねじ込む
+	PRINTFORMW %ANAME(MASTER)%は、たまらないといった声をあげ、何度も放たれる精液を肉穴で受け止めていく 
+	PRINTFORMW 信者たちは神聖なる「儀式」を前に恭しくひれ伏し、神の子の誕生を寿いでいる……
+ENDIF
+PRINTFORML 
+PRINTFORMW 誰も不幸などではない。もはや幻想郷に、彼らの教えに背く者などいないのだから……
+
+;--------------------------------------
+;定期イベント
+;--------------------------------------
+@CULTIST_RITUAL(条件)
+#DIM 狂信者
+#DIM 条件
+#DIM 候補, 3000
+#DIM 候補数
+#DIM 対象, 3
+#DIM 対象数
+#DIM メッセージ
+VARSET 候補, -1
+VARSET 候補数
+VARSET 対象, -1
+VARSET 対象数
+
+狂信者 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_狂信者))
+
+;狂信者勢力が存在し、条件を満たしている
+SIF 狂信者 == -1 || !条件
+	RETURN -1
+
+候補数 = 0
+FOR LOCAL, 0, CHARANUM
+	SIF IS_SP_CHARA(LOCAL)
+		CONTINUE
+	SIF LOCAL == MASTER
+		CONTINUE
+	SIF !IS_FEMALE(LOCAL)
+		CONTINUE
+	SIF LOCAL == GET_COUNTRY_BOSS(CFLAG:LOCAL:所属)
+		CONTINUE
+	SIF CFLAG:LOCAL:所属 != 狂信者
+		CONTINUE
+	SIF TALENT:LOCAL:幼児
+		CONTINUE
+	候補:候補数 = LOCAL
+	候補数 ++
+NEXT
+
+SIF 候補数 <= 0
+	RETURN -1
+
+CALL FISHER_YATES_SHAFFLE(候補数)
+
+FOR LOCAL, 0, 候補数
+	対象:対象数 = 候補:(SHAFFLE_ARRAY:LOCAL)
+	対象数 ++
+	SIF 対象数 == VARSIZE("対象")
+		BREAK
+NEXT
+
+LOCALS = 
+
+FOR LOCAL, 0, 対象数
+	SIF LOCAL > 0
+		LOCALS = %LOCALS%、
+	LOCALS = %LOCALS%%ANAME(対象:LOCAL)%
+NEXT
+
+SIF 対象数 > 1
+	LOCALS = %LOCALS%ら
+
+CALL SINGLE_DRAWLINE
+SETCOLOR カラー_ピンク
+PRINTFORML 狂信者たちの本部で、怪しげな集会が行われている
+PRINTFORMW 薄暗い部屋にかがり火と香が焚かれ、多数の男女が交わっている
+PRINTFORML 精を子宮に注ぎ子をなす、彼らの神聖な儀式だ……
+PRINTFORMW ……その中に、%LOCALS:0%の姿もあった
+PRINTFORML 至福の表情を浮かべながら、次から次に男根を受け入れ、精を受け止めている……
+PRINTFORML 口や膣、両手に乳房、尻穴と、身体のありとあらゆるところで肉棒を悦ばせていく
+PRINTFORMW それこそが、彼らの教えの実践なのだ
+PRINTFORML ……やがて%ANAME(対象)%が、儀式の台座に進み出る
+PRINTFORML その身体は爪先から頭頂まで余さず白濁に汚され、両穴からも子種がどろどろと零れ落ちている
+PRINTFORMW 俗世の穢れを念入りに「清めた」のだ
+PRINTFORML %ANAME(対象)%が台座に描かれた魔法陣の中央で寝そべる
+PRINTFORMW すると教祖をはじめとした周囲の男たちは、怪しげな呪文を一心不乱に唱え始める
+PRINTFORML ……ほどなくして、それは現れた
+PRINTFORMW 彼らが「神」と呼ぶ、グロテスクな肉塊だ
+PRINTFORML それは供物としてささげられた%ANAME(対象)%を捕らえ、あらゆる穴に触手をねじ込んでいく
+PRINTFORML %ANAME(対象)%は恐怖するどころか、むしろ歓喜を爆発させ、性交の快楽に溺れていく
+PRINTFORMW 神の子種を受け子を孕む栄誉を得たのだから、何を恐れることがあろう
+PRINTFORML 儀式がクライマックスに近づくにつれ、周囲の交わりもより激しくなっていく
+SIF 対象:1 >= 0
+	PRINTFORML %ANAME(対象:1)%は膣穴に二本の肉棒をねじ込まれ、尻穴を張型で穿たれ、幾度となく絶頂する
+SIF 対象:2 >= 0
+	PRINTFORML %ANAME(対象:2)%はいわゆるまんぐり返しの姿勢で、幾人もの精を次から次に注ぎ込まれていく
+PRINTFORMW 誰もかれもが歓喜の声をあげ、何よりも尊い教義を体現していく……
+PRINTFORML そのうちに触手が震え、%ANAME(対象)%に子種を注ぎ込んだ
+PRINTFORML 人間とは比較にならない大量の射精に、%ANAME(対象)%の穴から白濁が逆流する
+PRINTFORMW 許容限界を超えた快楽を受け、%ANAME(対象)%は神との交わる喜びの頂点に達していた
+PRINTFORML 同時に、周囲の交わりも終わりを迎える
+PRINTFORML 女の嬌声が室内に響き渡る……
+PRINTFORML ……やがて満足した「神」は異界へと還り、%ANAME(対象)%は解放される
+PRINTFORML 教祖は%ANAME(対象)%に駆け寄ると、その秘部に張型をうずめ、さらに頑丈な貞操帯を装着した
+PRINTFORML 神の貴重な子種が万が一にも零れぬよう、蓋をしようというのだ
+PRINTFORMW この腹で神の子を育てられる悦びに、%ANAME(対象)%は涙を流して喜んでいた……
+RESETCOLOR
+
+CALL FUCK_SP(対象, "触手, 欲望, 奉仕, 性技, 性交, 精愛, Ｖ, Ａ, Ｖ性交, Ａ性交, 口淫", "処女喪失, 膣内射精, Ａ処女喪失, 腸内射精, キス喪失", 狂信者, GET_SPERM_ID("触手"), "触手", "触手", "触手", 喪失_強姦)
+
+FOR LOCAL, 0, 候補数
+	CALL FUCK_SP(候補:LOCAL, "欲望, 性技, 奉仕, 性交, 精愛, Ｃ, Ｂ, Ｖ, Ａ, Ｍ, キス, 口淫, 輪姦, Ｖ性交, Ａ性交", "処女喪失, Ａ処女喪失, 膣内射精, 腸内射精, キス喪失", 狂信者, GET_SPERM_ID("狂信者"), @"狂信者の\@ RAND:2 ? 唇 # ペニス \@", "狂信者", "", 喪失_輪姦)
+NEXT

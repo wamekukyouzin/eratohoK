@@ -1,0 +1,416 @@
+﻿;---------------------
+;発生確率(1000分率 100で10%)
+;---------------------
+@EVENT_DAILY_ADULTFILM_RATE()
+RETURN (DVAR:撮影段階 > 0 ? 330 # 30)
+
+;---------------------
+;確率以外の発生判定
+;---------------------
+@EVENT_DAILY_ADULTFILM_DECISION()
+#DIM 対象
+
+対象 = 0
+
+SIF DAY < 10
+	RETURN 0
+SIF DVAR:撮影段階 == 10
+	RETURN 0
+FOR LOCAL, 0, CHARANUM
+	;捕虜でなく、死んでおらず、AV女優未所持者の女が自国にいるかどうか判定
+	SIF !CFLAG:LOCAL:捕虜先 && CFLAG:LOCAL:特殊状態 != 特殊状態_死亡 && !(GETBIT(TALENT:LOCAL:淫乱系, 素質_淫乱_ＡＶ女優)) && IS_FEMALE(LOCAL)
+		対象 ++
+NEXT
+SIF 対象 < 1
+	RETURN 0
+RETURN 1
+
+;---------------------
+;ジャンル
+;---------------------
+@EVENT_DAILY_ADULTFILM_GENRE()
+RETURN デイリー_ジャンル_エロ
+
+;---------------------
+;本体
+;---------------------
+@EVENT_DAILY_ADULTFILM
+#DIM 対象
+
+SIF DVAR:撮影段階 > 0
+	対象 = ID_TO_CHARA(DVAR:撮影対象)
+
+IF DVAR:撮影段階 == 0
+	;%ANAME(MASTER)%が堕ちている場合
+	IF GETBIT(TALENT:MASTER:淫乱系, 素質_淫乱_ＡＶ女優) && DVAR:撮影申し込み == 1
+		PRINTFORML 再びAV撮影のプロデューサーがやって来た
+		PRINTFORMW 彼は%ANAME(MASTER)%を見るとニヤニヤと笑いながら当り前の様に尻を揉みしだいてきた
+		PRINTFORML %ANAME(MASTER)%は嬉しそうに喘ぎ声を上げ身動ぎしながらも抵抗せずに受け入れる
+		PRINTFORML 「またお世話になりますよぉ、視聴者は常に新しいアイドルを求めているんです」
+		PRINTFORMW 耳元で囁かれた%ANAME(MASTER)%はブルッと背筋を震わせた
+	;２回目以降
+	ELSEIF DVAR:撮影申し込み == 1
+		PRINTFORMW 再び密着ドキュメンタリーの撮影を申し込まれた
+		PRINTFORML 「この企画は当たりますよ！そうすれば軍のアピールにもなるでしょう！」
+		PRINTFORMW プロデューサーを名乗る男は笑顔でそう力説するが…
+	;初めての場合
+	ELSE 
+		PRINTFORML ある日取材の申し込みが来た
+		PRINTFORML なんでも将校に密着したドキュメンタリーを撮りたいらしい
+		PRINTFORML 「この企画は当たりますよ！そうすれば軍のアピールにもなるでしょう！」
+		PRINTFORMW プロデューサーを名乗る男は笑顔でそう力説するが…
+	ENDIF
+	PRINTFORML どうしよう？
+	CALL ASK_YN("引き受ける" ,"断る")
+	IF RESULT == 1
+		$OKOTOWARI
+		;%ANAME(MASTER)%が堕ちている場合
+		IF GETBIT(TALENT:MASTER:淫乱系, 素質_淫乱_ＡＶ女優) && DVAR:撮影申し込み == 1
+			PRINTFORML しかし今は戦争に忙しく、協力するのは難しい
+			PRINTFORML %ANAME(MASTER)%が申し訳なさそうに断ると、彼は露骨に舌打ちをした
+			PRINTFORMW そして腹いせとばかりに%ANAME(MASTER)%を寝室に連れ込むと、無責任に何度も種付けをしていった
+			CALL FUCK(MASTER, "Ｃ, Ｖ, Ｂ, Ｍ, 性交, 精愛, 奉仕, 口淫, Ｖ性交", "キス喪失, 処女喪失, 膣内射精, 口内射精", GET_SPERM_ID("AV男優"), @"男優の\@RAND:2 ? ペニス # 唇\@", "AV男優", "", 喪失_強姦)
+		ELSE
+			PRINTFORML 軍事機密を漏らされるかもしれない
+			PRINTFORMW やはり今回は断らせてもらう事にした
+			SIF DVAR:撮影申し込み != 1
+				DVAR:撮影申し込み = 1
+		ENDIF
+		RETURN
+	ELSEIF RESULT == 0
+		;%ANAME(MASTER)%が堕ちている場合
+		IF GETBIT(TALENT:MASTER:淫乱系, 素質_淫乱_ＡＶ女優) && DVAR:撮影申し込み == 1
+			PRINTFORMW もちろん引き受けさせてもらう事にした
+			PRINTFORML 誰を選ぼうか？
+		ELSE
+			PRINTFORML その笑顔に多少うさん臭さを感じたものの協力する事にした
+			PRINTFORML 「素晴らしい！きっとそう言ってくださると思ってましたよ！」
+			PRINTFORML 「それでは取材をさせてもらえる方を紹介してくださいね
+			PRINTFORMW 「女性の方でお願いしますね！そちらの方が視聴者の受けがいいのですよ、えぇ！」
+			PRINTFORML 誰を選ぼうか？
+		ENDIF
+		CALL SINGLE_DRAWLINE
+		CALL SELECT_CHARA_LIST_ONLY_LOGIC_SEX("ADULTFILM", "ADULTFILM")
+		対象 = RESULT
+		IF RESULT < 0
+			GOTO OKOTOWARI
+		ELSEIF 対象 == MASTER
+			PRINTFORMW %ANAME(対象)%自身が取材を受ける事にした
+		ELSE
+			PRINTFORMW %ANAME(対象)%に取材を受けさせる事にした
+		ENDIF
+		PRINTFORML 彼は%ANAME(対象)%を値踏みする様に眺めた後ニンマリと笑った
+		PRINTFORMW %ANAME(対象)%は早速男に促されるままに取材へと向かった
+	ENDIF
+	PRINTFORML 
+	PRINTFORMW …緊張していたが、変哲もない普通の取材だった
+	PRINTFORML 彼等は軍や私生活に関する質問をいくつかした後
+	PRINTFORML 日常の業務や訓練の様子を熱心に撮影していった
+	PRINTFORML 取材中、クルーとの会話が弾み仲良くなれた
+	PRINTFORMW %ANAME(対象)%は次の取材日の確認をして彼らと別れた
+	PRINTFORML 
+	FOR LOCAL, 1, MAX_COUNTRY
+		CALL CHANGE_RELATION_C_TO_C(LOCAL, CFLAG:MASTER:所属, 15, -15)
+	NEXT
+	CALL COLORPRINT("その日の取材内容が放送されると他国の評価が上がった", カラー_注意, "W")
+	MONEY += 5000
+	CALL COLORPRINT("出演料として金5000を受け取った", カラー_注意, "W")
+	DVAR:撮影段階 ++
+	DVAR:撮影対象 = GET_ID(対象)
+	DVAR:撮影申し込み = 1
+ELSEIF DVAR:撮影段階 == 1
+	PRINTFORMW 再び密着取材がやって来た
+	PRINTFORML 今回も前回と同じようにいくつかの質問をされる
+	PRINTFORML 「ところでこういったところにいると、女性としては色々と不便ではないでしょうか？」
+	PRINTFORML 流ちょうに受け答えしていた%ANAME(対象)%だが、突然の毛色が違う質問に一瞬戸惑った
+	PRINTFORMW 「つまり男性からの視線とか、あるいはそう、生理などについての話ですな」
+	PRINTFORML 直球の質問に%ANAME(対象)%は思わず顔が赤くなるのを感じた
+	CALL ASK_YN("冷静に答える" ,"怒って怒鳴りつける")
+	IF RESULT == 0
+		PRINTFORML しかし%ANAME(対象)%は努めて冷静に答えた
+		PRINTFORML 「そうですか、なるほど…女性としての悩みもやはりあるようですねぇ」
+		PRINTFORMW どことなく彼の言葉に蔑みを感じながらも%ANAME(対象)%は平静を装った
+	ELSEIF RESULT == 1
+		PRINTFORML セクハラまがいの質問に%ANAME(対象)%は怒って彼を怒鳴りつけた
+		PRINTFORML 「いえいえ、誤解しないでください！」
+		PRINTFORML 「これも女性向けのちゃんとした取材ですよ、ほら皆さんももっと女性の任官が増えると嬉しいでしょう？」
+		PRINTFORMW 「その為にもこうした生の声を届けることが大切なんですよ、えぇ」
+		PRINTFORML 彼は愛想笑いを浮かべながらそう説明する
+		PRINTFORML …確かに彼の言葉にも一理あるかもしれない
+		PRINTFORMW %ANAME(対象)%は怒ったことを謝罪すると、若干言葉に詰まりながら彼の質問に答えた
+	ENDIF
+	PRINTFORML …その後もいくつか"女性向け"の質問が続いた
+	PRINTFORML 中にはかなりきわどく感じるものもあったが一度引き受けた手前、%ANAME(対象)%はすべて正直に答えた
+	PRINTFORML …取材後、今回はかなり良い画が取れたとプロデューサーから絶賛された
+	PRINTFORMW %ANAME(対象)%は複雑な感情を抱きながらも次の取材日の確認をして彼らと別れた
+	PRINTFORML 
+	COUNTRY_SOLDIER:(CFLAG:対象:所属) += 500 + 100 * (RAND:10 + RAND:10 + 6)
+	CALL COLORPRINT("その日の取材内容が放送されると志願兵が増えた", カラー_注意, "W")
+	MONEY += 5000
+	CALL COLORPRINT("出演料として金5000を受け取った", カラー_注意, "W")
+	DVAR:撮影段階 ++
+ELSEIF DVAR:撮影段階 == 2
+	PRINTFORMW 再び密着取材がやって来た
+	PRINTFORML プロデューサーは相変わらずの笑顔で%ANAME(対象)%に近づいてくる
+	PRINTFORML 前回の事で警戒しながらも%ANAME(対象)%は仕事として切り替え対応した
+	PRINTFORMW …しかしその日の取材は特に何もなかった
+	PRINTFORML 前回の事などなかったかのような普通の取材に%ANAME(対象)%はやや拍子抜けとなる
+	PRINTFORML 質疑応答を終え、%ANAME(対象)%が仕事の為に着替えようと部屋に向かうと彼らもついてきた
+	PRINTFORML 「密着取材ですからねぇ、将校をより知る為にも部屋の中や軍の備品、生活の様子も映しておかないと」
+	PRINTFORMW 「大丈夫ですって、ちゃんと編集しますから、プライベートには注意しますよ、えぇ」
+	PRINTFORML %ANAME(対象)%の抗議に対しても彼は聞く耳を持たず当り前の様にそう答える
+	PRINTFORML 結局のらりくらりとした彼の態度に%ANAME(対象)%の方が折れ、部屋の中に入られてしまった
+	PRINTFORML 撮影という名目で部屋の隅々まで取られてしまい、%ANAME(対象)%は羞恥でめまいがした
+	PRINTFORMW さらに追い打ちの様に彼らは%ANAME(対象)%にいつも通りに着替えをするように催促してきた
+	PRINTFORML それは流石に断ろうとしたが、足元しか映さないと一点張りの彼らに再び折れてしまった
+	PRINTFORML 結局%ANAME(対象)%は部屋の隅で着替えをする羽目になった
+	PRINTFORML 彼らの視線を背中に感じながらもじもじと着替える%ANAME(対象)%は、カメラに全て撮られている事にも気づかなかった
+	PRINTFORMW …その日の取材はいつもより過激に密着され、色々と恥かしい場面まで取られてしまった
+	PRINTFORML 
+	COUNTRY_SOLDIER:(CFLAG:対象:所属) += 500 + 100 * (RAND:10 + RAND:10 + 6)
+	CALL COLORPRINT("その日の取材内容が放送されると志願兵が増えた", カラー_注意, "W")
+	MONEY += 5000
+	CALL COLORPRINT("出演料として金5000を受け取った", カラー_注意, "W")
+	CALL PRINT_ADD_EXP(対象, "露出経験値", RAND:20 + 1, 1)
+	DVAR:撮影段階 ++
+ELSEIF DVAR:撮影段階 == 3
+	PRINTFORMW 再び密着取材がやって来た
+	PRINTFORML プロデューサーは相変わらずの笑顔で%ANAME(対象)%に近づいてくる
+	PRINTFORMW しかし今までの事を思い出した%ANAME(対象)%はこのまま続けていいのかと不安になる
+	PRINTFORML どうしよう？
+	CALL ASK_YN("続ける" ,"やめる")
+	IF RESULT == 1
+		PRINTFORML これ以上取材には協力できない
+		PRINTFORML %ANAME(対象)%がそう告げると先程まで笑顔だったプロデューサーは態度を急変させた
+		PRINTFORMW 「契約違反だ！そちらがそういうつもりなら今まで撮った恥ずかしい映像も全て流出させるぞ！」
+		PRINTFORML 彼は青筋を立てながら%ANAME(対象)%に迫って来る
+		CALL ASK_YN("続ける" ,"それでもやめる")
+		IF RESULT == 1
+			PRINTFORML やはり続けることは出来ない
+			PRINTFORML %ANAME(対象)%の決意が固いと見るや彼は唾を吐いて去って行った
+			PRINTFORMW %ANAME(対象)%は彼らが去るのを見届けるとホッと一息を突いた
+			PRINTFORML 
+			FOR LOCAL, 1, MAX_COUNTRY
+				CALL CHANGE_RELATION_C_TO_C(LOCAL, CFLAG:MASTER:所属, -50, 50)
+			NEXT
+			CALL COLORPRINT(@"しかしその後しばらくすると%ANAME(対象)%のあられもない映像が流れだし、他国の評判は大きく落ちる事になった", カラー_注意, "W")
+			DVAR:撮影中毒 = 0
+			DVAR:撮影段階 = 0
+			DVAR:撮影対象 = 0
+			RETURN
+		ELSEIF RESULT == 0
+			PRINTFORML 気圧された%ANAME(対象)%が続けると言うと再び彼は笑顔になった
+			PRINTFORML 「やぁ、やっぱり%ANAME(対象)%は話が分かる人だ！良かった良かった」
+			PRINTFORML 「さぁ、それじゃあ今日も撮影を続けましょう」
+			PRINTFORMW そして%ANAME(対象)%が何かを言う間もなく、強引に自室へと押し入られてしまった
+		ENDIF
+	ELSEIF RESULT == 0
+		PRINTFORML しかし一度契約した以上、ここでやめる事も出来ない…
+		PRINTFORMW %ANAME(対象)%は意を決して今日の取材の為に彼らを部屋に招き入れた
+	ENDIF
+	PRINTFORML 
+	PRINTFORMW 取材の前、彼から前回の撮影が大好評だったと絶賛された
+	PRINTFORML 大量のファンレターを見せられた%ANAME(対象)%は恥ずかしさを感じながらも悪い気はしなかった
+	PRINTFORML そこで今回は領民の要望に応える為にグラビア撮影を提案された
+	PRINTFORML カレンダーやポスター用の写真を撮って配ればもっと軍の人気も上がるとおだてられる
+	PRINTFORMW 彼の熱心な勧めに押された%ANAME(対象)%はいつしか乗り気になり提案を了承した
+	PRINTFORML …其の日は結局取材そっちのけでのグラビア撮影を行う事になった
+	PRINTFORML %ANAME(対象)%はカメラマンに指示される通り軍服と私服を着替えながら様々なポーズをとる
+	PRINTFORML 最初はぎこちなかった表情も次第にほぐれていき、カメラに向かい誘う様な笑顔を見せていた
+	PRINTFORMW クルーたちがおだてられた%ANAME(対象)%は無意識の内に露出と撮影の快感に目覚めだしていた
+	PRINTFORML 
+	COUNTRY_SOLDIER:(CFLAG:対象:所属) += 500 + 100 * (RAND:10 + RAND:10 + 6)
+	CALL COLORPRINT("その日の取材内容が放送されると志願兵が増えた", カラー_注意, "W")
+	MONEY += 5000
+	CALL COLORPRINT("出演料として金5000を受け取った", カラー_注意, "W")
+	CALL PRINT_ADD_EXP(対象, "露出経験値", RAND:20 + 1, 1)
+	DVAR:撮影段階 ++
+ELSEIF DVAR:撮影段階 == 4
+	PRINTFORMW 再び密着取材がやって来た
+	PRINTFORML プロデューサーは相変わらずの笑顔で%ANAME(対象)%に近づいてくる
+	PRINTFORMW しかし今までの事を思い出した%ANAME(対象)%はこのまま続けていいのかと不安になる
+	PRINTFORML どうしよう？
+	CALL ASK_YN("続ける" ,"やめる")
+	IF RESULT == 1
+		PRINTFORML これ以上取材には協力できない
+		PRINTFORML %ANAME(対象)%がそう告げると先程まで笑顔だったプロデューサーは態度を急変させた
+		PRINTFORMW 「契約違反だ！そちらがそういうつもりなら今まで撮った恥ずかしい映像も全て流出させるぞ！」
+		PRINTFORML 彼は青筋を立てながら%ANAME(対象)%に迫って来る
+		CALL ASK_YN("続ける" ,"それでもやめる")
+		IF RESULT == 1
+			PRINTFORML やはり続けることは出来ない
+			PRINTFORML %ANAME(対象)%の決意が固いと見るや彼は唾を吐いて去って行った
+			PRINTFORMW %ANAME(対象)%は彼らが去るのを見届けるとホッと一息を突いた
+			PRINTFORML 
+			FOR LOCAL, 1, MAX_COUNTRY
+				CALL CHANGE_RELATION_C_TO_C(LOCAL, CFLAG:MASTER:所属, -50, 50)
+			NEXT
+			CALL COLORPRINT(@"しかしその後しばらくすると%ANAME(対象)%のあられもない映像が流れだし、他国の評判は大きく落ちる事になった", カラー_注意, "W")
+			DVAR:撮影中毒 = 0
+			DVAR:撮影段階 = 0
+			DVAR:撮影対象 = 0
+			RETURN
+		ELSEIF RESULT == 0
+			PRINTFORML 気圧された%ANAME(対象)%が続けると言うと再び彼は笑顔になった
+			PRINTFORML 「やぁ、やっぱり%ANAME(対象)%は話が分かる人だ！良かった良かった」
+			PRINTFORML 「さぁ、それじゃあ今日も撮影を続けましょう」
+			PRINTFORMW そして%ANAME(対象)%が何かを言う間もなく、強引に自室へと押し入られてしまった
+		ENDIF
+	ELSEIF RESULT == 0
+		PRINTFORML しかし一度契約した以上、ここでやめる事も出来ない…
+		PRINTFORMW %ANAME(対象)%は意を決して今日の取材の為に彼らを部屋に招き入れた
+	ENDIF
+	PRINTFORML 
+	PRINTFORMW 前回のグラビアも大好評だったようだ
+	PRINTFORML 注文が殺到しており次回の要望が後を絶たないとベタ褒めされる
+	PRINTFORML %ANAME(対象)%はやはり恥ずかしかったがそれだけ求められている事実に悦びを隠せなかった
+	PRINTFORMW そして今回も取材そっちのけで撮影が行われる事になった
+	PRINTFORML 今回は彼らが用意した以上を着ての撮影を頼まれた
+	PRINTFORML 紐のような水着やレオタード、スケスケのネグリジェ等…きわどい衣装が並べられる
+	PRINTFORMW 流石に%ANAME(対象)%もこれは恥ずかしく、軍のアピールから離れているように思えた
+	PRINTFORML どうしよう？
+	CALL ASK_YN("引き受ける" ,"躊躇う")
+	IF RESULT == 1
+		PRINTFORMW 躊躇う%ANAME(対象)%に対し、彼らは熱心に説得してきた
+		PRINTFORML 「いえいえ、今はこれぐらい普通ですよ」
+		PRINTFORML 「%ANAME(対象)%にばっちり似合うのを見繕ってきたんです」
+		PRINTFORML 「ここはプロに任せてください！%ANAME(対象)%の魅力をバッチリプロデュースしますから」
+		PRINTFORMW 言葉巧みに丸め込まれた%ANAME(対象)%は結局彼の言葉に頷いていた
+	ELSEIF RESULT == 0
+		PRINTFORML しかしあくまでも仕事だ
+		PRINTFORMW %ANAME(対象)%は彼らの熱心な勧めに応じて着替え始めた
+	ENDIF
+	PRINTFORML 
+	PRINTFORMW 撮影の内容も前回から更にきわどくなっていた
+	PRINTFORML 「もっと男を誘う様な表情で」「そうそう、いいですよー」
+	PRINTFORML 「恥ずかしがらずに！そう！カメラ目線で！」「あ、いいねぇ！最高だよー！」
+	PRINTFORML 「そこはもう少し足を開いて、全部開いて！」「色気が出てるよー」
+	PRINTFORMW 「次はこっちに着替えて、この道具をもって撮影しましょう！」
+	PRINTFORML 完全にいかがわしい撮影となっていたが、%ANAME(対象)%も空気に当てられていた
+	PRINTFORML 散々おだてられ撮られる快感に目覚めた%ANAME(対象)%は次第に自らポーズをとっていた
+	PRINTFORMW 頬には赤みが差し喉からは甘い吐息が漏れ扇情的な雰囲気を身に纏っていた
+	PRINTFORML …撮影を終えた%ANAME(対象)%は火照りが我慢できずに、撮影を思い出し自慰にふけった
+	PRINTFORMW 部屋に仕込まれていたカメラにも気づかずに
+	PRINTFORML 
+	COUNTRY_SOLDIER:(CFLAG:対象:所属) += 500 + 100 * (RAND:10 + RAND:10 + 6)
+	CALL COLORPRINT("その日の取材内容が放送されると志願兵が増えた", カラー_注意, "W")
+	CALL PRINT_ADD_EXP(対象, "露出経験値", RAND:20 + 1, 1)
+	DVAR:撮影段階 ++
+ELSEIF DVAR:撮影段階 == 5
+	PRINTFORMW 再び密着取材がやって来た
+	PRINTFORML プロデューサーは相変わらずの笑顔で%ANAME(対象)%に近づいてくる
+	PRINTFORMW しかし今までの事を思い出した%ANAME(対象)%はこのまま続けていいのかと不安になる
+	PRINTFORML どうしよう？
+	CALL ASK_YN("続ける" ,"やめる")
+	IF RESULT == 1
+		PRINTFORML これ以上取材には協力できない
+		PRINTFORML %ANAME(対象)%がそう告げると先程まで笑顔だったプロデューサーは態度を急変させた
+		PRINTFORMW 「契約違反だ！そちらがそういうつもりなら今まで撮った恥ずかしい映像も全て流出させるぞ！」
+		PRINTFORML 彼は青筋を立てながら%ANAME(対象)%に迫って来る
+		CALL ASK_YN("続ける" ,"それでもやめる")
+		IF RESULT == 1
+			PRINTFORML やはり続けることは出来ない
+			PRINTFORML %ANAME(対象)%の決意が固いと見るや彼は唾を吐いて去って行った
+			PRINTFORMW %ANAME(対象)%は彼らが去るのを見届けるとホッと一息を突いた
+			PRINTFORML 
+			FOR LOCAL, 1, MAX_COUNTRY
+				CALL CHANGE_RELATION_C_TO_C(LOCAL, CFLAG:MASTER:所属, -50, 50)
+			NEXT
+			CALL COLORPRINT(@"しかしその後しばらくすると%ANAME(対象)%のあられもない映像が流れだし、他国の評判は大きく落ちる事になった", カラー_注意, "W")
+			DVAR:撮影中毒 = 0
+			DVAR:撮影段階 = 0
+			DVAR:撮影対象 = 0
+			RETURN
+		ELSEIF RESULT == 0
+			PRINTFORML 気圧された%ANAME(対象)%が続けると言うと再び彼は笑顔になった
+			PRINTFORML 「やぁ、やっぱり%ANAME(対象)%は話が分かる人だ！良かった良かった」
+			PRINTFORML 「さぁ、それじゃあ今日も撮影を続けましょう」
+			PRINTFORMW そして%ANAME(対象)%が何かを言う間もなく、強引に自室へと押し入られてしまった
+		ENDIF
+	ELSEIF RESULT == 0
+		PRINTFORML しかし一度契約した以上、ここでやめる事も出来ない…
+		PRINTFORMW %ANAME(対象)%は意を決して今日の取材の為に彼らを部屋に招き入れた
+	ENDIF
+	PRINTFORML 
+	PRINTFORML 「いやぁ貴方様のグラビアは大当たりですよ、私の目に狂いはなかった」
+	PRINTFORML 開口一番、プロデューサーはそう告げた
+	PRINTFORMW いつも以上にニコニコ顔の彼は馴れ馴れしく%ANAME(対象)%の肩に手を回している
+	PRINTFORML 「%ANAME(対象)%の魅力が伝わり、志願兵も増えているらしいじゃないですか！ありがたいですなぁ」
+	PRINTFORML 「ドキュメンタリー？あぁ、もちろん忘れてませんよ、もちろん」
+	PRINTFORML 「ただ今回もう一度だけ、最後にグラビア撮影をやりましょう！ね？ここで終わらせるのは惜しいですよ」
+	PRINTFORMW 彼の言葉に%ANAME(対象)%は困った風を装いながらも内心ニヤけながら頷く
+	PRINTFORML 今や%ANAME(対象)%はすっかり撮られてそれを男に見られる事の虜となっていた
+	PRINTFORML 前回同様用意され対象に着替えた%ANAME(対象)%はベッドに腰かけるように促された
+	PRINTFORML 前回と違うのは、%ANAME(対象)%の隣に目をぎらつかせた逞しい男が座っている事だ
+	PRINTFORMW 戸惑う%ANAME(対象)%に対し、プロデューサーは何の事も無しにただのアシスタントだと告げる
+	PRINTFORML 「おや？緊張されてますか？ならばこちらをどうぞ、気分を落ち着かせてくれるお薬ですよ」
+	PRINTFORML いつもと違う雰囲気に緊張していた%ANAME(対象)%は勧められた薬を疑う事も無く口にした
+	PRINTFORMW その様子を男たちがニヤニヤとしながら眺めていた事にも気づかなかった
+	PRINTFORML …薬をのんで、すぐに身体が火照り始めた
+	PRINTFORML 頭がボンヤリとしだし、全身が汗ばんでくる
+	PRINTFORML 不意に背後から手が伸びてきて、%ANAME(対象)%の胸を鷲掴みにしてきた
+	PRINTFORMW 瞬間、痺れる様な快感が胸から全身に広がり溜まらず喘いでしまった
+	PRINTFORML 混乱しつつ振り返ると、先ほどの男がすぐ背後から%ANAME(対象)%に密着していた
+	PRINTFORML 彼は引き続き胸を揉みしだきながら、もう片方の手を股間へと伸ばしてくる
+	PRINTFORML 彼の指が割れ目をなぞるとクチュッと音がして%ANAME(対象)%はゾクゾクと背筋を震わせた
+	PRINTFORMW すっかりふやけきった%ANAME(対象)%は抵抗も出来ずに彼にされるがままに見悶える
+	PRINTFORML そして気づけばカメラが回っており、%ANAME(対象)%のあられもない様子も全て撮られていた
+	PRINTFORML 「やめて…」と小さくつぶやく%ANAME(対象)%だが彼の巧みな指使いに抗えずヨガってしまう
+	PRINTFORML 彼の指はますます激しく%ANAME(対象)%を攻め立て、すぐに身体は限界に達し絶頂寸前となる
+	PRINTFORML そして乳首と陰核を同時に抓られると、%ANAME(対象)%は大きく仰け反りながらアクメに達した
+	PRINTFORMW だらしない雌顔とビクビクと震えるあられもない姿を隅々までカメラに収められてしまった
+	PRINTFORML 
+	PRINTFORML %ANAME(対象)%の姿を見たプロデューサーはニヤリと笑うと男優に指示を出す
+	PRINTFORML 絶頂の余韻で呆然とする%ANAME(対象)%は彼に腕を掴まれ抱き上げられても抵抗できない
+	PRINTFORMW 彼はカメラによく映る様に%ANAME(対象)%を抱え上げ両足を広げると自らに跨らせた
+	PRINTFORML %ANAME(対象)%のひくつく割れ目にそそり立つ逞しいペニスがあてがわれる
+	PRINTFORML その脈打つ雄の象徴を感じ、%ANAME(対象)%は雌の本能が無意識に疼き息を荒げさせる
+	PRINTFORMW そして彼は%ANAME(対象)%の腰を掴むと一息に最奥までぶち抜いた
+	IF TALENT:対象:処女 == 1
+		PRINTFORML ブチブチと膜が破れる感触と同時に気が飛ぶほどの衝撃が伝わり、%ANAME(対象)%は絶叫した
+		PRINTFORML 脳天まで貫かれたような堪えがたい刺激に%ANAME(対象)%は大きく身を仰け反らせて痙攣を繰り返す
+		PRINTFORMW 頭が真っ白になりながらビクンビクンと震え、たまらずギュウッと男にしがみついた
+	ELSE
+		PRINTFORML あまりの衝撃に%ANAME(対象)%は一瞬、意識を飛ばしながら豚が潰れる様な無様な嬌声を上げた
+		PRINTFORML 脳天まで貫かれたかよう突き上げに一瞬で身体は屈服し、ガクガクと痙攣して潮を拭く
+		PRINTFORMW %ANAME(対象)%は頭が真っ白になりながらビクンビクンと痙攣し、だらしないアヘ顔となっていた
+	ENDIF
+	PRINTFORML その無様な様子はバッチリとカメラに収められ、周りの男達から嘲笑と罵倒が飛んだ
+	PRINTFORML 男優は震える%ANAME(対象)%に構わず腰を掴んだままオナホのように繰り返し上下してチンポを扱く
+	PRINTFORMW ズン！ズン！と一突きされるごとに子宮に響き、%ANAME(対象)%は壊れた人形の様にヨガリ狂う
+	IF TALENT:対象:処女 == 1
+		PRINTFORML 先程まで処女だったにもかかわらず、身体はすっかりほぐれきっており圧倒的な快楽の波が襲って来る
+	ELSE
+		PRINTFORML 肉体はすっかり雌として陥落し、チンポから与えられる快感に悦んで震え膣肉を締め付けそれに応える
+	ENDIF
+	PRINTFORML %ANAME(対象)%は行きっぱなしになりながら呂律の回らない喘ぎ声を上げてアヘ顔をカメラに晒す
+	PRINTFORMW ピストンは徐々に加速していき、それに合わせて%ANAME(対象)%も激しく身悶え喘ぎ声を響かせる
+	PRINTFORML そして一際深い突きと共に射精されると、%ANAME(対象)%は甲高い嬌声を上げて大きく絶頂した
+	PRINTFORML びゅるびゅると胎内に注がれる熱を敏感に感じながら%ANAME(対象)%はブルブルと震えてアクメ顔を晒す
+	PRINTFORMW 耳元で撮影されている事を囁かれた%ANAME(対象)%は現状を思い出し、興奮と羞恥で笑みを浮かべた
+	PRINTFORMW %ANAME(対象)%はその後もカメラの前で散々犯され何度も絶頂を繰り返しその様子を増すことなく撮影された
+	PRINTFORML 
+	PRINTFORML …撮影後、正気に戻った時にはすでに彼らの姿はなかった
+	PRINTFORML どろどろのままベッドに横たわっていた%ANAME(対象)%の枕元にはビデオテープと手紙が残されていた
+	PRINTFORML その手紙を読んだ%ANAME(対象)%は最初から計画されていた事を悟り自らの浅ましさと愚かさを呪った
+	PRINTFORMW 「ビデオの内容をばらまかれたくなければ、今後も我々の仕事の手伝いをしてもらう」
+	PRINTFORML こんなことを誰かに相談できるはずもなく、%ANAME(対象)%は彼らの言う通りになるしかなかった
+	PRINTFORML …しかし同時に奇妙な興奮も湧き上がっており、躊躇しながらも残されたビデオに手を伸ばした
+	PRINTFORML そこには予想通り、先程撮影された%ANAME(対象)%のあられもないレイプ映像が残されていた
+	PRINTFORMW ビデオの中の%ANAME(対象)%はいつも鏡で見る自分の姿とは到底似つかないあさましくヨガる女の顔をしていた
+	PRINTFORMW そして気づかぬ内に%ANAME(対象)%は映像に釘付けとなっており、自らを指で慰めていた
+	CALL FUCK(対象, "Ｃ, Ｖ, Ｂ, Ｍ, 性交, 精愛, 口淫, Ｖ性交", "キス喪失, 処女喪失, 膣内射精, 口内射精", GET_SPERM_ID("AV男優"), @"男優の\@RAND:2 ? ペニス # 唇\@", "AV男優", "", 喪失_強姦)
+	PRINTFORML 
+	CALL COLORPRINT(@"%ANAME(対象)%はAV女優になる事を強制されてしまった……", カラー_注意, "W")
+	DVAR:撮影段階  = 10
+ENDIF
+
+RETURN 1
+
+@SELECT_CHARA_LIST_SHOW_LOGIC_ADULTFILM(対象)
+#DIM 対象
+RETURN CFLAG:対象:行動不能状態 != 行動不能_子供 && CFLAG:対象:所属 == CFLAG:MASTER:所属 && !IS_ANIMAL(対象) && !IS_MALE(対象) && ABL:対象:性知識 > 0 && !(GETBIT(TALENT:対象:淫乱系, 素質_淫乱_ＡＶ女優))
+
+@SELECT_CHARA_LIST_SELECT_LOGIC_ADULTFILM(対象)
+#DIM 対象
+RETURN CFLAG:対象:捕虜先 == 0

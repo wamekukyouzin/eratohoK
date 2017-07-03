@@ -1,0 +1,100 @@
+﻿@SLG_AI_OFFICER_JOBHUNT()
+#DIM 候補, 3
+#DIM 候補数
+#DIM 勢力候補, MAX_COUNTRY
+#DIM 勢力候補数
+#DIM 勢力
+#DIM 勢力君主
+#DIM 対象
+
+VARSET 候補, -1
+VARSET 候補数
+VARSET 勢力候補, -1
+VARSET 勢力候補数
+
+CALL FISHER_YATES_SHAFFLE(CHARANUM)
+
+;このターン就活するキャラの選定
+FOR LOCAL, 0, CHARANUM
+	対象 = SHAFFLE_ARRAY:LOCAL
+
+	SIF CFLAG:対象:所属
+		CONTINUE
+	SIF CFLAG:対象:捕虜先
+		CONTINUE
+	SIF CFLAG:対象:特殊状態 != 特殊状態_放浪
+		CONTINUE
+	SIF FINDELEMENT(SCOUT_CANDIDATES, GET_ID(対象)) != -1 && RAND:3
+		CONTINUE
+	;強い奴ほど自分を売り込まない
+	SIF RAND:MAX(TMP_CHARA_STARS:対象, 1) / 2
+		CONTINUE
+
+	候補:候補数 = 対象
+	候補数 ++
+	SIF 候補数 == VARSIZE("候補")
+		BREAK
+NEXT
+
+;候補がいなければダメ
+SIF 候補数 == 0
+	RETURN
+
+;就活先をリストアップ
+FOR LOCAL, 0, MAX_COUNTRY
+	SIF !IS_COUNTRY(LOCAL) || IS_SP_COUNTRY(LOCAL)
+		CONTINUE
+	勢力候補:勢力候補数 = LOCAL
+	勢力候補数 ++
+NEXT
+
+;セーフティ
+SIF 勢力候補数 == 0
+	RETURN
+
+FOR LOCAL, 0, VARSIZE("候補")
+	対象 = 候補:LOCAL
+
+	SIF 対象 == -1
+		BREAK
+
+	;就活しに行く勢力を決定する
+	勢力 = 勢力候補:(RAND:勢力候補数)
+	勢力君主 = GET_COUNTRY_BOSS(勢力)
+
+
+	;嫌ってるところにはいかない
+	SIF REL_LIKE:対象:勢力君主 < REL_HATE:対象:勢力君主 - 300
+		CONTINUE
+
+	;主人公勢力だけ特殊扱い
+	IF 勢力 == CFLAG:MASTER:所属
+		CALL COLORPRINT(@"%ANAME(対象)%が仕官を申し出ました", カラー_注意, "L")
+		CALL ASK_MULTI("受け入れる", "拒否する", "投獄する")
+		SELECTCASE RESULT
+			CASE 0
+				PRINTFORML 受け入れました
+				CALL CHANGE_COUNTRY(対象, 勢力, 1)
+				;スカウト候補ならパージ
+				SIF FINDELEMENT(SCOUT_CANDIDATES, GET_ID(対象)) != -1
+					SCOUT_CANDIDATES:FINDELEMENT(SCOUT_CANDIDATES, GET_ID(対象)) = 0
+			CASE 1
+				PRINTFORML 拒否しました
+			CASE 2
+				PRINTFORML 投獄しました
+				CALL CAPTURE(対象, 勢力)
+		ENDSELECT
+	;通常処理
+	ELSE
+		PRINTFORML %ANAME(対象)%が%ANAME(勢力君主)%に仕官を申し出ました
+		IF REL_LIKE:勢力君主:対象 < REL_HATE:勢力君主:対象 - 300
+			PRINTFORML %ANAME(勢力君主)%は拒否しました
+		ELSE
+			CALL COLORPRINT(@"%ANAME(勢力君主)%は受け入れました", カラー_注意, "L")
+			CALL CHANGE_COUNTRY(対象, 勢力, 1)
+			;スカウト候補ならパージ
+			SIF FINDELEMENT(SCOUT_CANDIDATES, GET_ID(対象)) != -1
+				SCOUT_CANDIDATES:FINDELEMENT(SCOUT_CANDIDATES, GET_ID(対象)) = 0
+		ENDIF
+	ENDIF
+NEXT

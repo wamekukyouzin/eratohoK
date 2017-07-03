@@ -696,6 +696,68 @@ ENDIF
 RETURNF -1
 
 ;-------------------------------------------------
+;渡された勢力にAIタイプを設定する
+;-------------------------------------------------
+@SET_COUNTRY_AI_TYPE(ARG:0)
+#DIM 君主
+#DIM 能力, 4
+#DIM ソート, 4
+君主 = GET_COUNTRY_BOSS(ARG:0)
+
+能力:0 = ABL:君主:武闘
+能力:1 = ABL:君主:防衛
+能力:2 = ABL:君主:知略
+能力:3 = ABL:君主:政治
+
+;最高値を求めるだけならFINDELEMENT(MAXARRAY)で十分なんだが
+ARRAYCOPY "能力", "ソート"
+ARRAYSORT ソート, BACK
+
+IF ソート:0 < ソート:1 + 7
+	COUNTRY_AI_TYPE:(ARG:0) = AI_通常
+ELSEIF ソート:0 == ABL:君主:武闘 && ABL:君主:武闘 > ABL:君主:知略 + 30
+	COUNTRY_AI_TYPE:(ARG:0) = AI_蛮行
+ELSEIF ソート:0 == ABL:君主:武闘
+	IF ソート:1 == ABL:君主:防衛 && ソート:0 < ソート:1 + 10
+		COUNTRY_AI_TYPE:(ARG:0) = AI_防衛
+	ELSE
+		COUNTRY_AI_TYPE:(ARG:0) = AI_好戦
+	ENDIF
+ELSEIF ソート:0 == ABL:君主:防衛
+	COUNTRY_AI_TYPE:(ARG:0) = AI_防衛
+ELSEIF ソート:0 == ABL:君主:知略
+	COUNTRY_AI_TYPE:(ARG:0) = AI_外交
+ELSEIF ソート:0 == ABL:君主:政治
+	COUNTRY_AI_TYPE:(ARG:0) = AI_内政
+ELSE 
+	COUNTRY_AI_TYPE:(ARG:0) = AI_通常
+ENDIF
+
+;-------------------------------------------------
+;渡されたAIタイプを文字列にする
+;-------------------------------------------------
+@TOSTR_AI_TYPE(ARG:0)
+#FUNCTIONS
+SELECTCASE ARG:0
+	CASE AI_通常
+		RETURNF "通常"
+	CASE AI_好戦
+		RETURNF "好戦"
+	CASE AI_防衛
+		RETURNF "防衛"
+	CASE AI_外交
+		RETURNF "外交"
+	CASE AI_内政
+		RETURNF "内政"
+	CASE AI_蛮行
+		RETURNF "蛮行"
+	CASEELSE
+		RETURNF "不明"
+ENDSELECT
+
+RETURNF "通常"
+
+;-------------------------------------------------
 ;ARG:0番の勢力の政策を文字列として返す関数
 ;-------------------------------------------------
 @TOSTR_POLICY(ARG:0)
@@ -2044,87 +2106,6 @@ NEXT
 FOR LOCAL, 0, MAX_CITY
 	PHEROMONE:(ARG:0):(LOCAL:0) = 0
 NEXT
-
-;-------------------------------------------------
-;解放カウンタに基づいて捕虜を解放する処理
-;-------------------------------------------------
-@RELEASE_PRISONERS()
-#DIM 特殊捕虜先
-VARSET LOCAL
-;主人公が捕虜で監禁日数が4日以上ときのみ発生
-IF CFLAG:MASTER:捕虜先 && CFLAG:MASTER:解放カウンタ >= 5 && RAND:100 < (CFLAG:MASTER:解放カウンタ - 5) * 15 + 15
-	CALL SINGLE_DRAWLINE
-	PRINTFORMW 兵士たちが%ANAME(MASTER)%の牢を開け、%ANAME(MASTER)%に対して外に出るように言った
-	PRINTFORMW どうやら%ANAME(MASTER)%は解放されることになったようだ…
-	PRINTL 
-	IF CFLAG:MASTER:所属 == 0
-		SETCOLOR カラー_注意
-		PRINTFORMW %ANAME(MASTER)%は放浪の身になりました
-		RESETCOLOR
-	ELSE
-		SETCOLOR カラー_注意
-		PRINTFORMW %ANAME(MASTER)%は君主の元へと戻りました
-		RESETCOLOR
-	ENDIF
-	CALL CAPTURE(MASTER, 0)
-	IF CFLAG:MASTER:所属 == 0
-		;放浪状態なら拠点フェイズをスキップ
-		TIME = 1
-	ENDIF
-ENDIF
-FOR LOCAL, 1, CHARANUM
-	特殊捕虜先 = IS_SP_COUNTRY(CFLAG:LOCAL:捕虜先)
-	;もしその国が何らかの理由で滅んでいるのにまだ捕らえられていたら、強制的に解放する
-	IF CFLAG:LOCAL:捕虜先 && !IS_COUNTRY(CFLAG:LOCAL:捕虜先)
-		IF !LOCAL:1
-			CALL SINGLE_DRAWLINE
-			LOCAL:1 = 1
-		ENDIF
-		SETCOLOR カラー_注意
-		IF IS_COUNTRY(CFLAG:LOCAL:所属)
-			PRINTFORML 囚われていた%ANAME(LOCAL)%は解放され、%ANAME(GET_COUNTRY_BOSS(CFLAG:LOCAL:所属))%のところに戻りました
-		ELSE
-			PRINTFORML 囚われていた%ANAME(LOCAL)%は解放され、放浪しました
-			CFLAG:LOCAL:特殊状態 = 特殊状態_放浪
-		ENDIF
-		RESETCOLOR
-	;解放されないフラグが立っていたら脱走不可能
-	ELSEIF CFLAG:LOCAL:脱走不可能
-		CONTINUE
-	;通常の解放処理
-	ELSEIF LOCAL != MASTER && CFLAG:LOCAL:捕虜先 && CFLAG:LOCAL:捕虜先 != CFLAG:MASTER:所属 && MIN((CFLAG:LOCAL:解放カウンタ - 5) * 5, 30) > RAND:100 && !特殊捕虜先
-		IF !LOCAL:1
-			CALL SINGLE_DRAWLINE
-			LOCAL:1 = 1
-		ENDIF
-		SETCOLOR カラー_注意
-		IF IS_COUNTRY(CFLAG:LOCAL:所属)
-			PRINTFORML %ANAME(GET_COUNTRY_BOSS(CFLAG:LOCAL:捕虜先))%に囚われていた%ANAME(LOCAL)%は\@ CFLAG:LOCAL:解放カウンタ >= 10 ? ようやく# \@解放され、%ANAME(GET_COUNTRY_BOSS(CFLAG:LOCAL:1))%のところに戻りました
-		ELSE
-			PRINTFORML %ANAME(GET_COUNTRY_BOSS(CFLAG:LOCAL:捕虜先))%に囚われていた%ANAME(LOCAL)%は解放され、放浪しました
-		ENDIF
-		RESETCOLOR
-		CALL CAPTURE(LOCAL:0, 0)
-	;たまに脱走する。特殊勢力なら率高め
-	ELSEIF (LOCAL != MASTER && CFLAG:LOCAL:捕虜先 && CFLAG:LOCAL:捕虜先 != CFLAG:MASTER:所属 && 特殊捕虜先 * 17 + 3 > RAND:100)
-		IF !LOCAL:1
-			CALL SINGLE_DRAWLINE
-			LOCAL:1 = 1
-		ENDIF
-		IF CFLAG:LOCAL:捕虜先 != CFLAG:LOCAL:所属
-			SETCOLOR カラー_注意
-			IF IS_COUNTRY(CFLAG:LOCAL:1)
-				PRINTFORML %ANAME(GET_COUNTRY_BOSS(CFLAG:LOCAL:捕虜先))%に囚われていた%ANAME(LOCAL)%は脱走し、%ANAME(GET_COUNTRY_BOSS(CFLAG:LOCAL:1))%のところに戻りました
-			ELSE
-				PRINTFORML %ANAME(GET_COUNTRY_BOSS(CFLAG:LOCAL:捕虜先))%に囚われていた%ANAME(LOCAL)%は脱走し、放浪しました
-			ENDIF
-			RESETCOLOR
-			CALL CAPTURE(LOCAL:0, 0)
-		ENDIF
-	ENDIF
-NEXT
-CALL KILL_EMPTY_LINE()
-
 
 @INRANGE_CITY(ARG)
 #FUNCTION
