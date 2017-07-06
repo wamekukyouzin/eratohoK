@@ -208,51 +208,8 @@ ENDIF
 PRINTFORML %ANAME(対象)%は逃走したようです…
 ;状態フラグを逃走状態に
 CFLAG:対象:特殊状態 = 特殊状態_放浪
-;勢力を滅亡させた君主のIDを保存
-CFLAG:対象:恨む君主 = 滅ぼした君主
-;旧君主のIDを保存
-CFLAG:対象:滅亡前の君主 = 滅亡君主
 RETURN 0
 
-
-;-------------------------------------------------
-;ARG:0番のキャラの逃走先を決定する関数
-;逃走先が見つからなければ0を返す
-;-------------------------------------------------
-@ESCAPE_TO(ARG:0)
-#FUNCTION
-#DIM 特殊勢力以外ない
-;特殊勢力フラグ
-特殊勢力以外ない = 1
-FOR LOCAL:0, 1, MAX_COUNTRY
-	IF IS_COUNTRY(LOCAL:0) && !IS_SP_COUNTRY(LOCAL:0)
-		特殊勢力以外ない = 0
-		BREAK
-	ENDIF
-NEXT
-
-LOCAL:8 = RAND:601 + RAND:601 + RAND:2 * 600 - 600
-LOCAL:9 = 0
-FOR LOCAL:0, 1, MAX_COUNTRY
-	;通常勢力が存在する場合、ゴブリン、外来、野盗は除外
-	SIF !特殊勢力以外ない && IS_SP_COUNTRY(LOCAL:0)
-		CONTINUE
-	LOCAL:5 = COUNTRY_BOSS:(LOCAL:0)
-	LOCAL:6 = ID_TO_CHARA(LOCAL:5)
-	IF LOCAL:6 >= 0 && LOCAL:5 != CFLAG:(ARG:0):恨む君主
-		LOCAL:10 = REL_LIKE:(ARG:2):(LOCAL:6)
-		LOCAL:11 = REL_HATE:(ARG:2):(LOCAL:6)
-		LOCAL:12 = LOCAL:10 * 2 - LOCAL:11
-		IF LOCAL:12 >= LOCAL:8
-			LOCAL:(LOCAL:9 + 20) = LOCAL:0
-			LOCAL:9 ++
-		ENDIF
-	ENDIF
-NEXT
-IF LOCAL:9 >= 1
-	RETURNF LOCAL:(RAND:(LOCAL:9) + 20)
-ENDIF
-RETURNF 0
 
 ;-------------------------------------------------
 ;捕らえた捕虜の扱いを決定する
@@ -383,10 +340,6 @@ ELSEIF 友好度 >= 800 && 敵対度 < 100
 		SIF CFLAG:対象:捕虜先
 			CALL CAPTURE(対象, 0)
 		CFLAG:対象:特殊状態 = 特殊状態_放浪
-		;勢力を滅亡させた君主のIDを設定
-		CFLAG:対象:恨む君主 = 勝利君主
-		;旧君主のIDを設定
-		CFLAG:対象:滅亡前の君主 = 敗北君主
 	ELSE
 		;好感度を上昇、敵対値を減少
 		CALL CHANGE_RELATION_O_TO_C(対象, 勝利勢力, 25, -25)
@@ -492,10 +445,6 @@ ELSEIF RESULT == 1
 	ELSE
 		;状態フラグを逃走状態に
 		CFLAG:(対象):特殊状態 = 特殊状態_放浪
-		;勢力を滅亡させた君主のIDを保存
-		CFLAG:(対象):恨む君主 = COUNTRY_BOSS:(捕獲勢力)
-		;旧君主のIDを保存
-		CFLAG:(対象):滅亡前の君主 = COUNTRY_BOSS:(対象勢力)
 	ENDIF
 
 	;好感度を上昇、敵対値を減少
@@ -562,10 +511,6 @@ IF CONFIG:301 == 1
 	ELSE
 		;状態フラグを逃走状態に
 		CFLAG:(対象):特殊状態 = 特殊状態_放浪
-		;勢力を滅亡させた君主のIDを保存
-		CFLAG:(対象):恨む君主 = COUNTRY_BOSS:(捕獲勢力)
-		;旧君主のIDを保存
-		CFLAG:(対象):滅亡前の君主 = COUNTRY_BOSS:(対象勢力)
 	ENDIF
 
 	;好感度を上昇、敵対値を減少
