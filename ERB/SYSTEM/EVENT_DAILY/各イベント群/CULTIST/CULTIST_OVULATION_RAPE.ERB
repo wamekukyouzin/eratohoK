@@ -1,0 +1,87 @@
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@EVENT_DAILY_CULTIST_OVULATION_RATE()
+RETURN 75
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@EVENT_DAILY_CULTIST_OVULATION_DECISION()
+#DIM 狂信者
+狂信者 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_狂信者))
+SIF 狂信者 == -1
+	RETURN 0
+
+RETURN 1
+
+;---------------------
+;特定の条件を満たすキャラをランダムに選択する場合に利用
+;他の関数は必須だが、これだけはなくてもよい　というかパフォーマンスへ影響するので不要なら作ってはならない
+;対象が存在せずデイリーを開始できない場合は0を返すことでデイリーの発生をキャンセルする
+;---------------------
+@EVENT_DAILY_CULTIST_OVULATION_SETTARGET()
+#DIM 狂信者
+狂信者 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:特殊勢力_狂信者)
+FOR LOCAL, 0, CHARANUM
+	;狂信者勢力所属で捕虜でなく妊娠しておらず危険日である女性キャラ
+	SIF CFLAG:LOCAL:所属 != 狂信者
+		CONTINUE
+	SIF !GETBIT(TALENT:LOCAL:特殊勢力陥落系, 特殊勢力_狂信者)
+		CONTINUE
+	SIF CFLAG:LOCAL:捕虜先
+		CONTINUE
+	SIF TALENT:LOCAL:妊娠
+		CONTINUE
+	SIF !IS_OVULATION(LOCAL)
+		CONTINUE
+	DAILY_TARGET:DAILY_TARGET_NUM = LOCAL
+	DAILY_TARGET_NUM ++
+NEXT
+SIF DAILY_TARGET_NUM < 1
+	RETURN 0
+RETURN 1
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@EVENT_DAILY_CULTIST_OVULATION_GENRE()
+RETURN デイリー_ジャンル_特殊勢力
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@EVENT_DAILY_CULTIST_OVULATION
+#DIM 対象
+#DIM 狂信者
+
+対象 = DAILY_TARGET:(RAND:DAILY_TARGET_NUM)
+狂信者 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:特殊勢力_狂信者)
+
+PRINTFORML 狂信者たちが儀式を行っている
+PRINTFORML 一人の女を集団で犯し、子種を植え付けることで、神の威光に触れるという儀式だ
+PRINTFORMW 栄誉ある「孕女」には、%ANAME(対象)%が選ばれた
+PRINTFORMW この栄誉を受け取るに十分なほど熱心な信徒であり、そしてなにより、危険日であるからだ
+PRINTFORML まだ儀式も始まっていないのに、%ANAME(対象)%の肉体は疼き、秘部からはとろとろと蜜があふれ出している
+PRINTFORMW 神がくださる快楽への期待、そして何より、事前に投与された排卵誘発剤の作用だった
+PRINTFORMW やがて%ANAME(対象)%は自ら秘部を差し出し、種を植え付けてくれるよう他の信者に懇願する
+PRINTFORMW 信者たちは次々%ANAME(対象)%に群がり、その腹が蛙のように膨れるほど子種を注ぎ続けた……
+
+;避妊薬を無効化し、排卵誘発剤を使ってたことにする
+CFLAG:対象:避妊薬残ターン = 0
+TCVAR:対象:65 = 1
+
+CALL FUCK_SP(対象, "欲望, 精愛, 奉仕, 性交, Ｖ, 輪姦", "膣内射精, 処女喪失", 狂信者, GET_SPERM_ID("狂信者"), @"狂信者の\@ RAND:2 ? 唇 # ペニス \@", "狂信者", "", 喪失_輪姦)
+
+FOR LOCAL, 0, 10
+	CALL FUCK_SP(対象, "", "膣内射精, 処女喪失", 狂信者, GET_SPERM_ID("狂信者"), @"狂信者の\@ RAND:2 ? 唇 # ペニス \@", "狂信者", "", 喪失_輪姦)
+NEXT
+CALL COLORPRINT(@"%ANAME(対象)%の子宮に、濃厚な精液がたっぷりと注がれた", カラー_ピンク, "W")
+
+RETURN 1
