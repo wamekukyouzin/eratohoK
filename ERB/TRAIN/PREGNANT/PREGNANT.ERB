@@ -99,10 +99,11 @@ IF RAND:(LOCAL:5) < SQRT(LOCAL:2 * 100 + 300)
 		IF TCVAR:(ARG:0):(LOCAL:0) != 0
 			LOCAL:3 -= TCVAR:(ARG:0):(LOCAL:0 + 20)
 			IF LOCAL:3 <= 0
-				;父親のIDを設定
-				CFLAG:(ARG:0):子の遺伝上の父親 = TCVAR:(ARG:0):(LOCAL:0)
-					;妊娠期間を1に設定
+				;妊娠期間を1に設定
 				CFLAG:(ARG:0):妊娠期間 = 1
+				;出来た子供の父親を種付け履歴から予測して記録する
+				;いろんな人から種を受けてたらだれが親だかわからなくなったりする処理をする
+				CALL RECORD_FATHER_FROM_CREAMPIE_HISTORY(ARG:0)
 				BREAK
 			ENDIF
 		ENDIF
@@ -150,18 +151,18 @@ NEXT
 ;ターンエンド時に行う妊娠出産関連の処理の母親系の処理
 ;---------------------------------------------------------
 @TURNEND_PREGNANT_CHECK_MOTHER(ARG:0)
-;妊娠判明前
-IF CFLAG:(ARG:0):妊娠期間 <= 2
-	;妊娠が発覚するまでは疑わしい期間の中出し履歴を残す
+;妊娠していない
+IF CFLAG:(ARG:0):妊娠期間 == 0
 	CALL UPDATE_CREAMPIE_HISTORY(ARG:0)
-ENDIF
-
 ;妊娠中
-IF CFLAG:(ARG:0):妊娠期間 >= 1
+ELSE
 	;妊娠期間を進める
 	CFLAG:(ARG:0):妊娠期間 ++
+	;妊娠2期目
+	IF CFLAG:(ARG:0):妊娠期間 >= 2 && !TALENT:(ARG:0):妊娠
+		CALL DETECT_PREGNANCY(ARG:0)
 	;妊娠7期目
-	IF CFLAG:(ARG:0):妊娠期間 >= 7
+	ELSEIF CFLAG:(ARG:0):妊娠期間 >= 7
 		;7期で出産する
 		CALL BIRTH_CHILD(ARG:0)
 	;妊娠4期目
@@ -176,13 +177,6 @@ IF CFLAG:(ARG:0):妊娠期間 >= 1
 
 		;臨月状態に設定
 		CFLAG:(ARG:0):行動不能状態 = 行動不能_臨月
-
-	;妊娠2期目(ここでようやく妊娠判明)
-	ELSEIF CFLAG:(ARG:0):妊娠期間 >= 2 && !TALENT:(ARG:0):妊娠
-		;4期たったら体調が変動することで妊娠が発覚する
-		CALL DETECT_PREGNANCY(ARG:0)
-
-
 	ENDIF
 ENDIF
 
@@ -259,9 +253,6 @@ IF IS_FEMALE(ARG:0) && !TALENT:(ARG:0):爆乳 && CFLAG:(ARG:0):妊娠時バス�
 		CALL SET_BUSTSIZE(ARG:0, BUSTSIZE + 1)
 ENDIF
 
-;出来た子供の父親を種付け履歴から予測して記録する
-;いろんな人から種を受けてたらだれが親だかわからなくなったりする処理をする
-CALL RECORD_FATHER_FROM_CREAMPIE_HISTORY(ARG:0)
 
 IF IS_PREGNANT_MSG(ARG:0)
 	CALL KOJO_EVENT(ARG:0, 40)
@@ -387,7 +378,6 @@ IF ABL:(ARG:0):性知識 == 0
 ENDIF
 ;妊娠関係のフラグをクリア
 CFLAG:(ARG:0):妊娠期間 = 0
-CFLAG:(ARG:0):子の遺伝上の父親 = 0
 CFLAG:(ARG:0):子の父親 = 0
 TALENT:(ARG:0):妊娠 = 0
 
@@ -745,7 +735,6 @@ FOR LOCAL:0, 0, CHARANUM
 			SIF CFLAG:(LOCAL:0):行動不能状態 == 行動不能_臨月
 				CFLAG:(LOCAL:0):行動不能状態 = 0
 			CFLAG:(LOCAL:0):妊娠期間 = 0
-			CFLAG:(LOCAL:0):子の遺伝上の父親 = 0
 			CFLAG:(LOCAL:0):子の父親 = 0
 			TALENT:(LOCAL:0):妊娠 = 0
 
