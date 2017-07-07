@@ -1,0 +1,56 @@
+﻿@SLG_AI_INVEST(勢力)
+#DIM 勢力
+#DIM 都市
+#DIM スコア, MAX_CITY
+#DIM 投資都市, 5
+#DIM 投資都市数
+#DIM 投資額
+#DIM 政治力
+#DIM 効果
+#DIMS 都市名
+VARSET スコア, __INT_MIN__
+VARSET 投資都市
+VARSET 投資都市数
+
+投資額 = MIN(MONEY:勢力 * AI_INVEST_PROPERTY:(COUNTRY_AI_TYPE:勢力):1 / 100, AI_INVEST_PROPERTY:(COUNTRY_AI_TYPE:勢力):2)
+政治力 = TMP_SUM_POLITICS_POWER:勢力
+
+FOR LOCAL, 0, MAX_CITY
+	SIF CITY_OWNER:LOCAL != 勢力
+		CONTINUE
+	SIF TMP_CITY_RISK:勢力:LOCAL == 6
+		CONTINUE
+	スコア:LOCAL = TMP_DEFFENSIVE_IMPORTANCE:勢力:LOCAL
+NEXT
+
+FOR LOCAL, 0, VARSIZE("投資都市")
+	都市 = FINDELEMENT(スコア, MAXARRAY(スコア))
+	SIF 都市 == -1
+		BREAK
+	SIF スコア:都市 == __INT_MIN__
+		BREAK
+	投資都市:投資都市数 = 都市
+	投資都市数 ++
+	スコア:都市 = __INT_MIN__
+
+	SIF 投資都市数 == AI_INVEST_PROPERTY:(COUNTRY_AI_TYPE:勢力):0
+		BREAK
+NEXT
+
+都市名 '= ""
+FOR LOCAL, 0, 投資都市数
+
+	都市 = 投資都市:LOCAL
+
+	効果 = CALC_CITY_INVEST_EFFECT(都市, 投資額 / 投資都市数, 政治力)
+	MONEY:勢力 -= 投資額 / 投資都市数
+
+	CITY_ECONOMY:都市 += 効果
+	CITY_ECONOMY_LIMIT:都市 = MAX(CITY_ECONOMY_LIMIT:都市, CITY_ECONOMY:都市)
+
+	都市名 '= 都市名 + CITY_NAME:都市
+	SIF LOCAL != 投資都市数 - 1
+		都市名 '= 都市名 + "・"
+NEXT
+
+PRINTFORML %ANAME(GET_COUNTRY_BOSS(勢力))%が%都市名%に投資を行いました
