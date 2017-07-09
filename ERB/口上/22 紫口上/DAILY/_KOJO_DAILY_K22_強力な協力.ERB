@@ -1,0 +1,128 @@
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@KOJO_DAILY_K22_ALLIANCE_RATE(対象)
+#DIM 対象
+RETURN 150
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@KOJO_DAILY_K22_ALLIANCE_DECISION(対象)
+#DIM 対象
+#DIM 都市数
+#DIM 紫都市数
+
+SIF KDVAR:対象:紫_強力な協力
+	RETURN 0
+
+SIF GET_COUNTRY_BOSS(CFLAG:MASTER:所属) != MASTER
+	RETURN 0
+
+SIF GET_COUNTRY_BOSS(CFLAG:対象:所属) != 対象
+	RETURN 0
+
+都市数 = GET_OWN_CITY(CFLAG:MASTER:所属)
+紫都市数 = GET_OWN_CITY(CFLAG:対象:所属)
+
+SIF 都市数 < 5
+	RETURN 0
+
+SIF 都市数 < 紫都市数
+	RETURN 0
+
+RETURN CHECK_KOJO_DAILY_HAPPEN(対象, 0, 0)
+
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@KOJO_DAILY_K22_ALLIANCE_GENRE(対象)
+#DIM 対象
+RETURN デイリー_ジャンル_外交
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@KOJO_DAILY_K22_ALLIANCE(対象)
+#DIM 対象
+
+PRINTFORML 深夜……
+PRINTFORML 忙しさに追われ書類仕事をしていると、不意に人の気配を感じた
+PRINTFORMW 誰もいないはずだが、すわ侵入者かと振り返る
+PRINTFORMW 「夜分遅くに失礼するわ」
+PRINTFORML そこにいたのは、金髪の女性だった
+PRINTFORML 艶然と微笑む姿に、思わず見とれそうになる
+PRINTFORMW ……いや、見とれている場合ではない
+PRINTFORML 彼女はまったく気づかれずに部屋に入り込んできた。剣呑なことだ
+PRINTFORMW 刺客かなにかだろうか……%ANAME(MASTER)%は武器を手に取ろうとする
+PRINTFORMW 「ああ、心配しないでちょうだい。あなたを害するつもりはないわ」
+PRINTFORMW 「私は%NAME_FORMAL(対象)%。あなたに利益をもたらしに来たの」
+PRINTFORML %ANAME(対象)%に敵意はないようだ。だからといって安心もできないが
+PRINTFORMW とりあえず、話を聞くことにする
+PRINTFORML 「私は幻想郷の管理者として、この戦乱をどうにか治めたいと考えているの」
+PRINTFORML 「だけど、独力ではいささか厳しいわね。どいつもこいつも癖のある連中だから」
+PRINTFORMW 「そこで――あなたのような力ある人が協力してくれればいいなと考えたのよ」
+CALL ICPRINT(@"「つまりは、<10期ほどの同盟を結ばないか>、という話ね」", "W", カラー_注意)
+PRINTFORML なるほど、悪い話ではないように思える
+PRINTFORMW この戦乱を勝ち抜いていくには、協力者は必要だろう……
+PRINTFORMW ……彼女がそれだけ役に立てば、の話だが
+PRINTFORML 「もちろん、ただでとは言わないわ。話に乗ってくれるなら、それなりのものを用意する準備がある」
+PRINTFORML さて、どうするか……
+CALL ASK_MULTI("協力する（礼はいらない）", "金を要求する", "力を要求する", "身体を要求する", "断る")
+
+SELECTCASE RESULT
+	CASE 0
+		PRINTFORMW 「ふうん……？　無欲なことね」
+		PRINTFORMW 「でも、それならそれでいいわ」
+	CASE 1
+		PRINTFORMW 「そうね、戦争には先立つものが必要ですものね」
+		PRINTFORMW 「何もいらない、なんていう輩よりも信用がおけるわ。金の続く限りはね」
+		PRINTFORMW 「ほら、これは準備金よ。受け取りなさいな」
+		CALL COLORPRINT("金50000を受け取った", カラー_注意, "W")
+		CFLAG:対象:好感度 += 300
+	CASE 2
+		PRINTFORMW 「そうね、それは必要なことだと思うわ」
+		PRINTFORMW 「でなくては、私だって力を貸してほしいとは思わないもの」
+		PRINTFORMW 「私の持つものでよければ、教えてあげましょう」
+		IF TALENT:MASTER:妖術知識
+			CALL COLORPRINT(@"妖術知識を習得した", カラー_注意, "W")
+			TALENT:MASTER:妖術知識 = 1
+		ELSE
+			CALL COLORPRINT(@"知略が3上昇した", カラー_注意, "W")
+			ABL:MASTER:知略 += 3
+		ENDIF
+	CASE 3
+		PRINTFORML たぐいまれな美貌に、豊満な肉体……誰であっても欲しいとおもうほどのものだ
+		PRINTFORML 見返りを用意するというのなら、%ANAME(対象)%自身こそそれにふさわしいと思えた
+		PRINTFORMW 協力してほしければ身体をよこせ……そんな要求に、%ANAME(対象)%は眉をあげた
+		PRINTFORMW 「ふうん……？」
+		PRINTFORML 「いえ、不快だとは思わないわ。そういうことを求めてくる可能性も、考えないではなかったし」
+		PRINTFORML 「それに、英雄色を好むともいうからね」
+		PRINTFORMW 「いいでしょう。しばらくの間、あなたの相手をしてあげるわ」
+		PRINTFORMW 「けれど……楽しませてもらえないようなら、関係を切らせてもらうから、せいぜい頑張ってちょうだい」
+		PRINTFORML そう言って微笑む%ANAME(対象)%の唇が、やけに艶めかしく思えた……
+		CALL COLORPRINT(@"%ANAME(対象)%が「捕虜の調教」メニューから調教可能になりました", カラー_注意, "W")
+		PRINTFORMW (条件を満たしている間は常に調教可能になります)
+		CFLAG:(LOCAL:5):外交調教経過ターン = 1
+	CASE 4
+		PRINTFORMW 「そう……残念ね」
+		PRINTFORMW 「それなら仕方ないわ。それじゃ」
+		PRINTFORMW %ANAME(対象)%は隙間を使い、去っていった……
+		KDVAR:対象:紫_強力な協力 = 1
+		RETURN 1
+ENDSELECT
+PRINTFORMW 「それじゃあ、これからよろしく」
+PRINTFORMW %ANAME(対象)%は隙間を使い、去っていった……
+
+CALL COLORPRINT(@"%ANAME(対象)%と10期の同盟を結びました", カラー_注意, "W")
+CALL INIT_ALLIANCE(CFLAG:MASTER:所属, CFLAG:対象:所属, 10)
+
+KDVAR:対象:紫_強力な協力 = 1
+RETURN 1

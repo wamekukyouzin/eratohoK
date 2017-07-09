@@ -38,7 +38,7 @@ $FOUND
 
 ;賭けに負けて持っていかれたキャラがいたらダメ
 FOR LOCAL, 0, CHARANUM
-	IF !CFLAG:LOCAL:所属 && CFLAG:LOCAL:特殊状態 == 0 && GETBIT(TALENT:LOCAL:デイリー系, 素質_デイリー_カジノの従業員)
+	IF GETBIT(TALENT:LOCAL:デイリー系, 素質_デイリー_カジノの従業員)
 		RETURN 0
 	ENDIF
 NEXT
@@ -108,9 +108,15 @@ CALL SELECT_CHARA_LIST_ONLY_LOGIC_SEX("GAMBLING", "NONE")
 対象 = RESULT
 SIF 対象 == -1
 	GOTO CANCEL
-
-PRINTFORMW こちらからは%ANAME(対象)%を賭ける……
-PRINTFORMW そのように伝えた
+IF 対象 == MASTER
+	PRINTFORMW 「ご自分を？　……それは興味深い」
+	PRINTFORMW 「仲間思いなのか、それともリスクがあってこそ燃えるタイプか、それとも……」
+	PRINTFORMW 「……犯されたがりのド淫乱か」
+	PRINTFORMW 「まあ、こちらとしてはいずれであっても構いませんがね」
+ELSE
+	PRINTFORMW こちらからは%ANAME(対象)%を賭ける……
+	PRINTFORMW そのように伝えた
+ENDIF
 PRINTFORMW 「では、賭けの時間と参りましょうか……」
 
 SELECTCASE RAND:3
@@ -131,12 +137,18 @@ SELECTCASE RESULT
 		MONEY += 配当金
 	CASE 0
 		PRINTFORMW 「おやおや、残念ですが我々の勝利のようですね」
-		PRINTFORMW 「では、%ANAME(対象)%はいただいていきますよ。なに、待遇は悪くありませんからご心配なく」
-		CALL COLORPRINT(@"%ANAME(対象)%が連れていかれてしまった……", カラー_警告, "W")
-		PRINTFORMW 支配人に見送られ、カジノを後にした……
+		IF 対象 == MASTER
+			PRINTFORMW 「では、約束通り、我々のために働いていただきますよ」
+			PRINTFORMW 「せいぜいその肉体で、我々の客を悦ばせることですな」
+			PRINTFORMW 支配人は舐めるような目線で、%ANAME(対象)%を見た……
+		ELSE
+			PRINTFORMW 「では、%ANAME(対象)%はいただいていきますよ。なに、待遇は悪くありませんからご心配なく」
+			CALL COLORPRINT(@"%ANAME(対象)%が連れていかれてしまった……", カラー_警告, "W")
+			PRINTFORMW 支配人に見送られ、カジノを後にした……
+			CALL CHANGE_COUNTRY(対象, 0)
+			CFLAG:対象:特殊状態 = 0
+		ENDIF
 		SETBIT TALENT:対象:デイリー系, 素質_デイリー_カジノの従業員
-		CALL CHANGE_COUNTRY(対象, 0)
-		CFLAG:対象:特殊状態 = 0
 		CALL SET_PIERCE_RANDOM(対象, 0)
 		SIF RESULT != -1
 			CALL COLORPRINT(@"%ANAME(対象)%の%GET_PIERCE_NAME(RESULT)%に、従業員である証のピアスが取り付けられた……", カラー_ピンク, "W")
@@ -144,7 +156,11 @@ SELECTCASE RESULT
 		PRINTFORMW 「くく、やってしまいましたね、では我々の勝利です」
 		PRINTFORMW 「%ANAME(対象)%のことは従業員として雇用いたしますが……その前に、ペナルティですね」
 		PRINTFORMW 「少々お待ちください……くくっ」
-		PRINTFORMW %ANAME(対象)%はガードマンに店の奥へと連れられて行った……
+		IF 対象 == MASTER
+			PRINTFORMW %ANAME(対象)%はガードマンに店の奥へと連れていかれた……
+		ELSE
+			PRINTFORMW %ANAME(対象)%はガードマンに店の奥へと連れられて行った……
+		ENDIF
 		PRINTFORML
 		PRINTFORML
 		PRINTFORML
@@ -153,11 +169,15 @@ SELECTCASE RESULT
 		PRINTFORML
 		PRINTFORML
 		PRINTFORMW 「いいショーでしたよ、くくっ、今後も%ANAME(対象)%には活躍してもらいませんとね」
-		CALL COLORPRINT(@"%ANAME(対象)%が連れていかれてしまった……", カラー_警告, "W")
-		PRINTFORMW 支配人に見送られ、カジノを後にした……
+		IF 対象 == MASTER
+			PRINTFORMW 「では、約束通り、我々のために働いていただきますよ」
+			PRINTFORMW 「せいぜいその肉体で、我々の客を悦ばせることですな」
+			PRINTFORMW 支配人は舐めるような目線で、%ANAME(対象)%を見た……
+		ELSE
+			CALL COLORPRINT(@"%ANAME(対象)%が連れていかれてしまった……", カラー_警告, "W")
+			PRINTFORMW 支配人に見送られ、カジノを後にした……
+		ENDIF
 		SETBIT TALENT:対象:デイリー系, 素質_デイリー_カジノの従業員
-		CALL CHANGE_COUNTRY(対象, 0)
-		CFLAG:対象:特殊状態 = 0
 		CALL SET_PIERCE_RANDOM(対象, 0)
 		SIF RESULT != -1
 			CALL COLORPRINT(@"%ANAME(対象)%の%GET_PIERCE_NAME(RESULT)%に、従業員である証のピアスが取り付けられた……", カラー_ピンク, "W")
@@ -209,7 +229,7 @@ WAIT
 
 @SELECT_CHARA_LIST_SHOW_LOGIC_GAMBLING(対象)
 #DIM 対象
-RETURN !IS_MALE(対象) && 対象 != MASTER && CFLAG:対象:所属 == CFLAG:MASTER:所属 && CFLAG:対象:捕虜先 == 0 && GET_COUNTRY_BOSS(CFLAG:対象:所属) != 対象 && CFLAG:対象:行動不能状態 != 行動不能_子供 && !IS_SP_CHARA(対象) && !IS_ANIMAL(対象)
+RETURN !IS_MALE(対象) && CFLAG:対象:所属 == CFLAG:MASTER:所属 && CFLAG:対象:捕虜先 == 0 && GET_COUNTRY_BOSS(CFLAG:対象:所属) != 対象 && CFLAG:対象:行動不能状態 != 行動不能_子供 && !IS_SP_CHARA(対象) && !IS_ANIMAL(対象) && !GETBIT(TALENT:対象:デイリー系, 素質_デイリー_カジノの従業員)
 
 
 ;---------------------
@@ -252,7 +272,7 @@ $FOUND
 
 ;賭けに負けて持っていかれたキャラがいる必要がある
 FOR LOCAL, 0, CHARANUM
-	IF !CFLAG:LOCAL:所属 && CFLAG:LOCAL:特殊状態 == 0 && GETBIT(TALENT:LOCAL:デイリー系, 素質_デイリー_カジノの従業員)
+	IF GETBIT(TALENT:LOCAL:デイリー系, 素質_デイリー_カジノの従業員)
 		DAILY_TARGET:DAILY_TARGET_NUM = LOCAL
 		DAILY_TARGET_NUM ++
 	ENDIF
@@ -274,11 +294,18 @@ RETURN 1
 #DIM 対象
 #DIM 出迎えキャラ
 #DIM 奪還予定キャラ
+
 出迎えキャラ = DAILY_TARGET:(RAND:DAILY_TARGET_NUM)
 
-PRINTFORMW ……例の裏カジノに奪われた人材を取り返さなくては
-PRINTFORML 聞けば、賭けで勝った配当金の代わりに、「従業員」にされた女を取り返すこともできるらしい
-PRINTFORML 行ってみようか……
+IF GETBIT(TALENT:MASTER:デイリー系, 素質_デイリー_カジノの従業員)
+	PRINTFORMW ……裏カジノで働かされるのはもうごめんだ
+	PRINTFORML なんでも、あの賭けで勝利すれば、自分を買い戻すことができるらしい
+	PRINTFORMW やってみようか……
+ELSE
+	PRINTFORMW ……例の裏カジノに奪われた人材を取り返さなくては
+	PRINTFORML 聞けば、賭けで勝った配当金の代わりに、「従業員」にされた女を取り返すこともできるらしい
+	PRINTFORML 行ってみようか……
+ENDIF
 PRINTL
 CALL ASK_YN()
 
@@ -294,15 +321,24 @@ PRINTFORML
 PRINTFORML 
 PRINTFORML 
 
-CALL GAMBLING_AGAIN_DEMUKAE(出迎えキャラ)
+IF 出迎えキャラ != MASTER
+	CALL GAMBLING_AGAIN_DEMUKAE(出迎えキャラ)
+	PRINTFORML 
+	PRINTFORML 
+	PRINTFORML 
+ENDIF
 
-PRINTFORML 
-PRINTFORML 
-PRINTFORML 
-PRINTFORMW 「やあどうも、お久しぶりですねぇ」
-PRINTFORMW 支配人はにこにこと笑って%ANAME(MASTER)%を出迎えた
-PRINTFORMW ……その顔は、「カモがまたやって来た」と言っているが……
-PRINTFORMW 「ははあ、我々が"雇用"した従業員を返してほしいと」
+IF GETBIT(TALENT:MASTER:デイリー系, 素質_デイリー_カジノの従業員)
+	PRINTFORMW 「うん？　どうされましたか？」
+	PRINTFORMW 「今日はそうですねぇ、ストリップショーなんて出演してみますか？」
+	PRINTFORMW 支配人はにたにたとした笑みを浮かべ、こちらを見つめる
+	PRINTFORMW 「ふむ、自分を買い戻したいと？」
+ELSE
+	PRINTFORMW 「やあどうも、お久しぶりですねぇ」
+	PRINTFORMW 支配人はにこにこと笑って%ANAME(MASTER)%を出迎えた
+	PRINTFORMW ……その顔は、「カモがまたやって来た」と言っているが……
+	PRINTFORMW 「ははあ、我々が"雇用"した従業員を返してほしいと」
+ENDIF
 PRINTFORMW 「よろしい、ですがそれは、%ANAME(MASTER)%さまが賭けに勝利すれば、ですがね」
 PRINTFORML 「どうされますか？」
 PRINTL
@@ -345,19 +381,34 @@ ENDSELECT
 SELECTCASE RESULT
 	CASE 1
 		PRINTFORMW 「チッ……%ANAME(MASTER)%様の勝利です」
-		PRINTFORMW 「ええ、%ANAME(奪還予定キャラ)%は連れて帰ってくださって結構」
-		CALL COLORPRINT(@"%ANAME(奪還予定キャラ)%を取り戻した", カラー_注意, "W")
+		IF 奪還予定キャラ == MASTER
+			PRINTFORMW 「ええ、ではもう働かなくて結構」
+			CALL COLORPRINT(@"労働契約を破棄させた", カラー_注意, "W")
+		ELSE
+			PRINTFORMW 「ええ、%ANAME(奪還予定キャラ)%は連れて帰ってくださって結構」
+			CALL COLORPRINT(@"%ANAME(奪還予定キャラ)%を取り戻した", カラー_注意, "W")
+		ENDIF
 		PRINTFORMW 支配人に見送られ、カジノを後にした……
 		CALL CHANGE_COUNTRY(奪還予定キャラ, CFLAG:MASTER:所属)
 		CLEARBIT TALENT:奪還予定キャラ:デイリー系, 素質_デイリー_カジノの従業員
 	CASE 0
 		PRINTFORMW 「おやおや、残念ですが我々の勝利のようですね」
-		PRINTFORMW 「では、%ANAME(対象)%のこともいただいていきますよ。なに、待遇は悪くありませんからご心配なく」
-		CALL COLORPRINT(@"%ANAME(対象)%までもが連れていかれてしまった……", カラー_警告, "W")
-		PRINTFORMW 支配人に見送られ、カジノを後にした……
+		IF 対象 == MASTER
+			PRINTFORMW 「では、約束通り、我々のために働いていただきますよ」
+			PRINTFORMW 「せいぜいその肉体で、我々の客を悦ばせることですな」
+			PRINTFORMW 支配人は舐めるような目線で、%ANAME(対象)%を見た……
+			CALL COLORPRINT(@"労働契約を結ばされた……", カラー_警告, "W")
+		ELSE
+			PRINTFORMW 「では、%ANAME(対象)%のこともいただいていきますよ。なに、待遇は悪くありませんからご心配なく」
+			CALL COLORPRINT(@"%ANAME(対象)%までもが連れていかれてしまった……", カラー_警告, "W")
+			PRINTFORMW 支配人に見送られ、カジノを後にした……
+			CALL CHANGE_COUNTRY(対象, 0)
+			CFLAG:対象:特殊状態 = 0
+		ENDIF
 		SETBIT TALENT:対象:デイリー系, 素質_デイリー_カジノの従業員
-		CALL CHANGE_COUNTRY(対象, 0)
-		CFLAG:対象:特殊状態 = 0
+		CALL SET_PIERCE_RANDOM(対象, 0)
+		SIF RESULT != -1
+			CALL COLORPRINT(@"%ANAME(対象)%の%GET_PIERCE_NAME(RESULT)%に、従業員である証のピアスが取り付けられた……", カラー_ピンク, "W")
 	CASE 2
 		PRINTFORMW 「くく、やってしまいましたね、では我々の勝利です」
 		PRINTFORMW 「%ANAME(対象)%のことは従業員として雇用いたしますが……その前に、ペナルティですね」
@@ -371,11 +422,21 @@ SELECTCASE RESULT
 		PRINTFORML
 		PRINTFORML
 		PRINTFORMW 「いいショーでしたよ、くくっ、今後も%ANAME(対象)%には活躍してもらいませんとね」
-		CALL COLORPRINT(@"%ANAME(対象)%までもが連れていかれてしまった……", カラー_警告, "W")
-		PRINTFORMW 支配人に見送られ、カジノを後にした……
+		IF 対象 == MASTER
+			PRINTFORMW 「では、約束通り、我々のために働いていただきますよ」
+			PRINTFORMW 「せいぜいその肉体で、我々の客を悦ばせることですな」
+			PRINTFORMW 支配人は舐めるような目線で、%ANAME(対象)%を見た……
+			CALL COLORPRINT(@"労働契約を結ばされた……", カラー_警告, "W")
+		ELSE
+			CALL COLORPRINT(@"%ANAME(対象)%までもが連れていかれてしまった……", カラー_警告, "W")
+			PRINTFORMW 支配人に見送られ、カジノを後にした……
+			CALL CHANGE_COUNTRY(対象, 0)
+			CFLAG:対象:特殊状態 = 0
+		ENDIF
 		SETBIT TALENT:対象:デイリー系, 素質_デイリー_カジノの従業員
-		CALL CHANGE_COUNTRY(対象, 0)
-		CFLAG:対象:特殊状態 = 0
+		CALL SET_PIERCE_RANDOM(対象, 0)
+		SIF RESULT != -1
+			CALL COLORPRINT(@"%ANAME(対象)%の%GET_PIERCE_NAME(RESULT)%に、従業員である証のピアスが取り付けられた……", カラー_ピンク, "W")
 ENDSELECT
 
 
