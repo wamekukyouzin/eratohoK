@@ -1,0 +1,429 @@
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@KOJO_DAILY_K134_SAIKAIHATU_RATE(対象)
+#DIM 対象
+RETURN 50
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@KOJO_DAILY_K134_SAIKAIHATU_DECISION(対象)
+#DIM 対象
+
+;ドレミーと面識があり、所属がおなじ、5%
+
+;終わってたら発生しない
+SIF KDVAR:対象:ドレミー_再開発 == -1
+	RETURN 0
+
+RETURN CHECK_KOJO_DAILY_HAPPEN(対象, 1, 0, 1)
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@KOJO_DAILY_K134_SAIKAIHATU_GENRE(対象)
+#DIM 対象
+RETURN デイリー_ジャンル_エロ
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@KOJO_DAILY_K134_SAIKAIHATU(対象)
+#DIM 対象
+#DIM 必要額
+
+
+SELECTCASE KDVAR:対象:ドレミー_再開発
+	CASE 0
+		PRINTFORMW 仕事がひと段落し、%ANAME(MASTER)%は警邏という名目で城下町を散歩している
+		PRINTFORML 周囲を見渡すと、活気のある店が立ち並ぶ大通りに様々な役人職人がけたたましく働いている
+		PRINTFORMW しばらく歩き回っていると、メモを取りながら廃墟の傍を歩く%ANAME(対象)%の姿が見えた……
+		PRINTFORMW 「うーん……前の戦いで完全にダメにされちゃったわね。　これは再開発対象ねぇ」
+		PRINTFORMW やる事も特に無かった%ANAME(MASTER)%は、%ANAME(対象)%に声を掛けた
+		PRINTFORML
+		PRINTFORML 「あら%ANAME(MASTER)%、どうしたのこんなところで？」
+		PRINTFORMW 「私？　仕事中よ、城下町の再開発地区計画の構想を練ってる所ね」
+		PRINTFORMW %ANAME(対象)%のメモを覗くと、今いる場所周辺が再開発地区の対象のようだ
+		PRINTFORMW 「ここ一帯をどうしようか決めかねてるのよね、飲食街にするか住宅街にするか……」
+		PRINTFORMW どうやら%ANAME(対象)%は、この付近の施設をどのようなものにするか決めかねているようだ……
+		KDVAR:対象:ドレミー_再開発 = 1
+		PRINTFORML 
+		CALL ASK_MULTI("飲食街なんて良いんじゃないのか", "住宅街を増やそう", "ここは娼婦街だろう！")
+		SELECTCASE RESULT
+			CASE 0
+				PRINTFORMW 「う～ん良いですねぇ、美味しい料理は人を元気にしてくれますからね、これは人であっても妖怪であっても一緒です」
+				PRINTFORMW 「えっ？　私の主食は確かに悪夢ですが……いや甘味は別腹です。　えぇ別腹なので」
+				PRINTFORMW %ANAME(MASTER)%はそのあとも%ANAME(対象)%と食べてみたい料理を語りながら視察を続けた……
+				KDVAR:対象:ドレミー_再開発イベント = 0
+			CASE 1
+				PRINTFORMW 「そうねぇ……人が多く住めれば確かに働き手も多くなる。　それに私個人としても食源も増えて願ったり叶ったり」
+				PRINTFORMW 「ふむふむ、そう考えれば娯楽よりも衣食住の確保は大事ですから適案かしら」
+				PRINTFORMW %ANAME(MASTER)%はそのあとも%ANAME(対象)%と新たな働き手の確保について相談しながら視察を続けた……
+				KDVAR:対象:ドレミー_再開発イベント = 1
+			CASE 2
+				;恋慕と合意を持っていると発動(タイミング的に周回プレイで維持じゃないと厳しいかも&この選択肢を選ぶ覚悟)
+				IF TALENT:対象:恋慕 && TALENT:対象:合意
+					PRINTFORMW 「おやおや、それはつまり……」
+					PRINTFORML そう提案した%ANAME(MASTER)%に、%ANAME(対象)%は笑みを浮かべた
+					PRINTFORMW 「畏まりました、そういうプレイがお好きでしたなら次までに準備しておくわ……」
+					PRINTFORMW 「ふふっ、楽しみにしてて♥」
+					PRINTFORMW %ANAME(MASTER)%達は視察を続けたが妖艶な女の表情になった%ANAME(対象)%のせいか集中出来なかった……
+					KDVAR:対象:ドレミー_再開発イベント = 2
+				ELSE
+					PRINTFORMW 「……はぁ、そういう冗談はあまり好きじゃないわ」
+					PRINTFORMW 「ったく、真面目に考えてくださいねー」
+					PRINTFORMW %ANAME(MASTER)%達は視察を続けたが%ANAME(対象)%は不機嫌な様子だった……
+					;強制的に飲食街を選んだ結果となる
+					KDVAR:対象:ドレミー_再開発イベント = 0
+				ENDIF
+		ENDSELECT
+	;---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+	CASE 1
+	;先にイベントで必要な金額を決める
+		必要額 = RAND(DAY *100, DAY * 300)
+	;前のイベントで選んだ選択肢によってイベントが変わる
+		PRINTFORMW 仕事が一段落し、%ANAME(MASTER)%は城下町に訪れている
+		PRINTFORML そういえば前回、再開発について話した場所はどうなっただろうか
+		PRINTFORMW %ANAME(MASTER)%は再開発地区へ向かうことにした……
+		PRINTFORML ・
+		PRINTFORML ・
+		PRINTFORML ・
+		SELECTCASE KDVAR:対象:ドレミー_再開発イベント
+			;飲食街を選んだ場合
+			CASE 0
+				PRINTFORML 再開発地区は民達で賑わう飲食街となっているようだ
+				PRINTFORMW 店のほとんどは立ち食いの軽食だが賑わっている
+				PRINTFORML 一部の店では労役者のための炊き出しも行われている
+				PRINTFORMW 時々ピンク髪の仙人や亡霊による大食いで賑わうなんて噂も聞こえてくる
+				PRINTFORMW ……いやそれは問題な気がするが
+				PRINTFORMW %ANAME(MASTER)%は辺りから匂う香ばしい料理の匂いにつられ軽食を取る事にした
+				PRINTFORML どの店にしようか歩いていると%ANAME(MASTER)%は%ANAME(対象)%と出会った
+				PRINTFORML 「今からごはん？　なら私も一緒して良いかしら？」
+				PRINTFORMW 「さっき仕事がひと段落してねー。　折角だし民の皆様と同じものを食べていきたいなぁーってね」
+				PRINTFORMW 飲食街を歩く二人はある程度気になる店をピックアップしていった
+				PRINTFORMW さてどこにしようか……？
+				PRINTFORML
+				CALL ASK_MULTI("団子屋", "おでん屋", "焼き鳥屋")
+					SELECTCASE RESULT
+						CASE 0
+							PRINTFORMW 「お団子！　イイわ、行きましょ！」
+							PRINTFORMW %ANAME(MASTER)%は%ANAME(対象)%に連れられ団子屋に向かった……
+							PRINTFORML ・
+							PRINTFORML ・
+							PRINTFORML ・
+							PRINTFORMW %ANAME(対象)%に案内され着いた場所には団子屋が二軒並んでた
+							PRINTFORML 「そういえばここの団子屋さん、二つに分かれてるのよね」
+							PRINTFORMW 「三食団子とずんだ団子、みたらし団子と黒胡麻団子……どれも食べたいけど4本は多いわね」
+							PRINTFORMW 団子の食べ過ぎに注意するあまり悩む%ANAME(対象)%、%ANAME(MASTER)%は目の前で4種類の団子を買って見せた
+							PRINTFORMW %ANAME(MASTER)%は1本に4つ刺さっているのなら%ANAME(対象)%と自分で分け合えば全部少しずつ食べられるだろうと提案した
+								IF TALENT:対象:恋慕
+									PRINTFORMW 「それは……良いですねぇ。　そうしましょうか」
+									PRINTFORML %ANAME(対象)%は笑みを浮かべ%ANAME(MASTER)%の手を引いて席に着いた
+									PRINTFORMW 「ほら口開けて、食べさせてあげるわ。　あーん」
+									PRINTFORMW 団子を食べさせてくる%ANAME(対象)%に%ANAME(MASTER)%は答える様に団子を頬張った
+									PRINTFORMW 「ほら、もう一口」
+									PRINTFORMW 更に一口と食べさせてくる%ANAME(対象)%、妙に周囲の目線が気になる……
+									PRINTFORMW 「それで……その団子は私が貰っちゃおうかしら？」
+									PRINTFORMW 団子を咀嚼する%ANAME(MASTER)%の顎に手を当てて顔を近づける%ANAME(対象)%
+									PRINTFORMW %ANAME(MASTER)%は驚いた勢いで咽てしまった……
+									PRINTFORMW 「ふふっ冗談よ、冗談」
+									PRINTFORMW そう言って%ANAME(対象)%は残った団子を食べている
+								ELSE
+									PRINTFORMW 「……あぁ、また貴方はそうやって恥ずかしい事を平然と」
+									PRINTFORMW 「いえいえ、良いですとも。　ただ少し周りの目が……」
+									PRINTFORML %ANAME(対象)%と%ANAME(MASTER)%席に着いて団子を食べ始めた
+									PRINTFORMW 「今の私達って……まるで恋人みたいね」
+									PRINTFORMW 「べっ、別にうれしいとかそういうのじゃありませんしー」
+									PRINTFORMW 「あーもう、周りの目が気になって味が分からないわ……」
+									PRINTFORMW 「……でも美味しいわね、%ANAME(MASTER)%」
+									PRINTFORMW %ANAME(対象)%は美味しそうに団子を頬張っている
+								ENDIF
+							PRINTFORMW 二人はその後も団子を楽しんだ……
+							CALL COLORPRINT(@"好感度が 200上がった", カラー_注意, "W")
+							CFLAG:対象:好感度 += 200
+						CASE 1
+							PRINTFORMW 「なかなか渋い選択ね。　%ANAME(MASTER)%のそういうところ好きですよ」
+							PRINTFORMW %ANAME(MASTER)%は%ANAME(対象)%に連れられ団子屋に向かった……
+							PRINTFORML ・
+							PRINTFORML ・
+							PRINTFORML ・
+							PRINTFORML 出汁の香りを漂わせる屋台の元では騒がしい屈強な男たちがおでんを肴に酒を飲んでいる
+							PRINTFORMW ここはどうやら非番の兵士や労役者たちの憩いの場のようだ
+							PRINTFORMW さっそく%ANAME(MASTER)%と%ANAME(対象)%は適当に注文した
+							PRINTFORMW 「……」
+							PRINTFORMW 料理が来るのを待っていると%ANAME(対象)%が怪訝な顔で他の客を見ていた
+							PRINTFORMW %ANAME(MASTER)%はどうかしたのか？と尋ねた
+							PRINTFORML 「向こうの彼、確か今日は非番じゃないのに真昼間からお酒を飲んでるのよね」
+							PRINTFORMW 「やれやれ情けない部下ね、少し説教しに行こうかしら」
+							PRINTFORMW 席を立とうとする%ANAME(対象)%に%ANAME(MASTER)%は……
+							PRINTFORML
+							CALL ASK_YN("無視すれば良い", "説教なら任せろ")
+								IF RESULT == 0
+									PRINTFORML 『無視すれば良い』
+									PRINTFORMW %ANAME(MASTER)%は%ANAME(対象)%に諭した
+									PRINTFORML 「……そうね、今は"私たちの"休憩時間ですからね」
+									PRINTFORMW 「叱るのはあとにして、今は二人の時間を満喫するべきね」
+									PRINTFORMW しばらくすると注文した料理が届いた……が
+									PRINTFORML 「……ねぇところで」
+									PRINTFORMW 「なんで%ANAME(MASTER)%までお酒を頼んでいるのかしら？」
+									PRINTFORMW 美味しそうに酒を飲む彼等を見ていたら自分も飲みたくなったからだ
+									PRINTFORML 「あぁ……そうやって貴方はそう」
+									PRINTFORMW 「私にも一杯貰いますからね」
+									PRINTFORMW %ANAME(MASTER)%よりも先に酒を注いで飲む%ANAME(対象)%
+									PRINTFORML 「……はぁ～美味いわ、こうやって仕事の合間に飲むお酒は格別ね」
+									PRINTFORMW 「ははぁん、あとで再開発の打ち合わせあるのにお酒を飲む……この背徳感、最高ね～ぇ」
+									PRINTFORMW 一人でにややハイペースで飲む%ANAME(対象)%、%ANAME(MASTER)%は少し心配になり酒を飲まずに相槌を打った
+									PRINTFORML ・
+									PRINTFORML ・
+									PRINTFORML ・
+									PRINTFORMW 『えっ、今日は%ANAME(対象)%様の体調が優れないのですか？』
+									PRINTFORMW ……だから今日は%ANAME(対象)%代理で来た
+									PRINTFORMW 『そうでしたか。　では%ANAME(MASTER)%様、この開発地図を――』
+									PRINTFORMW %ANAME(MASTER)%は丸一日酒に潰れた%ANAME(対象)%の代わりに仕事をこなす羽目になった
+									CALL COLORPRINT(@"好感度が 300上がった", カラー_注意, "W")
+									CALL ADD_COOLTIME(MASTER, 1)
+									CALL ADD_COOLTIME(対象, 1)
+									CFLAG:対象:好感度 += 300
+								ELSE
+									PRINTFORML 『説教なら任せろ』
+									PRINTFORMW そう言って%ANAME(MASTER)%は立ち上がり酒を飲む%ANAME(対象)%の部下の元へ向かった
+									PRINTFORML 『ｱﾚ！？　%ANAME(MASTER)%様！？　ﾁｮﾘｨｨｨｽｯｯｯ！』
+									PRINTFORML 『えっ？　オレッスか？　いえいえ、今日も仕事バリバリっすよ！』
+									PRINTFORML 『いやいや！　この程度のお酒じゃオレは酔わないッスよ！』
+									PRINTFORML 『それより%ANAME(MASTER)%様も飲みましょうぜ！』
+									PRINTFORML 『良いー飲みっぷりすね！　大将、じゃんじゃん酒持って来てーっ！』
+									PRINTFORMW 『いやー聞いてくださいよ%ANAME(MASTER)%様！　俺だってそりゃ仕事は――』
+									PRINTFORML ・
+									PRINTFORML ・
+									PRINTFORML ・
+									PRINTFORMW 「ホント……何をやってるのかしら」
+									PRINTFORML 白昼堂々と酔い潰れた部下と%ANAME(MASTER)%に怒るよりも呆れてしまった%ANAME(対象)%
+									PRINTFORMW この後こっぴどく%ANAME(対象)%から叱られた……
+									CALL COLORPRINT(@"好感度が 50上がった", カラー_注意, "W")
+									CFLAG:対象:好感度 += 50
+								ENDIF
+						CASE 2
+							PRINTFORMW 「おやおや、%ANAME(MASTER)%もあの煙の匂いに惹かれたのですね？　フフッ」
+							PRINTFORMW %ANAME(MASTER)%と%ANAME(対象)%に匂いにつられるように焼き鳥屋に向かった……
+							PRINTFORML ・
+							PRINTFORML ・
+							PRINTFORML ・
+							PRINTFORMW 肉の香りを漂わせる屋台に着く二人、しかし焼き鳥屋自体の客は意外に少ないようだ
+							PRINTFORML 「まだ交易と牧畜が盛んでないですからね、他の店に比べて割高なのよ」
+							PRINTFORMW 「つまり今の城下町じゃ焼き鳥屋は高級店よ、フフッ……」
+							PRINTFORML そう言って席に座る%ANAME(対象)%は店主に注文を伝え始める
+							PRINTFORMW 愛想の良い女主人は気さくに受け答えながらも注文の品を用意し始めた
+							PRINTFORML %ANAME(MASTER)%も注文する。　かなりの額になりそうだ……控えめにしておくか
+							PRINTFORMW 「おやおや……おやぁ？」
+							PRINTFORMW しばらくしてから%ANAME(対象)%が自身の服を弄っている……まさか
+							PRINTFORML 「いけませんねぇ、どうやら財布を忘れてしまったようで」
+							PRINTFORMW 「これは困りましたねぇ、どうしましょう？　ねぇ？　%ANAME(MASTER)%？」
+							PRINTFORMW 明らかな態度で聞いてくる%ANAME(対象)%、どうやら奢って貰いたいようだが……
+							PRINTFORML
+							PRINTFORML  財布の中:{MONEY}　焼き鳥代:{必要額}
+							PRINTFORMW ……意外と安くない、どうしようものか
+							PRINTFORML
+							CALL ASK_MULTI_JUDGE("仕方がないから奢ってあげる", MONEY >= 必要額, "奢るものかこの馬鹿めっ！", 1,"こうなれば身体で払うしかない", 2)
+								IF RESULT == 0
+									PRINTFORMW %ANAME(MASTER)%はこっそり自身の財布を確認した……問題ないな
+									PRINTFORMW 『仕方がない、奢ってやる』
+									PRINTFORMW %ANAME(MASTER)%がそう言うと%ANAME(対象)%はニヤリと表情を変えた
+									PRINTFORML 「いやぁありがとうございます%ANAME(MASTER)%、もう少しで無銭飲食をするところでしたよ」
+									PRINTFORMW 「甘味も良いですがお肉も大好きなの、夢とは別腹ですっ」
+									PRINTFORML 尻尾を振って喜ぶ%ANAME(対象)%を見て少し和む%ANAME(MASTER)%
+									PRINTFORMW その後二人は焼き鳥を楽しんだ……
+									CALL COLORPRINT(@"{必要額}を支払いました", カラー_警告, "W")
+									MONEY -= 必要額
+									CALL COLORPRINT(@"好感度が 200上がった", カラー_注意, "W")
+									CFLAG:対象:好感度 += 200
+								ELSEIF RESULT == 1
+									PRINTFORML %ANAME(MASTER)%はテーブルに置かれた爪楊枝を一本抜き取り、%ANAME(対象)%の服へとダーツのように投げた
+									PRINTFORMW 「ははは、バレちゃいますよね流石に」
+									PRINTFORML 爪楊枝は見事に%ANAME(対象)%の服のポケットに刺さっている
+									PRINTFORMW ポケットは妙に膨らんでおり恐らく財布が入っているのだろう
+									PRINTFORML 「トホホ……最近少し浪費が激しいから抑えようと思ったのに残念ね……」
+									PRINTFORMW 「とはいえ、騙すような事をして申し訳ありませんでした」
+									PRINTFORMW 謝っても奢らないからなと%ANAME(MASTER)%は、再度爪楊枝を一本抜き手に取って再びダーツのように構えた
+									PRINTFORML 『お待たせしましたー、--と--と――です』
+									PRINTFORMW 二人の目の前に置かれていく焼き鳥
+									PRINTFORML
+									PRINTFORML
+									PRINTFORMW 「ふむ……それじゃあここからどうやって%ANAME(MASTER)%に奢って貰うか考えましょうか？　%ANAME(MASTER)%」
+									PRINTFORMW そう言って%ANAME(対象)%は%ANAME(MASTER)%の持つ爪楊枝を掴み取り、そのまま焼き鳥の一つに刺した
+									PRINTFORMW 「たとえば……そう、こうやって媚びてみたりね」
+									PRINTFORMW 爪楊枝で串から一つだけ焼き鳥を刺し取り、%ANAME(MASTER)%の元へ向けた
+									PRINTFORMW 「ほらあーんして、食べさせてあげる」
+									PRINTFORMW %ANAME(MASTER)%はやれやれと差し出された焼き鳥を頬張った
+									PRINTFORML 「美味しい？　ねね？　美味しい？」
+									PRINTFORMW 「どう？　奢ってみたくなった？　フフッ」
+									PRINTFORMW 美味いがまだまだだなと%ANAME(MASTER)%は返した
+									PRINTFORMW 二人はこの後も「どうやって%ANAME(MASTER)%に奢らせるか」の話題をしながら焼き鳥を楽しんだ……
+									CALL COLORPRINT(@"好感度が 200上がった", カラー_注意, "W")
+									CFLAG:対象:好感度 += 200
+								ELSEIF RESULT == 2
+									PRINTFORMW こうなれば身体で払うしかない
+									PRINTFORMW 「……えっ？」
+									PRINTFORML ・
+									PRINTFORML ・
+									PRINTFORML ・
+									PRINTFORMW このあと二人はめちゃくちゃ皿洗いした……
+									PRINTFORMW 「(てっきりアッチの意味かと思って身構えちゃったじゃない)」
+									CALL COLORPRINT(@"好感度が 50上がった", カラー_注意, "W")
+									CFLAG:対象:好感度 += 50
+								ENDIF
+					ENDSELECT
+			;住宅街を選んだ場合
+			CASE 1
+				PRINTFORML 再開発地区は民達で住まう住宅街となっているようだ
+				PRINTFORMW 立ち並ぶ長屋の傍では子供たちが遊び、奥の井戸端では近所話をする主婦たちが見える
+				PRINTFORMW 通りを歩いていると、長屋の一室から妙な呻き声が聞こえて来た
+				PRINTFORML 気になって声のする長屋を覗いてみると、そこには一人の老人がうずくまっていた
+				PRINTFORMW %ANAME(MASTER)%は急いでうずくまる老人に声を掛けると老人は苦しそうに返事を返した
+				PRINTFORMW 『あいたたた……持病の腰痛が……これじゃあ仕事に行けんわい……』
+				PRINTFORML 更に話を聞くとこの老人は、なんでも城壁補修の左官達のリーダーのようだ
+				PRINTFORMW だが腰痛で仕事に行けないうえ、賭博で薬代をスッたらしく手詰まりらしい
+				PRINTFORML 
+				PRINTFORML 『どこのどなたか存じ上げないが頼みがある……聞いてくれんかのぉ』
+				PRINTFORML 『今日は左官達での会議でな、普段ならワシが仕切っているのじゃが……これじゃあ行けそうに無い』
+				PRINTFORMW 『お前さんが代わりに会議を仕切ってくれないかのぉ……』
+				PRINTFORMW どうやら%ANAME(MASTER)%に会議を代わりに出てほしいようだ、どうしようか……
+				PRINTFORML
+				PRINTFORML 今から薬を買う選択肢もあるが……
+				PRINTFORMW 財布の中身:{MONEY}　薬代:{必要額}
+				PRINTFORML
+				CALL ASK_MULTI_JUDGE("薬を買ってやるから自分で行け", MONEY >= 必要額, "代わりに会議に出てやろう", 1,"自分でなんとかしろ", 2)
+					IF RESULT == 0
+						PRINTFORMW 流石に会議に出てやれるほど暇じゃない、薬を買ってやろう……
+						PRINTFORML ・
+						PRINTFORML ・
+						PRINTFORML ・
+						PRINTFORMW 『いやぁありがとう、これで何とかなりそうじゃ』
+						PRINTFORMW 老人に薬を買い与えると次第に老人の調子は良くなった
+						PRINTFORML 『それじゃあ行くかの、ひよっこ達がワシを待っているからのぉ～』
+						PRINTFORMW 『(それに今日は会議後に、左官仲間と博打に行く予定じゃったからな)』
+						PRINTFORMW 結果はどうであれ城壁補修作業は順調なようだ……
+						CALL COLORPRINT(@"{必要額}を支払いました", カラー_警告, "W")
+						MONEY -= 必要額
+						CALL COLORPRINT(@"%ANAME(MASTER)%の防衛が2上昇した！", カラー_注意, "W")
+						ABL:MASTER:防衛 += 2
+					ELSEIF RESULT == 1
+						PRINTFORML 今は財布の中が寒い、代わりに会議に出るとしよう
+						PRINTFORML ・
+						PRINTFORML ・
+						PRINTFORML ・
+						PRINTFORML 『東の門はどう修繕するかなぁ、どうするー？』
+						PRINTFORML 『わっかんねぇやぁ、どうしますハンチョー？』
+						PRINTFORML 『西門なんてまだ風通し良いまんまだー』
+						PRINTFORMW 『ははっ、これじゃあ鼠どころか象も入れちゃうぜー』
+						PRINTFORML ……かなり奔放な左官しか居なかったからか%ANAME(MASTER)%は仕切るのにかなり疲れてしまった
+						PRINTFORMW しかし結果はどうであれ城壁補修作業は順調だ……
+						CALL COLORPRINT(@"%ANAME(MASTER)%の政治が2上昇した！", カラー_注意, "W")
+						ABL:MASTER:政治 += 2
+						CALL ADD_COOLTIME(MASTER, 1)
+					ELSEIF RESULT == 2
+						PRINTFORML 今はそんな余裕がない、自分でなんとかしろ
+						PRINTFORMW %ANAME(MASTER)%は老人の家を出た……
+					ENDIF
+			;小悪魔デイリーの流用、経験値アップとかはないよ
+			;どうしてこうなった、どうしてこうなった(気合と長さ)
+			CASE 2
+				PRINTFORMW 再開発地区は労役者の為の娼婦街となっており、この日は%ANAME(対象)%から呼び出され訪れている……
+				PRINTFORML 売春宿ばかりが立ち並び、服とは言えない布を纏った女郎達が客寄せし
+				PRINTFORMW 労役で稼いだ僅かな日銭を、貯めた日銭を男たちは使い果たす
+				PRINTFORMW この娼婦街もこの城の中では労役者の鬱憤を晴らす重要な場所として働いているようだ……
+				PRINTFORML 通りを一人歩く%ANAME(MASTER)%は店の名前を一つ一つ確認する。　そして%ANAME(MASTER)%は目的の店は見付けた
+				PRINTFORMW 売春宿『槐安の夢』は娼婦街でも最も高級な店で知られており、その知名度は他国から高官などがお忍びで来る程だ
+				PRINTFORMW %ANAME(MASTER)%が店前に立つ受付に声を掛けると、受付は店のドアを開き%ANAME(MASTER)%を案内し始めた……
+				PRINTFORML 店の中はどこも紫色のチカチカした光で照らされ、妙に気分が落ち着くアロマの匂いで満たされている
+				PRINTFORMW 受付と%ANAME(MASTER)%の足音だけが廊下に響く……売春宿とは思えないくらい静かだ
+				PRINTFORML ・
+				PRINTFORML ・
+				PRINTFORML 『こちらとなります、それではごゆっくり……』
+				PRINTFORMW 店の最奥にある部屋前で受付はそう言って店前へと戻っていった
+				PRINTFORML %ANAME(MASTER)%はドアを開け部屋に入ると、そこには普段着の%ANAME(対象)%がベッドに座り待ち構えていた
+				PRINTFORML 「ようこそ『槐安の夢』へ、本日%ANAME(MASTER)%様のお相手をさせて頂きます%ANAME(対象)%です」
+				PRINTFORMW 「フフッ、緊張しなくて良いのよ、%ANAME(MASTER)%。　さぁ、今夜は……愉しみましょ？」
+				PRINTFORML %ANAME(対象)%はそう言うと、怪しく笑って見せ。　%ANAME(MASTER)%の手を取り招き入れる
+				PRINTFORMW 部屋にはダブルサイズのベッドと、ガラス張りの風呂場があり廊下に比べてシックな雰囲気だ
+				PRINTFORMW %ANAME(対象)%はさっそく服を脱ぎ始めた……
+				;開発前提品まで入れえると流石にズルいかもしれない
+				SETCOLOR カラー_ピンク
+				PRINTFORML 備え付け品として以下が貰えました
+				PRINTFORML コンドーム……3個
+				PRINTFORML ローション……1個
+				PRINTFORML 媚薬　　　……1個
+				PRINTFORML 絶倫丸　　……1個
+				PRINTFORML 排卵誘発剤……1個
+				PRINTFORML 桃源香　　……1個
+				PRINTFORMW 
+				RESETCOLOR 
+				ITEM:コンドーム += 3
+				ITEM:ローション += 1
+				ITEM:媚薬 += 1
+				ITEM:絶倫丸 += 1
+				ITEM:排卵誘発剤 += 1
+				ITEM:桃源香 += 1
+				CFLAG:対象:好感度 += 100
+				;全員の調教参加フラグをクリア
+				CVARSET CFLAG, 6, 0
+				CFLAG:対象:調教参加フラグ = 1
+				CFLAG:対象:調教中帰らない = 1
+				BASE:対象:体力 = MAXBASE:対象:体力
+				BASE:対象:気力 = MAXBASE:対象:気力
+				;ターンエンド調教をオン
+				FLAG:ターンエンド調教 = 1
+				;それ以降のデイリーイベント発生を潰す
+				DAILY_CANCEL = 1
+				;フラグ
+				KDVAR:対象:ドレミー_再開発_娼館 = 1
+				CALL SINGLE_DRAWLINE
+				PRINTFORML
+				CALL ADD_EVENTTRAIN_CALLEE("KOJO_DAILY_K134_SAIKAIHATU")
+				CALL ADD_EVENTEND_CALLEE("KOJO_DAILY_K134_SAIKAIHATU")
+		ENDSELECT
+		KDVAR:対象:ドレミー_再開発 = -1
+ENDSELECT
+RETURN 1
+
+
+;娼婦街選択したときのやつ
+
+@EVENTTRAIN_KOJO_DAILY_K134_SAIKAIHATU
+#DIM 対象
+PRINTFORMW 「あまり見られると、少し恥ずかしいわ」
+PRINTFORML そう言われても、ついつい見惚れてしまう。　恥ずかしそうな口ぶりだが、%ANAME(対象)%も見られて悪い気はしてないようだ
+PRINTFORMW その証拠に、身体を隠しもしない。　上着も下着も、誘うような手つきでスルスルと脱いでみせる。　%ANAME(MASTER)%も後を追うように服を脱ぎ捨てた
+PRINTFORMW 「そんなに慌てなくてもいいわよ。　ほらおいで」
+PRINTFORML %ANAME(対象)%に連れられ風呂場に入ると、%ANAME(対象)%は丁寧に%ANAME(MASTER)%の身体をを洗ってくれた
+PRINTFORMW たっぷりの泡を身体に塗ると、%ANAME(対象)%が腕を絡めてくる
+PRINTFORMW 泡にまみれた身体をくねらせ、押し当てては、自分の身体をスポンジ代わりにしてくれる
+PRINTFORMW 「ふふっ、%ANAME(MASTER)%ったら息が荒いわ」
+PRINTFORMW %ANAME(対象)%のおっぱいの柔らかさを堪能しつつ、太ももや二の腕の感触を味わう。　%ANAME(MASTER)%の劣情が込みあがる
+PRINTFORML シャワーで泡を綺麗に流し落とすと、二人は湯船に浸かる。逆上せる程の温度じゃないが、興奮してクラクラしてくる
+PRINTFORMW 濡れた髪を垂らした%ANAME(対象)%が、色っぽい。　湯船の中でお互いの肌が触れあい、期待はさらに高まっていく
+PRINTFORMW 「ベッドの方が良いかと思っていたけど、せっかくだから、ここで始めちゃいましょ♥」
+PRINTFORMW %ANAME(対象)%は%ANAME(MASTER)%に寄り添い、腰に手を伸ばしてきた……
+
+;小悪魔デイリーみたく射精量でセリフ変えたかったけど技術的に断念
+@EVENTEND_KOJO_DAILY_K134_SAIKAIHATU
+#DIM 対象
+PRINTFORML 熱く滴り、唾液よりも重たい粘液。　唇をふさがれたまま、白濁の汁が迸る。　精液は、鈴口から帯のように流れては上へ上へと伸びていた
+PRINTFORMW 勢い任せの射精は、とめどなく溢れていく。　%ANAME(対象)%の指の隙間からも、精液が噴き上がっていた
+PRINTFORMW 「ぷあぁっ……はぁ、はぁ……凄い量……手まで熱いわ」
+PRINTFORML 迸り、流れる精液は、みるみるうちに%ANAME(対象)%の手を染めていく
+PRINTFORMW 飛沫を避ける様子もなく、濁液が肌身に叩きつけられるたびに、気怠い息を吐いていた
+PRINTFORML %ANAME(対象)%は上気した顔で、汁まみれのペニスを撫でる。　%ANAME(MASTER)%の匂いと湯気に満ちた空気を吸い込み、大きく息を継ぐ
+PRINTFORMW 身体にこびりついた濁液に、うっとりした視線を向けていた
+PRINTFORMW 「時間はまだまだたっぷりあるわ。　ほら遠慮しないで、一緒に愉しみましょ」
+PRINTFORML ・
+PRINTFORML ・
+PRINTFORMW %ANAME(対象)%の言葉に甘えて、%ANAME(MASTER)%はそのあとも奉仕を楽しんだ……
+KDVAR:対象:ドレミー_再開発_娼館 = 0
+KDVAR:対象:ドレミー_再開発_射精量 = 0
