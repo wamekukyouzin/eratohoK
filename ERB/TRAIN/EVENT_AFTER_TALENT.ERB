@@ -5,7 +5,92 @@
 ;-------------------------------------------------
 @TALENT_CHECK(ARG:0)
 
-;[虚ろ]の取得
+CALL TALENT_CHECK_LOSE_MIND(ARG:0)
+
+SIF !(TALENT:(ARG:0):虚ろ || TALENT:(ARG:0):崩壊)
+	CALL TALENT_CHECK_FALLEN(ARG:0)
+
+CALL GET_FALLEN_BONUS(ARG:0)
+
+CALL TALENT_CHECK_OTHERS(ARG:0)
+
+CALL TALENT_CHECK_EROS(ARG:0)
+
+SIF GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_淫乱)
+	CALL TALENT_CHECK_PART(ARG:0)
+
+;-------------------------------------------------
+;プライド高いを所有するキャラクターが屈服した場合の処理
+;ARG:1は色変更を行わないフラグ	ARG:2は先頭の改行を行わないフラグ
+;-------------------------------------------------
+@TALENT_LOSE_PRIDE(ARG:0, ARG:1, ARG:2)
+SIF !ARG:1
+	SETCOLOR カラー_注意
+IF TALENT:(ARG:0):プライド高い
+	SIF !ARG:2
+		PRINTL 
+	PRINTFORMW %ANAME(ARG:0)%は<プライド高い>を失った
+	TALENT:(ARG:0):プライド高い = 0
+	IF TALENT:(ARG:0):孤高 || TALENT:(ARG:0):気丈 || !TALENT:(ARG:0):臆病 || TALENT:(ARG:0):生意気 || TALENT:(ARG:0):ツンデレ || TALENT:(ARG:0):反抗的
+		PRINTL 
+		PRINTFORML 自尊心を失った%ANAME(ARG:0)%はすっかり弱気になったようだ……
+		ABL:(ARG:0):主導度Ｎ -= (ABL:(ARG:0):主導度Ｎ + 1000) / 5 * (TALENT:(ARG:0):気丈 + 1)
+		ABL:(ARG:0):主導度Ｕ -= (ABL:(ARG:0):主導度Ｕ + 1000) / 5 * (TALENT:(ARG:0):気丈 + 1)
+		ABL:(ARG:0):主導度Ｎ = LIMIT(ABL:(ARG:0):主導度Ｎ, -1000, 1000)
+		ABL:(ARG:0):主導度Ｕ = LIMIT(ABL:(ARG:0):主導度Ｕ, -1000, 1000)
+		IF TALENT:(ARG:0):孤高
+			PRINTFORMW %ANAME(ARG:0)%は<孤高>を失った
+			TALENT:(ARG:0):孤高 = 0
+		ENDIF
+		IF TALENT:(ARG:0):気丈
+			PRINTFORMW %ANAME(ARG:0)%は<気丈>を失った
+			TALENT:(ARG:0):気丈 = 0
+		ELSEIF !TALENT:(ARG:0):臆病
+			PRINTFORMW %ANAME(ARG:0)%は<臆病>を得た
+			TALENT:(ARG:0):臆病 = 1
+		ENDIF
+		;反発系の素質から一つだけ失う
+		IF TALENT:(ARG:0):反抗的
+			PRINTFORMW %ANAME(ARG:0)%は<反抗的>を失った
+			TALENT:(ARG:0):反抗的 = 0
+		ELSEIF TALENT:(ARG:0):生意気
+			PRINTFORMW %ANAME(ARG:0)%は<生意気>を失った
+			TALENT:(ARG:0):生意気 = 0
+		ELSEIF TALENT:(ARG:0):ツンデレ
+			PRINTFORMW %ANAME(ARG:0)%は<ツンデレ>を失った
+			TALENT:(ARG:0):ツンデレ = 0
+		ENDIF
+	ENDIF
+ENDIF
+SIF !ARG:1
+	RESETCOLOR
+
+;-------------------------------------------------
+;特殊勢力による淫乱取得時などの貞操観念喪失・貞操無頓着入手時の処理
+;ARG:1は色変更を行わないフラグ
+;-------------------------------------------------
+@TALENT_LOSE_TEISOU(ARG:0, ARG:1)
+SIF !ARG:1
+	SETCOLOR カラー_注意
+IF TALENT:(ARG:0):貞操観念
+	PRINTFORMW %ANAME(ARG:0)%は<貞操観念>を失い、<貞操無頓着>を得た
+	TALENT:(ARG:0):貞操観念 = 0
+	TALENT:(ARG:0):貞操無頓着 = 1
+ELSEIF !TALENT:(ARG:0):貞操無頓着
+	PRINTFORMW %ANAME(ARG:0)%は<貞操無頓着>を得た
+	TALENT:(ARG:0):貞操無頓着 = 1
+ENDIF
+SIF !ARG:1
+	RESETCOLOR
+
+;-------------------------------------------------
+;虚ろの喪失・回復処理
+;-------------------------------------------------
+@TALENT_CHECK_LOSE_MIND(ARG:0)
+
+SIF TALENT:(ARG:0):崩壊
+	RETURN 0
+
 IF !TALENT:(ARG:0):虚ろ && CFLAG:(ARG:0):崩壊 >= 1000 + MAX(MAXBASE:(ARG:0):精神力, 1000)
 	CALL SINGLE_EMPTY_LINE()
 	CALL KOJO_EVENT(ARG:0, 78)
@@ -35,169 +120,179 @@ IF !TALENT:(ARG:0):崩壊 && CFLAG:(ARG:0):崩壊 >= 3500 + MAX(MAXBASE:(ARG:0):
 	TALENT:(ARG:0):崩壊 = 1
 ENDIF
 
+;-------------------------------------------------
+;恋慕・服従・淫乱
+;-------------------------------------------------
+@TALENT_CHECK_FALLEN(ARG:0)
 
-;[虚ろ]がない場合
-IF !TALENT:(ARG:0):虚ろ
-	;【恋慕】好感度1500以上、依存度300以上、異性 or 両刀 or 恋人
-	;【親友】好感度1500以上、恋慕の条件を満たさない（同性で両刀でも恋人でもない）
-	;【親愛】好感度10000以上、依存度3000以上、奉仕5以上、恋慕
-	;【服従】従属度1500以上、依存度300以上
-	;【隷属】従属度10000以上、依存度3000以上、奉仕5以上、服従
-	LOCAL:1 = 0
-	IF !IS_SLAVE(ARG:0)
-		IF !TALENT:(ARG:0):恋慕 && CFLAG:(ARG:0):2 >= 1500 && ( CFLAG:(ARG:0):2 > CFLAG:(ARG:0):4 ) ;従属度より好感度が高いこと
-			IF (!IS_SAMESEX(MASTER, ARG:0) || TALENT:(ARG:0):両刀 || TALENT:(ARG:0):恋人) && CFLAG:(ARG:0):3 >= 300
-					CALL SINGLE_EMPTY_LINE()
-					CALL KOJO_EVENT(ARG:0, 60)
-					SETCOLOR カラー_注意
-					IF TALENT:(ARG:0):親友
-						PRINTFORMW %ANAME(ARG:0)%は<親友>を失い<恋慕>を得た
-					ELSE
-						PRINTFORMW %ANAME(ARG:0)%は<恋慕>を得た
-					ENDIF
-					RESETCOLOR
-					TALENT:(ARG:0):恋慕 = 1
-					TALENT:(ARG:0):親友 = 0
-					;堕とした人数＋１
-					FLAG:陥落人数 += !(CFLAG:(ARG:0):陥落済み)
-					CFLAG:(ARG:0):陥落済み = 1
-					LOCAL:1 = 1
-			ELSEIF !TALENT:(ARG:0):親友 && IS_SAMESEX(MASTER, ARG:0) && !TALENT:(ARG:0):両刀 && !TALENT:(ARG:0):恋人
-				CALL SINGLE_EMPTY_LINE()
-				CALL KOJO_EVENT(ARG:0, 61)
-				SETCOLOR カラー_注意
-				PRINTFORMW %ANAME(ARG:0)%は<親友>を得た
-				RESETCOLOR
-				TALENT:(ARG:0):親友 = 1
+IF !IS_SLAVE(ARG:0)
+	IF !TALENT:(ARG:0):恋慕 && CFLAG:(ARG:0):好感度 >= 1500 && CFLAG:(ARG:0):好感度 > CFLAG:(ARG:0):従属度
+		IF (!IS_SAMESEX(MASTER, ARG:0) || TALENT:(ARG:0):両刀 || TALENT:(ARG:0):恋人) && CFLAG:(ARG:0):依存度 >= 300
+			CALL SINGLE_EMPTY_LINE()
+			CALL KOJO_EVENT(ARG:0, 60)
+			SETCOLOR カラー_注意
+			IF TALENT:(ARG:0):親友
+				PRINTFORMW %ANAME(ARG:0)%は<親友>を失い<恋慕>を得た
+			ELSE
+				PRINTFORMW %ANAME(ARG:0)%は<恋慕>を得た
 			ENDIF
-		ENDIF
-
-		IF !TALENT:(ARG:0):親愛 && CFLAG:(ARG:0):2 >= 10000 && CFLAG:(ARG:0):3 >= 3000 && ABL:(ARG:0):奉仕 >= 5 && TALENT:(ARG:0):恋慕
-			CALL SINGLE_EMPTY_LINE()
-			CALL KOJO_EVENT(ARG:0, 62)
-			SETCOLOR カラー_注意
-			PRINTFORMW %ANAME(ARG:0)%は<親愛>を得た
 			RESETCOLOR
-			TALENT:(ARG:0):親愛 = 1
-			LOCAL:1 = 2
-		ENDIF
-	ENDIF
-
-	IF !IS_LOVER(ARG:0) && !TALENT:(ARG:0):親友
-		IF !TALENT:(ARG:0):服従 && CFLAG:(ARG:0):4 >= 1500 && CFLAG:(ARG:0):3 >= 300 && !TALENT:(ARG:0):恋慕 && !TALENT:(ARG:0):親友
-			CALL SINGLE_EMPTY_LINE()
-			CALL KOJO_EVENT(ARG:0, 63)
-			SETCOLOR カラー_注意
-			PRINTFORMW %ANAME(ARG:0)%は<服従>を得た
-			RESETCOLOR
-			SIF TALENT:(ARG:0):プライド高い && CFLAG:(ARG:0):好感度 < -500
-				CALL TALENT_LOSE_PRIDE(ARG:0)
-			TALENT:(ARG:0):服従 = 1
+			TALENT:(ARG:0):恋慕 = 1
+			TALENT:(ARG:0):親友 = 0
 			;堕とした人数＋１
 			FLAG:陥落人数 += !(CFLAG:(ARG:0):陥落済み)
 			CFLAG:(ARG:0):陥落済み = 1
-			LOCAL:1 = 3
-		ENDIF
-
-		IF !TALENT:(ARG:0):隷属 && CFLAG:(ARG:0):4 >= 10000 && CFLAG:(ARG:0):3 >= 3000 && ABL:(ARG:0):奉仕 >= 5 && TALENT:(ARG:0):服従
+			LOCAL:1 = 1
+		ELSEIF !TALENT:(ARG:0):親友 && IS_SAMESEX(MASTER, ARG:0) && !TALENT:(ARG:0):両刀 && !TALENT:(ARG:0):恋人
 			CALL SINGLE_EMPTY_LINE()
-			CALL KOJO_EVENT(ARG:0, 64)
+			CALL KOJO_EVENT(ARG:0, 61)
 			SETCOLOR カラー_注意
-			PRINTFORMW %ANAME(ARG:0)%は<隷属>を得た
+			PRINTFORMW %ANAME(ARG:0)%は<親友>を得た
 			RESETCOLOR
-			TALENT:(ARG:0):隷属 = 1
-			LOCAL:1 = 4
+			TALENT:(ARG:0):親友 = 1
 		ENDIF
 	ENDIF
-	;【淫乱】欲望Ａランク以上、精愛Ｃランク以上、性交Ｃ以上、自慰Ｄ以上、感覚合計＋射精が20以上、絶頂経験500以上
-	LOCAL:0 = ABL:(ARG:0):Ｃ感 + ABL:(ARG:0):Ｖ感 + ABL:(ARG:0):Ａ感 + ABL:(ARG:0):Ｂ感 + ABL:(ARG:0):Ｍ感 + ABL:(ARG:0):射精
-	IF ! GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_淫乱) && ABL:(ARG:0):欲望 >= ランク閾値:ランク_その他:ランク_A && ABL:(ARG:0):精愛 >= ランク閾値:ランク_その他:ランク_C && ABL:(ARG:0):性交 >= ランク閾値:ランク_その他:ランク_C && ABL:(ARG:0):自慰 >= ランク閾値:ランク_その他:ランク_D && LOCAL:0 >= 20 && EXP:(ARG:0):絶頂経験 >= 500
+
+	IF !TALENT:(ARG:0):親愛 && CFLAG:(ARG:0):好感度 >= 10000 && CFLAG:(ARG:0):依存度 >= 3000 && ABL:(ARG:0):奉仕 >= ランク閾値:ランク_その他:ランク_C && TALENT:(ARG:0):恋慕
 		CALL SINGLE_EMPTY_LINE()
-		CALL KOJO_EVENT(ARG:0, 65)
+		CALL KOJO_EVENT(ARG:0, 62)
 		SETCOLOR カラー_注意
-		PRINTFORMW %ANAME(ARG:0)%は<淫乱>を得た
+		PRINTFORMW %ANAME(ARG:0)%は<親愛>を得た
 		RESETCOLOR
-		SETBIT TALENT:(ARG:0):淫乱系, 素質_淫乱_淫乱
-		LOCAL:1 = 5
+		TALENT:(ARG:0):親愛 = 1
+		LOCAL:1 = 2
 	ENDIF
-	SELECTCASE LOCAL:1
-		;恋慕
-		CASE 1
-			IF TALENT:(ARG:0):一線越えない
-				CALL COLORPRINT(@"%ANAME(ARG:0)%は<一線越えない>を失った", カラー_注意, "W")
-				TALENT:(ARG:0):一線越えない = 0
-			ENDIF
-			IF TALENT:(ARG:0):無関心
-				CALL COLORPRINT(@"%ANAME(ARG:0)%は<無関心>を失った", カラー_注意, "W")
-				TALENT:(ARG:0):無関心 = 0
-			ENDIF
-		;親愛
-		CASE 2
-			IF TALENT:(ARG:0):孤高
-				CALL COLORPRINT(@"%ANAME(ARG:0)%は<孤高>を失った", カラー_注意, "W")
-				TALENT:(ARG:0):孤高 = 0
-			ENDIF
-		;従属
-		CASE 3
-			IF TALENT:(ARG:0):一線越えない
-				CALL COLORPRINT(@"%ANAME(ARG:0)%は<一線越えない>を失った", カラー_注意, "W")
-				TALENT:(ARG:0):一線越えない = 0
-			ENDIF
-			IF TALENT:(ARG:0):反抗的
-				CALL COLORPRINT(@"%ANAME(ARG:0)%は<反抗的>を失った", カラー_注意, "W")
-				TALENT:(ARG:0):反抗的 = 0
-			ENDIF
-		;隷属
-		CASE 4
-			IF TALENT:(ARG:0):抑圧
-				CALL COLORPRINT(@"%ANAME(ARG:0)%は<抑圧>を失った", カラー_注意, "W")
-				TALENT:(ARG:0):抑圧 = 0
-			ENDIF
-		;淫乱
-		CASE 5
-			;対象が特殊勢力の陥落系か雌犬か肉便器か苗床を所持しているか、遠隔調教のターゲット実行回数が20回以上なら貞操観念を喪失
-			IF TALENT:(ARG:0):貞操観念 && (IS_FALLEN_TO_SP_COUNTRY(ARG:0) || GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_雌犬) || GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_精液便女) || GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_苗床) || COM_EXP:(ARG:0):398 >= 200)
-				CALL COLORPRINT(@"%ANAME(ARG:0)%は<貞操観念>を失った", カラー_注意, "W")
-				TALENT:(ARG:0):貞操観念 = 0
-			ENDIF
-			IF TALENT:(ARG:0):快感の否定
-				CALL COLORPRINT(@"%ANAME(ARG:0)%は<快感の否定>を失った", カラー_注意, "W")
-				TALENT:(ARG:0):快感の否定 = 0
-			ENDIF
-	ENDSELECT
 ENDIF
 
-;堕とした人数が5人ごとにボーナス
-IF FLAG:陥落人数 >= (FLAG:陥落ボーナス受領数 + 1) * 5
+IF !IS_LOVER(ARG:0) && !TALENT:(ARG:0):親友
+	IF !TALENT:(ARG:0):服従 && CFLAG:(ARG:0):従属度 >= 1500 && CFLAG:(ARG:0):依存度 >= 300 && !TALENT:(ARG:0):恋慕 && !TALENT:(ARG:0):親友
+		CALL SINGLE_EMPTY_LINE()
+		CALL KOJO_EVENT(ARG:0, 63)
+		SETCOLOR カラー_注意
+		PRINTFORMW %ANAME(ARG:0)%は<服従>を得た
+		RESETCOLOR
+		SIF TALENT:(ARG:0):プライド高い
+			CALL TALENT_LOSE_PRIDE(ARG:0)
+		TALENT:(ARG:0):服従 = 1
+		;堕とした人数＋１
+		FLAG:陥落人数 += !(CFLAG:(ARG:0):陥落済み)
+		CFLAG:(ARG:0):陥落済み = 1
+		LOCAL:1 = 3
+	ENDIF
+
+	IF !TALENT:(ARG:0):隷属 && CFLAG:(ARG:0):好感度 >= 10000 && CFLAG:(ARG:0):依存度 >= 3000 && ABL:(ARG:0):奉仕 >= ランク閾値:ランク_その他:ランク_C && TALENT:(ARG:0):服従
+		CALL SINGLE_EMPTY_LINE()
+		CALL KOJO_EVENT(ARG:0, 64)
+		SETCOLOR カラー_注意
+		PRINTFORMW %ANAME(ARG:0)%は<隷属>を得た
+		RESETCOLOR
+		TALENT:(ARG:0):隷属 = 1
+		LOCAL:1 = 4
+	ENDIF
+ENDIF
+
+LOCAL:0 = ABL:(ARG:0):Ｃ感 + ABL:(ARG:0):Ｖ感 + ABL:(ARG:0):Ａ感 + ABL:(ARG:0):Ｂ感 + ABL:(ARG:0):Ｍ感 + ABL:(ARG:0):射精
+{
+IF !GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_淫乱) && ABL:(ARG:0):欲望 >= ランク閾値:ランク_その他:ランク_B && MAX(ABL:(ARG:0):精愛, ABL:(ARG:0):奉仕) >= ランク閾値:ランク_その他:ランク_C &&
+MAX(ABL:(ARG:0):性交, ABL:(ARG:0):レズ, ABL:(ARG:0):自慰) >= ランク閾値:ランク_その他:ランク_D && LOCAL:0 >= 20 && EXP:(ARG:0):絶頂経験 >= 500
+}
 	CALL SINGLE_EMPTY_LINE()
-	CALL COLORPRINT(@"今まで他人を陥落させてきた経験で、何か得られる気がする……", カラー_注意, "L")
-	CALL ASK_MULTI_JUDGE("謎の魅力", !TALENT:MASTER:謎の魅力, "天の御遣い", !TALENT:MASTER:天の御遣い, "技師", !TALENT:MASTER:技師, "絶倫", !TALENT:MASTER:絶倫, "君主の器", !TALENT:MASTER:君主の器, "求心力", !TALENT:MASTER:求心力, "金", 1)
-	SELECTCASE RESULT
-		CASE 0
-			CALL COLORPRINT(@"%ANAME(MASTER)%は<謎の魅力>を身につけた", カラー_注意, "W")
-			TALENT:MASTER:謎の魅力 = 1
-		CASE 1
-			CALL COLORPRINT(@"%ANAME(MASTER)%は<天の御遣い>を身につけた", カラー_注意, "W")
-			TALENT:MASTER:天の御遣い = 1
-		CASE 2
-			CALL COLORPRINT(@"%ANAME(MASTER)%は<技師>を身につけた", カラー_注意, "W")
-			TALENT:MASTER:技師 = 1
-		CASE 3
-			CALL COLORPRINT(@"%ANAME(MASTER)%は<絶倫>を身につけた", カラー_注意, "W")
-			TALENT:MASTER:絶倫 = 1
-		CASE 4
-			CALL COLORPRINT(@"%ANAME(MASTER)%は<君主の器>を身につけた", カラー_注意, "W")
-			TALENT:MASTER:君主の器 = 1
-		CASE 5
-			CALL COLORPRINT(@"%ANAME(MASTER)%は<求心力>を身につけた", カラー_注意, "W")
-			TALENT:MASTER:求心力 = 1
-		CASE 6
-			CALL COLORPRINT(@"金50000を手に入れた", カラー_注意, "W")
-			MONEY += 50000
-	ENDSELECT
-	FLAG:陥落ボーナス受領数 ++
+	CALL KOJO_EVENT(ARG:0, 65)
+	SETCOLOR カラー_注意
+	PRINTFORMW %ANAME(ARG:0)%は<淫乱>を得た
+	RESETCOLOR
+	SETBIT TALENT:(ARG:0):淫乱系, 素質_淫乱_淫乱
+	LOCAL:1 = 5
 ENDIF
+SELECTCASE LOCAL:1
+	;恋慕
+	CASE 1
+		IF TALENT:(ARG:0):一線越えない
+			CALL COLORPRINT(@"%ANAME(ARG:0)%は<一線越えない>を失った", カラー_注意, "W")
+			TALENT:(ARG:0):一線越えない = 0
+		ENDIF
+		IF TALENT:(ARG:0):無関心
+			CALL COLORPRINT(@"%ANAME(ARG:0)%は<無関心>を失った", カラー_注意, "W")
+			TALENT:(ARG:0):無関心 = 0
+		ENDIF
+	;親愛
+	CASE 2
+		IF TALENT:(ARG:0):孤高
+			CALL COLORPRINT(@"%ANAME(ARG:0)%は<孤高>を失った", カラー_注意, "W")
+			TALENT:(ARG:0):孤高 = 0
+		ENDIF
+	;従属
+	CASE 3
+		IF TALENT:(ARG:0):一線越えない
+			CALL COLORPRINT(@"%ANAME(ARG:0)%は<一線越えない>を失った", カラー_注意, "W")
+			TALENT:(ARG:0):一線越えない = 0
+		ENDIF
+		IF TALENT:(ARG:0):反抗的
+			CALL COLORPRINT(@"%ANAME(ARG:0)%は<反抗的>を失った", カラー_注意, "W")
+			TALENT:(ARG:0):反抗的 = 0
+		ENDIF
+	;隷属
+	CASE 4
+		IF TALENT:(ARG:0):抑圧
+			CALL COLORPRINT(@"%ANAME(ARG:0)%は<抑圧>を失った", カラー_注意, "W")
+			TALENT:(ARG:0):抑圧 = 0
+		ENDIF
+	;淫乱
+	CASE 5
+		;対象が特殊勢力の陥落系か雌犬か肉便器か苗床を所持しているか、遠隔調教のターゲット実行回数が20回以上なら貞操観念を喪失
+		IF TALENT:(ARG:0):貞操観念 && (IS_FALLEN_TO_SP_COUNTRY(ARG:0) || GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_雌犬) || GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_精液便女) || GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_苗床) || COM_EXP:(ARG:0):398 >= 200)
+			CALL COLORPRINT(@"%ANAME(ARG:0)%は<貞操観念>を失った", カラー_注意, "W")
+			TALENT:(ARG:0):貞操観念 = 0
+		ENDIF
+		IF TALENT:(ARG:0):快感の否定
+			CALL COLORPRINT(@"%ANAME(ARG:0)%は<快感の否定>を失った", カラー_注意, "W")
+			TALENT:(ARG:0):快感の否定 = 0
+		ENDIF
+ENDSELECT
 
+
+;-------------------------------------------------
+;陥落ボーナス取得
+;-------------------------------------------------
+@GET_FALLEN_BONUS(ARG:0)
+
+SIF FLAG:陥落人数 < (FLAG:陥落ボーナス受領数 + 1) * 5
+	RETURN 0
+
+CALL SINGLE_EMPTY_LINE()
+CALL COLORPRINT(@"今まで他人を陥落させてきた経験で、何か得られる気がする……", カラー_注意, "L")
+CALL ASK_MULTI_JUDGE("謎の魅力", !TALENT:MASTER:謎の魅力, "天の御遣い", !TALENT:MASTER:天の御遣い, "技師", !TALENT:MASTER:技師, "絶倫", !TALENT:MASTER:絶倫, "君主の器", !TALENT:MASTER:君主の器, "求心力", !TALENT:MASTER:求心力, "金", 1)
+SELECTCASE RESULT
+	CASE 0
+		CALL COLORPRINT(@"%ANAME(MASTER)%は<謎の魅力>を身につけた", カラー_注意, "W")
+		TALENT:MASTER:謎の魅力 = 1
+	CASE 1
+		CALL COLORPRINT(@"%ANAME(MASTER)%は<天の御遣い>を身につけた", カラー_注意, "W")
+		TALENT:MASTER:天の御遣い = 1
+	CASE 2
+		CALL COLORPRINT(@"%ANAME(MASTER)%は<技師>を身につけた", カラー_注意, "W")
+		TALENT:MASTER:技師 = 1
+	CASE 3
+		CALL COLORPRINT(@"%ANAME(MASTER)%は<絶倫>を身につけた", カラー_注意, "W")
+		TALENT:MASTER:絶倫 = 1
+	CASE 4
+		CALL COLORPRINT(@"%ANAME(MASTER)%は<君主の器>を身につけた", カラー_注意, "W")
+		TALENT:MASTER:君主の器 = 1
+	CASE 5
+		CALL COLORPRINT(@"%ANAME(MASTER)%は<求心力>を身につけた", カラー_注意, "W")
+		TALENT:MASTER:求心力 = 1
+	CASE 6
+		CALL COLORPRINT(@"金50000を手に入れた", カラー_注意, "W")
+		MONEY += 50000
+ENDSELECT
+FLAG:陥落ボーナス受領数 ++
+
+RETURN 1
+
+;-------------------------------------------------
+;その他素質取得
+;-------------------------------------------------
+@TALENT_CHECK_OTHERS(ARG:0)
 ;酔い累積値が150000以上で酒豪が付く	下戸の場合は下戸を失う
 IF !TALENT:(ARG:0):酒豪 && CFLAG:(ARG:0):酔い累積値 >= 150000
 	CFLAG:(ARG:0):酔い累積値 = 0 
@@ -224,6 +319,11 @@ IF !TALENT:(ARG:0):おもらし癖 && EXP:(ARG:0):おもらし経験 >= 30
 	TALENT:(ARG:0):おもらし癖 = 1
 ENDIF
 
+
+;-------------------------------------------------
+;エロ素質
+;-------------------------------------------------
+@TALENT_CHECK_EROS(ARG:0)
 ;輪姦経験150以上、欲望B以上、性交C以上で肉便器
 IF !GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_精液便女) && EXP:(ARG:0):輪姦経験 >= 150 && ABL:(ARG:0):欲望 >= ランク閾値:ランク_その他:ランク_B && ABL:(ARG:0):性交 >= ランク閾値:ランク_その他:ランク_C
 	CALL SINGLE_EMPTY_LINE()
@@ -293,35 +393,6 @@ IF !GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_薬物中毒) && CFLAG:(ARG:0
 	SETBIT TALENT:(ARG:0):淫乱系, 素質_淫乱_薬物中毒
 ENDIF
 
-;部位特化素質＆サドマゾ苗床は欲望Lv3ごとに1つ習得可能
-LOCAL:2 = 1
-SIF GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_サド)
-	LOCAL:2 += 1
-SIF GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_マゾ)
-	LOCAL:2 += 1
-SIF GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_淫核)
-	LOCAL:2 += 1
-SIF GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_淫壷)
-	LOCAL:2 += 1
-SIF GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_尻穴狂い)
-	LOCAL:2 += 1
-SIF GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_淫乳)
-	LOCAL:2 += 1
-SIF GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_蕩唇)
-	LOCAL:2 += 1
-SIF GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_射精狂い)
-	LOCAL:2 += 1
-SIF GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_苗床)
-	LOCAL:2 += 1
-SIF GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_生ハメ依存)
-	LOCAL:2 += 1
-SIF GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_孕みたがり)
-	LOCAL:2 += 1
-SIF GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_露出狂)
-	LOCAL:2 += 1
-IF ABL:(ARG:0):欲望 >= LOCAL:2 * 3
-	CALL TALENT_CHECK_PART(ARG:0)
-ENDIF
 
 
 ;-------------------------------------------------
@@ -461,68 +532,3 @@ ELSEIF !GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_露出狂) && ABL:(ARG:0)
 	RESETCOLOR
 	SETBIT TALENT:(ARG:0):淫乱系, 素質_淫乱_露出狂
 ENDIF
-
-
-;-------------------------------------------------
-;プライド高いを所有するキャラクターが屈服した場合の処理
-;ARG:1は色変更を行わないフラグ	ARG:2は先頭の改行を行わないフラグ
-;-------------------------------------------------
-@TALENT_LOSE_PRIDE(ARG:0, ARG:1, ARG:2)
-SIF !ARG:1
-	SETCOLOR カラー_注意
-IF TALENT:(ARG:0):プライド高い
-	SIF !ARG:2
-		PRINTL 
-	PRINTFORMW %ANAME(ARG:0)%は<プライド高い>を失った
-	TALENT:(ARG:0):プライド高い = 0
-	IF TALENT:(ARG:0):孤高 || TALENT:(ARG:0):気丈 || !TALENT:(ARG:0):臆病 || TALENT:(ARG:0):生意気 || TALENT:(ARG:0):ツンデレ || TALENT:(ARG:0):反抗的
-		PRINTL 
-		PRINTFORML 自尊心を失った%ANAME(ARG:0)%はすっかり弱気になったようだ……
-		ABL:(ARG:0):主導度Ｎ -= (ABL:(ARG:0):主導度Ｎ + 1000) / 5 * (TALENT:(ARG:0):気丈 + 1)
-		ABL:(ARG:0):主導度Ｕ -= (ABL:(ARG:0):主導度Ｕ + 1000) / 5 * (TALENT:(ARG:0):気丈 + 1)
-		ABL:(ARG:0):主導度Ｎ = LIMIT(ABL:(ARG:0):主導度Ｎ, -1000, 1000)
-		ABL:(ARG:0):主導度Ｕ = LIMIT(ABL:(ARG:0):主導度Ｕ, -1000, 1000)
-		IF TALENT:(ARG:0):孤高
-			PRINTFORMW %ANAME(ARG:0)%は<孤高>を失った
-			TALENT:(ARG:0):孤高 = 0
-		ENDIF
-		IF TALENT:(ARG:0):気丈
-			PRINTFORMW %ANAME(ARG:0)%は<気丈>を失った
-			TALENT:(ARG:0):気丈 = 0
-		ELSEIF !TALENT:(ARG:0):臆病
-			PRINTFORMW %ANAME(ARG:0)%は<臆病>を得た
-			TALENT:(ARG:0):臆病 = 1
-		ENDIF
-		;反発系の素質から一つだけ失う
-		IF TALENT:(ARG:0):反抗的
-			PRINTFORMW %ANAME(ARG:0)%は<反抗的>を失った
-			TALENT:(ARG:0):反抗的 = 0
-		ELSEIF TALENT:(ARG:0):生意気
-			PRINTFORMW %ANAME(ARG:0)%は<生意気>を失った
-			TALENT:(ARG:0):生意気 = 0
-		ELSEIF TALENT:(ARG:0):ツンデレ
-			PRINTFORMW %ANAME(ARG:0)%は<ツンデレ>を失った
-			TALENT:(ARG:0):ツンデレ = 0
-		ENDIF
-	ENDIF
-ENDIF
-SIF !ARG:1
-	RESETCOLOR
-
-;-------------------------------------------------
-;特殊勢力による淫乱取得時などの貞操観念喪失・貞操無頓着入手時の処理
-;ARG:1は色変更を行わないフラグ
-;-------------------------------------------------
-@TALENT_LOSE_TEISOU(ARG:0, ARG:1)
-SIF !ARG:1
-	SETCOLOR カラー_注意
-IF TALENT:(ARG:0):貞操観念
-	PRINTFORMW %ANAME(ARG:0)%は<貞操観念>を失い、<貞操無頓着>を得た
-	TALENT:(ARG:0):貞操観念 = 0
-	TALENT:(ARG:0):貞操無頓着 = 1
-ELSEIF !TALENT:(ARG:0):貞操無頓着
-	PRINTFORMW %ANAME(ARG:0)%は<貞操無頓着>を得た
-	TALENT:(ARG:0):貞操無頓着 = 1
-ENDIF
-SIF !ARG:1
-	RESETCOLOR
