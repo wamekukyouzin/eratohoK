@@ -137,8 +137,9 @@ IF CONFIG:10
 ENDIF
 
 
-;特殊勢力による調教は、出来上がった状態からスタート
-IF FLAG:調教モード == 調教_逆調教特殊
+;元士官からの逆調教は、既に出来上がった状態からスタート
+IF FLAG:特殊勢力逆調教知り合いフラグ == 1
+	FLAG:特殊勢力逆調教知り合いフラグ = 0
 	FOR LOCAL:0, 0, CHARANUM
 		IF CFLAG:(LOCAL:0):調教参加フラグ
 			PALAM:(LOCAL:0):潤滑 = 30000
@@ -147,10 +148,19 @@ IF FLAG:調教モード == 調教_逆調教特殊
 	NEXT
 ENDIF
 
-;種族名が鬼の場合、たまに酔っ払った状態でスタート
+;下戸でなく妊娠していなかったら、たまに酔っ払った状態でスタート
+;種族名が鬼の場合高確率、酒豪でもそこそこの確率
+;ただし鬼じゃない場合、捕虜調教時は含めない
 FOR LOCAL, 0, CHARANUM
-	SIF CFLAG:(LOCAL:0):調教参加フラグ && HAS_TAG(LOCAL:0, タグ_鬼) && !RAND:3
-		PALAM:(LOCAL:0):酔い = RAND(3000, 6000)
+	IF CFLAG:(LOCAL:0):調教参加フラグ && !TALENT:(LOCAL:0):下戸 && !TALENT:(LOCAL:0):妊娠
+		IF CSTR:(LOCAL:0):8 == "鬼" && !RAND:3
+			PALAM:(LOCAL:0):酔い = RAND(3000, 6000)
+		ELSEIF TALENT:(LOCAL:0):酒豪 && FLAG:調教モード != 2 && !RAND:5
+			PALAM:(LOCAL:0):酔い = RAND(1500, 3000)
+		ELSEIF FLAG:調教モード != 2 && !RAND:10
+			PALAM:(LOCAL:0):酔い = RAND(500, 1500)
+		ENDIF
+	ENDIF
 NEXT
 
 
