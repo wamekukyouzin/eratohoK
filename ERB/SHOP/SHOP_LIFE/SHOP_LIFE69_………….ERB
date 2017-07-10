@@ -36,126 +36,128 @@ RETURN 0
 @TRAIN_IN_PRISON
 #DIM CHARA_LIST, 3000
 
-TRYCCALLFORM REV_TRAIN_%SP_COUNTRY_NAME_ENG:SP_COUNTRY_TO_CONST(CFLAG:MASTER:捕虜先)%
-	SIF !RESULT
-		;行動開始時の共通処理
-		CALL START_TRAIN_COMMON
-	RETURN 1
-CATCH
-	;特殊勢力以外の捕虜の場合
-	;全員の調教参加フラグを解除
-	CVARSET CFLAG, 6, 0
-
-	LOCAL:10 = -1
-	LOCAL:11 = 0
-	CALL SELECT_REV_TRAINER()
-	LOCAL:10 = RESULT:0
-	LOCAL:11 = RESULT:1
-
-	;FLAG:逆調教メイン調教者に記録されたIDからメイン調教者のキャラ番号を取得
-	LOCAL:12 = ID_TO_CHARA(FLAG:逆調教メイン調教者)
-	IF LOCAL:12 >= 0 && CFLAG:(LOCAL:12):所属 == CFLAG:MASTER:捕虜先 && CFLAG:(LOCAL:12):捕虜先 == 0 && GROUPMATCH(CFLAG:(LOCAL:12):行動不能状態, 0, 2)
-		;メイン調教者を調教に参加させる
-		CFLAG:(LOCAL:12):調教参加フラグ = 1
-		CFLAG:(LOCAL:12):強制友好化 = 1
-		LOCAL:10 = LOCAL:12
-		LOCAL:11 ++
-	;メイン調教者がいないようならここで設定しとけしとけ～～～
-	ELSEIF LOCAL:12 < 0
-		FLAG:逆調教メイン調教者 = GET_ID(LOCAL:10)
-		LOCAL:12 = LOCAL:10
-	ENDIF
-
-	IF CFLAG:MASTER:行動不能状態 == 行動不能_臨月
-		IF LOCAL:10 >= 0
-			LOCALS:0 = 
-			IF LOCAL:11 >= 2
-				LOCALS:0 = たち
-			ENDIF
-			CALL SINGLE_DRAWLINE
-			PRINTFORML %ANAME(LOCAL:10)%%LOCALS:0%はすっかり大きくなった%ANAME(MASTER)%のお腹を見て、
-			PRINTFORMW 子供が産まれるまで調教を見送ることに決めたようだ
-			PRINTFORMW %ANAME(LOCAL:10)%%LOCALS:0%は%ANAME(MASTER)%に、元気な子を産むように言い聞かせて帰っていった…
-
-		ELSE
-			CALL SINGLE_DRAWLINE
-			PRINTFORMW %ANAME(MASTER)%は牢屋の中で日々を過ごした…
-		ENDIF
-		;解放カウンタをリセット
-		CFLAG:MASTER:解放カウンタ = 0
-
-	;参加者が一人以上いれば逆調教を開始
-	ELSEIF LOCAL:11 > 0
-		IF FLAG:逆調教回数 == 0
-			LOCALS:0 = 
-			IF LOCAL:11 >= 2
-				LOCALS:0 = たち
-			ENDIF
-			CALL SINGLE_DRAWLINE
-			PRINTFORMW %ANAME(MASTER)%の牢屋の前に、%ANAME(LOCAL:10)%%LOCALS:0%がやって来た
-			PRINTFORMW %ANAME(LOCAL:10)%%LOCALS:0%は%ANAME(MASTER)%に対し、%ANAME(MASTER)%が仕官する気になるまで調教すると宣言してきた…
-			;説得してからの期間を0にする
-			FLAG:勧誘経過期間 = 0
-		ENDIF
-		;念のため
-		FLAG:夜這い = 0
-		;捕虜逆調教モード
-		FLAG:調教モード = 5
-		;ウフフモード
-		FLAG:ウフフフラグ = 1
-		;回数をカウント
-		FLAG:逆調教回数 ++
-		;説得してからの期間を増加
-		FLAG:勧誘経過期間 ++
-		;解放カウンタをリセット
-		CFLAG:MASTER:解放カウンタ = 0
-		;アイテムを一通り追加
-		ITEM:A_ローター = 1
-		ITEM:A_バイブ = 1
-		ITEM:A_アナルバイブ = 1
-		ITEM:A_ペニスバンド = 1
-		ITEM:A_オナホール = 1
-		ITEM:A_クリキャップ = 1
-		ITEM:A_ニプルキャップ = 1
-		ITEM:A_鞭 = 1
-		ITEM:A_ローション = 99
-		;行動開始時の共通処理
-		CALL START_TRAIN_COMMON
+IF IS_SP_COUNTRY(CFLAG:MASTER:捕虜先)
+	CALL SP_COUNTRY_REV_TRAIN()
+	IF RESULT
+		CALL START_TRAIN_COMMON()
 		RETURN 1
+	ELSE
+		RETURN 0
+	ENDIF
+ENDIF
+
+;特殊勢力以外の捕虜の場合
+;全員の調教参加フラグを解除
+CVARSET CFLAG, 6, 0
+
+LOCAL:10 = -1
+LOCAL:11 = 0
+CALL SELECT_REV_TRAINER()
+LOCAL:10 = RESULT:0
+LOCAL:11 = RESULT:1
+
+;FLAG:逆調教メイン調教者に記録されたIDからメイン調教者のキャラ番号を取得
+LOCAL:12 = ID_TO_CHARA(FLAG:逆調教メイン調教者)
+IF LOCAL:12 >= 0 && CFLAG:(LOCAL:12):所属 == CFLAG:MASTER:捕虜先 && CFLAG:(LOCAL:12):捕虜先 == 0 && GROUPMATCH(CFLAG:(LOCAL:12):行動不能状態, 0, 2)
+	;メイン調教者を調教に参加させる
+	CFLAG:(LOCAL:12):調教参加フラグ = 1
+	CFLAG:(LOCAL:12):強制友好化 = 1
+	LOCAL:10 = LOCAL:12
+	LOCAL:11 ++
+;メイン調教者がいないようならここで設定しとけしとけ～～～
+ELSEIF LOCAL:12 < 0
+	FLAG:逆調教メイン調教者 = GET_ID(LOCAL:10)
+	LOCAL:12 = LOCAL:10
+ENDIF
+
+IF CFLAG:MASTER:行動不能状態 == 行動不能_臨月
+	IF LOCAL:10 >= 0
+		LOCALS:0 = 
+		IF LOCAL:11 >= 2
+			LOCALS:0 = たち
+		ENDIF
+		CALL SINGLE_DRAWLINE
+		PRINTFORML %ANAME(LOCAL:10)%%LOCALS:0%はすっかり大きくなった%ANAME(MASTER)%のお腹を見て、
+		PRINTFORMW 子供が産まれるまで調教を見送ることに決めたようだ
+		PRINTFORMW %ANAME(LOCAL:10)%%LOCALS:0%は%ANAME(MASTER)%に、元気な子を産むように言い聞かせて帰っていった…
 
 	ELSE
-		IF RAND:3 == 0
-			;恋慕または服従のキャラがいれば時々やってくる
-			LOCAL:11 = 0
-			FOR LOCAL:0, 0, CHARANUM
-				IF LOCAL:0 != MASTER && CFLAG:(LOCAL:0):所属 == CFLAG:MASTER:捕虜先 && CFLAG:(LOCAL:0):捕虜先 == 0 && GROUPMATCH(CFLAG:(LOCAL:0):行動不能状態, 0, 2) && (TALENT:(LOCAL:0):恋慕 || TALENT:(LOCAL:0):服従)
-					CHARA_LIST:(LOCAL:11) = LOCAL:0
-					LOCAL:11 ++
-				ENDIF
-			NEXT
-			IF LOCAL:11 >= 1
-				LOCAL:12 = CHARA_LIST:(RAND:(LOCAL:11))
-				CFLAG:(LOCAL:12):調教参加フラグ = 1
-				CFLAG:(LOCAL:12):強制友好化 = 1
-				LOCAL:10 = 1
-
-				CALL SINGLE_DRAWLINE
-				PRINTFORMW %ANAME(MASTER)%の牢屋の前に、%ANAME(LOCAL:12)%がやって来た
-				PRINTFORMW %ANAME(LOCAL:12)%は%ANAME(MASTER)%の牢を空け中に入ると、少し話がしたいと言ってきた…
-
-				;捕虜会話モード
-				FLAG:調教モード = 6
-				;非ウフフモード
-				FLAG:ウフフフラグ = 0
-				;行動開始時の共通処理
-				CALL START_TRAIN_COMMON
-				RETURN 1
-			ENDIF
-		ENDIF
 		CALL SINGLE_DRAWLINE
 		PRINTFORMW %ANAME(MASTER)%は牢屋の中で日々を過ごした…
 	ENDIF
-	SHOP_TIME = CALC_SHOP_TIME()
-	RETURN 0
-ENDCATCH
+	;解放カウンタをリセット
+	CFLAG:MASTER:解放カウンタ = 0
 
+;参加者が一人以上いれば逆調教を開始
+ELSEIF LOCAL:11 > 0
+	IF FLAG:逆調教回数 == 0
+		LOCALS:0 = 
+		IF LOCAL:11 >= 2
+			LOCALS:0 = たち
+		ENDIF
+		CALL SINGLE_DRAWLINE
+		PRINTFORMW %ANAME(MASTER)%の牢屋の前に、%ANAME(LOCAL:10)%%LOCALS:0%がやって来た
+		PRINTFORMW %ANAME(LOCAL:10)%%LOCALS:0%は%ANAME(MASTER)%に対し、%ANAME(MASTER)%が仕官する気になるまで調教すると宣言してきた…
+		;説得してからの期間を0にする
+		FLAG:勧誘経過期間 = 0
+	ENDIF
+	;念のため
+	FLAG:夜這い = 0
+	;捕虜逆調教モード
+	FLAG:調教モード = 5
+	;ウフフモード
+	FLAG:ウフフフラグ = 1
+	;回数をカウント
+	FLAG:逆調教回数 ++
+	;説得してからの期間を増加
+	FLAG:勧誘経過期間 ++
+	;解放カウンタをリセット
+	CFLAG:MASTER:解放カウンタ = 0
+	;アイテムを一通り追加
+	ITEM:A_ローター = 1
+	ITEM:A_バイブ = 1
+	ITEM:A_アナルバイブ = 1
+	ITEM:A_ペニスバンド = 1
+	ITEM:A_オナホール = 1
+	ITEM:A_クリキャップ = 1
+	ITEM:A_ニプルキャップ = 1
+	ITEM:A_鞭 = 1
+	ITEM:A_ローション = 99
+	;行動開始時の共通処理
+	CALL START_TRAIN_COMMON
+	RETURN 1
+
+ELSE
+	IF RAND:3 == 0
+		;恋慕または服従のキャラがいれば時々やってくる
+		LOCAL:11 = 0
+		FOR LOCAL:0, 0, CHARANUM
+			IF LOCAL:0 != MASTER && CFLAG:(LOCAL:0):所属 == CFLAG:MASTER:捕虜先 && CFLAG:(LOCAL:0):捕虜先 == 0 && GROUPMATCH(CFLAG:(LOCAL:0):行動不能状態, 0, 2) && (TALENT:(LOCAL:0):恋慕 || TALENT:(LOCAL:0):服従)
+				CHARA_LIST:(LOCAL:11) = LOCAL:0
+				LOCAL:11 ++
+			ENDIF
+		NEXT
+		IF LOCAL:11 >= 1
+			LOCAL:12 = CHARA_LIST:(RAND:(LOCAL:11))
+			CFLAG:(LOCAL:12):調教参加フラグ = 1
+			CFLAG:(LOCAL:12):強制友好化 = 1
+			LOCAL:10 = 1
+
+			CALL SINGLE_DRAWLINE
+			PRINTFORMW %ANAME(MASTER)%の牢屋の前に、%ANAME(LOCAL:12)%がやって来た
+			PRINTFORMW %ANAME(LOCAL:12)%は%ANAME(MASTER)%の牢を空け中に入ると、少し話がしたいと言ってきた…
+
+			;捕虜会話モード
+			FLAG:調教モード = 6
+			;非ウフフモード
+			FLAG:ウフフフラグ = 0
+			;行動開始時の共通処理
+			CALL START_TRAIN_COMMON
+			RETURN 1
+		ENDIF
+	ENDIF
+	CALL SINGLE_DRAWLINE
+	PRINTFORMW %ANAME(MASTER)%は牢屋の中で日々を過ごした…
+ENDIF
+SHOP_TIME = CALC_SHOP_TIME()
+RETURN 0
