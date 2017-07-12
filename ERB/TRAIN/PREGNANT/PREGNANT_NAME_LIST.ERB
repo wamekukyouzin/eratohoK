@@ -4,46 +4,46 @@
 ;-------------------------
 @CREATE_SPERM_MAP
 SPERM_NAME_ARRAY:0 = 不明
-CALL ADD_SPERM("野盗")
-CALL ADD_SPERM("ホフゴブリン")
-CALL ADD_SPERM("外来人")
-CALL ADD_SPERM("触手")
-CALL ADD_SPERM("自警団")
-CALL ADD_SPERM("サキュバス")
-CALL ADD_SPERM("「実験動物」")
-CALL ADD_SPERM("犬")
-CALL ADD_SPERM("豚")
-CALL ADD_SPERM("馬")
-CALL ADD_SPERM("薬売り")
-CALL ADD_SPERM("金貸しの客")
-CALL ADD_SPERM("催眠術師")
-CALL ADD_SPERM("娼館の客")
-CALL ADD_SPERM("兵士")
-CALL ADD_SPERM("鬼")
-CALL ADD_SPERM("野良妖怪")
-CALL ADD_SPERM("浮浪者")
-CALL ADD_SPERM("チャラ男")
-CALL ADD_SPERM("山賊")
-CALL ADD_SPERM("やくざ")
-CALL ADD_SPERM("チンピラ")
-CALL ADD_SPERM("ごろつき")
-CALL ADD_SPERM("奴隷商人")
-CALL ADD_SPERM("痴漢")
-CALL ADD_SPERM("子供")
-CALL ADD_SPERM("地主")
-CALL ADD_SPERM("ならず者")
-CALL ADD_SPERM("行きずりの男")
-CALL ADD_SPERM("医者")
-CALL ADD_SPERM("貴族")
-CALL ADD_SPERM("領民")
-CALL ADD_SPERM("老人")
-CALL ADD_SPERM("悪魔")
-CALL ADD_SPERM("ゾンビ")
-CALL ADD_SPERM("天狗")
-CALL ADD_SPERM("オーク")
-CALL ADD_SPERM("AV男優")
-CALL ADD_SPERM("カジノの客")
-CALL ADD_SPERM("狂信者")
+;CALL ADD_SPERM("野盗")
+;CALL ADD_SPERM("ホフゴブリン")
+;CALL ADD_SPERM("外来人")
+;CALL ADD_SPERM("触手")
+;CALL ADD_SPERM("自警団")
+;CALL ADD_SPERM("サキュバス")
+;CALL ADD_SPERM("「実験動物」")
+;CALL ADD_SPERM("犬")
+;CALL ADD_SPERM("豚")
+;CALL ADD_SPERM("馬")
+;CALL ADD_SPERM("薬売り")
+;CALL ADD_SPERM("金貸しの客")
+;CALL ADD_SPERM("催眠術師")
+;CALL ADD_SPERM("娼館の客")
+;CALL ADD_SPERM("兵士")
+;CALL ADD_SPERM("鬼")
+;CALL ADD_SPERM("野良妖怪")
+;CALL ADD_SPERM("浮浪者")
+;CALL ADD_SPERM("チャラ男")
+;CALL ADD_SPERM("山賊")
+;CALL ADD_SPERM("やくざ")
+;CALL ADD_SPERM("チンピラ")
+;CALL ADD_SPERM("ごろつき")
+;CALL ADD_SPERM("奴隷商人")
+;CALL ADD_SPERM("痴漢")
+;CALL ADD_SPERM("子供")
+;CALL ADD_SPERM("地主")
+;CALL ADD_SPERM("ならず者")
+;CALL ADD_SPERM("行きずりの男")
+;CALL ADD_SPERM("医者")
+;CALL ADD_SPERM("貴族")
+;CALL ADD_SPERM("領民")
+;CALL ADD_SPERM("老人")
+;CALL ADD_SPERM("悪魔")
+;CALL ADD_SPERM("ゾンビ")
+;CALL ADD_SPERM("天狗")
+;CALL ADD_SPERM("オーク")
+;CALL ADD_SPERM("AV男優")
+;CALL ADD_SPERM("カジノの客")
+;CALL ADD_SPERM("狂信者")
 
 ;-------------------------
 ;指定した名前をもつ精液を追加
@@ -75,9 +75,12 @@ RETURN 1
 #DIMS SPERMNAME
 LOCAL = FINDELEMENT(SPERM_NAME_ARRAY, SPERMNAME)
 IF LOCAL == -1
-	PRINTFORML ADD_SPERMされていない精液"%SPERMNAME%"がGET_SPERM_IDに渡されました
-	PRINTFORML バリアントないしパッチ製作者に報告願います
-	RETURNF 0
+	FOR LOCAL, 0, SPERM_MAX_ADDRESS
+		SIF SPERM_NAME_ARRAY:LOCAL == ""
+			GOTO FOUND
+	NEXT
+	$FOUND
+	SPERM_NAME_ARRAY:LOCAL = %SPERMNAME%
 ENDIF
 RETURNF LOCAL * -1
 
@@ -97,6 +100,31 @@ LOCALS = %SPERM_NAME_ARRAY:(SPERMID * -1)%
 SIF LOCALS == ""
 	RETURNF "不明"
 RETURNF LOCALS
+
+;-------------------------
+;ゲームのバージョンが上がった場合に、精液マップをクリーンする処理
+;領地探索とか絶対に（絶対に）表記ゆれさせてくるに違いないので。
+;-------------------------
+@CLEAN_SPERM_MAP()
+FOR LOCAL, 1, SPERM_MAX_ADDRESS
+	SIF SPERM_NAME_ARRAY:LOCAL == ""
+		CONTINUE
+	FOR LOCAL:1, 0, CHARANUM
+		SIF CFLAG:(LOCAL:1):父親 * -1 == LOCAL
+			GOTO FOUND
+		FOR LOCAL:2, 0, PREGNANT_RECORD_MAX
+			SIF PREGNANT_RECORD_FATHER:(LOCAL:1):(LOCAL:2) * -1 == LOCAL
+				GOTO FOUND
+		NEXT
+		FOR LOCAL:2, 150, 170
+			SIF CFLAG:(LOCAL:1):(LOCAL:2) * -1 == LOCAL
+				GOTO FOUND
+		NEXT
+	NEXT
+	SPERM_NAME_ARRAY:LOCAL = ""
+	$FOUND
+NEXT
+
 
 ;-------------------------
 ;指定した固定キャラ間に兄弟・姉妹の関係を設定
