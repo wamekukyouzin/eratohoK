@@ -1,0 +1,103 @@
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@KOJO_DAILY_K138_MAGIC_RATE(対象)
+#DIM 対象
+RETURN 50
+
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@KOJO_DAILY_K138_MAGIC_DECISION(対象)
+#DIM 対象
+
+SIF !TALENT:MASTER:妖術知識
+	RETURN 0
+
+SIF KDVAR:対象:ヘカーティア_トレーニング == 3
+	RETURN 0
+
+SIF CFLAG:対象:好感度 < 1000
+	RETURN 0
+
+RETURN CHECK_KOJO_DAILY_HAPPEN(対象, 1, 0, 1)
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@KOJO_DAILY_K138_MAGIC_GENRE(対象)
+#DIM 対象
+RETURN デイリー_ジャンル_その他
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@KOJO_DAILY_K138_MAGIC(対象)
+#DIM 対象
+
+SELECTCASE KDVAR:対象:ヘカーティア_トレーニング
+	CASE 0
+		PRINTFORML たまには妖術でも学ぼうかな？
+		CALL ASK_YN("そうしよう", "やめとこ")
+		IF RESULT == 1
+			PRINTFORMW 別に良いかなぁ……
+			KDVAR:対象:ヘカーティア_トレーニング = 3
+			RETURN 1
+		ELSE
+			PRINTFORMW たまにはそれもいいかな
+		ENDIF
+		PRINTFORMW ふと庭を見ると%ANAME(対象)%がうろついていた
+		PRINTFORMW %ANAME(対象)%はたしか魔術の女神だったはず、妖術についての造詣も深いだろう
+		PRINTFORMW 少し知恵を借りるとしようか
+		PRINTFORMW 「あら、%ANAME(MASTER)%。どうしたのかしら？」
+		PRINTFORMW 「へぇ、私に妖術を教えて欲しいのね」
+		IF ABL:MASTER:妖術 > ABL:対象:妖術
+			PRINTFORMW 「……って、%ANAME(MASTER)%の方が妖術については上じゃないの」
+			PRINTFORMW 言われてみればそうである
+			PRINTFORMW 「まぁいいわ、二人の方が上達も早いでしょう」
+			PRINTFORMW その後二人で妖術の特訓をした……
+			KDVAR:対象:ヘカーティア_トレーニング = 1
+		ELSE
+			PRINTFORMW 「いいわ、でも私の修行はスパルタよ♪」
+			PRINTFORMW %ANAME(対象)%にみっちり鍛えられた……
+			KDVAR:対象:ヘカーティア_トレーニング = 2
+		ENDIF
+	CASE 1
+		PRINTFORMW 「%ANAME(MASTER)%、また特訓しないかしら？」
+		PRINTFORML %ANAME(対象)%が部屋に訪ねてきた……
+		CALL ASK_YN("そうしよう", "今は忙しい")
+		IF RESULT == 1
+			PRINTFORMW 「そうかしら、じゃあまた今度来るわね」
+			PRINTFORMW %ANAME(対象)%は立ち去った……
+			RETURN 1
+		ELSE
+			PRINTFORMW 「じゃあ今日も頑張りましょう？」
+			PRINTFORMW その後二人で妖術の特訓をした……
+		ENDIF
+	CASE 2
+		PRINTFORMW 「%ANAME(MASTER)%、また鍛えてあげるわよん」
+		PRINTFORMW %ANAME(対象)%が部屋に訪ねてきた……
+		CALL ASK_YN("そうしよう", "今は忙しい")
+		IF RESULT == 1
+			PRINTFORMW 「そうかしら、じゃあまた今度来るわね」
+			PRINTFORMW %ANAME(対象)%は立ち去った……
+			RETURN 1
+		ELSE
+			PRINTFORMW 「じゃあ今日も厳しくいくわよ♪」
+			PRINTFORMW %ANAME(対象)%にみっちり鍛えられた……
+		ENDIF
+ENDSELECT
+CALL PRINT_ADD_EXP(MASTER, EXPNAME:GET_EXP(GETNUM(ABL, "妖術")), RAND(20, 40), 1)
+CALL PRINT_ADD_EXP(対象, EXPNAME:GET_EXP(GETNUM(ABL, "妖術")), RAND(20, 40), 1)
+
+RETURN 1
+
+
+

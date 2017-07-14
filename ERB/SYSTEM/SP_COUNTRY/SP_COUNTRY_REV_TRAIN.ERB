@@ -1,0 +1,87 @@
+﻿@SP_COUNTRY_REV_TRAIN()
+#DIM 知り合い参加者, 4
+#DIM 知り合い参加数
+#DIM 特殊勢力定数
+#DIMS 特殊勢力英名
+VARSET 知り合い参加者
+VARSET 知り合い参加数
+;全員の調教参加フラグを解除
+CVARSET CFLAG, 6, 0
+
+
+特殊勢力定数 = SP_COUNTRY_TO_CONST(CFLAG:MASTER:捕虜先)
+特殊勢力英名 = %SP_COUNTRY_NAME_ENG:特殊勢力定数%
+
+;勢力ごとの特殊なイベント
+;発生したなら1を戻す　その後の調教は発生しない
+TRYCCALLFORM %特殊勢力英名%_REV_TRAIN_SP_EVENT(CFLAG:MASTER:捕虜先)
+	SIF RESULT
+		RETURN 0
+CATCH
+ENDCATCH
+
+;勢力ごとの定期的イベントとして使う
+;その後の調教をキャンセルするなら1を返す
+TRYCCALLFORM SP_COUNTRY_REV_TRAIN_REGULAR_EVENT(CFLAG:MASTER:捕虜先)
+	SIF RESULT
+		RETURN 0
+CATCH
+ENDCATCH
+
+;知り合いの参加数を決定する 4人まで
+CALL FISHER_YATES_SHAFFLE(CHARANUM)
+FOR LOCAL:0, 0, CHARANUM
+	LOCAL:1 = SHAFFLE_ARRAY:(LOCAL:0)
+	IF CFLAG:(LOCAL:1):面識 && !IS_SP_CHARA(LOCAL:1) && CFLAG:(LOCAL:1):所属 == CFLAG:MASTER:捕虜先 && GETBIT(TALENT:(LOCAL:1):特殊勢力陥落系, 特殊勢力定数) && RAND:2
+		知り合い参加者:知り合い参加数 = LOCAL:1
+		知り合い参加数 ++
+		CFLAG:(LOCAL:1):調教参加フラグ = 1
+		SIF 知り合い参加数 == 4
+			BREAK
+	ENDIF
+NEXT
+
+;特殊勢力に堕ちたキャラが参加するイベント
+;第二引数は#DIM REFすること
+SIF 知り合い参加数 > 0
+	TRYCALLFORM %特殊勢力英名%_REV_TRAIN_MSG(CFLAG:MASTER:捕虜先, 知り合い参加者, 知り合い参加数)
+
+
+;参加者決定アルゴリズム(犬豚を参加させるための処置)
+TRYCCALLFORM %特殊勢力英名%_REV_TRAIN_CHOOSE_PARTICIPANT(CFLAG:MASTER:捕虜先)
+CATCH
+	FOR LOCAL, 0, 4
+		FOR LOCAL:1, 0, CHARANUM
+			IF TALENT:(LOCAL:1):特殊勢力素質 == 特殊勢力定数 && !CFLAG:(LOCAL:1):調教参加フラグ && CFLAG:(LOCAL:1):所属 == CFLAG:MASTER:捕虜先
+				CFLAG:(LOCAL:1):調教参加フラグ = 1
+				CFLAG:(LOCAL:1):TEXT_LAST非表示 = 1
+				CFLAG:(LOCAL:1):能力固定フラグ = 1
+				BREAK
+			ENDIF
+		NEXT
+	NEXT
+ENDCATCH
+
+;逆調教開始前のなんやかや
+FLAG:調教モード = 調教_逆調教特殊
+FLAG:ウフフフラグ = 1
+FLAG:逆調教回数 ++
+ITEM:A_ローター = 1
+ITEM:A_バイブ = 1
+ITEM:A_アナルバイブ = 1
+ITEM:A_ペニスバンド = 1
+ITEM:A_オナホール = 1
+ITEM:A_クリキャップ = 1
+ITEM:A_ニプルキャップ = 1
+ITEM:A_搾乳機 = 1
+ITEM:A_針 = 1
+ITEM:A_鞭 = 1
+ITEM:A_媚薬 = 99
+ITEM:A_排卵誘発剤 = 99
+ITEM:A_ローション = 99
+ITEM:A_ペニスバンド = 1
+
+CFLAG:MASTER:解放カウンタ = 0
+
+RETURN 1
+

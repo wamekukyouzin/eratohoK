@@ -235,8 +235,15 @@ RETURN 0
 #DIM 対象NO
 #DIM スキルID
 
-対象NO = NO:対象
 
+FOR ジャンル, 0, SKILL_GENRE_NUM
+	FOR スキルID, 0, MAX_SKILL_SLOT
+		SKILL_NO_SLOT:対象:ジャンル:スキルID = -1
+		SKILL_ID_SLOT:対象:ジャンル:スキルID = -1
+	NEXT
+NEXT
+
+対象NO = NO:対象
 TRYCALLFORM SKILL_INIT_{対象NO}_GENERAL
 
 ;ジャンルごとで習得させていく
@@ -250,22 +257,18 @@ FOR ジャンル, 0, SKILL_GENRE_NUM
 			TRYCCALLFORM SKILL_{対象NO}_%SKILL_GENRE_ENG:ジャンル%_{スキルID}_NO_LEARN_INIT
 				GOTO CANCEL
 			CATCH
-				SKILL_NO_SLOT:対象:ジャンル:スキルID = 対象NO
-				SKILL_ID_SLOT:対象:ジャンル:スキルID = スキルID
+			CALL SKILL_LEARN(対象, ジャンル, 対象NO, スキルID)
 			ENDCATCH
 		CATCH
 			$CANCEL
-			SKILL_NO_SLOT:対象:ジャンル:スキルID = -1
-			SKILL_ID_SLOT:対象:ジャンル:スキルID = -1
 		ENDCATCH
 	NEXT
 NEXT
 
-
 ;---------------------------------
 ;スキルの説明
 ;---------------------------------
-@SKILL_EXPLANATION(ジャンル, スキルNO, スキルID, 説明削減 = 0, スペース)
+@SKILL_EXPLANATION(ジャンル, スキルNO, スキルID, スペース)
 #DIM ジャンル
 #DIM スキルNO
 #DIM スキルID
@@ -274,7 +277,6 @@ NEXT
 #DIMS スキル名
 #DIMS レベル
 #DIMS 説明
-#DIM 説明削減
 #DIMS 発動率
 #DIM スペース
 ;描画内容を用意
@@ -297,12 +299,6 @@ ENDCATCH
 CALLFORM %アクセサ%EXPLANATION
 説明 = %RESULTS%
 
-;スキル名と説明を削る
-スキル名 = %SUBSTRING(スキル名, 0, 20)%
-
-SIF 説明削減
-	説明 = %SUBSTRING(説明, 0, 80)%
-
 IF ジャンル == スキル_ジャンル_PASSIVE
 	発動率 =  --
 ELSE
@@ -314,7 +310,7 @@ ELSE
 	ENDIF
 ENDIF
 
-PRINTFORML %スキル名, 21, LEFT%LV%レベル, 3, LEFT% 発動率%発動率, 6, LEFT%%SKILL_GENRE:ジャンル, 6, LEFT%%キャラ名, MAX_CHARANAME_LENGTH/2, LEFT%
+PRINTFORML %スキル名, 35, LEFT%LV%レベル, 3, LEFT% 発動率%発動率, 6, LEFT%%SKILL_GENRE:ジャンル, 6, LEFT%%キャラ名, MAX_CHARANAME_LENGTH/2, LEFT%
 PRINTFORML %TOSTR_SPACE(スペース)%%説明%
 
 

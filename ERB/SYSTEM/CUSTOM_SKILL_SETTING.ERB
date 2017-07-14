@@ -166,7 +166,7 @@ FOR スキル, (SHOP_SKILL_PAGE:ジャンル - 1) * 項目数, MIN(SHOP_SKILL_PA
 		PRINTBUTTON "[習得]", スキル
 	ENDIF
 	;項目描画
-	CALL CUSTOM_SKILL_EXPLANATION(ジャンル, SHOP_SKILL_NO_LIST:ジャンル:スキル, SHOP_SKILL_ID_LIST:ジャンル:スキル, 1)
+	CALL CUSTOM_SKILL_EXPLANATION(ジャンル, SHOP_SKILL_NO_LIST:ジャンル:スキル, SHOP_SKILL_ID_LIST:ジャンル:スキル)
 	描画行 ++
 NEXT
 
@@ -237,7 +237,7 @@ FOR ジャンル, 0, SKILL_GENRE_NUM
 
 		CALL SINGLE_DRAWLINE
 		PRINTBUTTON "[忘却]", ジャンル * MAX_SKILL_SLOT + スキル
-		CALL CUSTOM_SKILL_EXPLANATION(ジャンル, CUSTOM_SKILL_NO:対象:ジャンル:スキル, CUSTOM_SKILL_ID:対象:ジャンル:スキル, 1)
+		CALL CUSTOM_SKILL_EXPLANATION(ジャンル, CUSTOM_SKILL_NO:対象:ジャンル:スキル, CUSTOM_SKILL_ID:対象:ジャンル:スキル)
 		PRINTL
 		描画行 ++
 	NEXT
@@ -362,16 +362,15 @@ RETURNF 空きスロット
 ;---------------------------------
 ;スキルの説明
 ;---------------------------------
-@CUSTOM_SKILL_EXPLANATION(ジャンル, スキルNO, スキルID, 説明削減 = 0, スペース = 0)
+@CUSTOM_SKILL_EXPLANATION(ジャンル, スキルNO, スキルID, スペース = 0)
 #DIM ジャンル
 #DIM スキルNO
 #DIM スキルID
 #DIMS アクセサ
 #DIMS キャラ名
 #DIMS スキル名
-#DIM レベル
+#DIMS レベル
 #DIMS 説明
-#DIM 説明削減
 #DIMS 発動率
 #DIM スペース
 ;描画内容を用意
@@ -386,15 +385,13 @@ ELSE
 	キャラ名 = %CSVCSTR(スキルNO, 99)%
 ENDIF
 CALLFORM %アクセサ%LEVEL
-レベル = RESULT
+レベル '= TOSTR(RESULT)
+TRYCCALLFORM %アクセサ%CANT_TELL
+	レベル '= "EX"
+CATCH
+ENDCATCH
 CALLFORM %アクセサ%EXPLANATION
 説明 = %RESULTS%
-
-;スキル名と説明を削る
-スキル名 = %SUBSTRING(スキル名, 0, 20)%
-
-SIF 説明削減
-	説明 = %SUBSTRING(説明, 0, 80)%
 
 IF ジャンル == スキル_ジャンル_PASSIVE
 	発動率 =  --
@@ -407,5 +404,7 @@ ELSE
 	ENDIF
 ENDIF
 
-PRINTFORM %スキル名, 21, LEFT%LV{レベル, 2, LEFT}発動率%発動率, 6, LEFT%%SKILL_GENRE:ジャンル, 6, LEFT%%キャラ名, MAX_CHARANAME_LENGTH/2, LEFT%
+PRINTFORML %スキル名, 35, LEFT%LV%レベル, 3, LEFT% 発動率%発動率, 6, LEFT%%SKILL_GENRE:ジャンル, 6, LEFT%%キャラ名, MAX_CHARANAME_LENGTH/2, LEFT%
 PRINTFORML %TOSTR_SPACE(スペース)%%説明%
+
+
