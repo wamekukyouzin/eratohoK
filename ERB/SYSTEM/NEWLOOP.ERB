@@ -728,9 +728,17 @@ SELECTCASE RESULT
 		;主人公を変更した、あるいは「あなた」を新規に作成した場合は陥落済みフラグリセット（ボーナスを再び受け取れるようにするため）
 		IF 選択MASTERID != 旧MASTERID || FLAG:あなた新規作成
 			FLAG:陥落人数 = 0
+			CVARSET CFLAG, GETNUM(CFLAG, "陥落済み"), 0
+			;利殖対策として、好感度等まっさらな状態でないキャラが一人でもいたら、ボーナス受領数はリセットしない
+			LOCAL:1 = 0
 			FOR LOCAL, 0, CHARANUM
-				CFLAG:LOCAL:陥落済み = 0
+				IF !(ALLSAMES(0, CFLAG:LOCAL:好感度, CFLAG:LOCAL:従属度, CFLAG:LOCAL:依存度) || IS_LOVER(LOCAL) || IS_SLAVE(LOCAL))
+					LOCAL:1 = 1
+					BREAK
+				ENDIF
 			NEXT
+			SIF !LOCAL:1
+				FLAG:陥落ボーナス受領数 = 0
 		ENDIF
 
 		;性知識の設定
