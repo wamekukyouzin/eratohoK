@@ -45,4 +45,4 @@ era恋姫150730
 
 ## 連絡先
 - eratoho総合スレ
-- Twitterアカウント:wamekukyouzin
+- Twitterアカウント:[wamekukyouzin](https://twitter.com/wamekukyouzin)
