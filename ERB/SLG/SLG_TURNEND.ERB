@@ -644,9 +644,15 @@ ENDIF
 #DIM ECONOMY_POWER, MAX_COUNTRY, 3
 
 FOR LOCAL:0, 0, MAX_CITY
-VARSET CITY_DAMAGE
-VARSET ECONOMY_POWER
-	;攻撃を受けた都市の経済規模を減少させる
+	VARSET CITY_DAMAGE
+	VARSET ECONOMY_POWER
+
+	;都市の戦闘フラグを消す
+	CITY_IS_ATTACKED:(LOCAL:0) = 0
+
+	;その場所で戦闘があった都市の経済規模を減少させる
+	;CITY_IS_ATTACKEDは都市が直接殴られたときのフラグであり、都市上での部隊VS部隊を参照できない。
+	;なのでCITY_TIRED_COUNTを利用する。
 	CITY_DAMAGE:0 = CITY_TIRED_COUNT:(LOCAL:0) - PAST_CITY_TIRED_COUNT:(LOCAL:0)
 	IF CITY_DAMAGE:0 > 0
 		FOR CITY_DAMAGE:1, 0, MAX(CITY_DAMAGE:0 / 2, 1)
@@ -656,14 +662,8 @@ VARSET ECONOMY_POWER
 		NEXT
 		CITY_ECONOMY:(LOCAL:0) = MAX(CITY_ECONOMY:(LOCAL:0) - (CITY_ECONOMY:(LOCAL:0) * MIN(CITY_DAMAGE:2, 20) / 400), 500)
 		CITY_ECONOMY_LIMIT:(LOCAL:0) = MAX(CITY_ECONOMY_LIMIT:(LOCAL:0) - (CITY_ECONOMY_LIMIT:(LOCAL:0) * MIN(CITY_DAMAGE:2, 20) / 800), 500)
-	;このターン攻撃を受けなければフラグはリセットされる
-	ELSE
-		CITY_TIRED_COUNT:(LOCAL:0) = 0
-		CITY_IS_ATTACKED:(LOCAL:0) = 0
 	ENDIF
 NEXT
-;変数リセット
-ARRAYCOPY "CITY_TIRED_COUNT" , "PAST_CITY_TIRED_COUNT"
 
 ;各士官が行動可能な状態にあるかどうかのマップ作成(高速化用)
 CALL TMP_CREATE_IS_FREE_MAP
@@ -797,6 +797,23 @@ FOR LOCAL:1, 0, MAX_CITY
 		LOCAL:14 ++
 	ENDIF
 NEXT
+
+;-------------------------------------------------
+;都市の疲労度のリセット　呼び出しはTURNEND_COMMON
+;-------------------------------------------------
+@RESET_CITY_TIRED_COUNT()
+
+VARSET CITY_IS_ATTACKED, 0
+
+;このターンその都市で戦闘が起こらなければ、疲労度はリセットされる
+FOR LOCAL, 0, MAX_CITY
+	SIF CITY_TIRED_COUNT:LOCAL == PAST_CITY_TIRED_COUNT:LOCAL
+		CITY_TIRED_COUNT:LOCAL = 0
+NEXT
+
+;このターンの最終的な都市疲労度をコピーして戻す
+ARRAYCOPY "CITY_TIRED_COUNT" , "PAST_CITY_TIRED_COUNT"
+
 
 ;-------------------------------------------------
 ;自国へ誘った士官の移動 ARG:0は移動元の勢力番号
