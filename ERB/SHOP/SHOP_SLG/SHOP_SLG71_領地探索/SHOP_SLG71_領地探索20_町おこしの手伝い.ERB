@@ -1,0 +1,52 @@
+﻿;-------------------
+;●町おこしの手伝い
+;-------------------
+@REGISTER_TERRITORY_EVENT20(対象)
+#DIM 対象
+RETURN 1
+
+@TERRITORY_EVENT20(対象)
+#DIM 対象
+#DIM 対象都市
+CALL DAILY_EVENT_RAND_CITYSELECT(0)
+対象都市 = RESULT
+SIF 対象都市 < 0
+	RETURN 0
+PRINTFORML %CITY_NAME:対象都市%で町起こしの現場に遭遇した
+PRINTFORML 町おこしが成功すれば経済が潤いそうだ
+PRINTFORMW どうしよう？
+CALL ASK_YN("協力する", "やめておく")
+IF RESULT == 1
+	PRINTFORML 下手に手出しをしないほうが良いだろう
+	PRINTFORMW %ANAME(対象)%はしばらく様子を眺めた後、宮殿へ戻った
+ELSE
+	PRINTFORML 町民に協力を申し出た
+	PRINTFORMW 政治の知識を生かして町おこしを成功させてみせる
+	PRINTFORML ・
+	PRINTFORML ・
+	PRINTFORMW ・
+	IF ABL:対象:政治 / 10 > RAND:10 + 1
+		PRINTFORML やった！
+		PRINTFORML 見事町おこしに成功した
+		PRINTFORMW %ANAME(対象)%は町民に感謝されて宮殿へ戻った
+		LOCAL:1 = RAND(CITY_ECONOMY_LIMIT:(対象都市) / 100 * 100 / 10 , CITY_ECONOMY_LIMIT:(対象都市) / 100 * 100 / 10 + 1000)
+		IF CITY_ECONOMY:対象都市 == CITY_ECONOMY_LIMIT:対象都市
+			CITY_ECONOMY_LIMIT:対象都市 += LOCAL:1
+			CALL COLORPRINT(@"%CITY_NAME:対象都市%の経済規模の上限が{LOCAL:1 / 100}上昇し、{CITY_ECONOMY_LIMIT:対象都市 / 100}になった！", カラー_注意, "W")
+		ELSE
+			SIF CITY_ECONOMY:対象都市 + LOCAL:1 >= CITY_ECONOMY_LIMIT:対象都市
+				LOCAL:1 = MIN(LOCAL:1, CITY_ECONOMY_LIMIT:対象都市 - CITY_ECONOMY)
+			CITY_ECONOMY:対象都市 += LOCAL:1
+			CALL COLORPRINT(@"%CITY_NAME:対象都市%の経済規模が{LOCAL:1 / 100}上昇し、{CITY_ECONOMY:対象都市 / 100}になった！", カラー_注意, "W")
+		ENDIF
+	ELSE
+		PRINTFORML 失敗した…
+		PRINTFORML 町おこしに失敗し、むしろ経済は衰退してしまった
+		PRINTFORMW %ANAME(対象)%は肩を落とす町民から逃げる様に宮殿へ戻った
+		LOCAL:1 = RAND(CITY_ECONOMY_LIMIT:(対象都市) / 100 * 100 / 10 , CITY_ECONOMY_LIMIT:(対象都市) / 100 * 100 / 10 + 1000)
+		CITY_ECONOMY:対象都市 -= LOCAL:1
+		CALL COLORPRINT(@"%CITY_NAME:対象都市%の経済規模が{LOCAL:1 / 100}減少し、{CITY_ECONOMY:対象都市 / 100}になった…", カラー_注意, "W")
+	ENDIF
+ENDIF
+RETURN 1
+

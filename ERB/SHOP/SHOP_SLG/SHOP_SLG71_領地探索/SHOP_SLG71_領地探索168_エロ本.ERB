@@ -1,0 +1,54 @@
+﻿;-------------------
+;●エロ本
+;-------------------
+@REGISTER_TERRITORY_EVENT168(対象)
+#DIM 対象
+RETURN 1
+
+@TERRITORY_EVENT168(対象)
+#DIM 対象
+#DIM 仲間
+#DIM 候補キャラ, 1000
+#DIM 候補数
+VARSET 候補キャラ
+VARSET 候補数
+PRINTFORML 川沿いを歩いていると茂みに何かが落ちているのを見つけた
+PRINTFORMW 近づいて調べると大量のエロ本だった！
+PRINTFORML どうしよう？
+CALL ASK_YN("持ち帰る", "放置する")
+IF RESULT == 1
+	PRINTFORML 興味はあったが量が多すぎた
+	PRINTFORMW 放置して立ち去った
+ELSE
+	PRINTFORML こんなものを放置して子供の目に入ったら大変だ！
+	PRINTFORMW %ANAME(対象)%はエロ本を抱え上げると急いで帰路についた
+	PRINTFORMW …エロ本はいずれもとても素晴らしかった
+	CALL PRINT_ADD_EXP(対象, "欲望経験値", RAND:20 + 6, 1)
+	FOR LOCAL, 0, CHARANUM
+		IF CFLAG:(LOCAL):所属 == CFLAG:MASTER:所属 && !CFLAG:(LOCAL):捕虜先 && !IS_ANIMAL(LOCAL) && IS_FEMALE(LOCAL)
+			候補キャラ:LOCAL = RAND:1000 
+			候補数 ++
+		ENDIF
+	NEXT
+	IF 候補数 == 0
+		仲間 = 0
+	ELSE
+		仲間 = FINDELEMENT(候補キャラ, MAXARRAY(候補キャラ))
+	ENDIF
+	IF 仲間 != 0 && 対象 == MASTER
+		IF CFLAG:仲間:好感度 >= 1000
+			PRINTFORML その様子を%ANAME(仲間)%に見られてしまった
+			PRINTFORMW しかし彼女は%ANAME(対象)%同様興味があった様でエロ本をこっそり貸してあげた
+			CFLAG:仲間:好感度 += 200
+			CALL PRINT_ADD_EXP(仲間, "欲望経験値", RAND:20 + 6, 1)
+			CALL COLORPRINT(@"%ANAME(仲間)%の評価が上がった", カラー_注意, "W")
+		ELSE
+			PRINTFORML その様子を%ANAME(仲間)%に見られてしまった
+			PRINTFORMW 彼女はその様子を見て心底呆れていた
+			CFLAG:仲間:好感度 -= 100
+			CALL COLORPRINT(@"%ANAME(仲間)%の評価が下がった", カラー_注意, "W")
+		ENDIF
+	ENDIF
+ENDIF
+RETURN 1
+

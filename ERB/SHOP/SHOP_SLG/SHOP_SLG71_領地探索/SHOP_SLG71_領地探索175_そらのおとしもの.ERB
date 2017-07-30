@@ -1,0 +1,50 @@
+﻿;-------------------
+;●そらのおとしもの
+;-------------------
+@REGISTER_TERRITORY_EVENT175(対象)
+#DIM 対象
+RETURN 1
+
+@TERRITORY_EVENT175(対象)
+#DIM 対象
+#DIM 金額
+PRINTFORML ある日、歩いていると空から何かが落ちてきた
+PRINTFORML 龍だ！…しかしかなり小さい、どうやら子供の様だ
+PRINTFORMW 龍の子供は苦しそうにしている
+PRINTFORML どうしよう？
+CALL ASK_MULTI("退治する" ,"治療する" ,"無視する")
+IF RESULT == 2
+	PRINTFORML 子供で傷ついているとはいえ龍だ
+	PRINTFORMW 下手に関わらずに放置した
+ELSEIF RESULT == 1
+	PRINTFORML 龍とは言え傷ついているなら放置はできない
+	PRINTFORMW %ANAME(対象)%は刺激しない様に友好をアピールしながら治療した
+	IF ABL:対象:防衛 / 10 + RAND:3 >= 5 + RAND:5
+		PRINTFORMW 治療に成功した！
+		PRINTFORMW 龍の子供は嬉しそうに%ANAME(対象)%の顔を舐めまわして去って行った
+		IF 対象 == MASTER
+			FOR LOCAL:1, 0, CHARANUM
+				SIF !IS_ANIMAL(LOCAL:1)
+					CFLAG:(LOCAL:1):好感度 += 15 * LOCAL
+			NEXT
+			CALL COLORPRINT("龍を助けた武勇伝は直ぐに広まり名声が高まった", カラー_注意, "W")
+		ENDIF
+	ELSE
+		PRINTFORML しかし治療はうまくいかず子供龍は悲鳴を上げた
+		PRINTFORMW すると空の向こうから大きな影が飛んできた
+		PRINTFORML 母龍だ！彼女は一瞬で%ANAME(対象)%の元にやって来ると睨み付けてきた
+		PRINTFORMW 弁明などできず、強烈なブレスで吹き飛ばされてしまった
+		CALL ADD_COOLTIME(対象, 3)
+		PRINTFORMW 
+	ENDIF
+ELSE
+	PRINTFORMW これはチャンスと思った%ANAME(対象)%は剣を抜いて斬りかかった
+	PRINTFORML 
+	PRINTFORML 竜とは言え傷ついた子供相手では苦戦しなかった
+	PRINTFORMW %ANAME(対象)%は龍の鱗をはぎ取ると好事家に売却した
+	金額 = 3000 + (RAND:30 + 1) * (RAND:30 + 1) * 10
+	MONEY += 金額
+	CALL COLORPRINT(@"金{金額}で売れた", カラー_注意, "W")
+ENDIF
+RETURN 1
+

@@ -1,0 +1,107 @@
+﻿;-------------------
+;●破戒僧の寺
+;-------------------
+@REGISTER_TERRITORY_EVENT70(対象)
+#DIM 対象
+RETURN 1
+
+@TERRITORY_EVENT70(対象)
+#DIM 対象
+#DIM 金額
+#DIM 兵数
+#DIM 対象都市
+CALL DAILY_EVENT_RAND_CITYSELECT(0)
+対象都市 = RESULT
+SIF 対象都市 < 0
+	RETURN 0
+PRINTFORML 今日は領内でも、命令に従わない坊主たちが集まってできた寺にやってきた
+PRINTFORML 坊主とは言いつつも、中には念仏も知らず、ならず者と変わらない爛れた生活を送っている者も多いと聞く
+PRINTFORML とは言え、付近の領民を脅して税を取り、力を持っているのも事実だ
+PRINTFORMW どうしよう？
+CALL ASK_YN("破戒僧たちをとっちめる", "なにもしない")
+IF RESULT == 1
+	PRINTFORML 触らぬ神に祟りなしだ。そう考えた%ANAME(対象)%は踵を返して宮殿に帰った
+ELSE
+	PRINTFORML 破戒僧たちにお灸を据える必要があるだろう。そう考えた%ANAME(対象)%は山門をくぐった
+	IF (ABL:対象:知略) * (RAND:5 + 1) > 10 * (RAND:30 + 1)
+		PRINTFORMW やった！
+		PRINTFORMW %ANAME(対象)%は見事破戒僧たちにお灸を据えることに成功した！
+		CALL PRINT_ADD_EXP(対象, "知略経験値", RAND:3 + 1, 1)
+		PRINTFORMW どうしよう？
+		CALL ASK_MULTI_JUDGE("なにもしない", 1,"財宝を供出させる", 1,"軍役を課す", 1,"女を堪能する", HAS_PENIS(対象),"稚児を堪能する", IS_FEMALE(対象))
+		IF RESULT == 0
+			PRINTFORML これに懲りたら二度と悪さをしないようにと坊主たちに説教した。彼らから改心の言葉を聞き%ANAME(対象)%は満足して宮殿に帰った
+		ELSEIF RESULT == 1
+			PRINTFORML %ANAME(対象)%は坊主達から鍵を取り上げ、宝物庫に入ると中には様々な財宝が、所狭しと置いてあった
+			PRINTFORML %ANAME(対象)%はその中でも価値のありそうなものを幾つか選んで懐に入れると、残りは「坊主には不要だ」と近くの拠点の発展に使わせた
+			金額 = MIN(DAY * 50, 5000) + RAND(1000, 5000)
+			MONEY += 金額
+			CALL COLORPRINT(@"金{金額}を手に入れた", カラー_注意)
+			LOCAL:1 = RAND(CITY_ECONOMY_LIMIT:(対象都市) / 100 * 100 / 10 , CITY_ECONOMY_LIMIT:(対象都市) / 100 * 100 / 10 + 1000)
+			IF CITY_ECONOMY:対象都市 == CITY_ECONOMY_LIMIT:対象都市
+				CITY_ECONOMY_LIMIT:対象都市 += LOCAL:1
+				CALL COLORPRINT(@"%CITY_NAME:対象都市%の経済規模の上限が{LOCAL:1 / 100}上昇し、{CITY_ECONOMY_LIMIT:対象都市 / 100}になった！", カラー_注意, "W")
+			ELSE
+				SIF CITY_ECONOMY:対象都市 + LOCAL:1 >= CITY_ECONOMY_LIMIT:対象都市
+					LOCAL:1 = MIN(LOCAL:1, CITY_ECONOMY_LIMIT:対象都市 - CITY_ECONOMY)
+				CITY_ECONOMY:対象都市 += LOCAL:1
+				CALL COLORPRINT(@"%CITY_NAME:対象都市%の経済規模が{LOCAL:1 / 100}上昇し、{CITY_ECONOMY:対象都市 / 100}になった！", カラー_注意, "W")
+			ENDIF
+			PRINTFORMW 
+		ELSEIF RESULT == 2
+			PRINTFORML %ANAME(対象)%は坊主達に軍役を課すことにした
+			PRINTFORML 坊主たちは難色を示したが、命を取られるよりましだと思ったのか渋々頷いた
+			兵数 = MIN(1000 * (DAY / 10), 10000)
+			SIF 兵数 == 0
+				兵数 = 1000
+			COUNTRY_SOLDIER:(CFLAG:対象:所属) += 兵数
+			PRINTFORMW 兵数が{兵数}増えた
+		ELSEIF RESULT == 3
+			PRINTFORML %ANAME(対象)%は坊主たちを倉に閉じ込め、寺内を探し坊主たちが寺に集めた上玉の女たちを味わうことにした
+			PRINTFORML 
+			PRINTFORML すると、様々な女たちが犇めく建物を見つけた。中には香が焚いてあるのか、女たちの体臭と交わい%ANAME(対象)%の理性も融かそうとする
+			PRINTFORML %ANAME(対象)%はその誘いに抗わず室内に踏み込み、女たちの肉体を堪能することにした
+			PRINTFORML 
+			PRINTFORML 坊主たちに仕込まれていたのか、女たちの奉仕は%ANAME(対象)%を満足させるものだった
+			PRINTFORMW %ANAME(対象)%自身も法悦境を極めようとする女たちの腰が砕けるまで、その観音様を堪能した
+			CALL FUCK(対象, "性技, 性交, Ｃ, 射精", "童貞喪失, キス喪失", 0, "破戒僧の妾達の唇", "", "破戒僧の妾達の膣", 喪失_乱交)
+		ELSE
+			PRINTFORML 寺ということは衆道のために美少年の稚児がいるはずだ
+			PRINTFORML そう考えた%ANAME(対象)%は破戒僧たちに「稚児の居場所を言えば、女と金には手を出さない」と告げた
+			PRINTFORML するとひとりが「本堂の右の建物だ！」と叫ぶと、高僧の何人かが明らかに動揺した
+			PRINTFORMW その反応に満足した%ANAME(対象)%は、必死に今までの態度の謝罪や勢力への忠誠を叫んで%ANAME(対象)%の慈悲に縋ろうとする高僧たちに
+			PRINTFORMW 「慈悲はない」
+			PRINTFORML と告げ、「仏罰が下るぞ！」などという妄言を吐く生臭坊主を無視して稚児たちのいる建物へ向かった
+			PRINTFORML 
+			PRINTFORML 建物の中には流石に高僧たちが手塩にかけて育てただけあって、麗しい少年たちが集まっていた
+			PRINTFORML %ANAME(対象)%は舌なめずりしながら自分好みの少年たちを選ぶと、間近に見る女体に興奮と動揺を隠せない彼らを連れて寝室に向かった
+			PRINTFORML 
+			PRINTFORML %ANAME(対象)%は少年ひとりひとりに女体の愉しみを教えるべく、未だ未熟なそのペニスに全身を使って奉仕している
+			PRINTFORML %ANAME(対象)%の淫魔の如き性技に少年たちは喘ぎ声を上げながら、ひとりまたひとりと射精していく
+			PRINTFORML %ANAME(対象)%は精を放って、ビクビクと震える少年たちのペニスが未だ硬さを保っていることを確かめると「金玉が空になるまで搾り取ってあげる」と囁き、自身の女陰へと彼らの魔羅を導いた
+			CALL FUCK(対象, "欲望, 奉仕, 精愛, 性技, 性交, Ｃ, Ｖ, Ｂ, Ｍ, キス, 口淫, 輪姦, Ｖ性交", "処女喪失, 膣内射精, キス喪失, 口内射精", GET_SPERM_ID("子供"), @"稚児の\@RAND:2 ? ペニス # 唇\@", "稚児", "", 喪失_和姦)
+			PRINTFORML 
+			PRINTFORMW %ANAME(対象)%は稚児たちに女体の素晴らしさを存分に教え込み堕落させると、満足して宮殿に帰って行った
+		ENDIF
+	ELSE
+		IF IS_MALE(対象)
+			PRINTFORML やられた！
+			PRINTFORMW 破戒僧たちは想像以上に手強く、返り討ちにあった%ANAME(対象)%は命からがら逃げかえった
+			CALL ADD_COOLTIME(対象, 3)
+		ELSE
+			PRINTFORML やられた！
+			PRINTFORMW 破戒僧たちは想像以上に手強く、%ANAME(対象)%は返り討ちにされてお堂へと引きずられていった
+			PRINTFORML 
+			PRINTFORML %ANAME(対象)%は破戒僧たちの慰み者にされている
+			PRINTFORML 抵抗する度に殴られ、仏道修行と称して犯され続け、彼女はすっかり彼らに従順に奉仕する様になっている
+			PRINTFORML 今もまた一人の僧の上に跨り淫らに体をくねらせながら自ら腰を振っている
+			PRINTFORML 坊主が限界を迎えると%ANAME(対象)%はやや虚ろに笑いながら膣を締めつけ、「功徳」と称したその精を一滴残らず膣内で受け止めた
+			PRINTFORML 彼らに気に入られた%ANAME(対象)%はその後も寺に捕らわれた他の女とともに身体中を使われてたっぷりと種付けされ続けた
+			CALL FUCK(対象, "欲望, 奉仕, 精愛, 性技, 性交, Ｃ, Ｖ, Ｂ, Ａ, Ｍ, キス, 口淫, 苦痛快楽, 緊縛, マゾ, 輪姦, Ｖ性交, Ａ性交", "処女喪失, Ａ処女喪失, 膣内射精, キス喪失, 腸内射精, 口内射精", GET_SPERM_ID("ならず者"), @"破戒僧の\@RAND:2 ? ペニス # 唇\@", "破戒僧", "", 喪失_輪姦)
+			PRINTFORML 
+			PRINTFORMW %ANAME(対象)%は散々犯された後、何とか逃げ帰った
+			CALL ADD_COOLTIME(対象, 3)
+		ENDIF
+	ENDIF
+ENDIF
+

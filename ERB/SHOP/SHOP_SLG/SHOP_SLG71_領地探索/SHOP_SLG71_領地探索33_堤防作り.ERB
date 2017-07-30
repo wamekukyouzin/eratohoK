@@ -1,0 +1,45 @@
+﻿;-------------------
+;●堤防作り
+;-------------------
+@REGISTER_TERRITORY_EVENT33(対象)
+#DIM 対象
+RETURN 1
+
+@TERRITORY_EVENT33(対象)
+#DIM 対象
+#DIM 対象都市
+CALL DAILY_EVENT_RAND_CITYSELECT(0)
+対象都市 = RESULT
+SIF 対象都市 < 0
+	RETURN 0
+PRINTFORML %CITY_NAME:対象都市%を散策していると河川の氾濫で悩んでいる村にたどりついた
+PRINTFORML 堤防を作れれば村は助かるかもしれないが、金5000かかる上に成功するとも限らない
+PRINTFORMW どうしよう？
+CALL ASK_MULTI_JUDGE("金5000で堤防を作る", MONEY >= 5000,"放っておく",1)
+IF RESULT == 1
+	PRINTFORML 領民には悪いが今は1円も無駄にはできない
+	PRINTFORMW 何も言わずに村から立ち去った
+ELSE
+	PRINTFORML 領民の生活の為に金を惜しんでいる場合ではない
+	PRINTFORMW %ANAME(対象)%は早速技術者たちを呼びよせ、堤防作製に取り掛からせた
+	PRINTFORML ・
+	PRINTFORML ・
+	PRINTFORMW ・
+	IF (ABL:対象:政治) * (RAND:3 + 1) >= 30 * (RAND:5 + 1)
+		PRINTFORML やった！
+		PRINTFORMW 無事に頑丈な堤防が出来た
+		CITY_GUARD:対象都市 += 15
+		PRINTFORMW 村人たちに感謝された
+		CALL COLORPRINT(@"%CITY_NAME:対象都市%の防衛率が15上昇し、{CITY_GUARD:対象都市}になった", カラー_注意, "W")
+		MONEY -= 5000
+		CALL COLORPRINT("金5000を消費した", カラー_注意, "W")
+	ELSE
+		PRINTFORML 失敗した！
+		PRINTFORML 堤防を上手く作ることは出来なかった
+		PRINTFORMW 肩を落とす領民たちから逃げる様に立ち去った
+		MONEY -= 5000
+		CALL COLORPRINT("金5000を消費した", カラー_注意, "W")
+	ENDIF
+ENDIF
+RETURN 1
+
