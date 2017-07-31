@@ -299,8 +299,9 @@ NEXT
 ;このターンの特別訓練実施回数をリセット
 SPECIAL_TRAIN_COUNT_THIS_TURN = 0
 
-;子育てモードのコマンド実行回数をクリア
-CVARSET CFLAG, 27, 0
+;都市への投資をクリア
+VARSET CITY_INVESTED
+NOW_INVEST = 0
 
 ;捕虜用変数のクリア
 CVARSET CFLAG, 30, 0
@@ -347,7 +348,7 @@ ELSEIF CFLAG:MASTER:捕虜先 == 0
 	LOCAL:0 = CALC_SALARY()
 	MONEY += LOCAL:0
 	PRINTFORML %ANAME(MASTER)%に今期分の俸給が支払われました
-	PRINTFORMW 所持金＋{LOCAL:0}
+	PRINTFORMW 所持金＋{LOCAL:0}（現在:{MONEY}）
 ENDIF
 
 ;各勢力都市の経済規模変動及び税収処理
@@ -441,9 +442,6 @@ FOR LOCAL:0, 0, CHARANUM
 	BASE:(LOCAL:0):0 = MAXBASE:(LOCAL:0):0
 	BASE:(LOCAL:0):1 = MAXBASE:(LOCAL:0):1
 
-	SIF CFLAG:(LOCAL:0):脱走不可能 && !CFLAG:(LOCAL:0):捕虜先
-		CFLAG:(LOCAL:0):脱走不可能 = 0
-	
 	;陰毛が成長
 	CALL INMOU_GROW(LOCAL:0)
 	
@@ -756,9 +754,6 @@ FOR LOCAL, 1, CHARANUM
 			CFLAG:LOCAL:特殊状態 = 特殊状態_放浪
 		ENDIF
 		RESETCOLOR
-	;解放されないフラグが立っていたら脱走不可能
-	ELSEIF CFLAG:LOCAL:脱走不可能
-		CONTINUE
 	;通常の解放処理
 	ELSEIF LOCAL != MASTER && CFLAG:LOCAL:捕虜先 && CFLAG:LOCAL:捕虜先 != CFLAG:MASTER:所属 && MIN((CFLAG:LOCAL:解放カウンタ - 5) * 5, 30) > RAND:100 && !特殊捕虜先
 		IF !LOCAL:1

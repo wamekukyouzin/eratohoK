@@ -1,0 +1,97 @@
+﻿;-------------------
+;●骨董屋
+;-------------------
+@REGISTER_TERRITORY_EVENT181(対象)
+#DIM 対象
+RETURN 1
+
+@TERRITORY_EVENT181(対象)
+#DIM 対象
+#DIM 金額
+PRINTFORML ある日気まぐれで立ち寄った骨董屋で品物を壊してしまった
+PRINTFORMW 店主が言うには5万の高価な壺だそうだ
+PRINTFORML どうしよう？
+CALL ASK_MULTI_JUDGE("支払う", MONEY >= 50000,"鑑定する", 1,"逃げる", 1)
+IF RESULT == 1
+	PRINTFORMW %ANAME(対象)%は品物を鑑定した
+	IF (ABL:対象:知略 / 10) + RAND:5 >= RAND:12 + 1
+		PRINTFORML 品物はせいぜい金1000程度だとわかった
+		PRINTFORMW %ANAME(対象)%があくまで丁寧に淡々と伝えると店主も渋々認めた
+		IF MONEY >= 1000
+			MONEY -= 1000
+			CALL COLORPRINT("金1000を支払った", カラー_注意)
+			PRINTFORMW
+			RETURN 1
+		ELSE
+			PRINTFORML …しかし%ANAME(対象)%は金1000すら持っていなかった！
+			PRINTFORMW 店主は強気に戻り別の方法での弁償を要求してきた
+			LOCAL:1 = 2
+		ENDIF 
+	ELSE
+		PRINTFORML 鑑定に失敗してしまった
+		PRINTFORMW 店主に強く迫られ仕方なく弁償するしかなかった
+		IF MONEY >= 50000
+			MONEY -= 50000
+			CALL COLORPRINT("金50000を支払った", カラー_注意)
+			PRINTFORMW
+			RETURN 1
+		ELSE
+			PRINTFORML しかし%ANAME(対象)%はそんな大金は持っていなかった
+			PRINTFORMW 店主は強気に別の方法での弁償を要求してきた
+			LOCAL:1 = 1
+		ENDIF
+	ENDIF
+	ELSEIF RESULT == 0
+	PRINTFORMW 大人しく支払うしかなかった
+	MONEY -= 50000
+	CALL COLORPRINT("金50000を支払った", カラー_注意)
+	PRINTFORMW
+	RETURN 1
+ELSE
+	PRINTFORMW %ANAME(対象)%はとっさに逃げだした！
+	PRINTFORML ・
+	PRINTFORML ・
+	PRINTFORMW ・
+	IF RAND:3 == 0
+		PRINTFORML 何とか振り切る事が出来た
+		PRINTFORMW しばらくこの近くには来ない様にしよう
+		RETURN 1
+	ELSE
+		PRINTFORML しかし慣れない土地の為直ぐに捕まってしまった
+		PRINTFORMW 店主は怒り狂い、特別な弁償を要求してきた
+		LOCAL:1 = 3
+	ENDIF
+ENDIF
+IF IS_MALE(対象)
+	PRINTFORMW 請求は国にいった
+	金額 = 50000
+	SIF 金額 > MONEY:(CFLAG:MASTER:所属)
+		金額 = MONEY:(CFLAG:MASTER:所属)
+	MONEY:(CFLAG:MASTER:所属) -= 金額
+	CALL COLORPRINT(@"国庫から{金額}を支払った", カラー_注意, "W")
+	IF 対象 == MASTER
+		FOR LOCAL, 0, CHARANUM
+			SIF CFLAG:(LOCAL):所属 == CFLAG:MASTER:所属 && !CFLAG:(LOCAL):捕虜先 && !IS_ANIMAL(LOCAL)
+				CFLAG:(LOCAL):好感度 -= 150 * LOCAL:1
+		NEXT
+		CALL COLORPRINT("更に仲間たちの評価はがた落ちした", カラー_注意, "W")
+	ENDIF
+ELSE
+	PRINTFORML 
+	PRINTFORML %ANAME(対象)%は男の店で働かされている
+	PRINTFORML もちろんただ働くだけであの大金を弁償できるわけもない
+	PRINTFORMW 店員兼性奴隷として日々好き放題に扱われているのだ
+	PRINTFORML 更に魔法の首輪で隷属させられており、逃げる事も逆らう事も出来ない
+	PRINTFORML 今もまた店の奥で激しく犯され、この日何発目かの膣出しを放たれる
+	PRINTFORMW 身体の感覚も男の自由自在であり、イキたくなくともイキっぱなしにされる
+	PRINTFORML 男は満足して一物を抜くと彼の精液で満ちている%ANAME(対象)%の下腹部を撫でてきた
+	PRINTFORML 耳元で妊娠する様にと命令されると子宮が疼いてしまい、もう一度イってしまった
+	PRINTFORMW 連日連夜犯され続け、次第に弁償の事も忘れて、犯される事が日常になっていった
+	CALL FUCK(対象, "欲望, 奉仕, 精愛, 性技, 性交, Ｃ, Ｖ, Ｂ, Ｍ, キス, 口淫, Ｖ性交", "処女喪失, 膣内射精", GET_SPERM_ID("ならず者"), @"店主の\@RAND:2 ? ペニス # 唇\@", "店主", "", 喪失_調教)
+	CALL FUCK(対象, "欲望, 奉仕, 精愛, 性技, 性交, Ｃ, Ｖ, Ｂ, Ｍ, キス, 口淫, Ｖ性交", "処女喪失, 膣内射精", GET_SPERM_ID("ならず者"), @"店主の\@RAND:2 ? ペニス # 唇\@", "店主", "", 喪失_調教)
+	PRINTFORML 
+	PRINTFORML しかしある日首輪が突然外れた
+	PRINTFORMW %ANAME(対象)%はこの幸運を逃さずに無事脱出した
+ENDIF
+RETURN 1
+

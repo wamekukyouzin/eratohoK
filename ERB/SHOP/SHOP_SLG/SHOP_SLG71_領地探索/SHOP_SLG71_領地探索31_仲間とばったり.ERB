@@ -1,0 +1,47 @@
+﻿;-------------------
+;●仲間とばったり
+;-------------------
+@REGISTER_TERRITORY_EVENT31(対象)
+#DIM 対象
+RETURN 1
+
+@TERRITORY_EVENT31(対象)
+#DIM 対象
+#DIM 仲間
+#DIM 金額
+#DIM 候補キャラ, 1000
+#DIM 候補数
+VARSET 候補キャラ
+VARSET 候補数
+FOR LOCAL, 0, CHARANUM
+	IF CFLAG:(LOCAL):所属 == CFLAG:MASTER:所属 && !CFLAG:(LOCAL):捕虜先 && !IS_ANIMAL(LOCAL)
+		候補キャラ:LOCAL = RAND:1000 
+		候補数 ++
+	ENDIF
+NEXT
+IF 候補数 == 0
+	仲間 = 0
+ELSE
+	仲間 = FINDELEMENT(候補キャラ, MAXARRAY(候補キャラ))
+ENDIF
+金額 = 2000
+SIF MONEY < 2000
+	金額 = MONEY / 2
+IF 仲間 != 0 && 対象 == MASTER
+	PRINTFORML 街中を食べ歩きしていると、見知った姿を見かけた
+	PRINTFORML %ANAME(仲間)%だ
+	PRINTFORML 向こうもこちらに気付くと近づいてきた
+	PRINTFORML 久しぶりの休日で街をぶらぶらしていたらしい
+	PRINTFORML 良ければ一緒に歩かないかと誘うと、少し思案した後に了承してくれた
+	PRINTFORMW %ANAME(仲間)%と一緒に楽しんだ
+	MONEY -= 金額
+	CFLAG:仲間:面識 = 1
+	CFLAG:仲間:好感度 += 200
+	CALL COLORPRINT(@"金{金額}を支払った", カラー_注意, "W")
+ELSE
+	PRINTFORMW %ANAME(対象)%は久しぶりの休日に一人で食べ歩きをして楽しんだ
+	MONEY -= 金額
+	CALL COLORPRINT(@"金{金額}を支払った", カラー_注意, "W")
+ENDIF
+RETURN 1
+

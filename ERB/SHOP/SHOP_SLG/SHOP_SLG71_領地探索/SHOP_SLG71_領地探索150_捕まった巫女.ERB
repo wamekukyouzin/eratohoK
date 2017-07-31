@@ -1,0 +1,161 @@
+﻿;-------------------
+;●捕まった巫女
+;-------------------
+@REGISTER_TERRITORY_EVENT150(対象)
+#DIM 対象
+RETURN 1
+
+@TERRITORY_EVENT150(対象)
+#DIM 対象
+#DIM 金額
+#DIM 対象都市
+CALL DAILY_EVENT_RAND_CITYSELECT(0)
+対象都市 = RESULT
+SIF 対象都市 < 0
+	RETURN 0
+PRINTFORML %CITY_NAME:対象都市%を探索中、ある村で村人たちが困っていた
+PRINTFORMW 話を聞くと、村にいる巫女が妖怪退治に出掛けたまま戻らないらしい
+PRINTFORML 村にとって大切な人なので探してくれと懇願された
+PRINTFORML 兵を動員して捜索するとしたら防衛率に影響が出そうだが…
+PRINTFORML どうしよう？
+CALL ASK_MULTI("一人で探しに行く" ,"兵士を動員する" ,"何もしない")
+IF RESULT == 2
+	PRINTFORML 遅れてるだけだろう
+	PRINTFORMW 何もしないで立ち去った
+ELSEIF RESULT == 1
+	PRINTFORML 村人にとって大切な人なら放置するわけにもいかないだろう
+	PRINTFORMW 兵士を動員して捜索を行った
+	PRINTFORML 
+	PRINTFORML 半日後、山の中で倒れている彼女を見つけることができた
+	SELECTCASE RAND:2
+		CASE 0
+			PRINTFORML 妖怪退治の途中で崖から落ちてしまったらしい
+			PRINTFORMW 巫女と村人たちに深く感謝された
+			LOCAL = 15 + (DAY / 5)
+			CITY_GUARD:対象都市 -= LOCAL
+			CALL COLORPRINT(@"%CITY_NAME:対象都市%の防衛率が{LOCAL}減少、{CITY_GUARD:対象都市}になった", カラー_注意)
+			PRINTFORML 
+			FOR LOCAL, 1, MAX_COUNTRY
+				CALL CHANGE_RELATION_C_TO_C(LOCAL, CFLAG:MASTER:所属, 15, -15)
+			NEXT
+			CALL COLORPRINT("この事は噂として広がり評判が上がった", カラー_注意, "W")
+		CASE 1
+			PRINTFORML しかし、見つけた兵士たちが悪かった…
+			PRINTFORML 彼らは怪我して身動きできない巫女を見つけると、ケダモノの様に襲い掛かったのだ
+			PRINTFORML 別の兵士たちに助け出された時には、服は破られ、精液で汚されてない場所はないという有様だったらしい
+			IF MONEY > 0
+				PRINTFORMW 結局、兵士たちを処分した上、巫女に見舞金を払う羽目になった…
+				金額 = 10000 + 100 * DAY
+				SIF 金額 > MONEY
+					金額 = MONEY
+				MONEY -= 金額
+				CALL COLORPRINT(@"金{金額}を支払った…", カラー_注意)
+				PRINTFORML 
+			ENDIF
+	ENDSELECT
+ELSE
+	PRINTFORMW 一人で探しに行くことにした
+	PRINTFORML 
+	PRINTFORML 村人の情報を元に彼女が向かった思われる場所へ行くと、巨大な洞窟だった
+	PRINTFORMW 洞窟の外には多数の妖魔がうろついている、奴が巫女を倒したに違いない
+	PRINTFORML 様子をうかがっていると、連中もこちらに気づいたようで大きな唸り声を上げた
+	PRINTFORMW %ANAME(対象)%は覚悟を決めて剣を抜くと妖魔に斬りかかった
+	PRINTFORML ・
+	PRINTFORML ・
+	PRINTFORMW ・
+	IF ABL:対象:武闘 > RAND:70 + 31
+		PRINTFORML やった！
+		PRINTFORML %ANAME(対象)%は見事に妖魔の群れを打倒した
+		PRINTFORMW しかし周囲に巫女の姿は見えない
+		PRINTFORMW %ANAME(対象)%は洞窟の中を探った………
+		PRINTFORML 
+		PRINTFORML すると、洞窟の奥でボロボロの彼女を見つけた
+		PRINTFORMW 彼女は%ANAME(対象)%を見ると一瞬こわばったが、助けだとわかるとホッとした表情を見せた
+		PRINTFORML 何かされなかったかと聞くと、彼女は息を荒げ頬を染めながら媚薬を飲まされたとポツリと呟いた
+		PRINTFORMW どうやらあの妖魔は彼女を苗床にするつもりだったらしい
+		IF IS_FEMALE(対象)
+			PRINTFORMW %ANAME(対象)%は彼女を抱えて村に戻った
+			CALL PRINT_ADD_EXP(対象, "武闘経験値", RAND:10 + 1, 1)
+			FOR LOCAL, 1, MAX_COUNTRY
+				CALL CHANGE_RELATION_C_TO_C(LOCAL, CFLAG:MASTER:所属, 15, -15)
+			NEXT
+			CALL COLORPRINT("この事は噂として広がり評判が上がった", カラー_注意, "W")
+		ELSE
+			PRINTFORML 衣服が破れ微かに肌が露出している彼女は、官能的な雰囲気を醸し出している
+			PRINTFORML どうしよう？
+			CALL ASK_MULTI_JUDGE("犯す", 1,"助ける", 1,"催眠術をかけて巫女を犯す", ITEM:催眠術 && ABL:対象:催眠 >= 1)
+			IF RESULT == 1
+				PRINTFORMW %ANAME(対象)%は彼女を抱えて村に戻った
+				CALL PRINT_ADD_EXP(対象, "武闘経験値", RAND:10 + 1, 1)
+				FOR LOCAL, 1, MAX_COUNTRY
+					CALL CHANGE_RELATION_C_TO_C(LOCAL, CFLAG:MASTER:所属, 15, -15)
+				NEXT
+				CALL COLORPRINT("この事は噂として広がり評判が上がった", カラー_注意, "W")
+			ELSEIF RESULT == 2
+				PRINTFORML %ANAME(対象)%は舌なめずりをすると彼女に催眠術をかけ、自分を犯そうとしているのは妖魔だと誤解させた
+				PRINTFORML 突如として現れた妖魔に彼女は抵抗したが力はなく、簡単に押し倒し、服を剥ぐ事が出来た
+				PRINTFORMW 許しを請う彼女に、%ANAME(対象)%は容赦なくペニスをねじ込んだ
+				PRINTFORML 
+				PRINTFORML %ANAME(対象)%は泣きながら震える巫女を押さえつけながら激しく腰を打ち付ける
+				PRINTFORML 彼女の清純な蜜壺は%ANAME(対象)%のペニスにきつく絡みつき、ぎゅうぎゅうと締め付けてきた
+				PRINTFORML 媚薬まみれの彼女は一突き毎に身体をはねさせ、次第に呻き声にも甘い喘ぎが混ざりだす
+				PRINTFORML 我慢できずに一発目を放つと、妖魔の種を受けたと思った彼女もまた涙を流しながら全身を痙攣させて絶頂に達した
+				PRINTFORMW ペニスを引き抜くと彼女はぐったりと地面に横たわり、雌穴からは赤と白の混ざった液体が垂れ流れていた
+				CALL FUCK(対象, "性技, 性交, Ｃ, 射精", "童貞喪失, キス喪失", 0, "妖怪退治の巫女の唇", "", "妖怪退治の巫女の膣", 喪失_催眠)
+				PRINTFORML 
+				PRINTFORML %ANAME(対象)%はたっぷりと楽しんだ後、彼女が気を失う直前に妖魔に見える催眠を解き、そのまま眠らせた
+				PRINTFORMW 目を覚ました彼女は、%ANAME(対象)%の姿に怯えたが妖魔でないと気づいた、しかし、自分の姿を見て”妖魔”に犯されたことが夢ではないともわかったらしい
+				PRINTFORML %ANAME(対象)%は自分が妖魔を倒した時には彼女はその姿だったというと、彼女は妖魔に犯されたと悔し気に話した
+				PRINTFORML その彼女の姿にムラムラと来たが、%ANAME(対象)%は彼女に服を整えさせると村人たちの待つ村へと連れ帰り、村人や巫女たちから感謝された
+				PRINTFORML 
+				PRINTFORML その後伝え聞いたところによると、妖魔に犯されて傷心の巫女を村の若者が慰め、妻として娶り、子供もできたらしい
+				PRINTFORML 時期的に妖魔の種だという噂もあるが、夫妻は自分の子だと気にしていないらしい
+			ELSE
+				PRINTFORML %ANAME(対象)%は舌なめずりをすると彼女に乗りかかった
+				PRINTFORML 彼女はびっくりして抵抗したが、力はなく簡単に剥ぐ事が出来た
+				PRINTFORMW 許しを請う彼女に、%ANAME(対象)%は容赦なくペニスをねじ込んだ
+				PRINTFORML 
+				PRINTFORML %ANAME(対象)%は泣きながら震える巫女を押さえつけながら激しく腰を打ち付ける
+				PRINTFORML 彼女の清純な蜜壺は%ANAME(対象)%のペニスにきつく絡みつき、ぎゅうぎゅうと締め付けてきた
+				PRINTFORML 媚薬まみれの彼女は一突き毎に身体をはねさせ、次第に呻き声にも甘い喘ぎが混ざりだす
+				PRINTFORML 我慢できずに一発目を放つと、彼女もまた涙を流しながら全身を痙攣させて絶頂に達した
+				PRINTFORMW ペニスを引き抜くと彼女はぐったりと地面に横たわり、雌穴からは赤と白の混ざった液体が垂れ流れていた
+				CALL FUCK(対象, "性技, 性交, Ｃ, 射精", "童貞喪失, キス喪失", 0, "妖怪退治の巫女の唇", "", "妖怪退治の巫女の膣", 喪失_強姦)
+				PRINTFORML 
+				PRINTFORML %ANAME(対象)%はたっぷりと楽しんだ後、気を失った彼女を抱えて山を下りた
+				PRINTFORMW 村人たちには適当な作り話をした後、彼女が目を覚ます前に村を去った
+			ENDIF
+		ENDIF
+	ELSE
+		PRINTFORML やられた！
+		PRINTFORML 妖魔たちは手強く、%ANAME(対象)%は返り討ちにされてしまった…
+		IF IS_MALE(対象)
+			PRINTFORML とどめを刺されるところをなんとか逃げ帰った
+			PRINTFORML 結局、後日に兵を動員して妖魔退治を行った
+			LOCAL = 15 + (DAY / 5)
+			CITY_GUARD:対象都市 -= LOCAL
+			CALL COLORPRINT(@"%CITY_NAME:対象都市%の防衛率が{LOCAL}減少、{CITY_GUARD:対象都市}になった", カラー_注意, "W")
+		ELSE
+			PRINTFORML 彼らは倒れた%ANAME(対象)%を見下ろすと不気味な笑みを浮かべた
+			PRINTFORMW %ANAME(対象)%は何とか逃れようとしたがどうしようもなく、洞窟の中へと引きずられてしまった
+			PRINTFORML 
+			PRINTFORML 日の当たらない暗闇の中に、女性のくぐもった呻き声と悲痛な叫びがこだましている
+			PRINTFORML 巫女の救出に失敗した%ANAME(対象)%は彼女と共に妖魔たちの苗床として代わる代わる犯されている
+			PRINTFORML ペニスを二本差しされ膣穴を拡張されながらも、注入された媚薬の効果で苦痛よりも快楽が押し寄せてくる
+			PRINTFORMW 突き上げの度にボコォ！とお腹が膨らみ、意識が弾けそうな強烈な刺激を受けて%ANAME(対象)%は身体を痙攣させる
+			PRINTFORML ギリギリで正気を保っている%ANAME(対象)%の傍らで、堕ちてしまった巫女がアヘアヘと笑いながら彼らに犯される
+			PRINTFORML 全身の穴という穴を犯されながら悦びの表情を見せる彼女の姿に、次第に%ANAME(対象)%の理性も擦り切れていく
+			PRINTFORML そして挿し込まれたちんぽから一斉に子種を放たれると共に、意識をピンクに染めながら果てしない絶頂に達した
+			PRINTFORMW 二人はその後も妖魔の子種を絶え間なく注ぎ込まれ続け、無限の悦びと共にまるで妊婦の様にお腹を膨らませていった
+			CALL FUCK(対象, "欲望, 奉仕, 精愛, 性技, 性交, Ｃ, Ｖ, Ｂ, Ａ, Ｍ, 口淫, 緊縛, マゾ, Ｖ拡張, Ａ拡張, Ｖ性交", "処女喪失, 膣内射精, 口内射精, 腸内射精", GET_SPERM_ID("妖魔"), @"妖魔の\@RAND:2 ? ペニス # 唇\@", "妖魔", "", 喪失_輪姦)
+			PRINTFORML 
+			PRINTFORML 数日後、動員された兵士たちによって%ANAME(対象)%と巫女は何とか妖魔のねぐらから救い出された
+			PRINTFORMW そのヴァギナは大量の精液を溢れさせだらしなく広がり切ってしまっていたが、命に別状はなかった
+			LOCAL = 15 + (DAY / 5)
+			CITY_GUARD:対象都市 -= LOCAL
+			CALL COLORPRINT(@"%CITY_NAME:対象都市%の防衛率が{LOCAL}減少、{CITY_GUARD:対象都市}になった", カラー_注意, "W")
+		ENDIF
+	ENDIF
+ENDIF
+RETURN 1
+

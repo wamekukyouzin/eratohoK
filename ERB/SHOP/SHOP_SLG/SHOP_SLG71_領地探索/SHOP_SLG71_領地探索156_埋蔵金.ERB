@@ -1,0 +1,69 @@
+﻿;-------------------
+;●埋蔵金
+;-------------------
+@REGISTER_TERRITORY_EVENT156(対象)
+#DIM 対象
+RETURN 1
+
+@TERRITORY_EVENT156(対象)
+#DIM 対象
+#DIM 仲間
+#DIM 金額
+#DIM 候補キャラ, 1000
+#DIM 候補数
+VARSET 候補キャラ
+VARSET 候補数
+PRINTFORML とある伝手から埋蔵金の地図を手に入れた
+PRINTFORML 見るからに胡散臭いが、気になる…
+PRINTFORML どうしよう？
+CALL ASK_MULTI("埋蔵金を探す" ,"地図を捨てる" ,"地図を売る")
+IF RESULT == 1
+	PRINTFORML 馬鹿馬鹿しい
+	PRINTFORMW %ANAME(対象)%は地図を破り捨てた
+ELSEIF RESULT == 2
+	PRINTFORML 馬鹿馬鹿しいが、よく出来てはいる
+	PRINTFORMW %ANAME(対象)%は物好きになら売れるのではないかと考えた
+	PRINTFORML 
+	金額 = 1000 + 500 * (ABL:対象:知略 / 10)
+	MONEY += 金額
+	CALL COLORPRINT(@"地図は金{金額}で売れた！", カラー_注意, "W")
+	IF RAND:2 == 0
+		PRINTFORML ………
+		PRINTFORML その後、金{金額 * 100}あまりの埋蔵金が掘り出されたとの噂を耳にした
+		PRINTFORMW %ANAME(対象)%は売るんじゃなかったと後悔した
+	ENDIF
+ELSE
+	PRINTFORML きっと本物だ！
+	PRINTFORMW %ANAME(対象)%はシャベルを担いで埋蔵金を探しに向かった
+	PRINTFORML ・
+	PRINTFORML ・
+	PRINTFORMW ・
+	IF RAND:20 > 0
+		FOR LOCAL, 0, CHARANUM
+			IF CFLAG:(LOCAL):所属 == CFLAG:MASTER:所属 && !CFLAG:(LOCAL):捕虜先 && !IS_ANIMAL(LOCAL)
+				候補キャラ:LOCAL = RAND:1000 
+				候補数 ++
+			ENDIF
+		NEXT
+		IF 候補数 == 0
+			仲間 = 0
+		ELSE
+			仲間 = FINDELEMENT(候補キャラ, MAXARRAY(候補キャラ))
+		ENDIF
+		PRINTFORMW 一日中泥だらけになるまで探したが、何も見つからなかった…
+		IF 仲間 != 0 && 対象 == MASTER
+			PRINTFORML その様子を%ANAME(仲間)%に見られて呆れられてしまった
+			CFLAG:仲間:好感度 -= 100
+			CALL COLORPRINT(@"%ANAME(仲間)%の評価が下がった", カラー_注意, "W")
+		ENDIF
+	ELSE
+		PRINTFORML やった！
+		PRINTFORML 金銀小判がザクザク詰まった宝箱を見つけた！
+		PRINTFORMW 目も眩むほどの輝きに%ANAME(対象)%は思わずガッツポーズをした
+		金額 = (1000 + 500 * RAND:11) * 50
+		MONEY += 金額
+		CALL COLORPRINT(@"金{金額}を手に入れた", カラー_注意, "W")
+	ENDIF
+ENDIF
+RETURN 1
+

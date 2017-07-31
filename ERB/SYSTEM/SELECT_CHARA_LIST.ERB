@@ -21,10 +21,14 @@
 #DIM 表示開始位置
 #DIM 表示終了位置
 #DIM ランク種別
+#DIM 直前総ページ数
+#DIMS 直前表示関数名
+#DIMS 直前選択関数名
 
 VARSET キャラ数
 VARSET 表示数値, -1
 
+;ガード節
 TRYCCALLFORM SELECT_CHARA_LIST_SHOW_LOGIC_%表示関数名%(MASTER)
 CATCH
 	THROW 指定された関数SELECT_CHARA_LIST_SHOW_LOGIC_%表示関数名%が存在しません
@@ -56,6 +60,7 @@ FOR LOCAL, 0, VARSIZE("表示文字")
 		表示文字:LOCAL = %TOSTR_SPACE(5)%
 NEXT
 
+;ページ数計算
 FOR LOCAL, 0, CHARANUM
 	CALLFORM SELECT_CHARA_LIST_SHOW_LOGIC_%表示関数名%(LOCAL)
 	SIF RESULT
@@ -63,8 +68,16 @@ FOR LOCAL, 0, CHARANUM
 NEXT
 
 総ページ数 = (キャラ数 - 1) / 40 + 1
-表示ページ = 1
 
+;直前の呼び出しとページ数、表示する関数、選択する関数名が同一であれば連続した呼び出しと判断しページを切り替えない
+SIF 総ページ数 != 直前総ページ数 || 表示関数名 != 直前表示関数名 || 選択関数名 != 直前選択関数名
+	表示ページ = 1
+
+直前総ページ数  = 総ページ数
+直前表示関数名 '= 表示関数名
+直前選択関数名 '= 選択関数名
+
+;ヘッダ表示
 PRINTFORM %TOSTR_SPACE(15)%
 FOR LOCAL:1, 0, VARSIZE("表示文字")
 	PRINTFORM %表示文字:(LOCAL:1)%
@@ -76,15 +89,19 @@ NEXT
 
 PRINTL
 FIRST_LINE = LINECOUNT
+
+;本体部分の表示
 $SHOW_LOOP
 
 VARSET 表示位置
 VARSET キャラカウンタ
+
 表示開始位置 = (表示ページ - 1) * 40
 表示終了位置 = 表示ページ * 40
 
 
 FOR LOCAL:0, 0, CHARANUM
+	;表示ロジックにあてはまらないなら飛ばす
 	CALLFORM SELECT_CHARA_LIST_SHOW_LOGIC_%表示関数名%(LOCAL)
 	SIF !RESULT
 		CONTINUE
@@ -94,6 +111,8 @@ FOR LOCAL:0, 0, CHARANUM
 		ELSEIF 表示位置 > 0
 			PRINTL 
 		ENDIF
+		;選択ロジックに当てはまるキャラだけ通常表示
+		;あてはまらなければ灰色表示
 		CALLFORM SELECT_CHARA_LIST_SELECT_LOGIC_%選択関数名%(LOCAL)
 		IF RESULT
 			CALLFORM SELECT_CHARA_LIST_COLOR_LOGIC_%色指定関数名%(LOCAL)
@@ -150,6 +169,7 @@ NEXT
 PRINTL 
 CALL SINGLE_DRAWLINE
 
+;フッタ部分
 IF 総ページ数 >= 2
 	IF 表示ページ > 1
 		PRINT [  8] 前のページ            
@@ -184,6 +204,7 @@ ELSEIF RESULT == 0
 	RETURN -1
 ENDIF
 
+;ガード節・特殊ボタン
 IF RESULT >= 10099
 	対象 = RESULT - 10099
 	IF 対象 > CHARANUM || 対象 < 0
@@ -219,7 +240,7 @@ IF RESULT >= 10099
 	GOTO SHOW_LOOP
 ENDIF
 
-
+;入力本体
 対象 = RESULT - 99
 IF 対象 > CHARANUM || 対象 < 0
 	CLEARLINE 1
@@ -261,6 +282,9 @@ RETURN 対象
 #DIM 表示開始位置
 #DIM 表示終了位置
 #DIM ランク種別
+#DIM 直前総ページ数
+#DIMS 直前選択関数名
+#DIMS 直前表示関数名
 VARSET 選択フラグ
 VARSET キャラ数
 VARSET 表示数値, -1
@@ -268,6 +292,7 @@ VARSET 表示数値, -1
 VARSET SELECTED_CHARA
 VARSET SELECTED_CHARA_NUM
 
+;ガード節
 TRYCCALLFORM SELECT_CHARA_LIST_SHOW_LOGIC_%表示関数名%(MASTER)
 CATCH
 	THROW 指定された関数SELECT_CHARA_LIST_SHOW_LOGIC_%表示関数名%が存在しません
@@ -279,7 +304,7 @@ CATCH
 ENDCATCH
 
 
-;一行目を用意
+;ヘッダ用意
 FOR LOCAL, 0, VARSIZE("表示文字")
 	FOR LOCAL:1, 0, VARSIZE("ABL")
 		SIF ABLNAME:(LOCAL:1) == ""
@@ -294,6 +319,7 @@ FOR LOCAL, 0, VARSIZE("表示文字")
 		表示文字:LOCAL = %TOSTR_SPACE(5)%
 NEXT
 
+;ページ数計算
 FOR LOCAL, 0, CHARANUM
 	CALLFORM SELECT_CHARA_LIST_SHOW_LOGIC_%表示関数名%(LOCAL)
 	SIF RESULT
@@ -301,8 +327,16 @@ FOR LOCAL, 0, CHARANUM
 NEXT
 
 総ページ数 = (キャラ数 - 1) / 40 + 1
-表示ページ = 1
 
+;直前の呼び出しとページ数、表示する関数、選択する関数名が同一であれば連続した呼び出しと判断しページを切り替えない
+SIF 総ページ数 != 直前総ページ数 || 表示関数名 != 直前表示関数名 || 選択関数名 != 直前選択関数名
+	表示ページ = 1
+
+直前総ページ数  = 総ページ数
+直前表示関数名 '= 表示関数名
+直前選択関数名 '= 選択関数名
+
+;ヘッダ描画
 PRINTFORM %TOSTR_SPACE(15)%
 FOR LOCAL:1, 0, VARSIZE("表示文字")
 	PRINTFORM %表示文字:(LOCAL:1)%
@@ -312,6 +346,7 @@ FOR LOCAL:1, 0, VARSIZE("表示文字")
 	PRINTFORM %表示文字:(LOCAL:1)%
 NEXT
 
+;ここから本体
 PRINTL
 FIRST_LINE = LINECOUNT
 $SHOW_LOOP
@@ -391,6 +426,7 @@ FOR LOCAL:0, 0, CHARANUM
 	キャラカウンタ ++
 NEXT
 
+;フッタ描画
 PRINTL 
 CALL SINGLE_DRAWLINE
 
@@ -421,9 +457,11 @@ PRINTL [  0] これでよし
 
 REDRAW 0
 
-
+;入力
 $INPUT_LOOP
 INPUT
+
+;ガード節・特殊処理
 IF RESULT == 8 && 表示ページ > 1
 	表示ページ --
 	CLEARLINE LINECOUNT - FIRST_LINE
@@ -494,6 +532,7 @@ IF RESULT >= 10099
 	GOTO SHOW_LOOP
 ENDIF
 
+;入力
 対象 = RESULT - 99
 IF 対象 > CHARANUM || 対象 < 0
 	CLEARLINE 1
