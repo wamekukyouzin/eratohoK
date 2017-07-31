@@ -1,0 +1,106 @@
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@KOJO_DAILY_K97_COUNTER_ROCKET_RATE(対象)
+#DIM 対象
+RETURN 50
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@KOJO_DAILY_K97_COUNTER_ROCKET_DECISION(対象)
+#DIM 対象
+#DIM 針妙丸
+
+針妙丸 = NAME_TO_CHARA("針妙丸")
+
+;一回きり
+SIF KDVAR:対象:正邪_反逆の狼煙
+	RETURN 0
+
+;主人公が君主でない
+SIF GET_COUNTRY_BOSS(CFLAG:対象:所属) != 対象
+	RETURN 0
+
+SIF !IS_COUNTRY(CFLAG:対象:所属)
+	RETURN 0
+
+SIF GET_COUNTRY_BOSS(CFLAG:対象:所属) != 針妙丸
+	RETURN 0
+
+RETURN CHECK_KOJO_DAILY_HAPPEN(対象, 0, 0, 0)
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@KOJO_DAILY_K97_COUNTER_ROCKET_GENRE(対象)
+#DIM 対象
+RETURN デイリー_ジャンル_その他
+
+;------------------------------------
+;レミリアからの勧誘
+;-----------------------------------
+@KOJO_DAILY_K97_COUNTER_ROCKET(対象)
+#DIM ボス
+#DIM 対象
+#DIM 紅魔館
+
+CFLAG:対象:面識 = 1
+
+ボス = GET_COUNTRY_BOSS(CFLAG:MASTER:所属)
+
+PRINTFORMW 「よう、お前が%ANAME(MASTER)%か」
+PRINTFORML 見回りをしていると、突然声をかけられた
+PRINTFORMW 堅気の者には見えないが……
+PRINTFORMW 「そう警戒するなよ。私は%NAME_FORMAL(対象)%。お前にいい話を持ってきたんだ」
+PRINTFORMW 「お前は考えたことがないか？　どうして弱い奴が虐げられなくてはならないのか」
+PRINTFORMW 「私はそれが不満でね、強者と弱者の関係をひっくり返す日が来ないかと、楽しみにしてたんだ」
+PRINTFORMW 「今、幻想郷は混乱に満ちている。計画を実行に移すなら今……」
+PRINTFORMW 「……なんだが、手が足りていなくてね。戦力になるやつが必要なんだ」
+PRINTFORMW 「どうだ？　お前、私たちと一緒に戦ってみないか」
+PRINTFORMW なるほど、引き抜きをかけに来たようだ
+PRINTFORML %PRONOUN(対象)%の所属する勢力が最終的に生き残るなら、ついていくのは正しい選択だ
+PRINTFORML しかしそうすれば、今の主君の方面との関係は、間違いなくこじれてしまうだろう
+PRINTFORML さて、どうしようか……
+CALL ASK_MULTI(@"%ANAME(対象)%につく", "やめておく", "ひっとらえる")
+
+IF RESULT == 1
+	PRINTFORMW 「そうか、そりゃ残念」
+	PRINTFORMW 「じゃーな。今度会うときは敵じゃないといいな」
+	PRINTFORMW %ANAME(対象)%は去っていった……」
+	KDVAR:正邪:正邪_反逆の狼煙 = 2
+	RETURN 1
+ELSEIF RESULT == 2
+	PRINTFORMW そんな話乗るわけがないだろう
+	PRINTFORMW そしてこいつは敵だ。捕らえねばなるまい……
+	PRINTFORMW 「はん！　そうかよ、ならこいつをくらいな！」
+	PRINTFORMW 「『四尺マジックボム』！」
+	PRINTFORMW ……ボムの爆発に紛れ、%ANAME(対象)%は逃げていった
+	PRINTFORMW %ANAME(MASTER)%は怪我をしてしまった……
+	CALL ADD_COOLTIME(MASTER, 3)
+	KDVAR:正邪:正邪_反逆の狼煙 = 2
+	RETURN 1
+ENDIF
+
+PRINTFORML 「そう言ってくれると思ってたよ」
+PRINTFORMW 「じゃあ……よろしく頼む」
+PRINTFORMW 差し出された手を、%ANAME(MASTER)%は堅く握りしめた……
+
+CALL COLORPRINT(@"支度金として金{LOCAL:0}を受け取りました", カラー_注意, "W")
+CALL COLORPRINT(@"%ANAME(ボス)%との外交関係が、非常にこじれました", カラー_警告, "W")
+
+LOCAL:0 = MIN((ABL:MASTER:武闘 + ABL:MASTER:知略 + ABL:MASTER:政治 + ABL:MASTER:防衛) * 200, 50000)
+MONEY += LOCAL:0
+
+CFLAG:対象:好感度 = MAX(CFLAG:対象:好感度, 800)
+CFLAG:対象:依存度 = MAX(CFLAG:対象:依存度, 200)
+CALL CHANGE_RELATION_O_TO_O(ボス, MASTER, -500, 500)
+CALL CHANGE_RELATION_O_TO_C(ボス, CFLAG:対象:所属, -500, 500)
+CALL CHANGE_COUNTRY(MASTER, CFLAG:対象:所属, 1)
+
+KDVAR:正邪:正邪_反逆の狼煙 = 1
+
+RETURN 1
