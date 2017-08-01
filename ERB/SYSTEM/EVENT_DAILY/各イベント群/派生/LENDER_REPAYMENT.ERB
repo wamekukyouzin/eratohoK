@@ -11,10 +11,10 @@ RETURN DAILY_GET_DISABLE_CONFIG("LENDER")
 ;---------------------
 @EVENT_DAILY_DERIVATION_LENDER_REPAYMENT_DECISION()
 ;返済期限があればデクリメント
-IF DVAR:金貸し期限 > 0
-	DVAR:金貸し期限 --
+IF DVAR:金貸し_返済期限 > 0
+	DVAR:金貸し_返済期限 --
 	;期限が0になったら発動
-	SIF DVAR:金貸し期限 == 0
+	SIF DVAR:金貸し_返済期限 == 0
 		RETURN 1
 ENDIF
 
@@ -67,28 +67,28 @@ PRINTFORMW さて、どうしようか……
 CALL SINGLE_DRAWLINE
 PRINTFORML 現在の金:{MONEY}
 
-CALL ASK_MULTI_JUDGE(@"金{DVAR:金貸し総額}を返済する", MONEY >= DVAR:金貸し総額, "払えないと伝える", 1, "あなたにふさわしい方法を用意している", (DVAR:金貸しフラグ == 1 && MONEY >= DVAR:金貸し総額 * 3 / 2))
+CALL ASK_MULTI_JUDGE(@"金{DVAR:金貸し_融資総額}を返済する", MONEY >= DVAR:金貸し_融資総額, "払えないと伝える", 1, "あなたにふさわしい方法を用意している", (DVAR:金貸し_発生フラグ == 1 && MONEY >= DVAR:金貸し_融資総額 * 3 / 2))
 
-IF RESULT == 0 && MONEY >= DVAR:金貸し総額
-	IF MONEY >= DVAR:金貸し総額 * 2
+IF RESULT == 0 && MONEY >= DVAR:金貸し_融資総額
+	IF MONEY >= DVAR:金貸し_融資総額 * 2
 		PRINTFORMW 「おや、申し訳ない。返済額に手違いがございました」
 		PRINTFORM 「本当の返済額は金
-		CALL COLORPRINT(@"{DVAR:金貸し総額 * 2}", カラー_注意)
+		CALL COLORPRINT(@"{DVAR:金貸し_融資総額 * 2}", カラー_注意)
 		PRINTFORMW ですな。まぁお持ちのようですから問題ありますまい？」
 		PRINTFORM 法外じゃないかという暇すら与えず、男は本当に金
-		CALL COLORPRINT(@"{DVAR:金貸し総額 * 2}", カラー_注意)
+		CALL COLORPRINT(@"{DVAR:金貸し_融資総額 * 2}", カラー_注意)
 		PRINTFORMW をもっていってしまった……
-		MONEY -= DVAR:金貸し総額 * 2
+		MONEY -= DVAR:金貸し_融資総額 * 2
 	ELSE
 		PRINTFORMW 「ふむ。では確かに
 		PRINTFORM 男に金
-		CALL COLORPRINT(@"{DVAR:金貸し総額}", カラー_注意)
+		CALL COLORPRINT(@"{DVAR:金貸し_融資総額}", カラー_注意)
 		PRINTFORMW を返済した……
 	ENDIF
 	PRINTFORMW 「では私はこれで。今後ともごひいきに」
 	PRINTFORMW 男はホクホクした顔で帰って行った……
-	DVAR:金貸し現在額 = 0
-	DVAR:金貸し総額 = 0
+	DVAR:金貸し_残り融資額 = 0
+	DVAR:金貸し_融資総額 = 0
 ELSEIF RESULT == 1
 	PRINTFORMW 実は返済できそうにない。申し訳ない。金はなるべく早く、必ず返す。%ANAME(MASTER)%は正直に伝えた
 	PRINTFORMW 「……ふーむ……。まあ、仕方ありますまい。返せないものは仕方ありませんからな」
@@ -125,8 +125,8 @@ ELSEIF RESULT == 1
 			PRINTFORMW 「なぁに、返済額分働いていただいたら解放いたしますから、ご心配なく……」
 		ENDIF
 		PRINTFORMW 男は%ANAME(担保)%を連れ、立ち去っていった……
-		DVAR:金貸し期限 = -1
-		DVAR:金貸し娘 = GET_ID(担保)
+		DVAR:金貸し_返済期限 = -1
+		DVAR:金貸し_カタID = GET_ID(担保)
 		IF 担保 != MASTER
 			CALL CHANGE_COUNTRY(担保, 0)
 			CFLAG:担保:特殊状態 = 0
@@ -135,10 +135,10 @@ ELSEIF RESULT == 1
 		PRINTFORMW 「で、残りの金ですが……ふーむ、まあ、仕方がありませんな」
 		PRINTFORMW 「しかし、今後はこのようなことがないようにお願いしますよ」
 		PRINTFORMW 男は立ち去っていった……
-		DVAR:金貸し期限 = 0
-		DVAR:金貸し現在額 = 0
-		DVAR:金貸し総額 = 0
-		DVAR:金貸し娘 = 0
+		DVAR:金貸し_返済期限 = 0
+		DVAR:金貸し_残り融資額 = 0
+		DVAR:金貸し_融資総額 = 0
+		DVAR:金貸し_カタID = 0
 	ENDIF
 ELSEIF RESULT == 2
 	PRINTFORMW ちゃんと全額支払おう、その言葉を聞いて頬を緩ませた刹那
@@ -161,10 +161,10 @@ ELSEIF RESULT == 2
 	PRINTFORMW 
 	PRINTFORMW 後日、部屋の改装費と小銭の請求がきた
 	PRINT 代金は計
-		CALL COLORPRINT(@"{DVAR:金貸し総額 * 3 / 2}", カラー_注意)
+		CALL COLORPRINT(@"{DVAR:金貸し_融資総額 * 3 / 2}", カラー_注意)
 	PRINTW だった……
-	MONEY -= DVAR:金貸し総額 * 3 / 2
-	DVAR:金貸しフラグ = -1
+	MONEY -= DVAR:金貸し_融資総額 * 3 / 2
+	DVAR:金貸し_発生フラグ = -1
 ENDIF
 
 RETURN 1
@@ -182,7 +182,7 @@ RETURN DAILY_GET_DISABLE_CONFIG("LENDER")
 ;対応するデイリーのDISABLEチェックを規約として必須とする
 ;---------------------
 @EVENT_DAILY_DERIVATION_LENDER_REPAYMENT_DONE_DECISION()
-SIF DVAR:金貸し期限 == -1 && DVAR:金貸し現在額 <= 0
+SIF DVAR:金貸し_返済期限 == -1 && DVAR:金貸し_残り融資額 <= 0
 	RETURN 1
 
 ;---------------------
@@ -191,7 +191,7 @@ SIF DVAR:金貸し期限 == -1 && DVAR:金貸し現在額 <= 0
 @EVENT_DAILY_DERIVATION_LENDER_REPAYMENT_DONE()
 #DIM 返済額
 
-LOCAL = ID_TO_CHARA(DVAR:金貸し娘)
+LOCAL = ID_TO_CHARA(DVAR:金貸し_カタID)
 IF LOCAL != MASTER
 	PRINTFORMW 「やぁやぁ%ANAME(MASTER)%様。実は%ANAME(LOCAL)%の件なのですがね」
 	PRINTFORMW 金貸しが尋ねてきた。どうやら借金のかたに預けた%ANAME(LOCAL)%のことで話があるようだ……
@@ -246,14 +246,14 @@ IF LOCAL != MASTER
 		CFLAG:(LOCAL):依存度 = MAX(CFLAG:(LOCAL):依存度, 50)
 		SETBIT TALENT:LOCAL:淫乱系, 素質_淫乱_淫乱
 
-		DVAR:金貸し期限 = 0
-		DVAR:金貸し現在額 = 0
-		DVAR:金貸し総額 = 0
-		DVAR:金貸し娘 = 0
+		DVAR:金貸し_返済期限 = 0
+		DVAR:金貸し_残り融資額 = 0
+		DVAR:金貸し_融資総額 = 0
+		DVAR:金貸し_カタID = 0
 		CALL CHANGE_COUNTRY(LOCAL, CFLAG:MASTER:所属)
 		CFLAG:LOCAL:特殊状態 = 0
 	ELSE
-		返済額 = RAND(100000, MAX(100001, MIN(200000, DVAR:金貸し総額)))
+		返済額 = RAND(100000, MAX(100001, MIN(200000, DVAR:金貸し_融資総額)))
 		PRINTFORMW 「実は%ANAME(LOCAL)%のことですが、ひどいへまをしてしまいましてな」
 		PRINTFORM 「新たに借金が金
 		CALL COLORPRINT(@"{返済額}", カラー_注意)
@@ -261,8 +261,8 @@ IF LOCAL != MASTER
 		PRINTFORMW なんということだ、借金を返したつもりが、逆に増えてしまうとは
 		PRINTFORMW とはいえ、仕方のないことだ。%ANAME(MASTER)%は同意するしかなかった……
 
-		DVAR:金貸し現在額 = 返済額
-		DVAR:金貸し総額 = 返済額
+		DVAR:金貸し_残り融資額 = 返済額
+		DVAR:金貸し_融資総額 = 返済額
 	ENDIF
 ELSE
 	IF RAND:5
@@ -284,20 +284,20 @@ ELSE
 		CFLAG:(LOCAL):従属度 = MAX(CFLAG:(LOCAL):従属度, 500)
 		CFLAG:(LOCAL):依存度 = MAX(CFLAG:(LOCAL):依存度, 50)
 		SETBIT TALENT:LOCAL:淫乱系, 素質_淫乱_淫乱
-		DVAR:金貸し期限 = 0
-		DVAR:金貸し現在額 = 0
-		DVAR:金貸し総額 = 0
-		DVAR:金貸し娘 = 0
+		DVAR:金貸し_返済期限 = 0
+		DVAR:金貸し_残り融資額 = 0
+		DVAR:金貸し_融資総額 = 0
+		DVAR:金貸し_カタID = 0
 	ELSE
-		返済額 = RAND(100000, MAX(100001, MIN(200000, DVAR:金貸し総額)))
+		返済額 = RAND(100000, MAX(100001, MIN(200000, DVAR:金貸し_融資総額)))
 		PRINTFORMW 「やってしまいましたなぁ、%ANAME(MASTER)%殿」
 		PRINTFORMW 仕事で大きなヘマをしてしまった%ANAME(MASTER)%は、金貸しに呼び出された
 		PRINTFORMW 「まあ、ヘマについては揉み消しましたが。火消しにばらまいた金は、払ってもらいますぞ？
 		PRINTFORM %ANAME(MASTER)%に、新たに借金として金
 		CALL COLORPRINT(@"{返済額}", カラー_注意)
 		PRINTFORMW が課せられた……
-		DVAR:金貸し現在額 = 返済額
-		DVAR:金貸し総額 = 返済額
+		DVAR:金貸し_残り融資額 = 返済額
+		DVAR:金貸し_融資総額 = 返済額
 	ENDIF
 ENDIF
 

@@ -11,7 +11,7 @@ RETURN DAILY_GET_DISABLE_CONFIG("SMUGGLER")
 ;対応するデイリーのDISABLEチェックを規約として必須とする
 ;---------------------
 @EVENT_DAILY_DERIVATION_SMUGGLER_CORRUPTION_DECISION()
-RETURN ID_TO_CHARA(DVAR:薬売りターゲット) != -1
+RETURN ID_TO_CHARA(DVAR:薬売り_調教対象ID) != -1
 
 ;---------------------
 ;本体
@@ -22,28 +22,28 @@ RETURN ID_TO_CHARA(DVAR:薬売りターゲット) != -1
 @EVENT_DAILY_DERIVATION_SMUGGLER_CORRUPTION()
 #DIM 対象
 
-対象 = ID_TO_CHARA(DVAR:薬売りターゲット)
+対象 = ID_TO_CHARA(DVAR:薬売り_調教対象ID)
 
 ;ターゲットが女じゃなくなっていたらやめる
 IF !IS_FEMALE(対象)
 	PRINTFORMW %ANAME(対象)%が女をやめたので、薬売りは興味を失ってしまったようだ……
-	DVAR:薬売りターゲット = 0
-	DVAR:薬売り進行度 = 0
+	DVAR:薬売り_調教対象ID = 0
+	DVAR:薬売り_調教進行度 = 0
 	RETURN 1
 ENDIF
 
 ;ターゲットが捕虜になったらやめる
 IF CFLAG:対象:捕虜先
 	PRINTFORMW %ANAME(対象)%が捕らえられたので、薬売りはこれ以上の調教をあきらめたようだ……
-	DVAR:薬売りターゲット = 0
-	DVAR:薬売り進行度 = 0
+	DVAR:薬売り_調教対象ID = 0
+	DVAR:薬売り_調教進行度 = 0
 	RETURN 1
 ENDIF
 
 IF CFLAG:対象:特殊状態 == 特殊状態_死亡
 	PRINTFORMW %ANAME(対象)%が死亡したので、薬売りはこれ以上の調教を諦めたようだ……
-	DVAR:薬売りターゲット = 0
-	DVAR:薬売り進行度 = 0
+	DVAR:薬売り_調教対象ID = 0
+	DVAR:薬売り_調教進行度 = 0
 	RETURN 1
 ENDIF
 
@@ -51,7 +51,7 @@ PRINTFORMW %ANAME(対象)%は薬売りの店を訪れたようだ……
 PRINTFORML
 
 ;初回は特殊メッセージ
-IF DVAR:薬売り進行度 == 0
+IF DVAR:薬売り_調教進行度 == 0
 	PRINTFORMW 「いらっしゃい……へへへ！　なんだ、お前かよ」
 	PRINTFORMW 出迎えたのは、自分を騙し、恥辱を与えたあの男だった
 	PRINTFORMW 「へへへ、来たかぁ、ってこたぁオイ、ヤッてほしいってことだよなぁ？」
@@ -80,7 +80,7 @@ IF DVAR:薬売り進行度 == 0
 	PRINTFORMW ……そう、仕方がないのだ。そのように自らに言い聞かせる%ANAME(対象)%の口端は、うっすらつり上がっていた……
 	PRINTFORML 
 ENDIF
-SELECTCASE DVAR:薬売り進行度
+SELECTCASE DVAR:薬売り_調教進行度
 	CASE IS < 2
 		SELECTCASE RAND:3
 			CASE 0
@@ -881,7 +881,7 @@ SELECTCASE DVAR:薬売り進行度
 				IF GETBIT(TALENT:MASTER:デイリー系, 素質_デイリー_薬売りの性奴隷)
 					PRINTFORML ご主人様が来て下さった、自分を使いに来てくれたのだろうか
 					PRINTFORMW 期待に胸を弾ませながら、%ANAME(MASTER)%は会いに行った
-				ELSEIF DVAR:薬売り陥落報告済み
+				ELSEIF DVAR:薬売り_陥落報告済み
 					PRINTFORML あの男が来た……%ANAME(MASTER)%は怒りに唇を噛みしめる
 					PRINTFORMW なんならすぐにでも斬り捨ててやるつもりで、%ANAME(MASTER)%は会うことにした
 				ELSE
@@ -907,7 +907,7 @@ SELECTCASE DVAR:薬売り進行度
 					PRINTFORML 言いながら男は、二人の肉体を乱暴に弄び始める
 					PRINTFORMW 部屋に、二人の牝奴隷の嬌声が響き渡った……
 					GOTO FALLEN_NOTICE
-				ELSEIF DVAR:薬売り陥落報告済み
+				ELSEIF DVAR:薬売り_陥落報告済み
 					PRINTFORMW 「そうです、またですよォ、何度も女ァ取られて、あんたも大概バカだねぇ？」
 					PRINTFORML この男……！
 					PRINTFORML 怒りに震える%ANAME(MASTER)%をよそに、薬売りは%ANAME(対象)%に目配せする
@@ -959,7 +959,7 @@ SELECTCASE DVAR:薬売り進行度
 					PRINTFORML ぢゅぶ、ぐぷと音を立てて肉幹に吸い付きながら、%ANAME(対象)%はこちらを見つめてくる
 					PRINTFORMW その瞳は、肉棒に奉仕できる悦びをあらわしていた。娼婦ですらみせないような、淫らな目だった
 					PRINTFORML けれども同時に、そこには不満が浮かんでいた
-					IF DVAR:薬売り陥落報告済み
+					IF DVAR:薬売り_陥落報告済み
 						PRINTFORML %ANAME(MASTER)%は確信した。まただと
 						PRINTFORML %ANAME(対象)%も、薬売りと自分のペニスを比較している
 						PRINTFORMW そして、言うに違いない。ご主人様のモノのほうが、ずっとずっと逞しくて良いと
@@ -1075,9 +1075,9 @@ SELECTCASE DVAR:薬売り進行度
 		ENDIF
 		$FALLEN_NOTICE
 		SETBIT TALENT:対象:デイリー系, 素質_デイリー_薬売りの性奴隷
-		DVAR:薬売りターゲット = 0
-		DVAR:薬売り進行度 = 0
-		DVAR:薬売り陥落報告済み = 1
+		DVAR:薬売り_調教対象ID = 0
+		DVAR:薬売り_調教進行度 = 0
+		DVAR:薬売り_陥落報告済み = 1
 		CALL LOSE_RELATION_TALENT(対象)
 		CALL TALENT_LOSE_PRIDE(対象, 1)
 		CFLAG:対象:好感度 = MIN(CFLAG:対象:好感度, -1000)
@@ -1092,7 +1092,7 @@ SELECTCASE DVAR:薬売り進行度
 ENDSELECT
 
 
-DVAR:薬売り進行度 ++
+DVAR:薬売り_調教進行度 ++
 ;能力上昇メッセ
 CALL TRAIN_AUTO_ABLUP(対象, 0)
 RETURN 1
