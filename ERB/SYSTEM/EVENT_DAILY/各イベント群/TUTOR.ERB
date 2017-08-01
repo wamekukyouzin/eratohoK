@@ -3,7 +3,7 @@
 ;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
 ;---------------------
 @EVENT_DAILY_TUTOR_RATE()
-RETURN (DVAR:娘お気に入り > 0 ? 250 # 20)
+RETURN (DVAR:家庭教師_お気に入りID > 0 ? 250 # 20)
 
 
 ;---------------------
@@ -12,13 +12,13 @@ RETURN (DVAR:娘お気に入り > 0 ? 250 # 20)
 ;---------------------
 @EVENT_DAILY_TUTOR_DECISION()
 #DIM 対象
-SIF DVAR:家庭教師 == -1
+SIF DVAR:家庭教師_発生フラグ == -1
 	RETURN 0
-IF DVAR:逢瀬フラグ == 1
-	対象 = ID_TO_CHARA(DVAR:娘お気に入り)
+IF DVAR:家庭教師_逢瀬フラグ == 1
+	対象 = ID_TO_CHARA(DVAR:家庭教師_お気に入りID)
 	IF 対象 == -1
-		DVAR:逢瀬フラグ = 0
-		DVAR:娘お気に入り = 0
+		DVAR:家庭教師_逢瀬フラグ = 0
+		DVAR:家庭教師_お気に入りID = 0
 		RETURN 0
 	ELSEIF CFLAG:対象:捕虜先 || CFLAG:対象:所属 != CFLAG:MASTER:所属
 		RETURN 0
@@ -44,8 +44,8 @@ RETURN デイリー_ジャンル_エロ
 @EVENT_DAILY_TUTOR()
 #DIM 対象
 
-IF DVAR:逢瀬フラグ == 1
-	対象 = ID_TO_CHARA(DVAR:娘お気に入り)
+IF DVAR:家庭教師_逢瀬フラグ == 1
+	対象 = ID_TO_CHARA(DVAR:家庭教師_お気に入りID)
 	PRINTFORMW 貴族の娘と逢引をした…
 	PRINTFORML 
 	SELECTCASE RAND:10
@@ -114,8 +114,8 @@ IF DVAR:逢瀬フラグ == 1
 ENDIF
 
 ;初回
-IF DVAR:家庭教師 == 0
-	DVAR:娘お気に入り = 0
+IF DVAR:家庭教師_発生フラグ == 0
+	DVAR:家庭教師_お気に入りID = 0
 	PRINTFORML 仕事をしていると来客を告げられた
 	PRINTFORML 名前を尋ねたところ、領内のとある貴族の使いらしい
 	PRINTFORML 貴族と聞いて%ANAME(MASTER)%はため息をつく、どうせ面倒事だろう
@@ -141,18 +141,18 @@ IF DVAR:家庭教師 == 0
 	PRINTFORML 男は深々と頭を下げる
 	PRINTFORML なるほど、話の流れはわかった
 	PRINTFORMW 大方これを機に我々とのコネクションを強化したいという思惑もあるのだろう
-	DVAR:家庭教師 = 1
+	DVAR:家庭教師_発生フラグ = 1
 ;2回目以降、娘のお気に入りがいない場合
-ELSEIF DVAR:娘お気に入り == 0
+ELSEIF DVAR:家庭教師_お気に入りID == 0
 	PRINTFORMW 例の貴族の使いが再び訪れた
 	PRINTFORMW また家庭教師を頼みたいとのことだ
 ;2回目以降、娘のお気に入りがいる場合
 ELSE
-	対象 = ID_TO_CHARA(DVAR:娘お気に入り)
+	対象 = ID_TO_CHARA(DVAR:家庭教師_お気に入りID)
 	PRINTFORMW 例の貴族の使いが再び訪れた
 	PRINTFORMW また家庭教師を頼みたいとのことだ
 	PRINTFORMW 娘が%ANAME(対象)%を気に入っているとの事で指名された
-	IF CFLAG:対象:捕虜先 && DVAR:授業回数 >= 4
+	IF CFLAG:対象:捕虜先 && DVAR:家庭教師_授業実施回数 >= 4
 		PRINTFORML しかし彼は現在捕虜になっており、派遣できない
 		PRINTFORML そう伝えると使いの男は大変慌て、お嬢様に彼でなければ嫌だと言われたと告げる
 		PRINTFORMW 今回はお嬢様を説得するから、なるべく早く彼を連れ戻してほしいと言い立ち去った
@@ -161,7 +161,7 @@ ELSE
 		PRINTFORML しかし彼は現在捕虜になっており、派遣できない
 		PRINTFORML そう伝えると使いの男は慌てたが
 		PRINTFORMW なんとかお嬢様には納得してもらうので他の者を頼むと頭を下げられた
-		DVAR:娘お気に入り = 0
+		DVAR:家庭教師_お気に入りID = 0
 	ENDIF
 ENDIF
 
@@ -170,12 +170,12 @@ CALL ASK_YN("引き受ける", "断る")
 IF RESULT == 1
 	PRINTFORML やはり貴族の娘の我儘に付き合ってはいられない
 	PRINTFORMW 丁重に断り引き取ってもらった
-	DVAR:娘お気に入り = 0
-	SIF DVAR:授業回数 >= 4
-		DVAR:家庭教師 = -1
+	DVAR:家庭教師_お気に入りID = 0
+	SIF DVAR:家庭教師_授業実施回数 >= 4
+		DVAR:家庭教師_発生フラグ = -1
 	RETURN 1
 ELSE
-	IF DVAR:娘お気に入り == 0
+	IF DVAR:家庭教師_お気に入りID == 0
 		PRINTFORML この程度なら大した手間ではないし、恩を売っておくのも良いだろう
 		PRINTFORML なによりその箱入り娘とやらにも興味がある、引き受ける事にした
 		PRINTFORML 「ありがとうございます。きっとそう言っていただけると思っていました。」
@@ -209,7 +209,7 @@ PRINTFORML ・
 PRINTFORML ・
 PRINTFORMW ・
 ;お気に入りではない場合
-IF DVAR:娘お気に入り == 0
+IF DVAR:家庭教師_お気に入りID == 0
 	PRINTFORML 「こちらでございます。」
 	PRINTFORML 屋敷に招待されいくつかの扉をくぐった先に案内された
 	PRINTFORMW この扉の向こうに依頼主のお嬢様がいるらしい
@@ -243,7 +243,7 @@ IF DVAR:娘お気に入り == 0
 	CALL TUTOR_COURSE(対象)
 	PRINTFORML
 	PRINTFORMW そろそろ良い時間だ、今日の授業はこのぐらいにしておく事にしよう
-	IF DVAR:娘お気に入り == GET_ID(対象)
+	IF DVAR:家庭教師_お気に入りID == GET_ID(対象)
 		PRINTFORML 「とても楽しいお話でした。ありがとうございました、先生。」
 		PRINTFORML 彼女は屋敷の門前まで%ANAME(対象)%を見送りについてきた
 		PRINTFORML 「私、外の方との交流はとても新鮮で心躍りました。また来てくださると、嬉しいのですが。」
@@ -261,7 +261,7 @@ IF DVAR:娘お気に入り == 0
 	RETURN 1
 ;お気に入りの場合、イベントが進行していく
 ELSE
-	SELECTCASE DVAR:授業回数 
+	SELECTCASE DVAR:家庭教師_授業実施回数 
 		;2回目、ちょっと親しくなる
 		CASE 0
 			PRINTFORML 「お久しぶりです、先生。」
@@ -292,7 +292,7 @@ ELSE
 			PRINTFORMW しっかりと指切りをしてから彼女に見送られながら屋敷を後にした
 			MONEY += 3000
 			PRINTFORMW 報酬3000を受け取った
-			DVAR:授業回数 ++
+			DVAR:家庭教師_授業実施回数 ++
 		;3回目、お茶を飲む
 		CASE 1
 			PRINTFORML 「こんにちは、先生。本日は良い天気ですね。」
@@ -325,7 +325,7 @@ ELSE
 			PRINTFORMW 彼普段のお嬢様な雰囲気が薄れ、まるで年相応の少女の様にはしゃぐ彼女と二人でのんびりとお茶を楽しんだ
 			MONEY += 4000
 			PRINTFORMW 報酬4000を受け取った
-			DVAR:授業回数 ++
+			DVAR:家庭教師_授業実施回数 ++
 		;4回目、更に親しくなる
 		CASE 2
 			PRINTFORML 「こんにちは、先生。」
@@ -358,7 +358,7 @@ ELSE
 			PRINTFORMW 彼女は両頬に手を添えて恥ずかしそうにこちらを見つめていた
 			MONEY += 4000
 			PRINTFORMW 報酬4000を受け取った
-			DVAR:授業回数 ++
+			DVAR:家庭教師_授業実施回数 ++
 		;5回目、キスをする
 		CASE 3
 			PRINTFORML 「先生は、恋人などいますか？」
@@ -419,7 +419,7 @@ ELSE
 				PRINTFORML その色っぽい仕草に思わず押し倒しそうになるのをぐっとこらえ、優しく彼女の頭を撫でる
 				PRINTFORMW 彼女は幸せそうに笑い、甘える様に%ANAME(対象)%に寄りかかってきた
 				PRINTFORMW しばし彼女と二人きりで甘い時間を過ごした
-				DVAR:授業回数 ++
+				DVAR:家庭教師_授業実施回数 ++
 			ENDIF
 			MONEY += 4000
 			PRINTFORMW 報酬4000を受け取った
@@ -479,7 +479,7 @@ ELSE
 				PRINTFORML 二人で様々な場所を回り、楽しいデートを過ごした
 				PRINTFORMW 彼女にとっては何もかもが新鮮なのだろう、その仕草の一つ一つが見ていて幸せな気持ちになった
 				PRINTFORMW 父親が帰る時間の前に屋敷に戻り彼女にねだられ小さくキスをして別れた
-				DVAR:授業回数 ++
+				DVAR:家庭教師_授業実施回数 ++
 			ENDIF
 			MONEY += 4000
 			PRINTFORMW 報酬4000を受け取った
@@ -525,7 +525,7 @@ ELSE
 				PRINTFORML ふとした時に彼女の事を思い出すことはあるものの
 				PRINTFORML 頭の中に浮かぶその表情はあれほど印象に残っていたはずの笑顔ではなく
 				PRINTFORMW 最後に彼女が見せた泣き顔ばかりだった………
-				DVAR:家庭教師 = -1
+				DVAR:家庭教師_発生フラグ = -1
 			ELSE
 				PRINTFORML %ANAME(対象)%は何も言わずにそっと彼女を抱き寄せる
 				PRINTFORMW 「あっ…。」
@@ -592,7 +592,7 @@ ELSE
 				PRINTFORML 「先生…また、すぐにいらっしゃってくださいね？約束…ですから。」
 				PRINTFORML 頭を撫でながらまた必ず来ると告げると、彼女はにこやかに笑った
 				PRINTFORMW いつまでも体に残る彼女の体温と匂いを感じながら、%ANAME(対象)%は屋敷を後にした
-				DVAR:授業回数 ++
+				DVAR:家庭教師_授業実施回数 ++
 			ENDIF
 			MONEY += 4000
 			PRINTFORMW 報酬4000を受け取った
@@ -626,7 +626,7 @@ ELSE
 			PRINTFORMW その可愛らしい表情に%ANAME(対象)%も我慢できなくなり、夢中になって彼女の身体に何度も何度も精を放った
 			PRINTFORML 
 			PRINTFORMW 何度かのまぐわいの後、また来る約束をして彼女と別れた
-			DVAR:授業回数 ++
+			DVAR:家庭教師_授業実施回数 ++
 			MONEY += 4000
 			PRINTFORMW 報酬4000を受け取った
 		;9回目、更に調教
@@ -655,7 +655,7 @@ ELSE
 			PRINTFORMW そんな彼女に応える様に舌から突き上げてやると、彼女は色っぽい嬌声を上げて身を震わせた
 			PRINTFORML 
 			PRINTFORMW 結局その日は彼女に求められるままに一晩中まぐわい続けた
-			DVAR:授業回数 ++
+			DVAR:家庭教師_授業実施回数 ++
 			MONEY += 4000
 			PRINTFORMW 報酬4000を受け取った
 		;10回目、愛人にする
@@ -688,7 +688,7 @@ ELSE
 			PRINTFORML すると彼女は涙を流しながら笑みを浮かべ、小さく頷いた
 			PRINTFORMW 「はい。先生…これからも、よろしくお願いしますね…っ。」
 			PRINTFORMW 甘える様に体を預けてくる彼女をしっかりと抱きしめ、濃厚なキスを交わした
-			DVAR:逢瀬フラグ = 1
+			DVAR:家庭教師_逢瀬フラグ = 1
 			MONEY += 4000
 			PRINTFORMW 報酬4000を受け取った
 			PRINTFORMW 娘が%ANAME(対象)%の愛人になった
@@ -711,8 +711,8 @@ IF RESULT == 0
 		PRINTFORMW 「面白い話でしたわ、先生。」
 		PRINTFORMW どうやら話を気に入ってもらえたようだ
 		CALL PRINT_ADD_EXP(ARG:0, "武闘経験値", RAND:7 + 1, 1)
-		SIF DVAR:娘お気に入り == 0 && IS_MALE(ARG:0)
-			DVAR:娘お気に入り = GET_ID(ARG:0)
+		SIF DVAR:家庭教師_お気に入りID == 0 && IS_MALE(ARG:0)
+			DVAR:家庭教師_お気に入りID = GET_ID(ARG:0)
 	ELSE
 		PRINTFORMW 「うーん、難しい話ですね。」
 		PRINTFORMW どうやらイマイチだったようだ
@@ -724,8 +724,8 @@ ELSEIF RESULT == 1
 		PRINTFORMW 「面白い話でしたわ、先生。」
 		PRINTFORMW どうやら話を気に入ってもらえたようだ
 		CALL PRINT_ADD_EXP(ARG:0, "知略経験値", RAND:7 + 1, 1)
-		SIF DVAR:娘お気に入り == 0 && IS_MALE(ARG:0)
-			DVAR:娘お気に入り = GET_ID(ARG:0)
+		SIF DVAR:家庭教師_お気に入りID == 0 && IS_MALE(ARG:0)
+			DVAR:家庭教師_お気に入りID = GET_ID(ARG:0)
 	ELSE
 		PRINTFORMW 「うーん、難しい話ですね。」
 		PRINTFORMW どうやらイマイチだったようだ
@@ -737,8 +737,8 @@ ELSE
 		PRINTFORMW 「面白い話でしたわ、先生。」
 		PRINTFORMW どうやら話を気に入ってもらえたようだ
 		CALL PRINT_ADD_EXP(ARG:0, "政治経験値", RAND:7 + 1, 1)
-		SIF DVAR:娘お気に入り == 0 && IS_MALE(ARG:0)
-			DVAR:娘お気に入り = GET_ID(ARG:0)
+		SIF DVAR:家庭教師_お気に入りID == 0 && IS_MALE(ARG:0)
+			DVAR:家庭教師_お気に入りID = GET_ID(ARG:0)
 	ELSE
 		PRINTFORMW 「うーん、難しい話ですね。」
 		PRINTFORMW どうやらイマイチだったようだ

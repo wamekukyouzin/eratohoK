@@ -8,14 +8,14 @@
 ;確率以外の発生判定
 ;---------------------
 @EVENT_DAILY_LENDER_DECISION()
-SIF DVAR:金貸しフラグ == -1
+SIF DVAR:金貸し_発生フラグ == -1
 	RETURN 0
 
 SIF DAY < 15
 	RETURN 0
 
 ;返済期限がある（借りている）または現在額がある（返済中）ならスキップ
-SIF !(DVAR:金貸し期限 == 0 && DVAR:金貸し現在額 == 0) 
+SIF !(DVAR:金貸し_返済期限 == 0 && DVAR:金貸し_残り融資額 == 0) 
 	RETURN 0
 
 RETURN 1
@@ -38,7 +38,7 @@ VARSET 返済額
 VARSET 返済期限
 
 ;借りていないパターン
-IF DVAR:金貸し期限 == 0 && DVAR:金貸し現在額 == 0 && DVAR:金貸し総額 == 0
+IF DVAR:金貸し_返済期限 == 0 && DVAR:金貸し_残り融資額 == 0 && DVAR:金貸し_融資総額 == 0
 	;融資額と返済期限の計算
 	;融資額は現在資金の10% + 俸給 * 期限日分
 	;返済額はその2割増し
@@ -87,9 +87,9 @@ IF DVAR:金貸し期限 == 0 && DVAR:金貸し現在額 == 0 && DVAR:金貸し�
 		CALL COLORPRINT(@"{融資額}", カラー_注意)
 		PRINTFORMW を手に入れた
 		MONEY += 融資額
-		DVAR:金貸し期限 = 返済期限
-		DVAR:金貸し現在額 = 返済額
-		DVAR:金貸し総額 = 返済額
+		DVAR:金貸し_返済期限 = 返済期限
+		DVAR:金貸し_残り融資額 = 返済額
+		DVAR:金貸し_融資総額 = 返済額
 		RETURN 1
 	ELSEIF RESULT == 2
 		融資額 = RAND(100000, 300000)
@@ -106,7 +106,7 @@ IF DVAR:金貸し期限 == 0 && DVAR:金貸し現在額 == 0 && DVAR:金貸し�
 		ELSE
 			担保 = -1
 		ENDIF
-		DVAR:金貸しフラグ = 1
+		DVAR:金貸し_発生フラグ = 1
 		IF MONEY >= 融資額
 			PRINTFORM 男は本当に、金
 			CALL COLORPRINT(@"{融資額}", カラー_注意)
@@ -118,10 +118,10 @@ IF DVAR:金貸し期限 == 0 && DVAR:金貸し現在額 == 0 && DVAR:金貸し�
 			PRINTFORMW 「では%ANAME(担保)%をうちの店で働かせていただきましょうか」
 			PRINTFORMW 「なぁに、ちゃんと額ぶん働いたらお返ししますので……」
 			PRINTFORMW 男はそう言って、%ANAME(担保)%を連れて行ってしまった……
-			DVAR:金貸し期限 = -1
-			DVAR:金貸し娘 = GET_ID(担保)
-			DVAR:金貸し総額 = 融資額
-			DVAR:金貸し現在額 = 融資額
+			DVAR:金貸し_返済期限 = -1
+			DVAR:金貸し_カタID = GET_ID(担保)
+			DVAR:金貸し_融資総額 = 融資額
+			DVAR:金貸し_残り融資額 = 融資額
 			CALL CHANGE_COUNTRY(担保, 0)
 			CFLAG:担保:特殊状態 = 0
 			RETURN 1

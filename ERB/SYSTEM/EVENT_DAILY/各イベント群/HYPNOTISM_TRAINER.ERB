@@ -2,7 +2,7 @@
 ;発生確率(1000分率 100で10%)
 ;---------------------
 @EVENT_DAILY_HYPNOTISM_TRAINER_RATE()
-RETURN (DVAR:前回催眠対象者 > 0 ? 150 # 30)
+RETURN (DVAR:催眠トレーナー_前回対象者ID > 0 ? 150 # 30)
 
 ;---------------------
 ;確率以外の発生判定
@@ -10,7 +10,7 @@ RETURN (DVAR:前回催眠対象者 > 0 ? 150 # 30)
 @EVENT_DAILY_HYPNOTISM_TRAINER_DECISION()
 SIF DAY < 10
 	RETURN 0
-SIF DVAR:催眠トレーナー == 2
+SIF DVAR:催眠トレーナー_発生フラグ == 2
 	RETURN 0
 SIF MONEY < 20000
 	RETURN 0
@@ -30,7 +30,7 @@ RETURN デイリー_ジャンル_トレーナー
 #DIM 対象素質
 #DIMS TN
 
-IF DVAR:催眠トレーナー == 1
+IF DVAR:催眠トレーナー_発生フラグ == 1
 	PRINTFORMW 再び例の催眠術師がやって来た
 ELSE
 	PRINTFORML 催眠術師を名乗る男がやって来た
@@ -39,7 +39,7 @@ ELSE
 	PRINTFORML 確実では無い様だが、回数を重ねれば成功しやすくなるらしい
 	PRINTFORMW 見るからに胡散臭い男だがどことなく説得力を感じる
 ENDIF
-IF ID_TO_CHARA(DVAR:前回催眠対象者) == MASTER && IS_FEMALE(MASTER)
+IF ID_TO_CHARA(DVAR:催眠トレーナー_前回対象者ID) == MASTER && IS_FEMALE(MASTER)
 	PRINTFORMW %ANAME(MASTER)%は彼の顔を見るとなぜか胸の奥が疼くのを感じた
 ENDIF
 PRINTFORML どうしよう？
@@ -64,14 +64,14 @@ IF RESULT == 2
 		PRINTFORML 男は悲鳴を上げながら倒れ伏した
 		PRINTFORMW 男の懐を漁ったが特に金目のものも怪しいものも見つからなかった
 		PRINTFORMW %ANAME(MASTER)%は男の死体を兵士に始末させ仕事に戻った
-		DVAR:催眠トレーナー = 2
+		DVAR:催眠トレーナー_発生フラグ = 2
 	ENDIF
 	RETURN
 ELSEIF RESULT == 1
 	PRINTFORML 生憎だが今そんなことは必要ない
 	PRINTFORMW 男は怪しげな笑みを浮かべて去って行った
-	DVAR:前回催眠対象者 = 0
-	DVAR:催眠トレーナー = 1
+	DVAR:催眠トレーナー_前回対象者ID = 0
+	DVAR:催眠トレーナー_発生フラグ = 1
 	RETURN
 ENDIF
 
@@ -83,7 +83,7 @@ CALL SELECT_CHARA_LIST_ONLY_LOGIC_SLG("HYPNOTISM_TRAINER", "NONE", "HYPNOTISM_TR
 対象 = RESULT
 IF 対象 == -1
 	PRINTFORMW やはりやめておいた
-	DVAR:催眠トレーナー = 1
+	DVAR:催眠トレーナー_発生フラグ = 1
 	RETURN 1
 ENDIF
 IF 対象 == MASTER
@@ -92,18 +92,18 @@ ELSE
 	PRINTFORMW %ANAME(対象)%に施してもらう事にした
 ENDIF
 
-IF 対象 == ID_TO_CHARA(DVAR:前回催眠対象者) && IS_FEMALE(対象)
+IF 対象 == ID_TO_CHARA(DVAR:催眠トレーナー_前回対象者ID) && IS_FEMALE(対象)
 	SIF 対象 != MASTER
 		PRINTFORMW %ANAME(対象)%は彼と瞳を合わせるとなにやらもじもじしだした
-	DVAR:催眠深度 ++
+	DVAR:催眠トレーナー_深度 ++
 ELSE
 	IF IS_FEMALE(対象)
-		DVAR:前回催眠対象者 = GET_ID(対象)
+		DVAR:催眠トレーナー_前回対象者ID = GET_ID(対象)
 	ELSE
-		DVAR:前回催眠対象者 = 0
+		DVAR:催眠トレーナー_前回対象者ID = 0
 	ENDIF
-	DVAR:催眠深度 = 1
-	DVAR:催眠レイプ回数 = 0
+	DVAR:催眠トレーナー_深度 = 1
+	DVAR:催眠トレーナー_レイプ回数 = 0
 ENDIF
 
 PRINTFORMW さて、どのように変えてもらおうか？
@@ -179,10 +179,10 @@ IF GETBIT(TALENT:対象:デイリー系, 素質_デイリー_催眠中毒)
 	PRINTFORML ペニスで膣肉を抉られる度に%ANAME(対象)%の理性がブチブチと音を立てて破壊され快楽で上書きされる
 	PRINTFORML もはや身体は彼の玩具に成り下がり、乳首も陰核もビキビキに勃起しながらあられもなくイキ狂う
 	PRINTFORMW そして彼のザーメンが子宮に放たれると、待望の熱に獣の様な嬌声を上げて絶頂するのだった
-	DVAR:催眠深度 ++
+	DVAR:催眠トレーナー_深度 ++
 
-ELSEIF DVAR:催眠深度 >= 3 && IS_FEMALE(対象)
-	SELECTCASE DVAR:催眠レイプ回数
+ELSEIF DVAR:催眠トレーナー_深度 >= 3 && IS_FEMALE(対象)
+	SELECTCASE DVAR:催眠トレーナー_レイプ回数
 		CASE 0
 			PRINTFORML 「ぐぅぅ！なんてすばらしい雌穴だ！想像以上だぜ！」
 			PRINTFORML 男が覆い被さりながら激しく腰を振って%ANAME(対象)%を犯している
@@ -196,7 +196,7 @@ ELSEIF DVAR:催眠深度 >= 3 && IS_FEMALE(対象)
 			PRINTFORML %ANAME(対象)%は痙攣しながらも全身で彼にしがみついて、どくん♥どくん♥と胎内に注がれる子種を感じた
 			PRINTFORML 「ふぅ、たまらねぇぜ…なんだお前もまだ欲しいのか？へへっ、まだまだたっぷり可愛がってやるよ」
 			PRINTFORMW すっかり意識の底まで快楽を刻み込まれた%ANAME(対象)%は、自らおねだりしてその後も何度も彼に抱かれた
-			DVAR:催眠レイプ回数 ++
+			DVAR:催眠トレーナー_レイプ回数 ++
 		CASE 1
 			PRINTFORML …%ANAME(対象)%はまたも男に犯されている
 			PRINTFORML 「おら！おら！啼け、この雌豚が！おら！」
@@ -210,7 +210,7 @@ ELSEIF DVAR:催眠深度 >= 3 && IS_FEMALE(対象)
 			PRINTFORML 腰を鷲掴みにしながら男が動きを加速させると、%ANAME(対象)%は期待に一層嬌声を響かせ子宮を疼かせる
 			PRINTFORML そして待望の精液が奥深くで放たれると同時に、圧倒的な快楽の波で今日一番の絶頂に達した
 			PRINTFORMW その日もまた男が満足するまで何度も犯され意識の奥底まで快楽を染み込まされた
-			DVAR:催眠レイプ回数 ++
+			DVAR:催眠トレーナー_レイプ回数 ++
 		CASE 2
 			PRINTFORML 「おら！どうだ！雌犬にはふさわしい恰好だろうが！このっ！このっ！」
 			PRINTFORML 「んひ♥ひぃ♥あっ♥イっく♥あ♥イっひゃう♥ご主人様♥あひぃ♥またイくぅ♥」
@@ -227,7 +227,7 @@ ELSEIF DVAR:催眠深度 >= 3 && IS_FEMALE(対象)
 			PRINTFORML 何発目かの膣内射精を、%ANAME(対象)%は少しでも奥に注いでもらうために腰を突き出して待ち構える
 			PRINTFORML そして彼の特濃ザーメンを子宮に叩きつけられながら、%ANAME(対象)%は獣の様な嬌声を上げて絶頂した
 			PRINTFORMW %ANAME(対象)%はその日一日彼のペットとして連れ回され、たっぷりと調教を受ける事になった
-			DVAR:催眠レイプ回数 ++
+			DVAR:催眠トレーナー_レイプ回数 ++
 		CASE 3
 			PRINTFORML 「おら、いつも通り股を開いておねだりしろ」
 			PRINTFORML 部屋に入るなり、男は%ANAME(対象)%にそう告げた
@@ -246,21 +246,21 @@ ELSEIF DVAR:催眠深度 >= 3 && IS_FEMALE(対象)
 			PRINTFORML 「くぅ！相変わらずたまんねぇ！おら！待望のザーメンだ！まず一発行くぞ！おぉぉ！」
 			PRINTFORML どびゅるる！と男の精液が胎内で弾ける感覚を味わいながら、%ANAME(対象)%は気を失う程の悦びに達した
 			PRINTFORMW %ANAME(対象)%の昂りはそれだけでは収まらず、その後も彼に犯されるままにひたすら肉欲に溺れていった
-			DVAR:催眠レイプ回数 ++
-			DVAR:催眠深度 ++
+			DVAR:催眠トレーナー_レイプ回数 ++
+			DVAR:催眠トレーナー_深度 ++
 		CASEELSE
 			PRINTFORML 部屋に連れ込まれた%ANAME(対象)%はいつも通り催眠状態で男に犯されている
 			PRINTFORML ペニスで膣肉を抉られる度に%ANAME(対象)%の理性がブチブチと音を立てて破壊され快楽で上書きされる
 			PRINTFORML もはや身体は彼の玩具に成り下がり、乳首も陰核もビキビキに勃起しながらあられもなくイキ狂う
 			PRINTFORMW そして彼のザーメンが子宮に放たれると、待望の熱に獣の様な嬌声を上げて絶頂するのだった
-			DVAR:催眠深度 ++
+			DVAR:催眠トレーナー_深度 ++
 	ENDSELECT
 	CALL FUCK(対象, "欲望, 奉仕, 精愛, 性技, 性交, Ｃ, Ｖ, Ｂ, Ｍ, キス, 口淫, Ｖ性交", "処女喪失, 膣内射精, キス喪失, 口内射精",  GET_SPERM_ID("催眠術師"), @"催眠術師の\@RAND:2 ? ペニス # 唇\@", @"催眠術師", "", 喪失_催眠)
 	PRINTFORML 
 	PRINTFORML 
 ENDIF
 
-IF RAND:10 + DVAR:催眠深度 >= 6
+IF RAND:10 + DVAR:催眠トレーナー_深度 >= 6
 	PRINTFORML 成功したようだ！
 	PRINTFORMW 男はニンマリと笑みを浮かべ謝礼を受け取ると足早に去って行った
 	TALENT:対象:対象素質 = !TALENT:対象:対象素質
@@ -271,9 +271,9 @@ ELSE
 ENDIF
 MONEY -= 20000
 CALL ICPRINT(@"金<20000>を支払った", "W", カラー_注意)
-DVAR:催眠トレーナー = 1
+DVAR:催眠トレーナー_発生フラグ = 1
 
-IF DVAR:催眠深度 >= 5 && !GETBIT(TALENT:対象:デイリー系, 素質_デイリー_催眠中毒) && IS_FEMALE(対象)
+IF DVAR:催眠トレーナー_深度 >= 5 && !GETBIT(TALENT:対象:デイリー系, 素質_デイリー_催眠中毒) && IS_FEMALE(対象)
 	PRINTFORML ・
 	PRINTFORML ・
 	PRINTFORMW ・
@@ -291,6 +291,6 @@ RETURN CFLAG:対象:行動不能状態 != 行動不能_子供 && CFLAG:対象:�
 
 @SELECT_CHARA_LIST_COLOR_LOGIC_HYPNOTISM_TRAINER(対象)
 #DIM 対象
-SIF 対象 == ID_TO_CHARA(DVAR:前回催眠対象者)
+SIF 対象 == ID_TO_CHARA(DVAR:催眠トレーナー_前回対象者ID)
 	RETURN カラー_ピンク
 RETURN GETDEFCOLOR()

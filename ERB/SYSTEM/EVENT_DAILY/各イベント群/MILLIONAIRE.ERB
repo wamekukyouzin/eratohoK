@@ -2,13 +2,13 @@
 ;発生確率(1000分率 100で10%)
 ;---------------------
 @EVENT_DAILY_MILLIONAIRE_RATE()
-RETURN (DVAR:富豪お気に入り > 0 ? 250 # 30)
+RETURN (DVAR:富豪_お気に入りID > 0 ? 250 # 30)
 
 ;---------------------
 ;確率以外の発生判定
 ;---------------------
 @EVENT_DAILY_MILLIONAIRE_DECISION()
-SIF DVAR:富豪 == -1
+SIF DVAR:富豪_発生フラグ == -1
 	RETURN 0
 SIF DAY < 20
 	RETURN 0
@@ -29,7 +29,7 @@ RETURN 1
 VARSET 候補, -1
 VARSET 候補乱数, __INT_MIN__
 VARSET 候補数
-対象 = ID_TO_CHARA(DVAR:富豪お気に入り)
+対象 = ID_TO_CHARA(DVAR:富豪_お気に入りID)
 ;すでにお気に入りになっている娘がいて、そいつが基本的な条件を満たしているままで、かつ80%なら、続けて指名する
 IF 対象 != -1 && IS_FEMALE(対象) && CFLAG:対象:所属 == CFLAG:MASTER:所属 && !CFLAG:対象:捕虜先 && RAND:5 
 ELSE
@@ -74,7 +74,7 @@ RETURN デイリー_ジャンル_エロ
 
 対象 = DAILY_TARGET:0
 
-IF DVAR:富豪 == 0
+IF DVAR:富豪_発生フラグ == 0
 	PRINTFORML %ANAME(MASTER)%が政務をこなしていると、部下が来客を告げた
 	PRINTFORMW 幻想郷中に名をとどろかす富豪が訪ねてきたのだという
 	PRINTFORML 傲慢で有名であり、会いたくない相手だが、彼が一度の遊興で使う金はちょっとした勢力の予算ほどもある
@@ -102,11 +102,11 @@ IF DVAR:富豪 == 0
 	PRINTFORMW 「もちろん避妊はしよう。そのあたりは心配するな」
 	PRINTFORML なんとふざけた発言だろう。%ANAME(MASTER)%は唇を噛みしめる
 	PRINTFORML ……だが、この男の羽振りの良さは人の口にのぼるほどだ。差し出せば、かなりの支払いは期待できるだろう……
-ELSEIF 対象 == ID_TO_CHARA(DVAR:富豪お気に入り)
+ELSEIF 対象 == ID_TO_CHARA(DVAR:富豪_お気に入りID)
 	PRINTFORMW 例の富豪の男が訪ねてきた
 	PRINTFORML 「やあ、また来てやったぞ」
 	CALL ICPRINT(@"「用件は一つ。あの<%ANAME(対象)%>とかいうのをまた貸したまえ」", "W", カラー_注意)
-	IF DVAR:富豪お気に入り回数 >= 3
+	IF DVAR:富豪_お気に入り調教回数 >= 3
 		PRINTFORMW 「避妊？　ああ、してやるしてやる。わかったわかった」
 	ELSE
 		PRINTFORMW 「もちろん避妊はしよう。そのあたりは心配するな」
@@ -128,23 +128,23 @@ IF RESULT == 1
 	PRINTFORMW 「馬鹿な奴め、せっかく大金を手にする機会が目の前にあったというのに」
 	PRINTFORMW 「まぁ、いい。それならそれで、こんな辛気くさいところに用はない。それじゃあな」
 	PRINTFORMW 男は早々に立ち去っていった……
-	DVAR:富豪お気に入り = 0
-	DVAR:富豪お気に入り回数 = 0
-	DVAR:富豪 = 1
+	DVAR:富豪_お気に入りID = 0
+	DVAR:富豪_お気に入り調教回数 = 0
+	DVAR:富豪_発生フラグ = 1
 	RETURN 1
 ELSEIF RESULT == 2
 	PRINTFORML 「き、貴様……！」
 	PRINTFORMW 怒りのままに斬り捨てた
 	PRINTFORMW 男はほうほうの体で逃げ出していった……
-	DVAR:富豪 = -1
-	DVAR:富豪恨みカウンタ = 5
-	DVAR:富豪恨み対象 = GET_ID(対象)
+	DVAR:富豪_発生フラグ = -1
+	DVAR:富豪_誘拐カウンタ = 5
+	DVAR:富豪_誘拐対象 = GET_ID(対象)
 	RETURN 1
 ENDIF
 
 PRINTFORML 「そうだろう？　君たち貧民は、金のこととなれば目の色を変えるものなぁ」
 PRINTFORML 「安心したまえ、借り物を壊すような趣味は私にはない。丁寧に弄んでやろうじゃないか」
-SELECTCASE DVAR:富豪お気に入り回数
+SELECTCASE DVAR:富豪_お気に入り調教回数
 	CASE 0
 		PRINTFORMW 「……もっとも、私の技術の前に堕ちることは、あるかもしれないがなぁ？」
 		PRINTFORML 男はいやらしい視線を、%ANAME(対象)%の身体に這わせている
@@ -178,7 +178,7 @@ SELECTCASE DVAR:富豪お気に入り回数
 ENDSELECT
 PRINTFORMW 「さて、楽しんでくるとするか。部屋には誰も入れてくれるなよ」
 PRINTFORML 男は%ANAME(対象)%の腰を抱きながら、特別に用意された部屋へ連れ立って入っていった……
-IF DVAR:富豪お気に入り回数 >= 2 && IS_LOVER(対象)
+IF DVAR:富豪_お気に入り調教回数 >= 2 && IS_LOVER(対象)
 	PRINTFORML 「……あぁ、そうだ、君は部屋の前に立っていたまえ」
 	PRINTFORMW 不意に、男が振り返り、言う
 	PRINTFORMW 「どうやら%ANAME(対象)%にとって君は"特別な存在"らしいな？　違うかね？」
@@ -192,7 +192,7 @@ PRINTFORML
 PRINTFORML
 PRINTFORML
 PRINTFORMW 二人の入った部屋の中から、男女の激しく交わる声が聞こえてくる……
-IF DVAR:富豪お気に入り回数 >= 3 && IS_LOVER(対象)
+IF DVAR:富豪_お気に入り調教回数 >= 3 && IS_LOVER(対象)
 	CALL COLORPRINT(@"時折、大好き、愛してるなどという、%ANAME(対象)%のとろけた声が混じっている……", カラー_警告, "L")
 	CFLAG:対象:好感度 /= 3
 	CFLAG:対象:従属度 /= 3
@@ -205,16 +205,16 @@ CALL FUCK_RAPE_HININ(対象, @"富豪の\@ RAND:2 ? ペニス # 唇\@", "富豪"
 満足度 = ABL:対象:Ｃ感 + ABL:対象:Ｖ感 + ABL:対象:Ｂ感 + ABL:対象:Ａ感 + ABL:対象:Ｍ感
 満足度 += ABL:対象:欲望 + ABL:対象:精愛 + ABL:対象:奉仕 + ABL:対象:性技 + ABL:対象:性交
 報酬 = MIN(RAND(満足度 * 1000, 満足度 * 1000 + 10000), 50000)
-IF 満足度 >= 40 && DVAR:富豪お気に入り回数 == 0
+IF 満足度 >= 40 && DVAR:富豪_お気に入り調教回数 == 0
 	CALL COLORPRINT(@"%ANAME(対象)%の身体は、富豪を大いに満足させたようだ……", カラー_注意, "W")
-	DVAR:富豪お気に入り = GET_ID(対象)
+	DVAR:富豪_お気に入りID = GET_ID(対象)
 ENDIF
 PRINTFORML
 PRINTFORML
 PRINTFORML
 PRINTFORML たっぷり六時間ほどもたってから、富豪の男は部屋から一人で出てきた
-IF DVAR:富豪お気に入り回数
-	SELECTCASE 富豪お気に入り回数
+IF DVAR:富豪_お気に入り調教回数
+	SELECTCASE 富豪_お気に入り調教回数
 		CASE 1, 2
 			PRINTFORMW 「いやはや相変わらず、いい穴だな」
 			PRINTFORMW 「思わず出し過ぎてしまったよ……ククク」
@@ -256,7 +256,7 @@ PRINTFORM 金
 CALL COLORPRINT(@"{報酬}", カラー_注意)
 PRINTFORML を受け取った……
 MONEY += 報酬
-IF IS_LOVER(対象) && DVAR:富豪お気に入り回数 > 2
+IF IS_LOVER(対象) && DVAR:富豪_お気に入り調教回数 > 2
 	PRINTFORMW 「いやはや……こんなはした金のために、思い人を何度も差し出してなぁ」
 	PRINTFORMW 「こんなもののために、自分の女が種付けされることも受け入れるか。貧民の考えることは度しがたいよ、まったく」
 ENDIF
@@ -264,7 +264,7 @@ PRINTFORMW 「ではな。用が済んだのに、こんな辛気くさいとこ
 PRINTFORMW 「"後片付け"は任せたよ、ずいぶん汚してしまったのでね、ははは」
 PRINTFORML 着衣を整えると、男は早々に立ち去っていった……
 PRINTFORML その後、部屋に入ると、そこには汗と愛液と白濁にまみれて酷い様になった%ANAME(対象)%がベッドに倒れ伏していた……
-IF DVAR:富豪お気に入り回数 >= 3
+IF DVAR:富豪_お気に入り調教回数 >= 3
 	PRINTFORMW 避妊すると言っていたはずだが、その約束を男は守らなかったらしい
 	PRINTFORMW %ANAME(対象)%の両穴からは、\@ IS_LOVER(対象) ? %ANAME(対象)%以外の # \@子種がどろりとこぼれ落ちていた……
 ELSE
@@ -273,14 +273,14 @@ ELSE
 ENDIF
 
 
-IF GET_ID(対象) == DVAR:富豪お気に入り
-	DVAR:富豪お気に入り回数 ++
+IF GET_ID(対象) == DVAR:富豪_お気に入りID
+	DVAR:富豪_お気に入り調教回数 ++
 ELSE
-	DVAR:富豪お気に入り = 0
-	DVAR:富豪お気に入り回数 = 0
+	DVAR:富豪_お気に入りID = 0
+	DVAR:富豪_お気に入り調教回数 = 0
 ENDIF
 ;5回連続してあれするとあれ
-IF DVAR:富豪お気に入り回数 == 5
+IF DVAR:富豪_お気に入り調教回数 == 5
 	CALL SINGLE_DRAWLINE
 	PRINTFORML
 	PRINTFORML
@@ -317,8 +317,8 @@ IF DVAR:富豪お気に入り回数 == 5
 	CFLAG:対象:特殊状態 = 0
 	CALL LOSE_RELATION_TALENT(対象)
 	SETBIT TALENT:対象:デイリー系, 素質_デイリー_富豪の愛妾
-	DVAR:富豪お気に入り = 0
-	DVAR:富豪お気に入り回数 = 0
+	DVAR:富豪_お気に入りID = 0
+	DVAR:富豪_お気に入り調教回数 = 0
 ENDIF
 
 RETURN 1

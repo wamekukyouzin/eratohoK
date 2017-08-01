@@ -2,7 +2,7 @@
 ;発生確率(1000分率 100で10%)
 ;---------------------
 @EVENT_DAILY_ADULTFILM_RATE()
-RETURN (DVAR:撮影段階 > 0 ? 330 # 30)
+RETURN (DVAR:AV撮影_進行度 > 0 ? 330 # 30)
 
 ;---------------------
 ;確率以外の発生判定
@@ -14,7 +14,7 @@ RETURN (DVAR:撮影段階 > 0 ? 330 # 30)
 
 SIF DAY < 10
 	RETURN 0
-SIF DVAR:撮影段階 == 10
+SIF DVAR:AV撮影_進行度 == 10
 	RETURN 0
 FOR LOCAL, 0, CHARANUM
 	;捕虜でなく、死んでおらず、AV女優未所持者の女が自国にいるかどうか判定
@@ -37,19 +37,19 @@ RETURN デイリー_ジャンル_エロ
 @EVENT_DAILY_ADULTFILM
 #DIM 対象
 
-SIF DVAR:撮影段階 > 0
-	対象 = ID_TO_CHARA(DVAR:撮影対象)
+SIF DVAR:AV撮影_進行度 > 0
+	対象 = ID_TO_CHARA(DVAR:AV撮影_対象ID)
 
-IF DVAR:撮影段階 == 0
+IF DVAR:AV撮影_進行度 == 0
 	;%ANAME(MASTER)%が堕ちている場合
-	IF GETBIT(TALENT:MASTER:淫乱系, 素質_淫乱_ＡＶ女優) && IS_FEMALE(MASTER) && DVAR:撮影申し込み == 1
+	IF GETBIT(TALENT:MASTER:淫乱系, 素質_淫乱_ＡＶ女優) && IS_FEMALE(MASTER) && DVAR:AV撮影_発生フラグ == 1
 		PRINTFORML 再びAV撮影のプロデューサーがやって来た
 		PRINTFORMW 彼は%ANAME(MASTER)%を見るとニヤニヤと笑いながら当り前の様に尻を揉みしだいてきた
 		PRINTFORML %ANAME(MASTER)%は嬉しそうに喘ぎ声を上げ身動ぎしながらも抵抗せずに受け入れる
 		PRINTFORML 「またお世話になりますよぉ、視聴者は常に新しいアイドルを求めているんです」
 		PRINTFORMW 耳元で囁かれた%ANAME(MASTER)%はブルッと背筋を震わせた
 	;２回目以降
-	ELSEIF DVAR:撮影申し込み == 1
+	ELSEIF DVAR:AV撮影_発生フラグ == 1
 		PRINTFORMW 再び密着ドキュメンタリーの撮影を申し込まれた
 		PRINTFORML 「この企画は当たりますよ！そうすれば軍のアピールにもなるでしょう！」
 		PRINTFORMW プロデューサーを名乗る男は笑顔でそう力説するが…
@@ -65,7 +65,7 @@ IF DVAR:撮影段階 == 0
 	IF RESULT == 1
 		$OKOTOWARI
 		;%ANAME(MASTER)%が堕ちている場合
-		IF GETBIT(TALENT:MASTER:淫乱系, 素質_淫乱_ＡＶ女優) && DVAR:撮影申し込み == 1
+		IF GETBIT(TALENT:MASTER:淫乱系, 素質_淫乱_ＡＶ女優) && DVAR:AV撮影_発生フラグ == 1
 			PRINTFORML しかし今は戦争に忙しく、協力するのは難しい
 			PRINTFORML %ANAME(MASTER)%が申し訳なさそうに断ると、彼は露骨に舌打ちをした
 			PRINTFORMW そして腹いせとばかりに%ANAME(MASTER)%を寝室に連れ込むと、無責任に何度も種付けをしていった
@@ -73,13 +73,13 @@ IF DVAR:撮影段階 == 0
 		ELSE
 			PRINTFORML 軍事機密を漏らされるかもしれない
 			PRINTFORMW やはり今回は断らせてもらう事にした
-			SIF DVAR:撮影申し込み != 1
-				DVAR:撮影申し込み = 1
+			SIF DVAR:AV撮影_発生フラグ != 1
+				DVAR:AV撮影_発生フラグ = 1
 		ENDIF
 		RETURN
 	ELSEIF RESULT == 0
 		;%ANAME(MASTER)%が堕ちている場合
-		IF GETBIT(TALENT:MASTER:淫乱系, 素質_淫乱_ＡＶ女優) && DVAR:撮影申し込み == 1
+		IF GETBIT(TALENT:MASTER:淫乱系, 素質_淫乱_ＡＶ女優) && DVAR:AV撮影_発生フラグ == 1
 			PRINTFORMW もちろん引き受けさせてもらう事にした
 			PRINTFORML 誰を選ぼうか？
 		ELSE
@@ -115,10 +115,10 @@ IF DVAR:撮影段階 == 0
 	CALL COLORPRINT("その日の取材内容が放送されると他国の評価が上がった", カラー_注意, "W")
 	MONEY += 5000
 	CALL COLORPRINT("出演料として金5000を受け取った", カラー_注意, "W")
-	DVAR:撮影段階 ++
-	DVAR:撮影対象 = GET_ID(対象)
-	DVAR:撮影申し込み = 1
-ELSEIF DVAR:撮影段階 == 1
+	DVAR:AV撮影_進行度 ++
+	DVAR:AV撮影_対象ID = GET_ID(対象)
+	DVAR:AV撮影_発生フラグ = 1
+ELSEIF DVAR:AV撮影_進行度 == 1
 	PRINTFORMW 再び密着取材がやって来た
 	PRINTFORML 今回も前回と同じようにいくつかの質問をされる
 	PRINTFORML 「ところでこういったところにいると、女性としては色々と不便ではないでしょうか？」
@@ -148,8 +148,8 @@ ELSEIF DVAR:撮影段階 == 1
 	CALL COLORPRINT("その日の取材内容が放送されると志願兵が増えた", カラー_注意, "W")
 	MONEY += 5000
 	CALL COLORPRINT("出演料として金5000を受け取った", カラー_注意, "W")
-	DVAR:撮影段階 ++
-ELSEIF DVAR:撮影段階 == 2
+	DVAR:AV撮影_進行度 ++
+ELSEIF DVAR:AV撮影_進行度 == 2
 	PRINTFORMW 再び密着取材がやって来た
 	PRINTFORML プロデューサーは相変わらずの笑顔で%ANAME(対象)%に近づいてくる
 	PRINTFORML 前回の事で警戒しながらも%ANAME(対象)%は仕事として切り替え対応した
@@ -172,8 +172,8 @@ ELSEIF DVAR:撮影段階 == 2
 	MONEY += 5000
 	CALL COLORPRINT("出演料として金5000を受け取った", カラー_注意, "W")
 	CALL PRINT_ADD_EXP(対象, "露出経験値", RAND:20 + 1, 1)
-	DVAR:撮影段階 ++
-ELSEIF DVAR:撮影段階 == 3
+	DVAR:AV撮影_進行度 ++
+ELSEIF DVAR:AV撮影_進行度 == 3
 	PRINTFORMW 再び密着取材がやって来た
 	PRINTFORML プロデューサーは相変わらずの笑顔で%ANAME(対象)%に近づいてくる
 	PRINTFORMW しかし今までの事を思い出した%ANAME(対象)%はこのまま続けていいのかと不安になる
@@ -194,9 +194,9 @@ ELSEIF DVAR:撮影段階 == 3
 				CALL CHANGE_RELATION_C_TO_C(LOCAL, CFLAG:MASTER:所属, -50, 50)
 			NEXT
 			CALL COLORPRINT(@"しかしその後しばらくすると%ANAME(対象)%のあられもない映像が流れだし、他国の評判は大きく落ちる事になった", カラー_注意, "W")
-			DVAR:撮影中毒 = 0
-			DVAR:撮影段階 = 0
-			DVAR:撮影対象 = 0
+			DVAR:AV撮影_中毒進行度 = 0
+			DVAR:AV撮影_進行度 = 0
+			DVAR:AV撮影_対象ID = 0
 			RETURN
 		ELSEIF RESULT == 0
 			PRINTFORML 気圧された%ANAME(対象)%が続けると言うと再び彼は笑顔になった
@@ -224,8 +224,8 @@ ELSEIF DVAR:撮影段階 == 3
 	MONEY += 5000
 	CALL COLORPRINT("出演料として金5000を受け取った", カラー_注意, "W")
 	CALL PRINT_ADD_EXP(対象, "露出経験値", RAND:20 + 1, 1)
-	DVAR:撮影段階 ++
-ELSEIF DVAR:撮影段階 == 4
+	DVAR:AV撮影_進行度 ++
+ELSEIF DVAR:AV撮影_進行度 == 4
 	PRINTFORMW 再び密着取材がやって来た
 	PRINTFORML プロデューサーは相変わらずの笑顔で%ANAME(対象)%に近づいてくる
 	PRINTFORMW しかし今までの事を思い出した%ANAME(対象)%はこのまま続けていいのかと不安になる
@@ -246,9 +246,9 @@ ELSEIF DVAR:撮影段階 == 4
 				CALL CHANGE_RELATION_C_TO_C(LOCAL, CFLAG:MASTER:所属, -50, 50)
 			NEXT
 			CALL COLORPRINT(@"しかしその後しばらくすると%ANAME(対象)%のあられもない映像が流れだし、他国の評判は大きく落ちる事になった", カラー_注意, "W")
-			DVAR:撮影中毒 = 0
-			DVAR:撮影段階 = 0
-			DVAR:撮影対象 = 0
+			DVAR:AV撮影_中毒進行度 = 0
+			DVAR:AV撮影_進行度 = 0
+			DVAR:AV撮影_対象ID = 0
 			RETURN
 		ELSEIF RESULT == 0
 			PRINTFORML 気圧された%ANAME(対象)%が続けると言うと再び彼は笑顔になった
@@ -295,8 +295,8 @@ ELSEIF DVAR:撮影段階 == 4
 	COUNTRY_SOLDIER:(CFLAG:対象:所属) += 500 + 100 * (RAND:10 + RAND:10 + 6)
 	CALL COLORPRINT("その日の取材内容が放送されると志願兵が増えた", カラー_注意, "W")
 	CALL PRINT_ADD_EXP(対象, "露出経験値", RAND:20 + 1, 1)
-	DVAR:撮影段階 ++
-ELSEIF DVAR:撮影段階 == 5
+	DVAR:AV撮影_進行度 ++
+ELSEIF DVAR:AV撮影_進行度 == 5
 	PRINTFORMW 再び密着取材がやって来た
 	PRINTFORML プロデューサーは相変わらずの笑顔で%ANAME(対象)%に近づいてくる
 	PRINTFORMW しかし今までの事を思い出した%ANAME(対象)%はこのまま続けていいのかと不安になる
@@ -317,9 +317,9 @@ ELSEIF DVAR:撮影段階 == 5
 				CALL CHANGE_RELATION_C_TO_C(LOCAL, CFLAG:MASTER:所属, -50, 50)
 			NEXT
 			CALL COLORPRINT(@"しかしその後しばらくすると%ANAME(対象)%のあられもない映像が流れだし、他国の評判は大きく落ちる事になった", カラー_注意, "W")
-			DVAR:撮影中毒 = 0
-			DVAR:撮影段階 = 0
-			DVAR:撮影対象 = 0
+			DVAR:AV撮影_中毒進行度 = 0
+			DVAR:AV撮影_進行度 = 0
+			DVAR:AV撮影_対象ID = 0
 			RETURN
 		ELSEIF RESULT == 0
 			PRINTFORML 気圧された%ANAME(対象)%が続けると言うと再び彼は笑顔になった
@@ -402,7 +402,7 @@ ELSEIF DVAR:撮影段階 == 5
 	CALL FUCK(対象, "Ｃ, Ｖ, Ｂ, Ｍ, 性交, 精愛, 口淫, Ｖ性交", "キス喪失, 処女喪失, 膣内射精, 口内射精", GET_SPERM_ID("AV男優"), @"男優の\@RAND:2 ? ペニス # 唇\@", "AV男優", "", 喪失_強姦)
 	PRINTFORML 
 	CALL COLORPRINT(@"%ANAME(対象)%はAV女優になる事を強制されてしまった……", カラー_注意, "W")
-	DVAR:撮影段階  = 10
+	DVAR:AV撮影_進行度  = 10
 ENDIF
 
 RETURN 1
