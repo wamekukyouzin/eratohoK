@@ -661,20 +661,8 @@ FOR LOCAL:0, 400, 420
 	SOURCE:(射精相手):中毒充足 += NOWEX:(対象):射精 * LOCAL:12
 
 	;膣内射精かどうかを見る(膣がない場合は腸内射精も見る) コンドームの場合INJECTIONさせない
-	IF (射精先 == 1 || (!HAS_VAGINA(射精相手) && 射精先 == 2)) && !IS_EQUIP_PLAYER(対象, 75)
-		;中出し量の記録
-		IF IS_ANIMAL(対象)
-			IF TALENT:(対象):犬
-				CALL RECORD_INJECTION(射精相手, GET_SPERM_ID("犬"), NOWEX:(対象):射精)
-			ELSEIF TALENT:(対象):豚
-				CALL RECORD_INJECTION(射精相手, GET_SPERM_ID("豚"), NOWEX:(対象):射精)
-			ELSEIF TALENT:(対象):馬
-				CALL RECORD_INJECTION(射精相手, GET_SPERM_ID("馬"), NOWEX:(対象):射精)
-			ENDIF
-		ELSE
-			CALL RECORD_INJECTION(射精相手, GET_ID(対象), NOWEX:(対象):射精)
-		ENDIF
-	ENDIF
+	SIF (射精先 == 1 || (!HAS_VAGINA(射精相手) && 射精先 == 2)) && !IS_EQUIP_PLAYER(対象, 75)
+		CALL RECORD_INJECTION(射精相手, GET_ID(対象), NOWEX:(対象):射精)
 
 	;射精箇所が触手なら相手の妖術経験値をプラス
 	IF 射精先 == 13
@@ -927,12 +915,15 @@ SIF IS_OVULATION(ARG:0)
 
 ;対象が動物の場合、IDを変換
 IF LOCAL:1 >= 0 && IS_ANIMAL(LOCAL:1)
-	SIF TALENT:(LOCAL:1):犬
-		ARG:1 = GET_SPERM_ID("犬")
-	SIF TALENT:(LOCAL:1):豚
-		ARG:1 = GET_SPERM_ID("豚")
-	SIF TALENT:(LOCAL:1):馬
-		ARG:1 = GET_SPERM_ID("馬")
+	SELECTCASE TALENT:(LOCAL:1):動物
+		CASE 動物_犬
+			ARG:1 = GET_SPERM_ID("犬")
+		CASE 動物_豚
+			ARG:1 = GET_SPERM_ID("豚")
+			ARG:2 += 10
+		CASE 動物_馬
+			ARG:1 = GET_SPERM_ID("馬")
+	ENDSELECT
 ENDIF
 ;対象が特殊勢力の場合、IDを変換
 SIF LOCAL:1 >= 0 && TALENT:(LOCAL:1):特殊勢力素質
