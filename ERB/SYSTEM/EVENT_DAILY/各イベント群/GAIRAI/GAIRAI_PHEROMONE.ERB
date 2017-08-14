@@ -3,7 +3,7 @@
 ;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
 ;---------------------
 @EVENT_DAILY_GAIRAI_PHEROMONE_RATE()
-RETURN (DVAR:フェロモン中毒回数 > 0 ? 200 # 50)
+RETURN (DVAR:フェロモン中毒_発生回数 > 0 ? 200 # 50)
 
 
 ;---------------------
@@ -34,37 +34,37 @@ RETURN デイリー_ジャンル_特殊勢力
 #DIM 対象
 #DIM 外来人
 外来人 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:特殊勢力_外来人)
-対象 = ID_TO_CHARA(DVAR:フェロモン中毒)
+対象 = ID_TO_CHARA(DVAR:フェロモン中毒_対象ID)
 
 ;前回の発生からの状態変化をみる
 IF 対象 != -1
 	;君主になっているなら解除
 	IF 対象 == GET_COUNTRY_BOSS(CFLAG:対象:所属)
-		DVAR:フェロモン中毒 = 0
+		DVAR:フェロモン中毒_対象ID = 0
 		RETURN 0
 	ENDIF
 
 	;外来人所属になってるなら解除
 	IF CFLAG:対象:所属 == 外来人
-		DVAR:フェロモン中毒 = 0
+		DVAR:フェロモン中毒_対象ID = 0
 		RETURN 0
 	ENDIF
 	
 	;死んでいたら戻す
 	IF CFLAG:対象:特殊状態 == 特殊状態_死亡
-		DVAR:フェロモン中毒 = 0
+		DVAR:フェロモン中毒_対象ID = 0
 		RETURN 0
 	ENDIF
 	
 	;未登場
 	IF ALLSAMES(CFLAG:対象:特殊状態, CFLAG:対象:所属, 0)
-		DVAR:フェロモン中毒 = 0
+		DVAR:フェロモン中毒_対象ID = 0
 		RETURN 0
 	ENDIF
 	
 	;オンナをやめたなら解除
 	IF !IS_FEMALE(対象)
-		DVAR:フェロモン中毒 = 0
+		DVAR:フェロモン中毒_対象ID = 0
 		RETURN 0
 	ENDIF
 
@@ -89,7 +89,7 @@ ELSE
 	NEXT
 	SIF DAILY_TARGET_NUM < 1
 		RETURN 0
-	DVAR:フェロモン中毒 = GET_ID(DAILY_TARGET:(RAND:DAILY_TARGET_NUM))
+	DVAR:フェロモン中毒_対象ID = GET_ID(DAILY_TARGET:(RAND:DAILY_TARGET_NUM))
 ENDIF
 
 RETURN 1
@@ -108,9 +108,9 @@ RETURN 1
 #DIM 勢力番号
 
 外来人 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_外来人))
-対象 = ID_TO_CHARA(DVAR:フェロモン中毒)
+対象 = ID_TO_CHARA(DVAR:フェロモン中毒_対象ID)
 
-IF DVAR:フェロモン中毒回数 == 0
+IF DVAR:フェロモン中毒_発生回数 == 0
 	PRINTFORML 外来人が性奴調教用の機械を開発した
 	PRINTFORML 女を引き寄せるフェロモンを発生させるのだ
 	PRINTFORML 早速実験を行った結果、%ANAME(対象)%が引き寄せられた
@@ -239,19 +239,19 @@ IF GETBIT(TALENT:対象:特殊勢力陥落系, 特殊勢力_外来人)
 	CALL COLORPRINT(@"%ANAME(対象)%は再び外来人の実験動物に成り下がった…", カラー_ピンク)
 	PRINTFORMW 
 	CALL CHANGE_COUNTRY(対象, 外来人, 1)
-	DVAR:フェロモン中毒 = 0
-	DVAR:フェロモン中毒回数 = 0
-ELSEIF DVAR:フェロモン中毒回数 < 3
+	DVAR:フェロモン中毒_対象ID = 0
+	DVAR:フェロモン中毒_発生回数 = 0
+ELSEIF DVAR:フェロモン中毒_発生回数 < 3
 	PRINTFORML %ANAME(対象)%が気を失う程犯した後、彼は装置を持ってさっさと立ち去った
-	IF DVAR:フェロモン中毒回数 == 0
+	IF DVAR:フェロモン中毒_発生回数 == 0
 		PRINTFORMW 正気に戻った%ANAME(対象)%は自らの痴態に顔を真っ赤にしながらも、心の底で次を期待していた
 	ELSE
 		PRINTFORMW 正気に戻った%ANAME(対象)%は自らの痴態に顔を真っ赤にしながらも、微かに子宮の疼きを覚えていた
-		DVAR:フェロモン中毒 = 対象
+		DVAR:フェロモン中毒_対象ID = 対象
 	ENDIF
-	DVAR:フェロモン中毒回数 ++
+	DVAR:フェロモン中毒_発生回数 ++
 ELSE
-	PRINTFORML %ANAME(対象)%はすっかりフェロモン中毒になってしまったようだ
+	PRINTFORML %ANAME(対象)%はすっかりフェロモン中毒_対象IDになってしまったようだ
 	PRINTFORML 立ち去ろうとする外来人にすがりついて、自分を今後も飼ってくれるように頼んだ
 	PRINTFORML 彼は下卑た笑みを浮かべて%ANAME(対象)%を見下ろすと、首輪を差し出してきた
 	PRINTFORML その意味を察した%ANAME(対象)%は一瞬迷ったものの、即座に自らの首を差し出した
@@ -261,8 +261,8 @@ ELSE
 	PRINTFORMW 
 	CALL GAIRAI_FALLEN_LEAVE_MARK(対象)
 	CALL CHANGE_COUNTRY(対象, 外来人, 1)
-	DVAR:フェロモン中毒 = 0
-	DVAR:フェロモン中毒回数 = 0
+	DVAR:フェロモン中毒_対象ID = 0
+	DVAR:フェロモン中毒_発生回数 = 0
 ENDIF
 
 RETURN 1

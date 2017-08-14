@@ -2,7 +2,7 @@
 ;発生確率(1000分率 100で10%)
 ;---------------------
 @EVENT_DAILY_FUND_RAISING_RATE()
-RETURN (30 + INRANGE(DVAR:募金抱いた回数, 0, 10) * 7)
+RETURN (30 + INRANGE(DVAR:募金_抱いた回数, 0, 10) * 7)
 
 
 ;---------------------
@@ -29,13 +29,13 @@ RETURN デイリー_ジャンル_エロ
 ;募金額は現在資金の大体1割
 ;抱いた回数が増えると募金額が減る（最低5%）
 ;最低額を10000に設定、最大額をDAY*1000に設定
-募金額 = MAX(MONEY * MIN(((10 + RAND:11 + RAND:11) - DVAR:募金抱いた回数)/ 2, 5) / 100, 10000)
+募金額 = MAX(MONEY * MIN(((10 + RAND:11 + RAND:11) - DVAR:募金_抱いた回数)/ 2, 5) / 100, 10000)
 SIF 募金額 > 1000 * DAY
 	募金額 = 1000 * DAY
-SIF DVAR:募金抱いた回数 > 0
-	募金額 = 募金額 / DVAR:募金抱いた回数
+SIF DVAR:募金_抱いた回数 > 0
+	募金額 = 募金額 / DVAR:募金_抱いた回数
 ;初遭遇
-IF DVAR:募金 == 0
+IF DVAR:募金_発生フラグ == 0
 	PRINTFORMW 仕事をしていると部下が来客を告げた
 	PRINTFORMW 何やら市民団体の者らしいが
 	PRINTFORMW 丁度仕事も一段落している、会うことにした
@@ -51,7 +51,7 @@ IF DVAR:募金 == 0
 	PRINTFORMW 「少々活動資金が心もとなくなってきているのです。元々、皆さんの善意により成り立っている活動ですので……」
 	PRINTFORMW なるほど、つまり活動資金の援助を申し込みに来たようだ
 ;8回以上抱いている場合、1/2の確率でただ抱かれに来る
-ELSEIF DVAR:募金抱いた回数 >= 8 && RAND:2 == 0
+ELSEIF DVAR:募金_抱いた回数 >= 8 && RAND:2 == 0
 	PRINTFORML 例の慈善団体の娘が会いに来た様だ
 	PRINTFORMW しかしいつもと様子が違う
 	PRINTFORML 「お久しぶりです、ご主人様ぁ」
@@ -75,9 +75,9 @@ ELSEIF DVAR:募金抱いた回数 >= 8 && RAND:2 == 0
 	PRINTFORMW …翌朝、彼女は見送るあなたを名残惜しそうに見つめながら帰っていった
 	RETURN -1
 ;2回目以降
-ELSEIF DVAR:募金 == 1
+ELSEIF DVAR:募金_発生フラグ == 1
 	PRINTFORML 例の慈善団体の娘が、また募金を求めにきたようだ
-	SELECTCASE DVAR:募金抱いた回数
+	SELECTCASE DVAR:募金_抱いた回数
 	CASE IS < 2
 		PRINTFORMW 「あの、恵まれない子供たちのために…またお願いします」
 	CASE 2 TO 4
@@ -99,7 +99,7 @@ ENDIF
 	PRINTFORML 言うまでもなく大金だ、見返りも期待できるほどの物はないだろう
 PRINTFORMW さて、どうしようか……
 CALL SINGLE_DRAWLINE
-IF DVAR:募金抱いた回数 <= 4
+IF DVAR:募金_抱いた回数 <= 4
 	CALL ASK_MULTI_JUDGE(@"金{募金額}を援助する", 1,"やめておく", 1,"代わりにお前を抱かせろ", HAS_PENIS(MASTER))
 ELSE
 	CALL ASK_MULTI_JUDGE(@"金{募金額}と引き換えに抱く", HAS_PENIS(MASTER),"やめておく", 1)
@@ -107,7 +107,7 @@ ENDIF
 ;断るパターン
 IF RESULT == 1
 	PRINTFORMW 「そうですか……。とても残念です……」
-	IF !RAND:5 && 4 < DVAR:募金抱いた回数
+	IF !RAND:5 && 4 < DVAR:募金_抱いた回数
 	;レアケース、面会料のお支払い
 		PRINTFORML 「ですが、会っていただいたお礼はしないといけませんね」
 		PRINTFORML そう言いながら%ANAME(MASTER)%の足元に四つん這いでにじりより、
@@ -130,7 +130,7 @@ ELSEIF RESULT == 0
 	IF MONEY <= 募金額
 		PRINTFORML 募金しようとしたが金が足りなかった
 		PRINTFORMW 娘はガッカリしながらもお気持ちだけでもありがとうございますと告げ、去って行った
-	ELSEIF DVAR:募金抱いた回数 == 0
+	ELSEIF DVAR:募金_抱いた回数 == 0
 		PRINTFORML 子供を出されてしまってはどうしようもない
 		PRINTFORMW 寄付してやることにしよう
 		PRINTFORML 「ありがとうございます！%ANAME(MASTER)%様のおかげで多くの子供たちが救われます！」
@@ -145,7 +145,7 @@ ELSEIF RESULT == 0
 			SIF IS_COUNTRY(LOCAL)
 				CALL CHANGE_RELATION_C_TO_C(LOCAL, CFLAG:MASTER:所属, 15, -15)
 		NEXT
-	ELSEIF DVAR:募金抱いた回数 < 5
+	ELSEIF DVAR:募金_抱いた回数 < 5
 		PRINTFORML また抱いてもいいが、今はそんな気分ではない
 		PRINTFORMW 素直に募金だけしてやることにした
 		PRINTFORML 「あっ…いえ、はい…あ、ありがとうございます……」
@@ -160,7 +160,7 @@ ELSEIF RESULT == 0
 			SIF IS_COUNTRY(LOCAL)
 				CALL CHANGE_RELATION_C_TO_C(LOCAL, CFLAG:MASTER:所属, 15, -15)
 		NEXT
-	ELSEIF DVAR:募金抱いた回数 >= 5
+	ELSEIF DVAR:募金_抱いた回数 >= 5
 		IF RAND:20
 			PRINTFORML 「はい…今日もたっぷりと礼を尽くさせていただきますね…♥」
 			PRINTFORML 抱いてやると告げると彼女は恍惚の笑みを浮かべて息を荒げた
@@ -239,7 +239,7 @@ ELSEIF RESULT == 0
 		PRINTFORML 
 		CALL COLORPRINT(@"{募金額}", カラー_注意)
 		PRINTFORMW の金を募金した
-		DVAR:募金抱いた回数 ++
+		DVAR:募金_抱いた回数 ++
 		MONEY -= 募金額
 		;募金したんだし評判は上げておく
 		CALL COLORPRINT(@"%ANAME(GET_COUNTRY_BOSS(CFLAG:MASTER:所属))%の評判がわずかに上がりました", カラー_注意)
@@ -249,10 +249,10 @@ ELSEIF RESULT == 0
 				CALL CHANGE_RELATION_C_TO_C(LOCAL, CFLAG:MASTER:所属, 15, -15)
 		NEXT
 	ENDIF
-	DVAR:募金 = 1
+	DVAR:募金_発生フラグ = 1
 ;身体を要求するパターン
 ELSEIF RESULT == 2
-	SELECTCASE DVAR:募金抱いた回数
+	SELECTCASE DVAR:募金_抱いた回数
 		CASE 0
 			PRINTFORMW 援助する代わりにお前を抱かせろ
 			PRINTFORML 娘のそばにより耳元でそう囁くと、彼女は一瞬硬直し
@@ -394,7 +394,7 @@ ELSEIF RESULT == 2
 	CALL COLORPRINT(@"{募金額}", カラー_注意)
 	PRINTFORMW の金を募金した
 	MONEY -= 募金額
-	DVAR:募金抱いた回数 ++
-	DVAR:募金 = 1
+	DVAR:募金_抱いた回数 ++
+	DVAR:募金_発生フラグ = 1
 ENDIF
 RETURN 1

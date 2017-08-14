@@ -11,7 +11,7 @@ RETURN SLG_DAILY_GET_DISABLE_CONFIG("HYPNOTISM_WORKER")
 ;---------------------
 @SLG_EVENT_DAILY_DERIVATION_HYPNOTISM_SLAVE_DECISION()
 
-RETURN DVAR:催眠お仕事 > 0 && RAND:100 < 40
+RETURN DVAR:催眠お仕事_状態管理フラグ > 0 && RAND:100 < 40
 
 ;---------------------
 ;本体
@@ -20,44 +20,44 @@ RETURN DVAR:催眠お仕事 > 0 && RAND:100 < 40
 #DIM 対象
 #DIM 仕事先
 
-対象 = ID_TO_CHARA(DVAR:催眠調教中)
+対象 = ID_TO_CHARA(DVAR:催眠お仕事_調教対象ID)
 
 IF 対象 == -1
-	DVAR:催眠お仕事 = 0
-	DVAR:催眠調教中 = 0
-	DVAR:催眠浸透度 = 0
+	DVAR:催眠お仕事_状態管理フラグ = 0
+	DVAR:催眠お仕事_調教対象ID = 0
+	DVAR:催眠お仕事_進行度 = 0
 	RETURN 1
 ENDIF
 
 ;ターゲットが女じゃなくなっていたらやめる
 IF !IS_FEMALE(対象)
 	PRINTFORMW %ANAME(対象)%が女をやめたので、催眠傀儡師は興味を失ってしまったようだ……
-	DVAR:催眠お仕事 = 0
-	DVAR:催眠調教中 = 0
-	DVAR:催眠浸透度 = 0
+	DVAR:催眠お仕事_状態管理フラグ = 0
+	DVAR:催眠お仕事_調教対象ID = 0
+	DVAR:催眠お仕事_進行度 = 0
 	RETURN 1
 ENDIF
 
 ;ターゲットが捕虜になったらやめる
 IF CFLAG:対象:捕虜先
 	PRINTFORMW %ANAME(対象)%が捕らえられたので、催眠傀儡師はこれ以上の調教をあきらめたようだ……
-	DVAR:催眠お仕事 = 0
-	DVAR:催眠調教中 = 0
-	DVAR:催眠浸透度 = 0
+	DVAR:催眠お仕事_状態管理フラグ = 0
+	DVAR:催眠お仕事_調教対象ID = 0
+	DVAR:催眠お仕事_進行度 = 0
 	RETURN 1
 ENDIF
 
 IF CFLAG:対象:特殊状態 == 特殊状態_死亡
 	PRINTFORMW %ANAME(対象)%が死亡したので、催眠傀儡師はこれ以上の調教を諦めたようだ……
-	DVAR:催眠お仕事 = 0
-	DVAR:催眠調教中 = 0
-	DVAR:催眠浸透度 = 0
+	DVAR:催眠お仕事_状態管理フラグ = 0
+	DVAR:催眠お仕事_調教対象ID = 0
+	DVAR:催眠お仕事_進行度 = 0
 	RETURN 1
 ENDIF
 
 PRINTFORMW %ANAME(対象)%は今日も"お仕事"に出かけた
 PRINTFORML 
-IF DVAR:催眠浸透度 > 15
+IF DVAR:催眠お仕事_進行度 > 15
 	PRINTFORMW 今日の%ANAME(対象)%はご主人様の肉奴隷として奉仕している
 	PRINTFORML 首輪をつけられた%ANAME(対象)%がベッドの上でご主事様に跨って激しく腰を振る
 	PRINTFORML だらしなく舌を垂らし、アヘ顔を晒しながらヨガり狂う姿はまさに雌犬の様だ
@@ -80,9 +80,9 @@ IF DVAR:催眠浸透度 > 15
 	PRINTFORML 
 	CALL COLORPRINT(@"この日から、%ANAME(対象)%は恒久的な催眠奴隷となった", カラー_ピンク, "W")
 	SETBIT TALENT:対象:デイリー系, 素質_デイリー_催眠奴隷
-	DVAR:催眠お仕事 = 0
-	DVAR:催眠調教中 = 0
-	DVAR:催眠浸透度 = 0
+	DVAR:催眠お仕事_状態管理フラグ = 0
+	DVAR:催眠お仕事_調教対象ID = 0
+	DVAR:催眠お仕事_進行度 = 0
 ELSE
 	IF 対象 == MASTER
 		PRINTFORML 今日はどこで仕事をしようか？
@@ -399,7 +399,7 @@ ELSE
 	PRINTFORML はてどんな仕事をしていたんだっけ？
 	PRINTFORML 覚えていないがきっと疲れたせいだろう
 	PRINTFORMW %ANAME(対象)%はそう結論付けると休憩する為に自室に戻った
-	DVAR:催眠浸透度 += RAND:2 + 1
+	DVAR:催眠お仕事_進行度 += RAND:2 + 1
 ENDIF
 
 RETURN 1
