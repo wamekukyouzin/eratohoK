@@ -645,6 +645,26 @@ NEXT
 RETURNF LOCALS:0
 
 ;-------------------------------------------------
+;都市ARG:0の経済値をARG:1だけ操作する　変数に格納されている生の値（表示値の100倍）を渡すこと
+;-------------------------------------------------
+@MODIFY_CITY_ECONOMY(ARG:0, ARG:1, ARG:2 = 1)
+
+IF CITY_ECONOMY:(ARG:0) + ARG:1 > CITY_ECONOMY_LIMIT:(ARG:0)
+	CITY_ECONOMY_LIMIT:(ARG:0) += (CITY_ECONOMY:(ARG:0) + ARG:1 - CITY_ECONOMY_LIMIT:(ARG:0)) / 2
+	CITY_ECONOMY:(ARG:0) = CITY_ECONOMY_LIMIT:(ARG:0)
+ELSE
+	CITY_ECONOMY:(ARG:0) = MAX(CITY_ECONOMY:(ARG:0) + ARG:1, 1)
+ENDIF
+
+IF ARG:2
+	IF ARG:1 > 0
+		CALL COLORPRINT(@"%CITY_NAME:(ARG:0)%の経済規模が{ARG:1 / 100}上昇し、{CITY_ECONOMY:(ARG:1) / 100}になった", カラー_注意, "L")
+	ELSE
+		CALL COLORPRINT(@"%CITY_NAME:(ARG:0)%の経済規模が{ARG:1 / 100}減少し、{CITY_ECONOMY:(ARG:1) / 100}になった", カラー_警告, "L")
+	ENDIF
+ENDIF
+
+;-------------------------------------------------
 ;空いている勢力番号の中で最も若い番号を返す関数
 ;-------------------------------------------------
 @GET_NEW_COUNTRY
@@ -783,7 +803,7 @@ RETURNF ""
 #FUNCTION
 
 ;CFLAGのチェック
-SIF CFLAG:(ARG:0):捕虜先 || CFLAG:(ARG:0):特殊状態 ||  CFLAG:(LOCAL:0):行動不能状態 == 行動不能_子供
+SIF CFLAG:(ARG:0):捕虜先 || CFLAG:(ARG:0):特殊状態 ||  CFLAG:(ARG:0):行動不能状態 == 行動不能_子供
 	RETURNF 0
 
 ;Kの追加要素に合わせて条件を増やす
