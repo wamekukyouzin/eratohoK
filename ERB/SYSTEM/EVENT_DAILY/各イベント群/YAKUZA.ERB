@@ -1,0 +1,233 @@
+﻿;---------------------
+;発生確率(1000分率 100で10%)
+;---------------------
+@EVENT_DAILY_YAKUZA_RATE()
+RETURN (DVAR:やくざ_繋がり > 0 ? 200 # 30)
+
+;---------------------
+;確率以外の発生判定
+;---------------------
+@EVENT_DAILY_YAKUZA_DECISION()
+SIF DAY < 10
+	RETURN 0
+
+SIF DVAR:やくざ_発生フラグ > 0
+	RETURN 0
+
+RETURN 1
+
+;---------------------
+;ジャンル
+;---------------------
+@EVENT_DAILY_YAKUZA_GENRE()
+RETURN デイリー_ジャンル_エロ
+
+;---------------------
+;本体
+;---------------------
+@EVENT_DAILY_YAKUZA()
+#DIM 対象
+#DIM 対象国君主
+
+IF GETBIT(TALENT:MASTER:デイリー系, 素質_デイリー_ソープ嬢)
+	PRINTFORML やくざが仕事場へとやって来た
+	PRINTFORML 突然の訪問に思わず動揺してしまい部下に心配された
+	PRINTFORML しかし彼との関係をばれるわけにもいかず何とか取り繕った
+	PRINTFORMW 訪問の理由は依然と同じく、取引の為だろう…
+ELSEIF DVAR:やくざ_遭遇 >= 1
+	PRINTFORML 例のやくざが再びやって来た
+	PRINTFORMW 是非面会したいと言っているようだが…
+ELSE 
+	PRINTFORML ある日、執務をしていると来客を告げられた
+	PRINTFORML 部下によると最近領内で活発に活動しているやくざらしい
+	PRINTFORMW お互いの為になる話を持ってきたらしいが…
+	DVAR:やくざ_遭遇 = 1
+ENDIF
+PRINTFORML どうしよう？
+CALL ASK_YN("面会する" ,"追い返す")
+IF RESULT == 1
+	IF DVAR:やくざ_遭遇 == 2
+		PRINTFORML あんな連中とこれ以上関わりたくない
+		PRINTFORMW %ANAME(MASTER)%は追い返すように命じた
+		PRINTFORML 
+		PRINTFORMW …報復を恐れていたが何も起こらなかった
+	ELSE
+		PRINTFORML そんな連中と話す事など何もない
+		PRINTFORMW %ANAME(MASTER)%は追い返すように命じた
+	ENDIF
+	RETURN 1
+ELSEIF RESULT == 0
+	IF DVAR:やくざ_遭遇 == 2
+		PRINTFORML あんな連中とこれ以上関わりたくない
+		PRINTFORML しかし仕事は確かだし下手に追い返すと報復されるかもしれない
+		PRINTFORMW 悩んだ結果、再び面会する事にした
+	ELSE
+		PRINTFORMW 面会するだけしてみる事にした
+	ENDIF
+	PRINTFORML 誰に任せようか？
+	CALL SELECT_CHARA_LIST_ONLY_LOGIC_SLG("YAKUZA", "NONE")
+	対象 = RESULT
+	IF 対象 == -1
+		PRINTFORML …いや、やはりそんな連中と話すことなど何もない
+		PRINTFORMW %ANAME(MASTER)%は追い返すように命じた
+		DVAR:やくざ_繋がり = 0
+		RETURN 1
+	ELSEIF 対象 == MASTER
+		PRINTFORML 危険かもしれない
+		PRINTFORMW %ANAME(対象)%自身が面会する事にした
+	ELSE
+		PRINTFORML %ANAME(対象)%に任せる事にした
+		PRINTFORMW %ANAME(対象)%は嫌々そうに面会に向かった
+	ENDIF
+ENDIF
+
+PRINTFORML 
+IF DVAR:やくざ_遭遇 == 2
+	PRINTFORML 面会室に向かうとやくざはニヤニヤと笑いながら待っていた
+	PRINTFORML %ANAME(対象)%は不快感と微かな不安感を覚えながらも悟られないように対応した
+	PRINTFORML 面会の内容は依然と同じく、他国への妨害活動の提案だ
+	PRINTFORML 確かに効果が高いのは証明済みだが…
+	PRINTFORMW %ANAME(対象)%が彼をジロリと見つめるとニヤニヤ笑いを浮かべたままだ
+ELSEIF DVAR:やくざ_面会 == 1
+	PRINTFORML 今回もスーツ姿の鬼がやって来た
+	PRINTFORML 相変わらずやくざをまねたような口調と仕草をしている
+	PRINTFORMW 話の内容も前回と同じようだ
+ELSE
+	PRINTFORML 面会相手は大柄の鬼だった
+	PRINTFORML なるほど、妖怪がやくざの真似事をしているらしい
+	PRINTFORML しかし連中は恰好だけではなくきちんとした組織だと聞いている
+	PRINTFORMW 油断せずに彼の話を聞く事にした
+	PRINTFORML 
+	PRINTFORMW 奴の話を纏めると以下の通りだった
+	PRINTFORML 「自分たちはしがないやくざ者として裏でひっそりと活動していた」
+	PRINTFORML 「どの国にも組していなかったがしかし最近の戦乱によりそうも言ってられなくなった」
+	PRINTFORMW 「力を貸してやるからどうかあんたの国の領内にいさせてもらえないだろうか」
+	PRINTFORML 「我々は相手の弱みを握ったりばら撒くのを得意としている」
+	PRINTFORMW 「あんたが望む国の悪評を流してやろう」
+	PRINTFORML 何とも自分勝手で反吐が出るような内容だった
+	PRINTFORMW しかし連中を上手く使えれば確かに有利になるかもしれない……
+	DVAR:やくざ_面会 = 1
+ENDIF
+PRINTFORML どうしよう？
+CALL ASK_YN("頼む" ,"断る")
+IF RESULT == 1
+	PRINTFORML やはり怪しい連中と取引などできない
+	PRINTFORMW 断ると彼は舌打ちをして帰って行った
+	DVAR:やくざ_繋がり = 0
+	RETURN 1
+ELSEIF RESULT == 0
+	PRINTFORML 今はこんな連中の手でも借りたい
+	PRINTFORMW 連中の素性には目をつむって取引する事にした
+	PRINTFORML どの国に工作しよう？
+	CALL SELECT_CHARA_LIST_ONLY_LOGIC_SLG("YAKUZA_TARGET", "NONE")
+	対象国君主 = RESULT
+	IF 対象国君主 == -1
+		PRINTFORML …いや、やはりやくざ者と話す事など何もない
+		PRINTFORMW %ANAME(MASTER)%は追い返すように命じた
+		DVAR:やくざ_繋がり = 0
+		RETURN 1
+	ENDIF
+	PRINTFORML 「了解したぜ、早速仕事に掛かろう」
+	PRINTFORMW 彼はニタリと笑うと去って行った
+	PRINTFORML …
+	PRINTFORML ……
+	PRINTFORMW ………
+	FOR LOCAL, 0 ,MAX_COUNTRY
+		SIF !IS_COUNTRY(LOCAL)
+			CONTINUE
+		SIF LOCAL != CFLAG:MASTER:所属
+			CALL CHANGE_RELATION_C_TO_C(LOCAL, CFLAG:対象国君主:所属, -(RAND(50 ,150)), RAND(50 ,150))
+	NEXT
+	PRINTFORMW 仕事は成功したようだ
+	CALL ICPRINT(@"やくざ共の工作により、%ANAME(対象国君主)%勢力の醜聞が流れた……", "W", カラー_注意)
+	IF RAND:10 + 1 + DVAR:やくざ_仕事回数 <= 8
+		PRINTFORML 仕事を終えた彼にしばらくの間、領内での活動を認めた
+		PRINTFORML 「へっへ、今後とも良い関係で頼むぜ」
+		PRINTFORMW そう言って笑った彼に%ANAME(対象)%は嫌なものを感じたが何も言わなかった
+		DVAR:やくざ_仕事回数 ++
+		DVAR:やくざ_繋がり = 1
+	ELSE
+		DVAR:やくざ_仕事回数 = 0
+		DVAR:やくざ_繋がり = 0
+		DVAR:やくざ_遭遇 = 2
+		PRINTFORML 仕事の後、やくざが%ANAME(対象)%の元にやって来た
+		PRINTFORMW しかしただの仕事の報告といった雰囲気ではなかった
+		PRINTFORML 「へっへっへ、最初に俺は言ったよな？人の弱みを握るのが得意だってよ」
+		PRINTFORML 「その通りになったなぁ？あんたが俺達に依頼した仕事の証拠があんだよ」
+		PRINTFORMW 彼の言葉に%ANAME(対象)%は背筋が寒くなるのを感じた
+		PRINTFORMW 「ばらされたくなけらば…言いたいことはわかるだろぉ？へへへっ」
+		SIF IS_FEMALE(対象)
+			PRINTFORMW 彼の厭らしい視線に舐めまわしてくるのを感じた
+		PRINTFORML どうしよう？
+		CALL ASK_YN("斬りつける" ,"従う")
+		IF RESULT == 0
+			PRINTFORML やくざ者の言いなりになどなってたまるか！
+			PRINTFORML %ANAME(対象)%は剣を抜くと一刀のもとに斬り捨てた
+			PRINTFORMW 奴は驚愕の表情で悲鳴を上げる間もなく崩れ落ちた
+			PRINTFORML あのふざけた笑みをもう見ずに済むようになりすっきりした
+			PRINTFORMW しかし亡骸を探っても証拠は一切見つからなかった……
+			PRINTFORML 
+			FOR LOCAL, 0 ,MAX_COUNTRY
+				SIF !IS_COUNTRY(LOCAL)
+					CONTINUE
+				SIF LOCAL != CFLAG:MASTER:所属
+					CALL CHANGE_RELATION_C_TO_C(LOCAL, CFLAG:MASTER:所属, -1000, 1000)
+			NEXT
+			CALL COLORPRINT(@"その後、やくざとの取引が他国にばらされ評判が大きく下がってしまった……", カラー_注意, "W")
+		ELSEIF RESULT == 1
+			PRINTFORML この場でこいつを斬り捨てるのは容易い
+			PRINTFORML しかしそれでは全てをばらされてしまう可能性が高い
+			PRINTFORMW …悩んだ%ANAME(対象)%だが結局奴の言いなりにならざるを得なかった
+			IF IS_MALE(対象)
+				CALL ICPRINT(@"彼は容赦なく%ANAME(対象)%の所持金を全て奪い去って行った……", "W", カラー_注意)
+				MONEY -= MONEY
+			ELSE
+				PRINTFORML %ANAME(対象)%が頷くと彼はニタリと笑い、舌なめずりをした
+				PRINTFORMW そして馴れ馴れしく肩を抱かれ彼の自宅へと連れて行かれた…
+				PRINTFORML 
+				PRINTFORML 自宅に連れ込まれた%ANAME(対象)%は彼の目の前でストリップを強要された
+				PRINTFORML 躊躇いつつ一枚ずつ脱いでいくのを下卑た視線でねっとりと見られ、羞恥と屈辱で震えてしまう
+				PRINTFORMW %ANAME(対象)%が裸になる頃には彼の股間は服の上からでもわかる程に大きく膨れ上がっていた
+				PRINTFORML 彼は舌なめずりをすると%ANAME(対象)%の腕を掴み乱暴に唇を奪うとそのままベッドに押し倒してきた
+				PRINTFORML 本能的に抵抗するが叶わずにそのまま指や舌で全身をいやらしく撫でまわされ悲鳴を上げる
+				PRINTFORML 気づかぬ内に%ANAME(対象)%の身体は火照り汗ばんでしまっており彼の愛撫に敏感に反応してしまった
+				PRINTFORMW %ANAME(対象)%の反応を見た彼は再びあのいやらしい笑みを浮かべるといよいよその一物を取り出した
+				PRINTFORML まさに鬼のペニスに相応しいそのグロテスクと雄々しさに%ANAME(対象)%は思わず釘付けになってしまう
+				PRINTFORML そして抵抗する間もなく両足を掴まれ大股開きにされると割れ目に先っぽをあてがわれた
+				PRINTFORML 涙目で震える%ANAME(対象)%が許しを請うても彼はニタリと笑うだけでそのまま一気に根元までねじ込まれた
+				PRINTFORMW ドチュン！と脳天まで響くほどの衝撃に%ANAME(対象)%は一瞬視界が真っ白になり大きく仰け反った
+				PRINTFORML 震える喉から微かなうめき声を上げながら痙攣する%ANAME(対象)%に対し彼は容赦なくピストンを始める
+				PRINTFORML 膣肉を抉られとられ内臓を引きずり出される様な衝撃を受けて%ANAME(対象)%は白目を剥いて身悶える
+				PRINTFORML しばしの間寝室にパンパンパン！とリズミカルに肉の打ち合う音と%ANAME(対象)%の悲鳴が響き渡った
+				PRINTFORMW 乱暴だがこの上なく雄々しいレイプは%ANAME(対象)%の身体を無理矢理雌として覚醒させ感じさせられる
+				PRINTFORML ズンッ！と一際深い一突きで子宮口を小突かれると思わず頭が弾けて無様に潮を吹いてしまった
+				PRINTFORML 彼は%ANAME(対象)%の反応を楽しむかのように様々な体位で雌穴の隅々までその一物で蹂躙してくる
+				PRINTFORML とうに理性が崩壊した%ANAME(対象)%はその攻めに舌を垂らしながらアヒアヒとだらしなく腰を合わせていた
+				PRINTFORMW 指先で突起を弄られるとあられもなく喘いで身をくねらせ、舌を突き出されると自ら絡ませる
+				PRINTFORML そうしてすっかり彼のペニスの虜にされてヨガっていると次第に彼の腰の動きが加速しだす
+				PRINTFORML %ANAME(対象)%は本能的に一瞬妊娠の恐怖を覚えたが、次の瞬間にはギュウッと彼にしがみついていた
+				PRINTFORML そして子宮口に鈴口を密着させながら勢いよく%ANAME(対象)%の体内へと彼のザーメンが大量に放たれた
+				PRINTFORMW ブビュルルル！と勢いよく放たれる灼熱に%ANAME(対象)%はゾクゾクと背筋を震わせながら無様にアクメった
+				PRINTFORMW 身も心も種付けされた%ANAME(対象)%はもはや彼に逆らえず一晩をかけてたっぷりと可愛がられる事になった……
+				CALL FUCK(対象, "Ｃ, Ｂ, Ｖ, Ｍ, Ａ, Ｖ性交, Ａ性交, 性交, 性技, 奉仕, 精愛, 口淫, 欲望", "キス喪失, 処女喪失, Ａ処女喪失, 膣内射精, 腸内射精, 口内射精", GET_SPERM_ID("やくざ"), "やくざの唇", "やくざ", "", 喪失_強姦)
+				PRINTFORML 
+				PRINTFORML ボロボロにされてしまった%ANAME(対象)%だが彼の要求が一度のレイプで終わるはずがなかった
+				PRINTFORMW いつの間にか撮られていたハメ撮り映像で今後も彼の言いなりになるように脅されてしまった……
+				CALL COLORPRINT(@"%ANAME(対象)%はやくざの愛人兼肉便器にされてしまった……", カラー_ピンク, "W")
+				DVAR:やくざ_肉便器対象ID = GET_ID(対象)
+				DVAR:やくざ_発生フラグ = 1
+			ENDIF
+		ENDIF
+	ENDIF
+ENDIF
+
+RETURN 1
+
+
+@SELECT_CHARA_LIST_SHOW_LOGIC_YAKUZA(対象)
+#DIM 対象
+RETURN CFLAG:対象:行動不能状態 != 行動不能_子供 && CFLAG:対象:所属 == CFLAG:MASTER:所属 && !IS_ANIMAL(対象) && CFLAG:対象:捕虜先 == 0 && !GETBIT(TALENT:対象:デイリー系, 素質_デイリー_ソープ嬢) && !(CFLAG:(対象):行動不能状態 == 行動不能_臨月)
+
+@SELECT_CHARA_LIST_SHOW_LOGIC_YAKUZA_TARGET(対象)
+#DIM 対象
+RETURN GET_COUNTRY_BOSS(CFLAG:対象:所属) == 対象 && CFLAG:対象:所属 != CFLAG:MASTER:所属
