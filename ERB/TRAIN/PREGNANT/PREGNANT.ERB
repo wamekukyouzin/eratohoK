@@ -763,11 +763,23 @@ FOR LOCAL:0, 0, CHARANUM
 	ENDIF
 NEXT
 
+
 ;---------------------------------------------------------
 ;出産後の腹親の状態を元に戻す(育児解除、胸サイズ変更、母乳体質削除)
 ;ARG:0は腹親のキャラ番号、ARG:1は各種メッセージを表示するかどうかのフラグ
 ;---------------------------------------------------------
 @RESET_MOTHER_STATE(ARG:0, ARG:1 = 1)
+CALL MOTHER_END_REARING(ARG:0, ARG:1)
+CALL MOTHER_SHRINK_BUSTSIZE(ARG:0, ARG:1)
+CALL MOTHER_STOP_MILKING(ARG:0, ARG:1)
+
+SIF IS_PREGNANT_MSG(ARG:0)
+	CALL SINGLE_EMPTY_LINE
+
+;---------------------------------------------------------
+;育児の終了処理
+;---------------------------------------------------------
+@MOTHER_END_REARING(ARG:0, ARG:1 = 1)
 ;育児対象のキャラ番号を取得
 LOCAL:5 = ID_TO_CHARA(CFLAG:(ARG:0):育児対象)
 
@@ -797,11 +809,19 @@ IF LOCAL:5 >= 0
 		RESETCOLOR
 		TALENT:(ARG:0):子供人質 = 0
 	ENDIF
+	;育児期間のリセット
+	CFLAG:(ARG:0):育児期間 = 0
 ENDIF
 
+;---------------------------------------------------------
+;出産したが育てない場合、ないし育児終了時のバストサイズ戻す処理
+;---------------------------------------------------------
+@MOTHER_SHRINK_BUSTSIZE(ARG:0, ARG:1)
+;育児対象のキャラ番号を取得
+LOCAL:5 = ID_TO_CHARA(CFLAG:(ARG:0):育児対象)
 
-;胸サイズが変動している場合(再度妊娠していた場合は除く)
-IF !TALENT:(ARG:0):妊娠 && CFLAG:(ARG:0):妊娠時バストサイズ増加
+;「育児終了時に妊娠している」「出産時に育児中である」場合を除いてバストサイズを戻す
+IF !TALENT:(ARG:0):妊娠 && LOCAL:5 < 0 && CFLAG:(ARG:0):妊娠時バストサイズ増加
 	IF ARG:1 && IS_PREGNANT_MSG(ARG:0)
 		SETCOLOR カラー_注意
 		PRINTFORMW 出産により大きくなっていた%ANAME(ARG:0)%の胸は元に戻りました
@@ -812,8 +832,15 @@ IF !TALENT:(ARG:0):妊娠 && CFLAG:(ARG:0):妊娠時バストサイズ増加
 	CFLAG:(ARG:0):妊娠時バストサイズ増加 = 0
 ENDIF
 
-;一時的に母乳体質になっていた場合(再度妊娠していた場合は除く)
-IF CFLAG:(ARG:0):一時的母乳体質 && !TALENT:(ARG:0):妊娠
+;---------------------------------------------------------
+;出産したが育てない場合、ないし育児終了時のバストサイズ戻す処理
+;---------------------------------------------------------
+@MOTHER_STOP_MILKING(ARG:0, ARG:1)
+;育児対象のキャラ番号を取得
+LOCAL:5 = ID_TO_CHARA(CFLAG:(ARG:0):育児対象)
+
+;一時的に母乳体質になっていた場合(
+IF CFLAG:(ARG:0):一時的母乳体質 && !TALENT:(ARG:0):妊娠 && LOCAL:5 < 0
 	;胸の大きさに応じたABL:噴乳を持ってると母乳体質が永続化する
 	IF ( GET_BUSTSIZE(ARG:0) < 0 && ABL:(ARG:0):噴乳 >= ランク閾値:ランク_その他:ランク_A ) || ( GET_BUSTSIZE(ARG:0) == 0 && ABL:(ARG:0):噴乳 >= ランク閾値:ランク_その他:ランク_B ) || ( GET_BUSTSIZE(ARG:0) > 0 && ABL:(ARG:0):噴乳 >= ランク閾値:ランク_その他:ランク_C )
 		IF ARG:1 && IS_PREGNANT_MSG(ARG:0)
@@ -833,11 +860,7 @@ IF CFLAG:(ARG:0):一時的母乳体質 && !TALENT:(ARG:0):妊娠
 	CFLAG:(ARG:0):一時的母乳体質 = 0
 ENDIF
 
-;出産後期間のリセット
-CFLAG:(ARG:0):育児期間 = 0
 
-SIF IS_PREGNANT_MSG(ARG:0)
-	CALL SINGLE_EMPTY_LINE
 
 ;---------------------------------------------------------
 ;手動で子供の名前を設定する関数  ARG:0=子供のキャラ番号
