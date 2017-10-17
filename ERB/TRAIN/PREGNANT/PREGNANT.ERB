@@ -151,6 +151,26 @@ NEXT
 ;ターンエンド時に行う妊娠出産関連の処理の母親系の処理
 ;---------------------------------------------------------
 @TURNEND_PREGNANT_CHECK_MOTHER(ARG:0)
+
+;出産後
+IF CFLAG:(ARG:0):育児期間 >= 1
+	;出産後期間を進める
+	CFLAG:(ARG:0):育児期間 ++
+
+	;育児対象のキャラ番号を取得
+	LOCAL:5 = ID_TO_CHARA(CFLAG:(ARG:0):育児対象)
+
+	;育児中かつ母親が主人公以外で所属が同じ、捕虜でないなら自動で育てる
+	SIF LOCAL:5 >= 0 && ARG:0 != MASTER && CFLAG:(ARG:0):所属 == CFLAG:(LOCAL:5):所属 && !CFLAG:(LOCAL:5):捕虜先 && !CFLAG:(LOCAL:5):行動済み
+		CALL MOTHER_AUTO_REARING(ARG:0, LOCAL:5, CFLAG:(ARG:0):育児期間)
+
+	;出産後期間が8に達した
+	IF CFLAG:(ARG:0):育児期間 == 8
+		;出産後の各種初期化処理
+		CALL RESET_MOTHER_STATE(ARG:0, 1)
+	ENDIF
+ENDIF
+
 ;妊娠していない
 IF CFLAG:(ARG:0):妊娠期間 == 0
 	CALL UPDATE_CREAMPIE_HISTORY(ARG:0)
@@ -180,24 +200,6 @@ ELSE
 	ENDIF
 ENDIF
 
-;出産後
-IF CFLAG:(ARG:0):育児期間 >= 1
-	;出産後期間を進める
-	CFLAG:(ARG:0):育児期間 ++
-
-	;育児対象のキャラ番号を取得
-	LOCAL:5 = ID_TO_CHARA(CFLAG:(ARG:0):育児対象)
-
-	;育児中かつ母親が主人公以外で所属が同じ、捕虜でないなら自動で育てる
-	SIF LOCAL:5 >= 0 && ARG:0 != MASTER && CFLAG:(ARG:0):所属 == CFLAG:(LOCAL:5):所属 && !CFLAG:(LOCAL:5):捕虜先 && !CFLAG:(LOCAL:5):行動済み
-		CALL MOTHER_AUTO_REARING(ARG:0, LOCAL:5, CFLAG:(ARG:0):育児期間)
-
-	;出産後期間が8に達した
-	IF CFLAG:(ARG:0):育児期間 == 8
-		;出産後の各種初期化処理
-		CALL RESET_MOTHER_STATE(ARG:0, 1)
-	ENDIF
-ENDIF
 
 ;---------------------------------------------------------
 ;妊娠が発覚したときの処理をまとめる関数
@@ -257,7 +259,7 @@ ENDIF
 IF IS_PREGNANT_MSG(ARG:0)
 	CALL KOJO_EVENT(ARG:0, 40)
 	;育児中に妊娠したら子供がそれにリアクションをするイベントを挿し込む
-	SIF CFLAG:(ARG:0):行動不能状態 == 行動不能_育児
+	SIF CFLAG:(ARG:0):行動不能状態 == 行動不能_育児 && ID_TO_CHARA(CFLAG:(ARG:0):育児対象) > 0 && CFLAG:(ID_TO_CHARA(CFLAG:(ARG:0):育児対象)):所属 == CFLAG:(ARG:0):所属
 		CALL KOJO_EVENT(ID_TO_CHARA(CFLAG:(ARG:0):育児対象), 45)
 ENDIF
 
@@ -317,9 +319,6 @@ ENDIF
 ;子供を出産する処理を行う関数
 ;---------------------------------------------------------
 @BIRTH_CHILD(ARG:0)
-#DIM 外来勢力
-#DIM ホフゴブリン
-#DIM 野盗
 #DIM 仕官させないフラグ
 #DIM 子供
 
@@ -355,7 +354,10 @@ ELSE
 		CFLAG:(ARG:0):育児対象 = GET_ID(子供)
 	ELSE
 		;育児をしないなら休暇終了
+		;バストサイズと母乳体質を戻す
 		CFLAG:(ARG:0):行動不能状態 = 0
+		CALL MOTHER_SHRINK_BUSTSIZE(ARG:0)
+		CALL MOTHER_STOP_MILKING(ARG:0)
 	ENDIF
 	;子供を被育児状態に設定
 	CFLAG:子供:行動不能状態 = 行動不能_子供
@@ -369,8 +371,9 @@ CALL TIGHTNESS_DECREASE_V(ARG:0, (RAND:LOCAL + RAND:LOCAL + RAND:LOCAL) / 3)
 EXP:(ARG:0):出産経験 += 1
 EXP:(ARG:0):出産経験値 += 1
 CALL TRAIN_AUTO_ABLUP(ARG:0, 1)
-;出産後期間のカウンタ初期化
-CFLAG:(ARG:0):育児期間 = 1
+
+SIF !仕官させないフラグ
+	CFLAG:(ARG:0):育児期間 = 1
 
 ;性知識がLv0ならLv1になる
 IF ABL:(ARG:0):性知識 == 0
@@ -409,7 +412,6 @@ IF IS_FOSTER_CHILD(MOTHER)
 		SETCOLOR カラー_注意
 		PRINTFORMW %ANAME(MOTHER)%が産気づいたようです
 		PRINTFORMW 生まれた子供を、%ANAME(MOTHER)%は里子に出しました……
-		CALL RESET_MOTHER_STATE()
 		CALL SINGLE_EMPTY_LINE()
 		RESETCOLOR
 		RETURN -1
@@ -428,7 +430,6 @@ IF RESULT == -1
 		PRINTFORMW %ANAME(MOTHER)%が産気づいたようです
 		PRINTFORMW 生まれた子供を、%ANAME(MOTHER)%は里子に出しました……
 		RESETCOLOR
-		CALL RESET_MOTHER_STATE()
 		CALL SINGLE_EMPTY_LINE()
 		RETURN -1
 	ELSE
@@ -492,7 +493,6 @@ IF IS_PREGNANT_MSG(MOTHER)
 			$AUTO_CANCEL
 			PRINTFORMW 教育するのはやめておきます
 			CALL DELETE_CHARA(CHILD)
-			CALL RESET_MOTHER_STATE()
 			;仕官させないフラグ
 			RETURN -1
 		ELSE
@@ -730,7 +730,8 @@ FOR LOCAL:0, 0, CHARANUM
 			CALL CLEAR_CREAMPIE_HISTORY(LOCAL:0)
 			IF CFLAG:(LOCAL:0):育児期間 == 0
 				PRINTFORMW 触手による堕胎のショックで体の反応が収まっていく
-				CALL RESET_MOTHER_STATE(LOCAL:0, 0)
+				CALL MOTHER_SHRINK_BUSTSIZE(LOCAL:0)
+				CALL MOTHER_STOP_MILKING(LOCAL:0)
 			ENDIF
 		ENDIF
 
@@ -766,11 +767,23 @@ FOR LOCAL:0, 0, CHARANUM
 	ENDIF
 NEXT
 
+
 ;---------------------------------------------------------
 ;出産後の腹親の状態を元に戻す(育児解除、胸サイズ変更、母乳体質削除)
 ;ARG:0は腹親のキャラ番号、ARG:1は各種メッセージを表示するかどうかのフラグ
 ;---------------------------------------------------------
 @RESET_MOTHER_STATE(ARG:0, ARG:1 = 1)
+CALL MOTHER_END_REARING(ARG:0, ARG:1)
+CALL MOTHER_SHRINK_BUSTSIZE(ARG:0, ARG:1)
+CALL MOTHER_STOP_MILKING(ARG:0, ARG:1)
+
+SIF IS_PREGNANT_MSG(ARG:0)
+	CALL SINGLE_EMPTY_LINE
+
+;---------------------------------------------------------
+;育児の終了処理
+;---------------------------------------------------------
+@MOTHER_END_REARING(ARG:0, ARG:1 = 1)
 ;育児対象のキャラ番号を取得
 LOCAL:5 = ID_TO_CHARA(CFLAG:(ARG:0):育児対象)
 
@@ -800,11 +813,19 @@ IF LOCAL:5 >= 0
 		RESETCOLOR
 		TALENT:(ARG:0):子供人質 = 0
 	ENDIF
+	;育児期間のリセット
+	CFLAG:(ARG:0):育児期間 = 0
 ENDIF
 
+;---------------------------------------------------------
+;出産したが育てない場合、ないし育児終了時のバストサイズ戻す処理
+;---------------------------------------------------------
+@MOTHER_SHRINK_BUSTSIZE(ARG:0, ARG:1)
+;育児対象のキャラ番号を取得
+LOCAL:5 = ID_TO_CHARA(CFLAG:(ARG:0):育児対象)
 
-;胸サイズが変動している場合(再度妊娠していた場合は除く)
-IF !TALENT:(ARG:0):妊娠 && CFLAG:(ARG:0):妊娠時バストサイズ増加
+;「育児終了時に妊娠している」「出産時に育児中である」場合を除いてバストサイズを戻す
+IF !TALENT:(ARG:0):妊娠 && LOCAL:5 < 0 && CFLAG:(ARG:0):妊娠時バストサイズ増加
 	IF ARG:1 && IS_PREGNANT_MSG(ARG:0)
 		SETCOLOR カラー_注意
 		PRINTFORMW 出産により大きくなっていた%ANAME(ARG:0)%の胸は元に戻りました
@@ -815,8 +836,15 @@ IF !TALENT:(ARG:0):妊娠 && CFLAG:(ARG:0):妊娠時バストサイズ増加
 	CFLAG:(ARG:0):妊娠時バストサイズ増加 = 0
 ENDIF
 
-;一時的に母乳体質になっていた場合(再度妊娠していた場合は除く)
-IF CFLAG:(ARG:0):一時的母乳体質 && !TALENT:(ARG:0):妊娠
+;---------------------------------------------------------
+;出産したが育てない場合、ないし育児終了時のバストサイズ戻す処理
+;---------------------------------------------------------
+@MOTHER_STOP_MILKING(ARG:0, ARG:1)
+;育児対象のキャラ番号を取得
+LOCAL:5 = ID_TO_CHARA(CFLAG:(ARG:0):育児対象)
+
+;一時的に母乳体質になっていた場合(
+IF CFLAG:(ARG:0):一時的母乳体質 && !TALENT:(ARG:0):妊娠 && LOCAL:5 < 0
 	;胸の大きさに応じたABL:噴乳を持ってると母乳体質が永続化する
 	IF ( GET_BUSTSIZE(ARG:0) < 0 && ABL:(ARG:0):噴乳 >= ランク閾値:ランク_その他:ランク_A ) || ( GET_BUSTSIZE(ARG:0) == 0 && ABL:(ARG:0):噴乳 >= ランク閾値:ランク_その他:ランク_B ) || ( GET_BUSTSIZE(ARG:0) > 0 && ABL:(ARG:0):噴乳 >= ランク閾値:ランク_その他:ランク_C )
 		IF ARG:1 && IS_PREGNANT_MSG(ARG:0)
@@ -836,11 +864,7 @@ IF CFLAG:(ARG:0):一時的母乳体質 && !TALENT:(ARG:0):妊娠
 	CFLAG:(ARG:0):一時的母乳体質 = 0
 ENDIF
 
-;出産後期間のリセット
-CFLAG:(ARG:0):育児期間 = 0
 
-SIF IS_PREGNANT_MSG(ARG:0)
-	CALL SINGLE_EMPTY_LINE
 
 ;---------------------------------------------------------
 ;手動で子供の名前を設定する関数  ARG:0=子供のキャラ番号

@@ -450,6 +450,7 @@ ENDIF
 #DIM 射精相手
 #DIM 射精先
 #DIM 強度
+#DIM 射精量
 #DIMS 強度文字列
 #DIM スラッシュ
 #DIMS 射精文字列
@@ -476,7 +477,7 @@ IF 強度 >= 200000 || ((TALENT:(対象):絶倫 || TCVAR:(対象):66) && 強度 
 	ELSE
 		SETCOLOR 0xFF4000
 	ENDIF
-	NOWEX:(対象):射精 = RAND(11, 16)
+	射精量 = RAND(11, 16)
 	強度文字列 =  超々大量
 ELSEIF 強度 >= 80000 || ((TALENT:(対象):絶倫 || TCVAR:(対象):66) && 強度 >= 40000)
 	IF 対象 == MASTER
@@ -484,7 +485,7 @@ ELSEIF 強度 >= 80000 || ((TALENT:(対象):絶倫 || TCVAR:(対象):66) && 強�
 	ELSE
 		SETCOLOR カラー_オレンジ
 	ENDIF
-	NOWEX:(対象):射精 = RAND(7, 11)
+	射精量 = RAND(7, 11)
 	強度文字列 = 超大量
 ELSEIF 強度 >= 40000 || TALENT:(対象):絶倫 || TCVAR:(対象):66
 	IF 対象 == MASTER
@@ -492,7 +493,7 @@ ELSEIF 強度 >= 40000 || TALENT:(対象):絶倫 || TCVAR:(対象):66
 	ELSE
 		SETCOLOR 0xFFC000
 	ENDIF
-	NOWEX:(対象):射精 = RAND(4, 7)
+	射精量 = RAND(4, 7)
 	強度文字列 = 大量
 ELSE
 	IF 対象 == MASTER
@@ -500,12 +501,20 @@ ELSE
 	ELSE
 		SETCOLOR カラー_注意
 	ENDIF
-	NOWEX:(対象):射精 = RAND:3 + 1
+	射精量 = RAND:3 + 1
 ENDIF
+
+SIF GETBIT(TALENT:対象:淫乱系, 素質_淫乱_射精狂い)
+	射精量 += RAND(3, 6)
+
+SIF IS_ANIMAL(対象)
+	射精量 += RAND(3, 6)
+
 PRINTFORM %強度文字列%射精
 RESETCOLOR
-EXP:(対象):射精経験値 += NOWEX:(対象):射精
-EXP:(対象):絶頂経験 += NOWEX:(対象):射精
+NOWEX:対象:射精 = 射精量
+EXP:(対象):射精経験値 += 射精量
+EXP:(対象):絶頂経験 += 射精量
 
 ;膣、アナルに射精しているようならそれ以外を消去
 FOR LOCAL:0, 400, 420
@@ -613,9 +622,6 @@ FOR LOCAL:0, 400, 420
 			射精文字列 = 無駄打ち
 	ENDSELECT
 
-	SIF IS_ANIMAL(対象)
-		NOWEX:(対象):射精 += RAND(3, 6)
-
 	;射精量による補正
 	SELECTCASE NOWEX:(対象):射精
 		CASE 1 TO 3
@@ -636,7 +642,7 @@ FOR LOCAL:0, 400, 420
 			TIMES 恐怖倍率, 2.50
 	ENDSELECT
 
-	EXP:(射精相手):精愛経験値 += NOWEX:(対象):射精
+	EXP:(射精相手):精愛経験値 += 射精量
 
 	;愛情ソースの追加
 	CALL ADD_SOURCE_AIZYOU(射精相手, 愛情倍率)
@@ -653,23 +659,23 @@ FOR LOCAL:0, 400, 420
 		ELSEIF CFLAG:(射精相手):2 >= 800
 			LOCAL:16 = 60
 		ENDIF
-		SOURCE:(射精相手):恐怖 += NOWEX:(対象):射精 * 恐怖倍率 * LOCAL:16 / 100
+		SOURCE:(射精相手):恐怖 += 射精量 * 恐怖倍率 * LOCAL:16 / 100
 	ENDIF
 
 
 
-	SOURCE:(射精相手):中毒充足 += NOWEX:(対象):射精 * LOCAL:12
+	SOURCE:(射精相手):中毒充足 += 射精量 * LOCAL:12
 
 	;膣内射精かどうかを見る(膣がない場合は腸内射精も見る) コンドームの場合INJECTIONさせない
 	SIF (射精先 == 1 || (!HAS_VAGINA(射精相手) && 射精先 == 2)) && !IS_EQUIP_PLAYER(対象, 75)
-		CALL RECORD_INJECTION(射精相手, GET_ID(対象), NOWEX:(対象):射精)
+		CALL RECORD_INJECTION(射精相手, GET_ID(対象), 射精量)
 
 	;射精箇所が触手なら相手の妖術経験値をプラス
 	IF 射精先 == 13
-		EXP:(射精相手):妖術経験値 += NOWEX:(対象):射精 * 2
+		EXP:(射精相手):妖術経験値 += 射精量 * 2
 	ENDIF
 
-	CUM_TO_COUNT:(対象):(射精先) += NOWEX:(対象):射精
+	CUM_TO_COUNT:(対象):(射精先) += 射精量
 	PRINTFORM (
 	SIF GROUPMATCH(射精先, 1, 2)
 		SETCOLOR カラー_ピンク
@@ -677,7 +683,7 @@ FOR LOCAL:0, 400, 420
 	RESETCOLOR
 
 	IF !GROUPMATCH(射精先, 射精部位_無駄, 射精部位_ゴム, 射精部位_オナホ)
-		CUM_GET_COUNT:(射精相手):(射精先) += NOWEX:(対象):射精
+		CUM_GET_COUNT:(射精相手):(射精先) += 射精量
 		PRINTFORM :%ANAME(射精相手)%)
 	ELSE
 		PRINTFORM )
