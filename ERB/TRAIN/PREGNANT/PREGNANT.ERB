@@ -151,6 +151,26 @@ NEXT
 ;ターンエンド時に行う妊娠出産関連の処理の母親系の処理
 ;---------------------------------------------------------
 @TURNEND_PREGNANT_CHECK_MOTHER(ARG:0)
+
+;出産後
+IF CFLAG:(ARG:0):育児期間 >= 1
+	;出産後期間を進める
+	CFLAG:(ARG:0):育児期間 ++
+
+	;育児対象のキャラ番号を取得
+	LOCAL:5 = ID_TO_CHARA(CFLAG:(ARG:0):育児対象)
+
+	;育児中かつ母親が主人公以外で所属が同じ、捕虜でないなら自動で育てる
+	SIF LOCAL:5 >= 0 && ARG:0 != MASTER && CFLAG:(ARG:0):所属 == CFLAG:(LOCAL:5):所属 && !CFLAG:(LOCAL:5):捕虜先 && !CFLAG:(LOCAL:5):行動済み
+		CALL MOTHER_AUTO_REARING(ARG:0, LOCAL:5, CFLAG:(ARG:0):育児期間)
+
+	;出産後期間が8に達した
+	IF CFLAG:(ARG:0):育児期間 == 8
+		;出産後の各種初期化処理
+		CALL RESET_MOTHER_STATE(ARG:0, 1)
+	ENDIF
+ENDIF
+
 ;妊娠していない
 IF CFLAG:(ARG:0):妊娠期間 == 0
 	CALL UPDATE_CREAMPIE_HISTORY(ARG:0)
@@ -180,24 +200,6 @@ ELSE
 	ENDIF
 ENDIF
 
-;出産後
-IF CFLAG:(ARG:0):育児期間 >= 1
-	;出産後期間を進める
-	CFLAG:(ARG:0):育児期間 ++
-
-	;育児対象のキャラ番号を取得
-	LOCAL:5 = ID_TO_CHARA(CFLAG:(ARG:0):育児対象)
-
-	;育児中かつ母親が主人公以外で所属が同じ、捕虜でないなら自動で育てる
-	SIF LOCAL:5 >= 0 && ARG:0 != MASTER && CFLAG:(ARG:0):所属 == CFLAG:(LOCAL:5):所属 && !CFLAG:(LOCAL:5):捕虜先 && !CFLAG:(LOCAL:5):行動済み
-		CALL MOTHER_AUTO_REARING(ARG:0, LOCAL:5, CFLAG:(ARG:0):育児期間)
-
-	;出産後期間が8に達した
-	IF CFLAG:(ARG:0):育児期間 == 8
-		;出産後の各種初期化処理
-		CALL RESET_MOTHER_STATE(ARG:0, 1)
-	ENDIF
-ENDIF
 
 ;---------------------------------------------------------
 ;妊娠が発覚したときの処理をまとめる関数
@@ -257,7 +259,7 @@ ENDIF
 IF IS_PREGNANT_MSG(ARG:0)
 	CALL KOJO_EVENT(ARG:0, 40)
 	;育児中に妊娠したら子供がそれにリアクションをするイベントを挿し込む
-	SIF CFLAG:(ARG:0):行動不能状態 == 行動不能_育児
+	SIF CFLAG:(ARG:0):行動不能状態 == 行動不能_育児 && ID_TO_CHARA(CFLAG:(ARG:0):育児対象) > 0 && CFLAG:(ID_TO_CHARA(CFLAG:(ARG:0):育児対象)):所属 == CFLAG:(ARG:0):所属
 		CALL KOJO_EVENT(ID_TO_CHARA(CFLAG:(ARG:0):育児対象), 45)
 ENDIF
 
