@@ -1,0 +1,184 @@
+﻿@CHARACTER_EDIT_UI_OTHER(対象)
+#DIM 対象
+
+IF FLAG:周回数 > 0
+    PRINTFORM 所属:
+    IF CFLAG:対象:所属 == 0
+        IF CFLAG:対象:特殊状態 == 特殊状態_死亡
+            PRINTFORM 無所属(死亡)          
+        ELSEIF CFLAG:対象:特殊状態 == 特殊状態_放浪
+            PRINTFORM 無所属(放浪)          
+        ELSE
+            PRINTFORM 無所属(未登場)        
+        ENDIF
+    ELSE
+        PRINTFORM %ANAME(GET_COUNTRY_BOSS(CFLAG:対象:所属)), MAX_CHARANAME_LENGTH + 4, LEFT%
+    ENDIF
+    IF GET_COUNTRY_BOSS(CFLAG:対象:所属) == 対象
+        SETCOLOR カラー_選択不可
+        PRINTPLAIN ※君主は変更不可※
+        RESETCOLOR
+    ELSE
+        CALL PRINTBUTTON_EX("[変更] ", 0)
+        CALL PRINTBUTTON_EX("[一覧] ", 1)
+    ENDIF
+    PRINTL
+
+    PRINTFORM 捕虜:
+    IF CFLAG:対象:捕虜先 == 0
+        PRINTFORM なし
+    ELSE
+        PRINTFORM %ANAME(GET_COUNTRY_BOSS(CFLAG:対象:捕虜先)), MAX_CHARANAME_LENGTH + 4, LEFT%
+    ENDIF
+    IF GET_COUNTRY_BOSS(CFLAG:対象:所属) == 対象
+        SETCOLOR カラー_選択不可
+        PRINTPLAIN ※君主は変更不可※
+        RESETCOLOR
+    ELSE
+        CALL PRINTBUTTON_EX("[変更] ", 10)
+        CALL PRINTBUTTON_EX("[一覧] ", 11)
+    ENDIF
+    CALL SINGLE_DRAWLINE
+ENDIF
+;特殊処理
+PRINTBUTTON "[      性別]:", 100
+PRINTFORML %TOSTR_SEX(TALENT:対象:GETNUM(TALENT, "性別"))%
+PRINTBUTTON "[    バスト]:", 101
+PRINTFORML %TOSTR_BUSTSIZE(TALENT:対象:バストサイズ)%
+PRINTBUTTON "[    ペニス]:", 102
+PRINTFORML %TOSTR_PENISSIZE(TALENT:対象:ペニスサイズ)%
+PRINTBUTTON "[  Ｖ締まり]:", 103
+PRINTFORML %TOSTR_TIGHTNESS(TALENT:対象:Ｖ締まり)%
+PRINTBUTTON "[  Ａ締まり]:", 104
+PRINTFORML %TOSTR_TIGHTNESS(TALENT:対象:Ａ締まり)%
+PRINTBUTTON "[      陰毛]:", 105
+PRINTFORML %GET_INMOU_NAME(TALENT:対象:陰毛現在値)%
+PRINTBUTTON "[  タトゥー]:", 106
+CALL PRINT_TATOO(対象)
+PRINTL
+PRINTBUTTON "[    ピアス]:", 107
+CALL PRINT_PIERCE(対象)
+PRINTL
+CALL SINGLE_DRAWLINE
+PRINTBUTTON "[  髪の長さ]:", 108
+PRINTFORML %TOSTR_HAIR_LENGTH(TALENT:対象:髪の長さ), 12% ({TALENT:対象:髪の長さ, 4})
+PRINTBUTTON "[    髪の色]:", 109
+CALL PRINT_HAIR_COLOR(TALENT:対象:髪色)
+PRINTL
+
+
+
+@CHARACTER_EDIT_INPUT_OTHER(対象, 入力値)
+#DIM 対象
+#DIM 入力値
+
+SELECTCASE RESULT
+    ;性別
+    CASE 100
+        TALENT:対象:性別 = ROUND_INCREMENT(TALENT:対象:性別, 0, 5)
+    ;胸
+    CASE 101
+    	TALENT:対象:バストサイズ = ROUND_INCREMENT(TALENT:対象:バストサイズ, -2, 2)
+    ;竿
+    CASE 102
+        TALENT:対象:ペニスサイズ = ROUND_INCREMENT(TALENT:対象:ペニスサイズ, -2, 2)
+    ;締まり
+    CASE 103, 104
+      	CALL ASK_MULTI("崩壊", "がばがば", "ぽっかり", "ゆるゆる", "ゆるめ", "普通", "名器", "きゅっきゅっ", "きつきつ", "ぎちぎち")
+          TALENT:対象:(入力値 == 103 ? GETNUM(TALENT, "Ｖ締まり") # GETNUM(TALENT, "Ａ締まり")) = RESULT * 100 + 50
+    ;陰毛
+    CASE 105
+        CALL ASK_MULTI("パイパン", "つるつる", "うっすら", "柔毛", "ふんわり", "標準", "多め", "ふさふさ", "もっさり", "剛毛", "尻まで", "♥")
+        TALENT:対象:陰毛現在値 = RESULT -1
+        TALENT:対象:陰毛目標値 = RESULT - 1
+    CASE 106
+        CALL TATOO_MENU(対象, 1)
+    CASE 107
+        CALL PIERCE_MENU(対象, 1)
+    CASE 108
+        PRINTFORML 0～1000で入力
+        INPUT
+        SIF INRANGE(RESULT, 0, 1000)
+            TALENT:対象:髪の長さ = RESULT
+    CASE 109
+        PRINTFORML カラーコードを入力
+        INPUTS
+        SIF ISNUMERIC("0x" + RESULTS) && INRANGE(TOINT("0x" + RESULTS), 0, TOINT("0xFFFFFF"))
+            TALENT:対象:髪色 = TOINT("0x" + RESULTS)
+ENDSELECT
+
+IF FLAG:周回数 > 0
+    SELECTCASE 入力値
+        CASE 0
+            SIF GET_COUNTRY_BOSS(CFLAG:対象:所属) == 対象
+                RETURN
+            IF CFLAG:対象:所属 == 0 && CFLAG:対象:特殊状態 == 0 && !CFLAG:対象:捕虜先
+                CFLAG:対象:特殊状態 = 特殊状態_放浪
+            ELSEIF CFLAG:対象:所属 == 0 && CFLAG:対象:特殊状態 == 特殊状態_放浪
+                CFLAG:対象:特殊状態 = 特殊状態_死亡
+            ELSE
+                LOCAL:1 = 0
+                FOR LOCAL, 0, CFLAG:対象:所属 + 1, MAX_COUNTRY
+                    SIF !IS_COUNTRY(LOCAL)
+                        CONTINUE
+                    CALL CHANGE_COUNTRY(対象, LOCAL)
+                    LOCAL:1 = 1
+                    BREAK
+                NEXT
+                IF LOCAL:1 == 0
+                    CALL CHANGE_COUNTRY(対象, 0)
+                    CFLAG:対象:特殊状態 = 0
+                ENDIF
+            ENDIF
+        CASE 1
+            SIF GET_COUNTRY_BOSS(CFLAG:対象:所属) == 対象
+                RETURN
+            FOR LOCAL, 0, MAX_COUNTRY
+                SIF !IS_COUNTRY(LOCAL)
+                    CONTINUE
+                PRINTFORML [{LOCAL, 2, RIGHT}] %ANAME(GET_COUNTRY_BOSS(LOCAL))%
+            NEXT
+            PRINTFORML [{MAX_COUNTRY}] 無所属(未登場)
+            PRINTFORML [{MAX_COUNTRY + 1}] 無所属(放浪)
+            PRINTFORML [{MAX_COUNTRY + 2}] 無所属(死亡)
+            INPUT
+            IF INRANGE(RESULT, 0, MAX_COUNTRY - 1)
+                CALL CHANGE_COUNTRY(対象, RESULT, 0)
+            ELSEIF RESULT == MAX_COUNTRY
+                CALL CHANGE_COUNTRY(対象, 0, 1)
+                CFLAG:対象:特殊状態 = 0
+            ELSEIF RESULT == MAX_COUNTRY + 1
+                CALL CHANGE_COUNTRY(対象, 0, 1)
+            ELSEIF RESULT == MAX_COUNTRY + 2
+                CALL CHANGE_COUNTRY(対象, 0, 1, 1)
+            ENDIF
+        CASE 10
+            SIF GET_COUNTRY_BOSS(CFLAG:対象:所属) == 対象
+                RETURN
+            LOCAL:1 = 0
+            FOR LOCAL:0, CFLAG:対象:捕虜先 + 1, MAX_COUNTRY
+                IF IS_COUNTRY(LOCAL)
+                    CALL CAPTURE(対象, LOCAL)
+                    LOCAL:1 = 1
+                    BREAK
+                ENDIF
+            NEXT
+            SIF LOCAL:1 == 1
+                CALL CAPTURE(対象, 0)
+        CASE 11
+            SIF GET_COUNTRY_BOSS(CFLAG:対象:所属) == 対象
+                RETURN
+            FOR LOCAL, 0, MAX_COUNTRY
+                SIF !IS_COUNTRY(LOCAL)
+                    CONTINUE
+                PRINTFORML [{LOCAL, 2, RIGHT}] %ANAME(GET_COUNTRY_BOSS(LOCAL))%
+            NEXT
+            PRINTFORML [{MAX_COUNTRY}] なし
+            INPUT
+            IF INRANGE(RESULT, 0, MAX_COUNTRY - 1)
+                CALL CAPTURE(対象, RESULT)
+            ELSEIF RESULT == MAX_COUNTRY
+                CALL CAPTURE(対象, 0)
+            ENDIF      
+    ENDSELECT
+ENDIF

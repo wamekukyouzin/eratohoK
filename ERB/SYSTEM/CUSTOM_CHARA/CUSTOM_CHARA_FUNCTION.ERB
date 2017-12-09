@@ -1,0 +1,106 @@
+﻿;-----------------------
+;カスタムキャラの初期化処理
+;-----------------------
+@INIT_CUSTOM_DATA(番号)
+#DIM 番号
+#DIM 対象
+CALL ADD_VOID_CHARA()
+対象 = RESULT
+NAME:対象 = カスタム太郎
+CALLNAME:対象 = カスタム太郎
+CSTR:対象:1 = カスタム太郎
+CSTR:対象:3 = カスタムタロウ
+CSTR:対象:4 = カスタムタロウ
+CSTR:対象:6 = カスタムタロウ
+MAXBASE:対象:体力 = 1500
+MAXBASE:対象:気力 = 1500
+MAXBASE:対象:精神力 = 1500
+RETURN 対象
+
+;-----------------------
+;カスタムキャラのセーブ処理
+;IDが存在しないキャラはINIT_CUSTOM_DATAで作成したものと考え保存して削除する
+;IDが存在するキャラは既存のキャラを突っ込んだものと考えコピーを作り保存、そのコピーを削除
+;-----------------------
+@SAVE_CUSTOM_DATA(番号, 対象)
+#DIM 番号
+#DIM 対象
+#DIM TEMP
+IF CFLAG:対象:キャラＩＤ == 0
+    TEMP = 対象
+ELSE
+    CALL ADD_VOID_CHARA()
+    TEMP = RESULT
+    COPYCHARA 対象, TEMP
+    NO:TEMP = 0
+    CFLAG:TEMP:キャラＩＤ = 0
+ENDIF
+
+SAVECHARA TOSTR_CUSTOM_FILENAME(番号, ANAME(TEMP)), ANAME(TEMP), TEMP
+CALL DELETE_CHARA(TEMP)
+
+
+;-----------------------
+;カスタムキャラのロード処理
+;-----------------------
+@LOAD_CUSTOM_DATA(番号)
+#DIM 番号
+#DIM 対象
+FIND_CHARADATA TOSTR(番号) + "_*"
+SIF RESULT == 0
+    THROW 指定した番号のキャラデータは存在しません
+LOADCHARA RESULTS
+対象 = CHARANUM - 1
+NO:対象 = GET_EMPTY_NO()
+FLAG:998 ++
+CFLAG:対象:キャラＩＤ = FLAG:998
+RETURN 対象
+
+;-----------------------
+;カスタムキャラ編集のラッパ
+;-----------------------
+@EDIT_CUSTOM_DATA(番号, 対象)
+#DIM 番号
+#DIM 対象
+#DIM FIRST_LINE
+
+FIRST_LINE = LINECOUNT
+
+$EDIT_LOOP
+
+CALL CHARACTER_EDIT(対象)
+
+CALL SINGLE_DRAWLINE
+PRINTFORML 編集を確定しますか？
+CALL ASK_MULTI("確定する", "変更を破棄する", "まだ弄る")
+
+IF RESULT == 1
+    CALL DELETE_CHARA(対象)
+    RETURN
+ELSEIF RESULT == 2
+    CLEARLINE LINECOUNT - FIRST_LINE
+    GOTO EDIT_LOOP
+ENDIF
+
+CALL SAVE_CUSTOM_DATA(番号, 対象)
+
+;-----------------------
+;カスタムキャラ用のファイル名を取得（セーブ時用）
+;-----------------------
+@TOSTR_CUSTOM_FILENAME(番号, キャラ名)
+#FUNCTIONS
+#DIM 番号
+#DIMS キャラ名
+
+RETURNF TOSTR(番号) + "_" + キャラ名
+
+;-----------------------
+;指定した番号のカスタムキャラの存在判定
+;なおFIND_CHARADATAならびにCHKCHARADATAの仕様上RESULTSを汚染する
+;-----------------------
+@CHECK_CUSTOM_DATA_EXISTS(番号)
+#DIM 番号
+
+FIND_CHARADATA TOSTR(番号) + "_*"
+CHKCHARADATA RESULTS
+RETURN !RESULT
