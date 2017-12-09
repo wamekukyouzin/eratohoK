@@ -1,0 +1,119 @@
+﻿@CHARACTER_EDIT_UI_MARK(対象)
+#DIM 対象
+
+PRINTBUTTON "[好感度] ", 500
+PRINTFORML 現在:{CFLAG:対象:好感度}
+PRINTBUTTON "[従属度] ", 501
+PRINTFORML 現在:{CFLAG:対象:従属度}
+PRINTBUTTON "[依存度] ", 502
+PRINTFORML 現在:{CFLAG:対象:依存度}
+DRAWLINE
+CALL PRINT_TOGGLE_BUTTON("[親友] ", 0, TALENT:対象:親友)
+PRINTL
+CALL PRINT_TOGGLE_BUTTON("[恋慕] ", 10, TALENT:対象:恋慕)
+CALL PRINT_TOGGLE_BUTTON("[親愛] ", 11, TALENT:対象:親愛)
+PRINTL
+CALL PRINT_TOGGLE_BUTTON("[服従] ", 20, TALENT:対象:服従)
+CALL PRINT_TOGGLE_BUTTON("[隷属] ", 21, TALENT:対象:隷属)
+PRINTL
+CALL PRINT_TOGGLE_BUTTON("[合意] ", 30, TALENT:対象:合意)
+CALL PRINT_TOGGLE_BUTTON("[烙印] ", 31, TALENT:対象:烙印)
+PRINTL
+CALL PRINT_TOGGLE_BUTTON("[虚ろ] ", 40, TALENT:対象:虚ろ)
+CALL PRINT_TOGGLE_BUTTON("[崩壊] ", 41, TALENT:対象:崩壊)
+PRINTL
+CALL PRINT_TOGGLE_BUTTON("[面識]", 50, CFLAG:対象:面識)
+PRINTL
+CALL SINGLE_DRAWLINE
+FOR LOCAL, 0, VARSIZE("SEX_TALENT_NAME")
+    CALL PRINT_TOGGLE_BUTTON(@"[%SEX_TALENT_NAME:LOCAL%] ", 100 + LOCAL, GETBIT(TALENT:対象:淫乱系, LOCAL))
+NEXT
+PRINTL
+CALL SINGLE_DRAWLINE
+FOR LOCAL, 1, VARSIZE("SP_FALLEN_TALENT_NAME")
+    CALL PRINT_TOGGLE_BUTTON(@"[%SP_FALLEN_TALENT_NAME:LOCAL%] ", 200 + LOCAL, GETBIT(TALENT:対象:特殊勢力陥落系, LOCAL))
+NEXT
+PRINTL
+CALL SINGLE_DRAWLINE
+FOR LOCAL, 0, VARSIZE("DAILY_TALENT_NAME")
+    CALL PRINT_TOGGLE_BUTTON(@"[%DAILY_TALENT_NAME:LOCAL%] ", 300 + LOCAL, GETBIT(TALENT:対象:デイリー系, LOCAL))
+NEXT
+PRINTL
+
+@CHARACTER_EDIT_INPUT_MARK(対象, 入力値)
+#DIM 対象
+#DIM 入力値
+
+IF 入力値 == 500
+    PRINTFORM 好感度を入力(下限 -1000)
+    INPUT
+    CFLAG:対象:好感度 = MAX(RESULT, -1000)
+ELSEIF 入力値 == 501
+    PRINTFORM 従属度を入力(下限 -1000)
+    INPUT
+    CFLAG:対象:従属度 = MAX(RESULT, -1000)
+ELSEIF 入力値 == 502
+    PRINTFORM 依存度を入力(下限 -1000)
+    INPUT
+    CFLAG:対象:依存度 = MAX(RESULT, -1000)
+ELSEIF INRANGE(入力値, 100, 100 + VARSIZE("SEX_TALENT_NAME"))
+    INVERTBIT TALENT:対象:淫乱系, 入力値 - 100
+ELSEIF INRANGE(入力値, 201, 200 + VARSIZE("SP_FALLEN_TALENT_NAME"))
+    INVERTBIT TALENT:対象:特殊勢力陥落系, 入力値 - 200
+ELSEIF INRANGE(入力値, 300, 300 + VARSIZE("DAILY_TALENT_NAME"))
+    INVERTBIT TALENT:対象:デイリー系, 入力値 - 300
+ENDIF
+
+SELECTCASE 入力値
+    CASE 0
+        TALENT:対象:親友 = !TALENT:対象:親友
+        IF TALENT:対象:親友
+            CFLAG:対象:好感度 = 1500
+        ENDIF
+    CASE 10
+        TALENT:対象:恋慕 = !TALENT:対象:恋慕
+        IF TALENT:対象:恋慕
+            CFLAG:対象:好感度 = 1500
+            CFLAG:対象:依存度 = 300
+        ENDIF
+    CASE 11
+        TALENT:対象:親愛 = !TALENT:対象:親愛
+        IF TALENT:対象:親愛
+            TALENT:対象:恋慕 = 1
+            CFLAG:対象:好感度 = 10000
+            CFLAG:対象:依存度 = 3000
+        ENDIF
+    CASE 20
+        TALENT:対象:服従 = !TALENT:対象:服従
+        IF TALENT:対象:服従
+            CFLAG:対象:従属度 = 1500
+            CFLAG:対象:依存度 = 300
+        ENDIF
+    CASE 21
+        TALENT:対象:隷属 = !TALENT:対象:隷属
+        IF TALENT:対象:隷属
+            TALENT:対象:服従 = 1
+            CFLAG:対象:従属度 = 10000
+            CFLAG:対象:依存度 = 3000
+        ENDIF
+    CASE 30
+        TALENT:対象:合意 = !TALENT:対象:合意
+    CASE 31
+        TALENT:対象:烙印 = !TALENT:対象:合意
+    CASE 40
+        TALENT:対象:虚ろ = !TALENT:対象:虚ろ
+        CFLAG:対象:崩壊 = 0
+        IF TALENT:対象:虚ろ
+            CFLAG:対象:崩壊 = 1500
+        ENDIF
+    CASE 41
+        TALENT:対象:崩壊 = !TALENT:対象:崩壊
+        CFLAG:対象:崩壊 = 0
+        IF TALENT:対象:崩壊
+            TALENT:対象:虚ろ = 1
+            CFLAG:対象:崩壊 = 3500
+        ENDIF
+    CASE 50
+        CFLAG:対象:面識 = !CFLAG:対象:面識
+ENDSELECT
+
