@@ -1,0 +1,83 @@
+﻿;-------------------------------------------------
+;「労働」の名称
+;-------------------------------------------------
+@SHOP_LIFE_NAME47
+RESULTS:0 '= "領地探索"
+
+;-------------------------------------------------
+;「労働」の選択可否
+;-------------------------------------------------
+@SHOP_LIFE_CHECK47
+SIF CFLAG:MASTER:捕虜先
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;「労働」の選択可能キャラ存在判定
+;-------------------------------------------------
+@SHOP_LIFE_CHECKCHARA47(ARG:0)
+;捕虜でない、同一勢力、子供でない
+RETURN CHECK91(ARG:0, 2, CFLAG:(ARG:0):所属 == CFLAG:MASTER:所属 && (ARG:0 == MASTER || CFLAG:(ARG:0):所属) && !CFLAG:(ARG:0):捕虜先 && !IS_ANIMAL(ARG:0) && CFLAG:(ARG:0):行動不能状態 != 行動不能_子供)
+
+;-------------------------------------------------
+;「労働の左カラムメニューの入力処理
+;-------------------------------------------------
+@SHOP_LIFE_EVENTBUY47
+FLAG:拠点フェイズページ = 1
+FLAG:夜這い = 0
+RETURN 0
+
+;-------------------------------------------------
+;「労働」の右カラム表示処理
+;-------------------------------------------------
+@SHOP_LIFE_EVENTBUY_SHOW47
+CALL COLUMN_RIGHT_TITLE("探索者選択", "0", "1", "1", "0", "")
+CALL COLUMN_RIGHT_PRINTL
+CALL COLUMN_RIGHT_LINE
+CALL COLUMN_RIGHT_PRINTL
+;標準的なキャラリストとページ移動
+CALL COLUMN_RIGHT_CHARALIST
+RETURN
+
+;-------------------------------------------------
+;「労働」のリスト１入力処理
+;-------------------------------------------------
+@SHOP_LIFE_USERSHOP47(対象)
+#DIM 対象
+#DIM 配列
+#DIM 番号
+CALL SINGLE_DRAWLINE
+PRINTFORML 行動回数を消費し、%ANAME(対象)%が領地を探索しにいきます
+CALL SINGLE_DRAWLINE
+PRINTFORML 通常……陵辱や輪姦といったことは起こらないでしょう
+PRINTFORML 危険……陵辱や輪姦といったことが起こりえます
+CALL SINGLE_DRAWLINE
+CALL ASK_MULTI("通常", "危険", "戻る")
+
+SIF RESULT == 2
+    RETURN 0
+
+PRINTFORMW %ANAME(対象)%は領地を探索しにいった……
+CFLAG:対象:行動済み = 1
+
+配列 = RESULT
+
+番号 = RAND:(TERRITORY_EVENT_NUM:配列)
+CALLFORM TERRITORY_EVENT_%TERRITORY_EVENT_NAME_ENG:配列:番号%_DECISION(対象)
+IF RESULT == 1
+    CALL SINGLE_DRAWLINE
+    PRINTFORML --イベント『%TERRITORY_EVENT_NAME:配列:番号%』発生--
+    CALL SINGLE_DRAWLINE
+    WAIT
+    CALLFORM TERRITORY_EVENT_%TERRITORY_EVENT_NAME_ENG:配列:番号%(対象)
+ELSE
+    PRINTFORML ……が、特に何事もなかった……
+ENDIF
+
+WAIT
+
+CALL TRAIN_AUTO_ABLUP(対象)
+RESULT = 1
+SHOP_TIME ++
+BEGIN TURNEND
+
