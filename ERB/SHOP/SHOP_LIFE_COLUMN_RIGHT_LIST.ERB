@@ -1,7 +1,9 @@
 ﻿;-------------------------------------------------
 ;キャラクタ表示順のリストを作成
+;RESORT 所属勢力ごとの再ソートを行うかのフラグ
 ;-------------------------------------------------
-@CREATE_SELECTOR_SORT_LIST
+@CREATE_SELECTOR_SORT_LIST(RESORT = 1)
+#DIM RESORT
 #DIM SORT_VALUE,  3000
 #DIMS SORT_STRING, 3000
 #DIM CHARA_TABLE, 3000
@@ -94,49 +96,55 @@ FOR LOCAL,1,CHARANUM
 	NEXT
 NEXT
 
+IF RESORT == 0
+	FOR LOCAL:0, 0, CHARANUM
+		SHOP_CHARA_LIST:LOCAL = CHARA_TABLE:LOCAL
+	NEXT
+ELSE
 
-LOCAL:5 = 0
+	LOCAL:5 = 0
 
-;SHOP_CHARA_LIST:(LOCAL:5) = MASTER
-;LOCAL:5 ++
+	;SHOP_CHARA_LIST:(LOCAL:5) = MASTER
+	;LOCAL:5 ++
 
-;主人公と同一勢力の士官が第１優先
-FOR LOCAL:0, 0, CHARANUM
-	LOCAL:1 = CHARA_TABLE:LOCAL
-	;主人公でない「あなた」は飛ばす
-	SIF LOCAL:1 == NAME_TO_CHARA("あなた") && LOCAL:1 == MASTER
-		CONTINUE
-	IF CFLAG:(LOCAL:1):所属 == CFLAG:MASTER:所属
-		SHOP_CHARA_LIST:(LOCAL:5) = LOCAL:1
-		LOCAL:5 ++
-	ENDIF
-NEXT
-
-;他勢力・捕虜でない士官が第２優先
-FOR LOCAL:0, 0, CHARANUM
-	LOCAL:1 = CHARA_TABLE:LOCAL
-	;主人公でない「あなた」は飛ばす
-	SIF LOCAL:1 == NAME_TO_CHARA("あなた") && LOCAL:1 != MASTER
-		CONTINUE
-	IF CFLAG:(LOCAL:1):所属 != CFLAG:MASTER:所属 && !CFLAG:(LOCAL:1):捕虜先
+	;主人公と同一勢力の士官が第１優先
+	FOR LOCAL:0, 0, CHARANUM
+		LOCAL:1 = CHARA_TABLE:LOCAL
+		;主人公でない「あなた」は飛ばす
 		SIF LOCAL:1 == NAME_TO_CHARA("あなた") && LOCAL:1 != MASTER
 			CONTINUE
-		SHOP_CHARA_LIST:(LOCAL:5) = LOCAL:1
-		LOCAL:5 ++
-	ENDIF
-NEXT
+		IF CFLAG:(LOCAL:1):所属 == CFLAG:MASTER:所属
+			SHOP_CHARA_LIST:(LOCAL:5) = LOCAL:1
+			LOCAL:5 ++
+		ENDIF
+	NEXT
 
-;他勢力・捕虜がラスト
-FOR LOCAL:0, 0, CHARANUM
-	LOCAL:1 = CHARA_TABLE:LOCAL
-	;主人公でない「あなた」は飛ばす
-	SIF LOCAL:1 == NAME_TO_CHARA("あなた") && LOCAL:1 != MASTER
-		CONTINUE
-	IF CFLAG:(LOCAL:1):所属 != CFLAG:MASTER:所属 && CFLAG:(LOCAL:1):捕虜先
-		SHOP_CHARA_LIST:(LOCAL:5) = LOCAL:1
-		LOCAL:5 ++
-	ENDIF
-NEXT
+	;他勢力・捕虜でない士官が第２優先
+	FOR LOCAL:0, 0, CHARANUM
+		LOCAL:1 = CHARA_TABLE:LOCAL
+		;主人公でない「あなた」は飛ばす
+		SIF LOCAL:1 == NAME_TO_CHARA("あなた") && LOCAL:1 != MASTER
+			CONTINUE
+		IF CFLAG:(LOCAL:1):所属 != CFLAG:MASTER:所属 && !CFLAG:(LOCAL:1):捕虜先
+			SIF LOCAL:1 == NAME_TO_CHARA("あなた") && LOCAL:1 != MASTER
+				CONTINUE
+			SHOP_CHARA_LIST:(LOCAL:5) = LOCAL:1
+			LOCAL:5 ++
+		ENDIF
+	NEXT
+
+	;他勢力・捕虜がラスト
+	FOR LOCAL:0, 0, CHARANUM
+		LOCAL:1 = CHARA_TABLE:LOCAL
+		;主人公でない「あなた」は飛ばす
+		SIF LOCAL:1 == NAME_TO_CHARA("あなた") && LOCAL:1 != MASTER
+			CONTINUE
+		IF CFLAG:(LOCAL:1):所属 != CFLAG:MASTER:所属 && CFLAG:(LOCAL:1):捕虜先
+			SHOP_CHARA_LIST:(LOCAL:5) = LOCAL:1
+			LOCAL:5 ++
+		ENDIF
+	NEXT
+ENDIF
 
 ;-------------------------------------------------
 ;右カラムの標準的なキャラリスト
