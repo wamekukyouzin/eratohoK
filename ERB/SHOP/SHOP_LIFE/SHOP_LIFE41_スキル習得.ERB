@@ -65,6 +65,8 @@ CALL SHOP_LIFE_SKILL_CREATE_LIST(対象, 編集モード)
 
 $SHOW_LOOP
 
+CALL SINGLE_DRAWLINE
+
 IF !編集モード
 	CALL ICPRINT(@"金を消費し、<%ANAME(対象)%>にスキルを習得・忘却させます%TOSTR_SPACE(10)%所持金:%NUM_FORMAT(MONEY)%", "", カラー_注意)
 ELSE
@@ -297,7 +299,8 @@ IF 項目数 - 描画行 > 0
 	FOR LOCAL, 描画行, 項目数
 		PRINTL
 		PRINTL
-		PRINTL
+		SIF LOCAL != 項目数 - 1
+			PRINTL
 	NEXT
 ENDIF
 
@@ -327,6 +330,7 @@ PRINTL
 #DIM 編集モード
 #DIMS 説明
 #DIM 描画行
+#DIM オフセット
 
 ジャンル数 = SKILL_GENRE_NUM
 
@@ -351,10 +355,17 @@ CALL SINGLE_DRAWLINE
 PRINTFORML -スキルの忘却-
 CALL SINGLE_DRAWLINE
 
+
+オフセット = 0
 描画行 = 0
 FOR ジャンル, 0, SKILL_GENRE_NUM
 	FOR スキル, 0, MAX_SKILL_SLOT
-
+		IF オフセット < (SHOP_SKILL_PAGE:ジャンル数 - 1) * 項目数
+			オフセット ++
+			CONTINUE
+		ELSEIF オフセット >= MIN(SHOP_SKILL_PAGE:ジャンル数 * 項目数, スキル数)
+			BREAK
+		ENDIF
 		;存在判定
 		TRYCCALLFORM SKILL_{SKILL_NO_SLOT:対象:ジャンル:スキル}_%SKILL_GENRE_ENG:ジャンル%_{SKILL_ID_SLOT:対象:ジャンル:スキル}_EXIST
 		CATCH
@@ -376,6 +387,7 @@ FOR ジャンル, 0, SKILL_GENRE_NUM
 			PRINTFORM  価格:%NUM_FORMAT(SKILL_FORGET_PRICE), 7, RIGHT% 
 		CALL SKILL_EXPLANATION(ジャンル, SKILL_NO_SLOT:対象:ジャンル:スキル, SKILL_ID_SLOT:対象:ジャンル:スキル, 19)
 		描画行 ++
+		オフセット ++
 	NEXT
 NEXT
 
@@ -383,7 +395,8 @@ IF 項目数 - 描画行 > 0
 	FOR LOCAL, 描画行, 項目数
 		PRINTL
 		PRINTL
-		PRINTL
+		SIF LOCAL != 項目数 - 1
+			PRINTL
 	NEXT
 ENDIF
 
