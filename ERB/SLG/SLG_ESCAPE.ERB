@@ -58,7 +58,7 @@ FOR LOCAL, 0, CHARANUM
 		CALL CHANGE_COUNTRY(LOCAL, CFLAG:LOCAL:捕虜先, 1)
 	ELSE
 		CALL COLORPRINT(@"%ANAME(GET_COUNTRY_BOSS(CFLAG:(LOCAL:0):捕虜先))%に囚われていた%ANAME(LOCAL)%は解放され、放浪した", カラー_注意, "L")
-		CALL CHANGE_COUNTRY(LOCAL:0, 0)
+		CALL CHANGE_COUNTRY(LOCAL:0, 0, 1)
 	ENDIF
 NEXT
 
@@ -641,13 +641,18 @@ ENDIF
 申し出キャラ = -1
 好感度保存 = 0
 FOR LOCAL:0, 0, CHARANUM
-	;ARG:0勢力の中に主人公への好感度500以上かつ主導度Ｕ100以上または<サド>のキャラがいる場合
-	IF CFLAG:(LOCAL:0):所属 == 勢力 && !CFLAG:(LOCAL:0):捕虜先 && CFLAG:(LOCAL:0):好感度 >= 500 && (ABL:(LOCAL:0):主導度Ｕ >= 100 || GETBIT(TALENT:(LOCAL:0):淫乱系, 素質_淫乱_サド))
-		IF CFLAG:(LOCAL:0):好感度 > 好感度保存
-			;条件を満たすキャラのうち、好感度が最大のキャラを探索
-			申し出キャラ = LOCAL
-			好感度保存 = CFLAG:LOCAL:好感度
-		ENDIF
+	SIF CFLAG:(LOCAL:0):所属 != 勢力 || CFLAG:(LOCAL:0):捕虜先
+		CONTINUE
+	SIF CFLAG:(LOCAL:0):好感度 < 500
+		CONTINUE
+	SIF ABL:(LOCAL:0):主導度Ｕ < 100 && !GETBIT(TALENT:(LOCAL:0):淫乱系, 素質_淫乱_サド)
+		CONTINUE
+	SIF LOCAL == 君主
+		CONTINUE
+	IF CFLAG:(LOCAL:0):好感度 > 好感度保存
+		;条件を満たすキャラのうち、好感度が最大のキャラを探索
+		申し出キャラ = LOCAL
+		好感度保存 = CFLAG:LOCAL:好感度
 	ENDIF
 NEXT
 
