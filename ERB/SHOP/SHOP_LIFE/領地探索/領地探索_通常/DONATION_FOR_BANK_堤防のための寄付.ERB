@@ -1,0 +1,58 @@
+﻿;-------------------
+;存在判定
+;なにもさせないこと
+;-------------------
+@TERRITORY_EVENT_DONATION_FOR_BANK_EXISTS()
+#DIM 対象
+RETURN 1
+
+;-------------------
+;発生判定
+;-------------------
+@TERRITORY_EVENT_DONATION_FOR_BANK_DECISION(対象)
+#DIM 対象
+RETURN IS_COUNTRY(CFLAG:対象:所属)
+
+;-------------------
+;本体
+;-------------------
+@TERRITORY_EVENT_DONATION_FOR_BANK(対象)
+#DIM 対象
+#DIM 対象都市
+
+CALL DAILY_EVENT_RAND_CITYSELECT(0)
+対象都市 = RESULT
+SIF 対象都市 < 0
+	RETURN 0
+PRINTFORML %CITY_NAME:対象都市%を散策していると、河川の氾濫で悩んでいる村にたどりついた
+PRINTFORML 堤防を作れれば村は助かるかもしれないが、成功するとも限らない
+PRINTL
+CALL PRINT_ABILITY(対象, GETNUM(ABL, "政治"))
+CALL ASK_MULTI_JUDGE("金5000で堤防を作る", MONEY >= 5000, "放っておく",1)
+
+IF RESULT == 1
+	PRINTFORML 悪いが今は金が惜しい
+	PRINTFORMW 何も言わずに村から立ち去った
+    RETURN 1
+ENDIF
+
+PRINTFORML 金を惜しんでいる場合ではない
+PRINTFORMW %ANAME(対象)%は早速技術者たちを呼びよせ、堤防作製に取り掛からせた
+CALL COLORPRINT("金5000を支払った", カラー_注意, "W")
+MONEY -= 5000
+PRINTFORML ・
+PRINTFORML ・
+PRINTFORMW ・
+IF LIMIT(ABL:対象:政治, 50, 100) > RAND:100
+    PRINTFORML やった！
+    PRINTFORMW 無事に頑丈な堤防が出来た
+    CITY_GUARD:対象都市 += 15
+    PRINTFORMW 村人たちに感謝された
+    CALL ICPRINT(@"%CITY_NAME:対象都市%の防衛率が<15>上昇し、<{CITY_GUARD:対象都市}>になった", "W", カラー_注意)
+ELSE
+    PRINTFORML 失敗した！
+    PRINTFORML 堤防を上手く作ることは出来なかった
+    PRINTFORMW 肩を落とす領民たちから逃げるように立ち去った
+ENDIF
+RETURN 1
+

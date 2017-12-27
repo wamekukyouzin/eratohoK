@@ -1,0 +1,116 @@
+﻿;-------------------------------------------------
+;「労働」の名称
+;-------------------------------------------------
+@SHOP_LIFE_NAME47
+RESULTS:0 '= "領地探索"
+
+;-------------------------------------------------
+;「労働」の選択可否
+;-------------------------------------------------
+@SHOP_LIFE_CHECK47
+SIF CFLAG:MASTER:捕虜先
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;「労働」の選択可能キャラ存在判定
+;-------------------------------------------------
+@SHOP_LIFE_CHECKCHARA47(ARG:0)
+;捕虜でない、同一勢力、子供でない
+RETURN CHECK91(ARG:0, 2, CFLAG:(ARG:0):所属 == CFLAG:MASTER:所属 && (ARG:0 == MASTER || CFLAG:(ARG:0):所属) && !CFLAG:(ARG:0):捕虜先 && !IS_ANIMAL(ARG:0) && CFLAG:(ARG:0):行動不能状態 != 行動不能_子供)
+
+;-------------------------------------------------
+;「労働の左カラムメニューの入力処理
+;-------------------------------------------------
+@SHOP_LIFE_EVENTBUY47
+FLAG:拠点フェイズページ = 1
+FLAG:夜這い = 0
+RETURN 0
+
+;-------------------------------------------------
+;「労働」の右カラム表示処理
+;-------------------------------------------------
+@SHOP_LIFE_EVENTBUY_SHOW47
+CALL COLUMN_RIGHT_TITLE("探索者選択", "0", "1", "1", "0", "")
+CALL COLUMN_RIGHT_PRINTL
+CALL COLUMN_RIGHT_LINE
+CALL COLUMN_RIGHT_PRINTL
+PRINTBUTTON @"[危険な探索 \@ TERRITORY_EXPLORING_DANGER_EVENT ? オン # オフ \@]", 1
+CALL COLUMN_RIGHT_PRINTL
+CALL COLUMN_RIGHT_LINE
+CALL COLUMN_RIGHT_PRINTL
+;標準的なキャラリストとページ移動
+CALL COLUMN_RIGHT_CHARALIST
+RETURN
+
+
+;-------------------------------------------------
+;「領地探索」の右カラムボタンの入力処理補佐
+;　入力値0～9を想定している
+;　RETURN 0:CLEARLINE LINECOUNT - LINES_SHOPする
+;　RETURN 1:CLEARLINE LINECOUNT - LINES_SHOPしない
+;-------------------------------------------------
+@SHOP_LIFE_EVENTBUY_SUB47(ARG:0)
+;表示フィルタ切り替え
+IF ARG:0 == 1
+	TERRITORY_EXPLORING_DANGER_EVENT = !TERRITORY_EXPLORING_DANGER_EVENT
+	RETURN 0
+ENDIF
+
+;-------------------------------------------------
+;「労働」のリスト１入力処理
+;-------------------------------------------------
+@SHOP_LIFE_USERSHOP47(対象)
+#DIM 対象
+#DIM 総イベント数
+#DIM 番号
+#DIM 配列
+
+TERRITORY_EXPLORING_TARGET = 対象
+
+PRINTFORMW %ANAME(対象)%は領地を探索しにいった……
+CFLAG:対象:行動済み = 1
+
+;発生するイベント配列と番号
+IF TERRITORY_EXPLORING_DANGER_EVENT
+    総イベント数 = SUMARRAY(TERRITORY_EVENT_NUM)
+ELSE
+    総イベント数 = TERRITORY_EVENT_NUM:領地探索_通常
+ENDIF
+
+SIF 総イベント数 == 0
+    GOTO NOTHING_HAPPEN
+
+番号 = RAND:総イベント数
+
+IF 番号 >= TERRITORY_EVENT_NUM:領地探索_通常
+    番号 -= TERRITORY_EVENT_NUM:領地探索_通常
+    配列 = 領地探索_危険
+ELSE
+    配列 = 領地探索_通常
+ENDIF
+
+CALLFORM TERRITORY_EVENT_%TERRITORY_EVENT_NAME_ENG:配列:番号%_DECISION(対象)
+
+IF RESULT == 1
+    CALL SINGLE_DRAWLINE
+    PRINTFORML --イベント『%TERRITORY_EVENT_NAME:配列:番号%』発生--
+    CALL SINGLE_DRAWLINE
+    WAIT
+    CALLFORM TERRITORY_EVENT_%TERRITORY_EVENT_NAME_ENG:配列:番号%(対象)
+ELSE
+    $NOTHING_HAPPEN
+    PRINTFORML ……が、特に何事もなかった……
+ENDIF
+
+WAIT
+
+CALL TRAIN_AUTO_ABLUP(対象)
+RESULT = 1
+SHOP_TIME ++
+BEGIN TURNEND
+
+@SELECT_CHARA_RANDOM_LOGIC_FOR_TERRITORY_EXPLORING_BASE(対象)
+#FUNCTION
+#DIM 対象
+RETURNF 対象 != TERRITORY_EXPLORING_TARGET && (CFLAG:対象:所属 || CFLAG:対象:特殊状態 == 特殊状態_放浪) && !CFLAG:対象:捕虜先
