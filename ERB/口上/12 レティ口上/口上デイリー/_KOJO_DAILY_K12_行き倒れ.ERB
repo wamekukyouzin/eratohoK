@@ -1,0 +1,105 @@
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@KOJO_DAILY_K12_FALL_ON_THE_STREET_RATE(対象)
+#DIM 対象
+RETURN 50
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@KOJO_DAILY_K12_FALL_ON_THE_STREET_DECISION(対象)
+#DIM 対象
+
+SIF CFLAG:対象:特殊状態 != 特殊状態_放浪
+    RETURN 1
+
+SIF KDVAR:対象:レティ_行き倒れ
+    RETURN 1
+
+RETURN CHECK_KOJO_DAILY_HAPPEN(対象, 0, 0, -1)
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@KOJO_DAILY_K12_FALL_ON_THE_STREET_GENRE(対象)
+#DIM 対象
+RETURN デイリー_ジャンル_エロ
+
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@KOJO_DAILY_K12_FALL_ON_THE_STREET(対象)
+#DIM 対象
+
+PRINTFORML うだるような暑い日、道ばたに女性が倒れているのを見つけた
+PRINTFORML 暑さにやられてしまったのだろうか……
+PRINTFORML 
+CALL ASK_YN("助ける", "放っておく")
+
+IF RESULT == 1
+    PRINTFORML 放っておいた
+    KDVAR:対象:レティ_行き倒れ = 1
+    RETURN 1
+ENDIF
+
+PRINTFORML 放ってはおけない
+PRINTFORML 拠点で介抱することにした
+PRINTFORML ・
+PRINTFORML ・
+PRINTFORMW ・
+PRINTFORML 「恥ずかしいところを見せちゃったわね」
+PRINTFORML 「でもありがとう、助かったわ」
+PRINTFORML 女は%NAME_FORMAL(対象)%と名乗った
+PRINTFORMW 普段なら冬眠ならぬ「夏眠」しているところを、たまたま出歩いたら暑さにやられてしまったそうだ
+PRINTFORMW 「いつもは平気なんだけどね、恥ずかしい限りだわ」
+PRINTFORMW 「そうだ、せっかくだから何かお礼をさせてくれないかしら？」
+PRINTFORML 
+CALL ASK_MULTI("仲間になって", "金をくれ", "ヤらせて！", "別にいらない")
+
+SELECTCASE RESULT
+    CASE 0
+        PRINTFORML 「仲間に？　ええ、いいわ、まかせてちょうだい」
+        PRINTFORMW 「私がいれば百人力よ」
+        CALL COLORPRINT(@"%ANAME(対象)%が仲間になった", カラー_注意, "W")
+        CALL CHANGE_COUNTRY(対象, CFLAG:MASTER:所属)
+    CASE 1
+        PRINTFORML 「ええ、いいわよ」
+        PRINTFORMW 「といっても、私もそんなに持ち合わせがないから……これくらいで勘弁してくれる？」
+        CALL ICPRINT("金<10000>をもらった", "W", カラー_注意)
+        MONEY += 10000
+    CASE 2
+        PRINTFORML 「え、ええっ？」
+        PRINTFORMW 「聞き間違いかしら、もう一度言ってもらえる？」
+        PRINTFORML させてほしいと、再び繰り返す
+        PRINTFORMW %ANAME(MASTER)%の物言いに、%ANAME(対象)%は顔を赤らめた
+        PRINTFORMW 「まぁ、その……私も、経験がないわけじゃないけど」
+        PRINTFORMW 「でもその、お手柔らかにね？」
+        PRINTFORML %ANAME(対象)%の衣服に手を掛け、脱がせていく
+        PRINTFORMW %STR_BODY("胸：愛撫", 対象)%に%STR_BODY("尻：感触",　対象)%にと、魅力ある肉づきだ
+        PRINTFORMW 身体をこわばらせる%ANAME(対象)%を、優しくベッドに押し倒した……
+        IF IS_MALE(対象)
+            CALL FUCK(MASTER, "欲望, 性技, 奉仕, 性交, Ｃ, Ｖ挿入, キス", "童貞喪失, キス喪失", 0, @"%ANAME(対象)%の唇", "", @"%ANAME(対象)%の膣", 喪失_和姦)
+        	CALL FUCK(対象, "欲望, 奉仕, 精愛, 性技, 性交, Ｃ, Ｖ, Ｂ, Ｍ, キス, 口淫, Ｖ性交", "処女喪失, 膣内射精, キス喪失, 口内射精", GET_ID(MASTER), @"%ANAME(対象)%の唇", ANAME(MASTER), "", 喪失_和姦)
+        ELSE
+            CALL FUCK(MASTER, "欲望, 性技, 奉仕, 性交, Ｃ, Ｂ, Ｍ, レズ, キス", "キス喪失", 0, @"%ANAME(対象)%の唇", "", "", 喪失_和姦)
+            CALL FUCK(対象,   "欲望, 性技, 奉仕, 性交, Ｃ, Ｂ, Ｍ, レズ, キス", "キス喪失", 0, @"%ANAME(MASTER)%の唇", "", "", 喪失_和姦)
+        ENDIF            
+    CASE 3
+        PRINTFORML 「あら、そう？　残念ね」
+        PRINTFORMW 「じゃあせめて、お礼を言わせて」
+        PRINTFORMW 「助けてくれてありがとう、それじゃあね」
+        CFLAG:対象:好感度 += 300
+ENDSELECT
+
+CFLAG:対象:面識 = 1
+KDVAR:対象:レティ_行き倒れ = 1
+
+RETURN 1
