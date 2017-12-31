@@ -1,0 +1,113 @@
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@KOJO_DAILY_K140_REVENGE_RATE(対象)
+#DIM 対象
+RETURN 1000
+
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@KOJO_DAILY_K140_REVENGE_DECISION(対象)
+#DIM 対象
+#DIM 霊夢
+
+霊夢 = NAME_TO_CHARA("霊夢")
+
+SIF 霊夢 == -1 || 霊夢 == MASTER
+	RETURN 0
+
+SIF GROUPMATCH(MASTER, NAME_TO_CHARA("霊夢"))
+	RETURN 0
+
+SIF CFLAG:霊夢:捕虜先 != CFLAG:MASTER:所属
+	RETURN 0
+
+SIF KDVAR:対象:易者_復讐
+	RETURN 0
+
+RETURN CHECK_KOJO_DAILY_HAPPEN(対象, 1, 0) && CHECK_KOJO_DAILY_HAPPEN(霊夢, 0, 1)
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@KOJO_DAILY_K140_REVENGE_GENRE(対象)
+#DIM 対象
+RETURN デイリー_ジャンル_エロ
+
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@KOJO_DAILY_K140_REVENGE(対象)
+#DIM 対象
+#DIM 霊夢
+
+KDVAR:対象:易者_復讐 = 1
+
+霊夢 = NAME_TO_CHARA("霊夢")
+
+PRINTFORMW 「%ANAME(MASTER)%、少しいいか？」
+PRINTFORML 夜、%ANAME(対象)%が%ANAME(MASTER)%の部屋を訪ねてきた
+PRINTFORML 「あの巫女を捕まえたそうじゃないか」
+PRINTFORML 「俺はあの巫女と何というか……因縁があってな、あっちは覚えちゃないだろうが、俺は恨んでる」
+PRINTFORMW 「そこで相談なんだが、アイツを俺に任せてくれないか？」
+PRINTFORMW 「こう見えて人間の扱いには慣れてる。綺麗な身体のまま、何でも言うことを聞く人形にしてお前に返してやる」
+PRINTFORML %ANAME(対象)%の目は本気だった。%ANAME(霊夢)%に対しよほど深い恨みがあるのだろう
+PRINTFORML どうしたものか……
+PRINTFORML 
+CALL ASK_YN("任せてみる", "やめておく")
+
+IF RESULT == 1
+	PRINTFORMW 「俺の話を聞いていたのか！？」
+	PRINTFORMW もちろん聞いていたが、その上で、そんな話を受け入れるわけにはいかない
+	PRINTFORMW 喚く%ANAME(対象)%を追い返した……
+	RETURN 1
+ENDIF
+
+PRINTFORMW 「よしきた！　ククッ、目にもの見せてやるぞ暴力巫女め……」
+PRINTFORMW %ANAME(対象)%に牢の鍵を渡すと、小躍りしながら早速向かっていった……
+PRINTFORML ・
+PRINTFORML ・
+PRINTFORMW ・
+PRINTFORMW 「おお%ANAME(MASTER)%！　いつぞやはありがとうな」
+PRINTFORMW 「良い報告をしに来たんだ、ほら、挨拶をしろ」
+PRINTFORML 数日後、%ANAME(対象)%が鷹揚に声をかけてきた
+PRINTFORML 横に連れているのは%ANAME(霊夢)%だ。どうやら「復讐」に成功したらしい
+PRINTFORMW すっかり大人しくなった様子の%ANAME(霊夢)%は、%ANAME(MASTER)%に深々とお辞儀した
+PRINTFORML 「このたびは、%ANAME(MASTER)%に逆らうようなことをして申し訳ありませんでした」
+PRINTFORMW 「そのことについて、%ANAME(対象)%にたっぷり反省させてもらったので……今後ともよろしくお願いいたします」
+PRINTFORMW %ANAME(霊夢)%の挨拶に続き、どうだ、すごいだろう？　と%ANAME(対象)%は自慢げに言う
+PRINTFORMW 「あの巫女も、俺の手にかかればこうなるってわけだ」
+PRINTFORMW 「もちろん、約速通り%ANAME(霊夢)%は綺麗な身体のままだ。それでいて何でも言うことを聞くようにした」
+PRINTFORMW 「後は適当に楽しむなりなんなりしてくれ、俺の復讐は終わったから……ああ、スカッとしたなぁ！」
+PRINTFORMW %ANAME(対象)%は機嫌よく立ち去った……
+CALL COLORPRINT(@"%ANAME(霊夢)%が忠誠を誓いました", カラー_注意, "W")
+CALL COLORPRINT(@"%ANAME(霊夢)%の合意を得ました", カラー_注意, "W")
+
+CFLAG:対象:好感度 += 1000
+
+CFLAG:霊夢:従属度 = MAX(CFLAG:霊夢:従属度, 1500)
+CFLAG:霊夢:依存度 = MAX(CFLAG:霊夢:依存度, 300)
+TALENT:霊夢:服従 = 1
+TALENT:霊夢:合意 = 1
+TALENT:霊夢:一線越えない = 0
+TALENT:霊夢:チョロイン = 1
+TALENT:霊夢:濡れやすい = 1
+TALENT:霊夢:Ｃ鈍感 = 0
+TALENT:霊夢:Ｂ鈍感 = 0
+TALENT:霊夢:Ｖ鈍感 = 0
+TALENT:霊夢:Ａ鈍感 = 0
+TALENT:霊夢:Ｃ敏感 = 1
+TALENT:霊夢:Ｂ敏感 = 1
+TALENT:霊夢:Ｖ敏感 = 1
+TALENT:霊夢:Ａ敏感 = 1
+
+RETURN 1

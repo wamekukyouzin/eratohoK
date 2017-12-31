@@ -1,0 +1,94 @@
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@KOJO_DAILY_K28_TANYAO_RATE(対象)
+#DIM 対象
+RETURN 100
+
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@KOJO_DAILY_K28_TANYAO_DECISION(対象)
+#DIM 対象
+#DIM 永琳
+
+SIF GROUPMATCH(MASTER, NAME_TO_CHARA("輝夜"), NAME_TO_CHARA("永琳"))
+	RETURN 0
+
+SIF CFLAG:対象:好感度 < 500 && CFLAG:対象:依存度 < 500
+	RETURN 0
+
+SIF KDVAR:対象:鈴仙_国士無双 == -1
+	RETURN 0
+
+RETURN CHECK_KOJO_DAILY_HAPPEN(対象, 1, 0, 1)
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@KOJO_DAILY_K28_TANYAO_GENRE(対象)
+#DIM 対象
+RETURN デイリー_ジャンル_その他
+
+
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@KOJO_DAILY_K28_TANYAO(対象)
+#DIM 対象
+
+IF KDVAR:対象:鈴仙_国士無双 == 0
+	PRINTFORMW 「あ、%ANAME(MASTER)%、ちょうどいいところに」
+	PRINTFORMW 廊下ですれ違った%ANAME(対象)%に声を掛けられた
+	PRINTFORML 「実は新しい薬を作ったの。お師匠様に秘密で」
+	PRINTFORMW 「秘密だからおおっぴらに試せなくて困ってるんだけど、%ANAME(MASTER)%ちょっと飲んでみてくれない？」
+	PRINTFORMW 差し出された小瓶には毒々しい色の液体が詰まっている
+	PRINTFORML これを飲むのは大分勇気がいるが……
+ELSE
+	PRINTFORMW 「あ、%ANAME(MASTER)%」
+	PRINTFORMW 「また薬を作ったんだけど、飲んでみてくれない？」
+	PRINTFORML %ANAME(対象)%が例の薬をまた作ったらしい……
+ENDIF
+
+PRINTFORML 
+CALL ASK_YN("飲んでみる", "やめておく")
+
+IF RESULT == 1
+	PRINTFORMW 「そう？　残念」
+	PRINTFORMW %ANAME(対象)%は立ち去った……
+	KDVAR:対象:鈴仙_国士無双 = -1
+	RETURN 1
+ENDIF
+
+PRINTFORMW せっかくなので試してみよう
+PRINTFORMW %ANAME(対象)%から小瓶を受け取り、飲み干した……
+PRINTFORML ・
+PRINTFORML ・
+PRINTFORMW ・
+IF KDVAR:対象:鈴仙_国士無双 <= 3
+	PRINTFORMW 力がみなぎってきた！
+	PRINTFORMW 「あ、そういう効果があるのね、なるほど」
+	PRINTFORMW 「コレを参考にすれば、もっと良い薬が作れるかも！　ありがとね！」
+	PRINTFORMW %ANAME(対象)%は立ち去った……
+	CALL ICPRINT(@"%ANAME(MASTER)%の知略が<3>上がった", "W", カラー_注意)
+	ABL:MASTER:知略 += 3
+	KDVAR:対象:鈴仙_国士無双 += 1
+ELSE
+	PRINTFORMW 突如、%ANAME(MASTER)%が爆発した！
+	PRINTFORMW 「ちょ……%ANAME(MASTER)%！？　大丈夫！？」
+	PRINTFORMW %ANAME(対象)%が治療してくれたので一命は取り留めたが、怪我をしてしまった……
+	CALL ICPRINT(@"%ANAME(MASTER)%の知略が<9>下がった", "W", カラー_注意)
+	ABL:MASTER:知略 -= MIN(ABL:MASTER:知略, 9)
+	CALL ADD_COOLTIME(MASTER, 3)
+	KDVAR:対象:鈴仙_国士無双 = -1
+ENDIF
+
+RETURN 1
