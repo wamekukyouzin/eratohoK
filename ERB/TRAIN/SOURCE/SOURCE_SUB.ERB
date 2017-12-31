@@ -781,93 +781,142 @@ ENDIF
 ;ARG:0番のキャラがコマンド実行により得たEXPを表示
 ;主導度・倒錯度の変化もここで処理
 ;-------------------------------------------------
-@PRINT_EXP_UP(ARG:0)
+@PRINT_EXP_UP(対象)
+#DIM 対象
+#DIM 主導度変化量
+#DIM 倒錯度変化量
+#DIM 倒錯度変化基準
 LOCAL:5 = 1
 
-TFLAG:94 = ARG:0
+TFLAG:94 = 対象
 TFLAG:95 = 1
 
 ;●主導度・倒錯度の変動と表示
 ;能力固定フラグが立っている場合も変動させない
-IF !CFLAG:(ARG:0):能力固定フラグ
-	LOCAL:0 = TFLAG:49
-	LOCAL:1 = TFLAG:50 + TCVAR:(ARG:0):50
-	LOCAL:2 = TCVAR:(ARG:0):50
+IF !CFLAG:対象:能力固定フラグ
+	主導度変化量 = TFLAG:49
+	倒錯度変化量 = TFLAG:50 + TCVAR:対象:50
+	倒錯度変化基準 = TCVAR:対象:50
 
-	IF TALENT:(ARG:0):Ｓ気質 && TFLAG:49 > 0
-		TIMES LOCAL:0, 2.00
+	IF TALENT:対象:Ｓ気質 && TFLAG:49 > 0
+		TIMES 主導度変化量, 2.00
 	ENDIF
-	IF TALENT:(ARG:0):Ｍ気質 && TFLAG:49 < 0
-		TIMES LOCAL:0, 2.00
+	IF TALENT:対象:Ｍ気質 && TFLAG:49 < 0
+		TIMES 主導度変化量, 2.00
 	ENDIF
-	IF TALENT:(ARG:0):倒錯的 && TFLAG:50 > 0
-		TIMES LOCAL:1, 2.00
-		TIMES LOCAL:2, 2.00
+	IF TALENT:対象:倒錯的 && TFLAG:50 > 0
+		TIMES 倒錯度変化量, 2.00
+		TIMES 倒錯度変化基準, 2.00
 	ENDIF
 
-	IF IS_MPLY(ARG:0)
+	IF IS_MPLY(対象)
 		;ウフフ中
 		IF FLAG:ウフフフラグ
 			SELECTCASE GET_COM_INITIATIVE()
 				CASE 0
 				CASE 1
-					LOCAL:0 *= -1
+					主導度変化量 *= -1
 				CASE 2
-					LOCAL:0 = 1
+					主導度変化量 = 1
 				CASE 3
-					LOCAL:0 = -1
+					主導度変化量 = -1
 			ENDSELECT
-			ABL:(ARG:0):主導度Ｕ = LIMIT(ABL:(ARG:0):主導度Ｕ + LOCAL:0, -1000, 1000)
+			ABL:対象:主導度Ｕ = LIMIT(ABL:対象:主導度Ｕ + 主導度変化量, -1000, 1000)
 		;非ウフフ
 		ELSE
 			SELECTCASE GET_COM_INITIATIVE()
 				CASE 0
 				CASE 1
-					LOCAL:0 *= -1
+					主導度変化量 *= -1
 			ENDSELECT
-			ABL:(ARG:0):主導度Ｎ = LIMIT(ABL:(ARG:0):主導度Ｎ + LOCAL:0, -1000, 1000)
+			ABL:対象:主導度Ｎ = LIMIT(ABL:対象:主導度Ｎ + 主導度変化量, -1000, 1000)
 		ENDIF
 
-	ELSEIF IS_MTAR(ARG:0)
+	ELSEIF IS_MTAR(対象)
 		;ウフフ中
 		IF FLAG:ウフフフラグ
 			SELECTCASE GET_COM_INITIATIVE()
 				CASE 0
-					LOCAL:0 *= -1
+					主導度変化量 *= -1
 				CASE 1
 				CASE 2
-					LOCAL:0 = -1
+					主導度変化量 = -1
 				CASE 3
-					LOCAL:0 = 1
+					主導度変化量 = 1
 			ENDSELECT
-			ABL:(ARG:0):主導度Ｕ = LIMIT(ABL:(ARG:0):主導度Ｕ + LOCAL:0, -1000, 1000)
 		;非ウフフ
 		ELSE
 			SELECTCASE GET_COM_INITIATIVE()
 				CASE 0
-					LOCAL:0 *= -1
+					主導度変化量 *= -1
 				CASE 1
 			ENDSELECT
-			ABL:(ARG:0):主導度Ｎ = LIMIT(ABL:(ARG:0):主導度Ｎ + LOCAL:0, -1000, 1000)
 		ENDIF
 
 	ELSE
-		LOCAL:0 = 0
-		LOCAL:1 = LOCAL:2
+		主導度変化量 = 0
+		倒錯度変化量 = 倒錯度変化基準
 	ENDIF
 
-	ABL:(ARG:0):倒錯度 = LIMIT(ABL:(ARG:0):倒錯度 + LOCAL:1, 0, 1000)
-
-	IF LOCAL:0 != 0
-		CALL PRINT_COM_RESULT(@"主導度%TOSTR_SIGN(LOCAL:0)%{ABS(LOCAL:0)}")
+	IF FLAG:ウフフフラグ
+		;コマンドに参加しているほど、回復しにくくなる
+		FOR LOCAL:0, 0, MEQUIP_NUM
+			FOR LOCAL:1, 0, MEQUIP_PLAYER_NUM:(LOCAL:0)
+				IF MEQUIP_PLAYER:(LOCAL:0):(LOCAL:1) == 対象
+					FOR LOCAL:3, 0, MEQUIP_PLAYER_NUM:(LOCAL:0)
+						IF MEQUIP_INITIATIVE:(LOCAL:0) == MEQUIP_PLAYER:(LOCAL:0):(LOCAL:3)
+							主導度変化量 ++
+							GOTO FOUND
+						ENDIF
+					NEXT
+					FOR LOCAL:3, 0, MEQUIP_TARGET_NUM:(LOCAL:0)
+						IF MEQUIP_INITIATIVE:(LOCAL:0) == MEQUIP_TARGET:(LOCAL:0):(LOCAL:3)
+							主導度変化量 --
+							GOTO FOUND
+						ENDIF
+					NEXT
+					GOTO FOUND
+				ENDIF
+			NEXT
+			FOR LOCAL:1, 0, MEQUIP_TARGET_NUM:(LOCAL:0)
+				IF MEQUIP_TARGET:(LOCAL:0):(LOCAL:1) == 対象
+					FOR LOCAL:3, 0, MEQUIP_TARGET_NUM:(LOCAL:0)
+						IF MEQUIP_INITIATIVE:(LOCAL:0) == MEQUIP_TARGET:(LOCAL:0):(LOCAL:3)
+							主導度変化量 ++
+							GOTO FOUND
+						ENDIF
+					NEXT
+					FOR LOCAL:3, 0, MEQUIP_PLAYER_NUM:(LOCAL:0)
+						IF MEQUIP_INITIATIVE:(LOCAL:0) == MEQUIP_PLAYER:(LOCAL:0):(LOCAL:3)
+							主導度変化量 --
+							GOTO FOUND
+						ENDIF
+					NEXT
+					GOTO FOUND
+				ENDIF
+			NEXT
+			$FOUND
+		NEXT
 	ENDIF
-	IF LOCAL:1 != 0
-		CALL PRINT_COM_RESULT(@"倒錯度%TOSTR_SIGN(LOCAL:1)%{ABS(LOCAL:1)}")
+
+	ABL:対象:倒錯度 = LIMIT(ABL:対象:倒錯度 + 倒錯度変化量, 0, 1000)
+
+	IF FLAG:ウフフフラグ
+		ABL:対象:主導度Ｕ = LIMIT(ABL:対象:主導度Ｕ + 主導度変化量, -1000, 1000)
+	ELSE
+		ABL:対象:主導度Ｎ = LIMIT(ABL:対象:主導度Ｎ + 主導度変化量, -1000, 1000)
+	ENDIF
+
+	IF 主導度変化量 != 0
+		CALL PRINT_COM_RESULT(@"主導度%TOSTR_SIGN(主導度変化量)%{ABS(主導度変化量)}")
+	ENDIF
+	IF 倒錯度変化量 != 0
+		CALL PRINT_COM_RESULT(@"倒錯度%TOSTR_SIGN(倒錯度変化量)%{ABS(倒錯度変化量)}")
 	ENDIF
 ENDIF
 
 ;●主人公が取得できない経験をリセット
-;IF ARG:0 == MASTER
+;IF 対象 == MASTER
 ;	EXP:MASTER:10 = TCVAR:MASTER:110
 ;	EXP:MASTER:11 = TCVAR:MASTER:111
 ;	EXP:MASTER:12 = TCVAR:MASTER:112
@@ -882,16 +931,16 @@ ENDIF
 ;ENDIF
 
 ;●能力固定フラグが立っている場合、全ての経験をリセット
-IF CFLAG:(ARG:0):能力固定フラグ
+IF CFLAG:対象:能力固定フラグ
 	FOR LOCAL:0, 0, 100
-		EXP:(ARG:0):(LOCAL:0) = TCVAR:(ARG:0):(LOCAL:0 + 100)
+		EXP:対象:(LOCAL:0) = TCVAR:対象:(LOCAL:0 + 100)
 	NEXT
 ENDIF
 
 ;●経験の表示
 FOR LOCAL:0, 0, 94
-	IF EXP:(ARG:0):(LOCAL:0) > TCVAR:(ARG:0):(LOCAL:0 + 100)
-		CALL PRINT_COM_RESULT(@"%EXPNAME:(LOCAL:0)%+{EXP:(ARG:0):(LOCAL:0) - TCVAR:(ARG:0):(LOCAL:0 + 100)}")
+	IF EXP:対象:(LOCAL:0) > TCVAR:対象:(LOCAL:0 + 100)
+		CALL PRINT_COM_RESULT(@"%EXPNAME:(LOCAL:0)%+{EXP:対象:(LOCAL:0) - TCVAR:対象:(LOCAL:0 + 100)}")
 	ENDIF
 NEXT
 

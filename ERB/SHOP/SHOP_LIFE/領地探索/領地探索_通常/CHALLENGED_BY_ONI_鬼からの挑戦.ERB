@@ -1,0 +1,51 @@
+﻿;-------------------
+;存在判定
+;なにもさせないこと
+;-------------------
+@TERRITORY_EVENT_CHALLENGED_BY_ONI_EXISTS()
+#DIM 対象
+RETURN 1
+
+;-------------------
+;発生判定
+;-------------------
+@TERRITORY_EVENT_CHALLENGED_BY_ONI_DECISION(対象)
+#DIM 対象
+RETURN ABL:対象:武闘 > ランク閾値:ランク_ＳＬＧ:ランク_B && IS_COUNTRY(CFLAG:対象:所属)
+
+;-------------------
+;本体
+;-------------------
+@TERRITORY_EVENT_CHALLENGED_BY_ONI(対象)
+#DIM 対象
+
+PRINTFORML 郊外を歩いていると、目の前に鬼が立ちはだかった
+PRINTFORML %ANAME(対象)%の噂を聞いてやって来たらしい、力試しがしたいとのことだ
+PRINTL
+CALL PRINT_ABILITY(対象, GETNUM(ABL, "武闘"))
+CALL ASK_YN("力試しをする", "断る")
+
+IF RESULT == 1
+	PRINTFORML 断ると鬼は臆病者と罵って去っていった
+	PRINTFORMW %ANAME(対象)%は失礼な奴だと憤りながら宮殿へ戻った
+    RETURN 1
+ENDIF
+
+PRINTFORMW 挑戦を受けると鬼は嬉しそうに笑い早速かかってきた
+PRINTFORML ・
+PRINTFORML ・
+PRINTFORMW ・
+
+IF ABL:対象:武闘 > RAND:200
+    PRINTFORML 見事鬼を打倒した！
+    PRINTFORML 鬼は%ANAME(対象)%の力を認め、手下ともども仲間にしてほしいと言ってきた
+    PRINTFORMW 仲間が増えるのは大歓迎だ、受け入れてやることにした
+    COUNTRY_SOLDIER:(CFLAG:対象:所属) += 5000
+    CALL ICPRINT("兵が<5000>増えた", "L", カラー_注意)
+ELSE
+    PRINTFORML 鬼は想像以上に強く、負けてしまった
+    PRINTFORMW 地面に横たわる%ANAME(対象)%を見下ろすと鬼は首を振りながら去って行った
+    CALL ADD_COOLTIME(対象:0, 3)
+ENDIF
+
+RETURN 1

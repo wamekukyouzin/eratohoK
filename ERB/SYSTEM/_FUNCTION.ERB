@@ -2621,7 +2621,7 @@ RETURN CHARANUM - 1
 @GET_EMPTY_NO()
 #FUNCTION
 ;範囲の最低値を入れる
-	LOCAL:1 = MIN_NO_SP_CHARA
+LOCAL:1 = MIN_NO_SP_CHARA
 FOR LOCAL:0, 0, CHARANUM
 	;範囲内でより大きい数字を見つけたらその数字より1大きい数字を入れる
 	;条件式を分かりやすくするためにあえて不必要な条件を追加する
@@ -3386,6 +3386,37 @@ SIF TALENT:対象:妊娠
 
 RETURNF 下一桁 == TALENT:対象:危険日 || 下一桁 - 5 == TALENT:対象:危険日
 
+
+;-------------------------------------------------
+;desc  :キャラをランダムに選出する関数
+;param :選択関数名:キャラを選出する条件となる関数の名前 SELECT_CHARA_RANDOM_LOGIC_●●(ARG:0)の●●の部分
+;-------------------------------------------------
+@SELECT_CHARA_RANDOM(選択関数名)
+#DIMS 選択関数名
+#DIM 対象
+#DIM 候補, 3000
+#DIM 候補数
+
+VARSET 候補, -1
+VARSET 候補数
+;ガード節
+TRYCCALLFORM SELECT_CHARA_RANDOM_LOGIC_%選択関数名%(MASTER)
+CATCH
+	THROW 指定された関数SELECT_CHARA_RANDOM_LOGIC_%選択関数名%が存在しません
+ENDCATCH
+
+FOR LOCAL, 0, CHARANUM
+	CALLFORM SELECT_CHARA_RANDOM_LOGIC_%選択関数名%(LOCAL)
+	IF RESULT == 1
+		候補:候補数 = LOCAL
+		候補数 ++
+	ENDIF
+NEXT
+
+SIF 候補数 == 0
+	RETURN 0
+
+RETURN 候補:(RAND:候補数)
 
 ;-------------------------------------------------
 ;EVENTSTART_CALLEEに追加する

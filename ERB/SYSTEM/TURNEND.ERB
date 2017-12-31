@@ -115,9 +115,6 @@ ELSE
 	SIF FLAG:調教要求フラグ
 		FLAG:調教要求フラグ = 0
 	FLAG:イベント発生禁止 = 0
-	;一応謎勢力にあなたが存在することが無いようにおまじない
-	SIF CFLAG:MASTER:所属 == 0 && CFLAG:MASTER:捕虜先 == 0
-		TIME = 1
 	BEGIN SHOP
 ENDIF
 
@@ -242,10 +239,6 @@ IF FLAG:強制エンドフラグ == 1
 	RETURN
 ENDIF
 
-;デイリーイベント
-CALL EVENT_DAILY(1)
-CALL EVENT_KOJO_DAILY(1)
-
 ;一期終了時の処理
 SIF !FLAG:ターンエンド調教
 	CALL TURNEND_COMMON
@@ -254,7 +247,7 @@ $SKIPPED
 
 ;時間を進める
 DAY ++
-IF (CFLAG:MASTER:所属 == 0 && CFLAG:MASTER:捕虜先 == 0) || FLAG:観戦モード
+IF FLAG:観戦モード
 	TIME = 1
 ELSE
 	TIME = 0
@@ -289,7 +282,7 @@ ENDIF
 ;野盗出現しない期間を1へらす
 BANDIT_POP_SUSPENDED = MAX(BANDIT_POP_SUSPENDED - 1, 0)
 
-;イベントキャラの削除
+;自勢力でなくなった動物の削除
 FOR LOCAL:0, CHARANUM - 1, -1, -1
 	IF IS_ANIMAL(LOCAL:0) && CFLAG:(LOCAL:0):所属 != CFLAG:MASTER:所属
 		CALL DELETE_CHARA(LOCAL:0)
@@ -732,10 +725,6 @@ IF CFLAG:MASTER:捕虜先 && CFLAG:MASTER:解放カウンタ >= 5 && RAND:100 < 
 		RESETCOLOR
 	ENDIF
 	CALL CAPTURE(MASTER, 0)
-	IF CFLAG:MASTER:所属 == 0
-		;放浪状態なら拠点フェイズをスキップ
-		TIME = 1
-	ENDIF
 ENDIF
 
 FOR LOCAL, 1, CHARANUM

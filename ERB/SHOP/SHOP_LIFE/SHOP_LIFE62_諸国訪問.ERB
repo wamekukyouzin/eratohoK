@@ -52,6 +52,7 @@ RETURN 0
 #DIM 人数
 #DIM 対象
 #DIM CONST VISIT_EVENT_MAX = 10
+#DIM 好感度効果量
 訪問先 = CFLAG:(訪問先君主):所属
 
 FLAG:能力表示モード = 0
@@ -68,7 +69,7 @@ NEXT
 対象 = 候補:(RAND:人数)
 
 CALL SINGLE_DRAWLINE
-PRINTFORMW %ANAME(訪問先君主)%の国を訪ねた……
+PRINTFORMW %ANAME(訪問先君主)%の勢力を訪ねた……
 PRINTFORMW ……%ANAME(対象)%に出会った
 PRINTFORMW 少しの間、世間話をした……
 
@@ -77,17 +78,25 @@ IF !CFLAG:対象:面識
 	CFLAG:対象:面識 = 1
 ENDIF
 
-CALL COLORPRINT(@"%ANAME(対象)%の好感度がほんの少し上がりました", カラー_注意, "L")
-CFLAG:対象:好感度 += 30
+;1500に対する現在の好感度の割合。ただし最低でも100は入る
+好感度効果量 = MAX(500 * MAX((1500 - CFLAG:対象:好感度) / 15, 0) / 100, 100)
+CFLAG:対象:好感度 += 好感度効果量
+
+CALL COLORPRINT(@"%ANAME(対象)%の好感度が{好感度効果量}上がりました", カラー_注意, "L")
+
 PRINTFORML
 
 SHOP_TIME += 1
 
 
 FOR LOCAL, 0, VISIT_EVENT_MAX
-	TRYCCALLFORM VISIT_EVENT_{LOCAL}(訪問先君主, 訪問先, 対象)
-		IF RESULT != -1
-			BREAK
+	TRYCCALLFORM VISIT_EVENT_{LOCAL}_RATE(訪問先君主, 訪問先, 対象)
+		IF RAND:1000 < RESULT
+			CALLFORM VISIT_EVENT_{LOCAL}_DECISION(訪問先君主, 訪問先, 対象)
+			IF RESULT == 1
+				CALLFORM VISIT_EVENT_{LOCAL}(訪問先君主, 訪問先, 対象)
+				BREAK
+			ENDIF
 		ENDIF
 	CATCH
 		BREAK
@@ -102,13 +111,30 @@ BEGIN TURNEND
 ;-------------------------------------------------
 ;移籍の申し出
 ;-------------------------------------------------
-@VISIT_EVENT_1(訪問先君主, 訪問先, 対象)
+@VISIT_EVENT_0_RATE(訪問先君主, 訪問先, 対象)
 #DIM 訪問先君主
 #DIM 訪問先
 #DIM 対象
-SIF !((IS_SLAVE(対象) || IS_LOVER(対象)) && RAND:100 < 25 && 対象 != GET_COUNTRY_BOSS(CFLAG:対象:所属) && !IS_SP_COUNTRY(CFLAG:MASTER:所属))
-	RETURN -1
+RETURN 250
 
+@VISIT_EVENT_0_DECISION(訪問先君主, 訪問先, 対象)
+#DIM 訪問先君主
+#DIM 訪問先
+#DIM 対象
+SIF !CFLAG:MASTER:所属
+	RETURN 0
+SIF !IS_SLAVE(対象) && !IS_LOVER(対象)
+	RETURN 0
+SIF 対象 == 訪問先君主
+	RETURN 0
+SIF IS_SP_COUNTRY(CFLAG:MASTER:所属)
+	RETURN 0
+RETURN 1
+
+@VISIT_EVENT_0(訪問先君主, 訪問先, 対象)
+#DIM 訪問先君主
+#DIM 訪問先
+#DIM 対象
 PRINTFORMW ……別れ際、%ANAME(対象)%に呼び止められた
 PRINTFORMW どうか側に置いてくれないか、とのことだ
 PRINTFORMW %ANAME(MASTER)%への想いから、%ANAME(訪問先君主)%を捨て、%ANAME(GET_COUNTRY_BOSS(CFLAG:MASTER:所属))%につこうということらしい
@@ -131,13 +157,28 @@ ENDIF
 ;-------------------------------------------------
 ;移籍の勧誘
 ;-------------------------------------------------
-@VISIT_EVENT_2(訪問先君主, 訪問先, 対象)
+@VISIT_EVENT_1_RATE(訪問先君主, 訪問先, 対象)
+#DIM 訪問先君主
+#DIM 訪問先
+#DIM 対象
+RETURN (ABL:MASTER:武闘 + ABL:MASTER:防衛 + ABL:MASTER:知略 + ABL:MASTER:政治) / 3 + MIN(CFLAG:対象:好感度 / 10, 150)
+
+@VISIT_EVENT_1_DECISION(訪問先君主, 訪問先, 対象)
+#DIM 訪問先君主
+#DIM 訪問先
+#DIM 対象
+SIF !CFLAG:MASTER:所属
+	RETURN 0
+SIF GET_COUNTRY_BOSS(CFLAG:MASTER:所属) == MASTER
+	RETURN 0
+RETURN 1
+
+@VISIT_EVENT_1(訪問先君主, 訪問先, 対象)
 #DIM 訪問先君主
 #DIM 訪問先
 #DIM 対象
 #DIM 支度金
-SIF !(GET_COUNTRY_BOSS(CFLAG:MASTER:所属) != MASTER && RAND:3000 <= ABL:MASTER:武闘 + ABL:MASTER:防衛 + ABL:MASTER:知略 + ABL:MASTER:政治)
-	RETURN -1
+
 支度金 = (ABL:MASTER:武闘 + ABL:MASTER:知略 + ABL:MASTER:政治) * 50 * RAND(80, 120) / 100
 
 PRINTFORMW ……別れ際、%ANAME(対象)%に呼び止められた
@@ -147,6 +188,7 @@ CALL COLORPRINT(@"{支度金}", カラー_注意)
 PRINTFORM を用意しているという
 PRINTFORMW どうやら%ANAME(MASTER)%の能力を見込んで、引き抜こうとしているようだ
 PRINTFORMW 応じれば、%ANAME(GET_COUNTRY_BOSS(CFLAG:MASTER:所属))%との関係は悪くなってしまうだろうが……？
+
 CALL ASK_YN("応じる", "断る")
 IF RESULT == 0
 	PRINTFORML こんな時代だ。見込みのあるものについていくのが正解というものだろう
@@ -162,3 +204,46 @@ ELSE
 	PRINTFORML 丁重に断ると、%ANAME(対象)%は残念そうな表情を浮かべたが、納得してくれたようだ……
 ENDIF
 
+;-------------------------------------------------
+;士官の勧誘
+;-------------------------------------------------
+@VISIT_EVENT_2_RATE(訪問先君主, 訪問先, 対象)
+#DIM 訪問先君主
+#DIM 訪問先
+#DIM 対象
+RETURN (ABL:MASTER:武闘 + ABL:MASTER:防衛 + ABL:MASTER:知略 + ABL:MASTER:政治) / 3 + MIN(CFLAG:対象:好感度 / 10, 150)
+
+@VISIT_EVENT_2_DECISION(訪問先君主, 訪問先, 対象)
+#DIM 訪問先君主
+#DIM 訪問先
+#DIM 対象
+SIF CFLAG:MASTER:所属
+	RETURN 0
+RETURN 1
+
+@VISIT_EVENT_2(訪問先君主, 訪問先, 対象)
+#DIM 訪問先君主
+#DIM 訪問先
+#DIM 対象
+#DIM 支度金
+
+支度金 = (ABL:MASTER:武闘 + ABL:MASTER:知略 + ABL:MASTER:政治) * 50 * RAND(80, 120) / 100
+
+PRINTFORMW ……別れ際、%ANAME(対象)%に呼び止められた
+PRINTFORMW %ANAME(訪問先君主)%の下に来ないか、とのことだ
+PRINTFORM 支度金として、金
+CALL COLORPRINT(@"{支度金}", カラー_注意)
+PRINTFORM を用意しているという
+PRINTFORMW どうやら%ANAME(MASTER)%の能力を見込んで、登用しようとしているようだ
+
+CALL ASK_YN("応じる", "断る")
+IF RESULT == 0
+	PRINTFORML こんな時代だ。見込みのあるものについていくのが正解というものだろう
+	PRINTFORML %ANAME(MASTER)%が頷くと、%ANAME(対象)%は満足げな笑みを浮かべた……
+	CALL COLORPRINT(@"%ANAME(訪問先君主)%の下に移籍しました", カラー_注意, "W")
+	CALL COLORPRINT(@"支度金{支度金}を受け取りました", カラー_注意, "W")
+	CALL CHANGE_COUNTRY(MASTER, 訪問先, 1)
+	MONEY += 支度金
+ELSE
+	PRINTFORML 丁重に断ると、%ANAME(対象)%は残念そうな表情を浮かべたが、納得してくれたようだ……
+ENDIF

@@ -1,0 +1,76 @@
+﻿;---------------------
+;対応するデイリーのDISABLEを返す。設定しない場合、イベントは発生しない。
+;---------------------
+@KOJO_DAILY_K97_DERIVATION_BETRAYAL_DISABLE(対象)
+#DIM 対象
+RETURN KOJO_DAILY_GET_DISABLE_CONFIG(対象, "MERCY_PLEASE")
+
+
+;---------------------
+;発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@KOJO_DAILY_K97_DERIVATION_BETRAYAL_DECISION(対象)
+#DIM 対象
+
+;MASTERがどこかの勢力に所属していること
+SIF !CFLAG:MASTER:所属
+	RETURN 0
+
+;対象のデイリー「正直な懇願」で対象を解放していないかイベント終了済みなら発生しない
+SIF KDVAR:対象:正邪_正直な懇願 != 1
+	RETURN 0
+
+;3都市以上をMASTERが所有していること
+SIF GET_OWN_CITY(CFLAG:MASTER:所属) < 3
+	RETURN 0
+
+SIF FLAG:クリアフラグ
+	RETURN 0
+
+;正邪が君主になっていたらキャンセルする
+IF GET_COUNTRY_BOSS(CFLAG:対象:所属) == 対象
+	KDVAR:対象:正邪_正直な懇願 = 2
+	RETURN 0
+ENDIF
+
+;新しい勢力を取得
+LOCAL:4 = GET_NEW_COUNTRY()
+
+;新勢力が作れない（すでにいっぱい）ならRETURN
+SIF LOCAL:4 == -1
+	RETURN 0
+
+RETURN CHECK_KOJO_DAILY_HAPPEN(対象, 1, 0)
+
+;---------------------
+;本体
+;---------------------
+@KOJO_DAILY_K97_DERIVATION_BETRAYAL(対象)
+#DIM 対象
+
+PRINTFORMW 「%ANAME(MASTER)%には感謝してるさ、捕らえられた私を解放してくれたんだからな」
+PRINTFORMW 「この恩には最大限報いようと思ってる。私は天邪鬼だが、そこのとこの筋は通さないとな」
+PRINTFORML
+PRINTFORML
+PRINTFORML
+PRINTFORMW 「……なーんて」
+PRINTFORML
+PRINTFORMW 「言うとでも思ったか！？　ああん！？」
+PRINTFORMW 「バーカ！　天邪鬼がそんな素直なこと言うかよ！」
+PRINTFORMW 「よくも投獄なんてしてくれやがったな！　あぁお礼してやるよ、たっぷりとな！　へっ！」
+PRINTFORMW 「私の恨みは深いぞ、思い知れバーカ！」
+
+;直前のターンで追放とかされた場合の対策
+CALL CHANGE_COUNTRY(対象, CFLAG:MASTER:所属, 1)
+
+
+CALL NPC_INDEPENDENCE(対象, 5, 0, 1)
+
+PRINTFORMW 「待ってろよ、地獄を見せてやるからな！」
+CALL COLORPRINT(@"%ANAME(対象)%はなんとしても%ANAME(MASTER)%を倒すつもりのようです……", カラー_警告, "W")
+CALL CHANGE_RELATION_C_TO_C(GET_COUNTRY_FROM_BOSS_NAME("正邪"), CFLAG:MASTER:1, -1500, 1500)
+KDVAR:対象:正邪_正直な懇願 = 2
+
+RETURN 1
+

@@ -1,0 +1,350 @@
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@EVENT_DAILY_ASSASINATION_RATE()
+RETURN 25
+
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@EVENT_DAILY_ASSASINATION_DECISION()
+SIF !IS_COUNTRY(CFLAG:MASTER:所属) || CFLAG:MASTER:捕虜先
+	RETURN 0
+SIF FLAG:クリアフラグ
+	RETURN 0
+RETURN DAY >= 15
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@EVENT_DAILY_ASSASINATION_GENRE()
+RETURN デイリー_ジャンル_その他
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@EVENT_DAILY_ASSASINATION()
+#DIM 暗殺者
+#DIM 対象
+#DIM 暗殺成否
+
+IF DVAR:闇討ち提案_発生フラグ == 0
+	PRINTFORMW ある日、部下から敵将を闇討ちしてはどうかと提案された
+	PRINTFORMW 上手く怪我を負わせて一時的にでも戦力を削ぐことが出来れば、こちらにとって大きな利益となるだろう
+	PRINTFORMW しかし、失敗した場合は当然その国との関係は大きく悪化するのは間違いない
+	DVAR:闇討ち提案_発生フラグ = 1
+ELSE
+	PRINTFORMW 戦況を打破する為に、再び敵将の闇討ちを提案された
+ENDIF
+PRINTFORMW どうしようか……
+CALL ASK_YN("暗殺を試みる", "やめておく")
+IF RESULT == 1
+	PRINTFORMW やはり危険だ、やめておこう
+	RETURN 1
+ELSE
+	PRINTFORMW 確かに危険もあるが、その価値はある
+	PRINTFORMW その分人選は慎重にする必要がある、誰に任せようか……
+	CALL SELECT_CHARA_LIST_ONLY_LOGIC_SLG("ASSASINATION_ASSASIN", "ASSASINATION_ASSASIN")
+	暗殺者 = RESULT
+	IF RESULT == -1
+		PRINTFORMW いや、やはり危険だ、やめておこう
+		RETURN 1
+	ENDIF
+ENDIF
+IF 暗殺者 == MASTER
+	PRINTFORMW 危険な仕事だ、自らやる事にしよう
+ELSE
+	PRINTFORMW %ANAME(暗殺者)%に任せる事にしよう
+ENDIF
+PRINTFORMW それでは、誰を標的にしようか……
+CALL SELECT_CHARA_LIST_ONLY_LOGIC_SLG("ASSASINATION_TARGET", "ASSASINATION_TARGET")
+IF RESULT == -1
+	PRINTFORMW いや、やはり危険だ、やめておこう
+	RETURN 1
+ENDIF
+対象 = RESULT
+PRINTFORMW %ANAME(対象)%に闇討ちを試みることにした
+PRINTFORMW 任務を受けた%ANAME(暗殺者)%は敵地へと向かった
+PRINTFORML ・
+PRINTFORML ・
+PRINTFORMW ・
+;暗殺持ちで武闘が10以上高いなら7/8、暗殺持ちなら5/8、武闘が10以上高いなら3/8、素ならば1/8で成功する
+暗殺成否 = RAND:400
+IF ABL:暗殺者:武闘 > ABL:対象:武闘 + 10
+	暗殺成否 += 100
+ENDIF
+IF 暗殺成否 < 350
+	PRINTFORMW 闇討ちに失敗してしまった！
+	PRINTFORMW %ANAME(暗殺者)%は敵兵士に捕まってしまった
+	SIF !(IS_MALE(暗殺者) || (CONFIG:200 && 暗殺者 != MASTER))
+		CALL RAPE_ASSASSIN(暗殺者)
+	PRINTFORML 
+	PRINTFORML %ANAME(暗殺者)%は何とか隙をついて逃げ帰ってきた
+	PRINTFORM しかし
+	CALL COLORPRINT(@"%ANAME(GET_COUNTRY_BOSS(CFLAG:対象:所属))%勢力との関係は悪化してしまった", カラー_注意)
+	PRINTFORMW
+	CALL CHANGE_RELATION_C_TO_C(CFLAG:対象:所属, CFLAG:MASTER:所属, -500, 500)
+ELSE
+	PRINTFORML 闇討ちに成功した！
+	CALL ADD_COOLTIME(対象, 3)
+ENDIF
+RETURN 1
+
+@SELECT_CHARA_LIST_SHOW_LOGIC_ASSASINATION_ASSASIN(対象)
+#DIM 対象
+RETURN GET_COUNTRY_BOSS(CFLAG:対象:所属) != 対象 && CFLAG:対象:所属 == CFLAG:MASTER:所属 && !IS_ANIMAL(対象) && CFLAG:対象:行動不能状態 != 行動不能_子供
+
+@SELECT_CHARA_LIST_SELECT_LOGIC_ASSASINATION_ASSASIN(対象)
+#DIM 対象
+RETURN IS_FREE(対象) && CFLAG:対象:捕虜先 == 0
+
+@SELECT_CHARA_LIST_SHOW_LOGIC_ASSASINATION_TARGET(対象)
+#DIM 対象
+RETURN IS_COUNTRY(CFLAG:対象:所属) && CFLAG:対象:所属 != CFLAG:MASTER:所属 && !IS_ANIMAL(対象) && CFLAG:対象:行動不能状態 != 行動不能_子供
+
+@SELECT_CHARA_LIST_SELECT_LOGIC_ASSASINATION_TARGET(対象)
+#DIM 対象
+RETURN CFLAG:対象:捕虜先 == 0
+
+;---------------------------------------------
+;暗殺失敗
+;---------------------------------------------
+@RAPE_ASSASSIN(ARG:0)
+
+PRINTFORML 
+PRINTFORMW 捕えられた%ANAME(ARG:0)%が凌辱されている…
+PRINTFORML 
+SELECTCASE RAND:40
+	CASE 0
+		PRINTFORML %ANAME(ARG:0)%は大の字の格好でベッドに固定されながら兵士に犯されている
+		PRINTFORML 兵士が腰を振る度に、結合部から下品な音と共に大量の白濁液が溢れ出る
+		PRINTFORML 多数の兵士達に絶え間なく犯され続け、%ANAME(ARG:0)%はもはや喘ぎ続ける事しか出来なくなっており
+		PRINTFORMW 兵士が低く唸りながら射精すると、%ANAME(ARG:0)%は何度目かの絶頂と共に大きく背を反らした
+	CASE 1
+		PRINTFORML %ANAME(ARG:0)%は見せしめとして裸で晒し台に固定されている
+		PRINTFORML その全身は兵士たちの精液で見るも無残に汚されており、ところどころ落書きもされている
+		PRINTFORML 今も兵士に犯されており、%ANAME(ARG:0)%は涙を流しながら歯をくいしばって耐えている
+		PRINTFORMW しかし身体はすっかり躾けられており、膣出しされると全身を痙攣させつつ望まぬ絶頂に達するのだった
+	CASE 2
+		PRINTFORML 牢屋の中、%ANAME(ARG:0)%は万歳の格好で宙吊りにされて多数の兵士に囲まれている
+		PRINTFORML 下腹部と尻には多数の　正　の字が書かれており、足元の水たまりと合わせて散々凌辱されたのが分かる
+		PRINTFORML そして今もまた両穴を深く抉られながら射精され、%ANAME(ARG:0)%は獣が吠える様な嬌声を上げて絶頂した
+		PRINTFORMW 女日照りの兵士たちがこのぐらいで満足するはずもなく、その後も延々と彼らの精処理に使われ続けた
+	CASE 3
+		PRINTFORML %ANAME(ARG:0)%は目隠しをされ全身を縄で縛られた状態で犯されている
+		PRINTFORML %ANAME(ARG:0)%の身体に目を付けた将校によって直接“尋問”されているのだ
+		PRINTFORML ペニスの形を覚えてしまう程に犯され続け、%ANAME(ARG:0)%の喉からは呻き声ではなく喘ぎ声が漏れ出している
+		PRINTFORMW 尋問は一晩中続き、%ANAME(ARG:0)%はすっかり男のペニスと一体化するような錯覚に陥ってしまった
+	CASE 4
+		PRINTFORML 薄暗い牢屋の中、%ANAME(ARG:0)%は虚ろな表情で兵士達に奉仕している
+		PRINTFORML 薬を打たれ意識が朦朧としている%ANAME(ARG:0)%は、従順に彼らのペニスを咥えこみ扱いている
+		PRINTFORML 膣内でペニスが膨れ上がるのを感じると、優しく彼のペニスを締め付けて一滴残らず精液を受け入れる
+		PRINTFORMW 子宮を焦がされる程の熱を感じ身震いしつつ絶頂しながらも、%ANAME(ARG:0)%は次の兵士への奉仕へと移った
+		CFLAG:(ARG:0):薬物依存 += RAND(20, 50)
+	CASE 5
+		PRINTFORML %ANAME(ARG:0)%は兵士たちによって散々嬲られ、息も絶え絶えに床に倒れている
+		PRINTFORML 体をガクガクと震わせながら横たわる%ANAME(ARG:0)%の周囲には、様々な器具が転がっている
+		PRINTFORML 耳元でこのまま続けるのと自分から体を開くのと、どちらが良いかと囁かれた%ANAME(ARG:0)%はビクッと震える
+		PRINTFORML そしておずおずと秘貝を両手で割り開いて見せ、優しく犯してくださいと兵士達に“おねだり”をした
+		PRINTFORMW おねだりする%ANAME(ARG:0)%の姿に満足した兵士たちは、すっかり従順になった彼女を散々可愛がった
+	CASE 6
+		PRINTFORML %ANAME(ARG:0)%は首輪とリードをつけられ、四つん這いのまま連行されている
+		PRINTFORML その尻穴には尻尾つきのビーズがハメられており、歩く度に尻をふりふりと尻尾を揺らす姿はまさに犬の様だ
+		PRINTFORML 時折兵士に尻を叩かれたり乳首を捻られたりするが、%ANAME(ARG:0)%は顔を真っ赤にして体を震わせる事しかできない
+		PRINTFORMW やがて我慢できなくなった兵士たちによって、犬にふさわしい姿勢のまま散々犯された
+	CASE 7
+		PRINTFORML %ANAME(ARG:0)%は兵士達の慰み者として犯されている
+		PRINTFORML 一人の兵士の上で腰を振らされながら、口と両手を使いペニスをしごいている
+		PRINTFORML 少しでも奉仕を緩めると罵声と暴力が飛んでくるため、%ANAME(ARG:0)%は必死で奉仕を続ける
+		PRINTFORML 兵士が限界を迎え%ANAME(ARG:0)%の中に濃い精液を放つと、%ANAME(ARG:0)%は引き攣った笑顔でそれを受け入れる
+		PRINTFORMW もちろんそれで終わりではなく、すぐまた次の兵士によってペニスをねじ込まれて犯される事を繰り返した
+	CASE 8
+		PRINTFORML %ANAME(ARG:0)%は兵士達の酒場の一角で鎖につなげられ、見世物にされている
+		PRINTFORML 娼婦のような卑猥な衣装を身につけさせられ、身体を隠そうとすれば罰と称して犯された
+		PRINTFORML 酔った兵士によって体を弄られても抵抗は許されず、弄ばれるままに喘ぐしかなかった
+		PRINTFORMW やがて兵士達のボルテージが最高潮に達すると、机の上に運ばれて多数の兵士によって輪姦された
+	CASE 9
+		PRINTFORML %ANAME(ARG:0)%は兵士達の慰安要員として水浴び場で働かされている
+		PRINTFORML 汚れた兵士達の体を自らの体を使って隅々まで洗わされる
+		PRINTFORML %ANAME(ARG:0)%の様な女にそんなことをされれば兵士も我慢できず、彼らの肉棒は限界までそそり立つ
+		PRINTFORML それを鎮めるのもまた%ANAME(ARG:0)%の仕事であり、膣で咥えこんで一人一人の精を受け止めていく
+		PRINTFORMW 奉仕は日が暮れるまで続き、その頃には%ANAME(ARG:0)%の雌穴からは収まりきらなかった精液が垂れ流しになっていた
+	CASE 10
+		PRINTFORML %ANAME(ARG:0)%は優れた戦果を挙げた兵士への報償にされた
+		PRINTFORML 彼は多数の兵が見ている前で、抵抗する%ANAME(ARG:0)%を押さえつけて無理矢理ペニスをねじ込んだ
+		PRINTFORML そのあまりの逞しさと激しい抽送に%ANAME(ARG:0)%はすぐに痙攣して絶頂してしまい、兵士達に笑われる
+		PRINTFORMW しかし数度絶頂する頃にはすっかり彼の一物の虜になってしまい、自ら腰を振って種をねだっていた
+	CASE 11
+		PRINTFORML %ANAME(ARG:0)%は特設肉便器として宿舎に繋がれている
+		PRINTFORML しばしば兵士がやって来ては%ANAME(ARG:0)%を好き放題に犯し、無遠慮に膣出しをしては去っていく
+		PRINTFORML すっかり汚された%ANAME(ARG:0)%は兵士にホースで水をかけて洗われ、余りの惨めさに泣いてしまう
+		PRINTFORMW その表情が兵士の加虐心を刺激し、綺麗になったばかりの体を再び犯され汚されてしまった
+	CASE 12
+		PRINTFORML %ANAME(ARG:0)%は牢屋の中で兵士達に廻されている
+		PRINTFORML イボイボ付きの巨大なペニスで膣肉をゴリゴリと抉られる度に呻き声が漏れ、口で咥えたペニスを刺激する
+		PRINTFORML 喉奥まで乱暴にペニスをねじ込まれると、窒息感と雄の臭いできゅっと膣を締め付けペニスを刺激する
+		PRINTFORMW そうやって兵士達はまるで%ANAME(ARG:0)%を具合の良い玩具のように乱暴に使い続けた
+	CASE 13
+		PRINTFORML 牢屋で繋がれている%ANAME(ARG:0)%の前に一匹の犬が連れてこられた
+		PRINTFORML 犬は血走った目で%ANAME(ARG:0)%を見つめ、そのペニスははち切れんばかりに勃起している
+		PRINTFORML 恐怖で体をこわばらせる%ANAME(ARG:0)%に兵士が自分たちと犬、どちらに犯されたいかと問う
+		PRINTFORML %ANAME(ARG:0)%は涙を流しながら恐る恐る体を開き、どうかわたしを犯してくださいと兵士達に懇願した
+		PRINTFORMW しかし彼らは%ANAME(ARG:0)%を散々犯しつくした後、無慈悲にも犬を%ANAME(ARG:0)%にけしかけ種付けさせた
+	CASE 14
+		PRINTFORML 多数の兵に犯された%ANAME(ARG:0)%は力なく床に転がっている
+		PRINTFORML 雌穴からどろりと精液を溢れさせながら、%ANAME(ARG:0)%は茫然と孕んだらどうしようかと考えていた
+		PRINTFORML しかし%ANAME(ARG:0)%が休める暇も長く続かず、新しくやってきた兵士が%ANAME(ARG:0)%に覆い被さり犯しだす
+		PRINTFORMW もはや抵抗もせずされるがままの%ANAME(ARG:0)%は、男に与えられる快感のままに喘ぎ声をだして身を震わせた
+	CASE 15
+		PRINTFORML %ANAME(ARG:0)%は兵達の遊びにより囚人たちに与えられた
+		PRINTFORML 突然放り込まれた極上の雌に、囚人たちは我先に群がり、恥垢だらけのペニスを擦り付ける
+		PRINTFORML %ANAME(ARG:0)%は必死で抵抗するがそれも空しく、口と雌穴や尻穴にペニスをねじ込まれてしまう
+		PRINTFORML 吐き気と痛みで体を震わせる%ANAME(ARG:0)%だが、それが彼らのペニスを程よく刺激してより激しく犯された
+		PRINTFORMW やがて囚人全員に何度も使われた%ANAME(ARG:0)%は、元の姿が分からない程に汚された後に兵士達に回収された
+	CASE 16
+		PRINTFORML 身体検査との名目で%ANAME(ARG:0)%は裸のまま尋問されている
+		PRINTFORML 体を隠そうとすると兵士に怒鳴られ、罰としてクリトリスや乳首をつねられる
+		PRINTFORML ねっとりとした口調で責められながら尻を揉みしだかれても、%ANAME(ARG:0)%は直立の姿勢で我慢するしかなかった
+		PRINTFORMW そして雌穴の中に凶器を隠していると難癖をつけられると、彼らの凶器で中身を“調査”された
+	CASE 17
+		PRINTFORML %ANAME(ARG:0)%は兵士達への慰安の為に尻穴として設置されている
+		PRINTFORML 今もまた一人の兵士が%ANAME(ARG:0)%の中で射精を終え、震える彼女の尻の書きかけの　正　の字に一角を書き加えた
+		PRINTFORML 散々種付けされ絶頂させられた%ANAME(ARG:0)%の足元には、溢れ出た精液と愛液で小さな水たまりが出来ている
+		PRINTFORMW もはや痛みや嫌悪感よりも与えられる快楽の方が勝りだした%ANAME(ARG:0)%は、心の底で次を待ちわびていた
+	CASE 18
+		PRINTFORML とある豪奢な一室で、%ANAME(ARG:0)%は将校に跨って奉仕をしている
+		PRINTFORML 連行途中に拷問室からの悲鳴を聞かされ恐怖で震えていた%ANAME(ARG:0)%は、男に奉仕を要求されそれを受け入れた
+		PRINTFORML そして彼の要求通りに淫らな衣装を身に着け、卑猥な言葉を紡ぎながら積極的に腰をくねらせる
+		PRINTFORMW やがて彼が%ANAME(ARG:0)%の中に熱い濁流を解き放つと、ビクビクと身を震わせながら子宮でそれを飲みこんだ
+	CASE 19
+		PRINTFORML %ANAME(ARG:0)%は大股開きの格好で台座に固定されている
+		PRINTFORML 媚薬を塗った絵筆で身体中の性感帯を散々弄られ、%ANAME(ARG:0)%は息を荒げ泡を吐きながらガクガクと身体を震わせる
+		PRINTFORML そんな%ANAME(ARG:0)%の割れ目に兵士が肉棒を擦り付けると、理性のタガが外れた彼女はどうか犯してくださいと懇願した
+		PRINTFORML 笑う兵士に一突きで一気に最奥までペニスをねじ込まれ、%ANAME(ARG:0)%は大きく体を反らして潮を吹きながら絶頂する
+		PRINTFORMW ペニスが出入りする度に脳天まで貫かれる様な快感を受けながら、%ANAME(ARG:0)%は気を失うまで犯され続けた
+	CASE 20
+		PRINTFORML %ANAME(ARG:0)%はビデオカメラに撮られながら犯されている
+		PRINTFORML 必死で顔を隠そうとするが、兵に腕を掴まれて喘ぐ顔をアップで写されてしまう
+		PRINTFORML 何度も射精され絶頂させられた%ANAME(ARG:0)%は、やめてほしければカメラに向かって自己紹介しろと言われ
+		PRINTFORMW 顔を真っ赤にして泣きながら笑顔を作り、何回犯され何回絶頂したかを細かくアピールし出した
+	CASE 21
+		PRINTFORML %ANAME(ARG:0)%は兵士によって連れてこられた小鬼によって犯されている
+		PRINTFORML 思わぬ僥倖で極上の雌を与えられた小鬼は必死に腰を振って%ANAME(ARG:0)%に種付けしようとしている
+		PRINTFORML その身の丈に似合わぬ凶悪なペニスによって一突き毎に%ANAME(ARG:0)%はだらしがない声を漏らす
+		PRINTFORML 本来取るに足らない相手に犯されてヨガり狂う%ANAME(ARG:0)%を見て、兵士達はげらげらと笑っている
+		PRINTFORMW やがて小鬼が確実に卵子を孕ませようと特濃の精液を放つと、%ANAME(ARG:0)%はあられもない嬌声を上げた
+	CASE 22
+		PRINTFORML 一人の兵士と手錠でつながったまま、%ANAME(ARG:0)%は彼の部屋で犯されている
+		PRINTFORML 何度も殴られ観念した%ANAME(ARG:0)%は、彼の機嫌を損なわない様に気を使いながら交わっている
+		PRINTFORML 片手を恋人の様に繋ぎながら、彼に揉みしだかれれば喘ぎ口付けされれば積極的に舌を絡ませる
+		PRINTFORMW やがて彼が低く呻き彼女を抱きしめながら射精すると、%ANAME(ARG:0)%は呻き声をかみ殺しながらそれを受け入れた
+	CASE 23
+		PRINTFORML 牢獄の中にくぐもった%ANAME(ARG:0)%の声が響く
+		PRINTFORML その尻穴には巨大な張子がねじ込まれており、菊門から与えられる熱さに%ANAME(ARG:0)%は身悶える
+		PRINTFORML ガバガバじゃねーかと兵士達に嘲られ張子をぐいぐいと押しこまれると、%ANAME(ARG:0)%は目を白黒させて痙攣する
+		PRINTFORML そんな%ANAME(ARG:0)%を笑いながら、彼らはペニスを取りだし彼女の雌穴を堪能する
+		PRINTFORMW 張子で圧迫された膣穴はきつくペニスを締め付け、その具合の良さに何度も何度も彼らの精液が放たれた
+	CASE 24
+		PRINTFORML %ANAME(ARG:0)%は深々とペニスを突き刺されたまま、兵士達に尋問されている
+		PRINTFORML しかしその内容は好きな体位や性感帯の位置等下品なもので、聞かれる度に%ANAME(ARG:0)%は顔を真っ赤にして答える
+		PRINTFORML その質問の合間にも腰を突き上げられ、子宮を小突かれて悶える%ANAME(ARG:0)%を、兵士達はニヤニヤと眺めている
+		PRINTFORMW 3回目の膣内射精を受けてようやく尋問が終わる頃には、%ANAME(ARG:0)%はだらしなく舌を垂らして雌の顔をしていた
+	CASE 25
+		PRINTFORML %ANAME(ARG:0)%は手術台の様なものに寝かされ拘束されている
+		PRINTFORML 何をされるのかと震える%ANAME(ARG:0)%の首筋に怪しい薬を注射される
+		PRINTFORML すると%ANAME(ARG:0)%の体が熱くうずきだし、息を荒げてたまらないといった具合に腰をくねらせ出す
+		PRINTFORML 拘束を外されると%ANAME(ARG:0)%は躊躇なく自慰をはじめ、兵士達に見られながら潮を吹いて絶頂してしまった
+		PRINTFORMW それでも体の疼きが収まらない%ANAME(ARG:0)%は、兵士達に自ら体を投げ出し、散々犯されながらヨガり狂った
+		CFLAG:(ARG:0):薬物依存 += RAND(20, 50)
+	CASE 26
+		PRINTFORML %ANAME(ARG:0)%は裸に剥かれて町中へと連れ出された
+		PRINTFORML 暗殺を企てた凶悪犯として民衆の前にさらされ、見せしめとして兵士達に犯されてしまう
+		PRINTFORML それを見ている男たちの目は血走っており、皆一様にペニスを勃起させている
+		PRINTFORMW 兵士達は最後に%ANAME(ARG:0)%を晒し台に拘束し、民衆に開放すると、彼らは一斉に%ANAME(ARG:0)%に群がった
+	CASE 27
+		PRINTFORML %ANAME(ARG:0)%は鎖に繋がれて延々と兵士達の相手をさせられている
+		PRINTFORML 兵士達は競うように%ANAME(ARG:0)%を孕ませようと濃厚な子種を注ぎ込み続けている
+		PRINTFORML 最初は嫌がっていた%ANAME(ARG:0)%もまた、むせかえる様な雄の臭いと浴びせられる快楽に負け自ら腰を振りだしている
+		PRINTFORMW %ANAME(ARG:0)%の胎内が彼らの種で満たされるまで夜通し犯され続けた
+	CASE 28
+		PRINTFORML %ANAME(ARG:0)%は卑猥な衣装を着せられたまま兵舎内を逃げ回っている
+		PRINTFORML 追いかける兵士に一定時間捕まらなければ逃がしてやると言われているのだ
+		PRINTFORML しかし%ANAME(ARG:0)%が逃げる先々に兵士達が回り込んでおり、捕まる度に押し倒されて犯されてしまう
+		PRINTFORML 種付けされると%ANAME(ARG:0)%は解放され鬼ごっこが再開するが、何度逃げても再び捕えられてしまう
+		PRINTFORMW やがてふらふらとなり動けなくなった%ANAME(ARG:0)%は牢屋に連れ戻され、そこでもまた散々に犯された
+	CASE 29
+		PRINTFORML %ANAME(ARG:0)%はひざまづいて兵士のペニスを咥えこんでいる
+		PRINTFORML 刃物で脅され逆らう事も出来ず、体を震わせながら懸命に彼らに奉仕をする
+		PRINTFORML やがて口内に雄臭い精液を注ぎ込まれると、吐き気をこらえながらもなんとか全ての精液を飲み干す
+		PRINTFORML しかし次から次へと差し出されるペニスを相手させられ、やがて%ANAME(ARG:0)%が飲み干せずにこぼしてしまうと
+		PRINTFORMW お仕置きと称して、嫌々と首を振る%ANAME(ARG:0)%の下の口へとペニスをねじ込まれ精液を注がれてしまった
+	CASE 30
+		PRINTFORML どびゅるる！と%ANAME(ARG:0)%の中に勢いよく兵士の精液が放たれる
+		PRINTFORML %ANAME(ARG:0)%は目隠しと口枷をされたまま体を痙攣させてそれを膣奥で受け止めるしかなかった
+		PRINTFORML ペニスを引き抜かれると、今まで放たれた大量の精液がどろりと溢れ出しながら秘貝がぱくぱくと開閉していた
+		PRINTFORML 大きく息を吸い呼吸を整える%ANAME(ARG:0)%だが、そんな事はお構いなしに次のペニスがねじ込まれる
+		PRINTFORMW もはやそれだけで絶頂してしまうほどとろとろになった%ANAME(ARG:0)%の膣肉を愉しみながら、兵士は腰を振りだした
+	CASE 31
+		PRINTFORML %ANAME(ARG:0)%は兵士達の余興として駆り出され、豚と交尾をさせられている
+		PRINTFORML 必死で逃れようとするが、ドリルの様になった豚のペニスを深々と挿入されておりそれも叶わない
+		PRINTFORML 興奮して種付けしようと腰を打ち付けてくる豚におぞましさを覚える%ANAME(ARG:0)%だが
+		PRINTFORML その雄らしい腰遣いに次第に息を荒げて無意識に腰を振りだしており、一組のつがいに成り下がっていた
+		PRINTFORMW やがて豚のどろどろとした精液でたっぷりと子宮を満たされた%ANAME(ARG:0)%は、アヘ顔を晒して地べたに転がっていた
+	CASE 32
+		PRINTFORML %ANAME(ARG:0)%はまんぐり返しの姿勢で固定されている
+		PRINTFORML 怯える%ANAME(ARG:0)%の目の前にグツグツと煮えたぎった熱湯が用意される
+		PRINTFORML これを注ぎ込んだらどうなるかなと囁かれ、%ANAME(ARG:0)%は想像しただけで恐怖に震え許しを請う
+		PRINTFORML 俺たちの精液とどっちが良いかと問われ、%ANAME(ARG:0)%は躊躇いながらも精液を注いでくださいと泣きながら答えた
+		PRINTFORMW %ANAME(ARG:0)%の要望に応えるべく兵士達は代わる代わる彼女を犯し、たっぷりと精液を注ぎ込んでやった
+	CASE 33
+		PRINTFORML %ANAME(ARG:0)%は処刑される代わりに娼婦として兵士達の相手をさせられている
+		PRINTFORML 上玉を味わおうと兵士達がひっきりなしに%ANAME(ARG:0)%の元を訪れてくる
+		PRINTFORML %ANAME(ARG:0)%は必死で笑顔を取り繕って、言葉と身体を使って丁寧にサービスをしていく
+		PRINTFORMW 何十人目かの客の精を受ける頃には、もはや演技ではなく心の底から娼婦として振る舞い絶頂していた
+	CASE 34
+		PRINTFORML %ANAME(ARG:0)%は巨漢の兵士にのしかかられて唇を塞がれながら激しく犯されている
+		PRINTFORML 体躯に相応しい巨大なペニスでどすんどすんと子宮が潰れる様なピストンを受け、一突き毎に体を痙攣させている
+		PRINTFORML あまりの衝撃と快楽にもがく%ANAME(ARG:0)%だが、がっしりと抱きしめられて逃れることは出来ない
+		PRINTFORMW やがて強烈な射精を胎内へと受けながら、%ANAME(ARG:0)%は犯されてる事を忘れて甘えた声でヨガり狂った
+	CASE 35
+		PRINTFORML %ANAME(ARG:0)%は裸のまま目隠しをされ、リードを引かれて兵士に連行されている
+		PRINTFORML ふらついた足取りの%ANAME(ARG:0)%の股間からは大量の白濁液が垂れており、垂れ落ちた水痕が道標の様になっている
+		PRINTFORML 兵士に捕まって散々輪姦された%ANAME(ARG:0)%は、もはや抵抗もせず従順に彼らにつき従っている
+		PRINTFORMW そうして兵舎に連れてこられた%ANAME(ARG:0)%は、そこでもまた多数の兵士たちの慰み者として犯された
+	CASE 36
+		PRINTFORML 薄暗い部屋の中に%ANAME(ARG:0)%の悲鳴が響いている
+		PRINTFORML 四つん這いの姿勢で固定されている%ANAME(ARG:0)%の尻穴には、屈強な兵士の腕が手首までねじ込まれている
+		PRINTFORML 腕を出入りさせる度に痙攣して悲鳴を上げる%ANAME(ARG:0)%を面白がり、兵士達はげらげら笑いながら攻め立てる
+		PRINTFORML 歯を食いしばって耐えようとする彼女だが、指で腸内を撫でられると大きく背を反らして思わず絶頂してしまった
+		PRINTFORMW 腕を抜かれてもその尻穴はぽっかりと開いてしまい、今度は欲情した兵士達のペニスで栓をされてしまった
+	CASE 37
+		PRINTFORML %ANAME(ARG:0)%はベッドの上で一人の将校と腰を打ち付けあっている
+		PRINTFORML その交わりはまるで恋人の様に優しく、%ANAME(ARG:0)%も腰をくねらせ甘えた声を出している
+		PRINTFORML 兵士達に乱暴に犯され続けた%ANAME(ARG:0)%にとって、優しく愛撫されるだけで心が満たされ雌の本能が疼く
+		PRINTFORMW 積極的にしがみついてくる%ANAME(ARG:0)%に見えない角度でニヤリと笑いながら、男は彼女の中へと射精した
+	CASE 38
+		PRINTFORML %ANAME(ARG:0)%は酒場で兵士達に給仕をさせられている
+		PRINTFORML 無論ただの給仕ではなく、娼婦のような卑猥な衣装で、仕事の最中でも兵達に好き放題体を弄ばれる
+		PRINTFORML 抵抗したり仕事をミスすればその度に躾けと称して他の兵達の前で犯され種付けされた
+		PRINTFORML 兵達が帰る頃には服もすべて剥ぎ取られ全身を汚された状態で床に転がされていた
+		PRINTFORMW その後は店主に持ち帰られ、鎖で繋がれて一晩中たっぷりと種付けされた
+	CASE 39
+		PRINTFORML 牢屋に繋がれた%ANAME(ARG:0)%は尋問と称して兵士達に犯されている
+		PRINTFORML 大量の薬を投与された%ANAME(ARG:0)%はもはやまともな思考も出来ず、ただ火照った体をくねらせ快楽を求める
+		PRINTFORML 尋問を終わらせる為ではなく快楽をおねだりする為に%ANAME(ARG:0)%は全てを自白してしまい
+		PRINTFORMW ご褒美として大量の種を注がれながら、%ANAME(ARG:0)%は頭がはじけそうな快楽を受けて幾度も絶頂した 
+		CFLAG:(ARG:0):薬物依存 += RAND(20, 50)
+ENDSELECT
+CALL FUCK_GANGBANG(ARG:0, GET_SPERM_ID("兵士"), @"兵士の\@RAND:2 ? ペニス # 唇\@", @"兵士")
+CALL FUCK_GANGBANG(ARG:0, GET_SPERM_ID("兵士"), @"兵士の\@RAND:2 ? ペニス # 唇\@", @"兵士")
+RETURN 1
+
+@EVENT_DAILY_ASSASINATION_ALLOW_WHEN_WANDARING()
+RETURN 1
