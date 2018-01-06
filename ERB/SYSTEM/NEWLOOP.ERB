@@ -590,8 +590,9 @@ CALL SINGLE_DRAWLINE
 
 ;ここから登録キャラの表示
 PRINTBUTTON "[あなたを新規作成]", 0
-PRINTFORM ※ 現在の「あなた」のデータをリセットします
-IF FLAG:あなた作成済み && MASTER != NAME_TO_CHARA("あなた")
+IF FIND_CHARADATA(TOSTR(-2))
+	PRINTBUTTON "[保存済みのデータを利用]", 97
+ELSEIF FLAG:あなた作成済み && MASTER != NAME_TO_CHARA("あなた")
 	PRINTL
 	PRINTBUTTON @"[%ANAME(NAME_TO_CHARA("あなた"))%を選択]", 2
 ENDIF
@@ -636,6 +637,18 @@ IF RESULT == 0
 	CALL MASTER_EDIT(LOCAL:1)
 	選択MASTERID = GET_ID(RESULT)
 	FLAG:あなた新規作成 = 1
+ELSEIF RESULT == 97
+	LOCAL:1 = NAME_TO_CHARA("あなた")
+	CALL LOAD_CUSTOM_DATA(-2)
+	LOCAL:2 = RESULT
+	TALENT:(LOCAL:2):カスタムキャラ = 0
+	SWAP CFLAG:(LOCAL:1):キャラＩＤ, CFLAG:(LOCAL:2):キャラＩＤ
+	選択MASTERID = GET_ID(LOCAL:2)
+	FLAG:あなた新規作成 = 1
+	NO:(LOCAL:2) = NO:(LOCAL:1)
+	NO:(LOCAL:1) = __INT_MAX__
+	CALL SWAP_CHARA(LOCAL:1, LOCAL:2)
+	CALL DELETE_CHARA(LOCAL:2)
 ;固有君主利用
 ELSEIF RESULT == 1 && FINDELEMENT(SP_COUNTRY_START, 特殊勢力スタート_君主) != -1
 	SP_COUNTRY_START_CHANGE_BOSS = 0
@@ -803,6 +816,15 @@ NEXT
 #DIM 対象
 #DIM 消去行
 #DIM 士官, 3000
+#DIM ランダム可能
+ランダム可能 = 0
+FOR LOCAL, 1, CITY_NUM + 1
+	IF !IS_COUNTRY(CITY_OWNER:LOCAL)
+		ランダム可能 = 1
+		BREAK
+	ENDIF
+NEXT
+
 勢力 = GET_NEW_COUNTRY()
 
 CALL SINGLE_DRAWLINE
@@ -814,6 +836,7 @@ PRINTL
 CALL SINGLE_DRAWLINE
 PRINTL 旗揚げする都市を選択してください
 PRINTL 勢力が所有している都市は、その勢力の所有都市数が1の場合は選択できません
+CALL PRINTBUTTON_EX("[ランダム]", 1000, ランダム可能)
 PRINTBUTTON "[戻る]", 0
 PRINTL
 CALL SINGLE_DRAWLINE
@@ -825,6 +848,14 @@ INPUT
 
 IF RESULT == 0
 	RETURN -1
+ELSEIF RESULT == 1000 && ランダム可能
+	WHILE 1
+		都市 = RAND(1, 1  + CITY_NUM + 1)
+		SIF !IS_COUNTRY(CITY_OWNER:都市)
+			BREAK
+	WEND
+	REDRAW 1
+	PRINTFORMW %GET_RELAYNAME(都市)%で旗揚げします	
 ELSEIF RESULT >= 1001 && RESULT <= 1001 + CITY_NUM
 	都市 = RESULT - 1000
 	;指定された都市が存在し、無所属である場合
@@ -866,7 +897,7 @@ RETURN
 ;-------------------------------------------------
 @SELECT_CHARA_LIST_SHOW_LOGIC_START_WITH_NEW_COUNTRY(対象)
 #DIM 対象
-RETURN GET_COUNTRY_BOSS(CFLAG:対象:所属) != 対象 && IS_FIXED_CHARA(対象) && 対象 != NAME_TO_CHARA("あなた") && 対象 != MASTER
+RETURN GET_COUNTRY_BOSS(CFLAG:対象:所属) != 対象 && !TALENT:対象:特殊勢力素質 && 対象 != NAME_TO_CHARA("あなた") && 対象 != MASTER
 ;-------------------------------------------------
 ;「あなた」を新規に作成した場合のボーナス
 ;-------------------------------------------------
