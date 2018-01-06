@@ -1,0 +1,326 @@
+﻿;-------------------------------------------------
+;「闘技場」の本体
+;-------------------------------------------------
+@SHOP_LIFE_ARENA(対象)
+#DIM 対象
+#DIM 敵戦闘力
+#DIM 相手男
+#DIMS CONST 相手候補男 = "狼男", "天狗", "鬼", "野良妖怪", "ならず者"
+#DIMS CONST 相手候補女 = "天狗の娘", "河童の娘", "女傭兵", "巫女", "野盗の娘"
+#DIMS 相手名前
+#DIM 出場キャラ
+#DIM 対戦相手がキャラ
+
+DUMPRAND
+
+出場キャラ = -1
+CALL SELECT_CHARA_RANDOM("ARENA")
+IF RESULT != -1
+	IF (IS_MALE(対象) && IS_FEMALE(RESULT))
+	ELSEIF (IS_FEMALE(対象) && HAS_PENIS(RESULT))
+	ELSEIF (IS_FEMALE(対象) && IS_MALE(RESULT))
+	ELSE
+		GOTO ENEMY_CANCEL
+	ENDIF
+	出場キャラ = RESULT
+ENDIF
+
+$ENEMY_CANCEL
+
+CALL SINGLE_DRAWLINE
+PRINTFORML %ANAME(対象)%は地下闘技場にやってきた
+PRINTFORML 大勢の人間や妖怪たちで盛り上がっている
+
+IF !RAND:5
+	SELECTCASE RAND:4
+		CASE 0
+			PRINTFORML 中央のリングでは敗北した女戦士が大勢の前で凌辱されている…
+		CASE 1
+			PRINTFORML リングの一つで今まさに女奴隷が鬼に組み伏せられ犯されそうになっている…
+		CASE 2
+			PRINTFORML 賭けに熱中しすぎた観客たちがリングの脇で場外乱闘している姿が目に映る…
+		CASE 3
+			PRINTFORML 血まみれになった剣闘士が%ANAME(対象)%の横を担架で運び出されて行った…
+	ENDSELECT
+
+		PRINTFORML 「よく来たな、ここは闘技場だ」
+		PRINTFORML 「見ての通りここでは熱い闘いを見世物にしている」
+		PRINTFORML 「それも普通の所と違って、女闘士による闘いだ」
+		PRINTFORML 「その意味は…分かるだろ？」
+		IF IS_MALE(対象)
+			PRINTFORML 彼は下卑た笑みを浮かべた
+		ELSE
+			PRINTFORML 彼は%ANAME(対象)%の身体を舐める様に見つめながら下卑た笑みを浮かべた
+		ENDIF
+	PRINTFORML 「なぁに、勝てば金を受け取って帰れるだけだ」
+ENDIF
+
+PRINTFORML 
+PRINTFORML 「…さて、どいつと戦う？強敵の方が稼げるぜ」
+PRINTFORML 「参加料は金3000だ」
+
+IF 出場キャラ >= 0
+	PRINTFORML 「……そういや、今日は飛び入り参加者がいるな」
+	PRINTFORML
+	PRINTFORML こちらの実力:{ARENA_GET_POWER(対象)}
+	CALL ASK_MULTI("弱い敵(目安:80)" ,"並の敵(目安:130)" ,"強い敵(目安:180)", "とてとて(目安:250)", @"%ANAME(出場キャラ)%(目安:{ARENA_GET_POWER(出場キャラ)})", "帰る")
+ELSE
+	PRINTFORML 
+	PRINTFORML こちらの実力:{ARENA_GET_POWER(対象)}
+	CALL ASK_MULTI("弱い敵(目安:80)" ,"並の敵(目安:130)" ,"強い敵(目安:180)", "とてとて(目安:250)", "帰る")
+ENDIF
+
+対戦相手がキャラ = 0
+
+SELECTCASE RESULT
+	CASE 0
+		敵戦闘力 = 60 + RAND:40
+	CASE 1
+		敵戦闘力 = 90 + RAND:40
+	CASE 2
+		敵戦闘力 = 160 + RAND:40
+	CASE 3
+		敵戦闘力 = 230 + RAND:40
+	CASE 4
+		敵戦闘力 = ARENA_GET_POWER(出場キャラ) * RAND(80, 120) / 100
+		対戦相手がキャラ = 1
+	CASE 5
+		INITRAND
+		RETURN 0
+ENDSELECT
+
+PRINTFORML 金3000を支払った
+MONEY -= 3000
+
+IF !対戦相手がキャラ
+	IF IS_FEMALE(対象) && HAS_PENIS(対象)
+		PRINTFORML 「それと、お前さんの場合、相手の性別も選んでもらおうか？」
+		PRINTFORML 「へっへ、どちらにせよ面白い見世物になるぜ」
+		PRINTFORML どちらを選ぶ？
+		CALL ASK_YN("男" ,"女")
+		相手男 = !RESULT
+	ELSEIF IS_MALE(対象)
+		相手男 = 0
+	ELSE
+		相手男 = 1
+	ENDIF
+
+	IF 相手男
+		相手名前 = %相手候補男:(RAND:VARSIZE("相手候補男"))%
+	ELSE
+		相手名前 = %相手候補女:(RAND:VARSIZE("相手候補女"))%
+	ENDIF
+ELSE
+	相手名前 = %ANAME(出場キャラ)%
+	相手男 = IS_MALE(出場キャラ)
+ENDIF
+
+PRINTFORML 「よし、それならこいつが相手だ」
+PRINTFORMW 相手名前は%相手名前%だ
+PRINTFORML 「死なない程度に頑張んな、へへへ」
+PRINTFORMW %ANAME(対象)%は受付を通り抜け、剣闘場に向かった
+
+IF !対戦相手がキャラ
+	IF 相手男
+		SELECTCASE RAND:4
+			CASE 0
+				PRINTFORML 「へへへ、可愛がってやるぜ」
+				PRINTFORMW %相手名前%は舌なめずりをしている
+			CASE 1
+				PRINTFORML 「こいつぁ、上玉だぜぇ、ぎひひ」
+				PRINTFORMW %相手名前%はいやらしい笑みを浮かべている
+			CASE 2
+				PRINTFORML 「これは楽しめそうだな、ひっひっ」
+				PRINTFORMW %相手名前%の股間が膨らんでいるのが見える
+			CASE 3
+				PRINTFORML 「も、もう我慢出来ねぇ！早くヤらせろ！」
+				PRINTFORMW %相手名前%は目を血走らせている
+		ENDSELECT
+	ELSE
+		SELECTCASE RAND:4
+			CASE 0
+				PRINTFORML 「やられるわけにはいかないわ！」
+				PRINTFORMW %相手名前%は身構えた
+			CASE 1
+				PRINTFORML 「…絶対に負けない！」
+				PRINTFORMW %相手名前%はキッと睨み付けてきた
+			CASE 2
+				PRINTFORML 「さっさと倒させて帰らせてもらうわ」
+				PRINTFORMW しかし言葉と裏腹に微かに震えていた
+			CASE 3
+				PRINTFORML 「%ANAME(対象)%程度では力不足よ」
+				PRINTFORMW %相手名前%は不敵な笑みを浮かべている
+		ENDSELECT
+	ENDIF
+ENDIF
+
+CALL ARENA_BATTLE(対象, 相手名前, 敵戦闘力)
+
+IF RESULT > 0
+	CALL ARENA_WIN(対象, 相手名前, 相手男, 対戦相手がキャラ ? 出場キャラ # -1)
+	CALL COLORPRINT(@"賞金{ARENA_CALC_MONEY(対象, 敵戦闘力)}をもらった", カラー_注意, "W")
+	MONEY += ARENA_CALC_MONEY(対象, 敵戦闘力)
+	CALL PRINT_ADD_EXP(対象, "武闘経験値", ARENA_CALC_EXP(対象, 敵戦闘力), 1)
+	CALL PRINT_ADD_EXP(対象, "防衛経験値", ARENA_CALC_EXP(対象, 敵戦闘力), 1)
+	CALL TRAIN_AUTO_ABLUP(対象)
+ELSE
+	CALL ARENA_LOSE(対象, 相手名前, 相手男, 対戦相手がキャラ ? 出場キャラ # -1)
+	CALL PRINT_ADD_EXP(対象, "武闘経験値", ARENA_CALC_EXP(対象, 敵戦闘力) / 10, 1)
+	CALL PRINT_ADD_EXP(対象, "防衛経験値", ARENA_CALC_EXP(対象, 敵戦闘力) / 10, 1)
+	CALL TRAIN_AUTO_ABLUP(対象)
+ENDIF
+
+INITRAND
+
+RETURN 1
+
+
+;-------------------------------------------------
+;「闘技場」の対戦相手決定
+;-------------------------------------------------
+@SELECT_CHARA_RANDOM_LOGIC_ARENA(対象)
+#DIM 対象
+SIF MASTER == 対象
+	RETURN 0
+SIF IS_SP_COUNTRY_CHARA(対象)
+	RETURN 0
+SIF IS_ANIMAL(対象)
+	RETURN 0
+SIF CFLAG:対象:捕虜先
+	RETURN 0
+RETURN 1
+
+
+;-------------------------------------------------
+;「闘技場」戦闘力算出
+;-------------------------------------------------
+@ARENA_GET_POWER(対象)
+#FUNCTION
+#DIM 対象
+RETURNF MAX(ABL:対象:武闘 + ABL:対象:防衛, ABL:対象:武闘 + ABL:対象:知略, ABL:対象:防衛 + ABL:対象:知略)
+
+;-------------------------------------------------
+;「闘技場」賞金算出
+;-------------------------------------------------
+@ARENA_CALC_MONEY(対象, 敵戦闘力)
+#FUNCTION
+#DIM 対象
+#DIM 戦闘力
+#DIM 敵戦闘力
+#DIM 実力比
+#DIM 賞金
+戦闘力 = ARENA_GET_POWER(対象)
+実力比 = 敵戦闘力 * 100 / 戦闘力
+賞金 = (3000 + 敵戦闘力 * 20) * 実力比 / 100
+RETURNF 賞金
+
+;-------------------------------------------------
+;「闘技場」賞金算出
+;-------------------------------------------------
+@ARENA_CALC_EXP(対象, 敵戦闘力)
+#FUNCTION
+#DIM 対象
+#DIM 戦闘力
+#DIM 敵戦闘力
+#DIM 実力比
+#DIM 経験値
+戦闘力 = ARENA_GET_POWER(対象)
+実力比 = 敵戦闘力 * 100 / 戦闘力
+経験値 = (RAND:20 + 1 + 敵戦闘力 / 10) * 実力比 / 100
+RETURNF 経験値
+
+;-------------------------------------------------
+;「闘技場」戦闘パート
+;-------------------------------------------------
+@ARENA_BATTLE(対象, 相手名前, 敵戦闘力)
+#DIM 対象
+#DIMS 相手名前
+#DIM 敵戦闘力
+#DIM 累積結果
+#DIM 戦闘結果
+
+CALL SINGLE_DRAWLINE
+PRINTFORMW %ANAME(対象)%が身構えると審判の合図が鳴った！
+累積結果 = 0
+WHILE 1
+	戦闘結果 = RAND(ARENA_GET_POWER(対象) / 2, ARENA_GET_POWER(対象)) - RAND(敵戦闘力 / 2, 敵戦闘力)
+	IF 戦闘結果 > 0
+		PRINTFORML %ANAME(対象)%の攻撃が%相手名前%を捕らえた！
+		PRINTFORMW %相手名前%にダメージを与えた
+	ELSE
+		PRINTFORML %相手名前%の攻撃を避けきれなかった！
+		PRINTFORMW %ANAME(対象)%はダメージを受けた
+	ENDIF
+	IF 戦闘結果 > 0
+		累積結果  ++
+	ELSE
+		累積結果 --
+	ENDIF
+	SIF ABS(累積結果) >= 3
+		BREAK
+WEND
+
+CALL SINGLE_DRAWLINE
+PRINTFORM 「そこまで！」
+
+RETURN 累積結果
+
+;-------------------------------------------------
+;「闘技場」勝利
+;-------------------------------------------------
+@ARENA_WIN(対象, 相手名前, 相手男, 相手キャラ)
+#DIM 対象
+#DIMS 相手名前
+#DIM 相手男
+#DIM 相手キャラ
+
+PRINTFORMW %ANAME(対象)%は見事勝利した！
+PRINTFORML ・
+PRINTFORML ・
+PRINTFORMW ・
+IF !相手男
+	PRINTFORML 力尽きた%相手名前%は%ANAME(対象)%の前で地面に突っ伏している
+	PRINTFORMW 観客からは激しいレイプコールが響く
+	PRINTFORML どうしよう？
+	CALL ASK_YN("何もしない" ,"犯す")
+	IF RESULT == 0
+		PRINTFORML 連中を喜ばせてやるつもりはない
+		PRINTFORMW %ANAME(対象)%は彼女を抱きかかえると一緒に闘技場を後にした
+	ELSE
+		PRINTFORML こんなチャンスを無駄にするつもりはない
+		PRINTFORMW %ANAME(対象)%はニヤリと笑うと彼女に歩み寄った
+		CALL ARENA_RAPE_MALE(対象, 相手名前, 相手キャラ)
+	ENDIF
+ELSE
+	PRINTFORML %ANAME(対象)%の勝利に観客からはブーイングが飛んだ
+	PRINTFORML そして突っ伏す%相手名前%に罵声を浴びせ始めた
+	PRINTFORMW %ANAME(対象)%は巻き込まれる前にその場を後にした
+ENDIF
+PRINTFORML 
+PRINTFORMW %ANAME(対象)%は賞金を受け取り、軽い足取りで闘技場を後にした
+
+;-------------------------------------------------
+;「闘技場」敗北
+;-------------------------------------------------
+@ARENA_LOSE(対象, 相手名前, 相手男, 相手キャラ)
+#DIM 対象
+#DIMS 相手名前
+#DIM 相手男
+#DIM 相手キャラ
+
+PRINTFORMW %ANAME(対象)%はやられてしまった…
+PRINTFORML ・
+PRINTFORML ・
+PRINTFORMW ・
+IF !相手男
+	PRINTFORML 敗北した%ANAME(対象)%に罵声が飛んできた
+ELSE
+	PRINTFORMW 敗北した%ANAME(対象)%に罵声が飛んできた
+	PRINTFORML 力尽き地面に突っ伏す%ANAME(対象)%にゆっくりと%相手名前%が歩み寄ってくる
+	PRINTFORMW %ANAME(対象)%は何とか逃れようとしたがそれも空しく彼に覆い被さられた
+	CALL ARENA_RAPE_FEMALE(対象, 相手名前, 相手キャラ)
+ENDIF
+CALL ADD_COOLTIME(対象, 2)
+PRINTFORML 
+PRINTFORMW …%ANAME(対象)%は体を引きずりながら拠点に帰り着いた
+
