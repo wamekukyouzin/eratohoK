@@ -1,0 +1,50 @@
+﻿;-------------------
+;存在判定
+;なにもさせないこと
+;-------------------
+@TERRITORY_EVENT_GET_INJURED_EXISTS()
+#DIM 対象
+RETURN 1
+
+;-------------------
+;発生判定
+;-------------------
+@TERRITORY_EVENT_GET_INJURED_DECISION(対象)
+#DIM 対象
+RETURN 1
+
+;-------------------
+;本体
+;-------------------
+@TERRITORY_EVENT_GET_INJURED(対象)
+#DIM 対象
+PRINTFORML 痛いっ！
+PRINTFORML %ANAME(対象)%は散策中に怪我をしてしまった
+PRINTL
+CALL ASK_MULTI("我慢する", "医者に見せる", "自分で治療する")
+
+IF RESULT == 0
+    PRINTFORML これくらいなら我慢できるだろう……
+    PRINTFORMW 
+    $MYSELF
+    IF RAND:3
+        PRINTFORML ……よけいに悪化してしまった
+        CALL ADD_COOLTIME(対象, 3)
+    ELSE
+        PRINTFORML ……完治した！
+		MAXBASE:対象:体力 += 100
+		CALL ICPRINT(@"体力最大値が<100>上がって、<{MAXBASE:対象:体力}>になった", "L", カラー_注意)
+    ENDIF
+ELSEIF RESULT == 1
+    PRINTFORML 医者に診せたほうが良いだろう……
+    PRINTFORMW 
+    PRINTFORML 医者のおかげで完治した！
+    LOCAL = MIN(MONEY, 2000)
+    MONEY -= LOCAL
+    CALL ICPRINT(@"金<{LOCAL}>を支払った", "L", カラー_注意)
+ELSE
+	PRINTFORMW このぐらいの怪我ならば自力で治療できそうだ
+	GOTO MYSELF
+ENDIF
+
+RETURN 1

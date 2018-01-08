@@ -1,0 +1,57 @@
+﻿;-------------------
+;存在判定
+;なにもさせないこと
+;-------------------
+@TERRITORY_EVENT_SMUGGLER_EXISTS()
+RETURN 1
+
+;-------------------
+;発生判定
+;-------------------
+@TERRITORY_EVENT_SMUGGLER_DECISION(対象)
+#DIM 対象
+RETURN 1
+
+;-------------------
+;本体
+;-------------------
+@TERRITORY_EVENT_SMUGGLER(対象)
+#DIM 対象
+PRINTFORML 探索中、旅の薬売りと出くわした
+PRINTFORML 掘り出し物の薬があるらしい、値段は金3000だ
+PRINTFORML 現在の所持金:{MONEY}
+PRINTL
+CALL ASK_MULTI_JUDGE("折角だから買ってみる", MONEY >= 3000,"やめておく", 1)
+
+IF RESULT == 1
+	PRINTFORML あいにく今は病気でもない
+	PRINTFORMW %ANAME(対象)%はしつこい薬売りを振り払い拠点へ戻った
+    RETURN 1
+ENDIF
+
+MONEY -= 3000
+
+CALL ICPRINT("金<3000>を支払った", "W", カラー_注意)
+PRINTFORMW 薬を買った%ANAME(対象)%は、拠点に戻ってから飲んでみた
+
+SELECTCASE RAND:3
+    CASE 0
+        PRINTFORML ……しかし何も起こらなかった
+        PRINTFORML 金を無駄にしてしまったようだ……
+    CASE 1
+        PRINTFORML すぐに体が熱くなった
+        PRINTFORMW ……なんだか賢くなった気がする！
+        CALL PRINT_ADD_EXP(対象, "知略経験値", 10)
+        PRINTFORML なかなかいい買い物をしたようだ……
+    CASE 2
+        PRINTFORML すぐに体が火照り始めた
+        PRINTFORMW ……媚薬の類いだったようだ
+        PRINTFORMW %ANAME(対象)%は自らを慰めずにいられなかった……
+        IF IS_MALE(対象)
+            CALL FUCK(対象, "自慰, Ｃ, 射精")
+        ELSE
+            CALL FUCK(対象, "自慰, Ｃ, Ｂ")
+        ENDIF
+ENDSELECT
+
+RETURN 1

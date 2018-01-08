@@ -1,0 +1,110 @@
+﻿@CHARACTER_EDIT_UI_NAME(対象)
+#DIM 対象
+PRINTFORML 姓 -- %CSTR:対象:0, MAX_CHARANAME_LENGTH, LEFT% (%CSTR:対象:5, MAX_CHARANAME_LENGTH, LEFT%)
+PRINTBUTTON "[入力]", 0
+PRINTBUTTON " [ランダム]", 1
+PRINTBUTTON " [消去]", 2
+PRINTL 
+PRINTFORML 名 -- %CSTR:対象:1, MAX_CHARANAME_LENGTH, LEFT% (%CSTR:対象:6, MAX_CHARANAME_LENGTH, LEFT%)
+PRINTBUTTON "[入力]", 100
+PRINTBUTTON " [ランダム]", 101
+PRINTBUTTON " [消去]", 102
+PRINTL 
+PRINTFORML 字 -- %CSTR:対象:2, MAX_CHARANAME_LENGTH, LEFT% (%CSTR:対象:2, MAX_CHARANAME_LENGTH, LEFT%)
+PRINTBUTTON "[入力]", 200
+PRINTBUTTON " [ランダム]", 201
+PRINTBUTTON " [消去]", 202
+PRINTL 
+
+PRINTFORML 愛称 -- %CSTR:対象:98, MAX_CHARANAME_LENGTH, LEFT%
+PRINTBUTTON "[入力]", 300
+PRINTBUTTON " [消去]", 302
+PRINTL
+CALL PRINT_TOGGLE_BUTTON("[姓名逆転]", 999, TALENT:対象:姓名逆転)
+PRINTL
+
+@CHARACTER_EDIT_INPUT_NAME(対象, 入力値)
+#DIM 対象
+#DIM 入力値
+#DIMS 名前
+#DIMS ルビ
+
+;手入力
+IF 入力値 % 100  == 0
+    PRINTFORML 文字列を入力
+    INPUTS
+    名前 = %RESULTS%
+    LOCAL = 入力値 / 100
+    IF LOCAL != 3
+        PRINTFORML ルビを入力
+        INPUTS
+        ルビ = %RESULTS%
+        CSTR:対象:(LOCAL) = %名前%
+        CSTR:対象:(LOCAL + 5) = %ルビ%
+        IF LOCAL == 1
+            NAME:対象 = %名前%
+            CALLNAME:対象 = %名前%
+        ENDIF
+    ELSE
+        PRINTFORML 文字列を入力
+        INPUTS
+        CSTR:対象:98 = %RESULTS%
+    ENDIF
+;消去
+ELSEIF 入力値 % 100 == 2
+	LOCAL = 入力値 / 100
+    IF 入力値 / 100 != 3
+        CSTR:対象:LOCAL = 
+        CSTR:対象:(LOCAL + 5) = 
+    ELSE
+        CSTR:対象:98 = 
+    ENDIF
+;性ランダム
+ELSEIF 入力値 == 1
+    CALL ASK_MULTI("和名", "洋名", "中華")
+	SELECTCASE RESULT
+		CASE 0
+			CALL GENERATE_FAMILY_NAME_J
+		CASE 1
+			CALL GENERATE_FAMILY_NAME_K
+		CASE 2
+			CALL GENERATE_FAMILY_NAME
+	ENDSELECT
+    CSTR:対象:0 = %RESULTS:0%
+    CSTR:対象:5 = %RESULTS:1%
+;名ランダム
+ELSEIF 入力値 == 101
+    CALL ASK_MULTI("和名", "洋名", "中華")
+    LOCAL = RESULT
+    IF GROUPMATCH(LOCAL, 0, 1)
+        CALL ASK_MULTI("男性", "女性")
+        LOCAL:1 = RESULT
+    ENDIF
+	SELECTCASE LOCAL
+		CASE 0
+            IF LOCAL:1 == 0
+			    CALL GENERATE_FIRST_NAME_JM
+            ELSE
+    			CALL GENERATE_FIRST_NAME_JF
+            ENDIF
+		CASE 1
+            IF LOCAL:1 == 0
+			    CALL GENERATE_FIRST_NAME_KM
+            ELSE
+    			CALL GENERATE_FIRST_NAME_KF
+            ENDIF
+		CASE 2
+			CALL GENERATE_FIRST_NAME
+	ENDSELECT
+    CSTR:対象:1 = %RESULTS:0%
+    NAME:対象 = %RESULTS:0%
+    CALLNAME:対象 = %RESULTS:0%
+    CSTR:対象:6 = %RESULTS:1%
+;字ランダム
+ELSEIF 入力値 == 202
+	CALL GENERATE_MIDDLE_NAME
+	CSTR:対象:2 = %RESULTS:0%
+	CSTR:対象:7 = %RESULTS:1%
+ELSEIF 入力値 == 999
+    TALENT:対象:姓名逆転 = !TALENT:対象:姓名逆転
+ENDIF

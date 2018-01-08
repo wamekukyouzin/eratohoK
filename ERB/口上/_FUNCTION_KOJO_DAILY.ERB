@@ -71,31 +71,6 @@ SIF 番号 >= 0
 	RETURNF KOJO_DAILY_DISABLE:対象NO:番号
 THROW KOJO_DAILY_DISABLE_NAME上に存在しない名前%アクセサ%が渡されました
 
-;-------------------------------------------------
-;desc  :口上デイリーのオンオフを英語名から取得する
-;param :対象    :対象キャラ
-;param :アクセサ:口上デイリーの英語名
-;return:口上デイリーのオンオフ
-;-------------------------------------------------
-@SLG_KOJO_DAILY_GET_DISABLE_CONFIG(対象, アクセサ)
-#FUNCTION
-#DIM 対象
-#DIM 対象NO
-#DIMS アクセサ
-#DIM 番号
-
-対象NO = NO:対象
-
-番号 = -1
-FOR LOCAL, 0, VARSIZE("SLG_KOJO_DAILY_DISABLE_NAME", 1)
-	IF SLG_KOJO_DAILY_DISABLE_NAME:対象NO:LOCAL == アクセサ
-		番号 = LOCAL
-		BREAK
-	ENDIF
-NEXT
-SIF 番号 >= 0
-	RETURNF SLG_KOJO_DAILY_DISABLE:対象NO:番号
-THROW SLG_KOJO_DAILY_DISABLE_NAME上に存在しない名前%アクセサ%が渡されました
 
 ;-------------------------------------------------
 ;desc  :指定したキャラの指定した英語名の口上デイリーのオンオフを指定する
@@ -123,34 +98,6 @@ SIF 番号 < 0
 	RETURN 0
 
 KOJO_DAILY_DISABLE:対象NO:番号 = 状態
-RETURN 1
-
-;-------------------------------------------------
-;desc  :指定したキャラの指定した英語名のSLG口上デイリーのオンオフを指定する
-;param :対象    :対象キャラ
-;param :アクセサ:SLG口上デイリーの英語名
-;param :状態    :オンオフ
-;return:戻り値  :オンオフに成功したか（変動したかは問わない）
-;-------------------------------------------------
-@SLG_KOJO_DAILY_SET_DISABLE(対象, アクセサ, 状態)
-#DIM 対象
-#DIM 対象NO
-#DIMS アクセサ
-#DIM 番号
-#DIM 状態
-対象NO = NO:対象
-番号 = -1
-FOR LOCAL, 0, VARSIZE("SLG_KOJO_DAILY_DISABLE_NAME", 1)
-	IF SLG_KOJO_DAILY_DISABLE_NAME:対象NO:LOCAL == アクセサ
-		番号 = LOCAL
-		BREAK
-	ENDIF
-NEXT
-
-SIF 番号 < 0
-	RETURN 0
-
-SLG_KOJO_DAILY_DISABLE:対象NO:番号 = 状態
 RETURN 1
 
 ;-------------------------------------------------
@@ -183,26 +130,21 @@ NEXT
 
 対象NO = NO:対象
 
-SIF !INRANGE(ジャンル, デイリー_通常, デイリー_ＳＬＧ派生)
+SIF !INRANGE(ジャンル, デイリー_通常, デイリー_通常派生)
 	THROW KOJO_DAILY_REGISTERに存在しないジャンル{ジャンル}が渡されました
 
 SIF !IS_FIXED_CHARA(対象)
 	RETURN
 
-IF GROUPMATCH(ジャンル, デイリー_ＳＬＧ, デイリー_ＳＬＧ派生)
-	ＳＬＧ = SLG_
-ELSE
-	ＳＬＧ = 
-ENDIF
 
-IF GROUPMATCH(ジャンル, デイリー_通常派生, デイリー_ＳＬＧ派生)
+IF ジャンル == デイリー_通常派生
 	派生 = DERIVATION_
 ELSE
 	派生 = 
 ENDIF
 
-IF GROUPMATCH(ジャンル, デイリー_通常, デイリー_ＳＬＧ)
-	TRYCCALLFORM %ＳＬＧ%KOJO_DAILY_K{対象NO}_%派生%%アクセサ%_RATE(対象)
+IF ジャンル == デイリー_通常
+	TRYCCALLFORM KOJO_DAILY_K{対象NO}_%派生%%アクセサ%_RATE(対象)
 	CATCH
 		SETCOLOR カラー_警告
 		PRINTFORMW KOJO_DAILY_REGISTERに渡された%名前%,%アクセサ%のRATE関数が見つかりません
@@ -211,7 +153,7 @@ IF GROUPMATCH(ジャンル, デイリー_通常, デイリー_ＳＬＧ)
 		RETURN
 	ENDCATCH
 ELSE
-	TRYCCALLFORM %ＳＬＧ%KOJO_DAILY_K{対象NO}_%派生%%アクセサ%_DISABLE(対象)
+	TRYCCALLFORM KOJO_DAILY_K{対象NO}_%派生%%アクセサ%_DISABLE(対象)
 	CATCH
 		SETCOLOR カラー_警告
 		PRINTFORMW KOJO_DAILY_REGISTERに渡された%名前%,%アクセサ%のDISABLE関数が見つかりません
@@ -225,46 +167,28 @@ KOJO_DAILY_EVENT_NAME_ENG:対象NO:ジャンル:(KOJO_DAILY_EVENT_NUM:対象NO:�
 KOJO_DAILY_EVENT_NAME:対象NO:ジャンル:(KOJO_DAILY_EVENT_NUM:対象NO:ジャンル) = %名前%
 
 ;派生形はDISABLE_NAMEに登録する必要がないのでFINALLYへ
-SIF GROUPMATCH(ジャンル, デイリー_通常派生, デイリー_ＳＬＧ派生)
+SIF ジャンル == デイリー_通常派生
 	GOTO FINALLY
 
 番号 = -1
-IF ジャンル == デイリー_通常
-	FOR LOCAL, 0, VARSIZE("KOJO_DAILY_DISABLE_NAME", 1)
-		IF KOJO_DAILY_DISABLE_NAME:対象NO:LOCAL == アクセサ
-			番号 = LOCAL
-			BREAK
-		ENDIF
-	NEXT
-ELSE
-	FOR LOCAL, 0, VARSIZE("SLG_KOJO_DAILY_DISABLE_NAME", 1)
-		IF SLG_KOJO_DAILY_DISABLE_NAME:対象NO:LOCAL == アクセサ
-			番号 = LOCAL
-			BREAK
-		ENDIF
-	NEXT
-ENDIF
+FOR LOCAL, 0, VARSIZE("KOJO_DAILY_DISABLE_NAME", 1)
+	IF KOJO_DAILY_DISABLE_NAME:対象NO:LOCAL == アクセサ
+		番号 = LOCAL
+		BREAK
+	ENDIF
+NEXT
 
 ;登録済みならFINALLYへ
 SIF 番号 != -1
 	GOTO FINALLY
 
 ;まだ登録していないなら、空いている番号を探して登録
-IF ジャンル == デイリー_通常
-	FOR LOCAL, 0, VARSIZE("KOJO_DAILY_DISABLE_NAME", 1)
-		IF KOJO_DAILY_DISABLE_NAME:対象NO:LOCAL == ""
-			KOJO_DAILY_DISABLE_NAME:対象NO:LOCAL = %アクセサ%
-			BREAK
-		ENDIF
-	NEXT
-ELSE
-	FOR LOCAL, 0, VARSIZE("SLG_KOJO_DAILY_DISABLE_NAME", 1)
-		IF SLG_KOJO_DAILY_DISABLE_NAME:対象NO:LOCAL == ""
-			SLG_KOJO_DAILY_DISABLE_NAME:対象NO:LOCAL =  %アクセサ%
-			BREAK
-		ENDIF
-	NEXT
-ENDIF
+FOR LOCAL, 0, VARSIZE("KOJO_DAILY_DISABLE_NAME", 1)
+	IF KOJO_DAILY_DISABLE_NAME:対象NO:LOCAL == ""
+		KOJO_DAILY_DISABLE_NAME:対象NO:LOCAL = %アクセサ%
+		BREAK
+	ENDIF
+NEXT
 
 $FINALLY
 

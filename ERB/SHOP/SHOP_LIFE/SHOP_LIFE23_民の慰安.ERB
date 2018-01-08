@@ -2,7 +2,11 @@
 ;「民の慰安」の名称
 ;-------------------------------------------------
 @SHOP_LIFE_NAME23
-RESULTS:0 '= "民の慰安"
+IF CFLAG:MASTER:所属
+	RESULTS:0 '= "民の慰安"
+ELSE
+	RESULTS:0 '= "春を売る"
+ENDIF
 
 ;-------------------------------------------------
 ;「民の慰安」の選択可否
@@ -26,7 +30,7 @@ IF ARG:0 == MASTER
 ELSE
 	;閨に呼ぶの選択可能キャラ存在判定
 	CALL SHOP_LIFE_CHECKCHARA_NEYA(ARG:0)
-	RETURN CHECK91(ARG:0, 2, RESULT && !IS_ANIMAL(ARG:0))
+	RETURN CHECK91(ARG:0, 2, RESULT && !IS_ANIMAL(ARG:0) && CFLAG:(ARG:0):所属)
 ENDIF
 RETURN 0
 
@@ -82,18 +86,22 @@ CALL COLUMN_RIGHT_LINE
 CALL COLUMN_RIGHT_PRINTL
 IF 選択人数 >= 1
 	PRINTBUTTON "[このメンバーで決定]", 1
+	PRINTPLAIN   
+	PRINTBUTTON "[リセット]", 2
 ELSE
 	SETCOLOR カラー_選択不可
 	PRINTPLAINFORM [このメンバーで決定]
+	PRINTPLAIN   
+	PRINTPLAINFORM [リセット]
 	RESETCOLOR
 ENDIF
 
 PRINTPLAIN   
 IF FLAG:慰安避妊薬
-	PRINTBUTTON "[避妊あり]", 2
+	PRINTBUTTON "[避妊あり]", 3
 ELSE
 	IF MONEY > 選択人数 * 2000
-		PRINTBUTTON "[避妊なし]", 2
+		PRINTBUTTON "[避妊なし]", 3
 	ELSE
 		SETCOLOR カラー_選択不可
 		PRINTPLAINFORM [避妊なし]
@@ -118,8 +126,11 @@ IF ARG:0 == 1
 	CALL DECIDE_IAN_MEMBER()
 	SIF !RESULT
 		RETURN 0
-;避妊ありなし
+;メンバーをリセット
 ELSEIF ARG:0 == 2
+	CALL RESET_IAN_MEMBER
+;避妊ありなし
+ELSEIF ARG:0 == 3
 	LOCAL:1 = 0
 	FOR LOCAL, 0, CHARANUM
 		SIF CFLAG:LOCAL:閨に呼ぶで選択中
@@ -289,6 +300,15 @@ SIF メイン != -1
 CALL START_TRAIN_COMMON
 RETURN 1
 
+;-------------------------------------------------
+;「民の慰安」の選択メンバーのリセット
+;-------------------------------------------------
+@RESET_IAN_MEMBER
+FOR LOCAL:0, 0, CHARANUM
+	SIF CFLAG:(LOCAL:0):閨に呼ぶで選択中
+		CFLAG:(LOCAL:0):閨に呼ぶで選択中 = 0
+NEXT
+RETURN 0
 
 ;-------------------------------------------------
 ;「民の慰安」のモブ追加処理
@@ -829,6 +849,9 @@ ENDSELECT
 @SHOW_IAN_MESSAGE(対象, 人数)
 #DIM 対象
 #DIM 人数
+SIF !CFLAG:MASTER:所属
+	RETURN 0
+
 SELECTCASE IFRAND("0TO2", 1, "3", IS_FEMALE(対象))
 	CASE 0
 		PRINTFORML 民を喜ばせることが勢力を強くする

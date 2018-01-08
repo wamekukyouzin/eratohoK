@@ -1,0 +1,110 @@
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@KOJO_DAILY_K57_COMPETE_RATE(対象)
+#DIM 対象
+RETURN 30
+
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@KOJO_DAILY_K57_COMPETE_DECISION(対象)
+#DIM 対象
+
+;終わらせたら出ない
+SIF KDVAR:対象:キスメ_飛んで井の中
+	RETURN 0
+
+RETURN CHECK_KOJO_DAILY_HAPPEN(対象, 0, 0)
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@KOJO_DAILY_K57_COMPETE_GENRE(対象)
+#DIM 対象
+RETURN デイリー_ジャンル_エロ
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@KOJO_DAILY_K57_COMPETE(対象)
+#DIM 対象
+#DIM 判定値
+
+KDVAR:対象:キスメ_飛んで井の中 = 1
+
+PRINTFORML 深夜……
+PRINTFORMW 領内を見回り中、突如としてつるべが降ってきた！
+
+判定値 = (ABL:MASTER:防衛 + 10 - ABL:対象:武闘) * 5
+
+IF RAND:100 > 判定値
+	PRINTFORMW %ANAME(MASTER)%は避けそこね、頭部につるべが直撃した！
+	PRINTFORMW そのまま気を失ってしまい、気づいたら朝になっていた……
+	CALL ADD_COOLTIME(MASTER, 2)
+	RETURN 1
+ENDIF
+
+PRINTFORMW ……が、華麗に回避した！
+PRINTFORMW 「ちッ……」
+PRINTFORML 襲撃者はつるべと一体化した少女だった
+PRINTFORMW 名を尋ねると、%NAME_FORMAL(対象)%と名乗った
+PRINTFORML すわやる気かと身構えたが、襲ってくる様子はない
+PRINTFORMW 「……好きにすれば？」
+PRINTFORMW どうもさっきの不意打ちを避けられた時点で勝ちはないと判断したらしい
+PRINTFORML 勝手に諦めムードを漂わせているが……
+
+PRINTL
+CALL ASK_MULTI_JUDGE("部下にする", GET_COUNTRY_BOSS(CFLAG:対象:所属) != 対象, "投獄する", GET_COUNTRY_BOSS(CFLAG:対象:所属) != 対象, "処刑", GET_COUNTRY_BOSS(CFLAG:対象:所属) != 対象,  "有り金を奪う", 1, "犯す", IS_MALE(MASTER))
+
+SELECTCASE RESULT
+	CASE 0
+		PRINTFORMW 「……は？　部下？　私を？」
+		PRINTFORMW 「……まあ、別にいいけど」
+		CALL COLORPRINT(@"%ANAME(対象)%が部下になりました", カラー_注意, "W")
+		CALL CHANGE_COUNTRY(対象, CFLAG:MASTER:所属, 1)
+		CFLAG:対象:好感度 += 500
+	CASE 1
+		PRINTFORMW 「……好きにすれば？」
+		PRINTFORMW 応援を呼び、%ANAME(対象)%を連行させた……
+		CALL COLORPRINT(@"%ANAME(対象)%を捕虜にしました", カラー_注意, "W")
+		CALL CAPTURE(対象, CFLAG:MASTER:所属)
+	CASE 2
+		PRINTFORMW 「……っ！」
+		PRINTFORMW 「……好きにすれば？」
+		PRINTFORMW 応援を呼び、%ANAME(対象)%を連行させた……
+		CALL COLORPRINT(@"%ANAME(対象)%を処刑しました", カラー_注意, "W")
+		PRINTL
+		CALL EXECUTION(対象)
+		PRINTL
+		CALL CHANGE_COUNTRY(対象, 0, 1, 1)
+		CFLAG:対象:所属 = 0
+		CFLAG:対象:特殊状態 = 特殊状態_死亡
+	CASE 3
+		PRINTFORMW 「金……」
+		PRINTFORMW 「これだけしかないけど」
+		CALL COLORPRINT(@"金10000を得ました", カラー_注意, "W")
+		MONEY += 10000
+		PRINTFORMW %ANAME(対象)%は立ち去っていった……
+	CASE 4
+		PRINTFORMW 「えッ……ちょっ、や、やだ……！」
+		PRINTFORMW 暴れる%ANAME(対象)%をつるべから引きずり出し、その服を剥ぎ取っていった……
+		PRINTFORML
+		CALL FUCK_RAPE(対象, GET_ID(MASTER), @"%ANAME(MASTER)%のペニス", @"%ANAME(MASTER)%")
+		PRINTFORML 
+		PRINTFORMW 「ふあ……あくぅっ、はぅう……♥」
+		PRINTFORMW 気を失い痙攣するばかりになった%ANAME(対象)%を放置して、拠点へ戻った……
+		KDVAR:対象:キスメ_飛んで井の中 = 2
+ENDSELECT
+
+CFLAG:対象:面識 = 1
+
+RETURN 1
+

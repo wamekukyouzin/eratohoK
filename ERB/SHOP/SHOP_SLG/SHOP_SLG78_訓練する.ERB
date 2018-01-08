@@ -25,52 +25,56 @@ RETURN 1
 ;「訓練する」本体
 ;-------------------------------------------------
 @SLG_TRAIN
-#DIM 訓練能力
-#DIM 訓練経験値
-#DIM アップ量
+#DIM 対象項目
+#DIM 取得経験値
 CALL SINGLE_DRAWLINE
 PRINTFORML 余暇を利用し、能力を鍛えます
 PRINTFORML 何を伸ばしますか？
-CALL ASK_MULTI("武闘", "防衛", "知略", "政治", "料理", "歌唱", "戻る")
-SELECTCASE RESULT
-	CASE 0
-		訓練能力 = GETNUM(ABL, "武闘")
-		訓練経験値 = GETNUM(EXP, "武闘経験値")
-	CASE 1
-		訓練能力 = GETNUM(ABL, "防衛")
-		訓練経験値 = GETNUM(EXP, "防衛経験値")
-	CASE 2
-		訓練能力 = GETNUM(ABL, "知略")
-		訓練経験値 = GETNUM(EXP, "知略経験値")
-	CASE 3
-		訓練能力 = GETNUM(ABL, "政治")
-		訓練経験値 = GETNUM(EXP, "政治経験値")
-	CASE 4
-		訓練能力 = GETNUM(ABL, "料理")
-		訓練経験値 = GETNUM(EXP, "料理経験値")
-	CASE 5
-		訓練能力 = GETNUM(ABL, "歌唱")
-		訓練経験値 = GETNUM(EXP, "歌唱経験値")
-	CASE 6
-		RETURN 0
-ENDSELECT
+CALL SINGLE_DRAWLINE
+PRINTFORM [{GETNUM(ABL, "武闘")}] 武闘 
+CALL PRINT_ALPHABET_RANK(ランク_ＳＬＧ, ABL:MASTER:武闘)
+PRINTFORML {ABL:MASTER:武闘, 3, RIGHT}
+PRINTFORM [{GETNUM(ABL, "防衛")}] 防衛 
+CALL PRINT_ALPHABET_RANK(ランク_ＳＬＧ, ABL:MASTER:防衛)
+PRINTFORML {ABL:MASTER:防衛, 3, RIGHT}
+PRINTFORM [{GETNUM(ABL, "知略")}] 知略 
+CALL PRINT_ALPHABET_RANK(ランク_ＳＬＧ, ABL:MASTER:知略)
+PRINTFORML {ABL:MASTER:知略, 3, RIGHT}
+PRINTFORM [{GETNUM(ABL, "政治")}] 政治 
+CALL PRINT_ALPHABET_RANK(ランク_ＳＬＧ, ABL:MASTER:政治)
+PRINTFORML {ABL:MASTER:政治, 3, RIGHT}
+IF TALENT:MASTER:妖術知識
+	PRINTFORM [{GETNUM(ABL, "妖術")}] 妖術 
+	CALL PRINT_ALPHABET_RANK(ランク_ＳＬＧ, ABL:MASTER:妖術)
+	PRINTFORML {ABL:MASTER:妖術, 3, RIGHT}
+ENDIF
+PRINTFORM [{GETNUM(ABL, "歌唱")}] 歌唱 
+CALL PRINT_ALPHABET_RANK(ランク_ＳＬＧ, ABL:MASTER:歌唱)
+PRINTFORML {ABL:MASTER:歌唱, 3, RIGHT}
+PRINTFORM [{GETNUM(ABL, "料理")}] 料理 
+CALL PRINT_ALPHABET_RANK(ランク_ＳＬＧ, ABL:MASTER:料理)
+PRINTFORML {ABL:MASTER:料理, 3, RIGHT}
+PRINTL 
+CALL SINGLE_DRAWLINE
+PRINTFORML [0] 戻る
+PRINTL 
 
-LOCAL:2 = ABLUP_NEED_EXP_SLG(ABL:(LOCAL:1):訓練能力)
-SELECTCASE ABL:(LOCAL:1):訓練能力
-	CASE IS >= ランク閾値:ランク_ＳＬＧ:ランク_A
-		アップ量 = 10
-	CASE IS >= ランク閾値:ランク_ＳＬＧ:ランク_B
-		アップ量 = RAND(0, LOCAL:2 / 2)
-	CASE IS >= ランク閾値:ランク_ＳＬＧ:ランク_C
-		アップ量 = RAND(0, LOCAL:2)
-	CASE IS >= ランク閾値:ランク_ＳＬＧ:ランク_F
-		アップ量 = RAND(0, LOCAL:2 * 2)
-	CASEELSE
-		アップ量 = RAND(LOCAL:2, LOCAL:2 * 2)
-ENDSELECT
+$INPUT_LOOP
+INPUT
+IF RESULT == 0
+	RETURN 0
+ELSEIF !GROUPMATCH(RESULT, GETNUM(ABL, "武闘"), GETNUM(ABL, "防衛"), GETNUM(ABL, "知略"), GETNUM(ABL, "政治"), GETNUM(ABL, "料理"), GETNUM(ABL, "歌唱"), GETNUM(ABL, "妖術"))
+	GOTO INPUT_LOOP
+ELSEIF RESULT == GETNUM(ABL, "妖術") && !TALENT:MASTER:妖術知識
+	GOTO INPUT_LOOP
+ENDIF
 
-CALL COLORPRINT(@"%ABLNAME:(訓練能力)%の訓練を行った！", カラー_注意, "W")
-CALL PRINT_ADD_EXP(MASTER, EXPNAME:(訓練経験値), アップ量 / 100, 1)
+対象項目 = RESULT
+取得経験値 = SPECIAL_TRAIN_CALC_EFFECT(MASTER, 対象項目) / 2
+
+PRINTFORML 訓練を行った！
+
+CALL PRINT_ADD_EXP(MASTER, EXPNAME:GET_EXP(対象項目), 取得経験値, 1)
 CALL TRAIN_AUTO_ABLUP(MASTER)
 PRINTFORMW いい汗をかいた……
 RESULT = 1
