@@ -252,34 +252,45 @@ FOR 対象, 0, CHARANUM
 			絶頂回数合計 += SUM_EX(対象)
 		ENDIF
 
-		減少量 = LIMIT(300 + SUM_EX(対象) * 20, 0, MAX(CFLAG:対象:好感度, 0) / 10)
-
 		IF TALENT:対象:親愛
-			最低保証 = MIN(10000, CFLAG:対象:好感度)
+			最低保証 = 10000
 		ELSEIF TALENT:対象:恋慕
-			最低保証 = MIN(1500, CFLAG:対象:好感度)
+			最低保証 = 1500
 		ELSE
-			最低保証 = MIN(-1000, CFLAG:対象:好感度)
+			最低保証 = -1000
 		ENDIF
+		減少量 = LIMIT(300 + SUM_EX(対象) * 20, 0, MAX(CFLAG:対象:好感度, 0) / 10)
+		SIF CFLAG:対象:好感度 - 減少量 < 最低保証
+			減少量 = MAX(CFLAG:対象:好感度 - 最低保証, 0)
 		CFLAG:対象:好感度 = MAX(CFLAG:対象:好感度 - 減少量, 最低保証)
 		PRINTFORML %ANAME(対象)%の好感度 -{減少量} (現在:{CFLAG:対象:好感度})
 
-		最低保証 = MIN(-1000, CFLAG:対象:依存度)
+		IF TALENT:対象:親愛 || TALENT:対象:隷属
+			最低保証 = 3000
+		ELSEIF TALENT:対象:恋慕 || TALENT:対象:服従
+			最低保証 = 300
+		ELSE
+			最低保証 = -1000
+		ENDIF
 		減少量 = LIMIT(300 + SUM_EX(対象) * 20, 0, MAX(CFLAG:対象:依存度, 0) / 10)
+		SIF CFLAG:対象:依存度 - 減少量 < 最低保証
+			減少量 = MAX(CFLAG:対象:依存度 - 最低保証, 0)
 		CFLAG:対象:依存度 = MAX(CFLAG:対象:依存度 - 減少量, 最低保証)
 		PRINTFORML %ANAME(対象)%の依存度 -{減少量} (現在:{CFLAG:対象:依存度})
 
 		IF TALENT:対象:隷属
-			最低保証 = MIN(10000, CFLAG:対象:従属度)
+			最低保証 = 10000
 		ELSEIF TALENT:対象:服従
-			最低保証 = MIN(1500, CFLAG:対象:従属度)
+			最低保証 = 1500
 		ELSE
-			最低保証 = MIN(-1000, CFLAG:対象:従属度)
+			最低保証 = -1000
 		ENDIF
 		減少量 = LIMIT(300 + SUM_EX(対象) * 20, 0, MAX(CFLAG:対象:従属度, 0) / 10)
-		CFLAG:対象:従属度 = MAX(CFLAG:対象:従属度 - 減少量, -1000)
+		SIF CFLAG:対象:従属度 - 減少量 < 最低保証
+			減少量 = MAX(CFLAG:対象:従属度 - 最低保証, 0)
+		CFLAG:対象:従属度 = MAX(CFLAG:対象:従属度 - 減少量, 最低保証)
 		PRINTFORML %ANAME(対象)%の従属度 -{減少量} (現在:{CFLAG:対象:従属度})
-
+		参加者 ++
 	ELSEIF IS_PARTICIPATE_TRAIN(対象) && CFLAG:対象:慰安参加者
 		絶頂回数合計 += SUM_EX(対象)
 		CFLAG:対象:慰安参加者 = 0
@@ -287,6 +298,7 @@ FOR 対象, 0, CHARANUM
 NEXT
 SIF FLAG:慰安避妊薬
 	TIMES 絶頂回数合計, 0.7
+
 報酬 = 絶頂回数合計 * RAND(40, 60)
 
 MONEY += 報酬
