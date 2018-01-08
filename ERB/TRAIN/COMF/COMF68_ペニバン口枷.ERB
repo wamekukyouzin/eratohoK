@@ -1,0 +1,311 @@
+﻿;バイブ
+
+;-------------------------------------------------
+;コマンド名称
+;-------------------------------------------------
+@COM_NAME68
+LOCALS:0 = ペニバン口枷
+
+RESULTS:0 = %LOCALS:0%で責める
+RESULTS:1 = %LOCALS:0%で奉仕する
+RESULTS:2 = %LOCALS:0%で奉仕させる
+RESULTS:3 = %LOCALS:0%で責められる
+RESULTS:4 = %LOCALS:0%で責めさせる
+RESULTS:5 = %LOCALS:0%見せつけ
+
+;-------------------------------------------------
+;選択可否判定
+;-------------------------------------------------
+@COM_ABLE68
+;共通部分
+CALL COM_ABLE_COMMON(68)
+SIF RESULT == 0
+	RETURN 0
+;プレイヤーは最大で1人まで
+SIF MPLY_NUM <= 0 || MPLY_NUM > 1
+	RETURN 0
+;ターゲットは1人以上
+SIF MTAR_NUM <= 0
+	RETURN 0
+;プレイヤーが行動不能なら不可
+SIF !IS_PLAYABLE(MPLY:0)
+	RETURN 0
+;ペニバンが必要
+SIF (!ITEM:ペニスバンド && !ITEM:A_ペニスバンド) || (!ITEM:口枷 && !ITEM:A_口枷)
+	RETURN 0
+FOR LOCAL:0, 0, MTAR_NUM
+	;ターゲットの口が塞がっているなら不可
+	SIF IS_M_HOLD(MTAR:(LOCAL:0))
+		RETURN 0
+NEXT
+
+FOR LOCAL:0, 0, MPLY_NUM
+	;プレイヤーが顔面騎乗されているなら不可
+	SIF IS_RIDDEN(MPLY:(LOCAL:0))
+		RETURN 0
+	;プレイヤーが拘束中なら不可
+	SIF IS_BIND(MPLY:(LOCAL:0))
+		RETURN 0
+NEXT
+RETURN 1
+
+;-------------------------------------------------
+;メイン処理
+;-------------------------------------------------
+@COM68
+;実行判定
+CALL COM_ORDER_COMMON
+SIF RESULT == 0
+	RETURN 0
+
+;●プレイヤーについて処理
+DOWNBASE:(MPLY:0):体力 += 80
+
+EXP:(MPLY:0):性技経験値 += MTAR_NUM / 2 + 1
+
+SOURCE:(MPLY:0):奉仕 = SERVE_HOUSHI(MPLY:0, 200)
+SOURCE:(MPLY:0):接触 = 10
+SOURCE:(MPLY:0):性行動 = 150
+
+;主導権に応じた優越・屈従のソース追加
+CALL ADD_SOURCE_INITIATIVE_U(MPLY:0, 150, 20)
+
+;奉仕経験値を得られるコマンドのフラグ
+TCVAR:(MPLY:0):4 = 1
+
+FOR LOCAL:0, 0, MTAR_NUM
+	LOCAL:2 = MTAR:(LOCAL:0)
+	;●ターゲットについて処理
+	DOWNBASE:(LOCAL:2):体力 += 80
+
+	SOURCE:(LOCAL:2):露出 = 50
+	SOURCE:(LOCAL:2):逸脱 = 120
+	SOURCE:(LOCAL:2):接触 = 10
+	SOURCE:(LOCAL:2):性行動 = 300
+	IF TALENT:(MPLY:0):技師
+		SOURCE:(LOCAL:2):快Ｍ = SENSE_HOUSHI(MPLY:0, LOCAL:2, 900)
+	ELSE
+		SOURCE:(LOCAL:2):快Ｍ = SENSE_HOUSHI(MPLY:0, LOCAL:2, 600)
+	ENDIF
+
+	;主導権に応じた優越・屈従のソース追加
+	CALL ADD_SOURCE_INITIATIVE_U(LOCAL:2, 50, 20)
+
+	;バイブの共通処理
+	CALL COM_COMMON68(LOCAL:2)
+NEXT
+;主導度変化基準値
+TFLAG:49 = 2
+
+;倒錯度変化基準値
+TFLAG:50 = 1
+
+;レズ・ＢＬ経験基準値
+TFLAG:51 = 2
+
+RETURN 1
+
+;-------------------------------------------------
+;継続コマンドかどうかを設定
+;-------------------------------------------------
+@COM_IS_EQUIP68
+RETURN 1
+
+;-------------------------------------------------
+;継続状態の処理
+;-------------------------------------------------
+@COM_EQUIP68(ARG:0)
+LOCAL:2 = MEQUIP_PLAYER:(ARG:0):0
+;ソースを退避
+CALL PUTOUT_SOURCE(LOCAL:2)
+SOURCE:(LOCAL:2):性行動 += 50
+;退避したソースを加算
+CALL SUM_SOURCE(LOCAL:2)
+
+FOR LOCAL:0, 0, MEQUIP_TARGET_NUM:(ARG:0)
+	LOCAL:3 = MEQUIP_TARGET:(ARG:0):(LOCAL:0)
+	CALL PUTOUT_SOURCE(LOCAL:3)
+
+	IF TALENT:(LOCAL:2):技師
+		SOURCE:(LOCAL:3):快Ｍ += SENSE_HOUSHI(LOCAL:2, LOCAL:3, 600)
+	ELSE
+		SOURCE:(LOCAL:3):快Ｍ += SENSE_HOUSHI(LOCAL:2, LOCAL:3, 300)
+	ENDIF
+	SOURCE:(LOCAL:3):露出 += 20
+	SOURCE:(LOCAL:3):逸脱 += 50
+	SOURCE:(LOCAL:3):性行動 += 100
+
+	;倒錯度変化
+	TCVAR:(LOCAL:3):50 += 1
+
+	;共通処理
+	CALL COM_COMMON68(LOCAL:3)
+
+	;退避したソースを加算
+	CALL SUM_SOURCE(LOCAL:3)
+NEXT
+;-------------------------------------------------
+;継続中の表示
+;-------------------------------------------------
+@EQUIP_MESSAGE68(ARG:0)
+RESULTS = %EQUIP_TARGET_ANAME(ARG:0)%
+RESULTS += "の口をペニバン責め中"
+
+;-------------------------------------------------
+;継続中の地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE_EQUIP68(ARG:0)
+PRINTFORM %EQUIP_TARGET_ANAME(ARG:0)%
+PRINTFORML の口内をペニスバンドが責めている
+
+;-------------------------------------------------
+;継続を解除したときの地の文
+;-------------------------------------------------
+@COM_TEXT_RELEASE_EQUIP68(ARG:0)
+PRINTFORM %EQUIP_TARGET_ANAME(ARG:0)%
+PRINTFORMW の口からペニスバンドを引き抜いた
+
+;-------------------------------------------------
+;固有の実行判定
+;-------------------------------------------------
+@COM_ORDER_PLAYER68(ARG:0)
+;実行値の設定
+TCVAR:(ARG:0):25 = 70
+
+;共通部分
+CALL COM_ORDER(ARG:0)
+
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲望Lv{ABL:(ARG:0):欲望}", ABL:(ARG:0):欲望 * 1)
+CALL COM_ORDER_ELEMENT(ARG:0, @"奉仕Lv{ABL:(ARG:0):奉仕}", ABL:(ARG:0):奉仕 * 4)
+
+LOCAL:0 = GET_PALAMLV(PALAM:(ARG:0):欲情)
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲情Lv{LOCAL:0}", MIN(LOCAL:0 * 1, 10))
+
+IF TALENT:(ARG:0):恥じらい
+	CALL COM_ORDER_ELEMENT(ARG:0, "恥じらい", -1)
+ENDIF
+IF TALENT:(ARG:0):献身的
+	CALL COM_ORDER_ELEMENT(ARG:0, "献身的", 6)
+ENDIF
+IF TALENT:(ARG:0):快感の否定
+	CALL COM_ORDER_ELEMENT(ARG:0, "快感の否定", -1)
+ENDIF
+
+;合意
+IF !TALENT:(ARG:0):合意 && !TALENT:(ARG:0):親友
+	CALL COM_ORDER_ELEMENT(ARG:0, "合意なし", -10)
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE68
+
+IF MTAR_NUM >= 2
+	LOCALS:1 = %ANAME(MTAR:0)%たち
+ELSE
+	LOCALS:1 = %ANAME(MTAR:0)%
+ENDIF
+
+IF CUM_GET_COUNT:(MTAR:0):射精部位_口 > 0
+	LOCALS:2 = 飲ませた精液を吐き出さないよう
+ELSE
+	LOCALS:2 = 
+ENDIF
+
+SELECTCASE GET_COM_INITIATIVE()
+	;プレイヤーに主導権
+	CASE 0
+		PRINTFORMW %ANAME(MPLY:0)%は%LOCALS:1%の%LOCALS:0%にペニスバンドのついた口枷を取り付け%TARGET_STR("だ", "できた")%…
+	;ターゲットに主導権
+	CASE 1
+		PRINTFORMW %LOCALS:1%は%ANAME(MPLY:0)%にペニスバンドのついた口枷を握らせると、%LOCALS:2%自身の口に取り付けさせた…
+	;第三者に主導権
+	CASEELSE
+		PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に、ペニスバンドのついた口枷で%LOCALS:1%を責めるように命令した
+		PRINTFORMW %ANAME(MPLY:0)%は%LOCALS:1%の%LOCALS:0%にペニスバンドのついた口枷を取り付けた…
+ENDSELECT
+
+;--------------------------------------------------------
+;地の文(パラメータ・刻印変動後)
+;--------------------------------------------------------
+@COM_TEXT_LAST68
+
+;--------------------------------------------------------
+;装着時と継続状態での共通処理
+;--------------------------------------------------------
+@COM_COMMON68(ARG:0)
+SELECTCASE ABL:(ARG:0):Ｍ感
+	CASE 0
+		SOURCE:(ARG:0):苦痛 += 300
+	CASE 1
+		SOURCE:(ARG:0):苦痛 += 100
+	CASE 2
+		SOURCE:(ARG:0):苦痛 += 30
+ENDSELECT
+
+IF PALAM:(ARG:0):潤滑 < PALAMLV:1
+	TIMES SOURCE:(ARG:0):快Ｍ, 0.05
+	SOURCE:(ARG:0):苦痛 = SOURCE:(ARG:0):苦痛 * 4 + 1000
+ELSEIF PALAM:(ARG:0):潤滑 < PALAMLV:3
+	TIMES SOURCE:(ARG:0):快Ｍ, 0.20
+	SOURCE:(ARG:0):苦痛 = SOURCE:(ARG:0):苦痛 * 2 + 300
+ELSEIF PALAM:(ARG:0):潤滑 < PALAMLV:5
+	TIMES SOURCE:(ARG:0):快Ｍ, 0.60
+	TIMES SOURCE:(ARG:0):苦痛, 1.00
+ELSEIF PALAM:(ARG:0):潤滑 < PALAMLV:7
+	TIMES SOURCE:(ARG:0):快Ｍ, 0.85
+	TIMES SOURCE:(ARG:0):苦痛, 0.70
+ELSE
+	TIMES SOURCE:(ARG:0):快Ｍ, 1.00
+	TIMES SOURCE:(ARG:0):苦痛, 0.50
+ENDIF
+
+IF TALENT:(ARG:0):小柄体型
+	TIMES SOURCE:(ARG:0):苦痛, 1.50
+ENDIF
+
+IF TALENT:(ARG:0):処女 == 1
+	SOURCE:(ARG:0):苦痛 = SOURCE:(ARG:0):苦痛 * 2 + 500
+ENDIF
+
+IF ARG:0 != MASTER
+	IF !(TALENT:(ARG:0):恋慕 || TALENT:(ARG:0):親友)
+		IF TALENT:(ARG:0):貞操観念
+			SOURCE:(ARG:0):反感 = 1000
+		ELSEIF TALENT:(ARG:0):貞操無頓着
+			SOURCE:(ARG:0):反感 = 300
+		ELSE
+			SOURCE:(ARG:0):反感 = 2500
+		ENDIF
+		IF TALENT:(ARG:0):恋人
+			TIMES SOURCE:(ARG:0):反感, 0.10
+		ENDIF
+	ENDIF
+
+	;好感度・従属度の影響
+	LOCAL:0 = MAX(CFLAG:(ARG:0):2, CFLAG:(ARG:0):4)
+	IF LOCAL:0 < 100
+		TIMES SOURCE:(ARG:0):反感, 1.00
+	ELSEIF LOCAL:0 < 300
+		TIMES SOURCE:(ARG:0):反感, 0.90
+	ELSEIF LOCAL:0 < 500
+		TIMES SOURCE:(ARG:0):反感, 0.80
+	ELSEIF LOCAL:0 < 800
+		TIMES SOURCE:(ARG:0):反感, 0.40
+	ELSEIF LOCAL:0 < 1500
+		TIMES SOURCE:(ARG:0):反感, 0.15
+	ELSE
+		SOURCE:(ARG:0):反感 = SOURCE:(ARG:0):反感 / ((LOCAL:0 - 1500) / 50 + 10)
+	ENDIF
+	
+ENDIF
+
+;-------------------------------------------------
+
+;コマンド区分
+;-------------------------------------------------
+
+@COM_AVAILABLE_WHEN68
+RETURN コマンド_ウフフ
