@@ -30,8 +30,8 @@ SIF RESULT == 0
 ;プレイヤーは最大で5人まで
 SIF MPLY_NUM <= 0 || MPLY_NUM > 5
 	RETURN 0
-;ターゲットは最大で2人まで
-SIF MTAR_NUM <= 0 || MTAR_NUM > 2
+;ターゲットはプレイヤーの倍まで
+SIF MTAR_NUM <= 0 || MTAR_NUM > MPLY_NUM * 2
 	RETURN 0
 ;全てのプレイヤーについて判定
 FOR LOCAL:0, 0, MPLY_NUM
@@ -119,8 +119,7 @@ FOR LOCAL:0, 0, MPLY_NUM
 	;全ターゲットに与える快感系ソースを計算
 	FOR LOCAL:1, 0, MTAR_NUM
 		LOCAL:3 = MTAR:(LOCAL:1)
-		SOURCE:(LOCAL:3):快Ｃ += SENSE_HOUSHI(LOCAL:2, LOCAL:3, 500) * LOCAL:10 / 100
-		SOURCE:(LOCAL:3):快Ｂ += SENSE_HOUSHI(LOCAL:2, LOCAL:3, 300) * LOCAL:10 / 100
+		SOURCE:(LOCAL:3):快Ｃ += SENSE_HOUSHI(LOCAL:2, LOCAL:3, 1200) * LOCAL:10 / 100
 
 		;射精箇所と対象をセット
 		CALL STACK_SPERM(LOCAL:3, LOCAL:2, 射精部位_無駄)
@@ -183,8 +182,6 @@ FOR LOCAL:0, 0, MTAR_NUM
 	;挿入中だと性能低下
 	IF IS_INSERT_SINGLE(LOCAL:1, "全")
 		TIMES SOURCE:(LOCAL:1):快Ｃ, 0.80
-		TIMES SOURCE:(LOCAL:1):快Ｂ, 0.80
-		TIMES SOURCE:(LOCAL:1):快Ｍ, 0.80
 	ENDIF
 NEXT
 
@@ -198,6 +195,124 @@ TFLAG:50 = -1
 TFLAG:51 = 5
 
 RETURN 1
+
+;-------------------------------------------------
+;継続コマンドかどうかを設定
+;-------------------------------------------------
+@COM_IS_EQUIP0
+RETURN 1
+
+;-------------------------------------------------
+;継続状態の処理
+;-------------------------------------------------
+@COM_EQUIP0(ARG:0)
+;●人数補正の設定
+LOCAL:10 = 100
+
+SELECTCASE MEQUIP_PLAYER_NUM:(ARG:0)
+	CASE 2
+		TIMES LOCAL:10, 0.75
+ENDSELECT
+
+SELECTCASE MEQUIP_TARGET_NUM:(ARG:0)
+	CASE 2
+		TIMES LOCAL:10, 0.75
+ENDSELECT
+
+;●全プレイヤーについて判定
+FOR LOCAL:0, 0, MEQUIP_PLAYER_NUM:(ARG:0)
+	LOCAL:2 = MEQUIP_PLAYER:(ARG:0):(LOCAL:0)
+
+	DOWNBASE:(LOCAL:2):体力 += 20
+
+	EXP:(LOCAL:2):性技経験値 += MAX(MEQUIP_TARGET_NUM:(ARG:0) / 2 + 1, 1)
+
+
+	SOURCE:(LOCAL:2):奉仕 += SERVE_HOUSHI(LOCAL:2, 60)
+	SOURCE:(LOCAL:2):接触 += 30
+	SOURCE:(LOCAL:2):性行動 += 30
+
+	;奉仕経験値を得られるコマンドのフラグ
+	TCVAR:(LOCAL:2):4 = 1
+
+	;全ターゲットに与える快感系ソースを計算
+	FOR LOCAL:1, 0, MEQUIP_TARGET_NUM:(ARG:0)
+		LOCAL:3 = MEQUIP_TARGET:(ARG:0):(LOCAL:1)
+		SOURCE:(LOCAL:3):快Ｃ += SENSE_HOUSHI(LOCAL:2, LOCAL:3, 400) * LOCAL:10 / 100
+
+		;射精箇所と対象をセット
+		CALL STACK_SPERM(LOCAL:3, LOCAL:2, 0)
+	NEXT
+
+	;倒錯度変化基準値
+	TCVAR:(LOCAL:2):50 -= 1
+NEXT
+
+;●全ターゲットについて判定
+FOR LOCAL:0, 0, MEQUIP_TARGET_NUM:(ARG:0)
+	LOCAL:2 = MEQUIP_TARGET:(ARG:0):(LOCAL:0)
+
+	DOWNBASE:(LOCAL:2):体力 += 10
+
+	SOURCE:(LOCAL:2):露出 += 50
+	SOURCE:(LOCAL:2):接触 += 30
+	SOURCE:(LOCAL:2):性行動 += 60
+
+	;射精箇所と対象をセット
+	FOR LOCAL:1, 0, MEQUIP_PLAYER_NUM:(ARG:0)
+		LOCAL:3 = MEQUIP_PLAYER:(ARG:0):(LOCAL:1)
+		CALL STACK_SPERM(LOCAL:3, LOCAL:2, 0, 0)
+	NEXT
+
+	;1-1のときのみキスを追加
+	IF MPLY_NUM == 1 && MTAR_NUM == 1
+		;ターゲットに口の汚れがあって汚れ無視がない or 口が使用中 or キス未経験ならキスしない
+		;IF (!GET_STAIN(LOCAL:1, "口", "Ｐ", "精", "Ａ") || TALENT:(MPLY:0):汚れ無視) && !TALENT:(MPLY:0):キス未経験 && !TALENT:(MTAR:0):キス未経験
+		IF !TALENT:(LOCAL:3):キス未経験 && !TALENT:(LOCAL:2):キス未経験 && !IS_EQUIP_PLAYER(LOCAL:3, 2, 11, 12, 20, 104) && !IS_EQUIP_PLAYER(LOCAL:2, 2, 11, 12, 20, 104) && !IS_RIDDEN(LOCAL:3) && !IS_RIDDEN(LOCAL:2)
+			TFLAG:17 = 1
+
+			EXP:(LOCAL:3):キス経験 += 1
+			EXP:(LOCAL:2):キス経験 += 1
+
+			SOURCE:(LOCAL:3):快Ｍ = SENSE_HOUSHI(LOCAL:2, LOCAL:3, 100)
+			SOURCE:(LOCAL:2):快Ｍ = SENSE_HOUSHI(LOCAL:3, LOCAL:2, 100)
+
+			SOURCE:(LOCAL:2):奉仕 = SERVE_HOUSHI(LOCAL:2, 50)
+
+			TIMES SOURCE:(LOCAL:3):愛情, 2.00
+			TIMES SOURCE:(LOCAL:2):愛情, 2.00
+
+			;奴隷の口⇔調教者の口の汚れが移動
+			STAIN:(LOCAL:3):0 |= STAIN:(LOCAL:2):0
+			STAIN:(LOCAL:2):0 |= STAIN:(LOCAL:3):0
+		ENDIF
+	ENDIF
+
+
+
+	;倒錯度変化基準値
+	TCVAR:(LOCAL:2):50 -= 1
+NEXT
+
+;-------------------------------------------------
+;継続中の表示
+;-------------------------------------------------
+@EQUIP_MESSAGE0(ARG:0)
+LOCAL:2 = 0
+RESULTS = %EQUIP_PLAYER_ANAME(ARG:0)%が%EQUIP_TARGET_ANAME(ARG:0)%に愛撫中
+
+;-------------------------------------------------
+;継続中の地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE_EQUIP0(ARG:0)
+
+PRINTFORML %EQUIP_PLAYER_ANAME(ARG:0)%が%EQUIP_TARGET_ANAME(ARG:0)%の身体を弄っている…
+
+;-------------------------------------------------
+;継続を解除したときの地の文
+;-------------------------------------------------
+@COM_TEXT_RELEASE_EQUIP0(ARG:0)
+
 
 ;-------------------------------------------------
 ;固有の実行判定
