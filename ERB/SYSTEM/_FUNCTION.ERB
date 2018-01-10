@@ -101,7 +101,6 @@ ELSE
 	;固有の処理は不要
 ENDIF
 IF GET_COOK() == ARG:0
-	PRINTFORML %ANAME(ARG:0)%は料理長に指定されていたので、解任しました
 	CALL SET_COOK(-1)
 ENDIF
 
@@ -1246,7 +1245,7 @@ RETURNF INRANGE(NO:(ARG:0), MIN_NO_CHILD, MIN_NO_CHILD + MAX_CHILD - 1)
 
 @IS_SP_CHARA(ARG:0)
 #FUNCTION
-RETURNF NO:(ARG:0) >= MIN_NO_SP_CHARA
+RETURNF NO:(ARG:0) >= MIN_NO_SP_CHARA && TALENT:(ARG:0):カスタムキャラ
 
 ;-------------------------------------------------
 ;子供・ランダムキャラを追加できるかを返す
@@ -2350,6 +2349,9 @@ ELSEIF CFLAG:(ARG:0):所属 == CFLAG:MASTER:所属
 ELSEIF CFLAG:(ARG:0):所属 != 0
 	SETCOLOR 0x28cc28
 	PRINT 他
+ELSEIF CFLAG:(ARG:0):特殊状態 == 特殊状態_放浪
+	SETCOLOR 0x874b4e
+	PRINT 浪
 ELSE
 	SETCOLOR 0x808080
 	PRINT 無
@@ -2802,14 +2804,14 @@ RETURNF ランク
 ;ENDSELECT
 
 ;---------------------------
-;FLAG:料理長を操作するための関数
+;FLAG:娯楽担当を操作するための関数
 ;---------------------------
 @SET_COOK(ARG:0)
-FLAG:料理長 = GET_ID(ARG:0)
+FLAG:娯楽担当 = GET_ID(ARG:0)
 
 @GET_COOK
 #FUNCTION
-RETURNF ID_TO_CHARA(FLAG:料理長)
+RETURNF ID_TO_CHARA(FLAG:娯楽担当)
 
 ;---------------------------
 ;外来人やホフゴブリンの調教テキストを表示するかを返す関数
@@ -3414,9 +3416,68 @@ FOR LOCAL, 0, CHARANUM
 NEXT
 
 SIF 候補数 == 0
-	RETURN 0
+	RETURN -1
 
 RETURN 候補:(RAND:候補数)
+
+;-------------------------------------------------
+;desc  :キャラをランダムに選出する関数
+;param :選択関数名:キャラを選出する条件となる関数の名前 SELECT_CHARA_RANDOM_LOGIC_●●(ARG:0)の●●の部分
+;-------------------------------------------------
+@SELECT_CHARA_RANDOM_MULTI(最大選択数, 選択関数名)
+#DIMS 選択関数名
+#DIM 対象
+#DIM 候補, 3000
+#DIM 候補乱数, 3000
+#DIM 最大選択数
+#DIM 候補数
+
+VARSET 候補, -1
+VARSET 候補乱数, __INT_MIN__
+VARSET 候補数
+VARSET SELECTED_CHARA, -1
+VARSET SELECTED_CHARA_NUM
+
+DUMPRAND
+
+;ガード節
+TRYCCALLFORM SELECT_CHARA_RANDOM_LOGIC_%選択関数名%(MASTER)
+CATCH
+	THROW 指定された関数SELECT_CHARA_RANDOM_LOGIC_%選択関数名%が存在しません
+ENDCATCH
+
+FOR LOCAL, 0, CHARANUM
+	CALLFORM SELECT_CHARA_RANDOM_LOGIC_%選択関数名%(LOCAL)
+	IF RESULT == 1
+		候補:候補数 = LOCAL
+		候補乱数:候補数 = RAND:__INT_MAX__
+		候補数 ++
+	ENDIF
+NEXT
+
+SELECTED_CHARA_NUM = MAX(候補数, 最大選択数)
+
+;候補の方が多い場合、抽選する必要がある
+;最大選択数の方が多い場合、全員を指定する
+
+IF SELECTED_CHARA_NUM == 最大選択数
+	FOR LOCAL, 0, SELECTED_CHARA_NUM
+		SELECTED_CHARA:LOCAL = 候補:LOCAL
+	NEXT
+ELSE
+	FOR LOCAL, 0, SELECTED_CHARA_NUM
+		LOCAL:1 = FINDELEMENT(候補乱数, MAXARRAY(候補乱数, 0, 候補数))
+		SELECTED_CHARA:LOCAL = 候補:(LOCAL:1)
+		候補乱数:(LOCAL:1) = __INT_MIN__
+	NEXT
+ENDIF
+
+INITRAND
+
+SIF 候補数 == 0
+	RETURN 0
+
+RETURN SELECTED_CHARA_NUM
 
 ;-------------------------------------------------
 ;EVENTSTART_CALLEEに追加する

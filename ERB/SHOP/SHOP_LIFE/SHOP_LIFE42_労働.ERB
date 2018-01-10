@@ -31,7 +31,7 @@ RETURN 0
 ;「労働」の右カラム表示処理
 ;-------------------------------------------------
 @SHOP_LIFE_EVENTBUY_SHOW42
-CALL COLUMN_RIGHT_TITLE("労働者選択", "0", "1", "1～全", "0", "料理長指名後推奨")
+CALL COLUMN_RIGHT_TITLE("労働者選択", "0", "1", "1～全", "0", "娯楽担当指名後推奨")
 CALL COLUMN_RIGHT_PRINTL
 CALL COLUMN_RIGHT_LINE
 CALL COLUMN_RIGHT_PRINTL
@@ -53,7 +53,7 @@ RETURN
 ;追加その1　50,武闘 52,知略 53,政治 60,歌唱 61,料理 12,欲望 13,性技 20,奉仕 21,性交
 {
 #DIM HEAD_NUM,20 = 
-GETNUM(ABL, "武闘"),  GETNUM(ABL, "知略"),  GETNUM(ABL, "政治"),GETNUM(ABL, "歌唱"), GETNUM(ABL, "料理"),
+GETNUM(ABL, "武闘"),  GETNUM(ABL, "防衛"), GETNUM(ABL, "知略"),  GETNUM(ABL, "政治"),GETNUM(ABL, "歌唱"), GETNUM(ABL, "料理"),
 GETNUM(ABL, "欲望"), GETNUM(ABL, "性技"), GETNUM(ABL, "奉仕"), GETNUM(ABL, "性交")
 }
 
@@ -86,7 +86,7 @@ PRINTFORML | 娼婦|
 PRINTFORM |
 FOR LOCAL, 0, 9
 	;修正箇所
-	IF LOCAL <= 4
+	IF LOCAL <= 5
 		CALL PRINT_ALPHABET_RANK(ランク_ＳＬＧ, ABL:対象:(HEAD_NUM:LOCAL))
 	ELSE
 		CALL PRINT_ALPHABET_RANK(ランク_その他, ABL:対象:(HEAD_NUM:LOCAL))
@@ -103,21 +103,24 @@ CALL SINGLE_DRAWLINE
 PRINTBUTTON @"%"[鉱山労働]", 12, LEFT%", 1
 PRINTBUTTON "[行動全消費]", 11
 PRINTL   鉱山で働いて稼ぎます。武闘が影響します。
-PRINTBUTTON @"%"[軍事広報]", 12, LEFT%", 2
+PRINTBUTTON @"%"[拠点巡回]", 12, LEFT%", 2
 PRINTBUTTON "[行動全消費]", 12
-PRINTL   軍の広報活動を手伝います。知略が影響します。
-PRINTBUTTON @"%"[街の宣伝]", 12, LEFT%", 3
+PRINTL   拠点を巡回して稼ぎます。防衛が影響します。
+PRINTBUTTON @"%"[軍事広報]", 12, LEFT%", 3
 PRINTBUTTON "[行動全消費]", 13
-PRINTL   街の宣伝活動を手伝います。政治が影響します。
-PRINTBUTTON @"%"[炊き出し]", 12, LEFT%", 4
+PRINTL   軍の広報活動を手伝います。知略が影響します。
+PRINTBUTTON @"%"[街の宣伝]", 12, LEFT%", 4
 PRINTBUTTON "[行動全消費]", 14
-PRINTL   炊き出しを手伝います。料理が影響します。
-PRINTBUTTON @"%"[ライブ]", 12, LEFT%", 5
+PRINTL   街の宣伝活動を手伝います。政治が影響します。
+PRINTBUTTON @"%"[炊き出し]", 12, LEFT%", 5
 PRINTBUTTON "[行動全消費]", 15
+PRINTL   炊き出しを手伝います。料理が影響します。
+PRINTBUTTON @"%"[ライブ]", 12, LEFT%", 6
+PRINTBUTTON "[行動全消費]", 16
 PRINTL   ストリートライブで稼ぎます。歌唱が影響します。
 IF ABL:対象:性技 >= ランク閾値:ランク_その他:ランク_D
-	PRINTBUTTON @"%"[" + (IS_MALE(対象) ? "男娼" # "娼婦") + "]", 12, LEFT%", 6
-	PRINTBUTTON "[行動全消費]", 16
+	PRINTBUTTON @"%"[" + (IS_MALE(対象) ? "男娼" # "娼婦") + "]", 12, LEFT%", 7
+	PRINTBUTTON "[行動全消費]", 17
 	PRINTFORML   \@ IS_MALE(対象) ? 男娼 # 娼婦 \@として働きます。スケベな経験が増えます。スケベな能力が影響します。
 ELSE
 	SETCOLOR カラー_選択不可
@@ -136,10 +139,10 @@ IF 内容 == 0
 	RETURN 0
 ENDIF
 
-IF GROUPMATCH(内容, 11, 12, 13, 14, 15, 16)
+IF GROUPMATCH(内容, 11, 12, 13, 14, 15, 16, 17)
 	全消費 = 1
 	内容 -= 10
-ELSEIF GROUPMATCH(内容, 1, 2, 3, 4, 5, 6)
+ELSEIF GROUPMATCH(内容, 1, 2, 3, 4, 5, 6, 7)
 	全消費 = 0
 ELSE
 	GOTO INPUT_LOOP
@@ -189,13 +192,17 @@ SELECTCASE 内容
 		能力 = GETNUM(ABL, "武闘")
 		経験値 = GETNUM(EXP, "武闘経験値")
 	CASE 2
+		PRINTFORML %ANAME(対象)%は巡回を手伝った……
+		能力 = GETNUM(ABL, "防衛")
+		経験値 = GETNUM(EXP, "防衛経験値")
+	CASE 3
 		PRINTFORML %ANAME(対象)%は軍事広報を手伝った……
 		能力 = GETNUM(ABL, "知略")
 		経験値 = GETNUM(EXP, "知略経験値")
 		;LOCAL:1 = (500 + RAND(MAX(ABL:対象:知略 * 5, 1), MAX(ABL:対象:知略 * 10, 1)) / (SHOP_WORK_COUNT + 1)
 		;COUNTRY_SOLDIER:(CFLAG:対象:所属) += LOCAL:1
 		;PRINTFORML 兵が{LOCAL:1}人増えた
-	CASE 3
+	CASE 4
 		PRINTFORML %ANAME(対象)%は街の宣伝活動を手伝った……
 		能力 = GETNUM(ABL, "政治")
 		経験値 = GETNUM(EXP, "政治経験値")
@@ -209,15 +216,15 @@ SELECTCASE 内容
 		;		BREAK
 		;	ENDIF
 		;NEXT
-	CASE 4
+	CASE 5
 		PRINTFORML %ANAME(対象)%は炊き出しに出かけた……
 		能力 = GETNUM(ABL, "料理")
 		経験値 = GETNUM(EXP, "料理経験値")
-	CASE 5
+	CASE 6
 		PRINTFORML %ANAME(対象)%はストリートライブで稼いだ……
 		能力 = GETNUM(ABL, "歌唱")
 		経験値 = GETNUM(EXP, "歌唱経験値")
-	CASE 6
+	CASE 7
 		PRINTFORMW %ANAME(対象)%は娼館で働いた……
 		PRINTFORML 
 		IF IS_FEMALE(対象)
@@ -235,16 +242,16 @@ ENDSELECT
 
 ;売春以外は報酬は一律
 ;あと経験値獲得処理
-IF 内容 != 6
+IF 内容 != 7
 	報酬 = 2000
 	SELECTCASE 能力
-		CASE GETNUM(ABL, "武闘"), GETNUM(ABL, "知略"), GETNUM(ABL, "政治")
+		CASE GETNUM(ABL, "武闘"), GETNUM(ABL, "防衛"), GETNUM(ABL, "知略"), GETNUM(ABL, "政治")
 			報酬 += RAND:(MAX(ABL:対象:能力 * 10, 1))
 		CASE GETNUM(ABL, "料理"), GETNUM(ABL, "歌唱")
 			報酬 += RAND:(MAX(ABL:対象:能力 * 20, 1))
 	ENDSELECT
 	SELECTCASE 経験値
-		CASE GETNUM(EXP, "武闘経験値"), GETNUM(EXP, "知略経験値"), GETNUM(EXP, "政治経験値")
+		CASE GETNUM(EXP, "武闘経験値"), GETNUM(EXP, "知略経験値"), GETNUM(EXP, "政治経験値"), GETNUM(EXP, "防衛経験値")
 			CALL PRINT_ADD_EXP(対象, EXPNAME:(経験値), RAND(1, 5))
 		CASE GETNUM(EXP, "料理経験値"), GETNUM(EXP, "歌唱経験値")
 			CALL PRINT_ADD_EXP(対象, EXPNAME:(経験値), RAND(1, 3))

@@ -52,7 +52,7 @@ RETURN 1
 LOCAL:2 = CHARANUM
 FOR LOCAL:0, 0, LOCAL:2
 	LOCAL:1 = LOCAL:2 - LOCAL:0 - 1
-	IF IS_SP_CHARA(LOCAL:1) && MASTER != LOCAL:1
+	IF (IS_SP_CHARA(LOCAL:1) && MASTER != LOCAL:1) || TALENT:(LOCAL:1):カスタムキャラ == 2
 		CALL DELETE_CHARA(LOCAL:1)
 	ENDIF
 NEXT
@@ -116,7 +116,7 @@ FLAG:クリア直後フラグ = 0
 FLAG:強制エンドフラグ = 0
 SHOP_TIME = 0
 
-;料理長をリセット（料理長がランダムキャラや出産キャラで、かつそのキャラを引き継がなかったときのため）
+;娯楽担当をリセット（娯楽担当がランダムキャラや出産キャラで、かつそのキャラを引き継がなかったときのため）
 CALL SET_COOK(-1)
 
 ;観戦モードフラグを0
@@ -205,10 +205,17 @@ FOR LOCAL:0, 1, MAX_COUNTRY
 	MONEY:(LOCAL:0) += GET_SUM_ECONOMY(LOCAL:0) * 100 / (100 * 100)
 NEXT
 
+FOR LOCAL, 0, CHARANUM
+	SIF TALENT:LOCAL:カスタムキャラ == 2
+		TALENT:LOCAL:カスタムキャラ = 1
+NEXT
+
 ;奴隷市場の商品リストを更新
 CALL SLAVEMARKET_PREPARE_GOODS
 ;スカウトの対象リストを更新
 CALL SCOUT_PREPARE_CANDIDATES
+;放浪中のキャラが「会いに行く」で表示されるようリスト作成
+CALL MEET_CHECK_CANDIDATES
 ;特別訓練の価格を更新
 CALL CALC_SPECIAL_TRAIN_PRICE
 ;このターンの特別訓練実施回数をリセット
@@ -590,8 +597,9 @@ CALL SINGLE_DRAWLINE
 
 ;ここから登録キャラの表示
 PRINTBUTTON "[あなたを新規作成]", 0
-PRINTFORM ※ 現在の「あなた」のデータをリセットします
-IF FLAG:あなた作成済み && MASTER != NAME_TO_CHARA("あなた")
+IF FIND_CHARADATA(TOSTR(-2))
+	PRINTBUTTON "[保存済みのデータを利用]", 97
+ELSEIF FLAG:あなた作成済み && MASTER != NAME_TO_CHARA("あなた")
 	PRINTL
 	PRINTBUTTON @"[%ANAME(NAME_TO_CHARA("あなた"))%を選択]", 2
 ENDIF
@@ -636,6 +644,18 @@ IF RESULT == 0
 	CALL MASTER_EDIT(LOCAL:1)
 	選択MASTERID = GET_ID(RESULT)
 	FLAG:あなた新規作成 = 1
+ELSEIF RESULT == 97
+	LOCAL:1 = NAME_TO_CHARA("あなた")
+	CALL LOAD_CUSTOM_DATA(-2)
+	LOCAL:2 = RESULT
+	TALENT:(LOCAL:2):カスタムキャラ = 0
+	SWAP CFLAG:(LOCAL:1):キャラＩＤ, CFLAG:(LOCAL:2):キャラＩＤ
+	選択MASTERID = GET_ID(LOCAL:2)
+	FLAG:あなた新規作成 = 1
+	NO:(LOCAL:2) = NO:(LOCAL:1)
+	NO:(LOCAL:1) = __INT_MAX__
+	CALL SWAP_CHARA(LOCAL:1, LOCAL:2)
+	CALL DELETE_CHARA(LOCAL:2)
 ;固有君主利用
 ELSEIF RESULT == 1 && FINDELEMENT(SP_COUNTRY_START, 特殊勢力スタート_君主) != -1
 	SP_COUNTRY_START_CHANGE_BOSS = 0
@@ -803,6 +823,15 @@ NEXT
 #DIM 対象
 #DIM 消去行
 #DIM 士官, 3000
+#DIM ランダム可能
+ランダム可能 = 0
+FOR LOCAL, 1, CITY_NUM + 1
+	IF !IS_COUNTRY(CITY_OWNER:LOCAL)
+		ランダム可能 = 1
+		BREAK
+	ENDIF
+NEXT
+
 勢力 = GET_NEW_COUNTRY()
 
 CALL SINGLE_DRAWLINE
@@ -814,6 +843,7 @@ PRINTL
 CALL SINGLE_DRAWLINE
 PRINTL 旗揚げする都市を選択してください
 PRINTL 勢力が所有している都市は、その勢力の所有都市数が1の場合は選択できません
+CALL PRINTBUTTON_EX("[ランダム]", 1000, ランダム可能)
 PRINTBUTTON "[戻る]", 0
 PRINTL
 CALL SINGLE_DRAWLINE
@@ -825,6 +855,14 @@ INPUT
 
 IF RESULT == 0
 	RETURN -1
+ELSEIF RESULT == 1000 && ランダム可能
+	WHILE 1
+		都市 = RAND(1, 1  + CITY_NUM + 1)
+		SIF !IS_COUNTRY(CITY_OWNER:都市)
+			BREAK
+	WEND
+	REDRAW 1
+	PRINTFORMW %GET_RELAYNAME(都市)%で旗揚げします	
 ELSEIF RESULT >= 1001 && RESULT <= 1001 + CITY_NUM
 	都市 = RESULT - 1000
 	;指定された都市が存在し、無所属である場合
@@ -866,7 +904,7 @@ RETURN
 ;-------------------------------------------------
 @SELECT_CHARA_LIST_SHOW_LOGIC_START_WITH_NEW_COUNTRY(対象)
 #DIM 対象
-RETURN GET_COUNTRY_BOSS(CFLAG:対象:所属) != 対象 && IS_FIXED_CHARA(対象) && 対象 != NAME_TO_CHARA("あなた") && 対象 != MASTER
+RETURN GET_COUNTRY_BOSS(CFLAG:対象:所属) != 対象 && !TALENT:対象:特殊勢力素質 && 対象 != NAME_TO_CHARA("あなた") && 対象 != MASTER
 ;-------------------------------------------------
 ;「あなた」を新規に作成した場合のボーナス
 ;-------------------------------------------------
@@ -878,8 +916,12 @@ CALL SINGLE_DRAWLINE
 CALL COLORPRINT("あなた新規作成ボーナス！", カラー_注意, "L")
 PRINTFORML 「あなた」を新規に作成して主人公にしたので、ボーナスがもらえます
 PRINTFORML どれにしますか？(どれも後から手に入ります)
-
-CALL ASK_MULTI("素質【酒豪】", "素質【天の御遣い】", "素質【君主の器】", "素質【求心力】", "素質【妖術知識】と妖術ステータス10", "素質【技師】", "スキル【超成長力】【努力家】", "素質【絶倫】", "金100000", "アイテム【催眠術】", "【チョロイン】【合意】3人分", "お手軽調教セット", "いらない")
+{
+CALL ASK_MULTI(
+	"素質【酒豪】",                 "素質【天の御遣い】",           "素質【君主の器】", "素質【求心力】", "素質【妖術知識】と妖術ステータス10",
+	"素質【技師】",                 "スキル【超成長力】【努力家】", "素質【絶倫】",     "金5万",       "アイテム【催眠術】",
+	 "【チョロイン】【合意】3人分", "お手軽調教セット",             "いらない")
+}
 選択ボーナス = RESULT
 SELECTCASE 選択ボーナス
 	CASE 0
@@ -896,34 +938,35 @@ SELECTCASE 選択ボーナス
 		PRINTFORML (恋慕・従属どちらのルートでも必要な値なので便利です)
 	CASE 4
 		PRINTFORML 触手が扱えるようになる素質「妖術知識」と、ＳＬＧステータス「妖術」10のセットにしますか？
-		PRINTFORML (妖術知識取得自体は安価ですが、妖術はとても鍛えにくいので10でも貴重です）
+		PRINTFORML (妖術はとても鍛えにくいので10でも貴重です）
 	CASE 5
 		PRINTFORML アイテム開発が早くなり、効果が高まる素質「技師」にしますか？
-		PRINTFORML (多くのアイテムは開発→購入というプロセスを経るので、持っておくと便利です)
+		PRINTFORML (多くのアイテムは開発→購入というプロセスを経るので、持っておくと地味に便利です)
 	CASE 6
 		PRINTFORML ＳＬＧステータスの成長が速くなり、毎ターン経験値が入るスキル「超成長力」、
 		PRINTFORML 戦闘に勝利した際に得られる経験値が増え、毎ターン経験値が入るスキル「努力家」のセットにしますか？
 		PRINTFORML （育成が目に見えて楽になるので、ひとかどの武将・知将になりたいならぜひ欲しいスキルです）
 	CASE 7
 		PRINTFORML 調教による体力・気力の減少が非常に少なくなる素質「絶倫」にしますか？
-		PRINTFORML （調教による体力気力消費が激しめなので、あるとかなり便利です）
+		PRINTFORML （調教中に主人公の体力が尽きると調教が終了してしまいます）
+		PRINTFORML （結構激しめに消費するので、あるとかなり便利です）
 	CASE 8
-		PRINTFORML 金は力。金10万にしますか？
+		PRINTFORML 金は力。金5万にしますか？
 		PRINTFORML （士官の雇用、兵の雇用、アイテム購入に訓練……金はいくらあっても足りません)
-		PRINTFORML （序盤にこれだけの額があれば、士官をかき集めるには十分でしょう）
+		PRINTFORML （これだけあれば、開幕から強力な士官を雇うこともできるでしょう）
 	CASE 9
 		PRINTFORML 発動することでコマンド実行判定にボーナスのかかる「催眠術」を習得しますか？
 		PRINTFORML （購入までの前提条件が多く、最も取得の面倒なアイテムの一つです）
 		PRINTFORML （練習が必要ですが、十分に鍛わるとたいていのキャラに容易に好き放題できるようになります）
 	CASE 10
-		PRINTFORML もってるとチョロくなる素質「チョロイン」と、エロいことをする許し「合意」を3人まで付与しますか？
-		PRINTFORML (おまけで攻略に必要なパラメタである好感度・依存度・服従度を+1000しておきます)
+		PRINTFORML もってるとチョロくなる隠し素質「チョロイン」と、エロいことをする許し「合意」を3人まで付与しますか？
+		PRINTFORML (おまけで、攻略に必要なパラメタである好感度・依存度・服従度を+1000しておきます)
 		PRINTFORML (開幕えろいことしたい人向け)
 	CASE 11
 		PRINTFORML 調教アイテムの詰め合わせ、お手軽調教セットにしますか？
 		PRINTFORML （ローター、バイブ、アナルバイブ、クリ/ニプルキャップ、ペニスバンド、オナホール、縄、鞭、目隠し、ローション * 10、絶倫丸 * 5、ビデオとビデオテープ * 5）
-		PRINTFORML （開発にかかる時間を飛ばせます。使う相手がいないと意味ないけどネ！）
-	CASE 11
+		PRINTFORML （アイテム開発にかかる時間を飛ばせます。使う相手がいないと意味ないけどネ！）
+	CASE 12
 		PRINTFORML マジで……？
 		PRINTFORML (実はあとから別のボーナス！　とかマジでないです)
 		PRINTFORML (縛りプレイ用。きみはもの好きなのか？)
@@ -1049,6 +1092,7 @@ FOR LOCAL, 0, MAX_CUSTOM_CHARA
 	SIF !FIND_CHARADATA(TOSTR(LOCAL))
 		CONTINUE
 	CALL LOAD_CUSTOM_DATA(LOCAL)
+	TALENT:RESULT:カスタムキャラ = 2
 	候補:候補数 = RESULT
 	候補数 ++
 NEXT
@@ -1097,6 +1141,7 @@ ELSEIF RESULT == 10002
 			CFLAG:(候補:LOCAL):特殊状態 = 特殊状態_放浪
 		ELSE
 			CFLAG:(候補:LOCAL):所属 = 配置先:LOCAL
+			CFLAG:(候補:LOCAL):特殊状態 = 0
 		ENDIF
 	NEXT
 	RETURN

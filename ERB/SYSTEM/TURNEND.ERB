@@ -265,6 +265,8 @@ VARSET PRISONER_TARGET, -1
 CALL SLAVEMARKET_PREPARE_GOODS
 ;スカウトの対象リストを更新
 CALL SCOUT_PREPARE_CANDIDATES
+;「会いに行く」の対象リストのチェック
+CALL MEET_CHECK_CANDIDATES
 ;特別訓練の価格を更新
 ;次のターンの特別訓練価格になるので、いったんDAYを1増やした（次のターンの値で）計算し、戻す
 DAY ++
@@ -291,6 +293,9 @@ NEXT
 
 ;このターンの特別訓練実施回数をリセット
 SPECIAL_TRAIN_COUNT_THIS_TURN = 0
+
+ARENA_DONE = 0
+APPOINT_DONE = 0
 
 ;都市への投資をクリア
 VARSET CITY_INVESTED
@@ -406,20 +411,20 @@ NEXT
 CALL TURNEND_CHARA_PROCESS
 
 ;-------------------------------------------------
-;料理長による回復
+;娯楽担当による回復
 ;-------------------------------------------------
 @COOK_HEAL(対象 = 0)
 #DIM 対象
 IF GET_COOK() != -1
 	LOCAL = GET_COOK()
 	IF LOCAL != 0 && !CFLAG:(LOCAL):捕虜先 && CFLAG:(LOCAL):所属 == CFLAG:MASTER:所属
-		BASE:対象:体力 = MIN(BASE:対象:体力 + (ABL:LOCAL:料理 / 10 * 100 + RAND:100), MAXBASE:対象:体力)
-		BASE:対象:気力 = MIN(BASE:対象:気力 + (ABL:LOCAL:料理 / 10 * 100 + RAND:100), MAXBASE:対象:気力)
-		PRINTFORML %ANAME(LOCAL)%の料理で、%ANAME(対象)%の体力と気力が回復しました
+		BASE:対象:体力 = MIN(BASE:対象:体力 + BASE:対象:体力 * (ABL:LOCAL:料理 / 2 + ABL:LOCAL:歌唱 / 2 ) / 100, MAXBASE:対象:体力)
+		BASE:対象:気力 = MIN(BASE:対象:気力 + BASE:対象:気力 * (ABL:LOCAL:料理 / 2 + ABL:LOCAL:歌唱 / 2 ) / 100, MAXBASE:対象:気力)
+		PRINTFORML 娯楽担当の%ANAME(LOCAL)%の仕事により、%ANAME(対象)%の体力と気力が回復しました
 	ELSE
 		SETCOLOR カラー_注意
-		PRINTFORML 料理長が国内にいない（捕虜になっている、国外に追放された）ため、その恩恵をうけられません
-		PRINTFORMW !料理長を解除しました!
+		PRINTFORML 娯楽担当が国内にいない（捕虜になっている、国外に追放された）ため、その恩恵をうけられません
+		PRINTFORMW !娯楽担当を解除しました!
 		RESETCOLOR
 		CALL SET_COOK(-1)
 	ENDIF
@@ -589,7 +594,61 @@ FOR LOCAL:0, 0, CHARANUM
 
 NEXT
 
+;-------------------------------------------------
+;「会いに行く」での放浪中キャラの用意
+;-------------------------------------------------
+@MEET_CHECK_CANDIDATES()
 
+MEET_CANDIDATES_REST_TURN --
+
+FOR LOCAL, 0, MEET_MAX_CANDIDATES
+	LOCAL:1 = ID_TO_CHARA(MEET_CANDIDATES:LOCAL)
+	SIF LOCAL:1 == -1
+		CONTINUE
+	IF CFLAG:(LOCAL:1):特殊状態 != 特殊状態_放浪 || CFLAG:(LOCAL:1):捕虜先
+		ARRAYSHIFT MEET_CANDIDATES, -1, 0, LOCAL, MEET_MAX_CANDIDATES
+	ENDIF
+NEXT
+
+SIF !IS_COUNTRY(CFLAG:MASTER:所属)
+	RETURN 0
+
+IF IS_SP_COUNTRY(CFLAG:MASTER:所属)
+	VARSET MEET_CANDIDATES, 0
+	VARSET MEET_CANDIDATES_REST_TURN, 0
+ENDIF
+
+LOCAL:2 = 1
+
+FOR LOCAL, 0, MEET_MAX_CANDIDATES
+	LOCAL:1 = ID_TO_CHARA(MEET_CANDIDATES:LOCAL)
+	IF LOCAL:1 != -1
+		LOCAL:2 = 0
+		BREAK
+	ENDIF
+NEXT
+
+SIF LOCAL:2
+	MEET_CANDIDATES_REST_TURN = 0
+
+SIF MEET_CANDIDATES_REST_TURN > 0
+	RETURN 0
+
+VARSET MEET_CANDIDATES, 0
+VARSET MEET_CANDIDATES_REST_TURN, 0
+
+CALL SELECT_CHARA_RANDOM_MULTI(MEET_MAX_CANDIDATES, "MEET_CHECK_CANDIDATES")
+
+FOR LOCAL, 0, MIN(MEET_MAX_CANDIDATES, SELECTED_CHARA_NUM)
+	MEET_CANDIDATES:LOCAL = GET_ID(SELECTED_CHARA:LOCAL)
+NEXT
+
+SIF SELECTED_CHARA_NUM > 0
+	MEET_CANDIDATES_REST_TURN = 4
+
+@SELECT_CHARA_RANDOM_LOGIC_MEET_CHECK_CANDIDATES(対象)
+#DIM 対象
+RETURN 対象 != MASTER && !CFLAG:対象:捕虜先 && CFLAG:対象:特殊状態 == 特殊状態_放浪
 
 ;-------------------------------------------------
 ;脱出イベント
