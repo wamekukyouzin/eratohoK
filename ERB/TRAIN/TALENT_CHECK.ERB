@@ -23,7 +23,7 @@ SIF GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_淫乱)
 	CALL TALENT_CHECK_PART(ARG:0)
 
 ;-------------------------------------------------
-;プライド高いを所有するキャラクターが屈服した場合の処理
+;プライド高いを所有するキャラクターが主人した場合の処理
 ;ARG:1は色変更を行わないフラグ	ARG:2は先頭の改行を行わないフラグ
 ;-------------------------------------------------
 @TALENT_LOSE_PRIDE(ARG:0, ARG:1, ARG:2)
@@ -131,7 +131,7 @@ ENDIF
 LOCAL:1 = 0
 
 
-IF !IS_SLAVE(ARG:0) && !IS_LOVER(ARG:0) && !TALENT:(ARG:0):親友 && IS_SAMESEX(MASTER, ARG:0) && !TALENT:(ARG:0):両刀 && CFLAG:(ARG:0):好感度 >= 1500
+IF !IS_SLAVE(ARG:0) && !IS_LOVER(ARG:0) && !IS_SLAVED_BY(ARG:0) && !TALENT:(ARG:0):親友 && IS_SAMESEX(MASTER, ARG:0) && !TALENT:(ARG:0):両刀 && CFLAG:(ARG:0):好感度 >= 1500
 	CALL SINGLE_EMPTY_LINE()
 	CALL KOJO_EVENT(ARG:0, 61)
 	SETCOLOR カラー_注意
@@ -140,7 +140,7 @@ IF !IS_SLAVE(ARG:0) && !IS_LOVER(ARG:0) && !TALENT:(ARG:0):親友 && IS_SAMESEX(
 	TALENT:(ARG:0):親友 = 1
 ENDIF
 
-IF !IS_SLAVE(ARG:0)
+IF !IS_SLAVE(ARG:0) && !IS_SLAVED_BY(ARG:0) 
 	IF !TALENT:(ARG:0):恋慕 && CFLAG:(ARG:0):好感度 > CFLAG:(ARG:0):従属度 && CFLAG:(ARG:0):好感度 >= 1500  && CFLAG:(ARG:0):依存度 >= 300 && (!IS_SAMESEX(MASTER, ARG:0) || TALENT:(ARG:0):両刀 || TALENT:(ARG:0):恋人)
 		CALL SINGLE_EMPTY_LINE()
 		CALL KOJO_EVENT(ARG:0, 60)
@@ -170,7 +170,7 @@ IF !IS_SLAVE(ARG:0)
 	ENDIF
 ENDIF
 
-IF !IS_LOVER(ARG:0)
+IF !IS_LOVER(ARG:0) && !IS_SLAVED_BY(ARG:0) 
 	IF !TALENT:(ARG:0):服従 && CFLAG:(ARG:0):従属度 >= 1500 && CFLAG:(ARG:0):依存度 >= 300 && !TALENT:(ARG:0):恋慕
 		CALL SINGLE_EMPTY_LINE()
 		CALL KOJO_EVENT(ARG:0, 63)
@@ -201,6 +201,37 @@ IF !IS_LOVER(ARG:0)
 		LOCAL:1 = 4
 	ENDIF
 ENDIF
+
+IF !IS_LOVER(ARG:0) && !IS_SLAVE(ARG:0) 
+	IF !TALENT:(ARG:0):主人 && CFLAG:(ARG:0):支配度 >= 1500 && CFLAG:(ARG:0):依存度 >= 300 && !TALENT:(ARG:0):恋慕
+		CALL SINGLE_EMPTY_LINE()
+		CALL KOJO_EVENT(ARG:0, 63)
+		SETCOLOR カラー_注意
+		IF TALENT:(ARG:0):親友
+			PRINTFORMW %ANAME(ARG:0)%は<親友>を失い、%ANAME(MASTER)%の<主人>になった
+		ELSE
+			PRINTFORMW %ANAME(ARG:0)%は%ANAME(MASTER)%の<主人>になった
+		ENDIF
+		RESETCOLOR
+		TALENT:(ARG:0):親友 = 0
+		TALENT:(ARG:0):主人 = 1
+		;堕とした人数＋１
+		FLAG:陥落人数 += !(CFLAG:(ARG:0):陥落済み)
+		CFLAG:(ARG:0):陥落済み = 1
+		LOCAL:1 = 6
+	ENDIF
+
+	IF !TALENT:(ARG:0):所有者 && CFLAG:(ARG:0):支配度 >= 10000 && CFLAG:(ARG:0):依存度 >= 3000 && ABL:(ARG:0):奉仕 >= ランク閾値:ランク_その他:ランク_C && TALENT:(ARG:0):主人
+		CALL SINGLE_EMPTY_LINE()
+		CALL KOJO_EVENT(ARG:0, 64)
+		SETCOLOR カラー_注意
+		PRINTFORMW %ANAME(ARG:0)%は%ANAME(MASTER)%の<所有者>になった
+		RESETCOLOR
+		TALENT:(ARG:0):所有者 = 1
+		LOCAL:1 = 7
+	ENDIF
+ENDIF
+
 
 LOCAL:0 = ABL:(ARG:0):Ｃ感 + ABL:(ARG:0):Ｖ感 + ABL:(ARG:0):Ａ感 + ABL:(ARG:0):Ｂ感 + ABL:(ARG:0):Ｍ感 + ABL:(ARG:0):射精
 {
@@ -247,6 +278,16 @@ SELECTCASE LOCAL:1
 		IF TALENT:(ARG:0):抑圧
 			CALL COLORPRINT(@"%ANAME(ARG:0)%は<抑圧>を失った", カラー_注意, "W")
 			TALENT:(ARG:0):抑圧 = 0
+		ENDIF
+	CASE 6
+		IF TALENT:(ARG:0):自制心
+			CALL COLORPRINT(@"%ANAME(ARG:0)%は<自制心>を失った", カラー_注意, "W")
+			TALENT:(ARG:0):自制心 = 0
+		ENDIF
+	CASE 7
+		IF !TALENT:(ARG:0):解放
+			CALL COLORPRINT(@"%ANAME(ARG:0)%は<解放>を得た", カラー_注意, "W")
+			TALENT:(ARG:0):解放 = 1
 		ENDIF
 	;淫乱
 	CASE 5
