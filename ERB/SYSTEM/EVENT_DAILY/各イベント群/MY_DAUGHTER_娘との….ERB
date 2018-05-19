@@ -1,0 +1,564 @@
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@EVENT_DAILY_MY_DAUGHTER_RATE()
+RETURN 50
+
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@EVENT_DAILY_MY_DAUGHTER_DECISION()
+SIF !IS_MALE(MASTER)
+	RETURN 0
+;同勢力で捕虜でないあなたの娘がいる
+LOCAL:1 = 0
+FOR LOCAL:0, 0, CHARANUM
+	SIF (CFLAG:(LOCAL:0):所属 == CFLAG:MASTER:所属 && !CFLAG:(LOCAL:0):捕虜先) && (ID_TO_CHARA(CFLAG:(LOCAL:0):父親) == MASTER && CFLAG:(LOCAL:0):特殊状態 == 0 && CFLAG:(LOCAL:0):行動不能状態 == 0 && !IS_MALE(LOCAL:0))
+		LOCAL:1 ++
+NEXT
+SIF LOCAL:1 < 1
+	RETURN 0
+
+RETURN 1
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@EVENT_DAILY_MY_DAUGHTER_GENRE()
+RETURN デイリー_ジャンル_エロ
+
+;---------------------
+;特定の条件を満たすキャラをランダムに選択する場合に利用
+;他の関数は必須だが、これだけはなくてもよい　というかパフォーマンスへ影響するので不要なら作ってはならない
+;対象が存在せずデイリーを開始できない場合は0を返すことでデイリーの発生をキャンセルする
+;---------------------
+@EVENT_DAILY_MY_DAUGHTER_SETTARGET()
+
+;同勢力で捕虜でないあなたの娘からランダム、対象がいない場合はイベントキャンセル
+FOR LOCAL, 0, CHARANUM
+	IF (CFLAG:(LOCAL:0):所属 == CFLAG:MASTER:所属 && !CFLAG:(LOCAL:0):捕虜先) && (ID_TO_CHARA(CFLAG:(LOCAL:0):父親) == MASTER && CFLAG:(LOCAL:0):特殊状態 == 0 && CFLAG:(LOCAL:0):行動不能状態 == 0 && !IS_MALE(LOCAL:0))
+		DAILY_TARGET:DAILY_TARGET_NUM = LOCAL 
+		DAILY_TARGET_NUM ++
+	ENDIF
+NEXT
+
+SIF DAILY_TARGET_NUM == 0
+	RETURN 0
+
+RETURN 1
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@EVENT_DAILY_MY_DAUGHTER()
+#DIM 対象
+
+LOCAL = 0
+
+対象 = DAILY_TARGET:(RAND:DAILY_TARGET_NUM)
+
+CFLAG:対象:面識 = 1
+
+
+IF TALENT:対象:合意
+	;普通の恋人ックスルート。合意あり
+	PRINTFORML 夜遅く、%ANAME(MASTER)%の部屋を誰かが訪ねてきた…
+	PRINTFORML 扉を開けると、薄手のネグリジェだけを纏った、%ANAME(MASTER)%の娘である%ANAME(対象)%が立っていた
+	PRINTFORML %ANAME(対象)%は潤んだ瞳で%ANAME(MASTER)%を見つめながら裾を捲り上げ、何も身に着けていない秘所を見せつけ、
+	SELECTCASE RAND:3
+		CASE 0
+			PRINTFORML 情欲を持て余して火照った身体を%ANAME(MASTER)%の手で鎮めて欲しい、とおねだりしてきた…
+		CASE 1
+			PRINTFORML 淫らに育ってしまった身体を%ANAME(MASTER)%の手で躾けて欲しい、とおねだりしてきた…
+		CASE 2
+			PRINTFORML %ANAME(MASTER)%を欲して疼く雌穴を責任をもって調教し直して欲しい、とおねだりしてきた…
+	ENDSELECT 
+	PRINTFORML %ANAME(MASTER)%は――
+	CALL ASK_YN("受け入れる" ,"拒否する")
+	IF RESULT == 0
+		PRINTFORML 世話の焼ける子だ、と思いながら%ANAME(MASTER)%は娘を部屋に招き入れ、扉を閉じた
+		PRINTFORML %ANAME(MASTER)%は自分から欲しがる淫らな娘を優しく叱りながら、立ったまま雌穴を奥までほじくり返した
+		PRINTFORML 感じる所を刺激され、%ANAME(対象)%は甘く蕩けた声で何度も謝りながらがくがくと腰を震わせる…
+		PRINTFORMW 指を引き抜いた%ANAME(MASTER)%は、すっかり硬くなったペニスを取り出して娘に突きつけた
+		PRINTFORML 
+		PRINTFORML %ANAME(対象)%は恭しく跪いて母を孕ませた剛直にむしゃぶりつき、唇と舌で丹念な奉仕を始めた
+		PRINTFORML %ANAME(MASTER)%は良く出来た娘の姿に満足感を得ながら、頭を掴んで喉奥まで無遠慮にペニスをねじ込んだ
+		PRINTFORML %ANAME(対象)%は苦しそうにしつつも%ANAME(MASTER)%の要求に応え、喉奥をすぼめてペニスをしごき射精を導いた
+		PRINTFORML %ANAME(MASTER)%はすっかり淫らな奉仕が板についた娘の姿に背徳的な悦びを覚えつつ、
+		PRINTFORML こみ上げる射精感のままに%ANAME(対象)%の口内に白濁をぶち撒けてやった
+		PRINTFORML %ANAME(対象)%は長々とした射精を受け止めると、喉を鳴らして精液を飲み込み、%ANAME(MASTER)%に口内を見せつけた
+		PRINTFORMW 頭を撫でてやると%ANAME(対象)%は嬉しげに目を細めた…
+		PRINTFORML 
+		PRINTFORML 無論その程度の行為では、お互い昂ぶりは収まらない
+		PRINTFORML %ANAME(MASTER)%は%ANAME(対象)%をベッドに寝かせ、ゆっくりと覆い被さった
+		PRINTFORML %ANAME(対象)%は自分から指で陰唇を広げて、物欲しげにひくつく肉襞を%ANAME(MASTER)%に見せつけおねだりした
+		PRINTFORML %ANAME(MASTER)%は求めに応じ、ガチガチに勃起したペニスを娘の奥に沈めていった…
+		PRINTFORMW …
+		PRINTFORML 
+		SELECTCASE RAND:3
+			CASE 0
+				PRINTFORML 仰向けになった%ANAME(MASTER)%に%ANAME(対象)%が跨がり、蕩けた声を上げながら自ら腰を振っている…
+				PRINTFORML %ANAME(MASTER)%のペニスの形に合わせて躾けられた膣肉は淫らに蠢き、物欲しげにむしゃぶりついてくる
+				PRINTFORML 射精が近いことを敏感に察した%ANAME(対象)%は%ANAME(MASTER)%の胸に倒れ込み、艶かしく腰を揺らしながら子種をせがんだ
+				PRINTFORML 可愛らしい娘のおねだりに応え、%ANAME(MASTER)%は尻を鷲掴みにして激しく突き上げると同時に射精した
+				PRINTFORML 子宮に沸騰する白濁を叩きつけられた%ANAME(対象)%は激しく悶え、父の子を孕む未来を幻視しながら絶頂した…
+			CASE 1
+				PRINTFORML %ANAME(MASTER)%は%ANAME(対象)%に、壁に手をついて尻を向けさせ、出来る限りいやらしくおねだりするよう命じた
+				PRINTFORML さすがに恥じらっていた%ANAME(対象)%だったが、入り口を亀頭でぬちぬちと撫でてやると我慢できなくなったのか、
+				PRINTFORML 「淫乱に育ってしまった娘の雌穴を、お父様のペニスで奥まで犯して躾けて下さい♥」と叫んだ
+				PRINTFORML 淫らに育った娘の姿に%ANAME(MASTER)%はぞくぞくと背筋を震わせつつ、いきり立ったペニスを突き込んだ
+				PRINTFORML 最奥まで一気に貫かれた%ANAME(対象)%は獣じみた嬌声を上げつつ、びくびくと背筋を震わせてイキ狂った…
+			CASE 2
+				PRINTFORML %ANAME(MASTER)%は仰向けに寝かせた%ANAME(対象)%に覆い被さり、子宮を押し潰すような勢いで責め立てた
+				PRINTFORML ごりゅごりゅと膣肉を掘削する剛直に、%ANAME(対象)%は声にならない叫びを上げながらイキ狂い続けている
+				PRINTFORML オナホのように乱暴に使われている雌穴は、それでも健気により深く迎え入れようと吸い付いてくる
+				PRINTFORML 緩んだ子宮口に先端をめり込ませると、%ANAME(対象)%は全身で%ANAME(MASTER)%に抱きつき呂律の回らない舌で中出しをせがんだ
+				PRINTFORML %ANAME(MASTER)%は%ANAME(対象)%を強く抱き締め、その日一番濃い精液で子宮内を隅から隅まで陵辱した…
+			ENDSELECT 
+		PRINTFORMW …
+		PRINTFORML 
+		PRINTFORML その後も一晩中%ANAME(MASTER)%は%ANAME(対象)%と交わり続けた子宮を子種でたっぷりと満たしてやった
+		PRINTFORML 愛欲の赴くままに、%ANAME(対象)%は父の肉棒を咥え込み、%ANAME(MASTER)%は娘の身体を貪った
+		PRINTFORMW 血の繋がりなど二人の前では何の意味も持たず、貪るようにお互いを求め合った…
+		PRINTFORML 
+		CALL FUCK_MAKELOVE(対象, GET_ID(MASTER), @"%ANAME(MASTER)%の唇", ANAME(MASTER))
+		CALL FUCK(MASTER, "Ｃ, 射精, Ｖ挿入", "童貞喪失", 0, "", "", @"%ANAME(対象)%の膣")
+		CFLAG:対象:好感度 += 300
+		CFLAG:対象:従属度 += 100
+		CFLAG:対象:依存度 += 100
+	ELSEIF RESULT == 1
+		PRINTFORML %ANAME(MASTER)%は、今日はもう遅いから、と理由をつけて%ANAME(対象)%を帰らせた
+		PRINTFORML %ANAME(対象)%は頬を膨らませながらも、%ANAME(MASTER)%の言うことに従った
+	ENDIF
+	PRINTFORMW 
+	RETURN 1
+	
+ELSEIF CFLAG:対象:好感度 < 2500
+	;普通の夜会話ルート。好感度が一定値以下(恋慕ありであっても)
+	PRINTFORML 夜遅く、%ANAME(MASTER)%の部屋を誰かが訪ねてきた…
+	PRINTFORML 扉を開けると、%ANAME(MASTER)%の娘である%ANAME(対象)%が立っていた。寝付けないので、雑談しに来たようだ
+	PRINTFORML %ANAME(MASTER)%は%ANAME(対象)%を部屋に招き入れた
+	PRINTFORMW …
+	PRINTFORML 
+	SELECTCASE RAND:6
+		CASE 0
+			PRINTFORML %ANAME(MASTER)%は%ANAME(対象)%から武術の鍛錬についての質問を受けた
+			PRINTFORML 折角なので、%ANAME(MASTER)%と%ANAME(対象)%は練兵場に移動して組手を行い、充実した時間を送った…
+			CALL PRINT_ADD_EXP(対象, "武闘経験値", RAND:10 + 1, 1)
+			CALL TRAIN_AUTO_ABLUP
+		CASE 1
+			PRINTFORML %ANAME(MASTER)%は%ANAME(対象)%から拠点の守り方について質問を受けた
+			PRINTFORML %ANAME(MASTER)%は%ANAME(対象)%に、模型を使いながら拠点防衛の心得を説いた…
+			CALL PRINT_ADD_EXP(対象, "防衛経験値", RAND:10 + 1, 1)
+			CALL TRAIN_AUTO_ABLUP
+		CASE 2
+			PRINTFORML %ANAME(MASTER)%と%ANAME(対象)%は将棋を指すことにした
+			PRINTFORML 勝負を通じて、%ANAME(対象)%は知略に対する理解をより深めたようだ…
+			CALL PRINT_ADD_EXP(対象, "知略経験値", RAND:10 + 1, 1)
+			CALL TRAIN_AUTO_ABLUP
+		CASE 3
+			PRINTFORML %ANAME(MASTER)%は%ANAME(対象)%と最近の市井の様子について話した
+			PRINTFORML 会話を通じて、%ANAME(対象)%は政治に対する理解をより深めたようだ…
+			CALL PRINT_ADD_EXP(対象, "政治経験値", RAND:10 + 1, 1)
+			CALL TRAIN_AUTO_ABLUP
+		CASE 4
+			PRINTFORML %ANAME(MASTER)%は%ANAME(対象)%を誘って拠点を抜け出し、夜遅くまで営業している贔屓の屋台に連れていった
+			PRINTFORML 秘密の夜遊びで味わう夜食に、%ANAME(対象)%は目を輝かせ、舌鼓を打った…
+			CALL PRINT_ADD_EXP(対象, "料理経験値", RAND:10 + 1, 1)
+			CALL TRAIN_AUTO_ABLUP
+		CASE 5
+			PRINTFORML %ANAME(MASTER)%と%ANAME(対象)%は、最近市井で流行っている流行曲について話をした
+			PRINTFORML 年頃の娘だけあってそういう話は好きなのか、%ANAME(対象)%は楽しげに言葉を弾ませた…
+			CALL PRINT_ADD_EXP(対象, "歌唱経験値", RAND:10 + 1, 1)
+			CALL TRAIN_AUTO_ABLUP
+	ENDSELECT 
+	
+	IF IS_LOVER(対象)
+		PRINTFORML %ANAME(対象)%は熱っぽい視線を%ANAME(MASTER)%に送っている…
+		CFLAG:対象:好感度 += 200
+		CFLAG:対象:依存度 += 100
+		ELSE
+		CFLAG:対象:好感度 += 100
+		CFLAG:対象:依存度 += 50
+	ENDIF
+	PRINTFORMW 
+	RETURN 1
+ENDIF
+
+;ここに来るのは好感度一定以上かつ合意なし
+;通常は恋慕取得済みであることを想定する
+;好感度だけ高く依存度が低い場合は恋慕なしでも通るかもしれないがそれも一応許容する
+
+;前段：ルート決定
+
+IF ABL:対象:性知識 == 0
+	;無知ルート
+	PRINTFORML 夜遅く、%ANAME(MASTER)%の部屋を誰かが訪ねてきた…
+	PRINTFORML 扉を開けると、%ANAME(MASTER)%の娘である%ANAME(対象)%がぽつんと立っていた
+	PRINTFORML よく見ればその頬は朱に染まり、%ANAME(MASTER)%を見つめる瞳は潤んでいる
+	PRINTFORMW そして%ANAME(対象)%は、最近父である%ANAME(MASTER)%のことを思うと眠れなくなるのだと告白してきた
+	PRINTFORML 
+	PRINTFORML %ANAME(MASTER)%のことを考えるだけで胸が切なくなり、同時に下腹部が熱くなるような感覚を覚え、
+	PRINTFORML そういう夜を過ごした翌朝は、決まって股のあたりが濡れているのだという…
+	PRINTFORML 性知識のない%ANAME(対象)%は、自分に起きていることを理解できず、病気にでもなったと考えているようで、
+	PRINTFORML その顔は今にも泣き出してしまいそうだ…
+	PRINTFORML %ANAME(MASTER)%は――
+	CALL ASK_YN("手を出す" ,"部屋に返す")
+	IF RESULT == 0
+		;後段へ
+		LOCAL = 1
+	ELSEIF RESULT == 1
+		PRINTFORML %ANAME(MASTER)%は%ANAME(対象)%を優しく抱き締めて頭を撫でてやり、病気ではないから心配することはない、と言った
+		PRINTFORML 今夜は帰るように言うと、%ANAME(MASTER)%に撫でられたことで%ANAME(対象)%は落ち着きを取り戻したのか、素直に頷いた
+		PRINTFORML %ANAME(対象)%はどこか後ろ髪を引かれるようにしながらも自分の部屋に帰っていった…
+		PRINTFORMW …
+		PRINTFORML 
+		PRINTFORML しかし、%ANAME(MASTER)%の回答に納得できなかった%ANAME(対象)%は、自分で色々と調べたようだ…
+		ABL:対象:性知識 = 1
+		CFLAG:対象:好感度 += 300
+		CFLAG:対象:依存度 += 600
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+	
+ELSEIF CFLAG:対象:依存度 >= 3000 && (MAX(CFLAG:対象:好感度, CFLAG:対象:従属度) <= CFLAG:対象:依存度 * 3)
+	;ヤンデレルート
+	PRINTFORML 深夜、%ANAME(MASTER)%は寝苦しさから目を覚ました…
+	PRINTFORML 何故か腹の上が重い、と思って胡乱な意識のまま目を向けると、なんと%ANAME(対象)%が自分の上に跨っている！
+	PRINTFORML しかも気づけば%ANAME(MASTER)%は両手足を縛られ、ベッドに磔にされるようにして拘束されていた！
+	PRINTFORML %ANAME(MASTER)%が目覚めたことに気づいた%ANAME(対象)%は、場違いなほどにたおやかに微笑んでいる
+	PRINTFORMW しかしその笑みは妖艶を通り越して肉食獣のそれであり、瞳にはぬらりとした危険な輝きが宿っていた…
+	PRINTFORML 
+	PRINTFORML 冷や汗を流す%ANAME(MASTER)%の前で、%ANAME(対象)%は%ANAME(MASTER)%の胸板に頬を寄せ、如何に%ANAME(MASTER)%を想っているかを口にした…
+	PRINTFORML 囁かれる愛の言葉は真摯ではあったが、同時にどろりとした情念が溢れ、耳から脳を侵すかのようだ
+	PRINTFORML 肉親などという言葉は最早%ANAME(対象)%の前では何の意味も持たず、ただ一匹の雌として%ANAME(MASTER)%を求めている
+	PRINTFORML %ANAME(MASTER)%は抵抗することも許されず、%ANAME(対象)%の想いを受け入れるしかない…
+	PRINTFORMW …
+	PRINTFORML 
+	;後段へ
+	LOCAL = 2
+	
+ELSEIF CFLAG:対象:従属度 < 500
+	;逆夜這いルート
+	PRINTFORML 深夜、%ANAME(MASTER)%は寝苦しさから目を覚ました…
+	PRINTFORML 何故か腹の上が重い、と思って胡乱な意識のまま目を向けると、なんと%ANAME(対象)%が自分の上に跨っている！
+	PRINTFORML 気づかれた%ANAME(対象)%はばつが悪そうな表情をしながらも、%ANAME(MASTER)%を押さえ込んだ体勢から離れようとはしない
+	PRINTFORMW とりあえず、何のつもりかと問い質すと、%ANAME(対象)%は静かに、しかし強い口調で話し始めた…
+	PRINTFORML 
+	PRINTFORML いつからなのかは分からないが、%ANAME(対象)%が%ANAME(MASTER)%へ向ける感情は、親へ向ける愛情から、
+	PRINTFORML いつしか恋愛対象へ向けるそれへと変わっていたのだという
+	PRINTFORML 許されないことだと考えて思い悩み、自分を慰めてきたりもしたが、とうとう堪えきれず、
+	PRINTFORML こうして%ANAME(MASTER)%に夜這いをかけ、無理矢理にでも関係を結ぼうと思い詰めてしまったらしい
+	PRINTFORML 我が娘のことながら思い切りが良すぎやしないか、と%ANAME(MASTER)%は思ったが、しかし答えは返さねばならない
+	PRINTFORML %ANAME(対象)%は依然として腹の上に跨っており、受け入れてくれるまで放しはしないと視線が物語っている
+	PRINTFORML %ANAME(MASTER)%は――
+
+	CALL ASK_YN("受け入れる" ,"抵抗する")
+	IF RESULT == 0
+		PRINTFORML ここまで思い悩ませてしまったのも、自分の煮え切らない態度が原因だったのだろう
+		PRINTFORML %ANAME(MASTER)%は覚悟を決めて想いを受け入れることを伝えると、%ANAME(対象)%は顔を破顔させて喜んだ
+		PRINTFORML %ANAME(対象)%は%ANAME(MASTER)%から一旦降りると、半身を起こした%ANAME(MASTER)%に抱きつき、子猫のように甘えて顔を擦り寄せてきた
+		PRINTFORML %ANAME(MASTER)%は苦笑しながら、これから%ANAME(対象)%をどう扱うかを考えた…
+		CALL ASK_YN("優しくする" ,"激しくする")
+		IF RESULT == 0
+			PRINTFORML 経緯はどうあれ、自分にとっては愛しい娘だ。初めては優しくしてやらなければならないだろう
+			PRINTFORML %ANAME(MASTER)%は一旦%ANAME(対象)%を落ち着かせると、肩を抱き、優しくベッドに押し倒した
+			PRINTFORMW …
+			PRINTFORML 
+			;後段へ
+			LOCAL = 3
+		ELSEIF RESULT == 1
+			PRINTFORML どんな理由であれ、親を襲うような娘はしっかりと躾けてやる必要があるだろう
+			PRINTFORML %ANAME(MASTER)%は%ANAME(対象)%の腰を掴むと、強引に位置を入れ替え、乱暴にベッドに押し倒し覆い被さった
+			PRINTFORMW …
+			PRINTFORML 
+			;後段へ
+			LOCAL = 4
+		ENDIF
+	ELSEIF RESULT == 1
+		PRINTFORML 気持ちは嬉しいが、流石にそう簡単に禁じられた関係に踏み込むことはできない
+		PRINTFORMW %ANAME(MASTER)%は%ANAME(対象)%の拘束を逃れようと身を捩った…
+		PRINTFORML 
+		IF ABL:MASTER:武闘 > (ABL:対象:武闘 + 15)
+			PRINTFORML %ANAME(対象)%はあえなく振り解かれ、打って変わって泣きそうな顔で見上げてくる
+			PRINTFORML その評定に罪悪感を覚えつつも、%ANAME(MASTER)%は%ANAME(対象)%をあくまで娘として愛していることを伝え、
+			PRINTFORML ひとまず今日のところは帰り、もう一度落ち着いて考えるように諭した…
+			PRINTFORML %ANAME(対象)%はそれでも縋るように%ANAME(MASTER)%を見つめていたが、やがてこくりと頷いて部屋を出ていった…
+			PRINTFORMW …
+			PRINTFORML 
+			PRINTFORML しかし、やはり%ANAME(対象)%は%ANAME(MASTER)%への想いを断ち切れず、かえって強く想いを募らせた…
+			CFLAG:対象:好感度 += 500
+			CFLAG:対象:依存度 += 1500
+			PRINTFORMW 
+			RETURN 1
+		ELSE
+			PRINTFORML しかし思っていた以上に成長していた%ANAME(対象)%は、%ANAME(MASTER)%の抵抗をいなすと逆により強く押さえ込んだ
+			PRINTFORML 想いを拒絶されたことがショックだったのか、%ANAME(対象)%はその顔に怒りさえ浮かべて、
+			PRINTFORML 有無を言わさぬとばかりに、隠し持っていた縄で%ANAME(MASTER)%をベッドに縛り付けてしまった…
+			PRINTFORML 抵抗する術を失った%ANAME(MASTER)%を見下ろす%ANAME(対象)%は、ようやく想いを遂げられると確信し、
+			PRINTFORML 危険な色を瞳に宿して%ANAME(MASTER)%に対し微笑んでいる…
+			PRINTFORMW …
+			PRINTFORML 
+			;後段へ
+			LOCAL = 2
+		ENDIF
+	ENDIF
+
+ELSE
+	;ノーマルルート
+	PRINTFORML 夜遅く、%ANAME(MASTER)%の部屋を誰かが訪ねてきた…
+	PRINTFORML 扉を開けると、%ANAME(MASTER)%の娘である%ANAME(対象)%がぽつんと立っていた
+	PRINTFORML そして%ANAME(MASTER)%を目にするなり、いきなり抱きついてきた
+	PRINTFORML 突然のことに驚きながらも話を聞くと、%ANAME(対象)%はどこか追い詰められた表情で、
+	PRINTFORMW 父である%ANAME(MASTER)%に抱かれたい、犯して欲しいと、切実な響きを込めた声で哀願してきた
+	PRINTFORML 
+	PRINTFORML いつからなのかは分からないが、%ANAME(対象)%が%ANAME(MASTER)%へ向ける感情は、親へ向ける愛情から、
+	PRINTFORML いつしか恋愛対象へ向けるそれへと変わっていたのだという
+	PRINTFORML 許されないことだと考えて思い悩み、自分を慰めてきたりもしたが、とうとう堪えきれず、
+	PRINTFORML こうして部屋まで訪れてしまったのだと、哀切に満ちた表情で%ANAME(対象)%は告白してきた…
+	PRINTFORML %ANAME(MASTER)%は――
+	CALL ASK_YN("受け入れる" ,"拒否する")
+	IF RESULT == 0
+		PRINTFORML %ANAME(MASTER)%は%ANAME(対象)%をぎゅっと抱き締めると、顔を上げさせ、受け入れた証として唇を奪った
+		PRINTFORML 想いを遂げられた%ANAME(対象)%は感極まった様子で涙を流し、%ANAME(MASTER)%を抱き締め返してきた
+		PRINTFORML 一線を越えることを決めた%ANAME(MASTER)%だったが、それならそれで%ANAME(対象)%をどう扱うかを考えた…
+		CALL ASK_YN("優しくする" ,"激しくする")
+		IF RESULT == 0
+			PRINTFORML どう関係が変化しようと自分にとっては愛しい娘だ。初めては優しくしてやらなければならないだろう
+			PRINTFORML そう決めた%ANAME(MASTER)%は、唇を離すと、優しく%ANAME(対象)%をエスコートし、ベッドに仰向けに寝かせた
+			PRINTFORMW …
+			;後段へ
+			LOCAL = 3
+		ELSEIF RESULT == 1
+			PRINTFORML 男女の関係になるなら、これまでのようにただ優しくしてやるだけでは済まされない
+			PRINTFORML 雄の情欲を受け止めるというのがどういうことなのか、しっかりと理解させる必要があるだろう
+			PRINTFORML そう決めた%ANAME(MASTER)%は%ANAME(対象)%を抱き抱え、半ばベッドに放り投げるようにして押し倒し、覆い被さった
+			PRINTFORMW …
+			;後段へ
+			LOCAL = 4
+		ENDIF
+	ELSEIF RESULT == 1
+		PRINTFORML %ANAME(MASTER)%は、想ってくれることは嬉しいが、親子である以上その先を受け入れることはできない、と告げた
+		PRINTFORML そして%ANAME(対象)%の肩を抱き、優しく頭を撫でて、今日は帰って少し落ち着いて考えるように言った
+		PRINTFORML 諭された%ANAME(対象)%は見るからに気落ちした様子だったが、ひとまずは頷いてくれた
+		PRINTFORML %ANAME(対象)%はどこか後ろ髪を引かれるようにしながらも自分の部屋に帰っていった…
+		PRINTFORMW …
+		PRINTFORML 
+		PRINTFORML しかし、やはり%ANAME(対象)%は%ANAME(MASTER)%への想いを断ち切れず、かえって強く想いを募らせた…
+		CFLAG:対象:好感度 += 300
+		CFLAG:対象:依存度 += 1000
+		PRINTFORMW 
+		RETURN 1
+	ENDIF
+ENDIF
+
+;後段：プレイ内容分岐
+SELECTCASE LOCAL
+	CASE 1
+		;性知識0
+		PRINTFORML 女として目覚めつつある娘を前にして、%ANAME(MASTER)%は暗い快感を覚え、その感情に身を任せることにした…
+		PRINTFORML %ANAME(MASTER)%は扉を閉じ、%ANAME(対象)%の顔を上げさせると、強引にその唇を奪い、抱き締めた
+		PRINTFORML 目を白黒させていた%ANAME(対象)%だったが、抵抗する様子はなく%ANAME(MASTER)%に身を委ねている
+		PRINTFORML %ANAME(MASTER)%は娘の口内を隅々まで舌で蹂躙し、唾液を啜り、ねっとりと愛撫してから唇を離した
+		PRINTFORMW 何が起きているか教えるから全て自分に任せるよう言うと、%ANAME(対象)%はとろんとした瞳で頷いた…
+		PRINTFORML 
+		PRINTFORML %ANAME(MASTER)%は%ANAME(対象)%の服を全て脱がせ、また自分も同じように服を脱ぎ捨てて裸になった
+		PRINTFORML %ANAME(対象)%は、幼い頃一緒にお風呂に入ったときとはあまりに違う、天を衝くように勃起したペニスに目を奪われている
+		PRINTFORML 雌の本能からなのか、理解ができないままにそれから視線を外すことも出来ないようだ
+		PRINTFORML %ANAME(MASTER)%は%ANAME(対象)%をベッドに寝かせると、再び唇を交わしながら優しく全身を愛撫していった
+		PRINTFORMW 秘所は既に濡れ始めており、浅い位置を指先で掻き回してやるだけで、%ANAME(対象)%は敏感に反応し喘ぎを漏らした
+		PRINTFORML 
+		PRINTFORML 十分に濡れた秘列に亀頭を当てると、びくりと%ANAME(対象)%は身を震わせ、%ANAME(MASTER)%を見上げてきた
+		PRINTFORML 視線には期待と不安が入り混じり、知識はなくとも本能的にこれから行うことを理解しているようだ
+		PRINTFORML %ANAME(MASTER)%は%ANAME(対象)%の耳元で、%ANAME(対象)%の身体の変調は、%ANAME(MASTER)%との子供を欲しがっている証だと教えてやった
+		PRINTFORML そして本来なら、親子でこんなことをするのは許されないことだとも教えてやり、
+		PRINTFORMW その上でどうしたいのかを、%ANAME(対象)%に決めさせることにした…
+		PRINTFORML 
+		PRINTFORML 理解した%ANAME(対象)%はしばし沈黙していたが、やがてごくりと喉を鳴らし、覚悟を決めたように頷いた
+		PRINTFORML %ANAME(MASTER)%はドス黒い悦びに打ち震え、容赦なく、自分のために拵えられた娘の雌穴を一気に貫いた
+		PRINTFORML %ANAME(対象)%は嬌声と共に全身をびくびくと震わせ、ピンと脚を突っ張って背筋を駆け上る快感の稲妻に目を見開いた
+		PRINTFORML %ANAME(MASTER)%は未成熟な膣肉を容赦なく掘削し、『%ANAME(MASTER)%の女』としての証をその身に刻みつけた
+		PRINTFORMW …
+		PRINTFORML 
+		SELECTCASE RAND:3
+			CASE 0
+				PRINTFORML 苦しそうにしていたのは最初だけで、%ANAME(対象)%の膣穴はすぐに%ANAME(MASTER)%のペニスに馴染んできた
+				PRINTFORML 未熟ながらきゅうきゅうと締め付け、もっと奥へと誘うように蠕動し、%ANAME(MASTER)%を悦ばせている
+				PRINTFORML 一方で%ANAME(対象)%の意識はその身体の変化についていけず、奥を小突かれる度に甘く蕩けた悲鳴を上げ、
+				PRINTFORML %ANAME(MASTER)%に助けを求めるようにしがみつきながら、慰めのくちづけをせがんできた
+				PRINTFORML %ANAME(MASTER)%はそんな可愛らしい娘をあやしつつ、容赦なく幼い子宮を蹂躙し犯し尽くした…
+			CASE 1
+				PRINTFORML %ANAME(MASTER)%はゆっくりとした動きで、うつ伏せに寝かせた%ANAME(対象)%の膣肉を抉るように責めてやった
+				PRINTFORML %ANAME(対象)%は枕に顔を押し付けながら、背筋を駆け上がってくる未知の感覚に耐えている
+				PRINTFORML しかし膣奥のある一点を先端で攻められると、堪えきれずに甘い悲鳴を上げて背を仰け反らせた
+				PRINTFORML 執拗にその弱点を突いてやると、%ANAME(対象)%は可愛らしい声を抑えきれずに絶頂に達してしまった
+				PRINTFORML %ANAME(MASTER)%もまた、きゅぅっと締め付けてくる娘の雌穴の感触に堪えきれずに白濁をぶち撒けた…
+			CASE 2
+				PRINTFORML %ANAME(MASTER)%の股ぐらに顔を埋めた%ANAME(対象)%は、慣れないながらも懸命に可愛らしい唇と舌で奉仕している…
+				PRINTFORML 舌使いはたどたどしいが、実の娘を犯し、今はこうして奉仕させているという事実に、
+				PRINTFORML %ANAME(MASTER)%は背筋が痺れるほどの快感を覚え、呆気なく射精にまで導かれてしまった
+				PRINTFORML 突然の射精に%ANAME(対象)%は驚きつつも、%ANAME(MASTER)%に教えられた通り、出された精液を全て嚥下してみせた
+				PRINTFORML どこか誇らしげに口内を見せつけてくる姿に、%ANAME(MASTER)%は即座に再充填し%ANAME(対象)%を押し倒していた…
+		ENDSELECT
+		PRINTFORMW …
+		PRINTFORML 
+		PRINTFORML すっかり%ANAME(MASTER)%に躾けられた%ANAME(対象)%は、今や蕩けた声を上げながら%ANAME(MASTER)%に跨がり自ら腰を振っている…
+		PRINTFORML 知識がなかっただけに抵抗感も薄かったのか、何の躊躇いもない様子でペニスを咥え込みつつも、
+		PRINTFORML 親に甘える子供そのものの顔で、%ANAME(MASTER)%に孕ませ子種をせがんで来た
+		PRINTFORML %ANAME(MASTER)%は娘の可愛らしいおねだりに応えて、たっぷりと熱い子種で小さな子宮を満たしてやった…
+		PRINTFORML 親子でありつつ、今はただの発情した雄と雌として、%ANAME(MASTER)%と%ANAME(対象)%は一晩中まぐわい続けた…
+	CASE 2
+		;ヤンデレ逆レイプ
+		PRINTFORML %ANAME(対象)%は%ANAME(MASTER)%の服をはだけつつ、自らも服を脱ぎ捨てていった
+		PRINTFORML %ANAME(対象)%は恥じるどころか、%ANAME(MASTER)%に育ててもらった身体を誇るように全てを曝け出している
+		PRINTFORML %ANAME(MASTER)%に跨る%ANAME(対象)%の姿は、窓から差し込む月光に照らされ、言い様のない妖艶さを醸し出していた
+		PRINTFORML 思わずごくりと喉を鳴らすと、%ANAME(対象)%は嬉しそうに目を細め、ペニスに指を這わせていく
+		PRINTFORML どこで学んだのか、%ANAME(対象)%はその手捌きと舌使いで自分を産ませたモノを丹念に愛撫していく…
+		PRINTFORMW あっという間に固くなったペニスを見ると、%ANAME(対象)%はゆっくりとその上に跨った
+		PRINTFORML 
+		PRINTFORML くちゅりと淫唇と亀頭がキスをし、溢れ出た愛液が竿を伝って落ちていく…
+		PRINTFORML 止めるべきだと理性は警告するが、それは声として出ることはなく、視線を%ANAME(対象)%から逸らせない
+		PRINTFORML そんな父の有様に%ANAME(対象)%はにっこりと微笑むと、一息に腰を落とし、自らペニスに串刺しにされた
+		PRINTFORML こつんと子宮口を先端が叩く感触に%ANAME(対象)%は身悶えし、本懐を遂げた悦びに熱く蕩けた声を上げる
+		PRINTFORML %ANAME(対象)%の膣内はペニスが溶けてしまいそうなほどに熱く、%ANAME(MASTER)%は必死に射精を堪えた
+		PRINTFORMW そんな%ANAME(MASTER)%にお構いなしに、%ANAME(対象)%は始めはゆるゆると、やがて跳ねるように腰を振った
+		PRINTFORML 
+		PRINTFORML ぱんぱんと柔らかな尻肉が音を奏でる度に、%ANAME(対象)%は喘ぎながら父である%ANAME(MASTER)%への愛を叫んだ
+		PRINTFORML 目から涙をぽろぽろと零しながら、膣肉は淫らに蠢き、%ANAME(MASTER)%を離すまいと執拗に舐めしゃぶる
+		PRINTFORML 禁忌を乗り越えた故にこそ情愛は熱く昂ぶり、きゅんきゅんと子宮を啼かせ、より深く深くと求めてくる…
+		PRINTFORML %ANAME(MASTER)%の射精が近いのを敏感に察すると、%ANAME(対象)%は深く腰を沈め、%ANAME(MASTER)%の子を孕むことをせがんだ
+		PRINTFORML それを引き金に%ANAME(MASTER)%我慢の限界を迎え、解き放たれた白濁がびゅくびゅくと勢い良く娘の子宮を満たしていく
+		PRINTFORMW %ANAME(対象)%はその感触に自らも絶頂しながら、恍惚とした表情で子種を受け止めている…
+		PRINTFORML 
+		PRINTFORML 長い長い射精が終わり、互いに一息をついたが、%ANAME(対象)%の目にはまだ爛々と火が灯っている…
+		PRINTFORML %ANAME(MASTER)%は今度こそ止めるように言ったが、%ANAME(対象)%は聞く耳を持たず、馴染ませるように腰を揺らし、
+		PRINTFORML 膣内のペニスが硬さを取り戻し始めたのを確認すると、また腰を打ち付け始める
+		PRINTFORML 未成熟な雌穴を押し広げられる感触さえ嬉しいのか、その顔には雌としての悦びが満ちている
+		PRINTFORML %ANAME(MASTER)%は今夜一晩中、愛する娘に搾り取られる覚悟を決めた…
+		PRINTFORMW …
+		PRINTFORML 
+		PRINTFORML もう何度交わったか分からないほど時間が経ってから、ようやく%ANAME(MASTER)%は解放された
+		PRINTFORML 今、%ANAME(対象)%は%ANAME(MASTER)%の胸に頭を載せ、すやすやと寝息を立てて眠っている…
+		PRINTFORML その顔はあどけないもので、先程まで%ANAME(MASTER)%から貪欲に子種を搾っていたとは到底思えない
+		PRINTFORML 我が娘ながら末恐ろしいことだと思いつつ、あそこまで慕われていたことに悪い気はしなかった
+		PRINTFORML 一人の雄として、極上の雌に育っていた%ANAME(対象)%の肉体に溺れてしまいそうだ…
+		PRINTFORML いずれにしろ一線を越えたことに変わりはない
+		PRINTFORML %ANAME(MASTER)%は今後のことを考えつつ、今は愛しい娘の頭を優しく撫で続けることにした…
+	CASE 3
+		;優しくする
+		PRINTFORML 啄むようにキスを交わしながら、一枚一枚その衣を脱がし、自分も脱いでいった
+		PRINTFORML 生まれたままの姿を晒した%ANAME(対象)%は、恥ずかしそうにしながらも、%ANAME(MASTER)%に全てを委ねた
+		PRINTFORML %ANAME(MASTER)%は全身を唇と指で愛撫しながら、緊張した身体を解きほぐし、高みへと導いていった
+		PRINTFORMW 準備が整ったことを確認した%ANAME(MASTER)%は、%ANAME(対象)%に覆い被さって、秘裂にペニスを宛てがった
+		PRINTFORML 
+		PRINTFORML %ANAME(対象)%が覚悟を決めたようにこくりと頷くのに頷き返し、%ANAME(MASTER)%はゆっくりと身を沈めていった
+		PRINTFORML ついに一線を踏み越え、ナカを満たす肉棒の感触に、%ANAME(対象)%は深く熱い吐息を吐いた…
+		PRINTFORML 根本までペニスを埋めた%ANAME(MASTER)%は、%ANAME(対象)%と恋人のように手を握り合い、ゆっくりと腰を動かしていく
+		PRINTFORML %ANAME(対象)%の膣内は熱く柔らかく剛直を包み、咽び泣くように愛液を垂らしながら吸い付いてくる
+		PRINTFORML 血の繋がり故に身体の相性も良いのか、%ANAME(MASTER)%は腰が抜けそうな快感に耐えつつ娘の媚肉を味わった…
+		PRINTFORMW …
+		PRINTFORML 
+		SELECTCASE RAND:3
+			CASE 0
+				PRINTFORML ゆっくりと時間をかけて解してやった%ANAME(対象)%の柔肉は、甘えるようにペニスに吸い付いてくる
+				PRINTFORML %ANAME(対象)%は奥を小突かれる度に可愛らしい悲鳴を上げ、潤んだ瞳で%ANAME(MASTER)%に視線を送ってくる
+				PRINTFORML そのいじらしさに昂ぶりを覚えた%ANAME(MASTER)%は、キスしながら腰を動かす速度を速めていった
+				PRINTFORML 激しく押し寄せる快感の波に%ANAME(対象)%は啼泣し、%ANAME(MASTER)%にしがみつきながら中出しをせがんだ
+				PRINTFORML 二人は同時に絶頂し、%ANAME(MASTER)%は腰が丸ごと溶けそうな快感と共に、熱い精液を娘の子宮に放った…
+			CASE 1
+				PRINTFORML %ANAME(MASTER)%は%ANAME(対象)%と対面座位の姿勢で愛し合っている…
+				PRINTFORML つい先日まで子供だと思っていた%ANAME(対象)%は、今や立派な一匹の雌そのものの表情で、
+				PRINTFORML %ANAME(MASTER)%のペニスを咥え込み、腰を振って子種をせがみ、孕まされることを望んでいる…
+				PRINTFORML 親子という関係がより情欲を加速させるのか、%ANAME(対象)%は普段の彼女から考えられないほど淫らに乱れた
+				PRINTFORML %ANAME(MASTER)%もまた背徳的な行為に昂ぶりを覚え、娘の小さな子宮に溢れんばかりの白濁を注ぎ込んだ…
+			CASE 2
+				PRINTFORML 何度めかの交わりの後、%ANAME(対象)%は、母親にしてきたのと同じことをしてほしい、と言ってきた
+				PRINTFORML 可愛らしい対抗心といったところだろう、母娘であっても、今となっては%ANAME(MASTER)%を取り合う女同士だ
+				PRINTFORML 微笑ましく思うが、親に対して少し生意気とも言える態度だ…お仕置きしてやる必要があるだろう
+				PRINTFORML お望み通り、%ANAME(MASTER)%はこれまで%ANAME(対象)%の母親にしてきたプレイを、一度に全部味あわせてやった
+				PRINTFORML %ANAME(対象)%は一遍に押し寄せてきた快楽に意味を為さない嬌声を上げ、無様なアヘ顔を晒してイキ狂った…
+		ENDSELECT
+		PRINTFORMW …
+		PRINTFORML 
+		PRINTFORML 一頻り交わった後、%ANAME(対象)%は%ANAME(MASTER)%の股に顔を埋め、丹念に唇と舌で竿を磨いている…
+		PRINTFORML 立派に育った娘の頭を撫でながら、%ANAME(MASTER)%はこの上ない幸福感に包まれ、奉仕を堪能していた
+		PRINTFORML 微笑ましい気持ちでいたものの、娘の熱心な口淫に堪え性のないペニスはむくむくと硬くなっていく
+		PRINTFORML それを見た%ANAME(対象)%はうっとりとした表情で、仰向けになって股を開き、自ら淫唇を割り開いて誘惑した
+		PRINTFORML 一体誰に似たのやら、淫蕩に育った娘の姿に苦笑しつつ、%ANAME(MASTER)%は欲望のままにその穴を貫いた
+		PRINTFORML 自らを産ませたモノを受け入れて%ANAME(対象)%は喜悦に打ち震え、種付けをせがんだ
+		PRINTFORML 娘を孕ませる快感に%ANAME(MASTER)%は酔い痴れながら、一晩中、何度も何度も%ANAME(対象)%の子宮に精を解き放った…
+	CASE 4
+		;激しくする
+		PRINTFORML %ANAME(MASTER)%は%ANAME(対象)%をベッドに押さえつけ、唇を奪い、服をはだけさせながら秘所に手を伸ばした
+		PRINTFORML 突然のことに目を白黒させる%ANAME(対象)%だったが、抵抗する間もなく淫肉を掻き回され、
+		PRINTFORML 口の端から喘ぎを漏らしながら%ANAME(MASTER)%の腕の中で身悶えすることしかできない
+		PRINTFORML やがて膣穴がきゅぅっと締まり、%ANAME(対象)%が全身を震えさせ達したのを確認すると、%ANAME(MASTER)%は唇を放した
+		PRINTFORMW 服を乱暴に脱がされた%ANAME(対象)%は、玉のような肌に汗を浮かべ、父である%ANAME(MASTER)%の前に全てを曝されている…
+		PRINTFORML 
+		PRINTFORML %ANAME(MASTER)%が脚を広げるよう命じると、%ANAME(対象)%はこれから起きることを予感しつつゆるゆると脚を開いた
+		PRINTFORML その僅かな不安と大きな期待に満ちた視線に応え、中心にペニスを宛てがい奥まで一気に貫いてやる
+		PRINTFORML コツンと子宮口に熱烈なキスを見舞われた%ANAME(対象)%は大きく身を仰け反らせて悲鳴を上げた
+		PRINTFORML きゅうっと雌穴をすぼませてペニスを締め付け、雌の本能が離すまいと吸い付いてくる
+		PRINTFORML %ANAME(MASTER)%もそれに応え、衝撃と快感から泣きそうな顔をしている%ANAME(対象)%の両手を掴み、
+		PRINTFORMW ぐりぐりと奥を小突きまくって淫肉に%ANAME(MASTER)%の形を馴染ませていった
+		PRINTFORML 
+		PRINTFORML %ANAME(対象)%は喉から嬌声を絞り出しながらも%ANAME(MASTER)%に応え、悦びをもって最奥へ受け入れようとしてくる
+		PRINTFORML 女として立派に育った%ANAME(対象)%に感動を覚えつつ、%ANAME(MASTER)%は一番奥に先端を押し付けて精を解き放った
+		PRINTFORML 同時に絶頂した雌穴はペニスに吸い付き、どくどくと注がれる精液をもっともっとと飲み干していく
+		PRINTFORMW 子宮を%ANAME(MASTER)%の子種でマーキングされた%ANAME(対象)%は、だらしないトロ顔を晒して雌の顔で悦んでいた…
+		PRINTFORML 
+		PRINTFORML 勿論、この程度で終わらせる%ANAME(MASTER)%ではない…すぐに硬さを取り戻したペニスの抽送を再開し、
+		PRINTFORML 絶頂の余韻から降りられないでいる%ANAME(対象)%を容赦なく責め立て、啼かせ続けた…
+		PRINTFORMW …
+		PRINTFORML 
+		SELECTCASE RAND:3
+			CASE 0
+				PRINTFORML %ANAME(MASTER)%は四つん這いにした%ANAME(対象)%を、獣のように後ろから突き上げている…
+				PRINTFORML 一旦動きを止め、外に出そうか、と訊くと、%ANAME(対象)%ははっと振り返って絶望的な表情で%ANAME(MASTER)%を見上げた
+				PRINTFORML そして言葉で答える代わりに、縋るような視線を向け、可愛らしい尻を振って種付けをせがんだ
+				PRINTFORML もう何度も中に出しまくっているから今更だというのに、それでもナカに出して欲しいらしい
+				PRINTFORML %ANAME(MASTER)%は欲張りな娘に苦笑しつつ、細い腰を鷲掴みにして種付けピストンを再開した…
+			CASE 1
+				PRINTFORML %ANAME(MASTER)%は腰の上に跨がらせた%ANAME(対象)%を下から突き上げている…
+				PRINTFORML ごんごんと子宮を突き上げる衝撃に息も継げないのか、断続的に可愛らしい悲鳴を上げながら、
+				PRINTFORML 焦点の合ってない目で、人形のようにがくがくと身体を揺らすことしかできないでいる
+				PRINTFORML しかし動くのを止めると、%ANAME(対象)%は疲弊した身体で自ら必死に腰を振り出り、快感を得ようとしている
+				PRINTFORML 最早泣きそうな顔で腰を振る%ANAME(対象)%を眺めながら、%ANAME(MASTER)%はゆっくりと愛娘の柔肉を味わった…
+			CASE 2
+				PRINTFORML %ANAME(MASTER)%は眼の前に姿見を置いて、背面座位の姿勢で%ANAME(対象)%を犯している…
+				PRINTFORML 鏡面には未成熟な雌穴を真下から貫かれた、%ANAME(対象)%のあられもない姿が映っている
+				PRINTFORML 自分自身の淫らな姿に興奮しているのか、%ANAME(対象)%は犬のように舌を突き出し、自ら腰を振っている
+				PRINTFORML 腰を掴み、ずんと強く突き込んでやると悲鳴のような嬌声を上げてイキ狂い、ぎちぎちと膣肉を締め付けてきた
+				PRINTFORML 鏡の中では、アヘ顔でびくびくと痙攣する%ANAME(対象)%との接合部から、入り切らなかった精液が溢れ出していた…
+		ENDSELECT
+		PRINTFORMW …
+		PRINTFORML 
+		PRINTFORML 一頻り交わった後、%ANAME(対象)%は身体の中も外も白濁でどろどろになった姿で転がっている…
+		PRINTFORML 一晩かけて開発された肉体は、今やすっかり%ANAME(MASTER)%専用の雌として作り変えられてしまった
+		PRINTFORML しかしそのことこそが幸せとでも言うように、%ANAME(対象)%の顔は悦楽と至福に蕩けきっている
+		PRINTFORML %ANAME(対象)%のお腹は注がれた精液でぽっこりと膨らみ、既に%ANAME(MASTER)%の子を孕んでしまったかのようだ
+		PRINTFORML %ANAME(MASTER)%が愛液と精液で穢れたペニスを眼前に突き出すと、%ANAME(対象)%は赤子のようにそれに吸い付いた
+		PRINTFORML %ANAME(対象)%は%ANAME(MASTER)%の雌として恥じない舌技でペニスを舐めしゃぶり、口腔全体で熱烈に奉仕した
+		PRINTFORML %ANAME(MASTER)%は満足気に愛娘の頭を撫でながら、喉奥にご褒美ザーメンを注ぎ込んだ
+		PRINTFORML %ANAME(対象)%はそれを一滴も零さず飲み干し、愛欲に満たされた顔で微笑んだ…
+ENDSELECT
+
+IF ABL:対象:性知識 == 0
+	ABL:対象:性知識 = 1
+ENDIF
+CALL FUCK_MAKELOVE(対象, GET_ID(MASTER), @"%ANAME(MASTER)%の唇", ANAME(MASTER))
+CALL FUCK(MASTER, "Ｃ, 射精, Ｖ挿入", "童貞喪失", 0, "", "", @"%ANAME(対象)%の膣")
+CFLAG:対象:好感度 += 800
+CFLAG:対象:従属度 += 300
+CFLAG:対象:依存度 += 300
+TALENT:対象:合意 = 1
+PRINTFORMW 
+
+RETURN 1
