@@ -54,6 +54,8 @@ ENDIF
 
 TALENT:(ARG:0):危険日 = RAND:5
 
+CALL SET_BODYSIZE(ARG:0)
+
 CALL TAG_INIT(ARG:0, NO:(ARG:0))
 
 CALL SKILL_INIT(ARG:0)
@@ -343,7 +345,7 @@ FOR LOCAL, 0, PREGNANT_RECORD_MAX
 	PREGNANT_RECORD_TIMES:(ARG:0):LOCAL = 0
 NEXT
 
-
+CALL SET_BODYSIZE(ARG:0)
 CALL SKILL_INIT(ARG:0)
 CALL CLOTH_INIT(ARG:0)
 ;-------------------------------------------------
@@ -1408,6 +1410,8 @@ SIF IS_MALE(ARG:0)
 SIF !INRANGE(ARG:1, -2, 2)
 	RETURN 
 TALENT:(ARG:0):バストサイズ = ARG:1
+CALL SET_BODYSIZE(ARG:0)
+
 RETURN
 
 
@@ -1450,11 +1454,90 @@ SIF !HAS_PENIS(ARG:0)
 SIF !INRANGE(ARG:1, -2, 2)
 	RETURN 
 TALENT:(ARG:0):ペニスサイズ = ARG:1
+CALL SET_BODYSIZE(ARG:0)
 RETURN
 
+;-------------------------------------------------
+;ヒップサイズの数値を文字列に直す
+;-2:絶壁～2:爆乳
+;-------------------------------------------------
+@TOSTR_HIPSIZE(ARG:0)
+#FUNCTIONS
+ARG:0 = MAX(-2, MIN(2, ARG:0))
+SELECTCASE ARG:0
+	CASE -2
+		RETURNF "壁尻"
+	CASE -1
+		RETURNF "薄尻"
+	CASE 1
+		RETURNF "巨尻"
+	CASE 2
+		RETURNF "爆尻"
+ENDSELECT
+RETURNF "普尻"
 
+;-------------------------------------------------
+;キャラARG:0のヒップサイズを数値に変換する
+;-2:絶壁～2:爆乳
+;-------------------------------------------------
+@GET_HIPSIZE(ARG:0)
+#FUNCTION
+RETURNF TALENT:(ARG:0):ヒップサイズ
 
+;-------------------------------------------------
+;キャラARG:0のヒップサイズをARG:1にする
+;-2:絶壁～2:爆乳
+;-------------------------------------------------
+@SET_HIPSIZE(ARG:0, ARG:1)
+SIF !INRANGE(ARG:1, -2, 2)
+	RETURN 
+TALENT:(ARG:0):ヒップサイズ = ARG:1
+CALL SET_BODYSIZE(ARG:0)
+RETURN
 
+;-------------------------------------------------
+;ペニスサイズの数値を文字列に直す
+;-2:絶壁～2:爆乳
+;-------------------------------------------------
+@TOSTR_BODYSIZE(ARG:0)
+#FUNCTIONS
+ARG:0 = MAX(-2, MIN(3, ARG:0))
+SELECTCASE ARG:0
+	CASE -2
+		RETURNF "子供"
+	CASE -1
+		RETURNF "小柄"
+	CASE 1
+		RETURNF "長身"
+	CASE 2
+		RETURNF "大柄"
+	CASE 3
+		RETURNF "巨大"
+ENDSELECT
+RETURNF "普通"
+
+;-------------------------------------------------
+;ペニスサイズの数値を文字列に直す
+;-2:絶壁～2:爆乳
+;-------------------------------------------------
+@TOSTR_BODYTYPE(ARG:0)
+#FUNCTIONS
+ARG:0 = MAX(-3, MIN(3, ARG:0))
+SELECTCASE ARG:0
+	CASE -3
+		RETURNF "痩せすぎ"
+	CASE -2
+		RETURNF "細身"
+	CASE -1
+		RETURNF "スレンダー"
+	CASE 1
+		RETURNF "グラマー"
+	CASE 2
+		RETURNF "豊満"
+	CASE 3
+		RETURNF "肥満"
+ENDSELECT
+RETURNF "普通"
 ;-------------------------------------------------
 ;能力の成長型を文字列に直す
 ;-------------------------------------------------
@@ -2952,9 +3035,9 @@ IF EXISTCSV(NO:対象)
 ELSE
 	;非固定キャラの締まり初期値は素質から暫定的に検出
 	;基本650 処女+100 小柄体型+100 子供体型+200 幼児+100 現在値と平均を取って最低150最高950
-	Ｖ初期値 = 650 + TALENT:対象:処女 * 100 + TALENT:対象:小柄体型 * 100 + TALENT:対象:子供体型 * 200 + TALENT:対象:幼児 * 100
+	Ｖ初期値 = 650 + TALENT:対象:処女 * 100 + (TALENT:対象:体格 == 体格_小柄) * 100 + (TALENT:対象:体格 == 体格_子供) * 200 + TALENT:対象:幼児 * 100
 	Ｖ初期値 = LIMIT((Ｖ初期値 + TALENT:対象:Ｖ締まり) / 2, 150, 950)
-	Ａ初期値 = 650 + TALENT:対象:アナル処女 * 100 + TALENT:対象:小柄体型 * 100 + TALENT:対象:子供体型 * 200 + TALENT:対象:幼児 * 100
+	Ａ初期値 = 650 + TALENT:対象:アナル処女 * 100 + (TALENT:対象:体格 == 体格_小柄) * 100 + (TALENT:対象:体格 == 体格_子供) * 200 + TALENT:対象:幼児 * 100
 	Ａ初期値 = LIMIT((Ａ初期値 + TALENT:対象:Ａ締まり) / 2, 150, 950)
 ENDIF
 
