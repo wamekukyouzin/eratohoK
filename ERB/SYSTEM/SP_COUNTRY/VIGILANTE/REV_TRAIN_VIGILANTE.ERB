@@ -1,0 +1,85 @@
+﻿;-------------------------------------------------
+;定期イベント
+;-------------------------------------------------
+@VIGILANTE_REV_TRAIN_REGULAR_EVENT(勢力)
+#DIM 勢力
+
+SIF FLAG:逆調教回数 == 0 || FLAG:逆調教回数 % 4 != 0
+	RETURN 0
+
+PRINTFORML 「教育」の時間が近づくと、%ANAME(MASTER)%はいつものように「指導室」に放り込まれ、
+PRINTFORML あとは男どもに汚されるのを待つのみとなった
+PRINTFORML やってきた団員たちは、そろそろ我々の思想を理解してくれたかい、と尋ねた
+PRINTFORMW 団に参加すれば、我々もこんな非道なことをしなくても済むんだが、と言い始める
+PRINTFORML 団員になれば、最低限の行動は認められるだろう
+PRINTFORML しかしそれは、彼らに使い潰され、汚され続けることを意味している
+PRINTFORMW 一方で、首を縦にふれば、今この瞬間は楽になるだろう
+PRINTFORML どうするべきだろうか……
+CALL ASK_YN("諦めて入団する(奴隷化)", "誰がお前らの仲間になどなるか")
+
+IF RESULT == 0
+	PRINTFORML %ANAME(MASTER)%がうなずくと、団員達は異様に明るい笑みを浮かべた
+	PRINTFORML では団員の印をつけてあげようと言い始めた
+	IF HAS_PENIS(MASTER)
+		CALL SET_PIERCE(MASTER, ピアス_ペニス, 0)
+		IF RESULT
+			CALL COLORPRINT(@"そしてそのペニスに、痛々しいピアスを取り付けた……", カラー_ピンク, "W")
+		ELSE
+			CALL COLORPRINT(@"そしてそのペニスに、二度と消えない焼き印を刻んだ……", カラー_ピンク, "W")
+		ENDIF
+	ELSE
+		CALL SET_PIERCE(MASTER, ピアス_乳首, 0)
+		IF RESULT
+			CALL COLORPRINT(@"そしてその乳首に、痛々しいピアスを取り付けた……", カラー_ピンク, "W")
+		ELSE
+			CALL COLORPRINT(@"そしてその乳房に、二度と消えない焼き印を刻んだ……", カラー_ピンク, "W")
+		ENDIF
+	ENDIF
+	SETCOLOR カラー_注意
+	PRINTFORMW %ANAME(MASTER)%は自警団に参加させられました
+	RESETCOLOR
+	SETBIT TALENT:MASTER:特殊勢力陥落系, 特殊勢力_自警団
+	CALL CHANGE_COUNTRY(MASTER, 勢力, 1)
+	CALL PLAYER_FALLEN_TO_SP_COUNTRY(勢力)
+	RETURN 1
+ELSE
+	PRINTFORML %ANAME(MASTER)%が拒否すると、まだ分からないのか！　と、彼らは激高する
+	PRINTFORML 理解するまで教育を続けるからな！　と、乱暴に%ANAME(MASTER)%に群がっていく
+	PRINTFORML そこに正義や倫理と呼べるものは、およそ存在していなかった……
+ENDIF
+
+;-------------------------------------------------
+;知り合いがきたときのイベント
+;-------------------------------------------------
+@VIGILANTE_REV_TRAIN_MSG(勢力, 知り合い参加者, 知り合い参加数)
+#DIM 勢力
+#DIM REF 知り合い参加者
+#DIM 知り合い参加数
+CALL SINGLE_DRAWLINE
+PRINTFORML 「教育」の時間が近づくと、%ANAME(MASTER)%はいつものように「指導室」に放り込まれ、
+PRINTFORML あとは男どもに汚されるのを待つのみとなった
+PRINTFORMW やってきた自警団員たちは、%ANAME(MASTER)%が良く見知った相手を連れてきていた
+PRINTFORMW %ANAME(知り合い参加者:0, 知り合い参加数)%…
+PRINTFORMW 衣服を身に着けておらず、全身は白濁にまみれている。彼らの「活動」を手伝っていたのだろう
+PRINTFORMW 惨めな扱いのはずだが、皆異様なまでに瞳を輝かせ、自警団の思想の正しさを%ANAME(MASTER)%に説いてくる
+PRINTFORMW とても正気だとは思えない笑顔と一緒に……
+PRINTFORMW 自警団員は得たいのしれない笑みを浮かべ、「知り合いが参加しているとなれば安心だし、さみしくもないだろう！」と言ってきた
+PRINTFORMW かつて%ANAME(知り合い参加者:0, 知り合い参加数)%と知り合い「だった」ことを、掴んでいるようだ……
+PRINTFORMW さて、今日も皆で研修を行おうと団員が言うと、%ANAME(知り合い参加者:0, 知り合い参加数)%は従順に股を開いた……
+
+
+;-------------------------------------------------
+;参加者選択アルゴリズム
+;-------------------------------------------------
+@VIGILANTE_REV_TRAIN_CHOOSE_PARTICIPANT(勢力)
+#DIM 勢力
+FOR LOCAL:0, 0, 4
+	;確率で犬豚が対象に
+	FOR LOCAL:1, 0, CHARANUM
+		IF TALENT:(LOCAL:1):特殊勢力素質 == 特殊勢力_自警団 && !CFLAG:(LOCAL:1):調教参加フラグ && CFLAG:(LOCAL:1):所属 == 勢力
+			CFLAG:(LOCAL:1):調教参加フラグ = 1
+			CFLAG:(LOCAL:1):TEXT_LAST非表示 = 1
+			BREAK
+		ENDIF
+	NEXT
+NEXT

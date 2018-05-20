@@ -4,25 +4,55 @@
 @VIGILANTE_DOES_TRAIN()
 
 ;-------------------------------------------------
-;調教メッセージ
-;-------------------------------------------------
-@VIGILANTE_TRAIN_MSG(対象, 士官フラグ)
-#DIM 対象
-#DIM 士官フラグ
-PRINTFORML %ANAME(対象)%はアツい説得を受けている……
-SIF 士官フラグ
-	PRINTFORML %ANAME(対象)%は目を輝かせて話を聞いている……
-;-------------------------------------------------
 ;調教陥落時メッセージ
 ;-------------------------------------------------
 @VIGILANTE_FALLEN_MSG(対象)
 #DIM 対象
-PRINTFORMW 自警団員らの熱心で誠実な説得で、%ANAME(対象)%は自警団への参加の意思を固めた
-PRINTFORMW 支給された制服に、%ANAME(対象)%は袖を通した……
-
+IF !GETBIT(TALENT:対象:特殊勢力陥落系, 特殊勢力_自警団)
+	PRINTFORMW 自警団員らの熱心で誠実な「説得」や「教育」によって、%ANAME(対象)%は忠実な自警団員として生まれ変わった
+	PRINTFORMW 支給された制服に%ANAME(対象)%は自ら袖を通し、異様にキラキラとした瞳と笑顔を浮かべて彼らの思想をそらんじる
+	PRINTFORMW 今や%ANAME(対象)%は思考の根底まで、忠実な団員として作り替えられていた……
+	IF TALENT:対象:烙印
+		PRINTFORML %ANAME(対象)%が%ANAME(MASTER)%専用であることを示す烙印の上から、
+		PRINTFORMW 自警団員の証である焼き印が施された
+		TALENT:対象:烙印 = 0
+	ELSE
+		PRINTFORMW %ANAME(対象)%の体に、自警団員の証である焼き印が施された
+	ENDIF
+	IF TALENT:(対象):プライド高い
+		PRINTL
+		PRINTFORMW かつては誇りを抱いていた%ANAME(対象)%だが、人々のため尽くす自警団員にそんなものは不要だと気づいた
+		PRINTFORMW %ANAME(対象)%のプライドは、苛烈をきわめる「教育」によって徹底的に打ち砕かれていた……
+		CALL TALENT_LOSE_PRIDE(対象, 1, 1)
+	ENDIF
+ELSE
+	PRINTFORMW 最初は抵抗していた%ANAME(対象)%も、不眠不休で「教育」を施されれば、自らの立場を思い出す
+	PRINTFORMW 一度屈した心は、嬲られるたび、彼らに従わなくてはならないと考え始める
+	PRINTFORMW 教育が終わるころには、%ANAME(対象)%は忠実な団員として作り替えられていた……
+ENDIF
 
 ;-------------------------------------------------
 ;調教陥落時にピアシングしたりする場合の処理
 ;-------------------------------------------------
 @VIGILANTE_FALLEN_LEAVE_MARK(対象)
 #DIM 対象
+SELECTCASE RAND:10
+	CASE IS < 3
+		CALL SET_PIERCE_RANDOM(対象, 0)
+		SIF RESULT != -1
+			CALL COLORPRINT(@"%ANAME(対象)%の%GET_PIERCE_NAME(RESULT)%に、団員の一員であることを示すピアスが取り付けられた……", カラー_ピンク, "W")
+	CASE IS < 7
+		CALL SET_TATOO_RANDOM(対象, "無償", 0)
+		SIF RESULT != -1
+			CALL COLORPRINT(@"%ANAME(対象)%の%GET_TATOO_NAME(RESULT)%に、「無償」とタトゥーが刻まれた……", カラー_ピンク, "W")
+	CASEELSE
+		IF GET_INMOU(対象) >= 陰毛_標準 && IS_FEMALE(対象)
+		CALL COLORPRINT(@"団員の証として、%ANAME(対象)%の陰毛はハート型に整えられた……", カラー_ピンク, "W")
+		TALENT:対象:陰毛目標値 = 陰毛_ハート型
+		TALENT:対象:陰毛現在値 = 陰毛_ハート型
+		ELSE
+			CALL COLORPRINT(@"団員の証として、%ANAME(対象)%の陰毛は永久脱毛された……", カラー_ピンク, "W")
+			TALENT:対象:陰毛目標値 = 陰毛_パイパン
+			TALENT:対象:陰毛現在値 = 陰毛_パイパン
+		ENDIF
+ENDSELECT
