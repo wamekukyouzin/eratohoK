@@ -131,8 +131,10 @@ RETURNF 1
 CALL TMP_CREATE_RELATION_MAP
 ;母親のチェックをする
 FOR LOCAL:0, 0, CHARANUM
-	;死亡したキャラは処理しない
+	;死亡したキャラ、未登場のキャラは処理しない
 	IF CFLAG:(LOCAL:0):特殊状態 == 特殊状態_死亡
+		CONTINUE
+	ELSEIF !IS_APPEAR(LOCAL:0)
 		CONTINUE
 	ENDIF
 	CALL TURNEND_PREGNANT_CHECK_MOTHER(LOCAL:0)
@@ -165,7 +167,7 @@ IF CFLAG:(ARG:0):育児期間 >= 1
 		CALL MOTHER_AUTO_REARING(ARG:0, LOCAL:5, CFLAG:(ARG:0):育児期間)
 
 	;出産後期間が8に達した
-	IF CFLAG:(ARG:0):育児期間 == 7
+	IF CFLAG:(ARG:0):育児期間 >= 7
 		;出産後の各種初期化処理
 		CALL RESET_MOTHER_STATE(ARG:0, 1)
 	ENDIF
@@ -569,7 +571,7 @@ SIF FLAG:観戦モード && RAND:4
 	RETURNF 1
 
 IF CFLAG:MASTER:所属 != CFLAG:(ARG:0):所属
-	IF CFLAG:(ARG:0):子の父親 == GET_ID(MASTER) && (IS_LOVER(ARG:0) || IS_SLAVE(ARG:0))
+	IF CFLAG:(ARG:0):子の父親 == GET_ID(MASTER) && (IS_LOVER(ARG:0) || IS_SLAVE(ARG:0) || IS_SLAVED_BY(ARG:0))
 		RETURNF 0
 	ELSE
 		RETURNF RAND:4
@@ -621,19 +623,42 @@ IF TALENT:(ARG:0):幼児 && CFLAG:(ARG:0):子の成長度 >= 15 && IS_CHILD(ARG:
 		RESETCOLOR
 	ENDIF
 	CALL SET_BUSTSIZE(ARG:0, TALENT:(ARG:0):成長後バスト)
-	IF TALENT:(ARG:0):成長後体型 == 1
-		TALENT:(ARG:0):小柄体型 = 1
-		TALENT:(ARG:0):子供体型 = 0
-	ELSEIF TALENT:(ARG:0):成長後体型 == 2
-		TALENT:(ARG:0):子供体型 = 1
-		TALENT:(ARG:0):小柄体型 = 0
-	ELSE
-		TALENT:(ARG:0):子供体型 = 0
-		TALENT:(ARG:0):小柄体型 = 0
-	ENDIF
+	CALL SET_HIPSIZE(ARG:0, TALENT:(ARG:0):成長後ヒップ)
+	SELECTCASE RAND:100
+		CASE 0 TO 60
+			TALENT:体格 = 体格_普通
+		CASE 61 TO 70
+			TALENT:体格 = 体格_小柄
+		CASE 71 TO 80
+			TALENT:体格 = 体格_長身
+		CASE 81 TO 87
+			TALENT:体格 = 体格_子供
+		CASE 88 TO 94
+			TALENT:体格 = 体格_大柄
+		CASEELSE
+			TALENT:体格 = 体格_巨大
+	ENDSELECT
+
+	SELECTCASE RAND:100
+		CASE 0 TO 60
+			TALENT:体型 = 体型_普通
+		CASE 61 TO 70
+			TALENT:体型 = 体型_スレンダー
+		CASE 71 TO 80
+			TALENT:体型 = 体型_グラマー
+		CASE 81 TO 86
+			TALENT:体型 = 体型_豊満
+		CASE 87 TO 93
+			TALENT:体型 = 体型_細身
+		CASE 94 TO 97
+			TALENT:体型 = 体型_肥満
+		CASEELSE
+			TALENT:体型 = 体型_痩せすぎ
+	ENDSELECT
+
 	TALENT:(ARG:0):幼稚 = TALENT:(ARG:0):成長後幼稚
 	TALENT:(ARG:0):幼児 = 0
-	
+	CALL SET_BODYSIZE(ARG:0)
 	;ランダムキャラの設定を流用して陰毛を設定
 	;あくまで暫定的な措置・完全ランダムで遺伝はしない
 	CALL SET_INMOU_RANDOM(ARG:0)

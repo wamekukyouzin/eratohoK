@@ -1,0 +1,1344 @@
+﻿;============================================================================== 
+;■シナリオ21
+;　傾城乱遊の記憶
+;　eraTohloveKHのシナリオ3を他人が移植
+;============================================================================== 
+;============================================================================== 
+;◆初期設定
+;============================================================================== 
+@SCENARIO_NAME_21
+RESULTS = 傾城乱遊の記憶
+RETURN
+
+@SCENARIO_INTRO_21
+PRINTFORML
+PRINTFORMW 幻想郷は分裂した！
+PRINTFORMW 各々が様々な思惑を絡め、争いあう！
+PRINTFORMW 争いの原因は……プレイヤー自身！？
+PRINTFORMW 何か呪いのような物をかけられたらしい……
+PRINTFORML
+PRINTFORML ※ランダム系シナリオです
+PRINTFORML ※ヤンデレが苦手な方はスルーしたほうが良いかもしれません
+PRINTFORML ※ヤンデレが好きな方には嬉しいシナリオ、かどうかは定かではありません
+PRINTFORMW
+PRINTL
+
+;ランダムキャラは選択に委ねる
+FLAG:OPランダムキャラ使用 = 0
+
+@SCENARIO_MAPSELECT_21
+PRINTFORML
+PRINTFORML どのマップでプレイしますか？
+CALL ASK_MULTI("デフォルト", "日本", "ヨーロッパ")
+SELECTCASE RESULT
+	CASE 0
+		MAPID '= "DEFAULT"
+	CASE 1
+		MAPID '= "JAPAN"
+	CASE 2
+		MAPID '= "EU"
+ENDSELECT
+
+@SCENARIO_PLACEMENT_21
+;◇勢力設定
+
+;●空勢力
+COUNTRY_BOSS:0 = 0
+COUNTRY_COLOR:0 = GETDEFCOLOR()
+;全国空勢力
+FOR LOCAL:0, 0, MAX_CITY
+	;空勢力
+	CITY_OWNER:(LOCAL:0) = 0
+	;空勢力国への兵配備（500～5000）
+	CITY_SOLDIER:(LOCAL:0) = RAND:4500 + 4000
+NEXT
+
+;全員無所属・放浪
+FOR LOCAL:0, 1, CHARANUM
+	IF CSTR:(LOCAL:0):99 != "あなた"
+		;所属勢力
+		CFLAG:(LOCAL:0):所属 = 0
+		;特殊状態
+		CFLAG:(LOCAL:0):特殊状態 = 特殊状態_放浪
+	ENDIF
+NEXT
+
+;◇経済規模の設定
+;CALL SHARED_SETTING_ECONOMY
+
+;◇防衛倍率の設定
+;CALL SHARED_SETTING_GUARD
+
+;◇兵力の初期配置
+CALL INIT_ARMY
+
+;◇関係設定
+CALL SHARED_SETTING_RELATION
+
+; ホントはシナリオ開始後に建国してほしいけど、１つも勢力が無い状態で[ランダム]を選ぶとエラー落ちするっぽいので回避
+CALL SCENARIO_21_SELECT_RBOSS(7, 12)
+
+
+;============================================================================== 
+;◆定例イベント
+;　ターンエンド時に呼び出される
+;============================================================================== 
+@SCENARIO_EVENT_21
+#DIM 対象士官番号
+#DIM 闇堕ち君主番号
+
+対象士官番号 = ID_TO_CHARA(SCVAR:3)
+闇堕ち君主番号 = ID_TO_CHARA(SCVAR:4)
+
+IF SCVAR:2 && (対象士官番号 < 0 || 闇堕ち君主番号 < 0)
+	; エラー落ちしないことを最優先にする
+	CALL SCENARIO_21_RESET_SCVARS
+ENDIF
+
+;IF DAY == 1
+;	CALL SCENARIO_21_SELECT_RBOSS(7, 12)
+;ENDIF
+
+;───────────────────────────────────── 
+;◇傾城(SCVAR:2 SCVAR:3 SCVAR:4 使用)
+;●概要
+;○使用しているシナリオ用変数
+;　▼SCVAR:2……イベント進行度
+;　▼SCVAR:3……対象士官ID
+;　▼SCVAR:4……闇堕ち君主ID
+;イベントの概要：
+;○進行度０……毎ターン陥落持ちは確率で自分より主人公への好感度が高いキャラに友好度-敵対度+。
+;　　　　　　　親愛だと敵対度の上がり方がより大きくなる。
+;　　　　　　　自軍士官と他軍でそれぞれ、最も主人公への好意が高い者は友好度・敵対度を表示する。
+;○進行度１……自軍君主が自軍士官に敵対度が高まると警告する。
+;　　　　　　　▼「君主が大切」「仲間が大切」……で好感度+敵対度-。
+;　　　　　　　▼「士官が大切」……進行度２のフラグオン。
+;○進行度２……主人公勢力の君主に睨まれた同勢力士官が独立に誘ってくる。
+;　　　　　　　▼「ついていく」……独立
+;　　　　　　　▼「ひきとめる」……進行度３のフラグオン。
+;○進行度３……主人公勢力の君主に睨まれた同勢力士官が地方派遣され放浪する
+;　　　　　　　内部的には未登場扱いとなり地方派遣と同様に能力に応じて兵追加される。
+;　　　　　　　▼「後を追う」……自軍君主に監禁されて捕虜になる。
+;　　　　　　　▼「黙り込む」……現状維持になる。進行度４のフラグオン。
+;○進行度４　　状況が大きく変化したら、それに応じて対象を生き返し、状況に応じた処理をする。
+;　　　　　　　▼主人公の斬首……対象を生き返す（斬首口上を表示できるようにするだけ）
+;　　　　　　　▼主人公の独立……対象を生き返して主人公勢力に士官させる。
+;　　　　　　　▼主人公の士官先変更……対象を生き返して主人公勢力に士官させる。
+;　　　　　　　▼主人公の無所属化・捕虜でない（滅亡）……対象を生き返して最大勢力から国を一つ貰って独立、主人公がそこへ士官。
+;　　　　　　　▼上記にあてはまらない場合、２ターン経過後、対象が生きていると噂に聞く。この段階では内部的には死んだまま。
+;　　　　　　　▼３ターン経過後、対象を生き返して選択肢を表示する。
+;　　　　　　　▼「独立する」……対象を生き返して最大軍から国を一つ貰って独立、主人公がそこへ士官。
+;　　　　　　　▼「他勢力へ誘う」……対象を生き返して他軍の支配国数を表示したリンクを出し、選択した先に対象と主人公が二人で仕官。
+;　　　　　　　▼「ここに残る」……対象を生き返して対象を地方派遣した君主への敵対度が最も高い君主のいる軍へ士官。
+;　　　　　　　主人公は無所属なら自分を監禁した君主に士官して捕虜状態を解除。無所属でなければ現状維持。
+;───────────────────────────────────── 
+;●イベント１～２のリセット
+;───────────────────────────────────── 
+;警告・逃避行独立まではリセット可
+;３・４・５・６は後に引けない状況なのでリセットしない
+IF DAY % 1 == 0 && SCVAR:2 >= 1 && SCVAR:2 < 3
+	;○主人公が放浪、または捕虜、または妊娠などの行動不能
+	IF CFLAG:MASTER:所属 == 0 || CFLAG:MASTER:捕虜先 || CFLAG:MASTER:行動不能状態
+		CALL SCENARIO_21_RESET_SCVARS
+	;主人公の君主が変わっている
+	ELSEIF 闇堕ち君主番号 != GET_COUNTRY_BOSS(CFLAG:MASTER:所属)
+		CALL SCENARIO_21_RESET_SCVARS
+	ENDIF
+	;○対象が特殊状況（放浪または死亡）または捕虜、または妊娠などの行動不能
+	IF CFLAG:対象士官番号:特殊状態 || CFLAG:対象士官番号:捕虜先 || CFLAG:対象士官番号:行動不能状態
+		CALL SCENARIO_21_RESET_SCVARS
+	;対象の君主が変わっている
+	ELSEIF 闇堕ち君主番号 != GET_COUNTRY_BOSS(CFLAG:対象士官番号:所属)
+		CALL SCENARIO_21_RESET_SCVARS
+	ENDIF
+	;○闇堕ち君主特殊状況（放浪または死亡）または捕虜、または妊娠などの行動不能
+	IF CFLAG:闇堕ち君主番号:特殊状態 || CFLAG:闇堕ち君主番号:捕虜先 || CFLAG:闇堕ち君主番号:行動不能状態
+		CALL SCENARIO_21_RESET_SCVARS
+	;闇堕ち君主が君主でなくなっている
+	ELSEIF 闇堕ち君主番号 != GET_COUNTRY_BOSS(CFLAG:闇堕ち君主番号:所属)
+		CALL SCENARIO_21_RESET_SCVARS
+	ENDIF
+	;○好感度逆転（闇堕ちしそうな君主の好感度＞対象の好感度）
+	IF CFLAG:闇堕ち君主番号:好感度 > CFLAG:対象士官番号:好感度
+		CALL SCENARIO_21_RESET_SCVARS
+	ENDIF
+ENDIF
+
+;───────────────────────────────────── 
+;●傾城進行度４監禁または日常からの救出
+;───────────────────────────────────── 
+;発生条件：
+;イベント進行度が３以上
+;特に何事もなければ地方派遣が起きてから２期続き、３期目に終了する
+IF DAY % 1 == 0 && SCVAR:2 >= 3
+	対象士官番号 = ID_TO_CHARA(SCVAR:3)
+	闇堕ち君主番号 = ID_TO_CHARA(SCVAR:4)
+	;---------------------------------------------------------------------- 
+	;○途中・主人公が斬首された
+	;---------------------------------------------------------------------- 
+	IF FLAG:強制エンドフラグ
+		;主人公処刑時の口上を出すために生き返す
+		CALL CHANGE_COUNTRY(対象士官番号, 0, 1, 0)
+	;---------------------------------------------------------------------- 
+	;○途中・主人公が独立した
+	;---------------------------------------------------------------------- 
+	ELSEIF CFLAG:MASTER:所属 && GET_COUNTRY_BOSS(CFLAG:MASTER:所属) == MASTER
+		;対象が未登場状態から通常状態になる
+		;主人公の勢力に対象が士官
+		CALL CHANGE_COUNTRY(対象士官番号, CFLAG:MASTER:所属, 1, 0)
+		CALL SCENARIO_21_COLOR_LINE
+		SETCOLOR カラー_オレンジ
+		PRINTFORMW 放浪していた%ANAME(対象士官番号)%が我が陣に士官した！
+		RESETCOLOR
+		CALL SCENARIO_21_COLOR_LINE
+		PRINTFORMW %ANAME(MASTER)%は小走りになって%ANAME(対象士官番号)%を出迎えた
+		PRINTFORML 
+		PRINTFORMW %ANAME(対象士官番号)%は%ANAME(闇堕ち君主番号)%の兵に追われて身を潜めていたらしい
+		PRINTFORMW %ANAME(MASTER)%の独立を知って居ても立っても居られず、士官しに来たことを話した
+		PRINTFORML 
+		IF TALENT:対象士官番号:自制心 || TALENT:対象士官番号:一線越えない
+			PRINTFORMW %ANAME(対象士官番号)%は黙って%ANAME(MASTER)%を抱き締めて落ち着くまで背中を撫で続けた…
+		ELSEIF TALENT:対象士官番号:大人しい || TALENT:対象士官番号:悲観的
+			PRINTFORMW %ANAME(対象士官番号)%は%ANAME(MASTER)%を抱き締めて感極まった涙を流した…
+		ELSEIF TALENT:対象士官番号:プライド高い || TALENT:対象士官番号:気丈 || TALENT:対象士官番号:楽観的
+			PRINTFORMW %ANAME(対象士官番号)%は%ANAME(MASTER)%を抱き締め、よく耐えて待っていてくれたと何度も褒めた…
+		ELSE
+			PRINTFORMW 二人は互いの再会を喜んで、二度と離れまいと誓い合った…
+		ENDIF
+		WAIT
+		CALL SCENARIO_21_RESET_SCVARS
+	;---------------------------------------------------------------------- 
+	;○途中・主人公は無所属でなく、士官先が闇堕ち君主でない
+	;---------------------------------------------------------------------- 
+	ELSEIF CFLAG:MASTER:所属 && GET_COUNTRY_BOSS(CFLAG:MASTER:所属) != 闇堕ち君主番号
+		;対象が未登場状態から通常状態になる
+		;主人公の勢力に対象が士官
+		CALL CHANGE_COUNTRY(対象士官番号, CFLAG:MASTER:所属, 1, 0)
+		CALL SCENARIO_21_COLOR_LINE
+		SETCOLOR カラー_オレンジ
+		PRINTFORMW 放浪していた%ANAME(対象士官番号)%が我が陣に士官した！
+		RESETCOLOR
+		CALL SCENARIO_21_COLOR_LINE
+		PRINTFORMW %ANAME(MASTER)%は小走りになって%ANAME(対象士官番号)%を出迎えた
+		PRINTL 
+		PRINTFORML %ANAME(対象士官番号)%は%ANAME(闇堕ち君主番号)%の兵に追われて身を潜めていたらしい
+		PRINTFORMW %ANAME(闇堕ち君主番号)%が居なくなって自由の身になり、%ANAME(MASTER)%に会いに来たことを話した
+		PRINTL 
+		PRINTFORML %ANAME(闇堕ち君主番号)%とも親しい間柄だった%ANAME(MASTER)%は気持ちも立場も複雑だが
+		PRINTFORMW 今はただ%ANAME(対象士官番号)%と再会できたことを深く喜んだ
+		PRINTL 
+		IF TALENT:対象士官番号:自制心 || TALENT:対象士官番号:一線越えない
+			PRINTFORMW %ANAME(対象士官番号)%は黙って%ANAME(MASTER)%を抱き締めて落ち着くまで背中を撫で続けた…
+		ELSEIF TALENT:対象士官番号:大人しい || TALENT:対象士官番号:悲観的
+			PRINTFORMW %ANAME(対象士官番号)%は%ANAME(MASTER)%を抱き締めて感極まった涙を流した…
+		ELSEIF TALENT:対象士官番号:プライド高い || TALENT:対象士官番号:気丈 || TALENT:対象士官番号:楽観的
+			PRINTFORMW %ANAME(対象士官番号)%は%ANAME(MASTER)%を抱き締め、よく耐えて待っていてくれたと何度も褒めた…
+		ELSE
+			PRINTFORMW 二人は互いの再会を喜んで、二度と離れまいと誓い合った…
+		ENDIF
+		CALL SCENARIO_21_RESET_SCVARS
+	;---------------------------------------------------------------------- 
+	;○途中・主人公は無所属で、捕虜ではない（監禁中でないが無所属＝自国が滅ぼされた等）
+	;---------------------------------------------------------------------- 
+	ELSEIF CFLAG:MASTER:捕虜先 == 0 && CFLAG:MASTER:所属 == 0 && GET_NEW_COUNTRY() > 0
+		;空いている勢力の番号を取得
+		LOCAL:4 = GET_NEW_COUNTRY()
+		;対象を新しい勢力の君主にする
+		COUNTRY_BOSS:(LOCAL:4) = GET_ID(対象士官番号)
+		;対象の新しい勢力のカラーを設定（ある程度見えそうな明るさの色でランダム）
+		LOCAL:10 = RAND:359
+		LOCAL:11 = RAND:60 + 10
+		LOCAL:12 = RAND:40 + 50
+		COUNTRY_COLOR:(LOCAL:4) = HSV_TO_RGB(LOCAL:10, LOCAL:11, LOCAL:12)
+		;新しい勢力の経済力設定
+		COUNTRY_SOLDIER:(LOCAL:4) = 10000
+		;対象は士官としても引越し
+		CALL CHANGE_COUNTRY(対象士官番号, LOCAL:4, 1, 0)
+		;主人公を新しい勢力に士官させる
+		CALL CHANGE_COUNTRY(MASTER, LOCAL:4, 1, 0)
+		;一番多く国を持っている勢力をチェックしてLOCAL:15に代入
+		LOCAL:13 = 0
+		LOCAL:14 = 0
+		LOCAL:15 = 0
+		FOR LOCAL:0, 1, MAX_COUNTRY
+			;勢力が存在したら所有国を数えて次の勢力と比較
+			IF IS_COUNTRY(LOCAL:0)
+				LOCAL:13 = GET_OWN_CITY(LOCAL:0)
+				IF LOCAL:13 > LOCAL:14
+					LOCAL:14 = LOCAL:13
+					LOCAL:15 = LOCAL:0
+				ENDIF
+			ENDIF
+		NEXT
+		;一番多く国を持っている勢力から国を一つ奪う
+		FOR LOCAL:0, 0, MAX_CITY
+			IF CITY_OWNER:(MAX_CITY-1-LOCAL:0) == LOCAL:15
+				CITY_OWNER:(MAX_CITY-1-LOCAL:0) = LOCAL:4
+				BREAK
+			ENDIF
+		NEXT
+		;対象の旗揚げ
+		CALL SCENARIO_21_COLOR_LINE
+		PRINTFORMW あてもなく放浪する%ANAME(MASTER)%の元へ%ANAME(対象士官番号)%が尋ねて来た
+		PRINTL 
+		PRINTFORML 懐かしい顔を見て%ANAME(MASTER)%が声を上げると
+		IF TALENT:対象士官番号:自制心 || TALENT:対象士官番号:一線越えない
+			PRINTFORMW %ANAME(対象士官番号)%は黙って%ANAME(MASTER)%を抱き締めて落ち着くまで背中を撫で続けた
+		ELSEIF TALENT:対象士官番号:大人しい || TALENT:対象士官番号:悲観的
+			PRINTFORMW %ANAME(対象士官番号)%は%ANAME(MASTER)%を抱き締めて感極まった涙を流した
+		ELSEIF TALENT:対象士官番号:プライド高い || TALENT:対象士官番号:気丈 || TALENT:対象士官番号:楽観的
+			PRINTFORMW %ANAME(対象士官番号)%は%ANAME(MASTER)%を抱き締め、よく耐えて待っていてくれたと何度も褒めた
+		ELSE
+			PRINTFORMW %ANAME(対象士官番号)%は二度と離れまいと固く%ANAME(MASTER)%を抱き締めた
+		ENDIF
+		PRINTL 
+		PRINTFORML %ANAME(対象士官番号)%はやはり%ANAME(闇堕ち君主番号)%の兵に追われ危険な目に遭ったらしい
+		PRINTFORMW 旗揚げをする、迎えに来たとの言葉に、%ANAME(MASTER)%は繰り返し頷いた…
+		CALL SCENARIO_21_COLOR_LINE
+		SETCOLOR カラー_黄
+		PRINTFORMW %ANAME(対象士官番号)%が旗揚げした！
+		RESETCOLOR
+		PRINTFORMW %ANAME(MASTER)%が%ANAME(対象士官番号)%の元へ駆けつけた
+		WAIT
+		CALL SCENARIO_21_RESET_SCVARS
+	;---------------------------------------------------------------------- 
+	;○３期クリアして４期目
+	;---------------------------------------------------------------------- 
+	ELSEIF SCVAR:2 >= 6
+		;主人公が捕虜でない
+		IF CFLAG:MASTER:捕虜先 == 0
+			CALL SCENARIO_21_COLOR_LINE
+			PRINTFORMW %ANAME(MASTER)%は雑用の為に陣外に出た
+			PRINTL 
+			PRINTFORMW 誰かに声をかけられて足を止め、振り返るとそこには懐かしい%ANAME(対象士官番号)%の姿があった
+			IF TALENT:対象士官番号:自制心 || TALENT:対象士官番号:一線越えない
+				PRINTFORMW %ANAME(対象士官番号)%は黙って%ANAME(MASTER)%を抱き締めて落ち着くまで背中を撫で続けた
+			ELSEIF TALENT:対象士官番号:大人しい || TALENT:対象士官番号:悲観的
+				PRINTFORMW %ANAME(対象士官番号)%は%ANAME(MASTER)%を抱き締めて感極まった涙を流した
+			ELSEIF TALENT:対象士官番号:プライド高い || TALENT:対象士官番号:気丈 || TALENT:対象士官番号:楽観的
+				PRINTFORMW %ANAME(対象士官番号)%は%ANAME(MASTER)%を抱き締め、よく耐えて待っていてくれたと何度も褒めた
+			ELSE
+				PRINTFORMW %ANAME(対象士官番号)%は二度と離れまいと固く%ANAME(MASTER)%を抱き締めた
+			ENDIF
+		;主人公が捕虜
+		ELSE
+			;主人公が捕虜でなくなる
+			CFLAG:MASTER:捕虜先 = 0
+			CALL SCENARIO_21_COLOR_LINE
+			PRINTFORML 縛られたまま犯されるのを待つだけの日々を過ごす%ANAME(MASTER)%の牢へ%ANAME(対象士官番号)%が忍び込んで来た
+			PRINTFORML 感動の声を上げそうになった%ANAME(MASTER)%の口を押さえて静かにと耳打ちし、縄を解いて外に連れ出す
+			PRINTFORMW 安全な場所まで離れると、%ANAME(対象士官番号)%は迎えが遅くなったことを繰り返し詫び、やつれた%ANAME(MASTER)%を心配した
+			PRINTL 
+			IF TALENT:対象士官番号:自制心 || TALENT:対象士官番号:一線越えない
+				PRINTFORML 黙って%ANAME(MASTER)%を抱き締めて落ち着くまで背中を撫でる
+			ELSEIF TALENT:対象士官番号:大人しい || TALENT:対象士官番号:悲観的
+				PRINTFORML %ANAME(MASTER)%を抱き締めて感極まった涙を流す
+			ELSEIF TALENT:対象士官番号:プライド高い || TALENT:対象士官番号:気丈 || TALENT:対象士官番号:楽観的
+				PRINTFORML %ANAME(MASTER)%を抱き締め、よく耐えて待っていてくれたと何度も褒める
+			ELSE
+				PRINTFORML 二度と離れまいと固く%ANAME(MASTER)%を抱き締める
+			ENDIF
+		ENDIF
+		PRINTFORML %ANAME(対象士官番号)%はやはり%ANAME(闇堕ち君主番号)%の兵に追われ危険な目に遭ったらしい
+		PRINTFORML %ANAME(MASTER)%を迎えに来た、今度こそ一緒に独立しようと誘っている…
+		PRINTL 
+		CALL ASK_MULTI_JUDGE(@"%ANAME(対象士官番号)%と二人で独立する", GET_NEW_COUNTRY() > 0, "他勢力へ誘う", GET_COUNTRY_NUM() > 1, @"%ANAME(闇堕ち君主番号)%の勢力に残る", 1)
+		;▼0_独立する
+		IF RESULT == 0
+			PRINTFORMW %ANAME(MASTER)%は確りと頷いた…
+			;主人公が士官しているなら
+			IF CFLAG:MASTER:所属
+				;主人公勢力の守将と部隊を解除
+				FOR LOCAL:0, 0, MAX_CITY
+					IF CITY_OWNER:(LOCAL:0) == CFLAG:MASTER:所属
+						CITY_COMMANDER:(LOCAL:0) = 0
+					ENDIF
+				NEXT
+				;主人公が居た陣営の部隊を解散
+				CALL CLEAR_ALL_UNIT(CFLAG:MASTER:所属)
+			ENDIF
+			;空いている勢力の番号を取得
+			LOCAL:4 = GET_NEW_COUNTRY()
+			;対象を新しい勢力の君主にする
+			COUNTRY_BOSS:(LOCAL:4) = GET_ID(対象士官番号)
+			;対象の新しい勢力のカラーを設定（ある程度見えそうな明るさの色でランダム）
+			LOCAL:10 = RAND:359
+			LOCAL:11 = RAND:60 + 10
+			LOCAL:12 = RAND:40 + 50
+			COUNTRY_COLOR:(LOCAL:4) = HSV_TO_RGB(LOCAL:10, LOCAL:11, LOCAL:12)
+			;一番多く国を持っている勢力をLOCAL:15に保存する
+			LOCAL:13 = 0
+			LOCAL:14 = 0
+			LOCAL:15 = 0
+			FOR LOCAL:0, 1, MAX_COUNTRY
+				;勢力が存在したら、支配国数を次の勢力と比較
+				IF IS_COUNTRY(LOCAL:0)
+					LOCAL:13 = GET_OWN_CITY(LOCAL:0)
+					IF LOCAL:13 > LOCAL:14
+						LOCAL:14 = LOCAL:13
+						LOCAL:15 = LOCAL:0
+					ENDIF
+				ENDIF
+			NEXT
+			;一番多く国を持っている勢力から国を一つ奪う
+			FOR LOCAL:0, 0, MAX_CITY
+				IF CITY_OWNER:(MAX_CITY-1-LOCAL:0) == LOCAL:15
+					CITY_OWNER:(MAX_CITY-1-LOCAL:0) = LOCAL:4
+					BREAK
+				ENDIF
+			NEXT
+			;対象の新しい勢力の経済力設定
+			COUNTRY_SOLDIER:(LOCAL:4) = 10000
+			;対象は士官としても引越し
+			CALL CHANGE_COUNTRY(対象士官番号, LOCAL:4, 1, 0)
+			;主人公を新しい勢力に士官させる
+			CALL CHANGE_COUNTRY(MASTER, LOCAL:4, 1, 0)
+			;対象が元君主から嫌われる
+			CALL CHANGE_RELATION_O_TO_O(闇堕ち君主番号, 対象士官番号, -1000, 1000)
+			;対象が元君主を嫌う
+			CALL CHANGE_RELATION_O_TO_O(対象士官番号, 闇堕ち君主番号, -1000, 1000)
+			;対象の独立or旗揚げ
+			CALL SCENARIO_21_COLOR_LINE
+			SETCOLOR カラー_黄
+			PRINTFORML %ANAME(対象士官番号)%が旗揚げした！
+			RESETCOLOR
+			PRINTFORML %ANAME(MASTER)%が%ANAME(対象士官番号)%の元へ駆けつけた
+			WAIT
+			CALL SCENARIO_21_RESET_SCVARS
+		;▼1_他勢力へ誘う
+		ELSEIF RESULT == 1
+			;主人公の所属する勢力があるなら、守将と部隊を解除
+			IF CFLAG:MASTER:所属
+				;主人公が居た勢力の国の守将を解除
+				FOR LOCAL:0, 0, MAX_CITY
+					IF CITY_OWNER:(LOCAL:0) == CFLAG:MASTER:所属
+						CITY_COMMANDER:(LOCAL:0) = 0
+					ENDIF
+				NEXT
+				;主人公が居た陣営の部隊を解散
+				CALL CLEAR_ALL_UNIT(CFLAG:MASTER:所属)
+			ENDIF
+			CALL SCENARIO_21_COLOR_LINE
+			PRINTFORML %ANAME(MASTER)%は少し考え、今二人きりで独立するのは無謀だと制止した
+			PRINTFORMW 冷静な%ANAME(MASTER)%の言葉に%ANAME(対象士官番号)%が頷く
+			PRINTFORML 各陣の内情はわからないが、戦況は%ANAME(対象士官番号)%から聞くことができた
+			PRINTFORML どの勢力を頼ろう…
+			FOR LOCAL:0, 0, MAX_COUNTRY
+				;存在する・主人公の所属する勢力・または君主の勢力でなければ
+				IF IS_COUNTRY(LOCAL:0) && LOCAL:0 != CFLAG:MASTER:所属 && LOCAL:0 != CFLAG:闇堕ち君主番号:所属
+					LOCAL:1 = GET_COUNTRY_BOSS(LOCAL:0)
+					PRINTFORML [{LOCAL:0}] %ANAME(LOCAL:1)%（支配国数 : {GET_OWN_CITY(LOCAL:0)}）
+				ENDIF
+			NEXT
+			WHILE 1
+				INPUT
+				;▽勢力決定
+				SIF IS_COUNTRY(RESULT) && RESULT != CFLAG:MASTER:所属 && RESULT != CFLAG:闇堕ち君主番号:所属
+					BREAK
+			WEND
+			;決定した勢力番号を保存
+			LOCAL:2 = RESULT
+			;君主名取得
+			LOCAL:3 = GET_COUNTRY_BOSS(LOCAL:2)
+			PRINTFORMW 二人は手を取り合って%ANAME(LOCAL:3)%陣に向かった…
+			;士官
+			CALL CHANGE_COUNTRY(MASTER, LOCAL:2, 1, 0)
+			CALL CHANGE_COUNTRY(対象士官番号, LOCAL:2, 1, 0)
+			CALL SCENARIO_21_COLOR_LINE
+			SETCOLOR カラー_黄
+			PRINTFORML %ANAME(対象士官番号)%が%ANAME(LOCAL:3)%に士官した！
+			PRINTFORMW %ANAME(MASTER)%が%ANAME(LOCAL:3)%に士官した！
+			RESETCOLOR
+			WAIT
+			CALL SCENARIO_21_RESET_SCVARS
+		;▼3_闇堕ち君主のもとに残る
+		ELSE
+			PRINTFORML %ANAME(MASTER)%は少し迷って%ANAME(対象士官番号)%の誘いを断り、%ANAME(闇堕ち君主番号)%の勢力に残ると話した
+			PRINTFORML %ANAME(対象士官番号)%は絶句し、臣下の命を狙うほど乱心した君主になぜ付き従うのかと問う
+			PRINTFORMW それほど様子がおかしいからこそ今の%ANAME(闇堕ち君主番号)%を放ってはおけない、と%ANAME(MASTER)%は話す
+			PRINTL 
+			PRINTFORML %ANAME(対象士官番号)%はしばらく黙り込み、やがて震える声で孤独を選ぶのかと呟いた
+			PRINTFORML 二度と%ANAME(闇堕ち君主番号)%以外の誰とも親しくなってはいけない
+			PRINTFORMW 次の相手は命まで奪われるかもしれない、そうなれば誰より傷つくのは%ANAME(MASTER)%だと続ける
+			PRINTL 
+			PRINTFORML %ANAME(MASTER)%が頷くのを見届けると、%ANAME(対象士官番号)%は諦観の表情を浮かべ立ち去った
+			PRINTFORMW %ANAME(MASTER)%は%ANAME(対象士官番号)%の背を見送って踵を返し、%ANAME(闇堕ち君主番号)%の陣に戻った…
+			;主人公が無所属だったなら
+			IF CFLAG:MASTER:所属 == 0
+				;闇堕ち君主の勢力に士官
+				CALL CHANGE_COUNTRY(MASTER, CFLAG:闇堕ち君主番号:所属, 1, 0)
+				;士官表示
+				CALL SCENARIO_21_COLOR_LINE
+				SETCOLOR カラー_黄
+				PRINTFORML %ANAME(MASTER)%が%ANAME(闇堕ち君主番号)%に士官した！
+				RESETCOLOR
+				CALL SCENARIO_21_COLOR_LINE
+				PRINTFORML 捕えていた%ANAME(MASTER)%が急に士官してきたことに%ANAME(闇堕ち君主番号)%は衝撃を受けたようだ
+				PRINTFORML 誰かに助けられ、けれど戻ってきたことを察したのだろう
+				PRINTFORMW %ANAME(闇堕ち君主番号)%はうつけたように立ち尽くし、やがて項垂れて%ANAME(MASTER)%に謝罪した
+			ENDIF
+			;闇堕ち君主に対し最大の敵対度を持つ勢力を調べてLOCAL:4に代入
+			LOCAL:1 = 0
+			LOCAL:2 = 0
+			LOCAL:3 = -9999
+			LOCAL:4 = 0
+			LOCAL:5 = CFLAG:闇堕ち君主番号:所属
+			;存在する闇堕ち君主勢力でない勢力
+			FOR LOCAL:0, 1, MAX_COUNTRY
+				IF IS_COUNTRY(LOCAL:0) && LOCAL:0 != LOCAL:5
+					;今回チェックする勢力の君主（※ここ修正）
+					LOCAL:1 = GET_COUNTRY_BOSS(LOCAL:0)
+					;闇堕ち君主への敵対度（※ここ修正）
+					LOCAL:2 = REL_HATE:(LOCAL:1):闇堕ち君主番号
+					;保存した最大敵対度の勢力より今回チェックした勢力のほうが敵対度が大きければ
+					IF LOCAL:2 > LOCAL:3
+						;今回チェックした敵対度を保存
+						LOCAL:3 = LOCAL:2
+						;今回チェックした勢力を保存
+						LOCAL:4 = LOCAL:0
+					ENDIF
+				ENDIF
+			NEXT
+			IF !IS_COUNTRY(LOCAL:4)
+				; 天下統一と同じタイミングで発生するとここに入るかも？ 念のため対応。
+				CALL CHANGE_COUNTRY(対象士官番号, 0, 1, 0)
+				CALL SCENARIO_21_RESET_SCVARS
+				RETURN
+			ENDIF
+			;闇堕ち君主への敵対度が最大の勢力はLOCAL:4に決定、そこに対象を士官させる
+			CALL CHANGE_COUNTRY(対象士官番号, LOCAL:4, 1, 0)
+			LOCAL:6 = GET_COUNTRY_BOSS(LOCAL:4)
+			;対象勢力と君主勢力、互いの友好度-敵対度+
+			CALL CHANGE_RELATION_C_TO_C(LOCAL:5, LOCAL:4, -1000, +1000)
+			CALL CHANGE_RELATION_C_TO_C(LOCAL:4, LOCAL:5, -1000, +1000)
+			;士官表示
+			CALL SCENARIO_21_COLOR_LINE
+			SETCOLOR カラー_黄
+			PRINTFORMW %ANAME(対象士官番号)%が%ANAME(LOCAL:6)%に士官した！
+			RESETCOLOR
+			CALL SCENARIO_21_COLOR_LINE
+			PRINTFORML %ANAME(対象士官番号)%が士官した勢力は、%ANAME(闇堕ち君主番号)%の勢力と最も敵対している
+			PRINTFORMW 全ては己の選んだ道だ。覚悟を決めるのが遅過ぎたことを後悔はしても、繰り返しはすまい…
+			CALL SCENARIO_21_RESET_SCVARS
+		ENDIF
+	;---------------------------------------------------------------------- 
+	;○２期クリアして３期目
+	;---------------------------------------------------------------------- 
+	ELSEIF SCVAR:2 >= 5
+		;イベント進行度を6にする
+		SCVAR:2 = 6
+		;闇堕ち君主の感情
+		PALAM:闇堕ち君主番号:怒外 += 5000
+		;▼主人公が捕虜でない
+		IF CFLAG:MASTER:捕虜先 == 0
+			CALL SCENARIO_21_COLOR_LINE
+			SETCOLOR カラー_黄
+			PRINTFORML %ANAME(対象士官番号)%から無事を知らせる密書が届いた
+			PRINTFORMW 人目を気にしてか当たり障りのない文章だが間違いなく見覚えのある筆跡だ…
+			RESETCOLOR
+		;▼主人公が捕虜
+		ELSE
+			;説得してからの期間をリセット
+			FLAG:勧誘経過期間 = 0
+			;解放カウンタをリセット
+			CFLAG:MASTER:解放カウンタ = 0
+			;捕虜逆調教のメイン調教者を闇堕ち君主にする
+			FLAG:逆調教メイン調教者 = GET_ID(闇堕ち君主番号)
+			CALL SCENARIO_21_COLOR_LINE
+			SETCOLOR カラー_黄
+			PRINTFORML 牢の外から看守の囁き合う声が聴こえた
+			PRINTFORML %ANAME(対象士官番号)%が%ANAME(闇堕ち君主番号)%の愛妾に手を出して陣を追われたと噂している…
+			PRINTFORMW %ANAME(闇堕ち君主番号)%から牢獄の警戒を強めるよう命じられたようだ
+			RESETCOLOR
+		ENDIF
+	;---------------------------------------------------------------------- 
+	;○それ以外で捕虜
+	;---------------------------------------------------------------------- 
+	ELSEIF CFLAG:MASTER:捕虜先
+		;説得してからの期間をリセット
+		FLAG:勧誘経過期間 = 0
+		;解放カウンタをリセット
+		CFLAG:MASTER:解放カウンタ = 0
+		;捕虜逆調教のメイン調教者を闇堕ち君主にする
+		FLAG:逆調教メイン調教者 = GET_ID(闇堕ち君主番号)
+		;イベントの進行フラグをカウンタに使う
+		SCVAR:2 = SCVAR:2 + 1
+	;---------------------------------------------------------------------- 
+	;○それ以外
+	;---------------------------------------------------------------------- 
+	ELSE
+		;イベントの進行フラグをカウンタに使う
+		SCVAR:2 = SCVAR:2 + 1
+	ENDIF
+ENDIF
+
+;───────────────────────────────────── 
+;●傾城進行度３地方派遣
+;───────────────────────────────────── 
+;発生条件：
+;イベント進行度２（逃避行独立が１回以上起きている）
+;主人公が捕虜でない
+;主人公が行動不能（妊娠・怪我・育児）でない
+;斬首エンドフラグが立っていない
+;主人公の君主が闇堕ち君主のまま
+;主人公の所属勢力が３国以上所有
+;対象が主人公と同勢力
+;対象が捕虜でない
+;対象が行動不能（妊娠・怪我・育児）でない
+;対象が特殊状態（放浪・死亡・削除待ち）でない
+IF DAY % 3 == 0 && SCVAR:2 == 2 && CFLAG:MASTER:所属 && CFLAG:MASTER:捕虜先 == 0 && CFLAG:MASTER:行動不能状態 == 0 && FLAG:強制エンドフラグ == 0
+	対象士官番号 = ID_TO_CHARA(SCVAR:3)
+	闇堕ち君主番号 = ID_TO_CHARA(SCVAR:4)
+	IF GET_COUNTRY_BOSS(CFLAG:MASTER:所属) == 闇堕ち君主番号 && GET_OWN_CITY(CFLAG:MASTER:所属) >= 3 && CFLAG:MASTER:所属 == CFLAG:対象士官番号:所属 && CFLAG:対象士官番号:捕虜先 == 0 && CFLAG:対象士官番号:特殊状態 == 0 && CFLAG:対象士官番号:行動不能状態 == 0
+		;闇堕ち君主のいる勢力番号
+		LOCAL:1 = CFLAG:闇堕ち君主番号:所属
+		;闇堕ち君主から対象士官への友好度と敵対度をチェック
+		LOCAL:3 = REL_LIKE:闇堕ち君主番号:対象士官番号
+		LOCAL:4 = REL_HATE:闇堕ち君主番号:対象士官番号
+		;友好度100未満・敵対度視900以上なら
+		IF LOCAL:3 < 100 && LOCAL:4 >= 900
+			;闇堕ち君主が対象士官を地方派遣する
+			CALL SCENARIO_21_COLOR_LINE
+			SETCOLOR カラー_黄
+			PRINTFORMW %ANAME(対象士官番号)%が地方へ派遣されて放浪した
+			RESETCOLOR
+			;兵数の増加量(武闘・知略・歌唱)
+			LOCAL:2 = (ABL:対象士官番号:武闘 + ABL:対象士官番号:知略 + ABL:対象士官番号:歌唱) * 15 + 300
+			;兵数の増加(一時的に兵数の限界を超えられる)
+			COUNTRY_SOLDIER:(CFLAG:MASTER:所属) += LOCAL:2
+			PRINTFORM 我が陣の兵数が
+			SETCOLOR カラー_オレンジ
+			PRINTFORM {LOCAL:2}
+			RESETCOLOR
+			PRINTFORMW 増加した
+
+			CALL SCENARIO_21_COLOR_LINE
+			IF TALENT:闇堕ち君主番号:自制心 || TALENT:闇堕ち君主番号:一線越えない
+				PRINTFORMW 他の士官から%ANAME(対象士官番号)%の放浪について教わった%ANAME(MASTER)%は、%ANAME(闇堕ち君主番号)%を問い詰めた
+				PRINTL 
+				PRINTFORML 平素より動じない人柄とはいえ、%ANAME(闇堕ち君主番号)%は事情を確かめる心算もないようだ
+				PRINTFORMW %ANAME(対象士官番号)%の話をもっと聞いておくべきだったのか、これも呪いの影響なのだろうか
+			ELSEIF TALENT:闇堕ち君主番号:大人しい || TALENT:闇堕ち君主番号:悲観的
+				PRINTFORMW %ANAME(闇堕ち君主番号)%は遠慮がちに%ANAME(対象士官番号)%の放浪について%ANAME(MASTER)%へ伝えた
+				PRINTL 
+				PRINTFORML 突然仲間を失ったのに、%ANAME(闇堕ち君主番号)%は哀しむより%ANAME(MASTER)%の態度を気にしているようだ
+				PRINTFORMW %ANAME(対象士官番号)%の話をもっと聞いておくべきだったのか、これも呪いの影響なのだろうか
+			ELSEIF TALENT:闇堕ち君主番号:プライド高い || TALENT:闇堕ち君主番号:気丈 || TALENT:闇堕ち君主番号:楽観的
+				PRINTFORMW %ANAME(闇堕ち君主番号)%は%ANAME(対象士官番号)%の放浪を%ANAME(MASTER)%に告げた
+				PRINTL 
+				PRINTFORML 士官に背を向けられてしまったというのに%ANAME(闇堕ち君主番号)%は妙に満足気だ
+				PRINTFORMW %ANAME(対象士官番号)%の話をもっと聞いておくべきだったのか、これも呪いの影響なのだろうか
+			ELSE
+				PRINTFORMW %ANAME(闇堕ち君主番号)%は%ANAME(対象士官番号)%の放浪を%ANAME(MASTER)%に告げた
+				PRINTL 
+				PRINTFORML 急な放浪で頼れる士官を失ったにも拘わらず、%ANAME(闇堕ち君主番号)%はまるで動揺の色を見せない
+				PRINTFORMW %ANAME(対象士官番号)%の話をもっと聞いておくべきだったのか、これも呪いの影響なのだろうか
+			ENDIF
+			PRINTFORML 混乱する%ANAME(MASTER)%に、%ANAME(闇堕ち君主番号)%は%ANAME(対象士官番号)%の後を追わなくて良いのか尋ねてきた…
+			PRINTL 
+			CALL ASK_YN("後を追う", "黙り込む")
+			;○0_後を追う
+			IF RESULT == 0
+				PRINTFORML %ANAME(MASTER)%はすぐに後を追いかけようとした
+				PRINTFORMW %NAME:(闇堕ち君主番号)%は哀し気に目を逸らし、%ANAME(MASTER)%を投獄するよう兵に命じた…
+				SETCOLOR カラー_黄
+				PRINTFORMW %ANAME(MASTER)%は%NAME:(闇堕ち君主番号)%に監禁された
+				RESETCOLOR
+				;闇堕ち君主勢力の国の守将を解除
+				FOR LOCAL:0, 0, MAX_CITY
+					IF CITY_OWNER:(LOCAL:0) == LOCAL:1
+						CITY_COMMANDER:(LOCAL:0) = 0
+					ENDIF
+				NEXT
+				;闇堕ち君主勢力の部隊を解散
+				CALL CLEAR_ALL_UNIT(LOCAL:1)
+				;対象が未登場扱いになる
+				CALL CHANGE_COUNTRY(対象士官番号, 0)
+				CFLAG:対象士官番号:特殊状態 = 0
+				;主人公が一時的に無所属になる
+				;主人公が闇堕ち君主勢力の捕虜になる
+				CALL CHANGE_COUNTRY(MASTER, 0)
+				CALL CAPTURE(MASTER, LOCAL:1)
+				;捕虜逆調教のメイン調教者を闇堕ち君主にする
+				FLAG:逆調教メイン調教者 = GET_ID(闇堕ち君主番号)
+				;既成事実Lv3に相当
+				CALL SET_COUPLE_STEP(闇堕ち君主番号, 3)
+				;縄を装備
+				;CALL SET_EQUIP(85, 1)
+				;闇堕ち君主の感情
+				PALAM:闇堕ち君主番号:哀主 += 5000
+			;○1_黙り込む
+			ELSE
+				PRINTFORMW 煽られていることを察した%ANAME(MASTER)%は黙り込むしかなかった…
+				;闇堕ち君主勢力の国の守将を解除
+				FOR LOCAL:0, 0, MAX_CITY
+					IF CITY_OWNER:(LOCAL:0) == LOCAL:1
+						CITY_COMMANDER:(LOCAL:0) = 0
+					ENDIF
+				NEXT
+				;闇堕ち君主勢力の部隊を解散
+				CALL CLEAR_ALL_UNIT(LOCAL:1)
+				;対象が未登場扱いになる
+				CALL CHANGE_COUNTRY(対象士官番号, 0)
+				CFLAG:対象士官番号:特殊状態 = 0
+				;闇堕ち君主の感情
+				PALAM:闇堕ち君主番号:哀主 += 1000
+			ENDIF
+			;イベントの進行度を３に
+			SCVAR:2 = 3
+		ENDIF
+	ENDIF
+ENDIF
+
+;───────────────────────────────────── 
+;●傾城進行度２逃避行独立
+;───────────────────────────────────── 
+;発生条件：
+;イベント進行度１または２（闇堕ち君主の警告後、繰り返す）
+;主人公が捕虜でない
+;主人公が行動不能（妊娠・怪我・育児）でない
+;斬首エンドフラグが立っていない
+;主人公の君主が闇堕ち君主のまま
+;主人公の所属勢力が２国以上所有
+;対象が主人公と同勢力
+;対象が捕虜でない
+;対象が行動不能（妊娠・怪我・育児）でない
+;対象が特殊状態（放浪・死亡・削除待ち）でない
+IF DAY % 3 == 0 && (SCVAR:2 == 1 || SCVAR:2 == 2) && CFLAG:MASTER:所属 && CFLAG:MASTER:捕虜先 == 0 && CFLAG:MASTER:行動不能状態 == 0 && FLAG:強制エンドフラグ == 0
+	対象士官番号 = ID_TO_CHARA(SCVAR:3)
+	闇堕ち君主番号 = ID_TO_CHARA(SCVAR:4)
+	IF GET_COUNTRY_BOSS(CFLAG:MASTER:所属) == 闇堕ち君主番号 && GET_OWN_CITY(CFLAG:MASTER:所属) >= 2 && CFLAG:MASTER:所属 == CFLAG:対象士官番号:所属 && CFLAG:対象士官番号:捕虜先 == 0 && CFLAG:対象士官番号:特殊状態 == 0 && CFLAG:対象士官番号:行動不能状態 == 0 && GET_NEW_COUNTRY() > 0
+		;闇堕ち君主のいる勢力番号
+		LOCAL:1 = CFLAG:闇堕ち君主番号:所属
+		CALL SCENARIO_21_COLOR_LINE
+		PRINTFORML %ANAME(MASTER)%は%ANAME(対象士官番号)%の私室に呼び出された
+		PRINTFORML 
+		;初回
+		IF SCVAR:2 == 1
+			PRINTFORML %ANAME(闇堕ち君主番号)%が%ANAME(MASTER)%と%ANAME(対象士官番号)%の仲について話したのを聞いたようだ
+			PRINTFORML 君主が二人の関係を快く思っていないことは%ANAME(対象士官番号)%も知っていたらしい
+			IF TALENT:対象士官番号:自制心 || TALENT:対象士官番号:一線越えない
+				PRINTFORML そのことを話すと%ANAME(対象士官番号)%は黙り込んでしまった
+				PRINTFORML 呼び出すのは珍しいことだから何か用件があるのではないかと%ANAME(MASTER)%から問う
+				PRINTFORML %ANAME(対象士官番号)%は重苦しい声で、%ANAME(闇堕ち君主番号)%から独立する準備があると話した…
+			ELSEIF TALENT:対象士官番号:大人しい || TALENT:対象士官番号:悲観的
+				PRINTFORML %ANAME(対象士官番号)%は兵を挙げて%ANAME(闇堕ち君主番号)%から独立する準備があると%ANAME(MASTER)%に話した
+				PRINTFORML %ANAME(MASTER)%はついて来てくれるだろうかと不安げに問われた…
+			ELSEIF TALENT:対象士官番号:プライド高い || TALENT:対象士官番号:気丈 || TALENT:対象士官番号:楽観的
+				PRINTFORML %ANAME(対象士官番号)%は兵を挙げて%ANAME(闇堕ち君主番号)%から独立する準備があると%ANAME(MASTER)%に話した
+				PRINTFORML %ANAME(MASTER)%は当然ついて来るのだろうと確認された…
+			ELSE
+				PRINTFORML %ANAME(対象士官番号)%は兵を挙げて%ANAME(闇堕ち君主番号)%から独立する準備があると%ANAME(MASTER)%に話した
+				PRINTFORML %ANAME(MASTER)%について来て欲しいと言っている…
+			ENDIF
+		;二回目以降
+		ELSE
+			IF TALENT:対象士官番号:自制心 || TALENT:対象士官番号:一線越えない
+				PRINTFORML %ANAME(対象士官番号)%は言い難そうに、けれど追い立てられた様子で%ANAME(MASTER)%を独立に誘った
+				PRINTFORML このままではかえって良くない方へ向かうのではと話している
+			ELSEIF TALENT:対象士官番号:大人しい || TALENT:対象士官番号:悲観的
+				PRINTFORML %ANAME(対象士官番号)%は再び独立について話題にした
+				PRINTFORML 自分では頼りにならないだろうかと唇を噛んでいる…
+			ELSEIF TALENT:対象士官番号:プライド高い || TALENT:対象士官番号:気丈 || TALENT:対象士官番号:楽観的
+				PRINTFORML %ANAME(対象士官番号)%は焦れた様子で、再び%ANAME(MASTER)%を独立に誘った
+				PRINTFORML 逃れなければ間も無く引き裂かれると断言しているが、声も瞳も冗談には見えない
+			ELSE
+				PRINTFORML %ANAME(対象士官番号)%は再び%ANAME(MASTER)%を独立に誘った
+				PRINTFORML ついて来て欲しいと改めて言っている…
+			ENDIF
+		ENDIF
+		PRINTFORML 
+		CALL ASK_YN("ついていく", "引き留める")
+		;○0_ついていく
+		IF RESULT == 0
+			PRINTFORMW %ANAME(対象士官番号)%は%ANAME(MASTER)%を絶対に離さないと抱きしめた
+			CALL SCENARIO_21_COLOR_LINE
+			SETCOLOR カラー_黄
+			PRINTFORML %ANAME(対象士官番号)%が兵を挙げ、%ANAME(闇堕ち君主番号)%から独立した！
+			RESETCOLOR
+			PRINTFORML %ANAME(MASTER)%が%ANAME(対象士官番号)%の元へ駆けつけた
+			WAIT
+			;元居た勢力の国の守将を解除
+			FOR LOCAL:0, 0, MAX_CITY
+				IF CITY_OWNER:(LOCAL:0) == LOCAL:1
+					CITY_COMMANDER:(LOCAL:0) = 0
+				ENDIF
+			NEXT
+			;空いている勢力の番号を取得
+			LOCAL:3 = GET_NEW_COUNTRY()
+			;新しい勢力の君主は対象士官
+			COUNTRY_BOSS:(LOCAL:3) = GET_ID(対象士官番号)
+			;新しい勢力のカラー
+			LOCAL:10 = RAND:359
+			LOCAL:11 = RAND:60 + 10
+			LOCAL:12 = RAND:40 + 50
+			COUNTRY_COLOR:(LOCAL:3) = HSV_TO_RGB(LOCAL:10, LOCAL:11, LOCAL:12)
+			;闇堕ち君主勢力の国を一つ奪う
+			FOR LOCAL:0, 0, MAX_CITY
+				IF CITY_OWNER:(MAX_CITY-1-LOCAL:0) == LOCAL:1
+					CITY_OWNER:(MAX_CITY-1-LOCAL:0) = LOCAL:3
+					BREAK
+				ENDIF
+			NEXT
+			;経済力設定
+			COUNTRY_SOLDIER:(LOCAL:3) = 10000
+			;対象は士官としても引越し
+			CFLAG:対象士官番号:所属 = LOCAL:3
+			;対象が闇堕ち君主から嫌われる
+			CALL CHANGE_RELATION_O_TO_O(闇堕ち君主番号, 対象士官番号, -300, 300)
+			;対象が闇堕ち君主を嫌う
+			CALL CHANGE_RELATION_O_TO_O(対象士官番号, 闇堕ち君主番号, -300, 300)
+			;闇堕ち君主勢力の国の守将を解除
+			FOR LOCAL:0, 0, MAX_CITY
+				IF CITY_OWNER:(LOCAL:0) == LOCAL:1
+					CITY_COMMANDER:(LOCAL:0) = 0
+				ENDIF
+			NEXT
+			;闇堕ち君主の部隊を解散
+			CALL CLEAR_ALL_UNIT(LOCAL:1)
+			;主人公を士官させる
+			CFLAG:MASTER:所属 = LOCAL:3
+			CALL SCENARIO_21_RESET_SCVARS
+		;○1_引き留める
+		ELSE
+			PRINTFORMW %ANAME(MASTER)%が引き留めると、%ANAME(対象士官番号)%は項垂れて部屋から出て行くように言った…
+			;イベントの進行度を２に
+			SCVAR:2 = 2
+		ENDIF
+	ENDIF
+ENDIF
+
+;───────────────────────────────────── 
+;●傾城進行度１君主の闇堕ち警告
+;───────────────────────────────────── 
+;発生条件：
+;イベント進行度が０
+;主人公がどこかの勢力にいる
+;主人公が君主でない
+;主人公が行動不能（妊娠・怪我・育児）でない
+;斬首エンドフラグが立っていない
+;主人公の所属勢力が３国以上所有
+IF DAY % 3 == 0 && SCVAR:2 == 0 && CFLAG:MASTER:所属 && GET_COUNTRY_BOSS(CFLAG:MASTER:所属) != MASTER && CFLAG:MASTER:行動不能状態 == 0 && FLAG:強制エンドフラグ == 0 && GET_OWN_CITY(CFLAG:MASTER:所属) >= 3
+	;主人公の仕えている闇堕ちしそうな君主
+	LOCAL:1 = GET_COUNTRY_BOSS(CFLAG:MASTER:所属)
+	;主人公の勢力内で最も主人公への好意が高い君主以外の士官をLOCAL:10に代入
+	LOCAL:0 = 0
+	LOCAL:10 = 0
+	LOCAL:11 = -9999
+	LOCAL:12 = 0
+	FOR LOCAL:0, 0, CHARANUM
+		IF CFLAG:(LOCAL:0):所属 == CFLAG:MASTER:所属 && LOCAL:0 != MASTER && LOCAL:0 != LOCAL:1 && !IS_SP_CHARA(LOCAL:0) && !IS_ANIMAL(LOCAL:0)
+			;LOCAL:0の好意を代入
+			LOCAL:12 = CFLAG:(LOCAL:0):好感度
+			IF LOCAL:12 >= LOCAL:11
+				;キャラ番号を代入
+				LOCAL:10 = LOCAL:0
+				;比較用好意を代入
+				LOCAL:11 = LOCAL:12
+			ENDIF
+		ENDIF
+	NEXT
+	;君主以外で主人公への好意が最大の士官
+	LOCAL:0 = LOCAL:10
+	;闇堕ちしそうな君主が親愛＆対象が親愛＆対象が君主でない＆対象が主人公でない＆対象が主人公と同一勢力＆闇堕ちしそうな君主の好感度+300＜対象の好感度
+	IF TALENT:(LOCAL:1):親愛 && TALENT:(LOCAL:0):親愛 && LOCAL:0 != LOCAL:1 && LOCAL:0 != MASTER && CFLAG:(LOCAL:0):所属 == CFLAG:MASTER:所属 && CFLAG:(LOCAL:1):好感度 + 300 < CFLAG:(LOCAL:0):好感度
+		;闇堕ち君主からの好意と敵意をチェック
+		LOCAL:3 = REL_LIKE:(LOCAL:1):(LOCAL:0)
+		LOCAL:4 = REL_HATE:(LOCAL:1):(LOCAL:0)
+		;友好度300未満・敵対度600以上なら
+		IF LOCAL:3 < 300 && LOCAL:4 >= 600
+			;対象が捕虜でない
+			IF CFLAG:(LOCAL:0):捕虜先 == 0
+				CALL SCENARIO_21_COLOR_LINE
+				PRINTFORML %ANAME(MASTER)%の部屋に%ANAME(LOCAL:1)%が酒を持って訪れた
+				PRINTFORML 
+				;闇堕ちしそうな君主の正妻
+				IF TALENT:(LOCAL:1):正妻
+					IF TALENT:(LOCAL:1):自制心 || TALENT:(LOCAL:1):一線越えない
+						PRINTFORML 何度も言葉を呑み込む%ANAME(LOCAL:1)%に、焦れた%ANAME(MASTER)%が話を聞き出す
+						PRINTFORML %ANAME(LOCAL:1)%は%ANAME(MASTER)%と%ANAME(LOCAL:0)%の関係を気にしていると躊躇いがちに答えた
+					ELSEIF TALENT:(LOCAL:1):大人しい || TALENT:(LOCAL:1):悲観的
+						PRINTFORML %ANAME(LOCAL:1)%はずっと塞いだ表情で持ってきた酒を舐めていた
+						PRINTFORML 酔いが回る頃になってようやく、%ANAME(LOCAL:0)%のことを愛しているのかと掠れ声で問った
+					ELSEIF TALENT:(LOCAL:1):プライド高い || TALENT:(LOCAL:1):気丈 || TALENT:(LOCAL:1):楽観的
+						PRINTFORML %ANAME(LOCAL:1)%はしばらくあらぬ方を睨みながら飲んでいたが
+						PRINTFORML 唐突に、身の程を弁えず君主の配偶者に懸想している%ANAME(LOCAL:0)%は臣下として信頼に値しない
+						PRINTFORML この上まだ分別無く接するようなら考えがあると憤慨し始めた
+					ELSE
+						PRINTFORML 最初の内%ANAME(LOCAL:1)%は言葉を濁していたが、次第に酔いも回ったようで話し始めた
+						PRINTFORMW %ANAME(LOCAL:1)%は自分より%ANAME(LOCAL:0)%のことを大切に想っているのか尋ねてきた
+					ENDIF
+					PRINTFORML 確かに%ANAME(MASTER)%はこの頃、配偶者である%ANAME(LOCAL:1)%より%ANAME(LOCAL:0)%と近しいが…
+				;士官の正妻
+				ELSEIF TALENT:(LOCAL:0):正妻
+					IF TALENT:(LOCAL:1):自制心 || TALENT:(LOCAL:1):一線越えない
+						PRINTFORML 何度も言葉を呑み込む%ANAME(LOCAL:1)%に、焦れた%ANAME(MASTER)%が話を聞き出す
+						PRINTFORML %ANAME(LOCAL:1)%は%ANAME(MASTER)%が%ANAME(LOCAL:0)%のことを今も深く想っているのか躊躇いがちに尋ねてきた
+					ELSEIF TALENT:(LOCAL:1):大人しい || TALENT:(LOCAL:1):悲観的
+						PRINTFORML %ANAME(LOCAL:1)%はずっと塞いだ表情で持ってきた酒を舐めていた
+						PRINTFORML 酔いが回る頃になってようやく、%ANAME(LOCAL:0)%を愛する気持ちに変わりはないのかと掠れ声で問った
+					ELSEIF TALENT:(LOCAL:1):プライド高い || TALENT:(LOCAL:1):気丈 || TALENT:(LOCAL:1):楽観的
+						PRINTFORML %ANAME(LOCAL:1)%はしばらく%ANAME(MASTER)%を睨みながら飲んでいたが
+						PRINTFORML 唐突に、君主の想い人である%ANAME(MASTER)%を頑なに譲らない%ANAME(LOCAL:0)%は臣下として信頼に値しない
+						PRINTFORML この上まだ我が物顔をするようなら考えがあると無体なことを言い始めた
+					ELSE
+						PRINTFORML 最初の内%ANAME(LOCAL:1)%は言葉を濁していたが、次第に酔いも回ったようで話し始めた
+						PRINTFORMW %ANAME(LOCAL:1)%は自分より%ANAME(LOCAL:0)%のことを大切に想っているのか尋ねてきた
+					ENDIF
+					PRINTFORML %ANAME(MASTER)%が%ANAME(LOCAL:0)%の配偶者である以上、当然のことなのだが…
+				;それ以外
+				ELSE
+					IF TALENT:(LOCAL:1):自制心 || TALENT:(LOCAL:1):一線越えない
+						PRINTFORML 何度も言葉を呑み込む%ANAME(LOCAL:1)%に、焦れた%ANAME(MASTER)%が話を聞き出す
+						PRINTFORML %ANAME(LOCAL:1)%は%ANAME(MASTER)%と%ANAME(LOCAL:0)%の関係を気にしていることを躊躇いがちに答えた
+					ELSEIF TALENT:(LOCAL:1):大人しい || TALENT:(LOCAL:1):悲観的
+						PRINTFORML %ANAME(LOCAL:1)%はずっと塞いだ表情で持ってきた酒を舐めていた
+						PRINTFORML 酔いが回る頃になってようやく、%ANAME(LOCAL:0)%のことを愛しているのかと掠れ声で問った
+					ELSEIF TALENT:(LOCAL:1):プライド高い || TALENT:(LOCAL:1):気丈 || TALENT:(LOCAL:1):楽観的
+						PRINTFORML %ANAME(LOCAL:1)%はしばらく%ANAME(MASTER)%を睨みながら飲んでいたが
+						PRINTFORML 唐突に、君主の愛妾である%ANAME(MASTER)%に水を向ける%ANAME(LOCAL:0)%は信用できない
+						PRINTFORML この上まだ分別無く接するようなら考えがあると言い出した
+					ELSE
+						PRINTFORML 最初の内%ANAME(LOCAL:1)%は言葉を濁していたが、次第に酔いも回ったようで話し始めた
+						PRINTFORMW %ANAME(LOCAL:1)%は自分より%ANAME(LOCAL:0)%のことを大切に想っているのか尋ねてきた
+					ENDIF
+					PRINTFORML 確かに%ANAME(MASTER)%はこの頃、%ANAME(LOCAL:0)%と親しいが…
+				ENDIF
+				SETCOLOR カラー_明灰色
+				PRINTFORML %ANAME(LOCAL:1)%から%ANAME(MASTER)%への好感度 : {CFLAG:(LOCAL:1):好感度}
+				PRINTFORML %ANAME(LOCAL:0)%から%ANAME(MASTER)%への好感度 : {CFLAG:(LOCAL:0):好感度}
+				PRINTFORML %ANAME(LOCAL:1)%から%ANAME(LOCAL:0)%への友好度 : {LOCAL:3}
+				PRINTFORML %ANAME(LOCAL:1)%から%ANAME(LOCAL:0)%への敵対度 : {LOCAL:4}
+				RESETCOLOR
+				PRINTFORML 
+				CALL ASK_MULTI(@"%ANAME(LOCAL:1)%が大切", "仲間の大切さは比較できない", @"%ANAME(LOCAL:0)%が大切")
+				;○0_闇堕ち君主が大切
+				IF RESULT == 0
+					PRINTFORML 迷いのない%ANAME(MASTER)%の言葉に、%ANAME(LOCAL:1)%は%ANAME(LOCAL:0)%への敵愾心を落ち着けたようだ
+					PRINTFORMW しばらく%ANAME(MASTER)%の頭を撫でたり抱き締めたりして、満足気に去って行った…
+					SETCOLOR カラー_明灰色
+					PRINTFORML %ANAME(LOCAL:1)%から%ANAME(MASTER)%への好感度 : {CFLAG:(LOCAL:1):好感度} + 100 = \@ CFLAG:(LOCAL:1):好感度 + 100 <= 0 ? 0 # {CFLAG:(LOCAL:1):好感度 + 100} \@
+					PRINTFORML %ANAME(LOCAL:0)%から%ANAME(MASTER)%への好感度 : {CFLAG:(LOCAL:0):好感度} - 100 = \@ CFLAG:(LOCAL:0):好感度 - 100 <= 0 ? 0 # {CFLAG:(LOCAL:0):好感度 - 100} \@
+					PRINTFORML %ANAME(LOCAL:1)%から%ANAME(LOCAL:0)%への友好度 : {LOCAL:3}
+					PRINTFORML %ANAME(LOCAL:1)%から%ANAME(LOCAL:0)%への敵対度 : {LOCAL:4} - 1000 = \@ LOCAL:4 - 1000 <= 0 ? 0 # {LOCAL:4 - 1000} \@
+					RESETCOLOR
+					;実行者（LOCAL:1）から対象者（LOCAL:0）への敵対度-
+					CALL CHANGE_RELATION_O_TO_O(LOCAL:1, LOCAL:0, 0, -1000)
+					;実行者の好意+
+					CFLAG:(LOCAL:1):好感度 += 100
+					;対象の好意-
+					CFLAG:(LOCAL:0):好感度 -= 100
+				;○1_仲間の大切さは比較できない
+				ELSEIF RESULT == 1
+					PRINTFORMW %ANAME(LOCAL:1)%は釈然としない様子だったが、渋々頷いて自室に戻ったようだ…
+					SETCOLOR カラー_明灰色
+					PRINTFORML %ANAME(LOCAL:1)%から%ANAME(MASTER)%への好感度 : {CFLAG:(LOCAL:1):好感度}
+					PRINTFORML %ANAME(LOCAL:0)%から%ANAME(MASTER)%への好感度 : {CFLAG:(LOCAL:0):好感度}
+					PRINTFORML %ANAME(LOCAL:1)%から%ANAME(LOCAL:0)%への友好度 : {LOCAL:3}
+					PRINTFORML %ANAME(LOCAL:1)%から%ANAME(LOCAL:0)%への敵対度 : {LOCAL:4} - 500 = \@ LOCAL:4 - 500 <= 0 ? 0 # {LOCAL:4 - 500} \@
+					RESETCOLOR
+					;実行者（LOCAL:1）から対象者（LOCAL:0）への敵対度-
+					CALL CHANGE_RELATION_O_TO_O(LOCAL:1, LOCAL:0, 0, -500)
+				;○2_対象が大切
+				ELSE
+					PRINTFORML %ANAME(LOCAL:1)%の目の色が変わった
+					PRINTFORMW 表情を消して静かに踵を返した%ANAME(LOCAL:1)%は何かを決意したように見える…
+					SETCOLOR カラー_明灰色
+					PRINTFORML %ANAME(LOCAL:1)%から%ANAME(MASTER)%への好感度 : {CFLAG:(LOCAL:1):好感度} - 100 = \@ CFLAG:(LOCAL:1):好感度 - 100 <= 0 ? 0 # {CFLAG:(LOCAL:1):好感度 - 100} \@
+					PRINTFORML %ANAME(LOCAL:0)%から%ANAME(MASTER)%への好感度 : {CFLAG:(LOCAL:0):好感度} + 100 = \@ CFLAG:(LOCAL:0):好感度 + 100 <= 0 ? 0 # {CFLAG:(LOCAL:0):好感度 + 100} \@
+					PRINTFORML %ANAME(LOCAL:1)%から%ANAME(LOCAL:0)%への友好度 : {LOCAL:3} - 500 = \@ LOCAL:3 - 500 <= 0 ? 0 # {LOCAL:3 - 500} \@
+					PRINTFORML %ANAME(LOCAL:1)%から%ANAME(LOCAL:0)%への敵対度 : {LOCAL:4} + 500 = \@ LOCAL:4 + 500 <= 0 ? 0 # {LOCAL:4 + 500} \@
+					RESETCOLOR
+					;実行者（LOCAL:0）から対象者（LOCAL:1）への好意-敵対度+
+					CALL CHANGE_RELATION_O_TO_O(LOCAL:1, LOCAL:0, -500, 500)
+					;実行者の好意-
+					CFLAG:(LOCAL:1):好感度 -= 100
+					;対象の好意+
+					CFLAG:(LOCAL:0):好感度 += 100
+					;イベントの進行度を１に
+					SCVAR:2 = 1
+					;対象士官を保存
+					SCVAR:3 = GET_ID(LOCAL:0)
+					;闇堕ちした君主を保存
+					SCVAR:4 = GET_ID(LOCAL:1)
+				ENDIF
+			ENDIF
+		ENDIF
+	ENDIF
+ENDIF
+
+;───────────────────────────────────── 
+;●傾城進行度０傾城
+;───────────────────────────────────── 
+;発生条件：
+;主人公がどこかの勢力にいる
+;主人公が君主でない
+;斬首エンドフラグが立っていない
+IF DAY % 1 == 0 && CFLAG:MASTER:所属 && GET_COUNTRY_BOSS(CFLAG:MASTER:所属) != MASTER && FLAG:強制エンドフラグ == 0
+	;主人公の仕える君主
+	LOCAL:2 = GET_COUNTRY_BOSS(CFLAG:MASTER:所属)
+	;国内の表示対象者決定
+	;主人公の勢力内で最も主人公への好意が高い君主以外の士官をLOCAL:10に代入
+	LOCAL:0 = 0
+	LOCAL:10 = 0
+	LOCAL:11 = -9999
+	LOCAL:12 = 0
+	FOR LOCAL:0, 0, CHARANUM
+		IF CFLAG:(LOCAL:0):所属 == CFLAG:MASTER:所属 && LOCAL:0 != MASTER && LOCAL:0 != LOCAL:2
+			;LOCAL:0の好意を代入
+			LOCAL:12 = CFLAG:(LOCAL:0):好感度
+			IF LOCAL:12 >= LOCAL:11
+				;キャラ番号を代入
+				LOCAL:10 = LOCAL:0
+				;比較用好意を代入
+				LOCAL:11 = LOCAL:12
+			ENDIF
+		ENDIF
+	NEXT
+	;国外の表示実行者決定
+	;主人公の勢力以外で最も主人公への好意が高い士官をLOCAL:20に代入
+	LOCAL:0 = 0
+	LOCAL:20 = 0
+	LOCAL:21 = -9999
+	LOCAL:22 = 0
+	FOR LOCAL:0, 0, CHARANUM
+		IF CFLAG:(LOCAL:0):所属 != CFLAG:MASTER:所属 && LOCAL:0 != MASTER
+			;LOCAL:0の好意を代入
+			LOCAL:22 = CFLAG:(LOCAL:0):好感度
+			IF LOCAL:22 >= LOCAL:21
+				;キャラ番号を代入
+				LOCAL:20 = LOCAL:0
+				;比較用好意を代入
+				LOCAL:21 = LOCAL:22
+			ENDIF
+		ENDIF
+	NEXT
+	;チェック開始
+	FOR LOCAL:0, 0, CHARANUM
+		;実行者(LOCAL:0)が主人公でなく、実行者に陥落素質があるとき
+		IF LOCAL:0 != MASTER && ( TALENT:(LOCAL:0):恋慕 || TALENT:(LOCAL:0):服従 || TALENT:(LOCAL:0):主人 )
+			FOR LOCAL:1, 0, CHARANUM
+				;実行者(LOCAL:0)と対象者(LOCAL:1)が同じでなく、対象者が主人公でなく、実行者好感度+300より対象者好感度が高い
+				;（実行者より対象者が主人公から可愛がられているとみなす）
+				IF LOCAL:0 != LOCAL:1 && LOCAL:1 != MASTER && CFLAG:(LOCAL:0):好感度 + 300 < CFLAG:(LOCAL:1):好感度
+					;実行者と主人公、対象者と主人公が同一勢力なら確率で
+					IF CFLAG:(LOCAL:0):所属 == CFLAG:MASTER:所属 && CFLAG:(LOCAL:1):所属 == CFLAG:MASTER:所属 && RAND:10000 <= 3500
+						;上位陥落の時
+						IF TALENT:(LOCAL:0):親愛 || TALENT:(LOCAL:0):隷属 || TALENT:(LOCAL:0):所有者
+							;嫉妬実行者（LOCAL:0）から嫉妬対象者（LOCAL:1）への友好度-敵対度+
+							CALL CHANGE_RELATION_O_TO_O(LOCAL:0, LOCAL:1, -200, 200)
+						;陥落の時
+						ELSEIF TALENT:(LOCAL:0):恋慕 || TALENT:(LOCAL:0):服従 || TALENT:(LOCAL:0):主人
+							;嫉妬実行者（LOCAL:0）から嫉妬対象者（LOCAL:1）への友好度-敵対度+
+							CALL CHANGE_RELATION_O_TO_O(LOCAL:0, LOCAL:1, -50, 50)
+						ELSE
+						ENDIF
+						;画面に表示する対象は国内で最大好感度の一人だけ（最大好感度のキャラだけ妬かれているように見える）
+						IF LOCAL:1 == LOCAL:10
+							CALL SCENARIO_21_COLOR_LINE
+							IF TALENT:(LOCAL:0):自制心 || TALENT:(LOCAL:0):一線越えない
+								PRINTFORML %ANAME(MASTER)%が%ANAME(LOCAL:1)%と親しくしていると%ANAME(LOCAL:0)%の様子が少しおかしい…
+							ELSEIF TALENT:(LOCAL:0):大人しい || TALENT:(LOCAL:0):悲観的
+								PRINTFORML %ANAME(LOCAL:0)%は%ANAME(MASTER)%と親しい%ANAME(LOCAL:1)%に劣等感を抱いているようだ…
+							ELSEIF TALENT:(LOCAL:0):プライド高い || TALENT:(LOCAL:0):気丈 || TALENT:(LOCAL:0):楽観的
+								PRINTFORML %ANAME(LOCAL:0)%は%ANAME(MASTER)%と親しい%ANAME(LOCAL:1)%に対抗意識を燃やしている…
+							ELSE
+								PRINTFORML %ANAME(LOCAL:0)%が%ANAME(MASTER)%と親しい%ANAME(LOCAL:1)%に嫉妬しているらしい…
+							ENDIF
+							SETCOLOR カラー_明灰色
+							PRINTFORML %ANAME(LOCAL:0)%から%ANAME(LOCAL:1)%への友好度 : {REL_LIKE:(LOCAL:0):(LOCAL:1)}
+							PRINTFORMW %ANAME(LOCAL:0)%から%ANAME(LOCAL:1)%への敵対度 : {REL_HATE:(LOCAL:0):(LOCAL:1)}
+							RESETCOLOR
+						ENDIF
+					ENDIF
+					;実行者が主人公の勢力でなく、対象が主人公の仕える君主なら確率で
+					IF CFLAG:(LOCAL:0):所属 != CFLAG:MASTER:所属 && LOCAL:1 == LOCAL:2 && RAND:10000 <= 3500
+						;上位陥落の時
+						IF TALENT:(LOCAL:0):親愛 || TALENT:(LOCAL:0):隷属 || TALENT:(LOCAL:0):所有者
+							;嫉妬実行者（LOCAL:0）から嫉妬対象者（LOCAL:1）への好意-敵対度+
+							CALL CHANGE_RELATION_O_TO_O(LOCAL:0, LOCAL:1, -250, 250)
+						;陥落の時
+						ELSEIF TALENT:(LOCAL:0):恋慕 || TALENT:(LOCAL:0):服従 || TALENT:(LOCAL:0):主人
+							;嫉妬実行者（LOCAL:0）から嫉妬対象者（LOCAL:1）への好意-敵対度+
+							CALL CHANGE_RELATION_O_TO_O(LOCAL:0, LOCAL:1, -60, 60)
+						ELSE
+						ENDIF
+						;画面に表示する実行者は国外で最大好感度の一人だけ（最大好感度のキャラだけ妬いているように見える）
+						IF LOCAL:0 == LOCAL:20
+							CALL SCENARIO_21_COLOR_LINE
+							PRINTFORML %ANAME(LOCAL:0)%から手紙が届いた。%ANAME(MASTER)%の安否を気遣う旨が綴られている
+							IF TALENT:(LOCAL:0):自制心 || TALENT:(LOCAL:0):一線越えない
+								PRINTFORML %ANAME(LOCAL:0)%は%ANAME(LOCAL:2)%の話題を避けているようだ…
+							ELSEIF TALENT:(LOCAL:0):大人しい || TALENT:(LOCAL:0):悲観的
+								PRINTFORML %ANAME(LOCAL:0)%は%ANAME(LOCAL:2)%が苦手なようだ…
+							ELSEIF TALENT:(LOCAL:0):プライド高い || TALENT:(LOCAL:0):気丈 || TALENT:(LOCAL:0):楽観的
+								PRINTFORML %ANAME(LOCAL:0)%は%ANAME(LOCAL:2)%に反感を抱いているようだ…
+							ELSE
+								PRINTFORML %ANAME(LOCAL:0)%は%ANAME(MASTER)%の君主%ANAME(LOCAL:2)%に思うところがあるようだ…
+							ENDIF
+							SETCOLOR カラー_明灰色
+							PRINTFORML %ANAME(LOCAL:0)%から%ANAME(LOCAL:2)%への友好度 : {REL_LIKE:(LOCAL:0):(LOCAL:2)}
+							PRINTFORMW %ANAME(LOCAL:0)%から%ANAME(LOCAL:2)%への敵対度 : {REL_HATE:(LOCAL:0):(LOCAL:2)}
+							RESETCOLOR
+						ENDIF
+					ENDIF
+				ENDIF
+			NEXT
+		ENDIF
+	NEXT
+ENDIF
+
+;───────────────────────────────────── 
+;◇花一匁（人質を要求される）
+;───────────────────────────────────── 
+;発生条件：
+;主人公が捕虜でない
+;主人公が行動不能（妊娠・怪我・育児）でない
+;主人公が君主でない
+;主人公の所属勢力が国所有３以下（条件をプレイヤー側からの人質要求の条件と同じに改変できたら削りたい）
+IF DAY % 9 == 0 && CFLAG:MASTER:所属 && CFLAG:MASTER:捕虜先 == 0 && CFLAG:MASTER:行動不能状態 == 0 && GET_COUNTRY_BOSS(CFLAG:MASTER:所属) != MASTER && GET_OWN_CITY(CFLAG:MASTER:所属) <= 3 && RAND:10000 <= 5000
+	;一番多く国を持っている勢力をチェックしてLOCAL:15に代入
+	LOCAL:13 = 0
+	LOCAL:14 = 0
+	LOCAL:15 = 0
+	FOR LOCAL:0, 1, MAX_COUNTRY
+		;勢力が存在したら所有国を数えて次の勢力と比較
+		IF IS_COUNTRY(LOCAL:0)
+			LOCAL:13 = GET_OWN_CITY(LOCAL:0)
+			IF LOCAL:13 > LOCAL:14
+				LOCAL:14 = LOCAL:13
+				LOCAL:15 = LOCAL:0
+			ENDIF
+		ENDIF
+	NEXT
+	;最大勢力の君主
+	LOCAL:1 = GET_COUNTRY_BOSS(LOCAL:15)
+	;主人公勢力の君主
+	LOCAL:2 = GET_COUNTRY_BOSS(CFLAG:MASTER:所属)
+	;最大勢力の君主が主人公勢力の君主でなく、連合参加中でない、同盟でない、主人公に陥落素質を持っていたらたまに人質要求してくる
+	IF GET_COUNTRY_BOSS(LOCAL:15) != GET_COUNTRY_BOSS(CFLAG:MASTER:所属) && GET_UNION_TARGET(CFLAG:MASTER:所属) == -1 && CHECK_COUNTRY_RELATION_F(LOCAL:15, CFLAG:MASTER:所属) < 2 && ( TALENT:(LOCAL:1):恋慕 || TALENT:(LOCAL:1):服従 || TALENT:(LOCAL:1):主人 )
+		CALL SCENARIO_21_COLOR_LINE
+		PRINTFORML %ANAME(LOCAL:1)%陣より使者が訪れ、要求を伝える書状を読み上げた
+		PRINTFORML 畏まった表現をしているが、つまるところ%ANAME(MASTER)%を人質に寄越せという内容のようだ
+		PRINTFORML 
+		PRINTFORML 飛ぶ鳥を落とす勢いの%ANAME(LOCAL:1)%陣が今更人質を欲しがるなど
+		PRINTFORML 断られることを見越して開戦理由に使う心算としか思えない
+		PRINTFORML だからこそ、要求に応じたら応じたで、まともな待遇は期待できないだろう
+		PRINTFORML 
+		;君主にも陥落があれば反対する
+		IF TALENT:(LOCAL:2):恋慕 || TALENT:(LOCAL:2):服従 || TALENT:(LOCAL:2):主人
+			PRINTFORML %ANAME(MASTER)%が答えあぐねていると、%ANAME(LOCAL:2)%が贈られた酒瓶を叩き割った
+			PRINTFORML 激昂して使者を斬れと命じている
+		PRINTFORML 
+		ENDIF
+		;プレイヤーがどうするか決める
+		CALL ASK_YN("要求を呑む", "要求を断る")
+		;……………………………………………………………………………………… 
+		;●0_要求を呑む
+		;……………………………………………………………………………………… 
+		IF RESULT == 0
+			PRINTFORML %ANAME(MASTER)%は%ANAME(LOCAL:1)%陣に赴くと言った
+			;君主に陥落があれば
+			IF TALENT:(LOCAL:2):恋慕 || TALENT:(LOCAL:2):服従 || TALENT:(LOCAL:2):主人
+				PRINTFORML %ANAME(LOCAL:2)%が絶句して頭を抱える
+			ENDIF
+			PRINTFORML 使者はここぞとばかりに武力を背景とした脅しをかけて畳み込んだ
+			PRINTFORML 陣営を守るべき君主の立場から%ANAME(LOCAL:2)%は何も言えなくなったようだ…
+			CALL SCENARIO_21_COLOR_LINE
+			SETCOLOR カラー_黄
+			PRINTFORML %ANAME(MASTER)%は%ANAME(LOCAL:1)%陣営の捕虜になった
+			RESETCOLOR
+			WAIT
+			;主人公が最大勢力の捕虜になる
+			CFLAG:MASTER:捕虜先 = LOCAL:15
+			;捕虜逆調教のメイン調教者を最大勢力の君主にする
+			FLAG:逆調教メイン調教者 = GET_ID(LOCAL:1)
+			;主人公勢力の国の守将を解除
+			FOR LOCAL:0, 0, MAX_CITY
+				IF CITY_OWNER:(LOCAL:0) == CFLAG:MASTER:所属
+					CITY_COMMANDER:(LOCAL:0) = 0
+				ENDIF
+			NEXT
+			;主人公勢力の部隊を解散
+			CALL CLEAR_ALL_UNIT(CFLAG:MASTER:所属)
+			;最大勢力の君主の感情
+			PALAM:(LOCAL:1):欲情 += 5000
+			;主人公勢力の君主の感情
+			PALAM:(LOCAL:2):哀主 += 5000
+			;最大勢力君主から主人公勢力君主への友好度+敵対度-
+			CALL CHANGE_RELATION_O_TO_O(LOCAL:1, LOCAL:2, 500, -500)
+			;主人公勢力君主から最大勢力君主への友好度-敵対度+
+			CALL CHANGE_RELATION_O_TO_O(LOCAL:1, LOCAL:2, -500, 500)
+		;……………………………………………………………………………………… 
+		;●1_要求を断る
+		;……………………………………………………………………………………… 
+		ELSE
+			PRINTFORML %ANAME(MASTER)%は要求を跳ねのけた
+			PRINTFORML 我が陣営は%ANAME(LOCAL:1)%の怒りを買ったようだ
+			PRINTFORML 
+			WAIT
+			;最大勢力の君主の感情
+			PALAM:(LOCAL:1):怒外 += 5000
+			;主人公勢力の君主の感情
+			PALAM:(LOCAL:2):怒外 += 5000
+			;最大勢力君主から主人公勢力君主への友好度-敵対度+
+			CALL CHANGE_RELATION_O_TO_O(LOCAL:1, LOCAL:2, -500, 500)
+			;主人公勢力君主から最大勢力君主への友好度-敵対度+
+			CALL CHANGE_RELATION_O_TO_O(LOCAL:1, LOCAL:2, -500, 500)
+		ENDIF
+	ENDIF	
+ENDIF
+
+@SCENARIO_21_RESET_SCVARS
+;イベント進行度をリセット
+SCVAR:2 = 0
+;保存していた対象を消去
+SCVAR:3 = 0
+;保存していた闇堕ち君主を消去
+SCVAR:4 = 0
+
+@SCENARIO_21_AFTERSELECT
+[IF_NDEBUG]
+RETURN
+[ENDIF]
+PRINTFORML
+PRINTFORML ※ デバッグモードで起動しているプレイヤーへの提案：
+PRINTFORML このシナリオは、親愛のキャラクターが少ない場合は十分に楽しめないかもしれません
+PRINTFORML チートしますか？
+PRINTFORML （現時点での登場済み全員を親愛にして、好感度や依存度や素質なども適当に設定します）
+PRINTFORML （陥落ボーナスの対象にはなりません）
+CALL ASK_YN
+SIF RESULT != 0
+	RETURN
+
+; ERB\TRAIN\TALENT_CHECK.ERB で恋慕や親愛が付いた場合と矛盾の無いようにしたつもり
+FOR LOCAL, 0, CHARANUM
+	SIF LOCAL == MASTER
+		CONTINUE
+	SIF CSTR:LOCAL:99 == "あなた"
+		CONTINUE
+	SIF CFLAG:LOCAL:所属 == 0 && CFLAG:LOCAL:特殊状態 == 0
+		CONTINUE
+	SIF IS_SAMESEX(MASTER, LOCAL) && !TALENT:LOCAL:両刀
+		TALENT:LOCAL:恋人 = 1
+	TALENT:LOCAL:虚ろ = 0
+	TALENT:LOCAL:崩壊 = 0
+	TALENT:LOCAL:恋慕 = 1
+	TALENT:LOCAL:親愛 = 1
+	TALENT:LOCAL:親友 = 0
+	TALENT:LOCAL:服従 = 0
+	TALENT:LOCAL:隷属 = 0
+	TALENT:LOCAL:烙印 = 0
+	TALENT:LOCAL:主人 = 0
+	TALENT:LOCAL:所有者 = 0
+	TALENT:LOCAL:一線越えない = 0
+	TALENT:LOCAL:無関心 = 0
+	TALENT:LOCAL:孤高 = 0
+	CFLAG:LOCAL:陥落済み = 1
+	CFLAG:LOCAL:好感度 = MAX(CFLAG:LOCAL:好感度, 10000 + LOCAL * 100)
+	CFLAG:LOCAL:依存度 = MAX(CFLAG:LOCAL:依存度, 3000)
+	ABL:LOCAL:奉仕 = MAX(ABL:LOCAL:奉仕, ランク閾値:ランク_その他:ランク_C)
+NEXT
+
+
+
+; ここから先は、eraTohloveKHの関数を適当に移植または代用品を用意した物
+
+@SCENARIO_21_COLOR_LINE
+#DIM 元の色
+
+元の色 = GETCOLOR()
+SETCOLOR カラー_灰色
+DRAWLINE
+SETCOLOR 元の色
+
+;============================================================================== 
+;◆ランダム君主決定
+;ARG:0 勢力数最小値
+;ARG:1 勢力数最大値
+;============================================================================== 
+@SCENARIO_21_SELECT_RBOSS(ARG:0, ARG:1)
+#DIM 今物語の初期勢力数
+#DIM 新君主番号
+#DIM 新勢力番号
+#DIM 新勢力の支配国番号
+#DIM 新勢力カラー
+
+今物語の初期勢力数 = ARG:0
+IF ARG:1 - ARG:0 > 0
+	今物語の初期勢力数 += RAND:(ARG:1 - ARG:0)
+ENDIF
+
+;ループカウンタ
+LOCAL:0 = 1
+
+;ランダム君主決定・ループカウンタが勢力数を満たしたら抜ける
+WHILE LOCAL:0 <= 今物語の初期勢力数
+	;RANDは0が選ばれるので１足す
+	LOCAL:1 = 1 + RAND:(CHARANUM - 1)
+	;---------------------------------------------------------------------- 
+	;◇乱数で選ばれたキャラが未所属でない or 死亡している or 主人公 or CSVのあなた
+	;---------------------------------------------------------------------- 
+	SIF CFLAG:(LOCAL:1):所属 || CFLAG:(LOCAL:1):特殊状態 == 特殊状態_死亡 || LOCAL:1 == MASTER || CSTR:(LOCAL:0):99 == "あなた"
+		CONTINUE
+	;未登場も除外する
+	SIF CFLAG:(LOCAL:1):所属 == 0 && CFLAG:(LOCAL:1):特殊状態 == 0
+		CONTINUE
+	;固定キャラ限定にする（シナリオ選択後に、引き継いだキャラ・カスタムキャラの出現設定になるので。）
+	SIF !IS_FIXED_CHARA(LOCAL:1)
+		CONTINUE
+	;---------------------------------------------------------------------- 
+	;◇それ以外ならLOCAL:1が君主に当選
+	;---------------------------------------------------------------------- 
+	新君主番号 = LOCAL:1
+	;空いている勢力の番号を取得
+	新勢力番号 = GET_NEW_COUNTRY()
+	SIF 新勢力番号 == -1
+		RETURN 0 ; 念のため
+	;当選した君主を新しい勢力に配属させる
+	CALL CHANGE_COUNTRY(新君主番号, 新勢力番号, 1, 0)
+	;新しい勢力の君主として新君主IDを設定
+	COUNTRY_BOSS:(新勢力番号) = GET_ID(新君主番号)
+
+	; ERB\SLG\NPC_INDEPENDENCE.ERB @NPC_INDEPENDENCE からコピペ
+	CALL CHARA_DIPRO_COLOR(CSTR:(新君主番号):99)
+	新勢力カラー = RESULT
+
+	;色設定がなかったら髪の色かランダム
+	SIF 新勢力カラー == 0xFFFFFF
+		新勢力カラー = (TALENT:(新君主番号):髪色 ? TALENT:(新君主番号):髪色 #  RAND(100, 200) << 16 + RAND(100, 200) << 8 + RAND(100, 200))
+
+	; ERB\SLG\SCENARIO\SCENARIO19.ERB からコピペ
+	;黒すぎたらどれか一系統を明るくして、多少なりとも分かりやすくする
+	IF (新勢力カラー >> 16 & 0xFF) <= 0x50 && (新勢力カラー >> 8 & 0xFF) <= 0x50 && (新勢力カラー & 0xFF) <= 0x50
+		SELECTCASE RAND:3
+			CASE 0
+				LOCAL:2 = RAND(0x30, 0x60)
+			CASE 1
+				LOCAL:2 = RAND(0x30, 0x60) << 8
+			CASE 2
+				LOCAL:2 = RAND(0x30, 0x60) << 16
+		ENDSELECT
+		新勢力カラー += LOCAL:2
+	;白すぎたらどれか一系統を暗めに
+	ELSEIF (新勢力カラー >> 16 & 0xFF) >= 0xC0 && (新勢力カラー >> 8 & 0xFF) >= 0xC0 && (新勢力カラー & 0xFF) >= 0xC0
+		SELECTCASE RAND:3
+			CASE 0
+				LOCAL:2 = RAND(0x30, 0x50)
+			CASE 1
+				LOCAL:2 = RAND:0x50 << 8
+			CASE 2
+				LOCAL:2 = RAND(0x30, 0x50) << 16
+		ENDSELECT
+		新勢力カラー -= LOCAL:2
+	ENDIF
+
+	COUNTRY_COLOR:新勢力番号 = 新勢力カラー
+
+	COUNTRY_SOLDIER:(新勢力番号) = 8000
+
+	CALL SP_COUNTRY_RISE(新勢力番号, 0)
+	;ループカウンタを追加して繰り返し
+	LOCAL:0 += 1
+WEND
+

@@ -351,6 +351,8 @@ PRINTL
 PRINTFORM %TOSTR_SPACE(28)%
 PRINTBUTTON " 103[  服従]", 103
 PRINTBUTTON " 104[  隷属]", 104
+PRINTBUTTON " 107[  主人]", 107
+PRINTBUTTON " 108[所有者]", 108
 PRINTBUTTON " 105[  烙印]", 105
 PRINTBUTTON " 106[  合意]", 106
 PRINTL 
@@ -411,6 +413,14 @@ PRINTFORM    %LOCALS:0, 24, RIGHT%
 PRINTBUTTON " 220[  固定]", 220
 PRINTBUTTON " 221[  以上]", 221
 PRINTBUTTON " 222[  以下]", 222
+PRINTL 
+PRINTL 
+
+LOCALS:0 = 全員の支配度を変更
+PRINTFORM    %LOCALS:0, 24, RIGHT% 
+PRINTBUTTON " 230[  固定]", 230
+PRINTBUTTON " 231[  以上]", 231
+PRINTBUTTON " 232[  以下]", 232
 PRINTL 
 PRINTL 
 
@@ -490,6 +500,8 @@ ELSEIF RESULT == 100
 				TALENT:(LOCAL:0):服従 = 0
 				TALENT:(LOCAL:0):隷属 = 0
 				TALENT:(LOCAL:0):親友 = 0
+				TALENT:(LOCAL:0):主人 = 0
+				TALENT:(LOCAL:0):所有者 = 0
 				TALENT:(LOCAL:0):恋慕 = 1
 				CFLAG:(LOCAL:0):2 = MAX(CFLAG:(LOCAL:0):2, 1500)
 				CFLAG:(LOCAL:0):3 = MAX(CFLAG:(LOCAL:0):3, 300)
@@ -508,6 +520,8 @@ ELSEIF RESULT == 101
 				TALENT:(LOCAL:0):服従 = 0
 				TALENT:(LOCAL:0):隷属 = 0
 				TALENT:(LOCAL:0):親友 = 0
+				TALENT:(LOCAL:0):主人 = 0
+				TALENT:(LOCAL:0):所有者 = 0
 				TALENT:(LOCAL:0):恋慕 = 1
 				TALENT:(LOCAL:0):親愛 = 1
 				CFLAG:(LOCAL:0):2 = MAX(CFLAG:(LOCAL:0):2, 10000)
@@ -540,6 +554,8 @@ ELSEIF RESULT == 103
 				TALENT:(LOCAL:0):恋慕 = 0
 				TALENT:(LOCAL:0):親愛 = 0
 				TALENT:(LOCAL:0):親友 = 0
+				TALENT:(LOCAL:0):主人 = 0
+				TALENT:(LOCAL:0):所有者 = 0
 				TALENT:(LOCAL:0):服従 = 1
 				CFLAG:(LOCAL:0):4 = MAX(CFLAG:(LOCAL:0):4, 1500)
 				CFLAG:(LOCAL:0):3 = MAX(CFLAG:(LOCAL:0):3, 300)
@@ -559,10 +575,54 @@ ELSEIF RESULT == 104
 				TALENT:(LOCAL:0):恋慕 = 0
 				TALENT:(LOCAL:0):親愛 = 0
 				TALENT:(LOCAL:0):親友 = 0
+				TALENT:(LOCAL:0):主人 = 0
+				TALENT:(LOCAL:0):所有者 = 0
 				TALENT:(LOCAL:0):服従 = 1
 				TALENT:(LOCAL:0):隷属 = 1
 				CFLAG:(LOCAL:0):4 = MAX(CFLAG:(LOCAL:0):4, 10000)
 				CFLAG:(LOCAL:0):3 = MAX(CFLAG:(LOCAL:0):3, 3000)
+				CFLAG:(LOCAL:0):面識 = 1
+			ENDIF
+		NEXT
+	ENDIF
+ELSEIF RESULT == 107
+	PRINTFORML 主人公を除く全てのキャラに[所有者]を付け、支配度を10000、依存度を3000にします
+	PRINTFORML 現在の支配度・依存度がこれ以上の場合は、その値が維持されます
+	PRINTFORML また、全てのキャラについて、初対面状態が解除されます
+	CALL ASK_YN("実行", "キャンセル")
+	IF RESULT == 0
+		FOR LOCAL:0, 0, CHARANUM
+			IF LOCAL:0 != MASTER
+				TALENT:(LOCAL:0):恋慕 = 0
+				TALENT:(LOCAL:0):親愛 = 0
+				TALENT:(LOCAL:0):親友 = 0
+				TALENT:(LOCAL:0):服従 = 0
+				TALENT:(LOCAL:0):隷属 = 0
+				TALENT:(LOCAL:0):主人 = 1
+				TALENT:(LOCAL:0):所有者 = 1
+				CFLAG:(LOCAL:0):5 = MAX(CFLAG:(LOCAL:0):5, 10000)
+				CFLAG:(LOCAL:0):3 = MAX(CFLAG:(LOCAL:0):3, 3000)
+				CFLAG:(LOCAL:0):面識 = 1
+			ENDIF
+		NEXT
+	ENDIF
+ELSEIF RESULT == 108
+	PRINTFORML 主人公を除く全てのキャラに[主人]を付け、支配度を1500、依存度を300にします
+	PRINTFORML 現在の支配度・依存度がこれ以上の場合は、その値が維持されます
+	PRINTFORML また、全てのキャラについて、初対面状態が解除されます
+	CALL ASK_YN("実行", "キャンセル")
+	IF RESULT == 0
+		FOR LOCAL:0, 0, CHARANUM
+			IF LOCAL:0 != MASTER
+				TALENT:(LOCAL:0):恋慕 = 0
+				TALENT:(LOCAL:0):親愛 = 0
+				TALENT:(LOCAL:0):親友 = 0
+				TALENT:(LOCAL:0):服従 = 0
+				TALENT:(LOCAL:0):隷属 = 0
+				TALENT:(LOCAL:0):主人 = 1
+				TALENT:(LOCAL:0):所有者 = 0
+				CFLAG:(LOCAL:0):5 = MAX(CFLAG:(LOCAL:0):5, 1500)
+				CFLAG:(LOCAL:0):3 = MAX(CFLAG:(LOCAL:0):3, 300)
 				CFLAG:(LOCAL:0):面識 = 1
 			ENDIF
 		NEXT
@@ -935,7 +995,47 @@ ELSEIF RESULT == 222
 			ENDIF
 		NEXT
 	ENDIF
+
+ELSEIF RESULT == 230
+	PRINTFORML 全てのキャラの支配度を、指定した値に変更します
+	PRINTFORML 指定できる値は -1000～999999999999 で、範囲外の値はキャンセル扱いになります
+	PRINTFORML 指定する値を入力して下さい
+	INPUT
+	IF RESULT >= -1000 && RESULT <= 999999999999
+		FOR LOCAL:0, 0, CHARANUM
+			IF LOCAL:0 != MASTER
+				CFLAG:(LOCAL:0):5 = RESULT
+			ENDIF
+		NEXT
+	ENDIF
+ELSEIF RESULT == 231
+	PRINTFORML 全てのキャラの支配度を、指定した値に変更します
+	PRINTFORML ただし、元の好感度が指定した値より大きい場合、元の値が維持されます
+	PRINTFORML 指定できる値は -1000～999999999999 で、範囲外の値はキャンセル扱いになります
+	PRINTFORML 指定する値を入力して下さい
+	INPUT
+	IF RESULT >= -1000 && RESULT <= 999999999999
+		FOR LOCAL:0, 0, CHARANUM
+			IF LOCAL:0 != MASTER
+				CFLAG:(LOCAL:0):5 = MAX(CFLAG:(LOCAL:0):5, RESULT)
+			ENDIF
+		NEXT
+	ENDIF
+ELSEIF RESULT == 232
+	PRINTFORML 全てのキャラの支配度を、指定した値に変更します
+	PRINTFORML ただし、元の好感度が指定した値より小さい場合、元の値が維持されます
+	PRINTFORML 指定できる値は -1000～999999999999 で、範囲外の値はキャンセル扱いになります
+	PRINTFORML 指定する値を入力して下さい
+	INPUT
+	IF RESULT >= -1000 && RESULT <= 999999999999
+		FOR LOCAL:0, 0, CHARANUM
+			IF LOCAL:0 != MASTER
+				CFLAG:(LOCAL:0):5 = MIN(CFLAG:(LOCAL:0):5, RESULT)
+			ENDIF
+		NEXT
+	ENDIF
 	
+
 ;素質の追加
 ELSEIF RESULT == 300 || RESULT == 301
 	LOCAL:5 = -1

@@ -54,6 +54,8 @@ ENDIF
 
 TALENT:(ARG:0):危険日 = RAND:5
 
+CALL SET_BODYSIZE(ARG:0)
+
 CALL TAG_INIT(ARG:0, NO:(ARG:0))
 
 CALL SKILL_INIT(ARG:0)
@@ -343,7 +345,7 @@ FOR LOCAL, 0, PREGNANT_RECORD_MAX
 	PREGNANT_RECORD_TIMES:(ARG:0):LOCAL = 0
 NEXT
 
-
+CALL SET_BODYSIZE(ARG:0)
 CALL SKILL_INIT(ARG:0)
 CALL CLOTH_INIT(ARG:0)
 ;-------------------------------------------------
@@ -1280,6 +1282,18 @@ IF TALENT:(ARG:0):服従 || TALENT:(ARG:0):隷属 || TALENT:(ARG:0):烙印
 ELSE
 	RETURNF 0
 ENDIF
+
+;-------------------------------------------------
+;ARG:0番のキャラが服従系をもっているか烙印なら1を返す関数
+;-------------------------------------------------
+@IS_SLAVED_BY(ARG:0)
+#FUNCTION
+IF TALENT:(ARG:0):主人 || TALENT:(ARG:0):所有者
+	RETURNF 1
+ELSE
+	RETURNF 0
+ENDIF
+
 ;-------------------------------------------------
 ;ARG:0番のキャラが巨乳か爆乳なら1を返す関数
 ;-------------------------------------------------
@@ -1396,6 +1410,8 @@ SIF IS_MALE(ARG:0)
 SIF !INRANGE(ARG:1, -2, 2)
 	RETURN 
 TALENT:(ARG:0):バストサイズ = ARG:1
+CALL SET_BODYSIZE(ARG:0)
+
 RETURN
 
 
@@ -1438,11 +1454,90 @@ SIF !HAS_PENIS(ARG:0)
 SIF !INRANGE(ARG:1, -2, 2)
 	RETURN 
 TALENT:(ARG:0):ペニスサイズ = ARG:1
+CALL SET_BODYSIZE(ARG:0)
 RETURN
 
+;-------------------------------------------------
+;ヒップサイズの数値を文字列に直す
+;-2:絶壁～2:爆乳
+;-------------------------------------------------
+@TOSTR_HIPSIZE(ARG:0)
+#FUNCTIONS
+ARG:0 = MAX(-2, MIN(2, ARG:0))
+SELECTCASE ARG:0
+	CASE -2
+		RETURNF "壁尻"
+	CASE -1
+		RETURNF "薄尻"
+	CASE 1
+		RETURNF "巨尻"
+	CASE 2
+		RETURNF "爆尻"
+ENDSELECT
+RETURNF "普尻"
 
+;-------------------------------------------------
+;キャラARG:0のヒップサイズを数値に変換する
+;-2:絶壁～2:爆乳
+;-------------------------------------------------
+@GET_HIPSIZE(ARG:0)
+#FUNCTION
+RETURNF TALENT:(ARG:0):ヒップサイズ
 
+;-------------------------------------------------
+;キャラARG:0のヒップサイズをARG:1にする
+;-2:絶壁～2:爆乳
+;-------------------------------------------------
+@SET_HIPSIZE(ARG:0, ARG:1)
+SIF !INRANGE(ARG:1, -2, 2)
+	RETURN 
+TALENT:(ARG:0):ヒップサイズ = ARG:1
+CALL SET_BODYSIZE(ARG:0)
+RETURN
 
+;-------------------------------------------------
+;ペニスサイズの数値を文字列に直す
+;-2:絶壁～2:爆乳
+;-------------------------------------------------
+@TOSTR_BODYSIZE(ARG:0)
+#FUNCTIONS
+ARG:0 = MAX(-2, MIN(3, ARG:0))
+SELECTCASE ARG:0
+	CASE -2
+		RETURNF "子供"
+	CASE -1
+		RETURNF "小柄"
+	CASE 1
+		RETURNF "長身"
+	CASE 2
+		RETURNF "大柄"
+	CASE 3
+		RETURNF "巨大"
+ENDSELECT
+RETURNF "普通"
+
+;-------------------------------------------------
+;ペニスサイズの数値を文字列に直す
+;-2:絶壁～2:爆乳
+;-------------------------------------------------
+@TOSTR_BODYTYPE(ARG:0)
+#FUNCTIONS
+ARG:0 = MAX(-3, MIN(3, ARG:0))
+SELECTCASE ARG:0
+	CASE -3
+		RETURNF "痩せすぎ"
+	CASE -2
+		RETURNF "細身"
+	CASE -1
+		RETURNF "スレンダー"
+	CASE 1
+		RETURNF "グラマー"
+	CASE 2
+		RETURNF "豊満"
+	CASE 3
+		RETURNF "肥満"
+ENDSELECT
+RETURNF "普通"
 ;-------------------------------------------------
 ;能力の成長型を文字列に直す
 ;-------------------------------------------------
@@ -1936,6 +2031,10 @@ IF ARG:1
 		LOCALS:0 = %LOCALS:0%<親友>
 	SIF TALENT:(ARG:0):恋人
 		LOCALS:0 = %LOCALS:0%<恋人>
+	SIF TALENT:(ARG:0):主人
+		LOCALS:0 = %LOCALS:0%<主人>
+	SIF TALENT:(ARG:0):所有者
+		LOCALS:0 = %LOCALS:0%<所有者>
 	IF LOCALS:0 != ""
 		SETCOLOR カラー_注意
 		PRINTFORML %ANAME(ARG:0)%は%LOCALS:0%を失った…
@@ -1947,12 +2046,15 @@ ENDIF
 CFLAG:(ARG:0):好感度 = MIN(CFLAG:(ARG:0):好感度, 0)
 CFLAG:(ARG:0):従属度 = MIN(CFLAG:(ARG:0):従属度, 0)
 CFLAG:(ARG:0):依存度 = MIN(CFLAG:(ARG:0):依存度, 0)
+CFLAG:(ARG:0):支配度 = MIN(CFLAG:(ARG:0):支配度, 0)
 
 TALENT:(ARG:0):恋慕 = 0
 TALENT:(ARG:0):親愛 = 0
 TALENT:(ARG:0):服従 = 0
 TALENT:(ARG:0):隷属 = 0
 TALENT:(ARG:0):親友 = 0
+TALENT:(ARG:0):主人 = 0
+TALENT:(ARG:0):所有者 = 0
 TALENT:(ARG:0):恋人 = 0
 
 ;-------------------------------------------------
@@ -2421,6 +2523,12 @@ ELSEIF TALENT:(ARG:0):隷属
 ELSEIF TALENT:(ARG:0):服従
 	SETCOLOR 0x00D0D0
 	PRINT 服
+ELSEIF TALENT:(ARG:0):所有者
+	SETCOLOR 0xc40055
+	PRINT 所
+ELSEIF TALENT:(ARG:0):主人
+	SETCOLOR 0xc40055
+	PRINT 主
 ELSE
 	PRINT   
 ENDIF
@@ -2933,9 +3041,9 @@ IF EXISTCSV(NO:対象)
 ELSE
 	;非固定キャラの締まり初期値は素質から暫定的に検出
 	;基本650 処女+100 小柄体型+100 子供体型+200 幼児+100 現在値と平均を取って最低150最高950
-	Ｖ初期値 = 650 + TALENT:対象:処女 * 100 + TALENT:対象:小柄体型 * 100 + TALENT:対象:子供体型 * 200 + TALENT:対象:幼児 * 100
+	Ｖ初期値 = 650 + TALENT:対象:処女 * 100 + (TALENT:対象:体格 == 体格_小柄) * 100 + (TALENT:対象:体格 == 体格_子供) * 200 + TALENT:対象:幼児 * 100
 	Ｖ初期値 = LIMIT((Ｖ初期値 + TALENT:対象:Ｖ締まり) / 2, 150, 950)
-	Ａ初期値 = 650 + TALENT:対象:アナル処女 * 100 + TALENT:対象:小柄体型 * 100 + TALENT:対象:子供体型 * 200 + TALENT:対象:幼児 * 100
+	Ａ初期値 = 650 + TALENT:対象:アナル処女 * 100 + (TALENT:対象:体格 == 体格_小柄) * 100 + (TALENT:対象:体格 == 体格_子供) * 200 + TALENT:対象:幼児 * 100
 	Ａ初期値 = LIMIT((Ａ初期値 + TALENT:対象:Ａ締まり) / 2, 150, 950)
 ENDIF
 
@@ -3198,6 +3306,13 @@ IF 対象 != MASTER
 	ENDIF
 ENDIF
 
+;奴隷市場、スカウト候補から削除
+SIF FINDELEMENT(SLAVEMARKET_GOODS, GET_ID(対象)) != -1
+	SLAVEMARKET_GOODS:FINDELEMENT(SLAVEMARKET_GOODS, GET_ID(対象)) = 0
+SIF FINDELEMENT(SCOUT_CANDIDATES, GET_ID(対象)) != -1
+	SCOUT_CANDIDATES:FINDELEMENT(SCOUT_CANDIDATES, GET_ID(対象)) = 0
+
+
 ;-------------------------------------------------
 ;対象の捕虜先を変更させ、必要な変数操作を行う関数
 ;捕虜先0を指定することは解放することを意味する。
@@ -3329,9 +3444,16 @@ CLEARLINE 1
 ;-------------------------------------------------
 ;重複させずCALL SINGLE_DRAWLINEする関数
 ;-------------------------------------------------
-@SINGLE_DRAWLINE(LINE = "-")
+@SINGLE_DRAWLINE(LINE = "-", COLOR = -1)
+#DIM COLOR
+#DIM COLOR_TMP
 #DIMS LINE
 #DIMS TMP
+
+COLOR_TMP = GETCOLOR()
+SIF COLOR != -1
+	SETCOLOR COLOR
+
 TMP '= HTML_GETPRINTEDSTR(0)
 ;STRFINDは正規表現に対応していないんでこういうことをする羽目になる
 ;実際の正規表現処理にわたるまでに一度エスケープを食らうようなのでスラッシュは二重に渡す必要がある。
@@ -3341,6 +3463,8 @@ ELSE
 	DRAWLINEFORM %LINE%
 ENDIF
 
+SIF COLOR != -1
+	SETCOLOR COLOR_TMP
 
 ;-------------------------------------------------
 ;簡易な能力表示を行う
@@ -3531,3 +3655,7 @@ FOR LOCAL, 0, CALLEE_NUM_COPY
 		ENDCATCH
 	ENDIF
 NEXT
+
+@IS_APPEAR(ARG:0)
+#FUNCTION
+RETURNF CFLAG:(ARG:0):所属 || CFLAG:(ARG:0):特殊状態 || CFLAG:(ARG:0):捕虜先
