@@ -1,0 +1,108 @@
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@KOJO_DAILY_K3_STRAY_YOUKAI_RATE(対象)
+#DIM 対象
+RETURN 35
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@KOJO_DAILY_K3_STRAY_YOUKAI_DECISION(対象)
+#DIM 対象
+
+SIF CFLAG:対象:特殊状態 != 特殊状態_放浪
+	RETURN 0
+
+SIF KDVAR:対象:ルーミア_野良妖怪
+	RETURN 0
+
+RETURN CHECK_KOJO_DAILY_HAPPEN(対象, 0, 0)
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@KOJO_DAILY_K3_STRAY_YOUKAI_GENRE(対象)
+#DIM 対象
+RETURN デイリー_ジャンル_その他
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@KOJO_DAILY_K3_STRAY_YOUKAI(対象)
+#DIM 対象
+
+KDVAR:対象:ルーミア_野良妖怪 = 1
+
+
+PRINTFORMW 「ねえねえ、そこのあなた」
+PRINTFORML %ANAME(MASTER)%が街を巡回していると、不意に声をかけられた
+PRINTFORMW 見ると、少女がこちらを見つめていた
+CALL ICPRINT(@"「こんにちは、私は<%NAME_FORMAL(対象)%>、宵闇の妖怪だよ", "W", カラー_注意)
+PRINTFORMW 「突然で悪いんだけど、今お腹が空いてるの」
+PRINTFORMW 「でも私妖怪だし、お金とか持ってなくってさ」
+PRINTFORMW 「ご飯おごってくれると、嬉しいんだけどなー」
+PRINTFORML ……まさか野良妖怪に飯をたかられるとは
+PRINTFORML さて、どうするか……
+
+CALL ASK_MULTI_JUDGE("恵んでやる", MONEY >= 1000, "無理", 1)
+
+IF RESULT == 1
+	PRINTFORMW 「えー、残念」
+	PRINTFORMW 「それじゃ、他の誰かに頼むかなー」
+	PRINTFORMW 言うだけ言って、%ANAME(対象)%はふらふらと飛んでいった……
+	RETURN 1
+ENDIF
+
+PRINTFORMW 「ほんとに？　ありがたいなー」
+PRINTFORMW 「それじゃお店に連れてって、何でもいいよ！」
+PRINTFORMW %ANAME(対象)%に引っ張られるように店に入った……
+PRINTFORML ・
+PRINTFORML ・
+PRINTFORML ・
+PRINTFORML %ANAME(対象)%は軽く三人前を平らげてようやく落ち着いたようだ
+PRINTFORMW 妖怪というのは皆こんなものなのだろうか……
+PRINTFORMW 「ふう、食べた食べた。ごちそうさま」
+PRINTFORMW 「何かお礼をしようかなー。何にする？」
+PRINTFORML さて、どうしよう……
+
+CALL ASK_MULTI_JUDGE("力が欲しい", 1, "技を教えて", GET_EMPTY_SKILL_SLOT(MASTER, スキル_ジャンル_BASE) != -1, "金は無いと言っていたな……", 0, "仲間になって", 1, "いらない", 1)
+
+SELECTCASE RESULT
+	CASE 0
+		PRINTFORMW 「そんなんでいいの？　お安い御用だよ」
+		PRINTFORMW %ANAME(対象)%に訓練してもらった……
+		CALL COLORPRINT(@"%ANAME(MASTER)%の武闘が3上昇した！", カラー_注意, "W")
+		ABL:MASTER:武闘 += 3
+	CASE 1
+		PRINTFORMW 「ふーん？　別にいいよ」
+		PRINTFORMW 「それじゃ、私の必殺技を教えてあげるとしよう」
+		PRINTFORMW 「うまいこと使いこなしなよ」
+		CALL SKILL_LEARN_BY_NAME(MASTER, スキル_ジャンル_BASE, NO:対象, "ダークサイドオブザムーン")
+		CALL COLORPRINT(@"%ANAME(MASTER)%はスキル「ダークサイドオブザムーン」を習得した！", カラー_注意, "W")
+	CASE 2
+		;死に分岐
+	CASE 3
+		PRINTFORMW 「あん？　あなたの仲間？」
+		PRINTFORMW 「いいよ、親切にしてくれたお礼」
+		PRINTFORMW 「あっでも、たまにご飯おごってね？」
+		CALL COLORPRINT(@"%ANAME(対象)%が仲間になりました", カラー_注意, "W")
+		CALL CHANGE_COUNTRY(対象, CFLAG:MASTER:所属, 1)
+		CFLAG:対象:好感度 += 500
+		RETURN 1
+	CASE 4
+		PRINTFORMW 「えー？　謙虚だなー」
+		PRINTFORMW 「……ホントになんにもあげないよ？」
+		PRINTFORMW 「まあ、それならそれで別にいいけど」
+ENDSELECT
+
+PRINTFORMW 「じゃ、私はこれで。ありがとね！」
+PRINTFORMW %ANAME(対象)%は去っていった……
+
+RETURN 1
