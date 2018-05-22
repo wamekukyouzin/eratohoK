@@ -29,9 +29,9 @@ SIF GETBIT(セット位置, サイズ_ペニス) || セット位置 == 0
 #DIM 身長基礎値
 
 IF CFLAG:対象:行動不能状態 == 行動不能_子供
-    身長基礎値 = 500 + CFLAG:対象:子の成長度 * 20
+	身長基礎値 = MIN(500 + CFLAG:対象:子の成長度 * 20, 1300)
 ELSEIF TALENT:対象:幼児
-    身長基礎値 = 800 + (CFLAG:対象:子の成長度 - 6) * 50
+	身長基礎値 = MIN(800 + (CFLAG:対象:子の成長度 - 6) * 50, 1300)
 ELSE
     身長基礎値 = 1 + RAND:70 + RAND:70 + RAND:70 + RAND:70 + RAND:70 + RAND:70 + RAND:50 + GET_BUSTSIZE(対象) *20
     身長基礎値 += IS_MALE(対象) ? 1500 # 1300
@@ -134,17 +134,17 @@ RETURNF アンダーバスト
 #DIM アンダーバスト
 #DIM 乳サイズ
 ;バスト補正
-SELECTCASE TALENT:対象:バストサイズ
-    CASE -2, -1
-	    乳サイズ = アンダーバスト / 20
-    CASE -1
-        乳サイズ = アンダーバスト / 18
-    CASE 0
-	    乳サイズ = アンダーバスト / 15
-    CASE 1
-	    乳サイズ = アンダーバスト / 13
-    CASE 2
-	    乳サイズ = アンダーバスト / 11
+SELECTCASE GET_BUSTSIZE(対象)
+	CASE -2
+		乳サイズ = アンダーバスト / 20
+	CASE -1
+		乳サイズ = アンダーバスト / 18
+	CASE 0
+		乳サイズ = アンダーバスト / 15
+	CASE 1
+		乳サイズ = アンダーバスト / 13
+	CASE 2
+		乳サイズ = アンダーバスト / 11
 ENDSELECT
 
 SELECTCASE TALENT:対象:体格
@@ -263,13 +263,13 @@ SIF TALENT:対象:美尻
     TIMES ヒップ基礎値, 1.05
 
 乳サイズ基礎値 = GET_BUSTSIZE_BASE(対象, GET_UNDERBUST_BASE(対象, GET_WEISTSIZE_BASE(対象)))
-SELECTCASE TALENT:対象:バストサイズ
-    CASE -2, -1
-        乳サイズ基礎値 /= 乳サイズ基礎値 / 7
-    CASE 0
-        乳サイズ基礎値 /= 6
-    CASE 1, 2
-        乳サイズ基礎値 /= 5
+SELECTCASE GET_BUSTSIZE(対象)
+	CASE -2, -1
+		乳サイズ基礎値 /= 7
+	CASE 0
+		乳サイズ基礎値 /= 6
+	CASE 1, 2
+		乳サイズ基礎値 /= 5
 ENDSELECT
 
 BASE:対象:ヒップ = ヒップ基礎値 + 乳サイズ基礎値
@@ -292,11 +292,11 @@ ELSE
 ENDIF
 
 アンダーバスト =  GET_UNDERBUST_BASE(対象, GET_WEISTSIZE_BASE(対象))
-アンダーバスト重量 = 4 * POWER(アンダーバスト, 3) / 1100000 / 100
+アンダーバスト重量 = 4 * POWER(アンダーバスト / 100, 3) / 11
 乳 = GET_BUSTSIZE_BASE(対象, アンダーバスト)
-乳重量 =  4 * POWER(乳, 3) / 1100000 / 100
+乳重量 =  4 * POWER(乳 / 100, 3) / 11
 
-体重基礎値 += 乳 + 乳重量
+体重基礎値 += アンダーバスト重量 + 乳重量
 
 SELECTCASE TALENT:対象:体格
     CASE 体格_子供
