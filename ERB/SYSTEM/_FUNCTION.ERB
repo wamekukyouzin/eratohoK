@@ -3541,10 +3541,13 @@ RETURNF 下一桁 == TALENT:対象:危険日 || 下一桁 - 5 == TALENT:対象:�
 ;desc  :キャラをランダムに選出する関数
 ;param :選択関数名:キャラを選出する条件となる関数の名前 SELECT_CHARA_RANDOM_LOGIC_●●(ARG:0)の●●の部分
 ;-------------------------------------------------
-@SELECT_CHARA_RANDOM(選択関数名)
+@SELECT_CHARA_RANDOM(選択関数名, バイアス関数名 = "")
 #DIMS 選択関数名
+#DIMS バイアス関数名
+
 #DIM 対象
 #DIM 候補, 3000
+#DIM 候補乱数 , 3000
 #DIM 候補数
 
 VARSET 候補, -1
@@ -3566,14 +3569,33 @@ NEXT
 SIF 候補数 == 0
 	RETURN -1
 
-RETURN 候補:(RAND:候補数)
+SIF バイアス関数名 == ""
+	RETURN 候補:(RAND:候補数)
+
+VARSET 候補乱数, __INT_MIN__
+
+TRYCCALLFORM SELECT_CHARA_RANDOM_BIAS_%バイアス関数名%(MASTER)
+CATCH
+	THROW 指定された関数SELECT_CHARA_RANDOM_BIAS_%バイアス関数名%が存在しません
+ENDCATCH
+
+FOR LOCAL, 0, 候補数
+	LOCAL:1 = 候補:候補数
+	CALLFORM SELECT_CHARA_RANDOM_BIAS_%バイアス関数名%(LOCAL:1)
+	候補乱数:LOCAL = RAND(0, MIN(ABS(RESULT), 1) * 10000)
+NEXT
+
+対象 = 候補:FINDELEMENT(候補乱数, MAXARRAY(候補乱数), 0, 候補数)
+
+RETURN 対象
 
 ;-------------------------------------------------
 ;desc  :キャラをランダムに選出する関数
 ;param :選択関数名:キャラを選出する条件となる関数の名前 SELECT_CHARA_RANDOM_LOGIC_●●(ARG:0)の●●の部分
 ;-------------------------------------------------
-@SELECT_CHARA_RANDOM_MULTI(最大選択数, 選択関数名)
+@SELECT_CHARA_RANDOM_MULTI(最大選択数, 選択関数名, バイアス関数名 = "")
 #DIMS 選択関数名
+#DIMS バイアス関数名
 #DIM 対象
 #DIM 候補, 3000
 #DIM 候補乱数, 3000
@@ -3594,16 +3616,28 @@ CATCH
 	THROW 指定された関数SELECT_CHARA_RANDOM_LOGIC_%選択関数名%が存在しません
 ENDCATCH
 
+IF バイアス関数名 != ""
+	TRYCCALLFORM SELECT_CHARA_RANDOM_BIAS_%バイアス関数名%(MASTER)
+	CATCH
+		THROW 指定された関数SELECT_CHARA_RANDOM_BIAS_%バイアス関数名%が存在しません
+	ENDCATCH
+ENDIF
+
 FOR LOCAL, 0, CHARANUM
 	CALLFORM SELECT_CHARA_RANDOM_LOGIC_%選択関数名%(LOCAL)
 	IF RESULT == 1
 		候補:候補数 = LOCAL
-		候補乱数:候補数 = RAND:__INT_MAX__
+		IF バイアス関数名 == ""
+			候補乱数:候補数 = RAND:__INT_MAX__
+		ELSE
+			CALLFORM SELECT_CHARA_RANDOM_BIAS_%バイアス関数名%(LOCAL)
+			候補乱数:候補数 = RAND(0, MIN(ABS(RESULT), 1) * 10000)
+		ENDIF
 		候補数 ++
 	ENDIF
 NEXT
 
-SELECTED_CHARA_NUM = MAX(候補数, 最大選択数)
+SELECTED_CHARA_NUM = MIN(候補数, 最大選択数)
 
 ;候補の方が多い場合、抽選する必要がある
 ;最大選択数の方が多い場合、全員を指定する

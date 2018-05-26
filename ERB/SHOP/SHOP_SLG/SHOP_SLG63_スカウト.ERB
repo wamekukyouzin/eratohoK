@@ -308,12 +308,6 @@ RETURNF MAX(提示額, 1)
 ;スカウト用、そのターンの候補の準備
 ;-------------------------------------------------
 @SCOUT_PREPARE_CANDIDATES
-#DIM カウンタ
-#DIM 候補, 3000
-#DIM 候補数
-VARSET 候補, -1
-VARSET 候補数
-VARSET カウンタ
 VARSET SCOUT_CANDIDATES
 VARSET SCOUT_PRICE
 
@@ -321,35 +315,33 @@ VARSET SCOUT_PRICE
 SIF !SCOUT_COUNT && DAY >= SLG_PP:1
 	SCOUT_COUNT = 1
 
-;対象を選出
-FOR LOCAL, 0, CHARANUM
-	;SPキャラは対象としない（野盗そのものがリストアップされるのを防ぐ
-	SIF IS_SP_CHARA(LOCAL)
-		CONTINUE
-	;関係性があまりにも悪いキャラも対象としない
-	SIF REL_LIKE:LOCAL:MASTER - REL_HATE:LOCAL:MASTER <= -1000
-		CONTINUE
-	;放浪中でないとだめ
-	SIF CFLAG:LOCAL:特殊状態 != 特殊状態_放浪
-		CONTINUE
-	候補:候補数 = LOCAL
-	候補数 ++
-NEXT
+CALL SELECT_CHARA_RANDOM_MULTI(SCOUT_MAX_CANDIDATES, "SCOUT_PREPARE_CANDIDATES")
 
 ;候補がいなければなしで。
-IF 候補数 < 1
+IF SELECTED_CHARA_NUM < 1
 	RETURN 0
 ENDIF
 
 ;作成した候補配列からランダムで商品とする。
 ;この関数をどこで呼び出してもキャラ番号ズレバグが起こらないよう、対象はキャラ番号でなくIDで保存する。
-CALL FISHER_YATES_SHAFFLE(候補数)
-
-FOR LOCAL, 0, MIN(候補数, VARSIZE("SCOUT_CANDIDATES"))
-	SCOUT_CANDIDATES:LOCAL = GET_ID(候補:(SHAFFLE_ARRAY:LOCAL))
-	SCOUT_PRICE:LOCAL = SCOUT_CALC_PRICE(候補:(SHAFFLE_ARRAY:LOCAL))
+FOR LOCAL, 0, MIN(SELECTED_CHARA_NUM, SCOUT_MAX_CANDIDATES)
+	SCOUT_CANDIDATES:LOCAL = GET_ID(SELECTED_CHARA:LOCAL)
+	SCOUT_PRICE:LOCAL = SCOUT_CALC_PRICE(SELECTED_CHARA:LOCAL)
 NEXT
 
+@SELECT_CHARA_RANDOM_LOGIC_SCOUT_PREPARE_CANDIDATES(対象)
+#DIM 対象
+;SPキャラは対象としない（野盗そのものがリストアップされるのを防ぐ
+SIF IS_SP_CHARA(LOCAL)
+	RETURN 0
+;関係性があまりにも悪いキャラも対象としない
+SIF REL_LIKE:LOCAL:MASTER - REL_HATE:LOCAL:MASTER <= -1000
+	RETURN 0
+;放浪中でないとだめ
+SIF CFLAG:LOCAL:特殊状態 != 特殊状態_放浪
+	RETURN 0
+
+RETURN 1
 
 ;-------------------------------------------------
 ;スカウト対象がどこまで値引きを許すか
