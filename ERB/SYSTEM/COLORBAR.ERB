@@ -1,0 +1,511 @@
+﻿
+;≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡
+; カラーバー表示用関数群
+;
+;≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡
+
+
+;================================================================
+; ゲージ(割合カラーバー)の表示処理。
+;  左端色から右端色へとグラデーションする。
+;--------------------------------
+;	nBarVol		: バー現在値
+;	nBarVolMax	: バー最大値（0以下指定だとnBarVolと同値として扱う）
+;	nScaleNum	: 目盛数（10000(0.01%*10000=100%)を割り切れる数で指定することを推奨）
+;	nScaleWidht	: 一目盛の幅（PRINT_RECTの幅の値）
+;					※ nScaleWidht*nScaleNumがバーの長さになる
+;	colorLeft	: バーの色(左端のメモリの色)
+;	colorRigth	: バーの色(右端(100%)のメモリの色)
+;	colorEmpty	: バーの色(Empty部分)
+;	flgExtra	: 特殊表示フラグ（ビット演算。）
+;					0x0001:最大値を超えて表示する, 0x0002:太いバー, 0x0004:細いバー, 0x0008:極太バー
+;					0x0010:BOTTOM表示, 0x0020:TOP表示
+;					0x0100:, 
+;					0x1000:メモリ区切りあり, 
+;--------------------------------
+; 注意点
+;	メモリ区切りありの場合、メモリ幅が小さいときれいに表示されない模様。
+;================================================================
+@PRINT_RATE_BAR( nBarVol, nBarVolMax, nScaleNum, nScaleWidht, colorLeft, colorRigth, colorEmpty, flgExtra )
+	#DIM nBarVol
+	#DIM nBarVolMax
+	#DIM nScaleNum
+	#DIM nScaleWidht
+	#DIM colorLeft
+	#DIM colorRigth
+	#DIM colorEmpty
+	#DIM flgExtra
+
+	CALL PRINT_RATE_BAR_EX( nBarVol, nBarVolMax, nScaleNum, nScaleWidht, colorLeft, colorRigth, colorEmpty, flgExtra, 0, 0x000000 )
+
+	RETURN
+
+
+;================================================================
+; ゲージ(割合カラーバー)の表示処理。
+;  左端色から右端色へとグラデーションする。
+;--------------------------------
+;	nBarVol		: バー現在値
+;	nBarVolMax	: バー最大値（0以下指定だとnBarVolと同値として扱う）
+;	nScaleNum	: 目盛数（10000(0.01%*10000=100%)を割り切れる数で指定することを推奨）
+;	nScaleWidht	: 一目盛の幅（PRINT_RECTの幅の値）
+;					※ nScaleWidht*nScaleNumがバーの長さになる
+;	colorLeft	: バーの色(左端のメモリの色)
+;	colorRigth	: バーの色(右端(100%)のメモリの色)
+;	colorEmpty	: バーの色(Empty部分)
+;	flgExtra	: 特殊表示フラグ（ビット演算。）
+;					0x0001:最大値を超えて表示する, 0x0002:太いバー, 0x0004:細いバー, 0x0008:極太バー
+;					0x0010:BOTTOM表示, 0x0020:TOP表示
+;					0x0100:, 
+;					0x1000:メモリ区切りあり, 
+;	nBarVol2	: nBarVol ～ nBarVol2までの値をcolorEmptyとは別の色で処理するために使用する
+;	colorVol2	: 
+;--------------------------------
+; 注意点
+;	メモリ区切りありの場合、メモリ幅が小さいときれいに表示されない模様。
+;================================================================
+@PRINT_RATE_BAR_EX( nBarVol, nBarVolMax, nScaleNum, nScaleWidht, colorLeft, colorRigth, colorEmpty, flgExtra, nBarVol2, colorVol2 )
+#LOCALSIZE 4
+	#DIM nBarVol
+	#DIM nBarVolMax
+	#DIM nScaleNum
+	#DIM nScaleWidht
+	#DIM colorLeft
+	#DIM colorRigth
+	#DIM colorEmpty
+	#DIM flgExtra
+	#DIM nBarVol2
+	#DIM colorVol2
+
+	#DIM colorLeft_RGB, 3
+	#DIM colorRigth_RGB, 3
+	#DIM nPointX
+	#DIM nPointY
+	#DIM nHeight
+	#DIM nRate
+	#DIM nLimitOver
+	#DIM nScaleRate
+	#DIM colorMem
+	#DIM nRate2
+
+	colorMem = GETCOLOR()
+
+	; nRate,nScaleRateは0.1%単位
+	IF flgExtra & 0x0008
+		nHeight = 90
+	ELSEIF flgExtra & 0x0002
+		nHeight = 40
+	ELSEIF flgExtra & 0x0004
+		nHeight = 12
+	ELSE
+		nHeight = 24
+	ENDIF
+	IF flgExtra & 0x1000
+		nPointX = LIMIT( 12, nScaleWidht / 10, nScaleWidht / 3 )
+	ELSE
+		nPointX = 0
+	ENDIF
+	IF flgExtra & 0x0010
+		nPointY = (100 - nHeight) * 4 / 5
+	ELSEIF flgExtra & 0x0020
+		nPointY = (100 - nHeight) * 1 / 5
+	ELSE
+		nPointY = (100 - nHeight) / 2
+	ENDIF
+
+	colorLeft_RGB:0 = colorLeft / 256 / 256
+	colorLeft_RGB:1 = colorLeft / 256 % 256
+	colorLeft_RGB:2 = colorLeft % 256
+	colorRigth_RGB:0 = colorRigth / 256 / 256
+	colorRigth_RGB:1 = colorRigth / 256 % 256
+	colorRigth_RGB:2 = colorRigth % 256
+
+	nLimitOver = ((flgExtra & 0x01) ? 1 # 0)
+
+	IF nBarVolMax > 0
+		nRate = MAX(10000 * nBarVol / nBarVolMax, 0)
+		nRate2 = MAX(10000 * nBarVol2 / nBarVolMax, 0)
+	ELSE
+		nRate = 10000
+		nRate2 = 10000
+	ENDIF
+	IF nLimitOver == 0
+		nRate = LIMIT(nRate, 0, 10000)
+		nRate2 = LIMIT(nRate2, 0, 10000)
+	ENDIF
+
+	; 1目盛で進むパーセンテージを算出
+	nScaleRate = MAX(10000 / nScaleNum, 1)
+
+	; ゲージの描画ループ（1目盛ずつ色をグラデーションさせながら描画する）
+	FOR LOCAL, 0, nScaleNum
+		IF nRate > 0
+			LOCAL:1 = LIMIT( colorLeft_RGB:0 + (colorRigth_RGB:0 - colorLeft_RGB:0) * LOCAL / nScaleNum, 0, 0xFF )
+			LOCAL:2 = LIMIT( colorLeft_RGB:1 + (colorRigth_RGB:1 - colorLeft_RGB:1) * LOCAL / nScaleNum, 0, 0xFF )
+			LOCAL:3 = LIMIT( colorLeft_RGB:2 + (colorRigth_RGB:2 - colorLeft_RGB:2) * LOCAL / nScaleNum, 0, 0xFF )
+			SETCOLOR ((LOCAL:1 * 256 * 256) + (LOCAL:2 * 256) + (LOCAL:3))
+		ELSE
+			IF nRate2 > 0
+				SETCOLOR colorVol2
+			ELSE
+				; 現在値を超えたので空のゲージ表示になる
+				SETCOLOR colorEmpty
+			ENDIF
+		ENDIF
+		PRINT_RECT nPointX, nPointY, nScaleWidht - nPointX, nHeight
+		nRate -= nScaleRate
+		nRate2 -= nScaleRate
+	NEXT
+
+	IF nLimitOver
+		; 最大値を超えて表示する場合の表示処理。もう色は変えない
+		WHILE nRate > 0 || nRate2 > 0
+			PRINT_RECT nPointX, nPointY, nScaleWidht - nPointX, nHeight
+			nRate -= nScaleRate
+			nRate2 -= nScaleRate
+		WEND
+	ENDIF
+
+	; フォント色を元に戻す
+	SETCOLOR colorMem
+
+	RETURN
+
+
+;================================================================
+; RGBスライダーの生成。（バーっぽく見えるけど実際はボタンの集合体）
+;--------------------------------
+;	nBaseColor	: 基準となるカラー値
+;================================================================
+@PRINT_RGB_SLIDER( nBaseColor )
+#LOCALSIZE 4
+	#DIM nBaseColor
+
+	#DIM nColorBuf
+	#DIM color_RGB, 3
+	#DIM nSelectMark
+	#DIM loopColor
+	#DIM loopRGB
+	#DIM colorMem
+	#DIMS strFontMem
+
+	colorMem = GETCOLOR()
+	strFontMem = %GETFONT()%
+	nColorBuf = nBaseColor
+
+	SIF LINEISEMPTY() == 0
+		PRINTFORML
+
+	color_RGB:0 = nColorBuf / 256 / 256
+	color_RGB:1 = nColorBuf / 256 % 256
+	color_RGB:2 = nColorBuf % 256
+
+	SETFONT "ＭＳ ゴシック"
+	FOR loopRGB, 0, 3
+		SELECTCASE loopRGB
+			CASE 0
+			; R値を変更
+				PRINTFORM %" Ｒ値: "%
+			CASE 1
+			; G値を変更
+				PRINTFORM %" Ｇ値: "%
+			CASE 2
+			; B値を変更
+				PRINTFORM %" Ｂ値: "%
+		ENDSELECT
+		FOR loopColor, 0, 65
+		; 0x00～0xFF（0x04刻み）
+			nSelectMark = 0
+			LOCAL:1 = color_RGB:0
+			LOCAL:2 = color_RGB:1
+			LOCAL:3 = color_RGB:2
+			SELECTCASE loopRGB
+				CASE 0
+				; R値を変更
+					LOCAL:1 = LIMIT(loopColor * 0x04, 0x00, 0xFF)
+					SIF loopColor == ((color_RGB:0 + 3) / 0x04)
+						nSelectMark = 1
+				CASE 1
+				; G値を変更
+					LOCAL:2 = LIMIT(loopColor * 0x04, 0x00, 0xFF)
+					SIF loopColor == ((color_RGB:1 + 3) / 0x04)
+						nSelectMark = 1
+				CASE 2
+				; B値を変更
+					LOCAL:3 = LIMIT(loopColor * 0x04, 0x00, 0xFF)
+					SIF loopColor == ((color_RGB:2 + 3) / 0x04)
+						nSelectMark = 1
+			ENDSELECT
+			LOCAL = (LOCAL:1 * 256 * 256) + (LOCAL:2 * 256) + (LOCAL:3)
+			SETCOLOR LOCAL
+			; 半角サイズの■ボタン。番号はそのカラー値を使用する
+			IF nSelectMark == 0
+				PRINTBUTTON @"%UNICODE(0x2588)%", LOCAL
+			ELSE
+				PRINTBUTTON @"%UNICODE(0x2593)%", LOCAL
+			ENDIF
+		NEXT
+		PRINTL 
+		RESETCOLOR
+	NEXT
+
+	; フォント,色を元に戻す
+	SETCOLOR colorMem
+	SETFONT strFontMem
+
+	RETURN
+
+
+;================================================================
+; HSBスライダーの生成。（バーっぽく見えるけど実際はボタンの集合体）
+;
+; ※ MEMO 同じ位置を連続で押下した時に、押下する度に色が変化してしまうことがある。
+;		ボタンの集合体で表現しているため、中間の値を表示できないことが原因？
+;		（ボタン65個に対して、彩度,明度は0～255、色相は0～360）
+;--------------------------------
+;	nBaseColor	: 基準となるカラー値
+;================================================================
+@PRINT_HSB_SLIDER( nBaseColor )
+#LOCALSIZE 4
+	#DIM nBaseColor
+
+	#DIM nColorBuf
+	#DIM color_RGB, 3
+	#DIM color_RGB_Max
+	#DIM color_RGB_Min
+	#DIM color_HSB, 3
+	#DIM arrBuf_HSB, 3
+	#DIM nSelectMark
+	#DIM loopColor
+	#DIM loopHSB
+	#DIM colorMem
+	#DIMS strFontMem
+	; color_HSB		: 渡された色のHSB値を保持する。[0]:色相, [1]:彩度, [2]:明度
+	; color_RGB_Max	: 渡された色のRGB成分の内、最大の値を保持する。
+	; color_RGB_Min	: 渡された色のRGB成分の内、最小の値を保持する。
+
+	colorMem = GETCOLOR()
+	strFontMem = %GETFONT()%
+	nColorBuf = nBaseColor
+
+	SIF LINEISEMPTY() == 0
+		PRINTFORML
+
+	color_RGB:0 = nColorBuf / 256 / 256
+	color_RGB:1 = nColorBuf / 256 % 256
+	color_RGB:2 = nColorBuf % 256
+	; RGB成分の内、最大,最小の成分を確認
+	color_RGB_Max = MAX( color_RGB:0, color_RGB:1, color_RGB:2 )
+	color_RGB_Min = MIN( color_RGB:0, color_RGB:1, color_RGB:2 )
+
+	; 色相の算出
+	IF color_RGB_Max == color_RGB_Min
+		color_HSB:0 = 0
+	ELSE
+		IF (color_RGB_Max == color_RGB:1)
+			color_HSB:0 = 60 * (color_RGB:2 - color_RGB:0) / (color_RGB_Max - color_RGB_Min) + 120
+		ELSEIF (color_RGB_Max == color_RGB:2)
+			color_HSB:0 = 60 * (color_RGB:0 - color_RGB:1) / (color_RGB_Max - color_RGB_Min) + 240
+		ELSEIF (color_RGB_Max == color_RGB:0)
+			color_HSB:0 = 60 * (color_RGB:1 - color_RGB:2) / (color_RGB_Max - color_RGB_Min)
+			SIF color_HSB:0 < 0
+				color_HSB:0 = color_HSB:0 + 360
+		ELSE
+		ENDIF
+	ENDIF
+	color_HSB:0 = LIMIT(color_HSB:0, 0, 359)
+
+	; 彩度の算出
+	IF color_RGB_Max == color_RGB_Min
+		color_HSB:1 = 0
+	ELSE
+		color_HSB:1 = 0xFF * (color_RGB_Max - color_RGB_Min) / color_RGB_Max
+	ENDIF
+
+	; 明度の算出
+	color_HSB:2 = color_RGB_Max
+
+	SETFONT "ＭＳ ゴシック"
+	FOR loopHSB, 0, 3
+		SELECTCASE loopHSB
+			CASE 0
+			; 色相を変更
+				PRINTFORM %" 色相: "%
+			CASE 1
+			; 彩度を変更
+				PRINTFORM %" 彩度: "%
+			CASE 2
+			; 明度を変更
+				PRINTFORM %" 明度: "%
+		ENDSELECT
+		FOR loopColor, 0, 65
+		; 0～255（4刻み）
+			nSelectMark = 0
+			arrBuf_HSB:0 = color_HSB:0
+			arrBuf_HSB:1 = color_HSB:1
+			arrBuf_HSB:2 = color_HSB:2
+			SELECTCASE loopHSB
+				CASE 0
+				; 色相を変更
+					arrBuf_HSB:0 = LIMIT( loopColor * 4 * 360 / 256, 0, 360 )
+					IF loopColor == ((10 * color_HSB:0 * 256 / 360 + 15) / 10 / 4)
+						nSelectMark = 1
+						arrBuf_HSB:0 = color_HSB:0
+					ENDIF
+				CASE 1
+				; 彩度を変更
+					arrBuf_HSB:1 = LIMIT( loopColor * 4, 0x00, 0xFF )
+					IF loopColor == ((color_HSB:1 + 3) / 4)
+						nSelectMark = 1
+						arrBuf_HSB:1 = color_HSB:1
+					ENDIF
+				CASE 2
+				; 明度を変更
+					arrBuf_HSB:2 = LIMIT( loopColor * 4, 0x00, 0xFF )
+					IF loopColor == ((color_HSB:2 + 3) / 4)
+						nSelectMark = 1
+						arrBuf_HSB:2 = color_HSB:2
+					ENDIF
+			ENDSELECT
+			; 色の算出式は色相によって変わる
+			color_RGB_Max = LIMIT( arrBuf_HSB:2, 0, 255 )
+			color_RGB_Min = LIMIT( color_RGB_Max - (arrBuf_HSB:1 * color_RGB_Max / 0xFF), 0, 255 )
+			SELECTCASE arrBuf_HSB:0
+				CASE 0 TO 59
+					LOCAL:1 = color_RGB_Max
+					LOCAL:2 = color_RGB_Min + ((color_RGB_Max - color_RGB_Min) * (arrBuf_HSB:0) / 60)
+					LOCAL:3 = color_RGB_Min
+				CASE 60 TO 119
+					LOCAL:1 = color_RGB_Min + ((color_RGB_Max - color_RGB_Min) * (120 - arrBuf_HSB:0) / 60)
+					LOCAL:2 = color_RGB_Max
+					LOCAL:3 = color_RGB_Min
+				CASE 120 TO 179
+					LOCAL:1 = color_RGB_Min
+					LOCAL:2 = color_RGB_Max
+					LOCAL:3 = color_RGB_Min + ((color_RGB_Max - color_RGB_Min) * (arrBuf_HSB:0 - 120) / 60)
+				CASE 180 TO 239
+					LOCAL:1 = color_RGB_Min
+					LOCAL:2 = color_RGB_Min + ((color_RGB_Max - color_RGB_Min) * (240 - arrBuf_HSB:0) / 60)
+					LOCAL:3 = color_RGB_Max
+				CASE 240 TO 299
+					LOCAL:1 = color_RGB_Min + ((color_RGB_Max - color_RGB_Min) * (arrBuf_HSB:0 - 240) / 60)
+					LOCAL:2 = color_RGB_Min
+					LOCAL:3 = color_RGB_Max
+				CASE 300 TO 360
+					LOCAL:1 = color_RGB_Max
+					LOCAL:2 = color_RGB_Min
+					LOCAL:3 = color_RGB_Min + ((color_RGB_Max - color_RGB_Min) * (360 - arrBuf_HSB:0) / 60)
+			ENDSELECT
+			; 同じ位置を押下しても色が変わっていってしまう。緩和策として0x04区切りに直す
+			LOCAL:1 = LIMIT( (LOCAL:1 + 3) / 0x04 * 0x04, 0, 255 )
+			LOCAL:2 = LIMIT( (LOCAL:2 + 3) / 0x04 * 0x04, 0, 255 )
+			LOCAL:3 = LIMIT( (LOCAL:3 + 3) / 0x04 * 0x04, 0, 255 )
+			LOCAL = (LOCAL:1 * 256 * 256) + (LOCAL:2 * 256) + (LOCAL:3)
+			SETCOLOR LOCAL
+			; 半角サイズの■ボタン。番号はそのカラー値を使用する
+			IF nSelectMark == 0
+				PRINTBUTTON @"%UNICODE(0x2588)%", LOCAL
+			ELSE
+				PRINTBUTTON @"%UNICODE(0x2593)%", LOCAL
+			ENDIF
+		NEXT
+		PRINTL 
+		RESETCOLOR
+	NEXT
+
+	; フォント,色を元に戻す
+	SETCOLOR colorMem
+	SETFONT strFontMem
+
+	RETURN
+
+
+
+
+
+
+
+
+
+;================================================================
+; カラースライダー二つを表示してピックできるなにか
+; サンプルは色のサンプルリスト 0x形式でコンマ区切り
+;================================================================
+@COLOR_PICKER(初期色 = -1, サンプル文字列 = "")
+#DIM 初期色
+#DIM 色
+#DIMS サンプル文字列
+#DIM サンプル, 15
+#DIM サンプル数
+#DIM FIRST_LINE
+
+CALL SINGLE_DRAWLINE()
+
+FIRST_LINE = LINECOUNT
+
+VARSET サンプル数, 0
+
+IF サンプル文字列 != ""
+	SPLIT サンプル文字列, ",", RESULTS
+	サンプル数 = RESULT
+	FOR LOCAL, 0, サンプル数
+		サンプル:LOCAL = TOINT(RESULTS:LOCAL)
+	NEXT
+ENDIF
+
+色 = 初期色 == -1 ? 0 # 初期色
+
+; スライダー操作ループ
+WHILE 1
+	SIF LINECOUNT > FIRST_LINE
+		CLEARLINE LINECOUNT - FIRST_LINE
+
+	色 = LIMIT( 色, 0x000000, 0xFFFFFF )
+
+	PRINTFORM 現在のカラー：0x%TOSTR(色, "X6")%
+	SETCOLOR 色
+	PRINTFORML ■
+	RESETCOLOR
+
+	; RGBスライダー（実際はボタンの集合体）を表示する
+	PRINTFORML RGBスライダー
+	CALL PRINT_RGB_SLIDER( 色 )
+	PRINTL 
+
+	; HSBスライダー（実際はボタンの集合体）を表示する
+	PRINTFORML HSBスライダー
+	CALL PRINT_HSB_SLIDER( 色 )
+	PRINTL 
+
+	IF サンプル数 > 0
+		PRINTFORM その他の色 : 
+		FOR LOCAL, 0, サンプル数
+			LOCAL:1 = サンプル:(LOCAL)
+			SETCOLOR LOCAL:1
+			PRINTBUTTON @"■", LOCAL:1
+			PRINTFORM 　
+			RESETCOLOR
+		NEXT
+		PRINTL 
+	ENDIF
+
+	IF 初期色 != -1
+		PRINTFORML   最初の色 :
+		SETCOLOR 初期色
+		PRINTBUTTON @"■", 初期色
+		RESETCOLOR
+		PRINTL
+	ENDIF
+
+	PRINTBUTTON "[戻る]", -1
+
+	; 入力待機（RGBスライダー,HSBスライダーのボタンの値が色を示す値になっている）
+	INPUT
+
+	SIF RESULT == -1
+		BREAK
+
+	色 = RESULT
+WEND
+
+RETURN 色
