@@ -340,7 +340,7 @@ VARSET 判定基礎値
 ;説得側の判定値
 ;君主の場合は忠誠最大として扱う
 
-判定基礎値:0 = CALC_SETTOKU_EFFECT_TARGET(説得者, 対象)
+判定基礎値:0 = CALC_SETTOKU_EFFECT(説得者, 対象)
 判定基礎値:1 = CALC_SETTOKU_EFFECT_TARGET(対象, 説得者)
 
 PRINTFORML -<%ANAME(説得者)%>の<%ANAME(対象)%>への説得-
@@ -380,7 +380,7 @@ CFLAG:説得者:行動済み = 1
 IF 判定値 > 0
 	SIF REL_LIKE:対象:説得者君主 < REL_HATE:対象:説得者君主
 		TIMES 効果量:1, 1.5
-	CALL CHANGE_RELATION_O_TO_C(対象, CFLAG:説得者:所属, 効果量:0 * 2 / 3, -効果量:1 * 2/ 3)
+	CALL CHANGE_RELATION_O_TO_C(対象, CFLAG:説得者:所属, 効果量:0, -効果量:1)
 	CALL CHANGE_RELATION_O_TO_O(対象, 説得者, 効果量:0 / 2, -効果量:1 / 2)
 	CALL CHANGE_RELATION_O_TO_C(説得者, CFLAG:説得者:所属, 効果量:0 / 3, -効果量:1 / 3)
 ELSEIF 判定値 < 0
@@ -403,6 +403,8 @@ RETURN 1
 ;-------------------------------------------------
 @SETTOKU_REL_EFFECT(ARG:0, ARG:1)
 #FUNCTION
+SIF ARG:0 == ARG:1
+	RETURNF 100
 RETURNF MAX((REL_LIKE:(ARG:0):(ARG:1) - REL_HATE:(ARG:0):(ARG:1)) * 100 / 1500, 0)
 
 ;-------------------------------------------------
@@ -432,7 +434,7 @@ RETURNF SETTOKU_BASE_EFFECT(ARG:0) - (君主 >= 0 ? SETTOKU_REL_EFFECT(ARG:1, �
 LOCAL = 0
 IF ARG:0 != 君主 && 君主 >= 0
 	LOCAL += SETTOKU_REL_EFFECT(ARG:0, 君主) / 2
-ELSE
+ELSEIF ARG:0 == 君主
 	LOCAL += 50
 ENDIF
 RETURNF LOCAL + ABL_POWER(ABL:(ARG:0):政治, ARG:0) / 1000 + ABL_POWER(ABL:(ARG:0):知略, ARG:0) / 1000
