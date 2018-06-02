@@ -47,8 +47,8 @@ PRINTFORM %TOSTR_SPACE(40)%
 PRINTFORM <一括> 
 PRINTBUTTON "{拘留}",10
 PRINTBUTTON "{拷問}",12
-PRINTBUTTON "{Ｃ開発}",13
-PRINTBUTTON "{Ｂ開発}",14
+PRINTBUTTON "{身体開発}",13
+PRINTBUTTON "{説得}",14
 PRINTBUTTON "{性処理}",15
 IF LOCAL:20
 	PRINTBUTTON "{触手調教}",16
@@ -85,8 +85,8 @@ FOR LOCAL:0, 0, CHARANUM
 			CALL PRINT_GRADATIONBAR(BASE:(LOCAL):精神力, MAXBASE:(LOCAL):精神力, 10, 0x5E9AFF)
 			CALL SETSTATE_PRISONER_BUTTON(LOCAL:0, 0, "拘留")
 			CALL SETSTATE_PRISONER_BUTTON(LOCAL:0, 2, "拷問")
-			CALL SETSTATE_PRISONER_BUTTON(LOCAL:0, 3, "Ｃ開発")
-			CALL SETSTATE_PRISONER_BUTTON(LOCAL:0, 4, "Ｂ開発")
+			CALL SETSTATE_PRISONER_BUTTON(LOCAL:0, 3, "身体開発")
+			CALL SETSTATE_PRISONER_BUTTON(LOCAL:0, 4, "説得")
 			CALL SETSTATE_PRISONER_BUTTON(LOCAL:0, 5, "性処理")
 			IF LOCAL:20
 				CALL SETSTATE_PRISONER_BUTTON(LOCAL:0, 6, "触手調教")
@@ -268,24 +268,33 @@ ELSE
 	CFLAG:(ARG:0):捕虜哀 = 2000
 ENDIF
 
-;■Ｃ開発
+;■身体開発
 @EVENT_PRISONER3(ARG:0)
 CALL EVENT_PRISONER_TEXT3(ARG:0)
-CALL FUCK(ARG:0, "欲望, Ｃ, レズ")
+SELECTCASE RAND:4
+	CASE 0
+		CALL FUCK(ARG:0, "欲望, Ｃ")
+	CASE 1
+		CALL FUCK(ARG:0, "欲望, Ｂ")
+	CASE 2
+		CALL FUCK(ARG:0, "欲望, Ｖ")
+	CASE 3
+		CALL FUCK(ARG:0, "欲望, Ａ")
+ENDSELECT
+
 CALL TRAIN_AUTO_ABLUP(ARG:0)
-CFLAG:(ARG:0):捕虜怒 = 500
-CFLAG:(ARG:0):捕虜哀 = 500
+CFLAG:(ARG:0):捕虜怒 = 800
+CFLAG:(ARG:0):捕虜哀 = 800
 CFLAG:(ARG:0):捕虜怖 = 250
 
-;■Ｂ開発
+;■説得
 @EVENT_PRISONER4(ARG:0)
 CALL EVENT_PRISONER_TEXT4(ARG:0)
-CALL FUCK(ARG:0, "欲望, Ｂ, レズ")
 CALL TRAIN_AUTO_ABLUP(ARG:0)
+CFLAG:(ARG:0):捕虜怒 = 0
+CFLAG:(ARG:0):捕虜哀 = 0
+CFLAG:(ARG:0):捕虜怖 = 100
 
-CFLAG:(ARG:0):捕虜怒 = 400
-CFLAG:(ARG:0):捕虜哀 = 400
-CFLAG:(ARG:0):捕虜怖 = 200
 
 ;■性処理
 @EVENT_PRISONER5(ARG:0)
@@ -555,11 +564,6 @@ IF CFLAG:(ARG:0):軟禁中 == 0
 			TIMES PALAM:(ARG:0):怒主, 0.60
 			TIMES PALAM:(ARG:0):哀主, 0.60
 			TIMES PALAM:(ARG:0):怖主, 0.30
-			IF REL_LIKE:(ARG:0):MASTER < 300
-				LOCAL = 10
-			ELSE
-				LOCAL = 0
-			ENDIF
 			BASE:(ARG:0):精神力 = MIN(BASE:(ARG:0):精神力 + MAX(MAXBASE:(ARG:0):精神力 / 10, 300), MAXBASE:(ARG:0):精神力)
 		;拷問
 		CASE 2
@@ -581,7 +585,7 @@ IF CFLAG:(ARG:0):軟禁中 == 0
 				CFLAG:(ARG:0):崩壊 += 800 - BASE:(ARG:0):精神力 * 2
 			ENDIF
 
-		;Ｃ開発
+		;身体開発
 		CASE 3
 			CUP:(ARG:0):怒主 = CFLAG:(ARG:0):捕虜怒
 			CUP:(ARG:0):哀主 = CFLAG:(ARG:0):捕虜哀
@@ -600,29 +604,12 @@ IF CFLAG:(ARG:0):軟禁中 == 0
 			IF BASE:(ARG:0):精神力 < 0
 				CFLAG:(ARG:0):崩壊 += 400 - BASE:(ARG:0):精神力
 			ENDIF
-
-			
-		;Ｂ開発
+		;説得
 		CASE 4
-			CUP:(ARG:0):怒主 = CFLAG:(ARG:0):捕虜怒
-			CUP:(ARG:0):哀主 = CFLAG:(ARG:0):捕虜哀
-			CUP:(ARG:0):怖主 = CFLAG:(ARG:0):捕虜怖
-			;ソース処理の関数を流用
-			CALL UP_TALENT_CHECK3(ARG:0)
-
-			PALAM:(ARG:0):怒外 += CUP:(ARG:0):怒主
-			PALAM:(ARG:0):哀外 += CUP:(ARG:0):哀主
-			PALAM:(ARG:0):怖外 += CUP:(ARG:0):怖主
 			TIMES PALAM:(ARG:0):怒主, 0.30
 			TIMES PALAM:(ARG:0):哀主, 0.30
 			TIMES PALAM:(ARG:0):怖主, 0.40
-
-			BASE:(ARG:0):精神力 = MAX(BASE:(ARG:0):精神力 - CUP:(ARG:0):怖主 / 2, -500)
-			IF BASE:(ARG:0):精神力 < 0
-				CFLAG:(ARG:0):崩壊 += 400 - BASE:(ARG:0):精神力
-			ENDIF
-
-			
+			BASE:(ARG:0):精神力 = MIN(BASE:(ARG:0):精神力 + MAX(MAXBASE:(ARG:0):精神力 / 15, 300), MAXBASE:(ARG:0):精神力)
 		;性処理
 		CASE 5
 			CUP:(ARG:0):怒主 = CFLAG:(ARG:0):捕虜怒
@@ -760,14 +747,15 @@ IF CFLAG:(ARG:0):軟禁中 == 0
 		CASE 2
 			LIKE = -4
 			HATE = 4
-		;Ｃ開発
+		;身体開発
 		CASE 3
 			LIKE = -3
 			HATE = 4
-		;Ｂ開発
+		;説得
 		CASE 4
-			LIKE = -3
-			HATE = 4
+			LIKE = 0
+			HATE = 1
+			CALL CHANGE_COUNTRY_O_TO_C(ARG:0, 30, -10)
 		;性処理
 		CASE 5
 			LIKE = -5
@@ -802,11 +790,9 @@ IF CFLAG:(ARG:0):所属 != 0
 		HATE = 0
 
 	CALL CHANGE_RELATION_C_TO_C(CFLAG:(ARG:0):所属, CFLAG:(ARG:0):捕虜先, LIKE, HATE)
-
-	LIKE /= 2
-	HATE /= 2
+ELSE
+	CALL CHANGE_RELATION_O_TO_C(ARG:0, CFLAG:(ARG:0):捕虜先, LIKE, HATE)
 ENDIF
 
-CALL CHANGE_RELATION_O_TO_C(ARG:0, CFLAG:(ARG:0):捕虜先, LIKE, HATE)
 
 ;PRINTFORML 後　%ANAME(ARG:0)% → %ANAME(MASTER)% L{REL_LIKE:(ARG:0):(MASTER)}  H{REL_HATE:(ARG:0):(MASTER)}
