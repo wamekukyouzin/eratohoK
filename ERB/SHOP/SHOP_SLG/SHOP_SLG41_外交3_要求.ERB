@@ -76,6 +76,7 @@ ELSE
 	ENDIF
 	LOCAL:11 = 0
 	LOCAL:12 = 0
+	PRINTFORML [0] 国力を背景に脅す
 	IF TALENT:(LOCAL:5):烙印 || TALENT:(LOCAL:5):服従 || TALENT:(LOCAL:5):隷属 || (GETBIT(TALENT:(LOCAL:5):淫乱系, 素質_淫乱_マゾ) && TALENT:(LOCAL:5):恋慕)
 		PRINTFORML [1] 快楽で言うことを聞かせる
 		LOCAL:11 = 1
@@ -89,45 +90,44 @@ ELSE
 	$INPUT_LOOP
 	INPUT
 	;武力で脅す
-	;実質DIPLOMACY_CHECKと変わらんので削除
-	; IF RESULT == 0
-	; 	IF LOCAL:10
-	; 		PRINTFORMW %ANAME(MASTER)%は露骨に両国の国力の差をチラつかせながら交渉した
-	; 		IF TALENT:(LOCAL:5):反抗的 || TALENT:(LOCAL:5):生意気 || TALENT:(LOCAL:5):プライド高い
-	; 			PRINTFORMW %ANAME(LOCAL:5)%は%ANAME(MASTER)%の言葉に明らかに苛立っているが、勢力の力量の圧倒的な差を前に反論できずにいる
-	; 			PRINTFORMW ……やがて、%ANAME(LOCAL:5)%は怒りを押し殺した声で、要求に従うことを約束した
-	; 		ELSE
-	; 			PRINTFORMW %ANAME(LOCAL:5)%は%ANAME(MASTER)%の脅しも同然の言葉の前に、苦しげな表情で押し黙っている
-	; 			PRINTFORMW ……やがて、%ANAME(LOCAL:5)%は諦めたようにして、%ANAME(MASTER)%の要求に従うことを約束した
-	; 		ENDIF
+	IF RESULT == 0
+		IF LOCAL:10
+			PRINTFORMW %ANAME(MASTER)%は露骨に両国の国力の差をチラつかせながら交渉した
+			IF TALENT:(LOCAL:5):反抗的 || TALENT:(LOCAL:5):生意気 || TALENT:(LOCAL:5):プライド高い
+				PRINTFORMW %ANAME(LOCAL:5)%は%ANAME(MASTER)%の言葉に明らかに苛立っているが、勢力の力量の圧倒的な差を前に反論できずにいる
+				PRINTFORMW ……やがて、%ANAME(LOCAL:5)%は怒りを押し殺した声で、要求に従うことを約束した
+			ELSE
+				PRINTFORMW %ANAME(LOCAL:5)%は%ANAME(MASTER)%の脅しも同然の言葉の前に、苦しげな表情で押し黙っている
+				PRINTFORMW ……やがて、%ANAME(LOCAL:5)%は諦めたようにして、%ANAME(MASTER)%の要求に従うことを約束した
+			ENDIF
 
-	; 		;関係悪化
-	; 		CALL CHANGE_RELATION_C_TO_C(ARG:0, CFLAG:MASTER:所属, -100, 150)
+			;関係悪化
+			CALL CHANGE_RELATION_C_TO_C(ARG:0, CFLAG:MASTER:所属, -100, 150)
 
-	; 		;性的な要求なら周囲からの評判も悪化
-	; 		IF ARG:2
-	; 			FOR LOCAL:0, 1, MAX_COUNTRY
-	; 				SIF IS_COUNTRY(LOCAL:0) && LOCAL:0 != CFLAG:MASTER:所属
-	; 					CALL CHANGE_RELATION_C_TO_C(LOCAL:0, CFLAG:MASTER:所属, -100, 50)
-	; 			NEXT
-	; 		ENDIF
+			;性的な要求なら周囲からの評判も悪化
+			IF ARG:2
+				FOR LOCAL:0, 1, MAX_COUNTRY
+					SIF IS_COUNTRY(LOCAL:0) && LOCAL:0 != CFLAG:MASTER:所属
+						CALL CHANGE_RELATION_C_TO_C(LOCAL:0, CFLAG:MASTER:所属, -100, 50)
+				NEXT
+			ENDIF
 
-	; 		CFLAG:(LOCAL:5):外交要求成功フラグ = 1
-	; 		DIPLOMACY_HATE:(CFLAG:MASTER:所属) += 2
-	; 		RETURN 1
+			CFLAG:(LOCAL:5):外交要求成功フラグ = 1
+			DIPLOMACY_HATE:(CFLAG:MASTER:所属) += 2
+			RETURN 1
 
-	; 	ELSE
-	; 		IF TALENT:(LOCAL:5):反抗的 || TALENT:(LOCAL:5):生意気 || TALENT:(LOCAL:5):プライド高い
-	; 			PRINTFORMW %ANAME(MASTER)%は両国の武力の差を熱心に語りかけたが、%ANAME(LOCAL:5)%は聞く耳を持たなかった…
-	; 		ELSE
-	; 			PRINTFORMW %ANAME(MASTER)%は両国の武力の差を熱心に語りかけたが、%ANAME(LOCAL:5)%に冷静に反論され話が進まなかった…
-	; 		ENDIF
+		ELSE
+			IF TALENT:(LOCAL:5):反抗的 || TALENT:(LOCAL:5):生意気 || TALENT:(LOCAL:5):プライド高い
+				PRINTFORMW %ANAME(MASTER)%は両国の武力の差を熱心に語りかけたが、%ANAME(LOCAL:5)%は聞く耳を持たなかった…
+			ELSE
+				PRINTFORMW %ANAME(MASTER)%は両国の武力の差を熱心に語りかけたが、%ANAME(LOCAL:5)%に冷静に反論され話が進まなかった…
+			ENDIF
 
-	; 		RETURN 0
-	; 	ENDIF
+			RETURN 0
+		ENDIF
 
 	;快楽で言うことを聞かせる
-	IF RESULT == 1 && LOCAL:11
+	ELSEIF RESULT == 1 && LOCAL:11
 		;口上の表示
 		PRINTFORMW %ANAME(MASTER)%は%ANAME(LOCAL:5)%に人払いをするように求めた
 		PRINTFORMW ………………
@@ -797,7 +797,7 @@ RETURNF LOCAL:3
 最終ノルマ += DIPLOMACY_HATE:(勢力) * 3
 
 
-最終値 = スコア:0 + スコア:1 + スコア:2
+最終値 = スコア:0 * (経済差 >= 0 ? 1 # -1) + スコア:1 * (兵力差 >= 0 ? 1 # -1) + スコア:2 * (政治力差 >= 0 ? 1 # -1)
 
 SELECTCASE REL_LIKE:要求先君主:君主 - REL_HATE:要求先君主:君主
 	CASE IS > 1000
