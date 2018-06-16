@@ -1,0 +1,132 @@
+﻿;-------------------------------------------------
+;「防衛解除」の名称
+;-------------------------------------------------
+@SHOP_SLG_NAME33
+RESULTS:0 '= "自動防衛"
+
+;-------------------------------------------------
+;「防衛解除」の選択可否
+;-------------------------------------------------
+@SHOP_SLG_CHECK33
+SIF FLAG:クリアフラグ
+	RETURN 0
+SIF FLAG:観戦モード
+	RETURN 0
+SIF CFLAG:MASTER:所属 == 0
+	RETURN 0
+SIF CONFIG:302 != 0
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;「防衛解除」の左カラムメニューの入力処理
+;-------------------------------------------------
+@SHOP_SLG_EVENTBUY33
+CALL AUTOSET_GUARD
+RETURN 1
+
+;-------------------------------------------------
+;「防衛自動設定」本体
+;-------------------------------------------------
+@AUTOSET_GUARD
+#DIM 武将も
+#DIM 勢力
+#DIM 部隊
+#DIM 防衛スコア, MAX_CITY
+#DIM 防衛スコア合計
+#DIM 初期兵数
+#DIM 振り分け兵数
+#DIM 都市数
+#DIM 都市
+#DIM 項番
+
+CALL SINGLE_DRAWLINE
+PRINTFORML 未割り当ての兵力を自動で各都市に振り分けます
+PRINTFORML なお、敵の都市と一切隣接していない場合、このコマンドは何もしません
+PRINTFORML よろしいですか？
+
+CALL ASK_MULTI("実行", "キャンセル")
+
+SIF RESULT == 2
+	RETURN
+
+
+VARSET 防衛スコア合計
+VARSET 防衛スコア, __INT_MIN__
+
+;国家間の隣接関係マップの作成(処理の高速化)
+CALL TMP_CREATE_COUNTRY_NEIBORING_MAP
+;接続マップの作成
+CALL TMP_CREATE_CONNECTION_MAP
+;飛び地マップの作成
+CALL TMP_CREATE_ENCLAVE_MAP
+;ユニット関連
+CALL TMP_CREATE_UNIT_MAP
+CALL TMP_CREATE_COUNTRY_NEIBORING_MAP
+;重要性の設定
+CALL TMP_CREATE_OFFENSIVE_IMPORTANCE_MAP
+CALL TMP_CREATE_DEFENSIVE_IMPORTANCE_MAP
+;リスクと侵攻
+CALL TMP_CREATE_IS_INVADABLE_MAP
+CALL TMP_CREATE_CITY_RISK_MAP
+;士官が行動可能な状態にあるかどうかのリストを作成
+CALL TMP_CREATE_IS_FREE_MAP
+CALL TMP_CREATE_POLITICS_POWER_MAP
+CALL TMP_CREATE_COOKING_POWER_MAP
+;都市数と経済を用意
+CALL TMP_CREATE_OWN_CITY_MAP
+CALL TMP_CREATE_SUM_ECONOMY_MAP
+;兵力を用意
+CALL TMP_CREATE_SUM_SOLDIER_MAP
+CALL TMP_CREATE_UNION_TARGET_MAP
+
+FOR LOCAL:0, 0, MAX_CITY
+	IF CITY_OWNER:(LOCAL:0) == CFLAG:MASTER:所属 && GET_CITYNAME(LOCAL:0) != "無名" && !TMP_IS_STAY_ENEMY_UNIT(LOCAL:0, CFLAG:MASTER:所属)
+		IF CITY_SOLDIER:(LOCAL:0) > 500
+			COUNTRY_SOLDIER:(CFLAG:MASTER:所属) += CITY_SOLDIER:(LOCAL:0) - 500
+			CITY_SOLDIER:(LOCAL:0) = 500
+		ENDIF
+	ENDIF
+NEXT
+
+勢力 = CFLAG:MASTER:所属
+初期兵数 = COUNTRY_SOLDIER:勢力
+
+都市数 = 0
+;まずスコアを記録
+FOR 都市, 1, GET_CITY_NUM() + 1
+	;そこが自勢力の都市で、敵と接続しているなら、防衛スコアに加算
+	;最大飛び地でないなら、最大飛び地に対する飛び地サイズの比だけ軽減される
+	IF CITY_OWNER:都市 == 勢力 && TMP_CITY_RISK:勢力:都市 >= 2
+		;敵がいる都市はダメ
+		SIF TMP_IS_STAY_ENEMY_UNIT(都市, 勢力) == 1
+			CONTINUE
+		防衛スコア:都市 = TMP_DEFFENSIVE_IMPORTANCE:勢力:都市 * TMP_ENCLAVE_SIZE:勢力:都市 / TMP_MAX_ENCLAVE_SIZE:勢力
+		防衛スコア合計 += 防衛スコア:都市
+		都市数 ++
+	ENDIF
+NEXT
+
+SIF 都市数 == 0
+	GOTO END
+
+;兵力振り分け＋武将振り分け
+;武将振り分けの都合、大きい順に取得します
+FOR 項番, 0, 都市数
+	都市 = FINDELEMENT(防衛スコア, MAXARRAY(防衛スコア))
+	SIF 防衛スコア:都市 == __INT_MIN__
+		BREAK
+	SIF COUNTRY_SOLDIER:勢力 <= 0
+		CONTINUE
+	;全体に対するスコアの割合で
+	振り分け兵数 = 初期兵数 * 防衛スコア:都市 / 防衛スコア合計
+	CITY_SOLDIER:都市 = MIN(振り分け兵数, COUNTRY_SOLDIER:勢力)
+	COUNTRY_SOLDIER:勢力 = MAX(COUNTRY_SOLDIER:勢力 - 振り分け兵数, 0)
+	;DEBUGPRINTFORML COUNTRY_SOLDIER:{COUNTRY_SOLDIER:勢力}
+
+	防衛スコア:都市 = __INT_MIN__
+	;DEBUGPRINTFORML %GET_CITYNAME(都市)%の防衛兵 {CITY_SOLDIER:都市}
+NEXT
+
+$END
+PRINTFORMW 自動設定しました
