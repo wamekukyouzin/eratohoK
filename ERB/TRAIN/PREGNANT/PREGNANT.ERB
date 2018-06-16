@@ -10,31 +10,10 @@ SIF !HAS_VAGINA(ARG:0) && !TALENT:(ARG:0):孕み可能
 
 ;中出し量の計算／中出し履歴の作成
 LOCAL:2 = 0
-FOR LOCAL:0, 440, 460
-	IF TCVAR:(ARG:0):(LOCAL:0) != 0
-		LOCAL:2 += TCVAR:(ARG:0):(LOCAL:0 + 20)
-
-		;中出ししたキャラの履歴を残す
-		LOCAL:3 = 1
-		;既にリストにIDがあるなら期間をリセット
-		FOR LOCAL:1, 150, 170
-			IF CFLAG:(ARG:0):(LOCAL:1) == TCVAR:(ARG:0):(LOCAL:0)
-				CFLAG:(ARG:0):(LOCAL:1 + 20) = 0
-				LOCAL:3 = 0
-				BREAK
-			ENDIF
-		NEXT
-		IF LOCAL:3
-			;リストにIDがなければ新たに記録
-			FOR LOCAL:1, 150, 170
-				IF CFLAG:(ARG:0):(LOCAL:1) == 0
-					CFLAG:(ARG:0):(LOCAL:1) = TCVAR:(ARG:0):(LOCAL:0)
-					CFLAG:(ARG:0):(LOCAL:1 + 20) = 0
-					BREAK
-				ENDIF
-			NEXT
-		ENDIF
-	ENDIF
+FOR LOCAL:0, 0, WOMB_RECORD_MAX
+	SIF WOMB_SEMEN_ID:(ARG:0):LOCAL == 0
+		CONTINUE
+	LOCAL:2 += WOMB_SEMEN_AMOUNT:(ARG:0):LOCAL
 NEXT
 
 SIF IS_SP_CHARA(ARG:0)
@@ -95,17 +74,17 @@ SIF IS_OVULATION(ARG:0)
 IF RAND:(LOCAL:5) < SQRT(LOCAL:2 * 100 + 300)
 	;誰の子供かを判定
 	LOCAL:3 = RAND:(LOCAL:2)
-	FOR LOCAL:0, 440, 460
-		IF TCVAR:(ARG:0):(LOCAL:0) != 0
-			LOCAL:3 -= TCVAR:(ARG:0):(LOCAL:0 + 20)
-			IF LOCAL:3 <= 0
-				;妊娠期間を1に設定
-				CFLAG:(ARG:0):妊娠期間 = 1
-				;出来た子供の父親を種付け履歴から予測して記録する
-				;いろんな人から種を受けてたらだれが親だかわからなくなったりする処理をする
-				CALL RECORD_FATHER_FROM_CREAMPIE_HISTORY(ARG:0)
-				BREAK
-			ENDIF
+	FOR LOCAL:0, 0, WOMB_RECORD_MAX
+		SIF WOMB_SEMEN_ID:(ARG:0):(LOCAL:0) == 0
+			CONTINUE
+		LOCAL:3 -= WOMB_SEMEN_AMOUNT:(ARG:0):(LOCAL:0)
+		IF LOCAL:3 <= 0
+			;妊娠期間を1に設定
+			CFLAG:(ARG:0):妊娠期間 = 1
+			;出来た子供の父親を種付け履歴から予測して記録する
+			;いろんな人から種を受けてたらだれが親だかわからなくなったりする処理をする
+			CALL RECORD_FATHER_FROM_CREAMPIE_HISTORY(ARG:0)
+			BREAK
 		ENDIF
 	NEXT
 ENDIF
