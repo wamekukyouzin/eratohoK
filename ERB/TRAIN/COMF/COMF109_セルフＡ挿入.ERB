@@ -1,10 +1,10 @@
-﻿;尻尾挿入
+﻿;尻尾A挿入
 
 ;-------------------------------------------------
 ;コマンド名称
 ;-------------------------------------------------
-@COM_NAME108
-LOCALS:0 = 尻尾セルフ挿入
+@COM_NAME109
+LOCALS:0 = セルフＡ挿入
 
 RESULTS:0 = %LOCALS:0%を見せつける
 RESULTS:1 = %LOCALS:0%させられる
@@ -16,9 +16,9 @@ RESULTS:5 = %LOCALS:0%見せつけ
 ;-------------------------------------------------
 ;選択可否判定
 ;-------------------------------------------------
-@COM_ABLE108
+@COM_ABLE109
 ;共通部分
-CALL COM_ABLE_COMMON(108)
+CALL COM_ABLE_COMMON(109)
 SIF RESULT == 0
 	RETURN 0
 ;プレイヤーは1人以上
@@ -27,24 +27,34 @@ SIF MPLY_NUM <= 0
 ;ターゲットは1人以上
 SIF MTAR_NUM <= 0
 	RETURN 0
+
+SIF ITEM:スキマ == 0
+	RETURN 0
+
 FOR LOCAL, 0, MPLY_NUM
 	;プレイヤーが行動不能なら不可
 	SIF !IS_PLAYABLE(MPLY:LOCAL)
 		RETURN 0
-	;プレイヤーに尻尾が必要
-	SIF !TALENT:(MPLY:LOCAL):しっぽ
+	;実行者に竿がなく、ペニスバンド装着中でもないと不可
+	SIF !HAS_PENIS(MPLY:0) && !IS_EQUIP_PLAYER(MPLY:0, 50)
 		RETURN 0
 	;プレイヤーが足コキ・電気按摩中なら不可
 	SIF IS_EQUIP_PLAYER(MPLY:LOCAL, 14, 103)
 		RETURN 0
-	;プレイヤーが尻尾を使用中なら不可
-	SIF IS_EQUIP_PLAYER(MPLY:LOCAL, 7, 17)
+	;実行者に竿がなく、ペニスバンド装着中でもないと不可
+	SIF !HAS_PENIS(MPLY:0) && !IS_EQUIP_PLAYER(MPLY:0, 50)
 		RETURN 0
-	;プレイヤーにＶが必要
-	SIF !HAS_VAGINA(MPLY:LOCAL)
+	;プレイヤーのＡが埋まっているなら不可
+	SIF IS_A_HOLD(MPLY:LOCAL)
 		RETURN 0
-	;プレイヤーのＶがプレイヤーの尻尾以外で埋まっているなら不可
-	SIF IS_V_HOLD(MPLY:LOCAL) && SEARCH_EQUIP(6, MPLY:LOCAL, MPLY:LOCAL) == -1
+	;プレイヤーの竿が挿入中なら不可
+	SIF IS_INSERT_SINGLE(MPLY:0, "Ｐ")
+		RETURN 0
+	;プレイヤーが触手オナホされているなら不可
+	SIF IS_EQUIP_TARGET(MPLY:0, 205)
+		RETURN 0
+	;プレイヤーがオナホコキされているなら不可
+	SIF IS_EQUIP_TARGET(MPLY:0, 116)
 		RETURN 0
 NEXT
 RETURN 1
@@ -52,7 +62,7 @@ RETURN 1
 ;-------------------------------------------------
 ;メイン処理
 ;-------------------------------------------------
-@COM108
+@COM109
 ;実行判定
 CALL COM_ORDER_COMMON
 SIF RESULT == 0
@@ -60,7 +70,7 @@ SIF RESULT == 0
 
 ;各プレイヤーの絡むセルフ挿入・セルフA挿入の継続状態を解除
 FOR LOCAL:0, 0, MPLY_NUM
-	CALL RELEASE_EQUIP_EX(108, MPLY:(LOCAL:0), -1)
+	CALL RELEASE_EQUIP_EX(109, MPLY:(LOCAL:0), -1)
 	CALL RELEASE_EQUIP_EX(109, MPLY:(LOCAL:0), -1)
 NEXT
 
@@ -90,15 +100,24 @@ FOR LOCAL:0, 0, MPLY_NUM
 		CASEELSE
 			LOCAL:3 = LOCAL:3 * (420 + (ABL:(LOCAL:2):自慰 - 5)) / 200
 	ENDSELECT
-	IF TALENT:(LOCAL:2):処女 == 1
-		SOURCE:(LOCAL:2):快Ｖ += SENSE_HOUSHI((LOCAL:2), (LOCAL:2), 1050)
-	ELSE
-		SOURCE:(LOCAL:2):快Ｖ += SENSE_HOUSHI((LOCAL:2), (LOCAL:2), 1400)
-	ENDIF
+
+	EXP:(LOCAL:2):性交経験値 += 2
+
+	SOURCE:(LOCAL:2):快Ｐ = SENSE_SEX_PLAYER_P(LOCAL:2, LOCAL:2, LOCAL:3)
+	SOURCE:(LOCAL:2):露出 = 100
+	SOURCE:(LOCAL:2):性行動 = 450
+
+	;性交系の共通処理
+	CALL COM_COMMON_ASEX_P(LOCAL:2, LOCAL:2)
+
+	SOURCE:(LOCAL:2):快Ａ += SENSE_SEX_TARGET((LOCAL:2), (LOCAL:2), LOCAL:3)
+
+	CALL COM_COMMON_ASEX_A(LOCAL:2, LOCAL:2)
+
+
 	;主導権に応じた優越・屈従のソース追加
 	CALL ADD_SOURCE_INITIATIVE_U(LOCAL:2, 60, 120)
-	CALL VIRGIN_COMMON(LOCAL:2, @"%ANAME(LOCAL:2)%の尻尾", GET_SITUATION_BY_TRAIN_MODE())
-	CALL TIGHTNESS_DECREASE_V(LOCAL:2, RAND(1, 4))
+	CALL STACK_SPERM(LOCAL:2, LOCAL:2, 2)
 NEXT
 
 ;主導権の所在を取得
@@ -121,8 +140,8 @@ FOR LOCAL:0, 0, MTAR_NUM
 
 	;主導権に応じた優越・屈従のソース追加
 	CALL ADD_SOURCE_INITIATIVE_U(LOCAL:1, 80, 80)
-NEXT
 
+NEXT
 
 ;主導度変化基準値
 TFLAG:49 = 3
@@ -138,23 +157,27 @@ RETURN 1
 ;-------------------------------------------------
 ;継続コマンドかどうかを設定
 ;-------------------------------------------------
-@COM_IS_EQUIP108
+@COM_IS_EQUIP109
 RETURN 1
 
 ;-------------------------------------------------
 ;継続状態の処理
 ;-------------------------------------------------
-@COM_EQUIP108(ARG:0)
+@COM_EQUIP109(ARG:0)
 ;●全プレイヤーについて処理
 FOR LOCAL:0, 0, MEQUIP_PLAYER_NUM:(ARG:0)
 	LOCAL:2 = MEQUIP_PLAYER:(ARG:0):(LOCAL:0)
 
 	EXP:(LOCAL:2):自慰経験値 += 1
 	EXP:(LOCAL:2):性技経験値 += 1
+	EXP:(LOCAL:2):性交経験値 += 1
 
+	SOURCE:(LOCAL:2):快Ｐ += SENSE_SEX_PLAYER_P(LOCAL:2, LOCAL:2, 750)
 	SOURCE:(LOCAL:2):露出 += 600
-	SOURCE:(LOCAL:2):逸脱 += 50
-	SOURCE:(LOCAL:2):性行動 += 80
+	SOURCE:(LOCAL:2):性行動 += 150
+
+	;性交系の共通処理
+	CALL COM_COMMON_ASEX_P(LOCAL:2, LOCAL:2)
 
 	LOCAL:3 = 500
 
@@ -173,40 +196,39 @@ FOR LOCAL:0, 0, MEQUIP_PLAYER_NUM:(ARG:0)
 			LOCAL:3 = LOCAL:3 * (420 + (ABL:(LOCAL:2):自慰 - 5)) / 200
 	ENDSELECT
 
-	SOURCE:(LOCAL:2):快Ｖ = SENSE_HOUSHI(LOCAL:2, LOCAL:2, LOCAL:3)
-	CALL VIRGIN_COMMON(LOCAL:2, @"%ANAME(LOCAL:2)%の尻尾", GET_SITUATION_BY_TRAIN_MODE())
-	CALL TIGHTNESS_DECREASE_V(LOCAL:2, RAND(1, 4))
+	SOURCE:(LOCAL:2):快Ａ = SENSE_SEX_TARGET(LOCAL:2, LOCAL:2, LOCAL:3)
+	CALL COM_COMMON_ASEX_A(LOCAL:2, LOCAL:2)
+	CALL STACK_SPERM(LOCAL:2, LOCAL:2, 1)
 NEXT
 
 ;●全ターゲットについて処理
 FOR LOCAL:0, 0, MEQUIP_TARGET_NUM:(ARG:0)
 	LOCAL:2 = MEQUIP_TARGET:(ARG:0):(LOCAL:0)
-
 	SOURCE:(LOCAL:2):性行動 += 40
 NEXT
-
 
 ;-------------------------------------------------
 ;継続中の表示
 ;-------------------------------------------------
-@EQUIP_MESSAGE108(ARG:0)
-RESULTS = %EQUIP_PLAYER_ANAME(ARG:0)%が尻尾セルフ挿入中
+@EQUIP_MESSAGE109(ARG:0)
+RESULTS = %EQUIP_PLAYER_ANAME(ARG:0)%がセルフＡ挿入中
 
 ;-------------------------------------------------
 ;継続中の地の文(前文)
 ;-------------------------------------------------
-@COM_TEXT_BEFORE_EQUIP108(ARG:0)
-PRINTFORML %EQUIP_PLAYER_ANAME(ARG:0)%は自らの尻尾で自らを犯している…
+@COM_TEXT_BEFORE_EQUIP109(ARG:0)
+PRINTFORML %EQUIP_PLAYER_ANAME(ARG:0)%は自らの%BAR_NAME(ARG:0)%で自らのアナルを犯している…
 
 ;-------------------------------------------------
 ;継続を解除したときの地の文
 ;-------------------------------------------------
-@COM_TEXT_RELEASE_EQUIP108(ARG:0)
-PRINTFORML %EQUIP_PLAYER_ANAME(ARG:0)%は尻尾を自身から引き抜いた…
+@COM_TEXT_RELEASE_EQUIP109(ARG:0)
+PRINTFORML %EQUIP_PLAYER_ANAME(ARG:0)%は%BAR_NAME(ARG:0)%を自身のアナルから引き抜いた…
+
 ;-------------------------------------------------
 ;固有の実行判定
 ;-------------------------------------------------
-@COM_ORDER_PLAYER108(ARG:0)
+@COM_ORDER_PLAYER109(ARG:0)
 ;実行値の設定
 TCVAR:(ARG:0):25 = 80
 
@@ -251,7 +273,7 @@ RETURN 1
 ;-------------------------------------------------
 ;地の文(前文)
 ;-------------------------------------------------
-@COM_TEXT_BEFORE108
+@COM_TEXT_BEFORE109
 LOCALS:3 = 
 
 
@@ -274,41 +296,41 @@ ENDIF
 SELECTCASE GET_COM_INITIATIVE()
 	;プレイヤーに主導権
 	CASE 0
-		PRINTFORMW %LOCALS:2%は%LOCALS:1%の目の前で自らの尻尾を自らの膣に挿入し、動かしはじめた……
+		PRINTFORMW %LOCALS:2%は%LOCALS:1%の目の前で、スキマを使って自らの%BAR_NAME(MPLY:0)%を自らの尻穴に挿入し、動かしはじめた……
 	CASE 1
-		PRINTFORML %LOCALS:1%は%LOCALS:2%に、自らの尻尾を自らの膣に挿入するよう命じた
-		PRINTFORMW %LOCALS:2%は言われるまま、%LOCALS:1%の目の前で自らの尻尾を自らの膣に挿入し、動かしはじめた……
+		PRINTFORML %LOCALS:1%は%LOCALS:2%に、スキマを使って自らの%BAR_NAME(MPLY:0)%を自らの尻穴に挿入するよう命じた
+		PRINTFORMW %LOCALS:2%は言われるまま、%LOCALS:1%の目の前で自らの%BAR_NAME(MPLY:0)%を自らの尻穴に挿入し、動かしはじめた……
 	;第三者に主導権
 	CASEELSE
-		PRINTFORML %ANAME(TFLAG:45)%は%LOCALS:2%に対して、%LOCALS:1%の前で自らの尻尾を自らの膣に挿入するよう命じた
-		PRINTFORMW %LOCALS:2%は言われるまま、%LOCALS:1%の目の前で見せつけるように自らの尻尾を自らの膣に挿入し、動かしはじめた……
+		PRINTFORML %ANAME(TFLAG:45)%は%LOCALS:2%に対して、%LOCALS:1%の前で自らの%BAR_NAME(MPLY:0)%を自らの尻穴に挿入するよう命じた
+		PRINTFORMW %LOCALS:2%は言われるまま、スキマを使って自らの%BAR_NAME(MPLY:0)%を自らの尻穴に挿入し、%LOCALS:1%の目の前で見せつけるように動かしはじめた……
 ENDSELECT
 
 ;--------------------------------------------------------
 ;地の文(パラメータ・刻印変動後)
 ;--------------------------------------------------------
-@COM_TEXT_LAST108
+@COM_TEXT_LAST109
 FOR LOCAL:0, 0, MPLY_NUM
 	LOCAL:1 = MPLY:(LOCAL:0)
 
 	IF LOCAL:1 != MASTER && !CFLAG:(LOCAL:1):TEXT_LAST非表示 && IS_INITIATIVE(LOCAL:1)
 		IF ABL:(LOCAL:1):自慰 >= 5
-			PRINTFORML %ANAME(LOCAL:1)%はすっかり快楽に没頭し、激しく尻尾を動かして自ら快感を貪っている
+			PRINTFORML %ANAME(LOCAL:1)%はすっかり快楽に没頭し、激しく腰を振って自ら快感を貪っている
 		ELSEIF ABL:(LOCAL:1):露出 >= 5
-			PRINTFORML %ANAME(LOCAL:1)%は見られることで興奮しているのか、上気した顔で尻尾に自らを犯させている
+			PRINTFORML %ANAME(LOCAL:1)%は見られることで興奮しているのか、上気した顔で自らを犯している
 		ELSEIF ABL:(LOCAL:1):自慰 >= 2
 			;捕虜調教のメインターゲット
 			IF FLAG:調教モード == 2 && FINDELEMENT(PRISONER_TARGET, MTAR:0) != -1
-				PRINTFORML %ANAME(LOCAL:1)%は屈辱に顔を歪めながらも、自ら快感を求めて尻尾を動かしてしまっている
+				PRINTFORML %ANAME(LOCAL:1)%は屈辱に顔を歪めながらも、自ら快感を求めて腰を振ってしまっている
 			ELSE
-				PRINTFORML %ANAME(LOCAL:1)%は恥ずかしそうにしているが、無意識に快感を求めるように尻尾を動かしている
+				PRINTFORML %ANAME(LOCAL:1)%は恥ずかしそうにしているが、無意識に快感を求めるように腰を動かしている
 			ENDIF
 		ELSE
 			;捕虜調教のメインターゲット
 			IF FLAG:調教モード == 2 && FINDELEMENT(PRISONER_TARGET, MTAR:0) != -1
-				PRINTFORML %ANAME(LOCAL:1)%は屈辱に耐えながら、おぼつかない動きで尻尾に自らを犯させはじめた
+				PRINTFORML %ANAME(LOCAL:1)%は屈辱に耐えながら、おぼつかない動きで自分を犯しはじめた
 			ELSE
-				PRINTFORML %ANAME(LOCAL:1)%は恥ずかしさのあまり目を逸らしながら、おぼつかない動きで尻尾に自らを犯させはじめた
+				PRINTFORML %ANAME(LOCAL:1)%は恥ずかしさのあまり目を逸らしながら、おぼつかない動きで自分を犯しはじめた
 			ENDIF
 		ENDIF
 	ENDIF
@@ -319,5 +341,5 @@ NEXT
 ;コマンド区分
 ;-------------------------------------------------
 
-@COM_AVAILABLE_WHEN108
+@COM_AVAILABLE_WHEN109
 RETURN コマンド_ウフフ
