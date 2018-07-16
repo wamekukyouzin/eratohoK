@@ -1,0 +1,199 @@
+﻿;浣腸
+
+;-------------------------------------------------
+;コマンド名称
+;-------------------------------------------------
+@COM_NAME77
+LOCALS:0 = 自家受精
+
+RESULTS:0 = %LOCALS:0%させる
+RESULTS:1 = %LOCALS:0%される
+RESULTS:2 = %LOCALS:0%する
+RESULTS:3 = %LOCALS:0%する
+RESULTS:4 = %LOCALS:0%する
+RESULTS:5 = %LOCALS:0%見せつけ
+
+;-------------------------------------------------
+;選択可否判定
+;-------------------------------------------------
+@COM_ABLE77
+;共通部分
+CALL COM_ABLE_COMMON(77)
+SIF RESULT == 0
+	RETURN 0
+;プレイヤーは最大で1人まで
+SIF MPLY_NUM <= 0 || MPLY_NUM > 1
+	RETURN 0
+;ターゲットは最大で1人まで
+SIF MTAR_NUM <= 0 || MTAR_NUM > 1
+	RETURN 0
+;プレイヤーが行動不能なら不可
+SIF !IS_PLAYABLE(MPLY:0)
+	RETURN 0
+;注射器が必要
+SIF ITEM:おもちゃの注射器 <= 0
+	RETURN 0
+;プレイヤーが拘束中なら不可
+SIF IS_BIND(MPLY:0)
+	RETURN 0
+;まんこ塞がってたらダメ
+SIF IS_V_HOLD(MTAR:0)
+	RETURN 0
+;コンドームにぶちまけてないと駄目
+SIF CUM_TO_COUNT:(MTAR:0):射精部位_ゴム == 0
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;メイン処理
+;-------------------------------------------------
+@COM77
+;実行判定
+CALL COM_ORDER_COMMON
+SIF RESULT == 0
+	RETURN 0
+
+;主導権の所在を取得
+LOCAL:11 = GET_COM_INITIATIVE()
+
+;●プレイヤー側の処理
+SOURCE:(MPLY:0):性行動 = 90
+
+;プレイヤーに主導権
+IF LOCAL:11 == 0 || LOCAL:11 == 2
+	SOURCE:(MPLY:0):嗜虐 = 200
+	SOURCE:(MPLY:0):逸脱 = 300
+;プレイヤーに主導権がない
+ELSE
+	SOURCE:(MPLY:0):逸脱 = 600
+	SOURCE:(MPLY:0):恐怖 = MAX(150 - 40 * ABL:(MPLY:0):欲望, 0)
+ENDIF
+
+;主導権に応じた優越・屈従のソース追加
+CALL ADD_SOURCE_INITIATIVE_U(MPLY:0, 100, 80)
+
+;●ターゲット側の処理
+EXP:(MTAR:0):膣内射精経験 += 1
+
+LOCAL:3 = 1000
+LOCAL:4 = 600
+
+SELECTCASE ABL:(MTAR:0):出産
+	CASE 0
+		TIMES LOCAL:3, 0.00
+		TIMES LOCAL:4, 1.00
+	CASE 1
+		TIMES LOCAL:3, 0.10
+		TIMES LOCAL:4, 0.60
+	CASE 2
+		TIMES LOCAL:3, 0.20
+		TIMES LOCAL:4, 0.25
+	CASE 3
+		TIMES LOCAL:3, 0.40
+		TIMES LOCAL:4, 0.05
+	CASE 4
+		TIMES LOCAL:3, 0.70
+		TIMES LOCAL:4, 0.00
+	CASEELSE
+		LOCAL:3 = LOCAL:3 * (100 + (ABL:(MTAR:0):精愛 - 5) * 2) / 100
+		LOCAL:4 = 0
+ENDSELECT
+
+SOURCE:(MTAR:0):露出 = 1400
+SOURCE:(MTAR:0):逸脱 = 600
+SOURCE:(MTAR:0):中毒充足 = LOCAL:3
+SOURCE:(MTAR:0):反感 = LOCAL:4
+SOURCE:(MTAR:0):性行動 = 150
+
+;主導権に応じた優越・屈従のソース追加
+CALL ADD_SOURCE_INITIATIVE_U(MTAR:0, 80, 170)
+
+CALL RECORD_INJECTION(MTAR:0, GET_ID(MTAR:0), CUM_TO_COUNT:(MTAR:0):射精部位_ゴム)
+
+;射精量を変換
+CUM_GET_COUNT:(MTAR:0):射精部位_膣内 = CUM_TO_COUNT:(MTAR:0):射精部位_ゴム
+CUM_TO_COUNT:(MTAR:0):射精部位_ゴム = 0
+
+;主導度変化基準値
+TFLAG:49 = 1
+
+;倒錯度変化基準値
+TFLAG:50 = 6
+
+;レズ・ＢＬ経験基準値
+TFLAG:51 = 0
+
+RETURN 1
+
+;-------------------------------------------------
+;固有の実行判定(プレイヤー側)
+;-------------------------------------------------
+@COM_ORDER_PLAYER77(ARG:0)
+;実行値の設定
+TCVAR:(ARG:0):25 = 90
+
+;共通部分
+CALL COM_ORDER(ARG:0)
+
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲望Lv{ABL:(ARG:0):欲望}", ABL:(ARG:0):欲望 * 2)
+
+LOCAL:0 = GET_PALAMLV(PALAM:(ARG:0):欲情)
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲情Lv{LOCAL:0}", MIN(LOCAL:0 * 1, 10))
+
+IF TALENT:(ARG:0):倒錯的
+	CALL COM_ORDER_ELEMENT(ARG:0, "倒錯的", 8)
+ENDIF
+IF TALENT:(ARG:0):保守的
+	CALL COM_ORDER_ELEMENT(ARG:0, "保守的", -8)
+ENDIF
+
+IF !TALENT:(ARG:0):合意 && !TALENT:(ARG:0):親友
+	CALL COM_ORDER_ELEMENT(ARG:0, "合意なし", -10)
+ENDIF
+
+RETURN 1
+
+;-------------------------------------------------
+;地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE77
+SELECTCASE GET_COM_INITIATIVE()
+	;プレイヤーに主導権
+	CASE 0
+		PRINTFORML %ANAME(MPLY:0)%は%ANAME(MTAR:0)%がゴムに射精した精液を注射器で吸い取り、%ANAME(MTAR:0)%自身の%STR_BODY("膣：感度", MTAR:0)%に注入し%TARGET_STR("た", "てきた")%
+		PRINTFORMW %ANAME(MTAR:0)%の膣穴から、%ANAME(MTAR:0)%自身の精液がとろりとこぼれ落ちた…
+	;ターゲットに主導権
+	CASE 1
+		PRINTFORML %ANAME(MTAR:0)%は%ANAME(MPLY:0)%の前で%STR_BODY("膣：感度", MTAR:0)%を割り開き、%ANAME(MTAR:0)%自身がゴムに射精した精液を注入するよう命じた
+		PRINTFORMW %ANAME(MPLY:0)%が精液を注入すると、%ANAME(MTAR:0)%の膣穴から%ANAME(MTAR:0)%自身の精液がとろりとこぼれ落ちた…
+	;第三者に主導権
+	CASEELSE
+		PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に対して、%ANAME(MTAR:0)%がゴムに射精した精液を注射器で吸い取り、%ANAME(MTAR:0)%自身の%STR_BODY("膣：感度", MTAR:0)%に注入するよう命じた
+		PRINTFORMW %ANAME(MPLY:0)%が%ANAME(MTAR:0)%の膣穴に精液を注入すると、%ANAME(MTAR:0)%の膣穴から%ANAME(MTAR:0)%自身の精液がとろりとこぼれ落ちた…
+ENDSELECT
+
+;--------------------------------------------------------
+;地の文(パラメータ・刻印変動後)
+;--------------------------------------------------------
+@COM_TEXT_LAST77
+FOR LOCAL:0, 0, MTAR_NUM
+	LOCAL:1 = MTAR:(LOCAL:0)
+
+	IF LOCAL:1 != MASTER && !TCVAR:(MTAR:0):52
+		IF ABL:(LOCAL:1):出産 >= 4
+			PRINTFORMW %ANAME(LOCAL:1)%は自身の子を孕むかもしれない興奮に震えながら、妖しく笑みを浮かべている
+		ELSEIF ABL:(LOCAL:1):出産 >= 12
+			PRINTFORMW %ANAME(LOCAL:1)%は顔を赤らめながら自身の膣をしきりに気にしている
+		ELSE
+			PRINTFORMW %ANAME(LOCAL:1)%は異常な行為に顔を青くした
+		ENDIF
+	ENDIF
+NEXT
+
+;-------------------------------------------------
+
+;コマンド区分
+;-------------------------------------------------
+
+@COM_AVAILABLE_WHEN77
+RETURN コマンド_ウフフ
