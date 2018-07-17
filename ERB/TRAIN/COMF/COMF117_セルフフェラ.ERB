@@ -3,7 +3,7 @@
 ;-------------------------------------------------
 ;コマンド名称
 ;-------------------------------------------------
-@COM_NAME116
+@COM_NAME117
 LOCALS:0 = 
 IF TFLAG:70 == 1
 	LOCALS:0 = 撮影
@@ -13,7 +13,7 @@ ELSEIF TFLAG:54 == 8
 	LOCALS:0 = 野外
 ENDIF
 
-LOCALS:0 '= LOCALS:0 + "オナホ自慰"
+LOCALS:0 '= LOCALS:0 + "セルフフェラ"
 
 RESULTS:0 = %LOCALS:0%を見せつける
 RESULTS:1 = %LOCALS:0%させられる
@@ -25,9 +25,9 @@ RESULTS:5 = %LOCALS:0%見せつけ
 ;-------------------------------------------------
 ;選択可否判定
 ;-------------------------------------------------
-@COM_ABLE116
+@COM_ABLE117
 ;共通部分
-CALL COM_ABLE_COMMON(116)
+CALL COM_ABLE_COMMON(117)
 SIF RESULT == 0
 	RETURN 0
 ;プレイヤーは1人以上
@@ -39,8 +39,8 @@ SIF MTAR_NUM <= 0
 ;プレイヤーが行動不能なら不可
 SIF !IS_PLAYABLE(MPLY:0)
 	RETURN 0
-;オナホールが必要
-SIF !ITEM:オナホール && !ITEM:A_オナホール
+;スキマが必要
+SIF !ITEM:スキマ
 	RETURN 0
 ;多対多は不可
 SIF MPLY_NUM >= 2 && MTAR_NUM >= 2
@@ -57,43 +57,84 @@ FOR LOCAL, 0, MPLY_NUM
 	;プレイヤーの竿が挿入中なら不可
 	SIF IS_INSERT_SINGLE(MPLY:(LOCAL:0), "Ｐ")
 		RETURN 0
-	;プレイヤーがオナホコキされているなら不可
-	SIF IS_EQUIP_TARGET(MPLY:(LOCAL:0), 16)
-		RETURN 0
 	;プレイヤーのチンポが埋まってるなら駄目
 	SIF IS_P_HOLD(MPLY:0)
 		RETURN 0
-
-
+	;プレイヤーの口が埋まってるなら駄目
+	SIF IS_M_HOLD(MPLY:0)
+		RETURN 0
 NEXT
 
 
 RETURN 1
 
 ;-------------------------------------------------
+;快Ｍソースの倍率を取得する関数 ARG:0=PLAYERのキャラ番号
+;-------------------------------------------------
+@COM117_RATE_M(ARG:0)
+#FUNCTION
+LOCAL:5 = 1000
+SELECTCASE ABL:(ARG:0):奉仕
+	CASE 0
+		TIMES LOCAL:5, 0.00
+		;TIMES SOURCE:(LOCAL:2):不潔, 4.00
+	CASE 1
+		TIMES LOCAL:5, 0.10
+		;TIMES SOURCE:(LOCAL:2):不潔, 2.50
+	CASE 2
+		TIMES LOCAL:5, 0.30
+		;TIMES SOURCE:(LOCAL:2):不潔, 1.50
+	CASE 3
+		TIMES LOCAL:5, 0.80
+		;TIMES SOURCE:(LOCAL:2):不潔, 1.00
+	CASE 4
+		TIMES LOCAL:5, 1.00
+		;TIMES SOURCE:(LOCAL:2):不潔, 0.50
+	CASEELSE
+		LOCAL:5 = LOCAL:5 * (100 + (ABL:(ARG:0):奉仕 - 5) * 3) / 100
+		;TIMES SOURCE:(LOCAL:2):不潔, 0.10
+ENDSELECT
+
+SELECTCASE ABL:(ARG:0):性技
+	CASE 0
+		TIMES LOCAL:5, 1.00
+	CASE 1
+		TIMES LOCAL:5, 1.10
+	CASE 2
+		TIMES LOCAL:5, 1.20
+	CASE 3
+		TIMES LOCAL:5, 1.30
+	CASE 4
+		TIMES LOCAL:5, 1.40
+	CASEELSE
+		LOCAL:5 = LOCAL:5 * ((ABL:(ARG:0):性技 - 5) * 2 + 150) / 100
+ENDSELECT
+
+RETURNF LOCAL:5
+
+
+;-------------------------------------------------
 ;メイン処理
 ;-------------------------------------------------
-@COM116
+@COM117
 ;実行判定
 CALL COM_ORDER_COMMON
 SIF RESULT == 0
 	RETURN 0
 
-;各プレイヤーの絡むオナホコキ・触手オナニーの継続状態を解除
-FOR LOCAL:0, 0, MPLY_NUM
-	CALL RELEASE_EQUIP_EX(116, MPLY:(LOCAL:0), -1)
-	CALL RELEASE_EQUIP_EX(211, MPLY:(LOCAL:0), -1)
-NEXT
+;対Ｐ奉仕系コマンドの継続フラグを解除
+CALL RELEASE_SERVE_P
 
 ;●全てのプレイヤーについて処理
 FOR LOCAL:0, 0, MPLY_NUM
 	LOCAL:2 = MPLY:(LOCAL:0)
 
 	EXP:(LOCAL:2):自慰経験値 += 3
+	EXP:(LOCAL:2):口淫経験 += 1
 
 	SOURCE:(LOCAL:2):露出 = 1300
-	SOURCE:(LOCAL:2):逸脱 = 116
-	SOURCE:(LOCAL:2):性行動 = 240
+	SOURCE:(LOCAL:2):逸脱 = 200
+	SOURCE:(LOCAL:2):性行動 = 300
 
 	LOCAL:3 = 500
 
@@ -113,9 +154,12 @@ FOR LOCAL:0, 0, MPLY_NUM
 	ENDSELECT
 
 	SOURCE:(LOCAL:2):快Ｐ = SENSE_HOUSHI_P(LOCAL:2, LOCAL:2, LOCAL:3 * 3 / 2)
+	SOURCE:(LOCAL:2):快Ｍ = 600 * COM117_RATE_M(LOCAL:2) / 1000
+	;ペニスへのキス
+	CALL KISS_COMMON(LOCAL:2, @"%ANAME(LOCAL:2)%のペニス", GET_SITUATION_BY_TRAIN_MODE())
 
 	;射精箇所と対象をセット
-	CALL STACK_SPERM(LOCAL:2, LOCAL:2, 射精部位_オナホ)
+	CALL STACK_SPERM(LOCAL:2, LOCAL:2, RAND:2 ? 射精部位_顔 # 射精部位_口)
 NEXT
 
 ;主導権の所在を取得
@@ -132,8 +176,8 @@ FOR LOCAL:0, 0, MTAR_NUM
 		SOURCE:(LOCAL:1):嗜虐 = 60
 	;ターゲットに主導権がない
 	ELSE
-		SOURCE:(LOCAL:1):逸脱 = 60
-		SOURCE:(LOCAL:1):恐怖 = MAX(116 - 30 * ABL:(LOCAL:1):欲望, 0)
+		SOURCE:(LOCAL:1):逸脱 = 100
+		SOURCE:(LOCAL:1):恐怖 = MAX(117 - 30 * ABL:(LOCAL:1):欲望, 0)
 	ENDIF
 
 	;主導権に応じた優越・屈従のソース追加
@@ -154,21 +198,22 @@ RETURN 1
 ;-------------------------------------------------
 ;継続コマンドかどうかを設定
 ;-------------------------------------------------
-@COM_IS_EQUIP116
+@COM_IS_EQUIP117
 RETURN 1
 
 ;-------------------------------------------------
 ;継続状態の処理
 ;-------------------------------------------------
-@COM_EQUIP116(ARG:0)
+@COM_EQUIP117(ARG:0)
 ;●全プレイヤーについて処理
 FOR LOCAL:0, 0, MEQUIP_PLAYER_NUM:(ARG:0)
 	LOCAL:2 = MEQUIP_PLAYER:(ARG:0):(LOCAL:0)
 
 	EXP:(LOCAL:2):自慰経験値 += 1
+	EXP:(LOCAL:2):口淫経験 += 1
 
 	SOURCE:(LOCAL:2):露出 += 600
-	SOURCE:(LOCAL:2):逸脱 += 50
+	SOURCE:(LOCAL:2):逸脱 += 100
 	SOURCE:(LOCAL:2):性行動 += 80
 
 	LOCAL:3 = 500
@@ -189,8 +234,13 @@ FOR LOCAL:0, 0, MEQUIP_PLAYER_NUM:(ARG:0)
 	ENDSELECT
 
 	SOURCE:(LOCAL:2):快Ｐ += SENSE_HOUSHI_P(LOCAL:2, LOCAL:2, LOCAL:3 * 3 / 2)
+	SOURCE:(LOCAL:2):快Ｍ += 300 * COM117_RATE_M(LOCAL:2) / 1000
 
-	CALL STACK_SPERM(LOCAL:2, LOCAL:2, 射精部位_オナホ)
+	;ペニスへのキス
+	CALL KISS_COMMON(LOCAL:2, @"%ANAME(LOCAL:2)%のペニス", GET_SITUATION_BY_TRAIN_MODE())
+
+	;射精箇所と対象をセット
+	CALL STACK_SPERM(LOCAL:2, LOCAL:2, RAND:2 ? 射精部位_顔 # 射精部位_口)
 NEXT
 
 ;●全ターゲットについて処理
@@ -203,7 +253,7 @@ NEXT
 ;-------------------------------------------------
 ;継続中の表示
 ;-------------------------------------------------
-@EQUIP_MESSAGE116(ARG:0)
+@EQUIP_MESSAGE117(ARG:0)
 
 LOCALS:0 = 
 IF TFLAG:70 == 1
@@ -214,14 +264,14 @@ ELSEIF TFLAG:54 == 8
 	LOCALS:0 = 野外
 ENDIF
 
-LOCALS:0 '= LOCALS:0 + "オナホ自慰"
+LOCALS:0 '= LOCALS:0 + "セルフフェラ"
 
 RESULTS = %EQUIP_PLAYER_ANAME(ARG:0)%が%LOCALS:0%中
 
 ;-------------------------------------------------
 ;継続中の地の文(前文)
 ;-------------------------------------------------
-@COM_TEXT_BEFORE_EQUIP116(ARG:0)
+@COM_TEXT_BEFORE_EQUIP117(ARG:0)
 LOCAL:1 = 1
 FOR LOCAL:0, 0, MEQUIP_PLAYER_NUM:(ARG:0)
 	IF !HAS_PENIS(MEQUIP_PLAYER:(ARG:0):(LOCAL:0))
@@ -229,26 +279,26 @@ FOR LOCAL:0, 0, MEQUIP_PLAYER_NUM:(ARG:0)
 	ENDIF
 NEXT
 
-PRINTFORML %EQUIP_PLAYER_ANAME(ARG:0)%は自らオナホールに腰を振っている…
+PRINTFORML %EQUIP_PLAYER_ANAME(ARG:0)%は自らの%BAR_NAME(MEQUIP_PLAYER:(ARG:0):0)%にしゃぶりついている……
 
 ;-------------------------------------------------
 ;継続を解除したときの地の文
 ;-------------------------------------------------
-@COM_TEXT_RELEASE_EQUIP116(ARG:0)
+@COM_TEXT_RELEASE_EQUIP117(ARG:0)
 
 ;-------------------------------------------------
 ;固有の実行判定
 ;-------------------------------------------------
-@COM_ORDER_PLAYER116(ARG:0)
+@COM_ORDER_PLAYER117(ARG:0)
 ;実行値の設定
-TCVAR:(ARG:0):25 = 85
+TCVAR:(ARG:0):25 = 95
 
 ;共通部分
 CALL COM_ORDER(ARG:0)
 
 CALL COM_ORDER_ELEMENT(ARG:0, @"欲望Lv{ABL:(ARG:0):欲望}", ABL:(ARG:0):欲望 * 3)
 CALL COM_ORDER_ELEMENT(ARG:0, @"露出Lv{ABL:(ARG:0):露出}", ABL:(ARG:0):露出 * 3)
-CALL COM_ORDER_ELEMENT(ARG:0, @"自慰Lv{ABL:(ARG:0):自慰}", ABL:(ARG:0):自慰 * 4)
+CALL COM_ORDER_ELEMENT(ARG:0, @"精愛Lv{ABL:(ARG:0):自慰}", ABL:(ARG:0):精愛 * 3)
 
 LOCAL:0 = GET_PALAMLV(PALAM:(ARG:0):欲情)
 CALL COM_ORDER_ELEMENT(ARG:0, @"欲情Lv{LOCAL:0}", MIN(LOCAL:0 * 3, 30))
@@ -284,7 +334,7 @@ RETURN 1
 ;-------------------------------------------------
 ;地の文(前文)
 ;-------------------------------------------------
-@COM_TEXT_BEFORE116
+@COM_TEXT_BEFORE117
 LOCALS:3 = 
 
 ;プレイヤーが竿あり・竿なし混合かどうかを判定
@@ -296,7 +346,7 @@ FOR LOCAL:0, 1, MPLY_NUM
 	ENDIF
 NEXT
 
-LOCALS:0 = 自らオナホールに腰を振
+LOCALS:0 = 自らの%BAR_NAME(MPLY:0)%をしゃぶ
 
 IF MTAR_NUM == 1
 	LOCALS:1 = %ANAME(MTAR:0)%
@@ -327,42 +377,42 @@ ENDIF
 SELECTCASE GET_COM_INITIATIVE()
 	;プレイヤーに主導権
 	CASE 0
-		PRINTFORMW %LOCALS:2%は%LOCALS:3%%LOCALS:1%の目の前で%LOCALS:0%る様子を見せつけ%TARGET_STR("た", "てきた")%…
+		PRINTFORMW %LOCALS:2%は%LOCALS:3%%LOCALS:1%の目の前で、スキマを使って%LOCALS:0%る様子を見せつけ%TARGET_STR("た", "てきた")%…
 	;ターゲットに主導権
 	CASE 1
-		PRINTFORML %LOCALS:1%は%LOCALS:2%に、オナホールを使ってオナニーするように命令した
-		PRINTFORMW %LOCALS:2%は言われるまま、%LOCALS:3%%LOCALS:1%の目の前で%LOCALS:0%った…
+		PRINTFORML %LOCALS:1%は%LOCALS:2%に、%LOCALS:0%るように命じた
+		PRINTFORMW %LOCALS:2%は言われるまま、%LOCALS:3%%LOCALS:1%の目の前でスキマを使って%LOCALS:0%った…
 	;第三者に主導権
 	CASEELSE
-		PRINTFORML %ANAME(TFLAG:45)%は%LOCALS:2%に対して、%LOCALS:1%の前でオナホールを使ってオナニーするように命令した
-		PRINTFORMW %LOCALS:2%は言われるまま、%LOCALS:3%%LOCALS:1%の目の前で見せつけるように%LOCALS:0%った…
+		PRINTFORML %ANAME(TFLAG:45)%は%LOCALS:2%に対して、%LOCALS:1%の前で%LOCALS:0%るように命じた
+		PRINTFORMW %LOCALS:2%は言われるまま、%LOCALS:3%%LOCALS:1%の目の前で見せつけるようにスキマを使って%LOCALS:0%った…
 ENDSELECT
 
 ;--------------------------------------------------------
 ;地の文(パラメータ・刻印変動後)
 ;--------------------------------------------------------
-@COM_TEXT_LAST116
+@COM_TEXT_LAST117
 FOR LOCAL:0, 0, MPLY_NUM
 	LOCAL:1 = MPLY:(LOCAL:0)
 
 	IF LOCAL:1 != MASTER && !CFLAG:(LOCAL:1):TEXT_LAST非表示 && IS_INITIATIVE(LOCAL:1)
-		IF ABL:(LOCAL:1):自慰 >= 5
-			PRINTFORML %ANAME(LOCAL:1)%はすっかりオナホールの虜になり、激しく腰を振って自ら快感を貪っている
+		IF ABL:(LOCAL:1):射精 >= 5 && HAS_PENIS(LOCAL:1)
+			PRINTFORML %ANAME(LOCAL:1)%はすっかり射精に夢中になり、激しく腰を振って自らのペニスにしゃぶりついている
 		ELSEIF ABL:(LOCAL:1):露出 >= 5
-			PRINTFORML %ANAME(LOCAL:1)%は見られることで興奮しているのか、上気した顔でオナホールに腰を振っている
+			PRINTFORML %ANAME(LOCAL:1)%は見られることで興奮しているのか、上気した顔で自らの%BAR_NAME(LOCAL:1)%にしゃぶりついている
 		ELSEIF ABL:(LOCAL:1):自慰 >= 2
 			;捕虜調教のメインターゲット
 			IF FLAG:調教モード == 2 && FINDELEMENT(PRISONER_TARGET, MTAR:0) != -1
-				PRINTFORML %ANAME(LOCAL:1)%は屈辱に顔を歪めながらも、自ら快感を求めてオナホールに腰を振っている
+				PRINTFORML %ANAME(LOCAL:1)%は屈辱に顔を歪めながらも、自ら快感を求めて%BAR_NAME(LOCAL:1)%にしゃぶりついている
 			ELSE
-				PRINTFORML %ANAME(LOCAL:1)%は恥ずかしそうにしているが、無意識に快感を求めるようにオナホールに腰を振っている
+				PRINTFORML %ANAME(LOCAL:1)%は恥ずかしそうにしているが、無意識に快感を求めるように%BAR_NAME(LOCAL:1)%をしゃぶっている
 			ENDIF
 		ELSE
 			;捕虜調教のメインターゲット
 			IF FLAG:調教モード == 2 && FINDELEMENT(PRISONER_TARGET, MTAR:0) != -1
-				PRINTFORML %ANAME(LOCAL:1)%は屈辱に耐えながら、おぼつかない腰使いでオナホールを犯し始めた
+				PRINTFORML %ANAME(LOCAL:1)%は屈辱に耐えながら、おぼつかない舌遣いで%BAR_NAME(LOCAL:1)%をしゃぶりはじめた
 			ELSE
-				PRINTFORML %ANAME(LOCAL:1)%は恥ずかしさのあまり目を逸らしながら、おぼつかない腰使いでオナホールを犯し始めた
+				PRINTFORML %ANAME(LOCAL:1)%は恥ずかしさのあまり目を逸らしながら、おぼつかない舌遣いで%BAR_NAME(LOCAL:1)%をしゃぶりはじめた
 			ENDIF
 		ENDIF
 	ENDIF
@@ -373,5 +423,5 @@ NEXT
 ;コマンド区分
 ;-------------------------------------------------
 
-@COM_AVAILABLE_WHEN116
+@COM_AVAILABLE_WHEN117
 RETURN コマンド_ウフフ

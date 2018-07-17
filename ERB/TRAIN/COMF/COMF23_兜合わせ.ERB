@@ -1,0 +1,297 @@
+﻿;貝合わせ
+
+;-------------------------------------------------
+;コマンド名称
+;-------------------------------------------------
+@COM_NAME23
+LOCALS:0 = 兜合わせ
+
+RESULTS:0 = %LOCALS:0%する
+RESULTS:1 = %LOCALS:0%させられる
+RESULTS:2 = %LOCALS:0%させる
+RESULTS:3 = %LOCALS:0%される
+RESULTS:4 = %LOCALS:0%させる
+RESULTS:5 = %LOCALS:0%見せつけ
+
+;-------------------------------------------------
+;選択可否判定
+;-------------------------------------------------
+@COM_ABLE23
+;共通部分
+CALL COM_ABLE_COMMON(23)
+SIF RESULT == 0
+	RETURN 0
+;プレイヤーは最大で1人まで
+SIF MPLY_NUM <= 0 || MPLY_NUM > 1
+	RETURN 0
+;ターゲットは最大で1人まで
+SIF MTAR_NUM <= 0 || MTAR_NUM > 1
+	RETURN 0
+;プレイヤーとターゲットが共に行動不能なら不可
+SIF !IS_PLAYABLE(MPLY:0) && !IS_PLAYABLE(MTAR:0)
+	RETURN 0
+;プレイヤーにPがないなら不可
+SIF !HAS_PENIS(MPLY:0)
+	RETURN 0
+;ターゲットにPがないなら不可
+SIF !HAS_PENIS(MTAR:0)
+	RETURN 0
+;プレイヤーが顔面騎乗中なら不可
+SIF IS_RIDE(MPLY:0)
+	RETURN 0
+;プレイヤーが土下座しているなら不可
+SIF IS_EQUIP_PLAYER(MPLY:0, 110)
+	RETURN 0
+;ターゲットが顔面騎乗中なら不可
+SIF IS_RIDE(MTAR:0)
+	RETURN 0
+;土下座しているなら不可
+SIF IS_EQUIP_PLAYER(MTAR:0, 110)
+	RETURN 0
+;プレイヤーとターゲットが共に拘束中なら不可
+SIF IS_BIND(MPLY:0) && IS_BIND(MTAR:0)
+	RETURN 0
+;プレイヤーとターゲットが相互に兜合わせ中なら判定スキップ
+IF SEARCH_EQUIP_IC(23, MPLY:0, MTAR:0) == -1
+	;プレイヤーのPが埋まっているなら不可
+	SIF IS_P_HOLD(MPLY:0)
+		RETURN 0
+	;ターゲットのPが埋まっているなら不可
+	SIF IS_P_HOLD(MTAR:0)
+		RETURN 0
+	;プレイヤーが挿入中なら不可
+	SIF IS_INSERT_SINGLE(MTAR:0, "全") && !LOCAL:2
+		RETURN 0
+	;ターゲットが挿入中なら不可
+	SIF IS_INSERT_SINGLE(MTAR:0, "全") && !LOCAL:2
+		RETURN 0
+ENDIF
+
+RETURN 1
+
+;-------------------------------------------------
+;メイン処理
+;-------------------------------------------------
+@COM23
+;実行判定
+CALL COM_ORDER_COMMON
+SIF RESULT == 0
+	RETURN 0
+
+;逆方向からのMEQUIPを解除
+FOR LOCAL:0, 0, MPLY_NUM
+	FOR LOCAL:1, 0, MTAR_NUM
+		CALL RELEASE_EQUIP_EX(23, MTAR:(LOCAL:1), MPLY:(LOCAL:0))
+	NEXT
+NEXT
+
+;●射精による各種倍率の計算
+
+;●プレイヤーについて処理
+DOWNBASE:(MPLY:0):体力 += 120
+
+EXP:(MPLY:0):性技経験値 += 1
+
+SOURCE:(MPLY:0):快Ｐ = SENSE_HOUSHI(MTAR:0, MPLY:0, 1600) * 30 / 100
+SOURCE:(MPLY:0):奉仕 = SERVE_HOUSHI(MPLY:0, 100)
+SOURCE:(MPLY:0):接触 = 120
+SOURCE:(MPLY:0):性行動 = 300
+
+;主導権に応じた優越・屈従のソース追加
+CALL ADD_SOURCE_INITIATIVE_U(MPLY:0, 40, 40)
+
+;奉仕経験値を得られるコマンドのフラグ
+TCVAR:(MPLY:0):4 = 1
+
+;射精箇所と対象をセット
+CALL STACK_SPERM(MPLY:0, MTAR:0, 0)
+
+;●ターゲットについて処理
+DOWNBASE:(MTAR:0):体力 += 120
+
+EXP:(MTAR:0):性技経験値 += 1
+
+SOURCE:(MTAR:0):快Ｐ = SENSE_HOUSHI(MPLY:0, MTAR:0, 1600) * 30 / 100
+SOURCE:(MTAR:0):奉仕 = SERVE_HOUSHI(MTAR:0, 100)
+SOURCE:(MTAR:0):接触 = 120
+SOURCE:(MTAR:0):性行動 = 300
+
+;主導権に応じた優越・屈従のソース追加
+CALL ADD_SOURCE_INITIATIVE_U(MTAR:0, 40, 40)
+
+;奉仕経験値を得られるコマンドのフラグ
+TCVAR:(MTAR:0):4 = 1
+
+;射精箇所と対象をセット
+CALL STACK_SPERM(MTAR:0, MPLY:0, IFRAND(@"{射精部位_胸}, {射精部位_顔}, {射精部位_手}", 1))
+
+;主導度変化基準値
+TFLAG:49 = 2
+
+;倒錯度変化基準値
+TFLAG:50 = 0
+
+;レズ・ＢＬ経験基準値
+TFLAG:51 = 7
+
+RETURN 1
+
+;-------------------------------------------------
+;継続コマンドかどうかを設定
+;-------------------------------------------------
+@COM_IS_EQUIP23
+RETURN 1
+
+;-------------------------------------------------
+;継続状態の処理
+;-------------------------------------------------
+@COM_EQUIP23(ARG:0)
+LOCAL:2 = MEQUIP_PLAYER:(ARG:0):0
+LOCAL:3 = MEQUIP_TARGET:(ARG:0):0
+
+;●プレイヤーについて処理
+DOWNBASE:(LOCAL:2):体力 += 20
+
+EXP:(LOCAL:2):性技経験値 += 1
+
+SOURCE:(LOCAL:2):快Ｐ += SENSE_HOUSHI(LOCAL:3, LOCAL:2, 800) * 30 / 100
+SOURCE:(LOCAL:2):奉仕 += SERVE_HOUSHI(LOCAL:2, 50)
+SOURCE:(LOCAL:2):接触 += 60
+SOURCE:(LOCAL:2):性行動 += 100
+
+;奉仕経験値を得られるコマンドのフラグ
+TCVAR:(LOCAL:2):4 = 1
+
+;射精箇所と対象をセット
+CALL STACK_SPERM(LOCAL:2, LOCAL:3, 0, 0)
+
+;●ターゲットについて処理
+DOWNBASE:(LOCAL:3):体力 += 20
+
+EXP:(LOCAL:3):性技経験値 += 1
+
+SOURCE:(LOCAL:3):快Ｐ = SENSE_HOUSHI(LOCAL:2, LOCAL:3, 800) * 30 / 100
+SOURCE:(LOCAL:3):奉仕 = SERVE_HOUSHI(LOCAL:3, 50)
+SOURCE:(LOCAL:3):接触 = 60
+SOURCE:(LOCAL:3):性行動 += 100
+
+;奉仕経験値を得られるコマンドのフラグ
+TCVAR:(LOCAL:3):4 = 1
+
+;射精箇所と対象をセット
+CALL STACK_SPERM(LOCAL:3, LOCAL:2, IFRAND(@"{射精部位_胸}, {射精部位_顔}, {射精部位_手}", 1))
+
+;-------------------------------------------------
+;継続中の表示
+;-------------------------------------------------
+@EQUIP_MESSAGE23(ARG:0)
+RESULTS = %EQUIP_PLAYER_ANAME(ARG:0)%と%EQUIP_TARGET_ANAME(ARG:0)%が兜合わせ中
+
+;-------------------------------------------------
+;継続中の地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE_EQUIP23(ARG:0)
+PRINTFORML %EQUIP_PLAYER_ANAME(ARG:0)%と%EQUIP_TARGET_ANAME(ARG:0)%は%BAR_NAME(MEQUIP_PLAYER:(ARG:0):0)%を擦り合わせている…
+
+;-------------------------------------------------
+;継続を解除したときの地の文
+;-------------------------------------------------
+@COM_TEXT_RELEASE_EQUIP23(ARG:0)
+
+;-------------------------------------------------
+;固有の実行判定
+;-------------------------------------------------
+@COM_ORDER_PLAYER23(ARG:0)
+CALL COM_ORDER_COMMON23(ARG:0)
+RETURN 1
+
+@COM_ORDER_TARGET23(ARG:0)
+CALL COM_ORDER_COMMON23(ARG:0)
+RETURN 1
+
+@COM_ORDER_COMMON23(ARG:0)
+;実行値の設定
+TCVAR:(ARG:0):25 = 90
+
+;共通部分
+CALL COM_ORDER(ARG:0)
+
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲望Lv{ABL:(ARG:0):欲望}", ABL:(ARG:0):欲望 * 3)
+CALL COM_ORDER_ELEMENT(ARG:0, @"Ｃ感Lv{ABL:(ARG:0):Ｃ感}", ABL:(ARG:0):Ｃ感 * 2)
+CALL COM_ORDER_ELEMENT(ARG:0, @"奉仕Lv{ABL:(ARG:0):奉仕}", ABL:(ARG:0):奉仕 * 1)
+CALL COM_ORDER_ELEMENT(ARG:0, @"射精Lv{ABL:(ARG:0):奉仕}", ABL:(ARG:0):射精 * 3)
+
+
+LOCAL:0 = GET_PALAMLV(PALAM:(ARG:0):欲情)
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲情Lv{LOCAL:0}", MIN(LOCAL:0 * 3, 30))
+
+IF TCVAR:(ARG:0):60
+	CALL COM_ORDER_ELEMENT(ARG:0, "媚薬", 6)
+ENDIF
+
+IF TALENT:(ARG:0):恥じらい
+	CALL COM_ORDER_ELEMENT(ARG:0, "恥じらい", -4)
+ENDIF
+IF TALENT:(ARG:0):献身的
+	CALL COM_ORDER_ELEMENT(ARG:0, "献身的", 6)
+ENDIF
+IF TALENT:(ARG:0):快感の否定
+	CALL COM_ORDER_ELEMENT(ARG:0, "快感の否定", -3)
+ENDIF
+
+;合意
+IF !TALENT:(ARG:0):合意 && !TALENT:(ARG:0):親友
+	CALL COM_ORDER_ELEMENT(ARG:0, "合意なし", -10)
+ENDIF
+
+RETURN 1
+
+;-------------------------------------------------
+;地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE23
+IF IS_PIERCED(MPLY:0, ピアス_ペニス) && IS_PIERCED(MTAR:0, ピアス_ペニス)
+	LOCALS:0 = ピアスの取り付けられた
+ENDIF
+IF GET_INMOU_LEVEL(MPLY:0) >= 1 && GET_INMOU_LEVEL(MTAR:0) >= 1
+	LOCALS:1 = 根元にふさふさと毛の繁る
+ENDIF
+;継続中
+IF SEARCH_EQUIP_IC(23, MPLY:0, MTAR:0) >= 0
+	SELECTCASE GET_COM_INITIATIVE()
+		;プレイヤーに主導権
+		CASE 0
+			PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%に強く%BAR_NAME(MPLY:0)%を押し付けると、さらに腰を揺り動かして%ANAME(MTAR:0)%を責め%TARGET_STR("た", "てきた")%…
+		;ターゲットに主導権
+		CASE 1
+			PRINTFORML %ANAME(MTAR:0)%は%ANAME(MPLY:0)%に足を絡めながら、もっと激しく腰を振るよう%ANAME(MPLY:0)%に要求した
+			PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%に腰を押し付け直すと、必死に%LOCALS:0%%LOCALS:1%%BAR_NAME(MPLY:0)%同士を擦り合わせて%ANAME(MTAR:0)%に奉仕した…
+		;第三者に主導権
+		CASEELSE
+			PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%と%ANAME(MTAR:0)%に、もっと激しく腰を動かして絡み合うように命令した
+			PRINTFORMW %ANAME(MPLY:0)%と%ANAME(MTAR:0)%は言われるままさらに腰を動かし、%LOCALS:0%%LOCALS:1%お互いの%BAR_NAME(MPLY:0)%を擦り合わせた…
+	ENDSELECT
+
+ELSE
+	SELECTCASE GET_COM_INITIATIVE()
+		;プレイヤーに主導権
+		CASE 0
+			PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%と%LOCALS:0%%LOCALS:1%%BAR_NAME(MPLY:0)%を重ね合わせると、腰を押し付けながら自身の%BAR_NAME(MPLY:0)%で%ANAME(MTAR:0)%のそれを擦り上げ%TARGET_STR("た", "てきた")%…
+		;ターゲットに主導権
+		CASE 1
+			PRINTFORML %ANAME(MTAR:0)%は%ANAME(MPLY:0)%に兜合わせで奉仕するように要求した
+			PRINTFORMW %ANAME(MPLY:0)%は促されるままに%ANAME(MTAR:0)%と%LOCALS:0%%LOCALS:1%%BAR_NAME(MPLY:0)%を重ね合わせると、腰を揺すって%BAR_NAME(MPLY:0)%同士を擦り合わせた…
+		;第三者に主導権
+		CASEELSE
+			PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に、兜合わせで%ANAME(MTAR:0)%と絡み合うように命令した
+			PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%と%LOCALS:0%%LOCALS:1%%BAR_NAME(MPLY:0)%を重ね合わせると、腰を押し付けながら自身の%BAR_NAME(MPLY:0)%で%ANAME(MTAR:0)%のそれを擦り上げた…
+	ENDSELECT
+ENDIF
+
+;-------------------------------------------------
+
+;コマンド区分
+;-------------------------------------------------
+
+@COM_AVAILABLE_WHEN23
+RETURN コマンド_ウフフ
