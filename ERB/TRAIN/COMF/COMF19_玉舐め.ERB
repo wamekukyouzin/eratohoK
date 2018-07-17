@@ -1,0 +1,543 @@
+﻿;フェラチオ
+
+;-------------------------------------------------
+;コマンド名称
+;-------------------------------------------------
+@COM_NAME19
+	;プレイヤーからターゲットにフェラ中
+	IF SEARCH_EQUIP(11, MPLY:0, MTAR:0) >= 0
+		LOCALS:0 = フェラ玉舐め
+	;手コキ中
+	ELSEIF SEARCH_EQUIP(10, MPLY:0, MTAR:0) >= 0
+		LOCALS:0 = 手コキ玉舐め
+	;アナル舐め中
+	ELSEIF SEARCH_EQUIP(8, MPLY:0, MTAR:0) >= 0
+		LOCALS:0 = Ａ玉舐め
+	ELSE
+		LOCALS:0 = 玉舐め
+	ENDIF
+
+RESULTS:0 = %LOCALS:0%する
+RESULTS:1 = %LOCALS:0%させられる
+RESULTS:2 = %LOCALS:0%させる
+RESULTS:3 = %LOCALS:0%される
+RESULTS:4 = %LOCALS:0%させる
+RESULTS:5 = %LOCALS:0%見せつけ
+
+;-------------------------------------------------
+;選択可否判定
+;-------------------------------------------------
+@COM_ABLE19
+;共通部分
+CALL COM_ABLE_COMMON(19)
+SIF RESULT == 0
+	RETURN 0
+;プレイヤーは最大で3人まで
+SIF MPLY_NUM <= 0 || MPLY_NUM > 3
+	RETURN 0
+;ターゲットはひとり
+SIF MTAR_NUM != 1
+	RETURN 0
+
+FOR LOCAL, 0, MPLY_NUM
+	;行動不能なら不可
+	SIF !IS_PLAYABLE(MPLY:(LOCAL:0))
+		RETURN 0
+	;拘束中なら実行者は1のみ
+	SIF IS_BIND(MPLY:(LOCAL:0)) && MPLY_NUM >= 2
+		RETURN 0
+
+	;口が塞がってたら不可(フェラ、アナル舐めは見逃す)
+	SIF IS_M_HOLD(MPLY:(LOCAL:0)) && SEARCH_EQUIP(11, MPLY:(LOCAL:0), MTAR:0) == -1 && SEARCH_EQUIP(8, MPLY:(LOCAL:0), MTAR:0) == -1
+		RETURN 0
+	FOR LOCAL:1, 0, MTAR_NUM
+		;どちらかがどちらかに挿入中なら不可
+		SIF IS_INSERT_MUTUAL(MPLY:(LOCAL), MTAR:(LOCAL:1)) != 0
+			RETURN 0
+		;ターゲットからプレイヤーに足舐め中なら不可
+		SIF SEARCH_EQUIP(104, MTAR:(LOCAL:1), MPLY:(LOCAL:0)) >= 0
+			RETURN 0
+		;プレイヤーからターゲットにパイズリ中なら不可
+		SIF SEARCH_EQUIP(12, MPLY:(LOCAL:0), MTAR:(LOCAL:1)) >= 0
+			RETURN 0
+
+		;プレイヤーとターゲットが相互に貝合わせ中なら不可
+		SIF SEARCH_EQUIP_IC(21, MPLY:(LOCAL:0), MTAR:(LOCAL:1)) >= 0
+			RETURN 0
+		;プレイヤーとターゲットが相互に双頭バイブで結合中なら不可
+		SIF SEARCH_EQUIP_IC(22, MPLY:(LOCAL:0), MTAR:(LOCAL:1)) >= 0
+			RETURN 0
+		;プレイヤーからターゲット／ターゲットからプレイヤーに尻コキ中なら不可
+		SIF SEARCH_EQUIP_IC(13, MPLY:(LOCAL:0), MTAR:(LOCAL:1)) >= 0
+			RETURN 0
+		;プレイヤーからターゲット／ターゲットからプレイヤーに尻コキ中なら不可
+		SIF SEARCH_EQUIP_IC(15, MPLY:(LOCAL:0), MTAR:(LOCAL:1)) >= 0
+			RETURN 0
+		;プレイヤーからターゲット／ターゲットからプレイヤーに電気按摩中なら不可
+		SIF SEARCH_EQUIP_IC(103, MPLY:(LOCAL:0), MTAR:(LOCAL:1)) >= 0
+			RETURN 0
+	NEXT
+NEXT
+
+;おちんちんが必要です
+SIF !HAS_PENIS(MTAR:0)
+	RETURN 0
+
+IF MPLY_NUM == 1 && MTAR_NUM == 1
+	;プレイヤーとターゲットが共に拘束中なら不可
+	SIF IS_BIND(MPLY:0) && IS_BIND(MTAR:0)
+		RETURN 0
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;快Ｍソースの倍率を取得する関数 ARG:0=PLAYERのキャラ番号
+;-------------------------------------------------
+@COM19_RATE_M(ARG:0)
+#FUNCTION
+LOCAL:5 = 1000
+SELECTCASE ABL:(ARG:0):奉仕
+	CASE 0
+		TIMES LOCAL:5, 0.00
+		;TIMES SOURCE:(LOCAL:2):不潔, 4.00
+	CASE 1
+		TIMES LOCAL:5, 0.10
+		;TIMES SOURCE:(LOCAL:2):不潔, 2.50
+	CASE 2
+		TIMES LOCAL:5, 0.30
+		;TIMES SOURCE:(LOCAL:2):不潔, 1.50
+	CASE 3
+		TIMES LOCAL:5, 0.80
+		;TIMES SOURCE:(LOCAL:2):不潔, 1.00
+	CASE 4
+		TIMES LOCAL:5, 1.00
+		;TIMES SOURCE:(LOCAL:2):不潔, 0.50
+	CASEELSE
+		LOCAL:5 = LOCAL:5 * (100 + (ABL:(ARG:0):奉仕 - 5) * 3) / 100
+		;TIMES SOURCE:(LOCAL:2):不潔, 0.10
+ENDSELECT
+
+SELECTCASE ABL:(ARG:0):性技
+	CASE 0
+		TIMES LOCAL:5, 1.00
+	CASE 1
+		TIMES LOCAL:5, 1.10
+	CASE 2
+		TIMES LOCAL:5, 1.20
+	CASE 3
+		TIMES LOCAL:5, 1.30
+	CASE 4
+		TIMES LOCAL:5, 1.40
+	CASEELSE
+		LOCAL:5 = LOCAL:5 * ((ABL:(ARG:0):性技 - 5) * 2 + 150) / 100
+ENDSELECT
+
+RETURNF LOCAL:5
+
+;-------------------------------------------------
+;メイン処理
+;-------------------------------------------------
+@COM19
+;実行判定
+CALL COM_ORDER_COMMON
+SIF RESULT == 0
+	RETURN 0
+
+TFLAG:16 = 0
+;挿入中
+FOR LOCAL, 0, MTAR_NUM
+	IF IS_INSERT_SINGLE(MTAR:LOCAL, "Ｐ")
+		TFLAG:16 = IS_INSERT_SINGLE(MTAR:LOCAL, "Ｐ")
+		BREAK
+	ENDIF
+NEXT
+
+
+;●人数補正の設定
+LOCAL:10 = 100
+
+SELECTCASE MPLY_NUM
+	CASE 2
+		TIMES LOCAL:10, 0.75
+	CASE 3
+		TIMES LOCAL:10, 0.60
+ENDSELECT
+
+SELECTCASE MTAR_NUM
+	CASE 2
+		TIMES LOCAL:10, 0.75
+ENDSELECT
+
+;●全プレイヤーについて判定
+FOR LOCAL:0, 0, MPLY_NUM
+	LOCAL:2 = MPLY:(LOCAL:0)
+
+	DOWNBASE:(LOCAL:2):体力 += 120
+
+	EXP:(LOCAL:2):性技経験値 += MAX(MTAR_NUM / 2 + 1, 1)
+	EXP:(LOCAL:2):口淫経験 += 1
+
+	SOURCE:(LOCAL:2):奉仕 = SERVE_HOUSHI(LOCAL:2, 600)
+	SOURCE:(LOCAL:2):接触 = 50
+	SOURCE:(LOCAL:2):快Ｍ = 300 * COM19_RATE_M(LOCAL:2) / 1000
+	SOURCE:(LOCAL:2):性行動 = 300
+
+	;主導権に応じた優越・受動のソース追加
+	CALL ADD_SOURCE_INITIATIVE_U(LOCAL:2, 150, 120)
+
+	;奉仕経験値を得られるコマンドのフラグ
+	TCVAR:(LOCAL:2):4 = 1
+
+	;全ターゲットに与える快感系ソースを計算
+	FOR LOCAL:1, 0, MTAR_NUM
+		LOCAL:3 = MTAR:(LOCAL:1)
+		LOCAL:4 = SENSE_HOUSHI_P(LOCAL:2, LOCAL:3, 1500) * LOCAL:10 / 100
+		IF TALENT:(LOCAL:2):舌使い
+			TIMES LOCAL:4, 1.50
+		ENDIF
+		SOURCE:(LOCAL:3):快Ｐ += LOCAL:4
+
+		;射精箇所と対象をセット
+		CALL STACK_SPERM(LOCAL:3, LOCAL:2, RAND:3 ? 射精部位_口 # 射精部位_顔)
+	NEXT
+	IF MTAR_NUM == 1
+		;ペニスへのキス
+		CALL KISS_COMMON(LOCAL:2, @"%ANAME(MTAR:0)%の睾丸", GET_SITUATION_BY_TRAIN_MODE())
+	ELSE
+		CALL KISS_COMMON(LOCAL:2, @"%ANAME(MTAR:0)%たちの睾丸", (GET_SITUATION_BY_TRAIN_MODE() == 喪失_和姦 ? 喪失_乱交 # 喪失_輪姦))
+	ENDIF
+
+	;奉仕精神ＬＶ２以上、性技ＬＶ２以上なら汚れをなめ取る
+	;IF ABL:(LOCAL:1):奉仕 >= 2 && ABL:(LOCAL:1):性技 >= 2
+	;	STAIN:PLAYER:2 = 2
+	;ENDIF
+
+	;奴隷の指⇔調教者のＰの汚れが移動
+	;IF HAS_PENIS(PLAYER)
+	;	STAIN:(LOCAL:1):1 |= STAIN:PLAYER:2
+	;	STAIN:PLAYER:2 |= STAIN:(LOCAL:1):1
+	;奴隷の指⇔調教者のＶの汚れが移動
+	;ELSE
+	;	STAIN:(LOCAL:1):3 |= STAIN:PLAYER:2
+	;	STAIN:PLAYER:2 |= STAIN:(LOCAL:1):3
+	;ENDIF
+NEXT
+
+;●全ターゲットについて判定
+FOR LOCAL:0, 0, MTAR_NUM
+	LOCAL:1 = MTAR:(LOCAL:0)
+
+	;●ソースの計算
+	DOWNBASE:(LOCAL:1):体力 += 60
+
+	SOURCE:(LOCAL:1):接触 = 50
+	SOURCE:(LOCAL:1):性行動 = 180
+
+	;主導権に応じた優越・受動のソース追加
+	CALL ADD_SOURCE_INITIATIVE_U(LOCAL:1, 150, 70)
+NEXT
+
+;主導度変化基準値
+TFLAG:49 = 2
+
+;倒錯度変化基準値
+TFLAG:50 = 0
+
+;レズ・ＢＬ経験基準値
+TFLAG:51 = 7
+
+RETURN 1
+
+;-------------------------------------------------
+;継続コマンドかどうかを設定
+;-------------------------------------------------
+@COM_IS_EQUIP19
+RETURN 1
+
+;-------------------------------------------------
+;継続状態の処理
+;-------------------------------------------------
+@COM_EQUIP19(ARG:0)
+;●人数補正の設定
+LOCAL:10 = 100
+
+SELECTCASE MEQUIP_PLAYER_NUM:(ARG:0)
+	CASE 2
+		TIMES LOCAL:10, 0.75
+	CASE 3
+		TIMES LOCAL:10, 0.60
+ENDSELECT
+
+SELECTCASE MEQUIP_TARGET_NUM:(ARG:0)
+	CASE 2
+		TIMES LOCAL:10, 0.75
+ENDSELECT
+
+;●全プレイヤーについて判定
+FOR LOCAL:0, 0, MEQUIP_PLAYER_NUM:(ARG:0)
+	LOCAL:2 = MEQUIP_PLAYER:(ARG:0):(LOCAL:0)
+
+	DOWNBASE:(LOCAL:2):体力 += 20
+
+	EXP:(LOCAL:2):性技経験値 += MAX(MEQUIP_TARGET_NUM:(ARG:0) / 2 + 1, 1)
+	EXP:(LOCAL:2):口淫経験 += 1
+
+	SOURCE:(LOCAL:2):奉仕 += SERVE_HOUSHI(LOCAL:2, 200)
+	SOURCE:(LOCAL:2):接触 += 25
+	SOURCE:(LOCAL:2):快Ｍ += 150 * COM19_RATE_M(LOCAL:2) / 1000
+	SOURCE:(LOCAL:2):性行動 += 100
+
+	;奉仕経験値を得られるコマンドのフラグ
+	TCVAR:(LOCAL:2):4 = 1
+
+	;全ターゲットに与える快感系ソースを計算
+	FOR LOCAL:1, 0, MEQUIP_TARGET_NUM:(ARG:0)
+		LOCAL:3 = MEQUIP_TARGET:(ARG:0):(LOCAL:1)
+		LOCAL:4 = SENSE_HOUSHI_P(LOCAL:2, LOCAL:3, 500) * LOCAL:10 / 100
+		IF TALENT:(LOCAL:2):舌使い
+			TIMES LOCAL:4, 1.50
+		ENDIF
+		SOURCE:(LOCAL:3):快Ｐ += LOCAL:4
+
+		;射精箇所と対象をセット
+		CALL STACK_SPERM(LOCAL:3, LOCAL:2, RAND:3 ? 射精部位_口 # 射精部位_顔)
+	NEXT
+NEXT
+
+;●全ターゲットについて判定
+FOR LOCAL:0, 0, MEQUIP_TARGET_NUM:(ARG:0)
+	LOCAL:1 = MEQUIP_TARGET:(ARG:0):(LOCAL:0)
+
+	DOWNBASE:(LOCAL:1):体力 += 10
+
+	SOURCE:(LOCAL:1):接触 += 25
+	SOURCE:(LOCAL:1):性行動 += 60
+NEXT
+
+;-------------------------------------------------
+;継続中の表示
+;-------------------------------------------------
+@EQUIP_MESSAGE19(ARG:0)
+RESULTS = %EQUIP_PLAYER_ANAME(ARG:0)%が%EQUIP_TARGET_ANAME(ARG:0)%に玉舐め中
+
+;-------------------------------------------------
+;継続中の地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE_EQUIP19(ARG:0)
+PRINTFORML %EQUIP_PLAYER_ANAME(ARG:0)%が%EQUIP_TARGET_ANAME(ARG:0)%の睾丸を舐め回している…
+
+;-------------------------------------------------
+;継続を解除したときの地の文
+;-------------------------------------------------
+@COM_TEXT_RELEASE_EQUIP19(ARG:0)
+
+;-------------------------------------------------
+;固有の実行判定
+;-------------------------------------------------
+@COM_ORDER_PLAYER19(ARG:0)
+;実行値の設定
+TCVAR:(ARG:0):25 = 80
+
+;共通部分
+CALL COM_ORDER(ARG:0)
+
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲望Lv{ABL:(ARG:0):欲望}", ABL:(ARG:0):欲望 * 1)
+CALL COM_ORDER_ELEMENT(ARG:0, @"奉仕Lv{ABL:(ARG:0):奉仕}", ABL:(ARG:0):奉仕 * 4)
+CALL COM_ORDER_ELEMENT(ARG:0, @"精愛Lv{ABL:(ARG:0):精愛}", ABL:(ARG:0):精愛 * 3)
+
+LOCAL:0 = GET_PALAMLV(PALAM:(ARG:0):欲情)
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲情Lv{LOCAL:0}", MIN(LOCAL:0 * 3, 30))
+
+IF TCVAR:(ARG:0):60
+	CALL COM_ORDER_ELEMENT(ARG:0, "媚薬", 6)
+ENDIF
+
+IF TALENT:(ARG:0):恥じらい
+	CALL COM_ORDER_ELEMENT(ARG:0, "恥じらい", -1)
+ENDIF
+IF TALENT:(ARG:0):汚臭鈍感
+	CALL COM_ORDER_ELEMENT(ARG:0, "汚臭鈍感", 1)
+ENDIF
+IF TALENT:(ARG:0):汚臭敏感
+	CALL COM_ORDER_ELEMENT(ARG:0, "汚臭敏感", -3)
+ENDIF
+IF TALENT:(ARG:0):献身的
+	CALL COM_ORDER_ELEMENT(ARG:0, "献身的", 6)
+ENDIF
+IF TALENT:(ARG:0):快感の否定
+	CALL COM_ORDER_ELEMENT(ARG:0, "快感の否定", -1)
+ENDIF
+IF TALENT:(ARG:0):男嫌い
+	CALL COM_ORDER_ELEMENT(ARG:0, "男嫌い", -12)
+ENDIF
+IF TALENT:(ARG:0):キス未経験
+	IF TALENT:(ARG:0):一線越えない
+		CALL COM_ORDER_ELEMENT(ARG:0, "キス未経験", -15)
+	ELSE
+		CALL COM_ORDER_ELEMENT(ARG:0, "キス未経験", -10)
+	ENDIF
+ENDIF
+;汚れの判定
+;IF !TALENT:(ARG:0):汚れ無視
+;	LOCAL:0 = 0
+;	;愛液の汚れ
+;	SIF STAIN:PLAYER:2 & 1
+;		LOCAL:0 += 1
+;	;精液の汚れ
+;	SIF STAIN:PLAYER:2 & 4
+;		LOCAL:0 += 3
+;	;アナルの汚れ
+;	SIF STAIN:PLAYER:2 & 8
+;		LOCAL:0 += 7
+;	SIF STAIN:PLAYER:2 & 16
+;		LOCAL:0 += 15
+;
+;	SIF TALENT:(ARG:0):汚臭鈍感
+;		LOCAL:0 /= 3
+;	SIF TALENT:(ARG:0):汚臭敏感
+;		LOCAL:0 *= 2
+;
+;	;汚れあり
+;	IF LOCAL:0 > 0
+;		CALL COM_ORDER_ELEMENT(ARG:0, "汚れあり", -LOCAL:0)
+;	ENDIF
+;ENDIF
+
+;合意
+IF !TALENT:(ARG:0):合意 && !TALENT:(ARG:0):親友
+	CALL COM_ORDER_ELEMENT(ARG:0, "合意なし", -10)
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE19
+LOCAL:5 = SEARCH_EQUIP(101, MPLY:0, MTAR:0)
+LOCAL:6 = SEARCH_EQUIP(102, MPLY:0, MTAR:0)
+LOCAL:7 = SEARCH_EQUIP(19, MTAR:0, MPLY:0)
+LOCAL:8 = SEARCH_EQUIP(2, MTAR:0, MPLY:0)
+
+IF MTAR_NUM == 1
+	LOCALS:6 = 
+ELSE
+	LOCALS:6 = たち
+ENDIF
+;３人
+IF MPLY_NUM == 3
+	SELECTCASE GET_COM_INITIATIVE()
+		;プレイヤーに主導権
+		CASE 0
+			PRINTFORML %ANAME(MPLY:(LOCAL:1))%たちは左右から顔を寄せ、三人で%ANAME(MTAR:0)%%LOCALS:6%の玉に舌を這わせて責め立て%TARGET_STR("た", "てきた")%…
+		;ターゲットに主導権
+		CASE 1
+			PRINTFORML %ANAME(MPLY:(LOCAL:1))%たちは左右から顔を寄せ、三人で%ANAME(MTAR:0)%%LOCALS:6%の玉に舌を這わせて奉仕した…
+		;第三者に主導権
+		CASEELSE
+			PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%、%ANAME(MPLY:1)%、%ANAME(MPLY:2)%の三人に、%ANAME(MTAR:0)%%LOCALS:6%の玉を舐めるように命令した
+			PRINTFORML %ANAME(MPLY:(LOCAL:1))%たちは左右から顔を寄せ、三人で%ANAME(MTAR:0)%%LOCALS:6%の玉に舌を這わせて責め立て%TARGET_STR("た", "てきた")%…
+	ENDSELECT
+
+;２人
+ELSEIF MPLY_NUM == 2
+	SELECTCASE GET_COM_INITIATIVE()
+		;プレイヤーに主導権
+		CASE 0
+			PRINTFORMW %ANAME(MPLY:0)%と%ANAME(MPLY:1)%は左右から顔を寄せ、二人で%ANAME(MTAR:0)%%LOCALS:6%の玉に舌を這わせて責め立て%TARGET_STR("た", "てきた")%…
+		;ターゲットに主導権
+		CASE 1
+			PRINTFORMW %ANAME(MPLY:0)%と%ANAME(MPLY:1)%は左右から顔を寄せ、二人で協力して%ANAME(MTAR:0)%%LOCALS:6%の玉に舌を這わせて奉仕した…
+		;第三者に主導権
+		CASEELSE
+			PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%と%ANAME(MPLY:1)%に、%ANAME(MTAR:0)%%LOCALS:6%の玉を舐めるように命令した
+			PRINTFORMW %ANAME(MPLY:0)%と%ANAME(MPLY:1)%は左右から顔を寄せ、二人で%ANAME(MTAR:0)%%LOCALS:6%の玉に舌を這わせて奉仕した…
+	ENDSELECT
+
+
+;プレイヤーが１人＆拘束中
+ELSEIF IS_BIND(MPLY:0)
+
+	SELECTCASE GET_COM_INITIATIVE()
+		;プレイヤーに主導権
+		CASE 0
+			PRINTFORMW %ANAME(MPLY:0)%は自身の顔に%ANAME(MTAR:0)%%LOCALS:6%の玉を押しつけさせ、じゅるじゅると音を立ててしゃぶった…
+		;ターゲットに主導権
+		CASE 1
+			PRINTFORMW %ANAME(MTAR:0)%%LOCALS:6%は身動きの取れない%ANAME(MPLY:0)%の顔に無理やり玉を押しつけ舐めさせた…
+		;第三者に主導権
+		CASEELSE
+			PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に、%ANAME(MTAR:0)%%LOCALS:6%の玉を口で気持ち良くするように命令した
+			PRINTFORMW %ANAME(MPLY:0)%は押しつけられる%ANAME(MTAR:0)%%LOCALS:6%の玉に舌を這わせ、じゅるじゅると音を立ててしゃぶった…
+	ENDSELECT
+
+	;縄で縛るの地の文をカットする
+	LOCAL:0 = SEARCH_EQUIP(85, -1, MPLY:0)
+	IF LOCAL:0 >= 0
+		MEQUIP_CUT:(LOCAL:0) = 1
+	ENDIF
+	LOCAL:0 = SEARCH_EQUIP(208, -1, MPLY:0)
+	IF LOCAL:0 >= 0
+		MEQUIP_CUT:(LOCAL:0) = 1
+	ENDIF
+
+
+;１人
+ELSE
+	IF TALENT:(MPLY:0):体格 == 体格_子供 || TALENT:(MPLY:0):体格 == 体格_小柄
+		LOCALS:0 = 小さな口で必死に
+	ELSE
+		LOCALS:0 = 口で
+	ENDIF
+	SELECTCASE GET_COM_INITIATIVE()
+		;プレイヤーに主導権
+		CASE 0
+			PRINTFORM %ANAME(MPLY:0)%は%ANAME(MTAR:0)%の玉に舌を這わせ、
+			IF ABL:(MPLY:0):性技 >= 3
+				PRINTFORMW 巧みな舌使いで舐めしゃぶっ%TARGET_STR("た", "てきた")%…
+			ELSE
+				PRINTFORMW 不慣れな舌使いで責めたて%TARGET_STR("た", "てきた")%…
+			ENDIF
+		;ターゲットに主導権
+		CASE 1
+			PRINTFORM %ANAME(MPLY:0)%は%ANAME(MTAR:0)%の玉に舌を這わせ、
+			IF ABL:(MPLY:0):性技 >= 3
+				PRINTFORMW 巧みな舌使いで奉仕している…
+			ELSE
+				PRINTFORMW 不慣れな舌使いで奉仕している…
+			ENDIF
+		;第三者に主導権
+		CASEELSE
+			PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に、%ANAME(MTAR:0)%の玉を口で気持ち良くするように命令した
+			PRINTFORM %ANAME(MPLY:0)%は%ANAME(MTAR:0)%の玉に舌を這わせ、
+			IF ABL:(MPLY:0):性技 >= 3
+				PRINTFORMW 巧みな舌使いで舐めしゃぶった…
+			ELSE
+				PRINTFORMW 不慣れな舌使いで舐め回した…
+			ENDIF
+	ENDSELECT
+ENDIF
+
+
+IF (PALAM:(MPLY:0):欲情 >= PALAMLV:10 || (PALAM:(MPLY:0):欲情 >= PALAMLV:7 && TCVAR:(MPLY:0):60)) && ((IS_FEMALE(MPLY:0) && ABL:(MPLY:0):欲望 >= ランク閾値:ランク_その他:ランク_D) || ABL:(MPLY:0):精愛 >= ランク閾値:ランク_その他:ランク_C)
+	SELECTCASE RAND:2
+		CASE 0
+			SELECTCASE RAND:2
+				CASE 0
+					PRINTFORM %ANAME(MPLY:0)%は%SPLIT_RAND("興奮で鼻息を荒くしながら/情欲に突き動かされるまま", 1)%、
+				CASE 1
+					PRINTFORM %SPLIT_RAND("興奮しきった様子の/発情しきった様子の", 1)%%ANAME(MPLY:0)%は、
+			ENDSELECT
+			PRINTFORML %SPLIT_RAND("じゅるじゅると音を立てて/下品な音を立てて/涎を垂らして/激しく鼻で呼吸しながら/夢中で/必死に", 1)%%ANAME(MTAR:0)%のペニス%SPLIT_RAND("にしゃぶり付いている/に吸い付いている", 1)%…
+		CASE 1
+			PRINTFORM %ANAME(MPLY:0)%は%SPLIT_RAND("興奮で息を荒げながら/蕩けたような顔をしながら/熱に浮かされたような顔をしながら", 1)%、
+			PRINTFORML %SPLIT_RAND("味わうように/形を確かめるように", 1)%%ANAME(MTAR:0)%の睾丸%SPLIT_RAND("をしゃぶっている/を頬張っている/へ舌を這わせている/を舐めまわしている", 1)%…
+	ENDSELECT
+ENDIF
+
+;-------------------------------------------------
+
+;コマンド区分
+;-------------------------------------------------
+
+@COM_AVAILABLE_WHEN19
+RETURN コマンド_ウフフ
