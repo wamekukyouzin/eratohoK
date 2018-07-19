@@ -667,11 +667,14 @@ PRINTFORML 外交調教報告
 CALL SINGLE_DRAWLINE
 
 FOR LOCAL:0, 0, CHARANUM
-	SIF !CFLAG:(LOCAL:0):外交調教経過ターン
+	IF !CFLAG:(LOCAL:0):外交調教中
+		SIF CFLAG:(LOCAL:0):外交調教カウンタ > 0
+			CFLAG:(LOCAL:0):外交調教カウンタ --
 		CONTINUE
+	ENDIF
 
 	IF !IS_COUNTRY(CFLAG:(LOCAL:0):所属)
-		CFLAG:(LOCAL:0):外交調教経過ターン = 0
+		CFLAG:(LOCAL:0):外交調教中 = 0
 		SETCOLOR カラー_注意
 		PRINTFORMW %ANAME(LOCAL:0)%がどこにも所属しなくなったため、「捕虜の調教」の調教対象から外れました…
 		RESETCOLOR
@@ -679,7 +682,7 @@ FOR LOCAL:0, 0, CHARANUM
 	ENDIF
 
 	IF CFLAG:(LOCAL:0):所属 == CFLAG:MASTER:所属
-		CFLAG:(LOCAL:0):外交調教経過ターン = 0
+		CFLAG:(LOCAL:0):外交調教中 = 0
 		SETCOLOR カラー_注意
 		PRINTFORMW %ANAME(LOCAL:0)%が%ANAME(MASTER)%と所属を同じくするようになったので、「捕虜の調教」の調教対象から外れました…
 		RESETCOLOR
@@ -689,7 +692,7 @@ FOR LOCAL:0, 0, CHARANUM
 	;あなたがいずれの勢力にも属していなければ解除
 	;IS_COUNTRYの性質上、領土のない野盗に所属している場合は解除されず
 	IF !IS_COUNTRY(CFLAG:MASTER:所属)
-		CFLAG:(LOCAL:0):外交調教経過ターン = 0
+		CFLAG:(LOCAL:0):外交調教中 = 0
 		SETCOLOR カラー_注意
 		PRINTFORMW %ANAME(LOCAL:0)%はあなたが無所属となったため、「捕虜の調教」の調教対象から外れました…
 		RESETCOLOR
@@ -701,7 +704,7 @@ FOR LOCAL:0, 0, CHARANUM
 	;【条件A】国力による重圧に屈している
 	;強要時より基礎判定値は下げています
 	;好感度による難易度補正の都合上判定値を引き下げ、ついでにターン経過とともに難易度が上がるように
-	SIF DIPLOMACY_REQUEST_CHECK(CFLAG:MASTER:所属, CFLAG:(LOCAL:0):所属, 300 + CFLAG:(LOCAL:0):外交調教経過ターン * 5, 1)
+	SIF DIPLOMACY_REQUEST_CHECK(CFLAG:MASTER:所属, CFLAG:(LOCAL:0):所属, 300 + CFLAG:(LOCAL:0):外交調教カウンタ * 5, 1)
 		SETBIT TRAIN_FLAG , 0
 
 	;【条件B】隷従系陥落素質の所持、もしくは君主で被虐の悦楽に染まり「ご褒美」のために体を売った
@@ -713,8 +716,8 @@ FOR LOCAL:0, 0, CHARANUM
 		SETBIT TRAIN_FLAG , 2
 
 	;【条件A】【条件B】【条件C】のいずれも満たさずターンが経過していたら外れる
-	IF !TRAIN_FLAG && CFLAG:(LOCAL:0):外交調教経過ターン > 4
-		CFLAG:(LOCAL:0):外交調教経過ターン = 0
+	IF !TRAIN_FLAG && CFLAG:(LOCAL:0):外交調教カウンタ > 4
+		CFLAG:(LOCAL:0):外交調教中 = 0
 		PRINTFORML %ANAME(LOCAL:0)%はこれ以上%ANAME(MASTER)%に体を許すつもりはないと通告してきた…
 		SETCOLOR カラー_注意
 		PRINTFORMW %ANAME(LOCAL:0)%が「捕虜の調教」の調教対象から外れました…
@@ -722,9 +725,9 @@ FOR LOCAL:0, 0, CHARANUM
 		CONTINUE
 	ENDIF
 	
-	DEBUGPRINTFORML %ANAME(LOCAL:0)%:外交調教継続({CFLAG:(LOCAL:0):外交調教経過ターン}ターン目)
-	SIF CFLAG:(LOCAL:0):外交調教経過ターン
-		CFLAG:(LOCAL:0):外交調教経過ターン ++
+	DEBUGPRINTFORML %ANAME(LOCAL:0)%:外交調教継続({CFLAG:(LOCAL:0):外交調教カウンタ}ターン目)
+	SIF CFLAG:(LOCAL:0):外交調教中
+		CFLAG:(LOCAL:0):外交調教カウンタ ++
 NEXT
 
 ;-------------------------------------------------
@@ -795,7 +798,7 @@ RETURNF LOCAL:3
 スコア:2 = MIN(兵力比 / 10, 200)
 
 最終ノルマ = ノルマ
-最終ノルマ += DIPLOMACY_HATE:(勢力) * 15
+最終ノルマ += DIPLOMACY_HATE:(勢力) * 15 + INDEPENDENCE_COUNTER:要求先 * 10
 
 
 最終値 = スコア:0 + スコア:1 + スコア:2

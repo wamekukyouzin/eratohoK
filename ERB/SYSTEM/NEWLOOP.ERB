@@ -569,8 +569,8 @@ VARSET 選択MASTERID
 
 IF FLAG:周回数 > 1
 	旧MASTERID = GET_ID(MASTER)
-	;勢力君主でないか、君主でも自分が収める勢力でスタートするなら引き継いで利用できる。ただし特殊勢力素質がある場合は問答無用でNG
-	引継ぎ使用可 = (CFLAG:MASTER:所属 == FLAG:OP選択勢力 || GET_COUNTRY_BOSS(CFLAG:MASTER:所属) != MASTER) && TALENT:MASTER:特殊勢力素質 == 0
+	;勢力君主でないか、君主でも自分が収める勢力でスタートするなら引き継いで利用できる。ただし特殊勢力素質がある場合は問答無用でNG。また、主人公が「あなた」の場合、作成済みであること
+	引継ぎ使用可 = (CFLAG:MASTER:所属 == FLAG:OP選択勢力 || GET_COUNTRY_BOSS(CFLAG:MASTER:所属) != MASTER) && TALENT:MASTER:特殊勢力素質 == 0 && (MASTER != NAME_TO_CHARA("あなた") || FLAG:あなた作成済み)
 ELSE
 	旧MASTERID = 0
 	引継ぎ使用可 = 1
@@ -586,7 +586,9 @@ SIF FLAG:OP選択勢力 <= 0
 	PRINTL ※特殊なスタートを選択しているので、既存キャラ一覧に君主以外の全キャラが表示されます
 ;二週目以降で選択勢力と異なる勢力の君主の場合、前週と同じ選択をさせるとまずいので選択不可とする
 IF 旧MASTERID > 0 && !引継ぎ使用可
-	IF TALENT:MASTER:特殊勢力素質
+	IF MASTER == NAME_TO_CHARA("あなた") && !FLAG:あなた作成済み
+		;まだ作成してない場合はわざわざ表示しなくていいや
+	ELSEIF TALENT:MASTER:特殊勢力素質
 		CALL COLORPRINT("前の週で特殊勢力固有のキャラを利用したため、「前週と同じ」が利用できません", カラー_注意, "L")
 	ELSE
 		CALL COLORPRINT(@"※前周の主人公%ANAME(MASTER)%が別勢力で君主をしているため、「前週と同じ」が利用できません", カラー_注意, "L")

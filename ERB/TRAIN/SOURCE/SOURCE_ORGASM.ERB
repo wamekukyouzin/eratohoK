@@ -772,7 +772,7 @@ SELECTCASE ARG:1
 		FOR LOCAL:0, 0, 20
 			;膣内射精の場合(コンドームつけてたらだめ）
 			LOCAL:6 = TCVAR:(ARG:0):(LOCAL:0 + 400)
-			IF TCVAR:(ARG:0):(LOCAL:0 + 420) == 1 && !IS_EQUIP_PLAYER(LOCAL:6, 75)
+			IF LOCAL:6 >= 0 && TCVAR:(ARG:0):(LOCAL:0 + 420) == 1 && !IS_EQUIP_PLAYER(LOCAL:6, 75)
 				;獣変化中
 				IF TALENT:(ARG:0):動物耳 || TALENT:(ARG:0):しっぽ
 					SOURCE:(ARG:0):歓喜 += 3000
@@ -803,7 +803,7 @@ SELECTCASE ARG:1
 					TCVAR:(ARG:0):56 = 1
 				ENDIF
 			;膣内射精したがゴムつけている
-			ELSEIF TCVAR:(ARG:0):(LOCAL:0 + 420) == 1 && IS_EQUIP_PLAYER(LOCAL:6, 75)
+			ELSEIF LOCAL:6 >= 0 && TCVAR:(ARG:0):(LOCAL:0 + 420) == 1 && IS_EQUIP_PLAYER(LOCAL:6, 75)
 				;受精中毒
 				IF GETBIT(TALENT:(LOCAL:6):淫乱系, 素質_淫乱_孕みたがり)
 					SOURCE:(LOCAL:6):反感 += 500
@@ -909,7 +909,6 @@ NEXT
 ;-------------------------------------------------
 @RECORD_INJECTION(ARG:0, ARG:1, ARG:2)
 LOCAL:1 = ID_TO_CHARA(ARG:1)
-LOCAL:2 = 1
 
 ;避妊薬の効果中なら無効
 SIF CFLAG:(ARG:0):避妊薬残ターン
@@ -926,13 +925,20 @@ IF LOCAL:1 >= 0 && IS_ANIMAL(LOCAL:1)
 			ARG:1 = GET_SPERM_ID("犬")
 		CASE 動物_豚
 			ARG:1 = GET_SPERM_ID("豚")
-			ARG:2 += 10
 		CASE 動物_馬
 			ARG:1 = GET_SPERM_ID("馬")
 		CASE 動物_猿
 			ARG:1 = GET_SPERM_ID("猿")
 	ENDSELECT
 ENDIF
+
+SELECTCASE ARG:1
+	CASE GET_SPERM_ID("豚")
+		ARG:2 += 10
+	CASE GET_SPERM_ID("馬")
+		ARG:2 += 20
+ENDSELECT
+
 ;対象が特殊勢力の場合、IDを変換
 SIF LOCAL:1 >= 0 && TALENT:(LOCAL:1):特殊勢力素質
 	ARG:1 = GET_SPERM_ID(SP_COUNTRY_NAME:(TALENT:(LOCAL:1):特殊勢力素質))
@@ -941,21 +947,23 @@ SIF LOCAL:1 >= 0 && TALENT:(LOCAL:1):慰安モブ
 	ARG:1 = GET_SPERM_ID(IAN_SPERM_ARRAY:(TALENT:(LOCAL:1):慰安モブ))
 
 ;既にキャラがリストに存在すれば精液量を追加
-FOR LOCAL:0, 440, 460
-	IF TCVAR:(ARG:0):(LOCAL:0) == ARG:1
-		TCVAR:(ARG:0):(LOCAL:0 + 20) += ARG:2
-		LOCAL:2 = 0
-		BREAK
+FOR LOCAL:0, 0, WOMB_RECORD_MAX
+	IF WOMB_SEMEN_ID:(ARG:0):(LOCAL:0) == ARG:1
+		WOMB_SEMEN_AMOUNT:(ARG:0):(LOCAL:0) += ARG:2
+		WOMB_SEMEN_COUNT:(ARG:0):(LOCAL:0) ++
+		WOMB_SEMEN_TIME:(ARG:0):(LOCAL:0) = 0
+		RETURN
 	ENDIF
 NEXT
 ;キャラがリストに載っていなければ新たに追加
-IF LOCAL:2
-	FOR LOCAL:0, 440, 460
-		IF TCVAR:(ARG:0):(LOCAL:0) <= 0
-			;中出ししたキャラのIDと精液量を記録
-			TCVAR:(ARG:0):(LOCAL:0) = ARG:1
-			TCVAR:(ARG:0):(LOCAL:0 + 20) = ARG:2
-			BREAK
-		ENDIF
-	NEXT
-ENDIF
+FOR LOCAL:0, 0, WOMB_RECORD_MAX
+	IF WOMB_SEMEN_ID:(ARG:0):(LOCAL:0) == 0
+		;中出ししたキャラのIDと精液量を記録
+		WOMB_SEMEN_ID:(ARG:0):(LOCAL:0) = ARG:1
+		WOMB_SEMEN_AMOUNT:(ARG:0):(LOCAL:0) = ARG:2
+		WOMB_SEMEN_COUNT:(ARG:0):(LOCAL:0) ++
+		WOMB_SEMEN_TIME:(ARG:0):(LOCAL:0) = 0
+		RETURN
+	ENDIF
+NEXT
+

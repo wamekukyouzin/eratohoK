@@ -1,0 +1,134 @@
+﻿;---------------------------
+;ARG:0の腋毛目標値をARG:1に設定する関数
+;---------------------------
+@SET_ARMPIT_DEFAULT(ARG:0, ARG:1)
+SIF !INRANGE_ARMPIT(ARG:1)
+	RETURN 0
+TALENT:(ARG:0):腋毛目標値 = ARG:1
+RETURN 1
+
+;---------------------------
+;ARG:0の腋毛現在値を取得する
+;---------------------------
+@GET_ARMPIT(ARG:0)
+#FUNCTION
+;SIF TALENT:(ARG:0):腋毛現在値 == 腋毛_ハート型
+;	RETURNF 腋毛_標準
+RETURNF TALENT:(ARG:0):腋毛現在値
+
+;---------------------------
+;ARG:0の腋毛現在値が目標値に向けて変化する関数
+;---------------------------
+@ARMPIT_GROW(ARG:0)
+#DIM 現在
+#DIM 目標
+
+;パイパンなら育たない
+SIF !IS_GROW_ARMPIT(ARG:0)
+	RETURN 0
+
+現在 = TALENT:(ARG:0):腋毛現在値
+目標 = TALENT:(ARG:0):腋毛目標値
+
+LOCAL:1 = 0
+
+;ハート型は標準相当
+;IF 現在 == 腋毛_ハート型
+;	現在 = 腋毛_標準
+;ENDIF
+;IF 目標 == 腋毛_ハート型
+;	目標 = 腋毛_標準
+;	LOCAL:1 = 1
+;ENDIF
+
+;目標より少ない場合は1育つ
+IF 目標 - 現在 > 0 
+	現在 ++
+;目標より育っている場合は刈る
+ELSEIF 目標 - 現在 < 0
+	現在 = 目標
+ENDIF
+
+;ハート型の場合、標準相当になっていたら刈り揃える
+;IF 目標 == 現在 && LOCAL:1 == 1
+;	現在 = 腋毛_ハート型
+;ENDIF
+
+TALENT:(ARG:0):腋毛現在値 = 現在
+RETURN 1
+
+;---------------------------
+;ARG:0の腋毛が成長するか
+;---------------------------
+@IS_GROW_ARMPIT(ARG:0)
+#FUNCTION
+RETURNF TALENT:(ARG:0):腋毛現在値 != -1
+
+
+;---------------------------
+;ARG:0に対応する腋毛の成長度合いを返す
+;---------------------------
+@GET_ARMPIT_NAME(ARG:0)
+#FUNCTIONS
+
+
+SELECTCASE ARG:0
+	CASE 腋毛_脱毛済み 
+		RETURNF "脱毛済み"
+	CASE 腋毛_つるつる
+		RETURNF "つるつる"
+	CASE 腋毛_手入れ済み
+		RETURNF "手入れ済み"
+	CASE 腋毛_うっすら
+		RETURNF "うっすら"
+	CASE 腋毛_ふんわり
+		RETURNF "ふんわり"
+	CASE 腋毛_普通
+		RETURNF "普通"
+	CASE 腋毛_多め
+		RETURNF "多め"
+	CASE 腋毛_ふさふさ
+		RETURNF "ふさふさ"
+	CASE 腋毛_もっさり
+		RETURNF "もっさり"
+	CASE 腋毛_剛毛
+		RETURNF "剛毛"
+	CASE 腋毛_密林
+		RETURNF "密林"
+	CASEELSE
+		RETURNF "不明"
+ENDSELECT
+
+;---------------------------
+;与えられた引数の成長度合いが存在するか
+;---------------------------
+@INRANGE_ARMPIT(ARG:0)
+#FUNCTION
+RETURNF GET_ARMPIT_NAME(ARG:0) != "不明"
+
+
+;---------------------------
+;与えられたキャラの腋毛具合がどんなものか返す
+;-2 無毛 -1 薄め 0 標準 1 多め 2剛毛 3 ハート
+;---------------------------
+@GET_ARMPIT_LEVEL(ARG:0)
+#FUNCTION
+SELECTCASE TALENT:(ARG:0):腋毛現在値
+	CASE 腋毛_脱毛済み, 腋毛_つるつる
+		RETURNF -2
+	CASE 腋毛_手入れ済み, 腋毛_うっすら, 腋毛_ふんわり
+		RETURNF -1
+	CASE 腋毛_普通
+		RETURNF 0
+	CASE 腋毛_多め, 腋毛_ふさふさ, 腋毛_もっさり
+		RETURNF 1
+	CASE 腋毛_剛毛, 腋毛_密林
+		RETURNF 2
+ENDSELECT
+
+;---------------------------
+;腋毛の状態を画面に出力する
+;---------------------------
+@PRINT_ARMPIT(ARG:0)
+LOCALS:0 = %GET_ARMPIT_NAME(TALENT:(ARG:0):腋毛現在値)%
+PRINTFORM %LOCALS:0%

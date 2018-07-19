@@ -72,6 +72,29 @@ CALL COM_ORDER_COMMON
 SIF RESULT == 0
 	RETURN 0
 
+PRINTFORML どこにいこう……？
+
+FOR LOCAL, 0, VARSIZE("IAN_PLACE")
+	PRINTFORML [{LOCAL}] %IAN_PLACE:LOCAL%
+NEXT
+PRINTFORML [99] やめておく
+
+$INPUT_LOOP
+INPUT
+IF RESULT == 99
+	PRINTFORML やはりやめておいた
+	RETURN 0
+ELSEIF INRANGE(RESULT, 0, VARSIZE("IAN_PLACE"))
+	PRINTFORML %IAN_PLACE:RESULT%に行くことにした
+	TFLAG:105 = RESULT
+	TSTR:0 = %TRAIN_PLACE%
+	TRAIN_PLACE = %IAN_PLACE:RESULT%
+ELSE
+	CLEARLINE 1
+	GOTO INPUT_LOOP
+ENDIF
+
+
 ;●全プレイヤーについて処理
 FOR LOCAL:0, 0, MPLY_NUM
 	LOCAL:2 = MPLY:(LOCAL:0)
@@ -114,9 +137,6 @@ TFLAG:51 = 4
 TFLAG:54 = 8
 TFLAG:103 = 0
 
-TSTR:0 = %TRAIN_PLACE%
-TRAIN_PLACE = 野外
-
 RETURN 1
 
 
@@ -137,7 +157,7 @@ FOR LOCAL:0, 0, MEQUIP_PLAYER_NUM:(ARG:0)
 	DOWNBASE:(LOCAL:2):体力 += 10
 
 	SOURCE:(LOCAL:2):嗜虐 += 10
-	SOURCE:(LOCAL:2):露出 += 500
+	SOURCE:(LOCAL:2):露出 += 500 + 50 * TFLAG:104
 	SOURCE:(LOCAL:2):逸脱 += 10
 	SOURCE:(LOCAL:2):不安 += 15
 
@@ -157,7 +177,7 @@ FOR LOCAL:0, 0, CHARANUM
 	DOWNBASE:LOCAL:体力 += 40
 
 	SOURCE:LOCAL:逸脱 = 10
-	SOURCE:LOCAL:露出 = 1000
+	SOURCE:LOCAL:露出 = 1000 + 100 * TFLAG:104
 	SOURCE:LOCAL:不安 = 10
 
 	;主導権に応じた優越・屈従のソース追加
@@ -166,6 +186,9 @@ FOR LOCAL:0, 0, CHARANUM
 	;倒錯度変化基準値
 	TCVAR:LOCAL:50 += 3
 NEXT
+
+;継続ターン増加
+TFLAG:103 ++
 
 ;-------------------------------------------------
 ;継続中の表示
@@ -180,47 +203,17 @@ RESULTS = 露出プレイ中
 
 LOCALS:0 = %EQUIP_TARGET_ANAME(ARG:0)%
 
-SELECTCASE TFLAG:103
-	CASE 2
-		SELECTCASE RAND:4
-			CASE 0
-				PRINTFORML 集まった男達は、目をハートにして痴態を眺めている…
-			CASE 1
-				PRINTFORML 集まった男達は、痴態を肴にペニスを扱いている…
-			CASE 2
-				PRINTFORML 集まった男達は、卑猥なヤジを投げかけている…
-			CASE 3
-				PRINTFORML 集まった男達は、裸身を間近で眺めている…
-		ENDSELECT
-	CASE 1
-		SELECTCASE RAND:3
-			CASE 0
-				PRINTFORML 物陰から熱い視線を感じる…
-			CASE 1
-				PRINTFORML 物陰から、男達が視線を送っている…
-			CASE 2
-				PRINTFORML 物陰から人の気配を感じる…
-		ENDSELECT
-		IF RAND:100 < 20
-			PRINTFORMW 通りすがりの男達が、%ANAME(MASTER)%たちを見つけた
-			PRINTFORMW %ANAME(MASTER)%が男達に許可を出すと、男達はニヤニヤと笑いながら痴態を眺め始めた…
-			TFLAG:103 = 2
-		ENDIF
-	CASE 0
-		SELECTCASE RAND:3
-			CASE 0
-				PRINTFORML あたりに人の気配はないようだ…
-			CASE 1
-				PRINTFORML 近くを誰かが通りかかったようだ…
-			CASE 2
-				PRINTFORML 屋外のさわやかな風が吹き抜けた…
-		ENDSELECT
-		IF RAND:100 < 20
-			PRINTFORMW 近くの物陰から、人の気配を感じる…
-			PRINTFORMW どうやらでばがめに覗かれているようだ…
-			TFLAG:103 = 1
-		ENDIF
-ENDSELECT
+IF TFLAG:44 >= 8
+	RETURN 
+ENDIF
+
+IF RAND:MAX(TFLAG:103, 1) * 4 - TFLAG:104 > RAND:50
+	CALL CREATE_IAN_MOB(TFLAG:105, 1, 0)
+	LOCAL:2 = CHARANUM - 1
+	PRINTFORML 騒ぎを聞きつけた%ANAME(LOCAL:2)%が参加した…
+	TFLAG:104 ++
+	TFLAG:44 ++
+ENDIF
 
 ;-------------------------------------------------
 ;継続を解除したときの地の文
@@ -228,6 +221,15 @@ ENDSELECT
 @COM_TEXT_RELEASE_EQUIP112(ARG:0)
 TFLAG:54 = 0
 TFLAG:103 = 0
+TFLAG:104 = 0
+;慰安用のモブはここで削除する
+LOCAL:2 = CHARANUM
+FOR LOCAL:0, 0, LOCAL:2
+	LOCAL:1 = LOCAL:2 - LOCAL:0 - 1
+	IF CFLAG:(LOCAL:1):慰安モブ
+		CALL DELETE_CHARA(LOCAL:1)
+	ENDIF
+NEXT
 PRINTFORMW 屋内に戻った
 TRAIN_PLACE = %TSTR:0%
 
