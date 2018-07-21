@@ -565,37 +565,48 @@ RESETCOLOR
 ;-------------------------------------------------
 @COUNTRY_ADD_SOLDIER(ARG:0)
 #DIM LCOUNT
+#DIM 歌唱パワー
+#DIM 政治パワー
+#DIM 補正
+#DIM 経済力
+#DIM 兵数
+#DIM 増加量
+#DIM 最大増加量
+#DIM 人気所持者数
+#DIM 難易度補正
+#DIM 防衛振り分け表示
+#DIM 防衛振り分け数
 ;増加する兵数は経済規模×0.5(警邏・歌唱などによる補正あり)
 ;最大兵数は経済規模×10
 
 ;士官が部隊に所属しているかどうかのリストを作成
 
 ;歌唱パワー・政治パワーを取得
-LOCAL:7 = 0
-LOCAL:8 = 0
+政治パワー = 0
+歌唱パワー = 0
 FOR LOCAL:0, 0, CHARANUM
 	IF CFLAG:(LOCAL:0):所属 == ARG:0 && TMP_IS_FREE:(LOCAL:0):0 == 0
-		;政治の補正
-		LOCAL:7 += ABL_POWER((ABL:(LOCAL:0):政治 * 7 + ABL:(LOCAL:0):武闘 * 3) / 10, LOCAL:0)
-		LOCAL:8 += ABL_POWER(ABL:(LOCAL:0):歌唱, LOCAL:0)
+		政治パワー += ABL_POWER((ABL:(LOCAL:0):政治 * 7 + ABL:(LOCAL:0):武闘 * 3) / 10, LOCAL:0)
+		歌唱パワー += ABL_POWER(ABL:(LOCAL:0):歌唱, LOCAL:0)
 	ENDIF
 NEXT
-LOCAL:7 = SQRT(LOCAL:7) * 3 / 2 + SQRT(LOCAL:8) * 5 / 4
+補正 = SQRT(政治パワー) * 3 / 2 + SQRT(歌唱パワー) * 5 / 4
 
-LOCAL:0 = GET_SUM_ECONOMY(ARG:0) / 100
-LOCAL:1 = GET_SUM_SOLDIER(ARG:0)
+経済力 = GET_SUM_ECONOMY(ARG:0) / 100
+兵数 = GET_SUM_SOLDIER(ARG:0)
 
-SIF FLAG:兵数増加追加値 > LOCAL:7
-	FLAG:兵数増加追加値 = LOCAL:7 + (FLAG:兵数増加追加値 - LOCAL:7) / 3
 
-LOCAL:2 = LOCAL:0 * (( ARG:0 == CFLAG:MASTER:所属 ? FLAG:兵数増加追加値 # 0) + LOCAL:7 + 10) * 5 / 10000
-LOCAL:3 = MAX(LOCAL:0 * 10 - LOCAL:1, 0)
+SIF FLAG:兵数増加追加値 > 補正
+	FLAG:兵数増加追加値 = 補正 + (FLAG:兵数増加追加値 - 補正) / 3
+
+;増加量は経済力ベースに補正
+;ただし経済力の10倍以上は保持できない
+増加量 = 経済力 * (( ARG:0 == CFLAG:MASTER:所属 ? FLAG:兵数増加追加値 # 0) + 補正 + 10) * 5 / 10000
+最大増加量 = MAX(経済力 * 10 - 兵数, 0)
 
 ;政策による補正
 SIF COUNTRY_POLICY:(ARG:0) == 政策_徴兵
-	TIMES LOCAL:2, 1.50
-
-
+	TIMES 増加量, 1.50
 
 ;AIタイプに応じた兵数の増減
 ;IF ARG:0 != CFLAG:MASTER:所属
@@ -607,45 +618,52 @@ SIF COUNTRY_POLICY:(ARG:0) == 政策_徴兵
 ;	ENDSELECT
 ;ENDIF
 
-LOCAL:4 = MIN(LOCAL:2, LOCAL:3)
 LOCAL:8 = (LOCAL:4 == 0)
 ;人気持ち一人につき5%増加
 ;50%まで
-LOCAL:5 = 0
+人気所持者数 = 0
 FOR LCOUNT, 0, CHARANUM
 	IF TMP_IS_FREE:LCOUNT:0 ==0 && TALENT:LCOUNT:人気 && CFLAG:LCOUNT:所属 == ARG:0
-		LOCAL:4 += MAX(LOCAL:4 * 5 / 100, 1)
-		LOCAL:5 ++
-		SIF LOCAL:5 == 10
+		増加量 += MAX(増加量 * 5 / 100, 1)
+		人気所持者数 ++
+		SIF 人気所持者数 == 10
 			BREAK
 	ENDIF
 NEXT
 
-COUNTRY_SOLDIER:(ARG:0) += LOCAL:4
+IF ARG:0 != CFLAG:MASTER:所属
+	難易度補正 = GET_DIFFICULTY_CORRECTION()
+	SIF 難易度補正 > 100
+		難易度補正 = 100 + (難易度補正 - 100) / 2
+	増加量 = 増加量 * 難易度補正 / 100
+ENDIF
 
-IF ARG:0 == CFLAG:MASTER:所属 && LOCAL:4 > 0
-	PRINTFORMW 我が国の兵数が{LOCAL:4}だけ増加しました
-	SIF LOCAL:8 == 1
+COUNTRY_SOLDIER:(ARG:0) += 増加量
+
+IF ARG:0 == CFLAG:MASTER:所属 && 増加量 > 0
+	IF 増加量 == 0
 		CALL COLORPRINT(@"徴兵の限界に達しています、これ以上兵を賄うには経済を増やすか、臨時徴兵をする必要があります", カラー_注意, "L")
+	ELSE
+		PRINTFORMW 我が国の兵数が{増加量}だけ増加しました
+	ENDIF
 ENDIF
 
 ;防衛兵数が最低数を割っている都市があるなら自動配分
-LOCAL:5 = 0
+防衛振り分け表示 = 0
 FOR LOCAL:0, 0, MAX_CITY
 	IF CITY_OWNER:(LOCAL:0) == ARG:0 && CITY_SOLDIER:(LOCAL:0) < 500 && COUNTRY_SOLDIER:(ARG:0) > 0
 		;敵部隊のいる都市は増減不可
-		IF IS_STAY_ENEMY_UNIT(LOCAL:5) != 1
-			LOCAL:6 = MIN(500 - CITY_SOLDIER:(LOCAL:0), COUNTRY_SOLDIER:(ARG:0))
-			CITY_SOLDIER:(LOCAL:0) += LOCAL:6
-			COUNTRY_SOLDIER:(ARG:0) -= LOCAL:6
-			LOCAL:5 = 1
-			IF ARG:0 == CFLAG:MASTER:所属
-				PRINTFORML %GET_CITYNAME(LOCAL:0)%の防衛兵数を{LOCAL:6}だけ補充しました
-			ENDIF
-		ENDIF
+		SIF IS_STAY_ENEMY_UNIT(LOCAL:0) == 1
+			CONTINUE
+		防衛振り分け数 = MIN(500 - CITY_SOLDIER:(LOCAL:0), COUNTRY_SOLDIER:(ARG:0))
+		CITY_SOLDIER:(LOCAL:0) += 防衛振り分け数
+		COUNTRY_SOLDIER:(ARG:0) -= 防衛振り分け数
+		防衛振り分け表示 = 1
+		SIF ARG:0 == CFLAG:MASTER:所属
+			PRINTFORML %GET_CITYNAME(LOCAL:0)%の防衛兵数を{防衛振り分け数}だけ補充しました
 	ENDIF
 NEXT
-IF ARG:0 == CFLAG:MASTER:所属 && LOCAL:5
+IF ARG:0 == CFLAG:MASTER:所属 && 防衛振り分け表示
 	WAIT
 ENDIF
 
@@ -745,7 +763,7 @@ NEXT
 @GAIN_COUNTRY_TAX
 #DIM TAX_VALUE
 #DIM POLICY
-#DIM TAX_COUNT, 10
+#DIM TAX_COUNT
 #DIM TAX, 2
 
 VARSET TAX_COUNT
@@ -753,22 +771,27 @@ VARSET TAX_VALUE
 VARSET POLICY
 VARSET TAX
 
-FOR TAX_COUNT:0, 0, MAX_CITY
-	SIF CITY_TYPE:(TAX_COUNT:0) || CITY_OWNER:(TAX_COUNT:0) == 0
+FOR TAX_COUNT, 0, MAX_CITY
+	SIF CITY_TYPE:TAX_COUNT || CITY_OWNER:TAX_COUNT == 0
 		CONTINUE
+
+	TAX = CITY_ECONOMY:TAX_COUNT  / 100
+
 	;政策による税率調整
-	SELECTCASE COUNTRY_POLICY:(CITY_OWNER:(TAX_COUNT:0))
+	SELECTCASE COUNTRY_POLICY:(CITY_OWNER:TAX_COUNT)
 	CASE 政策_経済
-		TAX_VALUE = 100
+		TAX = CITY_ECONOMY:TAX_COUNT * 100 / 100
 	CASE 政策_防衛
-		TAX_VALUE = 80
+		TAX = CITY_ECONOMY:TAX_COUNT * 80 / 100
 	CASE 政策_徴兵
-		TAX_VALUE = 60
+		TAX = CITY_ECONOMY:TAX_COUNT * 60 / 100
 	ENDSELECT
-	TAX = CITY_ECONOMY:(TAX_COUNT:0) * TAX_VALUE / (100 * 100)
-	SIF CITY_OWNER:(TAX_COUNT:0) == CFLAG:MASTER:所属
+
+	SIF CITY_OWNER:TAX_COUNT != CFLAG:MASTER:所属 && GET_DIFFICULTY_CORRECTION() > 100
+		TAX = TAX * GET_DIFFICULTY_CORRECTION() / 100
+
+	SIF CITY_OWNER:(TAX_COUNT) == CFLAG:MASTER:所属
 		TAX:1 += TAX
-	MONEY:(CITY_OWNER:(TAX_COUNT:0)) += TAX
 NEXT
 
 IF TAX:1
