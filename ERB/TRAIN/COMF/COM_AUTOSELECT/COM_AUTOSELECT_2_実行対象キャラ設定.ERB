@@ -1,0 +1,815 @@
+﻿;-------------------------------------------------
+;# おまかせ時のプレイヤー選択
+;-------------------------------------------------
+@COM_AUTOSELECT_DECIDE_PLAYER
+#DIM L_COUNTER
+;行動可能なキャラの一覧
+#DIM CHARA_LIST, 8
+
+;行動可能なキャラの数
+#DIM CHARA_LIST_MAX
+
+;主人公と挿入状態にあるキャラの一覧
+#DIM INSERT_LIST, 8
+
+;主人公と挿入状態にあるキャラの数
+#DIM INSERT_LIST_MAX
+
+#DIM MAIN_PLAYER
+
+#DIM 行動候補, 8
+
+VARSET 行動候補, -1
+
+CHARA_LIST_MAX = 0
+INSERT_LIST_MAX = 0
+
+;-------------------------------------------------
+; キャラの選択
+;-------------------------------------------------
+;行動可能なキャラ、主人公と挿入状態にあるキャラの数を調べる
+FOR L_COUNTER, 0, CHARANUM
+	IF IS_AUTOSELECT(L_COUNTER)
+		CHARA_LIST:(CHARA_LIST_MAX) = L_COUNTER
+		CHARA_LIST_MAX ++
+		IF IS_INSERT_MUTUAL(MASTER, L_COUNTER) >= 1
+			INSERT_LIST:(INSERT_LIST_MAX) = L_COUNTER
+			INSERT_LIST_MAX ++
+		ENDIF
+	ENDIF
+NEXT
+
+SIF CHARA_LIST_MAX == 0
+	RETURN -1
+
+;中心となるキャラの選択
+IF INSERT_LIST_MAX >= 1 && RAND:10 < 3
+	;主人公と挿入状態にあるキャラが1人以上いれば、30%の確率でその中から選択
+	MAIN_PLAYER = INSERT_LIST:(RAND:(INSERT_LIST_MAX))
+ELSE
+	;それ以外なら80%で主導度Ｕの値で補正した乱数
+	;挿入中のキャラは50%で回避
+	IF RAND:5
+		FOR L_COUNTER, 0, CHARA_LIST_MAX
+			SIF IS_INSERT_SINGLE(CHARA_LIST:L_COUNTER) >= 1 && !RAND:2
+				CONTINUE
+			行動候補:L_COUNTER = RAND:(1000 + ABL:(CHARA_LIST:L_COUNTER):主導度Ｕ / 2)
+		NEXT
+		RETURN CHARA_LIST:(FINDELEMENT(行動候補, MAXARRAY(行動候補, 0, CHARA_LIST_MAX), 0, CHARA_LIST_MAX))
+	;20%の確率でランダム
+	ELSE
+		MAIN_PLAYER = CHARA_LIST:(RAND:CHARA_LIST_MAX)
+	ENDIF
+ENDIF
+RETURN MAIN_PLAYER
+
+;-------------------------------------------------
+;# おまかせ時のターゲット選択
+;-------------------------------------------------
+@COM_AUTOSELECT_DECIDE_TARGET(プレイヤー)
+#DIM L_COUNTER
+#DIM プレイヤー
+;行動可能なキャラの一覧
+#DIM CHARA_LIST, 8
+
+;行動可能なキャラの数
+#DIM CHARA_LIST_MAX
+
+;主人公と挿入状態にあるキャラの一覧
+#DIM INSERT_LIST, 8
+
+;主人公と挿入状態にあるキャラの数
+#DIM INSERT_LIST_MAX
+
+#DIM 返却候補
+#DIM ループカウント
+
+CHARA_LIST_MAX = 0
+INSERT_LIST_MAX = 0
+
+;-------------------------------------------------
+; キャラの選択
+;-------------------------------------------------
+;行動可能なキャラ、主人公と挿入状態にあるキャラの数を調べる　ただしプレイヤーは除く
+FOR L_COUNTER, 0, CHARANUM
+	IF IS_AUTOSELECT(L_COUNTER)
+		CHARA_LIST:(CHARA_LIST_MAX) = L_COUNTER
+		CHARA_LIST_MAX ++
+		IF IS_INSERT_MUTUAL(MASTER, L_COUNTER) >= 1
+			INSERT_LIST:(INSERT_LIST_MAX) = L_COUNTER
+			INSERT_LIST_MAX ++
+		ENDIF
+	ENDIF
+NEXT
+
+
+返却候補 = MASTER
+ループカウント = 0
+;ターゲットの選択
+;特殊勢力の男キャラ
+IF IS_SP_COUNTRY_CHARA(プレイヤー) && IS_MALE(プレイヤー)
+	;まんこがいたら（マスター含む）そいつら狙い
+	;もしいなければマスターねらい
+	返却候補 = MASTER
+	FOR L_COUNTER, 0, CHARA_LIST_MAX
+		IF HAS_VAGINA(CHARA_LIST:L_COUNTER)
+			WHILE 1
+				ループカウント ++
+				;マスターがまんこなら33％
+				IF HAS_VAGINA(MASTER) && !RAND:3
+					RETURN MASTER
+				;マスターが処女なら100%
+				ELSEIF VIRGIN(MASTER) && HAS_VAGINA(MASTER)
+					RETURN MASTER
+				ELSE
+					返却候補 = CHARA_LIST:(RAND:CHARA_LIST_MAX)
+					IF HAS_VAGINA(返却候補) && 返却候補 != プレイヤー
+						RETURN 返却候補
+					ENDIF
+				ENDIF
+				SIF ループカウント > 100
+					BREAK
+			WEND
+		ENDIF
+	NEXT
+;ふたなる
+ELSEIF HAS_PENIS(プレイヤー) && HAS_VAGINA(プレイヤー)
+	;ランダム狙い
+	;マスターは33%
+	;処女でマスターにペニスがあるなら必ずマスター狙い（うっかり他人が破るの防止）
+	返却候補 = MASTER
+	WHILE 1
+		ループカウント ++
+		返却候補 = CHARA_LIST:(RAND:CHARA_LIST_MAX)
+		IF VIRGIN(プレイヤー) && HAS_PENIS(MASTER)
+			RETURN MASTER
+		ENDIF
+		SIF !RAND:3
+			返却候補 = MASTER
+		SIF 返却候補 != プレイヤー
+			RETURN 返却候補
+		SIF ループカウント > 100
+			BREAK
+	WEND
+;チンポ
+ELSEIF HAS_PENIS(プレイヤー)
+	;まんこがいたら（マスター含む）そいつら狙い
+	;もしいなければマスターねらい
+	返却候補 = MASTER
+	FOR L_COUNTER, 0, CHARA_LIST_MAX
+		IF HAS_VAGINA(CHARA_LIST:L_COUNTER)
+			WHILE 1
+				ループカウント ++
+				;マスターがまんこなら33％
+				IF HAS_VAGINA(MASTER) && !RAND:3
+					RETURN MASTER
+				;マスターが処女なら100%
+				ELSEIF VIRGIN(MASTER) && HAS_VAGINA(MASTER)
+					RETURN MASTER
+				ELSE
+					返却候補 = CHARA_LIST:(RAND:CHARA_LIST_MAX)
+					IF HAS_VAGINA(返却候補) && 返却候補 != プレイヤー
+						RETURN 返却候補
+					ENDIF
+				ENDIF
+				SIF ループカウント > 100
+					BREAK
+			WEND
+		ENDIF
+	NEXT
+;まんこ
+ELSEIF HAS_VAGINA(プレイヤー)
+	;ペニスがいたら（マスター含む）そいつらを狙う
+	;ただし処女でマスターがチンポついてるならマスター狙い強制
+	;もしいなければ0番、つまりマスターねらい
+	返却候補 = MASTER
+	FOR L_COUNTER, 0, CHARA_LIST_MAX
+		IF HAS_PENIS(CHARA_LIST:L_COUNTER)
+			WHILE 1
+				ループカウント ++
+				;50%で強制マスター狙い
+				IF !RAND:2
+					RETURN MASTER
+				ELSEIF VIRGIN(プレイヤー) && HAS_PENIS(MASTER)
+					RETURN MASTER
+				ELSE
+					返却候補 = CHARA_LIST:(RAND:CHARA_LIST_MAX)
+					IF HAS_PENIS(返却候補) && 返却候補 != プレイヤー
+						RETURN 返却候補
+					ENDIF
+				ENDIF
+				IF ループカウント > 100
+					BREAK
+				ENDIF
+			WEND
+		ENDIF
+	NEXT
+ENDIF
+
+RETURN MASTER
+
+;-------------------------------------------------
+;# 慰安時のプレイヤー選択
+;-------------------------------------------------
+@COM_AUTOSELECT_DECIDE_PLAYER_IAN
+#DIM L_COUNTER
+
+;行動可能なキャラの一覧
+#DIM CHARA_LIST, 8
+
+;行動可能なキャラの数
+#DIM CHARA_LIST_MAX
+
+;主人公と挿入状態にあるキャラの一覧
+#DIM INSERT_LIST, 8
+
+;主人公と挿入状態にあるキャラの数
+#DIM INSERT_LIST_MAX
+
+#DIM MAIN_PLAYER
+
+#DIM 行動候補, 8
+
+VARSET 行動候補, -1
+CHARA_LIST_MAX = 0
+INSERT_LIST_MAX = 0
+
+;-------------------------------------------------
+; キャラの選択
+;-------------------------------------------------
+;行動可能なキャラ、主人公と挿入状態にあるキャラの数を調べる
+FOR L_COUNTER, 0, CHARANUM
+	IF IS_AUTOSELECT(L_COUNTER)
+		CHARA_LIST:(CHARA_LIST_MAX) = L_COUNTER
+		CHARA_LIST_MAX ++
+	ENDIF
+NEXT
+
+IF CHARA_LIST_MAX == 0
+	PRINTFORML (行動可能な者が一人もいません。何もしないが選択されます)
+	CALL CLEAR_MTAR()
+	CALL CLEAR_MPLY()
+	CALL ADD_MPLY(MASTER)
+	LOCAL:10 = GET_TRAINNUM("なにもしない")
+	RETURN -1
+ENDIF
+
+;それ以外なら80%で主導度Ｕの値で補正した乱数
+;挿入中のキャラは50%で回避
+IF RAND:5
+	FOR L_COUNTER, 0, CHARA_LIST_MAX
+		SIF IS_INSERT_SINGLE(CHARA_LIST:L_COUNTER) >= 1 && !RAND:2
+			CONTINUE
+		行動候補:L_COUNTER = RAND:(1000 + ABL:(CHARA_LIST:L_COUNTER):主導度Ｕ / 2)
+	NEXT
+	RETURN CHARA_LIST:(FINDELEMENT(行動候補, MAXARRAY(行動候補, 0, CHARA_LIST_MAX), 0, CHARA_LIST_MAX))
+;20%の確率でランダム
+ELSE
+	MAIN_PLAYER = CHARA_LIST:(RAND:CHARA_LIST_MAX)
+ENDIF
+RETURN MAIN_PLAYER
+
+;-------------------------------------------------
+;# 慰安時のターゲット選択
+;-------------------------------------------------
+@COM_AUTOSELECT_DECIDE_TARGET_IAN(プレイヤー)
+#DIM L_COUNTER
+#DIM プレイヤー
+;行動可能なキャラの一覧
+#DIM CHARA_LIST, 8
+
+;行動可能なキャラの数
+#DIM CHARA_LIST_MAX
+
+;主人公と挿入状態にあるキャラの一覧
+#DIM INSERT_LIST, 8
+
+;主人公と挿入状態にあるキャラの数
+#DIM INSERT_LIST_MAX
+
+#DIM 行動候補
+#DIM ループカウント
+CHARA_LIST_MAX = 0
+INSERT_LIST_MAX = 0
+
+;-------------------------------------------------
+; キャラの選択
+;-------------------------------------------------
+;行動可能なキャラ、主人公と挿入状態にあるキャラの数を調べる　ただしプレイヤーと慰安用モブは除く
+FOR L_COUNTER, 0, CHARANUM
+	IF CFLAG:L_COUNTER:調教参加フラグ && L_COUNTER != プレイヤー 
+		IF プレイヤー == MASTER
+			CHARA_LIST:(CHARA_LIST_MAX) = L_COUNTER
+			CHARA_LIST_MAX ++
+		ELSEIF !TALENT:L_COUNTER:慰安モブ
+			CHARA_LIST:(CHARA_LIST_MAX) = L_COUNTER
+			CHARA_LIST_MAX ++
+		ENDIF
+	ENDIF
+NEXT
+
+IF CHARA_LIST_MAX == 0
+	PRINTFORML (ターゲットにできる者が一人もいません。何もしないが選択されます)
+	CALL CLEAR_MTAR()
+	CALL CLEAR_MPLY()
+	CALL ADD_MPLY(MASTER)
+	LOCAL:10 = GET_TRAINNUM("なにもしない")
+	RETURN -1
+ENDIF
+
+;基本はランダム
+行動候補 = CHARA_LIST:(RAND:CHARA_LIST_MAX)
+ループカウント = 0
+
+;ターゲットの選択
+;特殊勢力の男キャラ
+IF IS_SP_COUNTRY_CHARA(プレイヤー) && IS_MALE(プレイヤー)
+	;まんこがいたらそいつら狙い
+	;もしいなければランダム
+	FOR L_COUNTER, 0, CHARA_LIST_MAX
+		IF HAS_VAGINA(CHARA_LIST:L_COUNTER)
+			WHILE 1
+				ループカウント ++
+				行動候補 = CHARA_LIST:(RAND:CHARA_LIST_MAX)
+				IF HAS_VAGINA(行動候補) && 行動候補 != プレイヤー
+					RETURN 行動候補
+				ENDIF
+				IF ループカウント > 100
+					RETURN 行動候補
+				ENDIF
+			WEND
+		ENDIF
+	NEXT
+;ふたなり
+ELSEIF HAS_PENIS(プレイヤー) && HAS_VAGINA(プレイヤー)
+	;ランダム
+	RETURN 行動候補
+;チンポ
+ELSEIF HAS_PENIS(プレイヤー)
+	;まんこがいたらそいつら狙い
+	;もしいなければランダム
+	FOR L_COUNTER, 0, CHARA_LIST_MAX
+		IF HAS_VAGINA(CHARA_LIST:L_COUNTER)
+			WHILE 1
+				ループカウント ++
+				行動候補 = CHARA_LIST:(RAND:CHARA_LIST_MAX)
+				IF HAS_VAGINA(行動候補) && 行動候補 != プレイヤー
+					RETURN 行動候補
+				ENDIF
+				IF ループカウント > 100
+					RETURN 行動候補
+				ENDIF
+			WEND
+		ENDIF
+	NEXT
+;まんこ
+ELSEIF HAS_VAGINA(プレイヤー)
+	;ちんぽがいたらそいつら狙い
+	;もしいなければランダム
+	FOR L_COUNTER, 0, CHARA_LIST_MAX
+		IF HAS_PENIS(CHARA_LIST:L_COUNTER)
+			WHILE 1
+				ループカウント ++
+				行動候補 = CHARA_LIST:(RAND:CHARA_LIST_MAX)
+				IF HAS_PENIS(行動候補) && 行動候補 != プレイヤー
+					RETURN 行動候補
+				ENDIF
+				IF ループカウント > 100
+					PRINTFORM %ANAME(行動候補)%
+					RETURN 行動候補
+				ENDIF
+			WEND
+		ENDIF
+	NEXT
+ENDIF
+
+RETURN 行動候補
+
+
+;-------------------------------------------------
+;# 第三者の参加を決定する
+;-------------------------------------------------
+@AUTO_SET_THIRD_PERSON(主導者, 対象者, コマンド)
+#DIM L_COUNTER
+#DIM コマンド
+#DIM 行動可能者
+#DIM 主導者
+#DIM 対象者
+#DIM 今回候補
+#DIM 対象
+#DIM 成功時BREAK
+
+FOR L_COUNTER, 0, 5
+	SIF !RAND:5
+		CONTINUE
+
+	成功時BREAK = 0
+	;行動可能なキャラの数を調べる
+	行動可能者 = 0
+	FOR 対象, 0, CHARANUM
+		IF IS_AUTOSELECT(対象) && !IS_MPLY(対象) && !IS_MTAR(対象)
+			行動可能者 ++
+		ENDIF
+	NEXT
+
+	;行動可能なキャラが1人以上存在する場合
+	SIF 行動可能者 < 1
+		BREAK
+
+	;プレイヤー/ターゲットに追加するキャラの選択
+	LOCAL:3 = RAND:(行動可能者)
+	LOCAL:4 = 0
+	今回候補 = -1
+	FOR 対象, 0, CHARANUM
+		IF IS_AUTOSELECT(対象) && !IS_MPLY(対象) && !IS_MTAR(対象)
+			IF LOCAL:3 == LOCAL:4
+				今回候補 = 対象
+				BREAK
+			ENDIF
+			LOCAL:4 ++
+		ENDIF
+	NEXT
+
+	SIF 今回候補 < -1
+		CONTINUE
+
+	IF FLAG:調教モード == 調教_慰安
+		;慰安する側なら、「もう一人の慰安する側に合わせる」か、「主導者の側に入り、主導者を削除（命じられるシチュになる）」になる
+		IF !CFLAG:今回候補:慰安参加者
+			IF !RAND:4
+				IF IS_MTAR(主導者)
+					CALL ADD_MTAR(今回候補)
+					CALL DEL_MTAR(今回候補)
+				ELSE
+					CALL ADD_MPLY(今回候補)
+					CALL DEL_MPLY(主導者)
+				ENDIF
+				成功時BREAK = 1
+			ELSE
+				IF IS_MTAR(対象者)
+					CALL ADD_MTAR(今回候補)
+				ELSE
+					CALL ADD_MPLY(今回候補)
+				ENDIF
+			ENDIF
+			GOTO DECIDED
+		ENDIF
+	ENDIF
+	;純粋な性別による判定とペニスがあるかの判定の二つを織り交ぜ、ふたなりの挙動に揺らぎをもたせる
+	IF RAND:2
+		IF IS_MALE(主導者) && IS_MALE(対象者) && IS_MALE(今回候補)
+			LOCAL:30 = 0
+		ELSEIF IS_MALE(主導者) && IS_MALE(対象者) && IS_FEMALE(今回候補)
+			LOCAL:30 = 1
+		ELSEIF IS_MALE(主導者) && IS_FEMALE(対象者) && IS_MALE(今回候補)
+			LOCAL:30 = 2
+		ELSEIF IS_FEMALE(主導者) && IS_MALE(対象者) && IS_MALE(今回候補)
+			LOCAL:30 = 3
+		ELSEIF IS_MALE(主導者) && IS_FEMALE(対象者) && IS_FEMALE(今回候補)
+			LOCAL:30 = 4
+		ELSEIF IS_FEMALE(主導者) && IS_MALE(対象者) && IS_FEMALE(今回候補)
+			LOCAL:30 = 5
+		ELSEIF IS_FEMALE(主導者) && IS_FEMALE(対象者) && IS_MALE(今回候補)
+			LOCAL:30 = 6
+		ELSEIF IS_FEMALE(主導者) && IS_FEMALE(対象者) && IS_FEMALE(今回候補)
+			LOCAL:30 = 7
+		ENDIF
+	ELSE
+		IF HAS_PENIS(主導者) && HAS_PENIS(対象者) && HAS_PENIS(今回候補)
+			LOCAL:30 = 0
+		ELSEIF HAS_PENIS(主導者) && HAS_PENIS(対象者) && HAS_VAGINA(今回候補)
+			LOCAL:30 = 1
+		ELSEIF HAS_PENIS(主導者) && HAS_VAGINA(対象者) && HAS_PENIS(今回候補)
+			LOCAL:30 = 2
+		ELSEIF HAS_VAGINA(主導者) && HAS_PENIS(対象者) && HAS_PENIS(今回候補)
+			LOCAL:30 = 3
+		ELSEIF HAS_PENIS(主導者) && HAS_VAGINA(対象者) && HAS_VAGINA(今回候補)
+			LOCAL:30 = 4
+		ELSEIF HAS_VAGINA(主導者) && HAS_PENIS(対象者) && HAS_VAGINA(今回候補)
+			LOCAL:30 = 5
+		ELSEIF HAS_VAGINA(主導者) && HAS_VAGINA(対象者) && HAS_PENIS(今回候補)
+			LOCAL:30 = 6
+		ELSEIF HAS_VAGINA(主導者) && HAS_VAGINA(対象者) && HAS_VAGINA(今回候補)
+			LOCAL:30 = 7
+		ENDIF
+	ENDIF
+	;プレイヤー／ターゲットを追加してコマンドが実行できるかチェック
+	IF コマンド < ADD_NUM_対象が実行
+		;愛撫系(胸愛撫など)
+		IF GET_TRAINNUM("愛撫") <= コマンド && コマンド <= 9
+			SELECTCASE LOCAL:30
+				;する側
+				CASE 0, 2, 5
+					CALL ADD_MPLY(今回候補)
+				;される側
+				CASE 3
+					CALL ADD_MTAR(今回候補)
+				;ランダム
+				CASEELSE
+					IF RAND:2
+						CALL ADD_MPLY(今回候補)
+					ELSE
+						CALL ADD_MTAR(今回候補)
+					ENDIF
+			ENDSELECT
+		;奉仕系
+		ELSEIF GET_TRAINNUM("手コキ") <= コマンド && コマンド < 19
+			SELECTCASE LOCAL:30
+				;する側
+				CASE 0, 2, 5
+					CALL ADD_MPLY(今回候補)
+				;される側
+				CASE 3
+					CALL ADD_MTAR(今回候補)
+				;ランダム
+				CASEELSE
+					IF RAND:2
+						CALL ADD_MPLY(今回候補)
+					ELSE
+						CALL ADD_MTAR(今回候補)
+					ENDIF
+			ENDSELECT
+		;キス
+		ELSEIF GROUPMATCH(コマンド, GET_TRAINNUM("キス"))
+			SELECTCASE LOCAL:30
+				;する側
+				CASE 0, 2, 5
+					CALL ADD_MPLY(今回候補)
+				;される側
+				CASE 3
+					CALL ADD_MTAR(今回候補)
+				;ランダム
+				CASEELSE
+					IF RAND:2
+						CALL ADD_MPLY(今回候補)
+					ELSE
+						CALL ADD_MTAR(今回候補)
+					ENDIF
+			ENDSELECT
+		;順番挿入
+		ELSEIF GROUPMATCH(コマンド, GET_TRAINNUM("順番に挿入"), GET_TRAINNUM("順番にＡ挿入"))
+			;女なら問答無用でされる側
+			SIF IS_FEMALE(今回候補)
+				CALL ADD_MTAR(今回候補)
+		;代わる代わる挿入
+		ELSEIF GROUPMATCH(コマンド, GET_TRAINNUM("代わる代わる挿入"), GET_TRAINNUM("代わる代わるＡ挿入"))
+			SELECTCASE LOCAL:30
+				;する側
+				CASE 0, 2, 3, 6
+					CALL ADD_MPLY(今回候補)
+				;される側
+				CASE 1, 4, 5, 7
+					CALL ADD_MTAR(今回候補)
+				;ランダム
+				CASEELSE
+					IF RAND:2
+						CALL ADD_MPLY(今回候補)
+					ELSE
+						CALL ADD_MTAR(今回候補)
+					ENDIF
+			ENDSELECT
+		;道具系
+		ELSEIF GET_TRAINNUM("ローター") <= コマンド && コマンド < 79
+			SELECTCASE LOCAL:30
+				;する側
+				CASE 0, 2, 6
+					CALL ADD_MPLY(今回候補)
+				;される側
+				CASE 3
+					CALL ADD_MTAR(今回候補)
+				;ランダム
+				CASEELSE
+					IF RAND:2
+						CALL ADD_MPLY(今回候補)
+					ELSE
+						CALL ADD_MTAR(今回候補)
+					ENDIF
+			ENDSELECT
+		;ＳＭ
+		ELSEIF GET_TRAINNUM("脅す") <= コマンド && コマンド <= 99
+			SELECTCASE LOCAL:30
+				;する側
+				CASE 0, 2, 5
+					CALL ADD_MPLY(今回候補)
+				;ランダム
+				CASEELSE
+					IF RAND:2
+						CALL ADD_MPLY(今回候補)
+					ELSE
+						CALL ADD_MTAR(今回候補)
+					ENDIF
+			ENDSELECT
+		;羞恥
+		ELSEIF GET_TRAINNUM("自慰") <= コマンド && コマンド <= 129
+			SELECTCASE LOCAL:30
+				;する側
+				CASE 0, 2, 5, 7
+					CALL ADD_MPLY(今回候補)
+				;される側
+				CASE 3
+					CALL ADD_MTAR(今回候補)
+				;ランダム
+				CASEELSE
+					IF RAND:2
+						CALL ADD_MPLY(今回候補)
+					ELSE
+						CALL ADD_MTAR(今回候補)
+					ENDIF
+			ENDSELECT
+		ELSE
+			CALL ADD_MPLY(今回候補)
+		ENDIF
+	ELSEIF コマンド < ADD_NUM_第三者に実行
+		;愛撫系(胸愛撫など)
+		IF ADD_NUM_対象が実行 + GET_TRAINNUM("愛撫") <= コマンド && コマンド <= ADD_NUM_対象が実行 + 9
+			SELECTCASE LOCAL:30
+				;する側
+				CASE 1, 3
+					CALL ADD_MPLY(今回候補)
+				;される側
+				CASE 0, 2, 5
+					CALL ADD_MTAR(今回候補)
+				;ランダム
+				CASEELSE
+					IF RAND:2
+						CALL ADD_MPLY(今回候補)
+					ELSE
+						CALL ADD_MTAR(今回候補)
+					ENDIF
+			ENDSELECT
+		;奉仕系
+		ELSEIF ADD_NUM_対象が実行 + GET_TRAINNUM("手コキ") <= コマンド && コマンド <= ADD_NUM_対象が実行 + 19
+			SELECTCASE LOCAL:30
+				;する側
+				CASE 3
+					CALL ADD_MPLY(今回候補)
+				;される側
+				CASE 0, 2, 5
+					CALL ADD_MTAR(今回候補)
+				;ランダム
+				CASEELSE
+					IF RAND:2
+						CALL ADD_MPLY(今回候補)
+					ELSE
+						CALL ADD_MTAR(今回候補)
+					ENDIF
+			ENDSELECT
+		;キス
+		ELSEIF GROUPMATCH(コマンド, ADD_NUM_対象が実行 + GET_TRAINNUM("キス"))
+			SELECTCASE LOCAL:30
+				;する側
+				CASE 3
+					CALL ADD_MPLY(今回候補)
+				;される側
+				CASE 0, 2, 5
+					CALL ADD_MTAR(今回候補)
+				;ランダム
+				CASEELSE
+					IF RAND:2
+						CALL ADD_MPLY(今回候補)
+					ELSE
+						CALL ADD_MTAR(今回候補)
+					ENDIF
+			ENDSELECT
+		;順番挿入
+		ELSEIF GROUPMATCH(コマンド, ADD_NUM_対象が実行 + GET_TRAINNUM("順番に挿入"), ADD_NUM_対象が実行 + GET_TRAINNUM("順番にＡ挿入"))
+			;女なら問答無用でされる側
+			SIF IS_FEMALE(今回候補)
+				CALL ADD_MTAR(今回候補)
+		;代わる代わる挿入
+		ELSEIF GROUPMATCH(コマンド, ADD_NUM_対象が実行 + GET_TRAINNUM("代わる代わる挿入"), ADD_NUM_対象が実行 + GET_TRAINNUM("代わる代わるＡ挿入"))
+			SELECTCASE LOCAL:30
+				;する側
+				CASE 3, 6
+					CALL ADD_MPLY(今回候補)
+				;される側
+				CASE 0, 1, 2, 5
+					CALL ADD_MTAR(今回候補)
+				;ランダム
+				CASEELSE
+					IF RAND:2
+						CALL ADD_MPLY(今回候補)
+					ELSE
+						CALL ADD_MTAR(今回候補)
+					ENDIF
+			ENDSELECT
+		;道具系
+		ELSEIF ADD_NUM_対象が実行 + GET_TRAINNUM("ローター") <= コマンド && コマンド <= ADD_NUM_対象が実行 + 79
+			SELECTCASE LOCAL:30
+				;する側
+				CASE 3, 6
+					CALL ADD_MPLY(今回候補)
+				;される側
+				CASE 0, 2, 5
+					CALL ADD_MTAR(今回候補)
+				;ランダム
+				CASEELSE
+					IF RAND:2
+						CALL ADD_MPLY(今回候補)
+					ELSE
+						CALL ADD_MTAR(今回候補)
+					ENDIF
+			ENDSELECT
+		;ＳＭ
+		ELSEIF ADD_NUM_対象が実行 + GET_TRAINNUM("脅す") <= コマンド && コマンド <= ADD_NUM_対象が実行 + 99
+			SELECTCASE LOCAL:30
+				;する側
+				CASE 3, 4, 6
+					CALL ADD_MPLY(今回候補)
+				;される側
+				CASE 0, 2, 5 
+					CALL ADD_MTAR(今回候補)
+				;ランダム
+				CASEELSE
+					IF RAND:2
+						CALL ADD_MPLY(今回候補)
+					ELSE
+						CALL ADD_MTAR(今回候補)
+					ENDIF
+			ENDSELECT
+		;羞恥
+		ELSEIF ADD_NUM_対象が実行 + GET_TRAINNUM("自慰") <= コマンド && コマンド <= ADD_NUM_対象が実行 + 129
+			SELECTCASE LOCAL:30
+				;する側
+				CASE 3, 4
+					CALL ADD_MPLY(今回候補)
+				;される側
+				CASE 0, 2, 5
+					CALL ADD_MTAR(今回候補)
+				;ランダム
+				CASEELSE
+					IF RAND:2
+						CALL ADD_MPLY(今回候補)
+					ELSE
+						CALL ADD_MTAR(今回候補)
+					ENDIF
+			ENDSELECT
+		ELSE
+			CALL ADD_MPLY(今回候補)
+		ENDIF
+	ENDIF
+	$DECIDED
+
+	;コマンド判定フラグON
+	COM_ENABLE = 1
+
+	RESULT = 0
+	TRYCALLFORM COM_ABLE{コマンド % 1000}
+	IF !RESULT
+		;ダメならプレイヤー／ターゲットを外す
+		IF コマンド < ADD_NUM_対象が実行
+			CALL DEL_MPLY(今回候補)
+			CALL DEL_MTAR(今回候補)
+		ELSEIF コマンド < ADD_NUM_第三者に実行
+			CALL DEL_MTAR(今回候補)
+			CALL DEL_MPLY(今回候補)
+		ENDIF
+
+		;コマンド判定フラグOFF
+		COM_ENABLE = 0
+		BREAK
+	ELSE
+		;コマンド判定フラグOFF
+		COM_ENABLE = 0
+		SIF 成功時BREAK
+			BREAK
+	ENDIF
+NEXT
+
+;-------------------------------------------------
+;# 第三者命令
+;desc  :自動調教時、主導者が第三者に命じる形になるようにする処理
+;param :主導者:その回におけるメイン行動者
+;PARAM :対象者:その回におけるメイン対象者
+;-------------------------------------------------
+@AUTO_SET_REMOVE_MAIN(主導者, 対象者, コマンド)
+#DIM 主導者
+#DIM 対象者
+#DIM コマンド
+#DIM MTARフラグ
+
+IF IS_MTAR(主導者) && MTAR_NUM > 1 && !RAND:4
+	CALL DEL_MTAR(主導者)
+	MTARフラグ = 1
+ELSEIF IS_MPLY(主導者) && MPLY_NUM > 1 && !RAND:4
+	CALL DEL_MPLY(主導者)
+	MTARフラグ = 0
+ENDIF
+
+;コマンド判定フラグON
+COM_ENABLE = 1
+
+RESULT = 0
+TRYCALLFORM COM_ABLE{コマンド % 1000}
+IF !RESULT
+	;ダメならプレイヤー／ターゲットを戻す
+	IF MTARフラグ
+		CALL ADD_MTAR(主導者)
+	ELSE
+		CALL ADD_MPLY(主導者)
+	ENDIF
+ENDIF
+
+;コマンド判定フラグOFF
+COM_ENABLE = 0
+
