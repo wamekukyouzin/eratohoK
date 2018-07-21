@@ -49,6 +49,7 @@ NEXT
 #DIM 関係性リスト, MAX_COUNTRY
 #DIM 逆関係性リスト, MAX_COUNTRY
 #DIM 経済力リスト, MAX_COUNTRY
+#DIM 難易度補正
 #DIM 計画
 #DIM 理由
 #DIM CONST 理由_好き = 0
@@ -87,6 +88,10 @@ FOR 相手勢力, 0, MAX_COUNTRY
 	関係性リスト:勢力数 = 1500 + REL_LIKE:君主:相手勢力君主 - REL_HATE:君主:相手勢力君主 - DIPLOMACY_HATE:相手勢力 * (相手勢力 == CFLAG:MASTER:所属 ? 50 # 30)
 	逆関係性リスト:勢力数 = 1500 + REL_LIKE:相手勢力君主:君主 - REL_HATE:相手勢力君主:君主 - DIPLOMACY_HATE:勢力 * (勢力 == CFLAG:MASTER:所属 ? 50 # 30)
 	経済力リスト:勢力数 = TMP_SUM_ECONOMY:相手勢力
+	IF 相手勢力 == CFLAG:MASTER:所属
+		難易度補正 = GET_DIFFICULTY_CORRECTION()
+		関係性リスト:勢力数 = 関係性リスト:勢力数 * 100 / 難易度補正
+	ENDIF
 	勢力数 ++
 NEXT
 
@@ -642,7 +647,7 @@ SIF MATCH(TREATY_U_TARGET, 0) != MAX_TREATY_U
 SIF TMP_COUNTRY_RELATION:勢力:相手勢力 != 0
 	RETURNF 0
 
-IF REL_HATE:勢力君主:相手勢力君主 - REL_LIKE:勢力君主:相手勢力君主 + DIPLOMACY_HATE:相手勢力 * (CFLAG:MASTER:所属 == 相手勢力 ? 50 # 30) > 300
+IF REL_HATE:勢力君主:相手勢力君主 - REL_LIKE:勢力君主:相手勢力君主 + DIPLOMACY_HATE:相手勢力 * (CFLAG:MASTER:所属 == 相手勢力 ? 50 # 30) > 300 * (CFLAG:MASTER:所属 == 相手勢力 ? 300 * 100 / GET_DIFFICULTY_CORRECTION() # 1)
 ELSEIF TMP_SUM_ECONOMY:勢力 * 3 < TMP_SUM_ECONOMY:相手勢力
 ELSEIF TMP_SUM_SOLDIER:勢力 * 3 < TMP_SUM_SOLDIER:相手勢力
 ELSEIF TMP_OWN_CITY:勢力 * 3 < TMP_SUM_SOLDIER:相手勢力
@@ -697,6 +702,9 @@ SIF TMP_COUNTRY_RELATION:勢力:相手勢力 != 0
 
 嫌悪感 = REL_HATE:勢力君主:相手勢力君主 - REL_LIKE:勢力君主:相手勢力君主 + DIPLOMACY_HATE:相手勢力 * (CFLAG:MASTER:所属 == 相手勢力 ? 50 # 30)
 宣言勢力への嫌悪感 = REL_HATE:勢力君主:宣言勢力君主 - REL_LIKE:勢力君主:宣言勢力君主 + DIPLOMACY_HATE:宣言勢力 * (CFLAG:MASTER:所属 == 宣言勢力 ? 50 # 30)
+
+SIF 相手勢力 == CFLAG:MASTER:所属
+	嫌悪感 = 嫌悪感 * GET_DIFFICULTY_CORRECTION() / 100
 
 ;宣言勢力が嫌いだとあまり参加したがらない。またあまりにも嫌いだと絶対に参加しない
 SELECTCASE 宣言勢力への嫌悪感
