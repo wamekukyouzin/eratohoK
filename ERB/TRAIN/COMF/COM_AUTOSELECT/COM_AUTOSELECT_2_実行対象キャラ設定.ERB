@@ -3,65 +3,52 @@
 ;-------------------------------------------------
 @COM_AUTOSELECT_DECIDE_PLAYER
 #DIM L_COUNTER
-;行動可能なキャラの一覧
-#DIM CHARA_LIST, 8
+#DIM RETURN_CHARA_NUM
+#DIM DECIDE_REFERENCE_VALUE	;重みの基準
 
-;行動可能なキャラの数
-#DIM CHARA_LIST_MAX
-
-;主人公と挿入状態にあるキャラの一覧
-#DIM INSERT_LIST, 8
-
-;主人公と挿入状態にあるキャラの数
-#DIM INSERT_LIST_MAX
-
-#DIM MAIN_PLAYER
-
-#DIM 行動候補, 8
-
-VARSET 行動候補, -1
-
-CHARA_LIST_MAX = 0
-INSERT_LIST_MAX = 0
+DEBUGPRINTFORML 
+DEBUGPRINTFORML #### DEBUG MAIN_PLAYER選択 
 
 ;-------------------------------------------------
-; キャラの選択
+;## リセット
 ;-------------------------------------------------
-;行動可能なキャラ、主人公と挿入状態にあるキャラの数を調べる
+CALL COM_AUTO_RANDOMIZED_WEIGHTED_START
+
+;-------------------------------------------------
+;## 候補設定
+;-------------------------------------------------
 FOR L_COUNTER, 0, CHARANUM
-	IF IS_AUTOSELECT(L_COUNTER)
-		CHARA_LIST:(CHARA_LIST_MAX) = L_COUNTER
-		CHARA_LIST_MAX ++
-		IF IS_INSERT_MUTUAL(MASTER, L_COUNTER) >= 1
-			INSERT_LIST:(INSERT_LIST_MAX) = L_COUNTER
-			INSERT_LIST_MAX ++
-		ENDIF
+	;参加者ではない
+	SIF !CFLAG:L_COUNTER:調教参加フラグ
+		CONTINUE
+	;行動不可能
+	SIF !IS_AUTOSELECT(L_COUNTER)
+		CONTINUE
+	;---------------------------------------------
+	;### 重みの基準
+	;	+1は0除算回避用 最大100 最小10
+	;---------------------------------------------
+	DECIDE_REFERENCE_VALUE = MAX((1000 + ABL:L_COUNTER:主導度Ｕ + 1) / 20, 10)
+	DEBUGPRINTFORM      %ANAME(L_COUNTER), MAX_CHARANAME_LENGTH, LEFT%  %TOSTR_SEX(TALENT:L_COUNTER:性別), 6%  
+	;慰安でないときは主人公に挿入している・されているキャラを優先
+	IF FLAG:調教モード != 調教_慰安 && IS_INSERT_MUTUAL(MASTER, L_COUNTER) >= 1
+		DECIDE_REFERENCE_VALUE = DECIDE_REFERENCE_VALUE * 100
+		CALL COM_AUTO_RANDOMIZED_WEIGHTED_VALUE(L_COUNTER, DECIDE_REFERENCE_VALUE)
+		DEBUGPRINTFORML 重み {DECIDE_REFERENCE_VALUE, 10}  あなたと結合中
+	;挿入中ではないキャラ
+	ELSE
+		DECIDE_REFERENCE_VALUE = DECIDE_REFERENCE_VALUE * 50
+		CALL COM_AUTO_RANDOMIZED_WEIGHTED_VALUE(L_COUNTER, DECIDE_REFERENCE_VALUE)
+		DEBUGPRINTFORML 重み {DECIDE_REFERENCE_VALUE, 10}
 	ENDIF
 NEXT
 
-SIF CHARA_LIST_MAX == 0
-	RETURN -1
+;-------------------------------------------------
+;## 結果取得
+;-------------------------------------------------
+RETURN_CHARA_NUM = COM_AUTO_RANDOMIZED_WEIGHTED_RESULT()
 
-;中心となるキャラの選択
-IF INSERT_LIST_MAX >= 1 && RAND:100 < 30
-	;主人公と挿入状態にあるキャラが1人以上いれば、30%の確率でその中から選択
-	MAIN_PLAYER = INSERT_LIST:(RAND:(INSERT_LIST_MAX))
-ELSE
-	;それ以外なら80%で主導度Ｕの値で補正した乱数
-	;挿入中のキャラは50%で回避
-	IF RAND:100 < 20
-		FOR L_COUNTER, 0, CHARA_LIST_MAX
-			SIF IS_INSERT_SINGLE(CHARA_LIST:L_COUNTER) >= 1 && RAND:100 < 50
-				CONTINUE
-			行動候補:L_COUNTER = RAND:(1000 + ABL:(CHARA_LIST:L_COUNTER):主導度Ｕ / 2)
-		NEXT
-		RETURN CHARA_LIST:(FINDELEMENT(行動候補, MAXARRAY(行動候補, 0, CHARA_LIST_MAX), 0, CHARA_LIST_MAX))
-	;20%の確率でランダム
-	ELSE
-		MAIN_PLAYER = CHARA_LIST:(RAND:CHARA_LIST_MAX)
-	ENDIF
-ENDIF
-RETURN MAIN_PLAYER
+RETURN RETURN_CHARA_NUM
 
 ;-------------------------------------------------
 ;# おまかせ時のターゲット選択
@@ -69,320 +56,96 @@ RETURN MAIN_PLAYER
 @COM_AUTOSELECT_DECIDE_TARGET(プレイヤー)
 #DIM L_COUNTER
 #DIM プレイヤー
-;行動可能なキャラの一覧
-#DIM CHARA_LIST, 8
+#DIM RETURN_CHARA_NUM
+#DIM DECIDE_REFERENCE_VALUE					;重みの基準
+#DIM MULTI_SEX_DECIDE_REFERENCE_VALUE		;性別による重みの乗算補正
+#DIM MULTI_VIRGIN_DECIDE_REFERENCE_VALUE	;処女性による重みの乗算補正
 
-;行動可能なキャラの数
-#DIM CHARA_LIST_MAX
-
-;主人公と挿入状態にあるキャラの一覧
-#DIM INSERT_LIST, 8
-
-;主人公と挿入状態にあるキャラの数
-#DIM INSERT_LIST_MAX
-
-#DIM 返却候補
-#DIM ループカウント
+DEBUGPRINTFORML 
+DEBUGPRINTFORML #### DEBUG MAIN_TARGET選択 
 
 ;-------------------------------------------------
-; キャラの選択
+;## リセット
 ;-------------------------------------------------
-;行動可能なキャラ、主人公と挿入状態にあるキャラの数を調べる　ただしプレイヤーは除く
-CHARA_LIST_MAX = 0
-INSERT_LIST_MAX = 0
+CALL COM_AUTO_RANDOMIZED_WEIGHTED_START
+
+;-------------------------------------------------
+;## 候補設定
+;	※特殊勢力の捕虜調教で、MASTERにCFLAG:L_COUNTER:調教参加フラグが立ってないぽい
+;-------------------------------------------------
 FOR L_COUNTER, 0, CHARANUM
-	IF IS_AUTOSELECT(L_COUNTER)
-		CHARA_LIST:CHARA_LIST_MAX = L_COUNTER
-		CHARA_LIST_MAX ++
-		IF IS_INSERT_MUTUAL(MASTER, L_COUNTER) >= 1
-			INSERT_LIST:INSERT_LIST_MAX = L_COUNTER
-			INSERT_LIST_MAX ++
-		ENDIF
+	;参加者ではなく逆調教中のMASTERでもない
+	SIF !CFLAG:L_COUNTER:調教参加フラグ && !(GROUPMATCH(FLAG:調教モード, 調教_逆調教特殊, 調教_逆調教通常) && L_COUNTER == MASTER)
+		CONTINUE
+	;実行者
+	SIF L_COUNTER == プレイヤー
+		CONTINUE
+	;---------------------------------------------
+	;### 性別組み合わせの補正
+	;---------------------------------------------
+	;実行が両刀or実行ふたなりor対象ふたなり
+	IF TALENT:プレイヤー:両刀 || (HAS_PENIS(プレイヤー) && HAS_VAGINA(プレイヤー)) || (HAS_PENIS(L_COUNTER) && HAS_VAGINA(L_COUNTER))
+		MULTI_SEX_DECIDE_REFERENCE_VALUE = 100
+	;異性
+	ELSEIF (HAS_PENIS(プレイヤー) && HAS_VAGINA(L_COUNTER)) || (HAS_VAGINA(プレイヤー) && HAS_PENIS(L_COUNTER))
+		MULTI_SEX_DECIDE_REFERENCE_VALUE = 100
+	;同性
+	ELSE
+		MULTI_SEX_DECIDE_REFERENCE_VALUE = 1
+	ENDIF
+	;---------------------------------------------
+	;### 処女系の補正
+	;---------------------------------------------
+	;マスターが対象で処女系素質を持つとき
+	IF L_COUNTER == MASTER && (TALENT:MASTER:キス未経験 || (HAS_VAGINA(MASTER) && TALENT:MASTER:処女) || (HAS_PENIS(MASTER) && TALENT:MASTER:童貞))
+		MULTI_VIRGIN_DECIDE_REFERENCE_VALUE = 100
+	;プレイヤーが処女系素質を持つとき
+	ELSEIF TALENT:プレイヤー:キス未経験 || (HAS_VAGINA(プレイヤー) && TALENT:プレイヤー:処女) || (HAS_PENIS(プレイヤー) && TALENT:プレイヤー:童貞)
+		MULTI_VIRGIN_DECIDE_REFERENCE_VALUE = 100
+	;どちらも処女系は持たないとき
+	ELSE
+		MULTI_VIRGIN_DECIDE_REFERENCE_VALUE = 1
+	ENDIF
+	;---------------------------------------------
+	;### 重みの基準
+	;	主導度Ｕのマイナス量を元に10～100に
+	;---------------------------------------------
+	DECIDE_REFERENCE_VALUE = MAX((2000 - (1000 + ABL:L_COUNTER:主導度Ｕ) + 1) / 20, 10)
+	DEBUGPRINTFORM      %ANAME(L_COUNTER), MAX_CHARANAME_LENGTH, LEFT%  %TOSTR_SEX(TALENT:L_COUNTER:性別), 6%  
+	;逆調教の主人公
+	IF L_COUNTER == MASTER && GROUPMATCH(FLAG:調教モード, 調教_逆調教特殊, 調教_逆調教通常, 調教_慰安)
+		DECIDE_REFERENCE_VALUE = DECIDE_REFERENCE_VALUE * MULTI_SEX_DECIDE_REFERENCE_VALUE * MULTI_VIRGIN_DECIDE_REFERENCE_VALUE * 100
+		CALL COM_AUTO_RANDOMIZED_WEIGHTED_VALUE(L_COUNTER, DECIDE_REFERENCE_VALUE)
+		DEBUGPRINTFORML 重み {DECIDE_REFERENCE_VALUE, 10}  逆調教中のあなた
+	;逆調教以外の主人公
+	ELSEIF L_COUNTER == MASTER
+		DECIDE_REFERENCE_VALUE = DECIDE_REFERENCE_VALUE * MULTI_SEX_DECIDE_REFERENCE_VALUE * MULTI_VIRGIN_DECIDE_REFERENCE_VALUE * 70
+		CALL COM_AUTO_RANDOMIZED_WEIGHTED_VALUE(L_COUNTER, DECIDE_REFERENCE_VALUE)
+		DEBUGPRINTFORML 重み {DECIDE_REFERENCE_VALUE, 10}  あなた
+	;捕虜調教のターゲット
+	ELSEIF FLAG:調教モード == 調教_捕虜調教 && FINDELEMENT(PRISONER_TARGET, L_COUNTER)
+		DECIDE_REFERENCE_VALUE = DECIDE_REFERENCE_VALUE * MULTI_SEX_DECIDE_REFERENCE_VALUE * 70
+		CALL COM_AUTO_RANDOMIZED_WEIGHTED_VALUE(L_COUNTER, DECIDE_REFERENCE_VALUE)
+		DEBUGPRINTFORML 重み {DECIDE_REFERENCE_VALUE, 10}  捕虜調教の対象
+	;慰安モードでプレイヤーが慰安モブや慰安参加者のとき慰安モブや慰安参加者は確率低下
+	ELSEIF FLAG:調教モード == 調教_慰安 && (TALENT:プレイヤー:慰安モブ || CFLAG:プレイヤー:慰安参加者) && (TALENT:L_COUNTER:慰安モブ || CFLAG:L_COUNTER:慰安参加者)
+		DECIDE_REFERENCE_VALUE = 3
+		CALL COM_AUTO_RANDOMIZED_WEIGHTED_VALUE(L_COUNTER, DECIDE_REFERENCE_VALUE)
+		DEBUGPRINTFORML 重み {DECIDE_REFERENCE_VALUE, 10}  実行対象共にモブや参加者
+	;それ以外
+	ELSE
+		DECIDE_REFERENCE_VALUE = DECIDE_REFERENCE_VALUE * MULTI_SEX_DECIDE_REFERENCE_VALUE * 30
+		CALL COM_AUTO_RANDOMIZED_WEIGHTED_VALUE(L_COUNTER, DECIDE_REFERENCE_VALUE)
+		DEBUGPRINTFORML 重み {DECIDE_REFERENCE_VALUE, 10}
 	ENDIF
 NEXT
 
-返却候補 = MASTER
-ループカウント = 0
-
-;特殊勢力の男キャラ
-IF IS_SP_COUNTRY_CHARA(プレイヤー) && IS_MALE(プレイヤー)
-	;まんこがいたら（マスター含む）そいつら狙い
-	;もしいなければマスターねらい
-	返却候補 = MASTER
-	FOR L_COUNTER, 0, CHARA_LIST_MAX
-		IF HAS_VAGINA(CHARA_LIST:L_COUNTER)
-			WHILE 1
-				ループカウント ++
-				;マスターがまんこなら50％
-				IF HAS_VAGINA(MASTER) && RAND:100 < 50
-					RETURN MASTER
-				;マスターが処女なら100%
-				ELSEIF VIRGIN(MASTER) && HAS_VAGINA(MASTER)
-					RETURN MASTER
-				ELSE
-					返却候補 = CHARA_LIST:(RAND:CHARA_LIST_MAX)
-					IF HAS_VAGINA(返却候補) && 返却候補 != プレイヤー
-						RETURN 返却候補
-					ENDIF
-				ENDIF
-				SIF ループカウント > 100
-					BREAK
-			WEND
-		ENDIF
-	NEXT
-;ふたなる
-ELSEIF HAS_PENIS(プレイヤー) && HAS_VAGINA(プレイヤー)
-	;ランダム狙い
-	;マスターは33%
-	;処女でマスターにペニスがあるなら必ずマスター狙い（うっかり他人が破るの防止）
-	返却候補 = MASTER
-	WHILE 1
-		ループカウント ++
-		返却候補 = CHARA_LIST:(RAND:CHARA_LIST_MAX)
-		IF VIRGIN(プレイヤー) && HAS_PENIS(MASTER)
-			RETURN MASTER
-		ENDIF
-		SIF !RAND:3
-			返却候補 = MASTER
-		SIF 返却候補 != プレイヤー
-			RETURN 返却候補
-		SIF ループカウント > 100
-			BREAK
-	WEND
-;チンポ
-ELSEIF HAS_PENIS(プレイヤー)
-	;まんこがいたら（マスター含む）そいつら狙い
-	;もしいなければマスターねらい
-	返却候補 = MASTER
-	FOR L_COUNTER, 0, CHARA_LIST_MAX
-		IF HAS_VAGINA(CHARA_LIST:L_COUNTER)
-			WHILE 1
-				ループカウント ++
-				;マスターがまんこなら33％
-				IF HAS_VAGINA(MASTER) && !RAND:3
-					RETURN MASTER
-				;マスターが処女なら100%
-				ELSEIF VIRGIN(MASTER) && HAS_VAGINA(MASTER)
-					RETURN MASTER
-				ELSE
-					返却候補 = CHARA_LIST:(RAND:CHARA_LIST_MAX)
-					IF HAS_VAGINA(返却候補) && 返却候補 != プレイヤー
-						RETURN 返却候補
-					ENDIF
-				ENDIF
-				SIF ループカウント > 100
-					BREAK
-			WEND
-		ENDIF
-	NEXT
-;まんこ
-ELSEIF HAS_VAGINA(プレイヤー)
-	;ペニスがいたら（マスター含む）そいつらを狙う
-	;ただし処女でマスターがチンポついてるならマスター狙い強制
-	;もしいなければ0番、つまりマスターねらい
-	返却候補 = MASTER
-	FOR L_COUNTER, 0, CHARA_LIST_MAX
-		IF HAS_PENIS(CHARA_LIST:L_COUNTER)
-			WHILE 1
-				ループカウント ++
-				;50%で強制マスター狙い
-				IF !RAND:2
-					RETURN MASTER
-				ELSEIF VIRGIN(プレイヤー) && HAS_PENIS(MASTER)
-					RETURN MASTER
-				ELSE
-					返却候補 = CHARA_LIST:(RAND:CHARA_LIST_MAX)
-					IF HAS_PENIS(返却候補) && 返却候補 != プレイヤー
-						RETURN 返却候補
-					ENDIF
-				ENDIF
-				IF ループカウント > 100
-					BREAK
-				ENDIF
-			WEND
-		ENDIF
-	NEXT
-ENDIF
-
-RETURN MASTER
-
 ;-------------------------------------------------
-;# 慰安時のプレイヤー選択
+;## 結果取得
 ;-------------------------------------------------
-@COM_AUTOSELECT_DECIDE_PLAYER_IAN
-#DIM L_COUNTER
+RETURN_CHARA_NUM = COM_AUTO_RANDOMIZED_WEIGHTED_RESULT()
 
-;行動可能なキャラの一覧
-#DIM CHARA_LIST, 8
-
-;行動可能なキャラの数
-#DIM CHARA_LIST_MAX
-
-;主人公と挿入状態にあるキャラの一覧
-#DIM INSERT_LIST, 8
-
-;主人公と挿入状態にあるキャラの数
-#DIM INSERT_LIST_MAX
-
-#DIM MAIN_PLAYER
-
-#DIM 行動候補, 8
-
-VARSET 行動候補, -1
-CHARA_LIST_MAX = 0
-INSERT_LIST_MAX = 0
-
-;-------------------------------------------------
-; キャラの選択
-;-------------------------------------------------
-;行動可能なキャラ、主人公と挿入状態にあるキャラの数を調べる
-FOR L_COUNTER, 0, CHARANUM
-	IF IS_AUTOSELECT(L_COUNTER)
-		CHARA_LIST:(CHARA_LIST_MAX) = L_COUNTER
-		CHARA_LIST_MAX ++
-	ENDIF
-NEXT
-
-IF CHARA_LIST_MAX == 0
-	PRINTFORML (行動可能な者が一人もいません。何もしないが選択されます)
-	CALL CLEAR_MTAR()
-	CALL CLEAR_MPLY()
-	CALL ADD_MPLY(MASTER)
-	LOCAL:10 = GET_TRAINNUM("なにもしない")
-	RETURN -1
-ENDIF
-
-;それ以外なら80%で主導度Ｕの値で補正した乱数
-;挿入中のキャラは50%で回避
-IF RAND:5
-	FOR L_COUNTER, 0, CHARA_LIST_MAX
-		SIF IS_INSERT_SINGLE(CHARA_LIST:L_COUNTER) >= 1 && !RAND:2
-			CONTINUE
-		行動候補:L_COUNTER = RAND:(1000 + ABL:(CHARA_LIST:L_COUNTER):主導度Ｕ / 2)
-	NEXT
-	RETURN CHARA_LIST:(FINDELEMENT(行動候補, MAXARRAY(行動候補, 0, CHARA_LIST_MAX), 0, CHARA_LIST_MAX))
-;20%の確率でランダム
-ELSE
-	MAIN_PLAYER = CHARA_LIST:(RAND:CHARA_LIST_MAX)
-ENDIF
-RETURN MAIN_PLAYER
-
-;-------------------------------------------------
-;# 慰安時のターゲット選択
-;-------------------------------------------------
-@COM_AUTOSELECT_DECIDE_TARGET_IAN(プレイヤー)
-#DIM L_COUNTER
-#DIM プレイヤー
-;行動可能なキャラの一覧
-#DIM CHARA_LIST, 8
-
-;行動可能なキャラの数
-#DIM CHARA_LIST_MAX
-
-;主人公と挿入状態にあるキャラの一覧
-#DIM INSERT_LIST, 8
-
-;主人公と挿入状態にあるキャラの数
-#DIM INSERT_LIST_MAX
-
-#DIM 行動候補
-#DIM ループカウント
-CHARA_LIST_MAX = 0
-INSERT_LIST_MAX = 0
-
-;-------------------------------------------------
-; キャラの選択
-;-------------------------------------------------
-;行動可能なキャラ、主人公と挿入状態にあるキャラの数を調べる　ただしプレイヤーと慰安用モブは除く
-FOR L_COUNTER, 0, CHARANUM
-	IF CFLAG:L_COUNTER:調教参加フラグ && L_COUNTER != プレイヤー 
-		IF プレイヤー == MASTER
-			CHARA_LIST:(CHARA_LIST_MAX) = L_COUNTER
-			CHARA_LIST_MAX ++
-		ELSEIF !TALENT:L_COUNTER:慰安モブ
-			CHARA_LIST:(CHARA_LIST_MAX) = L_COUNTER
-			CHARA_LIST_MAX ++
-		ENDIF
-	ENDIF
-NEXT
-
-IF CHARA_LIST_MAX == 0
-	PRINTFORML (ターゲットにできる者が一人もいません。何もしないが選択されます)
-	CALL CLEAR_MTAR()
-	CALL CLEAR_MPLY()
-	CALL ADD_MPLY(MASTER)
-	LOCAL:10 = GET_TRAINNUM("なにもしない")
-	RETURN -1
-ENDIF
-
-;基本はランダム
-行動候補 = CHARA_LIST:(RAND:CHARA_LIST_MAX)
-ループカウント = 0
-
-;ターゲットの選択
-;特殊勢力の男キャラ
-IF IS_SP_COUNTRY_CHARA(プレイヤー) && IS_MALE(プレイヤー)
-	;まんこがいたらそいつら狙い
-	;もしいなければランダム
-	FOR L_COUNTER, 0, CHARA_LIST_MAX
-		IF HAS_VAGINA(CHARA_LIST:L_COUNTER)
-			WHILE 1
-				ループカウント ++
-				行動候補 = CHARA_LIST:(RAND:CHARA_LIST_MAX)
-				IF HAS_VAGINA(行動候補) && 行動候補 != プレイヤー
-					RETURN 行動候補
-				ENDIF
-				IF ループカウント > 100
-					RETURN 行動候補
-				ENDIF
-			WEND
-		ENDIF
-	NEXT
-;ふたなり
-ELSEIF HAS_PENIS(プレイヤー) && HAS_VAGINA(プレイヤー)
-	;ランダム
-	RETURN 行動候補
-;チンポ
-ELSEIF HAS_PENIS(プレイヤー)
-	;まんこがいたらそいつら狙い
-	;もしいなければランダム
-	FOR L_COUNTER, 0, CHARA_LIST_MAX
-		IF HAS_VAGINA(CHARA_LIST:L_COUNTER)
-			WHILE 1
-				ループカウント ++
-				行動候補 = CHARA_LIST:(RAND:CHARA_LIST_MAX)
-				IF HAS_VAGINA(行動候補) && 行動候補 != プレイヤー
-					RETURN 行動候補
-				ENDIF
-				IF ループカウント > 100
-					RETURN 行動候補
-				ENDIF
-			WEND
-		ENDIF
-	NEXT
-;まんこ
-ELSEIF HAS_VAGINA(プレイヤー)
-	;ちんぽがいたらそいつら狙い
-	;もしいなければランダム
-	FOR L_COUNTER, 0, CHARA_LIST_MAX
-		IF HAS_PENIS(CHARA_LIST:L_COUNTER)
-			WHILE 1
-				ループカウント ++
-				行動候補 = CHARA_LIST:(RAND:CHARA_LIST_MAX)
-				IF HAS_PENIS(行動候補) && 行動候補 != プレイヤー
-					RETURN 行動候補
-				ENDIF
-				IF ループカウント > 100
-					PRINTFORM %ANAME(行動候補)%
-					RETURN 行動候補
-				ENDIF
-			WEND
-		ENDIF
-	NEXT
-ENDIF
-
-RETURN 行動候補
-
+RETURN RETURN_CHARA_NUM
 
 ;-------------------------------------------------
 ;# 第三者の参加を決定する
@@ -786,10 +549,10 @@ NEXT
 #DIM コマンド
 #DIM MTARフラグ
 
-IF IS_MTAR(主導者) && MTAR_NUM > 1 && !RAND:4
+IF IS_MTAR(主導者) && MTAR_NUM > 1 && RAND:100 < 25
 	CALL DEL_MTAR(主導者)
 	MTARフラグ = 1
-ELSEIF IS_MPLY(主導者) && MPLY_NUM > 1 && !RAND:4
+ELSEIF IS_MPLY(主導者) && MPLY_NUM > 1 && RAND:100 < 25
 	CALL DEL_MPLY(主導者)
 	MTARフラグ = 0
 ENDIF
