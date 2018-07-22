@@ -43,15 +43,15 @@ SIF CHARA_LIST_MAX == 0
 	RETURN -1
 
 ;中心となるキャラの選択
-IF INSERT_LIST_MAX >= 1 && RAND:10 < 3
+IF INSERT_LIST_MAX >= 1 && RAND:100 < 30
 	;主人公と挿入状態にあるキャラが1人以上いれば、30%の確率でその中から選択
 	MAIN_PLAYER = INSERT_LIST:(RAND:(INSERT_LIST_MAX))
 ELSE
 	;それ以外なら80%で主導度Ｕの値で補正した乱数
 	;挿入中のキャラは50%で回避
-	IF RAND:5
+	IF RAND:100 < 20
 		FOR L_COUNTER, 0, CHARA_LIST_MAX
-			SIF IS_INSERT_SINGLE(CHARA_LIST:L_COUNTER) >= 1 && !RAND:2
+			SIF IS_INSERT_SINGLE(CHARA_LIST:L_COUNTER) >= 1 && RAND:100 < 50
 				CONTINUE
 			行動候補:L_COUNTER = RAND:(1000 + ABL:(CHARA_LIST:L_COUNTER):主導度Ｕ / 2)
 		NEXT
@@ -84,28 +84,26 @@ RETURN MAIN_PLAYER
 #DIM 返却候補
 #DIM ループカウント
 
-CHARA_LIST_MAX = 0
-INSERT_LIST_MAX = 0
-
 ;-------------------------------------------------
 ; キャラの選択
 ;-------------------------------------------------
 ;行動可能なキャラ、主人公と挿入状態にあるキャラの数を調べる　ただしプレイヤーは除く
+CHARA_LIST_MAX = 0
+INSERT_LIST_MAX = 0
 FOR L_COUNTER, 0, CHARANUM
 	IF IS_AUTOSELECT(L_COUNTER)
-		CHARA_LIST:(CHARA_LIST_MAX) = L_COUNTER
+		CHARA_LIST:CHARA_LIST_MAX = L_COUNTER
 		CHARA_LIST_MAX ++
 		IF IS_INSERT_MUTUAL(MASTER, L_COUNTER) >= 1
-			INSERT_LIST:(INSERT_LIST_MAX) = L_COUNTER
+			INSERT_LIST:INSERT_LIST_MAX = L_COUNTER
 			INSERT_LIST_MAX ++
 		ENDIF
 	ENDIF
 NEXT
 
-
 返却候補 = MASTER
 ループカウント = 0
-;ターゲットの選択
+
 ;特殊勢力の男キャラ
 IF IS_SP_COUNTRY_CHARA(プレイヤー) && IS_MALE(プレイヤー)
 	;まんこがいたら（マスター含む）そいつら狙い
@@ -115,8 +113,8 @@ IF IS_SP_COUNTRY_CHARA(プレイヤー) && IS_MALE(プレイヤー)
 		IF HAS_VAGINA(CHARA_LIST:L_COUNTER)
 			WHILE 1
 				ループカウント ++
-				;マスターがまんこなら33％
-				IF HAS_VAGINA(MASTER) && !RAND:3
+				;マスターがまんこなら50％
+				IF HAS_VAGINA(MASTER) && RAND:100 < 50
 					RETURN MASTER
 				;マスターが処女なら100%
 				ELSEIF VIRGIN(MASTER) && HAS_VAGINA(MASTER)
