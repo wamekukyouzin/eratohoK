@@ -30,6 +30,9 @@ FOR L_COUNTER, 0, CHARANUM
 	;---------------------------------------------
 	DECIDE_REFERENCE_VALUE = MAX((1000 + ABL:L_COUNTER:主導度Ｕ + 1) / 20, 10)
 	DEBUGPRINTFORM      %ANAME(L_COUNTER), MAX_CHARANAME_LENGTH, LEFT%  %TOSTR_SEX(TALENT:L_COUNTER:性別), 6%  
+	;---------------------------------------------
+	;### 重み計算と候補設定
+	;---------------------------------------------
 	;慰安でないときは主人公に挿入している・されているキャラを優先
 	IF FLAG:調教モード != 調教_慰安 && IS_INSERT_MUTUAL(MASTER, L_COUNTER) >= 1
 		DECIDE_REFERENCE_VALUE = DECIDE_REFERENCE_VALUE * 100
@@ -47,6 +50,12 @@ NEXT
 ;## 結果取得
 ;-------------------------------------------------
 RETURN_CHARA_NUM = COM_AUTO_RANDOMIZED_WEIGHTED_RESULT()
+IF RETURN_CHARA_NUM < 0
+	PRINTFORML ※おまかせ実行者が見つかりませんでした。あなたを代入します
+	PRINTFORML ※ログをスレにエラー報告して頂けると助かります
+	PRINTFORML ※@COM_AUTOSELECT_DECIDE_PLAYER @COM_AUTO_RANDOMIZED_WEIGHTED_RESULT 
+	RETURN -1
+ENDIF
 
 RETURN RETURN_CHARA_NUM
 
@@ -71,26 +80,27 @@ CALL COM_AUTO_RANDOMIZED_WEIGHTED_START
 
 ;-------------------------------------------------
 ;## 候補設定
-;	※特殊勢力の捕虜逆調教のテストをしたとき
-;	　調教参加フラグだけで弾くとエンドレス見せつけになった
-;	　閨からの逆調教ではそういうことはなかったと思う
 ;-------------------------------------------------
 FOR L_COUNTER, 0, CHARANUM
-	;参加者ではなく逆調教中のMASTERでもない
-	SIF !CFLAG:L_COUNTER:調教参加フラグ && !(GROUPMATCH(FLAG:調教モード, 調教_逆調教特殊, 調教_逆調教通常) && L_COUNTER == MASTER)
+	;※参加者ではない
+	;　MASTERが調教参加フラグ設定されるのは慰安系のみのようなのでMASTERを除外
+	SIF !CFLAG:L_COUNTER:調教参加フラグ && !( FLAG:調教モード != 調教_慰安 && L_COUNTER == MASTER )
 		CONTINUE
 	;実行者
 	SIF L_COUNTER == プレイヤー
 		CONTINUE
 	;---------------------------------------------
-	;### 性別組み合わせの補正
+	;### 性別組の補正
 	;---------------------------------------------
-	;実行が両刀or実行ふたなりor対象ふたなり
-	IF TALENT:プレイヤー:両刀 || (HAS_PENIS(プレイヤー) && HAS_VAGINA(プレイヤー)) || (HAS_PENIS(L_COUNTER) && HAS_VAGINA(L_COUNTER))
+	;対象があなたで実行が陥落済み
+	IF L_COUNTER == MASTER && ( TALENT:プレイヤー:恋慕 || TALENT:プレイヤー:服従 || TALENT:プレイヤー:主人 )
 		MULTI_SEX_DECIDE_REFERENCE_VALUE = 100
+	;実行が陥落済みor両刀or実行ふたなりor対象ふたなり
+	ELSEIF TALENT:プレイヤー:両刀 || (HAS_PENIS(プレイヤー) && HAS_VAGINA(プレイヤー)) || (HAS_PENIS(L_COUNTER) && HAS_VAGINA(L_COUNTER))
+		MULTI_SEX_DECIDE_REFERENCE_VALUE = 70
 	;異性
 	ELSEIF (HAS_PENIS(プレイヤー) && HAS_VAGINA(L_COUNTER)) || (HAS_VAGINA(プレイヤー) && HAS_PENIS(L_COUNTER))
-		MULTI_SEX_DECIDE_REFERENCE_VALUE = 100
+		MULTI_SEX_DECIDE_REFERENCE_VALUE = 70
 	;同性
 	ELSE
 		MULTI_SEX_DECIDE_REFERENCE_VALUE = 1
@@ -114,6 +124,9 @@ FOR L_COUNTER, 0, CHARANUM
 	;---------------------------------------------
 	DECIDE_REFERENCE_VALUE = MAX((2000 - (1000 + ABL:L_COUNTER:主導度Ｕ) + 1) / 20, 10)
 	DEBUGPRINTFORM      %ANAME(L_COUNTER), MAX_CHARANAME_LENGTH, LEFT%  %TOSTR_SEX(TALENT:L_COUNTER:性別), 6%  
+	;---------------------------------------------
+	;### 重み計算と候補設定
+	;---------------------------------------------
 	;逆調教の主人公
 	IF L_COUNTER == MASTER && GROUPMATCH(FLAG:調教モード, 調教_逆調教特殊, 調教_逆調教通常, 調教_慰安)
 		DECIDE_REFERENCE_VALUE = DECIDE_REFERENCE_VALUE * MULTI_SEX_DECIDE_REFERENCE_VALUE * MULTI_VIRGIN_DECIDE_REFERENCE_VALUE * 100
@@ -146,6 +159,12 @@ NEXT
 ;## 結果取得
 ;-------------------------------------------------
 RETURN_CHARA_NUM = COM_AUTO_RANDOMIZED_WEIGHTED_RESULT()
+IF RETURN_CHARA_NUM < 0
+	PRINTFORML ※おまかせ対象者が見つかりませんでした。あなたを代入します
+	PRINTFORML ※ログをスレにエラー報告して頂けると助かります
+	PRINTFORML ※@COM_AUTOSELECT_DECIDE_TARGET @COM_AUTO_RANDOMIZED_WEIGHTED_RESULT
+	RETURN -1
+ENDIF
 
 RETURN RETURN_CHARA_NUM
 

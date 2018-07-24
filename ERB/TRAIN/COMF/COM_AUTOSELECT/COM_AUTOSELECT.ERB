@@ -1,6 +1,34 @@
 ﻿;-------------------------------------------------
 ;# コマンドの自動実行の処理
 ;	「おまかせ」や「なすがまま」
+;	１．コマンドのカテゴリを設定
+;		各コマンドがどのカテゴリにあてはまるかの分類を行う
+;		登録できていないコマンドがないかチェックを行う
+;	２．実行・対象キャラを設定
+;		実行者（MAIN_PLAYER）と対象者（MAIN_TARGET）を設定
+;		ここでの実行者・対象者は「される」系コマンドが選択されたとき入れ替わる
+;		実行者は主導度Ｕが高いキャラの優先度が高い
+;		対象者は手動々Ｕが低いキャラの優先度が高い
+;		対象者は捕虜ターゲットかどうかと
+;		実行者と比較して陥落素質や処女性や性別組等も見る
+;		慰安の場合、慰安モブ・慰安参加者実行者は同種の対象者を避ける
+;	３．カテゴリの優先度を設定
+;		実行者の性的嗜好に合うものを高評価にして各カテゴリの優先度を設定していく
+;		コンフィグで禁止設定されているものは優先度を-1にする
+;		優先度設定が0のカテゴリがないかチェックを行う
+;	４．コマンドの優先度を設定
+;		実行者の性的嗜好に合うものを高評価にして各コマンドの優先度を設定していく
+;		ただしカテゴリごと禁止されている場合は優先度を-1にする
+;		優先度設定が0のコマンドがないかチェックを行う
+;	５．実行するコマンドを決定
+;		これまで設定した優先度を元に乱択を行う
+;		コマンドが決まったら、手伝う第三者キャラを選択したり
+;		実行が第三者に命令して行動させる可能性などをチェックする
+;	６．複数チェック
+;		順番に挿入や代わる代わる挿入は実行者１対象者１でのチェックだと
+;		必ず失敗するため、判定を回避してここまでの処理を進めている
+;		そのため最後のCOM_ABLEチェックを行い、決定したコマンドが不可なら
+;		そのコマンドの優先度は0にして５に戻る
 ;-------------------------------------------------
 @COM_AUTOSELECT
 #DIM TEMP_COM			;一時的な決定コマンド
@@ -15,8 +43,8 @@
 [IF_DEBUG]
 	;GROUPMATCH(FLAG:調教モード, 調教_会う, 調教_閨, 調教_捕虜調教, 調教_子育て, 調教_逆調教特殊, 調教_逆調教通常, 調教_捕虜会話, 調教_慰安)
 	DEBUGPRINTFORML 
-	DEBUGPRINTFORM #### 自動行動_閨_開始
-	DEBUGPRINTFORM      現在の調教モードは {FLAG:調教モード}.%COM_AUTO_MODE_NAME()%
+	DEBUGPRINTFORML #### 自動行動_閨_開始
+	DEBUGPRINTFORML      現在の調教モードは {FLAG:調教モード}.%COM_AUTO_MODE_NAME()%
 [ENDIF]
 
 ;-------------------------------------------------
@@ -26,17 +54,11 @@ CALL COM_AUTOSELECT_SET_COM_CATEGORY
 
 ;-------------------------------------------------
 ;## キャラ設定
-;	実行者（MAIN_PLAYER）と対象者（MAIN_TARGET）を設定
-;	行動決定権を持つキャラを決める
-;	この実行者・対象者は「される」系コマンドが選択されたとき入れ替わる
-;	まずは中心となるキャラをランダムに1名選ぶ
-;	そのキャラの好みを考慮してまずコマンドの分類を、次に実際のコマンド番号を決定
-;	複数のキャラが可能なコマンドは複数のキャラで行うこともある
-;	基本はマゾよりサドが優先される
 ;-------------------------------------------------
+;実行者取得
 CALL COM_AUTOSELECT_DECIDE_PLAYER
-IF !CFLAG:RESULT:調教参加フラグ || !IS_AUTOSELECT(RESULT)
-	PRINTFORML (行動可能な者が選択できませんでした。なにもしないが選択されます)
+IF RESULT == -1
+	PRINTFORML ※なにもしないが選択されます
 	CALL CLEAR_MTAR()
 	CALL CLEAR_MPLY()
 	CALL ADD_MPLY(MASTER)
@@ -44,9 +66,22 @@ IF !CFLAG:RESULT:調教参加フラグ || !IS_AUTOSELECT(RESULT)
 	GOTO SKIPPED
 ENDIF
 MAIN_PLAYER = RESULT
+
+;対象者取得（実行者を渡して除外する）
 CALL COM_AUTOSELECT_DECIDE_TARGET(MAIN_PLAYER)
+IF RESULT == -1
+	PRINTFORML ※なにもしないが選択されます
+	CALL CLEAR_MTAR()
+	CALL CLEAR_MPLY()
+	CALL ADD_MPLY(MASTER)
+	FINAL_COM = GET_TRAINNUM("なにもしない")
+	GOTO SKIPPED
+ENDIF
 MAIN_TARGET = RESULT
 
+;-------------------------------------------------
+;## デバッグ キャラ設定
+;-------------------------------------------------
 [IF_DEBUG]
 	DEBUGPRINTFORML 
 	DEBUGPRINTFORML #### DEBUG キャラ設定
@@ -105,19 +140,23 @@ ENDIF
 
 ;結果取得
 TEMP_COM = COM_AUTO_RANDOMIZED_WEIGHTED_RESULT()
-
-;エラー回避
 IF TEMP_COM < 0 || TEMP_COM >= ADD_NUM_対象が実行 + 1000
+;	PRINTFORML ※可能な行動が見つかりませんでした。なにもしないを代入します
+;	PRINTFORML ※普通に制限されていて起きる可能性があるので、ここではエラーメッセージを表示していません
+;	PRINTFORML ※@COM_AUTOSELECT_DECIDE_TARGET @COM_AUTO_RANDOMIZED_WEIGHTED_RESULT
 	TEMP_COM = GET_TRAINNUM("なにもしない")
 ENDIF
 
+;-------------------------------------------------
+;## デバッグ 決定したコマンド
+;-------------------------------------------------
 [IF_DEBUG]
 	DEBUGPRINTFORML 
-	DEBUGPRINTFORML #### 決定したコマンド
+	DEBUGPRINTFORML #### DEBUG 決定したコマンド
 	IF TEMP_COM >= ADD_NUM_対象が実行
 		DEBUGPRINTFORML {TEMP_COM, 4}.%TRAINNAME:(TEMP_COM - ADD_NUM_対象が実行), 20, LEFT%される %NUM_FORMAT(COM_AUTO_COM_PRIORITY:TEMP_COM), 10, RIGHT%
 	ELSE
-		DEBUGPRINTFORML {TEMP_COM, 4}.%TRAINNAME:(TEMP_COM), 20, LEFT% %NUM_FORMAT(COM_AUTO_COM_PRIORITY:TEMP_COM), 10, RIGHT%する
+		DEBUGPRINTFORML {TEMP_COM, 4}.%TRAINNAME:(TEMP_COM), 20, LEFT%する %NUM_FORMAT(COM_AUTO_COM_PRIORITY:TEMP_COM), 10, RIGHT%
 	ENDIF
 [ENDIF]
 
