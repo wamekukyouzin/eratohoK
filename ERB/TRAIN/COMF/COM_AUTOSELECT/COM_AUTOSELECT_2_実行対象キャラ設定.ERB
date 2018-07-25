@@ -4,10 +4,11 @@
 @COM_AUTOSELECT_DECIDE_PLAYER
 #DIM L_COUNTER
 #DIM RETURN_CHARA_NUM
-#DIM DECIDE_REFERENCE_VALUE	;重みの基準
+#DIM DECIDE_REFERENCE_VALUE					;重みの基準
+#DIM MULTI_SITUATION_DECIDE_REFERENCE_VALUE	;状況による重みの乗算補正
 
 DEBUGPRINTFORML 
-DEBUGPRINTFORML #### DEBUG MAIN_PLAYER選択 
+DEBUGPRINTFORML #### DEBUG メインプレイヤー選択 
 
 ;-------------------------------------------------
 ;## リセット
@@ -18,32 +19,43 @@ CALL COM_AUTO_RANDOMIZED_WEIGHTED_START
 ;## 候補設定
 ;-------------------------------------------------
 FOR L_COUNTER, 0, CHARANUM
+	;---------------------------------------------
+	;### 不可候補
+	;---------------------------------------------
 	;参加者ではない
 	SIF !CFLAG:L_COUNTER:調教参加フラグ
 		CONTINUE
 	;行動不可能
 	SIF !IS_AUTOSELECT(L_COUNTER)
 		CONTINUE
+
 	;---------------------------------------------
 	;### 重みの基準
-	;	+1は0除算回避用 最大100 最小10
+	;	主導度Ｕプラス量を元に10～100 +1は0除算回避用
 	;---------------------------------------------
 	DECIDE_REFERENCE_VALUE = MAX((1000 + ABL:L_COUNTER:主導度Ｕ + 1) / 20, 10)
-	DEBUGPRINTFORM      %ANAME(L_COUNTER), MAX_CHARANAME_LENGTH, LEFT%  %TOSTR_SEX(TALENT:L_COUNTER:性別), 6%  
+
 	;---------------------------------------------
-	;### 重み計算と候補設定
+	;### 状況の補正
 	;---------------------------------------------
 	;慰安でないときは主人公に挿入している・されているキャラを優先
 	IF FLAG:調教モード != 調教_慰安 && IS_INSERT_MUTUAL(MASTER, L_COUNTER) >= 1
-		DECIDE_REFERENCE_VALUE = DECIDE_REFERENCE_VALUE * 100
-		CALL COM_AUTO_RANDOMIZED_WEIGHTED_VALUE(L_COUNTER, DECIDE_REFERENCE_VALUE)
-		DEBUGPRINTFORML 重み {DECIDE_REFERENCE_VALUE, 10}  あなたと結合中
+		MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 100
 	;挿入中ではないキャラ
 	ELSE
-		DECIDE_REFERENCE_VALUE = DECIDE_REFERENCE_VALUE * 50
-		CALL COM_AUTO_RANDOMIZED_WEIGHTED_VALUE(L_COUNTER, DECIDE_REFERENCE_VALUE)
-		DEBUGPRINTFORML 重み {DECIDE_REFERENCE_VALUE, 10}
+		MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 50
 	ENDIF
+
+	;---------------------------------------------
+	;### 重みの計算
+	;---------------------------------------------
+	DECIDE_REFERENCE_VALUE = DECIDE_REFERENCE_VALUE * MULTI_SITUATION_DECIDE_REFERENCE_VALUE
+
+	;---------------------------------------------
+	;### 候補の追加
+	;---------------------------------------------
+	CALL COM_AUTO_RANDOMIZED_WEIGHTED_VALUE(L_COUNTER, DECIDE_REFERENCE_VALUE)
+	DEBUGPRINTFORML      %ANAME(L_COUNTER), MAX_CHARANAME_LENGTH, LEFT%  %TOSTR_SEX(TALENT:L_COUNTER:性別), 6%  重み {DECIDE_REFERENCE_VALUE, 10}
 NEXT
 
 ;-------------------------------------------------
@@ -69,9 +81,10 @@ RETURN RETURN_CHARA_NUM
 #DIM DECIDE_REFERENCE_VALUE					;重みの基準
 #DIM MULTI_SEX_DECIDE_REFERENCE_VALUE		;性別による重みの乗算補正
 #DIM MULTI_VIRGIN_DECIDE_REFERENCE_VALUE	;処女性による重みの乗算補正
+#DIM MULTI_SITUATION_DECIDE_REFERENCE_VALUE	;状況による重みの乗算補正
 
 DEBUGPRINTFORML 
-DEBUGPRINTFORML #### DEBUG MAIN_TARGET選択 
+DEBUGPRINTFORML #### DEBUG メインターゲット選択 
 
 ;-------------------------------------------------
 ;## リセット
@@ -82,20 +95,29 @@ CALL COM_AUTO_RANDOMIZED_WEIGHTED_START
 ;## 候補設定
 ;-------------------------------------------------
 FOR L_COUNTER, 0, CHARANUM
-	;※参加者ではない
-	;　MASTERが調教参加フラグ設定されるのは慰安系のみのようなのでMASTERを除外
+	;---------------------------------------------
+	;### 不可候補
+	;---------------------------------------------
+	;参加者ではない　MASTERが調教参加フラグ設定されるのは慰安系のみのようなのでMASTERを除外
 	SIF !CFLAG:L_COUNTER:調教参加フラグ && !( FLAG:調教モード != 調教_慰安 && L_COUNTER == MASTER )
 		CONTINUE
 	;実行者
 	SIF L_COUNTER == プレイヤー
 		CONTINUE
+
+	;---------------------------------------------
+	;### 重みの基準
+	;	主導度Ｕマイナス量を元に10～100 +1は0除算回避用
+	;---------------------------------------------
+	DECIDE_REFERENCE_VALUE = MAX((2000 - (1000 + ABL:L_COUNTER:主導度Ｕ) + 1) / 20, 10)
+
 	;---------------------------------------------
 	;### 性別組の補正
 	;---------------------------------------------
 	;対象があなたで実行が陥落済み
 	IF L_COUNTER == MASTER && ( TALENT:プレイヤー:恋慕 || TALENT:プレイヤー:服従 || TALENT:プレイヤー:主人 )
 		MULTI_SEX_DECIDE_REFERENCE_VALUE = 100
-	;実行が陥落済みor両刀or実行ふたなりor対象ふたなり
+	;両刀or実行ふたなりor対象ふたなり
 	ELSEIF TALENT:プレイヤー:両刀 || (HAS_PENIS(プレイヤー) && HAS_VAGINA(プレイヤー)) || (HAS_PENIS(L_COUNTER) && HAS_VAGINA(L_COUNTER))
 		MULTI_SEX_DECIDE_REFERENCE_VALUE = 70
 	;異性
@@ -105,6 +127,7 @@ FOR L_COUNTER, 0, CHARANUM
 	ELSE
 		MULTI_SEX_DECIDE_REFERENCE_VALUE = 1
 	ENDIF
+
 	;---------------------------------------------
 	;### 処女系の補正
 	;---------------------------------------------
@@ -118,41 +141,40 @@ FOR L_COUNTER, 0, CHARANUM
 	ELSE
 		MULTI_VIRGIN_DECIDE_REFERENCE_VALUE = 1
 	ENDIF
+
 	;---------------------------------------------
-	;### 重みの基準
-	;	主導度Ｕのマイナス量を元に10～100に
-	;---------------------------------------------
-	DECIDE_REFERENCE_VALUE = MAX((2000 - (1000 + ABL:L_COUNTER:主導度Ｕ) + 1) / 20, 10)
-	DEBUGPRINTFORM      %ANAME(L_COUNTER), MAX_CHARANAME_LENGTH, LEFT%  %TOSTR_SEX(TALENT:L_COUNTER:性別), 6%  
-	;---------------------------------------------
-	;### 重み計算と候補設定
+	;### 状況の補正
 	;---------------------------------------------
 	;逆調教の主人公
 	IF L_COUNTER == MASTER && GROUPMATCH(FLAG:調教モード, 調教_逆調教特殊, 調教_逆調教通常, 調教_慰安)
-		DECIDE_REFERENCE_VALUE = DECIDE_REFERENCE_VALUE * MULTI_SEX_DECIDE_REFERENCE_VALUE * MULTI_VIRGIN_DECIDE_REFERENCE_VALUE * 100
-		CALL COM_AUTO_RANDOMIZED_WEIGHTED_VALUE(L_COUNTER, DECIDE_REFERENCE_VALUE)
-		DEBUGPRINTFORML 重み {DECIDE_REFERENCE_VALUE, 10}  逆調教中のあなた
+		MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 100
 	;逆調教以外の主人公
 	ELSEIF L_COUNTER == MASTER
-		DECIDE_REFERENCE_VALUE = DECIDE_REFERENCE_VALUE * MULTI_SEX_DECIDE_REFERENCE_VALUE * MULTI_VIRGIN_DECIDE_REFERENCE_VALUE * 70
-		CALL COM_AUTO_RANDOMIZED_WEIGHTED_VALUE(L_COUNTER, DECIDE_REFERENCE_VALUE)
-		DEBUGPRINTFORML 重み {DECIDE_REFERENCE_VALUE, 10}  あなた
+		MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 70
 	;捕虜調教のターゲット
 	ELSEIF FLAG:調教モード == 調教_捕虜調教 && FINDELEMENT(PRISONER_TARGET, L_COUNTER)
-		DECIDE_REFERENCE_VALUE = DECIDE_REFERENCE_VALUE * MULTI_SEX_DECIDE_REFERENCE_VALUE * 70
-		CALL COM_AUTO_RANDOMIZED_WEIGHTED_VALUE(L_COUNTER, DECIDE_REFERENCE_VALUE)
-		DEBUGPRINTFORML 重み {DECIDE_REFERENCE_VALUE, 10}  捕虜調教の対象
+		MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 70
 	;慰安モードでプレイヤーが慰安モブや慰安参加者のとき慰安モブや慰安参加者は確率低下
 	ELSEIF FLAG:調教モード == 調教_慰安 && (TALENT:プレイヤー:慰安モブ || CFLAG:プレイヤー:慰安参加者) && (TALENT:L_COUNTER:慰安モブ || CFLAG:L_COUNTER:慰安参加者)
-		DECIDE_REFERENCE_VALUE = 3
-		CALL COM_AUTO_RANDOMIZED_WEIGHTED_VALUE(L_COUNTER, DECIDE_REFERENCE_VALUE)
-		DEBUGPRINTFORML 重み {DECIDE_REFERENCE_VALUE, 10}  実行対象共にモブや参加者
+		MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 1
+	;慰安モードでプレイヤーが慰安モブや慰安参加者でないサービス側のときサービス側は確率低下
+	ELSEIF FLAG:調教モード == 調教_慰安 && !TALENT:プレイヤー:慰安モブ && !CFLAG:プレイヤー:慰安参加者 && !TALENT:L_COUNTER:慰安モブ && !CFLAG:L_COUNTER:慰安参加者
+		MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 1
 	;それ以外
 	ELSE
-		DECIDE_REFERENCE_VALUE = DECIDE_REFERENCE_VALUE * MULTI_SEX_DECIDE_REFERENCE_VALUE * 30
-		CALL COM_AUTO_RANDOMIZED_WEIGHTED_VALUE(L_COUNTER, DECIDE_REFERENCE_VALUE)
-		DEBUGPRINTFORML 重み {DECIDE_REFERENCE_VALUE, 10}
+		MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 30
 	ENDIF
+
+	;---------------------------------------------
+	;### 重みの計算
+	;---------------------------------------------
+	DECIDE_REFERENCE_VALUE = DECIDE_REFERENCE_VALUE * MULTI_SEX_DECIDE_REFERENCE_VALUE * MULTI_VIRGIN_DECIDE_REFERENCE_VALUE * MULTI_SITUATION_DECIDE_REFERENCE_VALUE
+
+	;---------------------------------------------
+	;### 候補の追加
+	;---------------------------------------------
+	CALL COM_AUTO_RANDOMIZED_WEIGHTED_VALUE(L_COUNTER, DECIDE_REFERENCE_VALUE)
+	DEBUGPRINTFORML      %ANAME(L_COUNTER), MAX_CHARANAME_LENGTH, LEFT%  %TOSTR_SEX(TALENT:L_COUNTER:性別), 6%  重み {DECIDE_REFERENCE_VALUE, 10}
 NEXT
 
 ;-------------------------------------------------
@@ -173,365 +195,306 @@ RETURN RETURN_CHARA_NUM
 ;-------------------------------------------------
 @AUTO_SET_THIRD_PERSON(主導者, 対象者, コマンド)
 #DIM L_COUNTER
+#DIM CHARA_COUNTER
 #DIM コマンド
-#DIM 行動可能者
 #DIM 主導者
 #DIM 対象者
 #DIM 今回候補
-#DIM 対象
-#DIM 成功時BREAK
+#DIM DECIDE_REFERENCE_VALUE							;候補取得の重み
+#DIM PLAYER_DECIDE_REFERENCE_VALUE					;する側に回る重みの基準
+#DIM PLAYER_MULTI_SEX_DECIDE_REFERENCE_VALUE		;する側に回る性別による重みの乗算補正
+#DIM PLAYER_MULTI_SITUATION_DECIDE_REFERENCE_VALUE	;する側に回る状況による重みの乗算補正
+#DIM TARGET_DECIDE_REFERENCE_VALUE					;される側に回る重みの基準
+#DIM TARGET_MULTI_SEX_DECIDE_REFERENCE_VALUE		;される側に回る性別による重みの乗算補正
+#DIM TARGET_MULTI_SITUATION_DECIDE_REFERENCE_VALUE	;される側に回る状況による重みの乗算補正
+#DIM CONST ASSIST_PLAYER_ID = 1						;候補識別用・この番号が選ばれたら実行者
+#DIM CONST ASSIST_TARGET_ID = 2						;候補識別用・この番号が選ばれたら対象者
+#DIM ASSIST_ID_RESULT								;する側とされる側どっちが選ばれたか受け取る
 
+DEBUGPRINTFORML 
+DEBUGPRINTFORML #### DEBUG 第三の参加者選択
+
+;候補取得と実行可否チェックを繰り返す
 FOR L_COUNTER, 0, 5
-	SIF RAND:100 > 20
-		CONTINUE
-
-	成功時BREAK = 0
-	;行動可能なキャラの数を調べる
-	行動可能者 = 0
-	FOR 対象, 0, CHARANUM
-		IF IS_AUTOSELECT(対象) && !IS_MPLY(対象) && !IS_MTAR(対象)
-			行動可能者 ++
-		ENDIF
-	NEXT
-
-	;行動可能なキャラが1人以上存在する場合
-	SIF 行動可能者 < 1
-		BREAK
-
-	;プレイヤー/ターゲットに追加するキャラの選択
-	LOCAL:3 = RAND:(行動可能者)
-	LOCAL:4 = 0
+;	SIF RAND:100 > 20
+;		CONTINUE
+	DEBUGPRINTFORML      
+	DEBUGPRINTFORML      第三者の参加チェック {L_COUNTER + 1}周目
+	;---------------------------------------------
+	;## 今回候補キャラ選択
+	;---------------------------------------------
+	;---------------------------------------------
+	;### リセット
+	;---------------------------------------------
 	今回候補 = -1
-	FOR 対象, 0, CHARANUM
-		IF IS_AUTOSELECT(対象) && !IS_MPLY(対象) && !IS_MTAR(対象)
-			IF LOCAL:3 == LOCAL:4
-				今回候補 = 対象
-				BREAK
-			ENDIF
-			LOCAL:4 ++
+	CALL COM_AUTO_RANDOMIZED_WEIGHTED_START
+	;---------------------------------------------
+	;### 候補設定
+	;---------------------------------------------
+	FOR CHARA_COUNTER, 0, CHARANUM
+		DECIDE_REFERENCE_VALUE = 0
+		;不可候補 行動できないか、既に実行者あるいは対象者
+		SIF !IS_AUTOSELECT(CHARA_COUNTER) || IS_MPLY(CHARA_COUNTER) || IS_MTAR(CHARA_COUNTER)
+			CONTINUE
+		;CHARA_COUNTERが陥落済みで対象があなた
+		IF 対象者 == MASTER && ( TALENT:CHARA_COUNTER:恋慕 || TALENT:CHARA_COUNTER:服従 || TALENT:CHARA_COUNTER:主人 )
+			DECIDE_REFERENCE_VALUE = 100
+		;CHARA_COUNTERが両刀、あるいはフタナリがいる
+		ELSEIF TALENT:CHARA_COUNTER:両刀 || (HAS_PENIS(CHARA_COUNTER) && HAS_VAGINA(CHARA_COUNTER)) || (HAS_PENIS(主導者) && HAS_VAGINA(主導者)) || (HAS_PENIS(対象者) && HAS_VAGINA(対象者))
+			DECIDE_REFERENCE_VALUE = 70
+		;CHARA_COUNTERの異性がいる
+		ELSEIF (HAS_PENIS(CHARA_COUNTER) && HAS_VAGINA(主導者)) || (HAS_VAGINA(CHARA_COUNTER) && HAS_PENIS(主導者)) || (HAS_PENIS(CHARA_COUNTER) && HAS_VAGINA(対象者)) || (HAS_VAGINA(CHARA_COUNTER) && HAS_PENIS(対象者))
+			DECIDE_REFERENCE_VALUE = 70
+		;両刀もなく全員同性なら消極参加
+		ELSE
+			DECIDE_REFERENCE_VALUE = 1
 		ENDIF
+		;候補追加
+		CALL COM_AUTO_RANDOMIZED_WEIGHTED_VALUE(CHARA_COUNTER, DECIDE_REFERENCE_VALUE)
+		DEBUGPRINTFORML      %ANAME(CHARA_COUNTER), MAX_CHARANAME_LENGTH, LEFT%  %TOSTR_SEX(TALENT:CHARA_COUNTER:性別), 6%  重み {DECIDE_REFERENCE_VALUE, 10}
 	NEXT
-
-	SIF 今回候補 < -1
-		CONTINUE
-
-	IF FLAG:調教モード == 調教_慰安
-		;慰安する側なら、「もう一人の慰安する側に合わせる」か、「主導者の側に入り、主導者を削除（命じられるシチュになる）」になる
-		IF !CFLAG:今回候補:慰安参加者
-			IF !RAND:4
-				IF IS_MTAR(主導者)
-					CALL ADD_MTAR(今回候補)
-					CALL DEL_MTAR(今回候補)
-				ELSE
-					CALL ADD_MPLY(今回候補)
-					CALL DEL_MPLY(主導者)
-				ENDIF
-				成功時BREAK = 1
+	;-----------------------------------------
+	;### 結果取得
+	;-----------------------------------------
+	今回候補 = COM_AUTO_RANDOMIZED_WEIGHTED_RESULT()
+	IF RESULT < 0 || 今回候補 == -1
+		DEBUGPRINTFORML      候補になれるキャラがいないので抜ける
+		BREAK
+	ENDIF
+	;---------------------------------------------
+	;## する側される側どちらを望むか
+	;---------------------------------------------
+	;---------------------------------------------
+	;### リセット
+	;---------------------------------------------
+	CALL COM_AUTO_RANDOMIZED_WEIGHTED_START
+	;---------------------------------------------
+	;### 重みの基準
+	;---------------------------------------------
+	PLAYER_DECIDE_REFERENCE_VALUE = MAX((1000 + ABL:今回候補:主導度Ｕ + 1) / 20, 10)
+	TARGET_DECIDE_REFERENCE_VALUE = MAX((2000 - (1000 + ABL:今回候補:主導度Ｕ) + 1) / 20, 10)
+	;---------------------------------------------
+	;### 性別組の補正
+	;---------------------------------------------
+	;MPLYに加わる欲求
+	PLAYER_MULTI_SEX_DECIDE_REFERENCE_VALUE = 0
+	;MTARに加わる欲求
+	TARGET_MULTI_SEX_DECIDE_REFERENCE_VALUE = 0
+	IF IS_MPLY(主導者) && IS_MTAR(対象者)
+		;相手があなたで今回候補が陥落済み
+		IF 対象者 == MASTER && ( TALENT:今回候補:恋慕 || TALENT:今回候補:服従 || TALENT:今回候補:主人 )
+			PLAYER_MULTI_SEX_DECIDE_REFERENCE_VALUE = 100
+		;今回候補が両刀、あるいは今回候補か相手のどちらかがフタナリ
+		ELSEIF TALENT:今回候補:両刀 || (HAS_PENIS(今回候補) && HAS_VAGINA(今回候補)) || (HAS_PENIS(対象者) && HAS_VAGINA(対象者))
+			;男両刀や男ふたなりは攻め手に回りやすい
+			IF IS_MALE(今回候補)
+				PLAYER_MULTI_SEX_DECIDE_REFERENCE_VALUE = 70
+			;女両刀や女ふたなりは受け手に回りやすい
 			ELSE
-				IF IS_MTAR(対象者)
-					CALL ADD_MTAR(今回候補)
-				ELSE
-					CALL ADD_MPLY(今回候補)
-				ENDIF
+				PLAYER_MULTI_SEX_DECIDE_REFERENCE_VALUE = 30
 			ENDIF
-			GOTO DECIDED
+		;相手が異性ならする側に消極的
+		ELSEIF (HAS_PENIS(今回候補) && HAS_VAGINA(対象者)) || (HAS_VAGINA(今回候補) && HAS_PENIS(対象者))
+			PLAYER_MULTI_SEX_DECIDE_REFERENCE_VALUE = 70
+		;相手が同性ならする側に消極的
+		ELSE
+			PLAYER_MULTI_SEX_DECIDE_REFERENCE_VALUE = 1
+		ENDIF
+		;相手があなたで今回候補が陥落済み
+		IF 対象者 == MASTER && ( TALENT:今回候補:恋慕 || TALENT:今回候補:服従 || TALENT:今回候補:主人 )
+			TARGET_MULTI_SEX_DECIDE_REFERENCE_VALUE = 50
+		;今回候補が両刀、あるいは今回候補か相手のどちらかがフタナリ
+		ELSEIF TALENT:今回候補:両刀 || (HAS_PENIS(今回候補) && HAS_VAGINA(今回候補)) || (HAS_PENIS(主導者) && HAS_VAGINA(主導者))
+			;男両刀や男ふたなりは攻め手に回りやすい
+			IF IS_MALE(今回候補)
+				TARGET_MULTI_SEX_DECIDE_REFERENCE_VALUE = 30
+			;女両刀や女ふたなりは受け手に回りやすい
+			ELSE
+				TARGET_MULTI_SEX_DECIDE_REFERENCE_VALUE = 70
+			ENDIF
+		;相手が異性ならされる側に消極的
+		ELSEIF (HAS_PENIS(今回候補) && HAS_VAGINA(主導者)) || (HAS_VAGINA(今回候補) && HAS_PENIS(主導者))
+			TARGET_MULTI_SEX_DECIDE_REFERENCE_VALUE = 70
+		;相手が同性ならされる側に消極的
+		ELSE
+			TARGET_MULTI_SEX_DECIDE_REFERENCE_VALUE = 1
+		ENDIF
+	ELSEIF IS_MPLY(対象者) && IS_MTAR(主導者)
+		;今回候補が両刀、あるいは今回候補か対象のどちらかがフタナリ
+		IF TALENT:今回候補:両刀 || (HAS_PENIS(今回候補) && HAS_VAGINA(今回候補)) || (HAS_PENIS(主導者) && HAS_VAGINA(主導者))
+			;男両刀や男ふたなりは攻め手に回りやすい
+			IF IS_MALE(今回候補)
+				PLAYER_MULTI_SEX_DECIDE_REFERENCE_VALUE = 70
+			;女両刀や女ふたなりは受け手に回りやすい
+			ELSE
+				PLAYER_MULTI_SEX_DECIDE_REFERENCE_VALUE = 30
+			ENDIF
+		;対象が異性ならする側に消極的
+		ELSEIF (HAS_PENIS(今回候補) && HAS_VAGINA(主導者)) || (HAS_VAGINA(今回候補) && HAS_PENIS(主導者))
+			PLAYER_MULTI_SEX_DECIDE_REFERENCE_VALUE = 70
+		;対象が同性ならする側に消極的
+		ELSE
+			PLAYER_MULTI_SEX_DECIDE_REFERENCE_VALUE = 1
+		ENDIF
+		;今回候補が両刀、あるいは今回候補か主導のどちらかがフタナリ
+		IF TALENT:今回候補:両刀 || (HAS_PENIS(今回候補) && HAS_VAGINA(今回候補)) || (HAS_PENIS(対象者) && HAS_VAGINA(対象者))
+			;男両刀や男ふたなりは攻め手に回りやすい
+			IF IS_MALE(今回候補)
+				TARGET_MULTI_SEX_DECIDE_REFERENCE_VALUE = 30
+			;女両刀や女ふたなりは受け手に回りやすい
+			ELSE
+				TARGET_MULTI_SEX_DECIDE_REFERENCE_VALUE = 70
+			ENDIF
+		;相手が異性ならされる側に消極的
+		ELSEIF (HAS_PENIS(今回候補) && HAS_VAGINA(対象者)) || (HAS_VAGINA(今回候補) && HAS_PENIS(対象者))
+			TARGET_MULTI_SEX_DECIDE_REFERENCE_VALUE = 70
+		;主導者が同性ならされる側に消極的
+		ELSE
+			TARGET_MULTI_SEX_DECIDE_REFERENCE_VALUE = 1
 		ENDIF
 	ENDIF
-	;純粋な性別による判定とペニスがあるかの判定の二つを織り交ぜ、ふたなりの挙動に揺らぎをもたせる
-	IF RAND:2
-		IF IS_MALE(主導者) && IS_MALE(対象者) && IS_MALE(今回候補)
-			LOCAL:30 = 0
-		ELSEIF IS_MALE(主導者) && IS_MALE(対象者) && IS_FEMALE(今回候補)
-			LOCAL:30 = 1
-		ELSEIF IS_MALE(主導者) && IS_FEMALE(対象者) && IS_MALE(今回候補)
-			LOCAL:30 = 2
-		ELSEIF IS_FEMALE(主導者) && IS_MALE(対象者) && IS_MALE(今回候補)
-			LOCAL:30 = 3
-		ELSEIF IS_MALE(主導者) && IS_FEMALE(対象者) && IS_FEMALE(今回候補)
-			LOCAL:30 = 4
-		ELSEIF IS_FEMALE(主導者) && IS_MALE(対象者) && IS_FEMALE(今回候補)
-			LOCAL:30 = 5
-		ELSEIF IS_FEMALE(主導者) && IS_FEMALE(対象者) && IS_MALE(今回候補)
-			LOCAL:30 = 6
-		ELSEIF IS_FEMALE(主導者) && IS_FEMALE(対象者) && IS_FEMALE(今回候補)
-			LOCAL:30 = 7
+	;---------------------------------------------
+	;### 状況の補正
+	;---------------------------------------------
+	PLAYER_MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 0
+	TARGET_MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 0
+	;捕虜調教のターゲットは仲間の補助に回りやすい
+	IF FLAG:調教モード == 調教_捕虜調教 && FINDELEMENT(PRISONER_TARGET, 今回候補)
+		;主導者が仲間で実行者
+		IF FINDELEMENT(PRISONER_TARGET, 主導者) && IS_MPLY(主導者)
+			PLAYER_MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 100
+			TARGET_MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 1
+		;対象者が仲間で実行者
+		ELSEIF FINDELEMENT(PRISONER_TARGET, 対象者) && IS_MPLY(対象者)
+			PLAYER_MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 100
+			TARGET_MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 1
+		;主導者が仲間で対象者
+		ELSEIF FINDELEMENT(PRISONER_TARGET, 主導者) && IS_MTAR(主導者)
+			PLAYER_MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 1
+			TARGET_MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 100
+		;対象者が仲間で対象者
+		ELSE
+			PLAYER_MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 1
+			TARGET_MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 100
 		ENDIF
+	;今回候補が慰安モブや慰安参加者なら、仲間の補助に回りやすい
+	ELSEIF FLAG:調教モード == 調教_慰安 && (TALENT:今回候補:慰安モブ || CFLAG:今回候補:慰安参加者)
+		;主導者が仲間で実行者
+		IF (TALENT:主導者:慰安モブ || CFLAG:主導者:慰安参加者) && IS_MPLY(主導者)
+			PLAYER_MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 100
+			TARGET_MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 1
+		;慰安客で対象者が仲間で実行者
+		ELSEIF (TALENT:対象者:慰安モブ || CFLAG:対象者:慰安参加者) && IS_MPLY(対象者)
+			PLAYER_MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 100
+			TARGET_MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 1
+		;慰安客で主導者が仲間で対象者
+		ELSEIF (TALENT:主導者:慰安モブ || CFLAG:主導者:慰安参加者) && IS_MTAR(主導者)
+			PLAYER_MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 1
+			TARGET_MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 100
+		;慰安者で対象者が仲間で実行者
+		ELSEIF !TALENT:対象者:慰安モブ && !CFLAG:対象者:慰安参加者 && IS_MPLY(対象者)
+			PLAYER_MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 100
+			TARGET_MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 1
+		;慰安者で主導者が仲間で対象者
+		ELSEIF !TALENT:主導者:慰安モブ && !CFLAG:主導者:慰安参加者 && IS_MTAR(主導者)
+			PLAYER_MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 1
+			TARGET_MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 100
+		;対象者が仲間で対象者
+		ELSE
+			PLAYER_MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 1
+			TARGET_MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 100
+		ENDIF
+	;それ以外
 	ELSE
-		IF HAS_PENIS(主導者) && HAS_PENIS(対象者) && HAS_PENIS(今回候補)
-			LOCAL:30 = 0
-		ELSEIF HAS_PENIS(主導者) && HAS_PENIS(対象者) && HAS_VAGINA(今回候補)
-			LOCAL:30 = 1
-		ELSEIF HAS_PENIS(主導者) && HAS_VAGINA(対象者) && HAS_PENIS(今回候補)
-			LOCAL:30 = 2
-		ELSEIF HAS_VAGINA(主導者) && HAS_PENIS(対象者) && HAS_PENIS(今回候補)
-			LOCAL:30 = 3
-		ELSEIF HAS_PENIS(主導者) && HAS_VAGINA(対象者) && HAS_VAGINA(今回候補)
-			LOCAL:30 = 4
-		ELSEIF HAS_VAGINA(主導者) && HAS_PENIS(対象者) && HAS_VAGINA(今回候補)
-			LOCAL:30 = 5
-		ELSEIF HAS_VAGINA(主導者) && HAS_VAGINA(対象者) && HAS_PENIS(今回候補)
-			LOCAL:30 = 6
-		ELSEIF HAS_VAGINA(主導者) && HAS_VAGINA(対象者) && HAS_VAGINA(今回候補)
-			LOCAL:30 = 7
+		PLAYER_MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 1
+		TARGET_MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 1
+	ENDIF
+	;---------------------------------------------
+	;### 重みの計算
+	;---------------------------------------------
+	PLAYER_DECIDE_REFERENCE_VALUE = PLAYER_DECIDE_REFERENCE_VALUE * PLAYER_MULTI_SEX_DECIDE_REFERENCE_VALUE * PLAYER_MULTI_SITUATION_DECIDE_REFERENCE_VALUE
+	TARGET_DECIDE_REFERENCE_VALUE = TARGET_DECIDE_REFERENCE_VALUE * TARGET_MULTI_SEX_DECIDE_REFERENCE_VALUE * TARGET_MULTI_SITUATION_DECIDE_REFERENCE_VALUE
+	;---------------------------------------------
+	;### 補正 性別制限
+	;---------------------------------------------
+	IF TOSTR_SEX(TALENT:今回候補:性別) == "男性"
+		IF PLAYER_DECIDE_REFERENCE_VALUE >= 3 && GROUPMATCH(コマンド, ADD_NUM_対象が実行 + GET_TRAINNUM("胸愛撫"), ADD_NUM_対象が実行 + GET_TRAINNUM("乳首吸い"), GET_TRAINNUM("フェラチオ"), ADD_NUM_対象が実行 + GET_TRAINNUM("イラマチオ"), GET_TRAINNUM("パイズリ"), GET_TRAINNUM("泡踊り"), GET_TRAINNUM("素股"), GET_TRAINNUM("尻コキ"), GET_TRAINNUM("亀頭責め手コキ"), GET_TRAINNUM("亀頭責めフェラ"), GET_TRAINNUM("土下座"), GET_TRAINNUM("おねだり"), ADD_NUM_対象が実行 + GET_TRAINNUM("ペニバン口枷"))
+			PLAYER_DECIDE_REFERENCE_VALUE /= 3
+		ENDIF
+		IF TARGET_DECIDE_REFERENCE_VALUE >= 3 && GROUPMATCH(コマンド, GET_TRAINNUM("胸愛撫"), GET_TRAINNUM("乳首吸い"), ADD_NUM_対象が実行 + GET_TRAINNUM("フェラチオ"), GET_TRAINNUM("イラマチオ"), ADD_NUM_対象が実行 + GET_TRAINNUM("パイズリ"), ADD_NUM_対象が実行 + GET_TRAINNUM("泡踊り"), ADD_NUM_対象が実行 + GET_TRAINNUM("素股"), ADD_NUM_対象が実行 + GET_TRAINNUM("尻コキ"), ADD_NUM_対象が実行 + GET_TRAINNUM("亀頭責め手コキ"), ADD_NUM_対象が実行 + GET_TRAINNUM("亀頭責めフェラ"), ADD_NUM_対象が実行 + GET_TRAINNUM("土下座"), ADD_NUM_対象が実行 + GET_TRAINNUM("おねだり"), GET_TRAINNUM("ペニバン口枷"))
+			TARGET_DECIDE_REFERENCE_VALUE /= 3
 		ENDIF
 	ENDIF
-	;プレイヤー／ターゲットを追加してコマンドが実行できるかチェック
-	IF コマンド < ADD_NUM_対象が実行
-		;愛撫系(胸愛撫など)
-		IF GET_TRAINNUM("愛撫") <= コマンド && コマンド <= 9
-			SELECTCASE LOCAL:30
-				;する側
-				CASE 0, 2, 5
-					CALL ADD_MPLY(今回候補)
-				;される側
-				CASE 3
-					CALL ADD_MTAR(今回候補)
-				;ランダム
-				CASEELSE
-					IF RAND:2
-						CALL ADD_MPLY(今回候補)
-					ELSE
-						CALL ADD_MTAR(今回候補)
-					ENDIF
-			ENDSELECT
-		;奉仕系
-		ELSEIF GET_TRAINNUM("手コキ") <= コマンド && コマンド < 19
-			SELECTCASE LOCAL:30
-				;する側
-				CASE 0, 2, 5
-					CALL ADD_MPLY(今回候補)
-				;される側
-				CASE 3
-					CALL ADD_MTAR(今回候補)
-				;ランダム
-				CASEELSE
-					IF RAND:2
-						CALL ADD_MPLY(今回候補)
-					ELSE
-						CALL ADD_MTAR(今回候補)
-					ENDIF
-			ENDSELECT
-		;キス
-		ELSEIF GROUPMATCH(コマンド, GET_TRAINNUM("キス"))
-			SELECTCASE LOCAL:30
-				;する側
-				CASE 0, 2, 5
-					CALL ADD_MPLY(今回候補)
-				;される側
-				CASE 3
-					CALL ADD_MTAR(今回候補)
-				;ランダム
-				CASEELSE
-					IF RAND:2
-						CALL ADD_MPLY(今回候補)
-					ELSE
-						CALL ADD_MTAR(今回候補)
-					ENDIF
-			ENDSELECT
-		;順番挿入
-		ELSEIF GROUPMATCH(コマンド, GET_TRAINNUM("順番に挿入"), GET_TRAINNUM("順番にＡ挿入"))
-			;女なら問答無用でされる側
-			SIF IS_FEMALE(今回候補)
-				CALL ADD_MTAR(今回候補)
-		;代わる代わる挿入
-		ELSEIF GROUPMATCH(コマンド, GET_TRAINNUM("代わる代わる挿入"), GET_TRAINNUM("代わる代わるＡ挿入"))
-			SELECTCASE LOCAL:30
-				;する側
-				CASE 0, 2, 3, 6
-					CALL ADD_MPLY(今回候補)
-				;される側
-				CASE 1, 4, 5, 7
-					CALL ADD_MTAR(今回候補)
-				;ランダム
-				CASEELSE
-					IF RAND:2
-						CALL ADD_MPLY(今回候補)
-					ELSE
-						CALL ADD_MTAR(今回候補)
-					ENDIF
-			ENDSELECT
-		;道具系
-		ELSEIF GET_TRAINNUM("ローター") <= コマンド && コマンド < 79
-			SELECTCASE LOCAL:30
-				;する側
-				CASE 0, 2, 6
-					CALL ADD_MPLY(今回候補)
-				;される側
-				CASE 3
-					CALL ADD_MTAR(今回候補)
-				;ランダム
-				CASEELSE
-					IF RAND:2
-						CALL ADD_MPLY(今回候補)
-					ELSE
-						CALL ADD_MTAR(今回候補)
-					ENDIF
-			ENDSELECT
-		;ＳＭ
-		ELSEIF GET_TRAINNUM("脅す") <= コマンド && コマンド <= 99
-			SELECTCASE LOCAL:30
-				;する側
-				CASE 0, 2, 5
-					CALL ADD_MPLY(今回候補)
-				;ランダム
-				CASEELSE
-					IF RAND:2
-						CALL ADD_MPLY(今回候補)
-					ELSE
-						CALL ADD_MTAR(今回候補)
-					ENDIF
-			ENDSELECT
-		;羞恥
-		ELSEIF GET_TRAINNUM("自慰") <= コマンド && コマンド <= 129
-			SELECTCASE LOCAL:30
-				;する側
-				CASE 0, 2, 5, 7
-					CALL ADD_MPLY(今回候補)
-				;される側
-				CASE 3
-					CALL ADD_MTAR(今回候補)
-				;ランダム
-				CASEELSE
-					IF RAND:2
-						CALL ADD_MPLY(今回候補)
-					ELSE
-						CALL ADD_MTAR(今回候補)
-					ENDIF
-			ENDSELECT
-		ELSE
-			CALL ADD_MPLY(今回候補)
+	;---------------------------------------------
+	;### 除外 順番に挿入
+	;---------------------------------------------
+	;女性なら問答無用で受け手
+	IF IS_FEMALE(今回候補) && GROUPMATCH(コマンド, GET_TRAINNUM("順番に挿入"), GET_TRAINNUM("順番にＡ挿入"))
+		PLAYER_DECIDE_REFERENCE_VALUE = 0
+	ENDIF
+	;---------------------------------------------
+	;### 除外 男性のＡを狙う行為
+	;---------------------------------------------
+	IF TOSTR_SEX(TALENT:今回候補:性別) == "男性" && !GETBIT(CONFIG:11, COM_AUTO_FILTER_男性のＡを狙う行為を許可)
+		;カテゴリで殺すもの
+		IF GROUPMATCH(COM_AUTO_COM_CATEGORY:コマンド, COM_AUTO_CATEGORY_NUM_性交する, COM_AUTO_CATEGORY_NUM_避妊する, COM_AUTO_CATEGORY_NUM_潤滑追加する)
+			TARGET_DECIDE_REFERENCE_VALUE = 0
+		ELSEIF GROUPMATCH(COM_AUTO_COM_CATEGORY:コマンド, COM_AUTO_CATEGORY_NUM_性交させる, COM_AUTO_CATEGORY_NUM_避妊させる, COM_AUTO_CATEGORY_NUM_潤滑追加させる)
+			PLAYER_DECIDE_REFERENCE_VALUE = 0
 		ENDIF
-	ELSEIF コマンド < ADD_NUM_第三者に実行
-		;愛撫系(胸愛撫など)
-		IF ADD_NUM_対象が実行 + GET_TRAINNUM("愛撫") <= コマンド && コマンド <= ADD_NUM_対象が実行 + 9
-			SELECTCASE LOCAL:30
-				;する側
-				CASE 1, 3
-					CALL ADD_MPLY(今回候補)
-				;される側
-				CASE 0, 2, 5
-					CALL ADD_MTAR(今回候補)
-				;ランダム
-				CASEELSE
-					IF RAND:2
-						CALL ADD_MPLY(今回候補)
-					ELSE
-						CALL ADD_MTAR(今回候補)
-					ENDIF
-			ENDSELECT
-		;奉仕系
-		ELSEIF ADD_NUM_対象が実行 + GET_TRAINNUM("手コキ") <= コマンド && コマンド <= ADD_NUM_対象が実行 + 19
-			SELECTCASE LOCAL:30
-				;する側
-				CASE 3
-					CALL ADD_MPLY(今回候補)
-				;される側
-				CASE 0, 2, 5
-					CALL ADD_MTAR(今回候補)
-				;ランダム
-				CASEELSE
-					IF RAND:2
-						CALL ADD_MPLY(今回候補)
-					ELSE
-						CALL ADD_MTAR(今回候補)
-					ENDIF
-			ENDSELECT
-		;キス
-		ELSEIF GROUPMATCH(コマンド, ADD_NUM_対象が実行 + GET_TRAINNUM("キス"))
-			SELECTCASE LOCAL:30
-				;する側
-				CASE 3
-					CALL ADD_MPLY(今回候補)
-				;される側
-				CASE 0, 2, 5
-					CALL ADD_MTAR(今回候補)
-				;ランダム
-				CASEELSE
-					IF RAND:2
-						CALL ADD_MPLY(今回候補)
-					ELSE
-						CALL ADD_MTAR(今回候補)
-					ENDIF
-			ENDSELECT
-		;順番挿入
-		ELSEIF GROUPMATCH(コマンド, ADD_NUM_対象が実行 + GET_TRAINNUM("順番に挿入"), ADD_NUM_対象が実行 + GET_TRAINNUM("順番にＡ挿入"))
-			;女なら問答無用でされる側
-			SIF IS_FEMALE(今回候補)
-				CALL ADD_MTAR(今回候補)
-		;代わる代わる挿入
-		ELSEIF GROUPMATCH(コマンド, ADD_NUM_対象が実行 + GET_TRAINNUM("代わる代わる挿入"), ADD_NUM_対象が実行 + GET_TRAINNUM("代わる代わるＡ挿入"))
-			SELECTCASE LOCAL:30
-				;する側
-				CASE 3, 6
-					CALL ADD_MPLY(今回候補)
-				;される側
-				CASE 0, 1, 2, 5
-					CALL ADD_MTAR(今回候補)
-				;ランダム
-				CASEELSE
-					IF RAND:2
-						CALL ADD_MPLY(今回候補)
-					ELSE
-						CALL ADD_MTAR(今回候補)
-					ENDIF
-			ENDSELECT
-		;道具系
-		ELSEIF ADD_NUM_対象が実行 + GET_TRAINNUM("ローター") <= コマンド && コマンド <= ADD_NUM_対象が実行 + 79
-			SELECTCASE LOCAL:30
-				;する側
-				CASE 3, 6
-					CALL ADD_MPLY(今回候補)
-				;される側
-				CASE 0, 2, 5
-					CALL ADD_MTAR(今回候補)
-				;ランダム
-				CASEELSE
-					IF RAND:2
-						CALL ADD_MPLY(今回候補)
-					ELSE
-						CALL ADD_MTAR(今回候補)
-					ENDIF
-			ENDSELECT
-		;ＳＭ
-		ELSEIF ADD_NUM_対象が実行 + GET_TRAINNUM("脅す") <= コマンド && コマンド <= ADD_NUM_対象が実行 + 99
-			SELECTCASE LOCAL:30
-				;する側
-				CASE 3, 4, 6
-					CALL ADD_MPLY(今回候補)
-				;される側
-				CASE 0, 2, 5 
-					CALL ADD_MTAR(今回候補)
-				;ランダム
-				CASEELSE
-					IF RAND:2
-						CALL ADD_MPLY(今回候補)
-					ELSE
-						CALL ADD_MTAR(今回候補)
-					ENDIF
-			ENDSELECT
-		;羞恥
-		ELSEIF ADD_NUM_対象が実行 + GET_TRAINNUM("自慰") <= コマンド && コマンド <= ADD_NUM_対象が実行 + 129
-			SELECTCASE LOCAL:30
-				;する側
-				CASE 3, 4
-					CALL ADD_MPLY(今回候補)
-				;される側
-				CASE 0, 2, 5
-					CALL ADD_MTAR(今回候補)
-				;ランダム
-				CASEELSE
-					IF RAND:2
-						CALL ADD_MPLY(今回候補)
-					ELSE
-						CALL ADD_MTAR(今回候補)
-					ENDIF
-			ENDSELECT
+		;コマンドで殺すもの
+		IF コマンド < ADD_NUM_対象が実行
+			IF GROUPMATCH(コマンド, GET_TRAINNUM("アナル舐め"), GET_TRAINNUM("セルフＡ挿入"), GET_TRAINNUM("アナル愛撫"), GET_TRAINNUM("アナルバイブ"), GET_TRAINNUM("Ａ拡張バルーン"), GET_TRAINNUM("アナルフィスト"), GET_TRAINNUM("触手Ａ挿入"), GET_TRAINNUM("触手Ａ産卵"))
+				TARGET_DECIDE_REFERENCE_VALUE = 0
+			ELSEIF GROUPMATCH(コマンド, GET_TRAINNUM("Ａ顔面騎乗"), GET_TRAINNUM("顔面騎乗"), GET_TRAINNUM("Ｗ顔面騎乗"))
+				PLAYER_DECIDE_REFERENCE_VALUE = 0
+			ENDIF
 		ELSE
-			CALL ADD_MPLY(今回候補)
+			IF GROUPMATCH(コマンド - ADD_NUM_対象が実行, GET_TRAINNUM("アナル舐め"), GET_TRAINNUM("セルフＡ挿入"), GET_TRAINNUM("アナル愛撫"), GET_TRAINNUM("アナルバイブ"), GET_TRAINNUM("Ａ拡張バルーン"), GET_TRAINNUM("アナルフィスト"), GET_TRAINNUM("触手Ａ挿入"), GET_TRAINNUM("触手Ａ産卵"))
+				PLAYER_DECIDE_REFERENCE_VALUE = 0
+			ELSEIF GROUPMATCH(コマンド - ADD_NUM_対象が実行, GET_TRAINNUM("Ａ顔面騎乗"), GET_TRAINNUM("顔面騎乗"), GET_TRAINNUM("Ｗ顔面騎乗"))
+				TARGET_DECIDE_REFERENCE_VALUE = 0
+			ENDIF
 		ENDIF
 	ENDIF
-	$DECIDED
-
+	;---------------------------------------------
+	;### 候補追加
+	;---------------------------------------------
+	SIF PLAYER_DECIDE_REFERENCE_VALUE > 0
+		CALL COM_AUTO_RANDOMIZED_WEIGHTED_VALUE(ASSIST_PLAYER_ID, PLAYER_DECIDE_REFERENCE_VALUE)
+	SIF TARGET_DECIDE_REFERENCE_VALUE > 0
+		CALL COM_AUTO_RANDOMIZED_WEIGHTED_VALUE(ASSIST_TARGET_ID, TARGET_DECIDE_REFERENCE_VALUE)
+	IF PLAYER_DECIDE_REFERENCE_VALUE <= 0 && TARGET_DECIDE_REFERENCE_VALUE <= 0
+		DEBUGPRINTFORML      %ANAME(今回候補), MAX_CHARANAME_LENGTH, LEFT%  %TOSTR_SEX(TALENT:今回候補:性別), 6%  実行者の補佐も対象者の補佐も希望しなかった
+		BREAK
+	ENDIF
+	;---------------------------------------------
+	;### 結果取得
+	;---------------------------------------------
+	ASSIST_ID_RESULT = COM_AUTO_RANDOMIZED_WEIGHTED_RESULT()
+	IF ASSIST_ID_RESULT != ASSIST_PLAYER_ID && ASSIST_ID_RESULT != ASSIST_TARGET_ID
+		DEBUGPRINTFORML      %ANAME(今回候補), MAX_CHARANAME_LENGTH, LEFT%  %TOSTR_SEX(TALENT:今回候補:性別), 6%  実行者の補佐も対象者の補佐も希望しなかった
+		BREAK
+	ELSEIF ASSIST_ID_RESULT == ASSIST_PLAYER_ID
+		CALL ADD_MPLY(今回候補)
+		DEBUGPRINTFORM      %ANAME(今回候補), MAX_CHARANAME_LENGTH, LEFT%  %TOSTR_SEX(TALENT:今回候補:性別), 6%
+		IF IS_MPLY(主導者)
+			DEBUGPRINTFORML   主導者%ANAME(主導者)%の補佐・実行を希望した
+		ELSEIF IS_MPLY(対象者)
+			DEBUGPRINTFORML   対象者%ANAME(対象者)%の補佐・実行を希望した
+		ENDIF
+	ELSEIF ASSIST_ID_RESULT == ASSIST_TARGET_ID
+		CALL ADD_MTAR(今回候補)
+		DEBUGPRINTFORM      %ANAME(今回候補), MAX_CHARANAME_LENGTH, LEFT%  %TOSTR_SEX(TALENT:今回候補:性別), 6%
+		IF IS_MTAR(主導者)
+			DEBUGPRINTFORML   主導者%ANAME(主導者)%の補佐・対象を希望した
+		ELSEIF IS_MTAR(対象者)
+			DEBUGPRINTFORML   対象者%ANAME(対象者)%の補佐・対象を希望した
+		ENDIF
+	ENDIF
+	;---------------------------------------------
+	;## 実行可否の判定
+	;---------------------------------------------
 	;コマンド判定フラグON
 	COM_ENABLE = 1
 
@@ -542,21 +505,21 @@ FOR L_COUNTER, 0, 5
 		IF コマンド < ADD_NUM_対象が実行
 			CALL DEL_MPLY(今回候補)
 			CALL DEL_MTAR(今回候補)
-		ELSEIF コマンド < ADD_NUM_第三者に実行
+		ELSE
 			CALL DEL_MTAR(今回候補)
 			CALL DEL_MPLY(今回候補)
 		ENDIF
-
 		;コマンド判定フラグOFF
 		COM_ENABLE = 0
+		DEBUGPRINTFORML      判定に失敗したので終える
 		BREAK
-	ELSE
-		;コマンド判定フラグOFF
-		COM_ENABLE = 0
-		SIF 成功時BREAK
-			BREAK
 	ENDIF
+
+	;コマンド判定フラグOFF
+	COM_ENABLE = 0
 NEXT
+
+RETURN 0
 
 ;-------------------------------------------------
 ;# 第三者命令
@@ -570,10 +533,18 @@ NEXT
 #DIM コマンド
 #DIM MTARフラグ
 
-IF IS_MTAR(主導者) && MTAR_NUM > 1 && RAND:100 < 25
+;慰安で主導者が慰安客なら7割
+IF FLAG:調教モード == 調教_慰安 && (TALENT:主導者:慰安モブ || CFLAG:主導者:慰安参加者) && RAND:100 < 30
+	RETURN 0
+;慰安以外なら3割
+ELSEIF RAND:100 < 70
+	RETURN 0
+ENDIF
+
+IF IS_MTAR(主導者) && MTAR_NUM > 1 && RAND:100 < 50
 	CALL DEL_MTAR(主導者)
 	MTARフラグ = 1
-ELSEIF IS_MPLY(主導者) && MPLY_NUM > 1 && RAND:100 < 25
+ELSEIF IS_MPLY(主導者) && MPLY_NUM > 1 && RAND:100 < 50
 	CALL DEL_MPLY(主導者)
 	MTARフラグ = 0
 ENDIF
