@@ -38,7 +38,7 @@ FOR L_COUNTER, 0, CHARANUM
 	;---------------------------------------------
 	;### 状況の補正
 	;---------------------------------------------
-	;慰安でないときは主人公に挿入している・されているキャラを優先
+	;慰安でないときは、主人公に挿入している・されているキャラを優先
 	IF FLAG:調教モード != 調教_慰安 && IS_INSERT_MUTUAL(MASTER, L_COUNTER) >= 1
 		MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 100
 	;挿入中ではないキャラ
@@ -63,7 +63,7 @@ NEXT
 ;-------------------------------------------------
 RETURN_CHARA_NUM = COM_AUTO_RANDOMIZED_WEIGHTED_RESULT()
 IF RETURN_CHARA_NUM < 0
-	PRINTFORML ※おまかせ実行者が見つかりませんでした。あなたを代入します
+	PRINTFORML ※おまかせ実行者が見つかりませんでした
 	PRINTFORML ※ログをスレにエラー報告して頂けると助かります
 	PRINTFORML ※@COM_AUTOSELECT_DECIDE_PLAYER @COM_AUTO_RANDOMIZED_WEIGHTED_RESULT 
 	RETURN -1
@@ -107,9 +107,9 @@ FOR L_COUNTER, 0, CHARANUM
 
 	;---------------------------------------------
 	;### 重みの基準
-	;	主導度Ｕマイナス量を元に10～100 +1は0除算回避用
+	;	主導度Ｕマイナス量を元に10～100
 	;---------------------------------------------
-	DECIDE_REFERENCE_VALUE = MAX((2000 - (1000 + ABL:L_COUNTER:主導度Ｕ) + 1) / 20, 10)
+	DECIDE_REFERENCE_VALUE = MAX((2000 - (1000 + ABL:L_COUNTER:主導度Ｕ)) / 20, 10)
 
 	;---------------------------------------------
 	;### 性別組の補正
@@ -154,10 +154,10 @@ FOR L_COUNTER, 0, CHARANUM
 	;捕虜調教のターゲット
 	ELSEIF FLAG:調教モード == 調教_捕虜調教 && FINDELEMENT(PRISONER_TARGET, L_COUNTER)
 		MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 70
-	;慰安モードでプレイヤーが慰安モブや慰安参加者のとき慰安モブや慰安参加者は確率低下
+	;慰安モードで主導者が慰安客のとき慰安客は確率低下
 	ELSEIF FLAG:調教モード == 調教_慰安 && (TALENT:プレイヤー:慰安モブ || CFLAG:プレイヤー:慰安参加者) && (TALENT:L_COUNTER:慰安モブ || CFLAG:L_COUNTER:慰安参加者)
 		MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 1
-	;慰安モードでプレイヤーが慰安モブや慰安参加者でないサービス側のときサービス側は確率低下
+	;慰安モードで主導者がサービス側のときサービス側は確率低下
 	ELSEIF FLAG:調教モード == 調教_慰安 && !TALENT:プレイヤー:慰安モブ && !CFLAG:プレイヤー:慰安参加者 && !TALENT:L_COUNTER:慰安モブ && !CFLAG:L_COUNTER:慰安参加者
 		MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 1
 	;それ以外
@@ -182,7 +182,7 @@ NEXT
 ;-------------------------------------------------
 RETURN_CHARA_NUM = COM_AUTO_RANDOMIZED_WEIGHTED_RESULT()
 IF RETURN_CHARA_NUM < 0
-	PRINTFORML ※おまかせ対象者が見つかりませんでした。あなたを代入します
+	PRINTFORML ※おまかせ対象者が見つかりませんでした
 	PRINTFORML ※ログをスレにエラー報告して頂けると助かります
 	PRINTFORML ※@COM_AUTOSELECT_DECIDE_TARGET @COM_AUTO_RANDOMIZED_WEIGHTED_RESULT
 	RETURN -1
@@ -216,18 +216,21 @@ DEBUGPRINTFORML #### DEBUG 第三の参加者選択
 
 ;候補取得と実行可否チェックを繰り返す
 FOR L_COUNTER, 0, 5
-;	SIF RAND:100 > 20
-;		CONTINUE
+	SIF RAND:100 > 20
+		CONTINUE
 	DEBUGPRINTFORML      
 	DEBUGPRINTFORML      第三者の参加チェック {L_COUNTER + 1}周目
+
 	;---------------------------------------------
 	;## 今回候補キャラ選択
 	;---------------------------------------------
+
 	;---------------------------------------------
 	;### リセット
 	;---------------------------------------------
 	今回候補 = -1
 	CALL COM_AUTO_RANDOMIZED_WEIGHTED_START
+
 	;---------------------------------------------
 	;### 候補設定
 	;---------------------------------------------
@@ -253,6 +256,7 @@ FOR L_COUNTER, 0, 5
 		CALL COM_AUTO_RANDOMIZED_WEIGHTED_VALUE(CHARA_COUNTER, DECIDE_REFERENCE_VALUE)
 		DEBUGPRINTFORML      %ANAME(CHARA_COUNTER), MAX_CHARANAME_LENGTH, LEFT%  %TOSTR_SEX(TALENT:CHARA_COUNTER:性別), 6%  重み {DECIDE_REFERENCE_VALUE, 10}
 	NEXT
+
 	;-----------------------------------------
 	;### 結果取得
 	;-----------------------------------------
@@ -261,25 +265,33 @@ FOR L_COUNTER, 0, 5
 		DEBUGPRINTFORML      候補になれるキャラがいないので抜ける
 		BREAK
 	ENDIF
+
 	;---------------------------------------------
 	;## する側される側どちらを望むか
 	;---------------------------------------------
+
 	;---------------------------------------------
 	;### リセット
 	;---------------------------------------------
 	CALL COM_AUTO_RANDOMIZED_WEIGHTED_START
+
 	;---------------------------------------------
 	;### 重みの基準
 	;---------------------------------------------
-	PLAYER_DECIDE_REFERENCE_VALUE = MAX((1000 + ABL:今回候補:主導度Ｕ + 1) / 20, 10)
-	TARGET_DECIDE_REFERENCE_VALUE = MAX((2000 - (1000 + ABL:今回候補:主導度Ｕ) + 1) / 20, 10)
+	;MPLYに加わる欲求
+	PLAYER_DECIDE_REFERENCE_VALUE = MAX((1000 + ABL:今回候補:主導度Ｕ) / 20, 10)
+	;MTARに加わる欲求
+	TARGET_DECIDE_REFERENCE_VALUE = MAX((2000 - (1000 + ABL:今回候補:主導度Ｕ)) / 20, 10)
+
 	;---------------------------------------------
 	;### 性別組の補正
 	;---------------------------------------------
-	;MPLYに加わる欲求
+	;MPLYに加わる欲求 性別組補正
 	PLAYER_MULTI_SEX_DECIDE_REFERENCE_VALUE = 0
-	;MTARに加わる欲求
+	;MTARに加わる欲求 性別組補正
 	TARGET_MULTI_SEX_DECIDE_REFERENCE_VALUE = 0
+
+	;主導者が実行
 	IF IS_MPLY(主導者) && IS_MTAR(対象者)
 		;相手があなたで今回候補が陥落済み
 		IF 対象者 == MASTER && ( TALENT:今回候補:恋慕 || TALENT:今回候補:服従 || TALENT:今回候補:主人 )
@@ -319,7 +331,8 @@ FOR L_COUNTER, 0, 5
 		ELSE
 			TARGET_MULTI_SEX_DECIDE_REFERENCE_VALUE = 1
 		ENDIF
-	ELSEIF IS_MPLY(対象者) && IS_MTAR(主導者)
+	;主導者が対象
+	ELSE
 		;今回候補が両刀、あるいは今回候補か対象のどちらかがフタナリ
 		IF TALENT:今回候補:両刀 || (HAS_PENIS(今回候補) && HAS_VAGINA(今回候補)) || (HAS_PENIS(主導者) && HAS_VAGINA(主導者))
 			;男両刀や男ふたなりは攻め手に回りやすい
@@ -353,11 +366,15 @@ FOR L_COUNTER, 0, 5
 			TARGET_MULTI_SEX_DECIDE_REFERENCE_VALUE = 1
 		ENDIF
 	ENDIF
+
 	;---------------------------------------------
 	;### 状況の補正
 	;---------------------------------------------
+	;MPLYに加わる欲求 状況補正
 	PLAYER_MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 0
+	;MTARに加わる欲求 状況補正
 	TARGET_MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 0
+
 	;捕虜調教のターゲットは仲間の補助に回りやすい
 	IF FLAG:調教モード == 調教_捕虜調教 && FINDELEMENT(PRISONER_TARGET, 今回候補)
 		;主導者が仲間で実行者
@@ -373,13 +390,40 @@ FOR L_COUNTER, 0, 5
 			PLAYER_MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 1
 			TARGET_MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 100
 		;対象者が仲間で対象者
+		ELSEIF FINDELEMENT(PRISONER_TARGET, 対象者) && IS_MTAR(対象者)
+			PLAYER_MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 1
+			TARGET_MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 100
+		;他
 		ELSE
 			PLAYER_MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 1
 			TARGET_MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 100
 		ENDIF
-	;今回候補が慰安モブや慰安参加者なら、仲間の補助に回りやすい
+	;慰安サービス側は仲間の補助に回りやすい
+	ELSEIF FLAG:調教モード == 調教_慰安 && (!TALENT:今回候補:慰安モブ || !CFLAG:今回候補:慰安参加者)
+		;慰安者で主導者が仲間で実行者
+		IF !TALENT:主導者:慰安モブ && !CFLAG:主導者:慰安参加者 && IS_MPLY(主導者)
+			PLAYER_MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 100
+			TARGET_MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 1
+		;慰安者で対象者が仲間で実行者
+		ELSEIF !TALENT:対象者:慰安モブ && !CFLAG:対象者:慰安参加者 && IS_MPLY(対象者)
+			PLAYER_MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 100
+			TARGET_MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 1
+		;慰安者で主導者が仲間で対象者
+		ELSEIF !TALENT:主導者:慰安モブ && !CFLAG:主導者:慰安参加者 && IS_MTAR(主導者)
+			PLAYER_MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 1
+			TARGET_MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 100
+		;慰安者で対象者が仲間で対象者
+		ELSEIF !TALENT:対象者:慰安モブ && !CFLAG:対象者:慰安参加者 && IS_MTAR(対象者)
+			PLAYER_MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 1
+			TARGET_MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 100
+		;他
+		ELSE
+			PLAYER_MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 1
+			TARGET_MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 100
+		ENDIF
+	;慰安客は仲間の補助に回りやすい
 	ELSEIF FLAG:調教モード == 調教_慰安 && (TALENT:今回候補:慰安モブ || CFLAG:今回候補:慰安参加者)
-		;主導者が仲間で実行者
+		;慰安客で主導者が仲間で実行者
 		IF (TALENT:主導者:慰安モブ || CFLAG:主導者:慰安参加者) && IS_MPLY(主導者)
 			PLAYER_MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 100
 			TARGET_MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 1
@@ -391,40 +435,39 @@ FOR L_COUNTER, 0, 5
 		ELSEIF (TALENT:主導者:慰安モブ || CFLAG:主導者:慰安参加者) && IS_MTAR(主導者)
 			PLAYER_MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 1
 			TARGET_MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 100
-		;慰安者で対象者が仲間で実行者
-		ELSEIF !TALENT:対象者:慰安モブ && !CFLAG:対象者:慰安参加者 && IS_MPLY(対象者)
+		;慰安客で対象者が仲間で対象者
+		ELSEIF (TALENT:対象者:慰安モブ || CFLAG:対象者:慰安参加者) && IS_MTAR(対象者)
+			PLAYER_MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 1
+			TARGET_MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 100
+		;他
+		ELSE
 			PLAYER_MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 100
 			TARGET_MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 1
-		;慰安者で主導者が仲間で対象者
-		ELSEIF !TALENT:主導者:慰安モブ && !CFLAG:主導者:慰安参加者 && IS_MTAR(主導者)
-			PLAYER_MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 1
-			TARGET_MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 100
-		;対象者が仲間で対象者
-		ELSE
-			PLAYER_MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 1
-			TARGET_MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 100
 		ENDIF
 	;それ以外
 	ELSE
 		PLAYER_MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 1
 		TARGET_MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 1
 	ENDIF
+
 	;---------------------------------------------
 	;### 重みの計算
 	;---------------------------------------------
 	PLAYER_DECIDE_REFERENCE_VALUE = PLAYER_DECIDE_REFERENCE_VALUE * PLAYER_MULTI_SEX_DECIDE_REFERENCE_VALUE * PLAYER_MULTI_SITUATION_DECIDE_REFERENCE_VALUE
 	TARGET_DECIDE_REFERENCE_VALUE = TARGET_DECIDE_REFERENCE_VALUE * TARGET_MULTI_SEX_DECIDE_REFERENCE_VALUE * TARGET_MULTI_SITUATION_DECIDE_REFERENCE_VALUE
+
 	;---------------------------------------------
 	;### 補正 性別制限
 	;---------------------------------------------
 	IF TOSTR_SEX(TALENT:今回候補:性別) == "男性"
-		IF PLAYER_DECIDE_REFERENCE_VALUE >= 3 && GROUPMATCH(コマンド, ADD_NUM_対象が実行 + GET_TRAINNUM("胸愛撫"), ADD_NUM_対象が実行 + GET_TRAINNUM("乳首吸い"), GET_TRAINNUM("フェラチオ"), ADD_NUM_対象が実行 + GET_TRAINNUM("イラマチオ"), GET_TRAINNUM("パイズリ"), GET_TRAINNUM("泡踊り"), GET_TRAINNUM("素股"), GET_TRAINNUM("尻コキ"), GET_TRAINNUM("亀頭責め手コキ"), GET_TRAINNUM("亀頭責めフェラ"), GET_TRAINNUM("土下座"), GET_TRAINNUM("おねだり"), ADD_NUM_対象が実行 + GET_TRAINNUM("ペニバン口枷"))
+		IF PLAYER_DECIDE_REFERENCE_VALUE > 3 && GROUPMATCH(コマンド, ADD_NUM_対象が実行 + GET_TRAINNUM("胸愛撫"), ADD_NUM_対象が実行 + GET_TRAINNUM("乳首吸い"), GET_TRAINNUM("フェラチオ"), ADD_NUM_対象が実行 + GET_TRAINNUM("イラマチオ"), GET_TRAINNUM("パイズリ"), GET_TRAINNUM("泡踊り"), GET_TRAINNUM("素股"), GET_TRAINNUM("尻コキ"), GET_TRAINNUM("亀頭責め手コキ"), GET_TRAINNUM("亀頭責めフェラ"), GET_TRAINNUM("土下座"), GET_TRAINNUM("おねだり"), ADD_NUM_対象が実行 + GET_TRAINNUM("ペニバン口枷"))
 			PLAYER_DECIDE_REFERENCE_VALUE /= 3
 		ENDIF
-		IF TARGET_DECIDE_REFERENCE_VALUE >= 3 && GROUPMATCH(コマンド, GET_TRAINNUM("胸愛撫"), GET_TRAINNUM("乳首吸い"), ADD_NUM_対象が実行 + GET_TRAINNUM("フェラチオ"), GET_TRAINNUM("イラマチオ"), ADD_NUM_対象が実行 + GET_TRAINNUM("パイズリ"), ADD_NUM_対象が実行 + GET_TRAINNUM("泡踊り"), ADD_NUM_対象が実行 + GET_TRAINNUM("素股"), ADD_NUM_対象が実行 + GET_TRAINNUM("尻コキ"), ADD_NUM_対象が実行 + GET_TRAINNUM("亀頭責め手コキ"), ADD_NUM_対象が実行 + GET_TRAINNUM("亀頭責めフェラ"), ADD_NUM_対象が実行 + GET_TRAINNUM("土下座"), ADD_NUM_対象が実行 + GET_TRAINNUM("おねだり"), GET_TRAINNUM("ペニバン口枷"))
+		IF TARGET_DECIDE_REFERENCE_VALUE > 3 && GROUPMATCH(コマンド, GET_TRAINNUM("胸愛撫"), GET_TRAINNUM("乳首吸い"), ADD_NUM_対象が実行 + GET_TRAINNUM("フェラチオ"), GET_TRAINNUM("イラマチオ"), ADD_NUM_対象が実行 + GET_TRAINNUM("パイズリ"), ADD_NUM_対象が実行 + GET_TRAINNUM("泡踊り"), ADD_NUM_対象が実行 + GET_TRAINNUM("素股"), ADD_NUM_対象が実行 + GET_TRAINNUM("尻コキ"), ADD_NUM_対象が実行 + GET_TRAINNUM("亀頭責め手コキ"), ADD_NUM_対象が実行 + GET_TRAINNUM("亀頭責めフェラ"), ADD_NUM_対象が実行 + GET_TRAINNUM("土下座"), ADD_NUM_対象が実行 + GET_TRAINNUM("おねだり"), GET_TRAINNUM("ペニバン口枷"))
 			TARGET_DECIDE_REFERENCE_VALUE /= 3
 		ENDIF
 	ENDIF
+
 	;---------------------------------------------
 	;### 除外 順番に挿入
 	;---------------------------------------------
@@ -432,6 +475,7 @@ FOR L_COUNTER, 0, 5
 	IF IS_FEMALE(今回候補) && GROUPMATCH(コマンド, GET_TRAINNUM("順番に挿入"), GET_TRAINNUM("順番にＡ挿入"))
 		PLAYER_DECIDE_REFERENCE_VALUE = 0
 	ENDIF
+
 	;---------------------------------------------
 	;### 除外 男性のＡを狙う行為
 	;---------------------------------------------
@@ -457,6 +501,7 @@ FOR L_COUNTER, 0, 5
 			ENDIF
 		ENDIF
 	ENDIF
+
 	;---------------------------------------------
 	;### 候補追加
 	;---------------------------------------------
@@ -468,6 +513,7 @@ FOR L_COUNTER, 0, 5
 		DEBUGPRINTFORML      %ANAME(今回候補), MAX_CHARANAME_LENGTH, LEFT%  %TOSTR_SEX(TALENT:今回候補:性別), 6%  実行者の補佐も対象者の補佐も希望しなかった
 		BREAK
 	ENDIF
+
 	;---------------------------------------------
 	;### 結果取得
 	;---------------------------------------------
@@ -492,6 +538,7 @@ FOR L_COUNTER, 0, 5
 			DEBUGPRINTFORML   対象者%ANAME(対象者)%の補佐・対象を希望した
 		ENDIF
 	ENDIF
+
 	;---------------------------------------------
 	;## 実行可否の判定
 	;---------------------------------------------
