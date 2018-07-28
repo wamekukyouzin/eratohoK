@@ -3,9 +3,12 @@
 ;-------------------------------------------------
 ;コマンド名称
 ;-------------------------------------------------
-@COM_NAME207
-LOCALS:0 = 触手搾乳
-
+@COM_NAME214
+IF TALENT:(MTAR:(LOCAL:0)):母乳体質
+	LOCALS:0 = 触手乳腺責め
+ELSE
+	LOCALS:0 = 触手乳腺開発
+ENDIF
 RESULTS:0 = %LOCALS:0%する
 RESULTS:1 = %LOCALS:0%させられる
 RESULTS:2 = %LOCALS:0%させる
@@ -16,9 +19,9 @@ RESULTS:5 = %LOCALS:0%見せつけ
 ;-------------------------------------------------
 ;選択可否判定
 ;-------------------------------------------------
-@COM_ABLE207
+@COM_ABLE214
 ;共通部分
-CALL COM_ABLE_COMMON(207)
+CALL COM_ABLE_COMMON(214)
 SIF RESULT == 0
 	RETURN 0
 ;プレイヤーは最大で1人まで
@@ -38,9 +41,6 @@ SIF IS_BIND(MPLY:0)
 	RETURN 0
 ;全てのターゲットについて判定
 FOR LOCAL:0, 0, MTAR_NUM
-	;ターゲットに<母乳体質>が必要
-	SIF !TALENT:(MTAR:(LOCAL:0)):母乳体質
-		RETURN 0
 	;ターゲットが胸愛撫・乳首吸いされている、ニプルキャップ使用中なら不可
 	SIF IS_EQUIP_TARGET(MTAR:(LOCAL:0), 1, 9, 64, 67)
 		RETURN 0
@@ -50,7 +50,7 @@ RETURN 1
 ;-------------------------------------------------
 ;メイン処理
 ;-------------------------------------------------
-@COM207
+@COM214
 ;実行判定
 CALL COM_ORDER_COMMON
 SIF RESULT == 0
@@ -86,8 +86,9 @@ FOR LOCAL:0, 0, MTAR_NUM
 
 	LOCAL:3 = 1000 + ABL:(MPLY:0):妖術 * 8
 	SOURCE:(LOCAL:2):快Ｂ = SENSE_HOUSHI(MPLY:0, LOCAL:2, LOCAL:3 * 3 / 5) + (GETBIT(TALENT:(LOCAL:2):淫乱系, 素質_淫乱_苗床) * 500)
-	SOURCE:(LOCAL:2):搾乳 = SENSE_HOUSHI(MPLY:0, LOCAL:2, LOCAL:3 * 3 / 5) + (GETBIT(TALENT:(LOCAL:2):淫乱系, 素質_淫乱_苗床) * 500)
-	SOURCE:(LOCAL:2):苦痛 = 100 
+	SIF TALENT:(LOCAL:2):母乳体質
+		SOURCE:(LOCAL:2):搾乳 = SENSE_HOUSHI(MPLY:0, LOCAL:2, LOCAL:3 * 3 / 5) + (GETBIT(TALENT:(LOCAL:2):淫乱系, 素質_淫乱_苗床) * 500)
+	SOURCE:(LOCAL:2):苦痛 = 1000
 	SOURCE:(LOCAL:2):逸脱 = 500 - (GETBIT(TALENT:(LOCAL:2):淫乱系, 素質_淫乱_苗床) * 250)
 	SOURCE:(LOCAL:2):触手 = 400 + (GETBIT(TALENT:(LOCAL:2):淫乱系, 素質_淫乱_苗床) * 200)
 	SOURCE:(LOCAL:2):性行動 = 180 + (GETBIT(TALENT:(LOCAL:2):淫乱系, 素質_淫乱_苗床) * 90)
@@ -110,13 +111,13 @@ RETURN 1
 ;-------------------------------------------------
 ;継続コマンドかどうかを設定
 ;-------------------------------------------------
-@COM_IS_EQUIP207
+@COM_IS_EQUIP214
 RETURN 1
 
 ;-------------------------------------------------
 ;継続状態の処理
 ;-------------------------------------------------
-@COM_EQUIP207(ARG:0)
+@COM_EQUIP214(ARG:0)
 LOCAL:2 = MEQUIP_PLAYER:(ARG:0):0
 
 SOURCE:(LOCAL:2):性行動 += 30
@@ -132,8 +133,9 @@ FOR LOCAL:0, 0, MEQUIP_TARGET_NUM:(ARG:0)
 
 	LOCAL:4 = 800 + ABL:(LOCAL:2):妖術 * 6
 	SOURCE:(LOCAL:3):快Ｂ += SENSE_HOUSHI(LOCAL:2, LOCAL:3, LOCAL:4 * 3 / 5) + (GETBIT(TALENT:(LOCAL:3):淫乱系, 素質_淫乱_苗床) * 400)
-	SOURCE:(LOCAL:3):搾乳 += SENSE_HOUSHI(LOCAL:2, LOCAL:3, LOCAL:4 * 3 / 5) + (GETBIT(TALENT:(LOCAL:3):淫乱系, 素質_淫乱_苗床) * 400)
-	SOURCE:(LOCAL:3):苦痛 += 50
+	SIF TALENT:(LOCAL:3):母乳体質
+		SOURCE:(LOCAL:3):搾乳 += SENSE_HOUSHI(LOCAL:2, LOCAL:3, LOCAL:4 * 3 / 5) + (GETBIT(TALENT:(LOCAL:3):淫乱系, 素質_淫乱_苗床) * 400)
+	SOURCE:(LOCAL:3):苦痛 += 500
 	SOURCE:(LOCAL:3):逸脱 += 150 - (GETBIT(TALENT:(LOCAL:3):淫乱系, 素質_淫乱_苗床) * 75)
 	SOURCE:(LOCAL:3):触手 += 200 + (GETBIT(TALENT:(LOCAL:3):淫乱系, 素質_淫乱_苗床) * 100)
 	SOURCE:(LOCAL:3):性行動 += 60 + (GETBIT(TALENT:(LOCAL:3):淫乱系, 素質_淫乱_苗床) * 30)
@@ -148,24 +150,24 @@ NEXT
 ;-------------------------------------------------
 ;継続中の表示
 ;-------------------------------------------------
-@EQUIP_MESSAGE207(ARG:0)
-RESULTS = %EQUIP_TARGET_ANAME(ARG:0)%に対して%EQUIP_PLAYER_ANAME(ARG:0)%の触手が搾乳中
+@EQUIP_MESSAGE214(ARG:0)
+RESULTS = %EQUIP_TARGET_ANAME(ARG:0)%に対して%EQUIP_PLAYER_ANAME(ARG:0)%の触手が乳腺開発中
 
 ;-------------------------------------------------
 ;継続中の地の文(前文)
 ;-------------------------------------------------
-@COM_TEXT_BEFORE_EQUIP207(ARG:0)
-PRINTFORML %EQUIP_PLAYER_ANAME(ARG:0)%の操る触手が%EQUIP_TARGET_ANAME(ARG:0)%の乳首に吸い付き母乳を搾り出そうとしている…
+@COM_TEXT_BEFORE_EQUIP214(ARG:0)
+PRINTFORML %EQUIP_PLAYER_ANAME(ARG:0)%の操る触手が%EQUIP_TARGET_ANAME(ARG:0)%の乳首に潜り込み乳腺を責め立てている…
 
 ;-------------------------------------------------
 ;継続を解除したときの地の文
 ;-------------------------------------------------
-@COM_TEXT_RELEASE_EQUIP207(ARG:0)
+@COM_TEXT_RELEASE_EQUIP214(ARG:0)
 
 ;-------------------------------------------------
 ;固有の実行判定
 ;-------------------------------------------------
-@COM_ORDER_PLAYER207(ARG:0)
+@COM_ORDER_PLAYER214(ARG:0)
 ;実行値の設定
 TCVAR:(ARG:0):25 = 120
 
@@ -215,7 +217,7 @@ RETURN 1
 ;-------------------------------------------------
 ;地の文(前文)
 ;-------------------------------------------------
-@COM_TEXT_BEFORE207
+@COM_TEXT_BEFORE214
 ;ターゲットが2人以上
 IF MTAR_NUM >= 2
 	IF MTAR_NUM >= 3
@@ -227,15 +229,15 @@ IF MTAR_NUM >= 2
 	SELECTCASE GET_COM_INITIATIVE()
 		;プレイヤーに主導権
 		CASE 0
-			PRINTFORMW %ANAME(MPLY:0)%は一際太い触手を%LOCALS:1%の胸に吸い付かせると、痛みを感じるほど強く吸引し%TARGET_STR("た", "てきた")%…
+			PRINTFORMW %ANAME(MPLY:0)%は髪の毛より細い触手を%LOCALS:1%の乳首に突き立て、乳腺へと入り込ませ%TARGET_STR("た", "てきた")%…
 		;ターゲットに主導権
 		CASE 1
-			PRINTFORML %LOCALS:1%は%ANAME(MPLY:0)%に、触手で母乳を吸い上げるように命令した
-			PRINTFORMW %ANAME(MPLY:0)%は一際太い触手を%LOCALS:1%の胸に吸い付かせると、言われるまま乳首を強く吸い上げた…
+			PRINTFORML %LOCALS:1%は%ANAME(MPLY:0)%に、触手で乳腺を\@ TALENT:(MTAR:0):母乳体質 ? 開発する # 責める \@よう命じた
+			PRINTFORMW %ANAME(MPLY:0)%は髪の毛より細い触手を%LOCALS:1%の乳首に突き立て、乳腺へと入り込ませた…
 		;第三者に主導権
 		CASEELSE
-			PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に対して、触手で%LOCALS:1%の母乳を搾るように命令した
-			PRINTFORMW %ANAME(MPLY:0)%は一際太い触手を%LOCALS:1%の胸に吸い付かせると、言われるまま乳首を強く吸い上げた…
+			PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に対して、触手で%LOCALS:1%の乳腺を\@ TALENT:(MTAR:0):母乳体質 ? 開発する # 責める \@よう命じた
+			PRINTFORMW %ANAME(MPLY:0)%は髪の毛より細い触手を%LOCALS:1%の乳首に突き立て、乳腺へと入り込ませた…
 	ENDSELECT
 
 ;ターゲットが1人
@@ -251,27 +253,42 @@ ELSE
 	SELECTCASE GET_COM_INITIATIVE()
 		;プレイヤーに主導権
 		CASE 0
-			PRINTFORMW %ANAME(MPLY:0)%は一際太い触手を%LOCALS:1%の胸に吸い付かせると、痛みを感じるほど強く吸引し%TARGET_STR("た", "てきた")%…
+			PRINTFORMW %ANAME(MPLY:0)%は一際太い触手を%LOCALS:1%の乳首に突き立て、乳腺へと入り込ませ%TARGET_STR("た", "てきた")%…
 		;ターゲットに主導権
 		CASE 1
-			PRINTFORML %LOCALS:1%は%ANAME(MPLY:0)%に、触手で母乳を吸い上げるように命令した
-			PRINTFORMW %ANAME(MPLY:0)%は一際太い触手を%LOCALS:1%の胸に吸い付かせると、言われるまま乳首を強く吸い上げた…
+			PRINTFORML %LOCALS:1%は%ANAME(MPLY:0)%に、触手で乳腺を\@ TALENT:(MTAR:0):母乳体質 ? 開発する # 責める \@よう命じた
+			PRINTFORMW %ANAME(MPLY:0)%は髪の毛より細い触手を%LOCALS:1%の乳首に突き立て、乳腺へと入り込ませた…
 		;第三者に主導権
 		CASEELSE
 			PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に対して、触手で%LOCALS:1%の母乳を搾るように命令した
-			PRINTFORMW %ANAME(MPLY:0)%は一際太い触手を%LOCALS:1%の胸に吸い付かせると、言われるまま乳首を強く吸い上げた…
+			PRINTFORMW %ANAME(MPLY:0)%は髪の毛より細い触手を%LOCALS:1%の乳首に突き立て、乳腺へと入り込ませた…
 	ENDSELECT
 ENDIF
 
 ;--------------------------------------------------------
 ;地の文(パラメータ・刻印変動後)
 ;--------------------------------------------------------
-@COM_TEXT_LAST207
+@COM_TEXT_LAST214
+FOR LOCAL, 0, MTAR_NUM
+	LOCAL:1 = MTAR:LOCAL
+	SIF ABL:(LOCAL:1):Ｂ感 < ランク閾値:ランク_その他:ランク_C || ABL:(LOCAL:1):触手 < ランク閾値:ランク_その他:ランク_D
+		CONTINUE
+	SETCOLOR カラー_ピンク
+	IF CFLAG:(LOCAL:1):一時的母乳体質
+		PRINTFORML %ANAME(LOCAL:1)%の乳房は触手の改造によって作り替えられたようだ……
+		PRINTFORML 一時的なものだった%ANAME(LOCAL:1)%の母乳体質が定着した
+		CFLAG:(LOCAL:1):一時的母乳体質 = 0
+	ELSEIF !TALENT:(LOCAL:1):母乳体質
+		PRINTFORML %ANAME(LOCAL:1)%の乳房は触手の改造によって作り替えられたようだ……
+		PRINTFORML %ANAME(LOCAL:1)%は孕んでもいないのに＜母乳体質＞になった
+		TALENT:(LOCAL:1):母乳体質 = 1
+	ENDIF
+NEXT
 
 ;-------------------------------------------------
 
 ;コマンド区分
 ;-------------------------------------------------
 
-@COM_AVAILABLE_WHEN207
+@COM_AVAILABLE_WHEN214
 RETURN コマンド_ウフフ
