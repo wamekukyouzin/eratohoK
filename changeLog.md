@@ -1,4 +1,13 @@
 # 更新履歴
+## 2018年8月5日 version 1.20.1
+FIX:before_release.shのgamebase.csv用バージョン文字列の出力方法が間違っている問題
+FIX:before_release.shのファイルパスの参照ミス
+FIX:before_releaseのsedコマンドにおける+のエスケープが抜けている問題
+FIX:スキル「フラスターエスケープ」と「幽霊船永久停泊」が召喚されたキャラを考慮していない問題
+FIX:ランダムキャラ生成時のスキル設定方法が正しくない問題
+FIX:一部汎用スキルのレベル設定が正しくない問題
+FIX:特定文字列から開始されるコミットメッセージを含む、本来changeLogに含めるべきでないコミットがある場合、before_release.shで生成されるchangeLogにそれが含まれて しまう問題
+
 ## 2018年8月4日 version 1.20.0
 ADD:changelog生成/gamebase変更スクリプト
 ADD:カラー系関数群
