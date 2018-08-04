@@ -19,7 +19,7 @@ unix2dos changelog.md
 
 # gamebase変更
 
-sed -i "s/\(バージョン,\)[0-9]+/\1${gamebase_str}/" ./CSV/gamebase.csv
+sed -i "s/\(バージョン,\)[0-9]\+/\1${gamebase_str}/" ./CSV/gamebase.csv
 unix2dos ./CSV/gamebase.csv
 
 git add ./CSV/gamebase.csv
