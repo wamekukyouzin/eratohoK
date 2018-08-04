@@ -68,6 +68,10 @@ ENDIF
 SIF IS_OVULATION(ARG:0)
 	LOCAL:5 /= 2
 
+;苗床体質だとさらにドドン
+SIF GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_苗床体質)
+	LOCAL:5 /= 2
+
 ;★デバッグ用(100%妊娠)
 ;LOCAL:5 = 1
 
@@ -84,6 +88,8 @@ IF RAND:(LOCAL:5) < SQRT(LOCAL:2 * 100 + 300)
 			;出来た子供の父親を種付け履歴から予測して記録する
 			;いろんな人から種を受けてたらだれが親だかわからなくなったりする処理をする
 			CALL RECORD_FATHER_FROM_CREAMPIE_HISTORY(ARG:0)
+			;妊娠発覚
+			CALL DETECT_PREGNANCY(ARG:0)
 			BREAK
 		ENDIF
 	NEXT
@@ -153,21 +159,17 @@ IF CFLAG:(ARG:0):育児期間 >= 1
 ENDIF
 
 ;妊娠していない
-IF CFLAG:(ARG:0):妊娠期間 == 0
+IF TALENT:(ARG:0):妊娠 == 0
 	CALL UPDATE_CREAMPIE_HISTORY(ARG:0)
+	CALL CHECK_PREGNANT(ARG:0)
 ;妊娠中
 ELSE
-	;妊娠期間を進める
-	CFLAG:(ARG:0):妊娠期間 ++
-	;妊娠2期目
-	IF CFLAG:(ARG:0):妊娠期間 >= 2 && !TALENT:(ARG:0):妊娠
-		CALL DETECT_PREGNANCY(ARG:0)
 	;妊娠7期目
-	ELSEIF CFLAG:(ARG:0):妊娠期間 >= 7
+	IF CFLAG:(ARG:0):妊娠期間 >= (GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_苗床体質) ? 3 # 7)
 		;7期で出産する
 		CALL BIRTH_CHILD(ARG:0)
 	;妊娠5期目
-	ELSEIF CFLAG:(ARG:0):妊娠期間 >= 5 && CFLAG:(ARG:0):行動不能状態 != 行動不能_臨月
+	ELSEIF CFLAG:(ARG:0):妊娠期間 >=  (GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_苗床体質) ? 2 # 5) && CFLAG:(ARG:0):行動不能状態 != 行動不能_臨月
 		;4期たったら臨月となり通常の活動ができなくなる
 		IF IS_PREGNANT_MSG(ARG:0)
 			CALL KOJO_EVENT(ARG:0, 41)
@@ -179,6 +181,8 @@ ELSE
 		;臨月状態に設定
 		CFLAG:(ARG:0):行動不能状態 = 行動不能_臨月
 	ENDIF
+	;妊娠期間を進める
+	CFLAG:(ARG:0):妊娠期間 ++
 ENDIF
 
 
@@ -263,6 +267,11 @@ IF ARG:0 != MASTER
 		ENDIF
 	ENDIF
 ENDIF
+
+EXP:(ARG:0):妊娠経験 ++
+
+SIF ID_TO_CHARA(CFLAG:(ARG:0):子の父親) != -1
+	EXP:(ID_TO_CHARA(CFLAG:(ARG:0):子の父親) ):孕ませ経験 ++
 
 SIF IS_PREGNANT_MSG(ARG:0)
 	CALL SINGLE_EMPTY_LINE()
@@ -698,7 +707,7 @@ FOR LOCAL:0, 0, CHARANUM
 
 		PRINTL 
 		PRINTFORML <%ANAME(LOCAL:0)%>
-		CALL PRINT_ADD_EXP(LOCAL:0, "出産経験", LOCAL:12 + LOCAL:22)
+		CALL PRINT_ADD_EXP(LOCAL:0, "出産経験", 1)
 		CALL PRINT_ADD_EXP(LOCAL:0, "触手出産経験", LOCAL:12 + LOCAL:22)
 		CALL TRAIN_AUTO_ABLUP(LOCAL:0)
 		PRINTL 
