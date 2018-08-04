@@ -1,9 +1,12 @@
 #!/bin/bash
 set -eu
+
 readonly branch_name=$(git symbolic-ref --short HEAD)
 readonly version=$(echo ${branch_name} | sed -E -e 's/(release|hotfix)\///g' | grep -w -E "[0-9]+\.[0-9]+\.[0-9]+")
 readonly previous_tag=$(git describe --abbrev=0)
-readonly gamebase_str=$(echo ${version} | sed 's/\([0-9]\+\)\.\([0-9]\+\)\.\([0-9]\+\)/\1\2\3\3/')
+while read major minor patch; do
+    readonly gamebase_str=$(printf '%d%02d%02d' ${major} ${minor} ${patch})
+done < <(echo ${version} | tr '.' ' ')
 
 if [[ $version = "" ]]; then
     echo current branch is not release or hotfix
@@ -12,6 +15,7 @@ fi
 
 # changelog生成
 sed -i "2i## $(date +'%Y年%-m月%-d日') version ${version}\r\n" ./changelog.md
+
 git log --format=%s  ${previous_tag}...HEAD | grep -i "\(Fix\|UPDATE\|ADD\)" | sort > temp.md
 tac temp.md | tr "\n" "\\n" | xargs -I{} sed -i -e "3i {}" ./changelog.md
 
