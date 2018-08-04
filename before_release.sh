@@ -16,7 +16,7 @@ fi
 # changelog生成
 sed -i "2i## $(date +'%Y年%-m月%-d日') version ${version}\r\n" ./changelog.md
 
-git log --format=%s  ${previous_tag}...HEAD | grep -i "\(Fix\|UPDATE\|ADD\)" | sort > temp.md
+git log --format=%s  ${previous_tag}...HEAD | grep -i "\(Fix:\|UPDATE:\|ADD:\|MERGE:\)" | sort > temp.md
 tac temp.md | tr "\n" "\\n" | xargs -I{} sed -i -e "3i {}" ./changelog.md
 
 unix2dos changelog.md
