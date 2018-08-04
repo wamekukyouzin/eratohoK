@@ -24,9 +24,9 @@ unix2dos changelog.md
 # gamebase変更
 
 sed -i "s/\(バージョン,\)[0-9]\+/\1${gamebase_str}/" ./CSV/gamebase.csv
-unix2dos ./CSV/gamebase.csv
+unix2dos ./CSV/GameBase.csv
 
-git add ./CSV/gamebase.csv
+git add ./CSV/GameBase.csv
 git add ./changeLog.md
 
 git commit -m '定型作業'
