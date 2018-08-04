@@ -1225,6 +1225,49 @@ RETURNF !IS_MALE(ARG:0)
 RETURNF IS_MALE(ARG:0) == IS_MALE(ARG:1)
 
 ;-------------------------------------------------
+;◆ARG:0番のキャラとARG:1番のキャラが男性同士かどうかを返す関数（Kh追加）
+;-------------------------------------------------
+@IS_SAMESEX_M(ARG:0, ARG:1)
+	#FUNCTION
+	IF IS_MALE(ARG:0) && IS_MALE(ARG:1)
+		RETURNF 1
+	ENDIF
+	RETURNF 0
+
+;-------------------------------------------------
+;◆ARG:0番のキャラとARG:1番のキャラが女性同士かどうかを返す関数（Kh追加）
+;-------------------------------------------------
+@IS_SAMESEX_F(ARG:0, ARG:1)
+	#FUNCTION
+	IF IS_FEMALE(ARG:0) && IS_FEMALE(ARG:1)
+		RETURNF 1
+	ENDIF
+	RETURNF 0
+
+;-------------------------------------------------
+;◆ARG:0番のキャラが浅陥落素質をもっているなら1を返す関数（Kh追加）
+;-------------------------------------------------
+@IS_MASTER(ARG:0)
+	#FUNCTION
+	IF TALENT:(ARG:0):恋慕 || TALENT:(ARG:0):主人 || TALENT:(ARG:0):服従 || TALENT:(ARG:0):親友
+		RETURNF 1
+	ELSE
+		RETURNF 0
+	ENDIF
+
+;-------------------------------------------------
+;◆ARG:0番のキャラが深陥落素質をもっているなら1を返す関数（Kh追加）
+;-------------------------------------------------
+@IS_MASTER_UP(ARG:0)
+	#FUNCTION
+	IF TALENT:(ARG:0):親愛 || TALENT:(ARG:0):所有者 || TALENT:(ARG:0):隷属
+		RETURNF 1
+	ELSE
+		RETURNF 0
+	ENDIF
+
+
+;-------------------------------------------------
 ;ARG:0番のキャラが動物系かどうかを返す関数
 ;-------------------------------------------------
 @IS_ANIMAL(ARG:0)
@@ -2313,7 +2356,7 @@ WHILE 1
 WEND
 FOR LOCAL, 0, SEPNUM
 	IF SHORTHANDFLAG:LOCAL && COL:NOWCOL != 0
-		CALL COLORPRINT(@"%SEPSTR:LOCAL%", COL:NOWCOL)
+		CALL COLOR_PRINT(@"%SEPSTR:LOCAL%", COL:NOWCOL)
 		SIF NOWCOL < VARSIZE("COL") - 1 && COL:(NOWCOL + 1) != 0
 			NOWCOL ++
 	ELSE
@@ -3142,7 +3185,7 @@ TALENT:対象:Ｖ締まり -= 減少量
 
 変化後 = %TOSTR_TIGHTNESS(TALENT:対象:Ｖ締まり)%
 SIF 変化前 != 変化後
-	CALL COLORPRINT(@"%ANAME(対象)%の膣の締まりが%変化後%になった", カラー_注意, "L")
+	CALL COLOR_PRINTL(@"%ANAME(対象)%の膣の締まりが%変化後%になった", カラー_注意)
 
 ;---------------------------
 ;対象のアナルの締まりが悪化する処理
@@ -3167,7 +3210,7 @@ TALENT:対象:Ａ締まり -= 減少量
 
 変化後 = %TOSTR_TIGHTNESS(TALENT:対象:Ａ締まり)%
 SIF 変化前 != 変化後
-	CALL COLORPRINT(@"%ANAME(対象)%のアナルの締まりが%変化後%になった", カラー_注意, "L")
+	CALL COLOR_PRINTL(@"%ANAME(対象)%のアナルの締まりが%変化後%になった", カラー_注意)
 
 ;---------------------------
 ;与えられた文字列に対するデフォルトの締まり具合を取得する関数
@@ -3235,7 +3278,7 @@ ENDSELECT
 @DAILY_START(EVENTNAME)
 #DIMS EVENTNAME
 CALL SINGLE_DRAWLINE
-CALL COLORPRINT(@"-デイリーイベント『%EVENTNAME%』発生-", カラー_注意, "L")
+CALL COLOR_PRINTL(@"-デイリーイベント『%EVENTNAME%』発生-", カラー_注意)
 FORCEWAIT
 CALL SINGLE_DRAWLINE
 PRINTFORML ・
@@ -3248,7 +3291,7 @@ PRINTFORML ・
 @DAILY_START_DERIVATION(EVENTNAME)
 #DIMS EVENTNAME
 CALL SINGLE_DRAWLINE
-CALL COLORPRINT(@"-派生デイリーイベント『%EVENTNAME%』発生-", カラー_注意, "L")
+CALL COLOR_PRINTL(@"-派生デイリーイベント『%EVENTNAME%』発生-", カラー_注意)
 FORCEWAIT
 CALL SINGLE_DRAWLINE
 PRINTFORML ・
@@ -3451,7 +3494,14 @@ ENDSELECT
 ;-------------------------------------------------
 @CALC_SALARY()
 #FUNCTION
-RETURNF GET_SUM_ECONOMY(CFLAG:MASTER:所属) * (ABL:MASTER:武闘 + ABL:MASTER:防衛 + ABL:MASTER:知略 + ABL:MASTER:政治 + ABL:MASTER:料理 + ABL:MASTER:歌唱 + ABL:MASTER:妖術 * 3 + 150) / 30000 - MIN(GET_OWN_CITY(CFLAG:MASTER:所属) - 5, 1) * 100
+#DIM 金額
+金額 = GET_SUM_ECONOMY(CFLAG:MASTER:所属)
+金額 *= (ABL:MASTER:武闘 + ABL:MASTER:防衛 + ABL:MASTER:知略 + ABL:MASTER:政治 + ABL:MASTER:料理 + ABL:MASTER:歌唱 + ABL:MASTER:妖術 * 3 + 150)
+金額 /= 30000
+金額 -= MIN(GET_OWN_CITY(CFLAG:MASTER:所属) - 5, 1) * 100
+SIF TALENT:MASTER:強運
+	金額 = 金額 * 120 / 100
+RETURNF 金額
 
 ;-------------------------------------------------
 ;末尾に空行ひとつだけを残した状態にする関数
@@ -3543,7 +3593,7 @@ SIF TALENT:対象:妊娠
 
 下一桁 = DAY % 10
 
-RETURNF 下一桁 == TALENT:対象:危険日 || 下一桁 - 5 == TALENT:対象:危険日
+RETURNF 下一桁 == TALENT:対象:危険日 || 下一桁 - 5 == TALENT:対象:危険日 || GETBIT(TALENT:対象:淫乱系, 素質_淫乱_苗床体質)
 
 
 ;-------------------------------------------------
@@ -3704,12 +3754,12 @@ FOR LOCAL, 0, CALLEE_NUM_COPY
 	IF 入り口 == 0
 		TRYCCALLFORM EVENTTRAIN_%CALLEE_COPY:LOCAL%
 		CATCH
-			CALL COLORPRINT(@"EVENTTRAIN_CALLEEに格納され呼び出しが試みられた関数EVENTTRAIN_%CALLEE_COPY:LOCAL%が存在しません", カラー_警告, "W")
+			CALL COLOR_PRINTW(@"EVENTTRAIN_CALLEEに格納され呼び出しが試みられた関数EVENTTRAIN_%CALLEE_COPY:LOCAL%が存在しません", カラー_警告)
 		ENDCATCH
 	ELSE
 		TRYCCALLFORM EVENTEND_%CALLEE_COPY:LOCAL%
 		CATCH
-			CALL COLORPRINT(@"EVENTEND_CALLEEに格納され呼び出しが試みられた関数EVENTEND_%CALLEE_COPY:LOCAL%が存在しません", カラー_警告, "W")
+			CALL COLOR_PRINTW(@"EVENTEND_CALLEEに格納され呼び出しが試みられた関数EVENTEND_%CALLEE_COPY:LOCAL%が存在しません", カラー_警告)
 		ENDCATCH
 	ENDIF
 NEXT

@@ -24,9 +24,6 @@ SIF RESULT == 0
 SIF MPLY:0 != MASTER || MPLY_NUM != 1
 	RETURN 0
 
-;ターゲット1人以上
-SIF MTAR_NUM <= 0
-	RETURN 0
 ;プレイヤーが行動不能なら不可
 SIF !IS_PLAYABLE(MPLY:0)
 	RETURN 0
@@ -35,8 +32,8 @@ SIF !IS_PLAYABLE(MPLY:0)
 SIF TFLAG:54 !=  8
 	RETURN 0
 
-;男達に見つかっていないと駄目
-SIF TFLAG:103 != 2
+;モブがある程度いないと駄目
+SIF TFLAG:104 < 2
 	RETURN 0
 
 ;全てのプレイヤーについて判定
@@ -44,35 +41,24 @@ FOR LOCAL:0, 0, MPLY_NUM
 	;顔面騎乗されているなら不可
 	SIF IS_RIDDEN(MPLY:(LOCAL:0))
 		RETURN 0
-	;口枷装着中なら不可
-	SIF IS_EQUIP_TARGET(MPLY:(LOCAL:0), 86)
-		RETURN 0
-	;キス中なら不可
-	SIF IS_EQUIP(MPLY:(LOCAL:0), 20)
-		RETURN 0
-	;フェラ・パイズリ・亀頭フェラ中なら不可
-	SIF IS_EQUIP_PLAYER(MPLY:(LOCAL:0), 11, 12, 107)
-		RETURN 0
-	;イラマ・触手口辱されているなら不可
-	SIF IS_EQUIP_TARGET(MPLY:(LOCAL:0), 90, 210)
+	;口が塞がってたらだめ
+	SIF IS_M_HOLD(MPLY:(LOCAL:0))
 		RETURN 0
 	;拘束されているなら不可
 	SIF IS_BIND(MPLY:(LOCAL:0))
 		RETURN 0
 NEXT
-;全てのターゲットについて判定
-FOR LOCAL:0, 0, MTAR_NUM
-	;顔面騎乗されているなら不可
-	SIF IS_RIDDEN(MTAR:(LOCAL:0))
-		RETURN 0
-	;挿入中なら不可
-	SIF IS_INSERT_SINGLE(MTAR:(LOCAL:0), "全")
-		RETURN 0
-	;キス中なら不可
-	SIF IS_EQUIP(MTAR:(LOCAL:0), 20)
-		RETURN 0
+
+LOCAL:1 = 0
+;まんことちんぽ両方ないと駄目
+FOR LOCAL:0, 0, CHARANUM
+	SIF IS_PARTICIPATE_TRAIN(LOCAL) && HAS_VAGINA(LOCAL)
+		SETBIT LOCAL:1, 1
+	SIF IS_PARTICIPATE_TRAIN(LOCAL) && HAS_PENIS(LOCAL)
+		SETBIT LOCAL:1, 2
 NEXT
-RETURN 1
+
+RETURN GETBIT(LOCAL:1, 1) && GETBIT(LOCAL:1, 2)
 
 ;-------------------------------------------------
 ;メイン処理
@@ -83,33 +69,63 @@ CALL COM_ORDER_COMMON
 SIF RESULT == 0
 	RETURN 0
 
-;選択肢の表示の都合上、ここに書かないとどうにも
-LOCALS:0 = %ANAME(MPLY:0)%
-;ターゲットが２人
-IF MTAR_NUM >= 2
-	LOCALS:1 = %ANAME(MTAR:0)%たち
-;ターゲットが１人
-ELSE
-	LOCALS:1 = %ANAME(MTAR:0)%
-ENDIF
+PRINTFORML %ANAME(MPLY:0)%は、露出プレイに参加してきた連中を交えて乱交を行うことにした……
+PRINTFORMW 誰も彼もが好き放題に交わっては相手を変え、乱痴気騒ぎが始まった……
+PRINTFORMW ・
+PRINTFORMW ・
+PRINTFORMW ・
 
-PRINTFORML %LOCALS:1%を男達に抱かせてやることにした……
-PRINTFORMW 痴態に興奮しきっていた男達は、我先にと%LOCALS:1%に群がっていく……
-IF IS_FEMALE(MASTER)
-	PRINTFORML 自分も混ざりますか？
-	CALL ASK_YN
-	IF RESULT == 0
-		TFLAG:16 = 1
-	ENDIF
-ENDIF
-
-;プレイヤー（MASTER)が女で、選択肢に「混ざる」を選択した場合
-IF TFLAG:16
-	CALL FUCK_GANGBANG(MASTER, GET_SPERM_ID("行きずりの男"), @"行きずりの男の\@ RAND:2 ? ペニス # 唇\@", "行きずりの男")
-ENDIF
-FOR LOCAL, 0, MTAR_NUM
-	CALL FUCK_GANGBANG(MTAR:LOCAL, GET_SPERM_ID("行きずりの男"), @"行きずりの男の\@ RAND:2 ? ペニス # 唇\@", "行きずりの男")
+LOCAL:2 = 0
+FOR LOCAL, 0, CHARANUM
+	SIF IS_PARTICIPATE_TRAIN(LOCAL) && IS_FEMALE(LOCAL)
+		LOCAL:2 ++
 NEXT
+
+;総当たりでFUCKする
+FOR LOCAL:0, 0, CHARANUM
+	SIF !IS_PARTICIPATE_TRAIN(LOCAL)
+		CONTINUE
+	SIF !IS_FEMALE(LOCAL)
+		CONTINUE
+	FOR LOCAL:1, 0, CHARANUM
+		SIF !IS_PARTICIPATE_TRAIN(LOCAL:1)
+			CONTINUE
+		SIF LOCAL == LOCAL:1
+			CONTINUE
+		;文章表示は確率
+		SIF RAND:MAX(LOCAL:2 / 2, 1) == 0
+			CALL COM51_ORGY(LOCAL, LOCAL:1)
+		;表示されなかった場合も、膣内射精とかはされたことにする
+		IF HAS_PENIS(LOCAL:1) && HAS_VAGINA(LOCAL)
+			FOR LOCAL:2, 0, 5
+				CALL RECORD_INJECTION(LOCAL, GET_ID(LOCAL:1), RAND(3, 7))
+				CUM_GET_COUNT:LOCAL:射精部位_膣内 += RAND(3, 7)
+				CUM_GET_COUNT:LOCAL:射精部位_アナル += RAND(3, 7)
+				CUM_GET_COUNT:LOCAL:射精部位_手 += RAND(3, 7)
+				CUM_GET_COUNT:LOCAL:射精部位_口 += RAND(3, 7)
+				CUM_GET_COUNT:LOCAL:射精部位_胸 += RAND(3, 7)
+				CUM_GET_COUNT:LOCAL:射精部位_足 += RAND(3, 7)
+				CUM_GET_COUNT:LOCAL:射精部位_髪 += RAND(3, 7)
+				CUM_GET_COUNT:LOCAL:射精部位_尻 += RAND(3, 7)
+				CUM_TO_COUNT:(LOCAL:1):射精部位_膣内 += RAND(3, 7)
+				CUM_TO_COUNT:(LOCAL:1):射精部位_アナル += RAND(3, 7)
+				CUM_TO_COUNT:(LOCAL:1):射精部位_手 += RAND(3, 7)
+				CUM_TO_COUNT:(LOCAL:1):射精部位_口 += RAND(3, 7)
+				CUM_TO_COUNT:(LOCAL:1):射精部位_胸 += RAND(3, 7)
+				CUM_TO_COUNT:(LOCAL:1):射精部位_足 += RAND(3, 7)
+				CUM_TO_COUNT:(LOCAL:1):射精部位_髪 += RAND(3, 7)
+				CUM_TO_COUNT:(LOCAL:1):射精部位_尻 += RAND(3, 7)
+			NEXT
+		ENDIF
+		CALL COM51_ADD_SOURCE(LOCAL)
+		CALL COM51_ADD_SOURCE(LOCAL:1)
+	NEXT
+NEXT
+
+PRINTFORMW ・
+PRINTFORMW ・
+PRINTFORMW ・
+PRINTFORMW 乱痴気騒ぎはようやく終わったようだ
 
 ;主導度変化基準値
 TFLAG:49 = 5
@@ -118,6 +134,9 @@ TFLAG:49 = 5
 TFLAG:50 = 10
 
 TFLAG:55 = TFLAG:56
+
+;後のコマンドの実行を阻止する
+CALL INIT_EQUIP
 
 RETURN 1
 
@@ -148,27 +167,183 @@ ENDIF
 RETURN 1
 
 ;-------------------------------------------------
-;地の文(前文)
-;-------------------------------------------------
-@COM_TEXT_BEFORE51
-IF TFLAG:16
-	LOCALS:0 = %ANAME(MPLY:0)%や
-ELSE
-	LOCALS:0 = 
-ENDIF
-;ターゲットが２人
-IF MTAR_NUM >= 2
-	LOCALS:1 = %ANAME(MTAR:0)%たち
-;ターゲットが１人
-ELSE
-	LOCALS:1 = %ANAME(MTAR:0)%
-ENDIF
-PRINTFORMW 男達は代わる代わる、%LOCALS:0%%LOCALS:1%を組み敷いては、その穴に種を植え付けていく……
-PRINTFORMW 宴は深夜になるまで続いた
-;-------------------------------------------------
-
 ;コマンド区分
 ;-------------------------------------------------
 
 @COM_AVAILABLE_WHEN51
 RETURN コマンド_ウフフ
+
+;-------------------------------------------------
+;乱交パート　よい表現が思いつかず受け攻めってしてるけど受け側のキャラが攻める分岐もあり
+;男は受け側に入らない前提
+;-------------------------------------------------
+@COM51_ORGY(受け, 攻め)
+#DIM 受け
+#DIM 攻め
+
+;男→女/ふた、またはふた→女/ふた
+IF IS_MALE(攻め) || (HAS_PENIS(攻め) && RAND:100 < 20)
+	SELECTCASE RAND:5
+		CASE 0
+			PRINTFORML %ANAME(受け)%の%STR_BODY("膣：欲情", 受け)%を、%ANAME(攻め)%が猛然と貫いている
+			PRINTFORML %ANAME(受け)%はたまらないという声をあげながらよがっている……
+		CASE 1
+			PRINTFORML 既に何発も種を受け止めた%ANAME(受け)%は、恍惚の表情を浮かべ%ANAME(攻め)%の肉棒を咥え込んでいる
+			PRINTFORML じゅるじゅると亀頭を舐め回され、%ANAME(攻め)%は思わず精を解き放った……
+		CASE 2
+			PRINTFORML %ANAME(受け)%の両穴を%ANAME(攻め)%が執拗に突いている
+			PRINTFORML 肉棒をねじ込まれるたび、%ANAME(受け)%はたまらないという声をあげてよがる……
+		CASE 3
+			PRINTFORML %ANAME(攻め)%は寝転び、%ANAME(受け)%に騎乗位で腰を振らせている
+			PRINTFORML %STR_BODY("膣：感度", 受け)%でペニスを咥え込んだ%ANAME(受け)%は、腰を振るたび艶やかな声をあげている……
+		CASE 4
+			PRINTFORML %ANAME(攻め)%は%ANAME(受け)%を組み敷いて、乱暴に突きまくっている
+			PRINTFORML 両穴を抉られ、%ANAME(受け)%は獣じみた声をあげてよがっている……
+	ENDSELECT
+	CALL FUCK(攻め, "欲望, 性交, 性技, 射精, Ｃ, Ｍ, Ｖ挿入, Ａ挿入, キス", "童貞喪失, キス喪失", -1, @"%ANAME(受け)%の唇", "", @"%ANAME(攻め)%の膣", 喪失_乱交)
+{
+	CALL FUCK(受け, "欲望, 性技, Ｃ, Ｖ, Ａ, Ｂ, Ｍ, Ｖ拡張, Ａ拡張, 性交, 自慰, 精愛, 露出, 排泄, 射精, 苦痛快楽, 緊縛, マゾ, キス, 口淫, 輪姦, Ｖ性交, Ａ性交",
+	    		    "キス喪失, 処女喪失, Ａ処女喪失, 膣内射精, 腸内射精, 口内射精",
+					GET_ID(攻め),
+					@"%ANAME(攻め)%のペニス",
+					@"%ANAME(攻め)%",
+					"",
+					喪失_乱交)
+}
+;ふた→ふた
+ELSEIF HAS_PENIS(攻め) && HAS_PENIS(受け)
+	SELECTCASE RAND:5
+		CASE 0
+			PRINTFORML %ANAME(攻め)%と%ANAME(受け)%はお互いのペニスをしゃぶりあっている
+			PRINTFORML お互いの口にたっぷり射精した後、すぐさま「二回戦」が始まった……
+		CASE 1
+			PRINTFORML %ANAME(攻め)%は%ANAME(受け)%の%STR_BODY("膣：欲情", 受け)%を貫いている
+			PRINTFORML たっぷり種をつけた後、今度は%ANAME(受け)%が%ANAME(攻め)%を貫いた……
+		CASE 2
+			PRINTFORML %ANAME(攻め)%と%ANAME(受け)%はお互いに口づけながら、ペニスを擦り合わせている
+			PRINTFORML 次第に我慢できなくなったか、%ANAME(攻め)%が%ANAME(受け)%を押し倒した……
+		CASE 3
+			PRINTFORML 白濁にまみれた%ANAME(攻め)%と%ANAME(受け)%がお互いを貫きあっている
+			PRINTFORML 射精しては射精される様は、性欲が無限になったかのようだ……
+		CASE 4
+			PRINTFORML %ANAME(攻め)%は%ANAME(受け)%を貫きながら、%ANAME(受け)%の肉棒を扱き上げている
+			PRINTFORML %ANAME(攻め)%が膣内射精すると同時に、%ANAME(受け)%も精を解き放った……
+	ENDSELECT
+{
+	CALL FUCK(受け, "欲望, 性技, Ｃ, Ｖ, Ａ, Ｂ, Ｍ, Ｖ拡張, Ａ拡張, 性交, 自慰, 精愛, 露出, 排泄, 射精, 苦痛快楽, 緊縛, マゾ, キス, 口淫, 輪姦, Ｖ性交, Ａ性交, Ｖ挿入, Ａ挿入, レズ",
+	    		    "キス喪失, 処女喪失, Ａ処女喪失, 童貞喪失, 膣内射精, 腸内射精, 口内射精",
+					GET_ID(攻め),
+					@"%ANAME(攻め)%のペニス",
+					@"%ANAME(攻め)%",
+					@"%ANAME(攻め)%の膣",
+					喪失_乱交)
+}
+{
+	CALL FUCK(攻め, "欲望, 性技, Ｃ, Ｖ, Ａ, Ｂ, Ｍ, Ｖ拡張, Ａ拡張, 性交, 自慰, 精愛, 露出, 排泄, 射精, 苦痛快楽, 緊縛, マゾ, キス, 口淫, 輪姦, Ｖ性交, Ａ性交, Ｖ挿入, Ａ挿入, レズ",
+	    		    "キス喪失, 処女喪失, Ａ処女喪失, 童貞喪失, 膣内射精, 腸内射精, 口内射精",
+					GET_ID(受け),
+					@"%ANAME(受け)%のペニス",
+					@"%ANAME(受け)%",
+					@"%ANAME(受け)%の膣",
+					喪失_乱交)
+}
+;ふた→女
+ELSEIF HAS_PENIS(攻め) && !HAS_PENIS(受け)
+	SELECTCASE RAND:5
+		CASE 0
+			PRINTFORML %ANAME(攻め)%が%ANAME(受け)%を貫いている
+			PRINTFORML 元が女だからこその的確な責めに、%ANAME(受け)%は涙を流しながらよがる……
+		CASE 1
+			PRINTFORML %ANAME(攻め)%は%ANAME(受け)%に口で奉仕させている
+			PRINTFORML 口に射精した後、%ANAME(攻め)%は%ANAME(受け)%を押し倒した……
+		CASE 2
+			PRINTFORML %ANAME(受け)%が%ANAME(攻め)%のペニスをお掃除フェラしている
+			PRINTFORML 丁寧に肉棒を清めた後、二回戦が始まった……
+		CASE 3
+			PRINTFORML %ANAME(攻め)%が%ANAME(受け)%の両穴を抉っている
+			PRINTFORML 元が女だからこその的確な責めに、%ANAME(受け)%は涙を流しながらよがる……
+		CASE 4
+			PRINTFORML %ANAME(攻め)%が%ANAME(受け)%と口づけを交わしている
+			PRINTFORML 次第に我慢できなくなったか、%ANAME(攻め)%が%ANAME(受け)%を押し倒した……
+	ENDSELECT
+	CALL FUCK(攻め, "欲望, 性交, 性技, 射精, Ｃ, Ｖ, Ｂ, Ａ, Ｍ, Ｖ挿入, Ａ挿入, キス, レズ", "童貞喪失, キス喪失", -1, @"%ANAME(受け)%の唇", "", @"%ANAME(受け)%の膣", 喪失_乱交)
+{
+	CALL FUCK(受け, "欲望, 性技, Ｃ, Ｖ, Ａ, Ｂ, Ｍ, Ｖ拡張, Ａ拡張, 性交, 自慰, 精愛, 露出, 排泄, 射精, 苦痛快楽, 緊縛, マゾ, キス, 口淫, 輪姦, Ｖ性交, Ａ性交, レズ",
+	    		    "キス喪失, 処女喪失, Ａ処女喪失, 膣内射精, 腸内射精, 口内射精",
+					GET_ID(攻め),
+					@"%ANAME(攻め)%のペニス",
+					@"%ANAME(攻め)%",
+					"",
+					喪失_乱交)
+}
+;その他
+;女→女,または女→ふた
+ELSE
+	SELECTCASE RAND:5
+		CASE 0
+			PRINTFORML %ANAME(攻め)%が%ANAME(受け)%と絡み合っている
+			PRINTFORML お互いにお互いの身体にキスの雨を降らせている……
+		CASE 1
+			PRINTFORML 白濁にまみれた%ANAME(攻め)%と%ANAME(受け)%が絡み合っている
+			PRINTFORML 互いの身体に付着した精液を舐めあっている……
+		CASE 2
+			PRINTFORML %ANAME(攻め)%が%ANAME(受け)%と貝合わせしている
+			PRINTFORML 次第に行為は激しくなり、高い声をあげて絶頂した……
+		CASE 3
+			PRINTFORML %ANAME(攻め)%と%ANAME(受け)%が互いの%STR_BODY("膣", 攻め)%を愛撫しあっている
+			PRINTFORML 互いに高めあい、やがって二人同時に絶頂を迎えた……
+		CASE 4
+			PRINTFORML %ANAME(攻め)%が%ANAME(受け)%を組み敷き、愛撫している
+			PRINTFORML そのうちに攻守が入れ替わり、%ANAME(受け)%が%ANAME(攻め)%を喘がせ始める……
+	ENDSELECT
+	IF HAS_PENIS(受け)
+{
+		CALL FUCK(攻め, "欲望, 性技, Ｃ, Ｖ, Ａ, Ｂ, Ｍ, Ｖ拡張, Ａ拡張, 性交, 自慰, 精愛, 露出, 排泄, 射精, 苦痛快楽, 緊縛, マゾ, キス, 口淫, 輪姦, Ｖ性交, Ａ性交, レズ",
+						"キス喪失, 処女喪失, Ａ処女喪失, 膣内射精, 腸内射精, 口内射精",
+						GET_ID(受け),
+						@"%ANAME(受け)%のペニス",
+						@"%ANAME(受け)%",
+						"",
+						喪失_乱交)
+}
+		CALL FUCK(受け, "欲望, 性交, 性技, 射精, Ｃ, Ｖ, Ｂ, Ａ, Ｍ, Ｖ挿入, Ａ挿入, キス, レズ", "童貞喪失, キス喪失", -1, @"%ANAME(攻め)%の唇", "", @"%ANAME(攻め)%の膣", 喪失_乱交)
+	ELSE
+		CALL FUCK(攻め, "欲望, 性交, 性技, 射精, Ｃ, Ｖ, Ｂ, Ａ, Ｍ, キス, レズ", "キス喪失", -1, @"%ANAME(受け)%の唇", "", @"%ANAME(受け)%の膣", 喪失_乱交)
+		CALL FUCK(受け, "欲望, 性交, 性技, 射精, Ｃ, Ｖ, Ｂ, Ａ, Ｍ, キス, レズ", "キス喪失", -1, @"%ANAME(攻め)%の唇", "", @"%ANAME(攻め)%の膣", 喪失_乱交)
+	ENDIF
+ENDIF
+PRINTFORMW 
+
+;-------------------------------------------------
+;絶頂したことにする
+;-------------------------------------------------
+@COM51_ADD_SOURCE(対象)
+#DIM 対象
+SIF HAS_PENIS(対象)
+	SOURCE:対象:快Ｐ += 500
+SIF HAS_VAGINA(対象)
+	SOURCE:対象:快Ｖ += 500
+
+SOURCE:対象:快Ａ += 500
+SOURCE:対象:快Ｂ += 500
+SOURCE:対象:快Ｍ += 500
+SOURCE:対象:快Ｃ += 500
+
+SOURCE:対象:露出 += 200
+SOURCE:対象:奉仕 += 30
+SOURCE:対象:接触 += 30
+SOURCE:対象:性行動 += 200
+SOURCE:対象:逸脱 += 30
+SOURCE:対象:苦痛 += 50
+
+EX:対象:Ｃ絶頂 += MIN(MIN(ABL:対象:Ｃ感, RAND:10), RAND(100, 120))
+SIF HAS_VAGINA(対象)
+	EX:対象:Ｖ絶頂 += MIN(MIN(ABL:対象:Ｖ感, RAND:10), RAND(100, 120))
+EX:対象:Ａ絶頂 += MIN(MIN(ABL:対象:Ａ感, RAND:10), RAND(100, 120))
+EX:対象:Ｂ絶頂 += MIN(MIN(ABL:対象:Ｂ感, RAND:10), RAND(100, 120))
+EX:対象:Ｍ絶頂 += MIN(MIN(ABL:対象:Ｍ感, RAND:10), RAND(100, 120))
+
+SIF HAS_PENIS(対象)
+	EX:対象:射精 += MIN(MIN(ABL:対象:射精, RAND:10), RAND(100, 120))
+SIF TALENT:対象:母乳体質
+	EX:対象:噴乳 += MIN(MIN(ABL:対象:噴乳, RAND:10), RAND(100, 120))

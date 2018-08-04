@@ -1,0 +1,833 @@
+﻿;-------------------------------------------------
+;# 攻め役特殊キャラ
+;	慰安モブは動物以外
+;	特殊勢力は自警団・サキュバス以外
+;-------------------------------------------------
+@CHECK_SP_SADIST_CHARA(ARG_CHARA_NUM)
+#FUNCTION
+#DIM ARG_CHARA_NUM
+
+SIF TALENT:ARG_CHARA_NUM:慰安モブ != 0 && !GROUPMATCH(TALENT:ARG_CHARA_NUM:慰安モブ, 慰安_キャラ_犬, 慰安_キャラ_豚, 慰安_キャラ_馬, 慰安_キャラ_猿)
+	RETURNF 1
+SIF CFLAG:ARG_CHARA_NUM:慰安参加者
+	RETURNF 1
+SIF TALENT:ARG_CHARA_NUM:特殊勢力素質 != 0 && !GROUPMATCH(TALENT:ARG_CHARA_NUM:特殊勢力素質, 特殊勢力_サキュバス, 特殊勢力_自警団)
+	RETURNF 1
+
+RETURNF 0
+
+;-------------------------------------------------
+;# TRAINNAMEからTRAIN番号をとる
+;-------------------------------------------------
+@GET_TRAINNUM(ARG_TEXT)
+#FUNCTION
+#DIMS ARG_TEXT
+
+GETNUM TRAINNAME, ARG_TEXT
+
+RETURNF RESULT:0
+
+;-------------------------------------------------
+;# 閨で自動行動できるキャラかを判定
+;	ARG:0 = キャラ
+;-------------------------------------------------
+@IS_AUTOSELECT(ARG:0)
+#FUNCTION
+
+SIF ARG:0 != MASTER && CFLAG:(ARG:0):調教参加フラグ && !TCVAR:(ARG:0):51 && !TCVAR:(ARG:0):52 && !TCVAR:(ARG:0):53 && ABL:(ARG:0):性知識 > 0
+	RETURNF 1
+
+RETURNF 0
+
+;-------------------------------------------------
+;# 日常で自動行動できるキャラかを判定
+;-------------------------------------------------
+@IS_AUTOSELECT_N(ARG:0)
+#FUNCTION
+
+SIF ARG:0 != MASTER && CFLAG:(ARG:0):調教参加フラグ && !TCVAR:(ARG:0):51 && !TCVAR:(ARG:0):52 && !TCVAR:(ARG:0):53
+	RETURNF 1
+
+RETURNF 0
+
+;-------------------------------------------------
+;# カテゴリ設定の重複チェック
+;-------------------------------------------------
+@SET_COM_AUTO_COM_CATEGORY(ARG_TRAIN_NUM, ARG_COM_CATEGORY_NUM)
+#DIM ARG_TRAIN_NUM
+#DIM ARG_COM_CATEGORY_NUM
+
+[IF_DEBUG]
+	IF COM_AUTO_COM_CATEGORY:ARG_TRAIN_NUM
+		DEBUGPRINTFORML 
+		DEBUGPRINTFORM #### カテゴリ設定 重複 
+		IF ARG_TRAIN_NUM >= ADD_NUM_第三者に実行
+			DEBUGPRINTFORM {ARG_TRAIN_NUM}.%@"第三者に%TRAINNAME:(ARG_TRAIN_NUM - ADD_NUM_第三者に実行)%", 26, LEFT%
+		ELSEIF ARG_TRAIN_NUM >= ADD_NUM_対象が実行 && ARG_TRAIN_NUM < ADD_NUM_第三者に実行
+			DEBUGPRINTFORM {ARG_TRAIN_NUM}.%@"%TRAINNAME:(ARG_TRAIN_NUM - ADD_NUM_対象が実行)%させる", 26, LEFT%
+		ELSE
+			DEBUGPRINTFORM {ARG_TRAIN_NUM}.%@"%TRAINNAME:ARG_TRAIN_NUM%する", 26, LEFT%
+		ENDIF
+		DEBUGPRINTFORML  設定済
+	ENDIF
+[ENDIF]
+COM_AUTO_COM_CATEGORY:ARG_TRAIN_NUM = ARG_COM_CATEGORY_NUM
+
+RETURN 0
+
+;-------------------------------------------------
+;# 主導度Ｕの補正値
+;  ARG:0=キャラ番号
+;-------------------------------------------------
+@GET_INITIATIVE_U_RANK(ARG:0)
+#FUNCTION
+
+IF GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_サド)
+	RETURNF 6
+ELSEIF ABL:(ARG:0):主導度Ｕ >= 500
+	RETURNF 5
+ELSEIF ABL:(ARG:0):主導度Ｕ >= 300
+	RETURNF 3
+ELSEIF ABL:(ARG:0):主導度Ｕ >= 100
+	RETURNF 1
+ELSEIF ABL:(ARG:0):主導度Ｕ > -100
+	RETURNF 0
+ELSEIF ABL:(ARG:0):主導度Ｕ > -300
+	RETURNF -1
+ELSEIF ABL:(ARG:0):主導度Ｕ > -500
+	RETURNF -3
+ELSE
+	RETURNF -5
+ENDIF
+
+;-------------------------------------------------
+;# 主導度Ｎの補正値
+;	ARG:0=キャラ番号
+;-------------------------------------------------
+@GET_INITIATIVE_N_RANK(ARG:0)
+#FUNCTION
+
+IF GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_サド)
+	RETURNF 6
+ELSEIF ABL:(ARG:0):主導度Ｎ >= 500
+	RETURNF 5
+ELSEIF ABL:(ARG:0):主導度Ｎ >= 300
+	RETURNF 3
+ELSEIF ABL:(ARG:0):主導度Ｎ >= 100
+	RETURNF 1
+ELSEIF ABL:(ARG:0):主導度Ｎ > -100
+	RETURNF 0
+ELSEIF ABL:(ARG:0):主導度Ｎ > -300
+	RETURNF -1
+ELSEIF ABL:(ARG:0):主導度Ｎ > -500
+	RETURNF -3
+ELSE
+	RETURNF -5
+ENDIF
+
+;-------------------------------------------------
+;# 倒錯度の補正値
+;	ARG:0=キャラ番号
+;-------------------------------------------------
+@GET_PERVERSION_RANK(ARG:0)
+#FUNCTION
+
+IF GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_サド) || GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_マゾ)
+	RETURNF 7
+ELSEIF ABL:(ARG:0):倒錯度 >= 800
+	RETURNF 6
+ELSEIF ABL:(ARG:0):倒錯度 >= 500
+	RETURNF 4
+ELSEIF ABL:(ARG:0):倒錯度 >= 300
+	RETURNF 2
+ELSEIF ABL:(ARG:0):倒錯度 >= 100
+	RETURNF 1
+ELSE
+	RETURNF 0
+ENDIF
+
+;-------------------------------------------------
+;# おまかせ時の自動持続行動解除
+;	EQUIP
+;-------------------------------------------------
+@AUTO_EQUIP_RELEASE
+#DIM L_COUNTER
+#DIM L_COUNTER_CHECK
+#DIM CHECK_SEARCH_EQUIP				;継続行動状態のチェック
+#DIM MAX_AUTOSELECT_CHARA_NUM		;行動可能なキャラの人数
+#DIM PROBABILITY_NOT_PULL_OUT		;引き抜かない確率
+#DIM PROBABILITY_PULL_OUT_MULTI		;引き抜く確率の乗算補正
+#DIM CHECK_AUTO_MEQUIP_PLAYER_NUM	;継続中キャラ
+
+;行動可能なキャラの数を調べる
+MAX_AUTOSELECT_CHARA_NUM = 0
+FOR L_COUNTER, 0, CHARANUM
+	IF IS_AUTOSELECT(L_COUNTER)
+		MAX_AUTOSELECT_CHARA_NUM ++
+	ENDIF
+NEXT
+
+IF MAX_AUTOSELECT_CHARA_NUM >= 3
+	PROBABILITY_PULL_OUT_MULTI = 40
+ELSEIF MAX_AUTOSELECT_CHARA_NUM >= 2
+	PROBABILITY_PULL_OUT_MULTI = 25
+ELSE
+	PROBABILITY_PULL_OUT_MULTI = 15
+ENDIF
+
+;射精した／されたならランダムでEQUIP解除
+FOR L_COUNTER, 0, CHARANUM
+	IF L_COUNTER != MASTER && CFLAG:L_COUNTER:調教参加フラグ
+		;ゴム解除
+		IF NOWEX:L_COUNTER:射精 >= 1
+			CHECK_SEARCH_EQUIP = SEARCH_EQUIP(GET_TRAINNUM("コンドーム"), -1, L_COUNTER)
+			SIF CHECK_SEARCH_EQUIP >= 0 && RAND:100 <= MEQUIP_TURN:CHECK_SEARCH_EQUIP * 3 && FLAG:調教モード != 調教_閨
+				CALL RELEASE_EQUIP(CHECK_SEARCH_EQUIP, 1)
+		ENDIF
+		;抜かない確率の設定
+		PROBABILITY_NOT_PULL_OUT = 30 + MIN(ABL:L_COUNTER:欲望 * 6 + ABL:L_COUNTER:性交 * 6 + GET_PERVERSION_RANK(L_COUNTER) * 5, 200)
+		;自前の竿の場合
+		IF HAS_PENIS(L_COUNTER)
+			;このキャラが相手に膣内／腸内射精した場合
+			IF NOWEX:L_COUNTER:射精 >= 1
+				FOR L_COUNTER_CHECK, GET_TRAINNUM("正常位"), GET_TRAINNUM("Ａ駅弁") + 1
+					CHECK_SEARCH_EQUIP = SEARCH_EQUIP(L_COUNTER_CHECK, L_COUNTER, -1)
+					IF CHECK_SEARCH_EQUIP >= 0 && RAND:100 >= PROBABILITY_NOT_PULL_OUT - MEQUIP_TURN:CHECK_SEARCH_EQUIP * PROBABILITY_PULL_OUT_MULTI
+						WAIT
+						PRINTL 
+						CALL RELEASE_EQUIP(CHECK_SEARCH_EQUIP, 1)
+						BREAK
+					ENDIF
+				NEXT
+			ENDIF
+
+			;このキャラが相手に口内射精した場合
+			IF NOWEX:L_COUNTER:射精 >= 1
+				CHECK_SEARCH_EQUIP = SEARCH_EQUIP(GET_TRAINNUM("イラマチオ"), L_COUNTER, -1)
+				IF CHECK_SEARCH_EQUIP >= 0 && RAND:100 >= PROBABILITY_NOT_PULL_OUT / 2 - MEQUIP_TURN:CHECK_SEARCH_EQUIP * 30
+					WAIT
+					PRINTL 
+					CALL RELEASE_EQUIP(CHECK_SEARCH_EQUIP, 1)
+					BREAK
+				ENDIF
+			ENDIF
+
+		;ペニバンの場合
+		ELSE
+			;性交関係
+			FOR L_COUNTER_CHECK, GET_TRAINNUM("正常位"), GET_TRAINNUM("Ａ駅弁") + 1
+				CHECK_SEARCH_EQUIP = SEARCH_EQUIP(L_COUNTER_CHECK, L_COUNTER, -1)
+				IF CHECK_SEARCH_EQUIP >= 0 && MEQUIP_TURN:CHECK_SEARCH_EQUIP >= 4 && RAND:100 >= PROBABILITY_NOT_PULL_OUT - MEQUIP_TURN:CHECK_SEARCH_EQUIP * PROBABILITY_PULL_OUT_MULTI
+					WAIT
+					PRINTL 
+					CALL RELEASE_EQUIP(CHECK_SEARCH_EQUIP, 1)
+					BREAK
+				ENDIF
+			NEXT
+
+			;イラマチオ
+			CHECK_SEARCH_EQUIP = SEARCH_EQUIP(GET_TRAINNUM("イラマチオ"), L_COUNTER, -1)
+			IF CHECK_SEARCH_EQUIP >= 0 && MEQUIP_TURN:CHECK_SEARCH_EQUIP >= 4 && RAND:100 >= PROBABILITY_NOT_PULL_OUT / 2 - MEQUIP_TURN:CHECK_SEARCH_EQUIP * 30
+				WAIT
+				PRINTL 
+				CALL RELEASE_EQUIP(CHECK_SEARCH_EQUIP, 1)
+				BREAK
+			ENDIF
+		ENDIF
+
+		;相手からの挿入
+		FOR L_COUNTER_CHECK, GET_TRAINNUM("正常位"), GET_TRAINNUM("Ａ駅弁") + 1
+			CHECK_SEARCH_EQUIP = SEARCH_EQUIP(L_COUNTER_CHECK, -1, L_COUNTER)
+			IF CHECK_SEARCH_EQUIP >= 0
+				CHECK_AUTO_MEQUIP_PLAYER_NUM = MEQUIP_PLAYER:CHECK_SEARCH_EQUIP:0
+				;相手に竿がある場合
+				IF HAS_PENIS(CHECK_AUTO_MEQUIP_PLAYER_NUM)
+					;相手がこのキャラに膣内／腸内射精した場合に引き抜き判定
+					IF NOWEX:CHECK_AUTO_MEQUIP_PLAYER_NUM:射精 >= 1 && RAND:100 >= PROBABILITY_NOT_PULL_OUT - MEQUIP_TURN:CHECK_SEARCH_EQUIP * PROBABILITY_PULL_OUT_MULTI
+						WAIT
+						PRINTL 
+						CALL RELEASE_EQUIP(CHECK_SEARCH_EQUIP, 1)
+						BREAK
+					ENDIF
+				;相手がペニバンを使っている場合
+				ELSE
+					;４ターン以上経過していれば常に引き抜き判定
+					IF MEQUIP_TURN:CHECK_SEARCH_EQUIP >= 4 && RAND:100 >= PROBABILITY_NOT_PULL_OUT - MEQUIP_TURN:CHECK_SEARCH_EQUIP * PROBABILITY_PULL_OUT_MULTI
+						WAIT
+						PRINTL 
+						CALL RELEASE_EQUIP(CHECK_SEARCH_EQUIP, 1)
+						BREAK
+					ENDIF
+				ENDIF
+			ENDIF
+		NEXT
+
+		;相手からのイラマ
+		CHECK_SEARCH_EQUIP = SEARCH_EQUIP(GET_TRAINNUM("イラマチオ"), -1, L_COUNTER)
+		IF CHECK_SEARCH_EQUIP >= 0
+			CHECK_AUTO_MEQUIP_PLAYER_NUM = MEQUIP_PLAYER:CHECK_SEARCH_EQUIP:0
+			;相手に竿がある場合
+			IF HAS_PENIS(CHECK_AUTO_MEQUIP_PLAYER_NUM)
+				;相手がこのキャラに口内射精した場合に引き抜き判定
+				IF NOWEX:CHECK_AUTO_MEQUIP_PLAYER_NUM:射精 >= 1 && RAND:100 >= PROBABILITY_NOT_PULL_OUT - MEQUIP_TURN:CHECK_SEARCH_EQUIP * 30
+					WAIT
+					PRINTL 
+					CALL RELEASE_EQUIP(CHECK_SEARCH_EQUIP, 1)
+					BREAK
+				ENDIF
+			;相手がペニバンを使っている場合
+			ELSE
+				;４ターン以上経過していれば常に引き抜き判定
+				IF MEQUIP_TURN:CHECK_SEARCH_EQUIP >= 4 && RAND:100 >= PROBABILITY_NOT_PULL_OUT - MEQUIP_TURN:CHECK_SEARCH_EQUIP * 30
+					WAIT
+					PRINTL 
+					CALL RELEASE_EQUIP(CHECK_SEARCH_EQUIP, 1)
+					BREAK
+				ENDIF
+			ENDIF
+		ENDIF
+	ENDIF
+NEXT
+
+;挿入・縄・イラマ・ゴム・触手以外は最低３ターン継続し、一律25%で解除
+FOR L_COUNTER, 0, MAX_MEQUIP
+{
+	IF !GROUPMATCH(MEQUIP:L_COUNTER, GET_TRAINNUM("正常位"), GET_TRAINNUM("後背位"), GET_TRAINNUM("対面座位"), GET_TRAINNUM("背面座位"), GET_TRAINNUM("騎乗位"),
+		GET_TRAINNUM("背面騎乗位"), GET_TRAINNUM("側位"), GET_TRAINNUM("屈曲位"), GET_TRAINNUM("駅弁"), GET_TRAINNUM("逆駅弁"), GET_TRAINNUM("立ちバック"),
+		GET_TRAINNUM("Ａ正常位"), GET_TRAINNUM("Ａ後背位"), GET_TRAINNUM("Ａ対面座位"), GET_TRAINNUM("Ａ背面座位"), GET_TRAINNUM("Ａ騎乗位"),
+		GET_TRAINNUM("Ａ背面騎乗位"), GET_TRAINNUM("Ａ側位"), GET_TRAINNUM("Ａ屈曲位"), GET_TRAINNUM("Ａ駅弁"), GET_TRAINNUM("Ａ逆駅弁"),
+		GET_TRAINNUM("Ａ立ちバック"), GET_TRAINNUM("縄"), GET_TRAINNUM("イラマチオ"), GET_TRAINNUM("コンドーム"), GET_TRAINNUM("触手召喚"),
+		GET_TRAINNUM("ビデオ撮影"))
+}
+		;200が触手召喚、201～219が触手割り当て番号
+		IF MEQUIP:L_COUNTER >= GET_TRAINNUM("触手挿入") && MEQUIP:L_COUNTER <= 219
+			IF MEQUIP_TURN:L_COUNTER >= 6 && RAND:100 < 20
+				CALL RELEASE_EQUIP(L_COUNTER, 1)
+			ENDIF
+		ELSE
+			IF MEQUIP_TURN:L_COUNTER >= 3 && RAND:100 < 25
+				CALL RELEASE_EQUIP(L_COUNTER, 1)
+			ENDIF
+		ENDIF
+	ENDIF
+NEXT
+
+;-------------------------------------------------
+;# 潤滑チェック
+;	男女共に倒錯度や主導度Ｕによっては
+;	潤滑が必須になるよう分岐追加したので
+;	クンニやアナル舐め２回程度に緩和
+;-------------------------------------------------
+@COM_AUTOSELECT_IS_WET_ENOUGH(ARG:0)
+#FUNCTION
+
+RETURNF GET_PALAMLV(PALAM:(ARG:0):潤滑) >= 2
+
+;-------------------------------------------------
+;# タイプ補正 1 活発
+;	ARG:0=キャラ番号 ARG:1 1=加算 0=減算
+;-------------------------------------------------
+@AUTO_N_TYPE_活発(ARG:0, ARG:1)
+#FUNCTION
+#DIM RETURN_NUM
+
+VARSET RETURN_NUM
+IF ARG:1 == 1
+	RETURN_NUM += (TALENT:(ARG:0):素直) * 2
+	RETURN_NUM += (TALENT:(ARG:0):楽観的) * 2
+	RETURN_NUM += (TALENT:(ARG:0):目立ちたがり) * 2
+	RETURN_NUM += (TALENT:(ARG:0):解放) * 2
+	RETURN_NUM += (TALENT:(ARG:0):恥薄い) * 2
+	RETURN_NUM += (TALENT:(ARG:0):生意気) * 2
+	RETURN_NUM += (TALENT:(ARG:0):反抗的) * 2
+	RETURN_NUM += (TALENT:(ARG:0):ツンデレ) * 2
+	RETURN_NUM += (TALENT:(ARG:0):小悪魔) * 2
+	RETURN_NUM += (TALENT:(ARG:0):幼稚) * 2
+ELSE
+	RETURN_NUM = 20
+	RETURN_NUM -= (TALENT:(ARG:0):素直) * 2
+	RETURN_NUM -= (TALENT:(ARG:0):楽観的) * 2
+	RETURN_NUM -= (TALENT:(ARG:0):目立ちたがり) * 2
+	RETURN_NUM -= (TALENT:(ARG:0):解放) * 2
+	RETURN_NUM -= (TALENT:(ARG:0):恥薄い) * 2
+	RETURN_NUM -= (TALENT:(ARG:0):生意気) * 2
+	RETURN_NUM -= (TALENT:(ARG:0):反抗的) * 2
+	RETURN_NUM -= (TALENT:(ARG:0):ツンデレ) * 2
+	RETURN_NUM -= (TALENT:(ARG:0):小悪魔) * 2
+	RETURN_NUM -= (TALENT:(ARG:0):幼稚) * 2
+ENDIF
+
+RETURNF RETURN_NUM
+
+;-------------------------------------------------
+;# タイプ補正 2 大人しい
+;-------------------------------------------------
+@AUTO_N_TYPE_大人しい(ARG:0, ARG:1)
+#FUNCTION
+#DIM RETURN_NUM
+
+VARSET RETURN_NUM
+IF ARG:1 == 1
+	RETURN_NUM += (TALENT:(ARG:0):臆病) * 2
+	RETURN_NUM += (TALENT:(ARG:0):大人しい) * 2
+	RETURN_NUM += (TALENT:(ARG:0):保守的) * 2
+	RETURN_NUM += (TALENT:(ARG:0):悲観的) * 2
+	RETURN_NUM += (TALENT:(ARG:0):プライド低い) * 2
+	RETURN_NUM += (TALENT:(ARG:0):習得遅い) * 2
+	RETURN_NUM += (TALENT:(ARG:0):献身的) * 2
+	RETURN_NUM += (TALENT:(ARG:0):恥じらい) * 2
+	RETURN_NUM += (TALENT:(ARG:0):Ｍ気質) * 2
+	RETURN_NUM += GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_マゾ) * 2
+ELSE
+	RETURN_NUM = 20
+	RETURN_NUM -= (TALENT:(ARG:0):臆病) * 2
+	RETURN_NUM -= (TALENT:(ARG:0):大人しい) * 2
+	RETURN_NUM -= (TALENT:(ARG:0):保守的) * 2
+	RETURN_NUM -= (TALENT:(ARG:0):悲観的) * 2
+	RETURN_NUM -= (TALENT:(ARG:0):プライド低い) * 2
+	RETURN_NUM -= (TALENT:(ARG:0):習得遅い) * 2
+	RETURN_NUM -= (TALENT:(ARG:0):献身的) * 2
+	RETURN_NUM -= (TALENT:(ARG:0):恥じらい) * 2
+	RETURN_NUM -= (TALENT:(ARG:0):Ｍ気質) * 2
+	RETURN_NUM -= GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_マゾ) * 2
+ENDIF
+
+RETURNF RETURN_NUM
+
+;-------------------------------------------------
+;# タイプ補正 3 クール
+;-------------------------------------------------
+@AUTO_N_TYPE_クール(ARG:0, ARG:1)
+#FUNCTION
+#DIM RETURN_NUM
+
+VARSET RETURN_NUM
+IF ARG:1 == 1
+	RETURN_NUM += (TALENT:(ARG:0):自制心) * 2
+	RETURN_NUM += (TALENT:(ARG:0):無関心) * 2
+	RETURN_NUM += (TALENT:(ARG:0):感情乏しい) * 2
+	RETURN_NUM += (TALENT:(ARG:0):好奇心) * 2
+	RETURN_NUM += (TALENT:(ARG:0):抑圧) * 2
+	RETURN_NUM += (TALENT:(ARG:0):孤高) * 2
+	RETURN_NUM += (TALENT:(ARG:0):濡れにくい) * 2
+	RETURN_NUM += FIND_PASSIVE_SKILL(ARG:0, "努力家") * 2
+ELSE
+	RETURN_NUM = 16
+	RETURN_NUM -= (TALENT:(ARG:0):自制心) * 2
+	RETURN_NUM -= (TALENT:(ARG:0):無関心) * 2
+	RETURN_NUM -= (TALENT:(ARG:0):感情乏しい) * 2
+	RETURN_NUM -= (TALENT:(ARG:0):好奇心) * 2
+	RETURN_NUM -= (TALENT:(ARG:0):抑圧) * 2
+	RETURN_NUM -= (TALENT:(ARG:0):孤高) * 2
+	RETURN_NUM -= (TALENT:(ARG:0):濡れにくい) * 2
+	RETURN_NUM -= FIND_PASSIVE_SKILL(ARG:0, "努力家") * 2
+ENDIF
+
+RETURNF RETURN_NUM
+
+;-------------------------------------------------
+;# タイプ補正 4 凛とした
+;-------------------------------------------------
+@AUTO_N_TYPE_凛とした(ARG:0, ARG:1)
+#FUNCTION
+#DIM RETURN_NUM
+
+VARSET RETURN_NUM
+IF ARG:1 == 1
+	RETURN_NUM += (TALENT:(ARG:0):気丈) * 2
+	RETURN_NUM += (TALENT:(ARG:0):プライド高い) * 2
+	RETURN_NUM += (TALENT:(ARG:0):一線越えない) * 2
+	RETURN_NUM += (TALENT:(ARG:0):貞操観念) * 2
+	RETURN_NUM += (TALENT:(ARG:0):習得早い) * 2
+	RETURN_NUM += (TALENT:(ARG:0):痛みに強い) * 2
+	RETURN_NUM += (TALENT:(ARG:0):汚臭敏感) * 2
+	RETURN_NUM += (TALENT:(ARG:0):快感の否定) * 2
+	RETURN_NUM += (TALENT:(ARG:0):Ｓ気質) * 2
+	RETURN_NUM += GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_サド) * 2
+ELSE
+	RETURN_NUM = 20
+	RETURN_NUM -= (TALENT:(ARG:0):気丈) * 2
+	RETURN_NUM -= (TALENT:(ARG:0):プライド高い) * 2
+	RETURN_NUM -= (TALENT:(ARG:0):一線越えない) * 2
+	RETURN_NUM -= (TALENT:(ARG:0):貞操観念) * 2
+	RETURN_NUM -= (TALENT:(ARG:0):習得早い) * 2
+	RETURN_NUM -= (TALENT:(ARG:0):痛みに強い) * 2
+	RETURN_NUM -= (TALENT:(ARG:0):汚臭敏感) * 2
+	RETURN_NUM -= (TALENT:(ARG:0):快感の否定) * 2
+	RETURN_NUM -= (TALENT:(ARG:0):Ｓ気質) * 2
+	RETURN_NUM -= GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_サド) * 2
+ENDIF
+
+RETURNF RETURN_NUM
+
+;-------------------------------------------------
+;# タイプ補正 5 遊び人
+;-------------------------------------------------
+@AUTO_N_TYPE_遊び人(ARG:0, ARG:1)
+#FUNCTION
+#DIM RETURN_NUM
+
+VARSET RETURN_NUM
+IF ARG:1 == 1
+	RETURN_NUM += (TALENT:(ARG:0):サボり魔) * 2
+	RETURN_NUM += (TALENT:(ARG:0):痛みに弱い) * 2
+	RETURN_NUM += (TALENT:(ARG:0):濡れやすい) * 2
+	RETURN_NUM += (TALENT:(ARG:0):舌使い) * 2
+	RETURN_NUM += (TALENT:(ARG:0):自慰しやすい) * 2
+	RETURN_NUM += (TALENT:(ARG:0):貞操無頓着) * 2
+	RETURN_NUM += (TALENT:(ARG:0):汚臭鈍感) * 2
+	RETURN_NUM += (TALENT:(ARG:0):汚れ無視) * 2
+	RETURN_NUM += (TALENT:(ARG:0):快感に素直) * 2
+	RETURN_NUM += (TALENT:(ARG:0):中毒しやすい) * 2
+	RETURN_NUM += (TALENT:(ARG:0):倒錯的) * 2
+	RETURN_NUM += GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_淫乱) * 2
+	RETURN_NUM += GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_蕩唇) * 2
+	RETURN_NUM += GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_射精狂い) * 2
+ELSE
+	RETURN_NUM = 28
+	RETURN_NUM -= (TALENT:(ARG:0):サボり魔) * 2
+	RETURN_NUM -= (TALENT:(ARG:0):痛みに弱い) * 2
+	RETURN_NUM -= (TALENT:(ARG:0):濡れやすい) * 2
+	RETURN_NUM -= (TALENT:(ARG:0):舌使い) * 2
+	RETURN_NUM -= (TALENT:(ARG:0):自慰しやすい) * 2
+	RETURN_NUM -= (TALENT:(ARG:0):貞操無頓着) * 2
+	RETURN_NUM -= (TALENT:(ARG:0):汚臭鈍感) * 2
+	RETURN_NUM -= (TALENT:(ARG:0):汚れ無視) * 2
+	RETURN_NUM -= (TALENT:(ARG:0):快感に素直) * 2
+	RETURN_NUM -= (TALENT:(ARG:0):中毒しやすい) * 2
+	RETURN_NUM -= (TALENT:(ARG:0):倒錯的) * 2
+	RETURN_NUM -= GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_淫乱) * 2
+	RETURN_NUM -= GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_蕩唇) * 2
+	RETURN_NUM -= GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_射精狂い) * 2
+ENDIF
+
+RETURNF RETURN_NUM
+
+;-------------------------------------------------
+;# タイプ補正 6 魅了
+;-------------------------------------------------
+@AUTO_N_TYPE_魅了(ARG:0, ARG:1)
+#FUNCTION
+#DIM RETURN_NUM
+
+VARSET RETURN_NUM
+IF ARG:1 == 1
+	RETURN_NUM += (TALENT:(ARG:0):魅惑) * 2
+	RETURN_NUM += (TALENT:(ARG:0):謎の魅力) * 2
+	RETURN_NUM += (TALENT:(ARG:0):人気) * 2
+	RETURN_NUM += (TALENT:(ARG:0):天の御遣い) * 2
+ELSE
+	RETURN_NUM = 8
+	RETURN_NUM -= (TALENT:(ARG:0):魅惑) * 2
+	RETURN_NUM -= (TALENT:(ARG:0):謎の魅力) * 2
+	RETURN_NUM -= (TALENT:(ARG:0):人気) * 2
+	RETURN_NUM -= (TALENT:(ARG:0):天の御遣い) * 2
+ENDIF
+
+RETURNF RETURN_NUM
+
+;-------------------------------------------------
+;# タイプ補正 7 陥落や既成事実
+;-------------------------------------------------
+@AUTO_N_TYPE_陥落(ARG:0, ARG:1)
+#FUNCTION
+#DIM RETURN_NUM
+
+VARSET RETURN_NUM
+IF ARG:1 == 1
+	RETURN_NUM += (TALENT:(ARG:0):恋慕) * 2
+	RETURN_NUM += (TALENT:(ARG:0):親友) * 2
+	RETURN_NUM += (TALENT:(ARG:0):親愛) * 5
+	RETURN_NUM += (TALENT:(ARG:0):服従) * 2
+	RETURN_NUM += (TALENT:(ARG:0):隷属) * 5
+	RETURN_NUM += (TALENT:(ARG:0):恋人) * 2
+	RETURN_NUM += (TALENT:(ARG:0):烙印) * 2
+	RETURN_NUM += (TALENT:(ARG:0):合意) * 2
+	RETURN_NUM += (TALENT:(ARG:0):正妻) * 5
+ELSE
+	RETURN_NUM = 27
+	RETURN_NUM -= (TALENT:(ARG:0):恋慕) * 2
+	RETURN_NUM -= (TALENT:(ARG:0):親友) * 2
+	RETURN_NUM -= (TALENT:(ARG:0):親愛) * 5
+	RETURN_NUM -= (TALENT:(ARG:0):服従) * 2
+	RETURN_NUM -= (TALENT:(ARG:0):隷属) * 5
+	RETURN_NUM -= (TALENT:(ARG:0):恋人) * 2
+	RETURN_NUM -= (TALENT:(ARG:0):烙印) * 2
+	RETURN_NUM -= (TALENT:(ARG:0):合意) * 2
+	RETURN_NUM -= (TALENT:(ARG:0):正妻) * 5
+	RETURN_NUM -= (TALENT:(ARG:0):妾) * 5
+ENDIF
+
+RETURNF RETURN_NUM
+
+;-------------------------------------------------
+;# タイプ補正 8 状態異常
+;-------------------------------------------------
+@AUTO_N_TYPE_状態異常(ARG:0, ARG:1)
+#FUNCTION
+#DIM RETURN_NUM
+#DIM L_COUNTER
+
+VARSET RETURN_NUM
+IF ARG:1 == 1
+	RETURN_NUM += (TALENT:(ARG:0):崩壊) * 2
+	RETURN_NUM += (TALENT:(ARG:0):虚ろ) * 2
+	RETURN_NUM += GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_雌犬) * 2
+	RETURN_NUM += GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_精液便女) * 2
+	RETURN_NUM += (TALENT:(ARG:0):妊娠) * 2
+	FOR L_COUNTER, 0, MAX_SP_COUNTRY
+		RETURN_NUM += GETBIT(TALENT:(ARG:0):特殊勢力陥落系, L_COUNTER) * 2
+	NEXT
+	RETURN_NUM += GETBIT(TALENT:(ARG:0):デイリー系, 素質_デイリー_薬売りの性奴隷) * 2
+	RETURN_NUM += GETBIT(TALENT:(ARG:0):デイリー系, 素質_デイリー_貴族の虜) * 2
+ELSE
+	RETURN_NUM = 32
+	RETURN_NUM -= (TALENT:(ARG:0):崩壊) * 2
+	RETURN_NUM -= (TALENT:(ARG:0):虚ろ) * 2
+	RETURN_NUM -= GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_雌犬) * 2
+	RETURN_NUM -= GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_精液便女) * 2
+	RETURN_NUM -= (TALENT:(ARG:0):妊娠) * 2
+	RETURN_NUM += GETBIT(TALENT:(ARG:0):特殊勢力陥落系, 特殊勢力_野盗) * 2
+	RETURN_NUM += GETBIT(TALENT:(ARG:0):特殊勢力陥落系, 特殊勢力_ホフゴブリン) * 2
+	RETURN_NUM += GETBIT(TALENT:(ARG:0):特殊勢力陥落系, 特殊勢力_外来人) * 2
+	RETURN_NUM -= GETBIT(TALENT:(ARG:0):デイリー系, 素質_デイリー_薬売りの性奴隷) * 2
+	RETURN_NUM -= GETBIT(TALENT:(ARG:0):デイリー系, 素質_デイリー_貴族の虜) * 2
+ENDIF
+
+RETURNF RETURN_NUM
+
+;-------------------------------------------------
+;# 閨オートカテゴリ表示
+;	デバッグ用
+;	コンソールには吐き出しているが実際の表示には使用していない
+;-------------------------------------------------
+@COM_AUTO_COM_CATEGORY_NAME(ARG:0)
+#FUNCTIONS
+#DIMS RETURN_TEXT
+
+RETURN_TEXT '= ""
+SELECTCASE ARG:0
+	CASE COM_AUTO_CATEGORY_NUM_愛撫する
+		RETURN_TEXT '= "愛撫する"
+	CASE COM_AUTO_CATEGORY_NUM_性交する
+		RETURN_TEXT '= "性交する"
+	CASE COM_AUTO_CATEGORY_NUM_避妊する
+		RETURN_TEXT '= "避妊する"
+	CASE COM_AUTO_CATEGORY_NUM_潤滑追加する
+		RETURN_TEXT '= "潤滑追加する"
+	CASE COM_AUTO_CATEGORY_NUM_道具使う
+		RETURN_TEXT '= "道具使う"
+	CASE COM_AUTO_CATEGORY_NUM_加虐する
+		RETURN_TEXT '= "加虐する"
+	CASE COM_AUTO_CATEGORY_NUM_酷く加虐する
+		RETURN_TEXT '= "酷く加虐する"
+	CASE COM_AUTO_CATEGORY_NUM_露出する
+		RETURN_TEXT '= "露出する"
+	CASE COM_AUTO_CATEGORY_NUM_小排泄する
+		RETURN_TEXT '= "小排泄する"
+	CASE COM_AUTO_CATEGORY_NUM_大排泄する
+		RETURN_TEXT '= "大排泄する"
+	CASE COM_AUTO_CATEGORY_NUM_触手を扱う
+		RETURN_TEXT '= "触手を扱う"
+	CASE COM_AUTO_CATEGORY_NUM_愛撫させる
+		RETURN_TEXT '= "愛撫させる"
+	CASE COM_AUTO_CATEGORY_NUM_性交させる
+		RETURN_TEXT '= "性交させる"
+	CASE COM_AUTO_CATEGORY_NUM_避妊させる
+		RETURN_TEXT '= "避妊させる"
+	CASE COM_AUTO_CATEGORY_NUM_潤滑追加させる
+		RETURN_TEXT '= "潤滑追加させる"
+	CASE COM_AUTO_CATEGORY_NUM_道具使わせる
+		RETURN_TEXT '= "道具使わせる"
+	CASE COM_AUTO_CATEGORY_NUM_被虐する
+		RETURN_TEXT '= "被虐する"
+	CASE COM_AUTO_CATEGORY_NUM_酷く被虐する
+		RETURN_TEXT '= "酷く被虐する"
+	CASE COM_AUTO_CATEGORY_NUM_露出させる
+		RETURN_TEXT '= "露出させる"
+	CASE COM_AUTO_CATEGORY_NUM_小排泄させる
+		RETURN_TEXT '= "小排泄させる"
+	CASE COM_AUTO_CATEGORY_NUM_大排泄させる
+		RETURN_TEXT '= "大排泄させる"
+	CASE COM_AUTO_CATEGORY_NUM_触手を扱わせる
+		RETURN_TEXT '= "触手を扱わせる"
+	CASE COM_AUTO_CATEGORY_NUM_説得
+		RETURN_TEXT '= "説得"
+	CASEELSE
+		RETURN_TEXT '= "不明"
+ENDSELECT
+
+RETURNF RETURN_TEXT
+
+;-------------------------------------------------
+;# 日常オートカテゴリ表示
+;	デバッグ用
+;-------------------------------------------------
+@COM_AUTO_N_COM_CATEGORY_NAME(ARG:0)
+#FUNCTIONS
+#DIMS RETURN_TEXT
+
+RETURN_TEXT '= ""
+SELECTCASE ARG:0 
+	CASE COM_AUTO_CATEGORY_LIKE_0
+		RETURN_TEXT '= "好感度   0"
+	CASE COM_AUTO_CATEGORY_LIKE_300
+		RETURN_TEXT '= "好感度 300"
+	CASE COM_AUTO_CATEGORY_LIKE_500
+		RETURN_TEXT '= "好感度 500"
+	CASE COM_AUTO_CATEGORY_LIKE_800
+		RETURN_TEXT '= "好感度 800"
+	CASE COM_AUTO_CATEGORY_LIKE_1500
+		RETURN_TEXT '= "好感度1500"
+	CASEELSE
+		RETURN_TEXT '= "不明"
+ENDSELECT
+
+RETURNF RETURN_TEXT
+
+;-------------------------------------------------
+;# おまかせ時の行動フィルタ項目
+;-------------------------------------------------
+@COM_AUTO_FILTER_NAME(ARG:0)
+#FUNCTIONS
+#DIMS RETURN_TEXT
+
+RETURN_TEXT '= ""
+SELECTCASE ARG:0 
+	CASE COM_AUTO_FILTER_男性のＡを狙う行為を許可
+		RETURN_TEXT '= "男性のＡを狙う行為を許可する"
+	CASE COM_AUTO_FILTER_過激な暴力を禁止
+		RETURN_TEXT '= "過激な暴力を禁止する"
+	CASE COM_AUTO_FILTER_ＳＭを禁止
+		RETURN_TEXT '= "ＳＭを禁止する"
+	CASE COM_AUTO_FILTER_大スカを禁止
+		RETURN_TEXT '= "大スカを禁止する"
+	CASE COM_AUTO_FILTER_小スカを禁止
+		RETURN_TEXT '= "小スカを禁止する"
+	CASEELSE
+		RETURN_TEXT '= "不明"
+ENDSELECT
+
+RETURNF RETURN_TEXT
+
+;-------------------
+;# 重みつき乱択
+;	目的　：確率を変えながら候補を取ってランダムに選択したいときに使う
+;			あると楽なので作ってたバリから持ってきました、他でも使いそうなら移動してください
+;	使用　：リセット		→CALL COM_AUTO_RANDOMIZED_WEIGHTED_START
+;			候補の詰め込み	→CALL COM_AUTO_RANDOMIZED_WEIGHTED_VALUE(数字候補, 重み)
+;			結果をとる		→結果 = COM_AUTO_RANDOMIZED_WEIGHTED_RESULT()
+;	変数　：以下の変数はCOM_AUTOSELECT.ERHで宣言している
+;			COM_AUTO_RANDOMIZED_COUNTER		カウンタ。要素を代入するたび追加して、後で配列の要素数最大値として使う
+;			COM_AUTO_RANDOMIZED_NUM			最終的に欲しい番号。配列からひとつ選ぶときに要素番号定数とかを入れていく
+;			COM_AUTO_RANDOMIZED_WEIGHTED	重み。これが大きいほど出やすくなる。数値の幅はその都度自由に決める
+;-------------------
+;-------------------
+;## 乱択 開始時リセット
+;	使用　：CALL COM_AUTO_RANDOMIZED_WEIGHTED_START
+;	備考　：この関数自体は使用する変数をリセットするだけ
+;-------------------
+@COM_AUTO_RANDOMIZED_WEIGHTED_START
+VARSET COM_AUTO_RANDOMIZED_COUNTER
+VARSET COM_AUTO_RANDOMIZED_NUM
+VARSET COM_AUTO_RANDOMIZED_WEIGHTED
+
+RETURN 0
+
+;-------------------
+;## 乱択 候補の重み設定
+;	使用　：CALL COM_AUTO_RANDOMIZED_WEIGHTED_VALUE(数字候補, 重み)
+;	引数　：LOCAL_RESULT	COM_AUTO_RANDOMIZED_NUMに代入する結果として欲しい値
+;			LOCAL_NUM		COM_AUTO_RANDOMIZED_WEIGHTEDに代入する重み値
+;-------------------
+@COM_AUTO_RANDOMIZED_WEIGHTED_VALUE(LOCAL_RESULT, LOCAL_NUM)
+#DIM LOCAL_RESULT
+#DIM LOCAL_NUM
+
+COM_AUTO_RANDOMIZED_COUNTER ++
+COM_AUTO_RANDOMIZED_NUM:COM_AUTO_RANDOMIZED_COUNTER = LOCAL_RESULT
+COM_AUTO_RANDOMIZED_WEIGHTED:COM_AUTO_RANDOMIZED_COUNTER = LOCAL_NUM
+
+RETURN 0
+
+;-------------------
+;## 乱択 結果取得
+;	使用　：結果変数 = COM_AUTO_RANDOMIZED_WEIGHTED_RESULT()
+;	備考　：これだけ式中関数
+;-------------------
+@COM_AUTO_RANDOMIZED_WEIGHTED_RESULT
+#FUNCTION
+#DIM LOCAL_COUNTER
+#DIM COM_AUTO_RANDOMIZED_WEIGHTED_SUMARRAY
+#DIM COM_AUTO_RANDOMIZED_WEIGHTED_RAND_NUM
+#DIM COM_AUTO_RANDOMIZED_WEIGHTED_DETERMINED_NUM
+
+COM_AUTO_RANDOMIZED_WEIGHTED_SUMARRAY = SUMARRAY(COM_AUTO_RANDOMIZED_WEIGHTED, 1, COM_AUTO_RANDOMIZED_COUNTER + 1)
+
+IF !COM_AUTO_RANDOMIZED_WEIGHTED_SUMARRAY
+	DEBUGPRINTFORML     COM_AUTO_RANDOMIZED_WEIGHTED_SUMARRAYがありません。
+	RETURNF -1
+ENDIF
+
+IF COM_AUTO_RANDOMIZED_WEIGHTED_SUMARRAY <= 1
+	COM_AUTO_RANDOMIZED_WEIGHTED_DETERMINED_NUM = COM_AUTO_RANDOMIZED_NUM:LOCAL_COUNTER
+ELSE
+	COM_AUTO_RANDOMIZED_WEIGHTED_RAND_NUM = RAND(1, COM_AUTO_RANDOMIZED_WEIGHTED_SUMARRAY + 1)
+	COM_AUTO_RANDOMIZED_WEIGHTED_SUMARRAY = 0
+	FOR LOCAL_COUNTER, 1, COM_AUTO_RANDOMIZED_COUNTER + 1
+		IF COM_AUTO_RANDOMIZED_WEIGHTED_RAND_NUM >= COM_AUTO_RANDOMIZED_WEIGHTED_SUMARRAY && COM_AUTO_RANDOMIZED_WEIGHTED_RAND_NUM <= COM_AUTO_RANDOMIZED_WEIGHTED_SUMARRAY + COM_AUTO_RANDOMIZED_WEIGHTED:LOCAL_COUNTER
+			COM_AUTO_RANDOMIZED_WEIGHTED_DETERMINED_NUM = COM_AUTO_RANDOMIZED_NUM:LOCAL_COUNTER
+			BREAK
+		ENDIF
+		COM_AUTO_RANDOMIZED_WEIGHTED_SUMARRAY += COM_AUTO_RANDOMIZED_WEIGHTED:LOCAL_COUNTER
+	NEXT
+ENDIF
+
+RETURNF COM_AUTO_RANDOMIZED_WEIGHTED_DETERMINED_NUM
+
+;-------------------
+;# 調教モードの文字列表示
+;	デバッグ用
+;	どこかにありそうだけど見つからなかった
+;	見落としてたらすみません
+;	0調教_会う 1調教_閨 2調教_捕虜調教 3調教_子育て
+;	4調教_逆調教特殊 5調教_逆調教通常 6調教_捕虜会話 7調教_慰安
+;-------------------
+@COM_AUTO_MODE_NAME
+#FUNCTIONS
+#DIMS RETURN_TEXT
+
+SELECTCASE FLAG:調教モード
+CASE 調教_会う
+	RETURN_TEXT '= "会いに行く"
+CASE 調教_閨
+	RETURN_TEXT '= "閨に呼ぶ"
+CASE 調教_捕虜調教
+	RETURN_TEXT '= "捕虜調教"
+CASE 調教_子育て
+	RETURN_TEXT '= "子育て"
+CASE 調教_逆調教特殊
+	RETURN_TEXT '= "逆調教特殊"
+CASE 調教_逆調教通常
+	RETURN_TEXT '= "逆調教通常"
+CASE 調教_捕虜会話
+	RETURN_TEXT '= "捕虜会話"
+CASE 調教_慰安
+	RETURN_TEXT '= "慰安"
+	SELECTCASE FLAG:慰安モード
+	CASE 1
+		RETURN_TEXT '= RETURN_TEXT + " 民の慰安"
+	CASE 2
+		RETURN_TEXT '= RETURN_TEXT + " あてがう"
+	CASE 3
+		RETURN_TEXT '= RETURN_TEXT + " 見せしめ"
+	CASEELSE
+		RETURN_TEXT '= RETURN_TEXT + " 不明"
+	ENDSELECT
+CASEELSE
+	RETURN_TEXT '= RETURN_TEXT + "不明"
+ENDSELECT
+
+RETURNF RETURN_TEXT
+
+

@@ -1,0 +1,283 @@
+﻿;-------------------------------------------------
+;# コマンドの自動実行の処理
+;	「おまかせ」や「なすがまま」
+;	１．コマンドのカテゴリを設定
+;		各コマンドがどのカテゴリにあてはまるかの分類を行う
+;		登録できていないコマンドがないかチェックを行う
+;	２．実行・対象キャラを設定
+;		実行者（MAIN_PLAYER）と対象者（MAIN_TARGET）を設定
+;		ここでの実行者・対象者は「される」系コマンドが選択されたとき入れ替わる
+;		実行者は主導度Ｕが高いキャラの優先度が高い
+;		対象者は手動々Ｕが低いキャラの優先度が高い
+;		対象者は捕虜ターゲットかどうかと
+;		実行者と比較して陥落素質や処女性や性別組等も見る
+;		慰安の場合、慰安モブ・慰安参加者実行者は同種の対象者を避ける
+;	３．カテゴリの優先度を設定
+;		実行者の性的嗜好に合うものを高評価にして各カテゴリの優先度を設定していく
+;		コンフィグで禁止設定されているものは優先度を-1にする
+;		優先度設定が0のカテゴリがないかチェックを行う
+;	４．コマンドの優先度を設定
+;		実行者の性的嗜好に合うものを高評価にして各コマンドの優先度を設定していく
+;		ただしカテゴリごと禁止されている場合は優先度を-1にする
+;		優先度設定が0のコマンドがないかチェックを行う
+;	５．実行するコマンドを決定
+;		これまで設定した優先度を元に乱択を行う
+;		コマンドが決まったら、手伝う第三者キャラを選択したり
+;		実行が第三者に命令して行動させる可能性などをチェックする
+;	６．複数チェック
+;		順番に挿入や代わる代わる挿入は実行者１対象者１でのチェックだと
+;		必ず失敗するため、判定を回避してここまでの処理を進めている
+;		そのため最後のCOM_ABLEチェックを行い、決定したコマンドが不可なら
+;		そのコマンドの優先度は0にして５に戻る
+;-------------------------------------------------
+@COM_AUTOSELECT
+#DIM TEMP_COM			;一時的な決定コマンド
+#DIM FINAL_COM			;最終的な決定コマンド
+#DIM RAND_NUM			;任意値代入用
+#DIM CHECK_RANDOMIZED	;乱択用
+#DIM L_COUNTER			;FOR文用のカウンタ
+#DIM LOOP_CNT			;無限ループ回避用カウンタ
+#DIM MAIN_PLAYER		;選択権を持つキャラ
+#DIM MAIN_TARGET		;選択権を持つキャラに対象として選ばれたキャラ
+
+[IF_DEBUG]
+	;GROUPMATCH(FLAG:調教モード, 調教_会う, 調教_閨, 調教_捕虜調教, 調教_子育て, 調教_逆調教特殊, 調教_逆調教通常, 調教_捕虜会話, 調教_慰安)
+	DEBUGPRINTFORML 
+	DEBUGPRINTFORML #### 自動行動_閨_開始
+	DEBUGPRINTFORML      現在の調教モードは {FLAG:調教モード}.%COM_AUTO_MODE_NAME()%
+[ENDIF]
+
+;-------------------------------------------------
+;## コマンドのカテゴリ設定
+;-------------------------------------------------
+CALL COM_AUTOSELECT_SET_COM_CATEGORY
+
+;-------------------------------------------------
+;## キャラ設定
+;-------------------------------------------------
+;実行者取得
+CALL COM_AUTOSELECT_DECIDE_PLAYER
+IF RESULT == -1
+	PRINTFORML ※なにもしないが選択されます
+	CALL CLEAR_MTAR()
+	CALL CLEAR_MPLY()
+	CALL ADD_MPLY(MASTER)
+	FINAL_COM = GET_TRAINNUM("なにもしない")
+	GOTO SKIPPED
+ENDIF
+MAIN_PLAYER = RESULT
+
+;対象者取得（実行者を渡して除外する）
+CALL COM_AUTOSELECT_DECIDE_TARGET(MAIN_PLAYER)
+IF RESULT == -1
+	PRINTFORML ※なにもしないが選択されます
+	CALL CLEAR_MTAR()
+	CALL CLEAR_MPLY()
+	CALL ADD_MPLY(MASTER)
+	FINAL_COM = GET_TRAINNUM("なにもしない")
+	GOTO SKIPPED
+ENDIF
+MAIN_TARGET = RESULT
+
+;-------------------------------------------------
+;## デバッグ キャラ設定
+;-------------------------------------------------
+[IF_DEBUG]
+	DEBUGPRINTFORML 
+	DEBUGPRINTFORML #### DEBUG キャラ設定
+	DEBUGPRINTFORML      MAIN_PLAYER : %ANAME(MAIN_PLAYER), MAX_CHARANAME_LENGTH, LEFT%  %TOSTR_SEX(TALENT:MAIN_PLAYER:性別), 6%
+	DEBUGPRINTFORML                    体力 {BASE:MAIN_PLAYER:体力}/{MAXBASE:MAIN_PLAYER:体力}  気力 {BASE:MAIN_PLAYER:気力}/{MAXBASE:MAIN_PLAYER:気力}
+	DEBUGPRINTFORML      MAIN_TARGET : %ANAME(MAIN_TARGET), MAX_CHARANAME_LENGTH, LEFT%  %TOSTR_SEX(TALENT:MAIN_TARGET:性別), 6%
+	DEBUGPRINTFORML                    体力 {BASE:MAIN_TARGET:体力}/{MAXBASE:MAIN_TARGET:体力}  気力 {BASE:MAIN_TARGET:気力}/{MAXBASE:MAIN_TARGET:気力}
+[ENDIF]
+
+$CHOOSE_END
+
+;-------------------------------------------------
+;## カテゴリ優先度
+;-------------------------------------------------
+CALL COM_AUTOSELECT_SET_CATEGORY_PRIORITY(MAIN_PLAYER, MAIN_TARGET)
+
+;-------------------------------------------------
+;## コマンド優先度
+;-------------------------------------------------
+CALL COM_AUTOSELECT_SET_COM_PRIORITY(MAIN_PLAYER, MAIN_TARGET)
+
+;-------------------------------------------------
+;## 実行するコマンドを決定
+;	実行しようとしてCOM_ABLE判定に失敗したら
+;	失敗したコマンドは候補から外して
+;	$RESTARTEDに飛んでくる
+;-------------------------------------------------
+VARSET LOOP_CNT
+
+$RESTARTED
+
+[IF_DEBUG]
+	SIF LOOP_CNT
+		DEBUGPRINTFORML ※最後のCOM_ABLE判定に失敗して戻った。LOOP_CNT.{LOOP_CNT}回目 
+[ENDIF]
+
+;リセット
+CALL COM_AUTO_RANDOMIZED_WEIGHTED_START
+
+;候補設定
+VARSET CHECK_RANDOMIZED
+FOR L_COUNTER, 0, ADD_NUM_対象が実行 + 1000
+	SIF COM_AUTO_COM_PRIORITY:L_COUNTER < 1
+		CONTINUE
+	CALL COM_AUTO_RANDOMIZED_WEIGHTED_VALUE(L_COUNTER, COM_AUTO_COM_PRIORITY:L_COUNTER)
+	CHECK_RANDOMIZED ++
+NEXT
+
+;ひとつも候補がないとき最低値確保
+IF CHECK_RANDOMIZED < 1
+	IF COM_AUTO_COM_PRIORITY:GET_TRAINNUM("なにもしない") < 100
+		COM_AUTO_COM_PRIORITY:GET_TRAINNUM("なにもしない") = 100
+	ENDIF
+	CALL COM_AUTO_RANDOMIZED_WEIGHTED_VALUE(GET_TRAINNUM("なにもしない"), COM_AUTO_COM_PRIORITY:GET_TRAINNUM("なにもしない"))
+ENDIF
+
+;結果取得
+TEMP_COM = COM_AUTO_RANDOMIZED_WEIGHTED_RESULT()
+IF TEMP_COM < 0 || TEMP_COM >= ADD_NUM_対象が実行 + 1000
+;	PRINTFORML ※可能な行動が見つかりませんでした。なにもしないを代入します
+;	PRINTFORML ※普通に制限されていて起きる可能性があるので、ここではエラーメッセージを表示していません
+;	PRINTFORML ※@COM_AUTOSELECT_DECIDE_TARGET @COM_AUTO_RANDOMIZED_WEIGHTED_RESULT
+	TEMP_COM = GET_TRAINNUM("なにもしない")
+ENDIF
+
+;-------------------------------------------------
+;## デバッグ 決定したコマンド
+;-------------------------------------------------
+[IF_DEBUG]
+	DEBUGPRINTFORML 
+	DEBUGPRINTFORML #### DEBUG 決定したコマンド
+	IF TEMP_COM >= ADD_NUM_対象が実行
+		DEBUGPRINTFORML {TEMP_COM, 4}.%TRAINNAME:(TEMP_COM - ADD_NUM_対象が実行), 20, LEFT%される %NUM_FORMAT(COM_AUTO_COM_PRIORITY:TEMP_COM), 10, RIGHT%
+	ELSE
+		DEBUGPRINTFORML {TEMP_COM, 4}.%TRAINNAME:(TEMP_COM), 20, LEFT%する %NUM_FORMAT(COM_AUTO_COM_PRIORITY:TEMP_COM), 10, RIGHT%
+	ENDIF
+[ENDIF]
+
+;メインのプレイヤー・ターゲットの設定
+CALL CLEAR_MPLY()
+CALL CLEAR_MTAR()
+IF TEMP_COM < ADD_NUM_対象が実行
+	CALL ADD_MPLY(MAIN_PLAYER)
+	CALL ADD_MTAR(MAIN_TARGET)
+ELSEIF TEMP_COM < ADD_NUM_第三者に実行
+	CALL ADD_MPLY(MAIN_TARGET)
+	CALL ADD_MTAR(MAIN_PLAYER)
+ENDIF
+
+;第三者に手伝ってもらうパターン
+CALL AUTO_SET_THIRD_PERSON(MAIN_PLAYER, MAIN_TARGET, TEMP_COM)
+
+;第三者に命令するパターン 動物は命令しない
+IF !GROUPMATCH(TALENT:MAIN_PLAYER:慰安モブ, 慰安_キャラ_犬, 慰安_キャラ_豚, 慰安_キャラ_馬, 慰安_キャラ_猿)
+	CALL AUTO_SET_REMOVE_MAIN(MAIN_PLAYER, MAIN_TARGET, TEMP_COM)
+ENDIF
+
+;-------------------------------------------------
+;## 複数チェック
+;	キャラが揃ったのでずっとチェック回避してた複数プレイを最終チェック
+;	ダメだったらそのコマンドは優先度０にして戻る
+;-------------------------------------------------
+COM_ENABLE = 1
+
+RESULT = 0
+TRYCALLFORM COM_ABLE{TEMP_COM % ADD_NUM_対象が実行}
+IF !RESULT
+	;失敗したコマンドは優先度を０にする
+	IF TEMP_COM < ADD_NUM_対象が実行
+		COM_AUTO_COM_PRIORITY:TEMP_COM = 0
+	ELSEIF TEMP_COM < ADD_NUM_第三者に実行
+		COM_AUTO_COM_PRIORITY:(ADD_NUM_対象が実行 + TEMP_COM) = 0
+	ENDIF
+	LOOP_CNT ++
+	IF LOOP_CNT < 10
+		DEBUGPRINTFORML ※選択したコマンド{TEMP_COM}が実行不可能だったので戻ります
+		GOTO RESTARTED
+	ELSE
+		DEBUGPRINTFORML ※10回選択したコマンドの判定に失敗したので状況を無視し、
+		DEBUGPRINTFORML 　強制的に『なにもしない』を選択します
+		FINAL_COM = GET_TRAINNUM("なにもしない")
+		GOTO SKIPPED
+	ENDIF
+ENDIF
+
+;COM_ABLEチェック時にオンにするフラグリセット
+COM_ENABLE = 0
+
+;やり直し用カウンタリセット
+LOOP_CNT = 0
+
+;-------------------------------------------------
+;## 次回カテゴリ予約
+;	特定のコマンドを行った場合は次回選択するカテゴリを予約しておく
+;-------------------------------------------------
+TFLAG:30 = 0
+SELECTCASE TEMP_COM
+	CASE GET_TRAINNUM("ローション")
+		TFLAG:30 = COM_AUTO_CATEGORY_NUM_性交する
+	CASE GET_TRAINNUM("コンドーム")
+		TFLAG:30 = COM_AUTO_CATEGORY_NUM_性交する
+	CASE ADD_NUM_対象が実行 + GET_TRAINNUM("ローション")
+		TFLAG:30 = COM_AUTO_CATEGORY_NUM_性交させる
+	CASE ADD_NUM_対象が実行 + GET_TRAINNUM("コンドーム")
+		TFLAG:30 = COM_AUTO_CATEGORY_NUM_性交させる
+	CASE GET_TRAINNUM("ペニバン装着")
+		TFLAG:30 = COM_AUTO_CATEGORY_NUM_性交する
+	CASE ADD_NUM_対象が実行 + GET_TRAINNUM("ペニバン装着")
+		TFLAG:30 = COM_AUTO_CATEGORY_NUM_性交させる
+	CASE GET_TRAINNUM("触手召喚")
+		TFLAG:30 = COM_AUTO_CATEGORY_NUM_触手を扱う
+	CASE ADD_NUM_対象が実行 + GET_TRAINNUM("触手召喚")
+		TFLAG:30 = COM_AUTO_CATEGORY_NUM_触手を扱わせる
+ENDSELECT
+
+FINAL_COM = TEMP_COM % ADD_NUM_対象が実行
+
+;-------------------------------------------------
+;## 継続状態の設定
+;-------------------------------------------------
+RESULT = 0
+TRYCALLFORM COM_IS_EQUIP{FINAL_COM}
+;継続状態が不可能なコマンドの場合
+IF RESULT == 0
+	;非継続フラグON
+	TFLAG:1 = 1
+;常に継続状態で実行されるコマンドの場合
+ELSEIF RESULT == 2
+	;非継続フラグOFF
+	TFLAG:1 = 0
+;継続、非継続のどちらでも可能なコマンドの場合
+ELSE
+	;挿入など一部のコマンドは常に継続
+	IF (FINAL_COM >= GET_TRAINNUM("正常位") && FINAL_COM <= GET_TRAINNUM("Ａ駅弁")) || GROUPMATCH(FINAL_COM, GET_TRAINNUM("立ちバック"), GET_TRAINNUM("Ａ立ちバック"), GET_TRAINNUM("手コキ"), GET_TRAINNUM("フェラチオ"), GET_TRAINNUM("パイズリ"), GET_TRAINNUM("素股"), GET_TRAINNUM("尻コキ"), GET_TRAINNUM("オナホコキ"), GET_TRAINNUM("貝合わせ"), GET_TRAINNUM("双頭バイブ"), GET_TRAINNUM("順番に挿入"), GET_TRAINNUM("順番にＡ挿入"), GET_TRAINNUM("代わる代わる挿入"), GET_TRAINNUM("代わる代わるＡ挿入"), GET_TRAINNUM("イラマチオ"), GET_TRAINNUM("自慰"), GET_TRAINNUM("触手挿入"), GET_TRAINNUM("触手Ａ挿入"), GET_TRAINNUM("触手クリ責め"), GET_TRAINNUM("触手胸愛撫"), GET_TRAINNUM("触手オナホ"), GET_TRAINNUM("触手コキ"), GET_TRAINNUM("触手搾乳"), GET_TRAINNUM("触手口辱"))
+		;非継続フラグOFF
+		TFLAG:1 = 0
+	;その他のコマンドは性癖などを元に決める
+	ELSE
+		LOCAL:20 = 40
+		LOCAL:21 = 60
+		LOCAL:22 = 80
+		LOCAL:23 = 100
+		IF RAND:100 < LOCAL:(COM_TENDENCY:MAIN_PLAYER:FINAL_COM + 20)
+			;非継続フラグOFF
+			TFLAG:1 = 0
+		ELSE
+			;非継続フラグON
+			TFLAG:1 = 1
+		ENDIF
+	ENDIF
+ENDIF
+
+;-------------------------------------------------
+;## 実行
+;-------------------------------------------------
+$SKIPPED
+
+DOTRAIN FINAL_COM
+

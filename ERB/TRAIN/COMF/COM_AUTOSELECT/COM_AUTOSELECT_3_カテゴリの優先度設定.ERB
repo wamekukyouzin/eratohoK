@@ -1,0 +1,221 @@
+﻿;-------------------------------------------------
+;# COM_AUTOSELECT_2_カテゴリの優先度設定
+;-------------------------------------------------
+@COM_AUTOSELECT_SET_CATEGORY_PRIORITY(MAIN_PLAYER, MAIN_TARGET)
+#DIM MAIN_PLAYER
+#DIM MAIN_TARGET
+#DIM L_COUNTER
+
+;-------------------------------------------------
+;## リセット
+;-------------------------------------------------
+VARSET COM_AUTO_CATEGORY_PRIORITY, 0
+
+;-------------------------------------------------
+;## 各カテゴリの優先度リスト読み込み
+;-------------------------------------------------
+FOR L_COUNTER, 1, COM_AUTO_CATEGORY_NUM_MAX + 1
+	CALLFORM COM_AUTOSELECT_SET_CATEGORY_PRIORITY_{L_COUNTER}(MAIN_PLAYER, MAIN_TARGET)
+NEXT
+
+;-------------------------------------------------
+;## デバッグ 登録漏れ確認
+;-------------------------------------------------
+[IF_DEBUG]
+	DEBUGPRINTFORML 
+	DEBUGPRINTFORML #### DEBUG カテゴリ優先度 登録漏れ確認
+	FOR L_COUNTER, 1, COM_AUTO_CATEGORY_NUM_MAX + 1
+		SIF COM_AUTO_CATEGORY_PRIORITY:L_COUNTER != 0
+			CONTINUE
+		DEBUGPRINTFORML {L_COUNTER, 4}.%COM_AUTO_N_COM_CATEGORY_NAME(L_COUNTER), 26, LEFT% カテゴリなし
+	NEXT
+[ENDIF]
+
+;-------------------------------------------------
+;## デバッグ カテゴリ優先度 基本設定後
+;-------------------------------------------------
+[IF_DEBUG]
+	DEBUGPRINTFORML 
+	DEBUGPRINTFORML #### DEBUG カテゴリ優先度 基本設定後
+	FOR L_COUNTER, 1, COM_AUTO_CATEGORY_NUM_MAX + 1
+		IF COM_AUTO_CATEGORY_PRIORITY:L_COUNTER > 0
+			DEBUGPRINTFORML {L_COUNTER, 4}.%COM_AUTO_COM_CATEGORY_NAME(L_COUNTER), 26, LEFT% %NUM_FORMAT(COM_AUTO_CATEGORY_PRIORITY:L_COUNTER), 10, RIGHT%
+		ENDIF
+	NEXT
+[ENDIF]
+
+;-------------------------------------------------
+;## 補正　慰安サービス側
+;	慰安のときサービス側は相手にサービスを命令しにくい
+;	性交させるや被虐するはどうぞ弄んでください的表現としてありか？
+;-------------------------------------------------
+IF FLAG:調教モード == 調教_慰安 && !TALENT:MAIN_PLAYER:慰安モブ && !CFLAG:MAIN_PLAYER:慰安参加者
+	SIF COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_愛撫させる > 0
+		COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_愛撫させる /= 3
+	SIF COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_潤滑追加させる > 0
+		COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_潤滑追加させる /= 3
+	SIF COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_避妊させる > 0
+		COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_避妊させる /= 3
+	SIF COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_露出させる > 0
+		COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_露出させる /= 3
+	SIF COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_道具使う > 0
+		COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_道具使う /= 3
+	SIF COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_道具使わせる > 0
+		COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_道具使わせる /= 3
+	SIF COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_加虐する > 0
+		COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_加虐する /= 3
+	SIF COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_小排泄させる > 0
+		COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_小排泄させる /= 3
+	SIF COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_大排泄させる > 0
+		COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_大排泄させる /= 3
+	SIF COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_酷く加虐する > 0
+		COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_酷く加虐する /= 3
+	SIF COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_触手を扱わせる > 0
+		COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_触手を扱わせる /= 3
+ENDIF
+
+;-------------------------------------------------
+;## 除外 特殊勢力・慰安モブ男性
+;	上の指定ではCHECK_SP_SADIST_CHARA（慰安モブは動物以外、特殊勢力は自警団・サキュバス以外）
+;	で攻め役を判断し、Ｓ行動の制限をなくしている
+;	が、Ｍ行動は特に制限していない。理由はＭな淫乱痴女キャラを制限しないようにするため
+;	男性のみ自主的なＭ行動を制限して竿役らしくする、排泄は判断がつかないのでスルー
+;-------------------------------------------------
+IF IS_MALE(MAIN_PLAYER) && (TALENT:MAIN_PLAYER:特殊勢力素質 || TALENT:MAIN_PLAYER:慰安モブ)
+	COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_性交させる = -1
+	COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_潤滑追加させる = -1
+	COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_避妊させる = -1
+	COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_露出する = -1
+	COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_道具使わせる = -1
+	COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_被虐する = -1
+	COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_酷く被虐する = -1
+	COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_触手を扱わせる = -1
+ENDIF
+
+;男慰安モブ側が実行なら。対象の場合はこの限りではない
+IF TALENT:MAIN_PLAYER:慰安モブ && IS_MALE(MAIN_PLAYER)
+	COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_性交させる = -1
+	;オナホコキ指示をできるようにするには
+	;コマンドの優先度設定側で分岐させて道具使わせるを生かす必要あり
+	COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_道具使わせる = -1
+	COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_被虐する = -1
+	COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_酷く被虐する = -1
+	COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_露出する = -1
+	COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_触手を扱わせる = -1
+ENDIF
+
+;-------------------------------------------------
+;## 除外 動物モブ
+;	対象なら、キャラ側から避妊させたり道具を使うことはできる
+;-------------------------------------------------
+IF GROUPMATCH(TALENT:MAIN_PLAYER:慰安モブ, 慰安_キャラ_犬, 慰安_キャラ_豚, 慰安_キャラ_馬, 慰安_キャラ_猿)
+	COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_道具使う = -1
+	COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_道具使わせる = -1
+	COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_加虐する = -1
+	COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_被虐する = -1
+	COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_露出する = -1
+	COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_露出させる = -1
+	COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_酷く加虐する = -1
+	COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_酷く被虐する = -1
+ENDIF
+IF GROUPMATCH(TALENT:MAIN_TARGET:慰安モブ, 慰安_キャラ_犬, 慰安_キャラ_豚, 慰安_キャラ_馬, 慰安_キャラ_猿)
+	COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_道具使わせる = -1
+	COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_加虐する = -1
+	COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_被虐する = -1
+	COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_酷く加虐する = -1
+	COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_酷く被虐する = -1
+	COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_露出する = -1
+	COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_露出させる = -1
+	;キャラから動物に排泄を求めると散歩やお世話のようになりそうなので制限
+	COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_小排泄させる = -1
+	COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_大排泄させる = -1
+ENDIF
+
+;-------------------------------------------------
+;## 除外 おまかせ設定
+;-------------------------------------------------
+;-------------------------------------------------
+;### 男性のＡ狙いを禁止設定
+;-------------------------------------------------
+IF !GETBIT(CONFIG:11, COM_AUTO_FILTER_男性のＡを狙う行為を許可)
+	IF TOSTR_SEX(TALENT:MAIN_PLAYER:性別) == "男性"
+		COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_避妊させる = -1
+		COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_潤滑追加させる = -1
+		COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_性交させる = -1
+	ENDIF
+	IF TOSTR_SEX(TALENT:MAIN_TARGET:性別) == "男性"
+		COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_避妊する = -1
+		COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_潤滑追加する = -1
+		COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_性交する = -1
+	ENDIF
+ENDIF
+
+;-------------------------------------------------
+;### 過激な暴力を禁止
+;-------------------------------------------------
+IF GETBIT(CONFIG:11, COM_AUTO_FILTER_過激な暴力を禁止)
+	COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_酷く加虐する = -1
+	COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_酷く被虐する = -1
+ENDIF
+
+;-------------------------------------------------
+;### ＳＭを禁止
+;-------------------------------------------------
+IF GETBIT(CONFIG:11, COM_AUTO_FILTER_ＳＭを禁止)
+	COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_加虐する = -1
+	COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_被虐する = -1
+ENDIF
+
+;-------------------------------------------------
+;### 大スカを禁止
+;-------------------------------------------------
+IF GETBIT(CONFIG:11, COM_AUTO_FILTER_大スカを禁止)
+	COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_大排泄する = -1
+	COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_大排泄させる = -1
+ENDIF
+
+;-------------------------------------------------
+;### 小スカを禁止
+;-------------------------------------------------
+IF GETBIT(CONFIG:11, COM_AUTO_FILTER_小スカを禁止)
+	COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_小排泄する = -1
+	COM_AUTO_CATEGORY_PRIORITY:COM_AUTO_CATEGORY_NUM_小排泄させる = -1
+ENDIF
+
+;-------------------------------------------------
+;## 最低優先度
+;-------------------------------------------------
+FOR L_COUNTER, 1, COM_AUTO_CATEGORY_NUM_MAX + 1
+	IF L_COUNTER == 1
+		COM_AUTO_CATEGORY_PRIORITY:L_COUNTER = MAX(COM_AUTO_CATEGORY_PRIORITY:L_COUNTER, 2)
+	ELSE
+		COM_AUTO_CATEGORY_PRIORITY:L_COUNTER = MAX(COM_AUTO_CATEGORY_PRIORITY:L_COUNTER, 0)
+	ENDIF
+NEXT
+
+;-------------------------------------------------
+;## カテゴリの予約補正
+;	許可されていれば、そのカテゴリの選択率を大幅に上昇
+;	潤滑許可するとローション塗りからの予約行動で性交が出る可能性あり
+;	第三者でゴムやローションからの予約発動が起きることがあるので
+;	カテゴリが0なら予約発動しないようにした
+;-------------------------------------------------
+IF TFLAG:30 >= 1 && COM_AUTO_CATEGORY_PRIORITY:(TFLAG:30) > 0
+	COM_AUTO_CATEGORY_PRIORITY:(TFLAG:30) += 10000
+ENDIF
+
+;-------------------------------------------------
+;## デバッグ カテゴリ優先度 補正設定後
+;-------------------------------------------------
+[IF_DEBUG]
+	DEBUGPRINTFORML 
+	DEBUGPRINTFORML #### DEBUG カテゴリ優先度 補正設定後
+	FOR L_COUNTER, 1, COM_AUTO_CATEGORY_NUM_MAX + 1
+		IF COM_AUTO_CATEGORY_PRIORITY:L_COUNTER > 0
+			DEBUGPRINTFORML {L_COUNTER, 4}.%COM_AUTO_COM_CATEGORY_NAME(L_COUNTER), 26, LEFT% %NUM_FORMAT(COM_AUTO_CATEGORY_PRIORITY:L_COUNTER), 10, RIGHT%
+		ENDIF
+	NEXT
+[ENDIF]
+
+RETURN 0
+

@@ -43,13 +43,17 @@ RETURN 0
 ;調教コマンドの表示＆実行可能コマンドの記録
 ;-------------------------------------------------
 @SHOW_COMMAND
+#DIM L_COUNTER
+#DIM AUTO_MAIN_CHARA
+
 ;実行可能なコマンドの記録
 CALL CREATE_COMABLE_LIST
 
-PRINTL ◇コマンド◇
+CALL TITLE_CATEGORY_GENERAL("コマンド")
+PRINTL 
 
 ;逆調教または主人公が行動不能
-IF GROUPMATCH(FLAG:調教モード, 4, 5, 7) || !IS_PLAYABLE(MASTER)
+IF GROUPMATCH(FLAG:調教モード, 調教_逆調教特殊, 調教_逆調教通常, 調教_慰安) || !IS_PLAYABLE(MASTER)
 	PRINTPLAINFORM %TOSTR_SPACE(14)%
 	PRINTBUTTON @"0[なすがまま]", 0
 	PRINTL 
@@ -121,7 +125,8 @@ FOR LOCAL:0, 0, 1000
 	;LOCAL:1に実行可能なコマンドの番号を取得
 	LOCAL:1 = COM_LIST:(LOCAL:0)
 
-	IF LOCAL:1 >= 0
+	;おまかせ、なりゆきを省く
+	IF LOCAL:1 >= 0 && LOCAL:1 != GET_TRAINNUM("おまかせする") && LOCAL:1 != 393
 		;コマンドがどのタブに含まれるかを取得
 		RESULT = 0
 		TRYCALLFORM COM_CATEGORY{LOCAL:1}
@@ -178,12 +183,12 @@ FOR LOCAL:0, 0, 1000
 					SETCOLOR カラー_選択不可
 					PRINTPLAINFORM    [----]
 					RESETCOLOR
-				ELSEIF FLAG:調教モード == 3 || TFLAG:7 == 6
+				ELSEIF FLAG:調教モード == 調教_子育て || TFLAG:7 == 6
 					PRINTBUTTON @"{LOCAL:0, 3}[実行]", LOCAL:0
 				ELSE
 					PRINTBUTTON @"{LOCAL:0, 3}[単発]", LOCAL:0
 				ENDIF
-				IF !(FLAG:調教モード == 3 || TFLAG:7 == 6)
+				IF !(FLAG:調教モード == 調教_子育て || TFLAG:7 == 6)
 					PRINTPLAIN  
 					IF LOCAL:4 == 0
 						SETCOLOR カラー_選択不可
@@ -192,6 +197,11 @@ FOR LOCAL:0, 0, 1000
 					ELSE
 						PRINTBUTTON @"{LOCAL:0 + 200, 3}[継続]", LOCAL:0 + 200
 					ENDIF
+				ELSE
+					PRINTPLAIN  
+					SETCOLOR カラー_選択不可
+					PRINTPLAINFORM    [----]
+					RESETCOLOR
 				ENDIF
 			ELSE
 				SETCOLOR カラー_選択不可
@@ -203,7 +213,7 @@ FOR LOCAL:0, 0, 1000
 NEXT
 PRINTL 
 
-CUSTOMDRAWLINE -
+CALL COLOR_LINE
 PRINTPLAIN             
 
 IF FLAG:ウフフフラグ
@@ -223,20 +233,64 @@ IF FLAG:ウフフフラグ
 ELSEIF TFLAG:55 == TFLAG:56
 	CALL PRINT_SELECT_BUTTON("806{特殊}", 806, TFLAG:7 == 6)
 	PRINTPLAIN  
-ELSEIF FLAG:調教モード == 0
+ELSEIF FLAG:調教モード == 調教_会う
 	CALL PRINT_SELECT_BUTTON("800{交流}", 800, TFLAG:7 == 0)
 	PRINTPLAIN  
 	CALL PRINT_SELECT_BUTTON("801{訓練／内政}", 801, TFLAG:7 == 1)
 	PRINTPLAIN  
 	CALL PRINT_SELECT_BUTTON("806{特殊}", 806, TFLAG:7 == 6)
 	PRINTPLAIN  
-ELSEIF FLAG:調教モード == 6
+ELSEIF FLAG:調教モード == 調教_捕虜会話
 	CALL PRINT_SELECT_BUTTON("800{交流}", 800, TFLAG:7 == 0)
 	PRINTPLAIN  
 	CALL PRINT_SELECT_BUTTON("806{特殊}", 806, TFLAG:7 == 6)
 	PRINTPLAIN  
 ENDIF
-PRINTL 
+
+;会いに行くウフフオフ限定「なりゆきまかせ」表示
+IF FLAG:調教モード == 調教_会う && !FLAG:ウフフフラグ
+	AUTO_MAIN_CHARA = 0
+	FOR L_COUNTER, 0, CHARANUM
+		IF IS_AUTOSELECT_N(L_COUNTER)
+			AUTO_MAIN_CHARA = L_COUNTER
+			BREAK
+		ENDIF
+	NEXT
+	IF AUTO_MAIN_CHARA
+		;ループさせて表示上の番号をとる
+		FOR L_COUNTER, 1, 1000
+			IF COM_LIST:L_COUNTER == 393
+				TRYCALLFORM COM_NAME393
+				IF RESULTS:0 != ""
+					PRINTBUTTON @"{L_COUNTER}[%RESULTS:0%]", L_COUNTER
+					PRINTL 
+					BREAK
+				ENDIF
+			ENDIF
+		NEXT
+	ENDIF
+;会いに行くウフフオンor閨に呼ぶ限定「おまかせする」表示　あなたがなすがままではない
+ELSEIF GROUPMATCH(FLAG:調教モード, 調教_会う, 調教_閨, 調教_捕虜会話) && IS_PLAYABLE(MASTER)
+	AUTO_MAIN_CHARA = 0
+	FOR L_COUNTER, 0, CHARANUM
+		IF IS_AUTOSELECT_N(L_COUNTER)
+			AUTO_MAIN_CHARA = L_COUNTER
+			BREAK
+		ENDIF
+	NEXT
+	IF AUTO_MAIN_CHARA
+		FOR L_COUNTER, 1, 1000
+			IF COM_LIST:L_COUNTER == GET_TRAINNUM("おまかせする")
+				TRYCALLFORM COM_NAME{GET_TRAINNUM("おまかせする")}
+				IF RESULTS:0 != ""
+					PRINTBUTTON @"{L_COUNTER}[%RESULTS:0%]", L_COUNTER
+					PRINTL 
+					BREAK
+				ENDIF
+			ENDIF
+		NEXT
+	ENDIF
+ENDIF
 
 ;-------------------------------------------------
 ;調教画面における「対象キャラの選択」欄の表示
@@ -250,13 +304,13 @@ VARSET 捕虜, 0
 
 LOCAL:1 = 0
 FOR LOCAL:0, 0, CHARANUM
-	IF CFLAG:(LOCAL:0):調教参加フラグ || (FLAG:調教モード != 7 && LOCAL:0 == MASTER)
+	IF CFLAG:(LOCAL:0):調教参加フラグ || (FLAG:調教モード != 調教_慰安 && LOCAL:0 == MASTER)
 		;捕虜調教のメインターゲットは後回し
-		IF FLAG:調教モード == 2 && FINDELEMENT(PRISONER_TARGET, LOCAL:0) != -1
+		IF FLAG:調教モード == 調教_捕虜調教 && FINDELEMENT(PRISONER_TARGET, LOCAL:0) != -1
 			捕虜:カウンタ = LOCAL:1
 			カウンタ ++
 		;慰安系の調教で慰安参加者でない（ヤる側でない）キャラは後回し
-		ELSEIF FLAG:調教モード == 7 && !CFLAG:(LOCAL):慰安参加者
+		ELSEIF FLAG:調教モード == 調教_慰安 && !CFLAG:(LOCAL):慰安参加者
 			慰安者:カウンタ = LOCAL:1
 			カウンタ ++
 		ELSE
@@ -267,7 +321,7 @@ FOR LOCAL:0, 0, CHARANUM
 NEXT
 
 カウンタ = 0
-IF FLAG:調教モード == 2
+IF FLAG:調教モード == 調教_捕虜調教
 	PRINTFORML %TOSTR_SPACE(7)%%TOSTR_REPEAT("-", 85)%
 	;捕虜調教のメインターゲットについて処理
 	FOR LOCAL:0, 0, CHARANUM
@@ -276,7 +330,7 @@ IF FLAG:調教モード == 2
 			カウンタ ++
 		ENDIF
 	NEXT
-ELSEIF FLAG:調教モード == 7
+ELSEIF FLAG:調教モード == 調教_慰安
 	PRINTFORML %TOSTR_SPACE(7)%%TOSTR_REPEAT("-", 85)%
 	;民の慰安のメインターゲットの処理
 	FOR LOCAL:0, 0, CHARANUM
@@ -312,9 +366,9 @@ PRINTFORM   %SNAME(ARG:0), MAX_CHARANAME_LENGTH / 2, RIGHT%
 RESETCOLOR
 CALL PRINT_SEX(ARG:0, 1, 1, 4)
 
-IF !GROUPMATCH(FLAG:調教モード, 4, 5, 7)
+IF !GROUPMATCH(FLAG:調教モード, 調教_逆調教特殊, 調教_逆調教通常, 調教_慰安)
 	PRINT  
-	IF (FLAG:調教モード == 2 && FINDELEMENT(PRISONER_TARGET, ARG:0) != -1) || TCVAR:(ARG:0):51 || TCVAR:(ARG:0):52 || TCVAR:(ARG:0):53
+	IF (FLAG:調教モード == 調教_捕虜調教 && FINDELEMENT(PRISONER_TARGET, ARG:0) != -1) || TCVAR:(ARG:0):51 || TCVAR:(ARG:0):52 || TCVAR:(ARG:0):53
 		PRINTPLAIN [×]
 	ELSEIF FLAG:主導権所有者 == ARG:0
 		PRINTBUTTON "[★]", ARG:1 + 2100
@@ -382,7 +436,7 @@ CALL PRINT_SHORT_PALAM2(ARG:0, 20, "欲")
 CALL PRINT_SHORT_EMOTION(ARG:0)
 
 ;「会いに行く」のとき限定
-IF FLAG:調教モード == 0
+IF FLAG:調教モード == 調教_会う
 	CALL PRINT_SHORT_DRUNK(ARG:0)
 ENDIF
 ;ウフフ中のみ
@@ -391,37 +445,37 @@ IF FLAG:ウフフフラグ
 	CALL PRINT_SHORT_BASE2(ARG:0, 1, "気")
 
 	IF TALENT:(ARG:0):Ｃ敏感
-		CALL COLORPRINT("Ｃ", カラー_ピンク)
+		CALL COLOR_PRINT("Ｃ", カラー_ピンク)
 	ELSEIF TALENT:(ARG:0):Ｃ鈍感
-		CALL COLORPRINT("Ｃ", カラー_選択不可)
+		CALL COLOR_PRINT("Ｃ", カラー_選択不可)
 	ELSE
 		PRINT Ｃ
 	ENDIF
 	IF TALENT:(ARG:0):Ｖ敏感
-		CALL COLORPRINT("Ｖ", カラー_ピンク)
+		CALL COLOR_PRINT("Ｖ", カラー_ピンク)
 	ELSEIF TALENT:(ARG:0):Ｖ鈍感
-		CALL COLORPRINT("Ｖ", カラー_選択不可)
+		CALL COLOR_PRINT("Ｖ", カラー_選択不可)
 	ELSE
 		PRINT Ｖ
 	ENDIF
 	IF TALENT:(ARG:0):Ａ敏感
-		CALL COLORPRINT("Ａ", カラー_ピンク)
+		CALL COLOR_PRINT("Ａ", カラー_ピンク)
 	ELSEIF TALENT:(ARG:0):Ａ鈍感
-		CALL COLORPRINT("Ａ", カラー_選択不可)
+		CALL COLOR_PRINT("Ａ", カラー_選択不可)
 	ELSE
 		PRINT Ａ
 	ENDIF
 	IF TALENT:(ARG:0):Ｂ敏感
-		CALL COLORPRINT("Ｂ", カラー_ピンク)
+		CALL COLOR_PRINT("Ｂ", カラー_ピンク)
 	ELSEIF TALENT:(ARG:0):Ｂ鈍感
-		CALL COLORPRINT("Ｂ", カラー_選択不可)
+		CALL COLOR_PRINT("Ｂ", カラー_選択不可)
 	ELSE
 		PRINT Ｂ
 	ENDIF
 	IF TALENT:(ARG:0):Ｍ敏感
-		CALL COLORPRINT("Ｍ", カラー_ピンク)
+		CALL COLOR_PRINT("Ｍ", カラー_ピンク)
 	ELSEIF TALENT:(ARG:0):Ｍ鈍感
-		CALL COLORPRINT("Ｍ", カラー_選択不可)
+		CALL COLOR_PRINT("Ｍ", カラー_選択不可)
 	ELSE
 		PRINT Ｍ
 	ENDIF
@@ -445,7 +499,7 @@ IF FLAG:ウフフフラグ
 		RESETCOLOR
 ENDIF
 ;「捕虜の調教」のとき限定 メインターゲットに精神力ゲージを表示
-IF FLAG:調教モード == 2 && FINDELEMENT(PRISONER_TARGET, ARG:0) != -1
+IF FLAG:調教モード == 調教_捕虜調教 && FINDELEMENT(PRISONER_TARGET, ARG:0) != -1
 	PRINTL 
 	PRINT                     精神力 
 	CALL PRINT_SHORT_MIND(ARG:0)
@@ -458,7 +512,7 @@ PRINTL
 ;-------------------------------------------------
 @PRINT_SHORT_PALAM1(ARG:0, ARG:1, ARGS:2, ARG:3 = 1)
 IF !ARG:3
-	SETCOLOR 0x404040
+	SETCOLOR カラー_選択不可
 ENDIF
 PRINTFORM %ARGS:2%
 LOCAL:0 = GET_PALAMLV(PALAM:(ARG:0):(ARG:1))
@@ -488,7 +542,7 @@ IF LOCAL:0 >= 20
 ELSEIF LOCAL:0 >= 10
 	SETCOLOR カラー_注意
 ELSE
-	SETCOLOR 0x00FF00
+	SETCOLOR カラー_緑
 ENDIF
 PRINTFORM {LOCAL:0, 2, LEFT}
 RESETCOLOR
@@ -781,7 +835,7 @@ ELSEIF RESULT >= 2080 && RESULT < 2100
 	VARSET SHOP_CHARA_LIST, -1
 
 	FOR LOCAL:0, 0, CHARANUM
-		IF CFLAG:(LOCAL:0):調教参加フラグ || (FLAG:調教モード != 7 && LOCAL == MASTER)
+		IF CFLAG:(LOCAL:0):調教参加フラグ || (FLAG:調教モード != 調教_慰安 && LOCAL == MASTER)
 			SHOP_CHARA_LIST:(LOCAL:1) = LOCAL:0
 			LOCAL:1 ++
 		ENDIF
@@ -808,7 +862,7 @@ ELSEIF RESULT >= 2100 && RESULT < 2120
 		IF IS_PARTICIPATE_TRAIN(LOCAL:0)
 			IF LOCAL:1 == LOCAL:2 && !TCVAR:(LOCAL:0):51 && !TCVAR:(LOCAL:0):52 && !TCVAR:(LOCAL:0):53
 				;捕虜調教のメインターゲットは主導権を持てない
-				IF !(FLAG:調教モード == 2 && FINDELEMENT(PRISONER_TARGET, LOCAL:0) != -1)
+				IF !(FLAG:調教モード == 調教_捕虜調教 && FINDELEMENT(PRISONER_TARGET, LOCAL:0) != -1)
 					IF FLAG:主導権所有者 == LOCAL:0
 						FLAG:主導権所有者 = -1
 					ELSE
@@ -829,7 +883,7 @@ ELSEIF RESULT >= 2100 && RESULT < 2120
 	RETURN 0
 
 ;行動側反転
-ELSEIF RESULT == 900 && GROUPMATCH(FLAG:調教モード, 0, 1, 2, 6)
+ELSEIF RESULT == 900 && GROUPMATCH(FLAG:調教モード, 調教_会う, 調教_閨, 調教_捕虜調教, 調教_捕虜会話)
 	FOR LOCAL:0, 0, MPLY_NUM
 		LOCAL:(LOCAL:0 + 20) = MPLY:(LOCAL:0)
 	NEXT
@@ -851,7 +905,7 @@ ELSEIF RESULT == 900 && GROUPMATCH(FLAG:調教モード, 0, 1, 2, 6)
 	RETURN 1
 
 ;命令させろ
-ELSEIF RESULT == 901 && GROUPMATCH(FLAG:調教モード, 0, 1, 2, 6)
+ELSEIF RESULT == 901 && GROUPMATCH(FLAG:調教モード, 調教_会う, 調教_閨, 調教_捕虜調教, 調教_捕虜会話)
 	CALL CLEAR_MPLY
 	CALL CLEAR_MTAR
 	;調教参加者全員をターゲットに追加
@@ -881,10 +935,10 @@ ELSEIF RESULT >= 1000 && RESULT <= 1049
 ;行動終了
 ELSEIF RESULT == 999
 	;逆調教・主人公が行動不能のときは自分の意志で終了できない
-	IF GROUPMATCH(FLAG:調教モード, 4, 5) || !IS_PLAYABLE(MASTER)
+	IF GROUPMATCH(FLAG:調教モード, 調教_逆調教特殊, 調教_逆調教通常) || !IS_PLAYABLE(MASTER)
 		RETURN 0
 	;捕虜調教
-	ELSEIF FLAG:調教モード == 2
+	ELSEIF FLAG:調教モード == 調教_捕虜調教
 		PRINTFORMW （調教を終了します）
 		BEGIN AFTERTRAIN
 	;ウフフ中
@@ -912,13 +966,13 @@ ELSEIF RESULT == 999
 
 ;タブ設定
 ELSEIF RESULT >= 800 && RESULT <= 806
-	IF FLAG:ウフフフラグ || (FLAG:調教モード == 0 && GROUPMATCH(RESULT, 800, 801, 806)) || (FLAG:調教モード == 3 && GROUPMATCH(RESULT, 800)) || (FLAG:調教モード == 6 && GROUPMATCH(RESULT, 800, 806))
+	IF FLAG:ウフフフラグ || (FLAG:調教モード == 調教_会う && GROUPMATCH(RESULT, 800, 801, 806)) || (FLAG:調教モード == 調教_子育て && GROUPMATCH(RESULT, 800)) || (FLAG:調教モード == 調教_捕虜会話 && GROUPMATCH(RESULT, 800, 806))
 		TFLAG:7 = RESULT - 800
 	ENDIF
 	CLEARLINE LINECOUNT - LINES_TRAIN
 	;LINES_TRAIN = LINECOUNT
 ;逆調教・行動不能時の「なすがまま」
-ELSEIF RESULT == 0 && (GROUPMATCH(FLAG:調教モード, 4, 5, 7) || !IS_PLAYABLE(MASTER))
+ELSEIF RESULT == 0 && (GROUPMATCH(FLAG:調教モード, 調教_逆調教特殊, 調教_逆調教通常, 調教_慰安) || !IS_PLAYABLE(MASTER))
 	;おまかせフラグON
 	TFLAG:0 = 1
 	TFLAG:45 = 1
@@ -938,26 +992,26 @@ ELSEIF RESULT >= 0 && RESULT < 800
 		TFLAG:1 = 0
 	;	TFLAG:45 = 0
 	;相手主導、単発
-	;ELSEIF RESULT < 600 && GROUPMATCH(FLAG:調教モード, 0, 1, 6)
+	;ELSEIF RESULT < 600 && GROUPMATCH(FLAG:調教モード, 調教_会う, 調教_閨, 調教_捕虜会話)
 	;	LOCAL:0 = RESULT - 400
 	;	TFLAG:1 = 1
 	;	TFLAG:45 = 1
 	;相手主導、継続
-	;ELSEIF RESULT < 800 && GROUPMATCH(FLAG:調教モード, 0, 1, 6)
+	;ELSEIF RESULT < 800 && GROUPMATCH(FLAG:調教モード, 調教_会う, 調教_閨, 調教_捕虜会話)
 	;	LOCAL:0 = RESULT - 600
 	;	TFLAG:1 = 0
 	;	TFLAG:45 = 1
 	ENDIF
 
 	IF LOCAL:0 >= 0 && COM_LIST:(LOCAL:0) >= 0
-		;「なすがまま」「おまかせする」
-		IF GROUPMATCH(COM_LIST:(LOCAL:0), 290, 291)
+		;290「なすがまま」291「おまかせする」
+		IF GROUPMATCH(COM_LIST:(LOCAL:0), 290, GET_TRAINNUM("おまかせする"))
 			;おまかせフラグON
 			TFLAG:0 = 1
 			TFLAG:45 = 1
 			CALL COM_AUTOSELECT
-		;「なりゆきまかせ」
-		ELSEIF GROUPMATCH(COM_LIST:(LOCAL:0), 393)
+		;393「なりゆきまかせ」
+		ELSEIF GROUPMATCH(COM_LIST:(LOCAL:0), GET_TRAINNUM("なりゆきまかせ"))
 			;おまかせフラグON
 			TFLAG:0 = 1
 			TFLAG:45 = 1
