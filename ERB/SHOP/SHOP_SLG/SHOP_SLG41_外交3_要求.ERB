@@ -41,6 +41,9 @@ IF (LOCAL:10 && CFLAG:(LOCAL:5):外交要求成功フラグ == 1) || ((CFLAG:(LO
 	ELSEIF CFLAG:(LOCAL:5):外交要求成功フラグ == 3 && GETBIT(TALENT:(LOCAL:5):淫乱系, 素質_淫乱_薬物中毒)
 		PRINTFORMW %ANAME(LOCAL:5)%は虚ろな瞳で、従うから薬をくれるよう%ANAME(MASTER)%に訴えてきた
 		CALL DIPLOMACY_REQUEST_DRUG(ARG:0)
+	ELSEIF CFLAG:(LOCAL:5):外交要求成功フラグ == 4 && GETBIT(TALENT:(LOCAL:5):淫乱系, 素質_淫乱_傀儡)
+		PRINTFORMW %ANAME(MASTER)%が指を鳴らすと、%ANAME(LOCAL:5)%は虚ろな瞳になり、その言葉に頷いた
+		CALL DIPLOMACY_REQUEST_HYPNOSIS(ARG:0)
 	ELSEIF TALENT:(LOCAL:5):反抗的 || TALENT:(LOCAL:5):生意気 || TALENT:(LOCAL:5):プライド高い
 		PRINTFORMW %ANAME(LOCAL:5)%は%ANAME(MASTER)%を恨めしそうに睨みながら、怒気の篭った声で要求を受け入れた
 	ELSE
@@ -85,7 +88,11 @@ ELSE
 		PRINTFORML [2] 薬物で言うことを聞かせる
 		LOCAL:12 = 1
 	ENDIF
-	PRINTFORML [3] 諦める…
+	IF GETBIT(TALENT:(LOCAL:5):淫乱系, 素質_淫乱_傀儡)
+		PRINTFORML [3] 催眠術をかける
+		LOCAL:13 = 1
+	ENDIF
+	PRINTFORML [4] 諦める…
 	
 	$INPUT_LOOP
 	INPUT
@@ -228,6 +235,16 @@ ELSE
 			CFLAG:(LOCAL:5):薬物依存 += RAND(20, 50)
 			DIPLOMACY_HATE:(CFLAG:MASTER:所属) += 5
 			RETURN 3
+		ENDIF
+	ELSEIF RESULT == 3 && LOCAL:13
+		PRINTFORMW %ANAME(MASTER)%が指を鳴らすと、%ANAME(LOCAL:5)%は虚ろな瞳になりうなだれた
+		PRINTFORMW ………………
+		IF EXP:(LOCAL:5):被催眠経験 >= REL_HATE:(LOCAL:5):MASTER
+			PRINTFORMW %ANAME(MASTER)%が強烈な暗示をかけてやると、忠実な人形である%ANAME(LOCAL:5)%は当然のように従った
+			CFLAG:(LOCAL:5):外交要求成功フラグ= 4
+			RETURN 4
+		ELSE
+			PRINTFORMW ……が、%ANAME(MASTER)%を嫌悪する気持ちが上回ったようだ
 		ENDIF
 	ENDIF
 ENDIF
@@ -492,7 +509,7 @@ SELECTCASE TRAIN_LIST:RESULT
 		PRINTFORML 部屋に戻った%ANAME(MASTER)%を迎えたのは、むせかえるほどの性の匂いだった
 		PRINTFORML ベッドの上では、全身真っ白に染まった%ANAME(LOCAL:5)%が、両穴と口から子種を垂れ流しにしながら、
 		PRINTFORML 肉棒をねだる言葉を並べたてていた……
-		CALL FUCK(LOCAL:5, "欲望, 性交, 精愛, 奉仕, 性技, Ｖ, Ｃ, Ａ, Ｂ, Ｍ, 口淫, 緊縛, 苦痛快楽, マゾ, 輪姦, Ｖ性交, Ａ性交", "処女喪失, Ａ処女喪失, 膣内射精, 腸内射精, 口内射精", GET_SPERM_ID("兵士"), "兵士のペニス", "兵士", "", 喪失_外交)
+		CALL FUCK(LOCAL:5, "欲望, 性交, 精愛, 奉仕, 性技, Ｖ, Ｃ, Ａ, Ｂ, Ｍ, 口淫, 緊縛, 苦痛快楽, マゾ, 輪姦, Ｖ性交, Ａ性交", "キス喪失, 処女喪失, Ａ処女喪失, 膣内射精, 腸内射精, 口内射精", GET_SPERM_ID("兵士"), "兵士のペニス", "兵士", "", 喪失_外交)
 		WAIT
 	;宮廷を散歩する
 	CASE 7
@@ -613,6 +630,53 @@ SELECTCASE RAND:100
 ENDSELECT
 
 ;-------------------------------------------------
+;要求を飲んだ時のご褒美（催眠）
+;-------------------------------------------------
+@DIPLOMACY_REQUEST_HYPNOSIS_USE(ARG:0)
+#DIM 対象
+対象 = GET_COUNTRY_BOSS(ARG:0)
+
+CALL ASK_MULTI("このまま弄ぶ", "意識だけ戻す", "淫乱にする", "こちらを認識できなくする")
+
+SELECTCASE RESULT
+	CASE 0
+		PRINTFORML %ANAME(MASTER)%は%ANAME(対象)%を、このまま弄んでやることにした
+		PRINTFORMW 服を脱ぐよう命じると、%ANAME(対象)%は虚ろな瞳のまま自らの衣服に手をかけ、脱ぎ捨てていく
+		PRINTFORML 露わになった%STR_BODY("胸：感触", 対象)%や%STR_BODY("膣：感度", 対象)%を弄び、%STR_BODY("尻", 対象)%を撫で回してやっても、%PRONOUN(対象)%は表情一つかえない
+		PRINTFORMW しかし、やはり性感を覚えているようで、雌穴の奥からはじんわりと蜜が溢れてくる
+		PRINTFORML %ANAME(MASTER)%は自失したままの%ANAME(対象)%に肉棒をねじ込み、無防備なヴァギナを犯していく
+		PRINTFORMW 物言わぬ人形のようである%ANAME(対象)%相手に、何度も種を植え付けてやった……
+	CASE 1
+		PRINTFORML 意識を取り戻した%ANAME(対象)%は、自らが全裸で、%ANAME(MASTER)%のもとに跪いていることに気づく
+		PRINTFORML 何事か問いただそうとしたが、身体が自由に動かない
+		PRINTFORMW それどころか%ANAME(MASTER)%にへりくだり、媚びる言葉を口は並べる
+		PRINTFORML 指は意思と関係なしに自らの身体を慰め、両脚は勝手に大きく広げられる
+		PRINTFORMW 自ら%STR_BODY("膣", 対象)%を割り開き、肉棒をねだらされる
+		PRINTFORML 猛々しいペニスをねじ込まれると、屈辱すら忘れてしまうほどの快楽が全身を駆け抜ける……
+		PRINTFORMW %ANAME(対象)%はそのまま、何度も%ANAME(MASTER)%に犯された……
+	CASE 2
+		PRINTFORML %ANAME(MASTER)%が強烈な暗示をかけた後%ANAME(対象)%の意識を戻すと、%PRONOUN(対象)%はすぐに蕩けた表情を浮かべ始めた
+		PRINTFORMW 「たまたま」すぐ近くにいた男である%ANAME(MASTER)%にしなだれかかり、淫らな言葉を並べ立てて誘う
+		PRINTFORMW %ANAME(MASTER)%が焦らすように身体を撫で回すと、我慢ならなくなったのかこちらを押し倒してきた
+		PRINTFORML 合意を得る時間も勿体ないというようにこちらの下衣をずらし、露出した肉棒をしゃぶりたててくる
+		PRINTFORMW 娼婦顔負けの情熱的なフェラチオに%ANAME(MASTER)%がたっぷり射精すると、%ANAME(対象)%は目を蕩かしたまらないというように嚥下していく
+		PRINTFORMW その後、自ら股を開いた%ANAME(対象)%を、%ANAME(MASTER)%はたっぷりと犯してやった……
+	CASE 3
+		PRINTFORML 意識を取り戻した%ANAME(対象)%は、どうやら居眠りしていたようだと考えた
+		PRINTFORML 目の前の書類にうんざりしながらも、一つづつ片付けていく
+		PRINTFORMW それにしても新しい椅子は座り心地がよくて気持ちいいと考えながら……
+		PRINTFORMW ……%ANAME(MASTER)%が%ANAME(対象)%を猛然と突き上げている
+		PRINTFORML %STR_BODY("膣：処女確認：時間経過", 対象)%を犯されようとも、%STR_BODY("胸：感触", 対象)%を揉みしだかれようと、%ANAME(対象)%は気づきもしない
+		PRINTFORMW %ANAME(MASTER)%はそのまま、机仕事に追われる%ANAME(対象)%の子宮に、たっぷりと白濁を吐き出してやった……
+ENDSELECT
+
+CALL FUCK(対象, "欲望, 性交, 精愛, 奉仕, 性技, Ｖ, Ｃ, Ａ, Ｂ, Ｍ, 口淫, 苦痛快楽, マゾ, Ｖ性交, Ａ性交", "処女喪失, Ａ処女喪失, キス喪失, 膣内射精, 腸内射精, 口内射精", GET_ID(MASTER), @"%ANAME(MASTER)%のペニス", ANAME(MASTER), "", 喪失_外交)
+CALL FUCK(MASTER, "Ｃ, 欲望, 性交, 射精, Ｖ挿入", "童貞喪失, ", 0, "", "", @"%ANAME()%の膣")
+
+
+
+
+;-------------------------------------------------
 ;要求を飲んだ時のご褒美（薬物）
 ;-------------------------------------------------
 @DIPLOMACY_REQUEST_DRUG(ARG:0)
@@ -650,6 +714,26 @@ ENDIF
 	ELSEIF RESULT == 1
 
 	ENDIF
+
+;-------------------------------------------------
+;2回目以降の要求を飲んだ時のご褒美
+;-------------------------------------------------
+@DIPLOMACY_REQUEST_HYPNOSIS(ARG:0)
+LOCAL:4 = GET_COUNTRY_BOSS(CFLAG:MASTER:所属)
+LOCAL:5 = GET_COUNTRY_BOSS(ARG:0)
+
+SIF !IS_FEMALE(LOCAL:5) || !HAS_PENIS(MASTER)
+	RETURN 0
+
+PRINTL 
+PRINTFORMW ………………
+PRINTFORMW %ANAME(LOCAL:5)%は虚ろな瞳でうなだれている……
+PRINTFORML %ANAME(LOCAL:5)%にさらなる催眠術をかけて「楽しみ」ますか？
+CALL ASK_YN("楽しむ", "やめておく")
+IF RESULT == 0
+	CALL DIPLOMACY_REQUEST_HYPNOSIS_USE(ARG:0)
+ELSE
+ENDIF
 
 ;-------------------------------------------------
 ;外交による調教要求フラグの解除判定
