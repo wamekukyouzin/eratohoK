@@ -594,14 +594,11 @@ NEXT
 経済力 = GET_SUM_ECONOMY(ARG:0) / 100
 兵数 = GET_SUM_SOLDIER(ARG:0)
 
-
 SIF FLAG:兵数増加追加値 > 補正
 	FLAG:兵数増加追加値 = 補正 + (FLAG:兵数増加追加値 - 補正) / 3
 
 ;増加量は経済力ベースに補正
-;ただし経済力の10倍以上は保持できない
 増加量 = 経済力 * (( ARG:0 == CFLAG:MASTER:所属 ? FLAG:兵数増加追加値 # 0) + 補正 + 10) * 5 / 10000
-最大増加量 = MAX(経済力 * 10 - 兵数, 0)
 
 ;政策による補正
 SIF COUNTRY_POLICY:(ARG:0) == 政策_徴兵
@@ -617,7 +614,6 @@ SIF COUNTRY_POLICY:(ARG:0) == 政策_徴兵
 ;	ENDSELECT
 ;ENDIF
 
-LOCAL:8 = (LOCAL:4 == 0)
 ;人気持ち一人につき5%増加
 ;50%まで
 人気所持者数 = 0
@@ -637,9 +633,13 @@ IF ARG:0 != CFLAG:MASTER:所属
 	増加量 = 増加量 * 難易度補正 / 100
 ENDIF
 
+;経済力の10倍以上は保持できない
+最大増加量 = MAX(経済力 * 10 - 兵数, 0)
+増加量 = MIN(増加量, 最大増加量)
+
 COUNTRY_SOLDIER:(ARG:0) += 増加量
 
-IF ARG:0 == CFLAG:MASTER:所属 && 増加量 > 0
+IF ARG:0 == CFLAG:MASTER:所属
 	IF 増加量 == 0
 		CALL COLOR_PRINTL(@"徴兵の限界に達しています、これ以上兵を賄うには経済を増やすか、臨時徴兵をする必要があります", カラー_注意)
 	ELSE
