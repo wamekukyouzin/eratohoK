@@ -6,6 +6,8 @@
 #DIM RETURN_CHARA_NUM
 #DIM DECIDE_REFERENCE_VALUE					;重みの基準
 #DIM MULTI_SITUATION_DECIDE_REFERENCE_VALUE	;状況による重みの乗算補正
+#DIM CHECK_BEING_IAN_SERVE_FEMALE
+#DIM CHECK_BEING_IAN_GUEST_FEMALE
 
 DEBUGPRINTFORML 
 DEBUGPRINTFORML #### DEBUG メインプレイヤー選択 
@@ -14,6 +16,17 @@ DEBUGPRINTFORML #### DEBUG メインプレイヤー選択
 ;## リセット
 ;-------------------------------------------------
 CALL COM_AUTO_RANDOMIZED_WEIGHTED_START
+
+;-------------------------------------------------
+;## 慰安時のキャラ性別チェック
+;	FOR文軽量化のため先に確認して代入しておく
+;-------------------------------------------------
+IF FLAG:調教モード == 調教_慰安
+	;慰安サービス側に女はいるか
+	CHECK_BEING_IAN_SERVE_FEMALE = BEING_IAN_SERVE_FEMALE()
+	;慰安客側に女はいるか
+	CHECK_BEING_IAN_GUEST_FEMALE = BEING_IAN_GUEST_FEMALE()
+ENDIF
 
 ;-------------------------------------------------
 ;## 候補設定
@@ -28,7 +41,9 @@ FOR L_COUNTER, 0, CHARANUM
 	;行動不可能
 	SIF !IS_AUTOSELECT(L_COUNTER)
 		CONTINUE
-
+	;慰安モード、このキャラが男慰安客、サービス側に行動可能な女性がいない、客に行動可能な女性がいる
+	SIF FLAG:調教モード == 調教_慰安 && IS_IAN_GUEST_MALE(L_COUNTER) && !CHECK_BEING_IAN_SERVE_FEMALE && CHECK_BEING_IAN_GUEST_FEMALE
+		CONTINUE
 	;---------------------------------------------
 	;### 重みの基準
 	;	主導度Ｕプラス量を元に10～100 +1は0除算回避用
@@ -38,7 +53,7 @@ FOR L_COUNTER, 0, CHARANUM
 	;---------------------------------------------
 	;### 状況の補正
 	;---------------------------------------------
-	;慰安でないときは、主人公に挿入している・されているキャラを優先
+	;慰安でないときは主人公に挿入している・されているキャラを優先
 	IF FLAG:調教モード != 調教_慰安 && IS_INSERT_MUTUAL(MASTER, L_COUNTER) >= 1
 		MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 100
 	;挿入中ではないキャラ
