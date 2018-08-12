@@ -476,8 +476,10 @@ NEXT
 @TURNEND_CITY_ATTACK(勢力)
 #DIM 勢力
 #DIM 都市
+#DIM 与ダメ
 #DIM 敵部隊
 #DIM 敵勢力
+#DIM 自部隊
 #DIM 攻撃対象
 #DIM ループ
 
@@ -486,13 +488,22 @@ FOR 都市, 0, MAX_CITY
 	SIF CITY_OWNER:都市 != 勢力 || CITY_IS_ATTACKED:都市 || CITY_SOLDIER:都市 <= 0
 		CONTINUE
 
+	VARSET 与ダメ
+	FOR 自部隊, 0, VARSIZE("TMP_UNIT_ONCITY_CNT", 1)
+		TMP_UNIT_ONCITY_CNT:都市:自部隊 == 勢力
+		与ダメ += UNIT_SOLDIER:勢力:自部隊 / 10
+	NEXT
+
+	SIF 与ダメ == 0
+		CONTINUE
+
 	FOR 攻撃対象, 0, VARSIZE("TMP_UNIT_ONCITY_CNT", 1)
 		敵勢力 = TMP_UNIT_ONCITY_CNT:都市:攻撃対象
 		敵部隊 = TMP_UNIT_ONCITY_NUM:都市:攻撃対象
 		SIF !IS_COUNTRY(敵勢力) || UNIT_SOLDIER:敵勢力:敵部隊 <= 0 || TMP_COUNTRY_RELATION:勢力:敵勢力 > 0
 			CONTINUE
 		CALL COLOR_PRINTL(@"%SNAME(GET_COUNTRY_BOSS(勢力)), MAX_CHARANAME_LENGTH / 2, LEFT%の所領である%GET_CITYNAME(都市)%からの援護攻撃！", COUNTRY_COLOR:勢力)
-		CALL DECREASE_SOLDIER(敵勢力, 敵部隊, MIN(MAX(1000, UNIT_SOLDIER:敵勢力:敵部隊 / 10), UNIT_SOLDIER:敵勢力:敵部隊 - 1), 1)
+		CALL DECREASE_SOLDIER(敵勢力, 敵部隊, MIN(与ダメ, UNIT_SOLDIER:敵勢力:敵部隊 - 1), 1)
 		;自勢力のみウェイト
 		IF (勢力 == CFLAG:MASTER:所属 || 敵勢力 == CFLAG:MASTER:所属 || FLAG:観戦モード) && CFLAG:MASTER:捕虜先 == 0
 			WAIT
