@@ -67,8 +67,13 @@ SIF IS_SP_COUNTRY(CFLAG:対象:所属)
 ;野心が皆無なやつも謀反を起こさない
 SIF ABL:対象:野心 <= 0
 	RETURNF 0
-;主人公が君主なら、IS_SLAVEないしIS_LOVERのキャラは謀反しない
-SIF CFLAG:対象:所属 == CFLAG:MASTER:所属 && GET_COUNTRY_BOSS(CFLAG:MASTER:所属) == MASTER && (IS_LOVER(対象) || IS_SLAVE(対象) || IS_SLAVED_BY(対象))
+;主人公の勢力の士官は、陥落している場合は謀反しない
+;ただし印象値が非常に悪い場合はなおも謀反を企てる
+;閾値は本人の野心によって変動する
+{
+SIF CFLAG:対象:所属 == CFLAG:MASTER:所属 && GET_COUNTRY_BOSS(CFLAG:MASTER:所属) == MASTER && (IS_LOVER(対象) || IS_SLAVE(対象) || IS_SLAVED_BY(対象)) &&
+	REL_HATE:対象:MASTER - REL_LIKE:対象:MASTER < 1500 * (100 - ABL:対象:野心) / 100
+}
 	RETURNF 0
 RETURNF 1
 
@@ -80,7 +85,16 @@ RETURNF 1
 #DIM 対象
 #DIM 判定値
 ;野心とREL_LIKE/HATE、所有都市数、DAYから判定値を算出
-判定値 = ABL:対象:野心
+判定値 = ABL:対象:野心 * 2
+SELECTCASE ABL:対象:野心
+	CASE IS >= ランク閾値:ランク_ＳＬＧ:ランク_A
+		TIMES 判定値, 1.5
+	CASE IS  >= ランク閾値:ランク_ＳＬＧ:ランク_B
+		TIMES 判定値, 1.25
+	CASE IS >= ランク閾値:ランク_ＳＬＧ:ランク_C
+		TIMES 判定値, 1.1
+ENDSELECT
+		
 判定値 -= REL_LIKE:対象:(GET_COUNTRY_BOSS(CFLAG:対象:所属)) / 30
 判定値 += REL_HATE:対象:(GET_COUNTRY_BOSS(CFLAG:対象:所属)) / 50
 ;都市数が多いほど離反しやすい

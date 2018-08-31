@@ -77,6 +77,12 @@ NEXT
 ;都市をかすめ取る
 CALL STEAL_CITIES(離反元勢力, 新勢力, 奪取都市数)
 
+;兵力をかすめ取る
+CALL STEAL_SOLDIER(離反元勢力, 新勢力)
+
+;ぜんぜんとれなかったときのことを考慮して最低限のこづかい
+COUNTRY_SOLDIER:新勢力 += MIN(DAY * 200, 5000)
+
 ;武将数をカウントする
 武将数 = 0
 FOR LOCAL:0, 0, CHARANUM
@@ -312,3 +318,105 @@ ELSEIF RESULT == 2
 		RETURN 対応_拒否
 	ENDIF
 ENDIF
+
+;-------------------------------------------------
+;汎用型ランダム街強奪候補選択関数
+;ARG:0勢力から独立したARG:1勢力がARG:2都市かっぱらう関数です。
+;ARG:0のある一都市を奪い、続いてその都市に連続しているARG:0の都市のみを奪います。
+;LOCAL 0:残り強奪予定都市数, 1:健気なカウンタ君, 2:判定する都市番号
+;RETURN 0:強奪できました♪, 1:もしかして：全部奪っても足りないか０を指定, 2:もっとおかしな何かが起きました
+;------------------------------------------------- 
+@STEAL_CITIES(独立元, 独立先, 奪取数)
+#DIM 独立元
+#DIM 独立先
+#DIM 奪取数
+#DIM 奪取残数
+#DIM 都市
+#DIM ループ, 2
+#DIM ルート
+#DIM 中継点接続先
+#DIM 奪取候補
+;都市数のチェック
+SIF MATCH(CITY_OWNER, 独立元) <= 1 || 奪取数 <= 0
+	RETURN 1
+奪取残数 = 奪取数
+;都市のシャッフル
+CALL FISHER_YATES_SHAFFLE(GET_CITY_NUM())
+FOR ループ, 0, GET_CITY_NUM()
+	都市 = SHAFFLE_ARRAY:ループ
+	SIF CITY_OWNER:都市 != 独立元
+		CONTINUE
+	CALL TAKEOVER_CITY_FROM_NO(独立先, 都市)
+	PRINTFORML %GET_CITYNAME(都市)%を奪いました
+	奪取残数 --
+	SIF 奪取残数 == 0
+		RETURN 0
+	FOR ルート, 0, VARSIZE("CITY_ROUTE", 1)
+		SIF CITY_ROUTE:都市:ルート < 1
+			BREAK
+		;中継点
+		IF CITY_TYPE:(CITY_ROUTE:都市:ルート) == 1
+			FOR ループ:1, 0, VARSIZE("CITY_ROUTE", 1)
+				中継点接続先 = CITY_ROUTE:(CITY_ROUTE:都市:ルート):(ループ:1)
+				SIF 中継点接続先 == CITY_ROUTE:都市:ルート
+					CONTINUE
+				SIF 中継点接続先 < 1
+					BREAK
+				SIF CITY_OWNER:中継点接続先 != 独立元
+					CONTINUE
+				CALL TAKEOVER_CITY_FROM_NO(独立先, 中継点接続先)
+				PRINTFORML %GET_CITYNAME(中継点接続先)%を奪いました
+				奪取残数 --
+				SIF 奪取残数 == 0
+					RETURN 0
+			NEXT
+		ELSE
+			奪取候補 = CITY_ROUTE:都市:ルート
+			SIF IS_COUNTRY(CITY_OWNER:奪取候補) && GET_OWN_CITY(CITY_OWNER:奪取候補) > 1
+				CONTINUE
+			CALL TAKEOVER_CITY_FROM_NO(独立先, 奪取候補)
+			奪取残数 --
+			SIF 奪取残数 == 0
+				RETURN 0
+		ENDIF
+	NEXT
+	RETURN 1
+NEXT
+;普通ここまできませんが念のため
+RETURN 2
+
+
+;-------------------------------------------------
+;兵力奪取関数
+;呼び出した時点で独立元と独立先は君主、都市が決まっている必要がある
+;------------------------------------------------- 
+@STEAL_SOLDIER(独立元, 独立先)
+#DIM 独立元
+#DIM 独立先
+#DIM 独立元兵数
+#DIM 独立元君主
+#DIM 独立先君主
+#DIM 独立元都市数
+#DIM 独立先都市数
+#DIM 都市数比
+#DIM 能力比
+#DIM 兵数比
+#DIM 独立先獲得兵数
+独立元君主 = GET_COUNTRY_BOSS(独立元)
+独立先君主 = GET_COUNTRY_BOSS(独立先)
+
+独立元都市数 = GET_OWN_CITY(独立元)
+独立先都市数 = GET_OWN_CITY(独立先)
+
+独立元兵数 = GET_SUM_SOLDIER(独立元)
+
+都市数比 = LIMIT(独立先都市数 * 100 / 独立元都市数, 50, 150)
+能力比 = LIMIT((ABL:独立先君主:知略 + ABL:独立先君主:政治) * 100 / (ABL:独立元君主:知略 + ABL:独立元君主:政治), 50, 150)
+
+兵数比 = (都市数比 + 能力比) / 2
+
+独立先獲得兵数 = MIN(独立元兵数, 独立元兵数 * 兵数比 / (兵数比 + 100))
+
+CALL SHIFT_SOLDIER(独立元, 独立先, 独立先獲得兵数)
+
+RETURN 1
