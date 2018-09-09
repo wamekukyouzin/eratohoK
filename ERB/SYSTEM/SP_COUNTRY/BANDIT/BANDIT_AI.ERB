@@ -97,7 +97,7 @@ NEXT
 @BANDIT_CREATE_UNIT(勢力)
 #DIM 勢力
 #DIM 部隊
-#DIM 都市
+#DIM 中継地点
 #DIM 位置
 #DIM 都市所有者,2
 #DIM 候補, MAX_CITY
@@ -110,29 +110,43 @@ SIF DAY % 3 != 0
 VARSET 候補
 VARSET 候補数
 
-FOR 都市, GET_CITY_NUM(), MAX_CITY
+;GET_CITY_NUMの戻り値以降が中継地点である前提
+FOR 中継地点, GET_CITY_NUM(), MAX_CITY
 	$SKIPPED
-	SIF CITY_TYPE:都市 != 1 || CITY_ROUTE:都市:0 == 0
+	;中継地点でない、またはCITY_ROUTEが一切登録されていない場合は飛ばす
+	SIF CITY_TYPE:中継地点 != 1 || CITY_ROUTE:中継地点:0 == 0
 		CONTINUE
-	都市所有者:0 = CITY_OWNER:(CITY_ROUTE:都市:0)
+	;戦略
+	;両方の都市所有者を比較する
+	;両方無所属、または所属があっても敵同士でない場合は出現位置として含めない
 	FOR LOCAL, 0, VARSIZE("CITY_ROUTE", 1)
-		SIF GROUPMATCH(CITY_ROUTE:都市:LOCAL, 0, 都市)
+		;登録されてなければ飛ばす
+		SIF CITY_ROUTE:中継地点:LOCAL == 0
 			CONTINUE
-		都市所有者:1 = CITY_OWNER:(CITY_ROUTE:都市:1)
-		SIF (!IS_COUNTRY(都市所有者:0) && !IS_COUNTRY(都市所有者:1)) || TMP_COUNTRY_RELATION:(都市所有者:0):(都市所有者:1) != 0
-			CONTINUE
-		FOR 部隊, 0, MAX_UNIT
-			IF UNIT_POSITION:勢力:部隊 == 都市
-				都市 ++
-				GOTO SKIPPED
-			ENDIF
+		都市所有者:0 = CITY_OWNER:(CITY_ROUTE:中継地点:LOCAL)
+		FOR LOCAL:1, LOCAL, VARSIZE("CITY_ROUTE", 1)
+			;登録されてなければ飛ばす
+			SIF CITY_ROUTE:中継地点:(LOCAL:1) == 0
+				CONTINUE
+			都市所有者:1 = CITY_OWNER:(CITY_ROUTE:中継地点:(LOCAL:1))
+			SIF (!IS_COUNTRY(都市所有者:0) && !IS_COUNTRY(都市所有者:1)) || TMP_COUNTRY_RELATION:(都市所有者:0):(都市所有者:1) != 0
+				CONTINUE
+			;すでに自分とこの部隊がいたら駄目
+			;GOTO使わないといけないのはネックだが、ここでやらないと中継地点*MAX_UNITのループが必ず発生することになりダルい
+			FOR 部隊, 0, MAX_UNIT
+				IF UNIT_POSITION:勢力:部隊 == 中継地点
+					中継地点 ++
+					GOTO SKIPPED
+				ENDIF
+			NEXT
+			;条件を満たす場合は候補に入れる
+			;次の中継地点を見る
+			候補:候補数 = 中継地点
+			候補数 ++
+			中継地点 ++
+			GOTO SKIPPED
 		NEXT
 	NEXT
-	;最後まで回ったら候補に含めない
-	SIF LOCAL == VARSIZE("CITY_ROUTE", 1)
-		CONTINUE
-	候補:候補数 = 都市
-	候補数 ++
 NEXT
 
 SIF 候補数 == 0
