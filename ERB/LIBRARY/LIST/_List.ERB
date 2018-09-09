@@ -1,0 +1,394 @@
+﻿;_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/#
+;
+;Module   :_LIST.ERB, _LIST.ERH
+;Facility :文字列を可変長配列のように扱うライブラリ
+;Licence  :ライセンスフリー(CC0)。
+;
+;Modification Data:
+;  Edit  Date          Author                   Reason
+;  001   2018/08/29    MinorShift(Emueraの人)   新規作成
+;_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/#
+
+
+;文字列を使った可変長配列もどき
+;"値,値,値,"という形式でデータを保存する。（要素数が1以上なら終端にカンマが必須）
+;例えば、可変長配列用文字列STRが"ショート,セミロング,ロング,"であるとき、LIST_GET(STR, 1)は"セミロング"を返す。
+;また、STRが"ショート,セミロング,ロング,"であるとき、LIST_ADD(STR, "ロングウェーブ")は"ショート,セミロング,ロング,ロングウェーブ,"を返す。
+;制限として、格納する値にはカンマが含まれていてはいけない。当然入れ子にはできない。
+;標準では一つの可変長配列中の要素の最大数は100個。_LIST.ERHを変更すれば増やせるが実行速度が実用的でないと思われる。
+;少しでも高速化するためにデータ形式のチェックは省いている。そのため不正な形式のデータが送られてくると何が起こるかわからない。
+;データをまとめて格納するためにどうぞ。
+;_Dictionaryとは独立しているので値として連想配列を格納する、又は可変長配列を連想配列に格納することはできる。入れ子にすると死ぬ。
+
+;@LIST_ADD(_LIST, _VALUE) ;対象の可変長配列の末尾に_VALUEを追加した可変長配列を返す。
+;@LIST_SET(_LIST, _INDEX, _VALUE) ;対象の可変長配列の_INDEX番目の要素を_VALUEで上書きした可変長配列を返す。配列サイズが不足していれば自動的に拡張される。
+;@LIST_ADDLIST(_LIST, _LIST_OTHER) ;対象の可変長配列の末尾に_LIST_OTHERを結合した可変長配列を返す。
+;@LIST_GET(_LIST, _INDEX) ;対象の可変長配列の_INDEX番目の要素を返す。配列の範囲外である場合、空文字列を返す。
+;@LIST_INDEXOF(_LIST, _VALUE) ;対象の可変長配列に_VALUEと完全一致する要素が存在すればその最初のINDEX、存在しなければ-1を返す。
+;@LIST_COUNT(_LIST) ;対象の可変長配列のサイズ（要素数）を返す。
+;@LIST_INSERTAT(_LIST, _INDEX, _VALUE) ;対象の可変長配列の_INDEX番目に_VALUEを追加した可変長配列を返す。
+;@LIST_REMOVEAT(_LIST, _INDEX) ;対象の可変長配列の_INDEX番目の要素を削除した可変長配列を返す。配列の範囲外である場合、_LISTをそのまま返す。
+;@LIST_REMOVEALL(_LIST, _VALUE) ;対象の可変長配列から_VALUEと一致する要素を全て削除した可変長配列を返す。
+;@LIST_SORT(_LIST) ;対象の可変長配列を昇順でソートした可変長配列を返す。
+;@LIST_SORT_R(_LIST) ;対象の可変長配列を逆順（降順）でソートした可変長配列を返す。
+;@LIST_FOREACH(_LIST, _FUNCNAME) ;対象の可変長配列に含まれる要素全てについて、順番にCALLFORM %_FUNCNAME%, _VALUE; を実行する。
+
+
+;================================================
+;@LIST_SET (#FUNCTIONS);対象の可変長配列の_INDEX番目の要素を_VALUEで上書きした可変長配列を返す。配列サイズが不足していれば自動的に拡張される。
+;_LIST       対象の可変長配列（文字列）
+;_INDEX      追加又は変更する場所のインデックス
+;_VALUE      追加又は変更する値
+;RETURNF     追加又は変更された可変長配列（文字列）
+;================================================
+@LIST_SET(_LIST, _INDEX, _VALUE)
+#FUNCTIONS
+#DIMS _LIST
+#DIM _INDEX
+#DIMS _VALUE
+#DIM _COUNT
+IF _INDEX < 0
+	THROW _List.ERB:_INDEXに負の値({_INDEX})が指定された→%_LIST%
+ENDIF
+_LIST_LENGTH = STRCOUNT(_LIST, ",")
+;配列数不足なら拡張（,を増やす）して終了
+IF _INDEX >= _LIST_LENGTH
+	RETURNF _LIST + ("," * (_INDEX - _LIST_LENGTH)) + _VALUE + ","
+ENDIF
+;(_INDEX-1)番目のカンマと_INDEX番目のカンマを探索して_LIST_INDEX_LEFT,_LIST_INDEX_RIGHTに代入
+_LIST_INDEX_COMMA = -1
+_LIST_INDEX_LEFT = -1
+_COUNT = 0
+WHILE 1
+	_LIST_INDEX_COMMA = STRFINDU(_LIST, "," , _LIST_INDEX_COMMA + 1)
+	IF _COUNT == _INDEX
+		_LIST_INDEX_RIGHT = _LIST_INDEX_COMMA
+		BREAK
+	ENDIF
+	_LIST_INDEX_LEFT = _LIST_INDEX_COMMA
+	_COUNT ++
+WEND
+IF _INDEX > 0
+	;右端にカンマを含む形で切り取る
+	_LIST_LEFT '= SUBSTRINGU(_LIST,0,_LIST_INDEX_LEFT+1)
+ELSE
+	_LIST_LEFT '= ""
+ENDIF
+;左端にカンマを含む形で切り取る
+_LIST_RIGHT '= SUBSTRINGU(_LIST, _LIST_INDEX_RIGHT , -1)
+
+;足して返す
+RETURNF _LIST_LEFT + _VALUE + _LIST_RIGHT
+
+
+;================================================
+;@LIST_ADD (#FUNCTIONS);対象の可変長配列の末尾に_VALUEを追加した可変長配列を返す。
+;_LIST       対象の可変長配列（文字列）
+;_VALUE      追加する値
+;RETURNF     追加された可変長配列（文字列）
+;================================================
+@LIST_ADD(_LIST, _VALUE)
+#FUNCTIONS
+#DIMS _LIST
+#DIMS _VALUE
+RETURNF _LIST + _VALUE + ","
+
+;================================================
+;@LIST_ADDLIST (#FUNCTIONS);対象の可変長配列の末尾に_LIST_OTHERを結合した可変長配列を返す。
+;_LIST       対象の可変長配列（文字列）
+;_LIST_OTHER 追加する可変長配列
+;RETURNF     追加された可変長配列（文字列）
+;================================================
+@LIST_ADDLIST(_LIST, _LIST_OTHER)
+#FUNCTIONS
+#DIMS _LIST
+#DIMS _LIST_OTHER
+RETURNF _LIST + "," + _LIST_OTHER
+
+;@LIST_GET(_LIST, _INDEX) ;対象の可変長配列の_INDEX番目の要素を返す。配列の範囲外である場合、空文字列を返す。
+;================================================
+;@LIST_GET (#FUNCTIONS);対象の可変長配列の_INDEX番目の要素を返す。配列の範囲外である場合、空文字列を返す。
+;_LIST       対象の可変長配列（文字列）
+;_INDEX      取得する要素のインデックス
+;RETURNF     取得した要素
+;================================================
+@LIST_GET(_LIST, _INDEX)
+#FUNCTIONS
+#DIMS _LIST
+#DIM _INDEX
+#DIM _COUNT
+IF _INDEX < 0
+	THROW _List.ERB:_INDEXに負の値({_INDEX})が指定された→%_LIST%
+ENDIF
+;(_INDEX-1)番目のカンマと_INDEX番目のカンマを探索して_LIST_INDEX_LEFT,_LIST_INDEX_RIGHTに代入
+_LIST_INDEX_COMMA = -1
+_LIST_INDEX_LEFT = -1
+_COUNT = 0
+WHILE 1
+	_LIST_INDEX_COMMA = STRFINDU(_LIST, "," , _LIST_INDEX_COMMA + 1)
+	IF _COUNT == _INDEX
+		_LIST_INDEX_RIGHT = _LIST_INDEX_COMMA
+		BREAK
+	ENDIF
+	;_INDEXが配列外参照
+	IF _LIST_INDEX_COMMA < 0
+		RETURNF ""
+	ENDIF
+	_LIST_INDEX_LEFT = _LIST_INDEX_COMMA
+	_COUNT ++
+WEND
+RETURNF SUBSTRINGU(_LIST,_LIST_INDEX_LEFT + 1, _LIST_INDEX_RIGHT - _LIST_INDEX_LEFT - 1)
+
+
+
+;@LIST_COUNT(_LIST) ;対象の可変長配列のサイズ（要素数）を返す。
+;================================================
+;@LIST_COUNT (#FUNCTION);対象の可変長配列のサイズ（要素数）を返す。
+;_LIST       対象の可変長配列（文字列）
+;RETURNF     サイズ（要素数）
+;================================================
+@LIST_COUNT(_LIST)
+#FUNCTION
+#DIMS _LIST
+RETURNF STRCOUNT(_LIST, ",")
+
+
+
+;================================================
+;@LIST_INSERTAT (#FUNCTIONS);対象の可変長配列の_INDEX番目に_VALUEを追加した可変長配列を返す。
+;_LIST       対象の可変長配列（文字列）
+;_INDEX      追加する場所のインデックス
+;_VALUE      追加する値
+;RETURNF     追加された可変長配列（文字列）
+;================================================
+@LIST_INSERTAT(_LIST, _INDEX, _VALUE)
+#FUNCTIONS
+#DIMS _LIST
+#DIM _INDEX
+#DIMS _VALUE
+#DIM _COUNT
+IF _INDEX < 0
+	THROW _List.ERB:_INDEXに負の値({_INDEX})が指定された→%_LIST%
+ENDIF
+_LIST_LENGTH = STRCOUNT(_LIST, ",")
+;配列数不足なら拡張（,を増やす）して終了。LIST_SETと同じ処理
+IF _INDEX >= _LIST_LENGTH
+	RETURNF _LIST + ("," * (_INDEX - _LIST_LENGTH)) + _VALUE + ","
+ENDIF
+
+;(_INDEX-1)番目のカンマと_INDEX番目のカンマを探索して_LIST_INDEX_LEFT,_LIST_INDEX_RIGHTに代入
+_LIST_INDEX_COMMA = -1
+_LIST_INDEX_LEFT = -1
+_COUNT = 0
+WHILE 1
+	_LIST_INDEX_COMMA = STRFINDU(_LIST, "," , _LIST_INDEX_COMMA + 1)
+	IF _COUNT == _INDEX
+		_LIST_INDEX_RIGHT = _LIST_INDEX_COMMA
+		BREAK
+	ENDIF
+	_LIST_INDEX_LEFT = _LIST_INDEX_COMMA
+	_COUNT ++
+WEND
+IF _INDEX > 0
+	;右端にカンマを含む形で切り取る
+	_LIST_LEFT '= SUBSTRINGU(_LIST,0,_LIST_INDEX_LEFT+1)
+ELSE
+	_LIST_LEFT '= ""
+ENDIF
+;左端にカンマを含む形で切り取る
+_LIST_RIGHT '= SUBSTRINGU(_LIST, _LIST_INDEX_LEFT , -1); _LIST_INDEX_RIGHTじゃなくてLEFT。元のINDEX番目の要素を含む
+
+;足して返す
+RETURNF _LIST_LEFT + _VALUE + _LIST_RIGHT
+
+
+
+;================================================
+;@LIST_REMOVEAT (#FUNCTIONS);対象の可変長配列の_INDEX番目の要素を削除した可変長配列を返す。配列の範囲外である場合、_LISTをそのまま返す。
+;_LIST       対象の可変長配列（文字列）
+;_INDEX      削除する場所のインデックス
+;RETURNF     削除された可変長配列（文字列）
+;================================================
+@LIST_REMOVEAT(_LIST, _INDEX)
+#FUNCTIONS
+#DIMS _LIST
+#DIM _INDEX
+#DIM _COUNT
+IF _INDEX < 0
+	THROW _List.ERB:_INDEXに負の値({_INDEX})が指定された→%_LIST%
+ENDIF
+_LIST_LENGTH = STRCOUNT(_LIST, ",")
+;配列外なら_LISTをそのまま返す
+IF _INDEX > _LIST_LENGTH
+	RETURNF _LIST
+ENDIF
+;配列の唯一の要素を削除しようとしているなら空配列（空文字列）を返す
+IF _LIST_LENGTH == 1 && _INDEX == 0
+	RETURNF ""
+ENDIF
+;(_INDEX-1)番目のカンマと_INDEX番目のカンマを探索して_LIST_INDEX_LEFT,_LIST_INDEX_RIGHTに代入
+_LIST_INDEX_COMMA = -1
+_LIST_INDEX_LEFT = -1
+_COUNT = 0
+WHILE 1
+	_LIST_INDEX_COMMA = STRFINDU(_LIST, "," , _LIST_INDEX_COMMA + 1)
+	IF _COUNT == _INDEX
+		_LIST_INDEX_RIGHT = _LIST_INDEX_COMMA
+		BREAK
+	ENDIF
+	_LIST_INDEX_LEFT = _LIST_INDEX_COMMA
+	_COUNT ++
+WEND
+IF _INDEX > 0
+	;右端にカンマを"含まない"形で切り取る
+	_LIST_LEFT '= SUBSTRINGU(_LIST,0,_LIST_INDEX_LEFT)
+ELSE
+	_LIST_LEFT '= ""
+ENDIF
+;左端にカンマを含む形で切り取る
+_LIST_RIGHT '= SUBSTRINGU(_LIST, _LIST_INDEX_RIGHT , -1)
+
+;足して返す
+RETURNF _LIST_LEFT + _LIST_RIGHT
+
+
+;================================================
+;@LIST_INDEXOF (#FUNCTION) ;対象の可変長配列に_VALUEと完全一致する要素が存在すればその最初のINDEX、存在しなければ-1を返す。
+;_LIST       対象の可変長配列（文字列）
+;_VALUE      探索する値
+;RETURNF     発見されたINDEX又は-1
+;================================================
+@LIST_INDEXOF(_LIST, _VALUE)
+#FUNCTION
+#DIMS _LIST
+#DIMS _VALUE
+#DIM _KEYCOUNT
+#DIM _CNT
+;手抜きして「_VALUE + ","」をFINDすると_VALUEが空文字列の時に爆死する
+SPLIT _LIST, ",", _LIST_ELEMENT
+IF RESULT > _LIST_MAX
+	THROW _List.ERB:リストの要素数が多すぎる→%_LIST%
+ENDIF
+_KEYCOUNT = RESULT-1 ;末尾が,なのでSPLITした末端は空文字列になる
+IF _KEYCOUNT <= 0
+	RETURNF -1
+ENDIF
+FOR _CNT,0,_KEYCOUNT
+	IF _LIST_ELEMENT:_CNT == _VALUE
+		RETURNF _CNT
+	ENDIF
+NEXT
+RETURNF -1
+
+;================================================
+;@LIST_REMOVEALL (#FUNCTIONS) ;対象の可変長配列から_VALUEと一致する要素を全て削除した可変長配列を返す。
+;_LIST       対象の可変長配列（文字列）
+;_VALUE      削除する値
+;RETURNF     削除された可変長配列（文字列）
+;================================================
+@LIST_REMOVEALL(_LIST, _VALUE)
+#FUNCTIONS
+#DIMS _LIST
+#DIMS _VALUE
+#DIM _KEYCOUNT
+#DIM _CNT
+;手抜きして「_VALUE + ","」を空文字列でREPLACEすると_VALUEが空文字列の時に爆死する
+SPLIT _LIST, ",", _LIST_ELEMENT
+IF RESULT > _LIST_MAX
+	THROW _List.ERB:リストの要素数が多すぎる→%_LIST%
+ENDIF
+_KEYCOUNT = RESULT-1 ;末尾が,なのでSPLITした末端は空文字列になる
+IF _KEYCOUNT <= 0
+	RETURNF _LIST
+ENDIF
+_LIST '= ""
+FOR _CNT,0,_KEYCOUNT
+	IF _LIST_ELEMENT:_CNT == _VALUE
+		CONTINUE
+	ENDIF
+	_LIST += _LIST_ELEMENT:_CNT + ","
+NEXT
+RETURNF _LIST
+
+;================================================
+;@LIST_SORT (#FUNCTIONS) ;対象の可変長配列を昇順でソートした可変長配列を返す。
+;_LIST       対象の可変長配列（文字列）
+;RETURNF     ソートされた可変長配列（文字列）
+;================================================
+@LIST_SORT(_LIST)
+#FUNCTIONS
+#DIMS _LIST
+#DIMS _FUNCNAME
+#DIM _KEYCOUNT
+#DIM _CNT
+SPLIT _LIST, ",", _LIST_ELEMENT
+IF RESULT > _LIST_MAX
+	THROW _List.ERB:リストの要素数が多すぎる→%_LIST%
+ENDIF
+_KEYCOUNT = RESULT-1 ;末尾が,なのでSPLITした末端は空文字列になる
+IF _KEYCOUNT <= 0
+	RETURNF _LIST
+ENDIF
+ARRAYSORT _LIST_ELEMENT, FORWARD, 0, _KEYCOUNT
+_LIST '= ""
+FOR _CNT,0,_KEYCOUNT
+	_LIST += _LIST_ELEMENT:_CNT + ","
+NEXT
+RETURNF _LIST
+
+;================================================
+;@LIST_SORT_R (#FUNCTIONS) ;対象の可変長配列を逆順（降順）でソートした可変長配列を返す。
+;_LIST       対象の可変長配列（文字列）
+;RETURNF     ソートされた可変長配列（文字列）
+;================================================
+@LIST_SORT_R(_LIST)
+#FUNCTIONS
+#DIMS _LIST
+#DIMS _FUNCNAME
+#DIM _KEYCOUNT
+#DIM _CNT
+SPLIT _LIST, ",", _LIST_ELEMENT
+IF RESULT > _LIST_MAX
+	THROW _List.ERB:リストの要素数が多すぎる→%_LIST%
+ENDIF
+_KEYCOUNT = RESULT-1 ;末尾が,なのでSPLITした末端は空文字列になる
+IF _KEYCOUNT <= 0
+	RETURNF _LIST
+ENDIF
+ARRAYSORT _LIST_ELEMENT, BACK, 0, _KEYCOUNT
+_LIST '= ""
+FOR _CNT,0,_KEYCOUNT
+	_LIST += _LIST_ELEMENT:_CNT + ","
+NEXT
+RETURNF _LIST
+
+;================================================
+;@LIST_FOREACH ;対象の可変長配列に含まれる要素全てについて、順番にCALLFORM %_FUNCNAME%, _VALUE; を実行する。
+;_LIST  対象の連想配列（文字列）
+;_FUNCNAME    実行する関数名(CALLFORM %_FUNCNAME%, _VALUE)
+;RESULT       特になし
+;================================================
+@LIST_FOREACH(_LIST, _FUNCNAME)
+#DIMS _LIST
+#DIMS _FUNCNAME
+#DIM _KEYCOUNT
+#DIM _CNT
+#DIMS _LIST_ELEMENT_P,_LIST_MAX ;ERHの変数を使うとFOREACH中に他の配列のSORTとかできなくなるので。再帰の需要はたぶんないからDYNAMICにはしない
+
+SPLIT _LIST, ",", _LIST_ELEMENT_P
+IF RESULT > _LIST_MAX
+	THROW _List.ERB:リストの要素数が多すぎる→%_LIST%
+ENDIF
+
+_KEYCOUNT = RESULT-1 ;末尾が,なのでSPLITした末端は空文字列になる
+IF _KEYCOUNT <= 0
+	RETURN
+ENDIF
+FOR _CNT,0,_KEYCOUNT
+	CALLFORM %_FUNCNAME%, _LIST_ELEMENT_P:_CNT
+NEXT
+RETURN
+
+
+
+
