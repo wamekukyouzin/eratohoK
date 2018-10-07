@@ -2,10 +2,13 @@
 ;「会いに行く」「閨に呼ぶ」「子育て」「捕虜会話」の口上
 ;-------------------------------------------------
 ;めも
+;CSTR:90 特別な呼び名
+
+;CFLAG:300 呼び名変更イベ
 ;CFLAG:350 初絶頂
 ;CFLAG:351 初めてペニスを観察した
 ;CFLAG:400 素質等変更処理
-;CFLAG:401 性的嗜好を変更した場合の借金
+;CFLAG:401 空白（旧 性的嗜好を変更した場合の借金）
 ;TCVAR:650 続きは夜で
 ;TCVAR:651 C絶頂回数
 ;TCVAR:652 V絶頂回数
@@ -18,25 +21,22 @@
 @CHANGE_TALENT_ELLEN
 #DIM 消去行
 $SHOW_LOOP
-消去行 = 8
+消去行 = 10
 PRINTFORMDL バストサイズ
-CALL PRINTBUTTON_EX("{普通}", 0, 1, TALENT:バストサイズ == 0)
+CALL PRINTBUTTON_EX("{普通（デフォルト）}", 0, 1, TALENT:バストサイズ == 0)
 CALL PRINTBUTTON_EX("{絶壁}", 1, 1, TALENT:バストサイズ == -2)
 PRINTL
 
 PRINTFORMDL 髪の長さ
-CALL PRINTBUTTON_EX("{夢時空準拠}", 5, 1, TALENT:髪の長さ == 5)
+CALL PRINTBUTTON_EX("{夢時空準拠（デフォルト）}", 5, 1, TALENT:髪の長さ == 5)
 CALL PRINTBUTTON_EX("{原作準拠}", 6, 1, TALENT:髪の長さ == 4)
 PRINTL
 
-IF !TALENT:性的嗜好ロック
-	PRINTFORMDL 性的嗜好
-	CALL PRINTBUTTON_EX("{羞恥（見せる）}", 10, 1, TALENT:性的嗜好 == 6)
-	CALL PRINTBUTTON_EX("{奉仕（する）}", 11, 1, TALENT:性的嗜好 == 2)
-	PRINTL
-	PRINTL ※奉仕（する）を選んだ場合手コキ、亀頭攻め手コキの回数が25回に設定され、しばらくの間増加しなくなります
-	消去行 += 3
-ENDIF
+PRINTFORMDL 野心
+CALL PRINTBUTTON_EX("{普通（デフォルト）}", 10, 1, ABL:野心 == 47)
+CALL PRINTBUTTON_EX("{やや低い}", 11, 1, ABL:野心 == 32)
+CALL PRINTBUTTON_EX("{低い}", 12, 1, ABL:野心 == 22)
+PRINTL
 
 PRINTL
 PRINTL
@@ -53,19 +53,11 @@ ELSEIF RESULT == 5
 ELSEIF RESULT == 6
 	TALENT:髪の長さ = 4
 ELSEIF RESULT == 10
-	IF CFLAG:401
-		COM_EXP:10 -= 250
-		COM_EXP:106 -= 250
-		CFLAG:401 = 0
-	ENDIF
-	TALENT:性的嗜好 = 6
+	ABL:野心 = 47
 ELSEIF RESULT == 11
-	;普通に変更しても会いに行く終了時にCSV参照で元に戻されるので荒療治で変更を固定させる
-	COM_EXP:10 += 250
-	COM_EXP:106 += 250
-	;コマンド使用回数の借金を設定
-	CFLAG:401 = 500
-	TALENT:性的嗜好 = 2
+	ABL:野心 = 32
+ELSEIF RESULT == 12
+	ABL:野心 = 22
 ENDIF
 CLEARLINE 消去行
 GOTO SHOW_LOOP
@@ -74,6 +66,12 @@ GOTO SHOW_LOOP
 ;●「会いに行く」の開始時のセリフ
 ;=================================================
 @KOJO_TRAIN_START_A1_K122
+;今は使っていないCFLAG:401を消しておく
+SIF CFLAG:401
+CFLAG:401 = 0
+;CSTR:90が空白ならMASTERの名前を入れておく
+SIF CSTR:90 == ""
+CSTR:90 = %ANAME(MASTER)%
 ;[虚ろ]状態なら口上を表示しない
 IF TALENT:虚ろ
 	RETURN
@@ -152,7 +150,7 @@ ELSEIF CFLAG:200 < 5 && TALENT:合意
 ;既成事実Lv2(恋人になった次の回)
 ELSEIF CFLAG:200 < 4 && TALENT:恋人
 	CFLAG:200 = 4
-	PRINTFORMW 「こんにちは、%ANAME(MASTER)%%UNICODE(0x2665)%」
+	PRINTFORMW 「こんにちは、%CSTR:90%%UNICODE(0x2665)%」
 	SIF TALENT:恋慕
 	PRINTFORMDW エレンは嬉しそうに%ANAME(MASTER)%の元に寄って来た
 ;既成事実Lv1(初めてキスをした次の回)
@@ -182,7 +180,7 @@ ELSEIF CFLAG:200 < 2 && TALENT:恋慕
 ELSEIF TALENT:恋人 && TALENT:恋慕
 	SELECTCASE RAND:3
 	CASE 1
-		PRINTFORMW 「あ%UNICODE(0x2665)% %ANAME(MASTER)%じゃない%UNICODE(0x2665)% 何の用かしら%UNICODE(0x2665)%」
+		PRINTFORMW 「あ%UNICODE(0x2665)% %CSTR:90%じゃない%UNICODE(0x2665)% 何の用かしら%UNICODE(0x2665)%」
 	CASE 2
 		LOCAL:1 = RAND:2
 		PRINTFORMW 「いらっしゃい%UNICODE(0x2665)% \@ LOCAL:1 == 1 ? コーヒー # お茶 \@を淹れてくるからちょっと待ってて%UNICODE(0x2665)%」
@@ -202,7 +200,7 @@ ELSEIF TALENT:恋人 && TALENT:恋慕
 			PRINTFORMDW %ANAME(MASTER)%はエレンの後を追いかけ、何か手伝える事はないか尋ねた
 			PRINTFORMW 「そうねえ…、それじゃあ戸棚の中にクッキーがあるからそれを運んでくれるかしら？」
 			PRINTFORMDW …
-			PRINTFORMW 「よし、これで準備完了ね。　%ANAME(MASTER)%も手伝ってくれてありがとう%UNICODE(0x2665)%」
+			PRINTFORMW 「よし、これで準備完了ね。　%CSTR:90%も手伝ってくれてありがとう%UNICODE(0x2665)%」
 			PRINTFORMW 「早速\@ LOCAL:1 == 1 ? コーヒー # お茶 \@にしましょう%UNICODE(0x2665)%」
 			PRINTFORMDW %ANAME(MASTER)%とエレンは、優雅な午後の時間を過ごした…
 			TFLAG:37 = 20
@@ -232,16 +230,16 @@ ELSEIF TALENT:恋人 && TALENT:恋慕
 			GOTO LOOP2
 		ENDIF
 	CASEELSE
-		PRINTFORMW 「これで大体片付いたわね…って%ANAME(MASTER)%じゃない%UNICODE(0x2665)%」
+		PRINTFORMW 「これで大体片付いたわね…って%CSTR:90%じゃない%UNICODE(0x2665)%」
 	ENDSELECT
 ;既成事実Lv2以上
 ELSEIF TALENT:恋人 || TALENT:合意
-	PRINTFORMW 「こんにちは、%ANAME(MASTER)%%UNICODE(0x2665)%」
+	PRINTFORMW 「こんにちは、%CSTR:90%%UNICODE(0x2665)%」
 ;親友
 ELSEIF TALENT:親友
 	SELECTCASE RAND:2
 	CASE 1
-		PRINTFORMW 「%ANAME(MASTER)%じゃない%UNICODE(0x2665)% まああがってあがって%UNICODE(0x2665)%」
+		PRINTFORMW 「%CSTR:90%じゃない%UNICODE(0x2665)% まああがってあがって%UNICODE(0x2665)%」
 	CASEELSE
 		PRINTFORMW 「紅茶とコーヒー、どっちがいいかしら？」
 	ENDSELECT
@@ -260,13 +258,13 @@ ELSEIF TALENT:恋慕
 ELSEIF CFLAG:好感度 >= 300
 	SELECTCASE RAND:2
 	CASE 1
-		PRINTFORMW 「あら%ANAME(MASTER)%、こんにちはー%UNICODE(0x2665)%」
+		PRINTFORMW 「あら%CSTR:90%、こんにちはー%UNICODE(0x2665)%」
 	CASEELSE
 		PRINTFORMW 「何も出さないのも悪いからお茶を淹れて来るわね」
 	ENDSELECT
 ;既成事実Lv0
 ELSE
-	PRINTFORMW 「あら%ANAME(MASTER)%、こんにちはー」
+	PRINTFORMW 「あら%CSTR:90%、こんにちはー」
 ENDIF
 
 ;=================================================
@@ -287,7 +285,7 @@ ENDIF
 ;酒酔いによる行動不能
 IF TCVAR:53 == 1
 	IF TALENT:恋慕
-		PRINTFORMW 「むにゃ……%ANAME(MASTER)%すきぃ……すや」
+		PRINTFORMW 「むにゃ……%CSTR:90%すきぃ……すや」
 	ELSE
 		PRINTFORMW 「ZZZzz……」
 	ENDIF
@@ -324,7 +322,7 @@ ELSEIF CFLAG:201 < 4 && TALENT:恋人
 	CFLAG:201 = 4
 	;行動不能ならフラグだけ立てて表示はしない
 	IF !(TCVAR:51 || TCVAR:52 || TCVAR:53)
-		PRINTFORMW 「えへへー、%ANAME(MASTER)%と恋人かー%UNICODE(0x2665)%」
+		PRINTFORMW 「えへへー、%CSTR:90%と恋人かー%UNICODE(0x2665)%」
 		PRINTFORMW 「…っともうこんな時間なの、それじゃあまたね%UNICODE(0x2665)%」
 	ENDIF
 ;既成事実Lv1(初めてキスをした)
@@ -333,7 +331,7 @@ ELSEIF CFLAG:201 < 3 && MARK:2 == 1
 	;行動不能ならフラグだけ立てて表示はしない
 	IF !(TCVAR:51 || TCVAR:52 || TCVAR:53)
 		SIF TALENT:恋慕
-		PRINTFORMW （えへへへ//　%ANAME(MASTER)%とキスしちゃった//）
+		PRINTFORMW （えへへへ//　%CSTR:90%とキスしちゃった//）
 	ENDIF
 
 ;-------------------------------------------------
@@ -367,7 +365,7 @@ ELSEIF !(TCVAR:51 || TCVAR:52 || TCVAR:53)
 			;Ｖ絶頂回数が他の部位の絶頂回数の合計＋２以上
 			ELSEIF TCVAR:652 >= (TCVAR:651 + TCVAR:653 + TCVAR:654 + TCVAR:655 + 2)
 				PRINTFORMW 「今度もいっぱいしましょうね//」
-				PRINTFORMW 「どこでって？　もう%ANAME(MASTER)%ったら//」
+				PRINTFORMW 「どこでって？　もう%CSTR:90%ったら//」
 			;Ａ絶頂回数が他の部位の絶頂回数の合計＋２以上
 			ELSEIF TCVAR:653 >= (TCVAR:651 + TCVAR:652 + TCVAR:654 + TCVAR:655 + 2)
 				PRINTFORMW 「もう//　おしりの穴ばっかり攻めるなんて//」
@@ -384,7 +382,7 @@ ELSEIF !(TCVAR:51 || TCVAR:52 || TCVAR:53)
 				PRINTFORMW 「次もいっぱい気持ちよくしてあげるね%UNICODE(0x2665)%//」
 			ELSE
 				PRINTFORMW 「…今日も気持ちよかったわ//」
-				PRINTFORMW 「それじゃまた今度しようね//　%ANAME(MASTER)%%UNICODE(0x2665)%//」
+				PRINTFORMW 「それじゃまた今度しようね//　%CSTR:90%%UNICODE(0x2665)%//」
 			ENDIF
 		;時間残して終了
 		ELSEIF TFLAG:55 < TFLAG:56
@@ -404,7 +402,7 @@ ELSEIF !(TCVAR:51 || TCVAR:52 || TCVAR:53)
 				PRINTFORMDW エレンは始めて味わった快楽に味を占めたようだ…
 			ELSE
 				PRINTFORMW 「…今日も気持ちよかったわ//」
-				PRINTFORMW 「それじゃまた今度しようね//　%ANAME(MASTER)%%UNICODE(0x2665)%//」
+				PRINTFORMW 「それじゃまた今度しようね//　%CSTR:90%%UNICODE(0x2665)%//」
 			ENDIF
 		ELSE
 			PRINTFORMW 「あやや、もうこんな時間なの」
@@ -5960,16 +5958,40 @@ IF SELECTCOM == 300 && TFLAG:18 >= 0
 		IF TFLAG:17 == 1
 			IF TALENT:恋慕 || TALENT:服従 || TALENT:親友 || TALENT:恋人
 				PRINTFORMW 「――と、これ以上愚痴につきあわせちゃあ悪いわね」
-				PRINTFORMW 「だからこれでいいわ、ありがとう%UNICODE(0x2665)%」
+				PRINTFORMW 「だからこれでいいわ、聞いてくれてありがとう%UNICODE(0x2665)%」
 			ELSE
 				PRINTFORMW 「ふう…　洗いざらい話したらスッキリしたわ」
-				PRINTFORMW 「%ANAME(MASTER)%もつきあってくれてありがとう%UNICODE(0x2665)%」
+				PRINTFORMW 「%CSTR:90%もつきあってくれてありがとう%UNICODE(0x2665)%」
 			ENDIF
 		ELSEIF TFLAG:17 == 2
 			IF TALENT:恋慕 || TALENT:服従 || TALENT:親友 || TALENT:恋人
-				PRINTFORMW 「%ANAME(MASTER)%に聞いてもらったら楽になったわ、ありがとう%UNICODE(0x2665)%」
+				PRINTFORMW 「%CSTR:90%に聞いてもらったら楽になったわ、ありがとう%UNICODE(0x2665)%」
 			ELSE
 				PRINTFORMW 「聞いてくれてありがとう、ちょっと落ち着いたわ」
+			ENDIF
+		;呼び名変更イベント、エレンが正妻のときに10%で発生(２回目以降は2%)
+		ELSEIF TALENT:正妻 && ((CFLAG:300 == 0 && RAND:100 < 10) || (CFLAG:300 == 1 && RAND:100 < 2))
+			IF CFLAG:300 == 0
+				CFLAG:300 = 1
+				PRINTFORMW 「せっかく結婚した事だしあなたの呼び方を変えてみてもいいかしら？」
+			ELSE
+				PRINTFORMW 「そういえば、今はあなたのこと%CSTR:90%って呼んでるけどもしかして他の呼び方のほうがいい？」
+			ENDIF
+			CALL ASK_MULTI("「ダーリン」と呼んでくれ", "「あなた」で", "和風に「旦那様」", "名前で呼んで欲しいです", "今のままでいいよ")
+			IF RESULT < 4
+				;実際にやってみたらおっそろしいほどきゅんきゅんした
+				IF RESULT == 0
+					CSTR:90 = ダーリン
+				ELSEIF RESULT == 1
+					CSTR:90 = あなた
+				ELSEIF RESULT == 2
+					CSTR:90 = 旦那様
+				ELSEIF RESULT == 3
+					CSTR:90 = %ANAME(MASTER)%
+				ENDIF
+				PRINTFORMW 「分かったわ%UNICODE(0x2665)% これからは%CSTR:90%って呼ぶね%UNICODE(0x2665)%」
+			ELSEIF RESULT == 4
+				PRINTFORMW 「そうなの、それじゃあこれからも%CSTR:90%って呼ぶね%UNICODE(0x2665)%」
 			ENDIF
 		ELSEIF RAND:2 == 1
 			IF TALENT:恋人 && TALENT:恋慕
@@ -5977,7 +5999,7 @@ IF SELECTCOM == 300 && TFLAG:18 >= 0
 				CASE 1
 					PRINTFORMW 「わたし素敵な恋をするのが夢だったけどそれがついに叶うなんてね%UNICODE(0x2665)% ここに来てほんとよかったわ%UNICODE(0x2665)%」
 				CASE 2
-					PRINTFORMW 「%ANAME(MASTER)%といるこの時間が一番幸せだわ%UNICODE(0x2665)%」
+					PRINTFORMW 「%CSTR:90%といるこの時間が一番幸せだわ%UNICODE(0x2665)%」
 				CASE 3
 					IF CFLAG:9 || RAND:2
 						PRINTFORMW 「あのね――」
@@ -5986,7 +6008,7 @@ IF SELECTCOM == 300 && TFLAG:18 >= 0
 					ENDIF
 				CASEELSE
 					IF TFLAG:54 || RAND:2 || TALENT:母乳体質
-						PRINTFORMW 「あははは%UNICODE(0x2665)%　%ANAME(MASTER)%と話しているとほんと楽しいわ%UNICODE(0x2665)%」
+						PRINTFORMW 「あははは%UNICODE(0x2665)%　%CSTR:90%と話しているとほんと楽しいわ%UNICODE(0x2665)%」
 					ELSE
 						PRINTFORMW 「外はいい天気ねー」
 						PRINTFORMW 「折角だしデートでもしない？」
@@ -5998,20 +6020,20 @@ IF SELECTCOM == 300 && TFLAG:18 >= 0
 				CASE 1
 					IF TALENT:恋慕
 						IF RAND:2
-							PRINTFORMW 「ねえ%ANAME(MASTER)%。　%ANAME(MASTER)%には……いや、何でもないわ//」
+							PRINTFORMW 「ねえ%CSTR:90%。　%CSTR:90%には……いや、何でもないわ//」
 						ELSE
-							PRINTFORMW 「ねえ、ちょっと%ANAME(MASTER)%の方に寄ってもいいかしら？//」
+							PRINTFORMW 「ねえ、ちょっと%CSTR:90%の方に寄ってもいいかしら？//」
 						ENDIF
 					ELSE
 						PRINTFORMW 「あのね――」
 					ENDIF
 				CASE 2
-					PRINTFORMW 「%ANAME(MASTER)%は最近なにか変わったこととかある？」
+					PRINTFORMW 「%CSTR:90%は最近なにか変わったこととかある？」
 				CASEELSE
 					IF TFLAG:54 || RAND:2 || TALENT:母乳体質
-						PRINTFORMW 「あははは%UNICODE(0x2665)%　%ANAME(MASTER)%と話しているとほんと楽しいわ%UNICODE(0x2665)%」
+						PRINTFORMW 「あははは%UNICODE(0x2665)%　%CSTR:90%と話しているとほんと楽しいわ%UNICODE(0x2665)%」
 					ELSE
-						PRINTFORM 「%ANAME(MASTER)%は今日は何か用事とかある？　ないんだったらわたしと一緒にどこかに行かない？
+						PRINTFORM 「%CSTR:90%は今日は何か用事とかある？　ないんだったらわたしと一緒にどこかに行かない？
 						SIF !TALENT:親友
 						PRINT //
 						PRINTW 」
@@ -6023,7 +6045,7 @@ IF SELECTCOM == 300 && TFLAG:18 >= 0
 				CASE 1
 					PRINTFORMW 「はあ…、どこかに素敵な人が落ちてないかしら」
 				CASE 2
-					PRINTFORMW 「そういえば%ANAME(MASTER)%は魔法絡みで困っていることはない？」
+					PRINTFORMW 「そういえば%CSTR:90%は魔法絡みで困っていることはない？」
 					PRINTFORMW 「あったら『ふわふわエレン魔法のお店』へ！　誠心誠意、お悩み解決するわ%UNICODE(0x2665)%」
 					PRINTFORMW 「……まあ、今は政務とかで忙しいから閉店中だけどね」
 				CASE 3
@@ -6031,7 +6053,7 @@ IF SELECTCOM == 300 && TFLAG:18 >= 0
 					PRINTFORMW 「わたしね、魔法を使うと頭が帯電しちゃうの…、静電気防止スプレーはここでは売ってないし」
 					PRINTFORMW 「この体質のせいでどれだけふられた事やら…、ぐすん」
 				CASEELSE
-					PRINTFORMW 「あははは、%ANAME(MASTER)%の話ってば結構面白いわね%UNICODE(0x2665)%」
+					PRINTFORMW 「あははは、%CSTR:90%の話ってば結構面白いわね%UNICODE(0x2665)%」
 				ENDSELECT
 			ENDIF
 		ELSE
@@ -6068,7 +6090,7 @@ IF SELECTCOM == 300 && TFLAG:18 >= 0
 				PRINTFORMW 　進化した猫の支配する世界や、辺り一面西洋タンポポの世界とかもあるのかしら？」
 			CASE 4
 				IF TALENT:恋人
-					PRINTFORMW 「%ANAME(MASTER)%との会話は楽しくて楽しくて、つい時間の流れを忘れちゃうわ%UNICODE(0x2665)%」
+					PRINTFORMW 「%CSTR:90%との会話は楽しくて楽しくて、つい時間の流れを忘れちゃうわ%UNICODE(0x2665)%」
 				ELSEIF TALENT:恋慕
 					PRINTFORMW 「ええっ！？そうだったの？　知らなかったわ…」
 				ELSE
@@ -6077,7 +6099,7 @@ IF SELECTCOM == 300 && TFLAG:18 >= 0
 			CASE 5
 				PRINTFORMW 「この前ね――」
 			CASE 6
-				PRINTFORMW 「そういえばさ、%ANAME(MASTER)%は理香子って子、知ってる？」
+				PRINTFORMW 「そういえばさ、%CSTR:90%は理香子って子、知ってる？」
 				PRINTFORMW 「理香子はね、実はすごい力を持つ魔法使いなのよ！　でも魔法をまったく使わないでかがくばっかりなの」
 				PRINTFORMW 「かがくだって魔法だって役に立つなら同じものって何度言っても聞いてくれないし、どうしてあんなに頑固なのかしら…」
 			CASE 7
@@ -6087,7 +6109,7 @@ IF SELECTCOM == 300 && TFLAG:18 >= 0
 			CASE 8
 				PRINTFORMW 「そういえば月って空に描いてある訳じゃないのよね、わたし最近まで勘違いしてたわ」
 			CASE 9
-				PRINTFORMW 「あははは%UNICODE(0x2665)%　%ANAME(MASTER)%と話しているとほんと楽しいわ%UNICODE(0x2665)%」
+				PRINTFORMW 「あははは%UNICODE(0x2665)%　%CSTR:90%と話しているとほんと楽しいわ%UNICODE(0x2665)%」
 			ENDSELECT
 		ENDIF
 	ENDIF
@@ -6111,7 +6133,36 @@ IF SELECTCOM == 301
 			CASE 1
 				PRINTFORMW 「切りもいいし休憩にしましょう%UNICODE(0x2665)%」
 			CASE 2
-				PRINTFORMW 「%ANAME(MASTER)%と特訓してると、いつもより鍛えられる感じがするわ%UNICODE(0x2665)%」
+				PRINTFORMW 「%CSTR:90%と特訓してると、いつもより鍛えられる感じがするわ%UNICODE(0x2665)%」
+			CASEELSE
+				PRINTFORMW 「ていっ！やっ！」
+			ENDSELECT
+		;それ以外
+		ELSE
+			PRINTFORMW 「ふう、今回はここまでにしましょう」
+		ENDIF
+	ENDIF
+ENDIF
+
+;-------------------------------------------------
+;護身術を学ぶ　とりあえず武術訓練の流用で間に合わせる
+;-------------------------------------------------
+IF SELECTCOM == 302
+	;敗北時
+	IF TFLAG:18 == -1
+		
+	;初めて(主導権を考慮しない)
+	ELSEIF IS_COM_FIRST(1)
+		PRINTFORMW 「さあ、特訓特訓！」
+	;二回目以降
+	ELSE
+		;;恋慕 or 服従 or 親友 or 恋人
+		IF TALENT:恋慕 || TALENT:服従 || TALENT:親友 || TALENT:恋人
+			SELECTCASE RAND:3
+			CASE 1
+				PRINTFORMW 「切りもいいし休憩にしましょう%UNICODE(0x2665)%」
+			CASE 2
+				PRINTFORMW 「%CSTR:90%と特訓してると、いつもより鍛えられる感じがするわ%UNICODE(0x2665)%」
 			CASEELSE
 				PRINTFORMW 「ていっ！やっ！」
 			ENDSELECT
@@ -6144,7 +6195,7 @@ IF SELECTCOM == 303
 			CASE 2
 				PRINTFORMW 「この戦法ならあの魔法を使えば――」
 			CASE 3
-				PRINTFORMW 「ねえ、こんな時%ANAME(MASTER)%ならどう切り抜ける？」
+				PRINTFORMW 「ねえ、こんな時%CSTR:90%ならどう切り抜ける？」
 			CASE 4
 				PRINTFORMW 「敵を知り、己を知れば百戦危うからず」
 				PRINTFORMW 「当然だけど大事な事ね」
@@ -6159,7 +6210,7 @@ IF SELECTCOM == 303
 				PRINTFORMW 「『相手の予期していないところに強烈な一撃を与える、これ兵法の基本なり』と」
 			CASEELSE
 				PRINTFORMW 「……ふむふむ」
-				PRINTFORMW 「%ANAME(MASTER)%はこの場合どうする？」
+				PRINTFORMW 「%CSTR:90%はこの場合どうする？」
 			ENDSELECT
 		;それ以外
 		ELSE
@@ -6240,7 +6291,7 @@ IF SELECTCOM == 304
 		ELSE
 			PRINTFORMW 「よし、大体片付いたわ」
 			SIF TFLAG:18 == -1
-			PRINTFORMW 「%ANAME(MASTER)%は……大丈夫そうじゃあないわね」
+			PRINTFORMW 「%CSTR:90%は……大丈夫そうじゃあないわね」
 		ENDIF
 	ENDIF
 ENDIF
@@ -6267,7 +6318,7 @@ IF SELECTCOM == 305
 			CASE 1
 				PRINTFORMW 「見回りが終わったら二人でのんびりしましょう%UNICODE(0x2665)%」
 			CASE 2
-				PRINTFORMW 「お日様の光が気持ちいいわねー%ANAME(MASTER)%%UNICODE(0x2665)%」
+				PRINTFORMW 「お日様の光が気持ちいいわねー%CSTR:90%%UNICODE(0x2665)%」
 			CASE 3
 				PRINTFORMDW %ANAME(MASTER)%は隣を歩くエレンの手を取ろうとしたが、エレンに払いのけられた
 				PRINTFORMW 「今は仕事中よ、デートじゃないんだから」
@@ -6353,7 +6404,7 @@ IF SELECTCOM == 307
 		IF TALENT:正妻
 			SELECTCASE RAND:2
 			CASE 1
-				PRINTFORMW 「%ANAME(MASTER)%との料理、おいしくできたかしら%UNICODE(0x2665)%」
+				PRINTFORMW 「%CSTR:90%との料理、おいしくできたかしら%UNICODE(0x2665)%」
 			CASEELSE
 				PRINTFORMW 「いただきまーす%UNICODE(0x2665)%」
 			ENDSELECT
@@ -6468,14 +6519,14 @@ IF SELECTCOM == 310
 					PRINTFORMW 「おいしいお酒ねー%UNICODE(0x2665)%」
 				CASEELSE
 					PRINTFORMDL 酔ったエレンは、\@ TFLAG:54 > 0 ? 人目もはばからず # \@%ANAME(MASTER)%に抱きついてきた
-					PRINTFORMW 「%ANAME(MASTER)%すきー%UNICODE(0x2665)% だいすきー%UNICODE(0x2665)%%UNICODE(0x2665)%」
+					PRINTFORMW 「%CSTR:90%すきー%UNICODE(0x2665)% だいすきー%UNICODE(0x2665)%%UNICODE(0x2665)%」
 				ENDSELECT
 			ELSE
 				SELECTCASE RAND:2
 				CASE 1
 					PRINTFORMW 「今度はわたしが注ぐ番よ%UNICODE(0x2665)%」
 				CASEELSE
-					PRINTFORMW 「%ANAME(MASTER)%と飲んでいると、幸せのあまり時間の経過を忘れちゃうわ%UNICODE(0x2665)%」
+					PRINTFORMW 「%CSTR:90%と飲んでいると、幸せのあまり時間の経過を忘れちゃうわ%UNICODE(0x2665)%」
 				ENDSELECT
 			ENDIF
 		;恋慕 or 服従 or 恋人
@@ -6491,14 +6542,14 @@ IF SELECTCOM == 310
 				CASE 1
 					PRINTFORMW 「これだけじゃあ足りないわ%UNICODE(0x2665)% もっと注いで%UNICODE(0x2665)%」
 				CASEELSE
-					PRINTFORMW 「あれ？ %ANAME(MASTER)%って二人もいたっけ？　…幻覚？」
+					PRINTFORMW 「あれ？ %CSTR:90%って二人もいたっけ？　…幻覚？」
 				ENDSELECT
 			ELSE
 				SELECTCASE RAND:2
 				CASE 1
 					PRINTFORMW 「今度はわたしが注ぐわ%UNICODE(0x2665)%」
 				CASEELSE
-					PRINTFORMW 「あはは//　%ANAME(MASTER)%と飲んでいるととっても幸せだわ//」
+					PRINTFORMW 「あはは//　%CSTR:90%と飲んでいるととっても幸せだわ//」
 				ENDSELECT
 			ENDIF
 		;親友
@@ -6514,7 +6565,7 @@ IF SELECTCOM == 310
 				CASE 1
 					PRINTFORMW 「あはははは%UNICODE(0x2665)% もっと注いで%UNICODE(0x2665)%」
 				CASEELSE
-					PRINTFORMW 「あれ？ %ANAME(MASTER)%って二人もいたっけ？　…幻覚？」
+					PRINTFORMW 「あれ？ %CSTR:90%って二人もいたっけ？　…幻覚？」
 				ENDSELECT
 			ELSE
 				PRINTFORMW 「今度はわたしが注ぐわ%UNICODE(0x2665)% ささ、遠慮しないで%UNICODE(0x2665)%」
@@ -6604,7 +6655,7 @@ IF SELECTCOM == 320
 				IF TFLAG:18 == -1
 					PRINTFORMW 「ちょちょちょちょちょっと！　いくらなんでもベタベタしすぎよ！」
 				ELSE
-					PRINTFORMW 「わたしも%ANAME(MASTER)%のことが大好きよ%UNICODE(0x2665)%」
+					PRINTFORMW 「わたしも%CSTR:90%のことが大好きよ%UNICODE(0x2665)%」
 				ENDIF
 			;恋慕 or 服従 or 親友 or 恋人
 			ELSEIF TALENT:恋慕 || TALENT:服従 || TALENT:親友 || TALENT:恋人
@@ -6656,11 +6707,11 @@ IF SELECTCOM == 320
 					CASE 1
 						SIF IS_INITIATIVE(MASTER)
 						PRINTFORMDL エレンの方からも積極的にスキンシップをしてきた
-						PRINTFORMW 「わたしも%ANAME(MASTER)%のことが大好きよ%UNICODE(0x2665)%」
+						PRINTFORMW 「わたしも%CSTR:90%のことが大好きよ%UNICODE(0x2665)%」
 					CASE 2
 						PRINTFORMW 「あははは%UNICODE(0x2665)% くすぐったいわ%UNICODE(0x2665)%」
 					CASEELSE
-						PRINTFORMW 「%ANAME(MASTER)%といるとそれだけで楽しいわ%UNICODE(0x2665)%」
+						PRINTFORMW 「%CSTR:90%といるとそれだけで楽しいわ%UNICODE(0x2665)%」
 					ENDSELECT
 				ENDIF
 			;恋慕 or 服従 or 親友 or 恋人
@@ -6834,7 +6885,7 @@ IF SELECTCOM == 323
 			;恋慕かつ恋人
 			IF TALENT:恋慕 && TALENT:恋人
 				IF TFLAG:18 == -1
-					PRINTFORMW 「もう、%ANAME(MASTER)%ったら」
+					PRINTFORMW 「もう、%CSTR:90%ったら」
 				ELSE
 					SELECTCASE RAND:2
 					CASE 1
@@ -6891,7 +6942,7 @@ IF SELECTCOM == 323
 			;恋慕かつ恋人
 			IF TALENT:恋慕 && TALENT:恋人
 				IF TFLAG:18 == -1
-					PRINTFORMW 「もう、%ANAME(MASTER)%ったら」
+					PRINTFORMW 「もう、%CSTR:90%ったら」
 				ELSE
 					SELECTCASE RAND:2
 					CASE 1
@@ -7183,7 +7234,7 @@ IF SELECTCOM == 340
 					EXP:キス経験 += 1
 					EXP:MASTER:キス経験 += 1
 				ELSE
-					PRINTFORMW 「あははは%UNICODE(0x2665)% %ANAME(MASTER)%だあいすき%UNICODE(0x2665)%」
+					PRINTFORMW 「あははは%UNICODE(0x2665)% %CSTR:90%だあいすき%UNICODE(0x2665)%」
 				ENDIF
 			;恋慕 or 服従 or 恋人
 			ELSEIF TALENT:恋慕 || TALENT:服従 || TALENT:恋人
@@ -7231,7 +7282,7 @@ IF SELECTCOM == 340
 					EXP:キス経験 += 1
 					EXP:MASTER:キス経験 += 1
 				ELSE
-					PRINTFORMW 「あははは%UNICODE(0x2665)% %ANAME(MASTER)%だあいすき%UNICODE(0x2665)%」
+					PRINTFORMW 「あははは%UNICODE(0x2665)% %CSTR:90%だあいすき%UNICODE(0x2665)%」
 				ENDIF
 			;恋慕 or 服従 or 恋人
 			ELSEIF TALENT:恋慕 || TALENT:服従 || TALENT:恋人
@@ -7373,7 +7424,7 @@ IF SELECTCOM == 342
 				IF TFLAG:18 == -1
 					PRINTFORMW 「いたっ！」
 				ELSE
-					PRINTFORMW 「ちゅうっ…ぷはぁ。　あははは//　%ANAME(MASTER)%だあいすき%UNICODE(0x2665)%」
+					PRINTFORMW 「ちゅうっ…ぷはぁ。　あははは//　%CSTR:90%だあいすき%UNICODE(0x2665)%」
 				ENDIF
 			;親友
 			ELSEIF TALENT:親友
@@ -7419,7 +7470,7 @@ IF SELECTCOM == 342
 				IF TFLAG:18 == -1
 					PRINTFORMW 「いたっ！」
 				ELSE
-					PRINTFORMW 「ちゅうっ…ぷはぁ。　あははは//　%ANAME(MASTER)%だあいすき%UNICODE(0x2665)%」
+					PRINTFORMW 「ちゅうっ…ぷはぁ。　あははは//　%CSTR:90%だあいすき%UNICODE(0x2665)%」
 				ENDIF
 			;親友
 			ELSEIF TALENT:親友
@@ -7517,7 +7568,7 @@ IF SELECTCOM == 351
 			;恋慕かつ恋人
 			IF TALENT:恋慕 && TALENT:恋人
 				IF TFLAG:18 == -1
-					PRINTFORMW 「ま、まあ、%ANAME(MASTER)%のせいじゃあないわ%UNICODE(0x2665)%」
+					PRINTFORMW 「ま、まあ、%CSTR:90%のせいじゃあないわ%UNICODE(0x2665)%」
 				ELSEIF TFLAG:18 == 1
 					PRINTFORMW 「ごちそうさま%UNICODE(0x2665)% とってもおいしかったわ%UNICODE(0x2665)%　また来ましょ%UNICODE(0x2665)%」
 				ELSE
@@ -7694,7 +7745,7 @@ IF SELECTCOM == 355
 			IF TALENT:恋慕 || TALENT:服従 || TALENT:親友 || TALENT:恋人
 				IF TFLAG:17 == 1
 					PRINTFORMDW 溺れた%ANAME(MASTER)%をエレンが助けてくれたようだ
-					PRINTFORMW 「%ANAME(MASTER)%大丈夫！？」
+					PRINTFORMW 「%CSTR:90%大丈夫！？」
 				ELSEIF TFLAG:17 == 2
 					PRINTFORMDW %ANAME(MASTER)%は溺れたエレンを救い出した
 					PRINTFORMW 「助かったわ%UNICODE(0x2665)% ありがとう%UNICODE(0x2665)%」
@@ -7823,9 +7874,9 @@ IF SELECTCOM == 357 && !TFLAG:18 != -1
 					PRINTFORMW 「すごいでしょ%UNICODE(0x2665)%」
 				ELSE
 					IF ABL:MASTER:武闘 < 50
-						PRINTFORMW 「もし%ANAME(MASTER)%がピンチになったらわたしが魔法で助けてあげる%UNICODE(0x2665)%」
+						PRINTFORMW 「もし%CSTR:90%がピンチになったらわたしが魔法で助けてあげる%UNICODE(0x2665)%」
 					ELSE
-						PRINTFORMW 「大猟になるといいな%UNICODE(0x2665)%」
+						PRINTFORMW 「大猟になるといいなー」
 					ENDIF
 				ENDIF
 			ELSE
@@ -7855,7 +7906,7 @@ IF SELECTCOM == 357 && !TFLAG:18 != -1
 				IF TFLAG:18 == 1
 					PRINTFORMW 「これで当分おかずには困らないわ%UNICODE(0x2665)%」
 				ELSE
-					PRINTFORMW 「%ANAME(MASTER)%と一緒なら大丈夫ね%UNICODE(0x2665)%」
+					PRINTFORMW 「%CSTR:90%と一緒なら大丈夫ね%UNICODE(0x2665)%」
 				ENDIF
 			ELSE
 				PRINTFORMW 「狩りなんて初めてだけど…、大丈夫かしら？」
@@ -12392,7 +12443,7 @@ IF SELECTCOM == 320
 		ELSE
 			;恋慕かつ恋人
 			IF TALENT:恋慕 && TALENT:恋人
-				PRINTFORMW 「えへへー%UNICODE(0x2665)% %ANAME(MASTER)%大好き%UNICODE(0x2665)%%UNICODE(0x2665)%」
+				PRINTFORMW 「えへへー%UNICODE(0x2665)% %CSTR:90%大好き%UNICODE(0x2665)%%UNICODE(0x2665)%」
 			;既成事実Lv2以上 or 恋慕 or 服従
 			ELSEIF TALENT:恋人 || TALENT:合意 || TALENT:恋慕 || TALENT:服従
 				PRINTFORMW 「えへへ//」
@@ -12424,7 +12475,7 @@ IF SELECTCOM == 320
 ;		ELSE
 			;恋慕かつ恋人
 			IF TALENT:恋慕 && TALENT:恋人
-				PRINTFORMW 「わたしも%ANAME(MASTER)%のことが大好きよ%UNICODE(0x2665)%」
+				PRINTFORMW 「わたしも%CSTR:90%のことが大好きよ%UNICODE(0x2665)%」
 			;既成事実Lv2以上 or 恋慕 or 服従
 			ELSEIF TALENT:恋人 || TALENT:合意 || TALENT:恋慕 || TALENT:服従
 				PRINTFORMW （わー//）
@@ -12504,7 +12555,7 @@ IF SELECTCOM == 321
 				IF TFLAG:18 == -1
 					PRINTFORMW 「まったく、今回だけよ」
 				ELSE
-					PRINTFORMW 「%ANAME(MASTER)%ったら、しょうがないわね」
+					PRINTFORMW 「%CSTR:90%ったら、しょうがないわね」
 				ENDIF
 			ELSE
 				;PRINTFORMW 
@@ -12814,7 +12865,7 @@ IF SELECTCOM == 341
 			IF TALENT:恋慕 && TALENT:恋人
 				IF TFLAG:18 == 1
 					PRINTFORMW 「むちゅ～%UNICODE(0x2665)%」
-					PRINTFORMW 「……ぷぁ。　ねえ、今度は%ANAME(MASTER)%からして欲しいな%UNICODE(0x2665)%」
+					PRINTFORMW 「……ぷぁ。　ねえ、今度は%CSTR:90%からして欲しいな%UNICODE(0x2665)%」
 				ELSEIF TFLAG:18 == -1
 					PRINTFORMW 「むー」
 				ELSE
@@ -12854,7 +12905,7 @@ IF SELECTCOM == 341
 			IF TALENT:恋慕 && TALENT:恋人
 				IF TFLAG:18 == 1
 					PRINTFORMW 「むちゅ～%UNICODE(0x2665)%」
-					PRINTFORMW 「……ぷぁ。　ねえ、今度は%ANAME(MASTER)%からして欲しいな%UNICODE(0x2665)%」
+					PRINTFORMW 「……ぷぁ。　ねえ、今度は%CSTR:90%からして欲しいな%UNICODE(0x2665)%」
 				ELSEIF TFLAG:18 == -1
 					PRINTFORMW 「もうちょっと反応して欲しかったわ」
 				ELSE
@@ -12900,7 +12951,7 @@ IF SELECTCOM == 342
 			;恋慕かつ恋人
 			IF TALENT:恋慕 && TALENT:恋人
 				IF TFLAG:18 == 1
-					PRINTFORMW 「……ぷはぁ//　あ、%ANAME(MASTER)%の顔、真っ赤だわ%UNICODE(0x2665)%//」
+					PRINTFORMW 「……ぷはぁ//　あ、%CSTR:90%の顔、真っ赤だわ%UNICODE(0x2665)%//」
 					PRINTFORMW 「え、わたしも真っ赤なの？　それならお揃いね%UNICODE(0x2665)%」
 				ELSEIF TFLAG:18 == -1
 					PRINTFORMW 「なんだか物足りないわね……」
@@ -12940,7 +12991,7 @@ IF SELECTCOM == 342
 			;恋慕かつ恋人
 			IF TALENT:恋慕 && TALENT:恋人
 				IF TFLAG:18 == 1
-					PRINTFORMW 「……ぷはぁ//　あ、%ANAME(MASTER)%の顔、真っ赤だわ%UNICODE(0x2665)%//」
+					PRINTFORMW 「……ぷはぁ//　あ、%CSTR:90%の顔、真っ赤だわ%UNICODE(0x2665)%//」
 					PRINTFORMW 「え、わたしも真っ赤なの？　それならお揃いね%UNICODE(0x2665)%」
 				ELSEIF TFLAG:18 == -1
 					PRINTFORMW 「むー」
@@ -12980,7 +13031,7 @@ IF SELECTCOM == 356
 ;		ELSE
 			;失敗時
 			IF TFLAG:18 == -1
-				PRINTFORMW 「うーん、なんだか微妙ねー」
+				PRINTFORMW 「うーん、なんかいまいちねー」
 			;恋人かつ恋慕
 			ELSEIF TALENT:恋人 && TALENT:恋慕
 				IF TFLAG:18 == 1
@@ -13076,9 +13127,9 @@ IF SELECTCOM == 358
 			;恋慕 or 恋人 or 服従
 			IF TALENT:恋慕 || TALENT:恋人 || TALENT:服従
 				IF IS_MALE(MASTER) && TALENT:MASTER:体格 != 体格_小柄 && !TALENT:MASTER:体格 == 体格_子供 && RAND:2 == 1
-					PRINTFORMW 「うわー、%ANAME(MASTER)%の背中大きいー%UNICODE(0x2665)%」
+					PRINTFORMW 「うわー、%CSTR:90%の背中大きいー%UNICODE(0x2665)%」
 				ELSE
-					PRINTFORMW 「%ANAME(MASTER)%の背中を綺麗にしてあげる%UNICODE(0x2665)%」
+					PRINTFORMW 「%CSTR:90%の背中を綺麗にしてあげる%UNICODE(0x2665)%」
 				ENDIF
 			;それ以外
 			ELSE
@@ -13100,7 +13151,7 @@ IF SELECTCOM == 358
 			;恋慕 or 恋人 or 服従
 			IF TALENT:恋慕 || TALENT:恋人 || TALENT:服従
 				IF IS_MALE(MASTER) && TALENT:MASTER:体格 != 体格_小柄 && !TALENT:MASTER:体格 == 体格_子供 && RAND:2 == 1
-					PRINTFORMW 「うわー、%ANAME(MASTER)%の背中大きいー%UNICODE(0x2665)%」
+					PRINTFORMW 「うわー、%CSTR:90%の背中大きいー%UNICODE(0x2665)%」
 				ELSE
 					PRINTFORMW 「強さはどう？　気持ちいい？」
 				ENDIF
@@ -13150,17 +13201,6 @@ ENDIF
 ;=================================================
 @KOJO_COM_AFTER_A_K122
 
-;借金返済
-IF CFLAG:401
-	IF SELECTCOM == 10
-		COM_EXP:10 -= 10
-		CFLAG:401 -= 10
-	ELSEIF SELECTCOM == 106
-		COM_EXP:106 -= 10
-		CFLAG:401 -= 10
-	ENDIF
-ENDIF
-
 ;[虚ろ]状態の場合、口が塞がっている場合は口上を表示しない
 IF TALENT:虚ろ || IS_EQUIP_CONTINUE(TARGET, "口装着")
 	RETURN 0
@@ -13173,7 +13213,7 @@ ENDIF
 IF TCVAR:13 == 1
 	;恋慕
 	SIF TALENT:恋慕
-	PRINTFORMW 「えへへ//　少し痛いけど…わたしは%ANAME(MASTER)%に初めてをあげれて幸せよ%UNICODE(0x2665)%//」
+	PRINTFORMW 「えへへ//　少し痛いけど…わたしは%CSTR:90%に初めてをあげれて幸せよ%UNICODE(0x2665)%//」
 ;主人公にセックス以外で処女を奪われる
 ELSEIF TCVAR:13 == 2
 	;恋慕 or 服従
