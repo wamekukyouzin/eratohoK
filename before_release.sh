@@ -14,12 +14,12 @@ if [[ $version = "" ]]; then
 fi
 
 # changelog生成
-sed -i "2i## $(date +'%Y年%-m月%-d日') version ${version}\r\n" ./changelog.md
+sed -i "2i## $(date +'%Y年%-m月%-d日') version ${version}\r\n" ./changelog.txt
 
 git log --format=%s  ${previous_tag}...HEAD | grep -i "\(Fix:\|UPDATE:\|ADD:\|MERGE:\)" | sort > temp.md
-tac temp.md | tr "\n" "\\n" | xargs -I{} sed -i -e "3i {}" ./changelog.md
+tac temp.md | tr "\n" "\\n" | xargs -I{} sed -i -e "3i {}" ./changelog.txt
 
-unix2dos changelog.md
+unix2dos changelog.txt
 
 # gamebase変更
 
@@ -27,7 +27,7 @@ sed -i "s/\(バージョン,\)[0-9]\+/\1${gamebase_str}/" ./CSV/gamebase.csv
 unix2dos ./CSV/GameBase.csv
 
 git add ./CSV/GameBase.csv
-git add ./changeLog.md
+git add ./changeLog.txt
 
 git commit -m '定型作業'
 
