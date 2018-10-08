@@ -8,6 +8,11 @@
 ;※RETURNの値を0→1に変えると、デフォルトのメッセージが表示されなくなる
 ;=================================================
 @KOJO_EVENT_K122(ARG)
+#DIM 子供一人目
+#DIM 子供二人目
+#DIM 抽選回数
+;呼び出す度に抽選回数はリセットしておく
+抽選回数 = 0
 ;-------------------------------------------------
 ;ファーストキス実行
 ;-------------------------------------------------
@@ -289,7 +294,7 @@ ENDIF
 ;-------------------------------------------------
 ;合意なし
 IF ARG == 22
-	PRINTFORMW 「ね、ねぇ%ANAME(MASTER)%//　その…//　えっち…しよ//」
+	PRINTFORMW 「ね、ねぇ%CSTR:90%//　その…//　えっち…しよ//」
 	RETURN 0
 ;合意なし＆酔った勢い
 ELSEIF ARG == 23
@@ -300,7 +305,7 @@ ELSEIF ARG == 24
 	IF ABL:欲望 >= 7
 		PRINTFORMW 「ごめんね。　わたし、我慢できないの//」
 	ELSE
-		PRINTFORMW 「ね、ねぇ%ANAME(MASTER)%//　その…//　えっち…しよ//」 
+		PRINTFORMW 「ね、ねぇ%CSTR:90%//　その…//　えっち…しよ//」 
 	ENDIF
 	RETURN 0
 ;合意あり＆酔った勢い
@@ -327,7 +332,7 @@ ELSEIF ARG == 27
 	RETURN 0
 ;合意あり
 ELSEIF ARG == 28
-	PRINTFORMW 「えっと……%ANAME(MASTER)%とえっちしたいなーなんて//」
+	PRINTFORMW 「えっと……%CSTR:90%とえっちしたいなーなんて//」
 	RETURN 0
 ;合意あり＆酔った勢い
 ELSEIF ARG == 29
@@ -853,38 +858,126 @@ ENDIF
 ;-------------------------------------------------
 ;戦闘開始
 ;-------------------------------------------------
+;あなたとエレンの子供が同部隊に居るかどうかの判定　子供一人目 子供一人目の名前　子供二人目 子供二人目の名前
+;野戦or攻城戦ならこっち
+IF ARG >= 300 && ARG <= 301
+	;前回の分を消す
+	子供一人目 = 0
+	子供二人目 = 0
+	;MAX_UNIT分エレンの所属勢力でGET_UNIT_COMMANDER_ALLを回す
+	FOR LOCAL, 0, MAX_UNIT
+		CALL GET_UNIT_COMMANDER_ALL((CFLAG:GET_ID(NAME_TO_CHARA("エレン")):所属), LOCAL)
+		;RESULTのどれかにエレンが居たらそのまま子供のチェックに移る
+		IF RESULT == NAME_TO_CHARA("エレン") || RESULT:1 == NAME_TO_CHARA("エレン") || RESULT:2 == NAME_TO_CHARA("エレン")
+			FOR LOCAL, 0, MAX_UNIT_COMMANDER
+				SIF RESULT:(LOCAL) == -1
+				CONTINUE
+				IF CFLAG:(RESULT:(LOCAL)):父親 == GET_ID(MASTER) && CFLAG:(RESULT:(LOCAL)):母親 == GET_ID(NAME_TO_CHARA("エレン"))
+					;同部隊にいる子供全員の名前を入れる
+					IF !子供一人目
+						子供一人目 = RESULT:(LOCAL)
+					ELSE
+						子供二人目 = RESULT:(LOCAL)
+					ENDIF
+				ENDIF
+			NEXT
+			;ここでBREAK
+			BREAK
+		ENDIF
+	NEXT
+;防衛戦ならこっち
+ELSEIF ARG == 302
+	;前回の分を消す
+	子供一人目 = 0
+	子供二人目 = 0
+	;MAX_CITY分GET_CITY_COMMANDER_ALLを回す
+	FOR LOCAL, 0, MAX_CITY
+		CALL GET_CITY_COMMANDER_ALL(LOCAL)
+		;RESULTのどちらかにエレンが居たらそのまま子供のチェックに移る
+		IF RESULT == NAME_TO_CHARA("エレン") || RESULT:1 == NAME_TO_CHARA("エレン")
+			FOR LOCAL, 0, MAX_CITY_COMMANDER
+				SIF RESULT:(LOCAL) == -1
+				CONTINUE
+				IF CFLAG:(RESULT:(LOCAL)):父親 == GET_ID(MASTER) && CFLAG:(RESULT:(LOCAL)):母親 == GET_ID(NAME_TO_CHARA("エレン"))
+					;同部隊にいる子供の名前を入れる
+					IF !子供一人目
+						子供一人目 = RESULT:(LOCAL)
+					ENDIF
+				ENDIF
+			NEXT
+			;ここでBREAK
+			BREAK
+		ENDIF
+	NEXT
+ENDIF
 ;野戦
 IF ARG == 300
-	SELECTCASE RAND:3
-	CASE 1
-		PRINTFORMW エレン「敵襲よ！」
-	CASE 2
-		PRINTFORMW エレン「さて、どうしたものかしら…」
-	CASEELSE
-		PRINTFORMW エレン「みんなで力を合わせていくわよ！」
-	ENDSELECT
+	;子供が同部隊に居るなら２分の１で分岐
+	IF 子供一人目; && !RAND:2
+		SELECTCASE 2
+		CASE 1
+			PRINTFORMW エレン「%ANAME(子供一人目)%\@ 子供二人目 ? 、%ANAME(子供二人目)% #  \@、気合入れていくわよ！」
+		CASE 2
+			PRINTFORMW エレン「わたしが前のほうで戦うから%ANAME(子供一人目)%\@ 子供二人目 ? と%ANAME(子供二人目)% #  \@は後ろのほうを頼むわ」
+		CASEELSE
+			PRINTFORMW エレン「わたし達で敵を倒すわよ！」
+		ENDSELECT
+	ELSE
+		SELECTCASE RAND:3
+		CASE 1
+			PRINTFORMW エレン「敵襲よ！」
+		CASE 2
+			PRINTFORMW エレン「さて、どうしたものかしら…」
+		CASEELSE
+			PRINTFORMW エレン「みんなで力を合わせていくわよ！」
+		ENDSELECT
+	ENDIF
 	RETURN 0
 ;防衛戦(侵攻側)
 ELSEIF ARG == 301
-	SELECTCASE RAND:3
-	CASE 1
-		PRINTFORMW エレン「みんな手筈はいいかしら？　それじゃあいくわよ！」
-	CASE 2
-		PRINTFORMW エレン「さて、どうしたものかしら…」
-	CASEELSE
-		PRINTFORMW エレン「城攻めかぁ、あまり長引かせたくはないわね」
-	ENDSELECT
+	;子供が同部隊に居るなら２分の１で分岐
+	IF 子供一人目 && !RAND:2
+		SELECTCASE RAND:3
+		CASE 1
+			PRINTFORMW エレン「%ANAME(子供一人目)%\@ 子供二人目 ? 、%ANAME(子供二人目)% #  \@、気合入れていくわよ！」
+		CASE 2
+			PRINTFORMW エレン「わたしと%ANAME(子供一人目)%\@ 子供二人目 ? と%ANAME(子供二人目)% #  \@で敵の城を包囲するわよ」
+		CASEELSE
+			PRINTFORMW エレン「\@ 子供二人目 && !RAND:2 ? %ANAME(子供二人目)% # %ANAME(子供一人目)% \@、攻城兵器の用意は？　……よし、それじゃあ行くわよ！」
+		ENDSELECT
+	ELSE
+		SELECTCASE RAND:3
+		CASE 1
+			PRINTFORMW エレン「みんな手筈はいいかしら？　それじゃあいくわよ！」
+		CASE 2
+			PRINTFORMW エレン「さて、どうしたものかしら…」
+		CASEELSE
+			PRINTFORMW エレン「城攻めかぁ、あまり長引かせたくはないわね」
+		ENDSELECT
+	ENDIF
 	RETURN 0
 ;防衛戦(防衛側)
 ELSEIF ARG == 302
-	SELECTCASE RAND:3
-	CASE 1
-		PRINTFORMW エレン「敵襲よ！」
-	CASE 2
-		PRINTFORMW エレン「なんとしてもここで食い止めないと」
-	CASEELSE
-		PRINTFORMW エレン「ここは絶対に守りぬくわよ！」
-	ENDSELECT
+	;子供が同部隊に居るなら２分の１で分岐
+	IF 子供一人目 && !RAND:2
+		SELECTCASE RAND:3
+		CASE 1
+			PRINTFORMW エレン「%ANAME(子供一人目)%、ここはわたし達で防ぎきるわよ！」
+		CASE 2
+			PRINTFORMW エレン「わたし達が奮戦すれば負けはしないわ！　ねえ%ANAME(子供一人目)%」
+		CASEELSE
+			PRINTFORMW エレン「%ANAME(MASTER)%のためにもここを抜かせはしないわ！」
+		ENDSELECT
+	ELSE
+		SELECTCASE RAND:3
+		CASE 1
+			PRINTFORMW エレン「敵襲よ！」
+		CASE 2
+			PRINTFORMW エレン「なんとしてもここで食い止めないと」
+		CASEELSE
+			PRINTFORMW エレン「ここは絶対に守りぬくわよ！」
+		ENDSELECT
+	ENDIF
 	RETURN 0
 ENDIF
 
@@ -894,18 +987,49 @@ ENDIF
 ;計略発動
 IF ARG == 310
 	IF TALENT:恋慕 || TALENT:親友 || TALENT:服従
-		SELECTCASE RAND:5
-		CASE 1
-			PRINTFORMW エレン「えいっ！」
-		CASE 2
-			PRINTFORMW エレン「%ANAME(MASTER)%のためにもこの戦、勝たせてもらうわ！」
-		CASE 3
-			PRINTFORMW エレン「みんな！　敵が乱れている隙に畳み掛けるわよ！」
-		CASE 4
-			PRINTFORMW エレン「これがわたし達の力よ！」
-		CASEELSE
-			PRINTFORMW エレン「よし、今のうちに……」
-		ENDSELECT
+		;子供が同部隊に居るなら３分の１で分岐
+		IF 子供一人目; && !RAND:3
+			SELECTCASE RAND:4
+			CASE 1
+				PRINTFORMW エレン「今だわ、%ANAME(子供一人目)%\@ 子供二人目 ? 、%ANAME(子供二人目)% #  \@、敵を包囲するわよ！」
+			CASE 2
+				PRINTFORMW エレン「%ANAME(子供一人目)%\@ 子供二人目 ? 、%ANAME(子供二人目)% #  \@、せーので攻撃開始よ！」
+			CASE 3
+				PRINTFORMW エレン「連携して一斉攻撃を仕掛けるわ！」
+			CASEELSE
+				;エレンと子供のみの部隊の場合
+				IF 子供二人目
+					PRINTFORMW エレン「わたし達も%ANAME(MASTER)%に負けないぐらいがんばるわよ！」
+				ELSE
+					PRINTFORMW エレン「今が攻撃のチャンスよ！　かかれー！」
+				ENDIF
+			ENDSELECT
+		ELSE
+			SELECTCASE RAND:8
+			CASE 1
+				PRINTFORMW エレン「えいっ！」
+			CASE 2
+				PRINTFORMW エレン「%ANAME(MASTER)%のためにもこの戦、勝たせてもらうわ！」
+			CASE 3
+				PRINTFORMW エレン「みんな！　敵が乱れている隙に畳み掛けるわよ！」
+			CASE 4
+				PRINTFORMW エレン「これがわたし達の力よ！」
+			CASE 5
+				PRINTFORMW エレン「一気に終わらせるわよ！」
+			CASE 6
+				PRINTFORMW エレン「よし、今のうちに……」
+			CASE 7
+				;某陣術師より
+				PRINTFORMW エレン「大いなる魔力よ、われらに奇跡を！」
+				;某友人より　セリフが若干違うのは仕様です
+				IF 子供一人目 && !RAND:10 && (ABL:子供一人目:武闘 >= 90 || (子供二人目 && ABL:子供二人目:武闘 >= 90))
+					PRINTFORML \@ 子供二人目 && !RAND:2 ? %ANAME(子供二人目)% # %ANAME(子供一人目)% \@「刹那は夢幻、その一瞬に我らが全てを賭ける！」
+					PRINTFORMW 　　　　『翔破、裂光閃！』
+				ENDIF
+			CASEELSE
+				PRINTFORMW エレン「月よ、蒼き月よ、その力のひとしずくをわれらの胸に」
+			ENDSELECT
+		ENDIF
 	ELSE
 		SELECTCASE RAND:3
 		CASE 1
@@ -930,7 +1054,12 @@ ELSEIF ARG == 311
 	RETURN 0
 ;貫計(武力)
 ELSEIF ARG == 312
-	PRINTFORMW エレン「これぐらいなら打ち破ってみせる！」
+	SELECTCASE RAND:2
+	CASE 1
+		PRINTFORMW エレン「これぐらいなら打ち破ってみせる！」
+	CASEELSE
+		PRINTFORMW エレン「わたし達を甘く見たわね」
+	ENDSELECT
 	RETURN 0
 ;貫計(好感度)
 ELSEIF ARG == 313
@@ -940,7 +1069,25 @@ ELSEIF ARG == 313
 	CASE 2
 		PRINTFORMW エレン「絶対に、絶対に負けないわ」
 	CASEELSE
-		PRINTFORMW エレン「こんなところで負けてられないのよ！」
+		IF TALENT:恋慕
+			;あなたとエレンの子供が居るかどうかの判定
+			FOR LOCAL, 0, CHARANUM
+				IF CFLAG:LOCAL:特殊状態 != 特殊状態_死亡 && CFLAG:LOCAL:父親 == GET_ID(MASTER) && CFLAG:LOCAL:母親 == GET_ID(NAME_TO_CHARA("エレン"))
+					抽選回数 ++
+					;上の子優先で名前を入れる
+					SIF 子供一人目
+					子供一人目 = LOCAL
+				ENDIF
+			NEXT
+			;子供が居るなら分岐
+			IF 抽選回数
+				PRINTFORMW 「ここで負けたら%ANAME(MASTER)%や%ANAME(子供一人目)%\@ 抽選回数 > 1 ? 達 #  \@に顔向けできないわ！」
+			ELSE
+				PRINTFORMW エレン「%ANAME(MASTER)%のためにも負けれないのよ！」
+			ENDIF
+		ELSE
+			PRINTFORMW エレン「ここで負けるわけにはいかないのよ！」
+		ENDIF
 	ENDSELECT
 	RETURN 0
 ENDIF
@@ -1003,9 +1150,36 @@ ENDIF
 ;-------------------------------------------------
 IF ARG == 337
 	;主人公と同一勢力に所属
-	IF CFLAG:1 >= 1 && CFLAG:1 == CFLAG:MASTER:1
+	IF CFLAG:所属 >= 1 && CFLAG:所属 == CFLAG:MASTER:所属
 		IF TALENT:正妻
-			PRINTFORMW 「ごめんね、もう%ANAME(MASTER)%の所には帰れないみたい……」
+			;あなたとエレンの子供が居るかどうかの判定
+			FOR LOCAL, 0, CHARANUM
+				IF CFLAG:LOCAL:特殊状態 != 特殊状態_死亡 && CFLAG:LOCAL:父親 == GET_ID(MASTER) && CFLAG:LOCAL:母親 == GET_ID(NAME_TO_CHARA("エレン"))
+					抽選回数 ++
+					;末っ子優先で名前を入れておく
+					子供一人目 = LOCAL
+;					PRINTFORML %ANAME(子供一人目)%
+				ENDIF
+			NEXT
+			;子供が居るなら分岐
+			IF 子供一人目
+				SELECTCASE 抽選回数
+				;子供が一人のみ
+				CASE IS < 2
+					PRINTFORMW 「%ANAME(MASTER)%、%ANAME(子供一人目)%の事をお願いね……」
+				;子供が二人～四人いる
+				CASE IS < 5
+					PRINTFORMW 「%ANAME(子供一人目)%、みんなと一緒にお父さんの事を支えるのよ……」
+				;子供が五人～九人いる
+				CASE IS < 10
+					PRINTFORMW 「ごめんね、もう%ANAME(MASTER)%達の所には帰れないみたい……」
+				;子供がたくさんいる
+				CASEELSE
+					PRINTFORMW 「%ANAME(MASTER)%、%ANAME(子供一人目)%達、みんな仲良く元気に暮らしてね……」
+				ENDSELECT
+			ELSE
+				PRINTFORMW 「ごめんね、もう%ANAME(MASTER)%の所には帰れないみたい……」
+			ENDIF
 		ELSEIF TALENT:恋慕 || TALENT:親友
 			PRINTFORMW 「こんな世でも%ANAME(MASTER)%だけは生き延びて……！」
 		ELSE

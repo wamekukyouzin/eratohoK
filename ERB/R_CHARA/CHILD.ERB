@@ -467,6 +467,9 @@ ENDIF
 #DIM スキル数合計
 #DIM 習得確率
 #DIM スキル位置
+#DIM スキル習得数
+#DIM スキル習得中止
+#DIM スキルレベル
 VARSET スキルNO群
 VARSET スキルID群
 VARSET スキルレベル群
@@ -529,24 +532,35 @@ NEXT
 
 $MOTHER_CANCEL
 
-FOR 試行回数, 0, スキル数合計 / 2
-	ジャンル = RAND:SKILL_GENRE_NUM
-	SIF スキル数:ジャンル == 0
-		CONTINUE
-	スキル位置 = RAND:(スキル数:ジャンル)
-	SELECTCASE スキルレベル群:ジャンル:スキル位置
-		CASE 5
-			習得確率 = 30
-		CASE 4
-			習得確率 = 50
-		CASE 3
-			習得確率 = 70
-		CASE 1, 2
-			習得確率 = 90
-	ENDSELECT
-	SIF 習得確率 <= RAND:100
-		CONTINUE
-	CALL SKILL_LEARN(TARGET, ジャンル, スキルNO群:ジャンル:スキル位置, スキルID群:ジャンル:スキル位置)
+FOR ジャンル, 0, SKILL_GENRE_NUM
+	スキル習得数 = 0
+	スキル習得中止 = 0
+	FOR スキルレベル, 5, 0, -1
+		SELECTCASE スキルレベル
+			CASE 5
+				習得確率 = 30
+			CASE 4
+				習得確率 = 50
+			CASE 3
+				習得確率 = 70
+			CASE 1, 2
+				習得確率 = 90
+		ENDSELECT
+		FOR スキル位置, 0, スキル数:ジャンル
+			SIF スキルレベル群:ジャンル:スキル位置 != スキルレベル
+				CONTINUE
+			SIF 習得確率 <= RAND:100
+				CONTINUE
+			CALL SKILL_LEARN(TARGET, ジャンル, スキルNO群:ジャンル:スキル位置, スキルID群:ジャンル:スキル位置)
+			スキル習得数 ++
+			IF スキル習得数 >= RAND(1, 6)
+				スキル習得中止 = 1
+				BREAK
+			ENDIF
+		NEXT
+		SIF スキル習得中止
+			BREAK
+	NEXT
 NEXT
 
 ;-------------------------
