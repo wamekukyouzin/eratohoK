@@ -1,0 +1,325 @@
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@KOJO_DAILY_K23_OLDTALE_RATE(対象)
+#DIM 対象
+RETURN 100 + (KDVAR:対象:萃香_昔話 > 0) * 50
+
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@KOJO_DAILY_K23_OLDTALE_DECISION(対象)
+#DIM 対象
+
+;プレイヤーキャラが紫か勇儀か華扇なら発生しない
+SIF GROUPMATCH(MASTER, NAME_TO_CHARA("紫"), NAME_TO_CHARA("勇儀"), NAME_TO_CHARA("華扇"))
+	RETURN 0
+
+;終わってたら発生しない
+SIF KDVAR:対象:萃香_昔話 == -1
+	RETURN 0
+	
+;恋慕系で、合意がなければだめ
+SIF !(IS_LOVER(対象) && TALENT:対象:合意)
+	RETURN 0
+	
+;ARG:0が口上デイリーイベントを実施できるかの簡易チェック関数
+;ARG:1 0 MASTERと別勢力である 1 MASTERと同一勢力である　-1 どちらでもよい
+;ARG:2 0 捕虜でない 1 捕虜である -1 どちらでもよい
+;ARG:3 0 面識がない 1 面識がある -1 どちらでもよい
+RETURN CHECK_KOJO_DAILY_HAPPEN(対象, 1, 0, 1)
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@KOJO_DAILY_K23_OLDTALE_GENRE(対象)
+#DIM 対象
+RETURN デイリー_ジャンル_その他
+
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@KOJO_DAILY_K23_OLDTALE(対象)
+#DIM 対象
+
+
+SELECTCASE KDVAR:対象:萃香_昔話
+	CASE 0
+		PRINTFORMW 「やあ、%ANAME(MASTER)%」
+		PRINTFORML 夜、外をぶらぶらしていると%ANAME(対象)%が月見酒をしていた
+		PRINTFORMW 「月を見てたらさ、なんかちょっと昔を思い出してね」
+		PRINTFORMW 「思い出を肴に飲んでたところさ。月の明かりは今も昔も変わらないからね」
+		PRINTFORML %ANAME(対象)%は見た目と違って長くを生きてきた大妖怪だ
+		PRINTFORMW 当然、過去にも色々な事があったのだろう。…ちょっと興味があるな
+		PRINTFORML 「…良かったらだけど、私の昔話、聞いてみる？　一杯おごるよ」
+		PRINTFORMW どうしようか……
+		PRINTFORML 
+		CALL ASK_YN("どんな話か、興味がある", "今日のところはいいかな")
+		IF RESULT == 1
+			PRINTFORML 「そう？　そりゃ残念。ま、気が向いたらまた今度ね」
+			PRINTFORMW %ANAME(MASTER)%は%ANAME(対象)%に手を振って別れた
+		ELSE
+			PRINTFORMW 「ふふ、それじゃあ、酔っ払いの話にちょっと付き合っておくれよ」
+			PRINTFORML 
+			PRINTFORMW %ANAME(対象)%は自分の過去を色々と語ってくれた
+			PRINTFORML 昔の人間たちとの交流、受けた恩と仇の話を区別無く…
+			PRINTFORMW 語り口の端々から、人間への好意が滲み出ていた
+			PRINTFORML ・
+			PRINTFORML ・
+			PRINTFORMW 「ふう…、今日はここまでにしようか。付き合ってくれてありがとうな」
+			PRINTFORML いろいろ聞き入る内容だった。続きもいつか聞きたいな
+			PRINTFORMW 「そ、そう？　へへ、なんか照れるなぁ」
+			PRINTFORML 「でもなー、酔いが浅いと興が乗らないし…そうだなぁ」
+			PRINTFORML
+			CALL ICPRINT("「次は<清酒みっつ>用意してくれたら話してあげるよ」", "W", カラー_注意)
+			PRINTFORML
+			PRINTFORML 次の話はこっちで酒を用意すれば聞かせてくれるようだ
+			PRINTFORMW 「私はここで飲んでるからさ、気が向いたらまたおいで」
+			PRINTFORML
+			CALL ICPRINT(@"<%ANAME(対象)%は昔話でかつての経験を思い出したようだ>", "W", カラー_注意)
+			CALL PRINT_ADD_EXP(対象, "武闘経験値", 10, 1)
+			CALL PRINT_ADD_EXP(対象, "防衛経験値", 10, 1)
+			CALL PRINT_ADD_EXP(対象, "知略経験値", 5, 1)
+			CALL PRINT_ADD_EXP(対象, "肝臓経験値", RAND(50, 100), 1)
+			CALL PRINT_ADD_EXP(MASTER, "肝臓経験値", RAND(50, 100), 1)
+			CALL TRAIN_AUTO_ABLUP(対象)
+			CALL TRAIN_AUTO_ABLUP(MASTER)
+			PRINTFORML
+			CFLAG:対象:好感度 += 200
+			KDVAR:対象:萃香_昔話 = 1
+		ENDIF
+	;KDVAR:対象:萃香_昔話 = が1でイベント発生
+	CASE 1
+		PRINTFORML 「よう、%ANAME(MASTER)%」
+		PRINTFORMW 夜、外を歩いていると%ANAME(対象)%が月見酒をしていた
+		PRINTFORML 「また私の話、聞きたくなったかい？」
+		CALL ICPRINT("「<清酒みっつ>くれるんなら聞かせてあげるよ」", "W", カラー_注意)
+		PRINTFORMW どうしようか……
+		PRINTFORML 
+		CALL ASK_MULTI_JUDGE("聞きたい",  ITEM:清酒 >= 3, "今日はやめておく", 1)
+		IF RESULT == 1
+			PRINTFORML 「そう？　そりゃ残念。ま、気が向いたらまた今度ね」
+			PRINTFORMW %ANAME(MASTER)%は%ANAME(対象)%に手を振って別れた
+		ELSE
+			PRINTFORMW 「ふふ、バッチリだよ%ANAME(MASTER)%。それじゃあ、今日も酔っ払いの話に付き合っておくれ」
+			PRINTFORML 
+			PRINTFORMW %ANAME(対象)%は自分の過去を色々と語ってくれた
+			PRINTFORML 数多の鬼や人間と出会い、戦い、そして親交を深めて行ったこと…
+			PRINTFORMW 語り口の端々から、鬼としての誇りが滲み出ていた
+			PRINTFORML ・
+			PRINTFORML ・
+			PRINTFORMW 「ふう…、今日はここまでにしようか。付き合ってくれてありがとうね」
+			PRINTFORMW 「しかし聞き手がいると、何だか喋りすぎちゃうな。退屈じゃなかった？」
+			PRINTFORML いろいろ聞き入る内容だった。また続きを聞きたいな
+			PRINTFORMW 「そ、そう？　へへ、なんか照れるなぁ」
+			PRINTFORML 「でもなー、酔いが浅いと興が乗らないし…そうだなぁ」
+			PRINTFORML
+			CALL ICPRINT("「次は<麦酒みっつ>用意してくれたら話してあげるよ」", "W", カラー_注意)
+			PRINTFORML
+			PRINTFORML 次の話はこっちで酒を用意すれば聞かせてくれるようだ
+			PRINTFORMW 「私はここで飲んでるからさ、気が向いたらまたおいで」
+			PRINTFORML
+			CALL ICPRINT(@"<%ANAME(対象)%は昔話でかつての経験を思い出したようだ>", "W", カラー_注意)
+			CALL PRINT_ADD_EXP(対象, "武闘経験値", 15, 1)
+			CALL PRINT_ADD_EXP(対象, "防衛経験値", 15, 1)
+			CALL PRINT_ADD_EXP(対象, "知略経験値", 5, 1)
+			CALL PRINT_ADD_EXP(対象, "肝臓経験値", RAND(20, 50), 1)
+			CALL PRINT_ADD_EXP(MASTER, "肝臓経験値", RAND(20, 50), 1)
+			CALL TRAIN_AUTO_ABLUP(対象)
+			CALL TRAIN_AUTO_ABLUP(MASTER)
+			ITEM:清酒 -= 3
+			CALL COLOR_PRINTW("清酒を3つ飲み干した", カラー_注意)
+			CFLAG:対象:好感度 += 200
+			KDVAR:対象:萃香_昔話 = 2
+		ENDIF
+	;KDVAR:対象:萃香_昔話 = が2でイベント発生
+	CASE 2
+		PRINTFORML 「おう、%ANAME(MASTER)%」
+		PRINTFORMW 夜、外を歩いていると%ANAME(対象)%が月見酒をしていた。隣に一人分のスペースを空けて…
+		PRINTFORML 「また私の話、聞きたくなったかい？」
+		CALL ICPRINT("「<麦酒みっつ>くれるんなら聞かせてあげるよ」", "W", カラー_注意)
+		PRINTFORMW どうしようか……
+		PRINTFORML 
+		CALL ASK_MULTI_JUDGE("聞きたい",  ITEM:麦酒 >= 3, "今日はやめておく", 1)
+		IF RESULT == 1
+			PRINTFORML 「そう？　そりゃ残念。ま、気が向いたらまた今度ね」
+			PRINTFORMW %ANAME(MASTER)%は%ANAME(対象)%に手を振って別れた
+		ELSE
+			PRINTFORMW 「おお！　バッチリだよ%ANAME(MASTER)%。それじゃあ、今日も酔っ払いの話に付き合っておくれ」
+			PRINTFORML 
+			PRINTFORMW %ANAME(対象)%は自分の過去を色々と語ってくれた
+			PRINTFORML 人間たちとの関係の変化によって起きた事、人間と鬼との絆の終焉…
+			PRINTFORMW 語り口の端々から、悔しさと、そして寂しさが滲み出ていた
+			PRINTFORML ・
+			PRINTFORML ・
+			PRINTFORMW 「ふう…、今日はここまでにしようか。何だか余計なことまで話しちゃった気がするよ」
+			PRINTFORML いろいろ聞き入る内容だった。続きもいつか聞きたいな
+			PRINTFORMW 「そ、そう？　へへ、なんか照れるなぁ」
+			PRINTFORML 「でもなー、酔いが浅いと興が乗らないし…そうだなぁ」
+			PRINTFORML
+			CALL ICPRINT("「次は<日本酒みっつ>用意してくれたら話してあげるよ」", "W", カラー_注意)
+			PRINTFORML
+			PRINTFORML 次の話はこっちで酒を用意すれば聞かせてくれるようだ
+			PRINTFORMW 「私はここで飲んでるからさ、気が向いたらまたおいで」
+			PRINTFORML
+			CALL ICPRINT(@"<%ANAME(対象)%は昔話でかつての経験を思い出したようだ>", "W", カラー_注意)
+			CALL SKILL_LEARN_BY_NAME(対象, スキル_ジャンル_SP, NO:対象, "天手力男投げ")
+			SIF RESULT
+				CALL COLOR_PRINTW(@"%ANAME(対象)%がスキル＜天手力男投げ＞を習得しました", カラー_注意)
+			CALL PRINT_ADD_EXP(対象, "武闘経験値", 15, 1)
+			CALL PRINT_ADD_EXP(対象, "防衛経験値", 15, 1)
+			CALL PRINT_ADD_EXP(対象, "知略経験値", 5, 1)
+			CALL PRINT_ADD_EXP(対象, "肝臓経験値", RAND(20, 50), 1)
+			CALL PRINT_ADD_EXP(MASTER, "肝臓経験値", RAND(20, 50), 1)
+			CALL TRAIN_AUTO_ABLUP(対象)
+			CALL TRAIN_AUTO_ABLUP(MASTER)
+			ITEM:麦酒 -= 3
+			CALL COLOR_PRINTW("麦酒を3つ飲み干した", カラー_注意)
+			CFLAG:対象:好感度 += 200
+			KDVAR:対象:萃香_昔話 = 3
+		ENDIF
+	;KDVAR:対象:萃香_昔話 = が3でイベント発生
+	CASE 3
+		PRINTFORML 「ああ、%ANAME(MASTER)%」
+		PRINTFORMW 夜、外を歩いていると%ANAME(対象)%が月見酒をしていた。隣に一人分のスペースを空けて…
+		PRINTFORML 「また私の話、聞きたくなったかい？」
+		CALL ICPRINT("「<日本酒みっつ>くれるんなら聞かせてあげるよ」", "W", カラー_注意)
+		PRINTFORMW どうしようか……
+		PRINTFORML 
+		CALL ASK_MULTI_JUDGE("聞きたい",  ITEM:日本酒 >= 3, "今日はやめておく", 1)
+		IF RESULT == 1
+			PRINTFORML 「そう？　そりゃ残念。ま、気が向いたらまた今度ね」
+			PRINTFORMW %ANAME(MASTER)%は%ANAME(対象)%に手を振って別れた
+		ELSE
+			PRINTFORMW 「いよ！　待ってましたー♪　それじゃあ%ANAME(MASTER)%、今日も酔っ払いの話に付き合っておくれ」
+			PRINTFORML 
+			PRINTFORMW %ANAME(対象)%は自分の過去を色々と語ってくれた
+			PRINTFORML 人間との関係が冷え切ったあとも、どうしても人間たちと離れられず
+			PRINTFORMW かつての絆を取り戻そうとして奮闘し、命を失った…或いは、極僅かに受け入れられた同胞たちの事を…
+			PRINTFORMW 語り口の端々から、悲しさと、そして自身の思いを貫いた同胞への羨望が滲み出ていた
+			PRINTFORML ・
+			PRINTFORML ・
+			PRINTFORMW 「ふう…、今日はここまでにしようか。何だか暗い話で悪いね」
+			PRINTFORML ……いろいろと考えさせられる内容だった。また続きを聞きたいな
+			PRINTFORMW 「そう？　はは、アンタも物好きだねぇ」
+			PRINTFORML 「でもなー、酔いが浅いと興が乗らないし…そうだなぁ」
+			PRINTFORML
+			CALL ICPRINT("「次は<蒸留酒みっつ>用意してくれたら話してあげるよ」", "W", カラー_注意)
+			PRINTFORML
+			PRINTFORML 次の話はこっちで酒を用意すれば聞かせてくれるようだ
+			PRINTFORMW 「今まで付き合ってくれてありがとうな。次の話で、私の昔話は最後だよ。楽しみにしていなよ♪」
+			PRINTFORML
+			CALL ICPRINT(@"<%ANAME(対象)%は昔話でかつての経験を思い出したようだ>", "W", カラー_注意)
+			CALL SKILL_LEARN_BY_NAME(対象, スキル_ジャンル_SP, NO:対象, "ミッシングパープルパワー")
+			SIF RESULT
+				CALL COLOR_PRINTW(@"%ANAME(対象)%がスキル＜ミッシングパープルパワー＞を習得しました", カラー_注意)
+			CALL PRINT_ADD_EXP(対象, "武闘経験値", 20, 1)
+			CALL PRINT_ADD_EXP(対象, "防衛経験値", 20, 1)
+			CALL PRINT_ADD_EXP(対象, "知略経験値", 10, 1)
+			CALL PRINT_ADD_EXP(対象, "肝臓経験値", RAND(50, 100), 1)
+			CALL PRINT_ADD_EXP(MASTER, "肝臓経験値", RAND(50, 100), 1)
+			CALL TRAIN_AUTO_ABLUP(対象)
+			CALL TRAIN_AUTO_ABLUP(MASTER)
+			ITEM:日本酒 -= 3
+			CALL COLOR_PRINTW("日本酒を3つ飲み干した", カラー_注意)
+			CFLAG:対象:好感度 += 200
+			KDVAR:対象:萃香_昔話 = 4
+		ENDIF
+	;KDVAR:対象:萃香_昔話 = が4でイベント発生
+	CASE 4
+		PRINTFORML 「やあ、%ANAME(MASTER)%」
+		PRINTFORMW 夜、外を歩いていると%ANAME(対象)%が月見酒をしていた。隣に一人分のスペースを空けて…
+		PRINTFORML 「また私の話を聞きに来てくれたのかい？」
+		PRINTFORMW 「今回のが最後の話だよ。どうする？」
+		CALL ICPRINT("「<蒸留酒みっつ>くれるんなら聞かせてあげるよ」", "W", カラー_注意)
+		PRINTFORMW どうしようか……
+		PRINTFORML 
+		CALL ASK_MULTI_JUDGE("聞きたい",  ITEM:蒸留酒 >= 3, "今日はやめておく", 1)
+		IF RESULT == 1
+			PRINTFORML 「そう？　そりゃ残念。ま、気が向いたらまた今度ね」
+			PRINTFORMW %ANAME(MASTER)%は%ANAME(対象)%に手を振って別れた
+		ELSE
+			PRINTFORMW 「おお～♪　ちゃんと用意してくれるとは流石%ANAME(MASTER)%！　それじゃあ、私の最後の話、付き合っておくれ」
+			PRINTFORML 
+			PRINTFORMW %ANAME(対象)%は自分の過去を色々と語ってくれた
+			PRINTFORML 人間との関係に見切りをつけ、鬼たちだけで暮らし始めた事。それでそこそこは上手くやれていた事
+			PRINTFORMW それでも人間との絆を諦めきれず、幻想郷に来て、そして多くの変わった連中に出会った事…
+			PRINTFORML 知己の友だった紫、レミリアのような西洋の鬼、不良天人、霊夢や魔理沙たちといった不思議な人間たち…
+			PRINTFORMW 酔いの深さに任せて、%ANAME(対象)%は今日まで幻想郷で出会えた者たちの事を実に楽しげに話してくれた
+			PRINTFORMW 語り口の端々から、嬉しさと、そして皆への感謝の想いが滲み出ていた
+			PRINTFORML ・
+			PRINTFORML ・
+			PRINTFORMW ・
+			PRINTFORMW 「ふう……これで私の昔話は終わりだよ。最後まで聞いてくれてありがとうね」
+			PRINTFORML 「%ANAME(MASTER)%が真剣に聞いてくれるもんだから、ついつい熱く語っちまったよ」
+			PRINTFORMW とても興味深い話だった。しかし、何でこんな身の上話をわざわざ自分なんかに？
+			PRINTFORMW 「何でだろうねぇ…。もしかしたら、知ってほしかったのかな。私のことや同胞たちのこと、鬼と人間のことをさ……」
+			PRINTFORML
+			PRINTFORML 「それを踏まえて、%ANAME(MASTER)%に聞きたいことがあるんだ」
+			PRINTFORMW
+			PRINTFORMW ……%ANAME(対象)%は神妙な面持ちで%ANAME(MASTER)%と向き合った
+			PRINTFORML 「昔はさ、人間たちが鬼に対して騙し討ちを使うようになって、ずいぶん憤慨したものさ」
+			PRINTFORMW 「卑怯者め！　まともに向き合う事も出来なくなったのか、この軟弱者どもめ！　ってね……」
+			PRINTFORML 「でも、逆だったのかも。…本当に向き合わなくなったのは、人間に負け始めた私たち鬼の方なんじゃないかってね」
+			PRINTFORMW 「鬼が本当に強かったのなら…、卑怯な手段も受け止めて、人間と向き合うべきだったんじゃないか……」
+			PRINTFORML 「それが出来なかったのは、私たちが弱かったからじゃないのか。…そんな風に、考えるようになった」
+			PRINTFORML 「…向き合っていれば、私たち鬼と人間の関係はもっと違うものになっていたんじゃないだろうか。…そう思うんだ」
+			PRINTFORMW 「……ま、勇儀たちにゃあ、『小さい頭で考えすぎだ』、なんて言われたけどね」
+			PRINTFORML 「はは、その所為かねぇ。私の角はいつの間にか、ずいぶんとねじくれた形になっちゃってたよ」
+			PRINTFORML ……この少女は、すでに過ぎ去った鬼と人の関係をずっと考えて、今まで諦めきれずに背負ってきたのだろうか
+			PRINTFORMW 「だから思うんだ。かつてのように逃げださず、人間なりの強さと向き合ってちゃんと受け止める強さを目指すべきか」
+			PRINTFORMW 「それともこの幻想郷で、今までとは違う、これからの人間たちとの新しい絆と生き方を見つけるべきか…」
+			PRINTFORML 「なぁ、%ANAME(MASTER)%。……私はどうしたらいいと思う？」
+			PRINTFORML 自分の意見は……
+			PRINTFORMW 
+			CALL ASK_YN("これからの未来を作って行こう", "かつての理想を追い求めるべき")
+			IF RESULT == 1
+				PRINTFORML 「……そうか。そう言ってくれるんだな、%ANAME(MASTER)%は」
+				PRINTFORMW 「…うん！　なんか吹っ切れた感じだよ！　やっぱりゴチャゴチャ考えるのは性に合わないね！」
+				PRINTFORML 「よっしゃー！　これからはバリバリ行くよ！　その内%ANAME(MASTER)%も攫いに行くからね。覚悟しとけよー♪」
+				PRINTFORML ……元気にはなったようだが、藪をつついて鬼が出たような……
+				PRINTFORMW %ANAME(対象)%は%ANAME(MASTER)%に後押しされ、吹っ切れたようだ
+				CALL SKILL_LEARN_BY_NAME(対象, スキル_ジャンル_SP, NO:対象, "大江山悉皆殺し")
+				SIF RESULT
+					CALL COLOR_PRINTW(@"%ANAME(対象)%がスキル＜大江山悉皆殺し＞を習得しました", カラー_注意)
+				CALL PRINT_ADD_EXP(対象, "武闘経験値", 100, 1)
+				CALL PRINT_ADD_EXP(対象, "防衛経験値", 90, 1)
+				CALL PRINT_ADD_EXP(対象, "知略経験値", 10, 1)
+				CALL PRINT_ADD_EXP(対象, "肝臓経験値", RAND(60, 120), 1)
+				CALL PRINT_ADD_EXP(MASTER, "肝臓経験値", RAND(60, 120), 1)
+				CALL TRAIN_AUTO_ABLUP(対象)
+				CALL TRAIN_AUTO_ABLUP(MASTER)
+			ELSE
+				PRINTFORML 「……そうか。そう言ってくれるんだな、%ANAME(MASTER)%は」
+				PRINTFORMW 「よーし！　なんか吹っ切れた感じだよ！　やっぱりウダウダ悩む暇があったら進むべきだよね」
+				PRINTFORML 「じゃあとりあえず、これからもよろしくね、%ANAME(MASTER)%」
+				PRINTFORML 「アンタとの絆がどういうものになるのか、楽しみにしているよ♪」
+				PRINTFORMW %ANAME(MASTER)%の後押しで、%ANAME(対象)%はこれからの未来を作って行くと決めたようだ
+				CALL SKILL_LEARN_BY_NAME(対象, スキル_ジャンル_BASE, NO:対象, "百万鬼夜行")
+				SIF RESULT
+					CALL COLOR_PRINTW(@"%ANAME(対象)%がスキル＜百万鬼夜行＞を習得しました", カラー_注意)
+				CALL PRINT_ADD_EXP(対象, "武闘経験値", 70, 1)
+				CALL PRINT_ADD_EXP(対象, "防衛経験値", 70, 1)
+				CALL PRINT_ADD_EXP(対象, "知略経験値", 60, 1)
+				CALL PRINT_ADD_EXP(対象, "肝臓経験値", RAND(60, 120), 1)
+				CALL PRINT_ADD_EXP(MASTER, "肝臓経験値", RAND(60, 120), 1)
+				CALL TRAIN_AUTO_ABLUP(対象)
+				CALL TRAIN_AUTO_ABLUP(MASTER)
+			ENDIF
+			PRINTFORML 
+			KDVAR:対象:萃香_昔話 = -1
+			ITEM:蒸留酒 -= 3
+			CALL COLOR_PRINTW("蒸留酒を3つ飲み干した", カラー_注意)
+			CFLAG:対象:好感度 += 500
+		ENDIF
+ENDSELECT
+
+RETURN 1

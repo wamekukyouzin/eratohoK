@@ -4,9 +4,13 @@
 ;---------------------
 @KOJO_DAILY_K81_GOOD_MORNING_RATE(対象)
 #DIM 対象
-RETURN 40
+RETURN (KDVAR:対象:響子_挨拶 > 0 ? 70 # 40)
 
-
+	
+;3回無視すると発生しない
+SIF KDVAR:対象:響子_挨拶無し >= 3
+	RETURN 0
+	
 ;---------------------
 ;確率以外の発生判定
 ;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
@@ -34,15 +38,103 @@ RETURN デイリー_ジャンル_その他
 @KOJO_DAILY_K81_GOOD_MORNING(対象)
 #DIM 対象
 
-PRINTFORMW 「おはようございまーす♪」
-PRINTFORMW %ANAME(対象)%が挨拶してきた……
-PRINTL
-CALL ASK_YN("おはようございます", "無視する")
-IF RESULT == 0
-	PRINTFORMW にこやかな挨拶を返した……
-	CFLAG:対象:好感度 += 10
-ELSE
-	PRINTFORML 無視して通り過ぎた……
-ENDIF
-
+SELECTCASE KDVAR:対象:響子_挨拶
+	CASE 0 TO 1
+		PRINTFORMW 「おはようございまーす！」
+		PRINTFORMW %ANAME(対象)%が挨拶してきた……
+		PRINTL
+		CALL ASK_YN("おはようございます", "無視する")
+		IF RESULT == 0
+			PRINTFORMW にこやかな挨拶を返した……
+			CFLAG:対象:好感度 += 10
+		ELSE
+			PRINTFORML 無視して通り過ぎた……
+			KDVAR:対象:響子_挨拶無し ++
+		ENDIF
+		KDVAR:対象:響子_挨拶 ++
+	CASE 2
+		IF KDVAR:対象:響子_挨拶無し>= 2
+			PRINTFORMW 「あ……、お、おはようございます……」
+			PRINTFORML %ANAME(対象)%が挨拶してきた
+			PRINTFORMW 今まで%ANAME(MASTER)%に無視されて、挨拶すべきか戸惑っているようだ
+		ELSEIF KDVAR:対象:響子_挨拶無し== 0
+			PRINTFORMW 「あ、おはようございまーす♪」
+			PRINTFORML %ANAME(対象)%が嬉しそうに挨拶してきた
+			PRINTFORMW 今まで%ANAME(MASTER)%がにこやかに挨拶を返してくれたのが嬉しかったようだ
+		ELSE
+			PRINTFORMW 「おはようございまーす！」
+			PRINTFORMW %ANAME(対象)%が挨拶してきた……
+		ENDIF
+		PRINTL
+		CALL ASK_YN("おはようございます", "無視する")
+		IF RESULT == 0
+			PRINTFORMW にこやかな挨拶を返した……
+			IF KDVAR:対象:響子_挨拶無し>= 2 
+				PRINTFORML 「え？　あ！　お、おはようございます！」
+				PRINTFORMW 今まで無視されていたのに急に挨拶を返され、%ANAME(対象)%は戸惑いながらも嬉しそうにしている
+			ENDIF
+			CFLAG:対象:好感度 += 20
+			KDVAR:対象:響子_挨拶 ++
+		ELSE
+			PRINTFORML 無視して通り過ぎた……
+			IF KDVAR:対象:響子_挨拶無し>= 2 
+				PRINTFORML 「あ………」
+				PRINTFORMW 再三挨拶を無視されて、%ANAME(対象)%は表情を曇らせた……
+			ENDIF
+			KDVAR:対象:響子_挨拶無し ++
+		ENDIF
+	CASE 3
+		PRINTFORMW 「あ、%ANAME(MASTER)%！　おはようございまーす！」
+		PRINTFORML %ANAME(対象)%がとても嬉しそうに挨拶してきた
+		PRINTFORMW 今まで%ANAME(MASTER)%が何度も挨拶を返してくれたのがよほど嬉しかったようだ
+		PRINTFORML 自覚が有るのか無いのか、小さな尻尾を子犬のようにぱたぱたと振って喜びを表している
+		PRINTFORMW その様があまりにも愛らしくて、挨拶を返した際に彼女の頭をつい撫でてしまった
+		IF TALENT:対象:恋慕
+			PRINTFORML 「あっ、…えへへへ♥」
+			PRINTFORMW 想いを寄せている%ANAME(MASTER)%に撫でられて、%ANAME(対象)%は嬉しそうにしている
+			CFLAG:対象:好感度 += 100
+		ELSE
+			PRINTFORML 「？　…えへへ♪」
+			PRINTFORMW 思わず手が出てしまったが、%ANAME(対象)%は嫌がる様子は無く、むしろ喜んでいる様子だった
+			CFLAG:対象:好感度 += 50
+		ENDIF
+		KDVAR:対象:響子_挨拶 ++
+	CASE 4
+		PRINTDATAW
+		DATAFORM 「あ、%ANAME(MASTER)%ー！　おはよーございまーす！！」
+		DATAFORM 「あーっ！　%ANAME(MASTER)%ーっ！　おはよーございまーす！！」
+		DATAFORM 「あっ、%ANAME(MASTER)%だ！　おはよーっ！！　今日もいい天気だねー♪」
+		ENDDATA
+		PRINTFORML %ANAME(対象)%は%ANAME(MASTER)%の姿を見ると、一際嬉しそうに挨拶してきた
+		PRINTFORMW 「あ、うるさかった？　ごめんね。でも%ANAME(MASTER)%が挨拶返してくれるから、嬉しくてつい浮かれちゃった♪」
+		PRINTFORML %ANAME(対象)%は小さな尻尾を子犬のようにぱたぱたと振り、%ANAME(MASTER)%に愛らしい笑顔を向ける
+		PRINTFORML そんな%ANAME(対象)%の頭を撫でながら、今日も修行を頑張るように　と伝えた
+		PRINTFORMW 「うん！　頑張る！　%ANAME(MASTER)%もお仕事頑張ってねーっ！」
+		PRINTFORML %ANAME(MASTER)%を笑顔で見送った%ANAME(対象)%は、張り切って修行にのぞんだ……
+		SELECTCASE RAND:33
+			CASE IS < 5
+				CALL PRINT_ADD_EXP(対象, "武闘経験値", RAND:7 +1, 1)
+			CASE IS < 10
+				CALL PRINT_ADD_EXP(対象, "防衛経験値", RAND:7 +1, 1)
+			CASE IS < 15
+				CALL PRINT_ADD_EXP(対象, "知略経験値", RAND:7 +1, 1)
+			CASE IS < 20
+				CALL PRINT_ADD_EXP(対象, "政治経験値", RAND:7 +1, 1)
+			CASE IS < 25
+				CALL PRINT_ADD_EXP(対象, "料理経験値", RAND:7 +1, 1)
+			CASE IS < 30
+				CALL PRINT_ADD_EXP(対象, "歌唱経験値", RAND:7 +1, 1)
+			CASEELSE
+				PRINTFORML 「……ッ！！　そうか…生きるとは…幻想とは……、わたしは…、悟った！！」
+				CALL COLOR_PRINTW(@"%ANAME(対象)%は悟りを開いたようだ", カラー_注意)
+				CALL PRINT_ADD_EXP(対象, "武闘経験値", 50, 1)
+				CALL PRINT_ADD_EXP(対象, "防衛経験値", 50, 1)
+				CALL PRINT_ADD_EXP(対象, "知略経験値", 50, 1)
+				CALL PRINT_ADD_EXP(対象, "政治経験値", 50, 1)
+				CALL PRINT_ADD_EXP(対象, "料理経験値", 50, 1)
+				CALL PRINT_ADD_EXP(対象, "歌唱経験値", 50, 1)
+		ENDSELECT
+		CALL TRAIN_AUTO_ABLUP(対象)
+		CFLAG:対象:好感度 += 100
+ENDSELECT
 RETURN 1
