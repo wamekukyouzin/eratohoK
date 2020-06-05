@@ -1,0 +1,1140 @@
+﻿;---------------------
+;発生確率(1000分率 100で10%)
+;---------------------
+@EVENT_DAILY_TERRITORY_WALKING_RATE()
+RETURN 50
+
+
+;---------------------
+;確率以外の発生判定
+;---------------------
+@EVENT_DAILY_TERRITORY_WALKING_DECISION()
+
+;勢力に所属していないか捕虜だと駄目
+SIF CFLAG:MASTER:所属 == 0 || CFLAG:MASTER:捕虜先 != 0
+	RETURN 0
+	
+SIF DAY < 7
+	RETURN 0
+	
+SIF !HAS_PENIS(MASTER)
+	RETURN 0
+	
+RETURN 1
+
+;---------------------
+;ジャンル
+;---------------------
+@EVENT_DAILY_TERRITORY_WALKING_GENRE()
+RETURN デイリー_ジャンル_エロ
+
+;---------------------
+;特定の条件を満たすキャラをランダムに選択する場合に利用
+;他の関数は必須だが、これだけはなくてもよい　というかパフォーマンスへ影響するので不要なら作ってはならない
+;対象が存在せずデイリーを開始できない場合は0を返すことでデイリーの発生をキャンセルする
+;---------------------
+@EVENT_DAILY_TERRITORY_WALKING_SETTARGET()
+;遭遇キャラの選出、該当キャラが見つからない場合はキャンセル
+FOR LOCAL, 0, CHARANUM
+	;同勢力に所属しているキャラ
+	IF LOCAL != MASTER && CFLAG:(LOCAL):所属 == CFLAG:MASTER:所属 && !CFLAG:(LOCAL):捕虜先 && !IS_ANIMAL(LOCAL)
+		DAILY_TARGET:DAILY_TARGET_NUM = LOCAL
+		DAILY_TARGET_NUM ++
+	ENDIF
+NEXT
+SIF DAILY_TARGET_NUM < 1
+	RETURN 0
+
+RETURN 1
+;---------------------
+;本体
+;---------------------
+@EVENT_DAILY_TERRITORY_WALKING()
+#DIM 対象
+
+対象 = DAILY_TARGET:(RAND:DAILY_TARGET_NUM)
+
+PRINTFORMW とある日。特にすることも無くて退屈な休日だ……
+PRINTFORMW %ANAME(MASTER)%は暇つぶしも兼ねて、視察がてら領内をぶらりと見て回ることにした
+PRINTFORMW さて、どこに行こう……
+PRINTFORML 
+CALL ASK_MULTI("酒場", "歓楽街", "町中をぶらぶら", "夜の繁華街", "色町", "スラム街", "止めておく")
+SELECTCASE RESULT
+	;酒場（人妻ルート）
+	CASE 0
+		PRINTFORMW 酒場に行ってみよう
+		PRINTFORML …
+		PRINTFORMW ……
+		;1/4で酒場で飲んでるキャラと遭遇
+		IF !RAND:4
+			PRINTFORMW 酒場に着くと、店の奥で%ANAME(対象)%が飲んでいた
+			SIF CFLAG:対象:面識 == 0
+				CFLAG:対象:面識 = 1
+			PRINTFORMW …はて。たしか%ANAME(対象)%は今、勤務中のはずでは……
+			PRINTFORML %ANAME(対象)%が%ANAME(MASTER)%の姿を見つけると
+			PRINTFORMW こっちに来なよ、とばかりに手招きされる
+			PRINTFORML どうやら完全に酔っ払っているようだ
+			PRINTFORMW %ANAME(MASTER)%は%ANAME(対象)%の絡み酒に付き合わされた……
+			CALL PRINT_ADD_EXP(MASTER, "肝臓経験値", RAND(5, 15), 1)
+			CALL PRINT_ADD_EXP(対象, "肝臓経験値", RAND(10, 30), 1)
+			CALL TRAIN_AUTO_ABLUP(MASTER)
+			CALL TRAIN_AUTO_ABLUP(対象)
+			CFLAG:対象:好感度 += 80
+			RETURN
+		ENDIF
+		;愛人化以降
+		IF DVAR:領内ぶらりエロの旅_人妻 >= 4
+			PRINTFORML %ANAME(MASTER)%の愛人となった人妻が、今日も飲んでいた
+			PRINTFORMW 声をかけてみると、彼女はとても嬉しそうな顔で%ANAME(MASTER)%を迎えてくれた
+			PRINTFORML しばし彼女との他愛無い会話を楽しんだ…
+			PRINTFORMW そして日が落ち始めた頃に、彼女は%ANAME(MASTER)%に抱きつき、　また自分を抱いてほしい　と熱っぽく囁いてきた
+			PRINTFORML どうやら%ANAME(MASTER)%に抱かれることを期待して、毎日ここで待っていたようだ
+			PRINTFORML そんな健気な彼女の要望に応えるべく、%ANAME(MASTER)%は彼女を抱き寄せ、連れ込み宿で愛し合うことにした
+			PRINTFORMW そして%ANAME(MASTER)%との行為の前に、彼女は薬指のリングを外した……
+			PRINTFORML 
+			SELECTCASE RAND:4
+				CASE 0
+					PRINTFORMW %ANAME(MASTER)%達は、宿の一室でベッドを軋ませながら獣の様に激しく愛し合っている
+					PRINTFORML 彼女は瞳に♥を浮かべながら激しく腰を振り、%ANAME(MASTER)%の名前を何度も呼び求めてくる
+					PRINTFORMW 激しく巧みな腰つきに一物を刺激され、思わず彼女の腰を強くつかんで深く肉壷を抉る
+					PRINTFORML 女としての悦びを満たしてくれる%ANAME(MASTER)%のとセックスに、彼女は幸せを感じているようで
+					PRINTFORMW いざ射精の瞬間、彼女は%ANAME(MASTER)%にぎゅっと抱きつき、%ANAME(MASTER)%の子種を子宮で受け止めた……
+				CASE 1
+					PRINTFORMW %ANAME(MASTER)%達は、宿の一室で互いに唇を深く交わらせながら激しく愛し合っている
+					PRINTFORML 自分を女として見なかった男より、自分の淫らな本性を満たしてくれる%ANAME(MASTER)%とのセックスに、
+					PRINTFORMW 彼女は至上の幸福を感じ、その幸福感が肉体をさらに敏感にしていく
+					PRINTFORMW %ANAME(MASTER)%もまた、一人の女が夫より自分を選んだという背徳的な事実に肉棒を漲らせ、彼女をいっそう求めていく
+					PRINTFORMW 二人は互いに求め合うまま、何度も腰を打ち付け背徳の快楽を貪った……
+				CASE 2
+					PRINTFORMW %ANAME(MASTER)%達は、宿の一室にてベッドを軋ませながら騎乗位で激しく愛し合っている
+					PRINTFORML 彼女は愛する%ANAME(MASTER)%のお腹に手を置き、はしたなく喘ぎ声を漏らしながら激しく腰を上下に打ち付ける
+					PRINTFORMW 自分の淫らな雌の本性を受け止めてくれる%ANAME(MASTER)%とのセックスが彼女の心を幸せで満たしていく
+					PRINTFORMW その顔は快感に蕩けきっており、夫ではなく%ANAME(MASTER)%の名を何度も呼びながら何度も絶頂する
+					PRINTFORMW その後も%ANAME(MASTER)%に跨り情熱的なキスを交わしながら、二人はなお激しく交わっていく……
+				CASE 3
+					PRINTFORMW %ANAME(MASTER)%達は、宿の一室にて正常位で激しく愛し合っている
+					PRINTFORML 彼女は%ANAME(MASTER)%とのセックスに幸せを感じているようで、愛する人にしかしないような情熱的なキスを交わす
+					PRINTFORMW 女としてのはしたない欲求を満たしてくれる%ANAME(MASTER)%のことを、彼女は心から愛しているようだ
+					PRINTFORML %ANAME(MASTER)%がペニスを突きこむたび、彼女は脚を%ANAME(MASTER)%の腰に絡め、より膣内深くまでペニスを迎える
+					PRINTFORMW そして絶頂の瞬間、彼女は%ANAME(MASTER)%に力いっぱい抱きついて密着し、その子種を子宮で受け止めた……
+			ENDSELECT
+			CALL FUCK(MASTER, "性技, 性交, Ｃ, 射精", "童貞喪失, キス喪失, Ｖ挿入", 0, "愛人の女の唇", "", "愛人の女の膣", "和姦")
+			PRINTFORML 
+			PRINTFORML たっぷり楽しんだ後、夜明け前に宿を出た
+			PRINTFORMW 彼女は%ANAME(MASTER)%に長いキスをして「また、私を抱いてください」と告げ、手を振って%ANAME(MASTER)%を見送った……
+
+		;4回目で愛人になる
+		ELSEIF DVAR:領内ぶらりエロの旅_人妻 == 3
+			PRINTFORML 何度か関係を持った人妻が、今日も飲んでいた
+			PRINTFORMW 声をかけてみると、彼女は嬉しそうな顔で%ANAME(MASTER)%を迎えてくれた
+			PRINTFORML 今回はほろ酔い程度のようで、穏やかな会話を楽しんだ…
+			PRINTFORMW 楽しい一時が終わると、彼女は%ANAME(MASTER)%に抱きつき、　自分を抱いてくれ　と熱っぽく囁いてきた
+			PRINTFORML
+			PRINTFORML いわく、%ANAME(MASTER)%と関係を持ってから肉体の欲求不満が満たされたおかげか、
+			PRINTFORMW 夫との喧嘩もめっきり少なくなり、表向きの関係は良好になった
+			PRINTFORMW でも、自分を女として抱いてくれるのは%ANAME(MASTER)%の方だ。自分を満たしてくれるのは%ANAME(MASTER)%だけだ
+			PRINTFORMW だから自分を、%ANAME(MASTER)%の女にしてほしい　と……
+			PRINTFORML
+			PRINTFORMW 彼女は潤んだ瞳で%ANAME(MASTER)%を見上げる。その表情は恋する乙女そのものだった
+			PRINTFORML ･･･
+			PRINTFORMW こんな魅力的な女性が、女として見られないというのは残酷なことだ
+			PRINTFORMW 望みどおり、彼女を自分の女にしてやろう
+			PRINTFORML %ANAME(MASTER)%は彼女を抱き寄せ、連れ込み宿で愛し合うことにした
+			PRINTFORMW そして%ANAME(MASTER)%との行為の前に、彼女は薬指のリングを外した……
+			PRINTFORML 
+			SELECTCASE RAND:4
+				CASE 0
+					PRINTFORMW %ANAME(MASTER)%達は、宿の一室でベッドを軋ませながら獣の様に激しく愛し合っている
+					PRINTFORML 彼女は瞳に♥を浮かべながら激しく腰を振り、%ANAME(MASTER)%の名前を何度も呼び求めてくる
+					PRINTFORMW 激しく巧みな腰つきに一物を刺激され、思わず彼女の腰を強くつかんで深く肉壷を抉る
+					PRINTFORML 女としての悦びを満たしてくれる%ANAME(MASTER)%のとセックスに、彼女は幸せを感じているようで
+					PRINTFORMW いざ射精の瞬間、彼女は%ANAME(MASTER)%にぎゅっと抱きつき、%ANAME(MASTER)%の子種を子宮で受け止めた……
+				CASE 1
+					PRINTFORMW %ANAME(MASTER)%達は、宿の一室で互いに唇を深く交わらせながら激しく愛し合っている
+					PRINTFORML 自分を女として見なかった男より、自分の淫らな本性を満たしてくれる%ANAME(MASTER)%とのセックスに、
+					PRINTFORMW 彼女は至上の幸福を感じ、その幸福感が肉体をさらに敏感にしていく
+					PRINTFORMW %ANAME(MASTER)%もまた、一人の女が夫より自分を選んだという背徳的な事実に肉棒を漲らせ、彼女をいっそう求めていく
+					PRINTFORMW 二人は互いに求め合うまま、何度も腰を打ち付け背徳の快楽を貪った……
+				CASE 2
+					PRINTFORMW %ANAME(MASTER)%達は、宿の一室にてベッドを軋ませながら騎乗位で激しく愛し合っている
+					PRINTFORML 彼女は愛する%ANAME(MASTER)%のお腹に手を置き、はしたなく喘ぎ声を漏らしながら激しく腰を上下に打ち付ける
+					PRINTFORMW 自分の淫らな雌の本性を受け止めてくれる%ANAME(MASTER)%とのセックスが彼女の心を幸せで満たしていく
+					PRINTFORMW その顔は快感に蕩けきっており、夫ではなく%ANAME(MASTER)%の名を何度も呼びながら何度も絶頂する
+					PRINTFORMW その後も%ANAME(MASTER)%に跨り情熱的なキスを交わしながら、二人はなお激しく交わっていく……
+				CASE 3
+					PRINTFORMW %ANAME(MASTER)%達は、宿の一室にて正常位で激しく愛し合っている
+					PRINTFORML 彼女は%ANAME(MASTER)%とのセックスに幸せを感じているようで、愛する人にしかしない情熱的なキスを交わす
+					PRINTFORMW 女としてのはしたない欲求を満たしてくれる%ANAME(MASTER)%のことを、彼女は心から愛しているようだ
+					PRINTFORML %ANAME(MASTER)%がペニスを突きこむたび、彼女は脚を%ANAME(MASTER)%の腰に絡め、より膣内深くまでペニスを迎える
+					PRINTFORMW そして絶頂の瞬間、彼女は%ANAME(MASTER)%に力いっぱい抱きついて密着し、その子種を子宮で受け止めた……
+			ENDSELECT
+			CALL FUCK(MASTER, "性技, 性交, Ｃ, 射精", "童貞喪失, キス喪失, Ｖ挿入", 0, "愛人の女の唇", "", "愛人の女の膣", "和姦")
+			PRINTFORML 
+			PRINTFORML たっぷり楽しんだ後、夜明け前に宿を出た
+			PRINTFORMW 彼女は%ANAME(MASTER)%に長いキスをして「また、私を抱いてください」と告げ、手を振って%ANAME(MASTER)%を見送った……
+			PRINTFORMW 人妻は%ANAME(MASTER)%の愛人になった
+			DVAR:領内ぶらりエロの旅_人妻 += 1
+			
+		;2回目以降	
+		ELSEIF DVAR:領内ぶらりエロの旅_人妻 >= 1
+			PRINTFORMW そういえば、前に関係を持った人妻が連絡先を渡してくれた
+			PRINTFORML そこに書かれている酒場に行ってみると、彼女はそこで飲んでいた
+			PRINTFORML 今日も一緒に飲もうかと、ちょっと声をかけてみた
+			PRINTFORMW 今回も既に酔っ払っており、またも絡み酒につき合わされた
+			PRINTFORML 以前の%ANAME(MASTER)%とのセックスで、身体を重ねる快感を再確認したとのことだが
+			PRINTFORML 彼女の夫は夜の生活に関心が薄いらしく、セックスレス気味で不満がたまっているようだ
+			PRINTFORMW 今日も喧嘩をしてやけ酒をしているところ、との事だ
+			PRINTFORMW 泥酔する彼女に抱きつかれた%ANAME(MASTER)%は、今回も一緒に飲む事にした
+			PRINTFORML ･･･
+			PRINTFORMW ･･････
+			PRINTFORMW %ANAME(MASTER)%は酔いが回った彼女に今回も求められ、流されるまま連れ込み宿で身体を重ねることにした……
+			PRINTFORML 
+			SELECTCASE RAND:4
+				CASE 0
+					PRINTFORML %ANAME(MASTER)%達は、宿の一室でベッドを軋ませながら獣の様に交わりあっている
+					PRINTFORMW 彼女は髪を振り乱しながら激しく腰を振り、%ANAME(MASTER)%の名前を呼んで求めて来る
+					PRINTFORMW 激しく巧みな腰つきに一物を刺激され、たまらず彼女の腰を強くつかんでしまう
+					PRINTFORMW 我慢できずに彼女に求められるままに腰を打ち付け、何度もその中に精を放った……
+				CASE 1
+					PRINTFORML %ANAME(MASTER)%達は、宿の一室で互いにキスの雨を降らしながら激しく交わりあっている
+					PRINTFORMW 夫を差し置き、他の男を誘って抱かれるという不義が、彼女に強い興奮をもたらし、身体の感度を上げていく
+					PRINTFORMW %ANAME(MASTER)%もまた、人妻を抱いているという背徳感に酔いしれ、禁断の興奮が肉棒をさらに漲らせる
+					PRINTFORMW 二人は互いに求め合うまま、何度も腰を打ち付け背徳の快楽を貪った……
+				CASE 2
+					PRINTFORMW %ANAME(MASTER)%達は、宿の一室にてベッドを軋ませながら騎乗位で激しく交わり合っている
+					PRINTFORMW 彼女は%ANAME(MASTER)%のお腹に手を置き、自ら激しく腰を上下に打ち付ける
+					PRINTFORMW その顔は快感に蕩けきっており、夫ではなく%ANAME(MASTER)%の名を何度も呼びながら絶頂する
+					PRINTFORMW 自らの淫らな本性を受け止めてくれる幸せを感じながら、二人はなお激しく交わっていく……
+				CASE 3
+					PRINTFORML %ANAME(MASTER)%達は、宿の一室にて正常位で激しく交わりあっている
+					PRINTFORMW 彼女は%ANAME(MASTER)%とのセックスを楽しんでいる様子で、愛する人にするような情熱的なキスを交わす
+					PRINTFORMW 夫が満たしてくれない女としての欲求を、代わりに満たしてくれる%ANAME(MASTER)%の事を愛し始めているようだ
+					PRINTFORMW 彼女は絶頂の瞬間、%ANAME(MASTER)%に抱きつくように密着し、その精を奥深くまで導いた……
+			ENDSELECT
+			CALL FUCK(MASTER, "性技, 性交, Ｃ, 射精", "童貞喪失", 0, "", "", "行きずりの女の膣", "和姦")
+			PRINTFORML 
+			PRINTFORMW たっぷり楽しんだ後、夜明け前に宿を出た
+			PRINTFORMW 彼女は最後に%ANAME(MASTER)%にキスをして「また、会いましょう」と告げ、帰っていった……
+			DVAR:領内ぶらりエロの旅_人妻 += 1
+			
+		;1回目
+		ELSE
+			PRINTFORMW 酒場で一人飲んでいる女性と隣り合わせた
+			PRINTFORML どうしよう？
+			PRINTL
+			CALL ASK_YN("声をかける" ,"放っておく")
+			IF RESULT == 1
+				PRINTFORML どうやらかなり酔っているらしい
+				PRINTFORMW 面倒にならない様に離れた
+				RETURN
+			ENDIF
+			PRINTFORMW 一人酒もなんなので、ちょっと声をかけてみた
+			PRINTFORMW しかし彼女はかなり酔っ払っているらしく、絡み酒につき合わされた
+			PRINTFORML 彼女は夫との関係が冷え込んでるらしい
+			PRINTFORMW 今日も喧嘩をしてやけ酒をしているとの事だ
+			PRINTFORMW 泥酔する彼女に抱きつかれた%ANAME(MASTER)%は仕方なく一緒に飲む事にした
+			PRINTFORML ･･･
+			PRINTFORMW ･･････
+			PRINTFORMW %ANAME(MASTER)%達は宿の一室でベッドを軋ませながら獣の様に貪り合っている
+			PRINTFORML あの後%ANAME(MASTER)%はすっかり泥酔した彼女に求められるままに連れ込み宿へ入った
+			PRINTFORMW 彼女は髪を振り乱しながら激しく腰を振り、%ANAME(MASTER)%の名前を呼んで求めて来る
+			PRINTFORMW 激しく巧みな腰つきに一物を刺激され、たまらず彼女の腰を強くつかんでしまう
+			PRINTFORMW 我慢できずに彼女に求められるままに腰を打ち付け、何度もその中に精を放った……
+			CALL FUCK(MASTER, "性技, 性交, Ｃ, 射精", "童貞喪失", 0, "", "", "行きずりの女の膣", "和姦")
+			PRINTFORML 
+			PRINTFORMW たっぷり楽しんだ後、夜明け前に宿を出た
+			PRINTFORMW 彼女は最後に%ANAME(MASTER)%にキスをして連絡先を渡すと足早に去っていった
+			DVAR:領内ぶらりエロの旅_人妻 = 1
+		ENDIF
+	;歓楽街（乱交パーティー)
+	CASE 1
+		PRINTFORMW 歓楽街に行ってみよう
+		PRINTFORML …
+		PRINTFORMW ……
+		;1/4で歓楽街で遊んでいるキャラと遭遇
+		IF !RAND:4
+			PRINTFORMW 歓楽街で%ANAME(対象)%と鉢合わせた
+			SIF CFLAG:対象:面識 == 0
+				CFLAG:対象:面識 = 1
+			PRINTFORML どうやら%ANAME(対象)%も、暇な休日をもてあましているようだ
+			PRINTFORMW こっちも暇だったところだ。一緒にぶらつこうと提案し、%ANAME(対象)%もそれに乗った
+			PRINTFORMW 二人でやいのやいの言いながら歓楽街を散策した……
+			CFLAG:対象:好感度 += 50
+			RETURN
+		ENDIF
+		IF DVAR:領内ぶらりエロの旅_乱交パーティー >= 1
+			PRINTFORMW 歓楽街を散策中、以前声をかけてきた怪しい男が%ANAME(MASTER)%に寄ってきた
+			PRINTFORML また例の宴があるが一緒にどうだろうか、とのことだ
+			PRINTFORMW ……この先の店での、また乱交パーティーがあるらしい
+			PRINTFORMW 断る理由も無いので、男の誘いに乗った
+			PRINTFORMW 了承すると、男は下卑た笑みを浮かべて%ANAME(MASTER)%を再び店の地下へ案内した
+			PRINTFORML ･･･
+			PRINTFORMW ･･････
+			SELECTCASE RAND:5
+				CASE 0
+					PRINTFORMW そこではまたも、無数の裸の男女が乱れていた
+					PRINTFORML 大音量で流れる音楽と共に、部屋中にいやらしい蜜音と喘ぎ声が響いている
+					PRINTFORMW むせ返るように充満した雄と雌の匂いが前の宴を思い出させ、%ANAME(MASTER)%も身体が火照ってしまう
+					PRINTFORMW 前回、%ANAME(MASTER)%と交わった少女を見つける。彼女も%ANAME(MASTER)%の姿を見ると、抱きついて愛撫と共に服を脱がしてくる
+					PRINTFORML すっかり昂ぶった%ANAME(MASTER)%も彼女の唇を乱暴に塞ぎ、舌を絡ませながら強く抱きしめた
+				CASE 1
+					PRINTFORMW 無数の男女が乱れる宴に、%ANAME(MASTER)%も参加した
+					PRINTFORML むせ返るように充満した雄と雌の匂いと大音量で流れる音楽が、この空間の非日常感を煽る
+					PRINTFORMW %ANAME(MASTER)%もまた服を脱ぎ捨て、一匹の雄と化して目の前の雌にむしゃぶりつく
+					PRINTFORMW 小麦色の肌をした少女は嬉しげに喘ぎ、%ANAME(MASTER)%との交わりを楽しんでいる
+					PRINTFORML その可愛い喘ぎ声と瑞々しい肌の張りが、%ANAME(MASTER)%の興奮を高めていく
+				CASE 2
+					PRINTFORMW 再びの乱交パーティーを、%ANAME(MASTER)%はガッツリ楽しんでいる
+					PRINTFORML 欲望を解放した女たちの中にあって、一際目を引く出で立ちの女がいた
+					PRINTFORMW ふさふさの尻尾があり、頭にぴんと立った獣耳がついていた。どうやら狐の妖怪娘のようだ
+					PRINTFORML どうやらこのパーティーは、普段大手を振って男を襲うわけにいかない妖怪娘たちが
+					PRINTFORMW 大っぴらにまぐわりあえる出会いのイベントにもなっているようだ
+					PRINTFORMW %ANAME(MASTER)%はさっそく彼女に声をかけ、もふもふの尻尾と妖怪まんこを存分に楽しんだ
+				CASE 3
+					PRINTFORMW 再びの乱交パーティーを、%ANAME(MASTER)%はガッツリ楽しんでいる
+					PRINTFORML 欲望を解放した女たちの中にあって、一際喘ぎ声が大きな少女たちがいた
+					PRINTFORMW 揉み心地の良さそうなふんわり小さな尻尾があり、頭に大きな獣耳がついていた。見た目からして兎の妖怪娘のようだ
+					PRINTFORML どうやら発情を抑えられない娘たちが、この乱交パーティーで男漁りをしにきたようだ
+					PRINTFORMW %ANAME(MASTER)%はさっそく彼女たちに声をかけ、妖怪兎たちとの複数プレイに及んだ
+					PRINTFORMW 体つきは小さいのに深々と肉棒を飲み込み、がつがつ腰を振る貪欲さはさすが妖怪兎といったところだ
+				CASE 4
+					PRINTFORMW 裸の男女が乱れ合う快楽の宴に、%ANAME(MASTER)%はふたたび参加した
+					PRINTFORML むせ返る雄と雌の匂いと大音量の音楽が、まるで日常から切り離された異世界のように感じさせる
+					PRINTFORMW %ANAME(MASTER)%は今、二人の少女とまぐわりあっている
+					PRINTFORML 二人とも実に肉付きの良い豊満な肉体で、%ANAME(MASTER)%を責め立てて楽しんでいる
+					PRINTFORMW どうやらこのパーティーの常連らしく、ダブルキスやダブルフェラ、ダブルパイズリなどで精を搾り取る
+					PRINTFORMW その柔肌と芳醇なテクニックに、%ANAME(MASTER)%は骨抜きにされていく…
+			ENDSELECT
+			PRINTFORMW %ANAME(MASTER)%は一晩中彼女らと共に肉欲の宴におぼれ、おねだりされるままに何度もセックスを繰り返した…
+			CALL FUCK(MASTER, "性技, 性交, Ｃ, 射精", "童貞喪失, キス喪失, Ｖ挿入", 0, "行きずりの少女の唇", "", "行きずりの少女の膣", "乱交")
+			PRINTFORML 
+			PRINTFORMW すっかり満足した%ANAME(MASTER)%は、次のパーティーにも誘ってほしいと告げて別れた
+		;1回目
+		ELSE
+			PRINTFORMW 歓楽街を散策中、いかにも怪しい見知らぬ男が寄ってきた
+			PRINTFORML 良いことをしているが一緒にどうだ、とのことだ
+			PRINTFORMW 気になった%ANAME(MASTER)%は詳細を聞いてみた
+			PRINTFORMW この先の店の地下で男女が集まって、やんごとなきことをしているのだという
+			PRINTFORMW ……つまり、乱交パーティーの参加者を集めているようだ
+			PRINTFORMW 歓楽街とはいえ白昼堂々そんな誘いを受けるとは思っていなかったが……
+			PRINTFORML
+			CALL ASK_MULTI("参加してみる", "男を捕まえる", "やめておく")
+			IF RESULT == 2
+				PRINTFORML 興味はない
+				PRINTFORML 男をあしらって立ち去った……
+				RETURN
+			ELSEIF RESULT == 1
+				PRINTFORML そんな不埒なことをしているのは許せない！
+				PRINTFORML %ANAME(MASTER)%は身分を明かして男を捕まえ、兵士に突き出した……
+				RETURN
+			ELSE
+				PRINTFORML 興味がある
+				PRINTFORMW 男の誘いに乗ってみることにした
+				PRINTFORMW 了承すると、男は下卑た笑みを浮かべて%ANAME(MASTER)%をとある店の地下へ案内した
+				PRINTFORML 
+				PRINTFORMW そこでは無数の裸の男女が乱れていた
+				PRINTFORML 大音量で流れる音楽と共に、部屋中にいやらしい蜜音と喘ぎ声が響いている
+				PRINTFORMW むせ返るような雄と雌の匂いが充満しており、%ANAME(MASTER)%も身体が火照ってしまうのを感じた
+				PRINTFORMW 一人の裸の少女が%ANAME(MASTER)%に抱きつき、愛撫と共に服を脱がしてくる
+				PRINTFORML すっかり昂ぶった%ANAME(MASTER)%も彼女の唇を乱暴に塞ぎ、舌を絡ませながら裸になった
+				PRINTFORMW %ANAME(MASTER)%は一晩中彼女らと共に肉欲の宴におぼれ、おねだりされるままに何度もセックスを繰り返した
+				CALL FUCK(MASTER, "性技, 性交, Ｃ, 射精", "童貞喪失, キス喪失, Ｖ挿入", 0, "行きずりの少女の唇", "", "行きずりの少女の膣", "乱交")
+				PRINTFORML 
+				PRINTFORMW すっかり満足した%ANAME(MASTER)%は、次のパーティーにも誘ってほしいと告げて別れた
+				DVAR:領内ぶらりエロの旅_乱交パーティー = 1
+			ENDIF
+		ENDIF
+		
+	;町中をぶらぶら（複数パターンあり）
+	CASE 2
+		PRINTFORMW 町中をぶらつこう
+		PRINTFORML …
+		PRINTFORML ……
+		;1/4で町をぶらついているキャラと遭遇
+		IF !RAND:4
+			PRINTFORMW 街中を歩いていると、%ANAME(対象)%とばったり鉢合わせた
+			SIF CFLAG:対象:面識 == 0
+				CFLAG:対象:面識 = 1
+			PRINTFORML どうやらお昼ごはんを何処の店で食べようか、ぶらついていたようだ
+			PRINTFORMW …そういえば自分もお腹が減ってきた
+			PRINTFORML ついでなので%ANAME(MASTER)%も一緒に昼飯を食べることにした
+			PRINTFORML …
+			PRINTDATAW
+			DATAFORM %ANAME(対象)%と一緒に丼物を食べた
+			DATAFORM %ANAME(対象)%と一緒に、天ぷら蕎麦に舌鼓を打った
+			DATAFORM %ANAME(対象)%と一緒に稲荷寿司を食べた
+			DATAFORM %ANAME(対象)%と茶屋で色んな団子を食べた
+			DATAFORM %ANAME(対象)%と一緒にきつねうどんを食べた
+			DATAFORM お洒落なカフェで、%ANAME(対象)%とランチを楽しんだ
+			ENDDATA
+			PRINTFORMW お昼ごはんを終えて、%ANAME(対象)%に手を振って別れた……
+			CFLAG:対象:好感度 += 70
+			RETURN
+		ENDIF
+		SELECTCASE RAND:3
+			;恋文
+			CASE 0
+				IF DVAR:領内ぶらりエロの旅_恋文 >= 4
+					PRINTFORMW 告白を受け、晴れて恋人となった少女のところへ遊びに行った
+					PRINTFORML 家まで出向くと、%ANAME(MASTER)%の顔を見た彼女が満面の笑みになった
+					PRINTFORMW 今日も一緒にデートしようと提案する
+					PRINTFORMW 彼女は一も二もなく賛成し、一緒に出かけることになった
+					PRINTFORML 二人は楽しい一時を過ごした……
+					PRINTFORMW ･･･
+					PRINTFORML やがて彼女の家まで送ると、彼女は顔を赤らめながらも%ANAME(MASTER)%の手を掴み、潤んだ瞳を向けて、
+					PRINTFORMW 今日は両親が留守なの　と告げる
+					PRINTFORMW %ANAME(MASTER)%は彼女の意思を組んで彼女を抱きよせ、案内されて彼女の部屋へ入った……
+					PRINTFORML
+					SELECTCASE RAND:3
+						CASE 0
+							PRINTFORML 彼女の体は相変わらず弾むように柔らかく、実に%ANAME(MASTER)%好みの肉体になった
+							PRINTFORMW %ANAME(MASTER)%に躾けられてすっかり感度も更に良くなり、可愛らしく体を跳ねさせてこちらの目を楽しませる
+							PRINTFORMW 甘えるように縋り付く彼女と恋人としてのキスを交わし、望みどおり彼女の奥に子種を放った……
+						CASE 1
+							PRINTFORML 彼女は%ANAME(MASTER)%の愛撫に嬌声を上げ、快感に身体を弾ませている
+							PRINTFORMW %ANAME(MASTER)%に抱かれてから、ただでさえ良かった感度はさらに上がり雌の喘ぎ声を響かせてくれる
+							PRINTFORMW そして%ANAME(MASTER)%は、彼女の蜜壷の奥深くに自分の女となった証としての精を放った……
+						CASE 2
+							PRINTFORML 彼女は%ANAME(MASTER)%のペニスに、蕩けた表情で愛情を込めた奉仕をしている
+							PRINTFORMW %ANAME(MASTER)%との日々のおかげか、今や喉奥まで咥え込んで精液を搾り取る始末だ
+							PRINTFORMW 口に出された精液を美味しそうに飲み込む彼女の頭を撫で、今度は怒張が収まらぬ肉棒で悦ばせてあげることにした……
+					ENDSELECT
+					CALL FUCK(MASTER, "性技, 性交, Ｃ, 射精, Ｖ挿入", "童貞喪失, キス喪失", 0, "恋人になった少女の唇", "", "恋人になった少女の膣", "和姦")
+					PRINTFORML 
+					PRINTFORMW …夜遅くまで、たっぷり愛し合った
+					PRINTFORMW そして別れ際、二人は情熱的な長いキスを交わし、また逢いに来ることを誓った……
+					
+				ELSEIF DVAR:領内ぶらりエロの旅_恋文 >= 2
+					PRINTFORMW 前に告白を受けた少女のところへ遊びに行った
+					PRINTFORML ……
+					PRINTFORMW 町中を歩いて、%ANAME(MASTER)%に恋文を渡した少女の家まで来た
+					PRINTFORML 呼び出すと、顔を赤くした彼女が姿を現した
+					PRINTFORMW 今日もお互いを良く知るためにデートしようと提案する
+					PRINTFORMW 彼女は一も二もなく賛成し、一緒に出かけることになった
+					PRINTFORML 二人は楽しい一時を過ごした……
+					PRINTFORMW ･･･
+					PRINTFORMW やがて連れ込み宿の前を通ると、彼女は顔を赤らめながらも%ANAME(MASTER)%に抱きついて潤んだ瞳を向ける
+					PRINTFORMW %ANAME(MASTER)%は彼女の要望に応え、肩を抱いて宿に入った……
+					PRINTFORML
+					SELECTCASE RAND:3
+						CASE 0
+							PRINTFORML 彼女の体は相変わらず弾むように柔らかく、実に%ANAME(MASTER)%好みの肉体だった
+							PRINTFORMW 少し前まで生娘だったとは思えないほど感度も良く、可愛らしく体を跳ねさせてこちらの目を楽しませる
+							PRINTFORMW 甘えるように縋り付く少女に、%ANAME(MASTER)%の存在を刻み込んで愛してやった……
+						CASE 1
+							PRINTFORML 彼女は%ANAME(MASTER)%の愛撫に嬌声を上げ、快感に身体を弾ませている
+							PRINTFORMW 少し前まで生娘だったとは思えないほど感度も良く、可愛らしく喘いでこちらの耳を楽しませてくれる
+							PRINTFORMW %ANAME(MASTER)%は甘えるように縋り付く少女の秘裂に牡槍を穿ち、女の悦びを教えてやった……
+						CASE 2
+							PRINTFORML 彼女は%ANAME(MASTER)%のペニスに、たどたどしくも誠意を込めた奉仕をしている
+							PRINTFORMW 少し前まで生娘だったとは思えないほど覚えがよく、男の感じるところを舐めしゃぶってくる
+							PRINTFORMW 彼女の奉仕に感じ入った%ANAME(MASTER)%は彼女の頭を撫で、今度はこちらが気持ちよくしてあげることにした……
+					ENDSELECT
+					DVAR:領内ぶらりエロの旅_恋文 += 1
+					CALL FUCK(MASTER, "性技, 性交, Ｃ, 射精, Ｖ挿入", "童貞喪失, キス喪失", 0, "行きずりの女の唇", "", "行きずりの女の膣", "和姦")
+					PRINTFORML 
+					PRINTFORMW より深く、互いのことを知れた…
+					SIF DVAR:領内ぶらりエロの旅_恋文 == 4
+						PRINTFORML 二人は身体を重ねることでお互いを知り合い、晴れて恋人となった
+					PRINTFORMW %ANAME(MASTER)%は再会の約束をして、彼女と別れた
+					PRINTFORMW 彼女は顔を赤らめながら、%ANAME(MASTER)%の姿が見えなくなるまで手を振って見送ってくれた
+					
+				;恋文を受け取った場合
+				ELSEIF DVAR:領内ぶらりエロの旅_恋文 == 1
+					PRINTFORMW そういえば、前に恋文をもらっていた
+					PRINTFORML その返事をしに行こう
+					PRINTFORML ……
+					PRINTFORMW 町中を歩いて、%ANAME(MASTER)%に恋文を渡した少女の家まで来た
+					PRINTFORML 呼び出すと、顔を赤くした彼女が姿を現した
+					PRINTFORMW 彼女は結果がどうなるか、もじもじしながら待っている…
+					PRINTFORML そして手紙を読んだ%ANAME(MASTER)%は、互いのことを良く知らないままでは付き合うも何もないと伝えた
+					PRINTFORMW どうすれば、ときょとんとする彼女に、互いについてもっと知ろうと提案した
+					PRINTFORMW 言葉の意味を察した彼女は、顔を赤らめながら%ANAME(MASTER)%と連れたって宿へ入った……
+					PRINTFORMW
+					PRINTFORML 彼女の体は弾むように柔らかく、%ANAME(MASTER)%好みだった
+					PRINTFORMW 生娘ながら感度も良く、可愛らしく体を跳ねさせてこちらの目を楽しませる
+					PRINTFORMW 甘えるように縋り付く少女に、%ANAME(MASTER)%の存在を刻み込んでやった……
+					CALL FUCK(MASTER, "性技, 性交, Ｃ, 射精, Ｖ挿入", "童貞喪失, キス喪失", 0, "行きずりの女の唇", "", "行きずりの女の膣", "和姦")
+					PRINTFORML 
+					PRINTFORMW 再会の約束をして、彼女と別れた
+					DVAR:領内ぶらりエロの旅_恋文 += 1
+					
+				;1回目
+				ELSE
+					PRINTFORMW 町中を歩いていると、突然一人の少女が大声で%ANAME(MASTER)%を呼び止めた
+					PRINTFORML 何事かと身構える%ANAME(MASTER)%に、手紙を差し出してくる
+					PRINTFORMW どうやら恋文のようだ
+					PRINTFORMW 相手は顔を真っ赤にしているが……
+					PRINTFORML 
+					CALL ASK_MULTI("一応受け取る", "断る", "宿に連れ込む")
+					IF RESULT == 0
+						PRINTFORML あまりに突然のことですぐに返答はできないが、とりあえず受け取ってから返事をする
+						PRINTFORMW そう伝えると、彼女は小さく頷き足早に立ち去っていった
+						DVAR:領内ぶらりエロの旅_恋文 = 1
+					ELSEIF RESULT == 1
+						PRINTFORML 残念だが思いには沿えない
+						PRINTFORMW そう伝えると、彼女は肩を落として立ち去った
+					ELSE
+						PRINTFORML 手紙を読んだ%ANAME(MASTER)%は、互いのことを知らないままでは付き合うも何もないと伝えた
+						PRINTFORMW どうすれば、ときょとんとする彼女に、互いについてもっと知ろうと提案した
+						PRINTFORMW 言葉の意味を察した彼女は、顔を赤らめながら%ANAME(MASTER)%と連れたって宿へ入った……
+						PRINTFORMW
+						PRINTFORML 彼女の体は弾むように柔らかく、%ANAME(MASTER)%好みだった
+						PRINTFORMW 生娘ながら感度も良く、可愛らしく体を跳ねさせてこちらの目を楽しませる
+						PRINTFORMW 甘えるように縋り付く少女に、%ANAME(MASTER)%の存在を刻み込んでやった……
+						CALL FUCK(MASTER, "性技, 性交, Ｃ, 射精, Ｖ挿入", "童貞喪失, キス喪失", 0, "行きずりの女の唇", "", "行きずりの女の膣", "和姦")
+						PRINTFORML 
+						PRINTFORMW 再会の約束をして、彼女と別れた
+						DVAR:領内ぶらりエロの旅_恋文 = 2
+					ENDIF
+				ENDIF
+			;逆ナンパ
+			CASE 1
+				IF DVAR:領内ぶらりエロの旅_ナンパ >= 4
+					PRINTFORMW そういえばこのあたりに、ナンパされてセフレとなった彼女がいたはずだ
+					PRINTFORMW せっかくだし、また会いに行ってみよう
+					PRINTFORML …
+					PRINTFORMW ……
+					PRINTFORMW 連絡先の場所に彼女がいた。相変わらず%ANAME(MASTER)%好みのいい女だ
+					PRINTFORML 彼女は姿を見せた%ANAME(MASTER)%を確認すると、投げキッスを飛ばして%ANAME(MASTER)%を誘ってくる
+					PRINTFORMW %ANAME(MASTER)%は相手の誘いに乗り、彼女と腕を組んで彼女の自宅へと入っていった…
+					PRINTFORMW 
+					SELECTCASE RAND:3
+						CASE 0
+							PRINTFORMW 二人の身体の相性はやはり抜群で、ベッドの上で互いを激しく求め合う
+							PRINTFORML 膣内の肉ヒダが、ペニスと離れがたいが如くカリ首にまとわりつき、前後のたび%ANAME(MASTER)%に電流のような快感が走る
+							PRINTFORMW 彼女もまた、膣が%ANAME(MASTER)%のペニスの形そのままにフィットし、子宮口をこつこつ叩かれるたび幸せの声を上げる
+							PRINTFORMW 二人はお互いに何度も絶頂しながら一晩中セックスを楽しんだ……
+						CASE 1
+							PRINTFORMW 彼女の部屋のベッド上で、二人は互いの身体を激しく貪りあっている
+							PRINTFORML 彼女は%ANAME(MASTER)%の顔に跨り、自らの秘所を晒しながら%ANAME(MASTER)%の肉棒を口で咥え込んでいる
+							PRINTFORMW %ANAME(MASTER)%も負けじと、彼女の秘裂を舌で味わう
+							PRINTFORMW 舌で肉ビラをなぞり、クリトリスにキスをすれば、%ANAME(MASTER)%のモノを求めてヴァギナがいやらしく蠢く
+							PRINTFORMW 互いの奉仕を堪能したところで、二人は本番とばかりに何度も交わり、一晩中セックスを楽しんだ……
+						CASE 2
+							PRINTFORMW 二人はベッドの上で、周りの家に声が聞こえるのも構わずに激しく交わりあっている
+							PRINTFORMW %ANAME(MASTER)%は後背位の体勢で彼女の腰を掴み、逃がさないとばかりに強く腰を打ち付ける
+							PRINTFORMW 彼女も快感に涎を垂らしながら、ペニスの突きこみに合わせて腰をストロークさせ快感をシンクロさせる
+							PRINTFORML 激しく犯されてよがる雌の喘ぎ声を存分に響かせながら
+							PRINTFORMW 二人は互いに何度も絶頂しながら激しく相手を求め続けた……
+					ENDSELECT
+					CALL FUCK(MASTER, "性技, 性交, Ｃ, 射精, Ｖ挿入", "童貞喪失, キス喪失", 0, "セフレの女の唇", "", "セフレの女の膣", "和姦")
+					PRINTFORML
+					IF DVAR:領内ぶらりエロの旅_ナンパ == 4
+						PRINTFORMW 激しいセックスを終えた後、珍しく彼女から　また逢いに来て欲しい　と言われた
+						PRINTFORML これほど身体の相性がいい相手はいなかった。%ANAME(MASTER)%との交わりは自分の心を満たしてくれるから…と
+						PRINTFORMW その言葉を聞き、%ANAME(MASTER)%は彼女を抱き寄せ、ただただ深く濃厚なキスを交わす
+						PRINTFORMW お互いの味を相手に刻むかのように、別れの時間が来るまでずっと抱き合い、ずっと唇を重ね続けた……
+						RETURN
+					ENDIF
+					PRINTFORMW 激しい愛し合いを終えた二人は最後に濃厚なキスを交わし、再会の約束をして別れた……
+					
+				ELSEIF DVAR:領内ぶらりエロの旅_ナンパ >= 1
+					PRINTFORMW そういえば、以前ここでナンパされ、連絡先を渡してきた女性がいた
+					PRINTFORMW せっかくだし、また会いに行ってみよう
+					PRINTFORML …
+					PRINTFORMW ……
+					PRINTFORMW 連絡先の場所に彼女がいた。相変わらず%ANAME(MASTER)%好みのいい女だ
+					PRINTFORML 彼女はまた来てくれた%ANAME(MASTER)%を見ると、艶めかしく体をくねらせ、%ANAME(MASTER)%を誘ってくる
+					PRINTFORMW %ANAME(MASTER)%は相手の誘いに乗り、彼女と腕を組んで近くの宿屋へと入っていった…
+					PRINTFORMW 
+					SELECTCASE RAND:3
+						CASE 0
+							PRINTFORMW 二人の身体の相性はやはり抜群で、ベッドの上で互いを激しく求め合う
+							PRINTFORML 膣内の肉ヒダが、ペニスと離れたくないかの如くカリ首にまとわりつき、前後のたび%ANAME(MASTER)%に電流のような快感が走る
+							PRINTFORMW 彼女もまた、膣が%ANAME(MASTER)%のペニスの形を覚えこむほどフィットし、子宮口をこつこつ叩かれるたび嬌声を上げる
+							PRINTFORMW 二人はお互いに何度も絶頂しながら一晩中セックスを楽しんだ……
+						CASE 1
+							PRINTFORMW 二人は安宿のベッドの上で、互いの身体を激しく貪りあっている
+							PRINTFORML 彼女は%ANAME(MASTER)%の顔に跨り、自らの秘所を晒しながら%ANAME(MASTER)%の肉棒を口で咥え込んでいる
+							PRINTFORMW %ANAME(MASTER)%も負けじと、彼女の秘裂を舌で味わう
+							PRINTFORMW 舌で肉ビラをなぞり、クリトリスにキスをすれば、%ANAME(MASTER)%のモノを求めてヴァギナがいやらしく蠢く
+							PRINTFORMW 互いの奉仕を堪能したところで、二人は本番とばかりに何度も交わり、一晩中セックスを楽しんだ……
+						CASE 2
+							PRINTFORMW 二人はベッドの上で、隣に声が聞こえるのも構わずに激しく交わりあっている
+							PRINTFORMW %ANAME(MASTER)%は立ちバックの体勢で彼女の腰を掴み、逃がさないとばかりに強く腰を打ち付ける
+							PRINTFORMW 彼女もまた壁に手を突き、ペニスの突きこみに合わせて腰をストロークさせ快感をシンクロさせる
+							PRINTFORML 激しく犯されてよがる雌の喘ぎ声を存分に響かせながら
+							PRINTFORMW 二人は互いに何度も絶頂しながら激しく相手を求め続けた……
+					ENDSELECT
+					DVAR:領内ぶらりエロの旅_ナンパ += 1
+					CALL FUCK(MASTER, "性技, 性交, Ｃ, 射精, Ｖ挿入", "童貞喪失, キス喪失", 0, "行きずりの女の唇", "", "行きずりの女の膣", "和姦")
+					PRINTFORML
+					SIF DVAR:領内ぶらりエロの旅_ナンパ == 4
+						PRINTFORML 二人はすっかり、互いの身体を求め合うセックスフレンドとしての関係を確立した
+					PRINTFORMW 行為を終えた二人は、言葉の代わりに濃厚なキスを交わして別れた
+				;1回目
+				ELSE
+					PRINTFORMW 町中を散策中、声をかけられた
+					PRINTFORML %ANAME(MASTER)%好みの女性だ
+					PRINTFORMW 艶めかしく体をくねらせ、%ANAME(MASTER)%を誘ってくる
+					PRINTFORMW どうしよう？
+					PRINTFORML
+					CALL ASK_YN("誘いに乗る", "誘いを断る")
+					IF RESULT == 1
+						PRINTFORML あいにくそんな気分ではない
+						PRINTFORMW しつこい相手を袖に振って散策を続けた……
+						RETURN
+					ENDIF
+					PRINTFORMW %ANAME(MASTER)%は相手の誘いに乗り、腕を組んで近くの宿屋へと入っていった
+					PRINTFORML 
+					PRINTFORMW 相手との身体の相性は抜群で、お互いに何度も絶頂しながら一晩中セックスを楽しんだ
+					CALL FUCK(MASTER, "性技, 性交, Ｃ, 射精, Ｖ挿入", "童貞喪失, キス喪失", 0, "行きずりの女の唇", "", "行きずりの女の膣", "和姦")
+					PRINTFORML 
+					PRINTFORMW 相手と連絡先を教え合い、言葉の代わりに濃厚なキスを交わして別れた
+					DVAR:領内ぶらりエロの旅_ナンパ = 1
+				ENDIF
+			;花売りの少女
+			CASE 2
+				IF DVAR:領内ぶらりエロの旅_花売り >= 1
+					PRINTFORMW 町をぶらついていると、前に身体を買った花売り少女に話しかけられた
+					PRINTFORML また私を買ってくれませんか？　と言って、顔を赤らめてもじもじしている…
+					PRINTFORML
+					CALL ASK_MULTI_JUDGE("彼女を買う", MONEY >= 1000, "止めておく", 1)
+					IF RESULT == 1
+						PRINTFORML 今日はちょっとそういう気分ではない
+						PRINTFORML 断ると、少女は悲しそうに帰っていった……
+						RETURN
+					ENDIF
+					PRINTFORMW 君を買おう
+					PRINTFORML そう告げると少女は恥らいながらも、少し嬉しそうにしていた
+					PRINTFORMW 少女は%ANAME(MASTER)%の手を引いて、自分の家へ案内した
+					PRINTFORML 
+					SELECTCASE RAND:3
+						CASE 0
+							PRINTFORMW 少女は慣れた様子で%ANAME(MASTER)%に奉仕を始めた
+							PRINTFORML 幼いながらも的確に奉仕する様は%ANAME(MASTER)%の情欲を刺激する
+							PRINTFORMW %ANAME(MASTER)%はたっぷり時間を掛けて、瑞々しい肢体を堪能した……
+						CASE 1
+							PRINTFORMW 少女は手馴れた様子で%ANAME(MASTER)%の肉棒に奉仕している
+							PRINTFORML 小さな口で肉棒を咥え込み、舌先で鈴口をくすぐる。そのテクニックは娼婦顔負けだ
+							PRINTFORMW ガチガチに勃起したペニスで、今度は彼女の膣穴を堪能することにした……
+						CASE 3
+							PRINTFORMW 彼女の部屋で、二人は獣のように交わっている
+							PRINTFORML %ANAME(MASTER)%は後背位で彼女の腰を掴み、一気にペニスを突きこんで精を放つ
+							PRINTFORMW 子宮まで届くほどの射精を受け、彼女は嬌声を上げて絶頂した……
+					ENDSELECT
+					CALL FUCK(MASTER, "性技, 性交, Ｃ, 射精, Ｖ挿入" + (IS_FEMALE(MASTER) ? ", Ｂ, Ｖ, レズ" # "") , "童貞喪失, キス喪失", 0, "花売りの少女の唇", "", "花売りの少女の膣", "和姦")
+					PRINTFORML
+					PRINTFORMW 別れ際に、少女は%ANAME(MASTER)%に口づけてきた
+					DVAR:領内ぶらりエロの旅_花売り += 1
+					CALL ICPRINT("金<1000>を支払った", "L", カラー_注意)
+					MONEY -= 1000
+				;1回目
+				ELSE
+					PRINTFORMW 町をぶらついていると、少女に話しかけられた
+					PRINTFORML 一輪金10でお花を買ってくれませんか？　だそうだ
+					PRINTFORML
+					CALL ASK_MULTI_JUDGE("買う", MONEY >= 10, "彼女ごと買う", MONEY >= 1000, "いらない", 1)
+					IF RESULT == 0
+						PRINTFORML せっかくだしもらうことにしよう
+						PRINTFORML 一輪買った
+						CALL ICPRINT("金<10>を支払った", "L", カラー_注意)
+						MONEY -= 10
+						PRINTFORML 少女は礼を言って立ち去った
+					ELSEIF RESULT == 1
+						PRINTFORMW 君ごと買おう
+						PRINTFORML そう告げると少女は顔を赤らめるが、拒否はしなかった
+						PRINTFORMW 少女は%ANAME(MASTER)%の手を引いて、自分の家へ案内した
+						PRINTFORML 
+						PRINTFORMW 少女はこういったことに慣れているらしい
+						PRINTFORMW 幼いながらも的確に奉仕する様は%ANAME(MASTER)%の情欲を刺激する
+						PRINTFORMW %ANAME(MASTER)%はたっぷり時間を掛けて、瑞々しい肢体を堪能した
+						CALL FUCK(MASTER, "性技, 性交, Ｃ, 射精, Ｖ挿入" + (IS_FEMALE(MASTER) ? ", Ｂ, Ｖ, レズ" # "") , "童貞喪失, キス喪失", 0, "花売りの少女の唇", "", "花売りの少女の膣", "和姦")
+						PRINTFORML
+						PRINTFORMW 別れ際に、少女は%ANAME(MASTER)%に口づけてきた
+						DVAR:領内ぶらりエロの旅_花売り = 1
+						CALL ICPRINT("金<1000>を支払った", "L", カラー_注意)
+						MONEY -= 1000
+					ELSE
+						PRINTFORML 別にいらない、と断った
+						PRINTFORMW %ANAME(MASTER)%はそのまま町中をぶらついた……
+					ENDIF
+				ENDIF
+		ENDSELECT
+	;夜の繁華街
+	CASE 3
+		PRINTFORMW 夜になって賑やかな繁華街に行こう
+		PRINTFORML …
+		PRINTFORMW ……
+		;1/4で繁華街をうろつくキャラと遭遇
+		IF !RAND:4
+			PRINTFORMW 
+			SIF CFLAG:対象:面識 == 0
+				CFLAG:対象:面識 = 1
+			PRINTFORMW 繁華街をぶらついていると、仕事上がりの%ANAME(対象)%と鉢合わせた
+			PRINTFORML %ANAME(対象)%も買い食いしながらぶらついているようだ
+			PRINTFORMW せっかくなので一緒にぶらつくことにした
+			PRINTFORMW ……共に賑やかな繁華街の喧騒を楽しんだ……
+			CFLAG:対象:好感度 += 50
+			RETURN
+		ENDIF
+		IF DVAR:領内ぶらりエロの旅_セックスオークション >= 3
+			PRINTFORMW そういえば、この前セックスオークションで知り合った娘に特別な連絡先を渡されていた
+			PRINTFORMW 会いに行ってみようか？
+			PRINTFORML
+			CALL ASK_YN("行ってみる" ,"止めておく")
+			IF RESULT == 1
+				PRINTFORMW 今日は止めておこうか
+				PRINTFORMW %ANAME(MASTER)%は賑やかな繁華街をぶらぶら歩いて楽しんだ……
+				RETURN
+			ENDIF
+			PRINTFORMW せっかくだし、連絡先に書かれた場所に赴いてみることにした
+			IF DVAR:領内ぶらりエロの旅_セックスオークション == 3
+				PRINTFORMW 連絡先に書かれていた場所は今までのような建物ではなく、普通の家のように見えた
+				PRINTFORML 呼び出してみると彼女が出てきた。ここは彼女の自宅のようだ
+				PRINTFORMW 彼女は%ANAME(MASTER)%の姿を見ると、嬉しそうに笑って部屋に招いた
+				PRINTFORML 話を聞くと、セックスオークションの仕事はもう辞めたそうだ
+				PRINTFORMW そして、%ANAME(MASTER)%と「個人的な付き合い」をしたくて連絡先を渡してくれたようだ
+				PRINTFORMW …そういうことなら、これからいくらでも望みどおりの付き合いをしよう
+				PRINTFORML %ANAME(MASTER)%はそう囁くと彼女を優しく抱き寄せる
+			ELSEIF DVAR:領内ぶらりエロの旅_セックスオークション >= 4
+				PRINTFORMW %ANAME(MASTER)%は彼女の家まで赴いた
+				PRINTFORMW 彼女は%ANAME(MASTER)%の姿を見ると、嬉しそうに笑って部屋に招いた
+				PRINTFORML 少しばかり談笑していると、彼女の方から身体を摺り寄せてくる
+				PRINTFORML %ANAME(MASTER)%は彼女の思惑を察して優しく抱き寄せる
+			ENDIF
+			PRINTFORMW 彼女はそれを、待ってました　とばかりに嬉しそうに抱きつき返す。彼女も相当な好き物のようだ
+			PRINTFORMW 発情したような彼女の腰を抱きながら彼女のベッドで「個人的な付き合い」を始める…
+			PRINTFORML
+			SELECTCASE RAND:3
+				CASE 0
+					PRINTFORMW %ANAME(MASTER)%は彼女を抱き寄せながら、弾力のある柔肌にむしゃぶりついた
+					PRINTFORML 乳首を甘噛みすると彼女は嬉しそうに喘いで身をくねらせて%ANAME(MASTER)%にぎゅっと抱きつく
+					PRINTFORMW 互いに我慢できずにベッドに倒れ込むと、%ANAME(MASTER)%は既にトロトロの秘所へと一物をねじ込んだ
+					PRINTFORMW 「あん♥あん♥だめぇ♥激しいよぉ♥あん♥」
+					PRINTFORML 激しく腰を打ち付けると彼女はなまめかしくよがり狂い、絡みつく蜜肉が肉棒を刺激する
+					PRINTFORMW 腰を回してグリッと膣内を抉ると、彼女は大きく仰け反ってガクガクと全身を震わせ嬌声を響かせた
+					PRINTFORMW 彼女にねだられる様にして何度も何度もまぐわい、料金以上の極楽を堪能させてもらった
+				CASE 1
+					PRINTFORMW 激しいセックスでどろどろになった二人は、シャワーを浴びて小休止することにした
+					PRINTFORML …だというのに彼女は身体を泡立たせると%ANAME(MASTER)%に密着し、恍惚としながら身体を摺り合わせてくる
+					PRINTFORMW 「あ…♥これ、乳首がこすれて…♥いい…♥」
+					PRINTFORMW キスをしながらお互いの性器を丹念に愛撫し合っていると、二人とも我慢が出来なくなりセックスが始まる
+					PRINTFORMW 結局シャワーを浴びながら激しくまぐわい、彼女の膣の奥までたっぷりと精液を注いだ
+				CASE 2
+					PRINTFORMW 彼女は%ANAME(MASTER)%のペニスを深々と咥えこんだまま、対面座位で抱きつきぐいぐい腰を振っている
+					PRINTFORML コツンコツンと子宮口を亀頭で刺激され、彼女はたまらず涎を垂らしながら大声で喘ぐ
+					PRINTFORMW 「あん♥あっ♥いいっ♥これっいいよぉ♥」
+					PRINTFORMW 身体を密着させた濃厚なセックスは続き、二人の興奮は限界近くまで上り詰めていく
+					PRINTFORMW やがて鈴口と子宮口を密着させながらの射精を迎え、二人は頭が弾ける様な絶頂を味わった
+			ENDSELECT
+			PRINTFORMW %ANAME(MASTER)%は彼女との個人的なセックスを存分に楽しんだ……
+			DVAR:領内ぶらりエロの旅_セックスオークション += 1
+			PRINTFORML
+			CALL FUCK(MASTER, "性技, 性交, Ｃ, 射精, Ｖ挿入", "童貞喪失, キス喪失", 0, "セフレ少女の唇", "", "セフレ少女の膣", "和姦")
+			PRINTFORMW 彼女は別れ際、%ANAME(MASTER)%にキスをして、また会いに来て、と嬉しそうに言った
+			
+		ELSEIF DVAR:領内ぶらりエロの旅_セックスオークション >= 1
+			PRINTFORMW そういえば、この前セックスオークションで競り落とした娘に連絡先を渡されていた
+			PRINTFORMW 会いに行ってみようか？
+			PRINTFORML
+			CALL ASK_YN("行ってみる" ,"止めておく")
+			IF RESULT == 1
+				PRINTFORMW 今日は止めておこうか
+				PRINTFORMW %ANAME(MASTER)%は賑やかな繁華街をぶらぶら歩いて楽しんだ……
+				RETURN
+			ENDIF
+			PRINTFORMW せっかくだし、連絡先に書かれた場所に赴いてみることにした
+			PRINTFORMW 連絡先に書かれていた建物に入ると、そこでもセックスオークションが行われていた
+			PRINTFORML どうやら特定の店だけでやっているのではなく、頻繁に会場となる店を変えているようだ
+			PRINTFORMW プレートを首から下げた裸の女性たちが舞台の上に並ぶ
+			PRINTFORML その中に、前回%ANAME(MASTER)%が競り落とした彼女がいた
+			PRINTFORMW 彼女は%ANAME(MASTER)%の姿を見つけると、嬉しそうに投げキッスを飛ばしてきた
+			PRINTFORML …やはり%ANAME(MASTER)%好みのいい身体だ
+			PRINTFORMW %ANAME(MASTER)%は今回もその子を落札する事に決めた
+			PRINTFORMW 
+			PRINTFORML …競りは白熱したが、無事彼女を手に入れる事が出来た
+			PRINTFORMW 頬を赤らめ腕を絡めてくる彼女の腰を抱きながら用意された個室へ向かった…
+			PRINTFORML
+			SELECTCASE RAND:3
+				CASE 0
+					PRINTFORMW %ANAME(MASTER)%は部屋に入ると早速彼女に抱きついて全身にむしゃぶりついた
+					PRINTFORML 弾力のある柔肌を揉みしだくと彼女は嬉しそうに喘いで身をくねらせて%ANAME(MASTER)%を誘惑してきた
+					PRINTFORMW 互いに我慢できずにベッドに倒れ込むと、%ANAME(MASTER)%は既にトロトロの秘所へと一物をねじ込んだ
+					PRINTFORMW 「あん♥あん♥だめぇ♥激しいよぉ♥あん♥」
+					PRINTFORML 激しく腰を打ち付けると彼女はなまめかしくヨガリ狂い、絡みつく蜜肉が男根を刺激してきた
+					PRINTFORMW 腰を回してグリッと膣内を抉ると、彼女は大きく仰け反ってガクガクと全身を震わせ嬌声を響かせた
+					PRINTFORMW 彼女にねだられる様にして何度も何度もまぐわい、料金以上の極楽を堪能させてもらった……
+				CASE 1
+					PRINTFORMW 激しいセックスでどろどろになった二人は、シャワーを浴びて小休止することにした
+					PRINTFORML …だというのに彼女は身体を泡立たせると%ANAME(MASTER)%に密着し、恍惚としながら身体を摺り合わせてくる
+					PRINTFORMW 「あ…♥これ、乳首がこすれて…♥いい…♥」
+					PRINTFORMW キスをしながらお互いの性器を丹念に愛撫し合っていると、二人とも我慢が出来なくなりセックスが始まる
+					PRINTFORMW 結局シャワーを浴びながら激しくまぐわい、彼女の膣の奥までたっぷりと精液を注いだ……
+				CASE 2
+					PRINTFORMW 彼女は%ANAME(MASTER)%のペニスを深々と咥えこんだまま、立位で抱きつき腰を振っている
+					PRINTFORML コツンコツンと子宮口を亀頭で刺激され、彼女はたまらず涎を垂らしながら大声で喘ぐ
+					PRINTFORMW 「あん♥あっ♥いいっ♥それっいいよぉ♥」
+					PRINTFORMW 身体を密着させた濃厚なセックスは続き、二人の興奮は限界近くまで上り詰めていく
+					PRINTFORMW やがて鈴口と子宮口を密着させながらの射精を迎え、二人は頭が弾ける様な絶頂を味わった……
+			ENDSELECT
+			PRINTFORML
+			PRINTFORMW %ANAME(MASTER)%は彼女とのセックスを存分に楽しんだ
+			CALL FUCK(MASTER, "性技, 性交, Ｃ, 射精", "童貞喪失", 0, "", "", "商品の少女の膣", "和姦")
+			DVAR:領内ぶらりエロの旅_セックスオークション += 1
+			IF DVAR:領内ぶらりエロの旅_セックスオークション == 3
+				PRINTFORMW 会場を出る時、彼女に「今度はこっちに来て」と特別な連絡先を渡された
+			ELSE
+				PRINTFORMW 会場を後にする時、また彼女にこっそりと連絡先を書いたメモを渡された
+			ENDIF
+		;1回目
+		ELSE
+			PRINTFORMW 夜の繁華街をぶらついていると男に声をかけられた
+			PRINTFORML この先の店で面白い見世物をしているという
+			PRINTFORMW どうしよう？
+			PRINTFORML
+			CALL ASK_YN("行ってみる" ,"立ち去る")
+			IF RESULT == 1
+				PRINTFORMW 怪しいので無視して立ち去った
+				RETURN
+			ENDIF
+			PRINTFORML 好奇心に負けて行ってみる事にした
+			PRINTFORMW 男に案内されるままに地下のバーに入った
+			PRINTFORML 
+			PRINTFORMW なんとそこではセックスオークションが行われていた
+			PRINTFORML プレートを首から下げた裸の女性たちが舞台の上に並び
+			PRINTFORMW 客がそれを下卑た視線で眺めながら一人ずつ競り落としていく
+			PRINTFORMW 先程の男がそっと%ANAME(MASTER)%も参加しないかと耳打ちしてきた
+			PRINTFORML どうしよう？
+			PRINTL
+			CALL ASK_YN("参加する" ,"立ち去る")
+			IF RESULT == 1
+				PRINTFORML こんな悪趣味な見世物に参加出来ない
+				PRINTFORMW %ANAME(MASTER)%は足早に立ち去った
+				RETURN
+			ENDIF
+			PRINTFORMW 参加させてもらう事にした
+			PRINTFORML %ANAME(MASTER)%はじっくりと少女たちを値踏みする
+			PRINTFORMW その中に一人、好みの娘を見つけた%ANAME(MASTER)%はその子を落札する事に決めた
+			PRINTFORML …競りは白熱したが、無事彼女を手に入れる事が出来た
+			PRINTFORMW 頬を赤らめ息を荒げる彼女の腰を抱きながら用意された個室へ向かった
+			PRINTFORML 
+			PRINTFORMW %ANAME(MASTER)%は部屋に入ると早速彼女に抱きついて全身にむしゃぶりついた
+			PRINTFORML 弾力のある柔肌を揉みしだくと彼女は嬉しそうに喘いで身をくねらせて%ANAME(MASTER)%を誘惑してきた
+			PRINTFORMW 互いに我慢できずにベッドに倒れ込むと、%ANAME(MASTER)%は既にトロトロの秘所へと一物をねじ込んだ
+			PRINTFORMW 「あん♥あん♥だめぇ♥激しいよぉ♥あん♥」
+			PRINTFORML 激しく腰を打ち付けると彼女はなまめかしくヨガリ狂い、絡みつく蜜肉が男根を刺激してきた
+			PRINTFORMW 腰を回してグリッと膣内を抉ると、彼女は大きく仰け反ってガクガクと全身を震わせ嬌声を響かせた
+			PRINTFORMW 彼女にねだられる様にして何度も何度もまぐわい、料金以上の極楽を堪能させてもらった……
+			CALL FUCK(MASTER, "性技, 性交, Ｃ, 射精", "童貞喪失", 0, "", "", "商品の少女の膣", "売春")
+			PRINTFORML 
+			PRINTFORMW 会場を後にする時、彼女にこっそりと連絡先を書いたメモを渡された
+			DVAR:領内ぶらりエロの旅_セックスオークション = 1
+		ENDIF
+	;色町
+	CASE 4
+		PRINTFORMW 色町にでも行ってみよう
+		PRINTFORML …
+		PRINTFORML ……
+		;1/7で色町にいるキャラを発見
+		IF !RAND:7
+			PRINTFORMW 色町をぶらついていると、娼婦が使う宿の前で%ANAME(対象)%の姿を見つけた
+			PRINTFORML こちらの姿は気づかれていないようだ。鉢合わせても気まずいので物陰に隠れた
+			PRINTFORMW …%ANAME(対象)%はそのまま宿に入っていった…
+			PRINTFORML まさか%ANAME(対象)%が！？　と思っていると、すぐに顔を赤くしながら出てきた
+			PRINTFORMW …どうやらここが色町だと気づいていなかったようだ……
+			RETURN
+		ENDIF
+		IF DVAR:領内ぶらりエロの旅_色町の娼婦 >= 4
+			PRINTFORMW 色町を歩いていると、%ANAME(MASTER)%の専属娼婦となった女に誘われた
+			PRINTFORMW 特別価格にするから、また私を抱いてほしい　とのことだ
+			PRINTFORML 
+			CALL ASK_YN("相手をしてもらう", "やめておく")
+			IF RESULT == 1
+				PRINTFORML 今はそんな気分ではないので断った
+				PRINTFORMW 彼女は、がーん、とショックを受けた様子で%ANAME(MASTER)%を見送った
+				PRINTFORMW %ANAME(MASTER)%は色町の賑わいを眺めながらぶらぶらした……
+				RETURN
+			ENDIF
+			PRINTFORML 今までの、彼女との夜を思い出す
+			PRINTFORMW 器量も技量も申し分なく、肉体もすっかり%ANAME(MASTER)%好みになった彼女だ。また相手をしてもらおう
+			PRINTFORMW %ANAME(MASTER)%が頷くと、彼女は%PRONOUN(MASTER)%を近くの宿へ連れ込んだ
+			PRINTFORML ･･･
+			SELECTCASE RAND:5
+				CASE 0
+					PRINTFORMW 彼女はうっとりとした表情で%ANAME(MASTER)%の腕の中に抱かれている
+					PRINTFORMW 何度も%ANAME(MASTER)%に抱かれ、何度も絶頂させられた彼女はメロメロになってしまった
+					PRINTFORML 当然のように何度も膣出しされ、その秘所からはどろりと精液が垂れ流れている
+					PRINTFORMW 再び%ANAME(MASTER)%に求められると、彼女は自ら秘所を割れ開き子宮口をひくつかせて種付けをねだった……
+				CASE 1
+					PRINTFORMW 部屋に入るなり何度もまぐわった二人は抱き合いながら一息ついている
+					PRINTFORML ひたすら膣内射精された下腹部を%ANAME(MASTER)%に撫でられると、彼女は卵巣がきゅんと疼くのを感じた
+					PRINTFORMW 孕んだらどうする？　と%ANAME(MASTER)%に囁かれると、彼女は%ANAME(MASTER)%の子供を身籠る事を想像して思わずニヤケる
+					PRINTFORMW そして%ANAME(MASTER)%に跨るとペニスを咥えこみ、まだまだしましょう？　とおねだりしながら腰を振りだした……
+				CASE 2
+					PRINTFORMW 彼女は%ANAME(MASTER)%に抱かれる事に夢中になっている
+					PRINTFORMW 何度も抱いただけあって、身体の具合は抜群で、ペニスが出入りする度、互いに電流のような快感が駆け巡る
+					PRINTFORML 彼女はひぃひぃ喘ぎながら%ANAME(MASTER)%に抱きついて卑猥な言葉を連ねて更なる快楽をねだり
+					PRINTFORMW %ANAME(MASTER)%もまた彼女の淫壷に無我夢中で腰を振り、二人で肉欲におぼれ続けた……
+				CASE 3
+					PRINTFORMW 彼女は%ANAME(MASTER)%に腰を掴まれて激しく犯されている
+					PRINTFORML 一突きされる毎に下腹部からこみ上げてくる快楽に、彼女は身もだえして悦ぶ
+					PRINTFORMW それは娼婦としては屈辱だったかもしれない。だが今は、%ANAME(MASTER)%に抱かれるただの女としての幸せに満ちていた
+					PRINTFORML %ANAME(MASTER)%が顔を近づけ舌を出すと、彼女はそれに応え犬の様にだらしなく舌を垂らして舌を絡ませる
+					PRINTFORMW もはや%ANAME(MASTER)%とのセックスしか考えられなくなった彼女は、その後も身体を重ね続けた……
+				CASE 4
+					PRINTFORMW %ANAME(MASTER)%は彼女との恋人の様に甘いセックスを楽しんでいる
+					PRINTFORML 二人は両手をしっかりと握りしめあいながら腰を打ちあい、快楽を共有する
+					PRINTFORMW 彼女は%ANAME(MASTER)%の子種を求めて膣を締め上げながら腰をくねらせ、ペニスをより深くに誘導する
+					PRINTFORMW 限界を迎えた%ANAME(MASTER)%は彼女を孕ませようと特濃の精液を放ち、彼女は子宮口を開いてそれを受け入れた……
+			ENDSELECT
+			CALL FUCK(MASTER, "性技, 性交, Ｃ, 射精, Ｖ挿入", "童貞喪失, キス喪失", 0, "専属娼婦の唇", "", "専属娼婦の膣", "和姦")
+			LOCAL = MIN(MONEY, 1500)
+			MONEY -= LOCAL
+			CALL ICPRINT(@"金<{LOCAL}>を支払った", "L", カラー_注意)
+			PRINTFORML 
+			PRINTFORML 二人は一晩中、愛あるセックスを楽しんだ
+			PRINTFORMW %ANAME(MASTER)%は専属娼婦となった彼女との一夜に、ご満悦で帰路に着いた……
+		ELSEIF DVAR:領内ぶらりエロの旅_色町の娼婦 >= 1
+			PRINTFORMW 色町を歩いていると、前に抱いた娼婦に誘われた
+			PRINTFORMW また私と、一晩どう？　とのことだ
+			PRINTFORML 
+			CALL ASK_YN("相手をしてもらう", "やめておく")
+			IF RESULT == 1
+				PRINTFORML 今はそんな気分ではないので断った
+				PRINTFORMW 彼女は、残念、と言いたげに肩をすくめて%ANAME(MASTER)%を見送った
+				PRINTFORMW %ANAME(MASTER)%は色町の賑わいを眺めながらぶらぶらした……
+				RETURN
+			ENDIF
+			PRINTFORML 前回の、彼女との夜を思い出す
+			PRINTFORMW 器量だけでなく、技量も大した物だった。また相手をしてもらおう
+			PRINTFORMW %ANAME(MASTER)%が頷くと、彼女は%PRONOUN(MASTER)%を近くの宿へ連れ込んだ
+			PRINTFORML 
+			SELECTCASE RAND:4
+				CASE 0
+					PRINTFORMW 彼女の肉体と技術は素晴らしく、%ANAME(MASTER)%は何度も精を放っている
+					PRINTFORMW 一突きするごとに彼女はたまらないというように声をあげ、妖艶に身体をくねらせる
+					PRINTFORMW %ANAME(MASTER)%は獣のように彼女と交わりつづけた……
+				CASE 1
+					PRINTFORMW 彼女はベッドに寝転がった%ANAME(MASTER)%に跨り腰を振っている
+					PRINTFORML 腰を上下する度にペニスが彼女の奥深くを抉り、彼女は嬌声を上げて痙攣する
+					PRINTFORMW セックスに夢中になっている%ANAME(MASTER)%は更なる快楽を得ようと彼女の腰を掴んで突き上げる
+					PRINTFORMW 彼女もそれに応えて激しく腰を打ちつけ、二人で夜通し濃厚なセックスを味わった……
+				CASE 2
+					PRINTFORML 彼女は%ANAME(MASTER)%の股の間に跪き、その一物を口いっぱいに頬張っている
+					PRINTFORML 舌で鈴口を刺激しながら竿を吸い上げると、%ANAME(MASTER)%は気持ち良さそうに唸りペニスが痙攣する
+					PRINTFORML 彼女はそこでいったん奉仕を中断し、玉を揉みながら意地悪そうに%ANAME(MASTER)%を見上げる
+					PRINTFORMW そして竿の根元を押さえながら、艶かしい腰使いで%ANAME(MASTER)%の肉棒を自らの秘裂へ迎え入れた……
+				CASE 3
+					PRINTFORML 何度目かの絶頂を迎えた二人は抱き合いながらベッドに倒れ込んだ
+					PRINTFORML 彼女は息を荒げながら%ANAME(MASTER)%の胸板に寄り添い、恍惚とした表情で体を震わせている
+					PRINTFORML 気持ちよかったかと問うと、娼婦としてのプライドがあるのだろう。照れながらもはにかみながら頷いた
+					PRINTFORMW しばし休んだ後、どちらからともなく口付けを交わすと、再び激しい交わりを再開した……
+			ENDSELECT
+			CALL FUCK(MASTER, "性技, 性交, Ｃ, 射精, Ｖ挿入", "童貞喪失, キス喪失", 0, "娼婦の唇", "", "娼婦の膣", "和姦")
+			DVAR:領内ぶらりエロの旅_色町の娼婦 += 1
+			LOCAL = MIN(MONEY, 3000)
+			MONEY -= LOCAL
+			CALL ICPRINT(@"金<{LOCAL}>を支払った", "L", カラー_注意)
+			PRINTFORML 
+			SIF DVAR:領内ぶらりエロの旅_色町の娼婦 == 4
+				PRINTFORMW 彼女はすっかり%ANAME(MASTER)%のお気に入りになり、今度から専属娼婦として相手をしてくれるそうだ
+			PRINTFORMW %ANAME(MASTER)%は一流娼婦のテクニックにご満悦で帰路に着いた……
+		;1回目
+		ELSE
+			PRINTFORMW 色町を歩いていると、娼婦に誘われた
+			PRINTFORMW 一晩どう？　とのことだ
+			PRINTFORML 
+			CALL ASK_YN("相手をしてもらう", "やめておく")
+			IF RESULT == 1
+				PRINTFORML そんな気分ではないので断った
+				PRINTFORMW %ANAME(MASTER)%は色町の賑わいを眺めながらぶらぶらした……
+				RETURN
+			ENDIF
+			PRINTFORMW 彼女はなかなかの器量だ
+			PRINTFORMW %ANAME(MASTER)%が頷くと、彼女は%PRONOUN(MASTER)%を近くの宿へ連れ込んだ
+			PRINTFORML 
+			PRINTFORMW 彼女の肉体と技術は素晴らしく、%ANAME(MASTER)%は何度も精を放っている
+			PRINTFORMW 一突きするごとに彼女はたまらないというように声をあげ、妖艶に身体をくねらせる
+			PRINTFORMW %ANAME(MASTER)%は獣のように彼女と交わりつづけた……
+			CALL FUCK(MASTER, "性技, 性交, Ｃ, 射精, Ｖ挿入", "童貞喪失, キス喪失", 0, "娼婦の唇", "", "娼婦の膣", "和姦")
+			LOCAL = MIN(MONEY, 3000)
+			MONEY -= LOCAL
+			CALL ICPRINT(@"金<{LOCAL}>を支払った", "L", カラー_注意)
+			DVAR:領内ぶらりエロの旅_色町の娼婦 = 1
+			PRINTFORMW %ANAME(MASTER)%は一流娼婦のテクニックにご満悦で帰路に着いた……
+		ENDIF
+		
+	;スラム街
+	CASE 5
+		PRINTFORML そういえば最近、スラム街の治安が問題になりつつあるらしい
+		PRINTFORMW %ANAME(MASTER)%はスラム街を巡回する事にした
+		PRINTFORML …
+		PRINTFORML ……
+		;1/4で警邏中のキャラと遭遇
+		IF !RAND:4
+			PRINTFORMW スラム街に着くと、警邏中の%ANAME(対象)%と鉢合わせた
+			SIF CFLAG:対象:面識 == 0
+				CFLAG:対象:面識 = 1
+			PRINTFORML %ANAME(対象)%もこの地区の治安を気にしていたようで、見回りに来たようだ
+			PRINTFORMW ついでなので一緒に見回っていると、強盗の現場に遭遇した！
+			PRINTFORML 二人は即座に事態の鎮圧に走った！
+			PRINTFORML
+			PRINTFORMW ･･･
+			PRINTFORML
+			PRINTFORMW 無事、強盗の鎮圧に成功した
+			PRINTFORML %ANAME(MASTER)%らは強盗たちを兵士たちに引渡した
+			PRINTFORMW それを見ていたスラム街の少女たちは、感謝の声を掛けてくれた……
+			CFLAG:対象:好感度 += 70
+			RETURN
+		ENDIF
+		;4回目以降
+		IF DVAR:領内ぶらりエロの旅_スラム街の娼婦 >= 4
+			PRINTFORMW いやらしい衣服の女性が立ち並んでいる路地に出た
+			PRINTFORML 前に少女を買った、スラム街の娼婦たちが集う場所だ
+			PRINTFORMW そして、お気に入りの少女が%ANAME(MASTER)%を待っていた
+			PRINTFORMW 彼女は妖艶に目を細め、%ANAME(MASTER)%に見せ付けるようにスカートをたくし上げ、太ももを晒す…
+			PRINTFORMW その仕草にドキッときた%ANAME(MASTER)%は、また彼女を買って抱くことにした
+			;1/3でロリハーレムプレイに
+			IF !RAND:3
+				PRINTFORML いざ事に及ぶ前に、彼女に提案をされる
+				PRINTFORMW 今日は私だけじゃなくて、みんなでキモチよくしてあげる　と…
+				PRINTFORML その言葉を待っていたかのように、多数の少女たちが現れ、%ANAME(MASTER)%に抱きついてきた
+				PRINTFORMW 皆、彼女のように幼い体つきながらも、一様に男を誘うようないやらしい仕草で%ANAME(MASTER)%を誘惑する
+				PRINTFORMW %ANAME(MASTER)%は多数の幼娼婦に囲まれて、近くのほったて小屋に入っていった…
+				PRINTFORML ･･･
+				SELECTCASE RAND:3
+					CASE 0
+						PRINTFORMW 少女たちは皆、年に似合わぬテクニックで%ANAME(MASTER)%の身体を弄び、貪欲に精を搾り取っている
+						PRINTFORML 彼女たちは、仰向けになった%ANAME(MASTER)%に柔肌を擦りつけるように群がり、
+						PRINTFORMW ぐちゅぐちゅといやらしい音を立てながら、%ANAME(MASTER)%の全身に淫らな愛蜜を塗りつけてくる…
+						PRINTFORMW そのあまりに淫猥な行為は%ANAME(MASTER)%の理性を壊し、幼い娼婦たちの膣に躊躇い無く射精させる
+						PRINTFORML 熱い精液を出されると彼女たちは嬌声を上げ、次は私も！　とばかりに肉棒の奪い合いになる
+						PRINTFORMW %ANAME(MASTER)%は彼女たちとのインモラルセックスに溺れていった……
+					CASE 1
+						PRINTFORMW 少女たちは舌で%ANAME(MASTER)%の全身をねぶって喘がせている
+						PRINTFORML ペニスはもちろん、乳首、アナル、脇、へそ、耳。あらゆる部位に少女の舌が這う
+						PRINTFORMW 身体は小さくともみなプロの娼婦だ。巧みな舌使いで%ANAME(MASTER)%の弱い所を的確に責め立てる
+						PRINTFORML 涎で溺れるような複数のディープキスを受けながら、少女の口に子種を吐き出す
+						PRINTFORMW 小さな口で精を受けた少女は、%ANAME(MASTER)%の前で見せ付けるように、恍惚の表情で子種を飲み込む
+						PRINTFORMW その様を見て再び肉棒を漲らせる。%ANAME(MASTER)%は彼女たちに何度も精を吐き出した……
+					CASE 2
+						PRINTFORMW 少女たちは%ANAME(MASTER)%の前に尻を突き出すように並んで、挿入を待ち望むかのように揺らしている
+						PRINTFORML いやらしく尻を揺らすその様は、幼くても彼女らはプロの娼婦だということを確信できる
+						PRINTFORMW 一人の桃尻を掴んで、その小さな膣穴を掻き分けるようにペニスを挿し入れる
+						PRINTFORML 狭い肉壷は精を搾り取ろうと貪欲にペニスに絡みつく
+						PRINTFORMW その淫らな肉壷の奥に存分に精を吐き出してやると、少女は嬌声を上げて絶頂した
+						PRINTFORML そして　次は私を使って　と、他の少女たちがこぞって%ANAME(MASTER)%のペニスを求める
+						PRINTFORMW %ANAME(MASTER)%は望みどおりに全員をハメ倒し、背徳的なハーレムを楽しんだ……
+				ENDSELECT
+				CALL FUCK(MASTER, "性技, 性交, Ｃ, 射精", "童貞喪失", 0, "", "", "ロリ娼婦の膣", "売春")
+				CALL FUCK(MASTER, "性技, 性交, Ｃ, 射精", "童貞喪失", 0, "", "", "ロリ娼婦の膣", "売春")
+				DVAR:領内ぶらりエロの旅_スラム街の娼婦 += 1
+				PRINTFORML 
+				LOCAL = MIN(MONEY, 4500)
+				MONEY -= LOCAL
+				CALL ICPRINT(@"金<{LOCAL}>を彼女らに支払った", "L", カラー_注意)
+			;通常プレイ
+			ELSE
+				PRINTFORML ･･･
+				SELECTCASE RAND:3
+					CASE 0
+						PRINTFORMW 彼女の技量は相変わらずプロそこのけの物で、巧みに%ANAME(MASTER)%を快感で責め立てる
+						PRINTFORML やや狭い膣穴はぴったりと一物に絡みつき、彼女の腰の動きに合わせて極上の刺激を与えてくる
+						PRINTFORMW 涎を垂らしながら快楽を堪能していると、彼女は舌を這わせ%ANAME(MASTER)%の涎を美味しそうに舐め取る
+						PRINTFORML やがて%ANAME(MASTER)%が限界を迎えそうになると、その竿の根元をぎゅっと指で締め付ける
+						PRINTFORMW そして耳に唇がくっつくほど近くで囁く。　追加料金くれたら、いっぱい中出しさせてあげる♥　と…
+						PRINTFORMW すっかり夢中にさせられた%ANAME(MASTER)%は追加料金を支払い、一晩中彼女とのセックスに溺れた……
+					CASE 1
+						PRINTFORMW 彼女は両手足で%ANAME(MASTER)%にしがみ付きながら、ねっとりとしたキスハメをしてくる
+						PRINTFORML 幼い身体ながら、プロの娼婦も顔負けの腰使いで%ANAME(MASTER)%を喘がせている
+						PRINTFORMW 甘えるように抱きつき、%ANAME(MASTER)%の肉棒を小さな膣穴でぎゅっと締め付ける
+						PRINTFORMW 彼女は熱っぽい声で　追加料金くれたら、いくらでも中出ししていいからね♥　と%ANAME(MASTER)%に囁く
+						PRINTFORMW %ANAME(MASTER)%は、君のためならいくらでも払う、と告げて彼女の中に何度も何度も子種を注いだ……
+					CASE 2
+						PRINTFORMW 彼女は%ANAME(MASTER)%に跨ってペニスを肉壷で咥え込み、ぐちゅぐちゅと卑猥な音を立てながら腰をゆする
+						PRINTFORML その動きは激しくはないが、%ANAME(MASTER)%の弱点を的確に責め立てるものだった
+						PRINTFORMW %ANAME(MASTER)%の口から漏れる喘ぎ声は、そのテクニックがプロの娼婦顔負けのものだという証だ
+						PRINTFORML その快感に蕩けていると、不意に彼女が動きを止める。もう時間が来た、と%ANAME(MASTER)%に告げる
+						PRINTFORMW 生殺しにされた%ANAME(MASTER)%に、彼女は　追加料金くれたら延長してあげる♥　と囁いて耳にキスをする
+						PRINTFORML %ANAME(MASTER)%は是も否も無く彼女に続きを懇願する。それが彼女にゾクゾクするような感覚を覚えさせる
+						PRINTFORMW 彼女は自分より大きな男を快楽で支配する愉悦を感じながら、%ANAME(MASTER)%の精を搾り取り続けた……
+				ENDSELECT
+				CALL FUCK(MASTER, "性技, 性交, Ｃ, 射精", "童貞喪失", 0, "", "", "ロリ娼婦の膣", "売春")
+				DVAR:領内ぶらりエロの旅_スラム街の娼婦 += 1
+				PRINTFORML 
+				LOCAL = MIN(MONEY, 2500)
+				MONEY -= LOCAL
+				CALL ICPRINT(@"金<{LOCAL}>を彼女に支払った", "L", カラー_注意)
+			ENDIF
+			PRINTFORMW 行為が終わると、彼女は%ANAME(MASTER)%に耳元で色っぽく囁く
+			PRINTFORML いっぱいお金を持って、また私を抱きに来てね…♥　と…
+			PRINTFORMW 絶対また来ることを告げると、少女は妖艶な笑みを浮かべて%ANAME(MASTER)%に深いキスを送った……
+		;2回目以降
+		ELSEIF DVAR:領内ぶらりエロの旅_スラム街の娼婦 >= 1
+			PRINTFORMW いやらしい衣服の女性が立ち並んでいる路地に出た
+			PRINTFORML 前に少女を買った、スラム街の娼婦たちが集う場所だ
+			PRINTFORMW そして、前に買った少女がいた
+			PRINTFORMW 彼女は妖艶に目を細め、%ANAME(MASTER)%を熱っぽく見つめている…
+			PRINTFORML どうしよう？
+			CALL ASK_YN("彼女を買う" ,"立ち去る")
+			IF RESULT == 1
+				PRINTFORMW しかし今はそんな気分でない。%ANAME(MASTER)%はその場を立ち去った
+				RETURN
+			ENDIF
+			PRINTFORMW その仕草にドキッとした%ANAME(MASTER)%は、また彼女を買って抱くことにした
+			PRINTFORML ･･･
+			SELECTCASE RAND:3
+				CASE 0
+					PRINTFORMW 少女は幼いながらも流石にプロの娼婦らしく巧みに%ANAME(MASTER)%を楽しませてくれた
+					PRINTFORML やや狭い膣穴はねっとりと一物に絡みついて彼女の腰の動きに合わせて心地よい刺激を与えて来る
+					PRINTFORMW 胸を揉み上げてやると彼女は可愛い声を漏らして身体をくねらせ、甘える様に抱きついてきた
+					PRINTFORMW すっかり夢中にさせられた%ANAME(MASTER)%は延長料金を支払い一晩中彼女との逢瀬を楽しませてもらった……
+				CASE 1
+					PRINTFORMW 彼女は両手足で%ANAME(MASTER)%にしがみ付きながら、ねっとりとしたキスハメをしている
+					PRINTFORML 幼い身体ながら、プロの娼婦らしく巧みな腰使いで%ANAME(MASTER)%を楽しませてくれた
+					PRINTFORMW 甘えるように抱きつき、%ANAME(MASTER)%の肉棒を小さな膣穴でぎゅっと締め付ける
+					PRINTFORML 彼女は熱っぽい声で　追加料金で中出しさせてあげる　と%ANAME(MASTER)%に囁く
+					PRINTFORMW %ANAME(MASTER)%はいくらでも払ってやる、と告げて彼女の中に何度も精を注いだ……
+				CASE 2
+					PRINTFORMW 彼女は%ANAME(MASTER)%に跨ってペニスを肉壷で咥え込み、ぐちゅぐちゅと卑猥な音を立てながら腰をゆする
+					PRINTFORML その動きは激しくはないが、%ANAME(MASTER)%の弱点を的確に責め立てるものだった
+					PRINTFORMW %ANAME(MASTER)%の口から漏れる喘ぎ声は、そのテクニックがプロの娼婦顔負けのものだという証だ
+					PRINTFORML その快感に蕩けていると、不意に彼女が動きを止める。もう時間が来た、と%ANAME(MASTER)%に告げる
+					PRINTFORMW 生殺しにされた%ANAME(MASTER)%に、彼女は　追加料金で延長してあげる　と耳にキスをしながら囁く
+					PRINTFORML %ANAME(MASTER)%は是も否も無く彼女に続きを懇願する
+					PRINTFORMW 彼女は自分より大きな男を快楽で支配する愉悦を感じながら、%ANAME(MASTER)%の精を子宮で受け止めた……
+			ENDSELECT
+			CALL FUCK(MASTER, "性技, 性交, Ｃ, 射精", "童貞喪失", 0, "", "", "ロリ娼婦の膣", "売春")
+			DVAR:領内ぶらりエロの旅_スラム街の娼婦 += 1
+			PRINTFORML 
+			LOCAL = MIN(MONEY, 2000)
+			MONEY -= LOCAL
+			CALL ICPRINT(@"金<{LOCAL}>を彼女に支払った", "L", カラー_注意)
+			PRINTFORMW また来ることを伝えると、少女は歳に似合わぬ妖艶な笑みで%ANAME(MASTER)%を見送った……
+			;4回目でロリ娼婦にハマる
+			SIF DVAR:領内ぶらりエロの旅_スラム街の娼婦 == 4
+				PRINTFORMW %ANAME(MASTER)%はすっかり彼女との行為にハマってしまった……
+		;1回目
+		ELSE
+			PRINTFORMW いやらしい衣服の女性が立ち並んでいる路地に出た
+			PRINTFORML ここは浮浪者が利用する娼婦たちの立ち場所らしい
+			PRINTFORMW 皆良い身体をしているのが服の上からでもわかる
+			PRINTFORML どうしよう？
+			CALL ASK_YN("一人買う" ,"立ち去る")
+			IF RESULT == 1
+				PRINTFORMW しかしそんな気分でない。%ANAME(MASTER)%はその場を立ち去った
+				RETURN
+			ENDIF
+			PRINTFORMW ムラムラしていた%ANAME(MASTER)%は一人の少女を買った
+			PRINTFORML 
+			PRINTFORMW 少女は幼いながらも流石にプロの娼婦らしく巧みに%ANAME(MASTER)%を楽しませてくれた
+			PRINTFORML やや狭い膣穴はねっとりと一物に絡みついて彼女の腰の動きに合わせて心地よい刺激を与えて来る
+			PRINTFORMW 胸を揉み上げてやると彼女は可愛い声を漏らして身体をくねらせ、甘える様に抱きついてきた
+			PRINTFORMW すっかり夢中にさせられた%ANAME(MASTER)%は延長料金を支払い一晩中彼女との逢瀬を楽しませてもらった……
+			CALL FUCK(MASTER, "性技, 性交, Ｃ, 射精", "童貞喪失", 0, "", "", "ロリ娼婦の膣", "売春")
+			PRINTFORML 
+			LOCAL = MIN(MONEY, 500)
+			MONEY -= LOCAL
+			CALL ICPRINT(@"金<{LOCAL}>を彼女に支払った", "L", カラー_注意)
+			PRINTFORMW また来ることを伝えると少女は頬を赤らめはにかんだ……
+			DVAR:領内ぶらりエロの旅_スラム街の娼婦 = 1
+		ENDIF
+	;止める
+	CASE 6
+		PRINTFORMW …いや、やっぱりこのままダラダラしていよう
+		PRINTFORMW %ANAME(MASTER)%は今日一日、自分の部屋でダラダラすることにした……
+ENDSELECT
+
+RETURN 0
