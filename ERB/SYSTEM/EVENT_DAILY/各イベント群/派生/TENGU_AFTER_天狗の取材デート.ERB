@@ -1,0 +1,214 @@
+﻿;---------------------
+;対応するデイリーのDISABLEを返す。設定しない場合、イベントは発生しない。
+;---------------------
+@EVENT_DAILY_DERIVATION_TENGU_AFTER_DISABLE()
+RETURN DAILY_GET_DISABLE_CONFIG("REPAYMENT")
+
+;---------------------
+;発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;対応するデイリーのDISABLEチェックを規約として必須とする
+;---------------------
+@EVENT_DAILY_DERIVATION_TENGU_AFTER_DECISION()
+#DIM 対象
+
+対象 = ID_TO_CHARA(DVAR:天狗取材_キャラID)
+
+SIF 対象 < 0
+	RETURN 0
+	
+SIF DVAR:天狗取材_キャラID < 0
+	RETURN 0
+	
+;ペニスを持ってないとだめ
+SIF !HAS_PENIS(MASTER)
+	RETURN 0
+	
+;対象が女でないとだめ
+SIF !IS_FEMALE(対象)
+	RETURN 0
+	
+;好感度が1500以上
+SIF MAX(CFLAG:対象:好感度) < 1500
+	RETURN 0
+
+;所属が一緒で、対象が捕虜になっておらず、死亡していない
+SIF !(CFLAG:対象:所属 == CFLAG:MASTER:所属 && !CFLAG:対象:捕虜先 && CFLAG:対象:特殊状態 != 特殊状態_死亡)
+	RETURN 0
+	
+;15％で発生	
+RETURN RAND:100 < 15
+
+
+;---------------------
+;本体
+;---------------------
+@EVENT_DAILY_DERIVATION_TENGU_AFTER()
+#DIM 対象
+#DIM 文
+#DIM はたて
+
+対象 = ID_TO_CHARA(DVAR:天狗取材_キャラID)
+文 = NAME_TO_CHARA("文")
+はたて = NAME_TO_CHARA("はたて")
+
+SELECTCASE DVAR:天狗取材_デート
+	CASE 0
+		PRINTFORML 「あ、%ANAME(MASTER)%。おはようございます！」
+		PRINTFORMW %ANAME(対象)%は%ANAME(MASTER)%の誘いで我が軍に入り、広報誌を作る仕事に従事している
+		PRINTFORML …勢いで軍に誘ってしまったものの、ここでちゃんとやれているだろうか
+		PRINTFORMW 「あはは、確かに不安もありましたけど…。やってみたら案外いけるもんですね」
+		PRINTFORML そう言う彼女の表情はあまり芳しくない。何かトラブルがあるのだろうか？
+		PRINTFORMW 「あ、いや、そういうわけではなくて」
+		PRINTFORMW 「広報誌の仕事は順調なんですけど、……肝心の自分の新聞用のネタが、ちょっと行き詰ってまして…」
+		IF CFLAG:文:所属 == CFLAG:MASTER:所属 &&  !(MASTER == NAME_TO_CHARA("文"))
+			PRINTFORML 「射命丸さんは、ネタ探しに足繁く飛び回っているのに……」
+			PRINTFORMW 「自分は最近、時間が取れなくて……。中々取材とかにも行けてないんです」
+		ELSEIF CFLAG:はたて:所属 == CFLAG:MASTER:所属 &&  !(MASTER == NAME_TO_CHARA("はたて"))
+			PRINTFORML 「姫海棠さんは、最近よく飛び回って念写に頼らず取材しているのに……」
+			PRINTFORMW 「自分は中々時間が取れなくて……。ネタ探しとかにも行けてないんです」
+		ELSE
+			PRINTFORMW 「特に最近は時間が取れなくて……。中々、ネタ探しの取材とかにも行けてないんです」
+		ENDIF
+		PRINTFORMW そう言うと%ANAME(対象)%は悩ましげに腕を組んで、どうしたものかと悩んでいる
+		PRINTFORML 今日まで立派に働いてくれている彼女だ。たまにはリフレッシュのために休みを上げるのもいいだろう
+		PRINTFORMW %ANAME(MASTER)%は、今度の休日に、二人で取材に行かないか、と彼女に提案した
+		PRINTFORML 「え！？　本当ですか！？　やったー！　ありがとうございます、%ANAME(MASTER)%♪」
+		PRINTFORMW その提案を聞いて、%ANAME(対象)%はパァっと表情を明るくした。%ANAME(MASTER)%と一緒に出かけられるのがとても嬉しいようだ
+		PRINTFORMW %ANAME(MASTER)%は彼女と、今度一緒に取材旅行に行くという約束を取り付けた
+		PRINTL
+		DVAR:天狗取材_デート = 1
+	CASE IS >= 1
+		IF DVAR:恩返し_デート == 1
+			PRINTFORML 「あ、%ANAME(MASTER)%。おはようございます！　今日はよろしくお願いしますね♪」
+		ELSE
+			PRINTFORML 「あ、%ANAME(MASTER)%。おはようございます！　今日も取材に協力してくださいね！」
+			PRINTFORML %ANAME(MASTER)%はあの後も、彼女の新聞のネタ探しのため、度々取材に誘われることになった
+		ENDIF
+		PRINTFORMW 今日は一緒に取材に付き合う約束の日。%ANAME(対象)%は実に嬉しそうに挨拶してきた
+		PRINTFORML 隣に立つや否や、すぐさま腕を絡めてくる。取材というよりデートに行くような感じだ
+		PRINTFORML 「ふふふ。まあいいじゃないですか。記者特権ってヤツですよ」
+		PRINTFORMW 「それでは今日も張り切って行きましょう！」
+		PRINTFORML ・
+		PRINTFORML ・
+		PRINTFORMW ・
+		SELECTCASE RAND:15
+			CASE 0
+				PRINTFORML 「あっ♥　あんっ♥　もっとぉ♥　もっと奥まで突いてぇ♥」
+				PRINTFORML 取材もそこそこに、%ANAME(MASTER)%と%ANAME(対象)%は部屋の中で激しく求めあった
+				PRINTFORML 「んあっ♥　いいからっ、今夜は一晩中、犯してくださいぃっ♥」
+				PRINTFORML もちろん断る理由などあるはずもなく、%ANAME(MASTER)%は深々とペニスを突き立てて応えた
+				PRINTFORMW きゅんきゅんと切なげに鳴く雌穴に、%ANAME(MASTER)%はたっぷりと種を付けた……
+			CASE 1
+				PRINTFORML 取材途中に急にムラムラときた%ANAME(MASTER)%は、%ANAME(対象)%に路地裏に連れ込んだ
+				PRINTFORML 彼女は%ANAME(MASTER)%の足元に跪いて、唇と舌で熱心にペニスに奉仕している
+				PRINTFORML 「ん……はぁ♥　相変わらず硬くて熱いですね……♥　気持ちいいですかぁ♥」
+				PRINTFORML 返事代わりに%ANAME(MASTER)%は彼女の頭を鷲掴みにすると、喉をオナホ代わりにしてピストンした
+				PRINTFORML 「んごっ♥　お゛っ♥　オ゛ッ♥　オ゛ッ♥　～～～～ッ♥♥♥」
+				PRINTFORMW 喉奥にびゅるびゅると熱い精液を流し込まれて、彼女はそれだけで達してしまった……
+			CASE 2
+				PRINTFORML 「あんっ♥　ごっ、御主人様っ♥　御主人様ぁんっ♥　ごめんなさぁい♥」
+				PRINTFORML 今日はメイドの仕事を体験取材するはずだったが、何故かそういうプレイをすることになってしまった
+				PRINTFORML 「はいっ♥　出してくださいっ♥　不出来な淫乱メイドにお仕置きしてくださいっ♥
+				PRINTFORML 　御主人様の特濃ザーメンでっ♥　御主人様専用のメイドまんこを躾けてくださぃぃ♥♥♥」
+				PRINTFORMW %ANAME(MASTER)%は可愛らしいメイド天狗の中にたっぷり射精し、その後も一晩中躾け続けた……
+			CASE 3
+				PRINTFORML 自勢力内にある温泉宿に、泊りがけで取材に行くことになった
+				PRINTFORML 「もぉ♥　お食事が済んだらすぐセックスだなんて、少しは景色を楽しみましょうよぉ……♥」
+				PRINTFORML 家族風呂に二人で浸かりながら、ゆっくりとまぐわいを楽しんだ
+				PRINTFORML 「ところでこの温泉って子宝の湯って言われてるらしいですよ……♥
+				PRINTFORMW 　あっ♥　ちょっと♥　急に、はげしっ♥　ほっ、本気で孕ませる気ですかっ、もぅっ♥♥♥」
+			CASE 4
+				PRINTFORML 河童から新しい発明品のレビューを頼まれたそうなので、協力することにした
+				PRINTFORML 「ひい゛ぃーっ♥　ちょっ♥　これっ♥　勘弁してくださっ♥　やば、やばいですっ♥
+				PRINTFORML 　お゛っ♥　おしりのあな、ばかになっちゃうっ♥　ばかになっちゃうよぅ♥」
+				PRINTFORML 四つん這いになった彼女のアナルで、河童印の極太バイブがぐいんぐいん蠢いている
+				PRINTFORMW %ANAME(MASTER)%はその様子を観察してレポートしつつ、購入することを検討した……
+			CASE 5
+				PRINTFORML 「あ゛あ゛ァーーーっ♥♥♥　あ゛ッ♥　オ゛ッ♥　んんお゛お゛っお゛っお゛っ♥
+				PRINTFORML 　いぎゅっ♥♥♥　いぎまひゅっ♥♥♥　いひっ♥　ひっひっひィィィーーーー♥♥♥」
+				PRINTFORML 永遠亭から新しい媚薬のレビューを頼まれたのだが、どうやら効果が強すぎるようだ
+				PRINTFORML かく言う%ANAME(MASTER)%も勃起が収まらず、何度出しても全く萎える気配を見せない
+				PRINTFORMW 結局効果が切れる頃には、彼女の腹は妊娠したかのように膨れ上がっていた……
+			CASE 6
+				PRINTFORML 「は……はいっ、チーズぅ♥」
+				PRINTFORML %ANAME(MASTER)%に下から貫かれた姿勢のまま、彼女はセルフタイマーで自分の姿を撮影させられた
+				PRINTFORML 「うぅっ、仕事道具なのに……こんな写真誰にも見せられませんよぉ
+				PRINTFORML 　え？　次は中出しされてイってるところを撮る？　それはちょっ、あっ♥　あっ♥　あ゛ーっ♥」
+				PRINTFORMW その後、%ANAME(MASTER)%は彼女の痴態を思う存分撮影してやった……
+			CASE 7
+				PRINTFORML 「も、もうっ！　本当に仕方のない人ですねぇ……♥」
+				PRINTFORML 今日は食レポに出かけたが、途中でついムラっとした%ANAME(MASTER)%は、%ANAME(対象)%を路地裏に連れ込み口で奉仕させた
+				PRINTFORML 「あむっ♥　ちゅっ♥　ちゅるっ、んぶっ、じゅるっ、じゅるるんっ♥
+				PRINTFORML 　いいれふよぉ♥　らひてくらひゃい♥　おいしいせーえき、たっぷりのまへてぇ♥♥♥」
+				PRINTFORMW その後も何件か回ったが、口内の精液の味が残っていたため、まともな取材にならなかったようだ……
+			CASE 8
+				PRINTFORML 「あぐっ♥　あぅぅん♥　あっ♥　あっ♥　あぅぅーっ♥　あぁんっ♥」
+				PRINTFORML %ANAME(MASTER)%は%ANAME(対象)%に覆い被さりながら、深いところまで膣肉を味わっている。
+				PRINTFORML 彼女は嬉しさで咽び泣きながらガクガクと身体を震わせ、%ANAME(MASTER)%に愛される幸せに酔い痴れている
+				PRINTFORML 「好きぃっ、好きですっ♥　こうやってっ、奥までっ♥　%ANAME(MASTER)%に、してもらうのぉ♥♥♥」
+				PRINTFORMW 必死にしがみつきながら可愛らしく呻く彼女に、%ANAME(MASTER)%はキスしながら長々と精を注ぎ込んだ……
+			CASE 9
+				PRINTFORML 「あっ♥　ひゃんっ♥　お、奥まで来てますよぉっ♥　ぐりぐりってぇ♥」
+				PRINTFORML %ANAME(対象)%は%ANAME(MASTER)%に跨り、自分から腰を振って子宮口を抉る悦びに溺れている
+				PRINTFORML すっかり%ANAME(MASTER)%に躾けられた膣肉は、別の生き物のようにうねり、ペニスに吸い付いてくる
+				PRINTFORML 「あはっ♥　気持ちいいですかぁ♥　いい、ですよ♥　一緒に、もっと、気持ちよく♥　よくぅ♥」
+				PRINTFORMW ますます熱烈に腰をくねらせる彼女に、%ANAME(MASTER)%が堪らず射精すると、彼女もまた嬌声を上げて絶頂した……
+			CASE 10
+				PRINTFORML 「ちょっ♥　ひぃっ、こんなの誰かにばれたらっ、どうするんですかぁ♥」
+				PRINTFORML 自勢力内の見回りに出た二人だったが、つい途中でムラッと来てしまい、物見櫓の上で%ANAME(対象)%に襲いかかった……
+				PRINTFORML 「ひィィッ♥　お、お願いっ♥　誰も気づかないでぇ♥　見られたらっ、恥ずかしくて死んじゃうぅ♥
+				PRINTFORML 　バレたらっ♥　あぁんっ♥　バレたらぁ、私が新聞に載っちゃいますぅぅぅー……♥♥♥」
+				PRINTFORMW 異常な状況に興奮してきゅんきゅんと締め付けてくる肉穴に、%ANAME(MASTER)%は満足いくまで精液を注ぎ込んだ……
+			CASE 11
+				PRINTFORML 今日は勢力内で開かれているお祭りに、%ANAME(対象)%を伴って行ってみた。
+				PRINTFORML 彼女の浴衣姿にドキドキしつつも取材を終えて少し休んでいたが、そこら中の茂みから男女の喘ぎ声が聞こえる……
+				PRINTFORML 「い、いやぁ皆さんお盛んなことで……♥　で、その、そう、取材の一環として、ですね……、私達も、しますか？」
+				PRINTFORML ちらりと浴衣の裾を捲って恥ずかしげに誘う彼女に、%ANAME(MASTER)%は一も二もなく襲いかかった
+				PRINTFORMW そして嬉しげにきゃー♥と悲鳴を上げる彼女を押し倒し、周囲のカップルに負けないほど哭かせてやった……
+			CASE 12
+				PRINTFORML 取材中、突然の雨に降られてしまった%ANAME(MASTER)%と%ANAME(対象)%は、仕方なく近くにあった宿に飛び込んだ
+				PRINTFORML 「でも、これってどう見ても……連れ込み宿ですよねぇ……♥」
+				PRINTFORML その通りだ。そして折角入ったのなら楽しむべきだ。そう思った%ANAME(MASTER)%は彼女を押し倒した
+				PRINTFORML 「あーもうっ♥　分かってましたけどっ！　というかそもそも最初から分かってて連れ込んだんじゃ……♥
+				PRINTFORMW 　あっ♥　ごめっ、口答えしませんからぁ♥　そこっ♥　だめっ♥　やっ、あっ♥　あっ♥　あ゛ーーーっ♥♥♥」
+			CASE 13
+				PRINTFORML ある宿で裏取引が行われているという情報を掴んだ%ANAME(MASTER)%と%ANAME(対象)%は、潜入捜査を行うことになった
+				PRINTFORML しかしそこはカップル御用達の秘密の連れ込み宿……やむなく、%ANAME(MASTER)%達は恋人同士として宿に潜入した
+				PRINTFORML 「そ、そうっ♥　これは捜査のために仕方のないことなんです♥　恋人同士の演技をっ♥　しないとっ♥
+				PRINTFORML 　あっ♥　あっ♥　いいよぉ♥　もっと愛してくださいっ♥　%ANAME(MASTER)%の子種ぇ♥　たくさんくださいぃ♥」
+				PRINTFORMW その後、恋人ごっこにハマりすぎてうっかり取引現場を逃しかけたが、なんとか犯人達を捕えることができた……
+			CASE 14
+				PRINTFORML ムラムラしていた%ANAME(MASTER)%は、今日は仕事も取材も放り投げて%ANAME(対象)%とセックスすることにした
+				PRINTFORML 「あっ♥　そ、そんなんでいいんですかぁ♥　し、仕事は、真面目に、しないと♥　いけないんです、よぉ♥」
+				PRINTFORML そんなことは関係ない、今はただお前の身体を味わい尽くしたいと、%ANAME(MASTER)%は告げた
+				PRINTFORML 「……ッ♥♥♥　ず、ずるいですよぉ♥　そんなこと言われたらっ♥　私もっ♥　我慢っ♥　できなくなっちゃいますっ♥
+				PRINTFORMW 　うんっ♥　うんっ♥　いっぱいシてくださいっ♥　%ANAME(MASTER)%の子種っ♥　好きなだけ私の中に出してください……っ♥♥♥」
+		ENDSELECT 
+		CALL FUCK_MAKELOVE(対象, GET_ID(MASTER), @"%ANAME(MASTER)%の唇", @"%ANAME(MASTER)%")
+		CALL FUCK(MASTER, "Ｃ, 射精, Ｖ挿入", "童貞喪失, キス喪失", 0, @"%ANAME(対象)%の唇", "", @"%ANAME(対象)%の膣")
+		PRINTFORML ・
+		PRINTFORML ・
+		PRINTFORMW ・
+		PRINTFORML 「はぁ…今日もなんだかんだでシちゃいましたねぇ…♥」
+		PRINTFORMW 取材という体のデートを終え、二人は仲良く帰路の途中だ
+		PRINTFORML 「今度も取材に付き合ってくださいね！」
+		PRINTDATAW
+			DATA 「次は近頃、話題のデートスポットについての取材予定がありまして…」
+			DATA 「次は人里で最近話題の創作スイーツの取材です。噂では『ＪＫ』なる者がアドバイザーになっているとか…」
+			DATA 「最近作られたという、河童の新工場について潜入取材をしようかと思ってまして…」
+			DATA 「今度は、大量に流通している麻薬の製造に関する取材です。これは社会派ですよ！」
+			DATA 「実は最近、裸の首なし女が夜な夜な現れて徘徊しているという噂がありまして…」
+			DATA 「実はとある色町に、どんな男も骨抜きにする魔性の娼婦がいるという噂がありまして…」
+			DATA 「潰しても潰してもすげ変わる夜盗の頭領は、実は真の頭領である謎の美女が影から操っているという噂がありまして…」
+			DATA 「前の新聞、射命丸さんや姫海棠さんのより売り上げが良くて、…申し訳ない気持ちと共に妙な優越感が沸いてきまして…」
+		ENDDATA
+		PRINTFORML 次の取材予定を楽しそうにまくし立てる彼女の頭を、%ANAME(MASTER)%は優しく撫でる
+		PRINTFORMW どうせ今度も、取材はそこそこにまた身体を重ねる事になるだろうけど…、とは口には出さなかった
+		SIF DVAR:恩返し_デート == 1
+			DVAR:恩返し_デート = 2
+		PRINTL
+		CFLAG:対象:好感度 += 100
+ENDSELECT
+
+RETURN 1

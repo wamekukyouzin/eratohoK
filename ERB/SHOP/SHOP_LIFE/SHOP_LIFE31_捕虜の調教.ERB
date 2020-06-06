@@ -327,7 +327,7 @@ RETURN CFLAG:対象:捕虜先 == CFLAG:MASTER:所属 && !CFLAG:対象:軟禁中
 #DIM 対象
 #DIM 候補
 #DIM 判定値, 3000
-VARSET 判定値, __INT_MIN__
+VARSET 判定値, 0
 FOR LOCAL, 0, CHARANUM
 	SIF GROUPMATCH(LOCAL, 対象, MASTER)
 		CONTINUE
@@ -339,7 +339,7 @@ FOR LOCAL, 0, CHARANUM
 		SIF REL_LIKE:LOCAL:対象 > 0
 			判定値:LOCAL += RAND(REL_LIKE:LOCAL:対象, REL_LIKE:LOCAL:対象 * 2) 
 		SIF RELATION:LOCAL:対象 >= 100
-			判定値:LOCAL += (RELATION:LOCAL:対象 - 100) * 1000
+			判定値:LOCAL += (RELATION:LOCAL:対象 - 100) * RAND(50, 100)
 		SIF CFLAG:LOCAL:所属 != CFLAG:対象:所属
 			判定値:LOCAL = 判定値:LOCAL * 2 / 3
 	ENDIF
@@ -347,8 +347,10 @@ NEXT
 
 候補 = FINDELEMENT(判定値, MAXARRAY(判定値, 0, CHARANUM), 0, CHARANUM)
 
+SIF 判定値:候補 <= 0
+	RETURN 0
 
-IF 判定値:候補 > RAND:10000
+IF 判定値:候補 > 10000
 	PRINTFORMW %ANAME(MASTER)%が%ANAME(対象)%の調教を開始しようとすると、%ANAME(候補)%がすがりついてきた
 	PRINTFORML 自分が代わりになる、だから%ANAME(対象)%のことは見逃して欲しい、ということだそうだが……
 	CALL ASK_MULTI("受け入れる", @"受け入れつつ、%ANAME(対象)%に見せつける", "無視する")
@@ -368,8 +370,6 @@ IF 判定値:候補 > RAND:10000
 			PRINTFORMW 何を馬鹿なことを言っているのだろう
 			PRINTFORMW %ANAME(MASTER)%は%ANAME(候補)%を無視し、%ANAME(対象)%の調教にとりかかった
 	ENDSELECT
-ELSE
-	RETURN 0
 ENDIF
 
 ;-------------------------------------------------

@@ -1,0 +1,254 @@
+﻿;---------------------
+;対応するデイリーのDISABLEを返す。設定しない場合、イベントは発生しない。
+;---------------------
+@EVENT_DAILY_DERIVATION_REPAYMENT_AFTER_DISABLE()
+RETURN DAILY_GET_DISABLE_CONFIG("REPAYMENT")
+
+;---------------------
+;発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;対応するデイリーのDISABLEチェックを規約として必須とする
+;---------------------
+@EVENT_DAILY_DERIVATION_REPAYMENT_AFTER_DECISION()
+#DIM 対象
+
+対象 = ID_TO_CHARA(DVAR:恩返し_キャラID)
+
+SIF 対象 < 0
+	RETURN 0
+	
+SIF DVAR:恩返し_キャラID < 0
+	RETURN 0
+	
+;ペニスを持ってないとだめ
+SIF !HAS_PENIS(MASTER)
+	RETURN 0
+	
+;対象が女でないとだめ
+SIF !IS_FEMALE(対象)
+	RETURN 0
+
+;好感度が1500以上
+SIF MAX(CFLAG:対象:好感度) < 1500
+	RETURN 0
+	
+;所属が一緒で、対象が捕虜になっておらず、死亡していない
+SIF !(CFLAG:対象:所属 == CFLAG:MASTER:所属 && !CFLAG:対象:捕虜先 && CFLAG:対象:特殊状態 != 特殊状態_死亡)
+	RETURN 0
+	
+;15％で発生	
+RETURN RAND:100 < 15
+
+
+;---------------------
+;本体
+;---------------------
+@EVENT_DAILY_DERIVATION_REPAYMENT_AFTER()
+#DIM 対象
+#DIM マミゾウ
+#DIM 藍
+#DIM ナズーリン
+#DIM 影狼
+#DIM てゐ
+#DIM ミスティア
+
+対象 = ID_TO_CHARA(DVAR:恩返し_キャラID)
+マミゾウ = NAME_TO_CHARA("マミゾウ")
+藍 = NAME_TO_CHARA("藍")
+ナズーリン = NAME_TO_CHARA("ナズーリン")
+影狼 = NAME_TO_CHARA("影狼")
+てゐ = NAME_TO_CHARA("てゐ")
+ミスティア = NAME_TO_CHARA("ミスティア")
+
+SELECTCASE DVAR:恩返し_デート
+	CASE 0
+		PRINTFORML 「あ、%ANAME(MASTER)%。おはようございます」
+		PRINTFORMW %ANAME(MASTER)%の姿を見つけるや、%ANAME(対象)%が嬉しそうに挨拶してきた
+		PRINTFORML …勢いで軍に誘ってしまったものの、ここでちゃんとやれているだろうか
+		PRINTFORMW 「はい。最初は不安もあったけど…、皆さんが良くしてくれてますから」
+		SELECTCASE 恩返し_種類:(DVAR:恩返し_動物番号)
+			CASE "狸"
+				IF CFLAG:マミゾウ:所属 == CFLAG:MASTER:所属 &&  !(MASTER == NAME_TO_CHARA("マミゾウ"))
+					PRINTFORML 「特にマミゾウ様が、同じ化け狸のよしみと言って親身になってくれました」
+					PRINTFORMW 「…ちょっと怖い印象を持っていたんですが、とても良い人でした。このご恩を返せるよう頑張りたいです」
+				ELSE
+					PRINTFORMW 「特に化け狸衆の皆さんがこまめに様子を見に来てくださって…。色々助言も頂きました」
+				ENDIF
+			CASE "狐" 
+				IF CFLAG:藍:所属 == CFLAG:MASTER:所属 &&  !(MASTER == NAME_TO_CHARA("藍"))
+					PRINTFORML 「特に藍様が、とても手厚く面倒を見てくれてました」
+					PRINTFORMW 「九尾である藍様が、私みたいな木っ端妖孤を気に掛けてくれるなんて、ちょっと畏れ多いですけど…」
+					PRINTFORMW 「でも、とても優しくしてくれました。私も藍様のような、身も心も美しい妖孤になれるよう頑張ります！」
+				ELSE
+					PRINTFORMW 「特に化け狐の方々がこまめに様子を見に来てくださって…。色々助言も頂きました」
+				ENDIF
+			CASE "兎" 
+				IF CFLAG:てゐ:所属 == CFLAG:MASTER:所属 &&  !(MASTER == NAME_TO_CHARA("てゐ"))
+					PRINTFORML 「特にてゐ様が、とても熱心に面倒を見てくれました」
+					PRINTFORMW 「竹林の因幡から離れて生きてきた私にも、ちゃんと目を掛けてくれたんです」
+					PRINTFORMW 「てゐ様には、何時までたっても頭が上がりませんね……」
+				ELSE
+					PRINTFORMW 「特に妖怪兎のみんながこまめに様子を見に来てくれて…。色々と助言も頂きました」
+				ENDIF
+			CASE "鼠" 
+				IF CFLAG:ナズーリン:所属 == CFLAG:MASTER:所属 &&  !(MASTER == NAME_TO_CHARA("ナズーリン"))
+					PRINTFORML 「特にナズーリンさんが、早く馴染めるようにと周りの人たちと仲を取り持ってくれたんです」
+					PRINTFORMW 「体は小さいのに、私よりハキハキ、堂々と『私に任せたまえ』って…」
+					PRINTFORMW 「可愛い見た目と違って、とてもカッコいいお人でした」
+				ELSE
+					PRINTFORMW 「特に妖怪鼠のみんながこまめに様子を見に来てくれて…。色々助言も頂きました」
+				ENDIF
+			CASE "鶴"
+				IF CFLAG:ミスティア:所属 == CFLAG:MASTER:所属 &&  !(MASTER == NAME_TO_CHARA("ミスティア"))
+					PRINTFORML 「特にミスティアさんが鳥妖怪のよしみと言って、人に喜ばれる料理とか接し方とか、色々助言してくれたんです」
+					PRINTFORMW 「妖怪であることを隠さずに活動してるからか、とても堂々とした方でした。私もあんな風になれるでしょうか……」
+				ELSE
+					PRINTFORMW 「特に鳥妖怪の皆さんが色々と助言してくださって…。勇気付けてもらいました」
+				ENDIF
+			CASE "狼" 
+				IF CFLAG:影狼:所属 == CFLAG:MASTER:所属 &&  !(MASTER == NAME_TO_CHARA("影狼"))
+					PRINTFORML 「特に影狼さんが、同じ狼の妖怪として、色々と親身になってくれたんです」
+					PRINTFORMW 「綺麗な方なのに、どこか親しみやすくて……、とても可愛らしい方でした」
+				ELSE
+					PRINTFORMW 「特に狼妖怪のみんなが、私がちゃんとやれてるか様子を見に来てくれて…。励ましてくれました」
+				ENDIF
+			CASEELSE
+				PRINTFORMW 「みんなの迷惑にならないよう、自分に出来ることを頑張っていくつもりです」
+		ENDSELECT
+		PRINTFORMW 何はともあれ、上手くやっているようでよかった。他にも困ったことがあったらいつでも言ってほしい
+		PRINTFORML 「困ったこと、といえば……私の我侭ですけど、忙しくなって%ANAME(MASTER)%と気軽に会えないことでしょうか……」
+		PRINTFORMW そう言うと%ANAME(対象)%は%ANAME(MASTER)%に、寂しそうに、甘えるように寄り添ってきた
+		PRINTFORMW 彼女に寂しい思いをさせっぱなしというのも心苦しい。%ANAME(MASTER)%は、今度一緒にデートしないか、と彼女に提案した
+		PRINTFORML 「！　本当ですか！？　嬉しいです！」
+		PRINTFORMW その提案を聞いて、%ANAME(対象)%はパァっと表情を明るくした。%ANAME(MASTER)%からデートに誘われたのがとても嬉しかったようだ
+		PRINTFORMW %ANAME(MASTER)%は彼女と、今度一緒にデートするという約束を取り付けた
+		PRINTL
+		DVAR:恩返し_デート = 1
+	CASE IS >= 1
+		PRINTFORML 「あ、%ANAME(MASTER)%♥　おはようございます」
+		PRINTFORMW デートの待ち合わせ。%ANAME(MASTER)%を見つけるや、%ANAME(対象)%が嬉しそうに挨拶してきた
+		IF DVAR:恩返し_デート == 1
+			PRINTFORML 「今日の事、ずっと楽しみにしていました」
+			PRINTFORML そう言うと彼女は%ANAME(MASTER)%に甘えるように寄り添ってきた
+			PRINTFORMW 「だから今日は…いっぱい、構ってくださいね♥」
+			PRINTFORMW そのお願いに応えるため、%ANAME(MASTER)%は彼女をいっぱい可愛がることにした
+		ELSE
+			PRINTFORML 「またデートに誘ってくれて、とても嬉しいです♪」
+			PRINTFORML そう言うと彼女は%ANAME(MASTER)%に甘えるように寄り添ってきた
+			PRINTFORMW 「だから今日も…いっぱい、可愛がってくださいね♥」
+			PRINTFORMW そのお願いに応えるため、%ANAME(MASTER)%は今日も彼女と目一杯デートに勤しむことにした
+		ENDIF
+		PRINTFORML ・
+		PRINTFORML ・
+		PRINTFORMW ・
+		SELECTCASE RAND:15
+			CASE 0
+				PRINTFORMW 「あんっ♥　駄目ですよぉ、今、料理中ですからぁ♥」
+				PRINTFORML 台所に立つ%ANAME(対象)%の身体を背後からまさぐる
+				PRINTFORML 口では抵抗しているが、顔を蕩けさせ、身体も愛撫に合わせてくねらせている
+				PRINTFORML 次第に口からも可愛い喘ぎ声が漏れだし、%ANAME(MASTER)%にしがみついてきた
+				PRINTFORMW もはや我慢出来なくなり、立ったままペニスをねじ込むと、激しくまぐわった
+			CASE 1
+				PRINTFORMW 「んちゅ♥んっ♥んんっ♥ちゅ♥んあっ♥」
+				PRINTFORML ぱんぱんぱん、と肉が打ち合う音が響く
+				PRINTFORML %ANAME(MASTER)%は%ANAME(対象)%に覆いかぶさった姿勢で、激しく腰を打ち付ける
+				PRINTFORML 彼女はその度に体を震わせながらも、%ANAME(MASTER)%の首にしがみつき必死で舌を絡ませてくる
+				PRINTFORMW やがて彼女が達すると、膣が収縮する刺激に合わせ、%ANAME(MASTER)%も思い切り精を解き放った
+			CASE 2
+				PRINTFORMW 「こ、こんなところでするなんて…あっ♥」
+				PRINTFORML 散歩中、ムラッと来た%ANAME(MASTER)%は%ANAME(対象)%を近くの茂みに連れ込んだ
+				PRINTFORML 優しく愛撫しながら服を脱がせると、彼女は顔を真っ赤にして恥ずかしがる
+				PRINTFORML 元は動物なのに恥ずかしいのかと内心苦笑しながらも、その仕草がたまらなく興奮をあおる
+				PRINTFORMW 彼女に尻を突きださせ、すっかり濡れている秘所に挿入すると、甘美の喘ぎ声を上げた
+			CASE 3
+				PRINTFORMW 「はぁー…♥はぁー…♥　腰が、もう、立てなくなりましたぁ…♥」
+				PRINTFORML %ANAME(対象)%は%ANAME(MASTER)%の腕の中で大きく息をしながら、恍惚の表情を見せている
+				PRINTFORML 一晩中彼女と交尾を続け、くたくたとなり、お互いの体液にまみれて布団に転がっている
+				PRINTFORML しかし、嬉しそうに擦り寄る彼女の仕草と、鼻孔をくすぐる雌の匂いで、再び下半身に熱が集まってくる
+				PRINTFORMW 再び彼女に覆いかぶさると、彼女は一瞬吃驚しながらも、照れくさそうに割れ目を自ら開いてみせた
+			CASE 4
+				PRINTFORMW 「んっ…ふぅん…あっ♥……はぁ…あっ♥……くぅん♥」
+				PRINTFORML %ANAME(対象)%の身体を抱きしめながら、舌と指を使いじっくりと愛撫する
+				PRINTFORML 触れるか触れないかのギリギリで愛撫をしていると、彼女は徐々に息を荒げ、身体を切なげにくねらせ出す
+				PRINTFORML 軽く膣に指を差し込むと、それだけで背を反らして絶頂してしまった
+				PRINTFORMW 瞳を潤ませ、発情した獣のように%ANAME(MASTER)%にねだってくる娘に応え、彼女に覆いかぶさった
+			CASE 5
+				PRINTFORMW 「きゃ♥　も、もう♥また我慢できなくなったんですかぁ♥あんっ♥」
+				PRINTFORML 水浴びをしている途中、魅せ付ける様に揺れる%ANAME(対象)%の肢体に我慢できなくなり、彼女に抱きついた
+				PRINTFORML 濃厚に口付けをしながら彼女の胸を揉みしだくとピクピクと身体を震わせ、%ANAME(MASTER)%に寄りかかってくる
+				PRINTFORML 唇を離すと切なそうに%ANAME(MASTER)%を見上げ、彼女もまた我慢の限界らしく、身体を擦り付けてきた
+				PRINTFORMW %ANAME(MASTER)%は近くの岩場の影に彼女を連れ込み、冷たい水の中で獣のように激しくまぐわった
+			CASE 6
+				PRINTFORMW 「あっ♥あっ♥んんっ♥素敵♥あぁ♥種♥種をくださいぃ♥あっ♥」
+				PRINTFORML %ANAME(対象)%が%ANAME(MASTER)%の上に跨りながら、必死で腰を振っている
+				PRINTFORML 彼女が腰を上下させる度に、結合部から卑猥な蜜音と共に愛液が溢れてくる
+				PRINTFORML だらしなく舌を垂らし、扇情的な表情で%ANAME(MASTER)%を見つめながら、子種をねだってくる
+				PRINTFORMW やがて限界に達した%ANAME(MASTER)%が待ちわびる彼女の子宮へ種を放つと、一際大きな嬌声を上げて絶頂した
+			CASE 7
+				PRINTFORMW 「あっ♥あっ♥あぁっ♥あんっ♥いい♥いいのぉ♥あっ♥」
+				PRINTFORML %ANAME(MASTER)%は、四つん這いになった彼女の腰を掴みながら犯している
+				PRINTFORML その蜜壺から与えられる極上の刺激に、腰を止めることは出来ず、獣の交尾の様に激しく腰を打ち付ける
+				PRINTFORML 彼女もまた、一突き毎に嬌声を上げながら絶頂し、身体を振るわせ続けている
+				PRINTFORMW 貪るようにお互いを求め続け、疲れ果てる頃には、彼女の子宮は%ANAME(MASTER)%の種で満たされていた
+			CASE 8
+				PRINTFORMW 「んんっ♥はぁ…♥こんなところで、あっ♥見つかっちゃいますよぉ…あんっ♥」
+				PRINTFORML 買物の帰り、路地裏に彼女を連れ込んで犯している
+				PRINTFORML はじめは照れていた彼女だが、見られるかもしれない羞恥心と背徳感のせいか、いつもより敏感に反応する
+				PRINTFORML やがて自分から積極的に腰を振りだし、切なげな表情で%ANAME(MASTER)%を見つめ、おねだりをしてきた
+				PRINTFORMW 彼女と舌を絡ませながら腰の動きを加速させ、二人で同時に絶頂した
+			CASE 9
+				PRINTFORMW 「あぐっ♥あっ♥ひぐっ♥あぁ♥あ"♥あぁん♥」
+				PRINTFORML %ANAME(MASTER)%は%ANAME(対象)%に覆いかぶさり、膣の奥深くまでペニスをねじ込んでいる
+				PRINTFORML 全体重を乗せて子宮に届くほどの深いストロークで、彼女の身体の奥深くまで味わう
+				PRINTFORML 乱暴にボルチオを刺激され、悲鳴に近い嬌声を上げながら、彼女は必死で%ANAME(MASTER)%にしがみ付いてくる
+				PRINTFORMW %ANAME(MASTER)%は子宮口に直接鈴口を押し当てながら、彼女の子宮へと全ての精液を注ぎ込んだ
+			CASE 10
+				PRINTFORMW 「あん♥もぉ♥ご主人様ぁ♥あっ♥あん♥エッチなんですからぁ♥ん♥ちゅ♥」
+				PRINTFORML メイド服を着て掃除をしている%ANAME(対象)%を背後から抱きしめ身体をまさぐると、嬉しそうに身をよじらせた
+				PRINTFORML ある日コスプレエッチを提案してみたら彼女は思いの他乗ってきて、一日メイドとして過ごすことになった
+				PRINTFORML 時折ドジをしたらお仕置きとして激しく犯し、上手に仕事が出来たらご褒美として優しく抱いてやる
+				PRINTFORMW そんな爛れたシチュエーションに二人して夢中となって、肉欲に溺れた獣の様に何度も交わった
+			CASE 11
+				PRINTFORMW 「あぁ…あっ♥ん、ん♥…んんっ♥…あっ、はぁん♥」
+				PRINTFORML 布団の中でキスをしながらゆったりと全身を愛撫してやると、%ANAME(対象)%は甘い吐息を漏らして身をくねらせる
+				PRINTFORML まだ幼さを残しながらも雌の色気を醸し出すその表情に興奮を煽られ、一物はギンギンに勃起してしまう
+				PRINTFORML すると彼女はごろんと仰向けになって自らの秘所を割れ開くと、囁くような声でおねだりしてきた
+				PRINTFORMW その仕草にもはや我慢できなくなった%ANAME(MASTER)%は雄の本能のままに娘の中へと己の一物をねじ込んだ
+			CASE 12
+				PRINTFORMW 「ふぅ…♥ふぅ…♥こ、こんなのぉ♥…恥ずかしぃよぉ♥…んっ♥」
+				PRINTFORML %ANAME(MASTER)%は素っ裸の彼女に首輪だけをつけて深夜の近所へと散歩に連れ出した
+				PRINTFORML 顔を真っ赤にして震える彼女だが、露出で興奮しているのかその股間からは愛液がしたたり落ちている
+				PRINTFORML そんな彼女のえっちな様子を耳元で囁くと、娘はぶるっと身震いして発情した表情で縋り付いてきた
+				PRINTFORMW その淫靡な表情にムラムラ来た%ANAME(MASTER)%は彼女を物陰に連れ込むと、たっぷりと可愛がってやった
+			CASE 13
+				PRINTFORMW 「ああぁぁ♥♥♥またくるぅ♥あっ♥あぁ♥すごいのぉ♥イクッ♥ヒィィィ♥♥♥」
+				PRINTFORML びゅるびゅると何度目かの射精を終えた%ANAME(MASTER)%は、%ANAME(対象)%と共に布団に倒れこんだ
+				PRINTFORML 一日中ひたすらまぐわい続けた%ANAME(MASTER)%達は汗だくになっており、抱きしめ合いながらしばし息を整える
+				PRINTFORML ふと息を荒げながら恍惚の表情をした娘と目が合い、小さくキスをしてやると彼女は幸せそうに微笑んだ
+				PRINTFORMW その後%ANAME(MASTER)%達は汗を流すために一緒に風呂に向かったが、結局そこでもまぐわいを再開する事になった
+			CASE 14
+				PRINTFORMW 「あ"♥あ"♥あぁ♥♥イきゅ♥イッてます♥♥あぁん♥イくの♥止まらないのぉお♥♥♥」
+				PRINTFORML むせ返るような精の匂いが漂う寝室の中に男女のまぐわう音が絶え間なく響いている
+				PRINTFORML %ANAME(対象)%のイキっぱなしの膣肉はヒクヒクと痙攣して%ANAME(MASTER)%に絡みつき、腰が浮いてしまう程の快楽をもたらす
+				PRINTFORML 我慢も限界に達し腰の動きを速めると、彼女もギュッと%ANAME(MASTER)%にしがみついて子種をおねだりしてきた
+				PRINTFORMW 二人でドロドロに溶けていく様な錯覚に陥りながら、共に絶頂へと昇って行った
+		ENDSELECT
+		CALL FUCK_MAKELOVE(対象, GET_ID(MASTER), @"%ANAME(MASTER)%の唇", @"%ANAME(MASTER)%")
+		CALL FUCK(MASTER, "Ｃ, 射精, Ｖ挿入", "童貞喪失, キス喪失", 0, @"%ANAME(対象)%の唇", "", @"%ANAME(対象)%の膣")
+		PRINTFORML ・
+		PRINTFORML ・
+		PRINTFORMW ・
+		PRINTFORML 「ふぁああぁ……♥　最高でした…♥」
+		PRINTFORMW ベッドの上、彼女は満ち足りた表情で%ANAME(MASTER)%に抱きついている
+		PRINTFORML 「あの……%ANAME(MASTER)%。寂しくなったら……また誘ってもらってもいいですか？」
+		PRINTFORMW %ANAME(対象)%ははにかんだ様子で%ANAME(MASTER)%に尋ねてくる。迷惑にならないか心配しているようだ
+		PRINTFORML 遠慮せず、いつでも誘ってくれていい。自分はいつだって付き合う、と伝えた
+		PRINTFORML 「……私、幸せです…♥」
+		PRINTFORMW 一日の終わり、二人は抱き合ったまま幸せに包まれて眠りについた……
+		SIF DVAR:恩返し_デート == 1
+			DVAR:恩返し_デート = 2
+		PRINTL
+		CFLAG:対象:好感度 += 100
+ENDSELECT
+
+RETURN 1

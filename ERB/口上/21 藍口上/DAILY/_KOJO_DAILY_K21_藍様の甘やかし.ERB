@@ -1,0 +1,332 @@
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@KOJO_DAILY_K21_AMAYAKASI_RATE(対象)
+#DIM 対象
+RETURN (KDVAR:対象:藍_甘やかし > 0 ? 200 # 70)
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@KOJO_DAILY_K21_AMAYAKASI_DECISION(対象)
+#DIM 対象
+
+;プレイヤーキャラが紫か幽々子だと発生しない
+SIF (MASTER == NAME_TO_CHARA("紫") || MASTER == NAME_TO_CHARA("幽々子"))
+	RETURN 0
+
+;恋慕系か主人系で、合意がなければだめ
+SIF !((IS_LOVER(対象) || IS_SLAVED_BY(対象)) && TALENT:対象:合意)
+	RETURN 0
+
+;ペニスがないと駄目
+SIF !HAS_PENIS(MASTER)
+	RETURN 0
+	
+;対象が女でないとだめ
+SIF !IS_FEMALE(対象)
+	RETURN 0
+	
+;終わってたら発生しない
+SIF KDVAR:対象:藍_甘やかし == -1
+	RETURN 0
+	
+;ARG:0が口上デイリーイベントを実施できるかの簡易チェック関数。
+;ARG:1 0 MASTERと別勢力である 1 MASTERと同一勢力である　-1 どちらでもよい
+;ARG:2 0 捕虜でない 1 捕虜である -1 どちらでもよい
+;ARG:3 0 面識がない 1 面識がある -1 どちらでもよい
+RETURN CHECK_KOJO_DAILY_HAPPEN(対象, 1, 0, 1) 
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@KOJO_DAILY_K21_AMAYAKASI_GENRE(対象)
+#DIM 対象
+RETURN デイリー_ジャンル_エロ
+
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@KOJO_DAILY_K21_AMAYAKASI(対象)
+#DIM 対象
+#DIM 対象都市
+#DIM 対象都市2
+#DIM 橙
+
+橙 = NAME_TO_CHARA("橙")
+
+;自国都市ランダム
+CALL DAILY_EVENT_RAND_CITYSELECT(0)
+対象都市 = RESULT
+SIF 対象都市 < 0
+	RETURN 0
+
+CALL DAILY_EVENT_RAND_CITYSELECT(0)
+対象都市2 = RESULT
+SIF 対象都市 < 0
+	RETURN 0
+	
+SELECTCASE KDVAR:対象:藍_甘やかし
+	CASE 0
+		PRINTFORMW 深夜。%ANAME(MASTER)%の部屋にはまだ明かりが灯っている
+		PRINTFORML %ANAME(MASTER)%はここ最近、書類仕事が山のように増え、連日夜遅くまで仕事に追われていた…
+		PRINTFORML 領内の経済に関わる事だけにサボるわけにも行かず、青白い顔で書類と向き合っていると
+		PRINTFORMW 「…大丈夫か？　%ANAME(MASTER)%。ずいぶん疲れた顔をしているぞ」
+		PRINTFORML 連日の激務を心配してくれたのか、%ANAME(対象)%が様子を見に来たようだ
+		PRINTFORMW 「ふむ…この量は中々厳しいだろう。顔色も悪いし、少し休んだらどうだ？　後は私がやっておくから」
+		PRINTFORML 大変ありがたい申し出だが、%ANAME(対象)%はその優秀さから既に自分より多くの仕事を受け持っている
+		PRINTFORMW これ以上彼女に負担をかけるような事をしていいものか…どうしよう？
+		PRINTFORML
+		CALL ASK_YN("それじゃあ、お言葉に甘えて…", "大丈夫、何とかするよ…何とかするさ…")
+		IF RESULT == 1
+			PRINTFORML 「本当に大丈夫なのか？　……それじゃあ、私は行くからな…」
+			PRINTFORML %ANAME(対象)%は心配そうな顔で立ち去っていった……
+			PRINTFORMW これは自分の担当の仕事だ。%ANAME(対象)%に余計な負担をかけるわけには行かない
+			PRINTFORML 再び書類の山に向かうもしばらくすると目が霞みはじめる
+			PRINTFORMW 連日の疲れがたたったのか、だんだん意識が朦朧としてきた……
+			PRINTFORML
+			PRINTFORMW
+			CALL COLOR_PRINTL(@"%ANAME(MASTER)%は過労で倒れてしまった！", カラー_注意)
+			PRINTFORML
+			PRINTFORMW
+			PRINTFORML ・
+			PRINTFORML ・・
+			PRINTFORMW ・・・
+			PRINTFORML 「……ん？　気がついたか%ANAME(MASTER)%。ああ、まだ寝ているといい。大丈夫、書類は私が片付けてるから」
+			PRINTFORML %ANAME(MASTER)%が意識を取り戻すと、%ANAME(対象)%が声を掛ける。どうやら倒れた%ANAME(MASTER)%を見つけて看病してくれていたようだ
+			PRINTFORMW 「念のためにもう一度見に来てよかったよ。どうやら軽い貧血のようだが、後でちゃんと医者に見てもらうといい」
+			PRINTFORML ― 一体どれぐらい気を失っていたのだろうか？　期日が近い書類も多い。早く取り掛からねば…っ ―
+			PRINTFORMW 「駄目だ。まだ寝ていろといったろう？　お前は無理をして倒れたんだぞ。仕事のことは心配するな」
+			PRINTFORML %ANAME(対象)%は%ANAME(MASTER)%の頭を撫でながら、その尻尾の毛先に無数のペンを持たせ、凄まじい速さで書類を処理している
+			PRINTFORMW 「私の体は仮にも九尾だぞ？　これくらい何てことはない。一先ず、期日が近い分から先にやっつけておいたからな」
+			PRINTFORML 結局%ANAME(対象)%は大量にあった書類の束をあっという間に片付けてしまった。これでしばらくは大丈夫だろう
+			PRINTFORMW 「まったく。頑張るのは立派だが、倒れる前にまず頼って欲しいものだ。それとも、私じゃ頼りないのか？」
+			PRINTFORMW %ANAME(MASTER)%は、「自分の仕事で%ANAME(対象)%に余分な負担を掛けたくなかった」、と%ANAME(対象)%に伝えた
+			PRINTFORML 「…そういう優しいところは美点だが、それで自分が倒れては元も子もないぞ。……本当に、心配したんだからな…」
+			PRINTFORMW %ANAME(対象)%はそう言うと%ANAME(MASTER)%を抱きしめ、尻尾で全身を優しく包み込んでくる
+			PRINTFORMW 「添い寝してあげるから今日はもうこのまま眠るといい。…これからは遠慮せず、私に甘えてくれていいからな…」
+			ABL:対象:主導度Ｎ += 150
+			CFLAG:対象:好感度 += 100
+			CALL PRINT_ADD_EXP(MASTER, "政治経験値", RAND(5, 10), 1)
+			CALL TRAIN_AUTO_ABLUP(MASTER)
+			KDVAR:対象:藍_甘やかし = 1
+			PRINTFORMW
+		ELSE
+			PRINTFORMW 「ふふ、任せておくれ。お前はここで少し休んでいるといい」
+			PRINTFORML %ANAME(対象)%は%ANAME(MASTER)%を膝枕で寝かしつけながら、その尻尾の毛先に無数のペンを持たせ、凄まじい速さで書類を処理している
+			PRINTFORML 「私の体は仮にも九尾だ。これくらい何てことはない。一先ず、期日が近い分から先にやっつけておいたからな」
+			PRINTFORMW 結局%ANAME(対象)%は大量にあった書類の束をあっという間に片付けてしまった。これでしばらくは大丈夫だろう
+			PRINTFORML 「どうだ？　私に掛かればこんな物だ。これくらい、いつでも頼ってくれていいからな」
+			PRINTFORML %ANAME(対象)%は上機嫌で%ANAME(MASTER)%の頭を撫でている。素直に頼ってもらえたのがよほど嬉しかったようだ
+			PRINTFORMW 「さて、作業は終わったが、…まだ顔色が悪いように見えるな。何か胃に優しい飲み物を持ってくるよ」
+			PRINTFORML 仕事が終わって一息ついた後、%ANAME(対象)%は%ANAME(MASTER)%を抱きしめ、尻尾で全身を優しく包み込んでくる
+			PRINTFORML 「私が添い寝してあげるから今日はもうこのまま眠ろうか。…これからも遠慮せず、いつでも私に甘えてくれていいからな…」
+			PRINTFORMW ……翌日、%ANAME(対象)%に癒された効果か、特に体調不良もなくスッキリ目覚めることが出来た
+			ABL:対象:主導度Ｎ += 100
+			CFLAG:対象:好感度 += 150
+			KDVAR:対象:藍_甘やかし = 1
+			;クールタイムがあったら-1
+			SIF COOLTIME:MASTER:0 < 0
+				CALL ADD_COOLTIME(MASTER, -1)
+			PRINTFORMW
+		ENDIF
+	CASE 1
+		PRINTFORML 深夜。%ANAME(MASTER)%の部屋にはまだ明かりが灯っている
+		PRINTFORML %ANAME(MASTER)%はまたもや多くの書類仕事に追われていた…
+		PRINTFORMW 「大丈夫か？　%ANAME(MASTER)%。よかったらまた手伝おうか？」
+		PRINTFORML 深夜まで終わらない仕事を心配してくれたのか、また%ANAME(対象)%が様子を見に来てくれたようだ
+		PRINTFORMW さて、どうしよう？
+		PRINTFORML
+		CALL ASK_YN("それじゃあ、お言葉に甘えて", "いや、もう大丈夫")
+		IF RESULT == 1
+			PRINTFORML 「……どうやら、やせ我慢で言ってるわけではないようだな。顔色も悪くない」
+			PRINTFORML そう何度も手を借りるようでは示しがつかないというものだ。%ANAME(MASTER)%は%ANAME(対象)%に「今回は大丈夫」と伝えた
+			PRINTFORMW （まあ確かに…私が出しゃばりすぎたら%ANAME(MASTER)%の立つ瀬がないものな…。ちょっと寂しいけど仕方ない）
+			PRINTFORML 「分かったよ。でも夜食くらいは用意させておくれ。それくらいはいいだろう？」
+			PRINTFORMW ちょうど小腹が空いてきたところだ。%ANAME(MASTER)%は%ANAME(対象)%が作ってくれた夜食を食べて仕事に取り掛かった
+			PRINTDATAW
+			DATA ちなみにメニューはきつねうどんだった
+			DATA ちなみにメニューは稲荷寿司だった
+			DATA ちなみにメニューは油揚げの味噌汁だった
+			DATA ちなみにメニューは油揚げのサラダだった
+			DATA ちなみにメニューは焼き油揚げだった
+			DATA ちなみにメニューは信玄袋だった
+			ENDDATA
+			PRINTFORML
+			PRINTFORML
+			PRINTFORMW …何とか夜が明ける前に終えることが出来た。%ANAME(MASTER)%は心地よい達成感のようなものに包まれながら眠りについた…
+			CFLAG:対象:好感度 += 100
+			CALL PRINT_ADD_EXP(MASTER, "政治経験値", RAND(10, 25), 1)
+			CALL TRAIN_AUTO_ABLUP(MASTER)
+			KDVAR:対象:藍_甘やかし = -1
+			PRINTFORMW
+		ELSE
+			PRINTFORMW 申し出に甘えると、%ANAME(対象)%はにっこりと笑いながら%ANAME(MASTER)%の頭を優しく撫でる
+			PRINTFORML 「ふふ。嬉しいぞ、素直に頼ってくれて。よし、すぐに片付けてやるからな」
+			PRINTFORMW %ANAME(対象)%はそう言うと、%ANAME(MASTER)%の目の前で多くの式神を作り出した
+			PRINTFORML 「こいつらは複雑な動作こそ出来ないが、コレくらいの雑務なら問題なく処理できるぞ」
+			PRINTFORMW 手のひらサイズの式神たちは各々ペンをとって仕事に取り掛かる
+			PRINTFORML 念のため、出来上がった書類を確認しても特に問題はなかった。便利な能力だ……
+			PRINTFORMW 「さて、後のことは式に任せて大丈夫…あとは、そうだな…」
+			PRINTFORML 「%ANAME(MASTER)%、夜遅くまで仕事で疲れているだろう。私がマッサージしてあげよう」
+			PRINTFORMW そう言いながら%ANAME(対象)%は%ANAME(MASTER)%の肩を揉み始める
+			PRINTFORML 力加減は弱くもなく、痛くもなくの絶妙な按配での揉み解しに、思わず声が漏れる
+			PRINTFORMW 「ふふ…気に入ってくれたか？　ほら、布団に横になって…。背中も腰もやってあげるからな」
+			PRINTFORML %ANAME(対象)%はしなやかで巧みな指使いで的確に筋肉のコリをほぐし、%ANAME(MASTER)%を夢心地にさせる
+			PRINTFORMW 「中々なものだろう？　ふふ、紫様にもたまに行うけど…、けっこう評判なんだぞ」
+			PRINTFORML 愛情が込められた按摩と彼女の甘い香り、そして耳元で囁かれる優しい声色が%ANAME(MASTER)%を眠りに誘う…
+			PRINTFORMW 「いつでも寝ちゃってもいいからな…後は私に任せておけ…。これからも、遠慮なんていらないからな……♥」
+			PRINTFORML ・
+			PRINTFORML ・・
+			PRINTFORMW …すっかり熟睡してしまっていた…。翌朝、机に上にはちゃんと出来上がった書類が残されていた
+			ABL:対象:主導度Ｎ += 150
+			CFLAG:対象:好感度 += 150
+			;クールタイムがあったら-1
+			SIF COOLTIME:MASTER:0 < 0
+				CALL ADD_COOLTIME(MASTER, -1)
+			KDVAR:対象:藍_甘やかし ++
+			PRINTFORMW
+		ENDIF
+	CASE 2
+		PRINTFORMW とある日。仕事に追われる%ANAME(MASTER)%に、更なる書類仕事が廻されてきた。思わず笑いがこみ上げてくるほど大量に…
+		PRINTFORML ……なんで？　あれだけやってどうして楽にならないの？　いつまでこの仕事は続くの？
+		PRINTFORMW 「あ、%ANAME(MASTER)%、また仕事か…って、この量は酷いな……。良かったら、私がやろうか？」
+		PRINTFORML 引きつった顔で唖然としているところに、また%ANAME(対象)%が様子を見に来てくれた
+		PRINTFORML 流石にとんでもない量なので、手伝いを申し出てくれているが…
+		PRINTFORMW さて、どうしよう？
+		PRINTFORML
+		CALL ASK_YN("助けて…", "大丈夫、何とかするよ…何とかするさ…")
+		IF RESULT == 1
+			PRINTFORML %ANAME(MASTER)%は感情が全て消え去ったような表情で、%ANAME(対象)%に「自分が何とかする」と伝えた
+			PRINTFORML 「ええっ！？　…そ、そうか……分かったよ……で、でも別に、いつでも頼ってくれていいんだからな？」
+			PRINTFORMW %ANAME(対象)%は%ANAME(MASTER)%の固い意志を尊重してくれたが、明らかに不安な様子だ…
+			PRINTFORML 「じゃ、じゃあ軽食くらいは用意させてくれ。それくらいは手伝わってもいいだろう？」
+			PRINTFORMW …確かに、エネルギーの補給が必要だ。%ANAME(MASTER)%は%ANAME(対象)%に食事を頼んでから仕事に取り掛かった
+			PRINTDATAW
+			DATA ちなみにメニューはきつねうどんだった
+			DATA ちなみにメニューは稲荷寿司だった
+			DATA ちなみにメニューは油揚げの味噌汁だった
+			DATA ちなみにメニューは油揚げのサラダだった
+			DATA ちなみにメニューは焼き油揚げだった
+			DATA ちなみにメニューは信玄袋だった
+			ENDDATA
+			PRINTFORML ・
+			PRINTFORML ・・
+			PRINTFORMW ・・・数日後
+			PRINTFORML ……ついに%ANAME(MASTER)%は成し遂げた！　有り得ない量の仕事を全て片付けて見せた！
+			PRINTFORMW 代償として、人並みの感情を失ってしまったような気がするが、それも追々戻ってくるだろう…
+			PRINTFORMW 影から%ANAME(MASTER)%を見守っていた%ANAME(対象)%は思わず涙を流した。まるで我が子が偉業を成し遂げた様を喜ぶように…
+			PRINTFORML 終わった書類を担当に渡す時
+			PRINTFORML
+			CALL SINGLE_DRAWLINE
+			PRINTFORML 
+			PRINTFORMW 他の人たちの書類をまとめて置いてただけなんですが、まさか一人でやったんですか！？
+			PRINTFORML 
+			CALL SINGLE_DRAWLINE
+			PRINTFORML
+			PRINTFORMW などと言われたような気がするが、たぶん気のせいだろう
+			PRINTFORMW あとはただ、眠るだけ…、ただ、眠るだけ…、今はただ、眠るだけ…………
+			PRINTFORML %ANAME(MASTER)%はその後、あまりの疲労のためしばらく寝込んだ…
+			CALL COLOR_PRINTW(@"%ANAME(MASTER)%は過労で倒れてしまった！", カラー_注意)
+			CALL ADD_COOLTIME(MASTER, 1)
+			PRINTFORMW ……これ以後、しばらく%ANAME(MASTER)%は書類仕事を免除された
+			CALL PRINT_ADD_EXP(MASTER, "政治経験値", RAND(40, 60), 1)
+			CALL TRAIN_AUTO_ABLUP(MASTER)
+			KDVAR:対象:藍_甘やかし = -1
+			PRINTFORMW
+		ELSE
+			PRINTFORML もう無理だ。心が折れた%ANAME(MASTER)%は%ANAME(対象)%の好意に甘えることしか出来なかった…
+			PRINTFORMW %ANAME(MASTER)%は涙目で%ANAME(対象)%に助けを求める。その様は%ANAME(対象)%の母性を大いに刺激したようだ
+			PRINTFORML 「ああ、ああ！　私に任せておけ！　大丈夫、後は何も心配要らないからな」
+			PRINTFORMW %ANAME(対象)%は%ANAME(MASTER)%を優しく抱きしめ、己の術で作り出した式と多数の尻尾で、山のような書類を片付け始めた
+			PRINTFORML 「私でもこの量は多いと思うからな。数日に分けて効率よく終わらせていこう。まずは都市の防壁修繕案件から…」
+			PRINTFORMW 流石に全てを丸投げというのも心苦しい。自分も何か手伝おうかと提案すると、%ANAME(対象)%は丁重に断った
+			PRINTFORML 「大丈夫、私に任せてくれ。もうこれ以上、お前に苦しい思いはさせないからな」
+			PRINTFORMW 尋常でない量の書類を前に心挫けた%ANAME(MASTER)%の心に、%ANAME(対象)%の優しい言葉が染み入る…
+			PRINTFORML 「今日はもう眠るといい…。私の胸、枕にしちゃっていいからな…♥」
+			PRINTFORML %ANAME(対象)%は%ANAME(MASTER)%の顔を柔らかな胸で受けとめ、背中をぽんぽんとさすりながら子守唄を歌ってくれた
+			PRINTFORMW %ANAME(MASTER)%は%ANAME(対象)%の甘い香りと子守唄に包まれて、安心して眠りについた……
+			CITY_GUARD:対象都市 += 20
+			CALL ICPRINT(@"%CITY_NAME:対象都市%の防衛率が<20>上昇し、<{CITY_GUARD:対象都市}>になった", "W", カラー_注意)
+			PRINTFORML 
+			PRINTFORMW ―　翌　日　―
+			PRINTFORML 
+			PRINTFORMW 「今日は兵士の募集案件か…あ、おはよう%ANAME(MASTER)%」
+			PRINTFORML %ANAME(MASTER)%が目を覚ますと、すでに%ANAME(対象)%は仕事に取り掛かっていた
+			PRINTFORML 「心配は要らないぞ。後のことは、全て私に任せておけ。悪いようにはしないさ」
+			PRINTFORMW 「それよりも…最近忙しかったから溜まってるんじゃないか？」
+			PRINTFORML そういうと%ANAME(対象)%は%ANAME(MASTER)%の股間を弄る。その一物は既にテントを張っていた
+			PRINTFORMW 「ふふ♥　こっちは朝からとっても元気だ。今日は精がつくものを作ってやるぞ」
+			PRINTFORML 「だから今夜は何も気にせず、たっぷり私に出していいからな…♥」
+			PRINTFORMW ……結局この日は、流されるまま%ANAME(対象)%とセックスを楽しんだ……
+			CALL FUCK_MAKELOVE(対象, GET_ID(MASTER), @"%ANAME(MASTER)%の唇", ANAME(MASTER))
+			CALL FUCK(MASTER, "Ｃ, 射精, Ｖ挿入", "童貞喪失", 0, "", "", @"%ANAME(対象)%の膣")
+			COUNTRY_SOLDIER:(CFLAG:対象:所属) += 4000
+			CALL ICPRINT("兵が<4000>増えた", "L", カラー_注意)
+			PRINTFORML 
+			PRINTFORMW ―　翌　日　―
+			PRINTFORML 
+			PRINTFORMW 「あとは%CITY_NAME:対象都市2%の投資関係か。これであらかた片付くな…。あ、おはよう%ANAME(MASTER)%」
+			PRINTFORML 今日も%ANAME(対象)%はすでに仕事に取り掛かっていた。あれほどの書類の山がもう無くなりそうだ
+			PRINTFORMW 「ふふふ、私にかかればこんな物さ！　…とはいえ、流石に疲れたな…」
+			PRINTFORML %ANAME(MASTER)%は%ANAME(対象)%を労わるため、肩揉みを始める。これくらいのことしか出来ないが…
+			PRINTFORML 「あっ…♥　んん…気持ちいいよ、%ANAME(MASTER)%。ありがとう♥」
+			PRINTFORMW 「でもこれだけじゃあちょっと足りないな…なあ、%ANAME(MASTER)%。今日で仕事も片付きそうだし…」
+			PRINTFORML 「ご褒美として、今夜は私の身体を慰めてくれないだろうか…♥」
+			PRINTFORMW %ANAME(対象)%は%ANAME(MASTER)%に寄りかかり、猫撫で声で誘惑してくる
+			PRINTFORMW ……結局この日も、%ANAME(対象)%とのセックスを楽しんだ……
+			CALL FUCK_MAKELOVE(対象, GET_ID(MASTER), @"%ANAME(MASTER)%の唇", ANAME(MASTER))
+			CALL FUCK_MAKELOVE(対象, GET_ID(MASTER), @"%ANAME(MASTER)%の唇", ANAME(MASTER))
+			CALL FUCK(MASTER, "Ｃ, 射精, Ｖ挿入", "童貞喪失", 0, "", "", @"%ANAME(対象)%の膣")
+			CALL FUCK(MASTER, "Ｃ, 射精, Ｖ挿入", "童貞喪失", 0, "", "", @"%ANAME(対象)%の膣")
+			CALL MODIFY_CITY_ECONOMY(対象都市2, RAND(15000, 25000))
+			PRINTFORML 
+			PRINTFORMW ―　翌　日　―
+			PRINTFORML 
+			PRINTFORMW 「さて、もう仕事は終わったが…あんまり早く提出すると、また仕事を廻されてしまうかもな」
+			PRINTFORML …確かに。なにせ２週間は掛かりきりになると思っていた仕事が３日ほどで終わってしまったのだから…
+			PRINTFORMW 「だから…ねえ、%ANAME(MASTER)%…。期限まで日があるし、しばらく二人っきりでゆっくりしないか…？」
+			PRINTFORML %ANAME(対象)%はそう言うと、艶かしい仕草で%ANAME(MASTER)%に抱きつき、耳元で熱っぽく囁いてくる
+			PRINTFORMW 「今までいっぱい頑張ってきたんだから、少しくらいゆっくりしてもバチは当たらないさ…♥」
+			PRINTFORML 「食べたい物、なんでも作ってあげるぞ。尻尾を使った耳かきとかどうだ？　紫様も病みつきなるくらい気持ちいいんだ…」
+			PRINTFORMW 「そしてお前が望むなら…もっともっとキモチいいことも、シてあげちゃうぞ…♥」
+			PRINTFORML %ANAME(対象)%の温もりと甘い香り、甘い声…そして柔らかな肢体が%ANAME(MASTER)%を包む
+			PRINTFORMW …それもいいかも…。%ANAME(MASTER)%は%ANAME(対象)%に身をゆだねることにした
+			PRINTFORML 「ふふ…そうそう。素直に甘えてくれて嬉しいよ♪　これから私が、たっぷり癒してあげる。それで…」
+			PRINTFORMW 「その後はずーっと……セックスして過ごそうな♥」
+			FOR LOCAL, 0, 5
+				CALL FUCK_MAKELOVE(対象, GET_ID(MASTER), @"%ANAME(MASTER)%の唇", ANAME(MASTER))
+				CALL FUCK(MASTER, "Ｃ, 射精, Ｖ挿入", "童貞喪失", 0, "", "", @"%ANAME(対象)%の膣")
+			NEXT
+			PRINTFORML ・
+			PRINTFORML ・
+			PRINTFORMW さらに数日後
+			PRINTFORML %ANAME(対象)%に甘え倒すあまり、まったく部屋から出なかったことが災いした
+			PRINTFORMW 引きこもって姿を見せなかった結果、周りに%ANAME(MASTER)%死亡説まで流れ始めたため、慌てて皆の前に顔を出すことになった
+			PRINTFORML その際にここしばらくの爛れた生活が明らかになり、%ANAME(対象)%と一緒に二人共々怒られてしまった
+			PRINTFORMW しばらく%ANAME(対象)%に、『甘やかし禁止令』が出された……
+			CFLAG:対象:好感度 += 500
+			ABL:対象:主導度Ｎ += 300
+			ABL:対象:主導度Ｕ += 300
+			CALL COLOR_PRINTW(@"%ANAME(対象)%の甘やかしにより、%ANAME(MASTER)%の体は鈍ってしまった！", カラー_注意)
+			ABL:MASTER:防衛 -= 1
+			CALL COLOR_PRINTW(@"%ANAME(MASTER)%の防衛が1下がった", カラー_注意)
+			ABL:MASTER:武闘 -= 1
+			CALL COLOR_PRINTW(@"%ANAME(MASTER)%の武闘が1下がった", カラー_注意)
+			ABL:MASTER:知略 -= 1
+			CALL COLOR_PRINTW(@"%ANAME(MASTER)%の知略が1下がった", カラー_注意)
+			SIF !(MASTER == NAME_TO_CHARA("橙")) && (CFLAG:橙:所属 == CFLAG:MASTER:所属)
+				PRINTFORML 橙に「あんまり%ANAME(対象)%様を甘やかさないでよねー」と釘を刺された……
+			KDVAR:対象:藍_甘やかし = -1
+			PRINTFORMW
+		ENDIF
+ENDSELECT
+
+RETURN 1

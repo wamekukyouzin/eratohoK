@@ -1,0 +1,180 @@
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@KOJO_DAILY_K23_SETSUBUN_RATE(対象)
+#DIM 対象
+RETURN 1000
+
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@KOJO_DAILY_K23_SETSUBUN_DECISION(対象)
+#DIM 対象
+
+;プレイヤーキャラが紫か勇儀か華扇なら発生しない
+SIF GROUPMATCH(MASTER, NAME_TO_CHARA("紫"), NAME_TO_CHARA("勇儀"), NAME_TO_CHARA("華扇"))
+	RETURN 0
+	
+;主人公と同一勢力で捕虜でない
+SIF !(CHECK_KOJO_DAILY_HAPPEN(対象, 1, 0))
+	RETURN 0
+	
+;12ターンに一回発動する
+RETURN (DAY % 12 == 0)
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@KOJO_DAILY_K23_SETSUBUN_GENRE(対象)
+#DIM 対象
+RETURN デイリー_ジャンル_その他
+
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@KOJO_DAILY_K23_SETSUBUN(対象)
+#DIM 対象
+#DIMS 答え文字列 = "左", "右", "上", "下"
+#DIM 答え
+#DIM カツアゲ料
+カツアゲ料 = MIN(MONEY / 5, RAND(1000, 3000))
+
+SIF !CFLAG:対象:面識
+	CFLAG:対象:面識 = 1
+PRINTFORMW 通路を歩いていると、遠くから%ANAME(対象)%がトコトコとやってきた
+PRINTFORMW 「ぎゃお～～！　追い出さないと食べちゃうぞ～！　あ、はい。これ豆ね」
+IF KDVAR:対象:萃香_節分 == 0
+	PRINTFORMW …そういえば今日は節分だったか。というか、鬼なのに自分から豆を渡していくのか…
+	PRINTFORML 「へへ～、今日は大っぴらに鬼をアピールできるからねー」
+	PRINTFORMW 「さあさあ、追い出さないと頭からまるかじりだぞ～！」
+	PRINTFORML どうやら行く先々で豆を渡しては「鬼は外」をさせているようだ
+	PRINTFORML まあ季節行事だし、と豆を手に取るがふと気づく
+	PRINTFORMW よく見ると%ANAME(対象)%の身体のあちこちに青痣や水ぶくれのようなものが出来ている…
+	PRINTFORML 「ああ、これ？　鬼って一応炒った大豆が苦手だから、当たるとちょっと痛いんだよ」
+	PRINTFORMW 「まあ、酒飲んで寝てりゃ治るし、別に気にしなくていいよ。さあ来ーい！」
+ELSE
+	PRINTFORML …そういえばもう節分だったか。相変わらず自分から豆を渡していくのか…
+	PRINTFORMW 「ふふ～ん、今日は大っぴらに鬼をアピールできる日だからねー」
+	PRINTFORML 「さあさあ、追い出さないと頭からまるかじりだぞ～！」
+	PRINTFORMW どうやら今回も行く先々で豆を渡しては「鬼は外」させているようだ
+	PRINTFORML そしてまた、%ANAME(対象)%の身体のあちこちに青痣や水ぶくれのようなものが出来ている…
+	PRINTFORMW 「あー、これくらい気にしなさんなって。別に大したことないからさ。さあ来ーい！」
+ENDIF
+PRINTFORML と、言っている
+PRINTFORMW さて、どうしよう……
+PRINTFORML
+CALL ASK_MULTI("豆を投げる", "全力で節分に挑む", "身体を労わる")
+SELECTCASE RESULT
+	;豆を投げる
+	CASE 0
+		PRINTFORMW まあ、当の本人が投げられたがっているし、ここはちゃんと鬼の役目を真っ当させてあげよう
+		CALL COLOR_PRINTW("鬼はー外！　福はー内！", カラー_警告)
+		PRINTFORMW 「うひゃー！　いててっ、退散だー、あはははっ！」
+		PRINTFORML %ANAME(対象)%は、笑いながら去っていった
+		PRINTFORMW %ANAME(MASTER)%がちゃんと豆を投げてくれたのが嬉しかったようだ
+		PRINTFORML …翌日、%ANAME(対象)%が節分のお礼にお酒を持ってきてくれた
+		CALL COLOR_PRINTW("日本酒をもらった", カラー_注意)
+		PRINTFORML
+		ITEM:日本酒 += 1
+		CFLAG:対象:好感度 += 100
+	;全力で節分に挑む
+	CASE 1
+		PRINTFORMW 節分といえば鬼にとって重要なイベントだ。手を抜いて事に当たるのは無礼だろう
+		PRINTFORML どうせならそこら中で派手にやってやる！
+		PRINTFORMW %ANAME(MASTER)%は周りの人々を集め、大勢で%ANAME(対象)%に弾幕の如く豆を投げつける！
+		PRINTFORML 「はははっ！　面白い、そう来なくっちゃね！　なら私も本気で行こう！」
+		PRINTFORMW %ANAME(対象)%は巨大化して襲い掛かって来た！
+		CALL COLOR_PRINTW("今、空前絶後の節分が始まる……", カラー_注意)
+		PRINTFORML
+		CALL COLOR_PRINTL(@"レイドバトル発生！ 巨大%ANAME(対象)%を倒せ！！", カラー_警告)
+		PRINTFORMW
+		;4回、正しい選択肢を選ぶ
+		FOR LOCAL, 0, 4
+			;答えを出しておく
+			答え = RAND:4
+			CALL COLOR_PRINTW(@"　%答え文字列:答え%　に避けて豆を投げろ！", カラー_注意)
+			FOR LOCAL:1, 0, VARSIZE("答え文字列")
+				PRINTFORML [{LOCAL:1}] %答え文字列:(LOCAL:1)%
+			NEXT
+			TINPUT 1750, -1, 1
+			;失敗したら強制終了
+			SIF RESULT != 答え
+				BREAK
+			SIF LOCAL != 3
+				PRINTFORML 「やるねぇ！　まだまだいくよ！」
+		NEXT
+
+		;失敗したパターン
+		IF LOCAL != 4
+			PRINTFORML %ANAME(MASTER)%は巨大化した%ANAME(対象)%の攻撃を避けようとした！
+			PRINTFORML 
+			PRINTFORMW 
+			PRINTFORMW が、攻撃はものの見事に%ANAME(MASTER)%に炸裂し、大豆攻撃部隊は瓦解した……
+			PRINTFORML
+			CALL COLOR_PRINTW(@"%ANAME(MASTER)%たちは%ANAME(対象)%に敗北した。福は逃げていった……", カラー_警告)
+			PRINTFORML
+			PRINTFORMW 「ふはははー！　中々だったけど、鬼退治にはちょいと足りなかったねえ」
+			PRINTFORMW 「そいじゃあ、適当に福っぽいものをもらっていくよー」
+			CALL COLOR_PRINTW(@"金{カツアゲ料}を奪われました", カラー_注意)
+			MONEY -= カツアゲ料
+			CFLAG:対象:好感度 += 150
+			IF TALENT:対象:恋慕
+				PRINTFORMW 「あ、そうだ。まだ貰い忘れてたのがあったな」
+				PRINTFORML %ANAME(対象)%はそう言うときびすを返し、ノビている%ANAME(MASTER)%の元に戻り
+				PRINTFORMW 「ちゅっ。………ふへへー。いいモノ、貰ったよ♥」
+				PRINTFORMW %ANAME(対象)%は%ANAME(MASTER)%の唇を奪っていった……
+				EXP:対象:キス経験 += 1
+				EXP:MASTER:キス経験 += 1
+				CFLAG:対象:好感度 += 150
+			ENDIF
+		;成功
+		ELSE
+			PRINTFORMW 「ンアーッ！」
+			PRINTFORML 地道な攻撃（豆）が功を奏し、ついに巨大%ANAME(対象)%を打ち倒した！
+			PRINTFORMW %ANAME(対象)%はみるみるうちに元の子鬼サイズに戻っていった
+			PRINTFORML 「ふふ……久しぶりだったよ、こんなに熱い節分はさ…。もう悔いは無い……」
+			PRINTFORMW 「さらば…だ……%ANAME(MASTER)%…」
+			PRINTFORMW %ANAME(対象)%は風になった
+			PRINTFORML 残された場所にはお酒が残されていた
+			PRINTFORMW %ANAME(MASTER)%たちは残された福を、各々の懐に収める事にした……
+			CALL COLOR_PRINTW("蒸留酒を3つ手に入れた", カラー_注意)
+			ITEM:蒸留酒 += 3
+			CFLAG:対象:好感度 += 200
+		ENDIF
+		PRINTFORML
+	;身体を労わる
+	CASE 2
+		PRINTFORMW %ANAME(MASTER)%は%ANAME(対象)%の青痣だらけの腕を取り、痛みが和らいでくれるよう、そっと手を当てた
+		PRINTFORMW いかに本人が望んでいるとは言え、痛ましい傷を付けるような真似は心が痛む…
+		IF TALENT:対象:恋慕 || TALENT:対象:服従
+			PRINTFORMW 「え、えっ！？　もう、大丈夫だってのに……」
+			PRINTFORML %ANAME(対象)%は豆まきより自分の身体を労わられることに戸惑っていたが…
+			PRINTFORMW 「……でも、ありがとね。あんたのそういうところは……わりと好きだよ…♥」
+			PRINTFORMW その行動が、純粋に%ANAME(対象)%のことを思っての事だと言うことも理解していた
+			PRINTFORML 「それじゃあさ…、もうちょっとだけ、このままで…手を当てておくれ……」
+			PRINTFORML しばしの間、%ANAME(対象)%は%ANAME(MASTER)%の愛情に身を任せた
+			PRINTFORMW 当初の目的とは違ったが、%ANAME(対象)%は福を手にできたようだ……
+			CFLAG:対象:好感度 += 150
+		ELSE
+			PRINTFORMW 「えっ、ええ？　だから大丈夫だってのに……」
+			PRINTFORML %ANAME(対象)%は豆まきより自分の身体を労わられることに戸惑っている
+			PRINTFORMW 「…まったく、そんなヤワに思われたの？　ちょっとショックだねぇ」
+			PRINTFORML その行動が、純粋に%ANAME(対象)%のことを思っての事だとは分かっているようだが
+			PRINTFORMW 鬼としての、強者としてのプライド的にいささか複雑な心境のようだ
+			PRINTFORML 「…ちょっと興が殺げたねぇ。まあ、いいけどさ…今度はちゃんとやっておくれよー」
+			PRINTFORMW %ANAME(対象)%は帰っていったが、その頬は少しだけ、朱に染まっているように見えた……
+			CFLAG:対象:好感度 += 50
+		ENDIF
+		PRINTFORML
+ENDSELECT
+KDVAR:対象:萃香_節分 = 1
+
+
+RETURN 1

@@ -1,0 +1,190 @@
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@KOJO_DAILY_K3_EX_RUMIA_RATE(対象)
+#DIM 対象
+RETURN 50
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@KOJO_DAILY_K3_EX_RUMIA_DECISION(対象)
+#DIM 対象
+
+;合意がないとだめ
+SIF !TALENT:対象:合意
+	RETURN 0
+	
+;対象が女でないとだめ
+SIF !IS_FEMALE(対象)
+	RETURN 0
+	
+;主人公と同一勢力で捕虜でなく、主人公がペニス持ちで、好感度1500以上
+RETURN CHECK_KOJO_DAILY_HAPPEN(対象, 1, 0) && HAS_PENIS(MASTER) && CFLAG:対象:好感度 >= 1500
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@KOJO_DAILY_K3_EX_RUMIA_GENRE(対象)
+#DIM 対象
+RETURN デイリー_ジャンル_エロ
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@KOJO_DAILY_K3_EX_RUMIA(対象)
+#DIM 対象
+#DIM 霊夢
+霊夢 = NAME_TO_CHARA("霊夢")
+
+;一回目
+IF KDVAR:対象:ルーミア_EXルーミア == 0
+	PRINTFORML 「ねえねえ、%ANAME(MASTER)%。遊んでっていい？」
+	PRINTFORMW 休日に、%ANAME(対象)%が%ANAME(MASTER)%の部屋を訪ねてきた
+	PRINTFORML 特に断る理由もないので部屋に上げた
+	PRINTFORMW 「わーい、ありがとね♪」
+	PRINTFORML 寝転がっておやつを食べたり漫画を読んだり、二人でまったり過ごしていと、
+	PRINTFORMW ふと%ANAME(対象)%の頭にあるリボンに目がつく。よく見ると、ちょっと汚れている
+	PRINTFORMW 普段から肌荒れや髪の毛の痛みなどを気にしている%ANAME(対象)%だ
+	PRINTFORMW そんな彼女が目立つリボンの汚れをそのままにしていることに、なんとなく違和感を覚える
+	PRINTFORML 「んー？　ああ、これ？　分かってるけど自分じゃあ触れないのよねー」
+	PRINTFORMW %ANAME(対象)%いわく、これはただのリボンではなく何かしらを封印しているお札なのだという
+	PRINTFORMW 封印の際の術により、彼女はこのお札に触れず、意識してもすぐに忘れてしまうようにされているのだと…
+	PRINTFORML 「私もねー、鏡で見ると最近汚れてきたなーって思ってたところなのよ」
+	PRINTFORMW 「私以外なら触れるみたいだから、%ANAME(MASTER)%が取ってみる？」
+	PRINTFORMW 「ついでに洗ってくれると嬉しいなー。あ、もしかしてパワーアップとかしちゃうかも！？」
+	PRINTFORML 自分の封印云々の話なのにずいぶん軽い扱いだ…
+	PRINTFORMW まあ、お札はまた着ければいいだけのようだが、封印されたモノが何なのか分からないのに取っていいものか…
+	PRINTFORMW さて、どうしよう……
+	CALL ASK_YN("お札を取ってみる", "そのままにしておく")
+	IF RESULT == 1
+		PRINTFORMW 封印されているということは、それなりの理由があるのだろう
+		PRINTFORMW 触らぬ神に祟りなしだ
+		PRINTFORMW %ANAME(MASTER)%はお札をそのままにして、%ANAME(対象)%とじゃれあった……
+		CFLAG:対象:好感度 += 200
+		RETURN 1
+	ELSE
+		PRINTFORML まあ、こんな目立つ形で放って置かれているということは、それほど深刻な物ではないのかもしれない
+		PRINTFORMW ちょっとした好奇心も手伝って、お札を取ってみる事にした
+		PRINTFORML 「んー、ちょっとドキドキしてきたかも。何か危ない感じになったらすぐ戻してね」
+		PRINTFORMW %ANAME(対象)%もちょっと緊張の面持ちだ。とりあえず、優しくお札を取ってみる
+		PRINTFORML …手にとってまじまじと観察する
+		PRINTFORML 遠目には白いラインに見えた部分は全て白字で、呪文のような物がびっしりと書かれていた…
+		PRINTFORMW 「……ん？　これ……っ」
+		PRINTFORML %ANAME(対象)%が体の異変に気づく。何やらパワーの高まりを感じるようだ
+		PRINTFORMW 「こ、これは…っ！　闇の力が高まる……、溢れるぅ…っ！」
+		PRINTFORML 「これが私の、真の力なのかーっ！！」
+		CALL COLOR_PRINTW(@"%ANAME(対象)%が、封印されていた真の力を解き放った！", カラー_注意) 
+		CALL COLOR_PRINTL(@"%ANAME(対象)%の武闘が1上がった！", カラー_注意)
+		ABL:対象:武闘 += 1
+		CALL COLOR_PRINTL(@"%ANAME(対象)%の防衛が1上がった！", カラー_注意)
+		ABL:対象:防衛 += 1
+		CALL COLOR_PRINTW(@"%ANAME(対象)%の知略が1上がった！", カラー_注意)
+		ABL:対象:知略 += 1
+		PRINTFORML 
+		PRINTFORML 
+		PRINTFORMW ・・・
+		PRINTFORMW あんまり強くなっているようには感じないが……
+		PRINTFORMW 「…うん、まあ、こんなもんだよね」
+		IF CFLAG:霊夢:所属 == CFLAG:MASTER:所属 &&  !(MASTER == NAME_TO_CHARA("霊夢"))
+			PRINTFORML 
+			CALL SINGLE_DRAWLINE
+			PRINTFORML 
+			PRINTFORML 　　封印されるって事は、つまりその程度ってことよ
+			PRINTFORML 
+			CALL SINGLE_DRAWLINE
+			PRINTFORML 
+			PRINTFORML どこからともなく、博麗の巫女のありがたい言葉が聞こえてきたような気がした…
+			PRINTFORMW 
+		ENDIF
+		PRINTFORMW 「あーあ、お手軽パワーアップで『ＥＸ%ANAME(対象)%だー！』ってやれるかと思ったのになー」
+		PRINTFORML 
+		CALL COLOR_PRINTL("ドクンッ", カラー_警告)
+		PRINTFORMW 
+		PRINTFORMW 「あ、あれっ？　…なんか…気分が……」
+		PRINTFORML %ANAME(対象)%が急に膝をつく。やはり何か良くないことが起こったのだろうか！？
+		PRINTFORMW 急ぎ%ANAME(対象)%にお札を取り付けようとしたところを、逆に彼女に抑えられ、そのまま押し倒されてしまった
+		PRINTFORML %ANAME(MASTER)%が驚きと抵抗の声を上げる前に、%ANAME(対象)%の唇によって口を塞がれてしまう
+		PRINTFORMW 「あんん…ッ♥　ん…ちゅぶッ…んん…♥♥」
+		PRINTFORML %ANAME(MASTER)%は%ANAME(対象)%の呼吸も許さぬ激しい接吻に酸欠状態となり、意識朦朧としてしまう
+		PRINTFORMW %ANAME(MASTER)%の抵抗が弱まったのを確認した%ANAME(対象)%は、%ANAME(MASTER)%の体に跨り自らの服を脱ぎ捨てる
+		PRINTFORML その姿は普段の無邪気な少女ではなく、ひたすら淫らで妖しい光を目に灯した、妖艶な妖怪だった
+		PRINTFORMW 完全に情欲に支配された様子の%ANAME(対象)%が、%ANAME(MASTER)%の精を求めて覆いかぶさってきた……
+		
+		CVARSET CFLAG, 6, 0
+		KDVAR:対象:ルーミア_EXルーミアとセックス中 = 1
+		FLAG:ターンエンド調教 = 2
+		CVARSET CFLAG, 6, 0
+		CFLAG:対象:調教参加フラグ = 1
+		CFLAG:対象:調教中帰らない = 1
+		ABL:対象:主導度Ｕ += 500
+		CFLAG:対象:強制友好化 = 1
+		BASE:対象:体力 = MAXBASE:対象:体力
+		BASE:対象:気力 = MAXBASE:対象:気力
+		;それ以降のデイリーイベント発生を潰す
+		DAILY_CANCEL = 1
+	ENDIF
+;２回目以降
+ELSE
+	PRINTFORML 「ねえねえ、%ANAME(MASTER)%。また遊んでっていい？」
+	PRINTFORMW 休日に、%ANAME(対象)%がまた%ANAME(MASTER)%の部屋に遊びに来た
+	PRINTFORML どうやら、前回ここで起こった事は覚えていないようだ
+	PRINTFORMW 「えへへー、気兼ねなくゴロゴロするぞー♪」
+	PRINTFORML 寝転がっておやつを食べたり漫画を読んだり、二人でまったり過ごしていと、
+	PRINTFORMW またも%ANAME(対象)%の頭にあるリボンに目が行く
+	PRINTFORMW 前回、これを取って豹変し、乱れに乱れた彼女の姿が否応無しに頭に浮かぶ
+	PRINTFORMW 「んー？　どうしたの？　%ANAME(MASTER)%。ああ、これ？」
+	PRINTFORML 「汚れてきてるのは知ってるんだけど…これ、自分じゃあ触れないのよねー」
+	PRINTFORMW 「私以外なら触れるみたいだから、%ANAME(MASTER)%が取ってみる？」
+	PRINTFORMW 「ついでに洗ってくれると嬉しいなー。あ、もしかしてパワーアップとかしちゃうかも！？」
+	PRINTFORML 記憶が無いゆえに、無邪気に提案する%ANAME(対象)%
+	PRINTFORML だが%ANAME(MASTER)%は、それが淫らで激しい交わりになることを知っている…
+	PRINTFORML どうしよう……
+	CALL ASK_YN("お札を取る", "そのままにしておく")
+	IF RESULT == 1
+		PRINTFORMW ……記憶が無いことをいい事に、再び体を重ねるというのも不義理だろう
+		PRINTFORMW それに……あんなことを続けると、彼女に溺れてしまうかもしれない…
+		PRINTFORMW %ANAME(MASTER)%はお札をそのままにして、%ANAME(対象)%とじゃれあった……
+		CFLAG:対象:好感度 += 200
+		RETURN 1
+	ELSE
+		PRINTFORML 前回、ここで起こった出来事を思い出す
+		PRINTFORMW そして%ANAME(MASTER)%の身体の芯が、情欲によって甘く疼きだす
+		PRINTFORML %ANAME(MASTER)%は%ANAME(対象)%のお札を取り外した
+		PRINTFORMW 「よーし！　これでＥＸな私に…」
+		PRINTFORML 
+		CALL COLOR_PRINTL("ドクンッ", カラー_警告)
+		PRINTFORMW 
+		PRINTFORMW 「あ、あれっ？　…なんか…気分が……」
+		PRINTFORML %ANAME(対象)%が急に膝をつく。そして%ANAME(MASTER)%は、これから起こる事を期待し彼女に近づく
+		PRINTFORMW %ANAME(対象)%はその期待を裏切らず、%ANAME(MASTER)%をベッドへ押し倒す
+		PRINTFORML そして待ちきれないという風情で、%ANAME(MASTER)%の口を唇によって激しく貪る
+		PRINTFORMW 「あんん…ッ♥　ん…ちゅぶッ…んん…♥♥」
+		PRINTFORML %ANAME(MASTER)%は%ANAME(対象)%の、呼吸も許さぬ激しい接吻に酸欠状態となり、意識朦朧としてしまう
+		PRINTFORMW %ANAME(MASTER)%の抵抗が弱まったのを確認した%ANAME(対象)%は、%ANAME(MASTER)%の体に跨り自らの服を脱ぎ捨てる
+		PRINTFORML その姿は普段の無邪気な彼女ではなく、ひたすら淫らで妖しい光を目に灯した、妖艶な妖怪だった
+		PRINTFORMW 再び欲望の封印を解かれた%ANAME(対象)%が、%ANAME(MASTER)%の精を求めて覆いかぶさってきた……
+
+		CVARSET CFLAG, 6, 0
+		KDVAR:対象:ルーミア_EXルーミア ++
+		KDVAR:対象:ルーミア_EXルーミアとセックス中 = 1
+		FLAG:ターンエンド調教 = 2
+		CVARSET CFLAG, 6, 0
+		CFLAG:対象:調教参加フラグ = 1
+		CFLAG:対象:調教中帰らない = 1
+		ABL:対象:主導度Ｕ += 300
+		CFLAG:対象:強制友好化 = 1
+		BASE:対象:体力 = MAXBASE:対象:体力
+		BASE:対象:気力 = MAXBASE:対象:気力
+		;それ以降のデイリーイベント発生を潰す
+		DAILY_CANCEL = 1
+	ENDIF
+ENDIF
+
+RETURN 1

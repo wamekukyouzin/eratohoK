@@ -24,8 +24,8 @@ SIF RESULT == 0
 ;プレイヤーは最大で1人まで
 SIF MPLY_NUM <= 0 || MPLY_NUM > 1
 	RETURN 0
-;ターゲットは最大で1人まで
-SIF MTAR_NUM <= 0 || MTAR_NUM > 1
+;ターゲットは1人以上
+SIF MTAR_NUM <= 0
 	RETURN 0
 ;プレイヤーが行動不能なら不可
 SIF !IS_PLAYABLE(MPLY:0)
@@ -74,15 +74,17 @@ SOURCE:(MPLY:0):接触 = 30
 CALL ADD_SOURCE_INITIATIVE_U(MPLY:0, 170, 50)
 
 ;●ターゲットについて処理
-DOWNBASE:(MTAR:0):体力 += 60
+FOR LOCAL, 0, MTAR_NUM
+	DOWNBASE:(MTAR:(LOCAL:0)):体力 += 60
 
-EXP:(MTAR:0):緊縛経験 += 1
-EXP:(MTAR:0):被虐経験値 += 1
+	EXP:(MTAR:(LOCAL:0)):緊縛経験 += 1
+	EXP:(MTAR:(LOCAL:0)):被虐経験値 += 1
 
-SOURCE:(MTAR:0):苦痛 = 80 + MIN(ABL:(MPLY:0):武闘, 90) / 2
-SOURCE:(MTAR:0):露出 = 50
-SOURCE:(MTAR:0):逸脱 = 200
-SOURCE:(MTAR:0):接触 = 30
+	SOURCE:(MTAR:(LOCAL:0)):苦痛 = 80 + MIN(ABL:(MPLY:0):武闘, 90) / 2
+	SOURCE:(MTAR:(LOCAL:0)):露出 = 50
+	SOURCE:(MTAR:(LOCAL:0)):逸脱 = 200
+	SOURCE:(MTAR:(LOCAL:0)):接触 = 30
+NEXT
 
 ;主導権に応じた優越・屈従のソース追加
 CALL ADD_SOURCE_INITIATIVE_U(MTAR:0, 0, 170)
@@ -113,18 +115,22 @@ RETURN 2
 ;継続状態の処理
 ;-------------------------------------------------
 @COM_EQUIP85(ARG:0)
-LOCAL:3 = MEQUIP_TARGET:(ARG:0):0
 
-DOWNBASE:(LOCAL:3):体力 += 10
 
-EXP:(LOCAL:3):緊縛経験 += 1
-EXP:(LOCAL:3):被虐経験値 += 1
+FOR LOCAL:0, 0, MEQUIP_TARGET_NUM:(ARG:0)
+	LOCAL:3 = MEQUIP_TARGET:(ARG:0):LOCAL
 
-SOURCE:(LOCAL:3):苦痛 += 30
-SOURCE:(LOCAL:3):逸脱 += 150
+	DOWNBASE:(LOCAL:3):体力 += 10
 
-;倒錯度変化
-TCVAR:(LOCAL:3):50 += 4
+	EXP:(LOCAL:3):緊縛経験 += 1
+	EXP:(LOCAL:3):被虐経験値 += 1
+
+	SOURCE:(LOCAL:3):苦痛 += 30
+	SOURCE:(LOCAL:3):逸脱 += 150
+
+	;倒錯度変化
+	TCVAR:(LOCAL:3):50 += 4
+NEXT
 
 ;-------------------------------------------------
 ;継続中の表示
@@ -207,18 +213,26 @@ RETURN 1
 ;地の文(前文)
 ;-------------------------------------------------
 @COM_TEXT_BEFORE85
+
+IF MTAR_NUM >= 2
+	LOCALS:1 = %LOCALS:1%たち
+ELSE
+	LOCALS:1 = %LOCALS:1%
+ENDIF
+
+
 SELECTCASE GET_COM_INITIATIVE()
 	;プレイヤーに主導権
 	CASE 0
-		PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%を縄で縛っ%TARGET_STR("た", "てきた")%…
+		PRINTFORMW %ANAME(MPLY:0)%は%LOCALS:1%を縄で縛っ%TARGET_STR("た", "てきた")%…
 	;ターゲットに主導権
 	CASE 1
-		PRINTFORML %ANAME(MTAR:0)%は、%ANAME(MPLY:0)%に対して縄で自身を縛るように命令した
-		PRINTFORML %ANAME(MPLY:0)%は言われるまま、%ANAME(MTAR:0)%を縄で縛った…
+		PRINTFORML %LOCALS:1%は、%ANAME(MPLY:0)%に対して縄で自身を縛るように命令した
+		PRINTFORML %ANAME(MPLY:0)%は言われるまま、%LOCALS:1%を縄で縛った…
 	;第三者に主導権
 	CASEELSE
-		PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に対して、%ANAME(MTAR:0)%を縄で拘束するように命令した
-		PRINTFORML %ANAME(MPLY:0)%は言われるまま、%ANAME(MTAR:0)%の体に縄を巻き付け縛り付けた…
+		PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に対して、%LOCALS:1%を縄で拘束するように命令した
+		PRINTFORML %ANAME(MPLY:0)%は言われるまま、%LOCALS:1%の体に縄を巻き付け縛り付けた…
 ENDSELECT
 
 ;-------------------------------------------------

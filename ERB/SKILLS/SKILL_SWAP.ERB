@@ -1,0 +1,89 @@
+﻿@SHOP_LIFE_SWAP_SKILL(対象)
+#DIM 対象
+#DIM 一つ目ジャンル
+#DIM 一つ目位置
+#DIM 入力値ジャンル
+#DIM 入力値位置
+#DIM FIRST_LINE
+
+FIRST_LINE = LINECOUNT
+VARSET 一つ目ジャンル, -1
+VARSET 一つ目位置, -1
+
+$SHOW_LOOP
+
+CALL SINGLE_DRAWLINE
+PRINTFORML ◆%ANAME(対象)%のスキル◆
+LOCAL:2 = 0
+FOR LOCAL, 0, SKILL_GENRE_NUM
+	FOR LOCAL:1, 0, MAX_SKILL_SLOT
+		TRYCCALLFORM SKILL_{SKILL_NO_SLOT:対象:LOCAL:(LOCAL:1)}_%SKILL_GENRE_ENG:LOCAL%_{SKILL_ID_SLOT:対象:LOCAL:(LOCAL:1)}_EXIST
+		CATCH
+			CONTINUE
+		ENDCATCH
+		CALL COLOR_LINE
+		IF 一つ目ジャンル == LOCAL && 一つ目位置 == LOCAL:1
+			SETCOLOR カラー_注意
+			PRINTPLAINFORM [ソート]
+		ELSEIF 一つ目ジャンル != -1 && 一つ目ジャンル != LOCAL
+			SETCOLOR カラー_選択不可
+			PRINTPLAINFORM [ソート]
+		ELSE
+			RESETCOLOR
+			PRINTBUTTON "[ソート]", LOCAL * 1000 + LOCAL:1
+		ENDIF
+		RESETCOLOR
+		CALL SKILL_EXPLANATION(LOCAL, SKILL_NO_SLOT:対象:LOCAL:(LOCAL:1), SKILL_ID_SLOT:対象:LOCAL:(LOCAL:1), 5)
+		LOCAL:2 = 1
+	NEXT
+NEXT
+SIF !LOCAL:2
+	PRINTFORML 
+
+DRAWLINE
+PRINTBUTTON "[戻る]", 1000000
+
+INPUT
+
+;戻す
+IF RESULT == 1000000
+	CLEARLINE LINECOUNT - FIRST_LINE
+	RETURN
+ENDIF
+
+入力値ジャンル = RESULT / 1000
+入力値位置 = RESULT % 1000
+
+;最低限の入力値バリデーション
+IF !INRANGE(入力値ジャンル, 0, SKILL_GENRE_NUM - 1) || !INRANGE(入力値位置, 0, MAX_SKILL_SLOT - 1)
+	CLEARLINE LINECOUNT - FIRST_LINE
+	GOTO SHOW_LOOP
+ENDIF
+
+;一つ目が指定されている場合は選択不可なやつを弾く
+IF (一つ目ジャンル != -1 && 入力値ジャンル != 一つ目ジャンル) || (一つ目ジャンル == 入力値ジャンル && 一つ目位置 == 入力値位置)
+	CLEARLINE LINECOUNT - FIRST_LINE
+	GOTO SHOW_LOOP
+ENDIF
+
+;習得していなければ弾く
+TRYCCALLFORM SKILL_{SKILL_NO_SLOT:対象:入力値ジャンル:入力値位置}_%SKILL_GENRE_ENG:入力値ジャンル%_{SKILL_ID_SLOT:対象:入力値ジャンル:入力値位置}_EXIST
+CATCH 
+	CLEARLINE LINECOUNT - FIRST_LINE
+	GOTO SHOW_LOOP
+ENDCATCH
+
+;一つ目の指定
+IF 一つ目ジャンル == -1
+	一つ目ジャンル = 入力値ジャンル
+	一つ目位置 = 入力値位置
+	CLEARLINE LINECOUNT - FIRST_LINE
+	GOTO SHOW_LOOP
+ELSE
+	SWAP SKILL_NO_SLOT:対象:入力値ジャンル:入力値位置, SKILL_NO_SLOT:対象:一つ目ジャンル:一つ目位置
+	SWAP SKILL_ID_SLOT:対象:入力値ジャンル:入力値位置, SKILL_ID_SLOT:対象:一つ目ジャンル:一つ目位置
+	RESTART
+ENDIF
+
+
+;-------------------
