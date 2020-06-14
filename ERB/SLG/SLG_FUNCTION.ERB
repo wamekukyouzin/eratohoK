@@ -2012,32 +2012,41 @@ RETURNF MAX(基礎値 * 補正値 / 10000, 1)
 ;-------------------------------------------------
 ;兵力の初期配置を行う関数
 ;-------------------------------------------------
-@INIT_ARMY
-FOR LOCAL:0, 0, MAX_COUNTRY
-	;勢力の存在判定
-	IF IS_COUNTRY(LOCAL:0)
-		;経済規模に対する最大兵数の半分を得る
-		LOCAL:2 = GET_SUM_ECONOMY(LOCAL:0) / 20
-		COUNTRY_SOLDIER:(LOCAL:0) = LOCAL:2
-		LOCAL:3 = LOCAL:2 / (MAX(1, GET_OWN_CITY(LOCAL:0)) * 3 / 2) / 500 * 500
-		LOCAL:4 = (LOCAL:3 / 500 + 1) / 2 * 500
+@INIT_ARMY()
 
-		;防衛兵力の割り振り
-		FOR LOCAL:1, 0, MAX_CITY
-			IF COUNTRY_SOLDIER:(LOCAL:0) >= 1000
-				IF CITY_OWNER:(LOCAL:1) == LOCAL:0
-					IF IS_NEIBORING_ENEMY(LOCAL:1)
-						CITY_SOLDIER:(LOCAL:1) = LOCAL:3
-						COUNTRY_SOLDIER:(LOCAL:0) -= LOCAL:3
-					ELSE
-						CITY_SOLDIER:(LOCAL:1) = LOCAL:4
-						COUNTRY_SOLDIER:(LOCAL:0) -= LOCAL:4
-					ENDIF
-				ENDIF
+FOR LOCAL:0, 0, MAX_COUNTRY
+	SIF IS_COUNTRY(LOCAL:0)
+		CALL COUNTRY_INIT_ARMY(LOCAL:0)
+NEXT
+
+@COUNTRY_INIT_ARMY(勢力)
+#DIM 勢力
+#DIM 都市
+#DIM 経済規模
+#DIM 前線防衛兵数
+#DIM 後方防衛兵数
+;経済規模に対する最大兵数の半分を得る
+経済規模 = GET_SUM_ECONOMY(勢力) / 20
+COUNTRY_SOLDIER:(勢力) = 経済規模
+前線防衛兵数 = 経済規模 / (MAX(1, GET_OWN_CITY(勢力)) * 3 / 2) / 500 * 500
+後方防衛兵数 = (前線防衛兵数 / 500 + 1) / 2 * 500
+
+;防衛兵力の割り振り
+FOR 都市, 0, MAX_CITY
+	IF COUNTRY_SOLDIER:(勢力) >= 1000
+		IF CITY_OWNER:(都市) == LOCAL:0
+			IF IS_NEIBORING_ENEMY(都市)
+				CITY_SOLDIER:(都市) = 前線防衛兵数
+				COUNTRY_SOLDIER:(勢力) -= 前線防衛兵数
+			ELSE
+				CITY_SOLDIER:(都市) = 後方防衛兵数
+				COUNTRY_SOLDIER:(勢力) -= 後方防衛兵数
 			ENDIF
-		NEXT
+		ENDIF
 	ENDIF
 NEXT
+
+
 
 
 ;-------------------------------------------------
