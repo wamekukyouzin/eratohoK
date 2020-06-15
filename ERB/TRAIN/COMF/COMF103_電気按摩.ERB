@@ -33,41 +33,27 @@ SIF !IS_PLAYABLE(MPLY:0)
 ;プレイヤーが拘束中なら不可
 SIF IS_BIND(MPLY:0)
 	RETURN 0
-;プレイヤーが挿入中なら不可
-SIF IS_INSERT_SINGLE(MPLY:0, "全")
-	RETURN 0
 ;プレイヤーが顔面騎乗されているなら不可
 SIF IS_RIDDEN(MPLY:0)
 	RETURN 0
-;プレイヤーが土下座しているなら不可
-SIF IS_EQUIP_PLAYER(MPLY:0, 110)
+;either is grovelling
+SIF IS_EQUIP_PLAYER(MPLY:0, 110) || IS_EQUIP_PLAYER(MTAR:0, 110)
 	RETURN 0
-;ターゲットが土下座しているなら不可
-SIF IS_EQUIP_PLAYER(MTAR:0, 110)
+;either is fucking
+SIF IS_INSERT_SINGLE(MPLY:0, "全") ||IS_INSERT_SINGLE(MTAR:0, "全")
 	RETURN 0
-;ターゲットが挿入中なら不可
-SIF IS_INSERT_SINGLE(MTAR:0, "全")
+;giving/receiving footlicking or buttjob
+SIF SEARCH_EQUIP_IC_M(MPLY:0, MTAR:0, 104, 15) >= 0
 	RETURN 0
-;ターゲットが顔面騎乗中なら不可
-SIF IS_RIDE(MTAR:0)
+SIF !P_STACKABLE(MPLY:0, MTAR:0, 103)
 	RETURN 0
-;プレイヤーがキス中なら不可
-SIF IS_EQUIP(MPLY:0, 20)
+SIF REACHING_BODY(MPLY:0, MTAR:0) || REACHING_BODY(MTAR:0, MPLY:0)
 	RETURN 0
-;ターゲットがキス中なら不可
-SIF IS_EQUIP(MTAR:0, 20)
+SIF REACHING_GROIN(MPLY:0, MTAR:0) || REACHING_GROIN(MTAR:0, MPLY:0)
 	RETURN 0
-;プレイヤーが胸愛撫中なら不可
-SIF IS_EQUIP_PLAYER(MPLY:0, 1)
+SIF LICKING_BODY(MPLY:0, MTAR:0) || LICKING_BODY(MTAR:0, MPLY:0)
 	RETURN 0
-;ターゲットが胸愛撫中なら不可
-SIF IS_EQUIP_PLAYER(MTAR:0, 1)
-	RETURN 0
-;プレイヤーが足舐めされているなら不可
-SIF IS_EQUIP_TARGET(MPLY:0, 104)
-	RETURN 0
-;ターゲットのチンポが埋まってるなら駄目
-SIF IS_P_HOLD(MTAR:0)
+SIF LICKING_GROIN(MPLY:0, MTAR:0) || LICKING_GROIN(MTAR:0, MPLY:0)
 	RETURN 0
 RETURN 1
 
@@ -80,8 +66,6 @@ CALL COM_ORDER_COMMON
 SIF RESULT == 0
 	RETURN 0
 
-;対Ｐ奉仕系コマンドの継続フラグを解除
-CALL RELEASE_SERVE_P
 
 ;●プレイヤーについて判定
 DOWNBASE:(MPLY:0):体力 += 120
@@ -164,7 +148,7 @@ EXP:(LOCAL:2):嗜虐経験値 += 1
 
 ;プレイヤーに主導権がある場合
 IF IS_INITIATIVE(LOCAL:2)
-	SOURCE:(MPLY:0):嗜虐 += 50
+	SOURCE:(LOCAL:2):嗜虐 += 50
 ENDIF
 
 ;奉仕経験値を得られるコマンドのフラグ
@@ -255,6 +239,8 @@ ELSE
 ENDIF
 IF TALENT:(MPLY:0):美脚
 	LOCALS:3 = すらりとした美しい
+ELSEIF TALENT:(MPLY:0):体格 < 0
+	LOCALS:3 = %SPLIT_RAND("愛くるしい/可愛らしい/未成熟な/小さな/柔らかな", 1)%
 ELSE
 	LOCALS:3 =
 ENDIF

@@ -44,7 +44,7 @@ LOCAL:7 = 999
 LOCALS:1 = 
 LOCALS:2 = 
 FOR LOCAL:0, 0, CHARANUM
-	IF IS_PARTICIPATE_TRAIN(LOCAL:0)
+	IF IS_PARTICIPATE_TRAIN(LOCAL:0) && !IS_ANIMAL(LOCAL:0)
 		;今回のＣＶＡＢＭの絶頂回数(NOWEX)の合計を取得
 		LOCAL:2 = SUM_NOWEX(LOCAL:0, 0, 0)
 
@@ -120,18 +120,24 @@ FOR LOCAL:0, 0, CHARANUM
 		LOCAL:2 = 0
 		LOCAL:3 = 2
 		LOCAL:4 = -1
+		;shitty animal logic. have to run through and count animals first to get apostrophe right.
+		LOCAL:22 = 0
 		LOCALS:0 = 
 		FOR LOCAL:1, 400, 420
 			IF TCVAR:(LOCAL:0):(LOCAL:1) >= 0
 				LOCAL:4 = TCVAR:(LOCAL:0):(LOCAL:1)
 				IF LOCAL:2 == 0
 					LOCALS:0 = %ANAME(TCVAR:(LOCAL:0):(LOCAL:1))%
-				ELSE
+				ELSEIF !(IS_ANIMAL(TCVAR:(LOCAL:0):(LOCAL:1)) && LOCAL:22)
 					LOCALS:0 = %LOCALS:0%と%ANAME(TCVAR:(LOCAL:0):(LOCAL:1))%
 				ENDIF
 				LOCAL:2 ++
+				SIF (IS_ANIMAL(TCVAR:(LOCAL:0):(LOCAL:1)))
+					LOCAL:22 ++
 				;対象の精愛Lvを判定(主人公が含まれているor逆調教なら-1に固定)
-				IF TCVAR:(LOCAL:0):(LOCAL:1) == MASTER || FLAG:調教モード == 4
+				;★was: IF TCVAR:(LOCAL:0):(LOCAL:1) == MASTER || FLAG:調教モード == 4
+				;enabling master's reaction to cum (LOCAL:3 text) depending on config
+				IF (!CONFIG:441 ? TCVAR:(LOCAL:0):(LOCAL:1) == MASTER # MASTER) || FLAG:調教モード == 4 || IS_ANIMAL(TCVAR:(LOCAL:0):(LOCAL:1))
 					LOCAL:3 = -1
 				ELSEIF LOCAL:3 >= 1 && ABL:(TCVAR:(LOCAL:0):(LOCAL:1)):精愛 < 2
 					LOCAL:3 = 0
@@ -167,7 +173,7 @@ FOR LOCAL:0, 0, CHARANUM
 				CASE 1
 					PRINTL の膣内へと注ぎ込まれた…
 					;射精したキャラが獣変化中
-					IF TALENT:(LOCAL):動物耳 || TALENT:(LOCAL):しっぽ
+					IF (TALENT:(LOCAL):動物耳 || TALENT:(LOCAL):しっぽ) && !IS_ANIMAL(LOCAL)
 						IF LOCAL:0 == MASTER
 							PRINTFORML 獣の本能がもたらす膣内射精の悦びが、%ANAME(LOCAL:0)%の脳天を甘く痺れさせた…
 						;好感度または従属度が1500以上
@@ -469,7 +475,9 @@ FOR LOCAL:0, 0, CHARANUM
 	;番号LOCAL:0のキャラがおもらしした場合
 	IF IS_PARTICIPATE_TRAIN(LOCAL:0) && TCVAR:(LOCAL:0):0
 		IF HAS_PENIS(LOCAL:0)
-			LOCALS:0 = ペニス
+			LOCALS:0 = %BAR_NAME(LOCAL:0)%
+		ELSEIF HAS_VAGINA(LOCAL:0)
+			LOCALS:0 = %STR_BODY("膣", LOCAL:0)%
 		ELSE
 			LOCALS:0 = 股間
 		ENDIF
@@ -587,13 +595,4 @@ CATCH
 	;CALL COM_TEXT_LAST_EQUIP
 ENDCATCH
 
-;---------------------------------------------------------
-;コマンド実行前に表示される装着物や継続状態に関わる地の文の呼び出し
-;---------------------------------------------------------
-@COM_TEXT_BEFORE_EQUIP
-FOR LOCAL:0, 0, MAX_MEQUIP
-	;地の文カットフラグが立っているなら表示しない
-	IF MEQUIP:(LOCAL:0) >= 0 && !MEQUIP_CUT:(LOCAL:0)
-		TRYCALLFORM COM_TEXT_BEFORE_EQUIP{MEQUIP:(LOCAL:0)}(LOCAL:0)
-	ENDIF
-NEXT
+

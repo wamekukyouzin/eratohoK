@@ -7,7 +7,11 @@
 LOCALS:1 = 胸ズリ
 FOR LOCAL:0, 0, MPLY_NUM
 	IF IS_FEMALE(MPLY:(LOCAL:0))
-		LOCALS:1 = パイズリ
+		IF GET_BUSTSIZE(MPLY:(LOCAL:0)) <= -1
+			LOCALS:1 = ナイズリ
+		ELSE
+			LOCALS:1 = パイズリ
+		ENDIF
 	ENDIF
 NEXT
 
@@ -42,69 +46,27 @@ SIF MPLY_NUM <= 0 || MPLY_NUM > 3
 ;ターゲットは最大で1人まで
 SIF MTAR_NUM <= 0 || MTAR_NUM > 1
 	RETURN 0
-;プレイヤーとターゲットが1-1で、パイズリとフェラが実行されている（パイズリフェラの条件を満たしている）とき、
-;コマンドの重複を避けるため消す
-SIF MPLY_NUM == 1 && MTAR_NUM == 1 && SEARCH_EQUIP(11, MPLY:0, MTAR:0) >= 0 && SEARCH_EQUIP(12, MPLY:0, MTAR:0) >= 0
-	RETURN 0
 ;ターゲットに竿が必要
 SIF !HAS_PENIS(MTAR:0)
 	RETURN 0
-;ターゲットが挿入状態なら不可
-SIF IS_INSERT_SINGLE(MTAR:0, "Ｐ")
+SIF !P_STACKABLE(MPLY:0, MTAR:0, 12)
 	RETURN 0
-;ターゲットが触手オナホされているなら不可
-SIF IS_EQUIP_TARGET(MTAR:0, 205)
+;grovelling
+SIF IS_EQUIP_PLAYER(MTAR:0, 110)
 	RETURN 0
-;全プレイヤーについて判定
 FOR LOCAL:0, 0, MPLY_NUM
-	;行動不能なら不可
-	SIF !IS_PLAYABLE(MPLY:(LOCAL:0))
+	;this covers most common problems
+	SIF !CAN_REACH_BODY(MPLY:(LOCAL:0), MTAR:0)
 		RETURN 0
-	;胸サイズに応じて一定の技巧が必要
-	LOCAL:1 = GET_BUSTSIZE(MPLY:(LOCAL:0))
-	IF LOCAL:1 <= -2
-		IF ABL:(MPLY:(LOCAL:0)):性技 < 5
+	SIF IS_RIDDEN(MPLY:(LOCAL:0), MTAR:0)
 			RETURN 0
-		ENDIF
-	ELSEIF LOCAL:1 <= -1
-		IF ABL:(MPLY:(LOCAL:0)):性技 < 4
-			RETURN 0
-		ENDIF
-	ELSEIF LOCAL:1 <= 0
-		IF ABL:(MPLY:(LOCAL:0)):性技 < 2
-			RETURN 0
-		ENDIF
-	ENDIF
-	;プレイヤーとターゲットが相互挿入状態なら不可
-	SIF IS_INSERT_MUTUAL(MPLY:(LOCAL:0), MTAR:0) != 0
+    SIF IS_INSERT_MUTUAL(MPLY:(LOCAL:0), MTAR:0) > 0
 		RETURN 0
-	;顔面騎乗されているなら1-1のみ
-	SIF IS_RIDDEN(MPLY:(LOCAL:0)) && MPLY_NUM >= 2
-		RETURN 0
-	;プレイヤーが土下座しているなら不可
-	SIF IS_EQUIP_PLAYER(MPLY:(LOCAL:0), 110)
-		RETURN 0
-	;拘束中なら1-1のみ
-	SIF IS_BIND(MPLY:(LOCAL:0)) && MPLY_NUM >= 2
-		RETURN 0
-	;キス中は不可
-	SIF IS_EQUIP(MPLY:(LOCAL:0), 20)
-		RETURN 0
-	;胸愛撫・足舐め中は不可
-	SIF IS_EQUIP_PLAYER(MPLY:(LOCAL:0), 1, 104)
-		RETURN 0
-	;ターゲットからプレイヤーに足舐め中なら不可
-	SIF SEARCH_EQUIP(104, MTAR:0, MPLY:(LOCAL:0)) >= 0
-		RETURN 0
-	;チンポが埋まっててフェラでなかったら駄目
-	SIF IS_P_HOLD(MTAR:LOCAL) && SEARCH_EQUIP(11, MPLY:0, MTAR:0)
+    ;getting assjob
+    SIF SEARCH_EQUIP(15, MTAR:0, MPLY:(LOCAL:0)) >= 0
 		RETURN 0
 NEXT
-IF MPLY_NUM == 1 && MTAR_NUM == 1
-	;プレイヤーとターゲットが共に拘束中なら不可
-	SIF IS_BIND(MPLY:0) && IS_BIND(MTAR:0)
-		RETURN 0
-ENDIF
+
 RETURN 1
 
 ;-------------------------------------------------
@@ -160,8 +122,6 @@ IF MPLY_NUM == 1 && MTAR_NUM == 1
 	LOCAL:1 = SEARCH_EQUIP(11, MPLY:0, MTAR:0)
 ENDIF
 
-;対Ｐ奉仕系コマンドの継続フラグを解除
-CALL RELEASE_SERVE_P
 
 ;パイズリ状況を復元
 IF LOCAL:1 >= 0

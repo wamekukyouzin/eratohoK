@@ -28,28 +28,28 @@ RETURNF ARGS:0
 @IS_INSERT_SINGLE(ARG:0, ARGS:1)
 #FUNCTION
 IF ARGS:1 == "全" || ARGS:1 == "Ｐ"
-	IF IS_EQUIP_PLAYER(ARG:0, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 52, 160, 108) || IS_EQUIP_PLAYER(ARG:0, 55, 57)
+	SIF IS_EQUIP_PLAYER(ARG:0, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 52, 160) || IS_EQUIP_PLAYER(ARG:0, 55, 57)
 		RETURNF 1
-	ENDIF
-	IF IS_EQUIP_PLAYER(ARG:0, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 53, 161, 109) || IS_EQUIP_PLAYER(ARG:0, 56, 58)
+	SIF IS_EQUIP_PLAYER(ARG:0, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 53, 109, 161) || IS_EQUIP_PLAYER(ARG:0, 56, 58)
 		RETURNF 2
-	ENDIF
+    ;素股,兜合わせは挿入と同等に扱う
+	SIF IS_EQUIP(ARG:0, 23)
+		RETURNF 1
+    SIF IS_EQUIP_TARGET(ARG:0, 13)
+        RETURNF 1
 ENDIF
 
 IF ARGS:1 == "全" || ARGS:1 == "Ｖ" || ARGS:1 == "ＶＡ"
-	IF IS_EQUIP_TARGET(ARG:0, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 52) || IS_EQUIP_TARGET(160, 108, 55, 57) || IS_EQUIP_PLAYER(ARG:0, 108)
+	SIF IS_EQUIP_TARGET(ARG:0, 6, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 52) || IS_EQUIP_TARGET(160, 55, 57)
 		RETURNF 1
-	ENDIF
 	;貝合わせ・双頭バイブもＶ挿入として扱う
-	IF IS_EQUIP(ARG:0, 21, 22)
+	SIF IS_EQUIP(ARG:0, 21, 22)
 		RETURNF 1
-	ENDIF
 ENDIF
 
 IF ARGS:1 == "全" || ARGS:1 == "Ａ" || ARGS:1 == "ＶＡ"
-	IF IS_EQUIP_TARGET(ARG:0, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 53, 109) || IS_EQUIP_TARGET(161, 56, 58) || IS_EQUIP_PLAYER(ARG:0, 109)
+	SIF IS_EQUIP_TARGET(ARG:0, 7, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 53) || IS_EQUIP_TARGET(161, 56, 58)
 		RETURNF 2
-	ENDIF
 ENDIF
 
 RETURNF 0
@@ -62,7 +62,8 @@ RETURNF 0
 ;	2=ARG:0がARG:1のＡに挿入
 ;	3=ARG:1がARG:0のＶに挿入
 ;	4=ARG:1がARG:0のＡに挿入
-;	5=貝合わせ・双頭バイブによる結合
+;	5=貝合わせ・双頭バイブ、兜合わせ
+;   6=素股
 ;-------------------------------------------------
 @IS_INSERT_MUTUAL(ARG:0, ARG:1)
 #FUNCTION
@@ -103,7 +104,7 @@ FOR LOCAL:0, 0, MEQUIP_NUM
 			ENDIF
 		NEXT
 	ENDIF
-	IF GROUPMATCH(MEQUIP:(LOCAL:0), 21, 22)
+	IF GROUPMATCH(MEQUIP:(LOCAL:0), 21, 22, 23, 13)
 		FOR LOCAL:1, 0, MEQUIP_PLAYER_NUM:(LOCAL:0)
 			IF MEQUIP_PLAYER:(LOCAL:0):(LOCAL:1) == ARG:0
 				FOR LOCAL:2, 0, MEQUIP_TARGET_NUM:(LOCAL:0)
@@ -128,6 +129,24 @@ FOR LOCAL:0, 0, MEQUIP_NUM
 			ENDIF
 		NEXT
 	ENDIF
+	IF GROUPMATCH(MEQUIP:(LOCAL:0), 13)
+		FOR LOCAL:1, 0, MEQUIP_PLAYER_NUM:(LOCAL:0)
+			IF MEQUIP_PLAYER:(LOCAL:0):(LOCAL:1) == ARG:0
+				FOR LOCAL:2, 0, MEQUIP_TARGET_NUM:(LOCAL:0)
+					IF MEQUIP_TARGET:(LOCAL:0):(LOCAL:2) == ARG:1
+						RETURNF 6
+					ENDIF
+				NEXT
+			ENDIF
+			IF MEQUIP_PLAYER:(LOCAL:0):(LOCAL:1) == ARG:1
+				FOR LOCAL:2, 0, MEQUIP_TARGET_NUM:(LOCAL:0)
+					IF MEQUIP_TARGET:(LOCAL:0):(LOCAL:2) == ARG:0
+						RETURNF 6
+					ENDIF
+				NEXT
+			ENDIF
+		NEXT
+	ENDIF
 NEXT
 RETURNF 0
 
@@ -149,6 +168,19 @@ FOR LOCAL:0, 0, MEQUIP_NUM
 	ENDIF
 	SIF GROUPMATCH(MEQUIP:(LOCAL:0), 108, 109)
 		RETURNF ARG:0
+NEXT
+RETURNF -1
+
+@GET_INSERT_PLAYER(ARG:0)
+#FUNCTION
+FOR LOCAL:0, 0, MEQUIP_NUM
+	IF GROUPMATCH(MEQUIP:(LOCAL:0), 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 52, 160, 55, 56, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 53, 161, 57, 58, 21, 22)
+		FOR LOCAL:1, 0, MEQUIP_TARGET_NUM:(LOCAL:0)
+			IF MEQUIP_TARGET:(LOCAL:0):(LOCAL:1) == ARG:0
+				RETURNF MEQUIP_PLAYER:(LOCAL:0):0
+			ENDIF
+		NEXT
+	ENDIF
 NEXT
 RETURNF -1
 
@@ -418,11 +450,38 @@ RETURNF 1
 ;-------------------------------------------------
 @BAR_NAME(ARG:0, ARGS:1 = "ペニス", ARGS:2 = "張り型")
 #FUNCTIONS
+LOCALS =
 IF HAS_PENIS(ARG:0)
-	RETURNF ARGS:1
+	;show descriptive part only when penis having char is alone
+	IF IS_MPLY(ARG:0) && MPLY_NUM == 1 || IS_MTAR(ARG:0) && MTAR_NUM == 1
+		IF !RAND:6 && TALENT:(ARG:0):童貞
+			LOCALS += @"%SPLIT_RAND("清いままの/童貞のままの/女を知らない/未使用の", 1)%"
+			;putting a space
+			LOCALS += " "
+		ENDIF
+		IF !RAND:3
+			SELECTCASE GET_PENISSIZE(ARG:0)
+				CASE -2
+					LOCALS += @"%SPLIT_RAND("可愛らしい/子供の/小さな/未熟な/極小の/爪楊枝のような, 1")%"
+				CASE -1
+					LOCALS += @"%SPLIT_RAND("小さな/細い/ちんまりした/ちっぽけな", 1)%"
+				CASE 0
+					LOCALS += @"%SPLIT_RAND("硬い/雄々しい/力強い/勃起した", 1)%"
+				CASE 1
+					LOCALS += @"%SPLIT_RAND("大きな/立派な/素晴らしい/雄々しい/太い/しっかりした/がっしりした", 1)%"
+				CASE 2
+					LOCALS += @"%SPLIT_RAND("巨大な/とても立派な/馬並みの/野太い/驚くほどの/並外れた", 1)%"
+			ENDSELECT
+			;putting a space
+			LOCALS += " "
+		ENDIF
+	ENDIF
+	
+	LOCALS += @"%SPLIT_RAND("ペニス/竿/魔羅/雄棒/男根/チンポ", 1)%"
+ELSE
+	LOCALS = strap-on
 ENDIF
-RETURNF ARGS:2
-
+RETURNF LOCALS
 ;-------------------------------------------------
 ;射精対象のキャラと部位をスタックする関数
 ;ARG:0=射精元のキャラ番号、ARG:1=射精先のキャラ番号、ARG:2=射精部位(※資料フォルダの変数表を参照)、ARG:3=上書きするかどうか
