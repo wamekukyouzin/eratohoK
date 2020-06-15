@@ -47,12 +47,12 @@ ELSEIF CFLAG:200 < 4 && TALENT:恋人
 	PRINTFORML 「……恋人って何かもっと特別な対応した方がいいのかしら？」
 	PRINTFORMW %ANAME(MASTER)%はルナチャイルドに無理はするなと言った
 ;既成事実Lv1(初めてキスをした次の回)
-ELSEIF CFLAG:200 < 3 && !TALENT:キス未経験
+ELSEIF CFLAG:200 < 3 && CFLAG:250 == 1
 	CFLAG:200 = 3
 	PRINTFORML 「あ……いらっしゃい」
 	PRINTFORML 前回キスをしたせいか、ルナチャイルドの態度は少しぎこちない
 ;既成事実Lv0で恋慕
-ELSEIF CFLAG:200 < 2 && TALENT:キス未経験 && TALENT:恋慕
+ELSEIF CFLAG:200 < 2 && TALENT:恋慕 && (!TALENT:恋人 && !TALENT:合意 && CFLAG:250 < 1)
 	CFLAG:200 = 2
 	;PRINTFORMW 
 
@@ -76,15 +76,15 @@ ELSEIF TALENT:恋人
 	PRINTFORML %ANAME(MASTER)%が来訪すると、ルナチャイルドはキスで出迎えてくれた
 	PRINTFORMW 「んっ……どう？恋人っぽかったかしら」
 ;既成事実Lv1(キス済み)
-ELSEIF !TALENT:キス未経験
+ELSEIF CFLAG:250 == 1
 	PRINTFORML 「ああ、いらっしゃい」
 	PRINTFORML 最初と比べると、ルナチャイルドの態度が気安くなった気がする
 ;既成事実Lv0で恋慕
-ELSEIF TALENT:キス未経験 && TALENT:恋慕
+ELSEIF TALENT:恋慕 && (!TALENT:恋人 && !TALENT:合意 && CFLAG:250 < 1)
 	PRINTFORML 「あ……お茶淹れますね」
 	PRINTFORML %ANAME(MASTER)%が来訪すると、ルナチャイルドは苦いコーヒーを淹れてくれた。彼女の好みらしい
 ;既成事実Lv0
-ELSEIF TALENT:キス未経験
+ELSEIF CFLAG:250 < 1
 	PRINTFORML 「今日は何の用ですかぁ？」
 ENDIF
 
@@ -122,7 +122,7 @@ IF CFLAG:201 < 5 && TALENT:合意
 	CFLAG:201 = 5
 	;行動不能ならフラグだけ立てて表示はしない
 	IF !(TCVAR:51 || TCVAR:52 || TCVAR:53)
-		IF TCVAR:13 == 1
+		IF TALENT:処女
 			;PRINTFORMW 
 		ELSE
 			;PRINTFORMW 
@@ -136,7 +136,7 @@ ELSEIF CFLAG:201 < 4 && TALENT:恋人
 		PRINTFORML 「また来てくれるよね……？」
 	ENDIF
 ;既成事実Lv1(初めてキスをした)
-ELSEIF CFLAG:201 < 3 && !TALENT:キス未経験
+ELSEIF CFLAG:201 < 3 && CFLAG:250 == 1
 	CFLAG:201 = 3
 	;行動不能ならフラグだけ立てて表示はしない
 	IF !(TCVAR:51 || TCVAR:52 || TCVAR:53)
@@ -158,13 +158,13 @@ ELSEIF !(TCVAR:51 || TCVAR:52 || TCVAR:53)
 	ELSEIF TALENT:恋人 
 		PRINTFORML 「また来てくれるよね……？」
 	;既成事実Lv1(キス済み)
-	ELSEIF !TALENT:キス未経験
+	ELSEIF CFLAG:250 == 1 
 		;PRINTFORMW 
 	;既成事実Lv0で恋慕
-	ELSEIF TALENT:キス未経験 && TALENT:恋慕
+	ELSEIF TALENT:恋慕 && (!TALENT:恋人 && !TALENT:合意 && CFLAG:250 < 1)
 		;PRINTFORMW 
 	;既成事実Lv0
-	ELSEIF TALENT:キス未経験
+	ELSEIF CFLAG:250 < 1
 		PRINTFORML 「じゃあ、さようなら」
 	ENDIF
 ENDIF
@@ -246,6 +246,7 @@ IF SELECTCOM == 20
 	IF IS_INITIATIVE(TARGET)
 		;ファーストキス
 		IF TALENT:キス未経験
+		CFLAG:250 = 1;初めてキスをしたフラグ
 			;恋慕 or 服従
 			IF TALENT:恋慕 || TALENT:服従
 				PRINTFORML 「キスって、一回やってみたかったのよ」
@@ -255,6 +256,7 @@ IF SELECTCOM == 20
 			ENDIF
 		;キス経験済み
 		ELSE
+		CFLAG:250 = 1;初めてキスをしたフラグ
 			;恋慕 or 服従
 			IF TALENT:恋慕 || TALENT:服従
 				PRINTFORML 「んっ……キスって幸せな気分になるかも」
@@ -268,6 +270,7 @@ IF SELECTCOM == 20
 	ELSE
 		;ファーストキス
 		IF TALENT:キス未経験
+		CFLAG:250 = 1;初めてキスをしたフラグ
 			;恋慕 or 服従
 			IF TALENT:恋慕 || TALENT:服従
 				PRINTFORML 「キスって、人間がたまにやってるやつ？」
@@ -279,6 +282,7 @@ IF SELECTCOM == 20
 			ENDIF
 		;キス経験済み
 		ELSE
+		CFLAG:250 = 1;初めてキスをしたフラグ
 			;恋慕 or 服従
 			IF TALENT:恋慕 || TALENT:服従
 				PRINTFORML 「んっ……キスって幸せな気分になるかも」
@@ -375,7 +379,7 @@ IF SELECTCOM == 22
 		;初めて
 		IF IS_COM_FIRST()
 			;このキャラと主人公が共に処女
-			IF TCVAR:13 == 1 && TALENT:MASTER:処女
+			IF TALENT:処女 && TALENT:MASTER:処女
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -384,7 +388,7 @@ IF SELECTCOM == 22
 					;PRINTFORMW 
 				ENDIF
 			;このキャラのみ処女
-			ELSEIF TCVAR:13 == 1
+			ELSEIF TALENT:処女
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -438,7 +442,7 @@ IF SELECTCOM == 22
 		;初めて
 		IF IS_COM_FIRST()
 			;このキャラと主人公が共に処女
-			IF TCVAR:13 == 1 && TALENT:MASTER:処女
+			IF TALENT:処女 && TALENT:MASTER:処女
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -447,7 +451,7 @@ IF SELECTCOM == 22
 					;PRINTFORMW 
 				ENDIF
 			;このキャラのみ処女
-			ELSEIF TCVAR:13 == 1
+			ELSEIF TALENT:処女
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -724,7 +728,7 @@ IF SELECTCOM == 3
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF TCVAR:13 == 1
+			IF TALENT:処女
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -769,7 +773,7 @@ IF SELECTCOM == 3
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF TCVAR:13 == 1
+			IF TALENT:処女
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					PRINTFORML 「な、何で指なんて……？」
@@ -950,7 +954,7 @@ IF SELECTCOM == 6
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF TCVAR:13 == 1
+			IF TALENT:処女
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -995,7 +999,7 @@ IF SELECTCOM == 6
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF TCVAR:13 == 1
+			IF TALENT:処女
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -1522,7 +1526,7 @@ IF SELECTCOM == 30
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF TCVAR:13 == 1
+			IF EXP:TARGET:Ｖ性交経験 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					PRINTFORML 
@@ -1567,7 +1571,7 @@ IF SELECTCOM == 30
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF TCVAR:13 == 1
+			IF EXP:TARGET:Ｖ性交経験 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					PRINTFORML 「つ、ついにするのね」
@@ -1628,7 +1632,7 @@ IF SELECTCOM == 31
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF TCVAR:13 == 1
+			IF EXP:TARGET:Ｖ性交経験 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -1673,7 +1677,7 @@ IF SELECTCOM == 31
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF TCVAR:13 == 1
+			IF EXP:TARGET:Ｖ性交経験 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					PRINTFORML 「えっ、最初が後ろからなの？」
@@ -1736,7 +1740,7 @@ IF SELECTCOM == 32
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF TCVAR:13 == 1
+			IF EXP:TARGET:Ｖ性交経験 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -1781,7 +1785,7 @@ IF SELECTCOM == 32
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF TCVAR:13 == 1
+			IF EXP:TARGET:Ｖ性交経験 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					PRINTFORML 「つ、ついにするのね」
@@ -1842,7 +1846,7 @@ IF SELECTCOM == 33
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF TCVAR:13 == 1
+			IF EXP:TARGET:Ｖ性交経験 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -1887,7 +1891,7 @@ IF SELECTCOM == 33
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF TCVAR:13 == 1
+			IF EXP:TARGET:Ｖ性交経験 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					PRINTFORML 「えっ、初めてが後ろからなの？」
@@ -1948,7 +1952,7 @@ IF SELECTCOM == 34
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF TCVAR:13 == 1
+			IF EXP:TARGET:Ｖ性交経験 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -1993,7 +1997,7 @@ IF SELECTCOM == 34
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF TCVAR:13 == 1
+			IF EXP:TARGET:Ｖ性交経験 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					PRINTFORML 「ええー……自分で入れるのお？」
@@ -2057,7 +2061,7 @@ IF SELECTCOM == 35
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF TCVAR:13 == 1
+			IF EXP:TARGET:Ｖ性交経験 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -2102,7 +2106,7 @@ IF SELECTCOM == 35
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF TCVAR:13 == 1
+			IF EXP:TARGET:Ｖ性交経験 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					PRINTFORML 「ええー……自分で入れるのお？」
@@ -2706,7 +2710,7 @@ IF SELECTCOM == 61
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF TCVAR:13 == 1
+			IF TALENT:処女
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -2751,7 +2755,7 @@ IF SELECTCOM == 61
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF TCVAR:13 == 1
+			IF TALENT:処女
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					PRINTFORML 「な、何その凶悪な形の棒」
@@ -3043,7 +3047,7 @@ IF SELECTCOM == 65
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF TCVAR:13 == 1
+			IF TALENT:処女
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -3088,7 +3092,7 @@ IF SELECTCOM == 65
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF TCVAR:13 == 1
+			IF TALENT:処女
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -3893,7 +3897,7 @@ IF SELECTCOM == 87
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF TCVAR:13 == 1
+			IF TALENT:処女
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -3938,7 +3942,7 @@ IF SELECTCOM == 87
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF TCVAR:13 == 1
+			IF TALENT:処女
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -5139,7 +5143,7 @@ IF SELECTCOM == 201
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF TCVAR:13 == 1
+			IF TALENT:処女
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -5182,7 +5186,7 @@ IF SELECTCOM == 201
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF TCVAR:13 == 1
+			IF TALENT:処女
 				;恋慕
 				IF TALENT:恋慕
 					;PRINTFORMW 
@@ -6606,6 +6610,7 @@ IF SELECTCOM == 340
 	IF IS_INITIATIVE(TARGET)
 		;初めて
 		IF IS_COM_FIRST()
+			CFLAG:250 = 1;初めてキスをしたフラグ
 			;既成事実Lv2以上
 			IF TALENT:恋人 || TALENT:合意
 				PRINTFORML 「たまには優しく、キスしてもらえると嬉しい」
@@ -6630,6 +6635,7 @@ IF SELECTCOM == 340
 	ELSE
 		;初めて
 		IF IS_COM_FIRST()
+			CFLAG:250 = 1;初めてキスをしたフラグ
 			;既成事実Lv2以上
 			IF TALENT:恋人 || TALENT:合意
 				PRINTFORML 「んっ。優しいキスね」
@@ -6663,6 +6669,7 @@ IF SELECTCOM == 341
 	IF IS_INITIATIVE(TARGET)
 		;初めて
 		IF IS_COM_FIRST()
+			CFLAG:250 = 1;初めてキスをしたフラグ
 			;既成事実Lv2以上
 			IF TALENT:恋人 || TALENT:合意
 				PRINTFORML 「んんっ……♪」
@@ -6689,6 +6696,7 @@ IF SELECTCOM == 341
 	ELSE
 		;初めて
 		IF IS_COM_FIRST()
+			CFLAG:250 = 1;初めてキスをしたフラグ
 			;既成事実Lv2以上
 			IF TALENT:恋人 || TALENT:合意
 				PRINTFORML 「んんっ……♪」
@@ -6723,6 +6731,7 @@ IF SELECTCOM == 342
 	IF IS_INITIATIVE(TARGET)
 		;初めて
 		IF IS_COM_FIRST()
+			CFLAG:250 = 1;初めてキスをしたフラグ
 			;既成事実Lv2以上
 			IF TALENT:恋人 || TALENT:合意
 				;PRINTFORMW 
@@ -6746,6 +6755,7 @@ IF SELECTCOM == 342
 	ELSE
 		;初めて
 		IF IS_COM_FIRST()
+			CFLAG:250 = 1;初めてキスをしたフラグ
 			;既成事実Lv2以上
 			IF TALENT:恋人 || TALENT:合意
 				PRINTFORML 「ぷはぁっ。こ、恋人ってすごいことするのね……」
@@ -11703,6 +11713,7 @@ IF SELECTCOM == 340
 	IF IS_INITIATIVE(TARGET)
 		;初めて
 		IF IS_COM_FIRST()
+			CFLAG:250 = 1;初めてキスをしたフラグ
 			;既成事実Lv2以上
 			IF TALENT:恋人 || TALENT:合意
 				;PRINTFORMW 
@@ -11726,6 +11737,7 @@ IF SELECTCOM == 340
 	ELSE
 		;初めて
 		IF IS_COM_FIRST()
+			CFLAG:250 = 1;初めてキスをしたフラグ
 			;既成事実Lv2以上
 			IF TALENT:恋人 || TALENT:合意
 				;PRINTFORMW 
@@ -11756,6 +11768,7 @@ IF SELECTCOM == 341
 	IF IS_INITIATIVE(TARGET)
 		;初めて
 		IF IS_COM_FIRST()
+			CFLAG:250 = 1;初めてキスをしたフラグ
 			;既成事実Lv2以上
 			IF TALENT:恋人 || TALENT:合意
 				;PRINTFORMW 
@@ -11779,6 +11792,7 @@ IF SELECTCOM == 341
 	ELSE
 		;初めて
 		IF IS_COM_FIRST()
+			CFLAG:250 = 1;初めてキスをしたフラグ
 			;既成事実Lv2以上
 			IF TALENT:恋人 || TALENT:合意
 				;PRINTFORMW 
@@ -11809,6 +11823,7 @@ IF SELECTCOM == 342
 	IF IS_INITIATIVE(TARGET)
 		;初めて
 		IF IS_COM_FIRST()
+			CFLAG:250 = 1;初めてキスをしたフラグ
 			;既成事実Lv2以上
 			IF TALENT:恋人 || TALENT:合意
 				;PRINTFORMW 
@@ -11832,6 +11847,7 @@ IF SELECTCOM == 342
 	ELSE
 		;初めて
 		IF IS_COM_FIRST()
+			CFLAG:250 = 1;初めてキスをしたフラグ
 			;既成事実Lv2以上
 			IF TALENT:恋人 || TALENT:合意
 				;PRINTFORMW 
