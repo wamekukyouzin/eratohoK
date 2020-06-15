@@ -27,37 +27,18 @@ SIF MPLY_NUM <= 0 || MPLY_NUM > 1
 ;ターゲットは1人以上
 SIF MTAR_NUM <= 0
 	RETURN 0
-;プレイヤーが行動不能なら不可
-SIF !IS_PLAYABLE(MPLY:0)
-	RETURN 0
 ;アナルバイブが必要
 SIF !ITEM:アナルバイブ && !ITEM:A_アナルバイブ
 	RETURN 0
 
 FOR LOCAL:0, 0, MTAR_NUM
-	;ターゲットのＡが塞がっていれば不可
-	SIF IS_A_HOLD(MTAR:(LOCAL:0))
+	;A not occupied (Unless by fingering, in Recheck mode)
+	SIF IS_A_HOLD(MTAR:(LOCAL:0)) && !(FLAG:RECHECKING && IS_EQUIP_TARGET(MTAR:LOCAL, 4))
 		RETURN 0
-	FOR LOCAL:1, 0, MPLY_NUM
-		;ターゲットからプレイヤーに挿入中で体位が後背位・背面座位なら不可
-		SIF GROUPMATCH(GET_SEX_POSITION(MTAR:(LOCAL:0), MPLY:(LOCAL:1)), 2, 4)
+	SIF !CAN_REACH_GROIN(MPLY:0, MTAR:LOCAL) && !FLAG:RECHECKING
 			RETURN 0
-	NEXT
 NEXT
 
-FOR LOCAL:0, 0, MPLY_NUM
-	;プレイヤーが顔面騎乗されているなら不可
-	SIF IS_RIDDEN(MPLY:(LOCAL:0))
-		RETURN 0
-	;プレイヤーが拘束中なら不可
-	SIF IS_BIND(MPLY:(LOCAL:0))
-		RETURN 0
-	FOR LOCAL:1, 0, MTAR_NUM
-		;プレイヤーからターゲット／ターゲットからプレイヤーに電気按摩中なら不可
-		SIF SEARCH_EQUIP_IC(103, MPLY:(LOCAL:0), MTAR:(LOCAL:1)) >= 0
-			RETURN 0
-	NEXT
-NEXT
 RETURN 1
 
 ;-------------------------------------------------

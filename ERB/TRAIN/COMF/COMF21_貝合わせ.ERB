@@ -28,51 +28,32 @@ SIF MPLY_NUM <= 0 || MPLY_NUM > 1
 SIF MTAR_NUM <= 0 || MTAR_NUM > 1
 	RETURN 0
 ;プレイヤーとターゲットが共に行動不能なら不可
-SIF !IS_PLAYABLE(MPLY:0) && !IS_PLAYABLE(MTAR:0)
+SIF !IS_PLAYABLE(MPLY:0)
 	RETURN 0
-;プレイヤーにＶがないなら不可
-SIF !HAS_VAGINA(MPLY:0)
+SIF !HAS_VAGINA(MPLY:0) || !HAS_VAGINA(MTAR:0)
 	RETURN 0
-;ターゲットにＶがないなら不可
-SIF !HAS_VAGINA(MTAR:0)
+SIF IS_RIDE(MPLY:0) || IS_RIDE(MTAR:0)
 	RETURN 0
-;プレイヤーが顔面騎乗中なら不可
-SIF IS_RIDE(MPLY:0)
-	RETURN 0
-;プレイヤーが土下座しているなら不可
-SIF IS_EQUIP_PLAYER(MPLY:0, 110)
-	RETURN 0
-;ターゲットが顔面騎乗中なら不可
-SIF IS_RIDE(MTAR:0)
-	RETURN 0
-;土下座しているなら不可
-SIF IS_EQUIP_PLAYER(MTAR:0, 110)
+;grovelling
+SIF IS_EQUIP_PLAYER(MPLY:0, 110) || IS_EQUIP_PLAYER(MTAR:0, 110)
 	RETURN 0
 ;プレイヤーとターゲットが共に拘束中なら不可
 SIF IS_BIND(MPLY:0) && IS_BIND(MTAR:0)
 	RETURN 0
-;プレイヤーとターゲットが相互に貝合わせ中なら判定スキップ
-IF SEARCH_EQUIP_IC(21, MPLY:0, MTAR:0) == -1
-	;プレイヤーのＶが埋まっているなら不可
-	SIF IS_V_HOLD(MPLY:0)
+;Todo - vibrators and balloons should perhaps be exempted
+SIF IS_V_HOLD(MPLY:0) || IS_V_HOLD(MTAR:0)
 		RETURN 0
-	;ターゲットのＶが埋まっているなら不可
-	SIF IS_V_HOLD(MTAR:0)
+;either is fucking or fucked by anyone
+SIF IS_INSERT_SINGLE(MPLY:0, "全") || IS_INSERT_SINGLE(MTAR:0, "全")
 		RETURN 0
-	;プレイヤーが挿入中なら不可
-	SIF IS_INSERT_SINGLE(MPLY:0, "全") && !LOCAL:2
+SIF REACHING_BODY(MPLY, MTAR) || REACHING_BODY(MTAR, MPLY)
 		RETURN 0
-	;ターゲットが挿入中なら不可
-	SIF IS_INSERT_SINGLE(MTAR:0, "全") && !LOCAL:2
+SIF LICKING_GROIN(MPLY, MTAR) || LICKING_GROIN(MTAR, MPLY)
 		RETURN 0
-ENDIF
-
-;フェラ中ならだめ
-SIF SEARCH_EQUIP_IC(11, MPLY:0, MTAR:0) >= 0
+SIF LICKING_BODY(MPLY, MTAR) || LICKING_BODY(MTAR, MPLY)
 	RETURN 0
-
-;プレイヤーとターゲットが相互にキス中なら不可
-SIF SEARCH_EQUIP(20, MPLY:0, MTAR:0) >= 0
+;giving/receiving assjob, trampling, footjob
+SIF SEARCH_EQUIP_IC_M(MPLY:0, MTAR:0, 14, 15, 103) >= 0
 	RETURN 0
 RETURN 1
 
@@ -85,12 +66,6 @@ CALL COM_ORDER_COMMON
 SIF RESULT == 0
 	RETURN 0
 
-;逆方向からのMEQUIPを解除
-FOR LOCAL:0, 0, MPLY_NUM
-	FOR LOCAL:1, 0, MTAR_NUM
-		CALL RELEASE_EQUIP_EX(21, MTAR:(LOCAL:1), MPLY:(LOCAL:0))
-	NEXT
-NEXT
 
 ;●潤滑による各種倍率の計算
 LOCAL:10 = 0

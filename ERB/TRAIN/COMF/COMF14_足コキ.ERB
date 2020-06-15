@@ -46,21 +46,7 @@ FOR LOCAL:0, 0, MPLY_NUM
 	;拘束中なら不可
 	SIF IS_BIND(MPLY:(LOCAL:0))
 		RETURN 0
-	;挿入中は不可
-	SIF IS_INSERT_SINGLE(MPLY:(LOCAL:0), "全")
-		RETURN 0
-	;顔面騎乗中の場合
-	IF IS_RIDE(MPLY:(LOCAL:0))
-		;プレイヤーが複数 or ターゲットが複数 or 騎乗している相手がターゲット以外なら不可
-		SIF MPLY_NUM >= 2 || MTAR_NUM >= 2 || !IS_RIDE(MPLY:0, MTAR:0)
-			RETURN 0
-		;お尻で顔面騎乗中なら不可
-		LOCAL:2 = SEARCH_EQUIP(102, MPLY:0, MTAR:0)
-		SIF LOCAL:2 >= 0 && MEQUIP_PLAYER_NUM:(LOCAL:2) >= 2
-			RETURN 0
-	ENDIF
-	;顔面騎乗されているなら不可
-	SIF IS_RIDDEN(MPLY:(LOCAL:0))
+	SIF IS_RIDDEN(MPLY:(LOCAL:0), MTAR:0)
 		RETURN 0
 	;プレイヤーが土下座しているなら不可
 	SIF IS_EQUIP_PLAYER(MPLY:(LOCAL:0), 110)
@@ -74,25 +60,39 @@ FOR LOCAL:0, 0, MTAR_NUM
 	;竿が必要
 	SIF !HAS_PENIS(MTAR:(LOCAL:0))
 		RETURN 0
-	;ターゲットのチンポが埋まってたらだめ
-	SIF IS_P_HOLD(MTAR:LOCAL)
-		RETURN 0
-	;ターゲットが挿入中ならだめ
-	SIF IS_INSERT_SINGLE(MTAR:(LOCAL:0), "Ｐ")
+    SIF !P_STACKABLE(MPLY:0, MTAR:(LOCAL:0), 14)
 		RETURN 0
 	;ターゲットのＶが他のキャラの竿で埋まっていて、体位が後背位・背面座位・騎乗位・背面騎乗位以外なら不可
-	SIF IS_INSERT_SINGLE(MTAR:0, "Ｖ") && LOCAL:0 != 2 && !GROUPMATCH(GET_SEX_POSITION_SINGLE(MTAR:0, "Ｖ"), 2, 4, 5, 6)
+	SIF IS_INSERT_SINGLE(MTAR:0, "Ｖ") && !GROUPMATCH(GET_SEX_POSITION_SINGLE(MTAR:0, "Ｖ"), 2, 4, 5, 6)
 		RETURN 0
 	;ターゲットのＡが他のキャラの竿で埋まっていて、体位がＡ後背位・Ａ背面座位・Ａ騎乗位・Ａ背面騎乗位以外なら不可
-	SIF IS_INSERT_SINGLE(MTAR:0, "Ａ") && LOCAL:0 != 2 && !GROUPMATCH(GET_SEX_POSITION_SINGLE(MTAR:0, "Ａ"), 2, 4, 5, 6)
-		RETURN 0
-	;顔面騎乗中なら不可
-	SIF IS_RIDE(MTAR:(LOCAL:0))
+	SIF IS_INSERT_SINGLE(MTAR:0, "Ａ") && !GROUPMATCH(GET_SEX_POSITION_SINGLE(MTAR:0, "Ａ"), 2, 4, 5, 6)
 		RETURN 0
 	;土下座しているなら不可
 	SIF IS_EQUIP_PLAYER(MTAR:(LOCAL:0), 110)
 		RETURN 0
 NEXT
+
+
+FOR LOCAL:0, 0, MPLY_NUM
+    FOR LOCAL:1, 0, MTAR_NUM
+        SIF IS_INSERT_MUTUAL(MPLY:(LOCAL:0), MTAR:(LOCAL:1))
+            RETURN 0
+        SIF REACHING_BODY(MPLY:(LOCAL:0), MTAR:(LOCAL:1)) || REACHING_BODY(MTAR:(LOCAL:1), MPLY:(LOCAL:0))
+            RETURN 0
+        SIF REACHING_GROIN(MPLY:(LOCAL:0), MTAR:(LOCAL:1)) || REACHING_GROIN(MTAR:(LOCAL:1), MPLY:(LOCAL:0))
+            RETURN 0
+        SIF LICKING_GROIN(MPLY:(LOCAL:0), MTAR:(LOCAL:1)) || LICKING_GROIN(MTAR:(LOCAL:1), MPLY:(LOCAL:0))
+            RETURN 0
+        SIF LICKING_BODY(MPLY:(LOCAL:0), MTAR:(LOCAL:1)) || LICKING_BODY(MTAR:(LOCAL:1), MPLY:(LOCAL:0))
+            RETURN 0
+        ;buttjob (giving or receiving)
+        SIF SEARCH_EQUIP_IC(15, MPLY:(LOCAL:0), MTAR:(LOCAL:1)) >= 0
+            RETURN 0
+    NEXT
+NEXT
+
+
 RETURN 1
 
 ;-------------------------------------------------
@@ -103,9 +103,6 @@ RETURN 1
 CALL COM_ORDER_COMMON
 SIF RESULT == 0
 	RETURN 0
-
-;対Ｐ奉仕系コマンドの継続フラグを解除
-CALL RELEASE_SERVE_P
 
 ;●人数補正の設定
 LOCAL:10 = 100
