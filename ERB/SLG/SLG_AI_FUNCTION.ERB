@@ -247,7 +247,8 @@ NEXT
 #DIM 守将, 2
 #DIM LCOUNT,2
 #DIM 最大
-VARSET LOCAL, __INT_MIN__
+#DIM 重み保存, 3000
+VARSET 重み保存, __INT_MIN__
 VARSET CITY_COMMANDER_BEST, -1
 ;都市を所有する勢力の番号を取得
 勢力 = CITY_OWNER:(ARG:0)
@@ -263,24 +264,24 @@ FOR LCOUNT, 0, CHARANUM
 		SIF 勢力 == CFLAG:MASTER:所属 && CFLAG:(LCOUNT):最強編成除外フラグ
 			CONTINUE
 		;知略の重みは武闘・妖術の1/8
-{
-		LOCAL:(LCOUNT) = MAX(ABL_POWER(ABL:(LCOUNT):武闘, LCOUNT), 0) / 2 + MAX(ABL_POWER(ABL:LCOUNT:防衛, LCOUNT), 0) + MAX(ABL_POWER(MIN(ABL:(LCOUNT):知略, 110), LCOUNT), 0) / 8 + MAX(ABL_POWER(ABL:(LCOUNT):妖術, LCOUNT), 0) + 
-						 MAX(ABL_POWER(ABL:(LCOUNT):料理, LCOUNT), 0) / 8 + MAX(ABL_POWER(ABL:(LCOUNT):歌唱, LCOUNT), 0) / 8 + 
-						 MAX(ABL_POWER(TMP_CHARA_STARS:(LCOUNT) * 10, LCOUNT), 0)
-}
+		{
+			重み保存:(LCOUNT) = MAX(ABL_POWER(ABL:(LCOUNT):武闘, LCOUNT), 0) / 2 + MAX(ABL_POWER(ABL:LCOUNT:防衛, LCOUNT), 0) + MAX(ABL_POWER(MIN(ABL:(LCOUNT):知略, 110), LCOUNT), 0) / 8 + MAX(ABL_POWER(ABL:(LCOUNT):妖術, LCOUNT), 0) + 
+				MAX(ABL_POWER(ABL:(LCOUNT):料理, LCOUNT), 0) / 8 + MAX(ABL_POWER(ABL:(LCOUNT):歌唱, LCOUNT), 0) / 8 + 
+				MAX(ABL_POWER(TMP_CHARA_STARS:(LCOUNT) * 10, LCOUNT), 0)
+		}
 	ENDIF
 NEXT
 
 ;二人設定フラグが真なら2度回す
 FOR LCOUNT:0, 0, 1 + (ARG:1 == 1)
 	;LOCAL（記録した各キャラの能力）から、最大のものを探索
-	最大 = MAXARRAY(LOCAL, 0)
+	最大 = MAXARRAY(重み保存, 0)
 	;最大のものが__INT_MIN__でなければ（その都市を所属している勢力に、IS_FREEなキャラが残っていれば）、そいつを登録
 	IF 最大 != __INT_MIN__
 		FOR LCOUNT:1, 0, CHARANUM
-			IF LOCAL:(LCOUNT:1) == 最大
+			IF 重み保存:(LCOUNT:1) == 最大
 				CITY_COMMANDER_BEST:(LCOUNT:0) = LCOUNT:1
-				LOCAL:(LCOUNT:1) = __INT_MIN__
+				重み保存:(LCOUNT:1) = __INT_MIN__
 				BREAK
 			ENDIF
 		NEXT
