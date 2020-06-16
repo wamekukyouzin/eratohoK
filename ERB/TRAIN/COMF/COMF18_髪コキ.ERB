@@ -31,33 +31,21 @@ SIF MPLY_NUM <= 0 || MPLY_NUM > 2
 ;ターゲットは最大で1人まで
 SIF MTAR_NUM <= 0 || MTAR_NUM > 1
 	RETURN 0
-
-;全プレイヤーについて判定
-FOR LOCAL:0, 0, MPLY_NUM
-	;行動不能なら不可
-	SIF !IS_PLAYABLE(MPLY:(LOCAL:0))
-		RETURN 0
-	;拘束中なら不可
-	SIF IS_BIND(MPLY:(LOCAL:0))
-		RETURN 0
-	;挿入中はプレイヤーが一人の場合のみ許可
-	SIF IS_INSERT_SINGLE(MPLY:(LOCAL:0), "全") && MPLY_NUM >= 2
-		RETURN 0
-	;ミドル以上が必要
-	SIF TALENT:(MPLY:(LOCAL:0)):髪の長さ < 4
-		RETURN 0
-	;フェラ、パイズリ、素股、足コキ、尻コキ、尾菜穂、尻尾中は無理
-	SIF IS_EQUIP_PLAYER(MPLY:(LOCAL:0), 11, 12, 13, 14, 15, 16, 17)
-		RETURN 0
-NEXT
 ;ターゲットに竿が必要
 SIF !HAS_PENIS(MTAR:0)
 	RETURN 0
-;ターゲットの竿が挿入中なら不可
-SIF IS_INSERT_SINGLE(MTAR:0, "Ｐ")
+;全プレイヤーについて判定
+FOR LOCAL:0, 0, MPLY_NUM
+	;ミドル以上が必要
+	SIF TALENT:(MPLY:(LOCAL:0)):髪の長さ < 4
+		RETURN 0
+    SIF !CAN_REACH_GROIN(MPLY:LOCAL, MTAR)
+		RETURN 0
+    SIF IS_INSERT_MUTUAL(MPLY:(LOCAL:0), MTAR:0) > 0
 	RETURN 0
-;ターゲットのチンポが埋まってたらだめ
-SIF IS_P_HOLD(MTAR:0)
+NEXT
+
+SIF !P_STACKABLE(MPLY:0, MTAR:0, 18)
 	RETURN 0
 RETURN 1
 
@@ -70,8 +58,6 @@ CALL COM_ORDER_COMMON
 SIF RESULT == 0
 	RETURN 0
 
-;対Ｐ奉仕系コマンドの継続フラグを解除
-CALL RELEASE_SERVE_P
 
 ;●人数補正の設定
 LOCAL:10 = 100

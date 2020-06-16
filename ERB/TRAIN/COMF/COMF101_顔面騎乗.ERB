@@ -27,53 +27,40 @@ SIF MPLY_NUM <= 0 || MPLY_NUM > 1
 ;ターゲットは最大で1人まで
 SIF MTAR_NUM <= 0 || MTAR_NUM > 1
 	RETURN 0
-;ターゲットがＰ挿入中かつ体位が騎乗位以外なら不可
-SIF IS_INSERT_SINGLE(MTAR:0, "Ｐ") && !GROUPMATCH(GET_SEX_POSITION_SINGLE(MTAR:0, "Ｐ"), 5)
-	RETURN 0
-;ターゲットがＶ挿入中かつ体位が正常位以外なら不可
-SIF IS_INSERT_SINGLE(MTAR:0, "Ｖ") && !GROUPMATCH(GET_SEX_POSITION_SINGLE(MTAR:0, "Ｖ"), 1)
-	RETURN 0
-;ターゲットがＶ挿入中かつ体位が正常位以外なら不可
-SIF IS_INSERT_SINGLE(MTAR:0, "Ａ") && !GROUPMATCH(GET_SEX_POSITION_SINGLE(MTAR:0, "Ａ"), 1)
-	RETURN 0
 ;プレイヤーが行動不能なら不可
 SIF !IS_PLAYABLE(MPLY:0)
 	RETURN 0
 ;拘束中なら不可
 SIF IS_BIND(MPLY:0)
 	RETURN 0
-;挿入中は不可
+SIF IS_M_HOLD(MTAR:0)
+	RETURN 0
+;Target is fucking someone in any position except cowgirl/reverse cowgirl
+SIF IS_INSERT_SINGLE(MTAR:0, "Ｐ") && !GROUPMATCH(GET_SEX_POSITION_SINGLE(MTAR:0, "Ｐ"), 5, 6)
+	RETURN 0
+;target being fucked in any position except missionary
+SIF IS_INSERT_SINGLE(MTAR:0, "Ｖ") && !GROUPMATCH(GET_SEX_POSITION_SINGLE(MTAR:0, "Ｖ"), 1)
+	RETURN 0
+;target being fucked in any position except missionary
+SIF IS_INSERT_SINGLE(MTAR:0, "Ａ") && !GROUPMATCH(GET_SEX_POSITION_SINGLE(MTAR:0, "Ａ"), 1)
+	RETURN 0
+;player fucking
 SIF IS_INSERT_SINGLE(MPLY:0, "全")
 	RETURN 0
-;尻コキ中なら不可
+;player giving buttjob to anyone
 SIF IS_EQUIP_PLAYER(MPLY:0, 15)
 	RETURN 0
-;プレイヤーが顔面騎乗されているなら不可
-SIF IS_RIDDEN(MPLY:0)
+;player ridden or already riding
+SIF IS_RIDDEN(MPLY:0) || IS_RIDE(MPLY:0)
 	RETURN 0
-;プレイヤーが既に他の相手に顔面騎乗しているなら不可
-SIF IS_RIDE(MPLY:0) && !(SEARCH_EQUIP(101, MPLY:0, MTAR:0) >= 0 || SEARCH_EQUIP(102, MPLY:0, MTAR:0) >= 0 || SEARCH_EQUIP(105, MPLY:0, MTAR:0) >= 0)
+;target already ridden or riding
+SIF IS_RIDE(MTAR:0) || IS_RIDDEN(MTAR:0)
 	RETURN 0
-;ターゲットが既に他の相手に顔面騎乗されているなら不可
-SIF IS_RIDDEN(MTAR:0) && !(SEARCH_EQUIP(101, MPLY:0, MTAR:0) >= 0 || SEARCH_EQUIP(102, MPLY:0, MTAR:0) >= 0 || SEARCH_EQUIP(105, MPLY:0, MTAR:0) >= 0)
+;either is grovelling
+SIF IS_EQUIP_PLAYER(MPLY:0, 110) || IS_EQUIP_PLAYER(MTAR:0, 110)
 	RETURN 0
-;プレイヤーからターゲットに足舐め中なら不可
-SIF SEARCH_EQUIP(104, MPLY:0, MTAR:0) >= 0
-	RETURN 0
-;ターゲットが顔面騎乗中なら不可
-SIF IS_RIDE(MTAR:0)
-	RETURN 0
-;プレイヤーが土下座しているなら不可
-SIF IS_EQUIP_PLAYER(MPLY:0, 110)
-	RETURN 0
-;ターゲットが土下座しているなら不可
-SIF IS_EQUIP_PLAYER(MTAR:0, 110)
-	RETURN 0
-;ターゲットがキス中なら不可
-SIF IS_EQUIP(MTAR:0, 20)
-	RETURN 0
-;ターゲットが足舐め中なら不可
-SIF IS_EQUIP_PLAYER(MTAR:0, 104)
+;player or target footlicking, buttjob, or foam playing each other
+SIF SEARCH_EQUIP_IC_M(MPLY:0, MTAR:0, 5, 15, 104) >= 0
 	RETURN 0
 RETURN 1
 
@@ -86,14 +73,6 @@ CALL COM_ORDER_COMMON
 SIF RESULT == 0
 	RETURN 0
 
-;クンニ、Ａ顔面騎乗、Ｗ顔面騎乗のフラグを解除
-FOR LOCAL:0, 0, MPLY_NUM
-	FOR LOCAL:1, 0, MTAR_NUM
-		CALL RELEASE_EQUIP_EX(2, MTAR:(LOCAL:1), -1)
-		CALL RELEASE_EQUIP_EX(102, MPLY:(LOCAL:0), -1)
-		CALL RELEASE_EQUIP_EX(105, MPLY:(LOCAL:0), -1)
-	NEXT
-NEXT
 
 ;ターゲット側の屈従のソース基本量
 LOCAL:11 = 120
@@ -277,11 +256,18 @@ RETURN 1
 IF !HAS_VAGINA(MPLY:0)
 	LOCALS:0 = 玉
 ELSE
-	LOCALS:0 = 秘部
+	LOCALS:0 =
+	SELECTCASE CUM_CUR_COUNT:(MPLY:0):射精部位_膣内
+		CASE IS >= 15
+			LOCALS:0 = 精液%SPLIT_R("まみれの：の詰まった：の溢れる：が留処なくこぼれる")%
+		CASE IS >= 1
+			LOCALS:0 = 精液%SPLIT_R("を垂らす：の漏れる")%
+	ENDSELECT
+	LOCALS:0 = %LOCALS:0%%STR_BODY("膣", MPLY:0)%
 ENDIF
-IF GET_INMOU_LEVEL(MPLY:0) >= 1
-	LOCALS:0 = ふさふさと毛の繁った%LOCALS:0%
-ENDIF
+
+
+
 SELECTCASE GET_COM_INITIATIVE()
 	;プレイヤーに主導権
 	CASE 0
@@ -312,6 +298,27 @@ SELECTCASE GET_COM_INITIATIVE()
 			PRINTFORMW %ANAME(MPLY:0)%は言われるまま、%ANAME(MTAR:0)%の顔に跨り%LOCALS:0%を押し付けた…
 		ENDIF
 ENDSELECT
+IF CUM_CUR_COUNT:(MPLY:0):射精部位_膣内
+	PRINTFORM %SPLIT_RAND("熱い/粘つく/濃厚な/新鮮な", 1)%精液が
+
+	IF ABL:(MTAR:0):精愛 >= 4
+		PRINTFORML %SPLIT_RAND("精液好きの/精愛味覚を得た/精液に飢えた")%%ANAME(MTAR:0)%の口に滴ると、%PRONOUN(MTAR:0)%は悦びの呻き声を漏らした…
+	ELSE
+		PRINTFORML %ANAME(MTAR:0)%の口に滴るが、%PRONOUN(MTAR:0)%は奉仕を余儀なくされた…
+	ENDIF
+	;target eats 1/4th + 3 cum, up to 20
+	LOCAL = LIMIT(MIN(((CUM_CUR_COUNT:(MPLY:0):射精部位_膣内 / 4) + 3), CUM_CUR_COUNT:(MPLY:0):射精部位_膣内) , 0, 20)
+	CUM_CUR_COUNT:(MPLY:0):射精部位_膣内 -= LOCAL
+	CUM_CUR_COUNT:(MTAR:0):射精部位_口 += LOCAL
+	SIF CUM_CUR_COUNT:(MPLY:0):射精部位_膣内 == 0
+		PRINTFORML %ANAME(MPLY:0)%の%STR_BODY("膣", MPLY:0)%の精液は全て%ANAME(MTAR:0)%が飲み干した
+	;Cumlove exp increases by amount of cum
+	EXP:(MTAR:0):精愛経験値 += LOCAL
+	;Swallowing exp
+	SIF ABL:(MTAR:0):精愛 >= 4
+		EXP:(MTAR:0):口内射精経験 ++
+	WAIT
+ENDIF
 
 ;--------------------------------------------------------
 ;地の文(パラメータ・刻印変動後)

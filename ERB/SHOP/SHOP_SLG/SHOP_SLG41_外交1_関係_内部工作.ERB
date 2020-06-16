@@ -1,17 +1,19 @@
 ﻿;-------------------------------------------------
 ;醜聞を流す
 ;-------------------------------------------------
-@DIPLOMACY_SABOTAGE(ARG:0)
+@DIPLOMACY_SABOTAGE(相手勢力)
 #DIM 君主
+#DIM 相手勢力
 #DIM 相手君主
 #DIM FIRST_LINE
 #DIM CONST 支払額リスト = 1, 5, 50, 100, 500, 1000, 2500, 5000, 10000, 15000, 20000, 30000, 40000, 50000
 #DIM 支払額
+#DIM 対象
 #DIM 効果
 
 FIRST_LINE = LINECOUNT
 君主 = GET_COUNTRY_BOSS(CFLAG:MASTER:所属)
-相手君主 = GET_COUNTRY_BOSS(ARG:0)
+相手君主 = GET_COUNTRY_BOSS(相手勢力)
 
 CALL SINGLE_DRAWLINE
 PRINTFORML %ANAME(相手君主)%所属の、%ANAME(MASTER)%に心酔している士官を利用し、内部工作を仕掛けさせます
@@ -30,19 +32,21 @@ MONEY:(CFLAG:MASTER:所属) -= SELECTED_CHARA_NUM * 1000
 PRINTFORML 工作活動を実施します……
 
 FOR LOCAL, 0, SELECTED_CHARA_NUM
-	LOCAL:1 = SELECTED_CHARA:LOCAL
+	対象 = SELECTED_CHARA:LOCAL
 	SELECTCASE RAND:3
 		CASE 0
-			PRINTFORML %ANAME(LOCAL:1)%は%ANAME(相手君主)%勢力において、%ANAME(君主)%の印象を良くするべくロビー活動を行っている……
-			CALL DIPLOMACY_IMPROVE_RELATION(ARG:0, SQRT(ABL_POWER(ABL:(LOCAL:1):政治, LOCAL:1)) / 2)
+			PRINTFORML %ANAME(対象)%は%ANAME(相手君主)%勢力において、%ANAME(君主)%の印象を良くするべくロビー活動を行っている……
+			CALL DIPLOMACY_IMPROVE_RELATION(相手勢力, SQRT(ABL_POWER(ABL:(対象):政治, 対象)) / 2)
 		CASE 1
-			PRINTFORML %ANAME(LOCAL:1)%は%ANAME(相手君主)%の財力を%ANAME(君主)%に横流ししている……
-			CALL COLOR_PRINTL("経済力を", GETDEFCOLOR(), TOSTR(GET_SUM_ECONOMY(ARG:0) * ABL:(LOCAL:1):政治 / 100 / 40), カラー_注意, "奪った", GETDEFCOLOR())
-			CALL SHIFT_ECONOMY(ARG:0, CFLAG:MASTER:所属, GET_SUM_ECONOMY(ARG:0) * ABL:(LOCAL:1):政治 / 40)
+			PRINTFORML %ANAME(対象)%は%ANAME(相手君主)%の財力を%ANAME(君主)%に横流ししている……
+			;相手経済に対して(政治 / 50)%。ただし自身の経済の1%を越えない。
+			効果 = MIN(GET_SUM_ECONOMY(相手勢力) * ABL:対象:政治 / 50 / 100, GET_SUM_ECONOMY(CFLAG:MASTER:所属) / 100)
+			CALL COLOR_PRINTL("経済力を", GETDEFCOLOR(), @"{効果 / 100}", カラー_注意, "奪った", GETDEFCOLOR())
+			CALL SHIFT_ECONOMY(相手勢力, CFLAG:MASTER:所属, 効果)
 		CASE 2
-			PRINTFORML %ANAME(LOCAL:1)%は%ANAME(相手君主)%勢力内で工作活動を行っている……
+			PRINTFORML %ANAME(対象)%は%ANAME(相手君主)%勢力内で工作活動を行っている……
 			CALL SELECT_CHARA_RANDOM("DIPLOMACY_SABOTAGE")
-			IF !GROUPMATCH(RESULT, LOCAL:1 , -1) || RAND:100 < 50
+			IF !GROUPMATCH(RESULT, 対象 , -1) || RAND:100 < 50
 				CALL ADD_COOLTIME(RESULT, 2)
 			ELSE
 				PRINTFORML ……が、うまくいかなかったようだ……

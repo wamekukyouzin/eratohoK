@@ -240,7 +240,7 @@ CALL CHILD_TALENT_SINGLE, LOCAL:5, LOCAL:6, 88, 2
 ;回復早い、回復遅い
 CALL CHILD_TALENT_OPPOSE, LOCAL:5, LOCAL:6, 111, 112, 5, 4
 ;幼稚
-CALL CHILD_TALENT_SINGLE, LOCAL:5, LOCAL:6, 132, 6
+;CALL CHILD_TALENT_SINGLE, LOCAL:5, LOCAL:6, 132, 6
 
 ;美脚
 SIF !TALENT:性別 == 0
@@ -250,41 +250,47 @@ SIF !TALENT:性別 == 0
 	CALL CHILD_TALENT_SINGLE, LOCAL:5, LOCAL:6, 114, 12
 
 ;父親が特殊な場合の処理
-IF GROUPMATCH(CFLAG:父親, GET_SPERM_ID("犬"), GET_SPERM_ID("豚"), GET_SPERM_ID("馬"))
+;ears and tail determination reworked and added monkey.
+;now ancestry is factored in to the overall chance.
+;45% from mother, 45% from father, 25% bonus chance from ancestor.
+IF GROUPMATCH(CFLAG:父親, GET_SPERM_ID("犬"), GET_SPERM_ID("豚"), GET_SPERM_ID("馬"), GET_SPERM_ID("猿"))
 	TALENT:動物耳 = 1
 	TALENT:しっぽ = 1
-ENDIF
-
-;[パッチによる追加]動物耳、しっぽ
-;どちらか片方だけ所持なら35%、両方所持なら70%の確率で動物耳・しっぽが遺伝
-;暫定的に動物耳・しっぽの遺伝は分離しておく
-;すでに素質を持っているなら処理飛ばし
-IF TALENT:動物耳 == 0 && TALENT:しっぽ == 0
+ELSE
+	LOCAL:0 = LINEAGE_TO_FIXED(TARGET)
 	EAR = 0
 	TAIL = 0
+	IF LOCAL:0 >= 0
+		EAR += TALENT:(LOCAL:0):動物耳 * 25
+		TAIL += TALENT:(LOCAL:0):しっぽ * 25
+	ENDIF
 	IF LOCAL:5 >= 0
-		SIF TALENT:(LOCAL:5):動物耳
-			EAR += 35
-		SIF TALENT:(LOCAL:5):しっぽ
-			TAIL += 35
+		EAR += TALENT:(LOCAL:5):動物耳 * 45
+		TAIL += TALENT:(LOCAL:5):しっぽ * 45
 	ENDIF
 
 	IF LOCAL:6 >= 0
-		SIF TALENT:(LOCAL:6):動物耳
-			EAR += 35
-		SIF TALENT:(LOCAL:6):しっぽ
-			TAIL += 35
+		EAR += TALENT:(LOCAL:6):動物耳 * 45
+		TAIL += TALENT:(LOCAL:6):しっぽ * 45
 	ENDIF
-
-	SIF EAR > 0 && RAND:100 < EAR
-		TALENT:動物耳 = 1
-	SIF TAIL > 0 && RAND:100 < TAIL
-		TALENT:しっぽ = 1
+	TALENT:動物耳 = EAR > RAND:100
+	TALENT:しっぽ = TAIL > RAND:100
 ENDIF
 
 
 ;成長後の[幼稚]を退避し、固定で幼稚を付与
-TALENT:成長後幼稚 = TALENT:幼稚
+;Removed earlier genetic call for 132(Child's Mind)(幼稚)
+;now ancestry is factored in to the overall chance.
+;45% from mother, 45% from father, 25% bonus chance from ancestor.
+LOCAL:0 = LINEAGE_TO_FIXED(TARGET)
+LOCAL:1 = 0
+SIF LOCAL:0 >= 0
+	LOCAL:1 += (TALENT:(LOCAL:0):成長後幼稚 || (TALENT:(LOCAL:0):幼稚 && !TALENT:(LOCAL:0):幼児)) * 25
+SIF LOCAL:5 >= 0
+	LOCAL:1 += (TALENT:(LOCAL:5):成長後幼稚 || (TALENT:(LOCAL:5):幼稚 && !TALENT:(LOCAL:5):幼児)) * 45
+SIF LOCAL:6 >= 0
+	LOCAL:1 += (TALENT:(LOCAL:6):成長後幼稚 || (TALENT:(LOCAL:6):幼稚 && !TALENT:(LOCAL:6):幼児)) * 45
+TALENT:成長後幼稚 = LOCAL:1 > RAND:100
 TALENT:幼稚 = 1
 
 ;■敏鈍感素質の決定(ランダム性高め)
@@ -577,7 +583,8 @@ NEXT
 SIF 父 < 0
 	GOTO FATHER_CANCEL
 FOR LOCAL, 0, MAX_TAG
-	SIF TAG:父:LOCAL != -1 && RAND:2
+    ;modded to exclude Hourai Immortal from being inheritable. It makes no canon sense and unkillable children are really annyoing.
+	SIF TAG:父:LOCAL != -1 && RAND:2 && (TAG:父:LOCAL != タグ_蓬莱人)
 		CALL ADD_TAG(TARGET, TAG:父:LOCAL)
 NEXT
 
@@ -586,7 +593,7 @@ $FATHER_CANCEL
 SIF 母 < 0
 	RETURN
 FOR LOCAL, 0, MAX_TAG
-	SIF TAG:母:LOCAL != -1 && RAND:2
+	SIF TAG:母:LOCAL != -1 && RAND:2 && (TAG:母:LOCAL != タグ_蓬莱人)
 		CALL ADD_TAG(TARGET, TAG:母:LOCAL)
 NEXT
 

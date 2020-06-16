@@ -1,0 +1,106 @@
+﻿;-----------------------------------
+;基本値計算に先んじて処理するもの
+;-----------------------------------
+@SKILL_122_PERSONAL_1_EXIST
+RETURN 1
+
+@SKILL_122_PERSONAL_1_NAME
+RESULTS = ラブニードル
+
+;レベルは1-5まで
+@SKILL_122_PERSONAL_1_LEVEL
+RETURN SKILL_122_PERSONAL_1_CHECK_LEVEL()
+
+;対象選択
+@SKILL_122_PERSONAL_1_SETTARGET(発動者, 発動番号, 発動側, 発動勢力, 発動部隊, 対象勢力, 対象部隊)
+#DIM 発動者
+#DIM 発動番号
+#DIM スキル
+#DIMS ジャンル
+#DIM 発動側
+#DIM 発動勢力
+#DIM 発動部隊
+#DIM 対象側
+#DIM 対象勢力
+#DIM 対象部隊
+対象側 = !発動側
+RETURN 1
+
+;発動判定
+@SKILL_122_PERSONAL_1_CAN_INVOKE(発動者, 発動番号, 発動側, 発動勢力, 発動部隊, 対象勢力, 対象部隊)
+#DIM 発動者
+#DIM 発動番号
+#DIM スキル
+#DIMS ジャンル
+#DIM 発動側
+#DIM 発動勢力
+#DIM 発動部隊
+#DIM 対象側
+#DIM 対象勢力
+#DIM 対象部隊
+対象側 = !発動側
+RETURN CFLAG:発動者:好感度 > 500 && CFLAG:発動者:所属 == CFLAG:MASTER:所属
+
+;発動テキストをオーバライドしたいときに。
+;「誰それのスキル発動！　○○した！」の「○○した！」の部分を実装したい場合は、
+;これじゃなくてINVOKEで書けばいいです。
+;@SKILL_122_PERSONAL_1_INVOKE_TEXT(発動者, スキル, ジャンル)
+;#DIM 発動者
+;#DIM スキル
+;#DIMS ジャンル
+
+;効果をここに記述
+@SKILL_122_PERSONAL_1_INVOKE(発動者, 発動番号, 発動側, 発動勢力, 発動部隊, 対象勢力, 対象部隊)
+#DIM 発動者
+#DIM 発動番号
+#DIM スキル
+#DIMS ジャンル
+#DIM 発動側
+#DIM 発動勢力
+#DIM 発動部隊
+#DIM 対象側
+#DIM 対象勢力
+#DIM 対象部隊
+対象側 = !発動側
+PRINTFORML 愛の力で敵部隊にダメージ！
+CALL DECREASE_SOLDIER(対象勢力, 対象部隊, MIN(CFLAG:発動者:好感度 / 5, 3000), 1)
+
+@SKILL_122_PERSONAL_1_EXPLANATION
+RESULTS = 主人公がエレンと同一勢力である場合に発動。好感度に依存して敵部隊にダメージ。
+
+@SKILL_122_PERSONAL_1_CANT_TELL
+
+@SKILL_122_PERSONAL_1_CHECK_LEVEL()
+#FUNCTION
+LOCAL = NAME_TO_CHARA("エレン")
+SIF LOCAL < 0
+	RETURNF 0
+SELECTCASE CFLAG:LOCAL:好感度
+	CASE IS < 750
+		RETURNF 1
+	CASE IS < 2500
+		RETURNF 2
+	CASE IS < 7500
+		RETURNF 3
+	CASE IS < 15000
+		RETURNF 4
+	CASEELSE
+		RETURNF 5
+ENDSELECT
+RETURNF 1
+
+@SKILL_122_PERSONAL_1_IS_RATE_VARIABLE
+RETURN 1
+
+@SKILL_122_PERSONAL_1_RATE(発動者, 発動番号, 発動側, 発動勢力, 発動部隊, 対象勢力, 対象部隊)
+#DIM 発動者
+#DIM 発動番号
+#DIM スキル
+#DIMS ジャンル
+#DIM 発動側
+#DIM 発動勢力
+#DIM 発動部隊
+#DIM 対象側
+#DIM 対象勢力
+#DIM 対象部隊
+RETURN (150 + SKILL_122_PERSONAL_1_CHECK_LEVEL() * 20)

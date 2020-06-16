@@ -30,10 +30,50 @@ NEXT
 IF TRAINNAME:(ARG:0) != ""
 	;コマンドフィルタ
 	IF !COM_FILTER:(ARG:0)
-		;実行可否を判定
+		;Only check the currently selected category. Saves some processing time.
+        TRYCALLFORM COM_CATEGORY{ARG:0}
+		IF (RESULT != TFLAG:7) && (ARG:0 != 291)
+            RETURN 0
+		ENDIF
+		
+		;If a continuable action is already equipped with the same players and targets, make it selectable
+        ;Note: Doing this here instead of in each COM_ABLE means it works for the user, but not autoselect)
+        TRYCALLFORM COM_IS_EQUIP{ARG:0}
+            IF RESULT && COM_ALREADY_HAPPENING(ARG:0)
+                ;Non-repeatable continuable actions: Strap-on, strapon gag, condom, blindfold, rope, gag, nose hook, exposure play draw on body, shoot video, enema&plug, summon tentacles
+                IF GROUPMATCH(ARG:0, 50, 68, 75, 84, 85, 86, 93, 112, 114, 115, 142, 200)
+                    RETURN 0
+                ELSE
+                    RETURN 1
+                ENDIF
+            ENDIF
+        
+        IF FLAG:CANCELLING
+            ;clear out mequip, except for actions like "Summon Tentacles" that strictly enable other actions, which we move to the top
+            ;This way, we're only checking conditions like HAS_PENIS or IS_PLAYABLE instead of action-related conditions
+			LOCAL:4 = 0
+			FOR LOCAL, 0, MEQUIP_NUM
+				IF GROUPMATCH(MEQUIP:LOCAL, 50, 200)
+					CALL SWAP_MEQUIP(LOCAL, LOCAL:4)
+					LOCAL:4++
+				ENDIF
+			NEXT
+			LOCAL:5 = MEQUIP_NUM
+			MEQUIP_NUM = LOCAL:4
+        ENDIF
+        
+
 		COM_ENABLE = 1
 		TRYCALLFORM COM_ABLE{ARG:0}
 		COM_ENABLE = 0
+        ;Print the disabled actions - using this for debugging
+        ;SIF !RESULT && (ARG:0 < 250)
+        ;    PRINTFORM %ENTRAINNAME(ARG:0)%
+        
+        IF FLAG:CANCELLING
+			MEQUIP_NUM = LOCAL:5
+        ENDIF
+        
 		RETURN RESULT
 	ENDIF
 ENDIF
@@ -912,6 +952,9 @@ ELSEIF RESULT == 901 && GROUPMATCH(FLAG:調教モード, 調教_会う, 調教_�
 	FOR LOCAL:0, 0, CHARANUM
 		SIF IS_PARTICIPATE_TRAIN(LOCAL:0) == 0 || TCVAR:(LOCAL:0):53
 			CONTINUE
+		;★Skip enraged/otherwise escaped characters
+		SIF !GROUPMATCH(TCVAR:(LOCAL:0):53, 0, 1)
+			CONTINUE
 		;MASTERはプレイヤー
 		IF LOCAL:0 == MASTER
 			CALL ADD_MPLY(LOCAL:0)
@@ -924,6 +967,8 @@ ELSEIF RESULT == 901 && GROUPMATCH(FLAG:調教モード, 調教_会う, 調教_�
 	;LINES_TRAIN = LINECOUNT
 	RETURN 1
 
+ELSEIF RESULT == 902
+    FLAG:CANCELLING = !FLAG:CANCELLING
 ;EQUIP解除
 ELSEIF RESULT >= 1000 && RESULT <= 1049
 	REDRAW 0
@@ -951,6 +996,22 @@ ELSEIF RESULT == 999
 		CALL TRAIN_EXIT()
 	ENDIF
 	RETURN 1
+
+ELSEIF RESULT == 998
+
+SIF !(ITEM:不思議な懐中時計 > 0 && GROUPMATCH(FLAG:調教モード, 調教_閨, 調教_捕虜調教))
+	RETURN 0
+
+	
+	CALL COLOR_PRINTL("不思議な懐中時計が効果を発揮した！", カラー_注意)
+	ITEM:不思議な懐中時計 --
+	TFLAG:56 += 10
+	PRINTFORMW (残:{ITEM:不思議な懐中時計}個)
+RETURN 1
+
+ELSEIF RESULT == 997
+
+CALL CONFIG_HELPMENU
 
 ;★デバッグ
 ;ELSEIF RESULT >= 90000 && RESULT < 90099

@@ -937,7 +937,7 @@ FOR LOCAL:0, 0, BATTLE_COMMANDER_NUM:発動側
 	発動キャラ = BATTLE_COMMANDER:(発動側):(シャッフル保存:LOCAL)
 	SIF 発動キャラ < 0 || BATTLE_SKILL_SEALED:(発動側):(シャッフル保存:LOCAL) || BATTLE_SUMMONED_CHARA:(発動側):(シャッフル保存:LOCAL)
 		CONTINUE
-	CALL SKILL_COMBAT_INVOKE(発動キャラ, シャッフル保存:LOCAL, スキル_ジャンル_SP, 発動側, 発動勢力, 発動部隊, 対象勢力, 対象部隊)
+	CALL SKILL_COMBAT_INVOKE(発動キャラ, シャッフル保存:LOCAL, スキル_ジャンル_PERSONAL, 発動側, 発動勢力, 発動部隊, 対象勢力, 対象部隊)
 NEXT
 
 
@@ -979,7 +979,7 @@ FOR LOCAL:0, 0, BATTLE_COMMANDER_NUM:発動側
 	発動キャラ = BATTLE_COMMANDER:(発動側):(シャッフル保存:LOCAL)
 	SIF 発動キャラ < 0 || BATTLE_SKILL_SEALED:(発動側):(シャッフル保存:LOCAL) || BATTLE_SUMMONED_CHARA:(発動側):(シャッフル保存:LOCAL)
 		CONTINUE
-	CALL SKILL_COMBAT_INVOKE(発動キャラ, シャッフル保存:LOCAL, スキル_ジャンル_BASE, 発動側, 発動勢力, 発動部隊, 対象勢力, 対象部隊)
+	CALL SKILL_COMBAT_INVOKE(発動キャラ, シャッフル保存:LOCAL, スキル_ジャンル_TROOP, 発動側, 発動勢力, 発動部隊, 対象勢力, 対象部隊)
 NEXT
 
 ;-------------------------------------------------
@@ -1279,6 +1279,7 @@ NEXT
 #DIM 勝利部隊
 #DIM 敗北勢力
 #DIM 敗北部隊
+#DIM 対象
 
 ;勝利側・敗北側の勢力番号
 #DIM COUNTRY_W
@@ -1308,8 +1309,8 @@ FOR LOCAL, 0, BATTLE_COMMANDER_NUM:敗北側
 NEXT
 
 FOR LOCAL:0, 0, BATTLE_COMMANDER_NUM:敗北側
-	LOCAL:4 = BATTLE_COMMANDER:敗北側:LOCAL
-	SIF !CAN_CAPTURE(LOCAL:4)
+	対象 = BATTLE_COMMANDER:敗北側:LOCAL
+	SIF !CAN_CAPTURE(対象)
 		CONTINUE
 	CAPTURE_RATE:LOCAL += (300 - BATTLE_武闘:敗北側:LOCAL * 2 + BATTLE_知略:敗北側:LOCAL) * 10 / 3 / 3
 	CAPTURE_RATE:LOCAL += LIMIT(能力合計:勝利側 - 能力合計:敗北側, -200, 200)
@@ -1324,8 +1325,23 @@ FOR LOCAL:0, 0, BATTLE_COMMANDER_NUM:敗北側
 			;CAPTURE_RATE:LOCAL = LIMIT(CAPTURE_RATE:LOCAL, 10, 80)
 	ENDSELECT
 	;相手が特殊勢力で、その勢力に落ちている場合、ドチャクソ捕らえられやすくなる
-	SIF IS_SP_COUNTRY(COUNTRY_W) && GETBIT(TALENT:(LOCAL:4):特殊勢力陥落系, SP_COUNTRY_TO_CONST(COUNTRY_W))
-		CAPTURE_RATE:LOCAL = 800
+	;堕ちてなければ、特殊勢力の強さ設定に基づいて決める
+	IF IS_SP_COUNTRY(COUNTRY_W)
+		IF GETBIT(TALENT:(対象):特殊勢力陥落系, SP_COUNTRY_TO_CONST(COUNTRY_W))
+			CAPTURE_RATE:LOCAL = 800
+		ELSE
+			SELECTCASE SP_COUNTRY_RANK:SP_COUNTRY_TO_CONST(COUNTRY_W)
+				CASE 5
+					TIMES CAPTURE_RATE:LOCAL, 1.1
+				CASE 3
+					TIMES CAPTURE_RATE:LOCAL, 0.9
+				CASE 2
+					TIMES CAPTURE_RATE:LOCAL, 0.85
+				CASE 1
+					TIMES CAPTURE_RATE:LOCAL, 0.8
+			ENDSELECT
+		ENDIF
+	ENDIF
 NEXT
 
 ;勝利側・敗北側スキル使用

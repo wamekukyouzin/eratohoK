@@ -81,8 +81,6 @@ FOR 相手勢力, 0, MAX_COUNTRY
 		CONTINUE
 	SIF 勢力 == 相手勢力
 		CONTINUE
-	SIF IS_SP_COUNTRY(相手勢力)
-		CONTINUE
 	勢力リスト:勢力数 = 相手勢力
 	相手勢力君主 = GET_COUNTRY_BOSS(相手勢力)
 	関係性リスト:勢力数 = 1500 + REL_LIKE:君主:相手勢力君主 - REL_HATE:君主:相手勢力君主 - DIPLOMACY_HATE:相手勢力 * (相手勢力 == CFLAG:MASTER:所属 ? 50 # 30)
@@ -193,23 +191,23 @@ FOR 計画, 0, MIN(AI_DIPLOMACY_PROPERTY:(COUNTRY_AI_TYPE:勢力):AI_外交_行�
 ;							AI_DIPLOMACY_PLAN:勢力:計画 = AI_外交計画_同盟
 ;					ENDSELECT
 ;				ELSE
-					SELECTCASE RAND:100
+			SELECTCASE RAND:100
 ;					;IFRAND("0TO59", 1, "60TO89", 関係性リスト:勢力インデックス < 1200, "90TO99", 関係性リスト:勢力インデックス < 900)
-						CASE 0 TO 69
-							AI_DIPLOMACY_PLAN:勢力:計画 = AI_外交計画_会談
-						CASE 70 TO 79
-							IF DIPLOMACY_HATE:勢力 <= RAND(10, 15) && (相手勢力 != CFLAG:MASTER:所属 || (!IS_LOVER(君主) && !IS_SLAVE(君主)))
-								AI_DIPLOMACY_PLAN:勢力:計画 = AI_外交計画_悪評
-							ELSE
-								CALL CLEAR_AI_DIPLOMACY_PLAN(勢力, 相手勢力)
-							ENDIF
-						CASE 80 TO 99
-							AI_DIPLOMACY_PLAN:勢力:計画 = AI_外交計画_要求
-					ENDSELECT
+				CASE 0 TO 69
+					AI_DIPLOMACY_PLAN:勢力:計画 = AI_外交計画_会談
+				CASE 70 TO 79
+					IF DIPLOMACY_HATE:勢力 <= RAND(10, 15) && (相手勢力 != CFLAG:MASTER:所属 || (!IS_LOVER(君主) && !IS_SLAVE(君主)))
+						AI_DIPLOMACY_PLAN:勢力:計画 = AI_外交計画_悪評
+					ELSE
+						CALL CLEAR_AI_DIPLOMACY_PLAN(勢力, 相手勢力)
+					ENDIF
+				CASE 80 TO 99
+					AI_DIPLOMACY_PLAN:勢力:計画 = AI_外交計画_要求
+			ENDSELECT
 ;				ENDIF
 	ENDSELECT
-	;同盟ないし停戦は、連合参加国と討伐対象の関係にある場合は会談に書き換える
-	IF GROUPMATCH(AI_DIPLOMACY_PLAN:勢力:計画, AI_外交計画_同盟, AI_外交計画_停戦) && GROUPMATCH(TREATY_U_TARGET:0, 勢力, 相手勢力)
+	;同盟ないし停戦は、対象勢力が特殊勢力、ないし連合参加国と討伐対象の関係にある場合は会談に書き換える
+	IF IS_SP_COUNTRY(相手勢力) || (GROUPMATCH(AI_DIPLOMACY_PLAN:勢力:計画, AI_外交計画_同盟, AI_外交計画_停戦) && GROUPMATCH(TREATY_U_TARGET:0, 勢力, 相手勢力))
 		FOR LOCAL, 0, MAX_TREATY_COUNTRY
 			IF TREATY_U_COUNTRY:0:LOCAL == (TREATY_U_TARGET:0 == 勢力 ? 相手勢力 # 勢力)
 				AI_DIPLOMACY_PLAN:勢力:計画 = AI_外交計画_会談
@@ -566,6 +564,8 @@ SELECTCASE IFRAND("0TO49", 1, "50TO79", DIPLOMACY_REQUEST_CHECK(勢力, 相手�
 			士官:士官数 = LOCAL
 			士官数 ++
 		NEXT
+		SIF 士官数 == 0
+			RETURN
 		効果量 = 士官:(RAND:士官数)
 		効果量文字列 = %ANAME(効果量)%
 ENDSELECT

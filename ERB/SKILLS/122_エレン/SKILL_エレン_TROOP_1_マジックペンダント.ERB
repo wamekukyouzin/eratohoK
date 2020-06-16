@@ -1,0 +1,117 @@
+﻿;-----------------------------------
+;基本値計算に先んじて処理するもの
+;-----------------------------------
+@SKILL_122_TROOP_1_EXIST
+RETURN 1
+
+@SKILL_122_TROOP_1_NAME
+RESULTS = マジックペンダント
+
+;レベルは1-5まで
+@SKILL_122_TROOP_1_LEVEL
+RETURN SKILL_122_TROOP_1_CHECK_LEVEL()
+
+;対象選択
+@SKILL_122_TROOP_1_SETTARGET(発動者, 発動番号, 発動側, 発動勢力, 発動部隊, 対象勢力, 対象部隊)
+#DIM 発動者
+#DIM 発動番号
+#DIM スキル
+#DIMS ジャンル
+#DIM 発動側
+#DIM 発動勢力
+#DIM 発動部隊
+#DIM 対象側
+#DIM 対象勢力
+#DIM 対象部隊
+;自部隊対象
+RETURN 1
+
+;発動判定
+@SKILL_122_TROOP_1_CAN_INVOKE(発動者, 発動番号, 発動側, 発動勢力, 発動部隊, 対象勢力, 対象部隊)
+#DIM 発動者
+#DIM 発動番号
+#DIM スキル
+#DIMS ジャンル
+#DIM 発動側
+#DIM 発動勢力
+#DIM 発動部隊
+#DIM 対象側
+#DIM 対象勢力
+#DIM 対象部隊
+対象側 = !発動側
+RETURN CFLAG:発動者:好感度 > 500 && CFLAG:発動者:所属 == CFLAG:MASTER:所属
+
+;効果をここに記述
+@SKILL_122_TROOP_1_INVOKE(発動者, 発動番号, 発動側, 発動勢力, 発動部隊, 対象勢力, 対象部隊)
+#DIM 発動者
+#DIM 発動番号
+#DIM スキル
+#DIMS ジャンル
+#DIM 発動側
+#DIM 発動勢力
+#DIM 発動部隊
+#DIM 対象側
+#DIM 対象勢力
+#DIM 対象部隊
+対象側 = !発動側
+PRINTFORM 想いが力となり部隊の攻撃力と防御力が増加！
+SELECTCASE SKILL_122_TROOP_1_CHECK_LEVEL()
+	CASE 1
+		TIMES BATTLE_ATK:発動側, 1.01
+		TIMES BATTLE_DEF:発動側, 1.01
+	CASE 2
+		TIMES BATTLE_ATK:発動側, 1.02
+		TIMES BATTLE_DEF:発動側, 1.02
+	CASE 3
+		TIMES BATTLE_ATK:発動側, 1.03
+		TIMES BATTLE_DEF:発動側, 1.03
+	CASE 4
+		TIMES BATTLE_ATK:発動側, 1.10
+		TIMES BATTLE_DEF:発動側, 1.10
+	CASE 5
+		TIMES BATTLE_ATK:発動側, 1.15
+		TIMES BATTLE_DEF:発動側, 1.15
+		;最高レベル時限定で疲労度も回復させる
+		IF 発動部隊 >= 0
+			PRINTFORM 　さらに部隊の疲労度を回復！
+			UNIT_TIRED_COUNT:発動勢力:発動部隊 = MAX(UNIT_TIRED_COUNT:発動勢力:発動部隊 - 3, 0)
+		ENDIF
+ENDSELECT
+PRINTL 
+
+@SKILL_122_TROOP_1_EXPLANATION
+RESULTS = 主人公がエレンと同一勢力である場合に発動。好感度に依存して部隊の攻撃力と防御力を増加させる。
+
+@SKILL_122_TROOP_1_CANT_TELL
+
+@SKILL_122_TROOP_1_CHECK_LEVEL()
+#FUNCTION
+LOCAL = NAME_TO_CHARA("エレン")
+SIF LOCAL < 0
+	RETURNF 1
+SELECTCASE CFLAG:LOCAL:好感度
+	CASE IS < 750
+		RETURNF 1
+	CASE IS < 2500
+		RETURNF 2
+	CASE IS < 10000
+		RETURNF 3
+	CASE IS < 30000
+		RETURNF 4
+	CASEELSE
+		RETURNF 5
+ENDSELECT
+RETURNF 1
+
+@SKILL_122_TROOP_1_RATE(発動者, 発動番号, 発動側, 発動勢力, 発動部隊, 対象勢力, 対象部隊)
+#DIM 発動者
+#DIM 発動番号
+#DIM スキル
+#DIMS ジャンル
+#DIM 発動側
+#DIM 発動勢力
+#DIM 発動部隊
+#DIM 対象側
+#DIM 対象勢力
+#DIM 対象部隊
+RETURN (50 + SKILL_122_PERSONAL_1_CHECK_LEVEL() * 20)

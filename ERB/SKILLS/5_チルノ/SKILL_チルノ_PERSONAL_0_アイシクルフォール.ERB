@@ -1,0 +1,130 @@
+﻿;-----------------------------------
+;氷符「アイシクルフォール」
+;チルノの三能力合計で威力・発動率が変動する
+;LUNATICは強力だが、HARDが解禁されるくらいチルノが育つ頃にはもうゲームが終わっている。
+;ロマン技である。
+;-----------------------------------
+@SKILL_5_PERSONAL_0_EXIST
+RETURN 1
+
+@SKILL_5_PERSONAL_0_NAME
+SELECTCASE SKILL_5_PERSONAL_0_CHECK_POWER()
+	CASE 1
+		RESULTS = アイシクルフォール -EASY-
+	CASE 2
+		RESULTS = アイシクルフォール -NORMAL-
+	CASE 3
+		RESULTS = アイシクルフォール -HARD-
+	CASE 4
+		RESULTS = アイシクルフォール -LUNATIC-
+	CASEELSE
+		RESULTS = アイシクルフォール -EASY-
+ENDSELECT
+
+;能力次第でレベルを変動させる
+;2-5
+@SKILL_5_PERSONAL_0_LEVEL
+RETURN SKILL_5_PERSONAL_0_CHECK_POWER() + 1
+
+;対象選択
+@SKILL_5_PERSONAL_0_SETTARGET(発動者, 発動番号, 発動側, 発動勢力, 発動部隊, 対象勢力, 対象部隊)
+#DIM 発動者
+#DIM 発動番号
+#DIM スキル
+#DIMS ジャンル
+#DIM 発動側
+#DIM 発動勢力
+#DIM 発動部隊
+#DIM 対象側
+#DIM 対象勢力
+#DIM 対象部隊
+;敵部隊対象
+RETURN 1
+
+;発動判定
+@SKILL_5_PERSONAL_0_CAN_INVOKE(発動者, 発動番号, 発動側, 発動勢力, 発動部隊, 対象勢力, 対象部隊)
+#DIM 発動者
+#DIM 発動番号
+#DIM スキル
+#DIMS ジャンル
+#DIM 発動側
+#DIM 発動勢力
+#DIM 発動部隊
+#DIM 対象側
+#DIM 対象勢力
+#DIM 対象部隊
+対象側 = !発動側
+RETURN 1
+
+;効果をここに記述
+@SKILL_5_PERSONAL_0_INVOKE(発動者, 発動番号, 発動側, 発動勢力, 発動部隊, 対象勢力, 対象部隊)
+#DIM 発動者
+#DIM 発動番号
+#DIM スキル
+#DIMS ジャンル
+#DIM 発動側
+#DIM 発動勢力
+#DIM 発動部隊
+#DIM 対象側
+#DIM 対象勢力
+#DIM 対象部隊
+対象側 = !発動側
+SELECTCASE SKILL_5_PERSONAL_0_CHECK_POWER()
+	CASE 0, 1
+		LOCAL:3 = 0
+		LOCAL:4 = 0
+	CASE 2
+		LOCAL:3 = 6
+		LOCAL:4 = 500
+	CASE 3
+		LOCAL:3 = 12
+		LOCAL:4 = 1500
+	CASE 4
+		LOCAL:3 = 20
+		LOCAL:4 = 2500
+ENDSELECT
+PRINTFORML 敵部隊にダメージ！
+SIF GROUPMATCH(SKILL_5_PERSONAL_0_CHECK_POWER(), 0, 1)
+	PRINTFORML ……だが、正面が安全地帯だった！
+CALL DECREASE_SOLDIER(対象勢力, 対象部隊, MAX(GET_SOLDIER(対象勢力, 対象部隊) * LOCAL:3 / 100, LOCAL:4), 1)
+
+
+@SKILL_5_PERSONAL_0_EXPLANATION
+RESULTS = 敵部隊にダメージ。
+
+@SKILL_5_PERSONAL_0_CANT_TELL
+
+@SKILL_5_PERSONAL_0_CHECK_POWER
+#FUNCTION
+#DIM チルノ
+チルノ = NAME_TO_CHARA("チルノ")
+SIF チルノ == -1
+	RETURNF 0
+SELECTCASE ABL:チルノ:武闘 + ABL:チルノ:知略 + ABL:チルノ:政治 + ABL:チルノ:防衛
+	CASE IS < 150
+		RETURNF 1
+	CASE IS < 250
+		RETURNF 2
+	CASE IS < 300
+		RETURNF 3
+	CASEELSE
+		RETURNF 4
+ENDSELECT
+
+@SKILL_5_PERSONAL_0_IS_RATE_VARIABLE
+RETURN 1
+
+@SKILL_5_PERSONAL_0_RATE(発動者, 発動番号, 発動側, 発動勢力, 発動部隊, 対象勢力, 対象部隊)
+#DIM 発動者
+#DIM 発動番号
+#DIM スキル
+#DIMS ジャンル
+#DIM 発動側
+#DIM 発動勢力
+#DIM 発動部隊
+#DIM 対象側
+#DIM 対象勢力
+#DIM 対象部隊
+RETURN (150 + SKILL_5_PERSONAL_0_CHECK_POWER() * 20)
+
+

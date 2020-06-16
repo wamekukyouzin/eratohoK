@@ -15,7 +15,6 @@ RESULTS:5 = 足舐め見せつけ
 ;選択可否判定
 ;-------------------------------------------------
 @COM_ABLE104
-#DIM COM_ABLE_L_COUNTER
 ;共通部分
 CALL COM_ABLE_COMMON(104)
 SIF RESULT == 0
@@ -36,57 +35,46 @@ SIF MPLY_NUM == 2 && MTAR_NUM == 2
 LOCAL:5 = 0
 LOCAL:6 = 0
 ;全てのプレイヤーについて判定
-FOR COM_ABLE_L_COUNTER, 0, MPLY_NUM
+FOR LOCAL:0, 0, MPLY_NUM
 	;顔面騎乗されているなら不可
-	SIF IS_RIDDEN(MPLY:COM_ABLE_L_COUNTER)
+	SIF IS_RIDDEN(MPLY:(LOCAL:0))
 		RETURN 0
 	;口枷装着中なら不可
-	SIF IS_EQUIP_TARGET(MPLY:COM_ABLE_L_COUNTER, 86)
-		RETURN 0
-	;キス中なら不可
-	SIF IS_EQUIP(MPLY:COM_ABLE_L_COUNTER, 20)
-		RETURN 0
-	;フェラ・パイズリ・亀頭フェラ中なら不可
-	SIF IS_EQUIP_PLAYER(MPLY:COM_ABLE_L_COUNTER, GET_TRAINNUM("フェラチオ"), GET_TRAINNUM("パイズリ"), GET_TRAINNUM("亀頭責めフェラ"))
-		RETURN 0
-	;イラマ・触手口辱されているなら不可
-	SIF IS_EQUIP_TARGET(MPLY:COM_ABLE_L_COUNTER, GET_TRAINNUM("イラマチオ"), GET_TRAINNUM("触手口辱"))
+	SIF IS_M_HOLD(MPLY:(LOCAL:0))
 		RETURN 0
 	;拘束のチェック
-	SIF IS_BIND(MPLY:COM_ABLE_L_COUNTER)
+	SIF IS_BIND(MPLY:(LOCAL:0))
 		LOCAL:5 = 1
-	;全てのターゲットについて判定
-	FOR LOCAL:1, 0, MTAR_NUM
-		;ターゲットからプレイヤーに尻コキ中なら不可
-		SIF SEARCH_EQUIP(15, MTAR:(LOCAL:1), MPLY:COM_ABLE_L_COUNTER) >= 0
-			RETURN 0
-		;プレイヤーがターゲットのＶに挿入中で体位が背面座位以外
-		SIF GET_SEX_POSITION_SINGLE(MTAR:(LOCAL:1), "Ｖ") == 2 && IS_INSERT_MUTUAL(MPLY:COM_ABLE_L_COUNTER, MTAR:(LOCAL:1)) != 4
-			RETURN 0
-		;プレイヤータゲ―ゲットのＡに挿入中
-		SIF GET_SEX_POSITION_SINGLE(MTAR:(LOCAL:1), "Ａ") == 2 && IS_INSERT_MUTUAL(MPLY:COM_ABLE_L_COUNTER, MTAR:(LOCAL:1)) != 4
-			RETURN 0
-	NEXT
 NEXT
 ;全てのターゲットについて判定
-FOR COM_ABLE_L_COUNTER, 0, MTAR_NUM
-	;顔面騎乗されているなら不可
-	SIF IS_RIDDEN(MTAR:COM_ABLE_L_COUNTER)
-		RETURN 0
-	;ターゲットのペニスが使用中は四足動物以外不可
-	SIF IS_INSERT_SINGLE(MTAR:COM_ABLE_L_COUNTER, "Ｐ") && !IS_QUADORUPED_ANIMAL(MTAR:COM_ABLE_L_COUNTER)
-		RETURN 0
-	;キス中なら不可
-	SIF IS_EQUIP(MTAR:COM_ABLE_L_COUNTER, GET_TRAINNUM("キス"))
-		RETURN 0
-	;拘束のチェック
-	SIF IS_BIND(MTAR:COM_ABLE_L_COUNTER)
+FOR LOCAL:0, 0, MTAR_NUM
+	SIF IS_BIND(MTAR:(LOCAL:0))
 		LOCAL:6 = 1
 NEXT
 
 ;プレイヤーとターゲットが両方拘束されていれば不可
 SIF LOCAL:5 && LOCAL:6
 	RETURN 0
+    
+FOR LOCAL:0, 0, MPLY_NUM
+    FOR LOCAL:1, 0, MTAR_NUM
+    	;giving/receiving trample or buttjob
+		SIF SEARCH_EQUIP_IC_M(MTAR:(LOCAL:1), MPLY:(LOCAL:0), 15, 103) >= 0
+			RETURN 0
+    	;player getting footjob from target
+		SIF SEARCH_EQUIP(14, MTAR:(LOCAL:1), MPLY:(LOCAL:0)) >= 0
+			RETURN 0
+        ;mutual insertion is allowed only for the player being fucked by the target in the backwards sitting position, or tribadism/doubledildo
+        SIF IS_INSERT_MUTUAL(MPLY:(LOCAL:0), MTAR:(LOCAL:1)) > 0 && (GET_SEX_POSITION(MTAR:(LOCAL:1), MPLY:(LOCAL:0)) != 4) && (GET_SEX_POSITION(MTAR:(LOCAL:1), MPLY:(LOCAL:0)) != 20) && (GET_SEX_POSITION(MPLY:(LOCAL:0), MTAR:(LOCAL:1)) != 20)
+            RETURN 0
+        SIF REACHING_BODY(MPLY:(LOCAL:0), MTAR:(LOCAL:1)) || REACHING_BODY(MTAR:(LOCAL:1), MPLY:(LOCAL:0))
+            RETURN 0
+        SIF LICKING_GROIN(MPLY:(LOCAL:0), MTAR:(LOCAL:1)) || LICKING_GROIN(MTAR:(LOCAL:1), MPLY:(LOCAL:0))
+            RETURN 0
+        SIF LICKING_BODY(MPLY:(LOCAL:0), MTAR:(LOCAL:1)) || LICKING_BODY(MTAR:(LOCAL:1), MPLY:(LOCAL:0))
+            RETURN 0
+    NEXT
+NEXT
 RETURN 1
 
 ;-------------------------------------------------
@@ -98,13 +86,6 @@ CALL COM_ORDER_COMMON
 SIF RESULT == 0
 	RETURN 0
 
-;足コキ・電気按摩を解除
-FOR LOCAL:0, 0, MPLY_NUM
-	FOR LOCAL:1, 0, MTAR_NUM
-		CALL RELEASE_EQUIP_EX(14, MTAR:(LOCAL:1), MPLY:(LOCAL:0))
-		CALL RELEASE_EQUIP_EX(103, MTAR:(LOCAL:1), MPLY:(LOCAL:0))
-	NEXT
-NEXT
 
 ;●全プレイヤーについて処理
 FOR LOCAL:0, 0, MPLY_NUM
@@ -295,6 +276,8 @@ ELSE
 ENDIF
 IF TALENT:(MTAR:0):美脚
 	LOCALS:3 = すらりとした美しい
+ELSEIF TALENT:(MPLY:0):体格 < 0
+	LOCALS:3 = %SPLIT_RAND("愛くるしい/可愛らしい/未成熟な/小さな/柔らかな", 1)%
 ELSE
 	LOCALS:3 =
 ENDIF

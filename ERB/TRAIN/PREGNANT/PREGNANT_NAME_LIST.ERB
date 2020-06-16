@@ -130,6 +130,34 @@ NEXT
 ;指定した固定キャラ間に兄弟・姉妹の関係を設定
 ;-------------------------
 @SET_SIBLING_RELATION(ARG:0 = -1, ARG:1 = -1, ARG:2 = -1, ARG:3 = -1, ARG:4 = -1, ARG:5 = -1, ARG:6 = -1, ARG:7 = -1, ARG:8 = -1, ARG:9 = -1)
+
+
+;Look for existing fathers/mothers
+LOCAL:5 = 0
+LOCAL:6 = 0
+FOR LOCAL:1, 0, 10
+	SIF ARG:(LOCAL:1) == -1
+		BREAK
+	SIF CFLAG:(ARG:(LOCAL:1)):父親 > 0 && !LOCAL:5
+		LOCAL:5 = CFLAG:(ARG:(LOCAL:1)):父親
+	SIF CFLAG:(ARG:(LOCAL:1)):母親 > 0 && !LOCAL:6
+		LOCAL:6 = CFLAG:(ARG:(LOCAL:1)):母親
+NEXT
+;Copy the first one found onto all characters
+FOR LOCAL:1, 0, 10
+	SIF ARG:(LOCAL:1) == -1
+		BREAK
+	SIF LOCAL:5 > 0
+		CFLAG:(ARG:(LOCAL:1)):父親 = LOCAL:5
+	SIF LOCAL:6 > 0
+		CFLAG:(ARG:(LOCAL:1)):母親 = LOCAL:6
+NEXT
+
+;If one was found, the characters are now at least half-siblings. We return.
+SIF LOCAL:5 || LOCAL:6
+	RETURN 0
+
+;Otherwise, generate a unique sperm named "Unknown" and use that as both their parents
 FOR LOCAL, 0, SPERM_MAX_ADDRESS
 	IF SPERM_NAME_ARRAY:LOCAL == ""
 		LOCAL:2 = LOCAL
@@ -146,8 +174,6 @@ BROTHER_SPERM_FLAG:(LOCAL:2) = 1
 FOR LOCAL:1, 0, 10
 	SIF ARG:(LOCAL:1) == -1
 		BREAK
-	SIF !IS_FIXED_CHARA(ARG:(LOCAL:1))
-		THROW SET_SIBLING_RELATIONに渡せるのは固定キャラのみです
 	CFLAG:(ARG:(LOCAL:1)):父親 = LOCAL:2 * -1
 	CFLAG:(ARG:(LOCAL:1)):母親 = LOCAL:2 * -1
 NEXT
