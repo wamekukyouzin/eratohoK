@@ -455,9 +455,9 @@ IF CHECK_UPDATE("1.24.0")
 	PRINTFORML + 英語版から多数の変更を取り込み
 	PRINTFORML + 特殊勢力の性能調整
 	PRINTFORML + 高能力のキャラはより強く扱われるように
-	CALL ADD_CHARA_FROM_CSV(157)
-	CALL CHANGE_COUNTRY(RESULT)
 	CALL ADD_CHARA_FROM_CSV(158)
+	CALL CHANGE_COUNTRY(RESULT)
+	CALL ADD_CHARA_FROM_CSV(159)
 	CALL CHANGE_COUNTRY(RESULT)
 	IF MAPID == "DEFAULT"
 		CALL COLOR_PRINTW("注意！", カラー_注意)
@@ -471,6 +471,41 @@ IF CHECK_UPDATE("1.24.0")
 		ENDIF
 	ENDIF
 ENDIF
+
+IF CHECK_UPDATE("1.24.1")
+	IF LASTLOAD_VERSION == GET_VERSION_VALUE("1.24.0")
+		FOR LOCAL, CHARANUM - 1, 0, -1
+			IF CSTR:LOCAL:99 == "早鬼"
+				;削除されるキャラを初体験とする
+				;キャラの削除
+				DELCHARA LOCAL
+				;REL_LIKE、REL_HATEの修正
+				FOR LOCAL:1, 0, CHARANUM
+					FOR LOCAL:2, LOCAL, CHARANUM
+						REL_LIKE:(LOCAL:1):(LOCAL:2) = REL_LIKE:(LOCAL:1):(LOCAL:2 + 1)
+						REL_HATE:(LOCAL:1):(LOCAL:2) = REL_HATE:(LOCAL:1):(LOCAL:2 + 1)
+					NEXT
+					REL_LIKE:(LOCAL:1):CHARANUM = 0
+					REL_HATE:(LOCAL:1):CHARANUM = 0
+				NEXT
+				CALL COLOR_PRINTW("WARNING!", カラー_警告)
+				PRINTFORMW 1.23.X以前から1.24.0にアップデートしたときに生じた、「早鬼増殖バグ」を検知しました
+				PRINTFORMW 増殖したほうとおぼしき早鬼は削除しましたが、もしかしたら勢力周りで不具合が生じるかもしれません
+				PRINTFORMW お手数ですが、念のため周回することをお勧めします
+				PRINTFORMW 周回用セーブを作成しますか？
+				CALL ASK_YN()
+				IF RESULT == 1
+				ELSE
+					強制引き継ぎフラグ = 1
+				ENDIF
+				BREAK
+			ENDIF
+		NEXT
+		CALL ADD_CHARA_FROM_CSV(159)
+		CALL CHANGE_COUNTRY(RESULT)
+	ENDIF
+ENDIF
+
 
 IF 強制引き継ぎフラグ
 	FLAG:クリア直後フラグ = 1
