@@ -1,4 +1,4 @@
-﻿;---------------------------
+;---------------------------
 ;対象キャラが対象勢力による調教でFORCE_FUCKされたときに、CFLAGが減少するか
 ;---------------------------
 @SP_TRAIN_IS_DECREASE_CFLAG(対象, 勢力番号)
@@ -159,25 +159,47 @@ RETURNF 0
 ;---------------------------------------------------
 ;蜂起するか判定する汎用関数
 ;---------------------------------------------------
-@CHECK_SP_COUNTRY_RISE()
+@CHECK_SP_COUNTRY_RISE(勢力定数)
 #FUNCTION
-#DIM 勢力数
 #DIM 基礎確率
+#DIM 勢力定数
+#DIM 最大都市数
+#DIM 特殊勢力数
 
-基礎確率 = 50
-勢力数 = 0
+基礎確率 = 30
+特殊勢力数 = 0
 
 SIF DAY < SLG_PP:1
 	RETURNF 0
 
-基礎確率 += (DAY - SLG_PP:1) * 10
+FOR LOCAL, 1, MAX_COUNTRY
+	SIF !IS_COUNTRY(LOCAL)
+		CONTINUE
+	最大都市数 = MAX(最大都市数, GET_OWN_CITY(LOCAL))
+NEXT
+
+基礎確率 += 最大都市数 * 2
+
+SELECTCASE SP_COUNTRY_RANK:勢力定数
+	CASE 1
+		基礎確率 = 基礎確率 * 150 / 100
+	CASE 2
+		基礎確率 = 基礎確率 * 125 / 100
+	CASE 3
+		基礎確率 = 基礎確率 * 100 / 100
+	CASE 4
+		基礎確率 = 基礎確率 * 60 / 100
+	CASE 5
+		基礎確率 = 基礎確率 * 45 / 100
+ENDSELECT
 
 FOR LOCAL, 0, MAX_COUNTRY
 	SIF IS_SP_COUNTRY(LOCAL) && COUNTRY_EVENT_ID:LOCAL != SP_COUNTRY_ID:特殊勢力_野盗
-		勢力数 ++
+		特殊勢力数 ++
 NEXT
 
-基礎確率 /= (勢力数 + 1)
+SIF DAY % 10 == 0
+	基礎確率 += 100
 
 RETURNF 基礎確率 > RAND:1000
 
