@@ -718,39 +718,51 @@ RETURNF -1
 ;-------------------------------------------------
 ;渡された勢力にAIタイプを設定する
 ;-------------------------------------------------
-@SET_COUNTRY_AI_TYPE(ARG:0)
+@SET_COUNTRY_AI_TYPE(勢力)
+#DIM 勢力
 #DIM 君主
 #DIM 能力, 4
 #DIM ソート, 4
-君主 = GET_COUNTRY_BOSS(ARG:0)
+君主 = GET_COUNTRY_BOSS(勢力)
 
 能力:0 = ABL:君主:武闘
 能力:1 = ABL:君主:防衛
 能力:2 = ABL:君主:知略
 能力:3 = ABL:君主:政治
 
+
 ;最高値を求めるだけならFINDELEMENT(MAXARRAY)で十分なんだが
 ARRAYCOPY "能力", "ソート"
 ARRAYSORT ソート, BACK
 
-IF ソート:0 < ソート:1 + 7
-	COUNTRY_AI_TYPE:(ARG:0) = AI_通常
+;知略政治が両方60以上でワンツーフィニッシュしてるなら外交か内政
+IF GROUPMATCH(ソート:0, ABL:君主:知略, ABL:君主:政治) && GROUPMATCH(ソート:1, ABL:君主:知略, ABL:君主:政治) && ソート:1 > 60
+	IF ABL:君主:知略 > ABL:君主:政治
+		COUNTRY_AI_TYPE:勢力 = AI_外交
+	ELSE
+		COUNTRY_AI_TYPE:勢力 = AI_内政
+	ENDIF
 ELSEIF ソート:0 == ABL:君主:武闘 && ABL:君主:武闘 > ABL:君主:知略 + 30
-	COUNTRY_AI_TYPE:(ARG:0) = AI_蛮行
+	COUNTRY_AI_TYPE:勢力 = AI_蛮行
+;1位と2位のあいだの差が小さければ通常
+ELSEIF ソート:0 < ソート:1 + 5
+	COUNTRY_AI_TYPE:勢力 = AI_通常
+;武闘が一番高い場合は好戦。ただし防衛が2位のとき、10以上差が無ければ防衛になる
 ELSEIF ソート:0 == ABL:君主:武闘
 	IF ソート:1 == ABL:君主:防衛 && ソート:0 < ソート:1 + 10
-		COUNTRY_AI_TYPE:(ARG:0) = AI_防衛
+		COUNTRY_AI_TYPE:勢力 = AI_防衛
 	ELSE
-		COUNTRY_AI_TYPE:(ARG:0) = AI_好戦
+		COUNTRY_AI_TYPE:勢力 = AI_好戦
 	ENDIF
+;あとは最大能力を参照
 ELSEIF ソート:0 == ABL:君主:防衛
-	COUNTRY_AI_TYPE:(ARG:0) = AI_防衛
+	COUNTRY_AI_TYPE:勢力 = AI_防衛
 ELSEIF ソート:0 == ABL:君主:知略
-	COUNTRY_AI_TYPE:(ARG:0) = AI_外交
+	COUNTRY_AI_TYPE:勢力 = AI_外交
 ELSEIF ソート:0 == ABL:君主:政治
-	COUNTRY_AI_TYPE:(ARG:0) = AI_内政
+	COUNTRY_AI_TYPE:勢力 = AI_内政
 ELSE 
-	COUNTRY_AI_TYPE:(ARG:0) = AI_通常
+	COUNTRY_AI_TYPE:勢力 = AI_通常
 ENDIF
 
 ;-------------------------------------------------
