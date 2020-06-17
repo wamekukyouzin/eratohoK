@@ -24,8 +24,8 @@ SIF RESULT == 0
 ;プレイヤーは最大で1人まで
 SIF MPLY_NUM <= 0 || MPLY_NUM > 1
 	RETURN 0
-;ターゲットは最大で1人まで
-SIF MTAR_NUM <= 0 || MTAR_NUM > 1
+;ターゲットは一人以上
+SIF MTAR_NUM <= 0
 	RETURN 0
 ;プレイヤーが行動不能なら不可
 SIF !IS_PLAYABLE(MPLY:0)
@@ -64,27 +64,31 @@ CALL ADD_SOURCE_INITIATIVE_U(MPLY:0, 30, 20)
 ;●ターゲット側の処理
 LOCAL:4 = 80
 
-SELECTCASE ABL:(LOCAL:2):排泄
-	CASE 0
-		TIMES LOCAL:4, 1.00
-	CASE 1
-		TIMES LOCAL:4, 0.60
-	CASE 2
-		TIMES LOCAL:4, 0.25
-	CASE 3
-		TIMES LOCAL:4, 0.05
-	CASEELSE
-		LOCAL:4 = 0
-ENDSELECT
+FOR LOCAL, 0, MTAR_NUM
+	LOCAL:2 = MTAR:LOCAL
 
-SOURCE:(MTAR:0):逸脱 = 100
-SOURCE:(MTAR:0):反感 = LOCAL:4
+	SELECTCASE ABL:(LOCAL:2):排泄
+		CASE 0
+			TIMES LOCAL:4, 1.00
+		CASE 1
+			TIMES LOCAL:4, 0.60
+		CASE 2
+			TIMES LOCAL:4, 0.25
+		CASE 3
+			TIMES LOCAL:4, 0.05
+		CASEELSE
+			LOCAL:4 = 0
+	ENDSELECT
 
-;利尿剤仕様フラグをON
-TCVAR:(MTAR:0):62 = 1
+	SOURCE:(LOCAL:2):逸脱 = 100
+	SOURCE:(LOCAL:2):反感 = LOCAL:4
 
-;主導権に応じた優越・屈従のソース追加
-CALL ADD_SOURCE_INITIATIVE_U(MTAR:0, 30, 40)
+	;利尿剤仕様フラグをON
+	TCVAR:(LOCAL:2):62 = 1
+
+	;主導権に応じた優越・屈従のソース追加
+	CALL ADD_SOURCE_INITIATIVE_U(LOCAL:2, 30, 40)
+NEXT
 
 ;主導度変化基準値
 TFLAG:49 = 1
@@ -134,15 +138,15 @@ RETURN 1
 SELECTCASE GET_COM_INITIATIVE()
 	;プレイヤーに主導権
 	CASE 0
-		PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%に利尿剤を飲ませ%TARGET_STR("た", "てきた")%…
+		PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0, MTAR_NUM)%に利尿剤を飲ませ%TARGET_STR("た", "てきた")%…
 	;ターゲットに主導権
 	CASE 1
-		PRINTFORML %ANAME(MTAR:0)%は%ANAME(MPLY:0)%に利尿剤を飲ませるように命令した
-		PRINTFORMW %ANAME(MPLY:0)%は言われるまま%ANAME(MTAR:0)%の口に利尿剤を注ぎ込んだ…
+		PRINTFORML %ANAME(MTAR:0)%は%ANAME(MPLY:0, MTAR_NUM)%に利尿剤を飲ませるように命令した
+		PRINTFORMW %ANAME(MPLY:0)%は言われるまま%ANAME(MTAR:0, MTAR_NUM)%の口に利尿剤を注ぎ込んだ…
 	;第三者に主導権
 	CASEELSE
-		PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に対して、%ANAME(MTAR:0)%に利尿剤を飲ませるように命令した
-		PRINTFORMW %ANAME(MPLY:0)%は言われるまま%ANAME(MTAR:0)%の口に利尿剤を注ぎ、飲み込ませた…
+		PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0, MTAR_NUM)%に対して、%ANAME(MTAR:0, MTAR_NUM)%に利尿剤を飲ませるように命令した
+		PRINTFORMW %ANAME(MPLY:0)%は言われるまま%ANAME(MTAR:0, MTAR_NUM)%の口に利尿剤を注ぎ、飲み込ませた…
 ENDSELECT
 
 ;-------------------------------------------------
