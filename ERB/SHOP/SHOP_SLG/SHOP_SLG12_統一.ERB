@@ -1,0 +1,58 @@
+﻿;-------------------------------------------------
+;「自動統一」の名称
+;-------------------------------------------------
+@SHOP_SLG_NAME12
+RESULTS:0 '= "自動統一"
+
+;-------------------------------------------------
+;「自動統一」の選択可否
+;-------------------------------------------------
+@SHOP_SLG_CHECK12
+
+FOR LOCAL, 0, MAX_COUNTRY
+	SIF !IS_COUNTRY(LOCAL)
+		CONTINUE
+	IF GET_OWN_CITY(LOCAL) > GET_CITY_NUM() * 2 / 3
+		PRINTFORMW ここにきた
+		RETURN 1
+	ENDIF
+NEXT
+RETURN 0
+
+;-------------------------------------------------
+;「自動統一」の左カラムメニューの入力処理
+;-------------------------------------------------
+@SHOP_SLG_EVENTBUY12
+#DIM 勢力
+#DIM 君主
+FOR LOCAL, 0, MAX_COUNTRY
+	SIF !IS_COUNTRY(LOCAL)
+		CONTINUE
+	IF GET_OWN_CITY(LOCAL) > GET_CITY_NUM() * 2 / 3
+		勢力 = LOCAL
+		君主 = GET_COUNTRY_BOSS(LOCAL)
+		BREAK
+	ENDIF
+NEXT
+
+PRINTFORML 現在、%ANAME(君主)%が非常に優勢な状況です
+PRINTFORML あとは消化試合になると思われるので、自動で統一してしまいますか？
+
+CALL ASK_YN("統一する", "まだ遊ぶ")
+
+SIF RESULT == 1
+	RETURN 0
+
+FOR LOCAL, 0, MAX_COUNTRY
+	SIF !IS_COUNTRY(LOCAL) || LOCAL == 勢力
+		CONTINUE
+	CALL DESTROY_COUNTRY(LOCAL)
+NEXT
+
+
+FOR LOCAL, 1, GET_CITY_NUM() + 1
+	CITY_OWNER:LOCAL = 勢力
+NEXT
+
+RETURN 1
+
