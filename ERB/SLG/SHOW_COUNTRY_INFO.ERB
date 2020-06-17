@@ -1,0 +1,94 @@
+﻿;-------------------------------------------------
+;勢力ARG:0の情報を表示する
+;-------------------------------------------------
+@SHOW_COUNTRY_INFO(ARG:0)
+SIF !IS_COUNTRY(ARG:0)
+    RETURN
+CALL SINGLE_DRAWLINE
+PRINTFORML 君主:%NAME_FORMAL(GET_COUNTRY_BOSS(ARG:0))%
+CALL SINGLE_DRAWLINE
+PRINTFORML 経済:{GET_SUM_ECONOMY(ARG:0) / 100, 6} 兵力:{GET_SUM_SOLDIER(ARG:0), 7}
+CALL SINGLE_DRAWLINE
+PRINTFORM 士官:
+FOR LOCAL, 0, CHARANUM
+    SIF LOCAL == GET_COUNTRY_BOSS(ARG:0)
+        CONTINUE
+    SIF CFLAG:LOCAL:所属 != ARG:0
+        CONTINUE
+    PRINTFORM %SNAME(LOCAL)% 
+NEXT
+PRINTL
+CALL SINGLE_DRAWLINE
+PRINTFORML 各国との関係
+PRINTFORM %"君主",10,LEFT%
+PRINTFORM %"関係",8, RIGHT%
+PRINTFORM %"隣接",8, RIGHT%
+PRINTFORM %"印象",6, RIGHT%
+PRINTFORM %"友好", 7, RIGHT%
+PRINTFORM %"敵対", 7, RIGHT%
+PRINTFORM %"囚えている", 26, RIGHT%
+PRINTFORML %"囚われている", 26, RIGHT%
+
+FOR LOCAL, 0, MAX_COUNTRY
+    SIF !IS_COUNTRY(LOCAL) || LOCAL == ARG:0
+        CONTINUE
+
+    LOCALS:0 =%SNAME(GET_COUNTRY_BOSS(LOCAL:0))%
+    CALL COLOR_PRINT(@"%LOCALS:0, MAX_CHARANAME_LENGTH / 2, LEFT%", COUNTRY_COLOR:LOCAL)
+
+    CALL TMP_SETCOLOR_COUNTRY_RELATION(ARG:0, LOCAL:0)
+    PRINTFORM %TMP_TOSTR_COUNTRY_RELATION(ARG:0, LOCAL:0, 1), 10, RIGHT%
+    RESETCOLOR
+    PRINTFORM %TMP_COUNTRY_IS_NEIBORING:(ARG:0):LOCAL == 1 ? "〇" # "×", 6, RIGHT%
+    LOCAL:4 = GET_COUNTRY_BOSS(ARG:0)
+    LOCAL:5 = GET_COUNTRY_BOSS(LOCAL:0)
+    PRINT      
+    CALL TMP_PRINT_COUNTRY_RELATION2(LOCAL:5, LOCAL:4)
+
+;		PRINTFORM 
+    PRINTFORM {REL_LIKE:(LOCAL:5):(LOCAL:4), 7, RIGHT}
+    PRINTFORM {REL_HATE:(LOCAL:5):(LOCAL:4), 7, RIGHT}
+
+		;囚えている捕虜の表示
+    LOCALS:1 = 
+    FOR LOCAL:1, 0, CHARANUM
+        IF CFLAG:(LOCAL:1):所属 == LOCAL:0 && CFLAG:(LOCAL:1):捕虜先 == ARG:0
+            IF LOCALS:1 == ""
+                LOCALS:1 = %SNAME(LOCAL:1)%
+            ELSE
+                IF STRLENS(@"%LOCALS:1%、%SNAME(LOCAL:1)%") >= 24
+                    LOCALS:1 = %LOCALS:1%、他
+                    BREAK
+                ELSE
+                    LOCALS:1 = %LOCALS:1%、%SNAME(LOCAL:1)%
+                ENDIF
+            ENDIF
+        ENDIF
+    NEXT
+    SETCOLOR カラー_オレンジ
+    PRINTFORM %LOCALS:1, 26, RIGHT%
+    RESETCOLOR
+
+		;囚えられている捕虜の表示
+    LOCALS:1 = 
+    FOR LOCAL:1, 0, CHARANUM
+        IF CFLAG:(LOCAL:1):所属 == ARG:0 && CFLAG:(LOCAL:1):捕虜先 == LOCAL:0
+            IF LOCALS:1 == ""
+                LOCALS:1 = %SNAME(LOCAL:1)%
+            ELSE
+                IF STRLENS(@"%LOCALS:1%、%SNAME(LOCAL:1)%") >= 24
+                    LOCALS:1 = %LOCALS:1%、他
+                    BREAK
+                ELSE
+                    LOCALS:1 = %LOCALS:1%、%SNAME(LOCAL:1)%
+                ENDIF
+            ENDIF
+        ENDIF
+    NEXT
+    SETCOLOR カラー_シアン
+    PRINTFORM %LOCALS:1, 26, RIGHT%
+    RESETCOLOR
+    PRINTL 
+NEXT
+
+WAIT
