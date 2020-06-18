@@ -1,0 +1,129 @@
+﻿
+;-------------------------------------------------
+;開発スロットの開発
+;-------------------------------------------------
+@DEVELOP_SLOT(CITY_ID)
+#DIM CITY_ID
+IF MONEY:(CFLAG:MASTER:所属) < 5000
+    PRINTW 開発スロットに建造するには所持金が足りません(国庫金5,000必要です)
+    RETURN
+ENDIF
+PRINTL 敷設、変更を選択してください。変更には国庫金5,000がかかります。
+DRAWLINE
+FOR LOCAL, 開発スロット_兵舎, 開発スロット_湯治場 + 1
+    PRINTBUTTON @"%"[" + GET_DEVELOPMENT_NAME(LOCAL) + "]", 11, LEFT%", LOCAL
+    PRINTFORML : %GET_DEVELOPMENT_EXPLANATION(LOCAL)%
+NEXT
+PRINTBUTTON "[キャンセル]" , 0
+PRINTL
+$DEV_LOOP
+INPUT
+SELECTCASE RESULT
+    CASE 開発スロット_兵舎 TO 開発スロット_湯治場
+        SIF CITY_DEVELOPMENT:CITY_ID
+            PRINTFORM %GET_DEVELOPMENT_NAME(CITY_DEVELOPMENT:CITY_ID)%を取り壊し、
+        PRINTFORMW %GET_DEVELOPMENT_NAME(RESULT)%を建設しました
+        CITY_DEVELOPMENT:CITY_ID = RESULT
+        MONEY:(CFLAG:MASTER:所属) -= 5000
+    CASE 0
+        RETURN
+    CASEELSE
+        GOTO DEV_LOOP
+ENDSELECT
+
+;-------------------------------------------------
+;開発スロットの建築物名返却
+;-------------------------------------------------
+@GET_DEVELOPMENT_NAME(DEVELOPMENT_ID)
+#FUNCTIONS
+#DIM DEVELOPMENT_ID
+SELECTCASE DEVELOPMENT_ID
+    CASE 開発スロット_兵舎
+        RETURNF "兵舎"
+    CASE 開発スロット_独占市場
+        RETURNF "独占市場"
+    CASE 開発スロット_弓櫓
+        RETURNF "弓櫓"
+    CASE 開発スロット_武芸塾
+        RETURNF "武芸塾"
+    CASE 開発スロット_戦略塾
+        RETURNF "戦略塾"
+    CASE 開発スロット_知略塾
+        RETURNF "知略塾"
+    CASE 開発スロット_湯治場
+        RETURNF "湯治場"
+    CASEELSE
+        RETURNF "---"
+ENDSELECT
+
+;-------------------------------------------------
+;開発スロットの説明返却
+;-------------------------------------------------
+@GET_DEVELOPMENT_EXPLANATION(DEVELOPMENT_ID)
+#FUNCTIONS
+#DIM DEVELOPMENT_ID
+SELECTCASE DEVELOPMENT_ID
+    CASE 開発スロット_兵舎
+        RETURNF "兵士の自然増加数が増加"
+    CASE 開発スロット_独占市場
+        RETURNF "都市の収入が増加"
+    CASE 開発スロット_弓櫓
+        RETURNF "都市からの援護射撃を強化"
+    CASE 開発スロット_武芸塾
+        RETURNF "毎ターン守将に武闘経験値が入る"
+    CASE 開発スロット_戦略塾
+        RETURNF "毎ターン守将に防衛経験値が入る"
+    CASE 開発スロット_知略塾
+        RETURNF "毎ターン守将に知略経験値が入る"
+    CASE 開発スロット_湯治場
+        RETURNF "毎ターン士官や捕虜の印象が改善"
+    CASEELSE
+        RETURNF "---"
+ENDSELECT
+
+
+;-------------------------------------------------
+;開発スロットの建築物数返却
+;-------------------------------------------------
+@GET_DEVELOPMENT_COUNT(DEVELOPMENT_ID, COUNTRY)
+#FUNCTION
+#DIM DEVELOPMENT_ID
+#DIM COUNTRY
+#DIM DEVELOPMENT_COUNT
+
+DEVELOPMENT_COUNT = 0
+FOR LOCAL, 0, MAX_CITY
+    SIF CITY_OWNER:(LOCAL) == COUNTRY && CITY_DEVELOPMENT:LOCAL == DEVELOPMENT_ID
+        DEVELOPMENT_COUNT ++
+NEXT
+RETURNF DEVELOPMENT_COUNT
+
+;-------------------------------------------------
+;塾のある都市の守将に経験値を割り振る
+;-------------------------------------------------
+@CRAM_SCHOOL
+#DIM 建造物
+#DIM 守将
+#DIM 成長箇所
+
+FOR LOCAL, 0, MAX_CITY
+    建造物 = CITY_DEVELOPMENT:LOCAL
+    成長箇所 = 0
+    SELECTCASE 建造物
+        CASE 開発スロット_武芸塾
+            成長箇所 = GETNUM(ABL, "武闘")
+        CASE 開発スロット_戦略塾
+            成長箇所 = GETNUM(ABL, "防衛")
+        CASE 開発スロット_知略塾
+            成長箇所 = GETNUM(ABL, "知略")
+    ENDSELECT
+    SIF !成長箇所
+        CONTINUE
+    FOR LOCAL:1, 0, GET_CITY_COMMANDER_NUM(LOCAL)
+        守将 = GET_CITY_COMMANDER(LOCAL, LOCAL:1)
+        EXP:守将:成長箇所 += RAND:3 + 3
+        CALL TRAIN_AUTO_ABLUP(守将, 1)
+    NEXT
+NEXT
+
+
