@@ -62,7 +62,7 @@ IF DIPLOMACY_TRAINED_DAY < 0 && !FLAG:調教要求フラグ
 	CFLAG:DIPLOMACY_TRAINING_CHARA:行動済み = 1
 	CFLAG:GET_COUNTRY_BOSS(CFLAG:MASTER:所属):調教参加フラグ = 1
 	PRINTFORMW %ANAME(GET_COUNTRY_BOSS(CFLAG:MASTER:所属))%は外交交渉の見返りとして、%ANAME(DIPLOMACY_TRAINING_CHARA)%の寝室へ向かった……
-	
+
 	;時間の処理をしないと、「拠点フェイズの終了時にここに到達、調教→調教終了でSLGフェイズのターンエンドが呼ばれ、次期の拠点フェイズに飛ぶ」みたいな挙動になる
 	;IF TIME == 0
 	;	DAY --
@@ -72,7 +72,7 @@ IF DIPLOMACY_TRAINED_DAY < 0 && !FLAG:調教要求フラグ
 	;	TIME = 0
 	;	SHOP_TIME = CALC_SHOP_TIME()
 	;ENDIF
-	
+
 	;行動開始時の共通設定
 	CALL START_TRAIN_COMMON
 	REDRAW 1
@@ -267,6 +267,11 @@ CALL SLAVEMARKET_PREPARE_GOODS
 CALL SCOUT_PREPARE_CANDIDATES
 ;「会いに行く」の対象リストのチェック
 CALL MEET_CHECK_CANDIDATES
+
+;このターンの特別訓練実施回数をリセット
+;CALC_SPECIAL_TRAIN_PRICEより先にリセットしないと割引が正常に動作しない
+SPECIAL_TRAIN_COUNT_THIS_TURN = 0
+
 ;特別訓練の価格を更新
 ;次のターンの特別訓練価格になるので、いったんDAYを1増やした（次のターンの値で）計算し、戻す
 DAY ++
@@ -291,8 +296,6 @@ FOR LOCAL:0, CHARANUM - 1, -1, -1
 	ENDIF
 NEXT
 
-;このターンの特別訓練実施回数をリセット
-SPECIAL_TRAIN_COUNT_THIS_TURN = 0
 
 ARENA_DONE = 0
 APPOINT_DONE = 0
@@ -457,8 +460,8 @@ FOR LOCAL:0, 0, CHARANUM
 	CALL ARMPIT_GROW(LOCAL:0)
 	;締まりの改善
 	CALL TIGHTNESS_GROW(LOCAL:0)
-	
-	
+
+
 	IF HAS_TAG(LOCAL, タグ_蓬莱人) && CFLAG:LOCAL:特殊状態 == 特殊状態_死亡
 		CALL COLOR_PRINTW("リザレクション！", カラー_注意)
 		CALL COLOR_PRINTW(@"%NAME_FORMAL(LOCAL)%が蘇りました", カラー_注意)
@@ -482,7 +485,7 @@ FOR LOCAL:0, 0, CHARANUM
 		CFLAG:(LOCAL:0):薬物依存 = MAX(CFLAG:(LOCAL:0):薬物依存 * 9 / 10, 300)
 	ELSE
 		CFLAG:(LOCAL:0):薬物依存 = MAX(CFLAG:(LOCAL:0):薬物依存 - RAND:(MAX(CFLAG:(LOCAL:0):薬物依存 * 1 / 10, 1)), 0)
-		
+
 	ENDIF
 
 	;特定勢力に所属していて捕虜でない
