@@ -838,8 +838,13 @@ BATTLE_INT:LOCAL = BATTLE_INT:LOCAL * (100 + LOCAL:1) / 100
 ;-------------------------------------------------
 ;計略が発動するかを判定する
 ;-------------------------------------------------
-@BATTLE_SCHEME(ARG:0, ARG:1, ARG:2, ARG:3)
+@BATTLE_SCHEME(攻撃側勢力, 攻撃側部隊, 防御側勢力, 防御側部隊)
 #DIM SCHEME_BASE
+#DIM 攻撃側勢力
+#DIM 攻撃側部隊
+#DIM 防御側勢力
+#DIM 防御側部隊
+#DIM 士官
 #DIM 発動者
 #DIM 攻撃側知略
 #DIM 防御側知略
@@ -847,18 +852,31 @@ BATTLE_INT:LOCAL = BATTLE_INT:LOCAL * (100 + LOCAL:1) / 100
 ;防御側は都市だった場合ざっくり1.5倍して3人いるものと無理やりみなす
 攻撃側知略 = BATTLE_INT:0
 防御側知略 = BATTLE_INT:1
-SIF ARG:3 < 0
+SIF 防御側部隊 < 0
 	TIMES 防御側知略, 1.5
 
+;工作員所持者をチェック
+FOR LOCAL, 0, BATTLE_COMMANDER_NUM:0
+	士官 = BATTLE_COMMANDER:0:LOCAL
+	SIF FIND_PASSIVE_SKILL(士官, "工作員")
+		攻撃側知略 += ABL_POWER(15, -1)
+NEXT
+FOR LOCAL, 0, BATTLE_COMMANDER_NUM:1
+	士官 = BATTLE_COMMANDER:1:LOCAL
+	SIF FIND_PASSIVE_SKILL(士官, "工作員")
+		防御側知略 += ABL_POWER(15, -1)
+NEXT
+
+
 ;基準値は能力20の武将の数から算出する 都市戦においては4人いるものとして発生しにくく
-SCHEME_BASE = ABL_POWER(20, -1) * (ARG:3 < 0 ? 4 # 3)
+SCHEME_BASE = ABL_POWER(20, -1) * (防御側部隊 < 0 ? 4 # 3)
 
 ;BATTLE_FORCE_SCHEMEによる強制策略
 IF BATTLE_FORCE_SCHEME == 0
-	CALL TRY_SCHEME(0, 1, ARG:0, ARG:1, ARG:2, ARG:3)
+	CALL TRY_SCHEME(0, 1, 攻撃側勢力, 攻撃側部隊, 防御側勢力, 防御側部隊)
 	RETURN
 ELSEIF BATTLE_FORCE_SCHEME == 1
-	CALL TRY_SCHEME(1, 0, ARG:2, ARG:3, ARG:0, ARG:1)
+	CALL TRY_SCHEME(1, 0, 防御側勢力, 防御側部隊, 攻撃側勢力, 攻撃側部隊)
 	RETURN
 ENDIF
 
@@ -867,9 +885,9 @@ IF MAX(攻撃側知略, 防御側知略) - MIN(攻撃側知略, 防御側知略)
 	発動者 = 攻撃側知略 > 防御側知略 ? 0 # 1
 	;計略の発動
 	IF 発動者 == 0
-		CALL TRY_SCHEME(0, 1, ARG:0, ARG:1, ARG:2, ARG:3)
+		CALL TRY_SCHEME(0, 1, 攻撃側勢力, 攻撃側部隊, 防御側勢力, 防御側部隊)
 	ELSE
-		CALL TRY_SCHEME(1, 0, ARG:2, ARG:3, ARG:0, ARG:1)
+		CALL TRY_SCHEME(1, 0, 防御側勢力, 防御側部隊, 攻撃側勢力, 攻撃側部隊)
 	ENDIF
 ENDIF
 
