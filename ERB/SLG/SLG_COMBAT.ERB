@@ -17,7 +17,8 @@ PRINTFORML %BATTLE_NAME:0%と%BATTLE_NAME:1%の戦闘が発生しました
 
 RESETCOLOR
 
-FIRST_LINE = LINECOUNT
+SIF (CONFIG:300 == 1 && ARG:0 != CFLAG:MASTER:所属 && ARG:2 != CFLAG:MASTER:所属 && IS_COUNTRY(CFLAG:MASTER:所属)) || CONFIG:300 == 2
+	SKIPDISP 1
 
 ;部隊能力を表示
 CALL COLOR_PRINTL("----------互いの力量----------", カラー_選択不可)
@@ -61,7 +62,7 @@ $BATTLE_CANCEL
 CALL COLOR_PRINTL("----------戦闘後処理----------", カラー_選択不可)
 
 SIF (CONFIG:300 == 1 && ARG:0 != CFLAG:MASTER:所属 && ARG:2 != CFLAG:MASTER:所属 && IS_COUNTRY(CFLAG:MASTER:所属)) || CONFIG:300 == 2
-	CLEARLINE LINECOUNT - FIRST_LINE
+	SKIPDISP 0
 
 ;好感度・敵対値の変動
 LOCAL:1 = COUNTRY_AI_TYPE:(ARG:0)
@@ -179,7 +180,8 @@ PRINTFORML %GET_CITYNAME(ARG:2)%が、
 PRINTFORML %BATTLE_NAME:0%に侵攻されました
 RESETCOLOR
 
-FIRST_LINE = LINECOUNT
+SIF (CONFIG:300 == 1 && (ARG:0 != CFLAG:MASTER:所属 && LOCAL:6 != CFLAG:MASTER:所属) && IS_COUNTRY(CFLAG:MASTER:所属)) || CONFIG:300 == 2
+	SKIPDISP 1
 
 ;その都市がその勢力にとって最後の1都市なら、全兵力を傾ける
 IF LOCAL:5 >= 0 && GET_OWN_CITY(CITY_OWNER:(ARG:2)) == 1
@@ -239,7 +241,7 @@ $BATTLE_CANCEL
 CALL COLOR_PRINTL("----------戦闘後処理----------", カラー_選択不可)
 
 SIF (CONFIG:300 == 1 && (ARG:0 != CFLAG:MASTER:所属 && LOCAL:6 != CFLAG:MASTER:所属) && IS_COUNTRY(CFLAG:MASTER:所属)) || CONFIG:300 == 2
-	CLEARLINE LINECOUNT - FIRST_LINE
+	SKIPDISP 0
 
 
 UNIT_FBATTLE:(ARG:0):(ARG:1) = 1
@@ -438,6 +440,10 @@ CALL COLOR_PRINTL("---------スキル・計略---------", カラー_選択不可
 CALL BATTLE_SP_SKILL(0, ARG:0, ARG:1, ARG:2, ARG:3)
 CALL BATTLE_SP_SKILL(1, ARG:2, ARG:3, ARG:0, ARG:1)
 
+;SPスキルに準ずる国家方針・研究スキルの処理
+CALL TECHNOLOGY_PERSONAL_SKILL_COMBAT_INVOKE(0, ARG:0, ARG:1, ARG:2, ARG:3)
+CALL TECHNOLOGY_PERSONAL_SKILL_COMBAT_INVOKE(1, ARG:2, ARG:3, ARG:0, ARG:1)
+
 ;先んじて用意
 CALL BATTLE_PREPARE_VARS(ARG:0, ARG:1, ARG:2, ARG:3)
 
@@ -450,6 +456,8 @@ ENDIF
 ;基本値に影響を与える素質発動処理はここに
 CALL BATTLE_BASE_SKILL(0, ARG:0, ARG:1, ARG:2, ARG:3)
 CALL BATTLE_BASE_SKILL(1, ARG:2, ARG:3, ARG:0, ARG:1)
+CALL TECHNOLOGY_TROOP_SKILL_COMBAT_INVOKE(0, ARG:0, ARG:1, ARG:2, ARG:3)
+CALL TECHNOLOGY_TROOP_SKILL_COMBAT_INVOKE(1, ARG:2, ARG:3, ARG:0, ARG:1)
 
 ;コア計算
 CALL BATTLE_CALC_CORE(ARG:0, ARG:1, ARG:2, ARG:3)
@@ -836,8 +844,13 @@ BATTLE_INT:LOCAL = BATTLE_INT:LOCAL * (100 + LOCAL:1) / 100
 ;-------------------------------------------------
 ;計略が発動するかを判定する
 ;-------------------------------------------------
-@BATTLE_SCHEME(ARG:0, ARG:1, ARG:2, ARG:3)
+@BATTLE_SCHEME(攻撃側勢力, 攻撃側部隊, 防御側勢力, 防御側部隊)
 #DIM SCHEME_BASE
+#DIM 攻撃側勢力
+#DIM 攻撃側部隊
+#DIM 防御側勢力
+#DIM 防御側部隊
+#DIM 士官
 #DIM 発動者
 #DIM 攻撃側知略
 #DIM 防御側知略
@@ -845,18 +858,31 @@ BATTLE_INT:LOCAL = BATTLE_INT:LOCAL * (100 + LOCAL:1) / 100
 ;防御側は都市だった場合ざっくり1.5倍して3人いるものと無理やりみなす
 攻撃側知略 = BATTLE_INT:0
 防御側知略 = BATTLE_INT:1
-SIF ARG:3 < 0
+SIF 防御側部隊 < 0
 	TIMES 防御側知略, 1.5
 
+;工作員所持者をチェック
+FOR LOCAL, 0, BATTLE_COMMANDER_NUM:0
+	士官 = BATTLE_COMMANDER:0:LOCAL
+	SIF FIND_PASSIVE_SKILL(士官, "工作員")
+		攻撃側知略 += ABL_POWER(15, -1)
+NEXT
+FOR LOCAL, 0, BATTLE_COMMANDER_NUM:1
+	士官 = BATTLE_COMMANDER:1:LOCAL
+	SIF FIND_PASSIVE_SKILL(士官, "工作員")
+		防御側知略 += ABL_POWER(15, -1)
+NEXT
+
+
 ;基準値は能力20の武将の数から算出する 都市戦においては4人いるものとして発生しにくく
-SCHEME_BASE = ABL_POWER(20, -1) * (ARG:3 < 0 ? 4 # 3)
+SCHEME_BASE = ABL_POWER(20, -1) * (防御側部隊 < 0 ? 4 # 3)
 
 ;BATTLE_FORCE_SCHEMEによる強制策略
 IF BATTLE_FORCE_SCHEME == 0
-	CALL TRY_SCHEME(0, 1, ARG:0, ARG:1, ARG:2, ARG:3)
+	CALL TRY_SCHEME(0, 1, 攻撃側勢力, 攻撃側部隊, 防御側勢力, 防御側部隊)
 	RETURN
 ELSEIF BATTLE_FORCE_SCHEME == 1
-	CALL TRY_SCHEME(1, 0, ARG:2, ARG:3, ARG:0, ARG:1)
+	CALL TRY_SCHEME(1, 0, 防御側勢力, 防御側部隊, 攻撃側勢力, 攻撃側部隊)
 	RETURN
 ENDIF
 
@@ -864,7 +890,11 @@ ENDIF
 IF MAX(攻撃側知略, 防御側知略) - MIN(攻撃側知略, 防御側知略) >= RAND:SCHEME_BASE
 	発動者 = 攻撃側知略 > 防御側知略 ? 0 # 1
 	;計略の発動
-	CALL TRY_SCHEME(発動者, !発動者, ARG:0, ARG:1, ARG:2, ARG:3)
+	IF 発動者 == 0
+		CALL TRY_SCHEME(0, 1, 攻撃側勢力, 攻撃側部隊, 防御側勢力, 防御側部隊)
+	ELSE
+		CALL TRY_SCHEME(1, 0, 防御側勢力, 防御側部隊, 攻撃側勢力, 攻撃側部隊)
+	ENDIF
 ENDIF
 
 ;-------------------------------------------------
@@ -899,6 +929,17 @@ IF ARG:3 >= 0
 ELSE
 	CITY_TIRED_COUNT:(ARG:2) += 防御側疲労度
 ENDIF
+
+;研究による変化
+IF ARG:3 != -1 && TECHNOLOGY_STATUS:(ARG:0):TECHNOLOGY_BATTLE_PASSIVE >= 3
+	PRINTL 敵補給路への攻撃により、敵疲労度が増加！
+	UNIT_TIRED_COUNT:(ARG:2):(ARG:3) = MAX(UNIT_TIRED_COUNT:(ARG:2):(ARG:3) + 1, 0)
+ENDIF
+IF ARG:1 != -1 && TECHNOLOGY_STATUS:(ARG:0):TECHNOLOGY_BATTLE_PASSIVE >= 4
+	PRINTL 増強された補給路により、疲労度が回復！
+	UNIT_TIRED_COUNT:(ARG:0):(ARG:1) = MAX(UNIT_TIRED_COUNT:(ARG:0):(ARG:1) - 1, 0)
+ENDIF
+
 
 
 ;-------------------------------------------------
@@ -1398,7 +1439,7 @@ FOR LOCAL, 0, BATTLE_COMMANDER_NUM:敗北側
 		;とりま25%の確率で負傷
 		SIF RAND:4
 			CONTINUE
-		CALL SET_COOLTIME(LOCAL:4, RAND:3 + 2)
+		CALL SET_COOLTIME(LOCAL:4, RAND:3 + 1)
 		;蓬莱人は1/3の確率で怪我を無効化
 		IF HAS_TAG(LOCAL:4, タグ_蓬莱人) && !RAND:3
 			COOLTIME:(LOCAL:4):0 = 0
@@ -1521,7 +1562,15 @@ NEXT
 ;-------------------------------------------------
 @CITY_GUARD_RATE(ARG:0)
 #FUNCTION
-LOCAL:0 = CITY_GUARD:(ARG:0) * (CITY_ECONOMY:(ARG:0) / 50 + 10000) / 100
+#DIM 研究倍率
+IF TECHNOLOGY_STATUS:(CITY_OWNER:(ARG:0)):TECHNOLOGY_BATTLE_PASSIVE >= 6
+	研究倍率 = 12
+ELSEIF TECHNOLOGY_STATUS:(CITY_OWNER:(ARG:0)):TECHNOLOGY_BATTLE_PASSIVE >= 2
+	研究倍率 = 11
+ELSE
+	研究倍率 = 10
+ENDIF
+LOCAL:0 = CITY_GUARD:(ARG:0) * (CITY_ECONOMY:(ARG:0) / 50 + 10000) * 研究倍率 / 1000
 
 SIF IS_COUNTRY(CITY_OWNER:(ARG:0)) && COUNTRY_POLICY:(CITY_OWNER:(ARG:0)) == 政策_防衛
 	TIMES LOCAL:0, 1.50

@@ -133,8 +133,9 @@ ENDIF
 
 
 @CALC_SPECIAL_TRAIN_PRICE()
+
 ;経済値の3倍
-LOCAL = GET_SUM_ECONOMY(CFLAG:MASTER:所属) / 100 * 3
+LOCAL = MAX(GET_SUM_ECONOMY(CFLAG:MASTER:所属) / 100 * 3, 3000)
 
 ;その周回の実施回数およびそのターンの実施回数で補正
 ;SELECTCASE SPECIAL_TRAIN_COUNT
@@ -210,7 +211,7 @@ SIF GROUPMATCH(対象項目, GETNUM(ABL, "歌唱"), GETNUM(ABL, "料理"))
 
 ;選択した項目が高いと取得経験値は下がる
 SELECTCASE 対象能力値
-	CASE IS < ランク閾値:ランク_ＳＬＧ:ランク_D
+	CASE IS < ランク閾値:ランク_ＳＬＧ:ランク_E
 		取得経験値 = 取得経験基礎値 * 120 / 100
 	CASE IS < ランク閾値:ランク_ＳＬＧ:ランク_A
 		取得経験値 = 取得経験基礎値 * 75 / 100
@@ -218,6 +219,17 @@ SELECTCASE 対象能力値
 		取得経験値 = 取得経験基礎値 * 50 / 100
 ENDSELECT
 
-;1度に20まで成長
-返却値 = LIMIT(取得経験値, 5, 成長必要値 * 20)
+;ランクによって成長する数値に制限あり
+;上のほうのランクはそもそも制限に届くことがないはず
+SELECTCASE 対象能力値
+	CASE IS < ランク閾値:ランク_ＳＬＧ:ランク_E
+		返却値 = LIMIT(取得経験値, 5, 成長必要値 * 20)
+	CASE IS < ランク閾値:ランク_ＳＬＧ:ランク_D
+		返却値 = LIMIT(取得経験値, 5, 成長必要値 * 15)
+	CASE IS < ランク閾値:ランク_ＳＬＧ:ランク_B
+		返却値 = LIMIT(取得経験値, 5, 成長必要値 * 10)
+	CASE IS < ランク閾値:ランク_ＳＬＧ:ランク_S
+		返却値 = LIMIT(取得経験値, 5, 成長必要値 * 5)
+ENDSELECT
+
 RETURNF 返却値

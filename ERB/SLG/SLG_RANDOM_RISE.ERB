@@ -6,6 +6,7 @@
 #DIM 人数
 #DIM 候補, 3000
 #DIM 候補値, 3000
+#DIM 野心無視フラグ
 #DIM 結果
 #DIM 判定値
 #DIM 勢力番号
@@ -23,6 +24,9 @@ SIF DAY < SLG_PP:1
 SIF 勢力番号 <= 0
 	RETURN 0
 
+;10%の確率で野心をフラットに扱う
+野心無視フラグ = RAND:100 < 10
+
 ;---今回の蜂起候補を取得---
 FOR LCOUNT, 0, CHARANUM
 	SIF LCOUNT == MASTER
@@ -38,7 +42,12 @@ FOR LCOUNT, 0, CHARANUM
 		CONTINUE
 	候補:人数 = LCOUNT
 	;選出候補値は野心をそのまま利用
-	候補値:人数 = RAND(0, MAX(1, ABL:LCOUNT:野心))
+	;無視フラグが立ってたらフラットに扱う
+	IF 野心無視フラグ
+		候補値:人数 = RAND(0, 10000)
+	ELSE
+		候補値:人数 = RAND(0, MAX(1, ABL:LCOUNT:野心))
+	ENDIF
 	人数 ++
 NEXT
 
@@ -49,8 +58,9 @@ SIF 人数 < 1
 結果 = 候補:FINDELEMENT(候補値, MAXARRAY(候補値, 0, 人数))
 ;---候補取得ここまで---
 
-判定値 = CALC_RISE_RATE(結果)
+判定値 = CALC_RISE_RATE(結果, 野心無視フラグ)
 ;確率ロールに失敗したら戻る
+
 SIF 判定値 <= RAND:3000
 	RETURN 0
 
@@ -85,6 +95,10 @@ COUNTRY_SOLDIER:勢力番号 = MIN(LOCAL:1, 5000)
 COUNTRY_BOSS:勢力番号 = GET_ID(結果)
 INDEPENDENCE_COUNTER:勢力番号 = 10
 DIPLOMACY_HATE:勢力番号 += 10
+
+CALL SET_COUNTRY_AI_TYPE(勢力番号)
+
+CALL RANDOM_RISE_SET_TECHNOLOGY(勢力番号)	
 
 CALL CHANGE_COUNTRY(結果, 勢力番号, 1)
 CFLAG:結果:特殊状態 = 0
@@ -127,7 +141,7 @@ NEXT
 
 IF 人数 == 0
 	PRINTFORML ……が、だれも賛同しなかったようだ
-	RETURN 
+	RETURN 1
 ENDIF
 
 CALL FISHER_YATES_SHAFFLE(人数)
@@ -147,16 +161,24 @@ FOR LOCAL, 0, 人数
 	ENDIF
 NEXT
 
+RETURN 1
 
 ;----------------------------------------------
 ;蜂起を起こす確率を算出
 ;----------------------------------------------
-@CALC_RISE_RATE(対象)
+@CALC_RISE_RATE(対象, 野心無視フラグ = 0)
 #FUNCTION
 #DIM 対象
 #DIM 判定値
+#DIM 野心無視フラグ
+
 ;野心とDAYから判定値を算出
-判定値 = ABL:対象:野心 * 2
+IF 野心無視フラグ
+	判定値 = 160
+ELSE
+	判定値 = ABL:対象:野心 * 2
+ENDIF
+
 SELECTCASE ABL:対象:野心
 	CASE IS >= ランク閾値:ランク_ＳＬＧ:ランク_A
 		TIMES 判定値, 1.5
@@ -170,6 +192,7 @@ ENDSELECT
 判定値 += (MAX_COUNTRY - GET_COUNTRY_NUM()) * 2
 ;終盤は蜂起しにくくする（ただでさえ終わらない観戦モードがさらに終わらなくなるので）
 判定値 -= LIMIT(DAY / 2 - 50, 0, 200)
+
 SIF TALENT:対象:臆病
 	判定値 -= 5
 SIF TALENT:対象:反抗的
@@ -204,3 +227,41 @@ SIF ABL:対象:武闘 + ABL:対象:防衛 + ABL:対象:知略 + ABL:対象:政�
 	判定値 += MAX(ABL:対象:武闘 + ABL:対象:防衛 + ABL:対象:知略 + ABL:対象:政治 - 200, 50)
 
 RETURNF 判定値
+
+;----------------------------------------------
+;蜂起した勢力に技術ツリーを設定
+;----------------------------------------------
+@RANDOM_RISE_SET_TECHNOLOGY(勢力)
+#DIM 勢力
+#DIM 候補値, TECHNOLOGY_MAX_GENRE
+#DIM ジャンル
+#DIM 残り日数
+
+残り日数 = DAY
+
+
+
+WHILE 残り日数 > 0
+	VARSET 候補値, 100
+
+	FOR LOCAL, 0, TECHNOLOGY_MAX_GENRE
+		候補値:LOCAL += AI_TECHNOLOGY_PREFERENCE:(COUNTRY_AI_TYPE:勢力):LOCAL
+		候補値:LOCAL = MAX(候補値:LOCAL - TECHNOLOGY_STATUS:勢力:LOCAL * 5, 1)
+
+	;そのジャンルもう取れないならダメ
+		IF !IS_TECHNOLOGY_EXISTS(LOCAL, TECHNOLOGY_STATUS:勢力:LOCAL + 1)
+			候補値:LOCAL = __INT_MIN__
+		ELSE
+			候補値:LOCAL = RAND:(候補値:LOCAL)
+		ENDIF
+	NEXT
+
+	;マジでなんもとれるもん無かったらBREAK
+	SIF MAXARRAY(候補値) == __INT_MIN__
+		BREAK
+
+	ジャンル = FINDELEMENT(候補値, MAXARRAY(候補値))
+
+	残り日数 -= GET_RESEARCH_PERIOD(勢力, ジャンル, TECHNOLOGY_STATUS:勢力:ジャンル + 1)
+	TECHNOLOGY_STATUS:勢力:ジャンル ++
+WEND

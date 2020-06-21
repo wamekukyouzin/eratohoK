@@ -55,6 +55,32 @@ NEXT
 RETURNF LOCAL:1
 
 ;-------------------------------------------------
+;ARG:0番の勢力について、徴兵限界を返す関数
+;-------------------------------------------------
+@GET_RECRUIT_LIMIT(勢力)
+#FUNCTION
+#DIM 勢力
+#DIM 最大保持数
+#DIM 兵舎数
+
+最大保持数 = GET_SUM_ECONOMY(勢力) / 10
+
+兵舎数 = GET_DEVELOPMENT_COUNT(勢力, 建造物_兵舎)
+
+SIF TECHNOLOGY_STATUS:勢力:TECHNOLOGY_CONSCRIPTION >= 1
+	TIMES 最大保持数, 1.10
+SIF TECHNOLOGY_STATUS:勢力:TECHNOLOGY_CONSCRIPTION >= 3
+	TIMES 最大保持数, 1.15
+SIF TECHNOLOGY_STATUS:勢力:TECHNOLOGY_CONSCRIPTION >= 5
+	TIMES 最大保持数, 1.20
+
+最大保持数 += 兵舎数 * 3000
+
+;経済の生値 / 10(表示数値の10倍) ベースで兵舎数が補正
+RETURNF 最大保持数
+
+
+;-------------------------------------------------
 ;ARG:0番の勢力について、経済規模の合計値を返す関数
 ;-------------------------------------------------
 @GET_SUM_ECONOMY(ARG:0)
@@ -718,39 +744,51 @@ RETURNF -1
 ;-------------------------------------------------
 ;渡された勢力にAIタイプを設定する
 ;-------------------------------------------------
-@SET_COUNTRY_AI_TYPE(ARG:0)
+@SET_COUNTRY_AI_TYPE(勢力)
+#DIM 勢力
 #DIM 君主
 #DIM 能力, 4
 #DIM ソート, 4
-君主 = GET_COUNTRY_BOSS(ARG:0)
+君主 = GET_COUNTRY_BOSS(勢力)
 
 能力:0 = ABL:君主:武闘
 能力:1 = ABL:君主:防衛
 能力:2 = ABL:君主:知略
 能力:3 = ABL:君主:政治
 
+
 ;最高値を求めるだけならFINDELEMENT(MAXARRAY)で十分なんだが
 ARRAYCOPY "能力", "ソート"
 ARRAYSORT ソート, BACK
 
-IF ソート:0 < ソート:1 + 7
-	COUNTRY_AI_TYPE:(ARG:0) = AI_通常
+;知略政治が両方60以上でワンツーフィニッシュしてるなら外交か内政
+IF GROUPMATCH(ソート:0, ABL:君主:知略, ABL:君主:政治) && GROUPMATCH(ソート:1, ABL:君主:知略, ABL:君主:政治) && ソート:1 > 60
+	IF ABL:君主:知略 > ABL:君主:政治
+		COUNTRY_AI_TYPE:勢力 = AI_外交
+	ELSE
+		COUNTRY_AI_TYPE:勢力 = AI_内政
+	ENDIF
 ELSEIF ソート:0 == ABL:君主:武闘 && ABL:君主:武闘 > ABL:君主:知略 + 30
-	COUNTRY_AI_TYPE:(ARG:0) = AI_蛮行
+	COUNTRY_AI_TYPE:勢力 = AI_蛮行
+;1位と2位のあいだの差が小さければ通常
+ELSEIF ソート:0 < ソート:1 + 5
+	COUNTRY_AI_TYPE:勢力 = AI_通常
+;武闘が一番高い場合は好戦。ただし防衛が2位のとき、10以上差が無ければ防衛になる
 ELSEIF ソート:0 == ABL:君主:武闘
 	IF ソート:1 == ABL:君主:防衛 && ソート:0 < ソート:1 + 10
-		COUNTRY_AI_TYPE:(ARG:0) = AI_防衛
+		COUNTRY_AI_TYPE:勢力 = AI_防衛
 	ELSE
-		COUNTRY_AI_TYPE:(ARG:0) = AI_好戦
+		COUNTRY_AI_TYPE:勢力 = AI_好戦
 	ENDIF
+;あとは最大能力を参照
 ELSEIF ソート:0 == ABL:君主:防衛
-	COUNTRY_AI_TYPE:(ARG:0) = AI_防衛
+	COUNTRY_AI_TYPE:勢力 = AI_防衛
 ELSEIF ソート:0 == ABL:君主:知略
-	COUNTRY_AI_TYPE:(ARG:0) = AI_外交
+	COUNTRY_AI_TYPE:勢力 = AI_外交
 ELSEIF ソート:0 == ABL:君主:政治
-	COUNTRY_AI_TYPE:(ARG:0) = AI_内政
+	COUNTRY_AI_TYPE:勢力 = AI_内政
 ELSE 
-	COUNTRY_AI_TYPE:(ARG:0) = AI_通常
+	COUNTRY_AI_TYPE:勢力 = AI_通常
 ENDIF
 
 ;-------------------------------------------------
@@ -1684,101 +1722,6 @@ FOR LOCAL, 0, MAX_TREATY_COUNTRY
 NEXT
 
 ;-------------------------------------------------
-;勢力ARG:0の情報を表示する
-;-------------------------------------------------
-@SHOW_COUNTRY_INFO(ARG:0)
-SIF !IS_COUNTRY(ARG:0)
-	RETURN
-CALL SINGLE_DRAWLINE
-PRINTFORML 君主:%NAME_FORMAL(GET_COUNTRY_BOSS(ARG:0))%
-CALL SINGLE_DRAWLINE
-PRINTFORML 経済:{GET_SUM_ECONOMY(ARG:0) / 100, 6} 兵力:{GET_SUM_SOLDIER(ARG:0), 7}
-CALL SINGLE_DRAWLINE
-PRINTFORM 士官:
-FOR LOCAL, 0, CHARANUM
-	SIF LOCAL == GET_COUNTRY_BOSS(ARG:0)
-		CONTINUE
-	SIF CFLAG:LOCAL:所属 != ARG:0
-		CONTINUE
-	PRINTFORM %SNAME(LOCAL)% 
-NEXT
-PRINTL
-CALL SINGLE_DRAWLINE
-PRINTFORML 各国との関係
-PRINTFORM %"君主",10,LEFT%
-PRINTFORM %"関係",8, RIGHT%
-PRINTFORM %"隣接",8, RIGHT%
-PRINTFORM %"印象",6, RIGHT%
-PRINTFORM %"友好", 7, RIGHT%
-PRINTFORM %"敵対", 7, RIGHT%
-PRINTFORM %"囚えている", 26, RIGHT%
-PRINTFORML %"囚われている", 26, RIGHT%
-
-FOR LOCAL, 0, MAX_COUNTRY
-	SIF !IS_COUNTRY(LOCAL) || LOCAL == ARG:0
-		CONTINUE
-
-	LOCALS:0 =%SNAME(GET_COUNTRY_BOSS(LOCAL:0))%
-	CALL COLOR_PRINT(@"%LOCALS:0, MAX_CHARANAME_LENGTH / 2, LEFT%", COUNTRY_COLOR:LOCAL)
-
-	CALL TMP_SETCOLOR_COUNTRY_RELATION(ARG:0, LOCAL:0)
-	PRINTFORM %TMP_TOSTR_COUNTRY_RELATION(ARG:0, LOCAL:0, 1), 10, RIGHT%
-	RESETCOLOR
-	PRINTFORM %TMP_COUNTRY_IS_NEIBORING:(ARG:0):LOCAL == 1 ? "〇" # "×", 6, RIGHT%
-	LOCAL:4 = GET_COUNTRY_BOSS(ARG:0)
-	LOCAL:5 = GET_COUNTRY_BOSS(LOCAL:0)
-	PRINT      
-	CALL TMP_PRINT_COUNTRY_RELATION2(LOCAL:5, LOCAL:4)
-
-;		PRINTFORM 
-	PRINTFORM {REL_LIKE:(LOCAL:5):(LOCAL:4), 7, RIGHT}
-	PRINTFORM {REL_HATE:(LOCAL:5):(LOCAL:4), 7, RIGHT}
-
-		;囚えている捕虜の表示
-	LOCALS:1 = 
-	FOR LOCAL:1, 0, CHARANUM
-		IF CFLAG:(LOCAL:1):所属 == LOCAL:0 && CFLAG:(LOCAL:1):捕虜先 == ARG:0
-			IF LOCALS:1 == ""
-				LOCALS:1 = %SNAME(LOCAL:1)%
-			ELSE
-				IF STRLENS(@"%LOCALS:1%、%SNAME(LOCAL:1)%") >= 24
-					LOCALS:1 = %LOCALS:1%、他
-					BREAK
-				ELSE
-					LOCALS:1 = %LOCALS:1%、%SNAME(LOCAL:1)%
-				ENDIF
-			ENDIF
-		ENDIF
-	NEXT
-	SETCOLOR カラー_オレンジ
-	PRINTFORM %LOCALS:1, 26, RIGHT%
-	RESETCOLOR
-
-		;囚えられている捕虜の表示
-	LOCALS:1 = 
-	FOR LOCAL:1, 0, CHARANUM
-		IF CFLAG:(LOCAL:1):所属 == ARG:0 && CFLAG:(LOCAL:1):捕虜先 == LOCAL:0
-			IF LOCALS:1 == ""
-				LOCALS:1 = %SNAME(LOCAL:1)%
-			ELSE
-				IF STRLENS(@"%LOCALS:1%、%SNAME(LOCAL:1)%") >= 24
-					LOCALS:1 = %LOCALS:1%、他
-					BREAK
-				ELSE
-					LOCALS:1 = %LOCALS:1%、%SNAME(LOCAL:1)%
-				ENDIF
-			ENDIF
-		ENDIF
-	NEXT
-	SETCOLOR カラー_シアン
-	PRINTFORM %LOCALS:1, 26, RIGHT%
-	RESETCOLOR
-	PRINTL 
-NEXT
-
-WAIT
-
-;-------------------------------------------------
 ;ARG:0番の勢力カラーを変更する関数
 ;ARG:1に1を設定すると「変更せずに戻る」が禁止される
 ;-------------------------------------------------
@@ -1859,6 +1802,15 @@ PRINTBUTTON "[無]", 100
 PRINTBUTTON "[弱]", 101
 PRINTBUTTON "[強]", 102
 PRINTL 
+
+PRINTBUTTON "[カラーピッカー]", 201
+PRINTL
+
+IF GET_COUNTRY_BOSS(ARG:0) != -1
+	PRINTBUTTON @"[%ANAME(GET_COUNTRY_BOSS(ARG:0))%の髪色からとる]", 200
+	PRINTL
+ENDIF
+
 IF ARG:1 == 0
 	CALL SINGLE_DRAWLINE
 	PRINTL [0] 変更しない
@@ -1882,6 +1834,17 @@ ELSEIF RESULT == 102 && FILTER != 2
 	FILTER = 2
 	CLEARLINE LINECOUNT - FIRST_LINE
 	GOTO SHOW_LOOP
+ELSEIF RESULT == 200
+	COUNTRY_COLOR:(ARG:0) = CHARA_COUNTRY_COLOR(GET_COUNTRY_BOSS(ARG:0))
+	CLEARLINE 1
+	REDRAW 1
+	RETURN
+ELSEIF RESULT == 201
+	CALL COLOR_PICKER(COUNTRY_COLOR:(ARG:0))
+	COUNTRY_COLOR:(ARG:0) = RESULT
+	CLEARLINE 1
+	REDRAW 1
+	RETURN
 ELSEIF RESULT >= 0x1000000 && RESULT < 0x2000000
 	LOCAL:40 = (RESULT >> 14) & 0x1FF
 	LOCAL:41 = (RESULT >> 7) & 0x7F
@@ -1932,7 +1895,7 @@ GOTO INPUT_LOOP
 		ランクA補正対象値 * 1250 +
 		500
 }
-DEBUGPRINTFORML 現在値: {現在値} 基礎値:{基礎値}
+;DEBUGPRINTFORML 現在値: {現在値} 基礎値:{基礎値}
 ;妊娠・臨月・育児まわりの補正
 IF 対象 >= 0
 	IF CFLAG:(対象):行動不能状態 == 行動不能_臨月
@@ -2252,6 +2215,12 @@ FOR LOCAL:0, 0, VARSIZE("AI_DIPLOMACY_TARGET", 1)
 	AI_DIPLOMACY_TARGET:(ARG:0):(LOCAL:0) = 0
 	AI_DIPLOMACY_PLAN:(ARG:0):(LOCAL:0) = -1
 NEXT
+
+FOR LOCAL, 0, TECHNOLOGY_MAX_GENRE
+	TECHNOLOGY_STATUS:(ARG:0):LOCAL = 0
+NEXT
+TECHNOLOGY_RESEARCH_TARGET:(ARG:0) = -1
+TECHNOLOGY_RESEARCH_PROGRESS:(ARG:0) = 0
 
 
 FOR LOCAL, 0, MAX_CITY

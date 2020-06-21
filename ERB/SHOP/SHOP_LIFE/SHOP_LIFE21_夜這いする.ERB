@@ -70,23 +70,25 @@ FOR LOCAL,1, CHARANUM
 	SIF CFLAG:LOCAL:夜這いの助手
 		LOCAL:1 += YOBAI_ZYOSYU_CALC_POINT(LOCAL)
 NEXT
-RETURNF LOCAL:1 > YOBAI_TARGET_CALC_POINT(ARG)
+RETURNF LOCAL:1 >= YOBAI_TARGET_CALC_POINT(ARG)
 
 ;-------------------------------------------------
 ;「夜這いする」の能力判定用関数
 ;-------------------------------------------------
 @YOBAI_ZYOSYU_CALC_POINT(ARG)
 #FUNCTION
-RETURNF ABL:ARG:武闘 + ABL:ARG:知略
+RETURNF ABL:ARG:武闘 + ABL:ARG:知略 + FIND_PASSIVE_SKILL(ARG, "工作員") * 30
 
 ;-------------------------------------------------
 ;「夜這いする」の能力判定用関数
 ;-------------------------------------------------
 @YOBAI_TARGET_CALC_POINT(ARG)
 #FUNCTION
+
 SIF GROUPMATCH(1, TALENT:ARG:親愛, TALENT:ARG:恋慕, TALENT:ARG:隷属, TALENT:ARG:服従, TALENT:ARG:主人, TALENT:ARG:所有者)
 	RETURNF 0
-LOCAL = (ABL:ARG:武闘 + ABL:ARG:知略)
+
+LOCAL = (ABL:ARG:武闘 + ABL:ARG:知略) + FIND_PASSIVE_SKILL(ARG, "工作員") * 10
 
 SIF TALENT:(ARG:0):烙印
 	RETURNF LOCAL * 2
@@ -262,51 +264,52 @@ $SHOW_LOOP_INFO_Y
 CALL SINGLE_DRAWLINE
 CALL SHOW_INFO(ARG:0)
 CALL SINGLE_DRAWLINE
-	PRINTFORML %ANAME(ARG:0)%を襲いに行きます
-	PRINTFORML よろしいですか？
-	CALL ASK_YN
-	IF RESULT == 0
-		CVARSET CFLAG, 6, 0
-		FOR LOCAL:0, 0, CHARANUM
-			IF LOCAL:0 != MASTER && CFLAG:(LOCAL:0):夜這いの助手
-				CFLAG:(LOCAL:0):調教参加フラグ = 1
-			ENDIF
-		NEXT
-		;夜這い経験
-		EXP:ARG:59 ++
-		;調教初期設定
-		CALL TRAIN_TARGET_SETTING(ARG:0)
-		;メインターゲットを調教対象に設定
-		VARSET PRISONER_TARGET, -1
-		PRISONER_TARGET:0 = ARG:0
-		;初期のウフフフラグをＯＮにする
-		FLAG:ウフフフラグ = 1
-		;捕虜調教モード
-		FLAG:調教モード = 2
-		;夜這いフラグ
-		FLAG:夜這い = 1
-		;行動開始時の共通設定
-		CALL START_TRAIN_COMMON
-		IF !GROUPMATCH(1, TALENT:ARG:親愛, TALENT:ARG:恋慕, TALENT:ARG:隷属, TALENT:ARG:服従, TALENT:ARG:主人, TALENT:ARG:所有者)
-			好感度他減少 = LIMIT(RAND(100, 200) - ABL:ARG:欲望 * 20 - ABL:ARG:奉仕 * 20 ,0, 100)
-			SIF TALENT:ARG:烙印
-				好感度他減少 /= 2
-			SIF CFLAG:(ARG:0):好感度 > 0
-				CFLAG:(ARG:0):好感度 -= 好感度他減少
-			SIF CFLAG:(ARG:0):従属度 > 0
-				CFLAG:(ARG:0):従属度 -= 好感度他減少
-			SIF CFLAG:(ARG:0):依存度 > 0
-				CFLAG:(ARG:0):依存度 -= 好感度他減少
-			SIF CFLAG:(ARG:0):支配度 > 0
-				CFLAG:(ARG:0):支配度 -= 好感度他減少 / 2
-			;相手国との関係悪化（適当）
-			CALL CHANGE_RELATION_C_TO_C(CFLAG:ARG:所属, CFLAG:MASTER:所属, RAND(50, 100) * -1, RAND(50, 100))
-			;対象が君主ならおかわり
-			SIF GET_COUNTRY_BOSS(CFLAG:(ARG:0):所属) == ARG:0
-				CALL CHANGE_RELATION_C_TO_C(CFLAG:ARG:所属, CFLAG:MASTER:所属, RAND(100, 150) * -1, RAND(100, 150))
+PRINTFORML %ANAME(ARG:0)%を襲いに行きます
+PRINTFORML よろしいですか？
+CALL ASK_YN
+IF RESULT == 0
+	CVARSET CFLAG, 6, 0
+	FOR LOCAL:0, 0, CHARANUM
+		IF LOCAL:0 != MASTER && CFLAG:(LOCAL:0):夜這いの助手
+			CFLAG:(LOCAL:0):調教参加フラグ = 1
 		ENDIF
-		REDRAW 1
-		RETURN 1
+	NEXT
+		;夜這い経験
+	EXP:ARG:59 ++
+		;調教初期設定
+	CALL TRAIN_TARGET_SETTING(ARG:0)
+		;メインターゲットを調教対象に設定
+	VARSET PRISONER_TARGET, -1
+	PRISONER_TARGET:0 = ARG:0
+		;初期のウフフフラグをＯＮにする
+	FLAG:ウフフフラグ = 1
+		;捕虜調教モード
+	FLAG:調教モード = 2
+		;夜這いフラグ
+	FLAG:夜這い = 1
+		;行動開始時の共通設定
+	CALL START_TRAIN_COMMON
+	IF !IS_LOVER(ARG:0) && !IS_SLAVE(ARG:0) && !IS_SLAVED_BY(ARG:0)
+		好感度他減少 = LIMIT(RAND(100, 200) - ABL:ARG:欲望 * 20 - ABL:ARG:奉仕 * 20 ,0, 100)
+		SIF TALENT:ARG:烙印
+			好感度他減少 /= 2
+		SIF CFLAG:(ARG:0):好感度 > 0
+			CFLAG:(ARG:0):好感度 -= 好感度他減少
+		SIF CFLAG:(ARG:0):従属度 > 0
+			CFLAG:(ARG:0):従属度 -= 好感度他減少
+		SIF CFLAG:(ARG:0):依存度 > 0
+			CFLAG:(ARG:0):依存度 -= 好感度他減少
+		SIF CFLAG:(ARG:0):支配度 > 0
+			CFLAG:(ARG:0):支配度 -= 好感度他減少 / 2
+		;相手との関係悪化（適当）
+		CALL CHANGE_RELATION_O_TO_C(CFLAG:ARG:所属, CFLAG:MASTER:所属, RAND(50, 100) * -1, RAND(50, 100))
+		CALL CHANGE_RELATION_O_TO_C(GET_COUNTRY_BOSS(CFLAG:(ARG:0):所属), CFLAG:MASTER:所属, RAND(50, 100) * -1, RAND(50, 100))
+			;対象が君主ならおかわり
+		SIF GET_COUNTRY_BOSS(CFLAG:(ARG:0):所属) == ARG:0
+			CALL CHANGE_RELATION_C_TO_C(CFLAG:ARG:所属, CFLAG:MASTER:所属, RAND(100, 150) * -1, RAND(100, 150))
+	ENDIF
+	REDRAW 1
+	RETURN 1
 ENDIF
 REDRAW 1
 

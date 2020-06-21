@@ -133,6 +133,7 @@ ELSEIF 入力値 > 0 && MONEY:(CFLAG:MASTER:所属) >= 雇用レート * 入力�
 		PRINTFORML 兵数:{兵数} → {兵数 + 入力値}
 		PRINTFORMW 資金:{MONEY:(CFLAG:MASTER:所属)} → {MONEY:(CFLAG:MASTER:所属) - 入力値 * 雇用レート}
 		COUNTRY_SOLDIER:(CFLAG:MASTER:所属) += 入力値
+		TMP_SUM_SOLDIER:(CFLAG:MASTER:所属) += 入力値
 		MONEY:(CFLAG:MASTER:所属) -= 入力値 * 雇用レート
 	ELSE
 		GOTO SHOW_LOOP
@@ -155,6 +156,7 @@ ELSEIF 入力値 < 0 && 入力値 * -1 <= 兵数
 		PRINTFORML 兵数:{兵数} → {兵数 - 入力値}
 		PRINTFORMW 資金:{MONEY:(CFLAG:MASTER:所属)} → {MONEY:(CFLAG:MASTER:所属) + 入力値 * 解雇レート}
 		COUNTRY_SOLDIER: (CFLAG:MASTER:所属) -= 入力値
+		TMP_SUM_SOLDIER:(CFLAG:MASTER:所属) -= 入力値
 		MONEY:(CFLAG:MASTER:所属) += 入力値 * 解雇レート
 	ELSE
 		GOTO SHOW_LOOP
@@ -178,8 +180,8 @@ ENDIF
 #DIM 都市レート基準
 #DIM 雇用レート
 #DIM 勢力
-#DIM COPY_SUM_ECONOMY, MAX_COUNTRY
 
+;星評価で増減する
 SELECTCASE TMP_COUNTRY_STARS:勢力
 	CASE 5
 		雇用レート = 3
@@ -189,8 +191,15 @@ SELECTCASE TMP_COUNTRY_STARS:勢力
 		雇用レート = 1
 ENDSELECT
 
+;全都市数の1/10を獲得するごとに1増える
 都市レート基準 = MAX(GET_CITY_NUM() / 10, 1)
 雇用レート += MAX(TMP_OWN_CITY:勢力 / 都市レート基準, 0)
-;雇用レート += DAY / 10
 
-RETURNF MAX(雇用レート, 1)
+;徴兵限界を越えているなら+1
+;徴兵限界をまたぐように徴兵するとちょっとお得になってしまうんだけど、
+;考慮すると処理がめんどくさくなるんでパス
+SIF TMP_SUM_SOLDIER:勢力 > GET_RECRUIT_LIMIT(勢力)
+	雇用レート += 1
+
+
+RETURNF 雇用レート

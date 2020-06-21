@@ -1,0 +1,122 @@
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@KOJO_DAILY_K92_LOM_RATE(対象)
+#DIM 対象
+RETURN 50
+
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@KOJO_DAILY_K92_LOM_DECISION(対象)
+#DIM 対象
+
+;散歩できるのは一回きり
+SIF KDVAR:対象:わかさぎ姫_石の魚
+    RETURN 0
+
+;霧の湖が存在するマップ限定
+;実質MAP_DEFAULT限定
+SIF FINDELEMENT(CITY_NAME, "霧の湖") == -1
+    RETURN 0
+
+;こいつらは「お初にお目にかかります」ってな仲ではなかろうから駄目
+SIF GROUPMATCH(MASTER, NAME_TO_CHARA("赤蛮奇"), NAME_TO_CHARA("影狼"))
+    RETURN 0
+
+;捕虜にしたりする都合、君主の場合はダメ
+;まずないと思うけど
+SIF GET_COUNTRY_BOSS(CFLAG:対象:所属) == 対象
+    RETURN 0
+
+RETURN CHECK_KOJO_DAILY_HAPPEN(対象, 0, 0, 0)
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@KOJO_DAILY_K92_LOM_GENRE(対象)
+#DIM 対象
+RETURN デイリー_ジャンル_その他
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@KOJO_DAILY_K92_LOM(対象)
+#DIM 対象
+
+CFLAG:対象:面識 = 1
+KDVAR:対象:わかさぎ姫_石の魚 = 1
+
+
+PRINTFORMW 「あのぉ、すみません……」
+PRINTFORML 霧の湖のほとりを歩いていると、不意に声をかけられた
+PRINTFORMW 何かと思えば、浜辺に人魚が打ち上げられている
+PRINTFORML 「お初にお目にかかります。私は%NAME_FORMAL(対象)%」
+PRINTFORML 「ちょっとした事故で打ち上げられてしまって、難儀してるんです」
+PRINTFORML 「助けてくれませんか？　そこに立ってくださればいいので」
+
+$ENDLESS
+CALL ASK_MULTI("助ける", "ことわる", "持ち帰る")
+
+IF RESULT == 1
+    PRINTFORML 「まあそうおっしゃらずに」
+    GOTO ENDLESS
+ELSEIF RESULT == 2
+    PRINTFORMW 「えっ、あの、ちょっと？」
+    PRINTFORML 海のない幻想郷で人魚なんてなかなかのレアだ
+    PRINTFORMW 持ち帰ることにした……
+    CALL COLOR_PRINT(@"%ANAME(対象)%を捕虜にしました", カラー_注意)
+    CALL CAPTURE(対象, CFLAG:MASTER:所属)
+    RETURN 1
+ENDIF
+
+PRINTFORMW 「ありがとうございます、では……えいっ！」
+PRINTFORML 指し示された位置に%ANAME(MASTER)%が立つと、%ANAME(対象)%は尾を使って飛び上がる
+PRINTFORML 空中で見事な宙返りをきめると、音もなく湖に着水した
+PRINTFORMW ……これ、自分がいる意味はあったのだろうか？
+PRINTFORMW %ANAME(対象)%は一度水に潜り、しばらくすると水面に顔だけ出してきた
+PRINTFORML 「いやあ、助かりました。妖精がやって来て悪戯をしかけてきまして」
+PRINTFORMW 「ところで、何かお礼なんていかがですか？」
+PRINTFORML 突っ立っていただけで何もしていないのだが、さて、どうしようか……
+
+$SELECT_OREI
+
+CALL ASK_MULTI("金が欲しい", "仲間になって", "ヤらせて！", "いらない", "妖精が見えるようになるおまじないをして")
+
+SELECTCASE RESULT
+    CASE 0
+        PRINTFORMW 「お金ですか？」
+        PRINTFORMW 「あいにく現金は持ち合わせてないんですが……水底で拾った綺麗な石を差し上げます」
+        PRINTFORMW 「売ればいくらかにはなると思いますよ……多分」
+        PRINTFORMW %ANAME(対象)%からもらった石を道具屋で売った……
+        CALL COLOR_PRINTW("金", ,"3000", カラー_注意, "を得た")
+        MONEY += 3000
+    CASE 1
+        PRINTFORMW 「仲間ですか？」
+        PRINTFORMW 「わかりました。私でよければ」
+        PRINTFORMW 「あっ、でも荒事は不得意ですから、そのあたりは配慮いただけると」
+        CALL COLOR_PRINTW(@"%ANAME(対象)%が仲間になった", カラー_注意)
+        CALL CHANGE_COUNTRY(対象, CFLAG:MASTER:所属)
+    CASE 2
+        PRINTFORMW 「……不潔！」
+        PRINTFORML %ANAME(対象)%は凄い勢いで水に潜ってしまった
+        PRINTFORMW 逃げられてしまった……
+        CFLAG:対象:好感度 -= 500
+    CASE 3
+        PRINTFORMW 「遠慮は不要なんですけど……無欲な人ですね」
+        PRINTFORMW 「まあ、そういうことなら」
+        PRINTFORMW 特に何も受け取らなかった……
+    CASE 4
+        PRINTFORML 「……？　妖精なんて、おまじないがなくても見えますよね？」
+        GOTO SELECT_OREI
+ENDSELECT
+
+
+RETURN 1

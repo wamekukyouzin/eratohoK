@@ -62,7 +62,7 @@ IF DIPLOMACY_TRAINED_DAY < 0 && !FLAG:調教要求フラグ
 	CFLAG:DIPLOMACY_TRAINING_CHARA:行動済み = 1
 	CFLAG:GET_COUNTRY_BOSS(CFLAG:MASTER:所属):調教参加フラグ = 1
 	PRINTFORMW %ANAME(GET_COUNTRY_BOSS(CFLAG:MASTER:所属))%は外交交渉の見返りとして、%ANAME(DIPLOMACY_TRAINING_CHARA)%の寝室へ向かった……
-	
+
 	;時間の処理をしないと、「拠点フェイズの終了時にここに到達、調教→調教終了でSLGフェイズのターンエンドが呼ばれ、次期の拠点フェイズに飛ぶ」みたいな挙動になる
 	;IF TIME == 0
 	;	DAY --
@@ -72,7 +72,7 @@ IF DIPLOMACY_TRAINED_DAY < 0 && !FLAG:調教要求フラグ
 	;	TIME = 0
 	;	SHOP_TIME = CALC_SHOP_TIME()
 	;ENDIF
-	
+
 	;行動開始時の共通設定
 	CALL START_TRAIN_COMMON
 	REDRAW 1
@@ -83,6 +83,16 @@ $SKIPPED
 
 ;デッドエンディングならBEGIN TITLE
 IF FLAG:強制エンドフラグ == 1
+
+	SETCOLOR カラー_注意
+	PRINTFORMW 現時点でのデータを利用し、「周回用セーブ」を作ることができます
+	PRINTFORMW 周回用セーブをロードすることで、今の武将やアイテムを引き継いで新規にシナリオを開始できます
+	RESETCOLOR
+
+	FLAG:クリア直後フラグ = 1
+
+	CALL SAVE_GAME
+
 	BEGIN TITLE
 ;ターンエンド調教が立っているなら即時調教モードに入る
 ELSEIF FLAG:ターンエンド調教
@@ -267,6 +277,11 @@ CALL SLAVEMARKET_PREPARE_GOODS
 CALL SCOUT_PREPARE_CANDIDATES
 ;「会いに行く」の対象リストのチェック
 CALL MEET_CHECK_CANDIDATES
+
+;このターンの特別訓練実施回数をリセット
+;CALC_SPECIAL_TRAIN_PRICEより先にリセットしないと割引が正常に動作しない
+SPECIAL_TRAIN_COUNT_THIS_TURN = 0
+
 ;特別訓練の価格を更新
 ;次のターンの特別訓練価格になるので、いったんDAYを1増やした（次のターンの値で）計算し、戻す
 DAY ++
@@ -291,8 +306,6 @@ FOR LOCAL:0, CHARANUM - 1, -1, -1
 	ENDIF
 NEXT
 
-;このターンの特別訓練実施回数をリセット
-SPECIAL_TRAIN_COUNT_THIS_TURN = 0
 
 ARENA_DONE = 0
 APPOINT_DONE = 0
@@ -358,6 +371,9 @@ FLAG:兵数増加追加値 = 0
 
 ;外交による調教要求フラグの解除判定
 CALL CHECK_DIPLOMACY_TRAIN_FLAG
+
+;塾による成長
+CALL CRAM_SCHOOL
 
 ;朝のイベント
 ;CALL EVENT_MORNING
@@ -447,6 +463,18 @@ ENDIF
 ;キャラの能力の変動
 ;-------------------------------------------------
 @TURNEND_CHARA_PROCESS
+#DIM 対象
+#DIM 湯治場カウント, MAX_COUNTRY
+
+VARSET 湯治場カウント
+
+FOR LOCAL, 0, MAX_COUNTRY
+	SIF !IS_COUNTRY(LOCAL)
+		CONTINUE
+	湯治場カウント:LOCAL = GET_DEVELOPMENT_COUNT(建造物_湯治場, LOCAL)
+NEXT
+
+
 FOR LOCAL:0, 0, CHARANUM
 	;全員の体力・気力を最大まで回復
 	BASE:(LOCAL:0):0 = MAXBASE:(LOCAL:0):0
@@ -457,8 +485,8 @@ FOR LOCAL:0, 0, CHARANUM
 	CALL ARMPIT_GROW(LOCAL:0)
 	;締まりの改善
 	CALL TIGHTNESS_GROW(LOCAL:0)
-	
-	
+
+
 	IF HAS_TAG(LOCAL, タグ_蓬莱人) && CFLAG:LOCAL:特殊状態 == 特殊状態_死亡
 		CALL COLOR_PRINTW("リザレクション！", カラー_注意)
 		CALL COLOR_PRINTW(@"%NAME_FORMAL(LOCAL)%が蘇りました", カラー_注意)
@@ -482,7 +510,7 @@ FOR LOCAL:0, 0, CHARANUM
 		CFLAG:(LOCAL:0):薬物依存 = MAX(CFLAG:(LOCAL:0):薬物依存 * 9 / 10, 300)
 	ELSE
 		CFLAG:(LOCAL:0):薬物依存 = MAX(CFLAG:(LOCAL:0):薬物依存 - RAND:(MAX(CFLAG:(LOCAL:0):薬物依存 * 1 / 10, 1)), 0)
-		
+
 	ENDIF
 
 	;特定勢力に所属していて捕虜でない
@@ -490,15 +518,20 @@ FOR LOCAL:0, 0, CHARANUM
 		FOR LOCAL:1, 0, CHARANUM
 			;同一勢力に所属するキャラの間で好感度を上昇させ、敵対度を減少させる
 			IF LOCAL:1 != LOCAL:0 && CFLAG:(LOCAL:1):所属 == CFLAG:(LOCAL:0):所属 && CFLAG:(LOCAL:1):捕虜先 == 0
-				LOCAL:2 = (1500 - REL_LIKE:(LOCAL:0):(LOCAL:1)) / 50 + TALENT:(LOCAL:1):謎の魅力 * 5
-				LOCAL:3 = REL_HATE:(LOCAL:0):(LOCAL:1) / 50 + TALENT:(LOCAL:1):謎の魅力 * 5
+
+				LOCAL:2 = (1500 - REL_LIKE:(LOCAL:0):(LOCAL:1)) / 50 + TALENT:(LOCAL:1):謎の魅力 * 5 + 湯治場カウント:(CFLAG:(LOCAL:0):所属) * 5
+				LOCAL:3 = REL_HATE:(LOCAL:0):(LOCAL:1) / 50 + TALENT:(LOCAL:1):謎の魅力 * 5 + 湯治場カウント:(CFLAG:(LOCAL:0):所属) * 5
+
 				;自然に上がる好感度は1000まで
-				IF REL_LIKE:(LOCAL:0):(LOCAL:1) < 1000
+				IF REL_LIKE:(LOCAL:0):(LOCAL:1) < 1000 + 10 * 湯治場カウント:(CFLAG:(LOCAL:0):所属)
 					REL_LIKE:(LOCAL:0):(LOCAL:1) = MIN(REL_LIKE:(LOCAL:0):(LOCAL:1) + LOCAL:2, 1000)
 				ENDIF
 				REL_HATE:(LOCAL:0):(LOCAL:1) = MAX(REL_HATE:(LOCAL:0):(LOCAL:1) - LOCAL:3, 0)
 			ENDIF
 		NEXT
+	;捕虜である
+	ELSEIF CFLAG:(LOCAL:0):捕虜先
+		CALL CHANGE_RELATION_O_TO_C(LOCAL:0, CFLAG:(LOCAL:0):捕虜先, 湯治場カウント * 5, 湯治場カウント * -5)
 	;放浪中
 	ELSEIF CFLAG:LOCAL:特殊状態 == 特殊状態_放浪
 		;特殊勢力以外への印象値をフラットにする
@@ -844,3 +877,4 @@ FOR LOCAL, 1, CHARANUM
 	ENDIF
 NEXT
 CALL KILL_EMPTY_LINE()
+

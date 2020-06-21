@@ -11,6 +11,7 @@ VARSET 評価値, __INT_MIN__
 
 君主 = GET_COUNTRY_BOSS(勢力)
 
+
 ;評価値を作成する
 ;手持ちの金で払える限りで最も有能な奴を基本的には選ぶ　ただし好き嫌いも影響するのでうーん？
 FOR 候補, 0, VARSIZE("SCOUT_CANDIDATES")
@@ -23,6 +24,9 @@ FOR 候補, 0, VARSIZE("SCOUT_CANDIDATES")
 	ENDIF
 
 	基礎額 = SCOUT_CALC_PRICE_BASIS(対象) * 2 / 3
+	基礎額 = SCOUT_CALC_PRICE_TECHNOLOGY_CORRECTION(基礎額, 勢力)
+	SIF DAY % 5 == 0
+		基礎額 /= 2
 
 	;基本的に値段と同一
 	評価値:候補 = 基礎額
@@ -31,7 +35,7 @@ FOR 候補, 0, VARSIZE("SCOUT_CANDIDATES")
 	評価値:候補 *= 1500 + REL_LIKE:君主:対象 - REL_HATE:君主:対象
 	評価値:候補 /= 1500
 
-	;金が足りなければ評価値は低い（確実な雇用を優先する）
+	;金が足りなければ評価値は低い（確実に雇用できるキャラをより評価する）
 	SIF MONEY:勢力 < 基礎額
 		評価値:候補 = 評価値:候補 * MONEY:勢力 / 基礎額
 
@@ -42,12 +46,17 @@ NEXT
 FOR LOCAL, 0, 3
 	候補 = FINDELEMENT(評価値, MAXARRAY(評価値))
 	対象 = ID_TO_CHARA(SCOUT_CANDIDATES:候補)
-	
+
 	SIF 対象 == -1
 		BREAK
 
 	支払額 = MIN(MONEY:勢力, 評価値)
-	基礎額 = SCOUT_CALC_PRICE_BASIS(対象)
+
+	基礎額 = SCOUT_CALC_PRICE_BASIS(対象) * 2 / 3
+	基礎額 = SCOUT_CALC_PRICE_TECHNOLOGY_CORRECTION(基礎額, 勢力)
+
+	SIF DAY % 5 == 0
+		基礎額 /= 2
 
 	SIF IS_SP_COUNTRY(勢力)
 		TIMES 基礎額, 1.5

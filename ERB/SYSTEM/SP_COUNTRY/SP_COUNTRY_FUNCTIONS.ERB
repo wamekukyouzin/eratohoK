@@ -159,25 +159,47 @@ RETURNF 0
 ;---------------------------------------------------
 ;蜂起するか判定する汎用関数
 ;---------------------------------------------------
-@CHECK_SP_COUNTRY_RISE()
+@CHECK_SP_COUNTRY_RISE(勢力定数)
 #FUNCTION
-#DIM 勢力数
 #DIM 基礎確率
+#DIM 勢力定数
+#DIM 最大都市数
+#DIM 特殊勢力数
 
-基礎確率 = 50
-勢力数 = 0
+基礎確率 = 30
+特殊勢力数 = 0
 
 SIF DAY < SLG_PP:1
 	RETURNF 0
 
-基礎確率 += (DAY - SLG_PP:1) * 10
+FOR LOCAL, 1, MAX_COUNTRY
+	SIF !IS_COUNTRY(LOCAL)
+		CONTINUE
+	最大都市数 = MAX(最大都市数, GET_OWN_CITY(LOCAL))
+NEXT
+
+基礎確率 += 最大都市数 * 2
+
+SELECTCASE SP_COUNTRY_RANK:勢力定数
+	CASE 1
+		基礎確率 = 基礎確率 * 150 / 100
+	CASE 2
+		基礎確率 = 基礎確率 * 125 / 100
+	CASE 3
+		基礎確率 = 基礎確率 * 100 / 100
+	CASE 4
+		基礎確率 = 基礎確率 * 60 / 100
+	CASE 5
+		基礎確率 = 基礎確率 * 45 / 100
+ENDSELECT
 
 FOR LOCAL, 0, MAX_COUNTRY
 	SIF IS_SP_COUNTRY(LOCAL) && COUNTRY_EVENT_ID:LOCAL != SP_COUNTRY_ID:特殊勢力_野盗
-		勢力数 ++
+		特殊勢力数 ++
 NEXT
 
-基礎確率 /= (勢力数 + 1)
+SIF DAY % 10 == 0
+	基礎確率 += 100
 
 RETURNF 基礎確率 > RAND:1000
 
@@ -243,7 +265,38 @@ RETURN 勢力
 ;-------------------------------------------------
 @INIT_SP_COUNTRY(勢力)
 #DIM 勢力
+#DIM 勢力定数
+#DIM 最大都市勢力
+#DIM 最大都市数
+勢力定数 = SP_COUNTRY_TO_CONST(勢力)
 
 CALL COUNTRY_INIT_ARMY(勢力)
-COUNTRY_SOLDIER:勢力 += MIN(DAY / 4 * 1000, 20000)
+
+CALL SET_COUNTRY_AI_TYPE(勢力)
+
+IF SP_COUNTRY_RANK:勢力定数 == 5
+	FOR LOCAL, 1, MAX_COUNTRY
+		SIF !IS_COUNTRY(LOCAL)
+			CONTINUE
+		IF 最大都市数 < GET_OWN_CITY(LOCAL)
+			最大都市数 = GET_OWN_CITY(LOCAL)
+			最大都市勢力 = LOCAL
+		ENDIF
+	NEXT
+	COUNTRY_SOLDIER:勢力 = MAX(GET_SUM_SOLDIER(最大都市勢力) * 2, 30000)
+ELSE
+	COUNTRY_SOLDIER:勢力 += MIN(DAY / 3 * 1500, 20000)
+
+	FOR LOCAL, 1, MAX_COUNTRY
+		SIF !IS_COUNTRY(LOCAL)
+			CONTINUE
+		最大都市数 = MAX(最大都市数, GET_OWN_CITY(LOCAL))
+	NEXT
+
+	SIF 最大都市数 >= 15
+		COUNTRY_SOLDIER:勢力 += MIN(最大都市数 * 1000, SP_COUNTRY_RANK:勢力定数 * 10000)
+ENDIF
+
 MONEY:勢力 = GET_SUM_ECONOMY(勢力) / 50
+
+CALL RANDOM_RISE_SET_TECHNOLOGY(勢力)

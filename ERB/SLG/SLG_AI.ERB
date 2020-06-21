@@ -21,6 +21,8 @@ ENDIF
 SIF DAY >= SLG_PP:0 && !IS_SP_COUNTRY(勢力)
 	CALL SLG_AI_DIPLOMACY(勢力)
 
+;建造物の建築
+CALL SLG_AI_DEVELOPMENT_SLOT(勢力)
 
 ;都市をもたない（野盗など）ならスキップする
 SIF TMP_OWN_CITY:勢力 < 1
@@ -410,13 +412,14 @@ RETURN 攻撃兵数
 #DIM 雇用兵数
 #DIM 兵数限界
 #DIM 留保額
-雇用レート = SLG_EXTRA_DRAFT_CALC_RATE(勢力)
+雇用レート = MAX(SLG_EXTRA_DRAFT_CALC_RATE(勢力) - 1, 1)
 ;雇用兵数は最大でも(国庫-残しとくぶん) / 雇用レート
 ;勢力が劣っている場合、留保額は小さくなる（徴兵に力を注ぐ）
 留保額 = MONEY:勢力 * AI_DEPLOY:(COUNTRY_AI_TYPE:勢力):(TMP_COUNTRY_STARS:勢力 > 2 ? 1 # 2) / 100
 雇用兵数限界 = (MONEY:勢力 - 留保額) / 雇用レート
 ;兵数限界は徴兵による限界に、勢力ごとの特色を足したもの
-兵数限界 = TMP_SUM_ECONOMY:勢力 / 10 * AI_DEPLOY:(COUNTRY_AI_TYPE:勢力):0 / 100
+
+兵数限界 = GET_RECRUIT_LIMIT(勢力) * AI_DEPLOY:(COUNTRY_AI_TYPE:勢力):0 / 100
 
 ;（雇用できる数＋現在の兵力）が経済力ベースの兵数限界を越えていて、かつ★３以上の勢力なら、兵数限界を超えないよう徴兵
 IF 雇用兵数限界 + TMP_SUM_SOLDIER:勢力 > 兵数限界 && TMP_COUNTRY_STARS:勢力 > 2
@@ -744,3 +747,178 @@ FOR 項番, 0, 都市数
 	防衛スコア:都市 = __INT_MIN__
 	;DEBUGPRINTFORML %GET_CITYNAME(都市)%の防衛兵 {CITY_SOLDIER:都市}
 NEXT
+
+;-----------------------------------------------
+;建造物
+;-----------------------------------------------
+@SLG_AI_DEVELOPMENT_SLOT(勢力)
+#DIM 勢力
+#DIM 兵舎数
+#DIM 独占市場数
+#DIM 都市
+#DIM 安全都市, MAX_COUNTRY
+#DIM 安全都市数
+#DIM 危険都市, MAX_COUNTRY
+#DIM 危険都市数
+#DIM 警戒都市, MAX_COUNTRY
+#DIM 警戒都市数
+
+#DIM 建設予定
+
+#DIM CONST AI_DEVELOPMENT_COST = 1000
+#DIM コスト
+
+;ベース1000として、都市の数5ごとに200（最大2000）増える
+コスト = AI_DEVELOPMENT_COST + MIN((TMP_OWN_CITY:勢力 / 5) * 200, 2000)
+
+; DEBUGPRINTFORML %ANAME(GET_COUNTRY_BOSS(勢力))%の建設  国庫{MONEY:勢力} 閾値{MONEY:勢力 * AI_DEVELOPMENT_PROPERTY:(COUNTRY_AI_TYPE:勢力):0 / 100} コスト{コスト}
+
+IF MONEY:勢力 * AI_DEVELOPMENT_PROPERTY:(COUNTRY_AI_TYPE:勢力):0 / 100 < AI_DEVELOPMENT_COST
+	; DEBUGPRINTFORML 予算不足のため建設諦め
+	RETURN
+ENDIF
+
+VARSET 兵舎数
+VARSET 独占市場数
+VARSET 安全都市数
+VARSET 危険都市数
+VARSET 警戒都市数
+
+FOR 都市, 0, CITY_NUM + 1
+	SIF CITY_OWNER:都市 != 勢力
+		CONTINUE
+	SELECTCASE CITY_DEVELOPMENT:都市
+		CASE 建造物_兵舎
+			兵舎数 ++
+		CASE 建造物_独占市場
+			独占市場数 ++
+		CASE 0
+			;敵と直接隣接、中継地点に敵を確認、今まさに敵がいるなら危険都市とする
+			IF TMP_CITY_RISK:勢力:都市 >= 4
+				危険都市:危険都市数 = 都市
+				危険都市数 ++
+			ELSEIF TMP_CITY_RISK:勢力:都市 == 0
+				安全都市:安全都市数 = 都市
+				安全都市数 ++
+			ELSEIF TMP_CITY_RISK:勢力:都市 >= 1
+				警戒都市:警戒都市数 = 都市
+				警戒都市数 ++
+			ENDIF
+	ENDSELECT
+NEXT
+
+;空きがないなら戻る
+IF 安全都市数 + 危険都市数 + 警戒都市数 == 0
+	; DEBUGPRINTFORML 空きがないので諦め
+	RETURN
+ENDIF
+
+;都市数が閾値以下なら弓櫓でガードをもくろむ
+IF TMP_OWN_CITY:勢力 <= AI_DEVELOPMENT_PROPERTY:(COUNTRY_AI_TYPE:勢力):1
+	建設予定 = 建造物_弓櫓
+;兵舎と独占市場を優先
+ELSEIF 独占市場数 < 2 || 兵舎数 < 2
+	建設予定 = (兵舎数 < 独占市場数 ? 建造物_兵舎 # 建造物_独占市場)
+ELSE
+	;なかなか塾系を考慮して守将を配置できない（期待できる効果が低い）ので塾系の確率は低めで.
+	;また弓櫓は通常建設しない（ゲーム進行が遅くなるおそれがあるので）
+	SELECTCASE IFRAND("0,1,5", 1, "2TO4", RAND:100 < 30)
+		CASE 0
+			建設予定 = 建造物_兵舎
+		CASE 1
+			建設予定 = 建造物_独占市場
+		CASE 2
+			建設予定 = 建造物_武芸塾
+		CASE 3
+			建設予定 = 建造物_戦略塾
+		CASE 4
+			建設予定 = 建造物_知略塾
+		CASE 5
+			建設予定 = 建造物_湯治場
+	ENDSELECT
+ENDIF
+
+IF GROUPMATCH(建設予定, 建造物_弓櫓, 建造物_武芸塾, 建造物_戦略塾, 建造物_知略塾)
+	;弓櫓、塾系は前線か準前線に建てようとする（塾系はAIが守将を前線に置きたがる都合）
+	VARSET 安全都市
+	ARRAYCOPY "危険都市", "安全都市"
+	FOR 都市, 危険都市数, 危険都市数 + 警戒都市数
+		安全都市:都市 = 警戒都市:(都市 - 危険都市数)
+	NEXT
+	安全都市数 = 危険都市数 + 警戒都市数
+ELSE
+	;通常は安全な（敵と隣接していない）都市に建てようとする
+	;AIによって敵都市と間接的だったり直接的に隣接した都市も許容する
+	IF AI_DEVELOPMENT_PROPERTY:(COUNTRY_AI_TYPE:勢力):1 >= 1
+		FOR 都市, 0, 警戒都市数
+			安全都市:安全都市数 = 警戒都市:都市
+			安全都市数++
+		NEXT
+		IF AI_DEVELOPMENT_PROPERTY:(COUNTRY_AI_TYPE:勢力):1 == 2
+			FOR 都市, 0, 危険都市数
+				安全都市:安全都市数 = 危険都市:都市
+				安全都市数++
+			NEXT
+		ENDIF
+	ENDIF
+ENDIF
+
+;ここまででまだ候補がないなら戻る
+IF 安全都市数 <= 0
+	; DEBUGPRINTFORML %GET_DEVELOPMENT_NAME(建設予定)%に適切な都市がないため諦め
+	RETURN
+ENDIF
+
+都市 = 安全都市:(RAND:安全都市数)
+CITY_DEVELOPMENT:都市 = 建設予定
+
+; DEBUGPRINTFORML %CITY_NAME:都市%に%GET_DEVELOPMENT_NAME(建設予定)%を建設 {MONEY:勢力} → {MONEY:勢力 - コスト}
+MONEY:勢力 -= コスト
+
+
+
+;-----------------------------------------------
+;技術
+;-----------------------------------------------
+@SLG_AI_TECHNOLOGY(勢力)
+#DIM 勢力
+#DIM ジャンル
+#DIM ステージ
+#DIM 候補値, TECHNOLOGY_MAX_GENRE
+
+;DEBUGPRINTFORM %ANAME(GET_COUNTRY_BOSS(勢力))%:
+
+ジャンル = TECHNOLOGY_RESEARCH_TARGET:勢力 / 100
+ステージ = TECHNOLOGY_RESEARCH_TARGET:勢力 % 100
+
+;習得中
+IF INRANGE(TECHNOLOGY_RESEARCH_PROGRESS:勢力, 1, GET_RESEARCH_PERIOD(勢力, ジャンル, ステージ))
+	;DEBUGPRINTFORML 習得中につき新規選択スキップ
+	RETURN
+ENDIF
+
+VARSET 候補値, 100
+
+FOR LOCAL, 0, TECHNOLOGY_MAX_GENRE
+	候補値:LOCAL += AI_TECHNOLOGY_PREFERENCE:(COUNTRY_AI_TYPE:勢力):LOCAL
+	候補値:LOCAL = MAX(候補値:LOCAL - TECHNOLOGY_STATUS:勢力:LOCAL * 5, 1)
+
+	;そのジャンルもう取れないならダメ
+	IF !IS_TECHNOLOGY_EXISTS(LOCAL, TECHNOLOGY_STATUS:勢力:LOCAL + 1)
+		候補値:LOCAL = __INT_MIN__
+	ELSE
+		候補値:LOCAL = RAND:(候補値:LOCAL)
+	ENDIF
+	;DEBUGPRINTFORML 候補値:{LOCAL} {候補値:LOCAL}
+NEXT
+
+IF MAXARRAY(候補値) == __INT_MIN__
+	;DEBUGPRINTFORML もう習得する技術がない
+	RETURN
+ENDIF
+
+ジャンル = FINDELEMENT(候補値, MAXARRAY(候補値))
+
+TECHNOLOGY_RESEARCH_TARGET:勢力 = ジャンル * 100 + TECHNOLOGY_STATUS:勢力:ジャンル + 1
+
+PRINTFORML %ANAME(GET_COUNTRY_BOSS(勢力))%は『%GET_TECHNOLOGY_NAME(ジャンル, TECHNOLOGY_STATUS:勢力:ジャンル + 1)%』の研究を開始しました

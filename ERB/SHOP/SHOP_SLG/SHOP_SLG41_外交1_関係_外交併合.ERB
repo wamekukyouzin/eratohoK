@@ -8,8 +8,8 @@
 #DIM 相手君主
 #DIM 相手外交計画
 #DIM 判定値
-#DIM 成功フラグ
 #DIM 期間
+#DIM スコア, 3
 勢力 = CFLAG:MASTER:所属
 
 IF CHECK_COUNTRY_RELATION_F(勢力, 相手勢力) != 3
@@ -35,22 +35,53 @@ ENDIF
 
 PRINTFORMW %ANAME(君主)%は%ANAME(相手君主)%に対して、外交併合する提案をした
 
-成功フラグ = 0
+
+VARSET スコア
 
 ;条件1　自勢力に対する好意-敵意が1350以上。
-IF REL_LIKE:相手君主:君主 - (REL_HATE:相手君主:君主 + DIPLOMACY_HATE:勢力 * 30) > 1350
-	成功フラグ = 1
+スコア:0 = (REL_LIKE:相手君主:君主 - (REL_HATE:相手君主:君主 + DIPLOMACY_HATE:勢力 * 30)) * 100 / 1350
+
 ;条件2　相手が隷属しており、自勢力の経済力が相手勢力の8倍
-ELSEIF TALENT:相手君主:隷属 && GET_SUM_ECONOMY(勢力) > GET_SUM_ECONOMY(相手勢力) * (8 + DIPLOMACY_HATE:勢力 / 3)
-	成功フラグ = 1
-;条件3　自勢力の経済力ならびに政治力が、それぞれ相手勢力の4倍
-ELSEIF GET_SUM_ECONOMY(勢力) > GET_SUM_ECONOMY(相手勢力) * (4 + DIPLOMACY_HATE:勢力 / 3) && TMP_GET_POLITICS_POWER(勢力) > TMP_GET_POLITICS_POWER(相手勢力) * (4 + DIPLOMACY_HATE:勢力 / 3)
-	成功フラグ = 1
-ENDIF
+スコア:1 = GET_SUM_ECONOMY(勢力) * 100 / (GET_SUM_ECONOMY(相手勢力) * (8 + DIPLOMACY_HATE:勢力 / 3))
 
+SIF !TALENT:相手君主:隷属
+	スコア:1 = 0
 
-IF !成功フラグ
+;条件3　自勢力の経済力ならびに政治力が、それぞれ相手勢力の4倍以上
+スコア:2 = GET_SUM_ECONOMY(勢力) * 100 / (GET_SUM_ECONOMY(相手勢力) * (4 + DIPLOMACY_HATE:勢力 / 3))
+スコア:2 = MIN(スコア:2, TMP_GET_POLITICS_POWER(勢力) * 100 > TMP_GET_POLITICS_POWER(相手勢力) * (4 + DIPLOMACY_HATE:勢力 / 3))
+
+IF スコア:0 < 100 && スコア:1 < 100 && スコア:2 < 100
 	PRINTFORMW 残念ながら、%ANAME(相手君主)%は我が国の外交併合に応じませんでした…
+	SELECTCASE スコア:0
+		CASE IS < 50
+			PRINTFORML 併合するには勢力間の関係がまったく足りていません
+		CASE IS < 80
+			PRINTFORML 併合するには勢力間の関係をもっと改善する必要があります
+		CASEELSE
+			PRINTFORML あと少し仲良くなれば、併合に応じてくれそうです
+	ENDSELECT
+	IF TALENT:相手君主:隷属
+		PRINTFORM あるいは、
+		SELECTCASE スコア:1
+			CASE IS < 50
+				PRINTFORML 併合をゴリ押すための経済力がまるで足りていません
+			CASE IS < 80
+				PRINTFORML 併合をゴリ押すための経済力がもっと必要です
+			CASEELSE
+				PRINTFORML もう少し経済力があれば、併合をゴリ押せそうです
+		ENDSELECT
+	ENDIF
+	PRINTFORM もしくは、
+	SELECTCASE スコア:2
+		CASE IS < 50
+			PRINTFORML 根回しのための経済力や政治力がまるで足りていません
+		CASE IS < 80
+			PRINTFORML 根回しのための経済力や政治力がもっと必要です
+		CASEELSE
+			PRINTFORML もう少し根回しのための経済力や政治力があれば、併合に持ち込めそうです
+	ENDSELECT
+	WAIT
 	RETURN 1
 ENDIF
 
@@ -165,7 +196,7 @@ ENDIF
 ;旧勢力の後始末
 CALL DESTROY_COUNTRY(相手勢力)
 ;外交併合による外交印象の悪化
-DIPLOMACY_HATE:(CFLAG:MASTER:所属) += 5
+DIPLOMACY_HATE:(CFLAG:MASTER:所属) += 1
 
 RETURN 1
 

@@ -14,6 +14,8 @@ SELECTCASE スキル名
 		RETURNF 2
 	CASE "明察"
 		RETURNF 3
+	CASE "工作員"
+		RETURNF 4
 ENDSELECT
 
 RETURNF -1
@@ -116,8 +118,8 @@ SIF BATTLE_SKILL_SEALED:発動側:発動番号
 
 ;存在判定
 TRYCCALLFORM SKILL_{スキルNO}_%SKILL_GENRE_ENG:ジャンル%_{スキルID}_EXIST
-	CATCH
-		RETURN -1
+CATCH
+	RETURN -1
 ENDCATCH
 ;対象選択
 TRYCCALLFORM SKILL_{スキルNO}_%SKILL_GENRE_ENG:ジャンル%_{スキルID}_SETTARGET(発動者, 発動番号, 発動側, 発動勢力, 発動部隊, 対象勢力, 対象部隊)
@@ -129,6 +131,13 @@ CATCH
 ENDCATCH
 ;発動率判定
 CALLFORM SKILL_{スキルNO}_%SKILL_GENRE_ENG:ジャンル%_{スキルID}_RATE(発動者, 発動番号, 発動側, 発動勢力, 発動部隊, 対象勢力, 対象部隊)
+
+;技術研究の成果
+SIF TECHNOLOGY_STATUS:(CFLAG:発動者:所属):TECHNOLOGY_BATTLE_SKILL >= 1
+	RESULT += 50
+SIF TECHNOLOGY_STATUS:(CFLAG:発動者:所属):TECHNOLOGY_BATTLE_SKILL >= 7
+	RESULT += 100
+
 IF RAND:1000 >= RESULT * BATTLE_SKILL_RATE:発動側:発動番号 / 100
 	RESETCOLOR
 	RETURN 0
@@ -146,8 +155,61 @@ CALLFORM SKILL_PRINT_INVOKE(発動者, ジャンル, スキルNO, スキルID)
 CALLFORM SKILL_{スキルNO}_%SKILL_GENRE_ENG:ジャンル%_{スキルID}_INVOKE(発動者, 発動番号, 発動側, 発動勢力, 発動部隊, 対象勢力, 対象部隊)
 RETURN RESULT
 
+;---------------------------------
+;国家方針・研究スキル
+;---------------------------------
+@TECHNOLOGY_PERSONAL_SKILL_COMBAT_INVOKE(発動側, 発動勢力, 発動部隊, 対象勢力, 対象部隊)
+#DIM 発動者
+#DIM 発動番号
+#DIM ジャンル
+#DIM 発動側
+#DIM 発動勢力
+#DIM 発動部隊
+#DIM 対象勢力
+#DIM 対象部隊
+#DIM 都市
+
+SIF BATTLE_COMMANDER_NUM:発動側 == 0
+	RETURN 0
+
+SIF BATTLE_SKILL_SEALED:発動側:発動番号 || BATTLE_SUMMONED_CHARA:発動側:発動番号
+	RETURN 0
+
+発動者 = BATTLE_COMMANDER:(発動側):0
+発動番号 = 0
+;国人衆参戦
+SIF TECHNOLOGY_STATUS:(CFLAG:発動者:所属):TECHNOLOGY_BATTLE_SKILL >= 2
+	CALL SKILL_COMBAT_TRY_INVOKE(発動者, 発動番号, スキル_ジャンル_PERSONAL, 0, 40, 発動側, 発動勢力, 発動部隊, 対象勢力, 対象部隊)
 
 
+@TECHNOLOGY_TROOP_SKILL_COMBAT_INVOKE(発動側, 発動勢力, 発動部隊, 対象勢力, 対象部隊)
+#DIM 発動者
+#DIM 発動番号
+#DIM ジャンル
+#DIM 発動側
+#DIM 発動勢力
+#DIM 発動部隊
+#DIM 対象勢力
+#DIM 対象部隊
+#DIM 都市
+
+SIF BATTLE_COMMANDER_NUM:発動側 == 0
+	RETURN 0
+
+SIF BATTLE_SKILL_SEALED:発動側:発動番号 || BATTLE_SUMMONED_CHARA:発動側:発動番号
+	RETURN 0
+	
+発動者 = BATTLE_COMMANDER:(発動側):0
+発動番号 = 0
+;弾幕強化
+SIF TECHNOLOGY_STATUS:(CFLAG:発動者:所属):TECHNOLOGY_BATTLE_SKILL >= 3
+	CALL SKILL_COMBAT_TRY_INVOKE(発動者, 発動番号, スキル_ジャンル_TROOP, 0, 34, 発動側, 発動勢力, 発動部隊, 対象勢力, 対象部隊)
+SIF TECHNOLOGY_STATUS:(CFLAG:発動者:所属):TECHNOLOGY_BATTLE_SKILL >= 4
+	CALL SKILL_COMBAT_TRY_INVOKE(発動者, 発動番号, スキル_ジャンル_TROOP, 0, 35, 発動側, 発動勢力, 発動部隊, 対象勢力, 対象部隊)
+SIF TECHNOLOGY_STATUS:(CFLAG:発動者:所属):TECHNOLOGY_BATTLE_SKILL >= 5
+	CALL SKILL_COMBAT_TRY_INVOKE(発動者, 発動番号, スキル_ジャンル_TROOP, 0, 36, 発動側, 発動勢力, 発動部隊, 対象勢力, 対象部隊)
+SIF TECHNOLOGY_STATUS:(CFLAG:発動者:所属):TECHNOLOGY_BATTLE_SKILL >= 6
+	CALL SKILL_COMBAT_TRY_INVOKE(発動者, 発動番号, スキル_ジャンル_TROOP, 0, 37, 発動側, 発動勢力, 発動部隊, 対象勢力, 対象部隊)
 
 ;---------------------------------
 ;スキル発動時のデフォルト地の文
@@ -304,7 +366,7 @@ FOR ジャンル, 0, SKILL_GENRE_NUM
 			TRYCCALLFORM SKILL_{対象NO}_%SKILL_GENRE_ENG:ジャンル%_{スキルID}_NO_LEARN_INIT
 				GOTO CANCEL
 			CATCH
-			CALL SKILL_LEARN(対象, ジャンル, 対象NO, スキルID)
+				CALL SKILL_LEARN(対象, ジャンル, 対象NO, スキルID)
 			ENDCATCH
 		CATCH
 			$CANCEL

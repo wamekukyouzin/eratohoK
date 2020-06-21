@@ -24,8 +24,8 @@ SIF RESULT == 0
 ;プレイヤーは最大で1人まで
 SIF MPLY_NUM <= 0 || MPLY_NUM > 1
 	RETURN 0
-;ターゲットは最大で1人まで
-SIF MTAR_NUM <= 0 || MTAR_NUM > 1
+;ターゲットは1人以上
+SIF MTAR_NUM <= 0
 	RETURN 0
 ;鼻フックが必要
 SIF !ITEM:鼻フック && !ITEM:A_鼻フック
@@ -56,17 +56,19 @@ EXP:(MPLY:0):嗜虐経験値 += 1
 CALL ADD_SOURCE_INITIATIVE_U(MPLY:0, 130, 40)
 
 ;●ターゲットについて処理
-EXP:(MTAR:0):緊縛経験 += 1
-EXP:(MTAR:0):被虐経験値 += 1
+FOR LOCAL, 0, MTAR_NUM
+	LOCAL:2 = MTAR:LOCAL
+	EXP:(LOCAL:2):緊縛経験 += 1
+	EXP:(LOCAL:2):被虐経験値 += 1
 
-SOURCE:(MTAR:0):恐怖 = 40
-SOURCE:(MTAR:0):不安 = 70
-SOURCE:(MTAR:0):逸脱 = 150
-SOURCE:(MTAR:0):接触 = 20
+	SOURCE:(LOCAL:2):恐怖 = 40
+	SOURCE:(LOCAL:2):不安 = 70
+	SOURCE:(LOCAL:2):逸脱 = 150
+	SOURCE:(LOCAL:2):接触 = 20
 
 ;主導権に応じた優越・屈従のソース追加
-CALL ADD_SOURCE_INITIATIVE_U(MTAR:0, 0, 110)
-
+	CALL ADD_SOURCE_INITIATIVE_U(LOCAL:2, 0, 110)
+NEXT
 ;主導度変化基準値
 TFLAG:49 = 2
 
@@ -89,17 +91,19 @@ RETURN 2
 ;継続状態の処理
 ;-------------------------------------------------
 @COM_EQUIP93(ARG:0)
-LOCAL:3 = MEQUIP_TARGET:(ARG:0):0
+FOR LOCAL, 0, MEQUIP_TARGET_NUM:(ARG:0)
+	LOCAL:3 = MEQUIP_TARGET:(ARG:0):LOCAL
 
-EXP:(LOCAL:3):緊縛経験 += 1
-EXP:(LOCAL:3):被虐経験値 += 1
+	EXP:(LOCAL:3):緊縛経験 += 1
+	EXP:(LOCAL:3):被虐経験値 += 1
 
-SOURCE:(LOCAL:3):恐怖 += 15
-SOURCE:(LOCAL:3):不安 += 30
-SOURCE:(LOCAL:3):逸脱 += 80
+	SOURCE:(LOCAL:3):恐怖 += 15
+	SOURCE:(LOCAL:3):不安 += 30
+	SOURCE:(LOCAL:3):逸脱 += 80
 
-;倒錯度変化
-TCVAR:(LOCAL:3):50 += 2
+	;倒錯度変化
+	TCVAR:(LOCAL:3):50 += 2
+NEXT
 
 ;-------------------------------------------------
 ;継続中の表示
@@ -185,15 +189,15 @@ RETURN 1
 SELECTCASE GET_COM_INITIATIVE()
 	;プレイヤーに主導権
 	CASE 0
-		PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%に鼻フックを装着し%TARGET_STR("た", "てきた")%…
+		PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0, MTAR_NUM)%に鼻フックを装着し%TARGET_STR("た", "てきた")%…
 	;ターゲットに主導権
 	CASE 1
-		PRINTFORMW %ANAME(MTAR:0)%は%ANAME(MPLY:0)%に鼻フックを渡すと、それを%ANAME(MTAR:0)%に装着するように命令した…
-		PRINTFORML %ANAME(MPLY:0)%は言われるまま、%ANAME(MTAR:0)%に鼻フックを取り付けた…
+		PRINTFORMW %ANAME(MTAR:0, MTAR_NUM)%は%ANAME(MPLY:0)%に鼻フックを渡すと、それを%ANAME(MTAR:0, MTAR_NUM)%に装着するように命令した…
+		PRINTFORML %ANAME(MPLY:0)%は言われるまま、%ANAME(MTAR:0, MTAR_NUM)%に鼻フックを取り付けた…
 	;第三者に主導権
 	CASEELSE
-		PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に対して、%ANAME(MTAR:0)%に鼻フックを付けるように命令した
-		PRINTFORML %ANAME(MPLY:0)%は言われるまま、%ANAME(MTAR:0)%に鼻フックを装着した…
+		PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に対して、%ANAME(MTAR:0, MTAR_NUM)%に鼻フックを付けるように命令した
+		PRINTFORML %ANAME(MPLY:0)%は言われるまま、%ANAME(MTAR:0, MTAR_NUM)%に鼻フックを装着した…
 ENDSELECT
 
 ;-------------------------------------------------

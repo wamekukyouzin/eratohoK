@@ -1,0 +1,140 @@
+﻿
+;-------------------------------------------------
+;建造物の開発
+;-------------------------------------------------
+@DEVELOP_SLOT(CITY_ID)
+#DIM CITY_ID
+#DIM FIRST_LINE
+IF MONEY:(CFLAG:MASTER:所属) < 3000
+    PRINTFORMW %CITY_NAME:CITY_ID%に建造するには国庫が足りません(国庫3,000必要です)
+    RETURN 0
+ENDIF
+
+FIRST_LINE = LINECOUNT
+
+CALL SINGLE_DRAWLINE
+
+PRINTFORML %CITY_NAME:CITY_ID%に建造する施設を選択してください（国庫3,000が必要です）。
+PRINTFORML 国庫:%NUM_FORMAT(MONEY:(CFLAG:MASTER:所属)), 10% 現在の施設:%GET_DEVELOPMENT_NAME(CITY_DEVELOPMENT:CITY_ID)%
+DRAWLINE
+FOR LOCAL, 建造物_兵舎, 建造物_湯治場 + 1
+    PRINTBUTTON @"%"[" + GET_DEVELOPMENT_NAME(LOCAL) + "]", 11, LEFT%", LOCAL
+    PRINTFORML : %GET_DEVELOPMENT_EXPLANATION(LOCAL)%
+NEXT
+PRINTBUTTON "[キャンセル]" , 0
+PRINTL
+$DEV_LOOP
+INPUT
+SELECTCASE RESULT
+    CASE 建造物_兵舎 TO 建造物_湯治場
+        SIF CITY_DEVELOPMENT:CITY_ID
+            PRINTFORM %GET_DEVELOPMENT_NAME(CITY_DEVELOPMENT:CITY_ID)%を取り壊し、
+        PRINTFORMW %GET_DEVELOPMENT_NAME(RESULT)%を建設しました
+        CITY_DEVELOPMENT:CITY_ID = RESULT
+        MONEY:(CFLAG:MASTER:所属) -= 3000
+        CLEARLINE FIRST_LINE - LINECOUNT
+        RETURN
+    CASE 0
+        CLEARLINE FIRST_LINE - LINECOUNT
+        RETURN
+    CASEELSE
+        CLEARLINE 1
+        GOTO DEV_LOOP
+ENDSELECT
+
+;-------------------------------------------------
+;建造物の建築物名返却
+;-------------------------------------------------
+@GET_DEVELOPMENT_NAME(DEVELOPMENT_ID)
+#FUNCTIONS
+#DIM DEVELOPMENT_ID
+SELECTCASE DEVELOPMENT_ID
+    CASE 建造物_兵舎
+        RETURNF "兵舎"
+    CASE 建造物_独占市場
+        RETURNF "独占市場"
+    CASE 建造物_弓櫓
+        RETURNF "弓櫓"
+    CASE 建造物_武芸塾
+        RETURNF "武芸塾"
+    CASE 建造物_戦略塾
+        RETURNF "戦略塾"
+    CASE 建造物_知略塾
+        RETURNF "知略塾"
+    CASE 建造物_湯治場
+        RETURNF "湯治場"
+    CASEELSE
+        RETURNF "---"
+ENDSELECT
+
+;-------------------------------------------------
+;建造物の説明返却
+;-------------------------------------------------
+@GET_DEVELOPMENT_EXPLANATION(DEVELOPMENT_ID)
+#FUNCTIONS
+#DIM DEVELOPMENT_ID
+SELECTCASE DEVELOPMENT_ID
+    CASE 建造物_兵舎
+        RETURNF "毎ターンの徴兵数と徴兵限界が増加"
+    CASE 建造物_独占市場
+        RETURNF "都市の収入が増加"
+    CASE 建造物_弓櫓
+        RETURNF "都市からの援護射撃を強化"
+    CASE 建造物_武芸塾
+        RETURNF "毎ターン守将に武闘経験値が入る"
+    CASE 建造物_戦略塾
+        RETURNF "毎ターン守将に防衛経験値が入る"
+    CASE 建造物_知略塾
+        RETURNF "毎ターン守将に知略経験値が入る"
+    CASE 建造物_湯治場
+        RETURNF "毎ターン士官や捕虜の印象が改善"
+    CASEELSE
+        RETURNF "---"
+ENDSELECT
+
+
+;-------------------------------------------------
+;建造物の建築物数返却
+;-------------------------------------------------
+@GET_DEVELOPMENT_COUNT(DEVELOPMENT_ID, COUNTRY)
+#FUNCTION
+#DIM DEVELOPMENT_ID
+#DIM COUNTRY
+#DIM DEVELOPMENT_COUNT
+
+DEVELOPMENT_COUNT = 0
+FOR LOCAL, 0, MAX_CITY
+    SIF CITY_OWNER:(LOCAL) == COUNTRY && CITY_DEVELOPMENT:LOCAL == DEVELOPMENT_ID
+        DEVELOPMENT_COUNT ++
+NEXT
+RETURNF DEVELOPMENT_COUNT
+
+;-------------------------------------------------
+;塾のある都市の守将に経験値を割り振る
+;-------------------------------------------------
+@CRAM_SCHOOL
+#DIM 建造物
+#DIM 守将
+#DIM 成長箇所
+
+FOR LOCAL, 0, MAX_CITY
+    建造物 = CITY_DEVELOPMENT:LOCAL
+    成長箇所 = 0
+    SELECTCASE 建造物
+        CASE 建造物_武芸塾
+            成長箇所 = GETNUM(ABL, "武闘")
+        CASE 建造物_戦略塾
+            成長箇所 = GETNUM(ABL, "防衛")
+        CASE 建造物_知略塾
+            成長箇所 = GETNUM(ABL, "知略")
+    ENDSELECT
+    SIF !成長箇所
+        CONTINUE
+    FOR LOCAL:1, 0, GET_CITY_COMMANDER_NUM(LOCAL)
+        守将 = GET_CITY_COMMANDER(LOCAL, LOCAL:1)
+        EXP:守将:成長箇所 += RAND:3 + 3
+        CALL TRAIN_AUTO_ABLUP(守将, 1)
+    NEXT
+NEXT
+
+

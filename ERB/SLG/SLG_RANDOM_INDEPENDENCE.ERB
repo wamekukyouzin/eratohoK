@@ -8,20 +8,31 @@
 #DIM 候補値, 3000
 #DIM 結果
 #DIM 判定値
+#DIM 野心無視フラグ
+
 VARSET 人数
 VARSET 候補
 VARSET 候補値
+
 ;10期以降
 SIF !(DAY >= 10)
 	RETURN 0
+
+;10%の確率で野心をフラットに扱う
+野心無視フラグ = RAND:100 < 10
 
 ;---今回の謀反候補を取得---
 FOR LCOUNT, 1, CHARANUM
 	SIF !CAN_RANDOM_INDEPENDENCE(LCOUNT)
 		CONTINUE
+
 	候補:人数 = LCOUNT
 	;選出候補値は野心をそのまま利用
-	候補値:人数 = RAND(0, MAX(1, ABL:LCOUNT:野心))
+	IF 野心無視フラグ
+		候補値:人数 = RAND(0, 10000)
+	ELSE
+		候補値:人数 = RAND(0, MAX(1, ABL:LCOUNT:野心))
+	ENDIF
 	人数 ++
 NEXT
 
@@ -45,6 +56,8 @@ IF 判定値 <= RAND:10000
 	RETURN 0
 ENDIF
 CALL NPC_INDEPENDENCE(結果)
+
+RETURN 1
 
 ;----------------------------------------------
 ;謀反できる状態か
@@ -71,8 +84,8 @@ SIF ABL:対象:野心 <= 0
 ;ただし印象値が非常に悪い場合はなおも謀反を企てる
 ;閾値は本人の野心によって変動する
 {
-SIF CFLAG:対象:所属 == CFLAG:MASTER:所属 && GET_COUNTRY_BOSS(CFLAG:MASTER:所属) == MASTER && (IS_LOVER(対象) || IS_SLAVE(対象) || IS_SLAVED_BY(対象)) &&
-	REL_HATE:対象:MASTER - REL_LIKE:対象:MASTER < 1500 * (100 - ABL:対象:野心) / 100
+	SIF CFLAG:対象:所属 == CFLAG:MASTER:所属 && GET_COUNTRY_BOSS(CFLAG:MASTER:所属) == MASTER && (IS_LOVER(対象) || IS_SLAVE(対象) || IS_SLAVED_BY(対象)) &&
+		REL_HATE:対象:MASTER - REL_LIKE:対象:MASTER < 1500 * (100 - ABL:対象:野心) / 100
 }
 	RETURNF 0
 RETURNF 1
@@ -80,12 +93,20 @@ RETURNF 1
 ;----------------------------------------------
 ;謀反を起こす確率を算出
 ;----------------------------------------------
-@CALC_INDEPENDENCE_RATE(対象)
+@CALC_INDEPENDENCE_RATE(対象, 野心無視フラグ = 0)
 #FUNCTION
 #DIM 対象
 #DIM 判定値
+#DIM 野心無視フラグ
+
 ;野心とREL_LIKE/HATE、所有都市数、DAYから判定値を算出
-判定値 = ABL:対象:野心 * 2
+
+IF 野心無視フラグ
+	判定値 = 160
+ELSE
+	判定値 = ABL:対象:野心 * 2
+ENDIF
+
 SELECTCASE ABL:対象:野心
 	CASE IS >= ランク閾値:ランク_ＳＬＧ:ランク_A
 		TIMES 判定値, 1.5
@@ -94,13 +115,16 @@ SELECTCASE ABL:対象:野心
 	CASE IS >= ランク閾値:ランク_ＳＬＧ:ランク_C
 		TIMES 判定値, 1.1
 ENDSELECT
-		
+
 判定値 -= REL_LIKE:対象:(GET_COUNTRY_BOSS(CFLAG:対象:所属)) / 30
 判定値 += REL_HATE:対象:(GET_COUNTRY_BOSS(CFLAG:対象:所属)) / 50
+
 ;都市数が多いほど離反しやすい
 判定値 += GET_OWN_CITY(CFLAG:対象:所属) * 2
+
 ;終盤は離反しにくくする（ただでさえ終わらない観戦モードがさらに終わらなくなるので）
 判定値 -= LIMIT(DAY / 2 - 50, 0, 200)
+
 SIF TALENT:対象:臆病
 	判定値 -= 5
 SIF TALENT:対象:反抗的

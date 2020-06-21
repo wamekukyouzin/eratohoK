@@ -30,25 +30,25 @@ NEXT
 IF TRAINNAME:(ARG:0) != ""
 	;コマンドフィルタ
 	IF !COM_FILTER:(ARG:0)
-		;Only check the currently selected category. Saves some processing time.
-        TRYCALLFORM COM_CATEGORY{ARG:0}
-		IF (RESULT != TFLAG:7) && (ARG:0 != 291)
-            RETURN 0
-		ENDIF
-		
+		; ;Only check the currently selected category. Saves some processing time.
+		; TRYCALLFORM COM_CATEGORY{ARG:0}
+		; IF (RESULT != TFLAG:7) && (ARG:0 != 291)
+		; 	RETURN 0
+		; ENDIF
+
 		;If a continuable action is already equipped with the same players and targets, make it selectable
         ;Note: Doing this here instead of in each COM_ABLE means it works for the user, but not autoselect)
-        TRYCALLFORM COM_IS_EQUIP{ARG:0}
-            IF RESULT && COM_ALREADY_HAPPENING(ARG:0)
+		TRYCALLFORM COM_IS_EQUIP{ARG:0}
+		IF RESULT && COM_ALREADY_HAPPENING(ARG:0)
                 ;Non-repeatable continuable actions: Strap-on, strapon gag, condom, blindfold, rope, gag, nose hook, exposure play draw on body, shoot video, enema&plug, summon tentacles
-                IF GROUPMATCH(ARG:0, 50, 68, 75, 84, 85, 86, 93, 112, 114, 115, 142, 200)
-                    RETURN 0
-                ELSE
-                    RETURN 1
-                ENDIF
-            ENDIF
-        
-        IF FLAG:CANCELLING
+			IF GROUPMATCH(ARG:0, 50, 68, 75, 84, 85, 86, 93, 112, 114, 115, 142, 200)
+				RETURN 0
+			ELSE
+				RETURN 1
+			ENDIF
+		ENDIF
+
+		IF FLAG:CANCELLING
             ;clear out mequip, except for actions like "Summon Tentacles" that strictly enable other actions, which we move to the top
             ;This way, we're only checking conditions like HAS_PENIS or IS_PLAYABLE instead of action-related conditions
 			LOCAL:4 = 0
@@ -60,8 +60,8 @@ IF TRAINNAME:(ARG:0) != ""
 			NEXT
 			LOCAL:5 = MEQUIP_NUM
 			MEQUIP_NUM = LOCAL:4
-        ENDIF
-        
+		ENDIF
+
 
 		COM_ENABLE = 1
 		TRYCALLFORM COM_ABLE{ARG:0}
@@ -69,11 +69,11 @@ IF TRAINNAME:(ARG:0) != ""
         ;Print the disabled actions - using this for debugging
         ;SIF !RESULT && (ARG:0 < 250)
         ;    PRINTFORM %ENTRAINNAME(ARG:0)%
-        
-        IF FLAG:CANCELLING
+
+		IF FLAG:CANCELLING
 			MEQUIP_NUM = LOCAL:5
-        ENDIF
-        
+		ENDIF
+
 		RETURN RESULT
 	ENDIF
 ENDIF
@@ -536,12 +536,16 @@ IF FLAG:ウフフフラグ
 		SETCOLOR カラー_ピンク
 	SIF IS_OVULATION(ARG:0) || TCVAR:(ARG:0):65
 		PRINTFORM ♥
-		RESETCOLOR
+	RESETCOLOR
 ENDIF
 ;「捕虜の調教」のとき限定 メインターゲットに精神力ゲージを表示
 IF FLAG:調教モード == 調教_捕虜調教 && FINDELEMENT(PRISONER_TARGET, ARG:0) != -1
 	PRINTL 
-	PRINT                     精神力 
+	IF BASE:(ARG:0):精神力 < 0
+		PRINT                     崩壊度 
+	ELSE
+		PRINT                     精神力 
+	ENDIF
 	CALL PRINT_SHORT_MIND(ARG:0)
 ENDIF
 PRINTL 
@@ -648,40 +652,59 @@ PRINT
 ;ARG:0はキャラ番号
 ;-------------------------------------------------
 @PRINT_SHORT_MIND(ARG:0)
-IF MAXBASE:(ARG:0):精神力 > 0
-	LOCAL:0 = BASE:(ARG:0):精神力 * 100 / MAXBASE:(ARG:0):精神力
+
+IF TALENT:(ARG:0):崩壊
+	CALL PRINT_COLORBAR(100, 100, 43, UNICODE(0x2585), UNICODE(0x2585), カラー_選択不可, 0x404040)
+	PRINT  
+	CALL COLOR_PRINT("崩壊", カラー_選択不可)
+ELSEIF TALENT:(ARG:0):虚ろ && BASE:(ARG:0):精神力 < 0
+	LOCAL:0 = CFLAG:(ARG:0):崩壊 * 100 / (3500 + MAX(MAXBASE:(ARG:0):精神力, 1000))
+	CALL PRINT_COLORBAR(LOCAL:0, 100, 43, UNICODE(0x2585), UNICODE(0x2585), カラー_警告, 0x404040)
+	PRINT  
+	CALL COLOR_PRINT("虚ろ", カラー_選択不可)
+ELSEIF BASE:(ARG:0):精神力 < 0
+	LOCAL:0 = CFLAG:(ARG:0):崩壊 * 100 / (1000 + MAX(MAXBASE:(ARG:0):精神力, 1000))
+	CALL PRINT_COLORBAR(LOCAL:0, 100, 43, UNICODE(0x2585), UNICODE(0x2585), カラー_警告, 0x404040)
+	PRINT  
+	CALL COLOR_PRINT("絶望", カラー_選択不可)
 ELSE
-	LOCAL:0 = 100
+	IF MAXBASE:(ARG:0):精神力 > 0
+		LOCAL:0 = BASE:(ARG:0):精神力 * 100 / MAXBASE:(ARG:0):精神力
+	ELSE
+		LOCAL:0 = 100
+	ENDIF
+
+	;CALL PRINT_SLIDER(-1000, MAXBASE:(LOCAL:0):精神力, BASE:(LOCAL:0):精神力, 44, 0x4128cc, 0xcb1267)
+
+	IF LOCAL:0 < 0
+		LOCAL:1 = 0xA0A0A0
+	ELSEIF LOCAL:0 <= 50
+		LOCAL:1 = カラー_注意
+	ELSEIF LOCAL:0 <= 75
+		LOCAL:1 = 0x00FF00
+	ELSE
+		LOCAL:1 = カラー_シアン
+	ENDIF
+
+	CALL PRINT_COLORBAR(BASE:(ARG:0):精神力, MAXBASE:(ARG:0):精神力, 43, UNICODE(0x2585), UNICODE(0x2585), LOCAL:1, 0x404040)
+	PRINT  
+
+	SETCOLOR LOCAL:1
+
+	IF LOCAL:0 < 0
+		PRINT 絶望
+	ELSEIF LOCAL:0 <= 50
+		PRINT 屈服
+	ELSEIF LOCAL:0 <= 75
+		PRINT 消耗
+	ELSE
+		PRINT 平常
+	ENDIF
+	RESETCOLOR
+	PRINT  
 ENDIF
 
-;CALL PRINT_SLIDER(-1000, MAXBASE:(LOCAL:0):精神力, BASE:(LOCAL:0):精神力, 44, 0x4128cc, 0xcb1267)
 
-IF LOCAL:0 < 0
-	LOCAL:1 = 0xA0A0A0
-ELSEIF LOCAL:0 <= 50
-	LOCAL:1 = カラー_注意
-ELSEIF LOCAL:0 <= 75
-	LOCAL:1 = 0x00FF00
-ELSE
-	LOCAL:1 = カラー_シアン
-ENDIF
-
-CALL PRINT_COLORBAR(BASE:(ARG:0):精神力, MAXBASE:(ARG:0):精神力, 43, UNICODE(0x2585), UNICODE(0x2585), LOCAL:1, 0x404040)
-PRINT  
-
-SETCOLOR LOCAL:1
-
-IF LOCAL:0 < 0
-	PRINT 絶望
-ELSEIF LOCAL:0 <= 50
-	PRINT 屈服
-ELSEIF LOCAL:0 <= 75
-	PRINT 消耗
-ELSE
-	PRINT 平常
-ENDIF
-RESETCOLOR
-PRINT  
 
 ;-------------------------------------------------
 ;短縮版BASE情報の表示(体力)
@@ -968,7 +991,7 @@ ELSEIF RESULT == 901 && GROUPMATCH(FLAG:調教モード, 調教_会う, 調教_�
 	RETURN 1
 
 ELSEIF RESULT == 902
-    FLAG:CANCELLING = !FLAG:CANCELLING
+	FLAG:CANCELLING = !FLAG:CANCELLING
 ;EQUIP解除
 ELSEIF RESULT >= 1000 && RESULT <= 1049
 	REDRAW 0
@@ -999,19 +1022,19 @@ ELSEIF RESULT == 999
 
 ELSEIF RESULT == 998
 
-SIF !(ITEM:不思議な懐中時計 > 0 && GROUPMATCH(FLAG:調教モード, 調教_閨, 調教_捕虜調教))
-	RETURN 0
+	SIF !(ITEM:不思議な懐中時計 > 0 && GROUPMATCH(FLAG:調教モード, 調教_閨, 調教_捕虜調教))
+		RETURN 0
 
-	
+
 	CALL COLOR_PRINTL("不思議な懐中時計が効果を発揮した！", カラー_注意)
 	ITEM:不思議な懐中時計 --
 	TFLAG:56 += 10
 	PRINTFORMW (残:{ITEM:不思議な懐中時計}個)
-RETURN 1
+	RETURN 1
 
 ELSEIF RESULT == 997
 
-CALL CONFIG_HELPMENU
+	CALL CONFIG_HELPMENU
 
 ;★デバッグ
 ;ELSEIF RESULT >= 90000 && RESULT < 90099
