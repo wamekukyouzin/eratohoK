@@ -13,15 +13,17 @@ FIRST_LINE = LINECOUNT
 君主 = GET_COUNTRY_BOSS(CFLAG:MASTER:所属)
 相手君主 = GET_COUNTRY_BOSS(ARG:0)
 CALL SINGLE_DRAWLINE
-PRINTFORML 国庫を消費し、%ANAME(相手君主)%に関する醜聞を他勢力に流します。
+PRINTFORML 国庫を消費し、%ANAME(相手君主)%に関する醜聞を他勢力に流します
 PRINTFORML 他勢力から%ANAME(相手君主)%への関係が悪化します
 PRINTFORML いくら消費しますか？(手入力・ボタンから入力, 0以下でキャンセル, 最大50000)
+CALL COLOR_PRINTL("現在の国庫:",,@"{MONEY:(CFLAG:MASTER:所属)}", カラー_注意)
+PRINTFORML 
 FOR LOCAL, 0, VARSIZE("支払額リスト")
 	SIF MONEY:(CFLAG:MASTER:所属) < 支払額リスト:LOCAL
 		BREAK
 	PRINTBUTTON @"[{支払額リスト:LOCAL}払う]", 支払額リスト:LOCAL
+	PRINTL
 NEXT
-PRINTFORML
 PRINTBUTTON @"[{MONEY:(CFLAG:MASTER:所属)}払う]", MONEY:(CFLAG:MASTER:所属)
 PRINTL
 PRINTFORM [0] 戻る
@@ -34,13 +36,15 @@ ELSEIF MONEY:(CFLAG:MASTER:所属) < RESULT || RESULT > 50000
 	RESTART
 ENDIF
 支払額 = RESULT
-CALL ICPRINT(@"%ANAME(MASTER)%は金<{支払額}>を支払い、%ANAME(相手君主)%の醜聞を流した……", "W", カラー_注意)
+
+CALL COLOR_PRINTW(@"%ANAME(MASTER)%は金",, @"{支払額}", カラー_注意, @"を払い、%ANAME(相手君主)%の醜聞を流した……")
+
 MONEY:(CFLAG:MASTER:所属) -= 支払額
 効果 = CALC_SEND_MONEY_EFFECT(支払額)
+
 ;好感度上昇・敵対値下降基準値
 LOCAL:1 = SQRT(TMP_GET_COOKING_POWER(CFLAG:MASTER:所属)) / 10
 LOCAL:2 = SQRT(TMP_GET_POLITICS_POWER(CFLAG:MASTER:所属)) / 10
-
 
 効果 = MAX(効果 * (LOCAL:1 + LOCAL:2 + 100) / 100, 5)
 
