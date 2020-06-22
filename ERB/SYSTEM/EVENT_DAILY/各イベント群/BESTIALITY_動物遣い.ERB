@@ -33,37 +33,26 @@ RETURN 1
 ;---------------------
 @EVENT_DAILY_BESTIALITY_SETTARGET()
 #DIM 対象
-#DIM 候補, 3000
-#DIM 候補乱数, 3000
-#DIM 候補数
-VARSET 候補, -1
-VARSET 候補乱数, __INT_MIN__
-VARSET 候補数
-;好感度に基づいて候補配列を用意
-FOR LOCAL, 0, CHARANUM
-	;女で、所属がMASTERと同一で、捕虜でなく、君主でない、あるいは捕虜のキャラ
-	IF (IS_FEMALE(LOCAL) && CFLAG:LOCAL:所属 == CFLAG:MASTER:所属 && !CFLAG:LOCAL:捕虜先) || (IS_FEMALE(LOCAL) && CFLAG:LOCAL:捕虜先 == CFLAG:MASTER:所属) 
-		候補:候補数 = LOCAL
-		候補乱数:候補数 = RAND:(MAX(CFLAG:LOCAL:好感度, 100))
-		;恋慕系なら乱数に補正がかかる（かかってしまう？）
-		SIF IS_LOVER(LOCAL)
-			候補乱数:候補数 += 1000
-		候補数 ++
-	ENDIF
-NEXT
-;候補がいなければ戻す
-SIF 候補数 < 1
-	RETURN 0
-;好感度に基づいて出した候補乱数のうち、一番高い値を出したキャラを対象とする。
-対象 = 候補:(FINDELEMENT(候補乱数, MAXARRAY(候補乱数, 0, 候補数), 0, 候補数))
 
-SIF 対象 < 0
+CALL SELECT_CHARA_RANDOM("DAILY_BEASTALITY", "DAILY_BEASTALITY")
+
+SIF RESULT == -1
 	RETURN 0
 
-DAILY_TARGET:0 = 対象
-DAILY_TARGET_NUM = 1
+DAILY_TARGET:0 = RESULT
 
 RETURN 1
+
+@SELECT_CHARA_RANDOM_LOGIC_DAILY_BEASTALITY(対象)
+#DIM 対象
+;女、かつ「所属がMASTERと同一で、捕虜でない」か「」
+RETURN IS_FEMALE(対象) && ((CFLAG:対象:所属 == CFLAG:MASTER:所属 && !CFLAG:対象:捕虜先) || (CFLAG:対象:捕虜先 == CFLAG:MASTER:所属))
+
+@SELECT_CHARA_RANDOM_BIAS_DAILY_BEASTALITY(対象)
+#DIM 対象
+;好感度をベースに決定
+RETURN CFLAG:対象:好感度 + IS_LOVER(対象) * 1000
+
 
 ;---------------------
 ;ジャンル
@@ -76,7 +65,7 @@ RETURN デイリー_ジャンル_エロ
 ;---------------------
 @EVENT_DAILY_BESTIALITY
 #DIM 対象
-#DIM 捕虜番号, 3000
+#DIM 捕虜番号, MAX_CHARA_NUM
 
 IF DVAR:動物遣い_発生フラグ == 0
 	PRINTFORMW 調教師を名乗る男がやってきた
