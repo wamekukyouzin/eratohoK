@@ -1,0 +1,255 @@
+﻿;パイズリ
+
+;-------------------------------------------------
+;コマンド名称
+;-------------------------------------------------
+@COM_NAME25
+
+LOCALS:0 = 二プルファック
+
+RESULTS:0 = %LOCALS:0%する
+RESULTS:1 = %LOCALS:0%させられる
+RESULTS:2 = %LOCALS:0%させる
+RESULTS:3 = %LOCALS:0%される
+RESULTS:4 = %LOCALS:0%させる
+RESULTS:5 = %LOCALS:0%見せつけ
+
+;-------------------------------------------------
+;選択可否判定
+;-------------------------------------------------
+@COM_ABLE25
+;共通部分
+CALL COM_ABLE_COMMON(25)
+SIF RESULT == 0
+	RETURN 0
+;プレイヤーは最大で1人まで
+SIF MPLY_NUM <= 0 || MPLY_NUM > 1
+	RETURN 0
+;ターゲットは最大で1人まで
+SIF MTAR_NUM <= 0 || MTAR_NUM > 1
+	RETURN 0
+;プレイヤーに竿が必要
+SIF !HAS_PENIS(MPLY:0)
+	RETURN 0
+SIF !P_STACKABLE(MPLY:0, MTAR:0, 25)
+	RETURN 0
+;grovelling
+SIF IS_EQUIP_PLAYER(MTAR:0, 110)
+	RETURN 0
+;this covers most common problems
+SIF !CAN_REACH_BODY(MPLY:0, MTAR:0)
+	RETURN 0
+SIF IS_P_HOLD(MPLY:0)
+	RETURN 0
+SIF IS_N_HOLD(MTAR:0)
+	RETURN 0
+SIF IS_RIDDEN(MPLY:0, MTAR:0)
+	RETURN 0
+SIF IS_INSERT_MUTUAL(MPLY:0, MTAR:0) > 0
+	RETURN 0
+;getting assjob
+SIF SEARCH_EQUIP(15, MPLY:0, MTAR:0) >= 0
+	RETURN 0
+;巨乳以上
+SIF GET_BUSTSIZE(MTAR:0) < 1
+	RETURN 0
+SIF ABL:(MTAR:0):噴乳 < ランク閾値:ランク_その他:ランク_D
+	RETURN 0
+
+RETURN 1
+
+;-------------------------------------------------
+;メイン処理
+;-------------------------------------------------
+@COM25
+;実行判定
+CALL COM_ORDER_COMMON
+SIF RESULT == 0
+	RETURN 0
+
+;●ソースの計算
+DOWNBASE:(MPLY:0):体力 += 60
+SOURCE:(MPLY:0):接触 = 50
+SOURCE:(MPLY:0):性行動 = 180
+;主導権に応じた優越・受動のソース追加
+CALL ADD_SOURCE_INITIATIVE_U(MTAR:0, 150, 80)
+SOURCE:(MPLY:0):快Ｐ += SENSE_SEX_PLAYER_P(MTAR:0, MPLY:0, 1500)
+
+;●全プレイヤーについて判定
+DOWNBASE:(MTAR:0):体力 += 120
+EXP:(MTAR:0):性技経験値 += 1
+SOURCE:(MTAR:0):奉仕 = SERVE_HOUSHI(MTAR:0, 300)
+SOURCE:(MTAR:0):接触 = 50
+SOURCE:(MTAR:0):快Ｂ = SENSE_SEX_TARGET(MPLY:0, MTAR:0, 1200)
+SOURCE:(MTAR:0):性行動 = 300
+
+	;主導権に応じた優越・受動のソース追加
+CALL ADD_SOURCE_INITIATIVE_U(MTAR:0, 160, 140)
+
+	;奉仕経験値を得られるコマンドのフラグ
+TCVAR:(MTAR:0):4 = 1
+
+;射精箇所と対象をセット
+CALL STACK_SPERM(MPLY:0, MTAR:0, 射精部位_胸)
+
+;主導度変化基準値
+TFLAG:49 = 2
+
+;倒錯度変化基準値
+TFLAG:50 = 1
+
+;レズ・ＢＬ経験基準値
+TFLAG:51 = 7
+
+RETURN 1
+
+;-------------------------------------------------
+;継続コマンドかどうかを設定
+;-------------------------------------------------
+@COM_IS_EQUIP25
+RETURN 1
+
+;-------------------------------------------------
+;継続状態の処理
+;-------------------------------------------------
+@COM_EQUIP25(ARG:0)
+
+
+;●全プレイヤーについて判定
+
+LOCAL:1 = MEQUIP_PLAYER:(ARG:0):0
+
+DOWNBASE:(LOCAL:1):体力 += 10
+SOURCE:(LOCAL:1):接触 += 25
+SOURCE:(LOCAL:1):性行動 += 60
+SOURCE:(LOCAL:1):快Ｐ += SENSE_SEX_PLAYER_P(LOCAL:2, LOCAL:1, 750)
+
+
+LOCAL:2 = MEQUIP_TARGET:(ARG:0):0
+
+DOWNBASE:(LOCAL:2):体力 += 20
+
+EXP:(LOCAL:2):性技経験値 += MAX(MEQUIP_TARGET_NUM:(ARG:0) / 2 + 1, 1)
+
+SOURCE:(LOCAL:2):奉仕 += SERVE_HOUSHI(LOCAL:2, 170)
+SOURCE:(LOCAL:2):接触 += 25
+SOURCE:(LOCAL:2):快Ｂ += SENSE_SEX_TARGET(LOCAL:1, LOCAL:2, 750)
+SOURCE:(LOCAL:2):性行動 += 100
+
+;奉仕経験値を得られるコマンドのフラグ
+TCVAR:(LOCAL:2):4 = 1
+
+
+		;射精箇所と対象をセット
+CALL STACK_SPERM(LOCAL:1, LOCAL:2, 射精部位_胸)
+
+;●全ターゲットについて判定
+
+
+;-------------------------------------------------
+;継続中の表示
+;-------------------------------------------------
+@EQUIP_MESSAGE25(ARG:0)
+RESULTS = %EQUIP_PLAYER_ANAME(ARG:0)%が%EQUIP_TARGET_ANAME(ARG:0)%に二プルファック中
+
+;-------------------------------------------------
+;継続中の地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE_EQUIP25(ARG:0)
+PRINTFORML %EQUIP_PLAYER_ANAME(ARG:0)%が%EQUIP_TARGET_ANAME(ARG:0)%の乳首にペニスを挿入している…
+
+;-------------------------------------------------
+;継続を解除したときの地の文
+;-------------------------------------------------
+@COM_TEXT_RELEASE_EQUIP25(ARG:0)
+
+;-------------------------------------------------
+;固有の実行判定
+;-------------------------------------------------
+@COM_ORDER_PLAYER25(ARG:0)
+;実行値の設定
+TCVAR:(ARG:0):25 = 95
+
+;共通部分
+CALL COM_ORDER(ARG:0)
+
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲望Lv{ABL:(ARG:0):欲望}", ABL:(ARG:0):欲望 * 1)
+CALL COM_ORDER_ELEMENT(ARG:0, @"奉仕Lv{ABL:(ARG:0):奉仕}", ABL:(ARG:0):奉仕 * 4)
+CALL COM_ORDER_ELEMENT(ARG:0, @"精愛Lv{ABL:(ARG:0):精愛}", ABL:(ARG:0):精愛 * 3)
+
+LOCAL:0 = GET_PALAMLV(PALAM:(ARG:0):欲情)
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲情Lv{LOCAL:0}", MIN(LOCAL:0 * 2, 20))
+
+IF TCVAR:(ARG:0):60
+	CALL COM_ORDER_ELEMENT(ARG:0, "媚薬", 6)
+ENDIF
+
+IF TALENT:(ARG:0):恥じらい
+	CALL COM_ORDER_ELEMENT(ARG:0, "恥じらい", -3)
+ENDIF
+IF TALENT:(ARG:0):汚臭鈍感
+	CALL COM_ORDER_ELEMENT(ARG:0, "汚臭鈍感", 1)
+ENDIF
+IF TALENT:(ARG:0):汚臭敏感
+	CALL COM_ORDER_ELEMENT(ARG:0, "汚臭敏感", -3)
+ENDIF
+IF TALENT:(ARG:0):献身的
+	CALL COM_ORDER_ELEMENT(ARG:0, "献身的", 6)
+ENDIF
+IF TALENT:(ARG:0):快感の否定
+	CALL COM_ORDER_ELEMENT(ARG:0, "快感の否定", -3)
+ENDIF
+IF TALENT:(ARG:0):男嫌い
+	CALL COM_ORDER_ELEMENT(ARG:0, "男嫌い", -25)
+ENDIF
+
+;合意
+IF !TALENT:(ARG:0):合意 && !TALENT:(ARG:0):親友
+	CALL COM_ORDER_ELEMENT(ARG:0, "合意なし", -10)
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE25
+
+IF IS_PIERCED(MTAR:0, ピアス_ペニス)
+	LOCALS:3 = ピアスの取り付けられた
+ELSE
+	LOCALS:3 = 
+ENDIF
+
+LOCALS:0 = %STR_BODY("乳首：感度", MPLY:0)%に%LOCALS:3%ペニスを挿入
+
+SELECTCASE GET_COM_INITIATIVE()
+		;プレイヤーに主導権
+	CASE 0
+		PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%の胸を鷲づかみにし、%LOCALS:0%%TARGET_STR("した", "してきた")%…
+		;ターゲットに主導権
+	CASE 1
+		PRINTFORMW %ANAME(MTAR:0)%は%ANAME(MPLY:0)%に命じ、自らの%LOCALS:0%させた…
+		;第三者に主導権
+	CASEELSE
+		PRINTFORMW %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に対し、%ANAME(MTAR:0)%の乳首を犯すように命令した…
+		PRINTFORMW %ANAME(MPLY:0)%は身動きの取れない%ANAME(MTAR:0)%の%LOCALS:0%した…
+ENDSELECT
+
+
+;-------------------------------------------------
+
+;コマンド区分
+;-------------------------------------------------
+
+@COM_AVAILABLE_WHEN25
+RETURN コマンド_ウフフ
+
+;--------------------
+;性嗜好用関数
+;--------------------
+@COM_PREFERENCE_PLAYER_25()
+RETURN POWER(2, 性的嗜好_性交したい)
+
+@COM_PREFERENCE_TARGET_25()
+RETURN POWER(2, 性的嗜好_性交されたい)
+
