@@ -8,18 +8,16 @@ while read major minor patch; do
     readonly gamebase_str=$(printf '%d%02d%02d' ${major} ${minor} ${patch})
 done < <(echo ${version} | tr '.' ' ')
 
-if [[ $version = "" ]]; then
+if [[ "$version" == "" ]]; then
     echo current branch is not release or hotfix
     exit 1
 fi
 
-# changelog生成
-sed -i "2i## $(date +'%Y年%-m月%-d日') version ${version}\r\n" ./changelog.txt
-
-git log --format=%s  ${previous_tag}...HEAD | grep -i "\(Fix:\|UPDATE:\|ADD:\|MERGE:\)" | sort > temp.md
-tac temp.md | tr "\n" "\\n" | xargs -I{} sed -i -e "3i {}" ./changelog.txt
-
-unix2dos changelog.txt
+grep "$(date +'%Y年%-m月%-d日') version ${version}" ./changeLog.txt > /dev/null
+if [[ $? == 1 ]]; then
+    echo create changelog before use this shell
+    exit 1
+fi
 
 # gamebase変更
 

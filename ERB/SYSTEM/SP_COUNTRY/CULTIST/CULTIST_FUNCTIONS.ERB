@@ -26,6 +26,21 @@ PRINTFORML
 RESETCOLOR
 CALL SINGLE_DRAWLINE
 
+;-------------------------------------------------
+;DESC  :狂信者所属時に閨・捕虜調教前にアイテムを追加する処理
+;-------------------------------------------------
+@START_TRAIN_COMMON_CULTIST()
+ITEM:A_バイブ = 1
+ITEM:A_アナルバイブ = 1
+ITEM:A_縄 = 1
+ITEM:A_目隠し = 1
+ITEM:A_搾乳機 = 1
+ITEM:A_媚薬 = 99
+ITEM:A_排卵誘発剤 = 99
+ITEM:A_桃源香 = 99
+ITEM:A_おもちゃの注射器 = 1
+ITEM:A_コンドーム = 99
+
 ;--------------------------------------
 ;外来勢力の初期化処理
 ;--------------------------------------
@@ -123,21 +138,36 @@ ENDIF
 PRINTFORML 
 PRINTFORMW 誰も不幸などではない。もはや幻想郷に、彼らの教えに背く者などいないのだから……
 
+@SELECT_CHARA_RANDOM_LOGIC_CULTIST_RITUAL(対象)
+#DIM 対象
+#DIM 狂信者
+
+狂信者 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_狂信者))
+
+SIF IS_SP_CHARA(対象)
+	RETURN 0
+SIF !IS_FEMALE(対象)
+	RETURN 0
+SIF 対象 == GET_COUNTRY_BOSS(CFLAG:対象:所属)
+	RETURN 0
+SIF CFLAG:対象:所属 != 狂信者
+	RETURN 0
+SIF CFLAG:対象:捕虜先
+	RETURN 0
+SIF TALENT:対象:幼児
+	RETURN 0
+RETURN 1
+
+
 ;--------------------------------------
 ;定期イベント
 ;--------------------------------------
 @CULTIST_RITUAL(条件)
 #DIM 狂信者
 #DIM 条件
-#DIM 候補, 3000
-#DIM 候補数
 #DIM 対象, 3
 #DIM 対象数
 #DIM メッセージ
-VARSET 候補, -1
-VARSET 候補数
-VARSET 対象, -1
-VARSET 対象数
 
 狂信者 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_狂信者))
 
@@ -145,36 +175,13 @@ VARSET 対象数
 SIF 狂信者 == -1 || !条件
 	RETURN -1
 
-候補数 = 0
-FOR LOCAL, 0, CHARANUM
-	SIF IS_SP_CHARA(LOCAL)
-		CONTINUE
-	SIF LOCAL == MASTER
-		CONTINUE
-	SIF !IS_FEMALE(LOCAL)
-		CONTINUE
-	SIF LOCAL == GET_COUNTRY_BOSS(CFLAG:LOCAL:所属)
-		CONTINUE
-	SIF CFLAG:LOCAL:所属 != 狂信者
-		CONTINUE
-	SIF CFLAG:LOCAL:捕虜先
-		CONTINUE
-	SIF TALENT:LOCAL:幼児
-		CONTINUE
-	候補:候補数 = LOCAL
-	候補数 ++
-NEXT
+CALL SELECT_CHARA_RANDOM_MULTI(VARSIZE("対象"), "CULTIST_RITUAL")
 
-SIF 候補数 <= 0
+SIF SELECTED_CHARA_NUM <= 0
 	RETURN -1
 
-CALL FISHER_YATES_SHAFFLE(候補数)
-
-FOR LOCAL, 0, 候補数
-	対象:対象数 = 候補:(SHAFFLE_ARRAY:LOCAL)
-	対象数 ++
-	SIF 対象数 == VARSIZE("対象")
-		BREAK
+FOR LOCAL, 0, MIN(SELECTED_CHARA_NUM, VARSIZE("対象"))
+	対象:LOCAL = SELECTED_CHARA:LOCAL
 NEXT
 
 LOCALS = 
@@ -226,6 +233,6 @@ RESETCOLOR
 
 CALL FUCK_SP(対象, "触手, 欲望, 奉仕, 性技, 性交, 精愛, Ｖ, Ａ, Ｖ性交, Ａ性交, 口淫", "処女喪失, 膣内射精, Ａ処女喪失, 腸内射精, キス喪失", 狂信者, GET_SPERM_ID("触手"), "触手", "触手", "触手", "強姦")
 
-FOR LOCAL, 0, 候補数
-	CALL FUCK_SP(候補:LOCAL, "欲望, 性技, 奉仕, 性交, 精愛, Ｃ, Ｂ, Ｖ, Ａ, Ｍ, キス, 口淫, 輪姦, Ｖ性交, Ａ性交", "処女喪失, Ａ処女喪失, 膣内射精, 腸内射精, キス喪失", 狂信者, GET_SPERM_ID("狂信者"), @"狂信者の\@ RAND:2 ? 唇 # ペニス \@", "狂信者", "", "輪姦")
+FOR LOCAL, 0, SELECTED_CHARA_NUM
+	CALL FUCK_SP(SELECTED_CHARA:LOCAL, "欲望, 性技, 奉仕, 性交, 精愛, Ｃ, Ｂ, Ｖ, Ａ, Ｍ, キス, 口淫, 輪姦, Ｖ性交, Ａ性交", "処女喪失, Ａ処女喪失, 膣内射精, 腸内射精, キス喪失", 狂信者, GET_SPERM_ID("狂信者"), @"狂信者の\@ RAND:2 ? 唇 # ペニス \@", "狂信者", "", "輪姦")
 NEXT

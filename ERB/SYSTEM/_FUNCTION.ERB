@@ -662,7 +662,18 @@ ELSE
 	ENDIF
 ENDIF
 
+;-------------------------------------------------
+;調教参加者の数を数える
+;-------------------------------------------------
+@TRAIN_GET_PARTICIPANT_COUNT()
+#FUNCTION
+LOCAL:1 = 0
+FOR LOCAL, 0, CHARANUM
+	SIF IS_PARTICIPATE_TRAIN(LOCAL)
+		LOCAL:1 ++
+NEXT
 
+RETURNF LOCAL:1
 
 ;-------------------------------------------------
 ;指定個数の半角スペースを文字列として返す関数
@@ -3108,7 +3119,7 @@ IF HAS_VAGINA(対象)
 	;初期値が低いほど緩やかに
 	Ｖ回復量 = 5 * Ｖ回復量 * Ｖ初期値 / 2
 	;締まり普通以上になるほど、初期値より現在値が大きいほど上昇値に制限
-	Ｖ回復量 = Ｖ回復量 / (MAX((TALENT:対象:Ｖ締まり - 400),100) * MAX((TALENT:対象:Ｖ締まり - Ｖ初期値 + 100),100))
+	Ｖ回復量 = Ｖ回復量 / (MAX((TALENT:対象:Ｖ締まり - 締まり_普通),100) * MAX((TALENT:対象:Ｖ締まり - Ｖ初期値 + 100),100))
 	;範囲に収める
 	Ｖ回復量 = LIMIT(Ｖ回復量, 1, Ｖ最大回復量)
 ELSE
@@ -3120,7 +3131,7 @@ ENDIF
 ;初期値が低いほど緩やかに
 Ａ回復量 = 5 * Ａ回復量 * Ａ初期値 / 2
 ;締まり普通以上になるほど、初期値より現在値が大きいほど上昇値に制限
-Ａ回復量 = Ａ回復量 / (MAX((TALENT:対象:Ａ締まり - 400),100) * MAX((TALENT:対象:Ａ締まり - Ａ初期値 + 200),100))
+Ａ回復量 = Ａ回復量 / (MAX((TALENT:対象:Ａ締まり - 締まり_普通),100) * MAX((TALENT:対象:Ａ締まり - Ａ初期値 + 200),100))
 ;範囲に収める
 Ａ回復量 = LIMIT(Ａ回復量, 1, Ａ最大回復量)
 
@@ -3604,8 +3615,8 @@ RETURNF 下一桁 == TALENT:対象:危険日 || 下一桁 - 5 == TALENT:対象:�
 #DIMS バイアス関数名
 
 #DIM 対象
-#DIM 候補, 3000
-#DIM 候補乱数 , 3000
+#DIM 候補, MAX_CHARA_NUM
+#DIM 候補乱数 , MAX_CHARA_NUM
 #DIM 候補数
 
 VARSET 候補, -1
@@ -3638,25 +3649,38 @@ CATCH
 ENDCATCH
 
 FOR LOCAL, 0, 候補数
-	LOCAL:1 = 候補:候補数
+	LOCAL:1 = 候補:LOCAL
 	CALLFORM SELECT_CHARA_RANDOM_BIAS_%バイアス関数名%(LOCAL:1)
-	候補乱数:LOCAL = RAND(0, MIN(ABS(RESULT), 1) * 10000)
+	IF RESULT >= 0
+		IF RESULT <= __INT_MAX__ / 10000
+			候補乱数:候補数 = RAND(0, MAX(RESULT, 1) * 10000)
+		ELSE
+			候補乱数:候補数 = __INT_MAX__
+		ENDIF
+	ELSE
+		IF RESULT >= __INT_MIN__ / 10000
+			候補乱数:候補数 = RAND(RESULT * 10000, 0)
+		ELSE
+			候補乱数:候補数 = __INT_MIN__
+		ENDIF
+	ENDIF
 NEXT
 
-対象 = 候補:FINDELEMENT(候補乱数, MAXARRAY(候補乱数), 0, 候補数)
+対象 = 候補:FINDELEMENT(候補乱数, MAXARRAY(候補乱数, 0,候補数), 0, 候補数)
 
 RETURN 対象
 
 ;-------------------------------------------------
 ;desc  :キャラをランダムに選出する関数
 ;param :選択関数名:キャラを選出する条件となる関数の名前 SELECT_CHARA_RANDOM_LOGIC_●●(ARG:0)の●●の部分
+;param :バイアス関数名:キャラの選択確率に補正をかける関数の名前。大きい値を返すほど選出確率が上がる。SELECT_CHARA_RANDOM_BIAS_●●の●●の部分
 ;-------------------------------------------------
 @SELECT_CHARA_RANDOM_MULTI(最大選択数, 選択関数名, バイアス関数名 = "")
 #DIMS 選択関数名
 #DIMS バイアス関数名
 #DIM 対象
-#DIM 候補, 3000
-#DIM 候補乱数, 3000
+#DIM 候補, MAX_CHARA_NUM
+#DIM 候補乱数, MAX_CHARA_NUM
 #DIM 最大選択数
 #DIM 候補数
 
@@ -3689,7 +3713,11 @@ FOR LOCAL, 0, CHARANUM
 			候補乱数:候補数 = RAND:__INT_MAX__
 		ELSE
 			CALLFORM SELECT_CHARA_RANDOM_BIAS_%バイアス関数名%(LOCAL)
-			候補乱数:候補数 = RAND(0, MIN(ABS(RESULT), 1) * 10000)
+			IF RESULT >= 0
+				候補乱数:候補数 = RAND(0, MAX(RESULT, 1) * 10000)
+			ELSE
+				候補乱数:候補数 = RAND(RESULT * 10000, 0)
+			ENDIF
 		ENDIF
 		候補数 ++
 	ENDIF
@@ -3698,7 +3726,7 @@ NEXT
 SELECTED_CHARA_NUM = MIN(候補数, 最大選択数)
 
 FOR LOCAL, 0, SELECTED_CHARA_NUM
-	LOCAL:1 = FINDELEMENT(候補乱数, MAXARRAY(候補乱数, 0, 候補数))
+	LOCAL:1 = FINDELEMENT(候補乱数, MAXARRAY(候補乱数, 0, 候補数), 0, 候補数)
 	SELECTED_CHARA:LOCAL = 候補:(LOCAL:1)
 	候補乱数:(LOCAL:1) = __INT_MIN__
 NEXT

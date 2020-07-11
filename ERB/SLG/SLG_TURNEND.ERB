@@ -80,6 +80,9 @@ FOR LOCAL, 0, MAX_COUNTRY
 	ENDIF
 NEXT
 
+;諜報を完了させる
+CALL COMPLETE_ANALYZE()
+
 ;自軍のクールタイム減少処理と、このターンに割り当てたフラグ削除処理
 FOR LOCAL, 0, CHARANUM
 	IF CFLAG:LOCAL:所属 == CFLAG:MASTER:所属
@@ -453,14 +456,38 @@ FOR 部隊, 0, MAX_UNIT
 	FOR ループ, 0, VARSIZE("TMP_UNIT_ONCITY_CNT", 1)
 		敵勢力 = TMP_UNIT_ONCITY_CNT:部隊現在地:ループ
 		敵部隊 = TMP_UNIT_ONCITY_NUM:部隊現在地:ループ
-		IF 敵勢力 > 0 && UNIT_SOLDIER:敵勢力:敵部隊 > 0 && TMP_COUNTRY_RELATION:勢力:敵勢力 == 0
-			敵勢力リスト:敵の数 = 敵勢力
-			敵部隊リスト:敵の数 = 敵部隊
-			兵力リスト:敵の数 = UNIT_SOLDIER:敵勢力:敵部隊
-			敵の数 ++
+
+		SIF !IS_COUNTRY(敵勢力)
+			CONTINUE
+		SIF UNIT_SOLDIER:敵勢力:敵部隊 <= 0
+			CONTINUE
+		SIF TMP_COUNTRY_RELATION:勢力:敵勢力 != 0 
+			CONTINUE
+
+		;自勢力と敵勢力と都市の所有勢力が互いに敵対関係にある場合、
+		;自勢力と敵勢力は相互に不干渉になり、都市を優先して殴る。
+		;なお、この規則は無所属都市には適用されない。
+
+		;他勢力が所有している都市上で、第三者の部隊と出くわした場合
+		IF IS_COUNTRY(CITY_OWNER:部隊現在地) && (CITY_OWNER:部隊現在地) != 勢力
+			;三者が互いに敵対しているなら殴らない（互いに都市への攻撃を優先）
+			IF ALLSAMES(0, TMP_COUNTRY_RELATION:勢力:敵勢力, TMP_COUNTRY_RELATION:敵勢力:(CITY_OWNER:部隊現在地), TMP_COUNTRY_RELATION:勢力:(CITY_OWNER:部隊現在地))
+				CONTINUE
+			;自分<->都市勢力<->第三者という形で停戦以上の関係を結んでいるなら殴らない
+			ELSEIF  TMP_COUNTRY_RELATION:勢力:(CITY_OWNER:部隊現在地) != 0 && TMP_COUNTRY_RELATION:敵勢力:(CITY_OWNER:部隊現在地) != 0
+				CONTINUE
+			ENDIF
+			;自分と敵が同盟中の場合はそもそも上で弾かれる。
+			;都市と敵のみ同盟中の場合はこちらを通る。
+			;自分と都市のみ同盟中の場合はこちらを通る。
 		ENDIF
+		敵勢力リスト:敵の数 = 敵勢力
+		敵部隊リスト:敵の数 = 敵部隊
+		兵力リスト:敵の数 = UNIT_SOLDIER:敵勢力:敵部隊
+		敵の数 ++
 	NEXT
-	;敵がいなければ、防衛部隊との戦闘に入る判定まで飛ぶ
+
+;敵がいなければ、防衛部隊との戦闘に入る判定まで飛ぶ
 	SIF 敵の数 == 0
 		GOTO VS_CASTLE
 
@@ -542,12 +569,12 @@ FOR 都市, 0, MAX_CITY
 			与ダメ += CITY_SOLDIER:都市 * CITY_GUARD_RATE(都市) / 200
 	NEXT
 	SIF TECHNOLOGY_STATUS:勢力:TECHNOLOGY_BATTLE_PASSIVE >= 1
-		TIMES 与ダメ, 1.25
-	SIF TECHNOLOGY_STATUS:勢力:TECHNOLOGY_BATTLE_PASSIVE >= 5
-		TIMES 与ダメ, 1.25
+		TIMES 与ダメ, 1.20
+	SIF TECHNOLOGY_STATUS:勢力:TECHNOLOGY_BATTLE_PASSIVE >= 6
+		TIMES 与ダメ, 1.20
 		;弓櫓がある場合火力が上がる
 	SIF CITY_DEVELOPMENT:都市 == 建造物_弓櫓
-		TIMES 与ダメ, 1.50
+		TIMES 与ダメ, 1.30
 
 	SIF 与ダメ == 0
 		CONTINUE
@@ -704,6 +731,15 @@ ENDIF
 ;兵舎の数だけ増加量が増加
 増加量 += GET_DEVELOPMENT_COUNT(建造物_兵舎, ARG:0) * 増加量 / 100
 
+;研究効果
+SIF TECHNOLOGY_STATUS:(ARG:0):TECHNOLOGY_CONSCRIPTION >= 2
+	TIMES 増加量, 1.10
+SIF TECHNOLOGY_STATUS:(ARG:0):TECHNOLOGY_CONSCRIPTION >= 4
+	TIMES 増加量, 1.15
+SIF TECHNOLOGY_STATUS:(ARG:0):TECHNOLOGY_CONSCRIPTION >= 7
+	TIMES 増加量, 1.20
+
+
 ;経済力の10倍以上は保持できない
 最大増加量 = MAX(GET_RECRUIT_LIMIT(ARG:0) - 兵数, 0)
 増加量 = MIN(増加量, 最大増加量)
@@ -714,7 +750,7 @@ IF ARG:0 == CFLAG:MASTER:所属
 	IF 増加量 == 0
 		CALL COLOR_PRINTL("徴兵の限界に達しています、これ以上兵を賄うには経済を増やすか、臨時徴兵をする必要があります", カラー_注意)
 	ELSE
-		PRINTFORMW 我が国の兵数が{増加量}だけ増加しました
+		PRINTFORMW 我が国の兵数が{増加量}だけ増加しました 現在: {GET_SUM_SOLDIER(CFLAG:MASTER:所属)} / {GET_RECRUIT_LIMIT(CFLAG:MASTER:所属)}
 	ENDIF
 ENDIF
 
@@ -849,6 +885,7 @@ FOR LOCAL, 0, CHARANUM
 NEXT
 
 FOR TAX_COUNT, 0, MAX_CITY
+
 	SIF CITY_TYPE:TAX_COUNT || CITY_OWNER:TAX_COUNT == 0
 		CONTINUE
 
@@ -872,8 +909,8 @@ FOR TAX_COUNT, 0, MAX_CITY
 		TIMES TAX, 1.05
 	SIF TECHNOLOGY_STATUS:(CITY_OWNER:TAX_COUNT):TECHNOLOGY_TAX >= 4
 		TIMES TAX, 1.10
-	SIF TECHNOLOGY_STATUS:(CITY_OWNER:TAX_COUNT):TECHNOLOGY_TAX >= 4
-		TIMES TAX, 1.10
+	SIF TECHNOLOGY_STATUS:(CITY_OWNER:TAX_COUNT):TECHNOLOGY_TAX >= 7
+		TIMES TAX, 1.15
 
 	TAX = TAX * (LUCK_COUNT:(CITY_OWNER:TAX_COUNT) * 5 + 100) / 100
 	;独占市場の効果
@@ -883,7 +920,6 @@ FOR TAX_COUNT, 0, MAX_CITY
 		TAX = TAX * GET_DIFFICULTY_CORRECTION() / 100
 	SIF CITY_OWNER:(TAX_COUNT) == CFLAG:MASTER:所属
 		TAX:1 += TAX
-
 	MONEY:(CITY_OWNER:TAX_COUNT) += TAX
 NEXT
 
@@ -891,15 +927,19 @@ NEXT
 FOR LOCAL, 0, MAX_COUNTRY
 	SIF !IS_COUNTRY(LOCAL)
 		CONTINUE
+	特別税収 = 0
 	IF TECHNOLOGY_STATUS:LOCAL:TECHNOLOGY_TAX >= 1
-		特別税収 = 500
+		特別税収 += 500
 		SIF TECHNOLOGY_STATUS:LOCAL:TECHNOLOGY_TAX >= 3
 			特別税収 += 1000
-		SIF TECHNOLOGY_STATUS:LOCAL:TECHNOLOGY_TAX >= 5
+		SIF TECHNOLOGY_STATUS:LOCAL:TECHNOLOGY_TAX >= 6
 			特別税収 += 1500
 	ENDIF
+	SIF GET_DEVELOPMENT_COUNT(建造物_税務署, LOCAL) > 0
+		特別税収 += 1500
 	IF CFLAG:MASTER:所属 == LOCAL
 		TAX:1 += 特別税収
+		MONEY:LOCAL += 特別税収
 	ELSE
 		MONEY:LOCAL += 特別税収
 	ENDIF
@@ -908,7 +948,7 @@ NEXT
 
 IF TAX:1
 	PRINTFORML 領地からの徴税が行われました
-	PRINTFORML 国庫＋{TAX:1}（現在:{MONEY:(CFLAG:MASTER:所属)}）
+	PRINTFORMW 国庫＋{TAX:1}（現在:{MONEY:(CFLAG:MASTER:所属)}）
 ENDIF
 
 
@@ -1059,3 +1099,15 @@ FOR LOCAL, 0, MAX_COUNTRY
 		TECHNOLOGY_RESEARCH_PROGRESS:LOCAL = 0
 	ENDIF
 NEXT
+
+;-------------------------------------------------
+;諜報を完了させる
+;-------------------------------------------------
+@COMPLETE_ANALYZE
+#DIM 都市
+
+FOR 都市, 0, MAX_CITY
+	SIF CITY_ANALYZED:都市 == 諜報_調査中
+		CITY_ANALYZED:都市 = 諜報_調査済
+NEXT
+

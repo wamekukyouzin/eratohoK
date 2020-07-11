@@ -1,22 +1,30 @@
 ﻿;-------------------------------------------------
 ;士官を移籍させる
 ;-------------------------------------------------
-@DIPLOMACY_GIVE_CHARA(ARG:0)
+@DIPLOMACY_GIVE_CHARA(勢力)
 #DIM FIRST_LINE
-LOCAL:4 = GET_COUNTRY_BOSS(CFLAG:MASTER:所属)
-LOCAL:5 = GET_COUNTRY_BOSS(ARG:0)
+#DIM 勢力
+#DIM 君主
+#DIM 相手君主
+#DIM 移籍可能
+#DIM 判定値
+#DIM ノルマ
+#DIM 対象
+#DIM 元サヤフラグ
+君主 = GET_COUNTRY_BOSS(CFLAG:MASTER:所属)
+相手君主 = GET_COUNTRY_BOSS(勢力)
 
 ;自国の士官の数を数える(君主・主人公・借り物除く)
-LOCAL:6 = 0
+移籍可能 = 0
 FOR LOCAL:0, 0, CHARANUM
 	CALL SELECT_CHARA_LIST_SHOW_LOGIC_GIVE_CHARA(LOCAL)
 	IF RESULT
-		LOCAL:6 = 1
+		移籍可能 = 1
 		BREAK
 	ENDIF
 NEXT
 
-IF LOCAL:6 <= 0
+IF 移籍可能 <= 0
 	PRINTFORMW 移籍させられる士官がいません（依存度100が必要です）
 	RETURN 0
 ENDIF
@@ -35,13 +43,31 @@ CALL SELECT_CHARA_LIST_ONLY_LOGIC_SLG("GIVE_CHARA", "NONE")
 SIF RESULT == -1
 	RETURN 0
 
-LOCAL:15 = RESULT
+対象 = RESULT
+
+IF IS_LOVER(対象) || IS_SLAVE(対象) || IS_SLAVED_BY(対象)
+	判定値 = MAX(ABL:対象:知略, ABL:MASTER:知略) + MAX(ABL:対象:政治, ABL:MASTER:政治)
+	判定値 += FIND_PASSIVE_SKILL(対象, "工作員") * 20
+	ノルマ = ABL:相手君主:知略 + ABL:相手君主:政治
+	ノルマ = ノルマ * (100 + (GET_DIFFICULTY_CORRECTION() - 100) / 2) / 100
+	IF 判定値 < ノルマ
+		PRINTFORML %ANAME(対象)%の移籍の話を持ちかけたが、 %ANAME(相手君主)%は待ったをかけた…
+		PRINTFORML どうやら%ANAME(対象)%が工作員ではないかと疑っているらしい
+		PRINTFORMW %ANAME(対象)%と%ANAME(MASTER)%の知略や政治力では疑いを解くことはできず、移籍の話はお流れになった…
+		GOTO CHARA_LIST_LOOP
+	ENDIF
+ENDIF
+
+元サヤフラグ = GET_ID(相手君主) == CFLAG:対象:以前の君主
 
 ;対象キャラの情報を表示
 CALL SINGLE_DRAWLINE
-CALL SHOW_INFO(LOCAL:15)
+CALL SHOW_INFO(対象)
 CALL SINGLE_DRAWLINE
 PRINTFORML このキャラを移籍させますか？
+
+SIF 元サヤフラグ
+	PRINTFORML ※以前%ANAME(相手君主)%に仕えていた%ANAME(対象)%を返還する形になるため、友好度が向上しません
 
 ;はい／いいえ入力処理
 CALL ASK_YN()
@@ -50,31 +76,38 @@ IF RESULT == 1
 	GOTO CHARA_LIST_LOOP
 ENDIF
 
-PRINTFORML %ANAME(LOCAL:15)%は%ANAME(LOCAL:5)%勢力の士官になりました
-CALL CHANGE_COUNTRY(LOCAL:15, ARG:0, 1)
-;好感度上昇値・敵対値下降値の計算
-;主に能力により決定。相手君主がそのキャラに良い印象を抱いていればボーナス
-LOCAL:25 = 0
-LOCAL:25 += ABL_POWER(ABL:(LOCAL:15):武闘, -1) + ABL_POWER(ABL:(LOCAL:15):防衛, -1) + ABL_POWER(ABL:(LOCAL:15):知略, -1) + ABL_POWER(ABL:(LOCAL:15):政治, -1)
-LOCAL:25 += ABL_POWER(ABL:(LOCAL:15):歌唱, -1) + ABL_POWER(ABL:(LOCAL:15):料理, -1)
-LOCAL:25 /= 500
 
-IF REL_LIKE:(LOCAL:5):(LOCAL:15) >= 800
-	LOCAL:25 += 50
-ELSEIF REL_LIKE:(LOCAL:5):(LOCAL:15) >= 300
-	LOCAL:25 += 20
+CALL CHANGE_COUNTRY(対象, 勢力, 1)
+
+IF 元サヤフラグ
+	PRINTFORML %ANAME(対象)%を%ANAME(相手君主)%勢力に返還しました
+ELSE
+	PRINTFORML %ANAME(対象)%は%ANAME(相手君主)%勢力の士官になりました
+	;好感度上昇値・敵対値下降値の計算
+	;主に能力により決定。相手君主がそのキャラに良い印象を抱いていればボーナス
+	LOCAL:25 = 0
+	LOCAL:25 += ABL_POWER(ABL:(対象):武闘, -1) + ABL_POWER(ABL:(対象):防衛, -1) + ABL_POWER(ABL:(対象):知略, -1) + ABL_POWER(ABL:(対象):政治, -1)
+	LOCAL:25 += ABL_POWER(ABL:(対象):歌唱, -1) + ABL_POWER(ABL:(対象):料理, -1)
+	LOCAL:25 /= 500
+
+	IF REL_LIKE:(相手君主):(対象) >= 800
+		LOCAL:25 += 50
+	ELSEIF REL_LIKE:(相手君主):(対象) >= 300
+		LOCAL:25 += 20
+	ENDIF
+
+	LOCAL:25 = LIMIT(LOCAL:25, 25, 400)
+
+	;政治・料理の補正
+	CALL TMP_CREATE_IS_FREE_MAP
+	LOCAL:0 = SQRT(TMP_GET_POLITICS_POWER(CFLAG:MASTER:所属)) / 10
+	LOCAL:1 = SQRT(TMP_GET_COOKING_POWER(CFLAG:MASTER:所属)) / 10
+	LOCAL:12 = LOCAL:12 * (LOCAL:0 + LOCAL:1 + 100) / 100
+
+	;互いの国同士の好感度を上昇させ敵対値を低下させる
+	CALL DIPLOMACY_IMPROVE_RELATION(勢力, LOCAL:25)
 ENDIF
 
-LOCAL:25 = LIMIT(LOCAL:25, 25, 400)
-
-;政治・料理の補正
-CALL TMP_CREATE_IS_FREE_MAP
-LOCAL:0 = SQRT(TMP_GET_POLITICS_POWER(CFLAG:MASTER:所属)) / 10
-LOCAL:1 = SQRT(TMP_GET_COOKING_POWER(CFLAG:MASTER:所属)) / 10
-LOCAL:12 = LOCAL:12 * (LOCAL:0 + LOCAL:1 + 100) / 100
-
-;互いの国同士の好感度を上昇させ敵対値を低下させる
-CALL DIPLOMACY_IMPROVE_RELATION(ARG:0, LOCAL:25)
 RETURN 1
 
 @SELECT_CHARA_LIST_SHOW_LOGIC_GIVE_CHARA(対象)

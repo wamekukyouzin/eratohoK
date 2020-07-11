@@ -24,21 +24,20 @@ RETURN 1
 ;対象が存在せずデイリーを開始できない場合は0を返すことでデイリーの発生をキャンセルする
 ;---------------------
 @EVENT_DAILY_DRUNK_RAPE_SETTARGET()
-;遭遇キャラの選出
-FOR LOCAL, 0, CHARANUM
-	;別の勢力に所属している、女性キャラ
-	IF CFLAG:(LOCAL):所属 != CFLAG:MASTER:所属 && !CFLAG:(LOCAL):捕虜先 && IS_FEMALE(LOCAL) && !IS_ANIMAL(LOCAL) && CFLAG:(LOCAL):特殊状態 != 特殊状態_死亡 && !(CFLAG:(LOCAL:0):特殊状態 == 0 && CFLAG:(LOCAL:0):所属 == 0)
-		DAILY_TARGET:DAILY_TARGET_NUM = LOCAL
-		DAILY_TARGET_NUM ++
-	ENDIF
-NEXT
 
-SIF DAILY_TARGET_NUM < 1
+;遭遇キャラの選出
+CALL SELECT_CHARA_RANDOM("DAILY_DRUNK_RAPE")
+
+SIF RESULT == -1
 	RETURN 0
+
+DAILY_TARGET:0 = RESULT
 
 RETURN 1
 
-
+@SELECT_CHARA_RANDOM_LOGIC_DAILY_DRUNK_RAPE(対象)
+#DIM 対象
+RETURN CFLAG:対象:所属 != CFLAG:MASTER:所属 && !CFLAG:対象:捕虜先 && IS_FEMALE(対象) && !IS_ANIMAL(対象) && CFLAG:対象:特殊状態 != 特殊状態_死亡 && !(CFLAG:対象:特殊状態 == 0 && CFLAG:対象:所属 == 0)
 
 
 ;---------------------
@@ -57,10 +56,6 @@ RETURN デイリー_ジャンル_エロ
 ;---------------------
 @EVENT_DAILY_DRUNK_RAPE()
 #DIM 対象
-#DIM 候補キャラ, 3000
-#DIM 候補数
-VARSET 候補キャラ
-VARSET 候補数
 
 
 IF GET_COUNTRY_BOSS(CFLAG:MASTER:所属) == MASTER
@@ -87,7 +82,8 @@ ENDIF
 PRINTFORMW 折角だから出席してみることにした
 
 
-対象 = DAILY_TARGET:(RAND:DAILY_TARGET_NUM)
+対象 = DAILY_TARGET:0
+
 IF 対象 <= 0
 	PRINTFORML ・
 	PRINTFORML ・
