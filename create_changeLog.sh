@@ -18,4 +18,3 @@ tac temp.txt | tr "\n" "\\n" | xargs -I{} sed -i -e "3i {}" ./changelog.txt
 
 unix2dos changelog.txt
 rm temp.txt
-rm temp2.txt
