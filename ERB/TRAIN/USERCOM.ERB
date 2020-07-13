@@ -7,6 +7,7 @@
 
 ;リストのクリア
 VARSET COM_LIST, -1
+VARSET COM_CONFLICT_LIST, -1
 
 LOCAL:1 = 0
 ;モード別のコマンドを走査
@@ -18,6 +19,8 @@ FOR LOCAL:0, 0, VARSIZE("TRAINNAME")
 	;COM_LISTに実行可能コマンドを記録
 	SIF RESULT
 		COM_LIST:(LOCAL:1) = LOCAL:0
+	SIF RESULT == 2
+		COM_CONFLICT_LIST:(LOCAL:1) = 1
 	;リストの記録位置を一つ進める
 	LOCAL:1 ++
 NEXT
@@ -48,6 +51,12 @@ IF TRAINNAME:(ARG:0) != ""
 			ENDIF
 		ENDIF
 
+		COM_ENABLE = 1
+		TRYCALLFORM COM_ABLE{ARG:0}
+		COM_ENABLE = 0
+		LOCAL:1 = RESULT
+		LOCAL:2 = RESULT
+
 		IF FLAG:CANCELLING
             ;clear out mequip, except for actions like "Summon Tentacles" that strictly enable other actions, which we move to the top
             ;This way, we're only checking conditions like HAS_PENIS or IS_PLAYABLE instead of action-related conditions
@@ -60,12 +69,12 @@ IF TRAINNAME:(ARG:0) != ""
 			NEXT
 			LOCAL:5 = MEQUIP_NUM
 			MEQUIP_NUM = LOCAL:4
+			COM_ENABLE = 1
+			TRYCALLFORM COM_ABLE{ARG:0}
+			COM_ENABLE = 0
+			LOCAL:2 = RESULT
 		ENDIF
 
-
-		COM_ENABLE = 1
-		TRYCALLFORM COM_ABLE{ARG:0}
-		COM_ENABLE = 0
         ;Print the disabled actions - using this for debugging
         ;SIF !RESULT && (ARG:0 < 250)
         ;    PRINTFORM %ENTRAINNAME(ARG:0)%
@@ -74,7 +83,13 @@ IF TRAINNAME:(ARG:0) != ""
 			MEQUIP_NUM = LOCAL:5
 		ENDIF
 
-		RETURN RESULT
+		IF LOCAL:1 == LOCAL:2
+			RETURN LOCAL:1
+		;初回実行時はいけたが2回目が通らないケース
+		;つまりFLAG:CANCELLINGが立ってて既存コマンドと干渉するケース
+		ELSE
+			RETURN 2
+		ENDIF
 	ENDIF
 ENDIF
 RETURN 0
@@ -218,7 +233,7 @@ FOR LOCAL:0, 0, 1000
 			LOCAL:4 = RESULT
 
 			IF LOCALS:1 != ""
-				PRINTPLAINFORM %LOCALS:1, 28, RIGHT% 
+				PRINTPLAINFORM %LOCALS:1, 22, RIGHT% 
 				IF LOCAL:4 == 2
 					SETCOLOR カラー_選択不可
 					PRINTPLAINFORM    [----]
@@ -245,8 +260,13 @@ FOR LOCAL:0, 0, 1000
 				ENDIF
 			ELSE
 				SETCOLOR カラー_選択不可
-				PRINTPLAINFORM %TOSTR_REPEAT("-", 10), 28, RIGHT%    [----]    [----]
+				PRINTPLAINFORM %TOSTR_REPEAT("-", 10), 22, RIGHT%    [----]    [----]
 				RESETCOLOR
+			ENDIF
+			IF COM_CONFLICT_LIST:(LOCAL:0) == 1
+				CALL COLOR_PRINT(" 干渉あり", カラー_選択不可)
+			ELSE
+				PRINTPLAINFORM %TOSTR_SPACE(9)%
 			ENDIF
 		ENDIF
 	ENDIF
@@ -992,6 +1012,13 @@ ELSEIF RESULT == 901 && GROUPMATCH(FLAG:調教モード, 調教_会う, 調教_�
 
 ELSEIF RESULT == 902
 	FLAG:CANCELLING = !FLAG:CANCELLING
+	IF FLAG:CANCELLING
+		PRINTFORML 現在継続中のコマンドと干渉するコマンドを実行した場合、
+		PRINTFORMW 継続中のコマンドのうち干渉するものをキャンセルするようにしました。
+	ELSE
+		PRINTFORML 現在継続中のコマンドと干渉するコマンドは、
+		PRINTFORMW コマンド一覧に表示しないようにしました。
+	ENDIF
 ;EQUIP解除
 ELSEIF RESULT >= 1000 && RESULT <= 1049
 	REDRAW 0
