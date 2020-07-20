@@ -8,12 +8,17 @@
 SIF !HAS_VAGINA(ARG:0) && !TALENT:(ARG:0):孕み可能
 	RETURN
 
-;中出し量の計算／中出し履歴の作成
+;中出し量の計算　妊娠確率に使用。
 LOCAL:2 = 0
 FOR LOCAL:0, 0, WOMB_RECORD_MAX
 	SIF WOMB_SEMEN_ID:(ARG:0):LOCAL == 0
 		CONTINUE
-	LOCAL:2 += WOMB_SEMEN_AMOUNT:(ARG:0):LOCAL
+	;動物の精液はクソ多いので、妊娠確率への影響は軽微にする
+	IF IS_ANIMAL_SPERM(WOMB_SEMEN_ID:(ARG:0):LOCAL)
+		LOCAL:2 += WOMB_SEMEN_AMOUNT:(ARG:0):LOCAL / 200
+	ELSE
+		LOCAL:2 += WOMB_SEMEN_AMOUNT:(ARG:0):LOCAL
+	ENDIF
 NEXT
 
 SIF IS_SP_CHARA(ARG:0)
@@ -42,26 +47,26 @@ SIF LOCAL:2 <= 0
 ;中出し量が1以上の場合
 
 ;妊娠判定に使う乱数の基本最大値
-LOCAL:5 = 1200
+LOCAL:5 = 1500
 
 ;孕みたがり所持だと極めて孕みやすい
 IF GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_孕みたがり)
 	IF TCVAR:(ARG:0):65
-		LOCAL:5 = 100
+		LOCAL:5 = 200
 	ELSE
-		LOCAL:5 = 300
+		LOCAL:5 = 400
 	ENDIF
 ;獣変化中は確率上昇
 ELSEIF TALENT:(ARG:0):動物耳 || TALENT:(ARG:0):しっぽ
 	;排卵誘発剤使用中は確率上昇
 	IF TCVAR:(ARG:0):65
-		LOCAL:5 = 80
+		LOCAL:5 = 100
 	ELSE
-		LOCAL:5 = 400
+		LOCAL:5 = 600
 	ENDIF
 ;排卵誘発剤使用中は確率上昇
 ELSEIF TCVAR:(ARG:0):65
-	LOCAL:5 = 150
+	LOCAL:5 = 300
 ENDIF
 
 ;危険日なら倍率ドン
