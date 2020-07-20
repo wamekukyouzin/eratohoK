@@ -679,15 +679,17 @@ FOR LOCAL:0, 400, 420
 	SOURCE:(射精相手):中毒充足 += 射精量 * LOCAL:12
 
 	;膣内射精かどうかを見る(膣がない場合は腸内射精も見る) コンドームの場合INJECTIONさせない
-	SIF (射精先 == 1 || (!HAS_VAGINA(射精相手) && 射精先 == 2)) && !IS_EQUIP_PLAYER(対象, 75)
+	IF (射精先 == 1 || (!HAS_VAGINA(射精相手) && 射精先 == 2)) && !IS_EQUIP_PLAYER(対象, 75)
 		CALL RECORD_INJECTION(射精相手, GET_ID(対象), 射精量)
+		射精量 = RESULT
+	ENDIF
 
 	;射精箇所が触手なら相手の妖術経験値をプラス
 	IF 射精先 == 13
 		EXP:(射精相手):妖術経験値 += 射精量 * 2
 	ENDIF
-
-	CUM_TO_COUNT:(対象):(射精先) += 射精量
+	CUM_TO_COUNT:(対象):(射精先) ++
+	CUM_TO_AMOUNT:(対象):(射精先) += 射精量
 	IF !GROUPMATCH(射精先, 射精部位_無駄, 射精部位_ゴム) || !無駄打ち表示済み
 		PRINTFORM (
 		SIF GROUPMATCH(射精先, 1, 2)
@@ -697,8 +699,9 @@ FOR LOCAL:0, 400, 420
 	ENDIF
 
 	IF !GROUPMATCH(射精先, 射精部位_無駄)
-		CUM_GET_COUNT:(射精相手):(射精先) += 射精量
-		CUM_CUR_COUNT:(射精相手):(射精先) += 射精量
+		CUM_GET_AMOUNT:(射精相手):(射精先) += 射精量
+		CUM_GET_COUNT:(射精相手):射精先 ++
+		CUM_CUR_AMOUNT:(射精相手):(射精先) += 射精量
 		IF !GROUPMATCH(射精先, 射精部位_ゴム)
 			PRINTFORM :%ANAME(射精相手)%
 		ENDIF
@@ -933,6 +936,7 @@ NEXT
 ;ARG:0=中出しされたキャラの「キャラ番号」
 ;ARG:1=中出ししたキャラの「ID」
 ;ARG:2=精液量
+;RETURN:補正後の精液量
 ;-------------------------------------------------
 @RECORD_INJECTION(ARG:0, ARG:1, ARG:2)
 LOCAL:1 = ID_TO_CHARA(ARG:1)
@@ -980,7 +984,7 @@ FOR LOCAL:0, 0, WOMB_RECORD_MAX
 		WOMB_SEMEN_AMOUNT:(ARG:0):(LOCAL:0) += ARG:2
 		WOMB_SEMEN_COUNT:(ARG:0):(LOCAL:0) ++
 		WOMB_SEMEN_TIME:(ARG:0):(LOCAL:0) = 0
-		RETURN
+		RETURN ARG:2
 	ENDIF
 NEXT
 ;キャラがリストに載っていなければ新たに追加
@@ -991,7 +995,8 @@ FOR LOCAL:0, 0, WOMB_RECORD_MAX
 		WOMB_SEMEN_AMOUNT:(ARG:0):(LOCAL:0) = ARG:2
 		WOMB_SEMEN_COUNT:(ARG:0):(LOCAL:0) ++
 		WOMB_SEMEN_TIME:(ARG:0):(LOCAL:0) = 0
-		RETURN
+		RETURN ARG:2
 	ENDIF
 NEXT
 
+RETURN ARG:2
