@@ -1,4 +1,4 @@
-﻿;SOURCE_CHECKで使用する関数(射精・絶頂・噴乳など)
+;SOURCE_CHECKで使用する関数(射精・絶頂・噴乳など)
 
 ;-------------------------------------------------
 ;絶頂に関する処理
@@ -487,7 +487,7 @@ IF 強度 >= 200000 || ((TALENT:(対象):絶倫 || TCVAR:(対象):66) && 強度 
 	ELSE
 		SETCOLOR 0xFF4000
 	ENDIF
-	射精量 = RAND(16, 21)
+	射精量 = RAND(20, 30)
 	出力文字列 =  超々大量
 ELSEIF 強度 >= 80000 || ((TALENT:(対象):絶倫 || TCVAR:(対象):66) && 強度 >= 40000)
 	IF 対象 == MASTER
@@ -495,7 +495,7 @@ ELSEIF 強度 >= 80000 || ((TALENT:(対象):絶倫 || TCVAR:(対象):66) && 強�
 	ELSE
 		SETCOLOR カラー_オレンジ
 	ENDIF
-	射精量 = RAND(10, 16)
+	射精量 = RAND(10, 21)
 	出力文字列 = 超大量
 ELSEIF 強度 >= 40000 || TALENT:(対象):絶倫 || TCVAR:(対象):66
 	IF 対象 == MASTER
@@ -503,7 +503,7 @@ ELSEIF 強度 >= 40000 || TALENT:(対象):絶倫 || TCVAR:(対象):66
 	ELSE
 		SETCOLOR 0xFFC000
 	ENDIF
-	射精量 = RAND(5, 10)
+	射精量 = RAND(5, 16)
 	出力文字列 = 大量
 ELSE
 	IF 対象 == MASTER
@@ -511,17 +511,8 @@ ELSE
 	ELSE
 		SETCOLOR カラー_注意
 	ENDIF
-	射精量 = RAND(1, 5)
+	射精量 = RAND(1, 9)
 ENDIF
-
-SIF GETBIT(TALENT:対象:淫乱系, 素質_淫乱_射精狂い)
-	射精量 += RAND(3, 6)
-
-SIF IS_ANIMAL(対象)
-	射精量 += RAND(3, 6)
-
-SIF LOCAL:1 >= 0 && GETBIT(TALENT:対象:淫乱系, 素質_淫乱_濃厚精液)
-	射精量 += RAND(10, 20)
 
 SIF SOURCE:(対象):快Ｐ == 0 && NOWEX:対象:Ｖ絶頂 + NOWEX:対象:Ａ絶頂 > 0
 	出力文字列 = %出力文字列%ところてん
@@ -529,8 +520,8 @@ SIF SOURCE:(対象):快Ｐ == 0 && NOWEX:対象:Ｖ絶頂 + NOWEX:対象:Ａ絶�
 PRINTFORM %出力文字列%射精
 RESETCOLOR
 NOWEX:対象:射精 = 射精量
-EXP:(対象):射精経験値 += 射精量
-EXP:(対象):絶頂経験 += 射精量
+EXP:(対象):射精経験値 += 射精量 / 3
+EXP:(対象):絶頂経験 += 射精量 / 3
 
 ;膣、アナルに射精しているようならそれ以外を消去
 FOR LOCAL:0, 400, 420
@@ -586,20 +577,20 @@ FOR LOCAL:0, 400, 420
 				TIMES 恐怖倍率, 1.5
 				TIMES LOCAL:12, 1.5
 			ENDIF
-			EXP:射精相手:膣内射精経験 += NOWEX:対象:射精
+			EXP:射精相手:膣内射精経験 ++
 		;アナル
 		CASE 2
 			愛情倍率 = 40
 			屈従倍率 = 120
 			恐怖倍率 = 40
-			EXP:射精相手:腸内射精経験 += NOWEX:対象:射精
+			EXP:射精相手:腸内射精経験 ++
 		CASE 3
 		;口
 		CASE 4
 			愛情倍率 = 50
 			屈従倍率 = 40
 			恐怖倍率 = 40
-			EXP:射精相手:口内射精経験 += NOWEX:対象:射精
+			EXP:射精相手:口内射精経験 ++
 		;胸
 		CASE 5
 			愛情倍率 = 40
@@ -680,9 +671,9 @@ FOR LOCAL:0, 400, 420
 		補正後射精量 = CORRECT_CUM_OVERFLOW(射精相手, 射精先, 補正後射精量)
 	ENDIF
 
-;膣内射精かどうかを見る(膣がない場合は腸内射精も見る) コンドームの場合INJECTIONさせない
-	IF (射精先 == 1 || (!HAS_VAGINA(射精相手) && 射精先 == 2)) && !IS_EQUIP_PLAYER(対象, 75)
-		CALL RECORD_INJECTION(射精相手, GET_ID(対象), 補正後射精量)
+;体内に対する射精か見る。コンドームの場合INJECTIONさせない
+	IF !IS_EQUIP_PLAYER(対象, 75)
+		CALL RECORD_INJECTION(射精相手, GET_ID(対象), 補正後射精量, 射精先)
 	ENDIF
 
 
@@ -732,11 +723,7 @@ SIF !GROUPMATCH(射精先, 射精部位_口, 射精部位_アナル, 射精部�
 精液量 = 0
 SELECTCASE 射精先
 	CASE 射精部位_膣内
-		FOR LOCAL:0, 0, WOMB_RECORD_MAX
-			SIF WOMB_SEMEN_ID:対象:LOCAL == 0
-				CONTINUE
-			精液量 += WOMB_SEMEN_AMOUNT:対象:LOCAL
-		NEXT
+		精液量 = SUM_WOMB_SEMEN_AMOUNT(対象)
 		IF 精液量 >= CALC_WOMB_SIZE(対象)
 			RETURNF 0
 		ELSEIF 精液量 + 射精量 >= CALC_WOMB_SIZE(対象)
@@ -744,25 +731,23 @@ SELECTCASE 射精先
 		ELSE
 			RETURNF 射精量
 		ENDIF
-	CASEELSE 
-		精液量 += CUM_GET_AMOUNT:対象:射精先
-		IF 射精先 == 射精部位_口
-			IF 精液量 >= CALC_STOMACH_SIZE(対象)
-				RETURNF 0
-			ELSEIF 精液量 + 射精量 >= CALC_STOMACH_SIZE(対象)
-				RETURNF CALC_STOMACH_SIZE(対象) - 精液量
-			ELSE
-				RETURNF 射精量
-			ENDIF
-
+	CASE 射精部位_口
+		精液量 = SUM_STOMACH_SEMEN_AMOUNT(対象)
+		IF 精液量 >= CALC_STOMACH_SIZE(対象)
+			RETURNF 0
+		ELSEIF 精液量 + 射精量 >= CALC_STOMACH_SIZE(対象)
+			RETURNF CALC_STOMACH_SIZE(対象) - 精液量
 		ELSE
-			IF 精液量 >= CALC_ANUS_SIZE(対象)
-				RETURNF 0
-			ELSEIF 精液量 + 射精量 >= CALC_ANUS_SIZE(対象)
-				RETURNF CALC_ANUS_SIZE(対象) - 精液量
-			ELSE
-				RETURNF 射精量
-			ENDIF
+			RETURNF 射精量
+		ENDIF
+	CASE 射精部位_アナル
+		精液量 = SUM_ANUS_SEMEN_AMOUNT(対象)
+		IF 精液量 >= CALC_ANUS_SIZE(対象)
+			RETURNF 0
+		ELSEIF 精液量 + 射精量 >= CALC_ANUS_SIZE(対象)
+			RETURNF CALC_ANUS_SIZE(対象) - 精液量
+		ELSE
+			RETURNF 射精量
 		ENDIF
 ENDSELECT
 
@@ -774,12 +759,23 @@ RETURNF 射精量
 @CUM_AMOUNT_CORRECTION(精液ID, 射精相手, 射精先, 射精量)
 #FUNCTION
 #DIM 精液ID
+#DIM 射精者
 #DIM 射精相手
 #DIM 射精先
 #DIM 射精量
 
+射精者 = ID_TO_CHARA(精液ID)
+
+IF 射精者 >= 0
+	SIF GETBIT(TALENT:射精者:淫乱系, 素質_淫乱_射精狂い)
+		射精量 += RAND(5, 16)
+
+	SIF LOCAL:1 >= 0 && GETBIT(TALENT:射精者:淫乱系, 素質_淫乱_濃厚精液)
+		射精量 += RAND(5, 16)
+ENDIF
+
 ;危険日なら倍
-SIF IS_OVULATION(射精相手)
+SIF IS_OVULATION(射精相手) && 射精先 == 射精部位_膣内
 	射精量 *= 2
 
 ;対象が動物の場合、IDを変換
@@ -808,10 +804,14 @@ RETURNF 射精量
 ;ARG:0=中出しされたキャラの「キャラ番号」
 ;ARG:1=中出ししたキャラの「ID」
 ;ARG:2=精液量
+;ARG:3=射精部位
 ;-------------------------------------------------
-@RECORD_INJECTION(ARG:0, ARG:1, ARG:2)
+@RECORD_INJECTION(ARG:0, ARG:1, ARG:2, ARG:3=射精部位_膣内)
 
-ARG:2 = CORRECT_CUM_OVERFLOW(ARG:0, 射精部位_膣内, ARG:2)
+SIF !GROUPMATCH(ARG:3, 射精部位_膣内, 射精部位_アナル, 射精部位_口) 
+	RETURN 0
+
+ARG:2 = CORRECT_CUM_OVERFLOW(ARG:0, ARG:3, ARG:2)
 
 SIF ARG:2 == 0
 	RETURN 0
@@ -843,33 +843,76 @@ SIF LOCAL:1 >= 0 && TALENT:(LOCAL:1):慰安モブ
 
 ;性的嗜好経験値を加算
 ;危険日なら倍
-SEXUAL_PREFERENCE_EXP:(ARG:0):性的嗜好_妊娠したい += IS_OVULATION(ARG:0) + 1
+SIF ARG:3 == 射精部位_膣内
+	SEXUAL_PREFERENCE_EXP:(ARG:0):性的嗜好_妊娠したい += IS_OVULATION(ARG:0) + 1
 
-;既にキャラがリストに存在すれば精液量を追加
-FOR LOCAL:0, 0, WOMB_RECORD_MAX
-	IF WOMB_SEMEN_ID:(ARG:0):(LOCAL:0) == ARG:1
-		WOMB_SEMEN_AMOUNT:(ARG:0):(LOCAL:0) += ARG:2
-		WOMB_SEMEN_COUNT:(ARG:0):(LOCAL:0) ++
-		WOMB_SEMEN_TIME:(ARG:0):(LOCAL:0) = 0
-		RETURN ARG:2
-	ENDIF
-NEXT
-;キャラがリストに載っていなければ新たに追加
-FOR LOCAL:0, 0, WOMB_RECORD_MAX
-	IF WOMB_SEMEN_ID:(ARG:0):(LOCAL:0) == 0
-		;中出ししたキャラのIDと精液量を記録
-		WOMB_SEMEN_ID:(ARG:0):(LOCAL:0) = ARG:1
-		WOMB_SEMEN_AMOUNT:(ARG:0):(LOCAL:0) = ARG:2
-		WOMB_SEMEN_COUNT:(ARG:0):(LOCAL:0) ++
-		WOMB_SEMEN_TIME:(ARG:0):(LOCAL:0) = 0
-		RETURN ARG:2
-	ENDIF
-NEXT
+SELECTCASE ARG:3
+	CASE 射精部位_膣内
+		;既にキャラがリストに存在すれば精液量を追加
+		FOR LOCAL:0, 0, WOMB_RECORD_MAX
+			IF WOMB_SEMEN_ID:(ARG:0):(LOCAL:0) == ARG:1
+				WOMB_SEMEN_AMOUNT:(ARG:0):(LOCAL:0) += ARG:2
+				WOMB_SEMEN_COUNT:(ARG:0):(LOCAL:0) ++
+				WOMB_SEMEN_TIME:(ARG:0):(LOCAL:0) = 0
+				RETURN ARG:2
+			ENDIF
+		NEXT
+		;キャラがリストに載っていなければ新たに追加
+		FOR LOCAL:0, 0, WOMB_RECORD_MAX
+			IF WOMB_SEMEN_ID:(ARG:0):(LOCAL:0) == 0
+				;中出ししたキャラのIDと精液量を記録
+				WOMB_SEMEN_ID:(ARG:0):(LOCAL:0) = ARG:1
+				WOMB_SEMEN_AMOUNT:(ARG:0):(LOCAL:0) = ARG:2
+				WOMB_SEMEN_COUNT:(ARG:0):(LOCAL:0) ++
+				WOMB_SEMEN_TIME:(ARG:0):(LOCAL:0) = 0
+				RETURN ARG:2
+			ENDIF
+		NEXT
+	CASE 射精部位_口
+		;既にキャラがリストに存在すれば精液量を追加
+		FOR LOCAL:0, 0, WOMB_RECORD_MAX
+			IF STOMACH_SEMEN_ID:(ARG:0):(LOCAL:0) == ARG:1
+				STOMACH_SEMEN_AMOUNT:(ARG:0):(LOCAL:0) += ARG:2
+				STOMACH_SEMEN_COUNT:(ARG:0):(LOCAL:0) ++
+				STOMACH_SEMEN_TIME:(ARG:0):(LOCAL:0) = 0
+				RETURN ARG:2
+			ENDIF
+		NEXT
+		;キャラがリストに載っていなければ新たに追加
+		FOR LOCAL:0, 0, WOMB_RECORD_MAX
+			IF STOMACH_SEMEN_ID:(ARG:0):(LOCAL:0) == 0
+				;中出ししたキャラのIDと精液量を記録
+				STOMACH_SEMEN_ID:(ARG:0):(LOCAL:0) = ARG:1
+				STOMACH_SEMEN_AMOUNT:(ARG:0):(LOCAL:0) = ARG:2
+				STOMACH_SEMEN_COUNT:(ARG:0):(LOCAL:0) ++
+				STOMACH_SEMEN_TIME:(ARG:0):(LOCAL:0) = 0
+				RETURN ARG:2
+			ENDIF
+		NEXT
+	CASE 射精部位_アナル
+		;既にキャラがリストに存在すれば精液量を追加
+		FOR LOCAL:0, 0, WOMB_RECORD_MAX
+			IF ANUS_SEMEN_ID:(ARG:0):(LOCAL:0) == ARG:1
+				ANUS_SEMEN_AMOUNT:(ARG:0):(LOCAL:0) += ARG:2
+				ANUS_SEMEN_COUNT:(ARG:0):(LOCAL:0) ++
+				ANUS_SEMEN_TIME:(ARG:0):(LOCAL:0) = 0
+				RETURN ARG:2
+			ENDIF
+		NEXT
+		;キャラがリストに載っていなければ新たに追加
+		FOR LOCAL:0, 0, WOMB_RECORD_MAX
+			IF ANUS_SEMEN_ID:(ARG:0):(LOCAL:0) == 0
+				;中出ししたキャラのIDと精液量を記録
+				ANUS_SEMEN_ID:(ARG:0):(LOCAL:0) = ARG:1
+				ANUS_SEMEN_AMOUNT:(ARG:0):(LOCAL:0) = ARG:2
+				ANUS_SEMEN_COUNT:(ARG:0):(LOCAL:0) ++
+				ANUS_SEMEN_TIME:(ARG:0):(LOCAL:0) = 0
+				RETURN ARG:2
+			ENDIF
+		NEXT
+ENDSELECT
 
 RETURN 1
-
-
-
 
 ;-------------------------------------------------
 ;絶頂した／させたときのソースの追加処理  ARG:0=絶頂したキャラの番号、ARG:1=絶頂箇所
