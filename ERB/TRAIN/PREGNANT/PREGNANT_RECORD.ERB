@@ -349,6 +349,37 @@ NEXT
 RETURNF 総量
 
 ;---------------------------------------------------------
+;子宮内の精液量を調整する
+;---------------------------------------------------------
+@CUT_WOMB_SEMEN_AMOUNT(対象)
+#DIM 対象
+#DIM 総量
+#DIM 子宮サイズ
+#DIM 余剰
+
+総量 = SUM_WOMB_SEMEN_AMOUNT(対象)
+子宮サイズ = CALC_WOMB_SIZE(対象)
+余剰 = 総量 - 子宮サイズ
+
+
+SIF 余剰 <= 0
+	RETURN 0
+
+FOR LOCAL, 0, WOMB_RECORD_MAX
+	SIF WOMB_SEMEN_ID:対象:LOCAL == 0
+		CONTINUE
+
+	WOMB_SEMEN_AMOUNT:対象:LOCAL -= 余剰 * (WOMB_SEMEN_AMOUNT:対象:LOCAL * 100 / 総量) / 100
+
+	IF WOMB_SEMEN_AMOUNT:対象:LOCAL <= 0
+		WOMB_SEMEN_ID:対象:LOCAL = 0
+		WOMB_SEMEN_AMOUNT:対象:LOCAL = 0
+		WOMB_SEMEN_COUNT:対象:LOCAL = 0
+		WOMB_SEMEN_TIME:対象:LOCAL = 0
+	ENDIF
+NEXT
+
+;---------------------------------------------------------
 ; 対象の子宮内精液量を表示する
 ;---------------------------------------------------------
 @SHOW_ANUS_SEMEN(ARG:0)
