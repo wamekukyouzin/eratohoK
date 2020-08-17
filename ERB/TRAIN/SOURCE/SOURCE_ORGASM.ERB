@@ -84,15 +84,6 @@ FOR LOCAL:0, 0, 5
 NEXT
 RESETCOLOR
 
-;●射精の判定と表示
-LOCAL:2 = PALAM:(ARG:0):射精 + CUP:(ARG:0):射精
-
-;射精した場合
-IF LOCAL:2 >= 10000 && SOURCE:(ARG:0):快Ｐ + NOWEX:(ARG:0):Ｖ絶頂 + NOWEX:(ARG:0):Ａ絶頂 > 0
-	CALL PROCESS_EJACULATION(ARG:0, LOCAL:2, LOCAL:10)
-	LOCAL:10 = 1
-ENDIF
-
 ;●噴乳の判定と表示
 LOCAL:2 = PALAM:(ARG:0):噴乳 + CUP:(ARG:0):噴乳
 
@@ -274,6 +265,17 @@ IF TCVAR:(ARG:0):0
 	;主導権に応じた優越・屈従のソース追加
 	CALL ADD_SOURCE_INITIATIVE_U(ARG:0, 20, 80)
 ENDIF
+
+
+;●射精の判定と表示
+LOCAL:2 = PALAM:(ARG:0):射精 + CUP:(ARG:0):射精
+
+;射精した場合
+IF LOCAL:2 >= 10000 && SOURCE:(ARG:0):快Ｐ + NOWEX:(ARG:0):Ｖ絶頂 + NOWEX:(ARG:0):Ａ絶頂 > 0
+	CALL PROCESS_EJACULATION(ARG:0, LOCAL:2, LOCAL:10)
+	LOCAL:10 = 1
+ENDIF
+
 
 ;●ソースの追加・気力の消耗
 LOCAL:30 = 0
@@ -514,8 +516,24 @@ ELSE
 	射精量 = RAND(1, 9)
 ENDIF
 
-SIF SOURCE:(対象):快Ｐ == 0 && NOWEX:対象:Ｖ絶頂 + NOWEX:対象:Ａ絶頂 > 0
+IF SOURCE:(対象):快Ｐ == 0 && NOWEX:対象:Ｖ絶頂 + NOWEX:対象:Ａ絶頂 > 0
 	出力文字列 = %出力文字列%ところてん
+	IF IS_EQUIP_PLAYER(対象, 75)
+		FOR LOCAL:0, 400, 420
+			IF TCVAR:(対象):(LOCAL:0) >= 0
+				GOTO FOUND_CONDOM
+			ENDIF
+		NEXT
+		FOR LOCAL, 0, CHARANUM
+			IF CFLAG:LOCAL:調教参加フラグ
+				TCVAR:対象:400 = LOCAL
+				TCVAR:対象:420 = 射精部位_ゴム
+				BREAK
+			ENDIF
+		NEXT
+		$FOUND_CONDOM
+	ENDIF
+ENDIF
 
 PRINTFORM %出力文字列%射精
 RESETCOLOR
@@ -546,6 +564,7 @@ FOR LOCAL:0, 400, 420
 
 	射精相手 = TCVAR:(対象):(LOCAL:0)
 	射精先 = TCVAR:(対象):(LOCAL:0 + 20)
+
 	;射精場所に応じた補正を掛けて精愛経験値を加算
 	;射精場所に応じたソースを追加(LOCAL:13=愛情倍率、屈従倍率=屈従倍率、恐怖倍率=恐怖倍率)
 	愛情倍率 = 20
@@ -676,36 +695,32 @@ FOR LOCAL:0, 400, 420
 		CALL RECORD_INJECTION(射精相手, GET_ID(対象), 補正後射精量, 射精先)
 	ENDIF
 
-
 	CUM_TO_COUNT:(対象):(射精先) ++
 	CUM_TO_AMOUNT:(対象):(射精先) += 補正後射精量
 
-	IF !GROUPMATCH(射精先, 射精部位_無駄, 射精部位_ゴム) || !無駄打ち表示済み
+	IF !無駄打ち表示済み
 		射精先文字列=%射精先文字列%(%CUM_SLOT_NAME:射精先%
 	ENDIF
 
-	IF !GROUPMATCH(射精先, 射精部位_無駄)
+	IF !無駄打ち表示済み
 		CUM_GET_AMOUNT:(射精相手):(射精先) += 補正後射精量
 		CUM_GET_COUNT:(射精相手):射精先 ++
 		CUM_CUR_AMOUNT:(射精相手):(射精先) += 補正後射精量
 		射精先文字列=%射精先文字列%:{補正後射精量}ml
-		IF !GROUPMATCH(射精先, 射精部位_ゴム)
+		IF !GROUPMATCH(射精先, 射精部位_無駄, 射精部位_ゴム)
 			射精先文字列=%射精先文字列%:%ANAME(射精相手)%
 		ENDIF
-		SIF !GROUPMATCH(射精先, 射精部位_ゴム) || !無駄打ち表示済み
-			射精先文字列=%射精先文字列%)
-		SIF GROUPMATCH(射精先, 射精部位_ゴム)
-			無駄打ち表示済み = 1
-	ELSEIF !GROUPMATCH(射精先, 射精部位_無駄) || !無駄打ち表示済み
-		射精先文字列=%射精先文字列%:{補正後射精量}ml)
-		SIF GROUPMATCH(射精先, 射精部位_無駄)
+		射精先文字列=%射精先文字列%)
+		SIF GROUPMATCH(射精先, 射精部位_無駄, 射精部位_ゴム)
 			無駄打ち表示済み = 1
 	ENDIF
 NEXT
 SIF 射精先文字列 != ""
-	PRINTFORML %射精先文字列%
-SIF あふれ文字列 != ""
-	PRINTFORML %SUBSTRING(あふれ文字列, 0, STRLENS(あふれ文字列) - 1)%
+	PRINTFORM %射精先文字列%
+IF あふれ文字列 != ""
+	PRINTL
+	PRINTFORM %SUBSTRING(あふれ文字列, 0, STRLENS(あふれ文字列) - 1)%
+ENDIF
 
 ;-------------------------------------------------
 ;DESC  :口内射精、膣内射精等であふれる場合、入るだけの量に補正する
