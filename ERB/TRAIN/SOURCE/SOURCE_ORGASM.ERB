@@ -664,7 +664,7 @@ FOR LOCAL:0, 400, 420
 		EXP:(射精相手):妖術経験値 += 射精量 * 2
 	ENDIF
 
-	補正後射精量 = CUM_AMOUNT_CORRECTION(対象, 射精相手, 射精先, 射精量)
+	補正後射精量 = CUM_AMOUNT_CORRECTION(GET_ID(対象), 射精相手, 射精先, 射精量)
 
 	IF 補正後射精量 != CORRECT_CUM_OVERFLOW(射精相手, 射精先, 補正後射精量)
 		あふれ文字列=%あふれ文字列%%TOSTR_SPACE(MAX_CHARANAME_LENGTH + 1)%すでにいっぱいの%ANAME(射精相手)%の%CUM_SLOT_NAME:射精先%から、{補正後射精量 - CORRECT_CUM_OVERFLOW(射精相手, 射精先, 補正後射精量)}mlの精液が溢れた……\n
@@ -770,13 +770,16 @@ IF 射精者 >= 0
 	SIF GETBIT(TALENT:射精者:淫乱系, 素質_淫乱_射精狂い)
 		射精量 += RAND(5, 16)
 
-	SIF LOCAL:1 >= 0 && GETBIT(TALENT:射精者:淫乱系, 素質_淫乱_濃厚精液)
+	SIF GETBIT(TALENT:射精者:淫乱系, 素質_淫乱_濃厚精液)
 		射精量 += RAND(5, 16)
 ENDIF
 
 ;危険日なら倍
 SIF IS_OVULATION(射精相手) && 射精先 == 射精部位_膣内
 	射精量 *= 2
+
+SIF 射精者 >= 0
+	精液ID = TO_MOB_SPERM_ID(射精者)
 
 ;対象が動物の場合、IDを変換
 IF 射精者 >= 0 && IS_ANIMAL(射精者)
@@ -833,13 +836,9 @@ IF LOCAL:1 >= 0 && IS_ANIMAL(LOCAL:1)
 	ENDSELECT
 ENDIF
 
-
-;対象が特殊勢力の場合、IDを変換
-SIF LOCAL:1 >= 0 && TALENT:(LOCAL:1):特殊勢力素質
-	ARG:1 = GET_SPERM_ID(SP_COUNTRY_NAME:(TALENT:(LOCAL:1):特殊勢力素質))
-;対象が慰安モブの場合、IDを変換
-SIF LOCAL:1 >= 0 && TALENT:(LOCAL:1):慰安モブ
-	ARG:1 = GET_SPERM_ID(IAN_SPERM_ARRAY:(TALENT:(LOCAL:1):慰安モブ))
+;モブの場合、精液IDを変換
+SIF LOCAL:1 >= 0
+	ARG:1 = TO_MOB_SPERM_ID(LOCAL:1)
 
 ;性的嗜好経験値を加算
 ;危険日なら倍
