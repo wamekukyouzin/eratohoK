@@ -6,7 +6,7 @@
 @CREATE_COMABLE_LIST
 
 ;リストのクリア
-VARSET COM_LIST, -1
+VARSET COM_ABLE_FLAG
 VARSET COM_CONFLICT_LIST
 
 LOCAL:1 = 0
@@ -16,9 +16,9 @@ FOR LOCAL:0, 0, VARSIZE("TRAINNAME")
 		CONTINUE
 	;実行可能かどうかを判定
 	CALL CHECK_COMABLE(LOCAL:0)
-	;COM_LISTに実行可能コマンドを記録
+	;COM_ABLE_FLAGに実行可能かどうか保存
 	SIF RESULT
-		COM_LIST:(LOCAL:1) = LOCAL:0
+		COM_ABLE_FLAG:LOCAL = 1
 	SIF RESULT == 2
 		COM_CONFLICT_LIST:(LOCAL:1) = 1
 	;リストの記録位置を一つ進める
@@ -86,7 +86,7 @@ IF TRAINNAME:(ARG:0) != ""
 
 		IF LOCAL:1 == LOCAL:2
 			RETURN LOCAL:1
-		;初回実行時はいけたが2回目が通らないケース
+		;初回実行時はだめだが2回目が通るケース
 		;つまりFLAG:CANCELLINGが立ってて既存コマンドと干渉するケース
 		ELSE
 			RETURN 2
@@ -101,6 +101,8 @@ RETURN 0
 @SHOW_COMMAND
 #DIM L_COUNTER
 #DIM AUTO_MAIN_CHARA
+#DIM SET_MPLY
+#DIM SET_MTAR
 
 ;実行可能なコマンドの記録
 CALL CREATE_COMABLE_LIST
@@ -177,106 +179,123 @@ IF FLAG:ウフフフラグ && (TFLAG:7 != 5 || IS_EQUIP_PLAYER(MPLY:0, 200)) && 
 ENDIF
 
 LOCAL:2 = 0
+CALL SET_TMP_MPLY()
+SET_MPLY = RESULT
+CALL SET_TMP_MTAR()
+SET_MTAR = RESULT
+
 FOR LOCAL:0, 0, 1000
-	;LOCAL:1に実行可能なコマンドの番号を取得
-	LOCAL:1 = COM_LIST:(LOCAL:0)
+
+	SIF TRAINNAME:LOCAL == ""
+		CONTINUE
 
 	;おまかせ、なりゆきを省く
-	IF LOCAL:1 >= 0 && LOCAL:1 != GET_TRAINNUM("おまかせする") && LOCAL:1 != 393
-		;コマンドがどのタブに含まれるかを取得
+	SIF GROUPMATCH(LOCAL, GETNUM(TRAINNAME, "おまかせする"), GETNUM(TRAINNAME, "なりゆきまかせ"))
+		CONTINUE
+	;コマンドがどのタブに含まれるかを取得
+	;現在選択されているタブに対応するコマンドのみを表示
+	TRYCALLFORM COM_CATEGORY{LOCAL}
+	SIF RESULT != TFLAG:7
+		CONTINUE
+
+	;コマンド名称の取得
+	FOR LOCAL:3, 0, 6
+		RESULTS:(LOCAL:3) = 
+	NEXT
+
+	TRYCALLFORM COM_NAME{LOCAL}
+	;改行処理
+	IF LOCAL:2 >= 1 && LOCAL:2 % 2 == 0
+		PRINTL 
+	ENDIF
+	LOCAL:2 ++
+
+	;主導権に応じて表示するメッセージを変更
+	IF IS_MPLY(MASTER)
+		IF FLAG:主導権所有者 < 0 || IS_MPLY(FLAG:主導権所有者)
+			LOCALS:1 = %RESULTS:0%
+		ELSEIF IS_MTAR(FLAG:主導権所有者)
+			LOCALS:1 = %RESULTS:1%
+		ELSE
+			LOCALS:1 = %RESULTS:0%
+		ENDIF
+	ELSEIF IS_MTAR(MASTER)
+		IF FLAG:主導権所有者 < 0 || IS_MTAR(FLAG:主導権所有者)
+			LOCALS:1 = %RESULTS:2%
+		ELSEIF IS_MPLY(FLAG:主導権所有者)
+			LOCALS:1 = %RESULTS:3%
+		ELSE
+			LOCALS:1 = %RESULTS:0%
+		ENDIF
+	ELSE
+		IF FLAG:主導権所有者 < 0 || IS_MPLY(FLAG:主導権所有者)
+			LOCALS:1 = %RESULTS:0%
+		ELSEIF IS_MTAR(FLAG:主導権所有者)
+			LOCALS:1 = %RESULTS:1%
+		ELSE
+			LOCALS:1 = %RESULTS:0%
+		ENDIF
+	ENDIF
+
+	IF COM_ABLE_FLAG:LOCAL
+		;コマンドの継続タイプを取得
 		RESULT = 0
-		TRYCALLFORM COM_CATEGORY{LOCAL:1}
-
-		;現在選択されているタブに対応するコマンドのみを表示
-		IF RESULT == TFLAG:7
-			;コマンド名称の取得
-			FOR LOCAL:3, 0, 6
-				RESULTS:(LOCAL:3) = 
-			NEXT
-			TRYCALLFORM COM_NAME{LOCAL:1}
-
-			;改行処理
-			IF LOCAL:2 >= 1 && LOCAL:2 % 2 == 0
-				PRINTL 
-			ENDIF
-			LOCAL:2 ++
-
-			;主導権に応じて表示するメッセージを変更
-			IF IS_MPLY(MASTER)
-				IF FLAG:主導権所有者 < 0 || IS_MPLY(FLAG:主導権所有者)
-					LOCALS:1 = %RESULTS:0%
-				ELSEIF IS_MTAR(FLAG:主導権所有者)
-					LOCALS:1 = %RESULTS:1%
-				ELSE
-					LOCALS:1 = %RESULTS:0%
-				ENDIF
-			ELSEIF IS_MTAR(MASTER)
-				IF FLAG:主導権所有者 < 0 || IS_MTAR(FLAG:主導権所有者)
-					LOCALS:1 = %RESULTS:2%
-				ELSEIF IS_MPLY(FLAG:主導権所有者)
-					LOCALS:1 = %RESULTS:3%
-				ELSE
-					LOCALS:1 = %RESULTS:0%
-				ENDIF
-			ELSE
-				IF FLAG:主導権所有者 < 0 || IS_MPLY(FLAG:主導権所有者)
-					LOCALS:1 = %RESULTS:0%
-				ELSEIF IS_MTAR(FLAG:主導権所有者)
-					LOCALS:1 = %RESULTS:1%
-				ELSE
-					LOCALS:1 = %RESULTS:0%
-				ENDIF
-			ENDIF
-
-			;コマンドの継続タイプを取得
-			RESULT = 0
-			TRYCALLFORM COM_IS_EQUIP{LOCAL:1}
-			LOCAL:4 = RESULT
-
-			IF LOCALS:1 != ""
-				SIF STRLENS(LOCALS:1) >= 26
-					LOCALS:1 = %TOHALF(LOCALS:1)%
-				PRINTPLAINFORM %LOCALS:1, 26, RIGHT% 
-				IF LOCAL:4 == 2
-					SETCOLOR カラー_選択不可
-					PRINTPLAINFORM    [----]
-					RESETCOLOR
-				ELSEIF FLAG:調教モード == 調教_子育て || TFLAG:7 == 6
-					PRINTBUTTON @"{LOCAL:0, 3}[実行]", LOCAL:0
-				ELSE
-					PRINTBUTTON @"{LOCAL:0, 3}[単発]", LOCAL:0
-				ENDIF
-				IF !(FLAG:調教モード == 調教_子育て || TFLAG:7 == 6)
-					PRINTPLAIN  
-					IF LOCAL:4 == 0
-						SETCOLOR カラー_選択不可
-						PRINTPLAINFORM    [----]
-						RESETCOLOR
-					ELSE
-						PRINTBUTTON @"{LOCAL:0 + 200, 3}[継続]", LOCAL:0 + 200
-					ENDIF
-				ELSE
-					PRINTPLAIN  
-					SETCOLOR カラー_選択不可
-					PRINTPLAINFORM    [----]
-					RESETCOLOR
-				ENDIF
-			ELSE
+		TRYCALLFORM COM_IS_EQUIP{LOCAL}
+		LOCAL:4 = RESULT
+		IF LOCALS:1 != ""
+			SIF STRLENS(LOCALS:1) >= 26
+				LOCALS:1 = %TOHALF(LOCALS:1)%
+			PRINTPLAINFORM %LOCALS:1, 26, RIGHT% 
+			IF LOCAL:4 == 2
 				SETCOLOR カラー_選択不可
-				PRINTPLAINFORM %TOSTR_REPEAT("-", 10), 26, RIGHT%    [----]    [----]
+				PRINTPLAINFORM    [----]
+				RESETCOLOR
+			ELSEIF FLAG:調教モード == 調教_子育て || TFLAG:7 == 6
+				PRINTBUTTON @"{LOCAL:0, 3}[実行]", LOCAL:0
+			ELSE
+				PRINTBUTTON @"{LOCAL:0, 3}[単発]", LOCAL:0
+			ENDIF
+			IF !(FLAG:調教モード == 調教_子育て || TFLAG:7 == 6)
+				PRINTPLAIN  
+				IF LOCAL:4 == 0
+					SETCOLOR カラー_選択不可
+					PRINTPLAINFORM    [----]
+					RESETCOLOR
+				ELSE
+					PRINTBUTTON @"{LOCAL:0 + 200, 3}[継続]", LOCAL:0 + 200
+				ENDIF
+			ELSE
+				PRINTPLAIN  
+				SETCOLOR カラー_選択不可
+				PRINTPLAINFORM    [----]
 				RESETCOLOR
 			ENDIF
-			IF COM_CONFLICT_LIST:(LOCAL:0) == 1
-				CALL COLOR_PRINT(" 干渉", カラー_選択不可)
-				PRINTPLAINFORM %TOSTR_SPACE(3)%
-
-			ELSE
-				PRINTPLAINFORM %TOSTR_SPACE(8)%
-			ENDIF
+		ELSE
+			SETCOLOR カラー_選択不可
+			PRINTPLAINFORM %TOSTR_REPEAT("-", 10), 26, RIGHT%    [----]    [----]
+			RESETCOLOR
 		ENDIF
+		IF COM_CONFLICT_LIST:(LOCAL:0) == 1
+			CALL COLOR_PRINT(" 干渉", カラー_選択不可)
+			PRINTPLAINFORM %TOSTR_SPACE(3)%
+		ELSE
+			PRINTPLAINFORM %TOSTR_SPACE(8)%
+		ENDIF
+	ELSE
+		SETCOLOR カラー_選択不可
+		PRINTPLAINFORM %LOCALS:1, 26, RIGHT%    [----]    [----]
+		PRINTPLAINFORM %TOSTR_SPACE(8)%
+		RESETCOLOR
 	ENDIF
 NEXT
 PRINTL 
+
+SIF SET_MPLY
+	CALL DEL_MPLY(MPLY:0)
+SIF SET_MTAR
+	CALL DEL_MTAR(MTAR:0)
+
+
 
 CALL COLOR_LINE
 PRINTPLAIN             
@@ -299,14 +318,14 @@ ELSEIF TFLAG:55 == TFLAG:56
 	CALL PRINT_SELECT_BUTTON("806{特殊}", 806, TFLAG:7 == 6)
 	PRINTPLAIN  
 ELSEIF FLAG:調教モード == 調教_会う
-	CALL PRINT_SELECT_BUTTON("800{交流}", 800, TFLAG:7 == 0)
+	CALL PRINT_SELECT_BUTTON("800{交流}", 807, TFLAG:7 == 7)
 	PRINTPLAIN  
-	CALL PRINT_SELECT_BUTTON("801{訓練／内政}", 801, TFLAG:7 == 1)
+	CALL PRINT_SELECT_BUTTON("801{訓練／内政}", 808, TFLAG:7 == 8)
 	PRINTPLAIN  
 	CALL PRINT_SELECT_BUTTON("806{特殊}", 806, TFLAG:7 == 6)
 	PRINTPLAIN  
 ELSEIF FLAG:調教モード == 調教_捕虜会話
-	CALL PRINT_SELECT_BUTTON("800{交流}", 800, TFLAG:7 == 0)
+	CALL PRINT_SELECT_BUTTON("800{交流}", 807, TFLAG:7 == 7)
 	PRINTPLAIN  
 	CALL PRINT_SELECT_BUTTON("806{特殊}", 806, TFLAG:7 == 6)
 	PRINTPLAIN  
@@ -322,17 +341,11 @@ IF FLAG:調教モード == 調教_会う && !FLAG:ウフフフラグ
 		ENDIF
 	NEXT
 	IF AUTO_MAIN_CHARA
-		;ループさせて表示上の番号をとる
-		FOR L_COUNTER, 1, 1000
-			IF COM_LIST:L_COUNTER == 393
-				TRYCALLFORM COM_NAME393
-				IF RESULTS:0 != ""
-					PRINTBUTTON @"{L_COUNTER}[%RESULTS:0%]", L_COUNTER
-					PRINTL 
-					BREAK
-				ENDIF
-			ENDIF
-		NEXT
+		TRYCALLFORM COM_NAME393
+		IF RESULTS:0 != ""
+			PRINTBUTTON @"{L_COUNTER}[%RESULTS:0%]", L_COUNTER
+			PRINTL 
+		ENDIF
 	ENDIF
 ;会いに行くウフフオンor閨に呼ぶ限定「おまかせする」表示　あなたがなすがままではない
 ELSEIF GROUPMATCH(FLAG:調教モード, 調教_会う, 調教_閨, 調教_捕虜会話) && IS_PLAYABLE(MASTER)
@@ -344,16 +357,11 @@ ELSEIF GROUPMATCH(FLAG:調教モード, 調教_会う, 調教_閨, 調教_捕虜
 		ENDIF
 	NEXT
 	IF AUTO_MAIN_CHARA
-		FOR L_COUNTER, 1, 1000
-			IF COM_LIST:L_COUNTER == GET_TRAINNUM("おまかせする")
-				TRYCALLFORM COM_NAME{GET_TRAINNUM("おまかせする")}
-				IF RESULTS:0 != ""
-					PRINTBUTTON @"{L_COUNTER}[%RESULTS:0%]", L_COUNTER
-					PRINTL 
-					BREAK
-				ENDIF
-			ENDIF
-		NEXT
+		TRYCALLFORM COM_NAME{GET_TRAINNUM("おまかせする")}
+		IF RESULTS:0 != ""
+			PRINTBUTTON @"{L_COUNTER}[%RESULTS:0%]", L_COUNTER
+			PRINTL 
+		ENDIF
 	ENDIF
 ENDIF
 
@@ -1028,7 +1036,7 @@ ELSEIF RESULT == 902
 		PRINTFORML 現在継続中のコマンドを自動的にキャンセルするようにしました。
 	ELSE
 		PRINTFORML 現在継続中のコマンドと干渉し、両立しない継続コマンドは、
-		PRINTFORMW コマンド一覧に表示しないようにしました。
+		PRINTFORMW 選択不可になるようにしました。
 	ENDIF
 ELSEIF RESULT == 903
 	FLAG:調教中表示簡略化 = !FLAG:調教中表示簡略化
@@ -1107,8 +1115,8 @@ ELSEIF RESULT == 997
 ;	ENDIF
 
 ;タブ設定
-ELSEIF RESULT >= 800 && RESULT <= 806
-	IF FLAG:ウフフフラグ || (FLAG:調教モード == 調教_会う && GROUPMATCH(RESULT, 800, 801, 806)) || (FLAG:調教モード == 調教_子育て && GROUPMATCH(RESULT, 800)) || (FLAG:調教モード == 調教_捕虜会話 && GROUPMATCH(RESULT, 800, 806))
+ELSEIF RESULT >= 800 && RESULT <= 808
+	IF FLAG:ウフフフラグ || (FLAG:調教モード == 調教_会う && GROUPMATCH(RESULT, 807, 808, 806)) || (FLAG:調教モード == 調教_子育て && GROUPMATCH(RESULT, 807)) || (FLAG:調教モード == 調教_捕虜会話 && GROUPMATCH(RESULT, 807, 808))
 		TFLAG:7 = RESULT - 800
 	ENDIF
 	CLEARLINE LINECOUNT - LINES_TRAIN
@@ -1145,15 +1153,15 @@ ELSEIF RESULT >= 0 && RESULT < 800
 	;	TFLAG:45 = 1
 	ENDIF
 
-	IF LOCAL:0 >= 0 && COM_LIST:(LOCAL:0) >= 0
+	IF LOCAL:0 >= 0 && COM_ABLE_FLAG:LOCAL
 		;290「なすがまま」291「おまかせする」
-		IF GROUPMATCH(COM_LIST:(LOCAL:0), 290, GET_TRAINNUM("おまかせする"))
+		IF GROUPMATCH(LOCAL, GETNUM(TRAINNAME, "なすがまま"), GETNUM(TRAINNAME, "おまかせする"))
 			;おまかせフラグON
 			TFLAG:0 = 1
 			TFLAG:45 = 1
 			CALL COM_AUTOSELECT
 		;393「なりゆきまかせ」
-		ELSEIF GROUPMATCH(COM_LIST:(LOCAL:0), GET_TRAINNUM("なりゆきまかせ"))
+		ELSEIF GROUPMATCH(LOCAL, GETNUM(TRAINNAME, "なりゆきまかせ"))
 			;おまかせフラグON
 			TFLAG:0 = 1
 			TFLAG:45 = 1
@@ -1161,7 +1169,7 @@ ELSEIF RESULT >= 0 && RESULT < 800
 		ELSE
 			;おまかせフラグOFF
 			TFLAG:0 = 0
-			DOTRAIN COM_LIST:(LOCAL:0)
+			DOTRAIN LOCAL
 		ENDIF
 	ENDIF
 ENDIF
