@@ -20,6 +20,7 @@ SIF GETBIT(セット位置, サイズ_体重) || セット位置 == 0
 SIF GETBIT(セット位置, サイズ_ペニス) || セット位置 == 0
 	CALL SET_BODYSIZE_PENIS(対象)
 
+CALL CUT_WOMB_SPERM_AMOUNT(対象)
 
 ;-------------------------
 ;身長の設定
@@ -339,10 +340,79 @@ SELECTCASE GET_PENISSIZE(対象)
 		サイズ基礎値 = RAND:7 + 17
 ENDSELECT
 
-サイズ基礎値 = MIN(BASE:対象:身長 / 12 * サイズ基礎値 / 10, 300)
+サイズ基礎値 = BASE:対象:身長 / 12 * サイズ基礎値 / 10
 
 BASE:対象:ペニス = サイズ基礎値
 MAXBASE:対象:ペニス = BASE:対象:ペニス
+
+;-------------------------
+;胃
+;-------------------------
+@CALC_STOMACH_SIZE(対象)
+#FUNCTION
+#DIM 対象
+#DIM サイズ
+
+サイズ = LIMIT(BASE:対象:身長 / 5, 100, 1000)
+
+SIF GETBIT(TALENT:対象:淫乱系, 素質_淫乱_蕩唇)
+	TIMES サイズ, 1.5
+
+サイズ += SQRT(STOMACH_TOTAL_CREAMPIED_AMOUNT:対象:0 * 3)
+
+サイズ = LIMIT(サイズ, 0, BASE:対象:身長 * 3 / 10)
+
+RETURNF サイズ
+
+
+;-------------------------
+;子宮
+;-------------------------
+@CALC_WOMB_SIZE(対象)
+#FUNCTION
+#DIM 対象
+#DIM サイズ
+
+サイズ = LIMIT(BASE:対象:身長 / 15, 10, 200)
+
+SIF GETBIT(TALENT:対象:淫乱系, 素質_淫乱_淫壷)
+	TIMES サイズ, 1.5
+
+SIF GETBIT(TALENT:対象:淫乱系, 素質_淫乱_孕みたがり)
+	TIMES サイズ, 1.5
+
+SIF GETBIT(TALENT:対象:淫乱系, 素質_淫乱_良質母胎)
+	TIMES サイズ, 1.5
+
+SIF TALENT:対象:妊娠
+	TIMES サイズ, 0.3
+
+サイズ += SQRT(WOMB_TOTAL_CREAMPIED_AMOUNT:対象:0 * 3)
+サイズ += EXP:対象:出産経験 * 3
+
+サイズ = LIMIT(サイズ, 0, BASE:対象:身長 * 3 / 10)
+
+
+RETURNF サイズ
+
+;-------------------------
+;腸
+;-------------------------
+@CALC_ANUS_SIZE(対象)
+#FUNCTION
+#DIM 対象
+#DIM サイズ
+
+サイズ = LIMIT(BASE:対象:身長 / 13, 10, 300)
+
+SIF GETBIT(TALENT:対象:淫乱系, 素質_淫乱_尻穴狂い)
+	TIMES サイズ, 1.5
+
+サイズ += SQRT(ANUS_TOTAL_CREAMPIED_AMOUNT:対象:0 * 3)
+
+サイズ = LIMIT(サイズ, 0, BASE:対象:身長 * 3 / 10)
+
+RETURNF サイズ
 
 ;-------------------------
 ;子供の重量の取得（妊娠時の体重に加算）
@@ -427,23 +497,28 @@ ENDIF
 
 PRINTL
 
-;バストのカップサイズ生成及び表示処理
-@PRINT_CUPSIZE(対象)
+@TOSTR_CUPSIZE(対象)
+#FUNCTIONS
 #DIM 対象
-VARSET LOCALS,""
-SPLIT "(-),(AAA),(AA),(A),(B),(C),(D),(E),(F),(G),(H),(I),(J),(K),(L),(M),(N),(O),(P),(Q),(R),(S),(T),(U),(V),(W),(X),(Y),(Z),(Z+) ",",",LOCALS
-
+#DIMS CONST SIZES = "-","AAA","AA","A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z","Z+", 
+#DIMS サイズ
 LOCAL = (BASE:対象:バスト + GET_BABY_BUST(対象) - CALC_BODYSIZE_UNDERBUST(対象)) / 25
 
 ;文字列変数が若干不自由なので無理やり作成
 LOCAL = MAX(LOCAL , 1)
 LOCALS:0 = %LOCALS:(LOCAL)%
-
 IF IS_MALE(対象)
-	PRINTFORM (--)
+	サイズ '= "--"
 ELSE
-	PRINTFORM %LOCALS:0%
+	サイズ = %SIZES:LOCAL%
 ENDIF
+
+RETURNF サイズ
+
+;バストのカップサイズ生成及び表示処理
+@PRINT_CUPSIZE(対象)
+#DIM 対象
+PRINTFORM (%TOSTR_CUPSIZE(対象)%)
 
 @PRINT_HIPSIZE(対象)
 #DIM 対象

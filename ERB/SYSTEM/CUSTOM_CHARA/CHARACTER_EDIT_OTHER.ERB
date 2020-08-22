@@ -40,6 +40,15 @@ IF FLAG:周回数 > 0
 	ENDIF
 	PRINTL
 	CALL COLOR_LINE
+	PRINTBUTTON "[クールタイム]:", 109
+	IF COOLTIME:対象:0 > 0
+		PRINTFORM 残り{COOLTIME:対象:0}期
+	ELSE
+		PRINTFORM なし
+	ENDIF
+	PRINTL
+
+	CALL COLOR_LINE
 ENDIF
 ;特殊処理
 PRINTBUTTON "[      性別]:", 100
@@ -78,6 +87,13 @@ PRINT 髪色:
 CALL PRINT_HAIR_COLOR(TALENT:対象:髪色) 
 PRINTFORML 髪長:%TOSTR_HAIR_LENGTH(TALENT:対象:髪の長さ)%
 PRINTBUTTON "[ボディ設定]", 101
+IF 対象 != MASTER
+	PRINTL
+	CALL COLOR_LINE
+	PRINTBUTTON "[全ウフフコマンドの実行回数を100に]", 102
+	PRINTL
+	PRINTBUTTON "[全ウフフコマンドの実行回数を0に]", 103
+ENDIF
 
 @CHARACTER_EDIT_INPUT_OTHER(対象, 入力値)
 #DIM 対象
@@ -96,6 +112,30 @@ SELECTCASE RESULT
 	;胸
 	CASE 101
 		CALL BEAUTIFY(対象)
+	;性癖
+	CASE 102
+		PRINTL 全てのコマンドの実行回数を100にします
+		PRINTL 既に100を超えているものについては現在の値が維持されます
+		PRINTL 主に性癖設定での好みLvを自由に変更するために使います
+		CALL ASK_YN("実行", "キャンセル")
+		IF RESULT == 0
+			FOR LOCAL:0, 0, 900
+				COM_EXP:対象:(LOCAL:0) = MAX(COM_EXP:対象:(LOCAL:0), 1000)
+				COM_EXP:対象:(LOCAL:0 + 1000) = MAX(COM_EXP:対象:(LOCAL:0), 1000)
+				COM_EXP:対象:(LOCAL:0 + 2000) = MAX(COM_EXP:対象:(LOCAL:0), 1000)
+			NEXT
+		ENDIF
+	CASE 103
+		PRINTL 全てのコマンドの実行回数を0にします
+		PRINTL 主に性癖設定での好みLvを育て直すために使います
+		CALL ASK_YN("実行", "キャンセル")
+		IF RESULT == 0
+			FOR LOCAL:0, 0, 900
+				COM_EXP:対象:(LOCAL:0) = 0
+				COM_EXP:対象:(LOCAL:0 + 1000) = 0
+				COM_EXP:対象:(LOCAL:0 + 2000) = 0
+			NEXT
+		ENDIF
 	;陰毛
 	CASE 105
 		CALL ASK_MULTI("パイパン", "つるつる", "うっすら", "柔毛", "ふんわり", "標準", "多め", "ふさふさ", "もっさり", "剛毛", "尻まで", "♥")
@@ -110,6 +150,13 @@ SELECTCASE RESULT
 		CALL TATTOO_MENU(対象, 1)
 	CASE 108
 		CALL PIERCE_MENU(対象, 1)
+	CASE 109
+		PRINTFORML クールタイムをいくらにしますか？(負の数で現状維持)
+		INPUT
+		IF RESULT < 0
+		ELSE
+			COOLTIME:対象:0 = RESULT
+		ENDIF
 	CASE 1000 TO 1000 + VARSIZE("TAG_NAME")
 		CALL INVERT_TAG(対象, 入力値 - 1000)
 ENDSELECT

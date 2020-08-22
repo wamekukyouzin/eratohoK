@@ -30,9 +30,16 @@ RETURN 1
 ;-------------------------------------------------
 @SHOP_LIFE_CHECKCHARA21(ARG:0)
 ;隣接している都市がある
-IF !CFLAG:MASTER:所属 || TMP_COUNTRY_IS_NEIBORING:(CFLAG:MASTER:所属):(CFLAG:(ARG:0):所属)
+IF !CFLAG:MASTER:所属 || TMP_COUNTRY_IS_NEIBORING:(CFLAG:MASTER:所属):(CFLAG:(ARG:0):所属) || CFLAG:(ARG:0):特殊状態 == 特殊状態_放浪
 	;非主人公、捕虜ではない、別勢力、どこかの勢力に所属している（放浪、未登場、死亡済みではない）
-	IF (ARG:0 != MASTER && !CFLAG:(ARG:0):捕虜先 && CFLAG:MASTER:所属 != CFLAG:(ARG:0):所属 && CFLAG:(ARG:0):所属 && !IS_SP_CHARA(ARG:0) && CFLAG:(ARG:0):行動不能状態 != 行動不能_子供)
+	{
+		IF ARG:0 != MASTER &&
+			!CFLAG:(ARG:0):捕虜先 && 
+			CFLAG:MASTER:所属 != CFLAG:(ARG:0):所属 && 
+			(CFLAG:(ARG:0):所属 || CFLAG:(ARG:0):特殊状態 == 特殊状態_放浪) && 
+			!IS_SP_CHARA(ARG:0) && 
+			CFLAG:(ARG:0):行動不能状態 != 行動不能_子供
+	}
 		SIF YOBAI_ABLE(ARG:0)
 			RETURN CHECK91(ARG:0, 2, 1)
 		RETURN 2
@@ -289,6 +296,8 @@ IF RESULT == 0
 	FLAG:夜這い = 1
 		;行動開始時の共通設定
 	CALL START_TRAIN_COMMON
+
+	;陥落していない場合は好感度やら何やらが減ったり関係が悪化したりする
 	IF !IS_LOVER(ARG:0) && !IS_SLAVE(ARG:0) && !IS_SLAVED_BY(ARG:0)
 		好感度他減少 = LIMIT(RAND(100, 200) - ABL:ARG:欲望 * 20 - ABL:ARG:奉仕 * 20 ,0, 100)
 		SIF TALENT:ARG:烙印
@@ -301,12 +310,27 @@ IF RESULT == 0
 			CFLAG:(ARG:0):依存度 -= 好感度他減少
 		SIF CFLAG:(ARG:0):支配度 > 0
 			CFLAG:(ARG:0):支配度 -= 好感度他減少 / 2
-		;相手との関係悪化（適当）
+
+		;相手との関係悪化
 		CALL CHANGE_RELATION_O_TO_C(CFLAG:ARG:所属, CFLAG:MASTER:所属, RAND(50, 100) * -1, RAND(50, 100))
-		CALL CHANGE_RELATION_O_TO_C(GET_COUNTRY_BOSS(CFLAG:(ARG:0):所属), CFLAG:MASTER:所属, RAND(50, 100) * -1, RAND(50, 100))
-			;対象が君主ならおかわり
-		SIF GET_COUNTRY_BOSS(CFLAG:(ARG:0):所属) == ARG:0
-			CALL CHANGE_RELATION_C_TO_C(CFLAG:ARG:所属, CFLAG:MASTER:所属, RAND(100, 150) * -1, RAND(100, 150))
+
+		;所属があれば君主からも嫌われる
+		IF CFLAG:(ARG:0):所属
+			CALL CHANGE_RELATION_O_TO_C(GET_COUNTRY_BOSS(CFLAG:(ARG:0):所属), CFLAG:MASTER:所属, RAND(50, 100) * -1, RAND(50, 100))
+				;対象が君主ならおかわり
+			SIF GET_COUNTRY_BOSS(CFLAG:(ARG:0):所属) == ARG:0
+				CALL CHANGE_RELATION_C_TO_C(CFLAG:ARG:所属, CFLAG:MASTER:所属, RAND(100, 150) * -1, RAND(100, 150))
+
+		;所属がない（放浪中）の場合は全勢力から嫌われる
+		ELSE
+			FOR LOCAL, 0, MAX_COUNTRY
+				SIF !IS_COUNTRY(LOCAL)
+					CONTINUE
+				SIF CFLAG:MASTER:所属 == LOCAL
+					CONTINUE
+				CALL CHANGE_RELATION_C_TO_C(LOCAL, CFLAG:MASTER:所属, -50, 50)
+			NEXT
+		ENDIF
 	ENDIF
 	REDRAW 1
 	RETURN 1

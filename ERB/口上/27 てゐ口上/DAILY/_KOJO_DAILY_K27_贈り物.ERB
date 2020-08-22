@@ -1,0 +1,66 @@
+﻿;---------------------
+;基本的な発生確率(1000分率 100で10%)
+;これにコンフィグ項目の発生頻度がかけられるので、必ずしもこの通りにはならない
+;---------------------
+@KOJO_DAILY_K27_PRESENT_RATE(対象)
+#DIM 対象
+RETURN 100
+
+
+;---------------------
+;確率以外の発生判定
+;〇期以降になると発生するとか、デイリー側で利用している変数が-1だったら起こさない　みたいなはじき方をするときに使う
+;---------------------
+@KOJO_DAILY_K27_PRESENT_DECISION(対象)
+#DIM 対象
+
+SIF KDVAR:対象:てゐ_贈り物 == 1
+	RETURN 0
+
+SIF !IS_LOVER(対象)
+	RETURN 0
+
+SIF GET_EMPTY_SKILL_SLOT(MASTER, スキル_ジャンル_TROOP) == -1
+	RETURN 0
+
+SIF GET_EMPTY_SKILL_SLOT(対象, スキル_ジャンル_TROOP) == -1
+	RETURN 0
+
+RETURN CHECK_KOJO_DAILY_HAPPEN(対象, 1, 0, 1)
+
+;---------------------
+;ジャンル
+;コンフィグ設定で使用
+;---------------------
+@KOJO_DAILY_K27_PRESENT_GENRE(対象)
+#DIM 対象
+RETURN デイリー_ジャンル_その他
+
+;---------------------
+;本体
+;イベントが発生した場合は1、発生しなかった場合は0を返す
+;発生しなかったというのは例えば、特定条件を満たすキャラからランダムに一人選ぶデイリーで、そもそもその条件を満たすキャラが一人もいないみたいなとき
+;旧仕様で作ったことある人向けにいうと「旧仕様のデイリー本体冒頭で-1を返すような状況」
+;---------------------
+@KOJO_DAILY_K27_PRESENT(対象)
+#DIM 対象
+
+PRINTFORMW 「%ANAME(MASTER)%、ちょっといい？」
+PRINTFORMW %ANAME(MASTER)%が政務を執っていると、%ANAME(対象)%が尋ねてきた……
+PRINTFORMW 「いや、大したことじゃないんだけどさ」
+PRINTFORMW 「%ANAME(MASTER)%は私のなかでも特別だからさ、あんまり怪我とかしてほしくないなって思ってるんだよね」
+PRINTFORMW 「まあ、なんていうかそういうわけだから。これ受け取ってよ」
+PRINTFORML 早口で語ると、%ANAME(対象)%は手に持っていたものを押しつけてきた
+PRINTFORMW 受け取ると、さっさと踵を返す
+PRINTFORMW 「うーんこういうのは私のキャラじゃないなぁ……！　話はそれだけだから！　じゃ！」
+PRINTFORMW いくらか頬を赤くした%ANAME(対象)%の背中を見送った……
+
+CALL SKILL_LEARN_BY_NAME(MASTER, スキル_ジャンル_TROOP, NO:対象, "大穴牟遅様の薬")
+CALL SKILL_LEARN_BY_NAME(対象, スキル_ジャンル_TROOP, NO:対象, "大穴牟遅様の薬")
+
+CALL COLOR_PRINT("身代わり人形を3つもらった", カラー_注意)
+ITEM:身代わり人形 += 3
+
+KDVAR:対象:てゐ_贈り物 = 1
+
+RETURN 1

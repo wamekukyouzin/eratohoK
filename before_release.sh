@@ -54,8 +54,8 @@ git archive \
     --prefix="eratohoK ver${version}/" \
     ${version}  > "${full_file_name}"
 
-readonly github_release_body=$(sed -e '1i作者は東方の二次創作同人小説を作っています。そちらもよければよろしくお願いします。\n[Pixiv](https://www.pixiv.net/member.php?id=1062514)\n[DLSite](http://www.dlsite.com/maniax/circle/profile/=/maker_id/RG24583.html)\n' temp2.md)
-sed -e "1ieratohoK ver${version}\nhttps://github.com/wamekukyouzin/eratohoK/releases\n\n東方のエロ小説も書いてます\n渋 https://www.pixiv.net/member.php?id=1062514\nDLSite http://www.dlsite.com/maniax/circle/profile/=/maker_id/RG24583.html\n" temp2.md > shitaraba.md
+readonly github_release_body=$(sed -e '1i作者は東方の二次創作同人小説を作っています。そちらもよければよろしくお願いします。\n[Pixiv](https://www.pixiv.net/member.php?id=1062514)\n[DLSite](http://www.dlsite.com/maniax/circle/profile/=/maker_id/RG24583.html)\n' temp2.txt)
+sed -e "1ieratohoK ver${version}\nhttps://github.com/wamekukyouzin/eratohoK/releases\n\n東方のエロ小説も書いてます\n渋 https://www.pixiv.net/member.php?id=1062514\nDLSite http://www.dlsite.com/maniax/circle/profile/=/maker_id/RG24583.html\n" temp2.txt > shitaraba.md
 
 export GITHUB_USER=wamekukyouzin
 export GITHUB_REPO=eratohok
@@ -65,4 +65,4 @@ github-release release -t ${version} -c master -d "${github_release_body}"
 github-release upload -t ${version} -n "${full_file_name}" -f "${full_file_name}"
 
 git branch -D ${branch_name}
-rm temp2.md
+rm temp2.txt

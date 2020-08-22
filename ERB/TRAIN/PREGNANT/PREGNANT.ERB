@@ -5,15 +5,19 @@
 ;---------------------------------------------------------
 @CHECK_PREGNANT(ARG:0)
 ;性別的に膣がない場合は特殊な薬を使わないと妊娠しない
-SIF !HAS_VAGINA(ARG:0) && !TALENT:(ARG:0):孕み可能
+SIF !HAS_VAGINA(ARG:0)
 	RETURN
 
-;中出し量の計算／中出し履歴の作成
+;中出し量の計算　妊娠確率に使用。
 LOCAL:2 = 0
 FOR LOCAL:0, 0, WOMB_RECORD_MAX
-	SIF WOMB_SEMEN_ID:(ARG:0):LOCAL == 0
+	SIF WOMB_SPERM_ID:(ARG:0):LOCAL == 0
 		CONTINUE
-	LOCAL:2 += WOMB_SEMEN_AMOUNT:(ARG:0):LOCAL
+	IF IS_ANIMAL_SPERM(WOMB_SPERM_ID:(ARG:0):LOCAL)
+		LOCAL:2 += WOMB_SPERM_AMOUNT:(ARG:0):LOCAL / 5
+	ELSE
+		LOCAL:2 += WOMB_SPERM_AMOUNT:(ARG:0):LOCAL
+	ENDIF
 NEXT
 
 SIF IS_SP_CHARA(ARG:0)
@@ -42,26 +46,26 @@ SIF LOCAL:2 <= 0
 ;中出し量が1以上の場合
 
 ;妊娠判定に使う乱数の基本最大値
-LOCAL:5 = 1200
+LOCAL:5 = 1000
 
 ;孕みたがり所持だと極めて孕みやすい
 IF GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_孕みたがり)
-	IF TCVAR:(ARG:0):65
-		LOCAL:5 = 100
+	IF CFLAG:(ARG:0):排卵誘発剤
+		LOCAL:5 /= 10
 	ELSE
-		LOCAL:5 = 300
+		LOCAL:5 /= 5
 	ENDIF
 ;獣変化中は確率上昇
 ELSEIF TALENT:(ARG:0):動物耳 || TALENT:(ARG:0):しっぽ
 	;排卵誘発剤使用中は確率上昇
-	IF TCVAR:(ARG:0):65
-		LOCAL:5 = 80
+	IF CFLAG:(ARG:0):排卵誘発剤
+		LOCAL:5 /= 20
 	ELSE
-		LOCAL:5 = 400
+		LOCAL:5 /= 8
 	ENDIF
 ;排卵誘発剤使用中は確率上昇
-ELSEIF TCVAR:(ARG:0):65
-	LOCAL:5 = 150
+ELSEIF CFLAG:(ARG:0):排卵誘発剤
+	LOCAL:5 /= 6
 ENDIF
 
 ;危険日なら倍率ドン
@@ -79,9 +83,9 @@ IF RAND:(LOCAL:5) < SQRT(LOCAL:2 * 100 + 300)
 	;誰の子供かを判定
 	LOCAL:3 = RAND:(LOCAL:2)
 	FOR LOCAL:0, 0, WOMB_RECORD_MAX
-		SIF WOMB_SEMEN_ID:(ARG:0):(LOCAL:0) == 0
+		SIF WOMB_SPERM_ID:(ARG:0):(LOCAL:0) == 0
 			CONTINUE
-		LOCAL:3 -= WOMB_SEMEN_AMOUNT:(ARG:0):(LOCAL:0)
+		LOCAL:3 -= WOMB_SPERM_AMOUNT:(ARG:0):(LOCAL:0)
 		IF LOCAL:3 <= 0
 			;妊娠期間を1に設定
 			;出来た子供の父親を種付け履歴から予測して記録する
@@ -193,9 +197,7 @@ ENDIF
 #DIM BUSTSIZE
 TALENT:(ARG:0):妊娠 = 1
 CFLAG:(ARG:0):妊娠期間 = 1
-
-;岩神ノ秘薬の効果を消す
-TALENT:(ARG:0):孕み可能 = 0
+CALL CLEAR_CREAMPIE_HISTORY(ARG:0)
 
 IF IS_PREGNANT_MSG(ARG:0)
 	IF ARG:0 == MASTER
@@ -205,9 +207,9 @@ IF IS_PREGNANT_MSG(ARG:0)
 	ENDIF
 	PRINTFORM どうやら%ANAME(ARG:0)%は
 	IF GET_SPERM_NAME(CFLAG:(ARG:0):子の父親) != "不明"
-		PRINTFORM %GET_SPERM_NAME(CFLAG:(ARG:0):子の父親)%の
+		CALL COLOR_PRINT(GET_SPERM_NAME(CFLAG:(ARG:0):子の父親), カラー_注意, "の")
 	ELSE
-		PRINTFORM 名も知れぬ誰かの
+		CALL COLOR_PRINT("名も知れぬ誰か", カラー_注意, "の")
 	ENDIF
 	PRINTFORML 子供を身篭った様だ
 	SETCOLOR カラー_注意

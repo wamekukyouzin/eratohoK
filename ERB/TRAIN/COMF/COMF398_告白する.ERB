@@ -1,0 +1,132 @@
+﻿;告白する
+
+;-------------------------------------------------
+;コマンド名称
+;-------------------------------------------------
+@COM_NAME398
+RESULTS:0 = 告白する
+
+;-------------------------------------------------
+;選択可否判定
+;-------------------------------------------------
+@COM_ABLE398
+;共通部分
+CALL COM_ABLE_COMMON(398)
+SIF RESULT == 0
+	RETURN 0
+;プレイヤーは最大で1人まで
+SIF MPLY_NUM <= 0 || MPLY_NUM > 1
+	RETURN 0
+;ターゲットは最大で1人まで
+SIF MTAR_NUM <= 0 || MTAR_NUM > 1
+	RETURN 0
+;捕虜調教とかだと駄目
+SIF FLAG:調教モード != 調教_閨
+	RETURN 0
+;プレイヤーとターゲットのうちいずれかが行動不能なら不可
+SIF !IS_PLAYABLE(MPLY:0) || !IS_PLAYABLE(MTAR:0)
+	RETURN 0
+;主人公がプレイヤーのとき限定
+SIF MPLY:0 != MASTER
+	RETURN 0
+;主人公に主導権があるとき限定
+SIF FLAG:主導権所有者 != MASTER && FLAG:主導権所有者 != -1
+	RETURN 0
+SIF TALENT:(MTAR:0):恋人 || IS_SLAVE(MTAR:0) || IS_SLAVED_BY(MTAR:0)
+	RETURN 0
+;プレイヤーの口が塞がっているなら不可
+SIF IS_M_HOLD(MPLY:0)
+	RETURN 0
+;ターゲットの口が塞がっているなら不可
+SIF IS_M_HOLD(MTAR:0)
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;メイン処理
+;-------------------------------------------------
+@COM398
+;●実行値の計算
+CVARSET TCVAR, 24, -10000
+CVARSET TCVAR, 25, 10000
+
+TCVAR:(MTAR:0):25 = 110
+
+CALL COM_ORDER(MTAR:0)
+
+CALL COM_ORDER_ELEMENT(MTAR:0, "好感度", CFLAG:(MTAR:0):好感度 / 50)
+
+IF TALENT:(MTAR:0):恋慕
+	CALL COM_ORDER_ELEMENT(MTAR:0, "恋慕", 30)
+ENDIF
+
+IF TALENT:(MTAR:0):親友
+	CALL COM_ORDER_ELEMENT(MTAR:0, "親友", 15)
+ENDIF
+
+IF TALENT:(MTAR:0):親愛
+	CALL COM_ORDER_ELEMENT(MTAR:0, "親愛", 30)
+ENDIF
+
+IF TALENT:(MTAR:0):キス未経験
+	CALL COM_ORDER_ELEMENT(MTAR:0, "キス未経験", -10)
+ENDIF
+
+IF TALENT:(MTAR:0):一線越えない
+	CALL COM_ORDER_ELEMENT(MTAR:0, "一線越えない", -15)
+ENDIF
+
+IF CFLAG:(MTAR:0):捕虜先 == CFLAG:MASTER:所属
+	CALL COM_ORDER_ELEMENT(MTAR:0, "捕虜", -40)
+ENDIF
+
+CALL COM_ORDER_ELEMENT(MTAR:0, "閨での告白", -10)
+
+IF IS_SAMESEX(MASTER, MTAR:0) && !TALENT:(MTAR:0):両刀
+	CALL COM_ORDER_ELEMENT(MTAR:0, "恋愛対象外", -20)
+ENDIF
+
+;判定結果を表示
+PRINTFORMW  = {TCVAR:(MTAR:0):24} %TOSTR_COMPARE(TCVAR:(MTAR:0):24, TCVAR:(MTAR:0):25)% 実行値{TCVAR:(MTAR:0):25}
+
+;判定成功
+IF TCVAR:(MTAR:0):24 >= TCVAR:(MTAR:0):25
+	;口上表示
+	CALL KOJO_EVENT(MTAR:0, 2)
+
+	;恋人になる処理
+	CALL GET_LOVERS(MTAR:0)
+
+	;キスの共通処理
+	CALL KISS_COMMON(MPLY:0, @"%ANAME(MTAR:0)%の唇", GET_SITUATION_BY_TRAIN_MODE())
+	CALL KISS_COMMON(MTAR:0, @"%ANAME(MPLY:0)%の唇", GET_SITUATION_BY_TRAIN_MODE())
+	EXP:(MPLY:0):キス経験 += 1
+	EXP:(MTAR:0):キス経験 += 1
+
+	IF TALENT:(MTAR:0):恋慕 || TALENT:(MTAR:0):親友
+		SOURCE:(MTAR:0):歓喜 += 3000
+	ELSE
+		SOURCE:(MTAR:0):歓喜 += 500
+	ENDIF
+
+;判定失敗
+ELSE
+	;口上表示
+	CALL KOJO_EVENT(MTAR:0, 3)
+	IF TALENT:(MTAR:0):恋慕 || TALENT:(MTAR:0):親友
+		SOURCE:(MTAR:0):反感 += 100
+		SOURCE:(MTAR:0):不安 += 200
+	ELSE
+		SOURCE:(MTAR:0):反感 += 500
+	ENDIF
+ENDIF
+
+RETURN 1
+
+;-------------------------------------------------
+
+;コマンド区分
+;-------------------------------------------------
+
+@COM_AVAILABLE_WHEN398
+RETURN コマンド_ウフフ

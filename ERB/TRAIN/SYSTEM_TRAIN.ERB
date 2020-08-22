@@ -6,6 +6,9 @@
 @EVENTTRAIN
 #PRI
 
+FLAG:継続コマンド表示絞り込み = 0
+FLAG:継続コマンド表示絞り込み選択中キャラ = MASTER
+
 LINES_TRAIN = LINECOUNT
 ;調教に参加している人数を数える
 TFLAG:44 = 0
@@ -56,7 +59,7 @@ ENDIF
 ;ENDIF
 
 ;時間の設定
-IF FLAG:調教モード == 0
+IF FLAG:調教モード == 調教_会う
 	;臨月
 	IF CFLAG:(MTAR:0):行動不能状態 == 行動不能_臨月
 		TFLAG:56 = 5
@@ -69,25 +72,13 @@ IF FLAG:調教モード == 0
 	ELSE
 		TFLAG:56 = 10
 	ENDIF
-ELSEIF FLAG:調教モード == 3
+ELSEIF FLAG:調教モード == 調教_子育て
 	TFLAG:56 = 5
-ELSEIF FLAG:調教モード == 6
+ELSEIF FLAG:調教モード == 調教_捕虜会話
 	TFLAG:56 = 10
 ELSEIF FLAG:ウフフフラグ
 	TFLAG:56 = 20
 ENDIF
-
-;No longer used. Modded in a button that can be pressed at any time during sex
-;IF ITEM:不思議な懐中時計 > 0 && GROUPMATCH(FLAG:調教モード, 調教_閨, 調教_捕虜調教)
-;	PRINTFORML 不思議な懐中時計を使用しますか？
-;	PRINTFORML 残:{ITEM:不思議な懐中時計}
-;	CALL ASK_YN()
-;	IF RESULT == 0
-;		CALL COLOR_PRINTW(@"不思議な懐中時計が効果を発揮した", カラー_注意)
-;		ITEM:不思議な懐中時計 --
-;		TFLAG:56 += 15
-;	ENDIF
-;ENDIF
 
 ;情報表示モードのリセット
 FLAG:能力表示モード = 0
@@ -183,36 +174,10 @@ ENDIF
 CALL CLEAR_MPLY
 CALL CLEAR_MTAR
 
-;民の慰安以外は主人公をプレイヤーに設定
-SIF FLAG:調教モード != 7
-	CALL ADD_MPLY(MASTER)
-
-;参加人数が1人ならターゲットを固定
-IF TFLAG:44 == 1
-	FOR LOCAL:0, 0, CHARANUM
-		IF CFLAG:(LOCAL:0):調教参加フラグ
-			CALL ADD_MTAR(LOCAL:0)
-			BREAK
-		ENDIF
-	NEXT
-ENDIF
-
-;対象選択簡易化
-IF GROUPMATCH(FLAG:調教モード, 0, 1, 2, 6) && CONFIG:18 == 1
-	FOR LOCAL:0, 0, CHARANUM
-		SIF IS_PARTICIPATE_TRAIN(LOCAL:0) == 0
-			CONTINUE
-		;MASTERはプレイヤー
-		IF LOCAL:0 == MASTER
-			CALL ADD_MPLY(LOCAL:0)
-			FLAG:10 = MASTER
-		ELSE
-			CALL ADD_MTAR(LOCAL:0)
-		ENDIF
-	NEXT
-ENDIF
-
-
+;初期プレイヤー、ターゲット設定
+;指定しとかないと何かと不具合起こしがちなので
+CALL SET_TMP_MPLY
+CALL SET_TMP_MTAR
 
 ;尿残量と屁残量をリセット
 CVARSET TCVAR, 54, 1000
@@ -221,6 +186,13 @@ CVARSET TCVAR, 55, 1000
 PLAYER = -1
 TARGET = -1
 TFLAG:31 = -1
+
+SELECTCASE FLAG:調教モード
+	CASE 調教_会う, 調教_子育て, 調教_捕虜会話
+		TFLAG:7 = 7
+	CASEELSE
+		TFLAG:7 = 0
+ENDSELECT
 
 SIF EVENTTRAIN_CALLEE_NUM > 0
 	CALL TRAIN_CALL(0)
@@ -240,6 +212,56 @@ IF TRAIN_PLACE == ""
 ENDIF
 
 PRINTL 
+
+;-------------------------------------------------
+;DESC  :MPLY:0が-1だとまずい時用の仮決め
+;-------------------------------------------------
+@SET_TMP_MPLY()
+SIF MPLY:0 >= 0
+	RETURN 0
+IF GROUPMATCH(FLAG:調教モード, 調教_会う, 調教_捕虜調教, 調教_捕虜会話, 調教_子育て)
+	CALL ADD_MPLY(MASTER)
+ELSEIF GROUPMATCH(FLAG:調教モード, 調教_逆調教特殊, 調教_逆調教通常)
+	FOR LOCAL, 1, CHARANUM
+		IF IS_PARTICIPATE_TRAIN(LOCAL)
+			CALL ADD_MPLY(LOCAL)
+			BREAK
+		ENDIF
+	NEXT
+ELSE
+	FOR LOCAL, 0, CHARANUM
+		IF TALENT:LOCAL:慰安モブ
+			CALL ADD_MPLY(LOCAL)
+			BREAK
+		ENDIF
+	NEXT
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;DESC  :MTAR:0が-1だとまずい時用の仮決め
+;-------------------------------------------------
+@SET_TMP_MTAR()
+SIF MTAR:0 >= 0
+	RETURN 0
+IF GROUPMATCH(FLAG:調教モード, 調教_会う, 調教_捕虜調教, 調教_捕虜会話, 調教_子育て)
+	FOR LOCAL, 1, CHARANUM
+		IF IS_PARTICIPATE_TRAIN(LOCAL)
+			CALL ADD_MTAR(LOCAL)
+			BREAK
+		ENDIF
+	NEXT
+ELSEIF GROUPMATCH(FLAG:調教モード, 調教_逆調教特殊, 調教_逆調教通常)
+	CALL ADD_MTAR(MASTER)
+ELSE
+	FOR LOCAL, 0, CHARANUM
+		IF IS_PARTICIPATE_TRAIN(LOCAL)
+			CALL ADD_MTAR(LOCAL)
+			BREAK
+		ENDIF
+	NEXT
+ENDIF
+RETURN 1
 
 ;-------------------------------------------------
 ;コマンド実行前の処理

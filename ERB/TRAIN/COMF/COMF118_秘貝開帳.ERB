@@ -1,0 +1,208 @@
+﻿;おねだり
+
+;-------------------------------------------------
+;コマンド名称
+;-------------------------------------------------
+@COM_NAME118
+LOCALS:0 = 秘貝開帳
+RESULTS:0 = %LOCALS:0%する
+RESULTS:1 = %LOCALS:0%させられる
+RESULTS:2 = %LOCALS:0%させる
+RESULTS:3 = %LOCALS:0%される
+RESULTS:4 = %LOCALS:0%させる
+RESULTS:5 = %LOCALS:0%見せつけ
+
+;-------------------------------------------------
+;選択可否判定
+;-------------------------------------------------
+@COM_ABLE118
+;共通部分
+CALL COM_ABLE_COMMON(118)
+SIF RESULT == 0
+	RETURN 0
+;プレイヤーは最大で5人まで
+SIF MPLY_NUM <= 0 || MPLY_NUM > 5
+	RETURN 0
+;ターゲットは最大で5人まで
+SIF MTAR_NUM <= 0 || MTAR_NUM > 5
+	RETURN 0
+
+;We won't make this one very restrictive since it's a single quick action
+;just imagine they pause whatever they're doing for a moment
+FOR LOCAL:0, 0, MPLY_NUM
+	;プレイヤーが行動不能なら不可
+	SIF !IS_PLAYABLE(MPLY:LOCAL)
+		RETURN 0
+	SIF !HAS_VAGINA(MPLY:LOCAL)
+		RETURN 0
+		;Ｖ挿入中なら不可
+	SIF IS_INSERT_SINGLE(MPLY:(LOCAL:0), "全")
+		RETURN 0
+	;拘束されていたらダメ
+	SIF IS_BIND(MPLY:(LOCAL:0))
+		RETURN 0
+NEXT
+
+RETURN 1
+
+;-------------------------------------------------
+;メイン処理
+;-------------------------------------------------
+@COM118
+;実行判定
+CALL COM_ORDER_COMMON
+SIF RESULT == 0
+	RETURN 0
+
+
+;●全プレイヤーについて処理
+FOR LOCAL:0, 0, MPLY_NUM
+	LOCAL:2 = MPLY:(LOCAL:0)
+
+	DOWNBASE:(LOCAL:2):体力 += 40
+
+	SOURCE:(LOCAL:2):露出 = 70
+	SOURCE:(LOCAL:2):逸脱 = 50
+	SOURCE:(LOCAL:2):反感 = 40
+	SOURCE:(LOCAL:2):露出 = 1400
+
+	;奉仕経験値を得られるコマンドのフラグ
+	TCVAR:(MPLY:0):4 = 1
+
+	;主導権に応じた優越・屈従のソース追加
+	CALL ADD_SOURCE_INITIATIVE_U(LOCAL:2, 50, 200)
+NEXT
+
+;●全ターゲットについて処理
+FOR LOCAL:0, 0, MTAR_NUM
+	LOCAL:2 = MTAR:(LOCAL:0)
+
+	DOWNBASE:(LOCAL:2):体力 += 40
+
+	SOURCE:(LOCAL:2):嗜虐 = 60
+	SOURCE:(LOCAL:2):逸脱 = 30
+	SOURCE:(LOCAL:2):接触 = 40
+
+	;主導権に応じた優越・屈従のソース追加
+	CALL ADD_SOURCE_INITIATIVE_U(LOCAL:2, 160, 80)
+NEXT
+
+;主導度変化基準値
+TFLAG:49 = 3
+
+;倒錯度変化基準値
+TFLAG:50 = 2
+
+;レズ・ＢＬ経験基準値
+TFLAG:51 = 4
+
+RETURN 1
+
+;-------------------------------------------------
+;継続コマンドかどうかを設定
+;-------------------------------------------------
+@COM_IS_EQUIP118
+RETURN 0
+
+;-------------------------------------------------
+;固有の実行判定
+;-------------------------------------------------
+@COM_ORDER_PLAYER118(ARG:0)
+;実行値の設定
+TCVAR:(ARG:0):25 = 100
+
+;共通部分
+CALL COM_ORDER(ARG:0)
+
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲望Lv{ABL:(ARG:0):欲望}", ABL:(ARG:0):欲望 * 3 / 2)
+CALL COM_ORDER_ELEMENT(ARG:0, @"露出Lv{ABL:(ARG:0):露出}", ABL:(ARG:0):露出 * 5 / 2)
+CALL COM_ORDER_ELEMENT(ARG:0, @"マゾLv{ABL:(ARG:0):マゾ}", ABL:(ARG:0):マゾ * 5 / 2)
+
+LOCAL:0 = GET_PALAMLV(PALAM:(ARG:0):欲情)
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲情Lv{LOCAL:0}", MIN(LOCAL:0 * 3, 30))
+
+IF TCVAR:(ARG:0):60
+	CALL COM_ORDER_ELEMENT(ARG:0, "媚薬", 6)
+ENDIF
+
+IF TALENT:(ARG:0):恥じらい
+	CALL COM_ORDER_ELEMENT(ARG:0, "恥じらい", -4)
+ENDIF
+
+
+RETURN 1
+
+;-------------------------------------------------
+;地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE118
+
+;プレイヤーが2人以上
+IF MPLY_NUM >= 2
+	LOCALS:0 = %ANAME(MPLY:0)%たち
+;プレイヤーが１人
+ELSE
+	LOCALS:0 = %ANAME(MPLY:0)%
+ENDIF
+;ターゲットが2人以上
+IF MTAR_NUM >= 2
+	LOCALS:1 = %ANAME(MTAR:0)%たち
+;ターゲットが1人
+ELSE
+	LOCALS:1 = %ANAME(MTAR:0)%
+ENDIF
+
+SELECTCASE GET_COM_INITIATIVE()
+	CASE 0
+	CASE 1
+		IF MTAR_NUM == 1 && ABL:(MTAR:0):サド >= 3
+			PRINTFORMW %LOCALS:1%は嗜虐的な笑みを浮かべ%LOCALS:0%に命令し、無理やり%STR_BODY("陰唇：処女確認" , MPLY:0)%を指先で開かせ%PLAYER_STR("た", "てきた")%…
+		ELSEIF MTAR_NUM == 1 && ABL:(MTAR:0):主導度Ｕ < 100
+			PRINTFORMW %LOCALS:1%は少し緊張した様子で%LOCALS:0%に命令し、%STR_BODY("陰唇：処女確認" , MPLY:0)%を指先で開かせた…
+		ELSE
+			PRINTFORMW %LOCALS:1%は%LOCALS:0%に命令し、%STR_BODY("陰唇：処女確認" , MPLY:0)%を指先で開かせた…
+		ENDIF
+	;第三者に主導権
+	CASEELSE
+		PRINTFORML %ANAME(TFLAG:45)%は%LOCALS:0%に、%LOCALS:1%に%STR_BODY("陰唇：処女確認" , MPLY:0)%を指先で開くように命令した
+ENDSELECT
+
+PRINTFORM %ANAME(MPLY:(LOCAL:0), MPLY_NUM)%は、
+SELECTCASE ABL:(MPLY:0):露出
+	CASE IS < ランク閾値:ランク_その他:ランク_E
+		PRINTFORM 羞恥で顔を赤く染めながら
+	CASE IS < ランク閾値:ランク_その他:ランク_C
+		PRINTFORM 戸惑いを感じつつも
+	CASE IS < ランク閾値:ランク_その他:ランク_A
+		PRINTFORM 悦びを感じながら
+	CASEELSE
+		PRINTFORM 見られる興奮に愛液を滴らせながら
+ENDSELECT
+
+PRINTFORMW %STR_BODY("陰唇：処女確認" , MPLY:0)%を指先で割り開いてみせた……
+
+
+@COM_TEXT_LAST118
+FOR LOCAL:0, 0, MPLY_NUM
+	LOCAL:1 = MPLY:(LOCAL:0)
+	SIF CUM_GET_AMOUNT:(LOCAL:1):射精部位_膣内 > 0
+		PRINTFORML 中出しを受けた%ANAME(LOCAL:1)%の%STR_BODY("陰唇", LOCAL:1)%から、白いものがとろりと溢れた……
+NEXT
+
+;-------------------------------------------------
+
+;コマンド区分
+;-------------------------------------------------
+
+@COM_AVAILABLE_WHEN118
+RETURN コマンド_ウフフ
+
+;--------------------
+;性嗜好用関数
+;--------------------
+@COM_PREFERENCE_PLAYER_118()
+RETURN POWER(2, 性的嗜好_辱められたい) + POWER(2, 性的嗜好_露出したい)
+
+@COM_PREFERENCE_TARGET_118()
+RETURN POWER(2, 性的嗜好_辱めたい)
+
