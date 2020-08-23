@@ -784,34 +784,40 @@ GOTO LISTUP_LOOP
 ;-------------------------------------------------
 @CONFIG_COM_FILTER
 #DIM FIRST_LINE
+#DIM 有効コマンド数
+#DIM ページ数
+#DIM 現在ページ
+#DIM 始点
+#DIM 終点
+#DIM ページ内表示数
+#DIM 改行カウンタ
+
 ;ページ数の計算
-LOCAL:20 = 0
+有効コマンド数 = 0
 FOR LOCAL:0, 0, 1000
 	IF TRAINNAME:(LOCAL:0) != ""
-		LOCAL:20 ++
+		有効コマンド数 ++
 	ENDIF
 NEXT
-LOCAL:20 = (LOCAL:20 - 1) / 66 + 1
-LOCAL:21 = 1
+ページ数 = (有効コマンド数 - 1) / 66 + 1
+現在ページ = 1
 
 CALL SINGLE_DRAWLINE
-PRINTFORML かけすぎると逆調教で無限ループするかもしれんのできをつけてね
+PRINTFORML 緑色表示のコマンドはシステムの都合上フィルタ不可です
 CALL SINGLE_DRAWLINE
 FIRST_LINE = LINECOUNT
 $SHOW_LOOP
 
 ;コマンドの表示
-LOCAL:22 = 0
-LOCAL:23 = (LOCAL:21 - 1) * 66
-LOCAL:24 = LOCAL:21 * 66
-LOCAL:25 = 0
-LOCAL:26 = 6
+有効コマンド数 = 0
+始点 = (現在ページ - 1) * 66
+終点 = 現在ページ * 66
+改行カウンタ = 0
 FOR LOCAL:0, 0, 1000
 	IF TRAINNAME:(LOCAL:0) != ""
-		IF LOCAL:22 >= LOCAL:23 && LOCAL:22 < LOCAL:24
-			IF LOCAL:25 >= 1 && LOCAL:25 % 3 == 0
+		IF 有効コマンド数 >= 始点 && 有効コマンド数 < 終点
+			IF 改行カウンタ >= 1 && 改行カウンタ % 3 == 0
 				PRINTL 
-				LOCAL:26 ++
 			ENDIF
 			RESULT = 0
 			TRYCALLFORM COM_FILTER_FORCE_OFF{LOCAL:0}
@@ -825,16 +831,16 @@ FOR LOCAL:0, 0, 1000
 				PRINTFORM [{LOCAL:0, 3}] %TRAINNAME:(LOCAL:0), 21, LEFT%
 			ENDIF
 			RESETCOLOR
-			LOCAL:25 ++
+			改行カウンタ ++
 		ENDIF
-		LOCAL:22 ++
+		有効コマンド数 ++
 	ENDIF
 NEXT
 PRINTL 
 CALL SINGLE_DRAWLINE
 
 PRINT [990] 前のページ     
-PRINTPLAINFORM page{LOCAL:21}/{LOCAL:20}    
+PRINTPLAINFORM page{現在ページ}/{ページ数}    
 PRINTL [991] 次のページ
 
 
@@ -850,16 +856,16 @@ IF RESULT == 999
 	REDRAW 1
 	RETURN
 ELSEIF RESULT == 990
-	LOCAL:21 --
-	IF LOCAL:21 < 1
-		LOCAL:21 = LOCAL:20
+	現在ページ --
+	IF 現在ページ < 1
+		現在ページ = ページ数
 	ENDIF
 	CLEARLINE LINECOUNT - FIRST_LINE
 	GOTO SHOW_LOOP
 ELSEIF RESULT == 991
-	LOCAL:21 ++
-	IF LOCAL:21 > LOCAL:20
-		LOCAL:21 = 1
+	現在ページ ++
+	IF 現在ページ > ページ数
+		現在ページ = 1
 	ENDIF
 	CLEARLINE LINECOUNT - FIRST_LINE
 	GOTO SHOW_LOOP
