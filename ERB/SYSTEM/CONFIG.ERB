@@ -140,9 +140,6 @@ SIF 全て
 
 CALL CONFIG_SAVE_EXCEPT_SLG(番号)
 
-
-
-
 ;-------------------------------------------------
 ;desc  :コンフィグの読み取り
 ;param :全て:全コンフィグを読む
@@ -810,13 +807,13 @@ $SHOW_LOOP
 
 ;コマンドの表示
 有効コマンド数 = 0
-始点 = (現在ページ - 1) * 66
-終点 = 現在ページ * 66
+始点 = (現在ページ - 1) * 88
+終点 = 現在ページ * 88
 改行カウンタ = 0
 FOR LOCAL:0, 0, 1000
 	IF TRAINNAME:(LOCAL:0) != ""
 		IF 有効コマンド数 >= 始点 && 有効コマンド数 < 終点
-			IF 改行カウンタ >= 1 && 改行カウンタ % 3 == 0
+			IF 改行カウンタ >= 1 && 改行カウンタ % 4 == 0
 				PRINTL 
 			ENDIF
 			RESULT = 0
@@ -845,7 +842,9 @@ PRINTL [991] 次のページ
 
 
 CALL SINGLE_DRAWLINE
-PRINTL [999] 決定
+PRINTL [997] セーブ
+PRINTL [998] ロード
+PRINTL [999] 戻る
 
 REDRAW 0
 
@@ -855,6 +854,14 @@ INPUT
 IF RESULT == 999
 	REDRAW 1
 	RETURN
+ELSEIF RESULT == 997
+	CALL CONFIG_COM_FILTER_SAVE()
+	CLEARLINE LINECOUNT - FIRST_LINE
+	GOTO SHOW_LOOP
+ELSEIF RESULT == 998
+	CALL CONFIG_COM_FILTER_LOAD()
+	CLEARLINE LINECOUNT - FIRST_LINE
+	GOTO SHOW_LOOP
 ELSEIF RESULT == 990
 	現在ページ --
 	IF 現在ページ < 1
@@ -883,6 +890,86 @@ ELSEIF RESULT >= 0 && RESULT < 1000
 ENDIF
 CLEARLINE 1
 GOTO INPUT_LOOP
+
+;-------------------------------------------------
+;DESC  :コマンドフィルタのセーブ
+;ARG   ::
+;-------------------------------------------------
+@CONFIG_COM_FILTER_SAVE()
+#DIM 番号
+
+CALL SINGLE_DRAWLINE
+PRINTFORML どこにセーブしますか？
+CALL SINGLE_DRAWLINE
+
+CALL LISTUP_CONFIG
+
+PRINTFORML [99] 戻る
+
+$INPUT_LOOP
+INPUT
+
+SIF RESULT == 99
+	RETURN
+
+SIF !INRANGE(RESULT, 0, VARSIZE("G_CONFIG_NAME"))
+	GOTO INPUT_LOOP
+
+番号 = RESULT
+
+PRINTFORML 設定データの名前を入力して下さい
+PRINTFORML (何も入力しないと「設定{番号}」になります)
+
+$INPUT_LOOP_2
+INPUTS
+
+IF RESULTS == ""
+	G_CONFIG_FILTER_NAME:番号 = 設定{番号}
+ELSE
+	G_CONFIG_FILTER_NAME:番号 = %RESULTS%
+ENDIF
+
+FOR LOCAL, 0, VARSIZE("COM_FILTER")
+	G_FILTER:番号:(LOCAL:0) = COM_FILTER:(LOCAL:0)
+NEXT
+
+;グローバル変数を保存
+SAVEGLOBAL
+RETURN
+
+
+;-------------------------------------------------
+;desc  :コンフィグの読み取り
+;-------------------------------------------------
+@CONFIG_COM_FILTER_LOAD()
+#DIM 番号
+CALL SINGLE_DRAWLINE
+PRINTFORML どれをロードしますか？
+CALL SINGLE_DRAWLINE
+
+FOR LOCAL, 0, VARSIZE("G_CONFIG_FILTER_NAME")
+	PRINTBUTTON @"[{LOCAL}] 設定{LOCAL} - %G_CONFIG_FILTER_NAME:LOCAL%", LOCAL
+	PRINTL
+NEXT
+
+PRINTFORML [99] 戻る
+
+$INPUT_LOOP
+INPUT
+
+SIF RESULT == 99
+	RETURN
+
+SIF !INRANGE(RESULT, 0, VARSIZE("G_CONFIG_FILTER_NAME")) || G_CONFIG_FILTER_NAME:RESULT != ""
+	GOTO INPUT_LOOP
+
+番号 = RESULT
+
+FOR LOCAL, 0, VARSIZE("COM_FILTER")
+	COM_FILTER:(LOCAL:0) = G_FILTER:番号:(LOCAL:0)
+NEXT
+
+
 
 ;-------------------------------------------------
 ;0か1だけのCONFIG切り替え
