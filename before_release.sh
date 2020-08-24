@@ -79,3 +79,5 @@ fi
 
 git branch -D ${branch_name}
 rm temp2.txt
+
+git checkout develop
