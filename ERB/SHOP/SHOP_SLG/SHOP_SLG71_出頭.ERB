@@ -1,0 +1,114 @@
+﻿;-------------------------------------------------
+;「出頭」の名称
+;-------------------------------------------------
+@SHOP_SLG_NAME71
+RESULTS:0 '= "出頭"
+
+;-------------------------------------------------
+;「出頭」の選択可否
+;-------------------------------------------------
+@SHOP_SLG_CHECK71
+SIF CFLAG:MASTER:所属 == 0
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;「出頭」の左カラムメニューの入力処理
+;-------------------------------------------------
+@SHOP_SLG_EVENTBUY71
+CALL SHOP_SELF_SURRENDER
+RETURN 1
+
+;-------------------------------------------------
+;「出頭」本体
+;-------------------------------------------------
+@SHOP_SELF_SURRENDER()
+#DIM FIRST_LINE
+#DIM 勢力
+
+FIRST_LINE = LINECOUNT
+
+CALL SINGLE_DRAWLINE
+PRINTFORML どの勢力に出頭しますか？
+CALL SINGLE_DRAWLINE
+
+FOR LOCAL, 0, MAX_COUNTRY
+	SIF !IS_COUNTRY(LOCAL)
+		CONTINUE
+	SIF LOCAL == CFLAG:MASTER:所属
+		CONTINUE
+	PRINTFORML [{LOCAL}] - %ANAME(GET_COUNTRY_BOSS(LOCAL))%
+NEXT
+
+PRINTFORML [999] 戻る
+INPUT
+SIF RESULT == 999
+	RETURN 0
+
+IF !INRANGE(RESULT, 0, MAX_COUNTRY - 1) || !IS_COUNTRY(RESULT) || RESULT == CFLAG:MASTER:所属
+	CLEARLINE LINECOUNT - FIRST_LINE
+	RESTART
+ENDIF	
+
+勢力 = RESULT
+
+CALL SINGLE_DRAWLINE
+PRINTFORML %ANAME(GET_COUNTRY_BOSS(勢力))%勢力に出頭し、降伏し捕虜になります
+PRINTFORML 誰が出頭しますか？
+CALL SINGLE_DRAWLINE
+
+CALL SELECT_CHARA_LIST_MULTI_ONLY_LOGIC_SLG(-1, "DEFAULT", "SHOP_SELF_SURRENDER")
+
+IF SELECTED_CHARA_NUM == 0
+	PRINTFORMW やめておきました
+	RETURN 0
+ENDIF
+
+;主人公が含まれるケース
+IF FINDELEMENT(SELECTED_CHARA, MASTER, 0, SELECTED_CHARA_NUM) != -1
+	CALL CAPTURE(MASTER, 勢力)
+	CALL SELECT_CHARA_RANDOM("SHOP_SELF_SURRENDER", "SHOP_SELF_SURRENDER")
+	SIF RESULT == -1
+		GOTO CANCEL
+	LOCAL:1 = RESULT
+	PRINTFORMW ・
+	PRINTFORMW ・
+	PRINTFORMW ・
+	PRINTFORML 出頭した%ANAME(MASTER)%を出迎えたのは%ANAME(LOCAL:1)%だった
+	PRINTFORML %ANAME(LOCAL:1)%は驚いた目で%ANAME(MASTER)%を迎えつつ、
+	PRINTFORMW 捕虜としての%ANAME(MASTER)%の世話は自分がこちらで引き受けると宣言した……
+	FLAG:逆調教メイン調教者 = GET_ID(LOCAL:1)
+ENDIF
+
+$CANCEL
+
+FOR LOCAL, 0, SELECTED_CHARA_NUM
+	LOCAL:1 = SELECTED_CHARA:LOCAL
+	PRINTFORML %ANAME(LOCAL:1)%は%ANAME(GET_COUNTRY_BOSS(勢力))%に出頭した……
+	CALL CAPTURE(LOCAL:1, 勢力)
+NEXT
+
+WAIT
+
+;出頭で自分が捕えられたとき用
+SIF CFLAG:MASTER:捕虜先
+	BEGIN TURNEND
+
+@SELECT_CHARA_LIST_SELECT_LOGIC_SHOP_SELF_SURRENDER(対象)
+#DIM 対象
+RETURN !IS_COUNTRY(CFLAG:対象:捕虜先) && GET_COUNTRY_BOSS(CFLAG:対象:所属) != 対象 && !IS_SP_CHARA(対象)
+
+@SELECT_CHARA_RANDOM_LOGIC_SHOP_SELF_SURRENDER(対象)
+#DIM 対象
+SIF CFLAG:(対象):所属 != CFLAG:MASTER:捕虜先 || CFLAG:(対象):捕虜先 || CFLAG:(対象):特殊状態
+	RETURN 0
+SIF !CFLAG:(対象):面識
+	RETURN 0
+SIF ABL:(対象):性知識 < 2
+	RETURN 0
+RETURN 1
+
+@SELECT_CHARA_RANDOM_BIAS_SHOP_SELF_SURRENDER(対象)
+#DIM 対象
+RETURN MAX(CFLAG:対象:好感度, CFLAG:対象:依存度, CFLAG:対象:従属度, CFLAG:対象:支配度)
+
