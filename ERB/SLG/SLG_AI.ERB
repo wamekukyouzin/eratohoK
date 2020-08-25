@@ -1,4 +1,4 @@
-﻿;注意点
+;注意点
 ;この関数自体ループ内で呼ばれる前提なので、ループを使用するとO(n^2)になる。TMP化できるものはTMPを利用すること。
 @AI_ACTION(勢力)
 #DIM 勢力
@@ -524,8 +524,11 @@ RETURN 攻撃兵数
 #DIM 現在スコア
 #DIM 自部隊能力, 3
 #DIM 敵部隊能力, 3
+#DIM カウント
 #DIM 候補
+#DIM 攻撃実行
 
+VARSET 攻撃実行
 VARSET 攻撃候補スコア, __INT_MIN__
 君主 = GET_COUNTRY_BOSS(勢力)
 
@@ -640,26 +643,43 @@ FOR 候補, 0, 10
 	ENDIF
 
 	;勝ってる要素をカウント
-	;カウント = 0
-	;敵部隊能力:0 = BATTLE_ATK:1
-	;敵部隊能力:1 = BATTLE_DEF:1
-	;敵部隊能力:2 = BATTLE_INT:1
-	;カウント += (UNIT_SOLDIER:勢力:部隊 > CITY_SOLDIER:攻撃候補)
-	;FOR LOCAL:1, 0, 3
-	;	カウント += 自部隊能力:(LOCAL:1) > 敵部隊能力:(LOCAL:1)
-	;NEXT
+	カウント = 0
+	敵部隊能力:0 = BATTLE_ATK:1
+	敵部隊能力:1 = BATTLE_DEF:1
+	敵部隊能力:2 = BATTLE_INT:1
+	カウント += (UNIT_SOLDIER:勢力:部隊 > CITY_SOLDIER:攻撃候補)
+	FOR LOCAL:1, 0, 3
+		カウント += 自部隊能力:(LOCAL:1) > 敵部隊能力:(LOCAL:1)
+	NEXT
 
 	;;勝ってる要素が一定ないとキャンセル
-	;SIF カウント < 2
-	;	GOTO CALCEL
+	SELECTCASE TMP_OWN_CITY:勢力
+		CASE IS < 5
+			SIF カウント < 0
+				GOTO CANCEL
+		CASE 5 TO 9
+			SIF カウント < 1
+				GOTO CANCEL
+		CASEELSE
+			SIF カウント < 2
+				GOTO CANCEL
+	ENDSELECT
+
 	CALL MOVE_UNIT(勢力, 部隊, TMP_IS_INVADABLE:勢力:攻撃候補, 1)
 	UNIT_TARGET:勢力:部隊 = 攻撃候補
 
 	;DEBUGPRINTFORML 攻撃地点を%GET_CITYNAME(UNIT_TARGET:勢力:部隊)%に確定
 	;DEBUGPRINTFORML 出発地点を%GET_CITYNAME(UNIT_POSITION:勢力:部隊)%に確定
+	攻撃実行 = 1
 	BREAK
 	$CANCEL
+	;DEBUGPRINTFORML キャンセル
 NEXT
+
+IF !攻撃実行
+	;DEBUGPRINTFORML 有効な攻撃対象なし。解散 {勢力}, {部隊}
+	CALL CLEAR_UNIT(勢力, 部隊, 1)
+ENDIF
 ;DEBUGPRINTFORML 侵攻先:%GET_CITYNAME(UNIT_TARGET:勢力:部隊)% 位置:{UNIT_POSITION:勢力:部隊}
 $DONE
 ;-----------------------------------------------
