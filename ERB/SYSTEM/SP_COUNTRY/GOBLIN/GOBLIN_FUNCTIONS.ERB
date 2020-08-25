@@ -69,6 +69,16 @@ ITEM:A_媚薬 = 99
 ITEM:A_排卵誘発剤 = 99
 ITEM:A_絶倫丸 = 99
 
+
+@SELECT_CHARA_RANDOM_LOGIC_GOBLIN_SPECIAL_REQRUITMENT(対象)
+#DIM 対象
+#DIM ゴブリン
+
+ゴブリン = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_ホフゴブリン))
+
+;ゴブリン所属で、捕虜でなく、陥落済み
+RETURN CFLAG:対象:所属 == ゴブリン && !CFLAG:対象:捕虜先 && IS_FEMALE(対象) && GETBIT(TALENT:対象:特殊勢力陥落系, 特殊勢力_ホフゴブリン)
+
 ;--------------------------------------
 ;ホフゴブリンの定期イベント。
 ;陥落済みキャラを使って兵数を増やす
@@ -76,12 +86,8 @@ ITEM:A_絶倫丸 = 99
 @GOBLIN_SPECIAL_REQRUITMENT(条件 = 1)
 #DIM ゴブリン
 #DIM 条件
-#DIM 候補, MAX_CHARA_NUM
-#DIM 候補数
 #DIM 対象
 #DIM メッセージ
-VARSET 候補, -1
-VARSET 候補数
 
 ゴブリン = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_ホフゴブリン))
 
@@ -89,23 +95,13 @@ VARSET 候補数
 SIF ゴブリン == -1 || !条件
 	RETURN -1
 
-FOR LOCAL, 0, CHARANUM
-	;ゴブリン所属で、捕虜でなく、陥落済み
-	IF CFLAG:LOCAL:所属 == ゴブリン && !CFLAG:LOCAL:捕虜先 && IS_FEMALE(LOCAL) && GETBIT(TALENT:LOCAL:特殊勢力陥落系, 特殊勢力_ホフゴブリン)
-		候補:候補数 = LOCAL
-		候補数 ++
-	ENDIF
-NEXT
+CALL SELECT_CHARA_RANDOM("GOBLIN_SPECIAL_REQRUITMENT")
 
-SIF 候補数 < 1
-	RETURN -1
-
-CALL FISHER_YATES_SHAFFLE(候補数)
-
-対象 = 候補:(SHAFFLE_ARRAY:0)
+対象 = RESULT
 
 SIF 対象 == -1
-	RETURN -1
+	RETURN 0
+
 
 CALL SINGLE_DRAWLINE
 SETCOLOR カラー_ピンク

@@ -1,63 +1,42 @@
-﻿;-------------------------------------------------
+﻿@SELECT_CHARA_RANDOM_LOGIC_REV_TRAINER(対象)
+#DIM 対象
+;メイン調教者はこの前段階で含まれてるのでパス
+SIF GET_ID(対象) == FLAG:逆調教メイン調教者
+	RETURN 0
+SIF CFLAG:(対象):所属 != CFLAG:MASTER:捕虜先 || CFLAG:(対象):捕虜先 || CFLAG:(対象):特殊状態
+	RETURN 0
+SIF !CFLAG:(対象):面識 && RAND:3
+	RETURN 0
+SIF ABL:(対象):性知識 < 2
+	RETURN 0
+SIF CONFIG:17 && !CFLAG:(対象):面識
+	RETURN 0
+RETURN 1
+
+@SELECT_CHARA_RANDOM_BIAS_REV_TRAINER(対象)
+#DIM 対象
+RETURN MAX(CFLAG:対象:好感度, CFLAG:対象:依存度, CFLAG:対象:従属度, CFLAG:対象:支配度)
+
+
+;-------------------------------------------------
 ;逆調教の参加者決定
 ;-------------------------------------------------
 @SELECT_REV_TRAINER()
-#DIM LCOUNT, 3
-#DIM 人数, 1
-#DIM 好感度リスト, MAX_CHARA_NUM
-#DIM 候補者リスト, 10
-#DIM 候補者人数
-#DIM 調教人数, 1
-#DIM メイン, 1
-VARSET 人数, 0
-VARSET 候補者人数, 0
-VARSET 好感度リスト, __INT_MIN__
-VARSET 候補者リスト, -1
-VARSET 調教人数, 0
+#DIM LCOUNT
+#DIM メイン
 VARSET メイン, -1
 
-FOR LCOUNT, 0, CHARANUM
-	SIF GET_ID(LCOUNT) == FLAG:逆調教メイン調教者
-		CONTINUE
-	SIF CFLAG:(LCOUNT):所属 != CFLAG:MASTER:捕虜先 || CFLAG:(LCOUNT):捕虜先 || CFLAG:(LCOUNT):特殊状態
-		CONTINUE
-	SIF !CFLAG:(LCOUNT):面識 && RAND:3
-		CONTINUE
-	SIF ABL:(LCOUNT):性知識 < 2
-		CONTINUE
-	SIF CONFIG:17 && !CFLAG:(LCOUNT):面識
-		CONTINUE
-	好感度リスト:LCOUNT = CFLAG:LCOUNT:好感度
-	人数 ++
-NEXT
+CALL SELECT_CHARA_RANDOM_MULTI(5, "REV_TRAINER", "REV_TRAINER")
 
-FOR LCOUNT, 0, 10
-	LOCAL = FINDELEMENT(好感度リスト, MAXARRAY(好感度リスト))
-	SIF 好感度リスト:LOCAL == __INT_MIN__
-		BREAK
-	好感度リスト:LOCAL = __INT_MIN__
-	候補者リスト:候補者人数 = LOCAL
-	候補者人数 ++
-NEXT
-
-;候補者ゼロなら戻す
-SIF 候補者人数 == 0
+SIF SELECTED_CHARA_NUM == 0
 	RETURN -1, 0
 
-CALL FISHER_YATES_SHAFFLE(候補者人数)
-
-FOR LCOUNT, 0, 候補者人数
-	LOCAL = 候補者リスト:(SHAFFLE_ARRAY:LCOUNT)
-	IF LOCAL != -1
-		CFLAG:LOCAL:調教参加フラグ = 1
-		CFLAG:LOCAL:強制友好化 = 1
-		SIF 調教人数 == 0
-			メイン = LOCAL
-		調教人数 ++
-	ENDIF
-	SIF 調教人数 == 5
-		BREAK
+FOR LCOUNT, 0, SELECTED_CHARA_NUM
+	CFLAG:LOCAL:調教参加フラグ = 1
+	CFLAG:LOCAL:強制友好化 = 1
+	SIF LOCAL == 0
+		メイン = LOCAL
 NEXT
 
-RETURN メイン, 調教人数
+RETURN メイン, SELECTED_CHARA_NUM
 
