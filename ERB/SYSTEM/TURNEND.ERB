@@ -11,7 +11,8 @@ IF TIME == 0
 	IF SHOP_TIME >= CALC_SHOP_TIME() || CFLAG:MASTER:捕虜先
 		CALL TURNEND_LIFE
 	ELSE
-		CALL COOK_HEAL
+		BASE:MASTER:体力 = MAXBASE:MASTER:体力
+		BASE:MASTER:気力 = MAXBASE:MASTER:気力
 		BEGIN SHOP
 	ENDIF
 ;戦略フェイズ
@@ -432,38 +433,6 @@ NEXT
 
 ;キャラクタの能力をどうこうする処理
 CALL TURNEND_CHARA_PROCESS
-
-;-------------------------------------------------
-;娯楽担当による回復
-;-------------------------------------------------
-@COOK_HEAL(対象 = 0)
-#DIM 対象
-#DIM 担当者
-#DIM 回復量, 2
-IF GET_COOK() != -1
-	担当者 = GET_COOK()
-	IF 担当者 != 0 && !CFLAG:(担当者):捕虜先 && CFLAG:(担当者):所属 == CFLAG:MASTER:所属
-		回復量:0 = MAXBASE:対象:体力 * (ABL:担当者:料理 / 2 + ABL:担当者:歌唱 / 2 ) / 100
-		回復量:1 = MAXBASE:対象:気力 * (ABL:担当者:料理 / 2 + ABL:担当者:歌唱 / 2 ) / 100
-		IF TALENT:対象:回復早い
-			TIMES 回復量:0, 1.25
-			TIMES 回復量:1, 1.25
-		ELSEIF TALENT:対象:回復遅い
-			TIMES 回復量:0, 0.75
-			TIMES 回復量:1, 0.75
-		ENDIF
-		BASE:対象:体力 = MIN(BASE:対象:体力 + 回復量:0, MAXBASE:対象:体力)
-		BASE:対象:気力 = MIN(BASE:対象:気力 + 回復量:1, MAXBASE:対象:気力)
-		PRINTFORML 娯楽担当の%ANAME(担当者)%の仕事により、%ANAME(対象)%の体力と気力が回復しました
-	ELSE
-		SETCOLOR カラー_注意
-		PRINTFORML 娯楽担当が国内にいない（捕虜になっている、国外に追放された）ため、その恩恵をうけられません
-		PRINTFORMW !娯楽担当を解除しました!
-		WAIT
-		RESETCOLOR
-		CALL SET_COOK(-1)
-	ENDIF
-ENDIF
 
 ;-------------------------------------------------
 ;キャラの能力の変動
