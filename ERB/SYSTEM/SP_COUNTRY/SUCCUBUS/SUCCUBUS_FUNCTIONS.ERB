@@ -59,21 +59,29 @@ ITEM:A_ローション = 99
 ITEM:A_目隠し = 1
 
 
+@SELECT_CHARA_RANDOM_LOGIC_SUCCUBUS_DRAIN(対象)
+#DIM 対象
+#DIM サキュバス
+
+サキュバス = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_サキュバス))
+
+;MASTERはサキュバスで特殊勢力スタートした場合は除外
+SIF 対象 == MASTER && SP_COUNTRY_START:特殊勢力_サキュバス
+	RETURN 0
+;サキュバス所属で捕虜でない　またはサキュバス勢力の捕虜　念のためSPキャラを除外
+RETURN ((CFLAG:対象:所属 == サキュバス && !CFLAG:対象:捕虜先) || CFLAG:対象:捕虜先 == サキュバス) && !IS_SP_CHARA(対象)
+
 ;-----------------------------
 ;サキュバスの定期イベント
 ;-----------------------------
 @SUCCUBUS_DRAIN(条件)
 #DIM サキュバス
 #DIM 条件
-#DIM 候補, MAX_CHARA_NUM
-#DIM 候補数
 #DIM 対象, 2
 #DIM メッセージ
 #DIM 吸収候補, 5
 #DIM 吸収対象
 #DIM 吸収値
-VARSET 候補, -1
-VARSET 候補数
 
 サキュバス = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_サキュバス))
 
@@ -82,24 +90,12 @@ VARSET 候補数
 SIF サキュバス == -1 || !条件
 	RETURN -1
 
-FOR LOCAL, 0, CHARANUM
-	;サキュバス所属で捕虜でない　またはサキュバス勢力の捕虜　念のためSPキャラを除外
-	IF ((CFLAG:LOCAL:所属 == サキュバス && !CFLAG:LOCAL:捕虜先) || CFLAG:LOCAL:捕虜先 == サキュバス) && !IS_SP_CHARA(LOCAL)
-		;MASTERはサキュバスで特殊勢力スタートした場合は除外
-		SIF LOCAL == MASTER && SP_COUNTRY_START:特殊勢力_サキュバス
-			CONTINUE
-		候補:候補数 = LOCAL
-		候補数 ++
-	ENDIF
-NEXT
+CALL SELECT_CHARA_RANDOM("SUCCUBUS_DRAIN")
 
-SIF 候補数 < 1
-	RETURN -1
-
-対象 = 候補:(RAND:候補数)
+対象 = RESULT
 
 SIF 対象 == -1
-	RETURN -1
+	RETURN 0
 
 吸収候補:0 = (RAND:(MAX(ABL:対象:武闘, 1)))
 吸収候補:1 = (RAND:(MAX(ABL:対象:知略, 1)))
@@ -125,19 +121,6 @@ SIF ABL:対象:吸収対象 < 10
 	RETURN -1
 
 吸収値 = LIMIT(ABL:対象:吸収対象 / 10, 1, 3)
-
-VARSET 候補, -1
-VARSET 候補数, 0
-
-;FOR LOCAL, 0, CHARANUM
-;	IF CFLAG:LOCAL:所属 == サキュバス && !CFLAG:LOCAL:9 && TALENT:LOCAL:特殊勢力素質 == 特殊勢力_サキュバス
-;		候補:候補数 = LOCAL
-;		候補数 ++
-;	ENDIF
-;NEXT
-
-;SIF 候補数 < 1
-;	RETURN -1
 
 対象:1 = GET_COUNTRY_BOSS(サキュバス)
 

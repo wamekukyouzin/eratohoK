@@ -43,18 +43,22 @@ CALL INIT_SP_COUNTRY(LOCAL)
 
 RETURN LOCAL
 
+@SELECT_CHARA_RANDOM_LOGIC_TENTACLE_FORCE_PREGNANT(対象)
+#DIM 対象
+#DIM 触手
+
+触手 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_触手))
+
+;触手所属で捕虜でないまたは触手の捕虜
+RETURN 	((CFLAG:対象:所属 == 触手 && !CFLAG:対象:捕虜先) || CFLAG:対象:捕虜先 == 触手) && IS_FEMALE(対象) && GETBIT(TALENT:対象:特殊勢力陥落系, 特殊勢力_触手) && !TALENT:対象:妊娠
+
 ;--------------------------------------
 ;触手勢力用の定期イベント。
 ;--------------------------------------
 @TENTACLE_FORCE_PREGNATE(条件 = 0)
 #DIM 触手
 #DIM 条件
-#DIM 候補, MAX_CHARA_NUM
-#DIM 候補数
 #DIM 対象
-
-VARSET 候補, -1
-VARSET 候補数
 
 SIF !条件
 	RETURN 0
@@ -64,19 +68,9 @@ SIF !条件
 SIF 触手 == -1
 	RETURN 0
 
+CALL SELECT_CHARA_RANDOM("TENTACLE_FORCE_PREGNANT")
 
-FOR LOCAL, 0, CHARANUM
-	;触手所属で捕虜でないまたは触手の捕虜
-	IF ((CFLAG:LOCAL:所属 == 触手 && CFLAG:LOCAL:捕虜先 == 0) || CFLAG:LOCAL:捕虜先 == 触手) && IS_FEMALE(LOCAL) && GETBIT(TALENT:LOCAL:特殊勢力陥落系, 特殊勢力_触手) && !TALENT:LOCAL:妊娠
-		候補:候補数 = LOCAL
-		候補数 ++
-	ENDIF
-NEXT
-
-SIF 候補数 < 1
-	RETURN 0
-
-対象 = 候補:(RAND:候補数)
+対象 = RESULT
 
 SIF 対象 == -1
 	RETURN 0

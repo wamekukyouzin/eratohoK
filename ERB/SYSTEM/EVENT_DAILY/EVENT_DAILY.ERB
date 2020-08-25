@@ -85,7 +85,6 @@ IF CFLAG:(ARG:0):特殊状態 == 0 && CFLAG:(ARG:0):捕虜先 == 0
 ENDIF
 RETURNF 0
 
-
 ;-------------------------------------------------------------------------------
 ;デイリーイベントにおいて、ランダムに対象キャラを選出する
 ;捕虜でなく、死んだりしていないのは前提
@@ -93,19 +92,21 @@ RETURNF 0
 ;RESULT 選出された対象キャラ
 ;-------------------------------------------------------------------------------
 @DAILY_EVENT_RAND_CHARASELECT(ARG:0 = 0)
-#DIM 対象, MAX_CHARA_NUM
-#DIM カウンタ, 1
-VARSET 対象
-VARSET カウンタ
-;シャッフル用の配列を作成する
-FOR LOCAL, 0, CHARANUM
-	IF (ARG:0 || (!ARG:0 && CFLAG:(LOCAL:0):1 == CFLAG:MASTER:1)) && !CFLAG:(LOCAL:0):捕虜先 && !CFLAG:(LOCAL:0):特殊状態
-		対象:カウンタ = LOCAL
-		カウンタ ++
-	ENDIF
-NEXT
+IF ARG:0
+	CALL SELECT_CHARA_RANDOM("DAILY_EVENT_RAND_CHARASELECT_ALL")
+ELSE
+	CALL SELECT_CHARA_RANDOM("DAILY_EVENT_RAND_CHARASELECT_OUR_COUNTRY")
+ENDIF
+RETURN RESULT
 
-RETURN カウンタ ? 対象:(RAND:カウンタ) # -1
+@SELECT_CHARA_RANDOM_LOGIC_DAILY_EVENT_RAND_CHARASELECT_OUR_COUNTRY(対象)
+#DIM 対象
+RETURN CFLAG:対象:所属 == CFLAG:MASTER:所属 && !CFLAG:(対象):捕虜先 && !CFLAG:(対象):特殊状態
+
+@SELECT_CHARA_RANDOM_LOGIC_DAILY_EVENT_RAND_CHARASELECT_ALL(対象)
+#DIM 対象
+RETURN !CFLAG:(対象):捕虜先 && !CFLAG:(対象):特殊状態
+
 
 ;-------------------------------------------------------------------------------
 ;デイリーイベントにおいて、ランダムに対象都市を選出する

@@ -72,6 +72,30 @@ ITEM:A_利尿剤 = 99
 ITEM:A_おもちゃの注射器 = 1
 ITEM:A_コンドーム = 99
 
+@SELECT_CHARA_RANDOM_LOGIC_GAIRAI_BRAINCONTROL(対象)
+#DIM 対象
+#DIM 外来人
+
+外来人 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:(特殊勢力_外来人))
+
+SIF IS_SP_CHARA(対象)
+	RETURN 0
+SIF 対象 == MASTER
+	RETURN 0
+SIF 対象 == GET_COUNTRY_BOSS(CFLAG:対象:所属)
+	RETURN 0
+SIF CFLAG:対象:捕虜先 && CFLAG:対象:捕虜先 != 外来人
+	RETURN 0
+SIF CFLAG:対象:所属 == 外来人
+	RETURN 0
+SIF CFLAG:対象:特殊状態 == 特殊状態_死亡
+	RETURN 0
+SIF !CFLAG:対象:所属 && CFLAG:対象:特殊状態 != 特殊状態_放浪
+	RETURN 0
+SIF TALENT:対象:幼児
+	RETURN 0
+
+RETURN 1
 
 ;--------------------------------------
 ;外来人によるブレインコントロールイベント
@@ -80,12 +104,8 @@ ITEM:A_コンドーム = 99
 @GAIRAI_BRAINCONTROL(条件 = 1)
 #DIM 外来
 #DIM 条件
-#DIM 候補, MAX_CHARA_NUM
-#DIM 候補数
 #DIM 対象
 #DIM メッセージ
-VARSET 候補, -1
-VARSET 候補数
 
 外来 = GET_COUNTRY_FROM_ID(SP_COUNTRY_ID:特殊勢力_外来人)
 
@@ -93,36 +113,12 @@ VARSET 候補数
 SIF 外来 == -1 || !条件
 	RETURN -1
 
-FOR LOCAL, 0, CHARANUM
-	SIF IS_SP_CHARA(LOCAL)
-		CONTINUE
-	SIF LOCAL == MASTER
-		CONTINUE
-	SIF LOCAL == GET_COUNTRY_BOSS(CFLAG:LOCAL:所属)
-		CONTINUE
-	SIF CFLAG:LOCAL:捕虜先 && CFLAG:LOCAL:捕虜先 != 外来
-		CONTINUE
-	SIF CFLAG:LOCAL:所属 == 外来
-		CONTINUE
-	SIF CFLAG:LOCAL:所属 == 2
-		CONTINUE
-	SIF !CFLAG:LOCAL:所属 && CFLAG:LOCAL:特殊状態 != 特殊状態_放浪
-		CONTINUE
-	SIF TALENT:LOCAL:幼児
-		CONTINUE
-	候補:候補数 = LOCAL
-	候補数 ++
-NEXT
+CALL SELECT_CHARA_RANDOM("GAIRAI_BRAINCONTROL")
 
-SIF 候補数 <= 0
-	RETURN -1
-
-CALL FISHER_YATES_SHAFFLE(候補数)
-
-対象 = 候補:(SHAFFLE_ARRAY:0)
+対象 = RESULT
 
 SIF 対象 == -1
-	RETURN -1
+	RETURN 0
 
 IF CFLAG:対象:捕虜先 == 外来
 	CALL SINGLE_DRAWLINE
