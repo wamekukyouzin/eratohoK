@@ -1,0 +1,585 @@
+﻿;セクハラのある日常
+
+;-------------------------------------------------
+;コマンド名称
+;-------------------------------------------------
+@COM_NAME331
+SELECTCASE PREVCOM
+	CASE 327
+		LOCALS:0 = 膝枕胸愛撫
+	CASEELSE
+		LOCALS:0 = 胸愛撫
+ENDSELECT
+
+RESULTS:0 = %LOCALS:0%する
+RESULTS:1 = %LOCALS:0%させられる
+RESULTS:2 = %LOCALS:0%してもらう
+RESULTS:3 = %LOCALS:0%される
+
+
+;-------------------------------------------------
+;選択可否判定
+;-------------------------------------------------
+@COM_ABLE331
+;共通部分
+CALL COM_ABLE_COMMON(331)
+SIF RESULT == 0
+	RETURN 0
+;行動不能なら不可
+SIF !IS_PLAYABLE(MPLY:0)
+	RETURN 0
+;日常フェラ中は不可
+SIF IS_EQUIP(MPLY:0, 330)
+	RETURN 0
+;主人公以外が実行する場合、実行可能でなければ表示されない
+IF MPLY:0 != MASTER
+	TCVAR:(MPLY:0):24 = 0
+	SKIPDISP 1
+	CALL COM_ORDER_PLAYER331(MPLY:0)
+	SKIPDISP 0
+	SIF TCVAR:(MPLY:0):24 < TCVAR:(MPLY:0):25 
+		RETURN 0
+ENDIF
+;主導権を握っている側に胸愛撫の知識が必要
+LOCAL:0 = 0
+IF FLAG:主導権所有者 == -1
+	CALL CHECK_COM_KNOWLEDGE(MPLY:0, 1)
+	LOCAL:0 += RESULT
+	CALL CHECK_COM_KNOWLEDGE(MTAR:0, 1)
+	LOCAL:0 += RESULT
+ELSE
+	CALL CHECK_COM_KNOWLEDGE(FLAG:主導権所有者, 1)
+	LOCAL:0 += RESULT
+ENDIF
+IF !RESULT
+	RETURN 0
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;快Ｂソースの倍率を取得する関数 ARG:0=PLAYERのキャラ番号
+;-------------------------------------------------
+@COM331_RATE_B(ARG:0)
+#FUNCTION
+LOCAL:5 = 1000
+SELECTCASE ABL:(ARG:0):奉仕
+	CASE 0
+		TIMES LOCAL:5, 0.50
+	CASE 1
+		TIMES LOCAL:5, 0.80
+	CASE 2
+		TIMES LOCAL:5, 1.00
+	CASE 3
+		TIMES LOCAL:5, 1.20
+	CASE 4
+		TIMES LOCAL:5, 1.40
+	CASEELSE
+		LOCAL:5 = LOCAL:5 * (150 + (ABL:(LOCAL:2):奉仕 - 5) * 2) / 100
+ENDSELECT
+
+SELECTCASE ABL:(ARG:0):性技
+	CASE 0
+		TIMES LOCAL:5, 1.00
+	CASE 1
+		TIMES LOCAL:5, 1.10
+	CASE 2
+		TIMES LOCAL:5, 1.20
+	CASE 3
+		TIMES LOCAL:5, 1.30
+	CASE 4
+		TIMES LOCAL:5, 1.40
+	CASEELSE
+		LOCAL:5 = LOCAL:5 * ((ABL:(LOCAL:2):性技 - 5) * 2 + 150) / 100
+ENDSELECT
+
+RETURNF LOCAL:5
+
+;-------------------------------------------------
+;メイン処理
+;-------------------------------------------------
+@COM331
+;実行判定
+CALL COM_ORDER_COMMON
+SIF RESULT == 0
+	RETURN 0
+
+;●プレイヤー側の処理
+DOWNBASE:(MPLY:0):体力 += 100
+
+EXP:(MPLY:0):性技経験値 += 1
+
+SOURCE:(MPLY:0):奉仕 = SERVE_HOUSHI(MPLY:0, 200)
+SOURCE:(MPLY:0):接触 = 60
+SOURCE:(MPLY:0):性行動 = 90
+
+;主導権に応じた優越・受動のソース追加
+CALL ADD_SOURCE_INITIATIVE_U(MPLY:0, 100, 40)
+
+;奉仕経験値を得られるコマンドのフラグ
+TCVAR:(MPLY:0):4 = 1
+
+;●ターゲット側の処理
+LOCAL:4 = SENSE_HOUSHI(MPLY:0, MTAR:0, 1200)
+IF TALENT:(MPLY:0):恋人
+	TIMES LOCAL:4, 1.05
+ENDIF
+SOURCE:(MTAR:0):快Ｂ += LOCAL:4
+
+;射精箇所と対象をセット
+CALL STACK_SPERM(MTAR:0, MPLY:0, 4)
+
+;●ソースの計算
+DOWNBASE:(MTAR:0):体力 += 60
+SOURCE:(MTAR:0):接触 = 60
+SOURCE:(MTAR:0):性行動 = 180
+;主導権に応じた優越・受動のソース追加
+CALL ADD_SOURCE_INITIATIVE_U(MTAR:0, 80, 0)
+
+;主導度変化基準値
+TFLAG:49 = 2
+
+;倒錯度変化基準値
+TFLAG:50 = -1
+
+;レズ・ＢＬ経験基準値
+TFLAG:51 = 5
+
+;胸愛撫の知識がなければ、獲得する
+CALL SET_COM_KNOWLEDGE(MPLY:0, 1)
+CALL SET_COM_KNOWLEDGE(MTAR:0, 1)
+RETURN 1
+
+;-------------------------------------------------
+;継続コマンドかどうかを設定
+;-------------------------------------------------
+@COM_IS_EQUIP331
+RETURN 1
+
+;-------------------------------------------------
+;継続状態の処理
+;-------------------------------------------------
+@COM_EQUIP331(ARG:0)
+LOCAL:2 = MEQUIP_PLAYER:(ARG:0):0
+LOCAL:3 = MEQUIP_TARGET:(ARG:0):0
+
+;ソースを退避
+CALL PUTOUT_SOURCE(LOCAL:2)
+CALL PUTOUT_SOURCE(LOCAL:3)
+
+;●プレイヤーの処理
+DOWNBASE:(LOCAL:2):体力 += 20
+EXP:(MPLY:0):性技経験値 += 1
+
+SOURCE:(LOCAL:2):奉仕 += SERVE_HOUSHI(LOCAL:2, 60)
+SOURCE:(LOCAL:2):接触 += 30
+SOURCE:(LOCAL:2):性行動 += 30
+
+;奉仕経験値を得られるコマンドのフラグ
+TCVAR:(LOCAL:2):4 = 1
+
+;●ターゲット側の処理
+DOWNBASE:(LOCAL:3):体力 += 10
+SOURCE:(LOCAL:3):接触 += 30
+SOURCE:(LOCAL:3):性行動 += 60
+SOURCE:(LOCAL:3):快Ｂ = SENSE_HOUSHI(LOCAL:2, LOCAL:3, 300 / 3)
+
+;射精箇所と対象をセット
+CALL STACK_SPERM(LOCAL:3, LOCAL:2, 0)
+
+;倒錯度変化基準値
+TCVAR:(LOCAL:2):50 -= 1
+
+;退避したソースを加算
+CALL SUM_SOURCE(LOCAL:2)
+CALL SUM_SOURCE(LOCAL:3)
+
+;-------------------------------------------------
+;継続中の表示
+;-------------------------------------------------
+@EQUIP_MESSAGE331(ARG:0)
+RESULTS = %EQUIP_PLAYER_ANAME(ARG:0)%が%EQUIP_TARGET_ANAME(ARG:0)%に胸愛撫中
+
+;-------------------------------------------------
+;継続中の地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE_EQUIP331(ARG:0)
+
+PRINTFORML  %EQUIP_PLAYER_ANAME(ARG:0)%は%EQUIP_TARGET_ANAME(ARG:0)%の胸を揉みしだいている…
+
+;-------------------------------------------------
+;継続を解除したときの地の文
+;-------------------------------------------------
+@COM_TEXT_RELEASE_EQUIP331(ARG:0)
+
+;-------------------------------------------------
+;固有の実行判定(プレイヤー側)
+;-------------------------------------------------
+@COM_ORDER_PLAYER331(ARG:0)
+;実行値の設定
+TCVAR:(ARG:0):25 = 60
+
+;共通部分
+CALL COM_ORDER(ARG:0)
+
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲望Lv{ABL:(ARG:0):欲望}", ABL:(ARG:0):欲望 * 1)
+CALL COM_ORDER_ELEMENT(ARG:0, @"奉仕Lv{ABL:(ARG:0):奉仕}", ABL:(ARG:0):奉仕 * 4)
+
+LOCAL:0 = GET_PALAMLV(PALAM:(ARG:0):欲情)
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲情Lv{LOCAL:0}", MIN(LOCAL:0 * 2, 20))
+
+;ムード
+IF TFLAG:37 < 10
+	LOCAL:0 = -10
+ELSEIF TFLAG:37 < 30
+	LOCAL:0 = -5
+ELSEIF TFLAG:37 < 50
+	LOCAL:0 = 0
+ELSEIF TFLAG:37 < 100
+	LOCAL:0 = (TFLAG:37 - 50) / 10
+ELSE
+	LOCAL:0 = MIN(10, (TFLAG:37 - 100) / 50 + 5)
+ENDIF
+
+IF TALENT:(ARG:0):貞操観念
+	CALL COM_ORDER_ELEMENT(ARG:0, "貞操観念", -6)
+ENDIF
+IF TALENT:(ARG:0):貞操無頓着
+	CALL COM_ORDER_ELEMENT(ARG:0, "貞操無頓着", 3)
+ENDIF
+IF TALENT:(ARG:0):恥じらい
+	CALL COM_ORDER_ELEMENT(ARG:0, "恥じらい", -1)
+ENDIF
+IF TALENT:(ARG:0):献身的
+	CALL COM_ORDER_ELEMENT(ARG:0, "献身的", 6)
+ENDIF
+IF TALENT:(ARG:0):快感の否定
+	CALL COM_ORDER_ELEMENT(ARG:0, "快感の否定", -1)
+ENDIF
+IF TALENT:(ARG:0):快感に素直
+	CALL COM_ORDER_ELEMENT(ARG:0, "快感に素直", 1)
+ENDIF
+IF TFLAG:54
+	CALL COM_ORDER_ELEMENT(ARG:0, "デート中", 6)
+ENDIF
+
+;合意
+IF !TALENT:(ARG:0):合意
+	CALL COM_ORDER_ELEMENT(ARG:0, "合意なし", -10)
+ENDIF
+
+RETURN 1
+
+;-------------------------------------------------
+;固有の実行判定(ターゲット側)
+;-------------------------------------------------
+@COM_ORDER_TARGET331(ARG:0)
+;実行値の設定
+TCVAR:(ARG:0):25 = 60
+
+;共通部分
+CALL COM_ORDER(ARG:0)
+
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲望Lv{ABL:(ARG:0):欲望}", ABL:(ARG:0):欲望 * 1)
+CALL COM_ORDER_ELEMENT(ARG:0, @"奉仕Lv{ABL:(ARG:0):奉仕}", ABL:(ARG:0):奉仕 * 4)
+
+LOCAL:0 = GET_PALAMLV(PALAM:(ARG:0):欲情)
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲情Lv{LOCAL:0}", MIN(LOCAL:0 * 2, 20))
+
+;ムード
+IF TFLAG:37 < 10
+	LOCAL:0 = -10
+ELSEIF TFLAG:37 < 30
+	LOCAL:0 = -5
+ELSEIF TFLAG:37 < 50
+	LOCAL:0 = 0
+ELSEIF TFLAG:37 < 100
+	LOCAL:0 = (TFLAG:37 - 50) / 10
+ELSE
+	LOCAL:0 = MIN(10, (TFLAG:37 - 100) / 50 + 5)
+ENDIF
+
+IF TALENT:(ARG:0):貞操観念
+	CALL COM_ORDER_ELEMENT(ARG:0, "貞操観念", -6)
+ENDIF
+IF TALENT:(ARG:0):貞操無頓着
+	CALL COM_ORDER_ELEMENT(ARG:0, "貞操無頓着", 3)
+ENDIF
+IF TALENT:(ARG:0):恥じらい
+	CALL COM_ORDER_ELEMENT(ARG:0, "恥じらい", -1)
+ENDIF
+IF TALENT:(ARG:0):献身的
+	CALL COM_ORDER_ELEMENT(ARG:0, "献身的", 6)
+ENDIF
+IF TALENT:(ARG:0):快感の否定
+	CALL COM_ORDER_ELEMENT(ARG:0, "快感の否定", -1)
+ENDIF
+IF TALENT:(ARG:0):快感に素直
+	CALL COM_ORDER_ELEMENT(ARG:0, "快感に素直", 1)
+ENDIF
+IF TFLAG:54
+	CALL COM_ORDER_ELEMENT(ARG:0, "デート中", 6)
+ENDIF
+
+;合意
+IF !TALENT:(ARG:0):合意
+	CALL COM_ORDER_ELEMENT(ARG:0, "合意なし", -10)
+ENDIF
+
+RETURN 1
+
+;-------------------------------------------------
+;地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE331
+;SKIPDISPしてから呼び出してRESULTを取ったら、キャラ口上からどのパターンか読める…ハズ
+LOCAL:3 = 0
+;キス中
+IF IS_EQUIP(MPLY:0, 342)
+	LOCALS:0 = キスをしながら
+	;地の文カット
+	LOCAL:0 = SEARCH_EQUIP_IC(342, MPLY:0, MTAR:0)
+	IF LOCAL:0 >= 0
+		MEQUIP_CUT:(LOCAL:0) = 1
+	ENDIF
+ELSE
+	LOCALS:0 = 
+ENDIF
+
+SELECTCASE GET_COM_INITIATIVE()
+	;プレイヤーに主導権
+	CASE 0
+		PRINTFORM  %ANAME(MPLY:0)%は%LOCALS:0%
+		SELECTCASE PREVCOM
+			;仕事中
+			CASE 303, 304
+				LOCAL:3 = 1
+				PRINTDATAL
+					DATAFORM 仕事中の%ANAME(MTAR:0)%の
+					DATAFORM 政務に勤しむ%ANAME(MTAR:0)%の
+					DATAFORM 書類を捌く%ANAME(MTAR:0)%の
+				ENDDATA
+			;訓練後
+			CASE 301, 302
+				LOCAL:3 = 2
+				PRINTDATAL
+					DATAFORM %ANAME(MTAR:0)%の激しい運動で蒸れた
+					DATAFORM %ANAME(MTAR:0)%の汗ばむ
+					DATAFORM %ANAME(MTAR:0)%の息を弾ませる
+				ENDDATA
+			;歌唱
+			CASE 306
+				LOCAL:3 = 3
+				PRINTFORML 歌声を奏でる%ANAME(MTAR:0)%の
+			;お掃除フェラ
+			CASE 310, 311
+				LOCAL:3 = 4
+				PRINTDATAL
+					DATAFORM 酒気で赤らんだ%ANAME(MTAR:0)%の
+					DATAFORM 酒気に眦を赤く染めた%ANAME(MTAR:0)%の
+				ENDDATA
+			;実地演習
+			CASE 550
+				LOCAL:3 = 5
+				PRINTFORML 早速実践するべく%ANAME(MTAR:0)%の
+			;路地裏フェラ
+			CASE 305
+				LOCAL:3 = 6
+				PRINTFORML 人気のない路地裏へと連れ込むと、%ANAME(MTAR:0)%の
+			;猥談
+			CASE 307
+				LOCAL:3 = 7
+				PRINTFORML 猥談に興奮を抑えられなくなり、%ANAME(MTAR:0)%の
+			CASEELSE
+				IF GET_PLACENAME(TFLAG:54) == "城下町"
+					LOCAL:3 = 6
+					PRINTFORML 人気のない路地裏へと連れ込むと、%ANAME(MTAR:0)%の
+			;温泉
+				ELSEIF GET_PLACENAME(TFLAG:54) == "温泉"
+					LOCAL:3 = 10
+					IF RAND:2 == 0
+						PRINTFORML 裸の%ANAME(MTAR:0)%の
+					ELSE
+						PRINTFORML 湯船の中で%ANAME(MTAR:0)%の
+					ENDIF
+				ELSEIF GET_PLACENAME(TFLAG:54) == "川辺"
+					LOCAL:3 = 11
+					PRINTDATAL
+						DATAFORM 泳ぎ疲れ岩に腰掛ける%ANAME(MTAR:0)%の
+						DATAFORM %ANAME(MTAR:0)%の濡れて肌に張り付いた衣服の上から
+						DATAFORM 濡れた服を脱ぎ薄着になった%ANAME(MTAR:0)%の
+					ENDDATA
+				ELSEIF GET_PLACENAME(TFLAG:54) == "森林"
+					PRINTDATAL
+						DATAFORM 木陰で体を休める%ANAME(MTAR:0)%の
+						DATAFORM 静かな森の中で%ANAME(MTAR:0)%の
+						DATAFORM 森小屋へ連れ込むと%ANAME(MTAR:0)%の
+					ENDDATA
+				ELSE
+					PRINTFORML %ANAME(MTAR:0)%の
+				ENDIF
+		ENDSELECT
+		IF IS_MALE(MTAR:0)
+			PRINTFORMW  ぷっくりと膨らんだ乳首を指先で弄り回し%TARGET_STR("た", "てきた")%…
+		ELSE
+			IF GET_BUSTSIZE(MTAR:0) == -2
+				PRINTFORMW  %STR_BODY("胸：長：愛撫", MTAR:0)%をゆっくりと撫で回し%TARGET_STR("た", "てきた")%…
+			ELSEIF GET_BUSTSIZE(MTAR:0) == -1
+				PRINTFORMW  %STR_BODY("胸：長：愛撫", MTAR:0)%をじっくりと弄ん%TARGET_STR("だ", "できた")%…
+			ELSE
+				PRINTFORMW  %STR_BODY("胸：長：愛撫", MTAR:0)%をじっくりと揉みしだい%TARGET_STR("た", "てきた")%…
+			ENDIF
+		ENDIF
+	;ターゲットに主導権
+	CASE 1
+		PRINTFORM  %ANAME(MTAR:0)%は%LOCALS:0%
+		SELECTCASE PREVCOM
+			;仕事中
+			CASE 303, 304
+				LOCAL:3 = 21
+				PRINTDATAL
+					DATAFORM 仕事中の%ANAME(MPLY:0)%の手に自身の
+					DATAFORM 政務に勤しむ%ANAME(MPLY:0)%の手に自身の
+					DATAFORM 書類を捌く%ANAME(MPLY:0)%の手に自身の
+				ENDDATA
+			;訓練後
+			CASE 301, 302
+				LOCAL:3 = 22
+				PRINTDATAL
+					DATAFORM 荒い息をつく%ANAME(MPLY:0)%の手に自身の
+					DATAFORM 息を整える%ANAME(MPLY:0)%の手に自身の
+					DATAFORM 汗を拭う%ANAME(MPLY:0)%の手に自身の
+				ENDDATA
+			;歌唱
+			CASE 306
+				LOCAL:3 = 23
+				PRINTFORML 歌いながら%ANAME(MPLY:0)%の手に自身の
+			;お掃除フェラ
+			CASE 310, 311
+				LOCAL:3 = 24
+				PRINTDATAL
+					DATAFORM 酒気で赤らんだ肌を寄せて%ANAME(MPLY:0)%の手に自身の
+					DATAFORM 酒気に眦を赤く染めながら%ANAME(MPLY:0)%の手に自身の
+				ENDDATA
+			;実地演習
+			CASE 550
+				LOCAL:3 = 25
+				PRINTFORML 早速実践だとばかりに%ANAME(MPLY:0)%の手に自身の
+			;路地裏フェラ
+			CASE 305
+				LOCAL:3 = 6
+				PRINTFORML 人気のない路地裏へと連れ込むと、%ANAME(MPLY:0)%の手に自身の
+			;猥談
+			CASE 307
+				LOCAL:3 = 7
+				PRINTFORML 猥談に興奮した様子で%ANAME(MPLY:0)%の手に自身の
+			CASEELSE
+				IF GET_PLACENAME(TFLAG:54) == "城下町"
+					LOCAL:3 = 6
+					PRINTFORML 人気のない路地裏へと連れ込むと、%ANAME(MPLY:0)%の手に自身の
+			;温泉
+				ELSEIF GET_PLACENAME(TFLAG:54) == "温泉"
+					LOCAL:3 = 10
+					IF RAND:2 == 0
+						PRINTFORML 素肌を寄せ%ANAME(MPLY:0)%の手に自身の
+					ELSE
+						PRINTFORML 湯船の中で%ANAME(MPLY:0)%の手に自身の
+					ENDIF
+				ELSEIF GET_PLACENAME(TFLAG:54) == "川辺"
+					LOCAL:3 = 11
+					PRINTDATAL
+						DATAFORM 泳ぎ疲れ岩に腰掛ける%ANAME(MPLY:0)%の手に自身の
+						DATAFORM 濡れて肌に張り付いた衣服の上から%ANAME(MPLY:0)%の手に自身の
+						DATAFORM 濡れた服を脱ぎ薄着になると%ANAME(MPLY:0)%の手に自身の
+					ENDDATA
+				ELSEIF GET_PLACENAME(TFLAG:54) == "森林"
+					PRINTDATAL
+						DATAFORM 木陰で体を休める%ANAME(MPLY:0)%の手に自身の
+						DATAFORM 静かな森の中で%ANAME(MPLY:0)%の手に自身の
+						DATAFORM 森小屋へ連れ込むと%ANAME(MPLY:0)%の手に自身の
+					ENDDATA
+				ELSE
+					PRINTFORML  %ANAME(MPLY:0)%の手に自身の
+				ENDIF
+		ENDSELECT
+		IF IS_MALE(MTAR:0)
+			PRINTFORMW  胸を弄らせて、気持ち良くするように命令した…
+		ELSE
+			IF GET_BUSTSIZE(MTAR:0) == -2
+				PRINTFORMW  %STR_BODY("胸：長：接触", MTAR:0)%を押し付けると、触って気持ち良くするように命令した…
+			ELSEIF GET_BUSTSIZE(MTAR:0) == -1
+				PRINTFORMW  %STR_BODY("胸：長：接触", MTAR:0)%を押し付けると、触って気持ち良くするように命令した…
+			ELSE
+				PRINTFORMW  %STR_BODY("胸：長：愛撫", MTAR:0)%を押し付けると、揉みしだいて気持ち良くするように命令した…
+			ENDIF
+		ENDIF
+ENDSELECT
+
+PRINTL 
+
+RETURN LOCAL:3
+
+;--------------------------------------------------------
+;地の文(パラメータ・刻印変動後)
+;--------------------------------------------------------
+@COM_TEXT_LAST331
+
+FOR LOCAL:0, 0, MTAR_NUM
+	LOCAL:1 = MTAR:(LOCAL:0)
+
+	IF LOCAL:1 != MASTER
+		LOCAL:2 = CUP:(LOCAL:1):快Ｂ
+
+		IF IS_MALE(LOCAL:1)
+			IF TCVAR:(LOCAL:1):52
+				;気絶中
+				PRINTFORML  意識を失った%ANAME(LOCAL:1)%は乳首への刺激にビクリと小さく体を震わせた
+			ELSEIF LOCAL:2 < 300
+				PRINTFORML  %ANAME(LOCAL:1)%はまだ乳首で快楽を感じれるまでには至っていないようだ
+			ELSEIF LOCAL:2 < 1000
+				PRINTFORML  %ANAME(LOCAL:1)%は少しずつ快感を感じ始めているらしく、むず痒そうに体をよじった
+			ELSEIF LOCAL:2 < 3000
+				PRINTFORML  %ANAME(LOCAL:1)%は乳首への刺激に感じているのか、熱い吐息を漏らし始めている
+			ELSEIF LOCAL:2 < 6000
+				PRINTFORML  %ANAME(LOCAL:1)%は乳首への快感に表情を緩ませ、されるがままになっている
+			ELSEIF LOCAL:2 < 10000
+				PRINTFORML  %ANAME(LOCAL:1)%は感じまくっており、乳首を弾かれるたびに激しく悶えている
+			ELSE
+				PRINTFORML  %ANAME(LOCAL:1)%はすっかり乳首の快感の虜になり、乳首をこね回されると女のように身体を跳ねさせて悶えた
+			ENDIF
+		ELSE
+			IF TCVAR:(LOCAL:1):52
+				;気絶中
+				PRINTFORML  意識を失った%ANAME(LOCAL:1)%は胸への刺激にビクリと小さく体を震わせた
+			ELSEIF LOCAL:2 < 300
+				PRINTFORML  %ANAME(LOCAL:1)%はまだ胸で快楽を感じれるまでには至っていないようだ
+			ELSEIF LOCAL:2 < 1000
+				PRINTFORML  %ANAME(LOCAL:1)%は少しずつ快感を感じ始めているらしく、むず痒そうに体をよじった
+			ELSEIF LOCAL:2 < 3000
+				PRINTFORML  %ANAME(LOCAL:1)%の胸を揉み続けてやると乳首は固くしこっていき、熱い吐息を漏らし始めている
+			ELSEIF LOCAL:2 < 6000
+				PRINTFORML  %ANAME(LOCAL:1)%は胸への愛撫にトロンとした表情になってされるがままになっている
+			ELSEIF LOCAL:2 < 10000
+				PRINTFORML  %ANAME(LOCAL:1)%は感じまくっており、胸への刺激だけで法悦を極めようとしている
+			ELSE
+				PRINTFORM  %ANAME(LOCAL:1)%の胸を揉み続けてやるとそれだけで感じまくって身体を跳ねさせ、
+				IF GET_BUSTSIZE(LOCAL:1) == 1
+					PRINTL 目の前でその巨乳を弾ませてこちらの目を楽しませてくれた
+				ELSEIF GET_BUSTSIZE(LOCAL:1) == 2
+					PRINTL 目の前でその爆乳を大きく弾ませてこちらの目を楽しませてくれた
+				ELSEIF GET_BUSTSIZE(LOCAL:1) == 3
+					PRINTL 目の前でその魔乳を大きく弾ませてこちらの目を楽しませてくれた
+				ELSE
+					PRINTL 緩んだ表情で快楽に身を任せた
+				ENDIF
+			ENDIF
+		ENDIF
+	ENDIF
+NEXT
+
+;-------------------------------------------------
+
+;コマンド区分
+;-------------------------------------------------
+
+@COM_AVAILABLE_WHEN331
+RETURN コマンド_日常
