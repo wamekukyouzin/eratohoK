@@ -1,4 +1,4 @@
-﻿;注意点
+;注意点
 ;この関数自体ループ内で呼ばれる前提なので、ループを使用するとO(n^2)になる。TMP化できるものはTMPを利用すること。
 @AI_ACTION(勢力)
 #DIM 勢力
@@ -78,7 +78,7 @@ FOR 部隊, 0, MAX_UNIT
 		;最低兵数割ってるなら解体
 		;余剰兵力を攻撃に振り分ける
 		IF UNIT_SOLDIER:勢力:部隊 < AI_ARMY_PROPERTY:(COUNTRY_AI_TYPE:勢力):AI_最低兵数 / MAX(MATCH(RESULT, -1, 0, 3) * 3, 1)
-			DEBUGPRINTFORML 兵数割り　解体
+			;DEBUGPRINTFORML 兵数割り　解体
 			攻撃兵数 += UNIT_SOLDIER:勢力:部隊
 			CALL CLEAR_UNIT(勢力, 部隊, 1)
 			CONTINUE
@@ -100,9 +100,9 @@ FOR 部隊, 0, MAX_UNIT
 		CALL SLG_AI_CREATE_UNIT(勢力, 部隊, 攻撃兵数)
 		;作れなかったら飛ばす
 		SIF 攻撃兵数 == RESULT
-			CONTINUE
+			BREAK
 		攻撃兵数 = RESULT
-	;攻撃先の決定
+		;攻撃先の決定
 		CALL SLG_AI_INVASION_SETTARGET(勢力, 部隊)
 	ENDIF
 NEXT
@@ -405,8 +405,11 @@ SIF 勢力 == CFLAG:MASTER:所属 || FLAG:観戦モード
 
 
 AI_TYPE = COUNTRY_AI_TYPE:勢力
+
+CALL CHECK_UNIT_COMMANDER_BEST(勢力, 1)
+
 最低兵数 = AI_ARMY_PROPERTY:AI_TYPE:AI_最低兵数 / MAX(6 - TMP_OWN_CITY:勢力, 1)
-確定兵数 = MIN(AI_ARMY_PROPERTY:AI_TYPE:AI_確定兵数, TMP_SUM_ECONOMY:勢力 * 10)
+確定兵数 = MIN(AI_ARMY_PROPERTY:AI_TYPE:AI_確定兵数, TMP_SUM_ECONOMY:勢力 / 10)
 ;DEBUGPRINTFORML %ANAME(GET_COUNTRY_BOSS(勢力))%の部隊作成試行 攻撃兵数{攻撃兵数} 最低兵数{最低兵数} 確定兵数{確定兵数}
 
 ;兵数が最低割ってたら部隊は作らない
@@ -416,15 +419,9 @@ SIF 攻撃兵数 < 最低兵数
 ;兵数が確定兵数を割っているなら、確定兵数に対する攻撃兵数の割合%で出兵する
 ;ただし都市数が少ないと積極的
 IF 攻撃兵数 < 確定兵数
-	SIF 攻撃兵数 * 100 / 確定兵数 < RAND:(100 - MAX((6 - TMP_OWN_CITY:勢力) * 10, 0))
+	SIF 攻撃兵数 * 100 / 確定兵数 - 20 * MATCH(UNIT_COMMANDER_BEST, -1) < RAND:(100 - MAX((6 - TMP_OWN_CITY:勢力) * 10, 0))
 		RETURN 攻撃兵数
 ENDIF
-
-CALL CHECK_UNIT_COMMANDER_BEST(勢力)
-;DEBUGPRINTFORML 部隊作成 RESULT:0 {UNIT_COMMANDER_BEST:0} RESULT:1 {UNIT_COMMANDER_BEST:1} RESULT:2 {UNIT_COMMANDER_BEST:2}
-
-最低兵数 /= MAX(MATCH(UNIT_COMMANDER_BEST, -1) * 3, 1)
-確定兵数 /= MAX(MATCH(UNIT_COMMANDER_BEST, -1) * 3, 1)
 
 ;DEBUGPRINTFORML 補正後最低兵数{最低兵数} 確定兵数{確定兵数}
 ;武将
@@ -437,10 +434,27 @@ IF 攻撃兵数 >= 確定兵数
 		出兵数 = RAND(確定兵数, 攻撃兵数)
 	ELSE
 		出兵数 = 確定兵数
+		SIF MATCH(UNIT_COMMANDER_BEST, -1) == 3
+			出兵数 /= 4
 	ENDIF
 ELSE
-	出兵数 = MIN(RAND(最低兵数, 確定兵数), 攻撃兵数)
+	IF MATCH(UNIT_COMMANDER_BEST, -1) == 0
+		出兵数 = 攻撃兵数
+	ELSE
+		出兵数 = MIN(RAND(最低兵数, 確定兵数), 攻撃兵数)
+		SIF MATCH(UNIT_COMMANDER_BEST, -1) == 2 && 出兵数 > 攻撃兵数 / 2
+			出兵数 /= 2
+		SIF MATCH(UNIT_COMMANDER_BEST, -1) == 3
+			出兵数 /= 4
+	ENDIF
 ENDIF
+
+SIF 出兵数 < 500
+	RETURN 攻撃兵数
+
+;DEBUGPRINTFORML 部隊作成 RESULT:0 {UNIT_COMMANDER_BEST:0} RESULT:1 {UNIT_COMMANDER_BEST:1} RESULT:2 {UNIT_COMMANDER_BEST:2}
+;DEBUGPRINTFORML 出兵:{出兵数}
+
 
 UNIT_SOLDIER:勢力:部隊 = 出兵数
 COUNTRY_SOLDIER:勢力 -= 出兵数
@@ -627,7 +641,7 @@ FOR 候補, 0, 10
 NEXT
 
 IF !攻撃実行
-	;DEBUGPRINTFORML 有効な攻撃対象なし。解散 {勢力}, {部隊}
+	DEBUGPRINTFORML 有効な攻撃対象なし。解散 {勢力}, {部隊}
 	CALL CLEAR_UNIT(勢力, 部隊, 1)
 ENDIF
 ;DEBUGPRINTFORML 侵攻先:%GET_CITYNAME(UNIT_TARGET:勢力:部隊)% 位置:{UNIT_POSITION:勢力:部隊}
