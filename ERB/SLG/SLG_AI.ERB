@@ -57,10 +57,6 @@ CALL SLG_AI_FORCE_CLEAR_UNIT(勢力)
 CALL SLG_AI_DECIDE_SOLDIER_NUM(勢力)
 攻撃兵数 = RESULT:0
 
-;既存部隊に兵力を補充する
-CALL SLG_AI_REPLENISH_SOLDIER_TO_UNIT(勢力, 攻撃兵数)
-攻撃兵数 = RESULT
-
 ;救出
 CALL SLG_AI_RESCUE(勢力, 攻撃兵数)
 攻撃兵数 = RESULT
@@ -78,24 +74,37 @@ FOR 部隊, 0, MAX_UNIT
 		;敵の土地にいるなら飛ばす
 		SIF TMP_COUNTRY_RELATION:勢力:(CITY_OWNER:(UNIT_POSITION:勢力:部隊)) == 0
 			CONTINUE
+		CALL GET_UNIT_COMMANDER_ALL(勢力, 部隊)
+		;最低兵数割ってるなら解体
+		;余剰兵力を攻撃に振り分ける
+		IF UNIT_SOLDIER:勢力:部隊 < AI_ARMY_PROPERTY:(COUNTRY_AI_TYPE:勢力):AI_最低兵数 / MAX(MATCH(RESULT, -1, 0, 3) * 3, 1)
+			DEBUGPRINTFORML 兵数割り　解体
+			攻撃兵数 += UNIT_SOLDIER:勢力:部隊
+			CALL CLEAR_UNIT(勢力, 部隊, 1)
+			CONTINUE
 		;許容疲労度を超えていたら解体
 		;余剰兵力は攻撃に振り分ける
-		IF UNIT_TIRED_COUNT:勢力:部隊 > AI_ARMY_PROPERTY:(COUNTRY_AI_TYPE:勢力):AI_許容疲労度
+		ELSEIF UNIT_TIRED_COUNT:勢力:部隊 > AI_ARMY_PROPERTY:(COUNTRY_AI_TYPE:勢力):AI_許容疲労度
 			;DEBUGPRINTFORML  %ANAME(GET_COUNTRY_BOSS(勢力))%の{部隊}部隊　疲労度限界越えにつき解体 疲労度:{UNIT_TIRED_COUNT:勢力:部隊} 許容:{AI_ARMY_PROPERTY:(COUNTRY_AI_TYPE:勢力):AI_許容疲労度}
 			攻撃兵数 += UNIT_SOLDIER:勢力:部隊
-			CALL CLEAR_UNIT(勢力, 部隊)
+			CALL CLEAR_UNIT(勢力, 部隊, 1)
 			CONTINUE
 		ENDIF
+	ENDIF
+NEXT
+
+;部隊の侵攻判定
+FOR 部隊, 0, MAX_UNIT
 	;既存部隊でなければ、部隊の作成を試みる
-	ELSEIF UNIT_SOLDIER:勢力:部隊 <= 0
+	IF UNIT_SOLDIER:勢力:部隊 <= 0
 		CALL SLG_AI_CREATE_UNIT(勢力, 部隊, 攻撃兵数)
 		;作れなかったら飛ばす
 		SIF 攻撃兵数 == RESULT
 			CONTINUE
 		攻撃兵数 = RESULT
-	ENDIF
 	;攻撃先の決定
-	CALL SLG_AI_INVASION_SETTARGET(勢力, 部隊)
+		CALL SLG_AI_INVASION_SETTARGET(勢力, 部隊)
+	ENDIF
 NEXT
 
 ;;#;FOR 部隊, 0, MAX_UNIT
@@ -127,6 +136,9 @@ CALL SINGLE_EMPTY_LINE()
 @SLG_AI_DECIDE_SOLDIER_NUM(勢力)
 #DIM 勢力
 #DIM 都市
+#DIM 攻撃スコア倍率
+#DIM 攻撃都市数
+#DIM 防衛都市数
 #DIM 攻撃スコア合計
 #DIM 防衛スコア合計
 #DIM 比率
@@ -134,16 +146,30 @@ CALL SINGLE_EMPTY_LINE()
 #DIM 防衛兵数
 VARSET 攻撃スコア合計
 VARSET 防衛スコア合計
+VARSET 攻撃都市数
+VARSET 防衛都市数
+攻撃スコア倍率 = 100
+攻撃スコア倍率 += MIN(10 * (TMP_OWN_CITY:勢力 / 5), 1)
+攻撃スコア倍率 += MAX((20 - DAY) * 10, 0)
+
 FOR 都市, 1, GET_CITY_NUM() + 1
 	;そこが敵の都市で、かつ自勢力と接続しているなら、攻撃スコアに加算
-	;防衛スコアと比較すると、算出方法の兼ね合いで10000倍くらいしてトントン(攻撃スコアは経済 / 防衛倍率、防衛スコアは経済 * 防衛倍率)
 	IF TMP_IS_INVADABLE:勢力:都市
-		攻撃スコア合計 += TMP_OFFENSIVE_IMPORTANCE:勢力:都市 * 10000
+		攻撃スコア合計 += TMP_OFFENSIVE_IMPORTANCE:勢力:都市 * 攻撃スコア倍率 / 100
+		攻撃都市数 ++
 	ENDIF
 	;そこが自勢力の都市で、敵から殴られうるなら、防衛スコアに加算
-	SIF CITY_OWNER:都市 == 勢力 && TMP_CITY_RISK:勢力:都市 >= 2
+	IF CITY_OWNER:都市 == 勢力 && TMP_CITY_RISK:勢力:都市 >= 2
 		防衛スコア合計 += TMP_DEFFENSIVE_IMPORTANCE:勢力:都市
+		防衛都市数 ++
+	ENDIF
 NEXT
+
+;AIタイプに
+攻撃スコア合計 = 攻撃スコア合計 * AI_ARMY_PROPERTY:(COUNTRY_AI_TYPE:勢力):AI_攻防バランス / 100
+
+攻撃スコア合計 /= MAX(攻撃都市数, 1)
+防衛スコア合計 /= MAX(防衛都市数, 1)
 
 ;攻撃スコアが0なら攻めるべき場所がないので、すべて防衛に回しておく
 ;唯一隣接している勢力と停戦した場合、これがないとエラー落ちする
@@ -151,95 +177,14 @@ IF 攻撃スコア合計 == 0
 	RETURN 0, COUNTRY_SOLDIER:勢力
 ENDIF
 
-
 ;DEBUGPRINTFORML %ANAME(GET_COUNTRY_BOSS(勢力))%の攻撃スコア{攻撃スコア合計} 防衛スコア{防衛スコア合計}
 比率 = 攻撃スコア合計 * 1000 / (攻撃スコア合計 + 防衛スコア合計)
 
 攻撃兵数 = MIN(COUNTRY_SOLDIER:勢力 * 比率 / 1000, COUNTRY_SOLDIER:勢力)
 防衛兵数 = COUNTRY_SOLDIER:勢力 - 攻撃兵数
-;DEBUGPRINTFORML %ANAME(GET_COUNTRY_BOSS(勢力))%の比率{比率}
-;DEBUGPRINTFORML %ANAME(GET_COUNTRY_BOSS(勢力))%の攻撃兵{攻撃兵数} 防衛兵{防衛兵数} 兵数{COUNTRY_SOLDIER:勢力}
+;DEBUGPRINTFORML %ANAME(GET_COUNTRY_BOSS(勢力))%の比率{比率}, 攻撃都市{攻撃都市数, 2} 防衛都市{防衛都市数}
+;DEBUGPRINTFORML %ANAME(GET_COUNTRY_BOSS(勢力))%の攻撃兵{攻撃兵数, 5} 防衛兵{防衛兵数, 5} 兵数{COUNTRY_SOLDIER:勢力, 7}
 RETURN 攻撃兵数, 防衛兵数
-
-;-----------------------------------------------
-;既存部隊に兵を補充する
-;-----------------------------------------------
-@SLG_AI_REPLENISH_SOLDIER_TO_UNIT(勢力, 攻撃兵数)
-#DIM 勢力
-#DIM 部隊
-#DIM 項番
-#DIM 攻撃兵数
-#DIM 補充兵数
-#DIM 残り補充兵数
-#DIM 補充量
-#DIM 部隊能力合計
-#DIM 部隊能力, MAX_UNIT
-#DIM 最強能力
-VARSET 部隊能力合計
-VARSET 部隊能力, __INT_MIN__
-
-;部隊能力を合計していく
-FOR 部隊, 0, MAX_UNIT
-	SIF UNIT_SOLDIER:勢力:部隊 <= 0
-		CONTINUE
-	;敵がいるなら補充しない
-	SIF TMP_IS_STAY_ENEMY_UNIT(UNIT_POSITION:勢力:部隊, 勢力) == 1
-		CONTINUE
-	;味方の勢力でなくても補充しない
-	SIF TMP_COUNTRY_RELATION:勢力:(CITY_OWNER:(UNIT_POSITION:勢力:部隊)) == 0
-		CONTINUE
-	;確定兵数越えてても補充しない
-	SIF UNIT_SOLDIER:勢力:部隊 >= AI_ARMY_PROPERTY:(COUNTRY_AI_TYPE:勢力):AI_確定兵数
-		CONTINUE
-	CALL GET_COMMANDER_ALL(勢力, 部隊)
-	CALL SET_BATTLE_MIRROR_VAL(0, RESULT:0, RESULT:1, RESULT:2)
-	CALL BATTLE_PREPARE_VARS_EACH(0, 0)
-	部隊能力:部隊 = BATTLE_ATK:0 + BATTLE_DEF:0 + BATTLE_INT:0
-	部隊能力合計 += 部隊能力:部隊
-	;DEBUGPRINTFORML %ANAME(GET_COUNTRY_BOSS(勢力))%の{部隊}部隊 部隊能力{部隊能力:部隊}
-NEXT
-
-;ついでに今作れる最強の部隊をみておく
-CALL CHECK_UNIT_COMMANDER_BEST(勢力)
-CALL SET_BATTLE_MIRROR_VAL(0, UNIT_COMMANDER_BEST:0, UNIT_COMMANDER_BEST:1, UNIT_COMMANDER_BEST:2)
-CALL BATTLE_PREPARE_VARS_EACH(0, 0)
-最強能力 = BATTLE_ATK:0 + BATTLE_DEF:0 + BATTLE_INT:0
-
-;補充に使う兵数を決定する
-;現存する最強の部隊の、今作れる最強の部隊に対する割合
-部隊 = FINDELEMENT(部隊能力, MAXARRAY(部隊能力))
-SIF 部隊能力:部隊 == __INT_MIN__
-	RETURN 攻撃兵数
-補充兵数 = MIN(攻撃兵数 * 部隊能力:部隊 / MAX(最強能力, 1), 攻撃兵数 * 70 / 100)
-残り補充兵数 = 補充兵数
-;DEBUGPRINTFORML %ANAME(GET_COUNTRY_BOSS(勢力))%の攻撃兵数{攻撃兵数} 最強能力{最強能力} 現存最強部隊能力{部隊能力:部隊} 補充兵数{補充兵数}
-
-FOR 項番, 0, MAX_UNIT
-	部隊 = FINDELEMENT(部隊能力, MAXARRAY(部隊能力))
-	;もう部隊がない場合、抜ける
-	SIF 部隊能力:部隊 == __INT_MIN__
-		BREAK
-
-	;補充兵数から、（補充可能な部隊にしめる自部隊の能力の割合）ぶんだけ補充する
-	;ただし、最低兵数割ってたら最低兵数ぶんだけ補充しようとする
-	;いずれにせよ、残ってる補充兵数以上に補充できないのは当然
-	IF UNIT_SOLDIER:勢力:部隊 < AI_ARMY_PROPERTY:(COUNTRY_AI_TYPE:勢力):AI_最低兵数
-		補充量 = AI_ARMY_PROPERTY:(COUNTRY_AI_TYPE:勢力):AI_最低兵数 - UNIT_SOLDIER:勢力:部隊
-	ELSE
-		補充量 = 補充兵数 * 部隊能力:部隊 / 部隊能力合計
-	ENDIF
-	補充量 = MIN(補充量, 残り補充兵数)
-	;DEBUGPRINTFORML %ANAME(GET_COUNTRY_BOSS(勢力))%の{部隊}部隊に補充 補充前{UNIT_SOLDIER:勢力:部隊}　補充量{補充量} 補充後{UNIT_SOLDIER:勢力:部隊 + 補充量}
-	;DEBUGPRINTFORML 残り補充兵数{残り補充兵数 - 補充量}
-	UNIT_SOLDIER:勢力:部隊 += 補充量
-	COUNTRY_SOLDIER:勢力 -= 補充量
-	残り補充兵数 -= 補充量
-	攻撃兵数 -= 補充量
-	部隊能力:部隊 = __INT_MIN__
-NEXT
-
-RETURN 攻撃兵数
-
 
 ;-----------------------------------------------
 ;変なことになってる部隊を解体する
@@ -253,13 +198,13 @@ FOR 部隊, 0, MAX_UNIT
 		CONTINUE
 	;現在地が停戦対象なら解散
 	SIF TMP_COUNTRY_RELATION:勢力:(CITY_OWNER:(UNIT_POSITION:勢力:部隊)) == 1
-		CALL CLEAR_UNIT(勢力, 部隊)
+		CALL CLEAR_UNIT(勢力, 部隊, 1)
 	;目的地が敵でないなら解散
 	SIF TMP_COUNTRY_RELATION:勢力:(CITY_OWNER:(UNIT_TARGET:勢力:部隊)) != 0
-		CALL CLEAR_UNIT(勢力, 部隊)
+		CALL CLEAR_UNIT(勢力, 部隊, 1)
 	;部隊の現在位置が中継地点かつ移動先を失っていれば解散する
 	SIF !UNIT_TARGET:勢力:部隊 && CITY_TYPE:(UNIT_POSITION:勢力:部隊) == 1
-		CALL CLEAR_UNIT(勢力, 部隊)
+		CALL CLEAR_UNIT(勢力, 部隊, 1)
 NEXT
 
 ;-----------------------------------------------
@@ -478,8 +423,9 @@ ENDIF
 CALL CHECK_UNIT_COMMANDER_BEST(勢力)
 ;DEBUGPRINTFORML 部隊作成 RESULT:0 {UNIT_COMMANDER_BEST:0} RESULT:1 {UNIT_COMMANDER_BEST:1} RESULT:2 {UNIT_COMMANDER_BEST:2}
 
+最低兵数 /= MAX(MATCH(UNIT_COMMANDER_BEST, -1) * 3, 1)
+確定兵数 /= MAX(MATCH(UNIT_COMMANDER_BEST, -1) * 3, 1)
 
-最低兵数 *= MIN(MAX(MATCH(UNIT_COMMANDER_BEST, -1) * 3, 1), 確定兵数 - 1)
 ;DEBUGPRINTFORML 補正後最低兵数{最低兵数} 確定兵数{確定兵数}
 ;武将
 ;SIF MATCH(武将候補, -1) == 3
@@ -487,7 +433,11 @@ CALL CHECK_UNIT_COMMANDER_BEST(勢力)
 
 ;部隊に編成する兵数を決定
 IF 攻撃兵数 >= 確定兵数
-	出兵数 = 確定兵数
+	IF MATCH(UNIT_COMMANDER_BEST, -1) == 0
+		出兵数 = RAND(確定兵数, 攻撃兵数)
+	ELSE
+		出兵数 = 確定兵数
+	ENDIF
 ELSE
 	出兵数 = MIN(RAND(最低兵数, 確定兵数), 攻撃兵数)
 ENDIF
@@ -524,8 +474,11 @@ RETURN 攻撃兵数
 #DIM 現在スコア
 #DIM 自部隊能力, 3
 #DIM 敵部隊能力, 3
+#DIM カウント
 #DIM 候補
+#DIM 攻撃実行
 
+VARSET 攻撃実行
 VARSET 攻撃候補スコア, __INT_MIN__
 君主 = GET_COUNTRY_BOSS(勢力)
 
@@ -640,26 +593,43 @@ FOR 候補, 0, 10
 	ENDIF
 
 	;勝ってる要素をカウント
-	;カウント = 0
-	;敵部隊能力:0 = BATTLE_ATK:1
-	;敵部隊能力:1 = BATTLE_DEF:1
-	;敵部隊能力:2 = BATTLE_INT:1
-	;カウント += (UNIT_SOLDIER:勢力:部隊 > CITY_SOLDIER:攻撃候補)
-	;FOR LOCAL:1, 0, 3
-	;	カウント += 自部隊能力:(LOCAL:1) > 敵部隊能力:(LOCAL:1)
-	;NEXT
+	カウント = 0
+	敵部隊能力:0 = BATTLE_ATK:1
+	敵部隊能力:1 = BATTLE_DEF:1
+	敵部隊能力:2 = BATTLE_INT:1
+	カウント += (UNIT_SOLDIER:勢力:部隊 > CITY_SOLDIER:攻撃候補)
+	FOR LOCAL:1, 0, 3
+		カウント += 自部隊能力:(LOCAL:1) > 敵部隊能力:(LOCAL:1)
+	NEXT
 
 	;;勝ってる要素が一定ないとキャンセル
-	;SIF カウント < 2
-	;	GOTO CALCEL
+	SELECTCASE TMP_OWN_CITY:勢力
+		CASE IS < 5
+			SIF カウント < 0
+				GOTO CANCEL
+		CASE 5 TO 9
+			SIF カウント < 1
+				GOTO CANCEL
+		CASEELSE
+			SIF カウント < 2
+				GOTO CANCEL
+	ENDSELECT
+
 	CALL MOVE_UNIT(勢力, 部隊, TMP_IS_INVADABLE:勢力:攻撃候補, 1)
 	UNIT_TARGET:勢力:部隊 = 攻撃候補
 
 	;DEBUGPRINTFORML 攻撃地点を%GET_CITYNAME(UNIT_TARGET:勢力:部隊)%に確定
 	;DEBUGPRINTFORML 出発地点を%GET_CITYNAME(UNIT_POSITION:勢力:部隊)%に確定
+	攻撃実行 = 1
 	BREAK
 	$CANCEL
+	;DEBUGPRINTFORML キャンセル
 NEXT
+
+IF !攻撃実行
+	;DEBUGPRINTFORML 有効な攻撃対象なし。解散 {勢力}, {部隊}
+	CALL CLEAR_UNIT(勢力, 部隊, 1)
+ENDIF
 ;DEBUGPRINTFORML 侵攻先:%GET_CITYNAME(UNIT_TARGET:勢力:部隊)% 位置:{UNIT_POSITION:勢力:部隊}
 $DONE
 ;-----------------------------------------------
