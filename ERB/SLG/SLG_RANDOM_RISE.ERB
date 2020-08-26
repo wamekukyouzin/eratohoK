@@ -94,7 +94,7 @@ DIPLOMACY_HATE:勢力番号 += 10
 
 CALL SET_COUNTRY_AI_TYPE(勢力番号)
 
-CALL RANDOM_RISE_SET_TECHNOLOGY(勢力番号)	
+CALL COUNTRY_SET_TECHNOLOGY(勢力番号)	
 
 CALL CHANGE_COUNTRY(結果, 勢力番号, 1)
 CFLAG:結果:特殊状態 = 0
@@ -224,40 +224,3 @@ SIF ABL:対象:武闘 + ABL:対象:防衛 + ABL:対象:知略 + ABL:対象:政�
 
 RETURNF 判定値
 
-;----------------------------------------------
-;蜂起した勢力に技術ツリーを設定
-;----------------------------------------------
-@RANDOM_RISE_SET_TECHNOLOGY(勢力)
-#DIM 勢力
-#DIM 候補値, TECHNOLOGY_MAX_GENRE
-#DIM ジャンル
-#DIM 残り日数
-
-残り日数 = DAY
-
-
-
-WHILE 残り日数 > 0
-	VARSET 候補値, 100
-
-	FOR LOCAL, 0, TECHNOLOGY_MAX_GENRE
-		候補値:LOCAL += AI_TECHNOLOGY_PREFERENCE:(COUNTRY_AI_TYPE:勢力):LOCAL
-		候補値:LOCAL = MAX(候補値:LOCAL - TECHNOLOGY_STATUS:勢力:LOCAL * 5, 1)
-
-	;そのジャンルもう取れないならダメ
-		IF !IS_TECHNOLOGY_EXISTS(LOCAL, TECHNOLOGY_STATUS:勢力:LOCAL + 1)
-			候補値:LOCAL = __INT_MIN__
-		ELSE
-			候補値:LOCAL = RAND:(候補値:LOCAL)
-		ENDIF
-	NEXT
-
-	;マジでなんもとれるもん無かったらBREAK
-	SIF MAXARRAY(候補値) == __INT_MIN__
-		BREAK
-
-	ジャンル = FINDELEMENT(候補値, MAXARRAY(候補値))
-
-	残り日数 -= GET_RESEARCH_PERIOD(勢力, ジャンル, TECHNOLOGY_STATUS:勢力:ジャンル + 1)
-	TECHNOLOGY_STATUS:勢力:ジャンル ++
-WEND
