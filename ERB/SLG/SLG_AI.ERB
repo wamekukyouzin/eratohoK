@@ -1,4 +1,4 @@
-;注意点
+﻿;注意点
 ;この関数自体ループ内で呼ばれる前提なので、ループを使用するとO(n^2)になる。TMP化できるものはTMPを利用すること。
 @AI_ACTION(勢力)
 #DIM 勢力
@@ -57,10 +57,6 @@ CALL SLG_AI_FORCE_CLEAR_UNIT(勢力)
 CALL SLG_AI_DECIDE_SOLDIER_NUM(勢力)
 攻撃兵数 = RESULT:0
 
-;既存部隊に兵力を補充する
-CALL SLG_AI_REPLENISH_SOLDIER_TO_UNIT(勢力, 攻撃兵数)
-攻撃兵数 = RESULT
-
 ;救出
 CALL SLG_AI_RESCUE(勢力, 攻撃兵数)
 攻撃兵数 = RESULT
@@ -78,24 +74,37 @@ FOR 部隊, 0, MAX_UNIT
 		;敵の土地にいるなら飛ばす
 		SIF TMP_COUNTRY_RELATION:勢力:(CITY_OWNER:(UNIT_POSITION:勢力:部隊)) == 0
 			CONTINUE
+		CALL GET_UNIT_COMMANDER_ALL(勢力, 部隊)
+		;最低兵数割ってるなら解体
+		;余剰兵力を攻撃に振り分ける
+		IF UNIT_SOLDIER:勢力:部隊 < AI_ARMY_PROPERTY:(COUNTRY_AI_TYPE:勢力):AI_最低兵数 / MAX(MATCH(RESULT, -1, 0, 3) * 3, 1)
+			DEBUGPRINTFORML 兵数割り　解体
+			攻撃兵数 += UNIT_SOLDIER:勢力:部隊
+			CALL CLEAR_UNIT(勢力, 部隊, 1)
+			CONTINUE
 		;許容疲労度を超えていたら解体
 		;余剰兵力は攻撃に振り分ける
-		IF UNIT_TIRED_COUNT:勢力:部隊 > AI_ARMY_PROPERTY:(COUNTRY_AI_TYPE:勢力):AI_許容疲労度
+		ELSEIF UNIT_TIRED_COUNT:勢力:部隊 > AI_ARMY_PROPERTY:(COUNTRY_AI_TYPE:勢力):AI_許容疲労度
 			;DEBUGPRINTFORML  %ANAME(GET_COUNTRY_BOSS(勢力))%の{部隊}部隊　疲労度限界越えにつき解体 疲労度:{UNIT_TIRED_COUNT:勢力:部隊} 許容:{AI_ARMY_PROPERTY:(COUNTRY_AI_TYPE:勢力):AI_許容疲労度}
 			攻撃兵数 += UNIT_SOLDIER:勢力:部隊
 			CALL CLEAR_UNIT(勢力, 部隊, 1)
 			CONTINUE
 		ENDIF
+	ENDIF
+NEXT
+
+;部隊の侵攻判定
+FOR 部隊, 0, MAX_UNIT
 	;既存部隊でなければ、部隊の作成を試みる
-	ELSEIF UNIT_SOLDIER:勢力:部隊 <= 0
+	IF UNIT_SOLDIER:勢力:部隊 <= 0
 		CALL SLG_AI_CREATE_UNIT(勢力, 部隊, 攻撃兵数)
 		;作れなかったら飛ばす
 		SIF 攻撃兵数 == RESULT
 			CONTINUE
 		攻撃兵数 = RESULT
-	ENDIF
 	;攻撃先の決定
-	CALL SLG_AI_INVASION_SETTARGET(勢力, 部隊)
+		CALL SLG_AI_INVASION_SETTARGET(勢力, 部隊)
+	ENDIF
 NEXT
 
 ;;#;FOR 部隊, 0, MAX_UNIT
@@ -176,86 +185,6 @@ ENDIF
 ;DEBUGPRINTFORML %ANAME(GET_COUNTRY_BOSS(勢力))%の比率{比率}, 攻撃都市{攻撃都市数, 2} 防衛都市{防衛都市数}
 ;DEBUGPRINTFORML %ANAME(GET_COUNTRY_BOSS(勢力))%の攻撃兵{攻撃兵数, 5} 防衛兵{防衛兵数, 5} 兵数{COUNTRY_SOLDIER:勢力, 7}
 RETURN 攻撃兵数, 防衛兵数
-
-;-----------------------------------------------
-;既存部隊に兵を補充する
-;-----------------------------------------------
-@SLG_AI_REPLENISH_SOLDIER_TO_UNIT(勢力, 攻撃兵数)
-#DIM 勢力
-#DIM 部隊
-#DIM 項番
-#DIM 攻撃兵数
-#DIM 補充兵数
-#DIM 残り補充兵数
-#DIM 補充量
-#DIM 部隊能力合計
-#DIM 部隊能力, MAX_UNIT
-#DIM 最強能力
-VARSET 部隊能力合計
-VARSET 部隊能力, __INT_MIN__
-
-;部隊能力を合計していく
-FOR 部隊, 0, MAX_UNIT
-	SIF UNIT_SOLDIER:勢力:部隊 <= 0
-		CONTINUE
-	;敵がいるなら補充しない
-	SIF TMP_IS_STAY_ENEMY_UNIT(UNIT_POSITION:勢力:部隊, 勢力) == 1
-		CONTINUE
-	;味方の勢力でなくても補充しない
-	SIF TMP_COUNTRY_RELATION:勢力:(CITY_OWNER:(UNIT_POSITION:勢力:部隊)) == 0
-		CONTINUE
-	;確定兵数越えてても補充しない
-	SIF UNIT_SOLDIER:勢力:部隊 >= AI_ARMY_PROPERTY:(COUNTRY_AI_TYPE:勢力):AI_確定兵数
-		CONTINUE
-	CALL GET_COMMANDER_ALL(勢力, 部隊)
-	CALL SET_BATTLE_MIRROR_VAL(0, RESULT:0, RESULT:1, RESULT:2)
-	CALL BATTLE_PREPARE_VARS_EACH(0, 0)
-	部隊能力:部隊 = BATTLE_ATK:0 + BATTLE_DEF:0 + BATTLE_INT:0
-	部隊能力合計 += 部隊能力:部隊
-	;DEBUGPRINTFORML %ANAME(GET_COUNTRY_BOSS(勢力))%の{部隊}部隊 部隊能力{部隊能力:部隊}
-NEXT
-
-;ついでに今作れる最強の部隊をみておく
-CALL CHECK_UNIT_COMMANDER_BEST(勢力)
-CALL SET_BATTLE_MIRROR_VAL(0, UNIT_COMMANDER_BEST:0, UNIT_COMMANDER_BEST:1, UNIT_COMMANDER_BEST:2)
-CALL BATTLE_PREPARE_VARS_EACH(0, 0)
-最強能力 = BATTLE_ATK:0 + BATTLE_DEF:0 + BATTLE_INT:0
-
-;補充に使う兵数を決定する
-;現存する最強の部隊の、今作れる最強の部隊に対する割合
-部隊 = FINDELEMENT(部隊能力, MAXARRAY(部隊能力))
-SIF 部隊能力:部隊 == __INT_MIN__
-	RETURN 攻撃兵数
-補充兵数 = MIN(攻撃兵数 * 部隊能力:部隊 / MAX(最強能力, 1), 攻撃兵数 * 70 / 100)
-残り補充兵数 = 補充兵数
-;DEBUGPRINTFORML %ANAME(GET_COUNTRY_BOSS(勢力))%の攻撃兵数{攻撃兵数} 最強能力{最強能力} 現存最強部隊能力{部隊能力:部隊} 補充兵数{補充兵数}
-
-FOR 項番, 0, MAX_UNIT
-	部隊 = FINDELEMENT(部隊能力, MAXARRAY(部隊能力))
-	;もう部隊がない場合、抜ける
-	SIF 部隊能力:部隊 == __INT_MIN__
-		BREAK
-
-	;補充兵数から、（補充可能な部隊にしめる自部隊の能力の割合）ぶんだけ補充する
-	;ただし、最低兵数割ってたら最低兵数ぶんだけ補充しようとする
-	;いずれにせよ、残ってる補充兵数以上に補充できないのは当然
-	IF UNIT_SOLDIER:勢力:部隊 < AI_ARMY_PROPERTY:(COUNTRY_AI_TYPE:勢力):AI_最低兵数
-		補充量 = AI_ARMY_PROPERTY:(COUNTRY_AI_TYPE:勢力):AI_最低兵数 - UNIT_SOLDIER:勢力:部隊
-	ELSE
-		補充量 = 補充兵数 * 部隊能力:部隊 / 部隊能力合計
-	ENDIF
-	補充量 = MIN(補充量, 残り補充兵数)
-	;DEBUGPRINTFORML %ANAME(GET_COUNTRY_BOSS(勢力))%の{部隊}部隊に補充 補充前{UNIT_SOLDIER:勢力:部隊}　補充量{補充量} 補充後{UNIT_SOLDIER:勢力:部隊 + 補充量}
-	;DEBUGPRINTFORML 残り補充兵数{残り補充兵数 - 補充量}
-	UNIT_SOLDIER:勢力:部隊 += 補充量
-	COUNTRY_SOLDIER:勢力 -= 補充量
-	残り補充兵数 -= 補充量
-	攻撃兵数 -= 補充量
-	部隊能力:部隊 = __INT_MIN__
-NEXT
-
-RETURN 攻撃兵数
-
 
 ;-----------------------------------------------
 ;変なことになってる部隊を解体する
