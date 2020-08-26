@@ -48,8 +48,12 @@ PRINTBUTTON " 82[        現在の設定を保存(ＳＬＧパートに関する
 PRINTL 
 PRINTBUTTON " 83[  保存した設定の読み込み(ＳＬＧパートに関する設定以外)]", 83
 PRINTL 
+PRINTBUTTON " 84[    デイリーの設定を保存]", 84
+PRINTL 
+PRINTBUTTON " 85[  デイリーの設定をロード]", 85
+PRINTL 
 CALL COLOR_LINE
-PRINTBUTTON " 84[    ヘルプ]", 84
+PRINTBUTTON " 90[    ヘルプ]", 90
 PRINTL 
 [IF_DEBUG]
 PRINTBUTTON @" {GAMEBASE_VERSION}[  デバッグ]", GAMEBASE_VERSION
@@ -87,6 +91,10 @@ ELSEIF GROUPMATCH(RESULT, 80, 82)
 ELSEIF GROUPMATCH(RESULT, 81, 83)
 	CALL CONFIG_LOAD(RESULT == 81)
 ELSEIF RESULT == 84
+	CALL CONFIG_DAILY_SAVE()
+ELSEIF RESULT == 85
+	CALL CONFIG_DAILY_LOAD()
+ELSEIF RESULT == 90
 	CALL CONFIG_HELPMENU
 	[IF_DEBUG]
 ELSEIF RESULT == GAMEBASE_VERSION
@@ -172,6 +180,74 @@ SIF 全て
 CALL CONFIG_LOAD_EXCEPT_SLG(番号)
 
 ;-------------------------------------------------
+;desc  :コンフィグの書き込み
+;param :全て:全コンフィグを保存する（指定しない場合SLGを除く)
+;-------------------------------------------------
+@CONFIG_DAILY_SAVE()
+#DIM 番号
+CALL SINGLE_DRAWLINE
+PRINTFORML どこにセーブしますか？
+CALL SINGLE_DRAWLINE
+
+CALL LISTUP_CONFIG_DAILY
+
+PRINTFORML [99] 戻る
+
+$INPUT_LOOP
+INPUT
+
+SIF RESULT == 99
+	RETURN
+
+SIF !INRANGE(RESULT, 0, VARSIZE("G_CONFIG_DAILY_NAME"))
+	GOTO INPUT_LOOP
+
+番号 = RESULT
+
+PRINTFORML 設定データの名前を入力して下さい
+PRINTFORML (何も入力しないと「設定{番号}」になります)
+
+$INPUT_LOOP_2
+INPUTS
+
+IF RESULTS == ""
+	G_CONFIG_DAILY_NAME:番号 = 設定{番号}
+ELSE
+	G_CONFIG_DAILY_NAME:番号 = %RESULTS%
+ENDIF
+
+
+CALL CONFIG_SAVE_DAILY(番号)
+
+;-------------------------------------------------
+;desc  :コンフィグの読み取り
+;param :全て:全コンフィグを読む
+;-------------------------------------------------
+@CONFIG_DAILY_LOAD()
+#DIM 番号
+CALL SINGLE_DRAWLINE
+PRINTFORML どれをロードしますか？
+CALL SINGLE_DRAWLINE
+
+CALL LISTUP_CONFIG_DAILY
+
+PRINTFORML [99] 戻る
+
+$INPUT_LOOP
+INPUT
+
+SIF RESULT == 99
+	RETURN
+
+SIF !INRANGE(RESULT, 0, VARSIZE("G_CONFIG_DAILY_NAME")) || !CONFIG_EXISTS()
+	GOTO INPUT_LOOP
+
+番号 = RESULT
+
+CALL CONFIG_LOAD_DAILY(番号)
+
+
+;-------------------------------------------------
 ;desc  :コンフィグをリストアップして印字する
 ;-------------------------------------------------
 @LISTUP_CONFIG()
@@ -179,6 +255,16 @@ FOR LOCAL, 0, VARSIZE("G_CONFIG_NAME")
 	PRINTBUTTON @"[{LOCAL}] 設定{LOCAL} - %G_CONFIG_NAME:LOCAL%", LOCAL
 	PRINTL
 NEXT
+
+;-------------------------------------------------
+;desc  :コンフィグをリストアップして印字する
+;-------------------------------------------------
+@LISTUP_CONFIG_DAILY()
+FOR LOCAL, 0, VARSIZE("G_CONFIG_DAILY_NAME")
+	PRINTBUTTON @"[{LOCAL}] 設定{LOCAL} - %G_CONFIG_DAILY_NAME:LOCAL%", LOCAL
+	PRINTL
+NEXT
+
 
 ;-------------------------------------------------
 ;desc  :指定番号のコンフィグが存在するか返す
