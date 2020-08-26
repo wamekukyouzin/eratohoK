@@ -1,4 +1,4 @@
-﻿;注意点
+;注意点
 ;この関数自体ループ内で呼ばれる前提なので、ループを使用するとO(n^2)になる。TMP化できるものはTMPを利用すること。
 @AI_ACTION(勢力)
 #DIM 勢力
@@ -127,6 +127,9 @@ CALL SINGLE_EMPTY_LINE()
 @SLG_AI_DECIDE_SOLDIER_NUM(勢力)
 #DIM 勢力
 #DIM 都市
+#DIM 攻撃スコア倍率
+#DIM 攻撃都市数
+#DIM 防衛都市数
 #DIM 攻撃スコア合計
 #DIM 防衛スコア合計
 #DIM 比率
@@ -134,16 +137,30 @@ CALL SINGLE_EMPTY_LINE()
 #DIM 防衛兵数
 VARSET 攻撃スコア合計
 VARSET 防衛スコア合計
+VARSET 攻撃都市数
+VARSET 防衛都市数
+攻撃スコア倍率 = 100
+攻撃スコア倍率 += MIN(10 * (TMP_OWN_CITY:勢力 / 5), 1)
+攻撃スコア倍率 += MAX((20 - DAY) * 10, 0)
+
 FOR 都市, 1, GET_CITY_NUM() + 1
 	;そこが敵の都市で、かつ自勢力と接続しているなら、攻撃スコアに加算
-	;防衛スコアと比較すると、算出方法の兼ね合いで10000倍くらいしてトントン(攻撃スコアは経済 / 防衛倍率、防衛スコアは経済 * 防衛倍率)
 	IF TMP_IS_INVADABLE:勢力:都市
-		攻撃スコア合計 += TMP_OFFENSIVE_IMPORTANCE:勢力:都市 * 10000
+		攻撃スコア合計 += TMP_OFFENSIVE_IMPORTANCE:勢力:都市 * 攻撃スコア倍率 / 100
+		攻撃都市数 ++
 	ENDIF
 	;そこが自勢力の都市で、敵から殴られうるなら、防衛スコアに加算
-	SIF CITY_OWNER:都市 == 勢力 && TMP_CITY_RISK:勢力:都市 >= 2
+	IF CITY_OWNER:都市 == 勢力 && TMP_CITY_RISK:勢力:都市 >= 2
 		防衛スコア合計 += TMP_DEFFENSIVE_IMPORTANCE:勢力:都市
+		防衛都市数 ++
+	ENDIF
 NEXT
+
+;AIタイプに
+攻撃スコア合計 = 攻撃スコア合計 * AI_ARMY_PROPERTY:(COUNTRY_AI_TYPE:勢力):AI_攻防バランス / 100
+
+攻撃スコア合計 /= MAX(攻撃都市数, 1)
+防衛スコア合計 /= MAX(防衛都市数, 1)
 
 ;攻撃スコアが0なら攻めるべき場所がないので、すべて防衛に回しておく
 ;唯一隣接している勢力と停戦した場合、これがないとエラー落ちする
@@ -151,14 +168,13 @@ IF 攻撃スコア合計 == 0
 	RETURN 0, COUNTRY_SOLDIER:勢力
 ENDIF
 
-
 ;DEBUGPRINTFORML %ANAME(GET_COUNTRY_BOSS(勢力))%の攻撃スコア{攻撃スコア合計} 防衛スコア{防衛スコア合計}
 比率 = 攻撃スコア合計 * 1000 / (攻撃スコア合計 + 防衛スコア合計)
 
 攻撃兵数 = MIN(COUNTRY_SOLDIER:勢力 * 比率 / 1000, COUNTRY_SOLDIER:勢力)
 防衛兵数 = COUNTRY_SOLDIER:勢力 - 攻撃兵数
-;DEBUGPRINTFORML %ANAME(GET_COUNTRY_BOSS(勢力))%の比率{比率}
-;DEBUGPRINTFORML %ANAME(GET_COUNTRY_BOSS(勢力))%の攻撃兵{攻撃兵数} 防衛兵{防衛兵数} 兵数{COUNTRY_SOLDIER:勢力}
+;DEBUGPRINTFORML %ANAME(GET_COUNTRY_BOSS(勢力))%の比率{比率}, 攻撃都市{攻撃都市数, 2} 防衛都市{防衛都市数}
+;DEBUGPRINTFORML %ANAME(GET_COUNTRY_BOSS(勢力))%の攻撃兵{攻撃兵数, 5} 防衛兵{防衛兵数, 5} 兵数{COUNTRY_SOLDIER:勢力, 7}
 RETURN 攻撃兵数, 防衛兵数
 
 ;-----------------------------------------------
