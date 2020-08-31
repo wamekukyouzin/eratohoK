@@ -482,14 +482,26 @@ ELSE
 ENDIF
 出力文字列 =
 
+IF IS_EQUIP(対象, 78) && TCVAR:対象:77 == 0
+	SETCOLOR カラー_ピンク
+	PRINTFORM 射精止め
+	RESETCOLOR
+	TCVAR:(対象):76 += 強度
+	RETURN 0
+ENDIF
+
 ;絶頂強度に応じてNOWEXをセットし、メッセージの表示を行う
-IF 強度 >= 200000 || ((TALENT:(対象):絶倫 || TCVAR:(対象):66) && 強度 >= 80000) || (TALENT:(対象):絶倫 && TCVAR:(対象):66)
+IF 強度 >= 200000 || ((TALENT:(対象):絶倫 || TCVAR:(対象):66) && 強度 >= 80000)
 	IF 対象 == MASTER
 		SETCOLOR 0x800080
 	ELSE
 		SETCOLOR 0xFF4000
 	ENDIF
-	射精量 = RAND(20, 30)
+	IF !TALENT:対象:絶倫 && !TCVAR:対象:66
+		射精量 = 20 + (強度 - 150000) / 20000
+	ELSE
+		射精量 = 20 + (強度 - 60000) / 10000
+	ENDIF
 	出力文字列 =  超々大量
 ELSEIF 強度 >= 80000 || ((TALENT:(対象):絶倫 || TCVAR:(対象):66) && 強度 >= 40000)
 	IF 対象 == MASTER
@@ -531,8 +543,8 @@ EXP:(対象):絶頂経験 += 射精量 / 3
 あふれ文字列 =
 FOR LOCAL:0, 0, STACK_SPERM_CHARA_NUM:対象:0
 
-	射精相手 = STACK_SPERM_CHARA_MAP:LOCAL
-	射精先 = STACK_SPERM_TO_MAP:LOCAL
+	射精相手 = STACK_SPERM_CHARA_MAP:対象:LOCAL
+	射精先 = STACK_SPERM_TO_MAP:対象:LOCAL
 
 	;射精場所に応じた補正を掛けて精愛経験値を加算
 	;射精場所に応じたソースを追加(LOCAL:13=愛情倍率、屈従倍率=屈従倍率、恐怖倍率=恐怖倍率)
@@ -640,6 +652,8 @@ FOR LOCAL:0, 0, STACK_SPERM_CHARA_NUM:対象:0
 	;屈従ソースの追加
 	CALL ADD_SOURCE_INITIATIVE_U(対象, 0, 屈従倍率)
 
+	補正後射精量 = CUM_AMOUNT_CORRECTION(GET_ID(対象), 射精相手, 射精先, 射精量)
+
 	IF !GROUPMATCH(射精先, 射精部位_無駄, 射精部位_触手)
 		IF !IS_INITIATIVE(射精相手)
 			LOCAL:16 = 100
@@ -654,18 +668,16 @@ FOR LOCAL:0, 0, STACK_SPERM_CHARA_NUM:対象:0
 		ENDIF
 
 		SOURCE:(射精相手):中毒充足 += 射精量 * LOCAL:12
-	ENDIF
 
 	;射精箇所が触手なら相手の妖術経験値をプラス
-	IF 射精先 == 射精部位_触手
-		EXP:(射精相手):妖術経験値 += 射精量 * 2
-	ENDIF
+		IF 射精先 == 射精部位_触手
+			EXP:(射精相手):妖術経験値 += 射精量 * 2
+		ENDIF
 
-	補正後射精量 = CUM_AMOUNT_CORRECTION(GET_ID(対象), 射精相手, 射精先, 射精量)
-
-	IF 補正後射精量 != CORRECT_CUM_OVERFLOW(射精相手, 射精先, 補正後射精量)
-		あふれ文字列=%あふれ文字列%%TOSTR_SPACE(MAX_CHARANAME_LENGTH + 1)%すでにいっぱいの%ANAME(射精相手)%の%CUM_SLOT_NAME:射精先%から、{補正後射精量 - CORRECT_CUM_OVERFLOW(射精相手, 射精先, 補正後射精量)}mlの精液が溢れた……\n
-		補正後射精量 = CORRECT_CUM_OVERFLOW(射精相手, 射精先, 補正後射精量)
+		IF 補正後射精量 != CORRECT_CUM_OVERFLOW(射精相手, 射精先, 補正後射精量)
+			あふれ文字列=%あふれ文字列%%TOSTR_SPACE(MAX_CHARANAME_LENGTH + 1)%すでにいっぱいの%ANAME(射精相手)%の%CUM_SLOT_NAME:射精先%から、{補正後射精量 - CORRECT_CUM_OVERFLOW(射精相手, 射精先, 補正後射精量)}mlの精液が溢れた……\n
+			補正後射精量 = CORRECT_CUM_OVERFLOW(射精相手, 射精先, 補正後射精量)
+		ENDIF
 	ENDIF
 
 ;体内に対する射精か見る。コンドームの場合INJECTIONさせない
@@ -685,7 +697,7 @@ FOR LOCAL:0, 0, STACK_SPERM_CHARA_NUM:対象:0
 		CUM_GET_COUNT:(射精相手):射精先 ++
 		CUM_CUR_AMOUNT:(射精相手):(射精先) += 補正後射精量
 		射精先文字列=%射精先文字列%:{補正後射精量}ml
-		IF !GROUPMATCH(射精先, 射精部位_無駄, 射精部位_ゴム)
+		IF !GROUPMATCH(射精先, 射精部位_無駄, 射精部位_ゴム, 射精部位_触手)
 			射精先文字列=%射精先文字列%:%ANAME(射精相手)%
 		ENDIF
 		射精先文字列=%射精先文字列%)
@@ -768,7 +780,7 @@ IF 射精者 >= 0
 ENDIF
 
 ;危険日なら倍
-SIF IS_OVULATION(射精相手) && 射精先 == 射精部位_膣内
+SIF 射精相手 >= 0 && IS_OVULATION(射精相手) && 射精先 == 射精部位_膣内
 	射精量 *= 2
 
 SIF 射精者 >= 0

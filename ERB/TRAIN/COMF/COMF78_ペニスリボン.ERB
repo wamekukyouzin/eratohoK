@@ -1,0 +1,250 @@
+﻿;ローション
+
+;-------------------------------------------------
+;コマンド名称
+;-------------------------------------------------
+@COM_NAME78
+LOCALS:0 = ペニスリボン
+
+RESULTS:0 = %LOCALS:0%を巻き付ける
+RESULTS:1 = %LOCALS:0%を巻かされる
+RESULTS:2 = %LOCALS:0%を巻かせる
+RESULTS:3 = %LOCALS:0%を巻かれる
+RESULTS:4 = %LOCALS:0%を巻かせる
+RESULTS:5 = %LOCALS:0%装着見せつけ
+
+;-------------------------------------------------
+;選択可否判定
+;-------------------------------------------------
+@COM_ABLE78
+
+;共通部分
+CALL COM_ABLE_COMMON(78)
+SIF RESULT == 0
+	RETURN 0
+;プレイヤーは最大で1人まで
+SIF MPLY_NUM <= 0 || MPLY_NUM > 1
+	RETURN 0
+;ターゲットがいること
+SIF MTAR_NUM <= 0
+	RETURN 0
+;ペニスリボンが必要
+SIF !ITEM:ペニスリボン
+	RETURN 0
+
+;ターゲットが既に目隠し装着中なら不可
+FOR LOCAL, 0, MTAR_NUM
+	SIF !HAS_PENIS(MTAR:LOCAL)
+		RETURN 0
+	SIF IS_EQUIP_TARGET(MTAR:LOCAL, 78)
+		RETURN 0
+	SIF !CAN_REACH_BODY(MPLY:0, MTAR:LOCAL)
+		RETURN 0
+NEXT
+
+RETURN 1
+
+;-------------------------------------------------
+;メイン処理
+;-------------------------------------------------
+@COM78
+;実行判定
+CALL COM_ORDER_COMMON
+SIF RESULT == 0
+	RETURN 0
+
+
+;●プレイヤー側の処理
+SOURCE:(MPLY:0):嗜虐 = 50
+SOURCE:(MPLY:0):性行動 = 60
+
+FOR LOCAL, 0, MTAR_NUM
+	LOCAL:2 = MTAR:(LOCAL:0)
+	IF LOCAL:2 == MASTER
+		CALL ADD_SOURCE_AIZYOU(MPLY:0, 50)
+	ENDIF
+
+	;主導権に応じた優越・屈従のソース追加
+	CALL ADD_SOURCE_INITIATIVE_U(MPLY:0, 40, 40)
+
+	;●ターゲット側の処理
+	SOURCE:(LOCAL:2):性行動 = 150
+	SOURCE:(LOCAL:2):苦痛 = 80
+	SOURCE:(LOCAL:2):逸脱 = 250
+
+	;主導権に応じた優越・屈従のソース追加
+	CALL ADD_SOURCE_INITIATIVE_U(LOCAL:2, 40, 40)
+NEXT
+
+;主導度変化基準値
+TFLAG:49 = 1
+
+;倒錯度変化基準値
+TFLAG:50 = 0
+
+;レズ・ＢＬ経験基準値
+TFLAG:51 = 2
+
+RETURN 1
+
+
+;-------------------------------------------------
+;継続コマンドかどうかを設定
+;-------------------------------------------------
+@COM_IS_EQUIP78
+;継続コマンドかつフィルタリング不可
+RETURN 2
+
+;-------------------------------------------------
+;継続状態の処理
+;-------------------------------------------------
+@COM_EQUIP78(ARG:0)
+
+
+FOR LOCAL:0, 0, MEQUIP_TARGET_NUM:(ARG:0)
+	LOCAL:3 = MEQUIP_TARGET:(ARG:0):LOCAL
+
+	DOWNBASE:(LOCAL:3):体力 += 10
+
+	EXP:(LOCAL:3):緊縛経験 += 1
+	EXP:(LOCAL:3):被虐経験値 += 1
+
+	SOURCE:(LOCAL:3):苦痛 += 30
+	SOURCE:(LOCAL:3):逸脱 += 150
+
+	;倒錯度変化
+	TCVAR:(LOCAL:3):50 += 4
+NEXT
+
+;-------------------------------------------------
+;継続中の表示
+;-------------------------------------------------
+@EQUIP_MESSAGE78(ARG:0)
+RESULTS = %EQUIP_TARGET_ANAME(ARG:0)%の射精を禁止中
+
+;-------------------------------------------------
+;継続中の地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE_EQUIP78(ARG:0)
+PRINTFORML %EQUIP_TARGET_ANAME(ARG:0)%のペニスはリボンで戒められている……
+
+;-------------------------------------------------
+;継続を解除したときの地の文
+;-------------------------------------------------
+@COM_TEXT_RELEASE_EQUIP78(ARG:0)
+PRINTFORMW %EQUIP_TARGET_ANAME(ARG:0)%のペニスを戒めるリボンを解いた
+
+CALL CREATE_STACK_SPERM_MAP()
+
+FOR LOCAL, 0, MEQUIP_TARGET_NUM:(ARG:0)
+	LOCAL:1 = MEQUIP_TARGET:(ARG:0):LOCAL
+	CUP:(LOCAL:1):射精 += TCVAR:(LOCAL:1):76
+	SOURCE:(LOCAL:1):快Ｐ += 1
+	TCVAR:(LOCAL:1):77 = 1
+	CALL SOURCE_ORGASM(LOCAL:1)
+	TCVAR:(LOCAL:1):76 = 0
+	TCVAR:(LOCAL:1):77 = 0
+NEXT
+WAIT
+
+;-------------------------------------------------
+;固有の実行判定(プレイヤー側)
+;-------------------------------------------------
+@COM_ORDER_PLAYER78(ARG:0)
+;実行値の設定
+TCVAR:(ARG:0):25 = 90
+
+;共通部分
+CALL COM_ORDER(ARG:0)
+
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲望Lv{ABL:(ARG:0):欲望}", ABL:(ARG:0):欲望 * 1)
+CALL COM_ORDER_ELEMENT(ARG:0, @"サドLv{ABL:(ARG:0):サド}", ABL:(ARG:0):サド * 3)
+
+LOCAL:0 = GET_PALAMLV(PALAM:(ARG:0):欲情)
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲情Lv{LOCAL:0}", MIN(LOCAL:0 * 1, 10))
+
+IF TALENT:(ARG:0):大人しい
+	CALL COM_ORDER_ELEMENT(ARG:0, "大人しい", -3)
+ENDIF
+IF TALENT:(ARG:0):恥じらい
+	CALL COM_ORDER_ELEMENT(ARG:0, "恥じらい", -2)
+ENDIF
+IF TALENT:(ARG:0):献身的
+	CALL COM_ORDER_ELEMENT(ARG:0, "献身的", 3)
+ENDIF
+IF TALENT:(ARG:0):Ｓ気質
+	CALL COM_ORDER_ELEMENT(ARG:0, "Ｓ気質", 6)
+ENDIF
+
+IF GETBIT(TALENT:(ARG:0):淫乱系, 素質_淫乱_サド)
+	CALL COM_ORDER_ELEMENT(ARG:0, "サド", 40)
+ELSE
+	IF ABL:(ARG:0):主導度Ｕ >= 500
+		CALL COM_ORDER_ELEMENT(ARG:0, "主導度", 15)
+	ELSEIF ABL:(ARG:0):主導度Ｕ >= 300
+		CALL COM_ORDER_ELEMENT(ARG:0, "主導度", 10)
+	ELSEIF ABL:(ARG:0):主導度Ｕ >= 100
+		CALL COM_ORDER_ELEMENT(ARG:0, "主導度", 5)
+	ELSEIF ABL:(ARG:0):主導度Ｕ > -100
+		CALL COM_ORDER_ELEMENT(ARG:0, "主導度", 0)
+	ELSE
+		CALL COM_ORDER_ELEMENT(ARG:0, "主導度", -5)
+	ENDIF
+
+	IF ABL:(ARG:0):倒錯度 >= 800
+		CALL COM_ORDER_ELEMENT(ARG:0, "倒錯度", 20)
+	ELSEIF ABL:(ARG:0):倒錯度 >= 500
+		CALL COM_ORDER_ELEMENT(ARG:0, "倒錯度", 15)
+	ELSEIF ABL:(ARG:0):倒錯度 >= 300
+		CALL COM_ORDER_ELEMENT(ARG:0, "倒錯度", 10)
+	ELSEIF ABL:(ARG:0):倒錯度 >= 100
+		CALL COM_ORDER_ELEMENT(ARG:0, "倒錯度", 5)
+	ELSE
+		CALL COM_ORDER_ELEMENT(ARG:0, "倒錯度", 0)
+	ENDIF
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE78
+IF MTAR_NUM >= 2
+	LOCALS:1 = %ANAME(MTAR:0)%たち
+ELSE
+	LOCALS:1 = %ANAME(MTAR:0)%
+ENDIF
+
+
+SELECTCASE GET_COM_INITIATIVE()
+	;プレイヤーに主導権
+	CASE 0
+		PRINTFORMW %ANAME(MPLY:0)%は%LOCALS:1%の%BAR_NAME(MTAR:0)%にリボンを巻き付けた……
+	;ターゲットに主導権
+	CASE 1
+		PRINTFORML %LOCALS:1%は自身の%BAR_NAME(MTAR:0)%にリボンを巻くよう、%ANAME(MPLY:0)%に要求した…
+		PRINTFORMW %ANAME(MPLY:0)%は言われるまま、%LOCALS:1%の%BAR_NAME(MTAR:0)%にリボンを巻き付けた……
+	;第三者に主導権
+	CASEELSE
+		PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MTAR:0)%の%BAR_NAME(MTAR:0)%にリボンを巻くよう、%ANAME(MPLY:0)%に要求した…
+		PRINTFORMW %ANAME(MPLY:0)%は言われるまま、%LOCALS:1%の%BAR_NAME(MTAR:0)%にリボンを巻き付けた……
+ENDSELECT
+
+;-------------------------------------------------
+
+;コマンド区分
+;-------------------------------------------------
+
+@COM_AVAILABLE_WHEN78
+RETURN コマンド_ウフフ
+
+;--------------------
+;性嗜好用関数
+;--------------------
+@COM_PREFERENCE_PLAYER_78()
+RETURN POWER(2, 性的嗜好_道具を使いたい)
+
+@COM_PREFERENCE_TARGET_78()
+RETURN POWER(2, 性的嗜好_道具を使われたい)
+
+
