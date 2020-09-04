@@ -3,7 +3,7 @@
 ;-------------------------------------------------
 ;コマンド名称
 ;-------------------------------------------------
-@COM_NAME100
+@COM_NAME120
 LOCALS:0 = 
 IF TFLAG:70 == 1
 	LOCALS:0 = 撮影
@@ -21,7 +21,7 @@ ELSEIF IS_EQUIP_TARGET(MPLY:0, 62)
 	LOCALS:0 '= LOCALS:0 +"アナルバイブ"
 ENDIF
 
-LOCALS:0 '= LOCALS:0 + "オナニー"
+LOCALS:0 '= LOCALS:0 + "せんずり"
 
 RESULTS:0 = %LOCALS:0%を見せつける
 RESULTS:1 = %LOCALS:0%させられる
@@ -33,9 +33,9 @@ RESULTS:5 = %LOCALS:0%見せつけ
 ;-------------------------------------------------
 ;選択可否判定
 ;-------------------------------------------------
-@COM_ABLE100
+@COM_ABLE120
 ;共通部分
-CALL COM_ABLE_COMMON(100)
+CALL COM_ABLE_COMMON(120)
 SIF RESULT == 0
 	RETURN 0
 ;プレイヤーは1人以上
@@ -53,7 +53,7 @@ FOR LOCAL:0, 0, MPLY_NUM
 	SIF IS_BIND(MPLY:(LOCAL:0))
 		RETURN 0
 	;todo this action really needs to be split into penis masturbation and vaginal masturbation to make sense
-	SIF !(HAS_VAGINA(MPLY:LOCAL) || (HAS_PENIS(MPLY:LOCAL) && P_STACKABLE(MPLY:0, MPLY:0, 100)))
+	SIF !(HAS_PENIS(MPLY:LOCAL) && P_STACKABLE(MPLY:0, MPLY:0, 120))
 		RETURN 0
 NEXT
 RETURN 1
@@ -61,7 +61,7 @@ RETURN 1
 ;-------------------------------------------------
 ;メイン処理
 ;-------------------------------------------------
-@COM100
+@COM120
 ;実行判定
 CALL COM_ORDER_COMMON
 SIF RESULT == 0
@@ -69,7 +69,7 @@ SIF RESULT == 0
 
 ;各プレイヤーの絡む自慰・触手オナニーの継続状態を解除
 FOR LOCAL:0, 0, MPLY_NUM
-	CALL RELEASE_EQUIP_EX(100, MPLY:(LOCAL:0), -1)
+	CALL RELEASE_EQUIP_EX(120, MPLY:(LOCAL:0), -1)
 	CALL RELEASE_EQUIP_EX(211, MPLY:(LOCAL:0), -1)
 NEXT
 
@@ -103,12 +103,7 @@ FOR LOCAL:0, 0, MPLY_NUM
 	SIF GETBIT(TALENT:(LOCAL:2):淫乱系, 素質_淫乱_自慰狂い)
 		TIMES LOCAL:3, 2.0
 
-	IF HAS_PENIS(LOCAL:2)
-		SOURCE:(LOCAL:2):快Ｐ = SENSE_HOUSHI_P(LOCAL:2, LOCAL:2, LOCAL:3 * 3 / 2)
-	ELSE
-		SOURCE:(LOCAL:2):快Ｃ = SENSE_HOUSHI(LOCAL:2, LOCAL:2, LOCAL:3)
-		SOURCE:(LOCAL:2):快Ｂ = SENSE_HOUSHI(LOCAL:2, LOCAL:2, LOCAL:3 / 2)
-	ENDIF
+	SOURCE:(LOCAL:2):快Ｐ = SENSE_HOUSHI_P(LOCAL:2, LOCAL:2, LOCAL:3 * 3 / 2)
 
 	;主導権に応じた優越・屈従のソース追加
 	CALL ADD_SOURCE_INITIATIVE_U(LOCAL:2, 60, 120)
@@ -152,13 +147,13 @@ RETURN 1
 ;-------------------------------------------------
 ;継続コマンドかどうかを設定
 ;-------------------------------------------------
-@COM_IS_EQUIP100
+@COM_IS_EQUIP120
 RETURN 1
 
 ;-------------------------------------------------
 ;継続状態の処理
 ;-------------------------------------------------
-@COM_EQUIP100(ARG:0)
+@COM_EQUIP120(ARG:0)
 ;●全プレイヤーについて処理
 FOR LOCAL:0, 0, MEQUIP_PLAYER_NUM:(ARG:0)
 	LOCAL:2 = MEQUIP_PLAYER:(ARG:0):(LOCAL:0)
@@ -196,12 +191,7 @@ FOR LOCAL:0, 0, MEQUIP_PLAYER_NUM:(ARG:0)
 		TIMES LOCAL:3, 2.0
 
 
-	IF HAS_PENIS(LOCAL:2)
-		SOURCE:(LOCAL:2):快Ｐ += SENSE_HOUSHI_P(LOCAL:2, LOCAL:2, LOCAL:3 * 3 / 2)
-	ELSE
-		SOURCE:(LOCAL:2):快Ｃ += SENSE_HOUSHI(LOCAL:2, LOCAL:2, LOCAL:3)
-		SOURCE:(LOCAL:2):快Ｂ += SENSE_HOUSHI(LOCAL:2, LOCAL:2, LOCAL:3 / 2)
-	ENDIF
+	SOURCE:(LOCAL:2):快Ｐ += SENSE_HOUSHI_P(LOCAL:2, LOCAL:2, LOCAL:3 * 3 / 2)
 
 NEXT
 
@@ -215,7 +205,7 @@ NEXT
 ;-------------------------------------------------
 ;継続中の表示
 ;-------------------------------------------------
-@EQUIP_MESSAGE100(ARG:0)
+@EQUIP_MESSAGE120(ARG:0)
 
 LOCALS:0 = 
 IF TFLAG:70 == 1
@@ -240,19 +230,16 @@ RESULTS = %EQUIP_PLAYER_ANAME(ARG:0)%が%LOCALS:0%中
 ;-------------------------------------------------
 ;継続中の地の文(前文)
 ;-------------------------------------------------
-@COM_TEXT_BEFORE_EQUIP100(ARG:0)
-LOCAL:1 = 0
+@COM_TEXT_BEFORE_EQUIP120(ARG:0)
 LOCAL:2 = 0
 FOR LOCAL:0, 0, MEQUIP_PLAYER_NUM:(ARG:0)
-	SIF HAS_PENIS(MEQUIP_PLAYER:(ARG:0):(LOCAL:0))
-		LOCAL:1 = 1
 	SIF HAS_VAGINA(MEQUIP_PLAYER:(ARG:0):(LOCAL:0))
 		LOCAL:2 = 1
 NEXT
 
 PRINTFORM %EQUIP_PLAYER_ANAME(ARG:0)%は
 
-IF LOCAL:1 && !(LOCAL:2)
+IF !(LOCAL:2)
 	SIF IS_EQUIP_TARGET(MPLY:0, 62)
 		PRINTFORM %STR_BODY("アナル", MEQUIP_PLAYER:(ARG:0):0)%をバイブで弄び、
 	IF IS_EQUIP_TARGET(MEQUIP_PLAYER:(ARG:0):0, 16)
@@ -268,26 +255,22 @@ ELSE
 	ELSEIF IS_EQUIP_TARGET(MPLY:0, 62)
 		PRINTFORM %STR_BODY("アナル", MEQUIP_PLAYER:(ARG:0):0)%をバイブで弄び、
 	ENDIF
-	IF LOCAL:1
-		IF IS_EQUIP_TARGET(MEQUIP_PLAYER:(ARG:0):0, 16)
-			PRINTFORML %BAR_NAME(MEQUIP_PLAYER:(ARG:0):0)%をオナホールで扱いている…
-		ELSE
-			PRINTFORML %BAR_NAME(MEQUIP_PLAYER:(ARG:0):0)%を自らの指で扱いている…
-		ENDIF
+	IF IS_EQUIP_TARGET(MEQUIP_PLAYER:(ARG:0):0, 16)
+		PRINTFORML %BAR_NAME(MEQUIP_PLAYER:(ARG:0):0)%をオナホールで扱いている…
 	ELSE
-		PRINTFORML %STR_BODY("クリ", MEQUIP_PLAYER:(ARG:0):0)%を弄っている…
+		PRINTFORML %BAR_NAME(MEQUIP_PLAYER:(ARG:0):0)%を自らの指で扱いている…
 	ENDIF
 ENDIF
 
 ;-------------------------------------------------
 ;継続を解除したときの地の文
 ;-------------------------------------------------
-@COM_TEXT_RELEASE_EQUIP100(ARG:0)
+@COM_TEXT_RELEASE_EQUIP120(ARG:0)
 
 ;-------------------------------------------------
 ;固有の実行判定
 ;-------------------------------------------------
-@COM_ORDER_PLAYER100(ARG:0)
+@COM_ORDER_PLAYER120(ARG:0)
 ;実行値の設定
 TCVAR:(ARG:0):25 = 80
 
@@ -337,28 +320,10 @@ RETURN 1
 ;-------------------------------------------------
 ;地の文(前文)
 ;-------------------------------------------------
-@COM_TEXT_BEFORE100
+@COM_TEXT_BEFORE120
 LOCALS:3 = 
 
-;プレイヤーが竿あり・竿なし混合かどうかを判定
-LOCAL:1 = 0
-FOR LOCAL:0, 1, MPLY_NUM
-	IF HAS_PENIS(MPLY:(LOCAL:0)) != HAS_PENIS(MPLY:0)
-		LOCAL:1 = 1
-		BREAK
-	ENDIF
-NEXT
-
-;プレイヤーが竿あり・竿なし混合の場合
-IF LOCAL:1
-	LOCALS:0 = 自らの手で快楽を貪\@ GET_COM_INITIATIVE() != 0 ? っ # \@
-;プレイヤーが全員竿ありの場合
-ELSEIF HAS_PENIS(MPLY:0)
-	LOCALS:0 = 自身の指でペニスを擦り上げ
-;プレイヤーが全員竿なしの場合
-ELSE
-	LOCALS:0 = 自身の指で自分の体を慰め
-ENDIF
+LOCALS:0 = 自身の指でペニスを擦り上げ
 
 IF MTAR_NUM == 1
 	LOCALS:1 = %ANAME(MTAR:0)%
@@ -389,13 +354,7 @@ ENDIF
 SELECTCASE GET_COM_INITIATIVE()
 	;プレイヤーに主導権
 	CASE 0
-		IF LOCAL:1
-			PRINTFORMW %LOCALS:2%は%LOCALS:3%%LOCALS:1%の目の前で%LOCALS:0%る様子を見せつけ%TARGET_STR("た", "てきた")%…
-		ELSEIF HAS_PENIS(MPLY:0)
-			PRINTFORMW %LOCALS:2%は%LOCALS:3%%LOCALS:1%の鼻先にペニスを突き付け、自身の指で竿をシゴく様子を見せつけ%TARGET_STR("た", "てきた")%…
-		ELSE
-			PRINTFORMW %LOCALS:2%は%LOCALS:3%%LOCALS:1%に裸体を見せつけながら、指で自身のクリトリスや胸を弄り回してオナニーした…
-		ENDIF
+		PRINTFORMW %LOCALS:2%は%LOCALS:3%%LOCALS:1%の鼻先にペニスを突き付け、自身の指で竿をシゴく様子を見せつけ%TARGET_STR("た", "てきた")%…
 	;ターゲットに主導権
 	CASE 1
 		PRINTFORML %LOCALS:1%は%LOCALS:2%に、その場でオナニーするように命令した
@@ -409,7 +368,7 @@ ENDSELECT
 ;--------------------------------------------------------
 ;地の文(パラメータ・刻印変動後)
 ;--------------------------------------------------------
-@COM_TEXT_LAST100
+@COM_TEXT_LAST120
 FOR LOCAL:0, 0, MPLY_NUM
 	LOCAL:1 = MPLY:(LOCAL:0)
 
@@ -441,20 +400,20 @@ NEXT
 ;コマンド区分
 ;-------------------------------------------------
 
-@COM_AVAILABLE_WHEN100
+@COM_AVAILABLE_WHEN120
 RETURN コマンド_ウフフ
 
 ;--------------------
 ;性嗜好用関数
 ;--------------------
-@COM_PREFERENCE_PLAYER_100()
+@COM_PREFERENCE_PLAYER_120()
 RETURN POWER(2, 性的嗜好_辱められたい) + POWER(2, 性的嗜好_露出したい)
 
-@COM_PREFERENCE_TARGET_100()
+@COM_PREFERENCE_TARGET_120()
 RETURN POWER(2, 性的嗜好_辱めたい)
 
-@COM_STACK_SPERM_MPLY_TO_MPLY_100()
+@COM_STACK_SPERM_MPLY_TO_MPLY_120()
 RETURN !RAND:3 ? 射精部位_手 # 射精部位_無駄
 
-@COM_STACK_SPERM_MPLY_TO_MTAR_100()
+@COM_STACK_SPERM_MPLY_TO_MTAR_120()
 RETURN IFRAND(@"{射精部位_無駄}", 1, @"{射精部位_顔}", RAND:100 < 50, @"{射精部位_髪}", RAND:100 < 50)
