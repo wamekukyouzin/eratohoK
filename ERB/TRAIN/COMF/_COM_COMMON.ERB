@@ -606,19 +606,20 @@ IF IS_EQUIP_PLAYER(対象, 75)
 	射精先 = 射精部位_ゴム
 ENDIF
 
-IDX = -1
+;なにかしら登録済みなら無駄打ちは登録しない
+SIF STACK_SPERM_CHARA_NUM:対象:0 > 0 && 射精先 == 射精部位_無駄
+	RETURN 0
+
 FOR LOCAL, 0, STACK_SPERM_CHARA_NUM:対象:0
-	IF STACK_SPERM_CHARA_MAP:対象:LOCAL == 射精相手
-		;登録済みなら無駄打ちは登録しない
-		SIF 射精先 == 射精部位_無駄
-			RETURN 0
-		;同一の射精先が登録済みなら登録しない
-		SIF 射精先 == STACK_SPERM_TO_MAP:対象:LOCAL
-			RETURN 0
-		;膣・ゴム・アナルが登録済みの場合、登録しない
-		SIF GROUPMATCH(STACK_SPERM_TO_MAP:対象:LOCAL, 射精部位_ゴム, 射精部位_膣内, 射精部位_アナル)
-			RETURN 0
+	;誰かしらに対しての無駄打ちが登録済みの場合、上書き
+	IF STACK_SPERM_TO_MAP:対象:LOCAL == 射精部位_無駄
+		STACK_SPERM_CHARA_MAP:対象:LOCAL = 射精相手
+		STACK_SPERM_TO_MAP:対象:LOCAL = 射精先
+		RETURN 1
 	ENDIF
+		;同一の射精先が登録済みなら登録しない
+	SIF STACK_SPERM_CHARA_MAP:対象:LOCAL == 射精相手 && 射精先 == STACK_SPERM_TO_MAP:対象:LOCAL
+		RETURN 0
 NEXT
 
 ;まだ登録していなかったら登録
