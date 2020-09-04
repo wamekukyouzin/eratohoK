@@ -2,6 +2,13 @@
 ;「会いに行く」「閨に呼ぶ」「子育て」「捕虜会話」の口上
 ;-------------------------------------------------
 
+;判定の難しい素質を判断するため、以下のCFLAGを追加・使用しています
+;CFLAG:250　初キス判定用（『主人公との初めてのキス』判定に使う。既成事実Lv1に当たる）
+;CFLAG:251　ファーストキス判定用（本キャラの『ファーストキス』判定に使う。キス経験済みだと表示されない）
+;CFLAG:252　処女判定用（セックス時の処女判定に使う。処女喪失済みだと表示されない）
+;CFLAG:253　処女（主人公）判定用（セックス時の主人公が処女かの判定に使う。処女喪失済みだと表示されない）
+;CFLAG:254　童貞判定用（セックス時の主人公が童貞かの判定に使う。童貞喪失済みだと表示されない）
+
 ;=================================================
 ;●「会いに行く」の開始時のセリフ
 ;=================================================
@@ -18,17 +25,29 @@ IF CFLAG:200 == 0
 	CFLAG:200 = 1
 	;初対面の場合
 	IF !CFLAG:17
-		;PRINTFORMW 
+		;軟禁中に会いに行った場合。気にならなければ「それ以外の場合」のコピペでよい
+		IF CFLAG:29 == 1
+			;PRINTFORMW 
+		;それ以外の場合
+		ELSE
+			;PRINTFORMW 
+		ENDIF
 	;既に会ったことがある場合
 	ELSE
-		;PRINTFORMW
+		;軟禁中に会いに行った場合。気にならなければ「それ以外の場合」のコピペでよい
+		IF CFLAG:29 == 1
+			;PRINTFORMW 
+		;それ以外の場合
+		ELSE
+			;PRINTFORMW 
+		ENDIF
 	ENDIF
 
 ;-------------------------------------------------
 ;開始時(1回のみ)
 ;-------------------------------------------------
 
-;■正妻や親愛系で台詞が思いつかなければこの行から■
+;■正妻や親愛系で台詞が思いつかなければこの行から↓■
 ;正妻か妾
 ELSEIF (CFLAG:200 < 7) && (TALENT:正妻 || TALENT:妾)
 	;婚姻した次の回フラグ
@@ -40,7 +59,7 @@ ELSEIF (CFLAG:200 < 6) && (TALENT:親愛 || TALENT:隷属)
 	;親愛か隷属になった次の回フラグ
 	CFLAG:200 = 6
 	;PRINTFORMW 
-;■この行まで消しても良い■
+;■↑この行まで消しても良い■
 
 ;既成事実Lv3(初めてセックスをした次の回)
 ELSEIF CFLAG:200 < 5 && TALENT:合意
@@ -77,7 +96,7 @@ ELSEIF CFLAG:200 < 2 && !TALENT:恋人 && TALENT:恋慕 && !TALENT:合意 && CFL
 ;-------------------------------------------------
 ;開始時(2回目以降)
 ;-------------------------------------------------
-;正妻か妾　思いつかなければ親愛のコピペでよい
+;正妻か妾　思いつかなければ親愛等のコピペでよい。というかしてないと正妻か妾になると台詞が表示されなくなる
 ELSEIF TALENT:正妻 || TALENT:妾
 	;ランダムで口上が変化する（使わない場合はすべて同じにすればよい）
 	SELECTCASE RAND:3
@@ -89,19 +108,8 @@ ELSEIF TALENT:正妻 || TALENT:妾
 			;PRINTFORMW 
 	ENDSELECT
 	
-;親愛か隷属　思いつかなければ恋慕のコピペでよい
+;親愛か隷属　思いつかなければ恋慕等のコピペでよい。というかしてないと親愛か隷属になると台詞が表示されなくなる
 ELSEIF TALENT:親愛 || TALENT:隷属
-	SELECTCASE RAND:3
-		CASE 0
-			;PRINTFORMW 
-		CASE 1
-			;PRINTFORMW 
-		CASE 2
-			;PRINTFORMW 
-	ENDSELECT
-	
-;既成事実Lv3かつ恋慕
-ELSEIF TALENT:合意 && TALENT:恋慕
 	SELECTCASE RAND:3
 		CASE 0
 			;PRINTFORMW 
@@ -113,21 +121,47 @@ ELSEIF TALENT:合意 && TALENT:恋慕
 	
 ;既成事実Lv3(セックス済み)
 ELSEIF TALENT:合意
-	SELECTCASE RAND:2
-		CASE 0
-			;PRINTFORMW 
-		CASE 1
-			;PRINTFORMW 
-	ENDSELECT
+	;恋慕
+	IF TALENT:恋慕
+		SELECTCASE RAND:3
+			CASE 0
+				;PRINTFORMW 
+			CASE 1
+				;PRINTFORMW 
+			CASE 2
+				;PRINTFORMW 
+		ENDSELECT
+	;それ以外
+	ELSE
+		SELECTCASE RAND:2
+			CASE 0
+				;PRINTFORMW 
+			CASE 1
+				;PRINTFORMW 
+		ENDSELECT
+	ENDIF
 	
 ;既成事実Lv2(恋人)
 ELSEIF TALENT:恋人
-	SELECTCASE RAND:2
-		CASE 0
-			;PRINTFORMW 
-		CASE 1
-			;PRINTFORMW 
-	ENDSELECT
+	;恋慕
+	IF TALENT:恋慕
+		SELECTCASE RAND:3
+			CASE 0
+				;PRINTFORMW 
+			CASE 1
+				;PRINTFORMW 
+			CASE 2
+				;PRINTFORMW 
+		ENDSELECT
+	;それ以外
+	ELSE
+		SELECTCASE RAND:2
+			CASE 0
+				;PRINTFORMW 
+			CASE 1
+				;PRINTFORMW 
+		ENDSELECT
+	ENDIF
 	
 ;既成事実Lv1(キス済み)
 ELSEIF CFLAG:250 == 1
@@ -212,42 +246,103 @@ ELSEIF CFLAG:201 < 3 && CFLAG:250 == 1
 ;-------------------------------------------------
 ;行動不能なら非表示
 ELSEIF !(TCVAR:51 || TCVAR:52 || TCVAR:53)
-	;正妻か妾　思いつかなければ親愛のコピペでよい
+	;正妻か妾　思いつかなければ親愛のコピペでよい。というかしてないと正妻か妾になると台詞が表示されなくなる
 	IF TALENT:正妻 || TALENT:妾
-		SELECTCASE RAND:3
-			CASE 0
-				;PRINTFORMW 
-			CASE 1
-				;PRINTFORMW 
-			CASE 2
-				;PRINTFORMW 
-		ENDSELECT
+		;終わり際、セックスしなかった場合はこちらを表示。気にならなければセックスした場合と同じコピペでよい
+		IF !FLAG:ウフフフラグ
+			SELECTCASE RAND:3
+				CASE 0
+					;PRINTFORMW 
+				CASE 1
+					;PRINTFORMW 
+				CASE 2
+					;PRINTFORMW 
+			ENDSELECT
+		;終わり際、セックスした場合はこちらを表示
+		ELSE
+			SELECTCASE RAND:3
+				CASE 0
+					;PRINTFORMW 
+				CASE 1
+					;PRINTFORMW 
+				CASE 2
+					;PRINTFORMW 
+			ENDSELECT
+		ENDIF
 		
-	;親愛か隷属　思いつかなければ恋慕のコピペでよい
+	;親愛か隷属　思いつかなければ恋慕のコピペでよい。というかしてないと親愛か隷属になると台詞が表示されなくなる
 	ELSEIF TALENT:親愛 || TALENT:隷属
-		SELECTCASE RAND:3
-			CASE 0
-				;PRINTFORMW 
-			CASE 1
-				;PRINTFORMW 
-			CASE 2
-				;PRINTFORMW 
-		ENDSELECT
+		;終わり際、セックスしなかった場合はこちらを表示。気にならなければセックスした場合と同じコピペでよい
+		IF !FLAG:ウフフフラグ
+			SELECTCASE RAND:3
+				CASE 0
+					;PRINTFORMW 
+				CASE 1
+					;PRINTFORMW 
+				CASE 2
+					;PRINTFORMW 
+			ENDSELECT
+		;終わり際、セックスした場合はこちらを表示
+		ELSE
+			SELECTCASE RAND:3
+				CASE 0
+					;PRINTFORMW 
+				CASE 1
+					;PRINTFORMW 
+				CASE 2
+					;PRINTFORMW 
+			ENDSELECT
+		ENDIF
 		
-	;既成事実Lv3かつ恋慕
-	ELSEIF TALENT:合意 && TALENT:恋慕
-		SELECTCASE RAND:3
-			CASE 0
-				;PRINTFORMW 
-			CASE 1
-				;PRINTFORMW 
-			CASE 2
-				;PRINTFORMW 
-		ENDSELECT
-		
-	;既成事実Lv3(セックス済み)
+	;既成事実Lv3（セックスの合意あり）
 	ELSEIF TALENT:合意
-		;PRINTFORMW 
+		;恋慕
+		IF TALENT:恋慕
+			;終わり際、セックスしなかった場合はこちらを表示。気にならなければセックスした場合と同じコピペでよい
+			IF !FLAG:ウフフフラグ
+				SELECTCASE RAND:3
+					CASE 0
+						;PRINTFORMW 
+					CASE 1
+						;PRINTFORMW 
+					CASE 2
+						;PRINTFORMW 
+				ENDSELECT
+			;終わり際、セックスした場合はこちらを表示
+			ELSE
+				SELECTCASE RAND:3
+					CASE 0
+						;PRINTFORMW 
+					CASE 1
+						;PRINTFORMW 
+					CASE 2
+						;PRINTFORMW 
+				ENDSELECT
+			ENDIF
+		;それ以外
+		ELSE
+			;終わり際、セックスしなかった場合はこちらを表示。気にならなければセックスした場合と同じコピペでよい
+			IF !FLAG:ウフフフラグ
+				SELECTCASE RAND:3
+					CASE 0
+						;PRINTFORMW 
+					CASE 1
+						;PRINTFORMW 
+					CASE 2
+						;PRINTFORMW 
+				ENDSELECT
+			;終わり際、セックスした場合はこちらを表示
+			ELSE
+				SELECTCASE RAND:3
+					CASE 0
+						;PRINTFORMW 
+					CASE 1
+						;PRINTFORMW 
+					CASE 2
+						;PRINTFORMW 
+				ENDSELECT
+			ENDIF
+		ENDIF
 		
 	;既成事実Lv2(恋人)
 	ELSEIF TALENT:恋人
@@ -351,6 +446,19 @@ IF TALENT:虚ろ || IS_EQUIP_CONTINUE(TARGET, "口装着")
 	RETURN 0
 ENDIF
 
+;ファーストキスフラグ（キス未経験だったらCFLAG:251を1にセット）
+SIF TALENT:キス未経験
+	CFLAG:251 = 1
+;処女フラグ（処女だったらCFLAG:252を1にセット）
+SIF TALENT:処女
+	CFLAG:252 = 1
+;主人公が処女フラグ（主人公が処女だったらCFLAG:253を1にセット）
+SIF TALENT:MASTER:処女
+	CFLAG:253 = 1
+;主人公が童貞フラグ（主人公が童貞だったらCFLAG:254を1にセット）
+SIF TALENT:MASTER:童貞
+	CFLAG:254 = 1
+	
 RETURN 0
 
 ;=================================================
@@ -364,6 +472,19 @@ IF TALENT:虚ろ || IS_EQUIP_CONTINUE(TARGET, "口装着")
 	RETURN 0
 ENDIF
 
+;ファーストキスフラグ（キス未経験だったらCFLAG:251を1にセット）
+SIF TALENT:キス未経験
+	CFLAG:251 = 1
+;処女フラグ（処女だったらCFLAG:252を1にセット）
+SIF TALENT:処女
+	CFLAG:252 = 1
+;主人公が処女フラグ（主人公が処女だったらCFLAG:253を1にセット）
+SIF TALENT:MASTER:処女
+	CFLAG:253 = 1
+;主人公が童貞フラグ（主人公が童貞だったらCFLAG:254を1にセット）
+SIF TALENT:MASTER:童貞
+	CFLAG:254 = 1
+	
 RETURN 0
 
 ;=================================================
@@ -382,9 +503,9 @@ ENDIF
 IF SELECTCOM == 20
 	;このキャラが主導権を持っている
 	IF IS_INITIATIVE(TARGET)
-		;ファーストキス
-		IF TALENT:キス未経験
 		CFLAG:250 = 1;初めてキスをしたフラグ
+		;ファーストキス
+		IF CFLAG:251 == 1
 			;恋慕 or 服従
 			IF TALENT:恋慕 || TALENT:服従
 				;PRINTFORMW 
@@ -394,7 +515,6 @@ IF SELECTCOM == 20
 			ENDIF
 		;キス経験済み
 		ELSE
-		CFLAG:250 = 1;初めてキスをしたフラグ
 			;恋慕 or 服従
 			IF TALENT:恋慕 || TALENT:服従
 				SELECTCASE RAND:3
@@ -412,9 +532,9 @@ IF SELECTCOM == 20
 		ENDIF
 	;このキャラが主導権を持っていない
 	ELSE
-		;ファーストキス
-		IF TALENT:キス未経験
 		CFLAG:250 = 1;初めてキスをしたフラグ
+		;ファーストキス
+		IF CFLAG:251 == 1
 			;恋慕 or 服従
 			IF TALENT:恋慕 || TALENT:服従
 				;PRINTFORMW 
@@ -424,7 +544,6 @@ IF SELECTCOM == 20
 			ENDIF
 		;キス経験済み
 		ELSE
-		CFLAG:250 = 1;初めてキスをしたフラグ
 			;恋慕 or 服従
 			IF TALENT:恋慕 || TALENT:服従
 				SELECTCASE RAND:3
@@ -527,7 +646,7 @@ IF SELECTCOM == 22
 		;初めて
 		IF IS_COM_FIRST()
 			;このキャラと主人公が共に処女
-			IF EXP:TARGET:Ｖ性交経験 == 1 && EXP:MASTER:Ｖ性交経験 == 1
+			IF CFLAG:252 == 1 && CFLAG:253 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -536,7 +655,7 @@ IF SELECTCOM == 22
 					;PRINTFORMW 
 				ENDIF
 			;このキャラのみ処女
-			ELSEIF EXP:TARGET:Ｖ性交経験 == 1
+			ELSEIF CFLAG:252 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -545,7 +664,7 @@ IF SELECTCOM == 22
 					;PRINTFORMW 
 				ENDIF
 			;主人公のみ処女
-			ELSEIF EXP:MASTER:Ｖ性交経験 == 1
+			ELSEIF CFLAG:253 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -590,7 +709,7 @@ IF SELECTCOM == 22
 		;初めて
 		IF IS_COM_FIRST()
 			;このキャラと主人公が共に処女
-			IF EXP:TARGET:Ｖ性交経験 == 1 && EXP:MASTER:Ｖ性交経験 == 1
+			IF CFLAG:252 == 1 && CFLAG:253 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -599,7 +718,7 @@ IF SELECTCOM == 22
 					;PRINTFORMW 
 				ENDIF
 			;このキャラのみ処女
-			ELSEIF EXP:TARGET:Ｖ性交経験 == 1
+			ELSEIF CFLAG:252 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -608,7 +727,7 @@ IF SELECTCOM == 22
 					;PRINTFORMW 
 				ENDIF
 			;主人公のみ処女
-			ELSEIF EXP:MASTER:Ｖ性交経験 == 1
+			ELSEIF CFLAG:253 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -1081,7 +1200,7 @@ IF SELECTCOM == 5
 ENDIF
 
 ;-------------------------------------------------
-;尻尾挿入(ターゲット・される側)
+;尻尾挿入(ターゲット・挿入される側)
 ;-------------------------------------------------
 IF SELECTCOM == 6
 	;このキャラが主導権を持っている
@@ -1089,7 +1208,7 @@ IF SELECTCOM == 6
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF EXP:TARGET:Ｖ性交経験 == 1
+			IF CFLAG:252 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -1134,7 +1253,7 @@ IF SELECTCOM == 6
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF EXP:TARGET:Ｖ性交経験 == 1
+			IF CFLAG:252 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -1179,7 +1298,7 @@ IF SELECTCOM == 6
 ENDIF
 
 ;-------------------------------------------------
-;尻尾Ａ挿入(ターゲット・される側)
+;尻尾Ａ挿入(ターゲット・挿入される側)
 ;-------------------------------------------------
 IF SELECTCOM == 7
 	;このキャラが主導権を持っている
@@ -1253,7 +1372,7 @@ IF SELECTCOM == 7
 ENDIF
 
 ;-------------------------------------------------
-;アナル舐め(ターゲット・される側)
+;アナル舐め(ターゲット・舐められる側)
 ;-------------------------------------------------
 IF SELECTCOM == 8
 	;このキャラが主導権を持っている
@@ -1327,7 +1446,7 @@ IF SELECTCOM == 8
 ENDIF
 
 ;-------------------------------------------------
-;乳首吸い(ターゲット・される側)
+;乳首吸い(ターゲット・吸われる側)
 ;-------------------------------------------------
 IF SELECTCOM == 9
 	;このキャラが主導権を持っている
@@ -1401,7 +1520,7 @@ IF SELECTCOM == 9
 ENDIF
 
 ;-------------------------------------------------
-;手コキ(ターゲット・される側)
+;手コキ(ターゲット・される側。要ペニス)
 ;-------------------------------------------------
 IF SELECTCOM == 10
 	;このキャラが主導権を持っている
@@ -1465,7 +1584,7 @@ IF SELECTCOM == 10
 ENDIF
 
 ;-------------------------------------------------
-;フェラチオ(ターゲット・される側)
+;フェラチオ(ターゲット・しゃぶられる側。要ペニス)
 ;-------------------------------------------------
 IF SELECTCOM == 11
 	;このキャラが主導権を持っている
@@ -1515,7 +1634,7 @@ IF SELECTCOM == 11
 ENDIF
 
 ;-------------------------------------------------
-;パイズリ(ターゲット・される側)
+;パイズリ(ターゲット・される側。要ペニス)
 ;-------------------------------------------------
 IF SELECTCOM == 12
 	;このキャラが主導権を持っている
@@ -1565,7 +1684,7 @@ IF SELECTCOM == 12
 ENDIF
 
 ;-------------------------------------------------
-;素股(ターゲット・される側)
+;素股(ターゲット・される側。要ペニス)
 ;-------------------------------------------------
 IF SELECTCOM == 13
 	;このキャラが主導権を持っている
@@ -1615,7 +1734,7 @@ IF SELECTCOM == 13
 ENDIF
 
 ;-------------------------------------------------
-;足コキ(ターゲット・される側)
+;足コキ(ターゲット・される側。要ペニス)
 ;-------------------------------------------------
 IF SELECTCOM == 14
 	;このキャラが主導権を持っている
@@ -1665,7 +1784,7 @@ IF SELECTCOM == 14
 ENDIF
 
 ;-------------------------------------------------
-;尻コキ(ターゲット・される側)
+;尻コキ(ターゲット・される側。要ペニス)
 ;-------------------------------------------------
 IF SELECTCOM == 15
 	;このキャラが主導権を持っている
@@ -1715,7 +1834,7 @@ IF SELECTCOM == 15
 ENDIF
 
 ;-------------------------------------------------
-;オナホコキ(ターゲット・される側)
+;オナホコキ(ターゲット・される側。要ペニス)
 ;-------------------------------------------------
 IF SELECTCOM == 16
 	;このキャラが主導権を持っている
@@ -1765,7 +1884,7 @@ IF SELECTCOM == 16
 ENDIF
 
 ;-------------------------------------------------
-;尻尾コキ(ターゲット・される側)
+;尻尾コキ(ターゲット・される側。要ペニス)
 ;-------------------------------------------------
 IF SELECTCOM == 17
 	;このキャラが主導権を持っている
@@ -1815,7 +1934,107 @@ IF SELECTCOM == 17
 ENDIF
 
 ;-------------------------------------------------
-;正常位(ターゲット・される側)
+;指フェラ(ターゲット・しゃぶられる側)
+;-------------------------------------------------
+IF SELECTCOM == 24
+	;このキャラが主導権を持っている
+	IF IS_INITIATIVE(TARGET)
+		;初めて
+		IF IS_COM_FIRST()
+			;恋慕 or 服従
+			IF TALENT:恋慕 || TALENT:服従
+				;PRINTFORMW 
+			;それ以外
+			ELSE
+				;PRINTFORMW 
+			ENDIF
+		;二回目以降
+		ELSE
+			;恋慕 or 服従
+			IF TALENT:恋慕 || TALENT:服従
+				;PRINTFORMW 
+			;それ以外
+			ELSE
+				;PRINTFORMW 
+			ENDIF
+		ENDIF
+	;このキャラが主導権を持っていない
+	ELSE
+		;初めて
+		IF IS_COM_FIRST()
+			;恋慕 or 服従
+			IF TALENT:恋慕 || TALENT:服従
+				;PRINTFORMW 
+			;それ以外
+			ELSE
+				;PRINTFORMW 
+			ENDIF
+		;二回目以降
+		ELSE
+			;恋慕 or 服従
+			IF TALENT:恋慕 || TALENT:服従
+				;PRINTFORMW 
+			;それ以外
+			ELSE
+				;PRINTFORMW 
+			ENDIF
+		ENDIF
+	ENDIF
+	RETURN 0
+ENDIF
+
+;-------------------------------------------------
+;ニプルファック(ターゲット・ファックされる側)
+;-------------------------------------------------
+IF SELECTCOM == 25
+	;このキャラが主導権を持っている
+	IF IS_INITIATIVE(TARGET)
+		;初めて
+		IF IS_COM_FIRST()
+			;恋慕 or 服従
+			IF TALENT:恋慕 || TALENT:服従
+				;PRINTFORMW 
+			;それ以外
+			ELSE
+				;PRINTFORMW 
+			ENDIF
+		;二回目以降
+		ELSE
+			;恋慕 or 服従
+			IF TALENT:恋慕 || TALENT:服従
+				;PRINTFORMW 
+			;それ以外
+			ELSE
+				;PRINTFORMW 
+			ENDIF
+		ENDIF
+	;このキャラが主導権を持っていない
+	ELSE
+		;初めて
+		IF IS_COM_FIRST()
+			;恋慕 or 服従
+			IF TALENT:恋慕 || TALENT:服従
+				;PRINTFORMW 
+			;それ以外
+			ELSE
+				;PRINTFORMW 
+			ENDIF
+		;二回目以降
+		ELSE
+			;恋慕 or 服従
+			IF TALENT:恋慕 || TALENT:服従
+				;PRINTFORMW 
+			;それ以外
+			ELSE
+				;PRINTFORMW 
+			ENDIF
+		ENDIF
+	ENDIF
+	RETURN 0
+ENDIF
+
+;-------------------------------------------------
+;正常位(ターゲット・挿れられる側)
 ;-------------------------------------------------
 IF SELECTCOM == 30
 	;このキャラが主導権を持っている
@@ -1823,22 +2042,46 @@ IF SELECTCOM == 30
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF EXP:TARGET:Ｖ性交経験 == 1
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
-				;それ以外
+			IF CFLAG:252 == 1
+				;主人公が童貞。特に無ければ「童貞でない」場合のコピペでよい
+				IF CFLAG:254 == 1
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
+				;主人公が童貞でない
 				ELSE
-					;PRINTFORMW 
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
 				ENDIF
 			;非処女
 			ELSE
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
-				;それ以外
+				;主人公が童貞。特に無ければ「童貞でない」場合のコピペでよい
+				IF CFLAG:254 == 1
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
+				;主人公が童貞でない
 				ELSE
-					;PRINTFORMW 
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
 				ENDIF
 			ENDIF
 		;二回目以降
@@ -1868,22 +2111,46 @@ IF SELECTCOM == 30
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF EXP:TARGET:Ｖ性交経験 == 1
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
-				;それ以外
+			IF CFLAG:252 == 1
+				;主人公が童貞。特に無ければ「童貞でない」場合のコピペでよい
+				IF CFLAG:254 == 1
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
+				;主人公が童貞でない
 				ELSE
-					;PRINTFORMW 
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
 				ENDIF
 			;非処女
 			ELSE
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
-				;それ以外
+				;主人公が童貞。特に無ければ「童貞でない」場合のコピペでよい
+				IF CFLAG:254 == 1
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
+				;主人公が童貞でない
 				ELSE
-					;PRINTFORMW 
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
 				ENDIF
 			ENDIF
 		;二回目以降
@@ -1913,7 +2180,7 @@ IF SELECTCOM == 30
 ENDIF
 
 ;-------------------------------------------------
-;後背位(ターゲット・される側)
+;後背位(ターゲット・挿れられる側)
 ;-------------------------------------------------
 IF SELECTCOM == 31
 	;このキャラが主導権を持っている
@@ -1921,22 +2188,46 @@ IF SELECTCOM == 31
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF EXP:TARGET:Ｖ性交経験 == 1
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
-				;それ以外
+			IF CFLAG:252 == 1
+				;主人公が童貞。特に無ければ「童貞でない」場合のコピペでよい
+				IF CFLAG:254 == 1
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
+				;主人公が童貞でない
 				ELSE
-					;PRINTFORMW 
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
 				ENDIF
 			;非処女
 			ELSE
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW
-				;それ以外
+				;主人公が童貞。特に無ければ「童貞でない」場合のコピペでよい
+				IF CFLAG:254 == 1
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
+				;主人公が童貞でない
 				ELSE
-					;PRINTFORMW 
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
 				ENDIF
 			ENDIF
 		;二回目以降
@@ -1966,22 +2257,46 @@ IF SELECTCOM == 31
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF EXP:TARGET:Ｖ性交経験 == 1
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
-				;それ以外
+			IF CFLAG:252 == 1
+				;主人公が童貞。特に無ければ「童貞でない」場合のコピペでよい
+				IF CFLAG:254 == 1
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
+				;主人公が童貞でない
 				ELSE
-					;PRINTFORMW 
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
 				ENDIF
 			;非処女
 			ELSE
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
-				;それ以外
+				;主人公が童貞。特に無ければ「童貞でない」場合のコピペでよい
+				IF CFLAG:254 == 1
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
+				;主人公が童貞でない
 				ELSE
-					;PRINTFORMW 
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
 				ENDIF
 			ENDIF
 		;二回目以降
@@ -2011,7 +2326,7 @@ IF SELECTCOM == 31
 ENDIF
 
 ;-------------------------------------------------
-;対面座位(ターゲット・される側)
+;対面座位(ターゲット・挿れられる側)
 ;-------------------------------------------------
 IF SELECTCOM == 32
 	;このキャラが主導権を持っている
@@ -2019,22 +2334,46 @@ IF SELECTCOM == 32
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF EXP:TARGET:Ｖ性交経験 == 1
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
-				;それ以外
+			IF CFLAG:252 == 1
+				;主人公が童貞。特に無ければ「童貞でない」場合のコピペでよい
+				IF CFLAG:254 == 1
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
+				;主人公が童貞でない
 				ELSE
-					;PRINTFORMW 
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
 				ENDIF
 			;非処女
 			ELSE
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
-				;それ以外
+				;主人公が童貞。特に無ければ「童貞でない」場合のコピペでよい
+				IF CFLAG:254 == 1
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
+				;主人公が童貞でない
 				ELSE
-					;PRINTFORMW 
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
 				ENDIF
 			ENDIF
 		;二回目以降
@@ -2064,22 +2403,46 @@ IF SELECTCOM == 32
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF EXP:TARGET:Ｖ性交経験 == 1
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
-				;それ以外
+			IF CFLAG:252 == 1
+				;主人公が童貞。特に無ければ「童貞でない」場合のコピペでよい
+				IF CFLAG:254 == 1
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
+				;主人公が童貞でない
 				ELSE
-					;PRINTFORMW 
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
 				ENDIF
 			;非処女
 			ELSE
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
-				;それ以外
+				;主人公が童貞。特に無ければ「童貞でない」場合のコピペでよい
+				IF CFLAG:254 == 1
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
+				;主人公が童貞でない
 				ELSE
-					;PRINTFORMW 
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
 				ENDIF
 			ENDIF
 		;二回目以降
@@ -2109,7 +2472,7 @@ IF SELECTCOM == 32
 ENDIF
 
 ;-------------------------------------------------
-;背面座位(ターゲット・される側)
+;背面座位(ターゲット・挿れられる側)
 ;-------------------------------------------------
 IF SELECTCOM == 33
 	;このキャラが主導権を持っている
@@ -2117,22 +2480,46 @@ IF SELECTCOM == 33
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF EXP:TARGET:Ｖ性交経験 == 1
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
-				;それ以外
+			IF CFLAG:252 == 1
+				;主人公が童貞。特に無ければ「童貞でない」場合のコピペでよい
+				IF CFLAG:254 == 1
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
+				;主人公が童貞でない
 				ELSE
-					;PRINTFORMW 
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
 				ENDIF
 			;非処女
 			ELSE
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
-				;それ以外
+				;主人公が童貞。特に無ければ「童貞でない」場合のコピペでよい
+				IF CFLAG:254 == 1
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
+				;主人公が童貞でない
 				ELSE
-					;PRINTFORMW 
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
 				ENDIF
 			ENDIF
 		;二回目以降
@@ -2162,22 +2549,46 @@ IF SELECTCOM == 33
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF EXP:TARGET:Ｖ性交経験 == 1
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
-				;それ以外
+			IF CFLAG:252 == 1
+				;主人公が童貞。特に無ければ「童貞でない」場合のコピペでよい
+				IF CFLAG:254 == 1
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
+				;主人公が童貞でない
 				ELSE
-					;PRINTFORMW 
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
 				ENDIF
 			;非処女
 			ELSE
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
-				;それ以外
+				;主人公が童貞。特に無ければ「童貞でない」場合のコピペでよい
+				IF CFLAG:254 == 1
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
+				;主人公が童貞でない
 				ELSE
-					;PRINTFORMW 
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
 				ENDIF
 			ENDIF
 		;二回目以降
@@ -2207,7 +2618,7 @@ IF SELECTCOM == 33
 ENDIF
 
 ;-------------------------------------------------
-;騎乗位(ターゲット・される側)
+;騎乗位(ターゲット・挿れられる側)
 ;-------------------------------------------------
 IF SELECTCOM == 34
 	;このキャラが主導権を持っている
@@ -2215,22 +2626,46 @@ IF SELECTCOM == 34
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF EXP:TARGET:Ｖ性交経験 == 1
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
-				;それ以外
+			IF CFLAG:252 == 1
+				;主人公が童貞。特に無ければ「童貞でない」場合のコピペでよい
+				IF CFLAG:254 == 1
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
+				;主人公が童貞でない
 				ELSE
-					;PRINTFORMW 
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
 				ENDIF
 			;非処女
 			ELSE
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
-				;それ以外
+				;主人公が童貞。特に無ければ「童貞でない」場合のコピペでよい
+				IF CFLAG:254 == 1
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
+				;主人公が童貞でない
 				ELSE
-					;PRINTFORMW 
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
 				ENDIF
 			ENDIF
 		;二回目以降
@@ -2260,22 +2695,46 @@ IF SELECTCOM == 34
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF EXP:TARGET:Ｖ性交経験 == 1
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
-				;それ以外
+			IF CFLAG:252 == 1
+				;主人公が童貞。特に無ければ「童貞でない」場合のコピペでよい
+				IF CFLAG:254 == 1
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
+				;主人公が童貞でない
 				ELSE
-					;PRINTFORMW 
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
 				ENDIF
 			;非処女
 			ELSE
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
-				;それ以外
+				;主人公が童貞。特に無ければ「童貞でない」場合のコピペでよい
+				IF CFLAG:254 == 1
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
+				;主人公が童貞でない
 				ELSE
-					;PRINTFORMW 
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
 				ENDIF
 			ENDIF
 		;二回目以降
@@ -2305,7 +2764,7 @@ IF SELECTCOM == 34
 ENDIF
 
 ;-------------------------------------------------
-;背面騎乗位(ターゲット・される側)
+;背面騎乗位(ターゲット・挿れられる側)
 ;-------------------------------------------------
 IF SELECTCOM == 35
 	;このキャラが主導権を持っている
@@ -2313,22 +2772,46 @@ IF SELECTCOM == 35
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF EXP:TARGET:Ｖ性交経験 == 1
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
-				;それ以外
+			IF CFLAG:252 == 1
+				;主人公が童貞。特に無ければ「童貞でない」場合のコピペでよい
+				IF CFLAG:254 == 1
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
+				;主人公が童貞でない
 				ELSE
-					;PRINTFORMW 
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
 				ENDIF
 			;非処女
 			ELSE
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
-				;それ以外
+				;主人公が童貞。特に無ければ「童貞でない」場合のコピペでよい
+				IF CFLAG:254 == 1
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
+				;主人公が童貞でない
 				ELSE
-					;PRINTFORMW 
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
 				ENDIF
 			ENDIF
 		;二回目以降
@@ -2358,7 +2841,7 @@ IF SELECTCOM == 35
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF EXP:TARGET:Ｖ性交経験 == 1
+			IF CFLAG:252 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -2403,7 +2886,7 @@ IF SELECTCOM == 35
 ENDIF
 
 ;-------------------------------------------------
-;二本挿入(ターゲット・される側)
+;二本挿入(ターゲット・挿れられる側)
 ;-------------------------------------------------
 IF SELECTCOM == 36
 	;このキャラが主導権を持っている
@@ -2477,7 +2960,7 @@ IF SELECTCOM == 36
 ENDIF
 
 ;-------------------------------------------------
-;側位(ターゲット・される側)
+;側位(ターゲット・挿れられる側)
 ;-------------------------------------------------
 IF SELECTCOM == 37
 	;このキャラが主導権を持っている
@@ -2485,22 +2968,46 @@ IF SELECTCOM == 37
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF EXP:TARGET:Ｖ性交経験 == 1
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
-				;それ以外
+			IF CFLAG:252 == 1
+				;主人公が童貞。特に無ければ「童貞でない」場合のコピペでよい
+				IF CFLAG:254 == 1
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
+				;主人公が童貞でない
 				ELSE
-					;PRINTFORMW 
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
 				ENDIF
 			;非処女
 			ELSE
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
-				;それ以外
+				;主人公が童貞。特に無ければ「童貞でない」場合のコピペでよい
+				IF CFLAG:254 == 1
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
+				;主人公が童貞でない
 				ELSE
-					;PRINTFORMW 
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
 				ENDIF
 			ENDIF
 		;二回目以降
@@ -2530,22 +3037,46 @@ IF SELECTCOM == 37
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF EXP:TARGET:Ｖ性交経験 == 1
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
-				;それ以外
+			IF CFLAG:252 == 1
+				;主人公が童貞。特に無ければ「童貞でない」場合のコピペでよい
+				IF CFLAG:254 == 1
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
+				;主人公が童貞でない
 				ELSE
-					;PRINTFORMW 
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
 				ENDIF
 			;非処女
 			ELSE
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
-				;それ以外
+				;主人公が童貞。特に無ければ「童貞でない」場合のコピペでよい
+				IF CFLAG:254 == 1
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
+				;主人公が童貞でない
 				ELSE
-					;PRINTFORMW 
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
 				ENDIF
 			ENDIF
 		;二回目以降
@@ -2575,7 +3106,7 @@ IF SELECTCOM == 37
 ENDIF
 
 ;-------------------------------------------------
-;屈曲位(ターゲット・される側)
+;屈曲位(ターゲット・挿れられる側)
 ;-------------------------------------------------
 IF SELECTCOM == 38
 	;このキャラが主導権を持っている
@@ -2583,22 +3114,46 @@ IF SELECTCOM == 38
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF EXP:TARGET:Ｖ性交経験 == 1
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
-				;それ以外
+			IF CFLAG:252 == 1
+				;主人公が童貞。特に無ければ「童貞でない」場合のコピペでよい
+				IF CFLAG:254 == 1
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
+				;主人公が童貞でない
 				ELSE
-					;PRINTFORMW 
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
 				ENDIF
 			;非処女
 			ELSE
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
-				;それ以外
+				;主人公が童貞。特に無ければ「童貞でない」場合のコピペでよい
+				IF CFLAG:254 == 1
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
+				;主人公が童貞でない
 				ELSE
-					;PRINTFORMW 
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
 				ENDIF
 			ENDIF
 		;二回目以降
@@ -2628,22 +3183,46 @@ IF SELECTCOM == 38
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF EXP:TARGET:Ｖ性交経験 == 1
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
-				;それ以外
+			IF CFLAG:252 == 1
+				;主人公が童貞。特に無ければ「童貞でない」場合のコピペでよい
+				IF CFLAG:254 == 1
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
+				;主人公が童貞でない
 				ELSE
-					;PRINTFORMW 
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
 				ENDIF
 			;非処女
 			ELSE
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
-				;それ以外
+				;主人公が童貞。特に無ければ「童貞でない」場合のコピペでよい
+				IF CFLAG:254 == 1
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
+				;主人公が童貞でない
 				ELSE
-					;PRINTFORMW 
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
 				ENDIF
 			ENDIF
 		;二回目以降
@@ -2673,7 +3252,7 @@ IF SELECTCOM == 38
 ENDIF
 
 ;-------------------------------------------------
-;駅弁(ターゲット・される側)
+;駅弁(ターゲット・挿れられる側)
 ;-------------------------------------------------
 IF SELECTCOM == 39
 	;このキャラが主導権を持っている
@@ -2681,22 +3260,46 @@ IF SELECTCOM == 39
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF EXP:TARGET:Ｖ性交経験 == 1
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
-				;それ以外
+			IF CFLAG:252 == 1
+				;主人公が童貞。特に無ければ「童貞でない」場合のコピペでよい
+				IF CFLAG:254 == 1
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
+				;主人公が童貞でない
 				ELSE
-					;PRINTFORMW 
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
 				ENDIF
 			;非処女
 			ELSE
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
-				;それ以外
+				;主人公が童貞。特に無ければ「童貞でない」場合のコピペでよい
+				IF CFLAG:254 == 1
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
+				;主人公が童貞でない
 				ELSE
-					;PRINTFORMW 
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
 				ENDIF
 			ENDIF
 		;二回目以降
@@ -2726,22 +3329,46 @@ IF SELECTCOM == 39
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF EXP:TARGET:Ｖ性交経験 == 1
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
-				;それ以外
+			IF CFLAG:252 == 1
+				;主人公が童貞。特に無ければ「童貞でない」場合のコピペでよい
+				IF CFLAG:254 == 1
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
+				;主人公が童貞でない
 				ELSE
-					;PRINTFORMW 
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
 				ENDIF
 			;非処女
 			ELSE
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
-				;それ以外
+				;主人公が童貞。特に無ければ「童貞でない」場合のコピペでよい
+				IF CFLAG:254 == 1
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
+				;主人公が童貞でない
 				ELSE
-					;PRINTFORMW 
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
 				ENDIF
 			ENDIF
 		;二回目以降
@@ -2771,7 +3398,7 @@ IF SELECTCOM == 39
 ENDIF
 
 ;-------------------------------------------------
-;逆駅弁(ターゲット・される側)
+;背面駅弁(ターゲット・挿れられる側)
 ;-------------------------------------------------
 IF SELECTCOM == 52
 	;このキャラが主導権を持っている
@@ -2779,22 +3406,46 @@ IF SELECTCOM == 52
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF EXP:TARGET:Ｖ性交経験 == 1
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
-				;それ以外
+			IF CFLAG:252 == 1
+				;主人公が童貞。特に無ければ「童貞でない」場合のコピペでよい
+				IF CFLAG:254 == 1
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
+				;主人公が童貞でない
 				ELSE
-					;PRINTFORMW 
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
 				ENDIF
 			;非処女
 			ELSE
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
-				;それ以外
+				;主人公が童貞。特に無ければ「童貞でない」場合のコピペでよい
+				IF CFLAG:254 == 1
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
+				;主人公が童貞でない
 				ELSE
-					;PRINTFORMW 
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
 				ENDIF
 			ENDIF
 		;二回目以降
@@ -2824,22 +3475,46 @@ IF SELECTCOM == 52
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF EXP:TARGET:Ｖ性交経験 == 1
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
-				;それ以外
+			IF CFLAG:252 == 1
+				;主人公が童貞。特に無ければ「童貞でない」場合のコピペでよい
+				IF CFLAG:254 == 1
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
+				;主人公が童貞でない
 				ELSE
-					;PRINTFORMW 
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
 				ENDIF
 			;非処女
 			ELSE
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
-				;それ以外
+				;主人公が童貞。特に無ければ「童貞でない」場合のコピペでよい
+				IF CFLAG:254 == 1
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
+				;主人公が童貞でない
 				ELSE
-					;PRINTFORMW 
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
 				ENDIF
 			ENDIF
 		;二回目以降
@@ -2869,7 +3544,7 @@ IF SELECTCOM == 52
 ENDIF
 
 ;-------------------------------------------------
-;立ちバック(ターゲット)
+;立ちバック(ターゲット・挿れられる側)
 ;-------------------------------------------------
 IF SELECTCOM == 160
 	;このキャラが主導権を持っている
@@ -2877,22 +3552,46 @@ IF SELECTCOM == 160
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF EXP:TARGET:Ｖ性交経験 == 1
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
-				;それ以外
+			IF CFLAG:252 == 1
+				;主人公が童貞。特に無ければ「童貞でない」場合のコピペでよい
+				IF CFLAG:254 == 1
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
+				;主人公が童貞でない
 				ELSE
-					;PRINTFORMW 
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
 				ENDIF
 			;非処女
 			ELSE
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
-				;それ以外
+				;主人公が童貞。特に無ければ「童貞でない」場合のコピペでよい
+				IF CFLAG:254 == 1
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
+				;主人公が童貞でない
 				ELSE
-					;PRINTFORMW 
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
 				ENDIF
 			ENDIF
 		;二回目以降
@@ -2922,22 +3621,46 @@ IF SELECTCOM == 160
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF EXP:TARGET:Ｖ性交経験 == 1
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
-				;それ以外
+			IF CFLAG:252 == 1
+				;主人公が童貞。特に無ければ「童貞でない」場合のコピペでよい
+				IF CFLAG:254 == 1
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
+				;主人公が童貞でない
 				ELSE
-					;PRINTFORMW 
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
 				ENDIF
 			;非処女
 			ELSE
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
-				;それ以外
+				;主人公が童貞。特に無ければ「童貞でない」場合のコピペでよい
+				IF CFLAG:254 == 1
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
+				;主人公が童貞でない
 				ELSE
-					;PRINTFORMW 
+					;恋慕 or 服従
+					IF TALENT:恋慕 || TALENT:服従
+						;PRINTFORMW 
+					;それ以外
+					ELSE
+						;PRINTFORMW 
+					ENDIF
 				ENDIF
 			ENDIF
 		;二回目以降
@@ -2967,7 +3690,7 @@ IF SELECTCOM == 160
 ENDIF
 
 ;-------------------------------------------------
-;Ａ正常位(ターゲット・される側)
+;Ａ正常位(ターゲット・挿れられる側)
 ;-------------------------------------------------
 IF SELECTCOM == 40
 	;このキャラが主導権を持っている
@@ -3041,7 +3764,7 @@ IF SELECTCOM == 40
 ENDIF
 
 ;-------------------------------------------------
-;Ａ後背位(ターゲット・される側)
+;Ａ後背位(ターゲット・挿れられる側)
 ;-------------------------------------------------
 IF SELECTCOM == 41
 	;このキャラが主導権を持っている
@@ -3115,7 +3838,7 @@ IF SELECTCOM == 41
 ENDIF
 
 ;-------------------------------------------------
-;Ａ対面座位(ターゲット・される側)
+;Ａ対面座位(ターゲット・挿れられる側)
 ;-------------------------------------------------
 IF SELECTCOM == 42
 	;このキャラが主導権を持っている
@@ -3189,7 +3912,7 @@ IF SELECTCOM == 42
 ENDIF
 
 ;-------------------------------------------------
-;Ａ背面座位(ターゲット・される側)
+;Ａ背面座位(ターゲット・挿れられる側)
 ;-------------------------------------------------
 IF SELECTCOM == 43
 	;このキャラが主導権を持っている
@@ -3263,7 +3986,7 @@ IF SELECTCOM == 43
 ENDIF
 
 ;-------------------------------------------------
-;Ａ騎乗位(ターゲット・される側)
+;Ａ騎乗位(ターゲット・挿れられる側)
 ;-------------------------------------------------
 IF SELECTCOM == 44
 	;このキャラが主導権を持っている
@@ -3337,7 +4060,7 @@ IF SELECTCOM == 44
 ENDIF
 
 ;-------------------------------------------------
-;Ａ背面騎乗位(ターゲット・される側)
+;Ａ背面騎乗位(ターゲット・挿れられる側)
 ;-------------------------------------------------
 IF SELECTCOM == 45
 	;このキャラが主導権を持っている
@@ -3411,7 +4134,7 @@ IF SELECTCOM == 45
 ENDIF
 
 ;-------------------------------------------------
-;Ａ二本挿入(ターゲット・される側)
+;Ａ二本挿入(ターゲット・挿れられる側)
 ;-------------------------------------------------
 IF SELECTCOM == 46
 	;このキャラが主導権を持っている
@@ -3485,7 +4208,7 @@ IF SELECTCOM == 46
 ENDIF
 
 ;-------------------------------------------------
-;Ａ側位(ターゲット・される側)
+;Ａ側位(ターゲット・挿れられる側)
 ;-------------------------------------------------
 IF SELECTCOM == 47
 	;このキャラが主導権を持っている
@@ -3559,7 +4282,7 @@ IF SELECTCOM == 47
 ENDIF
 
 ;-------------------------------------------------
-;Ａ屈曲位(ターゲット・される側)
+;Ａ屈曲位(ターゲット・挿れられる側)
 ;-------------------------------------------------
 IF SELECTCOM == 48
 	;このキャラが主導権を持っている
@@ -3633,7 +4356,7 @@ IF SELECTCOM == 48
 ENDIF
 
 ;-------------------------------------------------
-;Ａ駅弁(ターゲット・される側)
+;Ａ駅弁(ターゲット・挿れられる側)
 ;-------------------------------------------------
 IF SELECTCOM == 49
 	;このキャラが主導権を持っている
@@ -3707,7 +4430,7 @@ IF SELECTCOM == 49
 ENDIF
 
 ;-------------------------------------------------
-;Ａ逆駅弁(ターゲット・される側)
+;Ａ背面駅弁(ターゲット・挿れられる側)
 ;-------------------------------------------------
 IF SELECTCOM == 53
 	;このキャラが主導権を持っている
@@ -3781,7 +4504,7 @@ IF SELECTCOM == 53
 ENDIF
 
 ;-------------------------------------------------
-;Ａ立ちバック(ターゲット・される側)
+;Ａ立ちバック(ターゲット・挿れられる側)
 ;-------------------------------------------------
 IF SELECTCOM == 161
 	;このキャラが主導権を持っている
@@ -3931,179 +4654,7 @@ IF SELECTCOM == 51
 ENDIF
 
 ;-------------------------------------------------
-;逆駅弁(ターゲット・される側)
-;-------------------------------------------------
-IF SELECTCOM == 52
-	;このキャラが主導権を持っている
-	IF IS_INITIATIVE(TARGET)
-		;初めて
-		IF IS_COM_FIRST()
-			;処女
-			IF EXP:TARGET:Ｖ性交経験 == 1
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
-				;それ以外
-				ELSE
-					;PRINTFORMW 
-				ENDIF
-			;非処女
-			ELSE
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
-				;それ以外
-				ELSE
-					;PRINTFORMW 
-				ENDIF
-			ENDIF
-		;二回目以降
-		ELSE
-			;恋慕 or 服従
-			IF TALENT:恋慕 || TALENT:服従
-				;Ｖ感Lv3以上
-				IF ABL:Ｖ感 >= 3
-					;PRINTFORMW 
-				;Ｖ感Lv3未満
-				ELSE
-					;PRINTFORMW 
-				ENDIF
-			;それ以外
-			ELSE
-				;Ｖ感Lv3以上
-				IF ABL:Ｖ感 >= 3
-					;PRINTFORMW 
-				;Ｖ感Lv3未満
-				ELSE
-					;PRINTFORMW 
-				ENDIF
-			ENDIF
-		ENDIF
-	;このキャラが主導権を持っていない
-	ELSE
-		;初めて
-		IF IS_COM_FIRST()
-			;処女
-			IF EXP:TARGET:Ｖ性交経験 == 1
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
-				;それ以外
-				ELSE
-					;PRINTFORMW 
-				ENDIF
-			;非処女
-			ELSE
-				;恋慕 or 服従
-				IF TALENT:恋慕 || TALENT:服従
-					;PRINTFORMW 
-				;それ以外
-				ELSE
-					;PRINTFORMW 
-				ENDIF
-			ENDIF
-		;二回目以降
-		ELSE
-			;恋慕 or 服従
-			IF TALENT:恋慕 || TALENT:服従
-				;Ｖ感Lv3以上
-				IF ABL:Ｖ感 >= 3
-					;PRINTFORMW 
-				;Ｖ感Lv3未満
-				ELSE
-					;PRINTFORMW 
-				ENDIF
-			;それ以外
-			ELSE
-				;Ｖ感Lv3以上
-				IF ABL:Ｖ感 >= 3
-					;PRINTFORMW 
-				;Ｖ感Lv3未満
-				ELSE
-					;PRINTFORMW 
-				ENDIF
-			ENDIF
-		ENDIF
-	ENDIF
-	RETURN 0
-ENDIF
-
-;-------------------------------------------------
-;Ａ逆駅弁(ターゲット・される側)
-;-------------------------------------------------
-IF SELECTCOM == 53
-	;このキャラが主導権を持っている
-	IF IS_INITIATIVE(TARGET)
-		;初めて
-		IF IS_COM_FIRST()
-			;恋慕 or 服従
-			IF TALENT:恋慕 || TALENT:服従
-				;PRINTFORMW 
-			;それ以外
-			ELSE
-				;PRINTFORMW 
-			ENDIF
-		;二回目以降
-		ELSE
-			;恋慕 or 服従
-			IF TALENT:恋慕 || TALENT:服従
-				;Ａ感Lv3以上
-				IF ABL:Ａ感 >= 3
-					;PRINTFORMW 
-				;Ａ感Lv3未満
-				ELSE
-					;PRINTFORMW 
-				ENDIF
-			;それ以外
-			ELSE
-				;Ａ感Lv3以上
-				IF ABL:Ａ感 >= 3
-					;PRINTFORMW 
-				;Ａ感Lv3未満
-				ELSE
-					;PRINTFORMW 
-				ENDIF
-			ENDIF
-		ENDIF
-	;このキャラが主導権を持っていない
-	ELSE
-		;初めて
-		IF IS_COM_FIRST()
-			;恋慕 or 服従
-			IF TALENT:恋慕 || TALENT:服従
-				;PRINTFORMW 
-			;それ以外
-			ELSE
-				;PRINTFORMW 
-			ENDIF
-		;二回目以降
-		ELSE
-			;恋慕 or 服従
-			IF TALENT:恋慕 || TALENT:服従
-				;Ａ感Lv3以上
-				IF ABL:Ａ感 >= 3
-					;PRINTFORMW 
-				;Ａ感Lv3未満
-				ELSE
-					;PRINTFORMW 
-				ENDIF
-			;それ以外
-			ELSE
-				;Ａ感Lv3以上
-				IF ABL:Ａ感 >= 3
-					;PRINTFORMW 
-				;Ａ感Lv3未満
-				ELSE
-					;PRINTFORMW 
-				ENDIF
-			ENDIF
-		ENDIF
-	ENDIF
-	RETURN 0
-ENDIF
-
-;-------------------------------------------------
-;順番に挿入(ターゲット・される側)
+;順番に挿入(ターゲット・挿れられる側)
 ;-------------------------------------------------
 IF SELECTCOM == 55
 	;このキャラが主導権を持っている
@@ -4153,7 +4704,7 @@ IF SELECTCOM == 55
 ENDIF
 
 ;-------------------------------------------------
-;順番にＡ挿入(ターゲット・される側)
+;順番にＡ挿入(ターゲット・挿れられる側)
 ;-------------------------------------------------
 IF SELECTCOM == 56
 	;このキャラが主導権を持っている
@@ -4203,7 +4754,7 @@ IF SELECTCOM == 56
 ENDIF
 
 ;-------------------------------------------------
-;代わる代わる挿入(ターゲット・される側)
+;代わる代わる挿入(ターゲット・挿れられる側)
 ;-------------------------------------------------
 IF SELECTCOM == 57
 	;このキャラが主導権を持っている
@@ -4253,7 +4804,7 @@ IF SELECTCOM == 57
 ENDIF
 
 ;-------------------------------------------------
-;代わる代わるＡ挿入(ターゲット・される側)
+;代わる代わるＡ挿入(ターゲット・挿れられる側)
 ;-------------------------------------------------
 IF SELECTCOM == 58
 	;このキャラが主導権を持っている
@@ -4377,7 +4928,7 @@ IF SELECTCOM == 60
 ENDIF
 
 ;-------------------------------------------------
-;バイブ(ターゲット・される側)
+;バイブ(ターゲット・挿れられる側)
 ;-------------------------------------------------
 IF SELECTCOM == 61
 	;このキャラが主導権を持っている
@@ -4385,7 +4936,7 @@ IF SELECTCOM == 61
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF EXP:TARGET:Ｖ性交経験 == 1
+			IF CFLAG:252 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -4430,7 +4981,7 @@ IF SELECTCOM == 61
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF EXP:TARGET:Ｖ性交経験 == 1
+			IF CFLAG:252 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -4475,7 +5026,7 @@ IF SELECTCOM == 61
 ENDIF
 
 ;-------------------------------------------------
-;アナルバイブ(ターゲット・される側)
+;アナルバイブ(ターゲット・挿れられる側)
 ;-------------------------------------------------
 IF SELECTCOM == 62
 	;このキャラが主導権を持っている
@@ -4705,7 +5256,7 @@ IF SELECTCOM == 65
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF EXP:TARGET:Ｖ性交経験 == 1
+			IF CFLAG:252 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -4750,7 +5301,7 @@ IF SELECTCOM == 65
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF EXP:TARGET:Ｖ性交経験 == 1
+			IF CFLAG:252 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -5689,7 +6240,7 @@ IF SELECTCOM == 87
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF EXP:TARGET:Ｖ性交経験 == 1
+			IF CFLAG:252 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -5734,7 +6285,7 @@ IF SELECTCOM == 87
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF EXP:TARGET:Ｖ性交経験 == 1
+			IF CFLAG:252 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -5919,7 +6470,7 @@ IF SELECTCOM == 89
 ENDIF
 
 ;-------------------------------------------------
-;イラマチオ(ターゲット・される側)
+;イラマチオ(ターゲット・しゃぶられる側。要ペニス)
 ;-------------------------------------------------
 IF SELECTCOM == 90
 	;このキャラが主導権を持っている
@@ -5937,18 +6488,10 @@ IF SELECTCOM == 90
 		ELSE
 			;恋慕 or 服従
 			IF TALENT:恋慕 || TALENT:服従
-				IF GETBIT(TALENT:淫乱系, 素質_淫乱_マゾ)
-					;PRINTFORMW 
-				ELSE
-					;PRINTFORMW 
-				ENDIF
+				;PRINTFORMW 
 			;それ以外
 			ELSE
-				IF GETBIT(TALENT:淫乱系, 素質_淫乱_マゾ)
-					;PRINTFORMW 
-				ELSE
-					;PRINTFORMW 
-				ENDIF
+				;PRINTFORMW 
 			ENDIF
 		ENDIF
 	;このキャラが主導権を持っていない
@@ -5966,18 +6509,10 @@ IF SELECTCOM == 90
 		ELSE
 			;恋慕 or 服従
 			IF TALENT:恋慕 || TALENT:服従
-				IF GETBIT(TALENT:淫乱系, 素質_淫乱_マゾ)
-					;PRINTFORMW 
-				ELSE
-					;PRINTFORMW 
-				ENDIF
+				;PRINTFORMW 
 			;それ以外
 			ELSE
-				IF GETBIT(TALENT:淫乱系, 素質_淫乱_マゾ)
-					;PRINTFORMW 
-				ELSE
-					;PRINTFORMW 
-				ENDIF
+				;PRINTFORMW 
 			ENDIF
 		ENDIF
 	ENDIF
@@ -6729,7 +7264,7 @@ IF SELECTCOM == 105
 ENDIF
 
 ;-------------------------------------------------
-;亀頭責め手コキ(ターゲット・される側)
+;亀頭責め手コキ(ターゲット・される側。要ペニス)
 ;-------------------------------------------------
 IF SELECTCOM == 106
 	;このキャラが主導権を持っている
@@ -6779,7 +7314,7 @@ IF SELECTCOM == 106
 ENDIF
 
 ;-------------------------------------------------
-;亀頭責めフェラ(ターゲット・される側)
+;亀頭責めフェラ(ターゲット・しゃぶられる側。要ペニス)
 ;-------------------------------------------------
 IF SELECTCOM == 107
 	;このキャラが主導権を持っている
@@ -7663,7 +8198,7 @@ IF SELECTCOM == 200
 ENDIF
 
 ;-------------------------------------------------
-;触手挿入(ターゲット・される側)
+;触手挿入(ターゲット・挿れられる側)
 ;-------------------------------------------------
 IF SELECTCOM == 201
 	;このキャラが主導権を持っている
@@ -7671,7 +8206,7 @@ IF SELECTCOM == 201
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF EXP:TARGET:Ｖ性交経験 == 1
+			IF CFLAG:252 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -7714,7 +8249,7 @@ IF SELECTCOM == 201
 		;初めて
 		IF IS_COM_FIRST()
 			;処女
-			IF EXP:TARGET:Ｖ性交経験 == 1
+			IF CFLAG:252 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -7757,7 +8292,7 @@ IF SELECTCOM == 201
 ENDIF
 
 ;-------------------------------------------------
-;触手Ａ挿入(ターゲット・される側)
+;触手Ａ挿入(ターゲット・挿れられる側)
 ;-------------------------------------------------
 IF SELECTCOM == 202
 	;このキャラが主導権を持っている
@@ -7967,7 +8502,7 @@ IF SELECTCOM == 204
 ENDIF
 
 ;-------------------------------------------------
-;触手オナホ(ターゲット・される側)
+;触手オナホ(ターゲット・される側。要ペニス)
 ;-------------------------------------------------
 IF SELECTCOM == 205
 	;このキャラが主導権を持っている
@@ -8037,7 +8572,7 @@ IF SELECTCOM == 205
 ENDIF
 
 ;-------------------------------------------------
-;触手コキ(ターゲット・される側)
+;触手コキ(ターゲット・される側。要ペニス)
 ;-------------------------------------------------
 IF SELECTCOM == 206
 	;このキャラが主導権を持っている
@@ -9264,7 +9799,7 @@ IF SELECTCOM == 326
 ENDIF
 
 ;-------------------------------------------------
-;日常フェラ(ターゲット・される側)
+;日常フェラ(ターゲット・される側。要ペニス)
 ;-------------------------------------------------
 IF SELECTCOM == 330
 	;このキャラが主導権を持っている
@@ -9324,12 +9859,24 @@ IF SELECTCOM == 340
 	IF IS_INITIATIVE(TARGET)
 		;初めて
 		IF IS_COM_FIRST()
-		CFLAG:250 = 1;初めてキスをしたフラグ
+			CFLAG:250 = 1;初めてキスをしたフラグ
 			;既成事実Lv2以上
 			IF TALENT:恋人 || TALENT:合意
-				;PRINTFORMW 
+				;ファーストキス
+				IF CFLAG:251 == 1
+					;PRINTFORMW 
+				;キス経験済み
+				ELSE
+					;PRINTFORMW 
+				ENDIF
 			ELSE
-				;PRINTFORMW 
+				;ファーストキス
+				IF CFLAG:251 == 1
+					;PRINTFORMW 
+				;キス経験済み
+				ELSE
+					;PRINTFORMW 
+				ENDIF
 			ENDIF
 		;二回目以降
 		ELSE
@@ -9348,12 +9895,24 @@ IF SELECTCOM == 340
 	ELSE
 		;初めて
 		IF IS_COM_FIRST()
-		CFLAG:250 = 1;初めてキスをしたフラグ
+			CFLAG:250 = 1;初めてキスをしたフラグ
 			;既成事実Lv2以上
 			IF TALENT:恋人 || TALENT:合意
-				;PRINTFORMW 
+				;ファーストキス
+				IF CFLAG:251 == 1
+					;PRINTFORMW 
+				;キス経験済み
+				ELSE
+					;PRINTFORMW 
+				ENDIF
 			ELSE
-				;PRINTFORMW 
+				;ファーストキス
+				IF CFLAG:251 == 1
+					;PRINTFORMW 
+				;キス経験済み
+				ELSE
+					;PRINTFORMW 
+				ENDIF
 			ENDIF
 		;二回目以降
 		ELSE
@@ -9379,12 +9938,24 @@ IF SELECTCOM == 341
 	IF IS_INITIATIVE(TARGET)
 		;初めて
 		IF IS_COM_FIRST()
-		CFLAG:250 = 1;初めてキスをしたフラグ
+			CFLAG:250 = 1;初めてキスをしたフラグ
 			;既成事実Lv2以上
 			IF TALENT:恋人 || TALENT:合意
-				;PRINTFORMW 
+				;ファーストキス
+				IF CFLAG:251 == 1
+					;PRINTFORMW 
+				;キス経験済み
+				ELSE
+					;PRINTFORMW 
+				ENDIF
 			ELSE
-				;PRINTFORMW 
+				;ファーストキス
+				IF CFLAG:251 == 1
+					;PRINTFORMW 
+				;キス経験済み
+				ELSE
+					;PRINTFORMW 
+				ENDIF
 			ENDIF
 		;二回目以降
 		ELSE
@@ -9403,12 +9974,24 @@ IF SELECTCOM == 341
 	ELSE
 		;初めて
 		IF IS_COM_FIRST()
-		CFLAG:250 = 1;初めてキスをしたフラグ
+			CFLAG:250 = 1;初めてキスをしたフラグ
 			;既成事実Lv2以上
 			IF TALENT:恋人 || TALENT:合意
-				;PRINTFORMW 
+				;ファーストキス
+				IF CFLAG:251 == 1
+					;PRINTFORMW 
+				;キス経験済み
+				ELSE
+					;PRINTFORMW 
+				ENDIF
 			ELSE
-				;PRINTFORMW 
+				;ファーストキス
+				IF CFLAG:251 == 1
+					;PRINTFORMW 
+				;キス経験済み
+				ELSE
+					;PRINTFORMW 
+				ENDIF
 			ENDIF
 		;二回目以降
 		ELSE
@@ -9434,12 +10017,24 @@ IF SELECTCOM == 342
 	IF IS_INITIATIVE(TARGET)
 		;初めて
 		IF IS_COM_FIRST()
-		CFLAG:250 = 1;初めてキスをしたフラグ
+			CFLAG:250 = 1;初めてキスをしたフラグ
 			;既成事実Lv2以上
 			IF TALENT:恋人 || TALENT:合意
-				;PRINTFORMW 
+				;ファーストキス
+				IF CFLAG:251 == 1
+					;PRINTFORMW 
+				;キス経験済み
+				ELSE
+					;PRINTFORMW 
+				ENDIF
 			ELSE
-				;PRINTFORMW 
+				;ファーストキス
+				IF CFLAG:251 == 1
+					;PRINTFORMW 
+				;キス経験済み
+				ELSE
+					;PRINTFORMW 
+				ENDIF
 			ENDIF
 		;二回目以降
 		ELSE
@@ -9458,12 +10053,24 @@ IF SELECTCOM == 342
 	ELSE
 		;初めて
 		IF IS_COM_FIRST()
-		CFLAG:250 = 1;初めてキスをしたフラグ
+			CFLAG:250 = 1;初めてキスをしたフラグ
 			;既成事実Lv2以上
 			IF TALENT:恋人 || TALENT:合意
-				;PRINTFORMW 
+				;ファーストキス
+				IF CFLAG:251 == 1
+					;PRINTFORMW 
+				;キス経験済み
+				ELSE
+					;PRINTFORMW 
+				ENDIF
 			ELSE
-				;PRINTFORMW 
+				;ファーストキス
+				IF CFLAG:251 == 1
+					;PRINTFORMW 
+				;キス経験済み
+				ELSE
+					;PRINTFORMW 
+				ENDIF
 			ENDIF
 		;二回目以降
 		ELSE
@@ -9486,59 +10093,6 @@ ENDIF
 ;食事
 ;-------------------------------------------------
 IF SELECTCOM == 351
-	;このキャラが主導権を持っている
-	IF IS_INITIATIVE(TARGET)
-		;初めて
-		IF IS_COM_FIRST()
-			;既成事実Lv2以上
-			IF TALENT:恋人 || TALENT:合意
-				;PRINTFORMW 
-			ELSE
-				;PRINTFORMW 
-			ENDIF
-		;二回目以降
-		ELSE
-			;恋慕 or 服従 or 親友
-			IF TALENT:恋慕 || TALENT:服従 || TALENT:親友
-				;PRINTFORMW 
-			;既成事実Lv2以上
-			ELSEIF TALENT:恋人 || TALENT:合意
-				;PRINTFORMW 
-			;それ以外
-			ELSE
-				;PRINTFORMW 
-			ENDIF
-		ENDIF
-	;このキャラが主導権を持っていない
-	ELSE
-		;初めて
-		IF IS_COM_FIRST()
-			;既成事実Lv2以上
-			IF TALENT:恋人 || TALENT:合意
-				;PRINTFORMW 
-			ELSE
-				;PRINTFORMW 
-			ENDIF
-		;二回目以降
-		ELSE
-			;恋慕 or 服従 or 親友
-			IF TALENT:恋慕 || TALENT:服従 || TALENT:親友
-				;PRINTFORMW 
-			;既成事実Lv2以上
-			ELSEIF TALENT:恋人 || TALENT:合意
-				;PRINTFORMW 
-			;それ以外
-			ELSE
-				;PRINTFORMW 
-			ENDIF
-		ENDIF
-	ENDIF
-ENDIF
-
-;-------------------------------------------------
-;本屋に入る　現状、死に分岐
-;-------------------------------------------------
-IF SELECTCOM == 352
 	;このキャラが主導権を持っている
 	IF IS_INITIATIVE(TARGET)
 		;初めて
@@ -10509,7 +11063,7 @@ IF SELECTCOM == 1
 ENDIF
 
 ;-------------------------------------------------
-;クンニ(プレイヤー・する側)
+;クンニ(プレイヤー・舐める側)
 ;-------------------------------------------------
 IF SELECTCOM == 2
 	;このキャラが主導権を持っている
@@ -10559,7 +11113,7 @@ IF SELECTCOM == 2
 ENDIF
 
 ;-------------------------------------------------
-;指挿入れ(プレイヤー・する側)
+;指挿入れ(プレイヤー・入れる側)
 ;-------------------------------------------------
 IF SELECTCOM == 3
 	;このキャラが主導権を持っている
@@ -10733,7 +11287,7 @@ IF SELECTCOM == 5
 ENDIF
 
 ;-------------------------------------------------
-;尻尾挿入(プレイヤー・する側)
+;尻尾挿入(プレイヤー・挿れる側)
 ;-------------------------------------------------
 IF SELECTCOM == 6
 	;このキャラが主導権を持っている
@@ -10741,7 +11295,7 @@ IF SELECTCOM == 6
 		;初めて
 		IF IS_COM_FIRST()
 			;主人公が処女
-			IF EXP:MASTER:Ｖ性交経験 == 1
+			IF CFLAG:253 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -10774,7 +11328,7 @@ IF SELECTCOM == 6
 		;初めて
 		IF IS_COM_FIRST()
 			;主人公が処女
-			IF EXP:MASTER:Ｖ性交経験 == 1
+			IF CFLAG:253 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -10807,7 +11361,7 @@ IF SELECTCOM == 6
 ENDIF
 
 ;-------------------------------------------------
-;尻尾Ａ挿入(プレイヤー・する側)
+;尻尾Ａ挿入(プレイヤー・挿れる側)
 ;-------------------------------------------------
 IF SELECTCOM == 7
 	;このキャラが主導権を持っている
@@ -10931,7 +11485,7 @@ IF SELECTCOM == 8
 ENDIF
 
 ;-------------------------------------------------
-;乳首吸い(プレイヤー・する側)
+;乳首吸い(プレイヤー・吸う側)
 ;-------------------------------------------------
 IF SELECTCOM == 9
 	;このキャラが主導権を持っている
@@ -11005,7 +11559,7 @@ IF SELECTCOM == 9
 ENDIF
 
 ;-------------------------------------------------
-;手コキ(プレイヤー・する側)
+;手コキ(プレイヤー・シゴく側)
 ;-------------------------------------------------
 IF SELECTCOM == 10
 	;このキャラが主導権を持っている
@@ -11055,7 +11609,7 @@ IF SELECTCOM == 10
 ENDIF
 
 ;-------------------------------------------------
-;フェラチオ(プレイヤー・する側)
+;フェラチオ(プレイヤー・しゃぶる側)
 ;-------------------------------------------------
 IF SELECTCOM == 11
 	;このキャラが主導権を持っている
@@ -11205,7 +11759,7 @@ IF SELECTCOM == 13
 ENDIF
 
 ;-------------------------------------------------
-;足コキ(プレイヤー・する側)
+;足コキ(プレイヤー・シゴく側)
 ;-------------------------------------------------
 IF SELECTCOM == 14
 	;このキャラが主導権を持っている
@@ -11255,7 +11809,7 @@ IF SELECTCOM == 14
 ENDIF
 
 ;-------------------------------------------------
-;尻コキ(プレイヤー・する側)
+;尻コキ(プレイヤー・シゴく側)
 ;-------------------------------------------------
 IF SELECTCOM == 15
 	;このキャラが主導権を持っている
@@ -11305,7 +11859,7 @@ IF SELECTCOM == 15
 ENDIF
 
 ;-------------------------------------------------
-;オナホコキ(プレイヤー・する側)
+;オナホコキ(プレイヤー・シゴく側)
 ;-------------------------------------------------
 IF SELECTCOM == 16
 	;このキャラが主導権を持っている
@@ -11355,7 +11909,7 @@ IF SELECTCOM == 16
 ENDIF
 
 ;-------------------------------------------------
-;尻尾コキ(プレイヤー・する側)
+;尻尾コキ(プレイヤー・シゴく側)
 ;-------------------------------------------------
 IF SELECTCOM == 17
 	;このキャラが主導権を持っている
@@ -11403,9 +11957,108 @@ IF SELECTCOM == 17
 	ENDIF
 	RETURN 0
 ENDIF
+;-------------------------------------------------
+;指フェラ(プレイヤー・しゃぶる側)
+;-------------------------------------------------
+IF SELECTCOM == 24
+	;このキャラが主導権を持っている
+	IF IS_INITIATIVE(TARGET)
+		;初めて
+		IF IS_COM_FIRST()
+			;恋慕 or 服従
+			IF TALENT:恋慕 || TALENT:服従
+				;PRINTFORMW 
+			;それ以外
+			ELSE
+				;PRINTFORMW 
+			ENDIF
+		;二回目以降
+		ELSE
+			;恋慕 or 服従
+			IF TALENT:恋慕 || TALENT:服従
+				;PRINTFORMW 
+			;それ以外
+			ELSE
+				;PRINTFORMW 
+			ENDIF
+		ENDIF
+	;このキャラが主導権を持っていない
+	ELSE
+		;初めて
+		IF IS_COM_FIRST()
+			;恋慕 or 服従
+			IF TALENT:恋慕 || TALENT:服従
+				;PRINTFORMW 
+			;それ以外
+			ELSE
+				;PRINTFORMW 
+			ENDIF
+		;二回目以降
+		ELSE
+			;恋慕 or 服従
+			IF TALENT:恋慕 || TALENT:服従
+				;PRINTFORMW 
+			;それ以外
+			ELSE
+				;PRINTFORMW 
+			ENDIF
+		ENDIF
+	ENDIF
+	RETURN 0
+ENDIF
 
 ;-------------------------------------------------
-;正常位(プレイヤー・する側)
+;ニプルファック(プレイヤー・ファックする側。要ペニス)
+;-------------------------------------------------
+IF SELECTCOM == 25
+	;このキャラが主導権を持っている
+	IF IS_INITIATIVE(TARGET)
+		;初めて
+		IF IS_COM_FIRST()
+			;恋慕 or 服従
+			IF TALENT:恋慕 || TALENT:服従
+				;PRINTFORMW 
+			;それ以外
+			ELSE
+				;PRINTFORMW 
+			ENDIF
+		;二回目以降
+		ELSE
+			;恋慕 or 服従
+			IF TALENT:恋慕 || TALENT:服従
+				;PRINTFORMW 
+			;それ以外
+			ELSE
+				;PRINTFORMW 
+			ENDIF
+		ENDIF
+	;このキャラが主導権を持っていない
+	ELSE
+		;初めて
+		IF IS_COM_FIRST()
+			;恋慕 or 服従
+			IF TALENT:恋慕 || TALENT:服従
+				;PRINTFORMW 
+			;それ以外
+			ELSE
+				;PRINTFORMW 
+			ENDIF
+		;二回目以降
+		ELSE
+			;恋慕 or 服従
+			IF TALENT:恋慕 || TALENT:服従
+				;PRINTFORMW 
+			;それ以外
+			ELSE
+				;PRINTFORMW 
+			ENDIF
+		ENDIF
+	ENDIF
+	RETURN 0
+ENDIF
+
+;-------------------------------------------------
+;正常位(プレイヤー・挿れる側。要ペニス)
 ;-------------------------------------------------
 IF SELECTCOM == 30
 	;このキャラが主導権を持っている
@@ -11413,7 +12066,7 @@ IF SELECTCOM == 30
 		;初めて
 		IF IS_COM_FIRST()
 			;主人公が処女
-			IF EXP:MASTER:Ｖ性交経験 == 1
+			IF CFLAG:253 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -11446,7 +12099,7 @@ IF SELECTCOM == 30
 		;初めて
 		IF IS_COM_FIRST()
 			;主人公が処女
-			IF EXP:MASTER:Ｖ性交経験 == 1
+			IF CFLAG:253 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -11479,7 +12132,7 @@ IF SELECTCOM == 30
 ENDIF
 
 ;-------------------------------------------------
-;後背位(プレイヤー・する側)
+;後背位(プレイヤー・挿れる側。要ペニス)
 ;-------------------------------------------------
 IF SELECTCOM == 31
 	;このキャラが主導権を持っている
@@ -11487,7 +12140,7 @@ IF SELECTCOM == 31
 		;初めて
 		IF IS_COM_FIRST()
 			;主人公が処女
-			IF EXP:MASTER:Ｖ性交経験 == 1
+			IF CFLAG:253 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -11520,7 +12173,7 @@ IF SELECTCOM == 31
 		;初めて
 		IF IS_COM_FIRST()
 			;主人公が処女
-			IF EXP:MASTER:Ｖ性交経験 == 1
+			IF CFLAG:253 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -11553,7 +12206,7 @@ IF SELECTCOM == 31
 ENDIF
 
 ;-------------------------------------------------
-;対面座位(プレイヤー・する側)
+;対面座位(プレイヤー・挿れる側。要ペニス)
 ;-------------------------------------------------
 IF SELECTCOM == 32
 	;このキャラが主導権を持っている
@@ -11561,7 +12214,7 @@ IF SELECTCOM == 32
 		;初めて
 		IF IS_COM_FIRST()
 			;主人公が処女
-			IF EXP:MASTER:Ｖ性交経験 == 1
+			IF CFLAG:253 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -11594,7 +12247,7 @@ IF SELECTCOM == 32
 		;初めて
 		IF IS_COM_FIRST()
 			;主人公が処女
-			IF EXP:MASTER:Ｖ性交経験 == 1
+			IF CFLAG:253 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -11627,7 +12280,7 @@ IF SELECTCOM == 32
 ENDIF
 
 ;-------------------------------------------------
-;背面座位(プレイヤー・する側)
+;背面座位(プレイヤー・挿れる側。要ペニス)
 ;-------------------------------------------------
 IF SELECTCOM == 33
 	;このキャラが主導権を持っている
@@ -11635,7 +12288,7 @@ IF SELECTCOM == 33
 		;初めて
 		IF IS_COM_FIRST()
 			;主人公が処女
-			IF EXP:MASTER:Ｖ性交経験 == 1
+			IF CFLAG:253 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -11668,7 +12321,7 @@ IF SELECTCOM == 33
 		;初めて
 		IF IS_COM_FIRST()
 			;主人公が処女
-			IF EXP:MASTER:Ｖ性交経験 == 1
+			IF CFLAG:253 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -11701,7 +12354,7 @@ IF SELECTCOM == 33
 ENDIF
 
 ;-------------------------------------------------
-;騎乗位(プレイヤー・する側)
+;騎乗位(プレイヤー・挿れる側。要ペニス)
 ;-------------------------------------------------
 IF SELECTCOM == 34
 	;このキャラが主導権を持っている
@@ -11709,7 +12362,7 @@ IF SELECTCOM == 34
 		;初めて
 		IF IS_COM_FIRST()
 			;主人公が処女
-			IF EXP:MASTER:Ｖ性交経験 == 1
+			IF CFLAG:253 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -11742,7 +12395,7 @@ IF SELECTCOM == 34
 		;初めて
 		IF IS_COM_FIRST()
 			;主人公が処女
-			IF EXP:MASTER:Ｖ性交経験 == 1
+			IF CFLAG:253 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -11775,7 +12428,7 @@ IF SELECTCOM == 34
 ENDIF
 
 ;-------------------------------------------------
-;背面騎乗位(プレイヤー・する側)
+;背面騎乗位(プレイヤー・挿れる側。要ペニス)
 ;-------------------------------------------------
 IF SELECTCOM == 35
 	;このキャラが主導権を持っている
@@ -11783,7 +12436,7 @@ IF SELECTCOM == 35
 		;初めて
 		IF IS_COM_FIRST()
 			;主人公が処女
-			IF EXP:MASTER:Ｖ性交経験 == 1
+			IF CFLAG:253 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -11816,7 +12469,7 @@ IF SELECTCOM == 35
 		;初めて
 		IF IS_COM_FIRST()
 			;主人公が処女
-			IF EXP:MASTER:Ｖ性交経験 == 1
+			IF CFLAG:253 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -11849,7 +12502,7 @@ IF SELECTCOM == 35
 ENDIF
 
 ;-------------------------------------------------
-;二本挿入(プレイヤー・する側)
+;二本挿入(プレイヤー・挿れる側。要ペニス)
 ;-------------------------------------------------
 IF SELECTCOM == 36
 	;このキャラが主導権を持っている
@@ -11899,7 +12552,7 @@ IF SELECTCOM == 36
 ENDIF
 
 ;-------------------------------------------------
-;側位(プレイヤー・する側)
+;側位(プレイヤー・挿れる側。要ペニス)
 ;-------------------------------------------------
 IF SELECTCOM == 37
 	;このキャラが主導権を持っている
@@ -11907,7 +12560,7 @@ IF SELECTCOM == 37
 		;初めて
 		IF IS_COM_FIRST()
 			;主人公が処女
-			IF EXP:MASTER:Ｖ性交経験 == 1
+			IF CFLAG:253 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -11940,7 +12593,7 @@ IF SELECTCOM == 37
 		;初めて
 		IF IS_COM_FIRST()
 			;主人公が処女
-			IF EXP:MASTER:Ｖ性交経験 == 1
+			IF CFLAG:253 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -11973,7 +12626,7 @@ IF SELECTCOM == 37
 ENDIF
 
 ;-------------------------------------------------
-;屈曲位(プレイヤー・する側)
+;屈曲位(プレイヤー・挿れる側。要ペニス)
 ;-------------------------------------------------
 IF SELECTCOM == 38
 	;このキャラが主導権を持っている
@@ -11981,7 +12634,7 @@ IF SELECTCOM == 38
 		;初めて
 		IF IS_COM_FIRST()
 			;主人公が処女
-			IF EXP:MASTER:Ｖ性交経験 == 1
+			IF CFLAG:253 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -12014,7 +12667,7 @@ IF SELECTCOM == 38
 		;初めて
 		IF IS_COM_FIRST()
 			;主人公が処女
-			IF EXP:MASTER:Ｖ性交経験 == 1
+			IF CFLAG:253 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -12047,7 +12700,7 @@ IF SELECTCOM == 38
 ENDIF
 
 ;-------------------------------------------------
-;駅弁(プレイヤー・する側)
+;駅弁(プレイヤー・挿れる側。要ペニス)
 ;-------------------------------------------------
 IF SELECTCOM == 39
 	;このキャラが主導権を持っている
@@ -12055,7 +12708,7 @@ IF SELECTCOM == 39
 		;初めて
 		IF IS_COM_FIRST()
 			;主人公が処女
-			IF EXP:MASTER:Ｖ性交経験 == 1
+			IF CFLAG:253 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -12088,7 +12741,7 @@ IF SELECTCOM == 39
 		;初めて
 		IF IS_COM_FIRST()
 			;主人公が処女
-			IF EXP:MASTER:Ｖ性交経験 == 1
+			IF CFLAG:253 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -12121,7 +12774,7 @@ IF SELECTCOM == 39
 ENDIF
 
 ;-------------------------------------------------
-;逆駅弁(プレイヤー・する側)
+;背面駅弁(プレイヤー・挿れる側。要ペニス)
 ;-------------------------------------------------
 IF SELECTCOM == 52
 	;このキャラが主導権を持っている
@@ -12129,7 +12782,7 @@ IF SELECTCOM == 52
 		;初めて
 		IF IS_COM_FIRST()
 			;主人公が処女
-			IF EXP:MASTER:Ｖ性交経験 == 1
+			IF CFLAG:253 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -12162,7 +12815,7 @@ IF SELECTCOM == 52
 		;初めて
 		IF IS_COM_FIRST()
 			;主人公が処女
-			IF EXP:MASTER:Ｖ性交経験 == 1
+			IF CFLAG:253 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -12195,7 +12848,7 @@ IF SELECTCOM == 52
 ENDIF
 
 ;-------------------------------------------------
-;立ちバック(プレイヤー・する側)
+;立ちバック(プレイヤー・挿れる側。要ペニス)
 ;-------------------------------------------------
 IF SELECTCOM == 160
 	;このキャラが主導権を持っている
@@ -12203,7 +12856,7 @@ IF SELECTCOM == 160
 		;初めて
 		IF IS_COM_FIRST()
 			;主人公が処女
-			IF EXP:MASTER:Ｖ性交経験 == 1
+			IF CFLAG:253 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -12236,7 +12889,7 @@ IF SELECTCOM == 160
 		;初めて
 		IF IS_COM_FIRST()
 			;主人公が処女
-			IF EXP:MASTER:Ｖ性交経験 == 1
+			IF CFLAG:253 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -12269,7 +12922,7 @@ IF SELECTCOM == 160
 ENDIF
 
 ;-------------------------------------------------
-;Ａ正常位(プレイヤー・する側)
+;Ａ正常位(プレイヤー・挿れる側。要ペニス)
 ;-------------------------------------------------
 IF SELECTCOM == 40
 	;このキャラが主導権を持っている
@@ -12319,7 +12972,7 @@ IF SELECTCOM == 40
 ENDIF
 
 ;-------------------------------------------------
-;Ａ後背位(プレイヤー・する側)
+;Ａ後背位(プレイヤー・挿れる側。要ペニス)
 ;-------------------------------------------------
 IF SELECTCOM == 41
 	;このキャラが主導権を持っている
@@ -12369,7 +13022,7 @@ IF SELECTCOM == 41
 ENDIF
 
 ;-------------------------------------------------
-;Ａ対面座位(プレイヤー・する側)
+;Ａ対面座位(プレイヤー・挿れる側。要ペニス)
 ;-------------------------------------------------
 IF SELECTCOM == 42
 	;このキャラが主導権を持っている
@@ -12419,7 +13072,7 @@ IF SELECTCOM == 42
 ENDIF
 
 ;-------------------------------------------------
-;Ａ背面座位(プレイヤー・する側)
+;Ａ背面座位(プレイヤー・挿れる側。要ペニス)
 ;-------------------------------------------------
 IF SELECTCOM == 43
 	;このキャラが主導権を持っている
@@ -12469,7 +13122,7 @@ IF SELECTCOM == 43
 ENDIF
 
 ;-------------------------------------------------
-;Ａ騎乗位(プレイヤー・する側)
+;Ａ騎乗位(プレイヤー・挿れる側。要ペニス)
 ;-------------------------------------------------
 IF SELECTCOM == 44
 	;このキャラが主導権を持っている
@@ -12519,7 +13172,7 @@ IF SELECTCOM == 44
 ENDIF
 
 ;-------------------------------------------------
-;Ａ背面騎乗位(プレイヤー・する側)
+;Ａ背面騎乗位(プレイヤー・挿れる側。要ペニス)
 ;-------------------------------------------------
 IF SELECTCOM == 45
 	;このキャラが主導権を持っている
@@ -12569,7 +13222,7 @@ IF SELECTCOM == 45
 ENDIF
 
 ;-------------------------------------------------
-;Ａ二本挿入(プレイヤー・する側)
+;Ａ二本挿入(プレイヤー・挿れる側。要ペニス)
 ;-------------------------------------------------
 IF SELECTCOM == 46
 	;このキャラが主導権を持っている
@@ -12619,7 +13272,7 @@ IF SELECTCOM == 46
 ENDIF
 
 ;-------------------------------------------------
-;Ａ側位(プレイヤー・する側)
+;Ａ側位(プレイヤー・挿れる側。要ペニス)
 ;-------------------------------------------------
 IF SELECTCOM == 47
 	;このキャラが主導権を持っている
@@ -12669,7 +13322,7 @@ IF SELECTCOM == 47
 ENDIF
 
 ;-------------------------------------------------
-;Ａ屈曲位(プレイヤー・する側)
+;Ａ屈曲位(プレイヤー・挿れる側。要ペニス)
 ;-------------------------------------------------
 IF SELECTCOM == 48
 	;このキャラが主導権を持っている
@@ -12719,7 +13372,7 @@ IF SELECTCOM == 48
 ENDIF
 
 ;-------------------------------------------------
-;Ａ駅弁(プレイヤー・する側)
+;Ａ駅弁(プレイヤー・挿れる側。要ペニス)
 ;-------------------------------------------------
 IF SELECTCOM == 49
 	;このキャラが主導権を持っている
@@ -12769,7 +13422,7 @@ IF SELECTCOM == 49
 ENDIF
 
 ;-------------------------------------------------
-;Ａ逆駅弁(プレイヤー・する側)
+;Ａ背面駅弁(プレイヤー・挿れる側。要ペニス)
 ;-------------------------------------------------
 IF SELECTCOM == 53
 	;このキャラが主導権を持っている
@@ -12819,7 +13472,7 @@ IF SELECTCOM == 53
 ENDIF
 
 ;-------------------------------------------------
-;立ちＡバック(プレイヤー・する側)
+;立ちＡバック(プレイヤー・挿れる側。要ペニス)
 ;-------------------------------------------------
 IF SELECTCOM == 161
 	;このキャラが主導権を持っている
@@ -12945,7 +13598,7 @@ IF SELECTCOM == 51
 ENDIF
 
 ;-------------------------------------------------
-;順番に挿入(プレイヤー・する側)
+;順番に挿入(プレイヤー・挿れる側。要ペニス)
 ;-------------------------------------------------
 IF SELECTCOM == 55
 	;このキャラが主導権を持っている
@@ -12995,7 +13648,7 @@ IF SELECTCOM == 55
 ENDIF
 
 ;-------------------------------------------------
-;順番にＡ挿入(プレイヤー・する側)
+;順番にＡ挿入(プレイヤー・挿れる側。要ペニス)
 ;-------------------------------------------------
 IF SELECTCOM == 56
 	;このキャラが主導権を持っている
@@ -13045,7 +13698,7 @@ IF SELECTCOM == 56
 ENDIF
 
 ;-------------------------------------------------
-;代わる代わる挿入(プレイヤー・する側)
+;代わる代わる挿入(プレイヤー・挿れる側。要ペニス)
 ;-------------------------------------------------
 IF SELECTCOM == 57
 	;このキャラが主導権を持っている
@@ -13095,7 +13748,7 @@ IF SELECTCOM == 57
 ENDIF
 
 ;-------------------------------------------------
-;代わる代わるＡ挿入(プレイヤー・する側)
+;代わる代わるＡ挿入(プレイヤー・挿れる側。要ペニス)
 ;-------------------------------------------------
 IF SELECTCOM == 58
 	;このキャラが主導権を持っている
@@ -13203,7 +13856,7 @@ IF SELECTCOM == 61
 		;初めて
 		IF IS_COM_FIRST()
 			;主人公が処女
-			IF EXP:MASTER:Ｖ性交経験 == 1
+			IF CFLAG:253 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -13236,7 +13889,7 @@ IF SELECTCOM == 61
 		;初めて
 		IF IS_COM_FIRST()
 			;主人公が処女
-			IF EXP:MASTER:Ｖ性交経験 == 1
+			IF CFLAG:253 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -13427,7 +14080,7 @@ IF SELECTCOM == 65
 		;初めて
 		IF IS_COM_FIRST()
 			;主人公が処女
-			IF EXP:MASTER:Ｖ性交経験 == 1
+			IF CFLAG:253 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -13460,7 +14113,7 @@ IF SELECTCOM == 65
 		;初めて
 		IF IS_COM_FIRST()
 			;主人公が処女
-			IF EXP:MASTER:Ｖ性交経験 == 1
+			IF CFLAG:253 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -14251,7 +14904,7 @@ IF SELECTCOM == 87
 		;初めて
 		IF IS_COM_FIRST()
 			;主人公が処女
-			IF EXP:MASTER:Ｖ性交経験 == 1
+			IF CFLAG:253 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -14284,7 +14937,7 @@ IF SELECTCOM == 87
 		;初めて
 		IF IS_COM_FIRST()
 			;主人公が処女
-			IF EXP:MASTER:Ｖ性交経験 == 1
+			IF CFLAG:253 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -14417,7 +15070,7 @@ IF SELECTCOM == 89
 ENDIF
 
 ;-------------------------------------------------
-;イラマチオ(プレイヤー・する側)
+;イラマチオ(プレイヤー・しゃぶる側)
 ;-------------------------------------------------
 IF SELECTCOM == 90
 	;このキャラが主導権を持っている
@@ -14435,10 +15088,18 @@ IF SELECTCOM == 90
 		ELSE
 			;恋慕 or 服従
 			IF TALENT:恋慕 || TALENT:服従
-				;PRINTFORMW 
+				IF GETBIT(TALENT:淫乱系, 素質_淫乱_マゾ)
+					;PRINTFORMW 
+				ELSE
+					;PRINTFORMW 
+				ENDIF
 			;それ以外
 			ELSE
-				;PRINTFORMW 
+				IF GETBIT(TALENT:淫乱系, 素質_淫乱_マゾ)
+					;PRINTFORMW 
+				ELSE
+					;PRINTFORMW 
+				ENDIF
 			ENDIF
 		ENDIF
 	;このキャラが主導権を持っていない
@@ -14456,10 +15117,18 @@ IF SELECTCOM == 90
 		ELSE
 			;恋慕 or 服従
 			IF TALENT:恋慕 || TALENT:服従
-				;PRINTFORMW 
+				IF GETBIT(TALENT:淫乱系, 素質_淫乱_マゾ)
+					;PRINTFORMW 
+				ELSE
+					;PRINTFORMW 
+				ENDIF
 			;それ以外
 			ELSE
-				;PRINTFORMW 
+				IF GETBIT(TALENT:淫乱系, 素質_淫乱_マゾ)
+					;PRINTFORMW 
+				ELSE
+					;PRINTFORMW 
+				ENDIF
 			ENDIF
 		ENDIF
 	ENDIF
@@ -15187,7 +15856,7 @@ IF SELECTCOM == 106
 ENDIF
 
 ;-------------------------------------------------
-;亀頭責めフェラ(プレイヤー・する側)
+;亀頭責めフェラ(プレイヤー・しゃぶる側)
 ;-------------------------------------------------
 IF SELECTCOM == 107
 	;このキャラが主導権を持っている
@@ -16189,7 +16858,7 @@ IF SELECTCOM == 201
 		;初めて
 		IF IS_COM_FIRST()
 			;主人公が処女
-			IF EXP:MASTER:Ｖ性交経験 == 1
+			IF CFLAG:253 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -16222,7 +16891,7 @@ IF SELECTCOM == 201
 		;初めて
 		IF IS_COM_FIRST()
 			;主人公が処女
-			IF EXP:MASTER:Ｖ性交経験 == 1
+			IF CFLAG:253 == 1
 				;恋慕 or 服従
 				IF TALENT:恋慕 || TALENT:服従
 					;PRINTFORMW 
@@ -17170,7 +17839,7 @@ IF SELECTCOM == 324
 ENDIF
 
 ;-------------------------------------------------
-;日常フェラ(プレイヤー・する側)　キャラがあなたに対して行うコマンド
+;日常フェラ(プレイヤー・しゃぶる側)
 ;-------------------------------------------------
 IF SELECTCOM == 330
 	;このキャラが主導権を持っている
@@ -17230,12 +17899,24 @@ IF SELECTCOM == 340
 	IF IS_INITIATIVE(TARGET)
 		;初めて
 		IF IS_COM_FIRST()
-		CFLAG:250 = 1;初めてキスをしたフラグ
+			CFLAG:250 = 1;初めてキスをしたフラグ
 			;既成事実Lv2以上
 			IF TALENT:恋人 || TALENT:合意
-				;PRINTFORMW 
+				;ファーストキス
+				IF CFLAG:251 == 1
+					;PRINTFORMW 
+				;キス経験済み
+				ELSE
+					;PRINTFORMW 
+				ENDIF
 			ELSE
-				;PRINTFORMW 
+				;ファーストキス
+				IF CFLAG:251 == 1
+					;PRINTFORMW 
+				;キス経験済み
+				ELSE
+					;PRINTFORMW 
+				ENDIF
 			ENDIF
 		;二回目以降
 		ELSE
@@ -17254,12 +17935,24 @@ IF SELECTCOM == 340
 	ELSE
 		;初めて
 		IF IS_COM_FIRST()
-		CFLAG:250 = 1;初めてキスをしたフラグ
+			CFLAG:250 = 1;初めてキスをしたフラグ
 			;既成事実Lv2以上
 			IF TALENT:恋人 || TALENT:合意
-				;PRINTFORMW 
+				;ファーストキス
+				IF CFLAG:251 == 1
+					;PRINTFORMW 
+				;キス経験済み
+				ELSE
+					;PRINTFORMW 
+				ENDIF
 			ELSE
-				;PRINTFORMW 
+				;ファーストキス
+				IF CFLAG:251 == 1
+					;PRINTFORMW 
+				;キス経験済み
+				ELSE
+					;PRINTFORMW 
+				ENDIF
 			ENDIF
 		;二回目以降
 		ELSE
@@ -17285,12 +17978,24 @@ IF SELECTCOM == 341
 	IF IS_INITIATIVE(TARGET)
 		;初めて
 		IF IS_COM_FIRST()
-		CFLAG:250 = 1;初めてキスをしたフラグ
+			CFLAG:250 = 1;初めてキスをしたフラグ
 			;既成事実Lv2以上
 			IF TALENT:恋人 || TALENT:合意
-				;PRINTFORMW 
+				;ファーストキス
+				IF CFLAG:251 == 1
+					;PRINTFORMW 
+				;キス経験済み
+				ELSE
+					;PRINTFORMW 
+				ENDIF
 			ELSE
-				;PRINTFORMW 
+				;ファーストキス
+				IF CFLAG:251 == 1
+					;PRINTFORMW 
+				;キス経験済み
+				ELSE
+					;PRINTFORMW 
+				ENDIF
 			ENDIF
 		;二回目以降
 		ELSE
@@ -17309,12 +18014,24 @@ IF SELECTCOM == 341
 	ELSE
 		;初めて
 		IF IS_COM_FIRST()
-		CFLAG:250 = 1;初めてキスをしたフラグ
+			CFLAG:250 = 1;初めてキスをしたフラグ
 			;既成事実Lv2以上
 			IF TALENT:恋人 || TALENT:合意
-				;PRINTFORMW 
+				;ファーストキス
+				IF CFLAG:251 == 1
+					;PRINTFORMW 
+				;キス経験済み
+				ELSE
+					;PRINTFORMW 
+				ENDIF
 			ELSE
-				;PRINTFORMW 
+				;ファーストキス
+				IF CFLAG:251 == 1
+					;PRINTFORMW 
+				;キス経験済み
+				ELSE
+					;PRINTFORMW 
+				ENDIF
 			ENDIF
 		;二回目以降
 		ELSE
@@ -17340,12 +18057,24 @@ IF SELECTCOM == 342
 	IF IS_INITIATIVE(TARGET)
 		;初めて
 		IF IS_COM_FIRST()
-		CFLAG:250 = 1;初めてキスをしたフラグ
+			CFLAG:250 = 1;初めてキスをしたフラグ
 			;既成事実Lv2以上
 			IF TALENT:恋人 || TALENT:合意
-				;PRINTFORMW 
+				;ファーストキス
+				IF CFLAG:251 == 1
+					;PRINTFORMW 
+				;キス経験済み
+				ELSE
+					;PRINTFORMW 
+				ENDIF
 			ELSE
-				;PRINTFORMW 
+				;ファーストキス
+				IF CFLAG:251 == 1
+					;PRINTFORMW 
+				;キス経験済み
+				ELSE
+					;PRINTFORMW 
+				ENDIF
 			ENDIF
 		;二回目以降
 		ELSE
@@ -17364,12 +18093,24 @@ IF SELECTCOM == 342
 	ELSE
 		;初めて
 		IF IS_COM_FIRST()
-		CFLAG:250 = 1;初めてキスをしたフラグ
+			CFLAG:250 = 1;初めてキスをしたフラグ
 			;既成事実Lv2以上
 			IF TALENT:恋人 || TALENT:合意
-				PRINTFORMW 
+				;ファーストキス
+				IF CFLAG:251 == 1
+					;PRINTFORMW 
+				;キス経験済み
+				ELSE
+					;PRINTFORMW 
+				ENDIF
 			ELSE
-				PRINTFORMW 
+				;ファーストキス
+				IF CFLAG:251 == 1
+					;PRINTFORMW 
+				;キス経験済み
+				ELSE
+					;PRINTFORMW 
+				ENDIF
 			ENDIF
 		;二回目以降
 		ELSE
@@ -17553,6 +18294,19 @@ ENDIF
 IF TALENT:虚ろ || IS_EQUIP_CONTINUE(TARGET, "口装着")
 	RETURN 0
 ENDIF
+
+;ファーストキスフラグ（コマンド終了時にキス未経験じゃ無かったらCFLAG:251を0にセット）
+SIF !TALENT:キス未経験
+	CFLAG:251 = 0
+;処女フラグ（コマンド終了時に処女じゃ無かったらCFLAG:252を0にセット）
+SIF !TALENT:処女
+	CFLAG:252 = 0
+;主人公が処女フラグ（コマンド終了時に主人公が処女じゃ無かったらCFLAG:253を0にセット）
+SIF !TALENT:MASTER:処女
+	CFLAG:253 = 0
+;主人公が童貞フラグ（コマンド終了時に主人公が童貞じゃ無かったらCFLAG:254を0にセット）
+SIF !TALENT:MASTER:童貞
+	CFLAG:254 = 0
 
 ;-------------------------------------------------
 ;処女喪失
