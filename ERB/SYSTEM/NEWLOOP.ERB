@@ -116,9 +116,6 @@ FLAG:クリア直後フラグ = 0
 FLAG:強制エンドフラグ = 0
 SHOP_TIME = 0
 
-;娯楽担当をリセット（娯楽担当がランダムキャラや出産キャラで、かつそのキャラを引き継がなかったときのため）
-CALL SET_COOK(-1)
-
 ;観戦モードフラグを0
 FLAG:観戦モード = 0
 
@@ -214,12 +211,15 @@ VARSET MONEY, 0, 1
 ;もろもろの処理後に行う変数リセット処理
 ;-------------------------------------------------
 @NEWLOOP_ADDITIONAL_RESET_VARS
-;開始時の国庫を設定
-;シナリオに応じて
+
 FOR LOCAL:0, 1, MAX_COUNTRY
 	SIF !IS_COUNTRY(LOCAL:0)
 		CONTINUE
+	;開始時の国庫を設定
 	MONEY:(LOCAL:0) += GET_SUM_ECONOMY(LOCAL:0) * 100 / (100 * 100)
+	;開始時の技術開発状況を設定
+	;引き継ぎ時に効果有り
+	CALL COUNTRY_SET_TECHNOLOGY(LOCAL)
 NEXT
 
 FOR LOCAL, 0, CHARANUM
@@ -786,7 +786,7 @@ SELECTCASE RESULT
 			;利殖対策として、好感度等まっさらな状態でないキャラが一人でもいたら、ボーナス受領数はリセットしない
 			LOCAL:1 = 0
 			FOR LOCAL, 0, CHARANUM
-				IF !(ALLSAMES(0, CFLAG:LOCAL:好感度, CFLAG:LOCAL:従属度, CFLAG:LOCAL:依存度, CFLAG:LOCAL:支配度) || IS_LOVER(LOCAL) || IS_SLAVE(LOCAL) || IS_SLAVED_BY(LOCAL)) && GET_ID(LOCAL) != 旧MASTERID
+				IF !(ALLSAMES(0, CFLAG:LOCAL:好感度, CFLAG:LOCAL:従属度, CFLAG:LOCAL:依存度, CFLAG:LOCAL:支配度) || IS_FALLEN(LOCAL)) && GET_ID(LOCAL) != 旧MASTERID
 					LOCAL:1 = 1
 					BREAK
 				ENDIF
@@ -931,6 +931,7 @@ CALL CHANGE_COUNTRY(MASTER, 勢力, 1)
 FOR LOCAL, 0, SELECTED_CHARA_NUM
 	CALL CHANGE_COUNTRY(SELECTED_CHARA:LOCAL, 勢力, 1)
 NEXT
+CALL COUNTRY_SET_TECHNOLOGY(勢力)
 REDRAW 1
 RETURN
 

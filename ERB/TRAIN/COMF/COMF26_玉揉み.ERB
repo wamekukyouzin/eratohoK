@@ -1,0 +1,370 @@
+﻿;手淫
+
+;-------------------------------------------------
+;コマンド名称
+;-------------------------------------------------
+@COM_NAME26
+
+IF MTAR_NUM > 1
+	LOCALS:0 = 同時玉揉み
+ELSEIF MPLY_NUM == 3
+	LOCALS:0 = Ｔ玉揉み
+ELSEIF MPLY_NUM == 2
+	LOCALS:0 = Ｗ玉揉み
+ELSE
+	LOCALS:0 = 玉揉み
+ENDIF
+
+RESULTS:0 = %LOCALS:0%する
+RESULTS:1 = %LOCALS:0%させられる
+RESULTS:2 = %LOCALS:0%させる
+RESULTS:3 = %LOCALS:0%される
+RESULTS:4 = %LOCALS:0%させる
+RESULTS:5 = %LOCALS:0%見せつけ
+
+;-------------------------------------------------
+;選択可否判定
+;-------------------------------------------------
+@COM_ABLE26
+;共通部分
+CALL COM_ABLE_COMMON(26)
+SIF RESULT == 0
+	RETURN 0
+;プレイヤーは最大で3人まで
+SIF MPLY_NUM <= 0 || MPLY_NUM > 3
+	RETURN 0
+;ターゲットは最大でプレイヤーの二倍まで
+SIF MTAR_NUM <= 0 || MTAR_NUM > MPLY_NUM * 2
+	RETURN 0
+
+FOR LOCAL:1, 0, MTAR_NUM
+	SIF !HAS_PENIS(MTAR:(LOCAL:1))
+		RETURN 0
+	FOR LOCAL, 0, MPLY_NUM
+		SIF !CAN_REACH_GROIN(MPLY:LOCAL, MTAR:(LOCAL:1))
+			RETURN 0
+		SIF !P_STACKABLE(MPLY:LOCAL, MTAR:(LOCAL:1), 10)
+			RETURN 0
+	NEXT
+NEXT
+RETURN 1
+
+;-------------------------------------------------
+;メイン処理
+;-------------------------------------------------
+@COM26
+;実行判定
+CALL COM_ORDER_COMMON
+SIF RESULT == 0
+	RETURN 0
+
+
+;●人数補正の設定
+LOCAL:10 = 100
+
+SELECTCASE MPLY_NUM
+	CASE 2
+		TIMES LOCAL:10, 0.75
+	CASE 3
+		TIMES LOCAL:10, 0.60
+ENDSELECT
+
+SELECTCASE MTAR_NUM
+	CASE 2
+		TIMES LOCAL:10, 0.75
+ENDSELECT
+
+;●全プレイヤーについて判定
+FOR LOCAL:0, 0, MPLY_NUM
+	LOCAL:2 = MPLY:(LOCAL:0)
+
+	DOWNBASE:(LOCAL:2):体力 += 100
+
+	EXP:(LOCAL:2):性技経験値 += MAX(MTAR_NUM / 2 + 1, 1)
+
+	SOURCE:(LOCAL:2):奉仕 = SERVE_HOUSHI(LOCAL:2, 2200)
+	SOURCE:(LOCAL:2):接触 = 50
+	SOURCE:(LOCAL:2):性行動 = 100
+
+	SELECTCASE ABL:(LOCAL:2):奉仕
+		CASE 0
+			TIMES SOURCE:(LOCAL:2):不潔, 4.50
+		CASE 1
+			TIMES SOURCE:(LOCAL:2):不潔, 3.00
+		CASE 2
+			TIMES SOURCE:(LOCAL:2):不潔, 2.00
+		CASE 3
+			TIMES SOURCE:(LOCAL:2):不潔, 1.00
+		CASE 4
+			TIMES SOURCE:(LOCAL:2):不潔, 0.75
+		CASEELSE
+			TIMES SOURCE:(LOCAL:2):不潔, 0.30
+	ENDSELECT
+
+	;主導権に応じた優越・屈従のソース追加
+	CALL ADD_SOURCE_INITIATIVE_U(LOCAL:2, 150, 80)
+
+	;奉仕経験値を得られるコマンドのフラグ
+	TCVAR:(LOCAL:2):4 = 1
+
+	;全ターゲットに与える快感系ソースを計算
+	FOR LOCAL:1, 0, MTAR_NUM
+		LOCAL:3 = MTAR:(LOCAL:1)
+		SOURCE:(LOCAL:3):快Ｐ += SENSE_HOUSHI_P(LOCAL:2, LOCAL:3, 800) * LOCAL:10 / 100
+
+	NEXT
+NEXT
+
+;●全ターゲットについて判定
+FOR LOCAL:0, 0, MTAR_NUM
+	LOCAL:1 = MTAR:(LOCAL:0)
+
+	DOWNBASE:(LOCAL:1):体力 += 60
+
+	SOURCE:(LOCAL:1):接触 = 50
+	SOURCE:(LOCAL:1):性行動 = 180
+
+	;主導権に応じた優越・屈従のソース追加
+	CALL ADD_SOURCE_INITIATIVE_U(LOCAL:1, 120, 50)
+NEXT
+
+;主導度変化基準値
+TFLAG:49 = 2
+
+;倒錯度変化基準値
+TFLAG:50 = 0
+
+;レズ・ＢＬ経験基準値
+TFLAG:51 = 4
+
+RETURN 1
+
+;-------------------------------------------------
+;継続コマンドかどうかを設定
+;-------------------------------------------------
+@COM_IS_EQUIP26
+RETURN 1
+
+;-------------------------------------------------
+;継続状態の処理
+;-------------------------------------------------
+@COM_EQUIP26(ARG:0)
+;●人数補正の設定
+LOCAL:10 = 100
+
+SELECTCASE MEQUIP_PLAYER_NUM:(ARG:0)
+	CASE 2
+		TIMES LOCAL:10, 0.75
+	CASE 3
+		TIMES LOCAL:10, 0.60
+ENDSELECT
+
+SELECTCASE MEQUIP_TARGET_NUM:(ARG:0)
+	CASE 2
+		TIMES LOCAL:10, 0.75
+ENDSELECT
+
+;●全プレイヤーについて判定
+FOR LOCAL:0, 0, MEQUIP_PLAYER_NUM:(ARG:0)
+	LOCAL:2 = MEQUIP_PLAYER:(ARG:0):(LOCAL:0)
+
+	DOWNBASE:(LOCAL:2):体力 += 20
+
+	EXP:(LOCAL:2):性技経験値 += MAX(MEQUIP_TARGET_NUM:(ARG:0) / 2 + 1, 1)
+
+	SOURCE:(LOCAL:2):奉仕 += SERVE_HOUSHI(LOCAL:2, 80)
+	SOURCE:(LOCAL:2):接触 += 50
+	SOURCE:(LOCAL:2):性行動 += 70
+
+	;奉仕経験値を得られるコマンドのフラグ
+	TCVAR:(LOCAL:2):4 = 1
+
+	;全ターゲットに与える快感系ソースを計算
+	FOR LOCAL:1, 0, MEQUIP_TARGET_NUM:(ARG:0)
+		LOCAL:3 = MEQUIP_TARGET:(ARG:0):(LOCAL:1)
+		SOURCE:(LOCAL:3):快Ｐ += SENSE_HOUSHI_P(LOCAL:2, LOCAL:3, 300) * LOCAL:10 / 100
+
+	NEXT
+NEXT
+
+;●全ターゲットについて判定
+FOR LOCAL:0, 0, MEQUIP_TARGET_NUM:(ARG:0)
+	LOCAL:1 = MEQUIP_TARGET:(ARG:0):(LOCAL:0)
+
+	DOWNBASE:(LOCAL:1):体力 += 10
+
+	SOURCE:(LOCAL:1):接触 += 25
+	SOURCE:(LOCAL:1):性行動 += 60
+NEXT
+
+;-------------------------------------------------
+;継続中の表示
+;-------------------------------------------------
+@EQUIP_MESSAGE26(ARG:0)
+RESULTS = %EQUIP_PLAYER_ANAME(ARG:0)%が%EQUIP_TARGET_ANAME(ARG:0)%に玉揉み中
+
+;-------------------------------------------------
+;継続中の地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE_EQUIP26(ARG:0)
+
+PRINTFORML %EQUIP_PLAYER_ANAME(ARG:0)%が%EQUIP_TARGET_ANAME(ARG:0)%の睾丸を優しく揉みしだいている……
+
+;-------------------------------------------------
+;継続を解除したときの地の文
+;-------------------------------------------------
+@COM_TEXT_RELEASE_EQUIP26(ARG:0)
+
+;-------------------------------------------------
+;固有の実行判定
+;-------------------------------------------------
+@COM_ORDER_PLAYER26(ARG:0)
+;実行値の設定
+TCVAR:(ARG:0):25 = 70
+
+;共通部分
+CALL COM_ORDER(ARG:0)
+
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲望Lv{ABL:(ARG:0):欲望}", ABL:(ARG:0):欲望 * 1)
+CALL COM_ORDER_ELEMENT(ARG:0, @"奉仕Lv{ABL:(ARG:0):奉仕}", ABL:(ARG:0):奉仕 * 4)
+CALL COM_ORDER_ELEMENT(ARG:0, @"精愛Lv{ABL:(ARG:0):精愛}", ABL:(ARG:0):精愛 * 1)
+
+LOCAL:0 = GET_PALAMLV(PALAM:(ARG:0):欲情)
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲情Lv{LOCAL:0}", MIN(LOCAL:0 * 2, 20))
+
+IF TCVAR:(ARG:0):60
+	CALL COM_ORDER_ELEMENT(ARG:0, "媚薬", 6)
+ENDIF
+
+IF TALENT:(ARG:0):恥じらい
+	CALL COM_ORDER_ELEMENT(ARG:0, "恥じらい", -1)
+ENDIF
+IF TALENT:(ARG:0):汚臭鈍感
+	CALL COM_ORDER_ELEMENT(ARG:0, "汚臭鈍感", 1)
+ENDIF
+IF TALENT:(ARG:0):汚臭敏感
+	CALL COM_ORDER_ELEMENT(ARG:0, "汚臭敏感", -3)
+ENDIF
+IF TALENT:(ARG:0):献身的
+	CALL COM_ORDER_ELEMENT(ARG:0, "献身的", 6)
+ENDIF
+IF TALENT:(ARG:0):快感の否定
+	CALL COM_ORDER_ELEMENT(ARG:0, "快感の否定", -1)
+ENDIF
+IF TALENT:(ARG:0):男嫌い
+	CALL COM_ORDER_ELEMENT(ARG:0, "男嫌い", -7)
+ENDIF
+
+;合意
+IF !TALENT:(ARG:0):合意 && !TALENT:(ARG:0):親友
+	CALL COM_ORDER_ELEMENT(ARG:0, "合意なし", -10)
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE26
+;ターゲットが複数
+IF MTAR_NUM > 1
+	LOCALS:0 = 
+	IF GETBIT(TALENT:(MPLY:0):淫乱系, 素質_淫乱_淫乱) && (MPLY:0 != MASTER || CONFIG:441)
+		LOCALS:0 = うっとりとした表情を浮かべながら、
+	ENDIF
+	IF MPLY_NUM > 1
+		LOCALS:2 = たち
+	ELSE
+		LOCALS:2 = 
+	ENDIF
+	SELECTCASE GET_COM_INITIATIVE()
+		;プレイヤーに主導権
+		CASE 0
+			PRINTFORMW %ANAME(MPLY:0)%%LOCALS:2%は%LOCALS:0%左右の手で%ANAME(MTAR:0)%たちの睾丸を優しく揉み%TARGET_STR("しだいた", "しだいてきた")%…
+		;ターゲットに主導権
+		CASE 1
+			PRINTFORMW %ANAME(MPLY:0)%%LOCALS:2%は%LOCALS:0%左右の手で%ANAME(MTAR:0)%たちの睾丸を優しく揉みしだいて奉仕している…
+		;第三者に主導権
+		CASEELSE
+			PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に、%ANAME(MTAR:0)%たちの睾丸に手で奉仕するように命令した
+			PRINTFORMW %ANAME(MPLY:0)%%LOCALS:2%は%LOCALS:0%左右の手で%ANAME(MTAR:0)%たちの睾丸を優しく揉みしだいた…
+	ENDSELECT
+
+;プレイヤーが３人
+ELSEIF MPLY_NUM == 3
+
+	IF MTAR_NUM > 1
+		LOCALS:2 = たち
+	ELSE
+		LOCALS:2 = 
+	ENDIF
+	SELECTCASE GET_COM_INITIATIVE()
+		;プレイヤーに主導権
+		CASE 0
+			PRINTFORMW %ANAME(MPLY:0)%、%ANAME(MPLY:1)%、%ANAME(MPLY:2)%の三人は、一斉に%ANAME(MTAR:0)%%LOCALS:2%の睾丸を優しく揉みしだいて責め立て%TARGET_STR("た", "てきた")%…
+		;ターゲットに主導権
+		CASE 1
+			PRINTFORMW %ANAME(MPLY:0)%、%ANAME(MPLY:1)%、%ANAME(MPLY:2)%の三人は、協力しながら%ANAME(MTAR:0)%%LOCALS:2%の睾丸を優しく揉みしだいて奉仕している…
+		;第三者に主導権
+		CASEELSE
+			PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%、%ANAME(MPLY:1)%、%ANAME(MPLY:2)%の三人に、%ANAME(MTAR:0)%%LOCALS:2%の睾丸に手で奉仕するように命令した
+			PRINTFORMW %ANAME(MPLY:0)%たちは、全員で%ANAME(MTAR:0)%%LOCALS:2%の睾丸を優しく揉みしだいた…
+	ENDSELECT
+
+;プレイヤーが２人
+ELSEIF MPLY_NUM == 2
+	IF MTAR_NUM > 1
+		LOCALS:2 = たち
+	ELSE
+		LOCALS:2 = 
+	ENDIF
+	SELECTCASE GET_COM_INITIATIVE()
+		;プレイヤーに主導権
+		CASE 0
+			PRINTFORMW %ANAME(MPLY:0)%と%ANAME(MPLY:1)%は二人で分担しながら、それぞれの指で%ANAME(MTAR:0)%%LOCALS:2%の睾丸を優しく揉みしだいて責め立て%TARGET_STR("た", "てきた")%…
+		;ターゲットに主導権
+		CASE 1
+			PRINTFORMW %ANAME(MPLY:0)%と%ANAME(MPLY:1)%は二人で分担しながら、それぞれの指で%ANAME(MTAR:0)%%LOCALS:2%の睾丸を優しく揉みしだいて奉仕している…
+		;第三者に主導権
+		CASEELSE
+			PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%と%ANAME(MPLY:1)%に、%ANAME(MTAR:0)%%LOCALS:2%の睾丸に手で奉仕するように命令した
+			PRINTFORMW %ANAME(MPLY:0)%と%ANAME(MPLY:1)%は二人で分担しながら、それぞれの指で%ANAME(MTAR:0)%%LOCALS:2%の睾丸を優しく揉みしだいた…
+	ENDSELECT
+;プレイヤーが１人
+ELSE
+	LOCALS:0 = 
+	IF GETBIT(TALENT:(MPLY:0):淫乱系, 素質_淫乱_淫乱) && MPLY:0 != MASTER
+		LOCALS:0 = うっとりとした表情を浮かべながら、
+	ENDIF
+	SELECTCASE GET_COM_INITIATIVE()
+		;プレイヤーに主導権
+		CASE 0
+			PRINTFORMW %ANAME(MPLY:0)%は%LOCALS:0%%ANAME(MTAR:0)%の%LOCALS:1%の睾丸を優しく揉みしだいて責め立て%TARGET_STR("た", "てきた")%…
+		;ターゲットに主導権
+		CASE 1
+			PRINTFORMW %ANAME(MPLY:0)%は%LOCALS:0%%ANAME(MTAR:0)%の%LOCALS:1%の睾丸を優しく揉みしだいて奉仕している…
+		;第三者に主導権
+		CASEELSE
+			PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に、%ANAME(MTAR:0)%の睾丸に手で奉仕するように命令した
+			PRINTFORMW %ANAME(MPLY:0)%は%LOCALS:0%%ANAME(MTAR:0)%の睾丸を優しく揉みしだいた…
+	ENDSELECT
+ENDIF
+
+;-------------------------------------------------
+
+;コマンド区分
+;-------------------------------------------------
+
+@COM_AVAILABLE_WHEN26
+RETURN コマンド_ウフフ
+
+;--------------------
+;性嗜好用関数
+;--------------------
+@COM_PREFERENCE_PLAYER_26()
+RETURN POWER(2, 性的嗜好_奉仕したい)
+
+@COM_PREFERENCE_TARGET_26()
+RETURN POWER(2, 性的嗜好_奉仕されたい)
+
+@COM_STACK_SPERM_MTAR_TO_MPLY_26()
+RETURN 射精部位_手

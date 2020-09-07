@@ -5,9 +5,9 @@ readonly previous_tag=$(git describe --abbrev=0)
 
 git log --format=%s  ${previous_tag}...HEAD | grep -i "\(Fix:\|UPDATE:\|ADD:\|MERGE:\)" | sort > temp.txt
 
-check=$(grep -i "Revert:" temp.txt | sed -E -e 's/Revert: //g')
+check=$(grep -i "Revert" temp.txt | sed -E -e 's/Revert "(.*)"/\1/g')
 if [[ "$check" != "" ]]; then
-    grep -v "Revert:" temp.txt | grep -v "$(grep -i "Revert:" temp.txt | sed -E -e 's/Revert: //g')" > temp2.txt
+    grep -v "Revert" temp.txt | grep -v "$(grep -i "Revert" temp.txt | sed -E -e 's/Revert "(.*)"/\1/g')" > temp2.txt
 else 
     cat temp.txt > temp2.txt
 fi

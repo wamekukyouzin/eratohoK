@@ -1,0 +1,406 @@
+﻿;自慰
+
+;-------------------------------------------------
+;コマンド名称
+;-------------------------------------------------
+@COM_NAME100
+LOCALS:0 = 
+IF TFLAG:70 == 1
+	LOCALS:0 = 撮影
+ELSEIF TFLAG:104 >= 2
+	LOCALS:0 = 公開
+ELSEIF TFLAG:54 == 8
+	LOCALS:0 = 野外
+ENDIF
+
+IF IS_EQUIP_TARGET(MPLY:0, 61) && IS_EQUIP_TARGET(MPLY:0, 62)
+	LOCALS:0 '= LOCALS:0 + "両穴バイブ"
+ELSEIF IS_EQUIP_TARGET(MPLY:0, 61)
+	LOCALS:0 '= LOCALS:0 +"バイブ"
+ELSEIF IS_EQUIP_TARGET(MPLY:0, 62)
+	LOCALS:0 '= LOCALS:0 +"アナルバイブ"
+ENDIF
+
+LOCALS:0 '= LOCALS:0 + "オナニー"
+
+RESULTS:0 = %LOCALS:0%を見せつける
+RESULTS:1 = %LOCALS:0%させられる
+RESULTS:2 = %LOCALS:0%させる
+RESULTS:3 = %LOCALS:0%を見せつけられる
+RESULTS:4 = %LOCALS:0%させる
+RESULTS:5 = %LOCALS:0%見せつけ
+
+;-------------------------------------------------
+;選択可否判定
+;-------------------------------------------------
+@COM_ABLE100
+;共通部分
+CALL COM_ABLE_COMMON(100)
+SIF RESULT == 0
+	RETURN 0
+;プレイヤーは1人以上
+SIF MPLY_NUM <= 0
+	RETURN 0
+;ターゲットは1人以上
+SIF MTAR_NUM <= 0
+	RETURN 0
+;プレイヤーが行動不能なら不可
+SIF !IS_PLAYABLE(MPLY:0)
+	RETURN 0
+;全てのプレイヤーについて判定
+FOR LOCAL:0, 0, MPLY_NUM
+	;拘束中なら不可
+	SIF IS_BIND(MPLY:(LOCAL:0))
+		RETURN 0
+	;todo this action really needs to be split into penis masturbation and vaginal masturbation to make sense
+	SIF !HAS_VAGINA(MPLY:LOCAL)
+		RETURN 0
+NEXT
+RETURN 1
+
+;-------------------------------------------------
+;メイン処理
+;-------------------------------------------------
+@COM100
+;実行判定
+CALL COM_ORDER_COMMON
+SIF RESULT == 0
+	RETURN 0
+
+;各プレイヤーの絡む自慰・触手オナニーの継続状態を解除
+FOR LOCAL:0, 0, MPLY_NUM
+	CALL RELEASE_EQUIP_EX(100, MPLY:(LOCAL:0), -1)
+	CALL RELEASE_EQUIP_EX(211, MPLY:(LOCAL:0), -1)
+NEXT
+
+;●全てのプレイヤーについて処理
+FOR LOCAL:0, 0, MPLY_NUM
+	LOCAL:2 = MPLY:(LOCAL:0)
+
+	EXP:(LOCAL:2):自慰経験値 += 3
+
+	SOURCE:(LOCAL:2):露出 = 1300
+	SOURCE:(LOCAL:2):逸脱 = 100
+	SOURCE:(LOCAL:2):性行動 = 240
+
+	LOCAL:3 = 500
+
+	SELECTCASE ABL:(LOCAL:2):自慰
+		CASE 0
+			TIMES LOCAL:3, 1.00
+		CASE 1
+			TIMES LOCAL:3, 1.20
+		CASE 2
+			TIMES LOCAL:3, 1.50
+		CASE 3
+			TIMES LOCAL:3, 1.80
+		CASE 4
+			TIMES LOCAL:3, 2.00
+		CASEELSE
+			LOCAL:3 = LOCAL:3 * (420 + (ABL:(LOCAL:2):自慰 - 5)) / 200
+	ENDSELECT
+
+	SIF GETBIT(TALENT:(LOCAL:2):淫乱系, 素質_淫乱_自慰狂い)
+		TIMES LOCAL:3, 2.0
+
+	SOURCE:(LOCAL:2):快Ｃ = SENSE_HOUSHI(LOCAL:2, LOCAL:2, LOCAL:3)
+	SOURCE:(LOCAL:2):快Ｂ = SENSE_HOUSHI(LOCAL:2, LOCAL:2, LOCAL:3 / 2)
+
+	;主導権に応じた優越・屈従のソース追加
+	CALL ADD_SOURCE_INITIATIVE_U(LOCAL:2, 60, 120)
+
+
+NEXT
+
+;主導権の所在を取得
+LOCAL:11 = GET_COM_INITIATIVE()
+
+;●全てのターゲットについて処理
+FOR LOCAL:0, 0, MTAR_NUM
+	LOCAL:1 = MTAR:(LOCAL:0)
+
+	SOURCE:(LOCAL:1):性行動 = 120
+
+	;ターゲットに主導権
+	IF LOCAL:11 == 1 || LOCAL:11 == 2
+		SOURCE:(LOCAL:1):嗜虐 = 60
+	;ターゲットに主導権がない
+	ELSE
+		SOURCE:(LOCAL:1):逸脱 = 60
+		SOURCE:(LOCAL:1):恐怖 = MAX(100 - 30 * ABL:(LOCAL:1):欲望, 0)
+	ENDIF
+
+	;主導権に応じた優越・屈従のソース追加
+	CALL ADD_SOURCE_INITIATIVE_U(LOCAL:1, 80, 80)
+NEXT
+
+;主導度変化基準値
+TFLAG:49 = 3
+
+;倒錯度変化基準値
+TFLAG:50 = 1
+
+;レズ・ＢＬ経験基準値
+TFLAG:51 = 1
+
+RETURN 1
+
+;-------------------------------------------------
+;継続コマンドかどうかを設定
+;-------------------------------------------------
+@COM_IS_EQUIP100
+RETURN 1
+
+;-------------------------------------------------
+;継続状態の処理
+;-------------------------------------------------
+@COM_EQUIP100(ARG:0)
+;●全プレイヤーについて処理
+FOR LOCAL:0, 0, MEQUIP_PLAYER_NUM:(ARG:0)
+	LOCAL:2 = MEQUIP_PLAYER:(ARG:0):(LOCAL:0)
+
+	EXP:(LOCAL:2):自慰経験値 += 1
+
+	SIF IS_EQUIP_TARGET(LOCAL:2, 61)
+		EXP:(LOCAL:2):自慰経験値 += 1
+
+	SIF IS_EQUIP_TARGET(LOCAL:2, 62)
+		EXP:(LOCAL:2):自慰経験値 += 1
+
+	SOURCE:(LOCAL:2):露出 += 600
+	SOURCE:(LOCAL:2):逸脱 += 50
+	SOURCE:(LOCAL:2):性行動 += 80
+
+	LOCAL:3 = 500
+
+	SELECTCASE ABL:(LOCAL:2):自慰
+		CASE 0
+			TIMES LOCAL:3, 1.00
+		CASE 1
+			TIMES LOCAL:3, 1.20
+		CASE 2
+			TIMES LOCAL:3, 1.50
+		CASE 3
+			TIMES LOCAL:3, 1.80
+		CASE 4
+			TIMES LOCAL:3, 2.00
+		CASEELSE
+			LOCAL:3 = LOCAL:3 * (420 + (ABL:(LOCAL:2):自慰 - 5)) / 200
+	ENDSELECT
+
+	SIF GETBIT(TALENT:(LOCAL:2):淫乱系, 素質_淫乱_自慰狂い)
+		TIMES LOCAL:3, 2.0
+
+
+	SOURCE:(LOCAL:2):快Ｃ += SENSE_HOUSHI(LOCAL:2, LOCAL:2, LOCAL:3)
+	SOURCE:(LOCAL:2):快Ｂ += SENSE_HOUSHI(LOCAL:2, LOCAL:2, LOCAL:3 / 2)
+NEXT
+
+;●全ターゲットについて処理
+FOR LOCAL:0, 0, MEQUIP_TARGET_NUM:(ARG:0)
+	LOCAL:2 = MEQUIP_TARGET:(ARG:0):(LOCAL:0)
+
+	SOURCE:(LOCAL:2):性行動 += 40
+NEXT
+
+;-------------------------------------------------
+;継続中の表示
+;-------------------------------------------------
+@EQUIP_MESSAGE100(ARG:0)
+
+LOCALS:0 = 
+IF TFLAG:70 == 1
+	LOCALS:0 = 撮影
+ELSEIF TFLAG:104 >= 2
+	LOCALS:0 = 公開
+ELSEIF TFLAG:54 == 8
+	LOCALS:0 = 野外
+ENDIF
+
+IF IS_EQUIP_TARGET(MEQUIP_PLAYER:(ARG:0):0, 61) && IS_EQUIP_TARGET(MEQUIP_PLAYER:(ARG:0):0, 62)
+	LOCALS:0 '= LOCALS:0 + "両穴バイブ"
+ELSEIF IS_EQUIP_TARGET(MEQUIP_PLAYER:(ARG:0):0, 61)
+	LOCALS:0 '= LOCALS:0 +"バイブ"
+ELSEIF IS_EQUIP_TARGET(MEQUIP_PLAYER:(ARG:0):0, 62)
+	LOCALS:0 '= LOCALS:0 +"アナルバイブ"
+ENDIF
+LOCALS:0 '= LOCALS:0 + "オナニー"
+
+RESULTS = %EQUIP_PLAYER_ANAME(ARG:0)%が%LOCALS:0%中
+
+;-------------------------------------------------
+;継続中の地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE_EQUIP100(ARG:0)
+LOCAL:2 = 0
+FOR LOCAL:0, 0, MEQUIP_PLAYER_NUM:(ARG:0)
+	SIF HAS_VAGINA(MEQUIP_PLAYER:(ARG:0):(LOCAL:0))
+		LOCAL:2 = 1
+NEXT
+
+PRINTFORM %EQUIP_PLAYER_ANAME(ARG:0)%は
+
+IF IS_EQUIP_TARGET(MEQUIP_PLAYER:(ARG:0):0, 61) && IS_EQUIP_TARGET(MEQUIP_PLAYER:(ARG:0):0, 62)
+	PRINTFORM 二穴をバイブで弄び、
+ELSEIF IS_EQUIP_TARGET(MPLY:0, 61)
+	PRINTFORM %STR_BODY("膣", MEQUIP_PLAYER:(ARG:0):0)%をバイブで弄び、
+ELSEIF IS_EQUIP_TARGET(MPLY:0, 62)
+	PRINTFORM %STR_BODY("アナル", MEQUIP_PLAYER:(ARG:0):0)%をバイブで弄び、
+ENDIF
+PRINTFORML %STR_BODY("クリ", MEQUIP_PLAYER:(ARG:0):0)%を弄っている…
+
+;-------------------------------------------------
+;継続を解除したときの地の文
+;-------------------------------------------------
+@COM_TEXT_RELEASE_EQUIP100(ARG:0)
+
+;-------------------------------------------------
+;固有の実行判定
+;-------------------------------------------------
+@COM_ORDER_PLAYER100(ARG:0)
+;実行値の設定
+TCVAR:(ARG:0):25 = 80
+
+;共通部分
+CALL COM_ORDER(ARG:0)
+
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲望Lv{ABL:(ARG:0):欲望}", ABL:(ARG:0):欲望 * 3)
+CALL COM_ORDER_ELEMENT(ARG:0, @"露出Lv{ABL:(ARG:0):露出}", ABL:(ARG:0):露出 * 4)
+CALL COM_ORDER_ELEMENT(ARG:0, @"自慰Lv{ABL:(ARG:0):自慰}", ABL:(ARG:0):自慰 * 4)
+
+LOCAL:0 = GET_PALAMLV(PALAM:(ARG:0):欲情)
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲情Lv{LOCAL:0}", MIN(LOCAL:0 * 3, 30))
+
+IF TCVAR:(ARG:0):60
+	CALL COM_ORDER_ELEMENT(ARG:0, "媚薬", 6)
+ENDIF
+
+IF TALENT:(ARG:0):恥じらい
+	CALL COM_ORDER_ELEMENT(ARG:0, "恥じらい", -12)
+ENDIF
+IF TALENT:(ARG:0):恥薄い
+	CALL COM_ORDER_ELEMENT(ARG:0, "恥薄い", 8)
+ENDIF
+IF TALENT:(ARG:0):自制心
+	CALL COM_ORDER_ELEMENT(ARG:0, "自制心", -6)
+ENDIF
+IF TALENT:(ARG:0):目立ちたがり
+	CALL COM_ORDER_ELEMENT(ARG:0, "目立ちたがり", 6)
+ENDIF
+IF TALENT:(ARG:0):自慰しやすい
+	CALL COM_ORDER_ELEMENT(ARG:0, "自慰しやすい", 10)
+ENDIF
+IF TALENT:(ARG:0):快感の否定
+	CALL COM_ORDER_ELEMENT(ARG:0, "快感の否定", -2)
+ENDIF
+
+IF !TALENT:(ARG:0):合意 && !TALENT:(ARG:0):親友
+	CALL COM_ORDER_ELEMENT(ARG:0, "合意なし", -10)
+ENDIF
+
+SIF GETBIT(TALENT:(LOCAL:2):淫乱系, 素質_淫乱_自慰狂い)
+	CALL COM_ORDER_ELEMENT(ARG:0, "自慰狂い", 20)
+
+
+RETURN 1
+
+;-------------------------------------------------
+;地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE100
+LOCALS:3 = 
+
+LOCALS:0 = 自身の指で自分の体を慰め
+
+IF MTAR_NUM == 1
+	LOCALS:1 = %ANAME(MTAR:0)%
+ELSEIF MTAR_NUM == 2
+	LOCALS:1 = %ANAME(MTAR:0)%と%ANAME(MTAR:1)%
+ELSE
+	LOCALS:1 = %ANAME(MTAR:0)%たち
+ENDIF
+
+IF MPLY_NUM == 1
+	LOCALS:2 = %ANAME(MPLY:0)%
+ELSEIF MPLY_NUM == 2
+	LOCALS:2 = %ANAME(MPLY:0)%と%ANAME(MPLY:1)%
+ELSE
+	LOCALS:2 = %ANAME(MPLY:0)%たち
+ENDIF
+
+IF TFLAG:70 == 1
+	LOCALS:3 = カメラに見えるように、
+ELSEIF TFLAG:104 >= 2
+	LOCALS:3 = 皆の見ている前で、
+ELSEIF TFLAG:54 == 8
+	LOCALS:3 = 誰に見られているとも知らない中で、
+ELSE
+	LOCALS:3 = 
+ENDIF
+
+SELECTCASE GET_COM_INITIATIVE()
+	;プレイヤーに主導権
+	CASE 0
+		PRINTFORMW %LOCALS:2%は%LOCALS:3%%LOCALS:1%に裸体を見せつけながら、指で自身のクリトリスや胸を弄り回してオナニーした…
+	;ターゲットに主導権
+	CASE 1
+		PRINTFORML %LOCALS:1%は%LOCALS:2%に、その場でオナニーするように命令した
+		PRINTFORMW %LOCALS:2%は言われるまま、%LOCALS:3%%LOCALS:1%の目の前で%LOCALS:0%た…
+	;第三者に主導権
+	CASEELSE
+		PRINTFORML %ANAME(TFLAG:45)%は%LOCALS:2%に対して、%LOCALS:1%の前でオナニーするように命令した
+		PRINTFORMW %LOCALS:2%は言われるまま、%LOCALS:3%%LOCALS:1%の目の前で見せつけるように%LOCALS:0%た…
+ENDSELECT
+
+;--------------------------------------------------------
+;地の文(パラメータ・刻印変動後)
+;--------------------------------------------------------
+@COM_TEXT_LAST100
+FOR LOCAL:0, 0, MPLY_NUM
+	LOCAL:1 = MPLY:(LOCAL:0)
+
+	IF ((LOCAL:1 != MASTER || CONFIG:441) && !IS_ANIMAL(LOCAL:1)) && !CFLAG:(LOCAL:1):TEXT_LAST非表示 && IS_INITIATIVE(LOCAL:1)
+		IF ABL:(LOCAL:1):自慰 >= 5 || GETBIT(TALENT:(LOCAL:1):淫乱系, 素質_淫乱_自慰狂い)
+			PRINTFORML %ANAME(LOCAL:1)%はすっかりオナニーに没頭し、激しく指を動かして自ら快感を貪っている
+		ELSEIF ABL:(LOCAL:1):露出 >= 5
+			PRINTFORML %ANAME(LOCAL:1)%は見られることで興奮しているのか、上気した顔で指を動かしている
+		ELSEIF ABL:(LOCAL:1):自慰 >= 2
+			;捕虜調教のメインターゲット
+			IF FLAG:調教モード == 2 && FINDELEMENT(PRISONER_TARGET, MTAR:0) != -1
+				PRINTFORML %ANAME(LOCAL:1)%は屈辱に顔を歪めながらも、自ら快感を求めて指を動かしてしまっている
+			ELSE
+				PRINTFORML %ANAME(LOCAL:1)%は恥ずかしそうにしているが、無意識に快感を求めるように指を動かしている
+			ENDIF
+		ELSE
+			;捕虜調教のメインターゲット
+			IF FLAG:調教モード == 2 && FINDELEMENT(PRISONER_TARGET, MTAR:0) != -1
+				PRINTFORML %ANAME(LOCAL:1)%は屈辱に耐えながら、おぼつかない手付きで自分の体に指を這わせた
+			ELSE
+				PRINTFORML %ANAME(LOCAL:1)%は恥ずかしさのあまり目を逸らしながら、おぼつかない手付きで自分の体に指を這わせた
+			ENDIF
+		ENDIF
+	ENDIF
+NEXT
+
+;-------------------------------------------------
+
+;コマンド区分
+;-------------------------------------------------
+
+@COM_AVAILABLE_WHEN100
+RETURN コマンド_ウフフ
+
+;--------------------
+;性嗜好用関数
+;--------------------
+@COM_PREFERENCE_PLAYER_100()
+RETURN POWER(2, 性的嗜好_辱められたい) + POWER(2, 性的嗜好_露出したい)
+
+@COM_PREFERENCE_TARGET_100()
+RETURN POWER(2, 性的嗜好_辱めたい)
+
+@COM_STACK_SPERM_MPLY_TO_MPLY_100()
+RETURN !RAND:3 ? 射精部位_手 # 射精部位_無駄
+
+@COM_STACK_SPERM_MPLY_TO_MTAR_100()
+RETURN IFRAND(@"{射精部位_無駄}", 1, @"{射精部位_顔}", RAND:100 < 50, @"{射精部位_髪}", RAND:100 < 50)

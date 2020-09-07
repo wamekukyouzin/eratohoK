@@ -461,7 +461,6 @@ ENDIF
 #DIM 射精量
 #DIM 補正後射精量
 #DIM スラッシュ
-#DIM 無駄打ち表示済み
 #DIMS 出力文字列
 #DIMS あふれ文字列
 #DIMS 射精先文字列
@@ -482,14 +481,26 @@ ELSE
 ENDIF
 出力文字列 =
 
+IF IS_EQUIP_TARGET(対象, 78) && TCVAR:対象:77 == 0
+	SETCOLOR カラー_ピンク
+	PRINTFORM 射精止め
+	RESETCOLOR
+	TCVAR:(対象):76 += 強度
+	RETURN 0
+ENDIF
+
 ;絶頂強度に応じてNOWEXをセットし、メッセージの表示を行う
-IF 強度 >= 200000 || ((TALENT:(対象):絶倫 || TCVAR:(対象):66) && 強度 >= 80000) || (TALENT:(対象):絶倫 && TCVAR:(対象):66)
+IF 強度 >= 200000 || ((TALENT:(対象):絶倫 || TCVAR:(対象):66) && 強度 >= 80000)
 	IF 対象 == MASTER
 		SETCOLOR 0x800080
 	ELSE
 		SETCOLOR 0xFF4000
 	ENDIF
-	射精量 = RAND(20, 30)
+	IF !TALENT:対象:絶倫 && !TCVAR:対象:66
+		射精量 = 20 + (強度 - 150000) / 20000
+	ELSE
+		射精量 = 20 + (強度 - 60000) / 10000
+	ENDIF
 	出力文字列 =  超々大量
 ELSEIF 強度 >= 80000 || ((TALENT:(対象):絶倫 || TCVAR:(対象):66) && 強度 >= 40000)
 	IF 対象 == MASTER
@@ -516,74 +527,48 @@ ELSE
 	射精量 = RAND(1, 9)
 ENDIF
 
+SIF IS_EQUIP_TARGET(対象, GETNUM(TRAINNAME, "玉揉み"))
+	射精量 = 射精量 * 3 / 2
+
 IF SOURCE:(対象):快Ｐ == 0 && NOWEX:対象:Ｖ絶頂 + NOWEX:対象:Ａ絶頂 > 0
 	出力文字列 = %出力文字列%ところてん
-	IF IS_EQUIP_PLAYER(対象, 75)
-		FOR LOCAL:0, 400, 420
-			IF TCVAR:(対象):(LOCAL:0) >= 0
-				GOTO FOUND_CONDOM
-			ENDIF
-		NEXT
-		FOR LOCAL, 0, CHARANUM
-			IF CFLAG:LOCAL:調教参加フラグ
-				TCVAR:対象:400 = LOCAL
-				TCVAR:対象:420 = 射精部位_ゴム
-				BREAK
-			ENDIF
-		NEXT
-		$FOUND_CONDOM
-	ENDIF
 ENDIF
-
 PRINTFORM %出力文字列%射精
 RESETCOLOR
+
 NOWEX:対象:射精 = 射精量
 EXP:(対象):射精経験値 += 射精量 / 3
 EXP:(対象):絶頂経験 += 射精量 / 3
 
-;膣、アナルに射精しているようならそれ以外を消去
-FOR LOCAL:0, 400, 420
-	IF GROUPMATCH(TCVAR:(対象):(LOCAL:0 + 20), 射精部位_膣内, 射精部位_アナル)
-		FOR LOCAL:1, 400, 420
-			IF !GROUPMATCH(TCVAR:(対象):(LOCAL:1 + 20), 射精部位_膣内, 射精部位_アナル)
-				TCVAR:(対象):(LOCAL:1)      = -1
-				TCVAR:(対象):(LOCAL:1 + 20) = -1
-			ENDIF
-		NEXT
-		BREAK
-	ENDIF
-NEXT
-
-無駄打ち表示済み = 0
 射精先文字列 =
 あふれ文字列 =
-FOR LOCAL:0, 400, 420
+FOR LOCAL:0, 0, STACK_SPERM_CHARA_NUM:対象:0
 
-	SIF TCVAR:(対象):(LOCAL:0) < 0
-		CONTINUE
-
-	射精相手 = TCVAR:(対象):(LOCAL:0)
-	射精先 = TCVAR:(対象):(LOCAL:0 + 20)
+	射精相手 = STACK_SPERM_CHARA_MAP:対象:LOCAL
+	射精先 = STACK_SPERM_TO_MAP:対象:LOCAL
 
 	;射精場所に応じた補正を掛けて精愛経験値を加算
 	;射精場所に応じたソースを追加(LOCAL:13=愛情倍率、屈従倍率=屈従倍率、恐怖倍率=恐怖倍率)
 	愛情倍率 = 20
 	屈従倍率 = 20
 	恐怖倍率 = 20
-	SELECTCASE ABL:(射精相手):精愛
-		CASE 0
-			LOCAL:12 = 0
-		CASE 1
-			LOCAL:12 = 20
-		CASE 2
-			LOCAL:12 = 50
-		CASE 3
-			LOCAL:12 = 80
-		CASE 4
-			LOCAL:12 = 120
-		CASEELSE
-			LOCAL:12 = MIN(ABL:(射精相手):精愛 * 3 + 150, 2000)
-	ENDSELECT
+
+	IF !GROUPMATCH(射精先, 射精部位_無駄, 射精部位_触手)
+		SELECTCASE ABL:(射精相手):精愛
+			CASE 0
+				LOCAL:12 = 0
+			CASE 1
+				LOCAL:12 = 20
+			CASE 2
+				LOCAL:12 = 50
+			CASE 3
+				LOCAL:12 = 80
+			CASE 4
+				LOCAL:12 = 120
+			CASEELSE
+				LOCAL:12 = MIN(ABL:(射精相手):精愛 * 3 + 150, 2000)
+		ENDSELECT
+	ENDIF
 	SELECTCASE 射精先
 		;膣内
 		CASE 1
@@ -636,58 +621,64 @@ FOR LOCAL:0, 400, 420
 		CASEELSE
 	ENDSELECT
 
-	;射精量による補正
-	SELECTCASE NOWEX:(対象):射精
-		CASE 1 TO 3
-			TIMES 愛情倍率, 1.00
-			TIMES 屈従倍率, 1.00
-			TIMES 恐怖倍率, 1.00
-		CASE 4 TO 6
-			TIMES 愛情倍率, 1.50
-			TIMES 屈従倍率, 1.50
-			TIMES 恐怖倍率, 1.50
-		CASE 7 TO 10
-			TIMES 愛情倍率, 2.00
-			TIMES 屈従倍率, 2.00
-			TIMES 恐怖倍率, 2.00
-		CASE IS > 10
-			TIMES 愛情倍率, 2.50
-			TIMES 屈従倍率, 2.50
-			TIMES 恐怖倍率, 2.50
-	ENDSELECT
+	IF !GROUPMATCH(射精先, 射精部位_無駄, 射精部位_触手)
+		;射精量による補正
+		SELECTCASE NOWEX:(対象):射精
+			CASE 1 TO 3
+				TIMES 愛情倍率, 1.00
+				TIMES 屈従倍率, 1.00
+				TIMES 恐怖倍率, 1.00
+			CASE 4 TO 6
+				TIMES 愛情倍率, 1.50
+				TIMES 屈従倍率, 1.50
+				TIMES 恐怖倍率, 1.50
+			CASE 7 TO 10
+				TIMES 愛情倍率, 2.00
+				TIMES 屈従倍率, 2.00
+				TIMES 恐怖倍率, 2.00
+			CASE IS > 10
+				TIMES 愛情倍率, 2.50
+				TIMES 屈従倍率, 2.50
+				TIMES 恐怖倍率, 2.50
+		ENDSELECT
+		SIF !GROUPMATCH(射精先, 射精部位_ゴム)
+			EXP:(射精相手):精愛経験値 += 射精量
+	ENDIF
 
-	EXP:(射精相手):精愛経験値 += 射精量
-
-	;愛情ソースの追加
-	CALL ADD_SOURCE_AIZYOU(射精相手, 愛情倍率)
+	IF !GROUPMATCH(射精先, 射精部位_無駄, 射精部位_触手)
+		;愛情ソースの追加
+		CALL ADD_SOURCE_AIZYOU(射精相手, 愛情倍率)
+	ENDIF
 
 	;屈従ソースの追加
 	CALL ADD_SOURCE_INITIATIVE_U(対象, 0, 屈従倍率)
 
-	IF !IS_INITIATIVE(射精相手)
-		LOCAL:16 = 100
-		IF TALENT:(射精相手):恋慕 || TALENT:(射精相手):服従
-			LOCAL:16 = 0
-		ELSEIF CFLAG:(射精相手):2 >= 1500
-			LOCAL:16 = 30
-		ELSEIF CFLAG:(射精相手):2 >= 800
-			LOCAL:16 = 60
-		ENDIF
-		SOURCE:(射精相手):恐怖 += 射精量 * 恐怖倍率 * LOCAL:16 / 100
-	ENDIF
-
-	SOURCE:(射精相手):中毒充足 += 射精量 * LOCAL:12
-
-	;射精箇所が触手なら相手の妖術経験値をプラス
-	IF 射精先 == 射精部位_触手
-		EXP:(射精相手):妖術経験値 += 射精量 * 2
-	ENDIF
-
 	補正後射精量 = CUM_AMOUNT_CORRECTION(GET_ID(対象), 射精相手, 射精先, 射精量)
 
-	IF 補正後射精量 != CORRECT_CUM_OVERFLOW(射精相手, 射精先, 補正後射精量)
-		あふれ文字列=%あふれ文字列%%TOSTR_SPACE(MAX_CHARANAME_LENGTH + 1)%すでにいっぱいの%ANAME(射精相手)%の%CUM_SLOT_NAME:射精先%から、{補正後射精量 - CORRECT_CUM_OVERFLOW(射精相手, 射精先, 補正後射精量)}mlの精液が溢れた……\n
-		補正後射精量 = CORRECT_CUM_OVERFLOW(射精相手, 射精先, 補正後射精量)
+	IF !GROUPMATCH(射精先, 射精部位_無駄, 射精部位_触手)
+		IF !IS_INITIATIVE(射精相手)
+			LOCAL:16 = 100
+			IF TALENT:(射精相手):恋慕 || TALENT:(射精相手):服従
+				LOCAL:16 = 0
+			ELSEIF CFLAG:(射精相手):2 >= 1500
+				LOCAL:16 = 30
+			ELSEIF CFLAG:(射精相手):2 >= 800
+				LOCAL:16 = 60
+			ENDIF
+			SOURCE:(射精相手):恐怖 += 射精量 * 恐怖倍率 * LOCAL:16 / 100
+		ENDIF
+
+		SOURCE:(射精相手):中毒充足 += 射精量 * LOCAL:12
+
+	;射精箇所が触手なら相手の妖術経験値をプラス
+		IF 射精先 == 射精部位_触手
+			EXP:(射精相手):妖術経験値 += 射精量 * 2
+		ENDIF
+
+		IF 補正後射精量 != CORRECT_CUM_OVERFLOW(射精相手, 射精先, 補正後射精量)
+			あふれ文字列=%あふれ文字列%%TOSTR_SPACE(MAX_CHARANAME_LENGTH + 1)%すでにいっぱいの%ANAME(射精相手)%の%CUM_SLOT_NAME:射精先%から、{補正後射精量 - CORRECT_CUM_OVERFLOW(射精相手, 射精先, 補正後射精量)}mlの精液が溢れた……\n
+			補正後射精量 = CORRECT_CUM_OVERFLOW(射精相手, 射精先, 補正後射精量)
+		ENDIF
 	ENDIF
 
 ;体内に対する射精か見る。コンドームの場合INJECTIONさせない
@@ -698,22 +689,16 @@ FOR LOCAL:0, 400, 420
 	CUM_TO_COUNT:(対象):(射精先) ++
 	CUM_TO_AMOUNT:(対象):(射精先) += 補正後射精量
 
-	IF !無駄打ち表示済み
-		射精先文字列=%射精先文字列%(%CUM_SLOT_NAME:射精先%
-	ENDIF
+	射精先文字列=%射精先文字列%(%CUM_SLOT_NAME:射精先%
 
-	IF !無駄打ち表示済み
-		CUM_GET_AMOUNT:(射精相手):(射精先) += 補正後射精量
-		CUM_GET_COUNT:(射精相手):射精先 ++
-		CUM_CUR_AMOUNT:(射精相手):(射精先) += 補正後射精量
-		射精先文字列=%射精先文字列%:{補正後射精量}ml
-		IF !GROUPMATCH(射精先, 射精部位_無駄, 射精部位_ゴム)
-			射精先文字列=%射精先文字列%:%ANAME(射精相手)%
-		ENDIF
-		射精先文字列=%射精先文字列%)
-		SIF GROUPMATCH(射精先, 射精部位_無駄, 射精部位_ゴム)
-			無駄打ち表示済み = 1
+	CUM_GET_AMOUNT:(射精相手):(射精先) += 補正後射精量
+	CUM_GET_COUNT:(射精相手):射精先 ++
+	CUM_CUR_AMOUNT:(射精相手):(射精先) += 補正後射精量
+	射精先文字列=%射精先文字列%:{補正後射精量}ml
+	IF !GROUPMATCH(射精先, 射精部位_無駄, 射精部位_ゴム, 射精部位_触手)
+		射精先文字列=%射精先文字列%:%ANAME(射精相手)%
 	ENDIF
+	射精先文字列=%射精先文字列%)
 NEXT
 SIF 射精先文字列 != ""
 	PRINTFORM %射精先文字列%
@@ -790,7 +775,7 @@ IF 射精者 >= 0
 ENDIF
 
 ;危険日なら倍
-SIF IS_OVULATION(射精相手) && 射精先 == 射精部位_膣内
+SIF 射精相手 >= 0 && IS_OVULATION(射精相手) && 射精先 == 射精部位_膣内
 	射精量 *= 2
 
 SIF 射精者 >= 0
@@ -839,15 +824,16 @@ LOCAL:1 = ID_TO_CHARA(ARG:1)
 
 ;対象が動物の場合、IDを変換
 IF LOCAL:1 >= 0 && IS_ANIMAL(LOCAL:1)
+	PRINTFORMW おＨ！
 	SELECTCASE TALENT:(LOCAL:1):動物
 		CASE 動物_犬
-			LOCAL:1 = GET_SPERM_ID("犬")
+			ARG:1 = GET_SPERM_ID("犬")
 		CASE 動物_豚
-			LOCAL:1 = GET_SPERM_ID("豚")
+			ARG:1 = GET_SPERM_ID("豚")
 		CASE 動物_馬
-			LOCAL:1 = GET_SPERM_ID("馬")
+			ARG:1 = GET_SPERM_ID("馬")
 		CASE 動物_猿
-			LOCAL:1 = GET_SPERM_ID("猿")
+			ARG:1 = GET_SPERM_ID("猿")
 	ENDSELECT
 ENDIF
 
@@ -1009,10 +995,10 @@ SELECTCASE ARG:1
 			SOURCE:(ARG:0):中毒充足 += LOCAL:2 * 1000 / 100
 		ENDIF
 
-		FOR LOCAL:0, 0, 20
+		FOR LOCAL:0, 0, STACK_SPERM_CHARA_NUM:(ARG:0):0
 			;膣内射精の場合(コンドームつけてたらだめ）
-			LOCAL:6 = TCVAR:(ARG:0):(LOCAL:0 + 400)
-			IF LOCAL:6 >= 0 && TCVAR:(ARG:0):(LOCAL:0 + 420) == 1 && !IS_EQUIP_PLAYER(LOCAL:6, 75)
+			LOCAL:6 = STACK_SPERM_CHARA_MAP:(ARG:0):LOCAL
+			IF LOCAL:6 >= 0 && STACK_SPERM_TO_MAP:(ARG:0):LOCAL == 射精部位_膣内 && !IS_EQUIP_PLAYER(LOCAL:6, 75)
 				;獣変化中
 				IF TALENT:(ARG:0):動物耳 || TALENT:(ARG:0):しっぽ
 					SOURCE:(ARG:0):歓喜 += 3000
@@ -1039,18 +1025,11 @@ SELECTCASE ARG:1
 				IF TFLAG:69 == 1
 					SOURCE:(LOCAL:6):歓喜 += 300
 				ENDIF
-				LOCAL:6 = TCVAR:(ARG:0):(LOCAL:0 + 400)
 				;中出しした相手が獣変化中
 				IF TALENT:(LOCAL:6):動物耳 || TALENT:(LOCAL:6):しっぽ
 					SOURCE:(LOCAL:6):歓喜 += 3000
 					;地の文表示用のフラグを立てる
 					TCVAR:(ARG:0):56 = 1
-				ENDIF
-			;膣内射精したがゴムつけている
-			ELSEIF LOCAL:6 >= 0 && TCVAR:(ARG:0):(LOCAL:0 + 420) == 1 && IS_EQUIP_PLAYER(LOCAL:6, 75)
-				;受精中毒
-				IF GETBIT(TALENT:(LOCAL:6):淫乱系, 素質_淫乱_孕みたがり)
-					SOURCE:(LOCAL:6):反感 += 500
 				ENDIF
 			ENDIF
 			BREAK

@@ -27,13 +27,11 @@ ENDSELECT
 ;-------------------------------------------------
 @ADD_SP_CHARA(勢力, ボス, ループ)
 #DIM 勢力
-#DIM 勢力ID
 #DIM 勢力定数
 #DIM ボス
 #DIM ループ
 #DIM 対象
 
-勢力ID = COUNTRY_EVENT_ID:勢力
 勢力定数 = SP_COUNTRY_TO_CONST(勢力)
 
 CALL ADD_VOID_CHARA()
@@ -680,5 +678,44 @@ SELECTCASE 勢力定数
         COM_TENDENCY:対象:GETNUM(TRAINNAME, "排卵誘発剤") = 3
 ENDSELECT
 
+SIF ボス
+    CALL SP_COUNTRY_CHARA_SET_TECHNOLOGY(対象, 勢力)
+
 
 RETURN 対象
+
+
+@SP_COUNTRY_CHARA_SET_TECHNOLOGY(対象, 勢力)
+#DIM 対象
+#DIM 勢力
+#DIM 勢力定数
+#DIM 残り日数
+#DIM 候補値, TECHNOLOGY_MAX_GENRE
+
+勢力定数 = SP_COUNTRY_TO_CONST(勢力)
+残り日数 = DAY + SP_COUNTRY_RANK:勢力定数 * 5
+
+WHILE 残り日数 > 0
+    VARSET 候補値, 100
+
+    FOR LOCAL, 0, TECHNOLOGY_MAX_GENRE
+        候補値:LOCAL = MAX(候補値:LOCAL - TECHNOLOGY_STATUS_CHARA:対象:LOCAL * 5, 1)
+        ;そのジャンルもう取れないならダメ
+        IF !IS_TECHNOLOGY_EXISTS(LOCAL, TECHNOLOGY_STATUS:勢力:LOCAL + 1)
+            候補値:LOCAL = __INT_MIN__
+        ELSE
+            候補値:LOCAL = RAND:(候補値:LOCAL)
+        ENDIF
+    NEXT
+
+	;マジでなんもとれるもん無かったらBREAK
+    SIF MAXARRAY(候補値) == __INT_MIN__
+        BREAK
+
+    LOCAL = FINDELEMENT(候補値, MAXARRAY(候補値))
+
+    残り日数 -= GET_RESEARCH_PERIOD(勢力, LOCAL, TECHNOLOGY_STATUS:勢力:LOCAL + 1)
+    TECHNOLOGY_STATUS:勢力:LOCAL ++
+    TECHNOLOGY_STATUS_CHARA:対象:LOCAL ++
+WEND
+

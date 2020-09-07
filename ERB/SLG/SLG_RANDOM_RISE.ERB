@@ -1,4 +1,23 @@
-﻿;----------------------------------------------
+﻿@SELECT_CHARA_RANDOM_LOGIC_SLG_RANDOM_RISE(対象)
+#DIM 対象
+SIF 対象 == MASTER
+	RETURN 0
+	;放浪していないとだめ
+SIF CFLAG:対象:特殊状態 != 特殊状態_放浪
+	RETURN 0
+	;特殊キャラはだめ（特殊キャラは放浪してなそうな気もするけど）
+SIF IS_SP_CHARA(対象)
+	RETURN 0
+	;野心が皆無なやつもだめ
+SIF ABL:対象:野心 <= 0
+	RETURN 0
+RETURN 1
+
+@SELECT_CHARA_RANDOM_BIAS_SLG_RANDOM_RISE(対象)
+#DIM 対象
+RETURN ABL:対象:野心
+
+;----------------------------------------------
 ;蜂起を起こすNPCの候補を選択し、確率ロール
 ;----------------------------------------------
 @SLG_RANDOM_RISE
@@ -27,36 +46,16 @@ SIF 勢力番号 <= 0
 ;10%の確率で野心をフラットに扱う
 野心無視フラグ = RAND:100 < 10
 
-;---今回の蜂起候補を取得---
-FOR LCOUNT, 0, CHARANUM
-	SIF LCOUNT == MASTER
-		CONTINUE
-	;放浪していないとだめ
-	SIF CFLAG:LCOUNT:特殊状態 != 特殊状態_放浪
-		CONTINUE
-	;特殊キャラはだめ（特殊キャラは放浪してなそうな気もするけど）
-	SIF IS_SP_CHARA(LCOUNT)
-		CONTINUE
-	;野心が皆無なやつもだめ
-	SIF ABL:LCOUNT:野心 <= 0
-		CONTINUE
-	候補:人数 = LCOUNT
-	;選出候補値は野心をそのまま利用
-	;無視フラグが立ってたらフラットに扱う
-	IF 野心無視フラグ
-		候補値:人数 = RAND(0, 10000)
-	ELSE
-		候補値:人数 = RAND(0, MAX(1, ABL:LCOUNT:野心))
-	ENDIF
-	人数 ++
-NEXT
+IF 野心無視フラグ
+	CALL SELECT_CHARA_RANDOM("SLG_RANDOM_INDEPENDENCE")
+ELSE
+	CALL SELECT_CHARA_RANDOM("SLG_RANDOM_INDEPENDENCE", "SLG_RANDOM_INDEPENDENCE")
+ENDIF
 
-;候補がいなければRETURN
-SIF 人数 < 1
+結果 = RESULT
+
+SIF 結果 == -1
 	RETURN 0
-
-結果 = 候補:FINDELEMENT(候補値, MAXARRAY(候補値, 0, 人数))
-;---候補取得ここまで---
 
 判定値 = CALC_RISE_RATE(結果, 野心無視フラグ)
 ;確率ロールに失敗したら戻る
@@ -98,7 +97,7 @@ DIPLOMACY_HATE:勢力番号 += 10
 
 CALL SET_COUNTRY_AI_TYPE(勢力番号)
 
-CALL RANDOM_RISE_SET_TECHNOLOGY(勢力番号)	
+CALL COUNTRY_SET_TECHNOLOGY(勢力番号)	
 
 CALL CHANGE_COUNTRY(結果, 勢力番号, 1)
 CFLAG:結果:特殊状態 = 0
@@ -115,7 +114,7 @@ FOR LOCAL, 1, CHARANUM
 	SIF LOCAL == MASTER
 		CONTINUE
 	;主人公所属で陥落系素質ありなら賛同しない
-	SIF CFLAG:LOCAL:所属 && CFLAG:MASTER:所属 == CFLAG:LOCAL:所属 && (IS_LOVER(LOCAL) || IS_SLAVE(LOCAL)  || IS_SLAVED_BY(LOCAL)|| TALENT:LOCAL:親友)
+	SIF CFLAG:LOCAL:所属 && CFLAG:MASTER:所属 == CFLAG:LOCAL:所属 && (IS_FALLEN(LOCAL) || TALENT:LOCAL:親友)
 		CONTINUE
 	;君主は駄目
 	SIF GET_COUNTRY_BOSS(CFLAG:LOCAL:所属) == LOCAL
@@ -228,40 +227,3 @@ SIF ABL:対象:武闘 + ABL:対象:防衛 + ABL:対象:知略 + ABL:対象:政�
 
 RETURNF 判定値
 
-;----------------------------------------------
-;蜂起した勢力に技術ツリーを設定
-;----------------------------------------------
-@RANDOM_RISE_SET_TECHNOLOGY(勢力)
-#DIM 勢力
-#DIM 候補値, TECHNOLOGY_MAX_GENRE
-#DIM ジャンル
-#DIM 残り日数
-
-残り日数 = DAY
-
-
-
-WHILE 残り日数 > 0
-	VARSET 候補値, 100
-
-	FOR LOCAL, 0, TECHNOLOGY_MAX_GENRE
-		候補値:LOCAL += AI_TECHNOLOGY_PREFERENCE:(COUNTRY_AI_TYPE:勢力):LOCAL
-		候補値:LOCAL = MAX(候補値:LOCAL - TECHNOLOGY_STATUS:勢力:LOCAL * 5, 1)
-
-	;そのジャンルもう取れないならダメ
-		IF !IS_TECHNOLOGY_EXISTS(LOCAL, TECHNOLOGY_STATUS:勢力:LOCAL + 1)
-			候補値:LOCAL = __INT_MIN__
-		ELSE
-			候補値:LOCAL = RAND:(候補値:LOCAL)
-		ENDIF
-	NEXT
-
-	;マジでなんもとれるもん無かったらBREAK
-	SIF MAXARRAY(候補値) == __INT_MIN__
-		BREAK
-
-	ジャンル = FINDELEMENT(候補値, MAXARRAY(候補値))
-
-	残り日数 -= GET_RESEARCH_PERIOD(勢力, ジャンル, TECHNOLOGY_STATUS:勢力:ジャンル + 1)
-	TECHNOLOGY_STATUS:勢力:ジャンル ++
-WEND

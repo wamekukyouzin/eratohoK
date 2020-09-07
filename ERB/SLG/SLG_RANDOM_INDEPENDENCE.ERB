@@ -1,18 +1,18 @@
-﻿;----------------------------------------------
+﻿@SELECT_CHARA_RANDOM_LOGIC_SLG_RANDOM_INDEPENDENCE(対象)
+#DIM 対象
+RETURN CAN_RANDOM_INDEPENDENCE(対象)
+
+@SELECT_CHARA_RANDOM_BIAS_SLG_RANDOM_INDEPENDENCE(対象)
+#DIM 対象
+RETURN ABL:対象:野心
+
+;----------------------------------------------
 ;謀反を起こすNPCの候補を選択し、確率ロール
 ;----------------------------------------------
 @SLG_RANDOM_INDEPENDENCE
-#DIM LCOUNT
-#DIM 人数
-#DIM 候補, MAX_CHARA_NUM
-#DIM 候補値, MAX_CHARA_NUM
 #DIM 結果
 #DIM 判定値
 #DIM 野心無視フラグ
-
-VARSET 人数
-VARSET 候補
-VARSET 候補値
 
 ;10期以降
 SIF !(DAY >= 10)
@@ -21,33 +21,16 @@ SIF !(DAY >= 10)
 ;10%の確率で野心をフラットに扱う
 野心無視フラグ = RAND:100 < 10
 
-;---今回の謀反候補を取得---
-FOR LCOUNT, 1, CHARANUM
-	SIF !CAN_RANDOM_INDEPENDENCE(LCOUNT)
-		CONTINUE
+IF 野心無視フラグ
+	CALL SELECT_CHARA_RANDOM("SLG_RANDOM_INDEPENDENCE")
+ELSE
+	CALL SELECT_CHARA_RANDOM("SLG_RANDOM_INDEPENDENCE", "SLG_RANDOM_INDEPENDENCE")
+ENDIF
 
-	候補:人数 = LCOUNT
-	;選出候補値は野心をそのまま利用
-	IF 野心無視フラグ
-		候補値:人数 = RAND(0, 10000)
-	ELSE
-		候補値:人数 = RAND(0, MAX(1, ABL:LCOUNT:野心))
-	ENDIF
-	人数 ++
-NEXT
+結果 = RESULT
 
-;候補がいなければRETURN
-SIF 人数 < 1
+SIF 結果 == -1
 	RETURN 0
-
-LOCAL = MAXARRAY(候補値, 0, 人数)
-FOR LCOUNT, 0, 人数
-	IF 候補値:LCOUNT == LOCAL
-		結果 = 候補:LCOUNT
-		BREAK
-	ENDIF
-NEXT
-;---候補取得ここまで---
 
 判定値 = CALC_INDEPENDENCE_RATE(結果)
 
@@ -84,7 +67,7 @@ SIF ABL:対象:野心 <= 0
 ;ただし印象値が非常に悪い場合はなおも謀反を企てる
 ;閾値は本人の野心によって変動する
 {
-	SIF CFLAG:対象:所属 == CFLAG:MASTER:所属 && GET_COUNTRY_BOSS(CFLAG:MASTER:所属) == MASTER && (IS_LOVER(対象) || IS_SLAVE(対象) || IS_SLAVED_BY(対象)) &&
+	SIF CFLAG:対象:所属 == CFLAG:MASTER:所属 && GET_COUNTRY_BOSS(CFLAG:MASTER:所属) == MASTER && IS_FALLEN(対象) &&
 		REL_HATE:対象:MASTER - REL_LIKE:対象:MASTER < 1500 * (100 - ABL:対象:野心) / 100
 }
 	RETURNF 0

@@ -487,6 +487,165 @@ RETURNF SPLIT_RAND("ペニス/竿/魔羅/雄棒/陰茎/男根/チンポ/一物/�
 
 
 ;-------------------------------------------------
+;DESC  :射精先の生成関数
+;-------------------------------------------------
+@CREATE_STACK_SPERM_MAP()
+#DIM 対象
+#DIM IDX
+FOR LOCAL, 0, VARSIZE("STACK_SPERM_CHARA_MAP")
+	CVARSET STACK_SPERM_CHARA_MAP, LOCAL, -1
+	CVARSET STACK_SPERM_TO_MAP, LOCAL, 0
+NEXT
+CVARSET STACK_SPERM_CHARA_NUM, 0
+
+FOR 対象, 0, CHARANUM
+	IF SELECTCOM > 0
+		IDX = FINDELEMENT(MPLY, 対象)
+		IF IDX != -1
+			TRYCCALLFORM COM_STACK_SPERM_MPLY_TO_MPLY_{SELECTCOM}()
+				LOCAL:1 = RESULT
+				CALL ADD_STACK_SPERM_MAP(対象, 対象, LOCAL:1)
+			CATCH
+			ENDCATCH
+			TRYCCALLFORM COM_STACK_SPERM_MPLY_TO_MTAR_{SELECTCOM}()
+				LOCAL:1 = RESULT
+				FOR LOCAL, 0, MTAR_NUM
+					CALL ADD_STACK_SPERM_MAP(対象, MTAR:LOCAL, LOCAL:1)
+				NEXT
+			CATCH
+				FOR LOCAL, 0, MTAR_NUM
+					CALL ADD_STACK_SPERM_MAP(対象, MTAR:LOCAL, 射精部位_無駄)
+				NEXT
+			ENDCATCH
+		ENDIF
+		IDX = FINDELEMENT(MTAR, 対象)
+		IF IDX != -1
+			TRYCCALLFORM COM_STACK_SPERM_MTAR_TO_MTAR_{SELECTCOM}()
+				LOCAL:1 = RESULT
+				CALL ADD_STACK_SPERM_MAP(対象, 対象, LOCAL:1)
+			CATCH
+			ENDCATCH
+			TRYCCALLFORM COM_STACK_SPERM_MTAR_TO_MPLY_{SELECTCOM}()
+				LOCAL:1 = RESULT
+				FOR LOCAL, 0, MPLY_NUM
+					CALL ADD_STACK_SPERM_MAP(対象, MPLY:LOCAL, LOCAL:1)
+				NEXT
+			CATCH
+				FOR LOCAL, 0, MPLY_NUM
+					CALL ADD_STACK_SPERM_MAP(対象, MPLY:LOCAL, 射精部位_無駄)
+				NEXT
+			ENDCATCH
+		ENDIF
+	ENDIF
+
+	FOR LOCAL, 0, MEQUIP_NUM
+		IDX = -1
+		FOR LOCAL:1, 0, MEQUIP_PLAYER_NUM:(LOCAL)
+			IF MEQUIP_PLAYER:LOCAL:(LOCAL:1) == 対象
+				IDX = LOCAL:1
+				BREAK
+			ENDIF
+		NEXT
+		IF IDX != -1
+			TRYCCALLFORM COM_STACK_SPERM_MPLY_TO_MPLY_{MEQUIP:LOCAL}()
+				LOCAL:2 = RESULT
+				CALL ADD_STACK_SPERM_MAP(対象, 対象, LOCAL:2)
+			CATCH
+			ENDCATCH
+			TRYCCALLFORM COM_STACK_SPERM_MPLY_TO_MTAR_{MEQUIP:LOCAL}()
+				LOCAL:2 = RESULT
+				FOR LOCAL:1, 0, MEQUIP_TARGET_NUM:LOCAL
+					CALL ADD_STACK_SPERM_MAP(対象, MEQUIP_TARGET:LOCAL:(LOCAL:1), LOCAL:2)
+				NEXT
+			CATCH
+				FOR LOCAL:1, 0, MEQUIP_TARGET_NUM:LOCAL
+					CALL ADD_STACK_SPERM_MAP(対象, MEQUIP_TARGET:LOCAL:(LOCAL:1), 射精部位_無駄)
+				NEXT
+			ENDCATCH
+		ENDIF
+		IDX = -1
+		FOR LOCAL:1, 0, MEQUIP_TARGET_NUM:LOCAL
+			IF MEQUIP_TARGET:LOCAL:(LOCAL:1) == 対象
+				IDX = LOCAL:1
+				BREAK
+			ENDIF
+		NEXT
+		IF IDX != -1
+			TRYCCALLFORM COM_STACK_SPERM_MTAR_TO_MTAR_{MEQUIP:LOCAL}()
+				LOCAL:2 = RESULT
+				CALL ADD_STACK_SPERM_MAP(対象, 対象, LOCAL:2)
+			CATCH
+			ENDCATCH
+			TRYCCALLFORM COM_STACK_SPERM_MTAR_TO_MPLY_{MEQUIP:LOCAL}()
+				LOCAL:2 = RESULT
+				FOR LOCAL:1, 0, MEQUIP_PLAYER_NUM:LOCAL
+					CALL ADD_STACK_SPERM_MAP(対象, MEQUIP_PLAYER:LOCAL:(LOCAL:1), LOCAL:2)
+				NEXT
+			CATCH
+				FOR LOCAL:1, 0, MEQUIP_PLAYER_NUM:LOCAL
+					CALL ADD_STACK_SPERM_MAP(対象, MEQUIP_PLAYER:LOCAL:(LOCAL:1), 射精部位_無駄)
+				NEXT
+			ENDCATCH
+		ENDIF
+	NEXT
+NEXT
+
+;-------------------------------------------------
+;DESC  :STACK_SPERM_MAPに追加
+;		優先度 ゴム>膣・腸>オナホ>その他
+;		なお膣・腸とオナホが両立する瞬間はありえんはず
+;-------------------------------------------------
+@ADD_STACK_SPERM_MAP(対象, 射精相手, 射精先)
+#DIM 対象
+#DIM 射精相手
+#DIM 射精先
+#DIM IDX
+
+;ゴム装備中はオーバーライド
+IF IS_EQUIP_PLAYER(対象, 75)
+	射精先 = 射精部位_ゴム
+ENDIF
+
+;なにかしら登録済みなら無駄打ちは登録しない
+SIF STACK_SPERM_CHARA_NUM:対象:0 > 0 && 射精先 == 射精部位_無駄
+	RETURN 0
+
+FOR LOCAL, 0, STACK_SPERM_CHARA_NUM:対象:0
+	;誰かしらに対しての無駄打ちが登録済みの場合、上書き
+	IF STACK_SPERM_TO_MAP:対象:LOCAL == 射精部位_無駄
+		STACK_SPERM_CHARA_MAP:対象:LOCAL = 射精相手
+		STACK_SPERM_TO_MAP:対象:LOCAL = 射精先
+		RETURN 1
+	ENDIF
+		;同一の射精先が登録済みなら登録しない
+	SIF STACK_SPERM_CHARA_MAP:対象:LOCAL == 射精相手 && 射精先 == STACK_SPERM_TO_MAP:対象:LOCAL
+		RETURN 0
+NEXT
+
+;まだ登録していなかったら登録
+DEBUGPRINTFORML %ANAME(対象)%→%ANAME(射精相手)% %CUM_SLOT_NAME:射精先%
+STACK_SPERM_CHARA_MAP:対象:(STACK_SPERM_CHARA_NUM:対象:0) = 射精相手
+STACK_SPERM_TO_MAP:対象:(STACK_SPERM_CHARA_NUM:対象:0) = 射精先
+STACK_SPERM_CHARA_NUM:対象:0 ++
+
+;-------------------------------------------------
+;DESC  :相手のどこに射精してるか取得する。射精してなければ-1
+;ARG   ::
+;-------------------------------------------------
+@GET_STACK_SPERM_TO(対象, 射精相手)
+#FUNCTION
+#DIM 対象
+#DIM 射精相手
+
+FOR LOCAL, 0, STACK_SPERM_CHARA_NUM:対象:0
+	IF STACK_SPERM_CHARA_MAP:対象:LOCAL == 射精相手
+		RETURNF STACK_SPERM_TO_MAP:対象:LOCAL
+	ENDIF
+NEXT
+RETURNF -1
+
+
+;-------------------------------------------------
 ;射精対象のキャラと部位をスタックする関数
 ;ARG:0=射精元のキャラ番号、ARG:1=射精先のキャラ番号、ARG:2=射精部位(※資料フォルダの変数表を参照)、ARG:3=上書きするかどうか
 ;0=体(指定なし) 1=膣内 2=アナル 3=手 4=口 5=胸 6=足 7=尻尾 8=顔 9=髪 10=腋 11=尻 12=オナホ 13=触手 14 = ゴム

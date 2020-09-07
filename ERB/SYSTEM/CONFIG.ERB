@@ -48,8 +48,12 @@ PRINTBUTTON " 82[        現在の設定を保存(ＳＬＧパートに関する
 PRINTL 
 PRINTBUTTON " 83[  保存した設定の読み込み(ＳＬＧパートに関する設定以外)]", 83
 PRINTL 
+PRINTBUTTON " 84[    デイリーの設定を保存]", 84
+PRINTL 
+PRINTBUTTON " 85[  デイリーの設定をロード]", 85
+PRINTL 
 CALL COLOR_LINE
-PRINTBUTTON " 84[    ヘルプ]", 84
+PRINTBUTTON " 90[    ヘルプ]", 90
 PRINTL 
 [IF_DEBUG]
 PRINTBUTTON @" {GAMEBASE_VERSION}[  デバッグ]", GAMEBASE_VERSION
@@ -87,6 +91,10 @@ ELSEIF GROUPMATCH(RESULT, 80, 82)
 ELSEIF GROUPMATCH(RESULT, 81, 83)
 	CALL CONFIG_LOAD(RESULT == 81)
 ELSEIF RESULT == 84
+	CALL CONFIG_DAILY_SAVE()
+ELSEIF RESULT == 85
+	CALL CONFIG_DAILY_LOAD()
+ELSEIF RESULT == 90
 	CALL CONFIG_HELPMENU
 	[IF_DEBUG]
 ELSEIF RESULT == GAMEBASE_VERSION
@@ -140,9 +148,6 @@ SIF 全て
 
 CALL CONFIG_SAVE_EXCEPT_SLG(番号)
 
-
-
-
 ;-------------------------------------------------
 ;desc  :コンフィグの読み取り
 ;param :全て:全コンフィグを読む
@@ -175,6 +180,74 @@ SIF 全て
 CALL CONFIG_LOAD_EXCEPT_SLG(番号)
 
 ;-------------------------------------------------
+;desc  :コンフィグの書き込み
+;param :全て:全コンフィグを保存する（指定しない場合SLGを除く)
+;-------------------------------------------------
+@CONFIG_DAILY_SAVE()
+#DIM 番号
+CALL SINGLE_DRAWLINE
+PRINTFORML どこにセーブしますか？
+CALL SINGLE_DRAWLINE
+
+CALL LISTUP_CONFIG_DAILY
+
+PRINTFORML [99] 戻る
+
+$INPUT_LOOP
+INPUT
+
+SIF RESULT == 99
+	RETURN
+
+SIF !INRANGE(RESULT, 0, VARSIZE("G_CONFIG_DAILY_NAME"))
+	GOTO INPUT_LOOP
+
+番号 = RESULT
+
+PRINTFORML 設定データの名前を入力して下さい
+PRINTFORML (何も入力しないと「設定{番号}」になります)
+
+$INPUT_LOOP_2
+INPUTS
+
+IF RESULTS == ""
+	G_CONFIG_DAILY_NAME:番号 = 設定{番号}
+ELSE
+	G_CONFIG_DAILY_NAME:番号 = %RESULTS%
+ENDIF
+
+
+CALL CONFIG_SAVE_DAILY(番号)
+
+;-------------------------------------------------
+;desc  :コンフィグの読み取り
+;param :全て:全コンフィグを読む
+;-------------------------------------------------
+@CONFIG_DAILY_LOAD()
+#DIM 番号
+CALL SINGLE_DRAWLINE
+PRINTFORML どれをロードしますか？
+CALL SINGLE_DRAWLINE
+
+CALL LISTUP_CONFIG_DAILY
+
+PRINTFORML [99] 戻る
+
+$INPUT_LOOP
+INPUT
+
+SIF RESULT == 99
+	RETURN
+
+SIF !INRANGE(RESULT, 0, VARSIZE("G_CONFIG_DAILY_NAME")) || !CONFIG_EXISTS()
+	GOTO INPUT_LOOP
+
+番号 = RESULT
+
+CALL CONFIG_LOAD_DAILY(番号)
+
+
+;-------------------------------------------------
 ;desc  :コンフィグをリストアップして印字する
 ;-------------------------------------------------
 @LISTUP_CONFIG()
@@ -182,6 +255,16 @@ FOR LOCAL, 0, VARSIZE("G_CONFIG_NAME")
 	PRINTBUTTON @"[{LOCAL}] 設定{LOCAL} - %G_CONFIG_NAME:LOCAL%", LOCAL
 	PRINTL
 NEXT
+
+;-------------------------------------------------
+;desc  :コンフィグをリストアップして印字する
+;-------------------------------------------------
+@LISTUP_CONFIG_DAILY()
+FOR LOCAL, 0, VARSIZE("G_CONFIG_DAILY_NAME")
+	PRINTBUTTON @"[{LOCAL}] 設定{LOCAL} - %G_CONFIG_DAILY_NAME:LOCAL%", LOCAL
+	PRINTL
+NEXT
+
 
 ;-------------------------------------------------
 ;desc  :指定番号のコンフィグが存在するか返す
@@ -200,7 +283,7 @@ RETURNF G_CONFIG_NAME:番号 != ""
 #DIM FIRST_LINE
 FIRST_LINE = LINECOUNT
 CALL SINGLE_DRAWLINE
-PRINTL ●その他の部分に関する設定●
+PRINTL ●交流パートに関する設定●
 CALL SINGLE_DRAWLINE
 
 LOCALS:0 = 妊娠の有無
@@ -293,11 +376,11 @@ SELECTCASE CONFIG:14
 	CASE 2
 		PRINT 女のみ（一部無効）
 	CASE 3
-		PRINT ふたなりのみ（一部無効)
+		PRINT ふたなりのみ（一部無効）
 ENDSELECT
 PRINTL 
 
-LOCALS:0 = 「民の慰安」での在野武将
+LOCALS:0 = 「民の慰安」で在野武将が出るか
 PRINTFORM %LOCALS:0, 30, RIGHT% -
 PRINTBUTTON " 15[変更]", 15
 PRINT  
@@ -315,11 +398,11 @@ PRINTBUTTON "16[変更]", 16
 PRINT  
 SELECTCASE CONFIG:16
 	CASE 0
-		PRINT 都度選択
+		PRINT 都度選択する
 	CASE 1
-		PRINT 自動で登用
+		PRINT 自動で登用する
 	CASE 2
-		PRINT 自動で非登用
+		PRINT 自動で非登用にする
 ENDSELECT
 PRINTL 
 
@@ -362,13 +445,13 @@ PRINTBUTTON " 17[変更]", 17
 PRINT  
 SELECTCASE CONFIG:17
 	CASE 0
-		PRINT 全員許可
+		PRINT 全員参加しうる
 	CASE 1
-		PRINT 面識のある相手のみ
+		PRINT 面識のある相手のみ参加しうる
 ENDSELECT
 PRINTL 
 
-LOCALS:0 = 固定キャラの口上の表示
+LOCALS:0 = 東方キャラの口上の表示
 PRINTFORM %LOCALS:0, 30, RIGHT% -
 PRINTBUTTON " 40[変更]", 40
 PRINT  
@@ -491,7 +574,7 @@ SELECTCASE CONFIG:80
 	CASE 1
 		PRINT 女性・女ふたなりのみ発生
 	CASE 2
-		PRINT 全て発生
+		PRINT 全ての性別で発生
 ENDSELECT
 PRINTL
 
@@ -501,11 +584,11 @@ PRINTBUTTON @"{81, 4}[変更]", 81
 PRINT  
 SELECTCASE CONFIG:81
 	CASE 0
-		PRINT 全特殊勢力
+		PRINT 全特殊勢力で発生
 	CASE 1
-		PRINT 自分が所属する特殊勢力のみ
+		PRINT 自分が所属する特殊勢力のみで発生
 	CASE 2
-		PRINT 自分が所属する特殊勢力以外
+		PRINT 自分が所属する特殊勢力以外で発生
 ENDSELECT
 PRINTL 
 
@@ -515,7 +598,7 @@ PRINTBUTTON @"{82, 4}[変更]", 82
 PRINT  
 SELECTCASE CONFIG:82
 	CASE 0
-		PRINT 全て
+		PRINT 捕虜・士官に対して発生
 	CASE 1
 		PRINT 捕虜のみ（士官を弾く）
 	CASE 2
@@ -566,7 +649,7 @@ ENDSELECT
 PRINTL 
 
 LOCALS:0 = 調教中に主人公の反応を表示する
-PRINTFORM %LOCALS:0, 55, RIGHT% -
+PRINTFORM %LOCALS:0, 50, RIGHT% -
 PRINTBUTTON "441[変更]", 441
 PRINT  
 SELECTCASE CONFIG:441
@@ -784,34 +867,40 @@ GOTO LISTUP_LOOP
 ;-------------------------------------------------
 @CONFIG_COM_FILTER
 #DIM FIRST_LINE
+#DIM 有効コマンド数
+#DIM ページ数
+#DIM 現在ページ
+#DIM 始点
+#DIM 終点
+#DIM ページ内表示数
+#DIM 改行カウンタ
+
 ;ページ数の計算
-LOCAL:20 = 0
+有効コマンド数 = 0
 FOR LOCAL:0, 0, 1000
 	IF TRAINNAME:(LOCAL:0) != ""
-		LOCAL:20 ++
+		有効コマンド数 ++
 	ENDIF
 NEXT
-LOCAL:20 = (LOCAL:20 - 1) / 66 + 1
-LOCAL:21 = 1
+ページ数 = (有効コマンド数 - 1) / 66 + 1
+現在ページ = 1
 
 CALL SINGLE_DRAWLINE
-PRINTFORML かけすぎると逆調教で無限ループするかもしれんのできをつけてね
+PRINTFORML 緑色表示のコマンドはシステムの都合上フィルタ不可です
 CALL SINGLE_DRAWLINE
 FIRST_LINE = LINECOUNT
 $SHOW_LOOP
 
 ;コマンドの表示
-LOCAL:22 = 0
-LOCAL:23 = (LOCAL:21 - 1) * 66
-LOCAL:24 = LOCAL:21 * 66
-LOCAL:25 = 0
-LOCAL:26 = 6
+有効コマンド数 = 0
+始点 = (現在ページ - 1) * 88
+終点 = 現在ページ * 88
+改行カウンタ = 0
 FOR LOCAL:0, 0, 1000
 	IF TRAINNAME:(LOCAL:0) != ""
-		IF LOCAL:22 >= LOCAL:23 && LOCAL:22 < LOCAL:24
-			IF LOCAL:25 >= 1 && LOCAL:25 % 3 == 0
+		IF 有効コマンド数 >= 始点 && 有効コマンド数 < 終点
+			IF 改行カウンタ >= 1 && 改行カウンタ % 4 == 0
 				PRINTL 
-				LOCAL:26 ++
 			ENDIF
 			RESULT = 0
 			TRYCALLFORM COM_FILTER_FORCE_OFF{LOCAL:0}
@@ -825,21 +914,23 @@ FOR LOCAL:0, 0, 1000
 				PRINTFORM [{LOCAL:0, 3}] %TRAINNAME:(LOCAL:0), 21, LEFT%
 			ENDIF
 			RESETCOLOR
-			LOCAL:25 ++
+			改行カウンタ ++
 		ENDIF
-		LOCAL:22 ++
+		有効コマンド数 ++
 	ENDIF
 NEXT
 PRINTL 
 CALL SINGLE_DRAWLINE
 
 PRINT [990] 前のページ     
-PRINTPLAINFORM page{LOCAL:21}/{LOCAL:20}    
+PRINTPLAINFORM page{現在ページ}/{ページ数}    
 PRINTL [991] 次のページ
 
 
 CALL SINGLE_DRAWLINE
-PRINTL [999] 決定
+PRINTL [997] セーブ
+PRINTL [998] ロード
+PRINTL [999] 戻る
 
 REDRAW 0
 
@@ -849,17 +940,25 @@ INPUT
 IF RESULT == 999
 	REDRAW 1
 	RETURN
+ELSEIF RESULT == 997
+	CALL CONFIG_COM_FILTER_SAVE()
+	CLEARLINE LINECOUNT - FIRST_LINE
+	GOTO SHOW_LOOP
+ELSEIF RESULT == 998
+	CALL CONFIG_COM_FILTER_LOAD()
+	CLEARLINE LINECOUNT - FIRST_LINE
+	GOTO SHOW_LOOP
 ELSEIF RESULT == 990
-	LOCAL:21 --
-	IF LOCAL:21 < 1
-		LOCAL:21 = LOCAL:20
+	現在ページ --
+	IF 現在ページ < 1
+		現在ページ = ページ数
 	ENDIF
 	CLEARLINE LINECOUNT - FIRST_LINE
 	GOTO SHOW_LOOP
 ELSEIF RESULT == 991
-	LOCAL:21 ++
-	IF LOCAL:21 > LOCAL:20
-		LOCAL:21 = 1
+	現在ページ ++
+	IF 現在ページ > ページ数
+		現在ページ = 1
 	ENDIF
 	CLEARLINE LINECOUNT - FIRST_LINE
 	GOTO SHOW_LOOP
@@ -877,6 +976,86 @@ ELSEIF RESULT >= 0 && RESULT < 1000
 ENDIF
 CLEARLINE 1
 GOTO INPUT_LOOP
+
+;-------------------------------------------------
+;DESC  :コマンドフィルタのセーブ
+;ARG   ::
+;-------------------------------------------------
+@CONFIG_COM_FILTER_SAVE()
+#DIM 番号
+
+CALL SINGLE_DRAWLINE
+PRINTFORML どこにセーブしますか？
+CALL SINGLE_DRAWLINE
+
+CALL LISTUP_CONFIG
+
+PRINTFORML [99] 戻る
+
+$INPUT_LOOP
+INPUT
+
+SIF RESULT == 99
+	RETURN
+
+SIF !INRANGE(RESULT, 0, VARSIZE("G_CONFIG_NAME"))
+	GOTO INPUT_LOOP
+
+番号 = RESULT
+
+PRINTFORML 設定データの名前を入力して下さい
+PRINTFORML (何も入力しないと「設定{番号}」になります)
+
+$INPUT_LOOP_2
+INPUTS
+
+IF RESULTS == ""
+	G_CONFIG_FILTER_NAME:番号 = 設定{番号}
+ELSE
+	G_CONFIG_FILTER_NAME:番号 = %RESULTS%
+ENDIF
+
+FOR LOCAL, 0, VARSIZE("COM_FILTER")
+	G_FILTER:番号:(LOCAL:0) = COM_FILTER:(LOCAL:0)
+NEXT
+
+;グローバル変数を保存
+SAVEGLOBAL
+RETURN
+
+
+;-------------------------------------------------
+;desc  :コンフィグの読み取り
+;-------------------------------------------------
+@CONFIG_COM_FILTER_LOAD()
+#DIM 番号
+CALL SINGLE_DRAWLINE
+PRINTFORML どれをロードしますか？
+CALL SINGLE_DRAWLINE
+
+FOR LOCAL, 0, VARSIZE("G_CONFIG_FILTER_NAME")
+	PRINTBUTTON @"[{LOCAL}] 設定{LOCAL} - %G_CONFIG_FILTER_NAME:LOCAL%", LOCAL
+	PRINTL
+NEXT
+
+PRINTFORML [99] 戻る
+
+$INPUT_LOOP
+INPUT
+
+SIF RESULT == 99
+	RETURN
+
+SIF !INRANGE(RESULT, 0, VARSIZE("G_CONFIG_FILTER_NAME")) || G_CONFIG_FILTER_NAME:RESULT != ""
+	GOTO INPUT_LOOP
+
+番号 = RESULT
+
+FOR LOCAL, 0, VARSIZE("COM_FILTER")
+	COM_FILTER:(LOCAL:0) = G_FILTER:番号:(LOCAL:0)
+NEXT
+
+
 
 ;-------------------------------------------------
 ;0か1だけのCONFIG切り替え
