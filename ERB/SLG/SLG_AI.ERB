@@ -5,6 +5,7 @@
 #DIM 攻撃兵数
 #DIM 都市
 #DIM 部隊
+#DIM 部隊作成失敗
 #DIM キャラ
 #DIM USETIME
 
@@ -61,6 +62,7 @@ CALL SLG_AI_DECIDE_SOLDIER_NUM(勢力)
 CALL SLG_AI_RESCUE(勢力, 攻撃兵数)
 攻撃兵数 = RESULT
 
+部隊作成失敗 = 0
 ;部隊の侵攻判定
 FOR 部隊, 0, MAX_UNIT
 	;既存部隊の場合、移動できない連中は飛ばす
@@ -90,17 +92,14 @@ FOR 部隊, 0, MAX_UNIT
 			CALL CLEAR_UNIT(勢力, 部隊, 1)
 			CONTINUE
 		ENDIF
-	ENDIF
-NEXT
-
-;部隊の侵攻判定
-FOR 部隊, 0, MAX_UNIT
-	;既存部隊でなければ、部隊の作成を試みる
-	IF UNIT_SOLDIER:勢力:部隊 <= 0
+	ELSEIF UNIT_SOLDIER:勢力:部隊 <= 0 && 部隊作成失敗 == 0
+		;既存部隊でなければ、部隊の作成を試みる
 		CALL SLG_AI_CREATE_UNIT(勢力, 部隊, 攻撃兵数)
 		;作れなかったら飛ばす
-		SIF 攻撃兵数 == RESULT
+		IF 攻撃兵数 == RESULT
+			部隊作成失敗 = 1
 			CONTINUE
+		ENDIF
 		攻撃兵数 = RESULT
 	ENDIF
 	;攻撃先の決定
