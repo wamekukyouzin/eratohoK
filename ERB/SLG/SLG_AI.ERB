@@ -1,4 +1,4 @@
-﻿;注意点
+;注意点
 ;この関数自体ループ内で呼ばれる前提なので、ループを使用するとO(n^2)になる。TMP化できるものはTMPを利用すること。
 @AI_ACTION(勢力)
 #DIM 勢力
@@ -490,6 +490,7 @@ RETURN 攻撃兵数
 #DIM カウント
 #DIM 候補
 #DIM 攻撃実行
+#DIM 最小都市数
 
 VARSET 攻撃実行
 VARSET 攻撃候補スコア, __INT_MIN__
@@ -501,6 +502,14 @@ CALL BATTLE_PREPARE_VARS_EACH(0, 0)
 自部隊能力:0 = BATTLE_ATK:0
 自部隊能力:1 = BATTLE_DEF:0
 自部隊能力:2 = BATTLE_INT:0
+
+最小都市数 = __INT_MAX__
+FOR LOCAL, 0, MAX_COUNTRY
+	SIF !IS_COUNTRY(LOCAL)
+		CONTINUE
+	SIF TMP_OWN_CITY:LOCAL < 最小都市数
+		最小都市数 = TMP_OWN_CITY:LOCAL
+NEXT
 
 ;スコアを計算
 FOR 都市, 1, GET_CITY_NUM() + 1
@@ -530,6 +539,10 @@ FOR 都市, 1, GET_CITY_NUM() + 1
 		ELSE
 			攻撃候補スコア:都市 = 攻撃候補スコア:都市 + 攻撃候補スコア:都市 * (TMP_OWN_CITY:都市保有勢力 - TMP_OWN_CITY:勢力) * 6 / 100
 		ENDIF
+
+		SIF 都市保有勢力 == FINDELEMENT(TMP_OWN_CITY, 最小都市数)
+			攻撃候補スコア:都市 = 攻撃候補スコア:都市 * 3 / 2
+
 		;都市勢力が連合の討伐対象なら攻撃候補スコアを5倍に
 		SIF TMP_COUNTRY_UNION_TARGET:勢力 == 都市保有勢力
 			攻撃候補スコア:都市 *= 5
