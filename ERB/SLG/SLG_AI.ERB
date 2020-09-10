@@ -1,4 +1,4 @@
-;注意点
+﻿;注意点
 ;この関数自体ループ内で呼ばれる前提なので、ループを使用するとO(n^2)になる。TMP化できるものはTMPを利用すること。
 @AI_ACTION(勢力)
 #DIM 勢力
@@ -610,36 +610,35 @@ FOR 候補, 0, 10
 	都市保有君主 = GET_COUNTRY_BOSS(都市保有勢力)
 
 	IF IS_COUNTRY(都市保有勢力)
+
+
 		CALL CHECK_CITY_COMMANDER_BEST(攻撃候補, 1)
 		CALL SET_BATTLE_MIRROR_VAL(1, CITY_COMMANDER_BEST:0, CITY_COMMANDER_BEST:1, -1)
 		CALL BATTLE_PREPARE_VARS_EACH(1, 攻撃候補)
-	ELSE
-		CALL SET_BATTLE_MIRROR_VAL(1, -1, -1)
-		CALL BATTLE_PREPARE_VARS_EACH(1, 攻撃候補)
+
+		;勝ってる要素をカウント
+		カウント = 0
+		敵部隊能力:0 = BATTLE_ATK:1
+		敵部隊能力:1 = BATTLE_DEF:1
+		敵部隊能力:2 = BATTLE_INT:1
+		カウント += (UNIT_SOLDIER:勢力:部隊 > CITY_SOLDIER:攻撃候補)
+		FOR LOCAL:1, 0, 3
+			カウント += 自部隊能力:(LOCAL:1) > 敵部隊能力:(LOCAL:1)
+		NEXT
+
+		;;勝ってる要素が一定ないとキャンセル
+		SELECTCASE TMP_OWN_CITY:勢力
+			CASE IS < 5
+				SIF カウント < 0
+					GOTO CANCEL
+			CASE 5 TO 9
+				SIF カウント < 1
+					GOTO CANCEL
+			CASEELSE
+				SIF カウント < 2
+					GOTO CANCEL
+		ENDSELECT
 	ENDIF
-
-	;勝ってる要素をカウント
-	カウント = 0
-	敵部隊能力:0 = BATTLE_ATK:1
-	敵部隊能力:1 = BATTLE_DEF:1
-	敵部隊能力:2 = BATTLE_INT:1
-	カウント += (UNIT_SOLDIER:勢力:部隊 > CITY_SOLDIER:攻撃候補)
-	FOR LOCAL:1, 0, 3
-		カウント += 自部隊能力:(LOCAL:1) > 敵部隊能力:(LOCAL:1)
-	NEXT
-
-	;;勝ってる要素が一定ないとキャンセル
-	SELECTCASE TMP_OWN_CITY:勢力
-		CASE IS < 5
-			SIF カウント < 0
-				GOTO CANCEL
-		CASE 5 TO 9
-			SIF カウント < 1
-				GOTO CANCEL
-		CASEELSE
-			SIF カウント < 2
-				GOTO CANCEL
-	ENDSELECT
 
 	CALL MOVE_UNIT(勢力, 部隊, TMP_IS_INVADABLE:勢力:攻撃候補, 1)
 	UNIT_TARGET:勢力:部隊 = 攻撃候補
