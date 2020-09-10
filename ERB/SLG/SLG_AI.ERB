@@ -92,6 +92,8 @@ FOR 部隊, 0, MAX_UNIT
 			CALL CLEAR_UNIT(勢力, 部隊, 1)
 			CONTINUE
 		ENDIF
+
+		CALL SLG_AI_FILL_UNIT(勢力, 部隊)
 	ELSEIF UNIT_SOLDIER:勢力:部隊 <= 0 && 部隊作成失敗 == 0
 		;既存部隊でなければ、部隊の作成を試みる
 		CALL SLG_AI_CREATE_UNIT(勢力, 部隊, 攻撃兵数)
@@ -102,8 +104,9 @@ FOR 部隊, 0, MAX_UNIT
 		ENDIF
 		攻撃兵数 = RESULT
 	ENDIF
-	;攻撃先の決定
-	CALL SLG_AI_INVASION_SETTARGET(勢力, 部隊)
+	;最終的に部隊ができてたら攻撃先の決定
+	SIF UNIT_SOLDIER:勢力:部隊 > 0
+		CALL SLG_AI_INVASION_SETTARGET(勢力, 部隊)
 NEXT
 
 ;;#;FOR 部隊, 0, MAX_UNIT
@@ -395,6 +398,7 @@ SIF 勢力 == CFLAG:MASTER:所属 || FLAG:観戦モード
 #DIM 部隊
 #DIM 攻撃兵数
 #DIM 出兵難易度, 2
+#DIM 武将数
 #DIM 兵数候補
 #DIM 最低兵数
 #DIM 確定兵数
@@ -405,8 +409,6 @@ SIF 勢力 == CFLAG:MASTER:所属 || FLAG:観戦モード
 
 AI_TYPE = COUNTRY_AI_TYPE:勢力
 
-CALL CHECK_UNIT_COMMANDER_BEST(勢力, 1)
-
 最低兵数 = AI_ARMY_PROPERTY:AI_TYPE:AI_最低兵数 / MAX(6 - TMP_OWN_CITY:勢力, 1)
 確定兵数 = MIN(AI_ARMY_PROPERTY:AI_TYPE:AI_確定兵数, TMP_SUM_ECONOMY:勢力 / 10)
 ;DEBUGPRINTFORML %ANAME(GET_COUNTRY_BOSS(勢力))%の部隊作成試行 攻撃兵数{攻撃兵数} 最低兵数{最低兵数} 確定兵数{確定兵数}
@@ -415,10 +417,35 @@ CALL CHECK_UNIT_COMMANDER_BEST(勢力, 1)
 SIF 攻撃兵数 < 最低兵数
 	RETURN 攻撃兵数
 
-;兵数が確定兵数を割っているなら、確定兵数に対する攻撃兵数の割合%で出兵する
+CALL CHECK_UNIT_COMMANDER_BEST(勢力, 1)
+
+武将数 = MAX_UNIT_COMMANDER - MATCH(UNIT_COMMANDER_BEST, -1)
+
+;武将なし部隊を作ろうとしている場合、
+;すでに武将なし部隊が存在する場合は諦める（兵の無駄になりがちなのであまり作らせたくない）
+;都市数が少ない（序盤、窮地）の場合は緩和
+IF 武将数 == 0
+	IF TMP_OWN_CITY:勢力 <= 10
+		LOCAL:1 = 0
+		FOR LOCAL, 0, MAX_UNIT
+			SIF UNIT_SOLDIER:勢力:LOCAL <= 0
+				CONTINUE
+			IF UNIT_COMMANDER:勢力:LOCAL == 0
+				LOCAL:1 ++
+				IF (LOCAL:1 == 2 && TMP_OWN_CITY:勢力 <= 5) || (LOCAL:1 == 1 && INRANGE(TMP_OWN_CITY:勢力, 6, 10))
+					RETURN 攻撃兵数
+				ENDIF
+			ENDIF
+		NEXT
+	ELSE
+		RETURN 攻撃兵数
+	ENDIF
+ENDIF
+
+;兵数が確定兵数を割っているなら、(100 - 確定兵数に対する攻撃兵数の割合)%の確率で出兵を見送る
 ;ただし都市数が少ないと積極的
 IF 攻撃兵数 < 確定兵数
-	SIF 攻撃兵数 * 100 / 確定兵数 - 20 * MATCH(UNIT_COMMANDER_BEST, -1) < RAND:(100 - MAX((6 - TMP_OWN_CITY:勢力) * 10, 0))
+	SIF 攻撃兵数 * 100 / 確定兵数 - 20 * 武将数 < RAND:(100 - MAX((6 - TMP_OWN_CITY:勢力) * 10, 0))
 		RETURN 攻撃兵数
 ENDIF
 
@@ -428,22 +455,23 @@ ENDIF
 ;	RETURN 攻撃兵数
 
 ;部隊に編成する兵数を決定
+;武将が3に満たないとケチる
 IF 攻撃兵数 >= 確定兵数
-	IF MATCH(UNIT_COMMANDER_BEST, -1) == 0
+	IF 武将数 == MAX_UNIT_COMMANDER
 		出兵数 = RAND(確定兵数, 攻撃兵数)
 	ELSE
 		出兵数 = 確定兵数
-		SIF MATCH(UNIT_COMMANDER_BEST, -1) == 3
+		SIF 武将数 == 0
 			出兵数 /= 4
 	ENDIF
 ELSE
-	IF MATCH(UNIT_COMMANDER_BEST, -1) == 0
+	IF 武将数 == MAX_UNIT_COMMANDER
 		出兵数 = 攻撃兵数
 	ELSE
 		出兵数 = MIN(RAND(最低兵数, 確定兵数), 攻撃兵数)
-		SIF MATCH(UNIT_COMMANDER_BEST, -1) == 2 && 出兵数 > 攻撃兵数 / 2
+		SIF 武将数 == 1 && 出兵数 > 攻撃兵数 / 2
 			出兵数 /= 2
-		SIF MATCH(UNIT_COMMANDER_BEST, -1) == 3
+		SIF 武将数 == 0
 			出兵数 /= 4
 	ENDIF
 ENDIF
@@ -471,6 +499,35 @@ NEXT
 RETURN 攻撃兵数
 
 ;-------------------------------------------------
+;部隊に空きがあるときに、
+;部隊の武将を再設定する
+;-------------------------------------------------
+@SLG_AI_FILL_UNIT(勢力, 部隊)
+#DIM 勢力
+#DIM 部隊
+#DIM 武将数
+
+武将数 = GET_UNIT_COMMANDER_NUM(勢力, 部隊)
+
+;すでに3人いるなら戻る
+SIF 武将数 == MAX_UNIT_COMMANDER
+	RETURN 
+
+CALL CHECK_UNIT_COMMANDER_BEST(勢力, 1)
+
+;追加できるやつがいないなら戻る
+SIF MATCH(UNIT_COMMANDER_BEST, -1) == VARSIZE("UNIT_COMMANDER_BEST")
+	RETURN
+
+FOR LOCAL, 0, VARSIZE("UNIT_COMMANDER_BEST")
+	SIF UNIT_COMMANDER_BEST:LOCAL == -1
+		BREAK
+	DEBUGPRINTFORML {勢力} {部隊} 補充 %ANAME(UNIT_COMMANDER_BEST:LOCAL)%
+	CALL SET_UNIT_COMMANDER_ANYWHERE(勢力, 部隊, UNIT_COMMANDER_BEST:LOCAL)
+	TMP_IS_FREE:(UNIT_COMMANDER_BEST:LOCAL):0 = 1
+NEXT
+
+;-------------------------------------------------
 ;部隊の攻撃先を決定する
 ;-------------------------------------------------
 @SLG_AI_INVASION_SETTARGET(勢力, 部隊)
@@ -487,9 +544,10 @@ RETURN 攻撃兵数
 #DIM 現在スコア
 #DIM 自部隊能力, 3
 #DIM 敵部隊能力, 3
-#DIM カウント
+#DIM 攻撃評価スコア
 #DIM 候補
 #DIM 攻撃実行
+#DIM 最小都市数
 
 VARSET 攻撃実行
 VARSET 攻撃候補スコア, __INT_MIN__
@@ -501,6 +559,14 @@ CALL BATTLE_PREPARE_VARS_EACH(0, 0)
 自部隊能力:0 = BATTLE_ATK:0
 自部隊能力:1 = BATTLE_DEF:0
 自部隊能力:2 = BATTLE_INT:0
+
+最小都市数 = __INT_MAX__
+FOR LOCAL, 0, MAX_COUNTRY
+	SIF !IS_COUNTRY(LOCAL)
+		CONTINUE
+	SIF TMP_OWN_CITY:LOCAL < 最小都市数
+		最小都市数 = TMP_OWN_CITY:LOCAL
+NEXT
 
 ;スコアを計算
 FOR 都市, 1, GET_CITY_NUM() + 1
@@ -530,12 +596,16 @@ FOR 都市, 1, GET_CITY_NUM() + 1
 		ELSE
 			攻撃候補スコア:都市 = 攻撃候補スコア:都市 + 攻撃候補スコア:都市 * (TMP_OWN_CITY:都市保有勢力 - TMP_OWN_CITY:勢力) * 6 / 100
 		ENDIF
+
+		SIF 都市保有勢力 == FINDELEMENT(TMP_OWN_CITY, 最小都市数)
+			攻撃候補スコア:都市 = 攻撃候補スコア:都市 * 3 / 2
+
 		;都市勢力が連合の討伐対象なら攻撃候補スコアを5倍に
 		SIF TMP_COUNTRY_UNION_TARGET:勢力 == 都市保有勢力
 			攻撃候補スコア:都市 *= 5
 	;無所属都市は優先的に狙う
 	ELSE
-		攻撃候補スコア:都市 *= 2
+		攻撃候補スコア:都市 *= 4
 	ENDIF
 
 	;主人公の都市に対しては難易度補正
@@ -597,36 +667,39 @@ FOR 候補, 0, 10
 	都市保有君主 = GET_COUNTRY_BOSS(都市保有勢力)
 
 	IF IS_COUNTRY(都市保有勢力)
+
+
 		CALL CHECK_CITY_COMMANDER_BEST(攻撃候補, 1)
 		CALL SET_BATTLE_MIRROR_VAL(1, CITY_COMMANDER_BEST:0, CITY_COMMANDER_BEST:1, -1)
 		CALL BATTLE_PREPARE_VARS_EACH(1, 攻撃候補)
-	ELSE
-		CALL SET_BATTLE_MIRROR_VAL(1, -1, -1)
-		CALL BATTLE_PREPARE_VARS_EACH(1, 攻撃候補)
+		CALL BATTLE_SOLDIER_RATE_CORRECTION(勢力, 部隊, 攻撃候補, -1)
+		CALL BATTLE_TIREDNESS_CORRECTION(勢力, 部隊, 攻撃候補, -1)
+		CALL BATTLE_COMMANDER_POWER_CORRECTION(勢力, 部隊, 攻撃候補, -1)
+
+		敵部隊能力:0 = BATTLE_ATK:1
+		敵部隊能力:1 = BATTLE_DEF:1
+		敵部隊能力:2 = BATTLE_INT:1
+
+		;勝ってる要素をカウント
+		攻撃評価スコア = ((UNIT_SOLDIER:勢力:部隊 * 100) / MAX(CITY_SOLDIER:攻撃候補, 1)) * 3
+
+		FOR LOCAL:1, 0, 3
+			攻撃評価スコア += 自部隊能力:(LOCAL:1) * 100 / MAX(敵部隊能力:(LOCAL:1), 1)
+		NEXT
+		DEBUGPRINTFORML スコア: {攻撃評価スコア} {勢力}, {部隊}
+		;勝ってる要素が一定ないとキャンセル
+		SELECTCASE TMP_OWN_CITY:勢力
+			CASE IS < 5
+				SIF 攻撃評価スコア < 500
+					GOTO CANCEL
+			CASE 5 TO 9
+				SIF 攻撃評価スコア < 600
+					GOTO CANCEL
+			CASEELSE
+				SIF 攻撃評価スコア < 700
+					GOTO CANCEL
+		ENDSELECT
 	ENDIF
-
-	;勝ってる要素をカウント
-	カウント = 0
-	敵部隊能力:0 = BATTLE_ATK:1
-	敵部隊能力:1 = BATTLE_DEF:1
-	敵部隊能力:2 = BATTLE_INT:1
-	カウント += (UNIT_SOLDIER:勢力:部隊 > CITY_SOLDIER:攻撃候補)
-	FOR LOCAL:1, 0, 3
-		カウント += 自部隊能力:(LOCAL:1) > 敵部隊能力:(LOCAL:1)
-	NEXT
-
-	;;勝ってる要素が一定ないとキャンセル
-	SELECTCASE TMP_OWN_CITY:勢力
-		CASE IS < 5
-			SIF カウント < 0
-				GOTO CANCEL
-		CASE 5 TO 9
-			SIF カウント < 1
-				GOTO CANCEL
-		CASEELSE
-			SIF カウント < 2
-				GOTO CANCEL
-	ENDSELECT
 
 	CALL MOVE_UNIT(勢力, 部隊, TMP_IS_INVADABLE:勢力:攻撃候補, 1)
 	UNIT_TARGET:勢力:部隊 = 攻撃候補
@@ -642,7 +715,25 @@ NEXT
 IF !攻撃実行
 	DEBUGPRINTFORML 有効な攻撃対象なし。解散 {勢力}, {部隊}
 	CALL CLEAR_UNIT(勢力, 部隊, 1)
+ELSE
+	;無所属都市ならナメてかかる
+	IF !IS_COUNTRY(CITY_OWNER:攻撃候補)
+		DEBUGPRINTFORML %GET_CITYNAME(UNIT_TARGET:勢力:部隊)%攻め。武将解除。兵数:{UNIT_SOLDIER:勢力:部隊}
+		LOCAL = GET_UNIT_COMMANDER(勢力, 部隊, 2)
+		SIF LOCAL >= 0
+			TMP_IS_FREE:(LOCAL):0 = 0
+		CALL CLEAR_UNIT_COMMANDER(勢力, 部隊, 2)
+		IF UNIT_SOLDIER:勢力:部隊 >= CITY_SOLDIER:攻撃候補
+			LOCAL = GET_UNIT_COMMANDER(勢力, 部隊, 1)
+			SIF LOCAL >= 0
+				TMP_IS_FREE:(LOCAL):0 = 0
+			CALL CLEAR_UNIT_COMMANDER(勢力, 部隊, 1)
+		ENDIF
+	ENDIF
 ENDIF
+
+
+
 ;DEBUGPRINTFORML 侵攻先:%GET_CITYNAME(UNIT_TARGET:勢力:部隊)% 位置:{UNIT_POSITION:勢力:部隊}
 $DONE
 ;-----------------------------------------------
