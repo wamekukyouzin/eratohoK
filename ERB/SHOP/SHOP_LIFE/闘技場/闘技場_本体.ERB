@@ -8,24 +8,32 @@
 #DIMS CONST 相手候補男 = "狼男", "天狗", "鬼", "野良妖怪", "ならず者"
 #DIMS CONST 相手候補女 = "天狗の娘", "河童の娘", "女傭兵", "巫女", "野盗の娘"
 #DIMS 相手名前
-#DIM 出場キャラ
+#DIM 出場キャラ, 3
 #DIM 対戦相手がキャラ
+#DIM OPPONENT_ID
 
 DUMPRAND
+VARSET 出場キャラ, -1
 
-出場キャラ = -1
-CALL SELECT_CHARA_RANDOM("ARENA")
-IF RESULT != -1
-	IF (IS_MALE(対象) && IS_FEMALE(RESULT))
-	ELSEIF (HAS_PENIS(対象) && IS_FEMALE(RESULT))
-	ELSEIF (IS_FEMALE(対象) && IS_MALE(RESULT))
-	ELSE
-		GOTO ENEMY_CANCEL
-	ENDIF
-	出場キャラ = RESULT
-ENDIF
+;ひとりめ
+CALL SELECT_CHARA_RANDOM("ARENA_MAIN")
+出場キャラ:0 = RESULT
+LOCALS:0 = %ANAME(RESULT)%(目安:{ARENA_GET_POWER(RESULT)})
 
-$ENEMY_CANCEL
+;ふたりめとさんにんめは非自勢力
+CALL SELECT_CHARA_RANDOM_MULTI(2, "ARENA_SUB")
+出場キャラ:1 = SELECTED_CHARA:0
+出場キャラ:2 = SELECTED_CHARA:1
+SIF 出場キャラ:1 >= 0
+	LOCALS:1 = %ANAME(出場キャラ:1)%(目安:{ARENA_GET_POWER(出場キャラ:1)})
+
+SIF 出場キャラ:2 >= 0
+	LOCALS:2 = %ANAME(出場キャラ:2)%(目安:{ARENA_GET_POWER(出場キャラ:2)})
+
+FOR LOCAL,0, 3
+	SIF 出場キャラ:LOCAL == -1
+		LOCALS:LOCAL = 選択不可
+NEXT
 
 CALL SINGLE_DRAWLINE
 PRINTFORML %ANAME(対象)%は地下闘技場にやってきた
@@ -59,17 +67,13 @@ PRINTFORML
 PRINTFORML 「…さて、どいつと戦う？強敵の方が稼げるぜ」
 CALL COLOR_PRINTL("「参加料は金", , "5000", カラー_注意, "だ」")
 
-IF 出場キャラ >= 0
-	PRINTFORML 「……そういや、今日は飛び入り参加者がいるな」
-	PRINTFORML
-	PRINTFORML こちらの実力:{ARENA_GET_POWER(対象)}
-	CALL ASK_MULTI("弱い敵(目安:60)" ,"並の敵(目安:120)" ,"強い敵(目安:150)", "とてとて(目安:180)", "帰る", @"%ANAME(出場キャラ)%(目安:{ARENA_GET_POWER(出場キャラ)})")
-ELSE
-	PRINTFORML 
-	PRINTFORML こちらの実力:{ARENA_GET_POWER(対象)}
-	CALL ASK_MULTI("弱い敵(目安:60)" ,"並の敵(目安:120)" ,"強い敵(目安:150)", "とてとて(目安:180)", "帰る")
-ENDIF
 
+PRINTFORML
+PRINTFORML こちらの実力:{ARENA_GET_POWER(対象)}
+{
+	CALL ASK_MULTI_JUDGE("弱い敵(目安:60)" , 1, "並の敵(目安:120)" , 1, "強い敵(目安:150)", 1, "とてとて(目安:180)", 1, "帰る", 1,
+		@"%LOCALS:0%", 出場キャラ:0 != -1, @"%LOCALS:1%", 出場キャラ:1 != -1, @"%LOCALS:2%", 出場キャラ:2 != -1)
+}
 対戦相手がキャラ = 0
 
 SELECTCASE RESULT
@@ -84,8 +88,9 @@ SELECTCASE RESULT
 	CASE 4
 		INITRAND
 		RETURN 0
-	CASE 5
-		敵戦闘力 = ARENA_GET_POWER(出場キャラ) * RAND(80, 120) / 100
+	CASE 5, 6, 7
+		OPPONENT_ID = 出場キャラ:(RESULT - 5)
+		敵戦闘力 = ARENA_GET_POWER(OPPONENT_ID) * RAND(80, 120) / 100
 		対戦相手がキャラ = 1
 ENDSELECT
 
@@ -111,8 +116,8 @@ IF !対戦相手がキャラ
 		相手名前 = %相手候補女:(RAND:VARSIZE("相手候補女"))%
 	ENDIF
 ELSE
-	相手名前 = %ANAME(出場キャラ)%
-	相手男 = IS_MALE(出場キャラ)
+	相手名前 = %ANAME(OPPONENT_ID)%
+	相手男 = IS_MALE(OPPONENT_ID)
 ENDIF
 
 PRINTFORML 「よし、それならこいつが相手だ」
@@ -158,14 +163,14 @@ CALL ARENA_BATTLE(対象, 相手名前, 敵戦闘力)
 
 
 IF RESULT > 0
-	CALL ARENA_WIN(対象, 相手名前, 相手男, 対戦相手がキャラ ? 出場キャラ # -1)
+	CALL ARENA_WIN(対象, 相手名前, 相手男, 対戦相手がキャラ ? OPPONENT_ID # -1)
 	CALL COLOR_PRINTW(@"賞金{ARENA_CALC_MONEY(対象, 敵戦闘力)}をもらった", カラー_注意)
 	MONEY += ARENA_CALC_MONEY(対象, 敵戦闘力)
 
 	CALL ARENA_ADD_EXP(対象, 敵戦闘力, 1)
 
 ELSE
-	CALL ARENA_LOSE(対象, 相手名前, 相手男, 対戦相手がキャラ ? 出場キャラ # -1)
+	CALL ARENA_LOSE(対象, 相手名前, 相手男, 対戦相手がキャラ ? OPPONENT_ID # -1)
 	CALL ARENA_ADD_EXP(対象, 敵戦闘力, 0)
 ENDIF
 
@@ -179,7 +184,7 @@ RETURN 1
 ;-------------------------------------------------
 ;「闘技場」の対戦相手決定
 ;-------------------------------------------------
-@SELECT_CHARA_RANDOM_LOGIC_ARENA(対象)
+@SELECT_CHARA_RANDOM_LOGIC_ARENA_MAIN(対象)
 #DIM 対象
 SIF MASTER == 対象
 	RETURN 0
@@ -187,12 +192,19 @@ SIF IS_SP_COUNTRY_CHARA(対象)
 	RETURN 0
 SIF IS_ANIMAL(対象)
 	RETURN 0
-SIF CFLAG:対象:行動不能状態 == 行動不能_子供
-	RETURN 0
 SIF CFLAG:対象:捕虜先
 	RETURN 0
 RETURN 1
 
+;-------------------------------------------------
+;「闘技場」の対戦相手決定 - 主人公と同一勢力は除く
+;-------------------------------------------------
+@SELECT_CHARA_RANDOM_LOGIC_ARENA_SUB(対象)
+#DIM 対象
+SIF CFLAG:MASTER:所属 == CFLAG:対象:所属
+	RETURN 0
+CALL SELECT_CHARA_RANDOM_LOGIC_ARENA_MAIN(対象)
+RETURN RESULT
 
 ;-------------------------------------------------
 ;「闘技場」戦闘力算出
