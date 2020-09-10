@@ -1,4 +1,4 @@
-﻿;注意点
+;注意点
 ;この関数自体ループ内で呼ばれる前提なので、ループを使用するとO(n^2)になる。TMP化できるものはTMPを利用すること。
 @AI_ACTION(勢力)
 #DIM 勢力
@@ -654,7 +654,25 @@ NEXT
 IF !攻撃実行
 	DEBUGPRINTFORML 有効な攻撃対象なし。解散 {勢力}, {部隊}
 	CALL CLEAR_UNIT(勢力, 部隊, 1)
+ELSE
+	;無所属都市ならナメてかかる
+	IF !IS_COUNTRY(CITY_OWNER:攻撃候補)
+		DEBUGPRINTFORML %GET_CITYNAME(UNIT_TARGET:勢力:部隊)%攻め。武将解除。兵数:{UNIT_SOLDIER:勢力:部隊}
+		LOCAL = GET_UNIT_COMMANDER(勢力, 部隊, 2)
+		SIF LOCAL >= 0
+			TMP_IS_FREE:(LOCAL):0 = 0
+		CALL CLEAR_UNIT_COMMANDER(勢力, 部隊, 2)
+		IF UNIT_SOLDIER:勢力:部隊 >= CITY_SOLDIER:攻撃候補
+			LOCAL = GET_UNIT_COMMANDER(勢力, 部隊, 1)
+			SIF LOCAL >= 0
+				TMP_IS_FREE:(LOCAL):0 = 0
+			CALL CLEAR_UNIT_COMMANDER(勢力, 部隊, 1)
+		ENDIF
+	ENDIF
 ENDIF
+
+
+
 ;DEBUGPRINTFORML 侵攻先:%GET_CITYNAME(UNIT_TARGET:勢力:部隊)% 位置:{UNIT_POSITION:勢力:部隊}
 $DONE
 ;-----------------------------------------------
