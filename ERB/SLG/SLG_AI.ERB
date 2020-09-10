@@ -92,6 +92,8 @@ FOR 部隊, 0, MAX_UNIT
 			CALL CLEAR_UNIT(勢力, 部隊, 1)
 			CONTINUE
 		ENDIF
+
+		CALL SLG_AI_FILL_UNIT(勢力, 部隊)
 	ELSEIF UNIT_SOLDIER:勢力:部隊 <= 0 && 部隊作成失敗 == 0
 		;既存部隊でなければ、部隊の作成を試みる
 		CALL SLG_AI_CREATE_UNIT(勢力, 部隊, 攻撃兵数)
@@ -102,8 +104,9 @@ FOR 部隊, 0, MAX_UNIT
 		ENDIF
 		攻撃兵数 = RESULT
 	ENDIF
-	;攻撃先の決定
-	CALL SLG_AI_INVASION_SETTARGET(勢力, 部隊)
+	;最終的に部隊ができてたら攻撃先の決定
+	SIF UNIT_SOLDIER:勢力:部隊 > 0
+		CALL SLG_AI_INVASION_SETTARGET(勢力, 部隊)
 NEXT
 
 ;;#;FOR 部隊, 0, MAX_UNIT
@@ -469,6 +472,35 @@ NEXT
 ;DEBUGPRINTFORML 部隊作成 兵数{UNIT_SOLDIER:勢力:部隊}
 
 RETURN 攻撃兵数
+
+;-------------------------------------------------
+;部隊に空きがあるときに、
+;部隊の武将を再設定する
+;-------------------------------------------------
+@SLG_AI_FILL_UNIT(勢力, 部隊)
+#DIM 勢力
+#DIM 部隊
+#DIM 武将数
+
+武将数 = GET_UNIT_COMMANDER_NUM(勢力, 部隊)
+
+;すでに3人いるなら戻る
+SIF 武将数 == MAX_UNIT_COMMANDER
+	RETURN 
+
+CALL CHECK_UNIT_COMMANDER_BEST(勢力, 1)
+
+;追加できるやつがいないなら戻る
+SIF MATCH(UNIT_COMMANDER_BEST, -1) == VARSIZE("UNIT_COMMANDER_BEST")
+	RETURN
+
+FOR LOCAL, 0, VARSIZE("UNIT_COMMANDER_BEST")
+	SIF UNIT_COMMANDER_BEST:LOCAL == -1
+		BREAK
+	DEBUGPRINTFORML {勢力} {部隊} 補充 %ANAME(UNIT_COMMANDER_BEST:LOCAL)%
+	CALL SET_UNIT_COMMANDER_ANYWHERE(勢力, 部隊, UNIT_COMMANDER_BEST:LOCAL)
+	TMP_IS_FREE:(UNIT_COMMANDER_BEST:LOCAL):0 = 1
+NEXT
 
 ;-------------------------------------------------
 ;部隊の攻撃先を決定する
