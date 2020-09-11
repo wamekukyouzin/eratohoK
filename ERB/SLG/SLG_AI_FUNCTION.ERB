@@ -1,45 +1,23 @@
-﻿;-------------------------------------------------
-;作成可能な部隊のうち能力が最強となる将の組み合わせを調べる ARG:0=勢力番号 ARG:1 = 政治力によるフィルタを無視するフラグ
-;FREE_XXX及びCHECK_IS_FREEの配列は要素の位置が同じなら同じキャラのデータをとるのを利用
-;※直前に @TMP_CREATE_IS_FREE_MAP 関数を呼び出してから使用すること
-;-------------------------------------------------
-@CHECK_UNIT_COMMANDER_BEST(ARG:0, ARG:1 = 0)
-;候補キャラのキャラ番号及びそのキャラの各パワーを記録する配列
-;一次配列でそれぞれ用意しているのは配列検索系の関数を利用するため
+﻿
+@CHECK_BEST_COMMANDER(勢力)
 #DIM CHECK_IS_FREE, MAX_CHARA_NUM
-#DIM FREE_STR, MAX_CHARA_NUM
-#DIM FREE_DEF, MAX_CHARA_NUM
-#DIM FREE_INT, MAX_CHARA_NUM
-#DIM FREE_MAG, MAX_CHARA_NUM
-#DIM FREE_POL, MAX_CHARA_NUM
-#DIM FREE_STAR, MAX_CHARA_NUM
-#DIM FREE_AI_PRIORITY, 5
-;候補キャラのパワー上昇率と政治パワー合計
-#DIM FREE_PUP, MAX_CHARA_NUM
+#DIM SCORE_SUM, MAX_CHARA_NUM
+#DIM 勢力
 #DIM 候補数
-#DIM SUM_POL
-#DIM 最大値, 5
-#DIM 二人合計, 5
-#DIM 候補, 3
-#DIM 特殊勢力優先
+#DIM 候補
+
 VARSET CHECK_IS_FREE, -1
-VARSET UNIT_COMMANDER_BEST, -1
-VARSET FREE_STR, -1
-VARSET FREE_DEF, -1
-VARSET FREE_INT, -1
-VARSET FREE_MAG, -1
-VARSET FREE_POL, -1
-VARSET FREE_PUP, -1
-VARSET FREE_STAR, -1
-VARSET FREE_AI_PRIORITY, 10
+VARSET BEST_COMMANDER, -1
+VARSET SCORE_SUM, __INT_MIN__
 
 DUMPRAND
+
 候補数 = 0
 FOR LOCAL:0, 0, MIN(CHARANUM, MAX_CHARA_NUM)
 	;自国の士官のみ考慮
-	IF CFLAG:(LOCAL:0):所属 == ARG:0 && TMP_IS_FREE:(LOCAL:0):0 == 0
+	IF CFLAG:(LOCAL:0):所属 == 勢力 && TMP_IS_FREE:(LOCAL:0):0 == 0
 		;MASTER麾下の武将は、除外フラグをたてていたら除外する
-		SIF ARG:0 == CFLAG:MASTER:所属 && CFLAG:(LOCAL):最強編成除外フラグ
+		SIF 勢力 == CFLAG:MASTER:所属 && CFLAG:(LOCAL):最強編成除外フラグ
 			CONTINUE
 		;自由に行動可能なキャラ番号をCHECK_IS_FREEに順番に格納
 		CHECK_IS_FREE:候補数 = LOCAL:0
@@ -48,185 +26,48 @@ FOR LOCAL:0, 0, MIN(CHARANUM, MAX_CHARA_NUM)
 NEXT
 
 ;候補がだれもいなければ戻す
-SIF 候補数 == 0
+IF 候補数 == 0
+	INITRAND
 	RETURN 1
-
-SUM_POL = 0
-
+ENDIF
 
 FOR LOCAL:0, 0, 候補数
-	;別変数に一旦格納
-	LOCAL:2 = CHECK_IS_FREE:(LOCAL:0)
-	FREE_STR:(LOCAL:0) = ABL_POWER(ABL:(LOCAL:2):武闘, LOCAL:2)
-	FREE_DEF:(LOCAL:0) = ABL_POWER(ABL:(LOCAL:2):防衛, LOCAL:2)
-	FREE_INT:(LOCAL:0) = ABL_POWER(ABL:(LOCAL:2):知略, LOCAL:2)
-	FREE_MAG:(LOCAL:0) = ABL_POWER(ABL:(LOCAL:2):妖術, LOCAL:2)
-	FREE_POL:(LOCAL:0) = ABL_POWER(ABL:(LOCAL:2):政治, LOCAL:2)
-	FREE_STAR:(LOCAL:0) = ABL_POWER(TMP_CHARA_STARS:(LOCAL:2) * 10, LOCAL:2)
 
-	;主人公優先設定がオンなら政治力以外をクソ増やす
-	IF LOCAL == 0 && CONFIG:310 == 1
-		FREE_STR:(LOCAL:0) = __INT_MAX__
-		FREE_DEF:(LOCAL:0)  = __INT_MAX__
-		FREE_INT:(LOCAL:0)  = __INT_MAX__
-		FREE_MAG:(LOCAL:0)  = __INT_MAX__
-		FREE_STAR:(LOCAL:0) = __INT_MAX__
-	;特殊勢力のキャラなら、各パワーを1にし、通常キャラが優先されるようにしておく。
+	;AIタイプごとの重み付けをしてスコアリングする
+	LOCAL:2 = CHECK_IS_FREE:LOCAL
+
+	{
+		SCORE_SUM:LOCAL = 
+			ABL_POWER(ABL:(LOCAL:2):武闘, LOCAL:2) * AI_PRIORITY:(COUNTRY_AI_TYPE:勢力):0 / 100 + 
+			ABL_POWER(ABL:(LOCAL:2):防衛, LOCAL:2) * AI_PRIORITY:(COUNTRY_AI_TYPE:勢力):1 / 100 +
+			ABL_POWER(ABL:(LOCAL:2):知略, LOCAL:2) * AI_PRIORITY:(COUNTRY_AI_TYPE:勢力):2 / 100 +
+			ABL_POWER(ABL:(LOCAL:2):妖術, LOCAL:2) * AI_PRIORITY:(COUNTRY_AI_TYPE:勢力):3 / 100 +
+			ABL_POWER(TMP_CHARA_STARS:(LOCAL:2) * 10, LOCAL:2) * AI_PRIORITY:(COUNTRY_AI_TYPE:勢力):4 / 100 +
+			ABL_POWER(ABL:(LOCAL:2):料理, LOCAL:2) +
+			ABL_POWER(ABL:(LOCAL:2):歌唱, LOCAL:2)
+	}
+
+	;主人公優先設定がオンの場合、最優先で選択されるように
+	IF LOCAL:2 == MASTER && CONFIG:310 == 1
+		SCORE_SUM:LOCAL = __INT_MAX__
+	;特殊勢力のキャラなら、各スコアを1にし、通常キャラが優先されるようにしておく。
 	ELSEIF IS_SP_COUNTRY_CHARA(LOCAL:2)
-		FREE_STR:(LOCAL:0) = 1
-		FREE_INT:(LOCAL:0) = 1
-		FREE_MAG:(LOCAL:0) = 1
-		;政治パワーを非常に高くしておいて、通常キャラが政治パワーを理由に除外されないようにする
-		FREE_POL:(LOCAL:0) *= 10
+		SCORE_SUM:LOCAL = 1
 	ENDIF
-
-	SUM_POL += FREE_POL:(LOCAL:0)
 NEXT
 
-
-; IF !ARG:1
-; 	FOR LOCAL:0, 0, 候補数
-; 		;行動可能なキャラの政治パワー合計のうち一定割合を占めているキャラを除外
-; 		IF FREE_POL:(LOCAL:0) > AI_POLITICAL_LIMIT:(COUNTRY_AI_TYPE:(ARG:0)) * SUM_POL / 100
-; 			FREE_STR:(LOCAL:0) = 0
-; 			FREE_DEF:(LOCAL:0) = 0
-; 			FREE_INT:(LOCAL:0) = 0
-; 			FREE_MAG:(LOCAL:0) = 0
-; 			FREE_STAR:(LOCAL:0) = 0
-; 			FREE_POL:(LOCAL:0) = -1
-; 		ENDIF
-; 	NEXT
-; ENDIF
-
-;武闘・知略・妖術の最大値を比較し最も大きい値を持つキャラを候補にする
-最大値:0 = MAXARRAY(FREE_STR)
-最大値:1 = MAXARRAY(FREE_DEF)
-最大値:2 = MAXARRAY(FREE_INT)
-最大値:3 = MAXARRAY(FREE_MAG)
-最大値:4 = MAXARRAY(FREE_STAR)
-
-;重視率のゆらぎ80～120%
-FREE_AI_PRIORITY:0 = AI_PRIORITY:(COUNTRY_AI_TYPE:(ARG:0)):0 * (80 + RAND:41) / 100
-FREE_AI_PRIORITY:1 = AI_PRIORITY:(COUNTRY_AI_TYPE:(ARG:0)):1 * (80 + RAND:41) / 100
-FREE_AI_PRIORITY:2 = AI_PRIORITY:(COUNTRY_AI_TYPE:(ARG:0)):2 * (80 + RAND:41) / 100
-FREE_AI_PRIORITY:3 = AI_PRIORITY:(COUNTRY_AI_TYPE:(ARG:0)):3 * (80 + RAND:41) / 100
-FREE_AI_PRIORITY:4 = AI_PRIORITY:(COUNTRY_AI_TYPE:(ARG:0)):4 * (80 + RAND:41) / 100
-
-;この時点で全て同一なら、除外処理後に候補が誰もいなくなったということなので、RETURN
-SIF ALLSAMES(最大値:0, 最大値:1, 最大値:2, 最大値:3, 最大値:4) && 最大値:0 == -1
-	RETURN 1
-
-;1人目を決定する
-;最も重視する能力が最も高いキャラを選ぶ。
-IF 最大値:0 * FREE_AI_PRIORITY:0 >= 最大値:1 * FREE_AI_PRIORITY:1
-	IF 最大値:0 * FREE_AI_PRIORITY:0 >= 最大値:2 * FREE_AI_PRIORITY:2
-		候補:0 = FINDELEMENT(FREE_STR, 最大値:0)
-	ELSEIF 最大値:1 * FREE_AI_PRIORITY:1 >= 最大値:2 * FREE_AI_PRIORITY:2
-		候補:0 = FINDELEMENT(FREE_DEF, 最大値:1)
-	ELSE
-		候補:0 = FINDELEMENT(FREE_INT, 最大値:2)
-	ENDIF
-ELSEIF 最大値:1 * FREE_AI_PRIORITY:1 >= 最大値:2 * FREE_AI_PRIORITY:2
-	候補:0 = FINDELEMENT(FREE_DEF, 最大値:1)
-ELSE
-	候補:0 = FINDELEMENT(FREE_INT, 最大値:2)
-ENDIF
-
-UNIT_COMMANDER_BEST:0 = CHECK_IS_FREE:(候補:0)
-
-;いなければ最後の処理へ
-SIF UNIT_COMMANDER_BEST:0 < 0
-	GOTO DECIDED
-
-;１人目のキャラを候補から外す（政治パワーにフラグをつける）
-FREE_POL:(候補:0) = -1
-
-;アップ率の合計が最も大きいキャラを次の候補にする
-FOR LOCAL:0, 0, 候補数
-	;残っているキャラのみを考慮
-	SIF FREE_POL:(LOCAL:0) < 0
-		CONTINUE
-	LOCAL:1 = FREE_STR:(LOCAL:0) * 1000 * FREE_AI_PRIORITY:0 / FREE_STR:(候補:0)
-	LOCAL:2 = FREE_DEF:(LOCAL:0) * 1000 * FREE_AI_PRIORITY:1 / FREE_DEF:(候補:0)
-	LOCAL:3 = FREE_INT:(LOCAL:0) * 1000 * FREE_AI_PRIORITY:2 / FREE_INT:(候補:0)
-	LOCAL:4 = FREE_MAG:(LOCAL:0) * 1000 * FREE_AI_PRIORITY:3 / MAX(FREE_MAG:(候補:0), 1)
-	LOCAL:5 =  FREE_STAR:(LOCAL:0) * 1000 * FREE_AI_PRIORITY:4 / FREE_STAR:(候補:0)
-	FREE_PUP:(LOCAL:0) = LOCAL:1 + LOCAL:2 + LOCAL:3 + LOCAL:4 + LOCAL:5
-NEXT
-候補:1 = FINDELEMENT(FREE_PUP,  MAX(MAXARRAY(FREE_PUP), 0))
-
-;２人目のキャラを記録し候補から外す
-UNIT_COMMANDER_BEST:1 = 候補:1 >= 0 ? CHECK_IS_FREE:(候補:1) # -1
-
-;いなければ最後の処理へ
-SIF UNIT_COMMANDER_BEST:1 < 0
-	GOTO DECIDED
-
-;二人の合計を記録
-IF UNIT_COMMANDER_BEST:1 >= 0
-	FREE_POL:(候補:1) = -1
-	二人合計:0 = FREE_STR:(候補:0) + FREE_STR:(候補:1)
-	二人合計:1 = FREE_DEF:(候補:0) + FREE_DEF:(候補:1)
-	二人合計:2 = FREE_INT:(候補:0) + FREE_INT:(候補:1)
-	二人合計:3 = MAX(FREE_MAG:(候補:0) + FREE_MAG:(候補:1), 1)
-	二人合計:4 = FREE_STAR:(候補:0) + FREE_STAR:(候補:1)
-ENDIF
-
-VARSET FREE_PUP, -1
-
-;3人目を決定　料理と歌唱も考慮に入れる
-
-;一人目、二人目が特殊勢力のキャラでない場合、フラグたて
-特殊勢力優先 = 0
-IF !IS_SP_COUNTRY_CHARA(CHECK_IS_FREE:(候補:0))
-	IF !IS_SP_COUNTRY_CHARA(CHECK_IS_FREE:(候補:1))
-		特殊勢力優先  = 1
-	ENDIF
-ENDIF
-
-FOR LOCAL:0, 0, 候補数
-	;候補に残っているキャラのみを考慮
-	SIF FREE_POL:(LOCAL:0) < 0 || GROUPMATCH(CHECK_IS_FREE:(LOCAL:0), UNIT_COMMANDER_BEST:0, UNIT_COMMANDER_BEST:1)
-		CONTINUE
-	LOCAL:1 = CHECK_IS_FREE:(LOCAL:0)
-	LOCAL:2 = FREE_STR:(LOCAL:0) * 1000 / 二人合計:0 * FREE_AI_PRIORITY:0
-	LOCAL:3 = FREE_DEF:(LOCAL:0) * 1000 / 二人合計:1 * FREE_AI_PRIORITY:0
-	LOCAL:4 = FREE_INT:(LOCAL:0) * 1000 / 二人合計:2 * FREE_AI_PRIORITY:1
-	LOCAL:5 = FREE_MAG:(LOCAL:0) * 1000 / 二人合計:3 * FREE_AI_PRIORITY:2
-	LOCAL:6 = FREE_STAR:(LOCAL:0) * 1000 / 二人合計:4 * FREE_AI_PRIORITY:3
-	LOCAL:7 = (ABL_POWER(ABL:(LOCAL:1):歌唱, LOCAL:1) + 24000) / 24 - 1000
-	LOCAL:8 = (ABL_POWER(ABL:(LOCAL:1):料理, LOCAL:1) + 24000) / 24 - 1000
-	FREE_PUP:(LOCAL:0) = LOCAL:2 + LOCAL:3 + LOCAL:4 + LOCAL:5 + LOCAL:6 + LOCAL:7 + LOCAL:8
-
-	IF IS_SP_COUNTRY_CHARA(CHECK_IS_FREE:(LOCAL:0)) && 特殊勢力優先
-		FREE_PUP:(LOCAL:0) = __INT_MAX__
+;評価点の高い順で選択
+FOR LOCAL, 0, MAX_UNIT_COMMANDER
+	SIF MAXARRAY(SCORE_SUM) == __INT_MIN__
 		BREAK
-	ENDIF
-NEXT
-候補:2 = FINDELEMENT(FREE_PUP, MAX(MAXARRAY(FREE_PUP), 0))
-
-;３人目のキャラを記録
-UNIT_COMMANDER_BEST:2 = 候補:2 >= 0 ? CHECK_IS_FREE:(候補:2) # -1
-
-;SIF !NOSAMES(LOCAL:50, LOCAL:51, LOCAL:52)
-;	DEBUGPRINTFORML {DAY, 3}【武将重複？】:%ANAME(GET_COUNTRY_BOSS(ARG:0))%@ {LOCAL:50}:{CHECK_IS_FREE:(LOCAL:50)}, {LOCAL:51}:{CHECK_IS_FREE:(LOCAL:51)}, {LOCAL:52}:{CHECK_IS_FREE:(LOCAL:52)}
-
-$DECIDED
-
-;最後にNO順に並べ替える
-FOR LOCAL:0, 0, 3
-	IF UNIT_COMMANDER_BEST:(LOCAL:0) >= 0
-		FOR LOCAL:1, LOCAL:0 + 1, 3
-			IF UNIT_COMMANDER_BEST:(LOCAL:1) >= 0
-				IF NO:(UNIT_COMMANDER_BEST:(LOCAL:0)) > NO:(UNIT_COMMANDER_BEST:(LOCAL:1))
-					SWAP UNIT_COMMANDER_BEST:(LOCAL:0), UNIT_COMMANDER_BEST:(LOCAL:1)
-				ENDIF
-			ENDIF
-		NEXT
-	ENDIF
+	LOCAL:1 = FINDELEMENT(SCORE_SUM, MAXARRAY(SCORE_SUM))
+	BEST_COMMANDER:LOCAL = CHECK_IS_FREE:(LOCAL:1)
+	SCORE_SUM:(LOCAL:1) = __INT_MIN__
 NEXT
 
 INITRAND
+
+RETURN 1
 
 ;-------------------------------------------------
 ;都市ARG:0に最適な守将を配置。ARG:1を1にすると二人設定できる。ARG:2を1にすると、その都市の守将を含めるようにする
@@ -234,56 +75,7 @@ INITRAND
 ;-------------------------------------------------
 @SET_CITY_COMMANDER_BEST(ARG:0, ARG:1 = 0, ARG:2 = 0)
 #DIM LCOUNT
-CALL CHECK_CITY_COMMANDER_BEST(ARG:0, ARG:1, ARG:2)
-FOR LCOUNT:0, 0, MAX_CITY_COMMANDER
-	CALL SET_CITY_COMMANDER(ARG:0, LCOUNT:0, CITY_COMMANDER_BEST:(LCOUNT:0))
-NEXT
-;-------------------------------------------------
-;都市ARG:0に最適な守将を確認。ARG:1を1にすると二人設定できる。ARG:2に１すると、その都市の守将を含めるようにする
-;※直前に @TMP_CREATE_IS_FREE_MAP 関数を呼び出してから使用すること
-;-------------------------------------------------
-@CHECK_CITY_COMMANDER_BEST(ARG:0, ARG:1 = 0, ARG:2 = 0)
-#DIM 勢力
-#DIM 守将, 2
-#DIM LCOUNT,2
-#DIM 最大
-#DIM 重み保存, MAX_CHARA_NUM
-VARSET 重み保存, __INT_MIN__
-VARSET CITY_COMMANDER_BEST, -1
-;都市を所有する勢力の番号を取得
-勢力 = CITY_OWNER:(ARG:0)
-VARSET 守将, -1
-IF ARG:2
-	CALL GET_CITY_COMMANDER_ALL(ARG:0)
-	守将 = RESULT:0, RESULT:1
-ENDIF
-;勢力に所属してFREEな各キャラの能力を記録
-FOR LCOUNT, 0, CHARANUM
-	IF CFLAG:(LCOUNT):所属 == 勢力 && (TMP_IS_FREE:LCOUNT:0 == 0 || (ARG:2 && GROUPMATCH(LCOUNT, 守将:0, 守将:1)))
-		;MASTER麾下の武将は、除外フラグをたてていたら除外する
-		SIF 勢力 == CFLAG:MASTER:所属 && CFLAG:(LCOUNT):最強編成除外フラグ
-			CONTINUE
-		;知略の重みは武闘・妖術の1/8
-		{
-			重み保存:(LCOUNT) = MAX(ABL_POWER(ABL:(LCOUNT):武闘, LCOUNT), 0) / 2 + MAX(ABL_POWER(ABL:LCOUNT:防衛, LCOUNT), 0) + MAX(ABL_POWER(MIN(ABL:(LCOUNT):知略, 110), LCOUNT), 0) / 8 + MAX(ABL_POWER(ABL:(LCOUNT):妖術, LCOUNT), 0) + 
-				MAX(ABL_POWER(ABL:(LCOUNT):料理, LCOUNT), 0) / 8 + MAX(ABL_POWER(ABL:(LCOUNT):歌唱, LCOUNT), 0) / 8 + 
-				MAX(ABL_POWER(TMP_CHARA_STARS:(LCOUNT) * 10, LCOUNT), 0)
-		}
-	ENDIF
-NEXT
-
-;二人設定フラグが真なら2度回す
-FOR LCOUNT:0, 0, 1 + (ARG:1 == 1)
-	;LOCAL（記録した各キャラの能力）から、最大のものを探索
-	最大 = MAXARRAY(重み保存, 0)
-	;最大のものが__INT_MIN__でなければ（その都市を所属している勢力に、IS_FREEなキャラが残っていれば）、そいつを登録
-	IF 最大 != __INT_MIN__
-		FOR LCOUNT:1, 0, CHARANUM
-			IF 重み保存:(LCOUNT:1) == 最大
-				CITY_COMMANDER_BEST:(LCOUNT:0) = LCOUNT:1
-				重み保存:(LCOUNT:1) = __INT_MIN__
-				BREAK
-			ENDIF
-		NEXT
-	ENDIF
+CALL CHECK_BEST_COMMANDER(ARG:0)
+FOR LCOUNT:0, 0, ARG:1 ? MAX_CITY_COMMANDER # 1
+	CALL SET_CITY_COMMANDER(ARG:0, LCOUNT:0, BEST_COMMANDER:(LCOUNT:0))
 NEXT
