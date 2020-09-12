@@ -1,0 +1,317 @@
+﻿;正常位
+
+;-------------------------------------------------
+;コマンド名称
+;-------------------------------------------------
+@COM_NAME172
+
+LOCALS:0 = 尿道挿入
+RESULTS:0 = %LOCALS:0%する
+RESULTS:1 = %LOCALS:0%させられる
+RESULTS:2 = %LOCALS:0%させる
+RESULTS:3 = %LOCALS:0%される
+RESULTS:4 = %LOCALS:0%させる
+RESULTS:5 = %LOCALS:0%見せつけ
+
+;-------------------------------------------------
+;選択可否判定
+;-------------------------------------------------
+@COM_ABLE172
+CALL COM_ABLE_COMMON(172)
+SIF RESULT == 0
+	RETURN 0
+SIF MPLY_NUM <= 0 || MPLY_NUM > 1
+	RETURN 0
+SIF MTAR_NUM <= 0 || MTAR_NUM > 1
+	RETURN 0
+SIF !HAS_VAGINA(MTAR:0)
+	RETURN 0
+SIF IS_U_HOLD(MTAR:0)
+	RETURN 0
+SIF EXP:(MTAR:0):Ｕ開発経験 < 50
+	RETURN 0
+
+;Target is getting assfucked, unless it's sitting backwards or reverse cowgirl
+SIF IS_INSERT_SINGLE(MTAR:0, "Ａ") && !GROUPMATCH(GET_SEX_POSITION_SINGLE(MTAR:0, "Ａ"), 4, 6)
+	RETURN 0
+SIF !CAN_FUCK(MPLY:0, MTAR:0, 172)
+	RETURN 0
+RETURN 1
+
+;-------------------------------------------------
+;メイン処理
+;-------------------------------------------------
+@COM172
+;実行判定
+CALL COM_ORDER_COMMON
+SIF RESULT == 0
+	RETURN 0
+
+;挿入関係を一時リセット
+CALL CLEAR_INSERT_FLAG(MPLY:0, "Ｐ")
+
+;●プレイヤー側の処理
+DOWNBASE:(MPLY:0):体力 += 160
+
+EXP:(MPLY:0):性技経験値 += 1
+EXP:(MPLY:0):性交経験値 += 2
+
+SOURCE:(MPLY:0):快Ｐ = SENSE_SEX_PLAYER_P(MTAR:0, MPLY:0, 1500)
+SOURCE:(MPLY:0):露出 = 100
+SOURCE:(MPLY:0):性行動 = 450
+
+;性交系の共通処理
+CALL COM_COMMON_USEX_P(MPLY:0, MTAR:0)
+
+;主導権に応じた優越・屈従のソース追加
+CALL ADD_SOURCE_INITIATIVE_U(MPLY:0, 150, 80)
+
+;奉仕経験値を得られるコマンドのフラグ
+TCVAR:(MPLY:0):4 = 1
+
+;●ターゲット側の処理
+DOWNBASE:(MTAR:0):体力 += 120
+
+EXP:(MTAR:0):性技経験値 += 1
+EXP:(MTAR:0):性交経験値 += 2
+SOURCE:(MTAR:0):快Ｕ = SENSE_SEX_TARGET(MPLY:0, MTAR:0, 1500)
+SOURCE:(MTAR:0):露出 = 200
+SOURCE:(MTAR:0):性行動 = 450
+
+;性交系の共通処理
+CALL COM_COMMON_USEX_U(MTAR:0, MPLY:0)
+
+;主導権に応じた優越・屈従のソース追加
+CALL ADD_SOURCE_INITIATIVE_U(MTAR:0, 150, 100)
+
+;奉仕経験値を得られるコマンドのフラグ
+TCVAR:(MTAR:0):4 = 1
+
+;体位フラグのセット
+TCVAR:(MPLY:0):31 = 1
+TCVAR:(MTAR:0):33 = 1
+
+;主導度変化基準値
+TFLAG:49 = 2
+
+;倒錯度変化基準値
+TFLAG:50 = -1
+
+;レズ・ＢＬ経験基準値
+TFLAG:51 = 4
+
+RETURN 1
+
+;-------------------------------------------------
+;継続コマンドかどうかを設定
+;-------------------------------------------------
+@COM_IS_EQUIP172
+RETURN 1
+
+;-------------------------------------------------
+;継続状態の処理
+;-------------------------------------------------
+@COM_EQUIP172(ARG:0)
+LOCAL:2 = MEQUIP_PLAYER:(ARG:0):0
+LOCAL:3 = MEQUIP_TARGET:(ARG:0):0
+
+;ソースを退避
+CALL PUTOUT_SOURCE(LOCAL:2)
+CALL PUTOUT_SOURCE(LOCAL:3)
+
+DOWNBASE:(LOCAL:2):体力 += 20
+
+EXP:(LOCAL:2):性技経験値 += 1
+EXP:(LOCAL:2):性交経験値 += 1
+
+SOURCE:(LOCAL:2):快Ｐ += SENSE_SEX_PLAYER_P(LOCAL:3, LOCAL:2, 750)
+SOURCE:(LOCAL:2):露出 += 50
+SOURCE:(LOCAL:2):性行動 += 150
+
+;性交系の共通処理
+CALL COM_COMMON_SEX_P(LOCAL:2, LOCAL:3)
+
+;奉仕経験値を得られるコマンドのフラグ
+TCVAR:(LOCAL:2):4 = 1
+
+;倒錯度変化基準値
+TCVAR:(LOCAL:2):50 -= 1
+
+DOWNBASE:(LOCAL:3):体力 += 20
+
+EXP:(LOCAL:3):性技経験値 += 1
+EXP:(LOCAL:3):性交経験値 += 1
+
+SOURCE:(LOCAL:3):快Ｕ += SENSE_SEX_TARGET(LOCAL:2, LOCAL:3, 750)
+SOURCE:(LOCAL:3):露出 += 100
+SOURCE:(LOCAL:3):性行動 += 150
+
+;性交系の共通処理
+CALL COM_COMMON_SEX_V(LOCAL:3, LOCAL:2)
+
+;奉仕経験値を得られるコマンドのフラグ
+TCVAR:(LOCAL:3):4 = 1
+
+;倒錯度変化基準値
+TCVAR:(LOCAL:3):50 -= 1
+
+;退避したソースを加算
+CALL SUM_SOURCE(LOCAL:2)
+CALL SUM_SOURCE(LOCAL:3)
+
+;-------------------------------------------------
+;継続中の表示
+;-------------------------------------------------
+@EQUIP_MESSAGE172(ARG:0)
+RESULTS = %EQUIP_PLAYER_ANAME(ARG:0)%が%EQUIP_TARGET_ANAME(ARG:0)%の尿道に挿入中
+
+;-------------------------------------------------
+;継続中の地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE_EQUIP172(ARG:0)
+SELECTCASE RAND:2
+	CASE 0
+		PRINTFORML %EQUIP_TARGET_ANAME(ARG:0)%の尿道が%EQUIP_PLAYER_ANAME(ARG:0)%の%BAR_NAME(MEQUIP_PLAYER:(ARG:0):0)%を咥え込んでいる…
+	CASE 1
+		LOCAL:0 = MEQUIP_TARGET:(ARG:0):0
+			;ターゲットが行動不能
+		IF !IS_PLAYABLE(LOCAL:0)
+			PRINTFORML %EQUIP_PLAYER_ANAME(ARG:0)%はぐったりとしている%EQUIP_TARGET_ANAME(ARG:0)%の尿道に挿入したまま、さらに激しく腰を動かしている…
+		ELSE
+			SELECTCASE GET_COM_INITIATIVE()
+					;プレイヤーに主導権
+				CASE 0
+					PRINTFORML %EQUIP_PLAYER_ANAME(ARG:0)%は%EQUIP_TARGET_ANAME(ARG:0)%の尿道に挿入したまま、さらに激しく腰を動かしている…
+					;ターゲットに主導権
+				CASE 1
+					PRINTFORML %EQUIP_TARGET_ANAME(ARG:0)%は%EQUIP_PLAYER_ANAME(ARG:0)%の腰に足を絡めながら、さらに激しく腰を動かすように要求し
+					PRINTFORML %EQUIP_PLAYER_ANAME(ARG:0)%は%EQUIP_TARGET_ANAME(ARG:0)%に求められるまま、何度も尿道を穿っている…
+					;第三者に主導権
+				CASEELSE
+					PRINTFORML %ANAME(TFLAG:45)%は%EQUIP_TARGET_ANAME(ARG:0)%の尿道に挿入している%EQUIP_PLAYER_ANAME(ARG:0)%に対し、もっと激しく腰を動かすように命令し
+					PRINTFORML %EQUIP_PLAYER_ANAME(ARG:0)%は言われるがまま、激しく何度も%EQUIP_TARGET_ANAME(ARG:0)%の尿道を穿っている…
+			ENDSELECT
+		ENDIF
+ENDSELECT
+
+;-------------------------------------------------
+;継続を解除したときの地の文
+;-------------------------------------------------
+@COM_TEXT_RELEASE_EQUIP172(ARG:0)
+PRINTFORMW %EQUIP_PLAYER_ANAME(ARG:0)%は%EQUIP_TARGET_ANAME(ARG:0)%の尿道から%BAR_NAME(MEQUIP_PLAYER:(ARG:0):0)%を引き抜いた…
+
+;-------------------------------------------------
+;固有の実行判定(プレイヤー側)
+;-------------------------------------------------
+@COM_ORDER_PLAYER172(ARG:0)
+;実行値の設定
+TCVAR:(ARG:0):25 = 90
+
+;膣性交共通
+CALL COM_ORDER_VSEX_P(ARG:0)
+RETURN 1
+
+;-------------------------------------------------
+;地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE172
+
+IF TALENT:(MTAR:0):体格 == 体格_小柄
+	LOCALS:0 = %LOCALS:0%幼い尿道口
+ELSE
+	LOCALS:0 = %LOCALS:0%尿道口
+ENDIF
+IF SEARCH_EQUIP(20, MPLY:0, MTAR:0) != -1 || SEARCH_EQUIP(20, MTAR:0, MPLY:0) != -1
+	LOCALS:1 = 口づけを交わしながら
+ELSE
+	LOCALS:1 = 
+ENDIF
+
+
+IF PALAM:(MTAR:0):欲情 >= PALAMLV:10 || (PALAM:(MTAR:0):欲情 >= PALAMLV:7 && TCVAR:(MTAR:0):60)
+	IF !TFLAG:17
+		SELECTCASE RAND:2
+			CASE 0
+				PRINTFORML 発情しきった%ANAME(MTAR:0)%の視線は%ANAME(MPLY:0)%の%BAR_NAME(MPLY:0)%に釘付けになっている…
+			CASE 1
+				PRINTFORML 情欲の虜になった%ANAME(MTAR:0)%は、%ANAME(MPLY:0)%の%BAR_NAME(MPLY:0)%に物欲しげな視線を向けている…
+		ENDSELECT
+	ELSEIF ABL:(MTAR:0):Ｖ感 >= ランク閾値:ランク_その他:ランク_C && TFLAG:17 == 1
+		SELECTCASE RAND:2
+			CASE 0
+				PRINTFORML %ANAME(MTAR:0)%は肉欲に流されるまま、大きく股を開いて尿道で%BAR_NAME(MPLY:0)%を奥まで咥え込んでいる…
+			CASE 1
+				PRINTFORML 興奮しきった%ANAME(MTAR:0)%は尿道への%ANAME(MPLY:0)%の突き込みに合わせ、艶めかしく腰を揺すっている…
+		ENDSELECT
+	ENDIF
+ENDIF
+
+
+;ペニスバンド装着中
+IF IS_EQUIP_PLAYER(MPLY:0, 50)
+	SELECTCASE GET_COM_INITIATIVE()
+			;プレイヤーに主導権
+		CASE 0
+			PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%を押し倒すと、%LOCALS:1%装着した張り型を%ANAME(MTAR:0)%の%LOCALS:0%に突き入れ%TARGET_STR("た", "てきた")%…
+			;ターゲットに主導権
+		CASE 1
+			PRINTFORMW %ANAME(MTAR:0)%は%ANAME(MPLY:0)%の下になって、%LOCALS:1%自身の%LOCALS:0%へと張り型を導いて挿入させた…
+			;第三者に主導権
+		CASEELSE
+			PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に、正常位で%ANAME(MTAR:0)%を犯すように命令した
+			PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%を押し倒すと、%LOCALS:1%装着した張り型を%ANAME(MTAR:0)%の%LOCALS:0%に突き入れた…
+	ENDSELECT
+
+;ペニスバンド不使用
+ELSE
+	SELECTCASE GET_COM_INITIATIVE()
+			;プレイヤーに主導権
+		CASE 0
+			PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%を押し倒すと、%ANAME(MTAR:0)%の%LOCALS:0%にペニスを突き入れ%LOCALS:1%腰を動かし%TARGET_STR("た", "てきた")%…
+			;ターゲットに主導権
+		CASE 1
+			PRINTFORMW %ANAME(MTAR:0)%は%ANAME(MPLY:0)%の下になって、%LOCALS:1%ペニスを自身の%LOCALS:0%へと導いて挿入させた…
+			;第三者に主導権
+		CASEELSE
+			PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に、正常位で%ANAME(MTAR:0)%を犯すように命令した
+			PRINTFORMW %ANAME(MPLY:0)%は%ANAME(MTAR:0)%を押し倒すと、%LOCALS:1%ペニスを%ANAME(MTAR:0)%の%LOCALS:0%に突き入れて腰を動かした…
+	ENDSELECT
+ENDIF
+
+;--------------------------------------------------------
+;地の文(パラメータ・刻印変動後)
+;--------------------------------------------------------
+@COM_TEXT_LAST172
+SIF IS_PIERCED(MPLY:0, ピアス_ペニス)
+	PRINTFORML %ANAME(MPLY:0)%のペニスに取り付けられたピアスが、%ANAME(MTAR:0)%の尿道をごりごりと抉っていく……
+
+IF NOWEX:(MTAR:0):Ｖ絶頂 >= 8
+	SELECTCASE RAND:2
+		CASE 0
+			PRINTFORML %ANAME(MTAR:0)%は汗にまみれた%STR_BODY("身体", MTAR:0)%を震わせながら、蕩けた雌の顔で快楽を受け止めている…
+		CASE 1
+			PRINTFORML %ANAME(MTAR:0)%は弓なりになってビクビクと痙攣しながら、強烈な絶頂を全身で味わっている…
+	ENDSELECT
+ENDIF
+
+
+
+;-------------------------------------------------
+
+;コマンド区分
+;-------------------------------------------------
+
+@COM_AVAILABLE_WHEN172
+RETURN コマンド_ウフフ
+
+;--------------------
+;性嗜好用関数
+;--------------------
+@COM_PREFERENCE_PLAYER_172()
+RETURN POWER(2, 性的嗜好_性交したい)
+
+@COM_PREFERENCE_TARGET_172()
+RETURN POWER(2, 性的嗜好_性交されたい)
+
+@COM_STACK_SPERM_MPLY_TO_MTAR_172()
+RETURN 射精部位_尿道

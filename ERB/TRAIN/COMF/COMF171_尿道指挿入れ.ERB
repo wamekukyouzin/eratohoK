@@ -1,0 +1,337 @@
+﻿;指挿入れ
+
+;-------------------------------------------------
+;コマンド名称
+;-------------------------------------------------
+@COM_NAME171
+IF IS_EQUIP_TARGET(MTAR:0, GETNUM(TRAINNAME, "尿道ブジー"))
+	IF MTAR_NUM >= 2
+		LOCALS:0 = 同時尿道ブジー責め
+	ELSE
+		LOCALS:0 = 尿道ブジー責め
+	ENDIF
+ELSE
+	IF MTAR_NUM >= 2
+		LOCALS:0 = 同時尿道指挿入
+	ELSE
+		LOCALS:0 = 尿道指挿入
+	ENDIF
+ENDIF
+
+RESULTS:0 = %LOCALS:0%する
+RESULTS:1 = %LOCALS:0%させられる
+RESULTS:2 = %LOCALS:0%させる
+RESULTS:3 = %LOCALS:0%される
+RESULTS:4 = %LOCALS:0%させる
+RESULTS:5 = %LOCALS:0%見せつけ
+
+;-------------------------------------------------
+;選択可否判定
+;-------------------------------------------------
+@COM_ABLE171
+;共通部分
+CALL COM_ABLE_COMMON(171)
+SIF RESULT == 0
+	RETURN 0
+;1+ players
+SIF MPLY_NUM <= 0
+	RETURN 0
+;ターゲットはプレイヤーの倍まで
+SIF MTAR_NUM <= 0 || MTAR_NUM > MPLY_NUM * 2
+	RETURN 0
+
+FOR LOCAL:0, 0, MPLY_NUM
+	FOR LOCAL:1, 0, MTAR_NUM
+		SIF !CAN_REACH_GROIN(MPLY:(LOCAL:0), MTAR:(LOCAL:1)) 
+			RETURN 0
+	NEXT
+NEXT
+
+FOR LOCAL:0, 0, MTAR_NUM
+	;v occupied except by a vibrator
+	SIF IS_U_HOLD(MTAR:(LOCAL:0)) && !IS_EQUIP_TARGET(MTAR:(LOCAL:0), 170)
+		RETURN 0
+	;If any target has a vibe inserted, then they all must
+	SIF IS_EQUIP_TARGET(MTAR:0, 170) != IS_EQUIP_TARGET(MTAR:(LOCAL:0), 170)
+		RETURN 0
+NEXT
+
+RETURN 1
+
+;-------------------------------------------------
+;メイン処理
+;-------------------------------------------------
+@COM171
+;実行判定
+CALL COM_ORDER_COMMON
+SIF RESULT == 0
+	RETURN 0
+
+;●人数補正の設定
+LOCAL:10 = 100
+
+SELECTCASE MTAR_NUM
+	CASE 2
+		TIMES LOCAL:10, 0.75
+ENDSELECT
+
+;全プレイヤーについて処理
+FOR LOCAL:0, 0, MPLY_NUM
+	LOCAL:2 = MPLY:(LOCAL:0)
+
+	DOWNBASE:(LOCAL:2):体力 += 100
+
+	EXP:(LOCAL:2):性技経験値 += MTAR_NUM / 2 + 1
+
+	SOURCE:(LOCAL:2):奉仕 = SERVE_HOUSHI(LOCAL:2, 200)
+	SOURCE:(LOCAL:2):接触 = 60
+	SOURCE:(LOCAL:2):性行動 = 180
+
+	;主導権に応じた優越・屈従のソース追加
+	CALL ADD_SOURCE_INITIATIVE_U(LOCAL:2, 100, 40)
+
+	;奉仕経験値を得られるコマンドのフラグ
+	TCVAR:(LOCAL:2):4 = 1
+
+	;全ターゲットに与える快感系ソースを計算
+	FOR LOCAL:1, 0, MTAR_NUM
+		LOCAL:3 = MTAR:(LOCAL:1)
+		LOCAL:4 = SENSE_HOUSHI(LOCAL:2, LOCAL:3, 1200) * LOCAL:10 / 100
+
+		SOURCE:(LOCAL:3):快Ｕ += LOCAL:4
+
+	NEXT
+NEXT
+
+;全ターゲットについて処理
+FOR LOCAL:0, 0, MTAR_NUM
+	LOCAL:1 = MTAR:(LOCAL:0)
+
+	DOWNBASE:(LOCAL:1):体力 += 60
+
+	SOURCE:(LOCAL:1):露出 = 80
+	SOURCE:(LOCAL:1):接触 = 60
+	SOURCE:(LOCAL:1):性行動 = 300
+	SOURCE:(LOCAL:1):苦痛 = 600
+	;主導権に応じた優越・屈従のソース追加
+	CALL ADD_SOURCE_INITIATIVE_U(LOCAL:1, 50, 50)
+	EXP:(LOCAL:1):Ｕ開発経験 += 1
+NEXT
+
+;主導度変化基準値
+TFLAG:49 = 2
+
+;倒錯度変化基準値
+TFLAG:50 = 0
+
+;レズ・ＢＬ経験基準値
+TFLAG:51 = 5
+
+RETURN 1
+
+;-------------------------------------------------
+;継続コマンドかどうかを設定
+;-------------------------------------------------
+@COM_IS_EQUIP171
+RETURN 1
+
+;-------------------------------------------------
+;継続状態の処理
+;-------------------------------------------------
+@COM_EQUIP171(ARG:0)
+;●人数補正の設定
+LOCAL:10 = 100
+
+SELECTCASE MEQUIP_TARGET_NUM:(ARG:0)
+	CASE 2
+		TIMES LOCAL:10, 0.75
+ENDSELECT
+
+;●全プレイヤーについて判定
+FOR LOCAL:0, 0, MEQUIP_PLAYER_NUM:(ARG:0)
+	LOCAL:2 = MEQUIP_PLAYER:(ARG:0):(LOCAL:0)
+
+	DOWNBASE:(LOCAL:2):体力 += 20
+
+	EXP:(LOCAL:2):性技経験値 += MAX(MEQUIP_TARGET_NUM:(ARG:0) / 2 + 1, 1)
+
+	SOURCE:(LOCAL:2):奉仕 += SERVE_HOUSHI(LOCAL:2, 60)
+	SOURCE:(LOCAL:2):接触 += 30
+	SOURCE:(LOCAL:2):性行動 += 60
+	;奉仕経験値を得られるコマンドのフラグ
+	TCVAR:(LOCAL:2):4 = 1
+
+	;全ターゲットに与える快感系ソースを計算
+	FOR LOCAL:1, 0, MEQUIP_TARGET_NUM:(ARG:0)
+		LOCAL:3 = MEQUIP_TARGET:(ARG:0):(LOCAL:1)
+		SOURCE:(LOCAL:3):快Ｕ += SENSE_HOUSHI(LOCAL:2, LOCAL:3, 400) * LOCAL:10 / 100
+
+	NEXT
+NEXT
+
+;●全ターゲットについて判定
+FOR LOCAL:0, 0, MEQUIP_TARGET_NUM:(ARG:0)
+	LOCAL:2 = MEQUIP_TARGET:(ARG:0):(LOCAL:0)
+
+	DOWNBASE:(LOCAL:2):体力 += 10
+	SOURCE:(LOCAL:2):苦痛 += 400
+	SOURCE:(LOCAL:2):露出 += 40
+	SOURCE:(LOCAL:2):接触 += 30
+	SOURCE:(LOCAL:2):性行動 += 100
+	EXP:(LOCAL:2):Ｕ開発経験 += 1
+NEXT
+
+;-------------------------------------------------
+;継続中の表示
+;-------------------------------------------------
+@EQUIP_MESSAGE171(ARG:0)
+IF IS_EQUIP_TARGET(MEQUIP_TARGET:(ARG:0):0, 61)
+	RESULTS = %EQUIP_PLAYER_ANAME(ARG:0)%が%EQUIP_TARGET_ANAME(ARG:0)%を尿道ブジー責め中
+ELSE
+	RESULTS = %EQUIP_PLAYER_ANAME(ARG:0)%が%EQUIP_TARGET_ANAME(ARG:0)%の尿道に指を挿入中
+ENDIF
+
+;-------------------------------------------------
+;継続中の地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE_EQUIP171(ARG:0)
+IF IS_EQUIP_TARGET(MEQUIP_TARGET:(ARG:0):0, 61)
+	PRINTFORML %EQUIP_PLAYER_ANAME(ARG:0)%が%EQUIP_TARGET_ANAME(ARG:0)%の尿道に挿入されたブジーを前後させている…
+ELSE
+	PRINTFORML %EQUIP_PLAYER_ANAME(ARG:0)%が%EQUIP_TARGET_ANAME(ARG:0)%の尿道を指でかき回している…
+ENDIF
+
+;-------------------------------------------------
+;継続を解除したときの地の文
+;-------------------------------------------------
+@COM_TEXT_RELEASE_EQUIP171(ARG:0)
+
+;-------------------------------------------------
+;固有の実行判定
+;-------------------------------------------------
+@COM_ORDER_PLAYER171(ARG:0)
+;実行値の設定
+TCVAR:(ARG:0):25 = 65
+
+;共通部分
+CALL COM_ORDER(ARG:0)
+
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲望Lv{ABL:(ARG:0):欲望}", ABL:(ARG:0):欲望 * 1)
+CALL COM_ORDER_ELEMENT(ARG:0, @"奉仕Lv{ABL:(ARG:0):奉仕}", ABL:(ARG:0):奉仕 * 4)
+
+LOCAL:0 = GET_PALAMLV(PALAM:(ARG:0):欲情)
+CALL COM_ORDER_ELEMENT(ARG:0, @"欲情Lv{LOCAL:0}", MIN(LOCAL:0 * 2, 20))
+
+IF TCVAR:(ARG:0):60
+	CALL COM_ORDER_ELEMENT(ARG:0, "媚薬", 6)
+ENDIF
+
+IF TALENT:(ARG:0):恥じらい
+	CALL COM_ORDER_ELEMENT(ARG:0, "恥じらい", -1)
+ENDIF
+IF TALENT:(ARG:0):献身的
+	CALL COM_ORDER_ELEMENT(ARG:0, "献身的", 6)
+ENDIF
+IF TALENT:(ARG:0):快感の否定
+	CALL COM_ORDER_ELEMENT(ARG:0, "快感の否定", -1)
+ENDIF
+
+;合意
+IF !TALENT:(ARG:0):合意 && !TALENT:(ARG:0):親友
+	CALL COM_ORDER_ELEMENT(ARG:0, "合意なし", -10)
+ENDIF
+RETURN 1
+
+;-------------------------------------------------
+;地の文(前文)
+;-------------------------------------------------
+@COM_TEXT_BEFORE171
+;ターゲットが２人のとき
+IF MTAR_NUM == 2
+	LOCALS:0 = %ANAME(MTAR:0)%と%ANAME(MTAR:1)%
+;ターゲットが１人のとき
+ELSE
+	LOCALS:0 = %ANAME(MTAR:0)%
+ENDIF
+SELECTCASE GET_COM_INITIATIVE()
+	;プレイヤーに主導権
+	CASE 0
+		IF IS_EQUIP_TARGET(MTAR:0, 170)
+			PRINTFORMW %ANAME(MPLY:0)%は%LOCALS:0%の尿道に挿入されたブジーを抜き差しして責め立て%TARGET_STR("た", "てきた")%…
+		ELSEIF IS_MPLY(MASTER) && MTAR_NUM == 1 && PALAM:(MTAR:0):潤滑 > PALAMLV:5
+			PRINTFORMW %ANAME(MPLY:0)%は%LOCALS:0%の尿道に指を挿れて内部を弄り回し%TARGET_STR("た", "てきた")%…
+		ELSE
+			PRINTFORMW %ANAME(MPLY:0)%は%LOCALS:0%の尿道に指を挿れて中を弄り回し%TARGET_STR("た", "てきた")%…
+		ENDIF
+	;ターゲットに主導権
+	CASE 1
+		IF IS_EQUIP_TARGET(MTAR:0, 170)
+			PRINTFORMW %LOCALS:0%は自身の尿道に挿入されたブジーを%ANAME(MPLY:0)%に握らせ、抜き差しさせた…
+		ELSEIF TALENT:(MTAR:0):処女 == 1
+			PRINTFORMW %LOCALS:0%は%ANAME(MPLY:0)%の指を自身のまだ乙女の%LOCALS:1%秘唇に押し当て、優しく撫でるように命じた…
+		ELSE
+			PRINTFORMW %LOCALS:0%は%ANAME(MPLY:0)%の指を自身の%LOCALS:1%秘唇に挿入させ、中を愛撫させた…
+		ENDIF
+	;第三者に主導権
+	CASEELSE
+		IF IS_EQUIP_TARGET(MTAR:0, 170)
+			PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に対して、%LOCALS:0%の尿道に挿入されたブジーを動かすよう命令した
+			PRINTFORMW %ANAME(MPLY:0)%は%LOCALS:0%の%LOCALS:1%の尿道に挿入されたブジーを抜き差しして責め立てた…
+		ELSE
+			PRINTFORML %ANAME(TFLAG:45)%は%ANAME(MPLY:0)%に対して、%LOCALS:0%の尿道に指を入れて愛撫するよう命令した
+			PRINTFORMW %ANAME(MPLY:0)%は%LOCALS:0%の尿道に指を挿れて中を弄り回した…
+		ENDIF
+ENDSELECT
+
+
+
+;--------------------------------------------------------
+;地の文(パラメータ・刻印変動後)
+;--------------------------------------------------------
+@COM_TEXT_LAST171
+FOR LOCAL:0, 0, MTAR_NUM
+	LOCAL:1 = MTAR:(LOCAL:0)
+	IF (LOCAL:1 != MASTER || CONFIG:441) && !IS_ANIMAL(LOCAL:1)
+		LOCAL:2 = CUP:(LOCAL:1):快Ｕ
+
+		IF TCVAR:(LOCAL:1):52
+			;気絶中
+			PRINTFORML 膣内を責められると、%ANAME(LOCAL:1)%は意識を失ったまま小さく呻いた
+		ELSEIF LOCAL:2 < 300 
+			PRINTFORML %ANAME(LOCAL:1)%の開発されていないそこはまだキツく、%ANAME(LOCAL:1)%は苦しそうに顔を歪めた
+		ELSEIF LOCAL:2 < 1000
+			PRINTFORML %ANAME(LOCAL:1)%は苦しそうにしながらもその表情には快楽の兆しが見える
+		ELSEIF LOCAL:2 < 3000
+			PRINTFORML %ANAME(LOCAL:1)%はこらえきれない快楽に可愛らしい声を漏らしている
+		ELSEIF LOCAL:2 < 6000
+			PRINTFORML %ANAME(LOCAL:1)%は大分慣れてきたのか、時折自ら快楽を求めるように小さく腰を揺らしている
+		ELSEIF LOCAL:2 < 10000
+			PRINTFORM %ANAME(LOCAL:1)%は
+			IF TALENT:(LOCAL:1):抑圧 || TALENT:(LOCAL:1):孤高 || TALENT:(LOCAL:1):快感の否定
+				PRINTFORML 快楽を否定する言葉を吐きつつ、こらえ切れない喘ぎ声を上げ続けている
+			ELSE
+				PRINTFORML 翻弄する指の動きに合わせて背中を反らしながら快楽の喘ぎ声を上げた
+			ENDIF
+		ELSE
+			PRINTFORML %ANAME(LOCAL:1)%は淫らに腰を揺らしながら、すっかり快楽に溺れて嬌声を上げている
+		ENDIF
+	ENDIF
+NEXT
+
+;-------------------------------------------------
+
+;コマンド区分
+;-------------------------------------------------
+
+@COM_AVAILABLE_WHEN171
+RETURN コマンド_ウフフ
+
+;--------------------
+;性嗜好用関数
+;--------------------
+@COM_PREFERENCE_PLAYER_171()
+RETURN POWER(2, 性的嗜好_愛撫したい)
+
+@COM_PREFERENCE_TARGET_171()
+RETURN POWER(2, 性的嗜好_愛撫されたい)
+
