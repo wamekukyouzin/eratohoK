@@ -560,6 +560,8 @@ NEXT
 #DIM 都市保有勢力
 #DIM 都市保有君主
 #DIM 攻撃候補
+#DIM 攻撃候補勢力
+#DIM 攻撃候補部隊
 #DIM 現在スコア
 #DIM 自部隊能力, 3
 #DIM 敵部隊能力, 3
@@ -687,6 +689,46 @@ FOR 候補, 0, 10
 
 	IF IS_COUNTRY(都市保有勢力)
 
+		IF TMP_IS_STAY_ENEMY_UNIT(攻撃候補)
+			FOR LOCAL, 0, VARSIZE("TMP_UNIT_ONCITY_CNT", 1)
+				SIF !IS_COUNTRY(TMP_UNIT_ONCITY_CNT:(攻撃候補):LOCAL)
+					CONTINUE
+				攻撃候補勢力 = TMP_UNIT_ONCITY_CNT:(攻撃候補):LOCAL
+				攻撃候補部隊 = TMP_UNIT_ONCITY_NUM:(攻撃候補):LOCAL
+				SIF TMP_COUNTRY_RELATION:勢力:攻撃候補勢力 != 0
+					CONTINUE
+				BREAK
+			NEXT
+			CALL GET_UNIT_COMMANDER_ALL(攻撃候補勢力, 攻撃候補部隊)
+			CALL SET_BATTLE_MIRROR_VAL(1, RESULT, RESULT:1, RESULT:2)
+			CALL BATTLE_PREPARE_VARS_EACH(1, 攻撃候補)
+			CALL BATTLE_SOLDIER_RATE_CORRECTION(勢力, 部隊, 攻撃候補勢力, 攻撃候補部隊)
+			CALL BATTLE_TIREDNESS_CORRECTION(勢力, 部隊, 攻撃候補勢力, 攻撃候補部隊)
+			CALL BATTLE_COMMANDER_POWER_CORRECTION(勢力, 部隊, 攻撃候補勢力, 攻撃候補部隊)
+			敵部隊能力:0 = BATTLE_ATK:1
+			敵部隊能力:1 = BATTLE_DEF:1
+			敵部隊能力:2 = BATTLE_INT:1
+
+			;勝ってる要素をカウント
+			攻撃評価スコア = ((UNIT_SOLDIER:勢力:部隊 * 100) / MAX(UNIT_SOLDIER:攻撃候補勢力:攻撃候補部隊, 1)) * 3
+
+			FOR LOCAL:1, 0, 3
+				攻撃評価スコア += 自部隊能力:(LOCAL:1) * 100 / MAX(敵部隊能力:(LOCAL:1), 1)
+			NEXT
+			;DEBUGPRINTFORML スコア: {攻撃評価スコア} {勢力}, {部隊}
+			;勝ってる要素が一定ないとキャンセル
+			SELECTCASE TMP_OWN_CITY:勢力
+				CASE IS < 5
+					SIF 攻撃評価スコア < 500
+						GOTO CANCEL
+				CASE 5 TO 9
+					SIF 攻撃評価スコア < 600
+						GOTO CANCEL
+				CASEELSE
+					SIF 攻撃評価スコア < 700
+						GOTO CANCEL
+			ENDSELECT
+		ENDIF
 
 		CALL CHECK_BEST_COMMANDER(都市保有勢力, 1)
 		CALL SET_BATTLE_MIRROR_VAL(1, BEST_COMMANDER:0, BEST_COMMANDER:1, -1)
