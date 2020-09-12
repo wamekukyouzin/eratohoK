@@ -43,6 +43,10 @@ FOR 都市, 1, GET_CITY_NUM() + 1
 		IF !TMP_IS_STAY_ENEMY_UNIT(都市, 勢力)
 			COUNTRY_SOLDIER:勢力 += CITY_SOLDIER:都市
 			CITY_SOLDIER:都市 = 0
+			SIF GET_CITY_COMMANDER(都市, 0) != -1
+				TMP_IS_FREE:GET_CITY_COMMANDER(都市, 0):0 = 0
+			SIF GET_CITY_COMMANDER(都市, 1) != -1
+				TMP_IS_FREE:GET_CITY_COMMANDER(都市, 1):0 = 0
 			CITY_COMMANDER:都市 = 0
 		ENDIF
 	ENDIF
@@ -404,6 +408,7 @@ SIF 勢力 == CFLAG:MASTER:所属 || FLAG:観戦モード
 #DIM 確定兵数
 #DIM 出兵数
 #DIM ポジション
+#DIM コンボフラグ
 #DIM AI_TYPE
 
 
@@ -420,6 +425,13 @@ SIF 攻撃兵数 < 最低兵数
 CALL CHECK_BEST_COMMANDER(勢力)
 
 武将数 = MAX_UNIT_COMMANDER - MATCH(BEST_COMMANDER, -1)
+
+CALL SET_UNIT_COMMANDER(勢力, 部隊, BEST_COMMANDER:0)
+CALL SET_UNIT_COMMANDER(勢力, 部隊, BEST_COMMANDER:1)
+CALL SET_UNIT_COMMANDER(勢力, 部隊, BEST_COMMANDER:2)
+CALL CHECK_UNIT_COMBO(勢力, 部隊)
+コンボフラグ = RESULT
+UNIT_COMMANDER:勢力:部隊 = 0
 
 ;武将なし部隊を作ろうとしている場合、
 ;すでに武将なし部隊が存在する場合は諦める（兵の無駄になりがちなのであまり作らせたくない）
@@ -445,8 +457,10 @@ ENDIF
 ;兵数が確定兵数を割っているなら、(100 - 確定兵数に対する攻撃兵数の割合)%の確率で出兵を見送る
 ;ただし都市数が少ないと積極的
 IF 攻撃兵数 < 確定兵数
-	SIF 攻撃兵数 * 100 / 確定兵数 - 20 * 武将数 < RAND:(100 - MAX((6 - TMP_OWN_CITY:勢力) * 10, 0))
+	IF 攻撃兵数 * 100 / 確定兵数 + 20 * (コンボフラグ ? MAX_UNIT_COMMANDER # 武将数) < RAND:(100 - MAX((6 - TMP_OWN_CITY:勢力) * 10, 0))
+		DEBUGPRINTFORML 確率割り RETURN
 		RETURN 攻撃兵数
+	ENDIF
 ENDIF
 
 ;DEBUGPRINTFORML 補正後最低兵数{最低兵数} 確定兵数{確定兵数}
@@ -457,7 +471,7 @@ ENDIF
 ;部隊に編成する兵数を決定
 ;武将が3に満たないとケチる
 IF 攻撃兵数 >= 確定兵数
-	IF 武将数 == MAX_UNIT_COMMANDER
+	IF 武将数 == MAX_UNIT_COMMANDER || コンボフラグ
 		出兵数 = RAND(確定兵数, 攻撃兵数)
 	ELSE
 		出兵数 = 確定兵数
@@ -469,7 +483,7 @@ ELSE
 		出兵数 = 攻撃兵数
 	ELSE
 		出兵数 = MIN(RAND(最低兵数, 確定兵数), 攻撃兵数)
-		SIF 武将数 == 1 && 出兵数 > 攻撃兵数 / 2
+		SIF !コンボフラグ && 武将数 == 1 && 出兵数 > 攻撃兵数 / 2
 			出兵数 /= 2
 		SIF 武将数 == 0
 			出兵数 /= 4
@@ -817,7 +831,7 @@ FOR 項番, 0, 都市数
 	;武将配置
 	;余裕があれば2人配置
 	IF 武将数
-		CALL CHECK_BEST_COMMANDER(CITY_OWNER:都市)
+		CALL CHECK_BEST_COMMANDER(CITY_OWNER:都市, 1)
 		FOR ポジション, 0, VARSIZE("MAX_CITY_COMMANDER") - (武将数 < 都市数 + 1)
 			SIF BEST_COMMANDER:ポジション == -1
 				CONTINUE
