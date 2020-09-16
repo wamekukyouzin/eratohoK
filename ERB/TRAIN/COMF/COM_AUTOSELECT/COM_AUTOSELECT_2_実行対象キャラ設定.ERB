@@ -135,8 +135,8 @@ FOR L_COUNTER, 0, CHARANUM
 	;対象があなたで実行が浮気癖所持
 	IF L_COUNTER == MASTER && GETBIT(TALENT:プレイヤー:淫乱系, 素質_淫乱_浮気癖)
 		MULTI_SEX_DECIDE_REFERENCE_VALUE = 15
-	;対象があなたで実行が陥落済み
-	ELSEIF L_COUNTER == MASTER && ( TALENT:プレイヤー:恋慕 || TALENT:プレイヤー:服従 || TALENT:プレイヤー:主人 )
+	;対象があなたで実行が陥落済み ただし特殊勢力逆調教を除く
+	ELSEIF L_COUNTER == MASTER && ( TALENT:プレイヤー:恋慕 || TALENT:プレイヤー:服従 || TALENT:プレイヤー:主人 ) && !GROUPMATCH(FLAG:調教モード, 調教_逆調教特殊)
 		MULTI_SEX_DECIDE_REFERENCE_VALUE = 100
 	;両刀or実行ふたなりor対象ふたなり
 	ELSEIF TALENT:プレイヤー:両刀 || (HAS_PENIS(プレイヤー) && HAS_VAGINA(プレイヤー)) || (HAS_PENIS(L_COUNTER) && HAS_VAGINA(L_COUNTER))
@@ -152,13 +152,13 @@ FOR L_COUNTER, 0, CHARANUM
 	;---------------------------------------------
 	;### 処女系の補正
 	;---------------------------------------------
-	;マスターが対象で処女系素質を持つとき
+	;マスターが対象で処女系素質を持つとき ただし浮気癖がある場合は除外
 	IF L_COUNTER == MASTER && (TALENT:MASTER:キス未経験 || (HAS_VAGINA(MASTER) && TALENT:MASTER:処女) || (HAS_PENIS(MASTER) && TALENT:MASTER:童貞)) && !GETBIT(TALENT:プレイヤー:淫乱系, 素質_淫乱_浮気癖)
 		MULTI_VIRGIN_DECIDE_REFERENCE_VALUE = 100
-	;プレイヤーが処女系素質を持つとき
-	ELSEIF TALENT:プレイヤー:キス未経験 || (HAS_VAGINA(プレイヤー) && TALENT:プレイヤー:処女) || (HAS_PENIS(プレイヤー) && TALENT:プレイヤー:童貞)
+	;対象が処女系素質を持つとき
+	ELSEIF TALENT:L_COUNTER:キス未経験 || (HAS_VAGINA(L_COUNTER) && TALENT:L_COUNTER:処女) || (HAS_PENIS(L_COUNTER) && TALENT:L_COUNTER:童貞)
 		MULTI_VIRGIN_DECIDE_REFERENCE_VALUE = 100
-	;どちらも処女系は持たないとき
+	;処女系は持たないとき
 	ELSE
 		MULTI_VIRGIN_DECIDE_REFERENCE_VALUE = 1
 	ENDIF
@@ -166,8 +166,14 @@ FOR L_COUNTER, 0, CHARANUM
 	;---------------------------------------------
 	;### 状況の補正
 	;---------------------------------------------
+	;特殊勢力逆調教時の男あなた
+	IF L_COUNTER == MASTER && GROUPMATCH(FLAG:調教モード, 調教_逆調教特殊) && IS_MALE(L_COUNTER)
+		MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 20
+	;特殊勢力逆調教かつ特殊キャラでない女
+	ELSEIF !IS_SP_CHARA(L_COUNTER) && GROUPMATCH(FLAG:調教モード, 調教_逆調教特殊) && IS_FEMALE(L_COUNTER)
+		MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 70
 	;逆調教の主人公
-	IF L_COUNTER == MASTER && GROUPMATCH(FLAG:調教モード, 調教_逆調教特殊, 調教_逆調教通常, 調教_慰安) && !GETBIT(TALENT:プレイヤー:淫乱系, 素質_淫乱_浮気癖)
+	ELSEIF L_COUNTER == MASTER && GROUPMATCH(FLAG:調教モード, 調教_逆調教特殊, 調教_逆調教通常, 調教_慰安) && !GETBIT(TALENT:プレイヤー:淫乱系, 素質_淫乱_浮気癖)
 		MULTI_SITUATION_DECIDE_REFERENCE_VALUE = 100
 	;逆調教以外の主人公
 	ELSEIF L_COUNTER == MASTER && !GETBIT(TALENT:プレイヤー:淫乱系, 素質_淫乱_浮気癖)
