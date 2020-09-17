@@ -21,8 +21,7 @@ FOR LOCAL:0, 0, VARSIZE("TRAINNAME")
 		COM_ABLE_FLAG:LOCAL = 1
 	IF GROUPMATCH(RESULT, 2, 3)
 		COM_CONFLICT_FLAG:(LOCAL) = 1
-		SIF FLAG:CANCELLING
-			COM_ABLE_FLAG:LOCAL = 1
+		COM_ABLE_FLAG:LOCAL = 1
 	ENDIF
 	;リストの記録位置を一つ進める
 NEXT
@@ -59,34 +58,30 @@ IF TRAINNAME:(ARG:0) != ""
 		LOCAL:1 = RESULT
 		LOCAL:2 = RESULT
 
-		IF FLAG:CANCELLING
             ;clear out mequip, except for actions like "Summon Tentacles" that strictly enable other actions, which we move to the top
             ;This way, we're only checking conditions like HAS_PENIS or IS_PLAYABLE instead of action-related conditions
-			LOCAL:4 = 0
-			FOR LOCAL, 0, MEQUIP_NUM
-				IF GROUPMATCH(MEQUIP:LOCAL, 50, 200)
-					CALL SWAP_MEQUIP(LOCAL, LOCAL:4)
-					LOCAL:4++
-				ENDIF
-			NEXT
-			LOCAL:5 = MEQUIP_NUM
-			MEQUIP_NUM = LOCAL:4
-			COM_ENABLE = 1
-			TRYCALLFORM COM_ABLE{ARG:0}
-			COM_ENABLE = 0
-			LOCAL:2 = RESULT
-		ENDIF
+		LOCAL:4 = 0
+		FOR LOCAL, 0, MEQUIP_NUM
+			IF GROUPMATCH(MEQUIP:LOCAL, 50, 200)
+				CALL SWAP_MEQUIP(LOCAL, LOCAL:4)
+				LOCAL:4++
+			ENDIF
+		NEXT
+		LOCAL:5 = MEQUIP_NUM
+		MEQUIP_NUM = LOCAL:4
+		COM_ENABLE = 1
+		TRYCALLFORM COM_ABLE{ARG:0}
+		COM_ENABLE = 0
+		LOCAL:2 = RESULT
 
         ;Print the disabled actions - using this for debugging
         ;SIF !RESULT && (ARG:0 < 250)
         ;    PRINTFORM %ENTRAINNAME(ARG:0)%
 
-		IF FLAG:CANCELLING
-			MEQUIP_NUM = LOCAL:5
-		ENDIF
+		MEQUIP_NUM = LOCAL:5
 
 		;初回実行時はだめだが2回目が通るケース
-		;つまりFLAG:CANCELLINGが立ってて既存コマンドと干渉するケース
+		;つまり既存コマンドと干渉するケース
 		IF LOCAL:1 == 0 && LOCAL:2 == 1
 			RESULT = 0
 			TRYCALLFORM COM_IS_EQUIP{ARG:0}
@@ -1020,15 +1015,6 @@ ELSEIF RESULT == 5901 && GROUPMATCH(FLAG:調教モード, 調教_会う, 調教_
 	;LINES_TRAIN = LINECOUNT
 	RETURN 1
 
-ELSEIF RESULT == 5902
-	FLAG:CANCELLING = !FLAG:CANCELLING
-	IF FLAG:CANCELLING
-		PRINTFORML 現在継続中のコマンドと干渉し、両立しないコマンドを継続実行した場合、
-		PRINTFORML 現在継続中のコマンドを自動的にキャンセルするようにしました。
-	ELSE
-		PRINTFORML 現在継続中のコマンドと干渉し、両立しない継続コマンドは、
-		PRINTFORMW 選択不可になるようにしました。
-	ENDIF
 ELSEIF RESULT == 5903
 	FLAG:調教中表示簡略化 = !FLAG:調教中表示簡略化
 	IF FLAG:調教中表示簡略化
