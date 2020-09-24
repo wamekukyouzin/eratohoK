@@ -184,6 +184,7 @@ CALL EVENT_KOJO_DAILY
 
 $SKIPPED
 
+
 ;統一後の場合
 IF FLAG:クリアフラグ
 	;一期終了時の処理
@@ -222,6 +223,23 @@ ENDIF
 ;戦略フェイズ終了時の処理
 ;-------------------------------------------------
 @TURNEND_POLITICS
+
+FOR LOCAL:0, 0, MAX_COUNTRY
+	SIF !IS_COUNTRY(LOCAL:0)
+		CONTINUE
+	LOCAL:1 = GET_COUNTRY_BOSS(LOCAL:0)
+	IF CFLAG:(LOCAL:1):所属 != LOCAL:0
+		THROW %ANAME(LOCAL:1)%は君主だけど、そこに所属してない このターンのログをチェックするべし
+		FORCEWAIT
+	ENDIF
+NEXT
+FOR LOCAL:0, 0, CHARANUM
+	IF CFLAG:(LOCAL:0):特殊状態 && CFLAG:(LOCAL:0):所属
+		THROW %ANAME(LOCAL:0)%の特殊状態が立ってるけど勢力に所属してる このターンのログをチェックするべし
+		FORCEWAIT
+	ENDIF
+NEXT
+
 
 SIF FLAG:イベント発生禁止
 	GOTO SKIPPED
@@ -265,6 +283,23 @@ IF FLAG:観戦モード
 ELSE
 	TIME = 0
 ENDIF
+
+
+FOR LOCAL:0, 0, MAX_COUNTRY
+	SIF !IS_COUNTRY(LOCAL:0)
+		CONTINUE
+	LOCAL:1 = GET_COUNTRY_BOSS(LOCAL:0)
+	IF CFLAG:(LOCAL:1):所属 != LOCAL:0
+		THROW %ANAME(LOCAL:1)%は君主だけど、そこに所属してない このターンのログをチェックするべし
+		FORCEWAIT
+	ENDIF
+NEXT
+FOR LOCAL:0, 0, CHARANUM
+	IF CFLAG:(LOCAL:0):特殊状態 && CFLAG:(LOCAL:0):所属
+		THROW %ANAME(LOCAL:0)%の特殊状態が立ってるけど勢力に所属してる このターンのログをチェックするべし
+		FORCEWAIT
+	ENDIF
+NEXT
 
 ;-------------------------------------------------
 ;一期終了時の処理
@@ -381,6 +416,8 @@ CALL CHECK_DIPLOMACY_TRAIN_FLAG
 
 ;塾による成長
 CALL CRAM_SCHOOL
+
+CALL BREWERY
 
 ;朝のイベント
 ;CALL EVENT_MORNING
@@ -591,7 +628,12 @@ FOR LOCAL:0, 0, CHARANUM
 		CALL PRISONER_CHANGE_RELATION(LOCAL:0)
 
 	;精神力の回復
-	BASE:(LOCAL:0):精神力 = MIN(BASE:(LOCAL:0):精神力 + MAXBASE:(LOCAL:0):精神力 / 2, MAXBASE:(LOCAL:0):精神力)
+	IF CFLAG:(LOCAL:0):精神力回復量補正 == 0
+		BASE:(LOCAL:0):精神力 = MIN(BASE:(LOCAL:0):精神力 + MAXBASE:(LOCAL:0):精神力 / 2, MAXBASE:(LOCAL:0):精神力)
+	ELSE
+		BASE:(LOCAL:0):精神力 = MIN(BASE:(LOCAL:0):精神力 + (MAXBASE:(LOCAL:0):精神力 / 2 * CFLAG:(LOCAL:0):精神力回復量補正 / 100), MAXBASE:(LOCAL:0):精神力)
+		CFLAG:(LOCAL:0):精神力回復量補正 = 0
+	ENDIF
 
 	;崩壊値の減少
 	SIF !TALENT:(LOCAL:0):崩壊
