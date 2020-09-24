@@ -1,4 +1,4 @@
-
+﻿
 ;-------------------------------------------------
 ;建造物の開発
 ;-------------------------------------------------
@@ -107,6 +107,8 @@ SELECTCASE DEVELOPMENT_ID
         RETURNF "税務署"
     CASE 建造物_大宴会場
         RETURNF "大宴会場"
+    CASE 建造物_醸造所
+        RETURNF "醸造所"
     CASEELSE
         RETURNF "---"
 ENDSELECT
@@ -144,6 +146,8 @@ SELECTCASE DEVELOPMENT_ID
         RETURNF "毎ターン大幅な収入増加。重複しない"
     CASE 建造物_大宴会場
         RETURNF "毎ターン士官や捕虜の印象が大幅に改善。重複しない"
+    CASE 建造物_醸造所
+        RETURNF "毎ターンひとつ、酒系アイテムのどれかを産出する。全て99個あると無効"
     CASEELSE
         RETURNF "---"
 ENDSELECT
@@ -208,4 +212,52 @@ FOR LOCAL, 0, MAX_CITY
     NEXT
 NEXT
 
+;-------------------------------------------------
+;醸造所の効果
+;-------------------------------------------------
+@BREWERY
+#DIM 産出
+#DIM 産出個数, 8
+{
+    #DIM CONST 産出対象 = 
+        GETNUM(ITEM, "濁り酒"), GETNUM(ITEM, "清酒"), GETNUM(ITEM, "葡萄酒"), GETNUM(ITEM, "麦酒"),
+        GETNUM(ITEM, "醸造酒"), GETNUM(ITEM, "果実酒"), GETNUM(ITEM, "日本酒"), GETNUM(ITEM, "蒸留酒")
+}
 
+VARSET 産出個数
+FOR LOCAL, 0, MAX_CITY
+    ;無所属のとき、無所属都市に残った醸造所の恩恵を受けるのを防止
+    SIF !IS_COUNTRY(CITY_OWNER:LOCAL)
+        CONTINUE
+    SIF CITY_OWNER:LOCAL != CFLAG:MASTER:所属
+        CONTINUE
+    SIF CITY_DEVELOPMENT:LOCAL != 建造物_醸造所
+        CONTINUE
+    SELECTCASE RAND:100
+        CASE 0 TO 19
+            産出個数:0 ++
+        CASE 20 TO 39
+            産出個数:1 ++
+        CASE 49 TO 59
+            産出個数:2 ++
+        CASE 60 TO 79
+            産出個数:3 ++
+        CASE 80 TO 84
+            産出個数:4 ++
+        CASE 85 TO 89
+            産出個数:5 ++
+        CASE 90 TO 94
+            産出個数:6 ++
+        CASE 95 TO 99
+            産出個数:7 ++
+    ENDSELECT
+NEXT
+
+FOR LOCAL, 0, VARSIZE("産出個数")
+    SIF 産出個数:LOCAL + ITEM:(産出対象:LOCAL) >= 99
+        産出個数:LOCAL = 99 - ITEM:(産出対象:LOCAL)
+    SIF 産出個数:LOCAL <= 0
+        CONTINUE
+    ITEM:(産出対象:LOCAL) = 産出個数:LOCAL
+    PRINTFORML 醸造所にて、%ITEMNAME:(産出対象:LOCAL)%を{産出個数:LOCAL}個醸造しました
+NEXT
