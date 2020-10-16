@@ -64,13 +64,13 @@ SELECTCASE DEVELOPMENT_ID
     CASE 建造物_本拠地
         RETURNF TECHNOLOGY_STATUS:COUNTRY:TECHNOLOGY_BATTLE_PASSIVE >= 5 && GET_DEVELOPMENT_COUNT(DEVELOPMENT_ID, COUNTRY) < 1
     CASE 建造物_忍びの里
-        RETURNF TECHNOLOGY_STATUS:COUNTRY:TECHNOLOGY_DIPLOMACY >= 4 && GET_DEVELOPMENT_COUNT(DEVELOPMENT_ID, COUNTRY) < 1
+        RETURNF TECHNOLOGY_STATUS:COUNTRY:TECHNOLOGY_DIPLOMACY >= 5 && GET_DEVELOPMENT_COUNT(DEVELOPMENT_ID, COUNTRY) < 1
     CASE 建造物_集積所
-        RETURNF TECHNOLOGY_STATUS:COUNTRY:TECHNOLOGY_CONSCRIPTION >= 4 && GET_DEVELOPMENT_COUNT(DEVELOPMENT_ID, COUNTRY) < 1
+        RETURNF TECHNOLOGY_STATUS:COUNTRY:TECHNOLOGY_CONSCRIPTION >= 5 && GET_DEVELOPMENT_COUNT(DEVELOPMENT_ID, COUNTRY) < 1
     CASE 建造物_税務署
         RETURNF TECHNOLOGY_STATUS:COUNTRY:TECHNOLOGY_TAX >= 5 && GET_DEVELOPMENT_COUNT(DEVELOPMENT_ID, COUNTRY) < 1
     CASE 建造物_大宴会場
-        RETURNF TECHNOLOGY_STATUS:COUNTRY:TECHNOLOGY_EMPLOYMENT >= 4 && GET_DEVELOPMENT_COUNT(DEVELOPMENT_ID, COUNTRY) < 1
+        RETURNF TECHNOLOGY_STATUS:COUNTRY:TECHNOLOGY_EMPLOYMENT >= 5 && GET_DEVELOPMENT_COUNT(DEVELOPMENT_ID, COUNTRY) < 1
 ENDSELECT
 RETURNF 1
 
@@ -107,6 +107,8 @@ SELECTCASE DEVELOPMENT_ID
         RETURNF "税務署"
     CASE 建造物_大宴会場
         RETURNF "大宴会場"
+    CASE 建造物_醸造所
+        RETURNF "醸造所"
     CASEELSE
         RETURNF "---"
 ENDSELECT
@@ -144,6 +146,8 @@ SELECTCASE DEVELOPMENT_ID
         RETURNF "毎ターン大幅な収入増加。重複しない"
     CASE 建造物_大宴会場
         RETURNF "毎ターン士官や捕虜の印象が大幅に改善。重複しない"
+    CASE 建造物_醸造所
+        RETURNF "毎ターンひとつ、酒系アイテムのどれかを産出する。全て99個あると無効"
     CASEELSE
         RETURNF "---"
 ENDSELECT
@@ -172,6 +176,7 @@ RETURNF DEVELOPMENT_COUNT
 #DIM 建造物
 #DIM 守将
 #DIM 成長箇所
+#DIM 効果量
 
 FOR LOCAL, 0, MAX_CITY
     建造物 = CITY_DEVELOPMENT:LOCAL
@@ -188,9 +193,71 @@ FOR LOCAL, 0, MAX_CITY
         CONTINUE
     FOR LOCAL:1, 0, GET_CITY_COMMANDER_NUM(LOCAL)
         守将 = GET_CITY_COMMANDER(LOCAL, LOCAL:1)
-        EXP:守将:成長箇所 += RAND:3 + 3
-        CALL TRAIN_AUTO_ABLUP(守将, 1)
+        SELECTCASE ABL:守将:成長箇所
+            CASE IS < ランク閾値:ランク_ＳＬＧ:ランク_D
+                効果量 = MAX(ABLUP_NEED_EXP_SLG(ABL:守将:成長箇所) * 3 / 100, 1)
+            CASE IS < ランク閾値:ランク_ＳＬＧ:ランク_B
+                効果量 = MAX(ABLUP_NEED_EXP_SLG(ABL:守将:成長箇所) / 100, 1)
+            CASE IS < ランク閾値:ランク_ＳＬＧ:ランク_A
+                効果量 = MAX(ABLUP_NEED_EXP_SLG(ABL:守将:成長箇所) / 2 / 100, 1)
+            CASE IS < ランク閾値:ランク_ＳＬＧ:ランク_S
+                効果量 = MAX(ABLUP_NEED_EXP_SLG(ABL:守将:成長箇所) / 3 / 100, 1)
+            CASEELSE
+                効果量 = MAX(ABLUP_NEED_EXP_SLG(ABL:守将:成長箇所) / 10 / 100, 1)
+        ENDSELECT
+        EXP:守将:GET_EXP(成長箇所) += 効果量
+        SIF CFLAG:守将:所属 == CFLAG:MASTER:所属
+            PRINTFORML %ANAME(守将)%は塾に通いました
+        CALL TRAIN_AUTO_ABLUP(守将, CFLAG:守将:所属 != CFLAG:MASTER:所属)
     NEXT
 NEXT
 
+;-------------------------------------------------
+;醸造所の効果
+;-------------------------------------------------
+@BREWERY
+#DIM 産出
+#DIM 産出個数, 8
+{
+    #DIM CONST 産出対象 = 
+        GETNUM(ITEM, "濁り酒"), GETNUM(ITEM, "清酒"), GETNUM(ITEM, "葡萄酒"), GETNUM(ITEM, "麦酒"),
+        GETNUM(ITEM, "醸造酒"), GETNUM(ITEM, "果実酒"), GETNUM(ITEM, "日本酒"), GETNUM(ITEM, "蒸留酒")
+}
 
+VARSET 産出個数
+FOR LOCAL, 0, MAX_CITY
+    ;無所属のとき、無所属都市に残った醸造所の恩恵を受けるのを防止
+    SIF !IS_COUNTRY(CITY_OWNER:LOCAL)
+        CONTINUE
+    SIF CITY_OWNER:LOCAL != CFLAG:MASTER:所属
+        CONTINUE
+    SIF CITY_DEVELOPMENT:LOCAL != 建造物_醸造所
+        CONTINUE
+    SELECTCASE RAND:100
+        CASE 0 TO 19
+            産出個数:0 ++
+        CASE 20 TO 39
+            産出個数:1 ++
+        CASE 49 TO 59
+            産出個数:2 ++
+        CASE 60 TO 79
+            産出個数:3 ++
+        CASE 80 TO 84
+            産出個数:4 ++
+        CASE 85 TO 89
+            産出個数:5 ++
+        CASE 90 TO 94
+            産出個数:6 ++
+        CASE 95 TO 99
+            産出個数:7 ++
+    ENDSELECT
+NEXT
+
+FOR LOCAL, 0, VARSIZE("産出個数")
+    SIF 産出個数:LOCAL + ITEM:(産出対象:LOCAL) >= 99
+        産出個数:LOCAL = 99 - ITEM:(産出対象:LOCAL)
+    SIF 産出個数:LOCAL <= 0
+        CONTINUE
+    ITEM:(産出対象:LOCAL) = 産出個数:LOCAL
+    PRINTFORML 醸造所にて、%ITEMNAME:(産出対象:LOCAL)%を{産出個数:LOCAL}個醸造しました
+NEXT

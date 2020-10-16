@@ -71,10 +71,10 @@ ENDIF
 ;キャラARG:0を削除する関数
 ;-------------------------------------------------
 @DELETE_CHARA(ARG:0)
-;固定キャラの場合
-IF IS_FIXED_CHARA(ARG:0)
+;東方キャラの場合
+IF IS_TOHO_CHARA(ARG:0)
 	;削除は禁止。エラーメッセージを出力
-	THROW 固定キャラを削除することはできません(キャラ番号={ARG:0})
+	THROW 東方キャラを削除することはできません(キャラ番号={ARG:0})
 
 ;ランダムキャラ(汎用)の場合
 ELSEIF IS_RANDOM_CHARA(ARG:0)
@@ -155,7 +155,7 @@ NEXT
 
 ;-------------------------------------------------
 ;キャラARG:0を初期状態に戻す関数(初期値が記録されていない場合、再生成を試みる)
-;固定キャラに使用した場合、後でADDITIONAL_CHARA_SETTING関数を呼び出すこと
+;東方キャラに使用した場合、後でADDITIONAL_CHARA_SETTING関数を呼び出すこと
 ;-------------------------------------------------
 @INIT_CHARA(ARG:0)
 
@@ -343,25 +343,7 @@ FOR LOCAL, 0, PREGNANT_RECORD_MAX
 	PREGNANT_RECORD_TIMES:(ARG:0):LOCAL = 0
 NEXT
 
-FOR LOCAL, 0, WOMB_RECORD_MAX
-	WOMB_SPERM_ID:(ARG:0):LOCAL = 0
-	WOMB_SPERM_TIME:(ARG:0):LOCAL = 0
-	WOMB_SPERM_COUNT:(ARG:0):LOCAL = 0
-	WOMB_SPERM_AMOUNT:(ARG:0):LOCAL = 0
-	ANUS_SPERM_ID:(ARG:0):LOCAL = 0
-	ANUS_SPERM_TIME:(ARG:0):LOCAL = 0
-	ANUS_SPERM_COUNT:(ARG:0):LOCAL = 0
-	ANUS_SPERM_AMOUNT:(ARG:0):LOCAL = 0
-	STOMACH_SPERM_ID:(ARG:0):LOCAL = 0
-	STOMACH_SPERM_TIME:(ARG:0):LOCAL = 0
-	STOMACH_SPERM_COUNT:(ARG:0):LOCAL = 0
-	STOMACH_SPERM_AMOUNT:(ARG:0):LOCAL = 0
-
-	WOMB_TOTAL_CREAMPIED_AMOUNT:(ARG:0):0 = 0
-	ANUS_TOTAL_CREAMPIED_AMOUNT:(ARG:0):0 = 0
-	STOMACH_TOTAL_CREAMPIED_AMOUNT:(ARG:0):0 = 0
-NEXT
-
+CALL CLEAR_CREAMPIE_HISTORY(ARG:0, 1)
 SEXUAL_PREFERENCE:(ARG:0):0 = 0
 FOR LOCAL, 0, VARSIZE("SEXUAL_PREFERENCE_EXP")
 	SEXUAL_PREFERENCE_EXP:(ARG:0):LOCAL = 0
@@ -1085,6 +1067,7 @@ LOCAL:1 += EX:(ARG:0):Ｖ絶頂
 LOCAL:1 += EX:(ARG:0):Ａ絶頂
 LOCAL:1 += EX:(ARG:0):Ｂ絶頂
 LOCAL:1 += EX:(ARG:0):Ｍ絶頂
+LOCAL:1 += EX:(ARG:0):Ｕ絶頂
 IF ARG:1
 	LOCAL:1 += EX:(ARG:0):射精
 ENDIF
@@ -1105,6 +1088,7 @@ LOCAL:1 += NOWEX:(ARG:0):Ｖ絶頂
 LOCAL:1 += NOWEX:(ARG:0):Ａ絶頂
 LOCAL:1 += NOWEX:(ARG:0):Ｂ絶頂
 LOCAL:1 += NOWEX:(ARG:0):Ｍ絶頂
+LOCAL:1 += NOWEX:(ARG:0):Ｕ絶頂
 IF ARG:1
 	LOCAL:1 += NOWEX:(ARG:0):射精
 ENDIF
@@ -1114,11 +1098,11 @@ ENDIF
 RETURNF LOCAL:1
 
 ;-------------------------------------------------
-;ARG:0番のキャラの快感系CUPの合計値を返す関数(ＣＶＡＢＭ＋射精)
+;ARG:0番のキャラの快感系CUPの合計値を返す関数(ＣＶＡＢＭＵ＋射精)
 ;-------------------------------------------------
 @CUP_SENSE(ARG:0)
 #FUNCTION
-RETURNF CUP:(ARG:0):快Ｃ + CUP:(ARG:0):快Ｖ + CUP:(ARG:0):快Ａ + CUP:(ARG:0):快Ｂ + CUP:(ARG:0):快Ｍ + CUP:(ARG:0):射精
+RETURNF CUP:(ARG:0):快Ｃ + CUP:(ARG:0):快Ｖ + CUP:(ARG:0):快Ａ + CUP:(ARG:0):快Ｂ + CUP:(ARG:0):快Ｍ+ CUP:(ARG:0):快Ｕ + CUP:(ARG:0):射精
 
 ;-------------------------------------------------
 ;ARG:0番のキャラに関して、現在の機嫌の名称を返す関数
@@ -1323,9 +1307,9 @@ RETURNF GROUPMATCH(TALENT:(ARG:0):動物, 動物_犬, 動物_豚, 動物_馬)
 
 
 ;-------------------------------------------------
-;ARG:0番のキャラが固定キャラ（ランダムキャラ、子供、特殊キャラ)なら1を返す関数
+;ARG:0番のキャラが東方キャラ（ランダムキャラ、子供、特殊キャラ)なら1を返す関数
 ;-------------------------------------------------
-@IS_FIXED_CHARA(ARG:0)
+@IS_TOHO_CHARA(ARG:0)
 #FUNCTION
 RETURNF NO:(ARG:0) < MAX_FIXED_CHARA
 
@@ -3138,7 +3122,7 @@ IF EXISTCSV(NO:対象)
 	Ｖ初期値 = CSVTALENT(NO:対象, GETNUM(TALENT, "Ｖ締まり"))
 	Ａ初期値 = CSVTALENT(NO:対象, GETNUM(TALENT, "Ａ締まり"))
 ELSE
-	;非固定キャラの締まり初期値は素質から暫定的に検出
+	;非東方キャラの締まり初期値は素質から暫定的に検出
 	;基本650 処女+100 小柄体型+100 子供体型+200 幼児+100 現在値と平均を取って最低150最高950
 	Ｖ初期値 = 650 + TALENT:対象:処女 * 100 + (TALENT:対象:体格 == 体格_小柄) * 100 + (TALENT:対象:体格 == 体格_子供) * 200 + TALENT:対象:幼児 * 100
 	Ｖ初期値 = LIMIT((Ｖ初期値 + TALENT:対象:Ｖ締まり) / 2, 150, 950)
@@ -3488,6 +3472,8 @@ SELECTCASE ARG:0
 		RETURNF GETNUM(EXP, "Ａ感経験値")
 	CASE GETNUM(ABL, "Ｍ感")
 		RETURNF GETNUM(EXP, "Ｍ感経験値")
+	CASE GETNUM(ABL, "Ｕ感")
+		RETURNF GETNUM(EXP, "Ｕ感経験値")
 	CASE GETNUM(ABL, "奉仕")
 		RETURNF GETNUM(EXP, "奉仕経験値")
 	CASE GETNUM(ABL, "欲望")

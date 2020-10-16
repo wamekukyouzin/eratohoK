@@ -18,12 +18,12 @@ NEXT
 CALL COM_TEXT_BEFORE
 
 ;コマンドを実行するにあたって干渉するコマンドを外す
-IF FLAG:CANCELLING && COM_CONFLICT_FLAG:(SELECTCOM)
+IF COM_CONFLICT_FLAG:(SELECTCOM)
 	RESULT = 0
 	TRYCALLFORM COM_IS_EQUIP{SELECTCOM}
 	IF RESULT
 		CALL SET_EQUIP(SELECTCOM)
-		CALL RELEASE_EQUIP(RESULT)
+		CALL RELEASE_EQUIP(RESULT, 1, 0)
 	ELSE
 		CALL RELEASE_CONFLICT_COM(SELECTCOM)
 	ENDIF
@@ -32,17 +32,15 @@ ENDIF
 Ignore = -1
 
 ;コマンドを実行した結果
-IF !TFLAG:1 || FLAG:CANCELLING
-	CALL SET_EQUIP(SELECTCOM)
-	;Single action selected in cancel mode 
-	;We had to put it in MEQUIP:0 to see what it conflicted with, but now we delete it
-	IF (RESULT == 0) && TFLAG:1 && FLAG:CANCELLING
-		CALL RELEASE_EQUIP(0, 1, 0)
-	;continuing action in either mode
-	ELSE
-		;record the action we just called COM_TEXT_BEFORE and SET_EQUIP on, and ignore it for the rest of this turn
-		Ignore = RESULT
-	ENDIF
+CALL SET_EQUIP(SELECTCOM)
+;Single action selected in cancel mode 
+;We had to put it in MEQUIP:0 to see what it conflicted with, but now we delete it
+IF (RESULT == 0) && TFLAG:1
+	CALL RELEASE_EQUIP(0, 1, 0)
+;continuing action in either mode
+ELSE
+	;record the action we just called COM_TEXT_BEFORE and SET_EQUIP on, and ignore it for the rest of this turn
+	Ignore = RESULT
 ENDIF
 
 ;装着系アイテムや継続状態の処理
@@ -519,7 +517,7 @@ FOR LOCAL:0, 0, 100
 		LOCAL:2 = PALAM:MASTER:(LOCAL:0)
 		PALAM:MASTER:(LOCAL:0) = LIMIT(PALAM:MASTER:(LOCAL:0) + CUP:MASTER:(LOCAL:0) - 10000 * NOWEX:MASTER:(LOCAL:0), 0, 9999)
 
-		IF LOCAL:0 <= 4
+		IF LOCAL:0 <= 5
 			;快感系の経験取得
 			CALL ADD_EXP_SENSE(MASTER, LOCAL:0, LOCAL:2)
 		ENDIF
@@ -579,7 +577,7 @@ IF IS_MPLY(ARG:0) || IS_MTAR(ARG:0)
 	TFLAG:58 = MAX(SOURCE:(ARG:0):逸脱, TFLAG:58)
 
 	;ターゲットが絶頂していた場合
-	FOR LOCAL:0, 0, 5
+	FOR LOCAL:0, 0, 6
 		IF NOWEX:(ARG:0):(LOCAL:0) > 0
 			TFLAG:53 += NOWEX:(ARG:0):(LOCAL:0)
 		ENDIF
@@ -712,7 +710,7 @@ FOR LOCAL:0, 0, 100
 		LOCAL:2 = PALAM:(ARG:0):(LOCAL:0)
 		PALAM:(ARG:0):(LOCAL:0) = LIMIT(PALAM:(ARG:0):(LOCAL:0) + CUP:(ARG:0):(LOCAL:0) - 10000 * NOWEX:(ARG:0):(LOCAL:0), 0, 9999)
 
-		IF LOCAL:0 <= 4
+		IF LOCAL:0 <= 5
 			;快感系の経験取得
 			CALL ADD_EXP_SENSE(ARG:0, LOCAL:0, LOCAL:2)
 		ENDIF

@@ -21,8 +21,7 @@ FOR LOCAL:0, 0, VARSIZE("TRAINNAME")
 		COM_ABLE_FLAG:LOCAL = 1
 	IF GROUPMATCH(RESULT, 2, 3)
 		COM_CONFLICT_FLAG:(LOCAL) = 1
-		SIF FLAG:CANCELLING
-			COM_ABLE_FLAG:LOCAL = 1
+		COM_ABLE_FLAG:LOCAL = 1
 	ENDIF
 	;リストの記録位置を一つ進める
 NEXT
@@ -59,34 +58,30 @@ IF TRAINNAME:(ARG:0) != ""
 		LOCAL:1 = RESULT
 		LOCAL:2 = RESULT
 
-		IF FLAG:CANCELLING
             ;clear out mequip, except for actions like "Summon Tentacles" that strictly enable other actions, which we move to the top
             ;This way, we're only checking conditions like HAS_PENIS or IS_PLAYABLE instead of action-related conditions
-			LOCAL:4 = 0
-			FOR LOCAL, 0, MEQUIP_NUM
-				IF GROUPMATCH(MEQUIP:LOCAL, 50, 200)
-					CALL SWAP_MEQUIP(LOCAL, LOCAL:4)
-					LOCAL:4++
-				ENDIF
-			NEXT
-			LOCAL:5 = MEQUIP_NUM
-			MEQUIP_NUM = LOCAL:4
-			COM_ENABLE = 1
-			TRYCALLFORM COM_ABLE{ARG:0}
-			COM_ENABLE = 0
-			LOCAL:2 = RESULT
-		ENDIF
+		LOCAL:4 = 0
+		FOR LOCAL, 0, MEQUIP_NUM
+			IF GROUPMATCH(MEQUIP:LOCAL, 50, 200)
+				CALL SWAP_MEQUIP(LOCAL, LOCAL:4)
+				LOCAL:4++
+			ENDIF
+		NEXT
+		LOCAL:5 = MEQUIP_NUM
+		MEQUIP_NUM = LOCAL:4
+		COM_ENABLE = 1
+		TRYCALLFORM COM_ABLE{ARG:0}
+		COM_ENABLE = 0
+		LOCAL:2 = RESULT
 
         ;Print the disabled actions - using this for debugging
         ;SIF !RESULT && (ARG:0 < 250)
         ;    PRINTFORM %ENTRAINNAME(ARG:0)%
 
-		IF FLAG:CANCELLING
-			MEQUIP_NUM = LOCAL:5
-		ENDIF
+		MEQUIP_NUM = LOCAL:5
 
 		;初回実行時はだめだが2回目が通るケース
-		;つまりFLAG:CANCELLINGが立ってて既存コマンドと干渉するケース
+		;つまり既存コマンドと干渉するケース
 		IF LOCAL:1 == 0 && LOCAL:2 == 1
 			RESULT = 0
 			TRYCALLFORM COM_IS_EQUIP{ARG:0}
@@ -101,7 +96,7 @@ IF TRAINNAME:(ARG:0) != ""
 		ELSEIF LOCAL:1 == LOCAL:2
 			RETURN LOCAL:1
 		ELSE
-			DEBUGPRINTFORML %TRAINNAME:ARG%
+			;DEBUGPRINTFORML %TRAINNAME:ARG%
 			RETURN 2
 		ENDIF
 	ENDIF
@@ -475,9 +470,10 @@ SIF TALENT:(ARG:0):キス未経験
 	SETCOLOR カラー_ピンク
 CALL PRINT_SHORT_PALAM1(ARG:0, 4, "Ｍ")
 RESETCOLOR
+CALL PRINT_SHORT_PALAM1(ARG:0, 5, "Ｕ")
 
-CALL PRINT_SHORT_PALAM1(ARG:0, 5, "精", HAS_PENIS(ARG:0))
-CALL PRINT_SHORT_PALAM1(ARG:0, 6, "乳", TALENT:(ARG:0):母乳体質)
+CALL PRINT_SHORT_PALAM1(ARG:0, 6, "精", HAS_PENIS(ARG:0))
+CALL PRINT_SHORT_PALAM1(ARG:0, 7, "乳", TALENT:(ARG:0):母乳体質)
 CALL PRINT_SHORT_PALAM2(ARG:0, 40, "潤")
 
 IF TFLAG:69 && TCVAR:(ARG:0):60
@@ -1019,15 +1015,6 @@ ELSEIF RESULT == 5901 && GROUPMATCH(FLAG:調教モード, 調教_会う, 調教_
 	;LINES_TRAIN = LINECOUNT
 	RETURN 1
 
-ELSEIF RESULT == 5902
-	FLAG:CANCELLING = !FLAG:CANCELLING
-	IF FLAG:CANCELLING
-		PRINTFORML 現在継続中のコマンドと干渉し、両立しないコマンドを継続実行した場合、
-		PRINTFORML 現在継続中のコマンドを自動的にキャンセルするようにしました。
-	ELSE
-		PRINTFORML 現在継続中のコマンドと干渉し、両立しない継続コマンドは、
-		PRINTFORMW 選択不可になるようにしました。
-	ENDIF
 ELSEIF RESULT == 5903
 	FLAG:調教中表示簡略化 = !FLAG:調教中表示簡略化
 	IF FLAG:調教中表示簡略化
@@ -1055,10 +1042,34 @@ ELSEIF RESULT >= 6000 && RESULT <= 6000 + MAX_MEQUIP
 	REDRAW 1
 	LOCAL = RESULT - 6000
 	TRYCALLFORM COM_BEFORE_RELEASE_EQUIP{MEQUIP:LOCAL}(LOCAL)
+	[IF_DEBUG]
+	CALL RELEASE_EQUIP(LOCAL, 1)
+	[ENDIF]
+	[IF_NDEBUG]
 	CALL RELEASE_EQUIP(LOCAL)
+	[ENDIF]
+	[IF_DEBUG]
+ELSEIF RESULT == 5996
+	CALL FORCE_COM
+	[ENDIF]
+
 ;行動終了
 ELSEIF RESULT == 5999
 	;逆調教・主人公が行動不能のときは自分の意志で終了できない
+	[IF_DEBUG]
+	PRINTFORMW (デバッグ_調教を終了します)
+	IF FLAG:調教モード == 調教_捕虜調教
+		PRINTFORMW （調教を終了します）
+		BEGIN AFTERTRAIN
+	;ウフフ中
+	ELSEIF FLAG:ウフフフラグ
+		PRINTFORMW （夜伽を終了します）
+		BEGIN AFTERTRAIN
+	ELSE
+		CALL TRAIN_EXIT()
+	ENDIF
+	RETURN 1
+	[ENDIF]
 	IF GROUPMATCH(FLAG:調教モード, 調教_逆調教特殊, 調教_逆調教通常) || !IS_PLAYABLE(MASTER)
 		RETURN 0
 	;捕虜調教
@@ -1338,3 +1349,114 @@ RESTART
 
 
 
+@FORCE_COM()
+#DIM FIRST_LINE
+#DIM 有効コマンド数
+#DIM ページ数
+#DIM 現在ページ
+#DIM 始点
+#DIM 終点
+#DIM ページ内表示数
+#DIM 改行カウンタ
+#DIM スイッチ
+
+;ページ数の計算
+有効コマンド数 = 0
+FOR LOCAL:0, 0, 1000
+	IF TRAINNAME:(LOCAL:0) != ""
+		有効コマンド数 ++
+	ENDIF
+NEXT
+ページ数 = (有効コマンド数 - 1) / 66 + 1
+現在ページ = 1
+
+CALL SINGLE_DRAWLINE
+PRINTFORML 分かってる人むけの機能です：バグってもサポートしません
+SIF FLAG:逆調教コマンド強制 >= 0
+	PRINTFORML 現在:%TRAINNAME:(FLAG:逆調教コマンド強制 % MAX(スイッチ * 1000, 1000))%
+CALL SINGLE_DRAWLINE
+FIRST_LINE = LINECOUNT
+$SHOW_LOOP
+
+;コマンドの表示
+有効コマンド数 = 0
+始点 = (現在ページ - 1) * 88
+終点 = 現在ページ * 88
+改行カウンタ = 0
+FOR LOCAL:0, 0, 1000
+	IF TRAINNAME:(LOCAL:0) != ""
+		IF 有効コマンド数 >= 始点 && 有効コマンド数 < 終点
+			IF 改行カウンタ >= 1 && 改行カウンタ % 4 == 0
+				PRINTL 
+			ENDIF
+			RESULT = 0
+			PRINTFORM [{LOCAL:0, 3}] %TRAINNAME:(LOCAL:0), 21, LEFT%
+			RESETCOLOR
+			改行カウンタ ++
+		ENDIF
+		有効コマンド数 ++
+	ENDIF
+NEXT
+PRINTL 
+CALL SINGLE_DRAWLINE
+
+PRINT [990] 前のページ     
+PRINTPLAINFORM page{現在ページ}/{ページ数}    
+PRINTL [991] 次のページ
+
+
+CALL SINGLE_DRAWLINE
+CALL PRINTBUTTON_EX("[996] 本人が実行", 996, 1, スイッチ == 0)
+PRINT  
+CALL PRINTBUTTON_EX("[997] 対象が実行", 997, 1, スイッチ == 1)
+PRINT  
+CALL PRINTBUTTON_EX("[998] 第三者が実行", 998, 1, スイッチ == 2)
+PRINT  
+PRINTL [999] 戻る
+
+REDRAW 0
+
+$INPUT_LOOP
+INPUT
+
+IF RESULT == 999
+	FLAG:逆調教コマンド強制 = -1
+	REDRAW 1
+	RETURN
+ELSEIF RESULT == 996
+	スイッチ = 0
+	CLEARLINE LINECOUNT - FIRST_LINE
+	GOTO SHOW_LOOP
+ELSEIF RESULT == 997
+	スイッチ = 1
+	CLEARLINE LINECOUNT - FIRST_LINE
+	GOTO SHOW_LOOP
+ELSEIF RESULT == 998
+	スイッチ = 2
+	CLEARLINE LINECOUNT - FIRST_LINE
+	GOTO SHOW_LOOP
+ELSEIF RESULT == 990
+	現在ページ --
+	IF 現在ページ < 1
+		現在ページ = ページ数
+	ENDIF
+	CLEARLINE LINECOUNT - FIRST_LINE
+	GOTO SHOW_LOOP
+ELSEIF RESULT == 991
+	現在ページ ++
+	IF 現在ページ > ページ数
+		現在ページ = 1
+	ENDIF
+	CLEARLINE LINECOUNT - FIRST_LINE
+	GOTO SHOW_LOOP
+ELSEIF RESULT >= 0 && RESULT < 1000
+	LOCAL:5 = RESULT
+	IF TRAINNAME:(LOCAL:5) != ""
+		FLAG:逆調教コマンド強制 = LOCAL:5 + スイッチ * 1000
+		PRINTFORMW 設定しました
+		REDRAW 1
+		RETURN
+	ENDIF
+ENDIF
+CLEARLINE 1
+GOTO INPUT_LOOP

@@ -8,8 +8,6 @@ RESULTS:0 '= "奴隷市場"
 ;「奴隷市場」の選択可否
 ;-------------------------------------------------
 @SHOP_SLG_CHECK64
-SIF !IS_SLAVEMARKET_AVAILABLE()
-	RETURN 0
 SIF CFLAG:MASTER:所属 == 0
 	RETURN 0
 RETURN 1
@@ -18,11 +16,7 @@ RETURN 1
 ;「奴隷市場」の左カラムメニューの入力処理
 ;-------------------------------------------------
 @SHOP_SLG_EVENTBUY64
-IF IS_SP_COUNTRY(CFLAG:MASTER:所属)
-	CALL SLAVEMARKET_SELL_CHARA()
-ELSE
-	CALL SLAVEMARKET
-ENDIF
+CALL SLAVEMARKET
 RETURN 1
 
 ;-------------------------------------------------
@@ -31,7 +25,17 @@ RETURN 1
 @SLAVEMARKET
 #DIM 対象
 #DIM 対象添え字
+#DIM 売却可能
 #DIM FIRST_LINE
+
+
+;売却には特殊勢力な勢力が必要(主人公の所属していないところで)
+売却可能 = 0
+FOR LOCAL, 0, MAX_COUNTRY
+	SIF IS_SP_COUNTRY(LOCAL) && CFLAG:MASTER:所属 != LOCAL
+		売却可能 = 1
+NEXT
+
 
 FIRST_LINE = LINECOUNT
 
@@ -53,7 +57,7 @@ FOR LOCAL, 0, VARSIZE("SLAVEMARKET_GOODS")
 	SIF LOCAL:1 == -1
 		CONTINUE
 	;人質解放要求などにより既に捕虜でなくなっている場合、パージ
-	IF !IS_SP_COUNTRY(CFLAG:(LOCAL:1):捕虜先) && !IS_SP_COUNTRY(CFLAG:(LOCAL:1):所属)
+	IF !TALENT:(LOCAL:1):奴隷市場モブ && !IS_SP_COUNTRY(CFLAG:(LOCAL:1):捕虜先) && !IS_SP_COUNTRY(CFLAG:(LOCAL:1):所属)
 		SLAVEMARKET_GOODS:LOCAL = 0
 		CONTINUE
 	ENDIF
@@ -62,7 +66,8 @@ FOR LOCAL, 0, VARSIZE("SLAVEMARKET_GOODS")
 NEXT
 
 PRINTL 
-PRINTFORML [98] 売却
+SIF 売却可能
+	PRINTFORML [98] 売却
 PRINTFORML [99] 戻る
 
 $INPUT_LOOP
@@ -71,6 +76,10 @@ INPUT
 IF RESULT == 99
 	RETURN 0
 ELSEIF RESULT == 98
+	IF !売却可能
+		CLEARLINE 1
+		GOTO INPUT_LOOP
+	ENDIF
 	CALL SLAVEMARKET_SELL_CHARA
 	CLEARLINE FIRST_LINE - LINECOUNT
 	RESTART
@@ -128,7 +137,7 @@ PRINTFORMW 「ひひ、じゃあ商談成立だ」
 PRINTFORMW 「じゃ、持ってってくんなせぇ」
 
 ;確率でエロイベント　特売なら確定
-IF IS_FEMALE(対象) && (20 > RAND:100 || 対象添え字 == SLAVEMARKET_SPECIALGOODS)
+IF IS_TOHO_CHARA(対象) && IS_FEMALE(対象) && (20 > RAND:100 || 対象添え字 == SLAVEMARKET_SPECIALGOODS)
 	PRINTFORML
 	PRINTFORMW ……男が連れてきた%ANAME(対象)%の姿を見、%ANAME(MASTER)%は目を疑った
 	PRINTFORML 丸裸の%ANAME(対象)%は目隠しをされ、手足には枷が嵌められている
@@ -235,6 +244,7 @@ SLAVEMARKET_GOODS:対象添え字 = 0
 
 FIRST_LINE = LINECOUNT
 PRINTFORML 「ひひ、誰を売ってくれるんで？」
+PRINTFORML ※%ANAME(MASTER)%）に陥落済みのキャラを売却できます
 CALL SINGLE_DRAWLINE
 CALL SELECT_CHARA_LIST_MULTI_ONLY_LOGIC_SEX(-1, "SLAVEMARKET_SELL_CHARA", "SLAVEMARKET_SELL_CHARA")
 
@@ -398,6 +408,9 @@ NEXT
 SIF IS_LOVER(対象)
 	額 += 10000
 
+SIF TALENT:対象:奴隷市場モブ
+	額 = LIMIT(額 / 2, 5000, 30000)
+
 RETURNF 額
 
 ;-------------------------------------------------
@@ -406,6 +419,9 @@ RETURNF 額
 @SLAVEMARKET_PREPARE_GOODS
 VARSET SLAVEMARKET_GOODS
 VARSET SLAVEMARKET_SPECIALGOODS
+
+CALL CLEARN_SLAVE_MARKET_MOB()
+CALL CREATE_SLAVE_MARKET_MOB()
 
 CALL SELECT_CHARA_RANDOM_MULTI(SLAVEMARKET_MAX_GOODS, "SLAVEMARKET_PREPARE_GOODS")
 ;候補がいなければなしで。
@@ -430,5 +446,157 @@ RETURN 1
 ;SPキャラは対象としない（野盗そのものがリストアップされるのを防ぐ
 SIF IS_SP_CHARA(対象)
 	RETURN 0
-;特殊勢力の捕虜。ないし特殊勢力所属で捕虜でない
-RETURN IS_SP_COUNTRY(CFLAG:対象:捕虜先) || (IS_SP_COUNTRY(CFLAG:対象:所属) && !CFLAG:対象:捕虜先)
+SIF CFLAG:対象:所属 == CFLAG:MASTER:所属
+	RETURN 0
+;未購入の奴隷市場用モブ、特殊勢力の捕虜、特殊勢力所属で捕虜でない
+RETURN (TALENT:対象:奴隷市場モブ && !IS_APPEAR(対象)) || IS_SP_COUNTRY(CFLAG:対象:捕虜先) || (IS_SP_COUNTRY(CFLAG:対象:所属) && !CFLAG:対象:捕虜先)
+
+;-------------------------------------------------
+;DESC  :奴隷市場用のモブの削除
+;-------------------------------------------------
+@CLEARN_SLAVE_MARKET_MOB()
+;主人公と同一勢力じゃなくなった、もしくは前のターンで買われなかったキャラは削除
+FOR LOCAL:0, CHARANUM - 1, -1, -1
+	SIF !TALENT:LOCAL:奴隷市場モブ
+		CONTINUE
+	SIF IS_APPEAR(LOCAL) && CFLAG:LOCAL:所属 == CFLAG:MASTER:所属
+		CONTINUE
+	CALL DELETE_CHARA(LOCAL)
+NEXT
+
+;-------------------------------------------------
+;DESC  :奴隷市場用のモブの生成
+;-------------------------------------------------
+@CREATE_SLAVE_MARKET_MOB()
+#DIM 対象
+#DIMS 相手
+SKIPDISP 1
+FOR LOCAL, 0, 5
+	CALL CREATE_RANDOM_CHARA(0, 0, RAND:2)
+	対象 = RESULT
+	IF IS_FEMALE(対象)
+		FOR LOCAL:1, 1, RAND(10, 20)
+			SELECTCASE RAND:100
+				CASE 0
+					相手 = ごろつき
+				CASE 1
+					相手 = 娼館の客
+				CASE 2
+					相手 = 触手
+				CASE 3
+					相手 = 野盗
+				CASE 4
+					相手 = AV男優
+				CASE 5 
+					相手 = 貴族
+				CASE 6 
+					相手 = 平民
+				CASE 7 
+					相手 = 行きずりの男
+				CASE 8 
+					相手 = 妖怪
+				CASE 9 
+					相手 = チャラ男
+				CASE 10 
+					相手 = 兵士
+				CASE 11 
+					相手 = 浮浪者
+				CASE 12 
+					相手 = やくざ
+				CASE 13
+					相手 = ホフゴブリン
+				CASE 14
+					相手 = 鬼
+				CASE 15
+					相手 = 子供
+				CASE 16
+					相手 = 犬
+				CASE 17
+					相手 = 馬
+				CASE 18
+					相手 = 豚
+				CASE 19
+					相手 = 天狗
+				CASE 20
+					相手 = 河童
+				CASE 21
+					相手 = 触手
+				CASE 22
+					相手 = 不明
+				CASEELSE
+					相手 = 調教師
+			ENDSELECT
+			SELECTCASE RAND:100
+				CASE 0 TO 19
+					CALL FUCK_GANGBANG(対象, GET_SPERM_ID(相手), @"%相手%の\@ RAND:2 ? ペニス # 唇\@", 相手)
+				CASE 20 TO 59
+					CALL FUCK_RAPE(対象, GET_SPERM_ID(相手), @"%相手%の\@ RAND:2 ? ペニス # 唇\@", 相手)
+				CASE 60 TO 64
+					CALL FUCK_BEAST(対象, GET_SPERM_ID("犬"), @"犬の\@ RAND:2 ? ペニス # 唇\@", "犬")
+				CASE 65 TO 69
+					CALL FUCK_BEAST(対象, GET_SPERM_ID("豚"), @"豚の\@ RAND:2 ? ペニス # 唇\@", "豚")
+				CASE 70 TO 74
+					CALL FUCK_BEAST(対象, GET_SPERM_ID("馬"), @"馬の\@ RAND:2 ? ペニス # 唇\@", "馬")
+				CASE 80 TO 84
+					CALL FUCK_TENTACLE(対象, GET_SPERM_ID("触手"), "触手", "触手")
+				CASE 85 TO 89
+					CALL FUCK(対象, "欲望, 奉仕, 性技, 性交, 精愛, Ｃ, Ｖ, Ａ, Ｂ, Ｍ, 売春, Ｖ性交, Ａ性交", "キス喪失, 処女喪失, Ａ処女喪失, 膣内射精, 腸内射精, 口内射精", GET_SPERM_ID("娼館の客"), "娼館の客のペニス", "娼館の客", "", "売春")
+				CASE 90 TO 94
+					CALL FUCK(対象, "欲望, 性技, Ｃ, Ｖ, Ｂ, Ｍ, 性交, 精愛, 口淫, Ｖ性交, 撮影", "キス喪失, 処女喪失, 膣内射精, 口内射精", GET_SPERM_ID("AV男優"), @"男優の\@RAND:2 ? ペニス # 唇\@", "AV男優", "", "和姦")
+				CASEELSE
+					CALL FUCK(対象, "欲望, 奉仕, 性技, 射精, レズ, Ｃ", "", GET_SPERM_ID("サキュバス"), "", "", "", "調教")
+			ENDSELECT
+			;確率で出産経験を追加
+			IF RAND:100 < 3
+				EXP:対象:妊娠経験 = RAND(1, 5)
+				EXP:対象:出産経験 = !RAND:3
+				CALL REFRESH_PREGNANT_RECORD(対象, GET_SPERM_ID(相手), 1)
+				;確率で母乳体質を固定する
+				SIF RAND:100 < 15
+					TALENT:対象:母乳体質 = 1
+			ENDIF
+
+		NEXT
+	ELSE
+		相手 = 調教師
+		FOR LOCAL:1, 1, RAND(10, 20)
+			SELECTCASE RAND:2
+				CASE 0 TO 19
+					CALL FUCK_GANGBANG(対象, GET_SPERM_ID(相手), @"%相手%の\@ RAND:2 ? 膣 # 唇\@", 相手)
+				CASE 20 TO 39
+					CALL FUCK_RAPE(対象, GET_SPERM_ID(相手), @"%相手%の\@ RAND:2 ? 膣 # 唇\@", 相手)
+				CASEELSE
+					CALL FUCK(対象, "欲望, 技巧, 性技, 奉仕, 性交, 射精, レズ, Ｃ, Ｂ, Ｍ, Ｖ挿入, Ａ挿入", "キス喪失, 童貞喪失", 0, "調教師の秘貝", "調教師", "調教師の膣", "調教")
+			ENDSELECT
+		NEXT
+	ENDIF
+	TALENT:対象:奴隷市場モブ = 1
+	TALENT:対象:チョロイン = 1
+	TALENT:対象:隷属 = 1
+	TALENT:対象:服従 = 1
+	TALENT:対象:合意 = 1
+	CFLAG:対象:従属度 = 10000
+	CFLAG:対象:依存度 = 3000
+	;戦闘で使い物にならなくしておく
+	TALENT:対象:成長型 = 10
+	ABL:対象:性知識 = 5
+	ABL:対象:武闘 = RAND(1, 5)
+	ABL:対象:防衛 = RAND(1, 5)
+	ABL:対象:知略 = RAND(1, 5)
+	ABL:対象:政治 = RAND(1, 5)
+	ABL:対象:料理 = RAND(1, 5)
+	ABL:対象:歌唱 = RAND(1, 5)
+	;傾向的にサドが不足気味になるので追加
+	ABL:対象:サド += RAND(0, 3)
+	TALENT:対象:Ｖ締まり = GET_RANDOM_TIGHTNESS()
+	TALENT:対象:Ａ締まり = GET_RANDOM_TIGHTNESS()
+	;FUCKで主導度がガン下がりしているのでリセット
+	CALL INIT_TENDENCY(対象)
+	;淫乱素質をつける
+	FOR LOCAL:1, 0, 5
+		SIF RAND:100 < 5
+			SETBIT TALENT:対象:淫乱系, RAND:VARSIZE("SEX_TALENT_NAME")
+	NEXT
+	CALL CLEAR_CREAMPIE_HISTORY(対象, 1)
+NEXT
+SKIPDISP 0
