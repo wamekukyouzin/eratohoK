@@ -117,50 +117,63 @@ FOR LOCAL:0, 0, CHARANUM
 
 		LOCAL:10 = 1
 
-		;射精対象の人数を数え、必要な文字列を作成
-		LOCAL:2 = 0
-		LOCAL:3 = 2
-		LOCAL:4 = -1
-		;shitty animal logic. have to run through and count animals first to get apostrophe right.
-		FOR LOCAL:1, 0, STACK_SPERM_CHARA_NUM:(LOCAL:0):0
-			SIF 
-				LOCAL:4 = STACK_SPERM_CHARA_MAP:(LOCAL:0):(LOCAL:1)
-			SIF LOCAL:4 >= 0
-				LOCAL:2 ++
-			;対象の精愛Lvを判定(主人公が含まれているor逆調教なら-1に固定)
-			;★was: IF TCVAR:(LOCAL:0):(LOCAL:1) == MASTER || FLAG:調教モード == 4
-			;enabling master's reaction to cum (LOCAL:3 text) depending on config
-			IF (!CONFIG:441 ? LOCAL:4 == MASTER # MASTER) || FLAG:調教モード == 4 || IS_ANIMAL(LOCAL:4)
-				LOCAL:3 = -1
-			ELSEIF LOCAL:3 >= 1 && ABL:(LOCAL:4):精愛 < 2
-				LOCAL:3 = 0
-			ELSEIF LOCAL:3 >= 2 && ABL:(LOCAL:4):精愛 < 5
-				LOCAL:3 = 1
+		SIF SOURCE:(LOCAL:0):快Ｐ == 0 && NOWEX:(LOCAL:0):Ｖ絶頂 + NOWEX:(LOCAL:0):Ａ絶頂 > 0
+			PRINTFORM ペニスに触れられてもいないのに射精した
+		;コンドーム装着中
+		IF IS_EQUIP_PLAYER(LOCAL:0, 75)
+			PRINTFORML %ANAME(LOCAL:0)%の精液が、コンドームへと放たれていった……
+			GOTO CUM_SKIP
+		ENDIF
+
+		IF STACK_SPERM_CHARA_NUM:(LOCAL:0):0 <= 0
+			;捕虜調教 or 捕虜逆調教
+			IF GROUPMATCH(FLAG:調教モード, 2, 4, 6, 7)
+				PRINTFORML %ANAME(LOCAL:0)%の精液が床を汚していった…
+			ELSE
+				PRINTFORML %ANAME(LOCAL:0)%の精液が%GET_GROUND_NAME(TFLAG:54)%を汚していった…
 			ENDIF
+			GOTO CUM_SKIP
+		ENDIF
+
+		FOR LOCAL:5, 0, CUM_SLOT_NUM
+			;射精対象の人数を数え、必要な文字列を作成
+			LOCAL:2 = 0
+			LOCAL:3 = 2
+			LOCAL:4 = -1
+			;shitty animal logic. have to run through and count animals first to get apostrophe right.
+			FOR LOCAL:1, 0, STACK_SPERM_CHARA_NUM:(LOCAL:0):0
+				SIF STACK_SPERM_TO_MAP:(LOCAL:0):(LOCAL:1) != LOCAL:5
+					CONTINUE
+				LOCAL:4 = STACK_SPERM_CHARA_MAP:(LOCAL:0):(LOCAL:1)
+				SIF LOCAL:4 >= 0
+					LOCAL:2 ++
+				;対象の精愛Lvを判定(主人公が含まれているor逆調教なら-1に固定)
+				;★was: IF TCVAR:(LOCAL:0):(LOCAL:1) == MASTER || FLAG:調教モード == 4
+				;enabling master's reaction to cum (LOCAL:3 text) depending on config
+				IF (!CONFIG:441 ? LOCAL:4 == MASTER # MASTER) || FLAG:調教モード == 4 || IS_ANIMAL(LOCAL:4)
+					LOCAL:3 = -1
+				ELSEIF LOCAL:3 >= 1 && ABL:(LOCAL:4):精愛 < 2
+					LOCAL:3 = 0
+				ELSEIF LOCAL:3 >= 2 && ABL:(LOCAL:4):精愛 < 5
+					LOCAL:3 = 1
+				ENDIF
+			NEXT
 			SIF SOURCE:(LOCAL:0):快Ｐ == 0 && NOWEX:(LOCAL:0):Ｖ絶頂 + NOWEX:(LOCAL:0):Ａ絶頂 > 0
 				PRINTFORM ペニスに触れられてもいないのに射精した
-		;コンドーム装着中
-			IF IS_EQUIP_PLAYER(LOCAL:0, 75)
-				PRINTFORML %ANAME(LOCAL:0)%の精液が、コンドームへと放たれていった……
-		;射精対象が未設定
-			ELSEIF LOCAL:2 <= 0
-			;捕虜調教 or 捕虜逆調教
-				IF GROUPMATCH(FLAG:調教モード, 2, 4, 6, 7)
-					PRINTFORML %ANAME(LOCAL:0)%の精液が床を汚していった…
-				ELSE
-					PRINTFORML %ANAME(LOCAL:0)%の精液が%GET_GROUND_NAME(TFLAG:54)%を汚していった…
-				ENDIF
+			;射精対象が未設定
+			IF LOCAL:2 <= 0
+				CONTINUE
 			ELSE
-			;射精対象が４人以上
-				IF LOCAL:2 >= 4
+				;射精対象が４人以上
+				IF LOCAL:2 >= 2
 					LOCALS:1 = %ANAME(STACK_SPERM_CHARA_MAP:(LOCAL:0):0)%達
-			;射精対象が３人以下
+				;射精対象が３人以下
 				ELSE
 					LOCALS:1 = %ANAME(STACK_SPERM_CHARA_MAP:(LOCAL:0):0)%
 				ENDIF
 				PRINTFORM %ANAME(LOCAL:0)%の精液が%LOCALS:1%
 
-				SELECTCASE STACK_SPERM_TO_MAP:(LOCAL:0):0
+				SELECTCASE LOCAL:5
 					CASE 1
 						PRINTL の膣内へと注ぎ込まれた…
 					;射精したキャラが獣変化中
@@ -401,6 +414,7 @@ FOR LOCAL:0, 0, CHARANUM
 				ENDSELECT
 			ENDIF
 		NEXT
+		$CUM_SKIP
 
 		IF TCVAR:(LOCAL:0):51
 			IF TCVAR:(LOCAL:0):52
