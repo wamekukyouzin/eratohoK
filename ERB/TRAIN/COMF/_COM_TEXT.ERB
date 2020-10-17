@@ -117,289 +117,304 @@ FOR LOCAL:0, 0, CHARANUM
 
 		LOCAL:10 = 1
 
-		;射精対象の人数を数え、必要な文字列を作成
-		LOCAL:2 = 0
-		LOCAL:3 = 2
-		LOCAL:4 = -1
-		;shitty animal logic. have to run through and count animals first to get apostrophe right.
-		FOR LOCAL:1, 0, STACK_SPERM_CHARA_NUM:(LOCAL:0):0
-			LOCAL:4 = STACK_SPERM_CHARA_MAP:(LOCAL:0):(LOCAL:1)
-			SIF LOCAL:4 >= 0
-				LOCAL:2 ++
-			;対象の精愛Lvを判定(主人公が含まれているor逆調教なら-1に固定)
-			;★was: IF TCVAR:(LOCAL:0):(LOCAL:1) == MASTER || FLAG:調教モード == 4
-			;enabling master's reaction to cum (LOCAL:3 text) depending on config
-			IF (!CONFIG:441 ? LOCAL:4 == MASTER # MASTER) || FLAG:調教モード == 4 || IS_ANIMAL(LOCAL:4)
-				LOCAL:3 = -1
-			ELSEIF LOCAL:3 >= 1 && ABL:(LOCAL:4):精愛 < 2
-				LOCAL:3 = 0
-			ELSEIF LOCAL:3 >= 2 && ABL:(LOCAL:4):精愛 < 5
-				LOCAL:3 = 1
-			ENDIF
-		NEXT
 		SIF SOURCE:(LOCAL:0):快Ｐ == 0 && NOWEX:(LOCAL:0):Ｖ絶頂 + NOWEX:(LOCAL:0):Ａ絶頂 > 0
 			PRINTFORM ペニスに触れられてもいないのに射精した
 		;コンドーム装着中
 		IF IS_EQUIP_PLAYER(LOCAL:0, 75)
 			PRINTFORML %ANAME(LOCAL:0)%の精液が、コンドームへと放たれていった……
-		;射精対象が未設定
-		ELSEIF LOCAL:2 <= 0
+			GOTO CUM_SKIP
+		ENDIF
+
+		IF STACK_SPERM_CHARA_NUM:(LOCAL:0):0 <= 0
 			;捕虜調教 or 捕虜逆調教
 			IF GROUPMATCH(FLAG:調教モード, 2, 4, 6, 7)
 				PRINTFORML %ANAME(LOCAL:0)%の精液が床を汚していった…
 			ELSE
 				PRINTFORML %ANAME(LOCAL:0)%の精液が%GET_GROUND_NAME(TFLAG:54)%を汚していった…
 			ENDIF
-		ELSE
-			;射精対象が４人以上
-			IF LOCAL:2 >= 4
-				LOCALS:1 = %ANAME(STACK_SPERM_CHARA_MAP:(LOCAL:0):0)%達
-			;射精対象が３人以下
+			GOTO CUM_SKIP
+		ENDIF
+
+		FOR LOCAL:5, 0, CUM_SLOT_NUM
+			;射精対象の人数を数え、必要な文字列を作成
+			LOCAL:2 = 0
+			LOCAL:3 = 2
+			LOCAL:4 = -1
+			;shitty animal logic. have to run through and count animals first to get apostrophe right.
+			FOR LOCAL:1, 0, STACK_SPERM_CHARA_NUM:(LOCAL:0):0
+				SIF STACK_SPERM_TO_MAP:(LOCAL:0):(LOCAL:1) != LOCAL:5
+					CONTINUE
+				LOCAL:4 = STACK_SPERM_CHARA_MAP:(LOCAL:0):(LOCAL:1)
+				SIF LOCAL:4 >= 0
+					LOCAL:2 ++
+				;対象の精愛Lvを判定(主人公が含まれているor逆調教なら-1に固定)
+				;★was: IF TCVAR:(LOCAL:0):(LOCAL:1) == MASTER || FLAG:調教モード == 4
+				;enabling master's reaction to cum (LOCAL:3 text) depending on config
+				IF (!CONFIG:441 ? LOCAL:4 == MASTER # MASTER) || FLAG:調教モード == 4 || IS_ANIMAL(LOCAL:4)
+					LOCAL:3 = -1
+				ELSEIF LOCAL:3 >= 1 && ABL:(LOCAL:4):精愛 < 2
+					LOCAL:3 = 0
+				ELSEIF LOCAL:3 >= 2 && ABL:(LOCAL:4):精愛 < 5
+					LOCAL:3 = 1
+				ENDIF
+			NEXT
+			SIF SOURCE:(LOCAL:0):快Ｐ == 0 && NOWEX:(LOCAL:0):Ｖ絶頂 + NOWEX:(LOCAL:0):Ａ絶頂 > 0
+				PRINTFORM ペニスに触れられてもいないのに射精した
+			;射精対象が未設定
+			IF LOCAL:2 <= 0
+				CONTINUE
 			ELSE
-				LOCALS:1 = %ANAME(STACK_SPERM_CHARA_MAP:(LOCAL:0):0)%
-			ENDIF
-			PRINTFORM %ANAME(LOCAL:0)%の精液が%LOCALS:1%
+				;射精対象が４人以上
+				IF LOCAL:2 >= 2
+					LOCALS:1 = %ANAME(STACK_SPERM_CHARA_MAP:(LOCAL:0):0)%達
+				;射精対象が３人以下
+				ELSE
+					LOCALS:1 = %ANAME(STACK_SPERM_CHARA_MAP:(LOCAL:0):0)%
+				ENDIF
+				PRINTFORM %ANAME(LOCAL:0)%の精液が%LOCALS:1%
 
-			SELECTCASE STACK_SPERM_TO_MAP:(LOCAL:0):0
-				CASE 1
-					PRINTL の膣内へと注ぎ込まれた…
+				SELECTCASE LOCAL:5
+					CASE 1
+						PRINTL の膣内へと注ぎ込まれた…
 					;射精したキャラが獣変化中
-					IF (TALENT:(LOCAL):動物耳 || TALENT:(LOCAL):しっぽ) && !IS_ANIMAL(LOCAL)
-						IF LOCAL:0 == MASTER
-							PRINTFORML 獣の本能がもたらす膣内射精の悦びが、%ANAME(LOCAL:0)%の脳天を甘く痺れさせた…
+						IF (TALENT:(LOCAL):動物耳 || TALENT:(LOCAL):しっぽ) && !IS_ANIMAL(LOCAL)
+							IF LOCAL:0 == MASTER
+								PRINTFORML 獣の本能がもたらす膣内射精の悦びが、%ANAME(LOCAL:0)%の脳天を甘く痺れさせた…
 						;好感度または従属度が1500以上
-						ELSEIF CFLAG:(LOCAL:0):好感度 >= 1500 || CFLAG:(LOCAL:0):従属度 >= 1500 || CFLAG:(LOCAL:4):支配度 >= 1500
-							PRINTFORML %ANAME(LOCAL:0)%は獣の本能に流されるまま、膣内射精の悦びに顔を緩ませている…
-						ELSE
-							PRINTFORML %ANAME(LOCAL:0)%は獣の本能に逆らえず、膣内射精の悦びに打ち震えている…
+							ELSEIF CFLAG:(LOCAL:0):好感度 >= 1500 || CFLAG:(LOCAL:0):従属度 >= 1500 || CFLAG:(LOCAL:4):支配度 >= 1500
+								PRINTFORML %ANAME(LOCAL:0)%は獣の本能に流されるまま、膣内射精の悦びに顔を緩ませている…
+							ELSE
+								PRINTFORML %ANAME(LOCAL:0)%は獣の本能に逆らえず、膣内射精の悦びに打ち震えている…
+							ENDIF
 						ENDIF
-					ENDIF
 					;射精されたキャラが獣変化中
-					IF LOCAL:4 >= 0 && (TALENT:(LOCAL:4):動物耳 || TALENT:(LOCAL:4):しっぽ)
-						IF LOCAL:4 == MASTER
-							PRINTFORML 獣の本能がもたらす膣内射精の悦びが、%ANAME(LOCAL:4)%の脳天を甘く痺れさせた…
+						IF LOCAL:4 >= 0 && (TALENT:(LOCAL:4):動物耳 || TALENT:(LOCAL:4):しっぽ)
+							IF LOCAL:4 == MASTER
+								PRINTFORML 獣の本能がもたらす膣内射精の悦びが、%ANAME(LOCAL:4)%の脳天を甘く痺れさせた…
 						;好感度または従属度が1500以上
-						ELSEIF CFLAG:(LOCAL:4):好感度 >= 1500 || CFLAG:(LOCAL:4):従属度 >= 1500 || CFLAG:(LOCAL:4):支配度 >= 1500
-							PRINTFORML %ANAME(LOCAL:4)%は獣の本能に流されるまま、膣内射精の悦びに顔を緩ませている…
-						ELSE
-							PRINTFORML %ANAME(LOCAL:4)%は獣の本能に逆らえず、膣内射精の悦びに打ち震えている…
+							ELSEIF CFLAG:(LOCAL:4):好感度 >= 1500 || CFLAG:(LOCAL:4):従属度 >= 1500 || CFLAG:(LOCAL:4):支配度 >= 1500
+								PRINTFORML %ANAME(LOCAL:4)%は獣の本能に流されるまま、膣内射精の悦びに顔を緩ませている…
+							ELSE
+								PRINTFORML %ANAME(LOCAL:4)%は獣の本能に逆らえず、膣内射精の悦びに打ち震えている…
+							ENDIF
 						ENDIF
-					ENDIF
 					;射精されたキャラが妊娠中
-					IF LOCAL:4 >= 0 && TALENT:(LOCAL:4):妊娠
-						PRINTFORML 既に子を宿している%ANAME(LOCAL:4)%の膣内を、%ANAME(LOCAL:0)%の精液が満たしていく…
-					ENDIF
-					IF LOCAL:4 >= 0 && (HAS_SAME_FATHER(LOCAL:0, LOCAL:4) || HAS_SAME_MOTHER(LOCAL:0, LOCAL:4))
-						PRINTFORML %ANAME(LOCAL:4)%の膣内を、血縁関係にある%ANAME(LOCAL:0)%の精液が満たしていく……
-					ELSEIF LOCAL:4 >= 0 && IS_FATHER(LOCAL:4, LOCAL:0)
-						PRINTFORML %ANAME(LOCAL:4)%の膣内を、父親である%ANAME(LOCAL:0)%の精液が満たしていく……
-					ELSEIF LOCAL:4 >= 0 && IS_MOTHER(LOCAL:0, LOCAL:4)
-						PRINTFORML %ANAME(LOCAL:4)%の膣内を、子である%ANAME(LOCAL:0)%の精液が満たしていく……
-					ENDIF
-
-					IF LOCAL:4 >= 0 && GETBIT(TALENT:(LOCAL:4):淫乱系, 素質_淫乱_浮気癖)
-						IF LOCAL:0 == MASTER
-							PRINTFORML すっかり浮気癖が身についた%ANAME(LOCAL:4)%は、%ANAME(LOCAL:0)%からの膣内射精ではいまいち燃えないようだ……
-						ELSE
-							PRINTFORML すっかり浮気癖が身についた%ANAME(LOCAL:4)%は、%ANAME(LOCAL:0)%からの膣内射精に燃え上がっている……
+						IF LOCAL:4 >= 0 && TALENT:(LOCAL:4):妊娠
+							PRINTFORML 既に子を宿している%ANAME(LOCAL:4)%の膣内を、%ANAME(LOCAL:0)%の精液が満たしていく…
 						ENDIF
-					ENDIF
+						IF LOCAL:4 >= 0 && (HAS_SAME_FATHER(LOCAL:0, LOCAL:4) || HAS_SAME_MOTHER(LOCAL:0, LOCAL:4))
+							PRINTFORML %ANAME(LOCAL:4)%の膣内を、血縁関係にある%ANAME(LOCAL:0)%の精液が満たしていく……
+						ELSEIF LOCAL:4 >= 0 && IS_FATHER(LOCAL:4, LOCAL:0)
+							PRINTFORML %ANAME(LOCAL:4)%の膣内を、父親である%ANAME(LOCAL:0)%の精液が満たしていく……
+						ELSEIF LOCAL:4 >= 0 && IS_MOTHER(LOCAL:0, LOCAL:4)
+							PRINTFORML %ANAME(LOCAL:4)%の膣内を、子である%ANAME(LOCAL:0)%の精液が満たしていく……
+						ENDIF
+
+						IF LOCAL:4 >= 0 && GETBIT(TALENT:(LOCAL:4):淫乱系, 素質_淫乱_浮気癖)
+							IF LOCAL:0 == MASTER
+								PRINTFORML すっかり浮気癖が身についた%ANAME(LOCAL:4)%は、%ANAME(LOCAL:0)%からの膣内射精ではいまいち燃えないようだ……
+							ELSE
+								PRINTFORML すっかり浮気癖が身についた%ANAME(LOCAL:4)%は、%ANAME(LOCAL:0)%からの膣内射精に燃え上がっている……
+							ENDIF
+						ENDIF
 
 					;捕虜調教のメインターゲット
-					IF FLAG:調教モード == 2 && FINDELEMENT(PRISONER_TARGET, LOCAL:4) != -1 && !((TCVAR:(LOCAL:4):52) || (TCVAR:(LOCAL:4):53 == 1))
-						IF IS_ANIMAL(LOCAL:0)
-							IF GETBIT(TALENT:(LOCAL:4):淫乱系, 素質_淫乱_雌犬)
-								SELECTCASE TALENT:(LOCAL:0):動物
-									CASE 動物_犬
-										PRINTFORML すっかり獣との交尾を気に入った%ANAME(LOCAL:4)%は犬の精子が注がれる度に腰をくねらせ尻を振り、お代わりをねだっている
-									CASE 動物_豚
-										PRINTFORML すっかり家畜との交尾を気に入った%ANAME(LOCAL:4)%は豚の精子が注がれる度に腰をくねらせ尻を振り、お代わりをねだっている
-									CASE 動物_馬
-										PRINTFORML すっかり種馬との交尾を気に入った%ANAME(LOCAL:4)%は馬の精子が注がれる度に腰をくねらせ尻を振り、お代わりをねだっている
-								ENDSELECT
-							ELSE
-								SELECTCASE TALENT:(LOCAL:0):動物
-									CASE 動物_犬
-										PRINTFORML 繁殖力旺盛な精子が犬の凶暴なペニスから子宮に注ぎ込まれる熱を感じ、%ANAME(LOCAL:4)%は獣のような悲鳴を上げた
-									CASE 動物_豚
-										PRINTFORML 豚の螺旋状のペニスから家畜の精子が子宮に注ぎ込まれる熱を感じ、%ANAME(LOCAL:4)%は獣のような悲鳴を上げた
-									CASE 動物_馬
-										PRINTFORML 馬の巨大なペニスから子宮を圧迫するほどの精子を注ぎ込まれ、%ANAME(LOCAL:4)%は獣ような悲鳴を上げた
-								ENDSELECT
-							ENDIF
-						ELSE
-							IF RAND:3 == 0
-								IF TALENT:(LOCAL:4):隷属 && (LOCAL:0 == MASTER)
-									PRINTFORML %ANAME(LOCAL:0)%の奴隷として調教が行き届いた%ANAME(LOCAL:4)%は膣内射精を受け入れ、お礼を言ってきた
-								ELSEIF TALENT:(LOCAL:4):服従 && (LOCAL:0 == MASTER)
-									PRINTFORML %ANAME(LOCAL:0)%の奴隷として調教された%ANAME(LOCAL:4)%は震え声ではあるが、お礼を言うことは忘れなかった
-								ELSEIF TALENT:(LOCAL:4):正妻 && (LOCAL:0 == MASTER)
-									PRINTFORML 伴侶である%ANAME(LOCAL:0)%に捕虜として犯され膣内射精されることに%ANAME(LOCAL:4)%は慣れることができない
-								ELSEIF TALENT:(LOCAL:4):親愛 && (LOCAL:0 == MASTER)
-									PRINTFORML %ANAME(LOCAL:0)%を愛しているのに捕虜として犯され膣内射精されることに%ANAME(LOCAL:4)%は涙を浮かべている
-								ELSEIF TALENT:(LOCAL:4):恋慕 && (LOCAL:0 == MASTER)
-									PRINTFORML %ANAME(LOCAL:0)%に惚れているのに捕虜として犯され膣内射精されることに%ANAME(LOCAL:4)%は涙を浮かべている
-								ELSEIF TALENT:(LOCAL:4):親友 && (LOCAL:0 == MASTER)
-									PRINTFORML 親友だと思っていた%ANAME(LOCAL:0)%に捕まり、犯されて膣内射精されることに%ANAME(LOCAL:4)%は今だ慣れない
-								ELSEIF TALENT:(LOCAL:4):恋人 && (LOCAL:0 == MASTER)
-									PRINTFORML 想いを打ち明けた%ANAME(LOCAL:0)%に捕虜として犯され膣内射精されることに%ANAME(LOCAL:4)%は耐えられない
-								ELSEIF TALENT:(LOCAL:4):合意 && (LOCAL:0 == MASTER)
-									PRINTFORML 以前に体を許した%ANAME(LOCAL:0)%に捕虜として犯され膣内射精されることに%ANAME(LOCAL:4)%は過去の選択を悔やんでいる
-								ELSEIF TALENT:(LOCAL:4):子供人質
-									PRINTFORML 子供を人質に取られた%ANAME(LOCAL:4)%に膣内射精を拒める余地などない
-								ELSEIF TALENT:(LOCAL:4):妊娠
-									PRINTFORML 捕虜である%ANAME(LOCAL:4)%は身重であっても容赦なく膣内射精され、子を育みつつある子宮にさらに精子を注がれている
-								ELSEIF TALENT:(LOCAL:4):キス未経験
-									PRINTFORML %ANAME(LOCAL:4)%はキスすらしたことがないのに捕虜として膣内射精を強いられる現実を受け入れきれないようだ
-								ELSEIF TALENT:(LOCAL:4):男嫌い && ((TALENT:(LOCAL:0):性別 == 0) || (TALENT:(LOCAL:0):性別 >= 3))
-									PRINTFORML 男に犯されることに頑なに抵抗していた%ANAME(LOCAL:4)%だが、捕虜の身では膣内射精を防ぐ術などない
-								ELSEIF TALENT:(LOCAL:4):人気
-									PRINTFORML 外での人気など牢の中では何の役にも立たないと、%ANAME(LOCAL:4)%は膣内射精の熱い感触を感じながら悟った
-								ELSEIF FIND_PASSIVE_SKILL(LOCAL:4, "努力家")
-									PRINTFORML 努力ではどうにもならないことがあるのだと、%ANAME(LOCAL:4)%は膣内射精の熱い感触を感じながら悟った
-								ENDIF
-							ELSEIF RAND:2 == 0
-								IF !IS_FALLEN(LOCAL:4) || (IS_LOVER(LOCAL:4) && !(LOCAL:0 == MASTER))
-									PRINTFORML %ANAME(LOCAL:4)%は必死に拒絶しようとしたが、捕虜に膣内射精を避ける権利などない
+						IF FLAG:調教モード == 2 && FINDELEMENT(PRISONER_TARGET, LOCAL:4) != -1 && !((TCVAR:(LOCAL:4):52) || (TCVAR:(LOCAL:4):53 == 1))
+							IF IS_ANIMAL(LOCAL:0)
+								IF GETBIT(TALENT:(LOCAL:4):淫乱系, 素質_淫乱_雌犬)
+									SELECTCASE TALENT:(LOCAL:0):動物
+										CASE 動物_犬
+											PRINTFORML すっかり獣との交尾を気に入った%ANAME(LOCAL:4)%は犬の精子が注がれる度に腰をくねらせ尻を振り、お代わりをねだっている
+										CASE 動物_豚
+											PRINTFORML すっかり家畜との交尾を気に入った%ANAME(LOCAL:4)%は豚の精子が注がれる度に腰をくねらせ尻を振り、お代わりをねだっている
+										CASE 動物_馬
+											PRINTFORML すっかり種馬との交尾を気に入った%ANAME(LOCAL:4)%は馬の精子が注がれる度に腰をくねらせ尻を振り、お代わりをねだっている
+									ENDSELECT
+								ELSE
+									SELECTCASE TALENT:(LOCAL:0):動物
+										CASE 動物_犬
+											PRINTFORML 繁殖力旺盛な精子が犬の凶暴なペニスから子宮に注ぎ込まれる熱を感じ、%ANAME(LOCAL:4)%は獣のような悲鳴を上げた
+										CASE 動物_豚
+											PRINTFORML 豚の螺旋状のペニスから家畜の精子が子宮に注ぎ込まれる熱を感じ、%ANAME(LOCAL:4)%は獣のような悲鳴を上げた
+										CASE 動物_馬
+											PRINTFORML 馬の巨大なペニスから子宮を圧迫するほどの精子を注ぎ込まれ、%ANAME(LOCAL:4)%は獣ような悲鳴を上げた
+									ENDSELECT
 								ENDIF
 							ELSE
-								IF GETBIT(TALENT:(LOCAL:4):淫乱系, 素質_淫乱_淫乱)
-									PRINTFORML %ANAME(LOCAL:4)%は捕虜であるにもかかわらず、その淫奔さから膣内射精の快感に酔い痴れている
-								ELSEIF TALENT:(LOCAL:4):快感に素直
-									PRINTFORML 子宮に精子を浴びせかけられる快感に%ANAME(LOCAL:4)%は喘ぎ声を抑えようともしない
-								ELSEIF TALENT:(LOCAL:4):快感の否定
-									PRINTFORML 子宮を精子が蹂躙する快感を否定するように%ANAME(LOCAL:4)%は喘ぎ声を抑えている
-								ELSEIF TALENT:(LOCAL:4):プライド高い
-									IF LOCAL:4 >= 0 && IS_OVULATION(LOCAL:4)
-										PRINTFORML 誇り高い%ANAME(LOCAL:4)%が自ら危険日であることを明かして許しを乞うてきたが、捕虜に膣内射精を避ける権利などない
-									ELSE
-										PRINTFORML 例え囚われの身であっても醜態を晒すまいと、%ANAME(LOCAL:4)%は膣内射精されても努めて平静を保とうとした
+								IF RAND:3 == 0
+									IF TALENT:(LOCAL:4):隷属 && (LOCAL:0 == MASTER)
+										PRINTFORML %ANAME(LOCAL:0)%の奴隷として調教が行き届いた%ANAME(LOCAL:4)%は膣内射精を受け入れ、お礼を言ってきた
+									ELSEIF TALENT:(LOCAL:4):服従 && (LOCAL:0 == MASTER)
+										PRINTFORML %ANAME(LOCAL:0)%の奴隷として調教された%ANAME(LOCAL:4)%は震え声ではあるが、お礼を言うことは忘れなかった
+									ELSEIF TALENT:(LOCAL:4):正妻 && (LOCAL:0 == MASTER)
+										PRINTFORML 伴侶である%ANAME(LOCAL:0)%に捕虜として犯され膣内射精されることに%ANAME(LOCAL:4)%は慣れることができない
+									ELSEIF TALENT:(LOCAL:4):親愛 && (LOCAL:0 == MASTER)
+										PRINTFORML %ANAME(LOCAL:0)%を愛しているのに捕虜として犯され膣内射精されることに%ANAME(LOCAL:4)%は涙を浮かべている
+									ELSEIF TALENT:(LOCAL:4):恋慕 && (LOCAL:0 == MASTER)
+										PRINTFORML %ANAME(LOCAL:0)%に惚れているのに捕虜として犯され膣内射精されることに%ANAME(LOCAL:4)%は涙を浮かべている
+									ELSEIF TALENT:(LOCAL:4):親友 && (LOCAL:0 == MASTER)
+										PRINTFORML 親友だと思っていた%ANAME(LOCAL:0)%に捕まり、犯されて膣内射精されることに%ANAME(LOCAL:4)%は今だ慣れない
+									ELSEIF TALENT:(LOCAL:4):恋人 && (LOCAL:0 == MASTER)
+										PRINTFORML 想いを打ち明けた%ANAME(LOCAL:0)%に捕虜として犯され膣内射精されることに%ANAME(LOCAL:4)%は耐えられない
+									ELSEIF TALENT:(LOCAL:4):合意 && (LOCAL:0 == MASTER)
+										PRINTFORML 以前に体を許した%ANAME(LOCAL:0)%に捕虜として犯され膣内射精されることに%ANAME(LOCAL:4)%は過去の選択を悔やんでいる
+									ELSEIF TALENT:(LOCAL:4):子供人質
+										PRINTFORML 子供を人質に取られた%ANAME(LOCAL:4)%に膣内射精を拒める余地などない
+									ELSEIF TALENT:(LOCAL:4):妊娠
+										PRINTFORML 捕虜である%ANAME(LOCAL:4)%は身重であっても容赦なく膣内射精され、子を育みつつある子宮にさらに精子を注がれている
+									ELSEIF TALENT:(LOCAL:4):キス未経験
+										PRINTFORML %ANAME(LOCAL:4)%はキスすらしたことがないのに捕虜として膣内射精を強いられる現実を受け入れきれないようだ
+									ELSEIF TALENT:(LOCAL:4):男嫌い && ((TALENT:(LOCAL:0):性別 == 0) || (TALENT:(LOCAL:0):性別 >= 3))
+										PRINTFORML 男に犯されることに頑なに抵抗していた%ANAME(LOCAL:4)%だが、捕虜の身では膣内射精を防ぐ術などない
+									ELSEIF TALENT:(LOCAL:4):人気
+										PRINTFORML 外での人気など牢の中では何の役にも立たないと、%ANAME(LOCAL:4)%は膣内射精の熱い感触を感じながら悟った
+									ELSEIF FIND_PASSIVE_SKILL(LOCAL:4, "努力家")
+										PRINTFORML 努力ではどうにもならないことがあるのだと、%ANAME(LOCAL:4)%は膣内射精の熱い感触を感じながら悟った
+									ENDIF
+								ELSEIF RAND:2 == 0
+									IF !IS_FALLEN(LOCAL:4) || (IS_LOVER(LOCAL:4) && !(LOCAL:0 == MASTER))
+										PRINTFORML %ANAME(LOCAL:4)%は必死に拒絶しようとしたが、捕虜に膣内射精を避ける権利などない
+									ENDIF
+								ELSE
+									IF GETBIT(TALENT:(LOCAL:4):淫乱系, 素質_淫乱_淫乱)
+										PRINTFORML %ANAME(LOCAL:4)%は捕虜であるにもかかわらず、その淫奔さから膣内射精の快感に酔い痴れている
+									ELSEIF TALENT:(LOCAL:4):快感に素直
+										PRINTFORML 子宮に精子を浴びせかけられる快感に%ANAME(LOCAL:4)%は喘ぎ声を抑えようともしない
+									ELSEIF TALENT:(LOCAL:4):快感の否定
+										PRINTFORML 子宮を精子が蹂躙する快感を否定するように%ANAME(LOCAL:4)%は喘ぎ声を抑えている
+									ELSEIF TALENT:(LOCAL:4):プライド高い
+										IF LOCAL:4 >= 0 && IS_OVULATION(LOCAL:4)
+											PRINTFORML 誇り高い%ANAME(LOCAL:4)%が自ら危険日であることを明かして許しを乞うてきたが、捕虜に膣内射精を避ける権利などない
+										ELSE
+											PRINTFORML 例え囚われの身であっても醜態を晒すまいと、%ANAME(LOCAL:4)%は膣内射精されても努めて平静を保とうとした
+										ENDIF
 									ENDIF
 								ENDIF
 							ENDIF
 						ENDIF
-					ENDIF
-					SIF LOCAL:4 >= 0 && GETBIT(TALENT:(LOCAL:0):淫乱系, 素質_淫乱_濃厚精液)
-						PRINTFORML %ANAME(LOCAL:0)%の特濃かつ大量の精液に、%ANAME(LOCAL:4)%は目を白黒させている…
-					SIF LOCAL:4 >= 0 && GETBIT(TALENT:(LOCAL:4):淫乱系, 素質_淫乱_孕みたがり)
-						PRINTFORML %ANAME(LOCAL:4)%は子を宿すことの快楽に酔い痴れている…
-					SIF LOCAL:4 >= 0 && GETBIT(TALENT:(LOCAL:4):淫乱系, 素質_淫乱_生ハメ依存)
-						PRINTFORML %ANAME(LOCAL:4)%は生でないと味わえない快感に酔い痴れている…
-					SIF LOCAL:4 >= 0 && GETBIT(TALENT:(LOCAL:4):淫乱系, 素質_淫乱_良質母胎)
-						PRINTFORML 苗床に作り替えられた%ANAME(LOCAL:4)%の子宮が、膣内射精により強烈に疼いている…
-					SIF LOCAL:4 >= 0 && TCVAR:(LOCAL:4):60
-						PRINTFORML 媚薬の効果ゆえか、%ANAME(LOCAL:4)%はとろけた声を上げながら膣内射精の悦びに腰をくねらせる…
-					SIF LOCAL:4 >= 0 && TCVAR:(LOCAL:4):67
-						PRINTFORML 麻薬の力でトリップした%ANAME(LOCAL:4)%は、膣内射精の悦びにとろけた声をあげて腰をくねらせる…
-					SIF LOCAL:4 >= 0 && CFLAG:(LOCAL:4):排卵誘発剤
-						PRINTFORML 薬の効果で孕みやすくなっている%ANAME(LOCAL:4)%の子宮では、大量の精子が卵子に群がっている
-					SIF LOCAL:4 >= 0 && TFLAG:69
-						PRINTFORML 桃源香が漂う中、薄く霞みがかった%ANAME(LOCAL:4)%の頭と身体に膣内射精の悦びが駆け巡る…
-					SIF LOCAL:4 >= 0 && IS_OVULATION(LOCAL:4)
-						PRINTFORML 危険日である%ANAME(LOCAL:4)%の子宮に、無数の精子が注ぎ込まれた…
-				CASE 2
-					PRINTL の腸内に注ぎ込まれた…
-					IF LOCAL:3 == 2
-						PRINTFORML %LOCALS:1%の肛内は、打ちつけられる精液を貪り尽くそうと淫猥に収縮を繰り返している
-					ENDIF
-					IF GETBIT(TALENT:(LOCAL:4):淫乱系, 素質_淫乱_尻穴狂い)
-						PRINTFORML 完全に性器と化した淫肛を駆け上り蹂躙していく熱い感触に、%LOCALS:1%は背徳的な充足感で満たされた…
-					ENDIF
-					IF GETBIT(TALENT:(LOCAL:4):淫乱系, 素質_淫乱_生ハメ依存)
-						PRINTFORML %ANAME(LOCAL:4)%は、生でないと味わえない腸内射精の快感に酔い痴れている…
-					ENDIF
-					IF LOCAL:4 >= 0 && TCVAR:(LOCAL:4):60
-						PRINTFORML 媚薬の効果ゆえか、%ANAME(LOCAL:4)%はとろけた声を上げながら肛内射精の悦びに腰をくねらせる…
-					ENDIF
-					IF LOCAL:4 >= 0 && TCVAR:(LOCAL:4):67
-						PRINTFORML 麻薬の力でトリップした%ANAME(LOCAL:4)%は、肛内射精の悦びにとろけた声をあげて腰をくねらせる…
-					ENDIF
-					IF LOCAL:4 >= 0 && CFLAG:(LOCAL:4):排卵誘発剤
-						PRINTFORML 薬の効果で孕みやすくなっている%ANAME(LOCAL:4)%の子宮が、肛内射精に反応してひくひくと震えている…
-					ENDIF
-					IF LOCAL:4 >= 0 && TFLAG:69
-						PRINTFORML 桃源香が漂う中、薄く霞みがかった%ANAME(LOCAL:4)%の頭と身体に肛内射精の悦びが駆け巡る…
-					ENDIF
-				CASE 3
-					PRINTL の手の中に迸った…
-					IF LOCAL:3 == 2
-						PRINTFORML %LOCALS:1%は恍惚とした表情で手に付いた精液を舐め取っている…
-					ENDIF
-				CASE 4
-					PRINTL の口の中に迸った…
-					IF TALENT:(LOCAL:4):プライド高い
-						IF TALENT:(LOCAL:4):恋慕 && (LOCAL:0 == MASTER)
-							PRINTFORML %LOCALS:1%は恍惚とペニスを咥えたまま、自負心に満ちた瞳で見つめてきた
-						ELSEIF TALENT:(LOCAL:4):服従 && (LOCAL:0 == MASTER)
-							PRINTFORML %LOCALS:1%は己を屈服させたペニスを睨みながらも、決して熱い視線を離そうとはしない
-						ELSE
-							PRINTFORML %LOCALS:1%はペニスを咥えたまま上目遣いで睨んできた
+						SIF LOCAL:4 >= 0 && GETBIT(TALENT:(LOCAL:0):淫乱系, 素質_淫乱_濃厚精液)
+							PRINTFORML %ANAME(LOCAL:0)%の特濃かつ大量の精液に、%ANAME(LOCAL:4)%は目を白黒させている…
+						SIF LOCAL:4 >= 0 && GETBIT(TALENT:(LOCAL:4):淫乱系, 素質_淫乱_孕みたがり)
+							PRINTFORML %ANAME(LOCAL:4)%は子を宿すことの快楽に酔い痴れている…
+						SIF LOCAL:4 >= 0 && GETBIT(TALENT:(LOCAL:4):淫乱系, 素質_淫乱_生ハメ依存)
+							PRINTFORML %ANAME(LOCAL:4)%は生でないと味わえない快感に酔い痴れている…
+						SIF LOCAL:4 >= 0 && GETBIT(TALENT:(LOCAL:4):淫乱系, 素質_淫乱_良質母胎)
+							PRINTFORML 苗床に作り替えられた%ANAME(LOCAL:4)%の子宮が、膣内射精により強烈に疼いている…
+						SIF LOCAL:4 >= 0 && TCVAR:(LOCAL:4):60
+							PRINTFORML 媚薬の効果ゆえか、%ANAME(LOCAL:4)%はとろけた声を上げながら膣内射精の悦びに腰をくねらせる…
+						SIF LOCAL:4 >= 0 && TCVAR:(LOCAL:4):67
+							PRINTFORML 麻薬の力でトリップした%ANAME(LOCAL:4)%は、膣内射精の悦びにとろけた声をあげて腰をくねらせる…
+						SIF LOCAL:4 >= 0 && CFLAG:(LOCAL:4):排卵誘発剤
+							PRINTFORML 薬の効果で孕みやすくなっている%ANAME(LOCAL:4)%の子宮では、大量の精子が卵子に群がっている
+						SIF LOCAL:4 >= 0 && TFLAG:69
+							PRINTFORML 桃源香が漂う中、薄く霞みがかった%ANAME(LOCAL:4)%の頭と身体に膣内射精の悦びが駆け巡る…
+						SIF LOCAL:4 >= 0 && IS_OVULATION(LOCAL:4)
+							PRINTFORML 危険日である%ANAME(LOCAL:4)%の子宮に、無数の精子が注ぎ込まれた…
+					CASE 2
+						PRINTL の腸内に注ぎ込まれた…
+						IF LOCAL:3 == 2
+							PRINTFORML %LOCALS:1%の肛内は、打ちつけられる精液を貪り尽くそうと淫猥に収縮を繰り返している
 						ENDIF
-					ENDIF
-					IF LOCAL:3 == 2
-						IF LOCAL:2 >= 2
-							PRINTFORML %LOCALS:1%は吐き出された精液を争うようにして舐め取っていった…
-						ELSE
-							PRINTFORML %LOCALS:1%は吐き出された精液を一滴残らず吸い上げ、喉を鳴らして飲み込んだ…
+						IF GETBIT(TALENT:(LOCAL:4):淫乱系, 素質_淫乱_尻穴狂い)
+							PRINTFORML 完全に性器と化した淫肛を駆け上り蹂躙していく熱い感触に、%LOCALS:1%は背徳的な充足感で満たされた…
 						ENDIF
-					ELSEIF LOCAL:3 == 1
-						IF LOCAL:2 >= 2
-							PRINTFORML %LOCALS:1%は吐き出された精液を協力して舐め取っていった…
-						ELSE
-							PRINTFORML %LOCALS:1%は吐き出された精液を飲み込んだ…
+						IF GETBIT(TALENT:(LOCAL:4):淫乱系, 素質_淫乱_生ハメ依存)
+							PRINTFORML %ANAME(LOCAL:4)%は、生でないと味わえない腸内射精の快感に酔い痴れている…
 						ENDIF
-					ELSEIF LOCAL:3 == 0 && LOCAL:2 == 1
-						PRINTFORML %LOCALS:1%は精液を飲み込むことができず、吐き出してしまった…
-					ENDIF
-				CASE 5
-					PRINTL の胸を白く染め上げた…
-					IF LOCAL:3 == 2
-						PRINTFORML %ANAME(LOCAL:4)%は胸に掛かった精液を指ですくい上げ、美味しそうに舐め取っている…
-					ENDIF
-				CASE 6
-					PRINTL の足を汚した…
-					IF LOCAL:3 == 2
-						PRINTFORML %ANAME(LOCAL:4)%は足に掛かった精液をネチャネチャと気持ち良さそうに擦り付けている…
-					ENDIF
-				CASE 7
-					PRINTL の尻尾を汚していった…
-				CASE 8
-					PRINTL の顔に降りかかった…
-					IF TALENT:(LOCAL:4):プライド高い
-						IF CFLAG:(LOCAL:4):2 >= 1500 || CFLAG:(LOCAL:4):4 >= 1500
-							PRINTFORML %LOCALS:1%の顔射への屈辱は、既に充足感へと変わっている
-						ELSE
-							PRINTFORML %LOCALS:1%は顔に精液をかけられ、やや目を鋭くしている
+						IF LOCAL:4 >= 0 && TCVAR:(LOCAL:4):60
+							PRINTFORML 媚薬の効果ゆえか、%ANAME(LOCAL:4)%はとろけた声を上げながら肛内射精の悦びに腰をくねらせる…
 						ENDIF
-					ELSEIF TALENT:(LOCAL:4):プライド低い
-						PRINTFORML %LOCALS:1%は目を閉じ、精液を顔に浴びることを受け入れている
-					ENDIF
-					IF LOCAL:3 == 2
-						PRINTFORML %LOCALS:1%は顔に付いた精液を指ですくい上げ、美味しそうに舐め取っている…
-					ENDIF
-				CASE 9
-					PRINTL の髪にべったりとこびり付いた…
-				CASE 10
-					PRINTL の腋を白く染め上げた…
-				CASE 11
-					IF TALENT:(LOCAL:4):美尻
-						PRINTL の綺麗な桃尻を白く染め上げた…
-					ELSEIF GET_HIPSIZE(LOCAL:4) >= 1
-						PRINTL の肉付きのいい見事なお尻を白く染め上げた…
-					ELSE
-						PRINTL のお尻を白く染め上げた…
-					ENDIF
-					IF LOCAL:3 == 2
-						PRINTFORML %LOCALS:1%はお尻に精液が掛かる度に、その双丘をぷるぷると震わせている…
-					ENDIF
-				CASE 12
-					PRINTL の持つオナホールの中に注がれていった…
-				CASE 13
-					PRINTL の操る触手に吸い出されていった…
-				CASEELSE
-					PRINTL へ降り掛かっていった…
-			ENDSELECT
-		ENDIF
+						IF LOCAL:4 >= 0 && TCVAR:(LOCAL:4):67
+							PRINTFORML 麻薬の力でトリップした%ANAME(LOCAL:4)%は、肛内射精の悦びにとろけた声をあげて腰をくねらせる…
+						ENDIF
+						IF LOCAL:4 >= 0 && CFLAG:(LOCAL:4):排卵誘発剤
+							PRINTFORML 薬の効果で孕みやすくなっている%ANAME(LOCAL:4)%の子宮が、肛内射精に反応してひくひくと震えている…
+						ENDIF
+						IF LOCAL:4 >= 0 && TFLAG:69
+							PRINTFORML 桃源香が漂う中、薄く霞みがかった%ANAME(LOCAL:4)%の頭と身体に肛内射精の悦びが駆け巡る…
+						ENDIF
+					CASE 3
+						PRINTL の手の中に迸った…
+						IF LOCAL:3 == 2
+							PRINTFORML %LOCALS:1%は恍惚とした表情で手に付いた精液を舐め取っている…
+						ENDIF
+					CASE 4
+						PRINTL の口の中に迸った…
+						IF TALENT:(LOCAL:4):プライド高い
+							IF TALENT:(LOCAL:4):恋慕 && (LOCAL:0 == MASTER)
+								PRINTFORML %LOCALS:1%は恍惚とペニスを咥えたまま、自負心に満ちた瞳で見つめてきた
+							ELSEIF TALENT:(LOCAL:4):服従 && (LOCAL:0 == MASTER)
+								PRINTFORML %LOCALS:1%は己を屈服させたペニスを睨みながらも、決して熱い視線を離そうとはしない
+							ELSE
+								PRINTFORML %LOCALS:1%はペニスを咥えたまま上目遣いで睨んできた
+							ENDIF
+						ENDIF
+						IF LOCAL:3 == 2
+							IF LOCAL:2 >= 2
+								PRINTFORML %LOCALS:1%は吐き出された精液を争うようにして舐め取っていった…
+							ELSE
+								PRINTFORML %LOCALS:1%は吐き出された精液を一滴残らず吸い上げ、喉を鳴らして飲み込んだ…
+							ENDIF
+						ELSEIF LOCAL:3 == 1
+							IF LOCAL:2 >= 2
+								PRINTFORML %LOCALS:1%は吐き出された精液を協力して舐め取っていった…
+							ELSE
+								PRINTFORML %LOCALS:1%は吐き出された精液を飲み込んだ…
+							ENDIF
+						ELSEIF LOCAL:3 == 0 && LOCAL:2 == 1
+							PRINTFORML %LOCALS:1%は精液を飲み込むことができず、吐き出してしまった…
+						ENDIF
+					CASE 5
+						PRINTL の胸を白く染め上げた…
+						IF LOCAL:3 == 2
+							PRINTFORML %ANAME(LOCAL:4)%は胸に掛かった精液を指ですくい上げ、美味しそうに舐め取っている…
+						ENDIF
+					CASE 6
+						PRINTL の足を汚した…
+						IF LOCAL:3 == 2
+							PRINTFORML %ANAME(LOCAL:4)%は足に掛かった精液をネチャネチャと気持ち良さそうに擦り付けている…
+						ENDIF
+					CASE 7
+						PRINTL の尻尾を汚していった…
+					CASE 8
+						PRINTL の顔に降りかかった…
+						IF TALENT:(LOCAL:4):プライド高い
+							IF CFLAG:(LOCAL:4):2 >= 1500 || CFLAG:(LOCAL:4):4 >= 1500
+								PRINTFORML %LOCALS:1%の顔射への屈辱は、既に充足感へと変わっている
+							ELSE
+								PRINTFORML %LOCALS:1%は顔に精液をかけられ、やや目を鋭くしている
+							ENDIF
+						ELSEIF TALENT:(LOCAL:4):プライド低い
+							PRINTFORML %LOCALS:1%は目を閉じ、精液を顔に浴びることを受け入れている
+						ENDIF
+						IF LOCAL:3 == 2
+							PRINTFORML %LOCALS:1%は顔に付いた精液を指ですくい上げ、美味しそうに舐め取っている…
+						ENDIF
+					CASE 9
+						PRINTL の髪にべったりとこびり付いた…
+					CASE 10
+						PRINTL の腋を白く染め上げた…
+					CASE 11
+						IF TALENT:(LOCAL:4):美尻
+							PRINTL の綺麗な桃尻を白く染め上げた…
+						ELSEIF GET_HIPSIZE(LOCAL:4) >= 1
+							PRINTL の肉付きのいい見事なお尻を白く染め上げた…
+						ELSE
+							PRINTL のお尻を白く染め上げた…
+						ENDIF
+						IF LOCAL:3 == 2
+							PRINTFORML %LOCALS:1%はお尻に精液が掛かる度に、その双丘をぷるぷると震わせている…
+						ENDIF
+					CASE 12
+						PRINTL の持つオナホールの中に注がれていった…
+					CASE 13
+						PRINTL の操る触手に吸い出されていった…
+					CASEELSE
+						PRINTL へ降り掛かっていった…
+				ENDSELECT
+			ENDIF
+		NEXT
+		$CUM_SKIP
 
 		IF TCVAR:(LOCAL:0):51
 			IF TCVAR:(LOCAL:0):52
